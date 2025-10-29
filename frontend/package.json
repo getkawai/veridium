@@ -10,13 +10,17 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@ant-design/pro-components": "^2.8.10",
+    "@icons-pack/react-simple-icons": "^13.8.0",
     "@lobehub/ui": "^2.13.5",
     "@wailsio/runtime": "latest",
     "lucide-react": "^0.548.0",
+    "plaiceholder": "^3.0.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-i18next": "^16.2.1",
-    "ua-parser-js": "^1.0.41"
+    "ua-parser-js": "^1.0.41",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",
