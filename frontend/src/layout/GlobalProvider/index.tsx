@@ -13,7 +13,7 @@ interface GlobalLayoutProps {
   variants?: string;
 }
 
-const GlobalLayout = async ({
+const GlobalLayout = ({
   children,
   neutralColor,
   primaryColor,

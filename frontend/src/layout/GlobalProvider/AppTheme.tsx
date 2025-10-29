@@ -13,9 +13,6 @@ import {Image} from '@lobehub/ui';
 import { ReactNode, memo } from 'react';
 
 import AntdStaticMethods from '@/components/AntdStaticMethods';
-import {
-  LOBE_THEME_APPEARANCE,
-} from '@/const/theme';
 import { GlobalStyle } from '@/styles';
 import { setCookie } from '@/utils/client/cookie';
 
@@ -107,7 +104,7 @@ const AppTheme = memo<AppThemeProps>(
         }}
         defaultAppearance={defaultAppearance}
         onAppearanceChange={(appearance) => {
-          setCookie(LOBE_THEME_APPEARANCE, appearance);
+          setCookie('LOBE_THEME_APPEARANCE', appearance);
         }}
         theme={{
           cssVar: true,

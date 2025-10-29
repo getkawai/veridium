@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import {GreetService} from "../bindings/github.com/kawai-network/veridium";
 import {Events, WML} from "@wailsio/runtime";
 import CircleLoader from './components/CircleLoader';
+import GlobalLayout from './layout/GlobalProvider';
 
 function App() {
   const [name, setName] = useState<string>('');
@@ -29,29 +30,31 @@ function App() {
   }, []);
 
   return (
-    <div className="container">
-      <div>
-        <a data-wml-openURL="https://wails.io">
-          <img src="/wails.png" className="logo" alt="Wails logo"/>
-        </a>
-        <a data-wml-openURL="https://reactjs.org">
-          <img src="/react.svg" className="logo react" alt="React logo"/>
-        </a>
-      </div>
-      <h1>Wails + React</h1>
-      <CircleLoader/>
-      <div className="result">{result}</div>
-      <div className="card">
-        <div className="input-box">
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} type="text" autoComplete="off"/>
-          <button className="btn" onClick={doGreet}>Greet</button>
+    <GlobalLayout appearance={'auto'} isMobile={false} locale={''} neutralColor={undefined} primaryColor={undefined} variants={undefined}>
+      <div className="container">
+        <div>
+          <a data-wml-openURL="https://wails.io">
+            <img src="/wails.png" className="logo" alt="Wails logo"/>
+          </a>
+          <a data-wml-openURL="https://reactjs.org">
+            <img src="/react.svg" className="logo react" alt="React logo"/>
+          </a>
+        </div>
+        <h1>Wails + React</h1>
+        <CircleLoader/>
+        <div className="result">{result}</div>
+        <div className="card">
+          <div className="input-box">
+            <input className="input" value={name} onChange={(e) => setName(e.target.value)} type="text" autoComplete="off"/>
+            <button className="btn" onClick={doGreet}>Greet</button>
+          </div>
+        </div>
+        <div className="footer">
+          <div><p>Click on the Wails logo to learn more</p></div>
+          <div><p>{time}</p></div>
         </div>
       </div>
-      <div className="footer">
-        <div><p>Click on the Wails logo to learn more</p></div>
-        <div><p>{time}</p></div>
-      </div>
-    </div>
+    </GlobalLayout>
   )
 }
 
