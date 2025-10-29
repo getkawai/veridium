@@ -11,7 +11,7 @@ export function parseFeatureFlag(flagString?: string): Partial<IFeatureFlags> {
   if (!flagString) return flags;
 
   // 将中文逗号替换为英文逗号,并按逗号分割字符串
-  const flagArray = flagString.trim().replaceAll('，', ',').split(',');
+  const flagArray = flagString.trim().replace('，', ',').split(',');
 
   for (let flag of flagArray) {
     flag = flag.trim();

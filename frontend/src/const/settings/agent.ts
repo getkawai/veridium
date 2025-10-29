@@ -2,8 +2,8 @@ import {
   LobeAgentChatConfig,
   LobeAgentConfig,
   LobeAgentTTSConfig,
-  UserDefaultAgent,
 } from '@/types/agent';
+import { UserDefaultAgent } from '@/types/user/settings';
 
 import { DEFAULT_AGENT_META } from '../meta';
 import { DEFAULT_MODEL, DEFAULT_PROVIDER } from './llm';

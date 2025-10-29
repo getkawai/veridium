@@ -1,5 +1,5 @@
 import { FileTypeIcon, MaterialFileTypeIcon } from '@lobehub/ui';
-import React, { memo } from 'react';
+import { memo } from 'react';
 
 import { mimeTypeMap } from './config';
 
