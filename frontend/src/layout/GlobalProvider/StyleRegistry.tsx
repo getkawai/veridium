@@ -1,23 +1,13 @@
 'use client';
 
 import { StyleProvider, extractStaticStyle } from 'antd-style';
-import { useServerInsertedHTML } from 'next/navigation';
-import { PropsWithChildren, useRef } from 'react';
+import { PropsWithChildren } from 'react';
 
+/**
+ * StyleRegistry adapted for Vite/CSR
+ * In Vite, we don't need SSR hydration, so this is simplified
+ */
 const StyleRegistry = ({ children }: PropsWithChildren) => {
-  const isInsert = useRef(false);
-
-  useServerInsertedHTML(() => {
-    // avoid duplicate css insert
-    // refs: https://github.com/vercel/next.js/discussions/49354#discussioncomment-6279917
-    if (isInsert.current) return;
-
-    isInsert.current = true;
-
-    // @ts-ignore
-    return extractStaticStyle().map((item) => item.style);
-  });
-
   return <StyleProvider cache={extractStaticStyle.cache}>{children}</StyleProvider>;
 };
 

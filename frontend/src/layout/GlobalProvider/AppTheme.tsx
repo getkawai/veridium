@@ -10,18 +10,12 @@ import {
 import { ThemeAppearance, createStyles } from 'antd-style';
 import 'antd/dist/reset.css';
 import {Image} from '@lobehub/ui';
-import { ReactNode, memo, useEffect } from 'react';
+import { ReactNode, memo } from 'react';
 
 import AntdStaticMethods from '@/components/AntdStaticMethods';
 import {
   LOBE_THEME_APPEARANCE,
-  LOBE_THEME_NEUTRAL_COLOR,
-  LOBE_THEME_PRIMARY_COLOR,
 } from '@/const/theme';
-import { useGlobalStore } from '@/store/global';
-import { systemStatusSelectors } from '@/store/global/selectors';
-import { useUserStore } from '@/store/user';
-import { userGeneralSettingsSelectors } from '@/store/user/selectors';
 import { GlobalStyle } from '@/styles';
 import { setCookie } from '@/utils/client/cookie';
 
@@ -101,45 +95,29 @@ const AppTheme = memo<AppThemeProps>(
     customFontURL,
     customFontFamily,
   }) => {
-    const themeMode = useGlobalStore(systemStatusSelectors.themeMode);
     const { styles, cx, theme } = useStyles();
-    const [primaryColor, neutralColor, animationMode] = useUserStore((s) => [
-      userGeneralSettingsSelectors.primaryColor(s),
-      userGeneralSettingsSelectors.neutralColor(s),
-      userGeneralSettingsSelectors.animationMode(s),
-    ]);
-
-    useEffect(() => {
-      setCookie(LOBE_THEME_PRIMARY_COLOR, primaryColor);
-    }, [primaryColor]);
-
-    useEffect(() => {
-      setCookie(LOBE_THEME_NEUTRAL_COLOR, neutralColor);
-    }, [neutralColor]);
 
     return (
       <ThemeProvider
-        appearance={themeMode !== 'auto' ? themeMode : undefined}
+        appearance={'auto'}
         className={cx(styles.app, styles.scrollbar, styles.scrollbarPolyfill)}
         customTheme={{
-          neutralColor: neutralColor ?? defaultNeutralColor,
-          primaryColor: primaryColor ?? defaultPrimaryColor,
+          neutralColor: defaultNeutralColor,
+          primaryColor: defaultPrimaryColor,
         }}
         defaultAppearance={defaultAppearance}
         onAppearanceChange={(appearance) => {
-          if (themeMode !== 'auto') return;
-
           setCookie(LOBE_THEME_APPEARANCE, appearance);
         }}
         theme={{
           cssVar: true,
           token: {
             fontFamily: customFontFamily ? `${customFontFamily},${theme.fontFamily}` : undefined,
-            motion: animationMode !== 'disabled',
-            motionUnit: animationMode === 'agile' ? 0.05 : 0.1,
+            motion: true,
+            motionUnit: 0.05,
           },
         }}
-        themeMode={themeMode}
+        themeMode={'auto'}
       >
         {!!customFontURL && <FontLoader url={customFontURL} />}
         <GlobalStyle />
