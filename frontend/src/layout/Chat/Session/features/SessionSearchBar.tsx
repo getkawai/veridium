@@ -1,40 +1,13 @@
 'use client';
 
 import { SearchBar } from '@lobehub/ui';
-import { memo, useCallback } from 'react';
+import { type ChangeEvent, memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { type ChangeEvent } from 'react';
 
-// Dummy implementations for UI focus
-const dummyUserState = {
-  isLoaded: true,
-};
-
-const settingsSelectors = {
-  getHotkeyById: (id: string) => () => (id === 'search' ? '⌘K' : ''),
-};
-
-const HotkeyEnum = {
-  Search: 'search',
-} as const;
-
-function useUserStore(selector: (s: typeof dummyUserState) => any): any {
-  return selector(dummyUserState);
-}
-
-const dummySessionState = {
-  sessionSearchKeywords: '',
-  useSearchSessions: (keywords: string) => ({
-    isValidating: keywords.length > 0 && Math.random() > 0.7, // Dummy validation
-  }),
-  updateSearchKeywords: (value: string) => {
-    // Dummy update
-  },
-};
-
-function useSessionStore(selector: (s: typeof dummySessionState) => any): any {
-  return selector(dummySessionState);
-}
+// import { useSessionStore } from '@/store/session';
+// import { useUserStore } from '@/store/user';
+// import { settingsSelectors } from '@/store/user/selectors';
+import { HotkeyEnum } from '@/types/hotkey';
 
 const SessionSearchBar = memo<{ mobile?: boolean }>(({ mobile }) => {
   const { t } = useTranslation('chat');
