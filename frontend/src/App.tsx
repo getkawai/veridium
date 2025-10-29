@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import {GreetService} from "../bindings/github.com/kawai-network/veridium";
 import {Events, WML} from "@wailsio/runtime";
+import CircleLoader from './components/CircleLoader';
 
 function App() {
   const [name, setName] = useState<string>('');
@@ -38,6 +39,7 @@ function App() {
         </a>
       </div>
       <h1>Wails + React</h1>
+      <CircleLoader/>
       <div className="result">{result}</div>
       <div className="card">
         <div className="input-box">
