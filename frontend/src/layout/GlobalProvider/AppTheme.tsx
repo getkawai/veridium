@@ -9,8 +9,7 @@ import {
 } from '@lobehub/ui';
 import { ThemeAppearance, createStyles } from 'antd-style';
 import 'antd/dist/reset.css';
-import Image from 'next/image';
-import Link from 'next/link';
+import {Image} from '@lobehub/ui';
 import { ReactNode, memo, useEffect } from 'react';
 
 import AntdStaticMethods from '@/components/AntdStaticMethods';
@@ -147,7 +146,6 @@ const AppTheme = memo<AppThemeProps>(
         <AntdStaticMethods />
         <ConfigProvider
           config={{
-            aAs: Link,
             imgAs: Image,
             imgUnoptimized: true,
             proxy: globalCDN ? 'unpkg' : undefined,
