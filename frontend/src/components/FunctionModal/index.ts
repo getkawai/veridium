@@ -1,1 +1,1 @@
-// export * from './createModalHooks';
+export * from './createModalHooks';

@@ -1,4 +1,4 @@
-import { UserSettings } from '@/types/user/settings';
+import { UserSettings } from '@lobechat/types';
 
 import { DEFAULT_AGENT } from './agent';
 import { DEFAULT_COMMON_SETTINGS } from './common';

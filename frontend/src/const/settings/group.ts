@@ -1,4 +1,8 @@
-import { LobeChatGroupChatConfig, LobeChatGroupFullConfig, LobeChatGroupMetaConfig } from '@/types/chatGroup';
+import {
+  LobeChatGroupChatConfig,
+  LobeChatGroupFullConfig,
+  LobeChatGroupMetaConfig,
+} from '@lobechat/types';
 
 import { DEFAULT_MODEL, DEFAULT_PROVIDER } from './llm';
 

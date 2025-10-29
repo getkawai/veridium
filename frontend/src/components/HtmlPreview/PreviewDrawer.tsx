@@ -6,8 +6,8 @@ import { Code2, Download, Eye } from 'lucide-react';
 import { memo, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
+import { TITLE_BAR_HEIGHT } from '@/features/ElectronTitlebar';
 
-const TITLE_BAR_HEIGHT = 30;
 const isDesktop = true;
 const useStyles = createStyles(({ css }) => ({
   container: css`
@@ -40,8 +40,8 @@ const HtmlPreviewDrawer = memo<HtmlPreviewDrawerProps>(({ content, open, onClose
 
   const sanitizeFileName = useCallback((name: string) => {
     return name
-      .replace(/["*/:<>?\\|]/g, '-')
-      .replace(/\s+/g, ' ')
+      .replaceAll(/["*/:<>?\\|]/g, '-')
+      .replaceAll(/\s+/g, ' ')
       .trim()
       .slice(0, 100);
   }, []);
