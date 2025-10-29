@@ -1,4 +1,4 @@
-import type { ModelProviderKey } from '@lobechat/model-runtime';
+// import type { ModelProviderKey } from '@lobechat/model-runtime';
 import { AiFullModelCard } from '@/model-bank';
 
 import { ChatModelCard } from '../../llm';
@@ -32,6 +32,6 @@ export interface ProviderConfig {
   serverModelLists?: AiFullModelCard[];
 }
 
-export type GlobalLLMProviderKey = ModelProviderKey;
+export type GlobalLLMProviderKey = string; // ModelProviderKey;
 
-export type UserModelProviderConfig = Record<ModelProviderKey, ProviderConfig>;
+export type UserModelProviderConfig = Record<string, ProviderConfig>; // ModelProviderKey, ProviderConfig
