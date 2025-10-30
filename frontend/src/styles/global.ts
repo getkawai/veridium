@@ -6,7 +6,7 @@ import { Theme, css } from 'antd-style';
 export default ({ token }: { prefixCls: string; token: Theme }) => css`
   html,
   body,
-  #__next {
+  #root {
     position: relative;
 
     overscroll-behavior: none;
