@@ -16,6 +16,7 @@
     "@lobehub/market-sdk": "^0.22.7",
     "@lobehub/ui": "^2.13.5",
     "@wailsio/runtime": "latest",
+    "drizzle-orm": "^0.44.7",
     "gpt-tokenizer": "^3.2.0",
     "i18next-browser-languagedetector": "^8.2.0",
     "i18next-resources-to-backend": "^1.2.1",

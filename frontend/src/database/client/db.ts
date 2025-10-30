@@ -1,6 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/sqlite-core';
-import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
+import { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
 import { Md5 } from 'ts-md5';
 
 import {
@@ -144,9 +143,9 @@ export class DatabaseManager {
 
         // Create Drizzle instance with Wails SQLite driver
         const db = createDrizzleWailsSQLite(this.driver, schema);
-        
-        // Wrap with drizzle for full ORM functionality
-        this.dbInstance = drizzle(db as any, { schema }) as DrizzleInstance;
+
+        // Create BaseSQLiteDatabase instance
+        this.dbInstance = new BaseSQLiteDatabase('sync', db.dialect as any, db.session as any, undefined);
 
         await this.migrate(true);
 
@@ -250,7 +249,7 @@ export const resetClientDatabase = async () => {
 };
 
 export const updateMigrationRecord = async (migrationHash: string) => {
-  await clientDB.execute(
+  await clientDB.run(
     sql`INSERT INTO "drizzle"."__drizzle_migrations" ("hash", "created_at") VALUES (${migrationHash}, ${Date.now()});`,
   );
 

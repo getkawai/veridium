@@ -40,8 +40,8 @@ export class WailsSQLiteDriver {
     return this.execute(query, params);
   }
 
-  async all<T = Row[]>(query: string, params?: any[]): Promise<T> {
-    return this.query<T>(query, params);
+  async all(query: string, params?: any[]): Promise<Row[]> {
+    return this.query<Rows>(query, params);
   }
 
   async get<T = Row>(query: string, params?: any[]): Promise<T | undefined> {
@@ -85,11 +85,40 @@ export class WailsSQLiteSession {
     };
   }
 
+  prepareOneTimeQuery(query: string, fields?: any[], params?: any[], customResultMapper?: any) {
+    return this.prepareQuery(query, fields, params, customResultMapper);
+  }
+
+  async run(query: string, params?: any[]): Promise<any> {
+    return this.driver.run(query, params);
+  }
+
+  async all(query: string, params?: any[]): Promise<Row[]> {
+    return this.driver.all(query, params);
+  }
+
+  async get<T = Row>(query: string, params?: any[]): Promise<T | undefined> {
+    return this.driver.get<T>(query, params);
+  }
+
+  async values<T = any[]>(query: string, params?: any[]): Promise<T[]> {
+    return this.driver.values<T>(query, params);
+  }
+
+  async count(query: string, params?: any[]): Promise<number> {
+    const result = await this.get(query, params);
+    if (result && typeof result === 'object') {
+      const values = Object.values(result);
+      return typeof values[0] === 'number' ? values[0] : 0;
+    }
+    return 0;
+  }
+
   async transaction<T>(
     transaction: (tx: WailsSQLiteSession) => Promise<T>,
   ): Promise<T> {
     await this.driver.execute('BEGIN');
-    
+
     try {
       const result = await transaction(this);
       await this.driver.execute('COMMIT');
@@ -171,4 +200,3 @@ export function createDrizzleWailsSQLite<TSchema extends Record<string, unknown>
     },
   };
 }
-
