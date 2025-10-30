@@ -1,4 +1,4 @@
-import { UserGuide, UserKeyVaults, UserPreference, UserSettings } from '@lobechat/types';
+import { UserGuide, UserKeyVaults, UserPreference, UserSettings } from  '@/types';
 import { TRPCError } from '@trpc/server';
 import dayjs from 'dayjs';
 import { eq } from 'drizzle-orm';

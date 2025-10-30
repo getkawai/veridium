@@ -5,7 +5,7 @@ import {
   LobeAgentSession,
   LobeGroupSession,
   SessionRankItem,
-} from '@lobechat/types';
+} from  '@/types';
 import {
   Column,
   and,

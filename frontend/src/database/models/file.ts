@@ -1,4 +1,4 @@
-import { FilesTabs, QueryFileListParams, SortType } from '@lobechat/types';
+import { FilesTabs, QueryFileListParams, SortType } from  '@/types';
 import { and, asc, count, desc, eq, ilike, inArray, like, notExists, or, sum } from 'drizzle-orm';
 import type { PgTransaction } from 'drizzle-orm/pg-core';
 

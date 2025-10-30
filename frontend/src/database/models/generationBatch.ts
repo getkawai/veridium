@@ -1,4 +1,4 @@
-import { Generation, GenerationAsset, GenerationBatch, GenerationConfig } from '@lobechat/types';
+import { Generation, GenerationAsset, GenerationBatch, GenerationConfig } from  '@/types';
 import debug from 'debug';
 import { and, eq } from 'drizzle-orm';
 

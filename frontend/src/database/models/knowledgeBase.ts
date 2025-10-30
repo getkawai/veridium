@@ -1,4 +1,4 @@
-import { KnowledgeBaseItem } from '@lobechat/types';
+import { KnowledgeBaseItem } from  '@/types';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 
 import { NewKnowledgeBase, knowledgeBaseFiles, knowledgeBases } from '../schemas';

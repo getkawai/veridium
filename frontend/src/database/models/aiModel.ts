@@ -5,7 +5,7 @@ import {
   AiProviderModelListItem,
   EnabledAiModel,
   ToggleAiModelEnableParams,
-} from 'model-bank';
+} from '@/model-bank';
 
 import { AiModelSelectItem, NewAiModelItem, aiModels } from '../schemas';
 import { LobeChatDatabase } from '../type';

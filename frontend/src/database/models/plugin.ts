@@ -1,4 +1,4 @@
-import { LobeTool } from '@lobechat/types';
+import { LobeTool } from  '@/types';
 import { and, desc, eq } from 'drizzle-orm';
 
 import { InstalledPluginItem, NewInstalledPlugin, userInstalledPlugins } from '../schemas';

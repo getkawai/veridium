@@ -1,4 +1,4 @@
-import { DBMessageItem, TopicRankItem } from '@lobechat/types';
+import { DBMessageItem, TopicRankItem } from  '@/types';
 import { and, count, desc, eq, gt, ilike, inArray, isNull, or, sql } from 'drizzle-orm';
 
 import { TopicItem, messages, topics } from '../schemas';

@@ -1,4 +1,4 @@
-import { GenerationAsset, ImageGenerationTopic } from '@lobechat/types';
+import { GenerationAsset, ImageGenerationTopic } from  '@/types';
 import { and, desc, eq } from 'drizzle-orm';
 
 import { FileService } from '@/server/services/file';

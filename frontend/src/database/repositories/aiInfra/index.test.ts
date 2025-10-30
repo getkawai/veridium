@@ -1,4 +1,4 @@
-import { AiProviderModelListItem, EnabledAiModel } from 'model-bank';
+import { AiProviderModelListItem, EnabledAiModel } from '@/model-bank';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DEFAULT_MODEL_PROVIDER_LIST } from '@/config/modelProviders';

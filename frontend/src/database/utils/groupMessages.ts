@@ -5,7 +5,7 @@ import {
   ModelPerformance,
   ModelUsage,
   UIChatMessage,
-} from '@lobechat/types';
+} from  '@/types';
 
 /**
  * Split MessageMetadata into usage and performance

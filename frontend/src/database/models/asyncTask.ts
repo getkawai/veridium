@@ -3,7 +3,7 @@ import {
   AsyncTaskErrorType,
   AsyncTaskStatus,
   AsyncTaskType,
-} from '@lobechat/types';
+} from  '@/types';
 import { and, eq, inArray, lt } from 'drizzle-orm';
 
 import { AsyncTaskSelectItem, NewAsyncTaskItem, asyncTasks } from '../schemas';

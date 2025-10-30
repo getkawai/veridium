@@ -1,5 +1,5 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix  */
-import { ImageGenerationAsset } from '@lobechat/types';
+import { ImageGenerationAsset } from  '@/types';
 import { integer, jsonb, pgTable, text, uuid, varchar } from 'drizzle-orm/pg-core';
 import { createInsertSchema } from 'drizzle-zod';
 

@@ -1,4 +1,4 @@
-import { UIChatMessage } from '@lobechat/types';
+import { UIChatMessage } from  '@/types';
 import { describe, expect, it } from 'vitest';
 
 import { groupAssistantMessages } from '../groupMessages';

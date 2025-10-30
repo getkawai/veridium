@@ -1,5 +1,5 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix  */
-import { EvalEvaluationStatus } from '@lobechat/types';
+import { EvalEvaluationStatus } from  '@/types';
 import { integer, jsonb, pgTable, text, uuid } from 'drizzle-orm/pg-core';
 
 import { DEFAULT_MODEL } from '@/const/settings';

@@ -1,4 +1,4 @@
-import { OpenAIPluginManifest } from '@lobechat/types';
+import { OpenAIPluginManifest } from  '@/types';
 import { LobeChatPluginManifest, pluginManifestSchema } from '@lobehub/chat-plugin-sdk';
 
 import { API_ENDPOINTS } from '@/services/_url';

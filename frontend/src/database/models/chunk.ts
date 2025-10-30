@@ -1,4 +1,4 @@
-import { ChunkMetadata, FileChunk } from '@lobechat/types';
+import { ChunkMetadata, FileChunk } from  '@/types';
 import { and, asc, cosineDistance, count, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { chunk } from 'lodash-es';
 

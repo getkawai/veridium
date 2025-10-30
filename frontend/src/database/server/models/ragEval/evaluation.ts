@@ -1,4 +1,4 @@
-import { EvalEvaluationStatus, RAGEvalEvaluationItem } from '@lobechat/types';
+import { EvalEvaluationStatus, RAGEvalEvaluationItem } from  '@/types';
 import { SQL, and, count, desc, eq, inArray } from 'drizzle-orm';
 
 import {

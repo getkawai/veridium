@@ -4,7 +4,7 @@ import {
   FileSource,
   Generation,
   ImageGenerationAsset,
-} from '@lobechat/types';
+} from  '@/types';
 import debug from 'debug';
 import { and, eq } from 'drizzle-orm';
 

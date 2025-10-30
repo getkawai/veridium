@@ -1,5 +1,5 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix  */
-import { GroundingSearch, ModelReasoning } from '@lobechat/types';
+import { GroundingSearch, ModelReasoning } from  '@/types';
 import {
   boolean,
   index,

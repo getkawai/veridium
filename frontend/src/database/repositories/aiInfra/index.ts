@@ -4,7 +4,7 @@ import {
   AiModelSourceEnum,
   AiProviderModelListItem,
   EnabledAiModel,
-} from 'model-bank';
+} from '@/model-bank';
 import pMap from 'p-map';
 
 import { DEFAULT_MODEL_PROVIDER_LIST } from '@/config/modelProviders';
@@ -305,7 +305,7 @@ export class AiInfraRepos {
     providerId: string,
   ): Promise<AiProviderModelListItem[] | undefined> => {
     try {
-      const modules = await import('model-bank');
+      const modules = await import(@/model-bank);
 
       // TODO: when model-bank is a separate module, we will try import from model-bank/[prividerId] again
       // @ts-expect-error providerId is string
