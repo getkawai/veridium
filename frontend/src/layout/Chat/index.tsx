@@ -8,7 +8,7 @@ import { Flexbox } from 'react-layout-kit';
 // import RegisterHotkeys from './RegisterHotkeys';
 import SessionPanel from './SessionPanel';
 import Workspace from './Workspace';
-import Session from './Session/default';
+import Session from './@session/default';
 
 const Layout = ({ children }: PropsWithChildren) => {
   return (

@@ -3,7 +3,7 @@ import { Suspense } from 'react';
 import CircleLoading from '@/components/Loading/CircleLoading';
 import SessionListContent from './features/SessionListContent';
 import SkeletonList from './features/SkeletonList';
-import DesktopLayout from './layout';
+import DesktopLayout from './Desktop';
 
 const Session = (props: any) => {
   return (
