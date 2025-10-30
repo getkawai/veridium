@@ -5,8 +5,32 @@ import { PencilLine, Trash } from 'lucide-react';
 import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useSessionStore } from '@/store/session';
-import { SessionGroupItem } from '@/types/session';
+interface DummyGroupItem {
+  id: string;
+  name: string;
+}
+
+// Dummy implementations for development
+const useSessionStore = (selector?: any) => {
+  if (selector) {
+    return selector({
+      updateSessionGroupName: async (id: string, name: string) => {
+        console.log('Mock updateSessionGroupName called with:', id, name);
+      },
+      removeSessionGroup: async (id: string) => {
+        console.log('Mock removeSessionGroup called with:', id);
+      },
+    });
+  }
+  return {
+    updateSessionGroupName: async (id: string, name: string) => {
+      console.log('Mock updateSessionGroupName called with:', id, name);
+    },
+    removeSessionGroup: async (id: string) => {
+      console.log('Mock removeSessionGroup called with:', id);
+    },
+  };
+};
 
 const useStyles = createStyles(({ css }) => ({
   content: css`
@@ -22,7 +46,7 @@ const useStyles = createStyles(({ css }) => ({
   `,
 }));
 
-const GroupItem = memo<SessionGroupItem>(({ id, name }) => {
+const GroupItem = memo<DummyGroupItem>(({ id, name }) => {
   const { t } = useTranslation('chat');
   const { styles } = useStyles();
   const { message, modal } = App.useApp();

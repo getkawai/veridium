@@ -9,6 +9,30 @@ import { useTranslation } from 'react-i18next';
 // import { settingsSelectors } from '@/store/user/selectors';
 import { HotkeyEnum } from '@/types/hotkey';
 
+const dummyUserState = {
+  isLoaded: true,
+};
+
+const settingsSelectors = {
+  getHotkeyById: (id: any) => (s: any) => '',
+};
+
+const useUserStore = (selector?: (s: typeof dummyUserState) => any) => {
+  if (selector) return selector(dummyUserState);
+  return dummyUserState;
+};
+
+const dummySessionState = {
+  sessionSearchKeywords: '',
+  useSearchSessions: (keywords: string) => ({ isValidating: false }),
+  updateSearchKeywords: (value: string) => {},
+};
+
+const useSessionStore = (selector?: (s: typeof dummySessionState) => any): any => {
+  if (selector) return selector(dummySessionState);
+  return dummySessionState;
+};
+
 const SessionSearchBar = memo<{ mobile?: boolean }>(({ mobile }) => {
   const { t } = useTranslation('chat');
   const isLoaded = useUserStore((s) => s.isLoaded);

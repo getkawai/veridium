@@ -1,11 +1,7 @@
 import { Input, Modal, type ModalProps } from '@lobehub/ui';
 import { App } from 'antd';
-import isEqual from 'fast-deep-equal';
 import { memo, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-
-import { useSessionStore } from '@/store/session';
-import { sessionGroupSelectors } from '@/store/session/selectors';
 
 interface RenameGroupModalProps extends ModalProps {
   id: string;
@@ -14,8 +10,17 @@ interface RenameGroupModalProps extends ModalProps {
 const RenameGroupModal = memo<RenameGroupModalProps>(({ id, open, onCancel }) => {
   const { t } = useTranslation('chat');
 
-  const updateSessionGroupName = useSessionStore((s) => s.updateSessionGroupName);
-  const group = useSessionStore((s) => sessionGroupSelectors.getGroupById(id)(s), isEqual);
+  // Dummy update function for UI focus
+  const updateSessionGroupName = (groupId: string, newName: string) => {
+    // Dummy implementation - no actual update
+    console.log(`Dummy update: Group ${groupId} renamed to ${newName}`);
+  };
+
+  // Dummy group data
+  const group = {
+    id,
+    name: `Group ${id}`,
+  };
 
   const [input, setInput] = useState<string>('');
   const [loading, setLoading] = useState(false);

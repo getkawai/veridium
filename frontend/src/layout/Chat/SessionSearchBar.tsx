@@ -18,9 +18,9 @@ const HotkeyEnum = {
   Search: 'search',
 } as const;
 
-function useUserStore(selector: (s: typeof dummyUserState) => any): any {
+const useUserStore = (selector: (s: typeof dummyUserState) => any): any => {
   return selector(dummyUserState);
-}
+};
 
 const dummySessionState = {
   sessionSearchKeywords: '',
@@ -32,9 +32,9 @@ const dummySessionState = {
   },
 };
 
-function useSessionStore(selector: (s: typeof dummySessionState) => any): any {
+const useSessionStore = (selector: (s: typeof dummySessionState) => any): any => {
   return selector(dummySessionState);
-}
+};
 
 const SessionSearchBar = memo<{ mobile?: boolean }>(({ mobile }) => {
   const { t } = useTranslation('chat');

@@ -1,3 +1,8 @@
+interface DummySessionGroupItem {
+  id: string;
+  name: string;
+}
+
 import { Button, Modal, type ModalProps, SortableList } from '@lobehub/ui';
 import { createStyles } from 'antd-style';
 import isEqual from 'fast-deep-equal';
@@ -6,11 +11,49 @@ import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 
-import { useSessionStore } from '@/store/session';
-import { sessionGroupSelectors } from '@/store/session/selectors';
-import { SessionGroupItem } from '@/types/session';
+// import { useSessionStore } from '@/store/session';
+// import { sessionGroupSelectors } from '@/store/session/selectors';
 
 import GroupItem from './GroupItem';
+
+// Dummy implementations for development
+const useSessionStore = (selector?: any, comparator?: any) => {
+  if (selector) {
+    if (typeof selector === 'function' && selector.name === 'sessionGroupItems') {
+      return [
+        { id: 'group-1', name: 'Work' },
+        { id: 'group-2', name: 'Personal' },
+        { id: 'group-3', name: 'Projects' },
+      ];
+    }
+    return selector({
+      addSessionGroup: async (name: string) => {
+        console.log('Mock addSessionGroup called with:', name);
+        return `group-${Date.now()}`;
+      },
+      updateSessionGroupSort: (items: DummySessionGroupItem[]) => {
+        console.log('Mock updateSessionGroupSort called with:', items);
+      },
+    });
+  }
+  return {
+    addSessionGroup: async (name: string) => {
+      console.log('Mock addSessionGroup called with:', name);
+      return `group-${Date.now()}`;
+    },
+    updateSessionGroupSort: (items: DummySessionGroupItem[]) => {
+      console.log('Mock updateSessionGroupSort called with:', items);
+    },
+  };
+};
+
+const sessionGroupSelectors = {
+  sessionGroupItems: (state: any) => [
+    { id: 'group-1', name: 'Work' },
+    { id: 'group-2', name: 'Personal' },
+    { id: 'group-3', name: 'Projects' },
+  ],
+};
 
 const useStyles = createStyles(({ css, token }) => ({
   container: css`
@@ -47,10 +90,10 @@ const ConfigGroupModal = memo<ModalProps>(({ open, onCancel }) => {
       <Flexbox>
         <SortableList
           items={sessionGroupItems}
-          onChange={(items: SessionGroupItem[]) => {
+          onChange={(items: DummySessionGroupItem[]) => {
             updateSessionGroupSort(items);
           }}
-          renderItem={(item: SessionGroupItem) => (
+          renderItem={(item: DummySessionGroupItem) => (
             <SortableList.Item
               align={'center'}
               className={styles.container}
