@@ -80,6 +80,12 @@ export class ClientService extends BaseClientService implements IFileService {
     const fileItem = await clientS3Storage.getObject(hash);
     if (!fileItem) throw new Error('file not found');
 
-    return Buffer.from(await fileItem.arrayBuffer()).toString('base64');
+    const arrayBuffer = await fileItem.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
   };
 }
