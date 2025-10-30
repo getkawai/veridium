@@ -1,14 +1,12 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix  */
 import {
-  boolean,
   index,
-  jsonb,
-  pgTable,
+  integer,
   primaryKey,
+  sqliteTable,
   text,
   uniqueIndex,
-  varchar,
-} from 'drizzle-orm/pg-core';
+} from 'drizzle-orm/sqlite-core';
 import { createInsertSchema } from 'drizzle-zod';
 
 import { LobeAgentChatConfig, LobeAgentTTSConfig } from '@/types/agent';
@@ -22,23 +20,23 @@ import { users } from './user';
 // agent is a model that represents the assistant that is created by the user
 // agent can have its own knowledge base and files
 
-export const agents = pgTable(
+export const agents = sqliteTable(
   'agents',
   {
     id: text('id')
       .primaryKey()
       .$defaultFn(() => idGenerator('agents'))
       .notNull(),
-    slug: varchar('slug', { length: 100 })
+    slug: text('slug')
       .$defaultFn(() => randomSlug(4))
       .unique(),
-    title: varchar('title', { length: 255 }),
-    description: varchar('description', { length: 1000 }),
-    tags: jsonb('tags').$type<string[]>().default([]),
+    title: text('title'),
+    description: text('description'),
+    tags: text('tags', { mode: 'json' }).$type<string[]>().$defaultFn(() => []),
     avatar: text('avatar'),
     backgroundColor: text('background_color'),
 
-    plugins: jsonb('plugins').$type<string[]>().default([]),
+    plugins: text('plugins', { mode: 'json' }).$type<string[]>().$defaultFn(() => []),
 
     clientId: text('client_id'),
 
@@ -46,19 +44,19 @@ export const agents = pgTable(
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
 
-    chatConfig: jsonb('chat_config').$type<LobeAgentChatConfig>(),
+    chatConfig: text('chat_config', { mode: 'json' }).$type<LobeAgentChatConfig>(),
 
-    fewShots: jsonb('few_shots'),
+    fewShots: text('few_shots', { mode: 'json' }),
     model: text('model'),
-    params: jsonb('params').default({}),
+    params: text('params', { mode: 'json' }).$defaultFn(() => ({})),
     provider: text('provider'),
     systemRole: text('system_role'),
-    tts: jsonb('tts').$type<LobeAgentTTSConfig>(),
+    tts: text('tts', { mode: 'json' }).$type<LobeAgentTTSConfig>(),
 
-    virtual: boolean('virtual').default(false),
+    virtual: integer('virtual', { mode: 'boolean' }).default(false),
 
     openingMessage: text('opening_message'),
-    openingQuestions: text('opening_questions').array().default([]),
+    openingQuestions: text('opening_questions', { mode: 'json' }).$type<string[]>().$defaultFn(() => []),
 
     ...timestamps,
   },
@@ -74,7 +72,7 @@ export const insertAgentSchema = createInsertSchema(agents);
 export type NewAgent = typeof agents.$inferInsert;
 export type AgentItem = typeof agents.$inferSelect;
 
-export const agentsKnowledgeBases = pgTable(
+export const agentsKnowledgeBases = sqliteTable(
   'agents_knowledge_bases',
   {
     agentId: text('agent_id')
@@ -86,7 +84,7 @@ export const agentsKnowledgeBases = pgTable(
     userId: text('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
-    enabled: boolean('enabled').default(true),
+    enabled: integer('enabled', { mode: 'boolean' }).default(true),
 
     ...timestamps,
   },
@@ -95,7 +93,7 @@ export const agentsKnowledgeBases = pgTable(
   }),
 );
 
-export const agentsFiles = pgTable(
+export const agentsFiles = sqliteTable(
   'agents_files',
   {
     fileId: text('file_id')
@@ -104,7 +102,7 @@ export const agentsFiles = pgTable(
     agentId: text('agent_id')
       .notNull()
       .references(() => agents.id, { onDelete: 'cascade' }),
-    enabled: boolean('enabled').default(true),
+    enabled: integer('enabled', { mode: 'boolean' }).default(true),
     userId: text('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),

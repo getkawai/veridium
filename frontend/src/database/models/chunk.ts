@@ -1,5 +1,5 @@
 import { ChunkMetadata, FileChunk } from  '@/types';
-import { and, asc, cosineDistance, count, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { chunk } from 'lodash-es';
 
 import {
@@ -12,6 +12,7 @@ import {
   unstructuredChunks,
 } from '../schemas';
 import { LobeChatDatabase } from '../type';
+import { bufferToVector, cosineSimilarity } from '../utils/vectorSearch';
 
 export class ChunkModel {
   private userId: string;
@@ -151,16 +152,15 @@ export class ChunkModel {
     fileIds: string[] | undefined;
     query: string;
   }) => {
-    const similarity = sql<number>`1 - (${cosineDistance(embeddings.embeddings, embedding)})`;
-
+    // Fetch all chunks with embeddings (SQLite doesn't have native vector search)
     const data = await this.db
       .select({
+        chunkEmbedding: embeddings.embeddings,
         fileId: fileChunks.fileId,
         fileName: files.name,
         id: chunks.id,
         index: chunks.index,
         metadata: chunks.metadata,
-        similarity,
         text: chunks.text,
         type: chunks.type,
       })
@@ -168,13 +168,31 @@ export class ChunkModel {
       .leftJoin(embeddings, eq(chunks.id, embeddings.chunkId))
       .leftJoin(fileChunks, eq(chunks.id, fileChunks.chunkId))
       .leftJoin(files, eq(fileChunks.fileId, files.id))
-      .where(fileIds ? inArray(fileChunks.fileId, fileIds) : undefined)
-      .orderBy((t) => desc(t.similarity))
-      .limit(30);
+      .where(fileIds ? inArray(fileChunks.fileId, fileIds) : undefined);
 
-    return data.map((item) => ({
-      ...item,
+    // Calculate similarity in JavaScript
+    const withSimilarity = data
+      .filter((item) => item.chunkEmbedding) // Only items with embeddings
+      .map((item) => {
+        const chunkVector = bufferToVector(item.chunkEmbedding as Buffer);
+        const similarity = cosineSimilarity(embedding, chunkVector);
+        return {
+          ...item,
+          similarity,
+        };
+      })
+      .sort((a, b) => b.similarity - a.similarity)
+      .slice(0, 30);
+
+    return withSimilarity.map((item) => ({
+      fileId: item.fileId,
+      fileName: item.fileName,
+      id: item.id,
+      index: item.index,
       metadata: item.metadata as ChunkMetadata,
+      similarity: item.similarity,
+      text: item.text,
+      type: item.type,
     }));
   };
 
@@ -186,20 +204,19 @@ export class ChunkModel {
     fileIds: string[] | undefined;
     query: string;
   }) => {
-    const similarity = sql<number>`1 - (${cosineDistance(embeddings.embeddings, embedding)})`;
-
     const hasFiles = fileIds && fileIds.length > 0;
 
     if (!hasFiles) return [];
 
+    // Fetch all chunks with embeddings
     const result = await this.db
       .select({
+        chunkEmbedding: embeddings.embeddings,
         fileId: files.id,
         fileName: files.name,
         id: chunks.id,
         index: chunks.index,
         metadata: chunks.metadata,
-        similarity,
         text: chunks.text,
         type: chunks.type,
       })
@@ -207,12 +224,23 @@ export class ChunkModel {
       .leftJoin(embeddings, eq(chunks.id, embeddings.chunkId))
       .leftJoin(fileChunks, eq(chunks.id, fileChunks.chunkId))
       .leftJoin(files, eq(files.id, fileChunks.fileId))
-      .where(inArray(fileChunks.fileId, fileIds))
-      .orderBy((t) => desc(t.similarity))
-      // 先放宽到 15
-      .limit(15);
+      .where(inArray(fileChunks.fileId, fileIds));
 
-    return result.map((item) => {
+    // Calculate similarity in JavaScript
+    const withSimilarity = result
+      .filter((item) => item.chunkEmbedding)
+      .map((item) => {
+        const chunkVector = bufferToVector(item.chunkEmbedding as Buffer);
+        const similarity = cosineSimilarity(embedding, chunkVector);
+        return {
+          ...item,
+          similarity,
+        };
+      })
+      .sort((a, b) => b.similarity - a.similarity)
+      .slice(0, 15);
+
+    return withSimilarity.map((item) => {
       return {
         fileId: item.fileId,
         fileName: item.fileName,

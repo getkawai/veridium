@@ -1,12 +1,11 @@
-import { isDesktop } from '@/const/version';
-
+import { clientDB, initializeDB } from '../client/db';
 import { LobeChatDatabase } from '../type';
-import { getPgliteInstance } from './electron';
-import { getDBInstance } from './web-server';
 
 /**
  * 懒加载数据库实例
  * 避免每次模块导入时都初始化数据库
+ * 
+ * Note: Now using Wails SQLite for all environments
  */
 let cachedDB: LobeChatDatabase | null = null;
 
@@ -15,8 +14,9 @@ export const getServerDB = async (): Promise<LobeChatDatabase> => {
   if (cachedDB) return cachedDB;
 
   try {
-    // 根据环境选择合适的数据库实例
-    cachedDB = isDesktop ? await getPgliteInstance() : getDBInstance();
+    // Initialize Wails SQLite database
+    await initializeDB();
+    cachedDB = clientDB as LobeChatDatabase;
     return cachedDB;
   } catch (error) {
     console.error('❌ Failed to initialize database:', error);
@@ -24,4 +24,5 @@ export const getServerDB = async (): Promise<LobeChatDatabase> => {
   }
 };
 
-export const serverDB = getDBInstance();
+// Export the clientDB as serverDB for consistency
+export const serverDB = clientDB as LobeChatDatabase;

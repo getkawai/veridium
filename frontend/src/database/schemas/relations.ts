@@ -1,6 +1,6 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix  */
 import { relations } from 'drizzle-orm';
-import { pgTable, primaryKey, text, uuid, varchar } from 'drizzle-orm/pg-core';
+import { pgTable, primaryKey, text, uuid, varchar } from 'drizzle-orm/sqlite-core';
 
 import { createdAt } from './_helpers';
 import { agents, agentsFiles, agentsKnowledgeBases } from './agent';
@@ -15,7 +15,7 @@ import { sessionGroups, sessions } from './session';
 import { threads, topicDocuments, topics } from './topic';
 import { users } from './user';
 
-export const agentsToSessions = pgTable(
+export const agentsToSessions = sqliteTable(
   'agents_to_sessions',
   {
     agentId: text('agent_id')
@@ -33,7 +33,7 @@ export const agentsToSessions = pgTable(
   }),
 );
 
-export const filesToSessions = pgTable(
+export const filesToSessions = sqliteTable(
   'files_to_sessions',
   {
     fileId: text('file_id')
@@ -51,11 +51,11 @@ export const filesToSessions = pgTable(
   }),
 );
 
-export const fileChunks = pgTable(
+export const fileChunks = sqliteTable(
   'file_chunks',
   {
-    fileId: varchar('file_id').references(() => files.id, { onDelete: 'cascade' }),
-    chunkId: uuid('chunk_id').references(() => chunks.id, { onDelete: 'cascade' }),
+    fileId: text('file_id').references(() => files.id, { onDelete: 'cascade' }),
+    chunkId: text('chunk_id').references(() => chunks.id, { onDelete: 'cascade' }),
     createdAt: createdAt(),
     userId: text('user_id')
       .references(() => users.id, { onDelete: 'cascade' })

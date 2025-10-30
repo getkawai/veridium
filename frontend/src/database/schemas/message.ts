@@ -10,7 +10,7 @@ import {
   text,
   uniqueIndex,
   uuid,
-} from 'drizzle-orm/pg-core';
+} from 'drizzle-orm/sqlite-core';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 
 import { idGenerator } from '../utils/idGenerator';
@@ -28,7 +28,7 @@ import { users } from './user';
  * Allows multiple AI models to respond to the same user message in parallel
  */
 // @ts-ignore
-export const messageGroups = pgTable(
+export const messageGroups = sqliteTable(
   'message_groups',
   {
     id: varchar255('id')
@@ -71,7 +71,7 @@ export type NewMessageGroup = typeof messageGroups.$inferInsert;
 export type MessageGroupItem = typeof messageGroups.$inferSelect;
 
 // @ts-ignore
-export const messages = pgTable(
+export const messages = sqliteTable(
   'messages',
   {
     id: text('id')
@@ -79,21 +79,21 @@ export const messages = pgTable(
       .primaryKey(),
 
     role: varchar255('role').notNull(),
-    content: text('content'),
-    reasoning: jsonb('reasoning').$type<ModelReasoning>(),
-    search: jsonb('search').$type<GroundingSearch>(),
-    metadata: jsonb('metadata'),
+    content: text('content', { mode: 'json' }),
+    reasoning: text('reasoning').$type<ModelReasoning>(),
+    search: text('search').$type<GroundingSearch>(),
+    metadata: text('metadata'),
 
-    model: text('model'),
-    provider: text('provider'),
+    model: text('model', { mode: 'json' }),
+    provider: text('provider', { mode: 'json' }),
 
-    favorite: boolean('favorite').default(false),
-    error: jsonb('error'),
+    favorite: integer('favorite').default(false),
+    error: text('error'),
 
-    tools: jsonb('tools'),
+    tools: text('tools'),
 
-    traceId: text('trace_id'),
-    observationId: text('observation_id'),
+    traceId: text('trace_id', { mode: 'json' }),
+    observationId: text('observation_id', { mode: 'json' }),
 
     clientId: text('client_id'),
 
@@ -134,7 +134,7 @@ export const messages = pgTable(
 );
 
 // if the message container a plugin
-export const messagePlugins = pgTable(
+export const messagePlugins = sqliteTable(
   'message_plugins',
   {
     id: text('id')
@@ -147,10 +147,10 @@ export const messagePlugins = pgTable(
     }).default('default'),
 
     apiName: text('api_name'),
-    arguments: text('arguments'),
-    identifier: text('identifier'),
-    state: jsonb('state'),
-    error: jsonb('error'),
+    arguments: text('arguments', { mode: 'json' }),
+    identifier: text('identifier', { mode: 'json' }),
+    state: text('state'),
+    error: text('error'),
     clientId: text('client_id'),
     userId: text('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
@@ -167,7 +167,7 @@ export const messagePlugins = pgTable(
 export type MessagePluginItem = typeof messagePlugins.$inferSelect;
 export const updateMessagePluginSchema = createSelectSchema(messagePlugins);
 
-export const messageTTS = pgTable(
+export const messageTTS = sqliteTable(
   'message_tts',
   {
     id: text('id')
@@ -186,13 +186,13 @@ export const messageTTS = pgTable(
   }),
 );
 
-export const messageTranslates = pgTable(
+export const messageTranslates = sqliteTable(
   'message_translates',
   {
     id: text('id')
       .references(() => messages.id, { onDelete: 'cascade' })
       .primaryKey(),
-    content: text('content'),
+    content: text('content', { mode: 'json' }),
     from: text('from'),
     to: text('to'),
     clientId: text('client_id'),
@@ -210,7 +210,7 @@ export const messageTranslates = pgTable(
 
 // if the message contains a file
 // save the file id and message id
-export const messagesFiles = pgTable(
+export const messagesFiles = sqliteTable(
   'messages_files',
   {
     fileId: text('file_id')
@@ -228,10 +228,10 @@ export const messagesFiles = pgTable(
   }),
 );
 
-export const messageQueries = pgTable(
+export const messageQueries = sqliteTable(
   'message_queries',
   {
-    id: uuid('id').defaultRandom().primaryKey(),
+    id: text('id').$defaultFn(() => randomUUID()).primaryKey(),
     messageId: text('message_id')
       .references(() => messages.id, { onDelete: 'cascade' })
       .notNull(),
@@ -241,7 +241,7 @@ export const messageQueries = pgTable(
     userId: text('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
-    embeddingsId: uuid('embeddings_id').references(() => embeddings.id, { onDelete: 'set null' }),
+    embeddingsId: text('embeddings_id').references(() => embeddings.id, { onDelete: 'set null' }),
   },
   (t) => ({
     clientIdUnique: uniqueIndex('message_queries_client_id_user_id_unique').on(
@@ -253,13 +253,13 @@ export const messageQueries = pgTable(
 
 export type NewMessageQuery = typeof messageQueries.$inferInsert;
 
-export const messageQueryChunks = pgTable(
+export const messageQueryChunks = sqliteTable(
   'message_query_chunks',
   {
     messageId: text('id').references(() => messages.id, { onDelete: 'cascade' }),
-    queryId: uuid('query_id').references(() => messageQueries.id, { onDelete: 'cascade' }),
-    chunkId: uuid('chunk_id').references(() => chunks.id, { onDelete: 'cascade' }),
-    similarity: numeric('similarity', { precision: 6, scale: 5 }),
+    queryId: text('query_id').references(() => messageQueries.id, { onDelete: 'cascade' }),
+    chunkId: text('chunk_id').references(() => chunks.id, { onDelete: 'cascade' }),
+    similarity: real('similarity', { precision: 6, scale: 5 }),
     userId: text('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
@@ -272,11 +272,11 @@ export type NewMessageFileChunk = typeof messageQueryChunks.$inferInsert;
 
 // convert message content to the chunks
 // then we can use message as the RAG source
-export const messageChunks = pgTable(
+export const messageChunks = sqliteTable(
   'message_chunks',
   {
     messageId: text('message_id').references(() => messages.id, { onDelete: 'cascade' }),
-    chunkId: uuid('chunk_id').references(() => chunks.id, { onDelete: 'cascade' }),
+    chunkId: text('chunk_id').references(() => chunks.id, { onDelete: 'cascade' }),
     userId: text('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),

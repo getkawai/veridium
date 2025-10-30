@@ -1,11 +1,11 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix  */
-import { bigint, index, jsonb, numeric, pgTable, real, text, vector } from 'drizzle-orm/pg-core';
+import { bigint, index, jsonb, numeric, pgTable, real, text, vector } from 'drizzle-orm/sqlite-core';
 
 import { idGenerator } from '../utils/idGenerator';
 import { timestamps, timestamptz, varchar255 } from './_helpers';
 import { users } from './user';
 
-export const userMemories = pgTable(
+export const userMemories = sqliteTable(
   'user_memories',
   {
     id: varchar255('id')
@@ -17,14 +17,14 @@ export const userMemories = pgTable(
     memoryCategory: varchar255('memory_category'),
     memoryLayer: varchar255('memory_layer'),
     memoryType: varchar255('memory_type'),
-    metadata: jsonb('metadata'),
-    tags: text('tags').array(),
+    metadata: text('metadata'),
+    tags: text('tags', { mode: 'json' }),
 
     title: varchar255('title'),
-    summary: text('summary'),
-    summaryVector1024: vector('summary_vector_1024', { dimensions: 1024 }),
+    summary: text('summary', { mode: 'json' }),
+    summaryVector1024: blob('summary_vector_1024', { dimensions: 1024 }),
     details: text('details'),
-    detailsVector1024: vector('details_vector_1024', { dimensions: 1024 }),
+    detailsVector1024: blob('details_vector_1024', { dimensions: 1024 }),
 
     status: varchar255('status'),
 
@@ -45,7 +45,7 @@ export const userMemories = pgTable(
   ],
 );
 
-export const userMemoriesContexts = pgTable(
+export const userMemoriesContexts = sqliteTable(
   'user_memories_contexts',
   {
     id: varchar255('id')
@@ -53,24 +53,24 @@ export const userMemoriesContexts = pgTable(
       .primaryKey(),
 
     userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
-    userMemoryIds: jsonb('user_memory_ids'),
+    userMemoryIds: text('user_memory_ids'),
 
-    metadata: jsonb('metadata'),
-    tags: text('tags').array(),
+    metadata: text('metadata'),
+    tags: text('tags', { mode: 'json' }),
 
-    associatedObjects: jsonb('associated_objects'),
-    associatedSubjects: jsonb('associated_subjects'),
+    associatedObjects: text('associated_objects'),
+    associatedSubjects: text('associated_subjects'),
 
-    title: text('title'),
-    titleVector: vector('title_vector', { dimensions: 1024 }),
+    title: text('title', { mode: 'json' }),
+    titleVector: blob('title_vector', { dimensions: 1024 }),
     description: text('description'),
-    descriptionVector: vector('description_vector', { dimensions: 1024 }),
+    descriptionVector: blob('description_vector', { dimensions: 1024 }),
 
     type: varchar255('type'),
     currentStatus: text('current_status'),
 
-    scoreImpact: numeric('score_impact', { mode: 'number' }).default(0),
-    scoreUrgency: numeric('score_urgency', { mode: 'number' }).default(0),
+    scoreImpact: real('score_impact', { mode: 'number' }).default(0),
+    scoreUrgency: real('score_urgency', { mode: 'number' }).default(0),
 
     ...timestamps,
   },
@@ -87,7 +87,7 @@ export const userMemoriesContexts = pgTable(
   ],
 );
 
-export const userMemoriesPreferences = pgTable(
+export const userMemoriesPreferences = sqliteTable(
   'user_memories_preferences',
   {
     id: varchar255('id')
@@ -99,16 +99,16 @@ export const userMemoriesPreferences = pgTable(
       onDelete: 'cascade',
     }),
 
-    metadata: jsonb('metadata'),
-    tags: text('tags').array(),
+    metadata: text('metadata'),
+    tags: text('tags', { mode: 'json' }),
 
-    conclusionDirectives: text('conclusion_directives'),
-    conclusionDirectivesVector: vector('conclusion_directives_vector', { dimensions: 1024 }),
+    conclusionDirectives: text('conclusion_directives', { mode: 'json' }),
+    conclusionDirectivesVector: blob('conclusion_directives_vector', { dimensions: 1024 }),
 
     type: varchar255('type'),
     suggestions: text('suggestions'),
 
-    scorePriority: numeric('score_priority', { mode: 'number' }).default(0),
+    scorePriority: real('score_priority', { mode: 'number' }).default(0),
 
     ...timestamps,
   },
@@ -120,7 +120,7 @@ export const userMemoriesPreferences = pgTable(
   ],
 );
 
-export const userMemoriesIdentities = pgTable(
+export const userMemoriesIdentities = sqliteTable(
   'user_memories_identities',
   {
     id: varchar255('id')
@@ -132,12 +132,12 @@ export const userMemoriesIdentities = pgTable(
       onDelete: 'cascade',
     }),
 
-    metadata: jsonb('metadata'),
-    tags: text('tags').array(),
+    metadata: text('metadata'),
+    tags: text('tags', { mode: 'json' }),
 
     type: varchar255('type'),
     description: text('description'),
-    descriptionVector: vector('description_vector', { dimensions: 1024 }),
+    descriptionVector: blob('description_vector', { dimensions: 1024 }),
     episodicDate: timestamptz('episodic_date'),
     relationship: varchar255('relationship'),
     role: text('role'),
@@ -153,7 +153,7 @@ export const userMemoriesIdentities = pgTable(
   ],
 );
 
-export const userMemoriesExperiences = pgTable(
+export const userMemoriesExperiences = sqliteTable(
   'user_memories_experiences',
   {
     id: varchar255('id')
@@ -165,18 +165,18 @@ export const userMemoriesExperiences = pgTable(
       onDelete: 'cascade',
     }),
 
-    metadata: jsonb('metadata'),
-    tags: text('tags').array(),
+    metadata: text('metadata'),
+    tags: text('tags', { mode: 'json' }),
 
     type: varchar255('type'),
-    situation: text('situation'),
-    situationVector: vector('situation_vector', { dimensions: 1024 }),
+    situation: text('situation', { mode: 'json' }),
+    situationVector: blob('situation_vector', { dimensions: 1024 }),
     reasoning: text('reasoning'),
     possibleOutcome: text('possible_outcome'),
     action: text('action'),
-    actionVector: vector('action_vector', { dimensions: 1024 }),
+    actionVector: blob('action_vector', { dimensions: 1024 }),
     keyLearning: text('key_learning'),
-    keyLearningVector: vector('key_learning_vector', { dimensions: 1024 }),
+    keyLearningVector: blob('key_learning_vector', { dimensions: 1024 }),
 
     scoreConfidence: real('score_confidence').default(0),
 

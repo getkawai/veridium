@@ -1,6 +1,6 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix  */
 import { EvalEvaluationStatus } from  '@/types';
-import { integer, jsonb, pgTable, text, uuid } from 'drizzle-orm/pg-core';
+import { integer, jsonb, pgTable, text, uuid } from 'drizzle-orm/sqlite-core';
 
 import { DEFAULT_MODEL } from '@/const/settings';
 
@@ -9,7 +9,7 @@ import { knowledgeBases } from './file';
 import { embeddings } from './rag';
 import { users } from './user';
 
-export const evalDatasets = pgTable('rag_eval_datasets', {
+export const evalDatasets = sqliteTable('rag_eval_datasets', {
   id: integer('id').generatedAlwaysAsIdentity({ startWith: 30_000 }).primaryKey(),
 
   description: text('description'),
@@ -26,16 +26,16 @@ export const evalDatasets = pgTable('rag_eval_datasets', {
 export type NewEvalDatasetsItem = typeof evalDatasets.$inferInsert;
 export type EvalDatasetsSelectItem = typeof evalDatasets.$inferSelect;
 
-export const evalDatasetRecords = pgTable('rag_eval_dataset_records', {
+export const evalDatasetRecords = sqliteTable('rag_eval_dataset_records', {
   id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
   datasetId: integer('dataset_id')
     .references(() => evalDatasets.id, { onDelete: 'cascade' })
     .notNull(),
 
   ideal: text('ideal'),
-  question: text('question'),
-  referenceFiles: text('reference_files').array(),
-  metadata: jsonb('metadata'),
+  question: text('question', { mode: 'json' }),
+  referenceFiles: text('reference_files', { mode: 'json' }),
+  metadata: text('metadata'),
 
   userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
   ...timestamps,
@@ -44,14 +44,14 @@ export const evalDatasetRecords = pgTable('rag_eval_dataset_records', {
 export type NewEvalDatasetRecordsItem = typeof evalDatasetRecords.$inferInsert;
 export type EvalDatasetRecordsSelectItem = typeof evalDatasetRecords.$inferSelect;
 
-export const evalEvaluation = pgTable('rag_eval_evaluations', {
+export const evalEvaluation = sqliteTable('rag_eval_evaluations', {
   id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
   name: text('name').notNull(),
   description: text('description'),
 
   evalRecordsUrl: text('eval_records_url'),
-  status: text('status').$defaultFn(() => EvalEvaluationStatus.Pending),
-  error: jsonb('error'),
+  status: text('status', { mode: 'json' }).$defaultFn(() => EvalEvaluationStatus.Pending),
+  error: text('error'),
 
   datasetId: integer('dataset_id')
     .references(() => evalDatasets.id, { onDelete: 'cascade' })
@@ -69,21 +69,21 @@ export const evalEvaluation = pgTable('rag_eval_evaluations', {
 export type NewEvalEvaluationItem = typeof evalEvaluation.$inferInsert;
 export type EvalEvaluationSelectItem = typeof evalEvaluation.$inferSelect;
 
-export const evaluationRecords = pgTable('rag_eval_evaluation_records', {
+export const evaluationRecords = sqliteTable('rag_eval_evaluation_records', {
   id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
 
-  question: text('question').notNull(),
+  question: text('question', { mode: 'json' }).notNull(),
   answer: text('answer'),
-  context: text('context').array(),
+  context: text('context'),
   ideal: text('ideal'),
 
-  status: text('status').$defaultFn(() => EvalEvaluationStatus.Pending),
-  error: jsonb('error'),
+  status: text('status', { mode: 'json' }).$defaultFn(() => EvalEvaluationStatus.Pending),
+  error: text('error'),
 
   languageModel: text('language_model'),
   embeddingModel: text('embedding_model'),
 
-  questionEmbeddingId: uuid('question_embedding_id').references(() => embeddings.id, {
+  questionEmbeddingId: text('question_embedding_id').references(() => embeddings.id, {
     onDelete: 'set null',
   }),
 

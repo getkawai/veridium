@@ -1,6 +1,6 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix  */
 import { ImageGenerationAsset } from  '@/types';
-import { integer, jsonb, pgTable, text, uuid, varchar } from 'drizzle-orm/pg-core';
+import { integer, jsonb, pgTable, text, uuid, varchar } from 'drizzle-orm/sqlite-core';
 import { createInsertSchema } from 'drizzle-zod';
 
 import { idGenerator } from '../utils/idGenerator';
@@ -12,7 +12,7 @@ import { users } from './user';
 /**
  * 生成主题表 - 用于组织和管理 AI 生成内容的主题
  */
-export const generationTopics = pgTable('generation_topics', {
+export const generationTopics = sqliteTable('generation_topics', {
   id: text('id')
     .$defaultFn(() => idGenerator('generationTopics'))
     .notNull()
@@ -39,7 +39,7 @@ export type GenerationTopicItem = typeof generationTopics.$inferSelect;
 /**
  * 生成批次表 - 存储一次生成请求的配置信息
  */
-export const generationBatches = pgTable('generation_batches', {
+export const generationBatches = sqliteTable('generation_batches', {
   id: text('id')
     .$defaultFn(() => idGenerator('generationBatches'))
     .notNull()
@@ -69,10 +69,10 @@ export const generationBatches = pgTable('generation_batches', {
   height: integer('height'),
 
   /** 图片比例 */
-  ratio: varchar('ratio', { length: 64 }),
+  ratio: text('ratio'),
 
   /** 存储生成批次的配置，存放不需要建立索引的公共配置 */
-  config: jsonb('config'),
+  config: text('config'),
 
   ...timestamps,
 });
@@ -88,7 +88,7 @@ export type GenerationBatchWithGenerations = GenerationBatchItem & {
 /**
  *  存储单个 AI 生成信息
  */
-export const generations = pgTable('generations', {
+export const generations = sqliteTable('generations', {
   id: text('id')
     .$defaultFn(() => idGenerator('generations'))
     .notNull()
@@ -98,12 +98,12 @@ export const generations = pgTable('generations', {
     .references(() => users.id, { onDelete: 'cascade' })
     .notNull(),
 
-  generationBatchId: varchar('generation_batch_id', { length: 64 })
+  generationBatchId: text('generation_batch_id')
     .notNull()
     .references(() => generationBatches.id, { onDelete: 'cascade' }),
 
   /** 关联的异步任务 ID */
-  asyncTaskId: uuid('async_task_id').references(() => asyncTasks.id, {
+  asyncTaskId: text('async_task_id').references(() => asyncTasks.id, {
     onDelete: 'set null',
   }),
 
@@ -114,7 +114,7 @@ export const generations = pgTable('generations', {
   seed: integer('seed'),
 
   /** 生成的资源信息，包含存储在 s3 上的 key, 图片实际宽高，缩略图 key 等 */
-  asset: jsonb('asset').$type<ImageGenerationAsset>(),
+  asset: text('asset').$type<ImageGenerationAsset>(),
 
   ...timestamps,
 });

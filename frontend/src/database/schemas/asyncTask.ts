@@ -1,17 +1,17 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix  */
-import { integer, jsonb, pgTable, text, uuid } from 'drizzle-orm/pg-core';
+import { integer, jsonb, pgTable, text, uuid } from 'drizzle-orm/sqlite-core';
 
 import { timestamps } from './_helpers';
 import { users } from './user';
 
-export const asyncTasks = pgTable('async_tasks', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  type: text('type'),
+export const asyncTasks = sqliteTable('async_tasks', {
+  id: text('id').$defaultFn(() => randomUUID()).primaryKey(),
+  type: text('type', { mode: 'json' }),
 
-  status: text('status'),
-  error: jsonb('error'),
+  status: text('status', { mode: 'json' }),
+  error: text('error'),
 
-  userId: text('user_id')
+  userId: text('user_id', { mode: 'json' })
     .references(() => users.id, { onDelete: 'cascade' })
     .notNull(),
   duration: integer('duration'),

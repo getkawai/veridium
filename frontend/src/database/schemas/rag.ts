@@ -1,29 +1,29 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix  */
 import {
+  blob,
   index,
   integer,
-  jsonb,
-  pgTable,
+  sqliteTable,
   text,
   uniqueIndex,
-  uuid,
-  varchar,
-  vector,
-} from 'drizzle-orm/pg-core';
+} from 'drizzle-orm/sqlite-core';
+import { randomUUID } from 'crypto';
 
 import { timestamps } from './_helpers';
 import { files } from './file';
 import { users } from './user';
 
-export const chunks = pgTable(
+export const chunks = sqliteTable(
   'chunks',
   {
-    id: uuid('id').defaultRandom().primaryKey(),
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => randomUUID()),
     text: text('text'),
     abstract: text('abstract'),
-    metadata: jsonb('metadata'),
+    metadata: text('metadata', { mode: 'json' }),
     index: integer('index'),
-    type: varchar('type'),
+    type: text('type'),
 
     clientId: text('client_id'),
     userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
@@ -38,22 +38,24 @@ export const chunks = pgTable(
 
 export type NewChunkItem = typeof chunks.$inferInsert & { fileId?: string };
 
-export const unstructuredChunks = pgTable(
+export const unstructuredChunks = sqliteTable(
   'unstructured_chunks',
   {
-    id: uuid('id').defaultRandom().primaryKey(),
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => randomUUID()),
     text: text('text'),
-    metadata: jsonb('metadata'),
+    metadata: text('metadata', { mode: 'json' }),
     index: integer('index'),
-    type: varchar('type'),
+    type: text('type'),
 
     ...timestamps,
 
-    parentId: varchar('parent_id'),
-    compositeId: uuid('composite_id').references(() => chunks.id, { onDelete: 'cascade' }),
+    parentId: text('parent_id'),
+    compositeId: text('composite_id').references(() => chunks.id, { onDelete: 'cascade' }),
     clientId: text('client_id'),
     userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
-    fileId: varchar('file_id').references(() => files.id, { onDelete: 'cascade' }),
+    fileId: text('file_id').references(() => files.id, { onDelete: 'cascade' }),
   },
   (t) => ({
     clientIdUnique: uniqueIndex('unstructured_chunks_client_id_user_id_unique').on(
@@ -65,14 +67,19 @@ export const unstructuredChunks = pgTable(
 
 export type NewUnstructuredChunkItem = typeof unstructuredChunks.$inferInsert;
 
-export const embeddings = pgTable(
+// Store embeddings as blob (binary) or text (JSON array)
+// We'll use blob for more efficient storage
+export const embeddings = sqliteTable(
   'embeddings',
   {
-    id: uuid('id').defaultRandom().primaryKey(),
-    chunkId: uuid('chunk_id')
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => randomUUID()),
+    chunkId: text('chunk_id')
       .references(() => chunks.id, { onDelete: 'cascade' })
       .unique(),
-    embeddings: vector('embeddings', { dimensions: 1024 }),
+    // Store as blob (Float32Array) or as JSON text
+    embeddings: blob('embeddings', { mode: 'buffer' }),
     model: text('model'),
     clientId: text('client_id'),
     userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),

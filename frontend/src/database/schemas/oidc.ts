@@ -1,5 +1,5 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix  */
-import { boolean, jsonb, pgTable, primaryKey, text, varchar } from 'drizzle-orm/pg-core';
+import { boolean, jsonb, pgTable, primaryKey, text, varchar } from 'drizzle-orm/sqlite-core';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 
 import { timestamps, timestamptz } from './_helpers';
@@ -9,16 +9,16 @@ import { users } from './user';
  * OIDC 授权码
  * oidc-provider 需要持久化的模型之一
  */
-export const oidcAuthorizationCodes = pgTable('oidc_authorization_codes', {
-  id: varchar('id', { length: 255 }).primaryKey(),
-  data: jsonb('data').notNull(),
+export const oidcAuthorizationCodes = sqliteTable('oidc_authorization_codes', {
+  id: text('id').primaryKey(),
+  data: text('data').notNull(),
   expiresAt: timestamptz('expires_at').notNull(),
   consumedAt: timestamptz('consumed_at'),
   userId: text('user_id')
     .references(() => users.id, { onDelete: 'cascade' })
     .notNull(),
-  clientId: varchar('client_id', { length: 255 }).notNull(),
-  grantId: varchar('grant_id', { length: 255 }),
+  clientId: text('client_id').notNull(),
+  grantId: text('grant_id'),
   ...timestamps,
 });
 
@@ -26,16 +26,16 @@ export const oidcAuthorizationCodes = pgTable('oidc_authorization_codes', {
  * OIDC 访问令牌
  * oidc-provider 需要持久化的模型之一
  */
-export const oidcAccessTokens = pgTable('oidc_access_tokens', {
-  id: varchar('id', { length: 255 }).primaryKey(),
-  data: jsonb('data').notNull(),
+export const oidcAccessTokens = sqliteTable('oidc_access_tokens', {
+  id: text('id').primaryKey(),
+  data: text('data').notNull(),
   expiresAt: timestamptz('expires_at').notNull(),
   consumedAt: timestamptz('consumed_at'),
   userId: text('user_id')
     .references(() => users.id, { onDelete: 'cascade' })
     .notNull(),
-  clientId: varchar('client_id', { length: 255 }).notNull(),
-  grantId: varchar('grant_id', { length: 255 }),
+  clientId: text('client_id').notNull(),
+  grantId: text('grant_id'),
   ...timestamps,
 });
 
@@ -43,16 +43,16 @@ export const oidcAccessTokens = pgTable('oidc_access_tokens', {
  * OIDC 刷新令牌
  * oidc-provider 需要持久化的模型之一
  */
-export const oidcRefreshTokens = pgTable('oidc_refresh_tokens', {
-  id: varchar('id', { length: 255 }).primaryKey(),
-  data: jsonb('data').notNull(),
+export const oidcRefreshTokens = sqliteTable('oidc_refresh_tokens', {
+  id: text('id').primaryKey(),
+  data: text('data').notNull(),
   expiresAt: timestamptz('expires_at').notNull(),
   consumedAt: timestamptz('consumed_at'),
   userId: text('user_id')
     .references(() => users.id, { onDelete: 'cascade' })
     .notNull(),
-  clientId: varchar('client_id', { length: 255 }).notNull(),
-  grantId: varchar('grant_id', { length: 255 }),
+  clientId: text('client_id').notNull(),
+  grantId: text('grant_id'),
   ...timestamps,
 });
 
@@ -60,15 +60,15 @@ export const oidcRefreshTokens = pgTable('oidc_refresh_tokens', {
  * OIDC 设备代码
  * oidc-provider 需要持久化的模型之一
  */
-export const oidcDeviceCodes = pgTable('oidc_device_codes', {
-  id: varchar('id', { length: 255 }).primaryKey(),
-  data: jsonb('data').notNull(),
+export const oidcDeviceCodes = sqliteTable('oidc_device_codes', {
+  id: text('id').primaryKey(),
+  data: text('data').notNull(),
   expiresAt: timestamptz('expires_at').notNull(),
   consumedAt: timestamptz('consumed_at'),
   userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
-  clientId: varchar('client_id', { length: 255 }).notNull(),
-  grantId: varchar('grant_id', { length: 255 }),
-  userCode: varchar('user_code', { length: 255 }),
+  clientId: text('client_id').notNull(),
+  grantId: text('grant_id'),
+  userCode: text('user_code'),
   ...timestamps,
 });
 
@@ -76,9 +76,9 @@ export const oidcDeviceCodes = pgTable('oidc_device_codes', {
  * OIDC 交互会话
  * oidc-provider 需要持久化的模型之一
  */
-export const oidcInteractions = pgTable('oidc_interactions', {
-  id: varchar('id', { length: 255 }).primaryKey(),
-  data: jsonb('data').notNull(),
+export const oidcInteractions = sqliteTable('oidc_interactions', {
+  id: text('id').primaryKey(),
+  data: text('data').notNull(),
   expiresAt: timestamptz('expires_at').notNull(),
   ...timestamps,
 });
@@ -87,15 +87,15 @@ export const oidcInteractions = pgTable('oidc_interactions', {
  * OIDC 授权记录
  * oidc-provider 需要持久化的模型之一
  */
-export const oidcGrants = pgTable('oidc_grants', {
-  id: varchar('id', { length: 255 }).primaryKey(),
-  data: jsonb('data').notNull(),
+export const oidcGrants = sqliteTable('oidc_grants', {
+  id: text('id').primaryKey(),
+  data: text('data').notNull(),
   expiresAt: timestamptz('expires_at').notNull(),
   consumedAt: timestamptz('consumed_at'),
   userId: text('user_id')
     .references(() => users.id, { onDelete: 'cascade' })
     .notNull(),
-  clientId: varchar('client_id', { length: 255 }).notNull(),
+  clientId: text('client_id').notNull(),
   ...timestamps,
 });
 
@@ -103,22 +103,22 @@ export const oidcGrants = pgTable('oidc_grants', {
  * OIDC 客户端配置
  * 存储 OIDC 客户端配置信息
  */
-export const oidcClients = pgTable('oidc_clients', {
-  id: varchar('id', { length: 255 }).primaryKey(), // client_id
+export const oidcClients = sqliteTable('oidc_clients', {
+  id: text('id').primaryKey(), // client_id
   name: text('name').notNull(),
   description: text('description'),
-  clientSecret: varchar('client_secret', { length: 255 }), // 公共客户端可为 null
-  redirectUris: text('redirect_uris').array().notNull(),
-  grants: text('grants').array().notNull(),
-  responseTypes: text('response_types').array().notNull(),
-  scopes: text('scopes').array().notNull(),
-  tokenEndpointAuthMethod: varchar('token_endpoint_auth_method', { length: 20 }),
-  applicationType: varchar('application_type', { length: 20 }),
+  clientSecret: text('client_secret'), // 公共客户端可为 null
+  redirectUris: text('redirect_uris').notNull(),
+  grants: text('grants').notNull(),
+  responseTypes: text('response_types').notNull(),
+  scopes: text('scopes').notNull(),
+  tokenEndpointAuthMethod: text('token_endpoint_auth_method'),
+  applicationType: text('application_type'),
   clientUri: text('client_uri'),
   logoUri: text('logo_uri'),
   policyUri: text('policy_uri'),
   tosUri: text('tos_uri'),
-  isFirstParty: boolean('is_first_party').default(false),
+  isFirstParty: integer('is_first_party').default(false),
   ...timestamps,
 });
 
@@ -126,9 +126,9 @@ export const oidcClients = pgTable('oidc_clients', {
  * OIDC 会话
  * oidc-provider 需要持久化的模型之一
  */
-export const oidcSessions = pgTable('oidc_sessions', {
-  id: varchar('id', { length: 255 }).primaryKey(),
-  data: jsonb('data').notNull(),
+export const oidcSessions = sqliteTable('oidc_sessions', {
+  id: text('id').primaryKey(),
+  data: text('data').notNull(),
   expiresAt: timestamptz('expires_at').notNull(),
   userId: text('user_id')
     .references(() => users.id, { onDelete: 'cascade' })
@@ -140,16 +140,16 @@ export const oidcSessions = pgTable('oidc_sessions', {
  * OIDC 授权同意记录
  * 记录用户对客户端的授权同意历史
  */
-export const oidcConsents = pgTable(
+export const oidcConsents = sqliteTable(
   'oidc_consents',
   {
     userId: text('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
-    clientId: varchar('client_id', { length: 255 })
+    clientId: text('client_id')
       .references(() => oidcClients.id, { onDelete: 'cascade' })
       .notNull(),
-    scopes: text('scopes').array().notNull(),
+    scopes: text('scopes').notNull(),
     expiresAt: timestamptz('expires_at'),
     ...timestamps,
   },
@@ -169,7 +169,7 @@ export const oidcConsents = pgTable(
  * 4. 客户端轮询此表获取凭证
  * 5. 成功获取后立即删除记录
  */
-export const oauthHandoffs = pgTable('oauth_handoffs', {
+export const oauthHandoffs = sqliteTable('oauth_handoffs', {
   /**
    * 由客户端生成的一次性唯一标识符
    * 用于客户端轮询时认领自己的凭证
@@ -180,14 +180,14 @@ export const oauthHandoffs = pgTable('oauth_handoffs', {
    * 客户端类型标识
    * 如: 'desktop', 'browser-extension', 'mobile-app' 等
    */
-  client: varchar('client', { length: 50 }).notNull(),
+  client: text('client').notNull(),
 
   /**
    * 凭证数据的 JSON 载荷
    * 灵活存储不同认证流程所需的各种数据
    * 当前主要包含: { code: string; state: string }
    */
-  payload: jsonb('payload').$type<Record<string, unknown>>().notNull(),
+  payload: text('payload').$type<Record<string, unknown>>().notNull(),
 
   /**
    * 时间戳字段，用于 TTL 控制

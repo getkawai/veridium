@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
-import { PgliteDatabase, drizzle } from 'drizzle-orm/pglite';
+import { drizzle } from 'drizzle-orm/sqlite-core';
+import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
 import { Md5 } from 'ts-md5';
 
 import {
@@ -13,11 +14,13 @@ import { sleep } from '@/utils/sleep';
 import migrations from '../core/migrations.json';
 import { DrizzleMigrationModel } from '../models/drizzleMigration';
 import * as schema from '../schemas';
+import { WailsSQLiteDriver, createDrizzleWailsSQLite } from './wails-sqlite-driver';
+import { initWailsSQLite } from './wails-sqlite';
 
-const pgliteSchemaHashCache = 'LOBE_CHAT_PGLITE_SCHEMA_HASH';
+const sqliteSchemaHashCache = 'VERIDIUM_SQLITE_SCHEMA_HASH';
 
-const DB_NAME = 'lobechat';
-type DrizzleInstance = PgliteDatabase<typeof schema>;
+const DB_NAME = 'veridium';
+type DrizzleInstance = BaseSQLiteDatabase<'sync', any, typeof schema>;
 
 interface onErrorState {
   error: Error;
@@ -34,19 +37,10 @@ export interface DatabaseLoadingCallbacks {
 export class DatabaseManager {
   private static instance: DatabaseManager;
   private dbInstance: DrizzleInstance | null = null;
+  private driver: WailsSQLiteDriver | null = null;
   private initPromise: Promise<DrizzleInstance> | null = null;
   private callbacks?: DatabaseLoadingCallbacks;
   private isLocalDBSchemaSynced = false;
-
-  // CDN 配置
-  private static WASM_CDN_URL =
-    'https://registry.npmmirror.com/@electric-sql/pglite/0.2.17/files/dist/postgres.wasm';
-
-  private static FSBUNDLER_CDN_URL =
-    'https://registry.npmmirror.com/@electric-sql/pglite/0.2.17/files/dist/postgres.data';
-
-  private static VECTOR_CDN_URL =
-    'https://registry.npmmirror.com/@electric-sql/pglite/0.2.17/files/dist/vector.tar.gz';
 
   private constructor() {}
 
@@ -57,112 +51,13 @@ export class DatabaseManager {
     return DatabaseManager.instance;
   }
 
-  // 加载并编译 WASM 模块
-  private async loadWasmModule(): Promise<WebAssembly.Module> {
-    const start = Date.now();
-    this.callbacks?.onStateChange?.(DatabaseLoadingState.LoadingWasm);
-
-    const response = await fetch(DatabaseManager.WASM_CDN_URL);
-
-    const contentLength = Number(response.headers.get('Content-Length')) || 0;
-    const reader = response.body?.getReader();
-
-    if (!reader) throw new Error('Failed to start WASM download');
-
-    let receivedLength = 0;
-    const chunks: Uint8Array[] = [];
-
-    // 读取数据流
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
-      const { done, value } = await reader.read();
-
-      if (done) break;
-
-      chunks.push(value);
-      receivedLength += value.length;
-
-      // 计算并报告进度
-      const progress = Math.min(Math.round((receivedLength / contentLength) * 100), 100);
-      this.callbacks?.onProgress?.({
-        phase: 'wasm',
-        progress,
-      });
-    }
-
-    // 合并数据块
-    const wasmBytes = new Uint8Array(receivedLength);
-    let position = 0;
-    for (const chunk of chunks) {
-      wasmBytes.set(chunk, position);
-      position += chunk.length;
-    }
-
-    this.callbacks?.onProgress?.({
-      costTime: Date.now() - start,
-      phase: 'wasm',
-      progress: 100,
-    });
-
-    // 编译 WASM 模块
-    return WebAssembly.compile(wasmBytes);
-  }
-
-  private fetchFsBundle = async () => {
-    const res = await fetch(DatabaseManager.FSBUNDLER_CDN_URL);
-
-    return await res.blob();
-  };
-
-  // 异步加载 PGlite 相关依赖
-  private async loadDependencies() {
-    const start = Date.now();
-    this.callbacks?.onStateChange?.(DatabaseLoadingState.LoadingDependencies);
-
-    const imports = [
-      import('@electric-sql/pglite').then((m) => ({
-        IdbFs: m.IdbFs,
-        MemoryFS: m.MemoryFS,
-        PGlite: m.PGlite,
-      })),
-      import('@electric-sql/pglite/vector'),
-      this.fetchFsBundle(),
-    ];
-
-    let loaded = 0;
-    const results = await Promise.all(
-      imports.map(async (importPromise) => {
-        const result = await importPromise;
-        loaded += 1;
-
-        // 计算加载进度
-        this.callbacks?.onProgress?.({
-          phase: 'dependencies',
-          progress: Math.min(Math.round((loaded / imports.length) * 100), 100),
-        });
-        return result;
-      }),
-    );
-
-    this.callbacks?.onProgress?.({
-      costTime: Date.now() - start,
-      phase: 'dependencies',
-      progress: 100,
-    });
-
-    // @ts-ignore
-    const [{ PGlite, IdbFs, MemoryFS }, { vector }, fsBundle] = results;
-
-    return { IdbFs, MemoryFS, PGlite, fsBundle, vector };
-  }
-
   // 数据库迁移方法
   private async migrate(skipMultiRun = false): Promise<DrizzleInstance> {
     if (this.isLocalDBSchemaSynced && skipMultiRun) return this.db;
 
     let hash: string | undefined;
     if (typeof localStorage !== 'undefined') {
-      const cacheHash = localStorage.getItem(pgliteSchemaHashCache);
+      const cacheHash = localStorage.getItem(sqliteSchemaHashCache);
       hash = Md5.hashStr(JSON.stringify(migrations));
       // if hash is the same, no need to migrate
       if (hash === cacheHash) {
@@ -188,12 +83,24 @@ export class DatabaseManager {
     try {
       this.callbacks?.onStateChange?.(DatabaseLoadingState.Migrating);
 
-      // refs: https://github.com/drizzle-team/drizzle-orm/discussions/2532
-      // @ts-expect-error
-      await this.db.dialect.migrate(migrations, this.db.session, {});
+      // Apply migrations using the Wails SQLite driver
+      if (this.driver && migrations) {
+        for (const migration of migrations as any[]) {
+          if (migration.sql) {
+            // Execute each SQL statement in the migration
+            const statements = migration.sql.split('--> statement-breakpoint');
+            for (const statement of statements) {
+              const trimmed = statement.trim();
+              if (trimmed) {
+                await this.driver.execute(trimmed);
+              }
+            }
+          }
+        }
+      }
 
       if (typeof localStorage !== 'undefined' && hash) {
-        localStorage.setItem(pgliteSchemaHashCache, hash);
+        localStorage.setItem(sqliteSchemaHashCache, hash);
       }
 
       this.isLocalDBSchemaSynced = true;
@@ -221,36 +128,25 @@ export class DatabaseManager {
         // 初始化数据库
         this.callbacks?.onStateChange?.(DatabaseLoadingState.Initializing);
 
-        // 加载依赖
-        const { fsBundle, PGlite, MemoryFS, IdbFs, vector } = await this.loadDependencies();
+        // Initialize Wails SQLite connection
+        this.callbacks?.onProgress?.({
+          phase: 'dependencies',
+          progress: 50,
+        });
 
-        // 加载并编译 WASM 模块
-        const wasmModule = await this.loadWasmModule();
+        this.driver = await initWailsSQLite();
 
-        const { initPgliteWorker } = await import('./pglite');
+        this.callbacks?.onProgress?.({
+          costTime: Date.now() - time,
+          phase: 'dependencies',
+          progress: 100,
+        });
 
-        let db: typeof PGlite;
-
-        // make db as web worker if worker is available
-        // https://github.com/lobehub/lobe-chat/issues/5785
-        if (typeof Worker !== 'undefined' && typeof navigator.locks !== 'undefined') {
-          db = await initPgliteWorker({
-            dbName: DB_NAME,
-            fsBundle: fsBundle as Blob,
-            vectorBundlePath: DatabaseManager.VECTOR_CDN_URL,
-            wasmModule,
-          });
-        } else {
-          // in edge runtime or test runtime, we don't have worker
-          db = new PGlite({
-            extensions: { vector },
-            fs: typeof window === 'undefined' ? new MemoryFS(DB_NAME) : new IdbFs(DB_NAME),
-            relaxedDurability: true,
-            wasmModule,
-          });
-        }
-
-        this.dbInstance = drizzle({ client: db, schema });
+        // Create Drizzle instance with Wails SQLite driver
+        const db = createDrizzleWailsSQLite(this.driver, schema);
+        
+        // Wrap with drizzle for full ORM functionality
+        this.dbInstance = drizzle(db as any, { schema }) as DrizzleInstance;
 
         await this.migrate(true);
 
@@ -313,70 +209,29 @@ export class DatabaseManager {
   }
 
   async resetDatabase(): Promise<void> {
-    // 1. 关闭现有的 PGlite 连接（如果存在）
-    if (this.dbInstance) {
+    // 1. Close the Wails SQLite connection
+    if (this.driver) {
       try {
-        // @ts-ignore
-        await (this.dbInstance.session as any).client.close();
-        console.log('PGlite instance closed successfully.');
+        const { closeWailsSQLite } = await import('./wails-sqlite');
+        await closeWailsSQLite();
+        console.log('Wails SQLite connection closed successfully.');
       } catch (e) {
-        console.error('Error closing PGlite instance:', e);
-        // 即使关闭失败，也尝试继续删除，IndexedDB 的 onblocked 或 onerror 会处理后续问题
+        console.error('Error closing Wails SQLite connection:', e);
       }
     }
 
-    // 2. 重置数据库实例和初始化状态
+    // 2. Reset database instance and initialization state
     this.dbInstance = null;
+    this.driver = null;
     this.initPromise = null;
-    this.isLocalDBSchemaSynced = false; // 重置同步状态
+    this.isLocalDBSchemaSynced = false;
 
-    // 3. 删除 IndexedDB 数据库
-    return new Promise<void>((resolve, reject) => {
-      // 检查 IndexedDB 是否可用
-      if (typeof indexedDB === 'undefined') {
-        console.warn('IndexedDB is not available, cannot delete database');
-        resolve(); // 在此环境下无法删除，直接解决
-        return;
-      }
+    // 3. Clear schema hash cache
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem(sqliteSchemaHashCache);
+    }
 
-      const dbName = `/pglite/${DB_NAME}`; // PGlite IdbFs 使用的路径
-      const request = indexedDB.deleteDatabase(dbName);
-
-      request.onsuccess = () => {
-        console.log(`✅ Database '${dbName}' reset successfully`);
-
-        // 清除本地存储的模式哈希
-        if (typeof localStorage !== 'undefined') {
-          localStorage.removeItem(pgliteSchemaHashCache);
-        }
-
-        resolve();
-      };
-
-      // eslint-disable-next-line unicorn/prefer-add-event-listener
-      request.onerror = (event) => {
-        const error = (event.target as IDBOpenDBRequest)?.error;
-        console.error(`❌ Error resetting database '${dbName}':`, error);
-        reject(
-          new Error(
-            `Failed to reset database '${dbName}'. Error: ${error?.message || 'Unknown error'}`,
-          ),
-        );
-      };
-
-      request.onblocked = (event) => {
-        // 当其他打开的连接阻止数据库删除时，会触发此事件
-        console.warn(
-          `Deletion of database '${dbName}' is blocked. This usually means other connections (e.g., in other tabs) are still open. Event:`,
-          event,
-        );
-        reject(
-          new Error(
-            `Failed to reset database '${dbName}' because it is blocked by other open connections. Please close other tabs or applications using this database and try again.`,
-          ),
-        );
-      };
-    });
+    console.log(`✅ Database '${DB_NAME}' reset successfully`);
   }
 }
 

@@ -10,7 +10,7 @@ import {
   uniqueIndex,
   uuid,
   varchar,
-} from 'drizzle-orm/pg-core';
+} from 'drizzle-orm/sqlite-core';
 import { createInsertSchema } from 'drizzle-zod';
 
 import { FileSource } from '@/types/files';
@@ -20,13 +20,13 @@ import { accessedAt, createdAt, timestamps } from './_helpers';
 import { asyncTasks } from './asyncTask';
 import { users } from './user';
 
-export const globalFiles = pgTable('global_files', {
-  hashId: varchar('hash_id', { length: 64 }).primaryKey(),
-  fileType: varchar('file_type', { length: 255 }).notNull(),
+export const globalFiles = sqliteTable('global_files', {
+  hashId: text('hash_id').primaryKey(),
+  fileType: text('file_type').notNull(),
   size: integer('size').notNull(),
-  url: text('url').notNull(),
-  metadata: jsonb('metadata'),
-  creator: text('creator')
+  url: text('url', { mode: 'json' }).notNull(),
+  metadata: text('metadata'),
+  creator: text('creator', { mode: 'json' })
     .references(() => users.id, { onDelete: 'set null' })
     .notNull(),
   createdAt: createdAt(),
@@ -36,7 +36,7 @@ export const globalFiles = pgTable('global_files', {
 export type NewGlobalFile = typeof globalFiles.$inferInsert;
 export type GlobalFileItem = typeof globalFiles.$inferSelect;
 
-export const files = pgTable(
+export const files = sqliteTable(
   'files',
   {
     id: text('id')
@@ -49,22 +49,22 @@ export const files = pgTable(
     /**
      * mime
      */
-    fileType: varchar('file_type', { length: 255 }).notNull(),
+    fileType: text('file_type').notNull(),
     /**
      * sha256
      */
-    fileHash: varchar('file_hash', { length: 64 }).references(() => globalFiles.hashId, {
+    fileHash: text('file_hash').references(() => globalFiles.hashId, {
       onDelete: 'no action',
     }),
     name: text('name').notNull(),
     size: integer('size').notNull(),
-    url: text('url').notNull(),
-    source: text('source').$type<FileSource>(),
+    url: text('url', { mode: 'json' }).notNull(),
+    source: text('source', { mode: 'json' }).$type<FileSource>(),
 
-    clientId: text('client_id'),
-    metadata: jsonb('metadata'),
-    chunkTaskId: uuid('chunk_task_id').references(() => asyncTasks.id, { onDelete: 'set null' }),
-    embeddingTaskId: uuid('embedding_task_id').references(() => asyncTasks.id, {
+    clientId: text('client_id', { mode: 'json' }),
+    metadata: text('metadata'),
+    chunkTaskId: text('chunk_task_id').references(() => asyncTasks.id, { onDelete: 'set null' }),
+    embeddingTaskId: text('embedding_task_id').references(() => asyncTasks.id, {
       onDelete: 'set null',
     }),
 
@@ -83,7 +83,7 @@ export const files = pgTable(
 export type NewFile = typeof files.$inferInsert;
 export type FileItem = typeof files.$inferSelect;
 
-export const knowledgeBases = pgTable(
+export const knowledgeBases = sqliteTable(
   'knowledge_bases',
   {
     id: text('id')
@@ -99,11 +99,11 @@ export const knowledgeBases = pgTable(
     userId: text('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
-    clientId: text('client_id'),
+    clientId: text('client_id', { mode: 'json' }),
 
-    isPublic: boolean('is_public').default(false),
+    isPublic: integer('is_public').default(false),
 
-    settings: jsonb('settings'),
+    settings: text('settings'),
 
     ...timestamps,
   },
@@ -120,7 +120,7 @@ export const insertKnowledgeBasesSchema = createInsertSchema(knowledgeBases);
 export type NewKnowledgeBase = typeof knowledgeBases.$inferInsert;
 export type KnowledgeBaseItem = typeof knowledgeBases.$inferSelect;
 
-export const knowledgeBaseFiles = pgTable(
+export const knowledgeBaseFiles = sqliteTable(
   'knowledge_base_files',
   {
     knowledgeBaseId: text('knowledge_base_id')

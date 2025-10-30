@@ -8,20 +8,20 @@ import {
   primaryKey,
   text,
   timestamp,
-} from 'drizzle-orm/pg-core';
+} from 'drizzle-orm/sqlite-core';
 
 import { timestamps } from './_helpers';
 import { users } from './user';
 
 // Roles table
-export const roles = pgTable('rbac_roles', {
+export const roles = sqliteTable('rbac_roles', {
   id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
   name: text('name').notNull().unique(), // Role name, e.g.: admin, user, guest
   displayName: text('display_name').notNull(), // Display name
   description: text('description'), // Role description
-  isSystem: boolean('is_system').default(false).notNull(), // Whether it's a system role
-  isActive: boolean('is_active').default(true).notNull(), // Whether it's active
-  metadata: jsonb('metadata').default({}), // Role metadata
+  isSystem: integer('is_system').default(false).notNull(), // Whether it's a system role
+  isActive: integer('is_active').default(true).notNull(), // Whether it's active
+  metadata: text('metadata').$defaultFn(() => ({})), // Role metadata
 
   ...timestamps,
 });
@@ -30,13 +30,13 @@ export type NewRole = typeof roles.$inferInsert;
 export type RoleItem = typeof roles.$inferSelect;
 
 // Permissions table
-export const permissions = pgTable('rbac_permissions', {
+export const permissions = sqliteTable('rbac_permissions', {
   id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
   code: text('code').notNull().unique(), // Permission code, e.g.: chat:create, file:upload
   name: text('name').notNull(), // Permission name
   description: text('description'), // Permission description
   category: text('category').notNull(), // Category it belongs to, e.g.: message, knowledge_base, agent
-  isActive: boolean('is_active').default(true).notNull(), // Whether it's active
+  isActive: integer('is_active').default(true).notNull(), // Whether it's active
 
   ...timestamps,
 });
@@ -45,7 +45,7 @@ export type NewPermission = typeof permissions.$inferInsert;
 export type PermissionItem = typeof permissions.$inferSelect;
 
 // Role-permission association table
-export const rolePermissions = pgTable(
+export const rolePermissions = sqliteTable(
   'rbac_role_permissions',
   {
     roleId: integer('role_id')
@@ -55,7 +55,7 @@ export const rolePermissions = pgTable(
       .references(() => permissions.id, { onDelete: 'cascade' })
       .notNull(),
 
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    createdAt: integer('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (self) => [
     primaryKey({ columns: [self.roleId, self.permissionId] }),
@@ -68,7 +68,7 @@ export type NewRolePermission = typeof rolePermissions.$inferInsert;
 export type RolePermissionItem = typeof rolePermissions.$inferSelect;
 
 // User-role association table
-export const userRoles = pgTable(
+export const userRoles = sqliteTable(
   'rbac_user_roles',
   {
     userId: text('user_id')
@@ -78,8 +78,8 @@ export const userRoles = pgTable(
       .references(() => roles.id, { onDelete: 'cascade' })
       .notNull(),
 
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-    expiresAt: timestamp('expires_at', { withTimezone: true }), // Support for temporary roles
+    createdAt: integer('created_at', { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: integer('expires_at', { withTimezone: true }), // Support for temporary roles
   },
   (self) => [
     primaryKey({ columns: [self.userId, self.roleId] }),

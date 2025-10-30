@@ -1,4 +1,4 @@
-import { boolean, integer, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core';
+import { boolean, integer, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/sqlite-core';
 import { AdapterAccount } from 'next-auth/adapters';
 
 import { users } from './user';
@@ -7,7 +7,7 @@ import { users } from './user';
  * This table stores nextauth accounts. This is used to link users to their sso profiles.
  * @see {@link https://authjs.dev/guides/creating-a-database-adapter#database-session-management | NextAuth Doc}
  */
-export const nextauthAccounts = pgTable(
+export const nextauthAccounts = sqliteTable(
   `nextauth_accounts`,
   {
     access_token: text('access_token'),
@@ -37,8 +37,8 @@ export const nextauthAccounts = pgTable(
  * which will enable remote logout and other features.
  * @see {@link https://authjs.dev/guides/creating-a-database-adapter#database-session-management | NextAuth Doc}
  */
-export const nextauthSessions = pgTable(`nextauth_sessions`, {
-  expires: timestamp('expires', { mode: 'date' }).notNull(),
+export const nextauthSessions = sqliteTable(`nextauth_sessions`, {
+  expires: integer('expires', { mode: 'date' }).notNull(),
   sessionToken: text('sessionToken').primaryKey(),
   userId: text('userId')
     .notNull()
@@ -49,10 +49,10 @@ export const nextauthSessions = pgTable(`nextauth_sessions`, {
  * @description This table stores nextauth verification tokens.
  * @see {@link https://authjs.dev/guides/creating-a-database-adapter#verification-tokens | NextAuth Doc}
  */
-export const nextauthVerificationTokens = pgTable(
+export const nextauthVerificationTokens = sqliteTable(
   `nextauth_verificationtokens`,
   {
-    expires: timestamp('expires', { mode: 'date' }).notNull(),
+    expires: integer('expires', { mode: 'date' }).notNull(),
     identifier: text('identifier').notNull(),
     token: text('token').notNull(),
   },
@@ -67,11 +67,11 @@ export const nextauthVerificationTokens = pgTable(
  * @description This table stores nextauth authenticators.
  * @see {@link https://authjs.dev/reference/core/types#authenticator | NextAuth Doc }
  */
-export const nextauthAuthenticators = pgTable(
+export const nextauthAuthenticators = sqliteTable(
   `nextauth_authenticators`,
   {
-    counter: integer('counter').notNull(),
-    credentialBackedUp: boolean('credentialBackedUp').notNull(),
+    counter: integer('counter', { mode: 'boolean' }).notNull(),
+    credentialBackedUp: integer('credentialBackedUp').notNull(),
     credentialDeviceType: text('credentialDeviceType').notNull(),
     credentialID: text('credentialID').notNull().unique(),
     credentialPublicKey: text('credentialPublicKey').notNull(),

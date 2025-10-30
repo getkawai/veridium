@@ -1,36 +1,36 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix  */
-import { boolean, integer, jsonb, pgTable, primaryKey, text, varchar } from 'drizzle-orm/pg-core';
+import { boolean, integer, jsonb, pgTable, primaryKey, text, varchar } from 'drizzle-orm/sqlite-core';
 
 import { AiProviderConfig, AiProviderSettings } from '@/types/aiProvider';
 
 import { timestamps } from './_helpers';
 import { users } from './user';
 
-export const aiProviders = pgTable(
+export const aiProviders = sqliteTable(
   'ai_providers',
   {
-    id: varchar('id', { length: 64 }).notNull(),
+    id: text('id').notNull(),
     name: text('name'),
 
     userId: text('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
 
-    sort: integer('sort'),
-    enabled: boolean('enabled'),
-    fetchOnClient: boolean('fetch_on_client'),
+    sort: integer('sort', { mode: 'boolean' }),
+    enabled: integer('enabled'),
+    fetchOnClient: integer('fetch_on_client'),
     checkModel: text('check_model'),
     logo: text('logo'),
     description: text('description'),
 
     // need to be encrypted
     keyVaults: text('key_vaults'),
-    source: varchar('source', { enum: ['builtin', 'custom'], length: 20 }),
-    settings: jsonb('settings')
+    source: text('source', { enum: ['builtin', 'custom'], length: 20 }),
+    settings: text('settings')
       .$defaultFn(() => ({}))
       .$type<AiProviderSettings>(),
 
-    config: jsonb('config')
+    config: text('config')
       .$defaultFn(() => ({}))
       .$type<AiProviderConfig>(),
 
@@ -42,28 +42,28 @@ export const aiProviders = pgTable(
 export type NewAiProviderItem = Omit<typeof aiProviders.$inferInsert, 'userId'>;
 export type AiProviderSelectItem = typeof aiProviders.$inferSelect;
 
-export const aiModels = pgTable(
+export const aiModels = sqliteTable(
   'ai_models',
   {
-    id: varchar('id', { length: 150 }).notNull(),
-    displayName: varchar('display_name', { length: 200 }),
+    id: text('id').notNull(),
+    displayName: text('display_name'),
     description: text('description'),
-    organization: varchar('organization', { length: 100 }),
-    enabled: boolean('enabled'),
-    providerId: varchar('provider_id', { length: 64 }).notNull(),
-    type: varchar('type', { length: 20 }).default('chat').notNull(),
-    sort: integer('sort'),
+    organization: text('organization'),
+    enabled: integer('enabled'),
+    providerId: text('provider_id').notNull(),
+    type: text('type').default('chat').notNull(),
+    sort: integer('sort', { mode: 'boolean' }),
 
     userId: text('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
-    pricing: jsonb('pricing'),
-    parameters: jsonb('parameters').default({}),
-    config: jsonb('config'),
-    abilities: jsonb('abilities').default({}),
+    pricing: text('pricing'),
+    parameters: text('parameters').$defaultFn(() => ({})),
+    config: text('config'),
+    abilities: text('abilities').$defaultFn(() => ({})),
     contextWindowTokens: integer('context_window_tokens'),
-    source: varchar('source', { enum: ['remote', 'custom', 'builtin'], length: 20 }),
-    releasedAt: varchar('released_at', { length: 10 }),
+    source: text('source', { enum: ['remote', 'custom', 'builtin'], length: 20 }),
+    releasedAt: text('released_at'),
 
     ...timestamps,
   },

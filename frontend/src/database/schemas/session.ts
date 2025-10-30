@@ -1,5 +1,5 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix  */
-import { boolean, index, integer, pgTable, text, uniqueIndex, varchar } from 'drizzle-orm/pg-core';
+import { boolean, index, integer, pgTable, text, uniqueIndex, varchar } from 'drizzle-orm/sqlite-core';
 import { createInsertSchema } from 'drizzle-zod';
 
 import { idGenerator, randomSlug } from '../utils/idGenerator';
@@ -8,7 +8,7 @@ import { users } from './user';
 
 //  ======= sessionGroups ======= //
 
-export const sessionGroups = pgTable(
+export const sessionGroups = sqliteTable(
   'session_groups',
   {
     id: text('id')
@@ -39,13 +39,13 @@ export type SessionGroupItem = typeof sessionGroups.$inferSelect;
 
 //  ======= sessions ======= //
 
-export const sessions = pgTable(
+export const sessions = sqliteTable(
   'sessions',
   {
     id: text('id')
       .$defaultFn(() => idGenerator('sessions'))
       .primaryKey(),
-    slug: varchar('slug', { length: 100 })
+    slug: text('slug')
       .notNull()
       .$defaultFn(() => randomSlug()),
     title: text('title'),
@@ -60,7 +60,7 @@ export const sessions = pgTable(
       .notNull(),
     groupId: text('group_id').references(() => sessionGroups.id, { onDelete: 'set null' }),
     clientId: text('client_id'),
-    pinned: boolean('pinned').default(false),
+    pinned: integer('pinned').default(false),
 
     ...timestamps,
   },

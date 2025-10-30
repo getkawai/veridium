@@ -1,5 +1,5 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix  */
-import { boolean, index, jsonb, pgTable, primaryKey, text, uniqueIndex } from 'drizzle-orm/pg-core';
+import { boolean, index, jsonb, pgTable, primaryKey, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { createInsertSchema } from 'drizzle-zod';
 
 import { ChatTopicMetadata } from '@/types/topic';
@@ -11,22 +11,22 @@ import { documents } from './document';
 import { sessions } from './session';
 import { users } from './user';
 
-export const topics = pgTable(
+export const topics = sqliteTable(
   'topics',
   {
     id: text('id')
       .$defaultFn(() => idGenerator('topics'))
       .primaryKey(),
     title: text('title'),
-    favorite: boolean('favorite').default(false),
+    favorite: integer('favorite').default(false),
     sessionId: text('session_id').references(() => sessions.id, { onDelete: 'cascade' }),
     groupId: text('group_id').references(() => chatGroups.id, { onDelete: 'cascade' }),
     userId: text('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
-    clientId: text('client_id'),
-    historySummary: text('history_summary'),
-    metadata: jsonb('metadata').$type<ChatTopicMetadata | undefined>(),
+    clientId: text('client_id', { mode: 'json' }),
+    historySummary: text('history_summary', { mode: 'json' }),
+    metadata: text('metadata').$type<ChatTopicMetadata | undefined>(),
     ...timestamps,
   },
   (t) => [
@@ -40,7 +40,7 @@ export type NewTopic = typeof topics.$inferInsert;
 export type TopicItem = typeof topics.$inferSelect;
 
 // @ts-ignore
-export const threads = pgTable(
+export const threads = sqliteTable(
   'threads',
   {
     id: text('id')
@@ -56,7 +56,7 @@ export const threads = pgTable(
     sourceMessageId: text('source_message_id').notNull(),
     // @ts-ignore
     parentThreadId: text('parent_thread_id').references(() => threads.id, { onDelete: 'set null' }),
-    clientId: text('client_id'),
+    clientId: text('client_id', { mode: 'json' }),
 
     userId: text('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
@@ -75,7 +75,7 @@ export const insertThreadSchema = createInsertSchema(threads);
 /**
  * 文档与话题关联表 - 实现文档和话题的多对多关系
  */
-export const topicDocuments = pgTable(
+export const topicDocuments = sqliteTable(
   'topic_documents',
   {
     documentId: text('document_id')

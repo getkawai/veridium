@@ -7,7 +7,7 @@ import {
   primaryKey,
   text,
   uniqueIndex,
-} from 'drizzle-orm/pg-core';
+} from 'drizzle-orm/sqlite-core';
 import { createInsertSchema } from 'drizzle-zod';
 
 import type { ChatGroupConfig } from '../types/chatGroup';
@@ -21,27 +21,27 @@ import { users } from './user';
  * Chat groups table for multi-agent conversations
  * Allows multiple agents to participate in a single chat session
  */
-export const chatGroups = pgTable(
+export const chatGroups = sqliteTable(
   'chat_groups',
   {
     id: text('id')
       .primaryKey()
       .$defaultFn(() => idGenerator('chatGroups'))
       .notNull(),
-    title: text('title'),
-    description: text('description'),
+    title: text('title', { mode: 'json' }),
+    description: text('description', { mode: 'json' }),
 
-    config: jsonb('config').$type<ChatGroupConfig>(),
+    config: text('config').$type<ChatGroupConfig>(),
 
-    clientId: text('client_id'),
+    clientId: text('client_id', { mode: 'json' }),
 
-    userId: text('user_id')
+    userId: text('user_id', { mode: 'json' })
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
 
     groupId: text('group_id').references(() => sessionGroups.id, { onDelete: 'set null' }),
 
-    pinned: boolean('pinned').default(false),
+    pinned: integer('pinned').default(false),
 
     ...timestamps,
   },
@@ -57,7 +57,7 @@ export type ChatGroupItem = typeof chatGroups.$inferSelect;
  * Junction table connecting chat groups with agents
  * Defines which agents participate in each group chat
  */
-export const chatGroupsAgents = pgTable(
+export const chatGroupsAgents = sqliteTable(
   'chat_groups_agents',
   {
     chatGroupId: text('chat_group_id')
@@ -66,14 +66,14 @@ export const chatGroupsAgents = pgTable(
     agentId: text('agent_id')
       .references(() => agents.id, { onDelete: 'cascade' })
       .notNull(),
-    userId: text('user_id')
+    userId: text('user_id', { mode: 'json' })
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
 
     /**
      * Whether this agent is active in the group
      */
-    enabled: boolean('enabled').default(true),
+    enabled: integer('enabled').default(true),
 
     /**
      * Display or speaking order of the agent in the group
