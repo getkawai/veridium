@@ -51,11 +51,21 @@ const SessionPanel = memo<PropsWithChildren>(({ children }) => {
   // ]);
   const sessionExpandable = true;
   const sessionsWidth = 320;
-  const updatePreference: (params: any) => void = () => {};
+  
+  // Memoized mock function to prevent useEffect dependency issues
+  const updatePreference = useMemo(() => (params: any) => {
+    console.log('Mock updatePreference called with:', params);
+  }, []);
 
   const [cacheExpand, setCacheExpand] = useState<boolean>(Boolean(sessionExpandable));
   const [tmpWidth, setWidth] = useState(sessionsWidth);
-  if (tmpWidth !== sessionsWidth) setWidth(sessionsWidth);
+  
+  // Sync tmpWidth with sessionsWidth when sessionsWidth changes
+  useEffect(() => {
+    if (tmpWidth !== sessionsWidth) {
+      setWidth(sessionsWidth);
+    }
+  }, [sessionsWidth]); // Remove tmpWidth from dependencies to prevent infinite loop
 
   const handleExpand = (expand: boolean) => {
     if (isEqual(expand, sessionExpandable)) return;
@@ -76,7 +86,7 @@ const SessionPanel = memo<PropsWithChildren>(({ children }) => {
   useEffect(() => {
     if (md && cacheExpand) updatePreference({ showSessionPanel: true });
     if (!md) updatePreference({ showSessionPanel: false });
-  }, [md, cacheExpand]);
+  }, [md, cacheExpand, updatePreference]);
 
   const { appearance } = useThemeMode();
 
@@ -107,7 +117,7 @@ const SessionPanel = memo<PropsWithChildren>(({ children }) => {
         </DraggablePanelContainer>
       </DraggablePanel>
     );
-  }, [sessionsWidth, md, isPinned, sessionExpandable, tmpWidth, appearance, isSingleMode]);
+  }, [sessionsWidth, md, isPinned, sessionExpandable, tmpWidth, appearance, isSingleMode, children, styles.panel, handleExpand, handleSizeChange]);
 
   return SessionPanel;
 });

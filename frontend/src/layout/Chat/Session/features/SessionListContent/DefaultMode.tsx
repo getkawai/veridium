@@ -64,21 +64,22 @@ const sessionSelectors = {
   pinnedSessions: (state: any) => state.pinnedSessions,
 };
 
+// Memoized global store to prevent new array/function creation
+const mockSessionGroupKeys = [SessionDefaultGroup.Default];
+const mockUpdateSystemStatus = (status: any) => {
+  console.log('Mock updateSystemStatus called with:', status);
+};
+
+const mockGlobalStore = {
+  sessionGroupKeys: mockSessionGroupKeys,
+  updateSystemStatus: mockUpdateSystemStatus,
+};
+
 const useGlobalStore = (selector: any) => {
   if (selector) {
-    return selector({
-      sessionGroupKeys: [SessionDefaultGroup.Default],
-      updateSystemStatus: (status: any) => {
-        console.log('Mock updateSystemStatus called with:', status);
-      },
-    });
+    return selector(mockGlobalStore);
   }
-  return {
-    sessionGroupKeys: [SessionDefaultGroup.Default],
-    updateSystemStatus: (status: any) => {
-      console.log('Mock updateSystemStatus called with:', status);
-    },
-  };
+  return mockGlobalStore;
 };
 
 const systemStatusSelectors = {
@@ -115,12 +116,23 @@ const DefaultMode = memo(() => {
     return filteredForDevice.filter((session) => !shouldHideSession(session));
   };
 
-  const filteredDefaultSessions = filterSessionsForView(defaultSessions);
-  const filteredPinnedSessions = filterSessionsForView(pinnedSessions);
-  const filteredCustomSessionGroups = customSessionGroups?.map((group) => ({
-    ...group,
-    children: filterSessionsForView(group.children),
-  }));
+  const filteredDefaultSessions = useMemo(
+    () => filterSessionsForView(defaultSessions),
+    [defaultSessions, isMobile]
+  );
+  
+  const filteredPinnedSessions = useMemo(
+    () => filterSessionsForView(pinnedSessions),
+    [pinnedSessions, isMobile]
+  );
+  
+  const filteredCustomSessionGroups = useMemo(
+    () => customSessionGroups?.map((group) => ({
+      ...group,
+      children: filterSessionsForView(group.children),
+    })),
+    [customSessionGroups, isMobile]
+  );
 
   const [sessionGroupKeys, updateSystemStatus] = useGlobalStore((s) => [
     systemStatusSelectors.sessionGroupKeys(s),
