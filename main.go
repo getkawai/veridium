@@ -41,7 +41,14 @@ func main() {
 			// Native Wails v3 sqlite service
 			application.NewService(sqlite.New()),
 			// Native Wails v3 fileserver service
-			application.NewService(fileserver.New()),
+			application.NewServiceWithOptions(
+				fileserver.NewWithConfig(&fileserver.Config{
+					RootPath: "public",
+				}),
+				application.ServiceOptions{
+					Route: "/files",
+				},
+			),
 			// Native Wails v3 kvstore service
 			application.NewService(kvstore.New()),
 		},
