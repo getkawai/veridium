@@ -6,9 +6,9 @@ import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 
-import { useIsMobile } from '@/hooks/useIsMobile';
-import { useChatStore } from '@/store/chat';
-import { chatSelectors } from '@/store/chat/selectors';
+// import { useIsMobile } from '@/hooks/useIsMobile';
+// import { useChatStore } from '@/store/chat';
+// import { chatSelectors } from '@/store/chat/selectors';
 import { ThreadItem } from '@/types/topic';
 
 const useStyles = createStyles(({ css, token }) => ({

@@ -5,9 +5,40 @@ import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Center } from 'react-layout-kit';
 
-import { useChatStore } from '@/store/chat';
-import { chatSelectors } from '@/store/chat/selectors';
-import { useSessionStore } from '@/store/session';
+// import { useChatStore } from '@/store/chat';
+// import { chatSelectors } from '@/store/chat/selectors';
+// import { useSessionStore } from '@/store/session';
+
+// Dummy implementations for UI development
+const useSessionStore = (selector?: any) => {
+  if (selector) {
+    return selector({
+      activeId: 'mock-session-id',
+    });
+  }
+
+  return {
+    activeId: 'mock-session-id',
+  };
+};
+
+const useChatStore = (selector?: any) => {
+  if (selector) {
+    return selector({
+      isSupervisorLoading: (groupId: string) => false,
+      internal_cancelSupervisorDecision: (groupId: string) => console.log('Mock cancelSupervisorDecision called with:', groupId),
+    });
+  }
+
+  return {
+    isSupervisorLoading: (groupId: string) => false,
+    internal_cancelSupervisorDecision: (groupId: string) => console.log('Mock cancelSupervisorDecision called with:', groupId),
+  };
+};
+
+const chatSelectors = {
+  isSupervisorLoading: (groupId: string) => (state: any) => state.isSupervisorLoading(groupId),
+};
 import { shinyTextStylish } from '@/styles/loading';
 
 const useStyles = createStyles(({ token, css }) => ({

@@ -2,8 +2,25 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useGroupTemplates } from '@/components/ChatGroupWizard/templates';
-import { useSessionStore } from '@/store/session';
-import { sessionSelectors } from '@/store/session/selectors';
+// import { useSessionStore } from '@/store/session';
+// import { sessionSelectors } from '@/store/session/selectors';
+
+// Dummy implementations for UI development
+const useSessionStore = (selector?: any) => {
+  if (selector) {
+    return selector({
+      currentSession: null,
+    });
+  }
+
+  return {
+    currentSession: null,
+  };
+};
+
+const sessionSelectors = {
+  currentSession: (state: any) => state.currentSession,
+};
 import { LobeGroupSession } from '@/types/session';
 
 interface TemplateMatch {
