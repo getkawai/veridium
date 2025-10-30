@@ -1,4 +1,4 @@
-import { UIChatMessage } from '@lobechat/types';
+import { UIChatMessage } from '@/types';
 import { Tag } from '@lobehub/ui';
 import { useResponsive } from 'antd-style';
 import { ReactNode, memo, useCallback, useMemo } from 'react';

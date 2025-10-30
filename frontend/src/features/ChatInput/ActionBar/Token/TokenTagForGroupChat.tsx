@@ -1,4 +1,4 @@
-import { GroupMemberInfo, groupChatPrompts, groupSupervisorPrompts } from '@lobechat/prompts';
+import { GroupMemberInfo, groupChatPrompts, groupSupervisorPrompts } from '@/prompts';
 import { Tooltip } from '@lobehub/ui';
 import { TokenTag } from '@lobehub/ui/chat';
 import { useTheme } from 'antd-style';

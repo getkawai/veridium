@@ -1,4 +1,4 @@
-import { KeyEnum } from '@lobechat/types';
+import { KeyEnum } from '@/types';
 import { Hotkey, combineKeys } from '@lobehub/ui';
 import { memo } from 'react';
 import { Trans, useTranslation } from 'react-i18next';

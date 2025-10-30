@@ -1,4 +1,4 @@
-import { ChatFileItem, UIChatMessage } from '@lobechat/types';
+import { ChatFileItem, UIChatMessage } from '@/types';
 
 import { DEFAULT_USER_AVATAR } from '@/const/meta';
 import { INBOX_SESSION_ID } from '@/const/session';

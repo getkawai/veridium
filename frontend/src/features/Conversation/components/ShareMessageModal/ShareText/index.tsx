@@ -1,4 +1,4 @@
-import { UIChatMessage } from '@lobechat/types';
+import { UIChatMessage } from '@/types';
 import { Button, copyToClipboard } from '@lobehub/ui';
 import { App } from 'antd';
 import isEqual from 'fast-deep-equal';

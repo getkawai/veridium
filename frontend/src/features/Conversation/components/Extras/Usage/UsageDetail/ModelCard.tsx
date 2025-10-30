@@ -3,7 +3,7 @@ import { ModelIcon } from '@lobehub/icons';
 import { Icon, Segmented, Tooltip } from '@lobehub/ui';
 import { createStyles } from 'antd-style';
 import { ArrowDownToDot, ArrowUpFromDot, BookUp2Icon, CircleFadingArrowUp } from 'lucide-react';
-import { LobeDefaultAiModelListItem } from 'model-bank';
+import { LobeDefaultAiModelListItem } from '@/model-bank';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';

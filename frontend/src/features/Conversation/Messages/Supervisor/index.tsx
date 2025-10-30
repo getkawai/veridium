@@ -1,6 +1,6 @@
 'use client';
 
-import { UIChatMessage } from '@lobechat/types';
+import { UIChatMessage } from '@/types';
 import { ModelIcon } from '@lobehub/icons';
 import { Button, Text } from '@lobehub/ui';
 import { createStyles, useTheme } from 'antd-style';

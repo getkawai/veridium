@@ -8,7 +8,7 @@ import {
   MessageToolCall,
   ToolsCallingContext,
   UIChatMessage,
-} from '@lobechat/types';
+} from '@/types';
 import { LobeChatPluginManifest, PluginErrorType } from '@lobehub/chat-plugin-sdk';
 import isEqual from 'fast-deep-equal';
 import { t } from 'i18next';

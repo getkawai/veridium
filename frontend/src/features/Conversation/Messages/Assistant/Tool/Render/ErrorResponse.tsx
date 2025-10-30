@@ -1,4 +1,4 @@
-import { ChatMessageError, ChatPluginPayload } from '@lobechat/types';
+import { ChatMessageError, ChatPluginPayload } from '@/types';
 import { Alert, Highlighter } from '@lobehub/ui';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';

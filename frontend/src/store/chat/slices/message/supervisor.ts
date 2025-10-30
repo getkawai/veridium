@@ -1,5 +1,5 @@
-import { contextSupervisorMakeDecision } from '@lobechat/prompts';
-import { GroupMemberWithAgent, UIChatMessage } from '@lobechat/types';
+import { contextSupervisorMakeDecision } from '@/prompts';
+import { GroupMemberWithAgent, UIChatMessage } from '@/types';
 
 import { aiChatService } from '@/services/aiChat';
 

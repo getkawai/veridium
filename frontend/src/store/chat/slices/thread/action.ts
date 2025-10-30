@@ -1,14 +1,14 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix, typescript-sort-keys/interface */
 // Disable the auto sort key eslint rule to make the code more logic and readable
 import { LOADING_FLAT, THREAD_DRAFT_ID, isDeprecatedEdition } from '@lobechat/const';
-import { chainSummaryTitle } from '@lobechat/prompts';
+import { chainSummaryTitle } from '@/prompts';
 import {
   CreateMessageParams,
   SendThreadMessageParams,
   ThreadItem,
   ThreadType,
   UIChatMessage,
-} from '@lobechat/types';
+} from '@/types';
 import isEqual from 'fast-deep-equal';
 import { SWRResponse, mutate } from 'swr';
 import { StateCreator } from 'zustand/vanilla';

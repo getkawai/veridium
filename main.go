@@ -7,6 +7,10 @@ import (
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/services/fileserver"
+	"github.com/wailsapp/wails/v3/pkg/services/kvstore"
+	"github.com/wailsapp/wails/v3/pkg/services/notifications"
+	"github.com/wailsapp/wails/v3/pkg/services/sqlite"
 )
 
 // Wails uses Go's `embed` package to embed the frontend files into the binary.
@@ -32,6 +36,14 @@ func main() {
 		Description: "A demo of using raw HTML & CSS",
 		Services: []application.Service{
 			application.NewService(&GreetService{}),
+			// Native Wails v3 notification service
+			application.NewService(notifications.New()),
+			// Native Wails v3 sqlite service
+			application.NewService(sqlite.New()),
+			// Native Wails v3 fileserver service
+			application.NewService(fileserver.New()),
+			// Native Wails v3 kvstore service
+			application.NewService(kvstore.New()),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),

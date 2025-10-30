@@ -1,4 +1,4 @@
-import { type MessageMetadata } from '@lobechat/types';
+import { type MessageMetadata } from '@/types';
 import { memo } from 'react';
 import { Flexbox } from 'react-layout-kit';
 

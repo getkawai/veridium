@@ -1,4 +1,4 @@
-import { ChatFileChunk } from '@lobechat/types';
+import { ChatFileChunk } from '@/types';
 import { Text, Tooltip } from '@lobehub/ui';
 import { memo } from 'react';
 import { Center, Flexbox } from 'react-layout-kit';

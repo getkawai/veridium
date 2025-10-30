@@ -1,4 +1,4 @@
-import { ChatTranslate } from '@lobechat/types';
+import { ChatTranslate } from '@/types';
 import { ActionIcon, Icon, Markdown, Tag, copyToClipboard } from '@lobehub/ui';
 import { App } from 'antd';
 import { useTheme } from 'antd-style';

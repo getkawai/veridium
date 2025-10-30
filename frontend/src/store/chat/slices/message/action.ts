@@ -14,7 +14,7 @@ import {
   TraceEventType,
   UIChatMessage,
   UpdateMessageRAGParams,
-} from '@lobechat/types';
+} from '@/types';
 import { nanoid } from '@lobechat/utils';
 import { copyToClipboard } from '@lobehub/ui';
 import isEqual from 'fast-deep-equal';

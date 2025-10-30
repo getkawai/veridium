@@ -1,5 +1,5 @@
 import { LOADING_FLAT } from '@lobechat/const';
-import { UIChatMessage } from '@lobechat/types';
+import { UIChatMessage } from '@/types';
 import { ReactNode, memo } from 'react';
 import { Flexbox } from 'react-layout-kit';
 

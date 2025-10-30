@@ -1,4 +1,4 @@
-import { UIChatMessage } from '@lobechat/types';
+import { UIChatMessage } from '@/types';
 import { type ChatItemProps } from '@lobehub/ui/chat';
 import { FC, ReactNode } from 'react';
 

@@ -1,5 +1,5 @@
 import { isDesktop } from '@lobechat/const';
-import { HotkeyEnum, KeyEnum } from '@lobechat/types';
+import { HotkeyEnum, KeyEnum } from '@/types';
 import { isCommandPressed } from '@lobechat/utils';
 import {
   INSERT_MENTION_COMMAND,

@@ -1,4 +1,4 @@
-import { ChatTTS } from '@lobechat/types';
+import { ChatTTS } from '@/types';
 import { StateCreator } from 'zustand/vanilla';
 
 import { messageService } from '@/services/message';

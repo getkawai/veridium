@@ -1,4 +1,4 @@
-import { UIChatMessage } from '@lobechat/types';
+import { UIChatMessage } from '@/types';
 import { Modal, Segmented, Tabs } from '@lobehub/ui';
 import { memo, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';

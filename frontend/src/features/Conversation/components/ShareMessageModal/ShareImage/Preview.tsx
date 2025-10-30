@@ -1,4 +1,4 @@
-import { UIChatMessage } from '@lobechat/types';
+import { UIChatMessage } from '@/types';
 import { ModelTag } from '@lobehub/icons';
 import { Avatar } from '@lobehub/ui';
 import { ChatHeaderTitle } from '@lobehub/ui/chat';

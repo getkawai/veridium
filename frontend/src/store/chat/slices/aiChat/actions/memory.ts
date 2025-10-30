@@ -1,5 +1,5 @@
-import { chainSummaryHistory } from '@lobechat/prompts';
-import { TraceNameMap, UIChatMessage } from '@lobechat/types';
+import { chainSummaryHistory } from '@/prompts';
+import { TraceNameMap, UIChatMessage } from '@/types';
 import { StateCreator } from 'zustand/vanilla';
 
 import { chatService } from '@/services/chat';

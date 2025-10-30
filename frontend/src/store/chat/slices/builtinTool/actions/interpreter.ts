@@ -2,7 +2,7 @@ import {
   CodeInterpreterFileItem,
   CodeInterpreterParams,
   CodeInterpreterResponse,
-} from '@lobechat/types';
+} from '@/types';
 import { produce } from 'immer';
 import pMap from 'p-map';
 import { SWRResponse } from 'swr';

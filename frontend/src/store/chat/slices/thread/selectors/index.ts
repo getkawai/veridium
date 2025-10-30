@@ -1,5 +1,5 @@
 import { THREAD_DRAFT_ID } from '@lobechat/const';
-import { ThreadItem, UIChatMessage } from '@lobechat/types';
+import { ThreadItem, UIChatMessage } from '@/types';
 
 import { useAgentStore } from '@/store/agent';
 import { agentChatConfigSelectors } from '@/store/agent/selectors';

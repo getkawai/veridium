@@ -1,7 +1,7 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix, typescript-sort-keys/interface */
 // Disable the auto sort key eslint rule to make the code more logic and readable
-import { DEFAULT_AGENT_CHAT_CONFIG, INBOX_SESSION_ID, isDesktop } from '@lobechat/const';
-import { knowledgeBaseQAPrompts } from '@lobechat/prompts';
+import { DEFAULT_AGENT_CHAT_CONFIG, INBOX_SESSION_ID, isDesktop } from '@/const';
+import { knowledgeBaseQAPrompts } from '@/prompts';
 import {
   ChatImageItem,
   ChatTopic,
@@ -11,7 +11,7 @@ import {
   SendMessageServerResponse,
   TraceNameMap,
   UIChatMessage,
-} from '@lobechat/types';
+} from '@/types';
 import { TRPCClientError } from '@trpc/client';
 import { t } from 'i18next';
 import { produce } from 'immer';

@@ -1,4 +1,4 @@
-import { UIChatMessage } from '@lobechat/types';
+import { UIChatMessage } from '@/types';
 
 import { ChatGroupAgentItem, ChatGroupItem } from '@/database/schemas/chatGroup';
 

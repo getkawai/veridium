@@ -1,4 +1,4 @@
-import { SendMessageParams } from '@lobechat/types';
+import { SendMessageParams } from '@/types';
 import { useAnalytics } from '@lobehub/analytics/react';
 import { useCallback, useMemo } from 'react';
 

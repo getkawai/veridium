@@ -1,6 +1,6 @@
 'use client';
 
-import { StoreApiWithSelector } from '@lobechat/types';
+import { StoreApiWithSelector } from '@/types';
 import { createContext } from 'zustand-utils';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { shallow } from 'zustand/shallow';

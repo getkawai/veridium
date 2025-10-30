@@ -1,4 +1,4 @@
-import { MessageMetadata } from '@lobechat/types';
+import { MessageMetadata } from '@/types';
 import { Icon } from '@lobehub/ui';
 import { Divider, Popover } from 'antd';
 import { useTheme } from 'antd-style';

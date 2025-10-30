@@ -1,4 +1,4 @@
-import { MessageMetadata } from '@lobechat/types';
+import { MessageMetadata } from '@/types';
 import { ModelIcon } from '@lobehub/icons';
 import { createStyles } from 'antd-style';
 import { memo } from 'react';

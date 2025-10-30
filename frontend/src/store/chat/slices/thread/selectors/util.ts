@@ -1,4 +1,4 @@
-import { ThreadType, UIChatMessage } from '@lobechat/types';
+import { ThreadType, UIChatMessage } from '@/types';
 
 export const genMessage = (
   messages: UIChatMessage[],

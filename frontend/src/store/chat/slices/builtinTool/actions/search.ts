@@ -1,5 +1,5 @@
-import { crawlResultsPrompt } from '@lobechat/prompts';
-import { CreateMessageParams, SEARCH_SEARXNG_NOT_CONFIG, SearchQuery } from '@lobechat/types';
+import { crawlResultsPrompt } from '@/prompts';
+import { CreateMessageParams, SEARCH_SEARXNG_NOT_CONFIG, SearchQuery } from '@/types';
 import { nanoid } from '@lobechat/utils';
 import { StateCreator } from 'zustand/vanilla';
 

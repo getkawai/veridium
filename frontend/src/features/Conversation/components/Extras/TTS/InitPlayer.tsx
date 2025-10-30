@@ -1,4 +1,4 @@
-import { ChatMessageError, ChatTTS } from '@lobechat/types';
+import { ChatMessageError, ChatTTS } from '@/types';
 import { memo, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 

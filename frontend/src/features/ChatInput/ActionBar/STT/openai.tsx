@@ -1,4 +1,4 @@
-import { ChatMessageError } from '@lobechat/types';
+import { ChatMessageError } from '@/types';
 import { getRecordMineType } from '@lobehub/tts';
 import { OpenAISTTOptions, useOpenAISTT } from '@lobehub/tts/react';
 import isEqual from 'fast-deep-equal';

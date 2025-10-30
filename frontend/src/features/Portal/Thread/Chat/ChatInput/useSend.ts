@@ -1,4 +1,4 @@
-import { SendMessageParams } from '@lobechat/types';
+import { SendMessageParams } from '@/types';
 import { useMemo, useState } from 'react';
 
 import { useGeminiChineseWarning } from '@/hooks/useGeminiChineseWarning';

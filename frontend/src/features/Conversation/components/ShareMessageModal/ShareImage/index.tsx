@@ -1,4 +1,4 @@
-import { UIChatMessage } from '@lobechat/types';
+import { UIChatMessage } from '@/types';
 import { Button, Form, type FormItemProps, Segmented } from '@lobehub/ui';
 import { Switch } from 'antd';
 import { CopyIcon } from 'lucide-react';

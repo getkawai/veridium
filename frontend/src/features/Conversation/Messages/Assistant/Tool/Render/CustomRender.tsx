@@ -1,4 +1,4 @@
-import { UIChatMessage } from '@lobechat/types';
+import { UIChatMessage } from '@/types';
 import { ActionIcon } from '@lobehub/ui';
 import { App } from 'antd';
 import { Edit3Icon, PlayCircleIcon } from 'lucide-react';

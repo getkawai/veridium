@@ -1,4 +1,4 @@
-import { UIChatMessage } from '@lobechat/types';
+import { UIChatMessage } from '@/types';
 import { ActionIconGroup } from '@lobehub/ui';
 import { ActionIconGroupItemType } from '@lobehub/ui/es/ActionIconGroup';
 import { ActionIconGroupEvent } from '@lobehub/ui/es/ActionIconGroup/type';

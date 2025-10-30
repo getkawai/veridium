@@ -1,4 +1,4 @@
-import { UIChatMessage } from '@lobechat/types';
+import { UIChatMessage } from '@/types';
 import { template } from 'lodash-es';
 
 import { LOADING_FLAT } from '@/const/message';

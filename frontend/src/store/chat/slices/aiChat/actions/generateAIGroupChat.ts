@@ -4,13 +4,13 @@ import {
   GroupMemberInfo,
   buildGroupChatSystemPrompt,
   filterMessagesForAgent,
-} from '@lobechat/prompts';
+} from '@/prompts';
 import {
   ChatErrorType,
   CreateMessageParams,
   SendGroupMessageParams,
   UIChatMessage,
-} from '@lobechat/types';
+} from '@/types';
 import { produce } from 'immer';
 import { StateCreator } from 'zustand/vanilla';
 
