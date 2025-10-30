@@ -57,7 +57,6 @@ const SessionPanel = memo<PropsWithChildren>(({ children }) => {
     console.log('Mock updatePreference called with:', params);
   }, []);
 
-  const [cacheExpand, setCacheExpand] = useState<boolean>(Boolean(sessionExpandable));
   const [tmpWidth, setWidth] = useState(sessionsWidth);
   
   // Sync tmpWidth with sessionsWidth when sessionsWidth changes
@@ -70,7 +69,6 @@ const SessionPanel = memo<PropsWithChildren>(({ children }) => {
   const handleExpand = useCallback((expand: boolean) => {
     if (isEqual(expand, sessionExpandable)) return;
     updatePreference({ showSessionPanel: expand });
-    setCacheExpand(expand);
   }, [sessionExpandable, updatePreference]);
 
   const handleSizeChange: DraggablePanelProps['onSizeChange'] = useCallback((_, size) => {
