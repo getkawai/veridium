@@ -4,12 +4,13 @@ import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 
-import { useAgentStore } from '@/store/agent';
-import { agentChatConfigSelectors } from '@/store/agent/selectors';
+// import { useAgentStore } from '@/store/agent';
+// import { agentChatConfigSelectors } from '@/store/agent/selectors';
 
 const SearchTag = memo(() => {
   const { t } = useTranslation('chat');
-  const historyCount = useAgentStore(agentChatConfigSelectors.historyCount);
+  // const historyCount = useAgentStore(agentChatConfigSelectors.historyCount);
+  const historyCount = 10;
 
   return (
     <Tooltip title={t('history.title', { count: historyCount })}>
