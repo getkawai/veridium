@@ -6,9 +6,25 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 
-import { useUserStore } from '@/store/user';
-import { settingsSelectors } from '@/store/user/selectors';
+// import { useUserStore } from '@/store/user';
+// import { settingsSelectors } from '@/store/user/selectors';
 import { HotkeyEnum } from '@/types/hotkey';
+
+// Dummy implementations for development - memoized
+const mockUserStore = {
+  hotkey: '⌘ ⇧ Z',
+};
+
+const useUserStore = (selector?: any) => {
+  if (selector) {
+    return selector(mockUserStore);
+  }
+  return mockUserStore;
+};
+
+const settingsSelectors = {
+  getHotkeyById: (id: any) => mockUserStore.hotkey,
+};
 
 const useStyles = createStyles(({ css, token }) => ({
   closeButton: css`

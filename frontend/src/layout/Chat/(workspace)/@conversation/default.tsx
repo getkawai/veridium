@@ -1,6 +1,3 @@
-import { DynamicLayoutProps } from '@/types/next';
-import { RouteVariants } from '@/utils/server/routeVariants';
-
 import ChatHydration from './features/ChatHydration';
 import ChatInput from './features/ChatInput';
 import ChatList from './features/ChatList';
@@ -8,8 +5,8 @@ import ChatMinimap from './features/ChatMinimap';
 import ThreadHydration from './features/ThreadHydration';
 import ZenModeToast from './features/ZenModeToast';
 
-const ChatConversation = async (props: DynamicLayoutProps) => {
-  const isMobile = await RouteVariants.getIsMobile(props);
+const ChatConversation = async () => {
+  const isMobile = false;
 
   return (
     <>

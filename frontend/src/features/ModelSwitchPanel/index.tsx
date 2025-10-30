@@ -16,6 +16,73 @@ import ActionDropdown from '@/features/ChatInput/ActionBar/components/ActionDrop
 // import { featureFlagsSelectors, useServerConfigStore } from '@/store/serverConfig';
 import { EnabledProviderWithModels } from '@/types/aiProvider';
 
+// Dummy implementations for development - memoized
+const useEnabledChatModels = () => {
+  return [
+    {
+      id: 'openai',
+      name: 'OpenAI',
+      logo: 'https://example.com/openai-logo.png',
+      source: 'builtin' as const,
+      children: [
+        {
+          id: 'gpt-4',
+          displayName: 'GPT-4',
+          abilities: { functionCall: true, vision: true }
+        },
+        {
+          id: 'gpt-3.5-turbo',
+          displayName: 'GPT-3.5 Turbo',
+          abilities: { functionCall: true, vision: false }
+        }
+      ]
+    }
+  ];
+};
+
+const mockAgentStore = {
+  currentAgentModel: 'gpt-4',
+  currentAgentModelProvider: 'openai',
+  updateAgentConfig: (config: any) => {
+    console.log('Mock updateAgentConfig called with:', config);
+  }
+};
+
+const useAgentStore = (selector?: any) => {
+  if (selector) {
+    return selector(mockAgentStore);
+  }
+  return mockAgentStore;
+};
+
+const agentSelectors = {
+  currentAgentModel: (state: any) => state.currentAgentModel,
+  currentAgentModelProvider: (state: any) => state.currentAgentModelProvider,
+};
+
+const mockServerConfig = {
+  showLLM: true
+};
+
+const useServerConfigStore = (selector?: any) => {
+  if (selector) {
+    return selector(mockServerConfig);
+  }
+  return mockServerConfig;
+};
+
+const featureFlagsSelectors = {
+  showLLM: (state: any) => state.showLLM
+};
+
+const useRouter = () => {
+  return {
+    push: (path: string) => {
+      console.log('Mock router.push called with:', path);
+    }
+  };
+};
+
 const useStyles = createStyles(({ css, prefixCls }) => ({
   menu: css`
     .${prefixCls}-dropdown-menu-item {
