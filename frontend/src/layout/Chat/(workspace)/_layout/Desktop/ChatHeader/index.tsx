@@ -2,8 +2,24 @@
 
 import { ChatHeader } from '@lobehub/ui/chat';
 
-import { useGlobalStore } from '@/store/global';
-import { systemStatusSelectors } from '@/store/global/selectors';
+// import { useGlobalStore } from '@/store/global';
+// import { systemStatusSelectors } from '@/store/global/selectors';
+
+// Dummy implementations for development - memoized
+const mockGlobalStore = {
+  showChatHeader: true,
+};
+
+const useGlobalStore = (selector?: any) => {
+  if (selector) {
+    return selector(mockGlobalStore);
+  }
+  return mockGlobalStore;
+};
+
+const systemStatusSelectors = {
+  showChatHeader: (state: any) => state.showChatHeader,
+};
 
 import HeaderAction from './HeaderAction';
 import Main from './Main';

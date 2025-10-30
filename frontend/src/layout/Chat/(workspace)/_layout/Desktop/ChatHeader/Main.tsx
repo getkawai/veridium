@@ -8,18 +8,98 @@ import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 
 import { DEFAULT_AVATAR } from '@/const/meta';
-import { useInitAgentConfig } from '@/hooks/useInitAgentConfig';
-import { useOpenChatSettings } from '@/hooks/useInterceptingRoutes';
-import { usePinnedAgentState } from '@/hooks/usePinnedAgentState';
-import { useGlobalStore } from '@/store/global';
-import { systemStatusSelectors } from '@/store/global/selectors';
-import { useSessionStore } from '@/store/session';
-import { sessionMetaSelectors, sessionSelectors } from '@/store/session/selectors';
-import { useUserStore } from '@/store/user';
-import { userProfileSelectors } from '@/store/user/selectors';
+// import { useInitAgentConfig } from '@/hooks/useInitAgentConfig';
+// import { useOpenChatSettings } from '@/hooks/useInterceptingRoutes';
+// import { usePinnedAgentState } from '@/hooks/usePinnedAgentState';
+// import { useGlobalStore } from '@/store/global';
+// import { systemStatusSelectors } from '@/store/global/selectors';
+// import { useSessionStore } from '@/store/session';
+// import { sessionMetaSelectors, sessionSelectors } from '@/store/session/selectors';
+// import { useUserStore } from '@/store/user';
+// import { userProfileSelectors } from '@/store/user/selectors';
 import { GroupMemberWithAgent } from '@/types/session';
 
-import TogglePanelButton from '../../../../features/TogglePanelButton';
+// Dummy implementations for development - memoized
+const useInitAgentConfig = () => {
+  // Mock hook - no-op
+};
+
+const useOpenChatSettings = () => {
+  return () => {
+    console.log('Mock openChatSettings called');
+  };
+};
+
+const usePinnedAgentState = () => {
+  return [false]; // [isPinned]
+};
+
+const mockGlobalStore = {
+  showSessionPanel: false,
+};
+
+const useGlobalStore = (selector?: any) => {
+  if (selector) {
+    return selector(mockGlobalStore);
+  }
+  return mockGlobalStore;
+};
+
+const systemStatusSelectors = {
+  showSessionPanel: (state: any) => state.showSessionPanel,
+};
+
+const mockSessionStore = {
+  currentSession: {
+    type: 'agent',
+    members: [],
+  },
+  isSomeSessionActive: true,
+  isInboxSession: false,
+  currentAgentTitle: 'Test Agent',
+  currentAgentAvatar: DEFAULT_AVATAR,
+  currentAgentBackgroundColor: '#1890ff',
+};
+
+const useSessionStore = (selector?: any) => {
+  if (selector) {
+    return selector(mockSessionStore);
+  }
+  return mockSessionStore;
+};
+
+const sessionSelectors = {
+  currentSession: (state: any) => state.currentSession,
+  isSomeSessionActive: (state: any) => state.isSomeSessionActive,
+  isInboxSession: (state: any) => state.isInboxSession,
+};
+
+const sessionMetaSelectors = {
+  currentAgentTitle: (state: any) => state.currentAgentTitle,
+  currentAgentAvatar: (state: any) => state.currentAgentAvatar,
+  currentAgentBackgroundColor: (state: any) => state.currentAgentBackgroundColor,
+};
+
+const mockUserStore = {
+  userAvatar: DEFAULT_AVATAR,
+  displayUserName: 'Test User',
+  nickName: 'Test',
+};
+
+const useUserStore = (selector?: any) => {
+  if (selector) {
+    return selector(mockUserStore);
+  }
+  return mockUserStore;
+};
+
+const userProfileSelectors = {
+  userAvatar: (state: any) => state.userAvatar,
+  displayUserName: (state: any) => state.displayUserName,
+  nickName: (state: any) => state.nickName,
+};
+
+import TogglePanelButton from '@/layout/Chat/TogglePanelButton';
 import Tags from './Tags';
 
 const useStyles = createStyles(({ css }) => ({
