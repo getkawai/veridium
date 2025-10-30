@@ -12,44 +12,35 @@ import { MemberSelectionModal } from '@/components/MemberSelectionModal';
 // import { useSessionStore } from '@/store/session';
 
 // Dummy implementations for development
+const mockSessionStore = {
+  createSession: async (config?: any) => {
+    console.log('Mock createSession called with:', config);
+    return `session-${Date.now()}`;
+  },
+  removeSessionGroup: async (groupId: string) => {
+    console.log('Mock removeSessionGroup called with:', groupId);
+  },
+};
+
 const useSessionStore = (selector?: any) => {
   if (selector) {
-    return selector({
-      createSession: async (config?: any) => {
-        console.log('Mock createSession called with:', config);
-        return `session-${Date.now()}`;
-      },
-      removeSessionGroup: async (groupId: string) => {
-        console.log('Mock removeSessionGroup called with:', groupId);
-      },
-    });
+    return selector(mockSessionStore);
   }
-  return {
-    createSession: async (config?: any) => {
-      console.log('Mock createSession called with:', config);
-      return `session-${Date.now()}`;
-    },
-    removeSessionGroup: async (groupId: string) => {
-      console.log('Mock removeSessionGroup called with:', groupId);
-    },
-  };
+  return mockSessionStore;
+};
+
+const mockChatGroupStore = {
+  createGroup: async (groupConfig: any, memberAgentIds: string[]) => {
+    console.log('Mock createGroup called with:', groupConfig, memberAgentIds);
+    return `group-${Date.now()}`;
+  },
 };
 
 const useChatGroupStore = (selector?: any) => {
   if (selector) {
-    return selector({
-      createGroup: async (groupConfig: any, memberAgentIds: string[]) => {
-        console.log('Mock createGroup called with:', groupConfig, memberAgentIds);
-        return `group-${Date.now()}`;
-      },
-    });
+    return selector(mockChatGroupStore);
   }
-  return {
-    createGroup: async (groupConfig: any, memberAgentIds: string[]) => {
-      console.log('Mock createGroup called with:', groupConfig, memberAgentIds);
-      return `group-${Date.now()}`;
-    },
-  };
+  return mockChatGroupStore;
 };
 
 const featureFlagsSelectors = {
@@ -58,7 +49,12 @@ const featureFlagsSelectors = {
 };
 
 const useServerConfigStore = (selector: any) => {
-  if (selector) {
+  // Handle the case where featureFlagsSelectors object is passed directly
+  if (selector && typeof selector === 'object' && selector.showCreateSession !== undefined) {
+    return selector;
+  }
+  // Handle selector function
+  if (typeof selector === 'function') {
     return selector(featureFlagsSelectors);
   }
   return featureFlagsSelectors;

@@ -1,15 +1,16 @@
 // import { Suspense } from 'react';
+import { PropsWithChildren } from 'react';
 import { Flexbox } from 'react-layout-kit';
 
 // import { isDesktop } from '@/const/version';
 // import ProtocolUrlHandler from '@/features/ProtocolUrlHandler';
 
-import { LayoutProps } from './type';
 // import RegisterHotkeys from './RegisterHotkeys';
 import SessionPanel from './SessionPanel';
 import Workspace from './Workspace';
+import Session from './Session/default';
 
-const Layout = ({ children, session }: LayoutProps) => {
+const Layout = ({ children }: PropsWithChildren) => {
   return (
     <>
       <Flexbox
@@ -18,7 +19,9 @@ const Layout = ({ children, session }: LayoutProps) => {
         style={{ maxWidth: '100%', overflow: 'hidden', position: 'relative' }}
         width={'100%'}
       >
-        <SessionPanel>{session}</SessionPanel>
+        <SessionPanel>
+          <Session />
+        </SessionPanel>
         <Workspace>{children}</Workspace>
       </Flexbox>
       {/* <Suspense>

@@ -16,43 +16,35 @@ import { Flexbox } from 'react-layout-kit';
 
 import GroupItem from './GroupItem';
 
-// Dummy implementations for development
+// Dummy implementations for development - memoized
+const mockGroupItems = [
+  { id: 'group-1', name: 'Work' },
+  { id: 'group-2', name: 'Personal' },
+  { id: 'group-3', name: 'Projects' },
+];
+
+const mockSessionStore = {
+  addSessionGroup: async (name: string) => {
+    console.log('Mock addSessionGroup called with:', name);
+    return `group-${Date.now()}`;
+  },
+  updateSessionGroupSort: (items: DummySessionGroupItem[]) => {
+    console.log('Mock updateSessionGroupSort called with:', items);
+  },
+};
+
 const useSessionStore = (selector?: any, comparator?: any) => {
   if (selector) {
     if (typeof selector === 'function' && selector.name === 'sessionGroupItems') {
-      return [
-        { id: 'group-1', name: 'Work' },
-        { id: 'group-2', name: 'Personal' },
-        { id: 'group-3', name: 'Projects' },
-      ];
+      return mockGroupItems;
     }
-    return selector({
-      addSessionGroup: async (name: string) => {
-        console.log('Mock addSessionGroup called with:', name);
-        return `group-${Date.now()}`;
-      },
-      updateSessionGroupSort: (items: DummySessionGroupItem[]) => {
-        console.log('Mock updateSessionGroupSort called with:', items);
-      },
-    });
+    return selector(mockSessionStore);
   }
-  return {
-    addSessionGroup: async (name: string) => {
-      console.log('Mock addSessionGroup called with:', name);
-      return `group-${Date.now()}`;
-    },
-    updateSessionGroupSort: (items: DummySessionGroupItem[]) => {
-      console.log('Mock updateSessionGroupSort called with:', items);
-    },
-  };
+  return mockSessionStore;
 };
 
 const sessionGroupSelectors = {
-  sessionGroupItems: (state: any) => [
-    { id: 'group-1', name: 'Work' },
-    { id: 'group-2', name: 'Personal' },
-    { id: 'group-3', name: 'Projects' },
-  ],
+  sessionGroupItems: (state: any) => mockGroupItems,
 };
 
 const useStyles = createStyles(({ css, token }) => ({

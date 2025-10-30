@@ -20,22 +20,27 @@ const featureFlagsSelectors = {
   showCreateSession: true,
 };
 
-const useServerConfigStore = (selector?: any) => {
-  if (selector) {
+const useServerConfigStore = (selector: any) => {
+  // Handle the case where featureFlagsSelectors object is passed directly
+  if (selector && typeof selector === 'object' && selector.showCreateSession !== undefined) {
+    return selector;
+  }
+  // Handle selector function
+  if (typeof selector === 'function') {
     return selector(featureFlagsSelectors);
   }
   return featureFlagsSelectors;
 };
 
+const mockSessionStore = {
+  isSessionListInit: true,
+};
+
 const useSessionStore = (selector?: any) => {
   if (selector) {
-    return selector({
-      isSessionListInit: true,
-    });
+    return selector(mockSessionStore);
   }
-  return {
-    isSessionListInit: true,
-  };
+  return mockSessionStore;
 };
 
 const sessionSelectors = {

@@ -16,63 +16,62 @@ import { isDesktop } from '@/const/version';
 // import { useUserStore } from '@/store/user';
 // import { userProfileSelectors } from '@/store/user/selectors';
 
-// Dummy implementations for development
+// Dummy implementations for development - memoized
+const mockAgentStore = {
+  inboxAgentModel: 'gpt-4o',
+};
+
 const useAgentStore = (selector?: any) => {
   if (selector) {
-    return selector({
-      inboxAgentModel: 'gpt-4o',
-    });
+    return selector(mockAgentStore);
   }
-  return {
-    inboxAgentModel: 'gpt-4o',
-  };
+  return mockAgentStore;
 };
 
 const agentSelectors = {
   inboxAgentModel: (state: any) => state.inboxAgentModel,
 };
 
+const mockChatStore = {
+  isAIGenerating: false,
+  activeId: null,
+};
+
 const useChatStore = (selector?: any) => {
   if (selector) {
-    return selector({
-      isAIGenerating: false,
-      activeId: null,
-    });
+    return selector(mockChatStore);
   }
-  return {
-    isAIGenerating: false,
-    activeId: null,
-  };
+  return mockChatStore;
 };
 
 const chatSelectors = {
   isAIGenerating: (state: any) => state.isAIGenerating,
 };
 
+const mockOpenSessionInNewWindow = (id: string) => {
+  console.log('Mock openSessionInNewWindow called with:', id);
+};
+
+const mockGlobalStore = {
+  openSessionInNewWindow: mockOpenSessionInNewWindow,
+};
+
 const useGlobalStore = (selector?: any) => {
   if (selector) {
-    return selector({
-      openSessionInNewWindow: (id: string) => {
-        console.log('Mock openSessionInNewWindow called with:', id);
-      },
-    });
+    return selector(mockGlobalStore);
   }
-  return {
-    openSessionInNewWindow: (id: string) => {
-      console.log('Mock openSessionInNewWindow called with:', id);
-    },
-  };
+  return mockGlobalStore;
+};
+
+const mockSessionStore = {
+  activeId: null,
 };
 
 const useSessionStore = (selector?: any) => {
   if (selector) {
-    return selector({
-      activeId: null,
-    });
+    return selector(mockSessionStore);
   }
-  return {
-    activeId: null,
-  };
+  return mockSessionStore;
 };
 
 const sessionHelpers = {

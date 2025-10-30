@@ -51,6 +51,22 @@ const useGlobalStore = (selector?: any) => {
   };
 };
 
+const mockSessionStore = {
+  pinSession: async (id: string, pin: boolean) => {
+    console.log('Mock pinSession called with:', id, pin);
+  },
+  removeSession: async (id: string) => {
+    console.log('Mock removeSession called with:', id);
+  },
+  duplicateSession: async (id: string) => {
+    console.log('Mock duplicateSession called with:', id);
+    return `duplicate-${id}`;
+  },
+  updateSessionGroupId: async (id: string, groupId: string) => {
+    console.log('Mock updateSessionGroupId called with:', id, groupId);
+  },
+};
+
 const useSessionStore = (selector?: any, comparator?: any) => {
   if (selector) {
     if (typeof selector === 'function' && selector.name === 'sessionGroupItems') {
@@ -59,37 +75,9 @@ const useSessionStore = (selector?: any, comparator?: any) => {
         { id: 'group-2', name: 'Personal' },
       ];
     }
-    return selector({
-      pinSession: async (id: string, pin: boolean) => {
-        console.log('Mock pinSession called with:', id, pin);
-      },
-      removeSession: async (id: string) => {
-        console.log('Mock removeSession called with:', id);
-      },
-      duplicateSession: async (id: string) => {
-        console.log('Mock duplicateSession called with:', id);
-        return `duplicate-${id}`;
-      },
-      updateSessionGroupId: async (id: string, groupId: string) => {
-        console.log('Mock updateSessionGroupId called with:', id, groupId);
-      },
-    });
+    return selector(mockSessionStore);
   }
-  return {
-    pinSession: async (id: string, pin: boolean) => {
-      console.log('Mock pinSession called with:', id, pin);
-    },
-    removeSession: async (id: string) => {
-      console.log('Mock removeSession called with:', id);
-    },
-    duplicateSession: async (id: string) => {
-      console.log('Mock duplicateSession called with:', id);
-      return `duplicate-${id}`;
-    },
-    updateSessionGroupId: async (id: string, groupId: string) => {
-      console.log('Mock updateSessionGroupId called with:', id, groupId);
-    },
-  };
+  return mockSessionStore;
 };
 
 const sessionHelpers = {
@@ -118,25 +106,20 @@ const sessionGroupSelectors = {
   ],
 };
 
+const mockChatGroupStore = {
+  deleteGroup: async (id: string) => {
+    console.log('Mock deleteGroup called with:', id);
+  },
+  pinGroup: async (id: string, pin: boolean) => {
+    console.log('Mock pinGroup called with:', id, pin);
+  },
+};
+
 const useChatGroupStore = (selector?: any) => {
   if (selector) {
-    return selector({
-      deleteGroup: async (id: string) => {
-        console.log('Mock deleteGroup called with:', id);
-      },
-      pinGroup: async (id: string, pin: boolean) => {
-        console.log('Mock pinGroup called with:', id, pin);
-      },
-    });
+    return selector(mockChatGroupStore);
   }
-  return {
-    deleteGroup: async (id: string) => {
-      console.log('Mock deleteGroup called with:', id);
-    },
-    pinGroup: async (id: string, pin: boolean) => {
-      console.log('Mock pinGroup called with:', id, pin);
-    },
-  };
+  return mockChatGroupStore;
 };
 
 import { SessionDefaultGroup } from '@/types/session';

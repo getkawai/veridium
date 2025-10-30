@@ -122,7 +122,6 @@ const AppTheme = memo<AppThemeProps>(
         <ConfigProvider
           config={{
             imgAs: Image,
-            imgUnoptimized: true,
             proxy: globalCDN ? 'unpkg' : undefined,
           }}
         >

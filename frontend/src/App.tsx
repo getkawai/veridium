@@ -16,7 +16,7 @@ function App() {
   return (
     <GlobalLayout appearance={'auto'} isMobile={false} locale={''} neutralColor={undefined} primaryColor={undefined} variants={undefined}>
       <DesktopMainLayout>
-        <ChatLayout session={<div>Session</div>}>
+        <ChatLayout>
           <CircleLoader/>
         </ChatLayout>
       </DesktopMainLayout>

@@ -10,26 +10,21 @@ interface DummyGroupItem {
   name: string;
 }
 
-// Dummy implementations for development
+// Dummy implementations for development - memoized
+const mockSessionStore = {
+  updateSessionGroupName: async (id: string, name: string) => {
+    console.log('Mock updateSessionGroupName called with:', id, name);
+  },
+  removeSessionGroup: async (id: string) => {
+    console.log('Mock removeSessionGroup called with:', id);
+  },
+};
+
 const useSessionStore = (selector?: any) => {
   if (selector) {
-    return selector({
-      updateSessionGroupName: async (id: string, name: string) => {
-        console.log('Mock updateSessionGroupName called with:', id, name);
-      },
-      removeSessionGroup: async (id: string) => {
-        console.log('Mock removeSessionGroup called with:', id);
-      },
-    });
+    return selector(mockSessionStore);
   }
-  return {
-    updateSessionGroupName: async (id: string, name: string) => {
-      console.log('Mock updateSessionGroupName called with:', id, name);
-    },
-    removeSessionGroup: async (id: string) => {
-      console.log('Mock removeSessionGroup called with:', id);
-    },
-  };
+  return mockSessionStore;
 };
 
 const useStyles = createStyles(({ css }) => ({

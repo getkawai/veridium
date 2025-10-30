@@ -5,42 +5,40 @@ import SkeletonList from '../SkeletonList';
 import SessionList from './List';
 
 // Dummy implementations for development
+const mockServerConfig = { isMobile: false };
+
 const useServerConfigStore = (selector: any) => {
-  if (selector) {
-    return selector({ isMobile: false });
+  if (selector && typeof selector === 'object' && selector.isMobile !== undefined) {
+    return selector;
   }
-  return { isMobile: false };
+  if (typeof selector === 'function') {
+    return selector(mockServerConfig);
+  }
+  return mockServerConfig;
 };
 
 const serverConfigSelectors = {
   isMobile: (state: any) => state.isMobile,
 };
 
+// Memoized search result
+const mockSearchResult = { data: [], isLoading: false };
+
+// Memoized session store
+const mockSessionStore = {
+  defaultSessions: [],
+  customSessionGroups: [],
+  pinnedSessions: [],
+  isSearching: false,
+  sessionSearchKeywords: '',
+  useSearchSessions: (keywords: string) => mockSearchResult, // Return same object
+};
+
 const useSessionStore = (selector?: any, comparator?: any) => {
   if (selector) {
-    return selector({
-      defaultSessions: [],
-      customSessionGroups: [],
-      pinnedSessions: [],
-      isSearching: false,
-      sessionSearchKeywords: '',
-      useSearchSessions: (keywords: string) => ({
-        data: [],
-        isLoading: false,
-      }),
-    });
+    return selector(mockSessionStore);
   }
-  return {
-    defaultSessions: [],
-    customSessionGroups: [],
-    pinnedSessions: [],
-    isSearching: false,
-    sessionSearchKeywords: '',
-    useSearchSessions: (keywords: string) => ({
-      data: [],
-      isLoading: false,
-    }),
-  };
+  return mockSessionStore;
 };
 
 const SearchMode = memo(() => {

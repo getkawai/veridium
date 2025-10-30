@@ -10,43 +10,45 @@ import { SESSION_CHAT_URL } from '@/const/url';
 // import { useServerConfigStore } from '@/store/serverConfig';
 // import { useSessionStore } from '@/store/session';
 
-// Dummy implementations for development
+// Dummy implementations for development - memoized
+const mockSessionStore = {
+  activeId: null,
+};
+
 const useSessionStore = (selector?: any) => {
   if (selector) {
-    return selector({
-      activeId: null,
-    });
+    return selector(mockSessionStore);
   }
-  return {
-    activeId: null,
-  };
+  return mockSessionStore;
+};
+
+const mockSwitchSession = (sessionId: string) => {
+  console.log('Mock switchSession called with:', sessionId);
 };
 
 const useSwitchSession = () => {
-  return (sessionId: string) => {
-    console.log('Mock switchSession called with:', sessionId);
-  };
+  return mockSwitchSession;
+};
+
+const mockChatStore = {
+  openNewTopicOrSaveTopic: async () => {
+    console.log('Mock openNewTopicOrSaveTopic called');
+  },
 };
 
 const useChatStore = (selector?: any) => {
   if (selector) {
-    return selector({
-      openNewTopicOrSaveTopic: async () => {
-        console.log('Mock openNewTopicOrSaveTopic called');
-      },
-    });
+    return selector(mockChatStore);
   }
-  return {
-    openNewTopicOrSaveTopic: async () => {
-      console.log('Mock openNewTopicOrSaveTopic called');
-    },
-  };
+  return mockChatStore;
 };
 
-const getChatStoreState = () => ({
+const mockChatState = {
   messages: [],
   topics: [],
-});
+};
+
+const getChatStoreState = () => mockChatState;
 
 const chatSelectors = {
   inboxActiveTopicMessages: (state: any) => {

@@ -5,16 +5,16 @@ import { memo } from 'react';
 import DefaultMode from './DefaultMode';
 import SearchMode from './SearchMode';
 
-// Dummy implementation for development
+// Dummy implementation for development - memoized
+const mockSessionStore = {
+  isSearching: false,
+};
+
 const useSessionStore = (selector?: any) => {
   if (selector) {
-    return selector({
-      isSearching: false,
-    });
+    return selector(mockSessionStore);
   }
-  return {
-    isSearching: false,
-  };
+  return mockSessionStore;
 };
 
 const SessionListContent = memo(() => {

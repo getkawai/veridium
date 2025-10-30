@@ -8,29 +8,32 @@ import { Flexbox } from 'react-layout-kit';
 // import { useServerConfigStore } from '@/store/serverConfig';
 // import { useSessionStore } from '@/store/session';
 
-// Dummy implementations for development
+// Dummy implementations for development - memoized
+const mockSessionStore = {
+  createSession: async (config?: any) => {
+    console.log('Mock createSession called with:', config);
+    return `session-${Date.now()}`;
+  },
+};
+
 const useSessionStore = (selector?: any) => {
   if (selector) {
-    return selector({
-      createSession: async (config?: any) => {
-        console.log('Mock createSession called with:', config);
-        return `session-${Date.now()}`;
-      },
-    });
+    return selector(mockSessionStore);
   }
-  return {
-    createSession: async (config?: any) => {
-      console.log('Mock createSession called with:', config);
-      return `session-${Date.now()}`;
-    },
-  };
+  return mockSessionStore;
 };
+
+const mockServerConfig = { isMobile: false };
 
 const useServerConfigStore = (selector?: any) => {
   if (selector) {
-    return selector({ isMobile: false });
+    return selector(mockServerConfig);
   }
-  return { isMobile: false };
+  return mockServerConfig;
+};
+
+const mockActionSWRResult = {
+  isValidating: false,
 };
 
 const useActionSWR = (key: any, action: () => Promise<any>) => {
@@ -43,7 +46,7 @@ const useActionSWR = (key: any, action: () => Promise<any>) => {
         console.error(`Mock action failed for ${key}:`, error);
       }
     },
-    isValidating: false,
+    ...mockActionSWRResult,
   };
 };
 

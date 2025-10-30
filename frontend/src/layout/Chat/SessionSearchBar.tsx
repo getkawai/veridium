@@ -5,7 +5,7 @@ import { memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type ChangeEvent } from 'react';
 
-// Dummy implementations for UI focus
+// Dummy implementations for UI focus - memoized to prevent infinite re-renders
 const dummyUserState = {
   isLoaded: true,
 };
@@ -22,14 +22,20 @@ const useUserStore = (selector: (s: typeof dummyUserState) => any): any => {
   return selector(dummyUserState);
 };
 
+// Memoized search result to prevent new object creation
+const mockSearchResult = {
+  isValidating: false,
+};
+
+// Memoized function to prevent new function creation
+const mockUpdateSearchKeywords = (value: string) => {
+  console.log('Mock updateSearchKeywords called with:', value);
+};
+
 const dummySessionState = {
   sessionSearchKeywords: '',
-  useSearchSessions: (keywords: string) => ({
-    isValidating: keywords.length > 0 && Math.random() > 0.7, // Dummy validation
-  }),
-  updateSearchKeywords: (value: string) => {
-    // Dummy update
-  },
+  useSearchSessions: (keywords: string) => mockSearchResult, // Return same object
+  updateSearchKeywords: mockUpdateSearchKeywords, // Use same function reference
 };
 
 const useSessionStore = (selector: (s: typeof dummySessionState) => any): any => {
