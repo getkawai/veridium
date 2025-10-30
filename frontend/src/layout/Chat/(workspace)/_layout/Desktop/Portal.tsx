@@ -1,0 +1,153 @@
+'use client';
+
+import { DraggablePanel, DraggablePanelContainer, type DraggablePanelProps } from '@lobehub/ui';
+import { createStyles, useResponsive } from 'antd-style';
+import isEqual from 'fast-deep-equal';
+import { PropsWithChildren, memo, useEffect, useState } from 'react';
+import { Flexbox } from 'react-layout-kit';
+
+import {
+  CHAT_PORTAL_MAX_WIDTH,
+  CHAT_PORTAL_TOOL_UI_WIDTH,
+  CHAT_PORTAL_WIDTH,
+} from '@/const/layoutTokens';
+// import { useChatStore } from '@/store/chat';
+// import { chatPortalSelectors, portalThreadSelectors } from '@/store/chat/selectors';
+// import { useGlobalStore } from '@/store/global';
+// import { systemStatusSelectors } from '@/store/global/selectors';
+
+// Dummy implementations for development - memoized
+const mockChatStore = {
+  showPortal: false,
+  showPluginUI: false,
+  showArtifactUI: false,
+  showThread: false,
+};
+
+const useChatStore = (selector?: any) => {
+  if (selector) {
+    return selector(mockChatStore);
+  }
+  return mockChatStore;
+};
+
+const chatPortalSelectors = {
+  showPortal: (state: any) => state.showPortal,
+  showPluginUI: (state: any) => state.showPluginUI,
+  showArtifactUI: (state: any) => state.showArtifactUI,
+};
+
+const portalThreadSelectors = {
+  showThread: (state: any) => state.showThread,
+};
+
+const mockGlobalStore = {
+  portalWidth: CHAT_PORTAL_WIDTH,
+  updateSystemStatus: (params: any) => {
+    console.log('Mock updateSystemStatus called with:', params);
+  },
+};
+
+const useGlobalStore = (selector: any) => {
+  if (selector) {
+    return selector(mockGlobalStore);
+  }
+  return mockGlobalStore;
+};
+
+const systemStatusSelectors = {
+  portalWidth: (state: any) => state.portalWidth,
+};
+
+const useStyles = createStyles(({ css, token }) => ({
+  content: css`
+    display: flex;
+    flex-direction: column;
+    height: 100% !important;
+  `,
+  drawer: css`
+    z-index: 10;
+    height: 100%;
+    background: ${token.colorBgLayout};
+  `,
+  panel: css`
+    overflow: hidden;
+    height: 100%;
+    background: ${token.colorBgContainer};
+  `,
+}));
+
+const PortalPanel = memo(({ children }: PropsWithChildren) => {
+  const { styles } = useStyles();
+  const { md = true } = useResponsive();
+
+  const [showPortal, showToolUI, showArtifactUI, showThread] = useChatStore((s) => [
+    chatPortalSelectors.showPortal(s),
+    chatPortalSelectors.showPluginUI(s),
+    chatPortalSelectors.showArtifactUI(s),
+    portalThreadSelectors.showThread(s),
+  ]);
+
+  const [portalWidth, updateSystemStatus] = useGlobalStore((s) => [
+    systemStatusSelectors.portalWidth(s),
+    s.updateSystemStatus,
+  ]);
+
+  const [tmpWidth, setWidth] = useState(portalWidth);
+
+  // Sync tmpWidth with portalWidth when portalWidth changes
+  useEffect(() => {
+    if (tmpWidth !== portalWidth) {
+      setWidth(portalWidth);
+    }
+  }, [portalWidth]); // Remove tmpWidth from dependencies to prevent infinite loop
+
+  const handleSizeChange: DraggablePanelProps['onSizeChange'] = (_, size) => {
+    if (!size) return;
+    const nextWidth = typeof size.width === 'string' ? Number.parseInt(size.width) : size.width;
+    if (!nextWidth) return;
+
+    if (isEqual(nextWidth, portalWidth)) return;
+    setWidth(nextWidth);
+    updateSystemStatus({ portalWidth: nextWidth });
+  };
+
+  return (
+    <DraggablePanel
+      className={styles.drawer}
+      classNames={{
+        content: styles.content,
+      }}
+      defaultSize={{ width: tmpWidth }}
+      expand={showPortal}
+      maxWidth={CHAT_PORTAL_MAX_WIDTH}
+      minWidth={
+        (showArtifactUI || showToolUI || showThread) && md
+          ? CHAT_PORTAL_TOOL_UI_WIDTH
+          : CHAT_PORTAL_WIDTH
+      }
+      mode={md ? 'fixed' : 'float'}
+      onSizeChange={handleSizeChange}
+      placement={'right'}
+      showHandleWhenCollapsed={false}
+      showHandleWideArea={false}
+      size={{ height: '100%', width: portalWidth }}
+      styles={{
+        handle: { display: 'none' },
+      }}
+    >
+      <DraggablePanelContainer
+        style={{
+          flex: 'none',
+          height: '100%',
+          maxHeight: '100vh',
+          minWidth: CHAT_PORTAL_WIDTH,
+        }}
+      >
+        <Flexbox className={styles.panel}>{children}</Flexbox>
+      </DraggablePanelContainer>
+    </DraggablePanel>
+  );
+});
+
+export default PortalPanel;
