@@ -1,15 +1,16 @@
-import { UIChatMessage } from '@lobechat/types';
+import { UIChatMessage } from '@/types';
 import { Skeleton } from 'antd';
-import dynamic from 'next/dynamic';
+// import dynamic from 'next/dynamic';
 import { memo } from 'react';
 
 import ErrorJsonViewer from '../ErrorJsonViewer';
+import InvalidOllamaModel from './InvalidOllamaModel';
 
-const loading = () => <Skeleton active style={{ width: 300 }} />;
+// Removed Next.js dynamic imports since we don't use Next.js
+// const SetupGuide = dynamic(() => import('@/features/OllamaSetupGuide'), { loading, ssr: false });
 
-const SetupGuide = dynamic(() => import('@/features/OllamaSetupGuide'), { loading, ssr: false });
-
-const InvalidModel = dynamic(() => import('./InvalidOllamaModel'), { loading, ssr: false });
+// Dummy components for UI development
+const SetupGuide = ({ ...props }: any) => <Skeleton active style={{ width: 300 }} />;
 
 interface OllamaError {
   code: string | null;
@@ -32,7 +33,7 @@ const OllamaBizError = memo<UIChatMessage>(({ error, id }) => {
   // error of not pull the model
   const unresolvedModel = errorMessage?.match(UNRESOLVED_MODEL_REGEXP)?.[1];
   if (unresolvedModel) {
-    return <InvalidModel id={id} model={unresolvedModel} />;
+    return <InvalidOllamaModel id={id} model={unresolvedModel} />;
   }
 
   // error of not enable model or not set the CORS rules

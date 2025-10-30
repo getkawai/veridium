@@ -67,7 +67,7 @@ const APIKeyForm = memo<APIKeyFormProps>(
     }, [provider]);
 
     return (
-      <LoadingContext value={{ loading, setLoading }}>
+      <LoadingContext.Provider value={{ loading, setLoading }}>
         <Center
           gap={16}
           style={{
@@ -109,7 +109,7 @@ const APIKeyForm = memo<APIKeyFormProps>(
             </Button>
           </Flexbox>
         </Center>
-      </LoadingContext>
+      </LoadingContext.Provider>
     );
   },
 );

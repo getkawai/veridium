@@ -9,20 +9,65 @@ import { useTranslation } from 'react-i18next';
 
 // import { useProviderName } from '@/hooks/useProviderName';
 
+// Dummy implementations for UI development
+
+// Dummy types and enums
+type IPluginErrorType = string;
+type ILobeAgentRuntimeErrorType = string;
+type ErrorType = string;
+type UIChatMessage = any;
+type ChatMessageError = any;
+
+enum ChatErrorType {
+  SystemTimeNotMatchError = 'SystemTimeNotMatchError',
+  InvalidClerkUser = 'InvalidClerkUser',
+  InvalidAccessCode = 'InvalidAccessCode',
+}
+
+enum AgentRuntimeErrorType {
+  PermissionDenied = 'PermissionDenied',
+  InsufficientQuota = 'InsufficientQuota',
+  ModelNotFound = 'ModelNotFound',
+  QuotaLimitReached = 'QuotaLimitReached',
+  ExceededContextWindow = 'ExceededContextWindow',
+  LocationNotSupportError = 'LocationNotSupportError',
+  OllamaServiceUnavailable = 'OllamaServiceUnavailable',
+  NoOpenAIAPIKey = 'NoOpenAIAPIKey',
+  ComfyUIServiceUnavailable = 'ComfyUIServiceUnavailable',
+  InvalidComfyUIArgs = 'InvalidComfyUIArgs',
+  OllamaBizError = 'OllamaBizError',
+}
+
+const useProviderName = (provider: string) => {
+  const providerNames: Record<string, string> = {
+    openai: 'OpenAI',
+    anthropic: 'Anthropic',
+    google: 'Google',
+    azure: 'Azure OpenAI',
+    bedrock: 'Amazon Bedrock',
+    ollama: 'Ollama',
+    default: provider.charAt(0).toUpperCase() + provider.slice(1),
+  };
+
+  return providerNames[provider] || providerNames.default;
+};
+
 import ChatInvalidAPIKey from './ChatInvalidApiKey';
 import ClerkLogin from './ClerkLogin';
 import ErrorJsonViewer from './ErrorJsonViewer';
 import InvalidAccessCode from './InvalidAccessCode';
 import { ErrorActionContainer } from './style';
 
-const loading = () => <Skeleton active />;
+// Removed Next.js dynamic imports since we don't use Next.js
+// const OllamaBizError = dynamic(() => import('./OllamaBizError'), { loading, ssr: false });
+// const OllamaSetupGuide = dynamic(() => import('@/features/OllamaSetupGuide'), {
+//   loading,
+//   ssr: false,
+// });
 
-const OllamaBizError = dynamic(() => import('./OllamaBizError'), { loading, ssr: false });
-
-const OllamaSetupGuide = dynamic(() => import('@/features/OllamaSetupGuide'), {
-  loading,
-  ssr: false,
-});
+// Dummy components for UI development
+const OllamaBizError = ({ ...props }: any) => <Skeleton active />;
+const OllamaSetupGuide = ({ ...props }: any) => <Skeleton active />;
 
 // Config for the errorMessage display
 const getErrorAlertConfig = (

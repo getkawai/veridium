@@ -3,9 +3,42 @@ import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 
-import { useChatStore } from '@/store/chat';
-import { useUserStore } from '@/store/user';
-import { keyVaultsConfigSelectors } from '@/store/user/selectors';
+// import { useChatStore } from '@/store/chat';
+// import { useUserStore } from '@/store/user';
+// import { keyVaultsConfigSelectors } from '@/store/user/selectors';
+
+// Dummy implementations for UI development
+const useUserStore = (selector?: any) => {
+  if (selector) {
+    return selector({
+      password: '',
+      updateKeyVaults: (config: any) => console.log('Mock updateKeyVaults called with:', config),
+    });
+  }
+
+  return {
+    password: '',
+    updateKeyVaults: (config: any) => console.log('Mock updateKeyVaults called with:', config),
+  };
+};
+
+const keyVaultsConfigSelectors = {
+  password: (state: any) => state.password,
+};
+
+const useChatStore = (selector?: any) => {
+  if (selector) {
+    return selector({
+      regenerateMessage: (id: string) => console.log('Mock regenerateMessage called with:', id),
+      deleteMessage: (id: string) => console.log('Mock deleteMessage called with:', id),
+    });
+  }
+
+  return {
+    regenerateMessage: (id: string) => console.log('Mock regenerateMessage called with:', id),
+    deleteMessage: (id: string) => console.log('Mock deleteMessage called with:', id),
+  };
+};
 
 import { FormAction } from './style';
 
