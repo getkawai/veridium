@@ -1,6 +1,6 @@
 'use client';
 
-import { LOADING_FLAT } from '@lobechat/const';
+import { LOADING_FLAT } from '@/const';
 import { UIChatMessage } from '@/types';
 import { Tag } from '@lobehub/ui';
 import { useResponsive } from 'antd-style';

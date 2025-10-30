@@ -1,5 +1,5 @@
-import { isDeprecatedEdition, isDesktop, isUsePgliteDB } from '@lobechat/const';
-import { getModelPropertyWithFallback } from '@lobechat/model-runtime';
+import { isDeprecatedEdition, isDesktop, isUsePgliteDB } from '@/const';
+import { getModelPropertyWithFallback } from '@/model-runtime';
 import { uniqBy } from 'lodash-es';
 import {
   AIImageModelCard,

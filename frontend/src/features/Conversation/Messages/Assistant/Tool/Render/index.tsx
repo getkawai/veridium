@@ -1,4 +1,4 @@
-import { LOADING_FLAT } from '@lobechat/const';
+import { LOADING_FLAT } from '@/const';
 import isEqual from 'fast-deep-equal';
 import { Suspense, memo } from 'react';
 

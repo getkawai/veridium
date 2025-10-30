@@ -1,4 +1,4 @@
-import { createBasicAuthCredentials } from '@lobechat/utils';
+import { createBasicAuthCredentials } from '@/utils';
 import debug from 'debug';
 
 import type { ComfyUIKeyVault } from '@/types/index';

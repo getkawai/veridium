@@ -1,4 +1,4 @@
-import { safeParseJSON } from '@lobechat/utils';
+import { safeParseJSON } from '@/utils';
 import { memo } from 'react';
 
 import { BuiltinToolPlaceholders } from '@/tools/placeholders';

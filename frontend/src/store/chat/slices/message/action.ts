@@ -15,7 +15,7 @@ import {
   UIChatMessage,
   UpdateMessageRAGParams,
 } from '@/types';
-import { nanoid } from '@lobechat/utils';
+import { nanoid } from '@/utils';
 import { copyToClipboard } from '@lobehub/ui';
 import isEqual from 'fast-deep-equal';
 import { SWRResponse, mutate } from 'swr';

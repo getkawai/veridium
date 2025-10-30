@@ -1,4 +1,4 @@
-import { validateVideoFileSize } from '@lobechat/utils/client';
+import { validateVideoFileSize } from '@/utils/client';
 import { MenuProps, Tooltip } from '@lobehub/ui';
 import { Upload } from 'antd';
 import { css, cx } from 'antd-style';

@@ -1,4 +1,4 @@
-import { THREAD_DRAFT_ID } from '@lobechat/const';
+import { THREAD_DRAFT_ID } from '@/const';
 import { ThreadItem, UIChatMessage } from '@/types';
 
 import { useAgentStore } from '@/store/agent';

@@ -1,4 +1,4 @@
-import { getCachedTextInputUnitRate, getWriteCacheInputUnitRate } from '@lobechat/utils';
+import { getCachedTextInputUnitRate, getWriteCacheInputUnitRate } from '@/utils';
 import { ModelIcon } from '@lobehub/icons';
 import { Icon, Segmented, Tooltip } from '@lobehub/ui';
 import { createStyles } from 'antd-style';

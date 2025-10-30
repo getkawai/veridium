@@ -4,7 +4,7 @@ import {
   DEFAULT_PROVIDER,
   DEFAUTT_AGENT_TTS_CONFIG,
   INBOX_SESSION_ID,
-} from '@lobechat/const';
+} from '@/const';
 import { KnowledgeItem, KnowledgeType, LobeAgentConfig, LobeAgentTTSConfig } from '@/types';
 import { VoiceList } from '@lobehub/tts';
 

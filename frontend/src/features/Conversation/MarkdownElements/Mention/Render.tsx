@@ -1,6 +1,6 @@
 'use client';
 
-import { DEFAULT_AVATAR } from '@lobechat/const';
+import { DEFAULT_AVATAR } from '@/const';
 import { Avatar, Text } from '@lobehub/ui';
 import { Popover } from 'antd';
 import { createStyles } from 'antd-style';

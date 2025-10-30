@@ -1,4 +1,4 @@
-// import type { ModelProviderKey } from '@lobechat/model-runtime';
+// import type { ModelProviderKey } from '@/model-runtime';
 import { AiFullModelCard } from '@/model-bank';
 
 import { ChatModelCard } from '../../llm';

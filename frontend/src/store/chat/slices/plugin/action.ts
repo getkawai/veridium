@@ -1,5 +1,5 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix, typescript-sort-keys/interface */
-import { ToolNameResolver } from '@lobechat/context-engine';
+import { ToolNameResolver } from '@/context-engine';
 import {
   ChatErrorType,
   ChatMessageError,

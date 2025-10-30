@@ -12,6 +12,7 @@
   "dependencies": {
     "@ant-design/pro-components": "^2.8.10",
     "@icons-pack/react-simple-icons": "^13.8.0",
+    "@lobehub/charts": "^2.1.2",
     "@lobehub/editor": "^1.21.1",
     "@lobehub/market-sdk": "^0.22.7",
     "@lobehub/ui": "^2.13.5",

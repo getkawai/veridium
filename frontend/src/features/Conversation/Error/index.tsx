@@ -1,4 +1,4 @@
-// import { AgentRuntimeErrorType, ILobeAgentRuntimeErrorType } from '@lobechat/model-runtime';
+// import { AgentRuntimeErrorType, ILobeAgentRuntimeErrorType } from '@/model-runtime';
 // import { ChatErrorType, ChatMessageError, ErrorType, UIChatMessage } from '@/types';
 // import { IPluginErrorType } from '@lobehub/chat-plugin-sdk';
 import type { AlertProps } from '@lobehub/ui';

@@ -5,7 +5,7 @@ import {
   DEFAULT_HOTKEY_CONFIG,
   DEFAULT_SYSTEM_AGENT_CONFIG,
   DEFAULT_TTS_CONFIG,
-} from '@lobechat/const';
+} from '@/const';
 import {
   GlobalLLMProviderKey,
   HotkeyId,

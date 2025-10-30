@@ -1,4 +1,4 @@
-import { ARTIFACT_TAG_REGEX, ARTIFACT_THINKING_TAG_REGEX } from '@lobechat/const';
+import { ARTIFACT_TAG_REGEX, ARTIFACT_THINKING_TAG_REGEX } from '@/const';
 
 /**
  * Replace all line breaks in the matched `lobeArtifact` tag with an empty string
