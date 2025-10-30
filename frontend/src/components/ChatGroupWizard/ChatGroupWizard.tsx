@@ -205,7 +205,7 @@ const ChatGroupWizard = memo<ChatGroupWizardProps>(
     const groupTemplates = useGroupTemplates();
 
     // Dummy data for enabled models
-    const enabledModels = [
+    const enabledModels = useMemo(() => [
       {
         id: 'openai',
         name: 'OpenAI',
@@ -222,10 +222,10 @@ const ChatGroupWizard = memo<ChatGroupWizardProps>(
           },
         ],
       },
-    ];
+    ], []);
 
     // Dummy data for agent sessions
-    const agentSessions: LobeAgentSession[] = [
+    const agentSessions = useMemo(() => ([
       {
         id: 'agent-1',
         type: LobeSessionType.Agent,
@@ -236,7 +236,7 @@ const ChatGroupWizard = memo<ChatGroupWizardProps>(
           systemRole: 'You are a helpful assistant.',
           chatConfig: {
             autoCreateTopicThreshold: 2,
-            displayMode: 'chat',
+            displayMode: 'chat' as const,
             enableAutoCreateTopic: true,
             enableCompressHistory: false,
             enableHistoryCount: true,
@@ -277,7 +277,7 @@ const ChatGroupWizard = memo<ChatGroupWizardProps>(
           systemRole: 'You are a creative writing assistant.',
           chatConfig: {
             autoCreateTopicThreshold: 2,
-            displayMode: 'chat',
+            displayMode: 'chat' as const,
             enableAutoCreateTopic: true,
             enableCompressHistory: false,
             enableHistoryCount: true,
@@ -318,7 +318,7 @@ const ChatGroupWizard = memo<ChatGroupWizardProps>(
           systemRole: 'You are a data analysis expert.',
           chatConfig: {
             autoCreateTopicThreshold: 2,
-            displayMode: 'chat',
+            displayMode: 'chat' as const,
             enableAutoCreateTopic: true,
             enableCompressHistory: false,
             enableHistoryCount: true,
@@ -349,12 +349,9 @@ const ChatGroupWizard = memo<ChatGroupWizardProps>(
         createdAt: new Date('2024-01-10'),
         updatedAt: new Date('2024-01-25'),
       },
-    ];
+    ] as LobeAgentSession[]), []);
 
-    const visibleAgentSessions = useMemo(
-      () => agentSessions.filter((session) => !session.config?.virtual),
-      [agentSessions],
-    );
+    const visibleAgentSessions = agentSessions;
 
     const memberDescriptionClass = useMemo(
       () => cx(styles.description, styles.memberDescription),
