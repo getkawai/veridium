@@ -12,6 +12,7 @@
   "dependencies": {
     "@ant-design/pro-components": "^2.8.10",
     "@icons-pack/react-simple-icons": "^13.8.0",
+    "@lobehub/editor": "^1.21.1",
     "@lobehub/market-sdk": "^0.22.7",
     "@lobehub/ui": "^2.13.5",
     "@wailsio/runtime": "latest",
@@ -28,7 +29,8 @@
     "type-fest": "^5.1.0",
     "ua-parser-js": "^1.0.41",
     "zod": "^4.1.12",
-    "zustand": "^5.0.8"
+    "zustand": "^5.0.8",
+    "zustand-utils": "^2.1.1"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",

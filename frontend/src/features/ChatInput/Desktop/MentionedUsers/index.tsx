@@ -3,10 +3,10 @@ import { lighten } from 'polished';
 import { memo } from 'react';
 import { Flexbox } from 'react-layout-kit';
 
-import { useMentionStore } from '@/store/mention';
-import { mentionSelectors } from '@/store/mention/selectors';
-import { useSessionStore } from '@/store/session';
-import { sessionSelectors } from '@/store/session/selectors';
+// import { useMentionStore } from '@/store/mention';
+// import { mentionSelectors } from '@/store/mention/selectors';
+// import { useSessionStore } from '@/store/session';
+// import { sessionSelectors } from '@/store/session/selectors';
 
 import MentionedUserItem from './MentionedUserItem';
 

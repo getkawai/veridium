@@ -1,18 +1,63 @@
 import { Button, Icon } from '@lobehub/ui';
 import { App } from 'antd';
 import { ScanFace } from 'lucide-react';
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Center, Flexbox } from 'react-layout-kit';
 
-import { useChatStore } from '@/store/chat';
-import { useUserStore } from '@/store/user';
-import { authSelectors, userProfileSelectors } from '@/store/user/selectors';
+// import { useChatStore } from '@/store/chat';
+// import { useUserStore } from '@/store/user';
+// import { authSelectors, userProfileSelectors } from '@/store/user/selectors';
+
+// Dummy implementations for UI development
+const useUserStore = (selector?: any) => {
+  const mockUser = {
+    fullName: 'Test User',
+    id: 'test-user-id',
+  };
+
+  if (selector) {
+    return selector({
+      userProfile: mockUser,
+      isLoginWithAuth: true,
+      openLogin: () => console.log('Mock openLogin called'),
+      logout: () => console.log('Mock logout called'),
+    });
+  }
+
+  return {
+    openLogin: () => console.log('Mock openLogin called'),
+    logout: () => console.log('Mock logout called'),
+  };
+};
+
+const userProfileSelectors = {
+  userProfile: (state: any) => state.userProfile,
+};
+
+const authSelectors = {
+  isLoginWithAuth: (state: any) => state.isLoginWithAuth,
+};
+
+const useChatStore = (selector?: any) => {
+  if (selector) {
+    return selector({
+      regenerateMessage: (id: string) => console.log('Mock regenerateMessage called with:', id),
+      deleteMessage: (id: string) => console.log('Mock deleteMessage called with:', id),
+    });
+  }
+
+  return {
+    regenerateMessage: (id: string) => console.log('Mock regenerateMessage called with:', id),
+    deleteMessage: (id: string) => console.log('Mock deleteMessage called with:', id),
+  };
+};
 
 import { FormAction } from './style';
 
 const OAuthForm = memo<{ id: string }>(({ id }) => {
   const { t } = useTranslation('error');
+  const [status] = useState('idle'); // Mock status for UI development
 
   const [signIn, signOut] = useUserStore((s) => [s.openLogin, s.logout]);
   const user = useUserStore(userProfileSelectors.userProfile);

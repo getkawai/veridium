@@ -5,8 +5,30 @@ import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 
-import { useServerConfigStore } from '@/store/serverConfig';
-import { featureFlagsSelectors, serverConfigSelectors } from '@/store/serverConfig/selectors';
+// import { useServerConfigStore } from '@/store/serverConfig';
+// import { featureFlagsSelectors, serverConfigSelectors } from '@/store/serverConfig/selectors';
+
+// Dummy implementations for UI development
+const useServerConfigStore = (selector: any) => {
+  if (typeof selector === 'function') {
+    return selector({
+      enabledOAuthSSO: false,
+      showOpenAIApiKey: true,
+    });
+  }
+  return {
+    enabledOAuthSSO: false,
+    showOpenAIApiKey: true,
+  };
+};
+
+const serverConfigSelectors = {
+  enabledOAuthSSO: (state: any) => state.enabledOAuthSSO,
+};
+
+const featureFlagsSelectors = {
+  showOpenAIApiKey: (state: any) => state.showOpenAIApiKey,
+};
 
 import AccessCodeForm from './AccessCodeForm';
 import ChatInvalidAPIKey from './ChatInvalidApiKey';
