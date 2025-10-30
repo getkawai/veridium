@@ -1,4 +1,4 @@
-import { SendMessageServerParams, StructureOutputParams } from '@lobechat/types';
+import { SendMessageServerParams, StructureOutputParams } from '@/types';
 import { cleanObject } from '@/utils';
 
 import { lambdaClient } from '@/libs/trpc/client';

@@ -7,8 +7,7 @@ import { HotkeysProvider } from 'react-hotkeys-hook';
 import { Flexbox } from 'react-layout-kit';
 
 import { isDesktop } from '@/const/version';
-// import { BANNER_HEIGHT } from '@/features/AlertBanner/CloudBanner';
-const BANNER_HEIGHT = 40;
+import { BANNER_HEIGHT } from '@/features/AlertBanner/CloudBanner';
 import TitleBar, { TITLE_BAR_HEIGHT } from '@/features/ElectronTitlebar';
 import HotkeyHelperPanel from '@/features/HotkeyHelperPanel';
 import { usePlatform } from '@/hooks/usePlatform';

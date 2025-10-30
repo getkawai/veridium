@@ -29,6 +29,7 @@
     "plaiceholder": "^3.0.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-fast-marquee": "^1.6.5",
     "react-i18next": "^16.2.1",
     "react-wrap-balancer": "^1.1.1",
     "rtl-detect": "^1.1.2",
