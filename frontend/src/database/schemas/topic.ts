@@ -1,5 +1,5 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix  */
-import { boolean, index, jsonb, sqliteTable, primaryKey, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { index, integer, sqliteTable, primaryKey, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { createInsertSchema } from 'drizzle-zod';
 
 import { ChatTopicMetadata } from '@/types/topic';
@@ -18,7 +18,7 @@ export const topics = sqliteTable(
       .$defaultFn(() => idGenerator('topics'))
       .primaryKey(),
     title: text('title'),
-    favorite: integer('favorite').default(false),
+    favorite: integer('favorite', { mode: 'boolean' }).default(false),
     sessionId: text('session_id').references(() => sessions.id, { onDelete: 'cascade' }),
     groupId: text('group_id').references(() => chatGroups.id, { onDelete: 'cascade' }),
     userId: text('user_id')

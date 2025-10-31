@@ -45,7 +45,7 @@ export type NewEvalDatasetRecordsItem = typeof evalDatasetRecords.$inferInsert;
 export type EvalDatasetRecordsSelectItem = typeof evalDatasetRecords.$inferSelect;
 
 export const evalEvaluation = sqliteTable('rag_eval_evaluations', {
-  id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
+  id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull(),
   description: text('description'),
 
@@ -70,7 +70,7 @@ export type NewEvalEvaluationItem = typeof evalEvaluation.$inferInsert;
 export type EvalEvaluationSelectItem = typeof evalEvaluation.$inferSelect;
 
 export const evaluationRecords = sqliteTable('rag_eval_evaluation_records', {
-  id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
+  id: integer('id').primaryKey({ autoIncrement: true }),
 
   question: text('question').notNull(),
   answer: text('answer'),

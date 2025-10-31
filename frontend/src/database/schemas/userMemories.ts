@@ -58,7 +58,7 @@ export const userMemoriesContexts = sqliteTable(
     title: text('title', { mode: 'json' }),
     titleVector: blob('title_vector', { mode: 'buffer' }),
     description: text('description'),
-    descriptionVector: blob('description_vector', { dimensions: 1024 }),
+    descriptionVector: blob('description_vector', { mode: 'buffer' }),
 
     type: varchar255('type'),
     currentStatus: text('current_status'),
@@ -69,14 +69,8 @@ export const userMemoriesContexts = sqliteTable(
     ...timestamps,
   },
   (table) => [
-    index('user_memories_contexts_title_vector_index').using(
-      'hnsw',
-      table.titleVector.op('vector_cosine_ops'),
-    ),
-    index('user_memories_contexts_description_vector_index').using(
-      'hnsw',
-      table.descriptionVector.op('vector_cosine_ops'),
-    ),
+    index('user_memories_contexts_title_vector_index').on(table.titleVector),
+    index('user_memories_contexts_description_vector_index').on(table.descriptionVector),
     index('user_memories_contexts_type_index').on(table.type),
   ],
 );
@@ -107,10 +101,7 @@ export const userMemoriesPreferences = sqliteTable(
     ...timestamps,
   },
   (table) => [
-    index('user_memories_preferences_conclusion_directives_vector_index').using(
-      'hnsw',
-      table.conclusionDirectivesVector.op('vector_cosine_ops'),
-    ),
+    index('user_memories_preferences_conclusion_directives_vector_index').on(table.conclusionDirectivesVector),
   ],
 );
 
@@ -131,7 +122,7 @@ export const userMemoriesIdentities = sqliteTable(
 
     type: varchar255('type'),
     description: text('description'),
-    descriptionVector: blob('description_vector', { dimensions: 1024 }),
+    descriptionVector: blob('description_vector', { mode: 'buffer' }),
     episodicDate: timestamptz('episodic_date'),
     relationship: varchar255('relationship'),
     role: text('role'),
@@ -139,10 +130,7 @@ export const userMemoriesIdentities = sqliteTable(
     ...timestamps,
   },
   (table) => [
-    index('user_memories_identities_description_vector_index').using(
-      'hnsw',
-      table.descriptionVector.op('vector_cosine_ops'),
-    ),
+    index('user_memories_identities_description_vector_index').on(table.descriptionVector),
     index('user_memories_identities_type_index').on(table.type),
   ],
 );
@@ -177,18 +165,9 @@ export const userMemoriesExperiences = sqliteTable(
     ...timestamps,
   },
   (table) => [
-    index('user_memories_experiences_situation_vector_index').using(
-      'hnsw',
-      table.situationVector.op('vector_cosine_ops'),
-    ),
-    index('user_memories_experiences_action_vector_index').using(
-      'hnsw',
-      table.actionVector.op('vector_cosine_ops'),
-    ),
-    index('user_memories_experiences_key_learning_vector_index').using(
-      'hnsw',
-      table.keyLearningVector.op('vector_cosine_ops'),
-    ),
+    index('user_memories_experiences_situation_vector_index').on(table.situationVector),
+    index('user_memories_experiences_action_vector_index').on(table.actionVector),
+    index('user_memories_experiences_key_learning_vector_index').on(table.keyLearningVector),
     index('user_memories_experiences_type_index').on(table.type),
   ],
 );

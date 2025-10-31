@@ -1,5 +1,5 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix  */
-import { boolean, index, integer, sqliteTable, text, uniqueIndex, varchar } from 'drizzle-orm/sqlite-core';
+import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { createInsertSchema } from 'drizzle-zod';
 
 import { idGenerator, randomSlug } from '../utils/idGenerator';
@@ -60,7 +60,7 @@ export const sessions = sqliteTable(
       .notNull(),
     groupId: text('group_id').references(() => sessionGroups.id, { onDelete: 'set null' }),
     clientId: text('client_id'),
-    pinned: integer('pinned').default(false),
+    pinned: integer('pinned', { mode: 'boolean' }).default(false),
 
     ...timestamps,
   },

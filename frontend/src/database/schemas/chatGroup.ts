@@ -39,7 +39,7 @@ export const chatGroups = sqliteTable(
 
     groupId: text('group_id').references(() => sessionGroups.id, { onDelete: 'set null' }),
 
-    pinned: integer('pinned').default(false),
+    pinned: integer('pinned', { mode: 'boolean' }).default(false),
 
     ...timestamps,
   },
