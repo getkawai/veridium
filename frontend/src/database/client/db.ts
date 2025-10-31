@@ -179,7 +179,11 @@ export class DatabaseManager {
             stack: error.stack,
           },
           migrationTableItems: migrationsTableData,
-          migrationsSQL: migrations,
+          migrationsSQL: (migrations as any[]).map(m => ({
+            ...m,
+            bps: m.bps ?? false,
+            folderMillis: m.folderMillis ?? 0,
+          })),
         });
 
         console.error(error);
