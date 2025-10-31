@@ -1,4 +1,4 @@
-import { dispatch } from '@lobechat/electron-client-ipc';
+import { dispatch } from '@/electron-client-ipc';
 import { FileMetadata } from '@/types';
 
 /**

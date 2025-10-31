@@ -39,7 +39,7 @@ export const generalActionSlice: StateCreator<
     if (!isDesktop) return;
 
     try {
-      const { dispatch } = await import('@lobechat/electron-client-ipc');
+      const { dispatch } = await import('@/electron-client-ipc');
 
       const url = `/chat?session=${sessionId}&mode=single`;
 
@@ -61,7 +61,7 @@ export const generalActionSlice: StateCreator<
     if (!isDesktop) return;
 
     try {
-      const { dispatch } = await import('@lobechat/electron-client-ipc');
+      const { dispatch } = await import('@/electron-client-ipc');
 
       const url = `/chat?session=${sessionId}&topic=${topicId}&mode=single`;
 
@@ -87,7 +87,7 @@ export const generalActionSlice: StateCreator<
     if (isDesktop && !skipBroadcast) {
       (async () => {
         try {
-          const { dispatch } = await import('@lobechat/electron-client-ipc');
+          const { dispatch } = await import('@/electron-client-ipc');
 
           await dispatch('updateLocale', locale);
         } catch (error) {
@@ -104,7 +104,7 @@ export const generalActionSlice: StateCreator<
     if (isDesktop && !skipBroadcast) {
       (async () => {
         try {
-          const { dispatch } = await import('@lobechat/electron-client-ipc');
+          const { dispatch } = await import('@/electron-client-ipc');
           await dispatch('updateThemeMode', themeMode);
         } catch (error) {
           console.error('Failed to update theme in main process:', error);

@@ -24,7 +24,7 @@ import {
   RunCommandResult,
   WriteLocalFileParams,
   dispatch,
-} from '@lobechat/electron-client-ipc';
+} from '@/electron-client-ipc';
 
 class LocalFileService {
   // File Operations

@@ -2,7 +2,7 @@ import {
   NetworkProxySettings,
   ShortcutUpdateResult,
   dispatch,
-} from '@lobechat/electron-client-ipc';
+} from '@/electron-client-ipc';
 
 class DesktopSettingsService {
   /**

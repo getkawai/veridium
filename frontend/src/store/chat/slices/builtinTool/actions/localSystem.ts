@@ -13,7 +13,7 @@ import {
   RenameLocalFileParams,
   RunCommandParams,
   WriteLocalFileParams,
-} from '@lobechat/electron-client-ipc';
+} from '@/electron-client-ipc';
 import { StateCreator } from 'zustand/vanilla';
 
 import { localFileService } from '@/services/electron/localFileService';
