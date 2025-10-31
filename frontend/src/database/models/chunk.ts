@@ -174,7 +174,7 @@ export class ChunkModel {
     const withSimilarity = data
       .filter((item) => item.chunkEmbedding) // Only items with embeddings
       .map((item) => {
-        const chunkVector = bufferToVector(item.chunkEmbedding as Buffer);
+        const chunkVector = bufferToVector(item.chunkEmbedding as ArrayBuffer | Uint8Array);
         const similarity = cosineSimilarity(embedding, chunkVector);
         return {
           ...item,
@@ -230,7 +230,7 @@ export class ChunkModel {
     const withSimilarity = result
       .filter((item) => item.chunkEmbedding)
       .map((item) => {
-        const chunkVector = bufferToVector(item.chunkEmbedding as Buffer);
+        const chunkVector = bufferToVector(item.chunkEmbedding as ArrayBuffer | Uint8Array);
         const similarity = cosineSimilarity(embedding, chunkVector);
         return {
           ...item,

@@ -5,22 +5,19 @@
  */
 
 /**
- * Convert a Float32Array or number array to a Buffer for SQLite blob storage
+ * Convert a Float32Array or number array to a Uint8Array for SQLite blob storage
  */
-export function vectorToBuffer(vector: number[] | Float32Array): Buffer {
+export function vectorToBuffer(vector: number[] | Float32Array): Uint8Array {
   const float32Array = vector instanceof Float32Array ? vector : new Float32Array(vector);
-  return Buffer.from(float32Array.buffer);
+  return new Uint8Array(float32Array.buffer);
 }
 
 /**
- * Convert a Buffer from SQLite back to a number array
+ * Convert a Uint8Array or ArrayBuffer from SQLite back to a number array
  */
-export function bufferToVector(buffer: Buffer): number[] {
-  const float32Array = new Float32Array(
-    buffer.buffer,
-    buffer.byteOffset,
-    buffer.length / Float32Array.BYTES_PER_ELEMENT,
-  );
+export function bufferToVector(buffer: ArrayBuffer | Uint8Array): number[] {
+  const buf = buffer instanceof Uint8Array ? buffer.buffer : buffer;
+  const float32Array = new Float32Array(buf);
   return Array.from(float32Array);
 }
 
@@ -79,7 +76,7 @@ export function euclideanDistance(vecA: number[], vecB: number[]): number {
  * @param similarityFn Similarity function to use (default: cosine similarity)
  * @returns Array of top K most similar items with their similarity scores
  */
-export function findTopKSimilar<T extends { vector: number[] | Buffer; [key: string]: any }>(
+export function findTopKSimilar<T extends { vector: number[] | ArrayBuffer | Uint8Array; [key: string]: any }>(
   queryVector: number[],
   vectors: T[],
   k: number = 10,
@@ -87,7 +84,7 @@ export function findTopKSimilar<T extends { vector: number[] | Buffer; [key: str
 ): Array<T & { similarity: number }> {
   // Calculate similarities
   const withSimilarities = vectors.map((item) => {
-    const vector = item.vector instanceof Buffer ? bufferToVector(item.vector) : item.vector;
+    const vector = Array.isArray(item.vector) ? item.vector : bufferToVector(item.vector);
     const similarity = similarityFn(queryVector, vector);
     return {
       ...item,
@@ -106,7 +103,7 @@ export function findTopKSimilar<T extends { vector: number[] | Buffer; [key: str
  * Batch process vector similarity searches
  * Useful for large datasets where you want to process in chunks
  */
-export async function batchVectorSearch<T extends { vector: number[] | Buffer; [key: string]: any }>(
+export async function batchVectorSearch<T extends { vector: number[] | ArrayBuffer | Uint8Array; [key: string]: any }>(
   queryVector: number[],
   vectors: T[],
   options: {
@@ -152,4 +149,3 @@ export function generateVectorIndexSQL(tableName: string, vectorColumn: string):
     ON ${tableName}(length(${vectorColumn}));
   `.trim();
 }
-

@@ -108,7 +108,12 @@ export const createFileSlice: StateCreator<
 
           previewUrl = URL.createObjectURL(new Blob([data!], { type: file.type }));
 
-          const base64 = Buffer.from(data!).toString('base64');
+          const bytes = new Uint8Array(data!);
+          let binary = '';
+          for (let i = 0; i < bytes.length; i++) {
+            binary += String.fromCharCode(bytes[i]);
+          }
+          const base64 = btoa(binary);
           base64Url = `data:${file.type};base64,${base64}`;
         }
 

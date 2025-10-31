@@ -9,13 +9,8 @@
  * @returns Base64 encoded string
  */
 export const encodeToBase64 = (input: string): string => {
-  if (typeof btoa === 'function') {
     // Browser environment
     return btoa(input);
-  } else {
-    // Node.js environment
-    return Buffer.from(input, 'utf8').toString('base64');
-  }
 };
 
 /**
@@ -24,13 +19,8 @@ export const encodeToBase64 = (input: string): string => {
  * @returns Decoded string
  */
 export const decodeFromBase64 = (input: string): string => {
-  if (typeof atob === 'function') {
     // Browser environment
     return atob(input);
-  } else {
-    // Node.js environment
-    return Buffer.from(input, 'base64').toString('utf8');
-  }
 };
 
 /**
