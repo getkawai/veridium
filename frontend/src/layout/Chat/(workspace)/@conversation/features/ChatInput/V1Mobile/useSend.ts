@@ -1,5 +1,4 @@
 import { SendMessageParams } from '@/types';
-import { useAnalytics } from '@lobehub/analytics/react';
 import { useCallback, useMemo } from 'react';
 
 import { useGeminiChineseWarning } from '@/hooks/useGeminiChineseWarning';
@@ -20,7 +19,6 @@ export const useSendMessage = () => {
     s.sendMessage,
     s.updateInputMessage,
   ]);
-  const { analytics } = useAnalytics();
   const checkGeminiChineseWarning = useGeminiChineseWarning();
 
   const clearChatUploadFileList = useFileStore((s) => s.clearChatUploadFileList);

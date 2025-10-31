@@ -1,16 +1,14 @@
-import { useAnalytics } from '@lobehub/analytics/react';
 import { useCallback, useMemo } from 'react';
 
 import { useGeminiChineseWarning } from '@/hooks/useGeminiChineseWarning';
 import { getAgentStoreState } from '@/store/agent';
 import { agentSelectors } from '@/store/agent/selectors';
 import { getChatStoreState, useChatStore } from '@/store/chat';
-import { aiChatSelectors, chatSelectors, topicSelectors } from '@/store/chat/selectors';
+import { aiChatSelectors, chatSelectors } from '@/store/chat/selectors';
 import { fileChatSelectors, useFileStore } from '@/store/file';
 import { mentionSelectors, useMentionStore } from '@/store/mention';
 import { useSessionStore } from '@/store/session';
 import { sessionMetaSelectors } from '@/store/session/selectors';
-import { getUserStoreState } from '@/store/user';
 
 export interface UseSendMessageParams {
   isWelcomeQuestion?: boolean;
@@ -42,7 +40,6 @@ export const useSend = () => {
     chatSelectors.isSendButtonDisabledByMessage(s),
     aiChatSelectors.isCurrentSendMessageLoading(s),
   ]);
-  const { analytics } = useAnalytics();
   const checkGeminiChineseWarning = useGeminiChineseWarning();
 
   // 使用订阅以保持最新文件列表
@@ -98,31 +95,6 @@ export const useSend = () => {
     mainInputEditor.setExpand(false);
     mainInputEditor.clearContent();
     mainInputEditor.focus();
-
-    // 获取分析数据
-    const userStore = getUserStoreState();
-
-    // 直接使用现有数据结构判断消息类型（支持 video）
-    const hasImages = fileList.some((file) => file.file?.type?.startsWith('image'));
-    const hasVideos = fileList.some((file) => file.file?.type?.startsWith('video'));
-    const messageType =
-      fileList.length === 0 ? 'text' : hasVideos ? 'video' : hasImages ? 'image' : 'file';
-
-    analytics?.track({
-      name: 'send_message',
-      properties: {
-        chat_id: store.activeId || 'unknown',
-        current_topic: topicSelectors.currentActiveTopic(store)?.title || null,
-        has_attachments: fileList.length > 0,
-        history_message_count: chatSelectors.activeBaseChats(store).length,
-        message: inputMessage,
-        message_length: inputMessage.length,
-        message_type: messageType,
-        selected_model: agentSelectors.currentAgentModel(agentStore),
-        session_id: store.activeId || 'inbox', // 当前活跃的会话ID
-        user_id: userStore.user?.id || 'anonymous',
-      },
-    });
   };
 
   const stop = () => {
@@ -172,7 +144,6 @@ export const useSendGroupMessage = () => {
   const isSupervisorThinking = useChatStore((s) =>
     chatSelectors.isSupervisorLoading(s.activeId)(s),
   );
-  const { analytics } = useAnalytics();
   const checkGeminiChineseWarning = useGeminiChineseWarning();
 
   const fileList = fileChatSelectors.chatUploadFileList(useFileStore.getState());
@@ -253,34 +224,12 @@ export const useSendGroupMessage = () => {
       updateInputMessage('');
       // clear mentioned users after sending
       mentionState.clearMentionedUsers();
-
-      // 获取分析数据
-      const userStore = getUserStoreState();
-      const hasImages = fileList.some((file) => file.file?.type?.startsWith('image'));
-      const messageType = fileList.length === 0 ? 'text' : hasImages ? 'image' : 'file';
-
-      analytics?.track({
-        name: 'send_group_message',
-        properties: {
-          chat_id: store.activeId || 'unknown',
-          current_topic: topicSelectors.currentActiveTopic(store)?.title || null,
-          has_attachments: fileList.length > 0,
-          history_message_count: chatSelectors.activeBaseChats(store).length,
-          message: inputMessage,
-          message_length: inputMessage.length,
-          message_type: messageType,
-          selected_model: agentSelectors.currentAgentModel(agentStore),
-          session_id: store.activeId || 'inbox', // 当前活跃的会话ID
-          user_id: userStore.user?.id || 'anonymous',
-        },
-      });
     },
     [
       canNotSend,
       fileList,
       clearChatUploadFileList,
       updateInputMessage,
-      analytics,
       checkGeminiChineseWarning,
     ],
   );

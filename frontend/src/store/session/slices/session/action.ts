@@ -1,4 +1,3 @@
-import { getSingletonAnalyticsOptional } from '@lobehub/analytics';
 import isEqual from 'fast-deep-equal';
 import { t } from 'i18next';
 import useSWR, { SWRResponse, mutate } from 'swr';
@@ -14,8 +13,8 @@ import { chatGroupService } from '@/services/chatGroup';
 import { sessionService } from '@/services/session';
 import { getChatGroupStoreState } from '@/store/chatGroup';
 import { SessionStore } from '@/store/session';
-import { getUserStoreState, useUserStore } from '@/store/user';
-import { settingsSelectors, userProfileSelectors } from '@/store/user/selectors';
+import { useUserStore } from '@/store/user';
+import { settingsSelectors } from '@/store/user/selectors';
 import { MetaData } from '@/types/meta';
 import {
   ChatSessionList,
@@ -118,23 +117,6 @@ export const createSessionSlice: StateCreator<
 
     const id = await sessionService.createSession(LobeSessionType.Agent, newSession);
     await refreshSessions();
-
-    // Track new agent creation analytics
-    const analytics = getSingletonAnalyticsOptional();
-    if (analytics) {
-      const userStore = getUserStoreState();
-      const userId = userProfileSelectors.userId(userStore);
-
-      analytics.track({
-        name: 'new_agent_created',
-        properties: {
-          assistant_name: newSession.meta?.title || 'Untitled Agent',
-          assistant_tags: newSession.meta?.tags || [],
-          session_id: id,
-          user_id: userId || 'anonymous',
-        },
-      });
-    }
 
     // Whether to goto  to the new session after creation, the default is to switch to
     if (isSwitchSession) switchSession(id);
