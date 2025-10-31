@@ -9,7 +9,7 @@ import {
   VertexAIKeyVault,
 } from '@/types';
 import { clientApiKeyManager } from '@/utils/client';
-import { ModelProvider } from 'model-bank';
+import { ModelProvider } from '@/model-bank';
 
 import { aiProviderSelectors, useAiInfraStore } from '@/store/aiInfra';
 import { useUserStore } from '@/store/user';

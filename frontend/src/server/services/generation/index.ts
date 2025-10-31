@@ -3,7 +3,7 @@ import { parseDataUri } from '@/model-runtime';
 import debug from 'debug';
 import { sha256 } from 'js-sha256';
 import mime from 'mime';
-import { IMAGE_GENERATION_CONFIG } from 'model-bank';
+import { IMAGE_GENERATION_CONFIG } from '@/model-bank';
 import { nanoid } from 'nanoid';
 import sharp from 'sharp';
 

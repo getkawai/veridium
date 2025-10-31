@@ -4,7 +4,7 @@ import {
   CreateAiModelSchema,
   ToggleAiModelEnableSchema,
   UpdateAiModelSchema,
-} from 'model-bank';
+} from '@/model-bank';
 import { z } from 'zod';
 
 import { AiModelModel } from '@/database/models/aiModel';

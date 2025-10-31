@@ -1,7 +1,7 @@
 import { ProviderConfig } from '@/types';
 import { extractEnabledModels, transformToAiModelList } from '@/utils';
-import { AiFullModelCard, ModelProvider } from 'model-bank';
-import * as AiModels from 'model-bank';
+import { AiFullModelCard, ModelProvider } from '@/model-bank';
+import * as AiModels from '@/model-bank';
 
 import { getLLMConfig } from '@/envs/llm';
 

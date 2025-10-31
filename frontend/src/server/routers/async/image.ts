@@ -1,7 +1,7 @@
 import { AgentRuntimeErrorType } from '@/model-runtime';
 import { AsyncTaskError, AsyncTaskErrorType, AsyncTaskStatus } from '@/types';
 import debug from 'debug';
-import { RuntimeImageGenParams } from 'model-bank';
+import { RuntimeImageGenParams } from '@/model-bank';
 import { z } from 'zod';
 
 import { ASYNC_TASK_TIMEOUT, AsyncTaskModel } from '@/database/models/asyncTask';
