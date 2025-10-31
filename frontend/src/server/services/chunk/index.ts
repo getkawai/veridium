@@ -53,10 +53,10 @@ export class ChunkService {
       console.error('[embeddingFileChunks] error:', e);
 
       await this.asyncTaskModel.update(asyncTaskId, {
-        error: new AsyncTaskError(
+        error: JSON.stringify(new AsyncTaskError(
           AsyncTaskErrorType.TaskTriggerError,
-          'trigger chunk embedding async task error. Please make sure the APP_URL is available from your server. You can check the proxy config or WAF blocking',
-        ),
+          'trigger chunk embedding async task error. Please make sure the APP_URL is available from your server. You can check the proxy config or WAF blocking'
+        )),
         status: AsyncTaskStatus.Error,
       });
     }
@@ -90,10 +90,10 @@ export class ChunkService {
       console.error('[ParseFileToChunks] error:', e);
 
       await this.asyncTaskModel.update(asyncTaskId, {
-        error: new AsyncTaskError(
+        error: JSON.stringify(new AsyncTaskError(
           AsyncTaskErrorType.TaskTriggerError,
-          'trigger chunk embedding async task error. Please make sure the APP_URL is available from your server. You can check the proxy config or WAF blocking',
-        ),
+          'trigger chunk embedding async task error. Please make sure the APP_URL is available from your server. You can check the proxy config or WAF blocking'
+        )),
         status: AsyncTaskStatus.Error,
       });
     });

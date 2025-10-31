@@ -5,7 +5,6 @@ import { markdownToTxt } from 'markdown-to-txt';
 import semver from 'semver';
 import urlJoin from 'url-join';
 
-import { FetchCacheTag } from '@/const/cacheControl';
 import { Locales } from '@/locales/resources';
 import { ChangelogIndexItem } from '@/types/changelog';
 
@@ -38,7 +37,7 @@ export class ChangelogService {
     majorVersion: 1,
     repo: 'lobe-chat',
     type: 'cloud',
-    urlTemplate: process.env.CHANGELOG_URL_TEMPLATE || URL_TEMPLATE,
+    urlTemplate: URL_TEMPLATE,
     user: 'lobehub',
   };
 
@@ -51,9 +50,7 @@ export class ChangelogService {
     try {
       const url = this.genUrl(urlJoin(this.config.docsPath, 'index.json'));
 
-      const res = await fetch(url, {
-        next: { revalidate: 3600, tags: [FetchCacheTag.Changelog] },
-      });
+      const res = await fetch(url);
 
       if (res.ok) {
         const data = await res.json();
@@ -89,9 +86,7 @@ export class ChangelogService {
       const filename = options?.locale?.startsWith('zh') ? `${id}.zh-CN.mdx` : `${id}.mdx`;
       const url = this.genUrl(urlJoin(this.config.docsPath, filename));
 
-      const response = await fetch(url, {
-        next: { revalidate: 3600, tags: [FetchCacheTag.Changelog] },
-      });
+      const response = await fetch(url);
 
       const text = await response.text();
       const { data, content } = matter(text);

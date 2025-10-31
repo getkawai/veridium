@@ -9,8 +9,6 @@ import {
   AssistantListResponse,
   AssistantQueryParams,
   AssistantSorts,
-  CacheRevalidate,
-  CacheTag,
   DiscoverAssistantDetail,
   DiscoverAssistantItem,
   DiscoverMcpDetail,
@@ -75,9 +73,9 @@ export class DiscoverService {
       // 2. 桌面端使用 machine-id
       if (isDesktop) {
         try {
-          // 动态导入
-          const { machineId } = await import('node-machine-id');
-          return await machineId();
+          // 使用 machine ID service
+          const { GetID } = await import('@/bindings/github.com/kawai-network/veridium/machineidservice');
+          return await GetID();
         } catch (error) {
           console.error('Failed to get machine-id:', error);
         }
@@ -249,7 +247,7 @@ export class DiscoverService {
       .filter(([category]) => Boolean(category)) // 过滤掉空值
       .map(([category, count]) => ({
         category,
-        count,
+        count: count as number,
       }));
     log('getAssistantCategories: returning %d categories', result.length);
     return result;
@@ -426,11 +424,6 @@ export class DiscoverService {
         ...params,
         locale: normalizedLocale,
       },
-      {
-        next: {
-          revalidate: 3600,
-        },
-      },
     );
     log('getMcpCategories: returning %d categories', result.length);
     return result;
@@ -446,11 +439,6 @@ export class DiscoverService {
     const normalizedLocale = normalizeLocale(locale);
     const mcp = await this.market.plugins.getPluginDetail(
       { ...params, locale: normalizedLocale },
-      {
-        next: {
-          revalidate: 3600,
-        },
-      },
     );
     const list = await this.getMcpList({
       category: mcp.category,
@@ -475,12 +463,6 @@ export class DiscoverService {
         ...params,
         locale: normalizedLocale,
       },
-      {
-        next: {
-          revalidate: CacheRevalidate.List,
-          tags: [CacheTag.Discover, CacheTag.MCP],
-        },
-      },
     );
     log('getMcpList: returning %d items on page %d', result.items.length, result.currentPage);
     return result;
@@ -494,12 +476,6 @@ export class DiscoverService {
       {
         ...params,
         locale: normalizedLocale,
-      },
-      {
-        next: {
-          revalidate: CacheRevalidate.List,
-          tags: [CacheTag.Discover, CacheTag.MCP],
-        },
       },
     );
     log('getMcpManifest: returning manifest for %s', params.identifier);
@@ -571,7 +547,7 @@ export class DiscoverService {
       .filter(([category]) => Boolean(category)) // 过滤掉空值
       .map(([category, count]) => ({
         category,
-        count,
+        count: count as number,
       }));
     log('getPluginCategories: returning %d categories', result.length);
     return result;
@@ -586,14 +562,14 @@ export class DiscoverService {
     const { locale, identifier, withManifest } = params;
     const all = await this._getPluginList(locale);
     let raw = all.find((item) => item.identifier === identifier);
-    if (!raw) {
+    if (!raw || !raw.category) {
       log('getPluginDetail: plugin not found for identifier=%s', identifier);
       return;
     }
 
     raw = merge(cloneDeep(DEFAULT_DISCOVER_PLUGIN_ITEM), raw);
     const list = await this.getPluginList({
-      category: raw.category,
+      category: raw?.category || undefined,
       locale,
       page: 1,
       pageSize: 7,
@@ -601,12 +577,15 @@ export class DiscoverService {
 
     let plugin = {
       ...raw,
-      related: list.items.filter((item) => item.identifier !== raw.identifier).slice(0, 6),
+      related: list.items.filter((item) => item.identifier !== raw?.identifier).slice(0, 6),
     };
 
     if (!withManifest || !plugin?.manifest || !isString(plugin?.manifest)) {
       log('getPluginDetail: returning plugin without manifest processing');
-      return plugin;
+      return {
+        ...plugin,
+        author: plugin?.author as string,
+      } as DiscoverPluginDetail;
     }
 
     // 在 Edge Runtime 环境中使用了 Node.js 的 path 模块，但 Edge Runtime 不支持所有 Node.js API
@@ -622,7 +601,10 @@ export class DiscoverService {
     //   return plugin;
     // }
 
-    return plugin;
+    return {
+      ...plugin,
+      author: plugin?.author as string,
+    } as DiscoverPluginDetail;
   };
 
   getPluginIdentifiers = async (): Promise<IdentifiersResponse> => {
@@ -783,11 +765,7 @@ export class DiscoverService {
           normalizedLocale === 'zh-CN' ? `${identifier}.zh-CN.mdx` : `${identifier}.mdx`,
         );
         log('getProviderDetail: readme URL=%s', readmeUrl);
-        const res = await fetch(readmeUrl, {
-          next: {
-            tags: [CacheTag.Discover, CacheTag.Providers],
-          },
-        });
+        const res = await fetch(readmeUrl);
 
         const data = await res.text();
         const { content } = matter(data);
@@ -1012,7 +990,7 @@ export class DiscoverService {
       .filter(([category]) => Boolean(category)) // 过滤掉空值
       .map(([category, count]) => ({
         category,
-        count,
+        count: count as number,
       }));
     log('getModelCategories: returning %d categories', result.length);
     return result;

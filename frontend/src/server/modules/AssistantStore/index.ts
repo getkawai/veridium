@@ -4,7 +4,6 @@ import { DEFAULT_LANG, isLocaleNotSupport } from '@/const/locale';
 import { appEnv } from '@/envs/app';
 import { Locales, normalizeLocale } from '@/locales/resources';
 import { EdgeConfig } from '@/server/modules/EdgeConfig';
-import { CacheRevalidate, CacheTag } from '@/types/discover';
 
 export class AssistantStore {
   private readonly baseUrl: string;
@@ -30,16 +29,11 @@ export class AssistantStore {
     try {
       res = await fetch(this.getAgentIndexUrl(locale as any), {
         cache: 'force-cache',
-        next: { revalidate: CacheRevalidate.List, tags: [CacheTag.Discover, CacheTag.Assistants] },
       });
 
       if (res.status === 404) {
         res = await fetch(this.getAgentIndexUrl(DEFAULT_LANG), {
           cache: 'force-cache',
-          next: {
-            revalidate: CacheRevalidate.List,
-            tags: [CacheTag.Discover, CacheTag.Assistants],
-          },
         });
       }
 
@@ -87,18 +81,10 @@ export class AssistantStore {
   getAgent = async (identifier: string, lang: Locales = DEFAULT_LANG): Promise<any> => {
     let res = await fetch(this.getAgentUrl(identifier, lang), {
       cache: 'force-cache',
-      next: {
-        revalidate: CacheRevalidate.Details,
-        tags: [CacheTag.Discover, CacheTag.Assistants],
-      },
     });
     if (!res.ok) {
       res = await fetch(this.getAgentUrl(DEFAULT_LANG), {
         cache: 'force-cache',
-        next: {
-          revalidate: CacheRevalidate.Details,
-          tags: [CacheTag.Discover, CacheTag.Assistants],
-        },
       });
     }
     if (!res.ok) return;

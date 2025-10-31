@@ -1,5 +1,5 @@
-// import { LobeChatPluginManifest } from '@lobehub/chat-plugin-sdk';
-// import { LobeChatPluginMeta, Meta } from '@lobehub/chat-plugin-sdk/lib/types/market';
+import { LobeChatPluginManifest } from '@lobehub/chat-plugin-sdk';
+import { LobeChatPluginMeta, Meta } from '@lobehub/chat-plugin-sdk/lib/types/market';
 
 export enum PluginCategory {
   All = 'all',
@@ -24,7 +24,7 @@ export enum PluginSorts {
   Title = 'title',
 }
 
-export interface DiscoverPluginItem extends Omit<any, 'meta'> { // LobeChatPluginMeta, Meta
+export interface DiscoverPluginItem extends Omit<LobeChatPluginMeta, 'meta'>, Meta {
   category?: PluginCategory;
 }
 
@@ -47,6 +47,6 @@ export interface PluginListResponse {
 }
 
 export interface DiscoverPluginDetail extends Omit<DiscoverPluginItem, 'manifest'> {
-  manifest?: any; // LobeChatPluginManifest | string;
+  manifest?: LobeChatPluginManifest | string;
   related: DiscoverPluginItem[];
 }

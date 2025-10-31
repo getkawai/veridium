@@ -36,6 +36,8 @@ func main() {
 		Description: "A demo of using raw HTML & CSS",
 		Services: []application.Service{
 			application.NewService(&GreetService{}),
+			// Machine ID service
+			application.NewService(&MachineIDService{}),
 			// Native Wails v3 notification service
 			application.NewService(notifications.New()),
 			// Native Wails v3 sqlite service
