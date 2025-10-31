@@ -1,7 +1,5 @@
 import { useCallback, useState } from 'react';
 
-import { lambdaQuery } from '@/libs/trpc/client/lambda';
-
 interface PdfGenerationParams {
   content: string;
   sessionId: string;
@@ -22,8 +20,37 @@ export const usePdfGeneration = (): PdfGenerationState => {
   const [filename, setFilename] = useState<string>('chat-export.pdf');
   const [error, setError] = useState<string | null>(null);
   const [lastGeneratedKey, setLastGeneratedKey] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState<boolean>(false);
 
-  const exportPdfMutation = lambdaQuery.exporter.exportPdf.useMutation();
+  // Mock PDF generation - creates a minimal valid PDF as base64
+  const mockExportPdfMutation = {
+    isPending: isGenerating,
+    error: error ? { message: error } : null,
+    mutateAsync: async (params: PdfGenerationParams) => {
+      setIsGenerating(true);
+      setError(null);
+
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      // Create mock PDF filename
+      const title = params.title || 'Chat Export';
+      const sessionId = params.sessionId.slice(-8); // Use last 8 chars of session ID
+      const mockFilename = `${title.replace(/[^a-zA-Z0-9]/g, '_')}_${sessionId}.pdf`;
+
+      // Mock PDF data - minimal valid PDF as base64
+      // This is a very basic PDF structure (not readable, but valid format)
+      const mockPdfData = btoa(
+        '%PDF-1.4\n1 0 obj\n<<\n/Type /Catalog\n/Pages 2 0 R\n>>\nendobj\n2 0 obj\n<<\n/Type /Pages\n/Kids [3 0 R]\n/Count 1\n>>\nendobj\n3 0 obj\n<<\n/Type /Page\n/Parent 2 0 R\n/MediaBox [0 0 612 792]\n/Contents 4 0 R\n>>\nendobj\n4 0 obj\n<<\n/Length 44\n>>\nstream\nBT\n/F1 12 Tf\n100 700 Td\n(Mock PDF Content) Tj\nET\nendstream\nendobj\nxref\n0 5\n0000000000 65535 f\n0000000009 00000 n\n0000000058 00000 n\n0000000115 00000 n\n0000000200 00000 n\ntrailer\n<<\n/Size 5\n/Root 1 0 R\n>>\nstartxref\n284\n%%EOF'
+      );
+
+      setIsGenerating(false);
+      return {
+        pdf: mockPdfData,
+        filename: mockFilename,
+      };
+    },
+  };
 
   const generatePdf = useCallback(
     async (params: PdfGenerationParams) => {
@@ -32,13 +59,13 @@ export const usePdfGeneration = (): PdfGenerationState => {
       const requestKey = `${sessionId}-${topicId || 'default'}-${content.length}`;
 
       // Prevent multiple simultaneous requests or re-generating the same PDF
-      if (exportPdfMutation.isPending || lastGeneratedKey === requestKey) return;
+      if (mockExportPdfMutation.isPending || lastGeneratedKey === requestKey) return;
 
       try {
         setError(null);
         setPdfData(null);
 
-        const result = await exportPdfMutation.mutateAsync({
+        const result = await mockExportPdfMutation.mutateAsync({
           content,
           sessionId,
           title,
@@ -53,7 +80,7 @@ export const usePdfGeneration = (): PdfGenerationState => {
         setError(error instanceof Error ? error.message : 'Failed to generate PDF');
       }
     },
-    [exportPdfMutation.mutateAsync, lastGeneratedKey],
+    [lastGeneratedKey],
   );
 
   const downloadPdf = useCallback(async () => {
@@ -85,9 +112,9 @@ export const usePdfGeneration = (): PdfGenerationState => {
 
   return {
     downloadPdf,
-    error: error || (exportPdfMutation.error?.message ?? null),
+    error: error || (mockExportPdfMutation.error?.message ?? null),
     generatePdf,
-    loading: exportPdfMutation.isPending,
+    loading: mockExportPdfMutation.isPending,
     pdfData,
   };
 };
