@@ -53,7 +53,7 @@ export class EvalDatasetRecordModel {
     return list.map((item) => {
       return {
         ...item,
-        referenceFiles: (item.referenceFiles?.map((fileId) => {
+        referenceFiles: ((item.referenceFiles as string[] || [])?.map((fileId) => {
           return fileItems.find((file) => file.id === fileId);
         }) || []) as EvalDatasetRecordRefFile[],
       };
