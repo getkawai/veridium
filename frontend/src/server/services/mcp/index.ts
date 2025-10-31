@@ -3,7 +3,7 @@ import { safeParseJSON } from '@/utils';
 import { LobeChatPluginApi, LobeChatPluginManifest, PluginSchema } from '@lobehub/chat-plugin-sdk';
 import { DeploymentOption } from '@lobehub/market-sdk';
 import { McpError } from '@modelcontextprotocol/sdk/types.js';
-import { TRPCError } from '@trpc/server';
+import { TRPCError } from '@/types';
 import debug from 'debug';
 
 import {

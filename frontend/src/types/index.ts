@@ -33,3 +33,4 @@ export * from './openai/chat';
 export * from './openai/plugin';
 export * from './trace';
 export * from './zustand';
+export * from './trpc';

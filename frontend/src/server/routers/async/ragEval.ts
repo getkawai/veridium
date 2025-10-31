@@ -1,6 +1,6 @@
 import { chainAnswerWithContext } from '@/prompts';
 import { EvalEvaluationStatus } from '@/types';
-import { TRPCError } from '@trpc/server';
+import { TRPCError } from '@/types';
 import { ModelProvider } from 'model-bank';
 import OpenAI from 'openai';
 import { z } from 'zod';

@@ -1,5 +1,5 @@
 import { SEARCH_SEARXNG_NOT_CONFIG, UniformSearchResponse } from '@/types';
-import { TRPCError } from '@trpc/server';
+import { TRPCError } from '@/types';
 
 import { toolsEnv } from '@/envs/tools';
 import { SearXNGClient } from '@/server/services/search/impls/searxng/client';

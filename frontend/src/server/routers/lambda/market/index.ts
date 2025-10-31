@@ -1,4 +1,4 @@
-import { TRPCError } from '@trpc/server';
+import { TRPCError } from '@/types';
 import { serialize } from 'cookie';
 import debug from 'debug';
 import { z } from 'zod';

@@ -9,7 +9,7 @@ import {
   AgentRuntimeErrorType,
   ILobeAgentRuntimeErrorType,
 } from '@/model-runtime';
-import { TRPCError } from '@trpc/server';
+import { TRPCError } from '@/types';
 
 import { SYSTEM_COMPONENTS } from '@/server/services/comfyui/config/systemComponents';
 import {

@@ -2,7 +2,7 @@ import {
   GetStreamableMcpServerManifestInputSchema,
   StreamableHTTPAuthSchema,
 } from '@/types';
-import { TRPCError } from '@trpc/server';
+import { TRPCError } from '@/types';
 import { z } from 'zod';
 
 import { isDesktop, isServerMode } from '@/const/version';

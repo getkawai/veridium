@@ -1,4 +1,4 @@
-import { TRPCError } from '@trpc/server';
+import { TRPCError } from '@/types';
 import { z } from 'zod';
 
 import { serverDBEnv } from '@/config/db';

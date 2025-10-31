@@ -1,5 +1,5 @@
 import { LobeChatDatabase } from '@/database';
-import { TRPCError } from '@trpc/server';
+import { TRPCError } from '@/types';
 
 import { serverDBEnv } from '@/config/db';
 import { FileModel } from '@/database/models/file';

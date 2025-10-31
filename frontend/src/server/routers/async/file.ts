@@ -1,4 +1,4 @@
-import { TRPCError } from '@trpc/server';
+import { TRPCError } from '@/types';
 import { chunk } from 'lodash-es';
 import pMap from 'p-map';
 import { z } from 'zod';

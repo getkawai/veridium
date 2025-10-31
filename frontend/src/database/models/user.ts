@@ -1,4 +1,4 @@
-import { UserGuide, UserKeyVaults, UserPreference, UserSettings } from  '@/types';
+import { UserGuide, UserKeyVaults, UserPreference, UserSettings, TRPCError } from  '@/types';
 import dayjs from 'dayjs';
 import { eq } from 'drizzle-orm';
 import type { JsonValue, PartialDeep } from 'type-fest';
@@ -25,16 +25,6 @@ type DecryptUserKeyVaults = (
   encryptKeyVaultsStr: string | null,
   userId?: string,
 ) => Promise<UserKeyVaults>;
-
-class TRPCError extends Error {
-  public code: string;
-
-  constructor(options: { code: string; message: string }) {
-    super(options.message);
-    this.code = options.code;
-    this.name = 'MockTRPCError';
-  }
-}
 
 export class UserNotFoundError extends TRPCError {
   constructor() {

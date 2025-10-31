@@ -3,7 +3,7 @@ import {
   SendMessageServerResponse,
   StructureOutputSchema,
 } from '@/types';
-import { TRPCError } from '@trpc/server';
+import { TRPCError } from '@/types';
 import debug from 'debug';
 
 import { LOADING_FLAT } from '@/const/message';

@@ -1,6 +1,6 @@
 import { DEFAULT_FILE_EMBEDDING_MODEL_ITEM } from '@/const';
 import { SemanticSearchSchema } from '@/types';
-import { TRPCError } from '@trpc/server';
+import { TRPCError } from '@/types';
 import { inArray } from 'drizzle-orm';
 import { z } from 'zod';
 

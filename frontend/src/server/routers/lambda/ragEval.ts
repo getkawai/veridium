@@ -8,7 +8,7 @@ import {
   insertEvalDatasetsSchema,
   insertEvalEvaluationSchema,
 } from '@/types';
-import { TRPCError } from '@trpc/server';
+import { TRPCError } from '@/types';
 import dayjs from 'dayjs';
 import JSONL from 'jsonl-parse-stringify';
 import pMap from 'p-map';
