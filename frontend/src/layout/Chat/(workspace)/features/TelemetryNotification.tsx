@@ -3,7 +3,6 @@
 import { Avatar, Button, Icon } from '@lobehub/ui';
 import { createStyles } from 'antd-style';
 import { LucideArrowUpRightFromSquare, TelescopeIcon } from 'lucide-react';
-import Link from 'next/link';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
@@ -59,10 +58,10 @@ const TelemetryNotification = memo<{ mobile?: boolean }>(({ mobile }) => {
           <div className={styles.desc}>
             {t('telemetry.desc', { appName: BRANDING_NAME })}
             <span>
-              <Link href={PRIVACY_URL} target={'_blank'}>
+              <a data-wml-openURL={PRIVACY_URL} target={'_blank'}>
                 {t('telemetry.learnMore')}
                 <Icon icon={LucideArrowUpRightFromSquare} style={{ marginInlineStart: 4 }} />
-              </Link>
+              </a>
             </span>
           </div>
         </Flexbox>
