@@ -1,12 +1,15 @@
 import { UserGuide, UserKeyVaults, UserPreference, UserSettings } from  '@/types';
-import { TRPCError } from '@trpc/server';
 import dayjs from 'dayjs';
 import { eq } from 'drizzle-orm';
-import type { AdapterAccount } from 'next-auth/adapters';
-import type { PartialDeep } from 'type-fest';
+import type { JsonValue, PartialDeep } from 'type-fest';
 
 import { merge } from '@/utils/merge';
 import { today } from '@/utils/time';
+
+interface AdapterAccount {
+  type: "oauth" | "email" | "oidc"
+  [key: string]: JsonValue | undefined
+}
 
 import {
   NewUser,
@@ -22,6 +25,16 @@ type DecryptUserKeyVaults = (
   encryptKeyVaultsStr: string | null,
   userId?: string,
 ) => Promise<UserKeyVaults>;
+
+class TRPCError extends Error {
+  public code: string;
+
+  constructor(options: { code: string; message: string }) {
+    super(options.message);
+    this.code = options.code;
+    this.name = 'MockTRPCError';
+  }
+}
 
 export class UserNotFoundError extends TRPCError {
   constructor() {
