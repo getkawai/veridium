@@ -1,5 +1,5 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix  */
-import { boolean, integer, jsonb, pgTable, primaryKey, text, varchar } from 'drizzle-orm/sqlite-core';
+import { boolean, integer, jsonb, sqliteTable, primaryKey, text, varchar } from 'drizzle-orm/sqlite-core';
 
 import { AiProviderConfig, AiProviderSettings } from '@/types/aiProvider';
 

@@ -1,41 +1,35 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useMemo } from 'react';
+
+import { routerSelectors, useRouterStore } from '@/store/router';
 
 export const usePinnedAgentState = () => {
-  const [isPinned, setIsPinnedState] = useState(false);
+  const searchParams = useRouterStore(routerSelectors.searchParams);
+  const setSearchParam = useRouterStore((s) => s.setSearchParam);
+  const removeSearchParam = useRouterStore((s) => s.removeSearchParam);
 
-  // Read initial state from URL on mount
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const pinnedParam = urlParams.get('pinned');
-    if (pinnedParam === 'true') {
-      setIsPinnedState(true);
-    }
-  }, []);
-
-  // Update URL when state changes
-  const setIsPinned = useCallback((value: boolean | ((prev: boolean) => boolean)) => {
-    const newValue = typeof value === 'function' ? value(isPinned) : value;
-    setIsPinnedState(newValue);
-
-    const url = new URL(window.location.href);
-    if (newValue) {
-      url.searchParams.set('pinned', 'true');
-    } else {
-      url.searchParams.delete('pinned');
-    }
-
-    // Update URL without page reload
-    window.history.replaceState({}, '', url.toString());
-  }, [isPinned]);
+  const isPinned = searchParams.pinned === 'true';
 
   const actions = useMemo(
     () => ({
-      pinAgent: () => setIsPinned(true),
-      setIsPinned,
-      togglePinAgent: () => setIsPinned((prev) => !prev),
-      unpinAgent: () => setIsPinned(false),
+      pinAgent: () => setSearchParam('pinned', 'true'),
+      setIsPinned: (value: boolean | ((prev: boolean) => boolean)) => {
+        const newValue = typeof value === 'function' ? value(isPinned) : value;
+        if (newValue) {
+          setSearchParam('pinned', 'true');
+        } else {
+          removeSearchParam('pinned');
+        }
+      },
+      togglePinAgent: () => {
+        if (isPinned) {
+          removeSearchParam('pinned');
+        } else {
+          setSearchParam('pinned', 'true');
+        }
+      },
+      unpinAgent: () => removeSearchParam('pinned'),
     }),
-    [setIsPinned],
+    [isPinned, setSearchParam, removeSearchParam],
   );
 
   return [isPinned, actions] as const;

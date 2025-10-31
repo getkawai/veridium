@@ -1,9 +1,10 @@
 import { UIChatMessage } from '@/types';
 import { ActionIconGroup, type ActionIconGroupEvent, ActionIconGroupItemType } from '@lobehub/ui';
 import { App } from 'antd';
-import { useSearchParams } from 'next/navigation';
 import { memo, use, useCallback, useContext, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+
+import { useSearchParams } from '@/hooks/useNavigation';
 
 import ShareMessageModal from '@/features/Conversation/components/ShareMessageModal';
 import { VirtuosoContext } from '@/features/Conversation/components/VirtualizedList/VirtuosoContext';

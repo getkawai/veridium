@@ -17,7 +17,6 @@ import { MetaData } from '@/types/meta';
 import { SystemAgentItem } from '@/types/user/settings';
 import { MessageTextChunk } from '@/utils/fetch';
 import { merge } from '@/utils/merge';
-import { setNamespace } from '@/utils/storeDebug';
 
 import { LoadingState } from '../store/initialState';
 import { State, initialState } from './initialState';
@@ -77,9 +76,7 @@ export interface Action extends PublicAction {
 
 export type Store = Action & State;
 
-const t = setNamespace('AgentSettings');
-
-export const store: StateCreator<Store, [['zustand/devtools', never]]> = (set, get) => ({
+export const store: StateCreator<Store, [['zustand/subscribeWithSelector', never]]> = (set, get) => ({
   ...initialState,
   autoPickEmoji: async () => {
     const { config, meta, dispatchMeta } = get();
@@ -240,14 +237,14 @@ export const store: StateCreator<Store, [['zustand/devtools', never]]> = (set, g
   dispatchConfig: async (payload) => {
     const nextConfig = configReducer(get().config, payload);
 
-    set({ config: nextConfig }, false, payload);
+    set({ config: nextConfig });
 
     await get().onConfigChange?.(nextConfig);
   },
   dispatchMeta: async (payload) => {
     const nextValue = metaDataReducer(get().meta, payload);
 
-    set({ meta: nextValue }, false, payload);
+    set({ meta: nextValue });
 
     await get().onMetaChange?.(nextValue);
   },
@@ -309,10 +306,6 @@ export const store: StateCreator<Store, [['zustand/devtools', never]]> = (set, g
   },
 
   updateLoadingState: (key, value) => {
-    set(
-      { loadingState: { ...get().loadingState, [key]: value } },
-      false,
-      t('updateLoadingState', { key, value }),
-    );
+    set({ loadingState: { ...get().loadingState, [key]: value } });
   },
 });

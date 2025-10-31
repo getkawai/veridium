@@ -1,4 +1,5 @@
 import type { ThemeMode } from 'antd-style';
+
 import { DatabaseLoadingState, MigrationSQL, MigrationTableItem } from '@/types/clientDB';
 import { LocaleMode } from '@/types/locale';
 import { SessionDefaultGroup } from '@/types/session';
@@ -114,7 +115,6 @@ export interface GlobalState {
   isMobile?: boolean;
   isStatusInit?: boolean;
   latestVersion?: string;
-  router?: any;
   sidebarKey: SidebarTabKey;
   status: SystemStatus;
   statusStorage: AsyncLocalStorage<SystemStatus>;

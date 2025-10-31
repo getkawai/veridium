@@ -1,6 +1,6 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix  */
 import { EvalEvaluationStatus } from  '@/types';
-import { integer, jsonb, pgTable, text, uuid } from 'drizzle-orm/sqlite-core';
+import { integer, jsonb, sqliteTable, text, uuid } from 'drizzle-orm/sqlite-core';
 
 import { DEFAULT_MODEL } from '@/const/settings';
 

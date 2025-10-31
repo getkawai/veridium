@@ -1,5 +1,5 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix  */
-import { bigint, index, jsonb, numeric, pgTable, real, text, vector } from 'drizzle-orm/sqlite-core';
+import { bigint, index, jsonb, numeric, sqliteTable, real, text, vector } from 'drizzle-orm/sqlite-core';
 
 import { idGenerator } from '../utils/idGenerator';
 import { timestamps, timestamptz, varchar255 } from './_helpers';

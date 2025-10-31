@@ -1,4 +1,4 @@
-import { usePathname } from 'next/navigation';
+import { usePathname } from './useNavigation';
 
 /**
  * Returns true if the current path has a sub slug (`/chat/mobile` or `/chat/settings`)

@@ -1,8 +1,7 @@
-import { useRouter } from 'nextjs-toploader/app';
-import qs, { type ParsedQuery } from 'query-string';
+import { type ParsedQuery } from 'query-string';
 import { useMemo } from 'react';
 
-import { isOnServerSide } from '@/utils/env';
+import { routerSelectors, useRouterStore } from '@/store/router';
 
 interface QueryRouteOptions {
   hash?: string;
@@ -12,38 +11,34 @@ interface QueryRouteOptions {
   withHash?: boolean;
 }
 
-interface GenHrefOptions extends QueryRouteOptions {
-  prevQuery?: ParsedQuery;
-  url: string;
-}
-
-const genHref = ({ hash, replace, url, prevQuery = {}, query = {} }: GenHrefOptions): string => {
-  let href = qs.stringifyUrl(
-    { query: replace ? query : { ...prevQuery, ...query }, url },
-    { skipNull: true },
-  );
-
-  if (!isOnServerSide && hash) {
-    href = [href, hash || location?.hash?.slice(1)].filter(Boolean).join('#');
-  }
-
-  return href;
-};
-
 export const useQueryRoute = () => {
-  const router = useRouter();
+  const push = useRouterStore((s) => s.push);
+  const replace = useRouterStore((s) => s.replace);
+  const currentSearchParams = useRouterStore(routerSelectors.searchParams);
 
   return useMemo(
     () => ({
       push: (url: string, options: QueryRouteOptions = {}) => {
-        const prevQuery = qs.parse(window.location.search);
-        return router.push(genHref({ prevQuery, url, ...options }));
+        const mergedQuery = options.replace
+          ? options.query || {}
+          : { ...currentSearchParams, ...(options.query || {}) };
+
+        push(url, {
+          query: mergedQuery as Record<string, string>,
+          hash: options.hash,
+        });
       },
       replace: (url: string, options: QueryRouteOptions = {}) => {
-        const prevQuery = qs.parse(window.location.search);
-        return router.replace(genHref({ prevQuery, url, ...options }));
+        const mergedQuery = options.replace
+          ? options.query || {}
+          : { ...currentSearchParams, ...(options.query || {}) };
+
+        replace(url, {
+          query: mergedQuery as Record<string, string>,
+          hash: options.hash,
+        });
       },
     }),
-    [],
+    [push, replace, currentSearchParams],
   );
 };

@@ -1,5 +1,5 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix  */
-import { boolean, jsonb, pgTable, primaryKey, text, varchar } from 'drizzle-orm/sqlite-core';
+import { boolean, jsonb, sqliteTable, primaryKey, text, varchar } from 'drizzle-orm/sqlite-core';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 
 import { timestamps, timestamptz } from './_helpers';

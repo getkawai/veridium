@@ -3,7 +3,7 @@ import {
   index,
   integer,
   jsonb,
-  pgTable,
+  sqliteTable,
   primaryKey,
   text,
   uniqueIndex,

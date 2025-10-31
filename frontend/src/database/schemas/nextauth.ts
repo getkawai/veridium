@@ -1,4 +1,4 @@
-import { boolean, integer, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/sqlite-core';
+import { boolean, integer, sqliteTable, primaryKey, text, timestamp } from 'drizzle-orm/sqlite-core';
 import { AdapterAccount } from 'next-auth/adapters';
 
 import { users } from './user';

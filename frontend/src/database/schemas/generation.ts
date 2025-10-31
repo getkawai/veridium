@@ -1,6 +1,6 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix  */
 import { ImageGenerationAsset } from  '@/types';
-import { integer, jsonb, pgTable, text, uuid, varchar } from 'drizzle-orm/sqlite-core';
+import { integer, jsonb, sqliteTable, text, uuid, varchar } from 'drizzle-orm/sqlite-core';
 import { createInsertSchema } from 'drizzle-zod';
 
 import { idGenerator } from '../utils/idGenerator';

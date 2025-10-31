@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import AntdV5MonkeyPatch from './AntdV5MonkeyPatch';
 import AppTheme from './AppTheme';
 import StyleRegistry from './StyleRegistry';
+import StoreInitialization from './StoreInitialization';
 
 interface GlobalLayoutProps {
   appearance: string;
@@ -34,6 +35,7 @@ const GlobalLayout = ({
       >
         {children}
       </AppTheme>
+      <StoreInitialization />
       <AntdV5MonkeyPatch />
     </StyleRegistry>
   );

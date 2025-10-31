@@ -1,6 +1,6 @@
-import { usePathname, useSearchParams } from 'next/navigation';
-
 import { ProfileTabs, SettingsTabs, SidebarTabKey } from '@/store/global/initialState';
+
+import { usePathname, useSearchParams } from './useNavigation';
 
 /**
  * Returns the active tab key (chat/market/settings/...)

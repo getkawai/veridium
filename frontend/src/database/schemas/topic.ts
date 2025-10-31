@@ -1,5 +1,5 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix  */
-import { boolean, index, jsonb, pgTable, primaryKey, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { boolean, index, jsonb, sqliteTable, primaryKey, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { createInsertSchema } from 'drizzle-zod';
 
 import { ChatTopicMetadata } from '@/types/topic';

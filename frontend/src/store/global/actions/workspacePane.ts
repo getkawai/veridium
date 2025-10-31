@@ -2,8 +2,8 @@ import { produce } from 'immer';
 import type { StateCreator } from 'zustand/vanilla';
 
 import { INBOX_SESSION_ID } from '@/const/session';
-import { SESSION_CHAT_URL } from '@/const/url';
 import type { GlobalStore } from '@/store/global';
+import { useRouterStore } from '@/store/router';
 import { setNamespace } from '@/utils/storeDebug';
 
 const n = setNamespace('w');
@@ -28,7 +28,13 @@ export const globalWorkspaceSlice: StateCreator<
   GlobalWorkspacePaneAction
 > = (set, get) => ({
   switchBackToChat: (sessionId) => {
-    get().router?.push(SESSION_CHAT_URL(sessionId || INBOX_SESSION_ID, get().isMobile));
+    const isMobile = get().isMobile;
+    const id = sessionId || INBOX_SESSION_ID;
+    
+    // Use Zustand router to navigate
+    useRouterStore.getState().push('/chat', {
+      query: isMobile ? { session: id, showMobileWorkspace: 'true' } : { session: id },
+    });
   },
 
   toggleAgentSystemRoleExpand: (agentId, expanded) => {

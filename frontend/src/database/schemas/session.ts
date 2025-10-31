@@ -1,5 +1,5 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix  */
-import { boolean, index, integer, pgTable, text, uniqueIndex, varchar } from 'drizzle-orm/sqlite-core';
+import { boolean, index, integer, sqliteTable, text, uniqueIndex, varchar } from 'drizzle-orm/sqlite-core';
 import { createInsertSchema } from 'drizzle-zod';
 
 import { idGenerator, randomSlug } from '../utils/idGenerator';

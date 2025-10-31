@@ -3,9 +3,10 @@ import { ActionIconGroup } from '@lobehub/ui';
 import { ActionIconGroupItemType } from '@lobehub/ui/es/ActionIconGroup';
 import { ActionIconGroupEvent } from '@lobehub/ui/es/ActionIconGroup/type';
 import { App } from 'antd';
-import { useSearchParams } from 'next/navigation';
 import { memo, use, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+
+import { useSearchParams } from '@/hooks/useNavigation';
 
 import { useChatStore } from '@/store/chat';
 import { threadSelectors } from '@/store/chat/selectors';

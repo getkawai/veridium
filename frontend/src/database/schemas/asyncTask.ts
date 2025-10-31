@@ -1,5 +1,5 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix  */
-import { integer, jsonb, pgTable, text, uuid } from 'drizzle-orm/sqlite-core';
+import { integer, jsonb, sqliteTable, text, uuid } from 'drizzle-orm/sqlite-core';
 
 import { timestamps } from './_helpers';
 import { users } from './user';
