@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@ant-design/pro-components": "^2.8.10",
+    "@anthropic-ai/sdk": "^0.68.0",
+    "@google/genai": "^1.28.0",
     "@icons-pack/react-simple-icons": "^13.8.0",
     "@lobehub/charts": "^2.1.2",
     "@lobehub/chat-plugin-sdk": "^1.32.4",

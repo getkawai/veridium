@@ -122,7 +122,6 @@ export class ModelRuntime {
         LobeCloudflareParams & { apiKey?: string; apiVersion?: string; baseURL?: string }
     >,
   ) {
-    // @ts-expect-error runtime map not include vertex so it will be undefined
     const providerAI = providerRuntimeMap[provider] ?? LobeOpenAI;
 
     const runtimeModel: LobeRuntimeAI = new providerAI(params);
