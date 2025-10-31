@@ -12,7 +12,7 @@ import {
   TraceNameMap,
   UIChatMessage,
 } from '@/types';
-import { TRPCClientError } from '@trpc/client';
+import { TRPCClientError } from '@/types/trpc';
 import { t } from 'i18next';
 import { produce } from 'immer';
 import { StateCreator } from 'zustand/vanilla';

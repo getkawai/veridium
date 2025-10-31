@@ -1,6 +1,6 @@
 import { LobeChatPluginManifest } from '@lobehub/chat-plugin-sdk';
 import { PluginItem, PluginListResponse } from '@lobehub/market-sdk';
-import { TRPCClientError } from '@trpc/client';
+import { TRPCClientError } from '@/types/trpc';
 import { produce } from 'immer';
 import { uniqBy } from 'lodash-es';
 import { gt, valid } from 'semver';
