@@ -25,11 +25,19 @@ export class WailsSQLiteDriver {
     }
   }
 
-  async execute(query: string, params?: any[]): Promise<void> {
+  async execute(query: string, params?: any[]): Promise<{ rows: Row[]; rowCount?: number }> {
     this.config?.onQuery?.(query, params || []);
-    
+
     try {
-      await WailsExecute(query, ...(params || []));
+      // For SELECT queries, use query method
+      if (query.trim().toUpperCase().startsWith('SELECT')) {
+        const rows = await this.query<Rows>(query, params);
+        return { rows: rows || [], rowCount: rows?.length || 0 };
+      } else {
+        // For non-SELECT queries, use execute method
+        await WailsExecute(query, ...(params || []));
+        return { rows: [], rowCount: undefined };
+      }
     } catch (error) {
       console.error('Wails SQLite execute error:', error);
       throw error;
@@ -37,7 +45,7 @@ export class WailsSQLiteDriver {
   }
 
   async run(query: string, params?: any[]): Promise<void> {
-    return this.execute(query, params);
+    await this.execute(query, params);
   }
 
   async all(query: string, params?: any[]): Promise<Row[]> {
@@ -61,7 +69,7 @@ export class WailsSQLiteDriver {
 export class WailsSQLiteSession {
   constructor(
     private driver: WailsSQLiteDriver,
-    private _schema: Record<string, unknown>,
+    _schema: Record<string, unknown>,
   ) {}
 
   prepareQuery(query: string, fields?: any[], params?: any[], customResultMapper?: any) {

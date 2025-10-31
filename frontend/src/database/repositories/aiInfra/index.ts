@@ -308,7 +308,6 @@ export class AiInfraRepos {
       const modules = await import('@/model-bank');
 
       // TODO: when model-bank is a separate module, we will try import from model-bank/[prividerId] again
-      // @ts-expect-error providerId is string
       const providerModels = modules[providerId];
 
       // use the serverModelLists as the defined server model list
