@@ -38,6 +38,7 @@ import { convertOpenAIMessages, convertOpenAIResponseInputs } from '../contextBu
 import { OpenAIResponsesStream, OpenAIStream, OpenAIStreamOptions } from '../streams';
 import { createOpenAICompatibleImage } from './createImage';
 import { transformResponseAPIToStream, transformResponseToStream } from './nonStreamToStream';
+import { ChatCompletionMessageCustomToolCall, ChatCompletionMessageFunctionToolCall, ChatCompletionMessageToolCall } from 'openai/resources/chat/completions.mjs';
 
 export * from './nonStreamToStream';
 
@@ -182,7 +183,7 @@ export const createOpenAICompatibleRuntime = <T extends Record<string, any> = an
     constructor(options: ClientOptions & Record<string, any> = {}) {
       const _options = {
         ...options,
-        apiKey: options.apiKey?.trim() || DEFAULT_API_KEY,
+        apiKey: (options.apiKey as string)?.trim() || DEFAULT_API_KEY,
         baseURL: options.baseURL?.trim() || DEFAULT_BASE_URL,
       };
       const { apiKey, baseURL = DEFAULT_BASE_URL, ...res } = _options;
@@ -363,7 +364,7 @@ export const createOpenAICompatibleRuntime = <T extends Record<string, any> = an
         log('using custom createImage implementation');
         return customCreateImage(payload, {
           ...this._options,
-          apiKey: this._options.apiKey!,
+          apiKey: (this._options.apiKey as string)!,
           provider,
         });
       }
@@ -489,10 +490,12 @@ export const createOpenAICompatibleRuntime = <T extends Record<string, any> = an
         const toolCalls = res.choices[0].message.tool_calls!;
 
         try {
-          return toolCalls.map((item) => ({
-            arguments: JSON.parse(item.function.arguments),
-            name: item.function.name,
-          }));
+          return toolCalls
+            .filter((item): item is ChatCompletionMessageFunctionToolCall => item.type === 'function')
+            .map((item) => ({
+              arguments: JSON.parse(item.function.arguments),
+              name: item.function.name,
+            }));
         } catch {
           console.error('parse tool call arguments error:', toolCalls);
           return undefined;
@@ -977,12 +980,13 @@ export const createOpenAICompatibleRuntime = <T extends Record<string, any> = an
         { headers: options?.headers, signal: options?.signal },
       );
 
-      const toolCalls = res.choices[0].message.tool_calls!;
+      const toolCalls = res.choices[0].message.tool_calls!
+        .filter((item): item is ChatCompletionMessageFunctionToolCall => item.type === 'function');
 
       log('received %d tool calls from Chat Completions API', toolCalls?.length || 0);
 
       try {
-        const result = toolCalls.map((item) => ({
+        const result = toolCalls.map((item: ChatCompletionMessageFunctionToolCall) => ({
           arguments: JSON.parse(item.function.arguments),
           name: item.function.name,
         }));
