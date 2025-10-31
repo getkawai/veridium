@@ -1,8 +1,6 @@
-import { boolean, integer, sqliteTable, primaryKey, text, timestamp } from 'drizzle-orm/sqlite-core';
-import { AdapterAccount } from 'next-auth/adapters';
-
+import { integer, sqliteTable, primaryKey, text } from 'drizzle-orm/sqlite-core';
 import { users } from './user';
-
+import {AdapterAccount} from '../models/user'
 /**
  * This table stores nextauth accounts. This is used to link users to their sso profiles.
  * @see {@link https://authjs.dev/guides/creating-a-database-adapter#database-session-management | NextAuth Doc}
@@ -38,7 +36,7 @@ export const nextauthAccounts = sqliteTable(
  * @see {@link https://authjs.dev/guides/creating-a-database-adapter#database-session-management | NextAuth Doc}
  */
 export const nextauthSessions = sqliteTable(`nextauth_sessions`, {
-  expires: integer('expires', { mode: 'date' }).notNull(),
+  expires: integer('expires', { mode: 'timestamp_ms' }).notNull(),
   sessionToken: text('sessionToken').primaryKey(),
   userId: text('userId')
     .notNull()
@@ -52,7 +50,7 @@ export const nextauthSessions = sqliteTable(`nextauth_sessions`, {
 export const nextauthVerificationTokens = sqliteTable(
   `nextauth_verificationtokens`,
   {
-    expires: integer('expires', { mode: 'date' }).notNull(),
+    expires: integer('expires', { mode: 'timestamp_ms' }).notNull(),
     identifier: text('identifier').notNull(),
     token: text('token').notNull(),
   },
@@ -71,7 +69,7 @@ export const nextauthAuthenticators = sqliteTable(
   `nextauth_authenticators`,
   {
     counter: integer('counter', { mode: 'boolean' }).notNull(),
-    credentialBackedUp: integer('credentialBackedUp').notNull(),
+    credentialBackedUp: integer('credentialBackedUp', { mode: 'boolean' }).notNull(),
     credentialDeviceType: text('credentialDeviceType').notNull(),
     credentialID: text('credentialID').notNull().unique(),
     credentialPublicKey: text('credentialPublicKey').notNull(),

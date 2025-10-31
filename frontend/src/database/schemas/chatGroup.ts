@@ -1,8 +1,6 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix  */
 import {
-  boolean,
   integer,
-  jsonb,
   sqliteTable,
   primaryKey,
   text,
@@ -28,12 +26,12 @@ export const chatGroups = sqliteTable(
       .primaryKey()
       .$defaultFn(() => idGenerator('chatGroups'))
       .notNull(),
-    title: text('title', { mode: 'json' }),
-    description: text('description', { mode: 'json' }),
+    title: text('title'),
+    description: text('description'),
 
     config: text('config').$type<ChatGroupConfig>(),
 
-    clientId: text('client_id', { mode: 'json' }),
+    clientId: text('client_id'),
 
     userId: text('user_id', { mode: 'json' })
       .references(() => users.id, { onDelete: 'cascade' })
@@ -73,7 +71,7 @@ export const chatGroupsAgents = sqliteTable(
     /**
      * Whether this agent is active in the group
      */
-    enabled: integer('enabled').default(true),
+    enabled: integer('enabled', { mode: 'boolean' }).default(true),
 
     /**
      * Display or speaking order of the agent in the group

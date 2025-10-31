@@ -1,18 +1,15 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix  */
 import { GroundingSearch, ModelReasoning } from  '@/types';
 import {
-  boolean,
   index,
-  jsonb,
-  numeric,
   integer,
   sqliteTable,
   primaryKey,
   text,
   uniqueIndex,
-  uuid,
 } from 'drizzle-orm/sqlite-core';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
+import { randomUUID } from 'crypto';
 
 import { idGenerator } from '../utils/idGenerator';
 import { timestamps, varchar255 } from './_helpers';
@@ -88,7 +85,7 @@ export const messages = sqliteTable(
     model: text('model', { mode: 'json' }),
     provider: text('provider', { mode: 'json' }),
 
-    favorite: integer('favorite').default(false),
+    favorite: integer('favorite', { mode: 'boolean' }).default(false),
     error: text('error'),
 
     tools: text('tools'),
@@ -260,7 +257,7 @@ export const messageQueryChunks = sqliteTable(
     messageId: text('id').references(() => messages.id, { onDelete: 'cascade' }),
     queryId: text('query_id').references(() => messageQueries.id, { onDelete: 'cascade' }),
     chunkId: text('chunk_id').references(() => chunks.id, { onDelete: 'cascade' }),
-    similarity: real('similarity', { precision: 6, scale: 5 }),
+    similarity: integer('similarity'),
     userId: text('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),

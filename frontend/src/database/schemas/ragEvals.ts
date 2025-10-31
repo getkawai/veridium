@@ -1,6 +1,6 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix  */
 import { EvalEvaluationStatus } from  '@/types';
-import { integer, jsonb, sqliteTable, text, uuid } from 'drizzle-orm/sqlite-core';
+import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 import { DEFAULT_MODEL } from '@/const/settings';
 
@@ -10,7 +10,7 @@ import { embeddings } from './rag';
 import { users } from './user';
 
 export const evalDatasets = sqliteTable('rag_eval_datasets', {
-  id: integer('id').generatedAlwaysAsIdentity({ startWith: 30_000 }).primaryKey(),
+  id: integer('id').primaryKey({ autoIncrement: true }),
 
   description: text('description'),
   name: text('name').notNull(),
@@ -27,13 +27,13 @@ export type NewEvalDatasetsItem = typeof evalDatasets.$inferInsert;
 export type EvalDatasetsSelectItem = typeof evalDatasets.$inferSelect;
 
 export const evalDatasetRecords = sqliteTable('rag_eval_dataset_records', {
-  id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
+  id: integer('id').primaryKey({ autoIncrement: true }),
   datasetId: integer('dataset_id')
     .references(() => evalDatasets.id, { onDelete: 'cascade' })
     .notNull(),
 
   ideal: text('ideal'),
-  question: text('question', { mode: 'json' }),
+  question: text('question'),
   referenceFiles: text('reference_files', { mode: 'json' }),
   metadata: text('metadata'),
 
@@ -72,7 +72,7 @@ export type EvalEvaluationSelectItem = typeof evalEvaluation.$inferSelect;
 export const evaluationRecords = sqliteTable('rag_eval_evaluation_records', {
   id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
 
-  question: text('question', { mode: 'json' }).notNull(),
+  question: text('question').notNull(),
   answer: text('answer'),
   context: text('context'),
   ideal: text('ideal'),

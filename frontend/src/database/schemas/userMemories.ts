@@ -1,5 +1,5 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix  */
-import { bigint, index, jsonb, numeric, sqliteTable, real, text, vector } from 'drizzle-orm/sqlite-core';
+import { index, integer, sqliteTable, real, text, blob } from 'drizzle-orm/sqlite-core';
 
 import { idGenerator } from '../utils/idGenerator';
 import { timestamps, timestamptz, varchar255 } from './_helpers';
@@ -22,26 +22,20 @@ export const userMemories = sqliteTable(
 
     title: varchar255('title'),
     summary: text('summary', { mode: 'json' }),
-    summaryVector1024: blob('summary_vector_1024', { dimensions: 1024 }),
+    summaryVector1024: blob('summary_vector_1024', { mode: 'buffer' }),
     details: text('details'),
-    detailsVector1024: blob('details_vector_1024', { dimensions: 1024 }),
+    detailsVector1024: blob('details_vector_1024', { mode: 'buffer' }),
 
     status: varchar255('status'),
 
-    accessedCount: bigint('accessed_count', { mode: 'number' }).default(0),
+    accessedCount: integer('accessed_count').default(0),
     lastAccessedAt: timestamptz('last_accessed_at').notNull(),
 
     ...timestamps,
   },
   (table) => [
-    index('user_memories_summary_vector_1024_index').using(
-      'hnsw',
-      table.summaryVector1024.op('vector_cosine_ops'),
-    ),
-    index('user_memories_details_vector_1024_index').using(
-      'hnsw',
-      table.detailsVector1024.op('vector_cosine_ops'),
-    ),
+    index('user_memories_summary_vector_1024_index').on(table.summaryVector1024),
+    index('user_memories_details_vector_1024_index').on(table.detailsVector1024),
   ],
 );
 
@@ -62,15 +56,15 @@ export const userMemoriesContexts = sqliteTable(
     associatedSubjects: text('associated_subjects'),
 
     title: text('title', { mode: 'json' }),
-    titleVector: blob('title_vector', { dimensions: 1024 }),
+    titleVector: blob('title_vector', { mode: 'buffer' }),
     description: text('description'),
     descriptionVector: blob('description_vector', { dimensions: 1024 }),
 
     type: varchar255('type'),
     currentStatus: text('current_status'),
 
-    scoreImpact: real('score_impact', { mode: 'number' }).default(0),
-    scoreUrgency: real('score_urgency', { mode: 'number' }).default(0),
+  scoreImpact: real('score_impact').default(0),
+  scoreUrgency: real('score_urgency').default(0),
 
     ...timestamps,
   },
@@ -103,12 +97,12 @@ export const userMemoriesPreferences = sqliteTable(
     tags: text('tags', { mode: 'json' }),
 
     conclusionDirectives: text('conclusion_directives', { mode: 'json' }),
-    conclusionDirectivesVector: blob('conclusion_directives_vector', { dimensions: 1024 }),
+    conclusionDirectivesVector: blob('conclusion_directives_vector', { mode: 'buffer' }),
 
     type: varchar255('type'),
     suggestions: text('suggestions'),
 
-    scorePriority: real('score_priority', { mode: 'number' }).default(0),
+    scorePriority: real('score_priority').default(0),
 
     ...timestamps,
   },
@@ -170,13 +164,13 @@ export const userMemoriesExperiences = sqliteTable(
 
     type: varchar255('type'),
     situation: text('situation', { mode: 'json' }),
-    situationVector: blob('situation_vector', { dimensions: 1024 }),
+    situationVector: blob('situation_vector', { mode: 'buffer' }),
     reasoning: text('reasoning'),
     possibleOutcome: text('possible_outcome'),
     action: text('action'),
-    actionVector: blob('action_vector', { dimensions: 1024 }),
+    actionVector: blob('action_vector', { mode: 'buffer' }),
     keyLearning: text('key_learning'),
-    keyLearningVector: blob('key_learning_vector', { dimensions: 1024 }),
+    keyLearningVector: blob('key_learning_vector', { mode: 'buffer' }),
 
     scoreConfidence: real('score_confidence').default(0),
 

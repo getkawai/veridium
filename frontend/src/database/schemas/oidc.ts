@@ -1,5 +1,5 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix  */
-import { boolean, jsonb, sqliteTable, primaryKey, text, varchar } from 'drizzle-orm/sqlite-core';
+import { integer, sqliteTable, primaryKey, text } from 'drizzle-orm/sqlite-core';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 
 import { timestamps, timestamptz } from './_helpers';
@@ -118,7 +118,7 @@ export const oidcClients = sqliteTable('oidc_clients', {
   logoUri: text('logo_uri'),
   policyUri: text('policy_uri'),
   tosUri: text('tos_uri'),
-  isFirstParty: integer('is_first_party').default(false),
+  isFirstParty: integer('is_first_party', { mode: 'boolean' }).default(false),
   ...timestamps,
 });
 

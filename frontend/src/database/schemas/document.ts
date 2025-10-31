@@ -2,13 +2,10 @@
 import {
   index,
   integer,
-  jsonb,
   sqliteTable,
   primaryKey,
   text,
   uniqueIndex,
-  uuid,
-  varchar,
 } from 'drizzle-orm/sqlite-core';
 import { createInsertSchema } from 'drizzle-zod';
 
@@ -41,10 +38,10 @@ export const documents = sqliteTable(
     totalLineCount: integer('total_line_count').notNull(),
 
     // 元数据
-    metadata: text('metadata').$type<Record<string, any>>(),
+    metadata: text('metadata', { mode: 'json' }).$type<Record<string, any>>(),
 
     // 页面/块数据
-    pages: text('pages').$type<LobeDocumentPage[]>(),
+    pages: text('pages', { mode: 'json' }).$type<LobeDocumentPage[]>(),
 
     // 来源类型
     sourceType: text('source_type', { enum: ['file', 'web', 'api'] }).notNull(),
@@ -57,9 +54,9 @@ export const documents = sqliteTable(
     userId: text('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
-    clientId: text('client_id', { mode: 'json' }),
+    clientId: text('client_id'),
 
-    editorData: text('editor_data').$type<Record<string, any>>(),
+    editorData: text('editor_data', { mode: 'json' }).$type<Record<string, any>>(),
 
     // 时间戳
     ...timestamps,

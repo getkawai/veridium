@@ -1,15 +1,11 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix  */
 import {
-  boolean,
   index,
   integer,
-  jsonb,
   sqliteTable,
   primaryKey,
   text,
   uniqueIndex,
-  uuid,
-  varchar,
 } from 'drizzle-orm/sqlite-core';
 import { createInsertSchema } from 'drizzle-zod';
 
@@ -58,8 +54,8 @@ export const files = sqliteTable(
     }),
     name: text('name').notNull(),
     size: integer('size').notNull(),
-    url: text('url', { mode: 'json' }).notNull(),
-    source: text('source', { mode: 'json' }).$type<FileSource>(),
+    url: text('url').notNull(),
+    source: text('source').$type<FileSource>(),
 
     clientId: text('client_id', { mode: 'json' }),
     metadata: text('metadata'),
@@ -101,9 +97,9 @@ export const knowledgeBases = sqliteTable(
       .notNull(),
     clientId: text('client_id', { mode: 'json' }),
 
-    isPublic: integer('is_public').default(false),
+    isPublic: integer('is_public', { mode: 'boolean' }).default(false),
 
-    settings: text('settings'),
+    settings: text('settings', { mode: 'json' }),
 
     ...timestamps,
   },

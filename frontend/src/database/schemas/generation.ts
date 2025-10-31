@@ -1,6 +1,6 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix  */
 import { ImageGenerationAsset } from  '@/types';
-import { integer, jsonb, sqliteTable, text, uuid, varchar } from 'drizzle-orm/sqlite-core';
+import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { createInsertSchema } from 'drizzle-zod';
 
 import { idGenerator } from '../utils/idGenerator';
@@ -23,7 +23,7 @@ export const generationTopics = sqliteTable('generation_topics', {
     .notNull(),
 
   /** 简要描述主题内容，由 LLM 生成 */
-  title: text('title'),
+  title: text('title', { mode: 'json' }),
 
   /** 主题封面图片 URL */
   coverUrl: text('cover_url'),
@@ -111,10 +111,10 @@ export const generations = sqliteTable('generations', {
   fileId: text('file_id').references(() => files.id, { onDelete: 'cascade' }),
 
   /** 生成种子值 */
-  seed: integer('seed'),
+  seed: integer('seed').default(0),
 
   /** 生成的资源信息，包含存储在 s3 上的 key, 图片实际宽高，缩略图 key 等 */
-  asset: text('asset').$type<ImageGenerationAsset>(),
+  asset: text('asset', { mode: 'json' }).$type<ImageGenerationAsset>(),
 
   ...timestamps,
 });

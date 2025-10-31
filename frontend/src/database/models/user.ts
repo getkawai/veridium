@@ -6,7 +6,7 @@ import type { JsonValue, PartialDeep } from 'type-fest';
 import { merge } from '@/utils/merge';
 import { today } from '@/utils/time';
 
-interface AdapterAccount {
+export interface AdapterAccount {
   type: "oauth" | "email" | "oidc"
   [key: string]: JsonValue | undefined
 }

@@ -1,5 +1,5 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix  */
-import { boolean, integer, jsonb, sqliteTable, primaryKey, text, varchar } from 'drizzle-orm/sqlite-core';
+import { integer, sqliteTable, primaryKey, text } from 'drizzle-orm/sqlite-core';
 
 import { AiProviderConfig, AiProviderSettings } from '@/types/aiProvider';
 
@@ -17,8 +17,8 @@ export const aiProviders = sqliteTable(
       .notNull(),
 
     sort: integer('sort', { mode: 'boolean' }),
-    enabled: integer('enabled'),
-    fetchOnClient: integer('fetch_on_client'),
+  enabled: integer('enabled', { mode: 'boolean' }),
+  fetchOnClient: integer('fetch_on_client', { mode: 'boolean' }),
     checkModel: text('check_model'),
     logo: text('logo'),
     description: text('description'),
@@ -26,11 +26,11 @@ export const aiProviders = sqliteTable(
     // need to be encrypted
     keyVaults: text('key_vaults'),
     source: text('source', { enum: ['builtin', 'custom'], length: 20 }),
-    settings: text('settings')
+    settings: text('settings', { mode: 'json' })
       .$defaultFn(() => ({}))
       .$type<AiProviderSettings>(),
 
-    config: text('config')
+    config: text('config', { mode: 'json' })
       .$defaultFn(() => ({}))
       .$type<AiProviderConfig>(),
 
@@ -58,11 +58,11 @@ export const aiModels = sqliteTable(
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
     pricing: text('pricing'),
-    parameters: text('parameters').$defaultFn(() => ({})),
-    config: text('config'),
-    abilities: text('abilities').$defaultFn(() => ({})),
+    parameters: text('parameters', { mode: 'json' }).$defaultFn(() => ({})),
+    config: text('config', { mode: 'json' }),
+    abilities: text('abilities', { mode: 'json' }).$defaultFn(() => ({})),
     contextWindowTokens: integer('context_window_tokens'),
-    source: text('source', { enum: ['remote', 'custom', 'builtin'], length: 20 }),
+    source: text('source'),
     releasedAt: text('released_at'),
 
     ...timestamps,

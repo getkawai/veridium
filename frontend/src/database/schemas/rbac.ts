@@ -1,13 +1,10 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix  */
 import {
-  boolean,
   index,
   integer,
-  jsonb,
   sqliteTable,
   primaryKey,
   text,
-  timestamp,
 } from 'drizzle-orm/sqlite-core';
 
 import { timestamps } from './_helpers';
@@ -15,13 +12,13 @@ import { users } from './user';
 
 // Roles table
 export const roles = sqliteTable('rbac_roles', {
-  id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
+  id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull().unique(), // Role name, e.g.: admin, user, guest
   displayName: text('display_name').notNull(), // Display name
   description: text('description'), // Role description
-  isSystem: integer('is_system').default(false).notNull(), // Whether it's a system role
-  isActive: integer('is_active').default(true).notNull(), // Whether it's active
-  metadata: text('metadata').$defaultFn(() => ({})), // Role metadata
+  isSystem: integer('is_system', { mode: 'boolean' }).default(false).notNull(), // Whether it's a system role
+  isActive: integer('is_active', { mode: 'boolean' }).default(true).notNull(), // Whether it's active
+  metadata: text('metadata', { mode: 'json' }).$defaultFn(() => ({})), // Role metadata
 
   ...timestamps,
 });
@@ -31,12 +28,12 @@ export type RoleItem = typeof roles.$inferSelect;
 
 // Permissions table
 export const permissions = sqliteTable('rbac_permissions', {
-  id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
+  id: integer('id').primaryKey({ autoIncrement: true }),
   code: text('code').notNull().unique(), // Permission code, e.g.: chat:create, file:upload
   name: text('name').notNull(), // Permission name
   description: text('description'), // Permission description
   category: text('category').notNull(), // Category it belongs to, e.g.: message, knowledge_base, agent
-  isActive: integer('is_active').default(true).notNull(), // Whether it's active
+  isActive: integer('is_active', { mode: 'boolean' }).default(true).notNull(), // Whether it's active
 
   ...timestamps,
 });
@@ -55,7 +52,7 @@ export const rolePermissions = sqliteTable(
       .references(() => permissions.id, { onDelete: 'cascade' })
       .notNull(),
 
-    createdAt: integer('created_at', { withTimezone: true }).notNull().defaultNow(),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().$defaultFn(() => new Date()),
   },
   (self) => [
     primaryKey({ columns: [self.roleId, self.permissionId] }),
@@ -78,8 +75,8 @@ export const userRoles = sqliteTable(
       .references(() => roles.id, { onDelete: 'cascade' })
       .notNull(),
 
-    createdAt: integer('created_at', { withTimezone: true }).notNull().defaultNow(),
-    expiresAt: integer('expires_at', { withTimezone: true }), // Support for temporary roles
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().$defaultFn(() => new Date()),
+    expiresAt: integer('expires_at', { mode: 'timestamp_ms' }), // Support for temporary roles
   },
   (self) => [
     primaryKey({ columns: [self.userId, self.roleId] }),
