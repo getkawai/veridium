@@ -1,4 +1,4 @@
-import { RenameLocalFileParams } from '@lobechat/electron-client-ipc';
+import { RenameLocalFileParams } from '@/electron-client-ipc';
 import { ChatMessagePluginError } from '@/types';
 import { Icon } from '@lobehub/ui';
 import { createStyles } from 'antd-style';

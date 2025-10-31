@@ -1,4 +1,4 @@
-import { LocalFileItem } from '@lobechat/electron-client-ipc';
+import { LocalFileItem } from '@/electron-client-ipc';
 import { BuiltinRenderProps } from '@/types';
 import { memo } from 'react';
 

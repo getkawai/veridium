@@ -1,4 +1,4 @@
-// import { UpdateInfo, useWatchBroadcast } from '@lobechat/electron-client-ipc';
+// import { UpdateInfo, useWatchBroadcast } from '@/electron-client-ipc';
 // import { Button, Icon } from '@lobehub/ui';
 // import { Modal, theme } from 'antd';
 // import { createStyles } from 'antd-style';

@@ -1,4 +1,4 @@
-import { LocalSearchFilesParams } from '@lobechat/electron-client-ipc';
+import { LocalSearchFilesParams } from '@/electron-client-ipc';
 import { Icon } from '@lobehub/ui';
 import { Skeleton } from 'antd';
 import { createStyles } from 'antd-style';

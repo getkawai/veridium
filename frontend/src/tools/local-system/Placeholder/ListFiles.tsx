@@ -1,4 +1,4 @@
-import { ListLocalFileParams } from '@lobechat/electron-client-ipc';
+import { ListLocalFileParams } from '@/electron-client-ipc';
 import { Skeleton } from 'antd';
 import React, { memo } from 'react';
 import { Center, Flexbox } from 'react-layout-kit';

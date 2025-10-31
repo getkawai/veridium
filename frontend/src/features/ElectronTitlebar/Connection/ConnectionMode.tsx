@@ -1,4 +1,4 @@
-// import { StorageMode, StorageModeEnum } from '@lobechat/electron-client-ipc';
+// import { StorageMode, StorageModeEnum } from '@/electron-client-ipc';
 // import { Button, Input } from '@lobehub/ui';
 // import { LobeHub } from '@lobehub/ui/brand';
 // import { createStyles } from 'antd-style';

@@ -1,4 +1,4 @@
-import { LocalFileItem } from '@lobechat/electron-client-ipc';
+import { LocalFileItem } from '@/electron-client-ipc';
 import { ChatMessagePluginError } from '@/types';
 import { Skeleton } from 'antd';
 import { memo } from 'react';

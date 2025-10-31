@@ -1,4 +1,4 @@
-import { WriteLocalFileParams } from '@lobechat/electron-client-ipc';
+import { WriteLocalFileParams } from '@/electron-client-ipc';
 import { ChatMessagePluginError } from '@/types';
 import { Icon } from '@lobehub/ui';
 import { Skeleton } from 'antd';

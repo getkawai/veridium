@@ -1,4 +1,4 @@
-import { ListLocalFileParams } from '@lobechat/electron-client-ipc';
+import { ListLocalFileParams } from '@/electron-client-ipc';
 import { ChatMessagePluginError } from '@/types';
 import React, { memo } from 'react';
 

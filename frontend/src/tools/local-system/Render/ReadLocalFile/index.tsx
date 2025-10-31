@@ -1,4 +1,4 @@
-import { LocalReadFileParams } from '@lobechat/electron-client-ipc';
+import { LocalReadFileParams } from '@/electron-client-ipc';
 import { ChatMessagePluginError } from '@/types';
 import { memo } from 'react';
 

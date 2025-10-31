@@ -1,4 +1,4 @@
-import { LocalSearchFilesParams } from '@lobechat/electron-client-ipc';
+import { LocalSearchFilesParams } from '@/electron-client-ipc';
 import { ChatMessagePluginError } from '@/types';
 import { memo } from 'react';
 import { Flexbox } from 'react-layout-kit';

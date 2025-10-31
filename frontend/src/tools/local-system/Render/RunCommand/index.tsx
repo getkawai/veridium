@@ -1,4 +1,4 @@
-import { RunCommandParams } from '@lobechat/electron-client-ipc';
+import { RunCommandParams } from '@/electron-client-ipc';
 import { ChatMessagePluginError } from '@/types';
 import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';

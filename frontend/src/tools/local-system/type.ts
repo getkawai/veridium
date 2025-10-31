@@ -8,7 +8,7 @@ import {
   LocalMoveFilesResultItem,
   LocalReadFileResult,
   RunCommandResult,
-} from '@lobechat/electron-client-ipc';
+} from '@/electron-client-ipc';
 
 export interface FileResult {
   contentType?: string;
