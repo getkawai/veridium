@@ -3,7 +3,9 @@
 
 import * as GreetService from "./greetservice.js";
 import * as MachineIDService from "./machineidservice.js";
+import * as TempFileService from "./tempfileservice.js";
 export {
     GreetService,
-    MachineIDService
+    MachineIDService,
+    TempFileService
 };

@@ -4,8 +4,7 @@ import { TRPCError } from '@/types';
 import { serverDBEnv } from '@/config/db';
 import { FileModel } from '@/database/models/file';
 import { FileItem } from '@/database/schemas';
-import { TempFileManager } from '@/server/utils/tempFileManager';
-import { nanoid } from '@/utils/uuid';
+import { WriteTempFile, Cleanup } from 'bindings/github.com/kawai-network/veridium/tempfileservice';
 
 import { FileServiceImpl, createFileServiceModule } from './impls';
 
@@ -116,10 +115,9 @@ export class FileService {
 
     if (!content) throw new TRPCError({ code: 'BAD_REQUEST', message: 'File content is empty' });
 
-    const dir = nanoid();
-    const tempManager = new TempFileManager(dir);
-
-    const filePath = await tempManager.writeTempFile(content, file.name);
-    return { cleanup: () => tempManager.cleanup(), file, filePath };
+    // Convert Uint8Array to base64 string for Wails binding
+    const dataStr = btoa(String.fromCharCode(...content));
+    const filePath = await WriteTempFile(dataStr, file.name);
+    return { cleanup: () => Cleanup(), file, filePath };
   }
 }

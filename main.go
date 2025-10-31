@@ -38,6 +38,8 @@ func main() {
 			application.NewService(&GreetService{}),
 			// Machine ID service
 			application.NewService(&MachineIDService{}),
+			// Machine ID service
+			application.NewService(&TempFileService{}),
 			// Native Wails v3 notification service
 			application.NewService(notifications.New()),
 			// Native Wails v3 sqlite service
