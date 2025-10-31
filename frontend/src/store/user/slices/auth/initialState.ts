@@ -1,4 +1,4 @@
-import { Session, User } from '@auth/core/types';
+import { Session, User } from './types';
 import {
   SignInProps,
   SignOut,

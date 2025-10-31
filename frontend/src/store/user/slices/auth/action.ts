@@ -33,8 +33,8 @@ export const createAuthSlice: StateCreator<
     }
 
     if (enableNextAuth) {
-      const { signOut } = await import('next-auth/react');
-      signOut();
+      // const { signOut } = await import('next-auth/react');
+      // signOut();
     }
   },
   openLogin: async () => {
@@ -50,14 +50,14 @@ export const createAuthSlice: StateCreator<
     }
 
     if (enableNextAuth) {
-      const { signIn } = await import('next-auth/react');
-      // Check if only one provider is available
-      const providers = get()?.oAuthSSOProviders;
-      if (providers && providers.length === 1) {
-        signIn(providers[0]);
-        return;
-      }
-      signIn();
+      // const { signIn } = await import('next-auth/react');
+      // // Check if only one provider is available
+      // const providers = get()?.oAuthSSOProviders;
+      // if (providers && providers.length === 1) {
+      //   signIn(providers[0]);
+      //   return;
+      // }
+      // signIn();
     }
   },
 });

@@ -7,14 +7,14 @@ import { Flexbox } from 'react-layout-kit';
 
 import UserAvatar from '@/features/User/UserAvatar';
 import UserPanel from '@/features/User/UserPanel';
-// import { useUserStore } from '@/store/user';
-// import { preferenceSelectors } from '@/store/user/selectors';
+import { useUserStore } from '@/store/user';
+import { preferenceSelectors } from '@/store/user/selectors';
 
 const Avatar = memo(() => {
   const { t } = useTranslation('common');
-  // const hideSettingsMoveGuide = useUserStore(preferenceSelectors.hideSettingsMoveGuide);
-  const hideSettingsMoveGuide = false;
-  // const updateGuideState = useUserStore((s) => s.updateGuideState);
+  const hideSettingsMoveGuide = useUserStore(preferenceSelectors.hideSettingsMoveGuide);
+  // const hideSettingsMoveGuide = false;
+  const updateGuideState = useUserStore((s) => s.updateGuideState);
 
   const content = (
     <Suspense fallback={<UserAvatar />}>
@@ -38,7 +38,7 @@ const Avatar = memo(() => {
           <ActionIcon
             icon={LucideX}
             onClick={() => {
-              // updateGuideState({ moveSettingsToAvatar: true });
+              updateGuideState({ moveSettingsToAvatar: true });
             }}
             role={'close-guide'}
             size={'small'}
