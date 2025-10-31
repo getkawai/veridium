@@ -4,6 +4,7 @@ import { PluginRequestPayload, createHeadersWithPluginSettings } from '@lobehub/
 import { merge } from 'lodash-es';
 import { ModelProvider } from '@/model-bank';
 
+import { isProviderDisableBrowserRequest } from '@/config/modelProviders';
 import { enableAuth } from '@/const/auth';
 import { DEFAULT_AGENT_CONFIG } from '@/const/settings';
 import { getSearchConfig } from '@/helpers/getSearchConfig';
@@ -16,26 +17,17 @@ import { sessionMetaSelectors } from '@/store/session/selectors';
 import { getToolStoreState } from '@/store/tool';
 import { pluginSelectors } from '@/store/tool/selectors';
 import { getUserStoreState, useUserStore } from '@/store/user';
-import {
-  preferenceSelectors,
-  userGeneralSettingsSelectors,
-  userProfileSelectors,
-} from '@/store/user/selectors';
+import { preferenceSelectors, userProfileSelectors } from '@/store/user/selectors';
 import type { ChatStreamPayload, OpenAIChatMessage } from '@/types/openai/chat';
 import { createErrorResponse } from '@/utils/errorResponse';
-import {
-  FetchSSEOptions,
-  fetchSSE,
-  getMessageError,
-  standardizeAnimationStyle,
-} from '@/utils/fetch';
+import { FetchSSEOptions, getMessageError } from '@/utils/fetch';
 import { createTraceHeader, getTraceId } from '@/utils/trace';
 
 import { createHeaderWithAuth } from '../_auth';
 import { API_ENDPOINTS } from '../_url';
 import { initializeWithClientStore } from './clientModelRuntime';
 import { contextEngineering } from './contextEngineering';
-import { findDeploymentName, isEnableFetchOnClient, resolveRuntimeProvider } from './helper';
+import { findDeploymentName, resolveRuntimeProvider } from './helper';
 import { FetchOptions } from './types';
 
 interface GetChatCompletionPayload extends Partial<Omit<ChatStreamPayload, 'messages'>> {
@@ -231,7 +223,7 @@ class ChatService {
   };
 
   getChatCompletion = async (params: Partial<ChatStreamPayload>, options?: FetchOptions) => {
-    const { signal, responseAnimation } = options ?? {};
+    const { signal } = options ?? {};
 
     const { provider = ModelProvider.OpenAI, ...res } = params;
 
@@ -278,71 +270,23 @@ class ChatService {
     const sdkType = resolveRuntimeProvider(provider);
 
     /**
-     * Use browser agent runtime
+     * Always use client-side browser runtime to call model providers directly.
+     * This eliminates server-side routing overhead and keeps API keys in browser memory.
      */
-    let enableFetchOnClient = isEnableFetchOnClient(provider);
+    try {
+      return await this.fetchOnClient({ payload, provider, runtimeProvider: sdkType, signal });
+    } catch (e) {
+      const {
+        errorType = ChatErrorType.BadRequest,
+        error: errorContent,
+        ...res
+      } = e as ChatCompletionErrorPayload;
 
-    let fetcher: typeof fetch | undefined = undefined;
+      const error = errorContent || e;
+      console.error(`Client Runtime Error: [${provider}] ${errorType}:`, error);
 
-    // Add desktop remote RPC fetch support
-    if (enableFetchOnClient) {
-      /**
-       * Notes:
-       * 1. Browser agent runtime will skip auth check if a key and endpoint provided by
-       *    user which will cause abuse of plugins services
-       * 2. This feature will be disabled by default
-       */
-      fetcher = async () => {
-        try {
-          return await this.fetchOnClient({ payload, provider, runtimeProvider: sdkType, signal });
-        } catch (e) {
-          const {
-            errorType = ChatErrorType.BadRequest,
-            error: errorContent,
-            ...res
-          } = e as ChatCompletionErrorPayload;
-
-          const error = errorContent || e;
-          // track the error at server side
-          console.error(`Route: [${provider}] ${errorType}:`, error);
-
-          return createErrorResponse(errorType, { error, ...res, provider });
-        }
-      };
+      return createErrorResponse(errorType, { error, ...res, provider });
     }
-
-    const traceHeader = createTraceHeader({ ...options?.trace });
-
-    const headers = await createHeaderWithAuth({
-      headers: { 'Content-Type': 'application/json', ...traceHeader },
-      provider,
-    });
-
-    const { DEFAULT_MODEL_PROVIDER_LIST } = await import('@/config/modelProviders');
-    const providerConfig = DEFAULT_MODEL_PROVIDER_LIST.find((item) => item.id === provider);
-
-    const userPreferTransitionMode =
-      userGeneralSettingsSelectors.transitionMode(getUserStoreState());
-
-    // The order of the array is very important.
-    const mergedResponseAnimation = [
-      providerConfig?.settings?.responseAnimation || {},
-      userPreferTransitionMode,
-      responseAnimation,
-    ].reduce((acc, cur) => merge(acc, standardizeAnimationStyle(cur)), {});
-
-    return fetchSSE(API_ENDPOINTS.chat(sdkType), {
-      body: JSON.stringify(payload),
-      fetcher: fetcher,
-      headers,
-      method: 'POST',
-      onAbort: options?.onAbort,
-      onErrorHandle: options?.onErrorHandle,
-      onFinish: options?.onFinish,
-      onMessageHandle: options?.onMessageHandle,
-      responseAnimation: mergedResponseAnimation,
-      signal,
-    });
   };
 
   /**
@@ -451,8 +395,8 @@ class ChatService {
   };
 
   /**
-   * Fetch chat completion on the client side.
-
+   * Fetch chat completion on the client side using model runtime directly.
+   * This bypasses API endpoints and calls provider SDKs directly from the browser.
    */
   private fetchOnClient = async (params: {
     payload: Partial<ChatStreamPayload>;
@@ -460,6 +404,16 @@ class ChatService {
     runtimeProvider: string;
     signal?: AbortSignal;
   }) => {
+    /**
+     * Check if provider has CORS restrictions that prevent browser requests
+     */
+    if (isProviderDisableBrowserRequest(params.provider)) {
+      throw AgentRuntimeError.createError(ChatErrorType.BadRequest, {
+        message: `Provider "${params.provider}" cannot run in browser due to CORS restrictions. Please configure this provider to use server-side routing or choose a different provider.`,
+        provider: params.provider,
+      } as any);
+    }
+
     /**
      * if enable login and not signed in, return unauthorized error
      */

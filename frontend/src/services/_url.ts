@@ -13,6 +13,8 @@ export const API_ENDPOINTS = {
   trace: '/webapi/trace',
 
   // chat
+  // @deprecated Client now uses direct runtime calls instead of API endpoints.
+  // This endpoint may still be used by server-side routes or CORS-restricted providers.
   chat: (provider: string) => `/webapi/chat/${provider}`,
 
   // models

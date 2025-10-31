@@ -46,6 +46,11 @@ export const findDeploymentName = (model: string, provider: string) => {
   return deploymentId;
 };
 
+/**
+ * @deprecated This function is no longer used as all providers now use client-side runtime by default.
+ * CORS-restricted providers are handled via isProviderDisableBrowserRequest check.
+ * This will be removed in a future version.
+ */
 export const isEnableFetchOnClient = (provider: string) => {
   // TODO: remove this condition in V2.0
   if (isDeprecatedEdition) {
