@@ -1,23 +1,9 @@
-import { isDeprecatedEdition } from '@/const/version';
-import { createHeaderWithAuth } from '@/services/_auth';
-import { aiProviderSelectors, getAiInfraStoreState } from '@/store/aiInfra';
-import { useUserStore } from '@/store/user';
-import { modelConfigSelectors } from '@/store/user/selectors';
+import { isProviderDisableBrowserRequest } from '@/config/modelProviders';
 import { ChatModelCard } from '@/types/llm';
 import { getMessageError } from '@/utils/fetch';
 
-import { API_ENDPOINTS } from './_url';
 import { initializeWithClientStore } from './chat/clientModelRuntime';
 import { resolveRuntimeProvider } from './chat/helper';
-
-const isEnableFetchOnClient = (provider: string) => {
-  // TODO: remove this condition in V2.0
-  if (isDeprecatedEdition) {
-    return modelConfigSelectors.isProviderFetchOnClient(provider)(useUserStore.getState());
-  } else {
-    return aiProviderSelectors.isProviderFetchOnClient(provider)(getAiInfraStoreState());
-  }
-};
 
 // 进度信息接口
 export interface ModelProgressInfo {
@@ -38,31 +24,27 @@ export class ModelsService {
 
   // 获取模型列表
   getModels = async (provider: string): Promise<ChatModelCard[] | undefined> => {
-    const headers = await createHeaderWithAuth({
-      headers: { 'Content-Type': 'application/json' },
-      provider,
-    });
-
     const runtimeProvider = resolveRuntimeProvider(provider);
+
     try {
-      /**
-       * Use browser agent runtime
-       */
-      const enableFetchOnClient = isEnableFetchOnClient(provider);
-      if (enableFetchOnClient) {
-        const agentRuntime = await initializeWithClientStore({
-          provider,
-          runtimeProvider,
-        });
-        return agentRuntime.models();
+      // Check if provider has CORS restrictions
+      if (isProviderDisableBrowserRequest(provider)) {
+        console.error(
+          `Provider "${provider}" cannot fetch models in browser due to CORS restrictions`,
+        );
+        return undefined;
       }
 
-      const res = await fetch(API_ENDPOINTS.models(runtimeProvider), { headers });
-      if (!res.ok) return;
+      // Always use client runtime to fetch models directly
+      const agentRuntime = await initializeWithClientStore({
+        provider,
+        runtimeProvider,
+      });
 
-      return res.json();
-    } catch {
-      return;
+      return await agentRuntime.models();
+    } catch (error) {
+      console.error(`Failed to fetch models for provider ${provider}:`, error);
+      return undefined;
     }
   };
 
@@ -71,48 +53,41 @@ export class ModelsService {
    */
   downloadModel = async (
     { model, provider }: { model: string; provider: string },
-    { onProgress }: { onError?: ErrorCallback; onProgress?: ProgressCallback } = {},
+    { onProgress, onError }: { onError?: ErrorCallback; onProgress?: ProgressCallback } = {},
   ): Promise<void> => {
     try {
-      // 创建一个新的 AbortController
+      const runtimeProvider = resolveRuntimeProvider(provider);
+
+      // Check if provider has CORS restrictions
+      if (isProviderDisableBrowserRequest(provider)) {
+        const errorMsg = `Provider "${provider}" cannot download models in browser due to CORS restrictions`;
+        console.error(errorMsg);
+        onError?.({ message: errorMsg });
+        throw new Error(errorMsg);
+      }
+
+      // Create a new AbortController
       this._abortController = new AbortController();
       const signal = this._abortController.signal;
 
-      const headers = await createHeaderWithAuth({
-        headers: { 'Content-Type': 'application/json' },
+      // Always use client runtime to pull models directly
+      const agentRuntime = await initializeWithClientStore({
         provider,
+        runtimeProvider,
       });
 
-      const runtimeProvider = resolveRuntimeProvider(provider);
-      const enableFetchOnClient = isEnableFetchOnClient(provider);
+      const res = await agentRuntime.pullModel({ model }, { signal });
 
-      console.log('enableFetchOnClient：', enableFetchOnClient);
-      let res: Response;
-      if (enableFetchOnClient) {
-        const agentRuntime = await initializeWithClientStore({
-          provider,
-          runtimeProvider,
-        });
-        res = (await agentRuntime.pullModel({ model }, { signal }))!;
-      } else {
-        res = await fetch(API_ENDPOINTS.modelPull(runtimeProvider), {
-          body: JSON.stringify({ model }),
-          headers,
-          method: 'POST',
-          signal,
-        });
+      if (!res || !res.ok) {
+        throw await getMessageError(res!);
       }
 
-      if (!res.ok) {
-        throw await getMessageError(res);
-      }
-
-      // 处理响应流
+      // Process response stream
       if (res.body) {
-        await this.processModelPullStream(res, { onProgress });
+        await this.processModelPullStream(res, { onProgress, onError });
       }
     } catch (error) {
-      // 如果是取消操作，不需要继续抛出错误
+      // If it's an abort operation, don't throw error
       if (error instanceof DOMException && error.name === 'AbortError') {
         return;
       }
@@ -120,7 +95,7 @@ export class ModelsService {
       console.error('download model error:', error);
       throw error;
     } finally {
-      // 清理 AbortController
+      // Clean up AbortController
       this._abortController = null;
     }
   };

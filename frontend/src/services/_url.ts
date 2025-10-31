@@ -18,7 +18,11 @@ export const API_ENDPOINTS = {
   chat: (provider: string) => `/webapi/chat/${provider}`,
 
   // models
+  // @deprecated Client now uses direct runtime calls for model operations.
+  // This endpoint may still be used by server-side routes or CORS-restricted providers.
   models: (provider: string) => `/webapi/models/${provider}`,
+  // @deprecated Client now uses direct runtime calls for model pull operations.
+  // This endpoint may still be used by server-side routes or CORS-restricted providers.
   modelPull: (provider: string) => `/webapi/models/${provider}/pull`,
 
   // image
