@@ -7,7 +7,7 @@ import {
   insertEvalDatasetRecordSchema,
   insertEvalDatasetsSchema,
   insertEvalEvaluationSchema,
-} from '@lobechat/types';
+} from '@/types';
 import { TRPCError } from '@trpc/server';
 import dayjs from 'dayjs';
 import JSONL from 'jsonl-parse-stringify';

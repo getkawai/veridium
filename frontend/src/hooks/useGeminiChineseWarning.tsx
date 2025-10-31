@@ -1,4 +1,4 @@
-import { containsChinese } from '@lobechat/utils';
+import { containsChinese } from '@/utils';
 import { App, Checkbox } from 'antd';
 import React, { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';

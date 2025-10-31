@@ -1,4 +1,4 @@
-import { DEFAULT_USER_AVATAR, isDesktop } from '@lobechat/const';
+import { DEFAULT_USER_AVATAR, isDesktop } from '@/const';
 import { useMemo } from 'react';
 
 import { useElectronStore } from '@/store/electron';

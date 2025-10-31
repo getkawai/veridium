@@ -1,4 +1,4 @@
-import { GetStreamableMcpServerManifestInputSchema } from '@lobechat/types';
+import { GetStreamableMcpServerManifestInputSchema } from '@/types';
 import debug from 'debug';
 import { z } from 'zod';
 

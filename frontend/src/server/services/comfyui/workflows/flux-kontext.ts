@@ -1,4 +1,4 @@
-import { generateUniqueSeeds } from '@lobechat/utils';
+import { generateUniqueSeeds } from '@/utils';
 import { PromptBuilder } from '@saintno/comfyui-sdk';
 
 import { WORKFLOW_DEFAULTS } from '@/server/services/comfyui/config/constants';

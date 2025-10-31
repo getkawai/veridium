@@ -1,5 +1,5 @@
-import { AgentRuntimeErrorType } from '@lobechat/model-runtime';
-import { AsyncTaskError, AsyncTaskErrorType, AsyncTaskStatus } from '@lobechat/types';
+import { AgentRuntimeErrorType } from '@/model-runtime';
+import { AsyncTaskError, AsyncTaskErrorType, AsyncTaskStatus } from '@/types';
 import debug from 'debug';
 import { RuntimeImageGenParams } from 'model-bank';
 import { z } from 'zod';

@@ -1,4 +1,4 @@
-import { LOBE_CHAT_AUTH_HEADER, isDeprecatedEdition } from '@lobechat/const';
+import { LOBE_CHAT_AUTH_HEADER, isDeprecatedEdition } from '@/const';
 import {
   AWSBedrockKeyVault,
   AzureOpenAIKeyVault,

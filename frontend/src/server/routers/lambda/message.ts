@@ -1,4 +1,4 @@
-import { BatchTaskResult, UIChatMessage, UpdateMessageRAGParamsSchema } from '@lobechat/types';
+import { BatchTaskResult, UIChatMessage, UpdateMessageRAGParamsSchema } from '@/types';
 import { z } from 'zod';
 
 import { MessageModel } from '@/database/models/message';

@@ -1,4 +1,4 @@
-import { LobeTool } from '@lobechat/types';
+import { LobeTool } from '@/types';
 import { PluginSchema } from '@lobehub/chat-plugin-sdk';
 
 import { MetaData } from '@/types/meta';

@@ -1,5 +1,5 @@
-import { chainAnswerWithContext } from '@lobechat/prompts';
-import { EvalEvaluationStatus } from '@lobechat/types';
+import { chainAnswerWithContext } from '@/prompts';
+import { EvalEvaluationStatus } from '@/types';
 import { TRPCError } from '@trpc/server';
 import { ModelProvider } from 'model-bank';
 import OpenAI from 'openai';

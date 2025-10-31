@@ -6,7 +6,7 @@
  * 2. Dual CLIP: CLIP L + CLIP G only
  * 3. T5 only: T5XXL encoder only
  */
-import { generateUniqueSeeds } from '@lobechat/utils';
+import { generateUniqueSeeds } from '@/utils';
 import { PromptBuilder } from '@saintno/comfyui-sdk';
 
 import {

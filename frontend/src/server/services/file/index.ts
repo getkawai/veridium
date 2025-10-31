@@ -1,4 +1,4 @@
-import { LobeChatDatabase } from '@lobechat/database';
+import { LobeChatDatabase } from '@/database';
 import { TRPCError } from '@trpc/server';
 
 import { serverDBEnv } from '@/config/db';

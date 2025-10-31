@@ -1,4 +1,4 @@
-import { SearchParams, UniformSearchResponse, UniformSearchResult } from '@lobechat/types';
+import { SearchParams, UniformSearchResponse, UniformSearchResult } from '@/types';
 import { TRPCError } from '@trpc/server';
 import debug from 'debug';
 import urlJoin from 'url-join';

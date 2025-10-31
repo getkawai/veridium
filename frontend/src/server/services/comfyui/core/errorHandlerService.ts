@@ -8,7 +8,7 @@ import {
   AgentRuntimeError,
   AgentRuntimeErrorType,
   ILobeAgentRuntimeErrorType,
-} from '@lobechat/model-runtime';
+} from '@/model-runtime';
 import { TRPCError } from '@trpc/server';
 
 import { SYSTEM_COMPONENTS } from '@/server/services/comfyui/config/systemComponents';

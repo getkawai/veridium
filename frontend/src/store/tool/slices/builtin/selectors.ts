@@ -1,4 +1,4 @@
-import { LobeToolMeta } from '@lobechat/types';
+import { LobeToolMeta } from '@/types';
 
 import { shouldEnableTool } from '@/helpers/toolFilters';
 import { DalleManifest } from '@/tools/dalle';

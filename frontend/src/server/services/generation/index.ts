@@ -1,5 +1,5 @@
-import { LobeChatDatabase } from '@lobechat/database';
-import { parseDataUri } from '@lobechat/model-runtime';
+import { LobeChatDatabase } from '@/database';
+import { parseDataUri } from '@/model-runtime';
 import debug from 'debug';
 import { sha256 } from 'js-sha256';
 import mime from 'mime';

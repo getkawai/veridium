@@ -1,7 +1,7 @@
 import {
   GetStreamableMcpServerManifestInputSchema,
   StreamableHTTPAuthSchema,
-} from '@lobechat/types';
+} from '@/types';
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 

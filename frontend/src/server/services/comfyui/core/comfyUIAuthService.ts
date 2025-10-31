@@ -4,8 +4,8 @@
  * Handles all authentication-related logic for ComfyUI connections
  * Supports 4 authentication modes: none, basic, bearer, custom
  */
-import type { ComfyUIKeyVault } from '@lobechat/types';
-import { createBasicAuthCredentials } from '@lobechat/utils';
+import type { ComfyUIKeyVault } from '@/types';
+import { createBasicAuthCredentials } from '@/utils';
 import type {
   BasicCredentials,
   BearerTokenCredentials,

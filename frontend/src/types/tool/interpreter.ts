@@ -1,4 +1,4 @@
-// import { PythonResult } from '@lobechat/python-interpreter';
+// import { PythonResult } from '@/python-interpreter';
 
 export interface CodeInterpreterParams {
   code: string;

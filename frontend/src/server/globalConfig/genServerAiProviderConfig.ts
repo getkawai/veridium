@@ -1,5 +1,5 @@
-import { ProviderConfig } from '@lobechat/types';
-import { extractEnabledModels, transformToAiModelList } from '@lobechat/utils';
+import { ProviderConfig } from '@/types';
+import { extractEnabledModels, transformToAiModelList } from '@/utils';
 import { AiFullModelCard, ModelProvider } from 'model-bank';
 import * as AiModels from 'model-bank';
 

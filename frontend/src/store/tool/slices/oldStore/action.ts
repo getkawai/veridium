@@ -1,4 +1,4 @@
-import { LobeTool } from '@lobechat/types';
+import { LobeTool } from '@/types';
 import { t } from 'i18next';
 import { produce } from 'immer';
 import { uniqBy } from 'lodash-es';

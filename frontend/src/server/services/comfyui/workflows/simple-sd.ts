@@ -10,7 +10,7 @@
  * - Automatic node connection based on input parameters
  * - Backward compatibility with existing API calls
  */
-import { generateUniqueSeeds } from '@lobechat/utils';
+import { generateUniqueSeeds } from '@/utils';
 import { PromptBuilder } from '@saintno/comfyui-sdk';
 
 import {

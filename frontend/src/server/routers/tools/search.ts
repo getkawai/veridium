@@ -1,4 +1,4 @@
-import { isServerMode } from '@lobechat/const';
+import { isServerMode } from '@/const';
 import { z } from 'zod';
 
 import { passwordProcedure } from '@/libs/trpc/edge';

@@ -1,5 +1,5 @@
-import { CheckMcpInstallResult, CustomPluginMetadata } from '@lobechat/types';
-import { safeParseJSON } from '@lobechat/utils';
+import { CheckMcpInstallResult, CustomPluginMetadata } from '@/types';
+import { safeParseJSON } from '@/utils';
 import { LobeChatPluginApi, LobeChatPluginManifest, PluginSchema } from '@lobehub/chat-plugin-sdk';
 import { DeploymentOption } from '@lobehub/market-sdk';
 import { McpError } from '@modelcontextprotocol/sdk/types.js';

@@ -1,4 +1,4 @@
-import { LobeTool } from '@lobechat/types';
+import { LobeTool } from '@/types';
 import { z } from 'zod';
 
 import { PluginModel } from '@/database/models/plugin';

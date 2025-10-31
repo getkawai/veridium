@@ -4,7 +4,7 @@ import {
   DEFAULT_DISCOVER_PLUGIN_ITEM,
   DEFAULT_DISCOVER_PROVIDER_ITEM,
   isDesktop,
-} from '@lobechat/const';
+} from '@/const';
 import {
   AssistantListResponse,
   AssistantQueryParams,
@@ -32,12 +32,12 @@ import {
   ProviderListResponse,
   ProviderQueryParams,
   ProviderSorts,
-} from '@lobechat/types';
+} from '@/types';
 import {
   getAudioInputUnitRate,
   getTextInputUnitRate,
   getTextOutputUnitRate,
-} from '@lobechat/utils';
+} from '@/utils';
 import { CategoryItem, CategoryListQuery, MarketSDK } from '@lobehub/market-sdk';
 import { CallReportRequest, InstallReportRequest } from '@lobehub/market-types';
 import dayjs from 'dayjs';

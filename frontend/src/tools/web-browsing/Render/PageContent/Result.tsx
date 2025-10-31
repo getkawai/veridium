@@ -1,6 +1,6 @@
 'use client';
 
-import { CrawlErrorResult, CrawlSuccessResult } from '@lobechat/web-crawler';
+import { CrawlErrorResult, CrawlSuccessResult } from '@/web-crawler';
 import { Alert, Icon, Text } from '@lobehub/ui';
 import { Descriptions } from 'antd';
 import { createStyles } from 'antd-style';

@@ -1,5 +1,5 @@
 import { CrawlResult } from '@/types';
-import { CrawlSuccessResult } from '@lobechat/web-crawler';
+import { CrawlSuccessResult } from '@/web-crawler';
 import { Alert, CopyButton, Highlighter, Icon, Markdown, Segmented, Text } from '@lobehub/ui';
 import { Descriptions } from 'antd';
 import { createStyles } from 'antd-style';
