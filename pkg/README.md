@@ -1,0 +1,202 @@
+# Node.js Equivalents for Go
+
+This package provides Go equivalents for Node.js built-in modules, making it easier to port Node.js applications to Go or use familiar APIs in Go programs.
+
+## Packages
+
+### `nodefs` - File System Operations
+
+Provides Node.js `fs` module equivalents:
+
+```go
+import "github.com/kawai-network/veridium/pkg/nodefs"
+
+// Synchronous file operations
+exists := nodefs.FileExistsSync("path/to/file")
+data, err := nodefs.ReadFileSync("path/to/file")
+err := nodefs.WriteFileSync("path/to/file", []byte("content"))
+
+// Directory operations
+entries, err := nodefs.ReadDirSync("path/to/dir")
+info, err := nodefs.StatSync("path/to/file")
+
+// Directory creation
+err := nodefs.MkdirSync("path/to/dir")
+
+// File removal
+err := nodefs.RmSync("path/to/file")  // Recursive removal
+err := nodefs.UnlinkSync("path/to/file")  // Single file
+```
+
+### `nodepath` - Path Operations
+
+Provides Node.js `path` module equivalents:
+
+```go
+import "github.com/kawai-network/veridium/pkg/nodepath"
+
+// Path manipulation
+basename := nodepath.Basename("/path/to/file.txt")  // "file.txt"
+dirname := nodepath.Dirname("/path/to/file.txt")    // "/path/to"
+ext := nodepath.Extname("file.txt")                // ".txt"
+fullPath := nodepath.Join("path", "to", "file.txt") // "path/to/file.txt"
+
+// Path parsing
+parsed := nodepath.Parse("/path/to/file.txt")
+// parsed = {Root: "/", Dir: "/path/to", Base: "file.txt", Ext: ".txt", Name: "file"}
+
+// Cross-platform operations
+isAbs := nodepath.IsAbsolute("/absolute/path")  // true on Unix, false on Windows
+resolved := nodepath.Resolve("relative", "path")  // Absolute path
+```
+
+### `nodebuffer` - Buffer Operations
+
+Provides Node.js `Buffer` equivalents:
+
+```go
+import "github.com/kawai-network/veridium/pkg/nodebuffer"
+
+// Creating buffers
+buf := nodebuffer.New(1024)  // Allocate buffer of size 1024
+buf := nodebuffer.Alloc(1024)  // Same as New()
+buf := nodebuffer.From("hello world")  // From string
+buf := nodebuffer.From([]byte{1, 2, 3})  // From byte slice
+
+// Buffer operations
+data := buf.ToBytes()  // Get underlying byte slice
+str := buf.ToString()  // Convert to string
+str := buf.ToString("base64")  // Convert with encoding
+
+// Buffer manipulation
+buf.Fill(0)  // Fill with zeros
+buf.Copy(targetBuf, 0, 0, 10)  // Copy to another buffer
+slice := buf.Slice(0, 10)  // Create slice
+
+// Searching
+index := buf.IndexOf("search")  // Find substring
+contains := buf.Contains("search")  // Check if contains
+```
+
+### `nodeexec` - Child Process Execution
+
+Provides Node.js `child_process` equivalents:
+
+```go
+import "github.com/kawai-network/veridium/pkg/nodeexec"
+
+// Execute commands synchronously
+result, err := nodeexec.ExecSync("npm --version")
+if result.Success {
+    fmt.Println("STDOUT:", result.Stdout)
+    fmt.Println("Exit code:", result.Code)
+}
+
+// Execute with options
+result, err := nodeexec.ExecSync("ls -la", &nodeexec.ExecOptions{
+    Cwd: "/tmp",
+    Env: map[string]string{"NODE_ENV": "production"},
+    Timeout: 5 * time.Second,
+})
+
+// Spawn processes
+resultChan, err := nodeexec.Spawn("node", []string{"script.js"})
+result := <-resultChan  // Wait for completion
+
+// Which command
+path, err := nodeexec.Which("node")  // Find executable in PATH
+```
+
+### `nodeos` - Operating System Operations
+
+Provides Node.js `os` module equivalents:
+
+```go
+import "github.com/kawai-network/veridium/pkg/nodeos"
+
+// System information
+arch := nodeos.Arch()        // "x64", "arm64", etc.
+platform := nodeos.Platform() // "darwin", "linux", "win32"
+hostname := nodeos.Hostname()
+homedir := nodeos.Homedir()
+tmpdir := nodeos.Tmpdir()
+
+// CPU information
+cpus := nodeos.Cpus()
+fmt.Printf("CPU cores: %d\n", len(cpus))
+
+// Memory information (limited in Go stdlib)
+totalMem := nodeos.Totalmem()  // May return 0 (not available)
+freeMem := nodeos.Freemem()    // May return 0 (not available)
+
+// User information
+userInfo, err := nodeos.UserInfo()
+if err == nil {
+    fmt.Printf("User: %s, Home: %s\n", userInfo.Username, userInfo.Homedir)
+}
+
+// Process priority (limited support)
+priority := nodeos.GetPriority()  // Get current process priority
+```
+
+## Compatibility Notes
+
+### Not Supported in Go Standard Library
+
+Some Node.js APIs are not directly available in Go's standard library:
+
+1. **Memory Information**: `os.totalmem()`, `os.freemem()` - Go stdlib doesn't provide system memory info
+2. **Load Average**: `os.loadavg()` - Requires reading `/proc/loadavg` on Linux
+3. **Network Interfaces**: `os.networkInterfaces()` - Requires platform-specific code
+4. **Process Priority**: `os.getPriority()`, `os.setPriority()` - Limited support
+5. **User ID/GID**: `os.userInfo().uid`, `os.userInfo().gid` - Platform-specific
+
+### Platform-Specific Behavior
+
+- Path separators: Go uses `/` on all platforms internally, but handles platform differences
+- Executable extensions: `nodeexec.Which()` handles `.exe` on Windows
+- Environment variables: Available through `os.Getenv()` but not directly settable in some contexts
+
+## Error Handling
+
+All functions follow Go conventions:
+- Return `(result, error)` pairs
+- Use `nil` for successful operations
+- Provide descriptive error messages
+
+## Performance Considerations
+
+- These packages use Go's standard library for optimal performance
+- Buffer operations are more efficient than Node.js (no V8 overhead)
+- File operations use native OS APIs
+- Memory management is handled by Go's garbage collector
+
+## Thread Safety
+
+- All packages are safe for concurrent use
+- No global state is modified
+- Functions can be called from multiple goroutines safely
+
+## Testing
+
+Run tests for all packages:
+
+```bash
+go test ./pkg/...
+```
+
+Run benchmarks:
+
+```bash
+go test -bench=. ./pkg/...
+```
+
+## Contributing
+
+When adding new functionality:
+
+1. Follow Node.js API signatures as closely as possible
+2. Provide comprehensive documentation
+3. Include tests and benchmarks
+4. Handle edge cases and errors appropriately
+5. Maintain thread safety

@@ -3,9 +3,28 @@
 
 import * as GreetService from "./greetservice.js";
 import * as MachineIDService from "./machineidservice.js";
+import * as NodeBufferService from "./nodebufferservice.js";
+import * as NodeExecService from "./nodeexecservice.js";
+import * as NodeFsService from "./nodefsservice.js";
+import * as NodeOsService from "./nodeosservice.js";
+import * as NodePathService from "./nodepathservice.js";
 import * as TempFileService from "./tempfileservice.js";
 export {
     GreetService,
     MachineIDService,
+    NodeBufferService,
+    NodeExecService,
+    NodeFsService,
+    NodeOsService,
+    NodePathService,
     TempFileService
 };
+
+export {
+    CpuInfo,
+    CpuTimes,
+    ExecOptions,
+    ExecResult,
+    NetworkInterface,
+    UserInfoResult
+} from "./models.js";

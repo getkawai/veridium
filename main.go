@@ -38,8 +38,14 @@ func main() {
 			application.NewService(&GreetService{}),
 			// Machine ID service
 			application.NewService(&MachineIDService{}),
-			// Machine ID service
+			// Temp file service
 			application.NewService(&TempFileService{}),
+			// Node.js equivalent services
+			application.NewService(&NodeFsService{}),
+			application.NewService(&NodePathService{}),
+			application.NewService(&NodeBufferService{}),
+			application.NewService(&NodeExecService{}),
+			application.NewService(&NodeOsService{}),
 			// Native Wails v3 notification service
 			application.NewService(notifications.New()),
 			// Native Wails v3 sqlite service
