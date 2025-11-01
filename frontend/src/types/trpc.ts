@@ -1,9 +1,11 @@
 export class TRPCError extends Error {
   public code: string;
+  public readonly cause?: unknown;
 
-  constructor(options: { code: string; message: string }) {
+  constructor(options: { code: string; message: string; cause?: unknown }) {
     super(options.message);
     this.code = options.code;
+    this.cause = options.cause;
     this.name = 'MockTRPCError';
   }
 }

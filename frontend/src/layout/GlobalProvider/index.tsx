@@ -3,6 +3,7 @@ import AntdV5MonkeyPatch from './AntdV5MonkeyPatch';
 import AppTheme from './AppTheme';
 import StyleRegistry from './StyleRegistry';
 import StoreInitialization from './StoreInitialization';
+import { ServerConfigStoreProvider } from '@/store/serverConfig';
 
 interface GlobalLayoutProps {
   appearance: string;
@@ -25,17 +26,18 @@ const GlobalLayout = ({
 }: GlobalLayoutProps) => {
   return (
     <StyleRegistry>
-      <AppTheme
-        customFontFamily={undefined}
-        customFontURL={undefined}
-        defaultAppearance={appearance}
-        defaultNeutralColor={neutralColor as any}
-        defaultPrimaryColor={primaryColor as any}
-        globalCDN={false}
-      >
-        {children}
-      </AppTheme>
-      <StoreInitialization />
+        <AppTheme
+          customFontFamily={undefined}
+          customFontURL={undefined}
+          defaultAppearance={appearance}
+          defaultNeutralColor={neutralColor as any}
+          defaultPrimaryColor={primaryColor as any}
+          globalCDN={false}>
+          <ServerConfigStoreProvider isMobile={isMobile} segmentVariants={variants}>
+            <StoreInitialization />
+            {children}
+          </ServerConfigStoreProvider>
+        </AppTheme>
       <AntdV5MonkeyPatch />
     </StyleRegistry>
   );

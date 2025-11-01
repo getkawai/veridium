@@ -1,4 +1,4 @@
-import ChatHydration from './features/ChatHydration';
+// import ChatHydration from './features/ChatHydration';
 import ChatInput from './features/ChatInput';
 import ChatList from './features/ChatList';
 import ChatMinimap from './features/ChatMinimap';
@@ -13,7 +13,7 @@ const ChatConversation = async () => {
       <ZenModeToast />
       <ChatList mobile={isMobile} />
       <ChatInput mobile={isMobile} />
-      <ChatHydration />
+      {/* <ChatHydration /> */}
       {/* <ThreadHydration /> */}
       {!isMobile && <ChatMinimap />}
     </>
