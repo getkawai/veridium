@@ -180,6 +180,114 @@ func (d *Document) ToMarkdownWithImages(imageDir string) (string, error) {
 	return md.String(), nil
 }
 
+// ToMarkdownWithImageURLs converts the document to markdown with images served via local fileserver URLs
+// Images are saved to frontend/public/images/ and accessible via /files/images/ URLs
+func (d *Document) ToMarkdownWithImageURLs(baseURL string) (string, error) {
+	// Use the public directory for images so they can be served by the fileserver
+	imageDir := filepath.Join("frontend", "public", "images")
+
+	// Create image directory if it doesn't exist
+	if err := os.MkdirAll(imageDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create image directory: %w", err)
+	}
+
+	var md strings.Builder
+	imageCounter := 0
+
+	if d.x.Body == nil {
+		return "", nil
+	}
+
+	for _, ble := range d.x.Body.EG_BlockLevelElts {
+		for _, c := range ble.EG_ContentBlockContent {
+			// handle tables
+			for _, tbl := range c.Tbl {
+				md.WriteString(d.tableToMarkdown(tbl))
+				md.WriteString("\n")
+			}
+
+			// handle paragraphs
+			for _, p := range c.P {
+				paraMarkdown, err := d.paragraphToMarkdownWithImageURLs(p, imageDir, baseURL, &imageCounter)
+				if err != nil {
+					gooxml.Log("failed to process paragraph: %s", err)
+					continue
+				}
+				md.WriteString(paraMarkdown)
+			}
+		}
+	}
+
+	return md.String(), nil
+}
+
+func (d *Document) paragraphToMarkdownWithImageURLs(p *wml.CT_P, imageDir string, baseURL string, imageCounter *int) (string, error) {
+	var para strings.Builder
+	style := ""
+	if p.PPr != nil && p.PPr.PStyle != nil {
+		style = p.PPr.PStyle.ValAttr
+	}
+
+	// Check for hyperlinks and regular content
+	for _, ec := range p.EG_PContent {
+		if ec.Hyperlink != nil {
+			return d.hyperlinkToMarkdown(ec.Hyperlink), nil
+		}
+		for _, rc := range ec.EG_ContentRunContent {
+			if rc.R != nil {
+				// Check for drawings in this run
+				runText, runImages := d.runToMarkdownWithImageURLs(rc.R, imageDir, baseURL, imageCounter)
+				para.WriteString(runText)
+				for _, img := range runImages {
+					para.WriteString(img)
+				}
+			}
+		}
+	}
+
+	text := strings.TrimSpace(para.String())
+	if text == "" {
+		return "", nil
+	}
+
+	// Check for numbering (lists)
+	if p.PPr != nil && p.PPr.NumPr != nil {
+		if p.PPr.NumPr.NumId != nil && p.PPr.NumPr.NumId.ValAttr > 0 {
+			// This is a numbered list item
+			return fmt.Sprintf("%d. %s\n", p.PPr.NumPr.NumId.ValAttr, text), nil
+		}
+	}
+
+	// Check for indentation (blockquotes)
+	isBlockquote := false
+	if p.PPr != nil && p.PPr.Ind != nil {
+		if (p.PPr.Ind.LeftAttr != nil && *p.PPr.Ind.LeftAttr.Int64 > 360) ||
+			(p.PPr.Ind.StartAttr != nil && *p.PPr.Ind.StartAttr.Int64 > 360) { // 360 twips = 0.25 inches
+			isBlockquote = true
+		}
+	}
+
+	switch style {
+	case "Heading1":
+		return "# " + text + "\n\n", nil
+	case "Heading2":
+		return "## " + text + "\n\n", nil
+	case "Heading3":
+		return "### " + text + "\n\n", nil
+	case "Heading4":
+		return "#### " + text + "\n\n", nil
+	case "Heading5":
+		return "##### " + text + "\n\n", nil
+	case "Heading6":
+		return "###### " + text + "\n\n", nil
+	default:
+		if isBlockquote {
+			return "> " + text + "\n\n", nil
+		}
+		return text + "\n\n", nil
+	}
+}
+
 func (d *Document) paragraphToMarkdownWithImages(p *wml.CT_P, imageDir string, imageCounter *int) (string, error) {
 	var para strings.Builder
 	style := ""
@@ -251,6 +359,50 @@ func (d *Document) paragraphToMarkdownWithImages(p *wml.CT_P, imageDir string, i
 		}
 		return text + "\n\n", nil
 	}
+}
+
+func (d *Document) extractInlineDrawingWithURL(drawing *wml.CT_Drawing, imageDir string, baseURL string, imageCounter *int) (string, error) {
+	// Handle inline drawings
+	for _, inline := range drawing.Inline {
+		imageRef, found := d.getImageFromInlineDrawing(inline)
+		if !found {
+			continue
+		}
+
+		// Extract and save the image
+		imagePath, altText, err := d.saveImageToDir(imageRef, imageDir, imageCounter)
+		if err != nil {
+			return "", fmt.Errorf("failed to save image: %w", err)
+		}
+
+		// Generate URL for the fileserver (images are saved to frontend/public/images/)
+		imageURL := fmt.Sprintf("%s/images/%s", baseURL, imagePath)
+
+		// Generate markdown image syntax with URL
+		return fmt.Sprintf("![%s](%s)", altText, imageURL), nil
+	}
+
+	// Handle anchored drawings (floating images)
+	for _, anchor := range drawing.Anchor {
+		imageRef, found := d.getImageFromAnchoredDrawing(anchor)
+		if !found {
+			continue
+		}
+
+		// Extract and save the image
+		imagePath, altText, err := d.saveImageToDir(imageRef, imageDir, imageCounter)
+		if err != nil {
+			return "", fmt.Errorf("failed to save image: %w", err)
+		}
+
+		// Generate URL for the fileserver (images are saved to frontend/public/images/)
+		imageURL := fmt.Sprintf("%s/images/%s", baseURL, imagePath)
+
+		// Generate markdown image syntax with URL
+		return fmt.Sprintf("![%s](%s)", altText, imageURL), nil
+	}
+
+	return "", nil
 }
 
 func (d *Document) extractInlineDrawing(drawing *wml.CT_Drawing, imageDir string, imageCounter *int) (string, error) {
@@ -471,6 +623,47 @@ func (d *Document) paragraphToMarkdown(p *wml.CT_P) string {
 		}
 		return text + "\n\n"
 	}
+}
+
+func (d *Document) runToMarkdownWithImageURLs(r *wml.CT_R, imageDir string, baseURL string, imageCounter *int) (string, []string) {
+	var run strings.Builder
+	var images []string
+
+	for _, ic := range r.EG_RunInnerContent {
+		if ic.Drawing != nil {
+			// Handle drawing (image)
+			imageMarkdown, err := d.extractInlineDrawingWithURL(ic.Drawing, imageDir, baseURL, imageCounter)
+			if err != nil {
+				gooxml.Log("failed to extract drawing: %s", err)
+				continue
+			}
+			if imageMarkdown != "" {
+				images = append(images, imageMarkdown)
+			}
+		} else if ic.T != nil {
+			text := ic.T.Content
+			if r.RPr != nil {
+				// Handle strikethrough
+				if r.RPr.Strike != nil || r.RPr.Dstrike != nil {
+					text = "~~" + text + "~~"
+				}
+				// Handle bold
+				if r.RPr.B != nil {
+					text = "**" + text + "**"
+				}
+				// Handle italic
+				if r.RPr.I != nil {
+					text = "*" + text + "*"
+				}
+				// Handle code (monospace)
+				if r.RPr.RFonts != nil && (r.RPr.RFonts.AsciiAttr != nil && strings.Contains(strings.ToLower(*r.RPr.RFonts.AsciiAttr), "mono")) {
+					text = "`" + text + "`"
+				}
+			}
+			run.WriteString(text)
+		}
+	}
+	return run.String(), images
 }
 
 func (d *Document) runToMarkdownWithImages(r *wml.CT_R, imageDir string, imageCounter *int) (string, []string) {
