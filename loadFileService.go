@@ -437,7 +437,6 @@ func (l *LoadFileService) extractPPTXContent(filePath string) (string, error) {
 	return markdown, nil
 }
 
-
 // createErrorDocument creates a FileDocument with error information
 func (l *LoadFileService) createErrorDocument(filePath string, fileMetadata *FileMetadata, errorMsg string) (*FileDocument, error) {
 	baseFilename := filepath.Base(filePath)
