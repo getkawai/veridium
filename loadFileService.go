@@ -334,15 +334,8 @@ func (l *LoadFileService) extractDOCXContent(filePath string) (string, error) {
 		return "", fmt.Errorf("failed to open DOCX document: %w", err)
 	}
 
-	// Create a temporary directory for images
-	tmpDir, err := os.MkdirTemp("", "docx-images-*")
-	if err != nil {
-		return "", fmt.Errorf("failed to create temp directory: %w", err)
-	}
-	defer os.RemoveAll(tmpDir) // Clean up temp directory after processing
-
-	// Convert to markdown with images extracted to temp directory
-	markdown, err := doc.ToMarkdownWithImages(tmpDir)
+	// Convert to markdown with images served via URLs
+	markdown, err := doc.ToMarkdownWithImageURLs("/files")
 	if err != nil {
 		return "", fmt.Errorf("failed to convert DOCX to markdown: %w", err)
 	}
