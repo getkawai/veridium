@@ -25,7 +25,7 @@ export const params = {
     },
   },
   debug: {
-    chatCompletion: () => process.env.DEBUG_WENXIN_CHAT_COMPLETION === '1',
+    chatCompletion: () => false,
   },
   provider: ModelProvider.Wenxin,
 } satisfies OpenAICompatibleFactoryOptions;

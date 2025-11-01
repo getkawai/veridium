@@ -40,7 +40,7 @@ export const handlePayload = (payload: ChatStreamPayload) => {
 
 export const params = {
   debug: {
-    chatCompletion: () => process.env.DEBUG_NEWAPI_CHAT_COMPLETION === '1',
+    chatCompletion: () => false,
   },
   defaultHeaders: {
     'X-Client': 'LobeHub',

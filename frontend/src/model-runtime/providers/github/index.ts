@@ -47,7 +47,7 @@ export const params = {
     },
   },
   debug: {
-    chatCompletion: () => process.env.DEBUG_GITHUB_CHAT_COMPLETION === '1',
+    chatCompletion: () => false,
   },
   errorType: {
     bizError: AgentRuntimeErrorType.ProviderBizError,

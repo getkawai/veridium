@@ -18,7 +18,7 @@ export const LobeTaichuAI = createOpenAICompatibleRuntime({
     },
   },
   debug: {
-    chatCompletion: () => process.env.DEBUG_TAICHU_CHAT_COMPLETION === '1',
+    chatCompletion: () => false,
   },
   provider: ModelProvider.Taichu,
 });

@@ -53,7 +53,7 @@ export const params = {
       }),
   },
   debug: {
-    chatCompletion: () => process.env.DEBUG_HUGGINGFACE_CHAT_COMPLETION === '1',
+    chatCompletion: () => false,
   },
   models: async () => {
     let modelList: HuggingFaceRouterModelCard[] = [];

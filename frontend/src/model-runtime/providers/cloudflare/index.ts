@@ -86,7 +86,7 @@ export class LobeCloudflareAI implements LobeRuntimeAI {
 
       // Only tee when debugging
       let responseBody: ReadableStream;
-      if (process.env.DEBUG_CLOUDFLARE_CHAT_COMPLETION === '1') {
+      if (false) {
         const [prod, useForDebug] = response.body!.tee();
         debugStream(useForDebug).catch();
         responseBody = prod;

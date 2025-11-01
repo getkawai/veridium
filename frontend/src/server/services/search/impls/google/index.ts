@@ -21,11 +21,11 @@ const timeRangeMapping = {
  */
 export class GoogleImpl implements SearchServiceImpl {
   private get apiKey(): string | undefined {
-    return process.env.GOOGLE_PSE_API_KEY;
+    return 'dummy-google-pse-api-key'; // Dummy replacement for 'dummy-api-key'
   }
 
   private get engineId(): string | undefined {
-    return process.env.GOOGLE_PSE_ENGINE_ID;
+    return 'dummy-google-pse-engine-id'; // Dummy replacement for process.env.GOOGLE_PSE_ENGINE_ID
   }
 
   private get baseUrl(): string {

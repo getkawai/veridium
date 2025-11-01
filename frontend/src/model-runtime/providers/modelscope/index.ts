@@ -16,7 +16,7 @@ export interface ModelScopeModelCard {
 export const params = {
   baseURL: 'https://api-inference.modelscope.cn/v1',
   debug: {
-    chatCompletion: () => process.env.DEBUG_MODELSCOPE_CHAT_COMPLETION === '1',
+    chatCompletion: () => false,
   },
   models: async ({ client }) => {
     try {

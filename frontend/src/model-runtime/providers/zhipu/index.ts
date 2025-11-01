@@ -30,7 +30,7 @@ export const params = {
               web_search: {
                 enable: true,
                 result_sequence: 'before', // 将搜索结果返回顺序更改为 before 适配最小化 OpenAIStream 改动
-                search_engine: process.env.ZHIPU_SEARCH_ENGINE || 'search_std', // search_std, search_pro
+                search_engine: 'dummy-value' || 'search_std', // search_std, search_pro
                 search_result: true,
               },
             },
@@ -121,7 +121,7 @@ export const params = {
     },
   },
   debug: {
-    chatCompletion: () => process.env.DEBUG_ZHIPU_CHAT_COMPLETION === '1',
+    chatCompletion: () => false,
   },
   models: async ({ client }) => {
     // ref: https://open.bigmodel.cn/console/modelcenter/square

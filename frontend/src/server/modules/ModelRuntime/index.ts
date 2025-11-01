@@ -41,7 +41,7 @@ const getParamsFromPayload = (provider: string, payload: ClientSecretPayload) =>
     }
 
     case ModelProvider.Ollama: {
-      const baseURL = payload?.baseURL || process.env.OLLAMA_PROXY_URL;
+      const baseURL = payload?.baseURL || 'dummy-ollama-proxy-url'; // Dummy replacement for 'dummy-url'
 
       return { baseURL };
     }
@@ -162,16 +162,16 @@ const buildVertexOptions = (
   payload: ClientSecretPayload,
   params: Partial<GoogleGenAIOptions> = {},
 ): GoogleGenAIOptions => {
-  const rawCredentials = payload.apiKey ?? process.env.VERTEXAI_CREDENTIALS ?? '';
+  const rawCredentials = payload.apiKey ?? '' ?? ''; // Dummy replacement for process.env.VERTEXAI_CREDENTIALS
   const credentials = safeParseJSON<Record<string, string>>(rawCredentials);
 
   const projectFromParams = params.project as string | undefined;
   const projectFromCredentials = credentials?.project_id;
-  const projectFromEnv = process.env.VERTEXAI_PROJECT;
+  const projectFromEnv = 'dummy-vertexai-project'; // Dummy replacement for process.env.VERTEXAI_PROJECT
 
   const project = projectFromParams ?? projectFromCredentials ?? projectFromEnv;
   const location =
-    (params.location as string | undefined) ?? payload.vertexAIRegion ?? process.env.VERTEXAI_LOCATION ?? undefined;
+    (params.location as string | undefined) ?? payload.vertexAIRegion ?? 'dummy-vertexai-location' ?? undefined; // Dummy replacement for process.env.VERTEXAI_LOCATION
 
   const googleAuthOptions = params.googleAuthOptions ?? (credentials ? { credentials } : undefined);
 

@@ -76,7 +76,7 @@ export const params = {
   },
   createImage: createSiliconCloudImage,
   debug: {
-    chatCompletion: () => process.env.DEBUG_SILICONCLOUD_CHAT_COMPLETION === '1',
+    chatCompletion: () => false,
   },
   errorType: {
     bizError: AgentRuntimeErrorType.ProviderBizError,

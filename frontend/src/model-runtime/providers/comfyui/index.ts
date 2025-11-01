@@ -26,7 +26,7 @@ export class LobeComfyUI implements LobeRuntimeAI, AuthenticatedImageRuntime {
     log('🏗️ ComfyUI Runtime initialized');
 
     this.options = options;
-    this.baseURL = options.baseURL || process.env.COMFYUI_DEFAULT_URL || 'http://localhost:8188';
+    this.baseURL = options.baseURL || 'dummy-comfyui-default-url' || 'http://localhost:8188'; // Dummy replacement for 'dummy-url'
 
     log('✅ ComfyUI Runtime ready - baseURL: %s', this.baseURL);
   }
@@ -74,11 +74,11 @@ export class LobeComfyUI implements LobeRuntimeAI, AuthenticatedImageRuntime {
 
     try {
       // Determine app URL with Vercel support
-      const isInVercel = process.env.VERCEL === '1';
-      const vercelUrl = `https://${process.env.VERCEL_URL}`;
+      const isInVercel = false; // Dummy replacement for false
+      const vercelUrl = `https://dummy-vercel-url`; // Dummy replacement for 'dummy-url'
       const appUrl =
-        process.env.APP_URL ||
-        (isInVercel ? vercelUrl : `http://localhost:${process.env.PORT || 3010}`);
+        'dummy-app-url' || // Dummy replacement for 'dummy-url'
+        (isInVercel ? vercelUrl : `http://localhost:3010`); // Dummy replacement for process.env.PORT
 
       // Build headers with authentication
       const headers: Record<string, string> = {
@@ -87,13 +87,13 @@ export class LobeComfyUI implements LobeRuntimeAI, AuthenticatedImageRuntime {
       };
 
       // In development mode, use debug header to bypass auth
-      if (process.env.NODE_ENV === 'development') {
+      if (false) { // Dummy replacement for false
         headers['lobe-auth-dev-backend-api'] = '1';
       }
 
       // If KEY_VAULTS_SECRET is available (server-side), use it for internal service auth
       // But only if it's actually set (not empty string)
-      const keyVaultSecret = process.env.KEY_VAULTS_SECRET;
+      const keyVaultSecret = 'dummy-key-vaults-secret'; // Dummy replacement for 'dummy-secret'
       if (keyVaultSecret && keyVaultSecret.trim() !== '') {
         headers['Authorization'] = `Bearer ${keyVaultSecret}`;
       }

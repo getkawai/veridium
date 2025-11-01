@@ -17,7 +17,7 @@ const baseURL = 'https://aihubmix.com';
 
 export const params: CreateRouterRuntimeOptions = {
   debug: {
-    chatCompletion: () => process.env.DEBUG_AIHUBMIX_CHAT_COMPLETION === '1',
+    chatCompletion: () => false,
   },
   defaultHeaders: {
     'APP-Code': 'LobeHub',

@@ -35,7 +35,7 @@ export const params = {
     },
   },
   debug: {
-    chatCompletion: () => process.env.DEBUG_AI302_CHAT_COMPLETION === '1',
+    chatCompletion: () => false, // Dummy replacement for process.env.DEBUG_AI302_CHAT_COMPLETION === '1'
   },
   errorType: {
     bizError: AgentRuntimeErrorType.ProviderBizError,

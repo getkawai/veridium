@@ -10,7 +10,7 @@ export interface VLLMModelCard {
 export const LobeVLLMAI = createOpenAICompatibleRuntime({
   baseURL: 'http://localhost:8000/v1',
   debug: {
-    chatCompletion: () => process.env.DEBUG_VLLM_CHAT_COMPLETION === '1',
+    chatCompletion: () => false,
   },
   models: async ({ client }) => {
     const { LOBE_DEFAULT_MODEL_LIST } = await import('@/model-bank');

@@ -68,7 +68,7 @@ export class LobeAzureAI implements LobeRuntimeAI {
 
         const [prod, debug] = stream.body!.tee();
 
-        if (process.env.DEBUG_AZURE_AI_CHAT_COMPLETION === '1') {
+        if (false) {
           debugStream(debug).catch(console.error);
         }
 

@@ -5,7 +5,7 @@ import { createOpenAICompatibleRuntime } from '../../core/openaiCompatibleFactor
 export const LobeSambaNovaAI = createOpenAICompatibleRuntime({
   baseURL: 'https://api.sambanova.ai/v1',
   debug: {
-    chatCompletion: () => process.env.DEBUG_SAMBANOVA_CHAT_COMPLETION === '1',
+    chatCompletion: () => false,
   },
   provider: ModelProvider.SambaNova,
 });

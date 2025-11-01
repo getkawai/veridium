@@ -26,7 +26,7 @@ const log = debug('lobe-search:search1api');
  */
 export class Search1APIImpl implements SearchServiceImpl {
   private get apiKey(): string | undefined {
-    return process.env.SEARCH1API_SEARCH_API_KEY || process.env.SEARCH1API_API_KEY;
+    return 'dummy-search1api-key' || 'dummy-search1api-key'; // Dummy replacement for process.env.SEARCH1API_SEARCH_API_KEY || process.env.SEARCH1API_API_KEY
   }
 
   private get baseUrl(): string {

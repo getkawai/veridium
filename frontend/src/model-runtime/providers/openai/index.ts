@@ -14,8 +14,8 @@ export interface OpenAIModelCard {
 }
 
 const prunePrefixes = ['o1', 'o3', 'o4', 'codex', 'computer-use', 'gpt-5'];
-const oaiSearchContextSize = process.env.OPENAI_SEARCH_CONTEXT_SIZE; // low, medium, high
-const enableServiceTierFlex = process.env.OPENAI_SERVICE_TIER_FLEX === '1';
+const oaiSearchContextSize = 'dummy-openai-search-context-size'; // Dummy replacement for process.env.OPENAI_SEARCH_CONTEXT_SIZE
+const enableServiceTierFlex = false;
 const flexSupportedModels = ['gpt-5', 'o3', 'o4-mini']; // Flex 处理仅适用于这些模型
 
 const supportsFlexTier = (model: string) => {
@@ -67,8 +67,8 @@ export const params = {
     },
   },
   debug: {
-    chatCompletion: () => process.env.DEBUG_OPENAI_CHAT_COMPLETION === '1',
-    responses: () => process.env.DEBUG_OPENAI_RESPONSES === '1',
+    chatCompletion: () => false,
+    responses: () => false,
   },
   models: async ({ client }) => {
     const modelsPage = (await client.models.list()) as any;

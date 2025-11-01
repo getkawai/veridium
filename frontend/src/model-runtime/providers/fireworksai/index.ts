@@ -16,7 +16,7 @@ export interface FireworksAIModelCard {
 export const params = {
   baseURL: 'https://api.fireworks.ai/inference/v1',
   debug: {
-    chatCompletion: () => process.env.DEBUG_FIREWORKSAI_CHAT_COMPLETION === '1',
+    chatCompletion: () => false,
   },
   models: async ({ client }) => {
     const { LOBE_DEFAULT_MODEL_LIST } = await import('@/model-bank');

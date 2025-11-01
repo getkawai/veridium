@@ -14,7 +14,7 @@ const log = debug('lobe-search:Exa');
  */
 export class ExaImpl implements SearchServiceImpl {
   private get apiKey(): string | undefined {
-    return process.env.EXA_API_KEY;
+    return 'dummy-exa-api-key'; // Dummy replacement for 'dummy-api-key'
   }
 
   private get baseUrl(): string {

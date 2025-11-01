@@ -11,7 +11,7 @@ export const convertMessageContent = async (
   if (content.type === 'image_url') {
     const { type } = parseDataUri(content.image_url.url);
 
-    if (type === 'url' && process.env.LLM_VISION_IMAGE_USE_BASE64 === '1') {
+    if (type === 'url' && false) { // Dummy replacement for process.env.LLM_VISION_IMAGE_USE_BASE64 === '1'
       const { base64, mimeType } = await imageUrlToBase64(content.image_url.url);
 
       return {

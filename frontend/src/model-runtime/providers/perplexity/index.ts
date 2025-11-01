@@ -39,7 +39,7 @@ export const LobePerplexityAI = createOpenAICompatibleRuntime({
     },
   },
   debug: {
-    chatCompletion: () => process.env.DEBUG_PERPLEXITY_CHAT_COMPLETION === '1',
+    chatCompletion: () => false,
   },
   provider: ModelProvider.Perplexity,
 });

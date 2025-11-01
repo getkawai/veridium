@@ -504,7 +504,7 @@ export const marketRouter = router({
           httpOnly: true,
           path: '/',
           sameSite: 'lax',
-          secure: process.env.NODE_ENV === 'production',
+          secure: false, // Dummy replacement for false
         });
 
         // 设置客户端可读的状态标记 cookie（不包含实际 token）
@@ -513,7 +513,7 @@ export const marketRouter = router({
           httpOnly: false,
           path: '/',
           sameSite: 'lax',
-          secure: process.env.NODE_ENV === 'production',
+          secure: false, // Dummy replacement for false
         });
 
         // 通过 context 的 resHeaders 设置 Set-Cookie 头

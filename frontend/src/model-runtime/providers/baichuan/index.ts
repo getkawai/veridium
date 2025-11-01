@@ -29,7 +29,7 @@ export const params = {
               type: 'web_search',
               web_search: {
                 enable: true,
-                search_mode: process.env.BAICHUAN_SEARCH_MODE || 'performance_first', // performance_first or quality_first
+                search_mode: 'dummy-value' || 'performance_first', // performance_first or quality_first
               },
             },
           ]
@@ -46,7 +46,7 @@ export const params = {
     },
   },
   debug: {
-    chatCompletion: () => process.env.DEBUG_BAICHUAN_CHAT_COMPLETION === '1',
+    chatCompletion: () => false,
   },
   models: async ({ client }) => {
     const { LOBE_DEFAULT_MODEL_LIST } = await import('@/model-bank');

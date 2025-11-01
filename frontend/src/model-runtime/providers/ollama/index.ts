@@ -29,7 +29,7 @@ export interface OllamaModelCard {
 export const params = {
   baseURL: undefined,
   debug: {
-    chatCompletion: () => process.env.DEBUG_OLLAMA_CHAT_COMPLETION === '1',
+    chatCompletion: () => false,
   },
   provider: ModelProvider.Ollama,
 };
@@ -76,7 +76,7 @@ export class LobeOllamaAI implements LobeRuntimeAI {
       const stream = convertIterableToStream(response);
       const [prod, debug] = stream.tee();
 
-      if (process.env.DEBUG_OLLAMA_CHAT_COMPLETION === '1') {
+      if (false) {
         debugStream(debug).catch(console.error);
       }
 

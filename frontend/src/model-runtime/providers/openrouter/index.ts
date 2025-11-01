@@ -55,7 +55,7 @@ export const params = {
     },
   },
   debug: {
-    chatCompletion: () => process.env.DEBUG_OPENROUTER_CHAT_COMPLETION === '1',
+    chatCompletion: () => false,
   },
   models: async () => {
     let modelList: OpenRouterModelCard[] = [];

@@ -54,7 +54,7 @@ export const LobeMinimaxAI = createOpenAICompatibleRuntime({
   },
   createImage: createMiniMaxImage,
   debug: {
-    chatCompletion: () => process.env.DEBUG_MINIMAX_CHAT_COMPLETION === '1',
+    chatCompletion: () => false,
   },
   provider: ModelProvider.Minimax,
 });

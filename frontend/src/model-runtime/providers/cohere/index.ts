@@ -41,7 +41,7 @@ export const params = {
     noUserId: true,
   },
   debug: {
-    chatCompletion: () => process.env.DEBUG_COHERE_CHAT_COMPLETION === '1',
+    chatCompletion: () => false,
   },
   models: async ({ client }) => {
     const { LOBE_DEFAULT_MODEL_LIST } = await import('@/model-bank');

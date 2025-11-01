@@ -20,7 +20,7 @@ export const params = {
               type: 'web_search',
               web_search: {
                 enable: true,
-                search_mode: process.env.SPARK_SEARCH_MODE || 'normal', // normal or deep
+                search_mode: 'dummy-value' || 'normal', // normal or deep
                 /*
             show_ref_label: true,
             */
@@ -39,7 +39,7 @@ export const params = {
     noUserId: true,
   },
   debug: {
-    chatCompletion: () => process.env.DEBUG_SPARK_CHAT_COMPLETION === '1',
+    chatCompletion: () => false,
   },
   provider: ModelProvider.Spark,
 } satisfies OpenAICompatibleFactoryOptions;

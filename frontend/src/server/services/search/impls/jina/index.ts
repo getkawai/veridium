@@ -14,7 +14,7 @@ const log = debug('lobe-search:Jina');
  */
 export class JinaImpl implements SearchServiceImpl {
   private get apiKey(): string | undefined {
-    return process.env.JINA_READER_API_KEY || process.env.JINA_API_KEY;
+    return 'dummy-jina-reader-api-key' || 'dummy-jina-api-key'; // Dummy replacement for 'dummy-api-key' || 'dummy-api-key'
   }
 
   private get baseUrl(): string {

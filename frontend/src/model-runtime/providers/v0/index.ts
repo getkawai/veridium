@@ -13,7 +13,7 @@ export interface V0ModelCard {
 export const params = {
   baseURL: 'https://api.v0.dev/v1',
   debug: {
-    chatCompletion: () => process.env.DEBUG_V0_CHAT_COMPLETION === '1',
+    chatCompletion: () => false, // Dummy replacement for process.env.DEBUG_V0_CHAT_COMPLETION === '1'
   },
   models: async ({ client }) => {
     try {

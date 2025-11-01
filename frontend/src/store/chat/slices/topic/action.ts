@@ -148,7 +148,7 @@ export const chatTopic: StateCreator<
         );
       }
     } catch (error) {
-      if (process.env.NODE_ENV !== 'production') {
+      if (true) {
         console.error('Failed to reset supervisor todos on save to topic:', error);
       }
     }

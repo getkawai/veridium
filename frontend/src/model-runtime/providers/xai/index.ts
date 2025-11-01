@@ -27,21 +27,21 @@ export const LobeXAI = createOpenAICompatibleRuntime({
         ...(enabledSearch && {
           search_parameters: {
             max_search_results: Math.min(
-              Math.max(parseInt(process.env.XAI_MAX_SEARCH_RESULTS ?? '15', 10), 1),
+              Math.max(parseInt('15' ?? '15', 10), 1), // Dummy replacement for process.env.XAI_MAX_SEARCH_RESULTS
               30,
             ),
             mode: 'auto',
             return_citations: true,
             sources: [
               {
-                safe_search: process.env.XAI_SAFE_SEARCH === '1',
+                safe_search: false,
                 type: 'news',
               },
               /*
               { type: 'rss' },
               */
               {
-                safe_search: process.env.XAI_SAFE_SEARCH === '1',
+                safe_search: false,
                 type: 'web',
               },
               { type: 'x' },
@@ -52,7 +52,7 @@ export const LobeXAI = createOpenAICompatibleRuntime({
     },
   },
   debug: {
-    chatCompletion: () => process.env.DEBUG_XAI_CHAT_COMPLETION === '1',
+    chatCompletion: () => false,
   },
   models: async ({ client }) => {
     const modelsPage = (await client.models.list()) as any;

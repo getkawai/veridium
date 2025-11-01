@@ -108,7 +108,7 @@ export {
     QueryContext as Query
 };
 
-import { Stmt } from "./stmt.js";
+import { Stmt } from "./stmt.ts";
 
 /**
  * Prepare creates a prepared statement for later queries or executions.

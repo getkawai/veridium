@@ -182,7 +182,7 @@ export class LobeBedrockAI implements LobeRuntimeAI {
 
       const [prod, debug] = claudeStream.tee();
 
-      if (process.env.DEBUG_BEDROCK_CHAT_COMPLETION === '1') {
+      if (false) {
         debugStream(debug).catch(console.error);
       }
 
@@ -229,7 +229,7 @@ export class LobeBedrockAI implements LobeRuntimeAI {
 
       const [prod, debug] = stream.tee();
 
-      if (process.env.DEBUG_BEDROCK_CHAT_COMPLETION === '1') {
+      if (false) {
         debugStream(debug).catch(console.error);
       }
       // Respond with the stream

@@ -13,7 +13,7 @@ export interface ZeroOneModelCard {
 export const params = {
   baseURL: 'https://api.lingyiwanwu.com/v1',
   debug: {
-    chatCompletion: () => process.env.DEBUG_ZEROONE_CHAT_COMPLETION === '1',
+    chatCompletion: () => false,
   },
   models: async ({ client }) => {
     try {

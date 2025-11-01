@@ -38,7 +38,7 @@ export const params = {
     },
   },
   debug: {
-    chatCompletion: () => process.env.DEBUG_AI360_CHAT_COMPLETION === '1',
+    chatCompletion: () => false, // Dummy replacement for process.env.DEBUG_AI360_CHAT_COMPLETION === '1'
   },
   models: async ({ client }) => {
     const { LOBE_DEFAULT_MODEL_LIST } = await import('@/model-bank');

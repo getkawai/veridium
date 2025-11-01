@@ -24,7 +24,7 @@ export const params = {
     },
   },
   debug: {
-    chatCompletion: () => process.env.DEBUG_NEBIUS_CHAT_COMPLETION === '1',
+    chatCompletion: () => false,
   },
   models: async ({ client }) => {
     const base = (client as any).baseURL || 'https://api.studio.nebius.com/v1';

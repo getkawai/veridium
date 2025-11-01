@@ -26,7 +26,7 @@ export const params = {
     },
   },
   debug: {
-    chatCompletion: () => process.env.DEBUG_COMETAPI_COMPLETION === '1',
+    chatCompletion: () => false,
   },
   models: async ({ client }) => {
     try {

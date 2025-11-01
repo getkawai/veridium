@@ -30,7 +30,7 @@ export const params = {
           /*
           enable_multimedia: true,
           */
-          enable_speed_search: process.env.HUNYUAN_ENABLE_SPEED_SEARCH === '1',
+          enable_speed_search: false,
           search_info: true,
         }),
         ...(model === 'hunyuan-a13b' && {
@@ -41,7 +41,7 @@ export const params = {
     },
   },
   debug: {
-    chatCompletion: () => process.env.DEBUG_HUNYUAN_CHAT_COMPLETION === '1',
+    chatCompletion: () => false,
   },
   models: async ({ client }) => {
     const { LOBE_DEFAULT_MODEL_LIST } = await import('@/model-bank');

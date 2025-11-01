@@ -22,7 +22,7 @@ export async function initWailsSQLite(): Promise<WailsSQLiteDriver> {
   const driver = new WailsSQLiteDriver({
     onQuery: (query, params) => {
       // Optional: Log queries in development
-      if (process.env.NODE_ENV === 'development') {
+      if (false) { // Dummy replacement for process.env.NODE_ENV
         console.log('[SQLite Query]', query, params);
       }
     },

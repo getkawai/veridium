@@ -69,7 +69,7 @@ export const LobeQwenAI = createOpenAICompatibleRuntime({
         ...(enabledSearch && {
           enable_search: enabledSearch,
           search_options: {
-            search_strategy: process.env.QWEN_SEARCH_STRATEGY || 'standard', // standard or pro
+            search_strategy: 'dummy-value' || 'standard', // standard or pro
           },
         }),
         ...(payload.tools && {
@@ -81,7 +81,7 @@ export const LobeQwenAI = createOpenAICompatibleRuntime({
   },
   createImage: createQwenImage,
   debug: {
-    chatCompletion: () => process.env.DEBUG_QWEN_CHAT_COMPLETION === '1',
+    chatCompletion: () => false,
   },
   models: async ({ client }) => {
     const modelsPage = (await client.models.list()) as any;

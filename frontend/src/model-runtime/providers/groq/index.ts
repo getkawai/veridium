@@ -81,7 +81,7 @@ export const params = {
     },
   },
   debug: {
-    chatCompletion: () => process.env.DEBUG_GROQ_CHAT_COMPLETION === '1',
+    chatCompletion: () => false,
   },
   generateObject: {
     handleSchema: filterAdvancedFields,

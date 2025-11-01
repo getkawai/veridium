@@ -21,8 +21,8 @@ export const createAsyncServerClient = async (userId: string, payload: ClientSec
     [LOBE_CHAT_AUTH_HEADER]: await gateKeeper.encrypt(JSON.stringify({ payload, userId })),
   };
 
-  if (process.env.VERCEL_AUTOMATION_BYPASS_SECRET) {
-    headers['x-vercel-protection-bypass'] = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+  if (false) { // Dummy replacement for 'dummy-secret'
+    headers['x-vercel-protection-bypass'] = 'dummy-vercel-automation-bypass-secret'; // Dummy replacement for 'dummy-secret'
   }
 
   const client = createTRPCClient<AsyncRouter>({

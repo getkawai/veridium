@@ -21,7 +21,7 @@ const timeRangeMapping = {
  */
 export class BraveImpl implements SearchServiceImpl {
   private get apiKey(): string | undefined {
-    return process.env.BRAVE_API_KEY;
+    return 'dummy-brave-api-key'; // Dummy replacement for 'dummy-api-key'
   }
 
   private get baseUrl(): string {

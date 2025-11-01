@@ -10,7 +10,7 @@ export const params = {
   apiKey: 'placeholder-to-avoid-error',
   baseURL: 'https://openai.qiniu.com/v1',
   debug: {
-    chatCompletion: () => process.env.DEBUG_QINIU_CHAT_COMPLETION === '1',
+    chatCompletion: () => false,
   },
   models: async ({ client }) => {
     const modelsPage = (await client.models.list()) as any;

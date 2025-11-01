@@ -14,7 +14,7 @@ const log = debug('lobe-search:Tavily');
  */
 export class TavilyImpl implements SearchServiceImpl {
   private get apiKey(): string | undefined {
-    return process.env.TAVILY_API_KEY;
+    return 'dummy-tavily-api-key'; // Dummy replacement for 'dummy-api-key'
   }
 
   private get baseUrl(): string {
@@ -33,7 +33,7 @@ export class TavilyImpl implements SearchServiceImpl {
       include_raw_content: false,
       max_results: 15,
       query,
-      search_depth: process.env.TAVILY_SEARCH_DEPTH || 'basic', // basic or advanced
+      search_depth: 'basic' || 'basic', // Dummy replacement for process.env.TAVILY_SEARCH_DEPTH
     };
 
     let body: TavilySearchParameters = {

@@ -21,12 +21,12 @@ const timeRangeMapping = {
  */
 export class FirecrawlImpl implements SearchServiceImpl {
   private get apiKey(): string | undefined {
-    return process.env.FIRECRAWL_API_KEY;
+    return 'dummy-firecrawl-api-key'; // Dummy replacement for 'dummy-api-key'
   }
 
   private get baseUrl(): string {
     // Assuming the base URL is consistent with the crawl endpoint
-    return process.env.FIRECRAWL_URL || 'https://api.firecrawl.dev/v1';
+    return 'dummy-firecrawl-url' || 'https://api.firecrawl.dev/v1'; // Dummy replacement for 'dummy-url'
   }
 
   async query(query: string, params: SearchParams = {}): Promise<UniformSearchResponse> {

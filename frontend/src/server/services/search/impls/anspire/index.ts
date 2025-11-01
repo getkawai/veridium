@@ -14,7 +14,7 @@ const log = debug('lobe-search:Anspire');
  */
 export class AnspireImpl implements SearchServiceImpl {
   private get apiKey(): string | undefined {
-    return process.env.ANSPIRE_API_KEY;
+    return 'dummy-anspire-api-key'; // Dummy replacement for 'dummy-api-key'
   }
 
   private get baseUrl(): string {

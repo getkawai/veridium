@@ -13,7 +13,7 @@ export const LobeAi21AI = createOpenAICompatibleRuntime({
     },
   },
   debug: {
-    chatCompletion: () => process.env.DEBUG_AI21_CHAT_COMPLETION === '1',
+    chatCompletion: () => false, // Dummy replacement for process.env.DEBUG_AI21_CHAT_COMPLETION === '1'
   },
   provider: ModelProvider.Ai21,
 });

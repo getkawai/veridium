@@ -13,7 +13,7 @@ export interface DeepSeekModelCard {
 export const params = {
   baseURL: 'https://api.deepseek.com/v1',
   debug: {
-    chatCompletion: () => process.env.DEBUG_DEEPSEEK_CHAT_COMPLETION === '1',
+    chatCompletion: () => false,
   },
   // Deepseek don't support json format well
   // use Tools calling to simulate

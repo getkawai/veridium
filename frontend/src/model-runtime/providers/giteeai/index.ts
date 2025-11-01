@@ -13,7 +13,7 @@ export interface GiteeAIModelCard {
 export const params = {
   baseURL: 'https://ai.gitee.com/v1',
   debug: {
-    chatCompletion: () => process.env.DEBUG_GITEE_AI_CHAT_COMPLETION === '1',
+    chatCompletion: () => false,
   },
   models: async ({ client }) => {
     try {

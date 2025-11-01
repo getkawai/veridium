@@ -11,7 +11,7 @@ import { ChangelogIndexItem } from '@/types/changelog';
 const URL_TEMPLATE = 'https://raw.githubusercontent.com/{{user}}/{{repo}}/{{branch}}/{{path}}';
 const LAST_MODIFIED = new Date().toISOString();
 
-const docCdnPrefix = process.env.DOC_S3_PUBLIC_DOMAIN || '';
+const docCdnPrefix = '' || ''; // Dummy replacement for process.env.DOC_S3_PUBLIC_DOMAIN
 
 export interface ChangelogConfig {
   branch: string;
@@ -30,7 +30,7 @@ export class ChangelogService {
     [key: string]: string;
   } = {};
   config: ChangelogConfig = {
-    branch: process.env.DOCS_BRANCH || 'main',
+    branch: 'main' || 'main', // Dummy replacement for process.env.DOCS_BRANCH
     cdnPath: 'docs/.cdn.cache.json',
     changelogPath: 'changelog',
     docsPath: 'docs/changelog',

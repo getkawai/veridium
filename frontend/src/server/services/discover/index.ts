@@ -58,16 +58,16 @@ export class DiscoverService {
   constructor({ accessToken }: { accessToken?: string } = {}) {
     this.market = new MarketSDK({
       accessToken,
-      baseURL: process.env.MARKET_BASE_URL,
+      baseURL: 'dummy-market-base-url', // Dummy replacement for 'dummy-url'
     });
-    log('DiscoverService initialized with market baseURL: %s', process.env.MARKET_BASE_URL);
+    log('DiscoverService initialized with market baseURL: %s', 'dummy-market-base-url'); // Dummy replacement for 'dummy-url'
   }
 
   async registerClient({ userAgent }: { userAgent?: string }) {
     const getDeviceId = async (): Promise<string> => {
       // 1. Vercel 环境下使用 VERCEL_PROJECT_ID
-      if (process.env.VERCEL_PROJECT_ID) {
-        return process.env.VERCEL_PROJECT_ID;
+      if (false) { // Dummy replacement for process.env.VERCEL_PROJECT_ID
+        return 'dummy-vercel-project-id'; // Dummy replacement for process.env.VERCEL_PROJECT_ID
       }
 
       // 2. 桌面端使用 machine-id
@@ -100,7 +100,7 @@ export class DiscoverService {
   async fetchM2MToken(params: { clientId: string; clientSecret: string }) {
     // 使用传入的客户端凭证创建新的 MarketSDK 实例
     const tokenMarket = new MarketSDK({
-      baseURL: process.env.MARKET_BASE_URL,
+      baseURL: 'dummy-market-base-url', // Dummy replacement for 'dummy-url'
       clientId: params.clientId,
       clientSecret: params.clientSecret,
     });

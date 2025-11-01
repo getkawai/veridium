@@ -14,7 +14,7 @@ const log = debug('lobe-search:Kagi');
  */
 export class KagiImpl implements SearchServiceImpl {
   private get apiKey(): string | undefined {
-    return process.env.KAGI_API_KEY;
+    return 'dummy-kagi-api-key'; // Dummy replacement for 'dummy-api-key'
   }
 
   private get baseUrl(): string {
