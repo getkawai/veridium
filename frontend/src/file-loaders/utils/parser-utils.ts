@@ -1,4 +1,4 @@
-import { ExtractFiles as WailsExtractFiles } from '@/bindings/github.com/kawai-network/veridium/zipservice';
+import { ExtractFiles as WailsExtractFiles } from '@@/github.com/kawai-network/veridium/zipservice';
 
 // Define basic error messages
 const ERRORMSG = {

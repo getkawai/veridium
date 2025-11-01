@@ -74,7 +74,7 @@ export class DiscoverService {
       if (isDesktop) {
         try {
           // 使用 machine ID service
-          const { GetID } = await import('@/bindings/github.com/kawai-network/veridium/machineidservice');
+          const { GetID } = await import('@@/github.com/kawai-network/veridium/machineidservice');
           return await GetID();
         } catch (error) {
           console.error('Failed to get machine-id:', error);

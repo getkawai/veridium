@@ -1,5 +1,5 @@
 import debug from 'debug';
-import { LoadFile as WailsLoadFile } from '@/bindings/github.com/kawai-network/veridium/loadfileservice';
+import { LoadFile as WailsLoadFile } from '@@/github.com/kawai-network/veridium/loadfileservice';
 
 import { FileDocument, FileMetadata } from './types';
 

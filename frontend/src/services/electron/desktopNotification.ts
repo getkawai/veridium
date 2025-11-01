@@ -2,7 +2,7 @@ import {
   NotificationService,
   NotificationOptions,
   NotificationCategory,
-} from '@/bindings/github.com/wailsapp/wails/v3/pkg/services/notifications';
+} from '@@/github.com/wailsapp/wails/v3/pkg/services/notifications';
 
 export interface ShowDesktopNotificationParams {
   id?: string;

@@ -11,7 +11,7 @@ import { globalService } from '@/services/global';
 import type { SystemStatus } from '@/store/global/initialState';
 import { LocaleMode } from '@/types/locale';
 import { setCookie } from '@/utils/client/cookie';
-import { switchLang } from '@/utils/client/switchLang';
+// import { switchLang } from '@/utils/client/switchLang';
 import { merge } from '@/utils/merge';
 import { setNamespace } from '@/utils/storeDebug';
 
@@ -82,7 +82,7 @@ export const generalActionSlice: StateCreator<
   switchLocale: (locale, { skipBroadcast } = {}) => {
     get().updateSystemStatus({ language: locale });
 
-    switchLang(locale);
+    // switchLang(locale);
 
     if (isDesktop && !skipBroadcast) {
       (async () => {

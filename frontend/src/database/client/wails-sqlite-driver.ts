@@ -1,5 +1,5 @@
-import { Query as WailsQuery, Execute as WailsExecute } from '@/bindings/github.com/wailsapp/wails/v3/pkg/services/sqlite/sqliteservice';
-import type { Row, Rows } from '@/bindings/github.com/wailsapp/wails/v3/pkg/services/sqlite/models';
+import { Query as WailsQuery, Execute as WailsExecute } from '@@/github.com/wailsapp/wails/v3/pkg/services/sqlite/sqliteservice';
+import type { Row, Rows } from '@@/github.com/wailsapp/wails/v3/pkg/services/sqlite/models';
 
 /**
  * Custom Drizzle driver for Wails SQLite

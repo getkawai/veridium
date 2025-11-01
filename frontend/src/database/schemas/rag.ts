@@ -7,7 +7,7 @@ import {
   text,
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
-import { randomUUID } from 'crypto';
+// Use browser-compatible crypto.randomUUID
 
 import { timestamps } from './_helpers';
 import { files } from './file';
@@ -18,7 +18,7 @@ export const chunks = sqliteTable(
   {
     id: text('id')
       .primaryKey()
-      .$defaultFn(() => randomUUID()),
+      .$defaultFn(() => crypto.randomUUID()),
     text: text('text'),
     abstract: text('abstract'),
     metadata: text('metadata', { mode: 'json' }),
@@ -43,7 +43,7 @@ export const unstructuredChunks = sqliteTable(
   {
     id: text('id')
       .primaryKey()
-      .$defaultFn(() => randomUUID()),
+      .$defaultFn(() => crypto.randomUUID()),
     text: text('text'),
     metadata: text('metadata', { mode: 'json' }),
     index: integer('index'),
@@ -74,7 +74,7 @@ export const embeddings = sqliteTable(
   {
     id: text('id')
       .primaryKey()
-      .$defaultFn(() => randomUUID()),
+      .$defaultFn(() => crypto.randomUUID()),
     chunkId: text('chunk_id')
       .references(() => chunks.id, { onDelete: 'cascade' })
       .unique(),

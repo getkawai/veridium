@@ -1,7 +1,7 @@
 //@ts-check
 
 //@ts-ignore: Unused imports
-import * as $models from "./models.js";
+import * as $models from "./models";
 
 const execSymbol = Symbol("exec"),
       querySymbol = Symbol("query"),

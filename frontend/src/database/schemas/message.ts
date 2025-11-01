@@ -9,7 +9,7 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
-import { randomUUID } from 'crypto';
+// Use browser-compatible crypto.randomUUID
 
 import { idGenerator } from '../utils/idGenerator';
 import { timestamps, varchar255 } from './_helpers';
@@ -229,7 +229,7 @@ export const messagesFiles = sqliteTable(
 export const messageQueries = sqliteTable(
   'message_queries',
   {
-    id: text('id').$defaultFn(() => randomUUID()).primaryKey(),
+    id: text('id').$defaultFn(() => crypto.randomUUID()).primaryKey(),
     messageId: text('message_id')
       .references(() => messages.id, { onDelete: 'cascade' })
       .notNull(),

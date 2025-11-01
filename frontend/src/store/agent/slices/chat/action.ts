@@ -7,7 +7,7 @@ import { StateCreator } from 'zustand/vanilla';
 import { MESSAGE_CANCEL_FLAT } from '@/const/message';
 import { INBOX_SESSION_ID } from '@/const/session';
 import { useClientDataSWR, useOnlyFetchOnceSWR } from '@/libs/swr';
-import { agentService } from '@/services/agent';
+// import { agentService } from '@/services/agent';
 import { sessionService } from '@/services/session';
 import { AgentState } from '@/store/agent/slices/chat/initialState';
 import { useSessionStore } from '@/store/session';
@@ -70,7 +70,7 @@ export const createChatSlice: StateCreator<
     if (!activeAgentId) return;
     if (fileIds.length === 0) return;
 
-    await agentService.createAgentFiles(activeAgentId, fileIds, enabled);
+    // await agentService.createAgentFiles(activeAgentId, fileIds, enabled);
     await internal_refreshAgentConfig(get().activeId);
     await internal_refreshAgentKnowledge();
   },
@@ -78,7 +78,7 @@ export const createChatSlice: StateCreator<
     const { activeAgentId, internal_refreshAgentConfig, internal_refreshAgentKnowledge } = get();
     if (!activeAgentId) return;
 
-    await agentService.createAgentKnowledgeBase(activeAgentId, knowledgeBaseId, true);
+    // await agentService.createAgentKnowledgeBase(activeAgentId, knowledgeBaseId, true);
     await internal_refreshAgentConfig(get().activeId);
     await internal_refreshAgentKnowledge();
   },
@@ -86,7 +86,7 @@ export const createChatSlice: StateCreator<
     const { activeAgentId, internal_refreshAgentConfig, internal_refreshAgentKnowledge } = get();
     if (!activeAgentId) return;
 
-    await agentService.deleteAgentFile(activeAgentId, fileId);
+    // await agentService.deleteAgentFile(activeAgentId, fileId);
     await internal_refreshAgentConfig(get().activeId);
     await internal_refreshAgentKnowledge();
   },
@@ -94,7 +94,7 @@ export const createChatSlice: StateCreator<
     const { activeAgentId, internal_refreshAgentConfig, internal_refreshAgentKnowledge } = get();
     if (!activeAgentId) return;
 
-    await agentService.deleteAgentKnowledgeBase(activeAgentId, knowledgeBaseId);
+    // await agentService.deleteAgentKnowledgeBase(activeAgentId, knowledgeBaseId);
     await internal_refreshAgentConfig(get().activeId);
     await internal_refreshAgentKnowledge();
   },
@@ -106,7 +106,7 @@ export const createChatSlice: StateCreator<
     const { activeAgentId, internal_refreshAgentConfig } = get();
     if (!activeAgentId) return;
 
-    await agentService.toggleFile(activeAgentId, id, open);
+    // await agentService.toggleFile(activeAgentId, id, open);
 
     await internal_refreshAgentConfig(get().activeId);
   },
@@ -114,7 +114,7 @@ export const createChatSlice: StateCreator<
     const { activeAgentId, internal_refreshAgentConfig } = get();
     if (!activeAgentId) return;
 
-    await agentService.toggleKnowledgeBase(activeAgentId, id, open);
+    // await agentService.toggleKnowledgeBase(activeAgentId, id, open);
 
     await internal_refreshAgentConfig(get().activeId);
   },
@@ -183,7 +183,8 @@ export const createChatSlice: StateCreator<
   useFetchFilesAndKnowledgeBases: () => {
     return useClientDataSWR<KnowledgeItem[]>(
       [FETCH_AGENT_KNOWLEDGE_KEY, get().activeAgentId],
-      ([, id]: string[]) => agentService.getFilesAndKnowledgeBases(id),
+      // ([, id]: string[]) => agentService.getFilesAndKnowledgeBases(id),
+      ([, id]: string[]) => Promise.resolve([]),
       {
         fallbackData: [],
         suspense: true,

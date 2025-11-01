@@ -2,7 +2,7 @@ import isEqual from 'fast-deep-equal';
 import { useEffect } from 'react';
 import { useHotkeysContext } from 'react-hotkeys-hook';
 
-import { useSend } from '@/app/[variants]/(main)/chat/(workspace)/@conversation/features/ChatInput/useSend';
+import { useSend } from '@/layout/Chat/(workspace)/@conversation/features/ChatInput/useSend';
 import { useClearCurrentMessages } from '@/features/ChatInput/ActionBar/Clear';
 import { useOpenChatSettings } from '@/hooks/useInterceptingRoutes';
 import { useActionSWR } from '@/libs/swr';

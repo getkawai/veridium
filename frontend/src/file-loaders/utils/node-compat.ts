@@ -5,19 +5,19 @@ import {
   ReadFileSync as WailsReadFile,
   StatSync as WailsStat,
   FileExistsSync as WailsFileExists,
-} from '@/bindings/github.com/kawai-network/veridium/nodefsservice';
+} from '@@/github.com/kawai-network/veridium/nodefsservice';
 
 import {
   Extname as WailsExtname,
   Basename as WailsBasename,
   Dirname as WailsDirname,
-} from '@/bindings/github.com/kawai-network/veridium/nodepathservice';
+} from '@@/github.com/kawai-network/veridium/nodepathservice';
 
 import {
   Alloc as WailsBufferAlloc,
   From as WailsBufferFrom,
   IsBuffer as WailsBufferIsBuffer,
-} from '@/bindings/github.com/kawai-network/veridium/nodebufferservice';
+} from '@@/github.com/kawai-network/veridium/nodebufferservice';
 
 // File System APIs - Synchronous compatibility layer
 export class fs {

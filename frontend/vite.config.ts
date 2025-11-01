@@ -9,10 +9,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 export default defineConfig({
   root: '.',
   plugins: [react()],
+  worker: {
+    format: 'es'
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
-      "@/bindings/*": path.resolve(__dirname, 'bindings/*')
+      '@@': path.resolve(__dirname, 'bindings')
     },
     extensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
   },

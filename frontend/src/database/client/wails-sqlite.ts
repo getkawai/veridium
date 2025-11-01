@@ -1,4 +1,4 @@
-import { Open as OpenSQLite, Close as CloseSQLite } from '@/bindings/github.com/wailsapp/wails/v3/pkg/services/sqlite/sqliteservice';
+import { Open as OpenSQLite, Close as CloseSQLite } from '@@/github.com/wailsapp/wails/v3/pkg/services/sqlite/sqliteservice';
 
 import { WailsSQLiteDriver } from './wails-sqlite-driver';
 
