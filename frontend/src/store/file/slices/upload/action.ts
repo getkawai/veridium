@@ -1,12 +1,7 @@
-import { t } from 'i18next';
-import { sha256 } from 'js-sha256';
+// import { sha256 } from 'js-sha256';
 import { StateCreator } from 'zustand/vanilla';
 
-import { message } from '@/components/AntdStaticMethods';
-import { LOBE_CHAT_CLOUD } from '@/const/branding';
-import { fileService } from '@/services/file';
-import { uploadService } from '@/services/upload';
-import { FileMetadata, UploadFileItem } from '@/types/files';
+import { UploadFileItem } from '@/types/files';
 import { getImageDimensions } from '@/utils/client/imageDimensions';
 
 import { FileStore } from '../../store';
@@ -69,101 +64,48 @@ export const createFileUploadSlice: StateCreator<
     // Extract image dimensions from base64 data
     const dimensions = await getImageDimensions(base64);
 
-    const { metadata, fileType, size, hash } = await uploadService.uploadBase64ToS3(base64);
-
-    const res = await fileService.createFile({
-      fileType,
-      hash,
-      metadata,
-      name: metadata.filename,
-      size: size,
-      url: metadata.path,
-    });
-    return { ...res, dimensions, filename: metadata.filename };
+    // Mock response for now
+    const mockId = `mock-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return {
+      id: mockId,
+      url: `data:image/png;base64,${base64}`,
+      dimensions,
+      filename: `mock-image-${mockId}.png`
+    };
   },
   uploadWithProgress: async ({ file, onStatusUpdate, knowledgeBaseId, skipCheckFileType }) => {
-    const fileArrayBuffer = await file.arrayBuffer();
-
     // 1. extract image dimensions if applicable
     const dimensions = await getImageDimensions(file);
 
-    // 2. check file hash
-    const hash = sha256(fileArrayBuffer);
+    // Mock response for now
+    const mockId = `mock-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-    const checkStatus = await fileService.checkFileHash(hash);
-    let metadata: FileMetadata;
-
-    // 3. if file exist, just skip upload
-    if (checkStatus.isExist) {
-      metadata = checkStatus.metadata as FileMetadata;
-      onStatusUpdate?.({
-        id: file.name,
-        type: 'updateFile',
-        value: { status: 'processing', uploadState: { progress: 100, restTime: 0, speed: 0 } },
-      });
-    }
-    // 3. if file don't exist, need upload files
-    else {
-      const { data, success } = await uploadService.uploadFileToS3(file, {
-        onNotSupported: () => {
-          onStatusUpdate?.({ id: file.name, type: 'removeFile' });
-          message.info({
-            content: t('upload.fileOnlySupportInServerMode', {
-              cloud: LOBE_CHAT_CLOUD,
-              ext: file.name.split('.').pop(),
-              ns: 'error',
-            }),
-            duration: 5,
-          });
-        },
-        onProgress: (status, upload) => {
-          onStatusUpdate?.({
-            id: file.name,
-            type: 'updateFile',
-            value: { status: status === 'success' ? 'processing' : status, uploadState: upload },
-          });
-        },
-        skipCheckFileType,
-      });
-      if (!success) return;
-
-      metadata = data;
-    }
-
-    // 4. use more powerful file type detector to get file type
-    let fileType = file.type;
-
-    if (!file.type) {
-      const { fileTypeFromBuffer } = await import('file-type');
-
-      const type = await fileTypeFromBuffer(fileArrayBuffer);
-      fileType = type?.mime || 'text/plain';
-    }
-
-    // 5. create file to db
-    const data = await fileService.createFile(
-      {
-        fileType,
-        hash,
-        metadata,
-        name: file.name,
-        size: file.size,
-        url: metadata.path || checkStatus.url,
-      },
-      knowledgeBaseId,
-    );
-
+    // Simulate upload progress
     onStatusUpdate?.({
       id: file.name,
       type: 'updateFile',
-      value: {
-        fileUrl: data.url,
-        id: data.id,
-        status: 'success',
-        uploadState: { progress: 100, restTime: 0, speed: 0 },
-      },
+      value: { status: 'uploading', uploadState: { progress: 50, restTime: 1, speed: 1000 } },
     });
 
-    return { ...data, dimensions, filename: file.name };
+    // Simulate completion
+    setTimeout(() => {
+      onStatusUpdate?.({
+        id: file.name,
+        type: 'updateFile',
+        value: {
+          fileUrl: `mock://file/${mockId}`,
+          id: mockId,
+          status: 'success',
+          uploadState: { progress: 100, restTime: 0, speed: 0 },
+        },
+      });
+    }, 100);
+
+    return {
+      id: mockId,
+      url: `mock://file/${mockId}`,
+      dimensions,
+      filename: file.name
+    };
   },
 });
