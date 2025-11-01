@@ -9,8 +9,7 @@ import { SWRResponse } from 'swr';
 import { StateCreator } from 'zustand/vanilla';
 
 import { useClientDataSWR } from '@/libs/swr';
-import { fileService } from '@/services/file';
-import { pythonService } from '@/services/python';
+// import { pythonService } from '@/services/python';
 import { chatSelectors } from '@/store/chat/selectors';
 import { ChatStore } from '@/store/chat/store';
 import { useFileStore } from '@/store/file';
@@ -46,45 +45,40 @@ export const codeInterpreterSlice: StateCreator<
       uploadInterpreterFiles,
     } = get();
 
+    // Dummy implementation for UI focus
+    console.log('Running Python code:', params.code, 'with packages:', params.packages);
+
     toggleInterpreterExecuting(id, true);
 
-    // TODO: 应该只下载 AI 用到的文件
-    const files: File[] = [];
-    for (const message of chatSelectors.mainDisplayChats(get())) {
-      for (const file of message.fileList ?? []) {
-        const blob = await fetch(file.url).then((res) => res.blob());
-        files.push(new File([blob], file.name));
-      }
-      for (const image of message.imageList ?? []) {
-        const blob = await fetch(image.url).then((res) => res.blob());
-        files.push(new File([blob], image.alt));
-      }
-      for (const tool of message.tools ?? []) {
-        if (tool.identifier === CodeInterpreterIdentifier) {
-          const message = chatSelectors.getMessageByToolCallId(tool.id)(get());
-          if (message?.content) {
-            const content = JSON.parse(message.content) as CodeInterpreterResponse;
-            for (const file of content.files ?? []) {
-              const item = await fileService.getFile(file.fileId!);
-              const blob = await fetch(item.url).then((res) => res.blob());
-              files.push(new File([blob], file.filename));
-            }
-          }
-        }
-      }
-    }
+    // Simulate async execution time
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     try {
-      const result = await pythonService.runPython(params.code, params.packages, files);
-      if (result?.files) {
-        await internal_updateMessageContent(id, JSON.stringify(result));
-        await uploadInterpreterFiles(id, result.files);
-      } else {
-        await internal_updateMessageContent(id, JSON.stringify(result));
-      }
+      // Mock Python execution result
+      const mockResult: CodeInterpreterResponse = {
+        output: `Mock execution result for: ${params.code.substring(0, 50)}...`,
+        executionTime: 1.5,
+        files: [
+          {
+            filename: 'result.png',
+            data: new File(['mock image data'], 'result.png', { type: 'image/png' }),
+            fileId: undefined,
+            previewUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+          },
+          {
+            filename: 'data.csv',
+            data: new File(['col1,col2\n1,2\n3,4'], 'data.csv', { type: 'text/csv' }),
+            fileId: undefined,
+            previewUrl: undefined,
+          },
+        ],
+      };
+
+      await internal_updateMessageContent(id, JSON.stringify(mockResult));
+      await uploadInterpreterFiles(id, mockResult.files);
+
     } catch (error) {
       updatePluginState(id, { error });
-      // 如果调用过程中出现了错误，不要触发 AI 消息
       return;
     } finally {
       toggleInterpreterExecuting(id, false);
@@ -119,37 +113,49 @@ export const codeInterpreterSlice: StateCreator<
   uploadInterpreterFiles: async (id: string, files: CodeInterpreterFileItem[]) => {
     const { updateInterpreterFileItem } = get();
 
+    // Dummy implementation for UI focus
+    console.log('Uploading interpreter files:', files.map(f => f.filename));
+
     if (!files) return;
 
-    await pMap(files, async (file, index) => {
+    // Simulate file uploads with mock IDs
+    await Promise.all(files.map(async (file, index) => {
       if (!file.data) return;
 
-      try {
-        const uploadResult = await useFileStore.getState().uploadWithProgress({
-          file: file.data,
-          skipCheckFileType: true,
-        });
+      // Simulate async upload delay
+      await new Promise(resolve => setTimeout(resolve, 500));
 
-        if (uploadResult?.id) {
-          await updateInterpreterFileItem(id, (draft) => {
-            if (draft.files?.[index]) {
-              draft.files[index].fileId = uploadResult.id;
-              draft.files[index].previewUrl = undefined;
-              draft.files[index].data = undefined;
-            }
-          });
+      const mockUploadResult = {
+        id: `mock-interpreter-${file.filename}-${Date.now()}`,
+        url: `mock://file/${file.filename}`,
+      };
+
+      await updateInterpreterFileItem(id, (draft) => {
+        if (draft.files?.[index]) {
+          draft.files[index].fileId = mockUploadResult.id;
+          draft.files[index].previewUrl = undefined;
+          draft.files[index].data = undefined;
         }
-      } catch (error) {
-        console.error('Failed to upload CodeInterpreter file:', error);
-      }
-    });
+      });
+    }));
   },
 
   useFetchInterpreterFileItem: (id) =>
     useClientDataSWR(id ? [SWR_FETCH_INTERPRETER_FILE_KEY, id] : null, async () => {
       if (!id) return null;
 
-      const item = await fileService.getFile(id);
+      // Dummy implementation for UI focus
+      console.log('Fetching interpreter file item:', id);
+
+      const mockItem = {
+        id,
+        name: `Mock Interpreter File ${id.slice(0, 8)}`,
+        type: 'application/octet-stream',
+        size: 1024000,
+        url: `mock://interpreter-file/${id}`,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
 
       set(
         produce((draft) => {
@@ -158,12 +164,12 @@ export const codeInterpreterSlice: StateCreator<
           }
           if (draft.codeInterpreterFileMap[id]) return;
 
-          draft.codeInterpreterFileMap[id] = item;
+          draft.codeInterpreterFileMap[id] = mockItem;
         }),
         false,
         n('useFetchInterpreterFileItem'),
       );
 
-      return item;
+      return mockItem;
     }),
 });

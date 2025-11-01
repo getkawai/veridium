@@ -24,7 +24,6 @@ import { StateCreator } from 'zustand/vanilla';
 import { useClientDataSWR } from '@/libs/swr';
 import { messageService } from '@/services/message';
 import { topicService } from '@/services/topic';
-import { traceService } from '@/services/trace';
 import { ChatStore } from '@/store/chat/store';
 import { messageMapKey } from '@/store/chat/utils/messageMapKey';
 import { useSessionStore } from '@/store/session';
@@ -480,17 +479,6 @@ export const chatMessage: StateCreator<
   },
   internal_traceMessage: async (id, payload) => {
     // tracing the diff of update
-    const message = chatSelectors.getMessageById(id)(get());
-    if (!message) return;
-
-    const traceId = message?.traceId;
-    const observationId = message?.observationId;
-
-    if (traceId && message?.role === 'assistant') {
-      traceService
-        .traceEvent({ traceId, observationId, content: message.content, ...payload })
-        .catch();
-    }
   },
 
   // ----- Loading ------- //

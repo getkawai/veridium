@@ -1,7 +1,7 @@
-import { t } from 'i18next';
+// import { t } from 'i18next';
 import { StateCreator } from 'zustand/vanilla';
 
-import { notification } from '@/components/AntdStaticMethods';
+// import { notification } from '@/components/AntdStaticMethods';
 import { FILE_UPLOAD_BLACKLIST } from '@/const/file';
 // import { ragService } from '@/services/rag';
 import {
@@ -14,6 +14,7 @@ import { isChunkingUnsupported } from '@/utils/isChunkingUnsupported';
 import { setNamespace } from '@/utils/storeDebug';
 
 import { FileStore } from '../../store';
+import { AsyncTaskStatus } from '@/types/asyncTask';
 
 const n = setNamespace('chat');
 
@@ -70,9 +71,9 @@ export const createFileSlice: StateCreator<
       updatedAt: new Date(),
       chunkCount: 10,
       chunkingError: null,
-      chunkingStatus: 'success',
+      chunkingStatus: AsyncTaskStatus.Success,
       embeddingError: null,
-      embeddingStatus: 'success',
+      embeddingStatus: AsyncTaskStatus.Success,
       finishEmbedding: true,
     };
 

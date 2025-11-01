@@ -1,7 +1,7 @@
 import type { PartialDeep } from 'type-fest';
 
 import { DEFAULT_AGENT_CONFIG } from '@/const/settings';
-import { AgentSettingsInstance } from '@/features/AgentSetting';
+import { AgentSettingsInstance } from '@/features/AgentSetting/hooks/useAgentSettings';
 import { LobeAgentConfig } from '@/types/agent';
 
 export interface AgentState {
