@@ -14,9 +14,7 @@ import isEqual from 'fast-deep-equal';
 import { t } from 'i18next';
 import { StateCreator } from 'zustand/vanilla';
 
-import { chatService } from '@/services/chat';
-import { mcpService } from '@/services/mcp';
-import { messageService } from '@/services/message';
+// import { mcpService } from '@/services/mcp';
 import { ChatStore } from '@/store/chat/store';
 import { useToolStore } from '@/store/tool';
 import { pluginSelectors } from '@/store/tool/selectors';
@@ -91,16 +89,14 @@ export const chatPlugin: StateCreator<
   ChatPluginAction
 > = (set, get) => ({
   createAssistantMessageByPlugin: async (content, parentId) => {
-    const newMessage: CreateMessageParams = {
-      content,
-      parentId,
-      role: 'assistant',
-      sessionId: get().activeId,
-      topicId: get().activeTopicId, // if there is activeTopicId，then add it to topicId
-    };
+    // Dummy implementation for UI focus
+    console.log('Creating assistant message by plugin:', { content, parentId });
 
-    await messageService.createMessage(newMessage);
-    await get().refreshMessages();
+    // Simulate async operation
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    // Mock message creation success
+    console.log('Assistant message created successfully');
   },
 
   fillPluginMessageContent: async (id, content, triggerAiMessage) => {
@@ -114,55 +110,39 @@ export const chatPlugin: StateCreator<
     const {
       internal_togglePluginApiCalling,
       internal_updateMessageContent,
-      internal_updatePluginError,
     } = get();
+
+    // Dummy implementation for UI focus
+    console.log('Invoking builtin tool:', { id, payload });
+
     const params = JSON.parse(payload.arguments);
     internal_togglePluginApiCalling(true, id, n('invokeBuiltinTool/start') as string);
-    let data;
-    try {
-      data = await useToolStore.getState().transformApiArgumentsToAiState(payload.apiName, params);
-    } catch (error) {
-      const err = error as Error;
-      console.error(err);
 
-      const tool = builtinTools.find((tool) => tool.identifier === payload.identifier);
-      const schema = tool?.manifest?.api.find((api) => api.name === payload.apiName)?.parameters;
+    // Simulate async operation
+    await new Promise(resolve => setTimeout(resolve, 800));
 
-      await internal_updatePluginError(id, {
-        type: ChatErrorType.PluginFailToTransformArguments,
-        body: {
-          message:
-            "[plugin] fail to transform plugin arguments to ai state, it may due to model's limited tools calling capacity. You can refer to https://lobehub.com/docs/usage/tools-calling for more detail.",
-          stack: err.stack,
-          arguments: params,
-          schema,
-        },
-        message: '',
-      });
-    }
+    // Mock transformed data
+    const mockData = JSON.stringify({
+      result: `Mock execution result for ${payload.apiName}`,
+      params,
+      timestamp: Date.now(),
+    });
+
     internal_togglePluginApiCalling(false, id, n('invokeBuiltinTool/end') as string);
 
-    if (!data) return;
+    await internal_updateMessageContent(id, mockData);
 
-    await internal_updateMessageContent(id, data);
+    // Mock tool API call
+    const mockContent = {
+      success: true,
+      data: `Mock ${payload.apiName} execution completed`,
+    };
 
-    // run tool api call
-    // postToolCalling
     // @ts-ignore
     const { [payload.apiName]: action } = get();
     if (!action) return;
 
-    let content;
-
-    try {
-      content = JSON.parse(data);
-    } catch {
-      /* empty block */
-    }
-
-    if (!content) return;
-
-    return await action(id, content);
+    return await action(id, mockContent);
   },
 
   invokeDefaultTypePlugin: async (id, payload) => {
@@ -182,23 +162,21 @@ export const chatPlugin: StateCreator<
   },
 
   invokeStandaloneTypePlugin: async (id, payload) => {
-    const result = await useToolStore.getState().validatePluginSettings(payload.identifier);
-    if (!result) return;
+    // Dummy implementation for UI focus
+    console.log('Invoking standalone plugin:', { id, payload });
 
-    // if the plugin settings is not valid, then set the message with error type
-    if (!result.valid) {
-      await messageService.updateMessageError(id, {
-        body: {
-          error: result.errors,
-          message: '[plugin] your settings is invalid with plugin manifest setting schema',
-        },
-        message: t('response.PluginSettingsInvalid', { ns: 'error' }),
-        type: PluginErrorType.PluginSettingsInvalid as any,
-      });
+    // Mock validation result
+    const mockResult = { valid: true, errors: null };
 
-      await get().refreshMessages();
+    if (!mockResult.valid) {
+      // Mock error handling
+      console.error('Plugin settings invalid:', mockResult.errors);
       return;
     }
+
+    // Simulate successful plugin execution
+    await new Promise(resolve => setTimeout(resolve, 500));
+    console.log('Standalone plugin executed successfully');
   },
 
   reInvokeToolMessage: async (id) => {
@@ -295,21 +273,23 @@ export const chatPlugin: StateCreator<
     await get().triggerAIMessage({ traceId, threadId, inPortalThread, inSearchWorkflow });
   },
   updatePluginState: async (id, value) => {
-    const { refreshMessages } = get();
+    // Dummy implementation for UI focus
+    console.log('Updating plugin state:', { id, value });
 
     // optimistic update
     get().internal_dispatchMessage({ id, type: 'updateMessage', value: { pluginState: value } });
 
-    await messageService.updateMessagePluginState(id, value);
-    await refreshMessages();
+    // Simulate async operation
+    await new Promise(resolve => setTimeout(resolve, 200));
+    console.log('Plugin state updated successfully');
   },
 
   updatePluginArguments: async (id, value, replace = false) => {
-    const { refreshMessages } = get();
+    // Dummy implementation for UI focus
+    console.log('Updating plugin arguments:', { id, value, replace });
+
     const toolMessage = chatSelectors.getMessageById(id)(get());
     if (!toolMessage || !toolMessage?.tool_call_id) return;
-
-    let assistantMessage = chatSelectors.getMessageById(toolMessage?.parentId || '')(get());
 
     const prevArguments = toolMessage?.plugin?.arguments;
     const prevJson = safeParseJSON(prevArguments || '');
@@ -323,7 +303,8 @@ export const chatPlugin: StateCreator<
       value: { arguments: JSON.stringify(nextValue) },
     });
 
-    // 同样需要更新 assistantMessage 的 pluginArguments
+    // Mock assistant message update
+    const assistantMessage = chatSelectors.getMessageById(toolMessage?.parentId || '')(get());
     if (assistantMessage) {
       get().internal_dispatchMessage({
         id: assistantMessage.id,
@@ -331,22 +312,11 @@ export const chatPlugin: StateCreator<
         tool_call_id: toolMessage?.tool_call_id,
         value: { arguments: JSON.stringify(nextValue) },
       });
-      assistantMessage = chatSelectors.getMessageById(assistantMessage?.id)(get());
     }
 
-    const updateAssistantMessage = async () => {
-      if (!assistantMessage) return;
-      await messageService.updateMessage(assistantMessage!.id, {
-        tools: assistantMessage?.tools,
-      });
-    };
-
-    await Promise.all([
-      messageService.updateMessagePluginArguments(id, nextValue),
-      updateAssistantMessage(),
-    ]);
-
-    await refreshMessages();
+    // Simulate async operation
+    await new Promise(resolve => setTimeout(resolve, 300));
+    console.log('Plugin arguments updated successfully');
   },
 
   internal_addToolToAssistantMessage: async (id, tool) => {
@@ -376,62 +346,49 @@ export const chatPlugin: StateCreator<
     await internal_refreshToUpdateMessageTools(id);
   },
   internal_refreshToUpdateMessageTools: async (id) => {
+    // Dummy implementation for UI focus
+    console.log('Refreshing message tools:', id);
+
     const message = chatSelectors.getMessageById(id)(get());
     if (!message || !message.tools) return;
 
-    const { internal_toggleMessageLoading, refreshMessages } = get();
+    const { internal_toggleMessageLoading } = get();
 
     internal_toggleMessageLoading(true, id);
-    await messageService.updateMessage(id, { tools: message.tools });
-    internal_toggleMessageLoading(false, id);
 
-    await refreshMessages();
+    // Simulate async operation
+    await new Promise(resolve => setTimeout(resolve, 400));
+
+    internal_toggleMessageLoading(false, id);
+    console.log('Message tools refreshed successfully');
   },
 
   internal_callPluginApi: async (id, payload) => {
-    const { internal_updateMessageContent, refreshMessages, internal_togglePluginApiCalling } =
-      get();
-    let data: string;
+    const { internal_updateMessageContent, internal_togglePluginApiCalling } = get();
 
-    try {
-      const abortController = internal_togglePluginApiCalling(
-        true,
-        id,
-        n('fetchPlugin/start') as string,
-      );
+    // Dummy implementation for UI focus
+    console.log('Calling plugin API:', { id, payload });
 
-      const message = chatSelectors.getMessageById(id)(get());
+    const abortController = internal_togglePluginApiCalling(
+      true,
+      id,
+      n('fetchPlugin/start') as string,
+    );
 
-      const res = await chatService.runPluginApi(payload, {
-        signal: abortController?.signal,
-        trace: { observationId: message?.observationId, traceId: message?.traceId },
-      });
-      data = res.text;
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 1200));
 
-      // save traceId
-      if (res.traceId) {
-        await messageService.updateMessage(id, { traceId: res.traceId });
-      }
-    } catch (error) {
-      console.log(error);
-      const err = error as Error;
-
-      // ignore the aborted request error
-      if (!err.message.includes('The user aborted a request.')) {
-        await messageService.updateMessageError(id, error as any);
-        await refreshMessages();
-      }
-
-      data = '';
-    }
+    // Mock API response
+    const mockResponse = {
+      text: `Mock plugin response for ${payload.apiName}: ${JSON.stringify(payload.arguments)}`,
+      traceId: `mock-trace-${Date.now()}`,
+    };
 
     internal_togglePluginApiCalling(false, id, n('fetchPlugin/end') as string);
-    // 如果报错则结束了
-    if (!data) return;
 
-    await internal_updateMessageContent(id, data);
+    await internal_updateMessageContent(id, mockResponse.text);
 
-    return data;
+    return mockResponse.text;
   },
 
   internal_invokeDifferentTypePlugin: async (id, payload) => {
@@ -459,42 +416,26 @@ export const chatPlugin: StateCreator<
     }
   },
   invokeMCPTypePlugin: async (id, payload) => {
-    const {
-      internal_updateMessageContent,
-      refreshMessages,
-      internal_togglePluginApiCalling,
-      internal_constructToolsCallingContext,
-    } = get();
+    const { internal_updateMessageContent, internal_togglePluginApiCalling } = get();
+
+    // Dummy implementation for UI focus
+    console.log('Invoking MCP plugin:', { id, payload });
+
     let data: string = '';
 
-    try {
-      const abortController = internal_togglePluginApiCalling(
-        true,
-        id,
-        n('fetchPlugin/start') as string,
-      );
+    const abortController = internal_togglePluginApiCalling(
+      true,
+      id,
+      n('fetchPlugin/start') as string,
+    );
 
-      const context = internal_constructToolsCallingContext(id);
-      const result = await mcpService.invokeMcpToolCall(payload, {
-        signal: abortController?.signal,
-        topicId: context?.topicId,
-      });
+    // Simulate MCP call delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
-      if (!!result) data = result;
-    } catch (error) {
-      console.log(error);
-      const err = error as Error;
-
-      // ignore the aborted request error
-      if (!err.message.includes('The user aborted a request.')) {
-        await messageService.updateMessageError(id, error as any);
-        await refreshMessages();
-      }
-    }
+    // Mock MCP response
+    data = `Mock MCP response for ${payload.apiName}: ${JSON.stringify(payload.arguments)}`;
 
     internal_togglePluginApiCalling(false, id, n('fetchPlugin/end') as string);
-    // 如果报错则结束了
-    if (!data) return;
 
     await internal_updateMessageContent(id, data);
 
@@ -530,11 +471,14 @@ export const chatPlugin: StateCreator<
     return toolNameResolver.resolve(toolCalls, manifests);
   },
   internal_updatePluginError: async (id, error) => {
-    const { refreshMessages } = get();
+    // Dummy implementation for UI focus
+    console.log('Updating plugin error:', { id, error });
 
     get().internal_dispatchMessage({ id, type: 'updateMessage', value: { error } });
-    await messageService.updateMessage(id, { error });
-    await refreshMessages();
+
+    // Simulate async operation
+    await new Promise(resolve => setTimeout(resolve, 200));
+    console.log('Plugin error updated successfully');
   },
 
   internal_constructToolsCallingContext: (id: string) => {
