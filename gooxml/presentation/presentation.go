@@ -19,6 +19,8 @@ import (
 	"log"
 	"os"
 	"path"
+	"path/filepath"
+	"strings"
 
 	"github.com/kawai-network/veridium/gooxml"
 	"github.com/kawai-network/veridium/gooxml/common"
@@ -710,4 +712,248 @@ func (p *Presentation) GetImageByRelID(relID string) (common.ImageRef, bool) {
 		}
 	}
 	return common.ImageRef{}, false
+}
+
+// ToMarkdownWithImages converts the presentation to markdown with images extracted to a local directory.
+// The imageDir parameter specifies where to save extracted images. Images will be saved with
+// names like "image1.png", "image2.jpg", etc. and referenced in markdown with relative paths.
+func (p *Presentation) ToMarkdownWithImages(imageDir string) (string, error) {
+	// Create image directory if it doesn't exist
+	if err := os.MkdirAll(imageDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create image directory: %w", err)
+	}
+
+	var md strings.Builder
+	imageCounter := 0
+
+	md.WriteString("# PowerPoint Presentation\n\n")
+
+	slides := p.Slides()
+	for i, slide := range slides {
+		md.WriteString(fmt.Sprintf("## Slide %d\n\n", i+1))
+
+		// Extract text content from slide
+		slideText := p.extractTextFromSlide(slide)
+		if slideText != "" {
+			md.WriteString(slideText + "\n\n")
+		}
+
+		// Extract images from slide
+		slideImages := p.extractImagesFromSlide(slide, imageDir, &imageCounter)
+		for _, img := range slideImages {
+			md.WriteString(img + "\n\n")
+		}
+	}
+
+	return md.String(), nil
+}
+
+// ToMarkdownWithImageURLs converts the presentation to markdown with images served via local fileserver URLs.
+// Images are automatically saved to the user data directory and become accessible via the Wails fileserver.
+// The baseURL parameter should be "/files" to match the user data fileserver route configured in main.go.
+//
+// Example usage:
+//
+//	presentation, err := presentation.Open("presentation.pptx")
+//	if err != nil {
+//	    return err
+//	}
+//	markdown, err := presentation.ToMarkdownWithImageURLs("/files")
+//	// Images are saved to user data directory (e.g., ~/Library/Application Support/veridium/images/)
+//	// and referenced as: ![alt text](/files/images/image1.png)
+//
+// This method works with the enhanced Wails3 fileserver that serves files from the user data directory
+// with CORS enabled and proper MIME type handling.
+func (p *Presentation) ToMarkdownWithImageURLs(baseURL string) (string, error) {
+	// Get user config directory for storing user-generated content
+	userConfigDir, err := os.UserConfigDir()
+	if err != nil {
+		// Fallback to current directory if we can't get user config dir
+		userConfigDir = "."
+	}
+
+	// Create veridium app data directory
+	appDataDir := filepath.Join(userConfigDir, "veridium")
+	imageDir := filepath.Join(appDataDir, "images")
+
+	// Create image directory if it doesn't exist
+	if err := os.MkdirAll(imageDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create image directory: %w", err)
+	}
+
+	var md strings.Builder
+	imageCounter := 0
+
+	md.WriteString("# PowerPoint Presentation\n\n")
+
+	slides := p.Slides()
+	for i, slide := range slides {
+		md.WriteString(fmt.Sprintf("## Slide %d\n\n", i+1))
+
+		// Extract text content from slide
+		slideText := p.extractTextFromSlide(slide)
+		if slideText != "" {
+			md.WriteString(slideText + "\n\n")
+		}
+
+		// Extract images from slide with URLs
+		slideImages := p.extractImagesFromSlideWithURLs(slide, imageDir, baseURL, &imageCounter)
+		for _, img := range slideImages {
+			md.WriteString(img + "\n\n")
+		}
+	}
+
+	return md.String(), nil
+}
+
+// extractTextFromSlide extracts text content from a presentation slide
+func (p *Presentation) extractTextFromSlide(slide Slide) string {
+	var textBuilder strings.Builder
+
+	// Access the slide's shape tree to find text content
+	slideXML := slide.X()
+	if slideXML.CSld == nil || slideXML.CSld.SpTree == nil {
+		return ""
+	}
+
+	// Iterate through all shapes in the slide
+	for _, choice := range slideXML.CSld.SpTree.Choice {
+		// Check shapes (sp)
+		for _, sp := range choice.Sp {
+			if sp.TxBody != nil {
+				text := p.extractTextFromTextBody(sp.TxBody)
+				if text != "" {
+					if textBuilder.Len() > 0 {
+						textBuilder.WriteString("\n")
+					}
+					textBuilder.WriteString(text)
+				}
+			}
+		}
+	}
+
+	return textBuilder.String()
+}
+
+// extractTextFromTextBody extracts text from a text body
+func (p *Presentation) extractTextFromTextBody(txBody *dml.CT_TextBody) string {
+	var textBuilder strings.Builder
+
+	if txBody == nil || txBody.P == nil {
+		return ""
+	}
+
+	// Iterate through paragraphs
+	for _, para := range txBody.P {
+		// Iterate through text runs in the paragraph
+		for _, textRun := range para.EG_TextRun {
+			if textRun.R != nil && textRun.R.T != "" {
+				textBuilder.WriteString(textRun.R.T)
+			}
+		}
+		// Add newline after each paragraph
+		textBuilder.WriteString("\n")
+	}
+
+	return strings.TrimSpace(textBuilder.String())
+}
+
+// extractImagesFromSlide extracts images from a slide and saves them to imageDir
+func (p *Presentation) extractImagesFromSlide(slide Slide, imageDir string, imageCounter *int) []string {
+	var images []string
+
+	slideXML := slide.X()
+	if slideXML.CSld == nil || slideXML.CSld.SpTree == nil {
+		return images
+	}
+
+	// Iterate through all shapes in the slide
+	for _, choice := range slideXML.CSld.SpTree.Choice {
+		// Check pictures
+		for _, pic := range choice.Pic {
+			if imageRef, found := p.getImageFromPicture(pic); found {
+				imagePath, altText, err := p.saveImageToDir(imageRef, imageDir, imageCounter)
+				if err != nil {
+					gooxml.Log("failed to save image: %s", err)
+					continue
+				}
+				images = append(images, fmt.Sprintf("![%s](%s)", altText, imagePath))
+			}
+		}
+	}
+
+	return images
+}
+
+// extractImagesFromSlideWithURLs extracts images from a slide and generates URLs
+func (p *Presentation) extractImagesFromSlideWithURLs(slide Slide, imageDir string, baseURL string, imageCounter *int) []string {
+	var images []string
+
+	slideXML := slide.X()
+	if slideXML.CSld == nil || slideXML.CSld.SpTree == nil {
+		return images
+	}
+
+	// Iterate through all shapes in the slide
+	for _, choice := range slideXML.CSld.SpTree.Choice {
+		// Check pictures
+		for _, pic := range choice.Pic {
+			if imageRef, found := p.getImageFromPicture(pic); found {
+				imagePath, altText, err := p.saveImageToDir(imageRef, imageDir, imageCounter)
+				if err != nil {
+					gooxml.Log("failed to save image: %s", err)
+					continue
+				}
+				imageURL := fmt.Sprintf("%s/images/%s", baseURL, imagePath)
+				images = append(images, fmt.Sprintf("![%s](%s)", altText, imageURL))
+			}
+		}
+	}
+
+	return images
+}
+
+// getImageFromPicture extracts image reference from a picture element
+func (p *Presentation) getImageFromPicture(pic *pml.CT_Picture) (common.ImageRef, bool) {
+	if pic.BlipFill == nil || pic.BlipFill.Blip == nil || pic.BlipFill.Blip.EmbedAttr == nil {
+		return common.ImageRef{}, false
+	}
+	return p.GetImageByRelID(*pic.BlipFill.Blip.EmbedAttr)
+}
+
+// saveImageToDir saves an image to the specified directory
+func (p *Presentation) saveImageToDir(imageRef common.ImageRef, imageDir string, imageCounter *int) (string, string, error) {
+	*imageCounter++
+	imageName := fmt.Sprintf("image%d.%s", *imageCounter, imageRef.Format())
+	imagePath := filepath.Join(imageDir, imageName)
+
+	// Copy the image from its current location to the target directory
+	sourcePath := imageRef.Path()
+	if sourcePath == "" {
+		return "", "", fmt.Errorf("image has no source path")
+	}
+
+	// Read the image data
+	imageData, err := os.ReadFile(sourcePath)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to read image data: %w", err)
+	}
+
+	// Write to the target directory
+	err = os.WriteFile(imagePath, imageData, 0644)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to write image to directory: %w", err)
+	}
+
+	// Get alt text (use filename if no description available)
+	altText := imageName
+	if imageRef.RelID() != "" {
+		// Try to get a better description from relationships
+		// For presentations, we can use the image filename
+		if baseName := filepath.Base(sourcePath); baseName != "" {
+			altText = strings.TrimSuffix(baseName, filepath.Ext(baseName))
+		}
+	}
+
+	return imageName, altText, nil
 }
