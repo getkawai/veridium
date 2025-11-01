@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/dslipak/pdf"
+	"github.com/eino-contrib/docx2md"
 	"github.com/unidoc/unioffice/presentation"
 	"github.com/xuri/excelize/v2"
 )
@@ -326,11 +327,51 @@ func (l *LoadFileService) loadDOCXFile(filePath string) ([]DocumentPage, string,
 	return pages, markdown, "", nil
 }
 
-// extractDOCXContent extracts content from DOCX file
+// extractDOCXContent extracts content from DOCX file using docx2md
 func (l *LoadFileService) extractDOCXContent(filePath string) (string, error) {
-	// For now, return a placeholder - in real implementation,
-	// you would use the docx2md library or another DOCX processing library
-	content := fmt.Sprintf("# DOCX Document\n\nContent from: %s\n\n*DOCX processing not yet fully implemented*", filePath)
+	// Configure docx2md to include headers, footers and tables
+	config := &docx2md.Config{
+		IncludeHeaders: true,
+		IncludeFooters: true,
+		IncludeTables:  true,
+	}
+
+	// Convert DOCX to markdown sections
+	sections, err := docx2md.DocxConvert(filePath, config)
+	if err != nil {
+		return "", fmt.Errorf("failed to convert DOCX to markdown: %w", err)
+	}
+
+	// Combine all sections into one markdown document
+	var contentBuilder strings.Builder
+
+	// Section titles mapping (similar to CloudWeGo example)
+	sectionTitles := map[string]string{
+		"main": "MAIN CONTENT",
+	}
+
+	getSectionTitle := func(key string) string {
+		if title, ok := sectionTitles[key]; ok {
+			return title
+		}
+		return strings.ToUpper(key)
+	}
+
+	// Build content from sections
+	for key, section := range sections {
+		trimmed := strings.TrimSpace(section)
+		if trimmed != "" {
+			contentBuilder.WriteString(fmt.Sprintf("=== %s ===\n\n", getSectionTitle(key)))
+			contentBuilder.WriteString(trimmed)
+			contentBuilder.WriteString("\n\n")
+		}
+	}
+
+	content := contentBuilder.String()
+	if content == "" {
+		return "# DOCX Document\n\n*No content found in document*", nil
+	}
+
 	return content, nil
 }
 
@@ -426,14 +467,12 @@ func (l *LoadFileService) loadPPTXFile(filePath string) ([]DocumentPage, string,
 	markdownContent.WriteString("# PowerPoint Presentation\n\n")
 
 	slides := doc.Slides()
-	for i := range slides {
-		var slideContent strings.Builder
+	for i, slide := range slides {
+		// Extract text from slide using unioffice API
+		slideText := slide.ExtractText().Text()
 
-		// For now, use placeholder text extraction
-		// The unioffice API might be different
-		slideContent.WriteString(fmt.Sprintf("[Slide %d content - PPTX processing not yet fully implemented]", i+1))
-
-		slideText := strings.TrimSpace(slideContent.String())
+		// Clean up the text
+		slideText = strings.TrimSpace(slideText)
 		if slideText == "" {
 			slideText = "[Empty slide]"
 		}
