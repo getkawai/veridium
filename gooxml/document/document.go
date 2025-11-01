@@ -194,8 +194,8 @@ func (d *Document) ToMarkdownWithImages(imageDir string) (string, error) {
 //	// Images are saved to user data directory (e.g., ~/Library/Application Support/veridium/images/)
 //	// and referenced as: ![alt text](/files/images/image1.png)
 //
-// This method works with the enhanced Wails3 fileserver that serves files from the user data directory
-// with CORS enabled and proper MIME type handling.
+// Note: Static frontend assets are served by Wails' built-in asset server (no fileserver needed).
+// User-generated images are served by the /files route from the user config directory.
 func (d *Document) ToMarkdownWithImageURLs(baseURL string) (string, error) {
 	// Get user config directory for storing user-generated content
 	userConfigDir, err := os.UserConfigDir()

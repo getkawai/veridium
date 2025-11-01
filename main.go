@@ -54,20 +54,8 @@ func main() {
 			application.NewService(notifications.New()),
 			// Native Wails v3 sqlite service
 			application.NewService(sqlite.New()),
-			// Static assets fileserver (frontend/public)
-			application.NewServiceWithOptions(
-				fileserver.NewWithConfig(&fileserver.Config{
-					RootPath:               "frontend/public",
-					EnableDirectoryListing: false, // Disable for security - static assets only
-					EnableCORS:             true,   // Enable CORS for web access
-					IndexFile:              "index.html",
-					AllowedExtensions:      []string{".html", ".css", ".js", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ttf", ".woff", ".woff2"}, // Common web assets
-				}),
-				application.ServiceOptions{
-					Route: "/assets",
-				},
-			),
-			// User data fileserver (user home directory)
+			// User data fileserver (user config directory)
+			// Frontend assets are handled by Wails' built-in asset server via embed
 			application.NewServiceWithOptions(
 				func() *fileserver.FileserverService {
 					// Get user data directory
@@ -80,8 +68,8 @@ func main() {
 
 					return fileserver.NewWithConfig(&fileserver.Config{
 						RootPath:               appDataDir,
-						EnableDirectoryListing: true,  // Enable for user data access
-						EnableCORS:             true,   // Enable CORS for web access
+						EnableDirectoryListing: true, // Enable for user data access
+						EnableCORS:             true, // Enable CORS for web access
 						IndexFile:              "index.html",
 						AllowedExtensions:      []string{".html", ".css", ".js", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".pdf", ".docx", ".txt", ".md"}, // User files + images
 					})
