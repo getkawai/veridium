@@ -1,15 +1,12 @@
 import { produce } from 'immer';
-import pMap from 'p-map';
 import { SWRResponse } from 'swr';
 import { StateCreator } from 'zustand/vanilla';
 
 import { useClientDataSWR } from '@/libs/swr';
-import { fileService } from '@/services/file';
-import { imageGenerationService } from '@/services/textToImage';
-import { uploadService } from '@/services/upload';
+// import { imageGenerationService } from '@/services/textToImage';
+// import { uploadService } from '@/services/upload';
 import { chatSelectors } from '@/store/chat/selectors';
 import { ChatStore } from '@/store/chat/store';
-import { useFileStore } from '@/store/file';
 import { DallEImageItem } from '@/types/tool/dalle';
 import { setNamespace } from '@/utils/storeDebug';
 
@@ -41,44 +38,47 @@ export const dalleSlice: StateCreator<
 
     const parent = getMessageById(message!.parentId!);
     const originPrompt = parent?.content;
-    let errorArray: any[] = [];
 
-    await pMap(items, async (params, index) => {
+    // Dummy implementation for UI focus
+    console.log('Generating images from prompts:', items.map(item => item.prompt));
+
+    await Promise.all(items.map(async (params, index) => {
       toggleDallEImageLoading(messageId + params.prompt, true);
 
-      let url = '';
+      // Simulate image generation delay
+      await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1000));
+
       try {
-        url = await imageGenerationService.generateImage(params);
+        // Mock generated image URL (base64 placeholder)
+        const mockImageUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+
+        await updateImageItem(messageId, (draft) => {
+          draft[index].previewUrl = mockImageUrl;
+        });
+
+        toggleDallEImageLoading(messageId + params.prompt, false);
+
+        // Simulate file creation and upload
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        const mockImageFile = new File([await (await fetch(mockImageUrl)).blob()], `${originPrompt || params.prompt}_${index}.png`, { type: 'image/png' });
+
+        // Mock upload result
+        const mockUploadResult = {
+          id: `mock-dalle-${params.prompt}-${Date.now()}-${index}`,
+          url: `mock://dalle-image/${params.prompt}-${index}`,
+        };
+
+        await updateImageItem(messageId, (draft) => {
+          draft[index].imageId = mockUploadResult.id;
+          draft[index].previewUrl = undefined;
+        });
+
       } catch (e) {
         toggleDallEImageLoading(messageId + params.prompt, false);
-        errorArray[index] = e;
-
-        await get().updatePluginState(messageId, { error: errorArray });
+        console.error('Mock image generation failed:', e);
       }
-
-      if (!url) return;
-
-      await updateImageItem(messageId, (draft) => {
-        draft[index].previewUrl = url;
-      });
-
-      toggleDallEImageLoading(messageId + params.prompt, false);
-      const imageFile = await uploadService.getImageFileByUrlWithCORS(
-        url,
-        `${originPrompt || params.prompt}_${index}.png`,
-      );
-
-      const data = await useFileStore.getState().uploadWithProgress({
-        file: imageFile,
-      });
-
-      if (!data) return;
-
-      await updateImageItem(messageId, (draft) => {
-        draft[index].imageId = data.id;
-        draft[index].previewUrl = undefined;
-      });
-    });
+    }));
   },
   text2image: async (id, data) => {
     // const isAutoGen = settingsSelectors.isDalleAutoGenerating(useGlobalStore.getState());
@@ -107,18 +107,29 @@ export const dalleSlice: StateCreator<
 
   useFetchDalleImageItem: (id) =>
     useClientDataSWR([SWR_FETCH_KEY, id], async () => {
-      const item = await fileService.getFile(id);
+      // Dummy implementation for UI focus
+      console.log('Fetching DALL-E image item:', id);
+
+      const mockItem = {
+        id,
+        name: `Mock DALL-E Image ${id.slice(0, 8)}`,
+        type: 'image/png',
+        size: 2048000,
+        url: `mock://dalle-image/${id}`,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
 
       set(
         produce((draft) => {
           if (draft.dalleImageMap[id]) return;
 
-          draft.dalleImageMap[id] = item;
+          draft.dalleImageMap[id] = mockItem;
         }),
         false,
         n('useFetchFile'),
       );
 
-      return item;
+      return mockItem;
     }),
 });
