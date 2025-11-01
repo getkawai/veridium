@@ -11,53 +11,10 @@ import {
   CHAT_PORTAL_TOOL_UI_WIDTH,
   CHAT_PORTAL_WIDTH,
 } from '@/const/layoutTokens';
-// import { useChatStore } from '@/store/chat';
-// import { chatPortalSelectors, portalThreadSelectors } from '@/store/chat/selectors';
-// import { useGlobalStore } from '@/store/global';
-// import { systemStatusSelectors } from '@/store/global/selectors';
-
-// Dummy implementations for development - memoized
-const mockChatStore = {
-  showPortal: false,
-  showPluginUI: false,
-  showArtifactUI: false,
-  showThread: false,
-};
-
-const useChatStore = (selector?: any) => {
-  if (selector) {
-    return selector(mockChatStore);
-  }
-  return mockChatStore;
-};
-
-const chatPortalSelectors = {
-  showPortal: (state: any) => state.showPortal,
-  showPluginUI: (state: any) => state.showPluginUI,
-  showArtifactUI: (state: any) => state.showArtifactUI,
-};
-
-const portalThreadSelectors = {
-  showThread: (state: any) => state.showThread,
-};
-
-const mockGlobalStore = {
-  portalWidth: CHAT_PORTAL_WIDTH,
-  updateSystemStatus: (params: any) => {
-    console.log('Mock updateSystemStatus called with:', params);
-  },
-};
-
-const useGlobalStore = (selector: any) => {
-  if (selector) {
-    return selector(mockGlobalStore);
-  }
-  return mockGlobalStore;
-};
-
-const systemStatusSelectors = {
-  portalWidth: (state: any) => state.portalWidth,
-};
+import { useChatStore } from '@/store/chat';
+import { chatPortalSelectors, portalThreadSelectors } from '@/store/chat/selectors';
+import { useGlobalStore } from '@/store/global';
+import { systemStatusSelectors } from '@/store/global/selectors';
 
 const useStyles = createStyles(({ css, token }) => ({
   content: css`
