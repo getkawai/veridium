@@ -1,5 +1,5 @@
 import debug from 'debug';
-import { readFile } from 'node:fs/promises';
+import { fs } from '../../utils/node-compat';
 import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist';
 import { getDocument, version } from 'pdfjs-dist/legacy/build/pdf.mjs';
 // @ts-ignore
@@ -23,11 +23,21 @@ export class PdfLoader implements FileLoaderInterface {
     // We are now relying on pdfjs-dist to use this path when it creates a worker.
 
     log('Reading PDF file:', filePath);
-    const dataBuffer = await readFile(filePath);
-    log('PDF file read successfully, size:', dataBuffer.length, 'bytes');
+    const fileContent = await fs.promises.readFile(filePath);
+    log('PDF file read successfully, size:', fileContent.length, 'bytes');
+
+    // Handle both string and Uint8Array return types
+    let dataBuffer: Uint8Array;
+    if (fileContent instanceof Uint8Array) {
+      dataBuffer = fileContent;
+    } else {
+      // Convert string content to Uint8Array for pdfjs-dist
+      const encoder = new TextEncoder();
+      dataBuffer = encoder.encode(fileContent);
+    }
 
     const loadingTask = getDocument({
-      data: new Uint8Array(dataBuffer.buffer, dataBuffer.byteOffset, dataBuffer.length),
+      data: dataBuffer,
       useSystemFonts: true,
     });
 

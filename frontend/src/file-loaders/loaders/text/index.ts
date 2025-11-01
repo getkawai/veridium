@@ -12,7 +12,7 @@ export class TextLoader implements FileLoaderInterface {
   async loadPages(filePath: string): Promise<DocumentPage[]> {
     log('Loading text file:', filePath);
     try {
-      const fileContent = await fs.promises.readFile(filePath, 'utf8');
+      const fileContent = await fs.promises.readFile(filePath, 'utf8') as string;
       log('Text file loaded successfully, size:', fileContent.length, 'bytes');
       const lines = fileContent.split('\n');
       const lineCount = lines.length;

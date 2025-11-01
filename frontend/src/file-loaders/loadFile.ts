@@ -95,8 +95,9 @@ export const loadFile = async (
 
   // Determine base file info from path and stats (if available)
   log('Determining base file info');
-  const fileExtension = path.extname(filePath).slice(1).toLowerCase();
-  const baseFilename = path.basename(filePath);
+  const extnameResult = await path.extname(filePath);
+  const fileExtension = extnameResult.slice(1).toLowerCase();
+  const baseFilename = await path.basename(filePath);
 
   // Apply overrides from fileMetadata or use defaults
   const source = fileMetadata?.source ?? filePath;

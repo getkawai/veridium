@@ -46,6 +46,7 @@ func main() {
 			application.NewService(&NodeBufferService{}),
 			application.NewService(&NodeExecService{}),
 			application.NewService(&NodeOsService{}),
+			application.NewService(&ZipService{}),
 			// Native Wails v3 notification service
 			application.NewService(notifications.New()),
 			// Native Wails v3 sqlite service

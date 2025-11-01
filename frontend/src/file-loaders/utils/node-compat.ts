@@ -17,16 +17,31 @@ import {
   Alloc as WailsBufferAlloc,
   From as WailsBufferFrom,
   IsBuffer as WailsBufferIsBuffer,
-  ToBytes as WailsBufferToBytes,
 } from '@/bindings/github.com/kawai-network/veridium/nodebufferservice';
 
 // File System APIs - Synchronous compatibility layer
 export class fs {
   static promises = {
-    // Read file synchronously (returns Promise<string>)
-    async readFile(path: string, encoding?: string): Promise<string> {
-      // For now, we assume UTF-8 encoding
-      return WailsReadFile(path);
+    // Read file synchronously (returns Promise<string> for text, Uint8Array for binary)
+    async readFile(path: string, encoding?: string): Promise<string | Uint8Array> {
+      // Get the base64 encoded data from Wails
+      const base64Data = await WailsReadFile(path);
+
+      if (encoding === 'utf8' || encoding === 'utf-8') {
+        // For text files, decode the base64 to string
+        return atob(base64Data);
+      } else if (!encoding || encoding === 'buffer') {
+        // For binary files, convert base64 to Uint8Array
+        const binaryString = atob(base64Data);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        return bytes;
+      } else {
+        // Default to string for backward compatibility
+        return atob(base64Data);
+      }
     },
 
     // Get file stats synchronously (returns Promise with stats object)
@@ -69,26 +84,26 @@ export class fs {
 // Path APIs - Synchronous compatibility layer
 export class path {
   // Get file extension
-  static extname(pathStr: string): string {
-    return WailsExtname(pathStr);
+  static async extname(pathStr: string): Promise<string> {
+    return await WailsExtname(pathStr);
   }
 
   // Get base name of path
-  static basename(pathStr: string, ext?: string): string {
+  static async basename(pathStr: string, ext?: string): Promise<string> {
     if (ext) {
       // Remove extension if provided
-      const base = WailsBasename(pathStr);
+      const base = await WailsBasename(pathStr);
       if (base.endsWith(ext)) {
         return base.slice(0, -ext.length);
       }
       return base;
     }
-    return WailsBasename(pathStr);
+    return await WailsBasename(pathStr);
   }
 
   // Get directory name
-  static dirname(pathStr: string): string {
-    return WailsDirname(pathStr);
+  static async dirname(pathStr: string): Promise<string> {
+    return await WailsDirname(pathStr);
   }
 }
 
@@ -97,28 +112,26 @@ export class Buffer {
   private data: string; // Base64 encoded data
 
   constructor(data?: any, encoding?: string) {
-    if (data) {
-      this.data = WailsBufferFrom(data, encoding || 'utf8');
-    } else {
-      this.data = WailsBufferAlloc(0);
-    }
+    // Constructor should be synchronous, so we can't await here
+    // This is a limitation - we'll need to make constructors async or use factory methods
+    throw new Error('Use Buffer.from() or Buffer.alloc() instead of new Buffer()');
   }
 
   // Static methods
-  static alloc(size: number): Buffer {
-    const buf = new Buffer();
-    buf.data = WailsBufferAlloc(size);
+  static async alloc(size: number): Promise<Buffer> {
+    const buf = new (Buffer as any)();
+    buf.data = await WailsBufferAlloc(size);
     return buf;
   }
 
-  static from(data: any, encoding?: string): Buffer {
-    const buf = new Buffer();
-    buf.data = WailsBufferFrom(data, encoding || 'utf8');
+  static async from(data: any, encoding?: string): Promise<Buffer> {
+    const buf = new (Buffer as any)();
+    buf.data = await WailsBufferFrom(data, encoding || 'utf8');
     return buf;
   }
 
-  static isBuffer(obj: any): boolean {
-    return WailsBufferIsBuffer(obj);
+  static async isBuffer(obj: any): Promise<boolean> {
+    return await WailsBufferIsBuffer(obj);
   }
 
   // Instance methods

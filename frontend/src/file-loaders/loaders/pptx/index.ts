@@ -1,5 +1,5 @@
 import debug from 'debug';
-import path from 'node:path';
+import { path } from '../../utils/node-compat';
 
 import type { DocumentPage, FileLoaderInterface } from '../../types';
 import { type ExtractedFile, extractFiles, parseString } from '../../utils/parser-utils';
@@ -23,7 +23,7 @@ export class PptxLoader implements FileLoaderInterface {
    */
   async loadPages(filePath: string): Promise<DocumentPage[]> {
     log('Loading PPTX file:', filePath);
-    const sourceFileName = path.basename(filePath);
+    const sourceFileName = await path.basename(filePath);
     log('Source file name:', sourceFileName);
 
     try {

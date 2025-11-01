@@ -1,5 +1,5 @@
 import debug from 'debug';
-import fs from 'node:fs/promises';
+import { fs } from '../../utils/node-compat';
 import mammoth from 'mammoth';
 
 import type { DocumentPage, FileLoaderInterface } from '../../types';
@@ -15,8 +15,18 @@ export class DocxLoader implements FileLoaderInterface {
     log('Loading DOCX file:', filePath);
     try {
       // Read file as buffer
-      const buffer = await fs.readFile(filePath);
-      log('File buffer read, size:', buffer.length);
+      const fileContent = await fs.promises.readFile(filePath);
+      log('File content read, size:', fileContent.length);
+
+      // Handle both string and Uint8Array return types
+      let buffer: Uint8Array;
+      if (fileContent instanceof Uint8Array) {
+        buffer = fileContent;
+      } else {
+        // Convert string content to Uint8Array for mammoth
+        const encoder = new TextEncoder();
+        buffer = encoder.encode(fileContent);
+      }
 
       // Extract text using mammoth
       const result = await mammoth.extractRawText({ buffer });

@@ -9,6 +9,7 @@ import * as NodeFsService from "./nodefsservice.js";
 import * as NodeOsService from "./nodeosservice.js";
 import * as NodePathService from "./nodepathservice.js";
 import * as TempFileService from "./tempfileservice.js";
+import * as ZipService from "./zipservice.js";
 export {
     GreetService,
     MachineIDService,
@@ -17,7 +18,8 @@ export {
     NodeFsService,
     NodeOsService,
     NodePathService,
-    TempFileService
+    TempFileService,
+    ZipService
 };
 
 export {
@@ -25,6 +27,7 @@ export {
     CpuTimes,
     ExecOptions,
     ExecResult,
+    ExtractedFile,
     NetworkInterface,
     UserInfoResult
 } from "./models.js";

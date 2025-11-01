@@ -161,6 +161,34 @@ export class ExecResult {
 }
 
 /**
+ * ExtractedFile represents an extracted file from a ZIP archive
+ */
+export class ExtractedFile {
+    "content": string;
+    "path": string;
+
+    /** Creates a new ExtractedFile instance. */
+    constructor($$source: Partial<ExtractedFile> = {}) {
+        if (!("content" in $$source)) {
+            this["content"] = "";
+        }
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ExtractedFile instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ExtractedFile {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ExtractedFile($$parsedSource as Partial<ExtractedFile>);
+    }
+}
+
+/**
  * NetworkInterface represents network interface information (frontend compatible)
  */
 export class NetworkInterface {

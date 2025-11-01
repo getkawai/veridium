@@ -1,5 +1,5 @@
 import debug from 'debug';
-import { readFile } from 'node:fs/promises';
+import { fs } from '../../utils/node-compat';
 import * as xlsx from 'xlsx';
 
 import type { DocumentPage, FileLoaderInterface } from '../../types';
@@ -59,8 +59,18 @@ export class ExcelLoader implements FileLoaderInterface {
     try {
       // Use readFile for async operation compatible with other loaders
       log('Reading Excel file as buffer');
-      const dataBuffer = await readFile(filePath);
-      log('Excel file read successfully, size:', dataBuffer.length, 'bytes');
+      const fileContent = await fs.promises.readFile(filePath);
+      log('Excel file read successfully, size:', fileContent.length, 'bytes');
+
+      // Handle both string and Uint8Array return types
+      let dataBuffer: Uint8Array;
+      if (fileContent instanceof Uint8Array) {
+        dataBuffer = fileContent;
+      } else {
+        // Convert string content to Uint8Array for xlsx
+        const encoder = new TextEncoder();
+        dataBuffer = encoder.encode(fileContent);
+      }
 
       log('Parsing Excel workbook');
       const workbook = xlsx.read(dataBuffer, { type: 'buffer' });
