@@ -180,8 +180,21 @@ func (d *Document) ToMarkdownWithImages(imageDir string) (string, error) {
 	return md.String(), nil
 }
 
-// ToMarkdownWithImageURLs converts the document to markdown with images served via local fileserver URLs
-// Images are saved to frontend/public/images/ and accessible via /files/images/ URLs
+// ToMarkdownWithImageURLs converts the document to markdown with images served via local fileserver URLs.
+// Images are automatically saved to frontend/public/images/ and become accessible via the Wails fileserver.
+// The baseURL parameter should be "/files" to match the fileserver route configured in main.go.
+//
+// Example usage:
+//   doc, err := document.Open("document.docx")
+//   if err != nil {
+//       return err
+//   }
+//   markdown, err := doc.ToMarkdownWithImageURLs("/files")
+//   // Images are saved to frontend/public/images/ and referenced as:
+//   // ![alt text](/files/images/image1.png)
+//
+// This method works with the enhanced Wails3 fileserver that serves files from frontend/public/
+// with CORS enabled and proper MIME type handling.
 func (d *Document) ToMarkdownWithImageURLs(baseURL string) (string, error) {
 	// Use the public directory for images so they can be served by the fileserver
 	imageDir := filepath.Join("frontend", "public", "images")
