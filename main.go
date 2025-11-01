@@ -55,7 +55,11 @@ func main() {
 			// Native Wails v3 fileserver service
 			application.NewServiceWithOptions(
 				fileserver.NewWithConfig(&fileserver.Config{
-					RootPath: "public",
+					RootPath:              "public",
+					EnableDirectoryListing: true,  // Enable directory browsing for development
+					EnableCORS:            true,   // Enable CORS for web access
+					IndexFile:             "index.html",
+					AllowedExtensions:     []string{".html", ".css", ".js", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ttf", ".woff", ".woff2"}, // Common web assets
 				}),
 				application.ServiceOptions{
 					Route: "/files",

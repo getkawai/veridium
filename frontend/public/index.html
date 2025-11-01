@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Veridium Fileserver Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .file-list {
+            margin-top: 20px;
+        }
+        .file-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .file-link {
+            color: #0066cc;
+            text-decoration: none;
+        }
+        .file-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Veridium Static Files</h1>
+        <p>This is a test page served by the enhanced Wails3 fileserver service.</p>
+
+        <div class="file-list">
+            <h3>Available Files:</h3>
+            <div class="file-item">
+                <a href="style.css" class="file-link">style.css</a>
+                <span>CSS Stylesheet</span>
+            </div>
+            <div class="file-item">
+                <a href="react.svg" class="file-link">react.svg</a>
+                <span>React Logo (SVG)</span>
+            </div>
+            <div class="file-item">
+                <a href="wails.png" class="file-link">wails.png</a>
+                <span>Wails Logo (PNG)</span>
+            </div>
+            <div class="file-item">
+                <a href="Inter-Medium.ttf" class="file-link">Inter-Medium.ttf</a>
+                <span>Inter Font (TTF)</span>
+            </div>
+        </div>
+
+        <p style="margin-top: 30px; color: #666; font-size: 14px;">
+            Served from: <code>/files/</code> route<br>
+            Features: CORS enabled, directory listing enabled, file extension filtering active
+        </p>
+    </div>
+</body>
+</html>
