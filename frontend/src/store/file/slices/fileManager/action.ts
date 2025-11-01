@@ -1,12 +1,10 @@
-import pMap from 'p-map';
-import { SWRResponse, mutate } from 'swr';
+import { SWRResponse } from 'swr';
 import { StateCreator } from 'zustand/vanilla';
 
 import { FILE_UPLOAD_BLACKLIST, MAX_UPLOAD_FILE_COUNT } from '@/const/file';
 import { useClientDataSWR } from '@/libs/swr';
-import { fileService } from '@/services/file';
-import { lambdaClient } from '@/libs/trpc/client';
-import { ragService } from '@/services/rag';
+// import { lambdaClient } from '@/libs/trpc/client';
+// import { ragService } from '@/services/rag';
 import {
   UploadFileListDispatch,
   uploadFileListReducer,
@@ -54,37 +52,29 @@ export const createFileManageSlice: StateCreator<
     set({ dockUploadFileList: nextValue }, false, `dispatchDockFileList/${payload.type}`);
   },
   embeddingChunks: async (fileIds: string[]) => {
+    // Dummy implementation for UI focus
+    console.log('Embedding chunks for files:', fileIds);
+
     // toggle file ids
     get().toggleEmbeddingIds(fileIds);
 
-    // parse files
-    const pools = fileIds.map(async (id) => {
-      try {
-        await ragService.createEmbeddingChunksTask(id);
-      } catch (e) {
-        console.error(e);
-      }
-    });
+    // Simulate async operation
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
-    await Promise.all(pools);
-    await get().refreshFileList();
+    // Mock success
     get().toggleEmbeddingIds(fileIds, false);
   },
   parseFilesToChunks: async (ids: string[], params) => {
+    // Dummy implementation for UI focus
+    console.log('Parsing files to chunks:', ids, params);
+
     // toggle file ids
     get().toggleParsingIds(ids);
 
-    // parse files
-    const pools = ids.map(async (id) => {
-      try {
-        await ragService.createParseFileTask(id, params?.skipExist);
-      } catch (e) {
-        console.error(e);
-      }
-    });
+    // Simulate async operation
+    await new Promise(resolve => setTimeout(resolve, 1500));
 
-    await Promise.all(pools);
-    await get().refreshFileList();
+    // Mock success
     get().toggleParsingIds(ids, false);
   },
   pushDockFileList: async (rawFiles, knowledgeBaseId) => {
@@ -117,21 +107,30 @@ export const createFileManageSlice: StateCreator<
       type: 'addFiles',
     });
 
-    // 3. Upload files with concurrency limit using p-map
-    const uploadResults = await pMap(
-      files,
-      async (file) => {
-        const result = await get().uploadWithProgress({
-          file,
-          knowledgeBaseId,
-          onStatusUpdate: dispatchDockFileList,
+    // 3. Upload files with dummy implementation for UI focus
+    const uploadResults = await Promise.all(
+      files.map(async (file) => {
+        // Simulate upload progress
+        dispatchDockFileList({
+          id: file.name,
+          type: 'updateFile',
+          value: { status: 'uploading', uploadState: { progress: 50, restTime: 1, speed: 1000 } },
         });
 
-        await get().refreshFileList();
+        // Simulate completion
+        await new Promise(resolve => setTimeout(resolve, 500));
 
-        return { file, fileId: result?.id, fileType: file.type };
-      },
-      { concurrency: MAX_UPLOAD_FILE_COUNT },
+        dispatchDockFileList({
+          id: file.name,
+          type: 'updateFile',
+          value: {
+            status: 'success',
+            uploadState: { progress: 100, restTime: 0, speed: 0 },
+          },
+        });
+
+        return { file, fileId: `mock-${file.name}`, fileType: file.type };
+      })
     );
 
     // 4. auto-embed files that support chunking
@@ -147,43 +146,51 @@ export const createFileManageSlice: StateCreator<
   reEmbeddingChunks: async (id) => {
     if (fileManagerSelectors.isCreatingChunkEmbeddingTask(id)(get())) return;
 
+    // Dummy implementation for UI focus
+    console.log('Re-embedding chunks for file:', id);
+
     // toggle file ids
     get().toggleEmbeddingIds([id]);
 
-    await lambdaClient.file.removeFileAsyncTask.mutate({ id, type: 'embedding' });
+    // Simulate async operation
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
-    await get().refreshFileList();
-
-    await ragService.createEmbeddingChunksTask(id);
-
-    await get().refreshFileList();
-
+    // Mock success
     get().toggleEmbeddingIds([id], false);
   },
   reParseFile: async (id) => {
+    // Dummy implementation for UI focus
+    console.log('Re-parsing file:', id);
+
     // toggle file ids
     get().toggleParsingIds([id]);
 
-    await ragService.retryParseFile(id);
+    // Simulate async operation
+    await new Promise(resolve => setTimeout(resolve, 1200));
 
-    await get().refreshFileList();
-
+    // Mock success
     get().toggleParsingIds([id], false);
   },
   refreshFileList: async () => {
-    await mutate([FETCH_FILE_LIST_KEY, get().queryListParams]);
+    // Dummy implementation for UI focus - avoid mutate to prevent loops
+    console.log('Refreshing file list');
+    // In real implementation, this would trigger SWR revalidation
   },
   removeAllFiles: async () => {
-    await fileService.removeAllFiles();
+    // Dummy implementation for UI focus
+    console.log('Removing all files');
+    // Mock success
   },
   removeFileItem: async (id) => {
-    await fileService.removeFile(id);
-    await get().refreshFileList();
+    // Dummy implementation for UI focus
+    console.log('Removing file item:', id);
+    // Mock success - file would be removed from UI state
   },
 
   removeFiles: async (ids) => {
-    await fileService.removeFiles(ids);
-    await get().refreshFileList();
+    // Dummy implementation for UI focus
+    console.log('Removing files:', ids);
+    // Mock success - files would be removed from UI state
   },
   toggleEmbeddingIds: (ids, loading) => {
     set((state) => {
@@ -221,14 +228,84 @@ export const createFileManageSlice: StateCreator<
   },
 
   useFetchFileItem: (id) =>
-    useClientDataSWR<FileListItem | undefined>(!id ? null : ['useFetchFileItem', id], () =>
-      lambdaClient.file.getFileItemById.query({ id: id! }),
+    useClientDataSWR<FileListItem | undefined>(
+      !id ? null : ['useFetchFileItem', id],
+      () => {
+        // Dummy implementation for UI focus
+        console.log('Fetching file item:', id);
+        return Promise.resolve(id ? {
+          id,
+          name: `Mock File ${id.slice(0, 8)}`,
+          fileType: 'application/pdf',
+          size: 1024000,
+          url: `mock://file/${id}`,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          chunkCount: 10,
+          chunkingError: null,
+          chunkingStatus: 'success',
+          embeddingError: null,
+          embeddingStatus: 'success',
+          finishEmbedding: true,
+        } : undefined);
+      },
     ),
 
   useFetchFileManage: (params) =>
     useClientDataSWR<FileListItem[]>(
       [FETCH_FILE_LIST_KEY, params],
-      () => lambdaClient.file.getFiles.query(params),
+      () => {
+        // Dummy implementation for UI focus
+        console.log('Fetching file list:', params);
+        const mockFiles: FileListItem[] = [
+          {
+            id: 'mock-1',
+            name: 'Sample Document.pdf',
+            fileType: 'application/pdf',
+            size: 2048000,
+            url: 'mock://file/mock-1',
+            createdAt: new Date(Date.now() - 86400000),
+            updatedAt: new Date(Date.now() - 86400000),
+            chunkCount: 25,
+            chunkingError: null,
+            chunkingStatus: 'success',
+            embeddingError: null,
+            embeddingStatus: 'success',
+            finishEmbedding: true,
+          },
+          {
+            id: 'mock-2',
+            name: 'Presentation.pptx',
+            fileType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            size: 5120000,
+            url: 'mock://file/mock-2',
+            createdAt: new Date(Date.now() - 172800000),
+            updatedAt: new Date(Date.now() - 172800000),
+            chunkCount: 15,
+            chunkingError: null,
+            chunkingStatus: 'success',
+            embeddingError: null,
+            embeddingStatus: 'processing',
+            finishEmbedding: false,
+          },
+          {
+            id: 'mock-3',
+            name: 'Spreadsheet.xlsx',
+            fileType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            size: 1024000,
+            url: 'mock://file/mock-3',
+            createdAt: new Date(Date.now() - 259200000),
+            updatedAt: new Date(Date.now() - 259200000),
+            chunkCount: 8,
+            chunkingError: null,
+            chunkingStatus: 'success',
+            embeddingError: null,
+            embeddingStatus: 'success',
+            finishEmbedding: true,
+          },
+        ];
+        return Promise.resolve(mockFiles);
+      },
       {
         onSuccess: (data) => {
           set({ fileList: data, queryListParams: params });
