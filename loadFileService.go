@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/dslipak/pdf"
-	"github.com/eino-contrib/docx2md"
+	"github.com/kawai-network/veridium/gooxml/document"
 	"github.com/kawai-network/veridium/gooxml/presentation"
 	"github.com/kawai-network/veridium/gooxml/schema/soo/dml"
 	"github.com/xuri/excelize/v2"
@@ -302,10 +302,8 @@ func (l *LoadFileService) loadPDFFile(filePath string) ([]DocumentPage, string, 
 	return pages, markdownContent.String(), "", nil
 }
 
-// loadDOCXFile loads DOCX files using github.com/eino-contrib/docx2md
+// loadDOCXFile loads DOCX files using gooxml/document
 func (l *LoadFileService) loadDOCXFile(filePath string) ([]DocumentPage, string, string, error) {
-	// For now, use a simple text extraction approach
-	// The docx2md library might have different API
 	markdown, err := l.extractDOCXContent(filePath)
 	if err != nil {
 		return nil, "", fmt.Sprintf("failed to convert DOCX to markdown: %v", err), err
@@ -328,52 +326,32 @@ func (l *LoadFileService) loadDOCXFile(filePath string) ([]DocumentPage, string,
 	return pages, markdown, "", nil
 }
 
-// extractDOCXContent extracts content from DOCX file using docx2md
+// extractDOCXContent extracts content from DOCX file using gooxml/document
 func (l *LoadFileService) extractDOCXContent(filePath string) (string, error) {
-	// Configure docx2md to include headers, footers and tables
-	config := &docx2md.Config{
-		IncludeHeaders: true,
-		IncludeFooters: true,
-		IncludeTables:  true,
+	// Open the DOCX document
+	doc, err := document.Open(filePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to open DOCX document: %w", err)
 	}
 
-	// Convert DOCX to markdown sections
-	sections, err := docx2md.DocxConvert(filePath, config)
+	// Create a temporary directory for images
+	tmpDir, err := os.MkdirTemp("", "docx-images-*")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp directory: %w", err)
+	}
+	defer os.RemoveAll(tmpDir) // Clean up temp directory after processing
+
+	// Convert to markdown with images extracted to temp directory
+	markdown, err := doc.ToMarkdownWithImages(tmpDir)
 	if err != nil {
 		return "", fmt.Errorf("failed to convert DOCX to markdown: %w", err)
 	}
 
-	// Combine all sections into one markdown document
-	var contentBuilder strings.Builder
-
-	// Section titles mapping (similar to CloudWeGo example)
-	sectionTitles := map[string]string{
-		"main": "MAIN CONTENT",
-	}
-
-	getSectionTitle := func(key string) string {
-		if title, ok := sectionTitles[key]; ok {
-			return title
-		}
-		return strings.ToUpper(key)
-	}
-
-	// Build content from sections
-	for key, section := range sections {
-		trimmed := strings.TrimSpace(section)
-		if trimmed != "" {
-			contentBuilder.WriteString(fmt.Sprintf("=== %s ===\n\n", getSectionTitle(key)))
-			contentBuilder.WriteString(trimmed)
-			contentBuilder.WriteString("\n\n")
-		}
-	}
-
-	content := contentBuilder.String()
-	if content == "" {
+	if markdown == "" {
 		return "# DOCX Document\n\n*No content found in document*", nil
 	}
 
-	return content, nil
+	return markdown, nil
 }
 
 // loadExcelFile loads Excel files using github.com/xuri/excelize/v2

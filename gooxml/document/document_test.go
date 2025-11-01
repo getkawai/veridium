@@ -1,6 +1,8 @@
 package document_test
 
 import (
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/kawai-network/veridium/gooxml/document"
@@ -76,5 +78,37 @@ Normal text **bold text** *italic text* ~~strikethrough~~ monospace
 `
 	if md != expected {
 		t.Errorf("Expected:\n%q\nGot:\n%q", expected, md)
+	}
+}
+
+func TestToMarkdownWithImages(t *testing.T) {
+	doc := document.New()
+
+	// Create a temporary directory for images
+	tmpDir := t.TempDir()
+
+	// Add a paragraph with text
+	para := doc.AddParagraph()
+	run := para.AddRun()
+	run.AddText("This is a test document with images.")
+
+	// Test with empty document (no images)
+	md, err := doc.ToMarkdownWithImages(tmpDir)
+	if err != nil {
+		t.Fatalf("ToMarkdownWithImages failed: %v", err)
+	}
+
+	// Should contain the text
+	if !strings.Contains(md, "This is a test document with images.") {
+		t.Errorf("Expected text not found in markdown output: %s", md)
+	}
+
+	// Check that no images directory was created (since there are no images)
+	entries, err := os.ReadDir(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to read temp dir: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("Expected no files in temp dir, got %d", len(entries))
 	}
 }
