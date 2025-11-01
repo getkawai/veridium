@@ -9,7 +9,8 @@ import (
 
 	"github.com/dslipak/pdf"
 	"github.com/eino-contrib/docx2md"
-	"github.com/unidoc/unioffice/presentation"
+	"github.com/kawai-network/veridium/gooxml/presentation"
+	"github.com/kawai-network/veridium/gooxml/schema/soo/dml"
 	"github.com/xuri/excelize/v2"
 )
 
@@ -453,23 +454,22 @@ func (l *LoadFileService) loadExcelFile(filePath string) ([]DocumentPage, string
 	return pages, markdownContent.String(), "", nil
 }
 
-// loadPPTXFile loads PPTX files using github.com/unidoc/unioffice
+// loadPPTXFile loads PPTX files using gooxml/presentation
 func (l *LoadFileService) loadPPTXFile(filePath string) ([]DocumentPage, string, string, error) {
 	doc, err := presentation.Open(filePath)
 	if err != nil {
 		return nil, "", fmt.Sprintf("failed to open PPTX file: %v", err), err
 	}
-	defer doc.Close()
 
 	var pages []DocumentPage
 	var markdownContent strings.Builder
 
 	markdownContent.WriteString("# PowerPoint Presentation\n\n")
 
-	slides := doc.Slides()
-	for i, slide := range slides {
-		// Extract text from slide using unioffice API
-		slideText := slide.ExtractText().Text()
+	presentationSlides := doc.Slides()
+	for i, slide := range presentationSlides {
+		// Extract text from slide by accessing shapes and text bodies
+		slideText := l.extractTextFromSlide(slide)
 
 		// Clean up the text
 		slideText = strings.TrimSpace(slideText)
@@ -493,6 +493,58 @@ func (l *LoadFileService) loadPPTXFile(filePath string) ([]DocumentPage, string,
 	}
 
 	return pages, markdownContent.String(), "", nil
+}
+
+// extractTextFromSlide extracts text content from a presentation slide
+func (l *LoadFileService) extractTextFromSlide(slide presentation.Slide) string {
+	var textBuilder strings.Builder
+
+	// Access the slide's shape tree to find text content
+	slideXML := slide.X()
+	if slideXML.CSld == nil || slideXML.CSld.SpTree == nil {
+		return ""
+	}
+
+	// Iterate through all shapes in the slide
+	for _, choice := range slideXML.CSld.SpTree.Choice {
+		// Check shapes (sp)
+		for _, sp := range choice.Sp {
+			if sp.TxBody != nil {
+				text := l.extractTextFromTextBody(sp.TxBody)
+				if text != "" {
+					if textBuilder.Len() > 0 {
+						textBuilder.WriteString("\n")
+					}
+					textBuilder.WriteString(text)
+				}
+			}
+		}
+	}
+
+	return textBuilder.String()
+}
+
+// extractTextFromTextBody extracts text from a text body
+func (l *LoadFileService) extractTextFromTextBody(txBody *dml.CT_TextBody) string {
+	var textBuilder strings.Builder
+
+	if txBody == nil || txBody.P == nil {
+		return ""
+	}
+
+	// Iterate through paragraphs
+	for _, para := range txBody.P {
+		// Iterate through text runs in the paragraph
+		for _, textRun := range para.EG_TextRun {
+			if textRun.R != nil && textRun.R.T != "" {
+				textBuilder.WriteString(textRun.R.T)
+			}
+		}
+		// Add newline after each paragraph
+		textBuilder.WriteString("\n")
+	}
+
+	return strings.TrimSpace(textBuilder.String())
 }
 
 // rowsToString converts Excel rows to string representation

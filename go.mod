@@ -7,7 +7,6 @@ toolchain go1.24.5
 require (
 	github.com/dslipak/pdf v0.0.2
 	github.com/eino-contrib/docx2md v0.0.1
-	github.com/unidoc/unioffice v1.39.0
 	github.com/wailsapp/wails/v3 v3.0.0-dev
 	github.com/xuri/excelize/v2 v2.10.0
 	golang.org/x/sys v0.37.0
