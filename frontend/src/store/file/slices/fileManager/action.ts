@@ -5,7 +5,7 @@ import { StateCreator } from 'zustand/vanilla';
 import { FILE_UPLOAD_BLACKLIST, MAX_UPLOAD_FILE_COUNT } from '@/const/file';
 import { useClientDataSWR } from '@/libs/swr';
 import { fileService } from '@/services/file';
-import { ServerService } from '@/services/file/server';
+import { lambdaClient } from '@/libs/trpc/client';
 import { ragService } from '@/services/rag';
 import {
   UploadFileListDispatch,
@@ -18,7 +18,6 @@ import { unzipFile } from '@/utils/unzipFile';
 import { FileStore } from '../../store';
 import { fileManagerSelectors } from './selectors';
 
-const serverFileService = new ServerService();
 
 export interface FileManageAction {
   dispatchDockFileList: (payload: UploadFileListDispatch) => void;
@@ -151,7 +150,7 @@ export const createFileManageSlice: StateCreator<
     // toggle file ids
     get().toggleEmbeddingIds([id]);
 
-    await serverFileService.removeFileAsyncTask(id, 'embedding');
+    await lambdaClient.file.removeFileAsyncTask.mutate({ id, type: 'embedding' });
 
     await get().refreshFileList();
 
@@ -223,13 +222,13 @@ export const createFileManageSlice: StateCreator<
 
   useFetchFileItem: (id) =>
     useClientDataSWR<FileListItem | undefined>(!id ? null : ['useFetchFileItem', id], () =>
-      serverFileService.getFileItem(id!),
+      lambdaClient.file.getFileItemById.query({ id: id! }),
     ),
 
   useFetchFileManage: (params) =>
     useClientDataSWR<FileListItem[]>(
       [FETCH_FILE_LIST_KEY, params],
-      () => serverFileService.getFiles(params),
+      () => lambdaClient.file.getFiles.query(params),
       {
         onSuccess: (data) => {
           set({ fileList: data, queryListParams: params });
