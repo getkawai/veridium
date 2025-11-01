@@ -16,6 +16,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"strings"
 
 	"github.com/kawai-network/veridium/gooxml"
 	"github.com/kawai-network/veridium/gooxml/common"
@@ -114,6 +115,215 @@ func (d *Document) Headers() []Header {
 		ret = append(ret, Header{d, h})
 	}
 	return ret
+}
+
+// ToMarkdown converts the document to a markdown string.
+func (d *Document) ToMarkdown() string {
+	var md strings.Builder
+	if d.x.Body == nil {
+		return ""
+	}
+	for _, ble := range d.x.Body.EG_BlockLevelElts {
+		for _, c := range ble.EG_ContentBlockContent {
+			// handle tables
+			for _, tbl := range c.Tbl {
+				md.WriteString(d.tableToMarkdown(tbl))
+				md.WriteString("\n")
+			}
+			// handle paragraphs
+			for _, p := range c.P {
+				md.WriteString(d.paragraphToMarkdown(p))
+			}
+		}
+	}
+	return md.String()
+}
+
+func (d *Document) hyperlinkToMarkdown(h *wml.CT_Hyperlink) string {
+	var linkText strings.Builder
+	for _, rc := range h.EG_ContentRunContent {
+		if rc.R != nil {
+			linkText.WriteString(d.runToMarkdown(rc.R))
+		}
+	}
+	text := strings.TrimSpace(linkText.String())
+	if text == "" {
+		text = "link"
+	}
+
+	// Get the URL from relationships
+	url := ""
+	if h.IdAttr != nil {
+		for _, rel := range d.docRels.Relationships() {
+			if rel.ID() == *h.IdAttr {
+				url = rel.Target()
+				break
+			}
+		}
+	}
+
+	if url == "" {
+		return text
+	}
+
+	return fmt.Sprintf("[%s](%s)", text, url)
+}
+
+func (d *Document) isMonospaceParagraph(p *wml.CT_P) bool {
+	for _, ec := range p.EG_PContent {
+		for _, rc := range ec.EG_ContentRunContent {
+			if rc.R != nil && rc.R.RPr != nil && rc.R.RPr.RFonts != nil {
+				if rc.R.RPr.RFonts.AsciiAttr != nil && strings.Contains(strings.ToLower(*rc.R.RPr.RFonts.AsciiAttr), "mono") {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func (d *Document) paragraphToMarkdown(p *wml.CT_P) string {
+	var para strings.Builder
+	style := ""
+	if p.PPr != nil && p.PPr.PStyle != nil {
+		style = p.PPr.PStyle.ValAttr
+	}
+
+	// Check for hyperlinks and regular content
+	for _, ec := range p.EG_PContent {
+		if ec.Hyperlink != nil {
+			return d.hyperlinkToMarkdown(ec.Hyperlink)
+		}
+		for _, rc := range ec.EG_ContentRunContent {
+			if rc.R != nil {
+				para.WriteString(d.runToMarkdown(rc.R))
+			}
+		}
+	}
+
+	text := strings.TrimSpace(para.String())
+	if text == "" {
+		return ""
+	}
+
+	// Check for numbering (lists)
+	if p.PPr != nil && p.PPr.NumPr != nil {
+		if p.PPr.NumPr.NumId != nil && p.PPr.NumPr.NumId.ValAttr > 0 {
+			// This is a numbered list item
+			return fmt.Sprintf("%d. %s\n", p.PPr.NumPr.NumId.ValAttr, text)
+		}
+	}
+
+	// Check for indentation (blockquotes)
+	isBlockquote := false
+	if p.PPr != nil && p.PPr.Ind != nil {
+		if (p.PPr.Ind.LeftAttr != nil && *p.PPr.Ind.LeftAttr.Int64 > 360) ||
+			(p.PPr.Ind.StartAttr != nil && *p.PPr.Ind.StartAttr.Int64 > 360) { // 360 twips = 0.25 inches
+			isBlockquote = true
+		}
+	}
+
+	switch style {
+	case "Heading1":
+		return "# " + text + "\n\n"
+	case "Heading2":
+		return "## " + text + "\n\n"
+	case "Heading3":
+		return "### " + text + "\n\n"
+	case "Heading4":
+		return "#### " + text + "\n\n"
+	case "Heading5":
+		return "##### " + text + "\n\n"
+	case "Heading6":
+		return "###### " + text + "\n\n"
+	case "Code":
+		return "```\n" + text + "\n```\n\n"
+	default:
+		if isBlockquote {
+			return "> " + text + "\n\n"
+		}
+		// Check if all text is monospace (code span)
+		if d.isMonospaceParagraph(p) {
+			return "`" + text + "`\n\n"
+		}
+		return text + "\n\n"
+	}
+}
+
+func (d *Document) runToMarkdown(r *wml.CT_R) string {
+	var run strings.Builder
+	for _, ic := range r.EG_RunInnerContent {
+		if ic.T != nil {
+			text := ic.T.Content
+			if r.RPr != nil {
+				// Handle strikethrough
+				if r.RPr.Strike != nil || r.RPr.Dstrike != nil {
+					text = "~~" + text + "~~"
+				}
+				// Handle bold
+				if r.RPr.B != nil {
+					text = "**" + text + "**"
+				}
+				// Handle italic
+				if r.RPr.I != nil {
+					text = "*" + text + "*"
+				}
+				// Handle code (monospace)
+				if r.RPr.RFonts != nil && (r.RPr.RFonts.AsciiAttr != nil && strings.Contains(strings.ToLower(*r.RPr.RFonts.AsciiAttr), "mono")) {
+					text = "`" + text + "`"
+				}
+			}
+			run.WriteString(text)
+		}
+	}
+	return run.String()
+}
+
+func (d *Document) tableToMarkdown(tbl *wml.CT_Tbl) string {
+	var md strings.Builder
+	rows := [][]string{}
+	for _, rc := range tbl.EG_ContentRowContent {
+		for _, tr := range rc.Tr {
+			var row []string
+			for _, ecc := range tr.EG_ContentCellContent {
+				for _, tc := range ecc.Tc {
+					var cell strings.Builder
+					for _, ble := range tc.EG_BlockLevelElts {
+						for _, cbc := range ble.EG_ContentBlockContent {
+							for _, p := range cbc.P {
+								cell.WriteString(d.paragraphToMarkdown(p))
+							}
+						}
+					}
+					row = append(row, strings.TrimSpace(strings.ReplaceAll(cell.String(), "\n\n", " ")))
+				}
+			}
+			if len(row) > 0 {
+				rows = append(rows, row)
+			}
+		}
+	}
+
+	if len(rows) == 0 {
+		return ""
+	}
+
+	// header row
+	md.WriteString("| " + strings.Join(rows[0], " | ") + " |\n")
+
+	// separator
+	seps := make([]string, len(rows[0]))
+	for i := range seps {
+		seps[i] = "---"
+	}
+	md.WriteString("| " + strings.Join(seps, " | ") + " |\n")
+
+	// data rows
+	for _, row := range rows[1:] {
+		md.WriteString("| " + strings.Join(row, " | ") + " |\n")
+	}
+
+	return md.String()
 }
 
 // Footers returns the footers defined in the document.
