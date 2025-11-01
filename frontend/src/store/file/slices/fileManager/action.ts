@@ -10,6 +10,7 @@ import {
   uploadFileListReducer,
 } from '@/store/file/reducers/uploadFileList';
 import { FileListItem, QueryFileListParams } from '@/types/files';
+import { AsyncTaskStatus } from '@/types/asyncTask';
 import { isChunkingUnsupported } from '@/utils/isChunkingUnsupported';
 
 import { FileStore } from '../../store';
@@ -242,9 +243,9 @@ export const createFileManageSlice: StateCreator<
           updatedAt: new Date(),
           chunkCount: 10,
           chunkingError: null,
-          chunkingStatus: 'success',
+          chunkingStatus: AsyncTaskStatus.Success,
           embeddingError: null,
-          embeddingStatus: 'success',
+          embeddingStatus: AsyncTaskStatus.Success,
           finishEmbedding: true,
         } : undefined);
       },
@@ -267,9 +268,9 @@ export const createFileManageSlice: StateCreator<
             updatedAt: new Date(Date.now() - 86400000),
             chunkCount: 25,
             chunkingError: null,
-            chunkingStatus: 'success',
+            chunkingStatus: AsyncTaskStatus.Success,
             embeddingError: null,
-            embeddingStatus: 'success',
+            embeddingStatus: AsyncTaskStatus.Success,
             finishEmbedding: true,
           },
           {
@@ -282,9 +283,9 @@ export const createFileManageSlice: StateCreator<
             updatedAt: new Date(Date.now() - 172800000),
             chunkCount: 15,
             chunkingError: null,
-            chunkingStatus: 'success',
+            chunkingStatus: AsyncTaskStatus.Success,
             embeddingError: null,
-            embeddingStatus: 'processing',
+            embeddingStatus: AsyncTaskStatus.Processing,
             finishEmbedding: false,
           },
           {
@@ -297,9 +298,9 @@ export const createFileManageSlice: StateCreator<
             updatedAt: new Date(Date.now() - 259200000),
             chunkCount: 8,
             chunkingError: null,
-            chunkingStatus: 'success',
+            chunkingStatus: AsyncTaskStatus.Success,
             embeddingError: null,
-            embeddingStatus: 'success',
+            embeddingStatus: AsyncTaskStatus.Success,
             finishEmbedding: true,
           },
         ];
