@@ -4,14 +4,13 @@ import resourcesToBackend from 'i18next-resources-to-backend';
 import { initReactI18next } from 'react-i18next';
 import { isRtlLang } from 'rtl-detect';
 
-// import { DEFAULT_LANG } from '@/const/locale';
-const DEFAULT_LANG = 'en';
-// import { getDebugConfig } from '@/envs/debug';
+import { DEFAULT_LANG } from '@/const/locale';
+import { getDebugConfig } from '@/envs/debug';
 import { normalizeLocale } from '@/locales/resources';
-// import { isDev, isOnServerSide } from '@/utils/env';
+import { isDev, isOnServerSide } from '@/utils/env';
 
-// const { I18N_DEBUG, I18N_DEBUG_BROWSER, I18N_DEBUG_SERVER } = getDebugConfig();
-const debugMode = false;
+const { I18N_DEBUG, I18N_DEBUG_BROWSER, I18N_DEBUG_SERVER } = getDebugConfig();
+const debugMode = (I18N_DEBUG ?? isOnServerSide) ? I18N_DEBUG_SERVER : I18N_DEBUG_BROWSER;
 
 export const createI18nNext = (lang?: string) => {
   const instance = i18n
@@ -19,7 +18,7 @@ export const createI18nNext = (lang?: string) => {
     .use(LanguageDetector)
     .use(
       resourcesToBackend(async (lng: string, ns: string) => {
-        // if (isDev && lng === 'zh-CN') return import(`./default/${ns}`);
+        if (isDev && lng === 'zh-CN') return import(`./default/${ns}.ts`);
 
         return import(`@/../locales/${normalizeLocale(lng)}/${ns}.json`);
       }),

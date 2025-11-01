@@ -4,6 +4,7 @@ import AppTheme from './AppTheme';
 import StyleRegistry from './StyleRegistry';
 import StoreInitialization from './StoreInitialization';
 import { ServerConfigStoreProvider } from '@/store/serverConfig';
+import Locale from './Locale';
 
 interface GlobalLayoutProps {
   appearance: string;
@@ -24,8 +25,10 @@ const GlobalLayout = ({
   isMobile,
   variants,
 }: GlobalLayoutProps) => {
+
   return (
     <StyleRegistry>
+      <Locale antdLocale={undefined} defaultLang={userLocale}>
         <AppTheme
           customFontFamily={undefined}
           customFontURL={undefined}
@@ -38,6 +41,7 @@ const GlobalLayout = ({
             {children}
           </ServerConfigStoreProvider>
         </AppTheme>
+      </Locale>
       <AntdV5MonkeyPatch />
     </StyleRegistry>
   );
