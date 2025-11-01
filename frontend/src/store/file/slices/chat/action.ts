@@ -3,10 +3,7 @@ import { StateCreator } from 'zustand/vanilla';
 
 import { notification } from '@/components/AntdStaticMethods';
 import { FILE_UPLOAD_BLACKLIST } from '@/const/file';
-import { fileService } from '@/services/file';
-import { lambdaClient } from '@/libs/trpc/client';
-import { ragService } from '@/services/rag';
-import { UPLOAD_NETWORK_ERROR } from '@/services/upload';
+// import { ragService } from '@/services/rag';
 import {
   UploadFileListDispatch,
   uploadFileListReducer,
@@ -14,7 +11,6 @@ import {
 import { FileListItem } from '@/types/files';
 import { UploadFileItem } from '@/types/files/upload';
 import { isChunkingUnsupported } from '@/utils/isChunkingUnsupported';
-import { sleep } from '@/utils/sleep';
 import { setNamespace } from '@/utils/storeDebug';
 
 import { FileStore } from '../../store';
@@ -54,41 +50,37 @@ export const createFileSlice: StateCreator<
   removeChatUploadFile: async (id) => {
     const { dispatchChatUploadFileList } = get();
 
+    // Dummy implementation for UI focus
+    console.log('Removing chat upload file:', id);
     dispatchChatUploadFileList({ id, type: 'removeFile' });
-    await fileService.removeFile(id);
   },
 
   startAsyncTask: async (id, runner, onFileItemUpdate) => {
-    await runner(id);
+    // Dummy implementation for UI focus
+    console.log('Starting async task for file:', id);
 
-    let isFinished = false;
+    // Simulate task progress with mock data
+    const mockFileItem: FileListItem = {
+      id,
+      name: `Mock File ${id.slice(0, 8)}`,
+      fileType: 'application/pdf',
+      size: 1024000,
+      url: `mock://file/${id}`,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      chunkCount: 10,
+      chunkingError: null,
+      chunkingStatus: 'success',
+      embeddingError: null,
+      embeddingStatus: 'success',
+      finishEmbedding: true,
+    };
 
-    while (!isFinished) {
-      // 每间隔 2s 查询一次任务状态
-      await sleep(2000);
+    // Simulate async delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
-      let fileItem: FileListItem | undefined = undefined;
-
-      try {
-        fileItem = await lambdaClient.file.getFileItemById.query({ id });
-      } catch (e) {
-        console.error('getFileItem Error:', e);
-        continue;
-      }
-
-      if (!fileItem) return;
-
-      onFileItemUpdate(fileItem);
-
-      if (fileItem.finishEmbedding) {
-        isFinished = true;
-      }
-
-      // if error, also break
-      else if (fileItem.chunkingStatus === 'error' || fileItem.embeddingStatus === 'error') {
-        isFinished = true;
-      }
-    }
+    // Call callback with mock data
+    onFileItemUpdate(mockFileItem);
   },
 
   uploadChatFiles: async (rawFiles) => {
@@ -122,40 +114,40 @@ export const createFileSlice: StateCreator<
 
     dispatchChatUploadFileList({ files: uploadFiles, type: 'addFiles' });
 
-    // upload files and process it
+    // upload files with dummy implementation for UI focus
     const pools = files.map(async (file) => {
-      let fileResult: { id: string; url: string } | undefined;
+      console.log('Processing file:', file.name);
 
-      try {
-        fileResult = await get().uploadWithProgress({
-          file,
-          onStatusUpdate: dispatchChatUploadFileList,
-        });
-      } catch (error) {
-        // skip `UNAUTHORIZED` error
-        if ((error as any)?.message !== 'UNAUTHORIZED')
-          notification.error({
-            description:
-              // it may be a network error or the cors error
-              error === UPLOAD_NETWORK_ERROR
-                ? t('upload.networkError', { ns: 'error' })
-                : // or the error from the server
-                  typeof error === 'string'
-                  ? error
-                  : t('upload.unknownError', { ns: 'error', reason: (error as Error).message }),
-            message: t('upload.uploadFailed', { ns: 'error' }),
-          });
+      // Simulate upload progress
+      dispatchChatUploadFileList({
+        id: file.name,
+        type: 'updateFile',
+        value: { status: 'uploading', uploadState: { progress: 50, restTime: 1, speed: 1000 } },
+      });
 
-        dispatchChatUploadFileList({ id: file.name, type: 'removeFile' });
-      }
+      // Simulate async upload delay
+      await new Promise(resolve => setTimeout(resolve, 800));
 
-      if (!fileResult) return;
+      const mockFileResult = {
+        id: `mock-${file.name}-${Date.now()}`,
+        url: `mock://file/${file.name}`,
+      };
+
+      // Update to success
+      dispatchChatUploadFileList({
+        id: file.name,
+        type: 'updateFile',
+        value: {
+          status: 'success',
+          uploadState: { progress: 100, restTime: 0, speed: 0 },
+        },
+      });
 
       // image don't need to be chunked and embedding
       if (isChunkingUnsupported(file.type)) return;
 
-      const data = await ragService.parseFileContent(fileResult.id);
-      console.log(data);
+      // Dummy file processing simulation
+      console.log('File processing completed for:', file.name);
     });
 
     await Promise.all(pools);
