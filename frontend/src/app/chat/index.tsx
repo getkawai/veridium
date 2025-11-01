@@ -1,7 +1,5 @@
-import { Suspense } from 'react';
+import { PropsWithChildren, Suspense } from 'react';
 import { Flexbox } from 'react-layout-kit';
-
-import { LayoutProps } from './type';
 
 // import { isDesktop } from '@/const/version';
 // import ProtocolUrlHandler from '@/features/ProtocolUrlHandler';
@@ -11,7 +9,7 @@ import SessionPanel from './SessionPanel';
 import Workspace from './Workspace';
 import Session from './@session/default';
 
-const Layout = ({ children }: LayoutProps) => {
+const Layout = ({ children }: PropsWithChildren) => {
   return (
     <>
       <Flexbox
