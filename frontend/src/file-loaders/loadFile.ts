@@ -1,260 +1,80 @@
 import debug from 'debug';
-import { fs, path } from './utils/node-compat';
+import { LoadFile as WailsLoadFile } from '@/bindings/github.com/kawai-network/veridium/loadfileservice';
 
-import { fileLoaders } from './loaders';
-import { TextLoader } from './loaders/text';
-import { FileDocument, FileMetadata, SupportedFileType } from './types';
-import type { DocumentPage, FileLoaderInterface } from './types';
-import { isTextReadableFile } from './utils/isTextReadableFile';
+import { FileDocument, FileMetadata } from './types';
 
 const log = debug('file-loaders:loadFile');
 
 /**
- * Determines the file type based on the filename extension.
- * @param filePath The path to the file.
- * @returns The determined file type or 'txt' if text-readable, undefined otherwise.
- */
-const getFileType = async (filePath: string): Promise<SupportedFileType | undefined> => {
-  log('Determining file type for:', filePath);
-  const extension = (await path.extname(filePath)).toLowerCase().replace('.', '');
-
-  if (!extension) {
-    log('No extension found, treating as txt');
-    return 'txt'; // Treat files without extension as text?
-  }
-
-  // Prioritize checking if it's a generally text-readable type
-  if (isTextReadableFile(extension)) {
-    log(`Extension '${extension}' is text-readable, treating as txt`);
-    return 'txt';
-  }
-
-  // Handle specific non-text or complex types
-  log(`Checking specific types for extension: '${extension}'`);
-  switch (extension) {
-    case 'pdf': {
-      log('File type identified as pdf');
-      return 'pdf';
-    }
-    case 'doc': {
-      log('File type identified as doc');
-      return 'doc';
-    }
-    case 'docx': {
-      log('File type identified as docx');
-      return 'docx';
-    }
-    case 'xlsx':
-    case 'xls': {
-      log('File type identified as excel');
-      return 'excel';
-    }
-    case 'pptx': {
-      log('File type identified as pptx');
-      return 'pptx';
-    }
-    default: {
-      log(
-        `Extension '${extension}' is not a specifically handled type and not text-readable. Unsupported.`,
-      );
-      // If not text-readable and not a specific known type, it's unsupported
-      return undefined;
-    }
-  }
-};
-
-// Default fallback loader class
-const DefaultLoader = TextLoader;
-
-/**
- * Loads a file from the specified path, automatically detecting the file type
- * and using the appropriate loader class.
+ * Loads a file from the specified path using Go backend processing.
+ * The content is returned in markdown format.
  *
  * @param filePath The path to the file to load.
  * @param fileMetadata Optional metadata to override information read from the filesystem.
- * @returns A Promise resolving to a FileDocument object.
+ * @returns A Promise resolving to a FileDocument object with markdown content.
  */
 export const loadFile = async (
   filePath: string,
   fileMetadata?: FileMetadata,
 ): Promise<FileDocument> => {
-  log('Starting to load file:', filePath, 'with metadata:', fileMetadata);
-  let stats;
-  let fsError: string | undefined;
+  log('Starting to load file using Go backend:', filePath, 'with metadata:', fileMetadata);
 
   try {
-    log('Attempting to get file stats for:', filePath);
-    stats = await fs.promises.stat(filePath);
-    log('Successfully retrieved file stats:', stats);
-  } catch (e) {
-    const error = e as Error;
-    log('Error getting file stats for %s: %s', filePath, error.message);
-    console.error(`Error getting file stats for ${filePath}: ${error.message}`);
-    fsError = `Failed to access file stats: ${error.message}`;
-  }
+    // Call the Wails LoadFile service
+    const result = await WailsLoadFile(filePath, fileMetadata || null);
+    if (!result) {
+      throw new Error('LoadFile returned null result');
+    }
 
-  // Determine base file info from path and stats (if available)
-  log('Determining base file info');
-  const extnameResult = await path.extname(filePath);
-  const fileExtension = extnameResult.slice(1).toLowerCase();
-  const baseFilename = await path.basename(filePath);
+    log('File loaded successfully from Go backend:', {
+      fileType: result.fileType,
+      filename: result.filename,
+      contentLength: result.content?.length || 0,
+      pagesCount: result.pages?.length || 0,
+    });
 
-  // Apply overrides from fileMetadata or use defaults
-  const source = fileMetadata?.source ?? filePath;
-  const filename = fileMetadata?.filename ?? baseFilename;
-  const fileType = fileMetadata?.fileType ?? fileExtension;
-  const createdTime = fileMetadata?.createdTime ?? stats?.ctime ?? new Date();
-  const modifiedTime = fileMetadata?.modifiedTime ?? stats?.mtime ?? new Date();
-  log('File info determined/overridden: %O', {
-    createdTime,
-    fileType,
-    filename,
-    modifiedTime,
-    source,
-  });
+    // Convert the result to match our TypeScript FileDocument interface
+    const fileDocument: FileDocument = {
+      content: result.content || '', // Already in markdown format from Go
+      createdTime: new Date(result.createdTime),
+      fileType: result.fileType || '',
+      filename: result.filename || '',
+      metadata: result.metadata || {},
+      modifiedTime: new Date(result.modifiedTime),
+      pages: result.pages || [],
+      source: result.source || '',
+      totalCharCount: result.totalCharCount || 0,
+      totalLineCount: result.totalLineCount || 0,
+    };
 
-  const paserType = await getFileType(filePath);
-  log('Parser type determined as:', paserType);
+    return fileDocument;
+  } catch (error) {
+    log('Error loading file from Go backend:', error);
+    console.error(`Error loading file ${filePath}:`, error);
 
-  // Select the loader CLASS based on the determined fileType, fallback to DefaultLoader
-  const LoaderClass: new () => FileLoaderInterface = paserType
-    ? fileLoaders[paserType]
-    : DefaultLoader;
-  log('Selected loader class:', LoaderClass.name);
-
-  if (!paserType) {
-    console.warn(
-      `No specific loader found for file type '${fileType}'. Using default loader (${DefaultLoader.name}) as fallback.`,
-    );
-  }
-
-  let pages: DocumentPage[] = [];
-  let aggregatedContent = '';
-  let loaderError: string | undefined;
-  let aggregationError: string | undefined;
-  let metadataError: string | undefined;
-  let loaderSpecificMetadata: any | undefined;
-
-  // Instantiate the loader
-  log('Instantiating loader:', LoaderClass.name);
-  const loaderInstance = new LoaderClass();
-
-  // If we couldn't even get stats, skip loader execution
-  if (!fsError) {
-    log('File stats available, proceeding with loader execution.');
-    try {
-      // 1. Load pages using the instance
-      log('Loading pages with loader:', LoaderClass.name, 'for file:', filePath);
-      pages = await loaderInstance.loadPages(filePath);
-      log('Pages loaded successfully, count:', pages.length);
-
-      try {
-        // 2. Aggregate content using the instance
-        log('Aggregating content with loader:', LoaderClass.name);
-        aggregatedContent = await loaderInstance.aggregateContent(pages);
-        log('Content aggregated successfully, length:', aggregatedContent.length);
-      } catch (aggError) {
-        const error = aggError as Error;
-        console.error(
-          `Error aggregating content for ${filePath} using ${LoaderClass.name}: ${error.message}`,
-        );
-        aggregationError = `Content aggregation failed: ${error.message}`;
-        // Keep the pages loaded, but content might be empty/incomplete
-      }
-
-      // 3. Attach document-specific metadata if loader supports it
-      if (typeof loaderInstance.attachDocumentMetadata === 'function') {
-        log('Loader supports attachDocumentMetadata. Attaching...');
-        try {
-          loaderSpecificMetadata = await loaderInstance.attachDocumentMetadata(filePath);
-          log('Document-specific metadata attached:', loaderSpecificMetadata);
-        } catch (metaErr) {
-          const error = metaErr as Error;
-          console.error(
-            `Error attaching metadata for ${filePath} using ${LoaderClass.name}: ${error.message}`,
-          );
-          metadataError = `Metadata attachment failed: ${error.message}`;
-        }
-      } else {
-        log('Loader does not support attachDocumentMetadata.');
-      }
-    } catch (loadErr) {
-      const error = loadErr as Error;
-      console.error(
-        `Error loading pages for ${filePath} using ${LoaderClass.name}: ${error.message}`,
-      );
-      loaderError = `Loader execution failed: ${error.message}`;
-      // Provide a minimal error page if loader failed critically
-      pages = [
+    // Return a minimal error document
+    const errorDoc: FileDocument = {
+      content: '',
+      createdTime: new Date(),
+      fileType: '',
+      filename: filePath.split('/').pop() || 'unknown',
+      metadata: {
+        error: `Failed to load file: ${error}`,
+      },
+      modifiedTime: new Date(),
+      pages: [
         {
           charCount: 0,
           lineCount: 0,
-          metadata: { error: loaderError },
+          metadata: { error: `Failed to load file: ${error}` },
           pageContent: '',
         },
-      ];
-      // Aggregated content remains empty
-    }
-  } else {
-    log('File stats access failed (fsError: %s). Creating minimal error page.', fsError);
-    // If stats failed, create a minimal error page
-    pages = [
-      {
-        charCount: 0,
-        lineCount: 0,
-        metadata: { error: fsError },
-        pageContent: '',
-      },
-    ];
-    // Aggregated content remains empty
+      ],
+      source: filePath,
+      totalCharCount: 0,
+      totalLineCount: 0,
+    };
+
+    return errorDoc;
   }
-
-  // Calculate totals from the loaded pages
-  let totalCharCount = 0;
-  let totalLineCount = 0;
-  log('Calculating total char and line counts from pages.');
-  for (const page of pages) {
-    totalCharCount += page.charCount;
-    totalLineCount += page.lineCount;
-  }
-  log('Totals calculated:', { totalCharCount, totalLineCount });
-
-  // Combine all potential errors
-  const combinedError =
-    [fsError, loaderError, aggregationError, metadataError].filter(Boolean).join('; ') || undefined;
-  if (combinedError) log('Combined errors:', combinedError);
-
-  // Construct the final FileDocument
-  log('Constructing final FileDocument.');
-  const fileDocument: FileDocument = {
-    content: aggregatedContent, // Use content from aggregateContent
-    createdTime,
-    fileType,
-    filename,
-    metadata: {
-      // Include combined errors
-      error: combinedError,
-      // Add loader specific metadata under a namespace
-      loaderSpecific: loaderSpecificMetadata ?? undefined,
-      // Add other file-level metadata
-      ...fileMetadata,
-    },
-    modifiedTime,
-    pages, // Use pages from loadPages
-    source,
-    totalCharCount,
-    totalLineCount,
-  };
-
-  // Clean up undefined error field if no error occurred
-  if (!fileDocument.metadata.error) {
-    delete fileDocument.metadata.error;
-  }
-
-  log('File loading process completed for:', filePath, 'Returning document:', {
-    fileType: fileDocument.fileType,
-    filename: fileDocument.filename,
-    pages: fileDocument.pages?.length,
-  });
-  return fileDocument;
 };

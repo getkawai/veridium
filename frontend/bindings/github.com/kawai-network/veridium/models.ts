@@ -5,6 +5,10 @@
 // @ts-ignore: Unused imports
 import { Create as $Create } from "@wailsio/runtime";
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as time$0 from "../../../time/models.js";
+
 /**
  * CpuInfo represents CPU information (frontend compatible)
  */
@@ -82,6 +86,46 @@ export class CpuTimes {
 }
 
 /**
+ * DocumentPage represents a page in a document
+ */
+export class DocumentPage {
+    "charCount": number;
+    "lineCount": number;
+    "metadata": { [_: string]: any };
+    "pageContent": string;
+
+    /** Creates a new DocumentPage instance. */
+    constructor($$source: Partial<DocumentPage> = {}) {
+        if (!("charCount" in $$source)) {
+            this["charCount"] = 0;
+        }
+        if (!("lineCount" in $$source)) {
+            this["lineCount"] = 0;
+        }
+        if (!("metadata" in $$source)) {
+            this["metadata"] = {};
+        }
+        if (!("pageContent" in $$source)) {
+            this["pageContent"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DocumentPage instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DocumentPage {
+        const $$createField2_0 = $$createType1;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("metadata" in $$parsedSource) {
+            $$parsedSource["metadata"] = $$createField2_0($$parsedSource["metadata"]);
+        }
+        return new DocumentPage($$parsedSource as Partial<DocumentPage>);
+    }
+}
+
+/**
  * ExecOptions represents options for exec operations (frontend compatible)
  */
 export class ExecOptions {
@@ -109,7 +153,7 @@ export class ExecOptions {
      * Creates a new ExecOptions instance from a string or object.
      */
     static createFrom($$source: any = {}): ExecOptions {
-        const $$createField1_0 = $$createType1;
+        const $$createField1_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("env" in $$parsedSource) {
             $$parsedSource["env"] = $$createField1_0($$parsedSource["env"]);
@@ -185,6 +229,100 @@ export class ExtractedFile {
     static createFrom($$source: any = {}): ExtractedFile {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new ExtractedFile($$parsedSource as Partial<ExtractedFile>);
+    }
+}
+
+/**
+ * FileDocument represents the loaded file document
+ */
+export class FileDocument {
+    "content": string;
+    "createdTime": time$0.Time;
+    "fileType": string;
+    "filename": string;
+    "metadata": FileMetadata;
+    "modifiedTime": time$0.Time;
+    "pages": DocumentPage[];
+    "source": string;
+    "totalCharCount": number;
+    "totalLineCount": number;
+
+    /** Creates a new FileDocument instance. */
+    constructor($$source: Partial<FileDocument> = {}) {
+        if (!("content" in $$source)) {
+            this["content"] = "";
+        }
+        if (!("createdTime" in $$source)) {
+            this["createdTime"] = null;
+        }
+        if (!("fileType" in $$source)) {
+            this["fileType"] = "";
+        }
+        if (!("filename" in $$source)) {
+            this["filename"] = "";
+        }
+        if (!("metadata" in $$source)) {
+            this["metadata"] = (new FileMetadata());
+        }
+        if (!("modifiedTime" in $$source)) {
+            this["modifiedTime"] = null;
+        }
+        if (!("pages" in $$source)) {
+            this["pages"] = [];
+        }
+        if (!("source" in $$source)) {
+            this["source"] = "";
+        }
+        if (!("totalCharCount" in $$source)) {
+            this["totalCharCount"] = 0;
+        }
+        if (!("totalLineCount" in $$source)) {
+            this["totalLineCount"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FileDocument instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FileDocument {
+        const $$createField4_0 = $$createType3;
+        const $$createField6_0 = $$createType5;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("metadata" in $$parsedSource) {
+            $$parsedSource["metadata"] = $$createField4_0($$parsedSource["metadata"]);
+        }
+        if ("pages" in $$parsedSource) {
+            $$parsedSource["pages"] = $$createField6_0($$parsedSource["pages"]);
+        }
+        return new FileDocument($$parsedSource as Partial<FileDocument>);
+    }
+}
+
+/**
+ * FileMetadata represents file metadata
+ */
+export class FileMetadata {
+    "source"?: string;
+    "filename"?: string;
+    "fileType"?: string;
+    "createdTime"?: time$0.Time;
+    "modifiedTime"?: time$0.Time;
+    "error"?: string;
+
+    /** Creates a new FileMetadata instance. */
+    constructor($$source: Partial<FileMetadata> = {}) {
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FileMetadata instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FileMetadata {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new FileMetadata($$parsedSource as Partial<FileMetadata>);
     }
 }
 
@@ -272,3 +410,7 @@ export class UserInfoResult {
 // Private type creation functions
 const $$createType0 = CpuTimes.createFrom;
 const $$createType1 = $Create.Map($Create.Any, $Create.Any);
+const $$createType2 = $Create.Map($Create.Any, $Create.Any);
+const $$createType3 = FileMetadata.createFrom;
+const $$createType4 = DocumentPage.createFrom;
+const $$createType5 = $Create.Array($$createType4);
