@@ -15,6 +15,7 @@ import (
 	"image/jpeg"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -569,6 +570,248 @@ func (wb *Workbook) GetSheet(name string) (Sheet, error) {
 
 func workbookFinalizer(wb *Workbook) {
 	wb.Close()
+}
+
+// ToMarkdownWithImages converts the spreadsheet to markdown with images extracted to a local directory.
+// The imageDir parameter specifies where to save extracted images. Images will be saved with
+// names like "image1.png", "image2.jpg", etc. and referenced in markdown with relative paths.
+func (wb *Workbook) ToMarkdownWithImages(imageDir string) (string, error) {
+	// Create image directory if it doesn't exist
+	if err := os.MkdirAll(imageDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create image directory: %w", err)
+	}
+
+	var md strings.Builder
+	imageCounter := 0
+
+	md.WriteString("# Excel Spreadsheet\n\n")
+
+	sheets := wb.Sheets()
+	for _, sheet := range sheets {
+		sheetName := sheet.Name()
+
+		md.WriteString(fmt.Sprintf("## Sheet: %s\n\n", sheetName))
+
+		// Convert sheet data to markdown table
+		tableMarkdown, err := wb.sheetToMarkdownTable(sheet, imageDir, &imageCounter)
+		if err != nil {
+			gooxml.Log("failed to convert sheet to markdown: %s", err)
+			continue
+		}
+
+		md.WriteString(tableMarkdown)
+		md.WriteString("\n\n")
+	}
+
+	return md.String(), nil
+}
+
+// ToMarkdownWithImageURLs converts the spreadsheet to markdown with images served via local fileserver URLs.
+// Images are automatically saved to the user data directory and become accessible via the Wails fileserver.
+// The baseURL parameter should be "/files" to match the user data fileserver route configured in main.go.
+//
+// Example usage:
+//
+//	wb, err := spreadsheet.Open("workbook.xlsx")
+//	if err != nil {
+//	    return err
+//	}
+//	markdown, err := wb.ToMarkdownWithImageURLs("/files")
+//	// Images are saved to user data directory (e.g., ~/Library/Application Support/veridium/images/)
+//	// and referenced as: ![alt text](/files/images/image1.png)
+//
+// This method works with the enhanced Wails3 fileserver that serves files from the user data directory
+// with CORS enabled and proper MIME type handling.
+func (wb *Workbook) ToMarkdownWithImageURLs(baseURL string) (string, error) {
+	// Get user config directory for storing user-generated content
+	userConfigDir, err := os.UserConfigDir()
+	if err != nil {
+		// Fallback to current directory if we can't get user config dir
+		userConfigDir = "."
+	}
+
+	// Create veridium app data directory
+	appDataDir := filepath.Join(userConfigDir, "veridium")
+	imageDir := filepath.Join(appDataDir, "images")
+
+	// Create image directory if it doesn't exist
+	if err := os.MkdirAll(imageDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create image directory: %w", err)
+	}
+
+	var md strings.Builder
+	imageCounter := 0
+
+	md.WriteString("# Excel Spreadsheet\n\n")
+
+	sheets := wb.Sheets()
+	for _, sheet := range sheets {
+		sheetName := sheet.Name()
+
+		md.WriteString(fmt.Sprintf("## Sheet: %s\n\n", sheetName))
+
+		// Convert sheet data to markdown table with URL images
+		tableMarkdown, err := wb.sheetToMarkdownTableWithURLs(sheet, imageDir, baseURL, &imageCounter)
+		if err != nil {
+			gooxml.Log("failed to convert sheet to markdown: %s", err)
+			continue
+		}
+
+		md.WriteString(tableMarkdown)
+		md.WriteString("\n\n")
+	}
+
+	return md.String(), nil
+}
+
+// sheetToMarkdownTable converts a sheet to markdown table format
+func (wb *Workbook) sheetToMarkdownTable(sheet Sheet, imageDir string, imageCounter *int) (string, error) {
+	var md strings.Builder
+
+	rows := sheet.Rows()
+	if len(rows) == 0 {
+		return "*(empty sheet)*", nil
+	}
+
+	// Convert rows to string array for table generation
+	var stringRows [][]string
+	maxCols := 0
+
+	// Find the maximum number of columns
+	for _, row := range rows {
+		cells := row.Cells()
+		if len(cells) > maxCols {
+			maxCols = len(cells)
+		}
+	}
+
+	// Convert to string array
+	for _, row := range rows {
+		cells := row.Cells()
+		var stringRow []string
+		for _, cell := range cells {
+			stringRow = append(stringRow, cell.GetFormattedValue())
+		}
+		// Pad with empty strings if necessary
+		for len(stringRow) < maxCols {
+			stringRow = append(stringRow, "")
+		}
+		stringRows = append(stringRows, stringRow)
+	}
+
+	// Create table header if we have data
+	if len(stringRows) > 0 && len(stringRows[0]) > 0 {
+		md.WriteString("| ")
+		for i, header := range stringRows[0] {
+			if header == "" {
+				header = fmt.Sprintf("Column %d", i+1)
+			}
+			md.WriteString(header)
+			if i < len(stringRows[0])-1 {
+				md.WriteString(" | ")
+			}
+		}
+		md.WriteString(" |\n| ")
+		for i := range stringRows[0] {
+			md.WriteString("---")
+			if i < len(stringRows[0])-1 {
+				md.WriteString(" | ")
+			}
+		}
+		md.WriteString(" |\n")
+	}
+
+	// Create table rows (skip header row)
+	for i, row := range stringRows {
+		if i == 0 { // Skip header
+			continue
+		}
+		md.WriteString("| ")
+		for j, cell := range row {
+			md.WriteString(cell)
+			if j < len(row)-1 {
+				md.WriteString(" | ")
+			}
+		}
+		md.WriteString(" |\n")
+	}
+
+	return md.String(), nil
+}
+
+// sheetToMarkdownTableWithURLs converts a sheet to markdown table with image URLs
+func (wb *Workbook) sheetToMarkdownTableWithURLs(sheet Sheet, imageDir string, baseURL string, imageCounter *int) (string, error) {
+	var md strings.Builder
+
+	rows := sheet.Rows()
+	if len(rows) == 0 {
+		return "*(empty sheet)*", nil
+	}
+
+	// Convert rows to string array for table generation
+	var stringRows [][]string
+	maxCols := 0
+
+	// Find the maximum number of columns
+	for _, row := range rows {
+		cells := row.Cells()
+		if len(cells) > maxCols {
+			maxCols = len(cells)
+		}
+	}
+
+	// Convert to string array
+	for _, row := range rows {
+		cells := row.Cells()
+		var stringRow []string
+		for _, cell := range cells {
+			stringRow = append(stringRow, cell.GetFormattedValue())
+		}
+		// Pad with empty strings if necessary
+		for len(stringRow) < maxCols {
+			stringRow = append(stringRow, "")
+		}
+		stringRows = append(stringRows, stringRow)
+	}
+
+	// Create table header if we have data
+	if len(stringRows) > 0 && len(stringRows[0]) > 0 {
+		md.WriteString("| ")
+		for i, header := range stringRows[0] {
+			if header == "" {
+				header = fmt.Sprintf("Column %d", i+1)
+			}
+			md.WriteString(header)
+			if i < len(stringRows[0])-1 {
+				md.WriteString(" | ")
+			}
+		}
+		md.WriteString(" |\n| ")
+		for i := range stringRows[0] {
+			md.WriteString("---")
+			if i < len(stringRows[0])-1 {
+				md.WriteString(" | ")
+			}
+		}
+		md.WriteString(" |\n")
+	}
+
+	// Create table rows (skip header row)
+	for i, row := range stringRows {
+		if i == 0 { // Skip header
+			continue
+		}
+		md.WriteString("| ")
+		for j, cell := range row {
+			md.WriteString(cell)
+			if j < len(row)-1 {
+				md.WriteString(" | ")
+			}
+		}
+		md.WriteString(" |\n")
+	}
+
+	return md.String(), nil
 }
 
 // Close closes the workbook, removing any temporary files that might have been

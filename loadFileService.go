@@ -348,107 +348,48 @@ func (l *LoadFileService) extractDOCXContent(filePath string) (string, error) {
 
 // loadExcelFile loads Excel files using gooxml/spreadsheet
 func (l *LoadFileService) loadExcelFile(filePath string) ([]DocumentPage, string, string, error) {
+	markdown, err := l.extractXLSXContent(filePath)
+	if err != nil {
+		return nil, "", fmt.Sprintf("failed to convert XLSX to markdown: %v", err), err
+	}
+
+	// Create a single page for XLSX
+	lines := strings.Split(markdown, "\n")
+	charCount := len(markdown)
+	lineCount := len(lines)
+
+	page := DocumentPage{
+		CharCount:   charCount,
+		LineCount:   lineCount,
+		Metadata:    map[string]interface{}{},
+		PageContent: markdown,
+	}
+
+	pages := []DocumentPage{page}
+
+	return pages, markdown, "", nil
+}
+
+// extractXLSXContent extracts content from XLSX file using gooxml/spreadsheet
+func (l *LoadFileService) extractXLSXContent(filePath string) (string, error) {
+	// Open the XLSX workbook
 	wb, err := spreadsheet.Open(filePath)
 	if err != nil {
-		return nil, "", fmt.Sprintf("failed to open Excel file: %v", err), err
+		return "", fmt.Errorf("failed to open XLSX workbook: %w", err)
+	}
+	defer wb.Close()
+
+	// Convert to markdown with images served via URLs
+	markdown, err := wb.ToMarkdownWithImageURLs("/files")
+	if err != nil {
+		return "", fmt.Errorf("failed to convert XLSX to markdown: %w", err)
 	}
 
-	var pages []DocumentPage
-	var markdownContent strings.Builder
-
-	markdownContent.WriteString("# Excel Document\n\n")
-
-	sheets := wb.Sheets()
-	for _, sheet := range sheets {
-		sheetName := sheet.Name()
-
-		markdownContent.WriteString(fmt.Sprintf("## Sheet: %s\n\n", sheetName))
-
-		// Get all rows from the sheet
-		rows := sheet.Rows()
-		if len(rows) > 0 {
-			// Convert rows to string array for markdown table generation
-			var stringRows [][]string
-			maxCols := 0
-
-			// Find the maximum number of columns
-			for _, row := range rows {
-				cells := row.Cells()
-				if len(cells) > maxCols {
-					maxCols = len(cells)
-				}
-			}
-
-			// Convert to string array
-			for _, row := range rows {
-				cells := row.Cells()
-				var stringRow []string
-				for _, cell := range cells {
-					stringRow = append(stringRow, cell.GetFormattedValue())
-				}
-				// Pad with empty strings if necessary
-				for len(stringRow) < maxCols {
-					stringRow = append(stringRow, "")
-				}
-				stringRows = append(stringRows, stringRow)
-			}
-
-			// Create table header if we have data
-			if len(stringRows) > 0 && len(stringRows[0]) > 0 {
-				markdownContent.WriteString("| ")
-				for i, header := range stringRows[0] {
-					if header == "" {
-						header = fmt.Sprintf("Column %d", i+1)
-					}
-					markdownContent.WriteString(header)
-					if i < len(stringRows[0])-1 {
-						markdownContent.WriteString(" | ")
-					}
-				}
-				markdownContent.WriteString(" |\n| ")
-				for i := range stringRows[0] {
-					markdownContent.WriteString("---")
-					if i < len(stringRows[0])-1 {
-						markdownContent.WriteString(" | ")
-					}
-				}
-				markdownContent.WriteString(" |\n")
-			}
-
-			// Create table rows (skip header row)
-			for i, row := range stringRows {
-				if i == 0 { // Skip header
-					continue
-				}
-				markdownContent.WriteString("| ")
-				for j, cell := range row {
-					markdownContent.WriteString(cell)
-					if j < len(row)-1 {
-						markdownContent.WriteString(" | ")
-					}
-				}
-				markdownContent.WriteString(" |\n")
-			}
-		}
-
-		markdownContent.WriteString("\n")
-
-		// Create a page for this sheet
-		sheetContent := l.rowsToStringFromSheet(rows)
-		lines := strings.Split(sheetContent, "\n")
-		charCount := len(sheetContent)
-		lineCount := len(lines)
-
-		page := DocumentPage{
-			CharCount:   charCount,
-			LineCount:   lineCount,
-			Metadata:    map[string]interface{}{"sheetName": sheetName},
-			PageContent: sheetContent,
-		}
-		pages = append(pages, page)
+	if markdown == "" {
+		return "# Excel Workbook\n\n*No content found in workbook*", nil
 	}
 
-	return pages, markdownContent.String(), "", nil
+	return markdown, nil
 }
 
 // loadPPTXFile loads PPTX files using gooxml/presentation
@@ -496,23 +437,6 @@ func (l *LoadFileService) extractPPTXContent(filePath string) (string, error) {
 	return markdown, nil
 }
 
-// rowsToStringFromSheet converts spreadsheet rows to string representation
-func (l *LoadFileService) rowsToStringFromSheet(rows []spreadsheet.Row) string {
-	var content strings.Builder
-	for i, row := range rows {
-		cells := row.Cells()
-		for j, cell := range cells {
-			content.WriteString(cell.GetFormattedValue())
-			if j < len(cells)-1 {
-				content.WriteString("\t")
-			}
-		}
-		if i < len(rows)-1 {
-			content.WriteString("\n")
-		}
-	}
-	return content.String()
-}
 
 // createErrorDocument creates a FileDocument with error information
 func (l *LoadFileService) createErrorDocument(filePath string, fileMetadata *FileMetadata, errorMsg string) (*FileDocument, error) {
