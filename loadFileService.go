@@ -10,7 +10,7 @@ import (
 	"github.com/dslipak/pdf"
 	"github.com/kawai-network/veridium/gooxml/document"
 	"github.com/kawai-network/veridium/gooxml/presentation"
-	"github.com/xuri/excelize/v2"
+	"github.com/kawai-network/veridium/gooxml/spreadsheet"
 )
 
 // LoadFileService provides file loading functionality as a Wails service
@@ -346,50 +346,77 @@ func (l *LoadFileService) extractDOCXContent(filePath string) (string, error) {
 	return markdown, nil
 }
 
-// loadExcelFile loads Excel files using github.com/xuri/excelize/v2
+// loadExcelFile loads Excel files using gooxml/spreadsheet
 func (l *LoadFileService) loadExcelFile(filePath string) ([]DocumentPage, string, string, error) {
-	f, err := excelize.OpenFile(filePath)
+	wb, err := spreadsheet.Open(filePath)
 	if err != nil {
 		return nil, "", fmt.Sprintf("failed to open Excel file: %v", err), err
 	}
-	defer f.Close()
 
 	var pages []DocumentPage
 	var markdownContent strings.Builder
 
 	markdownContent.WriteString("# Excel Document\n\n")
 
-	sheetList := f.GetSheetList()
-	for _, sheetName := range sheetList {
-		rows, err := f.GetRows(sheetName)
-		if err != nil {
-			continue
-		}
+	sheets := wb.Sheets()
+	for _, sheet := range sheets {
+		sheetName := sheet.Name()
 
 		markdownContent.WriteString(fmt.Sprintf("## Sheet: %s\n\n", sheetName))
 
+		// Get all rows from the sheet
+		rows := sheet.Rows()
 		if len(rows) > 0 {
-			// Create table header
-			if len(rows[0]) > 0 {
+			// Convert rows to string array for markdown table generation
+			var stringRows [][]string
+			maxCols := 0
+
+			// Find the maximum number of columns
+			for _, row := range rows {
+				cells := row.Cells()
+				if len(cells) > maxCols {
+					maxCols = len(cells)
+				}
+			}
+
+			// Convert to string array
+			for _, row := range rows {
+				cells := row.Cells()
+				var stringRow []string
+				for _, cell := range cells {
+					stringRow = append(stringRow, cell.GetFormattedValue())
+				}
+				// Pad with empty strings if necessary
+				for len(stringRow) < maxCols {
+					stringRow = append(stringRow, "")
+				}
+				stringRows = append(stringRows, stringRow)
+			}
+
+			// Create table header if we have data
+			if len(stringRows) > 0 && len(stringRows[0]) > 0 {
 				markdownContent.WriteString("| ")
-				for i, header := range rows[0] {
+				for i, header := range stringRows[0] {
+					if header == "" {
+						header = fmt.Sprintf("Column %d", i+1)
+					}
 					markdownContent.WriteString(header)
-					if i < len(rows[0])-1 {
+					if i < len(stringRows[0])-1 {
 						markdownContent.WriteString(" | ")
 					}
 				}
 				markdownContent.WriteString(" |\n| ")
-				for i := range rows[0] {
+				for i := range stringRows[0] {
 					markdownContent.WriteString("---")
-					if i < len(rows[0])-1 {
+					if i < len(stringRows[0])-1 {
 						markdownContent.WriteString(" | ")
 					}
 				}
 				markdownContent.WriteString(" |\n")
 			}
 
-			// Create table rows
-			for i, row := range rows {
+			// Create table rows (skip header row)
+			for i, row := range stringRows {
 				if i == 0 { // Skip header
 					continue
 				}
@@ -407,7 +434,7 @@ func (l *LoadFileService) loadExcelFile(filePath string) ([]DocumentPage, string
 		markdownContent.WriteString("\n")
 
 		// Create a page for this sheet
-		sheetContent := l.rowsToString(rows)
+		sheetContent := l.rowsToStringFromSheet(rows)
 		lines := strings.Split(sheetContent, "\n")
 		charCount := len(sheetContent)
 		lineCount := len(lines)
@@ -469,14 +496,14 @@ func (l *LoadFileService) extractPPTXContent(filePath string) (string, error) {
 	return markdown, nil
 }
 
-
-// rowsToString converts Excel rows to string representation
-func (l *LoadFileService) rowsToString(rows [][]string) string {
+// rowsToStringFromSheet converts spreadsheet rows to string representation
+func (l *LoadFileService) rowsToStringFromSheet(rows []spreadsheet.Row) string {
 	var content strings.Builder
 	for i, row := range rows {
-		for j, cell := range row {
-			content.WriteString(cell)
-			if j < len(row)-1 {
+		cells := row.Cells()
+		for j, cell := range cells {
+			content.WriteString(cell.GetFormattedValue())
+			if j < len(cells)-1 {
 				content.WriteString("\t")
 			}
 		}
