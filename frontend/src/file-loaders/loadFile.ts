@@ -14,9 +14,9 @@ const log = debug('file-loaders:loadFile');
  * @param filePath The path to the file.
  * @returns The determined file type or 'txt' if text-readable, undefined otherwise.
  */
-const getFileType = (filePath: string): SupportedFileType | undefined => {
+const getFileType = async (filePath: string): Promise<SupportedFileType | undefined> => {
   log('Determining file type for:', filePath);
-  const extension = path.extname(filePath).toLowerCase().replace('.', '');
+  const extension = (await path.extname(filePath)).toLowerCase().replace('.', '');
 
   if (!extension) {
     log('No extension found, treating as txt');
@@ -113,7 +113,7 @@ export const loadFile = async (
     source,
   });
 
-  const paserType = getFileType(filePath);
+  const paserType = await getFileType(filePath);
   log('Parser type determined as:', paserType);
 
   // Select the loader CLASS based on the determined fileType, fallback to DefaultLoader
