@@ -99,7 +99,7 @@ const userProfileSelectors = {
   nickName: (state: any) => state.nickName,
 };
 
-import TogglePanelButton from '@/layout/Chat/TogglePanelButton';
+import TogglePanelButton from '@/app/chat/TogglePanelButton';
 import Tags from './Tags';
 
 const useStyles = createStyles(({ css }) => ({

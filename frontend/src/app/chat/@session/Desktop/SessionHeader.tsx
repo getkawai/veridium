@@ -14,8 +14,8 @@ import { DESKTOP_HEADER_ICON_SIZE } from '@/const/layoutTokens';
 import { DEFAULT_CHAT_GROUP_CHAT_CONFIG } from '@/const/settings';
 import { LobeAgentSession } from '@/types/session';
 
-import TogglePanelButton from '../../TogglePanelButton';
-import SessionSearchBar from '../../SessionSearchBar';
+import TogglePanelButton from '@/app/chat/features/TogglePanelButton';
+import SessionSearchBar from '@/app/chat/SessionSearchBar';
 
 // Dummy implementations for development
 const mockSessionStore = {

@@ -1,7 +1,7 @@
 import { createStyles } from 'antd-style';
 import { memo } from 'react';
 
-import SupervisorThinkingTag from '@/layout/Chat/(workspace)/@conversation/features/ChatList/ChatItem/OrchestratorThinking';
+import SupervisorThinkingTag from '@/app/chat/(workspace)/@conversation/features/ChatList/ChatItem/OrchestratorThinking';
 import { ChatItem } from '@/features/Conversation';
 // import { useAgentStore } from '@/store/agent';
 // import { agentChatConfigSelectors } from '@/store/agent/selectors';

@@ -8,10 +8,10 @@ import { useTranslation } from 'react-i18next';
 import { Center, Flexbox } from 'react-layout-kit';
 
 import { useChatInputStore } from '@/features/ChatInput/store';
-// import { useChatStore } from '@/store/chat';
-// import { chatSelectors } from '@/store/chat/selectors';
-// import { useGlobalStore } from '@/store/global';
-// import { systemStatusSelectors } from '@/store/global/selectors';
+import { useChatStore } from '@/store/chat';
+import { chatSelectors } from '@/store/chat/selectors';
+import { useGlobalStore } from '@/store/global';
+import { systemStatusSelectors } from '@/store/global/selectors';
 
 import ActionBar from '../ActionBar';
 import InputEditor from '../InputEditor';

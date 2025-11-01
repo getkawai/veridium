@@ -1,16 +1,17 @@
-// import { Suspense } from 'react';
-import { PropsWithChildren } from 'react';
+import { Suspense } from 'react';
 import { Flexbox } from 'react-layout-kit';
+
+import { LayoutProps } from './type';
 
 // import { isDesktop } from '@/const/version';
 // import ProtocolUrlHandler from '@/features/ProtocolUrlHandler';
 
-// import RegisterHotkeys from './RegisterHotkeys';
+import RegisterHotkeys from './RegisterHotkeys';
 import SessionPanel from './SessionPanel';
 import Workspace from './Workspace';
 import Session from './@session/default';
 
-const Layout = ({ children }: PropsWithChildren) => {
+const Layout = ({ children }: LayoutProps) => {
   return (
     <>
       <Flexbox
@@ -24,9 +25,9 @@ const Layout = ({ children }: PropsWithChildren) => {
         </SessionPanel>
         <Workspace>{children}</Workspace>
       </Flexbox>
-      {/* <Suspense>
+      <Suspense>
         <RegisterHotkeys />
-      </Suspense> */}
+      </Suspense>
       {/* {isDesktop && <ProtocolUrlHandler />} */}
     </>
   );

@@ -3,7 +3,8 @@ import {Events, WML} from "@wailsio/runtime";
 import CircleLoader from './components/CircleLoader';
 import GlobalLayout from './layout/GlobalProvider';
 import DesktopMainLayout from './layout/Desktop';
-import ChatLayout from './layout/Chat';
+import ChatLayout from './app/chat';
+import Session from './app/chat/@session/default';
 
 function App() {
   useEffect(() => {
@@ -16,7 +17,7 @@ function App() {
   return (
     <GlobalLayout appearance={'auto'} isMobile={false} locale={''} neutralColor={undefined} primaryColor={undefined} variants={undefined}>
       <DesktopMainLayout>
-        <ChatLayout>
+        <ChatLayout session={<Session />}>
           <CircleLoader/>
         </ChatLayout>
       </DesktopMainLayout>
