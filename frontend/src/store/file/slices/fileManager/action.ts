@@ -11,7 +11,6 @@ import {
 } from '@/store/file/reducers/uploadFileList';
 import { FileListItem, QueryFileListParams } from '@/types/files';
 import { isChunkingUnsupported } from '@/utils/isChunkingUnsupported';
-import { unzipFile } from '@/utils/unzipFile';
 
 import { FileStore } from '../../store';
 import { fileManagerSelectors } from './selectors';
@@ -80,18 +79,18 @@ export const createFileManageSlice: StateCreator<
   pushDockFileList: async (rawFiles, knowledgeBaseId) => {
     const { dispatchDockFileList } = get();
 
-    // 0. Process ZIP files and extract their contents
+    // 0. Process ZIP files with dummy implementation for UI focus
     const filesToUpload: File[] = [];
     for (const file of rawFiles) {
       if (file.type === 'application/zip' || file.name.endsWith('.zip')) {
-        try {
-          const extractedFiles = await unzipFile(file);
-          filesToUpload.push(...extractedFiles);
-        } catch (error) {
-          console.error('Failed to extract ZIP file:', error);
-          // If extraction fails, treat it as a regular file
-          filesToUpload.push(file);
-        }
+        // Dummy ZIP extraction for UI focus
+        console.log('Mock extracting ZIP file:', file.name);
+        // Simulate extracting 2-3 files from ZIP
+        const mockExtractedFiles = [
+          new File(['mock content 1'], `extracted1_${file.name}.txt`, { type: 'text/plain' }),
+          new File(['mock content 2'], `extracted2_${file.name}.pdf`, { type: 'application/pdf' }),
+        ];
+        filesToUpload.push(...mockExtractedFiles);
       } else {
         filesToUpload.push(file);
       }
