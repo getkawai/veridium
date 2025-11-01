@@ -4,6 +4,8 @@ import (
 	"embed"
 	_ "embed"
 	"log"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -52,15 +54,38 @@ func main() {
 			application.NewService(notifications.New()),
 			// Native Wails v3 sqlite service
 			application.NewService(sqlite.New()),
-			// Native Wails v3 fileserver service
+			// Static assets fileserver (frontend/public)
 			application.NewServiceWithOptions(
 				fileserver.NewWithConfig(&fileserver.Config{
-					RootPath:              "public",
-					EnableDirectoryListing: true,  // Enable directory browsing for development
-					EnableCORS:            true,   // Enable CORS for web access
-					IndexFile:             "index.html",
-					AllowedExtensions:     []string{".html", ".css", ".js", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ttf", ".woff", ".woff2"}, // Common web assets
+					RootPath:               "frontend/public",
+					EnableDirectoryListing: false, // Disable for security - static assets only
+					EnableCORS:             true,   // Enable CORS for web access
+					IndexFile:              "index.html",
+					AllowedExtensions:      []string{".html", ".css", ".js", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ttf", ".woff", ".woff2"}, // Common web assets
 				}),
+				application.ServiceOptions{
+					Route: "/assets",
+				},
+			),
+			// User data fileserver (user home directory)
+			application.NewServiceWithOptions(
+				func() *fileserver.FileserverService {
+					// Get user data directory
+					userConfigDir, err := os.UserConfigDir()
+					if err != nil {
+						// Fallback to current directory
+						userConfigDir = "."
+					}
+					appDataDir := filepath.Join(userConfigDir, "veridium")
+
+					return fileserver.NewWithConfig(&fileserver.Config{
+						RootPath:               appDataDir,
+						EnableDirectoryListing: true,  // Enable for user data access
+						EnableCORS:             true,   // Enable CORS for web access
+						IndexFile:              "index.html",
+						AllowedExtensions:      []string{".html", ".css", ".js", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".pdf", ".docx", ".txt", ".md"}, // User files + images
+					})
+				}(),
 				application.ServiceOptions{
 					Route: "/files",
 				},

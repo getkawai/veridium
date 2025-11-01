@@ -56,7 +56,7 @@ type Document struct {
 
 // New constructs an empty document that content can be added to.
 func New() *Document {
-	
+
 	d := &Document{x: wml.NewDocument()}
 	d.ContentTypes = common.NewContentTypes()
 	d.x.Body = wml.NewCT_Body()
@@ -181,23 +181,32 @@ func (d *Document) ToMarkdownWithImages(imageDir string) (string, error) {
 }
 
 // ToMarkdownWithImageURLs converts the document to markdown with images served via local fileserver URLs.
-// Images are automatically saved to frontend/public/images/ and become accessible via the Wails fileserver.
-// The baseURL parameter should be "/files" to match the fileserver route configured in main.go.
+// Images are automatically saved to the user data directory and become accessible via the Wails fileserver.
+// The baseURL parameter should be "/files" to match the user data fileserver route configured in main.go.
 //
 // Example usage:
-//   doc, err := document.Open("document.docx")
-//   if err != nil {
-//       return err
-//   }
-//   markdown, err := doc.ToMarkdownWithImageURLs("/files")
-//   // Images are saved to frontend/public/images/ and referenced as:
-//   // ![alt text](/files/images/image1.png)
 //
-// This method works with the enhanced Wails3 fileserver that serves files from frontend/public/
+//	doc, err := document.Open("document.docx")
+//	if err != nil {
+//	    return err
+//	}
+//	markdown, err := doc.ToMarkdownWithImageURLs("/files")
+//	// Images are saved to user data directory (e.g., ~/Library/Application Support/veridium/images/)
+//	// and referenced as: ![alt text](/files/images/image1.png)
+//
+// This method works with the enhanced Wails3 fileserver that serves files from the user data directory
 // with CORS enabled and proper MIME type handling.
 func (d *Document) ToMarkdownWithImageURLs(baseURL string) (string, error) {
-	// Use the public directory for images so they can be served by the fileserver
-	imageDir := filepath.Join("frontend", "public", "images")
+	// Get user config directory for storing user-generated content
+	userConfigDir, err := os.UserConfigDir()
+	if err != nil {
+		// Fallback to current directory if we can't get user config dir
+		userConfigDir = "."
+	}
+
+	// Create veridium app data directory
+	appDataDir := filepath.Join(userConfigDir, "veridium")
+	imageDir := filepath.Join(appDataDir, "images")
 
 	// Create image directory if it doesn't exist
 	if err := os.MkdirAll(imageDir, 0755); err != nil {
