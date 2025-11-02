@@ -1,5 +1,5 @@
-import { LobeChatPluginManifest } from '@lobehub/chat-plugin-sdk';
-import { LobeChatPluginMeta, Meta } from '@lobehub/chat-plugin-sdk/lib/types/market';
+import { LobeChatPluginManifest } from '@/chat-plugin-sdk';
+import { LobeChatPluginMeta, Meta } from '@/chat-plugin-sdk/lib/types/market';
 
 export enum PluginCategory {
   All = 'all',

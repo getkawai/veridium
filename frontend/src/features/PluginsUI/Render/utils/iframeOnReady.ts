@@ -1,4 +1,4 @@
-import { PluginChannel } from '@lobehub/chat-plugin-sdk/client';
+import { PluginChannel } from '@/chat-plugin-sdk/client';
 import { useEffect, useState } from 'react';
 
 export const useOnPluginReadyForInteraction = (onReady: () => void, deps: any[] = []) => {

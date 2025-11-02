@@ -1,4 +1,4 @@
-import { LobeChatPluginManifest } from '@lobehub/chat-plugin-sdk';
+import { LobeChatPluginManifest } from '@/chat-plugin-sdk';
 import { produce } from 'immer';
 
 import { PluginManifestMap } from '@/types/tool/plugin';

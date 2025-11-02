@@ -4,7 +4,7 @@
 import { ToolsEngine } from '@/context-engine';
 import type { PluginEnableChecker } from '@/context-engine';
 import { ChatCompletionTool, WorkingModel } from '@/types';
-import { LobeChatPluginManifest } from '@lobehub/chat-plugin-sdk';
+import { LobeChatPluginManifest } from '@/chat-plugin-sdk';
 
 import { getToolStoreState } from '@/store/tool';
 import { pluginSelectors } from '@/store/tool/selectors';

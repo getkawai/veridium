@@ -1,6 +1,6 @@
 // import { AgentRuntimeErrorType, ILobeAgentRuntimeErrorType } from '@/model-runtime';
 // import { ChatErrorType, ChatMessageError, ErrorType, UIChatMessage } from '@/types';
-// import { IPluginErrorType } from '@lobehub/chat-plugin-sdk';
+// import { IPluginErrorType } from '@/chat-plugin-sdk';
 import type { AlertProps } from '@lobehub/ui';
 import { Skeleton } from 'antd';
 // import dynamic from 'next/dynamic';

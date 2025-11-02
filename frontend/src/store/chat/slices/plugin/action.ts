@@ -9,7 +9,7 @@ import {
   ToolsCallingContext,
   UIChatMessage,
 } from '@/types';
-import { LobeChatPluginManifest, PluginErrorType } from '@lobehub/chat-plugin-sdk';
+import { LobeChatPluginManifest, PluginErrorType } from '@/chat-plugin-sdk';
 import isEqual from 'fast-deep-equal';
 import { t } from 'i18next';
 import { StateCreator } from 'zustand/vanilla';

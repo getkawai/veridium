@@ -1,4 +1,4 @@
-import { PluginRender, PluginRenderProps } from '@lobehub/chat-plugin-sdk/client';
+import { PluginRender, PluginRenderProps } from '@/chat-plugin-sdk/client';
 import { Skeleton } from 'antd';
 import { memo, useEffect, useState } from 'react';
 

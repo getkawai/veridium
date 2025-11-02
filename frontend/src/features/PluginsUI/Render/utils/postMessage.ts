@@ -1,4 +1,4 @@
-import { PluginChannel } from '@lobehub/chat-plugin-sdk/client';
+import { PluginChannel } from '@/chat-plugin-sdk/client';
 
 export const sendMessageContentToPlugin = (window: Window, props: any) => {
   window.postMessage({ props, type: PluginChannel.renderPlugin }, '*');

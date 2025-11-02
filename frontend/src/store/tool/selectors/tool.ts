@@ -1,6 +1,6 @@
 import { ToolNameResolver } from '@/context-engine';
 import { pluginPrompts } from '@/prompts';
-import { LobeChatPluginManifest } from '@lobehub/chat-plugin-sdk';
+import { LobeChatPluginManifest } from '@/chat-plugin-sdk';
 
 import { MetaData } from '@/types/meta';
 import { LobeToolMeta } from '@/types/tool/tool';

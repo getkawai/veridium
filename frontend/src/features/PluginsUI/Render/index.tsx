@@ -1,5 +1,5 @@
 import { LobeToolRenderType } from '@/types';
-import { PluginRequestPayload } from '@lobehub/chat-plugin-sdk';
+import { PluginRequestPayload } from '@/chat-plugin-sdk';
 import { memo } from 'react';
 
 import BuiltinType from './BuiltinType';

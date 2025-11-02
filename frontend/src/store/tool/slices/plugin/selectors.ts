@@ -1,4 +1,4 @@
-import { LobeChatPluginManifest } from '@lobehub/chat-plugin-sdk';
+import { LobeChatPluginManifest } from '@/chat-plugin-sdk';
 import { uniq } from 'lodash-es';
 
 import { InstallPluginMeta, LobeToolCustomPlugin } from '@/types/tool/plugin';

@@ -1,5 +1,5 @@
 import { LobeTool } from '@/types';
-import { LobeChatPluginManifest } from '@lobehub/chat-plugin-sdk';
+import { LobeChatPluginManifest } from '@/chat-plugin-sdk';
 
 import { LobeToolCustomPlugin } from '@/types/tool/plugin';
 
