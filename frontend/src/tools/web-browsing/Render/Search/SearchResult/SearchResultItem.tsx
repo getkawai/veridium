@@ -1,7 +1,7 @@
 import { UniformSearchResult } from '@/types';
 import { Text } from '@lobehub/ui';
 import { createStyles } from 'antd-style';
-import Link from 'next/link';
+
 import { memo } from 'react';
 import { Flexbox } from 'react-layout-kit';
 
@@ -49,7 +49,7 @@ const SearchResultItem = memo<UniformSearchResult>(({ url, title }) => {
   const urlObj = new URL(url);
   const host = urlObj.hostname;
   return (
-    <Link href={url} target={'_blank'}>
+    <a href={url} target={'_blank'}>
       <Flexbox className={styles.container} gap={2} justify={'space-between'}>
         <div className={styles.title}>{title}</div>
         <Flexbox align={'center'} gap={4} horizontal>
@@ -59,7 +59,7 @@ const SearchResultItem = memo<UniformSearchResult>(({ url, title }) => {
           </Text>
         </Flexbox>
       </Flexbox>
-    </Link>
+    </a>
   );
 });
 

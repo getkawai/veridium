@@ -4,7 +4,7 @@ import { Alert, CopyButton, Highlighter, Icon, Markdown, Segmented, Text } from 
 import { Descriptions } from 'antd';
 import { createStyles } from 'antd-style';
 import { ExternalLink } from 'lucide-react';
-import Link from 'next/link';
+
 import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
@@ -155,7 +155,7 @@ const PageContent = memo<PageContentProps>(({ result }) => {
         )}
         <Flexbox align={'center'} className={styles.url} gap={4} horizontal>
           {siteName && <div>{siteName} · </div>}
-          <Link
+          <a
             className={styles.url}
             href={url}
             onClick={(e) => e.stopPropagation()}
@@ -165,7 +165,7 @@ const PageContent = memo<PageContentProps>(({ result }) => {
           >
             {result.originalUrl}
             <Icon icon={ExternalLink} />
-          </Link>
+          </a>
         </Flexbox>
 
         <div className={styles.footer}>

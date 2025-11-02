@@ -5,7 +5,7 @@ import { Alert, Icon, Text } from '@lobehub/ui';
 import { Descriptions } from 'antd';
 import { createStyles } from 'antd-style';
 import { ExternalLink } from 'lucide-react';
-import Link from 'next/link';
+
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Center, Flexbox } from 'react-layout-kit';
@@ -139,11 +139,11 @@ const CrawlerResultCard = memo<CrawlerData>(({ result, messageId, crawler, origi
           <Flexbox>
             <div className={styles.title}>{title || originalUrl}</div>
           </Flexbox>
-          <Link href={url} onClick={(e) => e.stopPropagation()} target={'_blank'}>
+          <a href={url} onClick={(e) => e.stopPropagation()} target={'_blank'}>
             <Center className={styles.externalLink}>
               <Icon icon={ExternalLink} />
             </Center>
-          </Link>
+          </a>
         </Flexbox>
         <Text className={styles.description} ellipsis={{ rows: 2 }}>
           {description || result.content?.slice(0, 40)}

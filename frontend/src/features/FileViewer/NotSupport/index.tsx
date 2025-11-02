@@ -1,7 +1,7 @@
 import { IDocument } from '@cyntler/react-doc-viewer';
 import { Button, FluentEmoji } from '@lobehub/ui';
 import { createStyles } from 'antd-style';
-import Link from 'next/link';
+
 import React, { ComponentType, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { Center, Flexbox } from 'react-layout-kit';
@@ -39,9 +39,9 @@ const NotSupport: ComponentType<{
           <Flexbox style={{ textAlign: 'center' }}>
             <Trans i18nKey="preview.unsupportedFileAndContact" ns={'file'}>
               此文件格式暂不支持在线预览，如有预览诉求，欢迎
-              <Link aria-label={'todo'} href={MORE_FILE_PREVIEW_REQUEST_URL} target="_blank">
+              <a aria-label={'todo'} href={MORE_FILE_PREVIEW_REQUEST_URL} target="_blank">
                 反馈给我们
-              </Link>
+              </a>
             </Trans>
           </Flexbox>
           <Button
