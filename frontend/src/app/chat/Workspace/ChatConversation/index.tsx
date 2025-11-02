@@ -5,7 +5,7 @@ import ChatMinimap from './features/ChatMinimap';
 // import ThreadHydration from './features/ThreadHydration';
 import ZenModeToast from './features/ZenModeToast';
 
-const ChatConversation = async () => {
+const ChatConversation = () => {
   const isMobile = false;
 
   return (

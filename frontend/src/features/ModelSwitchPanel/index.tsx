@@ -61,7 +61,7 @@ const agentSelectors = {
 };
 
 const mockServerConfig = {
-  showLLM: true
+  featureFlags: { showLLM: true }
 };
 
 const useServerConfigStore = (selector?: any) => {
@@ -71,9 +71,7 @@ const useServerConfigStore = (selector?: any) => {
   return mockServerConfig;
 };
 
-const featureFlagsSelectors = {
-  showLLM: (state: any) => state.showLLM
-};
+const featureFlagsSelectors = (s: any) => s.featureFlags || { showLLM: true };
 
 const useRouter = () => {
   return {

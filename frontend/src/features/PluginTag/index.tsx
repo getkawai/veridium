@@ -13,19 +13,17 @@ import Avatar from '@/components/Plugins/PluginAvatar';
 
 // Dummy implementations for development - memoized
 const mockServerConfig = {
-  showDalle: true
+  featureFlags: { showDalle: true }
 };
 
 const useServerConfigStore = (selector?: any) => {
-  if (selector) {
+  if (selector && typeof selector === 'function') {
     return selector(mockServerConfig);
   }
   return mockServerConfig;
 };
 
-const featureFlagsSelectors = {
-  showDalle: (state: any) => state.showDalle
-};
+const featureFlagsSelectors = (s: any) => s.featureFlags || { showDalle: true };
 
 const mockToolStore = {
   metaList: [

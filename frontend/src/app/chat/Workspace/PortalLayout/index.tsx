@@ -8,7 +8,7 @@ import Body from './features/Body';
 
 const PortalBody = lazy(() => import('@/features/Portal/router'));
 
-const PortalLayout = async () => {
+const PortalLayout = () => {
   return (
     <Suspense fallback={<Loading />}>
       <PortalHeader />

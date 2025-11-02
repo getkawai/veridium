@@ -35,7 +35,7 @@ const useServerConfigStore = (selector: any) => {
 };
 
 const serverConfigSelectors = {
-  isMobile: (state: any) => state.isMobile,
+  isMobile: (s: any) => s.isMobile || false,
 };
 
 // Memoized search result

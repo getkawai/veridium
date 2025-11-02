@@ -1,5 +1,3 @@
-'use client';
-
 import { BRANDING_NAME } from '@/const/branding';
 import { FluentEmoji, Markdown } from '@lobehub/ui';
 import { createStyles } from 'antd-style';
@@ -8,87 +6,15 @@ import { memo, useMemo } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { Center, Flexbox } from 'react-layout-kit';
 
-// import { useGreeting } from '@/hooks/useGreeting';
-// import { useIsMobile } from '@/hooks/useIsMobile';
-// import { useAgentStore } from '@/store/agent';
-// import { agentSelectors } from '@/store/agent/selectors';
-// import { useChatStore } from '@/store/chat';
-// import { chatSelectors } from '@/store/chat/selectors';
-// import { featureFlagsSelectors, useServerConfigStore } from '@/store/serverConfig';
-// import { useSessionStore } from '@/store/session';
-// import { sessionMetaSelectors } from '@/store/session/selectors';
-
-// Dummy implementations for UI development
-const useGreeting = () => 'Hello';
-
-const useIsMobile = () => false;
-
-const useServerConfigStore = (selector?: any) => {
-  if (selector) {
-    return selector({
-      showCreateSession: true,
-    });
-  }
-  return {
-    showCreateSession: true,
-  };
-};
-
-const featureFlagsSelectors = {
-  showCreateSession: (state: any) => state.showCreateSession,
-};
-
-const useAgentStore = (selector?: any) => {
-  if (selector) {
-    return selector({
-      openingQuestions: [],
-      openingMessage: 'Welcome to the chat!',
-    });
-  }
-
-  return {
-    openingQuestions: [],
-    openingMessage: 'Welcome to the chat!',
-  };
-};
-
-const agentSelectors = {
-  openingQuestions: (state: any) => state.openingQuestions,
-  openingMessage: (state: any) => state.openingMessage,
-};
-
-const useSessionStore = (selector?: any, comparator?: any) => {
-  if (selector) {
-    return selector({
-      meta: { title: 'Test Agent', description: 'A test agent' },
-    });
-  }
-
-  return {
-    meta: { title: 'Test Agent', description: 'A test agent' },
-  };
-};
-
-const sessionMetaSelectors = {
-  currentAgentMeta: (state: any) => state.meta,
-};
-
-const useChatStore = (selector?: any) => {
-  if (selector) {
-    return selector({
-      showInboxWelcome: true,
-    });
-  }
-
-  return {
-    showInboxWelcome: true,
-  };
-};
-
-const chatSelectors = {
-  showInboxWelcome: (state: any) => state.showInboxWelcome,
-};
-
+import { useGreeting } from '@/hooks/useGreeting';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import { useAgentStore } from '@/store/agent';
+import { agentSelectors } from '@/store/agent/selectors';
+import { useChatStore } from '@/store/chat';
+import { chatSelectors } from '@/store/chat/selectors';
+import { featureFlagsSelectors, useServerConfigStore } from '@/store/serverConfig';
+import { useSessionStore } from '@/store/session';
+import { sessionMetaSelectors } from '@/store/session/selectors';
 import AddButton from './AddButton';
 import OpeningQuestions from './OpeningQuestions';
 
