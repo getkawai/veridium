@@ -6,7 +6,7 @@ import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 
-import HeaderContent from '@/app/chat/settings/features/HeaderContent';
+import HeaderContent from '@/app/[variants]/(main)/chat/settings/features/HeaderContent';
 import BrandWatermark from '@/components/BrandWatermark';
 import PanelTitle from '@/components/PanelTitle';
 import { INBOX_SESSION_ID } from '@/const/session';

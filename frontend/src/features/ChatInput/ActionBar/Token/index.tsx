@@ -1,14 +1,11 @@
-import dynamic from 'next/dynamic';
-import { PropsWithChildren, memo } from 'react';
+import { lazy, PropsWithChildren, memo, Suspense } from 'react';
 
 import { useModelHasContextWindowToken } from '@/hooks/useModelHasContextWindowToken';
 import { useChatStore } from '@/store/chat';
 import { chatSelectors, threadSelectors } from '@/store/chat/selectors';
 
-const LargeTokenContent = dynamic(() => import('./TokenTag'), { ssr: false });
-const LargeTokenContentForGroupChat = dynamic(() => import('./TokenTagForGroupChat'), {
-  ssr: false,
-});
+const LargeTokenContent = lazy(() => import('./TokenTag'));
+const LargeTokenContentForGroupChat = lazy(() => import('./TokenTagForGroupChat'));
 
 const Token = memo<PropsWithChildren>(({ children }) => {
   const showTag = useModelHasContextWindowToken();
@@ -21,7 +18,9 @@ export const MainToken = memo(() => {
 
   return (
     <Token>
-      <LargeTokenContent total={total} />
+      <Suspense fallback={null}>
+        <LargeTokenContent total={total} />
+      </Suspense>
     </Token>
   );
 });
@@ -31,7 +30,9 @@ export const PortalToken = memo(() => {
 
   return (
     <Token>
-      <LargeTokenContent total={total} />
+      <Suspense fallback={null}>
+        <LargeTokenContent total={total} />
+      </Suspense>
     </Token>
   );
 });
@@ -41,7 +42,9 @@ export const GroupChatToken = memo(() => {
 
   return (
     <Token>
-      <LargeTokenContentForGroupChat total={total} />
+      <Suspense fallback={null}>
+        <LargeTokenContentForGroupChat total={total} />
+      </Suspense>
     </Token>
   );
 });

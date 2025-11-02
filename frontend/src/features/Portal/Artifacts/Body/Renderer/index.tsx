@@ -1,5 +1,5 @@
 import { Markdown, Mermaid } from '@lobehub/ui';
-import { memo, lazy } from 'react';
+import { lazy, memo, Suspense } from 'react';
 
 import HTMLRenderer from './HTML';
 import SVGRender from './SVG';
@@ -9,7 +9,11 @@ const ReactRenderer = lazy(() => import('./React'));
 const Renderer = memo<{ content: string; type?: string }>(({ content, type }) => {
   switch (type) {
     case 'application/lobe.artifacts.react': {
-      return <ReactRenderer code={content} />;
+      return (
+        <Suspense fallback={null}>
+          <ReactRenderer code={content} />
+        </Suspense>
+      );
     }
 
     case 'image/svg+xml': {
