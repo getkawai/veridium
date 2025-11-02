@@ -1,4 +1,4 @@
-import { CreateNewEvalEvaluation, RAGEvalDataSetItem } from '@lobechat/types';
+import { CreateNewEvalEvaluation, RAGEvalDataSetItem } from '@/types';
 import { SWRResponse, mutate } from 'swr';
 import { StateCreator } from 'zustand/vanilla';
 

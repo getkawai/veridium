@@ -3,7 +3,7 @@ import {
   EvalDatasetRecord,
   RAGEvalDataSetItem,
   insertEvalDatasetRecordSchema,
-} from '@lobechat/types';
+} from '@/types';
 import { SWRResponse, mutate } from 'swr';
 import { StateCreator } from 'zustand/vanilla';
 
