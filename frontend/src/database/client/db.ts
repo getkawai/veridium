@@ -86,13 +86,19 @@ export class DatabaseManager {
       if (this.driver && migrations) {
         for (const migration of migrations as any[]) {
           if (migration.sql) {
-            // Execute each SQL statement in the migration
-            const statements = migration.sql.split('--> statement-breakpoint');
-            for (const statement of statements) {
-              const trimmed = statement.trim();
-              if (trimmed) {
-                await this.driver.execute(trimmed);
+            // Check if the SQL contains statement separators
+            if (migration.sql.includes('--> statement-breakpoint')) {
+              // Split and execute each SQL statement separately
+              const statements = migration.sql.split('--> statement-breakpoint');
+              for (const statement of statements) {
+                const trimmed = statement.trim();
+                if (trimmed) {
+                  await this.driver.execute(trimmed);
+                }
               }
+            } else {
+              // Execute the entire SQL as one statement (for SQLite)
+              await this.driver.execute(migration.sql);
             }
           }
         }

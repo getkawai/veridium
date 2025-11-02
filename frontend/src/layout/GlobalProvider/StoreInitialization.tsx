@@ -30,12 +30,16 @@ const StoreInitialization = memo(() => {
   const { serverConfig } = useServerConfigStore();
 
   const useInitSystemStatus = useGlobalStore((s) => s.useInitSystemStatus);
+  const useInitClientDB = useGlobalStore((s) => s.useInitClientDB);
 
   const useInitAgentStore = useAgentStore((s) => s.useInitInboxAgentStore);
   const useInitAiProviderKeyVaults = useAiInfraStore((s) => s.useFetchAiProviderRuntimeState);
 
   // init the system preference
   useInitSystemStatus();
+
+  // init the client database
+  useInitClientDB();
 
   // fetch server config
   const useFetchServerConfig = useServerConfigStore((s) => s.useInitServerConfig);
