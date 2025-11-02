@@ -1,7 +1,6 @@
 'use client';
 
 import { Alert } from '@lobehub/ui';
-import Link from 'next/link';
 import { memo } from 'react';
 import { Trans } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
@@ -33,12 +32,12 @@ const Desktop = memo(() => {
             message={
               <Trans i18nKey={'notSupportMultiModals'} ns={'thread'}>
                 子话题暂不支持文件/图片上传，如有需求，欢迎留言：
-                <Link
-                  href={'https://github.com/lobehub/lobe-chat/discussions/4717'}
+                <a
+                  data-wml-openURL={'https://github.com/lobehub/lobe-chat/discussions/4717'}
                   style={{ textDecoration: 'underline' }}
                 >
                   💬 讨论
-                </Link>
+                </a>
               </Trans>
             }
             onClose={() => {
