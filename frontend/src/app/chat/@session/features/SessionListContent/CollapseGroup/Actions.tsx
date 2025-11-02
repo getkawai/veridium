@@ -6,59 +6,10 @@ import { memo, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { MemberSelectionModal } from '@/components/MemberSelectionModal';
-// import { useIsMobile } from '@/hooks/useIsMobile';
-// import { useChatGroupStore } from '@/store/chatGroup';
-// import { featureFlagsSelectors, useServerConfigStore } from '@/store/serverConfig';
-// import { useSessionStore } from '@/store/session';
-
-// Dummy implementations for development
-const mockSessionStore = {
-  createSession: async (config?: any) => {
-    console.log('Mock createSession called with:', config);
-    return `session-${Date.now()}`;
-  },
-  removeSessionGroup: async (groupId: string) => {
-    console.log('Mock removeSessionGroup called with:', groupId);
-  },
-};
-
-const useSessionStore = (selector?: any) => {
-  if (selector) {
-    return selector(mockSessionStore);
-  }
-  return mockSessionStore;
-};
-
-const mockChatGroupStore = {
-  createGroup: async (groupConfig: any, memberAgentIds: string[]) => {
-    console.log('Mock createGroup called with:', groupConfig, memberAgentIds);
-    return `group-${Date.now()}`;
-  },
-};
-
-const useChatGroupStore = (selector?: any) => {
-  if (selector) {
-    return selector(mockChatGroupStore);
-  }
-  return mockChatGroupStore;
-};
-
-const featureFlagsSelectors = {
-  showCreateSession: true,
-  enableGroupChat: true,
-};
-
-const useServerConfigStore = (selector: any) => {
-  // Handle the case where featureFlagsSelectors object is passed directly
-  if (selector && typeof selector === 'object' && selector.showCreateSession !== undefined) {
-    return selector;
-  }
-  // Handle selector function
-  if (typeof selector === 'function') {
-    return selector(featureFlagsSelectors);
-  }
-  return featureFlagsSelectors;
-};
+import { useIsMobile } from '@/hooks/useIsMobile';
+import { useChatGroupStore } from '@/store/chatGroup';
+import { featureFlagsSelectors, useServerConfigStore } from '@/store/serverConfig';
+import { useSessionStore } from '@/store/session';
 
 const useStyles = createStyles(({ css }) => ({
   modalRoot: css`
@@ -82,7 +33,7 @@ const Actions = memo<ActionsProps>(
     const { styles } = useStyles();
     const { modal, message } = App.useApp();
 
-    const isMobile = false;
+    const isMobile = useIsMobile();
     const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
     const [isCreatingGroup, setIsCreatingGroup] = useState(false);
 

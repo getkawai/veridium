@@ -19,109 +19,12 @@ import { memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { isDesktop, isServerMode } from '@/const/version';
-// import { configService } from '@/services/config';
-// import { useGlobalStore } from '@/store/global';
-// import { useChatGroupStore } from '@/store/chatGroup';
-// import { useSessionStore } from '@/store/session';
-// import { sessionHelpers } from '@/store/session/helpers';
-// import { sessionGroupSelectors, sessionSelectors } from '@/store/session/selectors';
-
-// Dummy implementations for development
-const configService = {
-  exportSingleAgent: (id: string) => {
-    console.log('Mock exportSingleAgent called with:', id);
-  },
-  exportSingleSession: (id: string) => {
-    console.log('Mock exportSingleSession called with:', id);
-  },
-};
-
-const useGlobalStore = (selector?: any) => {
-  if (selector) {
-    return selector({
-      openSessionInNewWindow: (id: string) => {
-        console.log('Mock openSessionInNewWindow called with:', id);
-      },
-    });
-  }
-  return {
-    openSessionInNewWindow: (id: string) => {
-      console.log('Mock openSessionInNewWindow called with:', id);
-    },
-  };
-};
-
-const mockSessionStore = {
-  pinSession: async (id: string, pin: boolean) => {
-    console.log('Mock pinSession called with:', id, pin);
-  },
-  removeSession: async (id: string) => {
-    console.log('Mock removeSession called with:', id);
-  },
-  duplicateSession: async (id: string) => {
-    console.log('Mock duplicateSession called with:', id);
-    return `duplicate-${id}`;
-  },
-  updateSessionGroupId: async (id: string, groupId: string) => {
-    console.log('Mock updateSessionGroupId called with:', id, groupId);
-  },
-};
-
-const useSessionStore = (selector?: any, comparator?: any) => {
-  if (selector) {
-    if (typeof selector === 'function' && selector.name === 'sessionGroupItems') {
-      return [
-        { id: 'group-1', name: 'Work' },
-        { id: 'group-2', name: 'Personal' },
-      ];
-    }
-    return selector(mockSessionStore);
-  }
-  return mockSessionStore;
-};
-
-const sessionHelpers = {
-  getSessionPinned: (session: any) => {
-    return session?.pinned || false;
-  },
-};
-
-const sessionSelectors = {
-  getSessionById: (id: string) => (state: any) => {
-    console.log('Mock getSessionById called with:', id);
-    return {
-      id,
-      type: 'agent',
-      pinned: false,
-      meta: { title: `Session ${id}` },
-      updatedAt: new Date(),
-    };
-  },
-};
-
-const sessionGroupSelectors = {
-  sessionGroupItems: (state: any) => [
-    { id: 'group-1', name: 'Work' },
-    { id: 'group-2', name: 'Personal' },
-  ],
-};
-
-const mockChatGroupStore = {
-  deleteGroup: async (id: string) => {
-    console.log('Mock deleteGroup called with:', id);
-  },
-  pinGroup: async (id: string, pin: boolean) => {
-    console.log('Mock pinGroup called with:', id, pin);
-  },
-};
-
-const useChatGroupStore = (selector?: any) => {
-  if (selector) {
-    return selector(mockChatGroupStore);
-  }
-  return mockChatGroupStore;
-};
-
+import { configService } from '@/services/config';
+import { useGlobalStore } from '@/store/global';
+import { useChatGroupStore } from '@/store/chatGroup';
+import { useSessionStore } from '@/store/session';
+import { sessionHelpers } from '@/store/session/helpers';
+import { sessionGroupSelectors, sessionSelectors } from '@/store/session/selectors';
 import { SessionDefaultGroup } from '@/types/session';
 
 const useStyles = createStyles(({ css }) => ({

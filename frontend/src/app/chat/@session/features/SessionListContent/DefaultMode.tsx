@@ -2,6 +2,14 @@ import { CollapseProps } from 'antd';
 import isEqual from 'fast-deep-equal';
 import { memo, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+
+import { useFetchSessions } from '@/hooks/useFetchSessions';
+import { useGlobalStore } from '@/store/global';
+import { systemStatusSelectors } from '@/store/global/selectors';
+import { useServerConfigStore } from '@/store/serverConfig';
+import { serverConfigSelectors } from '@/store/serverConfig/selectors';
+import { useSessionStore } from '@/store/session';
+import { sessionSelectors } from '@/store/session/selectors';
 import {
   LobeAgentSession,
   LobeSessionType,
@@ -15,76 +23,6 @@ import Inbox from './Inbox';
 import SessionList from './List';
 import ConfigGroupModal from './Modals/ConfigGroupModal';
 import RenameGroupModal from './Modals/RenameGroupModal';
-
-// Dummy implementations for development
-const useFetchSessions = () => {
-  console.log('Mock useFetchSessions called');
-  // No-op for dummy implementation
-};
-
-const mockServerConfig = { isMobile: false };
-
-const useServerConfigStore = (selector: any) => {
-  if (selector && typeof selector === 'object' && selector.isMobile !== undefined) {
-    return selector;
-  }
-  if (typeof selector === 'function') {
-    return selector(mockServerConfig);
-  }
-  return mockServerConfig;
-};
-
-const serverConfigSelectors = {
-  isMobile: (s: any) => s.isMobile || false,
-};
-
-// Memoized search result
-const mockSearchResult = { data: [], isLoading: false };
-
-// Memoized session store
-const mockSessionStore = {
-  defaultSessions: [],
-  customSessionGroups: [],
-  pinnedSessions: [],
-  isSearching: false,
-  sessionSearchKeywords: '',
-  useSearchSessions: () => mockSearchResult, // Return same object
-};
-
-const useSessionStore = (selector?: any, comparator?: any) => {
-  if (selector) {
-    return selector(mockSessionStore);
-  }
-  return mockSessionStore;
-};
-
-const sessionSelectors = {
-  defaultSessions: (state: any) => state.defaultSessions,
-  customSessionGroups: (state: any) => state.customSessionGroups,
-  pinnedSessions: (state: any) => state.pinnedSessions,
-};
-
-// Memoized global store to prevent new array/function creation
-const mockSessionGroupKeys = [SessionDefaultGroup.Default];
-const mockUpdateSystemStatus = (status: any) => {
-  console.log('Mock updateSystemStatus called with:', status);
-};
-
-const mockGlobalStore = {
-  sessionGroupKeys: mockSessionGroupKeys,
-  updateSystemStatus: mockUpdateSystemStatus,
-};
-
-const useGlobalStore = (selector: any) => {
-  if (selector) {
-    return selector(mockGlobalStore);
-  }
-  return mockGlobalStore;
-};
-
-const systemStatusSelectors = {
-  sessionGroupKeys: (state: any) => state.sessionGroupKeys,
-};
 
 const DefaultMode = memo(() => {
   const { t } = useTranslation('chat');
@@ -116,23 +54,12 @@ const DefaultMode = memo(() => {
     return filteredForDevice.filter((session) => !shouldHideSession(session));
   };
 
-  const filteredDefaultSessions = useMemo(
-    () => filterSessionsForView(defaultSessions),
-    [defaultSessions, isMobile]
-  );
-  
-  const filteredPinnedSessions = useMemo(
-    () => filterSessionsForView(pinnedSessions),
-    [pinnedSessions, isMobile]
-  );
-  
-  const filteredCustomSessionGroups = useMemo(
-    () => customSessionGroups?.map((group) => ({
-      ...group,
-      children: filterSessionsForView(group.children),
-    })),
-    [customSessionGroups, isMobile]
-  );
+  const filteredDefaultSessions = filterSessionsForView(defaultSessions);
+  const filteredPinnedSessions = filterSessionsForView(pinnedSessions);
+  const filteredCustomSessionGroups = customSessionGroups?.map((group) => ({
+    ...group,
+    children: filterSessionsForView(group.children),
+  }));
 
   const [sessionGroupKeys, updateSystemStatus] = useGlobalStore((s) => [
     systemStatusSelectors.sessionGroupKeys(s),

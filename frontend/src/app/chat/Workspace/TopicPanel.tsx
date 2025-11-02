@@ -3,48 +3,13 @@
 import { DraggablePanel, DraggablePanelContainer } from '@lobehub/ui';
 import { createStyles, useResponsive } from 'antd-style';
 import isEqual from 'fast-deep-equal';
-import { memo } from 'react';
+import { PropsWithChildren, memo, useEffect, useState } from 'react';
 
 import { CHAT_SIDEBAR_WIDTH } from '@/const/layoutTokens';
-import TopicLayout from './TopicLayout';
-// import { useChatStore } from '@/store/chat';
-// import { chatPortalSelectors } from '@/store/chat/slices/portal/selectors';
-// import { useGlobalStore } from '@/store/global';
-// import { systemStatusSelectors } from '@/store/global/selectors';
-
-// Dummy implementations for development - memoized
-const mockChatStore = {
-  showPortal: false,
-};
-
-const useChatStore = (selector?: any) => {
-  if (selector) {
-    return selector(mockChatStore);
-  }
-  return mockChatStore;
-};
-
-const chatPortalSelectors = {
-  showPortal: (state: any) => state.showPortal,
-};
-
-const mockGlobalStore = {
-  showChatSideBar: true,
-  toggleChatSideBar: (value: boolean) => {
-    console.log('Mock toggleChatSideBar called with:', value);
-  },
-};
-
-const useGlobalStore = (selector: any) => {
-  if (selector) {
-    return selector(mockGlobalStore);
-  }
-  return mockGlobalStore;
-};
-
-const systemStatusSelectors = {
-  showChatSideBar: (state: any) => state.showChatSideBar,
-};
+import { useChatStore } from '@/store/chat';
+import { chatPortalSelectors } from '@/store/chat/slices/portal/selectors';
+import { useGlobalStore } from '@/store/global';
+import { systemStatusSelectors } from '@/store/global/selectors';
 
 const useStyles = createStyles(({ css, token }) => ({
   content: css`
@@ -54,32 +19,34 @@ const useStyles = createStyles(({ css, token }) => ({
   `,
   drawer: css`
     z-index: 20;
-    background: ${token.colorBgContainer};
+    background: ${token.colorBgContainerSecondary};
   `,
   header: css`
     border-block-end: 1px solid ${token.colorBorderSecondary};
   `,
 }));
 
-const TopicPanel = memo(() => {
+const TopicPanel = memo(({ children }: PropsWithChildren) => {
   const { styles } = useStyles();
-  const { md = true } = useResponsive();
+  const { md = true, lg = true } = useResponsive();
   const [showTopic, toggleConfig] = useGlobalStore((s) => [
     systemStatusSelectors.showChatSideBar(s),
     s.toggleChatSideBar,
   ]);
   const showPortal = useChatStore(chatPortalSelectors.showPortal);
 
+  const [cacheExpand, setCacheExpand] = useState<boolean>(Boolean(showTopic));
+
   const handleExpand = (expand: boolean) => {
     if (isEqual(expand, Boolean(showTopic))) return;
     toggleConfig(expand);
+    setCacheExpand(expand);
   };
 
-  // Temporarily commented out to prevent potential infinite loop during UI development
-  // useEffect(() => {
-  //   if (lg && cacheExpand) toggleConfig(true);
-  //   if (!lg) toggleConfig(false);
-  // }, [lg, cacheExpand]);
+  useEffect(() => {
+    if (lg && cacheExpand) toggleConfig(true);
+    if (!lg) toggleConfig(false);
+  }, [lg, cacheExpand]);
 
   return (
     <DraggablePanel
@@ -106,7 +73,7 @@ const TopicPanel = memo(() => {
           minWidth: CHAT_SIDEBAR_WIDTH,
         }}
       >
-        <TopicLayout />
+        {children}
       </DraggablePanelContainer>
     </DraggablePanel>
   );

@@ -12,88 +12,15 @@ import { ChatGroupWizard } from '@/components/ChatGroupWizard';
 import { useGroupTemplates } from '@/components/ChatGroupWizard/templates';
 import { DESKTOP_HEADER_ICON_SIZE } from '@/const/layoutTokens';
 import { DEFAULT_CHAT_GROUP_CHAT_CONFIG } from '@/const/settings';
+import { useActionSWR } from '@/libs/swr';
+import { useChatGroupStore } from '@/store/chatGroup';
+import { featureFlagsSelectors, useServerConfigStore } from '@/store/serverConfig';
+import { useSessionStore } from '@/store/session';
+import { sessionSelectors } from '@/store/session/slices/session/selectors';
 import { LobeAgentSession } from '@/types/session';
 
 import TogglePanelButton from '@/app/chat/features/TogglePanelButton';
 import SessionSearchBar from '@/app/chat/SessionSearchBar';
-
-// Dummy implementations for development
-const mockSessionStore = {
-  createSession: async (config?: any, switchToSession?: boolean) => {
-    console.log('Mock createSession called with:', config, switchToSession);
-    return `session-${Date.now()}`;
-  },
-  refreshSessions: async () => {
-    console.log('Mock refreshSessions called');
-  },
-  getState: () => ({
-    sessions: [],
-  }),
-};
-
-const useSessionStore = (selector?: any) => {
-  if (selector) {
-    return selector(mockSessionStore);
-  }
-  return mockSessionStore;
-};
-
-const mockChatGroupStore = {
-  createGroup: async (groupConfig: any, memberAgentIds: string[]) => {
-    console.log('Mock createGroup called with:', groupConfig, memberAgentIds);
-    return `group-${Date.now()}`;
-  },
-};
-
-const useChatGroupStore = (selector?: any) => {
-  if (selector) {
-    return selector(mockChatGroupStore);
-  }
-  return mockChatGroupStore;
-};
-
-const featureFlagsSelectors = {
-  showCreateSession: true,
-  enableGroupChat: true,
-};
-
-const useServerConfigStore = (selector: any) => {
-  // Handle the case where featureFlagsSelectors object is passed directly
-  if (selector && typeof selector === 'object' && selector.showCreateSession !== undefined) {
-    return selector;
-  }
-  // Handle selector function
-  if (typeof selector === 'function') {
-    return selector(featureFlagsSelectors);
-  }
-  return featureFlagsSelectors;
-};
-
-const useActionSWR = (key: string, action: () => Promise<any>) => {
-  return {
-    mutate: async () => {
-      console.log(`Mock mutate called for ${key}`);
-      try {
-        await action();
-      } catch (error) {
-        console.error(`Mock action failed for ${key}:`, error);
-      }
-    },
-    isValidating: false,
-  };
-};
-
-const sessionSelectors = {
-  getSessionById: (sessionId: string) => (state: any) => {
-    console.log(`Mock getSessionById called for ${sessionId}`);
-    // Return a mock agent session for testing
-    return {
-      id: sessionId,
-      type: 'agent',
-      config: { id: sessionId },
-    } as LobeAgentSession;
-  },
-};
 
 export const useStyles = createStyles(({ css, token }) => ({
   logo: css`
@@ -173,7 +100,7 @@ const Header = memo(() => {
         await refreshSessions();
 
         // Get the agent ID from the created session
-        const session = sessionSelectors.getSessionById(sessionId)(useSessionStore().getState());
+        const session = sessionSelectors.getSessionById(sessionId)(useSessionStore.getState());
         if (session && session.type === 'agent') {
           const agentSession = session as LobeAgentSession;
           if (agentSession.config?.id) {

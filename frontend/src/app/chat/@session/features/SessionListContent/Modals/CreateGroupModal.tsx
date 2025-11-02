@@ -4,39 +4,8 @@ import { MouseEvent, memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 
-// Dummy implementations for UI focus
-const toggleExpandSessionGroupDummy = (groupId: string, expanded: boolean) => {
-  // Dummy implementation
-  console.log('Toggle expand group:', groupId, expanded);
-};
-
-const updateSessionGroupDummy = (id: string, groupId: string) => {
-  console.log('Update session group:', id, 'to', groupId);
-  return Promise.resolve();
-};
-
-const addSessionGroupDummy = (name: string) => {
-  const groupId = `dummy-group-${Date.now()}`;
-  console.log('Add group:', name, 'id:', groupId);
-  return Promise.resolve(groupId);
-};
-
-const dummyGlobalState = {
-  toggleExpandSessionGroup: toggleExpandSessionGroupDummy,
-};
-
-const dummySessionState = {
-  updateSessionGroupId: updateSessionGroupDummy,
-  addSessionGroup: addSessionGroupDummy,
-};
-
-function useGlobalStore(selector: (s: typeof dummyGlobalState) => any): any {
-  return selector(dummyGlobalState);
-}
-
-function useSessionStore(selector: (s: typeof dummySessionState) => any): any {
-  return selector(dummySessionState);
-}
+import { useGlobalStore } from '@/store/global';
+import { useSessionStore } from '@/store/session';
 
 interface CreateGroupModalProps extends ModalProps {
   id: string;

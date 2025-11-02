@@ -6,20 +6,7 @@ import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 
-// import { useChatStore } from '@/store/chat';
-
-// Dummy implementations for UI development
-const useChatStore = (selector?: any) => {
-  if (selector) {
-    return selector({
-      updateInputMessage: (message: string) => console.log('Mock updateInputMessage called with:', message),
-    });
-  }
-
-  return {
-    updateInputMessage: (message: string) => console.log('Mock updateInputMessage called with:', message),
-  };
-};
+import { useChatStore } from '@/store/chat';
 
 import { useSend } from '../../../ChatInput/useSend';
 

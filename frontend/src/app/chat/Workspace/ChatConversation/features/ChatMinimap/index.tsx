@@ -15,25 +15,8 @@ import {
   subscribeVirtuosoActiveIndex,
   subscribeVirtuosoGlobalRef,
 } from '@/features/Conversation/components/VirtualizedList/VirtuosoContext';
-// import { useChatStore } from '@/store/chat';
-// import { chatSelectors } from '@/store/chat/selectors';
-
-// Dummy implementations for UI development
-const useChatStore = (selector?: any) => {
-  if (selector) {
-    return selector({
-      mainDisplayChats: [],
-    });
-  }
-
-  return {
-    mainDisplayChats: [],
-  };
-};
-
-const chatSelectors = {
-  mainDisplayChats: (state: any) => state.mainDisplayChats,
-};
+import { useChatStore } from '@/store/chat';
+import { chatSelectors } from '@/store/chat/selectors';
 
 const log = debug('lobe-react:chat-minimap');
 
@@ -195,12 +178,19 @@ const getIndicatorWidth = (content: string | undefined) => {
 const getPreviewText = (content: string | undefined) => {
   if (!content) return '';
 
-  const normalized = content.replace(/\s+/g, ' ').trim();
+  const normalized = content.replaceAll(/\s+/g, ' ').trim();
   if (!normalized) return '';
 
   return normalized.slice(0, 100) + (normalized.length > 100 ? '…' : '');
 };
 
+interface MinimapIndicator {
+  id: string;
+  preview: string;
+  role: 'user' | 'assistant';
+  virtuosoIndex: number;
+  width: number;
+}
 
 const ChatMinimap = () => {
   const { t } = useTranslation('chat');
@@ -220,8 +210,8 @@ const ChatMinimap = () => {
 
   const theme = useTheme();
 
-  const indicators = useMemo(() => {
-    return messages.reduce((acc, message, virtuosoIndex) => {
+  const indicators = useMemo<MinimapIndicator[]>(() => {
+    return messages.reduce<MinimapIndicator[]>((acc, message, virtuosoIndex) => {
       if (message.role !== 'user' && message.role !== 'assistant') return acc;
 
       acc.push({
@@ -237,7 +227,7 @@ const ChatMinimap = () => {
   }, [messages]);
 
   const indicatorIndexMap = useMemo(() => {
-    const map = new Map();
+    const map = new Map<number, number>();
     indicators.forEach(({ virtuosoIndex }, position) => {
       map.set(virtuosoIndex, position);
     });

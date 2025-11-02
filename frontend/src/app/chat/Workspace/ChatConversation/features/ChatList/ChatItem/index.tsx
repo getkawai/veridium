@@ -3,55 +3,10 @@ import { memo } from 'react';
 
 import SupervisorThinkingTag from '@/app/chat/Workspace/ChatConversation/features/ChatList/ChatItem/OrchestratorThinking';
 import { ChatItem } from '@/features/Conversation';
-// import { useAgentStore } from '@/store/agent';
-// import { agentChatConfigSelectors } from '@/store/agent/selectors';
-// import { useChatStore } from '@/store/chat';
-// import { chatSelectors, threadSelectors } from '@/store/chat/selectors';
-
-// Dummy implementations for UI development
-const useAgentStore = (selector?: any) => {
-  if (selector) {
-    return selector({
-      displayMode: 'chat',
-      enableHistoryDivider: (historyLength: number, index: number) => false,
-    });
-  }
-
-  return {
-    displayMode: 'chat',
-    enableHistoryDivider: (historyLength: number, index: number) => false,
-  };
-};
-
-const agentChatConfigSelectors = {
-  displayMode: (state: any) => state.displayMode,
-  enableHistoryDivider: (historyLength: number, index: number) => (state: any) => state.enableHistoryDivider(historyLength, index),
-};
-
-const useChatStore = (selector?: any) => {
-  if (selector) {
-    return selector({
-      hasThreadBySourceMsgId: (id: string) => false,
-      mainDisplayChatIDs: [],
-      getMessageById: (id: string) => ({ role: 'user' }),
-    });
-  }
-
-  return {
-    hasThreadBySourceMsgId: (id: string) => false,
-    mainDisplayChatIDs: [],
-    getMessageById: (id: string) => ({ role: 'user' }),
-  };
-};
-
-const chatSelectors = {
-  mainDisplayChatIDs: (state: any) => state.mainDisplayChatIDs,
-  getMessageById: (id: string) => (state: any) => state.getMessageById(id),
-};
-
-const threadSelectors = {
-  hasThreadBySourceMsgId: (id: string) => (state: any) => state.hasThreadBySourceMsgId(id),
-};
+import { useAgentStore } from '@/store/agent';
+import { agentChatConfigSelectors } from '@/store/agent/selectors';
+import { useChatStore } from '@/store/chat';
+import { chatSelectors, threadSelectors } from '@/store/chat/selectors';
 
 import Thread from './Thread';
 

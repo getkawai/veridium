@@ -4,33 +4,9 @@ import { memo, useCallback } from 'react';
 
 import { SkeletonList, VirtualizedList } from '@/features/Conversation';
 import WideScreenContainer from '@/features/Conversation/components/WideScreenContainer';
-// import { useFetchMessages } from '@/hooks/useFetchMessages';
-// import { useChatStore } from '@/store/chat';
-// import { chatSelectors } from '@/store/chat/selectors';
-
-// Dummy implementations for UI development
-const useFetchMessages = () => {
-  // Mock hook - does nothing in UI development
-};
-
-const useChatStore = (selector?: any) => {
-  if (selector) {
-    return selector({
-      isCurrentChatLoaded: true,
-      mainDisplayChatIDs: [],
-    });
-  }
-
-  return {
-    isCurrentChatLoaded: true,
-    mainDisplayChatIDs: [],
-  };
-};
-
-const chatSelectors = {
-  isCurrentChatLoaded: (state: any) => state.isCurrentChatLoaded,
-  mainDisplayChatIDs: (state: any) => state.mainDisplayChatIDs,
-};
+import { useFetchMessages } from '@/hooks/useFetchMessages';
+import { useChatStore } from '@/store/chat';
+import { chatSelectors } from '@/store/chat/selectors';
 
 import MainChatItem from './ChatItem';
 import Welcome from './WelcomeChatItem';

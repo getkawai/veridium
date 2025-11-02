@@ -5,125 +5,16 @@ import { shallow } from 'zustand/shallow';
 
 import { DEFAULT_AVATAR } from '@/const/meta';
 import { isDesktop } from '@/const/version';
-// import { useAgentStore } from '@/store/agent';
-// import { agentSelectors } from '@/store/agent/selectors';
-// import { useChatStore } from '@/store/chat';
-// import { chatSelectors } from '@/store/chat/selectors';
-// import { useGlobalStore } from '@/store/global';
-// import { useSessionStore } from '@/store/session';
-// import { sessionHelpers } from '@/store/session/helpers';
-// import { sessionMetaSelectors, sessionSelectors } from '@/store/session/selectors';
-// import { useUserStore } from '@/store/user';
-// import { userProfileSelectors } from '@/store/user/selectors';
-
-// Dummy implementations for development - memoized
-const mockAgentStore = {
-  inboxAgentModel: 'gpt-4o',
-};
-
-const useAgentStore = (selector?: any) => {
-  if (selector) {
-    return selector(mockAgentStore);
-  }
-  return mockAgentStore;
-};
-
-const agentSelectors = {
-  inboxAgentModel: (state: any) => state.inboxAgentModel,
-};
-
-const mockChatStore = {
-  isAIGenerating: false,
-  activeId: null,
-};
-
-const useChatStore = (selector?: any) => {
-  if (selector) {
-    return selector(mockChatStore);
-  }
-  return mockChatStore;
-};
-
-const chatSelectors = {
-  isAIGenerating: (state: any) => state.isAIGenerating,
-};
-
-const mockOpenSessionInNewWindow = (id: string) => {
-  console.log('Mock openSessionInNewWindow called with:', id);
-};
-
-const mockGlobalStore = {
-  openSessionInNewWindow: mockOpenSessionInNewWindow,
-};
-
-const useGlobalStore = (selector?: any) => {
-  if (selector) {
-    return selector(mockGlobalStore);
-  }
-  return mockGlobalStore;
-};
-
-const mockSessionStore = {
-  activeId: null,
-};
-
-const useSessionStore = (selector?: any) => {
-  if (selector) {
-    return selector(mockSessionStore);
-  }
-  return mockSessionStore;
-};
-
-const sessionHelpers = {
-  getSessionPinned: (session: any) => {
-    return session?.pinned || false;
-  },
-};
-
-const sessionMetaSelectors = {
-  getTitle: (meta: any) => meta?.title || 'Untitled Session',
-  getAvatar: (meta: any) => meta?.avatar || DEFAULT_AVATAR,
-};
-
-const sessionSelectors = {
-  getSessionById: (id: string) => (state: any) => {
-    console.log('Mock getSessionById called with:', id);
-    return {
-      id,
-      type: 'agent',
-      pinned: false,
-      meta: {
-        title: `Session ${id}`,
-        avatar: DEFAULT_AVATAR,
-        backgroundColor: '#1890ff',
-      },
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      group: undefined,
-      model: 'gpt-4o',
-    };
-  },
-};
-
-const useUserStore = (selector?: any) => {
-  if (selector) {
-    return selector({
-      avatar: DEFAULT_AVATAR,
-      name: 'You',
-    });
-  }
-  return {
-    avatar: DEFAULT_AVATAR,
-    name: 'You',
-  };
-};
-
-const userProfileSelectors = {
-  userAvatar: (state: any) => state.avatar,
-  displayUserName: (state: any) => state.name,
-  nickName: (state: any) => state.name,
-};
-
+import { useAgentStore } from '@/store/agent';
+import { agentSelectors } from '@/store/agent/selectors';
+import { useChatStore } from '@/store/chat';
+import { chatSelectors } from '@/store/chat/selectors';
+import { useGlobalStore } from '@/store/global';
+import { useSessionStore } from '@/store/session';
+import { sessionHelpers } from '@/store/session/helpers';
+import { sessionMetaSelectors, sessionSelectors } from '@/store/session/selectors';
+import { useUserStore } from '@/store/user';
+import { userProfileSelectors } from '@/store/user/selectors';
 import { LobeGroupSession } from '@/types/session';
 
 import ListItem from '../../ListItem';

@@ -11,6 +11,8 @@ import { Flexbox } from 'react-layout-kit';
 
 import { DEFAULT_AVATAR } from '@/const/meta';
 import ModelSelect from '@/features/ModelSelect';
+import { useEnabledChatModels } from '@/hooks/useEnabledChatModels';
+import { useSessionStore } from '@/store/session';
 import { LobeAgentSession, LobeSessionType } from '@/types/session';
 
 import { GroupTemplate, useGroupTemplates } from './templates';
@@ -203,155 +205,15 @@ const ChatGroupWizard = memo<ChatGroupWizardProps>(
     const { styles, cx } = useStyles();
     const theme = useTheme();
     const groupTemplates = useGroupTemplates();
+    const enabledModels = useEnabledChatModels();
+    const agentSessions = useSessionStore((s) =>
+      (s.sessions || []).filter((session) => session.type === LobeSessionType.Agent),
+    );
 
-    // Dummy data for enabled models
-    const enabledModels = useMemo(() => [
-      {
-        id: 'openai',
-        name: 'OpenAI',
-        children: [
-          {
-            id: 'gpt-4o',
-            displayName: 'GPT-4o',
-            abilities: { functionCall: true },
-          },
-          {
-            id: 'gpt-4o-mini',
-            displayName: 'GPT-4o Mini',
-            abilities: { functionCall: true },
-          },
-        ],
-      },
-    ], []);
-
-    // Dummy data for agent sessions
-    const agentSessions = useMemo(() => ([
-      {
-        id: 'agent-1',
-        type: LobeSessionType.Agent,
-        config: {
-          id: 'agent-1',
-          model: 'gpt-4o',
-          provider: 'openai',
-          systemRole: 'You are a helpful assistant.',
-          chatConfig: {
-            autoCreateTopicThreshold: 2,
-            displayMode: 'chat' as const,
-            enableAutoCreateTopic: true,
-            enableCompressHistory: false,
-            enableHistoryCount: true,
-            enableMaxTokens: false,
-            historyCount: 20,
-            inputTemplate: '',
-          },
-          params: {
-            temperature: 0.7,
-            max_tokens: 1000,
-          },
-          tts: {
-            showAllLocaleVoice: false,
-            sttLocale: 'auto',
-            ttsService: 'openai',
-            voice: {
-              openai: 'alloy',
-            },
-          },
-        },
-        meta: {
-          avatar: DEFAULT_AVATAR,
-          title: 'Code Assistant',
-          description: 'Helps with programming and development tasks',
-          backgroundColor: '#1890ff',
-        },
-        model: 'gpt-4o',
-        createdAt: new Date('2024-01-01'),
-        updatedAt: new Date('2024-01-15'),
-      },
-      {
-        id: 'agent-2',
-        type: LobeSessionType.Agent,
-        config: {
-          id: 'agent-2',
-          model: 'gpt-4o-mini',
-          provider: 'openai',
-          systemRole: 'You are a creative writing assistant.',
-          chatConfig: {
-            autoCreateTopicThreshold: 2,
-            displayMode: 'chat' as const,
-            enableAutoCreateTopic: true,
-            enableCompressHistory: false,
-            enableHistoryCount: true,
-            enableMaxTokens: false,
-            historyCount: 20,
-            inputTemplate: '',
-          },
-          params: {
-            temperature: 0.8,
-            max_tokens: 800,
-          },
-          tts: {
-            showAllLocaleVoice: false,
-            sttLocale: 'auto',
-            ttsService: 'openai',
-            voice: {
-              openai: 'alloy',
-            },
-          },
-        },
-        meta: {
-          avatar: DEFAULT_AVATAR,
-          title: 'Writing Assistant',
-          description: 'Helps with creative writing and content creation',
-          backgroundColor: '#52c41a',
-        },
-        model: 'gpt-4o-mini',
-        createdAt: new Date('2024-01-05'),
-        updatedAt: new Date('2024-01-20'),
-      },
-      {
-        id: 'agent-3',
-        type: LobeSessionType.Agent,
-        config: {
-          id: 'agent-3',
-          model: 'gpt-4o',
-          provider: 'openai',
-          systemRole: 'You are a data analysis expert.',
-          chatConfig: {
-            autoCreateTopicThreshold: 2,
-            displayMode: 'chat' as const,
-            enableAutoCreateTopic: true,
-            enableCompressHistory: false,
-            enableHistoryCount: true,
-            enableMaxTokens: false,
-            historyCount: 20,
-            inputTemplate: '',
-          },
-          params: {
-            temperature: 0.3,
-            max_tokens: 1200,
-          },
-          tts: {
-            showAllLocaleVoice: false,
-            sttLocale: 'auto',
-            ttsService: 'openai',
-            voice: {
-              openai: 'alloy',
-            },
-          },
-        },
-        meta: {
-          avatar: DEFAULT_AVATAR,
-          title: 'Data Analyst',
-          description: 'Specializes in data analysis and visualization',
-          backgroundColor: '#fa8c16',
-        },
-        model: 'gpt-4o',
-        createdAt: new Date('2024-01-10'),
-        updatedAt: new Date('2024-01-25'),
-      },
-    ] as LobeAgentSession[]), []);
-
-    const visibleAgentSessions = agentSessions;
+    const visibleAgentSessions = useMemo(
+      () => agentSessions.filter((session) => !session.config?.virtual),
+      [agentSessions],
+    );
 
     const memberDescriptionClass = useMemo(
       () => cx(styles.description, styles.memberDescription),

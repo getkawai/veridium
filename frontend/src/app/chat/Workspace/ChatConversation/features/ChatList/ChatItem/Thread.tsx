@@ -5,26 +5,8 @@ import { CSSProperties, memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 
-// import { useChatStore } from '@/store/chat';
-// import { threadSelectors } from '@/store/chat/selectors';
-
-// Dummy implementations for UI development
-const useChatStore = (selector?: any, comparator?: any) => {
-  if (selector) {
-    const result = selector({
-      getThreadsBySourceMsgId: (id: string) => [],
-    });
-    return result;
-  }
-
-  return {
-    getThreadsBySourceMsgId: (id: string) => [],
-  };
-};
-
-const threadSelectors = {
-  getThreadsBySourceMsgId: (id: string) => (state: any) => state.getThreadsBySourceMsgId(id),
-};
+import { useChatStore } from '@/store/chat';
+import { threadSelectors } from '@/store/chat/selectors';
 
 import ThreadItem from './ThreadItem';
 

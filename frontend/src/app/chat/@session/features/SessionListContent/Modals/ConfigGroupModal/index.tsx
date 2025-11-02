@@ -1,8 +1,3 @@
-interface DummySessionGroupItem {
-  id: string;
-  name: string;
-}
-
 import { Button, Modal, type ModalProps, SortableList } from '@lobehub/ui';
 import { createStyles } from 'antd-style';
 import isEqual from 'fast-deep-equal';
@@ -11,41 +6,11 @@ import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 
-// import { useSessionStore } from '@/store/session';
-// import { sessionGroupSelectors } from '@/store/session/selectors';
+import { useSessionStore } from '@/store/session';
+import { sessionGroupSelectors } from '@/store/session/selectors';
+import { SessionGroupItem } from '@/types/session';
 
 import GroupItem from './GroupItem';
-
-// Dummy implementations for development - memoized
-const mockGroupItems = [
-  { id: 'group-1', name: 'Work' },
-  { id: 'group-2', name: 'Personal' },
-  { id: 'group-3', name: 'Projects' },
-];
-
-const mockSessionStore = {
-  addSessionGroup: async (name: string) => {
-    console.log('Mock addSessionGroup called with:', name);
-    return `group-${Date.now()}`;
-  },
-  updateSessionGroupSort: (items: DummySessionGroupItem[]) => {
-    console.log('Mock updateSessionGroupSort called with:', items);
-  },
-};
-
-const useSessionStore = (selector?: any, comparator?: any) => {
-  if (selector) {
-    if (typeof selector === 'function' && selector.name === 'sessionGroupItems') {
-      return mockGroupItems;
-    }
-    return selector(mockSessionStore);
-  }
-  return mockSessionStore;
-};
-
-const sessionGroupSelectors = {
-  sessionGroupItems: (state: any) => mockGroupItems,
-};
 
 const useStyles = createStyles(({ css, token }) => ({
   container: css`
@@ -82,10 +47,10 @@ const ConfigGroupModal = memo<ModalProps>(({ open, onCancel }) => {
       <Flexbox>
         <SortableList
           items={sessionGroupItems}
-          onChange={(items: DummySessionGroupItem[]) => {
+          onChange={(items: SessionGroupItem[]) => {
             updateSessionGroupSort(items);
           }}
-          renderItem={(item: DummySessionGroupItem) => (
+          renderItem={(item: SessionGroupItem) => (
             <SortableList.Item
               align={'center'}
               className={styles.container}
