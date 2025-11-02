@@ -1,6 +1,7 @@
 import { DraggablePanel } from '@lobehub/ui';
 import { useTheme } from 'antd-style';
-import { lazy, memo, Suspense, useRef } from 'react';
+import dynamic from 'next/dynamic';
+import { memo, useRef } from 'react';
 import { Flexbox } from 'react-layout-kit';
 
 import { useToolStore } from '@/store/tool';
@@ -8,7 +9,7 @@ import { useToolStore } from '@/store/tool';
 import DetailLoading from './Detail/Loading';
 import List from './List';
 
-const Detail = lazy(() => import('./Detail'));
+const Detail = dynamic(() => import('./Detail'), { loading: DetailLoading, ssr: false });
 
 export const MCPPluginList = memo(() => {
   const ref = useRef<HTMLDivElement>(null);
@@ -44,9 +45,7 @@ export const MCPPluginList = memo(() => {
         }}
         width={'100%'}
       >
-        <Suspense fallback={<DetailLoading />}>
-          <Detail />
-        </Suspense>
+        <Detail />
       </Flexbox>
     </Flexbox>
   );

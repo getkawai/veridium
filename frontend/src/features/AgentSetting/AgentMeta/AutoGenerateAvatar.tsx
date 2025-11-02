@@ -1,14 +1,15 @@
 import { ActionIcon } from '@lobehub/ui';
 import { useTheme } from 'antd-style';
 import { Wand2 } from 'lucide-react';
-import { lazy, memo, Suspense } from 'react';
+import dynamic from 'next/dynamic';
+import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 
 import { useGlobalStore } from '@/store/global';
 import { globalGeneralSelectors } from '@/store/global/selectors';
 
-const EmojiPicker = lazy(() => import('@lobehub/ui/es/EmojiPicker'));
+const EmojiPicker = dynamic(() => import('@lobehub/ui/es/EmojiPicker'), { ssr: false });
 
 export interface AutoGenerateAvatarProps {
   background?: string;
@@ -40,19 +41,17 @@ const AutoGenerateAvatar = memo<AutoGenerateAvatarProps>(
           width: 'fit-content',
         }}
       >
-        <Suspense fallback={null}>
-          <EmojiPicker
-            background={background || theme.colorFillTertiary}
-            loading={loading}
-            locale={locale}
-            onChange={onChange}
-            size={48}
-            style={{
-              background: theme.colorFillTertiary,
-            }}
-            value={value}
-          />
-        </Suspense>
+        <EmojiPicker
+          background={background || theme.colorFillTertiary}
+          loading={loading}
+          locale={locale}
+          onChange={onChange}
+          size={48}
+          style={{
+            background: theme.colorFillTertiary,
+          }}
+          value={value}
+        />
         <ActionIcon
           disabled={!canAutoGenerate}
           icon={Wand2}

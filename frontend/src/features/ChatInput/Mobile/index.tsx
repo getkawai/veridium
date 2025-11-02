@@ -2,7 +2,8 @@
 
 import { ChatInput, ChatInputActionBar } from '@lobehub/editor/react';
 import { createStyles } from 'antd-style';
-import { lazy, memo, Suspense } from 'react';
+import dynamic from 'next/dynamic';
+import { memo } from 'react';
 import { Flexbox } from 'react-layout-kit';
 
 import { useChatInputStore } from '@/features/ChatInput/store';
@@ -11,7 +12,7 @@ import ActionBar from '../ActionBar';
 import InputEditor from '../InputEditor';
 import SendArea from '../SendArea';
 
-const FilePreview = lazy(() => import('./FilePreview'));
+const FilePreview = dynamic(() => import('./FilePreview'), { ssr: false });
 
 const useStyles = createStyles(({ css, token }) => ({
   container: css``,
@@ -34,11 +35,7 @@ const DesktopChatInput = memo(() => {
 
   const { styles, cx } = useStyles();
 
-  const fileNode = leftActions.flat().includes('fileUpload') && (
-    <Suspense fallback={null}>
-      <FilePreview />
-    </Suspense>
-  );
+  const fileNode = leftActions.flat().includes('fileUpload') && <FilePreview />;
 
   return (
     <>
