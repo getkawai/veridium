@@ -1,6 +1,5 @@
 import { Skeleton } from 'antd';
-import dynamic from 'next/dynamic';
-import { Suspense, memo } from 'react';
+import { Suspense, memo, lazy } from 'react';
 
 import { useToolStore } from '@/store/tool';
 import { pluginSelectors } from '@/store/tool/selectors';
@@ -9,7 +8,7 @@ import Loading from '../Loading';
 import { useParseContent } from '../useParseContent';
 import IFrameRender from './IFrameRender';
 
-const SystemJsRender = dynamic(() => import('./SystemJsRender'), { ssr: false });
+const SystemJsRender = lazy(() => import('./SystemJsRender'));
 
 export interface PluginDefaultTypeProps {
   content: string;

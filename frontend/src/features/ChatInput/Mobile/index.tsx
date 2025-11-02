@@ -2,8 +2,7 @@
 
 import { ChatInput, ChatInputActionBar } from '@lobehub/editor/react';
 import { createStyles } from 'antd-style';
-import dynamic from 'next/dynamic';
-import { memo } from 'react';
+import { memo, lazy } from 'react';
 import { Flexbox } from 'react-layout-kit';
 
 import { useChatInputStore } from '@/features/ChatInput/store';
@@ -12,7 +11,7 @@ import ActionBar from '../ActionBar';
 import InputEditor from '../InputEditor';
 import SendArea from '../SendArea';
 
-const FilePreview = dynamic(() => import('./FilePreview'), { ssr: false });
+const FilePreview = lazy(() => import('./FilePreview'));
 
 const useStyles = createStyles(({ css, token }) => ({
   container: css``,

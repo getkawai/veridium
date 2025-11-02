@@ -1,14 +1,11 @@
-import dynamic from 'next/dynamic';
-import { PropsWithChildren, memo } from 'react';
+import { PropsWithChildren, memo, lazy } from 'react';
 
 import { useModelHasContextWindowToken } from '@/hooks/useModelHasContextWindowToken';
 import { useChatStore } from '@/store/chat';
 import { chatSelectors, threadSelectors } from '@/store/chat/selectors';
 
-const LargeTokenContent = dynamic(() => import('./TokenTag'), { ssr: false });
-const LargeTokenContentForGroupChat = dynamic(() => import('./TokenTagForGroupChat'), {
-  ssr: false,
-});
+const LargeTokenContent = lazy(() => import('./TokenTag'));
+const LargeTokenContentForGroupChat = lazy(() => import('./TokenTagForGroupChat'));
 
 const Token = memo<PropsWithChildren>(({ children }) => {
   const showTag = useModelHasContextWindowToken();
