@@ -1,5 +1,5 @@
 import { useTheme } from 'antd-style';
-import { PropsWithChildren, Suspense, memo } from 'react';
+import { PropsWithChildren, memo } from 'react';
 import { Flexbox } from 'react-layout-kit';
 
 import SideBar from './SideBar';
@@ -12,9 +12,7 @@ const DesktopLayoutContainer = memo<PropsWithChildren>(({ children }) => {
   const hideSideBar = false;
   return (
     <>
-      <Suspense>
-        {!hideSideBar && <SideBar />}
-      </Suspense>
+      <SideBar />
       <Flexbox
         style={{
           background: theme.colorBgLayout,

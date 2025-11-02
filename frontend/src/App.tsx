@@ -1,6 +1,5 @@
 import { useEffect } from 'react'
 import {Events, WML} from "@wailsio/runtime";
-import CircleLoader from './components/CircleLoader';
 import GlobalLayout from './layout/GlobalProvider';
 import DesktopMainLayout from './layout/Desktop';
 import DesktopChatLayout from './app/chat';
@@ -16,9 +15,7 @@ function App() {
   return (
     <GlobalLayout appearance={'auto'} isMobile={false} locale={''} neutralColor={undefined} primaryColor={undefined} variants={undefined}>
       <DesktopMainLayout>
-        <DesktopChatLayout>
-          <CircleLoader/>
-        </DesktopChatLayout>
+        <DesktopChatLayout/>
       </DesktopMainLayout>
     </GlobalLayout>
   )

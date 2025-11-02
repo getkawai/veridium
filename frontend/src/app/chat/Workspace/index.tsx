@@ -1,13 +1,14 @@
-import { PropsWithChildren, Suspense } from 'react';
+import { Suspense } from 'react';
 import { Flexbox } from 'react-layout-kit';
 import BrandTextLoading from '@/components/Loading/BrandTextLoading';
 import ChatHeader from './ChatHeader';
 import PortalPanel from './PortalPanel';
 import PortalLayout from './PortalLayout';
 import TopicPanel from './TopicPanel';
+import TopicLayout from './TopicLayout';
 import ChatConversation from './ChatConversation';
 
-const Workspace = ({ children }: PropsWithChildren) => {
+const Workspace = () => {
   return (
     <>
       <ChatHeader />
@@ -24,13 +25,14 @@ const Workspace = ({ children }: PropsWithChildren) => {
         >
           <ChatConversation />
         </Flexbox>
-        {children}
         <PortalPanel>
           <Suspense fallback={<BrandTextLoading />}>
             <PortalLayout />
           </Suspense>
         </PortalPanel>
-        <TopicPanel />
+        <TopicPanel>
+          <TopicLayout />
+        </TopicPanel>
       </Flexbox>
     </>
   );

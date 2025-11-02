@@ -1,4 +1,4 @@
-import { PropsWithChildren, Suspense } from 'react';
+import { Suspense } from 'react';
 import { Flexbox } from 'react-layout-kit';
 
 // import { isDesktop } from '@/const/version';
@@ -10,7 +10,7 @@ import Session from './@session/default';
 import { useTheme } from 'antd-style';
 import Workspace from './Workspace';
 
-const Layout = ({ children }: PropsWithChildren) => {
+const Layout = () => {
   const theme = useTheme();
   return (
     <>
@@ -32,7 +32,7 @@ const Layout = ({ children }: PropsWithChildren) => {
             position: 'relative',
           }}
         >
-          <Workspace>{children}</Workspace>
+          <Workspace/>
         </Flexbox>
       </Flexbox>
       <Suspense>
