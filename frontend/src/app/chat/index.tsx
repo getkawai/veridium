@@ -6,10 +6,12 @@ import { Flexbox } from 'react-layout-kit';
 
 import RegisterHotkeys from './RegisterHotkeys';
 import SessionPanel from './SessionPanel';
-import Workspace from './Workspace';
 import Session from './@session/default';
+import { useTheme } from 'antd-style';
+import Workspace from './Workspace';
 
 const Layout = ({ children }: PropsWithChildren) => {
+  const theme = useTheme();
   return (
     <>
       <Flexbox
@@ -21,7 +23,17 @@ const Layout = ({ children }: PropsWithChildren) => {
         <SessionPanel>
           <Session />
         </SessionPanel>
-        <Workspace>{children}</Workspace>
+        <Flexbox
+          flex={1}
+          style={{
+            // background: theme.colorBgContainerSecondary,
+            background: theme.colorBgContainer,
+            overflow: 'hidden',
+            position: 'relative',
+          }}
+        >
+          <Workspace>{children}</Workspace>
+        </Flexbox>
       </Flexbox>
       <Suspense>
         <RegisterHotkeys />
