@@ -1,11 +1,10 @@
 import { Markdown, Mermaid } from '@lobehub/ui';
-import dynamic from 'next/dynamic';
-import { memo } from 'react';
+import { memo, lazy } from 'react';
 
 import HTMLRenderer from './HTML';
 import SVGRender from './SVG';
 
-const ReactRenderer = dynamic(() => import('./React'), { ssr: false });
+const ReactRenderer = lazy(() => import('./React'));
 
 const Renderer = memo<{ content: string; type?: string }>(({ content, type }) => {
   switch (type) {

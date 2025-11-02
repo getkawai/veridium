@@ -3,8 +3,9 @@ import {
   chainSummaryAgentName,
   chainSummaryDescription,
   chainSummaryTags,
-} from '@/prompts';
-import { TraceNameMap, TracePayload, TraceTopicType } from '@/types';
+} from '@lobechat/prompts';
+import { TraceNameMap, TracePayload, TraceTopicType } from '@lobechat/types';
+import { getSingletonAnalyticsOptional } from '@lobehub/analytics';
 import type { PartialDeep } from 'type-fest';
 import { StateCreator } from 'zustand/vanilla';
 
@@ -17,6 +18,7 @@ import { MetaData } from '@/types/meta';
 import { SystemAgentItem } from '@/types/user/settings';
 import { MessageTextChunk } from '@/utils/fetch';
 import { merge } from '@/utils/merge';
+import { setNamespace } from '@/utils/storeDebug';
 
 import { LoadingState } from '../store/initialState';
 import { State, initialState } from './initialState';
@@ -76,7 +78,9 @@ export interface Action extends PublicAction {
 
 export type Store = Action & State;
 
-export const store: StateCreator<Store, [['zustand/subscribeWithSelector', never]]> = (set, get) => ({
+const t = setNamespace('AgentSettings');
+
+export const store: StateCreator<Store, [['zustand/devtools', never]]> = (set, get) => ({
   ...initialState,
   autoPickEmoji: async () => {
     const { config, meta, dispatchMeta } = get();
@@ -237,14 +241,14 @@ export const store: StateCreator<Store, [['zustand/subscribeWithSelector', never
   dispatchConfig: async (payload) => {
     const nextConfig = configReducer(get().config, payload);
 
-    set({ config: nextConfig });
+    set({ config: nextConfig }, false, payload);
 
     await get().onConfigChange?.(nextConfig);
   },
   dispatchMeta: async (payload) => {
     const nextValue = metaDataReducer(get().meta, payload);
 
-    set({ meta: nextValue });
+    set({ meta: nextValue }, false, payload);
 
     await get().onMetaChange?.(nextValue);
   },
@@ -269,7 +273,30 @@ export const store: StateCreator<Store, [['zustand/subscribeWithSelector', never
     await get().dispatchConfig({ config, type: 'update' });
   },
   setAgentMeta: async (meta) => {
-    const { dispatchMeta } = get();
+    const { dispatchMeta, id, meta: currentMeta } = get();
+    const mergedMeta = merge(currentMeta, meta);
+
+    try {
+      const analytics = getSingletonAnalyticsOptional();
+      if (analytics) {
+        analytics.track({
+          name: 'agent_meta_updated',
+          properties: {
+            assistant_avatar: mergedMeta.avatar,
+            assistant_background_color: mergedMeta.backgroundColor,
+            assistant_description: mergedMeta.description,
+            assistant_name: mergedMeta.title,
+            assistant_tags: mergedMeta.tags,
+            is_inbox: id === 'inbox',
+            session_id: id || 'unknown',
+            timestamp: Date.now(),
+            user_id: useUserStore.getState().user?.id || 'anonymous',
+          },
+        });
+      }
+    } catch (error) {
+      console.warn('Failed to track agent meta update:', error);
+    }
     await dispatchMeta({ type: 'update', value: meta });
   },
 
@@ -306,6 +333,10 @@ export const store: StateCreator<Store, [['zustand/subscribeWithSelector', never
   },
 
   updateLoadingState: (key, value) => {
-    set({ loadingState: { ...get().loadingState, [key]: value } });
+    set(
+      { loadingState: { ...get().loadingState, [key]: value } },
+      false,
+      t('updateLoadingState', { key, value }),
+    );
   },
 });
