@@ -8,6 +8,7 @@ require (
 	github.com/dslipak/pdf v0.0.2
 	github.com/wailsapp/wails/v3 v3.0.0-dev
 	golang.org/x/sys v0.37.0
+	modernc.org/sqlite v1.36.0
 )
 
 require (
@@ -59,7 +60,6 @@ require (
 	modernc.org/libc v1.61.13 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.8.2 // indirect
-	modernc.org/sqlite v1.36.0 // indirect
 )
 
 replace github.com/wailsapp/wails/v3 => ../../wailsapp/wails/v3

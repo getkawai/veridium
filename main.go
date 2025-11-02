@@ -38,6 +38,8 @@ func main() {
 		Description: "A demo of using raw HTML & CSS",
 		Services: []application.Service{
 			application.NewService(&GreetService{}),
+			// Database initialization service
+			application.NewService(&DatabaseService{}),
 			// Machine ID service
 			application.NewService(&MachineIDService{}),
 			// Temp file service
@@ -104,6 +106,14 @@ func main() {
 		BackgroundColour: application.NewRGB(27, 38, 54),
 		URL:              "/",
 	})
+
+	// Initialize database before starting the application
+	log.Println("Initializing database...")
+	dbService := &DatabaseService{}
+	if err := dbService.InitializeDatabase(); err != nil {
+		log.Printf("Warning: Failed to initialize database: %v", err)
+		// Don't exit, continue with app startup
+	}
 
 	// Create a goroutine that emits an event containing the current time every second.
 	// The frontend can listen to this event and update the UI accordingly.

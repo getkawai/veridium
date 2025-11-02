@@ -54,6 +54,23 @@ export class DatabaseManager {
   private async migrate(skipMultiRun = false): Promise<DrizzleInstance> {
     if (this.isLocalDBSchemaSynced && skipMultiRun) return this.db;
 
+    try {
+      const drizzleMigration = new DrizzleMigrationModel(this.db as any);
+
+      // 检查数据库中是否存在表 - 数据库已在后端初始化
+      const tableCount = await drizzleMigration.getTableCounts();
+
+      // 如果表数量大于0，则认为数据库已正确初始化（由后端完成）
+      if (tableCount > 0) {
+        this.isLocalDBSchemaSynced = true;
+        console.log('✅ Database already initialized by backend, skipping frontend migrations');
+        return this.db;
+      }
+    } catch (error) {
+      console.warn('Error checking table existence, proceeding with migration', error);
+      // 如果查询失败，继续执行迁移以确保安全
+    }
+
     let hash: string | undefined;
     if (typeof localStorage !== 'undefined') {
       const cacheHash = localStorage.getItem(sqliteSchemaHashCache);

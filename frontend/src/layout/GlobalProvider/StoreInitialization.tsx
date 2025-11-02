@@ -38,7 +38,7 @@ const StoreInitialization = memo(() => {
   // init the system preference
   useInitSystemStatus();
 
-  // init the client database
+  // init the client database (connects to backend-initialized database)
   useInitClientDB();
 
   // fetch server config
