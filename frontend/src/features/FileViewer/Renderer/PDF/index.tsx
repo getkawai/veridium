@@ -4,10 +4,9 @@ import type { PDFDocumentProxy } from 'pdfjs-dist';
 import { Fragment, memo, useCallback, useState } from 'react';
 import { Flexbox } from 'react-layout-kit';
 import { Document, Page, pdfjs } from 'react-pdf';
-import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
-import 'react-pdf/dist/esm/Page/TextLayer.css';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
 
-import { lambdaQuery } from '@/libs/trpc/client';
 
 import HighlightLayer from './HighlightLayer';
 import { useStyles } from './style';
@@ -51,12 +50,86 @@ const PDFViewer = memo<PDFViewerProps>(({ url, fileId }) => {
     setIsLoaded(true);
   };
 
-  const { data } = lambdaQuery.chunk.getChunksByFileId.useInfiniteQuery(
-    { id: fileId },
-    { getNextPageParam: (lastPage) => lastPage.nextCursor },
-  );
+  // Mock data for PDF chunks
+  const mockData = {
+    pages: [
+      {
+        items: [
+          {
+            id: 'chunk-1',
+            text: 'This is the first paragraph of content that would be highlighted in the PDF.',
+            pageNumber: 1,
+            metadata: {
+              coordinates: {
+                layout_height: 842,
+                layout_width: 595,
+                points: [[50, 100], [545, 100], [545, 150], [50, 150]],
+                system: 'pdf'
+              },
+              languages: ['en'],
+              pageNumber: 1,
+              text_as_html: '<p>This is the first paragraph of content that would be highlighted in the PDF.</p>'
+            },
+            createdAt: new Date('2024-01-01T00:00:00Z'),
+            updatedAt: new Date('2024-01-01T00:00:00Z'),
+            index: 0,
+            type: 'text',
+            parentId: null
+          },
+          {
+            id: 'chunk-2',
+            text: 'Here is another section with important information that should be highlighted.',
+            pageNumber: 1,
+            metadata: {
+              coordinates: {
+                layout_height: 842,
+                layout_width: 595,
+                points: [[50, 200], [545, 200], [545, 250], [50, 250]],
+                system: 'pdf'
+              },
+              languages: ['en'],
+              pageNumber: 1,
+              text_as_html: '<p>Here is another section with important information that should be highlighted.</p>'
+            },
+            createdAt: new Date('2024-01-01T00:00:00Z'),
+            updatedAt: new Date('2024-01-01T00:00:00Z'),
+            index: 1,
+            type: 'text',
+            parentId: null
+          }
+        ],
+        nextCursor: null
+      },
+      {
+        items: [
+          {
+            id: 'chunk-3',
+            text: 'Content on the second page that demonstrates multi-page highlighting capabilities.',
+            pageNumber: 2,
+            metadata: {
+              coordinates: {
+                layout_height: 842,
+                layout_width: 595,
+                points: [[50, 100], [545, 100], [545, 180], [50, 180]],
+                system: 'pdf'
+              },
+              languages: ['en'],
+              pageNumber: 2,
+              text_as_html: '<p>Content on the second page that demonstrates multi-page highlighting capabilities.</p>'
+            },
+            createdAt: new Date('2024-01-01T00:00:00Z'),
+            updatedAt: new Date('2024-01-01T00:00:00Z'),
+            index: 2,
+            type: 'text',
+            parentId: null
+          }
+        ],
+        nextCursor: null
+      }
+    ]
+  };
 
-  const dataSource = data?.pages.flatMap((page) => page.items) || [];
+  const dataSource = mockData.pages.flatMap((page) => page.items);
 
   return (
     <Flexbox className={styles.container}>
