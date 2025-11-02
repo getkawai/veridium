@@ -1,4 +1,4 @@
-import { ClientSecretPayload } from '@lobechat/types';
+import { ClientSecretPayload } from '@/types';
 import { parse } from 'cookie';
 import debug from 'debug';
 import { User } from 'next-auth';

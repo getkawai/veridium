@@ -2,7 +2,7 @@ import { Icon, SearchResultCards, Tag } from '@lobehub/ui';
 import { createStyles } from 'antd-style';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronDown, ChevronRight, Globe } from 'lucide-react';
-import Image from 'next/image';
+import { Image } from '@lobehub/ui';
 import { rgba } from 'polished';
 import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -101,7 +101,6 @@ const SearchGrounding = memo<GroundingSearch>(({ searchQueries, citations }) => 
                     padding: 2,
                     zIndex: 100 - index,
                   }}
-                  unoptimized
                   width={16}
                 />
               ))}

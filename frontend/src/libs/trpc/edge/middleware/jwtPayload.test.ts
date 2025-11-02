@@ -1,5 +1,5 @@
 // @vitest-environment node
-import * as utils from '@lobechat/utils/server';
+import * as utils from '@/utils/server';
 import { TRPCError } from '@trpc/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 

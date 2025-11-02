@@ -1,4 +1,4 @@
-import { ChatMessageError } from '@lobechat/types';
+import { ChatMessageError } from '@/types';
 import { AudioPlayer } from '@lobehub/tts/react';
 import { Alert, Button, Highlighter, Select, SelectProps } from '@lobehub/ui';
 import { RefSelectProps } from 'antd';
