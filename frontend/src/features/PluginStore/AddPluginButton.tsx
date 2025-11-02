@@ -3,7 +3,7 @@ import { PackagePlus } from 'lucide-react';
 import { forwardRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import DevModal from '@/features/PluginDevModal';
+// import DevModal from '@/features/PluginDevModal';
 import { useAgentStore } from '@/store/agent';
 import { useToolStore } from '@/store/tool';
 
@@ -23,7 +23,7 @@ const AddPluginButton = forwardRef<HTMLButtonElement>((props, ref) => {
         e.stopPropagation();
       }}
     >
-      <DevModal
+      {/* <DevModal
         onOpenChange={setModal}
         onSave={async (devPlugin) => {
           await installCustomPlugin(devPlugin);
@@ -31,7 +31,7 @@ const AddPluginButton = forwardRef<HTMLButtonElement>((props, ref) => {
         }}
         onValueChange={updateNewDevPlugin}
         open={showModal}
-      />
+      /> */}
       <Button
         icon={PackagePlus}
         onClick={() => {

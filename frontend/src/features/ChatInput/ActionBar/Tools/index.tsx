@@ -2,7 +2,7 @@ import { Blocks } from 'lucide-react';
 import { Suspense, memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import PluginStore from '@/features/PluginStore';
+// import PluginStore from '@/features/PluginStore';
 import { useModelSupportToolUse } from '@/hooks/useModelSupportToolUse';
 import { useAgentStore } from '@/store/agent';
 import { agentSelectors } from '@/store/agent/selectors';
@@ -41,7 +41,7 @@ const Tools = memo(() => {
         showTooltip={false}
         title={t('tools.title')}
       />
-      <PluginStore open={modalOpen} setOpen={setModalOpen} />
+      {/* <PluginStore open={modalOpen} setOpen={setModalOpen} /> */}
     </Suspense>
   );
 });

@@ -1,6 +1,6 @@
 import { memo } from 'react';
 
-import PluginSettingsConfig from '@/features/PluginSettings';
+// import PluginSettingsConfig from '@/features/PluginSettings';
 import { useToolStore } from '@/store/tool';
 import { pluginSelectors } from '@/store/tool/selectors';
 
@@ -11,7 +11,8 @@ const Settings = memo(() => {
 
   return (
     manifest?.settings && (
-      <PluginSettingsConfig id={manifest.identifier} schema={manifest.settings} />
+      // <PluginSettingsConfig id={manifest.identifier} schema={manifest.settings} />
+      <></>
     )
   );
 });

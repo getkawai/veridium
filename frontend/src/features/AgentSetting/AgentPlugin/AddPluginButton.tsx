@@ -4,7 +4,7 @@ import { forwardRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useStore } from '@/features/AgentSetting/store';
-import DevModal from '@/features/PluginDevModal';
+// import DevModal from '@/features/PluginDevModal';
 import { useToolStore } from '@/store/tool';
 
 const AddPluginButton = forwardRef<HTMLButtonElement>((props, ref) => {
@@ -22,7 +22,7 @@ const AddPluginButton = forwardRef<HTMLButtonElement>((props, ref) => {
         e.stopPropagation();
       }}
     >
-      <DevModal
+      {/* <DevModal
         onOpenChange={setModal}
         onSave={async (devPlugin) => {
           await installCustomPlugin(devPlugin);
@@ -30,7 +30,7 @@ const AddPluginButton = forwardRef<HTMLButtonElement>((props, ref) => {
         }}
         onValueChange={updateNewDevPlugin}
         open={showModal}
-      />
+      /> */}
       <Button
         icon={PackagePlus}
         onClick={() => {

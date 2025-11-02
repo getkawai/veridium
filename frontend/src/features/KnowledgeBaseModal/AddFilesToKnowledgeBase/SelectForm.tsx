@@ -1,6 +1,5 @@
 import { Block, Button, Form, MaterialFileTypeIcon, Select } from '@lobehub/ui';
 import { App } from 'antd';
-import Link from 'next/link';
 import { memo, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
@@ -33,7 +32,7 @@ const SelectForm = memo<CreateFormProps>(({ onClose, knowledgeBaseId, fileIds })
       message.success({
         content: (
           <Trans i18nKey={'addToKnowledgeBase.addSuccess'} ns={'knowledgeBase'}>
-            文件添加成功，<Link href={`/knowledge/bases/${values.id}`}>立即查看</Link>
+            文件添加成功，<a href={`/knowledge/bases/${values.id}`}>立即查看</a>
           </Trans>
         ),
       });

@@ -4,7 +4,7 @@ import { Icon } from '@lobehub/ui';
 import { createStyles } from 'antd-style';
 import { ArrowRightIcon } from 'lucide-react';
 import path from 'path-browserify-esm';
-import React, { memo } from 'react';
+import { memo } from 'react';
 import { Flexbox } from 'react-layout-kit';
 
 import { LocalFile } from '@/features/LocalFile';

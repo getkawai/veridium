@@ -7,7 +7,7 @@ import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Center, Flexbox } from 'react-layout-kit';
 
-import PluginSettingsConfig from '@/features/PluginSettings';
+// import PluginSettingsConfig from '@/features/PluginSettings';
 import { useChatStore } from '@/store/chat';
 import { pluginHelpers, useToolStore } from '@/store/tool';
 import { pluginSelectors } from '@/store/tool/selectors';
@@ -44,7 +44,8 @@ const PluginSettings = memo<PluginSettingsProps>(({ id, plugin }) => {
           <Flexbox className={styles.desc}>{t('pluginSettings.desc')}</Flexbox>
           <Divider style={{ margin: '0 16px' }} />
           {manifest.settings && (
-            <PluginSettingsConfig id={manifest.identifier} schema={manifest.settings} />
+            // <PluginSettingsConfig id={manifest.identifier} schema={manifest.settings} />
+            <></>
           )}
           <Button
             block
