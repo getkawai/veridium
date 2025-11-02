@@ -13,7 +13,7 @@ import DesktopLayoutContainer from './DesktopLayoutContainer';
 import RegisterHotkeys from './RegisterHotkeys';
 import SideBar from './SideBar';
 
-const Layout = memo<PropsWithChildren>(({ children }) => {
+const DesktopMainLayout = memo<PropsWithChildren>(({ children }) => {
   const { showCloudPromotion } = useServerConfigStore(featureFlagsSelectors);
   return (
     <HotkeysProvider initiallyActiveScopes={[HotkeyScopeEnum.Global]}>
@@ -52,6 +52,4 @@ const Layout = memo<PropsWithChildren>(({ children }) => {
   );
 });
 
-Layout.displayName = 'DesktopMainLayout';
-
-export default Layout;
+export default DesktopMainLayout;

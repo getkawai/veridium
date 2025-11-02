@@ -10,7 +10,7 @@ import Session from './@session/default';
 import { useTheme } from 'antd-style';
 import Workspace from './Workspace';
 
-const Layout = () => {
+const DesktopChatLayout = () => {
   const theme = useTheme();
   return (
     <>
@@ -43,6 +43,4 @@ const Layout = () => {
   );
 };
 
-Layout.displayName = 'DesktopChatLayout';
-
-export default Layout;
+export default DesktopChatLayout;

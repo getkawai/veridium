@@ -5,34 +5,31 @@ import { useTheme } from 'antd-style';
 import { Suspense, memo } from 'react';
 
 import { isDesktop } from '@/const/version';
-// import { useActiveTabKey } from '@/hooks/useActiveTabKey';
-// import { useIsSingleMode } from '@/hooks/useIsSingleMode';
-// import { usePinnedAgentState } from '@/hooks/usePinnedAgentState';
-// import { useGlobalStore } from '@/store/global';
-// import { systemStatusSelectors } from '@/store/global/selectors';
-// import { featureFlagsSelectors, useServerConfigStore } from '@/store/serverConfig';
+import { useActiveTabKey } from '@/hooks/useActiveTabKey';
+import { useIsSingleMode } from '@/hooks/useIsSingleMode';
+import { usePinnedAgentState } from '@/hooks/usePinnedAgentState';
+import { useGlobalStore } from '@/store/global';
+import { systemStatusSelectors } from '@/store/global/selectors';
+import { featureFlagsSelectors, useServerConfigStore } from '@/store/serverConfig';
 import { electronStylish } from '@/styles/electron';
 
 import Avatar from './Avatar';
 import BottomActions from './BottomActions';
 import PinList from './PinList';
-import TopActions, { SidebarTabKey } from './TopActions';
+import TopActions from './TopActions';
 
 const Top = () => {
-  // const [isPinned] = usePinnedAgentState();
-  // const sidebarKey = useActiveTabKey();
+  const [isPinned] = usePinnedAgentState();
+  const sidebarKey = useActiveTabKey();
 
-  return <TopActions isPinned={false} tab={SidebarTabKey.Chat} />;
+  return <TopActions isPinned={isPinned} tab={sidebarKey} />;
 };
 
-const Nav = memo(() => {
+const SideBar = memo(() => {
   const theme = useTheme();
-  // const isSingleMode = useIsSingleMode();
-  const isSingleMode = false;
-  // const inZenMode = useGlobalStore(systemStatusSelectors.inZenMode);
-  const inZenMode = false;
-  // const { showPinList } = useServerConfigStore(featureFlagsSelectors);
-  const showPinList = false;
+  const isSingleMode = useIsSingleMode();
+  const inZenMode = useGlobalStore(systemStatusSelectors.inZenMode);
+  const { showPinList } = useServerConfigStore(featureFlagsSelectors);
 
   return (
     !inZenMode &&
@@ -76,6 +73,4 @@ const Nav = memo(() => {
   );
 });
 
-Nav.displayName = 'DesktopNav';
-
-export default Nav;
+export default SideBar;
