@@ -74,3 +74,12 @@ RETURNING *;
 -- name: DeleteGeneration :exec
 DELETE FROM generations WHERE id = ? AND user_id = ?;
 
+-- name: GetGenerationWithAsyncTask :one
+SELECT 
+    g.*,
+    at.status as async_task_status,
+    at.error as async_task_error
+FROM generations g
+LEFT JOIN async_tasks at ON g.async_task_id = at.id
+WHERE g.id = ? AND g.user_id = ?;
+

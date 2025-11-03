@@ -67,6 +67,15 @@ func (q *Queries) CreateSessionGroup(ctx context.Context, arg CreateSessionGroup
 	return i, err
 }
 
+const DeleteAllSessionGroups = `-- name: DeleteAllSessionGroups :exec
+DELETE FROM session_groups WHERE user_id = ?
+`
+
+func (q *Queries) DeleteAllSessionGroups(ctx context.Context, userID string) error {
+	_, err := q.db.ExecContext(ctx, DeleteAllSessionGroups, userID)
+	return err
+}
+
 const DeleteSessionGroup = `-- name: DeleteSessionGroup :exec
 DELETE FROM session_groups
 WHERE id = ? AND user_id = ?
@@ -220,4 +229,27 @@ func (q *Queries) UpdateSessionGroup(ctx context.Context, arg UpdateSessionGroup
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const UpdateSessionGroupOrder = `-- name: UpdateSessionGroupOrder :exec
+UPDATE session_groups
+SET sort = ?, updated_at = ?
+WHERE id = ? AND user_id = ?
+`
+
+type UpdateSessionGroupOrderParams struct {
+	Sort      sql.NullInt64 `json:"sort"`
+	UpdatedAt int64         `json:"updatedAt"`
+	ID        string        `json:"id"`
+	UserID    string        `json:"userId"`
+}
+
+func (q *Queries) UpdateSessionGroupOrder(ctx context.Context, arg UpdateSessionGroupOrderParams) error {
+	_, err := q.db.ExecContext(ctx, UpdateSessionGroupOrder,
+		arg.Sort,
+		arg.UpdatedAt,
+		arg.ID,
+		arg.UserID,
+	)
+	return err
 }

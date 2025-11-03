@@ -69,6 +69,15 @@ func (q *Queries) DeleteAPIKey(ctx context.Context, arg DeleteAPIKeyParams) erro
 	return err
 }
 
+const DeleteAllAPIKeys = `-- name: DeleteAllAPIKeys :exec
+DELETE FROM api_keys WHERE user_id = ?
+`
+
+func (q *Queries) DeleteAllAPIKeys(ctx context.Context, userID string) error {
+	_, err := q.db.ExecContext(ctx, DeleteAllAPIKeys, userID)
+	return err
+}
+
 const GetAPIKey = `-- name: GetAPIKey :one
 SELECT id, name, "key", enabled, expires_at, last_used_at, user_id, created_at, updated_at FROM api_keys WHERE id = ? AND user_id = ?
 `

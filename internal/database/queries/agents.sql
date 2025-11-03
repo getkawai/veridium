@@ -100,7 +100,40 @@ DELETE FROM agents_knowledge_bases
 WHERE agent_id = ? AND knowledge_base_id = ? AND user_id = ?;
 
 -- name: GetAgentKnowledgeBases :many
-SELECT kb.* FROM knowledge_bases kb
+SELECT kb.*, akb.enabled
+FROM knowledge_bases kb
 INNER JOIN agents_knowledge_bases akb ON kb.id = akb.knowledge_base_id
-WHERE akb.agent_id = ? AND akb.user_id = ?;
+WHERE akb.agent_id = ? AND akb.user_id = ?
+ORDER BY akb.created_at DESC;
+
+-- name: GetAgentFilesWithEnabled :many
+SELECT f.*, af.enabled
+FROM files f
+INNER JOIN agents_files af ON f.id = af.file_id
+WHERE af.agent_id = ? AND af.user_id = ?
+ORDER BY af.created_at DESC;
+
+-- name: ToggleAgentKnowledgeBase :exec
+UPDATE agents_knowledge_bases
+SET enabled = ?
+WHERE agent_id = ? AND knowledge_base_id = ? AND user_id = ?;
+
+-- name: ToggleAgentFile :exec
+UPDATE agents_files
+SET enabled = ?
+WHERE agent_id = ? AND file_id = ? AND user_id = ?;
+
+-- name: GetAgentFileIds :many
+SELECT file_id FROM agents_files
+WHERE agent_id = ? AND user_id = ? AND file_id IN (sqlc.slice('fileIds'));
+
+-- name: BatchLinkAgentToFiles :exec
+INSERT INTO agents_files (agent_id, file_id, enabled, user_id, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?);
+
+-- name: GetAgentBySessionId :one
+SELECT a.* FROM agents a
+INNER JOIN agents_to_sessions ats ON a.id = ats.agent_id
+WHERE ats.session_id = ? AND ats.user_id = ?
+LIMIT 1;
 

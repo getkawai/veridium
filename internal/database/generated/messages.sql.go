@@ -8,7 +8,99 @@ package db
 import (
 	"context"
 	"database/sql"
+	"strings"
 )
+
+const BatchDeleteMessages = `-- name: BatchDeleteMessages :exec
+DELETE FROM messages
+WHERE user_id = ? AND id IN (/*SLICE:ids*/?)
+`
+
+type BatchDeleteMessagesParams struct {
+	UserID string   `json:"userId"`
+	Ids    []string `json:"ids"`
+}
+
+func (q *Queries) BatchDeleteMessages(ctx context.Context, arg BatchDeleteMessagesParams) error {
+	query := BatchDeleteMessages
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.UserID)
+	if len(arg.Ids) > 0 {
+		for _, v := range arg.Ids {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(arg.Ids))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
+	}
+	_, err := q.db.ExecContext(ctx, query, queryParams...)
+	return err
+}
+
+const CountMessageWords = `-- name: CountMessageWords :one
+SELECT SUM(LENGTH(content)) as total_length
+FROM messages
+WHERE user_id = ?
+`
+
+func (q *Queries) CountMessageWords(ctx context.Context, userID string) (sql.NullFloat64, error) {
+	row := q.db.QueryRowContext(ctx, CountMessageWords, userID)
+	var total_length sql.NullFloat64
+	err := row.Scan(&total_length)
+	return total_length, err
+}
+
+const CountMessageWordsByDateRange = `-- name: CountMessageWordsByDateRange :one
+SELECT SUM(LENGTH(content)) as total_length
+FROM messages
+WHERE user_id = ?
+  AND created_at >= ?
+  AND created_at <= ?
+`
+
+type CountMessageWordsByDateRangeParams struct {
+	UserID      string `json:"userId"`
+	CreatedAt   int64  `json:"createdAt"`
+	CreatedAt_2 int64  `json:"createdAt2"`
+}
+
+func (q *Queries) CountMessageWordsByDateRange(ctx context.Context, arg CountMessageWordsByDateRangeParams) (sql.NullFloat64, error) {
+	row := q.db.QueryRowContext(ctx, CountMessageWordsByDateRange, arg.UserID, arg.CreatedAt, arg.CreatedAt_2)
+	var total_length sql.NullFloat64
+	err := row.Scan(&total_length)
+	return total_length, err
+}
+
+const CountMessages = `-- name: CountMessages :one
+SELECT COUNT(*) FROM messages WHERE user_id = ?
+`
+
+func (q *Queries) CountMessages(ctx context.Context, userID string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, CountMessages, userID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const CountMessagesByDateRange = `-- name: CountMessagesByDateRange :one
+SELECT COUNT(*) FROM messages
+WHERE user_id = ?
+  AND created_at >= ?
+  AND created_at <= ?
+`
+
+type CountMessagesByDateRangeParams struct {
+	UserID      string `json:"userId"`
+	CreatedAt   int64  `json:"createdAt"`
+	CreatedAt_2 int64  `json:"createdAt2"`
+}
+
+func (q *Queries) CountMessagesByDateRange(ctx context.Context, arg CountMessagesByDateRangeParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, CountMessagesByDateRange, arg.UserID, arg.CreatedAt, arg.CreatedAt_2)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
 
 const CreateMessage = `-- name: CreateMessage :one
 INSERT INTO messages (
@@ -274,6 +366,15 @@ func (q *Queries) CreateMessageTranslate(ctx context.Context, arg CreateMessageT
 	return i, err
 }
 
+const DeleteAllMessages = `-- name: DeleteAllMessages :exec
+DELETE FROM messages WHERE user_id = ?
+`
+
+func (q *Queries) DeleteAllMessages(ctx context.Context, userID string) error {
+	_, err := q.db.ExecContext(ctx, DeleteAllMessages, userID)
+	return err
+}
+
 const DeleteMessage = `-- name: DeleteMessage :exec
 DELETE FROM messages WHERE id = ? AND user_id = ?
 `
@@ -285,6 +386,48 @@ type DeleteMessageParams struct {
 
 func (q *Queries) DeleteMessage(ctx context.Context, arg DeleteMessageParams) error {
 	_, err := q.db.ExecContext(ctx, DeleteMessage, arg.ID, arg.UserID)
+	return err
+}
+
+const DeleteMessageQuery = `-- name: DeleteMessageQuery :exec
+DELETE FROM message_queries WHERE id = ? AND user_id = ?
+`
+
+type DeleteMessageQueryParams struct {
+	ID     string `json:"id"`
+	UserID string `json:"userId"`
+}
+
+func (q *Queries) DeleteMessageQuery(ctx context.Context, arg DeleteMessageQueryParams) error {
+	_, err := q.db.ExecContext(ctx, DeleteMessageQuery, arg.ID, arg.UserID)
+	return err
+}
+
+const DeleteMessageTTS = `-- name: DeleteMessageTTS :exec
+DELETE FROM message_tts WHERE id = ? AND user_id = ?
+`
+
+type DeleteMessageTTSParams struct {
+	ID     string `json:"id"`
+	UserID string `json:"userId"`
+}
+
+func (q *Queries) DeleteMessageTTS(ctx context.Context, arg DeleteMessageTTSParams) error {
+	_, err := q.db.ExecContext(ctx, DeleteMessageTTS, arg.ID, arg.UserID)
+	return err
+}
+
+const DeleteMessageTranslate = `-- name: DeleteMessageTranslate :exec
+DELETE FROM message_translates WHERE id = ? AND user_id = ?
+`
+
+type DeleteMessageTranslateParams struct {
+	ID     string `json:"id"`
+	UserID string `json:"userId"`
+}
+
+func (q *Queries) DeleteMessageTranslate(ctx context.Context, arg DeleteMessageTranslateParams) error {
+	_, err := q.db.ExecContext(ctx, DeleteMessageTranslate, arg.ID, arg.UserID)
 	return err
 }
 
@@ -508,6 +651,82 @@ func (q *Queries) GetMessageQuery(ctx context.Context, arg GetMessageQueryParams
 	return i, err
 }
 
+const GetMessageQueryChunks = `-- name: GetMessageQueryChunks :many
+SELECT 
+    mqc.message_id,
+    mqc.similarity,
+    c.id,
+    c.text,
+    f.id as file_id,
+    f.name as filename,
+    f.file_type,
+    f.url as file_url
+FROM message_query_chunks mqc
+LEFT JOIN chunks c ON mqc.chunk_id = c.id
+LEFT JOIN file_chunks fc ON c.id = fc.chunk_id
+LEFT JOIN files f ON fc.file_id = f.id
+WHERE mqc.message_id IN (/*SLICE:messageIds*/?) AND mqc.user_id = ?
+`
+
+type GetMessageQueryChunksParams struct {
+	MessageIds []sql.NullString `json:"messageIds"`
+	UserID     string           `json:"userId"`
+}
+
+type GetMessageQueryChunksRow struct {
+	MessageID  sql.NullString `json:"messageId"`
+	Similarity sql.NullInt64  `json:"similarity"`
+	ID         sql.NullString `json:"id"`
+	Text       sql.NullString `json:"text"`
+	FileID     sql.NullString `json:"fileId"`
+	Filename   sql.NullString `json:"filename"`
+	FileType   sql.NullString `json:"fileType"`
+	FileUrl    sql.NullString `json:"fileUrl"`
+}
+
+func (q *Queries) GetMessageQueryChunks(ctx context.Context, arg GetMessageQueryChunksParams) ([]GetMessageQueryChunksRow, error) {
+	query := GetMessageQueryChunks
+	var queryParams []interface{}
+	if len(arg.MessageIds) > 0 {
+		for _, v := range arg.MessageIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:messageIds*/?", strings.Repeat(",?", len(arg.MessageIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:messageIds*/?", "NULL", 1)
+	}
+	queryParams = append(queryParams, arg.UserID)
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetMessageQueryChunksRow{}
+	for rows.Next() {
+		var i GetMessageQueryChunksRow
+		if err := rows.Scan(
+			&i.MessageID,
+			&i.Similarity,
+			&i.ID,
+			&i.Text,
+			&i.FileID,
+			&i.Filename,
+			&i.FileType,
+			&i.FileUrl,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const GetMessageTTS = `-- name: GetMessageTTS :one
 
 SELECT id, content_md5, file_id, voice, client_id, user_id FROM message_tts WHERE id = ? AND user_id = ?
@@ -556,6 +775,32 @@ func (q *Queries) GetMessageTranslate(ctx context.Context, arg GetMessageTransla
 		&i.UserID,
 	)
 	return i, err
+}
+
+const LinkMessageQueryToChunk = `-- name: LinkMessageQueryToChunk :exec
+
+INSERT INTO message_query_chunks (message_id, query_id, chunk_id, similarity, user_id)
+VALUES (?, ?, ?, ?, ?)
+`
+
+type LinkMessageQueryToChunkParams struct {
+	MessageID  sql.NullString `json:"messageId"`
+	QueryID    sql.NullString `json:"queryId"`
+	ChunkID    sql.NullString `json:"chunkId"`
+	Similarity sql.NullInt64  `json:"similarity"`
+	UserID     string         `json:"userId"`
+}
+
+// Message Query Chunks
+func (q *Queries) LinkMessageQueryToChunk(ctx context.Context, arg LinkMessageQueryToChunkParams) error {
+	_, err := q.db.ExecContext(ctx, LinkMessageQueryToChunk,
+		arg.MessageID,
+		arg.QueryID,
+		arg.ChunkID,
+		arg.Similarity,
+		arg.UserID,
+	)
+	return err
 }
 
 const LinkMessageToChunk = `-- name: LinkMessageToChunk :exec
@@ -834,6 +1079,112 @@ func (q *Queries) ListMessagesByTopic(ctx context.Context, arg ListMessagesByTop
 	return items, nil
 }
 
+const RankModels = `-- name: RankModels :many
+SELECT model as id, COUNT(*) as count
+FROM messages
+WHERE user_id = ? AND model IS NOT NULL AND model != ''
+GROUP BY model
+HAVING COUNT(*) > 0
+ORDER BY count DESC, model ASC
+LIMIT ?
+`
+
+type RankModelsParams struct {
+	UserID string `json:"userId"`
+	Limit  int64  `json:"limit"`
+}
+
+type RankModelsRow struct {
+	ID    sql.NullString `json:"id"`
+	Count int64          `json:"count"`
+}
+
+func (q *Queries) RankModels(ctx context.Context, arg RankModelsParams) ([]RankModelsRow, error) {
+	rows, err := q.db.QueryContext(ctx, RankModels, arg.UserID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []RankModelsRow{}
+	for rows.Next() {
+		var i RankModelsRow
+		if err := rows.Scan(&i.ID, &i.Count); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const SearchMessagesByKeyword = `-- name: SearchMessagesByKeyword :many
+SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, client_id, user_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages
+WHERE user_id = ? AND content LIKE ?
+ORDER BY created_at DESC
+LIMIT ?
+`
+
+type SearchMessagesByKeywordParams struct {
+	UserID  string         `json:"userId"`
+	Content sql.NullString `json:"content"`
+	Limit   int64          `json:"limit"`
+}
+
+func (q *Queries) SearchMessagesByKeyword(ctx context.Context, arg SearchMessagesByKeywordParams) ([]Message, error) {
+	rows, err := q.db.QueryContext(ctx, SearchMessagesByKeyword, arg.UserID, arg.Content, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Message{}
+	for rows.Next() {
+		var i Message
+		if err := rows.Scan(
+			&i.ID,
+			&i.Role,
+			&i.Content,
+			&i.Reasoning,
+			&i.Search,
+			&i.Metadata,
+			&i.Model,
+			&i.Provider,
+			&i.Favorite,
+			&i.Error,
+			&i.Tools,
+			&i.TraceID,
+			&i.ObservationID,
+			&i.ClientID,
+			&i.UserID,
+			&i.SessionID,
+			&i.TopicID,
+			&i.ThreadID,
+			&i.ParentID,
+			&i.QuotaID,
+			&i.AgentID,
+			&i.GroupID,
+			&i.TargetID,
+			&i.MessageGroupID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const ToggleMessageFavorite = `-- name: ToggleMessageFavorite :exec
 UPDATE messages SET favorite = ?, updated_at = ?
 WHERE id = ? AND user_id = ?
@@ -966,6 +1317,88 @@ func (q *Queries) UpdateMessagePlugin(ctx context.Context, arg UpdateMessagePlug
 		&i.Identifier,
 		&i.State,
 		&i.Error,
+		&i.ClientID,
+		&i.UserID,
+	)
+	return i, err
+}
+
+const UpsertMessageTTS = `-- name: UpsertMessageTTS :one
+INSERT INTO message_tts (
+    id, content_md5, file_id, voice, client_id, user_id
+) VALUES (?, ?, ?, ?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET
+    content_md5 = excluded.content_md5,
+    file_id = excluded.file_id,
+    voice = excluded.voice
+RETURNING id, content_md5, file_id, voice, client_id, user_id
+`
+
+type UpsertMessageTTSParams struct {
+	ID         string         `json:"id"`
+	ContentMd5 sql.NullString `json:"contentMd5"`
+	FileID     sql.NullString `json:"fileId"`
+	Voice      sql.NullString `json:"voice"`
+	ClientID   sql.NullString `json:"clientId"`
+	UserID     string         `json:"userId"`
+}
+
+func (q *Queries) UpsertMessageTTS(ctx context.Context, arg UpsertMessageTTSParams) (MessageTt, error) {
+	row := q.db.QueryRowContext(ctx, UpsertMessageTTS,
+		arg.ID,
+		arg.ContentMd5,
+		arg.FileID,
+		arg.Voice,
+		arg.ClientID,
+		arg.UserID,
+	)
+	var i MessageTt
+	err := row.Scan(
+		&i.ID,
+		&i.ContentMd5,
+		&i.FileID,
+		&i.Voice,
+		&i.ClientID,
+		&i.UserID,
+	)
+	return i, err
+}
+
+const UpsertMessageTranslate = `-- name: UpsertMessageTranslate :one
+INSERT INTO message_translates (
+    id, content, "from", "to", client_id, user_id
+) VALUES (?, ?, ?, ?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET
+    content = excluded.content,
+    "from" = excluded."from",
+    "to" = excluded."to"
+RETURNING id, content, "from", "to", client_id, user_id
+`
+
+type UpsertMessageTranslateParams struct {
+	ID       string         `json:"id"`
+	Content  sql.NullString `json:"content"`
+	From     sql.NullString `json:"from"`
+	To       sql.NullString `json:"to"`
+	ClientID sql.NullString `json:"clientId"`
+	UserID   string         `json:"userId"`
+}
+
+func (q *Queries) UpsertMessageTranslate(ctx context.Context, arg UpsertMessageTranslateParams) (MessageTranslate, error) {
+	row := q.db.QueryRowContext(ctx, UpsertMessageTranslate,
+		arg.ID,
+		arg.Content,
+		arg.From,
+		arg.To,
+		arg.ClientID,
+		arg.UserID,
+	)
+	var i MessageTranslate
+	err := row.Scan(
+		&i.ID,
+		&i.Content,
+		&i.From,
+		&i.To,
 		&i.ClientID,
 		&i.UserID,
 	)

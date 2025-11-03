@@ -8,7 +8,34 @@ package db
 import (
 	"context"
 	"database/sql"
+	"strings"
 )
+
+const BatchLinkAgentToFiles = `-- name: BatchLinkAgentToFiles :exec
+INSERT INTO agents_files (agent_id, file_id, enabled, user_id, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?)
+`
+
+type BatchLinkAgentToFilesParams struct {
+	AgentID   string `json:"agentId"`
+	FileID    string `json:"fileId"`
+	Enabled   int64  `json:"enabled"`
+	UserID    string `json:"userId"`
+	CreatedAt int64  `json:"createdAt"`
+	UpdatedAt int64  `json:"updatedAt"`
+}
+
+func (q *Queries) BatchLinkAgentToFiles(ctx context.Context, arg BatchLinkAgentToFilesParams) error {
+	_, err := q.db.ExecContext(ctx, BatchLinkAgentToFiles,
+		arg.AgentID,
+		arg.FileID,
+		arg.Enabled,
+		arg.UserID,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+	)
+	return err
+}
 
 const CreateAgent = `-- name: CreateAgent :one
 INSERT INTO agents (
@@ -151,6 +178,48 @@ func (q *Queries) GetAgent(ctx context.Context, arg GetAgentParams) (Agent, erro
 	return i, err
 }
 
+const GetAgentBySessionId = `-- name: GetAgentBySessionId :one
+SELECT a.id, a.slug, a.title, a.description, a.tags, a.avatar, a.background_color, a.plugins, a.client_id, a.user_id, a.chat_config, a.few_shots, a.model, a.params, a.provider, a.system_role, a.tts, a."virtual", a.opening_message, a.opening_questions, a.created_at, a.updated_at FROM agents a
+INNER JOIN agents_to_sessions ats ON a.id = ats.agent_id
+WHERE ats.session_id = ? AND ats.user_id = ?
+LIMIT 1
+`
+
+type GetAgentBySessionIdParams struct {
+	SessionID string `json:"sessionId"`
+	UserID    string `json:"userId"`
+}
+
+func (q *Queries) GetAgentBySessionId(ctx context.Context, arg GetAgentBySessionIdParams) (Agent, error) {
+	row := q.db.QueryRowContext(ctx, GetAgentBySessionId, arg.SessionID, arg.UserID)
+	var i Agent
+	err := row.Scan(
+		&i.ID,
+		&i.Slug,
+		&i.Title,
+		&i.Description,
+		&i.Tags,
+		&i.Avatar,
+		&i.BackgroundColor,
+		&i.Plugins,
+		&i.ClientID,
+		&i.UserID,
+		&i.ChatConfig,
+		&i.FewShots,
+		&i.Model,
+		&i.Params,
+		&i.Provider,
+		&i.SystemRole,
+		&i.Tts,
+		&i.Virtual,
+		&i.OpeningMessage,
+		&i.OpeningQuestions,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const GetAgentBySlug = `-- name: GetAgentBySlug :one
 SELECT id, slug, title, description, tags, avatar, background_color, plugins, client_id, user_id, chat_config, few_shots, model, params, provider, system_role, tts, "virtual", opening_message, opening_questions, created_at, updated_at FROM agents WHERE slug = ? AND user_id = ?
 `
@@ -188,6 +257,52 @@ func (q *Queries) GetAgentBySlug(ctx context.Context, arg GetAgentBySlugParams) 
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const GetAgentFileIds = `-- name: GetAgentFileIds :many
+SELECT file_id FROM agents_files
+WHERE agent_id = ? AND user_id = ? AND file_id IN (/*SLICE:fileIds*/?)
+`
+
+type GetAgentFileIdsParams struct {
+	AgentID string   `json:"agentId"`
+	UserID  string   `json:"userId"`
+	FileIds []string `json:"fileIds"`
+}
+
+func (q *Queries) GetAgentFileIds(ctx context.Context, arg GetAgentFileIdsParams) ([]string, error) {
+	query := GetAgentFileIds
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.AgentID)
+	queryParams = append(queryParams, arg.UserID)
+	if len(arg.FileIds) > 0 {
+		for _, v := range arg.FileIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:fileIds*/?", strings.Repeat(",?", len(arg.FileIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:fileIds*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var file_id string
+		if err := rows.Scan(&file_id); err != nil {
+			return nil, err
+		}
+		items = append(items, file_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const GetAgentFiles = `-- name: GetAgentFiles :many
@@ -239,10 +354,82 @@ func (q *Queries) GetAgentFiles(ctx context.Context, arg GetAgentFilesParams) ([
 	return items, nil
 }
 
+const GetAgentFilesWithEnabled = `-- name: GetAgentFilesWithEnabled :many
+SELECT f.id, f.user_id, f.file_type, f.file_hash, f.name, f.size, f.url, f.source, f.client_id, f.metadata, f.chunk_task_id, f.embedding_task_id, f.created_at, f.updated_at, af.enabled
+FROM files f
+INNER JOIN agents_files af ON f.id = af.file_id
+WHERE af.agent_id = ? AND af.user_id = ?
+ORDER BY af.created_at DESC
+`
+
+type GetAgentFilesWithEnabledParams struct {
+	AgentID string `json:"agentId"`
+	UserID  string `json:"userId"`
+}
+
+type GetAgentFilesWithEnabledRow struct {
+	ID              string         `json:"id"`
+	UserID          string         `json:"userId"`
+	FileType        string         `json:"fileType"`
+	FileHash        sql.NullString `json:"fileHash"`
+	Name            string         `json:"name"`
+	Size            int64          `json:"size"`
+	Url             string         `json:"url"`
+	Source          sql.NullString `json:"source"`
+	ClientID        sql.NullString `json:"clientId"`
+	Metadata        sql.NullString `json:"metadata"`
+	ChunkTaskID     sql.NullString `json:"chunkTaskId"`
+	EmbeddingTaskID sql.NullString `json:"embeddingTaskId"`
+	CreatedAt       int64          `json:"createdAt"`
+	UpdatedAt       int64          `json:"updatedAt"`
+	Enabled         int64          `json:"enabled"`
+}
+
+func (q *Queries) GetAgentFilesWithEnabled(ctx context.Context, arg GetAgentFilesWithEnabledParams) ([]GetAgentFilesWithEnabledRow, error) {
+	rows, err := q.db.QueryContext(ctx, GetAgentFilesWithEnabled, arg.AgentID, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetAgentFilesWithEnabledRow{}
+	for rows.Next() {
+		var i GetAgentFilesWithEnabledRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.FileType,
+			&i.FileHash,
+			&i.Name,
+			&i.Size,
+			&i.Url,
+			&i.Source,
+			&i.ClientID,
+			&i.Metadata,
+			&i.ChunkTaskID,
+			&i.EmbeddingTaskID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Enabled,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const GetAgentKnowledgeBases = `-- name: GetAgentKnowledgeBases :many
-SELECT kb.id, kb.name, kb.description, kb.avatar, kb.type, kb.user_id, kb.client_id, kb.is_public, kb.settings, kb.created_at, kb.updated_at FROM knowledge_bases kb
+SELECT kb.id, kb.name, kb.description, kb.avatar, kb.type, kb.user_id, kb.client_id, kb.is_public, kb.settings, kb.created_at, kb.updated_at, akb.enabled
+FROM knowledge_bases kb
 INNER JOIN agents_knowledge_bases akb ON kb.id = akb.knowledge_base_id
 WHERE akb.agent_id = ? AND akb.user_id = ?
+ORDER BY akb.created_at DESC
 `
 
 type GetAgentKnowledgeBasesParams struct {
@@ -250,15 +437,30 @@ type GetAgentKnowledgeBasesParams struct {
 	UserID  string `json:"userId"`
 }
 
-func (q *Queries) GetAgentKnowledgeBases(ctx context.Context, arg GetAgentKnowledgeBasesParams) ([]KnowledgeBasis, error) {
+type GetAgentKnowledgeBasesRow struct {
+	ID          string         `json:"id"`
+	Name        string         `json:"name"`
+	Description sql.NullString `json:"description"`
+	Avatar      sql.NullString `json:"avatar"`
+	Type        sql.NullString `json:"type"`
+	UserID      string         `json:"userId"`
+	ClientID    sql.NullString `json:"clientId"`
+	IsPublic    int64          `json:"isPublic"`
+	Settings    sql.NullString `json:"settings"`
+	CreatedAt   int64          `json:"createdAt"`
+	UpdatedAt   int64          `json:"updatedAt"`
+	Enabled     int64          `json:"enabled"`
+}
+
+func (q *Queries) GetAgentKnowledgeBases(ctx context.Context, arg GetAgentKnowledgeBasesParams) ([]GetAgentKnowledgeBasesRow, error) {
 	rows, err := q.db.QueryContext(ctx, GetAgentKnowledgeBases, arg.AgentID, arg.UserID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []KnowledgeBasis{}
+	items := []GetAgentKnowledgeBasesRow{}
 	for rows.Next() {
-		var i KnowledgeBasis
+		var i GetAgentKnowledgeBasesRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
@@ -271,6 +473,7 @@ func (q *Queries) GetAgentKnowledgeBases(ctx context.Context, arg GetAgentKnowle
 			&i.Settings,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Enabled,
 		); err != nil {
 			return nil, err
 		}
@@ -638,6 +841,52 @@ func (q *Queries) SearchAgents(ctx context.Context, arg SearchAgentsParams) ([]A
 		return nil, err
 	}
 	return items, nil
+}
+
+const ToggleAgentFile = `-- name: ToggleAgentFile :exec
+UPDATE agents_files
+SET enabled = ?
+WHERE agent_id = ? AND file_id = ? AND user_id = ?
+`
+
+type ToggleAgentFileParams struct {
+	Enabled int64  `json:"enabled"`
+	AgentID string `json:"agentId"`
+	FileID  string `json:"fileId"`
+	UserID  string `json:"userId"`
+}
+
+func (q *Queries) ToggleAgentFile(ctx context.Context, arg ToggleAgentFileParams) error {
+	_, err := q.db.ExecContext(ctx, ToggleAgentFile,
+		arg.Enabled,
+		arg.AgentID,
+		arg.FileID,
+		arg.UserID,
+	)
+	return err
+}
+
+const ToggleAgentKnowledgeBase = `-- name: ToggleAgentKnowledgeBase :exec
+UPDATE agents_knowledge_bases
+SET enabled = ?
+WHERE agent_id = ? AND knowledge_base_id = ? AND user_id = ?
+`
+
+type ToggleAgentKnowledgeBaseParams struct {
+	Enabled         int64  `json:"enabled"`
+	AgentID         string `json:"agentId"`
+	KnowledgeBaseID string `json:"knowledgeBaseId"`
+	UserID          string `json:"userId"`
+}
+
+func (q *Queries) ToggleAgentKnowledgeBase(ctx context.Context, arg ToggleAgentKnowledgeBaseParams) error {
+	_, err := q.db.ExecContext(ctx, ToggleAgentKnowledgeBase,
+		arg.Enabled,
+		arg.AgentID,
+		arg.KnowledgeBaseID,
+		arg.UserID,
+	)
+	return err
 }
 
 const UnlinkAgentFromFile = `-- name: UnlinkAgentFromFile :exec

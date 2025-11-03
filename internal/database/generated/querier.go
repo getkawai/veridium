@@ -10,11 +10,20 @@ import (
 )
 
 type Querier interface {
+	BatchDeleteMessages(ctx context.Context, arg BatchDeleteMessagesParams) error
 	BatchDeleteSessions(ctx context.Context, arg BatchDeleteSessionsParams) error
+	BatchDeleteTopics(ctx context.Context, arg BatchDeleteTopicsParams) error
+	BatchLinkAgentToFiles(ctx context.Context, arg BatchLinkAgentToFilesParams) error
 	ConsumeOIDCAuthorizationCode(ctx context.Context, arg ConsumeOIDCAuthorizationCodeParams) error
+	CountMessageWords(ctx context.Context, userID string) (sql.NullFloat64, error)
+	CountMessageWordsByDateRange(ctx context.Context, arg CountMessageWordsByDateRangeParams) (sql.NullFloat64, error)
+	CountMessages(ctx context.Context, userID string) (int64, error)
+	CountMessagesByDateRange(ctx context.Context, arg CountMessagesByDateRangeParams) (int64, error)
 	CountSessions(ctx context.Context, userID string) (int64, error)
 	CountSessionsByDateRange(ctx context.Context, arg CountSessionsByDateRangeParams) (int64, error)
 	CountSessionsInGroup(ctx context.Context, arg CountSessionsInGroupParams) (int64, error)
+	CountTopics(ctx context.Context, userID string) (int64, error)
+	CountTopicsByDateRange(ctx context.Context, arg CountTopicsByDateRangeParams) (int64, error)
 	CountTopicsBySession(ctx context.Context, arg CountTopicsBySessionParams) (int64, error)
 	CreateAIModel(ctx context.Context, arg CreateAIModelParams) (AiModel, error)
 	CreateAIProvider(ctx context.Context, arg CreateAIProviderParams) (AiProvider, error)
@@ -52,6 +61,7 @@ type Querier interface {
 	CreateOIDCRefreshToken(ctx context.Context, arg CreateOIDCRefreshTokenParams) (OidcRefreshToken, error)
 	CreateOIDCSession(ctx context.Context, arg CreateOIDCSessionParams) (OidcSession, error)
 	CreatePermission(ctx context.Context, arg CreatePermissionParams) (RbacPermission, error)
+	CreatePlugin(ctx context.Context, arg CreatePluginParams) (UserInstalledPlugin, error)
 	CreateRagEvalDataset(ctx context.Context, arg CreateRagEvalDatasetParams) (RagEvalDataset, error)
 	CreateRagEvalDatasetRecord(ctx context.Context, arg CreateRagEvalDatasetRecordParams) (RagEvalDatasetRecord, error)
 	CreateRole(ctx context.Context, arg CreateRoleParams) (RbacRole, error)
@@ -65,6 +75,12 @@ type Querier interface {
 	DeleteAIProvider(ctx context.Context, arg DeleteAIProviderParams) error
 	DeleteAPIKey(ctx context.Context, arg DeleteAPIKeyParams) error
 	DeleteAgent(ctx context.Context, arg DeleteAgentParams) error
+	DeleteAllAPIKeys(ctx context.Context, userID string) error
+	DeleteAllMessages(ctx context.Context, userID string) error
+	DeleteAllPlugins(ctx context.Context, userID string) error
+	DeleteAllSessionGroups(ctx context.Context, userID string) error
+	DeleteAllThreads(ctx context.Context, userID string) error
+	DeleteAllTopics(ctx context.Context, userID string) error
 	DeleteAsyncTask(ctx context.Context, arg DeleteAsyncTaskParams) error
 	DeleteChatGroup(ctx context.Context, arg DeleteChatGroupParams) error
 	DeleteChunk(ctx context.Context, arg DeleteChunkParams) error
@@ -80,6 +96,9 @@ type Querier interface {
 	DeleteKnowledgeBase(ctx context.Context, arg DeleteKnowledgeBaseParams) error
 	DeleteMessage(ctx context.Context, arg DeleteMessageParams) error
 	DeleteMessageGroup(ctx context.Context, arg DeleteMessageGroupParams) error
+	DeleteMessageQuery(ctx context.Context, arg DeleteMessageQueryParams) error
+	DeleteMessageTTS(ctx context.Context, arg DeleteMessageTTSParams) error
+	DeleteMessageTranslate(ctx context.Context, arg DeleteMessageTranslateParams) error
 	DeleteMessagesBySession(ctx context.Context, arg DeleteMessagesBySessionParams) error
 	DeleteMessagesByTopic(ctx context.Context, arg DeleteMessagesByTopicParams) error
 	DeleteNextAuthAccount(ctx context.Context, arg DeleteNextAuthAccountParams) error
@@ -97,6 +116,7 @@ type Querier interface {
 	DeleteOIDCRefreshToken(ctx context.Context, id string) error
 	DeleteOIDCSession(ctx context.Context, id string) error
 	DeletePermission(ctx context.Context, id int64) error
+	DeletePlugin(ctx context.Context, arg DeletePluginParams) error
 	DeleteRagEvalDataset(ctx context.Context, arg DeleteRagEvalDatasetParams) error
 	DeleteRagEvalDatasetRecord(ctx context.Context, arg DeleteRagEvalDatasetRecordParams) error
 	DeleteRole(ctx context.Context, id int64) error
@@ -104,6 +124,8 @@ type Querier interface {
 	DeleteSessionGroup(ctx context.Context, arg DeleteSessionGroupParams) error
 	DeleteThread(ctx context.Context, arg DeleteThreadParams) error
 	DeleteTopic(ctx context.Context, arg DeleteTopicParams) error
+	DeleteTopicsByGroup(ctx context.Context, arg DeleteTopicsByGroupParams) error
+	DeleteTopicsBySession(ctx context.Context, arg DeleteTopicsBySessionParams) error
 	DeleteUnstructuredChunk(ctx context.Context, arg DeleteUnstructuredChunkParams) error
 	DeleteUser(ctx context.Context, id string) error
 	DeleteUserSettings(ctx context.Context, id string) error
@@ -115,9 +137,12 @@ type Querier interface {
 	GetAPIKey(ctx context.Context, arg GetAPIKeyParams) (ApiKey, error)
 	GetAPIKeyByKey(ctx context.Context, key string) (ApiKey, error)
 	GetAgent(ctx context.Context, arg GetAgentParams) (Agent, error)
+	GetAgentBySessionId(ctx context.Context, arg GetAgentBySessionIdParams) (Agent, error)
 	GetAgentBySlug(ctx context.Context, arg GetAgentBySlugParams) (Agent, error)
+	GetAgentFileIds(ctx context.Context, arg GetAgentFileIdsParams) ([]string, error)
 	GetAgentFiles(ctx context.Context, arg GetAgentFilesParams) ([]File, error)
-	GetAgentKnowledgeBases(ctx context.Context, arg GetAgentKnowledgeBasesParams) ([]KnowledgeBasis, error)
+	GetAgentFilesWithEnabled(ctx context.Context, arg GetAgentFilesWithEnabledParams) ([]GetAgentFilesWithEnabledRow, error)
+	GetAgentKnowledgeBases(ctx context.Context, arg GetAgentKnowledgeBasesParams) ([]GetAgentKnowledgeBasesRow, error)
 	GetAgentSessions(ctx context.Context, arg GetAgentSessionsParams) ([]Session, error)
 	GetAsyncTask(ctx context.Context, arg GetAsyncTaskParams) (AsyncTask, error)
 	GetChatGroup(ctx context.Context, arg GetChatGroupParams) (ChatGroup, error)
@@ -137,6 +162,7 @@ type Querier interface {
 	GetGenerationBatch(ctx context.Context, arg GetGenerationBatchParams) (GenerationBatch, error)
 	// Generation Topics
 	GetGenerationTopic(ctx context.Context, arg GetGenerationTopicParams) (GenerationTopic, error)
+	GetGenerationWithAsyncTask(ctx context.Context, arg GetGenerationWithAsyncTaskParams) (GetGenerationWithAsyncTaskRow, error)
 	// Global Files
 	GetGlobalFile(ctx context.Context, hashID string) (GlobalFile, error)
 	// Knowledge Bases
@@ -151,10 +177,12 @@ type Querier interface {
 	GetMessagePlugin(ctx context.Context, arg GetMessagePluginParams) (MessagePlugin, error)
 	// Message Queries (RAG)
 	GetMessageQuery(ctx context.Context, arg GetMessageQueryParams) (MessageQuery, error)
+	GetMessageQueryChunks(ctx context.Context, arg GetMessageQueryChunksParams) ([]GetMessageQueryChunksRow, error)
 	// Message TTS
 	GetMessageTTS(ctx context.Context, arg GetMessageTTSParams) (MessageTt, error)
 	// Message Translates
 	GetMessageTranslate(ctx context.Context, arg GetMessageTranslateParams) (MessageTranslate, error)
+	GetMessagesByTopicId(ctx context.Context, arg GetMessagesByTopicIdParams) ([]Message, error)
 	// NextAuth Accounts
 	GetNextAuthAccount(ctx context.Context, arg GetNextAuthAccountParams) (NextauthAccount, error)
 	// NextAuth Authenticators
@@ -188,6 +216,8 @@ type Querier interface {
 	// Permissions
 	GetPermission(ctx context.Context, id int64) (RbacPermission, error)
 	GetPermissionByCode(ctx context.Context, code string) (RbacPermission, error)
+	// Plugins
+	GetPlugin(ctx context.Context, arg GetPluginParams) (UserInstalledPlugin, error)
 	// RAG Evaluation
 	GetRagEvalDataset(ctx context.Context, arg GetRagEvalDatasetParams) (RagEvalDataset, error)
 	GetRagEvalDatasetRecord(ctx context.Context, arg GetRagEvalDatasetRecordParams) (RagEvalDatasetRecord, error)
@@ -236,6 +266,8 @@ type Querier interface {
 	LinkFileToSession(ctx context.Context, arg LinkFileToSessionParams) error
 	// Knowledge Base Files
 	LinkKnowledgeBaseToFile(ctx context.Context, arg LinkKnowledgeBaseToFileParams) error
+	// Message Query Chunks
+	LinkMessageQueryToChunk(ctx context.Context, arg LinkMessageQueryToChunkParams) error
 	// Message Chunks
 	LinkMessageToChunk(ctx context.Context, arg LinkMessageToChunkParams) error
 	// Message Files
@@ -251,6 +283,8 @@ type Querier interface {
 	ListAIProviders(ctx context.Context, userID string) ([]AiProvider, error)
 	ListAPIKeys(ctx context.Context, userID string) ([]ApiKey, error)
 	ListAgents(ctx context.Context, arg ListAgentsParams) ([]Agent, error)
+	ListAllThreads(ctx context.Context, userID string) ([]Thread, error)
+	ListAllTopics(ctx context.Context, userID string) ([]Topic, error)
 	ListAsyncTasks(ctx context.Context, arg ListAsyncTasksParams) ([]AsyncTask, error)
 	ListAsyncTasksByStatus(ctx context.Context, arg ListAsyncTasksByStatusParams) ([]AsyncTask, error)
 	ListChatGroups(ctx context.Context, userID string) ([]ChatGroup, error)
@@ -273,6 +307,7 @@ type Querier interface {
 	ListOIDCClients(ctx context.Context) ([]OidcClient, error)
 	ListPermissions(ctx context.Context) ([]RbacPermission, error)
 	ListPermissionsByCategory(ctx context.Context, category string) ([]RbacPermission, error)
+	ListPlugins(ctx context.Context, userID string) ([]UserInstalledPlugin, error)
 	ListRagEvalDatasetRecords(ctx context.Context, arg ListRagEvalDatasetRecordsParams) ([]RagEvalDatasetRecord, error)
 	ListRagEvalDatasets(ctx context.Context, userID string) ([]RagEvalDataset, error)
 	ListRoles(ctx context.Context) ([]RbacRole, error)
@@ -286,8 +321,15 @@ type Querier interface {
 	ListUserPlugins(ctx context.Context, userID string) ([]UserInstalledPlugin, error)
 	MoveSessionToGroup(ctx context.Context, arg MoveSessionToGroupParams) error
 	PinSession(ctx context.Context, arg PinSessionParams) error
+	RankModels(ctx context.Context, arg RankModelsParams) ([]RankModelsRow, error)
+	RankTopics(ctx context.Context, arg RankTopicsParams) ([]RankTopicsRow, error)
 	SearchAgents(ctx context.Context, arg SearchAgentsParams) ([]Agent, error)
+	SearchMessagesByKeyword(ctx context.Context, arg SearchMessagesByKeywordParams) ([]Message, error)
 	SearchSessions(ctx context.Context, arg SearchSessionsParams) ([]Session, error)
+	SearchTopicsByMessageContent(ctx context.Context, arg SearchTopicsByMessageContentParams) ([]Topic, error)
+	SearchTopicsByTitle(ctx context.Context, arg SearchTopicsByTitleParams) ([]Topic, error)
+	ToggleAgentFile(ctx context.Context, arg ToggleAgentFileParams) error
+	ToggleAgentKnowledgeBase(ctx context.Context, arg ToggleAgentKnowledgeBaseParams) error
 	ToggleMessageFavorite(ctx context.Context, arg ToggleMessageFavoriteParams) error
 	ToggleTopicFavorite(ctx context.Context, arg ToggleTopicFavoriteParams) error
 	UninstallUserPlugin(ctx context.Context, arg UninstallUserPluginParams) error
@@ -320,15 +362,18 @@ type Querier interface {
 	UpdateKnowledgeBase(ctx context.Context, arg UpdateKnowledgeBaseParams) (KnowledgeBasis, error)
 	UpdateMessage(ctx context.Context, arg UpdateMessageParams) (Message, error)
 	UpdateMessagePlugin(ctx context.Context, arg UpdateMessagePluginParams) (MessagePlugin, error)
+	UpdateMessagesTopicId(ctx context.Context, arg UpdateMessagesTopicIdParams) error
 	UpdateNextAuthAccount(ctx context.Context, arg UpdateNextAuthAccountParams) (NextauthAccount, error)
 	UpdateNextAuthAuthenticator(ctx context.Context, arg UpdateNextAuthAuthenticatorParams) (NextauthAuthenticator, error)
 	UpdateNextAuthSession(ctx context.Context, arg UpdateNextAuthSessionParams) (NextauthSession, error)
 	UpdateOIDCClient(ctx context.Context, arg UpdateOIDCClientParams) (OidcClient, error)
 	UpdateOIDCConsent(ctx context.Context, arg UpdateOIDCConsentParams) (OidcConsent, error)
 	UpdatePermission(ctx context.Context, arg UpdatePermissionParams) (RbacPermission, error)
+	UpdatePlugin(ctx context.Context, arg UpdatePluginParams) error
 	UpdateRole(ctx context.Context, arg UpdateRoleParams) (RbacRole, error)
 	UpdateSession(ctx context.Context, arg UpdateSessionParams) (Session, error)
 	UpdateSessionGroup(ctx context.Context, arg UpdateSessionGroupParams) (SessionGroup, error)
+	UpdateSessionGroupOrder(ctx context.Context, arg UpdateSessionGroupOrderParams) error
 	UpdateThread(ctx context.Context, arg UpdateThreadParams) (Thread, error)
 	UpdateTopic(ctx context.Context, arg UpdateTopicParams) (Topic, error)
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
@@ -338,6 +383,9 @@ type Querier interface {
 	UpdateUserSettingsGeneral(ctx context.Context, arg UpdateUserSettingsGeneralParams) error
 	UpdateUserSettingsHotkey(ctx context.Context, arg UpdateUserSettingsHotkeyParams) error
 	UpdateUserSettingsTTS(ctx context.Context, arg UpdateUserSettingsTTSParams) error
+	UpsertMessageTTS(ctx context.Context, arg UpsertMessageTTSParams) (MessageTt, error)
+	UpsertMessageTranslate(ctx context.Context, arg UpsertMessageTranslateParams) (MessageTranslate, error)
+	UpsertPlugin(ctx context.Context, arg UpsertPluginParams) (UserInstalledPlugin, error)
 	UpsertUserSettings(ctx context.Context, arg UpsertUserSettingsParams) (UserSetting, error)
 }
 

@@ -566,6 +566,35 @@ export class AsyncTask {
     }
 }
 
+export class BatchDeleteMessagesParams {
+    "userId": string;
+    "ids": string[];
+
+    /** Creates a new BatchDeleteMessagesParams instance. */
+    constructor($$source: Partial<BatchDeleteMessagesParams> = {}) {
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+        if (!("ids" in $$source)) {
+            this["ids"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BatchDeleteMessagesParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): BatchDeleteMessagesParams {
+        const $$createField1_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("ids" in $$parsedSource) {
+            $$parsedSource["ids"] = $$createField1_0($$parsedSource["ids"]);
+        }
+        return new BatchDeleteMessagesParams($$parsedSource as Partial<BatchDeleteMessagesParams>);
+    }
+}
+
 export class BatchDeleteSessionsParams {
     "userId": string;
     "ids": string[];
@@ -592,6 +621,76 @@ export class BatchDeleteSessionsParams {
             $$parsedSource["ids"] = $$createField1_0($$parsedSource["ids"]);
         }
         return new BatchDeleteSessionsParams($$parsedSource as Partial<BatchDeleteSessionsParams>);
+    }
+}
+
+export class BatchDeleteTopicsParams {
+    "userId": string;
+    "ids": string[];
+
+    /** Creates a new BatchDeleteTopicsParams instance. */
+    constructor($$source: Partial<BatchDeleteTopicsParams> = {}) {
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+        if (!("ids" in $$source)) {
+            this["ids"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BatchDeleteTopicsParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): BatchDeleteTopicsParams {
+        const $$createField1_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("ids" in $$parsedSource) {
+            $$parsedSource["ids"] = $$createField1_0($$parsedSource["ids"]);
+        }
+        return new BatchDeleteTopicsParams($$parsedSource as Partial<BatchDeleteTopicsParams>);
+    }
+}
+
+export class BatchLinkAgentToFilesParams {
+    "agentId": string;
+    "fileId": string;
+    "enabled": number;
+    "userId": string;
+    "createdAt": number;
+    "updatedAt": number;
+
+    /** Creates a new BatchLinkAgentToFilesParams instance. */
+    constructor($$source: Partial<BatchLinkAgentToFilesParams> = {}) {
+        if (!("agentId" in $$source)) {
+            this["agentId"] = "";
+        }
+        if (!("fileId" in $$source)) {
+            this["fileId"] = "";
+        }
+        if (!("enabled" in $$source)) {
+            this["enabled"] = 0;
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BatchLinkAgentToFilesParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): BatchLinkAgentToFilesParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new BatchLinkAgentToFilesParams($$parsedSource as Partial<BatchLinkAgentToFilesParams>);
     }
 }
 
@@ -782,6 +881,64 @@ export class ConsumeOIDCAuthorizationCodeParams {
     }
 }
 
+export class CountMessageWordsByDateRangeParams {
+    "userId": string;
+    "createdAt": number;
+    "createdAt2": number;
+
+    /** Creates a new CountMessageWordsByDateRangeParams instance. */
+    constructor($$source: Partial<CountMessageWordsByDateRangeParams> = {}) {
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+        if (!("createdAt2" in $$source)) {
+            this["createdAt2"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CountMessageWordsByDateRangeParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CountMessageWordsByDateRangeParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new CountMessageWordsByDateRangeParams($$parsedSource as Partial<CountMessageWordsByDateRangeParams>);
+    }
+}
+
+export class CountMessagesByDateRangeParams {
+    "userId": string;
+    "createdAt": number;
+    "createdAt2": number;
+
+    /** Creates a new CountMessagesByDateRangeParams instance. */
+    constructor($$source: Partial<CountMessagesByDateRangeParams> = {}) {
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+        if (!("createdAt2" in $$source)) {
+            this["createdAt2"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CountMessagesByDateRangeParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CountMessagesByDateRangeParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new CountMessagesByDateRangeParams($$parsedSource as Partial<CountMessagesByDateRangeParams>);
+    }
+}
+
 export class CountSessionsByDateRangeParams {
     "userId": string;
     "createdAt": number;
@@ -837,6 +994,35 @@ export class CountSessionsInGroupParams {
             $$parsedSource["groupId"] = $$createField0_0($$parsedSource["groupId"]);
         }
         return new CountSessionsInGroupParams($$parsedSource as Partial<CountSessionsInGroupParams>);
+    }
+}
+
+export class CountTopicsByDateRangeParams {
+    "userId": string;
+    "createdAt": number;
+    "createdAt2": number;
+
+    /** Creates a new CountTopicsByDateRangeParams instance. */
+    constructor($$source: Partial<CountTopicsByDateRangeParams> = {}) {
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+        if (!("createdAt2" in $$source)) {
+            this["createdAt2"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CountTopicsByDateRangeParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CountTopicsByDateRangeParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new CountTopicsByDateRangeParams($$parsedSource as Partial<CountTopicsByDateRangeParams>);
     }
 }
 
@@ -3557,6 +3743,67 @@ export class CreatePermissionParams {
     }
 }
 
+export class CreatePluginParams {
+    "identifier": string;
+    "type": string;
+    "manifest": sql$0.NullString;
+    "customParams": sql$0.NullString;
+    "settings": sql$0.NullString;
+    "userId": string;
+    "createdAt": number;
+    "updatedAt": number;
+
+    /** Creates a new CreatePluginParams instance. */
+    constructor($$source: Partial<CreatePluginParams> = {}) {
+        if (!("identifier" in $$source)) {
+            this["identifier"] = "";
+        }
+        if (!("type" in $$source)) {
+            this["type"] = "";
+        }
+        if (!("manifest" in $$source)) {
+            this["manifest"] = (new sql$0.NullString());
+        }
+        if (!("customParams" in $$source)) {
+            this["customParams"] = (new sql$0.NullString());
+        }
+        if (!("settings" in $$source)) {
+            this["settings"] = (new sql$0.NullString());
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CreatePluginParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CreatePluginParams {
+        const $$createField2_0 = $$createType0;
+        const $$createField3_0 = $$createType0;
+        const $$createField4_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("manifest" in $$parsedSource) {
+            $$parsedSource["manifest"] = $$createField2_0($$parsedSource["manifest"]);
+        }
+        if ("customParams" in $$parsedSource) {
+            $$parsedSource["customParams"] = $$createField3_0($$parsedSource["customParams"]);
+        }
+        if ("settings" in $$parsedSource) {
+            $$parsedSource["settings"] = $$createField4_0($$parsedSource["settings"]);
+        }
+        return new CreatePluginParams($$parsedSource as Partial<CreatePluginParams>);
+    }
+}
+
 export class CreateRagEvalDatasetParams {
     "id": string;
     "name": string;
@@ -4658,6 +4905,81 @@ export class DeleteMessageParams {
     }
 }
 
+export class DeleteMessageQueryParams {
+    "id": string;
+    "userId": string;
+
+    /** Creates a new DeleteMessageQueryParams instance. */
+    constructor($$source: Partial<DeleteMessageQueryParams> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DeleteMessageQueryParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DeleteMessageQueryParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DeleteMessageQueryParams($$parsedSource as Partial<DeleteMessageQueryParams>);
+    }
+}
+
+export class DeleteMessageTTSParams {
+    "id": string;
+    "userId": string;
+
+    /** Creates a new DeleteMessageTTSParams instance. */
+    constructor($$source: Partial<DeleteMessageTTSParams> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DeleteMessageTTSParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DeleteMessageTTSParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DeleteMessageTTSParams($$parsedSource as Partial<DeleteMessageTTSParams>);
+    }
+}
+
+export class DeleteMessageTranslateParams {
+    "id": string;
+    "userId": string;
+
+    /** Creates a new DeleteMessageTranslateParams instance. */
+    constructor($$source: Partial<DeleteMessageTranslateParams> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DeleteMessageTranslateParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DeleteMessageTranslateParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DeleteMessageTranslateParams($$parsedSource as Partial<DeleteMessageTranslateParams>);
+    }
+}
+
 export class DeleteMessagesBySessionParams {
     "sessionId": sql$0.NullString;
     "userId": string;
@@ -4816,6 +5138,31 @@ export class DeleteOIDCConsentParams {
     }
 }
 
+export class DeletePluginParams {
+    "identifier": string;
+    "userId": string;
+
+    /** Creates a new DeletePluginParams instance. */
+    constructor($$source: Partial<DeletePluginParams> = {}) {
+        if (!("identifier" in $$source)) {
+            this["identifier"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DeletePluginParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DeletePluginParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DeletePluginParams($$parsedSource as Partial<DeletePluginParams>);
+    }
+}
+
 export class DeleteRagEvalDatasetParams {
     "id": string;
     "userId": string;
@@ -4963,6 +5310,64 @@ export class DeleteTopicParams {
     static createFrom($$source: any = {}): DeleteTopicParams {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new DeleteTopicParams($$parsedSource as Partial<DeleteTopicParams>);
+    }
+}
+
+export class DeleteTopicsByGroupParams {
+    "userId": string;
+    "groupId": sql$0.NullString;
+
+    /** Creates a new DeleteTopicsByGroupParams instance. */
+    constructor($$source: Partial<DeleteTopicsByGroupParams> = {}) {
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+        if (!("groupId" in $$source)) {
+            this["groupId"] = (new sql$0.NullString());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DeleteTopicsByGroupParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DeleteTopicsByGroupParams {
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("groupId" in $$parsedSource) {
+            $$parsedSource["groupId"] = $$createField1_0($$parsedSource["groupId"]);
+        }
+        return new DeleteTopicsByGroupParams($$parsedSource as Partial<DeleteTopicsByGroupParams>);
+    }
+}
+
+export class DeleteTopicsBySessionParams {
+    "userId": string;
+    "sessionId": sql$0.NullString;
+
+    /** Creates a new DeleteTopicsBySessionParams instance. */
+    constructor($$source: Partial<DeleteTopicsBySessionParams> = {}) {
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+        if (!("sessionId" in $$source)) {
+            this["sessionId"] = (new sql$0.NullString());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DeleteTopicsBySessionParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DeleteTopicsBySessionParams {
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("sessionId" in $$parsedSource) {
+            $$parsedSource["sessionId"] = $$createField1_0($$parsedSource["sessionId"]);
+        }
+        return new DeleteTopicsBySessionParams($$parsedSource as Partial<DeleteTopicsBySessionParams>);
     }
 }
 
@@ -5577,6 +5982,31 @@ export class GetAPIKeyParams {
     }
 }
 
+export class GetAgentBySessionIdParams {
+    "sessionId": string;
+    "userId": string;
+
+    /** Creates a new GetAgentBySessionIdParams instance. */
+    constructor($$source: Partial<GetAgentBySessionIdParams> = {}) {
+        if (!("sessionId" in $$source)) {
+            this["sessionId"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetAgentBySessionIdParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetAgentBySessionIdParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new GetAgentBySessionIdParams($$parsedSource as Partial<GetAgentBySessionIdParams>);
+    }
+}
+
 export class GetAgentBySlugParams {
     "slug": sql$0.NullString;
     "userId": string;
@@ -5606,6 +6036,39 @@ export class GetAgentBySlugParams {
     }
 }
 
+export class GetAgentFileIdsParams {
+    "agentId": string;
+    "userId": string;
+    "fileIds": string[];
+
+    /** Creates a new GetAgentFileIdsParams instance. */
+    constructor($$source: Partial<GetAgentFileIdsParams> = {}) {
+        if (!("agentId" in $$source)) {
+            this["agentId"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+        if (!("fileIds" in $$source)) {
+            this["fileIds"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetAgentFileIdsParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetAgentFileIdsParams {
+        const $$createField2_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("fileIds" in $$parsedSource) {
+            $$parsedSource["fileIds"] = $$createField2_0($$parsedSource["fileIds"]);
+        }
+        return new GetAgentFileIdsParams($$parsedSource as Partial<GetAgentFileIdsParams>);
+    }
+}
+
 export class GetAgentFilesParams {
     "agentId": string;
     "userId": string;
@@ -5631,6 +6094,132 @@ export class GetAgentFilesParams {
     }
 }
 
+export class GetAgentFilesWithEnabledParams {
+    "agentId": string;
+    "userId": string;
+
+    /** Creates a new GetAgentFilesWithEnabledParams instance. */
+    constructor($$source: Partial<GetAgentFilesWithEnabledParams> = {}) {
+        if (!("agentId" in $$source)) {
+            this["agentId"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetAgentFilesWithEnabledParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetAgentFilesWithEnabledParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new GetAgentFilesWithEnabledParams($$parsedSource as Partial<GetAgentFilesWithEnabledParams>);
+    }
+}
+
+export class GetAgentFilesWithEnabledRow {
+    "id": string;
+    "userId": string;
+    "fileType": string;
+    "fileHash": sql$0.NullString;
+    "name": string;
+    "size": number;
+    "url": string;
+    "source": sql$0.NullString;
+    "clientId": sql$0.NullString;
+    "metadata": sql$0.NullString;
+    "chunkTaskId": sql$0.NullString;
+    "embeddingTaskId": sql$0.NullString;
+    "createdAt": number;
+    "updatedAt": number;
+    "enabled": number;
+
+    /** Creates a new GetAgentFilesWithEnabledRow instance. */
+    constructor($$source: Partial<GetAgentFilesWithEnabledRow> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+        if (!("fileType" in $$source)) {
+            this["fileType"] = "";
+        }
+        if (!("fileHash" in $$source)) {
+            this["fileHash"] = (new sql$0.NullString());
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("size" in $$source)) {
+            this["size"] = 0;
+        }
+        if (!("url" in $$source)) {
+            this["url"] = "";
+        }
+        if (!("source" in $$source)) {
+            this["source"] = (new sql$0.NullString());
+        }
+        if (!("clientId" in $$source)) {
+            this["clientId"] = (new sql$0.NullString());
+        }
+        if (!("metadata" in $$source)) {
+            this["metadata"] = (new sql$0.NullString());
+        }
+        if (!("chunkTaskId" in $$source)) {
+            this["chunkTaskId"] = (new sql$0.NullString());
+        }
+        if (!("embeddingTaskId" in $$source)) {
+            this["embeddingTaskId"] = (new sql$0.NullString());
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+        if (!("enabled" in $$source)) {
+            this["enabled"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetAgentFilesWithEnabledRow instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetAgentFilesWithEnabledRow {
+        const $$createField3_0 = $$createType0;
+        const $$createField7_0 = $$createType0;
+        const $$createField8_0 = $$createType0;
+        const $$createField9_0 = $$createType0;
+        const $$createField10_0 = $$createType0;
+        const $$createField11_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("fileHash" in $$parsedSource) {
+            $$parsedSource["fileHash"] = $$createField3_0($$parsedSource["fileHash"]);
+        }
+        if ("source" in $$parsedSource) {
+            $$parsedSource["source"] = $$createField7_0($$parsedSource["source"]);
+        }
+        if ("clientId" in $$parsedSource) {
+            $$parsedSource["clientId"] = $$createField8_0($$parsedSource["clientId"]);
+        }
+        if ("metadata" in $$parsedSource) {
+            $$parsedSource["metadata"] = $$createField9_0($$parsedSource["metadata"]);
+        }
+        if ("chunkTaskId" in $$parsedSource) {
+            $$parsedSource["chunkTaskId"] = $$createField10_0($$parsedSource["chunkTaskId"]);
+        }
+        if ("embeddingTaskId" in $$parsedSource) {
+            $$parsedSource["embeddingTaskId"] = $$createField11_0($$parsedSource["embeddingTaskId"]);
+        }
+        return new GetAgentFilesWithEnabledRow($$parsedSource as Partial<GetAgentFilesWithEnabledRow>);
+    }
+}
+
 export class GetAgentKnowledgeBasesParams {
     "agentId": string;
     "userId": string;
@@ -5653,6 +6242,91 @@ export class GetAgentKnowledgeBasesParams {
     static createFrom($$source: any = {}): GetAgentKnowledgeBasesParams {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new GetAgentKnowledgeBasesParams($$parsedSource as Partial<GetAgentKnowledgeBasesParams>);
+    }
+}
+
+export class GetAgentKnowledgeBasesRow {
+    "id": string;
+    "name": string;
+    "description": sql$0.NullString;
+    "avatar": sql$0.NullString;
+    "type": sql$0.NullString;
+    "userId": string;
+    "clientId": sql$0.NullString;
+    "isPublic": number;
+    "settings": sql$0.NullString;
+    "createdAt": number;
+    "updatedAt": number;
+    "enabled": number;
+
+    /** Creates a new GetAgentKnowledgeBasesRow instance. */
+    constructor($$source: Partial<GetAgentKnowledgeBasesRow> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("description" in $$source)) {
+            this["description"] = (new sql$0.NullString());
+        }
+        if (!("avatar" in $$source)) {
+            this["avatar"] = (new sql$0.NullString());
+        }
+        if (!("type" in $$source)) {
+            this["type"] = (new sql$0.NullString());
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+        if (!("clientId" in $$source)) {
+            this["clientId"] = (new sql$0.NullString());
+        }
+        if (!("isPublic" in $$source)) {
+            this["isPublic"] = 0;
+        }
+        if (!("settings" in $$source)) {
+            this["settings"] = (new sql$0.NullString());
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+        if (!("enabled" in $$source)) {
+            this["enabled"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetAgentKnowledgeBasesRow instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetAgentKnowledgeBasesRow {
+        const $$createField2_0 = $$createType0;
+        const $$createField3_0 = $$createType0;
+        const $$createField4_0 = $$createType0;
+        const $$createField6_0 = $$createType0;
+        const $$createField8_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("description" in $$parsedSource) {
+            $$parsedSource["description"] = $$createField2_0($$parsedSource["description"]);
+        }
+        if ("avatar" in $$parsedSource) {
+            $$parsedSource["avatar"] = $$createField3_0($$parsedSource["avatar"]);
+        }
+        if ("type" in $$parsedSource) {
+            $$parsedSource["type"] = $$createField4_0($$parsedSource["type"]);
+        }
+        if ("clientId" in $$parsedSource) {
+            $$parsedSource["clientId"] = $$createField6_0($$parsedSource["clientId"]);
+        }
+        if ("settings" in $$parsedSource) {
+            $$parsedSource["settings"] = $$createField8_0($$parsedSource["settings"]);
+        }
+        return new GetAgentKnowledgeBasesRow($$parsedSource as Partial<GetAgentKnowledgeBasesRow>);
     }
 }
 
@@ -6051,6 +6725,116 @@ export class GetGenerationTopicParams {
     }
 }
 
+export class GetGenerationWithAsyncTaskParams {
+    "id": string;
+    "userId": string;
+
+    /** Creates a new GetGenerationWithAsyncTaskParams instance. */
+    constructor($$source: Partial<GetGenerationWithAsyncTaskParams> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetGenerationWithAsyncTaskParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetGenerationWithAsyncTaskParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new GetGenerationWithAsyncTaskParams($$parsedSource as Partial<GetGenerationWithAsyncTaskParams>);
+    }
+}
+
+export class GetGenerationWithAsyncTaskRow {
+    "id": string;
+    "userId": string;
+    "generationBatchId": string;
+    "asyncTaskId": sql$0.NullString;
+    "fileId": sql$0.NullString;
+    "seed": sql$0.NullInt64;
+    "asset": sql$0.NullString;
+    "createdAt": number;
+    "updatedAt": number;
+    "asyncTaskStatus": sql$0.NullString;
+    "asyncTaskError": sql$0.NullString;
+
+    /** Creates a new GetGenerationWithAsyncTaskRow instance. */
+    constructor($$source: Partial<GetGenerationWithAsyncTaskRow> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+        if (!("generationBatchId" in $$source)) {
+            this["generationBatchId"] = "";
+        }
+        if (!("asyncTaskId" in $$source)) {
+            this["asyncTaskId"] = (new sql$0.NullString());
+        }
+        if (!("fileId" in $$source)) {
+            this["fileId"] = (new sql$0.NullString());
+        }
+        if (!("seed" in $$source)) {
+            this["seed"] = (new sql$0.NullInt64());
+        }
+        if (!("asset" in $$source)) {
+            this["asset"] = (new sql$0.NullString());
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+        if (!("asyncTaskStatus" in $$source)) {
+            this["asyncTaskStatus"] = (new sql$0.NullString());
+        }
+        if (!("asyncTaskError" in $$source)) {
+            this["asyncTaskError"] = (new sql$0.NullString());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetGenerationWithAsyncTaskRow instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetGenerationWithAsyncTaskRow {
+        const $$createField3_0 = $$createType0;
+        const $$createField4_0 = $$createType0;
+        const $$createField5_0 = $$createType1;
+        const $$createField6_0 = $$createType0;
+        const $$createField9_0 = $$createType0;
+        const $$createField10_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("asyncTaskId" in $$parsedSource) {
+            $$parsedSource["asyncTaskId"] = $$createField3_0($$parsedSource["asyncTaskId"]);
+        }
+        if ("fileId" in $$parsedSource) {
+            $$parsedSource["fileId"] = $$createField4_0($$parsedSource["fileId"]);
+        }
+        if ("seed" in $$parsedSource) {
+            $$parsedSource["seed"] = $$createField5_0($$parsedSource["seed"]);
+        }
+        if ("asset" in $$parsedSource) {
+            $$parsedSource["asset"] = $$createField6_0($$parsedSource["asset"]);
+        }
+        if ("asyncTaskStatus" in $$parsedSource) {
+            $$parsedSource["asyncTaskStatus"] = $$createField9_0($$parsedSource["asyncTaskStatus"]);
+        }
+        if ("asyncTaskError" in $$parsedSource) {
+            $$parsedSource["asyncTaskError"] = $$createField10_0($$parsedSource["asyncTaskError"]);
+        }
+        return new GetGenerationWithAsyncTaskRow($$parsedSource as Partial<GetGenerationWithAsyncTaskRow>);
+    }
+}
+
 export class GetKnowledgeBaseFilesParams {
     "knowledgeBaseId": string;
     "userId": string;
@@ -6230,6 +7014,116 @@ export class GetMessagePluginParams {
     }
 }
 
+export class GetMessageQueryChunksParams {
+    "messageIds": sql$0.NullString[];
+    "userId": string;
+
+    /** Creates a new GetMessageQueryChunksParams instance. */
+    constructor($$source: Partial<GetMessageQueryChunksParams> = {}) {
+        if (!("messageIds" in $$source)) {
+            this["messageIds"] = [];
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetMessageQueryChunksParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetMessageQueryChunksParams {
+        const $$createField0_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("messageIds" in $$parsedSource) {
+            $$parsedSource["messageIds"] = $$createField0_0($$parsedSource["messageIds"]);
+        }
+        return new GetMessageQueryChunksParams($$parsedSource as Partial<GetMessageQueryChunksParams>);
+    }
+}
+
+export class GetMessageQueryChunksRow {
+    "messageId": sql$0.NullString;
+    "similarity": sql$0.NullInt64;
+    "id": sql$0.NullString;
+    "text": sql$0.NullString;
+    "fileId": sql$0.NullString;
+    "filename": sql$0.NullString;
+    "fileType": sql$0.NullString;
+    "fileUrl": sql$0.NullString;
+
+    /** Creates a new GetMessageQueryChunksRow instance. */
+    constructor($$source: Partial<GetMessageQueryChunksRow> = {}) {
+        if (!("messageId" in $$source)) {
+            this["messageId"] = (new sql$0.NullString());
+        }
+        if (!("similarity" in $$source)) {
+            this["similarity"] = (new sql$0.NullInt64());
+        }
+        if (!("id" in $$source)) {
+            this["id"] = (new sql$0.NullString());
+        }
+        if (!("text" in $$source)) {
+            this["text"] = (new sql$0.NullString());
+        }
+        if (!("fileId" in $$source)) {
+            this["fileId"] = (new sql$0.NullString());
+        }
+        if (!("filename" in $$source)) {
+            this["filename"] = (new sql$0.NullString());
+        }
+        if (!("fileType" in $$source)) {
+            this["fileType"] = (new sql$0.NullString());
+        }
+        if (!("fileUrl" in $$source)) {
+            this["fileUrl"] = (new sql$0.NullString());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetMessageQueryChunksRow instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetMessageQueryChunksRow {
+        const $$createField0_0 = $$createType0;
+        const $$createField1_0 = $$createType1;
+        const $$createField2_0 = $$createType0;
+        const $$createField3_0 = $$createType0;
+        const $$createField4_0 = $$createType0;
+        const $$createField5_0 = $$createType0;
+        const $$createField6_0 = $$createType0;
+        const $$createField7_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("messageId" in $$parsedSource) {
+            $$parsedSource["messageId"] = $$createField0_0($$parsedSource["messageId"]);
+        }
+        if ("similarity" in $$parsedSource) {
+            $$parsedSource["similarity"] = $$createField1_0($$parsedSource["similarity"]);
+        }
+        if ("id" in $$parsedSource) {
+            $$parsedSource["id"] = $$createField2_0($$parsedSource["id"]);
+        }
+        if ("text" in $$parsedSource) {
+            $$parsedSource["text"] = $$createField3_0($$parsedSource["text"]);
+        }
+        if ("fileId" in $$parsedSource) {
+            $$parsedSource["fileId"] = $$createField4_0($$parsedSource["fileId"]);
+        }
+        if ("filename" in $$parsedSource) {
+            $$parsedSource["filename"] = $$createField5_0($$parsedSource["filename"]);
+        }
+        if ("fileType" in $$parsedSource) {
+            $$parsedSource["fileType"] = $$createField6_0($$parsedSource["fileType"]);
+        }
+        if ("fileUrl" in $$parsedSource) {
+            $$parsedSource["fileUrl"] = $$createField7_0($$parsedSource["fileUrl"]);
+        }
+        return new GetMessageQueryChunksRow($$parsedSource as Partial<GetMessageQueryChunksRow>);
+    }
+}
+
 export class GetMessageQueryParams {
     "id": string;
     "userId": string;
@@ -6302,6 +7196,35 @@ export class GetMessageTranslateParams {
     static createFrom($$source: any = {}): GetMessageTranslateParams {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new GetMessageTranslateParams($$parsedSource as Partial<GetMessageTranslateParams>);
+    }
+}
+
+export class GetMessagesByTopicIdParams {
+    "topicId": sql$0.NullString;
+    "userId": string;
+
+    /** Creates a new GetMessagesByTopicIdParams instance. */
+    constructor($$source: Partial<GetMessagesByTopicIdParams> = {}) {
+        if (!("topicId" in $$source)) {
+            this["topicId"] = (new sql$0.NullString());
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetMessagesByTopicIdParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetMessagesByTopicIdParams {
+        const $$createField0_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("topicId" in $$parsedSource) {
+            $$parsedSource["topicId"] = $$createField0_0($$parsedSource["topicId"]);
+        }
+        return new GetMessagesByTopicIdParams($$parsedSource as Partial<GetMessagesByTopicIdParams>);
     }
 }
 
@@ -6402,6 +7325,31 @@ export class GetOIDCConsentParams {
     static createFrom($$source: any = {}): GetOIDCConsentParams {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new GetOIDCConsentParams($$parsedSource as Partial<GetOIDCConsentParams>);
+    }
+}
+
+export class GetPluginParams {
+    "identifier": string;
+    "userId": string;
+
+    /** Creates a new GetPluginParams instance. */
+    constructor($$source: Partial<GetPluginParams> = {}) {
+        if (!("identifier" in $$source)) {
+            this["identifier"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetPluginParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetPluginParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new GetPluginParams($$parsedSource as Partial<GetPluginParams>);
     }
 }
 
@@ -7751,6 +8699,59 @@ export class LinkKnowledgeBaseToFileParams {
     static createFrom($$source: any = {}): LinkKnowledgeBaseToFileParams {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new LinkKnowledgeBaseToFileParams($$parsedSource as Partial<LinkKnowledgeBaseToFileParams>);
+    }
+}
+
+export class LinkMessageQueryToChunkParams {
+    "messageId": sql$0.NullString;
+    "queryId": sql$0.NullString;
+    "chunkId": sql$0.NullString;
+    "similarity": sql$0.NullInt64;
+    "userId": string;
+
+    /** Creates a new LinkMessageQueryToChunkParams instance. */
+    constructor($$source: Partial<LinkMessageQueryToChunkParams> = {}) {
+        if (!("messageId" in $$source)) {
+            this["messageId"] = (new sql$0.NullString());
+        }
+        if (!("queryId" in $$source)) {
+            this["queryId"] = (new sql$0.NullString());
+        }
+        if (!("chunkId" in $$source)) {
+            this["chunkId"] = (new sql$0.NullString());
+        }
+        if (!("similarity" in $$source)) {
+            this["similarity"] = (new sql$0.NullInt64());
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new LinkMessageQueryToChunkParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): LinkMessageQueryToChunkParams {
+        const $$createField0_0 = $$createType0;
+        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $$createType0;
+        const $$createField3_0 = $$createType1;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("messageId" in $$parsedSource) {
+            $$parsedSource["messageId"] = $$createField0_0($$parsedSource["messageId"]);
+        }
+        if ("queryId" in $$parsedSource) {
+            $$parsedSource["queryId"] = $$createField1_0($$parsedSource["queryId"]);
+        }
+        if ("chunkId" in $$parsedSource) {
+            $$parsedSource["chunkId"] = $$createField2_0($$parsedSource["chunkId"]);
+        }
+        if ("similarity" in $$parsedSource) {
+            $$parsedSource["similarity"] = $$createField3_0($$parsedSource["similarity"]);
+        }
+        return new LinkMessageQueryToChunkParams($$parsedSource as Partial<LinkMessageQueryToChunkParams>);
     }
 }
 
@@ -10028,6 +11029,126 @@ export class RagEvalDatasetRecord {
     }
 }
 
+export class RankModelsParams {
+    "userId": string;
+    "limit": number;
+
+    /** Creates a new RankModelsParams instance. */
+    constructor($$source: Partial<RankModelsParams> = {}) {
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+        if (!("limit" in $$source)) {
+            this["limit"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RankModelsParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): RankModelsParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new RankModelsParams($$parsedSource as Partial<RankModelsParams>);
+    }
+}
+
+export class RankModelsRow {
+    "id": sql$0.NullString;
+    "count": number;
+
+    /** Creates a new RankModelsRow instance. */
+    constructor($$source: Partial<RankModelsRow> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = (new sql$0.NullString());
+        }
+        if (!("count" in $$source)) {
+            this["count"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RankModelsRow instance from a string or object.
+     */
+    static createFrom($$source: any = {}): RankModelsRow {
+        const $$createField0_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("id" in $$parsedSource) {
+            $$parsedSource["id"] = $$createField0_0($$parsedSource["id"]);
+        }
+        return new RankModelsRow($$parsedSource as Partial<RankModelsRow>);
+    }
+}
+
+export class RankTopicsParams {
+    "userId": string;
+    "limit": number;
+
+    /** Creates a new RankTopicsParams instance. */
+    constructor($$source: Partial<RankTopicsParams> = {}) {
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+        if (!("limit" in $$source)) {
+            this["limit"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RankTopicsParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): RankTopicsParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new RankTopicsParams($$parsedSource as Partial<RankTopicsParams>);
+    }
+}
+
+export class RankTopicsRow {
+    "id": string;
+    "title": sql$0.NullString;
+    "sessionId": sql$0.NullString;
+    "count": number;
+
+    /** Creates a new RankTopicsRow instance. */
+    constructor($$source: Partial<RankTopicsRow> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("title" in $$source)) {
+            this["title"] = (new sql$0.NullString());
+        }
+        if (!("sessionId" in $$source)) {
+            this["sessionId"] = (new sql$0.NullString());
+        }
+        if (!("count" in $$source)) {
+            this["count"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RankTopicsRow instance from a string or object.
+     */
+    static createFrom($$source: any = {}): RankTopicsRow {
+        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("title" in $$parsedSource) {
+            $$parsedSource["title"] = $$createField1_0($$parsedSource["title"]);
+        }
+        if ("sessionId" in $$parsedSource) {
+            $$parsedSource["sessionId"] = $$createField2_0($$parsedSource["sessionId"]);
+        }
+        return new RankTopicsRow($$parsedSource as Partial<RankTopicsRow>);
+    }
+}
+
 export class RbacPermission {
     "id": number;
     "code": string;
@@ -10183,6 +11304,39 @@ export class SearchAgentsParams {
     }
 }
 
+export class SearchMessagesByKeywordParams {
+    "userId": string;
+    "content": sql$0.NullString;
+    "limit": number;
+
+    /** Creates a new SearchMessagesByKeywordParams instance. */
+    constructor($$source: Partial<SearchMessagesByKeywordParams> = {}) {
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+        if (!("content" in $$source)) {
+            this["content"] = (new sql$0.NullString());
+        }
+        if (!("limit" in $$source)) {
+            this["limit"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SearchMessagesByKeywordParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SearchMessagesByKeywordParams {
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("content" in $$parsedSource) {
+            $$parsedSource["content"] = $$createField1_0($$parsedSource["content"]);
+        }
+        return new SearchMessagesByKeywordParams($$parsedSource as Partial<SearchMessagesByKeywordParams>);
+    }
+}
+
 export class SearchSessionsParams {
     "userId": string;
     "title": sql$0.NullString;
@@ -10221,6 +11375,104 @@ export class SearchSessionsParams {
             $$parsedSource["description"] = $$createField2_0($$parsedSource["description"]);
         }
         return new SearchSessionsParams($$parsedSource as Partial<SearchSessionsParams>);
+    }
+}
+
+export class SearchTopicsByMessageContentParams {
+    "userId": string;
+    "content": sql$0.NullString;
+    "column3": any;
+    "sessionId": sql$0.NullString;
+    "groupId": sql$0.NullString;
+
+    /** Creates a new SearchTopicsByMessageContentParams instance. */
+    constructor($$source: Partial<SearchTopicsByMessageContentParams> = {}) {
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+        if (!("content" in $$source)) {
+            this["content"] = (new sql$0.NullString());
+        }
+        if (!("column3" in $$source)) {
+            this["column3"] = null;
+        }
+        if (!("sessionId" in $$source)) {
+            this["sessionId"] = (new sql$0.NullString());
+        }
+        if (!("groupId" in $$source)) {
+            this["groupId"] = (new sql$0.NullString());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SearchTopicsByMessageContentParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SearchTopicsByMessageContentParams {
+        const $$createField1_0 = $$createType0;
+        const $$createField3_0 = $$createType0;
+        const $$createField4_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("content" in $$parsedSource) {
+            $$parsedSource["content"] = $$createField1_0($$parsedSource["content"]);
+        }
+        if ("sessionId" in $$parsedSource) {
+            $$parsedSource["sessionId"] = $$createField3_0($$parsedSource["sessionId"]);
+        }
+        if ("groupId" in $$parsedSource) {
+            $$parsedSource["groupId"] = $$createField4_0($$parsedSource["groupId"]);
+        }
+        return new SearchTopicsByMessageContentParams($$parsedSource as Partial<SearchTopicsByMessageContentParams>);
+    }
+}
+
+export class SearchTopicsByTitleParams {
+    "userId": string;
+    "title": sql$0.NullString;
+    "column3": any;
+    "sessionId": sql$0.NullString;
+    "groupId": sql$0.NullString;
+
+    /** Creates a new SearchTopicsByTitleParams instance. */
+    constructor($$source: Partial<SearchTopicsByTitleParams> = {}) {
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+        if (!("title" in $$source)) {
+            this["title"] = (new sql$0.NullString());
+        }
+        if (!("column3" in $$source)) {
+            this["column3"] = null;
+        }
+        if (!("sessionId" in $$source)) {
+            this["sessionId"] = (new sql$0.NullString());
+        }
+        if (!("groupId" in $$source)) {
+            this["groupId"] = (new sql$0.NullString());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SearchTopicsByTitleParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SearchTopicsByTitleParams {
+        const $$createField1_0 = $$createType0;
+        const $$createField3_0 = $$createType0;
+        const $$createField4_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("title" in $$parsedSource) {
+            $$parsedSource["title"] = $$createField1_0($$parsedSource["title"]);
+        }
+        if ("sessionId" in $$parsedSource) {
+            $$parsedSource["sessionId"] = $$createField3_0($$parsedSource["sessionId"]);
+        }
+        if ("groupId" in $$parsedSource) {
+            $$parsedSource["groupId"] = $$createField4_0($$parsedSource["groupId"]);
+        }
+        return new SearchTopicsByTitleParams($$parsedSource as Partial<SearchTopicsByTitleParams>);
     }
 }
 
@@ -10452,6 +11704,72 @@ export class Thread {
             $$parsedSource["clientId"] = $$createField7_0($$parsedSource["clientId"]);
         }
         return new Thread($$parsedSource as Partial<Thread>);
+    }
+}
+
+export class ToggleAgentFileParams {
+    "enabled": number;
+    "agentId": string;
+    "fileId": string;
+    "userId": string;
+
+    /** Creates a new ToggleAgentFileParams instance. */
+    constructor($$source: Partial<ToggleAgentFileParams> = {}) {
+        if (!("enabled" in $$source)) {
+            this["enabled"] = 0;
+        }
+        if (!("agentId" in $$source)) {
+            this["agentId"] = "";
+        }
+        if (!("fileId" in $$source)) {
+            this["fileId"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ToggleAgentFileParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ToggleAgentFileParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ToggleAgentFileParams($$parsedSource as Partial<ToggleAgentFileParams>);
+    }
+}
+
+export class ToggleAgentKnowledgeBaseParams {
+    "enabled": number;
+    "agentId": string;
+    "knowledgeBaseId": string;
+    "userId": string;
+
+    /** Creates a new ToggleAgentKnowledgeBaseParams instance. */
+    constructor($$source: Partial<ToggleAgentKnowledgeBaseParams> = {}) {
+        if (!("enabled" in $$source)) {
+            this["enabled"] = 0;
+        }
+        if (!("agentId" in $$source)) {
+            this["agentId"] = "";
+        }
+        if (!("knowledgeBaseId" in $$source)) {
+            this["knowledgeBaseId"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ToggleAgentKnowledgeBaseParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ToggleAgentKnowledgeBaseParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ToggleAgentKnowledgeBaseParams($$parsedSource as Partial<ToggleAgentKnowledgeBaseParams>);
     }
 }
 
@@ -12097,6 +13415,43 @@ export class UpdateMessagePluginParams {
     }
 }
 
+export class UpdateMessagesTopicIdParams {
+    "topicId": sql$0.NullString;
+    "userId": string;
+    "ids": string[];
+
+    /** Creates a new UpdateMessagesTopicIdParams instance. */
+    constructor($$source: Partial<UpdateMessagesTopicIdParams> = {}) {
+        if (!("topicId" in $$source)) {
+            this["topicId"] = (new sql$0.NullString());
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+        if (!("ids" in $$source)) {
+            this["ids"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpdateMessagesTopicIdParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UpdateMessagesTopicIdParams {
+        const $$createField0_0 = $$createType0;
+        const $$createField2_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("topicId" in $$parsedSource) {
+            $$parsedSource["topicId"] = $$createField0_0($$parsedSource["topicId"]);
+        }
+        if ("ids" in $$parsedSource) {
+            $$parsedSource["ids"] = $$createField2_0($$parsedSource["ids"]);
+        }
+        return new UpdateMessagesTopicIdParams($$parsedSource as Partial<UpdateMessagesTopicIdParams>);
+    }
+}
+
 export class UpdateNextAuthAccountParams {
     "accessToken": sql$0.NullString;
     "expiresAt": sql$0.NullInt64;
@@ -12363,6 +13718,63 @@ export class UpdatePermissionParams {
     }
 }
 
+export class UpdatePluginParams {
+    "type": string;
+    "manifest": sql$0.NullString;
+    "customParams": sql$0.NullString;
+    "settings": sql$0.NullString;
+    "updatedAt": number;
+    "identifier": string;
+    "userId": string;
+
+    /** Creates a new UpdatePluginParams instance. */
+    constructor($$source: Partial<UpdatePluginParams> = {}) {
+        if (!("type" in $$source)) {
+            this["type"] = "";
+        }
+        if (!("manifest" in $$source)) {
+            this["manifest"] = (new sql$0.NullString());
+        }
+        if (!("customParams" in $$source)) {
+            this["customParams"] = (new sql$0.NullString());
+        }
+        if (!("settings" in $$source)) {
+            this["settings"] = (new sql$0.NullString());
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+        if (!("identifier" in $$source)) {
+            this["identifier"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpdatePluginParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UpdatePluginParams {
+        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $$createType0;
+        const $$createField3_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("manifest" in $$parsedSource) {
+            $$parsedSource["manifest"] = $$createField1_0($$parsedSource["manifest"]);
+        }
+        if ("customParams" in $$parsedSource) {
+            $$parsedSource["customParams"] = $$createField2_0($$parsedSource["customParams"]);
+        }
+        if ("settings" in $$parsedSource) {
+            $$parsedSource["settings"] = $$createField3_0($$parsedSource["settings"]);
+        }
+        return new UpdatePluginParams($$parsedSource as Partial<UpdatePluginParams>);
+    }
+}
+
 export class UpdateRoleParams {
     "displayName": string;
     "description": sql$0.NullString;
@@ -12409,6 +13821,43 @@ export class UpdateRoleParams {
             $$parsedSource["metadata"] = $$createField3_0($$parsedSource["metadata"]);
         }
         return new UpdateRoleParams($$parsedSource as Partial<UpdateRoleParams>);
+    }
+}
+
+export class UpdateSessionGroupOrderParams {
+    "sort": sql$0.NullInt64;
+    "updatedAt": number;
+    "id": string;
+    "userId": string;
+
+    /** Creates a new UpdateSessionGroupOrderParams instance. */
+    constructor($$source: Partial<UpdateSessionGroupOrderParams> = {}) {
+        if (!("sort" in $$source)) {
+            this["sort"] = (new sql$0.NullInt64());
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpdateSessionGroupOrderParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UpdateSessionGroupOrderParams {
+        const $$createField0_0 = $$createType1;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("sort" in $$parsedSource) {
+            $$parsedSource["sort"] = $$createField0_0($$parsedSource["sort"]);
+        }
+        return new UpdateSessionGroupOrderParams($$parsedSource as Partial<UpdateSessionGroupOrderParams>);
     }
 }
 
@@ -12903,6 +14352,181 @@ export class UpdateUserSettingsTTSParams {
     }
 }
 
+export class UpsertMessageTTSParams {
+    "id": string;
+    "contentMd5": sql$0.NullString;
+    "fileId": sql$0.NullString;
+    "voice": sql$0.NullString;
+    "clientId": sql$0.NullString;
+    "userId": string;
+
+    /** Creates a new UpsertMessageTTSParams instance. */
+    constructor($$source: Partial<UpsertMessageTTSParams> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("contentMd5" in $$source)) {
+            this["contentMd5"] = (new sql$0.NullString());
+        }
+        if (!("fileId" in $$source)) {
+            this["fileId"] = (new sql$0.NullString());
+        }
+        if (!("voice" in $$source)) {
+            this["voice"] = (new sql$0.NullString());
+        }
+        if (!("clientId" in $$source)) {
+            this["clientId"] = (new sql$0.NullString());
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpsertMessageTTSParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UpsertMessageTTSParams {
+        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $$createType0;
+        const $$createField3_0 = $$createType0;
+        const $$createField4_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("contentMd5" in $$parsedSource) {
+            $$parsedSource["contentMd5"] = $$createField1_0($$parsedSource["contentMd5"]);
+        }
+        if ("fileId" in $$parsedSource) {
+            $$parsedSource["fileId"] = $$createField2_0($$parsedSource["fileId"]);
+        }
+        if ("voice" in $$parsedSource) {
+            $$parsedSource["voice"] = $$createField3_0($$parsedSource["voice"]);
+        }
+        if ("clientId" in $$parsedSource) {
+            $$parsedSource["clientId"] = $$createField4_0($$parsedSource["clientId"]);
+        }
+        return new UpsertMessageTTSParams($$parsedSource as Partial<UpsertMessageTTSParams>);
+    }
+}
+
+export class UpsertMessageTranslateParams {
+    "id": string;
+    "content": sql$0.NullString;
+    "from": sql$0.NullString;
+    "to": sql$0.NullString;
+    "clientId": sql$0.NullString;
+    "userId": string;
+
+    /** Creates a new UpsertMessageTranslateParams instance. */
+    constructor($$source: Partial<UpsertMessageTranslateParams> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("content" in $$source)) {
+            this["content"] = (new sql$0.NullString());
+        }
+        if (!("from" in $$source)) {
+            this["from"] = (new sql$0.NullString());
+        }
+        if (!("to" in $$source)) {
+            this["to"] = (new sql$0.NullString());
+        }
+        if (!("clientId" in $$source)) {
+            this["clientId"] = (new sql$0.NullString());
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpsertMessageTranslateParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UpsertMessageTranslateParams {
+        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $$createType0;
+        const $$createField3_0 = $$createType0;
+        const $$createField4_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("content" in $$parsedSource) {
+            $$parsedSource["content"] = $$createField1_0($$parsedSource["content"]);
+        }
+        if ("from" in $$parsedSource) {
+            $$parsedSource["from"] = $$createField2_0($$parsedSource["from"]);
+        }
+        if ("to" in $$parsedSource) {
+            $$parsedSource["to"] = $$createField3_0($$parsedSource["to"]);
+        }
+        if ("clientId" in $$parsedSource) {
+            $$parsedSource["clientId"] = $$createField4_0($$parsedSource["clientId"]);
+        }
+        return new UpsertMessageTranslateParams($$parsedSource as Partial<UpsertMessageTranslateParams>);
+    }
+}
+
+export class UpsertPluginParams {
+    "identifier": string;
+    "type": string;
+    "manifest": sql$0.NullString;
+    "customParams": sql$0.NullString;
+    "settings": sql$0.NullString;
+    "userId": string;
+    "createdAt": number;
+    "updatedAt": number;
+
+    /** Creates a new UpsertPluginParams instance. */
+    constructor($$source: Partial<UpsertPluginParams> = {}) {
+        if (!("identifier" in $$source)) {
+            this["identifier"] = "";
+        }
+        if (!("type" in $$source)) {
+            this["type"] = "";
+        }
+        if (!("manifest" in $$source)) {
+            this["manifest"] = (new sql$0.NullString());
+        }
+        if (!("customParams" in $$source)) {
+            this["customParams"] = (new sql$0.NullString());
+        }
+        if (!("settings" in $$source)) {
+            this["settings"] = (new sql$0.NullString());
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpsertPluginParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UpsertPluginParams {
+        const $$createField2_0 = $$createType0;
+        const $$createField3_0 = $$createType0;
+        const $$createField4_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("manifest" in $$parsedSource) {
+            $$parsedSource["manifest"] = $$createField2_0($$parsedSource["manifest"]);
+        }
+        if ("customParams" in $$parsedSource) {
+            $$parsedSource["customParams"] = $$createField3_0($$parsedSource["customParams"]);
+        }
+        if ("settings" in $$parsedSource) {
+            $$parsedSource["settings"] = $$createField4_0($$parsedSource["settings"]);
+        }
+        return new UpsertPluginParams($$parsedSource as Partial<UpsertPluginParams>);
+    }
+}
+
 export class UpsertUserSettingsParams {
     "id": string;
     "tts": sql$0.NullString;
@@ -13259,3 +14883,4 @@ export class UserSetting {
 const $$createType0 = sql$0.NullString.createFrom;
 const $$createType1 = sql$0.NullInt64.createFrom;
 const $$createType2 = $Create.Array($Create.Any);
+const $$createType3 = $Create.Array($$createType0);

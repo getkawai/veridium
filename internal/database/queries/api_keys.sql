@@ -33,3 +33,6 @@ WHERE id = ?;
 -- name: DeleteAPIKey :exec
 DELETE FROM api_keys WHERE id = ? AND user_id = ?;
 
+-- name: DeleteAllAPIKeys :exec
+DELETE FROM api_keys WHERE user_id = ?;
+

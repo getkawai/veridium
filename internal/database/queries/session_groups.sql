@@ -36,3 +36,11 @@ LEFT JOIN sessions s ON sg.id = s.group_id
 WHERE sg.id = ? AND sg.user_id = ?
 GROUP BY sg.id;
 
+-- name: DeleteAllSessionGroups :exec
+DELETE FROM session_groups WHERE user_id = ?;
+
+-- name: UpdateSessionGroupOrder :exec
+UPDATE session_groups
+SET sort = ?, updated_at = ?
+WHERE id = ? AND user_id = ?;
+

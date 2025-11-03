@@ -276,6 +276,54 @@ func (q *Queries) GetGenerationTopic(ctx context.Context, arg GetGenerationTopic
 	return i, err
 }
 
+const GetGenerationWithAsyncTask = `-- name: GetGenerationWithAsyncTask :one
+SELECT 
+    g.id, g.user_id, g.generation_batch_id, g.async_task_id, g.file_id, g.seed, g.asset, g.created_at, g.updated_at,
+    at.status as async_task_status,
+    at.error as async_task_error
+FROM generations g
+LEFT JOIN async_tasks at ON g.async_task_id = at.id
+WHERE g.id = ? AND g.user_id = ?
+`
+
+type GetGenerationWithAsyncTaskParams struct {
+	ID     string `json:"id"`
+	UserID string `json:"userId"`
+}
+
+type GetGenerationWithAsyncTaskRow struct {
+	ID                string         `json:"id"`
+	UserID            string         `json:"userId"`
+	GenerationBatchID string         `json:"generationBatchId"`
+	AsyncTaskID       sql.NullString `json:"asyncTaskId"`
+	FileID            sql.NullString `json:"fileId"`
+	Seed              sql.NullInt64  `json:"seed"`
+	Asset             sql.NullString `json:"asset"`
+	CreatedAt         int64          `json:"createdAt"`
+	UpdatedAt         int64          `json:"updatedAt"`
+	AsyncTaskStatus   sql.NullString `json:"asyncTaskStatus"`
+	AsyncTaskError    sql.NullString `json:"asyncTaskError"`
+}
+
+func (q *Queries) GetGenerationWithAsyncTask(ctx context.Context, arg GetGenerationWithAsyncTaskParams) (GetGenerationWithAsyncTaskRow, error) {
+	row := q.db.QueryRowContext(ctx, GetGenerationWithAsyncTask, arg.ID, arg.UserID)
+	var i GetGenerationWithAsyncTaskRow
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.GenerationBatchID,
+		&i.AsyncTaskID,
+		&i.FileID,
+		&i.Seed,
+		&i.Asset,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.AsyncTaskStatus,
+		&i.AsyncTaskError,
+	)
+	return i, err
+}
+
 const ListGenerationBatches = `-- name: ListGenerationBatches :many
 SELECT id, user_id, generation_topic_id, provider, model, prompt, width, height, ratio, config, created_at, updated_at FROM generation_batches
 WHERE generation_topic_id = ? AND user_id = ?

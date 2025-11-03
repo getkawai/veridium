@@ -7,6 +7,27 @@ WHERE user_id = ? AND session_id = ?
 ORDER BY created_at ASC
 LIMIT ? OFFSET ?;
 
+-- name: CountMessages :one
+SELECT COUNT(*) FROM messages WHERE user_id = ?;
+
+-- name: CountMessagesByDateRange :one
+SELECT COUNT(*) FROM messages
+WHERE user_id = ?
+  AND created_at >= ?
+  AND created_at <= ?;
+
+-- name: CountMessageWords :one
+SELECT SUM(LENGTH(content)) as total_length
+FROM messages
+WHERE user_id = ?;
+
+-- name: CountMessageWordsByDateRange :one
+SELECT SUM(LENGTH(content)) as total_length
+FROM messages
+WHERE user_id = ?
+  AND created_at >= ?
+  AND created_at <= ?;
+
 -- name: ListMessagesByTopic :many
 SELECT * FROM messages
 WHERE user_id = ? AND topic_id = ?
@@ -46,9 +67,31 @@ DELETE FROM messages WHERE session_id = ? AND user_id = ?;
 -- name: DeleteMessagesByTopic :exec
 DELETE FROM messages WHERE topic_id = ? AND user_id = ?;
 
+-- name: BatchDeleteMessages :exec
+DELETE FROM messages
+WHERE user_id = ? AND id IN (sqlc.slice('ids'));
+
+-- name: DeleteAllMessages :exec
+DELETE FROM messages WHERE user_id = ?;
+
 -- name: ToggleMessageFavorite :exec
 UPDATE messages SET favorite = ?, updated_at = ?
 WHERE id = ? AND user_id = ?;
+
+-- name: RankModels :many
+SELECT model as id, COUNT(*) as count
+FROM messages
+WHERE user_id = ? AND model IS NOT NULL AND model != ''
+GROUP BY model
+HAVING COUNT(*) > 0
+ORDER BY count DESC, model ASC
+LIMIT ?;
+
+-- name: SearchMessagesByKeyword :many
+SELECT * FROM messages
+WHERE user_id = ? AND content LIKE ?
+ORDER BY created_at DESC
+LIMIT ?;
 
 -- Message Plugins
 
@@ -79,6 +122,19 @@ INSERT INTO message_tts (
 ) VALUES (?, ?, ?, ?, ?, ?)
 RETURNING *;
 
+-- name: UpsertMessageTTS :one
+INSERT INTO message_tts (
+    id, content_md5, file_id, voice, client_id, user_id
+) VALUES (?, ?, ?, ?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET
+    content_md5 = excluded.content_md5,
+    file_id = excluded.file_id,
+    voice = excluded.voice
+RETURNING *;
+
+-- name: DeleteMessageTTS :exec
+DELETE FROM message_tts WHERE id = ? AND user_id = ?;
+
 -- Message Translates
 
 -- name: GetMessageTranslate :one
@@ -89,6 +145,19 @@ INSERT INTO message_translates (
     id, content, "from", "to", client_id, user_id
 ) VALUES (?, ?, ?, ?, ?, ?)
 RETURNING *;
+
+-- name: UpsertMessageTranslate :one
+INSERT INTO message_translates (
+    id, content, "from", "to", client_id, user_id
+) VALUES (?, ?, ?, ?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET
+    content = excluded.content,
+    "from" = excluded."from",
+    "to" = excluded."to"
+RETURNING *;
+
+-- name: DeleteMessageTranslate :exec
+DELETE FROM message_translates WHERE id = ? AND user_id = ?;
 
 -- Message Queries (RAG)
 
@@ -104,6 +173,31 @@ RETURNING *;
 -- name: ListMessageQueriesByMessage :many
 SELECT * FROM message_queries
 WHERE message_id = ? AND user_id = ?;
+
+-- name: DeleteMessageQuery :exec
+DELETE FROM message_queries WHERE id = ? AND user_id = ?;
+
+-- Message Query Chunks
+
+-- name: LinkMessageQueryToChunk :exec
+INSERT INTO message_query_chunks (message_id, query_id, chunk_id, similarity, user_id)
+VALUES (?, ?, ?, ?, ?);
+
+-- name: GetMessageQueryChunks :many
+SELECT 
+    mqc.message_id,
+    mqc.similarity,
+    c.id,
+    c.text,
+    f.id as file_id,
+    f.name as filename,
+    f.file_type,
+    f.url as file_url
+FROM message_query_chunks mqc
+LEFT JOIN chunks c ON mqc.chunk_id = c.id
+LEFT JOIN file_chunks fc ON c.id = fc.chunk_id
+LEFT JOIN files f ON fc.file_id = f.id
+WHERE mqc.message_id IN (sqlc.slice('messageIds')) AND mqc.user_id = ?;
 
 -- Message Files
 

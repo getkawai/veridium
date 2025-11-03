@@ -6,6 +6,40 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
+ * NullFloat64 represents a float64 that may be null.
+ * NullFloat64 implements the [Scanner] interface so
+ * it can be used as a scan destination, similar to [NullString].
+ */
+export class NullFloat64 {
+    "Float64": number;
+
+    /**
+     * Valid is true if Float64 is not NULL
+     */
+    "Valid": boolean;
+
+    /** Creates a new NullFloat64 instance. */
+    constructor($$source: Partial<NullFloat64> = {}) {
+        if (!("Float64" in $$source)) {
+            this["Float64"] = 0;
+        }
+        if (!("Valid" in $$source)) {
+            this["Valid"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new NullFloat64 instance from a string or object.
+     */
+    static createFrom($$source: any = {}): NullFloat64 {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new NullFloat64($$parsedSource as Partial<NullFloat64>);
+    }
+}
+
+/**
  * NullInt64 represents an int64 that may be null.
  * NullInt64 implements the [Scanner] interface so
  * it can be used as a scan destination, similar to [NullString].
