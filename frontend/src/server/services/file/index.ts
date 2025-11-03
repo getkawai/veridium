@@ -1,7 +1,6 @@
-import { LobeChatDatabase } from '@/database';
+import { DB } from '@@/database/sql/models';
 import { TRPCError } from '@/types';
 
-import { serverDBEnv } from '@/config/db';
 import { FileModel } from '@/database/models/file';
 import { FileItem } from '@/types/database-legacy';
 import { WriteTempFile, Cleanup } from 'bindings/github.com/kawai-network/veridium/tempfileservice';
@@ -18,7 +17,7 @@ export class FileService {
 
   private impl: FileServiceImpl = createFileServiceModule();
 
-  constructor(db: LobeChatDatabase, userId: string) {
+  constructor(db: DB, userId: string) {
     this.userId = userId;
     this.fileModel = new FileModel(db, userId);
   }
@@ -108,7 +107,7 @@ export class FileService {
       console.error(e);
       // if file not found, delete it from db
       if ((e as any).Code === 'NoSuchKey') {
-        await this.fileModel.delete(fileId, serverDBEnv.REMOVE_GLOBAL_FILE);
+        await this.fileModel.delete(fileId, true);
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'File not found' });
       }
     }

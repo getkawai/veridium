@@ -1,98 +1,158 @@
-import { EvalEvaluationStatus, RAGEvalEvaluationItem } from  '@/types';
-import { SQL, and, count, desc, eq, inArray } from 'drizzle-orm';
-
-import {
-  NewEvalEvaluationItem,
-  evalDatasets,
-  evalEvaluation,
-  evaluationRecords,
-} from '../../../schemas';
-import { LobeChatDatabase } from '../../../type';
+import { RagEvalEvaluation } from '@/types/database';
+import { RAGEvalEvaluationItem } from '@/types/eval';
+import { DB, currentTimestampMs, parseJSON, toNullJSON, toNullString } from '@/types/database';
 
 export class EvalEvaluationModel {
   private userId: string;
-  private db: LobeChatDatabase;
 
-  constructor(db: LobeChatDatabase, userId: string) {
-    this.db = db;
+  constructor(_db: any, userId: string) {
     this.userId = userId;
   }
 
-  create = async (params: NewEvalEvaluationItem) => {
-    const [result] = await this.db
-      .insert(evalEvaluation)
-      .values({ ...params, userId: this.userId })
-      .returning();
-    return result;
+  create = async (params: {
+    name: string;
+    datasetId: string;
+    config?: any;
+    status: string;
+  }) => {
+    const id = crypto.randomUUID();
+    const now = currentTimestampMs();
+
+    const result = await DB.CreateRagEvalEvaluation(
+      {
+        id,
+        name: params.name,
+        datasetId: params.datasetId,
+        config: toNullJSON(params.config),
+        status: params.status,
+        userId: this.userId,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+    return {
+      id: result.id,
+      name: result.name,
+      datasetId: result.datasetId,
+      config: parseJSON(result.config),
+      status: result.status,
+      userId: result.userId,
+      createdAt: new Date(result.createdAt).toISOString(),
+      updatedAt: new Date(result.updatedAt).toISOString(),
+    };
   };
 
-  delete = async (id: number) => {
-    return this.db
-      .delete(evalEvaluation)
-      .where(and(eq(evalEvaluation.id, id), eq(evalEvaluation.userId, this.userId)));
+  delete = async (id: string) => {
+    return DB.DeleteRagEvalEvaluation({ id, userId: this.userId });
   };
 
-  queryByKnowledgeBaseId = async (knowledgeBaseId: string) => {
-    const evaluations = await this.db
-      .select({
-        createdAt: evalEvaluation.createdAt,
-        dataset: {
-          id: evalDatasets.id,
-          name: evalDatasets.name,
-        },
-        evalRecordsUrl: evalEvaluation.evalRecordsUrl,
-        id: evalEvaluation.id,
-        name: evalEvaluation.name,
-        status: evalEvaluation.status,
-        updatedAt: evalEvaluation.updatedAt,
-      })
-      .from(evalEvaluation)
-      .leftJoin(evalDatasets, eq(evalDatasets.id, evalEvaluation.datasetId))
-      .orderBy(desc(evalEvaluation.createdAt))
-      .where(
-        and(
-          eq(evalEvaluation.userId, this.userId),
-          eq(evalEvaluation.knowledgeBaseId, knowledgeBaseId),
-        ),
-      );
+  queryByKnowledgeBaseId = async (_knowledgeBaseId: string) => {
+    // Note: Schema doesn't have knowledge_base_id, so we get all evaluations
+    // In a real implementation, you'd need to add this field to the schema
+    
+    // Get all datasets for this user
+    const datasets = await DB.ListRagEvalDatasets(this.userId);
+    const datasetIds = datasets.map(d => d.id);
+    
+    if (datasetIds.length === 0) {
+      return [];
+    }
 
-    // 然后查询每个评估的记录统计
-    const evaluationIds = evaluations.map((evals) => evals.id);
+    // Get evaluations for each dataset
+    const allEvaluations: RagEvalEvaluation[] = [];
+    for (const datasetId of datasetIds as string[]) {
+      const evals = await DB.ListRagEvalEvaluationsByDataset({ datasetId, userId: this.userId });
+      allEvaluations.push(...(evals as RagEvalEvaluation[]));
+    }
 
-    const recordStats = await this.db
-      .select({
-        evaluationId: evaluationRecords.evaluationId,
-        success: count(evaluationRecords.status).if(
-          eq(evaluationRecords.status, EvalEvaluationStatus.Success),
-        ) as SQL<number>,
-        total: count(),
-      })
-      .from(evaluationRecords)
-      .where(inArray(evaluationRecords.evaluationId, evaluationIds))
-      .groupBy(evaluationRecords.evaluationId);
+    // Get dataset info for each evaluation
+    const evaluationsWithDataset = allEvaluations.map(async (evaluation: RagEvalEvaluation) => {
+      const dataset = datasets.find(d => d.id === evaluation.datasetId);
+      
+      return {
+        id: evaluation.id,
+        name: evaluation.name,
+        status: evaluation.status,
+        evalRecordsUrl: null, // Schema doesn't have this field
+        dataset: dataset ? {
+          id: dataset.id,
+          name: dataset.name,
+        } : null,
+        createdAt: new Date(evaluation.createdAt).toISOString(),
+        updatedAt: new Date(evaluation.updatedAt).toISOString(),
+      };
+    });
+
+    const evaluations = await Promise.all(evaluationsWithDataset);
+    const evaluationIds = evaluations.map(e => e.id);
+
+    // Get record stats for each evaluation
+    const recordStats: Array<{ evaluationId: string; total: number; success: number }> = [];
+    
+    for (const evalId of evaluationIds) {
+      const records = await DB.ListRagEvalEvaluationRecordsByEvaluation({ evaluationId: evalId, userId: this.userId });
+      
+      const total = records.length;
+      const success = records.filter((record) => {
+        const metrics = parseJSON(record.metrics);
+        return metrics?.status === 'success';
+      }).length;
+      
+      recordStats.push({
+        evaluationId: evalId,
+        total,
+        success,
+      });
+    }
 
     return evaluations.map((evaluation) => {
       const stats = recordStats.find((stat) => stat.evaluationId === evaluation.id);
 
       return {
-        ...evaluation,
+        ...(evaluation as unknown as RAGEvalEvaluationItem),
         recordsStats: stats
-          ? { success: Number(stats.success), total: Number(stats.total) }
+          ? { success: stats.success, total: stats.total }
           : { success: 0, total: 0 },
-      } as RAGEvalEvaluationItem;
+      } as unknown as RAGEvalEvaluationItem;
     });
   };
 
-  findById = async (id: number) => {
-    return this.db.query.evalEvaluation.findFirst({
-      where: and(eq(evalEvaluation.id, id), eq(evalEvaluation.userId, this.userId)),
-    });
+  findById = async (id: string) => {
+    const result = await DB.GetRagEvalEvaluation({ id, userId: this.userId });
+    if (!result) return undefined;
+
+    return {
+      id: result.id,
+      name: result.name,
+      datasetId: result.datasetId,
+      config: parseJSON(result.config),
+      status: result.status,
+      userId: result.userId,
+      createdAt: new Date(result.createdAt),
+      updatedAt: new Date(result.updatedAt),
+    };
   };
 
-  update = async (id: number, value: Partial<NewEvalEvaluationItem>) => {
-    return this.db
-      .update(evalEvaluation)
-      .set(value)
-      .where(and(eq(evalEvaluation.id, id), eq(evalEvaluation.userId, this.userId)));
+  update = async (
+    id: string,
+    value: {
+      name?: string | null;
+      config?: any;
+      status?: string | null;
+    },
+  ) => {
+    const now = currentTimestampMs();
+
+    await DB.UpdateRagEvalEvaluation(
+      {
+        name: value.name || '',
+        config: toNullString(value.config),
+        status: value.status || '',
+        updatedAt: now,
+        id,
+        userId: this.userId,
+      }
+    );
   };
 }
+

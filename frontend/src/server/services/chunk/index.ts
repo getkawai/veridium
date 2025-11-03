@@ -1,4 +1,4 @@
-import { LobeChatDatabase } from '@/database';
+import { DB } from '@@/database/sql/models';
 import { ClientSecretPayload } from '@/types';
 
 import { AsyncTaskModel } from '@/database/models/asyncTask';
@@ -18,7 +18,7 @@ export class ChunkService {
   private fileModel: FileModel;
   private asyncTaskModel: AsyncTaskModel;
 
-  constructor(serverDB: LobeChatDatabase, userId: string) {
+  constructor(serverDB: DB, userId: string) {
     this.userId = userId;
 
     this.chunkClient = new ContentChunk();

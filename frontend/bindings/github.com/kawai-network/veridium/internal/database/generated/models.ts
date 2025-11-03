@@ -4340,6 +4340,124 @@ export class CreateRagEvalDatasetRecordParams {
     }
 }
 
+export class CreateRagEvalEvaluationParams {
+    "id": string;
+    "name": string;
+    "datasetId": string;
+    "config": sql$0.NullString;
+    "status": string;
+    "userId": string;
+    "createdAt": number;
+    "updatedAt": number;
+
+    /** Creates a new CreateRagEvalEvaluationParams instance. */
+    constructor($$source: Partial<CreateRagEvalEvaluationParams> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("datasetId" in $$source)) {
+            this["datasetId"] = "";
+        }
+        if (!("config" in $$source)) {
+            this["config"] = (new sql$0.NullString());
+        }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CreateRagEvalEvaluationParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CreateRagEvalEvaluationParams {
+        const $$createField3_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("config" in $$parsedSource) {
+            $$parsedSource["config"] = $$createField3_0($$parsedSource["config"]);
+        }
+        return new CreateRagEvalEvaluationParams($$parsedSource as Partial<CreateRagEvalEvaluationParams>);
+    }
+}
+
+export class CreateRagEvalEvaluationRecordParams {
+    "id": string;
+    "evaluationId": string;
+    "datasetRecordId": string;
+    "retrievedContexts": sql$0.NullString;
+    "generatedAnswer": sql$0.NullString;
+    "metrics": sql$0.NullString;
+    "userId": string;
+    "createdAt": number;
+    "updatedAt": number;
+
+    /** Creates a new CreateRagEvalEvaluationRecordParams instance. */
+    constructor($$source: Partial<CreateRagEvalEvaluationRecordParams> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("evaluationId" in $$source)) {
+            this["evaluationId"] = "";
+        }
+        if (!("datasetRecordId" in $$source)) {
+            this["datasetRecordId"] = "";
+        }
+        if (!("retrievedContexts" in $$source)) {
+            this["retrievedContexts"] = (new sql$0.NullString());
+        }
+        if (!("generatedAnswer" in $$source)) {
+            this["generatedAnswer"] = (new sql$0.NullString());
+        }
+        if (!("metrics" in $$source)) {
+            this["metrics"] = (new sql$0.NullString());
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CreateRagEvalEvaluationRecordParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CreateRagEvalEvaluationRecordParams {
+        const $$createField3_0 = $$createType0;
+        const $$createField4_0 = $$createType0;
+        const $$createField5_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("retrievedContexts" in $$parsedSource) {
+            $$parsedSource["retrievedContexts"] = $$createField3_0($$parsedSource["retrievedContexts"]);
+        }
+        if ("generatedAnswer" in $$parsedSource) {
+            $$parsedSource["generatedAnswer"] = $$createField4_0($$parsedSource["generatedAnswer"]);
+        }
+        if ("metrics" in $$parsedSource) {
+            $$parsedSource["metrics"] = $$createField5_0($$parsedSource["metrics"]);
+        }
+        return new CreateRagEvalEvaluationRecordParams($$parsedSource as Partial<CreateRagEvalEvaluationRecordParams>);
+    }
+}
+
 export class CreateRoleParams {
     "name": string;
     "displayName": string;
@@ -5777,6 +5895,56 @@ export class DeleteRagEvalDatasetRecordParams {
     static createFrom($$source: any = {}): DeleteRagEvalDatasetRecordParams {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new DeleteRagEvalDatasetRecordParams($$parsedSource as Partial<DeleteRagEvalDatasetRecordParams>);
+    }
+}
+
+export class DeleteRagEvalEvaluationParams {
+    "id": string;
+    "userId": string;
+
+    /** Creates a new DeleteRagEvalEvaluationParams instance. */
+    constructor($$source: Partial<DeleteRagEvalEvaluationParams> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DeleteRagEvalEvaluationParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DeleteRagEvalEvaluationParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DeleteRagEvalEvaluationParams($$parsedSource as Partial<DeleteRagEvalEvaluationParams>);
+    }
+}
+
+export class DeleteRagEvalEvaluationRecordParams {
+    "id": string;
+    "userId": string;
+
+    /** Creates a new DeleteRagEvalEvaluationRecordParams instance. */
+    constructor($$source: Partial<DeleteRagEvalEvaluationRecordParams> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DeleteRagEvalEvaluationRecordParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DeleteRagEvalEvaluationRecordParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DeleteRagEvalEvaluationRecordParams($$parsedSource as Partial<DeleteRagEvalEvaluationRecordParams>);
     }
 }
 
@@ -9948,6 +10116,56 @@ export class GetRagEvalDatasetRecordParams {
     }
 }
 
+export class GetRagEvalEvaluationParams {
+    "id": string;
+    "userId": string;
+
+    /** Creates a new GetRagEvalEvaluationParams instance. */
+    constructor($$source: Partial<GetRagEvalEvaluationParams> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetRagEvalEvaluationParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetRagEvalEvaluationParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new GetRagEvalEvaluationParams($$parsedSource as Partial<GetRagEvalEvaluationParams>);
+    }
+}
+
+export class GetRagEvalEvaluationRecordParams {
+    "id": string;
+    "userId": string;
+
+    /** Creates a new GetRagEvalEvaluationRecordParams instance. */
+    constructor($$source: Partial<GetRagEvalEvaluationRecordParams> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetRagEvalEvaluationRecordParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetRagEvalEvaluationRecordParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new GetRagEvalEvaluationRecordParams($$parsedSource as Partial<GetRagEvalEvaluationRecordParams>);
+    }
+}
+
 export class GetSessionAgentsParams {
     "sessionId": string;
     "userId": string;
@@ -12427,6 +12645,56 @@ export class ListRagEvalDatasetRecordsParams {
     }
 }
 
+export class ListRagEvalEvaluationRecordsByEvaluationParams {
+    "evaluationId": string;
+    "userId": string;
+
+    /** Creates a new ListRagEvalEvaluationRecordsByEvaluationParams instance. */
+    constructor($$source: Partial<ListRagEvalEvaluationRecordsByEvaluationParams> = {}) {
+        if (!("evaluationId" in $$source)) {
+            this["evaluationId"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ListRagEvalEvaluationRecordsByEvaluationParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ListRagEvalEvaluationRecordsByEvaluationParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ListRagEvalEvaluationRecordsByEvaluationParams($$parsedSource as Partial<ListRagEvalEvaluationRecordsByEvaluationParams>);
+    }
+}
+
+export class ListRagEvalEvaluationsByDatasetParams {
+    "datasetId": string;
+    "userId": string;
+
+    /** Creates a new ListRagEvalEvaluationsByDatasetParams instance. */
+    constructor($$source: Partial<ListRagEvalEvaluationsByDatasetParams> = {}) {
+        if (!("datasetId" in $$source)) {
+            this["datasetId"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ListRagEvalEvaluationsByDatasetParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ListRagEvalEvaluationsByDatasetParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ListRagEvalEvaluationsByDatasetParams($$parsedSource as Partial<ListRagEvalEvaluationsByDatasetParams>);
+    }
+}
+
 export class ListSessionsByGroupParams {
     "userId": string;
     "groupId": sql$0.NullString;
@@ -14245,6 +14513,124 @@ export class RagEvalDatasetRecord {
             $$parsedSource["metadata"] = $$createField5_0($$parsedSource["metadata"]);
         }
         return new RagEvalDatasetRecord($$parsedSource as Partial<RagEvalDatasetRecord>);
+    }
+}
+
+export class RagEvalEvaluation {
+    "id": string;
+    "name": string;
+    "datasetId": string;
+    "config": sql$0.NullString;
+    "status": string;
+    "userId": string;
+    "createdAt": number;
+    "updatedAt": number;
+
+    /** Creates a new RagEvalEvaluation instance. */
+    constructor($$source: Partial<RagEvalEvaluation> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("datasetId" in $$source)) {
+            this["datasetId"] = "";
+        }
+        if (!("config" in $$source)) {
+            this["config"] = (new sql$0.NullString());
+        }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RagEvalEvaluation instance from a string or object.
+     */
+    static createFrom($$source: any = {}): RagEvalEvaluation {
+        const $$createField3_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("config" in $$parsedSource) {
+            $$parsedSource["config"] = $$createField3_0($$parsedSource["config"]);
+        }
+        return new RagEvalEvaluation($$parsedSource as Partial<RagEvalEvaluation>);
+    }
+}
+
+export class RagEvalEvaluationRecord {
+    "id": string;
+    "evaluationId": string;
+    "datasetRecordId": string;
+    "retrievedContexts": sql$0.NullString;
+    "generatedAnswer": sql$0.NullString;
+    "metrics": sql$0.NullString;
+    "userId": string;
+    "createdAt": number;
+    "updatedAt": number;
+
+    /** Creates a new RagEvalEvaluationRecord instance. */
+    constructor($$source: Partial<RagEvalEvaluationRecord> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("evaluationId" in $$source)) {
+            this["evaluationId"] = "";
+        }
+        if (!("datasetRecordId" in $$source)) {
+            this["datasetRecordId"] = "";
+        }
+        if (!("retrievedContexts" in $$source)) {
+            this["retrievedContexts"] = (new sql$0.NullString());
+        }
+        if (!("generatedAnswer" in $$source)) {
+            this["generatedAnswer"] = (new sql$0.NullString());
+        }
+        if (!("metrics" in $$source)) {
+            this["metrics"] = (new sql$0.NullString());
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RagEvalEvaluationRecord instance from a string or object.
+     */
+    static createFrom($$source: any = {}): RagEvalEvaluationRecord {
+        const $$createField3_0 = $$createType0;
+        const $$createField4_0 = $$createType0;
+        const $$createField5_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("retrievedContexts" in $$parsedSource) {
+            $$parsedSource["retrievedContexts"] = $$createField3_0($$parsedSource["retrievedContexts"]);
+        }
+        if ("generatedAnswer" in $$parsedSource) {
+            $$parsedSource["generatedAnswer"] = $$createField4_0($$parsedSource["generatedAnswer"]);
+        }
+        if ("metrics" in $$parsedSource) {
+            $$parsedSource["metrics"] = $$createField5_0($$parsedSource["metrics"]);
+        }
+        return new RagEvalEvaluationRecord($$parsedSource as Partial<RagEvalEvaluationRecord>);
     }
 }
 
@@ -17215,6 +17601,202 @@ export class UpdatePluginParams {
             $$parsedSource["settings"] = $$createField3_0($$parsedSource["settings"]);
         }
         return new UpdatePluginParams($$parsedSource as Partial<UpdatePluginParams>);
+    }
+}
+
+export class UpdateRagEvalDatasetParams {
+    "name": string;
+    "description": sql$0.NullString;
+    "updatedAt": number;
+    "id": string;
+    "userId": string;
+
+    /** Creates a new UpdateRagEvalDatasetParams instance. */
+    constructor($$source: Partial<UpdateRagEvalDatasetParams> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("description" in $$source)) {
+            this["description"] = (new sql$0.NullString());
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpdateRagEvalDatasetParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UpdateRagEvalDatasetParams {
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("description" in $$parsedSource) {
+            $$parsedSource["description"] = $$createField1_0($$parsedSource["description"]);
+        }
+        return new UpdateRagEvalDatasetParams($$parsedSource as Partial<UpdateRagEvalDatasetParams>);
+    }
+}
+
+export class UpdateRagEvalDatasetRecordParams {
+    "query": string;
+    "referenceAnswer": sql$0.NullString;
+    "referenceContexts": sql$0.NullString;
+    "metadata": sql$0.NullString;
+    "updatedAt": number;
+    "id": string;
+    "userId": string;
+
+    /** Creates a new UpdateRagEvalDatasetRecordParams instance. */
+    constructor($$source: Partial<UpdateRagEvalDatasetRecordParams> = {}) {
+        if (!("query" in $$source)) {
+            this["query"] = "";
+        }
+        if (!("referenceAnswer" in $$source)) {
+            this["referenceAnswer"] = (new sql$0.NullString());
+        }
+        if (!("referenceContexts" in $$source)) {
+            this["referenceContexts"] = (new sql$0.NullString());
+        }
+        if (!("metadata" in $$source)) {
+            this["metadata"] = (new sql$0.NullString());
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpdateRagEvalDatasetRecordParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UpdateRagEvalDatasetRecordParams {
+        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $$createType0;
+        const $$createField3_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("referenceAnswer" in $$parsedSource) {
+            $$parsedSource["referenceAnswer"] = $$createField1_0($$parsedSource["referenceAnswer"]);
+        }
+        if ("referenceContexts" in $$parsedSource) {
+            $$parsedSource["referenceContexts"] = $$createField2_0($$parsedSource["referenceContexts"]);
+        }
+        if ("metadata" in $$parsedSource) {
+            $$parsedSource["metadata"] = $$createField3_0($$parsedSource["metadata"]);
+        }
+        return new UpdateRagEvalDatasetRecordParams($$parsedSource as Partial<UpdateRagEvalDatasetRecordParams>);
+    }
+}
+
+export class UpdateRagEvalEvaluationParams {
+    "name": string;
+    "config": sql$0.NullString;
+    "status": string;
+    "updatedAt": number;
+    "id": string;
+    "userId": string;
+
+    /** Creates a new UpdateRagEvalEvaluationParams instance. */
+    constructor($$source: Partial<UpdateRagEvalEvaluationParams> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("config" in $$source)) {
+            this["config"] = (new sql$0.NullString());
+        }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpdateRagEvalEvaluationParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UpdateRagEvalEvaluationParams {
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("config" in $$parsedSource) {
+            $$parsedSource["config"] = $$createField1_0($$parsedSource["config"]);
+        }
+        return new UpdateRagEvalEvaluationParams($$parsedSource as Partial<UpdateRagEvalEvaluationParams>);
+    }
+}
+
+export class UpdateRagEvalEvaluationRecordParams {
+    "retrievedContexts": sql$0.NullString;
+    "generatedAnswer": sql$0.NullString;
+    "metrics": sql$0.NullString;
+    "updatedAt": number;
+    "id": string;
+    "userId": string;
+
+    /** Creates a new UpdateRagEvalEvaluationRecordParams instance. */
+    constructor($$source: Partial<UpdateRagEvalEvaluationRecordParams> = {}) {
+        if (!("retrievedContexts" in $$source)) {
+            this["retrievedContexts"] = (new sql$0.NullString());
+        }
+        if (!("generatedAnswer" in $$source)) {
+            this["generatedAnswer"] = (new sql$0.NullString());
+        }
+        if (!("metrics" in $$source)) {
+            this["metrics"] = (new sql$0.NullString());
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpdateRagEvalEvaluationRecordParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UpdateRagEvalEvaluationRecordParams {
+        const $$createField0_0 = $$createType0;
+        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("retrievedContexts" in $$parsedSource) {
+            $$parsedSource["retrievedContexts"] = $$createField0_0($$parsedSource["retrievedContexts"]);
+        }
+        if ("generatedAnswer" in $$parsedSource) {
+            $$parsedSource["generatedAnswer"] = $$createField1_0($$parsedSource["generatedAnswer"]);
+        }
+        if ("metrics" in $$parsedSource) {
+            $$parsedSource["metrics"] = $$createField2_0($$parsedSource["metrics"]);
+        }
+        return new UpdateRagEvalEvaluationRecordParams($$parsedSource as Partial<UpdateRagEvalEvaluationRecordParams>);
     }
 }
 

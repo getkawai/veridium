@@ -14,6 +14,7 @@ type Querier interface {
 	BatchDeleteMessages(ctx context.Context, arg BatchDeleteMessagesParams) error
 	BatchDeleteSessions(ctx context.Context, arg BatchDeleteSessionsParams) error
 	BatchDeleteTopics(ctx context.Context, arg BatchDeleteTopicsParams) error
+	BatchInsertRagEvalEvaluationRecords(ctx context.Context) error
 	BatchLinkAgentToFiles(ctx context.Context, arg BatchLinkAgentToFilesParams) error
 	BatchLinkChatGroupToAgents(ctx context.Context, arg BatchLinkChatGroupToAgentsParams) error
 	BatchLinkKnowledgeBaseToFiles(ctx context.Context, arg BatchLinkKnowledgeBaseToFilesParams) error
@@ -78,6 +79,10 @@ type Querier interface {
 	CreatePlugin(ctx context.Context, arg CreatePluginParams) (UserInstalledPlugin, error)
 	CreateRagEvalDataset(ctx context.Context, arg CreateRagEvalDatasetParams) (RagEvalDataset, error)
 	CreateRagEvalDatasetRecord(ctx context.Context, arg CreateRagEvalDatasetRecordParams) (RagEvalDatasetRecord, error)
+	// RAG Eval Evaluations
+	CreateRagEvalEvaluation(ctx context.Context, arg CreateRagEvalEvaluationParams) (RagEvalEvaluation, error)
+	// RAG Eval Evaluation Records
+	CreateRagEvalEvaluationRecord(ctx context.Context, arg CreateRagEvalEvaluationRecordParams) (RagEvalEvaluationRecord, error)
 	CreateRole(ctx context.Context, arg CreateRoleParams) (RbacRole, error)
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
 	CreateSessionGroup(ctx context.Context, arg CreateSessionGroupParams) (SessionGroup, error)
@@ -145,6 +150,8 @@ type Querier interface {
 	DeletePlugin(ctx context.Context, arg DeletePluginParams) error
 	DeleteRagEvalDataset(ctx context.Context, arg DeleteRagEvalDatasetParams) error
 	DeleteRagEvalDatasetRecord(ctx context.Context, arg DeleteRagEvalDatasetRecordParams) error
+	DeleteRagEvalEvaluation(ctx context.Context, arg DeleteRagEvalEvaluationParams) error
+	DeleteRagEvalEvaluationRecord(ctx context.Context, arg DeleteRagEvalEvaluationRecordParams) error
 	DeleteRole(ctx context.Context, id int64) error
 	DeleteSession(ctx context.Context, arg DeleteSessionParams) error
 	DeleteSessionGroup(ctx context.Context, arg DeleteSessionGroupParams) error
@@ -279,6 +286,8 @@ type Querier interface {
 	// RAG Evaluation
 	GetRagEvalDataset(ctx context.Context, arg GetRagEvalDatasetParams) (RagEvalDataset, error)
 	GetRagEvalDatasetRecord(ctx context.Context, arg GetRagEvalDatasetRecordParams) (RagEvalDatasetRecord, error)
+	GetRagEvalEvaluation(ctx context.Context, arg GetRagEvalEvaluationParams) (RagEvalEvaluation, error)
+	GetRagEvalEvaluationRecord(ctx context.Context, arg GetRagEvalEvaluationRecordParams) (RagEvalEvaluationRecord, error)
 	// Roles
 	GetRole(ctx context.Context, id int64) (RbacRole, error)
 	GetRoleByName(ctx context.Context, name string) (RbacRole, error)
@@ -376,6 +385,8 @@ type Querier interface {
 	ListPlugins(ctx context.Context, userID string) ([]UserInstalledPlugin, error)
 	ListRagEvalDatasetRecords(ctx context.Context, arg ListRagEvalDatasetRecordsParams) ([]RagEvalDatasetRecord, error)
 	ListRagEvalDatasets(ctx context.Context, userID string) ([]RagEvalDataset, error)
+	ListRagEvalEvaluationRecordsByEvaluation(ctx context.Context, arg ListRagEvalEvaluationRecordsByEvaluationParams) ([]RagEvalEvaluationRecord, error)
+	ListRagEvalEvaluationsByDataset(ctx context.Context, arg ListRagEvalEvaluationsByDatasetParams) ([]RagEvalEvaluation, error)
 	ListRoles(ctx context.Context) ([]RbacRole, error)
 	ListSessionGroups(ctx context.Context, userID string) ([]SessionGroup, error)
 	ListSessions(ctx context.Context, arg ListSessionsParams) ([]Session, error)
@@ -443,6 +454,10 @@ type Querier interface {
 	UpdateOIDCConsent(ctx context.Context, arg UpdateOIDCConsentParams) (OidcConsent, error)
 	UpdatePermission(ctx context.Context, arg UpdatePermissionParams) (RbacPermission, error)
 	UpdatePlugin(ctx context.Context, arg UpdatePluginParams) error
+	UpdateRagEvalDataset(ctx context.Context, arg UpdateRagEvalDatasetParams) error
+	UpdateRagEvalDatasetRecord(ctx context.Context, arg UpdateRagEvalDatasetRecordParams) error
+	UpdateRagEvalEvaluation(ctx context.Context, arg UpdateRagEvalEvaluationParams) error
+	UpdateRagEvalEvaluationRecord(ctx context.Context, arg UpdateRagEvalEvaluationRecordParams) error
 	UpdateRole(ctx context.Context, arg UpdateRoleParams) (RbacRole, error)
 	UpdateSession(ctx context.Context, arg UpdateSessionParams) (Session, error)
 	UpdateSessionGroup(ctx context.Context, arg UpdateSessionGroupParams) (SessionGroup, error)

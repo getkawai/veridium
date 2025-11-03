@@ -1,66 +1,160 @@
-import { and, eq } from 'drizzle-orm';
-
-import { LobeChatDatabase } from '../../../type';
-import { NewEvaluationRecordsItem, evaluationRecords } from '../../../schemas';
+import { DB, RagEvalEvaluationRecord, currentTimestampMs, getNullableString, parseJSON, toNullJSON, toNullString } from '@/types/database';
 
 export class EvaluationRecordModel {
   private userId: string;
-  private db: LobeChatDatabase;
 
-  constructor(db: LobeChatDatabase, userId: string) {
-    this.db = db;
+  constructor(_db: any, userId: string) {
     this.userId = userId;
   }
 
-  create = async (params: NewEvaluationRecordsItem) => {
-    const [result] = await this.db
-      .insert(evaluationRecords)
-      .values({ ...params, userId: this.userId })
-      .returning();
-    return result;
-  };
+  create = async (params: {
+    evaluationId: string;
+    datasetRecordId: string;
+    retrievedContexts?: string | null;
+    generatedAnswer?: string | null;
+    metrics?: any;
+  }) => {
+    const id = crypto.randomUUID();
+    const now = currentTimestampMs();
 
-  batchCreate = async (params: NewEvaluationRecordsItem[]) => {
-    return this.db
-      .insert(evaluationRecords)
-      .values(params.map((item) => ({ ...item, userId: this.userId })))
-      .returning();
-  };
-
-  delete = async (id: number) => {
-    return this.db
-      .delete(evaluationRecords)
-      .where(and(eq(evaluationRecords.id, id), eq(evaluationRecords.userId, this.userId)));
-  };
-
-  query = async (reportId: number) => {
-    return this.db.query.evaluationRecords.findMany({
-      where: and(
-        eq(evaluationRecords.evaluationId, reportId),
-        eq(evaluationRecords.userId, this.userId),
-      ),
+    const result: RagEvalEvaluationRecord = await DB.CreateRagEvalEvaluationRecord({
+      id,
+      evaluationId: params.evaluationId,
+      datasetRecordId: params.datasetRecordId,
+      retrievedContexts: toNullString(params.retrievedContexts || null),
+      generatedAnswer: toNullString(params.generatedAnswer || null),
+      metrics: toNullJSON(params.metrics || null),
+      userId: this.userId,
+      createdAt: now,
+      updatedAt: now,
     });
+
+    return {
+      id: result.id,
+      evaluationId: result.evaluationId,
+      datasetRecordId: result.datasetRecordId,
+      retrievedContexts: getNullableString(result.retrievedContexts),
+      generatedAnswer: getNullableString(result.generatedAnswer),
+      metrics: parseJSON(result.metrics),
+      userId: result.userId,
+      createdAt: new Date(result.createdAt).toISOString(),
+      updatedAt: new Date(result.updatedAt).toISOString(),
+    };
   };
 
-  findById = async (id: number) => {
-    return this.db.query.evaluationRecords.findFirst({
-      where: and(eq(evaluationRecords.id, id), eq(evaluationRecords.userId, this.userId)),
-    });
+  batchCreate = async (
+    params: Array<{
+      evaluationId: string;
+      datasetRecordId: string;
+      retrievedContexts?: string | null;
+      generatedAnswer?: string | null;
+      metrics?: any;
+    }>,
+  ) => {
+    const now = currentTimestampMs();
+    
+    // Insert records one by one
+    const results: any[] = [];
+    for (const param of params) {
+      const id = crypto.randomUUID();
+      const result: RagEvalEvaluationRecord = await DB.CreateRagEvalEvaluationRecord({
+        id,
+        evaluationId: param.evaluationId,
+        datasetRecordId: param.datasetRecordId,
+        retrievedContexts: toNullString(param.retrievedContexts || null),
+        generatedAnswer: toNullString(param.generatedAnswer || null),
+        metrics: toNullJSON(param.metrics || null),
+        userId: this.userId,
+        createdAt: now,
+        updatedAt: now,
+      } as any);
+      results.push(result);
+    }
+
+    return results.map((r: any) => ({
+      id: r.id,
+      evaluationId: r.evaluationId,
+      datasetRecordId: r.datasetRecordId,
+      retrievedContexts: getNullableString(r.retrievedContexts),
+      generatedAnswer: getNullableString(r.generatedAnswer),
+      metrics: parseJSON(r.metrics),
+      userId: r.userId,
+      createdAt: new Date(r.createdAt).toISOString(),
+      updatedAt: new Date(r.updatedAt).toISOString(),
+    }));
   };
 
-  findByEvaluationId = async (evaluationId: number) => {
-    return this.db.query.evaluationRecords.findMany({
-      where: and(
-        eq(evaluationRecords.evaluationId, evaluationId),
-        eq(evaluationRecords.userId, this.userId),
-      ),
-    });
+  delete = async (id: string) => {
+    return DB.DeleteRagEvalEvaluationRecord({ id, userId: this.userId } as any);
   };
 
-  update = async (id: number, value: Partial<NewEvaluationRecordsItem>) => {
-    return this.db
-      .update(evaluationRecords)
-      .set(value)
-      .where(and(eq(evaluationRecords.id, id), eq(evaluationRecords.userId, this.userId)));
+  query = async (evaluationId: string) => {
+    const results: RagEvalEvaluationRecord[] = await DB.ListRagEvalEvaluationRecordsByEvaluation({ evaluationId, userId: this.userId } as any);
+
+    return results.map((row: RagEvalEvaluationRecord) => ({
+      id: row.id,
+      evaluationId: row.evaluationId,
+      datasetRecordId: row.datasetRecordId,
+      retrievedContexts: getNullableString(row.retrievedContexts),
+      generatedAnswer: getNullableString(row.generatedAnswer),
+      metrics: parseJSON(row.metrics),
+      userId: row.userId,
+      createdAt: new Date(row.createdAt).toISOString(),
+      updatedAt: new Date(row.updatedAt).toISOString(),
+    }));
+  };
+
+  findById = async (id: string) => {
+    const result: RagEvalEvaluationRecord | undefined = await DB.GetRagEvalEvaluationRecord({ id, userId: this.userId } as any);
+    if (!result) return undefined;
+
+    return {
+      id: result.id,
+      evaluationId: result.evaluationId,
+      datasetRecordId: result.datasetRecordId,
+      retrievedContexts: getNullableString(result.retrievedContexts),
+      generatedAnswer: getNullableString(result.generatedAnswer),
+      metrics: parseJSON(result.metrics),
+      userId: result.userId,
+      createdAt: new Date(result.createdAt).toISOString(),
+      updatedAt: new Date(result.updatedAt).toISOString(),
+    };
+  };
+
+  findByEvaluationId = async (evaluationId: string) => {
+    const results: RagEvalEvaluationRecord[] = await DB.ListRagEvalEvaluationRecordsByEvaluation({ evaluationId, userId: this.userId } as any);
+
+    return results.map((row: RagEvalEvaluationRecord) => ({
+      id: row.id,
+      evaluationId: row.evaluationId,
+      datasetRecordId: row.datasetRecordId,
+      retrievedContexts: getNullableString(row.retrievedContexts),
+      generatedAnswer: getNullableString(row.generatedAnswer),
+      metrics: parseJSON(row.metrics),
+      userId: row.userId,
+      createdAt: new Date(row.createdAt).toISOString(),
+      updatedAt: new Date(row.updatedAt).toISOString(),
+    }));
+  };
+
+  update = async (
+    id: string,
+    value: {
+      retrievedContexts?: string | null;
+      generatedAnswer?: string | null;
+      metrics?: any;
+    },
+  ) => {
+    const now = currentTimestampMs();
+
+    await DB.UpdateRagEvalEvaluationRecord({
+      retrievedContexts: toNullString(value.retrievedContexts || null),
+      generatedAnswer: toNullString(value.generatedAnswer || null),
+      metrics: toNullJSON(value.metrics || null),
+      updatedAt: now,
+      id,
+      userId: this.userId,
+    } as any);
   };
 }
+

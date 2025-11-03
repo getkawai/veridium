@@ -29,6 +29,10 @@ export function BatchDeleteTopics(arg: $models.BatchDeleteTopicsParams): $Cancel
     return $Call.ByID(1796354011, arg);
 }
 
+export function BatchInsertRagEvalEvaluationRecords(): $CancellablePromise<void> {
+    return $Call.ByID(2189805221);
+}
+
 export function BatchLinkAgentToFiles(arg: $models.BatchLinkAgentToFilesParams): $CancellablePromise<void> {
     return $Call.ByID(3335351891, arg);
 }
@@ -370,45 +374,63 @@ export function CreateRagEvalDatasetRecord(arg: $models.CreateRagEvalDatasetReco
     });
 }
 
+/**
+ * RAG Eval Evaluations
+ */
+export function CreateRagEvalEvaluation(arg: $models.CreateRagEvalEvaluationParams): $CancellablePromise<$models.RagEvalEvaluation> {
+    return $Call.ByID(3609961498, arg).then(($result: any) => {
+        return $$createType42($result);
+    });
+}
+
+/**
+ * RAG Eval Evaluation Records
+ */
+export function CreateRagEvalEvaluationRecord(arg: $models.CreateRagEvalEvaluationRecordParams): $CancellablePromise<$models.RagEvalEvaluationRecord> {
+    return $Call.ByID(3235399855, arg).then(($result: any) => {
+        return $$createType43($result);
+    });
+}
+
 export function CreateRole(arg: $models.CreateRoleParams): $CancellablePromise<$models.RbacRole> {
     return $Call.ByID(1405414992, arg).then(($result: any) => {
-        return $$createType42($result);
+        return $$createType44($result);
     });
 }
 
 export function CreateSession(arg: $models.CreateSessionParams): $CancellablePromise<$models.Session> {
     return $Call.ByID(55390188, arg).then(($result: any) => {
-        return $$createType43($result);
+        return $$createType45($result);
     });
 }
 
 export function CreateSessionGroup(arg: $models.CreateSessionGroupParams): $CancellablePromise<$models.SessionGroup> {
     return $Call.ByID(2230877407, arg).then(($result: any) => {
-        return $$createType44($result);
+        return $$createType46($result);
     });
 }
 
 export function CreateThread(arg: $models.CreateThreadParams): $CancellablePromise<$models.Thread> {
     return $Call.ByID(1146250928, arg).then(($result: any) => {
-        return $$createType45($result);
+        return $$createType47($result);
     });
 }
 
 export function CreateTopic(arg: $models.CreateTopicParams): $CancellablePromise<$models.Topic> {
     return $Call.ByID(1038600815, arg).then(($result: any) => {
-        return $$createType46($result);
+        return $$createType48($result);
     });
 }
 
 export function CreateUnstructuredChunk(arg: $models.CreateUnstructuredChunkParams): $CancellablePromise<$models.UnstructuredChunk> {
     return $Call.ByID(2048281673, arg).then(($result: any) => {
-        return $$createType47($result);
+        return $$createType49($result);
     });
 }
 
 export function CreateUser(arg: $models.CreateUserParams): $CancellablePromise<$models.User> {
     return $Call.ByID(631801219, arg).then(($result: any) => {
-        return $$createType48($result);
+        return $$createType50($result);
     });
 }
 
@@ -652,6 +674,14 @@ export function DeleteRagEvalDatasetRecord(arg: $models.DeleteRagEvalDatasetReco
     return $Call.ByID(2411277074, arg);
 }
 
+export function DeleteRagEvalEvaluation(arg: $models.DeleteRagEvalEvaluationParams): $CancellablePromise<void> {
+    return $Call.ByID(2035346079, arg);
+}
+
+export function DeleteRagEvalEvaluationRecord(arg: $models.DeleteRagEvalEvaluationRecordParams): $CancellablePromise<void> {
+    return $Call.ByID(1032882070, arg);
+}
+
 export function DeleteRole(id: number): $CancellablePromise<void> {
     return $Call.ByID(2402250155, id);
 }
@@ -716,19 +746,19 @@ export function GetAIProvider(arg: $models.GetAIProviderParams): $CancellablePro
 
 export function GetAIProviderDetail(arg: $models.GetAIProviderDetailParams): $CancellablePromise<$models.GetAIProviderDetailRow> {
     return $Call.ByID(4030714346, arg).then(($result: any) => {
-        return $$createType49($result);
+        return $$createType51($result);
     });
 }
 
 export function GetAIProviderListSimple(userID: string): $CancellablePromise<$models.GetAIProviderListSimpleRow[]> {
     return $Call.ByID(1977258321, userID).then(($result: any) => {
-        return $$createType51($result);
+        return $$createType53($result);
     });
 }
 
 export function GetAIProviderRuntimeConfigs(userID: string): $CancellablePromise<$models.GetAIProviderRuntimeConfigsRow[]> {
     return $Call.ByID(1989001012, userID).then(($result: any) => {
-        return $$createType53($result);
+        return $$createType55($result);
     });
 }
 
@@ -764,31 +794,31 @@ export function GetAgentBySlug(arg: $models.GetAgentBySlugParams): $CancellableP
 
 export function GetAgentFileIds(arg: $models.GetAgentFileIdsParams): $CancellablePromise<string[]> {
     return $Call.ByID(3905208427, arg).then(($result: any) => {
-        return $$createType54($result);
+        return $$createType56($result);
     });
 }
 
 export function GetAgentFiles(arg: $models.GetAgentFilesParams): $CancellablePromise<$models.File[]> {
     return $Call.ByID(1251526252, arg).then(($result: any) => {
-        return $$createType55($result);
+        return $$createType57($result);
     });
 }
 
 export function GetAgentFilesWithEnabled(arg: $models.GetAgentFilesWithEnabledParams): $CancellablePromise<$models.GetAgentFilesWithEnabledRow[]> {
     return $Call.ByID(3183593829, arg).then(($result: any) => {
-        return $$createType57($result);
+        return $$createType59($result);
     });
 }
 
 export function GetAgentKnowledgeBases(arg: $models.GetAgentKnowledgeBasesParams): $CancellablePromise<$models.GetAgentKnowledgeBasesRow[]> {
     return $Call.ByID(753879539, arg).then(($result: any) => {
-        return $$createType59($result);
+        return $$createType61($result);
     });
 }
 
 export function GetAgentSessions(arg: $models.GetAgentSessionsParams): $CancellablePromise<$models.Session[]> {
     return $Call.ByID(2299265952, arg).then(($result: any) => {
-        return $$createType60($result);
+        return $$createType62($result);
     });
 }
 
@@ -800,7 +830,7 @@ export function GetAsyncTask(arg: $models.GetAsyncTaskParams): $CancellablePromi
 
 export function GetAsyncTasksByIds(arg: $models.GetAsyncTasksByIdsParams): $CancellablePromise<$models.AsyncTask[]> {
     return $Call.ByID(2165456579, arg).then(($result: any) => {
-        return $$createType61($result);
+        return $$createType63($result);
     });
 }
 
@@ -812,19 +842,19 @@ export function GetChatGroup(arg: $models.GetChatGroupParams): $CancellablePromi
 
 export function GetChatGroupAgentLinks(arg: $models.GetChatGroupAgentLinksParams): $CancellablePromise<$models.ChatGroupsAgent[]> {
     return $Call.ByID(1469048475, arg).then(($result: any) => {
-        return $$createType63($result);
+        return $$createType65($result);
     });
 }
 
 export function GetChatGroupAgents(arg: $models.GetChatGroupAgentsParams): $CancellablePromise<$models.Agent[]> {
     return $Call.ByID(383099187, arg).then(($result: any) => {
-        return $$createType64($result);
+        return $$createType66($result);
     });
 }
 
 export function GetChatGroupWithAgents(arg: $models.GetChatGroupWithAgentsParams): $CancellablePromise<$models.GetChatGroupWithAgentsRow[]> {
     return $Call.ByID(3985257703, arg).then(($result: any) => {
-        return $$createType66($result);
+        return $$createType68($result);
     });
 }
 
@@ -839,7 +869,7 @@ export function GetChunk(arg: $models.GetChunkParams): $CancellablePromise<$mode
 
 export function GetChunksTextByFileId(fileID: sql$0.NullString): $CancellablePromise<$models.GetChunksTextByFileIdRow[]> {
     return $Call.ByID(1722054587, fileID).then(($result: any) => {
-        return $$createType68($result);
+        return $$createType70($result);
     });
 }
 
@@ -848,13 +878,13 @@ export function GetChunksTextByFileId(fileID: sql$0.NullString): $CancellablePro
  */
 export function GetChunksWithEmbeddings(userID: sql$0.NullString): $CancellablePromise<$models.GetChunksWithEmbeddingsRow[]> {
     return $Call.ByID(4088855856, userID).then(($result: any) => {
-        return $$createType70($result);
+        return $$createType72($result);
     });
 }
 
 export function GetChunksWithEmbeddingsByFileIds(arg: $models.GetChunksWithEmbeddingsByFileIdsParams): $CancellablePromise<$models.GetChunksWithEmbeddingsByFileIdsRow[]> {
     return $Call.ByID(828075807, arg).then(($result: any) => {
-        return $$createType72($result);
+        return $$createType74($result);
     });
 }
 
@@ -866,13 +896,13 @@ export function GetDocument(arg: $models.GetDocumentParams): $CancellablePromise
 
 export function GetDocumentByFileId(arg: $models.GetDocumentByFileIdParams): $CancellablePromise<$models.GetDocumentByFileIdRow> {
     return $Call.ByID(1673289475, arg).then(($result: any) => {
-        return $$createType73($result);
+        return $$createType75($result);
     });
 }
 
 export function GetDocumentChunks(arg: $models.GetDocumentChunksParams): $CancellablePromise<$models.Chunk[]> {
     return $Call.ByID(3972648039, arg).then(($result: any) => {
-        return $$createType74($result);
+        return $$createType76($result);
     });
 }
 
@@ -899,7 +929,7 @@ export function GetEmbeddingsItem(arg: $models.GetEmbeddingsItemParams): $Cancel
 
 export function GetEnabledChatGroupAgentLinks(arg: $models.GetEnabledChatGroupAgentLinksParams): $CancellablePromise<$models.ChatGroupsAgent[]> {
     return $Call.ByID(438135996, arg).then(($result: any) => {
-        return $$createType63($result);
+        return $$createType65($result);
     });
 }
 
@@ -911,37 +941,37 @@ export function GetFile(arg: $models.GetFileParams): $CancellablePromise<$models
 
 export function GetFileChunkIds(fileID: sql$0.NullString): $CancellablePromise<sql$0.NullString[]> {
     return $Call.ByID(232351255, fileID).then(($result: any) => {
-        return $$createType76($result);
+        return $$createType78($result);
     });
 }
 
 export function GetFileChunks(arg: $models.GetFileChunksParams): $CancellablePromise<$models.Chunk[]> {
     return $Call.ByID(182601088, arg).then(($result: any) => {
-        return $$createType74($result);
+        return $$createType76($result);
     });
 }
 
 export function GetFileChunksWithMetadata(arg: $models.GetFileChunksWithMetadataParams): $CancellablePromise<$models.GetFileChunksWithMetadataRow[]> {
     return $Call.ByID(2766662157, arg).then(($result: any) => {
-        return $$createType78($result);
+        return $$createType80($result);
     });
 }
 
 export function GetFilesByHash(arg: $models.GetFilesByHashParams): $CancellablePromise<$models.File[]> {
     return $Call.ByID(3275397438, arg).then(($result: any) => {
-        return $$createType55($result);
+        return $$createType57($result);
     });
 }
 
 export function GetFilesByIds(userID: string): $CancellablePromise<$models.File[]> {
     return $Call.ByID(1776613468, userID).then(($result: any) => {
-        return $$createType55($result);
+        return $$createType57($result);
     });
 }
 
 export function GetFilesByNames(userID: string): $CancellablePromise<$models.File[]> {
     return $Call.ByID(1426238278, userID).then(($result: any) => {
-        return $$createType55($result);
+        return $$createType57($result);
     });
 }
 
@@ -968,7 +998,7 @@ export function GetGenerationBatch(arg: $models.GetGenerationBatchParams): $Canc
  */
 export function GetGenerationBatchAssets(arg: $models.GetGenerationBatchAssetsParams): $CancellablePromise<sql$0.NullString[]> {
     return $Call.ByID(2782548655, arg).then(($result: any) => {
-        return $$createType76($result);
+        return $$createType78($result);
     });
 }
 
@@ -977,7 +1007,7 @@ export function GetGenerationBatchAssets(arg: $models.GetGenerationBatchAssetsPa
  */
 export function GetGenerationBatchWithGenerations(arg: $models.GetGenerationBatchWithGenerationsParams): $CancellablePromise<$models.GetGenerationBatchWithGenerationsRow> {
     return $Call.ByID(2908024441, arg).then(($result: any) => {
-        return $$createType79($result);
+        return $$createType81($result);
     });
 }
 
@@ -992,19 +1022,19 @@ export function GetGenerationTopic(arg: $models.GetGenerationTopicParams): $Canc
 
 export function GetGenerationTopicAssets(arg: $models.GetGenerationTopicAssetsParams): $CancellablePromise<$models.GetGenerationTopicAssetsRow[]> {
     return $Call.ByID(2841789732, arg).then(($result: any) => {
-        return $$createType81($result);
+        return $$createType83($result);
     });
 }
 
 export function GetGenerationTopicWithBatches(arg: $models.GetGenerationTopicWithBatchesParams): $CancellablePromise<$models.GetGenerationTopicWithBatchesRow> {
     return $Call.ByID(1050702331, arg).then(($result: any) => {
-        return $$createType82($result);
+        return $$createType84($result);
     });
 }
 
 export function GetGenerationWithAsyncTask(arg: $models.GetGenerationWithAsyncTaskParams): $CancellablePromise<$models.GetGenerationWithAsyncTaskRow> {
     return $Call.ByID(535245083, arg).then(($result: any) => {
-        return $$createType83($result);
+        return $$createType85($result);
     });
 }
 
@@ -1028,7 +1058,7 @@ export function GetKnowledgeBase(arg: $models.GetKnowledgeBaseParams): $Cancella
 
 export function GetKnowledgeBaseFiles(arg: $models.GetKnowledgeBaseFilesParams): $CancellablePromise<$models.File[]> {
     return $Call.ByID(1999239116, arg).then(($result: any) => {
-        return $$createType55($result);
+        return $$createType57($result);
     });
 }
 
@@ -1048,13 +1078,13 @@ export function GetMessageByToolCallId(arg: $models.GetMessageByToolCallIdParams
 
 export function GetMessageChunks(arg: $models.GetMessageChunksParams): $CancellablePromise<$models.Chunk[]> {
     return $Call.ByID(2009307853, arg).then(($result: any) => {
-        return $$createType74($result);
+        return $$createType76($result);
     });
 }
 
 export function GetMessageFiles(arg: $models.GetMessageFilesParams): $CancellablePromise<$models.File[]> {
     return $Call.ByID(1689318718, arg).then(($result: any) => {
-        return $$createType55($result);
+        return $$createType57($result);
     });
 }
 
@@ -1069,7 +1099,7 @@ export function GetMessageGroup(arg: $models.GetMessageGroupParams): $Cancellabl
 
 export function GetMessageHeatmaps(arg: $models.GetMessageHeatmapsParams): $CancellablePromise<$models.GetMessageHeatmapsRow[]> {
     return $Call.ByID(2348247486, arg).then(($result: any) => {
-        return $$createType85($result);
+        return $$createType87($result);
     });
 }
 
@@ -1093,7 +1123,7 @@ export function GetMessageQuery(arg: $models.GetMessageQueryParams): $Cancellabl
 
 export function GetMessageQueryChunks(arg: $models.GetMessageQueryChunksParams): $CancellablePromise<$models.GetMessageQueryChunksRow[]> {
     return $Call.ByID(2213844507, arg).then(($result: any) => {
-        return $$createType87($result);
+        return $$createType89($result);
     });
 }
 
@@ -1117,19 +1147,19 @@ export function GetMessageTranslate(arg: $models.GetMessageTranslateParams): $Ca
 
 export function GetMessagesByTopicId(arg: $models.GetMessagesByTopicIdParams): $CancellablePromise<$models.Message[]> {
     return $Call.ByID(424016493, arg).then(($result: any) => {
-        return $$createType88($result);
+        return $$createType90($result);
     });
 }
 
 export function GetMessagesWithRelations(arg: $models.GetMessagesWithRelationsParams): $CancellablePromise<$models.GetMessagesWithRelationsRow[]> {
     return $Call.ByID(1129610105, arg).then(($result: any) => {
-        return $$createType90($result);
+        return $$createType92($result);
     });
 }
 
 export function GetMessagesWithRelationsBySession(arg: $models.GetMessagesWithRelationsBySessionParams): $CancellablePromise<$models.GetMessagesWithRelationsBySessionRow[]> {
     return $Call.ByID(1860293172, arg).then(($result: any) => {
-        return $$createType92($result);
+        return $$createType94($result);
     });
 }
 
@@ -1273,13 +1303,13 @@ export function GetOIDCSession(id: string): $CancellablePromise<$models.OidcSess
 
 export function GetOrphanedAgents(userID: string): $CancellablePromise<$models.Agent[]> {
     return $Call.ByID(2557383269, userID).then(($result: any) => {
-        return $$createType64($result);
+        return $$createType66($result);
     });
 }
 
 export function GetOrphanedChunks(): $CancellablePromise<string[]> {
     return $Call.ByID(3485625957).then(($result: any) => {
-        return $$createType54($result);
+        return $$createType56($result);
     });
 }
 
@@ -1322,78 +1352,90 @@ export function GetRagEvalDatasetRecord(arg: $models.GetRagEvalDatasetRecordPara
     });
 }
 
+export function GetRagEvalEvaluation(arg: $models.GetRagEvalEvaluationParams): $CancellablePromise<$models.RagEvalEvaluation> {
+    return $Call.ByID(299406858, arg).then(($result: any) => {
+        return $$createType42($result);
+    });
+}
+
+export function GetRagEvalEvaluationRecord(arg: $models.GetRagEvalEvaluationRecordParams): $CancellablePromise<$models.RagEvalEvaluationRecord> {
+    return $Call.ByID(1367672479, arg).then(($result: any) => {
+        return $$createType43($result);
+    });
+}
+
 /**
  * Roles
  */
 export function GetRole(id: number): $CancellablePromise<$models.RbacRole> {
     return $Call.ByID(714604512, id).then(($result: any) => {
-        return $$createType42($result);
+        return $$createType44($result);
     });
 }
 
 export function GetRoleByName(name: string): $CancellablePromise<$models.RbacRole> {
     return $Call.ByID(640981710, name).then(($result: any) => {
-        return $$createType42($result);
+        return $$createType44($result);
     });
 }
 
 export function GetRolePermissions(roleID: number): $CancellablePromise<$models.RbacPermission[]> {
     return $Call.ByID(2209855868, roleID).then(($result: any) => {
-        return $$createType93($result);
+        return $$createType95($result);
     });
 }
 
 export function GetSession(arg: $models.GetSessionParams): $CancellablePromise<$models.Session> {
     return $Call.ByID(1581193116, arg).then(($result: any) => {
-        return $$createType43($result);
+        return $$createType45($result);
     });
 }
 
 export function GetSessionAgents(arg: $models.GetSessionAgentsParams): $CancellablePromise<$models.Agent[]> {
     return $Call.ByID(3115199378, arg).then(($result: any) => {
-        return $$createType64($result);
+        return $$createType66($result);
     });
 }
 
 export function GetSessionByIdOrSlug(arg: $models.GetSessionByIdOrSlugParams): $CancellablePromise<$models.Session> {
     return $Call.ByID(3489718450, arg).then(($result: any) => {
-        return $$createType43($result);
+        return $$createType45($result);
     });
 }
 
 export function GetSessionBySlug(arg: $models.GetSessionBySlugParams): $CancellablePromise<$models.Session> {
     return $Call.ByID(1145697978, arg).then(($result: any) => {
-        return $$createType43($result);
+        return $$createType45($result);
     });
 }
 
 export function GetSessionFiles(arg: $models.GetSessionFilesParams): $CancellablePromise<$models.File[]> {
     return $Call.ByID(1240387099, arg).then(($result: any) => {
-        return $$createType55($result);
+        return $$createType57($result);
     });
 }
 
 export function GetSessionGroup(arg: $models.GetSessionGroupParams): $CancellablePromise<$models.SessionGroup> {
     return $Call.ByID(220783887, arg).then(($result: any) => {
-        return $$createType44($result);
+        return $$createType46($result);
     });
 }
 
 export function GetSessionGroupWithSessions(arg: $models.GetSessionGroupWithSessionsParams): $CancellablePromise<$models.GetSessionGroupWithSessionsRow> {
     return $Call.ByID(310535798, arg).then(($result: any) => {
-        return $$createType94($result);
+        return $$createType96($result);
     });
 }
 
 export function GetSessionRank(arg: $models.GetSessionRankParams): $CancellablePromise<$models.GetSessionRankRow[]> {
     return $Call.ByID(3489078162, arg).then(($result: any) => {
-        return $$createType96($result);
+        return $$createType98($result);
     });
 }
 
 export function GetSessionWithGroup(arg: $models.GetSessionWithGroupParams): $CancellablePromise<$models.GetSessionWithGroupRow> {
     return $Call.ByID(3806825063, arg).then(($result: any) => {
-        return $$createType97($result);
+        return $$createType99($result);
     });
 }
 
@@ -1402,25 +1444,25 @@ export function GetSessionWithGroup(arg: $models.GetSessionWithGroupParams): $Ca
  */
 export function GetThread(arg: $models.GetThreadParams): $CancellablePromise<$models.Thread> {
     return $Call.ByID(2286162976, arg).then(($result: any) => {
-        return $$createType45($result);
+        return $$createType47($result);
     });
 }
 
 export function GetTimeoutTasks(arg: $models.GetTimeoutTasksParams): $CancellablePromise<string[]> {
     return $Call.ByID(1237056995, arg).then(($result: any) => {
-        return $$createType54($result);
+        return $$createType56($result);
     });
 }
 
 export function GetTopic(arg: $models.GetTopicParams): $CancellablePromise<$models.Topic> {
     return $Call.ByID(1969787327, arg).then(($result: any) => {
-        return $$createType46($result);
+        return $$createType48($result);
     });
 }
 
 export function GetTopicDocuments(arg: $models.GetTopicDocumentsParams): $CancellablePromise<$models.Document[]> {
     return $Call.ByID(1636132635, arg).then(($result: any) => {
-        return $$createType98($result);
+        return $$createType100($result);
     });
 }
 
@@ -1429,31 +1471,31 @@ export function GetTopicDocuments(arg: $models.GetTopicDocumentsParams): $Cancel
  */
 export function GetUnstructuredChunk(arg: $models.GetUnstructuredChunkParams): $CancellablePromise<$models.UnstructuredChunk> {
     return $Call.ByID(3313540985, arg).then(($result: any) => {
-        return $$createType47($result);
+        return $$createType49($result);
     });
 }
 
 export function GetUser(id: string): $CancellablePromise<$models.User> {
     return $Call.ByID(3119591891, id).then(($result: any) => {
-        return $$createType48($result);
+        return $$createType50($result);
     });
 }
 
 export function GetUserByEmail(email: sql$0.NullString): $CancellablePromise<$models.User> {
     return $Call.ByID(4114465754, email).then(($result: any) => {
-        return $$createType48($result);
+        return $$createType50($result);
     });
 }
 
 export function GetUserByUsername(username: sql$0.NullString): $CancellablePromise<$models.User> {
     return $Call.ByID(3917925882, username).then(($result: any) => {
-        return $$createType48($result);
+        return $$createType50($result);
     });
 }
 
 export function GetUserPermissions(arg: $models.GetUserPermissionsParams): $CancellablePromise<$models.RbacPermission[]> {
     return $Call.ByID(1972475877, arg).then(($result: any) => {
-        return $$createType93($result);
+        return $$createType95($result);
     });
 }
 
@@ -1465,7 +1507,7 @@ export function GetUserPlugin(arg: $models.GetUserPluginParams): $CancellablePro
 
 export function GetUserRoles(arg: $models.GetUserRolesParams): $CancellablePromise<$models.RbacRole[]> {
     return $Call.ByID(522999148, arg).then(($result: any) => {
-        return $$createType99($result);
+        return $$createType101($result);
     });
 }
 
@@ -1474,13 +1516,13 @@ export function GetUserRoles(arg: $models.GetUserRolesParams): $CancellablePromi
  */
 export function GetUserSettings(id: string): $CancellablePromise<$models.UserSetting> {
     return $Call.ByID(2708997758, id).then(($result: any) => {
-        return $$createType100($result);
+        return $$createType102($result);
     });
 }
 
 export function GetUserWithSettings(id: string): $CancellablePromise<$models.GetUserWithSettingsRow> {
     return $Call.ByID(60454790, id).then(($result: any) => {
-        return $$createType101($result);
+        return $$createType103($result);
     });
 }
 
@@ -1590,61 +1632,61 @@ export function LinkUserToRole(arg: $models.LinkUserToRoleParams): $CancellableP
 
 export function ListAIModels(userID: string): $CancellablePromise<$models.AiModel[]> {
     return $Call.ByID(3573961468, userID).then(($result: any) => {
-        return $$createType102($result);
+        return $$createType104($result);
     });
 }
 
 export function ListAIModelsByProvider(arg: $models.ListAIModelsByProviderParams): $CancellablePromise<$models.AiModel[]> {
     return $Call.ByID(3200517760, arg).then(($result: any) => {
-        return $$createType102($result);
+        return $$createType104($result);
     });
 }
 
 export function ListAIProviders(userID: string): $CancellablePromise<$models.AiProvider[]> {
     return $Call.ByID(3196552124, userID).then(($result: any) => {
-        return $$createType103($result);
+        return $$createType105($result);
     });
 }
 
 export function ListAPIKeys(userID: string): $CancellablePromise<$models.ApiKey[]> {
     return $Call.ByID(2968738048, userID).then(($result: any) => {
-        return $$createType104($result);
+        return $$createType106($result);
     });
 }
 
 export function ListAgents(arg: $models.ListAgentsParams): $CancellablePromise<$models.Agent[]> {
     return $Call.ByID(398806834, arg).then(($result: any) => {
-        return $$createType64($result);
+        return $$createType66($result);
     });
 }
 
 export function ListAllThreads(userID: string): $CancellablePromise<$models.Thread[]> {
     return $Call.ByID(1216924956, userID).then(($result: any) => {
-        return $$createType105($result);
+        return $$createType107($result);
     });
 }
 
 export function ListAllTopics(userID: string): $CancellablePromise<$models.Topic[]> {
     return $Call.ByID(966324587, userID).then(($result: any) => {
-        return $$createType106($result);
+        return $$createType108($result);
     });
 }
 
 export function ListAsyncTasks(arg: $models.ListAsyncTasksParams): $CancellablePromise<$models.AsyncTask[]> {
     return $Call.ByID(3576877650, arg).then(($result: any) => {
-        return $$createType61($result);
+        return $$createType63($result);
     });
 }
 
 export function ListAsyncTasksByStatus(arg: $models.ListAsyncTasksByStatusParams): $CancellablePromise<$models.AsyncTask[]> {
     return $Call.ByID(4258287037, arg).then(($result: any) => {
-        return $$createType61($result);
+        return $$createType63($result);
     });
 }
 
 export function ListChatGroups(userID: string): $CancellablePromise<$models.ChatGroup[]> {
     return $Call.ByID(3340711562, userID).then(($result: any) => {
-        return $$createType107($result);
+        return $$createType109($result);
     });
 }
 
@@ -1653,211 +1695,223 @@ export function ListChatGroups(userID: string): $CancellablePromise<$models.Chat
  */
 export function ListChatGroupsWithAgents(userID: string): $CancellablePromise<$models.ListChatGroupsWithAgentsRow[]> {
     return $Call.ByID(1128588912, userID).then(($result: any) => {
-        return $$createType109($result);
+        return $$createType111($result);
     });
 }
 
 export function ListChunks(arg: $models.ListChunksParams): $CancellablePromise<$models.Chunk[]> {
     return $Call.ByID(3740627222, arg).then(($result: any) => {
-        return $$createType74($result);
+        return $$createType76($result);
     });
 }
 
 export function ListDocuments(arg: $models.ListDocumentsParams): $CancellablePromise<$models.Document[]> {
     return $Call.ByID(1836512826, arg).then(($result: any) => {
-        return $$createType98($result);
+        return $$createType100($result);
     });
 }
 
 export function ListEmbeddingsItems(userID: sql$0.NullString): $CancellablePromise<$models.Embedding[]> {
     return $Call.ByID(3899156970, userID).then(($result: any) => {
-        return $$createType110($result);
+        return $$createType112($result);
     });
 }
 
 export function ListEnabledAIModels(userID: string): $CancellablePromise<$models.AiModel[]> {
     return $Call.ByID(3103894469, userID).then(($result: any) => {
-        return $$createType102($result);
+        return $$createType104($result);
     });
 }
 
 export function ListEnabledAIProviders(userID: string): $CancellablePromise<$models.AiProvider[]> {
     return $Call.ByID(1877383087, userID).then(($result: any) => {
-        return $$createType103($result);
+        return $$createType105($result);
     });
 }
 
 export function ListFiles(arg: $models.ListFilesParams): $CancellablePromise<$models.File[]> {
     return $Call.ByID(237921851, arg).then(($result: any) => {
-        return $$createType55($result);
+        return $$createType57($result);
     });
 }
 
 export function ListGenerationBatches(arg: $models.ListGenerationBatchesParams): $CancellablePromise<$models.GenerationBatch[]> {
     return $Call.ByID(144669310, arg).then(($result: any) => {
-        return $$createType111($result);
+        return $$createType113($result);
     });
 }
 
 export function ListGenerationBatchesWithGenerations(arg: $models.ListGenerationBatchesWithGenerationsParams): $CancellablePromise<$models.ListGenerationBatchesWithGenerationsRow[]> {
     return $Call.ByID(1921474405, arg).then(($result: any) => {
-        return $$createType113($result);
+        return $$createType115($result);
     });
 }
 
 export function ListGenerationTopics(userID: string): $CancellablePromise<$models.GenerationTopic[]> {
     return $Call.ByID(746637274, userID).then(($result: any) => {
-        return $$createType114($result);
+        return $$createType116($result);
     });
 }
 
 export function ListGenerationTopicsWithCounts(userID: string): $CancellablePromise<$models.ListGenerationTopicsWithCountsRow[]> {
     return $Call.ByID(391720786, userID).then(($result: any) => {
-        return $$createType116($result);
+        return $$createType118($result);
     });
 }
 
 export function ListGenerations(arg: $models.ListGenerationsParams): $CancellablePromise<$models.Generation[]> {
     return $Call.ByID(581157099, arg).then(($result: any) => {
-        return $$createType117($result);
+        return $$createType119($result);
     });
 }
 
 export function ListKnowledgeBases(userID: string): $CancellablePromise<$models.KnowledgeBasis[]> {
     return $Call.ByID(3328157690, userID).then(($result: any) => {
-        return $$createType118($result);
+        return $$createType120($result);
     });
 }
 
 export function ListMessageGroupsByTopic(arg: $models.ListMessageGroupsByTopicParams): $CancellablePromise<$models.MessageGroup[]> {
     return $Call.ByID(2170277865, arg).then(($result: any) => {
-        return $$createType119($result);
+        return $$createType121($result);
     });
 }
 
 export function ListMessageQueriesByMessage(arg: $models.ListMessageQueriesByMessageParams): $CancellablePromise<$models.MessageQuery[]> {
     return $Call.ByID(1162590323, arg).then(($result: any) => {
-        return $$createType120($result);
+        return $$createType122($result);
     });
 }
 
 export function ListMessages(arg: $models.ListMessagesParams): $CancellablePromise<$models.Message[]> {
     return $Call.ByID(333889944, arg).then(($result: any) => {
-        return $$createType88($result);
+        return $$createType90($result);
     });
 }
 
 export function ListMessagesByGroup(arg: $models.ListMessagesByGroupParams): $CancellablePromise<$models.Message[]> {
     return $Call.ByID(111942492, arg).then(($result: any) => {
-        return $$createType88($result);
+        return $$createType90($result);
     });
 }
 
 export function ListMessagesBySession(arg: $models.ListMessagesBySessionParams): $CancellablePromise<$models.Message[]> {
     return $Call.ByID(802575367, arg).then(($result: any) => {
-        return $$createType88($result);
+        return $$createType90($result);
     });
 }
 
 export function ListMessagesByThread(arg: $models.ListMessagesByThreadParams): $CancellablePromise<$models.Message[]> {
     return $Call.ByID(773451393, arg).then(($result: any) => {
-        return $$createType88($result);
+        return $$createType90($result);
     });
 }
 
 export function ListMessagesByTopic(arg: $models.ListMessagesByTopicParams): $CancellablePromise<$models.Message[]> {
     return $Call.ByID(1279046900, arg).then(($result: any) => {
-        return $$createType88($result);
+        return $$createType90($result);
     });
 }
 
 export function ListNextAuthAccountsByUser(userID: string): $CancellablePromise<$models.NextauthAccount[]> {
     return $Call.ByID(3529822713, userID).then(($result: any) => {
-        return $$createType121($result);
+        return $$createType123($result);
     });
 }
 
 export function ListNextAuthAuthenticatorsByUser(userID: string): $CancellablePromise<$models.NextauthAuthenticator[]> {
     return $Call.ByID(3188058437, userID).then(($result: any) => {
-        return $$createType122($result);
+        return $$createType124($result);
     });
 }
 
 export function ListOIDCClients(): $CancellablePromise<$models.OidcClient[]> {
     return $Call.ByID(1033479055).then(($result: any) => {
-        return $$createType123($result);
+        return $$createType125($result);
     });
 }
 
 export function ListPermissions(): $CancellablePromise<$models.RbacPermission[]> {
     return $Call.ByID(2237726256).then(($result: any) => {
-        return $$createType93($result);
+        return $$createType95($result);
     });
 }
 
 export function ListPermissionsByCategory(category: string): $CancellablePromise<$models.RbacPermission[]> {
     return $Call.ByID(170983401, category).then(($result: any) => {
-        return $$createType93($result);
+        return $$createType95($result);
     });
 }
 
 export function ListPlugins(userID: string): $CancellablePromise<$models.UserInstalledPlugin[]> {
     return $Call.ByID(3854129492, userID).then(($result: any) => {
-        return $$createType124($result);
+        return $$createType126($result);
     });
 }
 
 export function ListRagEvalDatasetRecords(arg: $models.ListRagEvalDatasetRecordsParams): $CancellablePromise<$models.RagEvalDatasetRecord[]> {
     return $Call.ByID(1729615278, arg).then(($result: any) => {
-        return $$createType125($result);
+        return $$createType127($result);
     });
 }
 
 export function ListRagEvalDatasets(userID: string): $CancellablePromise<$models.RagEvalDataset[]> {
     return $Call.ByID(1944186253, userID).then(($result: any) => {
-        return $$createType126($result);
+        return $$createType128($result);
+    });
+}
+
+export function ListRagEvalEvaluationRecordsByEvaluation(arg: $models.ListRagEvalEvaluationRecordsByEvaluationParams): $CancellablePromise<$models.RagEvalEvaluationRecord[]> {
+    return $Call.ByID(2441686791, arg).then(($result: any) => {
+        return $$createType129($result);
+    });
+}
+
+export function ListRagEvalEvaluationsByDataset(arg: $models.ListRagEvalEvaluationsByDatasetParams): $CancellablePromise<$models.RagEvalEvaluation[]> {
+    return $Call.ByID(1042627498, arg).then(($result: any) => {
+        return $$createType130($result);
     });
 }
 
 export function ListRoles(): $CancellablePromise<$models.RbacRole[]> {
     return $Call.ByID(2722286869).then(($result: any) => {
-        return $$createType99($result);
+        return $$createType101($result);
     });
 }
 
 export function ListSessionGroups(userID: string): $CancellablePromise<$models.SessionGroup[]> {
     return $Call.ByID(2002015416, userID).then(($result: any) => {
-        return $$createType127($result);
+        return $$createType131($result);
     });
 }
 
 export function ListSessions(arg: $models.ListSessionsParams): $CancellablePromise<$models.Session[]> {
     return $Call.ByID(440268017, arg).then(($result: any) => {
-        return $$createType60($result);
+        return $$createType62($result);
     });
 }
 
 export function ListSessionsByGroup(arg: $models.ListSessionsByGroupParams): $CancellablePromise<$models.Session[]> {
     return $Call.ByID(1772177619, arg).then(($result: any) => {
-        return $$createType60($result);
+        return $$createType62($result);
     });
 }
 
 export function ListThreadsByTopic(arg: $models.ListThreadsByTopicParams): $CancellablePromise<$models.Thread[]> {
     return $Call.ByID(3044595147, arg).then(($result: any) => {
-        return $$createType105($result);
+        return $$createType107($result);
     });
 }
 
 export function ListTopics(arg: $models.ListTopicsParams): $CancellablePromise<$models.Topic[]> {
     return $Call.ByID(2490886144, arg).then(($result: any) => {
-        return $$createType106($result);
+        return $$createType108($result);
     });
 }
 
 export function ListUnstructuredChunksByFile(arg: $models.ListUnstructuredChunksByFileParams): $CancellablePromise<$models.UnstructuredChunk[]> {
     return $Call.ByID(3870562653, arg).then(($result: any) => {
-        return $$createType128($result);
+        return $$createType132($result);
     });
 }
 
@@ -1866,7 +1920,7 @@ export function ListUnstructuredChunksByFile(arg: $models.ListUnstructuredChunks
  */
 export function ListUserPlugins(userID: string): $CancellablePromise<$models.UserInstalledPlugin[]> {
     return $Call.ByID(3922834581, userID).then(($result: any) => {
-        return $$createType124($result);
+        return $$createType126($result);
     });
 }
 
@@ -1883,55 +1937,55 @@ export function PinSession(arg: $models.PinSessionParams): $CancellablePromise<v
  */
 export function QueryFiles(userID: string): $CancellablePromise<$models.QueryFilesRow[]> {
     return $Call.ByID(3808545839, userID).then(($result: any) => {
-        return $$createType130($result);
+        return $$createType134($result);
     });
 }
 
 export function QueryFilesByKnowledgeBase(arg: $models.QueryFilesByKnowledgeBaseParams): $CancellablePromise<$models.QueryFilesByKnowledgeBaseRow[]> {
     return $Call.ByID(3449173139, arg).then(($result: any) => {
-        return $$createType132($result);
+        return $$createType136($result);
     });
 }
 
 export function RankModels(arg: $models.RankModelsParams): $CancellablePromise<$models.RankModelsRow[]> {
     return $Call.ByID(2571843772, arg).then(($result: any) => {
-        return $$createType134($result);
+        return $$createType138($result);
     });
 }
 
 export function RankTopics(arg: $models.RankTopicsParams): $CancellablePromise<$models.RankTopicsRow[]> {
     return $Call.ByID(70736394, arg).then(($result: any) => {
-        return $$createType136($result);
+        return $$createType140($result);
     });
 }
 
 export function SearchAgents(arg: $models.SearchAgentsParams): $CancellablePromise<$models.Agent[]> {
     return $Call.ByID(1082037742, arg).then(($result: any) => {
-        return $$createType64($result);
+        return $$createType66($result);
     });
 }
 
 export function SearchMessagesByKeyword(arg: $models.SearchMessagesByKeywordParams): $CancellablePromise<$models.Message[]> {
     return $Call.ByID(3547796440, arg).then(($result: any) => {
-        return $$createType88($result);
+        return $$createType90($result);
     });
 }
 
 export function SearchSessions(arg: $models.SearchSessionsParams): $CancellablePromise<$models.Session[]> {
     return $Call.ByID(613389605, arg).then(($result: any) => {
-        return $$createType60($result);
+        return $$createType62($result);
     });
 }
 
 export function SearchTopicsByMessageContent(arg: $models.SearchTopicsByMessageContentParams): $CancellablePromise<$models.Topic[]> {
     return $Call.ByID(2004515317, arg).then(($result: any) => {
-        return $$createType106($result);
+        return $$createType108($result);
     });
 }
 
 export function SearchTopicsByTitle(arg: $models.SearchTopicsByTitleParams): $CancellablePromise<$models.Topic[]> {
     return $Call.ByID(1909450133, arg).then(($result: any) => {
-        return $$createType106($result);
+        return $$createType108($result);
     });
 }
 
@@ -2063,7 +2117,7 @@ export function UpdateChatGroup(arg: $models.UpdateChatGroupParams): $Cancellabl
 
 export function UpdateChatGroupAgentLink(arg: $models.UpdateChatGroupAgentLinkParams): $CancellablePromise<$models.ChatGroupsAgent> {
     return $Call.ByID(2518528091, arg).then(($result: any) => {
-        return $$createType62($result);
+        return $$createType64($result);
     });
 }
 
@@ -2167,21 +2221,37 @@ export function UpdatePlugin(arg: $models.UpdatePluginParams): $CancellablePromi
     return $Call.ByID(3678888650, arg);
 }
 
+export function UpdateRagEvalDataset(arg: $models.UpdateRagEvalDatasetParams): $CancellablePromise<void> {
+    return $Call.ByID(3862229961, arg);
+}
+
+export function UpdateRagEvalDatasetRecord(arg: $models.UpdateRagEvalDatasetRecordParams): $CancellablePromise<void> {
+    return $Call.ByID(2065638008, arg);
+}
+
+export function UpdateRagEvalEvaluation(arg: $models.UpdateRagEvalEvaluationParams): $CancellablePromise<void> {
+    return $Call.ByID(4107764121, arg);
+}
+
+export function UpdateRagEvalEvaluationRecord(arg: $models.UpdateRagEvalEvaluationRecordParams): $CancellablePromise<void> {
+    return $Call.ByID(4195449352, arg);
+}
+
 export function UpdateRole(arg: $models.UpdateRoleParams): $CancellablePromise<$models.RbacRole> {
     return $Call.ByID(3412174665, arg).then(($result: any) => {
-        return $$createType42($result);
+        return $$createType44($result);
     });
 }
 
 export function UpdateSession(arg: $models.UpdateSessionParams): $CancellablePromise<$models.Session> {
     return $Call.ByID(2290190407, arg).then(($result: any) => {
-        return $$createType43($result);
+        return $$createType45($result);
     });
 }
 
 export function UpdateSessionGroup(arg: $models.UpdateSessionGroupParams): $CancellablePromise<$models.SessionGroup> {
     return $Call.ByID(2060945646, arg).then(($result: any) => {
-        return $$createType44($result);
+        return $$createType46($result);
     });
 }
 
@@ -2191,7 +2261,7 @@ export function UpdateSessionGroupOrder(arg: $models.UpdateSessionGroupOrderPara
 
 export function UpdateThread(arg: $models.UpdateThreadParams): $CancellablePromise<$models.Thread> {
     return $Call.ByID(1856316353, arg).then(($result: any) => {
-        return $$createType45($result);
+        return $$createType47($result);
     });
 }
 
@@ -2201,13 +2271,13 @@ export function UpdateTimeoutTasks(arg: $models.UpdateTimeoutTasksParams): $Canc
 
 export function UpdateTopic(arg: $models.UpdateTopicParams): $CancellablePromise<$models.Topic> {
     return $Call.ByID(270986804, arg).then(($result: any) => {
-        return $$createType46($result);
+        return $$createType48($result);
     });
 }
 
 export function UpdateUser(arg: $models.UpdateUserParams): $CancellablePromise<$models.User> {
     return $Call.ByID(2603393634, arg).then(($result: any) => {
-        return $$createType48($result);
+        return $$createType50($result);
     });
 }
 
@@ -2223,7 +2293,7 @@ export function UpdateUserPlugin(arg: $models.UpdateUserPluginParams): $Cancella
 
 export function UpdateUserPreference(arg: $models.UpdateUserPreferenceParams): $CancellablePromise<$models.User> {
     return $Call.ByID(3654297635, arg).then(($result: any) => {
-        return $$createType48($result);
+        return $$createType50($result);
     });
 }
 
@@ -2277,13 +2347,13 @@ export function UpsertPlugin(arg: $models.UpsertPluginParams): $CancellablePromi
 
 export function UpsertUserSettings(arg: $models.UpsertUserSettingsParams): $CancellablePromise<$models.UserSetting> {
     return $Call.ByID(509794873, arg).then(($result: any) => {
-        return $$createType100($result);
+        return $$createType102($result);
     });
 }
 
 export function WithTx(tx: sql$0.Tx | null): $CancellablePromise<$models.Queries | null> {
     return $Call.ByID(821795152, tx).then(($result: any) => {
-        return $$createType138($result);
+        return $$createType142($result);
     });
 }
 
@@ -2330,100 +2400,104 @@ const $$createType38 = $models.RbacPermission.createFrom;
 const $$createType39 = $models.UserInstalledPlugin.createFrom;
 const $$createType40 = $models.RagEvalDataset.createFrom;
 const $$createType41 = $models.RagEvalDatasetRecord.createFrom;
-const $$createType42 = $models.RbacRole.createFrom;
-const $$createType43 = $models.Session.createFrom;
-const $$createType44 = $models.SessionGroup.createFrom;
-const $$createType45 = $models.Thread.createFrom;
-const $$createType46 = $models.Topic.createFrom;
-const $$createType47 = $models.UnstructuredChunk.createFrom;
-const $$createType48 = $models.User.createFrom;
-const $$createType49 = $models.GetAIProviderDetailRow.createFrom;
-const $$createType50 = $models.GetAIProviderListSimpleRow.createFrom;
-const $$createType51 = $Create.Array($$createType50);
-const $$createType52 = $models.GetAIProviderRuntimeConfigsRow.createFrom;
+const $$createType42 = $models.RagEvalEvaluation.createFrom;
+const $$createType43 = $models.RagEvalEvaluationRecord.createFrom;
+const $$createType44 = $models.RbacRole.createFrom;
+const $$createType45 = $models.Session.createFrom;
+const $$createType46 = $models.SessionGroup.createFrom;
+const $$createType47 = $models.Thread.createFrom;
+const $$createType48 = $models.Topic.createFrom;
+const $$createType49 = $models.UnstructuredChunk.createFrom;
+const $$createType50 = $models.User.createFrom;
+const $$createType51 = $models.GetAIProviderDetailRow.createFrom;
+const $$createType52 = $models.GetAIProviderListSimpleRow.createFrom;
 const $$createType53 = $Create.Array($$createType52);
-const $$createType54 = $Create.Array($Create.Any);
-const $$createType55 = $Create.Array($$createType12);
-const $$createType56 = $models.GetAgentFilesWithEnabledRow.createFrom;
-const $$createType57 = $Create.Array($$createType56);
-const $$createType58 = $models.GetAgentKnowledgeBasesRow.createFrom;
+const $$createType54 = $models.GetAIProviderRuntimeConfigsRow.createFrom;
+const $$createType55 = $Create.Array($$createType54);
+const $$createType56 = $Create.Array($Create.Any);
+const $$createType57 = $Create.Array($$createType12);
+const $$createType58 = $models.GetAgentFilesWithEnabledRow.createFrom;
 const $$createType59 = $Create.Array($$createType58);
-const $$createType60 = $Create.Array($$createType43);
-const $$createType61 = $Create.Array($$createType7);
-const $$createType62 = $models.ChatGroupsAgent.createFrom;
-const $$createType63 = $Create.Array($$createType62);
-const $$createType64 = $Create.Array($$createType6);
-const $$createType65 = $models.GetChatGroupWithAgentsRow.createFrom;
-const $$createType66 = $Create.Array($$createType65);
-const $$createType67 = $models.GetChunksTextByFileIdRow.createFrom;
+const $$createType60 = $models.GetAgentKnowledgeBasesRow.createFrom;
+const $$createType61 = $Create.Array($$createType60);
+const $$createType62 = $Create.Array($$createType45);
+const $$createType63 = $Create.Array($$createType7);
+const $$createType64 = $models.ChatGroupsAgent.createFrom;
+const $$createType65 = $Create.Array($$createType64);
+const $$createType66 = $Create.Array($$createType6);
+const $$createType67 = $models.GetChatGroupWithAgentsRow.createFrom;
 const $$createType68 = $Create.Array($$createType67);
-const $$createType69 = $models.GetChunksWithEmbeddingsRow.createFrom;
+const $$createType69 = $models.GetChunksTextByFileIdRow.createFrom;
 const $$createType70 = $Create.Array($$createType69);
-const $$createType71 = $models.GetChunksWithEmbeddingsByFileIdsRow.createFrom;
+const $$createType71 = $models.GetChunksWithEmbeddingsRow.createFrom;
 const $$createType72 = $Create.Array($$createType71);
-const $$createType73 = $models.GetDocumentByFileIdRow.createFrom;
-const $$createType74 = $Create.Array($$createType9);
-const $$createType75 = sql$0.NullString.createFrom;
-const $$createType76 = $Create.Array($$createType75);
-const $$createType77 = $models.GetFileChunksWithMetadataRow.createFrom;
+const $$createType73 = $models.GetChunksWithEmbeddingsByFileIdsRow.createFrom;
+const $$createType74 = $Create.Array($$createType73);
+const $$createType75 = $models.GetDocumentByFileIdRow.createFrom;
+const $$createType76 = $Create.Array($$createType9);
+const $$createType77 = sql$0.NullString.createFrom;
 const $$createType78 = $Create.Array($$createType77);
-const $$createType79 = $models.GetGenerationBatchWithGenerationsRow.createFrom;
-const $$createType80 = $models.GetGenerationTopicAssetsRow.createFrom;
-const $$createType81 = $Create.Array($$createType80);
-const $$createType82 = $models.GetGenerationTopicWithBatchesRow.createFrom;
-const $$createType83 = $models.GetGenerationWithAsyncTaskRow.createFrom;
-const $$createType84 = $models.GetMessageHeatmapsRow.createFrom;
-const $$createType85 = $Create.Array($$createType84);
-const $$createType86 = $models.GetMessageQueryChunksRow.createFrom;
+const $$createType79 = $models.GetFileChunksWithMetadataRow.createFrom;
+const $$createType80 = $Create.Array($$createType79);
+const $$createType81 = $models.GetGenerationBatchWithGenerationsRow.createFrom;
+const $$createType82 = $models.GetGenerationTopicAssetsRow.createFrom;
+const $$createType83 = $Create.Array($$createType82);
+const $$createType84 = $models.GetGenerationTopicWithBatchesRow.createFrom;
+const $$createType85 = $models.GetGenerationWithAsyncTaskRow.createFrom;
+const $$createType86 = $models.GetMessageHeatmapsRow.createFrom;
 const $$createType87 = $Create.Array($$createType86);
-const $$createType88 = $Create.Array($$createType18);
-const $$createType89 = $models.GetMessagesWithRelationsRow.createFrom;
-const $$createType90 = $Create.Array($$createType89);
-const $$createType91 = $models.GetMessagesWithRelationsBySessionRow.createFrom;
+const $$createType88 = $models.GetMessageQueryChunksRow.createFrom;
+const $$createType89 = $Create.Array($$createType88);
+const $$createType90 = $Create.Array($$createType18);
+const $$createType91 = $models.GetMessagesWithRelationsRow.createFrom;
 const $$createType92 = $Create.Array($$createType91);
-const $$createType93 = $Create.Array($$createType38);
-const $$createType94 = $models.GetSessionGroupWithSessionsRow.createFrom;
-const $$createType95 = $models.GetSessionRankRow.createFrom;
-const $$createType96 = $Create.Array($$createType95);
-const $$createType97 = $models.GetSessionWithGroupRow.createFrom;
-const $$createType98 = $Create.Array($$createType10);
-const $$createType99 = $Create.Array($$createType42);
-const $$createType100 = $models.UserSetting.createFrom;
-const $$createType101 = $models.GetUserWithSettingsRow.createFrom;
-const $$createType102 = $Create.Array($$createType3);
-const $$createType103 = $Create.Array($$createType4);
-const $$createType104 = $Create.Array($$createType5);
-const $$createType105 = $Create.Array($$createType45);
-const $$createType106 = $Create.Array($$createType46);
-const $$createType107 = $Create.Array($$createType8);
-const $$createType108 = $models.ListChatGroupsWithAgentsRow.createFrom;
-const $$createType109 = $Create.Array($$createType108);
-const $$createType110 = $Create.Array($$createType11);
-const $$createType111 = $Create.Array($$createType14);
-const $$createType112 = $models.ListGenerationBatchesWithGenerationsRow.createFrom;
-const $$createType113 = $Create.Array($$createType112);
-const $$createType114 = $Create.Array($$createType15);
-const $$createType115 = $models.ListGenerationTopicsWithCountsRow.createFrom;
-const $$createType116 = $Create.Array($$createType115);
-const $$createType117 = $Create.Array($$createType13);
-const $$createType118 = $Create.Array($$createType17);
-const $$createType119 = $Create.Array($$createType19);
-const $$createType120 = $Create.Array($$createType21);
-const $$createType121 = $Create.Array($$createType24);
-const $$createType122 = $Create.Array($$createType25);
-const $$createType123 = $Create.Array($$createType31);
-const $$createType124 = $Create.Array($$createType39);
-const $$createType125 = $Create.Array($$createType41);
-const $$createType126 = $Create.Array($$createType40);
-const $$createType127 = $Create.Array($$createType44);
-const $$createType128 = $Create.Array($$createType47);
-const $$createType129 = $models.QueryFilesRow.createFrom;
-const $$createType130 = $Create.Array($$createType129);
-const $$createType131 = $models.QueryFilesByKnowledgeBaseRow.createFrom;
-const $$createType132 = $Create.Array($$createType131);
-const $$createType133 = $models.RankModelsRow.createFrom;
+const $$createType93 = $models.GetMessagesWithRelationsBySessionRow.createFrom;
+const $$createType94 = $Create.Array($$createType93);
+const $$createType95 = $Create.Array($$createType38);
+const $$createType96 = $models.GetSessionGroupWithSessionsRow.createFrom;
+const $$createType97 = $models.GetSessionRankRow.createFrom;
+const $$createType98 = $Create.Array($$createType97);
+const $$createType99 = $models.GetSessionWithGroupRow.createFrom;
+const $$createType100 = $Create.Array($$createType10);
+const $$createType101 = $Create.Array($$createType44);
+const $$createType102 = $models.UserSetting.createFrom;
+const $$createType103 = $models.GetUserWithSettingsRow.createFrom;
+const $$createType104 = $Create.Array($$createType3);
+const $$createType105 = $Create.Array($$createType4);
+const $$createType106 = $Create.Array($$createType5);
+const $$createType107 = $Create.Array($$createType47);
+const $$createType108 = $Create.Array($$createType48);
+const $$createType109 = $Create.Array($$createType8);
+const $$createType110 = $models.ListChatGroupsWithAgentsRow.createFrom;
+const $$createType111 = $Create.Array($$createType110);
+const $$createType112 = $Create.Array($$createType11);
+const $$createType113 = $Create.Array($$createType14);
+const $$createType114 = $models.ListGenerationBatchesWithGenerationsRow.createFrom;
+const $$createType115 = $Create.Array($$createType114);
+const $$createType116 = $Create.Array($$createType15);
+const $$createType117 = $models.ListGenerationTopicsWithCountsRow.createFrom;
+const $$createType118 = $Create.Array($$createType117);
+const $$createType119 = $Create.Array($$createType13);
+const $$createType120 = $Create.Array($$createType17);
+const $$createType121 = $Create.Array($$createType19);
+const $$createType122 = $Create.Array($$createType21);
+const $$createType123 = $Create.Array($$createType24);
+const $$createType124 = $Create.Array($$createType25);
+const $$createType125 = $Create.Array($$createType31);
+const $$createType126 = $Create.Array($$createType39);
+const $$createType127 = $Create.Array($$createType41);
+const $$createType128 = $Create.Array($$createType40);
+const $$createType129 = $Create.Array($$createType43);
+const $$createType130 = $Create.Array($$createType42);
+const $$createType131 = $Create.Array($$createType46);
+const $$createType132 = $Create.Array($$createType49);
+const $$createType133 = $models.QueryFilesRow.createFrom;
 const $$createType134 = $Create.Array($$createType133);
-const $$createType135 = $models.RankTopicsRow.createFrom;
+const $$createType135 = $models.QueryFilesByKnowledgeBaseRow.createFrom;
 const $$createType136 = $Create.Array($$createType135);
-const $$createType137 = $models.Queries.createFrom;
-const $$createType138 = $Create.Nullable($$createType137);
+const $$createType137 = $models.RankModelsRow.createFrom;
+const $$createType138 = $Create.Array($$createType137);
+const $$createType139 = $models.RankTopicsRow.createFrom;
+const $$createType140 = $Create.Array($$createType139);
+const $$createType141 = $models.Queries.createFrom;
+const $$createType142 = $Create.Nullable($$createType141);

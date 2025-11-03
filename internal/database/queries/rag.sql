@@ -175,6 +175,13 @@ INSERT INTO rag_eval_datasets (
 ) VALUES (?, ?, ?, ?, ?, ?)
 RETURNING *;
 
+-- name: UpdateRagEvalDataset :exec
+UPDATE rag_eval_datasets
+SET name = COALESCE(?, name),
+    description = COALESCE(?, description),
+    updated_at = ?
+WHERE id = ? AND user_id = ?;
+
 -- name: DeleteRagEvalDataset :exec
 DELETE FROM rag_eval_datasets WHERE id = ? AND user_id = ?;
 
@@ -193,6 +200,90 @@ INSERT INTO rag_eval_dataset_records (
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
+-- name: UpdateRagEvalDatasetRecord :exec
+UPDATE rag_eval_dataset_records
+SET "query" = COALESCE(?, "query"),
+    reference_answer = COALESCE(?, reference_answer),
+    reference_contexts = COALESCE(?, reference_contexts),
+    metadata = COALESCE(?, metadata),
+    updated_at = ?
+WHERE id = ? AND user_id = ?;
+
 -- name: DeleteRagEvalDatasetRecord :exec
 DELETE FROM rag_eval_dataset_records WHERE id = ? AND user_id = ?;
+
+-- RAG Eval Evaluations
+
+-- name: CreateRagEvalEvaluation :one
+INSERT INTO rag_eval_evaluations (
+    id, name, dataset_id, config, status,
+    user_id, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING *;
+
+-- name: GetRagEvalEvaluation :one
+SELECT * FROM rag_eval_evaluations WHERE id = ? AND user_id = ? LIMIT 1;
+
+-- name: ListRagEvalEvaluationsByDataset :many
+SELECT * FROM rag_eval_evaluations
+WHERE dataset_id = ? AND user_id = ?
+ORDER BY created_at DESC;
+
+-- name: UpdateRagEvalEvaluation :exec
+UPDATE rag_eval_evaluations
+SET name = COALESCE(?, name),
+    config = COALESCE(?, config),
+    status = COALESCE(?, status),
+    updated_at = ?
+WHERE id = ? AND user_id = ?;
+
+-- name: DeleteRagEvalEvaluation :exec
+DELETE FROM rag_eval_evaluations WHERE id = ? AND user_id = ?;
+
+-- RAG Eval Evaluation Records
+
+-- name: CreateRagEvalEvaluationRecord :one
+INSERT INTO rag_eval_evaluation_records (
+    id, evaluation_id, dataset_record_id,
+    retrieved_contexts, generated_answer, metrics,
+    user_id, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING *;
+
+-- name: GetRagEvalEvaluationRecord :one
+SELECT * FROM rag_eval_evaluation_records WHERE id = ? AND user_id = ? LIMIT 1;
+
+-- name: ListRagEvalEvaluationRecordsByEvaluation :many
+SELECT * FROM rag_eval_evaluation_records
+WHERE evaluation_id = ? AND user_id = ?
+ORDER BY created_at DESC;
+
+-- name: UpdateRagEvalEvaluationRecord :exec
+UPDATE rag_eval_evaluation_records
+SET retrieved_contexts = COALESCE(?, retrieved_contexts),
+    generated_answer = COALESCE(?, generated_answer),
+    metrics = COALESCE(?, metrics),
+    updated_at = ?
+WHERE id = ? AND user_id = ?;
+
+-- name: DeleteRagEvalEvaluationRecord :exec
+DELETE FROM rag_eval_evaluation_records WHERE id = ? AND user_id = ?;
+
+-- name: BatchInsertRagEvalEvaluationRecords :exec
+INSERT INTO rag_eval_evaluation_records (
+    id, evaluation_id, dataset_record_id,
+    retrieved_contexts, generated_answer, metrics,
+    user_id, created_at, updated_at
+)
+SELECT 
+    json_extract(value, '$.id'),
+    json_extract(value, '$.evaluation_id'),
+    json_extract(value, '$.dataset_record_id'),
+    json_extract(value, '$.retrieved_contexts'),
+    json_extract(value, '$.generated_answer'),
+    json_extract(value, '$.metrics'),
+    json_extract(value, '$.user_id'),
+    CAST(json_extract(value, '$.created_at') AS INTEGER),
+    CAST(json_extract(value, '$.updated_at') AS INTEGER)
+FROM json_each(?);
 

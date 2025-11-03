@@ -1,13 +1,12 @@
-import { LobeChatDatabase } from '@/database';
-
 import { SessionModel } from '@/database/models/session';
 import { getServerDefaultAgentConfig } from '@/server/globalConfig';
+import { DB } from '@@/database/sql/models';
 
 export class AgentService {
   private readonly userId: string;
-  private readonly db: LobeChatDatabase;
+  private readonly db: DB;
 
-  constructor(db: LobeChatDatabase, userId: string) {
+  constructor(db: DB, userId: string) {
     this.userId = userId;
     this.db = db;
   }

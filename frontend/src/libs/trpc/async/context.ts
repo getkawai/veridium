@@ -1,17 +1,17 @@
-import { LobeChatDatabase } from '@/database';
 import { ClientSecretPayload } from '@/types';
 import debug from 'debug';
 import { NextRequest } from 'next/server';
 
 import { LOBE_CHAT_AUTH_HEADER } from '@/const/auth';
 import { KeyVaultsGateKeeper } from '@/server/modules/KeyVaultsEncrypt';
+import { DB } from '@@/database/sql/models';
 
 const log = debug('lobe-async:context');
 
 export interface AsyncAuthContext {
   jwtPayload: ClientSecretPayload;
   secret: string;
-  serverDB?: LobeChatDatabase;
+  serverDB?: DB;
   userId?: string | null;
 }
 

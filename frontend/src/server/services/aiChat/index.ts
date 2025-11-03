@@ -1,8 +1,7 @@
-import { LobeChatDatabase } from '@/database';
-
 import { MessageModel } from '@/database/models/message';
 import { TopicModel } from '@/database/models/topic';
 import { FileService } from '@/server/services/file';
+import { DB } from '@@/database/sql/models';
 
 export class AiChatService {
   private userId: string;
@@ -10,7 +9,7 @@ export class AiChatService {
   private fileService: FileService;
   private topicModel: TopicModel;
 
-  constructor(serverDB: LobeChatDatabase, userId: string) {
+  constructor(serverDB: DB, userId: string) {
     this.userId = userId;
 
     this.messageModel = new MessageModel(serverDB, userId);

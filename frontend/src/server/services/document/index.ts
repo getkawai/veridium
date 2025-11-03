@@ -1,4 +1,4 @@
-import { LobeChatDatabase } from '@/database';
+import { DB } from '@@/database/sql/models';
 import { loadFile } from '@/file-loaders';
 import debug from 'debug';
 
@@ -16,7 +16,7 @@ export class DocumentService {
   private documentModel: DocumentModel;
   private fileService: FileService;
 
-  constructor(db: LobeChatDatabase, userId: string) {
+  constructor(db: DB, userId: string) {
     this.userId = userId;
     this.fileModel = new FileModel(db, userId);
     this.fileService = new FileService(db, userId);

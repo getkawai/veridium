@@ -72,6 +72,34 @@ export function toNullBool(value: boolean | undefined | null): NullBool {
 }
 
 /**
+ * Parse JSON from a NullString
+ */
+export function parseJSON(value: NullString | string | undefined | null): any {
+  if (!value) return undefined;
+  
+  const jsonStr = typeof value === 'string' ? value : getNullableString(value);
+  
+  if (!jsonStr) return undefined;
+  
+  try {
+    return JSON.parse(jsonStr);
+  } catch (e) {
+    console.error('Failed to parse JSON:', e);
+    return undefined;
+  }
+}
+
+/**
+ * Convert object to JSON NullString
+ */
+export function toNullJSONString(value: any): NullString {
+  if (value === undefined || value === null) {
+    return { String: '', Valid: false };
+  }
+  return { String: JSON.stringify(value), Valid: true };
+}
+
+/**
  * Parse JSON string from NullString
  */
 export function parseNullableJSON<T = any>(ns: NullString | undefined): T | undefined {
