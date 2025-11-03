@@ -10,6 +10,15 @@ import (
 	"database/sql"
 )
 
+const CleanupExpiredOAuthHandoffs = `-- name: CleanupExpiredOAuthHandoffs :exec
+DELETE FROM oauth_handoffs WHERE created_at < ?
+`
+
+func (q *Queries) CleanupExpiredOAuthHandoffs(ctx context.Context, createdAt int64) error {
+	_, err := q.db.ExecContext(ctx, CleanupExpiredOAuthHandoffs, createdAt)
+	return err
+}
+
 const ConsumeOIDCAuthorizationCode = `-- name: ConsumeOIDCAuthorizationCode :exec
 UPDATE oidc_authorization_codes
 SET consumed_at = ?, updated_at = ?
@@ -589,6 +598,30 @@ SELECT id, client, payload, created_at, updated_at FROM oauth_handoffs WHERE id 
 // OAuth Handoffs
 func (q *Queries) GetOAuthHandoff(ctx context.Context, id string) (OauthHandoff, error) {
 	row := q.db.QueryRowContext(ctx, GetOAuthHandoff, id)
+	var i OauthHandoff
+	err := row.Scan(
+		&i.ID,
+		&i.Client,
+		&i.Payload,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const GetOAuthHandoffByClient = `-- name: GetOAuthHandoffByClient :one
+SELECT id, client, payload, created_at, updated_at FROM oauth_handoffs
+WHERE id = ? AND client = ? AND created_at > ?
+`
+
+type GetOAuthHandoffByClientParams struct {
+	ID        string `json:"id"`
+	Client    string `json:"client"`
+	CreatedAt int64  `json:"createdAt"`
+}
+
+func (q *Queries) GetOAuthHandoffByClient(ctx context.Context, arg GetOAuthHandoffByClientParams) (OauthHandoff, error) {
+	row := q.db.QueryRowContext(ctx, GetOAuthHandoffByClient, arg.ID, arg.Client, arg.CreatedAt)
 	var i OauthHandoff
 	err := row.Scan(
 		&i.ID,

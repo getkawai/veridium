@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"strings"
 )
 
 const CreateAsyncTask = `-- name: CreateAsyncTask :one
@@ -90,6 +91,107 @@ func (q *Queries) GetAsyncTask(ctx context.Context, arg GetAsyncTaskParams) (Asy
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const GetAsyncTasksByIds = `-- name: GetAsyncTasksByIds :many
+SELECT id, type, status, error, user_id, duration, created_at, updated_at FROM async_tasks
+WHERE id IN (/*SLICE:ids*/?) AND type = ?
+`
+
+type GetAsyncTasksByIdsParams struct {
+	Ids  []string       `json:"ids"`
+	Type sql.NullString `json:"type"`
+}
+
+func (q *Queries) GetAsyncTasksByIds(ctx context.Context, arg GetAsyncTasksByIdsParams) ([]AsyncTask, error) {
+	query := GetAsyncTasksByIds
+	var queryParams []interface{}
+	if len(arg.Ids) > 0 {
+		for _, v := range arg.Ids {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(arg.Ids))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
+	}
+	queryParams = append(queryParams, arg.Type)
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AsyncTask{}
+	for rows.Next() {
+		var i AsyncTask
+		if err := rows.Scan(
+			&i.ID,
+			&i.Type,
+			&i.Status,
+			&i.Error,
+			&i.UserID,
+			&i.Duration,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const GetTimeoutTasks = `-- name: GetTimeoutTasks :many
+SELECT id FROM async_tasks
+WHERE id IN (/*SLICE:ids*/?)
+  AND status = ?
+  AND created_at < ?
+`
+
+type GetTimeoutTasksParams struct {
+	Ids       []string       `json:"ids"`
+	Status    sql.NullString `json:"status"`
+	CreatedAt int64          `json:"createdAt"`
+}
+
+func (q *Queries) GetTimeoutTasks(ctx context.Context, arg GetTimeoutTasksParams) ([]string, error) {
+	query := GetTimeoutTasks
+	var queryParams []interface{}
+	if len(arg.Ids) > 0 {
+		for _, v := range arg.Ids {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(arg.Ids))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
+	}
+	queryParams = append(queryParams, arg.Status)
+	queryParams = append(queryParams, arg.CreatedAt)
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const ListAsyncTasks = `-- name: ListAsyncTasks :many
@@ -220,4 +322,37 @@ func (q *Queries) UpdateAsyncTask(ctx context.Context, arg UpdateAsyncTaskParams
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const UpdateTimeoutTasks = `-- name: UpdateTimeoutTasks :exec
+UPDATE async_tasks
+SET status = ?,
+    error = ?,
+    updated_at = ?
+WHERE id IN (/*SLICE:ids*/?)
+`
+
+type UpdateTimeoutTasksParams struct {
+	Status    sql.NullString `json:"status"`
+	Error     sql.NullString `json:"error"`
+	UpdatedAt int64          `json:"updatedAt"`
+	Ids       []string       `json:"ids"`
+}
+
+func (q *Queries) UpdateTimeoutTasks(ctx context.Context, arg UpdateTimeoutTasksParams) error {
+	query := UpdateTimeoutTasks
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.Status)
+	queryParams = append(queryParams, arg.Error)
+	queryParams = append(queryParams, arg.UpdatedAt)
+	if len(arg.Ids) > 0 {
+		for _, v := range arg.Ids {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(arg.Ids))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
+	}
+	_, err := q.db.ExecContext(ctx, query, queryParams...)
+	return err
 }

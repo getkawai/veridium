@@ -70,6 +70,13 @@ RETURNING *;
 -- name: DeleteKnowledgeBase :exec
 DELETE FROM knowledge_bases WHERE id = ? AND user_id = ?;
 
+-- name: DeleteAllKnowledgeBases :exec
+DELETE FROM knowledge_bases WHERE user_id = ?;
+
+-- name: BatchLinkKnowledgeBaseToFiles :exec
+INSERT INTO knowledge_base_files (knowledge_base_id, file_id, user_id, created_at)
+VALUES (?, ?, ?, ?);
+
 -- Knowledge Base Files
 
 -- name: LinkKnowledgeBaseToFile :exec
@@ -79,6 +86,10 @@ VALUES (?, ?, ?, ?);
 -- name: UnlinkKnowledgeBaseFromFile :exec
 DELETE FROM knowledge_base_files
 WHERE knowledge_base_id = ? AND file_id = ? AND user_id = ?;
+
+-- name: BatchUnlinkKnowledgeBaseFromFiles :exec
+DELETE FROM knowledge_base_files
+WHERE knowledge_base_id = ? AND file_id = ?;
 
 -- name: GetKnowledgeBaseFiles :many
 SELECT f.* FROM files f

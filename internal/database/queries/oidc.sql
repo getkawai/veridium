@@ -181,3 +181,10 @@ RETURNING *;
 -- name: DeleteOAuthHandoff :exec
 DELETE FROM oauth_handoffs WHERE id = ?;
 
+-- name: GetOAuthHandoffByClient :one
+SELECT * FROM oauth_handoffs
+WHERE id = ? AND client = ? AND created_at > ?;
+
+-- name: CleanupExpiredOAuthHandoffs :exec
+DELETE FROM oauth_handoffs WHERE created_at < ?;
+

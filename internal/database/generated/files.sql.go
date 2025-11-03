@@ -10,6 +10,43 @@ import (
 	"database/sql"
 )
 
+const BatchLinkKnowledgeBaseToFiles = `-- name: BatchLinkKnowledgeBaseToFiles :exec
+INSERT INTO knowledge_base_files (knowledge_base_id, file_id, user_id, created_at)
+VALUES (?, ?, ?, ?)
+`
+
+type BatchLinkKnowledgeBaseToFilesParams struct {
+	KnowledgeBaseID string `json:"knowledgeBaseId"`
+	FileID          string `json:"fileId"`
+	UserID          string `json:"userId"`
+	CreatedAt       int64  `json:"createdAt"`
+}
+
+func (q *Queries) BatchLinkKnowledgeBaseToFiles(ctx context.Context, arg BatchLinkKnowledgeBaseToFilesParams) error {
+	_, err := q.db.ExecContext(ctx, BatchLinkKnowledgeBaseToFiles,
+		arg.KnowledgeBaseID,
+		arg.FileID,
+		arg.UserID,
+		arg.CreatedAt,
+	)
+	return err
+}
+
+const BatchUnlinkKnowledgeBaseFromFiles = `-- name: BatchUnlinkKnowledgeBaseFromFiles :exec
+DELETE FROM knowledge_base_files
+WHERE knowledge_base_id = ? AND file_id = ?
+`
+
+type BatchUnlinkKnowledgeBaseFromFilesParams struct {
+	KnowledgeBaseID string `json:"knowledgeBaseId"`
+	FileID          string `json:"fileId"`
+}
+
+func (q *Queries) BatchUnlinkKnowledgeBaseFromFiles(ctx context.Context, arg BatchUnlinkKnowledgeBaseFromFilesParams) error {
+	_, err := q.db.ExecContext(ctx, BatchUnlinkKnowledgeBaseFromFiles, arg.KnowledgeBaseID, arg.FileID)
+	return err
+}
+
 const CreateFile = `-- name: CreateFile :one
 INSERT INTO files (
     id, user_id, file_type, file_hash, name, size, url, source,
@@ -167,6 +204,15 @@ func (q *Queries) CreateKnowledgeBase(ctx context.Context, arg CreateKnowledgeBa
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const DeleteAllKnowledgeBases = `-- name: DeleteAllKnowledgeBases :exec
+DELETE FROM knowledge_bases WHERE user_id = ?
+`
+
+func (q *Queries) DeleteAllKnowledgeBases(ctx context.Context, userID string) error {
+	_, err := q.db.ExecContext(ctx, DeleteAllKnowledgeBases, userID)
+	return err
 }
 
 const DeleteFile = `-- name: DeleteFile :exec

@@ -82,6 +82,15 @@ func (q *Queries) CreateDocument(ctx context.Context, arg CreateDocumentParams) 
 	return i, err
 }
 
+const DeleteAllDocuments = `-- name: DeleteAllDocuments :exec
+DELETE FROM documents WHERE user_id = ?
+`
+
+func (q *Queries) DeleteAllDocuments(ctx context.Context, userID string) error {
+	_, err := q.db.ExecContext(ctx, DeleteAllDocuments, userID)
+	return err
+}
+
 const DeleteDocument = `-- name: DeleteDocument :exec
 DELETE FROM documents WHERE id = ? AND user_id = ?
 `

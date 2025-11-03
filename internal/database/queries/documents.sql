@@ -28,6 +28,9 @@ RETURNING *;
 -- name: DeleteDocument :exec
 DELETE FROM documents WHERE id = ? AND user_id = ?;
 
+-- name: DeleteAllDocuments :exec
+DELETE FROM documents WHERE user_id = ?;
+
 -- Document Chunks
 
 -- name: LinkDocumentToChunk :exec

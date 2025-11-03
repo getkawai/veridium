@@ -14,7 +14,12 @@ type Querier interface {
 	BatchDeleteSessions(ctx context.Context, arg BatchDeleteSessionsParams) error
 	BatchDeleteTopics(ctx context.Context, arg BatchDeleteTopicsParams) error
 	BatchLinkAgentToFiles(ctx context.Context, arg BatchLinkAgentToFilesParams) error
+	BatchLinkKnowledgeBaseToFiles(ctx context.Context, arg BatchLinkKnowledgeBaseToFilesParams) error
+	BatchUnlinkKnowledgeBaseFromFiles(ctx context.Context, arg BatchUnlinkKnowledgeBaseFromFilesParams) error
+	BulkCreateEmbeddingsItems(ctx context.Context, arg BulkCreateEmbeddingsItemsParams) error
+	CleanupExpiredOAuthHandoffs(ctx context.Context, createdAt int64) error
 	ConsumeOIDCAuthorizationCode(ctx context.Context, arg ConsumeOIDCAuthorizationCodeParams) error
+	CountEmbeddingsItems(ctx context.Context, userID sql.NullString) (int64, error)
 	CountMessageWords(ctx context.Context, userID string) (sql.NullFloat64, error)
 	CountMessageWordsByDateRange(ctx context.Context, arg CountMessageWordsByDateRangeParams) (sql.NullFloat64, error)
 	CountMessages(ctx context.Context, userID string) (int64, error)
@@ -34,6 +39,7 @@ type Querier interface {
 	CreateChunk(ctx context.Context, arg CreateChunkParams) (Chunk, error)
 	CreateDocument(ctx context.Context, arg CreateDocumentParams) (Document, error)
 	CreateEmbedding(ctx context.Context, arg CreateEmbeddingParams) (Embedding, error)
+	CreateEmbeddingsItem(ctx context.Context, arg CreateEmbeddingsItemParams) (Embedding, error)
 	CreateFile(ctx context.Context, arg CreateFileParams) (File, error)
 	CreateGeneration(ctx context.Context, arg CreateGenerationParams) (Generation, error)
 	CreateGenerationBatch(ctx context.Context, arg CreateGenerationBatchParams) (GenerationBatch, error)
@@ -76,6 +82,8 @@ type Querier interface {
 	DeleteAPIKey(ctx context.Context, arg DeleteAPIKeyParams) error
 	DeleteAgent(ctx context.Context, arg DeleteAgentParams) error
 	DeleteAllAPIKeys(ctx context.Context, userID string) error
+	DeleteAllDocuments(ctx context.Context, userID string) error
+	DeleteAllKnowledgeBases(ctx context.Context, userID string) error
 	DeleteAllMessages(ctx context.Context, userID string) error
 	DeleteAllPlugins(ctx context.Context, userID string) error
 	DeleteAllSessionGroups(ctx context.Context, userID string) error
@@ -86,6 +94,7 @@ type Querier interface {
 	DeleteChunk(ctx context.Context, arg DeleteChunkParams) error
 	DeleteDocument(ctx context.Context, arg DeleteDocumentParams) error
 	DeleteEmbedding(ctx context.Context, arg DeleteEmbeddingParams) error
+	DeleteEmbeddingsItem(ctx context.Context, arg DeleteEmbeddingsItemParams) error
 	DeleteExpiredNextAuthSessions(ctx context.Context, expires int64) error
 	DeleteExpiredNextAuthVerificationTokens(ctx context.Context, expires int64) error
 	DeleteExpiredOIDCSessions(ctx context.Context, expiresAt int64) error
@@ -145,6 +154,7 @@ type Querier interface {
 	GetAgentKnowledgeBases(ctx context.Context, arg GetAgentKnowledgeBasesParams) ([]GetAgentKnowledgeBasesRow, error)
 	GetAgentSessions(ctx context.Context, arg GetAgentSessionsParams) ([]Session, error)
 	GetAsyncTask(ctx context.Context, arg GetAsyncTaskParams) (AsyncTask, error)
+	GetAsyncTasksByIds(ctx context.Context, arg GetAsyncTasksByIdsParams) ([]AsyncTask, error)
 	GetChatGroup(ctx context.Context, arg GetChatGroupParams) (ChatGroup, error)
 	GetChatGroupAgents(ctx context.Context, arg GetChatGroupAgentsParams) ([]Agent, error)
 	// Chunks
@@ -154,6 +164,7 @@ type Querier interface {
 	// Embeddings
 	GetEmbedding(ctx context.Context, arg GetEmbeddingParams) (Embedding, error)
 	GetEmbeddingByChunk(ctx context.Context, arg GetEmbeddingByChunkParams) (Embedding, error)
+	GetEmbeddingsItem(ctx context.Context, arg GetEmbeddingsItemParams) (Embedding, error)
 	GetFile(ctx context.Context, arg GetFileParams) (File, error)
 	GetFileChunks(ctx context.Context, arg GetFileChunksParams) ([]Chunk, error)
 	// Generations
@@ -193,6 +204,7 @@ type Querier interface {
 	GetNextAuthVerificationToken(ctx context.Context, arg GetNextAuthVerificationTokenParams) (NextauthVerificationtoken, error)
 	// OAuth Handoffs
 	GetOAuthHandoff(ctx context.Context, id string) (OauthHandoff, error)
+	GetOAuthHandoffByClient(ctx context.Context, arg GetOAuthHandoffByClientParams) (OauthHandoff, error)
 	// OIDC Access Tokens
 	GetOIDCAccessToken(ctx context.Context, id string) (OidcAccessToken, error)
 	// OIDC Authorization Codes
@@ -236,6 +248,7 @@ type Querier interface {
 	GetSessionWithGroup(ctx context.Context, arg GetSessionWithGroupParams) (GetSessionWithGroupRow, error)
 	// Threads
 	GetThread(ctx context.Context, arg GetThreadParams) (Thread, error)
+	GetTimeoutTasks(ctx context.Context, arg GetTimeoutTasksParams) ([]string, error)
 	GetTopic(ctx context.Context, arg GetTopicParams) (Topic, error)
 	GetTopicDocuments(ctx context.Context, arg GetTopicDocumentsParams) ([]Document, error)
 	// Unstructured Chunks
@@ -290,6 +303,7 @@ type Querier interface {
 	ListChatGroups(ctx context.Context, userID string) ([]ChatGroup, error)
 	ListChunks(ctx context.Context, arg ListChunksParams) ([]Chunk, error)
 	ListDocuments(ctx context.Context, arg ListDocumentsParams) ([]Document, error)
+	ListEmbeddingsItems(ctx context.Context, userID sql.NullString) ([]Embedding, error)
 	ListEnabledAIModels(ctx context.Context, userID string) ([]AiModel, error)
 	ListEnabledAIProviders(ctx context.Context, userID string) ([]AiProvider, error)
 	ListFiles(ctx context.Context, arg ListFilesParams) ([]File, error)
@@ -375,6 +389,7 @@ type Querier interface {
 	UpdateSessionGroup(ctx context.Context, arg UpdateSessionGroupParams) (SessionGroup, error)
 	UpdateSessionGroupOrder(ctx context.Context, arg UpdateSessionGroupOrderParams) error
 	UpdateThread(ctx context.Context, arg UpdateThreadParams) (Thread, error)
+	UpdateTimeoutTasks(ctx context.Context, arg UpdateTimeoutTasksParams) error
 	UpdateTopic(ctx context.Context, arg UpdateTopicParams) (Topic, error)
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
 	UpdateUserOnboarding(ctx context.Context, arg UpdateUserOnboardingParams) error

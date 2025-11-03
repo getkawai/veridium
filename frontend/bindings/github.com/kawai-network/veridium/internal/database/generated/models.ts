@@ -694,6 +694,125 @@ export class BatchLinkAgentToFilesParams {
     }
 }
 
+export class BatchLinkKnowledgeBaseToFilesParams {
+    "knowledgeBaseId": string;
+    "fileId": string;
+    "userId": string;
+    "createdAt": number;
+
+    /** Creates a new BatchLinkKnowledgeBaseToFilesParams instance. */
+    constructor($$source: Partial<BatchLinkKnowledgeBaseToFilesParams> = {}) {
+        if (!("knowledgeBaseId" in $$source)) {
+            this["knowledgeBaseId"] = "";
+        }
+        if (!("fileId" in $$source)) {
+            this["fileId"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BatchLinkKnowledgeBaseToFilesParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): BatchLinkKnowledgeBaseToFilesParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new BatchLinkKnowledgeBaseToFilesParams($$parsedSource as Partial<BatchLinkKnowledgeBaseToFilesParams>);
+    }
+}
+
+export class BatchUnlinkKnowledgeBaseFromFilesParams {
+    "knowledgeBaseId": string;
+    "fileId": string;
+
+    /** Creates a new BatchUnlinkKnowledgeBaseFromFilesParams instance. */
+    constructor($$source: Partial<BatchUnlinkKnowledgeBaseFromFilesParams> = {}) {
+        if (!("knowledgeBaseId" in $$source)) {
+            this["knowledgeBaseId"] = "";
+        }
+        if (!("fileId" in $$source)) {
+            this["fileId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BatchUnlinkKnowledgeBaseFromFilesParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): BatchUnlinkKnowledgeBaseFromFilesParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new BatchUnlinkKnowledgeBaseFromFilesParams($$parsedSource as Partial<BatchUnlinkKnowledgeBaseFromFilesParams>);
+    }
+}
+
+export class BulkCreateEmbeddingsItemsParams {
+    "id": string;
+    "chunkId": sql$0.NullString;
+    "embeddings": string;
+    "model": sql$0.NullString;
+    "clientId": sql$0.NullString;
+    "userId": sql$0.NullString;
+
+    /** Creates a new BulkCreateEmbeddingsItemsParams instance. */
+    constructor($$source: Partial<BulkCreateEmbeddingsItemsParams> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("chunkId" in $$source)) {
+            this["chunkId"] = (new sql$0.NullString());
+        }
+        if (!("embeddings" in $$source)) {
+            this["embeddings"] = "";
+        }
+        if (!("model" in $$source)) {
+            this["model"] = (new sql$0.NullString());
+        }
+        if (!("clientId" in $$source)) {
+            this["clientId"] = (new sql$0.NullString());
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = (new sql$0.NullString());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BulkCreateEmbeddingsItemsParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): BulkCreateEmbeddingsItemsParams {
+        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $Create.ByteSlice;
+        const $$createField3_0 = $$createType0;
+        const $$createField4_0 = $$createType0;
+        const $$createField5_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("chunkId" in $$parsedSource) {
+            $$parsedSource["chunkId"] = $$createField1_0($$parsedSource["chunkId"]);
+        }
+        if ("embeddings" in $$parsedSource) {
+            $$parsedSource["embeddings"] = $$createField2_0($$parsedSource["embeddings"]);
+        }
+        if ("model" in $$parsedSource) {
+            $$parsedSource["model"] = $$createField3_0($$parsedSource["model"]);
+        }
+        if ("clientId" in $$parsedSource) {
+            $$parsedSource["clientId"] = $$createField4_0($$parsedSource["clientId"]);
+        }
+        if ("userId" in $$parsedSource) {
+            $$parsedSource["userId"] = $$createField5_0($$parsedSource["userId"]);
+        }
+        return new BulkCreateEmbeddingsItemsParams($$parsedSource as Partial<BulkCreateEmbeddingsItemsParams>);
+    }
+}
+
 export class ChatGroup {
     "id": string;
     "title": sql$0.NullString;
@@ -1937,6 +2056,67 @@ export class CreateEmbeddingParams {
             $$parsedSource["userId"] = $$createField5_0($$parsedSource["userId"]);
         }
         return new CreateEmbeddingParams($$parsedSource as Partial<CreateEmbeddingParams>);
+    }
+}
+
+export class CreateEmbeddingsItemParams {
+    "id": string;
+    "chunkId": sql$0.NullString;
+    "embeddings": string;
+    "model": sql$0.NullString;
+    "clientId": sql$0.NullString;
+    "userId": sql$0.NullString;
+
+    /** Creates a new CreateEmbeddingsItemParams instance. */
+    constructor($$source: Partial<CreateEmbeddingsItemParams> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("chunkId" in $$source)) {
+            this["chunkId"] = (new sql$0.NullString());
+        }
+        if (!("embeddings" in $$source)) {
+            this["embeddings"] = "";
+        }
+        if (!("model" in $$source)) {
+            this["model"] = (new sql$0.NullString());
+        }
+        if (!("clientId" in $$source)) {
+            this["clientId"] = (new sql$0.NullString());
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = (new sql$0.NullString());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CreateEmbeddingsItemParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CreateEmbeddingsItemParams {
+        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $Create.ByteSlice;
+        const $$createField3_0 = $$createType0;
+        const $$createField4_0 = $$createType0;
+        const $$createField5_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("chunkId" in $$parsedSource) {
+            $$parsedSource["chunkId"] = $$createField1_0($$parsedSource["chunkId"]);
+        }
+        if ("embeddings" in $$parsedSource) {
+            $$parsedSource["embeddings"] = $$createField2_0($$parsedSource["embeddings"]);
+        }
+        if ("model" in $$parsedSource) {
+            $$parsedSource["model"] = $$createField3_0($$parsedSource["model"]);
+        }
+        if ("clientId" in $$parsedSource) {
+            $$parsedSource["clientId"] = $$createField4_0($$parsedSource["clientId"]);
+        }
+        if ("userId" in $$parsedSource) {
+            $$parsedSource["userId"] = $$createField5_0($$parsedSource["userId"]);
+        }
+        return new CreateEmbeddingsItemParams($$parsedSource as Partial<CreateEmbeddingsItemParams>);
     }
 }
 
@@ -4730,6 +4910,35 @@ export class DeleteEmbeddingParams {
     }
 }
 
+export class DeleteEmbeddingsItemParams {
+    "id": string;
+    "userId": sql$0.NullString;
+
+    /** Creates a new DeleteEmbeddingsItemParams instance. */
+    constructor($$source: Partial<DeleteEmbeddingsItemParams> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = (new sql$0.NullString());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DeleteEmbeddingsItemParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DeleteEmbeddingsItemParams {
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("userId" in $$parsedSource) {
+            $$parsedSource["userId"] = $$createField1_0($$parsedSource["userId"]);
+        }
+        return new DeleteEmbeddingsItemParams($$parsedSource as Partial<DeleteEmbeddingsItemParams>);
+    }
+}
+
 export class DeleteFileParams {
     "id": string;
     "userId": string;
@@ -6405,6 +6614,39 @@ export class GetAsyncTaskParams {
     }
 }
 
+export class GetAsyncTasksByIdsParams {
+    "ids": string[];
+    "type": sql$0.NullString;
+
+    /** Creates a new GetAsyncTasksByIdsParams instance. */
+    constructor($$source: Partial<GetAsyncTasksByIdsParams> = {}) {
+        if (!("ids" in $$source)) {
+            this["ids"] = [];
+        }
+        if (!("type" in $$source)) {
+            this["type"] = (new sql$0.NullString());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetAsyncTasksByIdsParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetAsyncTasksByIdsParams {
+        const $$createField0_0 = $$createType2;
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("ids" in $$parsedSource) {
+            $$parsedSource["ids"] = $$createField0_0($$parsedSource["ids"]);
+        }
+        if ("type" in $$parsedSource) {
+            $$parsedSource["type"] = $$createField1_0($$parsedSource["type"]);
+        }
+        return new GetAsyncTasksByIdsParams($$parsedSource as Partial<GetAsyncTasksByIdsParams>);
+    }
+}
+
 export class GetChatGroupAgentsParams {
     "chatGroupId": string;
     "userId": string;
@@ -6593,6 +6835,35 @@ export class GetEmbeddingParams {
             $$parsedSource["userId"] = $$createField1_0($$parsedSource["userId"]);
         }
         return new GetEmbeddingParams($$parsedSource as Partial<GetEmbeddingParams>);
+    }
+}
+
+export class GetEmbeddingsItemParams {
+    "id": string;
+    "userId": sql$0.NullString;
+
+    /** Creates a new GetEmbeddingsItemParams instance. */
+    constructor($$source: Partial<GetEmbeddingsItemParams> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = (new sql$0.NullString());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetEmbeddingsItemParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetEmbeddingsItemParams {
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("userId" in $$parsedSource) {
+            $$parsedSource["userId"] = $$createField1_0($$parsedSource["userId"]);
+        }
+        return new GetEmbeddingsItemParams($$parsedSource as Partial<GetEmbeddingsItemParams>);
     }
 }
 
@@ -7303,6 +7574,35 @@ export class GetNextAuthVerificationTokenParams {
     }
 }
 
+export class GetOAuthHandoffByClientParams {
+    "id": string;
+    "client": string;
+    "createdAt": number;
+
+    /** Creates a new GetOAuthHandoffByClientParams instance. */
+    constructor($$source: Partial<GetOAuthHandoffByClientParams> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("client" in $$source)) {
+            this["client"] = "";
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetOAuthHandoffByClientParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetOAuthHandoffByClientParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new GetOAuthHandoffByClientParams($$parsedSource as Partial<GetOAuthHandoffByClientParams>);
+    }
+}
+
 export class GetOIDCConsentParams {
     "userId": string;
     "clientId": string;
@@ -7881,6 +8181,43 @@ export class GetThreadParams {
     static createFrom($$source: any = {}): GetThreadParams {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new GetThreadParams($$parsedSource as Partial<GetThreadParams>);
+    }
+}
+
+export class GetTimeoutTasksParams {
+    "ids": string[];
+    "status": sql$0.NullString;
+    "createdAt": number;
+
+    /** Creates a new GetTimeoutTasksParams instance. */
+    constructor($$source: Partial<GetTimeoutTasksParams> = {}) {
+        if (!("ids" in $$source)) {
+            this["ids"] = [];
+        }
+        if (!("status" in $$source)) {
+            this["status"] = (new sql$0.NullString());
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetTimeoutTasksParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetTimeoutTasksParams {
+        const $$createField0_0 = $$createType2;
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("ids" in $$parsedSource) {
+            $$parsedSource["ids"] = $$createField0_0($$parsedSource["ids"]);
+        }
+        if ("status" in $$parsedSource) {
+            $$parsedSource["status"] = $$createField1_0($$parsedSource["status"]);
+        }
+        return new GetTimeoutTasksParams($$parsedSource as Partial<GetTimeoutTasksParams>);
     }
 }
 
@@ -14021,6 +14358,51 @@ export class UpdateThreadParams {
             $$parsedSource["status"] = $$createField1_0($$parsedSource["status"]);
         }
         return new UpdateThreadParams($$parsedSource as Partial<UpdateThreadParams>);
+    }
+}
+
+export class UpdateTimeoutTasksParams {
+    "status": sql$0.NullString;
+    "error": sql$0.NullString;
+    "updatedAt": number;
+    "ids": string[];
+
+    /** Creates a new UpdateTimeoutTasksParams instance. */
+    constructor($$source: Partial<UpdateTimeoutTasksParams> = {}) {
+        if (!("status" in $$source)) {
+            this["status"] = (new sql$0.NullString());
+        }
+        if (!("error" in $$source)) {
+            this["error"] = (new sql$0.NullString());
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+        if (!("ids" in $$source)) {
+            this["ids"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpdateTimeoutTasksParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UpdateTimeoutTasksParams {
+        const $$createField0_0 = $$createType0;
+        const $$createField1_0 = $$createType0;
+        const $$createField3_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("status" in $$parsedSource) {
+            $$parsedSource["status"] = $$createField0_0($$parsedSource["status"]);
+        }
+        if ("error" in $$parsedSource) {
+            $$parsedSource["error"] = $$createField1_0($$parsedSource["error"]);
+        }
+        if ("ids" in $$parsedSource) {
+            $$parsedSource["ids"] = $$createField3_0($$parsedSource["ids"]);
+        }
+        return new UpdateTimeoutTasksParams($$parsedSource as Partial<UpdateTimeoutTasksParams>);
     }
 }
 
