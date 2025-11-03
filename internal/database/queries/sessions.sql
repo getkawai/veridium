@@ -6,6 +6,10 @@ WHERE id = ? AND user_id = ?;
 SELECT * FROM sessions
 WHERE slug = ? AND user_id = ?;
 
+-- name: GetSessionByIdOrSlug :one
+SELECT * FROM sessions
+WHERE (id = ? OR slug = ?) AND user_id = ?;
+
 -- name: ListSessions :many
 SELECT * FROM sessions
 WHERE user_id = ? AND slug != 'inbox'
@@ -15,6 +19,13 @@ LIMIT ? OFFSET ?;
 -- name: CountSessions :one
 SELECT COUNT(*) FROM sessions
 WHERE user_id = ? AND slug != 'inbox';
+
+-- name: CountSessionsByDateRange :one
+SELECT COUNT(*) FROM sessions
+WHERE user_id = ? 
+  AND slug != 'inbox'
+  AND created_at >= ?
+  AND created_at <= ?;
 
 -- name: CreateSession :one
 INSERT INTO sessions (
@@ -39,6 +50,10 @@ RETURNING *;
 -- name: DeleteSession :exec
 DELETE FROM sessions
 WHERE id = ? AND user_id = ?;
+
+-- name: BatchDeleteSessions :exec
+DELETE FROM sessions
+WHERE user_id = ? AND id IN (sqlc.slice('ids'));
 
 -- name: SearchSessions :many
 SELECT * FROM sessions
@@ -71,4 +86,20 @@ WHERE id = ? AND user_id = ?;
 UPDATE sessions
 SET pinned = ?, updated_at = ?
 WHERE id = ? AND user_id = ?;
+
+-- name: GetSessionRank :many
+SELECT 
+    s.id,
+    a.title,
+    a.avatar,
+    a.background_color,
+    COUNT(t.id) as topic_count
+FROM sessions s
+LEFT JOIN agents_to_sessions ats ON s.id = ats.session_id
+LEFT JOIN agents a ON ats.agent_id = a.id
+LEFT JOIN topics t ON s.id = t.session_id
+WHERE s.user_id = ? AND s.slug != 'inbox'
+GROUP BY s.id, a.title, a.avatar, a.background_color
+ORDER BY topic_count DESC, s.updated_at DESC
+LIMIT ?;
 

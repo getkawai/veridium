@@ -566,6 +566,35 @@ export class AsyncTask {
     }
 }
 
+export class BatchDeleteSessionsParams {
+    "userId": string;
+    "ids": string[];
+
+    /** Creates a new BatchDeleteSessionsParams instance. */
+    constructor($$source: Partial<BatchDeleteSessionsParams> = {}) {
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+        if (!("ids" in $$source)) {
+            this["ids"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BatchDeleteSessionsParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): BatchDeleteSessionsParams {
+        const $$createField1_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("ids" in $$parsedSource) {
+            $$parsedSource["ids"] = $$createField1_0($$parsedSource["ids"]);
+        }
+        return new BatchDeleteSessionsParams($$parsedSource as Partial<BatchDeleteSessionsParams>);
+    }
+}
+
 export class ChatGroup {
     "id": string;
     "title": sql$0.NullString;
@@ -753,6 +782,35 @@ export class ConsumeOIDCAuthorizationCodeParams {
     }
 }
 
+export class CountSessionsByDateRangeParams {
+    "userId": string;
+    "createdAt": number;
+    "createdAt2": number;
+
+    /** Creates a new CountSessionsByDateRangeParams instance. */
+    constructor($$source: Partial<CountSessionsByDateRangeParams> = {}) {
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+        if (!("createdAt2" in $$source)) {
+            this["createdAt2"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CountSessionsByDateRangeParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CountSessionsByDateRangeParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new CountSessionsByDateRangeParams($$parsedSource as Partial<CountSessionsByDateRangeParams>);
+    }
+}
+
 export class CountSessionsInGroupParams {
     "groupId": sql$0.NullString;
     "userId": string;
@@ -779,6 +837,35 @@ export class CountSessionsInGroupParams {
             $$parsedSource["groupId"] = $$createField0_0($$parsedSource["groupId"]);
         }
         return new CountSessionsInGroupParams($$parsedSource as Partial<CountSessionsInGroupParams>);
+    }
+}
+
+export class CountTopicsBySessionParams {
+    "sessionId": sql$0.NullString;
+    "userId": string;
+
+    /** Creates a new CountTopicsBySessionParams instance. */
+    constructor($$source: Partial<CountTopicsBySessionParams> = {}) {
+        if (!("sessionId" in $$source)) {
+            this["sessionId"] = (new sql$0.NullString());
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CountTopicsBySessionParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CountTopicsBySessionParams {
+        const $$createField0_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("sessionId" in $$parsedSource) {
+            $$parsedSource["sessionId"] = $$createField0_0($$parsedSource["sessionId"]);
+        }
+        return new CountTopicsBySessionParams($$parsedSource as Partial<CountTopicsBySessionParams>);
     }
 }
 
@@ -5565,6 +5652,31 @@ export class GetAgentParams {
     }
 }
 
+export class GetAgentSessionsParams {
+    "agentId": string;
+    "userId": string;
+
+    /** Creates a new GetAgentSessionsParams instance. */
+    constructor($$source: Partial<GetAgentSessionsParams> = {}) {
+        if (!("agentId" in $$source)) {
+            this["agentId"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetAgentSessionsParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetAgentSessionsParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new GetAgentSessionsParams($$parsedSource as Partial<GetAgentSessionsParams>);
+    }
+}
+
 export class GetAsyncTaskParams {
     "id": string;
     "userId": string;
@@ -6339,6 +6451,35 @@ export class GetSessionAgentsParams {
     }
 }
 
+export class GetSessionByIdOrSlugParams {
+    "id": string;
+    "slug": string;
+    "userId": string;
+
+    /** Creates a new GetSessionByIdOrSlugParams instance. */
+    constructor($$source: Partial<GetSessionByIdOrSlugParams> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("slug" in $$source)) {
+            this["slug"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetSessionByIdOrSlugParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetSessionByIdOrSlugParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new GetSessionByIdOrSlugParams($$parsedSource as Partial<GetSessionByIdOrSlugParams>);
+    }
+}
+
 export class GetSessionBySlugParams {
     "slug": string;
     "userId": string;
@@ -6518,6 +6659,80 @@ export class GetSessionParams {
     static createFrom($$source: any = {}): GetSessionParams {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new GetSessionParams($$parsedSource as Partial<GetSessionParams>);
+    }
+}
+
+export class GetSessionRankParams {
+    "userId": string;
+    "limit": number;
+
+    /** Creates a new GetSessionRankParams instance. */
+    constructor($$source: Partial<GetSessionRankParams> = {}) {
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+        if (!("limit" in $$source)) {
+            this["limit"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetSessionRankParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetSessionRankParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new GetSessionRankParams($$parsedSource as Partial<GetSessionRankParams>);
+    }
+}
+
+export class GetSessionRankRow {
+    "id": string;
+    "title": sql$0.NullString;
+    "avatar": sql$0.NullString;
+    "backgroundColor": sql$0.NullString;
+    "topicCount": number;
+
+    /** Creates a new GetSessionRankRow instance. */
+    constructor($$source: Partial<GetSessionRankRow> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("title" in $$source)) {
+            this["title"] = (new sql$0.NullString());
+        }
+        if (!("avatar" in $$source)) {
+            this["avatar"] = (new sql$0.NullString());
+        }
+        if (!("backgroundColor" in $$source)) {
+            this["backgroundColor"] = (new sql$0.NullString());
+        }
+        if (!("topicCount" in $$source)) {
+            this["topicCount"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetSessionRankRow instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetSessionRankRow {
+        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $$createType0;
+        const $$createField3_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("title" in $$parsedSource) {
+            $$parsedSource["title"] = $$createField1_0($$parsedSource["title"]);
+        }
+        if ("avatar" in $$parsedSource) {
+            $$parsedSource["avatar"] = $$createField2_0($$parsedSource["avatar"]);
+        }
+        if ("backgroundColor" in $$parsedSource) {
+            $$parsedSource["backgroundColor"] = $$createField3_0($$parsedSource["backgroundColor"]);
+        }
+        return new GetSessionRankRow($$parsedSource as Partial<GetSessionRankRow>);
     }
 }
 
@@ -12828,3 +13043,4 @@ export class UserSetting {
 // Private type creation functions
 const $$createType0 = sql$0.NullString.createFrom;
 const $$createType1 = sql$0.NullInt64.createFrom;
+const $$createType2 = $Create.Array($Create.Any);

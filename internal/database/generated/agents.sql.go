@@ -285,6 +285,106 @@ func (q *Queries) GetAgentKnowledgeBases(ctx context.Context, arg GetAgentKnowle
 	return items, nil
 }
 
+const GetAgentSessions = `-- name: GetAgentSessions :many
+SELECT s.id, s.slug, s.title, s.description, s.avatar, s.background_color, s.type, s.user_id, s.group_id, s.client_id, s.pinned, s.created_at, s.updated_at FROM sessions s
+INNER JOIN agents_to_sessions ats ON s.id = ats.session_id
+WHERE ats.agent_id = ? AND ats.user_id = ?
+`
+
+type GetAgentSessionsParams struct {
+	AgentID string `json:"agentId"`
+	UserID  string `json:"userId"`
+}
+
+func (q *Queries) GetAgentSessions(ctx context.Context, arg GetAgentSessionsParams) ([]Session, error) {
+	rows, err := q.db.QueryContext(ctx, GetAgentSessions, arg.AgentID, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Session{}
+	for rows.Next() {
+		var i Session
+		if err := rows.Scan(
+			&i.ID,
+			&i.Slug,
+			&i.Title,
+			&i.Description,
+			&i.Avatar,
+			&i.BackgroundColor,
+			&i.Type,
+			&i.UserID,
+			&i.GroupID,
+			&i.ClientID,
+			&i.Pinned,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const GetOrphanedAgents = `-- name: GetOrphanedAgents :many
+SELECT a.id, a.slug, a.title, a.description, a.tags, a.avatar, a.background_color, a.plugins, a.client_id, a.user_id, a.chat_config, a.few_shots, a.model, a.params, a.provider, a.system_role, a.tts, a."virtual", a.opening_message, a.opening_questions, a.created_at, a.updated_at FROM agents a
+LEFT JOIN agents_to_sessions ats ON a.id = ats.agent_id
+WHERE a.user_id = ? AND ats.agent_id IS NULL
+`
+
+func (q *Queries) GetOrphanedAgents(ctx context.Context, userID string) ([]Agent, error) {
+	rows, err := q.db.QueryContext(ctx, GetOrphanedAgents, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Agent{}
+	for rows.Next() {
+		var i Agent
+		if err := rows.Scan(
+			&i.ID,
+			&i.Slug,
+			&i.Title,
+			&i.Description,
+			&i.Tags,
+			&i.Avatar,
+			&i.BackgroundColor,
+			&i.Plugins,
+			&i.ClientID,
+			&i.UserID,
+			&i.ChatConfig,
+			&i.FewShots,
+			&i.Model,
+			&i.Params,
+			&i.Provider,
+			&i.SystemRole,
+			&i.Tts,
+			&i.Virtual,
+			&i.OpeningMessage,
+			&i.OpeningQuestions,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const GetSessionAgents = `-- name: GetSessionAgents :many
 SELECT a.id, a.slug, a.title, a.description, a.tags, a.avatar, a.background_color, a.plugins, a.client_id, a.user_id, a.chat_config, a.few_shots, a.model, a.params, a.provider, a.system_role, a.tts, a."virtual", a.opening_message, a.opening_questions, a.created_at, a.updated_at FROM agents a
 INNER JOIN agents_to_sessions ats ON a.id = ats.agent_id

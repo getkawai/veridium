@@ -8,7 +8,34 @@ package db
 import (
 	"context"
 	"database/sql"
+	"strings"
 )
+
+const BatchDeleteSessions = `-- name: BatchDeleteSessions :exec
+DELETE FROM sessions
+WHERE user_id = ? AND id IN (/*SLICE:ids*/?)
+`
+
+type BatchDeleteSessionsParams struct {
+	UserID string   `json:"userId"`
+	Ids    []string `json:"ids"`
+}
+
+func (q *Queries) BatchDeleteSessions(ctx context.Context, arg BatchDeleteSessionsParams) error {
+	query := BatchDeleteSessions
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.UserID)
+	if len(arg.Ids) > 0 {
+		for _, v := range arg.Ids {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(arg.Ids))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
+	}
+	_, err := q.db.ExecContext(ctx, query, queryParams...)
+	return err
+}
 
 const CountSessions = `-- name: CountSessions :one
 SELECT COUNT(*) FROM sessions
@@ -17,6 +44,27 @@ WHERE user_id = ? AND slug != 'inbox'
 
 func (q *Queries) CountSessions(ctx context.Context, userID string) (int64, error) {
 	row := q.db.QueryRowContext(ctx, CountSessions, userID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const CountSessionsByDateRange = `-- name: CountSessionsByDateRange :one
+SELECT COUNT(*) FROM sessions
+WHERE user_id = ? 
+  AND slug != 'inbox'
+  AND created_at >= ?
+  AND created_at <= ?
+`
+
+type CountSessionsByDateRangeParams struct {
+	UserID      string `json:"userId"`
+	CreatedAt   int64  `json:"createdAt"`
+	CreatedAt_2 int64  `json:"createdAt2"`
+}
+
+func (q *Queries) CountSessionsByDateRange(ctx context.Context, arg CountSessionsByDateRangeParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, CountSessionsByDateRange, arg.UserID, arg.CreatedAt, arg.CreatedAt_2)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -128,6 +176,38 @@ func (q *Queries) GetSession(ctx context.Context, arg GetSessionParams) (Session
 	return i, err
 }
 
+const GetSessionByIdOrSlug = `-- name: GetSessionByIdOrSlug :one
+SELECT id, slug, title, description, avatar, background_color, type, user_id, group_id, client_id, pinned, created_at, updated_at FROM sessions
+WHERE (id = ? OR slug = ?) AND user_id = ?
+`
+
+type GetSessionByIdOrSlugParams struct {
+	ID     string `json:"id"`
+	Slug   string `json:"slug"`
+	UserID string `json:"userId"`
+}
+
+func (q *Queries) GetSessionByIdOrSlug(ctx context.Context, arg GetSessionByIdOrSlugParams) (Session, error) {
+	row := q.db.QueryRowContext(ctx, GetSessionByIdOrSlug, arg.ID, arg.Slug, arg.UserID)
+	var i Session
+	err := row.Scan(
+		&i.ID,
+		&i.Slug,
+		&i.Title,
+		&i.Description,
+		&i.Avatar,
+		&i.BackgroundColor,
+		&i.Type,
+		&i.UserID,
+		&i.GroupID,
+		&i.ClientID,
+		&i.Pinned,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const GetSessionBySlug = `-- name: GetSessionBySlug :one
 SELECT id, slug, title, description, avatar, background_color, type, user_id, group_id, client_id, pinned, created_at, updated_at FROM sessions
 WHERE slug = ? AND user_id = ?
@@ -157,6 +237,65 @@ func (q *Queries) GetSessionBySlug(ctx context.Context, arg GetSessionBySlugPara
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const GetSessionRank = `-- name: GetSessionRank :many
+SELECT 
+    s.id,
+    a.title,
+    a.avatar,
+    a.background_color,
+    COUNT(t.id) as topic_count
+FROM sessions s
+LEFT JOIN agents_to_sessions ats ON s.id = ats.session_id
+LEFT JOIN agents a ON ats.agent_id = a.id
+LEFT JOIN topics t ON s.id = t.session_id
+WHERE s.user_id = ? AND s.slug != 'inbox'
+GROUP BY s.id, a.title, a.avatar, a.background_color
+ORDER BY topic_count DESC, s.updated_at DESC
+LIMIT ?
+`
+
+type GetSessionRankParams struct {
+	UserID string `json:"userId"`
+	Limit  int64  `json:"limit"`
+}
+
+type GetSessionRankRow struct {
+	ID              string         `json:"id"`
+	Title           sql.NullString `json:"title"`
+	Avatar          sql.NullString `json:"avatar"`
+	BackgroundColor sql.NullString `json:"backgroundColor"`
+	TopicCount      int64          `json:"topicCount"`
+}
+
+func (q *Queries) GetSessionRank(ctx context.Context, arg GetSessionRankParams) ([]GetSessionRankRow, error) {
+	rows, err := q.db.QueryContext(ctx, GetSessionRank, arg.UserID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetSessionRankRow{}
+	for rows.Next() {
+		var i GetSessionRankRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Avatar,
+			&i.BackgroundColor,
+			&i.TopicCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const GetSessionWithGroup = `-- name: GetSessionWithGroup :one

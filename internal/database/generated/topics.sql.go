@@ -10,6 +10,23 @@ import (
 	"database/sql"
 )
 
+const CountTopicsBySession = `-- name: CountTopicsBySession :one
+SELECT COUNT(*) FROM topics
+WHERE session_id = ? AND user_id = ?
+`
+
+type CountTopicsBySessionParams struct {
+	SessionID sql.NullString `json:"sessionId"`
+	UserID    string         `json:"userId"`
+}
+
+func (q *Queries) CountTopicsBySession(ctx context.Context, arg CountTopicsBySessionParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, CountTopicsBySession, arg.SessionID, arg.UserID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const CreateThread = `-- name: CreateThread :one
 INSERT INTO threads (
     id, title, type, status, topic_id, source_message_id,

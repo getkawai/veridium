@@ -64,6 +64,16 @@ SELECT a.* FROM agents a
 INNER JOIN agents_to_sessions ats ON a.id = ats.agent_id
 WHERE ats.session_id = ? AND ats.user_id = ?;
 
+-- name: GetAgentSessions :many
+SELECT s.* FROM sessions s
+INNER JOIN agents_to_sessions ats ON s.id = ats.session_id
+WHERE ats.agent_id = ? AND ats.user_id = ?;
+
+-- name: GetOrphanedAgents :many
+SELECT a.* FROM agents a
+LEFT JOIN agents_to_sessions ats ON a.id = ats.agent_id
+WHERE a.user_id = ? AND ats.agent_id IS NULL;
+
 -- Agent Files
 
 -- name: LinkAgentToFile :exec

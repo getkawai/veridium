@@ -10,9 +10,12 @@ import (
 )
 
 type Querier interface {
+	BatchDeleteSessions(ctx context.Context, arg BatchDeleteSessionsParams) error
 	ConsumeOIDCAuthorizationCode(ctx context.Context, arg ConsumeOIDCAuthorizationCodeParams) error
 	CountSessions(ctx context.Context, userID string) (int64, error)
+	CountSessionsByDateRange(ctx context.Context, arg CountSessionsByDateRangeParams) (int64, error)
 	CountSessionsInGroup(ctx context.Context, arg CountSessionsInGroupParams) (int64, error)
+	CountTopicsBySession(ctx context.Context, arg CountTopicsBySessionParams) (int64, error)
 	CreateAIModel(ctx context.Context, arg CreateAIModelParams) (AiModel, error)
 	CreateAIProvider(ctx context.Context, arg CreateAIProviderParams) (AiProvider, error)
 	CreateAPIKey(ctx context.Context, arg CreateAPIKeyParams) (ApiKey, error)
@@ -113,6 +116,7 @@ type Querier interface {
 	GetAgentBySlug(ctx context.Context, arg GetAgentBySlugParams) (Agent, error)
 	GetAgentFiles(ctx context.Context, arg GetAgentFilesParams) ([]File, error)
 	GetAgentKnowledgeBases(ctx context.Context, arg GetAgentKnowledgeBasesParams) ([]KnowledgeBasis, error)
+	GetAgentSessions(ctx context.Context, arg GetAgentSessionsParams) ([]Session, error)
 	GetAsyncTask(ctx context.Context, arg GetAsyncTaskParams) (AsyncTask, error)
 	GetChatGroup(ctx context.Context, arg GetChatGroupParams) (ChatGroup, error)
 	GetChatGroupAgents(ctx context.Context, arg GetChatGroupAgentsParams) ([]Agent, error)
@@ -178,6 +182,7 @@ type Querier interface {
 	GetOIDCRefreshToken(ctx context.Context, id string) (OidcRefreshToken, error)
 	// OIDC Sessions
 	GetOIDCSession(ctx context.Context, id string) (OidcSession, error)
+	GetOrphanedAgents(ctx context.Context, userID string) ([]Agent, error)
 	// Permissions
 	GetPermission(ctx context.Context, id int64) (RbacPermission, error)
 	GetPermissionByCode(ctx context.Context, code string) (RbacPermission, error)
@@ -190,10 +195,12 @@ type Querier interface {
 	GetRolePermissions(ctx context.Context, roleID int64) ([]RbacPermission, error)
 	GetSession(ctx context.Context, arg GetSessionParams) (Session, error)
 	GetSessionAgents(ctx context.Context, arg GetSessionAgentsParams) ([]Agent, error)
+	GetSessionByIdOrSlug(ctx context.Context, arg GetSessionByIdOrSlugParams) (Session, error)
 	GetSessionBySlug(ctx context.Context, arg GetSessionBySlugParams) (Session, error)
 	GetSessionFiles(ctx context.Context, arg GetSessionFilesParams) ([]File, error)
 	GetSessionGroup(ctx context.Context, arg GetSessionGroupParams) (SessionGroup, error)
 	GetSessionGroupWithSessions(ctx context.Context, arg GetSessionGroupWithSessionsParams) (GetSessionGroupWithSessionsRow, error)
+	GetSessionRank(ctx context.Context, arg GetSessionRankParams) ([]GetSessionRankRow, error)
 	GetSessionWithGroup(ctx context.Context, arg GetSessionWithGroupParams) (GetSessionWithGroupRow, error)
 	// Threads
 	GetThread(ctx context.Context, arg GetThreadParams) (Thread, error)

@@ -26,6 +26,10 @@ RETURNING *;
 -- name: DeleteTopic :exec
 DELETE FROM topics WHERE id = ? AND user_id = ?;
 
+-- name: CountTopicsBySession :one
+SELECT COUNT(*) FROM topics
+WHERE session_id = ? AND user_id = ?;
+
 -- name: ToggleTopicFavorite :exec
 UPDATE topics SET favorite = ?, updated_at = ?
 WHERE id = ? AND user_id = ?;
