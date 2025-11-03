@@ -1,273 +1,285 @@
-import { and, asc, desc, eq } from 'drizzle-orm';
-import { isEmpty } from 'lodash-es';
+import { nanoid } from 'nanoid';
 import { ModelProvider } from '@/model-bank';
 
 import { DEFAULT_MODEL_PROVIDER_LIST } from '@/config/modelProviders';
-import {
-  AiProviderDetailItem,
-  AiProviderListItem,
-  AiProviderRuntimeConfig,
-  CreateAiProviderParams,
-  UpdateAiProviderConfigParams,
-} from '@/types/aiProvider';
 import { merge } from '@/utils/merge';
 
-import { AiProviderSelectItem, aiModels, aiProviders } from '../schemas';
-import { LobeChatDatabase } from '../type';
+import {
+  DB,
+  toNullString,
+  toNullJSON,
+  parseNullableJSON,
+  getNullableString,
+  currentTimestampMs,
+  boolToInt,
+  intToBool,
+} from '@/types/database';
+import { Service as DBService } from '@@/github.com/kawai-network/veridium/internal/database';
 
 type DecryptUserKeyVaults = (encryptKeyVaultsStr: string | null) => Promise<any>;
-
 type EncryptUserKeyVaults = (keyVaults: string) => Promise<string>;
 
 export class AiProviderModel {
   private userId: string;
-  private db: LobeChatDatabase;
 
-  constructor(db: LobeChatDatabase, userId: string) {
+  constructor(_db: any, userId: string) {
     this.userId = userId;
-    this.db = db;
   }
 
   create = async (
-    { keyVaults: userKey, ...params }: CreateAiProviderParams,
+    { keyVaults: userKey, ...params }: any,
     encryptor?: EncryptUserKeyVaults,
   ) => {
-    // eslint-disable-next-line unicorn/consistent-function-scoping
     const defaultSerialize = (s: string) => s;
     const encrypt = encryptor ?? defaultSerialize;
     const keyVaults = await encrypt(JSON.stringify(userKey));
 
-    const [result] = await this.db
-      .insert(aiProviders)
-      .values({
-        ...params,
-        // each new ai provider we will set it to enabled by default
-        enabled: true,
-        keyVaults,
-        userId: this.userId,
-      })
-      .returning();
+    const now = currentTimestampMs();
+    const id = params.id || nanoid();
+
+    const result = await DB.CreateAIProvider({
+      id,
+      name: toNullString(params.name) as any,
+      userId: this.userId,
+      sort: params.sort ?? 0,
+      enabled: boolToInt(true) as any,
+      fetchOnClient: boolToInt(params.fetchOnClient ?? false) as any,
+      checkModel: toNullString(params.checkModel) as any,
+      logo: toNullString(params.logo) as any,
+      description: toNullString(params.description) as any,
+      keyVaults: toNullString(keyVaults) as any,
+      source: toNullString(params.source || 'custom') as any,
+      settings: toNullJSON(params.settings) as any,
+      config: toNullJSON(params.config) as any,
+      createdAt: now,
+      updatedAt: now,
+    });
 
     return result;
   };
 
+  /**
+   * Delete AI provider with atomic transaction
+   * ✅ OPTIMIZED: Uses backend transaction for atomicity
+   * Deletes provider and all its models atomically
+   * All operations succeed or all rollback
+   */
   delete = async (id: string) => {
-    return this.db.transaction(async (trx) => {
-      // 1. delete all models of the provider
-      await trx
-        .delete(aiModels)
-        .where(and(eq(aiModels.providerId, id), eq(aiModels.userId, this.userId)));
-
-      // 2. delete the provider
-      await trx
-        .delete(aiProviders)
-        .where(and(eq(aiProviders.id, id), eq(aiProviders.userId, this.userId)));
-    });
+    await DBService.DeleteAIProviderWithModels(id, this.userId);
   };
 
   deleteAll = async () => {
-    return this.db.delete(aiProviders).where(eq(aiProviders.userId, this.userId));
+    return await DB.DeleteAllAIProviders(this.userId);
   };
 
   query = async () => {
-    return this.db.query.aiProviders.findMany({
-      orderBy: [desc(aiProviders.updatedAt)],
-      where: eq(aiProviders.userId, this.userId),
-    });
+    return await DB.ListAIProviders(this.userId);
   };
 
-  getAiProviderList = async (): Promise<AiProviderListItem[]> => {
-    const result = await this.db
-      .select({
-        description: aiProviders.description,
-        enabled: aiProviders.enabled,
-        id: aiProviders.id,
-        logo: aiProviders.logo,
-        name: aiProviders.name,
-        sort: aiProviders.sort,
-        source: aiProviders.source,
-      })
-      .from(aiProviders)
-      .where(eq(aiProviders.userId, this.userId))
-      .orderBy(asc(aiProviders.sort), desc(aiProviders.updatedAt));
+  getAiProviderList = async (): Promise<any[]> => {
+    const result = await DB.GetAIProviderListSimple(this.userId);
 
-    return result as AiProviderListItem[];
+    return result.map((r) => ({
+      description: getNullableString(r.description as any),
+      enabled: intToBool(Number(r.enabled) || 0),
+      id: r.id,
+      logo: getNullableString(r.logo as any),
+      name: getNullableString(r.name as any),
+      sort: r.sort || 0,
+      source: getNullableString(r.source as any),
+    }));
   };
 
   findById = async (id: string) => {
-    return this.db.query.aiProviders.findFirst({
-      where: and(eq(aiProviders.id, id), eq(aiProviders.userId, this.userId)),
+    return await DB.GetAIProvider({
+      id,
+      userId: this.userId,
     });
   };
 
-  update = async (id: string, value: Partial<AiProviderSelectItem>) => {
-    return this.db
-      .update(aiProviders)
-      .set({ ...value, updatedAt: new Date() })
-      .where(and(eq(aiProviders.id, id), eq(aiProviders.userId, this.userId)));
+  update = async (id: string, value: any) => {
+    return await DB.UpdateAIProvider({
+      id,
+      userId: this.userId,
+      name: toNullString(value.name) as any,
+      sort: value.sort ?? 0,
+      enabled: boolToInt(value.enabled ?? true) as any,
+      fetchOnClient: boolToInt(value.fetchOnClient ?? false) as any,
+      checkModel: toNullString(value.checkModel) as any,
+      logo: toNullString(value.logo) as any,
+      description: toNullString(value.description) as any,
+      keyVaults: toNullString(value.keyVaults) as any,
+      settings: toNullJSON(value.settings) as any,
+      config: toNullJSON(value.config) as any,
+      updatedAt: currentTimestampMs(),
+    });
   };
 
   updateConfig = async (
     id: string,
-    value: UpdateAiProviderConfigParams,
+    value: any,
     encryptor?: EncryptUserKeyVaults,
   ) => {
-    // eslint-disable-next-line unicorn/consistent-function-scoping
     const defaultSerialize = (s: string) => s;
     const encrypt = encryptor ?? defaultSerialize;
     const keyVaults = await encrypt(JSON.stringify(value.keyVaults));
 
-    const commonFields = {
-      checkModel: value.checkModel,
-      config: value.config,
-      fetchOnClient: value.fetchOnClient,
-      keyVaults,
-    };
-
-    return this.db
-      .insert(aiProviders)
-      .values({
-        ...commonFields,
-        id,
-        source: this.getProviderSource(id),
-        userId: this.userId,
-      })
-      .onConflictDoUpdate({
-        set: commonFields,
-        target: [aiProviders.id, aiProviders.userId],
-      });
+    return await DB.UpsertAIProviderConfig({
+      id,
+      userId: this.userId,
+      keyVaults: toNullString(keyVaults) as any,
+      config: toNullJSON(value.config) as any,
+      fetchOnClient: boolToInt(value.fetchOnClient ?? false) as any,
+      checkModel: toNullString(value.checkModel) as any,
+      source: toNullString(this.getProviderSource(id)) as any,
+      createdAt: currentTimestampMs(),
+      updatedAt: currentTimestampMs(),
+    });
   };
 
   toggleProviderEnabled = async (id: string, enabled: boolean) => {
-    return this.db
-      .insert(aiProviders)
-      .values({
-        enabled,
-        id,
-        source: this.getProviderSource(id),
-        updatedAt: new Date(),
-        userId: this.userId,
-      })
-      .onConflictDoUpdate({
-        set: { enabled },
-        target: [aiProviders.id, aiProviders.userId],
-      });
+    return await DB.ToggleAIProviderEnabled({
+      id,
+      userId: this.userId,
+      enabled: boolToInt(enabled) as any,
+      source: toNullString(this.getProviderSource(id)) as any,
+      createdAt: currentTimestampMs(),
+      updatedAt: currentTimestampMs(),
+    });
   };
 
+  /**
+   * NOTE: No transaction support - updates sequentially
+   */
   updateOrder = async (sortMap: { id: string; sort: number }[]) => {
-    await this.db.transaction(async (tx) => {
-      const updates = sortMap.map(({ id, sort }) => {
-        return tx
-          .insert(aiProviders)
-          .values({
-            enabled: true,
-            id,
-            sort,
-            source: this.getProviderSource(id),
-            updatedAt: new Date(),
-            userId: this.userId,
-          })
-          .onConflictDoUpdate({
-            set: { sort, updatedAt: new Date() },
-            target: [aiProviders.id, aiProviders.userId],
-          });
-      });
-
-      await Promise.all(updates);
-    });
+    await Promise.all(
+      sortMap.map(({ id, sort }) =>
+        DB.UpsertAIProvider({
+          id,
+          name: toNullString('') as any,
+          userId: this.userId,
+          sort: sort as any,
+          enabled: boolToInt(true) as any,
+          fetchOnClient: boolToInt(false) as any,
+          checkModel: toNullString('') as any,
+          logo: toNullString('') as any,
+          description: toNullString('') as any,
+          keyVaults: toNullString('') as any,
+          source: toNullString(this.getProviderSource(id)) as any,
+          settings: toNullJSON(null) as any,
+          config: toNullJSON(null) as any,
+          createdAt: currentTimestampMs(),
+          updatedAt: currentTimestampMs(),
+        }),
+      ),
+    );
   };
 
   getAiProviderById = async (
     id: string,
     decryptor?: DecryptUserKeyVaults,
-  ): Promise<AiProviderDetailItem | undefined> => {
-    const query = this.db
-      .select({
-        checkModel: aiProviders.checkModel,
-        config: aiProviders.config,
-        description: aiProviders.description,
-        enabled: aiProviders.enabled,
-        fetchOnClient: aiProviders.fetchOnClient,
-        id: aiProviders.id,
-        keyVaults: aiProviders.keyVaults,
-        logo: aiProviders.logo,
-        name: aiProviders.name,
-        settings: aiProviders.settings,
-        source: aiProviders.source,
-      })
-      .from(aiProviders)
-      .where(and(eq(aiProviders.id, id), eq(aiProviders.userId, this.userId)))
-      .limit(1);
-
-    const [result] = await query;
+  ): Promise<any | undefined> => {
+    let result = await DB.GetAIProviderDetail({
+      id,
+      userId: this.userId,
+    });
 
     if (!result) {
-      // if the provider is builtin but not init, we will insert it to the db
+      // If the provider is builtin but not init, insert it
       if (this.isBuiltInProvider(id)) {
-        await this.db.insert(aiProviders).values({ id, source: 'builtin', userId: this.userId });
+        await DB.CreateAIProvider({
+          id,
+          name: toNullString('') as any,
+          userId: this.userId,
+          sort: 0 as any,
+          enabled: boolToInt(true) as any,
+          fetchOnClient: boolToInt(false) as any,
+          checkModel: toNullString('') as any,
+          logo: toNullString('') as any,
+          description: toNullString('') as any,
+          keyVaults: toNullString('') as any,
+          source: toNullString('builtin') as any,
+          settings: toNullJSON(null) as any,
+          config: toNullJSON(null) as any,
+          createdAt: currentTimestampMs(),
+          updatedAt: currentTimestampMs(),
+        });
 
-        const resultAgain = await query;
-
-        return { ...resultAgain[0] } as unknown as AiProviderDetailItem;
+        result = await DB.GetAIProviderDetail({
+          id,
+          userId: this.userId,
+        });
       }
 
-      return;
+      if (!result) return undefined;
     }
 
     const decrypt = decryptor ?? JSON.parse;
 
     let keyVaults = {};
 
-    if (!!result.keyVaults) {
+    const keyVaultsStr = getNullableString(result.keyVaults as any);
+    if (keyVaultsStr) {
       try {
-        keyVaults = await decrypt(result.keyVaults);
+        keyVaults = await decrypt(keyVaultsStr);
       } catch {
         /* empty */
       }
     }
 
+    const fetchOnClientVal = result.fetchOnClient;
+    const fetchOnClient =
+      typeof fetchOnClientVal === 'number'
+        ? intToBool(fetchOnClientVal)
+        : undefined;
+
     return {
-      ...result,
-      fetchOnClient: typeof result.fetchOnClient === 'boolean' ? result.fetchOnClient : undefined,
+      id: result.id,
+      name: getNullableString(result.name as any),
+      logo: getNullableString(result.logo as any),
+      description: getNullableString(result.description as any),
+      enabled: intToBool(Number(result.enabled) || 0),
+      source: getNullableString(result.source as any),
       keyVaults,
-      settings: isEmpty(result.settings) ? undefined : result.settings,
-    } as AiProviderDetailItem;
+      settings: parseNullableJSON(result.settings as any) || undefined,
+      config: parseNullableJSON(result.config as any),
+      fetchOnClient,
+      checkModel: getNullableString(result.checkModel as any),
+    };
   };
 
   getAiProviderRuntimeConfig = async (decryptor?: DecryptUserKeyVaults) => {
-    const result = await this.db
-      .select({
-        config: aiProviders.config,
-        fetchOnClient: aiProviders.fetchOnClient,
-        id: aiProviders.id,
-        keyVaults: aiProviders.keyVaults,
-        settings: aiProviders.settings,
-      })
-      .from(aiProviders)
-      .where(and(eq(aiProviders.userId, this.userId)));
+    const result = await DB.GetAIProviderRuntimeConfigs(this.userId);
 
     const decrypt = decryptor ?? JSON.parse;
-    let runtimeConfig: Record<string, AiProviderRuntimeConfig> = {};
+    let runtimeConfig: Record<string, any> = {};
 
     for (const item of result) {
       const builtin = DEFAULT_MODEL_PROVIDER_LIST.find((provider) => provider.id === item.id);
 
-      const userSettings = item.settings || {};
+      const userSettings = parseNullableJSON(item.settings as any) || {};
 
       let keyVaults = {};
-      if (!!item.keyVaults) {
+      const keyVaultsStr = getNullableString(item.keyVaults as any);
+      if (keyVaultsStr) {
         try {
-          keyVaults = await decrypt(item.keyVaults);
+          keyVaults = await decrypt(keyVaultsStr);
         } catch {
           /* empty */
         }
       }
 
+      const fetchOnClientVal = item.fetchOnClient;
+      const fetchOnClient =
+        typeof fetchOnClientVal === 'number'
+          ? intToBool(fetchOnClientVal)
+          : undefined;
+
       runtimeConfig[item.id] = {
-        config: item.config || {},
-        fetchOnClient: typeof item.fetchOnClient === 'boolean' ? item.fetchOnClient : undefined,
+        config: parseNullableJSON(item.config as any) || {},
+        fetchOnClient,
         keyVaults,
-        settings: !!builtin ? merge(builtin.settings, userSettings) : userSettings,
+        settings: builtin ? merge(builtin.settings, userSettings) : userSettings,
       };
     }
 
@@ -278,3 +290,4 @@ export class AiProviderModel {
 
   private getProviderSource = (id: string) => (this.isBuiltInProvider(id) ? 'builtin' : 'custom');
 }
+

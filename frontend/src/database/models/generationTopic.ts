@@ -1,35 +1,36 @@
 import { GenerationAsset, ImageGenerationTopic } from  '@/types';
-import { and, desc, eq } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
 
 import { FileService } from '@/server/services/file';
 
-import { GenerationTopicItem, generationTopics } from '../schemas/generation';
-import { LobeChatDatabase } from '../type';
+import {
+  DB,
+  toNullString,
+  parseNullableJSON,
+  getNullableString,
+  currentTimestampMs,
+} from '@/types/database';
 
 export class GenerationTopicModel {
   private userId: string;
-  private db: LobeChatDatabase;
   private fileService: FileService;
 
-  constructor(db: LobeChatDatabase, userId: string) {
+  constructor(_db: any, userId: string) {
     this.userId = userId;
-    this.db = db;
-    this.fileService = new FileService(db, userId);
+    // Note: FileService still needs db for now, pass dummy
+    this.fileService = new FileService(null as any, userId);
   }
 
   queryAll = async () => {
-    const topics = await this.db
-      .select()
-      .from(generationTopics)
-      .orderBy(desc(generationTopics.updatedAt))
-      .where(eq(generationTopics.userId, this.userId));
+    const topics = await DB.ListGenerationTopics(this.userId);
 
     return Promise.all(
       topics.map(async (topic) => {
-        if (topic.coverUrl) {
+        const coverUrl = getNullableString(topic.coverUrl as any);
+        if (coverUrl) {
           return {
             ...topic,
-            coverUrl: await this.fileService.getFullFileUrl(topic.coverUrl),
+            coverUrl: await this.fileService.getFullFileUrl(coverUrl),
           };
         }
         return topic;
@@ -38,13 +39,17 @@ export class GenerationTopicModel {
   };
 
   create = async (title: string) => {
-    const [newGenerationTopic] = await this.db
-      .insert(generationTopics)
-      .values({
-        title,
-        userId: this.userId,
-      })
-      .returning();
+    const id = nanoid();
+    const now = currentTimestampMs();
+
+    const newGenerationTopic = await DB.CreateGenerationTopic({
+      id,
+      userId: this.userId,
+      title: toNullString(title),
+      coverUrl: toNullString(null),
+      createdAt: now,
+      updatedAt: now,
+    });
 
     return newGenerationTopic;
   };
@@ -52,80 +57,73 @@ export class GenerationTopicModel {
   update = async (
     id: string,
     data: Partial<ImageGenerationTopic>,
-  ): Promise<GenerationTopicItem | undefined> => {
-    const [updatedTopic] = await this.db
-      .update(generationTopics)
-      .set({ ...data, updatedAt: new Date() })
-      .where(and(eq(generationTopics.id, id), eq(generationTopics.userId, this.userId)))
-      .returning();
+  ): Promise<any | undefined> => {
+    const updatedTopic = await DB.UpdateGenerationTopic({
+      id,
+      userId: this.userId,
+      title: toNullString(data.title),
+      coverUrl: toNullString(data.coverUrl as any),
+      updatedAt: currentTimestampMs(),
+    });
 
     return updatedTopic;
   };
 
   /**
-   * Delete a generation topic and return associated file URLs for cleanup
+   * OPTIMIZED: Uses query to fetch all assets before deletion
+   * Returns file URLs for cleanup
    *
    * This method follows the "database first, files second" deletion principle:
    * 1. First queries the topic with all its batches and generations to collect file URLs
    * 2. Then deletes the database record (cascade delete handles related batches and generations)
    * 3. Returns the deleted topic data and file URLs for cleanup
-   *
-   * @param id - The topic ID to delete
-   * @returns Object containing deleted topic data and file URLs to clean, or undefined if topic not found or access denied
    */
   delete = async (
     id: string,
-  ): Promise<{ deletedTopic: GenerationTopicItem; filesToDelete: string[] } | undefined> => {
-    // 1. First, get the topic with all its batches and generations to collect file URLs
-    const topicWithBatches = await this.db.query.generationTopics.findFirst({
-      where: and(eq(generationTopics.id, id), eq(generationTopics.userId, this.userId)),
-      with: {
-        batches: {
-          with: {
-            generations: {
-              columns: {
-                asset: true,
-              },
-            },
-          },
-        },
-      },
+  ): Promise<{ deletedTopic: any; filesToDelete: string[] } | undefined> => {
+    // 1. Get topic to verify ownership
+    const topic = await DB.GetGenerationTopic({
+      id,
+      userId: this.userId,
     });
 
-    // If topic doesn't exist or doesn't belong to user, return undefined
-    if (!topicWithBatches) {
+    if (!topic) {
       return undefined;
     }
 
-    // 2. Collect all file URLs that need to be deleted
+    // 2. Get all assets from generations under this topic
+    const assets = await DB.GetGenerationTopicAssets({
+      id: toNullString(id) as any,
+      userId: this.userId,
+    });
+
+    // 3. Collect all file URLs
     const filesToDelete: string[] = [];
 
     // Add cover image URL if exists
-    if (topicWithBatches.coverUrl) {
-      filesToDelete.push(topicWithBatches.coverUrl);
+    const coverUrl = getNullableString(topic.coverUrl as any);
+    if (coverUrl) {
+      filesToDelete.push(coverUrl);
     }
 
     // Add thumbnail URLs from all generations
-    if (topicWithBatches.batches) {
-      for (const batch of topicWithBatches.batches) {
-        for (const gen of batch.generations) {
-          const asset = gen.asset as GenerationAsset;
-          if (asset?.thumbnailUrl) {
-            filesToDelete.push(asset.thumbnailUrl);
-          }
-        }
+    for (const row of assets) {
+      const asset = parseNullableJSON(row.asset as any) as GenerationAsset;
+      if (asset?.thumbnailUrl) {
+        filesToDelete.push(asset.thumbnailUrl);
       }
     }
 
-    // 3. Delete the topic record (this will cascade delete all batches and generations)
-    const [deletedTopic] = await this.db
-      .delete(generationTopics)
-      .where(and(eq(generationTopics.id, id), eq(generationTopics.userId, this.userId)))
-      .returning();
+    // 4. Delete the topic record (cascade will handle batches and generations)
+    await DB.DeleteGenerationTopic({
+      id,
+      userId: this.userId,
+    });
 
     return {
-      deletedTopic,
+      deletedTopic: topic,
       filesToDelete,
     };
   };
 }
+

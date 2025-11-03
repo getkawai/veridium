@@ -1,62 +1,90 @@
-import { and, count, eq } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
 
-import { LobeChatDatabase } from '../type';
-
-import { NewEmbeddingsItem, embeddings } from '../schemas';
+import { NewEmbeddingsItem } from '../schemas';
+import {
+  DB,
+  toNullString,
+  getNullableString,
+} from '@/types/database';
 
 export class EmbeddingModel {
   private userId: string;
-  private db: LobeChatDatabase;
 
-  constructor(db: LobeChatDatabase, userId: string) {
+  constructor(_db: any, userId: string) {
     this.userId = userId;
-    this.db = db;
   }
 
   create = async (value: Omit<NewEmbeddingsItem, 'userId'>) => {
-    const [item] = await this.db
-      .insert(embeddings)
-      .values({ ...value, userId: this.userId })
-      .returning();
+    const id = nanoid();
 
-    return item.id as string;
+    await DB.CreateEmbeddingsItem({
+      id,
+      chunkId: toNullString(value.chunkId as any),
+      embeddings: value.embeddings as any,
+      model: toNullString(value.model as any),
+      clientId: toNullString(value.clientId as any),
+      userId: toNullString(this.userId as any),
+    });
+
+    return id;
   };
 
   bulkCreate = async (values: Omit<NewEmbeddingsItem, 'userId'>[]) => {
-    return this.db
-      .insert(embeddings)
-      .values(values.map((item) => ({ ...item, userId: this.userId })))
-      .onConflictDoNothing({
-        target: [embeddings.chunkId],
-      });
+    await Promise.all(
+      values.map((value) =>
+        DB.BulkCreateEmbeddingsItems({
+          id: nanoid(),
+          chunkId: toNullString(value.chunkId as any),
+          embeddings: value.embeddings as any,
+          model: toNullString(value.model as any),
+          clientId: toNullString(value.clientId as any),
+          userId: toNullString(this.userId as any),
+        }),
+      ),
+    );
   };
 
   delete = async (id: string) => {
-    return this.db
-      .delete(embeddings)
-      .where(and(eq(embeddings.id, id), eq(embeddings.userId, this.userId)));
+    await DB.DeleteEmbeddingsItem({
+      id,
+      userId: toNullString(this.userId as any),
+    });
   };
 
   query = async () => {
-    return this.db.query.embeddings.findMany({
-      where: eq(embeddings.userId, this.userId),
-    });
+    const results = await DB.ListEmbeddingsItems(toNullString(this.userId as any));
+    return results.map((r) => this.mapEmbedding(r));
   };
 
   findById = async (id: string) => {
-    return this.db.query.embeddings.findFirst({
-      where: and(eq(embeddings.id, id), eq(embeddings.userId, this.userId)),
-    });
+    try {
+      const result = await DB.GetEmbeddingsItem({
+        id,
+        userId: toNullString(this.userId as any),
+      });
+      return this.mapEmbedding(result);
+    } catch {
+      return undefined;
+    }
   };
 
   countUsage = async (): Promise<number> => {
-    const result = await this.db
-      .select({
-        count: count(),
-      })
-      .from(embeddings)
-      .where(eq(embeddings.userId, this.userId));
+    const result = await DB.CountEmbeddingsItems(toNullString(this.userId as any));
+    return Number(result) || 0;
+  };
 
-    return result[0].count;
+  // **************** Helper *************** //
+
+  private mapEmbedding = (emb: any) => {
+    return {
+      id: emb.id,
+      chunkId: emb.chunkId,
+      embeddings: emb.embeddings,
+      model: getNullableString(emb.model as any),
+      clientId: getNullableString(emb.clientId as any),
+      userId: emb.userId,
+      createdAt: new Date(emb.createdAt),
+      updatedAt: new Date(emb.updatedAt),
+    };
   };
 }

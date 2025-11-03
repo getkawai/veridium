@@ -3,48 +3,77 @@ import {
   AsyncTaskErrorType,
   AsyncTaskStatus,
   AsyncTaskType,
-} from  '@/types';
-import { and, eq, inArray, lt } from 'drizzle-orm';
+} from '@/types';
+import { nanoid } from 'nanoid';
 
-import { AsyncTaskSelectItem, NewAsyncTaskItem, asyncTasks } from '../schemas';
-import { LobeChatDatabase } from '../type';
+import { AsyncTaskSelectItem, NewAsyncTaskItem } from '../schemas';
+import {
+  DB,
+  toNullString,
+  toNullJSON,
+  parseNullableJSON,
+  toNullInt,
+  currentTimestampMs,
+} from '@/types/database';
 
 // set timeout to about 5 minutes, and give 2s padding time
 export const ASYNC_TASK_TIMEOUT = 298 * 1000;
 
 export class AsyncTaskModel {
   private userId: string;
-  private db: LobeChatDatabase;
 
-  constructor(db: LobeChatDatabase, userId: string) {
+  constructor(_db: any, userId: string) {
     this.userId = userId;
-    this.db = db;
   }
 
   create = async (params: Pick<NewAsyncTaskItem, 'type' | 'status'>): Promise<string> => {
-    const data = await this.db
-      .insert(asyncTasks)
-      .values({ ...params, userId: this.userId })
-      .returning();
+    const now = currentTimestampMs();
+    const id = nanoid();
 
-    return data[0].id;
+    await DB.CreateAsyncTask({
+      id,
+      type: params.type,
+      status: params.status,
+      error: toNullJSON(null),
+      userId: this.userId,
+      duration: toNullInt(null),
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return id;
   };
 
   delete = async (id: string) => {
-    return this.db
-      .delete(asyncTasks)
-      .where(and(eq(asyncTasks.id, id), eq(asyncTasks.userId, this.userId)));
+    await DB.DeleteAsyncTask({
+      id,
+      userId: this.userId,
+    });
   };
 
   findById = async (id: string) => {
-    return this.db.query.asyncTasks.findFirst({ where: and(eq(asyncTasks.id, id)) });
+    try {
+      const result = await DB.GetAsyncTask({
+        id,
+        userId: this.userId,
+      });
+      return this.mapAsyncTask(result);
+    } catch {
+      return undefined;
+    }
   };
 
   update(taskId: string, value: Partial<AsyncTaskSelectItem>) {
-    return this.db
-      .update(asyncTasks)
-      .set({ ...value, updatedAt: new Date() })
-      .where(and(eq(asyncTasks.id, taskId)));
+    const now = currentTimestampMs();
+
+    return DB.UpdateAsyncTask({
+      id: taskId,
+      userId: this.userId,
+      status: value.status || AsyncTaskStatus.Processing,
+      error: toNullJSON(value.error),
+      duration: toNullInt(value.duration as any),
+      updatedAt: now,
+    });
   }
 
   findByIds = async (taskIds: string[], type: AsyncTaskType): Promise<AsyncTaskSelectItem[]> => {
@@ -52,45 +81,56 @@ export class AsyncTaskModel {
 
     if (taskIds.length > 0) {
       await this.checkTimeoutTasks(taskIds);
-      chunkTasks = await this.db.query.asyncTasks.findMany({
-        where: and(inArray(asyncTasks.id, taskIds), eq(asyncTasks.type, type)),
+      const results = await DB.GetAsyncTasksByIds({
+        ids: taskIds,
+        type,
       });
+      chunkTasks = results.map((r) => this.mapAsyncTask(r));
     }
 
     return chunkTasks;
   };
 
   /**
-   * make the task status to be `error` if the task is not finished in 20 seconds
+   * make the task status to be `error` if the task is not finished in 5 minutes
    */
   checkTimeoutTasks = async (ids: string[]) => {
-    const tasks = await this.db
-      .select({ id: asyncTasks.id })
-      .from(asyncTasks)
-      .where(
-        and(
-          inArray(asyncTasks.id, ids),
-          eq(asyncTasks.status, AsyncTaskStatus.Processing),
-          lt(asyncTasks.createdAt, new Date(Date.now() - ASYNC_TASK_TIMEOUT)),
-        ),
-      );
+    const timeoutThreshold = Date.now() - ASYNC_TASK_TIMEOUT;
+
+    const tasks = await DB.GetTimeoutTasks({
+      ids,
+      status: AsyncTaskStatus.Processing,
+      createdAt: timeoutThreshold,
+    });
 
     if (tasks.length > 0) {
-      await this.db
-        .update(asyncTasks)
-        .set({
-          error: new AsyncTaskError(
-            AsyncTaskErrorType.Timeout,
-            'task is timeout, please try again',
-          ),
-          status: AsyncTaskStatus.Error,
-        })
-        .where(
-          inArray(
-            asyncTasks.id,
-            tasks.map((item) => item.id),
-          ),
-        );
+      const now = currentTimestampMs();
+      const taskIds = tasks.map((t) => t.id);
+
+      await DB.UpdateTimeoutTasks({
+        ids: taskIds,
+        status: AsyncTaskStatus.Error,
+        error: toNullJSON(
+          new AsyncTaskError(AsyncTaskErrorType.Timeout, 'task is timeout, please try again'),
+        ),
+        updatedAt: now,
+      });
     }
   };
+
+  // **************** Helper *************** //
+
+  private mapAsyncTask = (task: any): AsyncTaskSelectItem => {
+    return {
+      id: task.id,
+      type: task.type,
+      status: task.status,
+      error: parseNullableJSON(task.error as any),
+      userId: task.userId,
+      duration: task.duration,
+      createdAt: new Date(task.createdAt),
+      updatedAt: new Date(task.updatedAt),
+    } as AsyncTaskSelectItem;
+  };
 }
+

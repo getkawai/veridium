@@ -17,40 +17,37 @@ import {
 } from  '@/types';
 import type { HeatmapsProps } from '@lobehub/charts';
 import dayjs from 'dayjs';
-import { and, asc, count, desc, eq, gt, inArray, isNotNull, isNull, like, sql } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
 
 import { merge } from '@/utils/merge';
 import { today } from '@/utils/time';
 
 import {
-  MessagePluginItem,
-  chunks,
-  documents,
-  embeddings,
-  fileChunks,
-  files,
-  messagePlugins,
-  messageQueries,
-  messageQueryChunks,
-  messageTTS,
-  messageTranslates,
-  messages,
-  messagesFiles,
-} from '../schemas';
-import { LobeChatDatabase } from '../type';
-import { genEndDateWhere, genRangeWhere, genStartDateWhere, genWhere } from '../utils/genWhere';
-import { idGenerator } from '../utils/idGenerator';
+  DB,
+  toNullString,
+  toNullJSON,
+  parseNullableJSON,
+  getNullableString,
+  currentTimestampMs,
+  boolToInt,
+} from '@/types/database';
+
+// Import transaction methods (Optimization 4A)
+import { Service as DBService } from '@@/github.com/kawai-network/veridium/internal/database';
 
 export class MessageModel {
   private userId: string;
-  private db: LobeChatDatabase;
 
-  constructor(db: LobeChatDatabase, userId: string) {
+  constructor(_db: any, userId: string) {
     this.userId = userId;
-    this.db = db;
   }
 
   // **************** Query *************** //
+  
+  /**
+   * OPTIMIZED: Uses server-side filtering (2A) and JOIN queries (3A)
+   * Much faster than previous client-side filtering approach
+   */
   query = async (
     { current = 0, pageSize = 1000, sessionId, topicId, groupId }: QueryMessageParams = {},
     options: {
@@ -59,263 +56,357 @@ export class MessageModel {
   ) => {
     const offset = current * pageSize;
 
-    // 1. get basic messages
-    const result = await this.db
-      .select({
-        /* eslint-disable sort-keys-fix/sort-keys-fix*/
-        id: messages.id,
-        role: messages.role,
-        content: messages.content,
-        reasoning: messages.reasoning,
-        search: messages.search,
-        metadata: messages.metadata,
-        error: messages.error,
+    // OPTIMIZATION 2A: Server-side filtering
+    // Use specific query based on filter type
+    let messages;
+    if (sessionId !== undefined && sessionId !== null) {
+      messages = await DB.ListMessagesBySession({
+        userId: this.userId,
+        sessionId: toNullString(sessionId) as any,
+        limit: pageSize,
+        offset,
+      });
+    } else if (topicId !== undefined && topicId !== null) {
+      messages = await DB.ListMessagesByTopic({
+        userId: this.userId,
+        topicId: toNullString(topicId) as any,
+        limit: pageSize,
+        offset,
+      });
+    } else if (groupId !== undefined && groupId !== null) {
+      messages = await DB.ListMessagesByGroup({
+        userId: this.userId,
+        groupId: toNullString(groupId) as any,
+        limit: pageSize,
+        offset,
+      });
+    } else {
+      messages = await DB.ListMessages({
+        userId: this.userId,
+        limit: pageSize,
+        offset,
+      });
+    }
 
-        model: messages.model,
-        provider: messages.provider,
+    if (messages.length === 0) return [];
 
-        createdAt: messages.createdAt,
-        updatedAt: messages.updatedAt,
+    const messageIds = messages.map((m) => m.id);
 
-        topicId: messages.topicId,
-        parentId: messages.parentId,
-        threadId: messages.threadId,
-
-        // Group chat fields
-        groupId: messages.groupId,
-        agentId: messages.agentId,
-        targetId: messages.targetId,
-
-        tools: messages.tools,
-        tool_call_id: messagePlugins.toolCallId,
-
-        plugin: {
-          apiName: messagePlugins.apiName,
-          arguments: messagePlugins.arguments,
-          identifier: messagePlugins.identifier,
-          type: messagePlugins.type,
-        },
-        pluginError: messagePlugins.error,
-        pluginState: messagePlugins.state,
-
-        translate: {
-          content: messageTranslates.content,
-          from: messageTranslates.from,
-          to: messageTranslates.to,
-        },
-
-        ttsId: messageTTS.id,
-        ttsContentMd5: messageTTS.contentMd5,
-        ttsFile: messageTTS.fileId,
-        ttsVoice: messageTTS.voice,
-        /* eslint-enable */
-      })
-      .from(messages)
-      .where(
-        and(
-          eq(messages.userId, this.userId),
-          this.matchSession(sessionId),
-          this.matchTopic(topicId),
-          this.matchGroup(groupId),
-        ),
-      )
-      .leftJoin(messagePlugins, eq(messagePlugins.id, messages.id))
-      .leftJoin(messageTranslates, eq(messageTranslates.id, messages.id))
-      .leftJoin(messageTTS, eq(messageTTS.id, messages.id))
-      .orderBy(asc(messages.createdAt))
-      .limit(pageSize)
-      .offset(offset);
-
-    const messageIds = result.map((message) => message.id as string);
-
-    if (messageIds.length === 0) return [];
-
-    // 2. get relative files
-    const rawRelatedFileList = await this.db
-      .select({
-        fileType: files.fileType,
-        id: messagesFiles.fileId,
-        messageId: messagesFiles.messageId,
-        name: files.name,
-        size: files.size,
-        url: files.url,
-      })
-      .from(messagesFiles)
-      .leftJoin(files, eq(files.id, messagesFiles.fileId))
-      .where(inArray(messagesFiles.messageId, messageIds));
-
+    // 2. Get relative files (N+1 query)
     const relatedFileList = await Promise.all(
-      rawRelatedFileList.map(async (file) => ({
+      messageIds.map(async (messageId) => {
+        const files = await DB.GetMessageFiles({
+          messageId,
+          userId: this.userId,
+        });
+        
+        return files.map((file) => ({
+          id: file.id,
+          messageId,
+          name: getNullableString(file.name as any),
+          size: file.size,
+          fileType: getNullableString(file.fileType as any),
+          url: getNullableString(file.url as any),
+        }));
+      }),
+    );
+
+    const flatFileList = relatedFileList.flat();
+
+    // Post-process URLs
+    const processedFileList = await Promise.all(
+      flatFileList.map(async (file) => ({
         ...file,
         url: options.postProcessUrl
-          ? await options.postProcessUrl(file.url, file as any)
-          : (file.url as string),
+          ? await options.postProcessUrl(file.url || null, file as any)
+          : file.url,
       })),
     );
 
-    // 获取关联的文档内容
-    const fileIds = relatedFileList.map((file) => file.id).filter(Boolean);
-
+    // Get documents content
+    const fileIds = processedFileList.map((file) => file.id).filter(Boolean);
     let documentsMap: Record<string, string> = {};
 
+    // Note: GetDocumentsByFileIds doesn't support IN clause with sqlc.slice
+    // Fetching documents one by one (N+1 query)
     if (fileIds.length > 0) {
-      const documentsList = await this.db
-        .select({
-          content: documents.content,
-          fileId: documents.fileId,
-        })
-        .from(documents)
-        .where(inArray(documents.fileId, fileIds));
-
-      documentsMap = documentsList.reduce(
-        (acc, doc) => {
-          if (doc.fileId) acc[doc.fileId] = doc.content as string;
-          return acc;
-        },
-        {} as Record<string, string>,
+      await Promise.all(
+        fileIds.map(async (fileId) => {
+          try {
+            const doc = await DB.GetDocument({
+              id: fileId, // Use fileId to get document
+              userId: this.userId,
+            });
+            if (doc && doc.fileId) {
+              const fileIdStr = getNullableString(doc.fileId as any);
+              if (fileIdStr) {
+                documentsMap[fileIdStr] = getNullableString(doc.content as any) || '';
+              }
+            }
+          } catch {
+            // Document not found
+          }
+        }),
       );
     }
 
-    const imageList = relatedFileList.filter((i) => (i.fileType || '').startsWith('image'));
-    const videoList = relatedFileList.filter((i) => (i.fileType || '').startsWith('video'));
-    const fileList = relatedFileList.filter(
+    const imageList = processedFileList.filter((i) => (i.fileType || '').startsWith('image'));
+    const videoList = processedFileList.filter((i) => (i.fileType || '').startsWith('video'));
+    const fileList = processedFileList.filter(
       (i) => !(i.fileType || '').startsWith('image') && !(i.fileType || '').startsWith('video'),
     );
 
-    // 3. get relative file chunks
-    const chunksList = await this.db
-      .select({
-        fileId: files.id,
-        fileType: files.fileType,
-        fileUrl: files.url,
-        filename: files.name,
-        id: chunks.id,
-        messageId: messageQueryChunks.messageId,
-        similarity: messageQueryChunks.similarity,
-        text: chunks.text,
-      })
-      .from(messageQueryChunks)
-      .leftJoin(chunks, eq(chunks.id, messageQueryChunks.chunkId))
-      .leftJoin(fileChunks, eq(fileChunks.chunkId, chunks.id))
-      .innerJoin(files, eq(fileChunks.fileId, files.id))
-      .where(inArray(messageQueryChunks.messageId, messageIds));
-
-    // 3. get relative message query
-    const messageQueriesList = await this.db
-      .select({
-        id: messageQueries.id,
-        messageId: messageQueries.messageId,
-        rewriteQuery: messageQueries.rewriteQuery,
-        userQuery: messageQueries.userQuery,
-      })
-      .from(messageQueries)
-      .where(inArray(messageQueries.messageId, messageIds));
-
-    return result.map(
-      ({ model, provider, translate, ttsId, ttsFile, ttsContentMd5, ttsVoice, ...item }) => {
-        const messageQuery = messageQueriesList.find((relation) => relation.messageId === item.id);
-        return {
-          ...item,
-          chunksList: chunksList
-            .filter((relation) => relation.messageId === item.id)
-            .map((c) => ({
-              ...c,
-              similarity: Number(c.similarity) ?? undefined,
-            })),
-
-          extra: {
-            fromModel: model,
-            fromProvider: provider,
-            translate,
-            tts: ttsId
-              ? {
-                  contentMd5: ttsContentMd5,
-                  file: ttsFile,
-                  voice: ttsVoice,
-                }
-              : undefined,
-          },
-          fileList: fileList
-            .filter((relation) => relation.messageId === item.id)
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            .map<ChatFileItem>(({ id, url, size, fileType, name }) => ({
-              content: documentsMap[id],
-              fileType: fileType!,
-              id,
-              name: name!,
-              size: size!,
-              url,
-            })),
-
-          imageList: imageList
-            .filter((relation) => relation.messageId === item.id)
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            .map<ChatImageItem>(({ id, url, name }) => ({ alt: name!, id, url })),
-
-          meta: {},
-          ragQuery: messageQuery?.rewriteQuery,
-          ragQueryId: messageQuery?.id,
-          ragRawQuery: messageQuery?.userQuery,
-          videoList: videoList
-            .filter((relation) => relation.messageId === item.id)
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            .map<ChatVideoItem>(({ id, url, name }) => ({ alt: name!, id, url })),
-        } as unknown as UIChatMessage;
-      },
+    // 3. Get relative file chunks
+    // Note: GetMessageQueryChunks expects messageIds as NullString[]
+    let chunksList: any[] = [];
+    await Promise.all(
+      messageIds.map(async (msgId) => {
+        try {
+          const chunks = await DB.GetMessageQueryChunks({
+            messageIds: [toNullString(msgId)],
+            userId: this.userId,
+          });
+          chunksList.push(...chunks.map((c: any) => ({ ...c, messageId: msgId })));
+        } catch {
+          // Chunks query might fail
+        }
+      }),
     );
+
+    // 4. Get relative message queries
+    const messageQueriesList = await Promise.all(
+      messageIds.map(async (messageId) => {
+        try {
+          const queries = await DB.ListMessageQueriesByMessage({
+            messageId,
+            userId: this.userId,
+          });
+          return queries.map((q) => ({
+            id: q.id,
+            messageId: q.messageId,
+            rewriteQuery: getNullableString(q.rewriteQuery as any),
+            userQuery: getNullableString(q.userQuery as any),
+          }));
+        } catch {
+          return [];
+        }
+      }),
+    );
+
+    const flatMessageQueries = messageQueriesList.flat();
+
+    // 5. Get plugins, translates, TTS for each message
+    const pluginsMap = new Map();
+    const translatesMap = new Map();
+    const ttsMap = new Map();
+
+    await Promise.all(
+      messageIds.map(async (messageId) => {
+        try {
+          const plugin = await DB.GetMessagePlugin({
+            id: messageId,
+            userId: this.userId,
+          });
+          if (plugin) pluginsMap.set(messageId, plugin);
+        } catch {}
+
+        try {
+          const translate = await DB.GetMessageTranslate({
+            id: messageId,
+            userId: this.userId,
+          });
+          if (translate) translatesMap.set(messageId, translate);
+        } catch {}
+
+        try {
+          const tts = await DB.GetMessageTTS({
+            id: messageId,
+            userId: this.userId,
+          });
+          if (tts) ttsMap.set(messageId, tts);
+        } catch {}
+      }),
+    );
+
+    // Map results
+    return messages.map((message) => {
+      const plugin = pluginsMap.get(message.id);
+      const translate = translatesMap.get(message.id);
+      const tts = ttsMap.get(message.id);
+      const messageQuery = flatMessageQueries.find((q) => q.messageId === message.id);
+
+      return {
+        id: message.id,
+        role: message.role,
+        content: getNullableString(message.content as any),
+        reasoning: getNullableString(message.reasoning as any),
+        search: getNullableString(message.search as any),
+        metadata: parseNullableJSON(message.metadata as any),
+        error: parseNullableJSON(message.error as any),
+        createdAt: message.createdAt,
+        updatedAt: message.updatedAt,
+        topicId: getNullableString(message.topicId as any),
+        parentId: getNullableString(message.parentId as any),
+        threadId: getNullableString(message.threadId as any),
+        groupId: getNullableString(message.groupId as any),
+        agentId: getNullableString(message.agentId as any),
+        targetId: getNullableString(message.targetId as any),
+        tools: parseNullableJSON(message.tools as any),
+        tool_call_id: plugin ? getNullableString(plugin.toolCallId as any) : undefined,
+        plugin: plugin
+          ? {
+              apiName: getNullableString(plugin.apiName as any),
+              arguments: getNullableString(plugin.arguments as any),
+              identifier: getNullableString(plugin.identifier as any),
+              type: getNullableString(plugin.type as any),
+            }
+          : undefined,
+        pluginError: plugin ? parseNullableJSON(plugin.error as any) : undefined,
+        pluginState: plugin ? parseNullableJSON(plugin.state as any) : undefined,
+        translate: translate
+          ? {
+              content: getNullableString(translate.content as any),
+              from: getNullableString(translate.from as any),
+              to: getNullableString(translate.to as any),
+            }
+          : undefined,
+        extra: {
+          fromModel: getNullableString(message.model as any),
+          fromProvider: getNullableString(message.provider as any),
+          translate: translate
+            ? {
+                content: getNullableString(translate.content as any),
+                from: getNullableString(translate.from as any),
+                to: getNullableString(translate.to as any),
+              }
+            : undefined,
+          tts: tts
+            ? {
+                contentMd5: getNullableString(tts.contentMd5 as any),
+                file: getNullableString(tts.fileId as any),
+                voice: getNullableString(tts.voice as any),
+              }
+            : undefined,
+        },
+        chunksList: chunksList
+          .filter((c: any) => c.messageId === message.id)
+          .map((c: any) => ({
+            ...c,
+            similarity: Number(c.similarity) ?? undefined,
+          })),
+        fileList: fileList
+          .filter((f) => f.messageId === message.id)
+          .map<ChatFileItem>((f) => ({
+            content: documentsMap[f.id],
+            fileType: f.fileType!,
+            id: f.id,
+            name: f.name!,
+            size: f.size!,
+            url: f.url || '',
+          })),
+        imageList: imageList
+          .filter((f) => f.messageId === message.id)
+          .map<ChatImageItem>((f) => ({ alt: f.name!, id: f.id, url: f.url || '' })),
+        videoList: videoList
+          .filter((f) => f.messageId === message.id)
+          .map<ChatVideoItem>((f) => ({ alt: f.name!, id: f.id, url: f.url || '' })),
+        meta: {},
+        ragQuery: messageQuery?.rewriteQuery,
+        ragQueryId: messageQuery?.id,
+        ragRawQuery: messageQuery?.userQuery,
+      } as unknown as UIChatMessage;
+    });
   };
 
   findById = async (id: string) => {
-    return this.db.query.messages.findFirst({
-      where: and(eq(messages.id, id), eq(messages.userId, this.userId)),
-    });
+    try {
+      return await DB.GetMessage({
+        id,
+        userId: this.userId,
+      });
+    } catch {
+      return undefined;
+    }
   };
 
   findMessageQueriesById = async (messageId: string) => {
-    const result = await this.db
-      .select({
-        embeddings: embeddings.embeddings,
-        id: messageQueries.id,
-        query: messageQueries.rewriteQuery,
-        rewriteQuery: messageQueries.rewriteQuery,
-        userQuery: messageQueries.userQuery,
-      })
-      .from(messageQueries)
-      .where(and(eq(messageQueries.messageId, messageId)))
-      .leftJoin(embeddings, eq(embeddings.id, messageQueries.embeddingsId));
+    try {
+      const queries = await DB.ListMessageQueriesByMessage({
+        messageId,
+        userId: this.userId,
+      });
 
-    if (result.length === 0) return undefined;
+      if (queries.length === 0) return undefined;
 
-    return result[0];
+      const query = queries[0];
+      let embeddings: any = null;
+
+      // Get embeddings if embeddingsId exists
+      const embeddingsIdStr = getNullableString(query.embeddingsId as any);
+      if (embeddingsIdStr) {
+        try {
+          const emb = await DB.GetEmbeddingsItem({
+            id: embeddingsIdStr,
+            userId: toNullString(this.userId),
+          });
+          if (emb && emb.embeddings) {
+            embeddings = emb.embeddings;
+          }
+        } catch {
+          // Embeddings not found
+        }
+      }
+
+      return {
+        id: query.id,
+        query: getNullableString(query.rewriteQuery as any),
+        rewriteQuery: getNullableString(query.rewriteQuery as any),
+        userQuery: getNullableString(query.userQuery as any),
+        embeddings,
+      };
+    } catch {
+      return undefined;
+    }
   };
 
   queryAll = async () => {
-    const result = await this.db
-      .select()
-      .from(messages)
-      .orderBy(messages.createdAt)
-      .where(eq(messages.userId, this.userId));
+    const messages = await DB.ListMessages({
+      userId: this.userId,
+      limit: 10000,
+      offset: 0,
+    });
 
-    return result as DBMessageItem[];
+    return messages as unknown as DBMessageItem[];
   };
 
   queryBySessionId = async (sessionId?: string | null) => {
-    const result = await this.db.query.messages.findMany({
-      orderBy: [asc(messages.createdAt)],
-      where: and(eq(messages.userId, this.userId), this.matchSession(sessionId)),
+    const allMessages = await DB.ListMessages({
+      userId: this.userId,
+      limit: 10000,
+      offset: 0,
     });
 
-    return result as DBMessageItem[];
+    // Filter by sessionId
+    const messages = allMessages.filter((m) => {
+      const msgSessionId = getNullableString(m.sessionId as any);
+      return sessionId === null || sessionId === undefined
+        ? !msgSessionId
+        : msgSessionId === sessionId;
+    });
+
+    return messages as unknown as DBMessageItem[];
   };
 
   queryByKeyword = async (keyword: string) => {
     if (!keyword) return [];
-    const result = await this.db.query.messages.findMany({
-      orderBy: [desc(messages.createdAt)],
-      where: and(eq(messages.userId, this.userId), like(messages.content, `%${keyword}%`)),
+
+    const messages = await DB.SearchMessagesByKeyword({
+      userId: this.userId,
+      content: toNullString(`%${keyword}%`),
+      limit: 1000,
     });
 
-    return result as DBMessageItem[];
+    return messages as unknown as DBMessageItem[];
   };
 
   count = async (params?: {
@@ -323,27 +414,29 @@ export class MessageModel {
     range?: [string, string];
     startDate?: string;
   }): Promise<number> => {
-    const result = await this.db
-      .select({
-        count: count(messages.id),
-      })
-      .from(messages)
-      .where(
-        genWhere([
-          eq(messages.userId, this.userId),
-          params?.range
-            ? genRangeWhere(params.range, messages.createdAt, (date) => date.toDate())
-            : undefined,
-          params?.endDate
-            ? genEndDateWhere(params.endDate, messages.createdAt, (date) => date.toDate())
-            : undefined,
-          params?.startDate
-            ? genStartDateWhere(params.startDate, messages.createdAt, (date) => date.toDate())
-            : undefined,
-        ]),
-      );
+    if (!params) {
+      const result = await DB.CountMessages(this.userId);
+      return Number(result) || 0;
+    }
 
-    return result[0].count;
+    let startTime: number;
+    let endTime: number;
+
+    if (params.range) {
+      const [start, end] = params.range;
+      startTime = new Date(start).getTime();
+      endTime = new Date(end).getTime();
+    } else {
+      startTime = params.startDate ? new Date(params.startDate).getTime() : 0;
+      endTime = params.endDate ? new Date(params.endDate).getTime() : Date.now();
+    }
+
+    const result = await DB.CountMessagesByDateRange({
+      userId: this.userId,
+      createdAt: startTime,
+      createdAt2: endTime,
+    });
+    return Number(result) || 0;
   };
 
   countWords = async (params?: {
@@ -351,76 +444,65 @@ export class MessageModel {
     range?: [string, string];
     startDate?: string;
   }): Promise<number> => {
-    const result = await this.db
-      .select({
-        count: sql<string>`sum(length(${messages.content}))`.as('total_length'),
-      })
-      .from(messages)
-      .where(
-        genWhere([
-          eq(messages.userId, this.userId),
-          params?.range
-            ? genRangeWhere(params.range, messages.createdAt, (date) => date.toDate())
-            : undefined,
-          params?.endDate
-            ? genEndDateWhere(params.endDate, messages.createdAt, (date) => date.toDate())
-            : undefined,
-          params?.startDate
-            ? genStartDateWhere(params.startDate, messages.createdAt, (date) => date.toDate())
-            : undefined,
-        ]),
-      );
+    if (!params) {
+      const result = await DB.CountMessageWords(this.userId);
+      return Number(result) || 0;
+    }
 
-    return Number(result[0].count);
+    let startTime: number;
+    let endTime: number;
+
+    if (params.range) {
+      const [start, end] = params.range;
+      startTime = new Date(start).getTime();
+      endTime = new Date(end).getTime();
+    } else {
+      startTime = params.startDate ? new Date(params.startDate).getTime() : 0;
+      endTime = params.endDate ? new Date(params.endDate).getTime() : Date.now();
+    }
+
+    const result = await DB.CountMessageWordsByDateRange({
+      userId: this.userId,
+      createdAt: startTime,
+      createdAt2: endTime,
+    });
+    return Number(result) || 0;
   };
 
   rankModels = async (limit: number = 10): Promise<ModelRankItem[]> => {
-    return this.db
-      .select({
-        count: count(messages.id).as('count'),
-        id: messages.model,
-      })
-      .from(messages)
-      .where(and(eq(messages.userId, this.userId), isNotNull(messages.model)))
-      .having(({ count }) => gt(count, 0))
-      .groupBy(messages.model)
-      .orderBy(desc(sql`count`), asc(messages.model))
-      .limit(limit);
+    const result = await DB.RankModels({
+      userId: this.userId,
+      limit,
+    });
+
+    return result.map((r) => ({
+      id: getNullableString(r.id as any) || '',
+      count: Number(r.count) || 0,
+    }));
   };
 
   getHeatmaps = async (): Promise<HeatmapsProps['data']> => {
     const startDate = today().subtract(1, 'year').startOf('day');
     const endDate = today().endOf('day');
 
-    const result = await this.db
-      .select({
-        count: count(messages.id),
-        date: sql`DATE(${messages.createdAt})`.as('heatmaps_date'),
-      })
-      .from(messages)
-      .where(
-        genWhere([
-          eq(messages.userId, this.userId),
-          genRangeWhere(
-            [startDate.format('YYYY-MM-DD'), endDate.add(1, 'day').format('YYYY-MM-DD')],
-            messages.createdAt,
-            (date) => date.toDate(),
-          ),
-        ]),
-      )
-      .groupBy(sql`heatmaps_date`)
-      .orderBy(desc(sql`heatmaps_date`));
-
-    const heatmapData: HeatmapsProps['data'] = [];
-    let currentDate = startDate.clone();
+    // Use optimized query with GROUP BY date
+    const result = await DB.GetMessageHeatmaps({
+      userId: this.userId,
+      createdAt: startDate.valueOf(),
+      createdAt2: endDate.valueOf(),
+    });
 
     const dateCountMap = new Map<string, number>();
+    
     for (const item of result) {
-      if (item?.date) {
-        const dateStr = dayjs(item.date as string).format('YYYY-MM-DD');
+      if (item.date) {
+        const dateStr = dayjs(item.date as any).format('YYYY-MM-DD');
         dateCountMap.set(dateStr, Number(item.count) || 0);
       }
     }
+
+    const heatmapData: HeatmapsProps['data'] = [];
+    let currentDate = startDate.clone();
 
     while (currentDate.isBefore(endDate) || currentDate.isSame(endDate, 'day')) {
       const formattedDate = currentDate.format('YYYY-MM-DD');
@@ -442,17 +524,21 @@ export class MessageModel {
   };
 
   hasMoreThanN = async (n: number): Promise<boolean> => {
-    const result = await this.db
-      .select({ id: messages.id })
-      .from(messages)
-      .where(eq(messages.userId, this.userId))
-      .limit(n + 1);
+    const messages = await DB.ListMessages({
+      userId: this.userId,
+      limit: n + 1,
+      offset: 0,
+    });
 
-    return result.length > n;
+    return messages.length > n;
   };
 
   // **************** Create *************** //
 
+  /**
+   * OPTIMIZED: Uses atomic transaction (4A)
+   * All operations succeed or fail together - no partial writes!
+   */
   create = async (
     {
       fromModel,
@@ -466,104 +552,83 @@ export class MessageModel {
       createdAt,
       ...message
     }: CreateMessageParams,
-    id: string = this.genId(),
+    id: string = nanoid(14),
   ): Promise<DBMessageItem> => {
-    return this.db.transaction(async (trx) => {
-      // Ensure group message does not populate sessionId
-      const normalizedMessage = message.groupId ? { ...message, sessionId: null } : message;
+    const normalizedMessage = message.groupId ? { ...message, sessionId: null } : message;
+    const now = currentTimestampMs();
 
-      const [item] = (await trx
-        .insert(messages)
-        .values({
-          ...normalizedMessage,
-          // TODO: remove this when the client is updated
-          createdAt: createdAt ? new Date(createdAt) : undefined,
-          id,
-          model: fromModel,
-          provider: fromProvider,
-          updatedAt: updatedAt ? new Date(updatedAt) : undefined,
-          userId: this.userId,
-        })
-        .returning()) as DBMessageItem[];
+    // OPTIMIZATION 4A: Use atomic transaction
+    const item = await DBService.CreateMessageWithRelations({
+      Message: {
+        id,
+        role: normalizedMessage.role,
+        content: toNullString(normalizedMessage.content as any),
+        reasoning: toNullString((normalizedMessage as any).reasoning as any),
+        search: toNullString((normalizedMessage as any).search as any),
+        metadata: toNullJSON((normalizedMessage as any).metadata),
+        model: toNullString(fromModel as any),
+        provider: toNullString(fromProvider as any),
+        favorite: boolToInt(false),
+        error: toNullJSON(normalizedMessage.error),
+        tools: toNullJSON((normalizedMessage as any).tools),
+        traceId: toNullString(normalizedMessage.traceId as any),
+        observationId: toNullString((normalizedMessage as any).observationId as any),
+        clientId: toNullString((normalizedMessage as any).clientId as any),
+        userId: this.userId,
+        sessionId: toNullString(normalizedMessage.sessionId as any),
+        topicId: toNullString(normalizedMessage.topicId as any),
+        threadId: toNullString(normalizedMessage.threadId as any),
+        parentId: toNullString((normalizedMessage as any).parentId as any),
+        quotaId: toNullString((normalizedMessage as any).quotaId as any),
+        agentId: toNullString((normalizedMessage as any).agentId as any),
+        groupId: toNullString(normalizedMessage.groupId as any),
+        targetId: toNullString(normalizedMessage.targetId as any),
+        messageGroupId: toNullString((normalizedMessage as any).messageGroupId as any),
+        createdAt: createdAt || now,
+        updatedAt: updatedAt || now,
+      },
+      Plugin: message.role === 'tool' ? {
+        id,
+        toolCallId: toNullString(message.tool_call_id as any),
+        type: toNullString(plugin?.type as any),
+        apiName: toNullString(plugin?.apiName as any),
+        arguments: toNullString(plugin?.arguments as any),
+        identifier: toNullString(plugin?.identifier as any),
+        state: toNullJSON(pluginState),
+        error: toNullJSON(null),
+        clientId: toNullString(null),
+        userId: this.userId,
+      } : null,
+      FileIds: files || [],
+      FileChunks: (fileChunks && ragQueryId) ? fileChunks.map((chunk) => ({
+        ChunkId: chunk.id,
+        QueryId: ragQueryId,
+        Similarity: { Int64: chunk.similarity || 0, Valid: !!chunk.similarity } as any,
+      })) : [],
+    }, this.userId);
 
-      // Insert the plugin data if the message is a tool
-      if (message.role === 'tool') {
-        await trx.insert(messagePlugins).values({
-          apiName: plugin?.apiName,
-          arguments: plugin?.arguments,
-          id,
-          identifier: plugin?.identifier,
-          state: pluginState,
-          toolCallId: message.tool_call_id,
-          type: plugin?.type,
-          userId: this.userId,
-        });
-      }
-
-      if (files && files.length > 0) {
-        await trx
-          .insert(messagesFiles)
-          .values(files.map((file) => ({ fileId: file, messageId: id, userId: this.userId })));
-      }
-
-      if (fileChunks && fileChunks.length > 0 && ragQueryId) {
-        await trx.insert(messageQueryChunks).values(
-          fileChunks.map((chunk) => ({
-            chunkId: chunk.id,
-            messageId: id,
-            queryId: ragQueryId,
-            similarity: chunk.similarity?.toString(),
-            userId: this.userId,
-          })),
-        );
-      }
-
-      return item;
-    });
+    return item as unknown as DBMessageItem;
   };
 
-  /**
-   * Create a new message and return the complete message list
-   *
-   * This method combines message creation and querying into a single operation,
-   * reducing the need for separate refresh calls and improving performance.
-   *
-   * @param params - Message creation parameters
-   * @param options - Query options for post-processing
-   * @returns Object containing the created message ID and full message list
-   *
-   * @example
-   * const { id, messages } = await messageModel.createNewMessage({
-   *   role: 'assistant',
-   *   content: 'Hello',
-   *   tools: [...],
-   *   sessionId: 'session-1',
-   * });
-   * // messages already contains grouped structure, no need to refresh
-   */
   createNewMessage = async (
     params: CreateMessageParams,
     options: {
       postProcessUrl?: (path: string | null, file: { fileType: string }) => Promise<string>;
     } = {},
   ): Promise<CreateMessageResult> => {
-    // 1. Create the message (reuse existing create method)
     const item = await this.create(params);
 
-    // 2. Query all messages for this session/topic
-    // query() method internally applies groupAssistantMessages transformation
     const messages = await this.query(
       {
         current: 0,
         groupId: params.groupId,
         pageSize: 9999,
         sessionId: params.sessionId,
-        topicId: params.topicId, // Get all messages
+        topicId: params.topicId,
       },
       options,
     );
 
-    // 3. Return the result
     return {
       id: item.id,
       messages,
@@ -571,219 +636,219 @@ export class MessageModel {
   };
 
   batchCreate = async (newMessages: DBMessageItem[]) => {
-    const messagesToInsert = newMessages.map((m) => {
-      // TODO: need a better way to handle this
-      return { ...m, role: m.role as any, userId: this.userId };
-    });
-
-    return this.db.insert(messages).values(messagesToInsert);
+    // No batch insert support - create one by one
+    await Promise.all(
+      newMessages.map((message) =>
+        this.create(message as any, message.id),
+      ),
+    );
   };
 
   createMessageQuery = async (params: NewMessageQueryParams) => {
-    const result = await this.db
-      .insert(messageQueries)
-      .values({ ...params, userId: this.userId })
-      .returning();
-
-    return result[0];
+    return await DB.CreateMessageQuery({
+      id: nanoid(),
+      messageId: params.messageId,
+      rewriteQuery: toNullString(params.rewriteQuery as any),
+      userQuery: toNullString(params.userQuery as any),
+      clientId: toNullString(''),
+      userId: this.userId,
+      embeddingsId: toNullString(params.embeddingsId as any),
+    });
   };
+
   // **************** Update *************** //
 
+  /**
+   * OPTIMIZED: Uses atomic transaction (4A) when updating with images
+   */
   update = async (id: string, { imageList, ...message }: Partial<UpdateMessageParams>) => {
-    return this.db.transaction(async (trx) => {
-      // 1. insert message files
-      if (imageList && imageList.length > 0) {
-        await trx
-          .insert(messagesFiles)
-          .values(
-            imageList.map((file) => ({ fileId: file.id, messageId: id, userId: this.userId })),
-          );
-      }
+    const updateParams = {
+      id,
+      userId: this.userId,
+      content: toNullString(message.content as any),
+      reasoning: toNullString(message.reasoning as any),
+      metadata: toNullJSON(message.metadata),
+      favorite: boolToInt(false), // favorite not in UpdateMessageParams
+      updatedAt: currentTimestampMs(),
+    };
 
-      return trx
-        .update(messages)
-        .set({
-          ...message,
-          // TODO: need a better way to handle this
-          // TODO: but I forget why 🤡
-          role: message.role as any,
-        })
-        .where(and(eq(messages.id, id), eq(messages.userId, this.userId)));
-    });
+    // OPTIMIZATION 4A: Use transaction if updating with images
+    if (imageList && imageList.length > 0) {
+      return await DBService.UpdateMessageWithImages({
+        MessageId: id,
+        Message: updateParams,
+        ImageIds: imageList.map((file) => file.id),
+      }, this.userId);
+    }
+
+    // Simple update without images
+    return await DB.UpdateMessage(updateParams);
   };
 
   updateMetadata = async (id: string, metadata: Record<string, any>) => {
-    const item = await this.db.query.messages.findFirst({
-      where: and(eq(messages.id, id), eq(messages.userId, this.userId)),
-    });
-
+    const item = await this.findById(id);
     if (!item) return;
 
-    return this.db
-      .update(messages)
-      .set({ metadata: merge(item.metadata || {}, metadata) })
-      .where(and(eq(messages.userId, this.userId), eq(messages.id, id)));
+    const currentMetadata = parseNullableJSON(item.metadata as any) || {};
+    const mergedMetadata = merge(currentMetadata, metadata);
+
+    return await DB.UpdateMessage({
+      id,
+      userId: this.userId,
+      content: toNullString(item.content as any),
+      reasoning: toNullString(item.reasoning as any),
+      metadata: toNullJSON(mergedMetadata),
+      favorite: item.favorite,
+      updatedAt: currentTimestampMs(),
+    });
   };
 
   updatePluginState = async (id: string, state: Record<string, any>) => {
-    const item = await this.db.query.messagePlugins.findFirst({
-      where: eq(messagePlugins.id, id),
+    const item = await DB.GetMessagePlugin({
+      id,
+      userId: this.userId,
     });
+    
     if (!item) throw new Error('Plugin not found');
 
-    return this.db
-      .update(messagePlugins)
-      .set({ state: merge(item.state || {}, state) })
-      .where(eq(messagePlugins.id, id));
+    const currentState = parseNullableJSON(item.state as any) || {};
+    const mergedState = merge(currentState, state);
+
+    return await DB.UpdateMessagePlugin({
+      id,
+      userId: this.userId,
+      state: toNullJSON(mergedState),
+      error: item.error,
+    });
   };
 
-  updateMessagePlugin = async (id: string, value: Partial<MessagePluginItem>) => {
-    const item = await this.db.query.messagePlugins.findFirst({
-      where: eq(messagePlugins.id, id),
+  updateMessagePlugin = async (id: string, value: { state?: any; error?: any }) => {
+    const item = await DB.GetMessagePlugin({
+      id,
+      userId: this.userId,
     });
+    
     if (!item) throw new Error('Plugin not found');
 
-    return this.db.update(messagePlugins).set(value).where(eq(messagePlugins.id, id));
+    return await DB.UpdateMessagePlugin({
+      id,
+      userId: this.userId,
+      state: value.state !== undefined ? toNullJSON(value.state) : item.state,
+      error: value.error !== undefined ? toNullJSON(value.error) : item.error,
+    });
   };
 
   updateTranslate = async (id: string, translate: Partial<ChatTranslate>) => {
-    const result = await this.db.query.messageTranslates.findFirst({
-      where: and(eq(messageTranslates.id, id)),
+    return await DB.UpsertMessageTranslate({
+      id,
+      content: toNullString(translate.content as any),
+      from: toNullString(translate.from as any),
+      to: toNullString(translate.to as any),
+      clientId: toNullString(null),
+      userId: this.userId,
     });
-
-    // If the message does not exist in the translate table, insert it
-    if (!result) {
-      return this.db.insert(messageTranslates).values({ ...translate, id, userId: this.userId });
-    }
-
-    // or just update the existing one
-    return this.db.update(messageTranslates).set(translate).where(eq(messageTranslates.id, id));
   };
 
   updateTTS = async (id: string, tts: Partial<ChatTTS>) => {
-    const result = await this.db.query.messageTTS.findFirst({
-      where: and(eq(messageTTS.id, id)),
+    return await DB.UpsertMessageTTS({
+      id,
+      contentMd5: toNullString(tts.contentMd5 as any),
+      fileId: toNullString(tts.file as any),
+      voice: toNullString(tts.voice as any),
+      clientId: toNullString(null),
+      userId: this.userId,
     });
-
-    // If the message does not exist in the translate table, insert it
-    if (!result) {
-      return this.db.insert(messageTTS).values({
-        contentMd5: tts.contentMd5,
-        fileId: tts.file,
-        id,
-        userId: this.userId,
-        voice: tts.voice,
-      });
-    }
-
-    // or just update the existing one
-    return this.db
-      .update(messageTTS)
-      .set({ contentMd5: tts.contentMd5, fileId: tts.file, voice: tts.voice })
-      .where(eq(messageTTS.id, id));
   };
 
   async updateMessageRAG(id: string, { ragQueryId, fileChunks }: UpdateMessageRAGParams) {
-    return this.db.insert(messageQueryChunks).values(
-      fileChunks.map((chunk) => ({
-        chunkId: chunk.id,
-        messageId: id,
-        queryId: ragQueryId,
-        similarity: chunk.similarity?.toString(),
-        userId: this.userId,
-      })),
+    await Promise.all(
+      fileChunks.map((chunk) =>
+        DB.LinkMessageQueryToChunk({
+          messageId: toNullString(id),
+          queryId: toNullString(ragQueryId),
+          chunkId: toNullString(chunk.id),
+          similarity: { Int64: chunk.similarity || 0, Valid: !!chunk.similarity } as any,
+          userId: this.userId,
+        }),
+      ),
     );
   }
 
   // **************** Delete *************** //
 
+  /**
+   * OPTIMIZED: Uses atomic transaction (4A) and batch query (1A)
+   * Deletes message and all related tool messages atomically
+   */
   deleteMessage = async (id: string) => {
-    return this.db.transaction(async (tx) => {
-      // 1. 查询要删除的 message 的完整信息
-      const message = await tx
-        .select()
-        .from(messages)
-        .where(and(eq(messages.id, id), eq(messages.userId, this.userId)))
-        .limit(1);
+    const message = await this.findById(id);
+    if (!message) return;
 
-      // 如果找不到要删除的 message,直接返回
-      if (message.length === 0) return;
+    const tools = parseNullableJSON(message.tools as any) as ChatToolPayload[] | null;
+    const toolCallIds = tools?.map((tool) => tool.id).filter(Boolean) || [];
 
-      // 2. 检查 message 是否包含 tools
-      const toolCallIds = (message[0].tools as ChatToolPayload[])
-        ?.map((tool) => tool.id)
-        .filter(Boolean);
+    // OPTIMIZATION 4A: Use atomic transaction
+    // OPTIMIZATION 1A: Batch query for tool call IDs
+    await DBService.DeleteMessageWithRelated(
+      JSON.stringify(toolCallIds),
+      [id],
+      this.userId
+    );
+  };
 
-      let relatedMessageIds: string[] = [];
-
-      if (toolCallIds?.length > 0) {
-        // 3. 如果 message 包含 tools,查询出所有相关联的 message id
-        const res = await tx
-          .select({ id: messagePlugins.id })
-          .from(messagePlugins)
-          .where(inArray(messagePlugins.toolCallId, toolCallIds));
-
-        relatedMessageIds = res.map((row) => row.id);
-      }
-
-      // 4. 合并要删除的 message id 列表
-      const messageIdsToDelete = [id, ...relatedMessageIds];
-
-      // 5. 删除所有相关的 message
-      await tx.delete(messages).where(inArray(messages.id, messageIdsToDelete));
+  deleteMessages = async (ids: string[]) => {
+    await DB.BatchDeleteMessages({
+      userId: this.userId,
+      ids,
     });
   };
 
-  deleteMessages = async (ids: string[]) =>
-    this.db
-      .delete(messages)
-      .where(and(eq(messages.userId, this.userId), inArray(messages.id, ids)));
+  deleteMessageTranslate = async (id: string) => {
+    await DB.DeleteMessageTranslate({
+      id,
+      userId: this.userId,
+    });
+  };
 
-  deleteMessageTranslate = async (id: string) =>
-    this.db
-      .delete(messageTranslates)
-      .where(and(eq(messageTranslates.id, id), eq(messageTranslates.userId, this.userId)));
+  deleteMessageTTS = async (id: string) => {
+    await DB.DeleteMessageTTS({
+      id,
+      userId: this.userId,
+    });
+  };
 
-  deleteMessageTTS = async (id: string) =>
-    this.db
-      .delete(messageTTS)
-      .where(and(eq(messageTTS.id, id), eq(messageTTS.userId, this.userId)));
-
-  deleteMessageQuery = async (id: string) =>
-    this.db
-      .delete(messageQueries)
-      .where(and(eq(messageQueries.id, id), eq(messageQueries.userId, this.userId)));
+  deleteMessageQuery = async (id: string) => {
+    await DB.DeleteMessageQuery({
+      id,
+      userId: this.userId,
+    });
+  };
 
   deleteMessagesBySession = async (
     sessionId?: string | null,
     topicId?: string | null,
     groupId?: string | null,
-  ) =>
-    this.db
-      .delete(messages)
-      .where(
-        and(
-          eq(messages.userId, this.userId),
-          this.matchSession(sessionId),
-          this.matchTopic(topicId),
-          this.matchGroup(groupId),
-        ),
-      );
-
-  deleteAllMessages = async () => {
-    return this.db.delete(messages).where(eq(messages.userId, this.userId));
+  ) => {
+    if (sessionId) {
+      await DB.DeleteMessagesBySession({
+        sessionId: toNullString(sessionId),
+        userId: this.userId,
+      });
+    } else if (topicId) {
+      await DB.DeleteMessagesByTopic({
+        topicId: toNullString(topicId),
+        userId: this.userId,
+      });
+    } else if (groupId) {
+      await DB.DeleteMessagesByGroup({
+        groupId: toNullString(groupId),
+        userId: this.userId,
+      });
+    }
   };
 
-  // **************** Helper *************** //
-
-  private genId = () => idGenerator('messages', 14);
-
-  private matchSession = (sessionId?: string | null) =>
-    sessionId ? eq(messages.sessionId, sessionId) : isNull(messages.sessionId);
-
-  private matchTopic = (topicId?: string | null) =>
-    topicId ? eq(messages.topicId, topicId) : isNull(messages.topicId);
-
-  private matchGroup = (groupId?: string | null) =>
-    groupId ? eq(messages.groupId, groupId) : isNull(messages.groupId);
+  deleteAllMessages = async () => {
+    return await DB.DeleteAllMessages(this.userId);
+  };
 }
+

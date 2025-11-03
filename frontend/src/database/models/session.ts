@@ -5,71 +5,90 @@ import {
   LobeAgentSession,
   LobeGroupSession,
   SessionRankItem,
-} from  '@/types';
-import {
-  Column,
-  and,
-  asc,
-  count,
-  desc,
-  eq,
-  gt,
-  inArray,
-  isNull,
-  like,
-  not,
-  or,
-  sql,
-} from 'drizzle-orm';
+} from '@/types';
 import type { PartialDeep } from 'type-fest';
+import { nanoid } from 'nanoid';
 
 import { merge } from '@/utils/merge';
 
 import {
-  AgentItem,
-  NewAgent,
-  NewSession,
-  SessionItem,
-  agents,
-  agentsToSessions,
-  sessionGroups,
-  sessions,
-  topics,
-} from '../schemas';
-import { LobeChatDatabase } from '../type';
-import { genEndDateWhere, genRangeWhere, genStartDateWhere, genWhere } from '../utils/genWhere';
-import { idGenerator } from '../utils/idGenerator';
+  DB,
+  type Session,
+  type Agent,
+  type CreateSessionParams,
+  type CreateAgentParams,
+  toNullString,
+  toNullJSON,
+  parseNullableJSON,
+  getNullableString,
+  currentTimestampMs,
+  boolToInt,
+} from '@/types/database';
+
+// Type aliases for compatibility
+type SessionItem = Session;
+type AgentItem = Agent;
+type NewSession = Partial<CreateSessionParams>;
+type NewAgent = Partial<CreateAgentParams>;
 
 export class SessionModel {
   private userId: string;
-  private db: LobeChatDatabase;
 
-  constructor(db: LobeChatDatabase, userId: string) {
+  constructor(_db: any, userId: string) {
     this.userId = userId;
-    this.db = db;
   }
+
   // **************** Query *************** //
 
   query = async ({ current = 0, pageSize = 9999 } = {}) => {
     const offset = current * pageSize;
 
-    return this.db.query.sessions.findMany({
+    // Get sessions with agents
+    const sessions = await DB.ListSessions({
+      userId: this.userId,
       limit: pageSize,
       offset,
-      orderBy: [desc(sessions.updatedAt)],
-      where: and(eq(sessions.userId, this.userId), not(eq(sessions.slug, INBOX_SESSION_ID))),
-      with: { agentsToSessions: { columns: {}, with: { agent: true } }, group: true },
     });
+
+    // Filter out inbox session
+    const filtered = sessions.filter(
+      (s) => s.slug !== INBOX_SESSION_ID,
+    );
+
+    // Enrich with agents and groups
+    const enriched = await Promise.all(
+      filtered.map(async (session) => {
+        const agents = await DB.GetSessionAgents({
+          sessionId: session.id,
+          userId: this.userId,
+        });
+
+        let group: any = undefined;
+        if (session.groupId.Valid && session.groupId.String) {
+          try {
+            group = await DB.GetSessionGroup({
+              id: session.groupId.String,
+              userId: this.userId,
+            });
+          } catch {
+            // Group not found
+          }
+        }
+
+        return {
+          ...session,
+          agentsToSessions: agents.map((agent) => ({ agent })),
+          group,
+        };
+      }),
+    );
+
+    return enriched;
   };
 
   queryWithGroups = async (): Promise<ChatSessionList> => {
-    // 查询所有会话
     const result = await this.query();
-
-    const groups = await this.db.query.sessionGroups.findMany({
-      orderBy: [asc(sessionGroups.sort), desc(sessionGroups.createdAt)],
-      where: eq(sessions.userId, this.userId),
-    });
+    const groups = await DB.ListSessionGroups(this.userId);
 
     return {
       sessionGroups: groups as unknown as ChatSessionList['sessionGroups'],
@@ -81,7 +100,6 @@ export class SessionModel {
     if (!keyword) return [];
 
     const keywordLowerCase = keyword.toLowerCase();
-
     const data = await this.findSessionsByKeywords({ keyword: keywordLowerCase });
 
     return data.map((item) => this.mapSessionItem(item as any));
@@ -90,17 +108,46 @@ export class SessionModel {
   findByIdOrSlug = async (
     idOrSlug: string,
   ): Promise<(SessionItem & { agent: AgentItem }) | undefined> => {
-    const result = await this.db.query.sessions.findFirst({
-      where: and(
-        or(eq(sessions.id, idOrSlug), eq(sessions.slug, idOrSlug)),
-        eq(sessions.userId, this.userId),
-      ),
-      with: { agentsToSessions: { columns: {}, with: { agent: true } }, group: true },
+    // Use single query to find by ID or slug
+    let session: Session | undefined;
+    
+    try {
+      session = await DB.GetSessionByIdOrSlug({
+        id: idOrSlug,
+        slug: idOrSlug,
+        userId: this.userId,
+      });
+    } catch {
+      return undefined;
+    }
+
+    if (!session) return undefined;
+
+    // Get agents
+    const agents = await DB.GetSessionAgents({
+      sessionId: session.id,
+      userId: this.userId,
     });
 
-    if (!result) return;
+    // Get group if exists
+    let group: any = undefined;
+    if (session.groupId.Valid && session.groupId.String) {
+      try {
+        group = await DB.GetSessionGroup({
+          id: session.groupId.String,
+          userId: this.userId,
+        });
+      } catch {
+        // Group not found
+      }
+    }
 
-    return { ...result, agent: (result?.agentsToSessions?.[0] as any)?.agent } as any;
+    return {
+      ...session,
+      agent: agents[0],
+      agentsToSessions: agents.map((agent) => ({ agent })),
+      group,
+    } as any;
   };
 
   count = async (params?: {
@@ -108,90 +155,83 @@ export class SessionModel {
     range?: [string, string];
     startDate?: string;
   }): Promise<number> => {
-    const result = await this.db
-      .select({
-        count: count(sessions.id),
-      })
-      .from(sessions)
-      .where(
-        genWhere([
-          eq(sessions.userId, this.userId),
-          params?.range
-            ? genRangeWhere(params.range, sessions.createdAt, (date) => date.toDate())
-            : undefined,
-          params?.endDate
-            ? genEndDateWhere(params.endDate, sessions.createdAt, (date) => date.toDate())
-            : undefined,
-          params?.startDate
-            ? genStartDateWhere(params.startDate, sessions.createdAt, (date) => date.toDate())
-            : undefined,
-        ]),
-      );
+    // Use database query for counting
+    if (!params) {
+      return await DB.CountSessions(this.userId);
+    }
 
-    return result[0].count;
+    // Determine date range
+    let startTime: number;
+    let endTime: number;
+
+    if (params.range) {
+      const [start, end] = params.range;
+      startTime = new Date(start).getTime();
+      endTime = new Date(end).getTime();
+    } else {
+      startTime = params.startDate ? new Date(params.startDate).getTime() : 0;
+      endTime = params.endDate ? new Date(params.endDate).getTime() : Date.now();
+    }
+
+    return await DB.CountSessionsByDateRange({
+      userId: this.userId,
+      createdAt: startTime,
+      createdAt2: endTime,
+    });
   };
 
-  _rank = async (limit: number = 10): Promise<SessionRankItem[]> => {
-    return this.db
-      .select({
-        avatar: agents.avatar,
-        backgroundColor: agents.backgroundColor,
-        count: count(topics.id).as('count'),
-        id: sessions.id,
-        title: agents.title,
-      })
-      .from(sessions)
-      .where(and(eq(sessions.userId, this.userId)))
-      .leftJoin(topics, eq(sessions.id, topics.sessionId))
-      .leftJoin(agentsToSessions, eq(sessions.id, agentsToSessions.sessionId))
-      .leftJoin(agents, eq(agentsToSessions.agentId, agents.id))
-      .groupBy(sessions.id, agentsToSessions.agentId, agents.id)
-      .having(({ count }) => gt(count, 0))
-      .orderBy(desc(sql`count`))
-      .limit(limit);
-  };
-
-  // TODO: 未来将 Inbox id 入库后可以直接使用 _rank 方法
   rank = async (limit: number = 10): Promise<SessionRankItem[]> => {
-    const inboxResult = await this.db
-      .select({
-        count: count(topics.id).as('count'),
-      })
-      .from(topics)
-      .where(and(eq(topics.userId, this.userId), isNull(topics.sessionId)));
+    // Get inbox count separately
+    const inboxCount = await DB.CountTopicsBySession({
+      sessionId: toNullString(''), // Empty for inbox (null session_id)
+      userId: this.userId,
+    });
 
-    const inboxCount = inboxResult[0].count;
+    // Get ranked sessions
+    const ranked = await DB.GetSessionRank({
+      userId: this.userId,
+      limit: inboxCount > 0 ? limit - 1 : limit,
+    });
 
-    if (!inboxCount || inboxCount === 0) return this._rank(limit);
+    const result = ranked.map((item) => ({
+      id: item.id,
+      title: getNullableString(item.title as any) || null,
+      avatar: getNullableString(item.avatar as any) || null,
+      backgroundColor: getNullableString(item.backgroundColor as any) || null,
+      count: Number(item.topicCount) || 0,
+    }));
 
-    const result = await this._rank(limit ? limit - 1 : undefined);
+    // Add inbox if it has topics
+    if (inboxCount > 0) {
+      return [
+        {
+          id: INBOX_SESSION_ID,
+          title: 'inbox.title',
+          avatar: DEFAULT_INBOX_AVATAR,
+          backgroundColor: null,
+          count: inboxCount,
+        },
+        ...result,
+      ].sort((a, b) => b.count - a.count);
+    }
 
-    return [
-      {
-        avatar: DEFAULT_INBOX_AVATAR,
-        backgroundColor: null,
-        count: inboxCount,
-        id: INBOX_SESSION_ID,
-        title: 'inbox.title',
-      },
-      ...result,
-    ].sort((a, b) => b.count - a.count);
+    return result;
   };
 
   hasMoreThanN = async (n: number): Promise<boolean> => {
-    const result = await this.db
-      .select({ id: sessions.id })
-      .from(sessions)
-      .where(eq(sessions.userId, this.userId))
-      .limit(n + 1);
+    const sessions = await DB.ListSessions({
+      userId: this.userId,
+      limit: n + 1,
+      offset: 0,
+    });
 
-    return result.length > n;
+    return sessions.length > n;
   };
 
   // **************** Create *************** //
 
   create = async ({
-    id = idGenerator('sessions'),
+    id = nanoid(),
     type = 'agent',
     session = {},
     config = {},
@@ -203,111 +243,129 @@ export class SessionModel {
     slug?: string;
     type: 'agent' | 'group';
   }): Promise<SessionItem> => {
-    return this.db.transaction(async (trx) => {
-      if (slug) {
-        const existResult = await trx.query.sessions.findFirst({
-          where: and(eq(sessions.slug, slug), eq(sessions.userId, this.userId)),
-        });
-
-        if (existResult) return existResult;
-      }
-
-      if (type === 'group') {
-        const result = await trx
-          .insert(sessions)
-          .values({
-            ...session,
-            createdAt: new Date(),
-            id,
-            slug,
-            type,
-            updatedAt: new Date(),
-            userId: this.userId,
-          })
-          .returning();
-
-        return result[0];
-      }
-
-      const newAgents = await trx
-        .insert(agents)
-        .values({
-          ...config,
-          createdAt: new Date(),
-          id: idGenerator('agents'),
-          updatedAt: new Date(),
-          userId: this.userId,
-        })
-        .returning();
-
-      const result = await trx
-        .insert(sessions)
-        .values({
-          ...session,
-          createdAt: new Date(),
-          id,
+    // Check if slug exists
+    if (slug) {
+      try {
+        const existing = await DB.GetSessionBySlug({
           slug,
-          type,
-          updatedAt: new Date(),
           userId: this.userId,
-        })
-        .returning();
+        });
+        if (existing) return existing;
+      } catch {
+        // Doesn't exist, continue
+      }
+    }
 
-      await trx.insert(agentsToSessions).values({
-        agentId: newAgents[0].id,
+    const now = currentTimestampMs();
+
+    // Create session
+    const newSession = await DB.CreateSession({
+      id,
+      userId: this.userId,
+      slug: slug || "",
+      title: toNullString(session.title as any),
+      description: toNullString(session.description as any),
+      avatar: toNullString(session.avatar as any),
+      backgroundColor: toNullString(session.backgroundColor as any),
+      type: toNullString(type),
+      groupId: toNullString(session.groupId as any),
+      clientId: toNullString(session.clientId as any),
+      pinned: boolToInt(false),
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // If agent type, create agent and link
+    if (type === 'agent') {
+      const agentId = nanoid();
+      
+      await DB.CreateAgent({
+        id: agentId,
+        userId: this.userId,
+        slug: toNullString(undefined),
+        title: toNullString(config.title as any),
+        description: toNullString(config.description as any),
+        tags: toNullJSON(config.tags || []),
+        avatar: toNullString(config.avatar as any),
+        backgroundColor: toNullString(config.backgroundColor as any),
+        plugins: toNullJSON(config.plugins || []),
+        clientId: toNullString(config.clientId as any),
+        chatConfig: toNullJSON(config.chatConfig),
+        fewShots: toNullJSON(config.fewShots),
+        model: toNullString(config.model as any),
+        params: toNullJSON(config.params),
+        provider: toNullString(config.provider as any),
+        systemRole: toNullString(config.systemRole as any),
+        tts: toNullJSON(config.tts),
+        virtual: boolToInt(false),
+        openingMessage: toNullString(config.openingMessage as any),
+        openingQuestions: toNullJSON(config.openingQuestions || []),
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      // Link agent to session
+      await DB.LinkAgentToSession({
+        agentId,
         sessionId: id,
         userId: this.userId,
       });
+    }
 
-      return result[0];
-    });
+    return newSession;
   };
 
   createInbox = async (defaultAgentConfig: PartialDeep<LobeAgentConfig>) => {
-    const item = await this.db.query.sessions.findFirst({
-      where: and(eq(sessions.userId, this.userId), eq(sessions.slug, INBOX_SESSION_ID)),
-    });
-
-    if (item) return;
+    try {
+      const existing = await DB.GetSessionBySlug({
+        slug: INBOX_SESSION_ID,
+        userId: this.userId,
+      });
+      if (existing) return;
+    } catch {
+      // Doesn't exist, create it
+    }
 
     return await this.create({
-      config: merge(DEFAULT_AGENT_CONFIG, defaultAgentConfig),
+      config: merge(DEFAULT_AGENT_CONFIG, defaultAgentConfig) as any,
       slug: INBOX_SESSION_ID,
       type: 'agent',
     });
   };
 
   batchCreate = async (newSessions: NewSession[]) => {
-    const sessionsToInsert = newSessions.map((s) => {
-      return {
-        ...s,
-        id: this.genId(),
-        userId: this.userId,
-      };
-    });
+    // Create sessions one by one (no batch insert in current bindings)
+    const results = await Promise.all(
+      newSessions.map((session) =>
+        this.create({
+          id: nanoid(),
+          session,
+          type: 'agent',
+        }),
+      ),
+    );
 
-    return this.db.insert(sessions).values(sessionsToInsert);
+    return results;
   };
 
   duplicate = async (id: string, newTitle?: string) => {
     const result = await this.findByIdOrSlug(id);
-
     if (!result) return;
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars,unused-imports/no-unused-vars
     const { agent, clientId, ...session } = result;
-    const sessionId = this.genId();
-
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { id: _, slug: __, ...config } = agent;
+    const sessionId = nanoid();
 
     return this.create({
-      config: config,
+      config: {
+        ...agent,
+        id: undefined,
+        slug: undefined,
+      } as any,
       id: sessionId,
       session: {
         ...session,
-        title: newTitle || session.title,
-      },
+        title: newTitle || getNullableString(session.title),
+      } as any,
       type: 'agent',
     });
   };
@@ -318,30 +376,41 @@ export class SessionModel {
    * Delete a session and its associated agent data if no longer referenced.
    */
   delete = async (id: string) => {
-    return this.db.transaction(async (trx) => {
-      // First get the agent IDs associated with this session
-      const links = await trx
-        .select({ agentId: agentsToSessions.agentId })
-        .from(agentsToSessions)
-        .where(and(eq(agentsToSessions.sessionId, id), eq(agentsToSessions.userId, this.userId)));
-
-      const agentIds = links.map((link) => link.agentId);
-
-      // Delete links in agentsToSessions
-      await trx
-        .delete(agentsToSessions)
-        .where(and(eq(agentsToSessions.sessionId, id), eq(agentsToSessions.userId, this.userId)));
-
-      // Delete the session
-      const result = await trx
-        .delete(sessions)
-        .where(and(eq(sessions.id, id), eq(sessions.userId, this.userId)));
-
-      // Delete orphaned agents
-      await this.clearOrphanAgent(agentIds, trx);
-
-      return result;
+    // Get agents linked to this session
+    const agents = await DB.GetSessionAgents({
+      sessionId: id,
+      userId: this.userId,
     });
+
+    // Unlink agents
+    for (const agent of agents) {
+      await DB.UnlinkAgentFromSession({
+        agentId: agent.id,
+        sessionId: id,
+        userId: this.userId,
+      });
+    }
+
+    // Delete session
+    await DB.DeleteSession({
+      id,
+      userId: this.userId,
+    });
+
+    // Delete orphaned agents - check if they're still linked to other sessions
+    for (const agent of agents) {
+      const agentSessions = await DB.GetAgentSessions({
+        agentId: agent.id,
+        userId: this.userId,
+      });
+
+      if (agentSessions.length === 0) {
+        await DB.DeleteAgent({
+          id: agent.id,
+          userId: this.userId,
+        });
+      }
+    }
   };
 
   /**
@@ -350,91 +419,98 @@ export class SessionModel {
   batchDelete = async (ids: string[]) => {
     if (ids.length === 0) return { count: 0 };
 
-    return this.db.transaction(async (trx) => {
-      // Get agent IDs associated with these sessions
-      const links = await trx
-        .select({ agentId: agentsToSessions.agentId })
-        .from(agentsToSessions)
-        .where(
-          and(inArray(agentsToSessions.sessionId, ids), eq(agentsToSessions.userId, this.userId)),
-        );
+    // Get all agents linked to these sessions
+    const allAgents = await Promise.all(
+      ids.map(async (id) => {
+        try {
+          return await DB.GetSessionAgents({
+            sessionId: id,
+            userId: this.userId,
+          });
+        } catch {
+          return [];
+        }
+      })
+    );
 
-      const agentIds = [...new Set(links.map((link) => link.agentId))];
+    const agentIds = [...new Set(allAgents.flat().map((a) => a.id))];
 
-      // Delete links in agentsToSessions
-      await trx
-        .delete(agentsToSessions)
-        .where(
-          and(inArray(agentsToSessions.sessionId, ids), eq(agentsToSessions.userId, this.userId)),
-        );
+    // Unlink all agents from these sessions
+    await Promise.all(
+      ids.flatMap((sessionId) =>
+        agentIds.map((agentId) =>
+          DB.UnlinkAgentFromSession({
+            agentId,
+            sessionId,
+            userId: this.userId,
+          }).catch(() => {})
+        )
+      )
+    );
 
-      // Delete the sessions
-      const result = await trx
-        .delete(sessions)
-        .where(and(inArray(sessions.id, ids), eq(sessions.userId, this.userId)));
-
-      // Delete orphaned agents
-      await this.clearOrphanAgent(agentIds, trx);
-
-      return result;
+    // Batch delete sessions
+    await DB.BatchDeleteSessions({
+      userId: this.userId,
+      ids,
     });
+
+    // Delete orphaned agents
+    const orphanedAgents = await DB.GetOrphanedAgents(this.userId);
+    await Promise.all(
+      orphanedAgents.map((agent) =>
+        DB.DeleteAgent({
+          id: agent.id,
+          userId: this.userId,
+        })
+      )
+    );
+
+    return { count: ids.length };
   };
 
   /**
    * Delete all sessions and their associated agent data for this user.
    */
   deleteAll = async () => {
-    return this.db.transaction(async (trx) => {
-      // Delete all agentsToSessions for this user
-      await trx.delete(agentsToSessions).where(eq(agentsToSessions.userId, this.userId));
-
-      // Delete all agents that were only used by this user's sessions
-      await trx.delete(agents).where(eq(agents.userId, this.userId));
-
-      // Delete all sessions for this user
-      return trx.delete(sessions).where(eq(sessions.userId, this.userId));
+    const sessions = await DB.ListSessions({
+      userId: this.userId,
+      limit: 10000,
+      offset: 0,
     });
-  };
 
-  clearOrphanAgent = async (agentIds: string[], trx: any) => {
-    // Delete orphaned agents (those not linked to any other sessions)
-    for (const agentId of agentIds) {
-      const remaining = await trx
-        .select()
-        .from(agentsToSessions)
-        .where(eq(agentsToSessions.agentId, agentId))
-        .limit(1);
-
-      if (remaining.length === 0) {
-        await trx.delete(agents).where(and(eq(agents.id, agentId), eq(agents.userId, this.userId)));
-      }
-    }
+    await this.batchDelete(sessions.map((s) => s.id));
   };
 
   // **************** Update *************** //
 
   update = async (id: string, data: Partial<SessionItem>) => {
-    return this.db
-      .update(sessions)
-      .set(data)
-      .where(and(eq(sessions.id, id), eq(sessions.userId, this.userId)))
-      .returning();
+    const updated = await DB.UpdateSession({
+      id,
+      userId: this.userId,
+      title: data.title !== undefined ? toNullString(getNullableString(data.title as any)) : toNullString(""),
+      description: data.description !== undefined ? toNullString(getNullableString(data.description as any)) : toNullString(""),
+      avatar: data.avatar !== undefined ? toNullString(getNullableString(data.avatar as any)) : toNullString(""),
+      backgroundColor: data.backgroundColor !== undefined ? toNullString(getNullableString(data.backgroundColor as any)) : toNullString(""),
+      groupId: data.groupId !== undefined ? toNullString(getNullableString(data.groupId as any)) : toNullString(""),
+      pinned: data.pinned !== undefined ? data.pinned : 0,
+      updatedAt: currentTimestampMs(),
+    });
+
+    return [updated];
   };
 
   updateConfig = async (sessionId: string, data: PartialDeep<AgentItem> | undefined | null) => {
     if (!data || Object.keys(data).length === 0) return;
 
     const session = await this.findByIdOrSlug(sessionId);
-    if (!session) return;
-
-    if (!session.agent) {
+    if (!session || !session.agent) {
       throw new Error(
         'this session is not assign with agent, please contact with admin to fix this issue.',
       );
     }
 
-    // 先处理参数字段：undefined 表示删除，null 表示禁用标记
-    const existingParams = session.agent.params ?? {};
+    // Handle params field - undefined means delete, null means disabled
+    const existingParams = parseNullableJSON(session.agent.params) ?? {};
     const updatedParams: Record<string, any> = { ...existingParams };
 
     if (data.params) {
@@ -442,47 +518,73 @@ export class SessionModel {
       Object.keys(incomingParams).forEach((key) => {
         const incomingValue = incomingParams[key];
 
-        // undefined 代表显式删除该字段
+        // undefined means explicitly delete the field
         if (incomingValue === undefined) {
           delete updatedParams[key];
           return;
         }
 
-        // 其余值（包括 null）都直接覆盖，null 表示在前端禁用该参数
+        // Other values (including null) are directly overwritten
         updatedParams[key] = incomingValue;
       });
     }
 
-    // 构建要合并的数据，排除 params（单独处理）
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    // Merge data, excluding params (handled separately)
     const { params: _params, ...restData } = data;
-    const mergedValue = merge(session.agent, restData);
+    const mergedValue = merge(
+      {
+        ...session.agent,
+        // Parse JSON fields for merging
+        tags: parseNullableJSON(session.agent.tags),
+        plugins: parseNullableJSON(session.agent.plugins),
+        chatConfig: parseNullableJSON(session.agent.chatConfig),
+        fewShots: parseNullableJSON(session.agent.fewShots),
+        params: existingParams,
+        tts: parseNullableJSON(session.agent.tts),
+        openingQuestions: parseNullableJSON(session.agent.openingQuestions),
+      },
+      restData,
+    );
 
-    // 应用处理后的参数
+    // Apply processed params
     mergedValue.params = Object.keys(updatedParams).length > 0 ? updatedParams : undefined;
 
-    // 最终清理：确保没有 undefined 或 null 值进入数据库
+    // Clean undefined values
     if (mergedValue.params) {
-      const params = mergedValue.params as Record<string, any>;
-      Object.keys(params).forEach((key) => {
-        if (params[key] === undefined) {
-          delete params[key];
+      Object.keys(mergedValue.params).forEach((key) => {
+        if (mergedValue.params[key] === undefined) {
+          delete mergedValue.params[key];
         }
       });
-      if (Object.keys(params).length === 0) {
+      if (Object.keys(mergedValue.params).length === 0) {
         mergedValue.params = undefined;
       }
     }
 
-    return this.db
-      .update(agents)
-      .set(mergedValue)
-      .where(and(eq(agents.id, session.agent.id), eq(agents.userId, this.userId)));
+    // Update agent
+    await DB.UpdateAgent({
+      id: session.agent.id,
+      userId: this.userId,
+      title: toNullString(mergedValue.title as any),
+      description: toNullString(mergedValue.description as any),
+      tags: toNullJSON(mergedValue.tags),
+      avatar: toNullString(mergedValue.avatar as any),
+      backgroundColor: toNullString(mergedValue.backgroundColor as any),
+      plugins: toNullJSON(mergedValue.plugins),
+      chatConfig: toNullJSON(mergedValue.chatConfig),
+      fewShots: toNullJSON(mergedValue.fewShots),
+      model: toNullString(mergedValue.model as any),
+      params: toNullJSON(mergedValue.params),
+      provider: toNullString(mergedValue.provider as any),
+      systemRole: toNullString(mergedValue.systemRole as any),
+      tts: toNullJSON(mergedValue.tts),
+      openingMessage: toNullString(mergedValue.openingMessage as any),
+      openingQuestions: toNullJSON(mergedValue.openingQuestions),
+      updatedAt: currentTimestampMs(),
+    });
   };
 
   // **************** Helper *************** //
-
-  private genId = () => idGenerator('sessions');
 
   private mapSessionItem = ({
     agentsToSessions,
@@ -497,58 +599,72 @@ export class SessionModel {
     | LobeAgentSession
     | LobeGroupSession => {
     const meta = {
-      avatar: avatar ?? undefined,
-      backgroundColor: backgroundColor ?? undefined,
-      description: description ?? undefined,
+      avatar: getNullableString(avatar as any) ?? undefined,
+      backgroundColor: getNullableString(backgroundColor as any) ?? undefined,
+      description: getNullableString(description as any) ?? undefined,
       tags: undefined,
-      title: title ?? undefined,
+      title: getNullableString(title as any) ?? undefined,
     };
 
-    if (type === 'group') {
-      // For group sessions, return without agent-specific fields
-      // Transform agentsToSessions to include both relationship and agent data
+    const typeStr = getNullableString(type as any);
+
+    if (typeStr === 'group') {
+      // For group sessions, transform agentsToSessions to members
       const members =
-        agentsToSessions?.map((item, index) => {
-          const member = {
-            // Start with agent properties for compatibility
-            ...item.agent,
-            // Override with ChatGroupAgentItem properties
-            agentId: item.agent.id,
-            chatGroupId: res.id,
-            enabled: true,
-            order: index,
-            role: 'participant',
-            // Keep agent timestamps for now (could be overridden if needed)
-          };
-          return member;
-        }) || [];
+        agentsToSessions?.map((item, index) => ({
+          ...item.agent,
+          agentId: item.agent.id,
+          chatGroupId: res.id,
+          enabled: true,
+          order: index,
+          role: 'participant',
+        })) || [];
 
       return {
         ...res,
-        group: groupId,
+        createdAt: new Date(res.createdAt),
+        updatedAt: new Date(res.updatedAt),
+        group: getNullableString(groupId as any),
         members,
         meta,
         type: 'group',
-      } as LobeGroupSession;
+      } as unknown as LobeGroupSession;
     }
 
     // For agent sessions, include agent-specific fields
-    // TODO: 未来这里需要更好的实现方案，目前只取第一个
     const agent = agentsToSessions?.[0]?.agent;
     return {
       ...res,
-      config: agent ? (agent as any) : { model: '', plugins: [] }, // Ensure config exists for agent sessions
-      group: groupId,
+      createdAt: new Date(res.createdAt),
+      updatedAt: new Date(res.updatedAt),
+      config: agent
+        ? ({
+            ...agent,
+            model: getNullableString(agent.model as any) || '',
+            plugins: parseNullableJSON(agent.plugins) || [],
+            chatConfig: parseNullableJSON(agent.chatConfig) || {},
+            params: parseNullableJSON(agent.params) || {},
+            systemRole: getNullableString(agent.systemRole as any) || '',
+            tts: parseNullableJSON(agent.tts) || {},
+          } as any)
+        : { model: '', plugins: [], chatConfig: {}, params: {}, systemRole: '', tts: {} },
+      group: getNullableString(groupId as any),
       meta: {
-        avatar: agent?.avatar ?? avatar ?? undefined,
-        backgroundColor: agent?.backgroundColor ?? backgroundColor ?? undefined,
-        description: agent?.description ?? description ?? undefined,
-        tags: agent?.tags ?? undefined,
-        title: agent?.title ?? title ?? undefined,
+        avatar: getNullableString(agent?.avatar as any) ?? getNullableString(avatar as any) ?? undefined,
+        backgroundColor:
+          getNullableString(agent?.backgroundColor as any) ??
+          getNullableString(backgroundColor as any) ??
+          undefined,
+        description:
+          getNullableString(agent?.description as any) ??
+          getNullableString(description as any) ??
+          undefined,
+        tags: parseNullableJSON(agent?.tags as any) ?? undefined,
+        title: getNullableString(agent?.title as any) ?? getNullableString(title as any) ?? undefined,
       },
-      model: agent?.model || '',
+      model: getNullableString(agent?.model as any) || '',
       type: 'agent',
-    } as LobeAgentSession;
+    } as unknown as LobeAgentSession;
   };
 
   findSessionsByKeywords = async (params: {
@@ -556,35 +672,34 @@ export class SessionModel {
     keyword: string;
     pageSize?: number;
   }) => {
-    const { keyword, pageSize = 9999, current = 0 } = params;
-    const offset = current * pageSize;
+    const { keyword, pageSize = 9999 } = params;
 
     try {
-      const results = await this.db.query.agents.findMany({
+      // Search agents by keyword
+      const agents = await DB.SearchAgents({
+        userId: this.userId,
+        title: toNullString(`%${keyword}%`),
+        description: toNullString(`%${keyword}%`),
         limit: pageSize,
-        offset,
-        orderBy: [desc(agents.updatedAt)],
-        where: and(
-          eq(agents.userId, this.userId),
-          or(
-            like(sql`lower(${agents.title})` as unknown as Column, `%${keyword.toLowerCase()}%`),
-            like(
-              sql`lower(${agents.description})` as unknown as Column,
-              `%${keyword.toLowerCase()}%`,
-            ),
-          ),
-        ),
-        with: { agentsToSessions: { columns: {}, with: { session: true } } },
       });
 
-      // 过滤和映射结果，确保有有效的 session 关联
-      return (
-        results
-          .filter((item) => item.agentsToSessions && item.agentsToSessions.length > 0)
-          // @ts-expect-error
-          .map((item) => item.agentsToSessions[0].session)
-          .filter((session) => session !== null && session !== undefined)
+      // Get sessions for these agents
+      const sessions = await Promise.all(
+        agents.map(async (agent) => {
+          try {
+            const agentSessions = await DB.GetAgentSessions({
+              agentId: agent.id,
+              userId: this.userId,
+            });
+            // Return first session
+            return agentSessions.length > 0 ? agentSessions[0] : null;
+          } catch {
+            return null;
+          }
+        }),
       );
+
+      return sessions.filter((s) => s !== null);
     } catch (e) {
       console.error('findSessionsByKeywords error:', e, { keyword });
       return [];

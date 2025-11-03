@@ -1,94 +1,117 @@
-import { and, eq, lt, sql } from 'drizzle-orm';
-
-import { LobeChatDatabase } from '../type';
-
-import { NewOAuthHandoff, OAuthHandoffItem, oauthHandoffs } from '../schemas';
+import { NewOAuthHandoff, OAuthHandoffItem } from '../schemas';
+import {
+  DB,
+  parseNullableJSON,
+  currentTimestampMs,
+} from '@/types/database';
 
 export class OAuthHandoffModel {
-  private db: LobeChatDatabase;
-
-  constructor(db: LobeChatDatabase) {
-    this.db = db;
-  }
+  constructor(_db: any) {}
 
   /**
-   * 创建新的认证凭证传递记录
-   * @param params 凭证数据
-   * @returns 创建的记录
+   * Create a new OAuth handoff record
+   * @param params Credential data
+   * @returns The created record
    */
   create = async (params: NewOAuthHandoff): Promise<OAuthHandoffItem> => {
-    const [result] = await this.db
-      .insert(oauthHandoffs)
-      .values(params)
-      .onConflictDoNothing()
-      .returning();
+    const now = currentTimestampMs();
 
-    return result;
+    try {
+      const result = await DB.CreateOAuthHandoff({
+        id: params.id,
+        client: params.client,
+        payload: JSON.stringify(params.payload),
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      return this.mapOAuthHandoff(result);
+    } catch {
+      // ON CONFLICT DO NOTHING simulation - if fails, just return empty
+      return null as any;
+    }
   };
 
   /**
-   * 获取并消费认证凭证
-   * 该方法会先查询记录，如果找到则立即删除，确保凭证只能被使用一次
-   * @param id 凭证ID
-   * @param client 客户端类型
-   * @returns 凭证数据，如果不存在或已过期则返回null
+   * Fetch and consume OAuth credentials
+   * This method first queries the record, and if found, immediately deletes it to ensure the credential can only be used once
+   * @param id Credential ID
+   * @param client Client type
+   * @returns Credential data, returns null if not exists or expired
    */
   fetchAndConsume = async (id: string, client: string): Promise<OAuthHandoffItem | null> => {
-    // 先查找记录，同时检查是否过期 (5分钟TTL)
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    // First find the record, and check if expired (5 minutes TTL)
+    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
 
-    const handoff = await this.db.query.oauthHandoffs.findFirst({
-      where: and(
-        eq(oauthHandoffs.id, id),
-        eq(oauthHandoffs.client, client),
-        // 检查记录是否在5分钟内创建
-        sql`${oauthHandoffs.createdAt} > ${fiveMinutesAgo}`,
-      ),
-    });
+    try {
+      const handoff = await DB.GetOAuthHandoffByClient({
+        id,
+        client,
+        createdAt: fiveMinutesAgo,
+      });
 
-    if (!handoff) {
+      if (!handoff) {
+        return null;
+      }
+
+      // Immediately delete the record to ensure one-time use
+      await DB.DeleteOAuthHandoff(id);
+
+      return this.mapOAuthHandoff(handoff);
+    } catch {
       return null;
     }
-
-    // 立即删除记录以确保一次性使用
-    await this.db.delete(oauthHandoffs).where(eq(oauthHandoffs.id, id));
-
-    return handoff;
   };
 
   /**
-   * 清理过期的认证凭证记录
-   * 这个方法应该被定期调用（比如通过 cron job）来清理过期的记录
-   * @returns 清理的记录数量
+   * Clean up expired OAuth handoff records
+   * This method should be called periodically (e.g., via cron job) to clean up expired records
+   * @returns Number of records cleaned up
    */
   cleanupExpired = async (): Promise<number> => {
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
 
-    const result = await this.db
-      .delete(oauthHandoffs)
-      .where(lt(oauthHandoffs.createdAt, fiveMinutesAgo));
-
-    return result.rowCount || 0;
+    try {
+      await DB.CleanupExpiredOAuthHandoffs(fiveMinutesAgo);
+      // Note: SQLite exec queries don't return rowCount easily
+      // Would need a separate COUNT query for accurate results
+      return 0;
+    } catch {
+      return 0;
+    }
   };
 
   /**
-   * 检查凭证是否存在（不消费）
-   * 主要用于测试和调试
-   * @param id 凭证ID
-   * @param client 客户端类型
-   * @returns 是否存在且未过期
+   * Check if credential exists (without consuming)
+   * Mainly used for testing and debugging
+   * @param id Credential ID
+   * @param client Client type
+   * @returns Whether exists and not expired
    */
   exists = async (id: string, client: string): Promise<boolean> => {
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
 
-    const handoff = await this.db.query.oauthHandoffs.findFirst({
-      where: and(
-        eq(oauthHandoffs.id, id),
-        eq(oauthHandoffs.client, client),
-        sql`${oauthHandoffs.createdAt} > ${fiveMinutesAgo}`,
-      ),
-    });
+    try {
+      const handoff = await DB.GetOAuthHandoffByClient({
+        id,
+        client,
+        createdAt: fiveMinutesAgo,
+      });
+      return !!handoff;
+    } catch {
+      return false;
+    }
+  };
 
-    return !!handoff;
+  // **************** Helper *************** //
+
+  private mapOAuthHandoff = (item: any): OAuthHandoffItem => {
+    return {
+      id: item.id,
+      client: item.client,
+      payload: parseNullableJSON(item.payload as any) || {},
+      createdAt: new Date(item.createdAt),
+      updatedAt: new Date(item.updatedAt),
+    } as OAuthHandoffItem;
   };
 }

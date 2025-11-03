@@ -1,16 +1,18 @@
-import { LobeTool } from  '@/types';
-import { and, desc, eq } from 'drizzle-orm';
+import { LobeTool } from '@/types';
 
-import { InstalledPluginItem, NewInstalledPlugin, userInstalledPlugins } from '../schemas';
-import { LobeChatDatabase } from '../type';
+import { InstalledPluginItem, NewInstalledPlugin } from '../schemas';
+import {
+  DB,
+  toNullJSON,
+  parseNullableJSON,
+  currentTimestampMs,
+} from '@/types/database';
 
 export class PluginModel {
   private userId: string;
-  private db: LobeChatDatabase;
 
-  constructor(db: LobeChatDatabase, userId: string) {
+  constructor(_db: any, userId: string) {
     this.userId = userId;
-    this.db = db;
   }
 
   create = async (
@@ -19,67 +21,89 @@ export class PluginModel {
       'type' | 'identifier' | 'manifest' | 'customParams' | 'settings'
     >,
   ) => {
-    const [result] = await this.db
-      .insert(userInstalledPlugins)
-      .values({ ...params, userId: this.userId })
-      .onConflictDoUpdate({
-        set: { ...params, updatedAt: new Date() },
-        target: [userInstalledPlugins.identifier, userInstalledPlugins.userId],
-      })
-      .returning();
+    const now = currentTimestampMs();
 
-    return result;
+    const result = await DB.UpsertPlugin({
+      identifier: params.identifier,
+      type: params.type,
+      manifest: toNullJSON(params.manifest),
+      customParams: toNullJSON(params.customParams),
+      settings: toNullJSON(params.settings),
+      userId: this.userId,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return this.mapPlugin(result);
   };
 
   delete = async (id: string) => {
-    return this.db
-      .delete(userInstalledPlugins)
-      .where(
-        and(eq(userInstalledPlugins.identifier, id), eq(userInstalledPlugins.userId, this.userId)),
-      );
-  };
-
-  deleteAll = async () => {
-    return this.db.delete(userInstalledPlugins).where(eq(userInstalledPlugins.userId, this.userId));
-  };
-
-  query = async () => {
-    const data = await this.db
-      .select({
-        createdAt: userInstalledPlugins.createdAt,
-        customParams: userInstalledPlugins.customParams,
-        identifier: userInstalledPlugins.identifier,
-        manifest: userInstalledPlugins.manifest,
-        settings: userInstalledPlugins.settings,
-        source: userInstalledPlugins.type,
-        type: userInstalledPlugins.type,
-        updatedAt: userInstalledPlugins.updatedAt,
-      })
-      .from(userInstalledPlugins)
-      .where(eq(userInstalledPlugins.userId, this.userId))
-      .orderBy(desc(userInstalledPlugins.createdAt));
-
-    return data.map<LobeTool>((item) => ({
-      ...item,
-      runtimeType: item.manifest?.type || 'default',
-    }));
-  };
-
-  findById = async (id: string) => {
-    return this.db.query.userInstalledPlugins.findFirst({
-      where: and(
-        eq(userInstalledPlugins.identifier, id),
-        eq(userInstalledPlugins.userId, this.userId),
-      ),
+    await DB.DeletePlugin({
+      identifier: id,
+      userId: this.userId,
     });
   };
 
+  deleteAll = async () => {
+    await DB.DeleteAllPlugins(this.userId);
+  };
+
+  query = async () => {
+    const data = await DB.ListPlugins(this.userId);
+
+    return data.map<LobeTool>((item) => {
+      const manifest = parseNullableJSON(item.manifest as any);
+      return {
+        customParams: parseNullableJSON(item.customParams as any),
+        identifier: item.identifier,
+        manifest: manifest,
+        settings: parseNullableJSON(item.settings as any),
+        source: item.type as any,
+        type: item.type as any,
+        runtimeType: manifest?.type || 'default',
+      };
+    });
+  };
+
+  findById = async (id: string) => {
+    try {
+      const plugin = await DB.GetPlugin({
+        identifier: id,
+        userId: this.userId,
+      });
+      return this.mapPlugin(plugin);
+    } catch {
+      return undefined;
+    }
+  };
+
   update = async (id: string, value: Partial<InstalledPluginItem>) => {
-    return this.db
-      .update(userInstalledPlugins)
-      .set({ ...value, updatedAt: new Date() })
-      .where(
-        and(eq(userInstalledPlugins.identifier, id), eq(userInstalledPlugins.userId, this.userId)),
-      );
+    const now = currentTimestampMs();
+
+    await DB.UpdatePlugin({
+      identifier: id,
+      userId: this.userId,
+      type: value.type || '',
+      manifest: toNullJSON(value.manifest),
+      customParams: toNullJSON(value.customParams),
+      settings: toNullJSON(value.settings),
+      updatedAt: now,
+    });
+  };
+
+  // **************** Helper *************** //
+
+  private mapPlugin = (plugin: any): InstalledPluginItem => {
+    return {
+      identifier: plugin.identifier,
+      type: plugin.type,
+      manifest: parseNullableJSON(plugin.manifest as any),
+      customParams: parseNullableJSON(plugin.customParams as any),
+      settings: parseNullableJSON(plugin.settings as any),
+      userId: plugin.userId,
+      createdAt: new Date(plugin.createdAt),
+      updatedAt: new Date(plugin.updatedAt),
+    } as InstalledPluginItem;
   };
 }
+

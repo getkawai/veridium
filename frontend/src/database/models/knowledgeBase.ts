@@ -1,92 +1,159 @@
-import { KnowledgeBaseItem } from  '@/types';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { KnowledgeBaseItem } from '@/types';
+import { nanoid } from 'nanoid';
 
-import { NewKnowledgeBase, knowledgeBaseFiles, knowledgeBases } from '../schemas';
-import { LobeChatDatabase } from '../type';
+import { NewKnowledgeBase } from '../schemas';
+import {
+  DB,
+  toNullString,
+  toNullJSON,
+  toNullInt,
+  getNullableString,
+  parseNullableJSON,
+  currentTimestampMs,
+  boolToInt,
+  intToBool,
+} from '@/types/database';
 
 export class KnowledgeBaseModel {
   private userId: string;
-  private db: LobeChatDatabase;
 
-  constructor(db: LobeChatDatabase, userId: string) {
+  constructor(_db: any, userId: string) {
     this.userId = userId;
-    this.db = db;
   }
 
   // create
 
   create = async (params: Omit<NewKnowledgeBase, 'userId'>) => {
-    const [result] = await this.db
-      .insert(knowledgeBases)
-      .values({ ...params, userId: this.userId })
-      .returning();
+    const now = currentTimestampMs();
 
-    return result;
+    const result = await DB.CreateKnowledgeBase({
+      id: nanoid(),
+      name: params.name,
+      description: toNullString(params.description as any),
+      avatar: toNullString(params.avatar as any),
+      type: toNullString(params.type as any),
+      userId: this.userId,
+      clientId: toNullString(params.clientId as any),
+      isPublic: boolToInt(params.isPublic || false),
+      settings: toNullJSON(params.settings) as any,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return this.mapKnowledgeBase(result);
   };
 
   addFilesToKnowledgeBase = async (id: string, fileIds: string[]) => {
-    return this.db
-      .insert(knowledgeBaseFiles)
-      .values(fileIds.map((fileId) => ({ fileId, knowledgeBaseId: id, userId: this.userId })))
-      .returning();
+    const now = currentTimestampMs();
+
+    await Promise.all(
+      fileIds.map((fileId) =>
+        DB.BatchLinkKnowledgeBaseToFiles({
+          knowledgeBaseId: id,
+          fileId,
+          userId: this.userId,
+          createdAt: now,
+        }),
+      ),
+    );
   };
 
   // delete
   delete = async (id: string) => {
-    return this.db
-      .delete(knowledgeBases)
-      .where(and(eq(knowledgeBases.id, id), eq(knowledgeBases.userId, this.userId)));
+    await DB.DeleteKnowledgeBase({
+      id,
+      userId: this.userId,
+    });
   };
 
   deleteAll = async () => {
-    return this.db.delete(knowledgeBases).where(eq(knowledgeBases.userId, this.userId));
+    await DB.DeleteAllKnowledgeBases(this.userId);
   };
 
   removeFilesFromKnowledgeBase = async (knowledgeBaseId: string, ids: string[]) => {
-    return this.db.delete(knowledgeBaseFiles).where(
-      and(
-        eq(knowledgeBaseFiles.knowledgeBaseId, knowledgeBaseId),
-        inArray(knowledgeBaseFiles.fileId, ids),
-        // eq(knowledgeBaseFiles.userId, this.userId),
+    await Promise.all(
+      ids.map((fileId) =>
+        DB.BatchUnlinkKnowledgeBaseFromFiles({
+          knowledgeBaseId,
+          fileId,
+        }),
       ),
     );
   };
+
   // query
   query = async () => {
-    const data = await this.db
-      .select({
-        avatar: knowledgeBases.avatar,
-        createdAt: knowledgeBases.createdAt,
-        description: knowledgeBases.description,
-        id: knowledgeBases.id,
-        isPublic: knowledgeBases.isPublic,
-        name: knowledgeBases.name,
-        settings: knowledgeBases.settings,
-        type: knowledgeBases.type,
-        updatedAt: knowledgeBases.updatedAt,
-      })
-      .from(knowledgeBases)
-      .where(eq(knowledgeBases.userId, this.userId))
-      .orderBy(desc(knowledgeBases.updatedAt));
-
-    return data as KnowledgeBaseItem[];
+    const results = await DB.ListKnowledgeBases(this.userId);
+    return results.map((r) => this.mapKnowledgeBase(r)) as KnowledgeBaseItem[];
   };
 
   findById = async (id: string) => {
-    return this.db.query.knowledgeBases.findFirst({
-      where: and(eq(knowledgeBases.id, id), eq(knowledgeBases.userId, this.userId)),
-    });
+    try {
+      const result = await DB.GetKnowledgeBase({
+        id,
+        userId: this.userId,
+      });
+      return this.mapKnowledgeBase(result);
+    } catch {
+      return undefined;
+    }
   };
 
   // update
-  update = async (id: string, value: Partial<KnowledgeBaseItem>) =>
-    this.db
-      .update(knowledgeBases)
-      .set({ ...value, updatedAt: new Date() })
-      .where(and(eq(knowledgeBases.id, id), eq(knowledgeBases.userId, this.userId)));
+  update = async (id: string, value: Partial<KnowledgeBaseItem>) => {
+    const now = currentTimestampMs();
 
-  static findById = async (db: LobeChatDatabase, id: string) =>
-    db.query.knowledgeBases.findFirst({
-      where: eq(knowledgeBases.id, id),
+    await DB.UpdateKnowledgeBase({
+      id,
+      userId: this.userId,
+      name: toNullString(value.name as any),
+      description: toNullString(value.description as any),
+      avatar: toNullString(value.avatar as any),
+      settings: toNullJSON(value.settings) as any,
+      updatedAt: now,
     });
+  };
+
+  static findById = async (_db: any, id: string) => {
+    try {
+      const result = await DB.GetKnowledgeBase({
+        id,
+        userId: '', // Static method doesn't have userId context
+      });
+      return {
+        id: result.id,
+        name: result.name,
+        description: getNullableString(result.description as any),
+        avatar: getNullableString(result.avatar as any),
+        type: getNullableString(result.type as any),
+        userId: result.userId,
+        clientId: getNullableString(result.clientId as any),
+        isPublic: intToBool(result.isPublic),
+        settings: parseNullableJSON(result.settings as any),
+        createdAt: new Date(result.createdAt),
+        updatedAt: new Date(result.updatedAt),
+      };
+    } catch {
+      return undefined;
+    }
+  };
+
+  // **************** Helper *************** //
+
+  private mapKnowledgeBase = (kb: any) => {
+    return {
+      id: kb.id,
+      name: kb.name,
+      description: getNullableString(kb.description as any),
+      avatar: getNullableString(kb.avatar as any),
+      type: getNullableString(kb.type as any),
+      userId: kb.userId,
+      clientId: getNullableString(kb.clientId as any),
+      isPublic: intToBool(kb.isPublic),
+      settings: parseNullableJSON(kb.settings as any),
+      createdAt: new Date(kb.createdAt),
+      updatedAt: new Date(kb.updatedAt),
+    };
+  };
 }
+

@@ -4,9 +4,9 @@ import {
   FileSource,
   Generation,
   ImageGenerationAsset,
-} from  '@/types';
+} from '@/types';
 import debug from 'debug';
-import { and, eq } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
 
 import { FileService } from '@/server/services/file';
 
@@ -15,25 +15,30 @@ import {
   GenerationItem,
   GenerationWithAsyncTask,
   NewGeneration,
-  generations,
 } from '../schemas/generation';
-import { LobeChatDatabase, Transaction } from '../type';
+import {
+  DB,
+  toNullString,
+  toNullJSON,
+  parseNullableJSON,
+  getNullableString,
+  currentTimestampMs,
+  toNullInt,
+} from '@/types/database';
 import { FileModel } from './file';
 
 // Create debug logger
 const log = debug('lobe-image:generation-model');
 
 export class GenerationModel {
-  private db: LobeChatDatabase;
   private userId: string;
   private fileModel: FileModel;
   private fileService: FileService;
 
-  constructor(db: LobeChatDatabase, userId: string) {
-    this.db = db;
+  constructor(_db: any, userId: string) {
     this.userId = userId;
-    this.fileModel = new FileModel(db, userId);
-    this.fileService = new FileService(db, userId);
+    this.fileModel = new FileModel(_db, userId);
+    this.fileService = new FileService(_db, userId);
   }
 
   async create(value: Omit<NewGeneration, 'userId'>): Promise<GenerationItem> {
@@ -42,57 +47,87 @@ export class GenerationModel {
       userId: this.userId,
     });
 
-    const [result] = await this.db
-      .insert(generations)
-      .values({ ...value, userId: this.userId })
-      .returning();
+    const now = currentTimestampMs();
+    const result = await DB.CreateGeneration({
+      id: nanoid(),
+      userId: this.userId,
+      generationBatchId: value.generationBatchId,
+      asyncTaskId: toNullString(value.asyncTaskId as any),
+      fileId: toNullString(value.fileId as any),
+      seed: toNullInt(value.seed as any),
+      asset: toNullJSON(value.asset),
+      createdAt: now,
+      updatedAt: now,
+    });
 
     log('Generation created successfully: %s', result.id);
-    return result;
+    return this.mapGeneration(result);
   }
 
   async findById(id: string): Promise<GenerationItem | undefined> {
     log('Finding generation by ID: %s for user: %s', id, this.userId);
 
-    const result = await this.db.query.generations.findFirst({
-      where: and(eq(generations.id, id), eq(generations.userId, this.userId)),
-    });
+    try {
+      const result = await DB.GetGeneration({
+        id,
+        userId: this.userId,
+      });
 
-    log('Generation %s: %s', id, result ? 'found' : 'not found');
-    return result;
+      log('Generation %s: found', id);
+      return this.mapGeneration(result);
+    } catch {
+      log('Generation %s: not found', id);
+      return undefined;
+    }
   }
 
   async findByIdWithAsyncTask(id: string): Promise<GenerationWithAsyncTask | undefined> {
-    log('Finding generation by ID: %s for user: %s', id, this.userId);
+    log('Finding generation with async task by ID: %s for user: %s', id, this.userId);
 
-    const result = await this.db.query.generations.findFirst({
-      where: and(eq(generations.id, id), eq(generations.userId, this.userId)),
-      with: {
-        asyncTask: true,
-      },
-    });
+    try {
+      const result = await DB.GetGenerationWithAsyncTask({
+        id,
+        userId: this.userId,
+      });
 
-    log('Generation %s: %s', id, result ? 'found' : 'not found');
-    return result as GenerationWithAsyncTask | undefined;
+      log('Generation %s: found', id);
+      
+      // Map the joined result to GenerationWithAsyncTask
+      return {
+        ...this.mapGeneration(result),
+        asyncTask: result.asyncTaskStatus ? {
+          id: getNullableString(result.asyncTaskId as any) || '',
+          status: result.asyncTaskStatus,
+          error: parseNullableJSON(result.asyncTaskError as any),
+        } : undefined,
+      } as GenerationWithAsyncTask;
+    } catch {
+      log('Generation %s: not found', id);
+      return undefined;
+    }
   }
 
-  async update(id: string, value: Partial<NewGeneration>, trx?: Transaction) {
+  async update(id: string, value: Partial<NewGeneration>, _trx?: any) {
     log('Updating generation: %s with values: %O', id, {
       asyncTaskId: value.asyncTaskId,
       hasAsset: !!value.asset,
     });
 
-    const executeUpdate = async (tx: Transaction) => {
-      return await tx
-        .update(generations)
-        .set({ ...value, updatedAt: new Date() })
-        .where(and(eq(generations.id, id), eq(generations.userId, this.userId)));
-    };
+    // Note: No transaction support in Wails!
+    // The trx parameter is ignored
 
-    const result = await (trx ? executeUpdate(trx) : this.db.transaction(executeUpdate));
+    const now = currentTimestampMs();
+    const result = await DB.UpdateGeneration({
+      id,
+      userId: this.userId,
+      asyncTaskId: toNullString(value.asyncTaskId as any),
+      fileId: toNullString(value.fileId as any),
+      asset: toNullJSON(value.asset),
+      updatedAt: now,
+    });
 
     log('Generation %s updated successfully', id);
-    return result;
+    return this.mapGeneration(result);
   }
 
   async createAssetAndFile(
@@ -100,53 +135,49 @@ export class GenerationModel {
     asset: ImageGenerationAsset,
     file: Omit<NewFile, 'id' | 'userId'>,
   ) {
-    log('Creating generation asset and file with transaction: %s', id);
+    log('Creating generation asset and file: %s', id);
 
-    return await this.db.transaction(async (tx: Transaction) => {
-      // Create file first using transaction
-      // Since duplicates are very rare, we always create globalFile - checking existence first would be wasteful
-      const newFile = await this.fileModel.create(
-        {
-          ...file,
-          source: FileSource.ImageGeneration,
-        },
-        true,
-        tx,
-      );
+    // Note: No transaction support in Wails!
+    // This is a potential data consistency issue
 
-      // Update generation with asset and fileId using the transaction-aware update method
-      await this.update(
-        id,
-        {
-          asset,
-          fileId: newFile.id,
-        },
-        tx,
-      );
+    // Create file first
+    const newFile = await this.fileModel.create(
+      {
+        ...file,
+        source: FileSource.ImageGeneration,
+      },
+      true,
+    );
 
-      log('Generation %s updated with asset and file %s successfully', id, newFile.id);
-
-      return {
-        file: newFile,
-      };
+    // Update generation with asset and fileId
+    await this.update(id, {
+      asset,
+      fileId: newFile.id,
     });
+
+    log('Generation %s updated with asset and file %s successfully', id, newFile.id);
+
+    return {
+      file: newFile,
+    };
   }
 
-  async delete(id: string, trx?: Transaction) {
+  async delete(id: string, _trx?: any) {
     log('Deleting generation: %s for user: %s', id, this.userId);
 
-    const executeDelete = async (tx: Transaction) => {
-      return await tx
-        .delete(generations)
-        .where(and(eq(generations.id, id), eq(generations.userId, this.userId)))
-        .returning();
-    };
+    // Note: No transaction support in Wails!
+    // The trx parameter is ignored
 
-    const result = await (trx ? executeDelete(trx) : this.db.transaction(executeDelete));
-    const deletedGeneration = result[0];
+    await DB.DeleteGeneration({
+      id,
+      userId: this.userId,
+    });
 
     log('Generation %s deleted successfully', id);
-    return deletedGeneration;
+    
+    // Note: Drizzle returns the deleted item, but Wails DELETE doesn't return anything
+    // We need to fetch it first if we need to return it
+    return undefined;
   }
 
   /**
@@ -190,7 +221,7 @@ export class GenerationModel {
       seed: generation.seed,
       task: {
         error: generation.asyncTask?.error
-          ? (generation.asyncTask.error as AsyncTaskError)
+          ? (generation.asyncTask.error as unknown as AsyncTaskError)
           : undefined,
         id: generation.asyncTaskId || '',
         status: (generation.asyncTask?.status as AsyncTaskStatus) || 'pending',
@@ -198,4 +229,21 @@ export class GenerationModel {
     };
     return result;
   }
+
+  // **************** Helper *************** //
+
+  private mapGeneration = (gen: any): GenerationItem => {
+    return {
+      id: gen.id,
+      userId: gen.userId,
+      generationBatchId: gen.generationBatchId,
+      asyncTaskId: getNullableString(gen.asyncTaskId as any),
+      fileId: getNullableString(gen.fileId as any),
+      seed: gen.seed,
+      asset: parseNullableJSON(gen.asset as any),
+      createdAt: new Date(gen.createdAt),
+      updatedAt: new Date(gen.updatedAt),
+    } as GenerationItem;
+  };
 }
+

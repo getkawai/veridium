@@ -1,124 +1,204 @@
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
 
 import {
-  ChatGroupAgentItem,
-  ChatGroupItem,
-  NewChatGroup,
-  NewChatGroupAgent,
-  chatGroups,
-  chatGroupsAgents,
-} from '../schemas';
-import { LobeChatDatabase } from '../type';
+  DB,
+  toNullString,
+  toNullJSON,
+  parseNullableJSON,
+  getNullableString,
+  currentTimestampMs,
+  boolToInt,
+  intToBool,
+} from '@/types/database';
 
 export class ChatGroupModel {
   private userId: string;
-  private db: LobeChatDatabase;
 
-  constructor(db: LobeChatDatabase, userId: string) {
+  constructor(_db: any, userId: string) {
     this.userId = userId;
-    this.db = db;
   }
+
   // ******* Query Methods ******* //
 
-  async findById(id: string): Promise<ChatGroupItem | undefined> {
-    const item = await this.db.query.chatGroups.findFirst({
-      where: and(eq(chatGroups.id, id), eq(chatGroups.userId, this.userId)),
-    });
-
-    return item;
-  }
-
-  async query(): Promise<ChatGroupItem[]> {
-    return this.db.query.chatGroups.findMany({
-      orderBy: [desc(chatGroups.updatedAt)],
-      where: eq(chatGroups.userId, this.userId),
+  async findById(id: string): Promise<any | undefined> {
+    return await DB.GetChatGroup({
+      id,
+      userId: this.userId,
     });
   }
 
+  async query(): Promise<any[]> {
+    return await DB.ListChatGroups({
+      userId: this.userId,
+    });
+  }
+
+  /**
+   * OPTIMIZED: Uses single JOIN query (3A) to fetch groups with agents
+   * Much faster than N+1 approach
+   */
   async queryWithMemberDetails(): Promise<any[]> {
-    const groups = await this.query();
-    if (groups.length === 0) return [];
-
-    const groupIds = groups.map((g) => g.id);
-
-    const groupAgents = await this.db.query.chatGroupsAgents.findMany({
-      where: inArray(chatGroupsAgents.chatGroupId, groupIds),
-      with: { agent: true },
+    // Single query with JOINs
+    const results = await DB.ListChatGroupsWithAgents({
+      userId: this.userId,
     });
 
-    const groupAgentMap = new Map<string, any[]>();
+    // Group by group_id
+    const groupsMap = new Map<string, any>();
 
-    for (const groupAgent of groupAgents) {
-      if (!groupAgent.agent) continue;
+    for (const row of results) {
+      const groupId = row.groupId;
 
-      const groupList = groupAgentMap.get(groupAgent.chatGroupId) || [];
-      groupList.push(groupAgent.agent);
-      groupAgentMap.set(groupAgent.chatGroupId, groupList);
+      if (!groupsMap.has(groupId)) {
+        groupsMap.set(groupId, {
+          id: groupId,
+          title: getNullableString(row.groupTitle as any),
+          description: getNullableString(row.groupDescription as any),
+          config: parseNullableJSON(row.groupConfig as any),
+          pinned: intToBool(row.groupPinned || 0),
+          createdAt: row.groupCreatedAt,
+          updatedAt: row.groupUpdatedAt,
+          userId: this.userId,
+          members: [],
+        });
+      }
+
+      // Add agent if exists
+      if (row.agentId) {
+        const group = groupsMap.get(groupId);
+        group.members.push({
+          id: row.agentId,
+          title: getNullableString(row.agentTitle as any),
+          description: getNullableString(row.agentDescription as any),
+          avatar: getNullableString(row.agentAvatar as any),
+          backgroundColor: getNullableString(row.agentBgColor as any),
+          chatConfig: parseNullableJSON(row.agentChatConfig as any),
+          params: parseNullableJSON(row.agentParams as any),
+          systemRole: getNullableString(row.agentSystemRole as any),
+          tts: parseNullableJSON(row.agentTts as any),
+          model: getNullableString(row.agentModel as any),
+          provider: getNullableString(row.agentProvider as any),
+          createdAt: row.agentCreatedAt,
+          updatedAt: row.agentUpdatedAt,
+        });
+      }
     }
 
-    return groups.map((group) => ({
-      ...group,
-      members: groupAgentMap.get(group.id) || [],
-    }));
+    return Array.from(groupsMap.values());
   }
 
+  /**
+   * OPTIMIZED: Uses JOIN query to fetch group with agents
+   */
   async findGroupWithAgents(groupId: string): Promise<{
-    agents: ChatGroupAgentItem[];
-    group: ChatGroupItem;
+    agents: any[];
+    group: any;
   } | null> {
-    const group = await this.findById(groupId);
-    if (!group) return null;
-
-    const agents = await this.db.query.chatGroupsAgents.findMany({
-      orderBy: [chatGroupsAgents.order],
-      where: eq(chatGroupsAgents.chatGroupId, groupId),
+    const results = await DB.GetChatGroupWithAgents({
+      id: toNullString(groupId),
+      userId: this.userId,
     });
+
+    if (results.length === 0) return null;
+
+    // First row contains group data
+    const firstRow = results[0];
+    const group = {
+      id: firstRow.groupId,
+      title: getNullableString(firstRow.groupTitle as any),
+      description: getNullableString(firstRow.groupDescription as any),
+      config: parseNullableJSON(firstRow.groupConfig as any),
+      pinned: intToBool(firstRow.groupPinned || 0),
+      createdAt: firstRow.groupCreatedAt,
+      updatedAt: firstRow.groupUpdatedAt,
+      userId: this.userId,
+    };
+
+    // Extract agents
+    const agents = results
+      .filter((row) => row.agentId)
+      .map((row) => ({
+        agentId: row.agentId,
+        chatGroupId: groupId,
+        order: row.agentSortOrder || 0,
+        role: getNullableString(row.agentRole as any),
+        enabled: intToBool(row.agentEnabled || 1),
+        userId: this.userId,
+      }));
 
     return { agents, group };
   }
 
   // ******* Create Methods ******* //
 
-  async create(params: Omit<NewChatGroup, 'userId'>): Promise<ChatGroupItem> {
-    const [result] = await this.db
-      .insert(chatGroups)
-      .values({ ...params, userId: this.userId })
-      .returning();
+  async create(params: any): Promise<any> {
+    const id = params.id || nanoid();
+    const now = currentTimestampMs();
+
+    const result = await DB.CreateChatGroup({
+      id,
+      title: toNullString(params.title),
+      description: toNullString(params.description),
+      config: toNullJSON(params.config),
+      clientId: toNullString(params.clientId),
+      userId: this.userId,
+      pinned: boolToInt(params.pinned || false),
+      createdAt: now,
+      updatedAt: now,
+    });
 
     return result;
   }
 
   async createWithAgents(
-    groupParams: Omit<NewChatGroup, 'userId'>,
+    groupParams: any,
     agentIds: string[],
-  ): Promise<{ agents: NewChatGroupAgent[]; group: ChatGroupItem }> {
+  ): Promise<{ agents: any[]; group: any }> {
     const group = await this.create(groupParams);
 
     if (agentIds.length === 0) {
       return { agents: [], group };
     }
 
-    const agentParams: NewChatGroupAgent[] = agentIds.map((agentId, index) => ({
-      agentId,
-      chatGroupId: group.id,
-      order: index,
-      role: 'assistant',
-      userId: this.userId,
-    }));
+    const agents = [];
+    const now = currentTimestampMs();
 
-    const agents = await this.db.insert(chatGroupsAgents).values(agentParams).returning();
+    for (let i = 0; i < agentIds.length; i++) {
+      await DB.LinkChatGroupToAgent({
+        chatGroupId: toNullString(group.id),
+        agentId: toNullString(agentIds[i]),
+        userId: this.userId,
+        enabled: boolToInt(true),
+        sortOrder: i,
+        role: toNullString('assistant'),
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      agents.push({
+        agentId: agentIds[i],
+        chatGroupId: group.id,
+        order: i,
+        role: 'assistant',
+        userId: this.userId,
+      });
+    }
 
     return { agents, group };
   }
 
   // ******* Update Methods ******* //
 
-  async update(id: string, value: Partial<ChatGroupItem>): Promise<ChatGroupItem> {
-    const [result] = await this.db
-      .update(chatGroups)
-      .set({ ...value, updatedAt: new Date() })
-      .where(and(eq(chatGroups.id, id), eq(chatGroups.userId, this.userId)))
-      .returning();
+  async update(id: string, value: any): Promise<any> {
+    const result = await DB.UpdateChatGroup({
+      id,
+      userId: this.userId,
+      title: toNullString(value.title),
+      description: toNullString(value.description),
+      config: toNullJSON(value.config),
+      pinned: boolToInt(value.pinned ?? false),
+      updatedAt: currentTimestampMs(),
+    });
 
     if (!result) {
       throw new Error('Chat group not found or access denied');
@@ -131,25 +211,35 @@ export class ChatGroupModel {
     groupId: string,
     agentId: string,
     options?: { order?: number; role?: string },
-  ): Promise<NewChatGroupAgent> {
-    const params: NewChatGroupAgent = {
+  ): Promise<any> {
+    const now = currentTimestampMs();
+
+    await DB.LinkChatGroupToAgent({
+      chatGroupId: toNullString(groupId),
+      agentId: toNullString(agentId),
+      userId: this.userId,
+      enabled: boolToInt(true),
+      sortOrder: options?.order || 0,
+      role: toNullString(options?.role || 'assistant'),
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return {
       agentId,
       chatGroupId: groupId,
       order: options?.order || 0,
       role: options?.role || 'assistant',
       userId: this.userId,
     };
-
-    const [result] = await this.db.insert(chatGroupsAgents).values(params).returning();
-    return result;
   }
 
-  async addAgentsToGroup(groupId: string, agentIds: string[]): Promise<ChatGroupAgentItem[]> {
+  async addAgentsToGroup(groupId: string, agentIds: string[]): Promise<any[]> {
     const group = await this.findById(groupId);
     if (!group) throw new Error('Group not found');
 
     const existingAgents = await this.getGroupAgents(groupId);
-    const existingAgentIds = new Set(existingAgents.map((a) => a.id));
+    const existingAgentIds = new Set(existingAgents.map((a: any) => a.agentId));
 
     const newAgentIds = agentIds.filter((id) => !existingAgentIds.has(id));
 
@@ -157,96 +247,110 @@ export class ChatGroupModel {
       return [];
     }
 
-    const newAgents: NewChatGroupAgent[] = newAgentIds.map((agentId) => ({
-      agentId,
-      chatGroupId: groupId,
-      enabled: true,
-      userId: this.userId,
-    }));
+    const newAgents = [];
+    const now = currentTimestampMs();
 
-    return this.db.insert(chatGroupsAgents).values(newAgents).returning();
+    for (const agentId of newAgentIds) {
+      await DB.LinkChatGroupToAgent({
+        chatGroupId: toNullString(groupId),
+        agentId: toNullString(agentId),
+        userId: this.userId,
+        enabled: boolToInt(true),
+        sortOrder: 0,
+        role: toNullString('assistant'),
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      newAgents.push({
+        agentId,
+        chatGroupId: groupId,
+        enabled: true,
+        userId: this.userId,
+      });
+    }
+
+    return newAgents;
   }
 
   async removeAgentFromGroup(groupId: string, agentId: string): Promise<void> {
-    await this.db
-      .delete(chatGroupsAgents)
-      .where(and(eq(chatGroupsAgents.chatGroupId, groupId), eq(chatGroupsAgents.agentId, agentId)));
+    await DB.UnlinkChatGroupFromAgent({
+      chatGroupId: toNullString(groupId),
+      agentId: toNullString(agentId),
+      userId: this.userId,
+    });
   }
 
   async updateAgentInGroup(
     groupId: string,
     agentId: string,
-    updates: Partial<Pick<NewChatGroupAgent, 'order' | 'role'>>,
-  ): Promise<NewChatGroupAgent> {
-    const [result] = await this.db
-      .update(chatGroupsAgents)
-      .set({ ...updates, updatedAt: new Date() })
-      .where(and(eq(chatGroupsAgents.chatGroupId, groupId), eq(chatGroupsAgents.agentId, agentId)))
-      .returning();
+    updates: Partial<any>,
+  ): Promise<any> {
+    const result = await DB.UpdateChatGroupAgentLink({
+      chatGroupId: toNullString(groupId),
+      agentId: toNullString(agentId),
+      userId: this.userId,
+      sortOrder: updates.order ?? 0,
+      role: toNullString(updates.role || 'assistant'),
+      enabled: boolToInt(updates.enabled ?? true),
+      updatedAt: currentTimestampMs(),
+    });
 
     return result;
   }
 
   // ******* Delete Methods ******* //
 
-  async delete(id: string): Promise<ChatGroupItem> {
-    // Agents are automatically deleted due to CASCADE constraint
-    const [result] = await this.db
-      .delete(chatGroups)
-      .where(and(eq(chatGroups.id, id), eq(chatGroups.userId, this.userId)))
-      .returning();
-
-    if (!result) {
+  async delete(id: string): Promise<any> {
+    // Get group first to return it
+    const group = await this.findById(id);
+    if (!group) {
       throw new Error('Chat group not found or access denied');
     }
 
-    return result;
+    // Delete (agents are automatically deleted due to CASCADE)
+    await DB.DeleteChatGroup({
+      id,
+      userId: this.userId,
+    });
+
+    return group;
   }
 
   async deleteAll(): Promise<void> {
-    await this.db.delete(chatGroups).where(eq(chatGroups.userId, this.userId));
+    await DB.DeleteAllChatGroups({
+      userId: this.userId,
+    });
   }
 
   // ******* Agent Query Methods ******* //
 
-  async getGroupAgents(groupId: string): Promise<ChatGroupAgentItem[]> {
-    return this.db.query.chatGroupsAgents.findMany({
-      orderBy: [chatGroupsAgents.order],
-      where: eq(chatGroupsAgents.chatGroupId, groupId),
+  async getGroupAgents(groupId: string): Promise<any[]> {
+    return await DB.GetChatGroupAgentLinks({
+      chatGroupId: toNullString(groupId),
+      userId: this.userId,
     });
   }
 
-  async getEnabledGroupAgents(groupId: string): Promise<ChatGroupAgentItem[]> {
-    return this.db.query.chatGroupsAgents.findMany({
-      orderBy: [chatGroupsAgents.order],
-      where: and(eq(chatGroupsAgents.chatGroupId, groupId), eq(chatGroupsAgents.enabled, true)),
+  async getEnabledGroupAgents(groupId: string): Promise<any[]> {
+    return await DB.GetEnabledChatGroupAgentLinks({
+      chatGroupId: toNullString(groupId),
+      userId: this.userId,
     });
   }
 
-  async getGroupsWithAgents(agentIds?: string[]): Promise<ChatGroupItem[]> {
+  async getGroupsWithAgents(agentIds?: string[]): Promise<any[]> {
     if (!agentIds || agentIds.length === 0) {
       return this.query();
     }
 
-    // Find groups containing any of the specified agents
-    const groupIds = await this.db
-      .selectDistinct({ chatGroupId: chatGroupsAgents.chatGroupId })
-      .from(chatGroupsAgents)
-      .where(
-        and(eq(chatGroupsAgents.userId, this.userId), inArray(chatGroupsAgents.agentId, agentIds)),
-      );
-
-    if (groupIds.length === 0) return [];
-
-    return this.db.query.chatGroups.findMany({
-      orderBy: [desc(chatGroups.updatedAt)],
-      where: and(
-        inArray(
-          chatGroups.id,
-          groupIds.map((g) => g.chatGroupId),
-        ),
-        eq(chatGroups.userId, this.userId),
-      ),
-    });
+    // Get all groups, then filter by agents
+    // Note: This is not fully optimized - would need specific query for this
+    const allGroups = await this.queryWithMemberDetails();
+    
+    return allGroups.filter((group) =>
+      group.members.some((member: any) => agentIds.includes(member.id)),
+    );
   }
 }
+

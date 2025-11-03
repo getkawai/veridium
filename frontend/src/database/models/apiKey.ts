@@ -1,9 +1,13 @@
-import { and, desc, eq } from 'drizzle-orm';
-
-import { LobeChatDatabase } from '../type';
 import { generateApiKey, isApiKeyExpired, validateApiKeyFormat } from '@/utils/apiKey';
 
-import { ApiKeyItem, NewApiKeyItem, apiKeys } from '../schemas';
+import { ApiKeyItem, NewApiKeyItem } from '../schemas';
+import {
+  DB,
+  toNullInt,
+  currentTimestampMs,
+  boolToInt,
+  intToBool,
+} from '@/types/database';
 
 type EncryptAPIKeyVaults = (keyVaults: string) => Promise<string>;
 type DecryptAPIKeyVaults = (keyVaults: string) => Promise<{ plaintext: string }>;
@@ -12,11 +16,9 @@ const defaultSerialize = (s: string) => s;
 
 export class ApiKeyModel {
   private userId: string;
-  private db: LobeChatDatabase;
 
-  constructor(db: LobeChatDatabase, userId: string) {
+  constructor(_db: any, userId: string) {
     this.userId = userId;
-    this.db = db;
   }
 
   create = async (
@@ -29,36 +31,46 @@ export class ApiKeyModel {
 
     const encryptedKey = await encrypt(key);
 
-    const [result] = await this.db
-      .insert(apiKeys)
-      .values({ ...params, key: encryptedKey, userId: this.userId })
-      .returning();
+    const now = currentTimestampMs();
 
-    return result;
+    const result = await DB.CreateAPIKey({
+      name: params.name,
+      key: encryptedKey,
+      enabled: boolToInt(params.enabled ?? true),
+      expiresAt: toNullInt(params.expiresAt ? new Date(params.expiresAt).getTime() : null),
+      lastUsedAt: toNullInt(null),
+      userId: this.userId,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return this.mapApiKey(result);
   };
 
   delete = async (id: number) => {
-    return this.db.delete(apiKeys).where(and(eq(apiKeys.id, id), eq(apiKeys.userId, this.userId)));
+    await DB.DeleteAPIKey({
+      id: Number(toNullInt(id as any)) as any,
+      userId: this.userId,
+    });
   };
 
   deleteAll = async () => {
-    return this.db.delete(apiKeys).where(eq(apiKeys.userId, this.userId));
+    await DB.DeleteAllAPIKeys(this.userId);
   };
 
   query = async (decryptor?: DecryptAPIKeyVaults) => {
-    const results = await this.db.query.apiKeys.findMany({
-      orderBy: [desc(apiKeys.updatedAt)],
-      where: eq(apiKeys.userId, this.userId),
-    });
+    const results = await DB.ListAPIKeys(this.userId);
 
-    // 如果没有提供解密器，直接返回原始结果
+    const mapped = results.map((r) => this.mapApiKey(r));
+
+    // If no decryptor provided, return raw results
     if (!decryptor) {
-      return results;
+      return mapped;
     }
 
-    // 对每个 API Key 的 key 字段进行解密
+    // Decrypt each API Key's key field
     const decryptedResults = await Promise.all(
-      results.map(async (apiKey) => {
+      mapped.map(async (apiKey) => {
         const decryptedKey = await decryptor(apiKey.key);
         return {
           ...apiKey,
@@ -79,9 +91,12 @@ export class ApiKeyModel {
 
     const encryptedKey = await encrypt(key);
 
-    return this.db.query.apiKeys.findFirst({
-      where: eq(apiKeys.key, encryptedKey),
-    });
+    try {
+      const result = await DB.GetAPIKeyByKey(encryptedKey);
+      return this.mapApiKey(result);
+    } catch {
+      return null;
+    }
   };
 
   validateKey = async (key: string) => {
@@ -89,28 +104,59 @@ export class ApiKeyModel {
 
     if (!apiKey) return false;
     if (!apiKey.enabled) return false;
-    if (isApiKeyExpired(apiKey.expiresAt)) return false;
+    if (apiKey.expiresAt && isApiKeyExpired(apiKey.expiresAt)) return false;
 
     return true;
   };
 
   update = async (id: number, value: Partial<ApiKeyItem>) => {
-    return this.db
-      .update(apiKeys)
-      .set({ ...value, updatedAt: new Date() })
-      .where(and(eq(apiKeys.id, id), eq(apiKeys.userId, this.userId)));
-  };
+    const now = currentTimestampMs();
 
-  findById = async (id: number) => {
-    return this.db.query.apiKeys.findFirst({
-      where: and(eq(apiKeys.id, id), eq(apiKeys.userId, this.userId)),
+    await DB.UpdateAPIKey({
+      id: Number(toNullInt(id as any)) as any,
+      userId: this.userId,
+      name: value.name || '',
+      enabled: boolToInt(value.enabled ?? true),
+      expiresAt: toNullInt(value.expiresAt ? new Date(value.expiresAt).getTime() : null),
+      updatedAt: now,
     });
   };
 
+  findById = async (id: number) => {
+    try {
+      const result = await DB.GetAPIKey({
+        id: Number(toNullInt(id as any)) as any,
+        userId: this.userId,
+      });
+      return this.mapApiKey(result);
+    } catch {
+      return undefined;
+    }
+  };
+
   updateLastUsed = async (id: number) => {
-    return this.db
-      .update(apiKeys)
-      .set({ lastUsedAt: new Date() })
-      .where(and(eq(apiKeys.id, id), eq(apiKeys.userId, this.userId)));
+    const now = currentTimestampMs();
+
+    await DB.UpdateAPIKeyLastUsed({
+      id: Number(toNullInt(id as any)) as any,
+      lastUsedAt: toNullInt(now as any),
+    });
+  };
+
+  // **************** Helper *************** //
+
+  private mapApiKey = (key: any): ApiKeyItem => {
+    return {
+      id: key.id,
+      name: key.name,
+      key: key.key,
+      enabled: intToBool(key.enabled),
+      expiresAt: key.expiresAt ? new Date(key.expiresAt) : null,
+      lastUsedAt: key.lastUsedAt ? new Date(key.lastUsedAt) : null,
+      userId: key.userId,
+      createdAt: new Date(key.createdAt),
+      updatedAt: new Date(key.updatedAt),
+    } as ApiKeyItem;
   };
 }
+
