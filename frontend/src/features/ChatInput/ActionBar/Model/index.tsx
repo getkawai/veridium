@@ -74,7 +74,7 @@ const ModelSwitch = memo(() => {
           width={36}
         >
           <div className={styles.icon}>
-            <ModelIcon model={model} size={22} />
+            {model && typeof model === 'string' && <ModelIcon model={model.toLowerCase()} size={22} />}
           </div>
         </Center>
       </ModelSwitchPanel>

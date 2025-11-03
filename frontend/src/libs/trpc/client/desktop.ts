@@ -1,13 +1,9 @@
-import { createTRPCClient, httpLink } from '@trpc/client';
-import superjson from 'superjson';
+// MOCKED: @trpc/client is not used in production for desktop client
+// Desktop router might still exist but the client is not imported anywhere
+console.warn('desktopClient is mocked and not functional');
 
-import type { DesktopRouter } from '@/server/routers/desktop';
-
-export const desktopClient = createTRPCClient<DesktopRouter>({
-  links: [
-    httpLink({
-      transformer: superjson,
-      url: '/trpc/desktop',
-    }),
-  ],
+export const desktopClient = new Proxy({} as any, {
+  get: () => {
+    throw new Error('desktopClient is mocked - not used in production');
+  },
 });

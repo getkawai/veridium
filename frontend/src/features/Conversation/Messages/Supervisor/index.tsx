@@ -146,7 +146,7 @@ const SupervisorMessage = memo<SupervisorMessageProps>((props) => {
             <TodoList data={todoData} />
             {hasModelInfo && (
               <Flexbox align={'center'} className={styles.modelInfo} gap={4} horizontal>
-                {model && <ModelIcon model={model} type={'mono'} />}
+                {model && typeof model === 'string' && <ModelIcon model={model.toLowerCase()} type={'mono'} />}
                 {provider && model ? `${provider}/${model}` : provider || model}
               </Flexbox>
             )}

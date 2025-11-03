@@ -1,14 +1,9 @@
-import { createTRPCClient, httpBatchLink } from '@trpc/client';
-import superjson from 'superjson';
-import { AsyncRouter } from '@/server/routers/async';
+// MOCKED: @trpc/client is not used in production
+// Async router has been removed, this export is kept for backwards compatibility
+console.warn('asyncClient is mocked and not functional');
 
-export const asyncClient = createTRPCClient<AsyncRouter>({
-  links: [
-    httpBatchLink({
-      fetch: undefined,
-      maxURLLength: 2083,
-      transformer: superjson,
-      url: '/trpc/async',
-    }),
-  ],
+export const asyncClient = new Proxy({} as any, {
+  get: () => {
+    throw new Error('asyncClient is mocked - async router has been removed');
+  },
 });

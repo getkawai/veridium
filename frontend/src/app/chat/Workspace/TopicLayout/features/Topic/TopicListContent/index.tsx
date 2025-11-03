@@ -51,9 +51,6 @@ const TopicListContent = memo(() => {
           <GuideCard
             alt={t('guide.desc')}
             cover={imageUrl(`empty_topic_${isDarkMode ? 'dark' : 'light'}.webp`)}
-            coverProps={{
-              priority: true,
-            }}
             desc={t('guide.desc')}
             height={120}
             onClose={() => {

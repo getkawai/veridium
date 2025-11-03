@@ -1,20 +1,9 @@
-import { createTRPCClient, httpBatchLink } from '@trpc/client';
-import superjson from 'superjson';
-import type { ToolsRouter } from '@/server/routers/tools';
+// MOCKED: @trpc/client is not used in production
+// Tools router has been removed, this export is kept for backwards compatibility
+console.warn('toolsClient is mocked and not functional');
 
-export const toolsClient = createTRPCClient<ToolsRouter>({
-  links: [
-    httpBatchLink({
-      fetch: undefined,
-      headers: async () => {
-        // dynamic import to avoid circular dependency
-        const { createHeaderWithAuth } = await import('@/services/_auth');
-
-        return createHeaderWithAuth();
-      },
-      maxURLLength: 2083,
-      transformer: superjson,
-      url: '/trpc/tools',
-    }),
-  ],
+export const toolsClient = new Proxy({} as any, {
+  get: () => {
+    throw new Error('toolsClient is mocked - tools router has been removed');
+  },
 });

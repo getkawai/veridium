@@ -1,17 +1,22 @@
 // import SwaggerParser from '@apidevtools/swagger-parser';
-import { OpenAPIV3_1 } from 'openapi-types';
+// import { OpenAPIV3_1 } from 'openapi-types';
 
 import { PluginSchema } from '../types';
 
 export const OPENAPI_REQUEST_BODY_KEY = '_requestBody';
 
 export class OpenAPIConvertor {
-  private readonly openapi: object;
-  constructor(openapi: object) {
-    this.openapi = openapi;
+  // private readonly openapi: object;
+  constructor(_openapi: object) {
+    // this.openapi = openapi;
+    // Mocked: not storing openapi object as it's not used
   }
 
-  convertOpenAPIToPluginSchema = async () => {
+  convertOpenAPIToPluginSchema = async (): Promise<any[]> => {
+    // MOCKED: swagger-client is not used, return empty array
+    console.warn('OpenAPIConvertor.convertOpenAPIToPluginSchema is mocked');
+    return [];
+    
     // const api = await SwaggerParser.dereference(this.openapi as OpenAPI.Document);
 
     // const paths = api.paths!;
@@ -56,6 +61,11 @@ export class OpenAPIConvertor {
     // eslint-disable-next-line unicorn/no-object-as-default-parameter
     rawSettingsSchema: PluginSchema = { properties: {}, type: 'object' },
   ): Promise<PluginSchema> => {
+    // MOCKED: swagger-client is not used, return empty schema
+    console.warn('OpenAPIConvertor.convertAuthToSettingsSchema is mocked');
+    return rawSettingsSchema;
+    
+    /* Original implementation commented out
     let settingsSchema = rawSettingsSchema;
 
     // @ts-ignore
@@ -150,8 +160,10 @@ export class OpenAPIConvertor {
     }
 
     return settingsSchema;
+    */
   };
 
+  /* Mocked: unused private methods
   private convertRequestBodyToSchema(
     requestBody: OpenAPIV3_1.RequestBodyObject,
   ): PluginSchema | null {
@@ -247,4 +259,5 @@ export class OpenAPIConvertor {
 
     return mergedSchema;
   }
+  */
 }

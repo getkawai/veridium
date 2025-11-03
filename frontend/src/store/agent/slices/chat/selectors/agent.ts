@@ -65,7 +65,7 @@ const currentAgentModelProvider = (s: AgentStoreState) => {
 const currentAgentPlugins = (s: AgentStoreState) => {
   const config = currentAgentConfig(s);
 
-  return config?.plugins || [];
+  return Array.isArray(config?.plugins) ? config.plugins : [];
 };
 
 /**
@@ -80,13 +80,13 @@ const displayableAgentPlugins = (s: AgentStoreState) => {
 const currentAgentKnowledgeBases = (s: AgentStoreState) => {
   const config = currentAgentConfig(s);
 
-  return config?.knowledgeBases || [];
+  return Array.isArray(config?.knowledgeBases) ? config.knowledgeBases : [];
 };
 
 const currentAgentFiles = (s: AgentStoreState) => {
   const config = currentAgentConfig(s);
 
-  return config?.files || [];
+  return Array.isArray(config?.files) ? config.files : [];
 };
 
 const currentAgentTTS = (s: AgentStoreState): LobeAgentTTSConfig => {
@@ -165,8 +165,10 @@ const currentKnowledgeIds = (s: AgentStoreState) => {
 
 const isAgentConfigLoading = (s: AgentStoreState) => !s.agentConfigInitMap[s.activeId];
 
-const openingQuestions = (s: AgentStoreState) =>
-  currentAgentConfig(s).openingQuestions || DEFAULT_OPENING_QUESTIONS;
+const openingQuestions = (s: AgentStoreState) => {
+  const questions = currentAgentConfig(s).openingQuestions;
+  return Array.isArray(questions) ? questions : DEFAULT_OPENING_QUESTIONS;
+};
 const openingMessage = (s: AgentStoreState) => currentAgentConfig(s).openingMessage || '';
 
 export const agentSelectors = {

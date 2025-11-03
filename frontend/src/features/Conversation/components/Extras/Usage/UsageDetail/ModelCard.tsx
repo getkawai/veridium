@@ -53,7 +53,7 @@ const ModelCard = memo<ModelCardProps>(({ pricing, id, provider, displayName }) 
         justify={'space-between'}
       >
         <Flexbox align={'center'} gap={8} horizontal>
-          <ModelIcon model={id} size={22} />
+          {id && <ModelIcon model={id.toLowerCase()} size={22} />}
           <Flexbox flex={1} gap={2} style={{ minWidth: 0 }}>
             <Flexbox align={'center'} gap={8} horizontal style={{ lineHeight: '12px' }}>
               {displayName || id}
@@ -137,5 +137,7 @@ const ModelCard = memo<ModelCardProps>(({ pricing, id, provider, displayName }) 
     </Flexbox>
   );
 });
+
+ModelCard.displayName = 'ModelCard';
 
 export default ModelCard;
