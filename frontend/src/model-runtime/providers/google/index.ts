@@ -23,6 +23,7 @@ import { CreateImagePayload, CreateImageResponse } from '../../types/image';
 import { AgentRuntimeError } from '../../utils/createError';
 import { debugStream } from '../../utils/debugStream';
 import { getModelPricing } from '../../utils/getModelPricing';
+import { MODEL_LIST_CONFIGS, processModelList } from '../../utils/modelParse';
 import { parseGoogleErrorMessage } from '../../utils/googleErrorParser';
 import { StreamingResponse } from '../../utils/response';
 import { createGoogleImage } from './createImage';
@@ -475,8 +476,6 @@ export class LobeGoogleAI implements LobeRuntimeAI {
           maxOutput: model.outputTokenLimit || undefined,
         };
       });
-
-      const { MODEL_LIST_CONFIGS, processModelList } = await import('../../utils/modelParse');
 
       return processModelList(processedModels, MODEL_LIST_CONFIGS.google, 'google');
     } catch (error) {
