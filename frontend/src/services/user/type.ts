@@ -1,4 +1,3 @@
-import type { AdapterAccount } from 'next-auth/adapters';
 import type { PartialDeep } from 'type-fest';
 
 import { UserGuide, UserInitializationState, UserPreference } from '@/types/user';
@@ -10,7 +9,7 @@ export interface IUserService {
     duration: number;
     updatedAt: string;
   }>;
-  getUserSSOProviders: () => Promise<AdapterAccount[]>;
+  getUserSSOProviders: () => Promise<any[]>;
   getUserState: () => Promise<UserInitializationState>;
   resetUserSettings: () => Promise<any>;
   unlinkSSOProvider: (provider: string, providerAccountId: string) => Promise<any>;

@@ -7,6 +7,7 @@ toolchain go1.24.5
 require (
 	github.com/dslipak/pdf v0.0.2
 	github.com/wailsapp/wails/v3 v3.0.0-dev
+	golang.org/x/net v0.46.0
 	golang.org/x/sys v0.37.0
 	modernc.org/sqlite v1.36.0
 )
@@ -53,7 +54,6 @@ require (
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	golang.org/x/crypto v0.43.0 // indirect
 	golang.org/x/exp v0.0.0-20250210185358-939b2ce775ac // indirect
-	golang.org/x/net v0.46.0 // indirect
 	golang.org/x/text v0.30.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect

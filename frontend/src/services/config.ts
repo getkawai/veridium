@@ -1,4 +1,4 @@
-import { BRANDING_NAME, isServerMode } from '@/const';
+import { BRANDING_NAME } from '@/const';
 import { downloadFile, exportJSONFile } from '@/utils/client';
 import dayjs from 'dayjs';
 
@@ -19,7 +19,7 @@ class ConfigService {
     }
 
     // or export to file with the data
-    const result = await this.createDataStructure(data, isServerMode ? 'postgres' : 'pglite');
+    const result = await this.createDataStructure(data, 'pglite');
 
     exportJSONFile(result, filename);
   };
@@ -43,13 +43,7 @@ class ConfigService {
     data: any,
     mode: 'pglite' | 'postgres',
   ): Promise<ImportPgDataStructure> => {
-    const { default: json } = await import('@/database/core/migrations.json');
-    const latestHash = json.at(-1)?.hash;
-    if (!latestHash) {
-      throw new Error('Not find database sql hash');
-    }
-
-    return { data, mode, schemaHash: latestHash };
+    return { data, mode, schemaHash: 'empty' };
   };
 }
 

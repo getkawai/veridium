@@ -6,6 +6,7 @@ import { BaseClientService } from '@/services/baseClientService';
 import { UserPreference } from '@/types/user';
 import { AsyncLocalStorage } from '@/utils/localStorage';
 
+import { DB, currentTimestampMs, toNullString } from '@/types/database';
 import { IUserService } from './type';
 
 export class ClientService extends BaseClientService implements IUserService {
@@ -68,7 +69,7 @@ export class ClientService extends BaseClientService implements IUserService {
   updateUserSettings: IUserService['updateUserSettings'] = async (value) => {
     const { keyVaults, ...res } = value;
 
-    return this.userModel.updateSetting({ ...res, keyVaults: JSON.stringify(keyVaults) });
+    return this.userModel.updateSetting({ ...res, keyVaults: JSON.stringify(keyVaults) } as any);
   };
 
   resetUserSettings: IUserService['resetUserSettings'] = async () => {
@@ -76,7 +77,7 @@ export class ClientService extends BaseClientService implements IUserService {
   };
 
   updateAvatar = async (avatar: string) => {
-    await this.userModel.updateUser({ avatar });
+    await this.userModel.updateUser({ avatar: toNullString(avatar) });
   };
 
   updatePreference: IUserService['updatePreference'] = async (preference) => {
@@ -88,29 +89,14 @@ export class ClientService extends BaseClientService implements IUserService {
   };
 
   makeSureUserExist = async () => {
-    // Check if user exists using Wails bindings
-    const existUsers = await DB.ListUsers();
+    // Ensure user exists using Wails bindings
+    // This will create the user if it doesn't exist, or do nothing if it does
+    await DB.EnsureUserExists({
+      id: this.userId,
+      createdAt: currentTimestampMs(),
+      updatedAt: currentTimestampMs(),
+    });
 
-    let user: { id: string };
-    if (existUsers.length === 0) {
-      // Create user using Wails bindings
-      const result = await DB.CreateUser({
-        id: this.userId,
-        avatar: toNullString(null),
-        firstName: toNullString(null),
-        lastName: toNullString(null),
-        email: toNullString(null),
-        phone: toNullString(null),
-        username: toNullString(null),
-        preference: toNullJSON(null),
-        createdAt: currentTimestampMs(),
-        updatedAt: currentTimestampMs(),
-      });
-      user = { id: result.id };
-    } else {
-      user = { id: existUsers[0].id };
-    }
-
-    return user;
+    return { id: this.userId };
   };
 }

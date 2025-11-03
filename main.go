@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/kawai-network/veridium/internal/database"
+	"github.com/kawai-network/veridium/internal/services/search"
+	"github.com/kawai-network/veridium/internal/services/tableviewer"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/services/fileserver"
 	"github.com/wailsapp/wails/v3/pkg/services/kvstore"
@@ -38,6 +40,12 @@ func main() {
 	// Get queries - this is what we'll bind to Wails
 	queries := dbService.Queries()
 
+	// Create TableViewer service
+	tableViewerService := tableviewer.NewService(dbService.DB())
+
+	// Create Search service
+	searchService := search.NewService()
+
 	// Create a new Wails application by providing the necessary options.
 	// Variables 'Name' and 'Description' are for application metadata.
 	// 'Assets' configures the asset server with the 'FS' variable pointing to the frontend files.
@@ -52,6 +60,10 @@ func main() {
 			application.NewService(queries),
 			// Database service - for transaction methods
 			application.NewService(dbService),
+			// TableViewer service - for database table inspection
+			application.NewService(tableViewerService),
+			// Search service - for web search and crawling
+			application.NewService(searchService),
 			// Machine ID service
 			application.NewService(&MachineIDService{}),
 			// Temp file service
