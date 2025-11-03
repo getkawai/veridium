@@ -519,8 +519,15 @@ export class SessionModel {
   // **************** Update *************** //
 
   update = async (id: string, data: Partial<SessionItem>) => {
+    // Resolve slug to actual ID if needed
+    const session = await this.findByIdOrSlug(id);
+    if (!session) {
+      throw new Error(`Session not found: ${id}`);
+    }
+    const actualId = session.id;
+
     const updated = await DB.UpdateSession({
-      id,
+      id: actualId,
       userId: this.userId,
       title: data.title !== undefined ? toNullString(getNullableString(data.title as any)) : toNullString(""),
       description: data.description !== undefined ? toNullString(getNullableString(data.description as any)) : toNullString(""),

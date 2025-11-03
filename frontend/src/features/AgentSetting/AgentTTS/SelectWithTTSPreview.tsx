@@ -3,12 +3,13 @@ import { AudioPlayer } from '@lobehub/tts/react';
 import { Alert, Button, Highlighter, Select, SelectProps } from '@lobehub/ui';
 import { RefSelectProps } from 'antd';
 import { useTheme } from 'antd-style';
-import { forwardRef, useCallback, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 
 import { useTTS } from '@/hooks/useTTS';
 import { TTSServer } from '@/types/agent';
+import { isBrowserTTSSupported } from '@/utils/browserTTS';
 import { getMessageError } from '@/utils/fetch';
 
 interface SelectWithTTSPreviewProps extends SelectProps {
@@ -22,6 +23,15 @@ const SelectWithTTSPreview = forwardRef<RefSelectProps, SelectWithTTSPreviewProp
     const { t } = useTranslation('welcome');
     const theme = useTheme();
     const PREVIEW_TEXT = ['Lobe Chat', t('slogan.title'), t('slogan.desc1')].join('. ');
+
+    useEffect(() => {
+      if (server === 'browser' && !isBrowserTTSSupported()) {
+        setError({ 
+          message: 'Browser TTS is not supported on this device/browser', 
+          type: 500 
+        });
+      }
+    }, [server]);
 
     const setDefaultError = useCallback(
       (err?: any) => {

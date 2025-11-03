@@ -25,11 +25,8 @@ type Service struct {
 
 // NewService creates a new database service
 func NewService() (*Service, error) {
-	userConfigDir, err := os.UserConfigDir()
-	if err != nil {
-		userConfigDir = "."
-	}
-	appDataDir := filepath.Join(userConfigDir, "veridium")
+	// Use project directory for database storage
+	appDataDir := "./data"
 
 	if err := os.MkdirAll(appDataDir, 0o755); err != nil {
 		return nil, err

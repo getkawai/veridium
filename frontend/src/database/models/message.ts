@@ -133,8 +133,8 @@ export class MessageModel {
       await Promise.all(
         fileIds.map(async (fileId) => {
           try {
-            const doc = await DB.GetDocument({
-              id: fileId, // Use fileId to get document
+            const doc = await DB.GetDocumentByFileId({
+              fileId: toNullString(fileId),
               userId: this.userId,
             });
             if (doc && doc.fileId) {
@@ -558,6 +558,10 @@ export class MessageModel {
     const now = currentTimestampMs();
 
     // OPTIMIZATION 4A: Use atomic transaction
+    // Ensure fromModel and fromProvider are plain strings (not already wrapped NullStrings)
+    const modelStr = typeof fromModel === 'string' ? fromModel : (fromModel as any)?.String || undefined;
+    const providerStr = typeof fromProvider === 'string' ? fromProvider : (fromProvider as any)?.String || undefined;
+    
     const item = await DBService.CreateMessageWithRelations({
       Message: {
         id,
@@ -566,8 +570,8 @@ export class MessageModel {
         reasoning: toNullString((normalizedMessage as any).reasoning as any),
         search: toNullString((normalizedMessage as any).search as any),
         metadata: toNullJSON((normalizedMessage as any).metadata),
-        model: toNullString(fromModel as any),
-        provider: toNullString(fromProvider as any),
+        model: toNullString(modelStr as any),
+        provider: toNullString(providerStr as any),
         favorite: boolToInt(false),
         error: toNullJSON(normalizedMessage.error),
         tools: toNullJSON((normalizedMessage as any).tools),
@@ -750,6 +754,38 @@ export class MessageModel {
   };
 
   updateTTS = async (id: string, tts: Partial<ChatTTS>) => {
+    // Skip database operation if message is temporary (not yet persisted)
+    if (id.startsWith('tmp_')) {
+      console.warn('[MessageModel] Cannot save TTS for temporary message:', id);
+      return;
+    }
+
+    // Skip if file ID is mock/temporary (not yet uploaded to database)
+    if (tts.file && (tts.file.startsWith('mock-') || tts.file.startsWith('tmp_'))) {
+      console.warn('[MessageModel] Cannot save TTS with temporary file ID:', tts.file);
+      return;
+    }
+
+    // Verify message exists before inserting TTS
+    const messageExists = await this.findById(id);
+    if (!messageExists) {
+      console.error('[MessageModel] Cannot save TTS: message not found in database:', id);
+      return;
+    }
+
+    // If file ID is provided, verify it exists
+    if (tts.file) {
+      try {
+        await DB.GetFile({
+          id: tts.file,
+          userId: this.userId,
+        });
+      } catch (error) {
+        console.error('[MessageModel] Cannot save TTS: file not found in database:', tts.file);
+        return;
+      }
+    }
+
     return await DB.UpsertMessageTTS({
       id,
       contentMd5: toNullString(tts.contentMd5 as any),

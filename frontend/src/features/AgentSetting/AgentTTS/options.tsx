@@ -1,5 +1,6 @@
 import { Azure, OpenAI } from '@lobehub/icons';
 import type { SelectProps } from '@lobehub/ui';
+import { Volume2 } from 'lucide-react';
 
 import { LabelRenderer } from '@/components/ModelSelect';
 
@@ -15,5 +16,9 @@ export const ttsOptions: SelectProps['options'] = [
   {
     label: <LabelRenderer Icon={Azure.Avatar} label={'Microsoft Speech'} />,
     value: 'microsoft',
+  },
+  {
+    label: <LabelRenderer Icon={Volume2} label={'Browser TTS'} />,
+    value: 'browser',
   },
 ];

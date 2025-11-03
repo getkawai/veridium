@@ -60,7 +60,7 @@ export class ThreadModel {
 
   queryByTopicId = async (topicId: string) => {
     const data = await DB.ListThreadsByTopic({
-      topicId: toNullString(topicId) as any,
+      topicId: topicId,  // Plain string, not NullString
       userId: this.userId,
     });
     return data.map((t) => this.mapThread(t));

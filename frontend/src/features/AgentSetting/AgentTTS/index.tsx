@@ -9,6 +9,7 @@ import { memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { FORM_STYLE } from '@/const/layoutTokens';
+import { useBrowserVoices } from '@/hooks/useBrowserVoices';
 import { useGlobalStore } from '@/store/global';
 import { globalGeneralSelectors } from '@/store/global/selectors';
 
@@ -28,6 +29,7 @@ const AgentTTS = memo(() => {
   });
   const config = useStore(selectors.currentTtsConfig, isEqual);
   const updateConfig = useStore((s) => s.setAgentConfig);
+  const { voices: browserVoiceOptions } = useBrowserVoices();
 
   const { edgeVoiceOptions, microsoftVoiceOptions } = useMemo(
     () => voiceList(config.showAllLocaleVoice),
@@ -45,7 +47,7 @@ const AgentTTS = memo(() => {
       {
         children: <Switch />,
         desc: t('settingTTS.showAllLocaleVoice.desc'),
-        hidden: config.ttsService === 'openai',
+        hidden: config.ttsService === 'openai' || config.ttsService === 'browser',
         label: t('settingTTS.showAllLocaleVoice.title'),
         layout: 'horizontal',
         minWidth: undefined,
@@ -74,6 +76,14 @@ const AgentTTS = memo(() => {
         hidden: config.ttsService !== 'microsoft',
         label: t('settingTTS.voice.title'),
         name: [TTS_SETTING_KEY, 'voice', 'microsoft'],
+      },
+      {
+        children: <SelectWithTTSPreview options={browserVoiceOptions} server={'browser'} />,
+        desc: t('settingTTS.voice.desc'),
+        divider: false,
+        hidden: config.ttsService !== 'browser',
+        label: t('settingTTS.voice.title'),
+        name: [TTS_SETTING_KEY, 'voice', 'browser'],
       },
       {
         children: (

@@ -120,6 +120,10 @@ const currentAgentTTSVoice =
         currentVoice = voice.microsoft || (voiceList.microsoftVoiceOptions?.[0].value as string);
         break;
       }
+      case 'browser': {
+        currentVoice = voice.browser || '';
+        break;
+      }
     }
     return currentVoice || 'alloy';
   };
