@@ -3,9 +3,9 @@ import { StateCreator } from 'zustand/vanilla';
 
 import { message } from '@/components/AntdStaticMethods';
 import { sessionService } from '@/services/session';
-import { SessionStore } from '@/store/session';
 import { SessionGroupItem } from '@/types/session';
 
+import type { SessionStore } from '../../store';
 import { SessionGroupsDispatch, sessionGroupsReducer } from './reducer';
 
 /* eslint-disable typescript-sort-keys/interface */

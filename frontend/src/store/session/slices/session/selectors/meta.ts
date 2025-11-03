@@ -1,11 +1,11 @@
 import { t } from 'i18next';
 
 import { DEFAULT_AVATAR, DEFAULT_BACKGROUND_COLOR, DEFAULT_INBOX_AVATAR } from '@/const/meta';
-import { SessionStore } from '@/store/session';
 import { MetaData } from '@/types/meta';
 import { LobeSessionType } from '@/types/session';
 import { merge } from '@/utils/merge';
 
+import type { SessionStore } from '../../../store';
 import { sessionSelectors } from './list';
 
 // ==========   Meta   ============== //

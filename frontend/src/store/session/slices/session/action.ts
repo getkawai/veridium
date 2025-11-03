@@ -12,8 +12,9 @@ import { useClientDataSWR } from '@/libs/swr';
 import { chatGroupService } from '@/services/chatGroup';
 import { sessionService } from '@/services/session';
 import { getChatGroupStoreState } from '@/store/chatGroup';
-import { SessionStore } from '@/store/session';
 import { useUserStore } from '@/store/user';
+
+import type { SessionStore } from '../../store';
 import { settingsSelectors } from '@/store/user/selectors';
 import { MetaData } from '@/types/meta';
 import {

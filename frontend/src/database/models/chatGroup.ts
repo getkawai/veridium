@@ -28,9 +28,7 @@ export class ChatGroupModel {
   }
 
   async query(): Promise<any[]> {
-    return await DB.ListChatGroups({
-      userId: this.userId,
-    });
+    return await DB.ListChatGroups(this.userId);
   }
 
   /**
@@ -39,9 +37,7 @@ export class ChatGroupModel {
    */
   async queryWithMemberDetails(): Promise<any[]> {
     // Single query with JOINs
-    const results = await DB.ListChatGroupsWithAgents({
-      userId: this.userId,
-    });
+    const results = await DB.ListChatGroupsWithAgents(this.userId);
 
     // Group by group_id
     const groupsMap = new Map<string, any>();
@@ -95,7 +91,7 @@ export class ChatGroupModel {
     group: any;
   } | null> {
     const results = await DB.GetChatGroupWithAgents({
-      id: toNullString(groupId),
+      id: groupId,
       userId: this.userId,
     });
 
@@ -120,9 +116,9 @@ export class ChatGroupModel {
       .map((row) => ({
         agentId: row.agentId,
         chatGroupId: groupId,
-        order: row.agentSortOrder || 0,
+        order: row.agentSortOrder?.Int64 || 0,
         role: getNullableString(row.agentRole as any),
-        enabled: intToBool(row.agentEnabled || 1),
+        enabled: intToBool(row.agentEnabled?.Int64 || 1),
         userId: this.userId,
       }));
 
@@ -160,16 +156,16 @@ export class ChatGroupModel {
       return { agents: [], group };
     }
 
-    const agents = [];
+    const agents: any[] = [];
     const now = currentTimestampMs();
 
     for (let i = 0; i < agentIds.length; i++) {
       await DB.LinkChatGroupToAgent({
-        chatGroupId: toNullString(group.id),
-        agentId: toNullString(agentIds[i]),
+        chatGroupId: group.id,
+        agentId: agentIds[i],
         userId: this.userId,
         enabled: boolToInt(true),
-        sortOrder: i,
+        sortOrder: { Int64: i, Valid: true },
         role: toNullString('assistant'),
         createdAt: now,
         updatedAt: now,
@@ -215,11 +211,11 @@ export class ChatGroupModel {
     const now = currentTimestampMs();
 
     await DB.LinkChatGroupToAgent({
-      chatGroupId: toNullString(groupId),
-      agentId: toNullString(agentId),
+      chatGroupId: groupId,
+      agentId: agentId,
       userId: this.userId,
       enabled: boolToInt(true),
-      sortOrder: options?.order || 0,
+      sortOrder: { Int64: options?.order || 0, Valid: true },
       role: toNullString(options?.role || 'assistant'),
       createdAt: now,
       updatedAt: now,
@@ -247,16 +243,16 @@ export class ChatGroupModel {
       return [];
     }
 
-    const newAgents = [];
+    const newAgents: any[] = [];
     const now = currentTimestampMs();
 
     for (const agentId of newAgentIds) {
       await DB.LinkChatGroupToAgent({
-        chatGroupId: toNullString(groupId),
-        agentId: toNullString(agentId),
+        chatGroupId: groupId,
+        agentId: agentId,
         userId: this.userId,
         enabled: boolToInt(true),
-        sortOrder: 0,
+        sortOrder: { Int64: 0, Valid: true },
         role: toNullString('assistant'),
         createdAt: now,
         updatedAt: now,
@@ -275,8 +271,8 @@ export class ChatGroupModel {
 
   async removeAgentFromGroup(groupId: string, agentId: string): Promise<void> {
     await DB.UnlinkChatGroupFromAgent({
-      chatGroupId: toNullString(groupId),
-      agentId: toNullString(agentId),
+      chatGroupId: groupId,
+      agentId: agentId,
       userId: this.userId,
     });
   }
@@ -287,10 +283,10 @@ export class ChatGroupModel {
     updates: Partial<any>,
   ): Promise<any> {
     const result = await DB.UpdateChatGroupAgentLink({
-      chatGroupId: toNullString(groupId),
-      agentId: toNullString(agentId),
+      chatGroupId: groupId,
+      agentId: agentId,
       userId: this.userId,
-      sortOrder: updates.order ?? 0,
+      sortOrder: { Int64: updates.order ?? 0, Valid: true },
       role: toNullString(updates.role || 'assistant'),
       enabled: boolToInt(updates.enabled ?? true),
       updatedAt: currentTimestampMs(),
@@ -318,23 +314,21 @@ export class ChatGroupModel {
   }
 
   async deleteAll(): Promise<void> {
-    await DB.DeleteAllChatGroups({
-      userId: this.userId,
-    });
+    await DB.DeleteAllChatGroups(this.userId);
   }
 
   // ******* Agent Query Methods ******* //
 
   async getGroupAgents(groupId: string): Promise<any[]> {
     return await DB.GetChatGroupAgentLinks({
-      chatGroupId: toNullString(groupId),
+      chatGroupId: groupId,
       userId: this.userId,
     });
   }
 
   async getEnabledGroupAgents(groupId: string): Promise<any[]> {
     return await DB.GetEnabledChatGroupAgentLinks({
-      chatGroupId: toNullString(groupId),
+      chatGroupId: groupId,
       userId: this.userId,
     });
   }
