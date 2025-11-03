@@ -40,6 +40,94 @@ RETURNING *;
 -- name: DeleteAIProvider :exec
 DELETE FROM ai_providers WHERE id = ? AND user_id = ?;
 
+-- name: DeleteAllAIProviders :exec
+DELETE FROM ai_providers WHERE user_id = ?;
+
+-- name: UpsertAIProvider :one
+INSERT INTO ai_providers (
+    id, name, user_id, sort, enabled, fetch_on_client, check_model,
+    logo, description, key_vaults, source, settings, config,
+    created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id, user_id) DO UPDATE SET
+    name = excluded.name,
+    sort = excluded.sort,
+    enabled = excluded.enabled,
+    fetch_on_client = excluded.fetch_on_client,
+    check_model = excluded.check_model,
+    logo = excluded.logo,
+    description = excluded.description,
+    key_vaults = excluded.key_vaults,
+    settings = excluded.settings,
+    config = excluded.config,
+    updated_at = excluded.updated_at
+RETURNING *;
+
+-- name: UpsertAIProviderConfig :one
+INSERT INTO ai_providers (
+    id, user_id, key_vaults, config, fetch_on_client, check_model,
+    source, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id, user_id) DO UPDATE SET
+    key_vaults = excluded.key_vaults,
+    config = excluded.config,
+    fetch_on_client = excluded.fetch_on_client,
+    check_model = excluded.check_model,
+    updated_at = excluded.updated_at
+RETURNING *;
+
+-- name: ToggleAIProviderEnabled :one
+INSERT INTO ai_providers (
+    id, user_id, enabled, source, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?)
+ON CONFLICT(id, user_id) DO UPDATE SET
+    enabled = excluded.enabled,
+    updated_at = excluded.updated_at
+RETURNING *;
+
+-- name: GetAIProviderListSimple :many
+SELECT 
+    id,
+    name,
+    logo,
+    description,
+    enabled,
+    sort,
+    source
+FROM ai_providers
+WHERE user_id = ?
+ORDER BY sort ASC, updated_at DESC;
+
+-- name: GetAIProviderDetail :one
+SELECT 
+    id,
+    name,
+    logo,
+    description,
+    enabled,
+    source,
+    key_vaults,
+    settings,
+    config,
+    fetch_on_client,
+    check_model
+FROM ai_providers
+WHERE id = ? AND user_id = ?;
+
+-- name: GetAIProviderRuntimeConfigs :many
+SELECT 
+    id,
+    key_vaults,
+    settings,
+    config,
+    fetch_on_client
+FROM ai_providers
+WHERE user_id = ?;
+
+-- name: DeleteModelsByProvider :exec
+DELETE FROM ai_models
+WHERE provider_id = ? AND user_id = ?;
+
 -- AI Models
 
 -- name: GetAIModel :one

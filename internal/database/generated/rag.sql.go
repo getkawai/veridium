@@ -8,7 +8,87 @@ package db
 import (
 	"context"
 	"database/sql"
+	"strings"
 )
+
+const BatchDeleteChunks = `-- name: BatchDeleteChunks :exec
+DELETE FROM chunks
+WHERE id IN (/*SLICE:ids*/?) AND user_id = ?
+`
+
+type BatchDeleteChunksParams struct {
+	Ids    []string       `json:"ids"`
+	UserID sql.NullString `json:"userId"`
+}
+
+func (q *Queries) BatchDeleteChunks(ctx context.Context, arg BatchDeleteChunksParams) error {
+	query := BatchDeleteChunks
+	var queryParams []interface{}
+	if len(arg.Ids) > 0 {
+		for _, v := range arg.Ids {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(arg.Ids))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
+	}
+	queryParams = append(queryParams, arg.UserID)
+	_, err := q.db.ExecContext(ctx, query, queryParams...)
+	return err
+}
+
+const CountChunksByFileId = `-- name: CountChunksByFileId :one
+SELECT COUNT(*) as count
+FROM file_chunks
+WHERE file_id = ? AND user_id = ?
+`
+
+type CountChunksByFileIdParams struct {
+	FileID sql.NullString `json:"fileId"`
+	UserID string         `json:"userId"`
+}
+
+func (q *Queries) CountChunksByFileId(ctx context.Context, arg CountChunksByFileIdParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, CountChunksByFileId, arg.FileID, arg.UserID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const CountChunksByFileIds = `-- name: CountChunksByFileIds :many
+SELECT file_id, COUNT(*) as count
+FROM file_chunks
+WHERE user_id = ?
+GROUP BY file_id
+`
+
+type CountChunksByFileIdsRow struct {
+	FileID sql.NullString `json:"fileId"`
+	Count  int64          `json:"count"`
+}
+
+func (q *Queries) CountChunksByFileIds(ctx context.Context, userID string) ([]CountChunksByFileIdsRow, error) {
+	rows, err := q.db.QueryContext(ctx, CountChunksByFileIds, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CountChunksByFileIdsRow{}
+	for rows.Next() {
+		var i CountChunksByFileIdsRow
+		if err := rows.Scan(&i.FileID, &i.Count); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
 
 const CreateChunk = `-- name: CreateChunk :one
 INSERT INTO chunks (
@@ -336,6 +416,175 @@ func (q *Queries) GetChunk(ctx context.Context, arg GetChunkParams) (Chunk, erro
 	return i, err
 }
 
+const GetChunksTextByFileId = `-- name: GetChunksTextByFileId :many
+SELECT c.id, c.text, c.metadata, c.type
+FROM chunks c
+INNER JOIN file_chunks fc ON c.id = fc.chunk_id
+WHERE fc.file_id = ?
+`
+
+type GetChunksTextByFileIdRow struct {
+	ID       string         `json:"id"`
+	Text     sql.NullString `json:"text"`
+	Metadata sql.NullString `json:"metadata"`
+	Type     sql.NullString `json:"type"`
+}
+
+func (q *Queries) GetChunksTextByFileId(ctx context.Context, fileID sql.NullString) ([]GetChunksTextByFileIdRow, error) {
+	rows, err := q.db.QueryContext(ctx, GetChunksTextByFileId, fileID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetChunksTextByFileIdRow{}
+	for rows.Next() {
+		var i GetChunksTextByFileIdRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Text,
+			&i.Metadata,
+			&i.Type,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const GetChunksWithEmbeddings = `-- name: GetChunksWithEmbeddings :many
+SELECT 
+    c.id,
+    c.text,
+    c.metadata,
+    c.chunk_index,
+    c.type,
+    e.embeddings as chunk_embedding,
+    fc.file_id,
+    f.name as file_name
+FROM chunks c
+LEFT JOIN embeddings e ON c.id = e.chunk_id
+LEFT JOIN file_chunks fc ON c.id = fc.chunk_id
+LEFT JOIN files f ON fc.file_id = f.id
+WHERE c.user_id = ?
+`
+
+type GetChunksWithEmbeddingsRow struct {
+	ID             string         `json:"id"`
+	Text           sql.NullString `json:"text"`
+	Metadata       sql.NullString `json:"metadata"`
+	ChunkIndex     sql.NullInt64  `json:"chunkIndex"`
+	Type           sql.NullString `json:"type"`
+	ChunkEmbedding []byte         `json:"chunkEmbedding"`
+	FileID         sql.NullString `json:"fileId"`
+	FileName       sql.NullString `json:"fileName"`
+}
+
+// Semantic search - fetch chunks with embeddings for JS similarity calculation
+func (q *Queries) GetChunksWithEmbeddings(ctx context.Context, userID sql.NullString) ([]GetChunksWithEmbeddingsRow, error) {
+	rows, err := q.db.QueryContext(ctx, GetChunksWithEmbeddings, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetChunksWithEmbeddingsRow{}
+	for rows.Next() {
+		var i GetChunksWithEmbeddingsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Text,
+			&i.Metadata,
+			&i.ChunkIndex,
+			&i.Type,
+			&i.ChunkEmbedding,
+			&i.FileID,
+			&i.FileName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const GetChunksWithEmbeddingsByFileIds = `-- name: GetChunksWithEmbeddingsByFileIds :many
+SELECT 
+    c.id,
+    c.text,
+    c.metadata,
+    c.chunk_index,
+    c.type,
+    e.embeddings as chunk_embedding,
+    fc.file_id,
+    f.name as file_name
+FROM chunks c
+LEFT JOIN embeddings e ON c.id = e.chunk_id
+LEFT JOIN file_chunks fc ON c.id = fc.chunk_id
+LEFT JOIN files f ON fc.file_id = f.id
+WHERE fc.file_id = ? AND fc.user_id = ?
+ORDER BY c.chunk_index ASC
+`
+
+type GetChunksWithEmbeddingsByFileIdsParams struct {
+	FileID sql.NullString `json:"fileId"`
+	UserID string         `json:"userId"`
+}
+
+type GetChunksWithEmbeddingsByFileIdsRow struct {
+	ID             string         `json:"id"`
+	Text           sql.NullString `json:"text"`
+	Metadata       sql.NullString `json:"metadata"`
+	ChunkIndex     sql.NullInt64  `json:"chunkIndex"`
+	Type           sql.NullString `json:"type"`
+	ChunkEmbedding []byte         `json:"chunkEmbedding"`
+	FileID         sql.NullString `json:"fileId"`
+	FileName       sql.NullString `json:"fileName"`
+}
+
+func (q *Queries) GetChunksWithEmbeddingsByFileIds(ctx context.Context, arg GetChunksWithEmbeddingsByFileIdsParams) ([]GetChunksWithEmbeddingsByFileIdsRow, error) {
+	rows, err := q.db.QueryContext(ctx, GetChunksWithEmbeddingsByFileIds, arg.FileID, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetChunksWithEmbeddingsByFileIdsRow{}
+	for rows.Next() {
+		var i GetChunksWithEmbeddingsByFileIdsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Text,
+			&i.Metadata,
+			&i.ChunkIndex,
+			&i.Type,
+			&i.ChunkEmbedding,
+			&i.FileID,
+			&i.FileName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const GetEmbedding = `-- name: GetEmbedding :one
 
 SELECT id, chunk_id, embeddings, model, client_id, user_id FROM embeddings WHERE id = ? AND user_id = ?
@@ -389,15 +638,23 @@ SELECT c.id, c.text, c.abstract, c.metadata, c.chunk_index, c.type, c.client_id,
 INNER JOIN file_chunks fc ON c.id = fc.chunk_id
 WHERE fc.file_id = ? AND fc.user_id = ?
 ORDER BY c.chunk_index ASC
+LIMIT ? OFFSET ?
 `
 
 type GetFileChunksParams struct {
 	FileID sql.NullString `json:"fileId"`
 	UserID string         `json:"userId"`
+	Limit  int64          `json:"limit"`
+	Offset int64          `json:"offset"`
 }
 
 func (q *Queries) GetFileChunks(ctx context.Context, arg GetFileChunksParams) ([]Chunk, error) {
-	rows, err := q.db.QueryContext(ctx, GetFileChunks, arg.FileID, arg.UserID)
+	rows, err := q.db.QueryContext(ctx, GetFileChunks,
+		arg.FileID,
+		arg.UserID,
+		arg.Limit,
+		arg.Offset,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -420,6 +677,108 @@ func (q *Queries) GetFileChunks(ctx context.Context, arg GetFileChunksParams) ([
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const GetFileChunksWithMetadata = `-- name: GetFileChunksWithMetadata :many
+SELECT 
+    c.id,
+    c.text,
+    c.abstract,
+    c.metadata,
+    c.chunk_index,
+    c.type,
+    c.created_at,
+    c.updated_at
+FROM chunks c
+INNER JOIN file_chunks fc ON c.id = fc.chunk_id
+WHERE fc.file_id = ? AND c.user_id = ?
+ORDER BY c.chunk_index ASC
+LIMIT ? OFFSET ?
+`
+
+type GetFileChunksWithMetadataParams struct {
+	FileID sql.NullString `json:"fileId"`
+	UserID sql.NullString `json:"userId"`
+	Limit  int64          `json:"limit"`
+	Offset int64          `json:"offset"`
+}
+
+type GetFileChunksWithMetadataRow struct {
+	ID         string         `json:"id"`
+	Text       sql.NullString `json:"text"`
+	Abstract   sql.NullString `json:"abstract"`
+	Metadata   sql.NullString `json:"metadata"`
+	ChunkIndex sql.NullInt64  `json:"chunkIndex"`
+	Type       sql.NullString `json:"type"`
+	CreatedAt  int64          `json:"createdAt"`
+	UpdatedAt  int64          `json:"updatedAt"`
+}
+
+func (q *Queries) GetFileChunksWithMetadata(ctx context.Context, arg GetFileChunksWithMetadataParams) ([]GetFileChunksWithMetadataRow, error) {
+	rows, err := q.db.QueryContext(ctx, GetFileChunksWithMetadata,
+		arg.FileID,
+		arg.UserID,
+		arg.Limit,
+		arg.Offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetFileChunksWithMetadataRow{}
+	for rows.Next() {
+		var i GetFileChunksWithMetadataRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Text,
+			&i.Abstract,
+			&i.Metadata,
+			&i.ChunkIndex,
+			&i.Type,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const GetOrphanedChunks = `-- name: GetOrphanedChunks :many
+SELECT c.id as chunk_id
+FROM chunks c
+LEFT JOIN file_chunks fc ON c.id = fc.chunk_id
+WHERE fc.file_id IS NULL
+`
+
+func (q *Queries) GetOrphanedChunks(ctx context.Context) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, GetOrphanedChunks)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var chunk_id string
+		if err := rows.Scan(&chunk_id); err != nil {
+			return nil, err
+		}
+		items = append(items, chunk_id)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err

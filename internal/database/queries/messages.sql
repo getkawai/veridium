@@ -7,6 +7,24 @@ WHERE user_id = ?
 ORDER BY created_at ASC
 LIMIT ? OFFSET ?;
 
+-- name: ListMessagesBySession :many
+SELECT * FROM messages
+WHERE user_id = ? AND session_id = ?
+ORDER BY created_at ASC
+LIMIT ? OFFSET ?;
+
+-- name: ListMessagesByTopic :many
+SELECT * FROM messages
+WHERE user_id = ? AND topic_id = ?
+ORDER BY created_at ASC
+LIMIT ? OFFSET ?;
+
+-- name: ListMessagesByGroup :many
+SELECT * FROM messages
+WHERE user_id = ? AND group_id = ?
+ORDER BY created_at ASC
+LIMIT ? OFFSET ?;
+
 -- name: CountMessages :one
 SELECT COUNT(*) FROM messages WHERE user_id = ?;
 
@@ -27,12 +45,6 @@ FROM messages
 WHERE user_id = ?
   AND created_at >= ?
   AND created_at <= ?;
-
--- name: ListMessagesByTopic :many
-SELECT * FROM messages
-WHERE user_id = ? AND topic_id = ?
-ORDER BY created_at ASC
-LIMIT ? OFFSET ?;
 
 -- name: ListMessagesByThread :many
 SELECT * FROM messages
@@ -77,8 +89,104 @@ DELETE FROM messages WHERE user_id = ?;
 -- name: DeleteMessagesByGroup :exec
 DELETE FROM messages WHERE group_id = ? AND user_id = ?;
 
--- Note: Can't use sqlc.slice() with SQLite, need alternative approach
--- For now, these will be handled differently in the frontend
+-- Batch queries - Note: These will be wrapped with JSON parsing in Go
+-- For now, we'll create a simple version and handle batching in Go layer
+
+-- name: GetMessageByToolCallId :one
+SELECT mp.id 
+FROM message_plugins mp
+WHERE mp.tool_call_id = ? AND mp.user_id = ?;
+
+-- name: GetDocumentByFileId :one
+SELECT d.file_id, d.content
+FROM documents d
+WHERE d.file_id = ? AND d.user_id = ?;
+
+-- name: GetMessagesWithRelations :many
+SELECT 
+    m.id,
+    m.role,
+    m.content,
+    m.reasoning,
+    m.search,
+    m.metadata,
+    m.error,
+    m.model,
+    m.provider,
+    m.created_at,
+    m.updated_at,
+    m.topic_id,
+    m.parent_id,
+    m.thread_id,
+    m.group_id,
+    m.agent_id,
+    m.target_id,
+    m.tools,
+    m.favorite,
+    mp.tool_call_id,
+    mp.api_name as plugin_api_name,
+    mp.arguments as plugin_arguments,
+    mp.identifier as plugin_identifier,
+    mp.type as plugin_type,
+    mp.state as plugin_state,
+    mp.error as plugin_error,
+    mt.content as translate_content,
+    mt.from as translate_from,
+    mt.to as translate_to,
+    mts.id as tts_id,
+    mts.content_md5 as tts_content_md5,
+    mts.file_id as tts_file_id,
+    mts.voice as tts_voice
+FROM messages m
+LEFT JOIN message_plugins mp ON m.id = mp.id
+LEFT JOIN message_translates mt ON m.id = mt.id
+LEFT JOIN message_tts mts ON m.id = mts.id
+WHERE m.user_id = ?
+ORDER BY m.created_at ASC
+LIMIT ? OFFSET ?;
+
+-- name: GetMessagesWithRelationsBySession :many
+SELECT 
+    m.id,
+    m.role,
+    m.content,
+    m.reasoning,
+    m.search,
+    m.metadata,
+    m.error,
+    m.model,
+    m.provider,
+    m.created_at,
+    m.updated_at,
+    m.topic_id,
+    m.parent_id,
+    m.thread_id,
+    m.group_id,
+    m.agent_id,
+    m.target_id,
+    m.tools,
+    m.favorite,
+    mp.tool_call_id,
+    mp.api_name as plugin_api_name,
+    mp.arguments as plugin_arguments,
+    mp.identifier as plugin_identifier,
+    mp.type as plugin_type,
+    mp.state as plugin_state,
+    mp.error as plugin_error,
+    mt.content as translate_content,
+    mt.from as translate_from,
+    mt.to as translate_to,
+    mts.id as tts_id,
+    mts.content_md5 as tts_content_md5,
+    mts.file_id as tts_file_id,
+    mts.voice as tts_voice
+FROM messages m
+LEFT JOIN message_plugins mp ON m.id = mp.id
+LEFT JOIN message_translates mt ON m.id = mt.id
+LEFT JOIN message_tts mts ON m.id = mts.id
+WHERE m.user_id = ? AND m.session_id = ?
+ORDER BY m.created_at ASC
+LIMIT ? OFFSET ?;
 
 -- name: GetMessageHeatmaps :many
 SELECT 

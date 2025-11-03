@@ -473,6 +473,29 @@ func (q *Queries) DeleteMessagesByTopic(ctx context.Context, arg DeleteMessagesB
 	return err
 }
 
+const GetDocumentByFileId = `-- name: GetDocumentByFileId :one
+SELECT d.file_id, d.content
+FROM documents d
+WHERE d.file_id = ? AND d.user_id = ?
+`
+
+type GetDocumentByFileIdParams struct {
+	FileID sql.NullString `json:"fileId"`
+	UserID string         `json:"userId"`
+}
+
+type GetDocumentByFileIdRow struct {
+	FileID  sql.NullString `json:"fileId"`
+	Content sql.NullString `json:"content"`
+}
+
+func (q *Queries) GetDocumentByFileId(ctx context.Context, arg GetDocumentByFileIdParams) (GetDocumentByFileIdRow, error) {
+	row := q.db.QueryRowContext(ctx, GetDocumentByFileId, arg.FileID, arg.UserID)
+	var i GetDocumentByFileIdRow
+	err := row.Scan(&i.FileID, &i.Content)
+	return i, err
+}
+
 const GetMessage = `-- name: GetMessage :one
 SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, client_id, user_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages WHERE id = ? AND user_id = ?
 `
@@ -514,6 +537,27 @@ func (q *Queries) GetMessage(ctx context.Context, arg GetMessageParams) (Message
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const GetMessageByToolCallId = `-- name: GetMessageByToolCallId :one
+
+SELECT mp.id 
+FROM message_plugins mp
+WHERE mp.tool_call_id = ? AND mp.user_id = ?
+`
+
+type GetMessageByToolCallIdParams struct {
+	ToolCallID sql.NullString `json:"toolCallId"`
+	UserID     string         `json:"userId"`
+}
+
+// Batch queries - Note: These will be wrapped with JSON parsing in Go
+// For now, we'll create a simple version and handle batching in Go layer
+func (q *Queries) GetMessageByToolCallId(ctx context.Context, arg GetMessageByToolCallIdParams) (string, error) {
+	row := q.db.QueryRowContext(ctx, GetMessageByToolCallId, arg.ToolCallID, arg.UserID)
+	var id string
+	err := row.Scan(&id)
+	return id, err
 }
 
 const GetMessageChunks = `-- name: GetMessageChunks :many
@@ -611,7 +655,6 @@ func (q *Queries) GetMessageFiles(ctx context.Context, arg GetMessageFilesParams
 }
 
 const GetMessageHeatmaps = `-- name: GetMessageHeatmaps :many
-
 SELECT 
     DATE(created_at / 1000, 'unixepoch') as date,
     COUNT(*) as count
@@ -634,8 +677,6 @@ type GetMessageHeatmapsRow struct {
 	Count int64       `json:"count"`
 }
 
-// Note: Can't use sqlc.slice() with SQLite, need alternative approach
-// For now, these will be handled differently in the frontend
 func (q *Queries) GetMessageHeatmaps(ctx context.Context, arg GetMessageHeatmapsParams) ([]GetMessageHeatmapsRow, error) {
 	rows, err := q.db.QueryContext(ctx, GetMessageHeatmaps, arg.UserID, arg.CreatedAt, arg.CreatedAt_2)
 	if err != nil {
@@ -840,6 +881,298 @@ func (q *Queries) GetMessageTranslate(ctx context.Context, arg GetMessageTransla
 	return i, err
 }
 
+const GetMessagesWithRelations = `-- name: GetMessagesWithRelations :many
+SELECT 
+    m.id,
+    m.role,
+    m.content,
+    m.reasoning,
+    m.search,
+    m.metadata,
+    m.error,
+    m.model,
+    m.provider,
+    m.created_at,
+    m.updated_at,
+    m.topic_id,
+    m.parent_id,
+    m.thread_id,
+    m.group_id,
+    m.agent_id,
+    m.target_id,
+    m.tools,
+    m.favorite,
+    mp.tool_call_id,
+    mp.api_name as plugin_api_name,
+    mp.arguments as plugin_arguments,
+    mp.identifier as plugin_identifier,
+    mp.type as plugin_type,
+    mp.state as plugin_state,
+    mp.error as plugin_error,
+    mt.content as translate_content,
+    mt.from as translate_from,
+    mt.to as translate_to,
+    mts.id as tts_id,
+    mts.content_md5 as tts_content_md5,
+    mts.file_id as tts_file_id,
+    mts.voice as tts_voice
+FROM messages m
+LEFT JOIN message_plugins mp ON m.id = mp.id
+LEFT JOIN message_translates mt ON m.id = mt.id
+LEFT JOIN message_tts mts ON m.id = mts.id
+WHERE m.user_id = ?
+ORDER BY m.created_at ASC
+LIMIT ? OFFSET ?
+`
+
+type GetMessagesWithRelationsParams struct {
+	UserID string `json:"userId"`
+	Limit  int64  `json:"limit"`
+	Offset int64  `json:"offset"`
+}
+
+type GetMessagesWithRelationsRow struct {
+	ID               string         `json:"id"`
+	Role             string         `json:"role"`
+	Content          sql.NullString `json:"content"`
+	Reasoning        sql.NullString `json:"reasoning"`
+	Search           sql.NullString `json:"search"`
+	Metadata         sql.NullString `json:"metadata"`
+	Error            sql.NullString `json:"error"`
+	Model            sql.NullString `json:"model"`
+	Provider         sql.NullString `json:"provider"`
+	CreatedAt        int64          `json:"createdAt"`
+	UpdatedAt        int64          `json:"updatedAt"`
+	TopicID          sql.NullString `json:"topicId"`
+	ParentID         sql.NullString `json:"parentId"`
+	ThreadID         sql.NullString `json:"threadId"`
+	GroupID          sql.NullString `json:"groupId"`
+	AgentID          sql.NullString `json:"agentId"`
+	TargetID         sql.NullString `json:"targetId"`
+	Tools            sql.NullString `json:"tools"`
+	Favorite         int64          `json:"favorite"`
+	ToolCallID       sql.NullString `json:"toolCallId"`
+	PluginApiName    sql.NullString `json:"pluginApiName"`
+	PluginArguments  sql.NullString `json:"pluginArguments"`
+	PluginIdentifier sql.NullString `json:"pluginIdentifier"`
+	PluginType       sql.NullString `json:"pluginType"`
+	PluginState      sql.NullString `json:"pluginState"`
+	PluginError      sql.NullString `json:"pluginError"`
+	TranslateContent sql.NullString `json:"translateContent"`
+	TranslateFrom    sql.NullString `json:"translateFrom"`
+	TranslateTo      sql.NullString `json:"translateTo"`
+	TtsID            sql.NullString `json:"ttsId"`
+	TtsContentMd5    sql.NullString `json:"ttsContentMd5"`
+	TtsFileID        sql.NullString `json:"ttsFileId"`
+	TtsVoice         sql.NullString `json:"ttsVoice"`
+}
+
+func (q *Queries) GetMessagesWithRelations(ctx context.Context, arg GetMessagesWithRelationsParams) ([]GetMessagesWithRelationsRow, error) {
+	rows, err := q.db.QueryContext(ctx, GetMessagesWithRelations, arg.UserID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetMessagesWithRelationsRow{}
+	for rows.Next() {
+		var i GetMessagesWithRelationsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Role,
+			&i.Content,
+			&i.Reasoning,
+			&i.Search,
+			&i.Metadata,
+			&i.Error,
+			&i.Model,
+			&i.Provider,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.TopicID,
+			&i.ParentID,
+			&i.ThreadID,
+			&i.GroupID,
+			&i.AgentID,
+			&i.TargetID,
+			&i.Tools,
+			&i.Favorite,
+			&i.ToolCallID,
+			&i.PluginApiName,
+			&i.PluginArguments,
+			&i.PluginIdentifier,
+			&i.PluginType,
+			&i.PluginState,
+			&i.PluginError,
+			&i.TranslateContent,
+			&i.TranslateFrom,
+			&i.TranslateTo,
+			&i.TtsID,
+			&i.TtsContentMd5,
+			&i.TtsFileID,
+			&i.TtsVoice,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const GetMessagesWithRelationsBySession = `-- name: GetMessagesWithRelationsBySession :many
+SELECT 
+    m.id,
+    m.role,
+    m.content,
+    m.reasoning,
+    m.search,
+    m.metadata,
+    m.error,
+    m.model,
+    m.provider,
+    m.created_at,
+    m.updated_at,
+    m.topic_id,
+    m.parent_id,
+    m.thread_id,
+    m.group_id,
+    m.agent_id,
+    m.target_id,
+    m.tools,
+    m.favorite,
+    mp.tool_call_id,
+    mp.api_name as plugin_api_name,
+    mp.arguments as plugin_arguments,
+    mp.identifier as plugin_identifier,
+    mp.type as plugin_type,
+    mp.state as plugin_state,
+    mp.error as plugin_error,
+    mt.content as translate_content,
+    mt.from as translate_from,
+    mt.to as translate_to,
+    mts.id as tts_id,
+    mts.content_md5 as tts_content_md5,
+    mts.file_id as tts_file_id,
+    mts.voice as tts_voice
+FROM messages m
+LEFT JOIN message_plugins mp ON m.id = mp.id
+LEFT JOIN message_translates mt ON m.id = mt.id
+LEFT JOIN message_tts mts ON m.id = mts.id
+WHERE m.user_id = ? AND m.session_id = ?
+ORDER BY m.created_at ASC
+LIMIT ? OFFSET ?
+`
+
+type GetMessagesWithRelationsBySessionParams struct {
+	UserID    string         `json:"userId"`
+	SessionID sql.NullString `json:"sessionId"`
+	Limit     int64          `json:"limit"`
+	Offset    int64          `json:"offset"`
+}
+
+type GetMessagesWithRelationsBySessionRow struct {
+	ID               string         `json:"id"`
+	Role             string         `json:"role"`
+	Content          sql.NullString `json:"content"`
+	Reasoning        sql.NullString `json:"reasoning"`
+	Search           sql.NullString `json:"search"`
+	Metadata         sql.NullString `json:"metadata"`
+	Error            sql.NullString `json:"error"`
+	Model            sql.NullString `json:"model"`
+	Provider         sql.NullString `json:"provider"`
+	CreatedAt        int64          `json:"createdAt"`
+	UpdatedAt        int64          `json:"updatedAt"`
+	TopicID          sql.NullString `json:"topicId"`
+	ParentID         sql.NullString `json:"parentId"`
+	ThreadID         sql.NullString `json:"threadId"`
+	GroupID          sql.NullString `json:"groupId"`
+	AgentID          sql.NullString `json:"agentId"`
+	TargetID         sql.NullString `json:"targetId"`
+	Tools            sql.NullString `json:"tools"`
+	Favorite         int64          `json:"favorite"`
+	ToolCallID       sql.NullString `json:"toolCallId"`
+	PluginApiName    sql.NullString `json:"pluginApiName"`
+	PluginArguments  sql.NullString `json:"pluginArguments"`
+	PluginIdentifier sql.NullString `json:"pluginIdentifier"`
+	PluginType       sql.NullString `json:"pluginType"`
+	PluginState      sql.NullString `json:"pluginState"`
+	PluginError      sql.NullString `json:"pluginError"`
+	TranslateContent sql.NullString `json:"translateContent"`
+	TranslateFrom    sql.NullString `json:"translateFrom"`
+	TranslateTo      sql.NullString `json:"translateTo"`
+	TtsID            sql.NullString `json:"ttsId"`
+	TtsContentMd5    sql.NullString `json:"ttsContentMd5"`
+	TtsFileID        sql.NullString `json:"ttsFileId"`
+	TtsVoice         sql.NullString `json:"ttsVoice"`
+}
+
+func (q *Queries) GetMessagesWithRelationsBySession(ctx context.Context, arg GetMessagesWithRelationsBySessionParams) ([]GetMessagesWithRelationsBySessionRow, error) {
+	rows, err := q.db.QueryContext(ctx, GetMessagesWithRelationsBySession,
+		arg.UserID,
+		arg.SessionID,
+		arg.Limit,
+		arg.Offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetMessagesWithRelationsBySessionRow{}
+	for rows.Next() {
+		var i GetMessagesWithRelationsBySessionRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Role,
+			&i.Content,
+			&i.Reasoning,
+			&i.Search,
+			&i.Metadata,
+			&i.Error,
+			&i.Model,
+			&i.Provider,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.TopicID,
+			&i.ParentID,
+			&i.ThreadID,
+			&i.GroupID,
+			&i.AgentID,
+			&i.TargetID,
+			&i.Tools,
+			&i.Favorite,
+			&i.ToolCallID,
+			&i.PluginApiName,
+			&i.PluginArguments,
+			&i.PluginIdentifier,
+			&i.PluginType,
+			&i.PluginState,
+			&i.PluginError,
+			&i.TranslateContent,
+			&i.TranslateFrom,
+			&i.TranslateTo,
+			&i.TtsID,
+			&i.TtsContentMd5,
+			&i.TtsFileID,
+			&i.TtsVoice,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const LinkMessageQueryToChunk = `-- name: LinkMessageQueryToChunk :exec
 
 INSERT INTO message_query_chunks (message_id, query_id, chunk_id, similarity, user_id)
@@ -958,6 +1291,144 @@ type ListMessagesParams struct {
 
 func (q *Queries) ListMessages(ctx context.Context, arg ListMessagesParams) ([]Message, error) {
 	rows, err := q.db.QueryContext(ctx, ListMessages, arg.UserID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Message{}
+	for rows.Next() {
+		var i Message
+		if err := rows.Scan(
+			&i.ID,
+			&i.Role,
+			&i.Content,
+			&i.Reasoning,
+			&i.Search,
+			&i.Metadata,
+			&i.Model,
+			&i.Provider,
+			&i.Favorite,
+			&i.Error,
+			&i.Tools,
+			&i.TraceID,
+			&i.ObservationID,
+			&i.ClientID,
+			&i.UserID,
+			&i.SessionID,
+			&i.TopicID,
+			&i.ThreadID,
+			&i.ParentID,
+			&i.QuotaID,
+			&i.AgentID,
+			&i.GroupID,
+			&i.TargetID,
+			&i.MessageGroupID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const ListMessagesByGroup = `-- name: ListMessagesByGroup :many
+SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, client_id, user_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages
+WHERE user_id = ? AND group_id = ?
+ORDER BY created_at ASC
+LIMIT ? OFFSET ?
+`
+
+type ListMessagesByGroupParams struct {
+	UserID  string         `json:"userId"`
+	GroupID sql.NullString `json:"groupId"`
+	Limit   int64          `json:"limit"`
+	Offset  int64          `json:"offset"`
+}
+
+func (q *Queries) ListMessagesByGroup(ctx context.Context, arg ListMessagesByGroupParams) ([]Message, error) {
+	rows, err := q.db.QueryContext(ctx, ListMessagesByGroup,
+		arg.UserID,
+		arg.GroupID,
+		arg.Limit,
+		arg.Offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Message{}
+	for rows.Next() {
+		var i Message
+		if err := rows.Scan(
+			&i.ID,
+			&i.Role,
+			&i.Content,
+			&i.Reasoning,
+			&i.Search,
+			&i.Metadata,
+			&i.Model,
+			&i.Provider,
+			&i.Favorite,
+			&i.Error,
+			&i.Tools,
+			&i.TraceID,
+			&i.ObservationID,
+			&i.ClientID,
+			&i.UserID,
+			&i.SessionID,
+			&i.TopicID,
+			&i.ThreadID,
+			&i.ParentID,
+			&i.QuotaID,
+			&i.AgentID,
+			&i.GroupID,
+			&i.TargetID,
+			&i.MessageGroupID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const ListMessagesBySession = `-- name: ListMessagesBySession :many
+SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, client_id, user_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages
+WHERE user_id = ? AND session_id = ?
+ORDER BY created_at ASC
+LIMIT ? OFFSET ?
+`
+
+type ListMessagesBySessionParams struct {
+	UserID    string         `json:"userId"`
+	SessionID sql.NullString `json:"sessionId"`
+	Limit     int64          `json:"limit"`
+	Offset    int64          `json:"offset"`
+}
+
+func (q *Queries) ListMessagesBySession(ctx context.Context, arg ListMessagesBySessionParams) ([]Message, error) {
+	rows, err := q.db.QueryContext(ctx, ListMessagesBySession,
+		arg.UserID,
+		arg.SessionID,
+		arg.Limit,
+		arg.Offset,
+	)
 	if err != nil {
 		return nil, err
 	}

@@ -50,6 +50,8 @@ func main() {
 			application.NewService(&GreetService{}),
 			// Database queries - direct sqlc generated code
 			application.NewService(queries),
+			// Database service - for transaction methods
+			application.NewService(dbService),
 			// Machine ID service
 			application.NewService(&MachineIDService{}),
 			// Temp file service

@@ -111,3 +111,70 @@ SELECT f.* FROM files f
 INNER JOIN files_to_sessions fts ON f.id = fts.file_id
 WHERE fts.session_id = ? AND fts.user_id = ?;
 
+-- Complex file queries
+
+-- name: CountFilesByHash :one
+SELECT COUNT(*) as count
+FROM files
+WHERE file_hash = ?;
+
+-- name: GetFilesByHash :many
+SELECT * FROM files
+WHERE file_hash = ? AND user_id = ?;
+
+-- name: GetFilesByIds :many
+SELECT * FROM files
+WHERE user_id = ?;
+
+-- name: GetFilesByNames :many
+SELECT * FROM files
+WHERE user_id = ?
+ORDER BY created_at DESC;
+
+-- name: CountFilesUsage :one
+SELECT COALESCE(SUM(size), 0) as total_size
+FROM files
+WHERE user_id = ?;
+
+-- name: DeleteAllFiles :exec
+DELETE FROM files WHERE user_id = ?;
+
+-- name: DeleteGlobalFile :exec
+DELETE FROM global_files WHERE hash_id = ?;
+
+-- name: GetFileChunkIds :many
+SELECT chunk_id FROM file_chunks
+WHERE file_id = ?;
+
+-- File query with filters
+-- name: QueryFiles :many
+SELECT 
+    f.id,
+    f.name,
+    f.file_type,
+    f.size,
+    f.url,
+    f.created_at,
+    f.updated_at,
+    f.chunk_task_id,
+    f.embedding_task_id
+FROM files f
+WHERE f.user_id = ?
+ORDER BY f.created_at DESC;
+
+-- name: QueryFilesByKnowledgeBase :many
+SELECT 
+    f.id,
+    f.name,
+    f.file_type,
+    f.size,
+    f.url,
+    f.created_at,
+    f.updated_at,
+    f.chunk_task_id,
+    f.embedding_task_id
+FROM files f
+INNER JOIN knowledge_base_files kbf ON f.id = kbf.file_id
+WHERE kbf.knowledge_base_id = ? AND f.user_id = ?
+ORDER BY f.created_at DESC;
+

@@ -253,6 +253,30 @@ func (q *Queries) DeleteAllAIModels(ctx context.Context, userID string) error {
 	return err
 }
 
+const DeleteAllAIProviders = `-- name: DeleteAllAIProviders :exec
+DELETE FROM ai_providers WHERE user_id = ?
+`
+
+func (q *Queries) DeleteAllAIProviders(ctx context.Context, userID string) error {
+	_, err := q.db.ExecContext(ctx, DeleteAllAIProviders, userID)
+	return err
+}
+
+const DeleteModelsByProvider = `-- name: DeleteModelsByProvider :exec
+DELETE FROM ai_models
+WHERE provider_id = ? AND user_id = ?
+`
+
+type DeleteModelsByProviderParams struct {
+	ProviderID string `json:"providerId"`
+	UserID     string `json:"userId"`
+}
+
+func (q *Queries) DeleteModelsByProvider(ctx context.Context, arg DeleteModelsByProviderParams) error {
+	_, err := q.db.ExecContext(ctx, DeleteModelsByProvider, arg.ProviderID, arg.UserID)
+	return err
+}
+
 const GetAIModel = `-- name: GetAIModel :one
 
 SELECT id, display_name, description, organization, enabled, provider_id, type, sort, user_id, pricing, parameters, config, abilities, context_window_tokens, source, released_at, created_at, updated_at FROM ai_models
@@ -324,6 +348,164 @@ func (q *Queries) GetAIProvider(ctx context.Context, arg GetAIProviderParams) (A
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const GetAIProviderDetail = `-- name: GetAIProviderDetail :one
+SELECT 
+    id,
+    name,
+    logo,
+    description,
+    enabled,
+    source,
+    key_vaults,
+    settings,
+    config,
+    fetch_on_client,
+    check_model
+FROM ai_providers
+WHERE id = ? AND user_id = ?
+`
+
+type GetAIProviderDetailParams struct {
+	ID     string `json:"id"`
+	UserID string `json:"userId"`
+}
+
+type GetAIProviderDetailRow struct {
+	ID            string         `json:"id"`
+	Name          sql.NullString `json:"name"`
+	Logo          sql.NullString `json:"logo"`
+	Description   sql.NullString `json:"description"`
+	Enabled       sql.NullInt64  `json:"enabled"`
+	Source        sql.NullString `json:"source"`
+	KeyVaults     sql.NullString `json:"keyVaults"`
+	Settings      sql.NullString `json:"settings"`
+	Config        sql.NullString `json:"config"`
+	FetchOnClient sql.NullInt64  `json:"fetchOnClient"`
+	CheckModel    sql.NullString `json:"checkModel"`
+}
+
+func (q *Queries) GetAIProviderDetail(ctx context.Context, arg GetAIProviderDetailParams) (GetAIProviderDetailRow, error) {
+	row := q.db.QueryRowContext(ctx, GetAIProviderDetail, arg.ID, arg.UserID)
+	var i GetAIProviderDetailRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Logo,
+		&i.Description,
+		&i.Enabled,
+		&i.Source,
+		&i.KeyVaults,
+		&i.Settings,
+		&i.Config,
+		&i.FetchOnClient,
+		&i.CheckModel,
+	)
+	return i, err
+}
+
+const GetAIProviderListSimple = `-- name: GetAIProviderListSimple :many
+SELECT 
+    id,
+    name,
+    logo,
+    description,
+    enabled,
+    sort,
+    source
+FROM ai_providers
+WHERE user_id = ?
+ORDER BY sort ASC, updated_at DESC
+`
+
+type GetAIProviderListSimpleRow struct {
+	ID          string         `json:"id"`
+	Name        sql.NullString `json:"name"`
+	Logo        sql.NullString `json:"logo"`
+	Description sql.NullString `json:"description"`
+	Enabled     sql.NullInt64  `json:"enabled"`
+	Sort        sql.NullInt64  `json:"sort"`
+	Source      sql.NullString `json:"source"`
+}
+
+func (q *Queries) GetAIProviderListSimple(ctx context.Context, userID string) ([]GetAIProviderListSimpleRow, error) {
+	rows, err := q.db.QueryContext(ctx, GetAIProviderListSimple, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetAIProviderListSimpleRow{}
+	for rows.Next() {
+		var i GetAIProviderListSimpleRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Logo,
+			&i.Description,
+			&i.Enabled,
+			&i.Sort,
+			&i.Source,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const GetAIProviderRuntimeConfigs = `-- name: GetAIProviderRuntimeConfigs :many
+SELECT 
+    id,
+    key_vaults,
+    settings,
+    config,
+    fetch_on_client
+FROM ai_providers
+WHERE user_id = ?
+`
+
+type GetAIProviderRuntimeConfigsRow struct {
+	ID            string         `json:"id"`
+	KeyVaults     sql.NullString `json:"keyVaults"`
+	Settings      sql.NullString `json:"settings"`
+	Config        sql.NullString `json:"config"`
+	FetchOnClient sql.NullInt64  `json:"fetchOnClient"`
+}
+
+func (q *Queries) GetAIProviderRuntimeConfigs(ctx context.Context, userID string) ([]GetAIProviderRuntimeConfigsRow, error) {
+	rows, err := q.db.QueryContext(ctx, GetAIProviderRuntimeConfigs, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetAIProviderRuntimeConfigsRow{}
+	for rows.Next() {
+		var i GetAIProviderRuntimeConfigsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.KeyVaults,
+			&i.Settings,
+			&i.Config,
+			&i.FetchOnClient,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const ListAIModels = `-- name: ListAIModels :many
@@ -622,6 +804,55 @@ func (q *Queries) ToggleAIModelEnabled(ctx context.Context, arg ToggleAIModelEna
 	return i, err
 }
 
+const ToggleAIProviderEnabled = `-- name: ToggleAIProviderEnabled :one
+INSERT INTO ai_providers (
+    id, user_id, enabled, source, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?)
+ON CONFLICT(id, user_id) DO UPDATE SET
+    enabled = excluded.enabled,
+    updated_at = excluded.updated_at
+RETURNING id, name, user_id, sort, enabled, fetch_on_client, check_model, logo, description, key_vaults, source, settings, config, created_at, updated_at
+`
+
+type ToggleAIProviderEnabledParams struct {
+	ID        string         `json:"id"`
+	UserID    string         `json:"userId"`
+	Enabled   sql.NullInt64  `json:"enabled"`
+	Source    sql.NullString `json:"source"`
+	CreatedAt int64          `json:"createdAt"`
+	UpdatedAt int64          `json:"updatedAt"`
+}
+
+func (q *Queries) ToggleAIProviderEnabled(ctx context.Context, arg ToggleAIProviderEnabledParams) (AiProvider, error) {
+	row := q.db.QueryRowContext(ctx, ToggleAIProviderEnabled,
+		arg.ID,
+		arg.UserID,
+		arg.Enabled,
+		arg.Source,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+	)
+	var i AiProvider
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.UserID,
+		&i.Sort,
+		&i.Enabled,
+		&i.FetchOnClient,
+		&i.CheckModel,
+		&i.Logo,
+		&i.Description,
+		&i.KeyVaults,
+		&i.Source,
+		&i.Settings,
+		&i.Config,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const UpdateAIModel = `-- name: UpdateAIModel :one
 UPDATE ai_models
 SET display_name = ?,
@@ -899,6 +1130,143 @@ func (q *Queries) UpsertAIModel(ctx context.Context, arg UpsertAIModelParams) (A
 		&i.ContextWindowTokens,
 		&i.Source,
 		&i.ReleasedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const UpsertAIProvider = `-- name: UpsertAIProvider :one
+INSERT INTO ai_providers (
+    id, name, user_id, sort, enabled, fetch_on_client, check_model,
+    logo, description, key_vaults, source, settings, config,
+    created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id, user_id) DO UPDATE SET
+    name = excluded.name,
+    sort = excluded.sort,
+    enabled = excluded.enabled,
+    fetch_on_client = excluded.fetch_on_client,
+    check_model = excluded.check_model,
+    logo = excluded.logo,
+    description = excluded.description,
+    key_vaults = excluded.key_vaults,
+    settings = excluded.settings,
+    config = excluded.config,
+    updated_at = excluded.updated_at
+RETURNING id, name, user_id, sort, enabled, fetch_on_client, check_model, logo, description, key_vaults, source, settings, config, created_at, updated_at
+`
+
+type UpsertAIProviderParams struct {
+	ID            string         `json:"id"`
+	Name          sql.NullString `json:"name"`
+	UserID        string         `json:"userId"`
+	Sort          sql.NullInt64  `json:"sort"`
+	Enabled       sql.NullInt64  `json:"enabled"`
+	FetchOnClient sql.NullInt64  `json:"fetchOnClient"`
+	CheckModel    sql.NullString `json:"checkModel"`
+	Logo          sql.NullString `json:"logo"`
+	Description   sql.NullString `json:"description"`
+	KeyVaults     sql.NullString `json:"keyVaults"`
+	Source        sql.NullString `json:"source"`
+	Settings      sql.NullString `json:"settings"`
+	Config        sql.NullString `json:"config"`
+	CreatedAt     int64          `json:"createdAt"`
+	UpdatedAt     int64          `json:"updatedAt"`
+}
+
+func (q *Queries) UpsertAIProvider(ctx context.Context, arg UpsertAIProviderParams) (AiProvider, error) {
+	row := q.db.QueryRowContext(ctx, UpsertAIProvider,
+		arg.ID,
+		arg.Name,
+		arg.UserID,
+		arg.Sort,
+		arg.Enabled,
+		arg.FetchOnClient,
+		arg.CheckModel,
+		arg.Logo,
+		arg.Description,
+		arg.KeyVaults,
+		arg.Source,
+		arg.Settings,
+		arg.Config,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+	)
+	var i AiProvider
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.UserID,
+		&i.Sort,
+		&i.Enabled,
+		&i.FetchOnClient,
+		&i.CheckModel,
+		&i.Logo,
+		&i.Description,
+		&i.KeyVaults,
+		&i.Source,
+		&i.Settings,
+		&i.Config,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const UpsertAIProviderConfig = `-- name: UpsertAIProviderConfig :one
+INSERT INTO ai_providers (
+    id, user_id, key_vaults, config, fetch_on_client, check_model,
+    source, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id, user_id) DO UPDATE SET
+    key_vaults = excluded.key_vaults,
+    config = excluded.config,
+    fetch_on_client = excluded.fetch_on_client,
+    check_model = excluded.check_model,
+    updated_at = excluded.updated_at
+RETURNING id, name, user_id, sort, enabled, fetch_on_client, check_model, logo, description, key_vaults, source, settings, config, created_at, updated_at
+`
+
+type UpsertAIProviderConfigParams struct {
+	ID            string         `json:"id"`
+	UserID        string         `json:"userId"`
+	KeyVaults     sql.NullString `json:"keyVaults"`
+	Config        sql.NullString `json:"config"`
+	FetchOnClient sql.NullInt64  `json:"fetchOnClient"`
+	CheckModel    sql.NullString `json:"checkModel"`
+	Source        sql.NullString `json:"source"`
+	CreatedAt     int64          `json:"createdAt"`
+	UpdatedAt     int64          `json:"updatedAt"`
+}
+
+func (q *Queries) UpsertAIProviderConfig(ctx context.Context, arg UpsertAIProviderConfigParams) (AiProvider, error) {
+	row := q.db.QueryRowContext(ctx, UpsertAIProviderConfig,
+		arg.ID,
+		arg.UserID,
+		arg.KeyVaults,
+		arg.Config,
+		arg.FetchOnClient,
+		arg.CheckModel,
+		arg.Source,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+	)
+	var i AiProvider
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.UserID,
+		&i.Sort,
+		&i.Enabled,
+		&i.FetchOnClient,
+		&i.CheckModel,
+		&i.Logo,
+		&i.Description,
+		&i.KeyVaults,
+		&i.Source,
+		&i.Settings,
+		&i.Config,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

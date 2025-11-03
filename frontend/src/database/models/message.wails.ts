@@ -32,6 +32,9 @@ import {
   boolToInt,
 } from '@/types/database';
 
+// Import transaction methods (Optimization 4A)
+import { Service as DBService } from '@@/github.com/kawai-network/veridium/internal/database';
+
 export class MessageModel {
   private userId: string;
 
@@ -42,11 +45,8 @@ export class MessageModel {
   // **************** Query *************** //
   
   /**
-   * Complex query method - WARNING: This is a simplified version
-   * The Drizzle version does multiple JOINs in a single query which is more efficient
-   * This Wails version requires multiple queries (N+1 problem)
-   * 
-   * For production, consider creating a dedicated SQL query with all JOINs
+   * OPTIMIZED: Uses server-side filtering (2A) and JOIN queries (3A)
+   * Much faster than previous client-side filtering approach
    */
   query = async (
     { current = 0, pageSize = 1000, sessionId, topicId, groupId }: QueryMessageParams = {},
@@ -56,37 +56,37 @@ export class MessageModel {
   ) => {
     const offset = current * pageSize;
 
-    // 1. Get basic messages
-    // Note: Filtering by sessionId/topicId/groupId happens client-side due to SQLite limitations
-    const allMessages = await DB.ListMessages({
-      userId: this.userId,
-      limit: pageSize * 10, // Get more to allow for filtering
-      offset,
-    });
-
-    // Filter client-side
-    let messages = allMessages;
-    if (sessionId !== undefined) {
-      messages = messages.filter((m) => {
-        const msgSessionId = getNullableString(m.sessionId as any);
-        return sessionId === null ? !msgSessionId : msgSessionId === sessionId;
+    // OPTIMIZATION 2A: Server-side filtering
+    // Use specific query based on filter type
+    let messages;
+    if (sessionId !== undefined && sessionId !== null) {
+      messages = await DB.ListMessagesBySession({
+        userId: this.userId,
+        sessionId: toNullString(sessionId) as any,
+        limit: pageSize,
+        offset,
+      });
+    } else if (topicId !== undefined && topicId !== null) {
+      messages = await DB.ListMessagesByTopic({
+        userId: this.userId,
+        topicId: toNullString(topicId) as any,
+        limit: pageSize,
+        offset,
+      });
+    } else if (groupId !== undefined && groupId !== null) {
+      messages = await DB.ListMessagesByGroup({
+        userId: this.userId,
+        groupId: toNullString(groupId) as any,
+        limit: pageSize,
+        offset,
+      });
+    } else {
+      messages = await DB.ListMessages({
+        userId: this.userId,
+        limit: pageSize,
+        offset,
       });
     }
-    if (topicId !== undefined) {
-      messages = messages.filter((m) => {
-        const msgTopicId = getNullableString(m.topicId as any);
-        return topicId === null ? !msgTopicId : msgTopicId === topicId;
-      });
-    }
-    if (groupId !== undefined) {
-      messages = messages.filter((m) => {
-        const msgGroupId = getNullableString(m.groupId as any);
-        return groupId === null ? !msgGroupId : msgGroupId === groupId;
-      });
-    }
-
-    // Apply pagination after filtering
-    messages = messages.slice(0, pageSize);
 
     if (messages.length === 0) return [];
 
@@ -535,6 +535,10 @@ export class MessageModel {
 
   // **************** Create *************** //
 
+  /**
+   * OPTIMIZED: Uses atomic transaction (4A)
+   * All operations succeed or fail together - no partial writes!
+   */
   create = async (
     {
       fromModel,
@@ -550,44 +554,40 @@ export class MessageModel {
     }: CreateMessageParams,
     id: string = nanoid(14),
   ): Promise<DBMessageItem> => {
-    // Note: No transaction support in Wails!
-    // This is a potential data consistency issue
-
     const normalizedMessage = message.groupId ? { ...message, sessionId: null } : message;
     const now = currentTimestampMs();
 
-    const item = await DB.CreateMessage({
-      id,
-      role: normalizedMessage.role,
-      content: toNullString(normalizedMessage.content as any),
-      reasoning: toNullString((normalizedMessage as any).reasoning as any),
-      search: toNullString((normalizedMessage as any).search as any),
-      metadata: toNullJSON((normalizedMessage as any).metadata),
-      model: toNullString(fromModel as any),
-      provider: toNullString(fromProvider as any),
-      favorite: boolToInt(false),
-      error: toNullJSON(normalizedMessage.error),
-      tools: toNullJSON((normalizedMessage as any).tools),
-      traceId: toNullString(normalizedMessage.traceId as any),
-      observationId: toNullString((normalizedMessage as any).observationId as any),
-      clientId: toNullString((normalizedMessage as any).clientId as any),
-      userId: this.userId,
-      sessionId: toNullString(normalizedMessage.sessionId as any),
-      topicId: toNullString(normalizedMessage.topicId as any),
-      threadId: toNullString(normalizedMessage.threadId as any),
-      parentId: toNullString((normalizedMessage as any).parentId as any),
-      quotaId: toNullString((normalizedMessage as any).quotaId as any),
-      agentId: toNullString((normalizedMessage as any).agentId as any),
-      groupId: toNullString(normalizedMessage.groupId as any),
-      targetId: toNullString(normalizedMessage.targetId as any),
-      messageGroupId: toNullString((normalizedMessage as any).messageGroupId as any),
-      createdAt: createdAt || now,
-      updatedAt: updatedAt || now,
-    });
-
-    // Insert plugin data if message is a tool
-    if (message.role === 'tool') {
-      await DB.CreateMessagePlugin({
+    // OPTIMIZATION 4A: Use atomic transaction
+    const item = await DBService.CreateMessageWithRelations({
+      Message: {
+        id,
+        role: normalizedMessage.role,
+        content: toNullString(normalizedMessage.content as any),
+        reasoning: toNullString((normalizedMessage as any).reasoning as any),
+        search: toNullString((normalizedMessage as any).search as any),
+        metadata: toNullJSON((normalizedMessage as any).metadata),
+        model: toNullString(fromModel as any),
+        provider: toNullString(fromProvider as any),
+        favorite: boolToInt(false),
+        error: toNullJSON(normalizedMessage.error),
+        tools: toNullJSON((normalizedMessage as any).tools),
+        traceId: toNullString(normalizedMessage.traceId as any),
+        observationId: toNullString((normalizedMessage as any).observationId as any),
+        clientId: toNullString((normalizedMessage as any).clientId as any),
+        userId: this.userId,
+        sessionId: toNullString(normalizedMessage.sessionId as any),
+        topicId: toNullString(normalizedMessage.topicId as any),
+        threadId: toNullString(normalizedMessage.threadId as any),
+        parentId: toNullString((normalizedMessage as any).parentId as any),
+        quotaId: toNullString((normalizedMessage as any).quotaId as any),
+        agentId: toNullString((normalizedMessage as any).agentId as any),
+        groupId: toNullString(normalizedMessage.groupId as any),
+        targetId: toNullString(normalizedMessage.targetId as any),
+        messageGroupId: toNullString((normalizedMessage as any).messageGroupId as any),
+        createdAt: createdAt || now,
+        updatedAt: updatedAt || now,
+      },
+      Plugin: message.role === 'tool' ? {
         id,
         toolCallId: toNullString(message.tool_call_id as any),
         type: toNullString(plugin?.type as any),
@@ -598,36 +598,14 @@ export class MessageModel {
         error: toNullJSON(null),
         clientId: toNullString(null),
         userId: this.userId,
-      });
-    }
-
-    // Link files
-    if (files && files.length > 0) {
-      await Promise.all(
-        files.map((fileId) =>
-          DB.LinkMessageToFile({
-            fileId,
-            messageId: id,
-            userId: this.userId,
-          }),
-        ),
-      );
-    }
-
-    // Link file chunks
-    if (fileChunks && fileChunks.length > 0 && ragQueryId) {
-      await Promise.all(
-        fileChunks.map((chunk) =>
-          DB.LinkMessageQueryToChunk({
-            messageId: toNullString(id),
-            queryId: toNullString(ragQueryId),
-            chunkId: toNullString(chunk.id),
-            similarity: { Int64: chunk.similarity || 0, Valid: !!chunk.similarity } as any,
-            userId: this.userId,
-          }),
-        ),
-      );
-    }
+      } : null,
+      FileIds: files || [],
+      FileChunks: (fileChunks && ragQueryId) ? fileChunks.map((chunk) => ({
+        ChunkId: chunk.id,
+        QueryId: ragQueryId,
+        Similarity: { Int64: chunk.similarity || 0, Valid: !!chunk.similarity } as any,
+      })) : [],
+    }, this.userId);
 
     return item as unknown as DBMessageItem;
   };
@@ -680,22 +658,11 @@ export class MessageModel {
 
   // **************** Update *************** //
 
+  /**
+   * OPTIMIZED: Uses atomic transaction (4A) when updating with images
+   */
   update = async (id: string, { imageList, ...message }: Partial<UpdateMessageParams>) => {
-    // No transaction support!
-    
-    if (imageList && imageList.length > 0) {
-      await Promise.all(
-        imageList.map((file) =>
-          DB.LinkMessageToFile({
-            fileId: file.id,
-            messageId: id,
-            userId: this.userId,
-          }),
-        ),
-      );
-    }
-
-    return await DB.UpdateMessage({
+    const updateParams = {
       id,
       userId: this.userId,
       content: toNullString(message.content as any),
@@ -703,7 +670,19 @@ export class MessageModel {
       metadata: toNullJSON(message.metadata),
       favorite: boolToInt(false), // favorite not in UpdateMessageParams
       updatedAt: currentTimestampMs(),
-    });
+    };
+
+    // OPTIMIZATION 4A: Use transaction if updating with images
+    if (imageList && imageList.length > 0) {
+      return await DBService.UpdateMessageWithImages({
+        MessageId: id,
+        Message: updateParams,
+        ImageIds: imageList.map((file) => file.id),
+      }, this.userId);
+    }
+
+    // Simple update without images
+    return await DB.UpdateMessage(updateParams);
   };
 
   updateMetadata = async (id: string, metadata: Record<string, any>) => {
@@ -797,31 +776,24 @@ export class MessageModel {
 
   // **************** Delete *************** //
 
+  /**
+   * OPTIMIZED: Uses atomic transaction (4A) and batch query (1A)
+   * Deletes message and all related tool messages atomically
+   */
   deleteMessage = async (id: string) => {
-    // No transaction support!
-    // This is a potential data consistency issue
-
     const message = await this.findById(id);
     if (!message) return;
 
     const tools = parseNullableJSON(message.tools as any) as ChatToolPayload[] | null;
     const toolCallIds = tools?.map((tool) => tool.id).filter(Boolean) || [];
 
-    let relatedMessageIds: string[] = [];
-
-    // Note: GetMessagesByToolCallIds not available (needs sqlc.slice support)
-    // For now, skip finding related tool messages
-    // This means related tool messages won't be deleted automatically
-    if (toolCallIds.length > 0) {
-      // TODO: Implement batch query for tool_call_ids when sqlc.slice is supported
-    }
-
-    const messageIdsToDelete = [id, ...relatedMessageIds];
-
-    await DB.BatchDeleteMessages({
-      userId: this.userId,
-      ids: messageIdsToDelete,
-    });
+    // OPTIMIZATION 4A: Use atomic transaction
+    // OPTIMIZATION 1A: Batch query for tool call IDs
+    await DBService.DeleteMessageWithRelated(
+      JSON.stringify(toolCallIds),
+      [id],
+      this.userId
+    );
   };
 
   deleteMessages = async (ids: string[]) => {

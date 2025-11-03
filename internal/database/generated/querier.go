@@ -10,17 +10,24 @@ import (
 )
 
 type Querier interface {
+	BatchDeleteChunks(ctx context.Context, arg BatchDeleteChunksParams) error
 	BatchDeleteMessages(ctx context.Context, arg BatchDeleteMessagesParams) error
 	BatchDeleteSessions(ctx context.Context, arg BatchDeleteSessionsParams) error
 	BatchDeleteTopics(ctx context.Context, arg BatchDeleteTopicsParams) error
 	BatchLinkAgentToFiles(ctx context.Context, arg BatchLinkAgentToFilesParams) error
+	BatchLinkChatGroupToAgents(ctx context.Context, arg BatchLinkChatGroupToAgentsParams) error
 	BatchLinkKnowledgeBaseToFiles(ctx context.Context, arg BatchLinkKnowledgeBaseToFilesParams) error
 	BatchUnlinkKnowledgeBaseFromFiles(ctx context.Context, arg BatchUnlinkKnowledgeBaseFromFilesParams) error
 	BatchUpdateAIModelEnabled(ctx context.Context, arg BatchUpdateAIModelEnabledParams) error
 	BulkCreateEmbeddingsItems(ctx context.Context, arg BulkCreateEmbeddingsItemsParams) error
 	CleanupExpiredOAuthHandoffs(ctx context.Context, createdAt int64) error
 	ConsumeOIDCAuthorizationCode(ctx context.Context, arg ConsumeOIDCAuthorizationCodeParams) error
+	CountChunksByFileId(ctx context.Context, arg CountChunksByFileIdParams) (int64, error)
+	CountChunksByFileIds(ctx context.Context, userID string) ([]CountChunksByFileIdsRow, error)
 	CountEmbeddingsItems(ctx context.Context, userID sql.NullString) (int64, error)
+	// Complex file queries
+	CountFilesByHash(ctx context.Context, fileHash sql.NullString) (int64, error)
+	CountFilesUsage(ctx context.Context, userID string) (interface{}, error)
 	CountMessageWords(ctx context.Context, userID string) (sql.NullFloat64, error)
 	CountMessageWordsByDateRange(ctx context.Context, arg CountMessageWordsByDateRangeParams) (sql.NullFloat64, error)
 	CountMessages(ctx context.Context, userID string) (int64, error)
@@ -85,8 +92,11 @@ type Querier interface {
 	DeleteAPIKey(ctx context.Context, arg DeleteAPIKeyParams) error
 	DeleteAgent(ctx context.Context, arg DeleteAgentParams) error
 	DeleteAllAIModels(ctx context.Context, userID string) error
+	DeleteAllAIProviders(ctx context.Context, userID string) error
 	DeleteAllAPIKeys(ctx context.Context, userID string) error
+	DeleteAllChatGroups(ctx context.Context, userID string) error
 	DeleteAllDocuments(ctx context.Context, userID string) error
+	DeleteAllFiles(ctx context.Context, userID string) error
 	DeleteAllKnowledgeBases(ctx context.Context, userID string) error
 	DeleteAllMessages(ctx context.Context, userID string) error
 	DeleteAllPlugins(ctx context.Context, userID string) error
@@ -106,6 +116,7 @@ type Querier interface {
 	DeleteGeneration(ctx context.Context, arg DeleteGenerationParams) error
 	DeleteGenerationBatch(ctx context.Context, arg DeleteGenerationBatchParams) error
 	DeleteGenerationTopic(ctx context.Context, arg DeleteGenerationTopicParams) error
+	DeleteGlobalFile(ctx context.Context, hashID string) error
 	DeleteKnowledgeBase(ctx context.Context, arg DeleteKnowledgeBaseParams) error
 	DeleteMessage(ctx context.Context, arg DeleteMessageParams) error
 	DeleteMessageGroup(ctx context.Context, arg DeleteMessageGroupParams) error
@@ -115,6 +126,7 @@ type Querier interface {
 	DeleteMessagesByGroup(ctx context.Context, arg DeleteMessagesByGroupParams) error
 	DeleteMessagesBySession(ctx context.Context, arg DeleteMessagesBySessionParams) error
 	DeleteMessagesByTopic(ctx context.Context, arg DeleteMessagesByTopicParams) error
+	DeleteModelsByProvider(ctx context.Context, arg DeleteModelsByProviderParams) error
 	DeleteNextAuthAccount(ctx context.Context, arg DeleteNextAuthAccountParams) error
 	DeleteNextAuthAuthenticator(ctx context.Context, arg DeleteNextAuthAuthenticatorParams) error
 	DeleteNextAuthSession(ctx context.Context, sessionToken string) error
@@ -148,6 +160,9 @@ type Querier interface {
 	GetAIModel(ctx context.Context, arg GetAIModelParams) (AiModel, error)
 	// AI Providers
 	GetAIProvider(ctx context.Context, arg GetAIProviderParams) (AiProvider, error)
+	GetAIProviderDetail(ctx context.Context, arg GetAIProviderDetailParams) (GetAIProviderDetailRow, error)
+	GetAIProviderListSimple(ctx context.Context, userID string) ([]GetAIProviderListSimpleRow, error)
+	GetAIProviderRuntimeConfigs(ctx context.Context, userID string) ([]GetAIProviderRuntimeConfigsRow, error)
 	GetAPIKey(ctx context.Context, arg GetAPIKeyParams) (ApiKey, error)
 	GetAPIKeyByKey(ctx context.Context, key string) (ApiKey, error)
 	GetAgent(ctx context.Context, arg GetAgentParams) (Agent, error)
@@ -161,23 +176,42 @@ type Querier interface {
 	GetAsyncTask(ctx context.Context, arg GetAsyncTaskParams) (AsyncTask, error)
 	GetAsyncTasksByIds(ctx context.Context, arg GetAsyncTasksByIdsParams) ([]AsyncTask, error)
 	GetChatGroup(ctx context.Context, arg GetChatGroupParams) (ChatGroup, error)
+	GetChatGroupAgentLinks(ctx context.Context, arg GetChatGroupAgentLinksParams) ([]ChatGroupsAgent, error)
 	GetChatGroupAgents(ctx context.Context, arg GetChatGroupAgentsParams) ([]Agent, error)
+	GetChatGroupWithAgents(ctx context.Context, arg GetChatGroupWithAgentsParams) ([]GetChatGroupWithAgentsRow, error)
 	// Chunks
 	GetChunk(ctx context.Context, arg GetChunkParams) (Chunk, error)
+	GetChunksTextByFileId(ctx context.Context, fileID sql.NullString) ([]GetChunksTextByFileIdRow, error)
+	// Semantic search - fetch chunks with embeddings for JS similarity calculation
+	GetChunksWithEmbeddings(ctx context.Context, userID sql.NullString) ([]GetChunksWithEmbeddingsRow, error)
+	GetChunksWithEmbeddingsByFileIds(ctx context.Context, arg GetChunksWithEmbeddingsByFileIdsParams) ([]GetChunksWithEmbeddingsByFileIdsRow, error)
 	GetDocument(ctx context.Context, arg GetDocumentParams) (Document, error)
+	GetDocumentByFileId(ctx context.Context, arg GetDocumentByFileIdParams) (GetDocumentByFileIdRow, error)
 	GetDocumentChunks(ctx context.Context, arg GetDocumentChunksParams) ([]Chunk, error)
 	// Embeddings
 	GetEmbedding(ctx context.Context, arg GetEmbeddingParams) (Embedding, error)
 	GetEmbeddingByChunk(ctx context.Context, arg GetEmbeddingByChunkParams) (Embedding, error)
 	GetEmbeddingsItem(ctx context.Context, arg GetEmbeddingsItemParams) (Embedding, error)
+	GetEnabledChatGroupAgentLinks(ctx context.Context, arg GetEnabledChatGroupAgentLinksParams) ([]ChatGroupsAgent, error)
 	GetFile(ctx context.Context, arg GetFileParams) (File, error)
+	GetFileChunkIds(ctx context.Context, fileID sql.NullString) ([]sql.NullString, error)
 	GetFileChunks(ctx context.Context, arg GetFileChunksParams) ([]Chunk, error)
+	GetFileChunksWithMetadata(ctx context.Context, arg GetFileChunksWithMetadataParams) ([]GetFileChunksWithMetadataRow, error)
+	GetFilesByHash(ctx context.Context, arg GetFilesByHashParams) ([]File, error)
+	GetFilesByIds(ctx context.Context, userID string) ([]File, error)
+	GetFilesByNames(ctx context.Context, userID string) ([]File, error)
 	// Generations
 	GetGeneration(ctx context.Context, arg GetGenerationParams) (Generation, error)
 	// Generation Batches
 	GetGenerationBatch(ctx context.Context, arg GetGenerationBatchParams) (GenerationBatch, error)
+	// Delete queries with cascade information
+	GetGenerationBatchAssets(ctx context.Context, arg GetGenerationBatchAssetsParams) ([]sql.NullString, error)
+	// Complex queries with JOINs for optimization
+	GetGenerationBatchWithGenerations(ctx context.Context, arg GetGenerationBatchWithGenerationsParams) (GetGenerationBatchWithGenerationsRow, error)
 	// Generation Topics
 	GetGenerationTopic(ctx context.Context, arg GetGenerationTopicParams) (GenerationTopic, error)
+	GetGenerationTopicAssets(ctx context.Context, arg GetGenerationTopicAssetsParams) ([]GetGenerationTopicAssetsRow, error)
+	GetGenerationTopicWithBatches(ctx context.Context, arg GetGenerationTopicWithBatchesParams) (GetGenerationTopicWithBatchesRow, error)
 	GetGenerationWithAsyncTask(ctx context.Context, arg GetGenerationWithAsyncTaskParams) (GetGenerationWithAsyncTaskRow, error)
 	// Global Files
 	GetGlobalFile(ctx context.Context, hashID string) (GlobalFile, error)
@@ -185,12 +219,13 @@ type Querier interface {
 	GetKnowledgeBase(ctx context.Context, arg GetKnowledgeBaseParams) (KnowledgeBasis, error)
 	GetKnowledgeBaseFiles(ctx context.Context, arg GetKnowledgeBaseFilesParams) ([]File, error)
 	GetMessage(ctx context.Context, arg GetMessageParams) (Message, error)
+	// Batch queries - Note: These will be wrapped with JSON parsing in Go
+	// For now, we'll create a simple version and handle batching in Go layer
+	GetMessageByToolCallId(ctx context.Context, arg GetMessageByToolCallIdParams) (string, error)
 	GetMessageChunks(ctx context.Context, arg GetMessageChunksParams) ([]Chunk, error)
 	GetMessageFiles(ctx context.Context, arg GetMessageFilesParams) ([]File, error)
 	// Message Groups
 	GetMessageGroup(ctx context.Context, arg GetMessageGroupParams) (MessageGroup, error)
-	// Note: Can't use sqlc.slice() with SQLite, need alternative approach
-	// For now, these will be handled differently in the frontend
 	GetMessageHeatmaps(ctx context.Context, arg GetMessageHeatmapsParams) ([]GetMessageHeatmapsRow, error)
 	// Message Plugins
 	GetMessagePlugin(ctx context.Context, arg GetMessagePluginParams) (MessagePlugin, error)
@@ -202,6 +237,8 @@ type Querier interface {
 	// Message Translates
 	GetMessageTranslate(ctx context.Context, arg GetMessageTranslateParams) (MessageTranslate, error)
 	GetMessagesByTopicId(ctx context.Context, arg GetMessagesByTopicIdParams) ([]Message, error)
+	GetMessagesWithRelations(ctx context.Context, arg GetMessagesWithRelationsParams) ([]GetMessagesWithRelationsRow, error)
+	GetMessagesWithRelationsBySession(ctx context.Context, arg GetMessagesWithRelationsBySessionParams) ([]GetMessagesWithRelationsBySessionRow, error)
 	// NextAuth Accounts
 	GetNextAuthAccount(ctx context.Context, arg GetNextAuthAccountParams) (NextauthAccount, error)
 	// NextAuth Authenticators
@@ -233,6 +270,7 @@ type Querier interface {
 	// OIDC Sessions
 	GetOIDCSession(ctx context.Context, id string) (OidcSession, error)
 	GetOrphanedAgents(ctx context.Context, userID string) ([]Agent, error)
+	GetOrphanedChunks(ctx context.Context) ([]string, error)
 	// Permissions
 	GetPermission(ctx context.Context, id int64) (RbacPermission, error)
 	GetPermissionByCode(ctx context.Context, code string) (RbacPermission, error)
@@ -309,6 +347,8 @@ type Querier interface {
 	ListAsyncTasks(ctx context.Context, arg ListAsyncTasksParams) ([]AsyncTask, error)
 	ListAsyncTasksByStatus(ctx context.Context, arg ListAsyncTasksByStatusParams) ([]AsyncTask, error)
 	ListChatGroups(ctx context.Context, userID string) ([]ChatGroup, error)
+	// Complex queries with JOINs
+	ListChatGroupsWithAgents(ctx context.Context, userID string) ([]ListChatGroupsWithAgentsRow, error)
 	ListChunks(ctx context.Context, arg ListChunksParams) ([]Chunk, error)
 	ListDocuments(ctx context.Context, arg ListDocumentsParams) ([]Document, error)
 	ListEmbeddingsItems(ctx context.Context, userID sql.NullString) ([]Embedding, error)
@@ -316,12 +356,16 @@ type Querier interface {
 	ListEnabledAIProviders(ctx context.Context, userID string) ([]AiProvider, error)
 	ListFiles(ctx context.Context, arg ListFilesParams) ([]File, error)
 	ListGenerationBatches(ctx context.Context, arg ListGenerationBatchesParams) ([]GenerationBatch, error)
+	ListGenerationBatchesWithGenerations(ctx context.Context, arg ListGenerationBatchesWithGenerationsParams) ([]ListGenerationBatchesWithGenerationsRow, error)
 	ListGenerationTopics(ctx context.Context, userID string) ([]GenerationTopic, error)
+	ListGenerationTopicsWithCounts(ctx context.Context, userID string) ([]ListGenerationTopicsWithCountsRow, error)
 	ListGenerations(ctx context.Context, arg ListGenerationsParams) ([]Generation, error)
 	ListKnowledgeBases(ctx context.Context, userID string) ([]KnowledgeBasis, error)
 	ListMessageGroupsByTopic(ctx context.Context, arg ListMessageGroupsByTopicParams) ([]MessageGroup, error)
 	ListMessageQueriesByMessage(ctx context.Context, arg ListMessageQueriesByMessageParams) ([]MessageQuery, error)
 	ListMessages(ctx context.Context, arg ListMessagesParams) ([]Message, error)
+	ListMessagesByGroup(ctx context.Context, arg ListMessagesByGroupParams) ([]Message, error)
+	ListMessagesBySession(ctx context.Context, arg ListMessagesBySessionParams) ([]Message, error)
 	ListMessagesByThread(ctx context.Context, arg ListMessagesByThreadParams) ([]Message, error)
 	ListMessagesByTopic(ctx context.Context, arg ListMessagesByTopicParams) ([]Message, error)
 	ListNextAuthAccountsByUser(ctx context.Context, userID string) ([]NextauthAccount, error)
@@ -343,6 +387,9 @@ type Querier interface {
 	ListUserPlugins(ctx context.Context, userID string) ([]UserInstalledPlugin, error)
 	MoveSessionToGroup(ctx context.Context, arg MoveSessionToGroupParams) error
 	PinSession(ctx context.Context, arg PinSessionParams) error
+	// File query with filters
+	QueryFiles(ctx context.Context, userID string) ([]QueryFilesRow, error)
+	QueryFilesByKnowledgeBase(ctx context.Context, arg QueryFilesByKnowledgeBaseParams) ([]QueryFilesByKnowledgeBaseRow, error)
 	RankModels(ctx context.Context, arg RankModelsParams) ([]RankModelsRow, error)
 	RankTopics(ctx context.Context, arg RankTopicsParams) ([]RankTopicsRow, error)
 	SearchAgents(ctx context.Context, arg SearchAgentsParams) ([]Agent, error)
@@ -351,6 +398,7 @@ type Querier interface {
 	SearchTopicsByMessageContent(ctx context.Context, arg SearchTopicsByMessageContentParams) ([]Topic, error)
 	SearchTopicsByTitle(ctx context.Context, arg SearchTopicsByTitleParams) ([]Topic, error)
 	ToggleAIModelEnabled(ctx context.Context, arg ToggleAIModelEnabledParams) (AiModel, error)
+	ToggleAIProviderEnabled(ctx context.Context, arg ToggleAIProviderEnabledParams) (AiProvider, error)
 	ToggleAgentFile(ctx context.Context, arg ToggleAgentFileParams) error
 	ToggleAgentKnowledgeBase(ctx context.Context, arg ToggleAgentKnowledgeBaseParams) error
 	ToggleMessageFavorite(ctx context.Context, arg ToggleMessageFavoriteParams) error
@@ -376,6 +424,7 @@ type Querier interface {
 	UpdateAgent(ctx context.Context, arg UpdateAgentParams) (Agent, error)
 	UpdateAsyncTask(ctx context.Context, arg UpdateAsyncTaskParams) (AsyncTask, error)
 	UpdateChatGroup(ctx context.Context, arg UpdateChatGroupParams) (ChatGroup, error)
+	UpdateChatGroupAgentLink(ctx context.Context, arg UpdateChatGroupAgentLinkParams) (ChatGroupsAgent, error)
 	UpdateChatGroupAgentOrder(ctx context.Context, arg UpdateChatGroupAgentOrderParams) error
 	UpdateChunk(ctx context.Context, arg UpdateChunkParams) (Chunk, error)
 	UpdateDocument(ctx context.Context, arg UpdateDocumentParams) (Document, error)
@@ -409,6 +458,8 @@ type Querier interface {
 	UpdateUserSettingsHotkey(ctx context.Context, arg UpdateUserSettingsHotkeyParams) error
 	UpdateUserSettingsTTS(ctx context.Context, arg UpdateUserSettingsTTSParams) error
 	UpsertAIModel(ctx context.Context, arg UpsertAIModelParams) (AiModel, error)
+	UpsertAIProvider(ctx context.Context, arg UpsertAIProviderParams) (AiProvider, error)
+	UpsertAIProviderConfig(ctx context.Context, arg UpsertAIProviderConfigParams) (AiProvider, error)
 	UpsertMessageTTS(ctx context.Context, arg UpsertMessageTTSParams) (MessageTt, error)
 	UpsertMessageTranslate(ctx context.Context, arg UpsertMessageTranslateParams) (MessageTranslate, error)
 	UpsertPlugin(ctx context.Context, arg UpsertPluginParams) (UserInstalledPlugin, error)

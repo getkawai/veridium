@@ -47,6 +47,34 @@ func (q *Queries) BatchUnlinkKnowledgeBaseFromFiles(ctx context.Context, arg Bat
 	return err
 }
 
+const CountFilesByHash = `-- name: CountFilesByHash :one
+
+SELECT COUNT(*) as count
+FROM files
+WHERE file_hash = ?
+`
+
+// Complex file queries
+func (q *Queries) CountFilesByHash(ctx context.Context, fileHash sql.NullString) (int64, error) {
+	row := q.db.QueryRowContext(ctx, CountFilesByHash, fileHash)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const CountFilesUsage = `-- name: CountFilesUsage :one
+SELECT COALESCE(SUM(size), 0) as total_size
+FROM files
+WHERE user_id = ?
+`
+
+func (q *Queries) CountFilesUsage(ctx context.Context, userID string) (interface{}, error) {
+	row := q.db.QueryRowContext(ctx, CountFilesUsage, userID)
+	var total_size interface{}
+	err := row.Scan(&total_size)
+	return total_size, err
+}
+
 const CreateFile = `-- name: CreateFile :one
 INSERT INTO files (
     id, user_id, file_type, file_hash, name, size, url, source,
@@ -206,6 +234,15 @@ func (q *Queries) CreateKnowledgeBase(ctx context.Context, arg CreateKnowledgeBa
 	return i, err
 }
 
+const DeleteAllFiles = `-- name: DeleteAllFiles :exec
+DELETE FROM files WHERE user_id = ?
+`
+
+func (q *Queries) DeleteAllFiles(ctx context.Context, userID string) error {
+	_, err := q.db.ExecContext(ctx, DeleteAllFiles, userID)
+	return err
+}
+
 const DeleteAllKnowledgeBases = `-- name: DeleteAllKnowledgeBases :exec
 DELETE FROM knowledge_bases WHERE user_id = ?
 `
@@ -226,6 +263,15 @@ type DeleteFileParams struct {
 
 func (q *Queries) DeleteFile(ctx context.Context, arg DeleteFileParams) error {
 	_, err := q.db.ExecContext(ctx, DeleteFile, arg.ID, arg.UserID)
+	return err
+}
+
+const DeleteGlobalFile = `-- name: DeleteGlobalFile :exec
+DELETE FROM global_files WHERE hash_id = ?
+`
+
+func (q *Queries) DeleteGlobalFile(ctx context.Context, hashID string) error {
+	_, err := q.db.ExecContext(ctx, DeleteGlobalFile, hashID)
 	return err
 }
 
@@ -272,6 +318,169 @@ func (q *Queries) GetFile(ctx context.Context, arg GetFileParams) (File, error) 
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const GetFileChunkIds = `-- name: GetFileChunkIds :many
+SELECT chunk_id FROM file_chunks
+WHERE file_id = ?
+`
+
+func (q *Queries) GetFileChunkIds(ctx context.Context, fileID sql.NullString) ([]sql.NullString, error) {
+	rows, err := q.db.QueryContext(ctx, GetFileChunkIds, fileID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []sql.NullString{}
+	for rows.Next() {
+		var chunk_id sql.NullString
+		if err := rows.Scan(&chunk_id); err != nil {
+			return nil, err
+		}
+		items = append(items, chunk_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const GetFilesByHash = `-- name: GetFilesByHash :many
+SELECT id, user_id, file_type, file_hash, name, size, url, source, client_id, metadata, chunk_task_id, embedding_task_id, created_at, updated_at FROM files
+WHERE file_hash = ? AND user_id = ?
+`
+
+type GetFilesByHashParams struct {
+	FileHash sql.NullString `json:"fileHash"`
+	UserID   string         `json:"userId"`
+}
+
+func (q *Queries) GetFilesByHash(ctx context.Context, arg GetFilesByHashParams) ([]File, error) {
+	rows, err := q.db.QueryContext(ctx, GetFilesByHash, arg.FileHash, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []File{}
+	for rows.Next() {
+		var i File
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.FileType,
+			&i.FileHash,
+			&i.Name,
+			&i.Size,
+			&i.Url,
+			&i.Source,
+			&i.ClientID,
+			&i.Metadata,
+			&i.ChunkTaskID,
+			&i.EmbeddingTaskID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const GetFilesByIds = `-- name: GetFilesByIds :many
+SELECT id, user_id, file_type, file_hash, name, size, url, source, client_id, metadata, chunk_task_id, embedding_task_id, created_at, updated_at FROM files
+WHERE user_id = ?
+`
+
+func (q *Queries) GetFilesByIds(ctx context.Context, userID string) ([]File, error) {
+	rows, err := q.db.QueryContext(ctx, GetFilesByIds, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []File{}
+	for rows.Next() {
+		var i File
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.FileType,
+			&i.FileHash,
+			&i.Name,
+			&i.Size,
+			&i.Url,
+			&i.Source,
+			&i.ClientID,
+			&i.Metadata,
+			&i.ChunkTaskID,
+			&i.EmbeddingTaskID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const GetFilesByNames = `-- name: GetFilesByNames :many
+SELECT id, user_id, file_type, file_hash, name, size, url, source, client_id, metadata, chunk_task_id, embedding_task_id, created_at, updated_at FROM files
+WHERE user_id = ?
+ORDER BY created_at DESC
+`
+
+func (q *Queries) GetFilesByNames(ctx context.Context, userID string) ([]File, error) {
+	rows, err := q.db.QueryContext(ctx, GetFilesByNames, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []File{}
+	for rows.Next() {
+		var i File
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.FileType,
+			&i.FileHash,
+			&i.Name,
+			&i.Size,
+			&i.Url,
+			&i.Source,
+			&i.ClientID,
+			&i.Metadata,
+			&i.ChunkTaskID,
+			&i.EmbeddingTaskID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const GetGlobalFile = `-- name: GetGlobalFile :one
@@ -544,6 +753,135 @@ func (q *Queries) ListKnowledgeBases(ctx context.Context, userID string) ([]Know
 			&i.Settings,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const QueryFiles = `-- name: QueryFiles :many
+SELECT 
+    f.id,
+    f.name,
+    f.file_type,
+    f.size,
+    f.url,
+    f.created_at,
+    f.updated_at,
+    f.chunk_task_id,
+    f.embedding_task_id
+FROM files f
+WHERE f.user_id = ?
+ORDER BY f.created_at DESC
+`
+
+type QueryFilesRow struct {
+	ID              string         `json:"id"`
+	Name            string         `json:"name"`
+	FileType        string         `json:"fileType"`
+	Size            int64          `json:"size"`
+	Url             string         `json:"url"`
+	CreatedAt       int64          `json:"createdAt"`
+	UpdatedAt       int64          `json:"updatedAt"`
+	ChunkTaskID     sql.NullString `json:"chunkTaskId"`
+	EmbeddingTaskID sql.NullString `json:"embeddingTaskId"`
+}
+
+// File query with filters
+func (q *Queries) QueryFiles(ctx context.Context, userID string) ([]QueryFilesRow, error) {
+	rows, err := q.db.QueryContext(ctx, QueryFiles, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []QueryFilesRow{}
+	for rows.Next() {
+		var i QueryFilesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.FileType,
+			&i.Size,
+			&i.Url,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ChunkTaskID,
+			&i.EmbeddingTaskID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const QueryFilesByKnowledgeBase = `-- name: QueryFilesByKnowledgeBase :many
+SELECT 
+    f.id,
+    f.name,
+    f.file_type,
+    f.size,
+    f.url,
+    f.created_at,
+    f.updated_at,
+    f.chunk_task_id,
+    f.embedding_task_id
+FROM files f
+INNER JOIN knowledge_base_files kbf ON f.id = kbf.file_id
+WHERE kbf.knowledge_base_id = ? AND f.user_id = ?
+ORDER BY f.created_at DESC
+`
+
+type QueryFilesByKnowledgeBaseParams struct {
+	KnowledgeBaseID string `json:"knowledgeBaseId"`
+	UserID          string `json:"userId"`
+}
+
+type QueryFilesByKnowledgeBaseRow struct {
+	ID              string         `json:"id"`
+	Name            string         `json:"name"`
+	FileType        string         `json:"fileType"`
+	Size            int64          `json:"size"`
+	Url             string         `json:"url"`
+	CreatedAt       int64          `json:"createdAt"`
+	UpdatedAt       int64          `json:"updatedAt"`
+	ChunkTaskID     sql.NullString `json:"chunkTaskId"`
+	EmbeddingTaskID sql.NullString `json:"embeddingTaskId"`
+}
+
+func (q *Queries) QueryFilesByKnowledgeBase(ctx context.Context, arg QueryFilesByKnowledgeBaseParams) ([]QueryFilesByKnowledgeBaseRow, error) {
+	rows, err := q.db.QueryContext(ctx, QueryFilesByKnowledgeBase, arg.KnowledgeBaseID, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []QueryFilesByKnowledgeBaseRow{}
+	for rows.Next() {
+		var i QueryFilesByKnowledgeBaseRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.FileType,
+			&i.Size,
+			&i.Url,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ChunkTaskID,
+			&i.EmbeddingTaskID,
 		); err != nil {
 			return nil, err
 		}

@@ -74,6 +74,81 @@ RETURNING *;
 -- name: DeleteGeneration :exec
 DELETE FROM generations WHERE id = ? AND user_id = ?;
 
+-- Complex queries with JOINs for optimization
+
+-- name: GetGenerationBatchWithGenerations :one
+SELECT 
+    gb.*,
+    GROUP_CONCAT(g.id) as generation_ids
+FROM generation_batches gb
+LEFT JOIN generations g ON gb.id = g.generation_batch_id
+WHERE gb.id = ? AND gb.user_id = ?
+GROUP BY gb.id;
+
+-- name: ListGenerationBatchesWithGenerations :many
+SELECT 
+    gb.id as batch_id,
+    gb.generation_topic_id,
+    gb.provider,
+    gb.model,
+    gb.prompt,
+    gb.width,
+    gb.height,
+    gb.ratio,
+    gb.config,
+    gb.created_at as batch_created_at,
+    gb.updated_at as batch_updated_at,
+    g.id as gen_id,
+    g.async_task_id,
+    g.file_id,
+    g.seed,
+    g.asset,
+    g.created_at as gen_created_at,
+    g.updated_at as gen_updated_at,
+    at.id as task_id,
+    at.status as task_state,
+    at.error as task_error
+FROM generation_batches gb
+LEFT JOIN generations g ON gb.id = g.generation_batch_id
+LEFT JOIN async_tasks at ON g.async_task_id = at.id
+WHERE gb.generation_topic_id = ? AND gb.user_id = ?
+ORDER BY gb.created_at ASC, g.created_at ASC, g.id ASC;
+
+-- name: GetGenerationTopicWithBatches :one
+SELECT 
+    gt.*,
+    COUNT(DISTINCT gb.id) as batch_count
+FROM generation_topics gt
+LEFT JOIN generation_batches gb ON gt.id = gb.generation_topic_id
+WHERE gt.id = ? AND gt.user_id = ?
+GROUP BY gt.id;
+
+-- name: ListGenerationTopicsWithCounts :many
+SELECT 
+    gt.*,
+    COUNT(DISTINCT gb.id) as batch_count,
+    COUNT(DISTINCT g.id) as generation_count
+FROM generation_topics gt
+LEFT JOIN generation_batches gb ON gt.id = gb.generation_topic_id
+LEFT JOIN generations g ON gb.id = g.generation_batch_id
+WHERE gt.user_id = ?
+GROUP BY gt.id
+ORDER BY gt.updated_at DESC;
+
+-- Delete queries with cascade information
+
+-- name: GetGenerationBatchAssets :many
+SELECT g.asset
+FROM generations g
+WHERE g.generation_batch_id = ? AND g.user_id = ?;
+
+-- name: GetGenerationTopicAssets :many
+SELECT g.asset, gt.cover_url
+FROM generation_topics gt
+LEFT JOIN generation_batches gb ON gt.id = gb.generation_topic_id
+LEFT JOIN generations g ON gb.id = g.generation_batch_id
+WHERE gt.id = ? AND gt.user_id = ?;
+
 -- name: GetGenerationWithAsyncTask :one
 SELECT 
     g.*,
