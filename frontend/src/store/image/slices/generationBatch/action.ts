@@ -4,7 +4,7 @@ import { SWRResponse, mutate } from 'swr';
 import { StateCreator } from 'zustand';
 
 import { useClientDataSWR } from '@/libs/swr';
-import { GetGenerationStatusResult } from '@/server/routers/lambda/generation';
+import { GetGenerationStatusResult } from '@/types/generation-types';
 import { generationService } from '@/services/generation';
 import { generationBatchService } from '@/services/generationBatch';
 import { AsyncTaskStatus } from '@/types/asyncTask';

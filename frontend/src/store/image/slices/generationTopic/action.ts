@@ -5,7 +5,7 @@ import { StateCreator } from 'zustand/vanilla';
 
 import { LOADING_FLAT } from '@/const/message';
 import { useClientDataSWR } from '@/libs/swr';
-import { UpdateTopicValue } from '@/server/routers/lambda/generationTopic';
+import { UpdateTopicValue } from '@/types/generation-types';
 import { chatService } from '@/services/chat';
 import { generationTopicService } from '@/services/generationTopic';
 import { globalHelpers } from '@/store/global/helpers';
