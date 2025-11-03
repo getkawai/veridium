@@ -1,17 +1,4 @@
-package main
-
-import (
-	"database/sql"
-	"log"
-	"os"
-	"path/filepath"
-
-	_ "modernc.org/sqlite"
-)
-
-type DatabaseService struct{}
-
-const initialSchemaSQL = `-- Initial SQLite migration generated from schemas
+-- Initial SQLite migration generated from schemas
 -- This file contains the initial database setup for Wails SQLite
 
 -- Users table
@@ -430,7 +417,7 @@ CREATE TABLE IF NOT EXISTS chat_groups_agents (
   agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   enabled INTEGER DEFAULT 1 NOT NULL, -- boolean as integer
-  agent_order INTEGER DEFAULT 0,
+  sort_order INTEGER DEFAULT 0,
   role TEXT DEFAULT 'participant',
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
@@ -828,53 +815,181 @@ CREATE TABLE IF NOT EXISTS __drizzle_migrations (
 );
 
 -- Insert initial migration record
-INSERT OR IGNORE INTO __drizzle_migrations (hash, created_at) VALUES ('initial_sqlite_setup', strftime('%s', 'now') * 1000);`
+INSERT OR IGNORE INTO __drizzle_migrations (hash, created_at) VALUES ('initial_sqlite_setup', strftime('%s', 'now') * 1000);-- Additional tables from migrations 0008, 0037, 0040
 
-func (d *DatabaseService) InitializeDatabase() error {
-	// Get user config directory for database location
-	userConfigDir, err := os.UserConfigDir()
-	if err != nil {
-		log.Printf("Warning: Could not get user config dir, using current directory: %v", err)
-		userConfigDir = "."
-	}
+-- RAG Evaluation tables (from 0008_add_rag_evals.sql)
+CREATE TABLE IF NOT EXISTS rag_eval_datasets (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
+  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
+);
 
-	// Create app data directory
-	appDataDir := filepath.Join(userConfigDir, "veridium")
-	if err := os.MkdirAll(appDataDir, 0755); err != nil {
-		return err
-	}
+CREATE TABLE IF NOT EXISTS rag_eval_dataset_records (
+  id TEXT PRIMARY KEY,
+  dataset_id TEXT NOT NULL REFERENCES rag_eval_datasets(id) ON DELETE CASCADE,
+  query TEXT NOT NULL,
+  reference_answer TEXT,
+  reference_contexts TEXT,  -- JSON as text
+  metadata TEXT,  -- JSON as text
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
+  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
+);
 
-	// Database file path
-	dbPath := filepath.Join(appDataDir, "veridium.db")
+CREATE TABLE IF NOT EXISTS rag_eval_evaluations (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  dataset_id TEXT NOT NULL REFERENCES rag_eval_datasets(id) ON DELETE CASCADE,
+  config TEXT,  -- JSON as text
+  status TEXT NOT NULL CHECK (status IN ('pending', 'running', 'completed', 'failed')),
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
+  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
+);
 
-	// Open SQLite database
-	db, err := sql.Open("sqlite", dbPath)
-	if err != nil {
-		return err
-	}
-	defer db.Close()
+CREATE TABLE IF NOT EXISTS rag_eval_evaluation_records (
+  id TEXT PRIMARY KEY,
+  evaluation_id TEXT NOT NULL REFERENCES rag_eval_evaluations(id) ON DELETE CASCADE,
+  dataset_record_id TEXT NOT NULL REFERENCES rag_eval_dataset_records(id) ON DELETE CASCADE,
+  retrieved_contexts TEXT,  -- JSON as text
+  generated_answer TEXT,
+  metrics TEXT,  -- JSON as text
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
+  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
+);
 
-	// Execute schema migration
-	_, err = db.Exec(initialSchemaSQL)
-	if err != nil {
-		return err
-	}
+-- User Memory tables (from 0037_add_user_memory.sql, 0040_improve_user_memory_field.sql)
+CREATE TABLE IF NOT EXISTS user_memories (
+  id TEXT PRIMARY KEY,
+  user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+  memory_category TEXT,
+  memory_layer TEXT,
+  memory_type TEXT,
+  title TEXT,
+  summary TEXT,
+  summary_vector_1024 BLOB,  -- Store as BLOB in SQLite
+  details TEXT,
+  details_vector_1024 BLOB,  -- Store as BLOB in SQLite
+  status TEXT,
+  accessed_count INTEGER DEFAULT 0,
+  last_accessed_at INTEGER NOT NULL,
+  accessed_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
+  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
+  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
+);
 
-	log.Println("Database initialized successfully")
-	return nil
-}
+CREATE TABLE IF NOT EXISTS user_memories_contexts (
+  id TEXT PRIMARY KEY,
+  user_memory_ids TEXT,  -- JSON as text
+  labels TEXT,  -- JSON as text
+  extracted_labels TEXT,  -- JSON as text
+  associated_objects TEXT,  -- JSON as text
+  associated_subjects TEXT,  -- JSON as text
+  title TEXT,
+  title_vector BLOB,  -- Store as BLOB in SQLite
+  description TEXT,
+  description_vector BLOB,  -- Store as BLOB in SQLite
+  type TEXT,
+  current_status TEXT,
+  score_impact REAL DEFAULT 0,
+  score_urgency REAL DEFAULT 0,
+  accessed_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
+  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
+  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
+);
 
-func (d *DatabaseService) GetDatabasePath() (string, error) {
-	userConfigDir, err := os.UserConfigDir()
-	if err != nil {
-		log.Printf("Warning: Could not get user config dir, using current directory: %v", err)
-		userConfigDir = "."
-	}
+CREATE TABLE IF NOT EXISTS user_memories_experiences (
+  id TEXT PRIMARY KEY,
+  user_memory_id TEXT REFERENCES user_memories(id) ON DELETE CASCADE,
+  labels TEXT,  -- JSON as text
+  extracted_labels TEXT,  -- JSON as text
+  type TEXT,
+  situation TEXT,
+  situation_vector BLOB,  -- Store as BLOB in SQLite
+  reasoning TEXT,
+  possible_outcome TEXT,
+  action TEXT,
+  action_vector BLOB,  -- Store as BLOB in SQLite
+  key_learning TEXT,
+  key_learning_vector BLOB,  -- Store as BLOB in SQLite
+  metadata TEXT,  -- JSON as text
+  score_confidence REAL DEFAULT 0,
+  accessed_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
+  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
+  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
+);
 
-	appDataDir := filepath.Join(userConfigDir, "veridium")
-	if err := os.MkdirAll(appDataDir, 0755); err != nil {
-		return "", err
-	}
+CREATE TABLE IF NOT EXISTS user_memories_identities (
+  id TEXT PRIMARY KEY,
+  user_memory_id TEXT REFERENCES user_memories(id) ON DELETE CASCADE,
+  current_focuses TEXT,
+  description TEXT,
+  description_vector BLOB,  -- Store as BLOB in SQLite
+  experience TEXT,
+  extracted_labels TEXT,  -- JSON as text
+  labels TEXT,  -- JSON as text
+  relationship TEXT,
+  role TEXT,
+  type TEXT,
+  accessed_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
+  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
+  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
+);
 
-	return filepath.Join(appDataDir, "veridium.db"), nil
-}
+CREATE TABLE IF NOT EXISTS user_memories_preferences (
+  id TEXT PRIMARY KEY,
+  context_id TEXT REFERENCES user_memories_contexts(id) ON DELETE CASCADE,
+  user_memory_id TEXT REFERENCES user_memories(id) ON DELETE CASCADE,
+  labels TEXT,  -- JSON as text
+  extracted_labels TEXT,  -- JSON as text
+  extracted_scopes TEXT,  -- JSON as text
+  conclusion_directives TEXT,
+  conclusion_directives_vector BLOB,  -- Store as BLOB in SQLite
+  type TEXT,
+  suggestions TEXT,
+  score_priority REAL DEFAULT 0,
+  accessed_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
+  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
+  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
+);
+
+-- User budgets and subscriptions (from various migrations)
+CREATE TABLE IF NOT EXISTS user_budgets (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  budget_type TEXT NOT NULL,
+  amount REAL NOT NULL,
+  period TEXT NOT NULL,
+  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
+  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
+);
+
+CREATE TABLE IF NOT EXISTS user_subscriptions (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  plan_id TEXT NOT NULL,
+  status TEXT NOT NULL,
+  started_at INTEGER NOT NULL,
+  expires_at INTEGER,
+  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
+  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
+);
+
+-- Create indexes for performance
+CREATE INDEX IF NOT EXISTS idx_rag_eval_datasets_user_id ON rag_eval_datasets(user_id);
+CREATE INDEX IF NOT EXISTS idx_rag_eval_dataset_records_dataset_id ON rag_eval_dataset_records(dataset_id);
+CREATE INDEX IF NOT EXISTS idx_rag_eval_evaluations_dataset_id ON rag_eval_evaluations(dataset_id);
+CREATE INDEX IF NOT EXISTS idx_rag_eval_evaluation_records_evaluation_id ON rag_eval_evaluation_records(evaluation_id);
+
+CREATE INDEX IF NOT EXISTS idx_user_memories_user_id ON user_memories(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_memories_experiences_user_memory_id ON user_memories_experiences(user_memory_id);
+CREATE INDEX IF NOT EXISTS idx_user_memories_identities_user_memory_id ON user_memories_identities(user_memory_id);
+CREATE INDEX IF NOT EXISTS idx_user_memories_preferences_user_memory_id ON user_memories_preferences(user_memory_id);
+
+CREATE INDEX IF NOT EXISTS idx_user_budgets_user_id ON user_budgets(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_subscriptions_user_id ON user_subscriptions(user_id);
+

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/kawai-network/veridium/internal/database"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/services/fileserver"
 	"github.com/wailsapp/wails/v3/pkg/services/kvstore"
@@ -27,6 +28,15 @@ var assets embed.FS
 // and starts a goroutine that emits a time-based event every second. It subsequently runs the application and
 // logs any error that might occur.
 func main() {
+	// Initialize database service
+	dbService, err := database.NewService()
+	if err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
+	defer dbService.Close()
+
+	// Get queries - this is what we'll bind to Wails
+	queries := dbService.Queries()
 
 	// Create a new Wails application by providing the necessary options.
 	// Variables 'Name' and 'Description' are for application metadata.
@@ -38,8 +48,8 @@ func main() {
 		Description: "A demo of using raw HTML & CSS",
 		Services: []application.Service{
 			application.NewService(&GreetService{}),
-			// Database initialization service
-			application.NewService(&DatabaseService{}),
+			// Database queries - direct sqlc generated code
+			application.NewService(queries),
 			// Machine ID service
 			application.NewService(&MachineIDService{}),
 			// Temp file service
@@ -107,14 +117,6 @@ func main() {
 		URL:              "/",
 	})
 
-	// Initialize database before starting the application
-	log.Println("Initializing database...")
-	dbService := &DatabaseService{}
-	if err := dbService.InitializeDatabase(); err != nil {
-		log.Printf("Warning: Failed to initialize database: %v", err)
-		// Don't exit, continue with app startup
-	}
-
 	// Create a goroutine that emits an event containing the current time every second.
 	// The frontend can listen to this event and update the UI accordingly.
 	go func() {
@@ -126,10 +128,7 @@ func main() {
 	}()
 
 	// Run the application. This blocks until the application has been exited.
-	err := app.Run()
-
-	// If an error occurred while running the application, log it and exit.
-	if err != nil {
+	if err = app.Run(); err != nil {
 		log.Fatal(err)
 	}
 }
