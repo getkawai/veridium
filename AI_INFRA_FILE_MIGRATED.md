@@ -621,12 +621,13 @@ test('batchUpdateAiModels - performance with 100 models', async () => {
 ## Next Steps
 
 1. ✅ **Done**: Basic migration with UPSERT optimizations
-2. ⏳ **TODO**: Add backend transaction methods for critical operations
-3. ⏳ **TODO**: Add batch insert queries for AI models
-4. ⏳ **TODO**: Add specific file query filters (category, KB exclusion)
-5. ⏳ **TODO**: Fix `aiModel.findById()` to accept `providerId`
-6. ⏳ **TODO**: Add cleanup script for orphaned data
-7. ⏳ **TODO**: Add indexes on frequently queried fields
+2. ✅ **Done**: Add backend transaction methods for critical operations (see [TRANSACTION_SOLUTIONS_IMPLEMENTED.md](./TRANSACTION_SOLUTIONS_IMPLEMENTED.md))
+3. ✅ **Done**: Add batch insert queries for AI models with transactions
+4. ⏳ **TODO**: Update frontend models to use new transaction methods
+5. ⏳ **TODO**: Add specific file query filters (category, KB exclusion)
+6. ⏳ **TODO**: Fix `aiModel.findById()` to accept `providerId`
+7. ⏳ **TODO**: Add cleanup script for orphaned data
+8. ⏳ **TODO**: Add indexes on frequently queried fields
 
 ## Status
 

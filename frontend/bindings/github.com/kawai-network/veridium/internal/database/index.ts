@@ -7,6 +7,8 @@ export {
 };
 
 export {
+    CreateFileWithLinksParams,
     CreateMessageWithRelationsParams,
+    DeleteFileWithCascadeParams,
     UpdateMessageWithImagesParams
 } from "./models.js";

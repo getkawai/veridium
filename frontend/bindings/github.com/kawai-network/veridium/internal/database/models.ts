@@ -13,6 +13,50 @@ import * as sql$0 from "../../../../../database/sql/models.js";
 import * as db$0 from "./generated/models.js";
 
 /**
+ * CreateFileWithLinksParams contains all data needed to create a file with its links
+ */
+export class CreateFileWithLinksParams {
+    "File": db$0.CreateFileParams;
+    "GlobalFile": db$0.CreateGlobalFileParams | null;
+
+    /**
+     * Knowledge base ID to link to
+     */
+    "KnowledgeBase": string | null;
+
+    /** Creates a new CreateFileWithLinksParams instance. */
+    constructor($$source: Partial<CreateFileWithLinksParams> = {}) {
+        if (!("File" in $$source)) {
+            this["File"] = (new db$0.CreateFileParams());
+        }
+        if (!("GlobalFile" in $$source)) {
+            this["GlobalFile"] = null;
+        }
+        if (!("KnowledgeBase" in $$source)) {
+            this["KnowledgeBase"] = null;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CreateFileWithLinksParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CreateFileWithLinksParams {
+        const $$createField0_0 = $$createType0;
+        const $$createField1_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("File" in $$parsedSource) {
+            $$parsedSource["File"] = $$createField0_0($$parsedSource["File"]);
+        }
+        if ("GlobalFile" in $$parsedSource) {
+            $$parsedSource["GlobalFile"] = $$createField1_0($$parsedSource["GlobalFile"]);
+        }
+        return new CreateFileWithLinksParams($$parsedSource as Partial<CreateFileWithLinksParams>);
+    }
+}
+
+/**
  * CreateMessageWithRelationsParams contains all data needed to create a message with its relations
  */
 export class CreateMessageWithRelationsParams {
@@ -43,10 +87,10 @@ export class CreateMessageWithRelationsParams {
      * Creates a new CreateMessageWithRelationsParams instance from a string or object.
      */
     static createFrom($$source: any = {}): CreateMessageWithRelationsParams {
-        const $$createField0_0 = $$createType0;
-        const $$createField1_0 = $$createType2;
-        const $$createField2_0 = $$createType3;
-        const $$createField3_0 = $$createType6;
+        const $$createField0_0 = $$createType3;
+        const $$createField1_0 = $$createType5;
+        const $$createField2_0 = $$createType6;
+        const $$createField3_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("Message" in $$parsedSource) {
             $$parsedSource["Message"] = $$createField0_0($$parsedSource["Message"]);
@@ -61,6 +105,42 @@ export class CreateMessageWithRelationsParams {
             $$parsedSource["FileChunks"] = $$createField3_0($$parsedSource["FileChunks"]);
         }
         return new CreateMessageWithRelationsParams($$parsedSource as Partial<CreateMessageWithRelationsParams>);
+    }
+}
+
+/**
+ * DeleteFileWithCascadeParams contains data needed to delete a file with all related data
+ */
+export class DeleteFileWithCascadeParams {
+    "FileID": string;
+    "UserID": string;
+    "RemoveGlobalFile": boolean;
+    "FileHash": string;
+
+    /** Creates a new DeleteFileWithCascadeParams instance. */
+    constructor($$source: Partial<DeleteFileWithCascadeParams> = {}) {
+        if (!("FileID" in $$source)) {
+            this["FileID"] = "";
+        }
+        if (!("UserID" in $$source)) {
+            this["UserID"] = "";
+        }
+        if (!("RemoveGlobalFile" in $$source)) {
+            this["RemoveGlobalFile"] = false;
+        }
+        if (!("FileHash" in $$source)) {
+            this["FileHash"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DeleteFileWithCascadeParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DeleteFileWithCascadeParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DeleteFileWithCascadeParams($$parsedSource as Partial<DeleteFileWithCascadeParams>);
     }
 }
 
@@ -91,8 +171,8 @@ export class UpdateMessageWithImagesParams {
      * Creates a new UpdateMessageWithImagesParams instance from a string or object.
      */
     static createFrom($$source: any = {}): UpdateMessageWithImagesParams {
-        const $$createField1_0 = $$createType7;
-        const $$createField2_0 = $$createType3;
+        const $$createField1_0 = $$createType10;
+        const $$createField2_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("Message" in $$parsedSource) {
             $$parsedSource["Message"] = $$createField1_0($$parsedSource["Message"]);
@@ -105,13 +185,16 @@ export class UpdateMessageWithImagesParams {
 }
 
 // Private type creation functions
-const $$createType0 = db$0.CreateMessageParams.createFrom;
-const $$createType1 = db$0.CreateMessagePluginParams.createFrom;
+const $$createType0 = db$0.CreateFileParams.createFrom;
+const $$createType1 = db$0.CreateGlobalFileParams.createFrom;
 const $$createType2 = $Create.Nullable($$createType1);
-const $$createType3 = $Create.Array($Create.Any);
-const $$createType4 = sql$0.NullInt64.createFrom;
-const $$createType5 = $Create.Struct({
-    "Similarity": $$createType4,
+const $$createType3 = db$0.CreateMessageParams.createFrom;
+const $$createType4 = db$0.CreateMessagePluginParams.createFrom;
+const $$createType5 = $Create.Nullable($$createType4);
+const $$createType6 = $Create.Array($Create.Any);
+const $$createType7 = sql$0.NullInt64.createFrom;
+const $$createType8 = $Create.Struct({
+    "Similarity": $$createType7,
 });
-const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = db$0.UpdateMessageParams.createFrom;
+const $$createType9 = $Create.Array($$createType8);
+const $$createType10 = db$0.UpdateMessageParams.createFrom;

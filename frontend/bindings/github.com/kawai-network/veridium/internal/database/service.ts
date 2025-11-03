@@ -22,6 +22,16 @@ import * as db$0 from "./generated/models.js";
 import * as $models from "./models.js";
 
 /**
+ * BatchInsertAIModels inserts multiple AI models atomically
+ * Ignores conflicts (models that already exist)
+ */
+export function BatchInsertAIModels(models: db$0.CreateAIModelParams[]): $CancellablePromise<db$0.AiModel[]> {
+    return $Call.ByID(3944028528, models).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
+/**
  * Close closes the database connection
  */
 export function Close(): $CancellablePromise<void> {
@@ -29,11 +39,21 @@ export function Close(): $CancellablePromise<void> {
 }
 
 /**
+ * CreateFileWithLinks creates a file, optionally creates a global file, and links to knowledge base
+ * All operations are atomic within a transaction
+ */
+export function CreateFileWithLinks(params: $models.CreateFileWithLinksParams): $CancellablePromise<db$0.File | null> {
+    return $Call.ByID(1179223106, params).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
+/**
  * CreateMessageWithRelations creates a message and all its related data in a single transaction
  */
 export function CreateMessageWithRelations(params: $models.CreateMessageWithRelationsParams, userId: string): $CancellablePromise<db$0.Message> {
     return $Call.ByID(384784407, params, userId).then(($result: any) => {
-        return $$createType0($result);
+        return $$createType4($result);
     });
 }
 
@@ -42,8 +62,23 @@ export function CreateMessageWithRelations(params: $models.CreateMessageWithRela
  */
 export function DB(): $CancellablePromise<sql$0.DB | null> {
     return $Call.ByID(270951045).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType6($result);
     });
+}
+
+/**
+ * DeleteAIProviderWithModels deletes an AI provider and all its models atomically
+ */
+export function DeleteAIProviderWithModels(providerID: string, userID: string): $CancellablePromise<void> {
+    return $Call.ByID(2052033689, providerID, userID);
+}
+
+/**
+ * DeleteFileWithCascade deletes a file and all its related chunks and embeddings
+ * All operations are atomic within a transaction
+ */
+export function DeleteFileWithCascade(params: $models.DeleteFileWithCascadeParams): $CancellablePromise<void> {
+    return $Call.ByID(4118927980, params);
 }
 
 /**
@@ -58,7 +93,7 @@ export function DeleteMessageWithRelated(toolCallIdsJson: string, messageIds: st
  */
 export function GetDocumentsByFileIds(fileIdsJson: string, userId: string): $CancellablePromise<db$0.GetDocumentByFileIdRow[]> {
     return $Call.ByID(1781854764, fileIdsJson, userId).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType8($result);
     });
 }
 
@@ -67,7 +102,7 @@ export function GetDocumentsByFileIds(fileIdsJson: string, userId: string): $Can
  */
 export function GetMessagesByToolCallIds(toolCallIdsJson: string, userId: string): $CancellablePromise<string[]> {
     return $Call.ByID(2607655468, toolCallIdsJson, userId).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType9($result);
     });
 }
 
@@ -76,7 +111,7 @@ export function GetMessagesByToolCallIds(toolCallIdsJson: string, userId: string
  */
 export function Queries(): $CancellablePromise<db$0.Queries | null> {
     return $Call.ByID(1766016461).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType11($result);
     });
 }
 
@@ -95,11 +130,15 @@ export function WithTx(fn: any): $CancellablePromise<void> {
 }
 
 // Private type creation functions
-const $$createType0 = db$0.Message.createFrom;
-const $$createType1 = sql$0.DB.createFrom;
-const $$createType2 = $Create.Nullable($$createType1);
-const $$createType3 = db$0.GetDocumentByFileIdRow.createFrom;
-const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = $Create.Array($Create.Any);
-const $$createType6 = db$0.Queries.createFrom;
-const $$createType7 = $Create.Nullable($$createType6);
+const $$createType0 = db$0.AiModel.createFrom;
+const $$createType1 = $Create.Array($$createType0);
+const $$createType2 = db$0.File.createFrom;
+const $$createType3 = $Create.Nullable($$createType2);
+const $$createType4 = db$0.Message.createFrom;
+const $$createType5 = sql$0.DB.createFrom;
+const $$createType6 = $Create.Nullable($$createType5);
+const $$createType7 = db$0.GetDocumentByFileIdRow.createFrom;
+const $$createType8 = $Create.Array($$createType7);
+const $$createType9 = $Create.Array($Create.Any);
+const $$createType10 = db$0.Queries.createFrom;
+const $$createType11 = $Create.Nullable($$createType10);

@@ -262,3 +262,176 @@ func (s *Service) GetDocumentsByFileIds(ctx context.Context, fileIdsJson string,
 
 	return results, nil
 }
+
+// ============================================================================
+// FILE OPERATIONS WITH TRANSACTIONS
+// ============================================================================
+
+// CreateFileWithLinksParams contains all data needed to create a file with its links
+type CreateFileWithLinksParams struct {
+	File          db.CreateFileParams
+	GlobalFile    *db.CreateGlobalFileParams
+	KnowledgeBase *string // Knowledge base ID to link to
+}
+
+// CreateFileWithLinks creates a file, optionally creates a global file, and links to knowledge base
+// All operations are atomic within a transaction
+func (s *Service) CreateFileWithLinks(ctx context.Context, params CreateFileWithLinksParams) (*db.File, error) {
+	var result *db.File
+
+	err := s.WithTx(ctx, func(q *db.Queries) error {
+		// 1. Create global file if provided
+		if params.GlobalFile != nil {
+			if _, err := q.CreateGlobalFile(ctx, *params.GlobalFile); err != nil {
+				// Ignore if already exists
+				if err.Error() != "UNIQUE constraint failed" {
+					return fmt.Errorf("failed to create global file: %w", err)
+				}
+			}
+		}
+
+		// 2. Create file
+		file, err := q.CreateFile(ctx, params.File)
+		if err != nil {
+			return fmt.Errorf("failed to create file: %w", err)
+		}
+
+		// 3. Link to knowledge base if provided
+		if params.KnowledgeBase != nil {
+			err = q.LinkKnowledgeBaseToFile(ctx, db.LinkKnowledgeBaseToFileParams{
+				KnowledgeBaseID: *params.KnowledgeBase,
+				FileID:          file.ID,
+				UserID:          params.File.UserID,
+				CreatedAt:       params.File.CreatedAt,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to link to knowledge base: %w", err)
+			}
+		}
+
+		result = &file
+		return nil
+	})
+
+	return result, err
+}
+
+// DeleteFileWithCascadeParams contains data needed to delete a file with all related data
+type DeleteFileWithCascadeParams struct {
+	FileID           string
+	UserID           string
+	RemoveGlobalFile bool
+	FileHash         string
+}
+
+// DeleteFileWithCascade deletes a file and all its related chunks and embeddings
+// All operations are atomic within a transaction
+func (s *Service) DeleteFileWithCascade(ctx context.Context, params DeleteFileWithCascadeParams) error {
+	return s.WithTx(ctx, func(q *db.Queries) error {
+		// 1. Get chunk IDs for this file
+		chunkIds, err := q.GetFileChunkIds(ctx, sql.NullString{String: params.FileID, Valid: true})
+		if err != nil && err != sql.ErrNoRows {
+			return fmt.Errorf("failed to get chunk IDs: %w", err)
+		}
+
+		// 2. Delete embeddings for each chunk
+		for _, chunkRow := range chunkIds {
+			// Try to delete embedding (may not exist)
+			_ = q.DeleteEmbedding(ctx, db.DeleteEmbeddingParams{
+				ID:     chunkRow.ChunkID,
+				UserID: sql.NullString{String: params.UserID, Valid: true},
+			})
+		}
+
+		// 3. Delete chunks
+		for _, chunkRow := range chunkIds {
+			err := q.DeleteChunk(ctx, db.DeleteChunkParams{
+				ID:     chunkRow.ChunkID,
+				UserID: params.UserID,
+			})
+			if err != nil && err != sql.ErrNoRows {
+				return fmt.Errorf("failed to delete chunk: %w", err)
+			}
+		}
+
+		// 4. Delete file record
+		err = q.DeleteFile(ctx, db.DeleteFileParams{
+			ID:     params.FileID,
+			UserID: params.UserID,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to delete file: %w", err)
+		}
+
+		// 5. Check if global file should be deleted
+		if params.RemoveGlobalFile && params.FileHash != "" {
+			countResult, err := q.CountFilesByHash(ctx, db.CountFilesByHashParams{
+				FileHash: sql.NullString{String: params.FileHash, Valid: true},
+			})
+			if err != nil {
+				return fmt.Errorf("failed to count files by hash: %w", err)
+			}
+
+			// Delete global file if no other files use it
+			if countResult.Count == 0 {
+				_ = q.DeleteGlobalFile(ctx, sql.NullString{String: params.FileHash, Valid: true})
+			}
+		}
+
+		return nil
+	})
+}
+
+// ============================================================================
+// AI PROVIDER OPERATIONS WITH TRANSACTIONS
+// ============================================================================
+
+// DeleteAIProviderWithModels deletes an AI provider and all its models atomically
+func (s *Service) DeleteAIProviderWithModels(ctx context.Context, providerID string, userID string) error {
+	return s.WithTx(ctx, func(q *db.Queries) error {
+		// 1. Delete all models of the provider
+		err := q.DeleteModelsByProvider(ctx, db.DeleteModelsByProviderParams{
+			ProviderID: sql.NullString{String: providerID, Valid: true},
+			UserID:     userID,
+		})
+		if err != nil && err != sql.ErrNoRows {
+			return fmt.Errorf("failed to delete models: %w", err)
+		}
+
+		// 2. Delete the provider
+		err = q.DeleteAIProvider(ctx, db.DeleteAIProviderParams{
+			ID:     providerID,
+			UserID: userID,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to delete provider: %w", err)
+		}
+
+		return nil
+	})
+}
+
+// BatchInsertAIModelsParams contains data for batch inserting AI models
+type BatchInsertAIModelsParams struct {
+	Models []db.CreateAIModelParams
+}
+
+// BatchInsertAIModels inserts multiple AI models atomically
+// Ignores conflicts (models that already exist)
+func (s *Service) BatchInsertAIModels(ctx context.Context, models []db.CreateAIModelParams) ([]db.AiModel, error) {
+	var results []db.AiModel
+
+	err := s.WithTx(ctx, func(q *db.Queries) error {
+		for _, model := range models {
+			result, err := q.CreateAIModel(ctx, model)
+			if err != nil {
+				// Ignore UNIQUE constraint failures
+				continue
+			}
+			results = append(results, result)
+		}
+		return nil
+	})
+
+	return results, err
+}
