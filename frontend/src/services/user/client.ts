@@ -89,14 +89,27 @@ export class ClientService extends BaseClientService implements IUserService {
   };
 
   makeSureUserExist = async () => {
-    const existUsers = await clientDB.query.users.findMany();
+    // Check if user exists using Wails bindings
+    const existUsers = await DB.ListUsers();
 
     let user: { id: string };
     if (existUsers.length === 0) {
-      const result = await clientDB.insert(users).values({ id: this.userId }).returning();
-      user = result[0];
+      // Create user using Wails bindings
+      const result = await DB.CreateUser({
+        id: this.userId,
+        avatar: toNullString(null),
+        firstName: toNullString(null),
+        lastName: toNullString(null),
+        email: toNullString(null),
+        phone: toNullString(null),
+        username: toNullString(null),
+        preference: toNullJSON(null),
+        createdAt: currentTimestampMs(),
+        updatedAt: currentTimestampMs(),
+      });
+      user = { id: result.id };
     } else {
-      user = existUsers[0];
+      user = { id: existUsers[0].id };
     }
 
     return user;

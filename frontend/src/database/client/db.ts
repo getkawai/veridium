@@ -1,30 +1,23 @@
-import { sql } from 'drizzle-orm';
-import { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
-import { Md5 } from 'ts-md5';
+/**
+ * Database Client - Wails Bindings Only
+ * Database initialization is handled by Go backend.
+ * This file only provides connection status and callbacks.
+ */
 
 import {
   ClientDBLoadingProgress,
   DatabaseLoadingState,
-  MigrationSQL,
-  MigrationTableItem,
 } from '@/types/clientDB';
 import { sleep } from '@/utils/sleep';
 
-import migrations from '../core/migrations.json';
-import { DrizzleMigrationModel } from '../models/drizzleMigration';
-import * as schema from '../schemas';
-import { WailsSQLiteDriver, createDrizzleWailsSQLite } from './wails-sqlite-driver';
-import { initWailsSQLite } from './wails-sqlite';
-
-const sqliteSchemaHashCache = 'VERIDIUM_SQLITE_SCHEMA_HASH';
+// Import Wails bindings check
+import { DB } from '@/types/database';
 
 const DB_NAME = 'veridium';
-type DrizzleInstance = BaseSQLiteDatabase<'sync', any, typeof schema>;
 
 interface onErrorState {
   error: Error;
-  migrationTableItems: MigrationTableItem[];
-  migrationsSQL: MigrationSQL[];
+  message: string;
 }
 
 export interface DatabaseLoadingCallbacks {
@@ -35,11 +28,9 @@ export interface DatabaseLoadingCallbacks {
 
 export class DatabaseManager {
   private static instance: DatabaseManager;
-  private dbInstance: DrizzleInstance | null = null;
-  private driver: WailsSQLiteDriver | null = null;
-  private initPromise: Promise<DrizzleInstance> | null = null;
+  private isInitialized = false;
+  private initPromise: Promise<void> | null = null;
   private callbacks?: DatabaseLoadingCallbacks;
-  private isLocalDBSchemaSynced = false;
 
   private constructor() {}
 
@@ -50,38 +41,47 @@ export class DatabaseManager {
     return DatabaseManager.instance;
   }
 
-  // 数据库迁移方法 - 简化版，因为数据库已在后端初始化
-  private async migrate(skipMultiRun = false): Promise<DrizzleInstance> {
-    if (this.isLocalDBSchemaSynced && skipMultiRun) return this.db;
-
-    // 数据库已在后端初始化，我们只需要标记为已同步
-    this.isLocalDBSchemaSynced = true;
-    console.log('✅ Database initialized by backend, skipping frontend migrations');
-
-    return this.db;
-  }
-
-  // 初始化数据库
-  async initialize(callbacks?: DatabaseLoadingCallbacks): Promise<DrizzleInstance> {
+  /**
+   * Initialize database connection check.
+   * Database is already initialized by Go backend, we just verify it works.
+   */
+  async initialize(callbacks?: DatabaseLoadingCallbacks): Promise<void> {
     if (this.initPromise) return this.initPromise;
 
     this.callbacks = callbacks;
 
     this.initPromise = (async () => {
       try {
-        if (this.dbInstance) return this.dbInstance;
+        if (this.isInitialized) return;
 
         const time = Date.now();
-        // 初始化数据库
+        
         this.callbacks?.onStateChange?.(DatabaseLoadingState.Initializing);
-
-        // Initialize Wails SQLite connection
         this.callbacks?.onProgress?.({
           phase: 'dependencies',
-          progress: 50,
+          progress: 30,
         });
 
-        this.driver = await initWailsSQLite();
+        // Verify Wails bindings are available
+        if (typeof DB === 'undefined') {
+          throw new Error('Wails DB bindings not available');
+        }
+
+        this.callbacks?.onProgress?.({
+          phase: 'dependencies',
+          progress: 60,
+        });
+
+        // Test database connection with a simple query
+        try {
+          // Try to ping the database with a simple count query
+          // This will fail if database is not initialized
+          await DB.CountMessages('test-connection-check');
+          console.log('✅ Database connection verified');
+        } catch (e) {
+          console.error('❌ Database connection failed:', e);
+          throw new Error('Failed to connect to database. Make sure backend is running.');
+        }
 
         this.callbacks?.onProgress?.({
           costTime: Date.now() - time,
@@ -89,36 +89,17 @@ export class DatabaseManager {
           progress: 100,
         });
 
-        // Create Drizzle instance with Wails SQLite driver
-        const db = await createDrizzleWailsSQLite(this.driver, schema);
-
-        // Use the Drizzle instance directly instead of BaseSQLiteDatabase
-        this.dbInstance = db;
-
-        await this.migrate(true);
-
+        this.isInitialized = true;
         this.callbacks?.onStateChange?.(DatabaseLoadingState.Finished);
-        console.log(`✅ Database initialized in ${Date.now() - time}ms`);
+        console.log(`✅ Database ready in ${Date.now() - time}ms`);
 
         await sleep(50);
 
         this.callbacks?.onStateChange?.(DatabaseLoadingState.Ready);
-
-        return this.dbInstance as DrizzleInstance;
       } catch (e) {
         this.initPromise = null;
         this.callbacks?.onStateChange?.(DatabaseLoadingState.Error);
         const error = e as Error;
-
-        // 查询迁移表数据
-        let migrationsTableData: MigrationTableItem[] = [];
-        try {
-          // 尝试查询迁移表
-          const drizzleMigration = new DrizzleMigrationModel(this.db as any);
-          migrationsTableData = await drizzleMigration.getMigrationList();
-        } catch (queryError) {
-          console.error('Failed to query migrations table:', queryError);
-        }
 
         this.callbacks?.onError?.({
           error: {
@@ -126,15 +107,10 @@ export class DatabaseManager {
             name: error.name,
             stack: error.stack,
           },
-          migrationTableItems: migrationsTableData,
-          migrationsSQL: (migrations as any[]).map(m => ({
-            ...m,
-            bps: m.bps ?? false,
-            folderMillis: m.folderMillis ?? 0,
-          })),
+          message: 'Database connection failed. Please restart the application.',
         });
 
-        console.error(error);
+        console.error('Database initialization error:', error);
         throw error;
       }
     })();
@@ -142,68 +118,69 @@ export class DatabaseManager {
     return this.initPromise;
   }
 
-  // 获取数据库实例
-  get db(): DrizzleInstance {
-    if (!this.dbInstance) {
-      throw new Error('Database not initialized. Please call initialize() first.');
-    }
-    return this.dbInstance;
+  /**
+   * Check if database is initialized
+   */
+  get isReady(): boolean {
+    return this.isInitialized;
   }
 
-  // 创建代理对象
-  createProxy(): DrizzleInstance {
-    return new Proxy({} as DrizzleInstance, {
-      get: (target, prop) => {
-        return this.db[prop as keyof DrizzleInstance];
-      },
-    });
-  }
-
+  /**
+   * Reset database state (for testing/debugging)
+   */
   async resetDatabase(): Promise<void> {
-    // 1. Close the Wails SQLite connection
-    if (this.driver) {
-      try {
-        const { closeWailsSQLite } = await import('./wails-sqlite');
-        await closeWailsSQLite();
-        console.log('Wails SQLite connection closed successfully.');
-      } catch (e) {
-        console.error('Error closing Wails SQLite connection:', e);
-      }
-    }
-
-    // 2. Reset database instance and initialization state
-    this.dbInstance = null;
-    this.driver = null;
+    this.isInitialized = false;
     this.initPromise = null;
-    this.isLocalDBSchemaSynced = false;
-
-    // 3. Clear schema hash cache
-    if (typeof localStorage !== 'undefined') {
-      localStorage.removeItem(sqliteSchemaHashCache);
-    }
-
-    console.log(`✅ Database '${DB_NAME}' reset successfully`);
+    console.log(`✅ Database '${DB_NAME}' state reset`);
   }
 }
 
-// 导出单例
+// Export singleton instance
 const dbManager = DatabaseManager.getInstance();
 
-// 保持原有的 clientDB 导出不变
-export const clientDB = dbManager.createProxy();
+/**
+ * Legacy clientDB export - now just a marker object.
+ * All database operations should use direct Wails bindings (DB.*).
+ * This is kept for backward compatibility with existing code.
+ */
+export const clientDB = {
+  _type: 'wails-binding',
+  _note: 'Use DB.* from @/types/database for all database operations',
+} as any;
 
-// 导出初始化方法，供应用启动时使用
+/**
+ * Initialize database connection check
+ */
 export const initializeDB = (callbacks?: DatabaseLoadingCallbacks) =>
   dbManager.initialize(callbacks);
 
+/**
+ * Reset database state
+ */
 export const resetClientDatabase = async () => {
   await dbManager.resetDatabase();
 };
 
-export const updateMigrationRecord = async (migrationHash: string) => {
-  await clientDB.run(
-    sql`INSERT INTO "drizzle"."__drizzle_migrations" ("hash", "created_at") VALUES (${migrationHash}, ${Date.now()});`,
-  );
+/**
+ * Check if database is ready
+ */
+export const isDatabaseReady = () => dbManager.isReady;
 
-  await initializeDB();
+/**
+ * Get database configuration
+ */
+export const getClientDBConfig = () => ({
+  mode: 'client' as const,
+  driver: 'wails',
+  initialized: dbManager.isReady,
+});
+
+/**
+ * Legacy migration method - no longer needed.
+ * Database is initialized and migrated by Go backend.
+ * Kept for backward compatibility.
+ */
+export const updateMigrationRecord = async (migrationHash: string) => {
+  console.warn('updateMigrationRecord is deprecated - migrations handled by Go backend');
+  // Do nothing - migrations are handled by Go backend
 };
