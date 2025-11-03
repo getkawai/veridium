@@ -411,7 +411,12 @@ const processModelCard = (
     )
       return undefined;
 
-    const units = [];
+    const units: Array<{
+      name: 'textInput' | 'textOutput' | 'textInput_cacheRead' | 'textInput_cacheWrite';
+      rate: number;
+      strategy: 'fixed';
+      unit: 'millionTokens';
+    }> = [];
     if (typeof input === 'number') {
       units.push({
         name: 'textInput' as const,

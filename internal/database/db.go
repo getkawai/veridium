@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -12,6 +13,9 @@ import (
 
 	db "github.com/kawai-network/veridium/internal/database/generated"
 )
+
+//go:embed schema/schema.sql
+var schemaSQL string
 
 // Service provides database operations
 type Service struct {
@@ -45,6 +49,24 @@ func NewService() (*Service, error) {
 	// Enable WAL mode for better concurrency
 	if _, err := database.Exec("PRAGMA journal_mode = WAL"); err != nil {
 		return nil, err
+	}
+
+	// Initialize schema if needed (check if users table exists)
+	var tableExists int
+	err = database.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='users'").Scan(&tableExists)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check schema: %w", err)
+	}
+
+	if tableExists == 0 {
+		// Schema doesn't exist, initialize it
+		fmt.Println("Initializing database schema...")
+		if _, err := database.Exec(schemaSQL); err != nil {
+			return nil, fmt.Errorf("failed to initialize schema: %w", err)
+		}
+		fmt.Println("✅ Database schema initialized successfully")
+	} else {
+		fmt.Println("✅ Database schema already initialized")
 	}
 
 	queries := db.New(database)

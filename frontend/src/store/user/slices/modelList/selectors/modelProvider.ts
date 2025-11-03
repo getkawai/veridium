@@ -126,7 +126,7 @@ const isModelEnabledFunctionCall = (id: string) => (s: UserStore) =>
 // vision model white list, these models will change the content from string to array
 // refs: https://github.com/lobehub/lobe-chat/issues/790
 const isModelEnabledVision = (id: string) => (s: UserStore) =>
-  getModelCardById(id)(s)?.vision || id.includes('vision');
+  getModelCardById(id)(s)?.vision || (id && typeof id === 'string' && id.includes('vision'));
 
 const isModelEnabledReasoning = (id: string) => (s: UserStore) =>
   getModelCardById(id)(s)?.reasoning || false;

@@ -17,8 +17,8 @@ const filteredAiProviderModelList = (s: AIProviderStoreState) => {
 
   return s.aiProviderModelList.filter(
     (model) =>
-      model.id.toLowerCase().includes(keyword) ||
-      model.displayName?.toLowerCase().includes(keyword),
+      (model.id && typeof model.id === 'string' && model.id.toLowerCase().includes(keyword)) ||
+      (model.displayName && typeof model.displayName === 'string' && model.displayName.toLowerCase().includes(keyword)),
   );
 };
 

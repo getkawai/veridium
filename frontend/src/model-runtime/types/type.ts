@@ -28,4 +28,4 @@ export interface CreateChatCompletionOptions {
   payload: ChatStreamPayload;
 }
 
-export type ModelProviderKey = Lowercase<keyof typeof ModelProvider>;
+export type ModelProviderKey = Lowercase<keyof typeof ModelProvider & string>;
