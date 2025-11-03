@@ -13,7 +13,7 @@ export class ClientService extends BaseClientService implements IGenerationTopic
   }
 
   getAllGenerationTopics = async (): Promise<ImageGenerationTopic[]> => {
-    return this.generationTopicModel.queryAll() as Promise<ImageGenerationTopic[]>;
+    return this.generationTopicModel.queryAll() as unknown as Promise<ImageGenerationTopic[]>;
   };
 
   createTopic = async (): Promise<string> => {
