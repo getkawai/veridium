@@ -39,6 +39,13 @@ const SessionItem = memo<SessionItemProps>(({ id }) => {
     useSessionStore((s) => {
       const session = sessionSelectors.getSessionById(id)(s);
       const meta = session.meta;
+      
+      let sessionModel = session.type === 'agent' ? (session as any).model : undefined;
+      
+      // Handle NullString from database (Go type with {String: string, Valid: boolean})
+      if (sessionModel && typeof sessionModel === 'object' && 'Valid' in sessionModel && 'String' in sessionModel) {
+        sessionModel = (sessionModel as any).Valid ? (sessionModel as any).String : undefined;
+      }
 
       return [
         sessionHelpers.getSessionPinned(session),
@@ -47,7 +54,7 @@ const SessionItem = memo<SessionItemProps>(({ id }) => {
         meta.backgroundColor,
         session?.updatedAt,
         (session as LobeGroupSession).members,
-        session.type === 'agent' ? (session as any).model : undefined,
+        sessionModel,
         session?.group,
         session.type,
       ];
@@ -90,6 +97,7 @@ const SessionItem = memo<SessionItemProps>(({ id }) => {
     () =>
       !showModel ? undefined : (
         <Flexbox gap={4} horizontal style={{ flexWrap: 'wrap' }}>
+          {/* {model && typeof model === 'string' && <ModelTag model={model} />} */}
           <ModelTag model={model} />
         </Flexbox>
       ),

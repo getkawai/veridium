@@ -52,6 +52,7 @@ const TitleTags = memo(() => {
     <Flexbox align={'center'} gap={4} horizontal>
       <ModelSwitchPanel>
         <ModelTag model={model} />
+        {/* {model && typeof model === 'string' && <ModelTag model={model} />} */}
       </ModelSwitchPanel>
       {isAgentEnableSearch && <SearchTags />}
       {showPlugin && plugins?.length > 0 && <PluginTag plugins={plugins} />}

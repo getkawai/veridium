@@ -171,7 +171,8 @@ export const createChatSlice: StateCreator<
 
           set(
             {
-              activeAgentId: data.id,
+              // Only set activeAgentId if data.id exists
+              activeAgentId: data?.id || undefined,
               agentConfigInitMap: { ...get().agentConfigInitMap, [sessionId]: true },
             },
             false,

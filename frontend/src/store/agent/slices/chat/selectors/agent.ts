@@ -52,8 +52,14 @@ const currentAgentSystemRole = (s: AgentStoreState) => {
 
 const currentAgentModel = (s: AgentStoreState): string => {
   const config = currentAgentConfig(s);
+  const model = config?.model;
+  
+  // Handle NullString from database (Go type with {String: string, Valid: boolean})
+  if (model && typeof model === 'object' && 'Valid' in model && 'String' in model) {
+    return (model as any).Valid ? (model as any).String : DEFAULT_MODEL;
+  }
 
-  return config?.model || DEFAULT_MODEL;
+  return model || DEFAULT_MODEL;
 };
 
 const currentAgentModelProvider = (s: AgentStoreState) => {

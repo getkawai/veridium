@@ -51,6 +51,7 @@ const Preview = memo<FieldType & { title?: string }>(
                   tag={
                     <Flexbox gap={4} horizontal>
                       <ModelTag model={model} />
+                      {/* {model && typeof model === 'string' && <ModelTag model={model} />} */}
                       {plugins?.length > 0 && <PluginTag plugins={plugins} />}
                     </Flexbox>
                   }

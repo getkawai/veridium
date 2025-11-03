@@ -142,6 +142,41 @@ export class SessionModel {
       }
     }
 
+    // If no agents found, return the session with a default agent structure
+    // to prevent undefined errors downstream
+    if (agents.length === 0) {
+      console.warn(`Session ${idOrSlug} has no associated agent. Using default agent configuration.`);
+      return {
+        ...session,
+        agent: {
+          id: '', // Empty string for no actual agent ID
+          slug: toNullString(undefined),
+          title: toNullString(undefined),
+          description: toNullString(undefined),
+          tags: toNullJSON([]),
+          avatar: toNullString(undefined),
+          backgroundColor: toNullString(undefined),
+          plugins: toNullJSON([]),
+          clientId: toNullString(undefined),
+          userId: this.userId,
+          chatConfig: toNullJSON({}),
+          fewShots: toNullJSON(undefined),
+          model: toNullString(undefined),
+          params: toNullJSON(undefined),
+          provider: toNullString(undefined),
+          systemRole: toNullString(undefined),
+          tts: toNullJSON(undefined),
+          virtual: 0,
+          openingMessage: toNullString(undefined),
+          openingQuestions: toNullJSON([]),
+          createdAt: session.createdAt,
+          updatedAt: session.updatedAt,
+        } as AgentItem,
+        agentsToSessions: [],
+        group,
+      } as any;
+    }
+
     return {
       ...session,
       agent: agents[0],
@@ -503,9 +538,9 @@ export class SessionModel {
     if (!data || Object.keys(data).length === 0) return;
 
     const session = await this.findByIdOrSlug(sessionId);
-    if (!session || !session.agent) {
+    if (!session || !session.agent || !session.agent.id) {
       throw new Error(
-        'this session is not assign with agent, please contact with admin to fix this issue.',
+        'this session is not assigned with an agent, please contact with admin to fix this issue.',
       );
     }
 

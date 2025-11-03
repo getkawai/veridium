@@ -74,6 +74,21 @@ export const useTTS = (content: string, config?: TTSConfig) => {
       } as MicrosoftSpeechOptions;
       break;
     }
+    default: {
+      // Default to OpenAI TTS if service is not recognized
+      useSelectedTTS = useOpenAITTS;
+      options = {
+        api: {
+          headers: createHeaderWithOpenAI(),
+          serviceUrl: API_ENDPOINTS.tts,
+        },
+        options: {
+          model: ttsSettings.openAI.ttsModel,
+          voice: config?.voice || voice,
+        },
+      } as OpenAITTSOptions;
+      break;
+    }
   }
 
   return useSelectedTTS(content, {
