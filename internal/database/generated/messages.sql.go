@@ -431,6 +431,20 @@ func (q *Queries) DeleteMessageTranslate(ctx context.Context, arg DeleteMessageT
 	return err
 }
 
+const DeleteMessagesByGroup = `-- name: DeleteMessagesByGroup :exec
+DELETE FROM messages WHERE group_id = ? AND user_id = ?
+`
+
+type DeleteMessagesByGroupParams struct {
+	GroupID sql.NullString `json:"groupId"`
+	UserID  string         `json:"userId"`
+}
+
+func (q *Queries) DeleteMessagesByGroup(ctx context.Context, arg DeleteMessagesByGroupParams) error {
+	_, err := q.db.ExecContext(ctx, DeleteMessagesByGroup, arg.GroupID, arg.UserID)
+	return err
+}
+
 const DeleteMessagesBySession = `-- name: DeleteMessagesBySession :exec
 DELETE FROM messages WHERE session_id = ? AND user_id = ?
 `
@@ -583,6 +597,55 @@ func (q *Queries) GetMessageFiles(ctx context.Context, arg GetMessageFilesParams
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const GetMessageHeatmaps = `-- name: GetMessageHeatmaps :many
+
+SELECT 
+    DATE(created_at / 1000, 'unixepoch') as date,
+    COUNT(*) as count
+FROM messages
+WHERE user_id = ? 
+    AND created_at >= ? 
+    AND created_at <= ?
+GROUP BY date
+ORDER BY date DESC
+`
+
+type GetMessageHeatmapsParams struct {
+	UserID      string `json:"userId"`
+	CreatedAt   int64  `json:"createdAt"`
+	CreatedAt_2 int64  `json:"createdAt2"`
+}
+
+type GetMessageHeatmapsRow struct {
+	Date  interface{} `json:"date"`
+	Count int64       `json:"count"`
+}
+
+// Note: Can't use sqlc.slice() with SQLite, need alternative approach
+// For now, these will be handled differently in the frontend
+func (q *Queries) GetMessageHeatmaps(ctx context.Context, arg GetMessageHeatmapsParams) ([]GetMessageHeatmapsRow, error) {
+	rows, err := q.db.QueryContext(ctx, GetMessageHeatmaps, arg.UserID, arg.CreatedAt, arg.CreatedAt_2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetMessageHeatmapsRow{}
+	for rows.Next() {
+		var i GetMessageHeatmapsRow
+		if err := rows.Scan(&i.Date, &i.Count); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -882,25 +945,19 @@ func (q *Queries) ListMessageQueriesByMessage(ctx context.Context, arg ListMessa
 
 const ListMessages = `-- name: ListMessages :many
 SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, client_id, user_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages
-WHERE user_id = ? AND session_id = ?
+WHERE user_id = ?
 ORDER BY created_at ASC
 LIMIT ? OFFSET ?
 `
 
 type ListMessagesParams struct {
-	UserID    string         `json:"userId"`
-	SessionID sql.NullString `json:"sessionId"`
-	Limit     int64          `json:"limit"`
-	Offset    int64          `json:"offset"`
+	UserID string `json:"userId"`
+	Limit  int64  `json:"limit"`
+	Offset int64  `json:"offset"`
 }
 
 func (q *Queries) ListMessages(ctx context.Context, arg ListMessagesParams) ([]Message, error) {
-	rows, err := q.db.QueryContext(ctx, ListMessages,
-		arg.UserID,
-		arg.SessionID,
-		arg.Limit,
-		arg.Offset,
-	)
+	rows, err := q.db.QueryContext(ctx, ListMessages, arg.UserID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}

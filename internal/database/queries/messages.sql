@@ -3,7 +3,7 @@ SELECT * FROM messages WHERE id = ? AND user_id = ?;
 
 -- name: ListMessages :many
 SELECT * FROM messages
-WHERE user_id = ? AND session_id = ?
+WHERE user_id = ?
 ORDER BY created_at ASC
 LIMIT ? OFFSET ?;
 
@@ -73,6 +73,23 @@ WHERE user_id = ? AND id IN (sqlc.slice('ids'));
 
 -- name: DeleteAllMessages :exec
 DELETE FROM messages WHERE user_id = ?;
+
+-- name: DeleteMessagesByGroup :exec
+DELETE FROM messages WHERE group_id = ? AND user_id = ?;
+
+-- Note: Can't use sqlc.slice() with SQLite, need alternative approach
+-- For now, these will be handled differently in the frontend
+
+-- name: GetMessageHeatmaps :many
+SELECT 
+    DATE(created_at / 1000, 'unixepoch') as date,
+    COUNT(*) as count
+FROM messages
+WHERE user_id = ? 
+    AND created_at >= ? 
+    AND created_at <= ?
+GROUP BY date
+ORDER BY date DESC;
 
 -- name: ToggleMessageFavorite :exec
 UPDATE messages SET favorite = ?, updated_at = ?

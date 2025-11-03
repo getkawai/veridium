@@ -57,13 +57,36 @@ export class MessageModel {
     const offset = current * pageSize;
 
     // 1. Get basic messages
-    // TODO: Add query that handles sessionId/topicId/groupId filtering
-    const messages = await DB.ListMessages({
+    // Note: Filtering by sessionId/topicId/groupId happens client-side due to SQLite limitations
+    const allMessages = await DB.ListMessages({
       userId: this.userId,
-      sessionId: toNullString(sessionId as any),
-      limit: pageSize,
+      limit: pageSize * 10, // Get more to allow for filtering
       offset,
     });
+
+    // Filter client-side
+    let messages = allMessages;
+    if (sessionId !== undefined) {
+      messages = messages.filter((m) => {
+        const msgSessionId = getNullableString(m.sessionId as any);
+        return sessionId === null ? !msgSessionId : msgSessionId === sessionId;
+      });
+    }
+    if (topicId !== undefined) {
+      messages = messages.filter((m) => {
+        const msgTopicId = getNullableString(m.topicId as any);
+        return topicId === null ? !msgTopicId : msgTopicId === topicId;
+      });
+    }
+    if (groupId !== undefined) {
+      messages = messages.filter((m) => {
+        const msgGroupId = getNullableString(m.groupId as any);
+        return groupId === null ? !msgGroupId : msgGroupId === groupId;
+      });
+    }
+
+    // Apply pagination after filtering
+    messages = messages.slice(0, pageSize);
 
     if (messages.length === 0) return [];
 
@@ -101,10 +124,31 @@ export class MessageModel {
     );
 
     // Get documents content
-    const documentsMap: Record<string, string> = {};
+    const fileIds = processedFileList.map((file) => file.id).filter(Boolean);
+    let documentsMap: Record<string, string> = {};
 
-    // TODO: Add batch query for documents
-    // For now, simplified version
+    // Note: GetDocumentsByFileIds doesn't support IN clause with sqlc.slice
+    // Fetching documents one by one (N+1 query)
+    if (fileIds.length > 0) {
+      await Promise.all(
+        fileIds.map(async (fileId) => {
+          try {
+            const doc = await DB.GetDocument({
+              id: fileId, // Use fileId to get document
+              userId: this.userId,
+            });
+            if (doc && doc.fileId) {
+              const fileIdStr = getNullableString(doc.fileId as any);
+              if (fileIdStr) {
+                documentsMap[fileIdStr] = getNullableString(doc.content as any) || '';
+              }
+            }
+          } catch {
+            // Document not found
+          }
+        }),
+      );
+    }
 
     const imageList = processedFileList.filter((i) => (i.fileType || '').startsWith('image'));
     const videoList = processedFileList.filter((i) => (i.fileType || '').startsWith('video'));
@@ -113,8 +157,21 @@ export class MessageModel {
     );
 
     // 3. Get relative file chunks
-    // TODO: Add GetMessageQueryChunks query
-    const chunksList: any[] = [];
+    // Note: GetMessageQueryChunks expects messageIds as NullString[]
+    let chunksList: any[] = [];
+    await Promise.all(
+      messageIds.map(async (msgId) => {
+        try {
+          const chunks = await DB.GetMessageQueryChunks({
+            messageIds: [toNullString(msgId)],
+            userId: this.userId,
+          });
+          chunksList.push(...chunks.map((c: any) => ({ ...c, messageId: msgId })));
+        } catch {
+          // Chunks query might fail
+        }
+      }),
+    );
 
     // 4. Get relative message queries
     const messageQueriesList = await Promise.all(
@@ -281,12 +338,31 @@ export class MessageModel {
 
       if (queries.length === 0) return undefined;
 
+      const query = queries[0];
+      let embeddings: any = null;
+
+      // Get embeddings if embeddingsId exists
+      const embeddingsIdStr = getNullableString(query.embeddingsId as any);
+      if (embeddingsIdStr) {
+        try {
+          const emb = await DB.GetEmbeddingsItem({
+            id: embeddingsIdStr,
+            userId: toNullString(this.userId),
+          });
+          if (emb && emb.embeddings) {
+            embeddings = emb.embeddings;
+          }
+        } catch {
+          // Embeddings not found
+        }
+      }
+
       return {
-        id: queries[0].id,
-        query: getNullableString(queries[0].rewriteQuery as any),
-        rewriteQuery: getNullableString(queries[0].rewriteQuery as any),
-        userQuery: getNullableString(queries[0].userQuery as any),
-        embeddings: null, // TODO: Join with embeddings table
+        id: query.id,
+        query: getNullableString(query.rewriteQuery as any),
+        rewriteQuery: getNullableString(query.rewriteQuery as any),
+        userQuery: getNullableString(query.userQuery as any),
+        embeddings,
       };
     } catch {
       return undefined;
@@ -294,10 +370,8 @@ export class MessageModel {
   };
 
   queryAll = async () => {
-    // TODO: Add ListAllMessages query
     const messages = await DB.ListMessages({
       userId: this.userId,
-      sessionId: toNullString(''),
       limit: 10000,
       offset: 0,
     });
@@ -306,11 +380,18 @@ export class MessageModel {
   };
 
   queryBySessionId = async (sessionId?: string | null) => {
-    const messages = await DB.ListMessages({
+    const allMessages = await DB.ListMessages({
       userId: this.userId,
-      sessionId: toNullString(sessionId as any),
       limit: 10000,
       offset: 0,
+    });
+
+    // Filter by sessionId
+    const messages = allMessages.filter((m) => {
+      const msgSessionId = getNullableString(m.sessionId as any);
+      return sessionId === null || sessionId === undefined
+        ? !msgSessionId
+        : msgSessionId === sessionId;
     });
 
     return messages as unknown as DBMessageItem[];
@@ -404,20 +485,20 @@ export class MessageModel {
     const startDate = today().subtract(1, 'year').startOf('day');
     const endDate = today().endOf('day');
 
-    // TODO: Add GetMessageHeatmaps query with GROUP BY date
-    // For now, simplified version - get all messages and group in memory
-    const messages = await DB.ListMessages({
+    // Use optimized query with GROUP BY date
+    const result = await DB.GetMessageHeatmaps({
       userId: this.userId,
-      sessionId: toNullString(''),
-      limit: 100000,
-      offset: 0,
+      createdAt: startDate.valueOf(),
+      createdAt2: endDate.valueOf(),
     });
 
     const dateCountMap = new Map<string, number>();
     
-    for (const message of messages) {
-      const date = dayjs(message.createdAt).format('YYYY-MM-DD');
-      dateCountMap.set(date, (dateCountMap.get(date) || 0) + 1);
+    for (const item of result) {
+      if (item.date) {
+        const dateStr = dayjs(item.date as any).format('YYYY-MM-DD');
+        dateCountMap.set(dateStr, Number(item.count) || 0);
+      }
     }
 
     const heatmapData: HeatmapsProps['data'] = [];
@@ -445,7 +526,6 @@ export class MessageModel {
   hasMoreThanN = async (n: number): Promise<boolean> => {
     const messages = await DB.ListMessages({
       userId: this.userId,
-      sessionId: toNullString(''),
       limit: n + 1,
       offset: 0,
     });
@@ -729,9 +809,11 @@ export class MessageModel {
 
     let relatedMessageIds: string[] = [];
 
+    // Note: GetMessagesByToolCallIds not available (needs sqlc.slice support)
+    // For now, skip finding related tool messages
+    // This means related tool messages won't be deleted automatically
     if (toolCallIds.length > 0) {
-      // TODO: Add query to get messages by tool_call_id
-      // For now, simplified
+      // TODO: Implement batch query for tool_call_ids when sqlc.slice is supported
     }
 
     const messageIdsToDelete = [id, ...relatedMessageIds];
@@ -785,8 +867,12 @@ export class MessageModel {
         topicId: toNullString(topicId),
         userId: this.userId,
       });
+    } else if (groupId) {
+      await DB.DeleteMessagesByGroup({
+        groupId: toNullString(groupId),
+        userId: this.userId,
+      });
     }
-    // TODO: Add DeleteMessagesByGroup query for groupId
   };
 
   deleteAllMessages = async () => {

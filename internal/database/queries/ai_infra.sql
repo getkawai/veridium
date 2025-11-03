@@ -87,3 +87,57 @@ RETURNING *;
 DELETE FROM ai_models
 WHERE id = ? AND provider_id = ? AND user_id = ?;
 
+-- name: DeleteAllAIModels :exec
+DELETE FROM ai_models WHERE user_id = ?;
+
+-- name: UpsertAIModel :one
+INSERT INTO ai_models (
+    id, display_name, description, organization, enabled, provider_id,
+    type, sort, user_id, pricing, parameters, config, abilities,
+    context_window_tokens, source, released_at, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id, provider_id, user_id) DO UPDATE SET
+    display_name = excluded.display_name,
+    description = excluded.description,
+    enabled = excluded.enabled,
+    sort = excluded.sort,
+    pricing = excluded.pricing,
+    parameters = excluded.parameters,
+    config = excluded.config,
+    abilities = excluded.abilities,
+    updated_at = excluded.updated_at
+RETURNING *;
+
+-- name: ToggleAIModelEnabled :one
+INSERT INTO ai_models (
+    id, provider_id, user_id, enabled, type, source, updated_at, created_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id, provider_id, user_id) DO UPDATE SET
+    enabled = excluded.enabled,
+    type = COALESCE(excluded.type, ai_models.type),
+    updated_at = excluded.updated_at
+RETURNING *;
+
+-- name: UpdateAIModelSort :one
+INSERT INTO ai_models (
+    id, provider_id, user_id, sort, type, enabled, source, updated_at, created_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id, provider_id, user_id) DO UPDATE SET
+    sort = excluded.sort,
+    type = COALESCE(excluded.type, ai_models.type),
+    updated_at = excluded.updated_at
+RETURNING *;
+
+-- name: BatchUpdateAIModelEnabled :exec
+UPDATE ai_models
+SET enabled = ?
+WHERE provider_id = ? AND id IN (sqlc.slice('ids')) AND user_id = ?;
+
+-- name: DeleteAIModelsByProviderAndSource :exec
+DELETE FROM ai_models
+WHERE provider_id = ? AND source = ? AND user_id = ?;
+
+-- name: DeleteAIModelsByProvider :exec
+DELETE FROM ai_models
+WHERE provider_id = ? AND user_id = ?;
+

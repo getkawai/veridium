@@ -8,7 +8,39 @@ package db
 import (
 	"context"
 	"database/sql"
+	"strings"
 )
+
+const BatchUpdateAIModelEnabled = `-- name: BatchUpdateAIModelEnabled :exec
+UPDATE ai_models
+SET enabled = ?
+WHERE provider_id = ? AND id IN (/*SLICE:ids*/?) AND user_id = ?
+`
+
+type BatchUpdateAIModelEnabledParams struct {
+	Enabled    sql.NullInt64 `json:"enabled"`
+	ProviderID string        `json:"providerId"`
+	Ids        []string      `json:"ids"`
+	UserID     string        `json:"userId"`
+}
+
+func (q *Queries) BatchUpdateAIModelEnabled(ctx context.Context, arg BatchUpdateAIModelEnabledParams) error {
+	query := BatchUpdateAIModelEnabled
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.Enabled)
+	queryParams = append(queryParams, arg.ProviderID)
+	if len(arg.Ids) > 0 {
+		for _, v := range arg.Ids {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(arg.Ids))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
+	}
+	queryParams = append(queryParams, arg.UserID)
+	_, err := q.db.ExecContext(ctx, query, queryParams...)
+	return err
+}
 
 const CreateAIModel = `-- name: CreateAIModel :one
 INSERT INTO ai_models (
@@ -167,6 +199,37 @@ func (q *Queries) DeleteAIModel(ctx context.Context, arg DeleteAIModelParams) er
 	return err
 }
 
+const DeleteAIModelsByProvider = `-- name: DeleteAIModelsByProvider :exec
+DELETE FROM ai_models
+WHERE provider_id = ? AND user_id = ?
+`
+
+type DeleteAIModelsByProviderParams struct {
+	ProviderID string `json:"providerId"`
+	UserID     string `json:"userId"`
+}
+
+func (q *Queries) DeleteAIModelsByProvider(ctx context.Context, arg DeleteAIModelsByProviderParams) error {
+	_, err := q.db.ExecContext(ctx, DeleteAIModelsByProvider, arg.ProviderID, arg.UserID)
+	return err
+}
+
+const DeleteAIModelsByProviderAndSource = `-- name: DeleteAIModelsByProviderAndSource :exec
+DELETE FROM ai_models
+WHERE provider_id = ? AND source = ? AND user_id = ?
+`
+
+type DeleteAIModelsByProviderAndSourceParams struct {
+	ProviderID string         `json:"providerId"`
+	Source     sql.NullString `json:"source"`
+	UserID     string         `json:"userId"`
+}
+
+func (q *Queries) DeleteAIModelsByProviderAndSource(ctx context.Context, arg DeleteAIModelsByProviderAndSourceParams) error {
+	_, err := q.db.ExecContext(ctx, DeleteAIModelsByProviderAndSource, arg.ProviderID, arg.Source, arg.UserID)
+	return err
+}
+
 const DeleteAIProvider = `-- name: DeleteAIProvider :exec
 DELETE FROM ai_providers WHERE id = ? AND user_id = ?
 `
@@ -178,6 +241,15 @@ type DeleteAIProviderParams struct {
 
 func (q *Queries) DeleteAIProvider(ctx context.Context, arg DeleteAIProviderParams) error {
 	_, err := q.db.ExecContext(ctx, DeleteAIProvider, arg.ID, arg.UserID)
+	return err
+}
+
+const DeleteAllAIModels = `-- name: DeleteAllAIModels :exec
+DELETE FROM ai_models WHERE user_id = ?
+`
+
+func (q *Queries) DeleteAllAIModels(ctx context.Context, userID string) error {
+	_, err := q.db.ExecContext(ctx, DeleteAllAIModels, userID)
 	return err
 }
 
@@ -493,6 +565,63 @@ func (q *Queries) ListEnabledAIProviders(ctx context.Context, userID string) ([]
 	return items, nil
 }
 
+const ToggleAIModelEnabled = `-- name: ToggleAIModelEnabled :one
+INSERT INTO ai_models (
+    id, provider_id, user_id, enabled, type, source, updated_at, created_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id, provider_id, user_id) DO UPDATE SET
+    enabled = excluded.enabled,
+    type = COALESCE(excluded.type, ai_models.type),
+    updated_at = excluded.updated_at
+RETURNING id, display_name, description, organization, enabled, provider_id, type, sort, user_id, pricing, parameters, config, abilities, context_window_tokens, source, released_at, created_at, updated_at
+`
+
+type ToggleAIModelEnabledParams struct {
+	ID         string         `json:"id"`
+	ProviderID string         `json:"providerId"`
+	UserID     string         `json:"userId"`
+	Enabled    sql.NullInt64  `json:"enabled"`
+	Type       string         `json:"type"`
+	Source     sql.NullString `json:"source"`
+	UpdatedAt  int64          `json:"updatedAt"`
+	CreatedAt  int64          `json:"createdAt"`
+}
+
+func (q *Queries) ToggleAIModelEnabled(ctx context.Context, arg ToggleAIModelEnabledParams) (AiModel, error) {
+	row := q.db.QueryRowContext(ctx, ToggleAIModelEnabled,
+		arg.ID,
+		arg.ProviderID,
+		arg.UserID,
+		arg.Enabled,
+		arg.Type,
+		arg.Source,
+		arg.UpdatedAt,
+		arg.CreatedAt,
+	)
+	var i AiModel
+	err := row.Scan(
+		&i.ID,
+		&i.DisplayName,
+		&i.Description,
+		&i.Organization,
+		&i.Enabled,
+		&i.ProviderID,
+		&i.Type,
+		&i.Sort,
+		&i.UserID,
+		&i.Pricing,
+		&i.Parameters,
+		&i.Config,
+		&i.Abilities,
+		&i.ContextWindowTokens,
+		&i.Source,
+		&i.ReleasedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const UpdateAIModel = `-- name: UpdateAIModel :one
 UPDATE ai_models
 SET display_name = ?,
@@ -537,6 +666,65 @@ func (q *Queries) UpdateAIModel(ctx context.Context, arg UpdateAIModelParams) (A
 		arg.ID,
 		arg.ProviderID,
 		arg.UserID,
+	)
+	var i AiModel
+	err := row.Scan(
+		&i.ID,
+		&i.DisplayName,
+		&i.Description,
+		&i.Organization,
+		&i.Enabled,
+		&i.ProviderID,
+		&i.Type,
+		&i.Sort,
+		&i.UserID,
+		&i.Pricing,
+		&i.Parameters,
+		&i.Config,
+		&i.Abilities,
+		&i.ContextWindowTokens,
+		&i.Source,
+		&i.ReleasedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const UpdateAIModelSort = `-- name: UpdateAIModelSort :one
+INSERT INTO ai_models (
+    id, provider_id, user_id, sort, type, enabled, source, updated_at, created_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id, provider_id, user_id) DO UPDATE SET
+    sort = excluded.sort,
+    type = COALESCE(excluded.type, ai_models.type),
+    updated_at = excluded.updated_at
+RETURNING id, display_name, description, organization, enabled, provider_id, type, sort, user_id, pricing, parameters, config, abilities, context_window_tokens, source, released_at, created_at, updated_at
+`
+
+type UpdateAIModelSortParams struct {
+	ID         string         `json:"id"`
+	ProviderID string         `json:"providerId"`
+	UserID     string         `json:"userId"`
+	Sort       sql.NullInt64  `json:"sort"`
+	Type       string         `json:"type"`
+	Enabled    sql.NullInt64  `json:"enabled"`
+	Source     sql.NullString `json:"source"`
+	UpdatedAt  int64          `json:"updatedAt"`
+	CreatedAt  int64          `json:"createdAt"`
+}
+
+func (q *Queries) UpdateAIModelSort(ctx context.Context, arg UpdateAIModelSortParams) (AiModel, error) {
+	row := q.db.QueryRowContext(ctx, UpdateAIModelSort,
+		arg.ID,
+		arg.ProviderID,
+		arg.UserID,
+		arg.Sort,
+		arg.Type,
+		arg.Enabled,
+		arg.Source,
+		arg.UpdatedAt,
+		arg.CreatedAt,
 	)
 	var i AiModel
 	err := row.Scan(
@@ -626,6 +814,91 @@ func (q *Queries) UpdateAIProvider(ctx context.Context, arg UpdateAIProviderPara
 		&i.Source,
 		&i.Settings,
 		&i.Config,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const UpsertAIModel = `-- name: UpsertAIModel :one
+INSERT INTO ai_models (
+    id, display_name, description, organization, enabled, provider_id,
+    type, sort, user_id, pricing, parameters, config, abilities,
+    context_window_tokens, source, released_at, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id, provider_id, user_id) DO UPDATE SET
+    display_name = excluded.display_name,
+    description = excluded.description,
+    enabled = excluded.enabled,
+    sort = excluded.sort,
+    pricing = excluded.pricing,
+    parameters = excluded.parameters,
+    config = excluded.config,
+    abilities = excluded.abilities,
+    updated_at = excluded.updated_at
+RETURNING id, display_name, description, organization, enabled, provider_id, type, sort, user_id, pricing, parameters, config, abilities, context_window_tokens, source, released_at, created_at, updated_at
+`
+
+type UpsertAIModelParams struct {
+	ID                  string         `json:"id"`
+	DisplayName         sql.NullString `json:"displayName"`
+	Description         sql.NullString `json:"description"`
+	Organization        sql.NullString `json:"organization"`
+	Enabled             sql.NullInt64  `json:"enabled"`
+	ProviderID          string         `json:"providerId"`
+	Type                string         `json:"type"`
+	Sort                sql.NullInt64  `json:"sort"`
+	UserID              string         `json:"userId"`
+	Pricing             sql.NullString `json:"pricing"`
+	Parameters          sql.NullString `json:"parameters"`
+	Config              sql.NullString `json:"config"`
+	Abilities           sql.NullString `json:"abilities"`
+	ContextWindowTokens sql.NullInt64  `json:"contextWindowTokens"`
+	Source              sql.NullString `json:"source"`
+	ReleasedAt          sql.NullString `json:"releasedAt"`
+	CreatedAt           int64          `json:"createdAt"`
+	UpdatedAt           int64          `json:"updatedAt"`
+}
+
+func (q *Queries) UpsertAIModel(ctx context.Context, arg UpsertAIModelParams) (AiModel, error) {
+	row := q.db.QueryRowContext(ctx, UpsertAIModel,
+		arg.ID,
+		arg.DisplayName,
+		arg.Description,
+		arg.Organization,
+		arg.Enabled,
+		arg.ProviderID,
+		arg.Type,
+		arg.Sort,
+		arg.UserID,
+		arg.Pricing,
+		arg.Parameters,
+		arg.Config,
+		arg.Abilities,
+		arg.ContextWindowTokens,
+		arg.Source,
+		arg.ReleasedAt,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+	)
+	var i AiModel
+	err := row.Scan(
+		&i.ID,
+		&i.DisplayName,
+		&i.Description,
+		&i.Organization,
+		&i.Enabled,
+		&i.ProviderID,
+		&i.Type,
+		&i.Sort,
+		&i.UserID,
+		&i.Pricing,
+		&i.Parameters,
+		&i.Config,
+		&i.Abilities,
+		&i.ContextWindowTokens,
+		&i.Source,
+		&i.ReleasedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

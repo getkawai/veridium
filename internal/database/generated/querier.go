@@ -16,6 +16,7 @@ type Querier interface {
 	BatchLinkAgentToFiles(ctx context.Context, arg BatchLinkAgentToFilesParams) error
 	BatchLinkKnowledgeBaseToFiles(ctx context.Context, arg BatchLinkKnowledgeBaseToFilesParams) error
 	BatchUnlinkKnowledgeBaseFromFiles(ctx context.Context, arg BatchUnlinkKnowledgeBaseFromFilesParams) error
+	BatchUpdateAIModelEnabled(ctx context.Context, arg BatchUpdateAIModelEnabledParams) error
 	BulkCreateEmbeddingsItems(ctx context.Context, arg BulkCreateEmbeddingsItemsParams) error
 	CleanupExpiredOAuthHandoffs(ctx context.Context, createdAt int64) error
 	ConsumeOIDCAuthorizationCode(ctx context.Context, arg ConsumeOIDCAuthorizationCodeParams) error
@@ -78,9 +79,12 @@ type Querier interface {
 	CreateUnstructuredChunk(ctx context.Context, arg CreateUnstructuredChunkParams) (UnstructuredChunk, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DeleteAIModel(ctx context.Context, arg DeleteAIModelParams) error
+	DeleteAIModelsByProvider(ctx context.Context, arg DeleteAIModelsByProviderParams) error
+	DeleteAIModelsByProviderAndSource(ctx context.Context, arg DeleteAIModelsByProviderAndSourceParams) error
 	DeleteAIProvider(ctx context.Context, arg DeleteAIProviderParams) error
 	DeleteAPIKey(ctx context.Context, arg DeleteAPIKeyParams) error
 	DeleteAgent(ctx context.Context, arg DeleteAgentParams) error
+	DeleteAllAIModels(ctx context.Context, userID string) error
 	DeleteAllAPIKeys(ctx context.Context, userID string) error
 	DeleteAllDocuments(ctx context.Context, userID string) error
 	DeleteAllKnowledgeBases(ctx context.Context, userID string) error
@@ -108,6 +112,7 @@ type Querier interface {
 	DeleteMessageQuery(ctx context.Context, arg DeleteMessageQueryParams) error
 	DeleteMessageTTS(ctx context.Context, arg DeleteMessageTTSParams) error
 	DeleteMessageTranslate(ctx context.Context, arg DeleteMessageTranslateParams) error
+	DeleteMessagesByGroup(ctx context.Context, arg DeleteMessagesByGroupParams) error
 	DeleteMessagesBySession(ctx context.Context, arg DeleteMessagesBySessionParams) error
 	DeleteMessagesByTopic(ctx context.Context, arg DeleteMessagesByTopicParams) error
 	DeleteNextAuthAccount(ctx context.Context, arg DeleteNextAuthAccountParams) error
@@ -184,6 +189,9 @@ type Querier interface {
 	GetMessageFiles(ctx context.Context, arg GetMessageFilesParams) ([]File, error)
 	// Message Groups
 	GetMessageGroup(ctx context.Context, arg GetMessageGroupParams) (MessageGroup, error)
+	// Note: Can't use sqlc.slice() with SQLite, need alternative approach
+	// For now, these will be handled differently in the frontend
+	GetMessageHeatmaps(ctx context.Context, arg GetMessageHeatmapsParams) ([]GetMessageHeatmapsRow, error)
 	// Message Plugins
 	GetMessagePlugin(ctx context.Context, arg GetMessagePluginParams) (MessagePlugin, error)
 	// Message Queries (RAG)
@@ -342,6 +350,7 @@ type Querier interface {
 	SearchSessions(ctx context.Context, arg SearchSessionsParams) ([]Session, error)
 	SearchTopicsByMessageContent(ctx context.Context, arg SearchTopicsByMessageContentParams) ([]Topic, error)
 	SearchTopicsByTitle(ctx context.Context, arg SearchTopicsByTitleParams) ([]Topic, error)
+	ToggleAIModelEnabled(ctx context.Context, arg ToggleAIModelEnabledParams) (AiModel, error)
 	ToggleAgentFile(ctx context.Context, arg ToggleAgentFileParams) error
 	ToggleAgentKnowledgeBase(ctx context.Context, arg ToggleAgentKnowledgeBaseParams) error
 	ToggleMessageFavorite(ctx context.Context, arg ToggleMessageFavoriteParams) error
@@ -360,6 +369,7 @@ type Querier interface {
 	UnlinkTopicFromDocument(ctx context.Context, arg UnlinkTopicFromDocumentParams) error
 	UnlinkUserFromRole(ctx context.Context, arg UnlinkUserFromRoleParams) error
 	UpdateAIModel(ctx context.Context, arg UpdateAIModelParams) (AiModel, error)
+	UpdateAIModelSort(ctx context.Context, arg UpdateAIModelSortParams) (AiModel, error)
 	UpdateAIProvider(ctx context.Context, arg UpdateAIProviderParams) (AiProvider, error)
 	UpdateAPIKey(ctx context.Context, arg UpdateAPIKeyParams) (ApiKey, error)
 	UpdateAPIKeyLastUsed(ctx context.Context, arg UpdateAPIKeyLastUsedParams) error
@@ -398,6 +408,7 @@ type Querier interface {
 	UpdateUserSettingsGeneral(ctx context.Context, arg UpdateUserSettingsGeneralParams) error
 	UpdateUserSettingsHotkey(ctx context.Context, arg UpdateUserSettingsHotkeyParams) error
 	UpdateUserSettingsTTS(ctx context.Context, arg UpdateUserSettingsTTSParams) error
+	UpsertAIModel(ctx context.Context, arg UpsertAIModelParams) (AiModel, error)
 	UpsertMessageTTS(ctx context.Context, arg UpsertMessageTTSParams) (MessageTt, error)
 	UpsertMessageTranslate(ctx context.Context, arg UpsertMessageTranslateParams) (MessageTranslate, error)
 	UpsertPlugin(ctx context.Context, arg UpsertPluginParams) (UserInstalledPlugin, error)
