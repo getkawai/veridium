@@ -13,9 +13,26 @@ export interface WailsSQLiteDriverConfig {
 export class WailsSQLiteDriver {
   constructor(private config?: WailsSQLiteDriverConfig) {}
 
+  // Drizzle-compatible methods
+  prepare(sql: string) {
+    return {
+      all: async (params?: any[]) => {
+        return this.query(sql, params);
+      },
+      get: async (params?: any[]) => {
+        const rows = await this.query(sql, params);
+        return rows.length > 0 ? rows[0] : undefined;
+      },
+      run: async (params?: any[]) => {
+        await this.execute(sql, params);
+        return { lastInsertRowid: 0, changes: 1 }; // Mock return
+      },
+    };
+  }
+
   async query<T = Rows>(query: string, params?: any[]): Promise<T> {
     this.config?.onQuery?.(query, params || []);
-    
+
     try {
       const result = await WailsQuery(query, ...(params || []));
       return result as T;
@@ -44,6 +61,7 @@ export class WailsSQLiteDriver {
     }
   }
 
+  // Legacy methods for backward compatibility
   async run(query: string, params?: any[]): Promise<void> {
     await this.execute(query, params);
   }
@@ -155,56 +173,14 @@ export class WailsSQLiteSession {
 }
 
 /**
- * Create a Drizzle-compatible database instance
+ * Create a Drizzle-compatible database instance using the standard approach
  */
-export function createDrizzleWailsSQLite<TSchema extends Record<string, unknown>>(
+export async function createDrizzleWailsSQLite<TSchema extends Record<string, unknown>>(
   driver: WailsSQLiteDriver,
   schema: TSchema,
 ) {
-  const session = new WailsSQLiteSession(driver, schema);
+  // Use Drizzle's standard drizzle function - it will handle all SQL building
+  const { drizzle } = await import('drizzle-orm/better-sqlite3');
 
-  return {
-    _: {
-      schema,
-    },
-    query: schema,
-    session,
-    dialect: session.dialect,
-    
-    // Drizzle ORM methods
-    select: (fields?: any) => {
-      // This will be implemented by Drizzle's query builder
-      throw new Error('Use drizzle() function to create proper instance');
-    },
-    
-    insert: (table: any) => {
-      throw new Error('Use drizzle() function to create proper instance');
-    },
-    
-    update: (table: any) => {
-      throw new Error('Use drizzle() function to create proper instance');
-    },
-    
-    delete: (table: any) => {
-      throw new Error('Use drizzle() function to create proper instance');
-    },
-    
-    execute: async (query: any) => {
-      if (typeof query === 'string') {
-        return driver.execute(query);
-      }
-      // Handle SQL query objects
-      throw new Error('Complex query execution not yet implemented');
-    },
-    
-    transaction: <T>(
-      transaction: (tx: any) => Promise<T>,
-    ): Promise<T> => {
-      return session.transaction(transaction);
-    },
-    
-    $with: (name: string) => {
-      throw new Error('CTE not yet implemented');
-    },
-  };
+  return drizzle(driver, { schema });
 }

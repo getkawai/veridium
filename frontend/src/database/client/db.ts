@@ -50,88 +50,13 @@ export class DatabaseManager {
     return DatabaseManager.instance;
   }
 
-  // 数据库迁移方法
+  // 数据库迁移方法 - 简化版，因为数据库已在后端初始化
   private async migrate(skipMultiRun = false): Promise<DrizzleInstance> {
     if (this.isLocalDBSchemaSynced && skipMultiRun) return this.db;
 
-    try {
-      const drizzleMigration = new DrizzleMigrationModel(this.db as any);
-
-      // 检查数据库中是否存在表 - 数据库已在后端初始化
-      const tableCount = await drizzleMigration.getTableCounts();
-
-      // 如果表数量大于0，则认为数据库已正确初始化（由后端完成）
-      if (tableCount > 0) {
-        this.isLocalDBSchemaSynced = true;
-        console.log('✅ Database already initialized by backend, skipping frontend migrations');
-        return this.db;
-      }
-    } catch (error) {
-      console.warn('Error checking table existence, proceeding with migration', error);
-      // 如果查询失败，继续执行迁移以确保安全
-    }
-
-    let hash: string | undefined;
-    if (typeof localStorage !== 'undefined') {
-      const cacheHash = localStorage.getItem(sqliteSchemaHashCache);
-      hash = Md5.hashStr(JSON.stringify(migrations));
-      // if hash is the same, no need to migrate
-      if (hash === cacheHash) {
-        try {
-          const drizzleMigration = new DrizzleMigrationModel(this.db as any);
-
-          // 检查数据库中是否存在表
-          const tableCount = await drizzleMigration.getTableCounts();
-
-          // 如果表数量大于0，则认为数据库已正确初始化
-          if (tableCount > 0) {
-            this.isLocalDBSchemaSynced = true;
-            return this.db;
-          }
-        } catch (error) {
-          console.warn('Error checking table existence, proceeding with migration', error);
-          // 如果查询失败，继续执行迁移以确保安全
-        }
-      }
-    }
-
-    const start = Date.now();
-    try {
-      this.callbacks?.onStateChange?.(DatabaseLoadingState.Migrating);
-
-      // Apply migrations using the Wails SQLite driver
-      if (this.driver && migrations) {
-        for (const migration of migrations as any[]) {
-          if (migration.sql) {
-            // Check if the SQL contains statement separators
-            if (migration.sql.includes('--> statement-breakpoint')) {
-              // Split and execute each SQL statement separately
-              const statements = migration.sql.split('--> statement-breakpoint');
-              for (const statement of statements) {
-                const trimmed = statement.trim();
-                if (trimmed) {
-                  await this.driver.execute(trimmed);
-                }
-              }
-            } else {
-              // Execute the entire SQL as one statement (for SQLite)
-              await this.driver.execute(migration.sql);
-            }
-          }
-        }
-      }
-
-      if (typeof localStorage !== 'undefined' && hash) {
-        localStorage.setItem(sqliteSchemaHashCache, hash);
-      }
-
-      this.isLocalDBSchemaSynced = true;
-
-      console.info(`🗂 Migration success, take ${Date.now() - start}ms`);
-    } catch (cause) {
-      console.error('❌ Local database schema migration failed', cause);
-      throw cause;
-    }
+    // 数据库已在后端初始化，我们只需要标记为已同步
+    this.isLocalDBSchemaSynced = true;
+    console.log('✅ Database initialized by backend, skipping frontend migrations');
 
     return this.db;
   }
@@ -165,10 +90,10 @@ export class DatabaseManager {
         });
 
         // Create Drizzle instance with Wails SQLite driver
-        const db = createDrizzleWailsSQLite(this.driver, schema);
+        const db = await createDrizzleWailsSQLite(this.driver, schema);
 
-        // Create BaseSQLiteDatabase instance
-        this.dbInstance = new BaseSQLiteDatabase('sync', db.dialect as any, db.session as any, undefined);
+        // Use the Drizzle instance directly instead of BaseSQLiteDatabase
+        this.dbInstance = db;
 
         await this.migrate(true);
 
