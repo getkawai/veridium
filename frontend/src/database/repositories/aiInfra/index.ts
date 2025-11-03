@@ -19,7 +19,6 @@ import { merge, mergeArrayById } from '@/utils/merge';
 
 import { AiModelModel } from '../../models/aiModel';
 import { AiProviderModel } from '../../models/aiProvider';
-import { LobeChatDatabase } from '../../type';
 
 type DecryptUserKeyVaults = (encryptKeyVaultsStr: string | null) => Promise<any>;
 
@@ -121,21 +120,17 @@ const injectSearchSettings = (providerId: string, item: any) => {
 };
 
 export class AiInfraRepos {
-  private userId: string;
-  private db: LobeChatDatabase;
   aiProviderModel: AiProviderModel;
   private readonly providerConfigs: Record<string, ProviderConfig>;
   aiModelModel: AiModelModel;
 
   constructor(
-    db: LobeChatDatabase,
+    _db: any, // Not used - models use direct Wails bindings
     userId: string,
     providerConfigs: Record<string, ProviderConfig>,
   ) {
-    this.userId = userId;
-    this.db = db;
-    this.aiProviderModel = new AiProviderModel(db, userId);
-    this.aiModelModel = new AiModelModel(db, userId);
+    this.aiProviderModel = new AiProviderModel(_db, userId);
+    this.aiModelModel = new AiModelModel(_db, userId);
     this.providerConfigs = providerConfigs;
   }
 
@@ -241,7 +236,7 @@ export class AiInfraRepos {
       .filter((item) =>
         filterEnabled ? enabledProviderIds.has(item.providerId) && item.enabled : true,
       )
-      .map((item) => injectSearchSettings(item.providerId, item));
+      .map((item) => injectSearchSettings(item.providerId || 'unknown', item));
 
     return [...builtinModelList.flat(), ...appendedUserModels].sort(
       (a, b) => (a?.sort || -1) - (b?.sort || -1),
@@ -284,7 +279,7 @@ export class AiInfraRepos {
     const defaultModels: AiProviderModelListItem[] =
       (await this.fetchBuiltinModels(providerId)) || [];
     // 这里不修改搜索设置不影响使用，但是为了get数据统一
-    const mergedModel = mergeArrayById(defaultModels, aiModels) as AiProviderModelListItem[];
+    const mergedModel = mergeArrayById(defaultModels, aiModels as any) as AiProviderModelListItem[];
 
     return mergedModel.map((m) => injectSearchSettings(providerId, m));
   };
@@ -318,7 +313,7 @@ export class AiInfraRepos {
         ...m,
         enabled: m.enabled || false,
         source: AiModelSourceEnum.Builtin,
-      }));
+      } as AiProviderModelListItem));
     } catch (error) {
       console.error(error);
       // maybe provider id not exist
