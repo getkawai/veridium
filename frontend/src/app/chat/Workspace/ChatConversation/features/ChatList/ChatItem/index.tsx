@@ -3,10 +3,11 @@ import { memo } from 'react';
 
 import SupervisorThinkingTag from '@/app/chat/Workspace/ChatConversation/features/ChatList/ChatItem/OrchestratorThinking';
 import { ChatItem } from '@/features/Conversation';
-import { useAgentStore } from '@/store/agent';
+import { useAgentStore } from '@/store/agent/store';
 import { agentChatConfigSelectors } from '@/store/agent/selectors';
 import { useChatStore } from '@/store/chat';
-import { chatSelectors, threadSelectors } from '@/store/chat/selectors';
+import { chatSelectors } from '@/store/chat/slices/message/selectors';
+import { threadSelectors } from '@/store/chat/slices/thread/selectors';
 
 import Thread from './Thread';
 

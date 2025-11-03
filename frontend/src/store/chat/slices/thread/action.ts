@@ -16,7 +16,7 @@ import { StateCreator } from 'zustand/vanilla';
 import { useClientDataSWR } from '@/libs/swr';
 import { chatService } from '@/services/chat';
 import { threadService } from '@/services/thread';
-import { threadSelectors } from '@/store/chat/selectors';
+import { threadSelectors } from './selectors';
 import { ChatStore } from '@/store/chat/store';
 import { globalHelpers } from '@/store/global/helpers';
 import { useSessionStore } from '@/store/session';

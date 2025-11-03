@@ -6,7 +6,7 @@ import { ragService } from '@/services/rag';
 import { useAgentStore } from '@/store/agent';
 import { agentSelectors } from '@/store/agent/selectors';
 import { ChatStore } from '@/store/chat';
-import { chatSelectors } from '@/store/chat/selectors';
+import { chatSelectors } from '../../message/selectors';
 import { toggleBooleanList } from '@/store/chat/utils';
 import { useUserStore } from '@/store/user';
 import { systemAgentSelectors } from '@/store/user/selectors';

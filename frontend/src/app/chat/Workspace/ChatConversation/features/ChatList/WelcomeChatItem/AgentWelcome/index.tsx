@@ -8,10 +8,10 @@ import { Center, Flexbox } from 'react-layout-kit';
 
 import { useGreeting } from '@/hooks/useGreeting';
 import { useIsMobile } from '@/hooks/useIsMobile';
-import { useAgentStore } from '@/store/agent';
+import { useAgentStore } from '@/store/agent/store';
 import { agentSelectors } from '@/store/agent/selectors';
 import { useChatStore } from '@/store/chat';
-import { chatSelectors } from '@/store/chat/selectors';
+import { chatSelectors } from '@/store/chat/slices/message/selectors';
 import { featureFlagsSelectors, useServerConfigStore } from '@/store/serverConfig';
 import { useSessionStore } from '@/store/session';
 import { sessionMetaSelectors } from '@/store/session/selectors';

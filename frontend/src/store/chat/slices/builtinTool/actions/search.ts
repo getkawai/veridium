@@ -4,7 +4,7 @@ import { nanoid } from '@/utils';
 import { StateCreator } from 'zustand/vanilla';
 
 import { searchService } from '@/server/services/search';
-import { chatSelectors } from '@/store/chat/selectors';
+import { chatSelectors } from '../../message/selectors';
 import { ChatStore } from '@/store/chat/store';
 import { WebBrowsingExecutionRuntime } from '@/tools/web-browsing/ExecutionRuntime';
 

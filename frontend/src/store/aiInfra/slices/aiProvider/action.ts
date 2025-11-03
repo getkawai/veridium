@@ -12,7 +12,8 @@ import { StateCreator } from 'zustand/vanilla';
 
 import { useClientDataSWR } from '@/libs/swr';
 import { aiProviderService } from '@/services/aiProvider';
-import { AiInfraStore } from '@/store/aiInfra/store';
+import { AIProviderStoreState } from '../../initialState';
+import type { AiModelAction } from '../aiModel/action';
 import { useUserStore } from '@/store/user';
 import { authSelectors } from '@/store/user/selectors';
 import {
@@ -115,7 +116,7 @@ export interface AiProviderAction {
 }
 
 export const createAiProviderSlice: StateCreator<
-  AiInfraStore,
+  AIProviderStoreState & AiProviderAction & AiModelAction,
   [['zustand/devtools', never]],
   [],
   AiProviderAction

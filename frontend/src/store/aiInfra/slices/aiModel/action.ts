@@ -10,7 +10,8 @@ import { StateCreator } from 'zustand/vanilla';
 
 import { useClientDataSWR } from '@/libs/swr';
 import { aiModelService } from '@/services/aiModel';
-import { AiInfraStore } from '@/store/aiInfra/store';
+import { AIProviderStoreState } from '../../initialState';
+import type { AiProviderAction } from '../aiProvider/action';
 
 const FETCH_AI_PROVIDER_MODEL_LIST_KEY = 'FETCH_AI_PROVIDER_MODELS';
 
@@ -37,7 +38,7 @@ export interface AiModelAction {
 }
 
 export const createAiModelSlice: StateCreator<
-  AiInfraStore,
+  AIProviderStoreState & AiProviderAction & AiModelAction,
   [['zustand/devtools', never]],
   [],
   AiModelAction

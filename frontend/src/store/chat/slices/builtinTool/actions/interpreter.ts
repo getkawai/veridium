@@ -10,7 +10,7 @@ import { StateCreator } from 'zustand/vanilla';
 
 import { useClientDataSWR } from '@/libs/swr';
 // import { pythonService } from '@/services/python';
-import { chatSelectors } from '@/store/chat/selectors';
+import { chatSelectors } from '../../message/selectors';
 import { ChatStore } from '@/store/chat/store';
 import { useFileStore } from '@/store/file';
 import { CodeInterpreterIdentifier } from '@/tools/code-interpreter';

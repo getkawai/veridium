@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 
 import { useChatStore } from '@/store/chat';
-import { threadSelectors } from '@/store/chat/selectors';
+import { threadSelectors } from '@/store/chat/slices/thread/selectors';
 
 import ThreadItem from './ThreadItem';
 

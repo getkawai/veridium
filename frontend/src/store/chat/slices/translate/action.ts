@@ -6,7 +6,7 @@ import { StateCreator } from 'zustand/vanilla';
 import { supportLocales } from '@/locales/resources';
 import { chatService } from '@/services/chat';
 import { messageService } from '@/services/message';
-import { chatSelectors } from '@/store/chat/selectors';
+import { chatSelectors } from '../message/selectors';
 import { ChatStore } from '@/store/chat/store';
 import { useUserStore } from '@/store/user';
 import { systemAgentSelectors } from '@/store/user/selectors';
