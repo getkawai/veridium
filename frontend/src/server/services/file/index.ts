@@ -3,7 +3,7 @@ import { TRPCError } from '@/types';
 
 import { serverDBEnv } from '@/config/db';
 import { FileModel } from '@/database/models/file';
-import { FileItem } from '@/database/schemas';
+import { FileItem } from '@/types/database-legacy';
 import { WriteTempFile, Cleanup } from 'bindings/github.com/kawai-network/veridium/tempfileservice';
 
 import { FileServiceImpl, createFileServiceModule } from './impls';

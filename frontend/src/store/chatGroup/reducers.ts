@@ -1,6 +1,6 @@
 import { produce } from 'immer';
 
-import { ChatGroupItem } from '@/database/schemas/chatGroup';
+import { ChatGroupItem } from '@/types/database-legacy';
 
 import { ChatGroupState } from './initialState';
 

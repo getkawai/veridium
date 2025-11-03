@@ -1,6 +1,6 @@
 import { UIChatMessage } from '@/types';
 
-import { ChatGroupAgentItem, ChatGroupItem } from '@/database/schemas/chatGroup';
+import { ChatGroupAgentItem, ChatGroupItem } from '@/types/database-legacy';
 
 import type { SupervisorTodoItem } from './supervisor';
 

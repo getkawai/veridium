@@ -1,5 +1,5 @@
 import { clientDB } from '@/database/client/db';
-import { GenerationTopicItem } from '@/database/schemas';
+import { GenerationTopicItem } from '@/types/database-legacy';
 import { GenerationTopicModel } from '@/database/models/generationTopic';
 import { BaseClientService } from '@/services/baseClientService';
 import { ImageGenerationTopic } from '@/types/generation';

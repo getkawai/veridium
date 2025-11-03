@@ -1,4 +1,4 @@
-import type { ChatGroupItem, NewChatGroup } from '@/database/schemas/chatGroup';
+import type { ChatGroupItem, NewChatGroup } from '@/types/database-legacy';
 import type { LobeChatGroupConfig } from '@/types/chatGroup';
 
 export interface ChatGroupState {

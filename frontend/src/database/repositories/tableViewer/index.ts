@@ -7,17 +7,15 @@ import {
   TableColumnInfo,
 } from '@/types/tableViewer';
 
-import { LobeChatDatabase } from '../../type';
+import { executeQuery, executeQueryOne, executeCommand } from '../../utils/sqlExecutor';
 
 export class TableViewerRepo {
-  private db: LobeChatDatabase;
-
-  constructor(db: LobeChatDatabase, _userId: string) {
-    this.db = db;
+  constructor(_db: any, _userId: string) {
+    // No longer needed, kept for API compatibility
   }
 
   /**
-   * 获取数据库中所有的表
+   * Get all tables in the database
    */
   async getAllTables(): Promise<TableBasicInfo[]> {
     const sqlString = `
@@ -30,30 +28,28 @@ export class TableViewerRepo {
       ORDER BY name;
     `;
 
-    const tables = await this.db.execute(sqlString);
-
-    const tableNames = tables.rows.map((row) => row.name) as string[];
+    const tables = await executeQuery<{ name: string; type: string }>(sqlString);
+    const tableNames = tables.map((row) => row.name);
 
     const counts = await pMap(tableNames, async (name) => this.getTableCount(name), {
       concurrency: 10,
     });
 
-    return tables.rows.map((row, index) => ({
+    return tables.map((row, index) => ({
       count: counts[index],
       name: row.name,
-      type: row.type,
-    })) as TableBasicInfo[];
+      type: row.type as 'BASE TABLE' | 'VIEW',
+    }));
   }
 
   /**
-   * 获取指定表的详细结构信息
+   * Get detailed structure info for a table
    */
   async getTableDetails(tableName: string): Promise<TableColumnInfo[]> {
     const sqlString = `PRAGMA table_info(${tableName})`;
+    const columns = await executeQuery<any>(sqlString);
 
-    const columns = await this.db.execute(sqlString);
-
-    return columns.rows.map((col: any) => ({
+    return columns.map((col) => ({
       defaultValue: col.dflt_value,
       foreignKey: undefined, // SQLite doesn't provide foreign key info in PRAGMA table_info
       isPrimaryKey: !!col.pk,
@@ -64,7 +60,7 @@ export class TableViewerRepo {
   }
 
   /**
-   * 获取表数据，支持分页、排序和筛选
+   * Get table data with pagination, sorting, and filtering
    */
   async getTableData(tableName: string, pagination: PaginationParams, filters?: FilterCondition[]) {
     const offset = (pagination.page - 1) * pagination.pageSize;
@@ -129,23 +125,23 @@ export class TableViewerRepo {
     }
 
     // Execute queries
-    const [data, count] = await Promise.all([
-      this.db.execute(query, params),
-      this.db.execute(countQuery, countParams)
+    const [data, countResult] = await Promise.all([
+      executeQuery(query, params),
+      executeQueryOne<{ total: number }>(countQuery, countParams),
     ]);
 
     return {
-      data: data.rows,
+      data,
       pagination: {
         page: pagination.page,
         pageSize: pagination.pageSize,
-        total: Number(count.rows[0].total),
+        total: Number(countResult?.total || 0),
       },
     };
   }
 
   /**
-   * 更新表中的一行数据
+   * Update a row in the table
    */
   async updateRow(
     tableName: string,
@@ -153,30 +149,29 @@ export class TableViewerRepo {
     primaryKeyColumn: string,
     data: Record<string, any>,
   ) {
-    const setParts = Object.keys(data).map(key => `${key} = ?`);
+    const setParts = Object.keys(data).map((key) => `${key} = ?`);
     const values = Object.values(data);
 
     const sqlString = `UPDATE ${tableName} SET ${setParts.join(', ')} WHERE ${primaryKeyColumn} = ?`;
     values.push(id);
 
-    await this.db.execute(sqlString, values);
+    await executeCommand(sqlString, values);
 
     // Get the updated row
     const getRow = `SELECT * FROM ${tableName} WHERE ${primaryKeyColumn} = ?`;
-    const result = await this.db.execute(getRow, [id]);
-    return result.rows[0];
+    return executeQueryOne(getRow, [id]);
   }
 
   /**
-   * 删除表中的一行数据
+   * Delete a row from the table
    */
   async deleteRow(tableName: string, id: string, primaryKeyColumn: string) {
     const sqlString = `DELETE FROM ${tableName} WHERE ${primaryKeyColumn} = ?`;
-    await this.db.execute(sqlString, [id]);
+    await executeCommand(sqlString, [id]);
   }
 
   /**
-   * 插入新行数据
+   * Insert a new row
    */
   async insertRow(tableName: string, data: Record<string, any>) {
     const columns = Object.keys(data);
@@ -185,35 +180,34 @@ export class TableViewerRepo {
 
     const sqlString = `INSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${placeholders})`;
 
-    await this.db.execute(sqlString, values);
+    await executeCommand(sqlString, values);
 
-    // For SQLite, we need to get the last inserted row differently
+    // For SQLite, get the last inserted row
     const getLastRow = `SELECT * FROM ${tableName} WHERE rowid = last_insert_rowid()`;
-    const result = await this.db.execute(getLastRow);
-    return result.rows[0];
+    return executeQueryOne(getLastRow);
   }
 
   /**
-   * 获取表的总记录数
+   * Get total count for a table
    */
   async getTableCount(tableName: string): Promise<number> {
     const sqlString = `SELECT COUNT(*) as total FROM ${tableName}`;
-    const result = await this.db.execute(sqlString);
-    return Number(result.rows[0].total);
+    const result = await executeQueryOne<{ total: number }>(sqlString);
+    return Number(result?.total || 0);
   }
 
   /**
-   * 批量删除数据
+   * Batch delete rows
    */
   async batchDelete(tableName: string, ids: string[], primaryKeyColumn: string) {
     const inClause = ids.map(() => '?').join(', ');
     const sqlString = `DELETE FROM ${tableName} WHERE ${primaryKeyColumn} IN (${inClause})`;
 
-    await this.db.execute(sqlString, ids);
+    await executeCommand(sqlString, ids);
   }
 
   /**
-   * 导出表数据（支持分页导出）
+   * Export table data (supports paginated export)
    */
   async exportTableData(
     tableName: string,

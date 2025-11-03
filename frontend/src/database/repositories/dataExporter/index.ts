@@ -1,11 +1,9 @@
-import { and, eq, inArray } from 'drizzle-orm';
 import pMap from 'p-map';
 
-import * as EXPORT_TABLES from '../../schemas';
-import { LobeChatDatabase } from '../../type';
+import { executeQuery } from '../../utils/sqlExecutor';
 
 interface BaseTableConfig {
-  table: keyof typeof EXPORT_TABLES;
+  table: string;
   type: 'base';
   userField?: string;
 }
@@ -14,102 +12,99 @@ export interface RelationTableConfig {
   relations: {
     field: string;
     sourceField?: string;
-    sourceTable: keyof typeof EXPORT_TABLES;
+    sourceTable: string;
   }[];
-  table: keyof typeof EXPORT_TABLES;
+  table: string;
   type: 'relation';
 }
 
 export const DATA_EXPORT_CONFIG = {
   baseTables: [
     // { table: 'users', userField: 'id' },
-    { table: 'userSettings', userField: 'id' },
-    { table: 'userInstalledPlugins' },
+    { table: 'user_settings', userField: 'id' },
+    { table: 'user_installed_plugins' },
     { table: 'agents' },
-    // { table: 'agentsFiles' },
-    // { table: 'agentsKnowledgeBases' },
-    // { table: 'agentsToSessions' },
-    { table: 'aiModels' },
-    { table: 'aiProviders' },
+    // { table: 'agents_files' },
+    // { table: 'agents_knowledge_bases' },
+    // { table: 'agents_to_sessions' },
+    { table: 'ai_models' },
+    { table: 'ai_providers' },
     // async tasks should not be included
-    // { table: 'asyncTasks' },
+    // { table: 'async_tasks' },
     // { table: 'chunks' },
-    // { table: 'unstructuredChunks' },
+    // { table: 'unstructured_chunks' },
     // { table: 'embeddings' },
     // { table: 'files' },
-    // { table: 'fileChunks' },
-    // { table: 'filesToSessions' },
-    // { table: 'knowledgeBases' },
-    // { table: 'knowledgeBaseFiles' },
-    { table: 'messageChunks' },
-    { table: 'messagePlugins' },
-    // { table: 'messageQueryChunks' },
-    // { table: 'messageQueries' },
-    { table: 'messageTranslates' },
-    // { table: 'messageTTS' },
+    // { table: 'file_chunks' },
+    // { table: 'files_to_sessions' },
+    // { table: 'knowledge_bases' },
+    // { table: 'knowledge_base_files' },
+    { table: 'message_chunks' },
+    { table: 'message_plugins' },
+    // { table: 'message_query_chunks' },
+    // { table: 'message_queries' },
+    { table: 'message_translates' },
+    // { table: 'message_tts' },
     { table: 'messages' },
-    // { table: 'messagesFiles' },
+    // { table: 'messages_files' },
 
     // next auth tables won't be included
-    // { table: 'nextauthAccounts' },
-    // { table: 'nextauthSessions' },
-    // { table: 'nextauthAuthenticators' },
-    // { table: 'nextauthVerificationTokens' },
-    { table: 'sessionGroups' },
+    // { table: 'nextauth_accounts' },
+    // { table: 'nextauth_sessions' },
+    // { table: 'nextauth_authenticators' },
+    // { table: 'nextauth_verification_tokens' },
+    { table: 'session_groups' },
     { table: 'sessions' },
     { table: 'threads' },
     { table: 'topics' },
   ] as BaseTableConfig[],
   relationTables: [
     // {
-    //   relations: [{ field: 'hashId', sourceField: 'fileHash', sourceTable: 'files' }],
-    //   table: 'globalFiles',
+    //   relations: [{ field: 'hash_id', sourceField: 'file_hash', sourceTable: 'files' }],
+    //   table: 'global_files',
     // },
     {
       relations: [
-        { field: 'agentId', sourceField: 'id', sourceTable: 'agents' },
-        { field: 'sessionId', sourceField: 'id', sourceTable: 'sessions' },
+        { field: 'agent_id', sourceField: 'id', sourceTable: 'agents' },
+        { field: 'session_id', sourceField: 'id', sourceTable: 'sessions' },
       ],
-      table: 'agentsToSessions',
+      table: 'agents_to_sessions',
     },
 
     // {
     //   relations: [{ field: 'id', sourceField: 'id', sourceTable: 'messages' }],
-    //   table: 'messagePlugins',
+    //   table: 'message_plugins',
     // },
   ] as RelationTableConfig[],
 };
 
 export class DataExporterRepos {
   private userId: string;
-  private db: LobeChatDatabase;
 
-  constructor(db: LobeChatDatabase, userId: string) {
-    this.db = db;
+  constructor(_db: any, userId: string) {
     this.userId = userId;
   }
 
   private removeUserId(data: any[]) {
     return data.map((item) => {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { userId: _, ...rest } = item;
+      const { user_id: _, userId: __, ...rest } = item;
       return rest;
     });
   }
 
   private async queryTable(config: RelationTableConfig, existingData: Record<string, any[]>) {
     const { table } = config;
-    const tableObj = EXPORT_TABLES[table];
-    if (!tableObj) throw new Error(`Table ${table} not found`);
 
     try {
-      const conditions = [];
+      const whereClauses: string[] = [];
+      const params: any[] = [];
 
-      // 处理每个关联条件
+      // Build WHERE clauses for each relation
       for (const relation of config.relations) {
         const sourceData = existingData[relation.sourceTable] || [];
 
-        // 如果源数据为空，这个表可能无法查询到任何数据
+        // If source data is empty, this table won't have any data
         if (sourceData.length === 0) {
           console.log(
             `Source table ${relation.sourceTable} has no data, skipping query for ${table}`,
@@ -118,21 +113,19 @@ export class DataExporterRepos {
         }
 
         const sourceIds = sourceData.map((item) => item[relation.sourceField || 'id']);
-        conditions.push(inArray(tableObj[relation.field], sourceIds));
+        
+        // Build IN clause
+        const placeholders = sourceIds.map(() => '?').join(', ');
+        whereClauses.push(`${relation.field} IN (${placeholders})`);
+        params.push(...sourceIds);
       }
 
-      // 如果表有userId字段并且不是users表，添加用户过滤
-      if ('userId' in tableObj && table !== 'users' && !config.relations) {
-        conditions.push(eq(tableObj.userId, this.userId));
-      }
+      // Build final query
+      const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+      const sql = `SELECT * FROM ${table} ${whereClause}`;
 
-      // 组合所有条件
-      const where = conditions.length === 1 ? conditions[0] : and(...conditions);
+      const result = await executeQuery(sql, params);
 
-      // @ts-expect-error query
-      const result = await this.db.query[table].findMany({ where });
-
-      // 只对使用 userId 查询的表移除 userId 字段
       console.log(`Successfully exported table: ${table}, count: ${result.length}`);
       return config.relations ? result : this.removeUserId(result);
     } catch (error) {
@@ -143,20 +136,14 @@ export class DataExporterRepos {
 
   private async queryBaseTables(config: BaseTableConfig) {
     const { table } = config;
-    const tableObj = EXPORT_TABLES[table];
-    if (!tableObj) throw new Error(`Table ${table} not found`);
 
     try {
-      // 如果有关联配置，使用关联查询
+      // Use userId or custom userField
+      const userField = config.userField || 'user_id';
+      const sql = `SELECT * FROM ${table} WHERE ${userField} = ?`;
 
-      // 默认使用 userId 查询，特殊情况使用 userField
-      const userField = config.userField || 'userId';
-      const where = eq(tableObj[userField], this.userId);
+      const result = await executeQuery(sql, [this.userId]);
 
-      // @ts-expect-error query
-      const result = await this.db.query[table].findMany({ where });
-
-      // 只对使用 userId 查询的表移除 userId 字段
       console.log(`Successfully exported table: ${table}, count: ${result.length}`);
       return this.removeUserId(result);
     } catch (error) {
@@ -168,7 +155,7 @@ export class DataExporterRepos {
   async export(concurrency = 10) {
     const result: Record<string, any[]> = {};
 
-    // 1. 首先并发查询所有基础表
+    // 1. Query all base tables in parallel
     console.log('Querying base tables...');
     const baseResults = await pMap(
       DATA_EXPORT_CONFIG.baseTables,
@@ -176,17 +163,16 @@ export class DataExporterRepos {
       { concurrency },
     );
 
-    // 更新结果集
+    // Update result set
     baseResults.forEach(({ table, data }) => {
       result[table] = data;
     });
 
-    // 2. 然后并发查询所有关联表
-
+    // 2. Query all relation tables in parallel
     const relationResults = await pMap(
       DATA_EXPORT_CONFIG.relationTables,
       async (config) => {
-        // 检查所有依赖的源表是否有数据
+        // Check if all source tables have data
         const allSourcesHaveData = config.relations.every(
           (relation) => (result[relation.sourceTable] || []).length > 0,
         );
@@ -204,7 +190,7 @@ export class DataExporterRepos {
       { concurrency },
     );
 
-    // 更新结果集
+    // Update result set
     relationResults.forEach(({ table, data }) => {
       result[table] = data;
     });

@@ -1,4 +1,4 @@
-import { GenerationTopicItem } from '@/database/schemas';
+import { GenerationTopicItem } from '@/types/database-legacy';
 import { ImageGenerationTopic } from '@/types/generation';
 import { UpdateTopicValue } from '@/types/generation-types';
 

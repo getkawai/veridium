@@ -5,7 +5,7 @@ import { StateCreator } from 'zustand/vanilla';
 
 import { INBOX_SESSION_ID } from '@/const/session';
 import { DEFAULT_CHAT_GROUP_CHAT_CONFIG } from '@/const/settings';
-import type { ChatGroupItem } from '@/database/schemas/chatGroup';
+import type { ChatGroupItem } from '@/types/database-legacy';
 import { useClientDataSWR } from '@/libs/swr';
 import { chatGroupService } from '@/services/chatGroup';
 import type { ChatStoreState } from '@/store/chat/initialState';
