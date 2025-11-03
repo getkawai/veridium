@@ -198,7 +198,7 @@ export const ModelItemRender = memo<ModelItemRenderProps>(({ showInfoTag = true,
         horizontal
         style={{ flexShrink: 1, minWidth: 0, overflow: 'hidden' }}
       >
-        {model.id && <ModelIcon model={model.id.toLowerCase()} size={20} />}
+        {model.id && typeof model.id === 'string' && <ModelIcon model={model.id.toLowerCase()} size={20} />}
         <Text style={mobile ? { maxWidth: '60vw', overflowX: 'auto', whiteSpace: 'nowrap' } : {}}>
           {model.displayName || model.id}
         </Text>
