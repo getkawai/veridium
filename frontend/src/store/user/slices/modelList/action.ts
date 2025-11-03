@@ -10,6 +10,7 @@ import { ModelProvider } from '@/model-bank';
 import useSWR, { SWRResponse } from 'swr';
 import type { StateCreator } from 'zustand/vanilla';
 
+import { DEFAULT_MODEL_PROVIDER_LIST } from '@/config/modelProviders';
 import type { UserStore } from '@/store/user';
 
 import { settingsSelectors } from '../settings/selectors';
@@ -106,7 +107,6 @@ export const createModelListSlice: StateCreator<
       return providerCard.chatModels;
     };
 
-    const { DEFAULT_MODEL_PROVIDER_LIST } = await import('@/config/modelProviders');
     const defaultModelProviderList = produce(DEFAULT_MODEL_PROVIDER_LIST, (draft) => {
       Object.values(ModelProvider).forEach((id) => {
         const provider = draft.find((d) => d.id === id);

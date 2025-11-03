@@ -16,6 +16,7 @@ import { AgentSettingsProvider } from '@/features/AgentSetting/AgentSettingsProv
 import { TITLE_BAR_HEIGHT } from '@/features/ElectronTitlebar';
 import Footer from '@/features/Setting/Footer';
 import { useInitAgentConfig } from '@/hooks/useInitAgentConfig';
+import { sessionService } from '@/services/session';
 import { useAgentStore } from '@/store/agent';
 import { agentSelectors } from '@/store/agent/slices/chat';
 import { ChatSettingsTabs } from '@/store/global/initialState';
@@ -105,7 +106,6 @@ const AgentSettings = memo<AgentSettingsProps>(({ agentId, onClose, open }) => {
 
       if (agentSession) {
         // Use the session service directly with the specific session ID
-        const { sessionService } = await import('@/services/session');
         await sessionService.updateSessionMeta(agentSession.id, meta);
         // Refresh sessions to update the UI
         await useSessionStore.getState().refreshSessions();

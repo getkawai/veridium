@@ -8,6 +8,7 @@ import { LOBE_THEME_APPEARANCE } from '@/const/theme';
 import { CURRENT_VERSION, isDesktop } from '@/const/version';
 import { useOnlyFetchOnceSWR } from '@/libs/swr';
 import { globalService } from '@/services/global';
+import { dispatch } from '@/electron-client-ipc';
 import type { SystemStatus } from '@/store/global/initialState';
 import { LocaleMode } from '@/types/locale';
 import { setCookie } from '@/utils/client/cookie';
@@ -39,8 +40,6 @@ export const generalActionSlice: StateCreator<
     if (!isDesktop) return;
 
     try {
-      const { dispatch } = await import('@/electron-client-ipc');
-
       const url = `/chat?session=${sessionId}&mode=single`;
 
       const result = await dispatch('createMultiInstanceWindow', {
@@ -61,8 +60,6 @@ export const generalActionSlice: StateCreator<
     if (!isDesktop) return;
 
     try {
-      const { dispatch } = await import('@/electron-client-ipc');
-
       const url = `/chat?session=${sessionId}&topic=${topicId}&mode=single`;
 
       const result = await dispatch('createMultiInstanceWindow', {
@@ -87,8 +84,6 @@ export const generalActionSlice: StateCreator<
     if (isDesktop && !skipBroadcast) {
       (async () => {
         try {
-          const { dispatch } = await import('@/electron-client-ipc');
-
           await dispatch('updateLocale', locale);
         } catch (error) {
           console.error('Failed to update locale in main process:', error);
@@ -104,7 +99,6 @@ export const generalActionSlice: StateCreator<
     if (isDesktop && !skipBroadcast) {
       (async () => {
         try {
-          const { dispatch } = await import('@/electron-client-ipc');
           await dispatch('updateThemeMode', themeMode);
         } catch (error) {
           console.error('Failed to update theme in main process:', error);

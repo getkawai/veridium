@@ -4,6 +4,7 @@ import useSWR, { SWRResponse, mutate } from 'swr';
 import type { StateCreator } from 'zustand/vanilla';
 
 import { remoteServerService } from '@/services/electron/remoteServer';
+import { getUserStoreState } from '@/store/user';
 
 import { initialState } from '../initialState';
 import type { ElectronStore } from '../store';
@@ -87,7 +88,6 @@ export const remoteSyncSlice: StateCreator<
   refreshUserData: async () => {
     const { getSessionStoreState } = await import('@/store/session');
     const { getChatStoreState } = await import('@/store/chat');
-    const { getUserStoreState } = await import('@/store/user');
 
     await getSessionStoreState().refreshSessions();
     await getChatStoreState().refreshMessages();

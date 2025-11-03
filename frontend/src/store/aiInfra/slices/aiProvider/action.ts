@@ -12,6 +12,7 @@ import { StateCreator } from 'zustand/vanilla';
 
 import { useClientDataSWR } from '@/libs/swr';
 import { aiProviderService } from '@/services/aiProvider';
+import { DEFAULT_MODEL_PROVIDER_LIST } from '@/config/modelProviders';
 import { AIProviderStoreState } from '../../initialState';
 import type { AiModelAction } from '../aiModel/action';
 import { useUserStore } from '@/store/user';
@@ -245,8 +246,8 @@ export const createAiProviderSlice: StateCreator<
     return useClientDataSWR<AiProviderRuntimeStateWithBuiltinModels | undefined>(
       shouldFetch ? [AiProviderSwrKey.fetchAiProviderRuntimeState, isLogin] : null,
       async ([, isLogin]) => {
-        const [{ LOBE_DEFAULT_MODEL_LIST: builtinAiModelList }, { DEFAULT_MODEL_PROVIDER_LIST }] =
-          await Promise.all([import('@/model-bank'), import('@/config/modelProviders')]);
+        const [{ LOBE_DEFAULT_MODEL_LIST: builtinAiModelList }] =
+          await Promise.all([import('@/model-bank')]);
 
         if (isLogin) {
           const data = await aiProviderService.getAiProviderRuntimeState();

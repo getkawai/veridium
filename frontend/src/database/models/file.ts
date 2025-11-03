@@ -82,7 +82,7 @@ export class FileModel {
   };
 
   checkHash = async (hash: string) => {
-    const item = await DB.GetGlobalFile(toNullString(hash) as any);
+    const item = await DB.GetGlobalFile(hash);
     
     if (!item) return { isExist: false };
 
@@ -124,7 +124,7 @@ export class FileModel {
   };
 
   deleteGlobalFile = async (hashId: string) => {
-    return await DB.DeleteGlobalFile(toNullString(hashId) as any);
+    return await DB.DeleteGlobalFile(hashId);
   };
 
   countUsage = async () => {
@@ -182,7 +182,7 @@ export class FileModel {
 
       await Promise.all(
         hashesToDelete.map((hash) =>
-          DB.DeleteGlobalFile(toNullString(hash) as any),
+          DB.DeleteGlobalFile(hash),
         ),
       );
     }

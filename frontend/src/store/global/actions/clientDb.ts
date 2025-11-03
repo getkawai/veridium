@@ -2,6 +2,7 @@ import { SWRResponse } from 'swr';
 import type { StateCreator } from 'zustand/vanilla';
 
 import { useOnlyFetchOnceSWR } from '@/libs/swr';
+import { initializeDB } from '@/database/client/db';
 import type { GlobalStore } from '@/store/global';
 import { DatabaseLoadingState, OnStageChange } from '@/types/clientDB';
 
@@ -29,15 +30,10 @@ export const clientDBSlice: StateCreator<
     )
       return;
 
-    const { initializeDB } = await import('@/database/client/db');
     await initializeDB({
-      onError: ({ error, migrationsSQL, migrationTableItems }) => {
+      onError: ({ error }) => {
         set({
           initClientDBError: error,
-          initClientDBMigrations: {
-            sqls: migrationsSQL,
-            tableRecords: migrationTableItems,
-          },
         });
       },
       onProgress: (data) => {

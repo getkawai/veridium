@@ -56,7 +56,7 @@ export const params = {
 
     return modelList.filter(Boolean).map((model) => {
       const knownModel = LOBE_DEFAULT_MODEL_LIST.find(
-        (m) => model.model.toLowerCase() === m.id.toLowerCase(),
+        (m) => model.model && typeof model.model === 'string' && model.model.toLowerCase() === m.id.toLowerCase(),
       );
 
       return {
