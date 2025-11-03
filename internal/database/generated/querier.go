@@ -106,6 +106,8 @@ type Querier interface {
 	DeleteTopic(ctx context.Context, arg DeleteTopicParams) error
 	DeleteUnstructuredChunk(ctx context.Context, arg DeleteUnstructuredChunkParams) error
 	DeleteUser(ctx context.Context, id string) error
+	DeleteUserSettings(ctx context.Context, id string) error
+	EnsureUserExists(ctx context.Context, arg EnsureUserExistsParams) error
 	// AI Models
 	GetAIModel(ctx context.Context, arg GetAIModelParams) (AiModel, error)
 	// AI Providers
@@ -216,6 +218,7 @@ type Querier interface {
 	GetUserRoles(ctx context.Context, arg GetUserRolesParams) ([]RbacRole, error)
 	// User Settings
 	GetUserSettings(ctx context.Context, id string) (UserSetting, error)
+	GetUserWithSettings(ctx context.Context, id string) (GetUserWithSettingsRow, error)
 	InstallUserPlugin(ctx context.Context, arg InstallUserPluginParams) (UserInstalledPlugin, error)
 	// Agent Files
 	LinkAgentToFile(ctx context.Context, arg LinkAgentToFileParams) error
@@ -331,6 +334,7 @@ type Querier interface {
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
 	UpdateUserOnboarding(ctx context.Context, arg UpdateUserOnboardingParams) error
 	UpdateUserPlugin(ctx context.Context, arg UpdateUserPluginParams) (UserInstalledPlugin, error)
+	UpdateUserPreference(ctx context.Context, arg UpdateUserPreferenceParams) (User, error)
 	UpdateUserSettingsGeneral(ctx context.Context, arg UpdateUserSettingsGeneralParams) error
 	UpdateUserSettingsHotkey(ctx context.Context, arg UpdateUserSettingsHotkeyParams) error
 	UpdateUserSettingsTTS(ctx context.Context, arg UpdateUserSettingsTTSParams) error

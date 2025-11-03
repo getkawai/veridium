@@ -5173,6 +5173,35 @@ export class Embedding {
     }
 }
 
+export class EnsureUserExistsParams {
+    "id": string;
+    "createdAt": number;
+    "updatedAt": number;
+
+    /** Creates a new EnsureUserExistsParams instance. */
+    constructor($$source: Partial<EnsureUserExistsParams> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EnsureUserExistsParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): EnsureUserExistsParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new EnsureUserExistsParams($$parsedSource as Partial<EnsureUserExistsParams>);
+    }
+}
+
 export class File {
     "id": string;
     "userId": string;
@@ -7066,6 +7095,159 @@ export class GetUserRolesParams {
             $$parsedSource["expiresAt"] = $$createField1_0($$parsedSource["expiresAt"]);
         }
         return new GetUserRolesParams($$parsedSource as Partial<GetUserRolesParams>);
+    }
+}
+
+export class GetUserWithSettingsRow {
+    "id": string;
+    "username": sql$0.NullString;
+    "email": sql$0.NullString;
+    "avatar": sql$0.NullString;
+    "firstName": sql$0.NullString;
+    "lastName": sql$0.NullString;
+    "isOnboarded": number;
+    "preference": sql$0.NullString;
+    "createdAt": number;
+    "updatedAt": number;
+    "settingsTts": sql$0.NullString;
+    "settingsHotkey": sql$0.NullString;
+    "settingsKeyVaults": sql$0.NullString;
+    "settingsGeneral": sql$0.NullString;
+    "settingsLanguageModel": sql$0.NullString;
+    "settingsSystemAgent": sql$0.NullString;
+    "settingsDefaultAgent": sql$0.NullString;
+    "settingsTool": sql$0.NullString;
+    "settingsImage": sql$0.NullString;
+
+    /** Creates a new GetUserWithSettingsRow instance. */
+    constructor($$source: Partial<GetUserWithSettingsRow> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("username" in $$source)) {
+            this["username"] = (new sql$0.NullString());
+        }
+        if (!("email" in $$source)) {
+            this["email"] = (new sql$0.NullString());
+        }
+        if (!("avatar" in $$source)) {
+            this["avatar"] = (new sql$0.NullString());
+        }
+        if (!("firstName" in $$source)) {
+            this["firstName"] = (new sql$0.NullString());
+        }
+        if (!("lastName" in $$source)) {
+            this["lastName"] = (new sql$0.NullString());
+        }
+        if (!("isOnboarded" in $$source)) {
+            this["isOnboarded"] = 0;
+        }
+        if (!("preference" in $$source)) {
+            this["preference"] = (new sql$0.NullString());
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+        if (!("settingsTts" in $$source)) {
+            this["settingsTts"] = (new sql$0.NullString());
+        }
+        if (!("settingsHotkey" in $$source)) {
+            this["settingsHotkey"] = (new sql$0.NullString());
+        }
+        if (!("settingsKeyVaults" in $$source)) {
+            this["settingsKeyVaults"] = (new sql$0.NullString());
+        }
+        if (!("settingsGeneral" in $$source)) {
+            this["settingsGeneral"] = (new sql$0.NullString());
+        }
+        if (!("settingsLanguageModel" in $$source)) {
+            this["settingsLanguageModel"] = (new sql$0.NullString());
+        }
+        if (!("settingsSystemAgent" in $$source)) {
+            this["settingsSystemAgent"] = (new sql$0.NullString());
+        }
+        if (!("settingsDefaultAgent" in $$source)) {
+            this["settingsDefaultAgent"] = (new sql$0.NullString());
+        }
+        if (!("settingsTool" in $$source)) {
+            this["settingsTool"] = (new sql$0.NullString());
+        }
+        if (!("settingsImage" in $$source)) {
+            this["settingsImage"] = (new sql$0.NullString());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetUserWithSettingsRow instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetUserWithSettingsRow {
+        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $$createType0;
+        const $$createField3_0 = $$createType0;
+        const $$createField4_0 = $$createType0;
+        const $$createField5_0 = $$createType0;
+        const $$createField7_0 = $$createType0;
+        const $$createField10_0 = $$createType0;
+        const $$createField11_0 = $$createType0;
+        const $$createField12_0 = $$createType0;
+        const $$createField13_0 = $$createType0;
+        const $$createField14_0 = $$createType0;
+        const $$createField15_0 = $$createType0;
+        const $$createField16_0 = $$createType0;
+        const $$createField17_0 = $$createType0;
+        const $$createField18_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("username" in $$parsedSource) {
+            $$parsedSource["username"] = $$createField1_0($$parsedSource["username"]);
+        }
+        if ("email" in $$parsedSource) {
+            $$parsedSource["email"] = $$createField2_0($$parsedSource["email"]);
+        }
+        if ("avatar" in $$parsedSource) {
+            $$parsedSource["avatar"] = $$createField3_0($$parsedSource["avatar"]);
+        }
+        if ("firstName" in $$parsedSource) {
+            $$parsedSource["firstName"] = $$createField4_0($$parsedSource["firstName"]);
+        }
+        if ("lastName" in $$parsedSource) {
+            $$parsedSource["lastName"] = $$createField5_0($$parsedSource["lastName"]);
+        }
+        if ("preference" in $$parsedSource) {
+            $$parsedSource["preference"] = $$createField7_0($$parsedSource["preference"]);
+        }
+        if ("settingsTts" in $$parsedSource) {
+            $$parsedSource["settingsTts"] = $$createField10_0($$parsedSource["settingsTts"]);
+        }
+        if ("settingsHotkey" in $$parsedSource) {
+            $$parsedSource["settingsHotkey"] = $$createField11_0($$parsedSource["settingsHotkey"]);
+        }
+        if ("settingsKeyVaults" in $$parsedSource) {
+            $$parsedSource["settingsKeyVaults"] = $$createField12_0($$parsedSource["settingsKeyVaults"]);
+        }
+        if ("settingsGeneral" in $$parsedSource) {
+            $$parsedSource["settingsGeneral"] = $$createField13_0($$parsedSource["settingsGeneral"]);
+        }
+        if ("settingsLanguageModel" in $$parsedSource) {
+            $$parsedSource["settingsLanguageModel"] = $$createField14_0($$parsedSource["settingsLanguageModel"]);
+        }
+        if ("settingsSystemAgent" in $$parsedSource) {
+            $$parsedSource["settingsSystemAgent"] = $$createField15_0($$parsedSource["settingsSystemAgent"]);
+        }
+        if ("settingsDefaultAgent" in $$parsedSource) {
+            $$parsedSource["settingsDefaultAgent"] = $$createField16_0($$parsedSource["settingsDefaultAgent"]);
+        }
+        if ("settingsTool" in $$parsedSource) {
+            $$parsedSource["settingsTool"] = $$createField17_0($$parsedSource["settingsTool"]);
+        }
+        if ("settingsImage" in $$parsedSource) {
+            $$parsedSource["settingsImage"] = $$createField18_0($$parsedSource["settingsImage"]);
+        }
+        return new GetUserWithSettingsRow($$parsedSource as Partial<GetUserWithSettingsRow>);
     }
 }
 
@@ -12598,6 +12780,39 @@ export class UpdateUserPluginParams {
             $$parsedSource["customParams"] = $$createField1_0($$parsedSource["customParams"]);
         }
         return new UpdateUserPluginParams($$parsedSource as Partial<UpdateUserPluginParams>);
+    }
+}
+
+export class UpdateUserPreferenceParams {
+    "preference": sql$0.NullString;
+    "updatedAt": number;
+    "id": string;
+
+    /** Creates a new UpdateUserPreferenceParams instance. */
+    constructor($$source: Partial<UpdateUserPreferenceParams> = {}) {
+        if (!("preference" in $$source)) {
+            this["preference"] = (new sql$0.NullString());
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpdateUserPreferenceParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UpdateUserPreferenceParams {
+        const $$createField0_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("preference" in $$parsedSource) {
+            $$parsedSource["preference"] = $$createField0_0($$parsedSource["preference"]);
+        }
+        return new UpdateUserPreferenceParams($$parsedSource as Partial<UpdateUserPreferenceParams>);
     }
 }
 

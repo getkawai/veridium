@@ -1,25 +1,29 @@
-import { UserGuide, UserKeyVaults, UserPreference, UserSettings, TRPCError } from  '@/types';
+import { UserGuide, UserKeyVaults, UserPreference, UserSettings, TRPCError } from '@/types';
 import dayjs from 'dayjs';
-import { eq } from 'drizzle-orm';
 import type { JsonValue, PartialDeep } from 'type-fest';
 
 import { merge } from '@/utils/merge';
 import { today } from '@/utils/time';
 
-export interface AdapterAccount {
-  type: "oauth" | "email" | "oidc"
-  [key: string]: JsonValue | undefined
-}
-
 import {
-  NewUser,
-  UserItem,
-  UserSettingsItem,
-  nextauthAccounts,
-  userSettings,
-  users,
-} from '../schemas';
-import { LobeChatDatabase } from '../type';
+  DB,
+  type User,
+  type UserSetting as UserSettingsDB,
+  type CreateUserParams,
+  toNullString,
+  toNullInt,
+  toNullJSON,
+  parseNullableJSON,
+  getNullableString,
+  currentTimestampMs,
+  boolToInt,
+  intToBool,
+} from '@/types/database';
+
+export interface AdapterAccount {
+  type: 'oauth' | 'email' | 'oidc';
+  [key: string]: JsonValue | undefined;
+}
 
 type DecryptUserKeyVaults = (
   encryptKeyVaultsStr: string | null,
@@ -34,11 +38,9 @@ export class UserNotFoundError extends TRPCError {
 
 export class UserModel {
   private userId: string;
-  private db: LobeChatDatabase;
 
-  constructor(db: LobeChatDatabase, userId: string) {
+  constructor(_db: any, userId: string) {
     this.userId = userId;
-    this.db = db;
   }
 
   getUserRegistrationDuration = async (): Promise<{
@@ -46,203 +48,252 @@ export class UserModel {
     duration: number;
     updatedAt: string;
   }> => {
-    const user = await this.db.query.users.findFirst({ where: eq(users.id, this.userId) });
-    if (!user)
+    try {
+      const user = await DB.GetUser(this.userId);
+      
+      return {
+        createdAt: dayjs(user.createdAt).format('YYYY-MM-DD'),
+        duration: dayjs().diff(dayjs(user.createdAt), 'day') + 1,
+        updatedAt: today().format('YYYY-MM-DD'),
+      };
+    } catch {
       return {
         createdAt: today().format('YYYY-MM-DD'),
         duration: 1,
         updatedAt: today().format('YYYY-MM-DD'),
       };
-
-    return {
-      createdAt: dayjs(user.createdAt).format('YYYY-MM-DD'),
-      duration: dayjs().diff(dayjs(user.createdAt), 'day') + 1,
-      updatedAt: today().format('YYYY-MM-DD'),
-    };
+    }
   };
 
   getUserState = async (decryptor: DecryptUserKeyVaults) => {
-    const result = await this.db
-      .select({
-        avatar: users.avatar,
-        email: users.email,
-        firstName: users.firstName,
-        fullName: users.fullName,
-        isOnboarded: users.isOnboarded,
-        lastName: users.lastName,
-        preference: users.preference,
-        settingsDefaultAgent: userSettings.defaultAgent,
-
-        settingsGeneral: userSettings.general,
-        settingsHotkey: userSettings.hotkey,
-        settingsImage: userSettings.image,
-        settingsKeyVaults: userSettings.keyVaults,
-        settingsLanguageModel: userSettings.languageModel,
-        settingsSystemAgent: userSettings.systemAgent,
-        settingsTTS: userSettings.tts,
-        settingsTool: userSettings.tool,
-        username: users.username,
-      })
-      .from(users)
-      .where(eq(users.id, this.userId))
-      .leftJoin(userSettings, eq(users.id, userSettings.id));
-
-    if (!result || !result[0]) {
+    let result;
+    
+    try {
+      result = await DB.GetUserWithSettings(this.userId);
+    } catch {
       throw new UserNotFoundError();
     }
 
-    const state = result[0];
+    if (!result) {
+      throw new UserNotFoundError();
+    }
 
     // Decrypt keyVaults
     let decryptKeyVaults = {};
 
     try {
-      decryptKeyVaults = await decryptor(state.settingsKeyVaults, this.userId);
+      decryptKeyVaults = await decryptor(
+        getNullableString(result.settingsKeyVaults as any) || null,
+        this.userId,
+      );
     } catch {
       /* empty */
     }
 
     const settings: PartialDeep<UserSettings> = {
-      defaultAgent: state.settingsDefaultAgent || {},
-      general: state.settingsGeneral || {},
-      hotkey: state.settingsHotkey || {},
-      image: state.settingsImage || {},
+      defaultAgent: parseNullableJSON(result.settingsDefaultAgent as any) || {},
+      general: parseNullableJSON(result.settingsGeneral as any) || {},
+      hotkey: parseNullableJSON(result.settingsHotkey as any) || {},
+      image: parseNullableJSON(result.settingsImage as any) || {},
       keyVaults: decryptKeyVaults,
-      languageModel: state.settingsLanguageModel || {},
-      systemAgent: state.settingsSystemAgent || {},
-      tool: state.settingsTool || {},
-      tts: state.settingsTTS || {},
+      languageModel: parseNullableJSON(result.settingsLanguageModel as any) || {},
+      systemAgent: parseNullableJSON(result.settingsSystemAgent as any) || {},
+      tool: parseNullableJSON(result.settingsTool as any) || {},
+      tts: parseNullableJSON(result.settingsTts as any) || {},
     };
 
     return {
-      avatar: state.avatar || undefined,
-      email: state.email || undefined,
-      firstName: state.firstName || undefined,
-      fullName: state.fullName || undefined,
-      isOnboarded: state.isOnboarded,
-      lastName: state.lastName || undefined,
-      preference: state.preference as UserPreference,
+      avatar: getNullableString(result.avatar as any) || undefined,
+      email: getNullableString(result.email as any) || undefined,
+      firstName: getNullableString(result.firstName as any) || undefined,
+      fullName: undefined, // Not in schema
+      isOnboarded: intToBool(result.isOnboarded),
+      lastName: getNullableString(result.lastName as any) || undefined,
+      preference: parseNullableJSON(result.preference as any) as UserPreference,
       settings,
       userId: this.userId,
-      username: state.username || undefined,
+      username: getNullableString(result.username as any) || undefined,
     };
   };
 
   getUserSSOProviders = async () => {
-    const result = await this.db
-      .select({
-        expiresAt: nextauthAccounts.expires_at,
-        provider: nextauthAccounts.provider,
-        providerAccountId: nextauthAccounts.providerAccountId,
-        scope: nextauthAccounts.scope,
-        type: nextauthAccounts.type,
-        userId: nextauthAccounts.userId,
-      })
-      .from(nextauthAccounts)
-      .where(eq(nextauthAccounts.userId, this.userId));
-    return result as unknown as AdapterAccount[];
+    const result = await DB.ListNextAuthAccountsByUser(this.userId);
+    
+    return result.map((account) => ({
+      expiresAt: account.expiresAt,
+      provider: account.provider,
+      providerAccountId: account.providerAccountId,
+      scope: getNullableString(account.scope as any),
+      type: account.type,
+      userId: account.userId,
+    })) as unknown as AdapterAccount[];
   };
 
   getUserSettings = async () => {
-    return this.db.query.userSettings.findFirst({ where: eq(userSettings.id, this.userId) });
+    try {
+      return await DB.GetUserSettings(this.userId);
+    } catch {
+      return undefined;
+    }
   };
 
-  updateUser = async (value: Partial<UserItem>) => {
-    return this.db
-      .update(users)
-      .set({ ...value, updatedAt: new Date() })
-      .where(eq(users.id, this.userId));
+  updateUser = async (value: Partial<User>) => {
+    const now = currentTimestampMs();
+    
+    return await DB.UpdateUser({
+      id: this.userId,
+      username: toNullString(value.username as any),
+      email: toNullString(value.email as any),
+      avatar: toNullString(value.avatar as any),
+      phone: toNullString(value.phone as any),
+      firstName: toNullString(value.firstName as any),
+      lastName: toNullString(value.lastName as any),
+      preference: toNullJSON(value.preference),
+      updatedAt: now,
+    });
   };
 
   deleteSetting = async () => {
-    return this.db.delete(userSettings).where(eq(userSettings.id, this.userId));
+    return await DB.DeleteUserSettings(this.userId);
   };
 
-  updateSetting = async (value: Partial<UserSettingsItem>) => {
-    return this.db
-      .insert(userSettings)
-      .values({
-        id: this.userId,
-        ...value,
-      })
-      .onConflictDoUpdate({
-        set: value,
-        target: userSettings.id,
-      });
+  updateSetting = async (value: Partial<UserSettingsDB>) => {
+    return await DB.UpsertUserSettings({
+      id: this.userId,
+      tts: toNullString(value.tts as any),
+      hotkey: toNullString(value.hotkey as any),
+      keyVaults: toNullString(value.keyVaults as any),
+      general: toNullString(value.general as any),
+      languageModel: toNullString(value.languageModel as any),
+      systemAgent: toNullString(value.systemAgent as any),
+      defaultAgent: toNullString(value.defaultAgent as any),
+      tool: toNullString(value.tool as any),
+      image: toNullString(value.image as any),
+    });
   };
 
   updatePreference = async (value: Partial<UserPreference>) => {
-    const user = await this.db.query.users.findFirst({ where: eq(users.id, this.userId) });
+    let user;
+    
+    try {
+      user = await DB.GetUser(this.userId);
+    } catch {
+      return;
+    }
+
     if (!user) return;
 
-    return this.db
-      .update(users)
-      .set({ preference: merge(user.preference, value) })
-      .where(eq(users.id, this.userId));
+    const currentPreference = parseNullableJSON(user.preference as any) || {};
+    const mergedPreference = merge(currentPreference, value);
+
+    return await DB.UpdateUserPreference({
+      id: this.userId,
+      preference: toNullJSON(mergedPreference),
+      updatedAt: currentTimestampMs(),
+    });
   };
 
   updateGuide = async (value: Partial<UserGuide>) => {
-    const user = await this.db.query.users.findFirst({ where: eq(users.id, this.userId) });
-    if (!user) return;
-
-    const prevPreference = (user.preference || {}) as UserPreference;
-    return this.db
-      .update(users)
-      .set({ preference: { ...prevPreference, guide: merge(prevPreference.guide || {}, value) } })
-      .where(eq(users.id, this.userId));
-  };
-
-  // Static method
-  static makeSureUserExist = async (db: LobeChatDatabase, userId: string) => {
-    await db.insert(users).values({ id: userId }).onConflictDoNothing();
-  };
-
-  static createUser = async (db: LobeChatDatabase, params: NewUser) => {
-    // if user already exists, skip creation
-    if (params.id) {
-      const user = await db.query.users.findFirst({ where: eq(users.id, params.id) });
-      if (!!user) return { duplicate: true };
+    let user;
+    
+    try {
+      user = await DB.GetUser(this.userId);
+    } catch {
+      return;
     }
 
-    const [user] = await db
-      .insert(users)
-      .values({ ...params })
-      .returning();
+    if (!user) return;
+
+    const prevPreference = (parseNullableJSON(user.preference as any) || {}) as UserPreference;
+    const mergedGuide = merge(prevPreference.guide || {}, value);
+    
+    return await DB.UpdateUserPreference({
+      id: this.userId,
+      preference: toNullJSON({ 
+        ...prevPreference, 
+        guide: mergedGuide 
+      }),
+      updatedAt: currentTimestampMs(),
+    });
+  };
+
+  // Static methods
+  static makeSureUserExist = async (_db: any, userId: string) => {
+    const now = currentTimestampMs();
+    
+    await DB.EnsureUserExists({
+      id: userId,
+      createdAt: now,
+      updatedAt: now,
+    });
+  };
+
+  static createUser = async (_db: any, params: Partial<CreateUserParams>) => {
+    // Check if user already exists
+    if (params.id) {
+      try {
+        const user = await DB.GetUser(params.id);
+        if (user) return { duplicate: true };
+      } catch {
+        // User doesn't exist, continue
+      }
+    }
+
+    const now = currentTimestampMs();
+    
+    const user = await DB.CreateUser({
+      id: params.id || '',
+      username: toNullString(params.username as any),
+      email: toNullString(params.email as any),
+      avatar: toNullString(params.avatar as any),
+      phone: toNullString(params.phone as any),
+      firstName: toNullString(params.firstName as any),
+      lastName: toNullString(params.lastName as any),
+      isOnboarded: boolToInt(false),
+      clerkCreatedAt: toNullInt(params.clerkCreatedAt as any),
+      emailVerifiedAt: toNullInt(params.emailVerifiedAt as any),
+      preference: toNullJSON(params.preference || {}),
+      createdAt: now,
+      updatedAt: now,
+    });
 
     return { duplicate: false, user };
   };
 
-  static deleteUser = async (db: LobeChatDatabase, id: string) => {
-    return db.delete(users).where(eq(users.id, id));
+  static deleteUser = async (_db: any, id: string) => {
+    return await DB.DeleteUser(id);
   };
 
-  static findById = async (db: LobeChatDatabase, id: string) => {
-    return db.query.users.findFirst({ where: eq(users.id, id) });
+  static findById = async (_db: any, id: string) => {
+    try {
+      return await DB.GetUser(id);
+    } catch {
+      return undefined;
+    }
   };
 
-  static findByEmail = async (db: LobeChatDatabase, email: string) => {
-    return db.query.users.findFirst({ where: eq(users.email, email) });
+  static findByEmail = async (_db: any, email: string) => {
+    try {
+      return await DB.GetUserByEmail(toNullString(email));
+    } catch {
+      return undefined;
+    }
   };
 
-  static getUserApiKeys = async (
-    db: LobeChatDatabase,
-    id: string,
-    decryptor: DecryptUserKeyVaults,
-  ) => {
-    const result = await db
-      .select({
-        settingsKeyVaults: userSettings.keyVaults,
-      })
-      .from(userSettings)
-      .where(eq(userSettings.id, id));
-
-    if (!result || !result[0]) {
+  static getUserApiKeys = async (_db: any, id: string, decryptor: DecryptUserKeyVaults) => {
+    let settings;
+    
+    try {
+      settings = await DB.GetUserSettings(id);
+    } catch {
       throw new UserNotFoundError();
     }
 
-    const state = result[0];
+    if (!settings) {
+      throw new UserNotFoundError();
+    }
 
     // Decrypt keyVaults
-    return await decryptor(state.settingsKeyVaults, id);
+    return await decryptor(getNullableString(settings.keyVaults as any) || null, id);
   };
 }

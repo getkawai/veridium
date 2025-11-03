@@ -720,17 +720,113 @@ To make Wails competitive with Drizzle, you need:
 - Use **Wails** for simple CRUD and when you need backend validation
 - Gradually migrate as Wails queries improve
 
+## User Model Comparison
+
+### getUserState Method
+
+#### Drizzle (Single Query with JOIN)
+```typescript
+getUserState = async (decryptor: DecryptUserKeyVaults) => {
+  const result = await this.db
+    .select({
+      avatar: users.avatar,
+      email: users.email,
+      firstName: users.firstName,
+      // ... all fields
+      settingsDefaultAgent: userSettings.defaultAgent,
+      settingsGeneral: userSettings.general,
+      // ... all settings fields
+    })
+    .from(users)
+    .where(eq(users.id, this.userId))
+    .leftJoin(userSettings, eq(users.id, userSettings.id));
+
+  // Single query returns everything
+  return { /* mapped data */ };
+};
+```
+
+#### Wails (Optimized with JOIN Query)
+```typescript
+getUserState = async (decryptor: DecryptUserKeyVaults) => {
+  // Single query with JOIN - efficient!
+  const result = await DB.GetUserWithSettings(this.userId);
+  
+  if (!result) throw new UserNotFoundError();
+  
+  // Map the result
+  return { /* mapped data */ };
+};
+```
+
+**Analysis**: 
+- ✅ **Both are efficient** - single query with JOIN
+- ✅ **Wails improved** with `GetUserWithSettings` query
+
+---
+
+### updatePreference Method
+
+#### Drizzle (Simple)
+```typescript
+updatePreference = async (value: Partial<UserPreference>) => {
+  const user = await this.db.query.users.findFirst({ where: eq(users.id, this.userId) });
+  if (!user) return;
+
+  return this.db
+    .update(users)
+    .set({ preference: merge(user.preference, value) })
+    .where(eq(users.id, this.userId));
+};
+```
+
+#### Wails (More Verbose)
+```typescript
+updatePreference = async (value: Partial<UserPreference>) => {
+  let user;
+  
+  try {
+    user = await DB.GetUser(this.userId);
+  } catch {
+    return;
+  }
+
+  if (!user) return;
+
+  const currentPreference = parseNullableJSON(user.preference as any) || {};
+  const mergedPreference = merge(currentPreference, value);
+
+  return await DB.UpdateUserPreference({
+    id: this.userId,
+    preference: toNullJSON(mergedPreference),
+    updatedAt: currentTimestampMs(),
+  });
+};
+```
+
+**Analysis**: 
+- ✅ **Drizzle**: Cleaner, less type conversion
+- ⚠️ **Wails**: More verbose, manual JSON parsing/stringifying
+
+---
+
 ## Conclusion
 
 **Drizzle is currently superior** for this use case due to:
-- Better query efficiency (no N+1 problem)
+- Better query efficiency (no N+1 problem in complex queries)
 - Transaction support
 - Cleaner, more maintainable code
 - Better developer experience
+- Less type conversion overhead
 
-**Wails can be improved** by:
-- Adding more efficient queries with JOINs in SQL
-- Implementing transaction support in Go
-- Creating better type mapping utilities
-- Reducing boilerplate code
+**Wails has been improved** with:
+- ✅ Efficient JOIN queries (`GetUserWithSettings`, `GetSessionByIdOrSlug`, etc.)
+- ✅ Batch operations (`BatchDeleteSessions`)
+- ✅ Optimized ranking queries (`GetSessionRank`)
+- ✅ Orphaned resource cleanup (`GetOrphanedAgents`)
+
+**Wails still needs**:
+- ❌ Transaction support in Go
+- ❌ Better type mapping (reduce `toNullString`, `toNullJSON` boilerplate)
+- ❌ More flexible query builder
 

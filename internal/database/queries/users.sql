@@ -4,6 +4,31 @@ SELECT * FROM users WHERE id = ?;
 -- name: GetUserByEmail :one
 SELECT * FROM users WHERE email = ?;
 
+-- name: GetUserWithSettings :one
+SELECT 
+    u.id,
+    u.username,
+    u.email,
+    u.avatar,
+    u.first_name,
+    u.last_name,
+    u.is_onboarded,
+    u.preference,
+    u.created_at,
+    u.updated_at,
+    us.tts as settings_tts,
+    us.hotkey as settings_hotkey,
+    us.key_vaults as settings_key_vaults,
+    us.general as settings_general,
+    us.language_model as settings_language_model,
+    us.system_agent as settings_system_agent,
+    us.default_agent as settings_default_agent,
+    us.tool as settings_tool,
+    us.image as settings_image
+FROM users u
+LEFT JOIN user_settings us ON u.id = us.id
+WHERE u.id = ?;
+
 -- name: GetUserByUsername :one
 SELECT * FROM users WHERE username = ?;
 
@@ -14,6 +39,11 @@ INSERT INTO users (
     created_at, updated_at
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
+
+-- name: EnsureUserExists :exec
+INSERT INTO users (id, created_at, updated_at)
+VALUES (?, ?, ?)
+ON CONFLICT(id) DO NOTHING;
 
 -- name: UpdateUser :one
 UPDATE users
@@ -33,8 +63,17 @@ UPDATE users
 SET is_onboarded = ?, updated_at = ?
 WHERE id = ?;
 
+-- name: UpdateUserPreference :one
+UPDATE users
+SET preference = ?, updated_at = ?
+WHERE id = ?
+RETURNING *;
+
 -- name: DeleteUser :exec
 DELETE FROM users WHERE id = ?;
+
+-- name: DeleteUserSettings :exec
+DELETE FROM user_settings WHERE id = ?;
 
 -- User Settings
 

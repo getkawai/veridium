@@ -79,6 +79,32 @@ func (q *Queries) DeleteUser(ctx context.Context, id string) error {
 	return err
 }
 
+const DeleteUserSettings = `-- name: DeleteUserSettings :exec
+DELETE FROM user_settings WHERE id = ?
+`
+
+func (q *Queries) DeleteUserSettings(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, DeleteUserSettings, id)
+	return err
+}
+
+const EnsureUserExists = `-- name: EnsureUserExists :exec
+INSERT INTO users (id, created_at, updated_at)
+VALUES (?, ?, ?)
+ON CONFLICT(id) DO NOTHING
+`
+
+type EnsureUserExistsParams struct {
+	ID        string `json:"id"`
+	CreatedAt int64  `json:"createdAt"`
+	UpdatedAt int64  `json:"updatedAt"`
+}
+
+func (q *Queries) EnsureUserExists(ctx context.Context, arg EnsureUserExistsParams) error {
+	_, err := q.db.ExecContext(ctx, EnsureUserExists, arg.ID, arg.CreatedAt, arg.UpdatedAt)
+	return err
+}
+
 const GetUser = `-- name: GetUser :one
 SELECT id, username, email, avatar, phone, first_name, last_name, is_onboarded, clerk_created_at, email_verified_at, preference, created_at, updated_at FROM users WHERE id = ?
 `
@@ -200,6 +226,81 @@ func (q *Queries) GetUserSettings(ctx context.Context, id string) (UserSetting, 
 		&i.DefaultAgent,
 		&i.Tool,
 		&i.Image,
+	)
+	return i, err
+}
+
+const GetUserWithSettings = `-- name: GetUserWithSettings :one
+SELECT 
+    u.id,
+    u.username,
+    u.email,
+    u.avatar,
+    u.first_name,
+    u.last_name,
+    u.is_onboarded,
+    u.preference,
+    u.created_at,
+    u.updated_at,
+    us.tts as settings_tts,
+    us.hotkey as settings_hotkey,
+    us.key_vaults as settings_key_vaults,
+    us.general as settings_general,
+    us.language_model as settings_language_model,
+    us.system_agent as settings_system_agent,
+    us.default_agent as settings_default_agent,
+    us.tool as settings_tool,
+    us.image as settings_image
+FROM users u
+LEFT JOIN user_settings us ON u.id = us.id
+WHERE u.id = ?
+`
+
+type GetUserWithSettingsRow struct {
+	ID                    string         `json:"id"`
+	Username              sql.NullString `json:"username"`
+	Email                 sql.NullString `json:"email"`
+	Avatar                sql.NullString `json:"avatar"`
+	FirstName             sql.NullString `json:"firstName"`
+	LastName              sql.NullString `json:"lastName"`
+	IsOnboarded           int64          `json:"isOnboarded"`
+	Preference            sql.NullString `json:"preference"`
+	CreatedAt             int64          `json:"createdAt"`
+	UpdatedAt             int64          `json:"updatedAt"`
+	SettingsTts           sql.NullString `json:"settingsTts"`
+	SettingsHotkey        sql.NullString `json:"settingsHotkey"`
+	SettingsKeyVaults     sql.NullString `json:"settingsKeyVaults"`
+	SettingsGeneral       sql.NullString `json:"settingsGeneral"`
+	SettingsLanguageModel sql.NullString `json:"settingsLanguageModel"`
+	SettingsSystemAgent   sql.NullString `json:"settingsSystemAgent"`
+	SettingsDefaultAgent  sql.NullString `json:"settingsDefaultAgent"`
+	SettingsTool          sql.NullString `json:"settingsTool"`
+	SettingsImage         sql.NullString `json:"settingsImage"`
+}
+
+func (q *Queries) GetUserWithSettings(ctx context.Context, id string) (GetUserWithSettingsRow, error) {
+	row := q.db.QueryRowContext(ctx, GetUserWithSettings, id)
+	var i GetUserWithSettingsRow
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Email,
+		&i.Avatar,
+		&i.FirstName,
+		&i.LastName,
+		&i.IsOnboarded,
+		&i.Preference,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.SettingsTts,
+		&i.SettingsHotkey,
+		&i.SettingsKeyVaults,
+		&i.SettingsGeneral,
+		&i.SettingsLanguageModel,
+		&i.SettingsSystemAgent,
+		&i.SettingsDefaultAgent,
+		&i.SettingsTool,
+		&i.SettingsImage,
 	)
 	return i, err
 }
@@ -408,6 +509,40 @@ func (q *Queries) UpdateUserPlugin(ctx context.Context, arg UpdateUserPluginPara
 		&i.Manifest,
 		&i.Settings,
 		&i.CustomParams,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const UpdateUserPreference = `-- name: UpdateUserPreference :one
+UPDATE users
+SET preference = ?, updated_at = ?
+WHERE id = ?
+RETURNING id, username, email, avatar, phone, first_name, last_name, is_onboarded, clerk_created_at, email_verified_at, preference, created_at, updated_at
+`
+
+type UpdateUserPreferenceParams struct {
+	Preference sql.NullString `json:"preference"`
+	UpdatedAt  int64          `json:"updatedAt"`
+	ID         string         `json:"id"`
+}
+
+func (q *Queries) UpdateUserPreference(ctx context.Context, arg UpdateUserPreferenceParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, UpdateUserPreference, arg.Preference, arg.UpdatedAt, arg.ID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Email,
+		&i.Avatar,
+		&i.Phone,
+		&i.FirstName,
+		&i.LastName,
+		&i.IsOnboarded,
+		&i.ClerkCreatedAt,
+		&i.EmailVerifiedAt,
+		&i.Preference,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
