@@ -5,7 +5,6 @@ import {
   DB,
   toNullString,
   toNullJSON,
-  toNullInt,
   parseNullableJSON,
   getNullableString,
   currentTimestampMs,
@@ -36,7 +35,7 @@ export class FileModel {
 
     // Use backend transaction method for atomic operations
     const result = await DBService.CreateFileWithLinks({
-      file: {
+      File: {
         id: fileId,
         userId: this.userId,
         fileType: toNullString(params.fileType) as any,
@@ -52,7 +51,7 @@ export class FileModel {
         createdAt: now,
         updatedAt: now,
       },
-      globalFile: insertToGlobalFiles && params.fileHash ? {
+      GlobalFile: insertToGlobalFiles && params.fileHash ? {
         hashId: toNullString(params.fileHash) as any,
         fileType: toNullString(params.fileType) as any,
         size: params.size || 0,
@@ -62,7 +61,7 @@ export class FileModel {
         createdAt: now,
         accessedAt: now,
       } : null,
-      knowledgeBase: params.knowledgeBaseId || null,
+      KnowledgeBase: params.knowledgeBaseId || null,
     });
 
     return { id: result?.id || fileId };
@@ -71,21 +70,19 @@ export class FileModel {
   createGlobalFile = async (file: any) => {
     const now = currentTimestampMs();
     return await DB.CreateGlobalFile({
-      hashId: toNullString(file.hashId),
-      fileType: toNullString(file.fileType),
+      hashId: toNullString(file.hashId) as any,
+      fileType: toNullString(file.fileType) as any,
       size: file.size || 0,
-      url: toNullString(file.url),
-      metadata: toNullJSON(file.metadata),
-      creator: toNullString(file.creator || this.userId),
+      url: toNullString(file.url) as any,
+      metadata: toNullJSON(file.metadata) as any,
+      creator: toNullString(file.creator || this.userId) as any,
       createdAt: now,
       accessedAt: now,
     });
   };
 
   checkHash = async (hash: string) => {
-    const item = await DB.GetGlobalFile({
-      hashId: toNullString(hash),
-    });
+    const item = await DB.GetGlobalFile(toNullString(hash) as any);
     
     if (!item) return { isExist: false };
 
@@ -117,25 +114,21 @@ export class FileModel {
 
     // 2. Use backend transaction method for atomic delete
     await DBService.DeleteFileWithCascade({
-      fileId: id,
-      userId: this.userId,
-      removeGlobalFile: removeGlobalFile,
-      fileHash: fileHash || '',
+      FileID: id,
+      UserID: this.userId,
+      RemoveGlobalFile: removeGlobalFile,
+      FileHash: fileHash || '',
     });
 
     return file;
   };
 
   deleteGlobalFile = async (hashId: string) => {
-    return await DB.DeleteGlobalFile({
-      hashId: toNullString(hashId),
-    });
+    return await DB.DeleteGlobalFile(toNullString(hashId) as any);
   };
 
   countUsage = async () => {
-    const result = await DB.CountFilesUsage({
-      userId: this.userId,
-    });
+    const result = await DB.CountFilesUsage(this.userId);
 
     return Number(result.totalSize) || 0;
   };
@@ -189,9 +182,7 @@ export class FileModel {
 
       await Promise.all(
         hashesToDelete.map((hash) =>
-          DB.DeleteGlobalFile({
-            hashId: toNullString(hash),
-          }),
+          DB.DeleteGlobalFile(toNullString(hash) as any),
         ),
       );
     }
@@ -200,9 +191,7 @@ export class FileModel {
   };
 
   clear = async () => {
-    return await DB.DeleteAllFiles({
-      userId: this.userId,
-    });
+    return await DB.DeleteAllFiles(this.userId);
   };
 
   /**
@@ -221,7 +210,7 @@ export class FileModel {
     // If filtering by knowledge base, use JOIN query
     if (knowledgeBaseId) {
       const files = await DB.QueryFilesByKnowledgeBase({
-        knowledgeBaseId: toNullString(knowledgeBaseId),
+        knowledgeBaseId: toNullString(knowledgeBaseId) as any,
         userId: this.userId,
       });
 
@@ -229,9 +218,7 @@ export class FileModel {
     }
 
     // Otherwise, get all files and filter client-side
-    const allFiles = await DB.QueryFiles({
-      userId: this.userId,
-    });
+    const allFiles = await DB.QueryFiles(this.userId);
 
     // Apply filters client-side
     let filtered = allFiles;
@@ -278,19 +265,17 @@ export class FileModel {
   };
 
   countFilesByHash = async (hash: string) => {
-    const result = await DB.CountFilesByHash({
-      fileHash: toNullString(hash),
-    });
+    const result = await DB.CountFilesByHash(toNullString(hash) as any);
 
-    return Number(result.count) || 0;
+    return Number(result) || 0;
   };
 
   update = async (id: string, value: any) => {
     return await DB.UpdateFile({
       id,
       userId: this.userId,
-      name: toNullString(value.name),
-      metadata: toNullJSON(value.metadata),
+      name: toNullString(value.name) as any,
+      metadata: toNullJSON(value.metadata) as any,
       updatedAt: currentTimestampMs(),
     });
   };
@@ -320,9 +305,7 @@ export class FileModel {
 
   findByNames = async (fileNames: string[]) => {
     // Get all files and filter client-side
-    const allFiles = await DB.GetFilesByNames({
-      userId: this.userId,
-    });
+    const allFiles = await DB.GetFilesByNames(this.userId);
 
     return allFiles.filter((f) =>
       fileNames.some((name) =>
@@ -343,10 +326,9 @@ export class FileModel {
     // Get all chunk IDs for these files
     const allChunkIds: string[] = [];
     for (const fileId of fileIds) {
-      const chunks = await DB.GetFileChunkIds({
-        fileId,
-      });
-      allChunkIds.push(...chunks.map((c) => c.chunkId));
+      const chunks = await DB.GetFileChunkIds(toNullString(fileId) as any);
+      // chunks is NullString[], convert to string[]
+      allChunkIds.push(...chunks.map((c) => getNullableString(c as any) || '').filter(Boolean));
     }
 
     if (allChunkIds.length === 0) return;
@@ -361,7 +343,7 @@ export class FileModel {
         batchIds.map((chunkId) =>
           DB.DeleteEmbedding({
             id: chunkId,
-            userId: this.userId,
+            userId: toNullString(this.userId) as any,
           }).catch(() => {}), // Ignore errors
         ),
       );
@@ -371,16 +353,10 @@ export class FileModel {
         batchIds.map((chunkId) =>
           DB.DeleteChunk({
             id: chunkId,
-            userId: this.userId,
+            userId: toNullString(this.userId) as any,
           }).catch(() => {}), // Ignore errors
         ),
       );
-    }
-
-    // Delete file_chunks links
-    for (const fileId of fileIds) {
-      // TODO: Need batch unlink query
-      // For now, individual deletes handled by CASCADE
     }
 
     return allChunkIds;
