@@ -20,13 +20,12 @@ export class FileModel {
   }
 
   /**
-   * NOTE: Complex transaction with multiple inserts
+   * Create file with atomic transaction
+   * ✅ OPTIMIZED: Uses backend transaction for atomicity
    * - Inserts to global_files if needed
    * - Inserts to files table
    * - Links to knowledge_base_files if needed
-   *
-   * LIMITATION: No true transaction support yet in Wails bindings
-   * TODO: Create backend transaction method for this
+   * All operations succeed or all rollback automatically
    */
   create = async (
     params: any & { knowledgeBaseId?: string },
@@ -35,54 +34,38 @@ export class FileModel {
     const fileId = nanoid();
     const now = currentTimestampMs();
 
-    // 1. Insert to global_files if needed
-    if (insertToGlobalFiles && params.fileHash) {
-      try {
-        await DB.CreateGlobalFile({
-          hashId: toNullString(params.fileHash),
-          fileType: toNullString(params.fileType),
-          size: params.size || 0,
-          url: toNullString(params.url),
-          metadata: toNullJSON(params.metadata),
-          creator: toNullString(this.userId),
-          createdAt: now,
-          accessedAt: now,
-        });
-      } catch (e) {
-        // Ignore if already exists (ON CONFLICT not available in simple INSERT)
-        console.warn('Global file may already exist:', e);
-      }
-    }
-
-    // 2. Create file
-    const result = await DB.CreateFile({
-      id: fileId,
-      userId: this.userId,
-      fileType: toNullString(params.fileType),
-      fileHash: toNullString(params.fileHash),
-      name: toNullString(params.name),
-      size: params.size || 0,
-      url: toNullString(params.url),
-      source: toNullString(params.source),
-      clientId: toNullString(params.clientId),
-      metadata: toNullJSON(params.metadata),
-      chunkTaskId: toNullString(params.chunkTaskId),
-      embeddingTaskId: toNullString(params.embeddingTaskId),
-      createdAt: now,
-      updatedAt: now,
+    // Use backend transaction method for atomic operations
+    const result = await DBService.CreateFileWithLinks({
+      file: {
+        id: fileId,
+        userId: this.userId,
+        fileType: toNullString(params.fileType) as any,
+        fileHash: toNullString(params.fileHash) as any,
+        name: toNullString(params.name) as any,
+        size: params.size || 0,
+        url: toNullString(params.url) as any,
+        source: toNullString(params.source) as any,
+        clientId: toNullString(params.clientId) as any,
+        metadata: toNullJSON(params.metadata) as any,
+        chunkTaskId: toNullString(params.chunkTaskId) as any,
+        embeddingTaskId: toNullString(params.embeddingTaskId) as any,
+        createdAt: now,
+        updatedAt: now,
+      },
+      globalFile: insertToGlobalFiles && params.fileHash ? {
+        hashId: toNullString(params.fileHash) as any,
+        fileType: toNullString(params.fileType) as any,
+        size: params.size || 0,
+        url: toNullString(params.url) as any,
+        metadata: toNullJSON(params.metadata) as any,
+        creator: toNullString(this.userId) as any,
+        createdAt: now,
+        accessedAt: now,
+      } : null,
+      knowledgeBase: params.knowledgeBaseId || null,
     });
 
-    // 3. Link to knowledge base if needed
-    if (params.knowledgeBaseId) {
-      await DB.LinkKnowledgeBaseToFile({
-        knowledgeBaseId: toNullString(params.knowledgeBaseId),
-        fileId: toNullString(fileId),
-        userId: this.userId,
-        createdAt: now,
-      });
-    }
-
-    return { id: result.id };
+    return { id: result?.id || fileId };
   };
 
   createGlobalFile = async (file: any) => {
@@ -116,15 +99,14 @@ export class FileModel {
   };
 
   /**
-   * COMPLEX: Delete file with cascading cleanup
+   * Delete file with atomic cascading cleanup
+   * ✅ OPTIMIZED: Uses backend transaction for atomicity
    * 1. Get file info
    * 2. Delete related chunks (embeddings, documentChunks, chunks, fileChunks)
    * 3. Delete file record
    * 4. Check if other files use the same hash
    * 5. Delete from global_files if no other files use it
-   *
-   * LIMITATION: No transaction support - if step fails, may have partial cleanup
-   * TODO: Create backend transaction method for atomic delete
+   * All operations in transaction - succeed or rollback
    */
   delete = async (id: string, removeGlobalFile: boolean = true) => {
     // 1. Get file first
@@ -133,28 +115,13 @@ export class FileModel {
 
     const fileHash = getNullableString(file.fileHash as any);
 
-    // 2. Delete related chunks
-    await this.deleteFileChunks([id]);
-
-    // 3. Delete file record
-    await DB.DeleteFile({
-      id,
+    // 2. Use backend transaction method for atomic delete
+    await DBService.DeleteFileWithCascade({
+      fileId: id,
       userId: this.userId,
+      removeGlobalFile: removeGlobalFile,
+      fileHash: fileHash || '',
     });
-
-    // 4. Check if other files use the same hash
-    if (fileHash && removeGlobalFile) {
-      const count = await DB.CountFilesByHash({
-        fileHash: toNullString(fileHash),
-      });
-
-      // 5. Delete from global_files if no other files use it
-      if (Number(count.count) === 0) {
-        await DB.DeleteGlobalFile({
-          hashId: toNullString(fileHash),
-        });
-      }
-    }
 
     return file;
   };

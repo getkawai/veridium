@@ -335,22 +335,26 @@ func (s *Service) DeleteFileWithCascade(ctx context.Context, params DeleteFileWi
 		}
 
 		// 2. Delete embeddings for each chunk
-		for _, chunkRow := range chunkIds {
-			// Try to delete embedding (may not exist)
-			_ = q.DeleteEmbedding(ctx, db.DeleteEmbeddingParams{
-				ID:     chunkRow.ChunkID,
-				UserID: sql.NullString{String: params.UserID, Valid: true},
-			})
+		for _, chunkId := range chunkIds {
+			if chunkId.Valid {
+				// Try to delete embedding (may not exist)
+				_ = q.DeleteEmbedding(ctx, db.DeleteEmbeddingParams{
+					ID:     chunkId.String,
+					UserID: sql.NullString{String: params.UserID, Valid: true},
+				})
+			}
 		}
 
 		// 3. Delete chunks
-		for _, chunkRow := range chunkIds {
-			err := q.DeleteChunk(ctx, db.DeleteChunkParams{
-				ID:     chunkRow.ChunkID,
-				UserID: params.UserID,
-			})
-			if err != nil && err != sql.ErrNoRows {
-				return fmt.Errorf("failed to delete chunk: %w", err)
+		for _, chunkId := range chunkIds {
+			if chunkId.Valid {
+				err := q.DeleteChunk(ctx, db.DeleteChunkParams{
+					ID:     chunkId.String,
+					UserID: sql.NullString{String: params.UserID, Valid: true},
+				})
+				if err != nil && err != sql.ErrNoRows {
+					return fmt.Errorf("failed to delete chunk: %w", err)
+				}
 			}
 		}
 
@@ -365,16 +369,14 @@ func (s *Service) DeleteFileWithCascade(ctx context.Context, params DeleteFileWi
 
 		// 5. Check if global file should be deleted
 		if params.RemoveGlobalFile && params.FileHash != "" {
-			countResult, err := q.CountFilesByHash(ctx, db.CountFilesByHashParams{
-				FileHash: sql.NullString{String: params.FileHash, Valid: true},
-			})
+			countResult, err := q.CountFilesByHash(ctx, sql.NullString{String: params.FileHash, Valid: true})
 			if err != nil {
 				return fmt.Errorf("failed to count files by hash: %w", err)
 			}
 
 			// Delete global file if no other files use it
-			if countResult.Count == 0 {
-				_ = q.DeleteGlobalFile(ctx, sql.NullString{String: params.FileHash, Valid: true})
+			if countResult == 0 {
+				_ = q.DeleteGlobalFile(ctx, params.FileHash)
 			}
 		}
 
@@ -391,7 +393,7 @@ func (s *Service) DeleteAIProviderWithModels(ctx context.Context, providerID str
 	return s.WithTx(ctx, func(q *db.Queries) error {
 		// 1. Delete all models of the provider
 		err := q.DeleteModelsByProvider(ctx, db.DeleteModelsByProviderParams{
-			ProviderID: sql.NullString{String: providerID, Valid: true},
+			ProviderID: providerID,
 			UserID:     userID,
 		})
 		if err != nil && err != sql.ErrNoRows {

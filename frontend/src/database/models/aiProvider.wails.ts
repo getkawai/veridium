@@ -14,6 +14,7 @@ import {
   boolToInt,
   intToBool,
 } from '@/types/database';
+import { Service as DBService } from '@@/github.com/kawai-network/veridium/internal/database';
 
 type DecryptUserKeyVaults = (encryptKeyVaultsStr: string | null) => Promise<any>;
 type EncryptUserKeyVaults = (keyVaults: string) => Promise<string>;
@@ -58,21 +59,13 @@ export class AiProviderModel {
   };
 
   /**
-   * NOTE: Also deletes all models of the provider
-   * Uses separate queries (no transaction)
+   * Delete AI provider with atomic transaction
+   * ✅ OPTIMIZED: Uses backend transaction for atomicity
+   * Deletes provider and all its models atomically
+   * All operations succeed or all rollback
    */
   delete = async (id: string) => {
-    // 1. Delete all models of the provider
-    await DB.DeleteModelsByProvider({
-      providerId: toNullString(id) as any,
-      userId: this.userId,
-    });
-
-    // 2. Delete the provider
-    await DB.DeleteAIProvider({
-      id,
-      userId: this.userId,
-    });
+    await DBService.DeleteAIProviderWithModels(id, this.userId);
   };
 
   deleteAll = async () => {
