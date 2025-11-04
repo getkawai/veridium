@@ -4,6 +4,7 @@ import { BaseClientService } from '@/services/baseClientService';
 import { clientS3Storage } from '@/services/file/ClientS3';
 
 import { IFileService } from './type';
+import { toNullString } from '@/database';
 
 export class ClientService extends BaseClientService implements IFileService {
   private get fileModel(): FileModel {
@@ -44,7 +45,7 @@ export class ClientService extends BaseClientService implements IFileService {
     }
 
     // arrayBuffer to url
-    const fileItem = await clientS3Storage.getObject(item.fileHash!);
+    const fileItem = await clientS3Storage.getObject(item.fileHash?.String);
     if (!fileItem) throw new Error('file not found');
 
     const url = URL.createObjectURL(fileItem);
