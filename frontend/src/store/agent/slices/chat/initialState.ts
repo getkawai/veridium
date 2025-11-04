@@ -11,6 +11,7 @@ export interface AgentState {
   agentMap: Record<string, PartialDeep<LobeAgentConfig>>;
   agentSettingInstance?: AgentSettingsInstance | null;
   defaultAgentConfig: LobeAgentConfig;
+  isAllAgentConfigsLoaded: boolean;
   isInboxAgentConfigInit: boolean;
   showAgentSetting: boolean;
   updateAgentChatConfigSignal?: AbortController;
@@ -22,6 +23,7 @@ export const initialAgentChatState: AgentState = {
   agentConfigInitMap: {},
   agentMap: {},
   defaultAgentConfig: DEFAULT_AGENT_CONFIG,
+  isAllAgentConfigsLoaded: false,
   isInboxAgentConfigInit: false,
   showAgentSetting: false,
 };

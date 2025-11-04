@@ -11,6 +11,7 @@ import { DEFAULT_CHAT_GROUP_CHAT_CONFIG } from '@/const/settings';
 import { useClientDataSWR } from '@/libs/swr';
 import { chatGroupService } from '@/services/chatGroup';
 import { sessionService } from '@/services/session';
+import { useAgentStore } from '@/store/agent';
 import { getChatGroupStoreState } from '@/store/chatGroup';
 import { useUserStore } from '@/store/user';
 
@@ -117,6 +118,15 @@ export const createSessionSlice: StateCreator<
     const newSession: LobeAgentSession = merge(defaultAgent, agent);
 
     const id = await sessionService.createSession(LobeSessionType.Agent, newSession);
+
+    // Immediately load agent config for new session
+    const config = await sessionService.getSessionConfig(id);
+    const agentStore = useAgentStore.getState();
+    agentStore.internal_dispatchAgentMap(id, config, 'createSession');
+    
+    // Mark config as loaded in agentConfigInitMap
+    agentStore.internal_updateAgentConfigInitMap(id, true);
+
     await refreshSessions();
 
     // Whether to goto  to the new session after creation, the default is to switch to

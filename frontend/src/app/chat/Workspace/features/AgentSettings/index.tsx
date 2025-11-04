@@ -15,7 +15,6 @@ import { AgentCategory, AgentSettings as Settings } from '@/features/AgentSettin
 import { AgentSettingsProvider } from '@/features/AgentSetting/AgentSettingsProvider';
 import { TITLE_BAR_HEIGHT } from '@/features/ElectronTitlebar';
 import Footer from '@/features/Setting/Footer';
-import { useInitAgentConfig } from '@/hooks/useInitAgentConfig';
 import { sessionService } from '@/services/session';
 import { useAgentStore } from '@/store/agent';
 import { agentSelectors } from '@/store/agent/slices/chat';
@@ -65,7 +64,11 @@ const AgentSettings = memo<AgentSettingsProps>(({ agentId, onClose, open }) => {
     }
   }, isEqual);
 
-  const { isLoading } = useInitAgentConfig(agentId);
+  // Check if config is loaded from agentConfigInitMap
+  const isConfigLoaded = useAgentStore((s) =>
+    agentId ? !!s.agentConfigInitMap[agentId] : !!s.agentConfigInitMap[id],
+  );
+  const isLoading = !isConfigLoaded;
 
   // Handle global store state or use props
   const [showAgentSetting, globalUpdateAgentConfig] = useAgentStore((s) => [

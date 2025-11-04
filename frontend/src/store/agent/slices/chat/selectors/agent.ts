@@ -173,7 +173,13 @@ const currentKnowledgeIds = (s: AgentStoreState) => {
   };
 };
 
-const isAgentConfigLoading = (s: AgentStoreState) => !s.agentConfigInitMap[s.activeId];
+const isAgentConfigLoading = (s: AgentStoreState) => {
+  // During centralized loading phase, show loading if batch hasn't completed
+  if (!s.isAllAgentConfigsLoaded) return true;
+  
+  // After batch loading, check if specific session config is loaded
+  return !s.agentConfigInitMap[s.activeId];
+};
 
 const openingQuestions = (s: AgentStoreState) => {
   const questions = currentAgentConfig(s).openingQuestions;

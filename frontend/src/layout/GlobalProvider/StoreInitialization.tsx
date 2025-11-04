@@ -32,7 +32,8 @@ const StoreInitialization = memo(() => {
   const useInitSystemStatus = useGlobalStore((s) => s.useInitSystemStatus);
   const useInitClientDB = useGlobalStore((s) => s.useInitClientDB);
 
-  const useInitAgentStore = useAgentStore((s) => s.useInitInboxAgentStore);
+  const useInitInboxAgentStore = useAgentStore((s) => s.useInitInboxAgentStore);
+  const useLoadAllAgentConfigs = useAgentStore((s) => s.useLoadAllAgentConfigs);
   const useInitAiProviderKeyVaults = useAiInfraStore((s) => s.useFetchAiProviderRuntimeState);
 
   // init the system preference
@@ -62,7 +63,10 @@ const StoreInitialization = memo(() => {
   const isLoginOnInit = isDBInited ? Boolean(enableNextAuth ? isSignedIn : isLogin) : false;
 
   // init inbox agent and default agent config
-  useInitAgentStore(isLoginOnInit, serverConfig.defaultAgent?.config);
+  useInitInboxAgentStore(isLoginOnInit, serverConfig.defaultAgent?.config);
+
+  // batch load all agent configs after sessions are loaded
+  useLoadAllAgentConfigs(isDBInited && isLoginOnInit, isLoginOnInit);
 
   // init user provider key vaults
   useInitAiProviderKeyVaults(isLoginOnInit);

@@ -23,10 +23,9 @@ import { isDesktop } from '@/const/version';
 // @ts-ignore
 export const useClientDataSWR: SWRHook = (key, fetch, config) =>
   useSWR(key, fetch, {
-    // default is 2000ms ,it makes the user's quick switch don't work correctly.
-    // Cause issue like this: https://github.com/lobehub/lobe-chat/issues/532
-    // we need to set it to 0.
-    dedupingInterval: 0,
+    // Re-enabled deduplication now that we use centralized data loading
+    // This prevents unnecessary re-fetches for the same data within 2 seconds
+    dedupingInterval: 2000,
     focusThrottleInterval:
       // FIXME: desktop 云同步模式也是走 edge 请求，也应该增大延迟
       // desktop 1.5s

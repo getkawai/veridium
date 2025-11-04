@@ -8,7 +8,7 @@ import { SessionGroupModel } from '@/database/models/sessionGroup';
 import { BaseClientService } from '@/services/baseClientService';
 
 import { ISessionService } from './type';
-import { toNullString, boolToInt } from '@/types/database';
+import { toNullString, boolToInt, Session } from '@/types/database';
 
 export class ClientService extends BaseClientService implements ISessionService {
   private get sessionModel(): SessionModel {
@@ -82,7 +82,7 @@ export class ClientService extends BaseClientService implements ISessionService 
 
   getSessionConfig: ISessionService['getSessionConfig'] = async (id) => {
     if (id === INBOX_SESSION_ID) {
-      const item = await this.sessionModel.findByIdOrSlug(INBOX_SESSION_ID);
+      const item: Session | undefined = await this.sessionModel.findByIdOrSlug(INBOX_SESSION_ID);
 
       // if there is no session for user, create one
       if (!item) {
@@ -93,11 +93,11 @@ export class ClientService extends BaseClientService implements ISessionService 
       }
     }
 
-    const res = await this.sessionModel.findByIdOrSlug(id);
+    const res: Session | undefined = await this.sessionModel.findByIdOrSlug(id);
 
     if (!res) throw new Error('Session not found');
 
-    return res.agent as LobeAgentConfig;
+    return res?.agent as LobeAgentConfig;
   };
 
   /**

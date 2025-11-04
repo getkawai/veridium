@@ -8,7 +8,6 @@ import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 
 import { DEFAULT_AVATAR } from '@/const/meta';
-import { useInitAgentConfig } from '@/hooks/useInitAgentConfig';
 import { useOpenChatSettings } from '@/hooks/useInterceptingRoutes';
 import { usePinnedAgentState } from '@/hooks/usePinnedAgentState';
 import { useGlobalStore } from '@/store/global';
@@ -46,7 +45,6 @@ const useStyles = createStyles(({ css }) => ({
 const Main = memo<{ className?: string }>(({ className }) => {
   const { t } = useTranslation(['chat', 'hotkey']);
   const { styles } = useStyles();
-  useInitAgentConfig();
   const [isPinned] = usePinnedAgentState();
 
   const [init, isInbox, title, avatar, backgroundColor, members, sessionType] = useSessionStore(

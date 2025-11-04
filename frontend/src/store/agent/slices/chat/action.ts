@@ -10,7 +10,7 @@ import { useClientDataSWR, useOnlyFetchOnceSWR } from '@/libs/swr';
 // import { agentService } from '@/services/agent';
 import { sessionService } from '@/services/session';
 import { AgentState } from '@/store/agent/slices/chat/initialState';
-import { useSessionStore } from '@/store/session';
+import { getSessionStoreState, useSessionStore } from '@/store/session';
 import { LobeAgentChatConfig, LobeAgentConfig } from '@/types/agent';
 import { KnowledgeItem } from '@/types/knowledgeBase';
 import { merge } from '@/utils/merge';
@@ -38,6 +38,7 @@ export interface AgentChatAction {
     data: PartialDeep<LobeAgentConfig>,
     signal?: AbortSignal,
   ) => Promise<void>;
+  internal_updateAgentConfigInitMap: (id: string, loaded: boolean) => void;
   removeFileFromAgent: (fileId: string) => Promise<void>;
   removeKnowledgeBaseFromAgent: (knowledgeBaseId: string) => Promise<void>;
 
@@ -54,6 +55,7 @@ export interface AgentChatAction {
     isLogin: boolean | undefined,
     defaultAgentConfig?: PartialDeep<LobeAgentConfig>,
   ) => SWRResponse<PartialDeep<LobeAgentConfig>>;
+  useLoadAllAgentConfigs: (isDBInited: boolean, isLogin: boolean) => SWRResponse;
 }
 
 const FETCH_AGENT_CONFIG_KEY = 'FETCH_AGENT_CONFIG';
@@ -204,6 +206,8 @@ export const createChatSlice: StateCreator<
             {
               defaultAgentConfig: merge(get().defaultAgentConfig, defaultAgentConfig),
               isInboxAgentConfigInit: true,
+              // Mark inbox config as loaded
+              agentConfigInitMap: { ...get().agentConfigInitMap, [INBOX_SESSION_ID]: true },
             },
             false,
             'initDefaultAgent',
@@ -212,6 +216,52 @@ export const createChatSlice: StateCreator<
           if (data) {
             get().internal_dispatchAgentMap(INBOX_SESSION_ID, data, 'initInbox');
           }
+        },
+      },
+    ),
+
+  useLoadAllAgentConfigs: (isDBInited, isLogin) =>
+    useOnlyFetchOnceSWR(
+      isDBInited && isLogin ? 'loadAllAgentConfigs' : null,
+      async () => {
+        const sessionStore = getSessionStoreState();
+        const sessions = sessionStore.sessions;
+
+        // Batch load all agent configs
+        const configPromises = sessions
+          .filter((s) => s.type === 'agent')
+          .map((session) =>
+            sessionService
+              .getSessionConfig(session.id)
+              .then((config) => ({ sessionId: session.id, config }))
+              .catch(() => null), // Handle individual failures gracefully
+          );
+
+        const results = await Promise.all(configPromises);
+
+        // Populate agentMap and agentConfigInitMap with all configs
+        const agentConfigInitMap = { ...get().agentConfigInitMap };
+        
+        results.forEach((result) => {
+          if (result) {
+            get().internal_dispatchAgentMap(result.sessionId, result.config, 'batchLoad');
+            // Mark this session's config as loaded
+            agentConfigInitMap[result.sessionId] = true;
+          }
+        });
+
+        // Update agentConfigInitMap
+        set({ agentConfigInitMap }, false, 'batchLoadConfigInitMap');
+
+        return results.filter((r) => r !== null).length;
+      },
+      {
+        onSuccess: (count) => {
+          console.info(`[AgentStore] Loaded ${count} agent configs`);
+          set({ isAllAgentConfigsLoaded: true }, false, 'allAgentConfigsLoaded');
+        },
+        onError: (error) => {
+          console.error('[AgentStore] Failed to batch load agent configs:', error);
         },
       },
     ),
@@ -229,6 +279,14 @@ export const createChatSlice: StateCreator<
     if (isEqual(get().agentMap, agentMap)) return;
 
     set({ agentMap }, false, 'dispatchAgent' + (actions ? `/${actions}` : ''));
+  },
+
+  internal_updateAgentConfigInitMap: (id, loaded) => {
+    set(
+      { agentConfigInitMap: { ...get().agentConfigInitMap, [id]: loaded } },
+      false,
+      'updateAgentConfigInitMap',
+    );
   },
 
   internal_updateAgentConfig: async (id, data, signal) => {

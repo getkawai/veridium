@@ -7,9 +7,10 @@ import { memo, useRef, useState } from 'react';
 import { Flexbox } from 'react-layout-kit';
 
 import { ActionKeys } from '@/features/ChatInput/ActionBar/config';
-import { useInitAgentConfig } from '@/hooks/useInitAgentConfig';
+import { useAgentStore } from '@/store/agent';
 import { useChatStore } from '@/store/chat';
 import { chatSelectors } from '@/store/chat/selectors';
+import { useSessionStore } from '@/store/session';
 
 import ActionBar from './ActionBar';
 import Files from './Files';
@@ -34,7 +35,11 @@ const MobileChatInput = memo(() => {
   const ref = useRef<TextAreaRef>(null);
   const [expand, setExpand] = useState<boolean>(false);
   const { send: sendMessage, canSend } = useSendMessage();
-  const { isLoading } = useInitAgentConfig();
+
+  // Check if config is loaded from agentConfigInitMap
+  const activeId = useSessionStore((s) => s.activeId);
+  const isConfigLoaded = useAgentStore((s) => !!s.agentConfigInitMap[activeId]);
+  const isLoading = !isConfigLoaded;
 
   const [loading, value, onInput, onStop] = useChatStore((s) => [
     chatSelectors.isAIGenerating(s),

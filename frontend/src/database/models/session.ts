@@ -27,8 +27,6 @@ import {
 } from '@/types/database';
 
 // Type aliases for compatibility
-type SessionItem = Session;
-type AgentItem = Agent;
 type NewSession = Partial<CreateSessionParams>;
 type NewAgent = Partial<CreateAgentParams>;
 
@@ -101,7 +99,7 @@ export class SessionModel {
 
     return {
       sessionGroups: groups as unknown as ChatSessionList['sessionGroups'],
-      sessions: result.map((item) => this.mapSessionItem(item as any)),
+      sessions: result.map((item) => this.mapSession(item as any)),
     };
   };
 
@@ -111,12 +109,12 @@ export class SessionModel {
     const keywordLowerCase = keyword.toLowerCase();
     const data = await this.findSessionsByKeywords({ keyword: keywordLowerCase });
 
-    return data.map((item) => this.mapSessionItem(item as any));
+    return data.map((item) => this.mapSession(item as any));
   };
 
   findByIdOrSlug = async (
     idOrSlug: string,
-  ): Promise<(SessionItem & { agent: AgentItem }) | undefined> => {
+  ): Promise<(Session & { agent: Agent }) | undefined> => {
     await this.logger.methodEntry('findByIdOrSlug', { idOrSlug, userId: this.userId });
     
     // Use single query to find by ID or slug
@@ -188,7 +186,7 @@ export class SessionModel {
           openingQuestions: toNullJSON([]),
           createdAt: session.createdAt,
           updatedAt: session.updatedAt,
-        } as AgentItem,
+        } as Agent,
         agentsToSessions: [],
         group,
       } as any;
@@ -294,7 +292,7 @@ export class SessionModel {
     session?: Partial<NewSession>;
     slug?: string;
     type: 'agent' | 'group';
-  }): Promise<SessionItem> => {
+  }): Promise<Session> => {
     await this.logger.methodEntry('create', { id, type, slug, userId: this.userId });
     
     // Check if slug exists
@@ -319,7 +317,7 @@ export class SessionModel {
     const newSession = await DB.CreateSession({
       id,
       userId: this.userId,
-      slug: slug || "",
+      slug: slug || id,
       title: toNullString(session.title as any),
       description: toNullString(session.description as any),
       avatar: toNullString(session.avatar as any),
@@ -385,16 +383,32 @@ export class SessionModel {
         slug: INBOX_SESSION_ID,
         userId: this.userId,
       });
-      if (existing) return;
+      if (existing) return existing;
     } catch {
       // Doesn't exist, create it
     }
 
-    return await this.create({
-      config: merge(DEFAULT_AGENT_CONFIG, defaultAgentConfig) as any,
-      slug: INBOX_SESSION_ID,
-      type: 'agent',
-    });
+    // Use try-catch to handle race condition where multiple
+    // processes try to create inbox simultaneously
+    try {
+      return await this.create({
+        config: merge(DEFAULT_AGENT_CONFIG, defaultAgentConfig) as any,
+        slug: INBOX_SESSION_ID,
+        type: 'agent',
+      });
+    } catch (error: any) {
+      // If UNIQUE constraint error, another process created it first
+      // Fetch and return the existing inbox
+      if (error?.message?.includes('UNIQUE constraint') || error?.message?.includes('2067')) {
+        const existing = await DB.GetSessionBySlug({
+          slug: INBOX_SESSION_ID,
+          userId: this.userId,
+        });
+        return existing;
+      }
+      // Re-throw other errors
+      throw error;
+    }
   };
 
   batchCreate = async (newSessions: NewSession[]) => {
@@ -557,7 +571,7 @@ export class SessionModel {
 
   // **************** Update *************** //
 
-  update = async (id: string, data: Partial<SessionItem>) => {
+  update = async (id: string, data: Partial<Session>) => {
     await this.logger.methodEntry('update', { id, data, userId: this.userId });
     
     // Resolve slug to actual ID if needed
@@ -584,7 +598,7 @@ export class SessionModel {
     return [updated];
   };
 
-  updateConfig = async (sessionId: string, data: PartialDeep<AgentItem> | undefined | null) => {
+  updateConfig = async (sessionId: string, data: PartialDeep<Agent> | undefined | null) => {
     await this.logger.methodEntry('updateConfig', { sessionId, hasData: !!data, userId: this.userId });
     
     if (!data || Object.keys(data).length === 0) {
@@ -679,7 +693,7 @@ export class SessionModel {
 
   // **************** Helper *************** //
 
-  private mapSessionItem = ({
+  private mapSession = ({
     agentsToSessions,
     title,
     backgroundColor,
@@ -688,7 +702,7 @@ export class SessionModel {
     groupId,
     type,
     ...res
-  }: SessionItem & { agentsToSessions?: { agent: AgentItem }[] }):
+  }: Session & { agentsToSessions?: { agent: Agent }[] }):
     | LobeAgentSession
     | LobeGroupSession => {
     const meta = {

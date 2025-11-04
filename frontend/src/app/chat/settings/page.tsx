@@ -9,7 +9,6 @@ import { useTranslation } from 'react-i18next';
 import PageTitle from '@/components/PageTitle';
 import { useCategory } from '@/features/AgentSetting/AgentCategory/useCategory';
 import AgentSettings from '@/features/AgentSetting/AgentSettings';
-import { useInitAgentConfig } from '@/hooks/useInitAgentConfig';
 import { useAgentStore } from '@/store/agent';
 import { agentSelectors } from '@/store/agent/selectors';
 import { ChatSettingsTabs } from '@/store/global/initialState';
@@ -32,7 +31,9 @@ const EditPage = memo(() => {
   const config = useAgentStore(agentSelectors.currentAgentConfig, isEqual);
   const meta = useSessionStore(sessionMetaSelectors.currentAgentMeta, isEqual);
 
-  const { isLoading } = useInitAgentConfig();
+  // Check if config is loaded from agentConfigInitMap
+  const isConfigLoaded = useAgentStore((s) => !!s.agentConfigInitMap[id]);
+  const isLoading = !isConfigLoaded;
 
   return (
     <>
