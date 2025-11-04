@@ -21,6 +21,7 @@ import { nanoid } from 'nanoid';
 
 import { merge } from '@/utils/merge';
 import { today } from '@/utils/time';
+import { createModelLogger } from '@/utils/logger';
 
 import {
   DB,
@@ -37,6 +38,7 @@ import { Service as DBService } from '@@/github.com/kawai-network/veridium/inter
 
 export class MessageModel {
   private userId: string;
+  private logger = createModelLogger('Message', 'MessageModel', 'database/models/message');
 
   constructor(_db: any, userId: string) {
     this.userId = userId;
@@ -54,41 +56,59 @@ export class MessageModel {
       postProcessUrl?: (path: string | null, file: { fileType: string }) => Promise<string>;
     } = {},
   ) => {
+    await this.logger.methodEntry('query', { 
+      current, 
+      pageSize, 
+      sessionId, 
+      topicId, 
+      groupId,
+      userId: this.userId 
+    });
+    
     const offset = current * pageSize;
 
-    // OPTIMIZATION 2A: Server-side filtering
-    // Use specific query based on filter type
-    let messages;
-    if (sessionId !== undefined && sessionId !== null) {
-      messages = await DB.ListMessagesBySession({
-        userId: this.userId,
-        sessionId: toNullString(sessionId) as any,
-        limit: pageSize,
-        offset,
-      });
-    } else if (topicId !== undefined && topicId !== null) {
-      messages = await DB.ListMessagesByTopic({
-        userId: this.userId,
-        topicId: toNullString(topicId) as any,
-        limit: pageSize,
-        offset,
-      });
-    } else if (groupId !== undefined && groupId !== null) {
-      messages = await DB.ListMessagesByGroup({
-        userId: this.userId,
-        groupId: toNullString(groupId) as any,
-        limit: pageSize,
-        offset,
-      });
-    } else {
-      messages = await DB.ListMessages({
-        userId: this.userId,
-        limit: pageSize,
-        offset,
-      });
-    }
+      // OPTIMIZATION 2A: Server-side filtering
+      // Use specific query based on filter type
+      let messages;
+      if (sessionId !== undefined && sessionId !== null) {
+        await this.logger.debug(`Querying messages by session: ${sessionId}`);
+        messages = await DB.ListMessagesBySession({
+          userId: this.userId,
+          sessionId: toNullString(sessionId) as any,
+          limit: pageSize,
+          offset,
+        });
+      } else if (topicId !== undefined && topicId !== null) {
+        await this.logger.debug(`Querying messages by topic: ${topicId}`);
+        messages = await DB.ListMessagesByTopic({
+          userId: this.userId,
+          topicId: toNullString(topicId) as any,
+          limit: pageSize,
+          offset,
+        });
+      } else if (groupId !== undefined && groupId !== null) {
+        await this.logger.debug(`Querying messages by group: ${groupId}`);
+        messages = await DB.ListMessagesByGroup({
+          userId: this.userId,
+          groupId: toNullString(groupId) as any,
+          limit: pageSize,
+          offset,
+        });
+      } else {
+        await this.logger.debug('Querying all messages');
+        messages = await DB.ListMessages({
+          userId: this.userId,
+          limit: pageSize,
+          offset,
+        });
+      }
+      
+      await this.logger.debug(`Retrieved ${messages.length} messages from DB`);
 
-    if (messages.length === 0) return [];
+      if (messages.length === 0) {
+        await this.logger.methodExit('query', { count: 0 });
+        return [];
+      }
 
     const messageIds = messages.map((m) => m.id);
 
@@ -229,7 +249,7 @@ export class MessageModel {
     );
 
     // Map results
-    return messages.map((message) => {
+    const result = messages.map((message) => {
       const plugin = pluginsMap.get(message.id);
       const translate = translatesMap.get(message.id);
       const tts = ttsMap.get(message.id);
@@ -316,15 +336,23 @@ export class MessageModel {
         ragRawQuery: messageQuery?.userQuery,
       } as unknown as UIChatMessage;
     });
+    
+    await this.logger.methodExit('query', { count: result.length });
+    return result;
   };
 
   findById = async (id: string) => {
+    await this.logger.methodEntry('findById', { id, userId: this.userId });
+    
     try {
-      return await DB.GetMessage({
+      const message = await DB.GetMessage({
         id,
         userId: this.userId,
       });
-    } catch {
+      await this.logger.methodExit('findById', { found: !!message });
+      return message;
+    } catch (error) {
+      await this.logger.methodError('findById', error, { id });
       return undefined;
     }
   };
@@ -414,9 +442,13 @@ export class MessageModel {
     range?: [string, string];
     startDate?: string;
   }): Promise<number> => {
+    await this.logger.methodEntry('count', { params, userId: this.userId });
+    
     if (!params) {
       const result = await DB.CountMessages(this.userId);
-      return Number(result) || 0;
+      const count = Number(result) || 0;
+      await this.logger.methodExit('count', { count });
+      return count;
     }
 
     let startTime: number;
@@ -430,13 +462,17 @@ export class MessageModel {
       startTime = params.startDate ? new Date(params.startDate).getTime() : 0;
       endTime = params.endDate ? new Date(params.endDate).getTime() : Date.now();
     }
+    
+    await this.logger.debug(`Counting messages in date range: ${new Date(startTime).toISOString()} to ${new Date(endTime).toISOString()}`);
 
     const result = await DB.CountMessagesByDateRange({
       userId: this.userId,
       createdAt: startTime,
       createdAt2: endTime,
     });
-    return Number(result) || 0;
+    const count = Number(result) || 0;
+    await this.logger.methodExit('count', { count, dateRange: true });
+    return count;
   };
 
   countWords = async (params?: {
@@ -554,6 +590,14 @@ export class MessageModel {
     }: CreateMessageParams,
     id: string = nanoid(14),
   ): Promise<DBMessageItem> => {
+    await this.logger.methodEntry('create', { 
+      id, 
+      role: message.role, 
+      hasPlugin: !!plugin,
+      filesCount: files?.length || 0,
+      userId: this.userId 
+    });
+    
     const normalizedMessage = message.groupId ? { ...message, sessionId: null } : message;
     const now = currentTimestampMs();
 
@@ -610,7 +654,8 @@ export class MessageModel {
         Similarity: { Int64: chunk.similarity || 0, Valid: !!chunk.similarity } as any,
       })) : [],
     }, this.userId);
-
+    
+    await this.logger.methodExit('create', { messageId: item.id });
     return item as unknown as DBMessageItem;
   };
 
@@ -640,12 +685,19 @@ export class MessageModel {
   };
 
   batchCreate = async (newMessages: DBMessageItem[]) => {
+    await this.logger.methodEntry('batchCreate', { 
+      count: newMessages.length,
+      userId: this.userId 
+    });
+    
     // No batch insert support - create one by one
     await Promise.all(
       newMessages.map((message) =>
         this.create(message as any, message.id),
       ),
     );
+    
+    await this.logger.methodExit('batchCreate', { createdCount: newMessages.length });
   };
 
   createMessageQuery = async (params: NewMessageQueryParams) => {
@@ -666,6 +718,13 @@ export class MessageModel {
    * OPTIMIZED: Uses atomic transaction (4A) when updating with images
    */
   update = async (id: string, { imageList, ...message }: Partial<UpdateMessageParams>) => {
+    await this.logger.methodEntry('update', { 
+      id, 
+      hasImages: !!(imageList && imageList.length > 0),
+      imageCount: imageList?.length || 0,
+      userId: this.userId 
+    });
+    
     const updateParams = {
       id,
       userId: this.userId,
@@ -678,25 +737,46 @@ export class MessageModel {
 
     // OPTIMIZATION 4A: Use transaction if updating with images
     if (imageList && imageList.length > 0) {
-      return await DBService.UpdateMessageWithImages({
+      await this.logger.debug(`Updating message with ${imageList.length} images`);
+      const result = await DBService.UpdateMessageWithImages({
         MessageId: id,
         Message: updateParams,
         ImageIds: imageList.map((file) => file.id),
       }, this.userId);
+      await this.logger.methodExit('update', { id, withImages: true });
+      return result;
     }
 
     // Simple update without images
-    return await DB.UpdateMessage(updateParams);
+    await this.logger.debug('Updating message without images');
+    const result = await DB.UpdateMessage(updateParams);
+    await this.logger.methodExit('update', { id, withImages: false });
+    return result;
   };
 
   updateMetadata = async (id: string, metadata: Record<string, any>) => {
+    await this.logger.methodEntry('updateMetadata', { 
+      id, 
+      metadataKeys: Object.keys(metadata),
+      userId: this.userId 
+    });
+    
     const item = await this.findById(id);
-    if (!item) return;
+    if (!item) {
+      await this.logger.warn('Message not found for metadata update', { id });
+      return;
+    }
 
     const currentMetadata = parseNullableJSON(item.metadata as any) || {};
     const mergedMetadata = merge(currentMetadata, metadata);
+    
+    await this.logger.debug('Merging metadata', { 
+      currentKeys: Object.keys(currentMetadata).length,
+      newKeys: Object.keys(metadata).length,
+      mergedKeys: Object.keys(mergedMetadata).length 
+    });
 
-    return await DB.UpdateMessage({
+    const result = await DB.UpdateMessage({
       id,
       userId: this.userId,
       content: toNullString(item.content as any),
@@ -705,25 +785,46 @@ export class MessageModel {
       favorite: item.favorite,
       updatedAt: currentTimestampMs(),
     });
+    
+    await this.logger.methodExit('updateMetadata', { id });
+    return result;
   };
 
   updatePluginState = async (id: string, state: Record<string, any>) => {
+    await this.logger.methodEntry('updatePluginState', { 
+      id, 
+      stateKeys: Object.keys(state),
+      userId: this.userId 
+    });
+    
     const item = await DB.GetMessagePlugin({
       id,
       userId: this.userId,
     });
     
-    if (!item) throw new Error('Plugin not found');
+    if (!item) {
+      await this.logger.error('Plugin not found', null, { id });
+      throw new Error('Plugin not found');
+    }
 
     const currentState = parseNullableJSON(item.state as any) || {};
     const mergedState = merge(currentState, state);
+    
+    await this.logger.debug('Merging plugin state', {
+      currentKeys: Object.keys(currentState).length,
+      newKeys: Object.keys(state).length,
+      mergedKeys: Object.keys(mergedState).length
+    });
 
-    return await DB.UpdateMessagePlugin({
+    const result = await DB.UpdateMessagePlugin({
       id,
       userId: this.userId,
       state: toNullJSON(mergedState),
       error: item.error,
     });
+    
+    await this.logger.methodExit('updatePluginState', { id });
+    return result;
   };
 
   updateMessagePlugin = async (id: string, value: { state?: any; error?: any }) => {
@@ -754,22 +855,29 @@ export class MessageModel {
   };
 
   updateTTS = async (id: string, tts: Partial<ChatTTS>) => {
+    await this.logger.methodEntry('updateTTS', { 
+      id, 
+      hasFile: !!tts.file,
+      voice: tts.voice,
+      userId: this.userId 
+    });
+    
     // Skip database operation if message is temporary (not yet persisted)
     if (id.startsWith('tmp_')) {
-      console.warn('[MessageModel] Cannot save TTS for temporary message:', id);
+      await this.logger.warn('Cannot save TTS for temporary message', { id });
       return;
     }
 
     // Skip if file ID is mock/temporary (not yet uploaded to database)
     if (tts.file && (tts.file.startsWith('mock-') || tts.file.startsWith('tmp_'))) {
-      console.warn('[MessageModel] Cannot save TTS with temporary file ID:', tts.file);
+      await this.logger.warn('Cannot save TTS with temporary file ID', { fileId: tts.file });
       return;
     }
 
     // Verify message exists before inserting TTS
     const messageExists = await this.findById(id);
     if (!messageExists) {
-      console.error('[MessageModel] Cannot save TTS: message not found in database:', id);
+      await this.logger.error('Cannot save TTS: message not found', null, { id });
       return;
     }
 
@@ -780,13 +888,14 @@ export class MessageModel {
           id: tts.file,
           userId: this.userId,
         });
+        await this.logger.debug(`TTS file verified: ${tts.file}`);
       } catch (error) {
-        console.error('[MessageModel] Cannot save TTS: file not found in database:', tts.file);
+        await this.logger.error('Cannot save TTS: file not found', error, { fileId: tts.file });
         return;
       }
     }
 
-    return await DB.UpsertMessageTTS({
+    const result = await DB.UpsertMessageTTS({
       id,
       contentMd5: toNullString(tts.contentMd5 as any),
       fileId: toNullString(tts.file as any),
@@ -794,6 +903,9 @@ export class MessageModel {
       clientId: toNullString(null),
       userId: this.userId,
     });
+    
+    await this.logger.methodExit('updateTTS', { id, fileId: tts.file });
+    return result;
   };
 
   async updateMessageRAG(id: string, { ragQueryId, fileChunks }: UpdateMessageRAGParams) {
@@ -817,11 +929,18 @@ export class MessageModel {
    * Deletes message and all related tool messages atomically
    */
   deleteMessage = async (id: string) => {
+    await this.logger.methodEntry('deleteMessage', { id, userId: this.userId });
+    
     const message = await this.findById(id);
-    if (!message) return;
+    if (!message) {
+      await this.logger.warn('Message not found for deletion', { id });
+      return;
+    }
 
     const tools = parseNullableJSON(message.tools as any) as ChatToolPayload[] | null;
     const toolCallIds = tools?.map((tool) => tool.id).filter(Boolean) || [];
+    
+    await this.logger.debug(`Deleting message with ${toolCallIds.length} tool calls`);
 
     // OPTIMIZATION 4A: Use atomic transaction
     // OPTIMIZATION 1A: Batch query for tool call IDs
@@ -830,13 +949,22 @@ export class MessageModel {
       [id],
       this.userId
     );
+    
+    await this.logger.methodExit('deleteMessage', { id, deletedToolCalls: toolCallIds.length });
   };
 
   deleteMessages = async (ids: string[]) => {
+    await this.logger.methodEntry('deleteMessages', { 
+      count: ids.length, 
+      userId: this.userId 
+    });
+    
     await DB.BatchDeleteMessages({
       userId: this.userId,
       ids,
     });
+    
+    await this.logger.methodExit('deleteMessages', { deletedCount: ids.length });
   };
 
   deleteMessageTranslate = async (id: string) => {
@@ -865,22 +993,34 @@ export class MessageModel {
     topicId?: string | null,
     groupId?: string | null,
   ) => {
+    await this.logger.methodEntry('deleteMessagesBySession', { 
+      sessionId, 
+      topicId, 
+      groupId, 
+      userId: this.userId 
+    });
+    
     if (sessionId) {
+      await this.logger.debug(`Deleting messages by session: ${sessionId}`);
       await DB.DeleteMessagesBySession({
         sessionId: toNullString(sessionId),
         userId: this.userId,
       });
     } else if (topicId) {
+      await this.logger.debug(`Deleting messages by topic: ${topicId}`);
       await DB.DeleteMessagesByTopic({
         topicId: toNullString(topicId),
         userId: this.userId,
       });
     } else if (groupId) {
+      await this.logger.debug(`Deleting messages by group: ${groupId}`);
       await DB.DeleteMessagesByGroup({
         groupId: toNullString(groupId),
         userId: this.userId,
       });
     }
+    
+    await this.logger.methodExit('deleteMessagesBySession', { sessionId, topicId, groupId });
   };
 
   deleteAllMessages = async () => {

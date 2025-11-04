@@ -1,5 +1,6 @@
 import { CreateThreadParams, ThreadStatus } from '@/types';
 import { nanoid } from 'nanoid';
+import { createModelLogger } from '@/utils/logger';
 
 import { ThreadItem } from '../schemas';
 import {
@@ -11,12 +12,15 @@ import {
 
 export class ThreadModel {
   private userId: string;
+  private logger = createModelLogger('Thread', 'ThreadModel', 'database/models/thread');
 
   constructor(_db: any, userId: string) {
     this.userId = userId;
   }
 
   create = async (params: CreateThreadParams) => {
+    await this.logger.methodEntry('create', { type: params.type, userId: this.userId });
+    
     const now = currentTimestampMs();
 
     try {
@@ -34,19 +38,25 @@ export class ThreadModel {
         createdAt: now,
         updatedAt: now,
       });
-
+      
+      await this.logger.methodExit('create', { threadId: result.id });
       return this.mapThread(result);
     } catch (error) {
       // ON CONFLICT DO NOTHING behavior - return undefined if conflict
+      await this.logger.warn('Thread create conflict, returning undefined', { params });
       return undefined;
     }
   };
 
   delete = async (id: string) => {
+    await this.logger.methodEntry('delete', { id, userId: this.userId });
+    
     await DB.DeleteThread({
       id,
       userId: this.userId,
     });
+    
+    await this.logger.methodExit('delete', { id });
   };
 
   deleteAll = async () => {
@@ -79,6 +89,8 @@ export class ThreadModel {
   };
 
   update = async (id: string, value: Partial<ThreadItem>) => {
+    await this.logger.methodEntry('update', { id, value, userId: this.userId });
+    
     const now = currentTimestampMs();
 
     await DB.UpdateThread({
@@ -89,6 +101,8 @@ export class ThreadModel {
       lastActiveAt: value.lastActiveAt ? new Date(value.lastActiveAt).getTime() : now,
       updatedAt: now,
     });
+    
+    await this.logger.methodExit('update', { id });
   };
 
   // **************** Helper *************** //

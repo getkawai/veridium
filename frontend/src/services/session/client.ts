@@ -8,6 +8,7 @@ import { SessionGroupModel } from '@/database/models/sessionGroup';
 import { BaseClientService } from '@/services/baseClientService';
 
 import { ISessionService } from './type';
+import { toNullString, boolToInt } from '@/types/database';
 
 export class ClientService extends BaseClientService implements ISessionService {
   private get sessionModel(): SessionModel {
@@ -28,11 +29,17 @@ export class ClientService extends BaseClientService implements ISessionService 
   };
 
   createSession: ISessionService['createSession'] = async (type, data) => {
-    const { config, group, meta, ...session } = data;
+    const { config, group, meta, type: _type, pinned, createdAt, updatedAt, ...session } = data;
 
     const item = await this.sessionModel.create({
       config: { ...config, ...meta } as any,
-      session: { ...session, groupId: group },
+      session: { 
+        ...session, 
+        groupId: toNullString(group) as any,
+        ...(pinned !== undefined && { pinned: boolToInt(pinned) }),
+        ...(createdAt && { createdAt: createdAt.getTime() }),
+        ...(updatedAt && { updatedAt: updatedAt.getTime() }),
+      },
       type,
     });
     if (!item) {

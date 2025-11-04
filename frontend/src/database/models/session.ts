@@ -10,6 +10,7 @@ import type { PartialDeep } from 'type-fest';
 import { nanoid } from 'nanoid';
 
 import { merge } from '@/utils/merge';
+import { createModelLogger } from '@/utils/logger';
 
 import {
   DB,
@@ -33,6 +34,7 @@ type NewAgent = Partial<CreateAgentParams>;
 
 export class SessionModel {
   private userId: string;
+  private logger = createModelLogger('Session', 'SessionModel', 'database/models/session');
 
   constructor(_db: any, userId: string) {
     this.userId = userId;
@@ -41,6 +43,8 @@ export class SessionModel {
   // **************** Query *************** //
 
   query = async ({ current = 0, pageSize = 9999 } = {}) => {
+    await this.logger.methodEntry('query', { current, pageSize, userId: this.userId });
+    
     const offset = current * pageSize;
 
     // Get sessions with agents
@@ -49,11 +53,15 @@ export class SessionModel {
       limit: pageSize,
       offset,
     });
+    
+    await this.logger.debug(`Retrieved ${sessions.length} sessions from DB`);
 
     // Filter out inbox session
     const filtered = sessions.filter(
       (s) => s.slug !== INBOX_SESSION_ID,
     );
+    
+    await this.logger.debug(`Filtered to ${filtered.length} sessions (excluding inbox)`);
 
     // Enrich with agents and groups
     const enriched = await Promise.all(
@@ -82,7 +90,8 @@ export class SessionModel {
         };
       }),
     );
-
+    
+    await this.logger.methodExit('query', { count: enriched.length });
     return enriched;
   };
 
@@ -108,6 +117,8 @@ export class SessionModel {
   findByIdOrSlug = async (
     idOrSlug: string,
   ): Promise<(SessionItem & { agent: AgentItem }) | undefined> => {
+    await this.logger.methodEntry('findByIdOrSlug', { idOrSlug, userId: this.userId });
+    
     // Use single query to find by ID or slug
     let session: Session | undefined;
     
@@ -117,11 +128,17 @@ export class SessionModel {
         slug: idOrSlug,
         userId: this.userId,
       });
-    } catch {
+    } catch (error) {
+      await this.logger.methodError('findByIdOrSlug', error, { idOrSlug });
       return undefined;
     }
 
-    if (!session) return undefined;
+    if (!session) {
+      await this.logger.debug(`Session not found: ${idOrSlug}`);
+      return undefined;
+    }
+    
+    await this.logger.debug(`Found session: ${session.id}`);
 
     // Get agents
     const agents = await DB.GetSessionAgents({
@@ -278,6 +295,8 @@ export class SessionModel {
     slug?: string;
     type: 'agent' | 'group';
   }): Promise<SessionItem> => {
+    await this.logger.methodEntry('create', { id, type, slug, userId: this.userId });
+    
     // Check if slug exists
     if (slug) {
       try {
@@ -285,7 +304,10 @@ export class SessionModel {
           slug,
           userId: this.userId,
         });
-        if (existing) return existing;
+        if (existing) {
+          await this.logger.debug(`Session with slug ${slug} already exists, returning existing`);
+          return existing;
+        }
       } catch {
         // Doesn't exist, continue
       }
@@ -309,6 +331,8 @@ export class SessionModel {
       createdAt: now,
       updatedAt: now,
     });
+    
+    await this.logger.debug(`Created session: ${newSession.id}`);
 
     // If agent type, create agent and link
     if (type === 'agent') {
@@ -338,6 +362,8 @@ export class SessionModel {
         createdAt: now,
         updatedAt: now,
       });
+      
+      await this.logger.debug(`Created agent: ${agentId}`);
 
       // Link agent to session
       await DB.LinkAgentToSession({
@@ -345,8 +371,11 @@ export class SessionModel {
         sessionId: id,
         userId: this.userId,
       });
+      
+      await this.logger.debug(`Linked agent ${agentId} to session ${id}`);
     }
-
+    
+    await this.logger.methodExit('create', { sessionId: newSession.id, type });
     return newSession;
   };
 
@@ -411,11 +440,15 @@ export class SessionModel {
    * Delete a session and its associated agent data if no longer referenced.
    */
   delete = async (id: string) => {
+    await this.logger.methodEntry('delete', { id, userId: this.userId });
+    
     // Get agents linked to this session
     const agents = await DB.GetSessionAgents({
       sessionId: id,
       userId: this.userId,
     });
+    
+    await this.logger.debug(`Found ${agents.length} agents linked to session ${id}`);
 
     // Unlink agents
     for (const agent of agents) {
@@ -424,6 +457,7 @@ export class SessionModel {
         sessionId: id,
         userId: this.userId,
       });
+      await this.logger.debug(`Unlinked agent ${agent.id} from session ${id}`);
     }
 
     // Delete session
@@ -431,6 +465,8 @@ export class SessionModel {
       id,
       userId: this.userId,
     });
+    
+    await this.logger.debug(`Deleted session ${id}`);
 
     // Delete orphaned agents - check if they're still linked to other sessions
     for (const agent of agents) {
@@ -444,8 +480,11 @@ export class SessionModel {
           id: agent.id,
           userId: this.userId,
         });
+        await this.logger.debug(`Deleted orphaned agent ${agent.id}`);
       }
     }
+    
+    await this.logger.methodExit('delete', { id, deletedAgents: agents.length });
   };
 
   /**
@@ -519,9 +558,12 @@ export class SessionModel {
   // **************** Update *************** //
 
   update = async (id: string, data: Partial<SessionItem>) => {
+    await this.logger.methodEntry('update', { id, data, userId: this.userId });
+    
     // Resolve slug to actual ID if needed
     const session = await this.findByIdOrSlug(id);
     if (!session) {
+      await this.logger.error(`Session not found for update: ${id}`);
       throw new Error(`Session not found: ${id}`);
     }
     const actualId = session.id;
@@ -537,15 +579,22 @@ export class SessionModel {
       pinned: data.pinned !== undefined ? data.pinned : 0,
       updatedAt: currentTimestampMs(),
     });
-
+    
+    await this.logger.methodExit('update', { id: updated.id });
     return [updated];
   };
 
   updateConfig = async (sessionId: string, data: PartialDeep<AgentItem> | undefined | null) => {
-    if (!data || Object.keys(data).length === 0) return;
+    await this.logger.methodEntry('updateConfig', { sessionId, hasData: !!data, userId: this.userId });
+    
+    if (!data || Object.keys(data).length === 0) {
+      await this.logger.debug('No config data to update');
+      return;
+    }
 
     const session = await this.findByIdOrSlug(sessionId);
     if (!session || !session.agent || !session.agent.id) {
+      await this.logger.error(`Session ${sessionId} not assigned with an agent`);
       throw new Error(
         'this session is not assigned with an agent, please contact with admin to fix this issue.',
       );
@@ -624,6 +673,8 @@ export class SessionModel {
       openingQuestions: toNullJSON(mergedValue.openingQuestions),
       updatedAt: currentTimestampMs(),
     });
+    
+    await this.logger.methodExit('updateConfig', { agentId: session.agent.id });
   };
 
   // **************** Helper *************** //

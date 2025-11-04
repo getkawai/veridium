@@ -14,6 +14,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/services/fileserver"
 	"github.com/wailsapp/wails/v3/pkg/services/kvstore"
+	wailslog "github.com/wailsapp/wails/v3/pkg/services/log"
 	"github.com/wailsapp/wails/v3/pkg/services/notifications"
 	"github.com/wailsapp/wails/v3/pkg/services/sqlite"
 )
@@ -78,6 +79,8 @@ func main() {
 			application.NewService(&LoadFileService{}),
 			// Native Wails v3 notification service
 			application.NewService(notifications.New()),
+			// Native Wails v3 notification service
+			application.NewService(wailslog.New()),
 			// Native Wails v3 sqlite service
 			application.NewService(sqlite.New()),
 			// User data fileserver (user config directory)
