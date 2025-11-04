@@ -32,6 +32,31 @@ const useBrowserSTT = (config: STTConfig) => {
       ? ttsAgentSettings.sttLocale
       : locale;
 
+  // Check if media devices are available (not available in Wails desktop environment)
+  const mediaDevicesAvailable = typeof navigator !== 'undefined' && 
+    navigator.mediaDevices && 
+    typeof navigator.mediaDevices.getUserMedia === 'function';
+
+  // If media devices are not available, return a mock implementation
+  if (!mediaDevicesAvailable) {
+    return {
+      start: () => {
+        // Call onError with SWR-compatible signature (error, key, config)
+        config.onError?.(
+          new Error('Media devices not available in desktop environment'),
+          '',
+          { retryCount: 0, dedupe: false } as any
+        );
+      },
+      stop: () => {},
+      isLoading: false,
+      isRecording: false,
+      formattedTime: '00:00',
+      time: 0,
+      response: undefined,
+    };
+  }
+
   return useSpeechRecognition(sttLocale, {
     ...config,
     autoStop,
@@ -49,7 +74,13 @@ const BrowserSTT = memo<{ mobile?: boolean }>(({ mobile }) => {
 
   const setDefaultError = useCallback(
     (err?: any) => {
-      setError({ body: err, message: t('stt.responseError', { ns: 'error' }), type: 500 });
+      // Check if this is a media devices error
+      const isMediaDeviceError = err?.message?.includes('Media devices not available');
+      const errorMessage = isMediaDeviceError 
+        ? 'Speech-to-text is not available in the desktop version. Please use the web version or text input.'
+        : t('stt.responseError', { ns: 'error' });
+      
+      setError({ body: err, message: errorMessage, type: 500 });
     },
     [t],
   );
