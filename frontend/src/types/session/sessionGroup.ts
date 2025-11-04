@@ -1,3 +1,4 @@
+import { getNullableInt, SessionGroup } from '@/database';
 import { LobeSessions } from './agentSession';
 
 export type SessionGroupId = string;
@@ -22,3 +23,13 @@ export interface CustomSessionGroup extends SessionGroupItem {
 }
 
 export type LobeSessionGroups = SessionGroupItem[];
+
+export const mapSessionGroup = (group: SessionGroup): SessionGroupItem => {
+  return {
+    createdAt: new Date(group.createdAt),
+    id: group.id,
+    name: group.name,
+    sort: getNullableInt(group.sort as any) ?? null,
+    updatedAt: new Date(group.updatedAt),
+  };
+};

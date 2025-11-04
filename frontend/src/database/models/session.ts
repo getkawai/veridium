@@ -4,6 +4,8 @@ import {
   LobeAgentConfig,
   LobeAgentSession,
   LobeGroupSession,
+  LobeSessionGroups,
+  mapSessionGroup,
   SessionRankItem,
 } from '@/types';
 import type { PartialDeep } from 'type-fest';
@@ -24,6 +26,7 @@ import {
   getNullableString,
   currentTimestampMs,
   boolToInt,
+  SessionGroup,
 } from '@/types/database';
 
 // Type aliases for compatibility
@@ -46,7 +49,7 @@ export class SessionModel {
     const offset = current * pageSize;
 
     // Get sessions with agents
-    const sessions = await DB.ListSessions({
+    const sessions: Session[] = await DB.ListSessions({
       userId: this.userId,
       limit: pageSize,
       offset,
@@ -64,21 +67,17 @@ export class SessionModel {
     // Enrich with agents and groups
     const enriched = await Promise.all(
       filtered.map(async (session) => {
-        const agents = await DB.GetSessionAgents({
+        const agents: Agent[] = await DB.GetSessionAgents({
           sessionId: session.id,
           userId: this.userId,
         });
 
-        let group: any = undefined;
+        let group: SessionGroup | undefined;
         if (session.groupId.Valid && session.groupId.String) {
-          try {
-            group = await DB.GetSessionGroup({
-              id: session.groupId.String,
-              userId: this.userId,
-            });
-          } catch {
-            // Group not found
-          }
+          group = await DB.GetSessionGroup({
+            id: session.groupId.String,
+            userId: this.userId,
+          }) as SessionGroup;
         }
 
         return {
@@ -95,10 +94,10 @@ export class SessionModel {
 
   queryWithGroups = async (): Promise<ChatSessionList> => {
     const result = await this.query();
-    const groups = await DB.ListSessionGroups(this.userId);
-
+    const groups: SessionGroup[] = await DB.ListSessionGroups(this.userId);
+    const sessionGroups: LobeSessionGroups = groups.map((group) => mapSessionGroup(group));
     return {
-      sessionGroups: groups as unknown as ChatSessionList['sessionGroups'],
+      sessionGroups,
       sessions: result.map((item) => this.mapSession(item as any)),
     };
   };
@@ -139,7 +138,7 @@ export class SessionModel {
     await this.logger.debug(`Found session: ${session.id}`);
 
     // Get agents
-    const agents = await DB.GetSessionAgents({
+    const agents: Agent[] = await DB.GetSessionAgents({
       sessionId: session.id,
       userId: this.userId,
     });
@@ -298,7 +297,7 @@ export class SessionModel {
     // Check if slug exists
     if (slug) {
       try {
-        const existing = await DB.GetSessionBySlug({
+        const existing: Session = await DB.GetSessionBySlug({
           slug,
           userId: this.userId,
         });
@@ -379,7 +378,7 @@ export class SessionModel {
 
   createInbox = async (defaultAgentConfig: PartialDeep<LobeAgentConfig>) => {
     try {
-      const existing = await DB.GetSessionBySlug({
+      const existing: Session = await DB.GetSessionBySlug({
         slug: INBOX_SESSION_ID,
         userId: this.userId,
       });
@@ -582,7 +581,7 @@ export class SessionModel {
     }
     const actualId = session.id;
 
-    const updated = await DB.UpdateSession({
+    const updated: Session = await DB.UpdateSession({
       id: actualId,
       userId: this.userId,
       title: data.title !== undefined ? toNullString(getNullableString(data.title as any)) : toNullString(""),

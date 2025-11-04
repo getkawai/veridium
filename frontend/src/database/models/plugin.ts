@@ -1,6 +1,6 @@
 import { LobeTool } from '@/types';
 
-import { InstalledPluginItem, NewInstalledPlugin } from '../schemas';
+import { InstalledPluginItem, NewInstalledPlugin } from '@/types/plugin/installedPlugin';
 import {
   DB,
   toNullJSON,
@@ -8,6 +8,7 @@ import {
   currentTimestampMs,
 } from '@/types/database';
 import { createModelLogger } from '@/utils/logger';
+import { NotificationService, NotificationOptions } from '@@/github.com/wailsapp/wails/v3/pkg/services/notifications';
 
 export class PluginModel {
   private userId: string;
@@ -17,54 +18,111 @@ export class PluginModel {
     this.userId = userId;
   }
 
+  /**
+   * Show error notification to user
+   */
+  private async showErrorNotification(title: string, message: string) {
+    try {
+      await NotificationService.SendNotification(
+        new NotificationOptions({
+          id: `plugin-error-${Date.now()}`,
+          title: `Plugin Error: ${title}`,
+          body: message,
+        })
+      );
+    } catch (notifError) {
+      // Silently fail if notification fails - don't want notification errors to break the app
+      console.error('Failed to show notification:', notifError);
+    }
+  }
+
   create = async (
     params: Pick<
       NewInstalledPlugin,
       'type' | 'identifier' | 'manifest' | 'customParams' | 'settings'
     >,
   ) => {
-    const now = currentTimestampMs();
+    await this.logger.methodEntry('create', { identifier: params.identifier, userId: this.userId });
+    
+    try {
+      const now = currentTimestampMs();
 
-    const result = await DB.UpsertPlugin({
-      identifier: params.identifier,
-      type: params.type,
-      manifest: toNullJSON(params.manifest),
-      customParams: toNullJSON(params.customParams),
-      settings: toNullJSON(params.settings),
-      userId: this.userId,
-      createdAt: now,
-      updatedAt: now,
-    });
+      const result = await DB.UpsertPlugin({
+        identifier: params.identifier,
+        type: params.type,
+        manifest: toNullJSON(params.manifest),
+        customParams: toNullJSON(params.customParams),
+        settings: toNullJSON(params.settings),
+        userId: this.userId,
+        createdAt: now,
+        updatedAt: now,
+      });
 
-    return this.mapPlugin(result);
+      await this.logger.methodExit('create', { identifier: result.identifier });
+      return this.mapPlugin(result);
+    } catch (error) {
+      await this.logger.error('Failed to create plugin', { error, params });
+      await this.showErrorNotification(
+        'Install Failed',
+        `Failed to install plugin "${params.identifier}". Please try again.`
+      );
+      throw error;
+    }
   };
 
   delete = async (id: string) => {
-    await DB.DeletePlugin({
-      identifier: id,
-      userId: this.userId,
-    });
+    await this.logger.methodEntry('delete', { identifier: id, userId: this.userId });
+    
+    try {
+      await DB.DeletePlugin({
+        identifier: id,
+        userId: this.userId,
+      });
+      
+      await this.logger.methodExit('delete', { identifier: id });
+    } catch (error) {
+      await this.logger.error('Failed to delete plugin', { error, id });
+      await this.showErrorNotification(
+        'Uninstall Failed',
+        `Failed to uninstall plugin. Please try again.`
+      );
+      throw error;
+    }
   };
 
   deleteAll = async () => {
-    await DB.DeleteAllPlugins(this.userId);
+    try {
+      await DB.DeleteAllPlugins(this.userId);
+    } catch (error) {
+      await this.logger.error('Failed to delete all plugins', { error });
+      await this.showErrorNotification(
+        'Uninstall All Failed',
+        `Failed to uninstall all plugins. Please try again.`
+      );
+      throw error;
+    }
   };
 
   query = async () => {
-    const data = await DB.ListPlugins(this.userId);
+    try {
+      const data = await DB.ListPlugins(this.userId);
 
-    return data.map<LobeTool>((item) => {
-      const manifest = parseNullableJSON(item.manifest as any);
-      return {
-        customParams: parseNullableJSON(item.customParams as any),
-        identifier: item.identifier,
-        manifest: manifest,
-        settings: parseNullableJSON(item.settings as any),
-        source: item.type as any,
-        type: item.type as any,
-        runtimeType: manifest?.type || 'default',
-      };
-    });
+      return data.map<LobeTool>((item) => {
+        const manifest = parseNullableJSON(item.manifest as any);
+        return {
+          customParams: parseNullableJSON(item.customParams as any),
+          identifier: item.identifier,
+          manifest: manifest,
+          settings: parseNullableJSON(item.settings as any),
+          source: item.type as any,
+          type: item.type as any,
+          runtimeType: manifest?.type || 'default',
+        };
+      });
+    } catch (error) {
+      await this.logger.error('Failed to query plugins', { error });
+      throw error;
+    }
   };
 
   findById = async (id: string) => {
@@ -74,23 +132,37 @@ export class PluginModel {
         userId: this.userId,
       });
       return this.mapPlugin(plugin);
-    } catch {
+    } catch (error) {
+      await this.logger.warn('Plugin not found', { id, error });
       return undefined;
     }
   };
 
   update = async (id: string, value: Partial<InstalledPluginItem>) => {
-    const now = currentTimestampMs();
+    await this.logger.methodEntry('update', { identifier: id, userId: this.userId });
+    
+    try {
+      const now = currentTimestampMs();
 
-    await DB.UpdatePlugin({
-      identifier: id,
-      userId: this.userId,
-      type: value.type || '',
-      manifest: toNullJSON(value.manifest),
-      customParams: toNullJSON(value.customParams),
-      settings: toNullJSON(value.settings),
-      updatedAt: now,
-    });
+      await DB.UpdatePlugin({
+        identifier: id,
+        userId: this.userId,
+        type: value.type || '',
+        manifest: toNullJSON(value.manifest),
+        customParams: toNullJSON(value.customParams),
+        settings: toNullJSON(value.settings),
+        updatedAt: now,
+      });
+      
+      await this.logger.methodExit('update', { identifier: id });
+    } catch (error) {
+      await this.logger.error('Failed to update plugin', { error, id, value });
+      await this.showErrorNotification(
+        'Update Failed',
+        `Failed to update plugin "${id}". Please try again.`
+      );
+      throw error;
+    }
   };
 
   // **************** Helper *************** //

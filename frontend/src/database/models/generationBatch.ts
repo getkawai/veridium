@@ -40,7 +40,7 @@ export class GenerationBatchModel {
     const id = nanoid();
     const now = currentTimestampMs();
 
-    const result = await DB.CreateGenerationBatch({
+    const result: GenerationBatch = await DB.CreateGenerationBatch({
       id,
       userId: this.userId,
       generationTopicId: toNullString(value.generationTopicId),

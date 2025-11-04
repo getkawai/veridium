@@ -54,3 +54,33 @@ export interface FileParsingTask {
   embeddingStatus?: AsyncTaskStatus | null;
   finishEmbedding?: boolean;
 }
+
+/**
+ * Async task item from database
+ * Equivalent to: typeof asyncTasks.$inferSelect
+ */
+export interface AsyncTaskSelectItem {
+  id: string;
+  type: string | null;
+  status: string | null;
+  error: any;
+  userId: string;
+  duration: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * New async task (for insert operations)
+ * Equivalent to: typeof asyncTasks.$inferInsert
+ */
+export interface NewAsyncTaskItem {
+  id?: string;
+  type?: string | null;
+  status?: string | null;
+  error?: any;
+  userId: string;
+  duration?: number | null;
+  createdAt?: Date;
+  updatedAt?: Date;
+}

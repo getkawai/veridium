@@ -1,13 +1,14 @@
-import { CreateThreadParams, ThreadStatus } from '@/types';
+import { CreateThreadParams, ThreadStatus, ThreadType } from '@/types';
 import { nanoid } from 'nanoid';
 import { createModelLogger } from '@/utils/logger';
 
-import { ThreadItem } from '../schemas';
+import { ThreadItem } from '@/types/topic/thread';
 import {
   DB,
   toNullString,
   getNullableString,
   currentTimestampMs,
+  Thread,
 } from '@/types/database';
 
 export class ThreadModel {
@@ -97,7 +98,7 @@ export class ThreadModel {
       id,
       userId: this.userId,
       title: toNullString(value.title as any),
-      status: value.status || ThreadStatus.Active,
+      status: toNullString(value.status || ThreadStatus.Active) as any,
       lastActiveAt: value.lastActiveAt ? new Date(value.lastActiveAt).getTime() : now,
       updatedAt: now,
     });
@@ -107,21 +108,21 @@ export class ThreadModel {
 
   // **************** Helper *************** //
 
-  private mapThread = (thread: any): ThreadItem => {
+  private mapThread = (thread: Thread): ThreadItem => {
+    const statusStr = getNullableString(thread.status as any);
     return {
       id: thread.id,
-      title: getNullableString(thread.title as any),
-      type: thread.type,
-      status: thread.status,
-      topicId: getNullableString(thread.topicId as any),
-      sourceMessageId: getNullableString(thread.sourceMessageId as any),
+      title: getNullableString(thread.title as any) || '',
+      type: thread.type as ThreadType,
+      status: (statusStr as ThreadStatus) || ThreadStatus.Active,
+      topicId: getNullableString(thread.topicId as any) || '',
+      sourceMessageId: getNullableString(thread.sourceMessageId as any) || '',
       parentThreadId: getNullableString(thread.parentThreadId as any),
-      clientId: getNullableString(thread.clientId as any),
       userId: thread.userId,
       lastActiveAt: new Date(thread.lastActiveAt),
       createdAt: new Date(thread.createdAt),
       updatedAt: new Date(thread.updatedAt),
-    } as ThreadItem;
+    };
   };
 }
 

@@ -9,8 +9,11 @@ import {
   parseNullableJSON,
   getNullableString,
   currentTimestampMs,
+  GenerationTopic,
 } from '@/types/database';
 import { createModelLogger } from '@/utils/logger';
+import { GenerationTopicItem } from '@/types/database-legacy';
+import { NotificationService, NotificationOptions } from '@@/github.com/wailsapp/wails/v3/pkg/services/notifications';
 
 export class GenerationTopicModel {
   private userId: string;
@@ -23,52 +26,101 @@ export class GenerationTopicModel {
     this.fileService = new FileService(null as any, userId);
   }
 
-  queryAll = async () => {
-    const topics = await DB.ListGenerationTopics(this.userId);
+  /**
+   * Show error notification to user
+   */
+  private async showErrorNotification(title: string, message: string) {
+    try {
+      await NotificationService.SendNotification(
+        new NotificationOptions({
+          id: `generation-topic-error-${Date.now()}`,
+          title: `Generation Topic Error: ${title}`,
+          body: message,
+        })
+      );
+    } catch (notifError) {
+      // Silently fail if notification fails - don't want notification errors to break the app
+      console.error('Failed to show notification:', notifError);
+    }
+  }
 
-    return Promise.all(
-      topics.map(async (topic) => {
-        const coverUrl = getNullableString(topic.coverUrl as any);
-        if (coverUrl) {
+  queryAll = async (): Promise<ImageGenerationTopic[]> => {
+    try {
+      const topics: GenerationTopic[] = await DB.ListGenerationTopics(this.userId);
+
+      return Promise.all(
+        topics.map(async (topic): Promise<ImageGenerationTopic> => {
+          const coverUrl = getNullableString(topic.coverUrl as any);
+          const fullCoverUrl = coverUrl ? await this.fileService.getFullFileUrl(coverUrl) : null;
+          
           return {
-            ...topic,
-            coverUrl: await this.fileService.getFullFileUrl(coverUrl),
+            id: topic.id,
+            title: getNullableString(topic.title as any),
+            coverUrl: fullCoverUrl,
+            createdAt: new Date(topic.createdAt),
+            updatedAt: new Date(topic.updatedAt),
           };
-        }
-        return topic;
-      }),
-    );
+        }),
+      );
+    } catch (error) {
+      await this.logger.error('Failed to query generation topics', { error });
+      throw error;
+    }
   };
 
-  create = async (title: string) => {
-    const id = nanoid();
-    const now = currentTimestampMs();
+  create = async (title: string): Promise<GenerationTopic> => {
+    await this.logger.methodEntry('create', { title, userId: this.userId });
+    
+    try {
+      const id = nanoid();
+      const now = currentTimestampMs();
 
-    const newGenerationTopic = await DB.CreateGenerationTopic({
-      id,
-      userId: this.userId,
-      title: toNullString(title),
-      coverUrl: toNullString(null),
-      createdAt: now,
-      updatedAt: now,
-    });
+      const newGenerationTopic = await DB.CreateGenerationTopic({
+        id,
+        userId: this.userId,
+        title: toNullString(title),
+        coverUrl: toNullString(null),
+        createdAt: now,
+        updatedAt: now,
+      });
 
-    return newGenerationTopic;
+      await this.logger.methodExit('create', { id: newGenerationTopic.id });
+      return newGenerationTopic;
+    } catch (error) {
+      await this.logger.error('Failed to create generation topic', { error, title });
+      await this.showErrorNotification(
+        'Create Failed',
+        `Failed to create generation topic "${title}". Please try again.`
+      );
+      throw error;
+    }
   };
 
   update = async (
     id: string,
     data: Partial<ImageGenerationTopic>,
-  ): Promise<any | undefined> => {
-    const updatedTopic = await DB.UpdateGenerationTopic({
-      id,
-      userId: this.userId,
-      title: toNullString(data.title),
-      coverUrl: toNullString(data.coverUrl as any),
-      updatedAt: currentTimestampMs(),
-    });
+  ): Promise<GenerationTopicItem | undefined> => {
+    await this.logger.methodEntry('update', { id, data, userId: this.userId });
+    
+    try {
+      const updatedTopic: GenerationTopic = await DB.UpdateGenerationTopic({
+        id,
+        userId: this.userId,
+        title: toNullString(data.title),
+        coverUrl: toNullString(data.coverUrl as any),
+        updatedAt: currentTimestampMs(),
+      });
 
-    return updatedTopic;
+      await this.logger.methodExit('update', { id });
+      return updatedTopic;
+    } catch (error) {
+      await this.logger.error('Failed to update generation topic', { error, id, data });
+      await this.showErrorNotification(
+        'Update Failed',
+        `Failed to update generation topic "${data.title || ''}". Please try again.`
+      );
+      throw error;
+    }
   };
 
   /**
@@ -82,50 +134,63 @@ export class GenerationTopicModel {
    */
   delete = async (
     id: string,
-  ): Promise<{ deletedTopic: any; filesToDelete: string[] } | undefined> => {
-    // 1. Get topic to verify ownership
-    const topic = await DB.GetGenerationTopic({
-      id,
-      userId: this.userId,
-    });
+  ): Promise<{ deletedTopic: GenerationTopicItem; filesToDelete: string[] } | undefined> => {
+    await this.logger.methodEntry('delete', { id, userId: this.userId });
+    
+    try {
+      // 1. Get topic to verify ownership
+      const topic = await DB.GetGenerationTopic({
+        id,
+        userId: this.userId,
+      });
 
-    if (!topic) {
-      return undefined;
-    }
-
-    // 2. Get all assets from generations under this topic
-    const assets = await DB.GetGenerationTopicAssets({
-      id: toNullString(id) as any,
-      userId: this.userId,
-    });
-
-    // 3. Collect all file URLs
-    const filesToDelete: string[] = [];
-
-    // Add cover image URL if exists
-    const coverUrl = getNullableString(topic.coverUrl as any);
-    if (coverUrl) {
-      filesToDelete.push(coverUrl);
-    }
-
-    // Add thumbnail URLs from all generations
-    for (const row of assets) {
-      const asset = parseNullableJSON(row.asset as any) as GenerationAsset;
-      if (asset?.thumbnailUrl) {
-        filesToDelete.push(asset.thumbnailUrl);
+      if (!topic) {
+        await this.logger.warn('Generation topic not found', { id });
+        return undefined;
       }
+
+      // 2. Get all assets from generations under this topic
+      const assets = await DB.GetGenerationTopicAssets({
+        id: toNullString(id) as any,
+        userId: this.userId,
+      });
+
+      // 3. Collect all file URLs
+      const filesToDelete: string[] = [];
+
+      // Add cover image URL if exists
+      const coverUrl = getNullableString(topic.coverUrl as any);
+      if (coverUrl) {
+        filesToDelete.push(coverUrl);
+      }
+
+      // Add thumbnail URLs from all generations
+      for (const row of assets) {
+        const asset = parseNullableJSON(row.asset as any) as GenerationAsset;
+        if (asset?.thumbnailUrl) {
+          filesToDelete.push(asset.thumbnailUrl);
+        }
+      }
+
+      // 4. Delete the topic record (cascade will handle batches and generations)
+      await DB.DeleteGenerationTopic({
+        id,
+        userId: this.userId,
+      });
+
+      await this.logger.methodExit('delete', { id, filesCount: filesToDelete.length });
+      return {
+        deletedTopic: topic,
+        filesToDelete,
+      };
+    } catch (error) {
+      await this.logger.error('Failed to delete generation topic', { error, id });
+      await this.showErrorNotification(
+        'Delete Failed',
+        `Failed to delete generation topic. Please try again.`
+      );
+      throw error;
     }
-
-    // 4. Delete the topic record (cascade will handle batches and generations)
-    await DB.DeleteGenerationTopic({
-      id,
-      userId: this.userId,
-    });
-
-    return {
-      deletedTopic: topic,
-      filesToDelete,
-    };
   };
 }
 

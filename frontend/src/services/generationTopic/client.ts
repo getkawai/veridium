@@ -30,8 +30,11 @@ export class ClientService extends BaseClientService implements IGenerationTopic
   };
 
   deleteTopic = async (id: string): Promise<GenerationTopicItem | undefined> => {
-    await this.generationTopicModel.delete(id);
-    return undefined; // Model delete doesn't return value
+    const result = await this.generationTopicModel.delete(id);
+    if (result) {
+      return result.deletedTopic;
+    }
+    return undefined;
   };
 }
 
