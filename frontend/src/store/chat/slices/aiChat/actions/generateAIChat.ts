@@ -607,15 +607,6 @@ export const generateAIChat: StateCreator<
         content,
         { traceId, observationId, toolCalls, reasoning, grounding, usage, speed },
       ) => {
-        // if there is traceId, update it
-        if (traceId) {
-          msgTraceId = traceId;
-          await messageService.updateMessage(messageId, {
-            traceId,
-            observationId: observationId ?? undefined,
-          });
-        }
-
         // 等待所有图片上传完成
         let finalImages: ChatImageItem[] = [];
 
