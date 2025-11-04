@@ -4,6 +4,7 @@ import type { JsonValue, PartialDeep } from 'type-fest';
 
 import { merge } from '@/utils/merge';
 import { today } from '@/utils/time';
+import { createModelLogger } from '@/utils/logger';
 
 import {
   DB,
@@ -38,6 +39,7 @@ export class UserNotFoundError extends TRPCError {
 
 export class UserModel {
   private userId: string;
+  private logger = createModelLogger('User', 'UserModel', 'database/models/user');
 
   constructor(_db: any, userId: string) {
     this.userId = userId;
@@ -66,15 +68,19 @@ export class UserModel {
   };
 
   getUserState = async (decryptor: DecryptUserKeyVaults) => {
+    await this.logger.methodEntry('getUserState', { userId: this.userId });
+    
     let result;
     
     try {
       result = await DB.GetUserWithSettings(this.userId);
-    } catch {
+    } catch (error) {
+      await this.logger.error('getUserState', 'Failed to get user with settings', { userId: this.userId, error });
       throw new UserNotFoundError();
     }
 
     if (!result) {
+      await this.logger.warn('getUserState', 'User not found', { userId: this.userId });
       throw new UserNotFoundError();
     }
 
@@ -102,7 +108,7 @@ export class UserModel {
       tts: parseNullableJSON(result.settingsTts as any) || {},
     };
 
-    return {
+    const userState = {
       avatar: getNullableString(result.avatar as any) || undefined,
       email: getNullableString(result.email as any) || undefined,
       firstName: getNullableString(result.firstName as any) || undefined,
@@ -114,6 +120,9 @@ export class UserModel {
       userId: this.userId,
       username: getNullableString(result.username as any) || undefined,
     };
+
+    await this.logger.methodExit('getUserState', userState);
+    return userState;
   };
 
   getUserSSOProviders = async () => {
@@ -138,9 +147,10 @@ export class UserModel {
   };
 
   updateUser = async (value: Partial<User>) => {
+    await this.logger.methodEntry('updateUser', { userId: this.userId, value });
     const now = currentTimestampMs();
     
-    return await DB.UpdateUser({
+    const result = await DB.UpdateUser({
       id: this.userId,
       username: toNullString(value.username as any),
       email: toNullString(value.email as any),
@@ -151,6 +161,9 @@ export class UserModel {
       preference: toNullJSON(value.preference),
       updatedAt: now,
     });
+
+    await this.logger.methodExit('updateUser', result);
+    return result;
   };
 
   deleteSetting = async () => {

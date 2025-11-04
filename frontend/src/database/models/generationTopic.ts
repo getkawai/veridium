@@ -10,10 +10,12 @@ import {
   getNullableString,
   currentTimestampMs,
 } from '@/types/database';
+import { createModelLogger } from '@/utils/logger';
 
 export class GenerationTopicModel {
   private userId: string;
   private fileService: FileService;
+  private logger = createModelLogger('GenerationTopic', 'GenerationTopicModel', 'database/models/generationTopic');
 
   constructor(_db: any, userId: string) {
     this.userId = userId;

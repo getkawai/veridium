@@ -10,9 +10,11 @@ import {
   currentTimestampMs,
 } from '@/types/database';
 import { Service as DBService } from '@@/github.com/kawai-network/veridium/internal/database';
+import { createModelLogger } from '@/utils/logger';
 
 export class FileModel {
   private readonly userId: string;
+  private logger = createModelLogger('File', 'FileModel', 'database/models/file');
 
   constructor(_db: any, userId: string) {
     this.userId = userId;
@@ -30,6 +32,7 @@ export class FileModel {
     params: any & { knowledgeBaseId?: string },
     insertToGlobalFiles?: boolean,
   ) => {
+    await this.logger.methodEntry('create', { userId: this.userId, fileHash: params.fileHash, knowledgeBaseId: params.knowledgeBaseId });
     const fileId = nanoid();
     const now = currentTimestampMs();
 
@@ -64,7 +67,9 @@ export class FileModel {
       KnowledgeBase: params.knowledgeBaseId || null,
     });
 
-    return { id: result?.id || fileId };
+    const resultObj = { id: result?.id || fileId };
+    await this.logger.methodExit('create', resultObj);
+    return resultObj;
   };
 
   createGlobalFile = async (file: any) => {
@@ -106,9 +111,13 @@ export class FileModel {
    * All operations in transaction - succeed or rollback
    */
   delete = async (id: string, removeGlobalFile: boolean = true) => {
+    await this.logger.methodEntry('delete', { userId: this.userId, id, removeGlobalFile });
     // 1. Get file first
     const file = await this.findById(id);
-    if (!file) return;
+    if (!file) {
+      await this.logger.warn('delete', 'File not found', { id });
+      return;
+    }
 
     const fileHash = getNullableString(file.fileHash as any);
 
@@ -120,6 +129,7 @@ export class FileModel {
       FileHash: fileHash || '',
     });
 
+    await this.logger.methodExit('delete', { id, fileHash });
     return file;
   };
 

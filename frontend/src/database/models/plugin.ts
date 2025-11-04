@@ -7,9 +7,11 @@ import {
   parseNullableJSON,
   currentTimestampMs,
 } from '@/types/database';
+import { createModelLogger } from '@/utils/logger';
 
 export class PluginModel {
   private userId: string;
+  private logger = createModelLogger('Plugin', 'PluginModel', 'database/models/plugin');
 
   constructor(_db: any, userId: string) {
     this.userId = userId;

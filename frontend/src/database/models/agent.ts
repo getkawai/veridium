@@ -5,15 +5,18 @@ import {
   boolToInt,
   intToBool,
 } from '@/types/database';
+import { createModelLogger } from '@/utils/logger';
 
 export class AgentModel {
   private userId: string;
+  private logger = createModelLogger('Agent', 'AgentModel', 'database/models/agent');
 
   constructor(_db: any, userId: string) {
     this.userId = userId;
   }
 
   getAgentConfigById = async (id: string) => {
+    await this.logger.methodEntry('getAgentConfigById', { userId: this.userId, id });
     const agent = await DB.GetAgent({
       id,
       userId: this.userId,
@@ -21,7 +24,9 @@ export class AgentModel {
 
     const knowledge = await this.getAgentAssignedKnowledge(id);
 
-    return { ...agent, ...knowledge };
+    const result = { ...agent, ...knowledge };
+    await this.logger.methodExit('getAgentConfigById', result);
+    return result;
   };
 
   getAgentAssignedKnowledge = async (id: string) => {

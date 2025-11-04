@@ -4,8 +4,11 @@ import {
   parseNullableJSON,
   currentTimestampMs,
 } from '@/types/database';
+import { createModelLogger } from '@/utils/logger';
 
 export class OAuthHandoffModel {
+  private logger = createModelLogger('OAuthHandoff', 'OAuthHandoffModel', 'database/models/oauthHandoff');
+  
   constructor(_db: any) {}
 
   /**

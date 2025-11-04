@@ -8,9 +8,11 @@ import {
   getNullableString,
   currentTimestampMs,
 } from '@/types/database';
+import { createModelLogger } from '@/utils/logger';
 
 export class SessionGroupModel {
   private userId: string;
+  private logger = createModelLogger('SessionGroup', 'SessionGroupModel', 'database/models/sessionGroup');
 
   constructor(_db: any, userId: string) {
     this.userId = userId;

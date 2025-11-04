@@ -8,6 +8,7 @@ import {
   boolToInt,
   intToBool,
 } from '@/types/database';
+import { createModelLogger } from '@/utils/logger';
 
 type EncryptAPIKeyVaults = (keyVaults: string) => Promise<string>;
 type DecryptAPIKeyVaults = (keyVaults: string) => Promise<{ plaintext: string }>;
@@ -16,6 +17,7 @@ const defaultSerialize = (s: string) => s;
 
 export class ApiKeyModel {
   private userId: string;
+  private logger = createModelLogger('ApiKey', 'ApiKeyModel', 'database/models/apiKey');
 
   constructor(_db: any, userId: string) {
     this.userId = userId;

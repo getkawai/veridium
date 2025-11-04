@@ -12,9 +12,11 @@ import {
   intToBool,
 } from '@/types/database';
 import { Service as DBService } from '@@/github.com/kawai-network/veridium/internal/database';
+import { createModelLogger } from '@/utils/logger';
 
 export class AiModelModel {
   private userId: string;
+  private logger = createModelLogger('AiModel', 'AiModelModel', 'database/models/aiModel');
 
   constructor(_db: any, userId: string) {
     this.userId = userId;

@@ -1,7 +1,6 @@
-import { DBMessageItem, TopicRankItem } from '@/types';
+import { ChatTopic, DBMessageItem, mapTopicsToChatTopics, mapTopicToChatTopic, TopicRankItem } from '@/types';
 import { nanoid } from 'nanoid';
-
-import { TopicItem } from '../schemas';
+import { createModelLogger } from '@/utils/logger';
 import {
   DB,
   toNullString,
@@ -10,6 +9,7 @@ import {
   getNullableString,
   currentTimestampMs,
   boolToInt,
+  Topic,
 } from '@/types/database';
 
 export interface CreateTopicParams {
@@ -28,6 +28,7 @@ interface QueryTopicParams {
 
 export class TopicModel {
   private userId: string;
+  private logger = createModelLogger('Topic', 'TopicModel', 'database/models/topic');
 
   constructor(_db: any, userId: string) {
     this.userId = userId;
@@ -50,7 +51,7 @@ export class TopicModel {
       });
 
       if (sessionTopics.length > 0) {
-        return sessionTopics.map((t) => this.mapTopic(t));
+        return sessionTopics;
       }
 
       // Try group if no session topics found
@@ -70,18 +71,18 @@ export class TopicModel {
         id,
         userId: this.userId,
       });
-      return this.mapTopic(topic);
+      return topic;
     } catch {
       return undefined;
     }
   };
 
-  queryAll = async (): Promise<TopicItem[]> => {
+  queryAll = async (): Promise<ChatTopic[]> => {
     const topics = await DB.ListAllTopics(this.userId);
-    return topics.map((t) => this.mapTopic(t));
+    return mapTopicsToChatTopics(topics);
   };
 
-  queryByKeyword = async (keyword: string, containerId?: string | null): Promise<TopicItem[]> => {
+  queryByKeyword = async (keyword: string, containerId?: string | null): Promise<ChatTopic[]> => {
     if (!keyword) return [];
 
     const keywordLowerCase = keyword.toLowerCase();
@@ -107,7 +108,7 @@ export class TopicModel {
 
     // If no message results, return title results
     if (topicsByMessages.length === 0) {
-      return topicsByTitle.map((t) => this.mapTopic(t));
+      return mapTopicsToChatTopics(topicsByTitle);
     }
 
     // Merge and deduplicate
@@ -121,8 +122,7 @@ export class TopicModel {
     }
 
     // Sort by updated_at
-    return allTopics
-      .map((t) => this.mapTopic(t))
+    return mapTopicsToChatTopics(allTopics)
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
   };
 
@@ -175,13 +175,15 @@ export class TopicModel {
   create = async (
     { messages: messageIds, ...params }: CreateTopicParams,
     id: string = this.genId(),
-  ): Promise<TopicItem> => {
+  ): Promise<ChatTopic> => {
+    await this.logger.methodEntry('create', { id, title: params.title, messagesCount: messageIds?.length || 0, userId: this.userId });
+    
     // Note: No transaction support in Wails!
     // This is a potential data consistency issue
 
     const now = currentTimestampMs();
 
-    const topic = await DB.CreateTopic({
+    const topic: Topic = await DB.CreateTopic({
       id,
       title: toNullString(params.title as any),
       favorite: boolToInt(params.favorite || false),
@@ -197,24 +199,26 @@ export class TopicModel {
 
     // Update associated messages' topicId
     if (messageIds && messageIds.length > 0) {
+      await this.logger.debug(`Updating ${messageIds.length} messages with topic ID`);
       await DB.UpdateMessagesTopicId({
         topicId: toNullString(topic.id) as any,
         userId: this.userId,
         ids: messageIds,
       });
     }
-
-    return this.mapTopic(topic);
+    
+    await this.logger.methodExit('create', { topicId: topic.id });
+    return mapTopicToChatTopic(topic);
   };
 
   batchCreate = async (topicParams: (CreateTopicParams & { id?: string })[]) => {
     // No transaction support - create one by one
     // No batch insert support
 
-    const createdTopics = await Promise.all(
+    const createdTopics: ChatTopic[] = await Promise.all(
       topicParams.map(async (params) => {
         const now = currentTimestampMs();
-        const topic = await DB.CreateTopic({
+        const topic: Topic = await DB.CreateTopic({
           id: params.id || this.genId(),
           title: toNullString(params.title as any),
           favorite: boolToInt(params.favorite || false),
@@ -237,7 +241,7 @@ export class TopicModel {
           });
         }
 
-        return this.mapTopic(topic);
+        return mapTopicToChatTopic(topic);
       }),
     );
 
@@ -250,7 +254,7 @@ export class TopicModel {
     // Find original topic
     const originalTopic = await this.findById(topicId);
     if (!originalTopic) {
-      throw new Error(`Topic with id ${topicId} not found`);
+      throw new Error(`ChatTopic with id ${topicId} not found`);
     }
 
     // Copy topic
@@ -258,7 +262,7 @@ export class TopicModel {
     const duplicatedTopic = await DB.CreateTopic({
       id: this.genId(),
       title: toNullString(newTitle || originalTopic.title as any),
-      favorite: boolToInt(originalTopic.favorite || false),
+      favorite: originalTopic.favorite || 0,
       sessionId: toNullString(originalTopic.sessionId as any),
       groupId: toNullString(originalTopic.groupId as any),
       userId: this.userId,
@@ -311,18 +315,22 @@ export class TopicModel {
     );
 
     return {
-      topic: this.mapTopic(duplicatedTopic),
+      topic: duplicatedTopic,
       messages: duplicatedMessages,
     };
   };
 
   // **************** Delete *************** //
 
-  delete = async (id: string) => {
+  delete = async (id: string): Promise<void> => {
+    await this.logger.methodEntry('delete', { id, userId: this.userId });
+    
     await DB.DeleteTopic({
       id,
       userId: this.userId,
     });
+    
+    await this.logger.methodExit('delete', { id });
   };
 
   batchDeleteBySessionId = async (sessionId?: string | null) => {
@@ -343,21 +351,23 @@ export class TopicModel {
     });
   };
 
-  batchDelete = async (ids: string[]) => {
+  batchDelete = async (ids: string[]): Promise<void> => {
     await DB.BatchDeleteTopics({
       userId: this.userId,
       ids,
     });
   };
 
-  deleteAll = async () => {
+  deleteAll = async (): Promise<void> => {
     await DB.DeleteAllTopics(this.userId);
   };
 
   // **************** Update *************** //
 
-  update = async (id: string, data: Partial<TopicItem>) => {
-    const result = await DB.UpdateTopic({
+  update = async (id: string, data: Partial<ChatTopic>): Promise<ChatTopic> => {
+    await this.logger.methodEntry('update', { id, data, userId: this.userId });
+    
+    const result: Topic = await DB.UpdateTopic({
       id,
       userId: this.userId,
       title: toNullString(data.title as any),
@@ -365,28 +375,13 @@ export class TopicModel {
       metadata: toNullJSON(data.metadata),
       updatedAt: currentTimestampMs(),
     });
-
-    return [this.mapTopic(result)];
+    
+    await this.logger.methodExit('update', { id });
+    return mapTopicToChatTopic(result);
   };
 
   // **************** Helper *************** //
 
   private genId = () => nanoid();
-
-  private mapTopic = (topic: any): TopicItem => {
-    return {
-      id: topic.id,
-      title: getNullableString(topic.title as any) || '',
-      favorite: topic.favorite === 1,
-      sessionId: getNullableString(topic.sessionId as any),
-      groupId: getNullableString(topic.groupId as any),
-      historySummary: getNullableString(topic.historySummary as any),
-      metadata: parseNullableJSON(topic.metadata as any),
-      userId: topic.userId,
-      clientId: getNullableString(topic.clientId as any),
-      createdAt: new Date(topic.createdAt),
-      updatedAt: new Date(topic.updatedAt),
-    } as TopicItem;
-  };
 }
 

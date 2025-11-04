@@ -10,9 +10,11 @@ import {
   boolToInt,
   intToBool,
 } from '@/types/database';
+import { createModelLogger } from '@/utils/logger';
 
 export class ChatGroupModel {
   private userId: string;
+  private logger = createModelLogger('ChatGroup', 'ChatGroupModel', 'database/models/chatGroup');
 
   constructor(_db: any, userId: string) {
     this.userId = userId;

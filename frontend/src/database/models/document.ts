@@ -10,9 +10,11 @@ import {
   parseNullableJSON,
   currentTimestampMs,
 } from '@/types/database';
+import { createModelLogger } from '@/utils/logger';
 
 export class DocumentModel {
   private userId: string;
+  private logger = createModelLogger('Document', 'DocumentModel', 'database/models/document');
 
   constructor(_db: any, userId: string) {
     this.userId = userId;

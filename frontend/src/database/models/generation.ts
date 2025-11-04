@@ -26,6 +26,7 @@ import {
   toNullInt,
 } from '@/types/database';
 import { FileModel } from './file';
+import { createModelLogger } from '@/utils/logger';
 
 // Create debug logger
 const log = debug('lobe-image:generation-model');
@@ -34,6 +35,7 @@ export class GenerationModel {
   private userId: string;
   private fileModel: FileModel;
   private fileService: FileService;
+  private logger = createModelLogger('Generation', 'GenerationModel', 'database/models/generation');
 
   constructor(_db: any, userId: string) {
     this.userId = userId;

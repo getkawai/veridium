@@ -6,9 +6,11 @@ import {
   toNullString,
   getNullableString,
 } from '@/types/database';
+import { createModelLogger } from '@/utils/logger';
 
 export class EmbeddingModel {
   private userId: string;
+  private logger = createModelLogger('Embedding', 'EmbeddingModel', 'database/models/embedding');
 
   constructor(_db: any, userId: string) {
     this.userId = userId;

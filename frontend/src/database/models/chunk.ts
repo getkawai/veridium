@@ -9,11 +9,13 @@ import {
   getNullableString,
   currentTimestampMs,
 } from '@/types/database';
+import { createModelLogger } from '@/utils/logger';
 
 import { bufferToVector, cosineSimilarity } from '../utils/vectorSearch';
 
 export class ChunkModel {
   private userId: string;
+  private logger = createModelLogger('Chunk', 'ChunkModel', 'database/models/chunk');
 
   constructor(_db: any, userId: string) {
     this.userId = userId;

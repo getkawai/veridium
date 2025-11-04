@@ -12,6 +12,7 @@ import {
   getNullableString,
   currentTimestampMs,
 } from '@/types/database';
+import { createModelLogger } from '@/utils/logger';
 
 import { GenerationModel } from './generation';
 
@@ -21,6 +22,7 @@ export class GenerationBatchModel {
   private userId: string;
   private fileService: FileService;
   private generationModel: GenerationModel;
+  private logger = createModelLogger('GenerationBatch', 'GenerationBatchModel', 'database/models/generationBatch');
 
   constructor(_db: any, userId: string) {
     this.userId = userId;

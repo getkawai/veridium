@@ -15,12 +15,14 @@ import {
   toNullInt,
   currentTimestampMs,
 } from '@/types/database';
+import { createModelLogger } from '@/utils/logger';
 
 // set timeout to about 5 minutes, and give 2s padding time
 export const ASYNC_TASK_TIMEOUT = 298 * 1000;
 
 export class AsyncTaskModel {
   private userId: string;
+  private logger = createModelLogger('AsyncTask', 'AsyncTaskModel', 'database/models/asyncTask');
 
   constructor(_db: any, userId: string) {
     this.userId = userId;

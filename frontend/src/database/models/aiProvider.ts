@@ -15,12 +15,14 @@ import {
   intToBool,
 } from '@/types/database';
 import { Service as DBService } from '@@/github.com/kawai-network/veridium/internal/database';
+import { createModelLogger } from '@/utils/logger';
 
 type DecryptUserKeyVaults = (encryptKeyVaultsStr: string | null) => Promise<any>;
 type EncryptUserKeyVaults = (keyVaults: string) => Promise<string>;
 
 export class AiProviderModel {
   private userId: string;
+  private logger = createModelLogger('AiProvider', 'AiProviderModel', 'database/models/aiProvider');
 
   constructor(_db: any, userId: string) {
     this.userId = userId;

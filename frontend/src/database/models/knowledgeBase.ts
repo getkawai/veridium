@@ -13,9 +13,11 @@ import {
   boolToInt,
   intToBool,
 } from '@/types/database';
+import { createModelLogger } from '@/utils/logger';
 
 export class KnowledgeBaseModel {
   private userId: string;
+  private logger = createModelLogger('KnowledgeBase', 'KnowledgeBaseModel', 'database/models/knowledgeBase');
 
   constructor(_db: any, userId: string) {
     this.userId = userId;
