@@ -11,6 +11,7 @@ import (
 	"github.com/kawai-network/veridium/internal/database"
 	"github.com/kawai-network/veridium/internal/services/search"
 	"github.com/kawai-network/veridium/internal/services/tableviewer"
+	"github.com/kawai-network/veridium/services"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/services/fileserver"
 	"github.com/wailsapp/wails/v3/pkg/services/kvstore"
@@ -47,6 +48,39 @@ func main() {
 	// Create Search service
 	searchService := search.NewService()
 
+	// Initialize TTS service (native OS text-to-speech)
+	ttsService, err := services.NewTTSService()
+	if err != nil {
+		log.Printf("⚠️  Warning: Failed to initialize TTS service: %v", err)
+	} else {
+		log.Printf("✅ TTS service initialized successfully")
+		log.Printf("   Platform: %s", ttsService.GetPlatformInfo()["platform"])
+	}
+
+	// Initialize Hybrid STT service (Native + Whisper)
+	hybridSTTService, err := services.NewHybridSTTService("en-US")
+	if err != nil {
+		log.Printf("⚠️  Warning: Failed to initialize Hybrid STT service: %v", err)
+		log.Printf("    Speech-to-text features will not be available.")
+		// Don't fail the app, just log warning
+	} else {
+		defer hybridSTTService.Close()
+		log.Printf("✅ Hybrid STT service initialized successfully")
+		engines := hybridSTTService.GetAvailableEngines()
+		log.Printf("   Available engines: %v", engines)
+		log.Printf("   Current engine: %s", hybridSTTService.GetCurrentEngine())
+	}
+
+	// Keep Whisper service for direct access if needed
+	whisperService, err := services.NewWhisperService()
+	if err != nil {
+		log.Printf("⚠️  Warning: Failed to initialize Whisper service: %v", err)
+	} else {
+		defer whisperService.Close()
+		log.Printf("✅ Whisper service initialized successfully")
+		log.Printf("   Models directory: %s", whisperService.GetModelsDirectory())
+	}
+
 	// Create a new Wails application by providing the necessary options.
 	// Variables 'Name' and 'Description' are for application metadata.
 	// 'Assets' configures the asset server with the 'FS' variable pointing to the frontend files.
@@ -65,6 +99,12 @@ func main() {
 			application.NewService(tableViewerService),
 			// Search service - for web search and crawling
 			application.NewService(searchService),
+			// TTS service - for text-to-speech (native OS)
+			application.NewService(ttsService),
+			// Hybrid STT service - for speech-to-text (Native + Whisper)
+			application.NewService(hybridSTTService),
+			// Whisper service - for direct Whisper access
+			application.NewService(whisperService),
 			// Machine ID service
 			application.NewService(&MachineIDService{}),
 			// Temp file service

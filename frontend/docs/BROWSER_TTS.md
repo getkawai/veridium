@@ -102,3 +102,4 @@ Browser TTS menggunakan `SpeechSynthesisUtterance` dan `speechSynthesis` API yan
 - [ ] Voice download progress indicator
 - [ ] Better error handling dan user feedback
 
+
