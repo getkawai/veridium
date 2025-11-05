@@ -1,7 +1,6 @@
 import {
   ChatFileItem,
   ChatImageItem,
-  ChatTTS,
   ChatToolPayload,
   ChatTranslate,
   ChatVideoItem,

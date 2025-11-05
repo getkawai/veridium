@@ -13,7 +13,7 @@ import { systemStatusSelectors } from '@/store/global/selectors';
 
 import { useSendThreadMessage } from './useSend';
 
-const threadActions: ActionKeys[] = ['typo', 'stt', 'portalToken'];
+const threadActions: ActionKeys[] = ['typo', 'portalToken'];
 
 const Desktop = memo(() => {
   const [hideThreadLimitAlert, updateSystemStatus] = useGlobalStore((s) => [

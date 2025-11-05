@@ -1,6 +1,6 @@
 import { Icon } from '@lobehub/ui';
 import { MenuItemType } from 'antd/es/menu/interface';
-import { Blocks, Bot, BrainCog, Handshake, MessagesSquare, Mic2, UserCircle } from 'lucide-react';
+import { Blocks, Bot, BrainCog, Handshake, MessagesSquare, UserCircle } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -48,11 +48,6 @@ export const useCategory = ({ mobile }: UseCategoryOptions = {}) => {
           icon: <Icon icon={BrainCog} size={iconSize} />,
           key: ChatSettingsTabs.Modal,
           label: t('agentTab.modal'),
-        },
-        {
-          icon: <Icon icon={Mic2} size={iconSize} />,
-          key: ChatSettingsTabs.TTS,
-          label: t('agentTab.tts'),
         },
         enablePlugins && {
           icon: <Icon icon={Blocks} size={iconSize} />,

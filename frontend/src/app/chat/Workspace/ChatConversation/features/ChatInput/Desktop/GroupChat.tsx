@@ -24,11 +24,11 @@ const leftActions: ActionKeys[] = [
   'fileUpload',
   'knowledgeBase',
   '---',
-  ['stt', 'clear'],
+  ['clear'],
   'groupChatToken',
 ];
 
-const dmLeftActions: ActionKeys[] = ['typo', 'fileUpload', 'knowledgeBase', '---', ['stt']];
+const dmLeftActions: ActionKeys[] = ['typo', 'fileUpload', 'knowledgeBase', '---'];
 
 const rightActions: ActionKeys[] = ['saveTopic'];
 

@@ -4,7 +4,6 @@ import { FileItem } from '../files';
 import { KnowledgeBaseItem } from '../knowledgeBase';
 import { FewShots } from '../llm';
 import { LobeAgentChatConfig } from './chatConfig';
-import { LobeAgentTTSConfig } from './tts';
 
 export interface LobeAgentConfig {
   chatConfig: LobeAgentChatConfig;
@@ -50,11 +49,6 @@ export interface LobeAgentConfig {
   systemRole: string;
 
   /**
-   * 语音服务
-   */
-  tts: LobeAgentTTSConfig;
-
-  /**
    * Flag for assistants generated automatically (e.g., from templates)
    */
   virtual?: boolean;
@@ -84,7 +78,6 @@ export interface AgentItem {
   systemRole?: string | null;
   tags?: string[];
   title?: string | null;
-  tts?: LobeAgentTTSConfig | null;
   updatedAt: Date;
   userId: string;
   virtual?: boolean | null;

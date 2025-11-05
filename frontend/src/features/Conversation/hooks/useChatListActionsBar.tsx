@@ -6,7 +6,6 @@ import {
   Edit,
   LanguagesIcon,
   ListRestart,
-  Play,
   RotateCcw,
   Share2,
   Split,
@@ -36,7 +35,6 @@ interface ChatListActionsBar {
   regenerate: ActionIconGroupItemType;
   share: ActionIconGroupItemType;
   translate: ActionIconGroupItemType;
-  tts: ActionIconGroupItemType;
 }
 
 export const useChatListActionsBar = ({
@@ -107,11 +105,6 @@ export const useChatListActionsBar = ({
         key: 'translate',
         label: t('translate.action', { ns: 'chat' }),
         popupClassName: cx(translateStyle),
-      },
-      tts: {
-        icon: Play,
-        key: 'tts',
-        label: t('tts.action', { ns: 'chat' }),
       },
     }),
     [hasThread],

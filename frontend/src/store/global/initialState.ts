@@ -21,7 +21,6 @@ export enum ChatSettingsTabs {
   Opening = 'opening',
   Plugin = 'plugin',
   Prompt = 'prompt',
-  TTS = 'tts',
 }
 
 export enum GroupSettingsTabs {
@@ -41,7 +40,6 @@ export enum SettingsTabs {
   Proxy = 'proxy',
   Storage = 'storage',
   SystemAgent = 'system-agent',
-  TTS = 'tts',
 }
 
 export enum ProfileTabs {

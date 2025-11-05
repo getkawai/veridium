@@ -61,14 +61,6 @@ const useSessionStore = (selector?: any) => {
               temperature: 0.7,
               max_tokens: 1000,
             },
-            tts: {
-              showAllLocaleVoice: false,
-              sttLocale: 'auto',
-              ttsService: 'openai',
-              voice: {
-                openai: 'alloy',
-              },
-            },
           },
           meta: {
             avatar: DEFAULT_AVATAR,
@@ -102,14 +94,6 @@ const useSessionStore = (selector?: any) => {
               temperature: 0.8,
               max_tokens: 800,
             },
-            tts: {
-              showAllLocaleVoice: false,
-              sttLocale: 'auto',
-              ttsService: 'openai',
-              voice: {
-                openai: 'alloy',
-              },
-            },
           },
           meta: {
             avatar: DEFAULT_AVATAR,
@@ -142,14 +126,6 @@ const useSessionStore = (selector?: any) => {
             params: {
               temperature: 0.3,
               max_tokens: 1200,
-            },
-            tts: {
-              showAllLocaleVoice: false,
-              sttLocale: 'auto',
-              ttsService: 'openai',
-              voice: {
-                openai: 'alloy',
-              },
             },
           },
           meta: {

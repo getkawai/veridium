@@ -41,7 +41,6 @@ export const AssistantActionsBar = memo<AssistantActionsProps>(({ id, data, inde
     branching,
     // export: exportPDF,
     share,
-    tts,
     translate,
   } = useChatListActionsBar({ hasThread });
 
@@ -65,7 +64,6 @@ export const AssistantActionsBar = memo<AssistantActionsProps>(({ id, data, inde
     deleteMessage,
     regenerateMessage,
     translateMessage,
-    ttsMessage,
     delAndRegenerateMessage,
     copyMessage,
     openThreadCreator,
@@ -76,7 +74,6 @@ export const AssistantActionsBar = memo<AssistantActionsProps>(({ id, data, inde
     s.deleteMessage,
     s.regenerateMessage,
     s.translateMessage,
-    s.ttsMessage,
     s.delAndRegenerateMessage,
     s.copyMessage,
     s.openThreadCreator,
@@ -137,11 +134,6 @@ export const AssistantActionsBar = memo<AssistantActionsProps>(({ id, data, inde
           break;
         }
 
-        case 'tts': {
-          ttsMessage(id);
-          break;
-        }
-
         // case 'export': {
         //   setModal(true);
         //   break;
@@ -175,7 +167,6 @@ export const AssistantActionsBar = memo<AssistantActionsProps>(({ id, data, inde
             edit,
             copy,
             divider,
-            tts,
             translate,
             divider,
             share,

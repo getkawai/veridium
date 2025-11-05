@@ -2,11 +2,9 @@ import {
   DEFAULT_AGENT_CONFIG,
   DEFAULT_MODEL,
   DEFAULT_PROVIDER,
-  DEFAUTT_AGENT_TTS_CONFIG,
   INBOX_SESSION_ID,
 } from '@/const';
-import { KnowledgeItem, KnowledgeType, LobeAgentConfig, LobeAgentTTSConfig } from '@/types';
-import { VoiceList } from '@lobehub/tts';
+import { KnowledgeItem, KnowledgeType, LobeAgentConfig } from '@/types';
 
 import { DEFAULT_OPENING_QUESTIONS } from '@/features/AgentSetting/store/selectors';
 import { filterToolIds } from '@/helpers/toolFilters';
@@ -95,39 +93,6 @@ const currentAgentFiles = (s: AgentStoreState) => {
   return Array.isArray(config?.files) ? config.files : [];
 };
 
-const currentAgentTTS = (s: AgentStoreState): LobeAgentTTSConfig => {
-  const config = currentAgentConfig(s);
-
-  return config?.tts || DEFAUTT_AGENT_TTS_CONFIG;
-};
-
-const currentAgentTTSVoice =
-  (lang: string) =>
-  (s: AgentStoreState): string => {
-    const { voice, ttsService } = currentAgentTTS(s);
-    const voiceList = new VoiceList(lang);
-    let currentVoice;
-    switch (ttsService) {
-      case 'openai': {
-        currentVoice = voice.openai || (VoiceList.openaiVoiceOptions?.[0].value as string);
-        break;
-      }
-      case 'edge': {
-        currentVoice = voice.edge || (voiceList.edgeVoiceOptions?.[0].value as string);
-        break;
-      }
-      case 'microsoft': {
-        currentVoice = voice.microsoft || (voiceList.microsoftVoiceOptions?.[0].value as string);
-        break;
-      }
-      case 'browser': {
-        currentVoice = voice.browser || '';
-        break;
-      }
-    }
-    return currentVoice || 'alloy';
-  };
-
 const currentEnabledKnowledge = (s: AgentStoreState) => {
   const knowledgeBases = currentAgentKnowledgeBases(s);
   const files = currentAgentFiles(s);
@@ -195,8 +160,6 @@ export const agentSelectors = {
   currentAgentModelProvider,
   currentAgentPlugins,
   currentAgentSystemRole,
-  currentAgentTTS,
-  currentAgentTTSVoice,
   currentEnabledKnowledge,
   currentKnowledgeIds,
   displayableAgentPlugins,

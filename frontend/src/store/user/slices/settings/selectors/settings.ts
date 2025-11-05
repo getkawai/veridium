@@ -4,7 +4,6 @@ import {
   DEFAULT_AGENT_META,
   DEFAULT_HOTKEY_CONFIG,
   DEFAULT_SYSTEM_AGENT_CONFIG,
-  DEFAULT_TTS_CONFIG,
 } from '@/const';
 import {
   GlobalLLMProviderKey,
@@ -27,8 +26,6 @@ export const getProviderConfigById = (provider: string) => (s: UserStore) =>
 
 const currentImageSettings = (s: UserStore) => currentSettings(s).image;
 
-const currentTTS = (s: UserStore) => merge(DEFAULT_TTS_CONFIG, currentSettings(s).tts);
-
 const defaultAgent = (s: UserStore) => merge(DEFAULT_AGENT, currentSettings(s).defaultAgent);
 const defaultAgentConfig = (s: UserStore) => merge(DEFAULT_AGENT_CONFIG, defaultAgent(s).config);
 
@@ -49,7 +46,6 @@ export const settingsSelectors = {
   currentImageSettings,
   currentSettings,
   currentSystemAgent,
-  currentTTS,
   dalleConfig,
   defaultAgent,
   defaultAgentConfig,

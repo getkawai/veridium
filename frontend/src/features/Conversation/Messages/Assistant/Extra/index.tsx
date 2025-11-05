@@ -4,7 +4,6 @@ import { Flexbox } from 'react-layout-kit';
 
 import { LOADING_FLAT } from '@/const/message';
 import ExtraContainer from '@/features/Conversation/components/Extras/ExtraContainer';
-import TTS from '@/features/Conversation/components/Extras/TTS';
 import Translate from '@/features/Conversation/components/Extras/Translate';
 import Usage from '@/features/Conversation/components/Extras/Usage';
 import { useChatStore } from '@/store/chat';
@@ -31,18 +30,11 @@ export const AssistantMessageExtra = memo<AssistantMessageExtraProps>(
             provider={extra.fromProvider!}
           />
         )}
-        <>
-          {!!extra?.tts && (
-            <ExtraContainer>
-              <TTS content={content} id={id} loading={loading} {...extra?.tts} />
-            </ExtraContainer>
-          )}
-          {!!extra?.translate && (
-            <ExtraContainer>
-              <Translate id={id} loading={loading} {...extra?.translate} />
-            </ExtraContainer>
-          )}
-        </>
+        {!!extra?.translate && (
+          <ExtraContainer>
+            <Translate id={id} loading={loading} {...extra?.translate} />
+          </ExtraContainer>
+        )}
       </Flexbox>
     );
   },

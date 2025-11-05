@@ -407,10 +407,6 @@ export default {
     action: '翻译',
     clear: '删除翻译',
   },
-  tts: {
-    action: '语音朗读',
-    clear: '删除语音',
-  },
   untitledAgent: '未命名助手',
   updateAgent: '更新助理信息',
   upload: {

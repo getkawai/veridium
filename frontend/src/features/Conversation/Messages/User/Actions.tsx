@@ -35,7 +35,6 @@ export const UserActionsBar = memo<UserActionsProps>(({ id, data, index }) => {
     deleteMessage,
     regenerateMessage,
     translateMessage,
-    ttsMessage,
     delAndRegenerateMessage,
     copyMessage,
     openThreadCreator,
@@ -49,7 +48,6 @@ export const UserActionsBar = memo<UserActionsProps>(({ id, data, index }) => {
     s.deleteMessage,
     s.regenerateMessage,
     s.translateMessage,
-    s.ttsMessage,
     s.delAndRegenerateMessage,
     s.copyMessage,
     s.openThreadCreator,
@@ -59,7 +57,7 @@ export const UserActionsBar = memo<UserActionsProps>(({ id, data, index }) => {
 
   const isGroupSession = useSessionStore(sessionSelectors.isCurrentSessionGroupSession);
 
-  const { regenerate, edit, copy, divider, del, branching, tts, translate } = useChatListActionsBar(
+  const { regenerate, edit, copy, divider, del, branching, translate } = useChatListActionsBar(
     { hasThread },
   );
 
@@ -129,11 +127,6 @@ export const UserActionsBar = memo<UserActionsProps>(({ id, data, index }) => {
           }
           break;
         }
-
-        case 'tts': {
-          ttsMessage(id);
-          break;
-        }
       }
 
       if (action.keyPath.at(-1) === 'translate') {
@@ -151,7 +144,7 @@ export const UserActionsBar = memo<UserActionsProps>(({ id, data, index }) => {
     <ActionIconGroup
       items={items}
       menu={{
-        items: [edit, copy, divider, tts, translate, divider, regenerate, del],
+        items: [edit, copy, divider, translate, divider, regenerate, del],
       }}
       onActionClick={onActionClick}
     />
