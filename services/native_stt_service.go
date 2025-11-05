@@ -1,3 +1,4 @@
+//go:build darwin
 // +build darwin
 
 package services
@@ -9,15 +10,11 @@ package services
 #import <AVFoundation/AVFoundation.h>
 #import <Foundation/Foundation.h>
 
-// Callback type for transcription results
-typedef void (*TranscriptionCallback)(const char* text, int isFinal, const char* error);
-
 @interface SpeechRecognizer : NSObject <SFSpeechRecognizerDelegate>
 @property (nonatomic, strong) SFSpeechRecognizer *recognizer;
 @property (nonatomic, strong) SFSpeechAudioBufferRecognitionRequest *request;
 @property (nonatomic, strong) SFSpeechRecognitionTask *recognitionTask;
 @property (nonatomic, strong) AVAudioEngine *audioEngine;
-@property (nonatomic, assign) TranscriptionCallback callback;
 @end
 
 @implementation SpeechRecognizer
@@ -35,76 +32,107 @@ typedef void (*TranscriptionCallback)(const char* text, int isFinal, const char*
 
 - (BOOL)requestAuthorization:(char **)errorOut {
     __block BOOL authorized = NO;
-    __block BOOL completed = NO;
-    
+
+    // Use dispatch_semaphore for reliable synchronization
+    dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
+
     [SFSpeechRecognizer requestAuthorization:^(SFSpeechRecognizerAuthorizationStatus status) {
         authorized = (status == SFSpeechRecognizerAuthorizationStatusAuthorized);
-        completed = YES;
+        dispatch_semaphore_signal(semaphore);
     }];
-    
-    // Wait for authorization (max 5 seconds)
-    NSDate *timeout = [NSDate dateWithTimeIntervalSinceNow:5.0];
-    while (!completed && [timeout timeIntervalSinceNow] > 0) {
-        [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.1]];
+
+    // Wait for authorization (max 10 seconds)
+    dispatch_time_t timeout = dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_SEC);
+    long result = dispatch_semaphore_wait(semaphore, timeout);
+
+    if (result != 0) {
+        // Timeout
+        if (errorOut) {
+            *errorOut = strdup("Authorization request timeout");
+        }
+        return NO;
     }
-    
+
     if (!authorized && errorOut) {
         *errorOut = strdup("Speech recognition not authorized");
     }
-    
+
     return authorized;
 }
 
-- (BOOL)transcribeFile:(NSString *)filePath callback:(TranscriptionCallback)callback error:(char **)errorOut {
-    self.callback = callback;
-    
+- (char *)transcribeFileSync:(NSString *)filePath error:(char **)errorOut {
     NSURL *url = [NSURL fileURLWithPath:filePath];
     if (![[NSFileManager defaultManager] fileExistsAtPath:filePath]) {
         if (errorOut) {
             *errorOut = strdup([[NSString stringWithFormat:@"File not found: %@", filePath] UTF8String]);
         }
-        return NO;
+        return NULL;
     }
-    
+
+    // Check authorization
+    SFSpeechRecognizerAuthorizationStatus authStatus = [SFSpeechRecognizer authorizationStatus];
+    if (authStatus != SFSpeechRecognizerAuthorizationStatusAuthorized) {
+        if (errorOut) {
+            NSString *msg = [NSString stringWithFormat:@"Speech recognition not authorized (status: %ld). Enable in System Settings > Privacy & Security > Speech Recognition", (long)authStatus];
+            *errorOut = strdup([msg UTF8String]);
+        }
+        return NULL;
+    }
+
     SFSpeechURLRecognitionRequest *request = [[SFSpeechURLRecognitionRequest alloc] initWithURL:url];
-    request.shouldReportPartialResults = YES;
-    
-    __block BOOL completed = NO;
-    __block BOOL success = NO;
-    
+    request.shouldReportPartialResults = NO; // Only get final result
+
+    __block NSString *finalText = nil;
+    __block NSError *finalError = nil;
+    __block BOOL callbackCalled = NO;
+
+    // Use dispatch_semaphore for reliable synchronization in CGO context
+    dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
+
     self.recognitionTask = [self.recognizer recognitionTaskWithRequest:request resultHandler:^(SFSpeechRecognitionResult *result, NSError *error) {
+        callbackCalled = YES;
+
         if (error) {
-            if (callback) {
-                callback(NULL, 0, [[error localizedDescription] UTF8String]);
-            }
-            completed = YES;
+            finalError = error;
+            dispatch_semaphore_signal(semaphore);
             return;
         }
-        
-        if (result) {
-            NSString *text = result.bestTranscription.formattedString;
-            if (callback) {
-                callback([text UTF8String], result.isFinal ? 1 : 0, NULL);
-            }
-            
-            if (result.isFinal) {
-                completed = YES;
-                success = YES;
-            }
+
+        if (result && result.isFinal) {
+            finalText = result.bestTranscription.formattedString;
+            dispatch_semaphore_signal(semaphore);
         }
     }];
-    
-    // Wait for completion (max 60 seconds)
-    NSDate *timeout = [NSDate dateWithTimeIntervalSinceNow:60.0];
-    while (!completed && [timeout timeIntervalSinceNow] > 0) {
-        [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.1]];
+
+    // Wait for completion with 60 second timeout
+    dispatch_time_t timeout = dispatch_time(DISPATCH_TIME_NOW, 60 * NSEC_PER_SEC);
+    long waitResult = dispatch_semaphore_wait(semaphore, timeout);
+
+    if (waitResult != 0) {
+        // Timeout
+        [self.recognitionTask cancel];
+        if (errorOut) {
+            if (callbackCalled) {
+                *errorOut = strdup("Transcription incomplete (callback called but not final)");
+            } else {
+                *errorOut = strdup("Transcription timeout (callback never called - check permission)");
+            }
+        }
+        return NULL;
     }
-    
-    if (!completed && errorOut) {
-        *errorOut = strdup("Transcription timeout");
+
+    if (finalError) {
+        if (errorOut) {
+            *errorOut = strdup([[finalError localizedDescription] UTF8String]);
+        }
+        return NULL;
     }
-    
-    return success;
+
+    if (finalText) {
+        return strdup([finalText UTF8String]);
+    }
+
+    return NULL;
 }
 
 - (BOOL)isAvailable {
@@ -113,7 +141,7 @@ typedef void (*TranscriptionCallback)(const char* text, int isFinal, const char*
 
 - (NSArray<NSString *> *)supportedLocales {
     NSMutableArray *locales = [NSMutableArray array];
-    
+
     // Common supported locales
     NSArray *commonLocales = @[
         @"en-US", @"en-GB", @"en-AU", @"en-IN",
@@ -128,7 +156,7 @@ typedef void (*TranscriptionCallback)(const char* text, int isFinal, const char*
         @"da-DK", @"fi-FI", @"no-NO",
         @"he-IL", @"ro-RO", @"uk-UA"
     ];
-    
+
     for (NSString *localeId in commonLocales) {
         NSLocale *locale = [NSLocale localeWithLocaleIdentifier:localeId];
         SFSpeechRecognizer *testRecognizer = [[SFSpeechRecognizer alloc] initWithLocale:locale];
@@ -136,7 +164,7 @@ typedef void (*TranscriptionCallback)(const char* text, int isFinal, const char*
             [locales addObject:localeId];
         }
     }
-    
+
     return locales;
 }
 
@@ -164,11 +192,11 @@ int native_stt_request_authorization(void* recognizer, char** error) {
     }
 }
 
-int native_stt_transcribe_file(void* recognizer, const char* filePath, TranscriptionCallback callback, char** error) {
+char* native_stt_transcribe_file_sync(void* recognizer, const char* filePath, char** error) {
     @autoreleasepool {
         SpeechRecognizer *sr = (__bridge SpeechRecognizer*)recognizer;
         NSString *path = [NSString stringWithUTF8String:filePath];
-        return [sr transcribeFile:path callback:callback error:error] ? 1 : 0;
+        return [sr transcribeFileSync:path error:error];
     }
 }
 
@@ -183,14 +211,14 @@ char** native_stt_supported_locales(void* recognizer, int* count) {
     @autoreleasepool {
         SpeechRecognizer *sr = (__bridge SpeechRecognizer*)recognizer;
         NSArray<NSString *> *locales = [sr supportedLocales];
-        
+
         *count = (int)[locales count];
         char** result = (char**)malloc(sizeof(char*) * (*count));
-        
+
         for (int i = 0; i < *count; i++) {
             result[i] = strdup([locales[i] UTF8String]);
         }
-        
+
         return result;
     }
 }
@@ -246,30 +274,27 @@ func NewNativeSTTService(locale string) (*NativeSTTService, error) {
 	if runtime.GOOS != "darwin" {
 		return nil, fmt.Errorf("native STT only supported on macOS")
 	}
-	
+
 	if locale == "" {
 		locale = "en-US"
 	}
-	
+
 	cLocale := C.CString(locale)
 	defer C.free(unsafe.Pointer(cLocale))
-	
+
 	recognizer := C.native_stt_new(cLocale)
 	if recognizer == nil {
 		return nil, fmt.Errorf("failed to create speech recognizer")
 	}
-	
+
 	service := &NativeSTTService{
 		recognizer: recognizer,
 		locale:     locale,
 	}
-	
-	// Request authorization
-	if err := service.RequestAuthorization(); err != nil {
-		C.native_stt_free(recognizer)
-		return nil, fmt.Errorf("speech recognition authorization failed: %w", err)
-	}
-	
+
+	// Note: Authorization will be requested automatically on first use
+	// Skipping explicit authorization request to avoid CGO/main thread issues
+
 	return service, nil
 }
 
@@ -277,10 +302,10 @@ func NewNativeSTTService(locale string) (*NativeSTTService, error) {
 func (s *NativeSTTService) RequestAuthorization() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	var cError *C.char
 	result := C.native_stt_request_authorization(s.recognizer, &cError)
-	
+
 	if result == 0 {
 		if cError != nil {
 			errMsg := C.GoString(cError)
@@ -289,7 +314,7 @@ func (s *NativeSTTService) RequestAuthorization() error {
 		}
 		return fmt.Errorf("authorization denied")
 	}
-	
+
 	return nil
 }
 
@@ -297,59 +322,34 @@ func (s *NativeSTTService) RequestAuthorization() error {
 func (s *NativeSTTService) TranscribeFile(audioPath string) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
-	var finalText string
-	var transcriptionError error
-	done := make(chan struct{})
-	
-	// Callback function
-	callback := func(text *C.char, isFinal C.int, err *C.char) {
-		if err != nil {
-			transcriptionError = fmt.Errorf("%s", C.GoString(err))
-			close(done)
-			return
-		}
-		
-		if text != nil {
-			finalText = C.GoString(text)
-		}
-		
-		if isFinal != 0 {
-			close(done)
-		}
-	}
-	
+
 	cPath := C.CString(audioPath)
 	defer C.free(unsafe.Pointer(cPath))
-	
+
 	var cError *C.char
-	
-	// Start transcription in goroutine
-	go func() {
-		C.native_stt_transcribe_file(s.recognizer, cPath, C.TranscriptionCallback(callback), &cError)
-	}()
-	
-	// Wait for completion
-	<-done
-	
-	if transcriptionError != nil {
-		return "", transcriptionError
-	}
-	
+	cText := C.native_stt_transcribe_file_sync(s.recognizer, cPath, &cError)
+
 	if cError != nil {
 		errMsg := C.GoString(cError)
 		C.native_stt_free_string(cError)
 		return "", fmt.Errorf("%s", errMsg)
 	}
-	
-	return finalText, nil
+
+	if cText == nil {
+		return "", fmt.Errorf("transcription returned no text")
+	}
+
+	text := C.GoString(cText)
+	C.native_stt_free_string(cText)
+
+	return text, nil
 }
 
 // IsAvailable checks if speech recognition is available
 func (s *NativeSTTService) IsAvailable() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	result := C.native_stt_is_available(s.recognizer)
 	return result != 0
 }
@@ -358,24 +358,24 @@ func (s *NativeSTTService) IsAvailable() bool {
 func (s *NativeSTTService) GetSupportedLocales() ([]string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	var count C.int
 	cLocales := C.native_stt_supported_locales(s.recognizer, &count)
-	
+
 	if cLocales == nil {
 		return nil, fmt.Errorf("failed to get supported locales")
 	}
-	
+
 	// Convert C array to Go slice
 	locales := make([]string, int(count))
 	cArray := (*[1 << 30]*C.char)(unsafe.Pointer(cLocales))[:count:count]
-	
+
 	for i := 0; i < int(count); i++ {
 		locales[i] = C.GoString(cArray[i])
 	}
-	
+
 	C.native_stt_free_string_array(cLocales, count)
-	
+
 	return locales, nil
 }
 
@@ -388,12 +388,12 @@ func (s *NativeSTTService) GetLocale() string {
 func (s *NativeSTTService) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	if s.recognizer != nil {
 		C.native_stt_free(s.recognizer)
 		s.recognizer = nil
 	}
-	
+
 	return nil
 }
 
@@ -425,4 +425,3 @@ func GetRecommendedLocales() map[string]string {
 		"sv-SE": "Swedish",
 	}
 }
-
