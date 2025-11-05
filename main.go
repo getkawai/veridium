@@ -79,6 +79,9 @@ func main() {
 		}
 	}
 
+	// Initialize Audio Recorder service (app will be set after creation)
+	audioRecorderService := services.NewAudioRecorderService(nil)
+
 	// Create a new Wails application by providing the necessary options.
 	// Variables 'Name' and 'Description' are for application metadata.
 	// 'Assets' configures the asset server with the 'FS' variable pointing to the frontend files.
@@ -101,6 +104,8 @@ func main() {
 			application.NewService(ttsService),
 			// Whisper service - for speech-to-text (offline, 99 languages)
 			application.NewService(whisperService),
+			// Audio recorder service - for native microphone recording
+			application.NewService(audioRecorderService),
 			// Machine ID service
 			application.NewService(&MachineIDService{}),
 			// Temp file service
@@ -153,6 +158,9 @@ func main() {
 			ApplicationShouldTerminateAfterLastWindowClosed: true,
 		},
 	})
+
+	// Set app instance for audio recorder service (for event emission)
+	audioRecorderService.SetApp(app)
 
 	// Create a new window with the necessary options.
 	// 'Title' is the title of the window.

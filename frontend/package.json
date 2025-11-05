@@ -25,6 +25,7 @@
     "@lobehub/charts": "^2.1.2",
     "@lobehub/editor": "^1.21.1",
     "@lobehub/market-sdk": "^0.22.7",
+    "@lobehub/tts": "^2.0.1",
     "@lobehub/ui": "^2.13.5",
     "@wailsio/runtime": "latest",
     "gpt-tokenizer": "^3.2.0",

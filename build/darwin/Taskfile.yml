@@ -29,6 +29,7 @@ tasks:
       CGO_LDFLAGS: "-mmacosx-version-min=10.15"
       MACOSX_DEPLOYMENT_TARGET: "10.15"
       PRODUCTION: '{{.PRODUCTION | default "false"}}'
+      PKG_CONFIG_PATH: "{{.PKG_CONFIG_PATH}}"
 
   build:universal:
     summary: Builds darwin universal binary (arm64 + amd64)

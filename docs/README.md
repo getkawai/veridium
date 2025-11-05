@@ -2,10 +2,15 @@
 
 ## 📚 Documentation Index
 
+### Build & Development
+
+- **[BUILD.md](BUILD.md)** - Build instructions, development guide, and troubleshooting
+
 ### Speech Services
 
 Comprehensive documentation for Text-to-Speech and Speech-to-Text features:
 
+- **[STT_SUCCESS.md](speech/STT_SUCCESS.md)** - ✅ **STT Implementation Success Report** (READ THIS FIRST!)
 - **[SPEECH_SERVICES_FINAL.md](speech/SPEECH_SERVICES_FINAL.md)** - Complete guide to TTS and STT services
 - **[WHISPER_SETUP.md](speech/WHISPER_SETUP.md)** - Whisper STT setup instructions
 - **[WHISPER_TEST_RESULTS.md](speech/WHISPER_TEST_RESULTS.md)** - Performance benchmarks and test results

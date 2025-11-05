@@ -6,6 +6,7 @@ import Model from './Model';
 import Params from './Params';
 import SaveTopic from './SaveTopic';
 import Search from './Search';
+import STT from './STT';
 import { GroupChatToken, MainToken, PortalToken } from './Token';
 import Tools from './Tools';
 import Typo from './Typo';
@@ -24,6 +25,7 @@ export const actionMap = {
   portalToken: PortalToken,
   saveTopic: SaveTopic,
   search: Search,
+  stt: STT,
   temperature: Params,
   tools: Tools,
   typo: Typo,

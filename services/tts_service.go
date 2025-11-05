@@ -2,7 +2,9 @@ package services
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 )
@@ -81,6 +83,42 @@ func (s *TTSService) SpeakToFileWithVoice(text, outputPath, voice string) error 
 
 	cmd := exec.Command("say", "-v", voice, "-o", outputPath, text)
 	return cmd.Run()
+}
+
+// SpeakToAudio generates speech and returns audio data as byte array
+// This is more convenient than SpeakToFile for frontend integration
+func (s *TTSService) SpeakToAudio(text string) ([]byte, error) {
+	return s.SpeakToAudioWithVoice(text, "")
+}
+
+// SpeakToAudioWithVoice generates speech with specified voice and returns audio data
+func (s *TTSService) SpeakToAudioWithVoice(text, voice string) ([]byte, error) {
+	// Create temporary file
+	tempDir := os.TempDir()
+	tempFile := filepath.Join(tempDir, fmt.Sprintf("tts-%d.aiff", os.Getpid()))
+
+	// Ensure cleanup
+	defer os.Remove(tempFile)
+
+	// Generate speech to temp file
+	var err error
+	if voice != "" {
+		err = s.SpeakToFileWithVoice(text, tempFile, voice)
+	} else {
+		err = s.SpeakToFile(text, tempFile)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate speech: %w", err)
+	}
+
+	// Read the audio file
+	audioData, err := os.ReadFile(tempFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read audio file: %w", err)
+	}
+
+	return audioData, nil
 }
 
 // ListVoices returns available TTS voices

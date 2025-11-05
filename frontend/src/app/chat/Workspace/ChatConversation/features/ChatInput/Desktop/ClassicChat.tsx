@@ -17,6 +17,7 @@ import { useSendMenuItems } from './useSendMenuItems';
 const leftActions: ActionKeys[] = [
   'model',
   'search',
+  'stt',
   'typo',
   'fileUpload',
   'knowledgeBase',

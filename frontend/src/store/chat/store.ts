@@ -15,6 +15,7 @@ import { ChatTopicAction, chatTopic } from './slices/topic/action';
 import { ChatAIChatAction, chatAiChat } from './slices/aiChat/actions';
 import { ChatThreadAction, chatThreadMessage } from './slices/thread/action';
 import { chatAiGroupChat, ChatGroupChatAction } from './slices/aiChat/actions/generateAIGroupChat';
+import { TTSAction, createTTSSlice } from './slices/tts/action';
 
 export interface ChatStoreAction
   extends ChatMessageAction,
@@ -25,7 +26,8 @@ export interface ChatStoreAction
     ChatTranslateAction,
     ChatPluginAction,
     ChatBuiltinToolAction,
-    ChatPortalAction {}
+    ChatPortalAction,
+    TTSAction {}
 
 export type ChatStore = ChatStoreAction & ChatStoreState;
 
@@ -43,6 +45,7 @@ const createStore: StateCreator<ChatStore, [['zustand/devtools', never]]> = (...
   ...chatToolSlice(...params),
   ...chatPlugin(...params),
   ...chatPortalSlice(...params),
+  ...createTTSSlice(...params),
 
   // cloud
 });

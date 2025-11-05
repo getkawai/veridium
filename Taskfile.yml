@@ -10,6 +10,7 @@ vars:
   APP_NAME: "veridium"
   BIN_DIR: "bin"
   VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
+  PKG_CONFIG_PATH: "{{.ROOT_DIR}}/go-whisper/build/install/lib/pkgconfig"
 
 tasks:
   build:
@@ -29,6 +30,8 @@ tasks:
 
   dev:
     summary: Runs the application in development mode
+    env:
+      PKG_CONFIG_PATH: "{{.PKG_CONFIG_PATH}}"
     cmds:
       - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}
 

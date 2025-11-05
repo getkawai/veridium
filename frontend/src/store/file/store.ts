@@ -8,6 +8,7 @@ import { FileAction, createFileSlice } from './slices/chat';
 import { FileChunkAction, createFileChunkSlice } from './slices/chunk';
 import { FileManageAction, createFileManageSlice } from './slices/fileManager';
 import { FileUploadAction, createFileUploadSlice } from './slices/upload/action';
+import { TTSFileAction, createTTSFileSlice } from './slices/tts/action';
 
 //  ===============  聚合 createStoreFn ============ //
 
@@ -15,7 +16,8 @@ export type FileStore = FilesStoreState &
   FileAction &
   FileManageAction &
   FileChunkAction &
-  FileUploadAction;
+  FileUploadAction &
+  TTSFileAction;
 
 const createStore: StateCreator<FileStore, [['zustand/devtools', never]]> = (...parameters) => ({
   ...initialState,
@@ -23,6 +25,7 @@ const createStore: StateCreator<FileStore, [['zustand/devtools', never]]> = (...
   ...createFileManageSlice(...parameters),
   ...createFileChunkSlice(...parameters),
   ...createFileUploadSlice(...parameters),
+  ...createTTSFileSlice(...parameters),
 });
 
 //  ===============  实装 useStore ============ //
