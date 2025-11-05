@@ -57,17 +57,27 @@ func main() {
 		log.Printf("   Platform: %s", ttsService.GetPlatformInfo()["platform"])
 	}
 
-	// Initialize Native STT service (macOS Speech Framework)
-	nativeSTTService, err := services.NewNativeSTTService("en-US")
+	// Initialize Whisper STT service (offline, cross-platform)
+	whisperService, err := services.NewWhisperService()
 	if err != nil {
-		log.Printf("⚠️  Warning: Failed to initialize Native STT service: %v", err)
-		log.Printf("    Speech-to-text features will not be available.")
-		// Don't fail the app, just log warning
+		log.Printf("⚠️  Warning: Failed to initialize Whisper service: %v", err)
 	} else {
-		defer nativeSTTService.Close()
-		log.Printf("✅ Native STT service initialized successfully")
-		log.Printf("   Locale: %s", nativeSTTService.GetLocale())
-		log.Printf("   Available: %v", nativeSTTService.IsAvailable())
+		defer whisperService.Close()
+		log.Printf("✅ Whisper service initialized successfully")
+		log.Printf("   Models directory: %s", whisperService.GetModelsDirectory())
+	}
+
+	// Initialize Hybrid STT service (Native + Whisper fallback)
+	hybridSTTService, err := services.NewHybridSTTService("en-US")
+	if err != nil {
+		log.Printf("⚠️  Warning: Failed to initialize Hybrid STT service: %v", err)
+		log.Printf("    Speech-to-text features will not be available.")
+	} else {
+		defer hybridSTTService.Close()
+		log.Printf("✅ Hybrid STT service initialized successfully")
+		engines := hybridSTTService.GetAvailableEngines()
+		log.Printf("   Available engines: %v", engines)
+		log.Printf("   Current engine: %s", hybridSTTService.GetCurrentEngine())
 	}
 
 	// Create a new Wails application by providing the necessary options.
@@ -90,8 +100,10 @@ func main() {
 			application.NewService(searchService),
 			// TTS service - for text-to-speech (native OS)
 			application.NewService(ttsService),
-			// Native STT service - for speech-to-text (macOS Speech Framework)
-			application.NewService(nativeSTTService),
+			// Whisper service - for offline STT
+			application.NewService(whisperService),
+			// Hybrid STT service - for speech-to-text (Native + Whisper)
+			application.NewService(hybridSTTService),
 			// Machine ID service
 			application.NewService(&MachineIDService{}),
 			// Temp file service

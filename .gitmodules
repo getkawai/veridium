@@ -1,0 +1,3 @@
+[submodule "go-whisper"]
+	path = go-whisper
+	url = https://github.com/mutablelogic/go-whisper.git
