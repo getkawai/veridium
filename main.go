@@ -57,27 +57,26 @@ func main() {
 		log.Printf("   Platform: %s", ttsService.GetPlatformInfo()["platform"])
 	}
 
-	// Initialize Whisper STT service (offline, cross-platform)
+	// Initialize Whisper STT service (offline, 99 languages, GPU-accelerated)
 	whisperService, err := services.NewWhisperService()
 	if err != nil {
 		log.Printf("⚠️  Warning: Failed to initialize Whisper service: %v", err)
-	} else {
-		defer whisperService.Close()
-		log.Printf("✅ Whisper service initialized successfully")
-		log.Printf("   Models directory: %s", whisperService.GetModelsDirectory())
-	}
-
-	// Initialize Hybrid STT service (Native + Whisper fallback)
-	hybridSTTService, err := services.NewHybridSTTService("en-US")
-	if err != nil {
-		log.Printf("⚠️  Warning: Failed to initialize Hybrid STT service: %v", err)
 		log.Printf("    Speech-to-text features will not be available.")
 	} else {
-		defer hybridSTTService.Close()
-		log.Printf("✅ Hybrid STT service initialized successfully")
-		engines := hybridSTTService.GetAvailableEngines()
-		log.Printf("   Available engines: %v", engines)
-		log.Printf("   Current engine: %s", hybridSTTService.GetCurrentEngine())
+		defer whisperService.Close()
+		log.Printf("✅ Whisper STT service initialized successfully")
+		log.Printf("   Models directory: %s", whisperService.GetModelsDirectory())
+		models := whisperService.ListModels()
+		if len(models) > 0 {
+			log.Printf("   Installed models: %d", len(models))
+			for _, m := range models {
+				log.Printf("     - %s", m.Id)
+			}
+		} else {
+			log.Printf("   No models installed yet. Download with:")
+			log.Printf("     - ggml-tiny.bin (75MB, fastest)")
+			log.Printf("     - ggml-base.bin (142MB, better accuracy)")
+		}
 	}
 
 	// Create a new Wails application by providing the necessary options.
@@ -100,10 +99,8 @@ func main() {
 			application.NewService(searchService),
 			// TTS service - for text-to-speech (native OS)
 			application.NewService(ttsService),
-			// Whisper service - for offline STT
+			// Whisper service - for speech-to-text (offline, 99 languages)
 			application.NewService(whisperService),
-			// Hybrid STT service - for speech-to-text (Native + Whisper)
-			application.NewService(hybridSTTService),
 			// Machine ID service
 			application.NewService(&MachineIDService{}),
 			// Temp file service
