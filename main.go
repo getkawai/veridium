@@ -57,28 +57,17 @@ func main() {
 		log.Printf("   Platform: %s", ttsService.GetPlatformInfo()["platform"])
 	}
 
-	// Initialize Hybrid STT service (Native + Whisper)
-	hybridSTTService, err := services.NewHybridSTTService("en-US")
+	// Initialize Native STT service (macOS Speech Framework)
+	nativeSTTService, err := services.NewNativeSTTService("en-US")
 	if err != nil {
-		log.Printf("⚠️  Warning: Failed to initialize Hybrid STT service: %v", err)
+		log.Printf("⚠️  Warning: Failed to initialize Native STT service: %v", err)
 		log.Printf("    Speech-to-text features will not be available.")
 		// Don't fail the app, just log warning
 	} else {
-		defer hybridSTTService.Close()
-		log.Printf("✅ Hybrid STT service initialized successfully")
-		engines := hybridSTTService.GetAvailableEngines()
-		log.Printf("   Available engines: %v", engines)
-		log.Printf("   Current engine: %s", hybridSTTService.GetCurrentEngine())
-	}
-
-	// Keep Whisper service for direct access if needed
-	whisperService, err := services.NewWhisperService()
-	if err != nil {
-		log.Printf("⚠️  Warning: Failed to initialize Whisper service: %v", err)
-	} else {
-		defer whisperService.Close()
-		log.Printf("✅ Whisper service initialized successfully")
-		log.Printf("   Models directory: %s", whisperService.GetModelsDirectory())
+		defer nativeSTTService.Close()
+		log.Printf("✅ Native STT service initialized successfully")
+		log.Printf("   Locale: %s", nativeSTTService.GetLocale())
+		log.Printf("   Available: %v", nativeSTTService.IsAvailable())
 	}
 
 	// Create a new Wails application by providing the necessary options.
@@ -101,10 +90,8 @@ func main() {
 			application.NewService(searchService),
 			// TTS service - for text-to-speech (native OS)
 			application.NewService(ttsService),
-			// Hybrid STT service - for speech-to-text (Native + Whisper)
-			application.NewService(hybridSTTService),
-			// Whisper service - for direct Whisper access
-			application.NewService(whisperService),
+			// Native STT service - for speech-to-text (macOS Speech Framework)
+			application.NewService(nativeSTTService),
 			// Machine ID service
 			application.NewService(&MachineIDService{}),
 			// Temp file service
