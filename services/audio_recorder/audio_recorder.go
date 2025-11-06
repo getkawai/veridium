@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"sync"
 	"time"
 
@@ -52,26 +51,10 @@ func (s *AudioRecorderService) StartRecording(ctx context.Context) (string, erro
 	tempDir := os.TempDir()
 	outputPath := filepath.Join(tempDir, fmt.Sprintf("recording_%d.wav", os.Getpid()))
 
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "darwin":
-		// Use sox on macOS for recording
-		// Format: WAV, 16-bit signed integer, 16kHz, mono (optimal for Whisper)
-		// Using 'sox -d' instead of 'rec' for better control
-		cmd = exec.Command("sox", "-d", "-r", "16000", "-c", "1", "-b", "16", "-e", "signed-integer", outputPath)
-	case "linux":
-		// Use arecord on Linux
-		cmd = exec.Command("arecord", "-f", "S16_LE", "-r", "16000", "-c", "1", "-t", "wav", outputPath)
-	case "windows":
-		// Use ffmpeg on Windows (requires ffmpeg to be installed)
-		cmd = exec.Command("ffmpeg", "-f", "dshow", "-i", "audio=", "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", outputPath)
-	default:
-		return "", fmt.Errorf("unsupported platform: %s", runtime.GOOS)
-	}
-
-	// Start recording process
-	if err := cmd.Start(); err != nil {
-		return "", fmt.Errorf("failed to start recording: %w", err)
+	// Start recording process using platform-specific implementation
+	cmd, err := startPlatformRecording(outputPath)
+	if err != nil {
+		return "", err
 	}
 
 	s.recordingProc = cmd
@@ -98,19 +81,11 @@ func (s *AudioRecorderService) StopRecording() (string, error) {
 
 	outputPath := s.outputPath
 
-	// Stop the recording process
+	// Stop the recording process using platform-specific implementation
 	if s.recordingProc != nil && s.recordingProc.Process != nil {
-		// Send interrupt signal to stop recording gracefully
-		if runtime.GOOS == "windows" {
-			// On Windows, kill the process directly
-			s.recordingProc.Process.Kill()
-		} else {
-			// On Unix-like systems, send SIGINT (Ctrl+C) for graceful shutdown
-			// This allows sox to properly finalize the WAV file
-			if err := s.recordingProc.Process.Signal(os.Interrupt); err != nil {
-				fmt.Printf("Failed to send SIGINT: %v, killing process\n", err)
-				s.recordingProc.Process.Kill()
-			}
+		// Stop recording gracefully
+		if err := stopPlatformRecording(s.recordingProc); err != nil {
+			fmt.Printf("Error stopping recording: %v\n", err)
 		}
 
 		// Wait for process to finish writing the file
@@ -190,32 +165,14 @@ func (s *AudioRecorderService) GetRecordingPath() string {
 // CheckRecordingCapabilities checks if audio recording is supported
 func (s *AudioRecorderService) CheckRecordingCapabilities() map[string]interface{} {
 	result := map[string]interface{}{
-		"platform":  runtime.GOOS,
 		"supported": false,
 		"tool":      "",
 		"error":     "",
 	}
 
-	var cmd *exec.Cmd
-	var tool string
-
-	switch runtime.GOOS {
-	case "darwin":
-		cmd = exec.Command("which", "rec")
-		tool = "sox (rec command)"
-	case "linux":
-		cmd = exec.Command("which", "arecord")
-		tool = "arecord"
-	case "windows":
-		cmd = exec.Command("where", "ffmpeg")
-		tool = "ffmpeg"
-	default:
-		result["error"] = fmt.Sprintf("unsupported platform: %s", runtime.GOOS)
-		return result
-	}
-
-	if err := cmd.Run(); err != nil {
-		result["error"] = fmt.Sprintf("%s not found. Please install %s", tool, tool)
+	tool, err := checkPlatformRecordingTool()
+	if err != nil {
+		result["error"] = err.Error()
 		return result
 	}
 

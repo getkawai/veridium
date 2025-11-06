@@ -1,7 +1,7 @@
-package main
+package services
 
 import (
-	"github.com/kawai-network/veridium/machineid"
+	"github.com/kawai-network/veridium/pkg/machineid"
 )
 
 // MachineIDService provides access to machine identification functionality

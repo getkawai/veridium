@@ -12,6 +12,7 @@ import (
 	"github.com/kawai-network/veridium/internal/services/search"
 	"github.com/kawai-network/veridium/internal/services/tableviewer"
 	"github.com/kawai-network/veridium/services"
+	"github.com/kawai-network/veridium/services/tts"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/services/fileserver"
 	"github.com/wailsapp/wails/v3/pkg/services/kvstore"
@@ -49,7 +50,7 @@ func main() {
 	searchService := search.NewService()
 
 	// Initialize TTS service (native OS text-to-speech)
-	ttsService, err := services.NewTTSService()
+	ttsService, err := tts.NewTTSService()
 	if err != nil {
 		log.Printf("⚠️  Warning: Failed to initialize TTS service: %v", err)
 	} else {
@@ -107,7 +108,7 @@ func main() {
 			// Audio recorder service - for native microphone recording
 			application.NewService(audioRecorderService),
 			// Machine ID service
-			application.NewService(&MachineIDService{}),
+			application.NewService(&services.MachineIDService{}),
 			// Temp file service
 			application.NewService(&TempFileService{}),
 			// Node.js equivalent services
