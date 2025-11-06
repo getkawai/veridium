@@ -61,34 +61,16 @@ func main() {
 	}
 
 	// Initialize Whisper STT service (offline, 99 languages, whisper-cpp CLI)
+	// Auto-installs whisper-cpp and downloads recommended model in background
 	whisperService, err := whisper.NewService()
 	if err != nil {
 		log.Printf("⚠️  Warning: Failed to initialize Whisper service: %v", err)
 		log.Printf("    Speech-to-text features will not be available.")
 	} else {
 		defer whisperService.Close()
-		log.Printf("✅ Whisper STT service initialized successfully")
+		log.Printf("✅ Whisper STT service initialized")
 		log.Printf("   Models directory: %s", whisperService.GetModelsDirectory())
-
-		// Check if whisper-cpp is installed
-		if !whisperService.IsWhisperInstalled() {
-			log.Printf("   ⚠️  whisper-cpp not installed. Install with:")
-			log.Printf("      brew install whisper-cpp")
-		} else {
-			log.Printf("   whisper-cpp version: %s", whisperService.GetVersion())
-
-			models, _ := whisperService.ListModels()
-			if len(models) > 0 {
-				log.Printf("   Installed models: %d", len(models))
-				for _, m := range models {
-					log.Printf("     - %s", m)
-				}
-			} else {
-				log.Printf("   No models installed yet. Download with:")
-				log.Printf("     - tiny (39MB, fastest)")
-				log.Printf("     - base (142MB, better accuracy)")
-			}
-		}
+		log.Printf("   Auto-setup running in background...")
 	}
 
 	// Initialize Audio Recorder service (app will be set after creation)

@@ -66,17 +66,31 @@ Download pre-built binaries from: https://github.com/ggml-org/whisper.cpp/releas
 
 ## Usage
 
-### Download Models
+### Automatic Setup (Recommended)
+The service automatically handles installation and model download in the background:
+
+```go
+// Just create the service - it handles everything automatically!
+service, _ := whisper.NewService()
+// ✅ Auto-installs whisper-cpp if not found
+// ✅ Auto-downloads recommended model (base) if no models exist
+// ✅ All happens in background, non-blocking
+```
+
+### Manual Model Management (Optional)
 ```go
 service, _ := whisper.NewService()
 
-// Download a model
+// Download a specific model
 ctx := context.Background()
-err := service.DownloadModel(ctx, "base")
+err := service.DownloadModel(ctx, "small")
 
 // List available models
 models := service.GetAvailableModels()
 // Returns: tiny, base, small, medium, large-v3, etc.
+
+// Check if model is downloaded
+isDownloaded := service.IsModelDownloaded("base")
 ```
 
 ### Transcribe Audio
@@ -132,6 +146,8 @@ text, err := service.Transcribe(ctx, "base", audioPath)
 4. **Smaller Binary**: No embedded libraries
 5. **Easier Testing**: Can test with mock CLI
 6. **Platform-Specific Code**: Clean separation using build tags
+7. **Auto-Setup**: Automatically installs whisper-cpp and downloads models in background
+8. **Zero Configuration**: Works out of the box, no manual setup required
 
 ## Migration Checklist
 
@@ -142,6 +158,9 @@ text, err := service.Transcribe(ctx, "base", audioPath)
 - [x] Remove old test files
 - [x] Add unsupported platform stub
 - [x] Test compilation on macOS
+- [x] Add automatic whisper-cpp installation
+- [x] Add automatic model download in background
+- [x] Update documentation
 - [ ] Test on Linux
 - [ ] Test on Windows
 - [ ] Update frontend bindings

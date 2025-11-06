@@ -3,6 +3,7 @@ package audio_recorder
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,11 +23,40 @@ type AudioRecorderService struct {
 }
 
 // NewAudioRecorderService creates a new audio recorder service
+// Automatically installs recording tool if not found
 func NewAudioRecorderService(app *application.App) *AudioRecorderService {
-	return &AudioRecorderService{
+	service := &AudioRecorderService{
 		app:       app,
 		recording: false,
 	}
+
+	// Start background initialization
+	go service.initializeInBackground()
+
+	return service
+}
+
+// initializeInBackground handles recording tool installation
+func (s *AudioRecorderService) initializeInBackground() {
+	// Check if recording tool is available
+	tool, err := checkPlatformRecordingTool()
+	if err != nil {
+		// Tool not found, attempt auto-installation
+		if installErr := installPlatformRecordingTool(); installErr != nil {
+			log.Printf("⚠️  Failed to auto-install recording tool: %v", installErr)
+			log.Printf("   Audio recording will not be available until tool is installed")
+			return
+		}
+
+		// Verify installation
+		tool, err = checkPlatformRecordingTool()
+		if err != nil {
+			log.Printf("⚠️  Recording tool installation verification failed: %v", err)
+			return
+		}
+	}
+
+	log.Printf("✅ Audio recording ready with %s", tool)
 }
 
 // SetApp sets the application instance (for event emission)

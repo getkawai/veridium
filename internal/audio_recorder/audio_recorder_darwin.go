@@ -4,6 +4,7 @@ package audio_recorder
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 )
@@ -40,13 +41,34 @@ func stopPlatformRecording(proc *exec.Cmd) error {
 
 // checkPlatformRecordingTool checks if the recording tool is available
 func checkPlatformRecordingTool() (string, error) {
-	tool := "sox (rec command)"
-	cmd := exec.Command("which", "rec")
+	tool := "sox"
+	cmd := exec.Command("which", "sox")
 	
 	if err := cmd.Run(); err != nil {
-		return tool, fmt.Errorf("%s not found. Please install %s", tool, tool)
+		return tool, fmt.Errorf("%s not found", tool)
 	}
 	
 	return tool, nil
+}
+
+// installPlatformRecordingTool installs the recording tool
+func installPlatformRecordingTool() error {
+	log.Println("🔧 sox not found, attempting auto-installation...")
+	
+	// Check if Homebrew is installed
+	if _, err := exec.LookPath("brew"); err != nil {
+		return fmt.Errorf("homebrew is not installed. Please install Homebrew first: https://brew.sh")
+	}
+	
+	// Install sox
+	log.Println("   Installing sox via Homebrew...")
+	cmd := exec.Command("brew", "install", "sox")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to install sox: %w\nOutput: %s", err, string(output))
+	}
+	
+	log.Println("✅ sox installed successfully")
+	return nil
 }
 

@@ -4,6 +4,7 @@ package audio_recorder
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 )
@@ -42,9 +43,53 @@ func checkPlatformRecordingTool() (string, error) {
 	cmd := exec.Command("which", "arecord")
 	
 	if err := cmd.Run(); err != nil {
-		return tool, fmt.Errorf("%s not found. Please install %s", tool, tool)
+		return tool, fmt.Errorf("%s not found", tool)
 	}
 	
 	return tool, nil
+}
+
+// installPlatformRecordingTool installs the recording tool
+func installPlatformRecordingTool() error {
+	log.Println("🔧 arecord not found, attempting auto-installation...")
+	
+	// Try to detect package manager and install
+	// Try apt-get (Debian/Ubuntu)
+	if _, err := exec.LookPath("apt-get"); err == nil {
+		log.Println("   Installing alsa-utils via apt-get...")
+		cmd := exec.Command("sudo", "apt-get", "install", "-y", "alsa-utils")
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("failed to install alsa-utils: %w\nOutput: %s", err, string(output))
+		}
+		log.Println("✅ alsa-utils installed successfully")
+		return nil
+	}
+	
+	// Try yum (RHEL/CentOS/Fedora)
+	if _, err := exec.LookPath("yum"); err == nil {
+		log.Println("   Installing alsa-utils via yum...")
+		cmd := exec.Command("sudo", "yum", "install", "-y", "alsa-utils")
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("failed to install alsa-utils: %w\nOutput: %s", err, string(output))
+		}
+		log.Println("✅ alsa-utils installed successfully")
+		return nil
+	}
+	
+	// Try pacman (Arch Linux)
+	if _, err := exec.LookPath("pacman"); err == nil {
+		log.Println("   Installing alsa-utils via pacman...")
+		cmd := exec.Command("sudo", "pacman", "-S", "--noconfirm", "alsa-utils")
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("failed to install alsa-utils: %w\nOutput: %s", err, string(output))
+		}
+		log.Println("✅ alsa-utils installed successfully")
+		return nil
+	}
+	
+	return fmt.Errorf("no supported package manager found. Please install alsa-utils manually")
 }
 

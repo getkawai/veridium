@@ -3,6 +3,7 @@ package whisper
 import (
 	"context"
 	"fmt"
+	"log"
 )
 
 // Service provides speech-to-text transcription using whisper-cpp CLI
@@ -12,12 +13,59 @@ type Service struct {
 }
 
 // NewService creates a new Whisper service instance
+// Automatically installs whisper-cpp and downloads recommended model in background
 func NewService() (*Service, error) {
 	manager := NewManager()
 
-	return &Service{
+	service := &Service{
 		manager: manager,
-	}, nil
+	}
+
+	// Start background initialization
+	go service.initializeInBackground()
+
+	return service, nil
+}
+
+// initializeInBackground handles whisper-cpp installation and model download
+func (s *Service) initializeInBackground() {
+	ctx := context.Background()
+
+	// Step 1: Check and install whisper-cpp if needed
+	if !s.manager.IsWhisperInstalled() {
+		log.Println("🔧 whisper-cpp not found, attempting auto-installation...")
+		if err := s.manager.InstallWhisper(); err != nil {
+			log.Printf("⚠️  Failed to auto-install whisper-cpp: %v", err)
+			log.Printf("   Please install manually: brew install whisper-cpp")
+			return
+		}
+		log.Println("✅ whisper-cpp installed successfully")
+	}
+
+	// Step 2: Check if any model is installed
+	models, err := s.manager.GetInstalledModels()
+	if err != nil {
+		log.Printf("⚠️  Failed to check installed models: %v", err)
+		return
+	}
+
+	// Step 3: Download recommended model if no models exist
+	if len(models) == 0 {
+		recommendedModel := s.manager.GetRecommendedModel()
+		log.Printf("📥 No models found, downloading recommended model: %s", recommendedModel)
+		log.Printf("   This may take a few minutes (142 MB)...")
+
+		if err := s.manager.DownloadModel(ctx, recommendedModel); err != nil {
+			log.Printf("⚠️  Failed to download model %s: %v", recommendedModel, err)
+			log.Printf("   You can download manually later from the UI")
+			return
+		}
+
+		log.Printf("✅ Model %s downloaded successfully", recommendedModel)
+		log.Println("   Whisper STT is now ready to use!")
+	} else {
+		log.Printf("✅ Found %d installed model(s), Whisper STT ready", len(models))
+	}
 }
 
 // GetModelsDirectory returns the path to the models directory
