@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import * as TTSService from '@@/github.com/kawai-network/veridium/services/ttsservice';
+import { TTSService } from '@@/github.com/kawai-network/veridium/internal/tts';
 
 interface UseNativeTTSConfig {
   onError?: (error: any) => void;

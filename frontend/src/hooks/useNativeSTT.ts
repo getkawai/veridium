@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Events } from '@wailsio/runtime';
-import * as WhisperService from '@@/github.com/kawai-network/veridium/services/whisperservice';
-import * as AudioRecorderService from '@@/github.com/kawai-network/veridium/services/audiorecorderservice';
+import * as WhisperService from '@@/github.com/kawai-network/veridium/internal/whisper/service';
+import * as AudioRecorderService from '@@/github.com/kawai-network/veridium/internal/audio_recorder/audiorecorderservice';
 
 interface UseNativeSTTConfig {
   onTextChange: (text: string) => void;
@@ -81,20 +81,20 @@ export const useNativeSTT = (config: UseNativeSTTConfig): UseNativeSTTReturn => 
 
     try {
       // Stop native audio recording and get the file path
-      const audioPath = await AudioRecorderService.StopRecording();
+      const audioPath: string = await AudioRecorderService.StopRecording();
       
       console.log('Audio file saved to:', audioPath);
 
       // Transcribe using Whisper
       // First, check if we have a model
-      const models = await WhisperService.ListModels();
+      const models: string[] = await WhisperService.ListModels();
       
       if (!models || models.length === 0) {
         throw new Error('No Whisper models installed. Please download a model first.');
       }
 
       // Use the first available model (typically ggml-tiny)
-      const modelId = models[0]?.id || 'ggml-tiny';
+      const modelId = models[0] || 'ggml-tiny';
       
       console.log('Transcribing with model:', modelId);
       
