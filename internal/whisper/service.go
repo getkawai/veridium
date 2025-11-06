@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 )
 
 // Service provides speech-to-text transcription using whisper-cpp CLI
@@ -31,6 +32,8 @@ func NewService() (*Service, error) {
 func (s *Service) initializeInBackground() {
 	ctx := context.Background()
 
+	log.Println("🚀 Initializing Whisper STT in background...")
+
 	// Step 1: Check and install whisper-cpp if needed
 	if !s.manager.IsWhisperInstalled() {
 		log.Println("🔧 whisper-cpp not found, attempting auto-installation...")
@@ -40,9 +43,12 @@ func (s *Service) initializeInBackground() {
 			return
 		}
 		log.Println("✅ whisper-cpp installed successfully")
+	} else {
+		log.Println("✅ whisper-cli is installed and ready")
 	}
 
-	// Step 2: Check if any model is installed
+	// Step 2: Check if any model is installed (this also validates and removes corrupted models)
+	log.Println("🔍 Checking for installed Whisper models...")
 	models, err := s.manager.GetInstalledModels()
 	if err != nil {
 		log.Printf("⚠️  Failed to check installed models: %v", err)
@@ -52,8 +58,9 @@ func (s *Service) initializeInBackground() {
 	// Step 3: Download recommended model if no models exist
 	if len(models) == 0 {
 		recommendedModel := s.manager.GetRecommendedModel()
-		log.Printf("📥 No models found, downloading recommended model: %s", recommendedModel)
-		log.Printf("   This may take a few minutes (142 MB)...")
+		log.Printf("📥 No valid models found, downloading recommended model: %s", recommendedModel)
+		log.Printf("   This will take a few minutes (142 MB download)...")
+		log.Printf("   Download location: %s", s.manager.ModelsDir)
 
 		if err := s.manager.DownloadModel(ctx, recommendedModel); err != nil {
 			log.Printf("⚠️  Failed to download model %s: %v", recommendedModel, err)
@@ -61,10 +68,17 @@ func (s *Service) initializeInBackground() {
 			return
 		}
 
-		log.Printf("✅ Model %s downloaded successfully", recommendedModel)
-		log.Println("   Whisper STT is now ready to use!")
+		log.Printf("✅ Model %s downloaded successfully (141 MB)", recommendedModel)
+		log.Println("🎉 Whisper STT is now ready to use!")
 	} else {
-		log.Printf("✅ Found %d installed model(s), Whisper STT ready", len(models))
+		log.Printf("✅ Found %d valid model(s):", len(models))
+		for _, model := range models {
+			modelPath := s.manager.GetModelPath(model)
+			if info, err := os.Stat(modelPath); err == nil {
+				log.Printf("   - %s (%.2f MB)", model, float64(info.Size())/(1024*1024))
+			}
+		}
+		log.Println("✅ Whisper STT is ready to use!")
 	}
 }
 

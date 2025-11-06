@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // Manager handles whisper-cpp installation and usage
@@ -30,7 +31,7 @@ func NewManager() *Manager {
 
 // IsWhisperInstalled checks if whisper-cpp is available
 func (m *Manager) IsWhisperInstalled() bool {
-	_, err := exec.LookPath("whisper-cpp")
+	_, err := exec.LookPath("whisper-cli")
 	return err == nil
 }
 
@@ -72,7 +73,19 @@ func (m *Manager) DownloadModel(ctx context.Context, modelName string) error {
 		return fmt.Errorf("failed to download model %s: %w\nOutput: %s", modelName, err, string(output))
 	}
 
-	log.Printf("Successfully downloaded model: %s", modelName)
+	// Verify the file was downloaded and has reasonable size
+	info, err := os.Stat(modelPath)
+	if err != nil {
+		return fmt.Errorf("model file not found after download: %w", err)
+	}
+	
+	// Models should be at least 10 MB (even tiny is ~39 MB)
+	if info.Size() < 10*1024*1024 {
+		os.Remove(modelPath) // Remove incomplete file
+		return fmt.Errorf("model download incomplete or corrupted (size: %d bytes, expected > 10 MB)", info.Size())
+	}
+
+	log.Printf("Successfully downloaded model: %s (size: %.2f MB)", modelName, float64(info.Size())/(1024*1024))
 	return nil
 }
 
@@ -89,6 +102,7 @@ func (m *Manager) IsModelDownloaded(modelName string) bool {
 }
 
 // GetInstalledModels returns a list of downloaded models
+// Validates model files and removes corrupted ones
 func (m *Manager) GetInstalledModels() ([]string, error) {
 	files, err := os.ReadDir(m.ModelsDir)
 	if err != nil {
@@ -98,6 +112,23 @@ func (m *Manager) GetInstalledModels() ([]string, error) {
 	var models []string
 	for _, file := range files {
 		if strings.HasPrefix(file.Name(), "ggml-") && strings.HasSuffix(file.Name(), ".bin") {
+			modelPath := filepath.Join(m.ModelsDir, file.Name())
+			
+			// Validate model file size
+			info, err := os.Stat(modelPath)
+			if err != nil {
+				log.Printf("⚠️  Warning: Cannot stat model file %s: %v", file.Name(), err)
+				continue
+			}
+			
+			// Check if model file is too small (corrupted/incomplete)
+			if info.Size() < 10*1024*1024 { // Less than 10 MB
+				log.Printf("⚠️  Removing corrupted model %s (size: %.2f MB, expected > 10 MB)", 
+					file.Name(), float64(info.Size())/(1024*1024))
+				os.Remove(modelPath)
+				continue
+			}
+			
 			// Extract model name from filename
 			name := strings.TrimPrefix(file.Name(), "ggml-")
 			name = strings.TrimSuffix(name, ".bin")
@@ -130,11 +161,12 @@ func (m *Manager) TranscribeFile(ctx context.Context, audioPath, modelName strin
 	args := []string{
 		"-m", modelPath,
 		"-f", audioPath,
-		"--output-txt", // Output as text
+		"--output-txt", // Output as text file
+		"--no-prints",  // Suppress debug output to stdout
 	}
 
 	// Add optional parameters
-	if language, ok := options["language"].(string); ok && language != "" {
+	if language, ok := options["language"].(string); ok && language != "" && language != "auto" {
 		args = append(args, "-l", language)
 	}
 	if threads, ok := options["threads"].(int); ok && threads > 0 {
@@ -144,28 +176,44 @@ func (m *Manager) TranscribeFile(ctx context.Context, audioPath, modelName strin
 		args = append(args, "--translate")
 	}
 
-	log.Printf("Running whisper-cpp with args: %v", args)
+	log.Printf("Running whisper-cli with args: %v", args)
 
-	// Execute whisper-cpp
-	cmd := exec.CommandContext(ctx, "whisper-cpp", args...)
+	// Execute whisper-cli
+	cmd := exec.CommandContext(ctx, "whisper-cli", args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("transcription failed: %w\nOutput: %s", err, string(output))
 	}
 
-	// whisper-cpp outputs to a .txt file, read it
-	txtFile := strings.TrimSuffix(audioPath, filepath.Ext(audioPath)) + ".txt"
-	if _, err := os.Stat(txtFile); err == nil {
-		content, err := os.ReadFile(txtFile)
-		if err == nil {
-			// Clean up the generated txt file
-			os.Remove(txtFile)
-			return strings.TrimSpace(string(content)), nil
+	// whisper-cli with --output-txt creates a .txt file next to the audio file
+	txtFile := audioPath + ".txt"
+	
+	// Wait a moment for file to be written
+	maxRetries := 10
+	var content []byte
+	for i := 0; i < maxRetries; i++ {
+		if _, err := os.Stat(txtFile); err == nil {
+			content, err = os.ReadFile(txtFile)
+			if err == nil && len(content) > 0 {
+				// Clean up the generated txt file
+				os.Remove(txtFile)
+				transcription := strings.TrimSpace(string(content))
+				log.Printf("Transcription result: %s", transcription)
+				return transcription, nil
+			}
+		}
+		if i < maxRetries-1 {
+			// Wait 100ms before retry
+			time.Sleep(100 * time.Millisecond)
 		}
 	}
 
-	// Fallback: parse output directly
-	return m.parseWhisperOutput(string(output)), nil
+	// If we couldn't read the file, return error
+	if len(output) > 0 {
+		log.Printf("Warning: Could not read output file %s, output was: %s", txtFile, string(output))
+	}
+	
+	return "", fmt.Errorf("no transcription output generated")
 }
 
 // parseWhisperOutput extracts transcription from whisper-cpp output
@@ -204,7 +252,7 @@ func (m *Manager) GetVersion() string {
 		return "not installed"
 	}
 
-	cmd := exec.Command("whisper-cpp", "--help")
+	cmd := exec.Command("whisper-cli", "--help")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return "unknown"
@@ -213,7 +261,7 @@ func (m *Manager) GetVersion() string {
 	// Parse version from help output
 	lines := strings.Split(string(output), "\n")
 	for _, line := range lines {
-		if strings.Contains(line, "whisper.cpp") {
+		if strings.Contains(line, "whisper") {
 			return strings.TrimSpace(line)
 		}
 	}

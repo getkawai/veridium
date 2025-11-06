@@ -85,16 +85,23 @@ export const useNativeSTT = (config: UseNativeSTTConfig): UseNativeSTTReturn => 
       
       console.log('Audio file saved to:', audioPath);
 
+      // Check if whisper-cpp is installed
+      const isInstalled = await WhisperService.IsWhisperInstalled();
+      
+      if (!isInstalled) {
+        throw new Error('Whisper is still being installed. Please wait a moment and try again.');
+      }
+
       // Transcribe using Whisper
       // First, check if we have a model
       const models: string[] = await WhisperService.ListModels();
       
       if (!models || models.length === 0) {
-        throw new Error('No Whisper models installed. Please download a model first.');
+        throw new Error('No Whisper models installed. Whisper is downloading a model in the background. Please wait a moment and try again.');
       }
 
-      // Use the first available model (typically ggml-tiny)
-      const modelId = models[0] || 'ggml-tiny';
+      // Use the first available model (typically ggml-base)
+      const modelId = models[0] || 'base';
       
       console.log('Transcribing with model:', modelId);
       
