@@ -19,9 +19,7 @@ echo "✅ Recording saved to recording.wav"
 echo ""
 echo "🎯 Transcribing..."
 
-# Set environment
-export PKG_CONFIG_PATH=$(pwd)/go-whisper/build/install/lib/pkgconfig
-export CGO_ENABLED=1
+# No special environment needed for whisper-cpp CLI
 
 # Transcribe
 cat > /tmp/transcribe_recording.go << 'GOEOF'
@@ -43,12 +41,15 @@ func main() {
     }
     defer svc.Close()
     
-    models := svc.ListModels()
+    models, err := svc.ListModels()
+    if err != nil {
+        log.Fatalf("❌ Failed to list models: %v", err)
+    }
     if len(models) == 0 {
         log.Fatal("❌ No models found")
     }
-    
-    modelId := models[0].Id
+
+    modelId := models[0]
     fmt.Printf("Using model: %s\n\n", modelId)
     
     start := time.Now()
@@ -75,4 +76,3 @@ go run /tmp/transcribe_recording.go
 
 echo ""
 echo "✅ Done!"
-

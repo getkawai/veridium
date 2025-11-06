@@ -8,11 +8,13 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/kawai-network/veridium/internal/audio_recorder"
 	"github.com/kawai-network/veridium/internal/database"
-	"github.com/kawai-network/veridium/internal/services/search"
-	"github.com/kawai-network/veridium/internal/services/tableviewer"
-	"github.com/kawai-network/veridium/services"
-	"github.com/kawai-network/veridium/services/tts"
+	"github.com/kawai-network/veridium/internal/machineid"
+	"github.com/kawai-network/veridium/internal/search"
+	"github.com/kawai-network/veridium/internal/tableviewer"
+	"github.com/kawai-network/veridium/internal/tts"
+	"github.com/kawai-network/veridium/internal/whisper"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/services/fileserver"
 	"github.com/wailsapp/wails/v3/pkg/services/kvstore"
@@ -58,8 +60,8 @@ func main() {
 		log.Printf("   Platform: %s", ttsService.GetPlatformInfo()["platform"])
 	}
 
-	// Initialize Whisper STT service (offline, 99 languages, GPU-accelerated)
-	whisperService, err := services.NewWhisperService()
+	// Initialize Whisper STT service (offline, 99 languages, whisper-cpp CLI)
+	whisperService, err := whisper.NewService()
 	if err != nil {
 		log.Printf("⚠️  Warning: Failed to initialize Whisper service: %v", err)
 		log.Printf("    Speech-to-text features will not be available.")
@@ -67,21 +69,30 @@ func main() {
 		defer whisperService.Close()
 		log.Printf("✅ Whisper STT service initialized successfully")
 		log.Printf("   Models directory: %s", whisperService.GetModelsDirectory())
-		models := whisperService.ListModels()
-		if len(models) > 0 {
-			log.Printf("   Installed models: %d", len(models))
-			for _, m := range models {
-				log.Printf("     - %s", m.Id)
-			}
+
+		// Check if whisper-cpp is installed
+		if !whisperService.IsWhisperInstalled() {
+			log.Printf("   ⚠️  whisper-cpp not installed. Install with:")
+			log.Printf("      brew install whisper-cpp")
 		} else {
-			log.Printf("   No models installed yet. Download with:")
-			log.Printf("     - ggml-tiny.bin (75MB, fastest)")
-			log.Printf("     - ggml-base.bin (142MB, better accuracy)")
+			log.Printf("   whisper-cpp version: %s", whisperService.GetVersion())
+
+			models, _ := whisperService.ListModels()
+			if len(models) > 0 {
+				log.Printf("   Installed models: %d", len(models))
+				for _, m := range models {
+					log.Printf("     - %s", m)
+				}
+			} else {
+				log.Printf("   No models installed yet. Download with:")
+				log.Printf("     - tiny (39MB, fastest)")
+				log.Printf("     - base (142MB, better accuracy)")
+			}
 		}
 	}
 
 	// Initialize Audio Recorder service (app will be set after creation)
-	audioRecorderService := services.NewAudioRecorderService(nil)
+	audioRecorderService := audio_recorder.NewAudioRecorderService(nil)
 
 	// Create a new Wails application by providing the necessary options.
 	// Variables 'Name' and 'Description' are for application metadata.
@@ -108,7 +119,7 @@ func main() {
 			// Audio recorder service - for native microphone recording
 			application.NewService(audioRecorderService),
 			// Machine ID service
-			application.NewService(&services.MachineIDService{}),
+			application.NewService(&machineid.Service{}),
 			// Temp file service
 			application.NewService(&TempFileService{}),
 			// Node.js equivalent services

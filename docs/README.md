@@ -5,6 +5,7 @@
 ### Build & Development
 
 - **[BUILD.md](BUILD.md)** - Build instructions, development guide, and troubleshooting
+- **[WHISPER_MIGRATION.md](WHISPER_MIGRATION.md)** - Migration from go-whisper to whisper-cpp CLI
 
 ### Speech Services
 

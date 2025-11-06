@@ -6,8 +6,6 @@ toolchain go1.24.5
 
 require (
 	github.com/dslipak/pdf v0.0.2
-	github.com/go-audio/wav v1.1.0
-	github.com/mutablelogic/go-whisper v0.0.0-00010101000000-000000000000
 	github.com/wailsapp/wails/v3 v3.0.0-dev
 	golang.org/x/net v0.46.0
 	golang.org/x/sys v0.37.0
@@ -23,12 +21,9 @@ require (
 	github.com/bep/debounce v1.2.1 // indirect
 	github.com/cloudflare/circl v1.6.0 // indirect
 	github.com/cyphar/filepath-securejoin v0.4.1 // indirect
-	github.com/djthorpe/go-errors v1.0.3 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/ebitengine/purego v0.8.2 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
-	github.com/go-audio/audio v1.0.0 // indirect
-	github.com/go-audio/riff v1.0.0 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.6.2 // indirect
 	github.com/go-git/go-git/v5 v5.13.2 // indirect
@@ -44,7 +39,6 @@ require (
 	github.com/lmittmann/tint v1.0.7 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/mutablelogic/go-media v1.7.6 // indirect
 	github.com/ncruces/go-strftime v0.1.9 // indirect
 	github.com/pjbgf/sha1cd v0.3.2 // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
@@ -68,7 +62,4 @@ require (
 	modernc.org/memory v1.8.2 // indirect
 )
 
-replace (
-	github.com/mutablelogic/go-whisper => ./go-whisper
-	github.com/wailsapp/wails/v3 => ../../wailsapp/wails/v3
-)
+replace github.com/wailsapp/wails/v3 => ../../wailsapp/wails/v3
