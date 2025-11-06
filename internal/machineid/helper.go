@@ -19,6 +19,11 @@ func run(stdout, stderr io.Writer, cmd string, args ...string) error {
 	return c.Run()
 }
 
+// readFile reads the contents of a file and returns it as a byte slice.
+func readFile(filename string) ([]byte, error) {
+	return os.ReadFile(filename)
+}
+
 // protect calculates HMAC-SHA256 of the application ID, keyed by the machine ID and returns a hex-encoded string.
 func protect(appID, id string) string {
 	mac := hmac.New(sha256.New, []byte(id))
