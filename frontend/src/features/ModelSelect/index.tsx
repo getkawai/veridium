@@ -38,12 +38,49 @@ interface ModelSelectProps {
 const ModelSelect = memo<ModelSelectProps>(
   ({ value, onChange, showAbility = true, requiredAbilities }) => {
     // const enabledList = useEnabledChatModels();
-    const enabledList = [];
+    const enabledList = [
+      {
+        id: 'kawai',
+        name: 'Kawai',
+        logo: 'https://example.com/kawai-logo.png',
+        source: 'builtin' as const,
+        children: [
+          {
+            id: 'kawai-auto',
+            displayName: 'Kawai Auto',
+            abilities: { functionCall: true, vision: false }
+          }
+        ]
+      },
+      {
+        id: 'openai',
+        name: 'OpenAI',
+        logo: 'https://example.com/openai-logo.png',
+        source: 'builtin' as const,
+        children: [
+          {
+            id: 'gpt-4',
+            displayName: 'GPT-4',
+            abilities: { functionCall: true, vision: true }
+          },
+          {
+            id: 'gpt-3.5-turbo',
+            displayName: 'GPT-3.5 Turbo',
+            abilities: { functionCall: true, vision: false }
+          }
+        ]
+      }
+    ];
 
     const { styles } = useStyles();
 
     const options = useMemo<SelectProps['options']>(() => {
       const getChatModels = (provider: EnabledProviderWithModels) => {
+        // Safety check: ensure provider.children exists and is an array
+        if (!provider.children || !Array.isArray(provider.children)) {
+          return [];
+        }
+        
         const models =
           requiredAbilities && requiredAbilities.length > 0
             ? provider.children.filter((model) =>
@@ -52,7 +89,7 @@ const ModelSelect = memo<ModelSelectProps>(
             : provider.children;
 
         return models.map((model) => ({
-          label: <ModelItemRender {...model} {...model.abilities} showInfoTag={showAbility} />,
+          label: <ModelItemRender {...model} {...(model.abilities || {})} showInfoTag={showAbility} />,
           provider: provider.id,
           value: `${provider.id}/${model.id}`,
         }));

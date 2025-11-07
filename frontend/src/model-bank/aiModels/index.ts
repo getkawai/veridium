@@ -28,6 +28,7 @@ import { default as hunyuan } from './hunyuan';
 import { default as infiniai } from './infiniai';
 import { default as internlm } from './internlm';
 import { default as jina } from './jina';
+import { default as kawai } from './kawai';
 import { default as lmstudio } from './lmstudio';
 import { default as minimax } from './minimax';
 import { default as mistral } from './mistral';
@@ -115,6 +116,7 @@ export const LOBE_DEFAULT_MODEL_LIST = buildDefaultModelList({
   infiniai,
   internlm,
   jina,
+  kawai,
   lmstudio,
   minimax,
   mistral,
@@ -183,6 +185,7 @@ export { default as hunyuan } from './hunyuan';
 export { default as infiniai } from './infiniai';
 export { default as internlm } from './internlm';
 export { default as jina } from './jina';
+export { default as kawai } from './kawai';
 export { default as lmstudio } from './lmstudio';
 export { default as lobehub } from './lobehub';
 export { default as minimax } from './minimax';

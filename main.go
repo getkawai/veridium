@@ -10,6 +10,7 @@ import (
 
 	"github.com/kawai-network/veridium/internal/audio_recorder"
 	"github.com/kawai-network/veridium/internal/database"
+	"github.com/kawai-network/veridium/internal/llama"
 	"github.com/kawai-network/veridium/internal/machineid"
 	"github.com/kawai-network/veridium/internal/search"
 	"github.com/kawai-network/veridium/internal/tableviewer"
@@ -66,12 +67,20 @@ func main() {
 	if err != nil {
 		log.Printf("⚠️  Warning: Failed to initialize Whisper service: %v", err)
 		log.Printf("    Speech-to-text features will not be available.")
-	} else {
-		defer whisperService.Close()
-		log.Printf("✅ Whisper STT service initialized")
-		log.Printf("   Models directory: %s", whisperService.GetModelsDirectory())
-		log.Printf("   Auto-setup running in background...")
 	}
+
+	// Initialize Llama service (LLM inference using llama.cpp)
+	// Auto-installs llama.cpp in background
+	llamaService, err := llama.NewService()
+	if err != nil {
+		log.Printf("⚠️  Warning: Failed to initialize Llama service: %v", err)
+		log.Printf("    LLM features will not be available.")
+	}
+
+	defer whisperService.Close()
+	log.Printf("✅ Whisper STT service initialized")
+	log.Printf("   Models directory: %s", whisperService.GetModelsDirectory())
+	log.Printf("   Auto-setup running in background...")
 
 	// Initialize Audio Recorder service (app will be set after creation)
 	audioRecorderService := audio_recorder.NewAudioRecorderService(nil)
@@ -98,6 +107,8 @@ func main() {
 			application.NewService(ttsService),
 			// Whisper service - for speech-to-text (offline, 99 languages)
 			application.NewService(whisperService),
+			// Llama service - for LLM inference using llama.cpp
+			application.NewService(llamaService),
 			// Audio recorder service - for native microphone recording
 			application.NewService(audioRecorderService),
 			// Machine ID service

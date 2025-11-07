@@ -42,9 +42,21 @@ const getMeta = (message: UIChatMessage) => {
 const getBaseChatsByKey =
   (key: string) =>
   (s: ChatStoreState): UIChatMessage[] => {
-    const messages = s.messagesMap[key] || [];
+    const messages = s.messagesMap[key];
+    
+    // Safety check: ensure messages is an array
+    if (!Array.isArray(messages)) {
+      if (messages !== undefined) {
+        console.warn('[getBaseChatsByKey] messagesMap entry is not an array', key, messages);
+      }
+      return [];
+    }
 
-    return messages.map((i) => ({ ...i, meta: getMeta(i) }));
+    return messages.map((i) => {
+      // Safety check: ensure i exists before spreading
+      if (!i) return null;
+      return { ...i, meta: getMeta(i) };
+    }).filter(Boolean) as UIChatMessage[];
   };
 
 const currentChatKey = (s: ChatStoreState) => messageMapKey(s.activeId, s.activeTopicId);
@@ -68,6 +80,9 @@ const activeBaseChatsWithoutTool = (s: ChatStoreState) => {
 };
 
 const getChatsWithThread = (s: ChatStoreState, messages: UIChatMessage[]) => {
+  // Safety check: ensure messages is an array
+  if (!messages || !Array.isArray(messages)) return [];
+  
   // 如果没有 activeThreadId，则返回所有的主消息
   if (!s.activeThreadId) return messages.filter((m) => !m.threadId);
 

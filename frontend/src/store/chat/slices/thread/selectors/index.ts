@@ -33,6 +33,11 @@ const threadSourceMessageId = (s: ChatStoreState) => {
 };
 
 const getTheadParentMessages = (s: ChatStoreState, data: UIChatMessage[]) => {
+  // Safety check: ensure data is an array
+  if (!Array.isArray(data)) {
+    return [];
+  }
+
   if (s.startToForkThread) {
     const startMessageId = threadStartMessageId(s)!;
 
@@ -67,6 +72,11 @@ const portalDisplayChildChatsByThreadId =
     // skip tool message
     const data = chatSelectors.activeBaseChatsWithoutTool(s);
 
+    // Safety check: ensure data is an array before filtering
+    if (!Array.isArray(data)) {
+      return [];
+    }
+
     return data.filter((m) => !!id && m.threadId === id);
   };
 
@@ -76,7 +86,11 @@ const portalDisplayChats = (s: ChatStoreState) => {
   // use for optimistic update
   const draftMessage = chatSelectors.activeBaseChats(s).find((m) => m.threadId === THREAD_DRAFT_ID);
 
-  return [...parentMessages, draftMessage, ...afterMessages].filter(Boolean) as UIChatMessage[];
+  // Safety checks: ensure arrays before spreading
+  const safeParentMessages = Array.isArray(parentMessages) ? parentMessages : [];
+  const safeAfterMessages = Array.isArray(afterMessages) ? afterMessages : [];
+
+  return [...safeParentMessages, draftMessage, ...safeAfterMessages].filter(Boolean) as UIChatMessage[];
 };
 
 const portalDisplayChatsLength = (s: ChatStoreState) => {
@@ -107,6 +121,11 @@ const portalAIChildChatsByThreadId =
     // skip tool message
     const data = chatSelectors.activeBaseChats(s);
 
+    // Safety check: ensure data is an array before filtering
+    if (!Array.isArray(data)) {
+      return [];
+    }
+
     return data.filter((m) => !!id && m.threadId === id);
   };
 
@@ -114,14 +133,22 @@ const portalAIChats = (s: ChatStoreState) => {
   const parentMessages = portalAIParentMessages(s);
   const afterMessages = portalAIChildChatsByThreadId(s.portalThreadId)(s);
 
-  return [...parentMessages, ...afterMessages].filter(Boolean) as UIChatMessage[];
+  // Safety checks: ensure arrays before spreading
+  const safeParentMessages = Array.isArray(parentMessages) ? parentMessages : [];
+  const safeAfterMessages = Array.isArray(afterMessages) ? afterMessages : [];
+
+  return [...safeParentMessages, ...safeAfterMessages].filter(Boolean) as UIChatMessage[];
 };
 
 const portalAIChatsWithHistoryConfig = (s: ChatStoreState) => {
   const parentMessages = portalAIParentMessages(s);
   const afterMessages = portalAIChildChatsByThreadId(s.portalThreadId)(s);
 
-  const messages = [...parentMessages, ...afterMessages].filter(Boolean) as UIChatMessage[];
+  // Safety checks: ensure arrays before spreading
+  const safeParentMessages = Array.isArray(parentMessages) ? parentMessages : [];
+  const safeAfterMessages = Array.isArray(afterMessages) ? afterMessages : [];
+
+  const messages = [...safeParentMessages, ...safeAfterMessages].filter(Boolean) as UIChatMessage[];
 
   const enableHistoryCount = agentChatConfigSelectors.enableHistoryCount(useAgentStore.getState());
   const historyCount = agentChatConfigSelectors.historyCount(useAgentStore.getState());

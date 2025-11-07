@@ -192,16 +192,16 @@ func (m *Manager) TranscribeFile(ctx context.Context, audioPath, modelName strin
 	maxRetries := 10
 	var content []byte
 	for i := 0; i < maxRetries; i++ {
-		if _, err := os.Stat(txtFile); err == nil {
+	if _, err := os.Stat(txtFile); err == nil {
 			content, err = os.ReadFile(txtFile)
 			if err == nil && len(content) > 0 {
-				// Clean up the generated txt file
-				os.Remove(txtFile)
+			// Clean up the generated txt file
+			os.Remove(txtFile)
 				transcription := strings.TrimSpace(string(content))
 				log.Printf("Transcription result: %s", transcription)
 				return transcription, nil
-			}
 		}
+	}
 		if i < maxRetries-1 {
 			// Wait 100ms before retry
 			time.Sleep(100 * time.Millisecond)

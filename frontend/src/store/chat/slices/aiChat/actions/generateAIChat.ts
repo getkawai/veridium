@@ -321,7 +321,11 @@ export const generateAIChat: StateCreator<
     const { internal_fetchAIChatMessage, triggerToolCalls, refreshMessages, activeTopicId } = get();
 
     // create a new array to avoid the original messages array change
-    const messages = [...originalMessages];
+    // Safety check: ensure originalMessages is an array before spreading
+    if (!Array.isArray(originalMessages)) {
+      console.warn('[generateAIChat] originalMessages is not an array', originalMessages);
+    }
+    const messages = Array.isArray(originalMessages) ? [...originalMessages] : [];
 
     const agentStoreState = getAgentStoreState();
     const { model, provider, chatConfig } = agentSelectors.currentAgentConfig(agentStoreState);
@@ -342,6 +346,12 @@ export const generateAIChat: StateCreator<
       ragQueryId = queryId;
 
       const lastMsg = messages.pop() as UIChatMessage;
+
+      // Safety check: ensure lastMsg exists before using it
+      if (!lastMsg) {
+        console.error('No last message found for RAG query');
+        return;
+      }
 
       // 2. build the retrieve context messages
       const knowledgeBaseQAContext = knowledgeBaseQAPrompts({
@@ -588,7 +598,7 @@ export const generateAIChat: StateCreator<
         messages,
         model,
         provider,
-        ...agentConfig.params,
+        ...(agentConfig.params || {}),
         plugins: agentConfig.plugins,
       },
       historySummary: historySummary?.content,
@@ -628,8 +638,8 @@ export const generateAIChat: StateCreator<
           parsedToolCalls = parsedToolCalls.map((item) => ({
             ...item,
             function: {
-              ...item.function,
-              arguments: !!item.function.arguments ? item.function.arguments : '{}',
+              ...(item.function || {}),
+              arguments: !!item.function?.arguments ? item.function.arguments : '{}',
             },
           }));
           isFunctionCall = true;
@@ -638,10 +648,10 @@ export const generateAIChat: StateCreator<
         // update the content after fetch result
         await internal_updateMessageContent(messageId, content, {
           toolCalls: parsedToolCalls,
-          reasoning: !!reasoning ? { ...reasoning, duration } : undefined,
+          reasoning: !!reasoning ? { ...(reasoning || {}), duration } : undefined,
           search: !!grounding?.citations ? grounding : undefined,
           imageList: finalImages.length > 0 ? finalImages : undefined,
-          metadata: speed ? { ...usage, ...speed } : usage,
+          metadata: speed ? { ...(usage || {}), ...(speed || {}) } : (usage || {}), // Safety checks: fallback to empty objects
         });
       },
       onMessageHandle: async (chunk) => {
@@ -765,9 +775,11 @@ export const generateAIChat: StateCreator<
   ) => {
     // 1. 构造所有相关的历史记录
     const chats = outChats ?? chatSelectors.mainAIChats(get());
+    
+    // Safety check: ensure chats is an array
+    if (!Array.isArray(chats)) return;
 
     const currentIndex = chats.findIndex((c) => c.id === messageId);
-    if (currentIndex < 0) return;
 
     const currentMessage = chats[currentIndex];
 

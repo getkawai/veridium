@@ -28,6 +28,7 @@ export enum ModelProvider {
   InfiniAI = 'infiniai',
   InternLM = 'internlm',
   Jina = 'jina',
+  Kawai = 'kawai',
   LMStudio = 'lmstudio',
   LobeHub = 'lobehub',
   Minimax = 'minimax',

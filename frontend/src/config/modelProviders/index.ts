@@ -29,6 +29,7 @@ import HunyuanProvider from './hunyuan';
 import InfiniAIProvider from './infiniai';
 import InternLMProvider from './internlm';
 import JinaProvider from './jina';
+import KawaiProvider from './kawai';
 import LMStudioProvider from './lmstudio';
 import MinimaxProvider from './minimax';
 import MistralProvider from './mistral';
@@ -124,6 +125,7 @@ export const LOBE_DEFAULT_MODEL_LIST: ChatModelCard[] = [
 ].flat();
 
 export const DEFAULT_MODEL_PROVIDER_LIST = [
+  KawaiProvider,
   OpenAIProvider,
   { ...AzureProvider, chatModels: [] },
   AzureAIProvider,
@@ -176,6 +178,7 @@ export const DEFAULT_MODEL_PROVIDER_LIST = [
   BaichuanProvider,
   VolcengineProvider,
   MinimaxProvider,
+  KawaiProvider,
   LMStudioProvider,
   InternLMProvider,
   HigressProvider,
@@ -230,6 +233,7 @@ export { default as HunyuanProviderCard } from './hunyuan';
 export { default as InfiniAIProviderCard } from './infiniai';
 export { default as InternLMProviderCard } from './internlm';
 export { default as JinaProviderCard } from './jina';
+export { default as KawaiProviderCard } from './kawai';
 export { default as LMStudioProviderCard } from './lmstudio';
 export { default as LobeHubProviderCard } from './lobehub';
 export { default as MinimaxProviderCard } from './minimax';

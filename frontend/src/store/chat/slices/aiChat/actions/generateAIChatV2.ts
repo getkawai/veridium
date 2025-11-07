@@ -323,7 +323,7 @@ export const generateAIChatV2: StateCreator<
       assistantMessageId: assistantId,
       userMessageId,
       ragQuery,
-      messages: originalMessages,
+      messages: originalMessages = [],
     } = params;
     const {
       internal_fetchAIChatMessage,
@@ -333,7 +333,10 @@ export const generateAIChatV2: StateCreator<
     } = get();
 
     // create a new array to avoid the original messages array change
-    const messages = [...originalMessages];
+    if (!Array.isArray(originalMessages)) {
+      console.warn('[generateAIChatV2] originalMessages is not an array', originalMessages);
+    }
+    const messages = Array.isArray(originalMessages) ? [...originalMessages] : [];
 
     const agentStoreState = getAgentStoreState();
     const { model, provider, chatConfig } = agentSelectors.currentAgentConfig(agentStoreState);
@@ -353,7 +356,12 @@ export const generateAIChatV2: StateCreator<
 
       ragQueryId = queryId;
 
-      const lastMsg = messages.pop() as UIChatMessage;
+      const lastMsg = messages.pop() as UIChatMessage | undefined;
+
+      if (!lastMsg) {
+        console.error('No last message found in generateAIChatV2');
+        return;
+      }
 
       // 2. build the retrieve context messages
       const knowledgeBaseQAContext = knowledgeBaseQAPrompts({

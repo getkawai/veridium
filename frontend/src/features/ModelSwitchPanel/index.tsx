@@ -20,6 +20,19 @@ import { EnabledProviderWithModels } from '@/types/aiProvider';
 const useEnabledChatModels = () => {
   return [
     {
+      id: 'kawai',
+      name: 'Kawai',
+      logo: 'https://example.com/kawai-logo.png',
+      source: 'builtin' as const,
+      children: [
+        {
+          id: 'kawai-auto',
+          displayName: 'Kawai Auto',
+          abilities: { functionCall: true, vision: false }
+        }
+      ]
+    },
+    {
       id: 'openai',
       name: 'OpenAI',
       logo: 'https://example.com/openai-logo.png',
@@ -41,8 +54,8 @@ const useEnabledChatModels = () => {
 };
 
 const mockAgentStore = {
-  currentAgentModel: 'gpt-4',
-  currentAgentModelProvider: 'openai',
+  currentAgentModel: 'kawai-auto',
+  currentAgentModelProvider: 'kawai',
   updateAgentConfig: (config: any) => {
     console.log('Mock updateAgentConfig called with:', config);
   }
@@ -125,9 +138,14 @@ const ModelSwitchPanel = memo<IProps>(({ children, onOpenChange, open }) => {
 
   const items = useMemo<ItemType[]>(() => {
     const getModelItems = (provider: EnabledProviderWithModels) => {
+      // Safety check: ensure provider.children exists and is an array
+      if (!provider.children || !Array.isArray(provider.children)) {
+        return [];
+      }
+      
       const items = provider.children.map((model) => ({
         key: menuKey(provider.id, model.id),
-        label: <ModelItemRender {...model} {...model.abilities} />,
+        label: <ModelItemRender {...model} {...(model.abilities || {})} />,
         onClick: async () => {
           await updateAgentConfig({ model: model.id, provider: provider.id });
         },
