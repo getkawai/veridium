@@ -13,51 +13,69 @@ import (
 	"runtime"
 )
 
-// startPlatformRecording starts recording audio using platform-specific tools
-func startPlatformRecording(outputPath string) (*exec.Cmd, error) {
-	// Try multiple tools in order of preference
+// checkAvailableRecordingTools returns list of available recording tools on Linux
+func checkAvailableRecordingTools() []string {
+	var tools []string
 
-	// 1. Try arecord (ALSA - most common on Linux)
+	// Check for arecord (ALSA - most common on Linux, preferred)
 	if _, err := exec.LookPath("arecord"); err == nil {
-		cmd := exec.Command("arecord", "-f", "S16_LE", "-r", "16000", "-c", "1", "-t", "wav", outputPath)
-		if err := cmd.Start(); err != nil {
-			return nil, fmt.Errorf("failed to start recording with arecord: %w", err)
-		}
-		return cmd, nil
+		tools = append(tools, "arecord")
 	}
 
-	// 2. Try sox (powerful alternative)
+	// Check for sox (powerful alternative)
 	if _, err := exec.LookPath("sox"); err == nil {
-		cmd := exec.Command("sox", "-d", "-r", "16000", "-c", "1", "-b", "16", "-e", "signed-integer", outputPath)
-		if err := cmd.Start(); err != nil {
-			return nil, fmt.Errorf("failed to start recording with sox: %w", err)
-		}
-		return cmd, nil
+		tools = append(tools, "sox")
 	}
 
-	// 3. Try ffmpeg (universal tool) - check system PATH
+	// Check for ffmpeg in PATH
 	if _, err := exec.LookPath("ffmpeg"); err == nil {
-		cmd := exec.Command("ffmpeg", "-f", "alsa", "-i", "default", "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", outputPath)
-		if err := cmd.Start(); err != nil {
-			return nil, fmt.Errorf("failed to start recording with ffmpeg: %w", err)
-		}
-		return cmd, nil
+		tools = append(tools, "ffmpeg")
 	}
 
-	// 4. Try ffmpeg in ~/.local/bin (auto-downloaded)
+	// Check for ffmpeg in ~/.local/bin (auto-downloaded)
 	homeDir, err := os.UserHomeDir()
 	if err == nil {
 		localFFmpeg := filepath.Join(homeDir, ".local", "bin", "ffmpeg")
 		if _, err := os.Stat(localFFmpeg); err == nil {
-			cmd := exec.Command(localFFmpeg, "-f", "alsa", "-i", "default", "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", outputPath)
-			if err := cmd.Start(); err != nil {
-				return nil, fmt.Errorf("failed to start recording with ffmpeg: %w", err)
-			}
-			return cmd, nil
+			tools = append(tools, "ffmpeg-local")
 		}
 	}
 
-	return nil, fmt.Errorf("no recording tool found. Please install one of: arecord, sox, or ffmpeg")
+	return tools
+}
+
+// startPlatformRecording starts recording audio using the specified tool
+func startPlatformRecording(tool string, outputPath string) (*exec.Cmd, error) {
+	var cmd *exec.Cmd
+
+	switch tool {
+	case "arecord":
+		// ALSA arecord - most common on Linux
+		cmd = exec.Command("arecord", "-f", "S16_LE", "-r", "16000", "-c", "1", "-t", "wav", outputPath)
+
+	case "sox":
+		// Sox - powerful alternative
+		cmd = exec.Command("sox", "-d", "-r", "16000", "-c", "1", "-b", "16", "-e", "signed-integer", outputPath)
+
+	case "ffmpeg":
+		// ffmpeg from PATH
+		cmd = exec.Command("ffmpeg", "-f", "alsa", "-i", "default", "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", outputPath)
+
+	case "ffmpeg-local":
+		// ffmpeg from ~/.local/bin (auto-downloaded)
+		homeDir, _ := os.UserHomeDir()
+		localFFmpeg := filepath.Join(homeDir, ".local", "bin", "ffmpeg")
+		cmd = exec.Command(localFFmpeg, "-f", "alsa", "-i", "default", "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", outputPath)
+
+	default:
+		return nil, fmt.Errorf("unsupported recording tool: %s", tool)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("failed to start recording with %s: %w", tool, err)
+	}
+
+	return cmd, nil
 }
 
 // stopPlatformRecording stops the recording process gracefully
@@ -76,35 +94,14 @@ func stopPlatformRecording(proc *exec.Cmd) error {
 	return nil
 }
 
-// checkPlatformRecordingTool checks if any recording tool is available
+// checkPlatformRecordingTool checks if any recording tool is available (deprecated)
+// Use checkAvailableRecordingTools() instead
 func checkPlatformRecordingTool() (string, error) {
-	// Check for available tools in order of preference
-
-	// 1. Check arecord (ALSA - most common)
-	if _, err := exec.LookPath("arecord"); err == nil {
-		return "arecord", nil
+	tools := checkAvailableRecordingTools()
+	if len(tools) == 0 {
+		return "", fmt.Errorf("no recording tool found")
 	}
-
-	// 2. Check sox
-	if _, err := exec.LookPath("sox"); err == nil {
-		return "sox", nil
-	}
-
-	// 3. Check ffmpeg in PATH
-	if _, err := exec.LookPath("ffmpeg"); err == nil {
-		return "ffmpeg", nil
-	}
-
-	// 4. Check ffmpeg in ~/.local/bin (auto-downloaded)
-	homeDir, err := os.UserHomeDir()
-	if err == nil {
-		localFFmpeg := filepath.Join(homeDir, ".local", "bin", "ffmpeg")
-		if _, err := os.Stat(localFFmpeg); err == nil {
-			return "ffmpeg (local)", nil
-		}
-	}
-
-	return "", fmt.Errorf("no recording tool found")
+	return tools[0], nil
 }
 
 // installPlatformRecordingTool attempts to auto-download ffmpeg static binary

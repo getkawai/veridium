@@ -7,17 +7,61 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 )
 
-// startPlatformRecording starts recording audio using platform-specific tools
-func startPlatformRecording(outputPath string) (*exec.Cmd, error) {
-	// Use sox on macOS for recording
-	// Format: WAV, 16-bit signed integer, 16kHz, mono (optimal for Whisper)
-	// Using 'sox -d' instead of 'rec' for better control
-	cmd := exec.Command("sox", "-d", "-r", "16000", "-c", "1", "-b", "16", "-e", "signed-integer", outputPath)
+// checkAvailableRecordingTools returns list of available recording tools on macOS
+func checkAvailableRecordingTools() []string {
+	var tools []string
+
+	// Check for sox (preferred)
+	if _, err := exec.LookPath("sox"); err == nil {
+		tools = append(tools, "sox")
+	}
+
+	// Check for ffmpeg in PATH
+	if _, err := exec.LookPath("ffmpeg"); err == nil {
+		tools = append(tools, "ffmpeg")
+	}
+
+	// Check for ffmpeg in ~/.local/bin (auto-downloaded)
+	homeDir, err := os.UserHomeDir()
+	if err == nil {
+		localFFmpeg := filepath.Join(homeDir, ".local", "bin", "ffmpeg")
+		if _, err := os.Stat(localFFmpeg); err == nil {
+			tools = append(tools, "ffmpeg-local")
+		}
+	}
+
+	return tools
+}
+
+// startPlatformRecording starts recording audio using the specified tool
+func startPlatformRecording(tool string, outputPath string) (*exec.Cmd, error) {
+	var cmd *exec.Cmd
+
+	switch tool {
+	case "sox":
+		// Use sox on macOS for recording
+		// Format: WAV, 16-bit signed integer, 16kHz, mono (optimal for Whisper)
+		cmd = exec.Command("sox", "-d", "-r", "16000", "-c", "1", "-b", "16", "-e", "signed-integer", outputPath)
+
+	case "ffmpeg":
+		// Use ffmpeg from PATH
+		cmd = exec.Command("ffmpeg", "-f", "avfoundation", "-i", ":0", "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", outputPath)
+
+	case "ffmpeg-local":
+		// Use ffmpeg from ~/.local/bin
+		homeDir, _ := os.UserHomeDir()
+		localFFmpeg := filepath.Join(homeDir, ".local", "bin", "ffmpeg")
+		cmd = exec.Command(localFFmpeg, "-f", "avfoundation", "-i", ":0", "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", outputPath)
+
+	default:
+		return nil, fmt.Errorf("unsupported recording tool: %s", tool)
+	}
 
 	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("failed to start recording: %w", err)
+		return nil, fmt.Errorf("failed to start recording with %s: %w", tool, err)
 	}
 
 	return cmd, nil
@@ -39,16 +83,14 @@ func stopPlatformRecording(proc *exec.Cmd) error {
 	return nil
 }
 
-// checkPlatformRecordingTool checks if the recording tool is available
+// checkPlatformRecordingTool checks if the recording tool is available (deprecated)
+// Use checkAvailableRecordingTools() instead
 func checkPlatformRecordingTool() (string, error) {
-	tool := "sox"
-	cmd := exec.Command("which", "sox")
-
-	if err := cmd.Run(); err != nil {
-		return tool, fmt.Errorf("%s not found", tool)
+	tools := checkAvailableRecordingTools()
+	if len(tools) == 0 {
+		return "", fmt.Errorf("no recording tools found")
 	}
-
-	return tool, nil
+	return tools[0], nil
 }
 
 // installPlatformRecordingTool installs the recording tool

@@ -15,11 +15,12 @@ import (
 
 // AudioRecorderService provides native audio recording capabilities
 type AudioRecorderService struct {
-	app           *application.App
-	recording     bool
-	recordingProc *exec.Cmd
-	outputPath    string
-	mu            sync.Mutex
+	app            *application.App
+	recording      bool
+	recordingProc  *exec.Cmd
+	outputPath     string
+	availableTools []string // Cached list of available recording tools
+	mu             sync.Mutex
 }
 
 // NewAudioRecorderService creates a new audio recorder service
@@ -38,25 +39,38 @@ func NewAudioRecorderService(app *application.App) *AudioRecorderService {
 
 // initializeInBackground handles recording tool installation
 func (s *AudioRecorderService) initializeInBackground() {
-	// Check if recording tool is available
-	tool, err := checkPlatformRecordingTool()
-	if err != nil {
-		// Tool not found, attempt auto-installation
-		if installErr := installPlatformRecordingTool(); installErr != nil {
-			log.Printf("⚠️  Failed to auto-install recording tool: %v", installErr)
-			log.Printf("   Audio recording will not be available until tool is installed")
-			return
-		}
+	// Check which recording tools are available
+	tools := checkAvailableRecordingTools()
 
-		// Verify installation
-		tool, err = checkPlatformRecordingTool()
-		if err != nil {
-			log.Printf("⚠️  Recording tool installation verification failed: %v", err)
-			return
-		}
+	s.mu.Lock()
+	s.availableTools = tools
+	s.mu.Unlock()
+
+	if len(tools) > 0 {
+		log.Printf("✅ Audio recording ready with tools: %v", tools)
+		return
 	}
 
-	log.Printf("✅ Audio recording ready with %s", tool)
+	// No tools found, attempt auto-installation
+	log.Printf("⚠️  No recording tools found, attempting auto-installation...")
+	if installErr := installPlatformRecordingTool(); installErr != nil {
+		log.Printf("⚠️  Failed to auto-install recording tool: %v", installErr)
+		log.Printf("   Audio recording will not be available until tool is installed")
+		return
+	}
+
+	// Verify installation
+	tools = checkAvailableRecordingTools()
+	s.mu.Lock()
+	s.availableTools = tools
+	s.mu.Unlock()
+
+	if len(tools) == 0 {
+		log.Printf("⚠️  Recording tool installation verification failed")
+		return
+	}
+
+	log.Printf("✅ Audio recording ready with tools: %v", tools)
 }
 
 // SetApp sets the application instance (for event emission)
@@ -77,14 +91,30 @@ func (s *AudioRecorderService) StartRecording(ctx context.Context) (string, erro
 		return "", fmt.Errorf("already recording")
 	}
 
+	// Check if any recording tools are available
+	if len(s.availableTools) == 0 {
+		return "", fmt.Errorf("no recording tools available. Please install one of the supported tools")
+	}
+
 	// Create temp file for output
 	tempDir := os.TempDir()
 	outputPath := filepath.Join(tempDir, fmt.Sprintf("recording_%d.wav", os.Getpid()))
 
-	// Start recording process using platform-specific implementation
-	cmd, err := startPlatformRecording(outputPath)
-	if err != nil {
-		return "", err
+	// Try each available tool in order until one works
+	var cmd *exec.Cmd
+	var lastErr error
+
+	for _, tool := range s.availableTools {
+		cmd, lastErr = startPlatformRecording(tool, outputPath)
+		if lastErr == nil {
+			log.Printf("Started recording with %s", tool)
+			break
+		}
+		log.Printf("Failed to start recording with %s: %v", tool, lastErr)
+	}
+
+	if cmd == nil {
+		return "", fmt.Errorf("failed to start recording with any available tool: %w", lastErr)
 	}
 
 	s.recordingProc = cmd
@@ -194,20 +224,20 @@ func (s *AudioRecorderService) GetRecordingPath() string {
 
 // CheckRecordingCapabilities checks if audio recording is supported
 func (s *AudioRecorderService) CheckRecordingCapabilities() map[string]interface{} {
+	s.mu.Lock()
+	tools := s.availableTools
+	s.mu.Unlock()
+
 	result := map[string]interface{}{
-		"supported": false,
-		"tool":      "",
+		"supported": len(tools) > 0,
+		"tools":     tools,
 		"error":     "",
 	}
 
-	tool, err := checkPlatformRecordingTool()
-	if err != nil {
-		result["error"] = err.Error()
-		return result
+	if len(tools) == 0 {
+		result["error"] = "no recording tools available"
 	}
 
-	result["supported"] = true
-	result["tool"] = tool
 	return result
 }
 
