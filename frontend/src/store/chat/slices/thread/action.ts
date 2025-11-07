@@ -242,15 +242,31 @@ export const chatThreadMessage: StateCreator<
     return mutate([SWR_USE_FETCH_THREADS, topicId]);
   },
   removeThread: async (id) => {
+    const currentActiveThreadId = get().activeThreadId;
+    console.debug('[chatThread.removeThread] Removing thread:', {
+      threadId: id,
+      currentActiveThreadId,
+      willClearActiveThreadId: currentActiveThreadId === id,
+    });
     await threadService.removeThread(id);
     await get().refreshThreads();
 
     if (get().activeThreadId === id) {
+      console.debug('[chatThread.removeThread] Clearing activeThreadId because removed thread was active');
       set({ activeThreadId: undefined });
     }
   },
   switchThread: async (id) => {
+    const previousActiveThreadId = get().activeThreadId;
+    console.debug('[chatThread.switchThread] Switching thread:', {
+      previousActiveThreadId,
+      newThreadId: id,
+      activeTopicId: get().activeTopicId,
+    });
     set({ activeThreadId: id }, false, n('toggleTopic'));
+    console.debug('[chatThread.switchThread] After switch:', {
+      activeThreadId: get().activeThreadId,
+    });
   },
   updateThreadTitle: async (id, title) => {
     await get().internal_updateThread(id, { title });

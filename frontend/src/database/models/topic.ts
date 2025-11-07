@@ -95,7 +95,7 @@ export class TopicModel {
         id,
         userId: this.userId,
       });
-      return topic;
+      return mapTopicToChatTopic(topic);
     } catch (error) {
       await this.logger.warn('Topic not found', { id, error });
       return undefined;

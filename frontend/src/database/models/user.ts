@@ -4,7 +4,6 @@ import type { JsonValue, PartialDeep } from 'type-fest';
 
 import { merge } from '@/utils/merge';
 import { today } from '@/utils/time';
-import { createModelLogger } from '@/utils/logger';
 
 import {
   DB,
@@ -31,6 +30,30 @@ type DecryptUserKeyVaults = (
   userId?: string,
 ) => Promise<UserKeyVaults>;
 
+/**
+ * Map keyVaults object to convert any NullString properties to plain strings
+ * This ensures that downstream code doesn't need to handle NullString types
+ */
+const mapKeyVaults = (keyVaults: any): any => {
+  if (!keyVaults || typeof keyVaults !== 'object') {
+    return keyVaults;
+  }
+
+  const mapped: any = {};
+  for (const [key, value] of Object.entries(keyVaults)) {
+    // Check if value is NullString
+    if (value && typeof value === 'object' && 'String' in value && 'Valid' in value) {
+      mapped[key] = getNullableString(value as any);
+    } else if (value && typeof value === 'object' && !Array.isArray(value)) {
+      // Recursively map nested objects
+      mapped[key] = mapKeyVaults(value);
+    } else {
+      mapped[key] = value;
+    }
+  }
+  return mapped;
+};
+
 export class UserNotFoundError extends TRPCError {
   constructor() {
     super({ code: 'UNAUTHORIZED', message: 'user not found' });
@@ -39,7 +62,6 @@ export class UserNotFoundError extends TRPCError {
 
 export class UserModel {
   private userId: string;
-  private logger = createModelLogger('User', 'UserModel', 'database/models/user');
 
   constructor(_db: any, userId: string) {
     this.userId = userId;
@@ -68,19 +90,15 @@ export class UserModel {
   };
 
   getUserState = async (decryptor: DecryptUserKeyVaults) => {
-    await this.logger.methodEntry('getUserState', { userId: this.userId });
-    
     let result;
     
     try {
       result = await DB.GetUserWithSettings(this.userId);
-    } catch (error) {
-      await this.logger.error('getUserState', 'Failed to get user with settings', { userId: this.userId, error });
+    } catch {
       throw new UserNotFoundError();
     }
 
     if (!result) {
-      await this.logger.warn('getUserState', 'User not found', { userId: this.userId });
       throw new UserNotFoundError();
     }
 
@@ -92,6 +110,8 @@ export class UserModel {
         getNullableString(result.settingsKeyVaults as any) || null,
         this.userId,
       );
+      // Map keyVaults to convert any NullString properties to plain strings
+      decryptKeyVaults = mapKeyVaults(decryptKeyVaults);
     } catch {
       /* empty */
     }
@@ -108,7 +128,7 @@ export class UserModel {
       tts: parseNullableJSON(result.settingsTts as any) || {},
     };
 
-    const userState = {
+    return {
       avatar: getNullableString(result.avatar as any) || undefined,
       email: getNullableString(result.email as any) || undefined,
       firstName: getNullableString(result.firstName as any) || undefined,
@@ -120,9 +140,6 @@ export class UserModel {
       userId: this.userId,
       username: getNullableString(result.username as any) || undefined,
     };
-
-    await this.logger.methodExit('getUserState', userState);
-    return userState;
   };
 
   getUserSSOProviders = async () => {
@@ -140,14 +157,27 @@ export class UserModel {
 
   getUserSettings = async () => {
     try {
-      return await DB.GetUserSettings(this.userId);
+      const result = await DB.GetUserSettings(this.userId);
+      if (!result) return undefined;
+
+      return {
+        id: result.id,
+        tts: getNullableString(result.tts as any),
+        hotkey: getNullableString(result.hotkey as any),
+        keyVaults: getNullableString(result.keyVaults as any),
+        general: getNullableString(result.general as any),
+        languageModel: getNullableString(result.languageModel as any),
+        systemAgent: getNullableString(result.systemAgent as any),
+        defaultAgent: getNullableString(result.defaultAgent as any),
+        tool: getNullableString(result.tool as any),
+        image: getNullableString(result.image as any),
+      };
     } catch {
       return undefined;
     }
   };
 
   updateUser = async (value: Partial<User>) => {
-    await this.logger.methodEntry('updateUser', { userId: this.userId, value });
     const now = currentTimestampMs();
     
     const result = await DB.UpdateUser({
@@ -162,8 +192,21 @@ export class UserModel {
       updatedAt: now,
     });
 
-    await this.logger.methodExit('updateUser', result);
-    return result;
+    return {
+      id: result.id,
+      username: getNullableString(result.username as any),
+      email: getNullableString(result.email as any),
+      avatar: getNullableString(result.avatar as any),
+      phone: getNullableString(result.phone as any),
+      firstName: getNullableString(result.firstName as any),
+      lastName: getNullableString(result.lastName as any),
+      preference: parseNullableJSON(result.preference as any),
+      isOnboarded: intToBool(result.isOnboarded),
+      clerkCreatedAt: result.clerkCreatedAt,
+      emailVerifiedAt: result.emailVerifiedAt,
+      createdAt: result.createdAt,
+      updatedAt: result.updatedAt,
+    };
   };
 
   deleteSetting = async () => {
@@ -171,7 +214,7 @@ export class UserModel {
   };
 
   updateSetting = async (value: Partial<UserSettingsDB>) => {
-    return await DB.UpsertUserSettings({
+    const result = await DB.UpsertUserSettings({
       id: this.userId,
       tts: toNullString(value.tts as any),
       hotkey: toNullString(value.hotkey as any),
@@ -183,6 +226,19 @@ export class UserModel {
       tool: toNullString(value.tool as any),
       image: toNullString(value.image as any),
     });
+
+    return {
+      id: result.id,
+      tts: getNullableString(result.tts as any),
+      hotkey: getNullableString(result.hotkey as any),
+      keyVaults: getNullableString(result.keyVaults as any),
+      general: getNullableString(result.general as any),
+      languageModel: getNullableString(result.languageModel as any),
+      systemAgent: getNullableString(result.systemAgent as any),
+      defaultAgent: getNullableString(result.defaultAgent as any),
+      tool: getNullableString(result.tool as any),
+      image: getNullableString(result.image as any),
+    };
   };
 
   updatePreference = async (value: Partial<UserPreference>) => {
@@ -199,11 +255,27 @@ export class UserModel {
     const currentPreference = parseNullableJSON(user.preference as any) || {};
     const mergedPreference = merge(currentPreference, value);
 
-    return await DB.UpdateUserPreference({
+    const result = await DB.UpdateUserPreference({
       id: this.userId,
       preference: toNullJSON(mergedPreference),
       updatedAt: currentTimestampMs(),
     });
+
+    return {
+      id: result.id,
+      username: getNullableString(result.username as any),
+      email: getNullableString(result.email as any),
+      avatar: getNullableString(result.avatar as any),
+      phone: getNullableString(result.phone as any),
+      firstName: getNullableString(result.firstName as any),
+      lastName: getNullableString(result.lastName as any),
+      preference: parseNullableJSON(result.preference as any),
+      isOnboarded: intToBool(result.isOnboarded),
+      clerkCreatedAt: result.clerkCreatedAt,
+      emailVerifiedAt: result.emailVerifiedAt,
+      createdAt: result.createdAt,
+      updatedAt: result.updatedAt,
+    };
   };
 
   updateGuide = async (value: Partial<UserGuide>) => {
@@ -220,7 +292,7 @@ export class UserModel {
     const prevPreference = (parseNullableJSON(user.preference as any) || {}) as UserPreference;
     const mergedGuide = merge(prevPreference.guide || {}, value);
     
-    return await DB.UpdateUserPreference({
+    const result = await DB.UpdateUserPreference({
       id: this.userId,
       preference: toNullJSON({ 
         ...prevPreference, 
@@ -228,6 +300,22 @@ export class UserModel {
       }),
       updatedAt: currentTimestampMs(),
     });
+
+    return {
+      id: result.id,
+      username: getNullableString(result.username as any),
+      email: getNullableString(result.email as any),
+      avatar: getNullableString(result.avatar as any),
+      phone: getNullableString(result.phone as any),
+      firstName: getNullableString(result.firstName as any),
+      lastName: getNullableString(result.lastName as any),
+      preference: parseNullableJSON(result.preference as any),
+      isOnboarded: intToBool(result.isOnboarded),
+      clerkCreatedAt: result.clerkCreatedAt,
+      emailVerifiedAt: result.emailVerifiedAt,
+      createdAt: result.createdAt,
+      updatedAt: result.updatedAt,
+    };
   };
 
   // Static methods
@@ -254,7 +342,7 @@ export class UserModel {
 
     const now = currentTimestampMs();
     
-    const user = await DB.CreateUser({
+    const result = await DB.CreateUser({
       id: params.id || '',
       username: toNullString(params.username as any),
       email: toNullString(params.email as any),
@@ -270,6 +358,22 @@ export class UserModel {
       updatedAt: now,
     });
 
+    const user = {
+      id: result.id,
+      username: getNullableString(result.username as any),
+      email: getNullableString(result.email as any),
+      avatar: getNullableString(result.avatar as any),
+      phone: getNullableString(result.phone as any),
+      firstName: getNullableString(result.firstName as any),
+      lastName: getNullableString(result.lastName as any),
+      preference: parseNullableJSON(result.preference as any),
+      isOnboarded: intToBool(result.isOnboarded),
+      clerkCreatedAt: result.clerkCreatedAt,
+      emailVerifiedAt: result.emailVerifiedAt,
+      createdAt: result.createdAt,
+      updatedAt: result.updatedAt,
+    };
+
     return { duplicate: false, user };
   };
 
@@ -279,7 +383,24 @@ export class UserModel {
 
   static findById = async (_db: any, id: string) => {
     try {
-      return await DB.GetUser(id);
+      const result = await DB.GetUser(id);
+      if (!result) return undefined;
+
+      return {
+        id: result.id,
+        username: getNullableString(result.username as any),
+        email: getNullableString(result.email as any),
+        avatar: getNullableString(result.avatar as any),
+        phone: getNullableString(result.phone as any),
+        firstName: getNullableString(result.firstName as any),
+        lastName: getNullableString(result.lastName as any),
+        preference: parseNullableJSON(result.preference as any),
+        isOnboarded: intToBool(result.isOnboarded),
+        clerkCreatedAt: result.clerkCreatedAt,
+        emailVerifiedAt: result.emailVerifiedAt,
+        createdAt: result.createdAt,
+        updatedAt: result.updatedAt,
+      };
     } catch {
       return undefined;
     }
@@ -287,7 +408,24 @@ export class UserModel {
 
   static findByEmail = async (_db: any, email: string) => {
     try {
-      return await DB.GetUserByEmail(toNullString(email));
+      const result = await DB.GetUserByEmail(toNullString(email));
+      if (!result) return undefined;
+
+      return {
+        id: result.id,
+        username: getNullableString(result.username as any),
+        email: getNullableString(result.email as any),
+        avatar: getNullableString(result.avatar as any),
+        phone: getNullableString(result.phone as any),
+        firstName: getNullableString(result.firstName as any),
+        lastName: getNullableString(result.lastName as any),
+        preference: parseNullableJSON(result.preference as any),
+        isOnboarded: intToBool(result.isOnboarded),
+        clerkCreatedAt: result.clerkCreatedAt,
+        emailVerifiedAt: result.emailVerifiedAt,
+        createdAt: result.createdAt,
+        updatedAt: result.updatedAt,
+      };
     } catch {
       return undefined;
     }
@@ -307,6 +445,8 @@ export class UserModel {
     }
 
     // Decrypt keyVaults
-    return await decryptor(getNullableString(settings.keyVaults as any) || null, id);
+    let keyVaults = await decryptor(getNullableString(settings.keyVaults as any) || null, id);
+    // Map keyVaults to convert any NullString properties to plain strings
+    return mapKeyVaults(keyVaults);
   };
 }

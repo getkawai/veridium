@@ -276,11 +276,23 @@ export const chatTopic: StateCreator<
     ),
 
   switchTopic: async (id, skipRefreshMessage) => {
+    const previousActiveThreadId = get().activeThreadId;
+    console.debug('[chatTopic.switchTopic] Switching topic:', {
+      previousTopicId: get().activeTopicId,
+      newTopicId: id,
+      previousActiveThreadId,
+      clearingActiveThreadId: true,
+    });
     set(
       { activeTopicId: !id ? (null as any) : id, activeThreadId: undefined },
       false,
       n('toggleTopic'),
     );
+    console.debug('[chatTopic.switchTopic] After switch:', {
+      newTopicId: id,
+      activeThreadId: get().activeThreadId,
+      wasCleared: previousActiveThreadId !== undefined,
+    });
 
     // Reset supervisor todos when switching topics in group chats
     try {

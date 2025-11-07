@@ -23,14 +23,38 @@ export class ChatGroupModel {
   // ******* Query Methods ******* //
 
   async findById(id: string): Promise<any | undefined> {
-    return await DB.GetChatGroup({
+    const result = await DB.GetChatGroup({
       id,
       userId: this.userId,
     });
+
+    if (!result) return undefined;
+
+    return {
+      id: result.id,
+      title: getNullableString(result.title as any),
+      description: getNullableString(result.description as any),
+      config: parseNullableJSON(result.config as any),
+      pinned: intToBool(result.pinned || 0),
+      userId: result.userId,
+      createdAt: result.createdAt,
+      updatedAt: result.updatedAt,
+    };
   }
 
   async query(): Promise<any[]> {
-    return await DB.ListChatGroups(this.userId);
+    const results = await DB.ListChatGroups(this.userId);
+
+    return results.map((r) => ({
+      id: r.id,
+      title: getNullableString(r.title as any),
+      description: getNullableString(r.description as any),
+      config: parseNullableJSON(r.config as any),
+      pinned: intToBool(r.pinned || 0),
+      userId: r.userId,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+    }));
   }
 
   /**
@@ -145,7 +169,16 @@ export class ChatGroupModel {
       updatedAt: now,
     });
 
-    return result;
+    return {
+      id: result.id,
+      title: getNullableString(result.title as any),
+      description: getNullableString(result.description as any),
+      config: parseNullableJSON(result.config as any),
+      pinned: intToBool(result.pinned || 0),
+      userId: result.userId,
+      createdAt: result.createdAt,
+      updatedAt: result.updatedAt,
+    };
   }
 
   async createWithAgents(
@@ -322,17 +355,35 @@ export class ChatGroupModel {
   // ******* Agent Query Methods ******* //
 
   async getGroupAgents(groupId: string): Promise<any[]> {
-    return await DB.GetChatGroupAgentLinks({
+    const results = await DB.GetChatGroupAgentLinks({
       chatGroupId: groupId,
       userId: this.userId,
     });
+
+    return results.map((r) => ({
+      chatGroupId: r.chatGroupId,
+      agentId: r.agentId,
+      userId: r.userId,
+      role: getNullableString(r.role as any),
+      enabled: intToBool(r.enabled || 0),
+      sortOrder: r.sortOrder?.Int64 || 0,
+    }));
   }
 
   async getEnabledGroupAgents(groupId: string): Promise<any[]> {
-    return await DB.GetEnabledChatGroupAgentLinks({
+    const results = await DB.GetEnabledChatGroupAgentLinks({
       chatGroupId: groupId,
       userId: this.userId,
     });
+
+    return results.map((r) => ({
+      chatGroupId: r.chatGroupId,
+      agentId: r.agentId,
+      userId: r.userId,
+      role: getNullableString(r.role as any),
+      enabled: intToBool(r.enabled || 0),
+      sortOrder: r.sortOrder?.Int64 || 0,
+    }));
   }
 
   async getGroupsWithAgents(agentIds?: string[]): Promise<any[]> {

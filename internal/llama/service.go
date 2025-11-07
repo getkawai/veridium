@@ -91,6 +91,36 @@ func (s *Service) initializeInBackground() {
 
 	log.Printf("✅ llama-server ready at: %s", serverPath)
 	log.Println("🎉 llama.cpp is ready to use!")
+
+	// Step 3: Auto-start llama-server if not already running
+	// Wait a bit for any previous setup to complete
+	time.Sleep(1 * time.Second)
+
+	if !s.IsServerRunning() {
+		// Check if models are available before starting
+		models, err := s.GetAvailableModels()
+		if err != nil {
+			log.Printf("⚠️  Failed to check available models: %v", err)
+			log.Println("   llama-server will not auto-start. Please download a model first.")
+			return
+		}
+
+		if len(models) == 0 {
+			log.Println("⚠️  No GGUF models found. llama-server will not auto-start.")
+			log.Println("   Please download a model first, then start the server manually.")
+			return
+		}
+
+		log.Println("🚀 Auto-starting llama-server...")
+		if err := s.StartServerAuto(); err != nil {
+			log.Printf("⚠️  Failed to auto-start llama-server: %v", err)
+			log.Println("   You can start it manually later")
+		} else {
+			log.Println("✅ llama-server auto-started successfully")
+		}
+	} else {
+		log.Println("✅ llama-server is already running")
+	}
 }
 
 // GetBinaryPath returns the path to the llama.cpp binary directory

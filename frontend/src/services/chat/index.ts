@@ -3,6 +3,7 @@ import { ChatErrorType, TracePayload, TraceTagMap, UIChatMessage } from '@/types
 import { PluginRequestPayload, createHeadersWithPluginSettings } from '@/chat-plugin-sdk';
 import { merge } from 'lodash-es';
 import { ModelProvider } from '@/model-bank';
+import { getNullableString } from '@/types/database';
 
 import { isProviderDisableBrowserRequest } from '@/config/modelProviders';
 import { enableAuth } from '@/const/auth';
@@ -75,6 +76,14 @@ class ChatService {
       params,
     );
 
+    // Convert NullString model and provider to plain strings
+    if (payload.model && typeof payload.model === 'object' && 'String' in payload.model && 'Valid' in payload.model) {
+      payload.model = getNullableString(payload.model as any) || '';
+    }
+    if (payload.provider && typeof payload.provider === 'object' && 'String' in payload.provider && 'Valid' in payload.provider) {
+      payload.provider = getNullableString(payload.provider as any) || '';
+    }
+
     const searchConfig = getSearchConfig(payload.model, payload.provider!);
 
     // =================== 1. preprocess tools =================== //
@@ -110,7 +119,7 @@ class ChatService {
       model: payload.model,
       provider: payload.provider!,
       sessionId: options?.trace?.sessionId,
-      systemRole: agentConfig.systemRole,
+      systemRole: getNullableString(agentConfig.systemRole as any),
       tools: enabledToolIds,
     });
 

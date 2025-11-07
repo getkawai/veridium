@@ -54,7 +54,26 @@ export class AiModelModel {
       updatedAt: now,
     });
 
-    return result;
+    return {
+      id: result.id,
+      displayName: getNullableString(result.displayName as any),
+      description: getNullableString(result.description as any),
+      organization: getNullableString(result.organization as any),
+      enabled: intToBool(Number(result.enabled) || 0),
+      providerId: getNullableString(result.providerId as any),
+      type: getNullableString(result.type as any),
+      sort: result.sort || 0,
+      userId: result.userId,
+      pricing: parseNullableJSON(result.pricing as any),
+      parameters: parseNullableJSON(result.parameters as any),
+      config: parseNullableJSON(result.config as any),
+      abilities: parseNullableJSON(result.abilities as any),
+      contextWindowTokens: Number(result.contextWindowTokens) || 0,
+      source: getNullableString(result.source as any),
+      releasedAt: Number(result.releasedAt) || 0,
+      createdAt: result.createdAt,
+      updatedAt: result.updatedAt,
+    };
   };
 
   delete = async (id: string, providerId: string) => {
@@ -70,7 +89,28 @@ export class AiModelModel {
   };
 
   query = async () => {
-    return await DB.ListAIModels(this.userId);
+    const result = await DB.ListAIModels(this.userId);
+
+    return result.map((r) => ({
+      id: r.id,
+      displayName: getNullableString(r.displayName as any),
+      description: getNullableString(r.description as any),
+      organization: getNullableString(r.organization as any),
+      enabled: intToBool(Number(r.enabled) || 0),
+      providerId: getNullableString(r.providerId as any),
+      type: getNullableString(r.type as any),
+      sort: r.sort || 0,
+      userId: r.userId,
+      pricing: parseNullableJSON(r.pricing as any),
+      parameters: parseNullableJSON(r.parameters as any),
+      config: parseNullableJSON(r.config as any),
+      abilities: parseNullableJSON(r.abilities as any),
+      contextWindowTokens: Number(r.contextWindowTokens) || 0,
+      source: getNullableString(r.source as any),
+      releasedAt: Number(r.releasedAt) || 0,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+    }));
   };
 
   getModelListByProviderId = async (providerId: string) => {
@@ -120,7 +160,7 @@ export class AiModelModel {
   };
 
   update = async (id: string, providerId: string, value: any) => {
-    return await DB.UpsertAIModel({
+    const result = await DB.UpsertAIModel({
       id,
       displayName: toNullString(value.displayName) as any,
       description: toNullString(value.description) as any,
@@ -140,12 +180,33 @@ export class AiModelModel {
       createdAt: currentTimestampMs(),
       updatedAt: currentTimestampMs(),
     });
+
+    return {
+      id: result.id,
+      displayName: getNullableString(result.displayName as any),
+      description: getNullableString(result.description as any),
+      organization: getNullableString(result.organization as any),
+      enabled: intToBool(Number(result.enabled) || 0),
+      providerId: getNullableString(result.providerId as any),
+      type: getNullableString(result.type as any),
+      sort: result.sort || 0,
+      userId: result.userId,
+      pricing: parseNullableJSON(result.pricing as any),
+      parameters: parseNullableJSON(result.parameters as any),
+      config: parseNullableJSON(result.config as any),
+      abilities: parseNullableJSON(result.abilities as any),
+      contextWindowTokens: Number(result.contextWindowTokens) || 0,
+      source: getNullableString(result.source as any),
+      releasedAt: Number(result.releasedAt) || 0,
+      createdAt: result.createdAt,
+      updatedAt: result.updatedAt,
+    };
   };
 
   toggleModelEnabled = async (value: any) => {
     const now = currentTimestampMs();
 
-    return await DB.ToggleAIModelEnabled({
+    const result = await DB.ToggleAIModelEnabled({
       id: value.id,
       providerId: toNullString(value.providerId) as any,
       userId: this.userId,
@@ -155,6 +216,27 @@ export class AiModelModel {
       updatedAt: now,
       createdAt: now,
     });
+
+    return {
+      id: result.id,
+      displayName: getNullableString(result.displayName as any),
+      description: getNullableString(result.description as any),
+      organization: getNullableString(result.organization as any),
+      enabled: intToBool(Number(result.enabled) || 0),
+      providerId: getNullableString(result.providerId as any),
+      type: getNullableString(result.type as any),
+      sort: result.sort || 0,
+      userId: result.userId,
+      pricing: parseNullableJSON(result.pricing as any),
+      parameters: parseNullableJSON(result.parameters as any),
+      config: parseNullableJSON(result.config as any),
+      abilities: parseNullableJSON(result.abilities as any),
+      contextWindowTokens: Number(result.contextWindowTokens) || 0,
+      source: getNullableString(result.source as any),
+      releasedAt: Number(result.releasedAt) || 0,
+      createdAt: result.createdAt,
+      updatedAt: result.updatedAt,
+    };
   };
 
   /**

@@ -13,12 +13,37 @@ import {
   currentTimestampMs,
   boolToInt,
   intToBool,
+  AiProvider,
 } from '@/types/database';
 import { Service as DBService } from '@@/github.com/kawai-network/veridium/internal/database';
 import { createModelLogger } from '@/utils/logger';
 
 type DecryptUserKeyVaults = (encryptKeyVaultsStr: string | null) => Promise<any>;
 type EncryptUserKeyVaults = (keyVaults: string) => Promise<string>;
+
+/**
+ * Map keyVaults object to convert any NullString properties to plain strings
+ * This ensures that downstream code doesn't need to handle NullString types
+ */
+const mapKeyVaults = (keyVaults: any): any => {
+  if (!keyVaults || typeof keyVaults !== 'object') {
+    return keyVaults;
+  }
+
+  const mapped: any = {};
+  for (const [key, value] of Object.entries(keyVaults)) {
+    // Check if value is NullString
+    if (value && typeof value === 'object' && 'String' in value && 'Valid' in value) {
+      mapped[key] = getNullableString(value as any);
+    } else if (value && typeof value === 'object' && !Array.isArray(value)) {
+      // Recursively map nested objects
+      mapped[key] = mapKeyVaults(value);
+    } else {
+      mapped[key] = value;
+    }
+  }
+  return mapped;
+};
 
 export class AiProviderModel {
   private userId: string;
@@ -57,7 +82,24 @@ export class AiProviderModel {
       updatedAt: now,
     });
 
-    return result;
+    // Map result to standard TypeScript object
+    return {
+      id: result.id,
+      name: getNullableString(result.name as any),
+      userId: result.userId,
+      sort: result.sort || 0,
+      enabled: intToBool(Number(result.enabled) || 0),
+      fetchOnClient: intToBool(Number(result.fetchOnClient) || 0),
+      checkModel: getNullableString(result.checkModel as any),
+      logo: getNullableString(result.logo as any),
+      description: getNullableString(result.description as any),
+      keyVaults: getNullableString(result.keyVaults as any),
+      source: getNullableString(result.source as any),
+      settings: parseNullableJSON(result.settings as any),
+      config: parseNullableJSON(result.config as any),
+      createdAt: result.createdAt,
+      updatedAt: result.updatedAt,
+    };
   };
 
   /**
@@ -71,11 +113,30 @@ export class AiProviderModel {
   };
 
   deleteAll = async () => {
-    return await DB.DeleteAllAIProviders(this.userId);
+    const result = await DB.DeleteAllAIProviders(this.userId);
+    return result;
   };
 
   query = async () => {
-    return await DB.ListAIProviders(this.userId);
+    const result = await DB.ListAIProviders(this.userId);
+    
+    return result.map((r) => ({
+      id: r.id,
+      name: getNullableString(r.name as any),
+      userId: r.userId,
+      sort: r.sort || 0,
+      enabled: intToBool(Number(r.enabled) || 0),
+      fetchOnClient: intToBool(Number(r.fetchOnClient) || 0),
+      checkModel: getNullableString(r.checkModel as any),
+      logo: getNullableString(r.logo as any),
+      description: getNullableString(r.description as any),
+      keyVaults: getNullableString(r.keyVaults as any),
+      source: getNullableString(r.source as any),
+      settings: parseNullableJSON(r.settings as any),
+      config: parseNullableJSON(r.config as any),
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+    }));
   };
 
   getAiProviderList = async (): Promise<any[]> => {
@@ -93,14 +154,34 @@ export class AiProviderModel {
   };
 
   findById = async (id: string) => {
-    return await DB.GetAIProvider({
+    const result = await DB.GetAIProvider({
       id,
       userId: this.userId,
     });
+
+    if (!result) return undefined;
+
+    return {
+      id: result.id,
+      name: getNullableString(result.name as any),
+      userId: result.userId,
+      sort: result.sort || 0,
+      enabled: intToBool(Number(result.enabled) || 0),
+      fetchOnClient: intToBool(Number(result.fetchOnClient) || 0),
+      checkModel: getNullableString(result.checkModel as any),
+      logo: getNullableString(result.logo as any),
+      description: getNullableString(result.description as any),
+      keyVaults: getNullableString(result.keyVaults as any),
+      source: getNullableString(result.source as any),
+      settings: parseNullableJSON(result.settings as any),
+      config: parseNullableJSON(result.config as any),
+      createdAt: result.createdAt,
+      updatedAt: result.updatedAt,
+    };
   };
 
   update = async (id: string, value: any) => {
-    return await DB.UpdateAIProvider({
+    const result = await DB.UpdateAIProvider({
       id,
       userId: this.userId,
       name: toNullString(value.name) as any,
@@ -115,6 +196,24 @@ export class AiProviderModel {
       config: toNullJSON(value.config) as any,
       updatedAt: currentTimestampMs(),
     });
+
+    return {
+      id: result.id,
+      name: getNullableString(result.name as any),
+      userId: result.userId,
+      sort: result.sort || 0,
+      enabled: intToBool(Number(result.enabled) || 0),
+      fetchOnClient: intToBool(Number(result.fetchOnClient) || 0),
+      checkModel: getNullableString(result.checkModel as any),
+      logo: getNullableString(result.logo as any),
+      description: getNullableString(result.description as any),
+      keyVaults: getNullableString(result.keyVaults as any),
+      source: getNullableString(result.source as any),
+      settings: parseNullableJSON(result.settings as any),
+      config: parseNullableJSON(result.config as any),
+      createdAt: result.createdAt,
+      updatedAt: result.updatedAt,
+    };
   };
 
   updateConfig = async (
@@ -126,7 +225,7 @@ export class AiProviderModel {
     const encrypt = encryptor ?? defaultSerialize;
     const keyVaults = await encrypt(JSON.stringify(value.keyVaults));
 
-    return await DB.UpsertAIProviderConfig({
+    const result = await DB.UpsertAIProviderConfig({
       id,
       userId: this.userId,
       keyVaults: toNullString(keyVaults) as any,
@@ -137,10 +236,28 @@ export class AiProviderModel {
       createdAt: currentTimestampMs(),
       updatedAt: currentTimestampMs(),
     });
+
+    return {
+      id: result.id,
+      name: getNullableString(result.name as any),
+      userId: result.userId,
+      sort: result.sort || 0,
+      enabled: intToBool(Number(result.enabled) || 0),
+      fetchOnClient: intToBool(Number(result.fetchOnClient) || 0),
+      checkModel: getNullableString(result.checkModel as any),
+      logo: getNullableString(result.logo as any),
+      description: getNullableString(result.description as any),
+      keyVaults: getNullableString(result.keyVaults as any),
+      source: getNullableString(result.source as any),
+      settings: parseNullableJSON(result.settings as any),
+      config: parseNullableJSON(result.config as any),
+      createdAt: result.createdAt,
+      updatedAt: result.updatedAt,
+    };
   };
 
   toggleProviderEnabled = async (id: string, enabled: boolean) => {
-    return await DB.ToggleAIProviderEnabled({
+    const result = await DB.ToggleAIProviderEnabled({
       id,
       userId: this.userId,
       enabled: boolToInt(enabled) as any,
@@ -148,6 +265,24 @@ export class AiProviderModel {
       createdAt: currentTimestampMs(),
       updatedAt: currentTimestampMs(),
     });
+
+    return {
+      id: result.id,
+      name: getNullableString(result.name as any),
+      userId: result.userId,
+      sort: result.sort || 0,
+      enabled: intToBool(Number(result.enabled) || 0),
+      fetchOnClient: intToBool(Number(result.fetchOnClient) || 0),
+      checkModel: getNullableString(result.checkModel as any),
+      logo: getNullableString(result.logo as any),
+      description: getNullableString(result.description as any),
+      keyVaults: getNullableString(result.keyVaults as any),
+      source: getNullableString(result.source as any),
+      settings: parseNullableJSON(result.settings as any),
+      config: parseNullableJSON(result.config as any),
+      createdAt: result.createdAt,
+      updatedAt: result.updatedAt,
+    };
   };
 
   /**
@@ -224,6 +359,8 @@ export class AiProviderModel {
     if (keyVaultsStr) {
       try {
         keyVaults = await decrypt(keyVaultsStr);
+        // Map keyVaults to convert any NullString properties to plain strings
+        keyVaults = mapKeyVaults(keyVaults);
       } catch {
         /* empty */
       }
@@ -266,6 +403,8 @@ export class AiProviderModel {
       if (keyVaultsStr) {
         try {
           keyVaults = await decrypt(keyVaultsStr);
+          // Map keyVaults to convert any NullString properties to plain strings
+          keyVaults = mapKeyVaults(keyVaults);
         } catch {
           /* empty */
         }

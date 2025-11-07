@@ -11,6 +11,7 @@ import {
   TraceNameMap,
   UIChatMessage,
 } from '@/types';
+import { parseJSON, getNullableString } from '@/types/database';
 import { t } from 'i18next';
 import { produce } from 'immer';
 import { StateCreator } from 'zustand/vanilla';
@@ -165,6 +166,14 @@ export const generateAIChat: StateCreator<
       activeThreadId,
       sendMessageInServer,
     } = get();
+    console.debug('[generateAIChat.sendMessage] Initial state:', {
+      activeId,
+      activeTopicId,
+      activeThreadId,
+      message: message?.substring(0, 50),
+      onlyAddUserMessage,
+      isWelcomeQuestion,
+    });
     if (!activeId) return;
 
     const fileIdList = files?.map((f) => f.id);
@@ -190,6 +199,11 @@ export const generateAIChat: StateCreator<
       topicId: activeTopicId,
       threadId: activeThreadId,
     };
+    console.debug('[generateAIChat.sendMessage] Creating message with threadId:', {
+      threadId: activeThreadId,
+      topicId: activeTopicId,
+      sessionId: activeId,
+    });
 
     const agentConfig = agentChatConfigSelectors.currentChatConfig(getAgentStoreState());
 
@@ -249,7 +263,16 @@ export const generateAIChat: StateCreator<
 
     // switch to the new topic if create the new topic
     if (!!newTopicId) {
+      console.debug('[generateAIChat.sendMessage] Before switchTopic - activeThreadId:', {
+        activeThreadId: get().activeThreadId,
+        newTopicId,
+        previousActiveThreadId: activeThreadId,
+      });
       await get().switchTopic(newTopicId, true);
+      console.debug('[generateAIChat.sendMessage] After switchTopic - activeThreadId:', {
+        activeThreadId: get().activeThreadId,
+        newTopicId,
+      });
       await get().internal_fetchMessages();
 
       // delete previous messages
@@ -265,13 +288,37 @@ export const generateAIChat: StateCreator<
     }
 
     // Get the current messages to generate AI response
-    const messages = chatSelectors.activeBaseChats(get());
-    const userFiles = chatSelectors.currentUserFiles(get()).map((f) => f.id);
+    const rawMessages = chatSelectors.activeBaseChats(get());
+    if (!Array.isArray(rawMessages)) {
+      console.warn('[generateAIChat] activeBaseChats did not return an array', rawMessages);
+    }
+    const messages = Array.isArray(rawMessages) ? rawMessages : [];
+
+    const rawUserFiles = chatSelectors.currentUserFiles(get());
+    if (rawUserFiles && !Array.isArray(rawUserFiles)) {
+      console.warn('[generateAIChat] currentUserFiles did not return an array', rawUserFiles);
+    }
+    const userFiles = Array.isArray(rawUserFiles) ? rawUserFiles.map((f) => f.id) : [];
+
+    console.log('messages', messages);
+    console.log('id', id);
+    console.log('activeThreadId', activeThreadId);
+    console.log('isWelcomeQuestion', isWelcomeQuestion);
+    console.log('ragQuery', get().internal_shouldUseRAG() ? message : undefined);
+
+    // Re-read activeThreadId from store in case it changed during topic switch
+    const currentActiveThreadId = get().activeThreadId;
+    console.debug('[generateAIChat.sendMessage] Before internal_coreProcessMessage:', {
+      originalActiveThreadId: activeThreadId,
+      currentActiveThreadId,
+      activeTopicId: get().activeTopicId,
+      id,
+    });
 
     await internal_coreProcessMessage(messages, id, {
       isWelcomeQuestion,
       ragQuery: get().internal_shouldUseRAG() ? message : undefined,
-      threadId: activeThreadId,
+      threadId: currentActiveThreadId,
     });
 
     set({ isCreatingMessage: false }, false, n('creatingMessage/stop'));
@@ -318,7 +365,21 @@ export const generateAIChat: StateCreator<
 
   // the internal process method of the AI message
   internal_coreProcessMessage: async (originalMessages, userMessageId, params) => {
+    console.debug('[generateAIChat.internal_coreProcessMessage] Starting:', {
+      userMessageId,
+      threadId: params?.threadId,
+      inPortalThread: params?.inPortalThread,
+      activeTopicId: get().activeTopicId,
+      activeThreadId: get().activeThreadId,
+      messagesCount: originalMessages?.length,
+    });
     const { internal_fetchAIChatMessage, triggerToolCalls, refreshMessages, activeTopicId } = get();
+    console.debug('[generateAIChat.internal_coreProcessMessage] Store state retrieved:', {
+      hasInternalFetchAIChatMessage: !!internal_fetchAIChatMessage,
+      hasTriggerToolCalls: !!triggerToolCalls,
+      hasRefreshMessages: !!refreshMessages,
+      activeTopicId,
+    });
 
     // create a new array to avoid the original messages array change
     // Safety check: ensure originalMessages is an array before spreading
@@ -326,15 +387,39 @@ export const generateAIChat: StateCreator<
       console.warn('[generateAIChat] originalMessages is not an array', originalMessages);
     }
     const messages = Array.isArray(originalMessages) ? [...originalMessages] : [];
+    console.debug('[generateAIChat.internal_coreProcessMessage] Messages array processed:', {
+      originalMessagesLength: originalMessages?.length,
+      messagesLength: messages.length,
+      isArray: Array.isArray(originalMessages),
+      firstMessageId: messages[0]?.id,
+      lastMessageId: messages[messages.length - 1]?.id,
+    });
 
     const agentStoreState = getAgentStoreState();
-    const { model, provider, chatConfig } = agentSelectors.currentAgentConfig(agentStoreState);
+    const { model: modelRaw, provider: providerRaw, chatConfig } = agentSelectors.currentAgentConfig(agentStoreState);
+    
+    // Convert NullString to plain strings
+    const model = getNullableString(modelRaw as any) || '';
+    const provider = getNullableString(providerRaw as any) || '';
+    
+    console.debug('[generateAIChat.internal_coreProcessMessage] Agent config retrieved:', {
+      model,
+      provider,
+      modelRaw,
+      providerRaw,
+      hasChatConfig: !!chatConfig,
+      enableCompressHistory: chatConfig?.enableCompressHistory,
+    });
 
     let fileChunks: MessageSemanticSearchChunk[] | undefined;
     let ragQueryId;
 
     // go into RAG flow if there is ragQuery flag
     if (params?.ragQuery) {
+      console.debug('[generateAIChat.internal_coreProcessMessage] Entering RAG flow:', {
+        ragQuery: params.ragQuery?.substring(0, 50),
+        messagesCount: messages.length,
+      });
       // 1. get the relative chunks from semantic search
       const { chunks, queryId, rewriteQuery } = await get().internal_retrieveChunks(
         userMessageId,
@@ -342,6 +427,11 @@ export const generateAIChat: StateCreator<
         // should skip the last content
         messages.map((m) => m.content).slice(0, messages.length - 1),
       );
+      console.debug('[generateAIChat.internal_coreProcessMessage] RAG chunks retrieved:', {
+        chunksCount: chunks?.length,
+        queryId,
+        rewriteQuery: rewriteQuery?.substring(0, 50),
+      });
 
       ragQueryId = queryId;
 
@@ -349,9 +439,13 @@ export const generateAIChat: StateCreator<
 
       // Safety check: ensure lastMsg exists before using it
       if (!lastMsg) {
-        console.error('No last message found for RAG query');
+        console.error('[generateAIChat.internal_coreProcessMessage] No last message found for RAG query');
         return;
       }
+      console.debug('[generateAIChat.internal_coreProcessMessage] Last message popped for RAG:', {
+        lastMsgId: lastMsg.id,
+        lastMsgContent: lastMsg.content?.substring(0, 50),
+      });
 
       // 2. build the retrieve context messages
       const knowledgeBaseQAContext = knowledgeBaseQAPrompts({
@@ -360,14 +454,28 @@ export const generateAIChat: StateCreator<
         rewriteQuery,
         knowledge: agentSelectors.currentEnabledKnowledge(agentStoreState),
       });
+      console.debug('[generateAIChat.internal_coreProcessMessage] Knowledge base QA context built:', {
+        contextLength: knowledgeBaseQAContext?.length,
+      });
 
       // 3. add the retrieve context messages to the messages history
       messages.push({
         ...lastMsg,
         content: (lastMsg.content + '\n\n' + knowledgeBaseQAContext).trim(),
       });
+      console.debug('[generateAIChat.internal_coreProcessMessage] Updated message pushed back:', {
+        messagesLength: messages.length,
+        updatedContentLength: messages[messages.length - 1]?.content?.length,
+      });
 
       fileChunks = chunks.map((c) => ({ id: c.id, similarity: c.similarity }));
+      console.debug('[generateAIChat.internal_coreProcessMessage] File chunks mapped:', {
+        fileChunksCount: fileChunks.length,
+      });
+    } else {
+      console.debug('[generateAIChat.internal_coreProcessMessage] Skipping RAG flow:', {
+        hasRagQuery: !!params?.ragQuery,
+      });
     }
 
     // 2. Add an empty message to place the AI response
@@ -384,10 +492,23 @@ export const generateAIChat: StateCreator<
       fileChunks,
       ragQueryId,
     };
+    console.debug('[generateAIChat.internal_coreProcessMessage] Creating assistant message:', {
+      assistantMessageThreadId: assistantMessage.threadId,
+      paramsThreadId: params?.threadId,
+      activeThreadId: get().activeThreadId,
+      userMessageId,
+    });
 
     const assistantId = await get().internal_createMessage(assistantMessage);
+    console.debug('[generateAIChat.internal_coreProcessMessage] Assistant message created:', {
+      assistantId,
+      success: !!assistantId,
+    });
 
-    if (!assistantId) return;
+    if (!assistantId) {
+      console.debug('[generateAIChat.internal_coreProcessMessage] No assistantId returned, exiting');
+      return;
+    }
 
     // 3. place a search with the search working model if this model is not support tool use
     const aiInfraStoreState = getAiInfraStoreState();
@@ -411,9 +532,31 @@ export const generateAIChat: StateCreator<
       ((isProviderHasBuiltinSearch || isModelHasBuiltinSearch) && useModelBuiltinSearch) ||
       isModelBuiltinSearchInternal;
     const isAgentEnableSearch = agentChatConfigSelectors.isAgentEnableSearch(agentStoreState);
+    console.debug('[generateAIChat.internal_coreProcessMessage] Search/tool capabilities checked:', {
+      isModelSupportToolUse,
+      isProviderHasBuiltinSearch,
+      isModelHasBuiltinSearch,
+      isModelBuiltinSearchInternal,
+      useModelBuiltinSearch,
+      useModelSearch,
+      isAgentEnableSearch,
+      shouldUseSearchWorkflow: isAgentEnableSearch && !useModelSearch && !isModelSupportToolUse,
+    });
 
     if (isAgentEnableSearch && !useModelSearch && !isModelSupportToolUse) {
-      const { model, provider } = agentChatConfigSelectors.searchFCModel(agentStoreState);
+      console.debug('[generateAIChat.internal_coreProcessMessage] Entering search workflow');
+      const { model: searchModelRaw, provider: searchProviderRaw } = agentChatConfigSelectors.searchFCModel(agentStoreState);
+      
+      // Convert NullString to plain strings for search model
+      const searchModel = getNullableString(searchModelRaw as any) || '';
+      const searchProvider = getNullableString(searchProviderRaw as any) || '';
+      
+      console.debug('[generateAIChat.internal_coreProcessMessage] Search FC model:', {
+        searchModel,
+        searchProvider,
+        searchModelRaw,
+        searchProviderRaw,
+      });
 
       let isToolsCalling = false;
       let isError = false;
@@ -423,11 +566,18 @@ export const generateAIChat: StateCreator<
         assistantId,
         n('generateMessage(start)', { messageId: assistantId, messages }),
       );
+      console.debug('[generateAIChat.internal_coreProcessMessage] Chat loading toggled, starting search workflow');
 
       get().internal_toggleSearchWorkflow(true, assistantId);
+      console.debug('[generateAIChat.internal_coreProcessMessage] Calling fetchPresetTaskResult for search');
       await chatService.fetchPresetTaskResult({
-        params: { messages, model, provider, plugins: [WebBrowsingManifest.identifier] },
+        params: { messages, model: searchModel, provider: searchProvider, plugins: [WebBrowsingManifest.identifier] },
         onFinish: async (_, { toolCalls, usage }) => {
+          console.debug('[generateAIChat.internal_coreProcessMessage] Search workflow onFinish:', {
+            hasToolCalls: !!toolCalls,
+            toolCallsCount: toolCalls?.length,
+            hasUsage: !!usage,
+          });
           if (toolCalls && toolCalls.length > 0) {
             get().internal_toggleToolCallingStreaming(assistantId, undefined);
             // update tools calling
@@ -437,6 +587,7 @@ export const generateAIChat: StateCreator<
               model,
               provider,
             });
+            console.debug('[generateAIChat.internal_coreProcessMessage] Tool calls updated in message');
           }
         },
         trace: {
@@ -447,6 +598,11 @@ export const generateAIChat: StateCreator<
         },
         abortController,
         onMessageHandle: async (chunk) => {
+          console.debug('[generateAIChat.internal_coreProcessMessage] Search workflow onMessageHandle:', {
+            chunkType: chunk.type,
+            hasToolCalls: chunk.type === 'tool_calls' && !!chunk.tool_calls,
+            toolCallsCount: chunk.type === 'tool_calls' ? chunk.tool_calls?.length : 0,
+          });
           if (chunk.type === 'tool_calls') {
             get().internal_toggleSearchWorkflow(false, assistantId);
             get().internal_toggleToolCallingStreaming(assistantId, chunk.isAnimationActives);
@@ -456,13 +612,19 @@ export const generateAIChat: StateCreator<
               value: { tools: get().internal_transformToolCalls(chunk.tool_calls) },
             });
             isToolsCalling = true;
+            console.debug('[generateAIChat.internal_coreProcessMessage] Tool calls detected, setting isToolsCalling=true');
           }
 
           if (chunk.type === 'text') {
+            console.debug('[generateAIChat.internal_coreProcessMessage] Text chunk received, aborting search workflow');
             abortController!.abort('not fc');
           }
         },
         onErrorHandle: async (error) => {
+          console.debug('[generateAIChat.internal_coreProcessMessage] Search workflow error:', {
+            error: error?.message || String(error),
+            errorType: typeof error,
+          });
           isError = true;
           await messageService.updateMessageError(assistantId, error);
           await refreshMessages();
@@ -475,25 +637,44 @@ export const generateAIChat: StateCreator<
         n('generateMessage(start)', { messageId: assistantId, messages }),
       );
       get().internal_toggleSearchWorkflow(false, assistantId);
+      console.debug('[generateAIChat.internal_coreProcessMessage] Search workflow completed:', {
+        isError,
+        isToolsCalling,
+      });
 
       // if there is error, then stop
-      if (isError) return;
+      if (isError) {
+        console.debug('[generateAIChat.internal_coreProcessMessage] Search workflow had error, exiting');
+        return;
+      }
 
       // if it's the function call message, trigger the function method
       if (isToolsCalling) {
+        console.debug('[generateAIChat.internal_coreProcessMessage] Triggering tool calls after search workflow');
         get().internal_toggleMessageInToolsCalling(true, assistantId);
         await refreshMessages();
         await triggerToolCalls(assistantId, {
           threadId: params?.threadId,
           inPortalThread: params?.inPortalThread,
         });
+        console.debug('[generateAIChat.internal_coreProcessMessage] Tool calls triggered, exiting search workflow');
 
         // then story the workflow
         return;
       }
+      console.debug('[generateAIChat.internal_coreProcessMessage] Search workflow completed without tool calls');
+    } else {
+      console.debug('[generateAIChat.internal_coreProcessMessage] Skipping search workflow');
     }
 
     // 4. fetch the AI response
+    console.debug('[generateAIChat.internal_coreProcessMessage] Fetching AI chat message:', {
+      messagesCount: messages.length,
+      messageId: assistantId,
+      model,
+      provider,
+      hasParams: !!params,
+    });
     const { isFunctionCall, content } = await internal_fetchAIChatMessage({
       messages,
       messageId: assistantId,
@@ -501,16 +682,24 @@ export const generateAIChat: StateCreator<
       model,
       provider: provider!,
     });
+    console.debug('[generateAIChat.internal_coreProcessMessage] AI chat message fetched:', {
+      isFunctionCall,
+      contentLength: content?.length,
+      contentPreview: content?.substring(0, 100),
+    });
 
     // 5. if it's the function call message, trigger the function method
     if (isFunctionCall) {
+      console.debug('[generateAIChat.internal_coreProcessMessage] Function call detected, triggering tool calls');
       get().internal_toggleMessageInToolsCalling(true, assistantId);
       await refreshMessages();
       await triggerToolCalls(assistantId, {
         threadId: params?.threadId,
         inPortalThread: params?.inPortalThread,
       });
+      console.debug('[generateAIChat.internal_coreProcessMessage] Tool calls triggered');
     } else {
+      console.debug('[generateAIChat.internal_coreProcessMessage] No function call, showing notification');
       // 显示桌面通知（仅在桌面端且窗口隐藏时）
       if (isDesktop) {
         try {
@@ -532,9 +721,17 @@ export const generateAIChat: StateCreator<
 
     // 6. summary history if context messages is larger than historyCount
     const historyCount = agentChatConfigSelectors.historyCount(agentStoreState);
+    const enableHistoryCount = agentChatConfigSelectors.enableHistoryCount(agentStoreState);
+    console.debug('[generateAIChat.internal_coreProcessMessage] Checking history summary:', {
+      historyCount,
+      enableHistoryCount,
+      enableCompressHistory: chatConfig.enableCompressHistory,
+      originalMessagesLength: originalMessages.length,
+      shouldSummarize: enableHistoryCount && chatConfig.enableCompressHistory && originalMessages.length > historyCount,
+    });
 
     if (
-      agentChatConfigSelectors.enableHistoryCount(agentStoreState) &&
+      enableHistoryCount &&
       chatConfig.enableCompressHistory &&
       originalMessages.length > historyCount
     ) {
@@ -543,9 +740,18 @@ export const generateAIChat: StateCreator<
       // So if historyCount=2, we need to summary [u1,a1,u2,a2]
       // because user find UI is [u1,a1,u2,a2 | u3,a3]
       const historyMessages = originalMessages.slice(0, -historyCount + 1);
+      console.debug('[generateAIChat.internal_coreProcessMessage] Summarizing history:', {
+        historyMessagesCount: historyMessages.length,
+        sliceStart: 0,
+        sliceEnd: -historyCount + 1,
+      });
 
       await get().internal_summaryHistory(historyMessages);
+      console.debug('[generateAIChat.internal_coreProcessMessage] History summary completed');
+    } else {
+      console.debug('[generateAIChat.internal_coreProcessMessage] Skipping history summary');
     }
+    console.debug('[generateAIChat.internal_coreProcessMessage] Process completed successfully');
   },
   internal_fetchAIChatMessage: async ({ messages, messageId, params, provider, model }) => {
     const {
@@ -565,18 +771,77 @@ export const generateAIChat: StateCreator<
 
     const agentConfig =
       params?.agentConfig || agentSelectors.currentAgentConfig(getAgentStoreState());
-    const chatConfig = agentChatConfigSelectors.currentChatConfig(getAgentStoreState());
+    let chatConfig = agentChatConfigSelectors.currentChatConfig(getAgentStoreState());
+    
+    // Handle NullString chatConfig - parse JSON string if it's a NullString object
+    if (chatConfig && typeof chatConfig === 'object' && 'String' in chatConfig && 'Valid' in chatConfig) {
+      const parsedChatConfig = parseJSON(chatConfig as any);
+      chatConfig = parsedChatConfig || {};
+      console.debug('[generateAIChat.internal_fetchAIChatMessage] Parsed NullString chatConfig:', {
+        parsedChatConfig,
+        chatConfigType: typeof chatConfig,
+      });
+    }
+    
+    console.debug('[generateAIChat.internal_fetchAIChatMessage] Agent and chat config retrieved:', {
+      hasParamsAgentConfig: !!params?.agentConfig,
+      agentConfigType: typeof agentConfig,
+      agentConfigKeys: agentConfig ? Object.keys(agentConfig) : [],
+      agentConfigParamsType: typeof agentConfig?.params,
+      agentConfigParams: agentConfig?.params,
+      agentConfigParamsIsArray: Array.isArray(agentConfig?.params),
+      agentConfigParamsIsObject: agentConfig?.params && typeof agentConfig.params === 'object' && !Array.isArray(agentConfig.params),
+      agentConfigParamsIsNullString: agentConfig?.params && 'String' in agentConfig.params && 'Valid' in agentConfig.params,
+      agentConfigPlugins: agentConfig?.plugins,
+      agentConfigPluginsIsNullString: agentConfig?.plugins && 'String' in agentConfig.plugins && 'Valid' in agentConfig.plugins,
+      chatConfigType: typeof chatConfig,
+      chatConfigKeys: chatConfig ? Object.keys(chatConfig) : [],
+      enableMaxTokens: chatConfig?.enableMaxTokens,
+      enableReasoningEffort: chatConfig?.enableReasoningEffort,
+    });
 
     // ================================== //
     //   messages uniformly preprocess    //
     // ================================== //
+    // Handle NullString params - parse JSON string if it's a NullString object
+    if (agentConfig.params && typeof agentConfig.params === 'object' && 'String' in agentConfig.params && 'Valid' in agentConfig.params) {
+      // It's a NullString object, parse the JSON string
+      const parsedParams = parseJSON(agentConfig.params as any);
+      agentConfig.params = parsedParams || {};
+      console.debug('[generateAIChat.internal_fetchAIChatMessage] Parsed NullString params:', {
+        parsedParams,
+        paramsType: typeof agentConfig.params,
+        paramsIsObject: typeof agentConfig.params === 'object' && !Array.isArray(agentConfig.params),
+      });
+    } else if (!agentConfig.params || typeof agentConfig.params !== 'object' || Array.isArray(agentConfig.params)) {
+      // Ensure params is a plain object before modifying
+      agentConfig.params = {};
+      console.debug('[generateAIChat.internal_fetchAIChatMessage] Initialized params as empty object');
+    }
+
+    // Handle NullString plugins - parse JSON string if it's a NullString object
+    if (agentConfig.plugins && typeof agentConfig.plugins === 'object' && 'String' in agentConfig.plugins && 'Valid' in agentConfig.plugins) {
+      // It's a NullString object, parse the JSON string
+      const parsedPlugins = parseJSON(agentConfig.plugins as any);
+      agentConfig.plugins = Array.isArray(parsedPlugins) ? parsedPlugins : [];
+      console.debug('[generateAIChat.internal_fetchAIChatMessage] Parsed NullString plugins:', {
+        parsedPlugins,
+        pluginsType: typeof agentConfig.plugins,
+        pluginsIsArray: Array.isArray(agentConfig.plugins),
+      });
+    } else if (!Array.isArray(agentConfig.plugins)) {
+      // Ensure plugins is an array
+      agentConfig.plugins = [];
+      console.debug('[generateAIChat.internal_fetchAIChatMessage] Initialized plugins as empty array');
+    }
+
     // 4. handle max_tokens
-    agentConfig.params.max_tokens = chatConfig.enableMaxTokens
+    agentConfig.params.max_tokens = chatConfig?.enableMaxTokens
       ? agentConfig.params.max_tokens
       : undefined;
 
     // 5. handle reasoning_effort
-    agentConfig.params.reasoning_effort = chatConfig.enableReasoningEffort
+    agentConfig.params.reasoning_effort = chatConfig?.enableReasoningEffort
       ? agentConfig.params.reasoning_effort
       : undefined;
 
@@ -810,6 +1075,13 @@ export const generateAIChat: StateCreator<
     if (!latestMsg) return;
 
     const threadId = outThreadId ?? activeThreadId;
+    console.debug('[generateAIChat.internal_resendMessage] Resending message:', {
+      messageId,
+      outThreadId,
+      activeThreadId,
+      resolvedThreadId: threadId,
+      inPortalThread,
+    });
 
     await internal_coreProcessMessage(contextMessages, latestMsg.id, {
       traceId,

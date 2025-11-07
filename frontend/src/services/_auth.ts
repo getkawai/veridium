@@ -68,6 +68,14 @@ export const getProviderAuthPayload = (
       return { baseURL: keyVaults?.baseURL };
     }
 
+    case ModelProvider.Kawai: {
+      // Kawai is a local provider that doesn't require an API key
+      // Use proxy route to avoid CORS issues in browser
+      // Proxy route /llama-proxy forwards to llama-server at 127.0.0.1:8080
+      const baseURL = keyVaults?.baseURL || '/llama-proxy/v1';
+      return { baseURL };
+    }
+
     case ModelProvider.Cloudflare: {
       return {
         apiKey: clientApiKeyManager.pick(keyVaults?.apiKey),
@@ -132,10 +140,28 @@ export const createPayloadWithKeyVaults = (provider: string) => {
 
   const runtimeProvider = resolveRuntimeProvider(provider);
 
-  return {
+  console.debug('[createPayloadWithKeyVaults] Creating auth payload:', {
+    provider,
+    runtimeProvider,
+    hasKeyVaults: !!keyVaults,
+    keyVaultsKeys: keyVaults ? Object.keys(keyVaults) : [],
+    apiKeyType: typeof (keyVaults as any)?.apiKey,
+    apiKeyIsNullString: (keyVaults as any)?.apiKey && typeof (keyVaults as any).apiKey === 'object' && 'String' in (keyVaults as any).apiKey,
+  });
+
+  const payload = {
     ...getProviderAuthPayload(runtimeProvider, keyVaults as any),
     runtimeProvider,
   };
+
+  console.debug('[createPayloadWithKeyVaults] Auth payload created:', {
+    hasApiKey: !!payload.apiKey,
+    apiKeyType: typeof payload.apiKey,
+    apiKeyLength: payload.apiKey?.length,
+    hasBaseURL: !!payload.baseURL,
+  });
+
+  return payload;
 };
 
 export const createXorKeyVaultsPayload = (provider: string) => {

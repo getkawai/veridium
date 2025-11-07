@@ -189,9 +189,84 @@ export const createOpenAICompatibleRuntime = <T extends Record<string, any> = an
       const { apiKey, baseURL = DEFAULT_BASE_URL, ...res } = _options;
       this._options = _options as ConstructorOptions<T>;
 
-      if (!apiKey) throw AgentRuntimeError.createError(ErrorType?.invalidAPIKey);
+      // Providers that don't require API keys (local providers using OpenAI-compatible API)
+      // Check both the factory provider and the runtimeProvider from options
+      const runtimeProvider = (options as any).runtimeProvider;
+      const actualProvider = (runtimeProvider || provider)?.toLowerCase();
+      const providersWithoutApiKey = ['kawai', 'ollama', 'lmstudio'];
+      const requiresApiKey = !providersWithoutApiKey.includes(actualProvider);
 
-      const initOptions = { apiKey, baseURL, ...constructorOptions, ...res };
+      if (requiresApiKey && !apiKey) {
+        throw AgentRuntimeError.createError(ErrorType?.invalidAPIKey);
+      }
+
+      // For local OpenAI-compatible servers (like llama.cpp/kawai), we need to remove Authorization header
+      // OpenAI SDK automatically adds Authorization header based on apiKey, but local servers reject it
+      // We still need to provide a placeholder apiKey to satisfy SDK requirements, but custom fetch will remove the header
+      const finalApiKey = requiresApiKey ? apiKey : (apiKey || 'sk-local');
+
+      // Create custom fetch that removes Authorization header for local providers
+      // OpenAI SDK automatically adds Authorization header based on apiKey, but local servers reject it
+      const customFetch = !requiresApiKey
+        ? async (url: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+            // Debug logging for local providers
+            const urlString = typeof url === 'string' ? url : url instanceof URL ? url.toString() : String(url);
+            let headersKeys: string[] = [];
+            if (init?.headers) {
+              if (init.headers instanceof Headers) {
+                headersKeys = Array.from(init.headers.keys());
+              } else if (typeof init.headers === 'object') {
+                headersKeys = Object.keys(init.headers);
+              }
+            }
+            console.debug('[openaiCompatibleFactory] Custom fetch for local provider:', {
+              provider: actualProvider,
+              url: urlString,
+              hasHeaders: !!init?.headers,
+              headersKeys,
+            });
+
+            // Remove Authorization header for local providers
+            const modifiedInit: RequestInit = { ...init };
+            if (modifiedInit.headers) {
+              // Handle both Headers instance and plain object
+              const headers =
+                modifiedInit.headers instanceof Headers
+                  ? new Headers(modifiedInit.headers)
+                  : new Headers(modifiedInit.headers as HeadersInit);
+              
+              const hadAuth = headers.has('Authorization') || headers.has('authorization');
+              const authValue = headers.get('Authorization') || headers.get('authorization');
+              headers.delete('Authorization');
+              headers.delete('authorization'); // Also check lowercase
+              
+              console.debug('[openaiCompatibleFactory] Authorization header removed:', {
+                hadAuth,
+                authValue: authValue ? `${authValue.substring(0, 20)}...` : undefined,
+                remainingHeaders: Array.from(headers.keys()),
+              });
+              
+              modifiedInit.headers = headers;
+            }
+            return fetch(url, modifiedInit);
+          }
+        : undefined;
+
+      console.debug('[openaiCompatibleFactory] Initializing OpenAI client:', {
+        provider: actualProvider,
+        requiresApiKey,
+        baseURL,
+        hasCustomFetch: !!customFetch,
+        finalApiKey: finalApiKey ? `${finalApiKey.substring(0, 5)}...` : 'none',
+      });
+
+      const initOptions = {
+        apiKey: finalApiKey,
+        baseURL,
+        ...(customFetch && { fetch: customFetch }),
+        ...constructorOptions,
+        ...res,
+      };
 
       // if the custom client is provided, use it as client
       if (customClient?.createClient) {
