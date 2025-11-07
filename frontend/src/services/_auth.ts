@@ -72,7 +72,7 @@ export const getProviderAuthPayload = (
       // Kawai is a local provider that doesn't require an API key
       // Use proxy route to avoid CORS issues in browser
       // Proxy route /llama-proxy forwards to llama-server at 127.0.0.1:8080
-      const baseURL = keyVaults?.baseURL || '/llama-proxy/v1';
+      const baseURL = keyVaults?.baseURL;
       return { baseURL };
     }
 
