@@ -99,21 +99,10 @@ export const messagesReducer = (
         const index = draftState.findIndex((i) => i.id === id);
         if (index < 0) return;
 
-        // Check if there's actual change before updating
-        const currentMessage = draftState[index];
-        const hasContentChange = value.content !== undefined && value.content !== currentMessage.content;
-        const hasOtherChanges = Object.keys(value).some(key => 
-          key !== 'content' && key !== 'updatedAt' && value[key as keyof typeof value] !== currentMessage[key as keyof typeof currentMessage]
-        );
-        
-        // Only update updatedAt if there's actual content or structural change
-        // This prevents infinite loops during streaming where only content changes incrementally
-        if (hasContentChange || hasOtherChanges) {
-          draftState[index] = merge(draftState[index], { ...value, updatedAt: Date.now() });
-        } else {
-          // Just merge without updating timestamp for no-op updates
-          draftState[index] = merge(draftState[index], value);
-        }
+        // CRITICAL FIX: Don't update updatedAt during streaming to prevent infinite loops
+        // Only merge the values without timestamp changes
+        // The timestamp will be updated when the message is finalized (not during streaming)
+        draftState[index] = merge(draftState[index], value);
       });
     }
 
