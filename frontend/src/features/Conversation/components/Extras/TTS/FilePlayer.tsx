@@ -30,9 +30,10 @@ const FilePlayer = memo<TTSProps>(({ content, id }) => {
   }, [id]);
 
   const handlePlay = useCallback(() => {
+    console.log('[FilePlayer] handlePlay called', { content });
     setError(undefined);
     start();
-  }, [start]);
+  }, [start, content]);
 
   const handleRetry = useCallback(() => {
     setError(undefined);

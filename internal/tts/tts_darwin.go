@@ -24,7 +24,19 @@ func (s *TTSService) SpeakWithVoice(text, voice string) error {
 	args = append(args, text)
 
 	cmd := exec.Command("say", args...)
-	return cmd.Run()
+	
+	// Debug logging
+	fmt.Printf("[TTS] Executing: say %v\n", args)
+	fmt.Printf("[TTS] Text to speak: %q\n", text)
+	
+	err := cmd.Run()
+	if err != nil {
+		fmt.Printf("[TTS] Error: %v\n", err)
+	} else {
+		fmt.Printf("[TTS] Playback completed successfully\n")
+	}
+	
+	return err
 }
 
 // SpeakWithRate converts text to speech with custom speaking rate

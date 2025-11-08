@@ -47,7 +47,10 @@ const Player = memo<PlayerProps>(({ onRetry, error, onDelete, isLoading, onInitP
           <ActionIcon
             icon={Volume2}
             loading={isLoading}
-            onClick={onInitPlay}
+            onClick={() => {
+              console.log('[Player] Volume button clicked, calling onInitPlay');
+              onInitPlay?.();
+            }}
             size={'small'}
             title={t('tts.play')}
           />

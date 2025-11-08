@@ -31,19 +31,26 @@ const InitPlayer = memo<TTSProps>(({ id, content, contentMd5, file }) => {
     onError: (err) => {
       stop();
       setDefaultError(err);
+      setIsStart(false); // Reset state on error
     },
     onSuccess: async () => {
       // Playback completed successfully
       // Mark as played in the store
       ttsMessage(id, { contentMd5, file: 'played', voice: 'default' });
+      setIsStart(false); // Reset state after successful playback
     },
   });
 
   const handleInitStart = useCallback(() => {
-    if (isStart) return;
-    start();
+    console.log('[InitPlayer] handleInitStart called', { isStart, content });
+    if (isStart) {
+      console.log('[InitPlayer] Already playing, skipping');
+      return;
+    }
+    console.log('[InitPlayer] Calling start()');
     setIsStart(true);
-  }, [isStart, start]);
+    start();
+  }, [isStart, start, content]);
 
   const handleDelete = useCallback(() => {
     stop();
