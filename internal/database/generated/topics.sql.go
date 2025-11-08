@@ -523,7 +523,8 @@ func (q *Queries) ListThreadsByTopic(ctx context.Context, arg ListThreadsByTopic
 
 const ListTopics = `-- name: ListTopics :many
 SELECT id, title, favorite, session_id, group_id, user_id, client_id, history_summary, metadata, created_at, updated_at FROM topics
-WHERE user_id = ? AND session_id = ?
+WHERE user_id = ? 
+  AND (COALESCE(session_id, '') = COALESCE(?, ''))
 ORDER BY updated_at DESC
 LIMIT ? OFFSET ?
 `

@@ -5,8 +5,11 @@ import { LobeAgentChatConfig } from '@/types/agent';
 
 import { currentAgentConfig } from './agent';
 
-export const currentAgentChatConfig = (s: AgentStoreState): LobeAgentChatConfig =>
-  currentAgentConfig(s).chatConfig || {};
+export const currentAgentChatConfig = (s: AgentStoreState): LobeAgentChatConfig => {
+  const config = currentAgentConfig(s).chatConfig;
+  // Merge with default config to ensure all properties are defined
+  return { ...DEFAULT_AGENT_CHAT_CONFIG, ...config };
+};
 
 const agentSearchMode = (s: AgentStoreState) => currentAgentChatConfig(s).searchMode || 'off';
 const isAgentEnableSearch = (s: AgentStoreState) => agentSearchMode(s) !== 'off';

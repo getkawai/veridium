@@ -867,7 +867,7 @@ export class MessageModel {
   // This method kept for backward compatibility but no longer used
   updateTTS = async (id: string, tts: Partial<ChatTTS>) => {
     await this.logger.warn('updateTTS called but TTS now handled by backend', { id });
-    return;
+      return;
   };
 
   async updateMessageRAG(id: string, { ragQueryId, fileChunks }: UpdateMessageRAGParams) {

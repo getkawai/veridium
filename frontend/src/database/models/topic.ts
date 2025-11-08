@@ -59,10 +59,10 @@ export class TopicModel {
     try {
       const offset = current * pageSize;
 
-      // Note: Drizzle uses complex WHERE with OR for containerId
-      // Wails requires separate queries or custom SQL
-      if (containerId) {
-        // Try session first
+      // Note: containerId can be null for inbox session (converted by toDbSessionId)
+      // We need to query with the null value to match topics with session_id IS NULL
+      if (containerId !== undefined) {
+        // Try session first (containerId can be null for inbox)
         const sessionTopics = await DB.ListTopics({
           userId: this.userId,
           sessionId: toNullString(containerId),
@@ -71,7 +71,7 @@ export class TopicModel {
         });
 
         if (sessionTopics.length > 0) {
-          return sessionTopics;
+          return mapTopicsToChatTopics(sessionTopics);
         }
 
         // Try group if no session topics found
@@ -80,7 +80,7 @@ export class TopicModel {
         return [];
       }
 
-      // If no containerId, return topics with no session/group
+      // If containerId is undefined, return topics with no session/group
       // TODO: Add ListTopicsWithoutContainer query
       return [];
     } catch (error) {

@@ -212,25 +212,47 @@ export const generateAIChat: StateCreator<
 
     // it should be the default topic, then
     // if autoCreateTopic is enabled, check to whether we need to create a topic
-    if (!onlyAddUserMessage && !activeTopicId && agentConfig.enableAutoCreateTopic) {
-      // check activeTopic and then auto create topic
-      const chats = chatSelectors.activeBaseChats(get());
+    const chats = chatSelectors.activeBaseChats(get());
+    console.debug('[generateAIChat.sendMessage] Auto-create topic check:', {
+      onlyAddUserMessage,
+      activeTopicId,
+      enableAutoCreateTopic: agentConfig.enableAutoCreateTopic,
+      autoCreateTopicThreshold: agentConfig.autoCreateTopicThreshold,
+      currentChatsLength: chats.length,
+      futureLength: chats.length + 2,
+      shouldCheckAutoCreate: !onlyAddUserMessage && !activeTopicId && agentConfig.enableAutoCreateTopic,
+      willCreateTopic: !onlyAddUserMessage && !activeTopicId && agentConfig.enableAutoCreateTopic && 
+        (chats.length + 2) >= agentConfig.autoCreateTopicThreshold,
+    });
 
+    if (!onlyAddUserMessage && !activeTopicId && agentConfig.enableAutoCreateTopic) {
+      console.debug('[generateAIChat.sendMessage] Entering auto-create topic block');
+      
       // we will add two messages (user and assistant), so the finial length should +2
       const featureLength = chats.length + 2;
 
       // if there is no activeTopicId and the feature length is greater than the threshold
       // then create a new topic and active it
       if (!activeTopicId && featureLength >= agentConfig.autoCreateTopicThreshold) {
+        console.debug('[generateAIChat.sendMessage] Creating topic...', {
+          featureLength,
+          threshold: agentConfig.autoCreateTopicThreshold,
+        });
         // we need to create a temp message for optimistic update
         tempMessageId = get().internal_createTmpMessage(newMessage);
         get().internal_toggleMessageLoading(true, tempMessageId);
 
         const topicId = await get().createTopic();
+        
+        console.debug('[generateAIChat.sendMessage] Topic creation result:', {
+          topicId,
+          success: !!topicId,
+        });
 
         if (topicId) {
           newTopicId = topicId;
           newMessage.topicId = topicId;
+          console.debug('[generateAIChat.sendMessage] Topic created successfully, updating message');
 
           // we need to copy the messages to the new topic or the message will disappear
           const mapKey = chatSelectors.currentChatKey(get());

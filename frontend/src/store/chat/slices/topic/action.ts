@@ -236,17 +236,27 @@ export const chatTopic: StateCreator<
   useFetchTopics: (enable, containerId) =>
     useClientDataSWR<ChatTopic[]>(
       enable ? [SWR_USE_FETCH_TOPIC, containerId] : null,
-      async ([, containerId]: [string, string | undefined]) =>
-        topicService.getTopics({ containerId }),
+      async ([, containerId]: [string, string | undefined]) => {
+        console.debug('[useFetchTopics] Fetching topics for containerId:', containerId);
+        const topics = await topicService.getTopics({ containerId });
+        console.debug('[useFetchTopics] Fetched topics:', topics.length, 'topics');
+        return topics;
+      },
       {
         onSuccess: (topics) => {
+          console.debug('[useFetchTopics.onSuccess] Received topics:', topics.length, 'for containerId:', containerId);
           if (!containerId) return;
 
           const nextMap = { ...get().topicMaps, [containerId]: topics };
+          console.debug('[useFetchTopics.onSuccess] nextMap:', nextMap);
 
           // no need to update map if the topics have been init and the map is the same
-          if (get().topicsInit && isEqual(nextMap, get().topicMaps)) return;
+          if (get().topicsInit && isEqual(nextMap, get().topicMaps)) {
+            console.debug('[useFetchTopics.onSuccess] Skipping update - maps are equal');
+            return;
+          }
 
+          console.debug('[useFetchTopics.onSuccess] Updating topicMaps');
           set(
             { topicMaps: nextMap, topicsInit: true },
             false,
@@ -415,18 +425,27 @@ export const chatTopic: StateCreator<
   },
   internal_createTopic: async (params) => {
     const tmpId = Date.now().toString();
+    console.debug('[internal_createTopic] Creating topic with tmpId:', tmpId, 'params:', params);
+    
     get().internal_dispatchTopic(
       { type: 'addTopic', value: { ...params, id: tmpId } },
       'internal_createTopic',
     );
 
     get().internal_updateTopicLoading(tmpId, true);
+    console.debug('[internal_createTopic] Calling topicService.createTopic...');
     const topicId = await topicService.createTopic(params);
+    console.debug('[internal_createTopic] Topic created with ID:', topicId);
     get().internal_updateTopicLoading(tmpId, false);
 
     get().internal_updateTopicLoading(topicId, true);
+    console.debug('[internal_createTopic] Calling refreshTopic...');
     await get().refreshTopic();
+    console.debug('[internal_createTopic] refreshTopic completed');
     get().internal_updateTopicLoading(topicId, false);
+
+    console.debug('[internal_createTopic] Final topicMaps:', get().topicMaps);
+    console.debug('[internal_createTopic] Current topics for activeId:', get().topicMaps[get().activeId]);
 
     return topicId;
   },

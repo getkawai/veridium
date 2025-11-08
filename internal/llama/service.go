@@ -112,7 +112,7 @@ func (s *Service) initializeInBackground() {
 			if err := s.AutoDownloadRecommendedModel(); err != nil {
 				log.Printf("⚠️  Failed to auto-download model: %v", err)
 				log.Println("   You can download a model manually later")
-				return
+			return
 			}
 			
 			log.Println("✅ Model downloaded successfully!")

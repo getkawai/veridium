@@ -3,7 +3,8 @@ SELECT * FROM topics WHERE id = ? AND user_id = ?;
 
 -- name: ListTopics :many
 SELECT * FROM topics
-WHERE user_id = ? AND session_id = ?
+WHERE user_id = ? 
+  AND (COALESCE(session_id, '') = COALESCE(?, ''))
 ORDER BY updated_at DESC
 LIMIT ? OFFSET ?;
 
