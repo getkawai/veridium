@@ -27,10 +27,21 @@ export interface OldPluginItem {
 }
 
 export class ToolServiceClient {
-  async getToolManifest(manifest: any): Promise<ToolManifest> {
+  async getToolManifest(manifest: any, useProxy?: boolean): Promise<ToolManifest> {
     console.warn('ToolServiceClient.getToolManifest not fully implemented', manifest);
     // Use the existing utility function
-    return await getToolManifest(manifest);
+    const lobeManifest = await getToolManifest(manifest, useProxy);
+    
+    // Convert LobeChatPluginManifest to ToolManifest
+    return {
+      identifier: lobeManifest.identifier,
+      name: lobeManifest.meta?.title || lobeManifest.identifier,
+      description: lobeManifest.meta?.description,
+      version: lobeManifest.version,
+      api: lobeManifest.api,
+      meta: lobeManifest.meta,
+      type: lobeManifest.type,
+    };
   }
 
   async getOldPluginList(params?: OldPluginListParams): Promise<OldPluginItem[]> {
