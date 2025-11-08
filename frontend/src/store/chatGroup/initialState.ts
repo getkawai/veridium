@@ -38,8 +38,8 @@ export interface ChatGroupAction {
   updateGroup: (id: string, value: Partial<ChatGroupItem>) => Promise<void>;
   updateGroupConfig: (config: Partial<LobeChatGroupConfig>) => Promise<void>;
   updateGroupMeta: (meta: Partial<ChatGroupItem>) => Promise<void>;
-  useFetchGroupDetail: (enabled: boolean, groupId: string) => any;
-  useFetchGroups: (enabled: boolean, isLogin: boolean) => any;
+  useFetchGroupDetail: (enabled: boolean, groupId: string) => void;
+  useFetchGroups: (enabled: boolean, isLogin: boolean) => void;
 }
 
 export type ChatGroupStore = ChatGroupState & ChatGroupAction;

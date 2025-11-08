@@ -1,12 +1,11 @@
 import isEqual from 'fast-deep-equal';
 import { produce } from 'immer';
-import { mutate } from 'swr';
+import { useEffect } from 'react';
 import { StateCreator } from 'zustand/vanilla';
 
 import { INBOX_SESSION_ID } from '@/const/session';
 import { DEFAULT_CHAT_GROUP_CHAT_CONFIG } from '@/const/settings';
 import type { ChatGroupItem } from '@/types/database-legacy';
-import { useClientDataSWR } from '@/libs/swr';
 import { chatGroupService } from '@/services/chatGroup';
 import type { ChatStoreState } from '@/store/chat/initialState';
 import { useChatStore } from '@/store/chat/store';
@@ -23,9 +22,6 @@ import { ChatGroupReducer, chatGroupReducers } from './reducers';
 import { chatGroupSelectors } from './selectors';
 
 const n = setNamespace('chatGroup');
-
-const FETCH_GROUPS_KEY = 'fetchGroups';
-const FETCH_GROUP_DETAIL_KEY = 'fetchGroupDetail';
 
 const syncChatStoreGroupMap = (groupMap: Record<string, ChatGroupItem>) => {
   useChatStore.setState(
@@ -233,11 +229,43 @@ export const chatGroupAction: StateCreator<
     },
 
     refreshGroupDetail: async (groupId: string) => {
-      await mutate([FETCH_GROUP_DETAIL_KEY, groupId]);
+      try {
+        const group = await chatGroupService.getGroup(groupId);
+        if (!group) throw new Error(`Group ${groupId} not found`);
+        
+        const currentGroup = get().groupMap[group.id];
+        if (isEqual(currentGroup, group)) return;
+
+        set(
+          {
+            groupMap: { ...get().groupMap, [group.id]: group },
+          },
+          false,
+          n('refreshGroupDetail'),
+        );
+      } catch (error) {
+        console.error('[refreshGroupDetail] Error:', error);
+      }
     },
 
     refreshGroups: async () => {
-      await mutate([FETCH_GROUPS_KEY, true]);
+      try {
+        const groups = await chatGroupService.getGroups();
+        const incomingMap = groups.reduce(
+          (map, group) => {
+            map[group.id] = group;
+            return map;
+          },
+          {} as Record<string, ChatGroupItem>,
+        );
+
+        if (!isEqual(get().groupMap, incomingMap)) {
+          set({ groupMap: incomingMap, groups }, false, n('refreshGroups'));
+          syncChatStoreGroupMap(incomingMap);
+        }
+      } catch (error) {
+        console.error('[refreshGroups] Error:', error);
+      }
     },
 
     removeAgentFromGroup: async (groupId, agentId) => {
@@ -322,17 +350,15 @@ export const chatGroupAction: StateCreator<
       await get().internal_refreshGroups();
     },
 
-    useFetchGroupDetail: (enabled, groupId) =>
-      useClientDataSWR<ChatGroupItem>(
-        enabled && groupId ? [FETCH_GROUP_DETAIL_KEY, groupId] : null,
-        async ([, id]) => {
-          const group = await chatGroupService.getGroup(id as string);
-          if (!group) throw new Error(`Group ${id} not found`);
-          return group;
-        },
-        {
-          onSuccess: (group) => {
-            // Update groupMap with detailed group info
+    useFetchGroupDetail: (enabled, groupId) => {
+      useEffect(() => {
+        if (!enabled || !groupId) return;
+
+        const fetchGroupDetail = async () => {
+          try {
+            const group = await chatGroupService.getGroup(groupId);
+            if (!group) throw new Error(`Group ${groupId} not found`);
+
             const currentGroup = get().groupMap[group.id];
             if (isEqual(currentGroup, group)) return;
 
@@ -341,29 +367,24 @@ export const chatGroupAction: StateCreator<
               [group.id]: group,
             };
 
-            set(
-              {
-                groupMap: nextGroupMap,
-              },
-              false,
-              n('useFetchGroupDetail/onSuccess', { groupId: group.id }),
-            );
-
+            set({ groupMap: nextGroupMap }, false, n('useFetchGroupDetail/onSuccess'));
             syncChatStoreGroupMap(nextGroupMap);
-          },
-        },
-      ),
+          } catch (error) {
+            console.error('[useFetchGroupDetail] Error:', error);
+          }
+        };
 
-    // SWR Hooks for data fetching
-    // This is not used for now, as we are combining group in the session lambda's response
-    useFetchGroups: (enabled, isLogin) =>
-      useClientDataSWR<ChatGroupItem[]>(
-        enabled ? [FETCH_GROUPS_KEY, isLogin] : null,
-        async () => chatGroupService.getGroups(),
-        {
-          fallbackData: [],
-          onSuccess: (groups) => {
-            // Update both groups list and groupMap
+        fetchGroupDetail();
+      }, [enabled, groupId]);
+    },
+
+    useFetchGroups: (enabled, isLogin) => {
+      useEffect(() => {
+        if (!enabled) return;
+
+        const fetchGroups = async () => {
+          try {
+            const groups = await chatGroupService.getGroups();
             const incomingMap = groups.reduce(
               (map, group) => {
                 map[group.id] = group;
@@ -382,6 +403,7 @@ export const chatGroupAction: StateCreator<
             set(
               {
                 groupMap: nextGroupMap,
+                groups,
                 groupsInit: true,
                 isGroupsLoading: false,
               },
@@ -390,9 +412,13 @@ export const chatGroupAction: StateCreator<
             );
 
             syncChatStoreGroupMap(nextGroupMap);
-          },
-          suspense: true,
-        },
-      ),
+          } catch (error) {
+            console.error('[useFetchGroups] Error:', error);
+          }
+        };
+
+        fetchGroups();
+      }, [enabled, isLogin]);
+    },
   };
 };

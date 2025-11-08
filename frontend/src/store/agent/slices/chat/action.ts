@@ -1,12 +1,11 @@
 import isEqual from 'fast-deep-equal';
 import { produce } from 'immer';
-import { SWRResponse, mutate } from 'swr';
+import { useEffect } from 'react';
 import type { PartialDeep } from 'type-fest';
 import { StateCreator } from 'zustand/vanilla';
 
 import { MESSAGE_CANCEL_FLAT } from '@/const/message';
 import { INBOX_SESSION_ID } from '@/const/session';
-import { useClientDataSWR, useOnlyFetchOnceSWR } from '@/libs/swr';
 // import { agentService } from '@/services/agent';
 import { sessionService } from '@/services/session';
 import { AgentState } from '@/store/agent/slices/chat/initialState';
@@ -49,17 +48,14 @@ export interface AgentChatAction {
   togglePlugin: (id: string, open?: boolean) => Promise<void>;
   updateAgentChatConfig: (config: Partial<LobeAgentChatConfig>) => Promise<void>;
   updateAgentConfig: (config: PartialDeep<LobeAgentConfig>) => Promise<void>;
-  useFetchAgentConfig: (isLogin: boolean | undefined, id: string) => SWRResponse<LobeAgentConfig>;
-  useFetchFilesAndKnowledgeBases: () => SWRResponse<KnowledgeItem[]>;
+  useFetchAgentConfig: (isLogin: boolean | undefined, id: string) => void;
+  useFetchFilesAndKnowledgeBases: () => void;
   useInitInboxAgentStore: (
     isLogin: boolean | undefined,
     defaultAgentConfig?: PartialDeep<LobeAgentConfig>,
-  ) => SWRResponse<PartialDeep<LobeAgentConfig>>;
-  useLoadAllAgentConfigs: (isDBInited: boolean, isLogin: boolean) => SWRResponse;
+  ) => void;
+  useLoadAllAgentConfigs: (isDBInited: boolean, isLogin: boolean) => void;
 }
-
-const FETCH_AGENT_CONFIG_KEY = 'FETCH_AGENT_CONFIG';
-const FETCH_AGENT_KNOWLEDGE_KEY = 'FETCH_AGENT_KNOWLEDGE';
 
 export const createChatSlice: StateCreator<
   AgentStore,
@@ -160,53 +156,65 @@ export const createChatSlice: StateCreator<
 
     await get().internal_updateAgentConfig(activeId, config, controller.signal);
   },
-  useFetchAgentConfig: (isLogin, sessionId) =>
-    useClientDataSWR<LobeAgentConfig>(
-      // Only fetch when login status is explicitly true (not null/undefined)
-      isLogin === true && !sessionId.startsWith('cg_')
-        ? ([FETCH_AGENT_CONFIG_KEY, sessionId] as const)
-        : null,
-      ([, id]: readonly [string, string]) => sessionService.getSessionConfig(id),
-      {
-        onSuccess: (data) => {
+  useFetchAgentConfig: (isLogin, sessionId) => {
+    useEffect(() => {
+      if (isLogin !== true || sessionId.startsWith('cg_')) return;
+
+      const fetchAgentConfig = async () => {
+        try {
+          const data = await sessionService.getSessionConfig(sessionId);
           get().internal_dispatchAgentMap(sessionId, data, 'fetch');
 
           set(
             {
-              // Only set activeAgentId if data.id exists
               activeAgentId: data?.id || undefined,
               agentConfigInitMap: { ...get().agentConfigInitMap, [sessionId]: true },
             },
             false,
             'fetchAgentConfig',
           );
-        },
-      },
-    ),
-  useFetchFilesAndKnowledgeBases: () => {
-    return useClientDataSWR<KnowledgeItem[]>(
-      [FETCH_AGENT_KNOWLEDGE_KEY, get().activeAgentId],
-      // ([, id]: string[]) => agentService.getFilesAndKnowledgeBases(id),
-      ([, id]: string[]) => Promise.resolve([]),
-      {
-        fallbackData: [],
-        suspense: true,
-      },
-    );
+        } catch (error) {
+          console.error('[useFetchAgentConfig] Error fetching agent config:', error);
+        }
+      };
+
+      fetchAgentConfig();
+    }, [isLogin, sessionId]);
   },
 
-  useInitInboxAgentStore: (isLogin, defaultAgentConfig) =>
-    useOnlyFetchOnceSWR<PartialDeep<LobeAgentConfig>>(
-      // Only fetch when login status is explicitly true (not null/undefined/false)
-      isLogin === true ? 'fetchInboxAgentConfig' : null,
-      () => sessionService.getSessionConfig(INBOX_SESSION_ID),
-      {
-        onSuccess: (data) => {
+  useFetchFilesAndKnowledgeBases: () => {
+    useEffect(() => {
+      const activeAgentId = get().activeAgentId;
+      if (!activeAgentId) return;
+
+      const fetchKnowledge = async () => {
+        try {
+          // TODO: Implement when agentService is available
+          // const data = await agentService.getFilesAndKnowledgeBases(activeAgentId);
+          const data: KnowledgeItem[] = [];
+          console.debug('[useFetchFilesAndKnowledgeBases] Fetched:', data.length);
+        } catch (error) {
+          console.error('[useFetchFilesAndKnowledgeBases] Error:', error);
+        }
+      };
+
+      fetchKnowledge();
+    }, [get().activeAgentId]);
+  },
+
+  useInitInboxAgentStore: (isLogin, defaultAgentConfig) => {
+    useEffect(() => {
+      if (isLogin !== true) return;
+      if (get().isInboxAgentConfigInit) return; // Only fetch once
+
+      const initInboxAgent = async () => {
+        try {
+          const data = await sessionService.getSessionConfig(INBOX_SESSION_ID);
+
           set(
             {
               defaultAgentConfig: merge(get().defaultAgentConfig, defaultAgentConfig),
               isInboxAgentConfigInit: true,
-              // Mark inbox config as loaded
               agentConfigInitMap: { ...get().agentConfigInitMap, [INBOX_SESSION_ID]: true },
             },
             false,
@@ -216,55 +224,60 @@ export const createChatSlice: StateCreator<
           if (data) {
             get().internal_dispatchAgentMap(INBOX_SESSION_ID, data, 'initInbox');
           }
-        },
-      },
-    ),
+        } catch (error) {
+          console.error('[useInitInboxAgentStore] Error:', error);
+        }
+      };
 
-  useLoadAllAgentConfigs: (isDBInited, isLogin) =>
-    useOnlyFetchOnceSWR(
-      isDBInited && isLogin ? 'loadAllAgentConfigs' : null,
-      async () => {
-        const sessionStore = getSessionStoreState();
-        const sessions = sessionStore.sessions;
+      initInboxAgent();
+    }, [isLogin, defaultAgentConfig]);
+  },
 
-        // Batch load all agent configs
-        const configPromises = sessions
-          .filter((s) => s.type === 'agent')
-          .map((session) =>
-            sessionService
-              .getSessionConfig(session.id)
-              .then((config) => ({ sessionId: session.id, config }))
-              .catch(() => null), // Handle individual failures gracefully
-          );
+  useLoadAllAgentConfigs: (isDBInited, isLogin) => {
+    useEffect(() => {
+      if (!isDBInited || !isLogin) return;
+      if (get().isAllAgentConfigsLoaded) return; // Only fetch once
 
-        const results = await Promise.all(configPromises);
+      const loadAllConfigs = async () => {
+        try {
+          const sessionStore = getSessionStoreState();
+          const sessions = sessionStore.sessions;
 
-        // Populate agentMap and agentConfigInitMap with all configs
-        const agentConfigInitMap = { ...get().agentConfigInitMap };
-        
-        results.forEach((result) => {
-          if (result) {
-            get().internal_dispatchAgentMap(result.sessionId, result.config, 'batchLoad');
-            // Mark this session's config as loaded
-            agentConfigInitMap[result.sessionId] = true;
-          }
-        });
+          // Batch load all agent configs
+          const configPromises = sessions
+            .filter((s) => s.type === 'agent')
+            .map((session) =>
+              sessionService
+                .getSessionConfig(session.id)
+                .then((config) => ({ sessionId: session.id, config }))
+                .catch(() => null),
+            );
 
-        // Update agentConfigInitMap
-        set({ agentConfigInitMap }, false, 'batchLoadConfigInitMap');
+          const results = await Promise.all(configPromises);
 
-        return results.filter((r) => r !== null).length;
-      },
-      {
-        onSuccess: (count) => {
+          // Populate agentMap and agentConfigInitMap
+          const agentConfigInitMap = { ...get().agentConfigInitMap };
+
+          results.forEach((result) => {
+            if (result) {
+              get().internal_dispatchAgentMap(result.sessionId, result.config, 'batchLoad');
+              agentConfigInitMap[result.sessionId] = true;
+            }
+          });
+
+          set({ agentConfigInitMap }, false, 'batchLoadConfigInitMap');
+
+          const count = results.filter((r) => r !== null).length;
           console.info(`[AgentStore] Loaded ${count} agent configs`);
           set({ isAllAgentConfigsLoaded: true }, false, 'allAgentConfigsLoaded');
-        },
-        onError: (error) => {
+        } catch (error) {
           console.error('[AgentStore] Failed to batch load agent configs:', error);
-        },
-      },
-    ),
+        }
+      };
+
+      loadAllConfigs();
+    }, [isDBInited, isLogin]);
+  },
   /* eslint-disable sort-keys-fix/sort-keys-fix */
 
   internal_dispatchAgentMap: (id, config, actions) => {
@@ -302,11 +315,22 @@ export const createChatSlice: StateCreator<
   },
 
   internal_refreshAgentConfig: async (id) => {
-    await mutate([FETCH_AGENT_CONFIG_KEY, id]);
+    try {
+      const data = await sessionService.getSessionConfig(id);
+      get().internal_dispatchAgentMap(id, data, 'refresh');
+    } catch (error) {
+      console.error('[internal_refreshAgentConfig] Error:', error);
+    }
   },
 
   internal_refreshAgentKnowledge: async () => {
-    await mutate([FETCH_AGENT_KNOWLEDGE_KEY, get().activeAgentId]);
+    try {
+      // TODO: Implement when agentService is available
+      // const data = await agentService.getFilesAndKnowledgeBases(get().activeAgentId);
+      console.debug('[internal_refreshAgentKnowledge] Refreshed');
+    } catch (error) {
+      console.error('[internal_refreshAgentKnowledge] Error:', error);
+    }
   },
   internal_createAbortController: (key) => {
     const abortController = get()[key] as AbortController;

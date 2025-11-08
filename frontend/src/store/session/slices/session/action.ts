@@ -1,6 +1,6 @@
 import isEqual from 'fast-deep-equal';
 import { t } from 'i18next';
-import useSWR, { SWRResponse, mutate } from 'swr';
+import { useEffect } from 'react';
 import type { PartialDeep } from 'type-fest';
 import { StateCreator } from 'zustand/vanilla';
 
@@ -8,7 +8,6 @@ import { message } from '@/components/AntdStaticMethods';
 import { MESSAGE_CANCEL_FLAT } from '@/const/message';
 import { DEFAULT_AGENT_LOBE_SESSION, INBOX_SESSION_ID } from '@/const/session';
 import { DEFAULT_CHAT_GROUP_CHAT_CONFIG } from '@/const/settings';
-import { useClientDataSWR } from '@/libs/swr';
 import { chatGroupService } from '@/services/chatGroup';
 import { sessionService } from '@/services/session';
 import { useAgentStore } from '@/store/agent';
@@ -34,9 +33,6 @@ import { sessionSelectors } from './selectors';
 import { sessionMetaSelectors } from './selectors/meta';
 
 const n = setNamespace('session');
-
-const FETCH_SESSIONS_KEY = 'fetchSessions';
-const SEARCH_SESSIONS_KEY = 'searchSessions';
 
 /* eslint-disable typescript-sort-keys/interface */
 export interface SessionAction {
@@ -79,11 +75,8 @@ export interface SessionAction {
 
   updateSearchKeywords: (keywords: string) => void;
 
-  useFetchSessions: (
-    enabled: boolean,
-    isLogin: boolean | undefined,
-  ) => SWRResponse<ChatSessionList>;
-  useSearchSessions: (keyword?: string) => SWRResponse<any>;
+  useFetchSessions: (enabled: boolean, isLogin: boolean | undefined) => void;
+  useSearchSessions: (keyword?: string) => void;
 
   internal_dispatchSessions: (payload: SessionDispatch) => void;
   internal_updateSession: (id: string, data: Partial<UpdateSessionParams>) => Promise<void>;
@@ -227,22 +220,22 @@ export const createSessionSlice: StateCreator<
     await refreshSessions();
   },
 
-  useFetchSessions: (enabled, isLogin) =>
-    useClientDataSWR<ChatSessionList>(
-      enabled ? [FETCH_SESSIONS_KEY, isLogin] : null,
-      () => sessionService.getGroupedSessions(),
-      {
-        fallbackData: {
-          sessionGroups: [],
-          sessions: [],
-        },
-        onSuccess: (data) => {
+  useFetchSessions: (enabled, isLogin) => {
+    useEffect(() => {
+      if (!enabled) return;
+
+      const fetchSessions = async () => {
+        try {
+          const data = await sessionService.getGroupedSessions();
+
+          // Skip update if data hasn't changed
           if (
             get().isSessionsFirstFetchFinished &&
             isEqual(get().sessions, data.sessions) &&
             isEqual(get().sessionGroups, data.sessionGroups)
-          )
+          ) {
             return;
+          }
 
           get().internal_processSessions(
             data.sessions,
@@ -253,8 +246,6 @@ export const createSessionSlice: StateCreator<
           // Sync chat groups from group sessions to chat store
           const groupSessions = data.sessions.filter((session) => session.type === 'group');
           if (groupSessions.length > 0) {
-            // For group sessions, we need to transform them to ChatGroupItem format
-            // The session ID is the chat group ID, and we can extract basic group info
             const chatGroupStore = getChatGroupStoreState();
             const chatGroups = groupSessions.map((session) => ({
               accessedAt: session.updatedAt,
@@ -269,39 +260,44 @@ export const createSessionSlice: StateCreator<
               },
               createdAt: session.createdAt,
               description: session.meta?.description || '',
-
               groupId: session.group || null,
-              id: session.id, // Add the missing groupId property
-
-              // Will be set by the backend
+              id: session.id,
               pinned: session.pinned || false,
-
-              // Session ID is the chat group ID
               slug: null,
-
               title: session.meta?.title || 'Untitled Group',
               updatedAt: session.updatedAt,
-              userId: '', // Use updatedAt as accessedAt fallback
+              userId: '',
             }));
 
             chatGroupStore.internal_updateGroupMaps(chatGroups);
           }
 
-          set({ isSessionsFirstFetchFinished: true }, false, n('useFetchSessions/onSuccess', data));
-        },
-        suspense: true,
-      },
-    ),
-  useSearchSessions: (keyword) =>
-    useSWR<LobeSessions>(
-      [SEARCH_SESSIONS_KEY, keyword],
-      async () => {
-        if (!keyword) return [];
+          set({ isSessionsFirstFetchFinished: true }, false, n('useFetchSessions/onSuccess'));
+        } catch (error) {
+          console.error('[useFetchSessions] Error fetching sessions:', error);
+        }
+      };
 
-        return sessionService.searchSessions(keyword);
-      },
-      { revalidateOnFocus: false, revalidateOnMount: false },
-    ),
+      fetchSessions();
+    }, [enabled, isLogin]);
+  },
+
+  useSearchSessions: (keyword) => {
+    useEffect(() => {
+      const searchSessions = async () => {
+        if (!keyword) return;
+
+        try {
+          const results = await sessionService.searchSessions(keyword);
+          console.debug('[useSearchSessions] Search results:', results.length);
+        } catch (error) {
+          console.error('[useSearchSessions] Error searching sessions:', error);
+        }
+      };
+
+      searchSessions();
+    }, [keyword]);
+  },
 
   /* eslint-disable sort-keys-fix/sort-keys-fix */
   internal_dispatchSessions: (payload) => {
@@ -338,6 +334,40 @@ export const createSessionSlice: StateCreator<
     );
   },
   refreshSessions: async () => {
-    await mutate([FETCH_SESSIONS_KEY, true]);
+    try {
+      const data = await sessionService.getGroupedSessions();
+      get().internal_processSessions(data.sessions, data.sessionGroups);
+
+      // Sync chat groups
+      const groupSessions = data.sessions.filter((session) => session.type === 'group');
+      if (groupSessions.length > 0) {
+        const chatGroupStore = getChatGroupStoreState();
+        const chatGroups = groupSessions.map((session) => ({
+          accessedAt: session.updatedAt,
+          clientId: null,
+          config: {
+            maxResponseInRow: 3,
+            orchestratorModel: 'gpt-4',
+            orchestratorProvider: 'openai',
+            responseOrder: 'sequential' as const,
+            responseSpeed: 'medium' as const,
+            scene: DEFAULT_CHAT_GROUP_CHAT_CONFIG.scene,
+          },
+          createdAt: session.createdAt,
+          description: session.meta?.description || '',
+          groupId: session.group || null,
+          id: session.id,
+          pinned: session.pinned || false,
+          slug: null,
+          title: session.meta?.title || 'Untitled Group',
+          updatedAt: session.updatedAt,
+          userId: '',
+        }));
+
+        chatGroupStore.internal_updateGroupMaps(chatGroups);
+      }
+    } catch (error) {
+      console.error('[refreshSessions] Error refreshing sessions:', error);
+    }
   },
 });
