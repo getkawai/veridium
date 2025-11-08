@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -114,4 +116,34 @@ func (specs *HardwareSpecs) parseGPUFromSystemProfiler(jsonStr string) {
 			}
 		}
 	}
+}
+
+// GetBinaryPath returns the path to a specific llama.cpp binary on macOS
+// Priority: 1) Local binary path, 2) Homebrew paths, 3) System PATH
+func (lcm *LlamaCppReleaseManager) GetBinaryPath(binaryName string) string {
+	// First check local binary path
+	localPath := filepath.Join(lcm.BinaryPath, binaryName)
+	if _, err := os.Stat(localPath); err == nil {
+		return localPath
+	}
+
+	// Check Homebrew paths (Apple Silicon and Intel)
+	homebrewPaths := []string{
+		"/opt/homebrew/bin/" + binaryName, // Apple Silicon
+		"/usr/local/bin/" + binaryName,    // Intel Mac
+	}
+
+	for _, path := range homebrewPaths {
+		if _, err := os.Stat(path); err == nil {
+			return path
+		}
+	}
+
+	// Fallback to system PATH
+	if systemPath, err := exec.LookPath(binaryName); err == nil {
+		return systemPath
+	}
+
+	// Return local path as default (even if not exists) for error messages
+	return localPath
 }

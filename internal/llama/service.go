@@ -106,9 +106,16 @@ func (s *Service) initializeInBackground() {
 		}
 
 		if len(models) == 0 {
-			log.Println("⚠️  No GGUF models found. llama-server will not auto-start.")
-			log.Println("   Please download a model first, then start the server manually.")
-			return
+			log.Println("⚠️  No GGUF models found. Starting auto-download...")
+			
+			// Auto-download recommended model based on hardware
+			if err := s.AutoDownloadRecommendedModel(); err != nil {
+				log.Printf("⚠️  Failed to auto-download model: %v", err)
+				log.Println("   You can download a model manually later")
+				return
+			}
+			
+			log.Println("✅ Model downloaded successfully!")
 		}
 
 		log.Println("🚀 Auto-starting llama-server...")

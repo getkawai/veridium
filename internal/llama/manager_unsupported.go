@@ -4,6 +4,9 @@ package llama
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"runtime"
 )
 
@@ -41,4 +44,22 @@ func (specs *HardwareSpecs) detectPlatformSpecs() {
 	specs.CPU = "Unknown CPU"
 	specs.GPUModel = "Unknown GPU"
 	specs.GPUMemory = 0
+}
+
+// GetBinaryPath returns the path to a specific llama.cpp binary on unsupported platforms
+// Priority: 1) Local binary path, 2) System PATH
+func (lcm *LlamaCppReleaseManager) GetBinaryPath(binaryName string) string {
+	// First check local binary path
+	localPath := filepath.Join(lcm.BinaryPath, binaryName)
+	if _, err := os.Stat(localPath); err == nil {
+		return localPath
+	}
+	
+	// Try system PATH as fallback
+	if systemPath, err := exec.LookPath(binaryName); err == nil {
+		return systemPath
+	}
+	
+	// Return local path as default (even if not exists) for error messages
+	return localPath
 }

@@ -712,12 +712,7 @@ func (lcm *LlamaCppReleaseManager) GetServerBinaryPath() string {
 }
 
 // GetBinaryPath returns the path to a specific llama.cpp binary
-func (lcm *LlamaCppReleaseManager) GetBinaryPath(binaryName string) string {
-	if runtime.GOOS == "windows" && !strings.HasSuffix(binaryName, ".exe") {
-		binaryName += ".exe"
-	}
-	return filepath.Join(lcm.BinaryPath, binaryName)
-}
+// Platform-specific implementation in manager_*.go files
 
 // IsUpdateAvailable checks if an update is available
 func (lcm *LlamaCppReleaseManager) IsUpdateAvailable() (bool, string, error) {

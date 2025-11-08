@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -160,4 +161,35 @@ func (specs *HardwareSpecs) detectPlatformSpecs() {
 			}
 		}
 	}
+}
+
+// GetBinaryPath returns the path to a specific llama.cpp binary on Linux
+// Priority: 1) Local binary path, 2) Common system paths, 3) System PATH
+func (lcm *LlamaCppReleaseManager) GetBinaryPath(binaryName string) string {
+	// First check local binary path
+	localPath := filepath.Join(lcm.BinaryPath, binaryName)
+	if _, err := os.Stat(localPath); err == nil {
+		return localPath
+	}
+	
+	// Check common Linux paths
+	systemPaths := []string{
+		"/usr/local/bin/" + binaryName,
+		"/usr/bin/" + binaryName,
+		"/opt/llama.cpp/bin/" + binaryName,
+	}
+	
+	for _, path := range systemPaths {
+		if _, err := os.Stat(path); err == nil {
+			return path
+		}
+	}
+	
+	// Fallback to system PATH
+	if systemPath, err := exec.LookPath(binaryName); err == nil {
+		return systemPath
+	}
+	
+	// Return local path as default (even if not exists) for error messages
+	return localPath
 }

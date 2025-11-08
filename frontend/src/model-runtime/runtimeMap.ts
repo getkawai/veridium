@@ -27,6 +27,7 @@ import { LobeHunyuanAI } from './providers/hunyuan';
 import { LobeInfiniAI } from './providers/infiniai';
 import { LobeInternLMAI } from './providers/internlm';
 import { LobeJinaAI } from './providers/jina';
+import { LobeKawaiAI } from './providers/kawai';
 import { LobeLMStudioAI } from './providers/lmstudio';
 import { LobeMinimaxAI } from './providers/minimax';
 import { LobeMistralAI } from './providers/mistral';
@@ -94,6 +95,7 @@ export const providerRuntimeMap = {
   infiniai: LobeInfiniAI,
   internlm: LobeInternLMAI,
   jina: LobeJinaAI,
+  kawai: LobeKawaiAI,
   lmstudio: LobeLMStudioAI,
   minimax: LobeMinimaxAI,
   mistral: LobeMistralAI,

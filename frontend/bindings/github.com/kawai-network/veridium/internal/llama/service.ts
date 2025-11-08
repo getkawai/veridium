@@ -10,6 +10,24 @@
 // @ts-ignore: Unused imports
 import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Create } from "@wailsio/runtime";
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as $models from "./models.js";
+
+/**
+ * AutoDownloadRecommendedModel automatically downloads the best model for the system using llama-cli
+ */
+export function AutoDownloadRecommendedModel(): $CancellablePromise<void> {
+    return $Call.ByID(2081361982);
+}
+
+/**
+ * DownloadModelWithLlamaCLI downloads a model using llama-cli's built-in HuggingFace integration
+ */
+export function DownloadModelWithLlamaCLI(modelSpec: $models.QwenModelSpec): $CancellablePromise<void> {
+    return $Call.ByID(2719622767, modelSpec);
+}
+
 /**
  * GetAvailableModels returns a list of available GGUF models
  */
