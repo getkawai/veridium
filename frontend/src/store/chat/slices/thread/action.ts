@@ -10,10 +10,8 @@ import {
   UIChatMessage,
 } from '@/types';
 import isEqual from 'fast-deep-equal';
-import { SWRResponse, mutate } from 'swr';
 import { StateCreator } from 'zustand/vanilla';
 
-import { useClientDataSWR } from '@/libs/swr';
 import { chatService } from '@/services/chat';
 import { threadService } from '@/services/thread';
 import { threadSelectors } from './selectors';
@@ -28,7 +26,6 @@ import { setNamespace } from '@/utils/storeDebug';
 import { ThreadDispatch, threadReducer } from './reducer';
 
 const n = setNamespace('thd');
-const SWR_USE_FETCH_THREADS = 'SWR_USE_FETCH_THREADS';
 
 export interface ChatThreadAction {
   // update
@@ -49,7 +46,7 @@ export interface ChatThreadAction {
   openThreadCreator: (messageId: string) => void;
   openThreadInPortal: (threadId: string, sourceMessageId: string) => void;
   closeThreadPortal: () => void;
-  useFetchThreads: (enable: boolean, topicId?: string) => SWRResponse<ThreadItem[]>;
+  useFetchThreads: (enable: boolean, topicId?: string) => void;
   summaryThreadTitle: (threadId: string, messages: UIChatMessage[]) => Promise<void>;
   updateThreadTitle: (id: string, title: string) => Promise<void>;
   removeThread: (id: string) => Promise<void>;
@@ -218,31 +215,57 @@ export const chatThreadMessage: StateCreator<
     return data;
   },
 
-  useFetchThreads: (enable, topicId) =>
-    useClientDataSWR<ThreadItem[]>(
-      enable && !!topicId && !isDeprecatedEdition ? [SWR_USE_FETCH_THREADS, topicId] : null,
-      async ([, topicId]: [string, string]) => threadService.getThreads(topicId),
-      {
-        onSuccess: (threads) => {
-          const nextMap = { ...get().threadMaps, [topicId!]: threads };
+  /**
+   * Fetch threads for a specific topic
+   * Direct Zustand implementation (no SWR) for better performance
+   */
+  useFetchThreads: (enable, topicId) => {
+    const { useEffect } = require('react');
+    
+    useEffect(() => {
+      if (!enable || !topicId || isDeprecatedEdition) return;
 
-          // no need to update map if the topics have been init and the map is the same
-          if (get().topicsInit && isEqual(nextMap, get().topicMaps)) return;
+      const fetchThreads = async () => {
+        try {
+          const threads = await threadService.getThreads(topicId);
+          const nextMap = { ...get().threadMaps, [topicId]: threads };
+
+          // no need to update map if the threads have been init and the map is the same
+          if (get().threadsInit && isEqual(nextMap, get().threadMaps)) return;
 
           set(
             { threadMaps: nextMap, threadsInit: true },
             false,
-            n('useFetchThreads(success)', { topicId }),
+            n('useFetchThreads', { topicId }),
           );
-        },
-      },
-    ),
+        } catch (error) {
+          console.error('[useFetchThreads] Error fetching threads:', error);
+        }
+      };
 
+      fetchThreads();
+    }, [enable, topicId]);
+  },
+
+  /**
+   * Refresh threads from database - direct fetch without SWR cache invalidation
+   */
   refreshThreads: async () => {
     const topicId = get().activeTopicId;
     if (!topicId) return;
 
-    return mutate([SWR_USE_FETCH_THREADS, topicId]);
+    try {
+      const threads = await threadService.getThreads(topicId);
+      const nextMap = { ...get().threadMaps, [topicId]: threads };
+
+      set(
+        { threadMaps: nextMap, threadsInit: true },
+        false,
+        n('refreshThreads', { topicId }),
+      );
+    } catch (error) {
+      console.error('[refreshThreads] Error refreshing threads:', error);
+    }
   },
   removeThread: async (id) => {
     const currentActiveThreadId = get().activeThreadId;

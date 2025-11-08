@@ -18,10 +18,8 @@ import {
 import { nanoid } from '@/utils';
 import { copyToClipboard } from '@lobehub/ui';
 import isEqual from 'fast-deep-equal';
-import { SWRResponse, mutate } from 'swr';
 import { StateCreator } from 'zustand/vanilla';
 
-import { useClientDataSWR } from '@/libs/swr';
 import { messageService } from '@/services/message';
 import { topicService } from '@/services/topic';
 import { ChatStore } from '@/store/chat/store';
@@ -36,8 +34,6 @@ import { preventLeavingFn, toggleBooleanList } from '../../utils';
 import { MessageDispatch, messagesReducer } from './reducer';
 
 const n = setNamespace('m');
-
-const SWR_USE_FETCH_MESSAGES = 'SWR_USE_FETCH_MESSAGES';
 
 export interface ChatMessageAction {
   // create
@@ -303,19 +299,23 @@ export const chatMessage: StateCreator<
   /**
    * @param enable - whether to enable the fetch
    * @param messageContextId - Can be sessionId or groupId
+   * Direct Zustand implementation (no SWR) for better performance and predictability
    */
-  useFetchMessages: (enable, messageContextId, activeTopicId, type = 'session') =>
-    useClientDataSWR<UIChatMessage[]>(
-      enable ? [SWR_USE_FETCH_MESSAGES, messageContextId, activeTopicId, type] : null,
-      async ([, sessionId, topicId, type]: [string, string, string | undefined, string]) =>
-        type === 'session'
-          ? messageService.getMessages(sessionId, topicId)
-          : messageService.getGroupMessages(sessionId, topicId),
-      {
-        onSuccess: (messages, key) => {
+  useFetchMessages: (enable, messageContextId, activeTopicId, type = 'session') => {
+    const { useEffect } = require('react');
+    
+    useEffect(() => {
+      if (!enable || !messageContextId) return;
+
+      const fetchMessages = async () => {
+        try {
+          const messages = type === 'session'
+            ? await messageService.getMessages(messageContextId, activeTopicId)
+            : await messageService.getGroupMessages(messageContextId, activeTopicId);
+
           const nextMap = {
             ...get().messagesMap,
-            [messageMapKey(messageContextId || '', activeTopicId)]: messages,
+            [messageMapKey(messageContextId, activeTopicId)]: messages,
           };
 
           // no need to update map if the messages have been init and the map is the same
@@ -324,16 +324,41 @@ export const chatMessage: StateCreator<
           set(
             { messagesInit: true, messagesMap: nextMap },
             false,
-            n('useFetchMessages', { messages, queryKey: key }),
+            n('useFetchMessages', { messages, messageContextId, activeTopicId, type }),
           );
-        },
-      },
-    ),
-  // TODO: The mutate should only be called once, but since we haven't merge session and group,
-  // we need to call it twice
+        } catch (error) {
+          console.error('[useFetchMessages] Error fetching messages:', error);
+        }
+      };
+
+      fetchMessages();
+    }, [enable, messageContextId, activeTopicId, type]);
+  },
+  
+  /**
+   * Refresh messages from database - direct fetch without SWR cache invalidation
+   */
   refreshMessages: async () => {
-    await mutate([SWR_USE_FETCH_MESSAGES, get().activeId, get().activeTopicId, 'session']);
-    await mutate([SWR_USE_FETCH_MESSAGES, get().activeId, get().activeTopicId, 'group']);
+    const { activeId, activeTopicId } = get();
+    if (!activeId) return;
+
+    try {
+      // Fetch messages directly from database
+      const messages = await messageService.getMessages(activeId, activeTopicId);
+      
+      const nextMap = {
+        ...get().messagesMap,
+        [messageMapKey(activeId, activeTopicId)]: messages,
+      };
+
+      set(
+        { messagesInit: true, messagesMap: nextMap },
+        false,
+        n('refreshMessages', { activeId, activeTopicId }),
+      );
+    } catch (error) {
+      console.error('[refreshMessages] Error refreshing messages:', error);
+    }
   },
   replaceMessages: (messages) => {
     set(

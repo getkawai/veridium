@@ -6,12 +6,10 @@ import { TraceNameMap, UIChatMessage } from '@/types';
 import isEqual from 'fast-deep-equal';
 import { t } from 'i18next';
 import { produce } from 'immer';
-import useSWR, { SWRResponse, mutate } from 'swr';
 import { StateCreator } from 'zustand/vanilla';
 
 import { message } from '@/components/AntdStaticMethods';
 import { LOADING_FLAT } from '@/const/message';
-import { useClientDataSWR } from '@/libs/swr';
 import { chatService } from '@/services/chat';
 import { messageService } from '@/services/message';
 import { topicService } from '@/services/topic';
@@ -34,9 +32,6 @@ import { topicSelectors } from './selectors';
 
 const n = setNamespace('t');
 
-const SWR_USE_FETCH_TOPIC = 'SWR_USE_FETCH_TOPIC';
-const SWR_USE_SEARCH_TOPIC = 'SWR_USE_SEARCH_TOPIC';
-
 export interface ChatTopicAction {
   favoriteTopic: (id: string, favState: boolean) => Promise<void>;
   openNewTopicOrSaveTopic: () => Promise<void>;
@@ -56,14 +51,13 @@ export interface ChatTopicAction {
   updateTopicTitle: (id: string, title: string) => Promise<void>;
   useFetchTopics: (
     enable: boolean,
-    sessionId?: string,
-    groupId?: string,
-  ) => SWRResponse<ChatTopic[]>;
+    containerId?: string,
+  ) => void;
   useSearchTopics: (
     keywords?: string,
     sessionId?: string,
     groupId?: string,
-  ) => SWRResponse<ChatTopic[]>;
+  ) => void;
 
   internal_updateTopicTitleInSummary: (id: string, title: string) => void;
   internal_updateTopicLoading: (id: string, loading: boolean) => void;
@@ -233,57 +227,76 @@ export const chatTopic: StateCreator<
   },
 
   // query
-  useFetchTopics: (enable, containerId) =>
-    useClientDataSWR<ChatTopic[]>(
-      enable ? [SWR_USE_FETCH_TOPIC, containerId] : null,
-      async ([, containerId]: [string, string | undefined]) => {
-        console.debug('[useFetchTopics] Fetching topics for containerId:', containerId);
-        const topics = await topicService.getTopics({ containerId });
-        console.debug('[useFetchTopics] Fetched topics:', topics.length, 'topics');
-        return topics;
-      },
-      {
-        onSuccess: (topics) => {
-          console.debug('[useFetchTopics.onSuccess] Received topics:', topics.length, 'for containerId:', containerId);
-          if (!containerId) return;
+  /**
+   * Fetch topics for a specific container (session or group)
+   * Direct Zustand implementation (no SWR) for better performance
+   */
+  useFetchTopics: (enable, containerId) => {
+    const { useEffect } = require('react');
+    
+    useEffect(() => {
+      if (!enable || !containerId) return;
+
+      const fetchTopics = async () => {
+        try {
+          console.debug('[useFetchTopics] Fetching topics for containerId:', containerId);
+          const topics = await topicService.getTopics({ containerId });
+          console.debug('[useFetchTopics] Fetched topics:', topics.length, 'topics');
 
           const nextMap = { ...get().topicMaps, [containerId]: topics };
-          console.debug('[useFetchTopics.onSuccess] nextMap:', nextMap);
 
           // no need to update map if the topics have been init and the map is the same
           if (get().topicsInit && isEqual(nextMap, get().topicMaps)) {
-            console.debug('[useFetchTopics.onSuccess] Skipping update - maps are equal');
+            console.debug('[useFetchTopics] Skipping update - maps are equal');
             return;
           }
 
-          console.debug('[useFetchTopics.onSuccess] Updating topicMaps');
+          console.debug('[useFetchTopics] Updating topicMaps');
           set(
             { topicMaps: nextMap, topicsInit: true },
             false,
-            n('useFetchTopics(success)', { containerId }),
+            n('useFetchTopics', { containerId }),
           );
-        },
-      },
-    ),
-  useSearchTopics: (keywords, sessionId, groupId) =>
-    useSWR<ChatTopic[]>(
-      [SWR_USE_SEARCH_TOPIC, keywords, sessionId, groupId],
-      ([, keywords, sessionId, groupId]: [
-        string,
-        string,
-        string | undefined,
-        string | undefined,
-      ]) => topicService.searchTopics(keywords, sessionId, groupId),
-      {
-        onSuccess: (data) => {
+        } catch (error) {
+          console.error('[useFetchTopics] Error fetching topics:', error);
+        }
+      };
+
+      fetchTopics();
+    }, [enable, containerId]);
+  },
+  
+  /**
+   * Search topics by keywords
+   * Direct implementation (no SWR)
+   */
+  useSearchTopics: (keywords, sessionId, groupId) => {
+    const { useEffect } = require('react');
+    
+    useEffect(() => {
+      if (!keywords) {
+        set({ searchTopics: [], isSearchingTopic: false }, false, n('useSearchTopics/clear'));
+        return;
+      }
+
+      const searchTopics = async () => {
+        try {
+          set({ isSearchingTopic: true }, false, n('useSearchTopics/start'));
+          const data = await topicService.searchTopics(keywords, sessionId, groupId);
           set(
             { searchTopics: data, isSearchingTopic: false },
             false,
-            n('useSearchTopics(success)', { keywords }),
+            n('useSearchTopics', { keywords }),
           );
-        },
-      },
-    ),
+        } catch (error) {
+          console.error('[useSearchTopics] Error searching topics:', error);
+          set({ isSearchingTopic: false }, false, n('useSearchTopics/error'));
+        }
+      };
+
+      searchTopics();
+    }, [keywords, sessionId, groupId]);
+  },
 
   switchTopic: async (id, skipRefreshMessage) => {
     const previousActiveThreadId = get().activeThreadId;
@@ -399,8 +412,28 @@ export const chatTopic: StateCreator<
       'updateTopicTitleInSummary',
     );
   },
+  
+  /**
+   * Refresh topics from database - direct fetch without SWR cache invalidation
+   */
   refreshTopic: async () => {
-    return mutate([SWR_USE_FETCH_TOPIC, get().activeId]);
+    const { activeId } = get();
+    if (!activeId) return;
+
+    try {
+      console.debug('[refreshTopic] Fetching topics for activeId:', activeId);
+      const topics = await topicService.getTopics({ containerId: activeId });
+      console.debug('[refreshTopic] Fetched topics:', topics.length, 'topics');
+
+      const nextMap = { ...get().topicMaps, [activeId]: topics };
+      set(
+        { topicMaps: nextMap, topicsInit: true },
+        false,
+        n('refreshTopic', { activeId }),
+      );
+    } catch (error) {
+      console.error('[refreshTopic] Error refreshing topics:', error);
+    }
   },
 
   internal_updateTopicLoading: (id, loading) => {
