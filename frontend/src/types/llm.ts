@@ -2,6 +2,7 @@ import { ModelParamsSchema , AiModelType, Pricing } from '@/model-bank';
 import { ReactNode } from 'react';
 
 import { AiProviderSettings } from './aiProvider';
+import { LLMRoleType } from './chat';
 
 export interface ChatModelCard {
   /**
@@ -158,8 +159,6 @@ export interface ModelProviderCard {
    */
   url: string;
 }
-
-export type LLMRoleType = 'user' | 'system' | 'assistant' | 'tool';
 
 export interface LLMMessage {
   content: string;

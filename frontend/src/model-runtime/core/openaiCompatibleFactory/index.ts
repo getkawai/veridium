@@ -22,7 +22,7 @@ import {
   TextToImagePayload,
   TextToSpeechOptions,
   TextToSpeechPayload,
-} from '../../types';
+} from '@/types';
 import { AgentRuntimeErrorType, ILobeAgentRuntimeErrorType } from '../../types/error';
 import { CreateImagePayload, CreateImageResponse } from '../../types/image';
 import { AgentRuntimeError } from '../../utils/createError';

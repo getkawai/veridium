@@ -29,8 +29,18 @@ export * from './user';
 export * from './user/settings';
 // FIXME: I think we need a refactor for the "openai" types
 // it more likes the UI message payload
-export * from './openai/chat';
+// export * from './openai/chat'; // Commented out - duplicates types from './chat'
 export * from './openai/plugin';
 export * from './trace';
 export * from './zustand';
 export * from './trpc';
+export * from './chat';
+export * from './embeddings';
+// export * from './error'; // Commented out - ErrorType duplicates from './fetch', ChatMessageError from './message'
+export * from './image';
+export * from './model';
+export * from './structureOutput';
+export * from './textToImage';
+// export * from './toolsCalling'; // Commented out - duplicates types from './message'
+export * from './tts';
+export * from './type';

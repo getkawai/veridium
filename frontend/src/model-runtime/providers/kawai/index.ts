@@ -1,26 +1,19 @@
 import { createOpenAICompatibleRuntime } from '../../core/openaiCompatibleFactory';
 
 // Import Wails bindings
-import { StreamFetch } from '@@/github.com/kawai-network/veridium/internal/llama/proxyservice';
-import { ProxyRequest } from '@@/github.com/kawai-network/veridium/internal/llama/models';
-import { Events } from '@wailsio/runtime';
-import { nanoid } from 'nanoid';
-import { WailsEvent } from 'node_modules/@wailsio/runtime/types/events';
+import { Fetch } from '@@/github.com/kawai-network/veridium/internal/llama/proxyservice';
 
 /**
- * Custom fetch that uses Wails events for real-time streaming
- * This allows WebView to receive SSE chunks as they arrive from llama-server
+ * Custom fetch that proxies requests through Wails binding
+ * Uses simple request-response for reliability
  */
-const createWailsStreamingFetch = () => {
+const createWailsProxyFetch = () => {
   return async (url: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const urlString = typeof url === 'string' ? url : url instanceof URL ? url.toString() : String(url);
     
     // Parse URL to get path
     const urlObj = new URL(urlString);
     const path = urlObj.pathname + urlObj.search;
-
-    // Generate unique request ID for this stream
-    const requestID = nanoid();
 
     // Convert headers to plain object
     const headers: Record<string, string> = {};
@@ -54,159 +47,80 @@ const createWailsStreamingFetch = () => {
       }
     }
 
-    console.debug('[Kawai] Starting streaming request:', {
-      requestID,
+    console.debug('[Kawai] Proxying request through Wails:', {
       method: init?.method || 'GET',
       path,
       hasBody: !!body,
     });
 
-    // Setup event listeners BEFORE creating stream to ensure they're ready
-    let isStreamClosed = false;
-    let streamEnded = false;
-    const encoder = new TextEncoder();
-    const chunkBuffer: string[] = [];
+    try {
+      // Make blocking request through Wails binding
+      const proxyResponse = await Fetch({
+        method: init?.method || 'GET',
+        path,
+        headers,
+        body,
+      });
 
-    // Listen for response metadata
-    const unsubMeta = Events.On(`stream:${requestID}:meta`, (ev: WailsEvent) => {
-      // Wails wraps event data in an array, extract first element
-      const metadata = Array.isArray(ev.data) ? ev.data[0] : ev.data;
-      console.debug('[Kawai] Stream meta received:', metadata);
-    });
-
-    // Buffer to accumulate SSE messages
-    let sseMessageBuffer = '';
-    
-    // Listen for data chunks - accumulate into complete SSE messages
-    const unsubData = Events.On(`stream:${requestID}:data`, (ev: WailsEvent) => {
-      // Wails wraps event data in an array, extract first element
-      const chunk = Array.isArray(ev.data) ? ev.data[0] : ev.data;
-      
-      if (chunk) {
-        const chunkStr = typeof chunk === 'string' ? chunk : String(chunk);
-        sseMessageBuffer += chunkStr;
-        
-        // Check if we have a complete SSE message (ends with \n\n)
-        const messages = sseMessageBuffer.split('\n\n');
-        
-        // Last element might be incomplete, keep it in buffer
-        sseMessageBuffer = messages.pop() || '';
-        
-        // Add complete messages to chunk buffer
-        for (const msg of messages) {
-          if (msg.trim()) {
-            // Add back the \n\n separator
-            chunkBuffer.push(msg + '\n\n');
-          }
-        }
+      if (!proxyResponse) {
+        throw new Error('No response from proxy');
       }
-    });
 
-    // Listen for stream end - mark as complete
-    const unsubEnd = Events.On(`stream:${requestID}:end`, (ev: WailsEvent) => {
-      console.debug('[Kawai] Stream end event received, buffered chunks:', chunkBuffer.length);
-      streamEnded = true;
-    });
+      console.debug('[Kawai] Proxy response received:', {
+        status: proxyResponse.status,
+        contentLength: proxyResponse.body?.length || 0,
+        contentPreview: proxyResponse.body?.substring(0, 100) || '',
+      });
 
-    // Create ReadableStream with pull-based approach
-    let currentIndex = 0;
-    
-    const stream = new ReadableStream({
-      async start(controller) {
-        console.debug('[Kawai] Stream started, waiting for backend...');
-        
-        // Start the stream request via Wails binding
-        const request: ProxyRequest = {
-          method: init?.method || 'GET',
-          path,
-          headers,
-          body,
-        };
-
-        // Start fetching
-        StreamFetch(requestID, request).catch((error) => {
-          console.error('[Kawai] Stream error:', error);
-          if (!isStreamClosed) {
-            controller.error(error);
-            isStreamClosed = true;
-          }
-        });
-
-        // Wait for stream to end (all chunks buffered)
-        while (!streamEnded) {
-          await new Promise(resolve => setTimeout(resolve, 50));
-        }
-
-        console.debug('[Kawai] Backend stream ended, buffered', chunkBuffer.length, 'chunks');
-      },
+      // Convert SSE string to ReadableStream for OpenAI SDK
+      const sseText = proxyResponse.body || '';
+      const encoder = new TextEncoder();
       
-      async pull(controller) {
-        // Pull-based: only enqueue when SDK requests data
-        if (currentIndex < chunkBuffer.length) {
-          const chunkStr = chunkBuffer[currentIndex];
-          currentIndex++;
+      const stream = new ReadableStream({
+        start(controller) {
+          // Split by double newline to get complete SSE messages
+          const messages = sseText.split('\n\n').filter(msg => msg.trim());
           
-          try {
-            controller.enqueue(encoder.encode(chunkStr));
-            console.debug(`[Kawai] Pulled chunk ${currentIndex}/${chunkBuffer.length}`);
-          } catch (error) {
-            console.error('[Kawai] Failed to enqueue chunk:', error);
-            isStreamClosed = true;
-            controller.error(error);
-          }
-        } else if (streamEnded && currentIndex >= chunkBuffer.length) {
-          // All chunks sent, close stream
-          console.debug('[Kawai] All chunks sent, closing stream');
-          if (!isStreamClosed) {
-            try {
-              controller.close();
-              isStreamClosed = true;
-            } catch (error) {
-              console.error('[Kawai] Failed to close stream:', error);
+          console.debug('[Kawai] Converting', messages.length, 'SSE messages to stream');
+          
+          // Enqueue each SSE message
+          for (const message of messages) {
+            if (message.trim()) {
+              // Add back the double newline separator
+              controller.enqueue(encoder.encode(message + '\n\n'));
             }
           }
-          // Cleanup listeners
-          unsubMeta();
-          unsubData();
-          unsubEnd();
+          
+          controller.close();
         }
-      },
-      
-      cancel(reason) {
-        console.debug('[Kawai] Stream cancelled by consumer:', reason);
-        isStreamClosed = true;
-        unsubMeta();
-        unsubData();
-        unsubEnd();
-      },
-    });
+      });
 
-    // Return Response with streaming body in SSE format
-    // OpenAI SDK will parse the SSE format internally
-    return new Response(stream, {
-      status: 200,
-      statusText: 'OK',
-      headers: new Headers({ 
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-      }),
-    });
+      // Return Response with streaming body
+      // OpenAI SDK will parse the SSE format from the stream
+      return new Response(stream, {
+        status: proxyResponse.status,
+        statusText: proxyResponse.statusText,
+        headers: new Headers(proxyResponse.headers),
+      });
+    } catch (error) {
+      console.error('[Kawai] Proxy request failed:', error);
+      throw error;
+    }
   };
 };
 
 /**
  * Kawai AI Provider - Local LLM via llama.cpp
- * Uses Wails events for real-time streaming from llama-server
+ * Uses Wails binding to proxy requests to llama-server
  */
 export const LobeKawaiAI = createOpenAICompatibleRuntime({
   provider: 'kawai',
   baseURL: 'http://127.0.0.1:8080/v1', // This will be intercepted by custom fetch
   apiKey: 'sk-local', // Placeholder, not used
   
-  // Inject custom fetch that uses Wails event streaming
+  // Inject custom fetch that uses Wails proxy
   constructorOptions: {
-    fetch: createWailsStreamingFetch(),
+    fetch: createWailsProxyFetch(),
   },
   
   debug: {
