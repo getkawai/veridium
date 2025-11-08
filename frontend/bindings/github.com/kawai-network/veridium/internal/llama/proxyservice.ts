@@ -25,6 +25,14 @@ export function Fetch(request: $models.ProxyRequest): $CancellablePromise<$model
     });
 }
 
+/**
+ * StreamFetch proxies HTTP requests and streams response via Wails events
+ * This enables real-time streaming for SSE responses
+ */
+export function StreamFetch(requestID: string, request: $models.ProxyRequest): $CancellablePromise<void> {
+    return $Call.ByID(660992371, requestID, request);
+}
+
 // Private type creation functions
 const $$createType0 = $models.ProxyResponse.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);

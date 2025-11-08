@@ -299,3 +299,15 @@ func (lcm *LlamaCppReleaseManager) GetBinaryPath(binaryName string) string {
 	// Return local path as default (even if not exists) for error messages
 	return localPath
 }
+
+// GetLlamaCLICacheDirectory returns the llama-cli cache directory on Windows
+func GetLlamaCLICacheDirectory() string {
+	// Use LOCALAPPDATA environment variable
+	localAppData := os.Getenv("LOCALAPPDATA")
+	if localAppData == "" {
+		// Fallback to user home directory
+		homeDir, _ := os.UserHomeDir()
+		localAppData = filepath.Join(homeDir, "AppData", "Local")
+	}
+	return filepath.Join(localAppData, "llama.cpp", "cache")
+}

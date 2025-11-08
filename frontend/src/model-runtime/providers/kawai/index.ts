@@ -1,20 +1,25 @@
 import { createOpenAICompatibleRuntime } from '../../core/openaiCompatibleFactory';
 
-// Import Wails proxy binding
-import { Fetch } from '@@/github.com/kawai-network/veridium/internal/llama/proxyservice';
-import { ProxyResponse } from '@@/github.com/kawai-network/veridium/internal/llama/models';
+// Import Wails bindings
+import { StreamFetch } from '@@/github.com/kawai-network/veridium/internal/llama/proxyservice';
+import { ProxyRequest } from '@@/github.com/kawai-network/veridium/internal/llama/models';
+import { Events } from '@wailsio/runtime';
+import { nanoid } from 'nanoid';
 
 /**
- * Custom fetch that routes through Wails proxy
- * This allows WebView to call localhost llama-server
+ * Custom fetch that uses Wails events for real-time streaming
+ * This allows WebView to receive SSE chunks as they arrive from llama-server
  */
-const createWailsProxyFetch = () => {
+const createWailsStreamingFetch = () => {
   return async (url: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const urlString = typeof url === 'string' ? url : url instanceof URL ? url.toString() : String(url);
     
     // Parse URL to get path
     const urlObj = new URL(urlString);
     const path = urlObj.pathname + urlObj.search;
+
+    // Generate unique request ID for this stream
+    const requestID = nanoid();
 
     // Convert headers to plain object
     const headers: Record<string, string> = {};
@@ -48,53 +53,86 @@ const createWailsProxyFetch = () => {
       }
     }
 
-    console.debug('[Kawai] Proxying request through Wails:', {
+    console.debug('[Kawai] Starting streaming request:', {
+      requestID,
       method: init?.method || 'GET',
       path,
       hasBody: !!body,
     });
 
-    try {
-      // Call Go proxy via Wails binding
-      const proxyResponse: ProxyResponse | null = await Fetch({
-        method: init?.method || 'GET',
-        path,
-        headers,
-        body,
-      });
+    // Create ReadableStream that listens to Wails events
+    const stream = new ReadableStream({
+      start(controller) {
+        const encoder = new TextEncoder();
+        let responseMeta: any = null;
 
-      // Check if response is null
-      if (!proxyResponse) {
-        throw new Error('Proxy response is null - llama-server may not be running');
-      }
+        // Listen for response metadata
+        const unsubMeta = Events.On(`stream:${requestID}:meta`, (ev: any) => {
+          console.debug('[Kawai] Stream meta received:', ev.data);
+          responseMeta = ev.data;
+        });
 
-      // Convert Go response to Web Response
-      const responseHeaders = new Headers(proxyResponse.headers);
-      
-      return new Response(proxyResponse.body, {
-        status: proxyResponse.status,
-        statusText: proxyResponse.statusText,
-        headers: responseHeaders,
-      });
-    } catch (error) {
-      console.error('[Kawai] Proxy request failed:', error);
-      throw error;
-    }
+        // Listen for data chunks
+        const unsubData = Events.On(`stream:${requestID}:data`, (ev: any) => {
+          // Enqueue each SSE line as it arrives
+          const chunk = ev.data as string;
+          controller.enqueue(encoder.encode(chunk));
+        });
+
+        // Listen for stream end
+        const unsubEnd = Events.On(`stream:${requestID}:end`, (ev: any) => {
+          console.debug('[Kawai] Stream ended');
+          controller.close();
+          
+          // Cleanup listeners
+          unsubMeta();
+          unsubData();
+          unsubEnd();
+        });
+
+        // Start the stream request via Wails binding
+        const request: ProxyRequest = {
+          method: init?.method || 'GET',
+          path,
+          headers,
+          body,
+        };
+
+        StreamFetch(requestID, request).catch((error) => {
+          console.error('[Kawai] Stream error:', error);
+          controller.error(error);
+          unsubMeta();
+          unsubData();
+          unsubEnd();
+        });
+      },
+    });
+
+    // Return Response with streaming body
+    return new Response(stream, {
+      status: 200,
+      statusText: 'OK',
+      headers: new Headers({ 
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      }),
+    });
   };
 };
 
 /**
  * Kawai AI Provider - Local LLM via llama.cpp
- * Uses Wails proxy to communicate with llama-server
+ * Uses Wails events for real-time streaming from llama-server
  */
 export const LobeKawaiAI = createOpenAICompatibleRuntime({
   provider: 'kawai',
   baseURL: 'http://127.0.0.1:8080/v1', // This will be intercepted by custom fetch
   apiKey: 'sk-local', // Placeholder, not used
   
-  // Inject custom fetch that routes through Wails
+  // Inject custom fetch that uses Wails event streaming
   constructorOptions: {
-    fetch: createWailsProxyFetch(),
+    fetch: createWailsStreamingFetch(),
   },
   
   debug: {
@@ -103,4 +141,3 @@ export const LobeKawaiAI = createOpenAICompatibleRuntime({
 });
 
 export default LobeKawaiAI;
-

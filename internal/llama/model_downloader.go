@@ -99,9 +99,8 @@ func (s *Service) DownloadModelWithLlamaCLI(modelSpec QwenModelSpec) error {
 	hfRepo := modelSpec.Repo
 
 	// Generate expected model filename from llama-cli cache
-	// llama-cli caches to: ~/Library/Caches/llama.cpp/Qwen_Qwen2.5-0.5B-Instruct-GGUF_qwen2.5-0.5b-instruct-q4_k_m.gguf
-	homeDir, _ := os.UserHomeDir()
-	cacheDir := filepath.Join(homeDir, "Library", "Caches", "llama.cpp")
+	// Cache location is platform-specific (see manager_*.go files)
+	cacheDir := GetLlamaCLICacheDirectory()
 
 	// Build cache filename: Repo_Name_model-quant.gguf
 	repoName := strings.ReplaceAll(modelSpec.Repo, "/", "_")

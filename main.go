@@ -77,9 +77,6 @@ func main() {
 		log.Printf("    LLM features will not be available.")
 	}
 
-	// Initialize Llama proxy service (for WebView to call llama-server)
-	llamaProxyService := llama.NewProxyService(llamaService)
-
 	defer whisperService.Close()
 	log.Printf("✅ Whisper STT service initialized")
 	log.Printf("   Models directory: %s", whisperService.GetModelsDirectory())
@@ -112,8 +109,6 @@ func main() {
 			application.NewService(whisperService),
 			// Llama service - for LLM inference using llama.cpp
 			application.NewService(llamaService),
-			// Llama proxy service - for WebView to call llama-server
-			application.NewService(llamaProxyService),
 			// Audio recorder service - for native microphone recording
 			application.NewService(audioRecorderService),
 			// Machine ID service
@@ -171,6 +166,10 @@ func main() {
 
 	// Set app instance for audio recorder service (for event emission)
 	audioRecorderService.SetApp(app)
+
+	// Initialize Llama proxy service (for WebView to call llama-server via streaming)
+	llamaProxyService := llama.NewProxyService(llamaService, app)
+	app.RegisterService(application.NewService(llamaProxyService))
 
 	// Create a new window with the necessary options.
 	// 'Title' is the title of the window.
