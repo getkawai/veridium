@@ -5,6 +5,7 @@ import { StreamFetch } from '@@/github.com/kawai-network/veridium/internal/llama
 import { ProxyRequest } from '@@/github.com/kawai-network/veridium/internal/llama/models';
 import { Events } from '@wailsio/runtime';
 import { nanoid } from 'nanoid';
+import { WailsEvent } from 'node_modules/@wailsio/runtime/types/events';
 
 /**
  * Custom fetch that uses Wails events for real-time streaming
@@ -65,21 +66,26 @@ const createWailsStreamingFetch = () => {
     const encoder = new TextEncoder();
 
     // Listen for response metadata
-    const unsubMeta = Events.On(`stream:${requestID}:meta`, (ev: any) => {
-      console.debug('[Kawai] Stream meta received:', ev.data);
+    const unsubMeta = Events.On(`stream:${requestID}:meta`, (ev: WailsEvent) => {
+      // Wails wraps event data in an array, extract first element
+      const metadata = Array.isArray(ev.data) ? ev.data[0] : ev.data;
+      console.debug('[Kawai] Stream meta received:', metadata);
     });
 
     // Listen for data chunks
-    const unsubData = Events.On(`stream:${requestID}:data`, (ev: any) => {
-      const chunk = ev.data as string;
-      console.debug('[Kawai] Stream chunk received:', chunk.substring(0, 100));
-      if (streamController) {
-        streamController.enqueue(encoder.encode(chunk));
+    const unsubData = Events.On(`stream:${requestID}:data`, (ev: WailsEvent) => {
+      // Wails wraps event data in an array, extract first element
+      const chunk = Array.isArray(ev.data) ? ev.data[0] : ev.data;
+      
+      if (streamController && chunk) {
+        // Convert to string if needed and encode
+        const chunkStr = typeof chunk === 'string' ? chunk : String(chunk);
+        streamController.enqueue(encoder.encode(chunkStr));
       }
     });
 
     // Listen for stream end
-    const unsubEnd = Events.On(`stream:${requestID}:end`, (ev: any) => {
+    const unsubEnd = Events.On(`stream:${requestID}:end`, (ev: WailsEvent) => {
       console.debug('[Kawai] Stream ended');
       if (streamController) {
         streamController.close();

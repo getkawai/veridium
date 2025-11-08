@@ -8,3 +8,4 @@ data/
 frontend/.DS_Store
 .DS_Store
 dev.log
+backend-dev.log
