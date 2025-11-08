@@ -109,7 +109,7 @@ func (p *ProxyService) Fetch(ctx context.Context, request ProxyRequest) (*ProxyR
 // This enables real-time streaming for SSE responses
 func (p *ProxyService) StreamFetch(ctx context.Context, requestID string, request ProxyRequest) error {
 	log.Printf("[StreamFetch] Starting stream for request ID: %s", requestID)
-	
+
 	// Ensure llama-server is running
 	if !p.service.IsServerRunning() {
 		return fmt.Errorf("llama-server is not running")
@@ -172,8 +172,13 @@ func (p *ProxyService) StreamFetch(ctx context.Context, requestID string, reques
 		}
 
 		lineCount++
+		lineStr := string(line)
+		// Debug: log first few lines
+		if lineCount <= 3 {
+			log.Printf("[StreamFetch] Emitting line %d: %q", lineCount, lineStr)
+		}
 		// Emit each line as event
-		p.app.Event.Emit(fmt.Sprintf("stream:%s:data", requestID), string(line))
+		p.app.Event.Emit(fmt.Sprintf("stream:%s:data", requestID), lineStr)
 	}
 
 	// Emit end event

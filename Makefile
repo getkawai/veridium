@@ -36,6 +36,8 @@ generate: db-generate bindings-generate
 # Start development server
 dev:
 	@echo "🚀 Starting development server..."
+	killport 9245
+	rm -rf data
 	rm -f backend-dev.log
 	wails3 dev 2>&1 | tee backend-dev.log
 
