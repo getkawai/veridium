@@ -4,10 +4,16 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
+
+	"github.com/pemistahl/lingua-go"
 )
 
 // TTSService provides text-to-speech using native OS capabilities
-type TTSService struct{}
+type TTSService struct {
+	detector     lingua.LanguageDetector
+	detectorOnce sync.Once
+}
 
 // Voice represents a TTS voice
 type Voice struct {
@@ -29,8 +35,11 @@ func NewTTSService() (*TTSService, error) {
 
 // SpeakToAudio generates speech and returns audio data as byte array
 // This is more convenient than SpeakToFile for frontend integration
+// Automatically detects language and selects appropriate voice
 func (s *TTSService) SpeakToAudio(text string) ([]byte, error) {
-	return s.SpeakToAudioWithVoice(text, "")
+	// Auto-detect language and select voice
+	voice := s.SelectVoiceForText(text)
+	return s.SpeakToAudioWithVoice(text, voice)
 }
 
 // SpeakToAudioWithVoice generates speech with specified voice and returns audio data
@@ -102,4 +111,91 @@ func (s *TTSService) GetRecommendedVoices() map[string]string {
 		"ru-RU": "Milena",    // Russian female
 		"ar-SA": "Maged",     // Arabic male
 	}
+}
+
+// initDetector initializes the language detector (lazy initialization)
+func (s *TTSService) initDetector() {
+	s.detectorOnce.Do(func() {
+		// Build detector with common languages for better performance
+		languages := []lingua.Language{
+			lingua.English,
+			lingua.Chinese,
+			lingua.Indonesian,
+			lingua.Japanese,
+			lingua.Korean,
+			lingua.Spanish,
+			lingua.French,
+			lingua.German,
+			lingua.Italian,
+			lingua.Russian,
+			lingua.Arabic,
+		}
+		s.detector = lingua.NewLanguageDetectorBuilder().
+			FromLanguages(languages...).
+			Build()
+	})
+}
+
+// DetectLanguage detects the language of the given text
+func (s *TTSService) DetectLanguage(text string) (string, float64) {
+	s.initDetector()
+
+	if text == "" {
+		return "en-US", 0.0
+	}
+
+	// Detect language with confidence
+	if language, exists := s.detector.DetectLanguageOf(text); exists {
+		confidence := s.detector.ComputeLanguageConfidence(text, language)
+
+		// Map lingua.Language to locale code
+		langCode := s.mapLanguageToLocale(language)
+
+		fmt.Printf("[TTS] Detected language: %s (confidence: %.2f)\n", langCode, confidence)
+		return langCode, confidence
+	}
+
+	// Default to English if detection fails
+	fmt.Printf("[TTS] Language detection failed, defaulting to en-US\n")
+	return "en-US", 0.0
+}
+
+// mapLanguageToLocale maps lingua.Language to locale code
+func (s *TTSService) mapLanguageToLocale(lang lingua.Language) string {
+	mapping := map[lingua.Language]string{
+		lingua.English:    "en-US",
+		lingua.Chinese:    "zh-CN",
+		lingua.Indonesian: "id-ID",
+		lingua.Japanese:   "ja-JP",
+		lingua.Korean:     "ko-KR",
+		lingua.Spanish:    "es-ES",
+		lingua.French:     "fr-FR",
+		lingua.German:     "de-DE",
+		lingua.Italian:    "it-IT",
+		lingua.Russian:    "ru-RU",
+		lingua.Arabic:     "ar-SA",
+	}
+
+	if locale, ok := mapping[lang]; ok {
+		return locale
+	}
+
+	return "en-US" // Default fallback
+}
+
+// SelectVoiceForText detects language and selects appropriate voice
+func (s *TTSService) SelectVoiceForText(text string) string {
+	langCode, confidence := s.DetectLanguage(text)
+
+	// Use recommended voice for detected language
+	recommendedVoices := s.GetRecommendedVoices()
+	if voice, ok := recommendedVoices[langCode]; ok {
+		fmt.Printf("[TTS] Selected voice: %s for language: %s (confidence: %.2f)\n",
+			voice, langCode, confidence)
+		return voice
+	}
+
+	// Fallback to default voice
+	fmt.Printf("[TTS] No recommended voice for %s, using default\n", langCode)
+	return ""
 }

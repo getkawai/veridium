@@ -6,6 +6,7 @@ toolchain go1.24.5
 
 require (
 	github.com/dslipak/pdf v0.0.2
+	github.com/pemistahl/lingua-go v1.4.0
 	github.com/wailsapp/wails/v3 v3.0.0-dev
 	golang.org/x/net v0.46.0
 	golang.org/x/sys v0.37.0
@@ -47,6 +48,7 @@ require (
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/samber/lo v1.49.1 // indirect
 	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3 // indirect
+	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/skeema/knownhosts v1.3.1 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/wailsapp/go-webview2 v1.0.22 // indirect
@@ -55,6 +57,7 @@ require (
 	golang.org/x/crypto v0.43.0 // indirect
 	golang.org/x/exp v0.0.0-20250606033433-dcc06ee1d476 // indirect
 	golang.org/x/text v0.30.0 // indirect
+	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	modernc.org/libc v1.61.13 // indirect

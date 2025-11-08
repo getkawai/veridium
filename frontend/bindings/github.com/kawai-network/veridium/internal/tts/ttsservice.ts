@@ -15,6 +15,13 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
+ * DetectLanguage detects the language of the given text
+ */
+export function DetectLanguage(text: string): $CancellablePromise<[string, number]> {
+    return $Call.ByID(3078113413, text);
+}
+
+/**
  * GetDefaultVoice returns the system default voice
  */
 export function GetDefaultVoice(): $CancellablePromise<string> {
@@ -65,7 +72,14 @@ export function ListVoices(): $CancellablePromise<$models.Voice[]> {
 }
 
 /**
- * Speak converts text to speech using default voice
+ * SelectVoiceForText detects language and selects appropriate voice
+ */
+export function SelectVoiceForText(text: string): $CancellablePromise<string> {
+    return $Call.ByID(3350016686, text);
+}
+
+/**
+ * Speak converts text to speech with auto-detected language
  */
 export function Speak(text: string): $CancellablePromise<void> {
     return $Call.ByID(3761971450, text);
@@ -74,6 +88,7 @@ export function Speak(text: string): $CancellablePromise<void> {
 /**
  * SpeakToAudio generates speech and returns audio data as byte array
  * This is more convenient than SpeakToFile for frontend integration
+ * Automatically detects language and selects appropriate voice
  */
 export function SpeakToAudio(text: string): $CancellablePromise<string> {
     return $Call.ByID(1434654203, text).then(($result: any) => {

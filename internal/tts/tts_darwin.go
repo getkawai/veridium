@@ -8,9 +8,11 @@ import (
 	"strings"
 )
 
-// Speak converts text to speech using default voice
+// Speak converts text to speech with auto-detected language
 func (s *TTSService) Speak(text string) error {
-	return s.SpeakWithVoice(text, "")
+	// Auto-detect language and select voice
+	voice := s.SelectVoiceForText(text)
+	return s.SpeakWithVoice(text, voice)
 }
 
 // SpeakWithVoice converts text to speech using specified voice
