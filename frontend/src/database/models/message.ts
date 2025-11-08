@@ -843,7 +843,16 @@ export class MessageModel {
     });
   };
 
-  updateTranslate = async (id: string, translate: Partial<ChatTranslate>) => {
+  updateTranslate = async (id: string, translate: Partial<ChatTranslate> | false) => {
+    // If translate is false, delete the translation
+    if (translate === false) {
+      return await DB.DeleteMessageTranslate({
+        id,
+        userId: this.userId,
+      });
+    }
+
+    // Otherwise, upsert the translation
     return await DB.UpsertMessageTranslate({
       id,
       content: toNullString(translate.content as any),
