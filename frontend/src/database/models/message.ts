@@ -3,6 +3,7 @@ import {
   ChatImageItem,
   ChatToolPayload,
   ChatTranslate,
+  ChatTTS,
   ChatVideoItem,
   CreateMessageParams,
   CreateMessageResult,
@@ -294,9 +295,9 @@ export class MessageModel {
           fromProvider: getNullableString(message.provider as any),
           translate: translate
             ? {
-                content: getNullableString(translate.content as any),
-                from: getNullableString(translate.from as any),
-                to: getNullableString(translate.to as any),
+                content: getNullableString(translate.content as any) || '',
+                from: getNullableString(translate.from as any) || '',
+                to: getNullableString(translate.to as any) || '',
               }
             : undefined,
           tts: tts
@@ -853,58 +854,11 @@ export class MessageModel {
     });
   };
 
+  // TTS functionality moved to backend (native OS TTS)
+  // This method kept for backward compatibility but no longer used
   updateTTS = async (id: string, tts: Partial<ChatTTS>) => {
-    await this.logger.methodEntry('updateTTS', { 
-      id, 
-      hasFile: !!tts.file,
-      voice: tts.voice,
-      userId: this.userId 
-    });
-    
-    // Skip database operation if message is temporary (not yet persisted)
-    if (id.startsWith('tmp_')) {
-      await this.logger.warn('Cannot save TTS for temporary message', { id });
-      return;
-    }
-
-    // Skip if file ID is mock/temporary (not yet uploaded to database)
-    if (tts.file && (tts.file.startsWith('mock-') || tts.file.startsWith('tmp_'))) {
-      await this.logger.warn('Cannot save TTS with temporary file ID', { fileId: tts.file });
-      return;
-    }
-
-    // Verify message exists before inserting TTS
-    const messageExists = await this.findById(id);
-    if (!messageExists) {
-      await this.logger.error('Cannot save TTS: message not found', null, { id });
-      return;
-    }
-
-    // If file ID is provided, verify it exists
-    if (tts.file) {
-      try {
-        await DB.GetFile({
-          id: tts.file,
-          userId: this.userId,
-        });
-        await this.logger.debug(`TTS file verified: ${tts.file}`);
-      } catch (error) {
-        await this.logger.error('Cannot save TTS: file not found', error, { fileId: tts.file });
-        return;
-      }
-    }
-
-    const result = await DB.UpsertMessageTTS({
-      id,
-      contentMd5: toNullString(tts.contentMd5 as any),
-      fileId: toNullString(tts.file as any),
-      voice: toNullString(tts.voice as any),
-      clientId: toNullString(null),
-      userId: this.userId,
-    });
-    
-    await this.logger.methodExit('updateTTS', { id, fileId: tts.file });
-    return result;
+    await this.logger.warn('updateTTS called but TTS now handled by backend', { id });
+    return;
   };
 
   async updateMessageRAG(id: string, { ragQueryId, fileChunks }: UpdateMessageRAGParams) {

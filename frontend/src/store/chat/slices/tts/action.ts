@@ -3,6 +3,8 @@ import { StateCreator } from 'zustand';
 import { ChatStore } from '../../store';
 import { ChatTTS } from '@/types';
 
+// TTS functionality moved to backend (native OS TTS)
+// These actions kept for backward compatibility but no longer used
 export interface TTSAction {
   clearTTS: (id: string) => void;
   ttsMessage: (id: string, tts: ChatTTS) => void;
@@ -14,50 +16,14 @@ export const createTTSSlice: StateCreator<
   [],
   TTSAction
 > = (set, get) => ({
+  // No-op: TTS now handled by backend via useNativeTTS hook
   clearTTS: (id) => {
-    const { messagesMap } = get();
-    const message = messagesMap[id];
-    if (!message) return;
-
-    set(
-      {
-        messagesMap: {
-          ...messagesMap,
-          [id]: {
-            ...message,
-            extra: {
-              ...message.extra,
-              tts: undefined,
-            },
-          },
-        },
-      },
-      false,
-      'clearTTS',
-    );
+    // Deprecated: TTS state no longer stored in frontend
   },
 
+  // No-op: TTS now handled by backend via useNativeTTS hook
   ttsMessage: (id, tts) => {
-    const { messagesMap } = get();
-    const message = messagesMap[id];
-    if (!message) return;
-
-    set(
-      {
-        messagesMap: {
-          ...messagesMap,
-          [id]: {
-            ...message,
-            extra: {
-              ...message.extra,
-              tts,
-            },
-          },
-        },
-      },
-      false,
-      'ttsMessage',
-    );
+    // Deprecated: TTS state no longer stored in frontend
   },
 });
 

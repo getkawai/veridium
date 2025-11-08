@@ -137,6 +137,7 @@ func (s *TTSService) initDetector() {
 }
 
 // DetectLanguage detects the language of the given text
+// Returns locale code (e.g., "en-US", "zh-CN") and confidence score
 func (s *TTSService) DetectLanguage(text string) (string, float64) {
 	s.initDetector()
 
@@ -158,6 +159,13 @@ func (s *TTSService) DetectLanguage(text string) (string, float64) {
 	// Default to English if detection fails
 	fmt.Printf("[TTS] Language detection failed, defaulting to en-US\n")
 	return "en-US", 0.0
+}
+
+// DetectLanguageCode detects the language and returns only the language code
+// This is a convenience method for cases where confidence score is not needed
+func (s *TTSService) DetectLanguageCode(text string) string {
+	langCode, _ := s.DetectLanguage(text)
+	return langCode
 }
 
 // mapLanguageToLocale maps lingua.Language to locale code

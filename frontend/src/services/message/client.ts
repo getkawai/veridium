@@ -103,8 +103,11 @@ export class ClientService extends BaseClientService implements IMessageService 
     return this.messageModel.update(id, message);
   };
 
+  // TTS functionality moved to backend (native OS TTS)
+  // This method kept for backward compatibility but no longer used
   updateMessageTTS: IMessageService['updateMessageTTS'] = async (id, tts) => {
-    return this.messageModel.updateTTS(id, tts as any);
+    // No-op: TTS now handled by backend
+    return;
   };
 
   updateMessageTranslate: IMessageService['updateMessageTranslate'] = async (id, translate) => {

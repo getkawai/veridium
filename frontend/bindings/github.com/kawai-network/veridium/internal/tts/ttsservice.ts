@@ -16,9 +16,18 @@ import * as $models from "./models.js";
 
 /**
  * DetectLanguage detects the language of the given text
+ * Returns locale code (e.g., "en-US", "zh-CN") and confidence score
  */
 export function DetectLanguage(text: string): $CancellablePromise<[string, number]> {
     return $Call.ByID(3078113413, text);
+}
+
+/**
+ * DetectLanguageCode detects the language and returns only the language code
+ * This is a convenience method for cases where confidence score is not needed
+ */
+export function DetectLanguageCode(text: string): $CancellablePromise<string> {
+    return $Call.ByID(95818452, text);
 }
 
 /**

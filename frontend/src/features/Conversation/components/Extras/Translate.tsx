@@ -27,9 +27,13 @@ const Translate = memo<TranslateProps>(({ content = '', from, to, id, loading })
       <Flexbox align={'center'} horizontal justify={'space-between'}>
         <div>
           <Flexbox gap={4} horizontal>
-            <Tag style={{ margin: 0 }}>{from ? t(`lang.${from}` as any) : '...'}</Tag>
+            <Tag style={{ margin: 0 }}>
+              {from && from !== '' ? t(`lang.${from}` as any) : '...'}
+            </Tag>
             <Icon color={theme.colorTextTertiary} icon={ChevronsRight} />
-            <Tag>{t(`lang.${to}` as any)}</Tag>
+            <Tag>
+              {t(`lang.${to}` as any)}
+            </Tag>
           </Flexbox>
         </div>
         <Flexbox horizontal>
