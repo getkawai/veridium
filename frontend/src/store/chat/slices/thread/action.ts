@@ -159,6 +159,9 @@ export const chatThreadMessage: StateCreator<
       get().internal_toggleMessageLoading(true, tempMessageId);
 
       parentMessageId = await get().internal_createMessage(newMessage, { tempMessageId });
+      
+      // CRITICAL: Refresh messages after creating the message so portalAIChats can find it
+      await get().refreshMessages();
     }
 
     get().internal_toggleMessageLoading(false, tempMessageId);

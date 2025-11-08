@@ -26,11 +26,12 @@ interface UserActionsProps {
 export const UserActionsBar = memo<UserActionsProps>(({ id, data, index }) => {
   const { t } = useTranslation('common');
   const searchParams = useSearchParams();
-  const topic = searchParams.get('topic');
+  const urlTopic = searchParams.get('topic');
 
   const [
     isThreadMode,
     hasThread,
+    activeTopicId,
     toggleMessageEditing,
     deleteMessage,
     regenerateMessage,
@@ -43,6 +44,7 @@ export const UserActionsBar = memo<UserActionsProps>(({ id, data, index }) => {
   ] = useChatStore((s) => [
     !!s.activeThreadId,
     threadSelectors.hasThreadBySourceMsgId(id)(s),
+    s.activeTopicId,
 
     s.toggleMessageEditing,
     s.deleteMessage,
@@ -54,6 +56,8 @@ export const UserActionsBar = memo<UserActionsProps>(({ id, data, index }) => {
     s.resendThreadMessage,
     s.delAndResendThreadMessage,
   ]);
+
+  const topic = urlTopic || activeTopicId;
 
   const isGroupSession = useSessionStore(sessionSelectors.isCurrentSessionGroupSession);
 

@@ -77,8 +77,9 @@ export const AssistantActionsBar = memo<AssistantActionsProps>(({ id, data, inde
 
   const { t } = useTranslation('common');
   const searchParams = useSearchParams();
-  const topic = searchParams.get('topic');
+  const urlTopic = searchParams.get('topic');
   const [
+    activeTopicId,
     deleteMessage,
     regenerateMessage,
     translateMessage,
@@ -89,6 +90,7 @@ export const AssistantActionsBar = memo<AssistantActionsProps>(({ id, data, inde
     delAndResendThreadMessage,
     toggleMessageEditing,
   ] = useChatStore((s) => [
+    s.activeTopicId,
     s.deleteMessage,
     s.regenerateMessage,
     s.translateMessage,
@@ -99,6 +101,8 @@ export const AssistantActionsBar = memo<AssistantActionsProps>(({ id, data, inde
     s.delAndResendThreadMessage,
     s.toggleMessageEditing,
   ]);
+
+  const topic = urlTopic || activeTopicId;
   const { message } = App.useApp();
   const virtuosoRef = use(VirtuosoContext);
 
@@ -177,7 +181,7 @@ export const AssistantActionsBar = memo<AssistantActionsProps>(({ id, data, inde
         translateMessage(id, lang);
       }
     },
-    [data, topic, startTTS],
+    [data.content, topic, startTTS],
   );
 
   if (error) return <ErrorActionsBar onActionClick={onActionClick} />;
