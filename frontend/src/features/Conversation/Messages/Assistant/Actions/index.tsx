@@ -5,6 +5,7 @@ import { memo, use, useCallback, useContext, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useSearchParams } from '@/hooks/useNavigation';
+import { useNativeTTS } from '@/hooks/useNativeTTS';
 
 import ShareMessageModal from '@/features/Conversation/components/ShareMessageModal';
 import { VirtuosoContext } from '@/features/Conversation/components/VirtualizedList/VirtuosoContext';
@@ -42,7 +43,18 @@ export const AssistantActionsBar = memo<AssistantActionsProps>(({ id, data, inde
     // export: exportPDF,
     share,
     translate,
+    tts,
   } = useChatListActionsBar({ hasThread });
+
+  // TTS hook
+  const { isGlobalLoading: isTTSLoading, start: startTTS } = useNativeTTS(data.content, {
+    onError: (err) => {
+      console.error('[AssistantActions] TTS failed:', err);
+    },
+    onSuccess: () => {
+      console.log('[AssistantActions] TTS completed');
+    },
+  });
 
   const hasTools = !!tools;
 
@@ -50,12 +62,18 @@ export const AssistantActionsBar = memo<AssistantActionsProps>(({ id, data, inde
   const inThread = isThreadMode || inPortalThread;
 
   const items = useMemo(() => {
-    if (hasTools) return [delAndRegenerate, copy];
+    // Add TTS button with loading state
+    const ttsWithLoading = {
+      ...tts,
+      loading: isTTSLoading,
+    };
 
-    return [edit, copy, inThread || isGroupSession ? null : branching].filter(
+    if (hasTools) return [delAndRegenerate, copy, ttsWithLoading];
+
+    return [edit, copy, ttsWithLoading, inThread || isGroupSession ? null : branching].filter(
       Boolean,
     ) as ActionIconGroupItemType[];
-  }, [inThread, hasTools, isGroupSession]);
+  }, [inThread, hasTools, isGroupSession, isTTSLoading]);
 
   const { t } = useTranslation('common');
   const searchParams = useSearchParams();
@@ -143,6 +161,12 @@ export const AssistantActionsBar = memo<AssistantActionsProps>(({ id, data, inde
           setShareModal(true);
           break;
         }
+
+        case 'tts': {
+          console.log('[AssistantActions] TTS button clicked');
+          startTTS();
+          break;
+        }
       }
 
       if (action.keyPath.at(-1) === 'translate') {
@@ -153,7 +177,7 @@ export const AssistantActionsBar = memo<AssistantActionsProps>(({ id, data, inde
         translateMessage(id, lang);
       }
     },
-    [data, topic],
+    [data, topic, startTTS],
   );
 
   if (error) return <ErrorActionsBar onActionClick={onActionClick} />;

@@ -10,6 +10,7 @@ import {
   Share2,
   Split,
   Trash,
+  Volume2,
 } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -35,6 +36,7 @@ interface ChatListActionsBar {
   regenerate: ActionIconGroupItemType;
   share: ActionIconGroupItemType;
   translate: ActionIconGroupItemType;
+  tts: ActionIconGroupItemType;
 }
 
 export const useChatListActionsBar = ({
@@ -105,6 +107,11 @@ export const useChatListActionsBar = ({
         key: 'translate',
         label: t('translate.action', { ns: 'chat' }),
         popupClassName: cx(translateStyle),
+      },
+      tts: {
+        icon: Volume2,
+        key: 'tts',
+        label: t('tts.play', { ns: 'chat', defaultValue: 'Text to Speech' }),
       },
     }),
     [hasThread],
