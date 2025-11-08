@@ -283,7 +283,7 @@ class ChatService {
      * This eliminates server-side routing overhead and keeps API keys in browser memory.
      */
     try {
-      return await this.fetchOnClient({ payload, provider, runtimeProvider: sdkType, signal });
+      return await this.fetchOnClient({ payload, provider, runtimeProvider: sdkType, signal, options });
     } catch (e) {
       const {
         errorType = ChatErrorType.BadRequest,
@@ -412,6 +412,7 @@ class ChatService {
     provider: string;
     runtimeProvider: string;
     signal?: AbortSignal;
+    options?: FetchOptions;
   }) => {
     /**
      * Check if provider has CORS restrictions that prevent browser requests
@@ -438,7 +439,59 @@ class ChatService {
     });
     const data = params.payload as ChatStreamPayload;
 
-    return agentRuntime.chat(data, { signal: params.signal });
+    // Convert onMessageHandle to ChatStreamCallbacks format
+    // OpenAIStream's createCallbacksTransformer will handle the actual callback invocation
+    const callbacks = params.options?.onMessageHandle ? {
+      onText: async (text: string) => {
+        params.options?.onMessageHandle?.({ text, type: 'text' });
+      },
+      onStart: async () => {
+        // Optional: notify stream start
+      },
+      onFinal: async (data: any) => {
+        // Called when stream is complete with final data
+        if (params.options?.onFinish) {
+          await params.options.onFinish(data.text || '', {
+            usage: data.usage,
+            speed: data.speed,
+            toolCalls: data.toolsCalling,
+            reasoning: data.thinking ? { content: data.thinking } : undefined,
+            grounding: data.grounding,
+          });
+        }
+      },
+    } : undefined;
+
+    // Pass callbacks to agentRuntime.chat via options
+    const response = await agentRuntime.chat(data, { 
+      signal: params.signal,
+      callback: callbacks,
+    });
+
+    // CRITICAL: Consume the Response stream to trigger callbacks
+    // Without this, the ReadableStream won't be read and callbacks won't fire
+    if (response.body && callbacks) {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          // The actual processing is done by OpenAIStream pipeline
+          // We just need to read the stream to trigger the callbacks
+          if (value) {
+            decoder.decode(value, { stream: true });
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+    }
+
+    // Return a dummy successful response since stream is consumed
+    return new Response(null, { status: 200 });
   };
 }
 

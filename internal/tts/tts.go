@@ -3,7 +3,6 @@ package tts
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -36,19 +35,22 @@ func (s *TTSService) SpeakToAudio(text string) ([]byte, error) {
 
 // SpeakToAudioWithVoice generates speech with specified voice and returns audio data
 func (s *TTSService) SpeakToAudioWithVoice(text, voice string) ([]byte, error) {
-	// Create temporary file
-	tempDir := os.TempDir()
-	tempFile := filepath.Join(tempDir, fmt.Sprintf("tts-%d.aiff", os.Getpid()))
+	// Create temporary file with unique name to avoid conflicts
+	tempFile, err := os.CreateTemp(os.TempDir(), "tts-*.aiff")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temp file: %w", err)
+	}
+	tempPath := tempFile.Name()
+	tempFile.Close() // Close immediately, we just need the path
 
 	// Ensure cleanup
-	defer os.Remove(tempFile)
+	defer os.Remove(tempPath)
 
 	// Generate speech to temp file
-	var err error
 	if voice != "" {
-		err = s.SpeakToFileWithVoice(text, tempFile, voice)
+		err = s.SpeakToFileWithVoice(text, tempPath, voice)
 	} else {
-		err = s.SpeakToFile(text, tempFile)
+		err = s.SpeakToFile(text, tempPath)
 	}
 
 	if err != nil {
@@ -56,7 +58,7 @@ func (s *TTSService) SpeakToAudioWithVoice(text, voice string) ([]byte, error) {
 	}
 
 	// Read the audio file
-	audioData, err := os.ReadFile(tempFile)
+	audioData, err := os.ReadFile(tempPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read audio file: %w", err)
 	}

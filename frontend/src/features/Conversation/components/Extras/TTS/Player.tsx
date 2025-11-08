@@ -1,13 +1,11 @@
 import { ChatMessageError } from '@/types';
-import { AudioPlayer } from '@lobehub/tts/react';
 import { ActionIcon, Alert, Button, Highlighter } from '@lobehub/ui';
-import { TrashIcon } from 'lucide-react';
+import { Volume2, TrashIcon } from 'lucide-react';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 
 interface PlayerProps {
-  audio?: string;
   error?: ChatMessageError;
   isLoading?: boolean;
   onDelete: () => void;
@@ -15,11 +13,15 @@ interface PlayerProps {
   onRetry?: () => void;
 }
 
-const Player = memo<PlayerProps>(({ onRetry, error, onDelete, audio, isLoading, onInitPlay }) => {
+/**
+ * Simplified TTS Player for backend audio playback
+ * Audio is played directly on system speaker via backend, not in browser
+ */
+const Player = memo<PlayerProps>(({ onRetry, error, onDelete, isLoading, onInitPlay }) => {
   const { t } = useTranslation('chat');
 
   return (
-    <Flexbox align={'center'} horizontal style={{ minWidth: 200, width: '100%' }}>
+    <Flexbox align={'center'} gap={8} horizontal style={{ minWidth: 100 }}>
       {error ? (
         <Alert
           action={
@@ -42,14 +44,12 @@ const Player = memo<PlayerProps>(({ onRetry, error, onDelete, audio, isLoading, 
         />
       ) : (
         <>
-          <AudioPlayer
-            allowPause={false}
-            audio={audio}
-            buttonSize={'small'}
-            isLoading={isLoading}
-            onInitPlay={onInitPlay}
-            timeRender={'tag'}
-            timeStyle={{ margin: 0 }}
+          <ActionIcon
+            icon={Volume2}
+            loading={isLoading}
+            onClick={onInitPlay}
+            size={'small'}
+            title={t('tts.play')}
           />
           <ActionIcon icon={TrashIcon} onClick={onDelete} size={'small'} title={t('tts.clear')} />
         </>

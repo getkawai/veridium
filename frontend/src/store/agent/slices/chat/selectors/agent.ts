@@ -152,6 +152,14 @@ const openingQuestions = (s: AgentStoreState) => {
 };
 const openingMessage = (s: AgentStoreState) => currentAgentConfig(s).openingMessage || '';
 
+// TTS voice selector - returns the configured TTS voice for the current agent
+const currentAgentTTSVoice = (lang?: string) => (s: AgentStoreState) => {
+  // TODO: Implement proper TTS voice selection based on agent config and language
+  // For now, return undefined to disable TTS voice comparison
+  // This was previously connected to lobe-chat backend, needs implementation for go backend
+  return undefined;
+};
+
 export const agentSelectors = {
   currentAgentConfig,
   currentAgentFiles,
@@ -160,6 +168,7 @@ export const agentSelectors = {
   currentAgentModelProvider,
   currentAgentPlugins,
   currentAgentSystemRole,
+  currentAgentTTSVoice,
   currentEnabledKnowledge,
   currentKnowledgeIds,
   displayableAgentPlugins,

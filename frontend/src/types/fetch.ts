@@ -1,5 +1,5 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix */
-// import type { ILobeAgentRuntimeErrorType } from '@/model-runtime';
+import type { ILobeAgentRuntimeErrorType } from '@/model-runtime/types';
 
 export const ChatErrorType = {
   // ******* 业务错误语义 ******* //
@@ -43,6 +43,5 @@ export type ErrorType = (typeof ChatErrorType)[keyof typeof ChatErrorType];
 
 export interface ErrorResponse {
   body: any;
-  // errorType: ErrorType | ILobeAgentRuntimeErrorType;
-  errorType: ErrorType;
+  errorType: ErrorType | ILobeAgentRuntimeErrorType;
 }

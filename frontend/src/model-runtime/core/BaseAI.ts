@@ -14,9 +14,9 @@ import {
   ModelRequestOptions,
   PullModelParams,
   TextToImagePayload,
-  TextToSpeechOptions,
-  TextToSpeechPayload,
 } from '../types';
+
+import { TextToSpeechOptions, TextToSpeechPayload } from '@/types';
 
 /* eslint-disable sort-keys-fix/sort-keys-fix , typescript-sort-keys/interface */
 export interface LobeRuntimeAI {

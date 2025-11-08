@@ -1,25 +1,53 @@
-import { useAudioPlayer } from '@lobehub/tts/react';
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useState } from 'react';
 
+import { useNativeTTS } from '@/hooks/useNativeTTS';
 import { useChatStore } from '@/store/chat';
-import { useFileStore } from '@/store/file';
 
 import { TTSProps } from './InitPlayer';
 import Player from './Player';
 
-const FilePlayer = memo<TTSProps>(({ file, id }) => {
-  const useFetchTTSFile = useFileStore((s) => s.useFetchTTSFile);
+/**
+ * FilePlayer for replaying TTS
+ * Since we use backend playback, we regenerate TTS on each play
+ * (TTS generation is fast, no need for file caching)
+ */
+const FilePlayer = memo<TTSProps>(({ content, id }) => {
   const [clearTTS] = useChatStore((s) => [s.clearTTS]);
-  const { data, isLoading: isFileLoading } = useFetchTTSFile(file || null);
-  const { isLoading, ...audio } = useAudioPlayer({ src: data ? data.url : '' });
+  const [error, setError] = useState<any>();
+
+  const { isGlobalLoading, start, stop } = useNativeTTS(content, {
+    onError: (err) => {
+      stop();
+      setError(err);
+    },
+    onSuccess: async () => {
+      // Playback completed successfully
+    },
+  });
 
   const handleDelete = useCallback(() => {
     clearTTS(id);
   }, [id]);
 
-  if (!audio || isFileLoading) return;
+  const handlePlay = useCallback(() => {
+    setError(undefined);
+    start();
+  }, [start]);
 
-  return <Player audio={audio} isLoading={isLoading} onDelete={handleDelete} />;
+  const handleRetry = useCallback(() => {
+    setError(undefined);
+    start();
+  }, [start]);
+
+  return (
+    <Player
+      error={error}
+      isLoading={isGlobalLoading}
+      onDelete={handleDelete}
+      onInitPlay={handlePlay}
+      onRetry={handleRetry}
+    />
+  );
 });
 
 export default FilePlayer;
