@@ -60,36 +60,41 @@ const createWailsStreamingFetch = () => {
       hasBody: !!body,
     });
 
-    // Create ReadableStream that listens to Wails events
+    // Setup event listeners BEFORE creating stream to ensure they're ready
+    let streamController: ReadableStreamDefaultController<Uint8Array> | null = null;
+    const encoder = new TextEncoder();
+
+    // Listen for response metadata
+    const unsubMeta = Events.On(`stream:${requestID}:meta`, (ev: any) => {
+      console.debug('[Kawai] Stream meta received:', ev.data);
+    });
+
+    // Listen for data chunks
+    const unsubData = Events.On(`stream:${requestID}:data`, (ev: any) => {
+      const chunk = ev.data as string;
+      console.debug('[Kawai] Stream chunk received:', chunk.substring(0, 100));
+      if (streamController) {
+        streamController.enqueue(encoder.encode(chunk));
+      }
+    });
+
+    // Listen for stream end
+    const unsubEnd = Events.On(`stream:${requestID}:end`, (ev: any) => {
+      console.debug('[Kawai] Stream ended');
+      if (streamController) {
+        streamController.close();
+      }
+      // Cleanup listeners
+      unsubMeta();
+      unsubData();
+      unsubEnd();
+    });
+
+    // Create ReadableStream
     const stream = new ReadableStream({
       start(controller) {
-        const encoder = new TextEncoder();
-        let responseMeta: any = null;
-
-        // Listen for response metadata
-        const unsubMeta = Events.On(`stream:${requestID}:meta`, (ev: any) => {
-          console.debug('[Kawai] Stream meta received:', ev.data);
-          responseMeta = ev.data;
-        });
-
-        // Listen for data chunks
-        const unsubData = Events.On(`stream:${requestID}:data`, (ev: any) => {
-          // Enqueue each SSE line as it arrives
-          const chunk = ev.data as string;
-          controller.enqueue(encoder.encode(chunk));
-        });
-
-        // Listen for stream end
-        const unsubEnd = Events.On(`stream:${requestID}:end`, (ev: any) => {
-          console.debug('[Kawai] Stream ended');
-          controller.close();
-          
-          // Cleanup listeners
-          unsubMeta();
-          unsubData();
-          unsubEnd();
-        });
-
+        streamController = controller;
+        
         // Start the stream request via Wails binding
         const request: ProxyRequest = {
           method: init?.method || 'GET',
@@ -98,6 +103,7 @@ const createWailsStreamingFetch = () => {
           body,
         };
 
+        // Fire and forget - events will handle the streaming
         StreamFetch(requestID, request).catch((error) => {
           console.error('[Kawai] Stream error:', error);
           controller.error(error);

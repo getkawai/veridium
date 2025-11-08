@@ -36,7 +36,8 @@ generate: db-generate bindings-generate
 # Start development server
 dev:
 	@echo "🚀 Starting development server..."
-	wails3 dev
+	rm -f backend-dev.log
+	wails3 dev 2>&1 | tee backend-dev.log
 
 # Build production binary
 build:
@@ -60,4 +61,3 @@ watch:
 	@echo "👀 Watching for changes in queries..."
 	@echo "Install 'entr' first: brew install entr"
 	find internal/database/queries -name "*.sql" | entr -r make generate
-
