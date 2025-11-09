@@ -4,11 +4,10 @@ import {
   RAGEvalDataSetItem,
   insertEvalDatasetRecordSchema,
 } from '@/types';
-import { SWRResponse, mutate } from 'swr';
+import { useEffect } from 'react';
 import { StateCreator } from 'zustand/vanilla';
 
 import { notification } from '@/components/AntdStaticMethods';
-import { useClientDataSWR } from '@/libs/swr';
 import { ragEvalService } from '@/services/ragEval';
 import { KnowledgeBaseStore } from '@/store/knowledgeBase/store';
 

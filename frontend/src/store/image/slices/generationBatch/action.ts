@@ -1,9 +1,8 @@
 import { isEqual } from 'lodash-es';
 import { useRef } from 'react';
-import { SWRResponse, mutate } from 'swr';
+import { useEffect } from 'react';
 import { StateCreator } from 'zustand';
 
-import { useClientDataSWR } from '@/libs/swr';
 import { GetGenerationStatusResult } from '@/types/generation-types';
 import { generationService } from '@/services/generation';
 import { generationBatchService } from '@/services/generationBatch';

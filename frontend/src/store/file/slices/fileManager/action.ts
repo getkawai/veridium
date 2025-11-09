@@ -1,8 +1,7 @@
-import { SWRResponse } from 'swr';
+import { useEffect } from 'react';
 import { StateCreator } from 'zustand/vanilla';
 
 import { FILE_UPLOAD_BLACKLIST, MAX_UPLOAD_FILE_COUNT } from '@/const/file';
-import { useClientDataSWR } from '@/libs/swr';
 // import { lambdaClient } from '@/libs/trpc/client';
 // import { ragService } from '@/services/rag';
 import {

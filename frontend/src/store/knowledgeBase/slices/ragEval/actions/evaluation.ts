@@ -1,23 +1,17 @@
 import { CreateNewEvalEvaluation, RAGEvalDataSetItem } from '@/types';
-import { SWRResponse, mutate } from 'swr';
+import { useEffect } from 'react';
 import { StateCreator } from 'zustand/vanilla';
 
-import { useClientDataSWR } from '@/libs/swr';
 import { ragEvalService } from '@/services/ragEval';
 import { KnowledgeBaseStore } from '@/store/knowledgeBase/store';
 
-const FETCH_EVALUATION_LIST_KEY = 'FETCH_EVALUATION_LIST_KEY';
-
 export interface RAGEvalEvaluationAction {
   checkEvaluationStatus: (id: number) => Promise<void>;
-
   createNewEvaluation: (params: CreateNewEvalEvaluation) => Promise<void>;
   refreshEvaluationList: () => Promise<void>;
-
   removeEvaluation: (id: number) => Promise<void>;
   runEvaluation: (id: number) => Promise<void>;
-
-  useFetchEvaluationList: (knowledgeBaseId: string) => SWRResponse<RAGEvalDataSetItem[]>;
+  useFetchEvaluationList: (knowledgeBaseId: string) => void;
 }
 
 export const createRagEvalEvaluationSlice: StateCreator<
@@ -35,28 +29,35 @@ export const createRagEvalEvaluationSlice: StateCreator<
     await get().refreshEvaluationList();
   },
   refreshEvaluationList: async () => {
-    await mutate(FETCH_EVALUATION_LIST_KEY);
+    // No-op: handled by useFetchEvaluationList
+    console.debug('[refreshEvaluationList] Skipped (handled by useEffect)');
   },
 
   removeEvaluation: async (id) => {
     await ragEvalService.removeEvaluation(id);
-    // await get().refreshEvaluationList();
   },
 
   runEvaluation: async (id) => {
     await ragEvalService.startEvaluationTask(id);
   },
 
-  useFetchEvaluationList: (knowledgeBaseId) =>
-    useClientDataSWR<RAGEvalDataSetItem[]>(
-      [FETCH_EVALUATION_LIST_KEY, knowledgeBaseId],
-      () => ragEvalService.getEvaluationList(knowledgeBaseId),
-      {
-        fallbackData: [],
-        onSuccess: () => {
-          if (!get().initDatasetList)
+  useFetchEvaluationList: (knowledgeBaseId) => {
+    useEffect(() => {
+      if (!knowledgeBaseId) return;
+
+      const fetchEvaluationList = async () => {
+        try {
+          const data = await ragEvalService.getEvaluationList(knowledgeBaseId);
+
+          if (!get().initDatasetList) {
             set({ initDatasetList: true }, false, 'useFetchDatasets/init');
-        },
-      },
-    ),
+          }
+        } catch (error) {
+          console.error('[useFetchEvaluationList] Error:', error);
+        }
+      };
+
+      fetchEvaluationList();
+    }, [knowledgeBaseId]);
+  },
 });
