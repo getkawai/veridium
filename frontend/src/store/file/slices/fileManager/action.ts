@@ -223,102 +223,90 @@ export const createFileManageSlice: StateCreator<
     });
   },
 
-  internal_fetchFileItem: (id) => {
-    useEffect(() => {
-      if (!id) return;
+  internal_fetchFileItem: async (id) => {
+    if (!id) return;
 
-      const fetchFileItem = async () => {
-        try {
-          // Dummy implementation for UI focus
-          console.log('Fetching file item:', id);
-          const fileItem: FileListItem | undefined = id ? {
-            id,
-            name: `Mock File ${id.slice(0, 8)}`,
-            fileType: 'application/pdf',
-            size: 1024000,
-            url: `mock://file/${id}`,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            chunkCount: 10,
-            chunkingError: null,
-            chunkingStatus: AsyncTaskStatus.Success,
-            embeddingError: null,
-            embeddingStatus: AsyncTaskStatus.Success,
-            finishEmbedding: true,
-          } : undefined;
-          
-          // Store the file item if needed
-          // set({ fileItemMap: { ...get().fileItemMap, [id]: fileItem } });
-        } catch (error) {
-          console.error('[useFetchFileItem] Error:', error);
-        }
-      };
-
-      fetchFileItem();
-    }, [id]);
+    try {
+      // Dummy implementation for UI focus
+      console.log('Fetching file item:', id);
+      const fileItem: FileListItem | undefined = id ? {
+        id,
+        name: `Mock File ${id.slice(0, 8)}`,
+        fileType: 'application/pdf',
+        size: 1024000,
+        url: `mock://file/${id}`,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        chunkCount: 10,
+        chunkingError: null,
+        chunkingStatus: AsyncTaskStatus.Success,
+        embeddingError: null,
+        embeddingStatus: AsyncTaskStatus.Success,
+        finishEmbedding: true,
+      } : undefined;
+      
+      // Store the file item if needed
+      // set({ fileItemMap: { ...get().fileItemMap, [id]: fileItem } });
+    } catch (error) {
+      console.error('[internal_fetchFileItem] Error:', error);
+    }
   },
 
-  internal_fetchFileManage: (params) => {
-    useEffect(() => {
-      const fetchFileList = async () => {
-        try {
-          // Dummy implementation for UI focus
-          console.log('Fetching file list:', params);
-          const mockFiles: FileListItem[] = [
-            {
-              id: 'mock-1',
-              name: 'Sample Document.pdf',
-              fileType: 'application/pdf',
-              size: 2048000,
-              url: 'mock://file/mock-1',
-              createdAt: new Date(Date.now() - 86400000),
-              updatedAt: new Date(Date.now() - 86400000),
-              chunkCount: 25,
-              chunkingError: null,
-              chunkingStatus: AsyncTaskStatus.Success,
-              embeddingError: null,
-              embeddingStatus: AsyncTaskStatus.Success,
-              finishEmbedding: true,
-            },
-            {
-              id: 'mock-2',
-              name: 'Presentation.pptx',
-              fileType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-              size: 5120000,
-              url: 'mock://file/mock-2',
-              createdAt: new Date(Date.now() - 172800000),
-              updatedAt: new Date(Date.now() - 172800000),
-              chunkCount: 15,
-              chunkingError: null,
-              chunkingStatus: AsyncTaskStatus.Success,
-              embeddingError: null,
-              embeddingStatus: AsyncTaskStatus.Processing,
-              finishEmbedding: false,
-            },
-            {
-              id: 'mock-3',
-              name: 'Spreadsheet.xlsx',
-              fileType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-              size: 1024000,
-              url: 'mock://file/mock-3',
-              createdAt: new Date(Date.now() - 259200000),
-              updatedAt: new Date(Date.now() - 259200000),
-              chunkCount: 8,
-              chunkingError: null,
-              chunkingStatus: AsyncTaskStatus.Success,
-              embeddingError: null,
-              embeddingStatus: AsyncTaskStatus.Success,
-              finishEmbedding: true,
-            },
-          ];
-          
-          set({ fileList: mockFiles, queryListParams: params });
-        } catch (error) {
-          console.error('[useFetchFileManage] Error:', error);
-        }
-      };
-
-      fetchFileList();
-    }, [params]);
+  internal_fetchFileManage: async (params) => {
+    try {
+      // Dummy implementation for UI focus
+      console.log('Fetching file list:', params);
+      const mockFiles: FileListItem[] = [
+        {
+          id: 'mock-1',
+          name: 'Sample Document.pdf',
+          fileType: 'application/pdf',
+          size: 2048000,
+          url: 'mock://file/mock-1',
+          createdAt: new Date(Date.now() - 86400000),
+          updatedAt: new Date(Date.now() - 86400000),
+          chunkCount: 25,
+          chunkingError: null,
+          chunkingStatus: AsyncTaskStatus.Success,
+          embeddingError: null,
+          embeddingStatus: AsyncTaskStatus.Success,
+          finishEmbedding: true,
+        },
+        {
+          id: 'mock-2',
+          name: 'Presentation.pptx',
+          fileType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+          size: 5120000,
+          url: 'mock://file/mock-2',
+          createdAt: new Date(Date.now() - 172800000),
+          updatedAt: new Date(Date.now() - 172800000),
+          chunkCount: 15,
+          chunkingError: null,
+          chunkingStatus: AsyncTaskStatus.Success,
+          embeddingError: null,
+          embeddingStatus: AsyncTaskStatus.Processing,
+          finishEmbedding: false,
+        },
+        {
+          id: 'mock-3',
+          name: 'Spreadsheet.xlsx',
+          fileType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          size: 1024000,
+          url: 'mock://file/mock-3',
+          createdAt: new Date(Date.now() - 259200000),
+          updatedAt: new Date(Date.now() - 259200000),
+          chunkCount: 8,
+          chunkingError: null,
+          chunkingStatus: AsyncTaskStatus.Success,
+          embeddingError: null,
+          embeddingStatus: AsyncTaskStatus.Success,
+          finishEmbedding: true,
+        },
+      ];
+      
+      set({ fileList: mockFiles, queryListParams: params });
+    } catch (error) {
+      console.error('[internal_fetchFileManage] Error:', error);
+    }
   },
 });

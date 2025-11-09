@@ -155,50 +155,38 @@ export const createChatSlice: StateCreator<
 
     await get().internal_updateAgentConfig(activeId, config, controller.signal);
   },
-  internal_fetchAgentConfig: (isLogin, sessionId) => {
-    useEffect(() => {
-      if (isLogin !== true || sessionId.startsWith('cg_')) return;
+  internal_fetchAgentConfig: async (isLogin, sessionId) => {
+    if (isLogin !== true || sessionId.startsWith('cg_')) return;
 
-      const fetchAgentConfig = async () => {
-        try {
-          const data = await sessionService.getSessionConfig(sessionId);
-          get().internal_dispatchAgentMap(sessionId, data, 'fetch');
+    try {
+      const data = await sessionService.getSessionConfig(sessionId);
+      get().internal_dispatchAgentMap(sessionId, data, 'fetch');
 
-          set(
-            {
-              activeAgentId: data?.id || undefined,
-              agentConfigInitMap: { ...get().agentConfigInitMap, [sessionId]: true },
-            },
-            false,
-            'fetchAgentConfig',
-          );
-        } catch (error) {
-          console.error('[useFetchAgentConfig] Error fetching agent config:', error);
-        }
-      };
-
-      fetchAgentConfig();
-    }, [isLogin, sessionId]);
+      set(
+        {
+          activeAgentId: data?.id || undefined,
+          agentConfigInitMap: { ...get().agentConfigInitMap, [sessionId]: true },
+        },
+        false,
+        'fetchAgentConfig',
+      );
+    } catch (error) {
+      console.error('[internal_fetchAgentConfig] Error fetching agent config:', error);
+    }
   },
 
-  internal_fetchFilesAndKnowledgeBases: () => {
-    useEffect(() => {
-      const activeAgentId = get().activeAgentId;
-      if (!activeAgentId) return;
+  internal_fetchFilesAndKnowledgeBases: async () => {
+    const activeAgentId = get().activeAgentId;
+    if (!activeAgentId) return;
 
-      const fetchKnowledge = async () => {
-        try {
-          // TODO: Implement when agentService is available
-          // const data = await agentService.getFilesAndKnowledgeBases(activeAgentId);
-          const data: KnowledgeItem[] = [];
-          console.debug('[useFetchFilesAndKnowledgeBases] Fetched:', data.length);
-        } catch (error) {
-          console.error('[useFetchFilesAndKnowledgeBases] Error:', error);
-        }
-      };
-
-      fetchKnowledge();
-    }, [get().activeAgentId]);
+    try {
+      // TODO: Implement when agentService is available
+      // const data = await agentService.getFilesAndKnowledgeBases(activeAgentId);
+      const data: KnowledgeItem[] = [];
+      console.debug('[internal_fetchFilesAndKnowledgeBases] Fetched:', data.length);
+    } catch (error) {
+      console.error('[internal_fetchFilesAndKnowledgeBases] Error:', error);
+    }
   },
 
   useInitInboxAgentStore: (isLogin, defaultAgentConfig) => {
