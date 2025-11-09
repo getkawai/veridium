@@ -91,7 +91,7 @@ func NewFileManager(ctx context.Context, config *FileManagerConfig) (*FileManage
 	})
 	pdfParser, _ := parsers.NewPdfParser(ctx)
 	htmlParser, _ := parsers.NewHtmlParser(ctx, &parsers.HtmlParserConfig{
-		PreserveStructure: true,
+		Selector: nil, // Extract entire document (can be customized to specific CSS selector)
 	})
 	textParser, _ := parsers.NewTextParser(ctx)
 
@@ -268,40 +268,40 @@ type simpleTextSplitter struct {
 // Transform implements document.Transformer
 func (s *simpleTextSplitter) Transform(ctx context.Context, docs []*schema.Document, opts ...document.TransformerOption) ([]*schema.Document, error) {
 	result := []*schema.Document{}
-	
+
 	for _, doc := range docs {
 		content := doc.Content
 		if len(content) <= s.chunkSize {
 			result = append(result, doc)
 			continue
 		}
-		
+
 		// Split into chunks with overlap
 		for i := 0; i < len(content); i += s.chunkSize - s.overlapSize {
 			end := i + s.chunkSize
 			if end > len(content) {
 				end = len(content)
 			}
-			
+
 			chunk := &schema.Document{
 				ID:       fmt.Sprintf("%s-chunk-%d", doc.ID, len(result)),
 				Content:  content[i:end],
 				MetaData: make(map[string]any),
 			}
-			
+
 			// Copy metadata
 			for k, v := range doc.MetaData {
 				chunk.MetaData[k] = v
 			}
-			
+
 			result = append(result, chunk)
-			
+
 			if end == len(content) {
 				break
 			}
 		}
 	}
-	
+
 	return result, nil
 }
 
@@ -309,4 +309,3 @@ func (s *simpleTextSplitter) Transform(ctx context.Context, docs []*schema.Docum
 func (s *simpleTextSplitter) GetType() string {
 	return "SimpleTextSplitter"
 }
-

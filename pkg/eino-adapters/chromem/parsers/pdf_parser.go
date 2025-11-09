@@ -21,7 +21,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 
 	"github.com/cloudwego/eino/components/document/parser"
@@ -48,33 +47,37 @@ func (p *PdfParser) Parse(ctx context.Context, reader io.Reader, opts ...parser.
 		return nil, fmt.Errorf("failed to read PDF: %w", err)
 	}
 
-	// Save to temp file (dslipak/pdf requires file path)
-	tmpFile, err := os.CreateTemp("", "pdf-*.pdf")
-	if err != nil {
-		return nil, fmt.Errorf("failed to create temp file: %w", err)
-	}
-	defer os.Remove(tmpFile.Name())
-	defer tmpFile.Close()
-
-	if _, err := tmpFile.Write(data); err != nil {
-		return nil, fmt.Errorf("failed to write temp file: %w", err)
-	}
-	tmpFile.Close()
-
-	// Open PDF
-	r, err := pdf.Open(tmpFile.Name())
+	// Create in-memory reader (no temp file needed!)
+	readerAt := bytes.NewReader(data)
+	f, err := pdf.NewReader(readerAt, int64(readerAt.Len()))
 	if err != nil {
 		return nil, fmt.Errorf("failed to open PDF: %w", err)
 	}
 
-	// Extract text
+	// Extract text from all pages with font caching
 	var buf bytes.Buffer
-	plainText, err := r.GetPlainText()
-	if err != nil {
-		return nil, fmt.Errorf("failed to extract text: %w", err)
-	}
+	fonts := make(map[string]*pdf.Font)
 
-	buf.ReadFrom(plainText)
+	for i := 1; i <= f.NumPage(); i++ {
+		page := f.Page(i)
+
+		// Cache fonts to avoid repeated parsing
+		for _, name := range page.Fonts() {
+			if _, ok := fonts[name]; !ok {
+				font := page.Font(name)
+				fonts[name] = &font
+			}
+		}
+
+		// Extract text from page
+		text, err := page.GetPlainText(fonts)
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract page %d: %w", i, err)
+		}
+
+		buf.WriteString(text)
+		buf.WriteString("\n")
+	}
 
 	// Create Eino document
 	docs := []*schema.Document{

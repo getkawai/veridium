@@ -22,10 +22,10 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/microcosm-cc/bluemonday"
-
 	"github.com/cloudwego/eino/components/document/parser"
 	"github.com/cloudwego/eino/schema"
+	"github.com/google/uuid"
+	"github.com/microcosm-cc/bluemonday"
 )
 
 const (
@@ -36,106 +36,101 @@ const (
 	MetaKeySource  = "_source"
 )
 
-var _ parser.Parser = (*Parser)(nil)
-
-type Config struct {
-	// content selector of goquery. eg: body for <body>, #id for <div id="id">
+// HtmlParserConfig holds configuration for HtmlParser
+type HtmlParserConfig struct {
+	// CSS selector to extract specific content (e.g., "body", "#content", ".article")
+	// If nil, extracts entire document
 	Selector *string
 }
 
-var (
-	BodySelector = "body"
-)
+// HtmlParser parses HTML files using goquery
+// Extracts text content and metadata (title, description, language, charset)
+type HtmlParser struct {
+	selector *string
+}
 
-// NewParser returns a new parser.
-func NewParser(ctx context.Context, conf *Config) (*Parser, error) {
-	if conf == nil {
-		conf = &Config{}
+// NewHtmlParser creates a new HTML parser
+func NewHtmlParser(ctx context.Context, config *HtmlParserConfig) (*HtmlParser, error) {
+	if config == nil {
+		config = &HtmlParserConfig{}
 	}
-
-	return &Parser{
-		conf: conf,
+	return &HtmlParser{
+		selector: config.Selector,
 	}, nil
 }
 
-// Parser implements parser.Parser. It parses HTML content to text.
-// use goquery to parse the HTML content, will read the <body> content as text (remove tags).
-// will extract title/description/language/charset from the HTML content as meta data.
-type Parser struct {
-	conf *Config
-}
+// Parse implements the parser.Parser interface
+func (p *HtmlParser) Parse(ctx context.Context, reader io.Reader, opts ...parser.Option) ([]*schema.Document, error) {
+	commonOpts := parser.GetCommonOptions(nil, opts...)
 
-func (p *Parser) Parse(ctx context.Context, reader io.Reader, opts ...parser.Option) ([]*schema.Document, error) {
+	// Parse HTML with goquery
 	doc, err := goquery.NewDocumentFromReader(reader)
 	if err != nil {
 		return nil, err
 	}
 
-	option := parser.GetCommonOptions(&parser.Options{}, opts...)
-
+	// Select content using CSS selector if provided
 	var contentSel *goquery.Selection
-
-	if p.conf.Selector != nil {
-		contentSel = doc.Find(*p.conf.Selector).Contents()
+	if p.selector != nil {
+		contentSel = doc.Find(*p.selector).Contents()
 	} else {
 		contentSel = doc.Contents()
 	}
 
-	meta, err := p.getMetaData(ctx, doc)
-	if err != nil {
-		return nil, err
-	}
-	meta[MetaKeySource] = option.URI
+	// Extract and sanitize content (removes XSS, dangerous HTML)
+	sanitized := bluemonday.UGCPolicy().Sanitize(contentSel.Text())
+	content := strings.TrimSpace(sanitized)
 
-	if option.ExtraMeta != nil {
-		for k, v := range option.ExtraMeta {
+	// Extract metadata from HTML
+	meta := p.extractMetadata(doc)
+
+	// Merge with user-provided metadata
+	if commonOpts.ExtraMeta != nil {
+		for k, v := range commonOpts.ExtraMeta {
 			meta[k] = v
 		}
 	}
 
-	sanitized := bluemonday.UGCPolicy().Sanitize(contentSel.Text())
-	content := strings.TrimSpace(sanitized)
-
-	document := &schema.Document{
-		Content:  content,
-		MetaData: meta,
+	// Create Eino document with UUID
+	docs := []*schema.Document{
+		{
+			ID:       uuid.New().String(),
+			Content:  content,
+			MetaData: meta,
+		},
 	}
 
-	return []*schema.Document{
-		document,
-	}, nil
+	return docs, nil
 }
 
-func (p *Parser) getMetaData(ctx context.Context, doc *goquery.Document) (map[string]any, error) {
+// extractMetadata extracts metadata from HTML document
+func (p *HtmlParser) extractMetadata(doc *goquery.Document) map[string]any {
 	meta := map[string]any{}
 
-	title := doc.Find("title")
-	if title != nil {
-		if t := title.Text(); t != "" {
-			meta[MetaKeyTitle] = t
-		}
+	// Extract title
+	if title := doc.Find("title").Text(); title != "" {
+		meta[MetaKeyTitle] = strings.TrimSpace(title)
 	}
 
-	description := doc.Find("meta[name=description]")
-	if description != nil {
-		if desc := description.AttrOr("content", ""); desc != "" {
-			meta[MetaKeyDesc] = desc
-		}
+	// Extract description
+	if desc := doc.Find("meta[name=description]").AttrOr("content", ""); desc != "" {
+		meta[MetaKeyDesc] = desc
 	}
 
-	html := doc.Find("html")
-	if html != nil {
-		if language := html.AttrOr("lang", ""); language != "" {
-			meta[MetaKeyLang] = language
-		}
+	// Extract language
+	if lang := doc.Find("html").AttrOr("lang", ""); lang != "" {
+		meta[MetaKeyLang] = lang
 	}
 
-	charset := doc.Find("meta[charset]")
-	if charset != nil {
-		if c := charset.AttrOr("charset", ""); c != "" {
-			meta[MetaKeyCharset] = c
-		}
+	// Extract charset
+	if charset := doc.Find("meta[charset]").AttrOr("charset", ""); charset != "" {
+		meta[MetaKeyCharset] = charset
 	}
 
-	return meta, nil
+	return meta
+}
+
+// GetType returns the parser type
+func (p *HtmlParser) GetType() string {
+	return "HtmlParser"
 }
