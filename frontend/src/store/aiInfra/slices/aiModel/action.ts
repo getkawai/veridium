@@ -5,15 +5,12 @@ import {
   CreateAiModelParams,
   ToggleAiModelEnableParams,
 } from '@/model-bank';
-import { SWRResponse, mutate } from 'swr';
+import { useEffect } from 'react';
 import { StateCreator } from 'zustand/vanilla';
 
-import { useClientDataSWR } from '@/libs/swr';
 import { aiModelService } from '@/services/aiModel';
 import { AIProviderStoreState } from '../../initialState';
 import type { AiProviderAction } from '../aiProvider/action';
-
-const FETCH_AI_PROVIDER_MODEL_LIST_KEY = 'FETCH_AI_PROVIDER_MODELS';
 
 export interface AiModelAction {
   batchToggleAiModels: (ids: string[], enabled: boolean) => Promise<void>;
@@ -34,7 +31,7 @@ export interface AiModelAction {
   ) => Promise<void>;
   updateAiModelsSort: (providerId: string, items: AiModelSortMap[]) => Promise<void>;
 
-  useFetchAiProviderModels: (id: string) => SWRResponse<AiProviderModelListItem[]>;
+  useFetchAiProviderModels: (id: string) => void;
 }
 
 export const createAiModelSlice: StateCreator<
@@ -107,9 +104,21 @@ export const createAiModelSlice: StateCreator<
     );
   },
   refreshAiModelList: async () => {
-    await mutate([FETCH_AI_PROVIDER_MODEL_LIST_KEY, get().activeAiProvider]);
-    // make refresh provide runtime state async, not block
-    get().refreshAiProviderRuntimeState();
+    try {
+      const activeProvider = get().activeAiProvider;
+      if (!activeProvider) return;
+
+      const data = await aiModelService.getAiProviderModelList(activeProvider);
+      
+      if (!isEqual(data, get().aiProviderModelList)) {
+        set({ aiProviderModelList: data, isAiModelListInit: true }, false, 'refreshAiModelList');
+      }
+
+      // make refresh provide runtime state async, not block
+      get().refreshAiProviderRuntimeState();
+    } catch (error) {
+      console.error('[refreshAiModelList] Error:', error);
+    }
   },
   removeAiModel: async (id, providerId) => {
     await aiModelService.deleteAiModel({ id, providerId });
@@ -136,12 +145,14 @@ export const createAiModelSlice: StateCreator<
     await get().refreshAiModelList();
   },
 
-  useFetchAiProviderModels: (id) =>
-    useClientDataSWR<AiProviderModelListItem[]>(
-      [FETCH_AI_PROVIDER_MODEL_LIST_KEY, id],
-      ([, id]) => aiModelService.getAiProviderModelList(id as string),
-      {
-        onSuccess: (data) => {
+  useFetchAiProviderModels: (id) => {
+    useEffect(() => {
+      if (!id) return;
+
+      const fetchModels = async () => {
+        try {
+          const data = await aiModelService.getAiProviderModelList(id);
+
           // no need to update list if the list have been init and data is the same
           if (get().isAiModelListInit && isEqual(data, get().aiProviderModelList)) return;
 
@@ -150,7 +161,12 @@ export const createAiModelSlice: StateCreator<
             false,
             `useFetchAiProviderModels/${id}`,
           );
-        },
-      },
-    ),
+        } catch (error) {
+          console.error('[useFetchAiProviderModels] Error:', error);
+        }
+      };
+
+      fetchModels();
+    }, [id]);
+  },
 });
