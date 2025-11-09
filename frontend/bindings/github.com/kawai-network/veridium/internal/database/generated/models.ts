@@ -1072,7 +1072,6 @@ export class ChatGroupsAgent {
 
 export class Chunk {
     "id": string;
-    "text": sql$0.NullString;
     "abstract": sql$0.NullString;
     "metadata": sql$0.NullString;
     "chunkIndex": sql$0.NullInt64;
@@ -1086,9 +1085,6 @@ export class Chunk {
     constructor($$source: Partial<Chunk> = {}) {
         if (!("id" in $$source)) {
             this["id"] = "";
-        }
-        if (!("text" in $$source)) {
-            this["text"] = (new sql$0.NullString());
         }
         if (!("abstract" in $$source)) {
             this["abstract"] = (new sql$0.NullString());
@@ -1124,32 +1120,28 @@ export class Chunk {
     static createFrom($$source: any = {}): Chunk {
         const $$createField1_0 = $$createType0;
         const $$createField2_0 = $$createType0;
-        const $$createField3_0 = $$createType0;
-        const $$createField4_0 = $$createType1;
+        const $$createField3_0 = $$createType1;
+        const $$createField4_0 = $$createType0;
         const $$createField5_0 = $$createType0;
         const $$createField6_0 = $$createType0;
-        const $$createField7_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("text" in $$parsedSource) {
-            $$parsedSource["text"] = $$createField1_0($$parsedSource["text"]);
-        }
         if ("abstract" in $$parsedSource) {
-            $$parsedSource["abstract"] = $$createField2_0($$parsedSource["abstract"]);
+            $$parsedSource["abstract"] = $$createField1_0($$parsedSource["abstract"]);
         }
         if ("metadata" in $$parsedSource) {
-            $$parsedSource["metadata"] = $$createField3_0($$parsedSource["metadata"]);
+            $$parsedSource["metadata"] = $$createField2_0($$parsedSource["metadata"]);
         }
         if ("chunkIndex" in $$parsedSource) {
-            $$parsedSource["chunkIndex"] = $$createField4_0($$parsedSource["chunkIndex"]);
+            $$parsedSource["chunkIndex"] = $$createField3_0($$parsedSource["chunkIndex"]);
         }
         if ("type" in $$parsedSource) {
-            $$parsedSource["type"] = $$createField5_0($$parsedSource["type"]);
+            $$parsedSource["type"] = $$createField4_0($$parsedSource["type"]);
         }
         if ("clientId" in $$parsedSource) {
-            $$parsedSource["clientId"] = $$createField6_0($$parsedSource["clientId"]);
+            $$parsedSource["clientId"] = $$createField5_0($$parsedSource["clientId"]);
         }
         if ("userId" in $$parsedSource) {
-            $$parsedSource["userId"] = $$createField7_0($$parsedSource["userId"]);
+            $$parsedSource["userId"] = $$createField6_0($$parsedSource["userId"]);
         }
         return new Chunk($$parsedSource as Partial<Chunk>);
     }
@@ -2044,7 +2036,6 @@ export class CreateChatGroupParams {
 
 export class CreateChunkParams {
     "id": string;
-    "text": sql$0.NullString;
     "abstract": sql$0.NullString;
     "metadata": sql$0.NullString;
     "chunkIndex": sql$0.NullInt64;
@@ -2058,9 +2049,6 @@ export class CreateChunkParams {
     constructor($$source: Partial<CreateChunkParams> = {}) {
         if (!("id" in $$source)) {
             this["id"] = "";
-        }
-        if (!("text" in $$source)) {
-            this["text"] = (new sql$0.NullString());
         }
         if (!("abstract" in $$source)) {
             this["abstract"] = (new sql$0.NullString());
@@ -2096,32 +2084,28 @@ export class CreateChunkParams {
     static createFrom($$source: any = {}): CreateChunkParams {
         const $$createField1_0 = $$createType0;
         const $$createField2_0 = $$createType0;
-        const $$createField3_0 = $$createType0;
-        const $$createField4_0 = $$createType1;
+        const $$createField3_0 = $$createType1;
+        const $$createField4_0 = $$createType0;
         const $$createField5_0 = $$createType0;
         const $$createField6_0 = $$createType0;
-        const $$createField7_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("text" in $$parsedSource) {
-            $$parsedSource["text"] = $$createField1_0($$parsedSource["text"]);
-        }
         if ("abstract" in $$parsedSource) {
-            $$parsedSource["abstract"] = $$createField2_0($$parsedSource["abstract"]);
+            $$parsedSource["abstract"] = $$createField1_0($$parsedSource["abstract"]);
         }
         if ("metadata" in $$parsedSource) {
-            $$parsedSource["metadata"] = $$createField3_0($$parsedSource["metadata"]);
+            $$parsedSource["metadata"] = $$createField2_0($$parsedSource["metadata"]);
         }
         if ("chunkIndex" in $$parsedSource) {
-            $$parsedSource["chunkIndex"] = $$createField4_0($$parsedSource["chunkIndex"]);
+            $$parsedSource["chunkIndex"] = $$createField3_0($$parsedSource["chunkIndex"]);
         }
         if ("type" in $$parsedSource) {
-            $$parsedSource["type"] = $$createField5_0($$parsedSource["type"]);
+            $$parsedSource["type"] = $$createField4_0($$parsedSource["type"]);
         }
         if ("clientId" in $$parsedSource) {
-            $$parsedSource["clientId"] = $$createField6_0($$parsedSource["clientId"]);
+            $$parsedSource["clientId"] = $$createField5_0($$parsedSource["clientId"]);
         }
         if ("userId" in $$parsedSource) {
-            $$parsedSource["userId"] = $$createField7_0($$parsedSource["userId"]);
+            $$parsedSource["userId"] = $$createField6_0($$parsedSource["userId"]);
         }
         return new CreateChunkParams($$parsedSource as Partial<CreateChunkParams>);
     }
@@ -4833,7 +4817,6 @@ export class CreateTopicParams {
 
 export class CreateUnstructuredChunkParams {
     "id": string;
-    "text": sql$0.NullString;
     "metadata": sql$0.NullString;
     "chunkIndex": sql$0.NullInt64;
     "type": sql$0.NullString;
@@ -4849,9 +4832,6 @@ export class CreateUnstructuredChunkParams {
     constructor($$source: Partial<CreateUnstructuredChunkParams> = {}) {
         if (!("id" in $$source)) {
             this["id"] = "";
-        }
-        if (!("text" in $$source)) {
-            this["text"] = (new sql$0.NullString());
         }
         if (!("metadata" in $$source)) {
             this["metadata"] = (new sql$0.NullString());
@@ -4892,41 +4872,37 @@ export class CreateUnstructuredChunkParams {
      */
     static createFrom($$source: any = {}): CreateUnstructuredChunkParams {
         const $$createField1_0 = $$createType0;
-        const $$createField2_0 = $$createType0;
-        const $$createField3_0 = $$createType1;
+        const $$createField2_0 = $$createType1;
+        const $$createField3_0 = $$createType0;
         const $$createField4_0 = $$createType0;
         const $$createField5_0 = $$createType0;
         const $$createField6_0 = $$createType0;
         const $$createField7_0 = $$createType0;
         const $$createField8_0 = $$createType0;
-        const $$createField9_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("text" in $$parsedSource) {
-            $$parsedSource["text"] = $$createField1_0($$parsedSource["text"]);
-        }
         if ("metadata" in $$parsedSource) {
-            $$parsedSource["metadata"] = $$createField2_0($$parsedSource["metadata"]);
+            $$parsedSource["metadata"] = $$createField1_0($$parsedSource["metadata"]);
         }
         if ("chunkIndex" in $$parsedSource) {
-            $$parsedSource["chunkIndex"] = $$createField3_0($$parsedSource["chunkIndex"]);
+            $$parsedSource["chunkIndex"] = $$createField2_0($$parsedSource["chunkIndex"]);
         }
         if ("type" in $$parsedSource) {
-            $$parsedSource["type"] = $$createField4_0($$parsedSource["type"]);
+            $$parsedSource["type"] = $$createField3_0($$parsedSource["type"]);
         }
         if ("parentId" in $$parsedSource) {
-            $$parsedSource["parentId"] = $$createField5_0($$parsedSource["parentId"]);
+            $$parsedSource["parentId"] = $$createField4_0($$parsedSource["parentId"]);
         }
         if ("compositeId" in $$parsedSource) {
-            $$parsedSource["compositeId"] = $$createField6_0($$parsedSource["compositeId"]);
+            $$parsedSource["compositeId"] = $$createField5_0($$parsedSource["compositeId"]);
         }
         if ("clientId" in $$parsedSource) {
-            $$parsedSource["clientId"] = $$createField7_0($$parsedSource["clientId"]);
+            $$parsedSource["clientId"] = $$createField6_0($$parsedSource["clientId"]);
         }
         if ("userId" in $$parsedSource) {
-            $$parsedSource["userId"] = $$createField8_0($$parsedSource["userId"]);
+            $$parsedSource["userId"] = $$createField7_0($$parsedSource["userId"]);
         }
         if ("fileId" in $$parsedSource) {
-            $$parsedSource["fileId"] = $$createField9_0($$parsedSource["fileId"]);
+            $$parsedSource["fileId"] = $$createField8_0($$parsedSource["fileId"]);
         }
         return new CreateUnstructuredChunkParams($$parsedSource as Partial<CreateUnstructuredChunkParams>);
     }
@@ -7737,7 +7713,6 @@ export class GetChunkParams {
 
 export class GetChunksTextByFileIdRow {
     "id": string;
-    "text": sql$0.NullString;
     "metadata": sql$0.NullString;
     "type": sql$0.NullString;
 
@@ -7745,9 +7720,6 @@ export class GetChunksTextByFileIdRow {
     constructor($$source: Partial<GetChunksTextByFileIdRow> = {}) {
         if (!("id" in $$source)) {
             this["id"] = "";
-        }
-        if (!("text" in $$source)) {
-            this["text"] = (new sql$0.NullString());
         }
         if (!("metadata" in $$source)) {
             this["metadata"] = (new sql$0.NullString());
@@ -7765,16 +7737,12 @@ export class GetChunksTextByFileIdRow {
     static createFrom($$source: any = {}): GetChunksTextByFileIdRow {
         const $$createField1_0 = $$createType0;
         const $$createField2_0 = $$createType0;
-        const $$createField3_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("text" in $$parsedSource) {
-            $$parsedSource["text"] = $$createField1_0($$parsedSource["text"]);
-        }
         if ("metadata" in $$parsedSource) {
-            $$parsedSource["metadata"] = $$createField2_0($$parsedSource["metadata"]);
+            $$parsedSource["metadata"] = $$createField1_0($$parsedSource["metadata"]);
         }
         if ("type" in $$parsedSource) {
-            $$parsedSource["type"] = $$createField3_0($$parsedSource["type"]);
+            $$parsedSource["type"] = $$createField2_0($$parsedSource["type"]);
         }
         return new GetChunksTextByFileIdRow($$parsedSource as Partial<GetChunksTextByFileIdRow>);
     }
@@ -7811,7 +7779,6 @@ export class GetChunksWithEmbeddingsByFileIdsParams {
 
 export class GetChunksWithEmbeddingsByFileIdsRow {
     "id": string;
-    "text": sql$0.NullString;
     "metadata": sql$0.NullString;
     "chunkIndex": sql$0.NullInt64;
     "type": sql$0.NullString;
@@ -7823,9 +7790,6 @@ export class GetChunksWithEmbeddingsByFileIdsRow {
     constructor($$source: Partial<GetChunksWithEmbeddingsByFileIdsRow> = {}) {
         if (!("id" in $$source)) {
             this["id"] = "";
-        }
-        if (!("text" in $$source)) {
-            this["text"] = (new sql$0.NullString());
         }
         if (!("metadata" in $$source)) {
             this["metadata"] = (new sql$0.NullString());
@@ -7854,33 +7818,29 @@ export class GetChunksWithEmbeddingsByFileIdsRow {
      */
     static createFrom($$source: any = {}): GetChunksWithEmbeddingsByFileIdsRow {
         const $$createField1_0 = $$createType0;
-        const $$createField2_0 = $$createType0;
-        const $$createField3_0 = $$createType1;
-        const $$createField4_0 = $$createType0;
-        const $$createField5_0 = $Create.ByteSlice;
+        const $$createField2_0 = $$createType1;
+        const $$createField3_0 = $$createType0;
+        const $$createField4_0 = $Create.ByteSlice;
+        const $$createField5_0 = $$createType0;
         const $$createField6_0 = $$createType0;
-        const $$createField7_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("text" in $$parsedSource) {
-            $$parsedSource["text"] = $$createField1_0($$parsedSource["text"]);
-        }
         if ("metadata" in $$parsedSource) {
-            $$parsedSource["metadata"] = $$createField2_0($$parsedSource["metadata"]);
+            $$parsedSource["metadata"] = $$createField1_0($$parsedSource["metadata"]);
         }
         if ("chunkIndex" in $$parsedSource) {
-            $$parsedSource["chunkIndex"] = $$createField3_0($$parsedSource["chunkIndex"]);
+            $$parsedSource["chunkIndex"] = $$createField2_0($$parsedSource["chunkIndex"]);
         }
         if ("type" in $$parsedSource) {
-            $$parsedSource["type"] = $$createField4_0($$parsedSource["type"]);
+            $$parsedSource["type"] = $$createField3_0($$parsedSource["type"]);
         }
         if ("chunkEmbedding" in $$parsedSource) {
-            $$parsedSource["chunkEmbedding"] = $$createField5_0($$parsedSource["chunkEmbedding"]);
+            $$parsedSource["chunkEmbedding"] = $$createField4_0($$parsedSource["chunkEmbedding"]);
         }
         if ("fileId" in $$parsedSource) {
-            $$parsedSource["fileId"] = $$createField6_0($$parsedSource["fileId"]);
+            $$parsedSource["fileId"] = $$createField5_0($$parsedSource["fileId"]);
         }
         if ("fileName" in $$parsedSource) {
-            $$parsedSource["fileName"] = $$createField7_0($$parsedSource["fileName"]);
+            $$parsedSource["fileName"] = $$createField6_0($$parsedSource["fileName"]);
         }
         return new GetChunksWithEmbeddingsByFileIdsRow($$parsedSource as Partial<GetChunksWithEmbeddingsByFileIdsRow>);
     }
@@ -7888,7 +7848,6 @@ export class GetChunksWithEmbeddingsByFileIdsRow {
 
 export class GetChunksWithEmbeddingsRow {
     "id": string;
-    "text": sql$0.NullString;
     "metadata": sql$0.NullString;
     "chunkIndex": sql$0.NullInt64;
     "type": sql$0.NullString;
@@ -7900,9 +7859,6 @@ export class GetChunksWithEmbeddingsRow {
     constructor($$source: Partial<GetChunksWithEmbeddingsRow> = {}) {
         if (!("id" in $$source)) {
             this["id"] = "";
-        }
-        if (!("text" in $$source)) {
-            this["text"] = (new sql$0.NullString());
         }
         if (!("metadata" in $$source)) {
             this["metadata"] = (new sql$0.NullString());
@@ -7931,33 +7887,29 @@ export class GetChunksWithEmbeddingsRow {
      */
     static createFrom($$source: any = {}): GetChunksWithEmbeddingsRow {
         const $$createField1_0 = $$createType0;
-        const $$createField2_0 = $$createType0;
-        const $$createField3_0 = $$createType1;
-        const $$createField4_0 = $$createType0;
-        const $$createField5_0 = $Create.ByteSlice;
+        const $$createField2_0 = $$createType1;
+        const $$createField3_0 = $$createType0;
+        const $$createField4_0 = $Create.ByteSlice;
+        const $$createField5_0 = $$createType0;
         const $$createField6_0 = $$createType0;
-        const $$createField7_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("text" in $$parsedSource) {
-            $$parsedSource["text"] = $$createField1_0($$parsedSource["text"]);
-        }
         if ("metadata" in $$parsedSource) {
-            $$parsedSource["metadata"] = $$createField2_0($$parsedSource["metadata"]);
+            $$parsedSource["metadata"] = $$createField1_0($$parsedSource["metadata"]);
         }
         if ("chunkIndex" in $$parsedSource) {
-            $$parsedSource["chunkIndex"] = $$createField3_0($$parsedSource["chunkIndex"]);
+            $$parsedSource["chunkIndex"] = $$createField2_0($$parsedSource["chunkIndex"]);
         }
         if ("type" in $$parsedSource) {
-            $$parsedSource["type"] = $$createField4_0($$parsedSource["type"]);
+            $$parsedSource["type"] = $$createField3_0($$parsedSource["type"]);
         }
         if ("chunkEmbedding" in $$parsedSource) {
-            $$parsedSource["chunkEmbedding"] = $$createField5_0($$parsedSource["chunkEmbedding"]);
+            $$parsedSource["chunkEmbedding"] = $$createField4_0($$parsedSource["chunkEmbedding"]);
         }
         if ("fileId" in $$parsedSource) {
-            $$parsedSource["fileId"] = $$createField6_0($$parsedSource["fileId"]);
+            $$parsedSource["fileId"] = $$createField5_0($$parsedSource["fileId"]);
         }
         if ("fileName" in $$parsedSource) {
-            $$parsedSource["fileName"] = $$createField7_0($$parsedSource["fileName"]);
+            $$parsedSource["fileName"] = $$createField6_0($$parsedSource["fileName"]);
         }
         return new GetChunksWithEmbeddingsRow($$parsedSource as Partial<GetChunksWithEmbeddingsRow>);
     }
@@ -8271,7 +8223,6 @@ export class GetFileChunksWithMetadataParams {
 
 export class GetFileChunksWithMetadataRow {
     "id": string;
-    "text": sql$0.NullString;
     "abstract": sql$0.NullString;
     "metadata": sql$0.NullString;
     "chunkIndex": sql$0.NullInt64;
@@ -8283,9 +8234,6 @@ export class GetFileChunksWithMetadataRow {
     constructor($$source: Partial<GetFileChunksWithMetadataRow> = {}) {
         if (!("id" in $$source)) {
             this["id"] = "";
-        }
-        if (!("text" in $$source)) {
-            this["text"] = (new sql$0.NullString());
         }
         if (!("abstract" in $$source)) {
             this["abstract"] = (new sql$0.NullString());
@@ -8315,24 +8263,20 @@ export class GetFileChunksWithMetadataRow {
     static createFrom($$source: any = {}): GetFileChunksWithMetadataRow {
         const $$createField1_0 = $$createType0;
         const $$createField2_0 = $$createType0;
-        const $$createField3_0 = $$createType0;
-        const $$createField4_0 = $$createType1;
-        const $$createField5_0 = $$createType0;
+        const $$createField3_0 = $$createType1;
+        const $$createField4_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("text" in $$parsedSource) {
-            $$parsedSource["text"] = $$createField1_0($$parsedSource["text"]);
-        }
         if ("abstract" in $$parsedSource) {
-            $$parsedSource["abstract"] = $$createField2_0($$parsedSource["abstract"]);
+            $$parsedSource["abstract"] = $$createField1_0($$parsedSource["abstract"]);
         }
         if ("metadata" in $$parsedSource) {
-            $$parsedSource["metadata"] = $$createField3_0($$parsedSource["metadata"]);
+            $$parsedSource["metadata"] = $$createField2_0($$parsedSource["metadata"]);
         }
         if ("chunkIndex" in $$parsedSource) {
-            $$parsedSource["chunkIndex"] = $$createField4_0($$parsedSource["chunkIndex"]);
+            $$parsedSource["chunkIndex"] = $$createField3_0($$parsedSource["chunkIndex"]);
         }
         if ("type" in $$parsedSource) {
-            $$parsedSource["type"] = $$createField5_0($$parsedSource["type"]);
+            $$parsedSource["type"] = $$createField4_0($$parsedSource["type"]);
         }
         return new GetFileChunksWithMetadataRow($$parsedSource as Partial<GetFileChunksWithMetadataRow>);
     }
@@ -9143,7 +9087,6 @@ export class GetMessageQueryChunksRow {
     "messageId": sql$0.NullString;
     "similarity": sql$0.NullInt64;
     "id": sql$0.NullString;
-    "text": sql$0.NullString;
     "fileId": sql$0.NullString;
     "filename": sql$0.NullString;
     "fileType": sql$0.NullString;
@@ -9159,9 +9102,6 @@ export class GetMessageQueryChunksRow {
         }
         if (!("id" in $$source)) {
             this["id"] = (new sql$0.NullString());
-        }
-        if (!("text" in $$source)) {
-            this["text"] = (new sql$0.NullString());
         }
         if (!("fileId" in $$source)) {
             this["fileId"] = (new sql$0.NullString());
@@ -9190,7 +9130,6 @@ export class GetMessageQueryChunksRow {
         const $$createField4_0 = $$createType0;
         const $$createField5_0 = $$createType0;
         const $$createField6_0 = $$createType0;
-        const $$createField7_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("messageId" in $$parsedSource) {
             $$parsedSource["messageId"] = $$createField0_0($$parsedSource["messageId"]);
@@ -9201,20 +9140,17 @@ export class GetMessageQueryChunksRow {
         if ("id" in $$parsedSource) {
             $$parsedSource["id"] = $$createField2_0($$parsedSource["id"]);
         }
-        if ("text" in $$parsedSource) {
-            $$parsedSource["text"] = $$createField3_0($$parsedSource["text"]);
-        }
         if ("fileId" in $$parsedSource) {
-            $$parsedSource["fileId"] = $$createField4_0($$parsedSource["fileId"]);
+            $$parsedSource["fileId"] = $$createField3_0($$parsedSource["fileId"]);
         }
         if ("filename" in $$parsedSource) {
-            $$parsedSource["filename"] = $$createField5_0($$parsedSource["filename"]);
+            $$parsedSource["filename"] = $$createField4_0($$parsedSource["filename"]);
         }
         if ("fileType" in $$parsedSource) {
-            $$parsedSource["fileType"] = $$createField6_0($$parsedSource["fileType"]);
+            $$parsedSource["fileType"] = $$createField5_0($$parsedSource["fileType"]);
         }
         if ("fileUrl" in $$parsedSource) {
-            $$parsedSource["fileUrl"] = $$createField7_0($$parsedSource["fileUrl"]);
+            $$parsedSource["fileUrl"] = $$createField6_0($$parsedSource["fileUrl"]);
         }
         return new GetMessageQueryChunksRow($$parsedSource as Partial<GetMessageQueryChunksRow>);
     }
@@ -16010,7 +15946,6 @@ export class UnlinkUserFromRoleParams {
 
 export class UnstructuredChunk {
     "id": string;
-    "text": sql$0.NullString;
     "metadata": sql$0.NullString;
     "chunkIndex": sql$0.NullInt64;
     "type": sql$0.NullString;
@@ -16026,9 +15961,6 @@ export class UnstructuredChunk {
     constructor($$source: Partial<UnstructuredChunk> = {}) {
         if (!("id" in $$source)) {
             this["id"] = "";
-        }
-        if (!("text" in $$source)) {
-            this["text"] = (new sql$0.NullString());
         }
         if (!("metadata" in $$source)) {
             this["metadata"] = (new sql$0.NullString());
@@ -16069,41 +16001,37 @@ export class UnstructuredChunk {
      */
     static createFrom($$source: any = {}): UnstructuredChunk {
         const $$createField1_0 = $$createType0;
-        const $$createField2_0 = $$createType0;
-        const $$createField3_0 = $$createType1;
+        const $$createField2_0 = $$createType1;
+        const $$createField3_0 = $$createType0;
         const $$createField4_0 = $$createType0;
         const $$createField5_0 = $$createType0;
         const $$createField6_0 = $$createType0;
         const $$createField7_0 = $$createType0;
         const $$createField8_0 = $$createType0;
-        const $$createField9_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("text" in $$parsedSource) {
-            $$parsedSource["text"] = $$createField1_0($$parsedSource["text"]);
-        }
         if ("metadata" in $$parsedSource) {
-            $$parsedSource["metadata"] = $$createField2_0($$parsedSource["metadata"]);
+            $$parsedSource["metadata"] = $$createField1_0($$parsedSource["metadata"]);
         }
         if ("chunkIndex" in $$parsedSource) {
-            $$parsedSource["chunkIndex"] = $$createField3_0($$parsedSource["chunkIndex"]);
+            $$parsedSource["chunkIndex"] = $$createField2_0($$parsedSource["chunkIndex"]);
         }
         if ("type" in $$parsedSource) {
-            $$parsedSource["type"] = $$createField4_0($$parsedSource["type"]);
+            $$parsedSource["type"] = $$createField3_0($$parsedSource["type"]);
         }
         if ("parentId" in $$parsedSource) {
-            $$parsedSource["parentId"] = $$createField5_0($$parsedSource["parentId"]);
+            $$parsedSource["parentId"] = $$createField4_0($$parsedSource["parentId"]);
         }
         if ("compositeId" in $$parsedSource) {
-            $$parsedSource["compositeId"] = $$createField6_0($$parsedSource["compositeId"]);
+            $$parsedSource["compositeId"] = $$createField5_0($$parsedSource["compositeId"]);
         }
         if ("clientId" in $$parsedSource) {
-            $$parsedSource["clientId"] = $$createField7_0($$parsedSource["clientId"]);
+            $$parsedSource["clientId"] = $$createField6_0($$parsedSource["clientId"]);
         }
         if ("userId" in $$parsedSource) {
-            $$parsedSource["userId"] = $$createField8_0($$parsedSource["userId"]);
+            $$parsedSource["userId"] = $$createField7_0($$parsedSource["userId"]);
         }
         if ("fileId" in $$parsedSource) {
-            $$parsedSource["fileId"] = $$createField9_0($$parsedSource["fileId"]);
+            $$parsedSource["fileId"] = $$createField8_0($$parsedSource["fileId"]);
         }
         return new UnstructuredChunk($$parsedSource as Partial<UnstructuredChunk>);
     }
@@ -16808,7 +16736,6 @@ export class UpdateChatGroupParams {
 }
 
 export class UpdateChunkParams {
-    "text": sql$0.NullString;
     "abstract": sql$0.NullString;
     "metadata": sql$0.NullString;
     "updatedAt": number;
@@ -16817,9 +16744,6 @@ export class UpdateChunkParams {
 
     /** Creates a new UpdateChunkParams instance. */
     constructor($$source: Partial<UpdateChunkParams> = {}) {
-        if (!("text" in $$source)) {
-            this["text"] = (new sql$0.NullString());
-        }
         if (!("abstract" in $$source)) {
             this["abstract"] = (new sql$0.NullString());
         }
@@ -16845,20 +16769,16 @@ export class UpdateChunkParams {
     static createFrom($$source: any = {}): UpdateChunkParams {
         const $$createField0_0 = $$createType0;
         const $$createField1_0 = $$createType0;
-        const $$createField2_0 = $$createType0;
-        const $$createField5_0 = $$createType0;
+        const $$createField4_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("text" in $$parsedSource) {
-            $$parsedSource["text"] = $$createField0_0($$parsedSource["text"]);
-        }
         if ("abstract" in $$parsedSource) {
-            $$parsedSource["abstract"] = $$createField1_0($$parsedSource["abstract"]);
+            $$parsedSource["abstract"] = $$createField0_0($$parsedSource["abstract"]);
         }
         if ("metadata" in $$parsedSource) {
-            $$parsedSource["metadata"] = $$createField2_0($$parsedSource["metadata"]);
+            $$parsedSource["metadata"] = $$createField1_0($$parsedSource["metadata"]);
         }
         if ("userId" in $$parsedSource) {
-            $$parsedSource["userId"] = $$createField5_0($$parsedSource["userId"]);
+            $$parsedSource["userId"] = $$createField4_0($$parsedSource["userId"]);
         }
         return new UpdateChunkParams($$parsedSource as Partial<UpdateChunkParams>);
     }

@@ -144,7 +144,6 @@ type ChatGroupsAgent struct {
 
 type Chunk struct {
 	ID         string         `json:"id"`
-	Text       sql.NullString `json:"text"`
 	Abstract   sql.NullString `json:"abstract"`
 	Metadata   sql.NullString `json:"metadata"`
 	ChunkIndex sql.NullInt64  `json:"chunkIndex"`
@@ -692,7 +691,6 @@ type TopicDocument struct {
 
 type UnstructuredChunk struct {
 	ID          string         `json:"id"`
-	Text        sql.NullString `json:"text"`
 	Metadata    sql.NullString `json:"metadata"`
 	ChunkIndex  sql.NullInt64  `json:"chunkIndex"`
 	Type        sql.NullString `json:"type"`

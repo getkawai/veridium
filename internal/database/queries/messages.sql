@@ -309,11 +309,11 @@ INSERT INTO message_query_chunks (message_id, query_id, chunk_id, similarity, us
 VALUES (?, ?, ?, ?, ?);
 
 -- name: GetMessageQueryChunks :many
+-- NOTE: 'text' field removed - fetch from chromem if needed
 SELECT 
     mqc.message_id,
     mqc.similarity,
     c.id,
-    c.text,
     f.id as file_id,
     f.name as filename,
     f.file_type,

@@ -10,16 +10,17 @@ ORDER BY created_at DESC
 LIMIT ? OFFSET ?;
 
 -- name: CreateChunk :one
+-- NOTE: 'text' field removed - stored in chromem only
 INSERT INTO chunks (
-    id, text, abstract, metadata, chunk_index, type, client_id,
+    id, abstract, metadata, chunk_index, type, client_id,
     user_id, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpdateChunk :one
+-- NOTE: 'text' field removed - stored in chromem only
 UPDATE chunks
-SET text = ?,
-    abstract = ?,
+SET abstract = ?,
     metadata = ?,
     updated_at = ?
 WHERE id = ? AND user_id = ?
@@ -56,10 +57,11 @@ WHERE file_id = ? AND user_id = ?
 ORDER BY chunk_index ASC;
 
 -- name: CreateUnstructuredChunk :one
+-- NOTE: 'text' field removed - stored in chromem only
 INSERT INTO unstructured_chunks (
-    id, text, metadata, chunk_index, type, parent_id, composite_id,
+    id, metadata, chunk_index, type, parent_id, composite_id,
     client_id, user_id, file_id, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: DeleteUnstructuredChunk :exec
@@ -83,9 +85,9 @@ ORDER BY c.chunk_index ASC
 LIMIT ? OFFSET ?;
 
 -- name: GetFileChunksWithMetadata :many
+-- NOTE: 'text' field removed - fetch from chromem if needed
 SELECT 
     c.id,
-    c.text,
     c.abstract,
     c.metadata,
     c.chunk_index,
@@ -99,7 +101,9 @@ ORDER BY c.chunk_index ASC
 LIMIT ? OFFSET ?;
 
 -- name: GetChunksTextByFileId :many
-SELECT c.id, c.text, c.metadata, c.type
+-- NOTE: 'text' field removed - this query now deprecated, use chromem directly
+-- Returns only metadata, text must be fetched from chromem
+SELECT c.id, c.metadata, c.type
 FROM chunks c
 INNER JOIN file_chunks fc ON c.id = fc.chunk_id
 WHERE fc.file_id = ?;
@@ -125,11 +129,11 @@ WHERE fc.file_id IS NULL;
 DELETE FROM chunks
 WHERE id IN (sqlc.slice('ids')) AND user_id = ?;
 
--- Semantic search - fetch chunks with embeddings for JS similarity calculation
+-- Semantic search - DEPRECATED: Use chromem VectorSearchService instead
+-- This query kept for backward compatibility / fallback only
 -- name: GetChunksWithEmbeddings :many
 SELECT 
     c.id,
-    c.text,
     c.metadata,
     c.chunk_index,
     c.type,
@@ -143,9 +147,10 @@ LEFT JOIN files f ON fc.file_id = f.id
 WHERE c.user_id = ?;
 
 -- name: GetChunksWithEmbeddingsByFileIds :many
+-- DEPRECATED: Use chromem VectorSearchService instead
+-- This query kept for backward compatibility / fallback only
 SELECT 
     c.id,
-    c.text,
     c.metadata,
     c.chunk_index,
     c.type,
