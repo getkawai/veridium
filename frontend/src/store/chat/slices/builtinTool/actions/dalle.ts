@@ -1,8 +1,7 @@
 import { produce } from 'immer';
-import { SWRResponse } from 'swr';
+import { useEffect } from 'react';
 import { StateCreator } from 'zustand/vanilla';
 
-import { useClientDataSWR } from '@/libs/swr';
 // import { imageGenerationService } from '@/services/textToImage';
 // import { uploadService } from '@/services/upload';
 import { chatSelectors } from '../../message/selectors';
@@ -12,14 +11,12 @@ import { setNamespace } from '@/utils/storeDebug';
 
 const n = setNamespace('tool');
 
-const SWR_FETCH_KEY = 'FetchImageItem';
-
 export interface ChatDallEAction {
   generateImageFromPrompts: (items: DallEImageItem[], id: string) => Promise<void>;
   text2image: (id: string, data: DallEImageItem[]) => Promise<void>;
   toggleDallEImageLoading: (key: string, value: boolean) => void;
   updateImageItem: (id: string, updater: (data: DallEImageItem[]) => void) => Promise<void>;
-  useFetchDalleImageItem: (id: string) => SWRResponse;
+  useFetchDalleImageItem: (id: string) => void;
 }
 
 export const dalleSlice: StateCreator<
@@ -105,31 +102,40 @@ export const dalleSlice: StateCreator<
     await get().internal_updateMessageContent(id, JSON.stringify(nextContent));
   },
 
-  useFetchDalleImageItem: (id) =>
-    useClientDataSWR([SWR_FETCH_KEY, id], async () => {
-      // Dummy implementation for UI focus
-      console.log('Fetching DALL-E image item:', id);
+  useFetchDalleImageItem: (id) => {
+    useEffect(() => {
+      if (!id) return;
 
-      const mockItem = {
-        id,
-        name: `Mock DALL-E Image ${id.slice(0, 8)}`,
-        type: 'image/png',
-        size: 2048000,
-        url: `mock://dalle-image/${id}`,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+      const fetchDalleImageItem = async () => {
+        try {
+          // Dummy implementation for UI focus
+          console.log('Fetching DALL-E image item:', id);
+
+          const mockItem = {
+            id,
+            name: `Mock DALL-E Image ${id.slice(0, 8)}`,
+            type: 'image/png',
+            size: 2048000,
+            url: `mock://dalle-image/${id}`,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+
+          set(
+            produce((draft) => {
+              if (draft.dalleImageMap[id]) return;
+
+              draft.dalleImageMap[id] = mockItem;
+            }),
+            false,
+            n('useFetchFile'),
+          );
+        } catch (error) {
+          console.error('[useFetchDalleImageItem] Error:', error);
+        }
       };
 
-      set(
-        produce((draft) => {
-          if (draft.dalleImageMap[id]) return;
-
-          draft.dalleImageMap[id] = mockItem;
-        }),
-        false,
-        n('useFetchFile'),
-      );
-
-      return mockItem;
-    }),
+      fetchDalleImageItem();
+    }, [id]);
+  },
 });

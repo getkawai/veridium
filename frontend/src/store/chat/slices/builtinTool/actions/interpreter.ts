@@ -5,10 +5,9 @@ import {
 } from '@/types';
 import { produce } from 'immer';
 import pMap from 'p-map';
-import { SWRResponse } from 'swr';
+import { useEffect } from 'react';
 import { StateCreator } from 'zustand/vanilla';
 
-import { useClientDataSWR } from '@/libs/swr';
 // import { pythonService } from '@/services/python';
 import { chatSelectors } from '../../message/selectors';
 import { ChatStore } from '@/store/chat/store';
@@ -18,8 +17,6 @@ import { setNamespace } from '@/utils/storeDebug';
 
 const n = setNamespace('codeInterpreter');
 
-const SWR_FETCH_INTERPRETER_FILE_KEY = 'FetchCodeInterpreterFileItem';
-
 export interface ChatCodeInterpreterAction {
   python: (id: string, params: CodeInterpreterParams) => Promise<boolean | undefined>;
   toggleInterpreterExecuting: (id: string, loading: boolean) => void;
@@ -28,7 +25,7 @@ export interface ChatCodeInterpreterAction {
     updater: (data: CodeInterpreterResponse) => void,
   ) => Promise<void>;
   uploadInterpreterFiles: (id: string, files: CodeInterpreterFileItem[]) => Promise<void>;
-  useFetchInterpreterFileItem: (id?: string) => SWRResponse;
+  useFetchInterpreterFileItem: (id?: string) => void;
 }
 
 export const codeInterpreterSlice: StateCreator<
@@ -140,36 +137,43 @@ export const codeInterpreterSlice: StateCreator<
     }));
   },
 
-  useFetchInterpreterFileItem: (id) =>
-    useClientDataSWR(id ? [SWR_FETCH_INTERPRETER_FILE_KEY, id] : null, async () => {
-      if (!id) return null;
+  useFetchInterpreterFileItem: (id) => {
+    useEffect(() => {
+      if (!id) return;
 
-      // Dummy implementation for UI focus
-      console.log('Fetching interpreter file item:', id);
+      const fetchInterpreterFileItem = async () => {
+        try {
+          // Dummy implementation for UI focus
+          console.log('Fetching interpreter file item:', id);
 
-      const mockItem = {
-        id,
-        name: `Mock Interpreter File ${id.slice(0, 8)}`,
-        type: 'application/octet-stream',
-        size: 1024000,
-        url: `mock://interpreter-file/${id}`,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+          const mockItem = {
+            id,
+            name: `Mock Interpreter File ${id.slice(0, 8)}`,
+            type: 'application/octet-stream',
+            size: 1024000,
+            url: `mock://interpreter-file/${id}`,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+
+          set(
+            produce((draft) => {
+              if (!draft.codeInterpreterFileMap) {
+                draft.codeInterpreterFileMap = {};
+              }
+              if (draft.codeInterpreterFileMap[id]) return;
+
+              draft.codeInterpreterFileMap[id] = mockItem;
+            }),
+            false,
+            n('useFetchInterpreterFileItem'),
+          );
+        } catch (error) {
+          console.error('[useFetchInterpreterFileItem] Error:', error);
+        }
       };
 
-      set(
-        produce((draft) => {
-          if (!draft.codeInterpreterFileMap) {
-            draft.codeInterpreterFileMap = {};
-          }
-          if (draft.codeInterpreterFileMap[id]) return;
-
-          draft.codeInterpreterFileMap[id] = mockItem;
-        }),
-        false,
-        n('useFetchInterpreterFileItem'),
-      );
-
-      return mockItem;
-    }),
+      fetchInterpreterFileItem();
+    }, [id]);
+  },
 });
