@@ -7,10 +7,8 @@ import {
   LobeDefaultAiModelListItem,
   ModelAbilities,
 } from '@/model-bank';
-import { SWRResponse, mutate } from 'swr';
+import { useEffect } from 'react';
 import { StateCreator } from 'zustand/vanilla';
-
-import { useClientDataSWR } from '@/libs/swr';
 import { aiProviderService } from '@/services/aiProvider';
 import { DEFAULT_MODEL_PROVIDER_LIST } from '@/config/modelProviders';
 import { AIProviderStoreState } from '../../initialState';
@@ -102,18 +100,9 @@ export interface AiProviderAction {
   updateAiProviderConfig: (id: string, value: UpdateAiProviderConfigParams) => Promise<void>;
   updateAiProviderSort: (items: AiProviderSortMap[]) => Promise<void>;
 
-  useFetchAiProviderItem: (id: string) => SWRResponse<AiProviderDetailItem | undefined>;
-  useFetchAiProviderList: (params?: {
-    enabled?: boolean;
-    suspense?: boolean;
-  }) => SWRResponse<AiProviderListItem[]>;
-  /**
-   * fetch provider keyVaults and user enabled model list
-   * @param isLoginOnInit
-   */
-  useFetchAiProviderRuntimeState: (
-    isLoginOnInit: boolean | undefined,
-  ) => SWRResponse<AiProviderRuntimeStateWithBuiltinModels | undefined>;
+  useFetchAiProviderItem: (id: string) => void;
+  useFetchAiProviderList: (params?: { enabled?: boolean; suspense?: boolean }) => void;
+  useFetchAiProviderRuntimeState: (isLoginOnInit: boolean | undefined) => void;
 }
 
 export const createAiProviderSlice: StateCreator<
@@ -157,18 +146,32 @@ export const createAiProviderSlice: StateCreator<
     );
   },
   refreshAiProviderDetail: async () => {
-    await mutate([AiProviderSwrKey.fetchAiProviderItem, get().activeAiProvider]);
-    await get().refreshAiProviderRuntimeState();
+    try {
+      const activeProvider = get().activeAiProvider;
+      if (!activeProvider) return;
+
+      const data = await aiProviderService.getAiProviderById(activeProvider);
+      if (data) {
+        set({ aiProviderDetail: data }, false, 'refreshAiProviderDetail');
+      }
+      await get().refreshAiProviderRuntimeState();
+    } catch (error) {
+      console.error('[refreshAiProviderDetail] Error:', error);
+    }
   },
   refreshAiProviderList: async () => {
-    await mutate(AiProviderSwrKey.fetchAiProviderList);
-    await get().refreshAiProviderRuntimeState();
+    try {
+      const data = await aiProviderService.getAiProviderList();
+      set({ aiProviderList: data }, false, 'refreshAiProviderList');
+      await get().refreshAiProviderRuntimeState();
+    } catch (error) {
+      console.error('[refreshAiProviderList] Error:', error);
+    }
   },
   refreshAiProviderRuntimeState: async () => {
-    await Promise.all([
-      mutate([AiProviderSwrKey.fetchAiProviderRuntimeState, true]),
-      mutate([AiProviderSwrKey.fetchAiProviderRuntimeState, false]),
-    ]);
+    // Runtime state refresh is handled by useFetchAiProviderRuntimeState
+    // This is a no-op now as we don't use SWR cache invalidation
+    console.debug('[refreshAiProviderRuntimeState] Skipped (handled by useEffect)');
   },
   removeAiProvider: async (id) => {
     await aiProviderService.deleteAiProvider(id);
@@ -204,25 +207,33 @@ export const createAiProviderSlice: StateCreator<
     await aiProviderService.updateAiProviderOrder(items);
     await get().refreshAiProviderList();
   },
-  useFetchAiProviderItem: (id) =>
-    useClientDataSWR<AiProviderDetailItem | undefined>(
-      [AiProviderSwrKey.fetchAiProviderItem, id],
-      () => aiProviderService.getAiProviderById(id),
-      {
-        onSuccess: (data) => {
+  useFetchAiProviderItem: (id) => {
+    useEffect(() => {
+      if (!id) return;
+
+      const fetchProviderItem = async () => {
+        try {
+          const data = await aiProviderService.getAiProviderById(id);
           if (!data) return;
 
           set({ activeAiProvider: id, aiProviderDetail: data }, false, 'useFetchAiProviderItem');
-        },
-      },
-    ),
-  useFetchAiProviderList: (opts) =>
-    useClientDataSWR<AiProviderListItem[]>(
-      opts?.enabled === false ? null : AiProviderSwrKey.fetchAiProviderList,
-      () => aiProviderService.getAiProviderList(),
-      {
-        fallbackData: [],
-        onSuccess: (data) => {
+        } catch (error) {
+          console.error('[useFetchAiProviderItem] Error:', error);
+        }
+      };
+
+      fetchProviderItem();
+    }, [id]);
+  },
+
+  useFetchAiProviderList: (opts) => {
+    useEffect(() => {
+      if (opts?.enabled === false) return;
+
+      const fetchProviderList = async () => {
+        try {
+          const data = await aiProviderService.getAiProviderList();
+
           if (!get().initAiProviderList) {
             set(
               { aiProviderList: data, initAiProviderList: true },
@@ -233,95 +244,97 @@ export const createAiProviderSlice: StateCreator<
           }
 
           set({ aiProviderList: data }, false, 'useFetchAiProviderList/refresh');
-        },
-      },
-    ),
+        } catch (error) {
+          console.error('[useFetchAiProviderList] Error:', error);
+        }
+      };
+
+      fetchProviderList();
+    }, [opts?.enabled]);
+  },
 
   useFetchAiProviderRuntimeState: (isLogin) => {
-    const isAuthLoaded = authSelectors.isLoaded(useUserStore.getState());
-    // Only fetch when auth is loaded and login status is explicitly defined (true or false)
-    // Prevents unnecessary requests when login state is null/undefined
-    const shouldFetch =
-      isAuthLoaded && !isDeprecatedEdition && isLogin !== null && isLogin !== undefined;
-    return useClientDataSWR<AiProviderRuntimeStateWithBuiltinModels | undefined>(
-      shouldFetch ? [AiProviderSwrKey.fetchAiProviderRuntimeState, isLogin] : null,
-      async ([, isLogin]) => {
-        const [{ LOBE_DEFAULT_MODEL_LIST: builtinAiModelList }] =
-          await Promise.all([import('@/model-bank')]);
+    useEffect(() => {
+      const isAuthLoaded = authSelectors.isLoaded(useUserStore.getState());
+      const shouldFetch =
+        isAuthLoaded && !isDeprecatedEdition && isLogin !== null && isLogin !== undefined;
 
-        if (isLogin) {
-          const data = await aiProviderService.getAiProviderRuntimeState();
+      if (!shouldFetch) return;
 
-          // Build model lists with proper async handling
-          const [enabledChatModelList, enabledImageModelList] = await Promise.all([
-            buildProviderModelLists(data.enabledChatAiProviders, data.enabledAiModels, 'chat'),
-            buildProviderModelLists(data.enabledImageAiProviders, data.enabledAiModels, 'image'),
+      const fetchRuntimeState = async () => {
+        try {
+          const [{ LOBE_DEFAULT_MODEL_LIST: builtinAiModelList }] = await Promise.all([
+            import('@/model-bank'),
           ]);
 
-          return {
-            ...data,
-            builtinAiModelList,
-            enabledChatModelList,
-            enabledImageModelList,
-          };
-        }
+          if (isLogin) {
+            const data = await aiProviderService.getAiProviderRuntimeState();
 
-        const enabledAiProviders: EnabledProvider[] = DEFAULT_MODEL_PROVIDER_LIST.filter(
-          (provider) => provider.enabled,
-        ).map((item) => ({ id: item.id, name: item.name, source: AiProviderSourceEnum.Builtin }));
+            const [enabledChatModelList, enabledImageModelList] = await Promise.all([
+              buildProviderModelLists(data.enabledChatAiProviders, data.enabledAiModels, 'chat'),
+              buildProviderModelLists(data.enabledImageAiProviders, data.enabledAiModels, 'image'),
+            ]);
 
-        const enabledChatAiProviders = enabledAiProviders.filter((provider) => {
-          return builtinAiModelList.some(
-            (model) => model.providerId === provider.id && model.type === 'chat',
-          );
-        });
-
-        const enabledImageAiProviders = enabledAiProviders
-          .filter((provider) => {
-            return builtinAiModelList.some(
-              (model) => model.providerId === provider.id && model.type === 'image',
+            set(
+              {
+                aiProviderRuntimeConfig: data.runtimeConfig,
+                builtinAiModelList,
+                enabledAiModels: data.enabledAiModels,
+                enabledAiProviders: data.enabledAiProviders,
+                enabledChatModelList,
+                enabledImageModelList,
+                isInitAiProviderRuntimeState: true,
+              },
+              false,
+              'useFetchAiProviderRuntimeState/login',
             );
-          })
-          .map((item) => ({ id: item.id, name: item.name, source: AiProviderSourceEnum.Builtin }));
+          } else {
+            const enabledAiProviders: EnabledProvider[] = DEFAULT_MODEL_PROVIDER_LIST.filter(
+              (provider) => provider.enabled,
+            ).map((item) => ({
+              id: item.id,
+              name: item.name,
+              source: AiProviderSourceEnum.Builtin,
+            }));
 
-        // Build model lists for non-login state as well
-        const enabledAiModels = builtinAiModelList.filter((m) => m.enabled);
-        const [enabledChatModelList, enabledImageModelList] = await Promise.all([
-          buildProviderModelLists(enabledChatAiProviders, enabledAiModels, 'chat'),
-          buildProviderModelLists(enabledImageAiProviders, enabledAiModels, 'image'),
-        ]);
+            const enabledChatAiProviders = enabledAiProviders.filter((provider) => {
+              return builtinAiModelList.some(
+                (model) => model.providerId === provider.id && model.type === 'chat',
+              );
+            });
 
-        return {
-          builtinAiModelList,
-          enabledAiModels,
-          enabledAiProviders,
-          enabledChatAiProviders,
-          enabledChatModelList,
-          enabledImageAiProviders,
-          enabledImageModelList,
-          runtimeConfig: {},
-        };
-      },
-      {
-        focusThrottleInterval: isDesktop || isUsePgliteDB ? 100 : undefined,
-        onSuccess: (data) => {
-          if (!data) return;
+            const enabledImageAiProviders = enabledAiProviders.filter((provider) => {
+              return builtinAiModelList.some(
+                (model) => model.providerId === provider.id && model.type === 'image',
+              );
+            });
 
-          set(
-            {
-              aiProviderRuntimeConfig: data.runtimeConfig,
-              builtinAiModelList: data.builtinAiModelList,
-              enabledAiModels: data.enabledAiModels,
-              enabledAiProviders: data.enabledAiProviders,
-              enabledChatModelList: data.enabledChatModelList || [],
-              enabledImageModelList: data.enabledImageModelList || [],
-              isInitAiProviderRuntimeState: true,
-            },
-            false,
-            'useFetchAiProviderRuntimeState',
-          );
-        },
-      },
-    );
+            const enabledAiModels = builtinAiModelList.filter((m) => m.enabled);
+            const [enabledChatModelList, enabledImageModelList] = await Promise.all([
+              buildProviderModelLists(enabledChatAiProviders, enabledAiModels, 'chat'),
+              buildProviderModelLists(enabledImageAiProviders, enabledAiModels, 'image'),
+            ]);
+
+            set(
+              {
+                aiProviderRuntimeConfig: {},
+                builtinAiModelList,
+                enabledAiModels,
+                enabledAiProviders,
+                enabledChatModelList,
+                enabledImageModelList,
+                isInitAiProviderRuntimeState: true,
+              },
+              false,
+              'useFetchAiProviderRuntimeState/noLogin',
+            );
+          }
+        } catch (error) {
+          console.error('[useFetchAiProviderRuntimeState] Error:', error);
+        }
+      };
+
+      fetchRuntimeState();
+    }, [isLogin]);
   },
 });

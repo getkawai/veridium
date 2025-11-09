@@ -1,9 +1,8 @@
 import { Schema, ValidationResult } from '@cfworker/json-schema';
-import { SWRResponse } from 'swr';
+import { useEffect } from 'react';
 import { StateCreator } from 'zustand/vanilla';
 
 import { MESSAGE_CANCEL_FLAT } from '@/const/message';
-import { useClientDataSWR } from '@/libs/swr';
 import { pluginService } from '@/services/plugin';
 import { merge } from '@/utils/merge';
 
@@ -23,7 +22,7 @@ export interface PluginAction {
     settings: Partial<T>,
     options?: { override?: boolean },
   ) => Promise<void>;
-  useCheckPluginsIsInstalled: (enable: boolean, plugins: string[]) => SWRResponse;
+  useCheckPluginsIsInstalled: (enable: boolean, plugins: string[]) => void;
   validatePluginSettings: (identifier: string) => Promise<ValidationResult | undefined>;
 }
 
@@ -78,8 +77,13 @@ export const createPluginSlice: StateCreator<
 
     await get().refreshPlugins();
   },
-  useCheckPluginsIsInstalled: (enable, plugins) =>
-    useClientDataSWR(enable ? plugins : null, get().checkPluginsIsInstalled),
+  useCheckPluginsIsInstalled: (enable, plugins) => {
+    useEffect(() => {
+      if (!enable || plugins.length === 0) return;
+
+      get().checkPluginsIsInstalled(plugins);
+    }, [enable, plugins.join(',')]);
+  },
   validatePluginSettings: async (identifier) => {
     const manifest = pluginSelectors.getToolManifestById(identifier)(get());
     if (!manifest || !manifest.settings) return;
