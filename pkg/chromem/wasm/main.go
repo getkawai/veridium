@@ -7,7 +7,7 @@ import (
 	"errors"
 	"syscall/js"
 
-	"github.com/philippgille/chromem-go"
+	"github.com/kawai-network/veridium/pkg/chromem"
 )
 
 var c *chromem.Collection
