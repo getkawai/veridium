@@ -6,6 +6,110 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
+ * EmbeddingManager handles embedding model downloads and management
+ */
+export class EmbeddingManager {
+    "ModelsDir": string;
+    "DownloadDir": string;
+    "AvailableModels": { [_: string]: EmbeddingModel | null };
+
+    /** Creates a new EmbeddingManager instance. */
+    constructor($$source: Partial<EmbeddingManager> = {}) {
+        if (!("ModelsDir" in $$source)) {
+            this["ModelsDir"] = "";
+        }
+        if (!("DownloadDir" in $$source)) {
+            this["DownloadDir"] = "";
+        }
+        if (!("AvailableModels" in $$source)) {
+            this["AvailableModels"] = {};
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EmbeddingManager instance from a string or object.
+     */
+    static createFrom($$source: any = {}): EmbeddingManager {
+        const $$createField2_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("AvailableModels" in $$parsedSource) {
+            $$parsedSource["AvailableModels"] = $$createField2_0($$parsedSource["AvailableModels"]);
+        }
+        return new EmbeddingManager($$parsedSource as Partial<EmbeddingManager>);
+    }
+}
+
+/**
+ * EmbeddingModel represents an embedding model configuration
+ */
+export class EmbeddingModel {
+    "name": string;
+    "description": string;
+    "url": string;
+    "filename": string;
+    "size": number;
+    "sha256": string;
+    "quantization": string;
+    "dimensions": number;
+    "languages": string[];
+
+    /**
+     * "embedding" or "llm"
+     */
+    "type": string;
+
+    /** Creates a new EmbeddingModel instance. */
+    constructor($$source: Partial<EmbeddingModel> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("description" in $$source)) {
+            this["description"] = "";
+        }
+        if (!("url" in $$source)) {
+            this["url"] = "";
+        }
+        if (!("filename" in $$source)) {
+            this["filename"] = "";
+        }
+        if (!("size" in $$source)) {
+            this["size"] = 0;
+        }
+        if (!("sha256" in $$source)) {
+            this["sha256"] = "";
+        }
+        if (!("quantization" in $$source)) {
+            this["quantization"] = "";
+        }
+        if (!("dimensions" in $$source)) {
+            this["dimensions"] = 0;
+        }
+        if (!("languages" in $$source)) {
+            this["languages"] = [];
+        }
+        if (!("type" in $$source)) {
+            this["type"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EmbeddingModel instance from a string or object.
+     */
+    static createFrom($$source: any = {}): EmbeddingModel {
+        const $$createField8_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("languages" in $$parsedSource) {
+            $$parsedSource["languages"] = $$createField8_0($$parsedSource["languages"]);
+        }
+        return new EmbeddingModel($$parsedSource as Partial<EmbeddingModel>);
+    }
+}
+
+/**
  * ProxyRequest represents a generic HTTP proxy request
  */
 export class ProxyRequest {
@@ -36,7 +140,7 @@ export class ProxyRequest {
      * Creates a new ProxyRequest instance from a string or object.
      */
     static createFrom($$source: any = {}): ProxyRequest {
-        const $$createField2_0 = $$createType0;
+        const $$createField2_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("headers" in $$parsedSource) {
             $$parsedSource["headers"] = $$createField2_0($$parsedSource["headers"]);
@@ -76,7 +180,7 @@ export class ProxyResponse {
      * Creates a new ProxyResponse instance from a string or object.
      */
     static createFrom($$source: any = {}): ProxyResponse {
-        const $$createField2_0 = $$createType0;
+        const $$createField2_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("headers" in $$parsedSource) {
             $$parsedSource["headers"] = $$createField2_0($$parsedSource["headers"]);
@@ -145,4 +249,8 @@ export class QwenModelSpec {
 }
 
 // Private type creation functions
-const $$createType0 = $Create.Map($Create.Any, $Create.Any);
+const $$createType0 = EmbeddingModel.createFrom;
+const $$createType1 = $Create.Nullable($$createType0);
+const $$createType2 = $Create.Map($Create.Any, $$createType1);
+const $$createType3 = $Create.Array($Create.Any);
+const $$createType4 = $Create.Map($Create.Any, $Create.Any);

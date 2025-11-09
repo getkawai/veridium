@@ -22,6 +22,13 @@ export function AutoDownloadRecommendedModel(): $CancellablePromise<void> {
 }
 
 /**
+ * DownloadEmbeddingModel downloads an embedding model with progress callback
+ */
+export function DownloadEmbeddingModel(modelName: string, progressCallback: any): $CancellablePromise<void> {
+    return $Call.ByID(1694520239, modelName, progressCallback);
+}
+
+/**
  * DownloadModelWithLlamaCLI downloads a model using llama-cli's built-in HuggingFace integration
  */
 export function DownloadModelWithLlamaCLI(modelSpec: $models.QwenModelSpec): $CancellablePromise<void> {
@@ -45,6 +52,31 @@ export function GetBinaryPath(): $CancellablePromise<string> {
 }
 
 /**
+ * GetDownloadedEmbeddingModels returns a list of downloaded embedding models
+ */
+export function GetDownloadedEmbeddingModels(): $CancellablePromise<($models.EmbeddingModel | null)[]> {
+    return $Call.ByID(2575232961).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
+/**
+ * GetEmbeddingManager returns the embedding manager
+ */
+export function GetEmbeddingManager(): $CancellablePromise<$models.EmbeddingManager | null> {
+    return $Call.ByID(2175944447).then(($result: any) => {
+        return $$createType5($result);
+    });
+}
+
+/**
+ * GetEmbeddingModelsDirectory returns the directory where embedding models are stored
+ */
+export function GetEmbeddingModelsDirectory(): $CancellablePromise<string> {
+    return $Call.ByID(3705923737);
+}
+
+/**
  * GetInstalledVersion returns the currently installed version
  */
 export function GetInstalledVersion(): $CancellablePromise<string> {
@@ -59,11 +91,18 @@ export function GetModelsDirectory(): $CancellablePromise<string> {
 }
 
 /**
+ * GetRecommendedEmbeddingModel returns the recommended embedding model
+ */
+export function GetRecommendedEmbeddingModel(): $CancellablePromise<string> {
+    return $Call.ByID(883832224);
+}
+
+/**
  * GetServerStatus returns the current status of llama-server
  */
 export function GetServerStatus(): $CancellablePromise<{ [_: string]: any }> {
     return $Call.ByID(4274510970).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType6($result);
     });
 }
 
@@ -86,6 +125,13 @@ export function IsLlamaCppInstalled(): $CancellablePromise<boolean> {
  */
 export function IsServerRunning(): $CancellablePromise<boolean> {
     return $Call.ByID(1675216765);
+}
+
+/**
+ * StartEmbeddingServer starts llama-server with an embedding model
+ */
+export function StartEmbeddingServer(port: number): $CancellablePromise<void> {
+    return $Call.ByID(3069420683, port);
 }
 
 /**
@@ -113,4 +159,9 @@ export function StopServer(): $CancellablePromise<void> {
 
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);
-const $$createType1 = $Create.Map($Create.Any, $Create.Any);
+const $$createType1 = $models.EmbeddingModel.createFrom;
+const $$createType2 = $Create.Nullable($$createType1);
+const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = $models.EmbeddingManager.createFrom;
+const $$createType5 = $Create.Nullable($$createType4);
+const $$createType6 = $Create.Map($Create.Any, $Create.Any);

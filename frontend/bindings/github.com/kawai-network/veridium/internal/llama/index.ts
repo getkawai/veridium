@@ -9,6 +9,8 @@ export {
 };
 
 export {
+    EmbeddingManager,
+    EmbeddingModel,
     ProxyRequest,
     ProxyResponse,
     QwenModelSpec

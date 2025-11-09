@@ -153,3 +153,54 @@ func GetLlamaCLICacheDirectory() string {
 	homeDir, _ := os.UserHomeDir()
 	return filepath.Join(homeDir, "Library", "Caches", "llama.cpp")
 }
+
+// IsLlamaCppInstalled checks if llama.cpp binaries exist and are valid on macOS
+// Checks both local binary path and Homebrew/system PATH installations
+func (lcm *LlamaCppReleaseManager) IsLlamaCppInstalled() bool {
+	// Use GetBinaryPath which checks Homebrew paths and system PATH
+	binaryName := "llama-cli"
+	binaryPath := lcm.GetBinaryPath(binaryName)
+
+	// Check if binary exists at the resolved path
+	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
+		return false
+	}
+
+	// Verify the binary integrity by trying to run it
+	// VerifyInstalledBinary will use GetBinaryPath internally, so it will check the same path
+	if err := lcm.VerifyInstalledBinary(); err != nil {
+		log.Printf("Binary integrity check failed: %v", err)
+		return false
+	}
+
+	return true
+}
+
+// VerifyInstalledBinary verifies the installed binary on macOS
+// Uses GetBinaryPath to check Homebrew installations as well
+func (lcm *LlamaCppReleaseManager) VerifyInstalledBinary() error {
+	binaryName := "llama-cli"
+	binaryPath := lcm.GetBinaryPath(binaryName)
+
+	// Check if the binary exists
+	if _, err := os.Stat(binaryPath); err != nil {
+		return fmt.Errorf("binary file not found: %w", err)
+	}
+
+	// Check if the binary is executable
+	info, err := os.Stat(binaryPath)
+	if err != nil {
+		return fmt.Errorf("failed to get binary info: %w", err)
+	}
+	if info.Mode()&0111 == 0 {
+		return fmt.Errorf("binary is not executable")
+	}
+
+	// Try to run the binary with --help to verify it works
+	cmd := exec.Command(binaryPath, "--help")
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("binary failed to execute: %w", err)
+	}
+
+	return nil
+}

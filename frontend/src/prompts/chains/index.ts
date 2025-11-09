@@ -1,6 +1,5 @@
 export * from './abstractChunk';
 export * from './answerWithContext';
-export * from './langDetect';
 export * from './pickEmoji';
 export * from './rewriteQuery';
 export * from './summaryAgentName';
