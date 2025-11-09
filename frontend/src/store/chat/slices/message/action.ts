@@ -115,8 +115,6 @@ export interface ChatMessageAction {
    * delete the message content with optimistic update
    */
   internal_deleteMessage: (id: string) => Promise<void>;
-
-  internal_fetchMessages: () => Promise<void>;
   internal_traceMessage: (id: string, payload: TraceEventPayloads) => Promise<void>;
 
   /**
@@ -467,18 +465,6 @@ export const chatMessage: StateCreator<
     }
   },
 
-  internal_fetchMessages: async () => {
-    const messages = await messageService.getMessages(get().activeId, get().activeTopicId);
-    const nextMap = { ...get().messagesMap, [chatSelectors.currentChatKey(get())]: messages };
-    // no need to update map if the messages have been init and the map is the same
-    if (get().messagesInit && isEqual(nextMap, get().messagesMap)) return;
-
-    set(
-      { messagesInit: true, messagesMap: nextMap },
-      false,
-      n('internal_fetchMessages', { messages }),
-    );
-  },
   internal_createTmpMessage: (message) => {
     const { internal_dispatchMessage } = get();
 
