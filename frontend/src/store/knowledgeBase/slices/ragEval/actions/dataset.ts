@@ -10,9 +10,6 @@ import { notification } from '@/components/AntdStaticMethods';
 import { ragEvalService } from '@/services/ragEval';
 import { KnowledgeBaseStore } from '@/store/knowledgeBase/store';
 
-const FETCH_DATASET_LIST_KEY = 'FETCH_DATASET_LIST';
-const FETCH_DATASET_RECORD_KEY = 'FETCH_DATASET_RECORD_KEY';
-
 export interface RAGEvalDatasetAction {
   createNewDataset: (params: CreateNewEvalDatasets) => Promise<void>;
 
@@ -59,28 +56,40 @@ export const createRagEvalDatasetSlice: StateCreator<
     await get().refreshDatasetList();
   },
   refreshDatasetList: async () => {
-    await mutate(FETCH_DATASET_LIST_KEY);
+    const knowledgeBaseId = get().activeId;
+    if (knowledgeBaseId) {
+      await get().internal_fetchDatasets(knowledgeBaseId);
+    }
   },
 
   removeDataset: async (id) => {
     await ragEvalService.removeDataset(id);
     await get().refreshDatasetList();
   },
-  internal_fetchDatasetRecords: (datasetId) =>
-    useClientDataSWR<EvalDatasetRecord[]>(
-      !!datasetId ? [FETCH_DATASET_RECORD_KEY, datasetId] : null,
-      () => ragEvalService.getDatasetRecords(datasetId!),
-    ),
-  internal_fetchDatasets: (knowledgeBaseId) =>
-    useClientDataSWR<RAGEvalDataSetItem[]>(
-      [FETCH_DATASET_LIST_KEY, knowledgeBaseId],
-      () => ragEvalService.getDatasets(knowledgeBaseId),
-      {
-        fallbackData: [],
-        onSuccess: () => {
-          if (!get().initDatasetList)
-            set({ initDatasetList: true }, false, 'useFetchDatasets/init');
-        },
-      },
-    ),
+  
+  internal_fetchDatasetRecords: async (datasetId) => {
+    if (!datasetId) return;
+    
+    try {
+      const records = await ragEvalService.getDatasetRecords(datasetId);
+      set({ datasetRecords: records }, false, 'internal_fetchDatasetRecords');
+    } catch (error) {
+      console.error('[internal_fetchDatasetRecords] Error:', error);
+    }
+  },
+  
+  internal_fetchDatasets: async (knowledgeBaseId) => {
+    try {
+      const datasets = await ragEvalService.getDatasets(knowledgeBaseId);
+      
+      if (!get().initDatasetList) {
+        set({ initDatasetList: true, datasets }, false, 'internal_fetchDatasets/init');
+      } else {
+        set({ datasets }, false, 'internal_fetchDatasets');
+      }
+    } catch (error) {
+      console.error('[internal_fetchDatasets] Error:', error);
+      set({ datasets: [] }, false, 'internal_fetchDatasets/error');
+    }
+  },
 });

@@ -28,11 +28,11 @@ export const settingsSlice: StateCreator<
   ElectronSettingsAction
 > = (set, get) => ({
   refreshDesktopHotkeys: async () => {
-    await mutate(ELECTRON_DESKTOP_HOTKEYS_KEY);
+    await get().useFetchDesktopHotkeys();
   },
 
   refreshProxySettings: async () => {
-    await mutate(ELECTRON_PROXY_SETTINGS_KEY);
+    await get().useGetProxySettings();
   },
 
   setProxySettings: async (values) => {

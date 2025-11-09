@@ -164,38 +164,43 @@ export const createGenerationBatchSlice: StateCreator<
   refreshGenerationBatches: async () => {
     const { activeGenerationTopicId } = get();
     if (activeGenerationTopicId) {
-      await mutate([SWR_USE_FETCH_GENERATION_BATCHES, activeGenerationTopicId]);
+      await get().internal_fetchGenerationBatches(activeGenerationTopicId);
     }
   },
 
-  internal_fetchGenerationBatches: (topicId) =>
-    useClientDataSWR<GenerationBatch[]>(
-      topicId ? [SWR_USE_FETCH_GENERATION_BATCHES, topicId] : null,
-      async ([, topicId]: [string, string]) => {
-        return generationBatchService.getGenerationBatches(topicId);
-      },
-      {
-        onSuccess: (data) => {
-          const nextMap = {
-            ...get().generationBatchesMap,
-            [topicId!]: data,
-          };
+  internal_fetchGenerationBatches: async (topicId) => {
+    if (!topicId) return;
 
-          // no need to update map if the map is the same
-          if (isEqual(nextMap, get().generationBatchesMap)) return;
+    try {
+      const data = await generationBatchService.getGenerationBatches(topicId);
+      
+      const nextMap = {
+        ...get().generationBatchesMap,
+        [topicId]: data,
+      };
 
-          set(
-            {
-              generationBatchesMap: nextMap,
-            },
-            false,
-            n('useFetchGenerationBatches(success)', { topicId }),
-          );
+      // no need to update map if the map is the same
+      if (isEqual(nextMap, get().generationBatchesMap)) return;
+
+      set(
+        {
+          generationBatchesMap: nextMap,
         },
-      },
-    ),
+        false,
+        n('internal_fetchGenerationBatches(success)', { topicId }),
+      );
+    } catch (error) {
+      console.error('[internal_fetchGenerationBatches] Error:', error);
+    }
+  },
 
+  // TODO: This polling logic should be moved to a component-level hook
+  // Polling with useRef violates React Rules of Hooks when called from store
+  // For now, this is a no-op. Components should implement their own polling.
   internal_checkGenerationStatus: (generationId, asyncTaskId, topicId, enable = true) => {
+    console.warn('[internal_checkGenerationStatus] This method needs to be refactored to component-level polling');
+    // DEPRECATED: Remove this entire implementation
+    /*
     const requestCountRef = useRef(0);
     const isErrorRef = useRef(false);
 
@@ -297,5 +302,6 @@ export const createGenerationBatchSlice: StateCreator<
         },
       },
     );
+    */
   },
 });

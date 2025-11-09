@@ -171,7 +171,7 @@ export const createPluginStoreSlice: StateCreator<
     return data.items;
   },
   refreshPlugins: async () => {
-    await mutate(INSTALLED_PLUGINS);
+    await get().useFetchInstalledPlugins(true);
   },
   resetPluginList: (keywords) => {
     set(

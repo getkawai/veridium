@@ -83,7 +83,7 @@ export const remoteSyncSlice: StateCreator<
   },
 
   refreshServerConfig: async () => {
-    await mutate(REMOTE_SERVER_CONFIG_KEY);
+    await get().useDataSyncConfig();
   },
 
   refreshUserData: async () => {

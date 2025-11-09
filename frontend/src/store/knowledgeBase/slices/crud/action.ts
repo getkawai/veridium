@@ -4,9 +4,6 @@ import { knowledgeBaseService } from '@/services/knowledgeBase';
 import { KnowledgeBaseStore } from '@/store/knowledgeBase/store';
 import { CreateKnowledgeBaseParams, KnowledgeBaseItem } from '@/types/knowledgeBase';
 
-const FETCH_KNOWLEDGE_BASE_LIST_KEY = 'FETCH_KNOWLEDGE_BASE';
-const FETCH_KNOWLEDGE_BASE_ITEM_KEY = 'FETCH_KNOWLEDGE_BASE_ITEM';
-
 export interface KnowledgeBaseCrudAction {
   createNewKnowledgeBase: (params: CreateKnowledgeBaseParams) => Promise<string>;
   internal_toggleKnowledgeBaseLoading: (id: string, loading: boolean) => void;
@@ -44,7 +41,7 @@ export const createCrudSlice: StateCreator<
     );
   },
   refreshKnowledgeBaseList: async () => {
-    await mutate(FETCH_KNOWLEDGE_BASE_LIST_KEY);
+    await get().internal_fetchKnowledgeBaseList();
   },
   removeKnowledgeBase: async (id) => {
     await knowledgeBaseService.deleteKnowledgeBase(id);
@@ -58,36 +55,36 @@ export const createCrudSlice: StateCreator<
     get().internal_toggleKnowledgeBaseLoading(id, false);
   },
 
-  internal_fetchKnowledgeBaseItem: (id) =>
-    useClientDataSWR<KnowledgeBaseItem | undefined>(
-      [FETCH_KNOWLEDGE_BASE_ITEM_KEY, id],
-      () => knowledgeBaseService.getKnowledgeBaseById(id),
-      {
-        onSuccess: (item) => {
-          if (!item) return;
+  internal_fetchKnowledgeBaseItem: async (id) => {
+    try {
+      const item = await knowledgeBaseService.getKnowledgeBaseById(id);
+      
+      if (item) {
+        set({
+          activeKnowledgeBaseId: id,
+          activeKnowledgeBaseItems: {
+            ...get().activeKnowledgeBaseItems,
+            [id]: item,
+          },
+        }, false, 'internal_fetchKnowledgeBaseItem');
+      }
+    } catch (error) {
+      console.error('[internal_fetchKnowledgeBaseItem] Error:', error);
+    }
+  },
 
-          set({
-            activeKnowledgeBaseId: id,
-            activeKnowledgeBaseItems: {
-              ...get().activeKnowledgeBaseItems,
-              [id]: item,
-            },
-          });
-        },
-      },
-    ),
-
-  internal_fetchKnowledgeBaseList: (params = {}) =>
-    useClientDataSWR<KnowledgeBaseItem[]>(
-      FETCH_KNOWLEDGE_BASE_LIST_KEY,
-      () => knowledgeBaseService.getKnowledgeBaseList(),
-      {
-        fallbackData: [],
-        onSuccess: () => {
-          if (!get().initKnowledgeBaseList)
-            set({ initKnowledgeBaseList: true }, false, 'useFetchKnowledgeBaseList/init');
-        },
-        suspense: params.suspense,
-      },
-    ),
+  internal_fetchKnowledgeBaseList: async (params = {}) => {
+    try {
+      const list = await knowledgeBaseService.getKnowledgeBaseList();
+      
+      if (!get().initKnowledgeBaseList) {
+        set({ initKnowledgeBaseList: true, knowledgeBaseList: list }, false, 'internal_fetchKnowledgeBaseList/init');
+      } else {
+        set({ knowledgeBaseList: list }, false, 'internal_fetchKnowledgeBaseList');
+      }
+    } catch (error) {
+      console.error('[internal_fetchKnowledgeBaseList] Error:', error);
+      set({ knowledgeBaseList: [] }, false, 'internal_fetchKnowledgeBaseList/error');
+    }
+  },
 });

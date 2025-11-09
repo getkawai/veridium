@@ -215,22 +215,23 @@ export const createGenerationTopicSlice: StateCreator<
     );
   },
 
-  internal_fetchGenerationTopics: (enabled) =>
-    useClientDataSWR<ImageGenerationTopic[]>(
-      enabled ? [FETCH_GENERATION_TOPICS_KEY] : null,
-      () => generationTopicService.getAllGenerationTopics(),
-      {
-        suspense: true,
-        onSuccess: (data) => {
-          // No need to update if data is the same
-          if (isEqual(data, get().generationTopics)) return;
-          set({ generationTopics: data }, false, n('useFetchGenerationTopics'));
-        },
-      },
-    ),
+  internal_fetchGenerationTopics: async (enabled) => {
+    if (!enabled) return;
+
+    try {
+      const data = await generationTopicService.getAllGenerationTopics();
+      
+      // No need to update if data is the same
+      if (isEqual(data, get().generationTopics)) return;
+      
+      set({ generationTopics: data }, false, n('internal_fetchGenerationTopics'));
+    } catch (error) {
+      console.error('[internal_fetchGenerationTopics] Error:', error);
+    }
+  },
 
   refreshGenerationTopics: async () => {
-    await mutate([FETCH_GENERATION_TOPICS_KEY]);
+    await get().internal_fetchGenerationTopics(true);
   },
 
   removeGenerationTopic: async (id: string) => {
