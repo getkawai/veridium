@@ -1,5 +1,6 @@
 import isEqual from 'fast-deep-equal';
 import { produce } from 'immer';
+import { useEffect } from 'react';
 import type { PartialDeep } from 'type-fest';
 import { StateCreator } from 'zustand/vanilla';
 
@@ -47,8 +48,8 @@ export interface AgentChatAction {
   togglePlugin: (id: string, open?: boolean) => Promise<void>;
   updateAgentChatConfig: (config: Partial<LobeAgentChatConfig>) => Promise<void>;
   updateAgentConfig: (config: PartialDeep<LobeAgentConfig>) => Promise<void>;
-  internal_fetchAgentConfig: (...) => Promise<void>;
-  internal_fetchFilesAndKnowledgeBases: (...) => Promise<void>;
+  internal_fetchAgentConfig: (isLogin: boolean | undefined, sessionId: string) => Promise<void>;
+  internal_fetchFilesAndKnowledgeBases: () => Promise<void>;
   useInitInboxAgentStore: (
     isLogin: boolean | undefined,
     defaultAgentConfig?: PartialDeep<LobeAgentConfig>,
