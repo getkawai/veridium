@@ -10,7 +10,7 @@ export interface RAGEvalEvaluationAction {
   refreshEvaluationList: () => Promise<void>;
   removeEvaluation: (id: number) => Promise<void>;
   runEvaluation: (id: number) => Promise<void>;
-  internal_fetchEvaluationList: (...) => Promise<void>;
+  internal_fetchEvaluationList: (knowledgeBaseId: string) => Promise<void>;
 }
 
 export const createRagEvalEvaluationSlice: StateCreator<
