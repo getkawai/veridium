@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+
 import { useChatStore } from '@/store/chat';
 import { useGlobalStore } from '@/store/global';
 import { systemStatusSelectors } from '@/store/global/selectors';
@@ -8,8 +10,12 @@ import { useSessionStore } from '@/store/session';
  */
 export const useFetchTopics = () => {
   const [sessionId] = useSessionStore((s) => [s.activeId]);
-  const useFetchTopics = useChatStore((s) => s.useFetchTopics);
+  const internal_fetchTopics = useChatStore((s) => s.internal_fetchTopics);
   const isDBInited = useGlobalStore(systemStatusSelectors.isDBInited);
 
-  useFetchTopics(isDBInited, sessionId);
+  useEffect(() => {
+    if (!isDBInited || !sessionId) return;
+
+    internal_fetchTopics(sessionId);
+  }, [isDBInited, sessionId, internal_fetchTopics]);
 };

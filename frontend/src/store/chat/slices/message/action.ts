@@ -52,12 +52,11 @@ export interface ChatMessageAction {
   modifyMessageContent: (id: string, content: string) => Promise<void>;
   toggleMessageEditing: (id: string, editing: boolean) => void;
   // query
-  useFetchMessages: (
-    enable: boolean,
+  internal_fetchMessages: (
     messageContextId: string,
     activeTopicId?: string,
     type?: 'session' | 'group',
-  ) => void;
+  ) => Promise<void>;
   copyMessage: (id: string, content: string) => Promise<void>;
   refreshMessages: () => Promise<void>;
   replaceMessages: (messages: UIChatMessage[]) => void;
@@ -301,38 +300,30 @@ export const chatMessage: StateCreator<
    * @param messageContextId - Can be sessionId or groupId
    * Direct Zustand implementation (no SWR) for better performance and predictability
    */
-  useFetchMessages: (enable, messageContextId, activeTopicId, type = 'session') => {
-    const { useEffect } = require('react');
-    
-    useEffect(() => {
-      if (!enable || !messageContextId) return;
+  internal_fetchMessages: async (messageContextId, activeTopicId, type = 'session') => {
+    if (!messageContextId) return;
 
-      const fetchMessages = async () => {
-        try {
-          const messages = type === 'session'
-            ? await messageService.getMessages(messageContextId, activeTopicId)
-            : await messageService.getGroupMessages(messageContextId, activeTopicId);
+    try {
+      const messages = type === 'session'
+        ? await messageService.getMessages(messageContextId, activeTopicId)
+        : await messageService.getGroupMessages(messageContextId, activeTopicId);
 
-          const nextMap = {
-            ...get().messagesMap,
-            [messageMapKey(messageContextId, activeTopicId)]: messages,
-          };
-
-          // no need to update map if the messages have been init and the map is the same
-          if (get().messagesInit && isEqual(nextMap, get().messagesMap)) return;
-
-          set(
-            { messagesInit: true, messagesMap: nextMap },
-            false,
-            n('useFetchMessages', { messages, messageContextId, activeTopicId, type }),
-          );
-        } catch (error) {
-          console.error('[useFetchMessages] Error fetching messages:', error);
-        }
+      const nextMap = {
+        ...get().messagesMap,
+        [messageMapKey(messageContextId, activeTopicId)]: messages,
       };
 
-      fetchMessages();
-    }, [enable, messageContextId, activeTopicId, type]);
+      // no need to update map if the messages have been init and the map is the same
+      if (get().messagesInit && isEqual(nextMap, get().messagesMap)) return;
+
+      set(
+        { messagesInit: true, messagesMap: nextMap },
+        false,
+        n('internal_fetchMessages', { messages, messageContextId, activeTopicId, type }),
+      );
+    } catch (error) {
+      console.error('[internal_fetchMessages] Error fetching messages:', error);
+    }
   },
   
   /**

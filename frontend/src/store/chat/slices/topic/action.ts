@@ -49,15 +49,14 @@ export interface ChatTopicAction {
   summaryTopicTitle: (topicId: string, messages: UIChatMessage[]) => Promise<void>;
   switchTopic: (id?: string, skipRefreshMessage?: boolean) => Promise<void>;
   updateTopicTitle: (id: string, title: string) => Promise<void>;
-  useFetchTopics: (
-    enable: boolean,
-    containerId?: string,
-  ) => void;
-  useSearchTopics: (
+  internal_fetchTopics: (
+    containerId: string,
+  ) => Promise<void>;
+  internal_searchTopics: (
     keywords?: string,
     sessionId?: string,
     groupId?: string,
-  ) => void;
+  ) => Promise<void>;
 
   internal_updateTopicTitleInSummary: (id: string, title: string) => void;
   internal_updateTopicLoading: (id: string, loading: boolean) => void;
@@ -231,71 +230,55 @@ export const chatTopic: StateCreator<
    * Fetch topics for a specific container (session or group)
    * Direct Zustand implementation (no SWR) for better performance
    */
-  useFetchTopics: (enable, containerId) => {
-    const { useEffect } = require('react');
-    
-    useEffect(() => {
-      if (!enable || !containerId) return;
+  internal_fetchTopics: async (containerId) => {
+    if (!containerId) return;
 
-      const fetchTopics = async () => {
-        try {
-          console.debug('[useFetchTopics] Fetching topics for containerId:', containerId);
-          const topics = await topicService.getTopics({ containerId });
-          console.debug('[useFetchTopics] Fetched topics:', topics.length, 'topics');
+    try {
+      console.debug('[internal_fetchTopics] Fetching topics for containerId:', containerId);
+      const topics = await topicService.getTopics({ containerId });
+      console.debug('[internal_fetchTopics] Fetched topics:', topics.length, 'topics');
 
-          const nextMap = { ...get().topicMaps, [containerId]: topics };
+      const nextMap = { ...get().topicMaps, [containerId]: topics };
 
-          // no need to update map if the topics have been init and the map is the same
-          if (get().topicsInit && isEqual(nextMap, get().topicMaps)) {
-            console.debug('[useFetchTopics] Skipping update - maps are equal');
-            return;
-          }
+      // no need to update map if the topics have been init and the map is the same
+      if (get().topicsInit && isEqual(nextMap, get().topicMaps)) {
+        console.debug('[internal_fetchTopics] Skipping update - maps are equal');
+        return;
+      }
 
-          console.debug('[useFetchTopics] Updating topicMaps');
-          set(
-            { topicMaps: nextMap, topicsInit: true },
-            false,
-            n('useFetchTopics', { containerId }),
-          );
-        } catch (error) {
-          console.error('[useFetchTopics] Error fetching topics:', error);
-        }
-      };
-
-      fetchTopics();
-    }, [enable, containerId]);
+      console.debug('[internal_fetchTopics] Updating topicMaps');
+      set(
+        { topicMaps: nextMap, topicsInit: true },
+        false,
+        n('internal_fetchTopics', { containerId }),
+      );
+    } catch (error) {
+      console.error('[internal_fetchTopics] Error fetching topics:', error);
+    }
   },
   
   /**
    * Search topics by keywords
    * Direct implementation (no SWR)
    */
-  useSearchTopics: (keywords, sessionId, groupId) => {
-    const { useEffect } = require('react');
-    
-    useEffect(() => {
-      if (!keywords) {
-        set({ searchTopics: [], isSearchingTopic: false }, false, n('useSearchTopics/clear'));
-        return;
-      }
+  internal_searchTopics: async (keywords, sessionId, groupId) => {
+    if (!keywords) {
+      set({ searchTopics: [], isSearchingTopic: false }, false, n('internal_searchTopics/clear'));
+      return;
+    }
 
-      const searchTopics = async () => {
-        try {
-          set({ isSearchingTopic: true }, false, n('useSearchTopics/start'));
-          const data = await topicService.searchTopics(keywords, sessionId, groupId);
-          set(
-            { searchTopics: data, isSearchingTopic: false },
-            false,
-            n('useSearchTopics', { keywords }),
-          );
-        } catch (error) {
-          console.error('[useSearchTopics] Error searching topics:', error);
-          set({ isSearchingTopic: false }, false, n('useSearchTopics/error'));
-        }
-      };
-
-      searchTopics();
-    }, [keywords, sessionId, groupId]);
+    try {
+      set({ isSearchingTopic: true }, false, n('internal_searchTopics/start'));
+      const data = await topicService.searchTopics(keywords, sessionId, groupId);
+      set(
+        { searchTopics: data, isSearchingTopic: false },
+        false,
+        n('internal_searchTopics', { keywords }),
+      );
+    } catch (error) {
+      console.error('[internal_searchTopics] Error searching topics:', error);
+      set({ isSearchingTopic: false }, false, n('internal_searchTopics/error'));
+    }
   },
 
   switchTopic: async (id, skipRefreshMessage) => {

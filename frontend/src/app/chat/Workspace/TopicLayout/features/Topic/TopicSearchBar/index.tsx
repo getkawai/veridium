@@ -2,7 +2,7 @@
 
 import { SearchBar } from '@lobehub/ui';
 import { useUnmount } from 'ahooks';
-import { memo, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useChatStore } from '@/store/chat';
@@ -14,9 +14,11 @@ const TopicSearchBar = memo<{ onClear?: () => void }>(({ onClear }) => {
   const [tempValue, setTempValue] = useState('');
   const [searchKeyword, setSearchKeywords] = useState('');
   const mobile = useServerConfigStore((s) => s.isMobile);
-  const [activeSessionId, useSearchTopics] = useChatStore((s) => [s.activeId, s.useSearchTopics]);
+  const [activeSessionId, internal_searchTopics] = useChatStore((s) => [s.activeId, s.internal_searchTopics]);
 
-  useSearchTopics(searchKeyword, activeSessionId);
+  useEffect(() => {
+    internal_searchTopics(searchKeyword, activeSessionId);
+  }, [searchKeyword, activeSessionId, internal_searchTopics]);
 
   useUnmount(() => {
     useChatStore.setState({ inSearchingMode: false, isSearchingTopic: false });

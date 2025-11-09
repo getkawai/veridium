@@ -46,7 +46,7 @@ export interface ChatThreadAction {
   openThreadCreator: (messageId: string) => void;
   openThreadInPortal: (threadId: string, sourceMessageId: string) => void;
   closeThreadPortal: () => void;
-  useFetchThreads: (enable: boolean, topicId?: string) => void;
+  internal_fetchThreads: (topicId: string) => Promise<void>;
   summaryThreadTitle: (threadId: string, messages: UIChatMessage[]) => Promise<void>;
   updateThreadTitle: (id: string, title: string) => Promise<void>;
   removeThread: (id: string) => Promise<void>;
@@ -219,32 +219,24 @@ export const chatThreadMessage: StateCreator<
    * Fetch threads for a specific topic
    * Direct Zustand implementation (no SWR) for better performance
    */
-  useFetchThreads: (enable, topicId) => {
-    const { useEffect } = require('react');
-    
-    useEffect(() => {
-      if (!enable || !topicId || isDeprecatedEdition) return;
+  internal_fetchThreads: async (topicId) => {
+    if (!topicId || isDeprecatedEdition) return;
 
-      const fetchThreads = async () => {
-        try {
-          const threads = await threadService.getThreads(topicId);
-          const nextMap = { ...get().threadMaps, [topicId]: threads };
+    try {
+      const threads = await threadService.getThreads(topicId);
+      const nextMap = { ...get().threadMaps, [topicId]: threads };
 
-          // no need to update map if the threads have been init and the map is the same
-          if (get().threadsInit && isEqual(nextMap, get().threadMaps)) return;
+      // no need to update map if the threads have been init and the map is the same
+      if (get().threadsInit && isEqual(nextMap, get().threadMaps)) return;
 
-          set(
-            { threadMaps: nextMap, threadsInit: true },
-            false,
-            n('useFetchThreads', { topicId }),
-          );
-        } catch (error) {
-          console.error('[useFetchThreads] Error fetching threads:', error);
-        }
-      };
-
-      fetchThreads();
-    }, [enable, topicId]);
+      set(
+        { threadMaps: nextMap, threadsInit: true },
+        false,
+        n('internal_fetchThreads', { topicId }),
+      );
+    } catch (error) {
+      console.error('[internal_fetchThreads] Error fetching threads:', error);
+    }
   },
 
   /**
