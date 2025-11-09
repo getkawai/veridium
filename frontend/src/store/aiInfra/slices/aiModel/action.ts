@@ -144,28 +144,22 @@ export const createAiModelSlice: StateCreator<
     await get().refreshAiModelList();
   },
 
-  internal_fetchAiProviderModels: (id) => {
-    useEffect(() => {
-      if (!id) return;
+  internal_fetchAiProviderModels: async (id) => {
+    if (!id) return;
 
-      const fetchModels = async () => {
-        try {
-          const data = await aiModelService.getAiProviderModelList(id);
+    try {
+      const data = await aiModelService.getAiProviderModelList(id);
 
-          // no need to update list if the list have been init and data is the same
-          if (get().isAiModelListInit && isEqual(data, get().aiProviderModelList)) return;
+      // no need to update list if the list have been init and data is the same
+      if (get().isAiModelListInit && isEqual(data, get().aiProviderModelList)) return;
 
-          set(
-            { aiProviderModelList: data, isAiModelListInit: true },
-            false,
-            `useFetchAiProviderModels/${id}`,
-          );
-        } catch (error) {
-          console.error('[useFetchAiProviderModels] Error:', error);
-        }
-      };
-
-      fetchModels();
-    }, [id]);
+      set(
+        { aiProviderModelList: data, isAiModelListInit: true },
+        false,
+        `internal_fetchAiProviderModels/${id}`,
+      );
+    } catch (error) {
+      console.error('[internal_fetchAiProviderModels] Error:', error);
+    }
   },
 });

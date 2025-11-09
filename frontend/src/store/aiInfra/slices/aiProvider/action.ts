@@ -206,134 +206,116 @@ export const createAiProviderSlice: StateCreator<
     await aiProviderService.updateAiProviderOrder(items);
     await get().refreshAiProviderList();
   },
-  internal_fetchAiProviderItem: (id) => {
-    useEffect(() => {
-      if (!id) return;
+  internal_fetchAiProviderItem: async (id) => {
+    if (!id) return;
 
-      const fetchProviderItem = async () => {
-        try {
-          const data = await aiProviderService.getAiProviderById(id);
-          if (!data) return;
+    try {
+      const data = await aiProviderService.getAiProviderById(id);
+      if (!data) return;
 
-          set({ activeAiProvider: id, aiProviderDetail: data }, false, 'useFetchAiProviderItem');
-        } catch (error) {
-          console.error('[useFetchAiProviderItem] Error:', error);
-        }
-      };
-
-      fetchProviderItem();
-    }, [id]);
+      set({ activeAiProvider: id, aiProviderDetail: data }, false, 'internal_fetchAiProviderItem');
+    } catch (error) {
+      console.error('[internal_fetchAiProviderItem] Error:', error);
+    }
   },
 
-  internal_fetchAiProviderList: (opts) => {
-    useEffect(() => {
-      if (opts?.enabled === false) return;
+  internal_fetchAiProviderList: async (opts) => {
+    if (opts?.enabled === false) return;
 
-      const fetchProviderList = async () => {
-        try {
-          const data = await aiProviderService.getAiProviderList();
+    try {
+      const data = await aiProviderService.getAiProviderList();
 
-          if (!get().initAiProviderList) {
-            set(
-              { aiProviderList: data, initAiProviderList: true },
-              false,
-              'useFetchAiProviderList/init',
-            );
-            return;
-          }
+      if (!get().initAiProviderList) {
+        set(
+          { aiProviderList: data, initAiProviderList: true },
+          false,
+          'internal_fetchAiProviderList/init',
+        );
+        return;
+      }
 
-          set({ aiProviderList: data }, false, 'useFetchAiProviderList/refresh');
-        } catch (error) {
-          console.error('[useFetchAiProviderList] Error:', error);
-        }
-      };
-
-      fetchProviderList();
-    }, [opts?.enabled]);
+      set({ aiProviderList: data }, false, 'internal_fetchAiProviderList/refresh');
+    } catch (error) {
+      console.error('[internal_fetchAiProviderList] Error:', error);
+    }
   },
 
-  internal_fetchAiProviderRuntimeState: (isLogin) => {
-    useEffect(() => {
-      const isAuthLoaded = authSelectors.isLoaded(useUserStore.getState());
-      const shouldFetch =
-        isAuthLoaded && !isDeprecatedEdition && isLogin !== null && isLogin !== undefined;
+  internal_fetchAiProviderRuntimeState: async (isLogin) => {
+    const isAuthLoaded = authSelectors.isLoaded(useUserStore.getState());
+    const shouldFetch =
+      isAuthLoaded && !isDeprecatedEdition && isLogin !== null && isLogin !== undefined;
 
-      if (!shouldFetch) return;
+    if (!shouldFetch) return;
 
-      const fetchRuntimeState = async () => {
-        try {
-          const [{ LOBE_DEFAULT_MODEL_LIST: builtinAiModelList }] = await Promise.all([
-            import('@/model-bank'),
-          ]);
+    try {
+      const [{ LOBE_DEFAULT_MODEL_LIST: builtinAiModelList }] = await Promise.all([
+        import('@/model-bank'),
+      ]);
 
-          if (isLogin) {
-            const data = await aiProviderService.getAiProviderRuntimeState();
+      if (isLogin) {
+        const data = await aiProviderService.getAiProviderRuntimeState();
 
-            const [enabledChatModelList, enabledImageModelList] = await Promise.all([
-              buildProviderModelLists(data.enabledChatAiProviders, data.enabledAiModels, 'chat'),
-              buildProviderModelLists(data.enabledImageAiProviders, data.enabledAiModels, 'image'),
-            ]);
+        const [enabledChatModelList, enabledImageModelList] = await Promise.all([
+          buildProviderModelLists(data.enabledChatAiProviders, data.enabledAiModels, 'chat'),
+          buildProviderModelLists(data.enabledImageAiProviders, data.enabledAiModels, 'image'),
+        ]);
 
-            set(
-              {
-                aiProviderRuntimeConfig: data.runtimeConfig,
-                builtinAiModelList,
-                enabledAiModels: data.enabledAiModels,
-                enabledAiProviders: data.enabledAiProviders,
-                enabledChatModelList,
-                enabledImageModelList,
-                isInitAiProviderRuntimeState: true,
-              },
-              false,
-              'useFetchAiProviderRuntimeState/login',
-            );
-          } else {
-            const enabledAiProviders: EnabledProvider[] = DEFAULT_MODEL_PROVIDER_LIST.filter(
-              (provider) => provider.enabled,
-            ).map((item) => ({
-              id: item.id,
-              name: item.name,
-              source: AiProviderSourceEnum.Builtin,
-            }));
+        set(
+          {
+            aiProviderRuntimeConfig: data.runtimeConfig,
+            builtinAiModelList,
+            enabledAiModels: data.enabledAiModels,
+            enabledAiProviders: data.enabledAiProviders,
+            enabledChatModelList,
+            enabledImageModelList,
+            isInitAiProviderRuntimeState: true,
+          },
+          false,
+          'internal_fetchAiProviderRuntimeState/login',
+        );
+      } else {
+        const enabledAiProviders: EnabledProvider[] = DEFAULT_MODEL_PROVIDER_LIST.filter(
+          (provider) => provider.enabled,
+        ).map((item) => ({
+          id: item.id,
+          name: item.name,
+          source: AiProviderSourceEnum.Builtin,
+        }));
 
-            const enabledChatAiProviders = enabledAiProviders.filter((provider) => {
-              return builtinAiModelList.some(
-                (model) => model.providerId === provider.id && model.type === 'chat',
-              );
-            });
+        const enabledChatAiProviders = enabledAiProviders.filter((provider) => {
+          return builtinAiModelList.some(
+            (model) => model.providerId === provider.id && model.type === 'chat',
+          );
+        });
 
-            const enabledImageAiProviders = enabledAiProviders.filter((provider) => {
-              return builtinAiModelList.some(
-                (model) => model.providerId === provider.id && model.type === 'image',
-              );
-            });
+        const enabledImageAiProviders = enabledAiProviders.filter((provider) => {
+          return builtinAiModelList.some(
+            (model) => model.providerId === provider.id && model.type === 'image',
+          );
+        });
 
-            const enabledAiModels = builtinAiModelList.filter((m) => m.enabled);
-            const [enabledChatModelList, enabledImageModelList] = await Promise.all([
-              buildProviderModelLists(enabledChatAiProviders, enabledAiModels, 'chat'),
-              buildProviderModelLists(enabledImageAiProviders, enabledAiModels, 'image'),
-            ]);
+        const enabledAiModels = builtinAiModelList.filter((m) => m.enabled);
+        const [enabledChatModelList, enabledImageModelList] = await Promise.all([
+          buildProviderModelLists(enabledChatAiProviders, enabledAiModels, 'chat'),
+          buildProviderModelLists(enabledImageAiProviders, enabledAiModels, 'image'),
+        ]);
 
-            set(
-              {
-                aiProviderRuntimeConfig: {},
-                builtinAiModelList,
-                enabledAiModels,
-                enabledAiProviders,
-                enabledChatModelList,
-                enabledImageModelList,
-                isInitAiProviderRuntimeState: true,
-              },
-              false,
-              'useFetchAiProviderRuntimeState/noLogin',
-            );
-          }
-        } catch (error) {
-          console.error('[useFetchAiProviderRuntimeState] Error:', error);
-        }
-      };
-
-      fetchRuntimeState();
-    }, [isLogin]);
+        set(
+          {
+            aiProviderRuntimeConfig: {},
+            builtinAiModelList,
+            enabledAiModels,
+            enabledAiProviders,
+            enabledChatModelList,
+            enabledImageModelList,
+            isInitAiProviderRuntimeState: true,
+          },
+          false,
+          'internal_fetchAiProviderRuntimeState/noLogin',
+        );
+      }
+    } catch (error) {
+      console.error('[internal_fetchAiProviderRuntimeState] Error:', error);
+    }
   },
 });

@@ -40,23 +40,17 @@ export const createRagEvalEvaluationSlice: StateCreator<
     await ragEvalService.startEvaluationTask(id);
   },
 
-  internal_fetchEvaluationList: (knowledgeBaseId) => {
-    useEffect(() => {
-      if (!knowledgeBaseId) return;
+  internal_fetchEvaluationList: async (knowledgeBaseId) => {
+    if (!knowledgeBaseId) return;
 
-      const fetchEvaluationList = async () => {
-        try {
-          const data = await ragEvalService.getEvaluationList(knowledgeBaseId);
+    try {
+      const data = await ragEvalService.getEvaluationList(knowledgeBaseId);
 
-          if (!get().initDatasetList) {
-            set({ initDatasetList: true }, false, 'useFetchDatasets/init');
-          }
-        } catch (error) {
-          console.error('[useFetchEvaluationList] Error:', error);
-        }
-      };
-
-      fetchEvaluationList();
-    }, [knowledgeBaseId]);
+      if (!get().initDatasetList) {
+        set({ initDatasetList: true }, false, 'internal_fetchEvaluationList/init');
+      }
+    } catch (error) {
+      console.error('[internal_fetchEvaluationList] Error:', error);
+    }
   },
 });

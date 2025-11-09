@@ -47,21 +47,16 @@ export const createCommonSlice: StateCreator<
     await get().refreshUserState();
   },
 
-  internal_checkTrace: (shouldFetch) =>
-    useSWR<boolean>(
-      shouldFetch ? 'checkTrace' : null,
-      () => {
-        const userAllowTrace = preferenceSelectors.userAllowTrace(get());
+  internal_checkTrace: async (shouldFetch) => {
+    if (!shouldFetch) return;
 
-        // if user have set the trace, return false
-        if (typeof userAllowTrace === 'boolean') return Promise.resolve(false);
+    const userAllowTrace = preferenceSelectors.userAllowTrace(get());
 
-        return Promise.resolve(get().isUserCanEnableTrace);
-      },
-      {
-        revalidateOnFocus: false,
-      },
-    ),
+    // if user have set the trace, return false
+    if (typeof userAllowTrace === 'boolean') return false;
+
+    return get().isUserCanEnableTrace;
+  },
 
   useInitUserState: (isLogin, serverConfig, options) => {
     useEffect(() => {

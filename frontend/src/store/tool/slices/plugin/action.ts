@@ -76,12 +76,10 @@ export const createPluginSlice: StateCreator<
 
     await get().refreshPlugins();
   },
-  internal_checkPluginsIsInstalled: (enable, plugins) => {
-    useEffect(() => {
-      if (!enable || plugins.length === 0) return;
+  internal_checkPluginsIsInstalled: async (enable, plugins) => {
+    if (!enable || plugins.length === 0) return;
 
-      get().checkPluginsIsInstalled(plugins);
-    }, [enable, plugins.join(',')]);
+    await get().checkPluginsIsInstalled(plugins);
   },
   validatePluginSettings: async (identifier) => {
     const manifest = pluginSelectors.getToolManifestById(identifier)(get());
