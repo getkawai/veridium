@@ -39,12 +39,12 @@ These files have updated interfaces (`useFetch*` → `internal_fetch*`) but stil
 - [x] `internal_fetchFilesAndKnowledgeBases` - ✅ FIXED
 
 ### Session Store (2 hooks)
-- [x] `internal_fetchSessions` - ✅ FIXED (already done in previous refactor)
-- [x] `internal_searchSessions` - ✅ FIXED (already done in previous refactor)
+- [x] `internal_fetchSessions` - ✅ FIXED (found and fixed in final verification)
+- [x] `internal_searchSessions` - ✅ FIXED (found and fixed in final verification)
 
 ### Chat Group (2 hooks)
-- [x] `internal_fetchGroups` - ✅ FIXED (already done in previous refactor)
-- [x] `internal_fetchGroupDetail` - ✅ FIXED (already done in previous refactor)
+- [x] `internal_fetchGroups` - ✅ FIXED (found and fixed in final verification)
+- [x] `internal_fetchGroupDetail` - ✅ FIXED (found and fixed in final verification)
 
 ### AI Infrastructure (4 hooks)
 - [x] `internal_fetchAiProviderList` - ✅ FIXED
