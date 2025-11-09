@@ -11,7 +11,6 @@ import {
 } from '@/types/database';
 import { createModelLogger } from '@/utils/logger';
 
-import { bufferToVector, cosineSimilarity } from '../utils/vectorSearch';
 import * as VectorSearch from '../../../bindings/github.com/kawai-network/veridium/internal/services/vectorsearchservice';
 import { NewChunkItem } from '@/types/database-legacy';
 
@@ -24,22 +23,22 @@ export class ChunkModel {
   }
 
   /**
-   * OPTIMIZED: Uses transaction-like behavior via sequential inserts
-   * Now also adds chunks to chromem vector database for semantic search
+   * OPTIMIZED: Hybrid storage - metadata in SQLite, text in chromem
+   * SQLite: Stores only metadata (id, abstract, metadata, index, type)
+   * Chromem: Stores text content + vector embeddings (source of truth)
    */
   bulkCreate = async (params: NewChunkItem[], fileId: string) => {
     if (params.length === 0) return [];
 
     const result: NewChunkItem[] = [];
     
-    // Create chunks in SQLite
+    // Create chunks in SQLite (metadata only, no text)
     for (const param of params) {
       const id = param.id || nanoid();
       const now = currentTimestampMs();
       
       const chunk = await DB.CreateChunk({
         id,
-        text: toNullString(param.text),
         abstract: toNullString(param.abstract),
         metadata: toNullJSON(param.metadata),
         chunkIndex: { Int64: param.index || 0, Valid: true },
@@ -50,9 +49,10 @@ export class ChunkModel {
         updatedAt: now,
       });
       
+      // Build result with text from params (will be stored in chromem)
       result.push({
         id: chunk.id,
-        text: getNullableString(chunk.text as any) || null,
+        text: param.text || null, // Text from input params, not from SQLite
         abstract: getNullableString(chunk.abstract as any) || null,
         metadata: getNullableString(chunk.metadata as any) || null,
         index: (chunk.chunkIndex as any)?.Int64 || 0,
@@ -72,19 +72,19 @@ export class ChunkModel {
       });
     }
 
-    // Add chunks to chromem vector database (async, non-blocking)
+    // Add chunks to chromem vector database (text + embeddings)
     try {
       // Get file name for metadata
       const file = await DB.GetFile({ id: fileId, userId: this.userId });
       const fileName = getNullableString(file?.name as any) || 'Unknown';
 
-      const vectorChunks = result.map((chunk) => ({
-        id: chunk.id || '',
-        text: chunk.text || '',
+      const vectorChunks = params.map((param, idx) => ({
+        id: result[idx].id || '',
+        text: param.text || '', // Text stored in chromem
         fileId: fileId,
         fileName: fileName,
-        type: chunk.type || '',
-        index: chunk.index || 0,
+        type: param.type || '',
+        index: param.index || 0,
         metadata: {},
       }));
 
@@ -105,9 +105,9 @@ export class ChunkModel {
       const id = param.id || nanoid();
       const now = currentTimestampMs();
       
+      // Create in SQLite (metadata only, no text)
       const chunk = await DB.CreateUnstructuredChunk({
         id,
-        text: toNullString(param.text),
         metadata: toNullJSON(param.metadata),
         chunkIndex: param.index || 0,
         type: toNullString(param.type),
@@ -194,19 +194,36 @@ export class ChunkModel {
     });
   };
 
+  /**
+   * Get chunks text by file ID
+   * NOTE: Text is now fetched from chromem, not SQLite
+   * This method uses chromem as source of truth for text content
+   */
   getChunksTextByFileId = async (id: string): Promise<{ id: string; text: string }[]> => {
-    const data = await DB.GetChunksTextByFileId(toNullString(id));
+    try {
+      // Fetch from chromem using semantic search with empty query (returns all chunks for file)
+      const results = await VectorSearch.SemanticSearchMultipleFiles(
+        this.userId,
+        '', // Empty query returns all chunks
+        [id],
+        10000 // High limit to get all chunks
+      );
 
-    return data
-      .map((item) => ({
-        id: item.id,
-        text: this.mapChunkText({
-          text: getNullableString(item.text as any) || null,
-          metadata: parseNullableJSON(item.metadata as any),
-          type: getNullableString(item.type as any) || null,
-        }),
-      }))
-      .filter((chunk) => chunk.text) as { id: string; text: string }[];
+      return results
+        .map((item) => ({
+          id: item.id,
+          text: this.mapChunkText({
+            text: item.text,
+            metadata: {}, // Metadata from chromem is minimal
+            type: item.type,
+          }),
+        }))
+        .filter((chunk) => chunk.text) as { id: string; text: string }[];
+    } catch (err) {
+      this.logger.error('Failed to fetch chunks text from chromem:', err);
+      // Return empty array if chromem fails
+      return [];
+    }
   };
 
   /**
@@ -265,36 +282,10 @@ export class ChunkModel {
         type: item.type,
       }));
     } catch (err) {
-      this.logger.warn('Chromem search failed, falling back to client-side:', err);
-
-      // Fallback to old client-side calculation
-      const data = fileIds && fileIds.length > 0
-        ? await DB.GetChunksWithEmbeddingsByFileIds({
-            fileId: toNullString(fileIds[0]),
-            userId: this.userId,
-          })
-        : await DB.GetChunksWithEmbeddings(toNullString(this.userId));
-
-      const withSimilarity = data
-        .filter((item) => item.chunkEmbedding)
-        .map((item) => {
-          const chunkVector = bufferToVector(item.chunkEmbedding as any);
-          const similarity = cosineSimilarity(embedding, chunkVector);
-          return {
-            fileId: getNullableString(item.fileId as any),
-            fileName: getNullableString(item.fileName as any),
-            id: item.id,
-            index: item.chunkIndex || 0,
-            metadata: parseNullableJSON(item.metadata as any) as ChunkMetadata,
-            similarity,
-            text: getNullableString(item.text as any),
-            type: getNullableString(item.type as any),
-          };
-        })
-        .sort((a, b) => b.similarity - a.similarity)
-        .slice(0, 30);
-
-      return withSimilarity;
+      this.logger.error('Chromem search failed, no fallback available (text not in SQLite):', err);
+      // NOTE: Fallback removed - text field no longer exists in SQLite
+      // If chromem fails, we cannot perform semantic search
+      return [];
     }
   };
 
@@ -328,36 +319,10 @@ export class ChunkModel {
         text: item.text, // Already mapped in backend
       }));
     } catch (err) {
-      this.logger.warn('Chromem search failed, falling back to client-side:', err);
-
-      // Fallback to old client-side calculation
-      const result = await DB.GetChunksWithEmbeddingsByFileIds({
-        fileId: toNullString(fileIds[0]),
-        userId: this.userId,
-      });
-
-      const withSimilarity = result
-        .filter((item) => item.chunkEmbedding)
-        .map((item) => {
-          const chunkVector = bufferToVector(item.chunkEmbedding as any);
-          const similarity = cosineSimilarity(embedding, chunkVector);
-          return {
-            fileId: getNullableString(item.fileId as any),
-            fileName: getNullableString(item.fileName as any),
-            id: item.id,
-            index: item.chunkIndex || 0,
-            similarity,
-            text: this.mapChunkText({
-              text: getNullableString(item.text as any) || null,
-              metadata: parseNullableJSON(item.metadata as any),
-              type: getNullableString(item.type as any) || null,
-            }),
-          };
-        })
-        .sort((a, b) => b.similarity - a.similarity)
-        .slice(0, 15);
-
-      return withSimilarity;
+      this.logger.error('Chromem search failed, no fallback available (text not in SQLite):', err);
+      // NOTE: Fallback removed - text field no longer exists in SQLite
+      // If chromem fails, we cannot perform semantic search
+      return [];
     }
   };
 
