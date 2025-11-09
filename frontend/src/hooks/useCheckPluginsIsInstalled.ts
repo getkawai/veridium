@@ -1,10 +1,14 @@
+import { useEffect } from 'react';
+
 import { useGlobalStore } from '@/store/global';
 import { systemStatusSelectors } from '@/store/global/selectors';
 import { useToolStore } from '@/store/tool';
 
 export const useCheckPluginsIsInstalled = (plugins: string[]) => {
   const isDBInited = useGlobalStore(systemStatusSelectors.isDBInited);
-  const checkPluginsIsInstalled = useToolStore((s) => s.useCheckPluginsIsInstalled);
+  const internal_checkPluginsIsInstalled = useToolStore((s) => s.internal_checkPluginsIsInstalled);
 
-  checkPluginsIsInstalled(isDBInited, plugins);
+  useEffect(() => {
+    internal_checkPluginsIsInstalled(isDBInited, plugins);
+  }, [isDBInited, plugins, internal_checkPluginsIsInstalled]);
 };

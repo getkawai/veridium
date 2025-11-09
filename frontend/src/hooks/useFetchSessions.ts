@@ -13,7 +13,7 @@ export const useFetchSessions = () => {
 
   useEffect(() => {
     if (isDBInited) {
-      internal_fetchSessions(isLogin);
+      internal_fetchSessions(true, isLogin);
     }
   }, [isDBInited, isLogin, internal_fetchSessions]);
 };
