@@ -1,12 +1,11 @@
 import { ThemeMode } from 'antd-style';
 import isEqual from 'fast-deep-equal';
 import { gt, parse, valid } from 'semver';
-import { SWRResponse } from 'swr';
+import { useEffect } from 'react';
 import type { StateCreator } from 'zustand/vanilla';
 
 import { LOBE_THEME_APPEARANCE } from '@/const/theme';
 import { CURRENT_VERSION, isDesktop } from '@/const/version';
-import { useOnlyFetchOnceSWR } from '@/libs/swr';
 import { globalService } from '@/services/global';
 import { dispatch } from '@/electron-client-ipc';
 import type { SystemStatus } from '@/store/global/initialState';
@@ -117,13 +116,14 @@ export const generalActionSlice: StateCreator<
     get().statusStorage.saveToLocalStorage(nextStatus);
   },
 
-  useCheckLatestVersion: (enabledCheck = true) =>
-    useOnlyFetchOnceSWR(
-      enabledCheck ? 'checkLatestVersion' : null,
-      async () => globalService.getLatestVersion(),
-      {
-        focusThrottleInterval: 1000 * 60 * 30,
-        onSuccess: (data: string) => {
+  useCheckLatestVersion: (enabledCheck = true) => {
+    useEffect(() => {
+      if (!enabledCheck) return;
+
+      const checkVersion = async () => {
+        try {
+          const data = await globalService.getLatestVersion();
+          
           if (!valid(CURRENT_VERSION) || !valid(data)) return;
 
           const currentVersion = parse(CURRENT_VERSION);
@@ -137,20 +137,28 @@ export const generalActionSlice: StateCreator<
           if (gt(latestMajorMinor, currentMajorMinor)) {
             set({ hasNewVersion: true, latestVersion: data }, false, n('checkLatestVersion'));
           }
-        },
-      },
-    ),
+        } catch (error) {
+          console.error('[useCheckLatestVersion] Error:', error);
+        }
+      };
 
-  useInitSystemStatus: () =>
-    useOnlyFetchOnceSWR<SystemStatus>(
-      'initSystemStatus',
-      () => get().statusStorage.getFromLocalStorage(),
-      {
-        onSuccess: (status) => {
+      checkVersion();
+    }, [enabledCheck]);
+  },
+
+  useInitSystemStatus: () => {
+    useEffect(() => {
+      const initStatus = async () => {
+        try {
+          const status = await get().statusStorage.getFromLocalStorage();
           set({ isStatusInit: true }, false, 'setStatusInit');
-
           get().updateSystemStatus(status, 'initSystemStatus');
-        },
-      },
-    ),
+        } catch (error) {
+          console.error('[useInitSystemStatus] Error:', error);
+        }
+      };
+
+      initStatus();
+    }, []);
+  },
 });

@@ -1,12 +1,12 @@
 import { Button } from '@lobehub/ui';
 import { memo } from 'react';
 
-import { useActionSWR } from '@/libs/swr';
+import { useAsyncAction } from '@/hooks/useAsyncAction';
 import { useSessionStore } from '@/store/session';
 
 const AddButton = memo(() => {
   const createSession = useSessionStore((s) => s.createSession);
-  const { mutate, isValidating } = useActionSWR(['session.createSession', undefined], () => {
+  const { mutate, isValidating } = useAsyncAction(() => {
     return createSession({ group: undefined });
   });
 

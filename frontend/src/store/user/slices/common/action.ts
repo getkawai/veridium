@@ -3,7 +3,6 @@ import type { PartialDeep } from 'type-fest';
 import type { StateCreator } from 'zustand/vanilla';
 
 import { DEFAULT_PREFERENCE } from '@/const/user';
-import { useOnlyFetchOnceSWR } from '@/libs/swr';
 import { userService } from '@/services/user';
 import type { UserStore } from '@/store/user';
 import type { GlobalServerConfig } from '@/types/serverConfig';
@@ -65,12 +64,13 @@ export const createCommonSlice: StateCreator<
       },
     ),
 
-  useInitUserState: (isLogin, serverConfig, options) =>
-    useOnlyFetchOnceSWR<UserInitializationState>(
-      !!isLogin ? GET_USER_STATE_KEY : null,
-      () => userService.getUserState(),
-      {
-        onSuccess: (data) => {
+  useInitUserState: (isLogin, serverConfig, options) => {
+    useEffect(() => {
+      if (!isLogin) return;
+
+      const initUserState = async () => {
+        try {
+          const data = await userService.getUserState();
           options?.onSuccess?.(data);
 
           if (data) {
@@ -121,7 +121,12 @@ export const createCommonSlice: StateCreator<
             );
             get().refreshDefaultModelProviderList({ trigger: 'fetchUserState' });
           }
-        },
-      },
-    ),
+        } catch (error) {
+          console.error('[useInitUserState] Error:', error);
+        }
+      };
+
+      initUserState();
+    }, [isLogin]);
+  },
 });

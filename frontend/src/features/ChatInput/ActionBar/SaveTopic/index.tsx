@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 
 import { useIsMobile } from '@/hooks/useIsMobile';
-import { useActionSWR } from '@/libs/swr';
+import { useAsyncAction } from '@/hooks/useAsyncAction';
 import { useChatStore } from '@/store/chat';
 import { useUserStore } from '@/store/user';
 import { settingsSelectors } from '@/store/user/selectors';
@@ -22,7 +22,7 @@ const SaveTopic = memo(() => {
 
   const mobile = useIsMobile();
 
-  const { mutate, isValidating } = useActionSWR('openNewTopicOrSaveTopic', openNewTopicOrSaveTopic);
+  const { mutate, isValidating } = useAsyncAction(openNewTopicOrSaveTopic);
 
   const [confirmOpened, setConfirmOpened] = useState(false);
 

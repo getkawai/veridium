@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { Center, Flexbox } from 'react-layout-kit';
 
 import FormAction from '@/components/FormAction';
-import { useActionSWR } from '@/libs/swr';
+import { useAsyncAction } from '@/hooks/useAsyncAction';
 import { ModelProgressInfo, modelsService } from '@/services/models';
 import { formatSize } from '@/utils/format';
 
@@ -43,11 +43,10 @@ const OllamaModelDownloader = memo<OllamaModelDownloaderProps>(
       mutate,
       isValidating: isDownloading,
       error,
-    } = useActionSWR(
-      [modelToPull],
-      async ([model]) => {
+    } = useAsyncAction(
+      async () => {
         await modelsService.downloadModel(
-          { model, provider: 'ollama' },
+          { model: modelToPull, provider: 'ollama' },
           { onProgress: handleProgress },
         );
 

@@ -1,7 +1,6 @@
-import { SWRResponse } from 'swr';
+import { useEffect } from 'react';
 import type { StateCreator } from 'zustand/vanilla';
 
-import { useOnlyFetchOnceSWR } from '@/libs/swr';
 import { initializeDB } from '@/database/client/db';
 import type { GlobalStore } from '@/store/global';
 import { DatabaseLoadingState, OnStageChange } from '@/types/clientDB';
@@ -13,7 +12,7 @@ type InitClientDBParams = { onStateChange: OnStageChange };
 export interface GlobalClientDBAction {
   initializeClientDB: (params?: InitClientDBParams) => Promise<void>;
   markPgliteEnabled: () => void;
-  useInitClientDB: (params?: InitClientDBParams) => SWRResponse;
+  useInitClientDB: (params?: InitClientDBParams) => void;
 }
 
 export const clientDBSlice: StateCreator<
@@ -58,6 +57,9 @@ export const clientDBSlice: StateCreator<
       }
     }
   },
-  useInitClientDB: (params) =>
-    useOnlyFetchOnceSWR('initClientDB', () => get().initializeClientDB(params)),
+  useInitClientDB: (params) => {
+    useEffect(() => {
+      get().initializeClientDB(params);
+    }, []); // Run once on mount
+  },
 });

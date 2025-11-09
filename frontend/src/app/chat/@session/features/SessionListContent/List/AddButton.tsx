@@ -4,7 +4,7 @@ import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 
-import { useActionSWR } from '@/libs/swr';
+import { useAsyncAction } from '@/hooks/useAsyncAction';
 import { useServerConfigStore } from '@/store/serverConfig';
 import { useSessionStore } from '@/store/session';
 
@@ -12,7 +12,7 @@ const AddButton = memo<{ groupId?: string }>(({ groupId }) => {
   const { t } = useTranslation('chat');
   const createSession = useSessionStore((s) => s.createSession);
   const mobile = useServerConfigStore((s) => s.isMobile);
-  const { mutate, isValidating } = useActionSWR(['session.createSession', groupId], () => {
+  const { mutate, isValidating } = useAsyncAction(() => {
     return createSession({ group: groupId });
   });
 

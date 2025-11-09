@@ -1,8 +1,7 @@
 import { ElectronAppState } from '@/electron-client-ipc';
-import { SWRResponse } from 'swr';
+import { useEffect } from 'react';
 import { StateCreator } from 'zustand/vanilla';
 
-import { useOnlyFetchOnceSWR } from '@/libs/swr';
 // Import for type usage
 import { electronSystemService } from '@/services/electron/system';
 import { globalAgentContextManager } from '@/utils/client/GlobalAgentContextManager';
@@ -35,16 +34,14 @@ export const createElectronAppSlice: StateCreator<
     set({ appState: merge(prevState, state) });
   },
 
-  useInitElectronAppState: () =>
-    useOnlyFetchOnceSWR<ElectronAppState>(
-      'initElectronAppState',
-      async () => electronSystemService.getAppState(),
-      {
-        onSuccess: (result) => {
+  useInitElectronAppState: () => {
+    useEffect(() => {
+      const initAppState = async () => {
+        try {
+          const result = await electronSystemService.getAppState();
           set({ appState: result, isAppStateInit: true }, false, 'initElectronAppState');
 
           // Update the global agent context manager with relevant paths
-          // We typically only need paths in the agent context for now.
           globalAgentContextManager.updateContext({
             desktopPath: result.userPath!.desktop,
             documentsPath: result.userPath!.documents,
@@ -55,7 +52,12 @@ export const createElectronAppSlice: StateCreator<
             userDataPath: result.userPath!.userData,
             videosPath: result.userPath!.videos,
           });
-        },
-      },
-    ),
+        } catch (error) {
+          console.error('[useInitElectronAppState] Error:', error);
+        }
+      };
+
+      initAppState();
+    }, []);
+  },
 });

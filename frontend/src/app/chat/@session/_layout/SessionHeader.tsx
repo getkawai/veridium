@@ -12,7 +12,7 @@ import { ChatGroupWizard } from '@/components/ChatGroupWizard';
 import { useGroupTemplates } from '@/components/ChatGroupWizard/templates';
 import { DESKTOP_HEADER_ICON_SIZE } from '@/const/layoutTokens';
 import { DEFAULT_CHAT_GROUP_CHAT_CONFIG } from '@/const/settings';
-import { useActionSWR } from '@/libs/swr';
+import { useAsyncAction } from '@/hooks/useAsyncAction';
 import { useChatGroupStore } from '@/store/chatGroup';
 import { featureFlagsSelectors, useServerConfigStore } from '@/store/serverConfig';
 import { useSessionStore } from '@/store/session';
@@ -51,8 +51,7 @@ const Header = memo(() => {
   // We need pass inital member list so we cannot use mutate
   const [isCreatingGroup, setIsCreatingGroup] = useState(false);
 
-  const { mutate: mutateAgent, isValidating: isValidatingAgent } = useActionSWR(
-    'session.createSession',
+  const { mutate: mutateAgent, isValidating: isValidatingAgent } = useAsyncAction(
     () => createSession(),
   );
 

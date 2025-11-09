@@ -1,15 +1,13 @@
-import { SWRResponse } from 'swr';
+import { useEffect } from 'react';
 import { StateCreator } from 'zustand/vanilla';
 
-import { useOnlyFetchOnceSWR } from '@/libs/swr';
 import { globalService } from '@/services/global';
 import { GlobalRuntimeConfig } from '@/types/serverConfig';
 
 import type { ServerConfigStore } from './store';
 
-const FETCH_SERVER_CONFIG_KEY = 'FETCH_SERVER_CONFIG';
 export interface ServerConfigAction {
-  useInitServerConfig: () => SWRResponse<GlobalRuntimeConfig>;
+  useInitServerConfig: () => void;
 }
 
 export const createServerConfigSlice: StateCreator<
@@ -19,18 +17,21 @@ export const createServerConfigSlice: StateCreator<
   ServerConfigAction
 > = (set) => ({
   useInitServerConfig: () => {
-    return useOnlyFetchOnceSWR<GlobalRuntimeConfig>(
-      FETCH_SERVER_CONFIG_KEY,
-      () => globalService.getGlobalConfig(),
-      {
-        onSuccess: (data) => {
+    useEffect(() => {
+      const initConfig = async () => {
+        try {
+          const data = await globalService.getGlobalConfig();
           set(
             { featureFlags: data.serverFeatureFlags, serverConfig: data.serverConfig },
             false,
             'initServerConfig',
           );
-        },
-      },
-    );
+        } catch (error) {
+          console.error('[useInitServerConfig] Error:', error);
+        }
+      };
+
+      initConfig();
+    }, []);
   },
 });

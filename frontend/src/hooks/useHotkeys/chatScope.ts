@@ -5,7 +5,7 @@ import { useHotkeysContext } from 'react-hotkeys-hook';
 import { useSend } from '@/app/chat/Workspace/ChatConversation/features/ChatInput/useSend';
 import { useClearCurrentMessages } from '@/features/ChatInput/ActionBar/Clear';
 import { useOpenChatSettings } from '@/hooks/useInterceptingRoutes';
-import { useActionSWR } from '@/libs/swr';
+import { useAsyncAction } from '@/hooks/useAsyncAction';
 import { useChatStore } from '@/store/chat';
 import { chatSelectors } from '@/store/chat/selectors';
 import { useGlobalStore } from '@/store/global';
@@ -17,7 +17,7 @@ import { useHotkeyById } from './useHotkeyById';
 
 export const useSaveTopicHotkey = () => {
   const openNewTopicOrSaveTopic = useChatStore((s) => s.openNewTopicOrSaveTopic);
-  const { mutate } = useActionSWR('openNewTopicOrSaveTopic', openNewTopicOrSaveTopic);
+  const { mutate } = useAsyncAction(openNewTopicOrSaveTopic);
   return useHotkeyById(HotkeyEnum.SaveTopic, () => mutate(), { enableOnContentEditable: true });
 };
 
