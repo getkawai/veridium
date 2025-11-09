@@ -13,6 +13,7 @@ import { createModelLogger } from '@/utils/logger';
 
 import { bufferToVector, cosineSimilarity } from '../utils/vectorSearch';
 import * as VectorSearch from '../../../bindings/github.com/kawai-network/veridium/internal/services/vectorsearchservice';
+import { NewChunkItem } from '@/types/database-legacy';
 
 export class ChunkModel {
   private userId: string;
@@ -26,10 +27,10 @@ export class ChunkModel {
    * OPTIMIZED: Uses transaction-like behavior via sequential inserts
    * Now also adds chunks to chromem vector database for semantic search
    */
-  bulkCreate = async (params: any[], fileId: string) => {
+  bulkCreate = async (params: NewChunkItem[], fileId: string) => {
     if (params.length === 0) return [];
 
-    const result: any[] = [];
+    const result: NewChunkItem[] = [];
     
     // Create chunks in SQLite
     for (const param of params) {
@@ -41,7 +42,7 @@ export class ChunkModel {
         text: toNullString(param.text),
         abstract: toNullString(param.abstract),
         metadata: toNullJSON(param.metadata),
-        chunkIndex: param.index || 0,
+        chunkIndex: { Int64: param.index || 0, Valid: true },
         type: toNullString(param.type),
         clientId: toNullString(param.clientId),
         userId: toNullString(this.userId),
@@ -49,7 +50,18 @@ export class ChunkModel {
         updatedAt: now,
       });
       
-      result.push(chunk);
+      result.push({
+        id: chunk.id,
+        text: getNullableString(chunk.text as any) || null,
+        abstract: getNullableString(chunk.abstract as any) || null,
+        metadata: getNullableString(chunk.metadata as any) || null,
+        index: (chunk.chunkIndex as any)?.Int64 || 0,
+        type: getNullableString(chunk.type as any) || null,
+        clientId: getNullableString(chunk.clientId as any) || null,
+        userId: this.userId,
+        createdAt: now,
+        updatedAt: now,
+      });
       
       // Link to file
       await DB.LinkFileToChunk({
@@ -67,12 +79,12 @@ export class ChunkModel {
       const fileName = getNullableString(file?.name as any) || 'Unknown';
 
       const vectorChunks = result.map((chunk) => ({
-        id: chunk.id,
-        text: getNullableString(chunk.text as any) || '',
+        id: chunk.id || '',
+        text: chunk.text || '',
         fileId: fileId,
         fileName: fileName,
-        type: getNullableString(chunk.type as any) || '',
-        index: chunk.chunkIndex || 0,
+        type: chunk.type || '',
+        index: chunk.index || 0,
         metadata: {},
       }));
 
