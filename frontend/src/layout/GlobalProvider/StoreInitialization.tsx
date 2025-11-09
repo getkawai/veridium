@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { createStoreUpdater } from 'zustand-utils';
 
 import { enableNextAuth } from '@/const/auth';
+import { useFetchAiProviderRuntimeState } from '@/hooks/useFetchAiProviderRuntimeState';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { useAgentStore } from '@/store/agent';
 import { useAiInfraStore } from '@/store/aiInfra';
@@ -34,7 +35,6 @@ const StoreInitialization = memo(() => {
 
   const useInitInboxAgentStore = useAgentStore((s) => s.useInitInboxAgentStore);
   const useLoadAllAgentConfigs = useAgentStore((s) => s.useLoadAllAgentConfigs);
-  const useInitAiProviderKeyVaults = useAiInfraStore((s) => s.useFetchAiProviderRuntimeState);
 
   // init the system preference
   useInitSystemStatus();
@@ -69,7 +69,7 @@ const StoreInitialization = memo(() => {
   useLoadAllAgentConfigs(isDBInited && isLoginOnInit, isLoginOnInit);
 
   // init user provider key vaults
-  useInitAiProviderKeyVaults(isLoginOnInit);
+  useFetchAiProviderRuntimeState(isLoginOnInit);
 
   // init user state
   useInitUserState(isLoginOnInit, serverConfig, {
