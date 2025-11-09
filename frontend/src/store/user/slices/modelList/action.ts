@@ -196,27 +196,23 @@ export const createModelListSlice: StateCreator<
     await get().setSettings({ keyVaults: { [provider]: config } });
   },
 
-  internal_fetchProviderModelList: (provider, enabledAutoFetch) =>
-    useSWR<ChatModelCard[] | undefined>(
-      [provider, enabledAutoFetch],
-      async ([p]) => {
-        const { modelsService } = await import('@/services/models');
+  internal_fetchProviderModelList: async (provider, enabledAutoFetch) => {
+    if (!enabledAutoFetch) return;
 
-        return modelsService.getModels(p);
-      },
-      {
-        onSuccess: async (data) => {
-          if (data) {
-            await get().setModelProviderConfig(provider, {
-              latestFetchTime: Date.now(),
-              remoteModelCards: data,
-            });
+    try {
+      const { modelsService } = await import('@/services/models');
+      const data = await modelsService.getModels(provider);
 
-            get().refreshDefaultModelProviderList();
-          }
-        },
-        revalidateOnFocus: false,
-        revalidateOnMount: enabledAutoFetch,
-      },
-    ),
+      if (data) {
+        await get().setModelProviderConfig(provider, {
+          latestFetchTime: Date.now(),
+          remoteModelCards: data,
+        });
+
+        get().refreshDefaultModelProviderList();
+      }
+    } catch (error) {
+      console.error('[internal_fetchProviderModelList] Error:', error);
+    }
+  },
 });

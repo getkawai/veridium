@@ -578,46 +578,42 @@ export const createMCPPluginStoreSlice: StateCreator<
     );
   },
 
-  useFetchMCPPluginList: (params) => {
-    const locale = globalHelpers.getCurrentLanguage();
+  useFetchMCPPluginList: async (params) => {
+    try {
+      const data = await discoverService.getMCPPluginList(params);
+      
+      set(
+        produce((draft: MCPStoreState) => {
+          draft.searchLoading = false;
 
-    return useSWR<PluginListResponse>(
-      ['useFetchMCPPluginList', locale, ...Object.values(params)].filter(Boolean).join('-'),
-      () => discoverService.getMCPPluginList(params),
-      {
-        onSuccess(data) {
-          set(
-            produce((draft: MCPStoreState) => {
-              draft.searchLoading = false;
+          // 设置基础信息
+          if (!draft.isMcpListInit) {
+            draft.activeMCPIdentifier = data.items?.[0]?.identifier;
 
-              // 设置基础信息
-              if (!draft.isMcpListInit) {
-                draft.activeMCPIdentifier = data.items?.[0]?.identifier;
+            draft.isMcpListInit = true;
+            draft.categories = data.categories;
+            draft.totalCount = data.totalCount;
+            draft.totalPages = data.totalPages;
+          }
 
-                draft.isMcpListInit = true;
-                draft.categories = data.categories;
-                draft.totalCount = data.totalCount;
-                draft.totalPages = data.totalPages;
-              }
-
-              // 累积数据逻辑
-              if (params.page === 1) {
-                // 第一页，直接设置
-                draft.mcpPluginItems = uniqBy(data.items, 'identifier');
-              } else {
-                // 后续页面，累积数据
-                draft.mcpPluginItems = uniqBy(
-                  [...draft.mcpPluginItems, ...data.items],
-                  'identifier',
-                );
-              }
-            }),
-            false,
-            n('useFetchMCPPluginList/onSuccess'),
-          );
-        },
-        revalidateOnFocus: false,
-      },
-    );
+          // 累积数据逻辑
+          if (params.page === 1) {
+            // 第一页，直接设置
+            draft.mcpPluginItems = uniqBy(data.items, 'identifier');
+          } else {
+            // 后续页面，累积数据
+            draft.mcpPluginItems = uniqBy(
+              [...draft.mcpPluginItems, ...data.items],
+              'identifier',
+            );
+          }
+        }),
+        false,
+        n('useFetchMCPPluginList/onSuccess'),
+      );
+    } catch (error) {
+      console.error('[useFetchMCPPluginList] Error:', error);
+      set({ searchLoading: false }, false, n('useFetchMCPPluginList/error'));
+    }
   },
 });

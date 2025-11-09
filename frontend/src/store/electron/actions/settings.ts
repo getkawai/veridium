@@ -67,29 +67,25 @@ export const settingsSlice: StateCreator<
     }
   },
 
-  useFetchDesktopHotkeys: () =>
-    useSWR<Record<string, string>>(
-      ELECTRON_DESKTOP_HOTKEYS_KEY,
-      async () => desktopSettingsService.getDesktopHotkeys(),
-      {
-        onSuccess: (data) => {
-          if (!isEqual(data, get().desktopHotkeys)) {
-            set({ desktopHotkeys: data, isDesktopHotkeysInit: true });
-          }
-        },
-      },
-    ),
+  useFetchDesktopHotkeys: async () => {
+    try {
+      const data = await desktopSettingsService.getDesktopHotkeys();
+      if (!isEqual(data, get().desktopHotkeys)) {
+        set({ desktopHotkeys: data, isDesktopHotkeysInit: true });
+      }
+    } catch (error) {
+      console.error('[useFetchDesktopHotkeys] Error:', error);
+    }
+  },
 
-  useGetProxySettings: () =>
-    useSWR<NetworkProxySettings>(
-      ELECTRON_PROXY_SETTINGS_KEY,
-      async () => desktopSettingsService.getProxySettings(),
-      {
-        onSuccess: (data) => {
-          if (!isEqual(data, get().proxySettings)) {
-            set({ proxySettings: data });
-          }
-        },
-      },
-    ),
+  useGetProxySettings: async () => {
+    try {
+      const data = await desktopSettingsService.getProxySettings();
+      if (!isEqual(data, get().proxySettings)) {
+        set({ proxySettings: data });
+      }
+    } catch (error) {
+      console.error('[useGetProxySettings] Error:', error);
+    }
+  },
 });

@@ -93,25 +93,17 @@ export const remoteSyncSlice: StateCreator<
     await getUserStoreState().refreshUserState();
   },
 
-  useDataSyncConfig: () =>
-    useSWR<DataSyncConfig>(
-      REMOTE_SERVER_CONFIG_KEY,
-      async () => {
-        try {
-          return await remoteServerService.getRemoteServerConfig();
-        } catch (error) {
-          console.error('获取远程服务器配置失败:', error);
-          throw error;
-        }
-      },
-      {
-        onSuccess: (data) => {
-          if (!isEqual(data, get().dataSyncConfig)) {
-            get().refreshUserData();
-          }
+  useDataSyncConfig: async () => {
+    try {
+      const data = await remoteServerService.getRemoteServerConfig();
+      
+      if (!isEqual(data, get().dataSyncConfig)) {
+        get().refreshUserData();
+      }
 
-          set({ dataSyncConfig: data, isInitRemoteServerConfig: true });
-        },
-      },
-    ),
+      set({ dataSyncConfig: data, isInitRemoteServerConfig: true });
+    } catch (error) {
+      console.error('获取远程服务器配置失败:', error);
+    }
+  },
 });

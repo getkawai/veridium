@@ -207,60 +207,61 @@ export const createPluginStoreSlice: StateCreator<
     );
   },
 
-  useFetchInstalledPlugins: (enabled: boolean) =>
-    useSWR<LobeTool[]>(enabled ? INSTALLED_PLUGINS : null, pluginService.getInstalledPlugins, {
-      fallbackData: [],
-      onSuccess: (data) => {
-        set(
-          { installedPlugins: data, loadingInstallPlugins: false },
-          false,
-          n('useFetchInstalledPlugins'),
-        );
-      },
-      revalidateOnFocus: false,
-      suspense: true,
-    }),
-  useFetchPluginList: (params) => {
-    const locale = globalHelpers.getCurrentLanguage();
+  useFetchInstalledPlugins: async (enabled: boolean) => {
+    if (!enabled) return;
 
-    return useSWR<PluginListResponse>(
-      ['useFetchPluginList', locale, ...Object.values(params)].filter(Boolean).join('-'),
-      async () => toolService.getOldPluginList(params),
-      {
-        onSuccess(data) {
-          set(
-            produce((draft: PluginStoreState) => {
-              draft.pluginSearchLoading = false;
-
-              // 设置基础信息
-              if (!draft.isPluginListInit) {
-                draft.activePluginIdentifier = data.items?.[0]?.identifier;
-                draft.isPluginListInit = true;
-                draft.pluginTotalCount = data.totalCount;
-              }
-
-              // 累积数据逻辑
-              if (params.page === 1) {
-                // 第一页，直接设置
-                draft.oldPluginItems = uniqBy(data.items, 'identifier');
-              } else {
-                // 后续页面，累积数据
-                draft.oldPluginItems = uniqBy(
-                  [...draft.oldPluginItems, ...data.items],
-                  'identifier',
-                );
-              }
-            }),
-            false,
-            n('useFetchPluginList/onSuccess'),
-          );
-        },
-        revalidateOnFocus: false,
-      },
-    );
+    try {
+      const data = await pluginService.getInstalledPlugins();
+      set(
+        { installedPlugins: data, loadingInstallPlugins: false },
+        false,
+        n('useFetchInstalledPlugins'),
+      );
+    } catch (error) {
+      console.error('[useFetchInstalledPlugins] Error:', error);
+      set({ installedPlugins: [], loadingInstallPlugins: false }, false, n('useFetchInstalledPlugins/error'));
+    }
   },
-  useFetchPluginStore: () =>
-    useSWR<DiscoverPluginItem[]>('loadPluginStore', get().loadPluginStore, {
-      revalidateOnFocus: false,
-    }),
+  useFetchPluginList: async (params) => {
+    try {
+      const data = await toolService.getOldPluginList(params);
+      
+      set(
+        produce((draft: PluginStoreState) => {
+          draft.pluginSearchLoading = false;
+
+          // 设置基础信息
+          if (!draft.isPluginListInit) {
+            draft.activePluginIdentifier = data.items?.[0]?.identifier;
+            draft.isPluginListInit = true;
+            draft.pluginTotalCount = data.totalCount;
+          }
+
+          // 累积数据逻辑
+          if (params.page === 1) {
+            // 第一页，直接设置
+            draft.oldPluginItems = uniqBy(data.items, 'identifier');
+          } else {
+            // 后续页面，累积数据
+            draft.oldPluginItems = uniqBy(
+              [...draft.oldPluginItems, ...data.items],
+              'identifier',
+            );
+          }
+        }),
+        false,
+        n('useFetchPluginList/onSuccess'),
+      );
+    } catch (error) {
+      console.error('[useFetchPluginList] Error:', error);
+      set({ pluginSearchLoading: false }, false, n('useFetchPluginList/error'));
+    }
+  },
+  useFetchPluginStore: async () => {
+    try {
+      await get().loadPluginStore();
+    } catch (error) {
+      console.error('[useFetchPluginStore] Error:', error);
+    }
+  },
 });
