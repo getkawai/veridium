@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+
 import { useChatGroupStore } from '@/store/chatGroup';
 import { useGlobalStore } from '@/store/global';
 import { systemStatusSelectors } from '@/store/global/selectors';
@@ -7,7 +9,11 @@ import { authSelectors } from '@/store/user/slices/auth/selectors';
 export const useFetchGroups = () => {
   const isDBInited = useGlobalStore(systemStatusSelectors.isDBInited);
   const isLogin = useUserStore(authSelectors.isLogin);
-  const useFetchGroups = useChatGroupStore((s) => s.useFetchGroups);
+  const internal_fetchGroups = useChatGroupStore((s) => s.internal_fetchGroups);
 
-  useFetchGroups(isDBInited ?? false, isLogin ?? false);
+  useEffect(() => {
+    if (isDBInited) {
+      internal_fetchGroups(isLogin ?? false);
+    }
+  }, [isDBInited, isLogin, internal_fetchGroups]);
 };

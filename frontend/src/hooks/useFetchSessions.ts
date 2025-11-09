@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+
 import { useGlobalStore } from '@/store/global';
 import { systemStatusSelectors } from '@/store/global/selectors';
 import { useSessionStore } from '@/store/session';
@@ -7,7 +9,11 @@ import { authSelectors } from '@/store/user/slices/auth/selectors';
 export const useFetchSessions = () => {
   const isDBInited = useGlobalStore(systemStatusSelectors.isDBInited);
   const isLogin = useUserStore(authSelectors.isLogin);
-  const useFetchSessions = useSessionStore((s) => s.useFetchSessions);
+  const internal_fetchSessions = useSessionStore((s) => s.internal_fetchSessions);
 
-  useFetchSessions(isDBInited, isLogin);
+  useEffect(() => {
+    if (isDBInited) {
+      internal_fetchSessions(isLogin);
+    }
+  }, [isDBInited, isLogin, internal_fetchSessions]);
 };
