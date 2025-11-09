@@ -170,9 +170,6 @@ export function CreateChatGroup(arg: $models.CreateChatGroupParams): $Cancellabl
     });
 }
 
-/**
- * NOTE: 'text' field removed - stored in chromem only
- */
 export function CreateChunk(arg: $models.CreateChunkParams): $CancellablePromise<$models.Chunk> {
     return $Call.ByID(1745799197, arg).then(($result: any) => {
         return $$createType9($result);
@@ -425,9 +422,6 @@ export function CreateTopic(arg: $models.CreateTopicParams): $CancellablePromise
     });
 }
 
-/**
- * NOTE: 'text' field removed - stored in chromem only
- */
 export function CreateUnstructuredChunk(arg: $models.CreateUnstructuredChunkParams): $CancellablePromise<$models.UnstructuredChunk> {
     return $Call.ByID(2048281673, arg).then(($result: any) => {
         return $$createType49($result);
@@ -873,10 +867,6 @@ export function GetChunk(arg: $models.GetChunkParams): $CancellablePromise<$mode
     });
 }
 
-/**
- * NOTE: 'text' field removed - this query now deprecated, use chromem directly
- * Returns only metadata, text must be fetched from chromem
- */
 export function GetChunksTextByFileId(fileID: sql$0.NullString): $CancellablePromise<$models.GetChunksTextByFileIdRow[]> {
     return $Call.ByID(1722054587, fileID).then(($result: any) => {
         return $$createType70($result);
@@ -884,8 +874,7 @@ export function GetChunksTextByFileId(fileID: sql$0.NullString): $CancellablePro
 }
 
 /**
- * Semantic search - DEPRECATED: Use chromem VectorSearchService instead
- * This query kept for backward compatibility / fallback only
+ * Semantic search - fetch chunks with embeddings for JS similarity calculation
  */
 export function GetChunksWithEmbeddings(userID: sql$0.NullString): $CancellablePromise<$models.GetChunksWithEmbeddingsRow[]> {
     return $Call.ByID(4088855856, userID).then(($result: any) => {
@@ -893,10 +882,6 @@ export function GetChunksWithEmbeddings(userID: sql$0.NullString): $CancellableP
     });
 }
 
-/**
- * DEPRECATED: Use chromem VectorSearchService instead
- * This query kept for backward compatibility / fallback only
- */
 export function GetChunksWithEmbeddingsByFileIds(arg: $models.GetChunksWithEmbeddingsByFileIdsParams): $CancellablePromise<$models.GetChunksWithEmbeddingsByFileIdsRow[]> {
     return $Call.ByID(828075807, arg).then(($result: any) => {
         return $$createType74($result);
@@ -966,9 +951,6 @@ export function GetFileChunks(arg: $models.GetFileChunksParams): $CancellablePro
     });
 }
 
-/**
- * NOTE: 'text' field removed - fetch from chromem if needed
- */
 export function GetFileChunksWithMetadata(arg: $models.GetFileChunksWithMetadataParams): $CancellablePromise<$models.GetFileChunksWithMetadataRow[]> {
     return $Call.ByID(2766662157, arg).then(($result: any) => {
         return $$createType80($result);
@@ -1139,9 +1121,6 @@ export function GetMessageQuery(arg: $models.GetMessageQueryParams): $Cancellabl
     });
 }
 
-/**
- * NOTE: 'text' field removed - fetch from chromem if needed
- */
 export function GetMessageQueryChunks(arg: $models.GetMessageQueryChunksParams): $CancellablePromise<$models.GetMessageQueryChunksRow[]> {
     return $Call.ByID(2213844507, arg).then(($result: any) => {
         return $$createType89($result);
@@ -2146,9 +2125,6 @@ export function UpdateChatGroupAgentOrder(arg: $models.UpdateChatGroupAgentOrder
     return $Call.ByID(1963032121, arg);
 }
 
-/**
- * NOTE: 'text' field removed - stored in chromem only
- */
 export function UpdateChunk(arg: $models.UpdateChunkParams): $CancellablePromise<$models.Chunk> {
     return $Call.ByID(3493814226, arg).then(($result: any) => {
         return $$createType9($result);

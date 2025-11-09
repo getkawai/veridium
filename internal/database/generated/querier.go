@@ -45,7 +45,6 @@ type Querier interface {
 	CreateAgent(ctx context.Context, arg CreateAgentParams) (Agent, error)
 	CreateAsyncTask(ctx context.Context, arg CreateAsyncTaskParams) (AsyncTask, error)
 	CreateChatGroup(ctx context.Context, arg CreateChatGroupParams) (ChatGroup, error)
-	// NOTE: 'text' field removed - stored in chromem only
 	CreateChunk(ctx context.Context, arg CreateChunkParams) (Chunk, error)
 	CreateDocument(ctx context.Context, arg CreateDocumentParams) (Document, error)
 	CreateEmbedding(ctx context.Context, arg CreateEmbeddingParams) (Embedding, error)
@@ -89,7 +88,6 @@ type Querier interface {
 	CreateSessionGroup(ctx context.Context, arg CreateSessionGroupParams) (SessionGroup, error)
 	CreateThread(ctx context.Context, arg CreateThreadParams) (Thread, error)
 	CreateTopic(ctx context.Context, arg CreateTopicParams) (Topic, error)
-	// NOTE: 'text' field removed - stored in chromem only
 	CreateUnstructuredChunk(ctx context.Context, arg CreateUnstructuredChunkParams) (UnstructuredChunk, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DeleteAIModel(ctx context.Context, arg DeleteAIModelParams) error
@@ -190,14 +188,9 @@ type Querier interface {
 	GetChatGroupWithAgents(ctx context.Context, arg GetChatGroupWithAgentsParams) ([]GetChatGroupWithAgentsRow, error)
 	// Chunks
 	GetChunk(ctx context.Context, arg GetChunkParams) (Chunk, error)
-	// NOTE: 'text' field removed - this query now deprecated, use chromem directly
-	// Returns only metadata, text must be fetched from chromem
 	GetChunksTextByFileId(ctx context.Context, fileID sql.NullString) ([]GetChunksTextByFileIdRow, error)
-	// Semantic search - DEPRECATED: Use chromem VectorSearchService instead
-	// This query kept for backward compatibility / fallback only
+	// Semantic search - fetch chunks with embeddings for JS similarity calculation
 	GetChunksWithEmbeddings(ctx context.Context, userID sql.NullString) ([]GetChunksWithEmbeddingsRow, error)
-	// DEPRECATED: Use chromem VectorSearchService instead
-	// This query kept for backward compatibility / fallback only
 	GetChunksWithEmbeddingsByFileIds(ctx context.Context, arg GetChunksWithEmbeddingsByFileIdsParams) ([]GetChunksWithEmbeddingsByFileIdsRow, error)
 	GetDocument(ctx context.Context, arg GetDocumentParams) (Document, error)
 	GetDocumentByFileId(ctx context.Context, arg GetDocumentByFileIdParams) (GetDocumentByFileIdRow, error)
@@ -210,7 +203,6 @@ type Querier interface {
 	GetFile(ctx context.Context, arg GetFileParams) (File, error)
 	GetFileChunkIds(ctx context.Context, fileID sql.NullString) ([]sql.NullString, error)
 	GetFileChunks(ctx context.Context, arg GetFileChunksParams) ([]Chunk, error)
-	// NOTE: 'text' field removed - fetch from chromem if needed
 	GetFileChunksWithMetadata(ctx context.Context, arg GetFileChunksWithMetadataParams) ([]GetFileChunksWithMetadataRow, error)
 	GetFilesByHash(ctx context.Context, arg GetFilesByHashParams) ([]File, error)
 	GetFilesByIds(ctx context.Context, userID string) ([]File, error)
@@ -246,7 +238,6 @@ type Querier interface {
 	GetMessagePlugin(ctx context.Context, arg GetMessagePluginParams) (MessagePlugin, error)
 	// Message Queries (RAG)
 	GetMessageQuery(ctx context.Context, arg GetMessageQueryParams) (MessageQuery, error)
-	// NOTE: 'text' field removed - fetch from chromem if needed
 	GetMessageQueryChunks(ctx context.Context, arg GetMessageQueryChunksParams) ([]GetMessageQueryChunksRow, error)
 	// Message TTS
 	GetMessageTTS(ctx context.Context, arg GetMessageTTSParams) (MessageTt, error)
@@ -446,7 +437,6 @@ type Querier interface {
 	UpdateChatGroup(ctx context.Context, arg UpdateChatGroupParams) (ChatGroup, error)
 	UpdateChatGroupAgentLink(ctx context.Context, arg UpdateChatGroupAgentLinkParams) (ChatGroupsAgent, error)
 	UpdateChatGroupAgentOrder(ctx context.Context, arg UpdateChatGroupAgentOrderParams) error
-	// NOTE: 'text' field removed - stored in chromem only
 	UpdateChunk(ctx context.Context, arg UpdateChunkParams) (Chunk, error)
 	UpdateDocument(ctx context.Context, arg UpdateDocumentParams) (Document, error)
 	UpdateFile(ctx context.Context, arg UpdateFileParams) (File, error)

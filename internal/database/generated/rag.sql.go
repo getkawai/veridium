@@ -116,14 +116,15 @@ func (q *Queries) CountChunksByFileIds(ctx context.Context, userID string) ([]Co
 
 const CreateChunk = `-- name: CreateChunk :one
 INSERT INTO chunks (
-    id, abstract, metadata, chunk_index, type, client_id,
+    id, text, abstract, metadata, chunk_index, type, client_id,
     user_id, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, abstract, metadata, chunk_index, type, client_id, user_id, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, text, abstract, metadata, chunk_index, type, client_id, user_id, created_at, updated_at
 `
 
 type CreateChunkParams struct {
 	ID         string         `json:"id"`
+	Text       sql.NullString `json:"text"`
 	Abstract   sql.NullString `json:"abstract"`
 	Metadata   sql.NullString `json:"metadata"`
 	ChunkIndex sql.NullInt64  `json:"chunkIndex"`
@@ -134,10 +135,10 @@ type CreateChunkParams struct {
 	UpdatedAt  int64          `json:"updatedAt"`
 }
 
-// NOTE: 'text' field removed - stored in chromem only
 func (q *Queries) CreateChunk(ctx context.Context, arg CreateChunkParams) (Chunk, error) {
 	row := q.db.QueryRowContext(ctx, CreateChunk,
 		arg.ID,
+		arg.Text,
 		arg.Abstract,
 		arg.Metadata,
 		arg.ChunkIndex,
@@ -150,6 +151,7 @@ func (q *Queries) CreateChunk(ctx context.Context, arg CreateChunkParams) (Chunk
 	var i Chunk
 	err := row.Scan(
 		&i.ID,
+		&i.Text,
 		&i.Abstract,
 		&i.Metadata,
 		&i.ChunkIndex,
@@ -381,14 +383,15 @@ func (q *Queries) CreateRagEvalEvaluationRecord(ctx context.Context, arg CreateR
 
 const CreateUnstructuredChunk = `-- name: CreateUnstructuredChunk :one
 INSERT INTO unstructured_chunks (
-    id, metadata, chunk_index, type, parent_id, composite_id,
+    id, text, metadata, chunk_index, type, parent_id, composite_id,
     client_id, user_id, file_id, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, metadata, chunk_index, type, parent_id, composite_id, client_id, user_id, file_id, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, text, metadata, chunk_index, type, parent_id, composite_id, client_id, user_id, file_id, created_at, updated_at
 `
 
 type CreateUnstructuredChunkParams struct {
 	ID          string         `json:"id"`
+	Text        sql.NullString `json:"text"`
 	Metadata    sql.NullString `json:"metadata"`
 	ChunkIndex  sql.NullInt64  `json:"chunkIndex"`
 	Type        sql.NullString `json:"type"`
@@ -401,10 +404,10 @@ type CreateUnstructuredChunkParams struct {
 	UpdatedAt   int64          `json:"updatedAt"`
 }
 
-// NOTE: 'text' field removed - stored in chromem only
 func (q *Queries) CreateUnstructuredChunk(ctx context.Context, arg CreateUnstructuredChunkParams) (UnstructuredChunk, error) {
 	row := q.db.QueryRowContext(ctx, CreateUnstructuredChunk,
 		arg.ID,
+		arg.Text,
 		arg.Metadata,
 		arg.ChunkIndex,
 		arg.Type,
@@ -419,6 +422,7 @@ func (q *Queries) CreateUnstructuredChunk(ctx context.Context, arg CreateUnstruc
 	var i UnstructuredChunk
 	err := row.Scan(
 		&i.ID,
+		&i.Text,
 		&i.Metadata,
 		&i.ChunkIndex,
 		&i.Type,
@@ -533,7 +537,7 @@ func (q *Queries) DeleteUnstructuredChunk(ctx context.Context, arg DeleteUnstruc
 
 const GetChunk = `-- name: GetChunk :one
 
-SELECT id, abstract, metadata, chunk_index, type, client_id, user_id, created_at, updated_at FROM chunks WHERE id = ? AND user_id = ?
+SELECT id, text, abstract, metadata, chunk_index, type, client_id, user_id, created_at, updated_at FROM chunks WHERE id = ? AND user_id = ?
 `
 
 type GetChunkParams struct {
@@ -547,6 +551,7 @@ func (q *Queries) GetChunk(ctx context.Context, arg GetChunkParams) (Chunk, erro
 	var i Chunk
 	err := row.Scan(
 		&i.ID,
+		&i.Text,
 		&i.Abstract,
 		&i.Metadata,
 		&i.ChunkIndex,
@@ -560,7 +565,7 @@ func (q *Queries) GetChunk(ctx context.Context, arg GetChunkParams) (Chunk, erro
 }
 
 const GetChunksTextByFileId = `-- name: GetChunksTextByFileId :many
-SELECT c.id, c.metadata, c.type
+SELECT c.id, c.text, c.metadata, c.type
 FROM chunks c
 INNER JOIN file_chunks fc ON c.id = fc.chunk_id
 WHERE fc.file_id = ?
@@ -568,12 +573,11 @@ WHERE fc.file_id = ?
 
 type GetChunksTextByFileIdRow struct {
 	ID       string         `json:"id"`
+	Text     sql.NullString `json:"text"`
 	Metadata sql.NullString `json:"metadata"`
 	Type     sql.NullString `json:"type"`
 }
 
-// NOTE: 'text' field removed - this query now deprecated, use chromem directly
-// Returns only metadata, text must be fetched from chromem
 func (q *Queries) GetChunksTextByFileId(ctx context.Context, fileID sql.NullString) ([]GetChunksTextByFileIdRow, error) {
 	rows, err := q.db.QueryContext(ctx, GetChunksTextByFileId, fileID)
 	if err != nil {
@@ -583,7 +587,12 @@ func (q *Queries) GetChunksTextByFileId(ctx context.Context, fileID sql.NullStri
 	items := []GetChunksTextByFileIdRow{}
 	for rows.Next() {
 		var i GetChunksTextByFileIdRow
-		if err := rows.Scan(&i.ID, &i.Metadata, &i.Type); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.Text,
+			&i.Metadata,
+			&i.Type,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -600,6 +609,7 @@ func (q *Queries) GetChunksTextByFileId(ctx context.Context, fileID sql.NullStri
 const GetChunksWithEmbeddings = `-- name: GetChunksWithEmbeddings :many
 SELECT 
     c.id,
+    c.text,
     c.metadata,
     c.chunk_index,
     c.type,
@@ -615,6 +625,7 @@ WHERE c.user_id = ?
 
 type GetChunksWithEmbeddingsRow struct {
 	ID             string         `json:"id"`
+	Text           sql.NullString `json:"text"`
 	Metadata       sql.NullString `json:"metadata"`
 	ChunkIndex     sql.NullInt64  `json:"chunkIndex"`
 	Type           sql.NullString `json:"type"`
@@ -623,8 +634,7 @@ type GetChunksWithEmbeddingsRow struct {
 	FileName       sql.NullString `json:"fileName"`
 }
 
-// Semantic search - DEPRECATED: Use chromem VectorSearchService instead
-// This query kept for backward compatibility / fallback only
+// Semantic search - fetch chunks with embeddings for JS similarity calculation
 func (q *Queries) GetChunksWithEmbeddings(ctx context.Context, userID sql.NullString) ([]GetChunksWithEmbeddingsRow, error) {
 	rows, err := q.db.QueryContext(ctx, GetChunksWithEmbeddings, userID)
 	if err != nil {
@@ -636,6 +646,7 @@ func (q *Queries) GetChunksWithEmbeddings(ctx context.Context, userID sql.NullSt
 		var i GetChunksWithEmbeddingsRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.Text,
 			&i.Metadata,
 			&i.ChunkIndex,
 			&i.Type,
@@ -659,6 +670,7 @@ func (q *Queries) GetChunksWithEmbeddings(ctx context.Context, userID sql.NullSt
 const GetChunksWithEmbeddingsByFileIds = `-- name: GetChunksWithEmbeddingsByFileIds :many
 SELECT 
     c.id,
+    c.text,
     c.metadata,
     c.chunk_index,
     c.type,
@@ -680,6 +692,7 @@ type GetChunksWithEmbeddingsByFileIdsParams struct {
 
 type GetChunksWithEmbeddingsByFileIdsRow struct {
 	ID             string         `json:"id"`
+	Text           sql.NullString `json:"text"`
 	Metadata       sql.NullString `json:"metadata"`
 	ChunkIndex     sql.NullInt64  `json:"chunkIndex"`
 	Type           sql.NullString `json:"type"`
@@ -688,8 +701,6 @@ type GetChunksWithEmbeddingsByFileIdsRow struct {
 	FileName       sql.NullString `json:"fileName"`
 }
 
-// DEPRECATED: Use chromem VectorSearchService instead
-// This query kept for backward compatibility / fallback only
 func (q *Queries) GetChunksWithEmbeddingsByFileIds(ctx context.Context, arg GetChunksWithEmbeddingsByFileIdsParams) ([]GetChunksWithEmbeddingsByFileIdsRow, error) {
 	rows, err := q.db.QueryContext(ctx, GetChunksWithEmbeddingsByFileIds, arg.FileID, arg.UserID)
 	if err != nil {
@@ -701,6 +712,7 @@ func (q *Queries) GetChunksWithEmbeddingsByFileIds(ctx context.Context, arg GetC
 		var i GetChunksWithEmbeddingsByFileIdsRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.Text,
 			&i.Metadata,
 			&i.ChunkIndex,
 			&i.Type,
@@ -770,7 +782,7 @@ func (q *Queries) GetEmbeddingByChunk(ctx context.Context, arg GetEmbeddingByChu
 }
 
 const GetFileChunks = `-- name: GetFileChunks :many
-SELECT c.id, c.abstract, c.metadata, c.chunk_index, c.type, c.client_id, c.user_id, c.created_at, c.updated_at FROM chunks c
+SELECT c.id, c.text, c.abstract, c.metadata, c.chunk_index, c.type, c.client_id, c.user_id, c.created_at, c.updated_at FROM chunks c
 INNER JOIN file_chunks fc ON c.id = fc.chunk_id
 WHERE fc.file_id = ? AND fc.user_id = ?
 ORDER BY c.chunk_index ASC
@@ -800,6 +812,7 @@ func (q *Queries) GetFileChunks(ctx context.Context, arg GetFileChunksParams) ([
 		var i Chunk
 		if err := rows.Scan(
 			&i.ID,
+			&i.Text,
 			&i.Abstract,
 			&i.Metadata,
 			&i.ChunkIndex,
@@ -825,6 +838,7 @@ func (q *Queries) GetFileChunks(ctx context.Context, arg GetFileChunksParams) ([
 const GetFileChunksWithMetadata = `-- name: GetFileChunksWithMetadata :many
 SELECT 
     c.id,
+    c.text,
     c.abstract,
     c.metadata,
     c.chunk_index,
@@ -847,6 +861,7 @@ type GetFileChunksWithMetadataParams struct {
 
 type GetFileChunksWithMetadataRow struct {
 	ID         string         `json:"id"`
+	Text       sql.NullString `json:"text"`
 	Abstract   sql.NullString `json:"abstract"`
 	Metadata   sql.NullString `json:"metadata"`
 	ChunkIndex sql.NullInt64  `json:"chunkIndex"`
@@ -855,7 +870,6 @@ type GetFileChunksWithMetadataRow struct {
 	UpdatedAt  int64          `json:"updatedAt"`
 }
 
-// NOTE: 'text' field removed - fetch from chromem if needed
 func (q *Queries) GetFileChunksWithMetadata(ctx context.Context, arg GetFileChunksWithMetadataParams) ([]GetFileChunksWithMetadataRow, error) {
 	rows, err := q.db.QueryContext(ctx, GetFileChunksWithMetadata,
 		arg.FileID,
@@ -872,6 +886,7 @@ func (q *Queries) GetFileChunksWithMetadata(ctx context.Context, arg GetFileChun
 		var i GetFileChunksWithMetadataRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.Text,
 			&i.Abstract,
 			&i.Metadata,
 			&i.ChunkIndex,
@@ -1026,7 +1041,7 @@ func (q *Queries) GetRagEvalEvaluationRecord(ctx context.Context, arg GetRagEval
 
 const GetUnstructuredChunk = `-- name: GetUnstructuredChunk :one
 
-SELECT id, metadata, chunk_index, type, parent_id, composite_id, client_id, user_id, file_id, created_at, updated_at FROM unstructured_chunks WHERE id = ? AND user_id = ?
+SELECT id, text, metadata, chunk_index, type, parent_id, composite_id, client_id, user_id, file_id, created_at, updated_at FROM unstructured_chunks WHERE id = ? AND user_id = ?
 `
 
 type GetUnstructuredChunkParams struct {
@@ -1040,6 +1055,7 @@ func (q *Queries) GetUnstructuredChunk(ctx context.Context, arg GetUnstructuredC
 	var i UnstructuredChunk
 	err := row.Scan(
 		&i.ID,
+		&i.Text,
 		&i.Metadata,
 		&i.ChunkIndex,
 		&i.Type,
@@ -1079,7 +1095,7 @@ func (q *Queries) LinkFileToChunk(ctx context.Context, arg LinkFileToChunkParams
 }
 
 const ListChunks = `-- name: ListChunks :many
-SELECT id, abstract, metadata, chunk_index, type, client_id, user_id, created_at, updated_at FROM chunks
+SELECT id, text, abstract, metadata, chunk_index, type, client_id, user_id, created_at, updated_at FROM chunks
 WHERE user_id = ?
 ORDER BY created_at DESC
 LIMIT ? OFFSET ?
@@ -1102,6 +1118,7 @@ func (q *Queries) ListChunks(ctx context.Context, arg ListChunksParams) ([]Chunk
 		var i Chunk
 		if err := rows.Scan(
 			&i.ID,
+			&i.Text,
 			&i.Abstract,
 			&i.Metadata,
 			&i.ChunkIndex,
@@ -1292,7 +1309,7 @@ func (q *Queries) ListRagEvalEvaluationsByDataset(ctx context.Context, arg ListR
 }
 
 const ListUnstructuredChunksByFile = `-- name: ListUnstructuredChunksByFile :many
-SELECT id, metadata, chunk_index, type, parent_id, composite_id, client_id, user_id, file_id, created_at, updated_at FROM unstructured_chunks
+SELECT id, text, metadata, chunk_index, type, parent_id, composite_id, client_id, user_id, file_id, created_at, updated_at FROM unstructured_chunks
 WHERE file_id = ? AND user_id = ?
 ORDER BY chunk_index ASC
 `
@@ -1313,6 +1330,7 @@ func (q *Queries) ListUnstructuredChunksByFile(ctx context.Context, arg ListUnst
 		var i UnstructuredChunk
 		if err := rows.Scan(
 			&i.ID,
+			&i.Text,
 			&i.Metadata,
 			&i.ChunkIndex,
 			&i.Type,
@@ -1355,14 +1373,16 @@ func (q *Queries) UnlinkFileFromChunk(ctx context.Context, arg UnlinkFileFromChu
 
 const UpdateChunk = `-- name: UpdateChunk :one
 UPDATE chunks
-SET abstract = ?,
+SET text = ?,
+    abstract = ?,
     metadata = ?,
     updated_at = ?
 WHERE id = ? AND user_id = ?
-RETURNING id, abstract, metadata, chunk_index, type, client_id, user_id, created_at, updated_at
+RETURNING id, text, abstract, metadata, chunk_index, type, client_id, user_id, created_at, updated_at
 `
 
 type UpdateChunkParams struct {
+	Text      sql.NullString `json:"text"`
 	Abstract  sql.NullString `json:"abstract"`
 	Metadata  sql.NullString `json:"metadata"`
 	UpdatedAt int64          `json:"updatedAt"`
@@ -1370,9 +1390,9 @@ type UpdateChunkParams struct {
 	UserID    sql.NullString `json:"userId"`
 }
 
-// NOTE: 'text' field removed - stored in chromem only
 func (q *Queries) UpdateChunk(ctx context.Context, arg UpdateChunkParams) (Chunk, error) {
 	row := q.db.QueryRowContext(ctx, UpdateChunk,
+		arg.Text,
 		arg.Abstract,
 		arg.Metadata,
 		arg.UpdatedAt,
@@ -1382,6 +1402,7 @@ func (q *Queries) UpdateChunk(ctx context.Context, arg UpdateChunkParams) (Chunk
 	var i Chunk
 	err := row.Scan(
 		&i.ID,
+		&i.Text,
 		&i.Abstract,
 		&i.Metadata,
 		&i.ChunkIndex,

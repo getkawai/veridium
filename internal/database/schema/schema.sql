@@ -292,10 +292,9 @@ CREATE TABLE IF NOT EXISTS messages_files (
 );
 
 -- Chunks table (RAG)
--- NOTE: 'text' field removed - stored in chromem vector database only
--- SQLite stores only metadata and relations
 CREATE TABLE IF NOT EXISTS chunks (
   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))),2) || '-' || substr('89ab',abs(random()) % 4 + 1, 1) || substr(lower(hex(randomblob(2))),2) || '-' || lower(hex(randomblob(6)))),
+  text TEXT,
   abstract TEXT,
   metadata TEXT, -- JSON as text
   chunk_index INTEGER,
@@ -308,10 +307,9 @@ CREATE TABLE IF NOT EXISTS chunks (
 );
 
 -- Unstructured chunks
--- NOTE: 'text' field removed - stored in chromem vector database only
--- SQLite stores only metadata and relations
 CREATE TABLE IF NOT EXISTS unstructured_chunks (
   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))),2) || '-' || substr('89ab',abs(random()) % 4 + 1, 1) || substr(lower(hex(randomblob(2))),2) || '-' || lower(hex(randomblob(6)))),
+  text TEXT,
   metadata TEXT, -- JSON as text
   chunk_index INTEGER,
   type TEXT,

@@ -561,7 +561,7 @@ func (q *Queries) GetMessageByToolCallId(ctx context.Context, arg GetMessageByTo
 }
 
 const GetMessageChunks = `-- name: GetMessageChunks :many
-SELECT c.id, c.abstract, c.metadata, c.chunk_index, c.type, c.client_id, c.user_id, c.created_at, c.updated_at FROM chunks c
+SELECT c.id, c.text, c.abstract, c.metadata, c.chunk_index, c.type, c.client_id, c.user_id, c.created_at, c.updated_at FROM chunks c
 INNER JOIN message_chunks mc ON c.id = mc.chunk_id
 WHERE mc.message_id = ? AND mc.user_id = ?
 `
@@ -582,6 +582,7 @@ func (q *Queries) GetMessageChunks(ctx context.Context, arg GetMessageChunksPara
 		var i Chunk
 		if err := rows.Scan(
 			&i.ID,
+			&i.Text,
 			&i.Abstract,
 			&i.Metadata,
 			&i.ChunkIndex,
@@ -759,6 +760,7 @@ SELECT
     mqc.message_id,
     mqc.similarity,
     c.id,
+    c.text,
     f.id as file_id,
     f.name as filename,
     f.file_type,
@@ -779,13 +781,13 @@ type GetMessageQueryChunksRow struct {
 	MessageID  sql.NullString `json:"messageId"`
 	Similarity sql.NullInt64  `json:"similarity"`
 	ID         sql.NullString `json:"id"`
+	Text       sql.NullString `json:"text"`
 	FileID     sql.NullString `json:"fileId"`
 	Filename   sql.NullString `json:"filename"`
 	FileType   sql.NullString `json:"fileType"`
 	FileUrl    sql.NullString `json:"fileUrl"`
 }
 
-// NOTE: 'text' field removed - fetch from chromem if needed
 func (q *Queries) GetMessageQueryChunks(ctx context.Context, arg GetMessageQueryChunksParams) ([]GetMessageQueryChunksRow, error) {
 	query := GetMessageQueryChunks
 	var queryParams []interface{}
@@ -810,6 +812,7 @@ func (q *Queries) GetMessageQueryChunks(ctx context.Context, arg GetMessageQuery
 			&i.MessageID,
 			&i.Similarity,
 			&i.ID,
+			&i.Text,
 			&i.FileID,
 			&i.Filename,
 			&i.FileType,
