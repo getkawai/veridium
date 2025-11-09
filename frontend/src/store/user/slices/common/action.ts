@@ -21,7 +21,7 @@ const GET_USER_STATE_KEY = 'initUserState';
 export interface CommonAction {
   refreshUserState: () => Promise<void>;
   updateAvatar: (avatar: string) => Promise<void>;
-  useCheckTrace: (shouldFetch: boolean) => void;
+  internal_checkTrace: (...) => Promise<void>;
   useInitUserState: (
     isLogin: boolean | undefined,
     serverConfig: GlobalServerConfig,
@@ -47,7 +47,7 @@ export const createCommonSlice: StateCreator<
     await get().refreshUserState();
   },
 
-  useCheckTrace: (shouldFetch) =>
+  internal_checkTrace: (shouldFetch) =>
     useSWR<boolean>(
       shouldFetch ? 'checkTrace' : null,
       () => {

@@ -1,6 +1,5 @@
 import { chainSummaryGenerationTitle } from '@/prompts';
 import isEqual from 'fast-deep-equal';
-import { useEffect } from 'react';
 import { StateCreator } from 'zustand/vanilla';
 
 import { LOADING_FLAT } from '@/const/message';
@@ -25,7 +24,7 @@ const n = setNamespace('generationTopic');
 export interface GenerationTopicAction {
   createGenerationTopic: (prompts: string[]) => Promise<string>;
   removeGenerationTopic: (id: string) => Promise<void>;
-  useFetchGenerationTopics: (enabled: boolean) => void;
+  internal_fetchGenerationTopics: (...) => Promise<void>;
   summaryGenerationTopicTitle: (topicId: string, prompts: string[]) => Promise<string>;
   refreshGenerationTopics: () => Promise<void>;
   switchGenerationTopic: (topicId: string) => void;
@@ -216,7 +215,7 @@ export const createGenerationTopicSlice: StateCreator<
     );
   },
 
-  useFetchGenerationTopics: (enabled) =>
+  internal_fetchGenerationTopics: (enabled) =>
     useClientDataSWR<ImageGenerationTopic[]>(
       enabled ? [FETCH_GENERATION_TOPICS_KEY] : null,
       () => generationTopicService.getAllGenerationTopics(),

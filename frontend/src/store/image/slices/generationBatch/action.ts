@@ -1,6 +1,5 @@
 import { isEqual } from 'lodash-es';
 import { useRef } from 'react';
-import { useEffect } from 'react';
 import { StateCreator } from 'zustand';
 
 import { GetGenerationStatusResult } from '@/types/generation-types';
@@ -34,13 +33,13 @@ export interface GenerationBatchAction {
   removeGenerationBatch: (batchId: string, topicId: string) => Promise<void>;
   internal_deleteGenerationBatch: (batchId: string, topicId: string) => Promise<void>;
   refreshGenerationBatches: () => Promise<void>;
-  useCheckGenerationStatus: (
+  internal_checkGenerationStatus: (
     generationId: string,
     asyncTaskId: string,
     topicId: string,
     enable?: boolean,
   ) => void;
-  useFetchGenerationBatches: (topicId?: string | null) => void;
+  internal_fetchGenerationBatches: (...) => Promise<void>;
 }
 
 // ====== action implementation ====== //
@@ -169,7 +168,7 @@ export const createGenerationBatchSlice: StateCreator<
     }
   },
 
-  useFetchGenerationBatches: (topicId) =>
+  internal_fetchGenerationBatches: (topicId) =>
     useClientDataSWR<GenerationBatch[]>(
       topicId ? [SWR_USE_FETCH_GENERATION_BATCHES, topicId] : null,
       async ([, topicId]: [string, string]) => {
@@ -196,7 +195,7 @@ export const createGenerationBatchSlice: StateCreator<
       },
     ),
 
-  useCheckGenerationStatus: (generationId, asyncTaskId, topicId, enable = true) => {
+  internal_checkGenerationStatus: (generationId, asyncTaskId, topicId, enable = true) => {
     const requestCountRef = useRef(0);
     const isErrorRef = useRef(false);
 

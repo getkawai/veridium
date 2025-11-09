@@ -52,7 +52,7 @@ export interface ModelListAction {
 
   updateKeyVaultSettings: (key: string, config: any) => Promise<void>;
 
-  useFetchProviderModelList: (
+  internal_fetchProviderModelList: (
     provider: GlobalLLMProviderKey,
     enabledAutoFetch: boolean,
   ) => void;
@@ -196,7 +196,7 @@ export const createModelListSlice: StateCreator<
     await get().setSettings({ keyVaults: { [provider]: config } });
   },
 
-  useFetchProviderModelList: (provider, enabledAutoFetch) =>
+  internal_fetchProviderModelList: (provider, enabledAutoFetch) =>
     useSWR<ChatModelCard[] | undefined>(
       [provider, enabledAutoFetch],
       async ([p]) => {

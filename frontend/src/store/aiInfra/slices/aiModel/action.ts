@@ -5,7 +5,6 @@ import {
   CreateAiModelParams,
   ToggleAiModelEnableParams,
 } from '@/model-bank';
-import { useEffect } from 'react';
 import { StateCreator } from 'zustand/vanilla';
 
 import { aiModelService } from '@/services/aiModel';
@@ -31,7 +30,7 @@ export interface AiModelAction {
   ) => Promise<void>;
   updateAiModelsSort: (providerId: string, items: AiModelSortMap[]) => Promise<void>;
 
-  useFetchAiProviderModels: (id: string) => void;
+  internal_fetchAiProviderModels: (...) => Promise<void>;
 }
 
 export const createAiModelSlice: StateCreator<
@@ -145,7 +144,7 @@ export const createAiModelSlice: StateCreator<
     await get().refreshAiModelList();
   },
 
-  useFetchAiProviderModels: (id) => {
+  internal_fetchAiProviderModels: (id) => {
     useEffect(() => {
       if (!id) return;
 

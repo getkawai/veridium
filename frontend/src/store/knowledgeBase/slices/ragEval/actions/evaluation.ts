@@ -1,5 +1,4 @@
 import { CreateNewEvalEvaluation, RAGEvalDataSetItem } from '@/types';
-import { useEffect } from 'react';
 import { StateCreator } from 'zustand/vanilla';
 
 import { ragEvalService } from '@/services/ragEval';
@@ -11,7 +10,7 @@ export interface RAGEvalEvaluationAction {
   refreshEvaluationList: () => Promise<void>;
   removeEvaluation: (id: number) => Promise<void>;
   runEvaluation: (id: number) => Promise<void>;
-  useFetchEvaluationList: (knowledgeBaseId: string) => void;
+  internal_fetchEvaluationList: (...) => Promise<void>;
 }
 
 export const createRagEvalEvaluationSlice: StateCreator<
@@ -41,7 +40,7 @@ export const createRagEvalEvaluationSlice: StateCreator<
     await ragEvalService.startEvaluationTask(id);
   },
 
-  useFetchEvaluationList: (knowledgeBaseId) => {
+  internal_fetchEvaluationList: (knowledgeBaseId) => {
     useEffect(() => {
       if (!knowledgeBaseId) return;
 

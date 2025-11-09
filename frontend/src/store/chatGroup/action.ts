@@ -1,6 +1,5 @@
 import isEqual from 'fast-deep-equal';
 import { produce } from 'immer';
-import { useEffect } from 'react';
 import { StateCreator } from 'zustand/vanilla';
 
 import { INBOX_SESSION_ID } from '@/const/session';
@@ -350,7 +349,7 @@ export const chatGroupAction: StateCreator<
       await get().internal_refreshGroups();
     },
 
-    useFetchGroupDetail: (enabled, groupId) => {
+    internal_fetchGroupDetail: (enabled, groupId) => {
       useEffect(() => {
         if (!enabled || !groupId) return;
 
@@ -378,7 +377,7 @@ export const chatGroupAction: StateCreator<
       }, [enabled, groupId]);
     },
 
-    useFetchGroups: (enabled, isLogin) => {
+    internal_fetchGroups: (enabled, isLogin) => {
       useEffect(() => {
         if (!enabled) return;
 

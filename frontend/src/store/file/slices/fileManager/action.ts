@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { StateCreator } from 'zustand/vanilla';
 
 import { FILE_UPLOAD_BLACKLIST, MAX_UPLOAD_FILE_COUNT } from '@/const/file';
@@ -32,8 +31,8 @@ export interface FileManageAction {
   toggleEmbeddingIds: (ids: string[], loading?: boolean) => void;
   toggleParsingIds: (ids: string[], loading?: boolean) => void;
 
-  useFetchFileItem: (id?: string) => void;
-  useFetchFileManage: (params: QueryFileListParams) => void;
+  internal_fetchFileItem: (...) => Promise<void>;
+  internal_fetchFileManage: (...) => Promise<void>;
 }
 
 export const createFileManageSlice: StateCreator<
@@ -224,7 +223,7 @@ export const createFileManageSlice: StateCreator<
     });
   },
 
-  useFetchFileItem: (id) => {
+  internal_fetchFileItem: (id) => {
     useEffect(() => {
       if (!id) return;
 
@@ -259,7 +258,7 @@ export const createFileManageSlice: StateCreator<
     }, [id]);
   },
 
-  useFetchFileManage: (params) => {
+  internal_fetchFileManage: (params) => {
     useEffect(() => {
       const fetchFileList = async () => {
         try {

@@ -4,7 +4,6 @@ import {
   RAGEvalDataSetItem,
   insertEvalDatasetRecordSchema,
 } from '@/types';
-import { useEffect } from 'react';
 import { StateCreator } from 'zustand/vanilla';
 
 import { notification } from '@/components/AntdStaticMethods';
@@ -20,8 +19,8 @@ export interface RAGEvalDatasetAction {
   importDataset: (file: File, datasetId: number) => Promise<void>;
   refreshDatasetList: () => Promise<void>;
   removeDataset: (id: number) => Promise<void>;
-  useFetchDatasetRecords: (datasetId: number | null) => void;
-  useFetchDatasets: (knowledgeBaseId: string) => void;
+  internal_fetchDatasetRecords: (...) => Promise<void>;
+  internal_fetchDatasets: (...) => Promise<void>;
 }
 
 export const createRagEvalDatasetSlice: StateCreator<
@@ -67,12 +66,12 @@ export const createRagEvalDatasetSlice: StateCreator<
     await ragEvalService.removeDataset(id);
     await get().refreshDatasetList();
   },
-  useFetchDatasetRecords: (datasetId) =>
+  internal_fetchDatasetRecords: (datasetId) =>
     useClientDataSWR<EvalDatasetRecord[]>(
       !!datasetId ? [FETCH_DATASET_RECORD_KEY, datasetId] : null,
       () => ragEvalService.getDatasetRecords(datasetId!),
     ),
-  useFetchDatasets: (knowledgeBaseId) =>
+  internal_fetchDatasets: (knowledgeBaseId) =>
     useClientDataSWR<RAGEvalDataSetItem[]>(
       [FETCH_DATASET_LIST_KEY, knowledgeBaseId],
       () => ragEvalService.getDatasets(knowledgeBaseId),

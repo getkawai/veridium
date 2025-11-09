@@ -1,5 +1,4 @@
 import { produce } from 'immer';
-import { useEffect } from 'react';
 import { StateCreator } from 'zustand/vanilla';
 
 // import { imageGenerationService } from '@/services/textToImage';
@@ -16,7 +15,7 @@ export interface ChatDallEAction {
   text2image: (id: string, data: DallEImageItem[]) => Promise<void>;
   toggleDallEImageLoading: (key: string, value: boolean) => void;
   updateImageItem: (id: string, updater: (data: DallEImageItem[]) => void) => Promise<void>;
-  useFetchDalleImageItem: (id: string) => void;
+  internal_fetchDalleImageItem: (id: string) => Promise<void>;
 }
 
 export const dalleSlice: StateCreator<
@@ -102,40 +101,34 @@ export const dalleSlice: StateCreator<
     await get().internal_updateMessageContent(id, JSON.stringify(nextContent));
   },
 
-  useFetchDalleImageItem: (id) => {
-    useEffect(() => {
-      if (!id) return;
+  internal_fetchDalleImageItem: async (id) => {
+    if (!id) return;
 
-      const fetchDalleImageItem = async () => {
-        try {
-          // Dummy implementation for UI focus
-          console.log('Fetching DALL-E image item:', id);
+    try {
+      // Dummy implementation for UI focus
+      console.log('Fetching DALL-E image item:', id);
 
-          const mockItem = {
-            id,
-            name: `Mock DALL-E Image ${id.slice(0, 8)}`,
-            type: 'image/png',
-            size: 2048000,
-            url: `mock://dalle-image/${id}`,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          };
-
-          set(
-            produce((draft) => {
-              if (draft.dalleImageMap[id]) return;
-
-              draft.dalleImageMap[id] = mockItem;
-            }),
-            false,
-            n('useFetchFile'),
-          );
-        } catch (error) {
-          console.error('[useFetchDalleImageItem] Error:', error);
-        }
+      const mockItem = {
+        id,
+        name: `Mock DALL-E Image ${id.slice(0, 8)}`,
+        type: 'image/png',
+        size: 2048000,
+        url: `mock://dalle-image/${id}`,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       };
 
-      fetchDalleImageItem();
-    }, [id]);
+      set(
+        produce((draft) => {
+          if (draft.dalleImageMap[id]) return;
+
+          draft.dalleImageMap[id] = mockItem;
+        }),
+        false,
+        n('internal_fetchDalleImageItem'),
+      );
+    } catch (error) {
+      console.error('[internal_fetchDalleImageItem] Error:', error);
+    }
   },
 });

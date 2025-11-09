@@ -1,6 +1,5 @@
 import isEqual from 'fast-deep-equal';
 import { t } from 'i18next';
-import { useEffect } from 'react';
 import type { PartialDeep } from 'type-fest';
 import { StateCreator } from 'zustand/vanilla';
 
@@ -75,8 +74,8 @@ export interface SessionAction {
 
   updateSearchKeywords: (keywords: string) => void;
 
-  useFetchSessions: (enabled: boolean, isLogin: boolean | undefined) => void;
-  useSearchSessions: (keyword?: string) => void;
+  internal_fetchSessions: (...) => Promise<void>;
+  internal_searchSessions: (...) => Promise<void>;
 
   internal_dispatchSessions: (payload: SessionDispatch) => void;
   internal_updateSession: (id: string, data: Partial<UpdateSessionParams>) => Promise<void>;
@@ -220,7 +219,7 @@ export const createSessionSlice: StateCreator<
     await refreshSessions();
   },
 
-  useFetchSessions: (enabled, isLogin) => {
+  internal_fetchSessions: (enabled, isLogin) => {
     useEffect(() => {
       if (!enabled) return;
 
@@ -282,7 +281,7 @@ export const createSessionSlice: StateCreator<
     }, [enabled, isLogin]);
   },
 
-  useSearchSessions: (keyword) => {
+  internal_searchSessions: (keyword) => {
     useEffect(() => {
       const searchSessions = async () => {
         if (!keyword) return;

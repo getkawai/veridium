@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { StateCreator } from 'zustand/vanilla';
 
 import { knowledgeBaseService } from '@/services/knowledgeBase';
@@ -16,8 +15,8 @@ export interface KnowledgeBaseCrudAction {
   removeKnowledgeBase: (id: string) => Promise<void>;
   updateKnowledgeBase: (id: string, value: CreateKnowledgeBaseParams) => Promise<void>;
 
-  useFetchKnowledgeBaseItem: (id: string) => void;
-  useFetchKnowledgeBaseList: (params?: { suspense?: boolean }) => void;
+  internal_fetchKnowledgeBaseItem: (...) => Promise<void>;
+  internal_fetchKnowledgeBaseList: (...) => Promise<void>;
 }
 
 export const createCrudSlice: StateCreator<
@@ -59,7 +58,7 @@ export const createCrudSlice: StateCreator<
     get().internal_toggleKnowledgeBaseLoading(id, false);
   },
 
-  useFetchKnowledgeBaseItem: (id) =>
+  internal_fetchKnowledgeBaseItem: (id) =>
     useClientDataSWR<KnowledgeBaseItem | undefined>(
       [FETCH_KNOWLEDGE_BASE_ITEM_KEY, id],
       () => knowledgeBaseService.getKnowledgeBaseById(id),
@@ -78,7 +77,7 @@ export const createCrudSlice: StateCreator<
       },
     ),
 
-  useFetchKnowledgeBaseList: (params = {}) =>
+  internal_fetchKnowledgeBaseList: (params = {}) =>
     useClientDataSWR<KnowledgeBaseItem[]>(
       FETCH_KNOWLEDGE_BASE_LIST_KEY,
       () => knowledgeBaseService.getKnowledgeBaseList(),

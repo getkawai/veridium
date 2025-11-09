@@ -1,5 +1,4 @@
 import { Schema, ValidationResult } from '@cfworker/json-schema';
-import { useEffect } from 'react';
 import { StateCreator } from 'zustand/vanilla';
 
 import { MESSAGE_CANCEL_FLAT } from '@/const/message';
@@ -22,7 +21,7 @@ export interface PluginAction {
     settings: Partial<T>,
     options?: { override?: boolean },
   ) => Promise<void>;
-  useCheckPluginsIsInstalled: (enable: boolean, plugins: string[]) => void;
+  internal_checkPluginsIsInstalled: (...) => Promise<void>;
   validatePluginSettings: (identifier: string) => Promise<ValidationResult | undefined>;
 }
 
@@ -77,7 +76,7 @@ export const createPluginSlice: StateCreator<
 
     await get().refreshPlugins();
   },
-  useCheckPluginsIsInstalled: (enable, plugins) => {
+  internal_checkPluginsIsInstalled: (enable, plugins) => {
     useEffect(() => {
       if (!enable || plugins.length === 0) return;
 

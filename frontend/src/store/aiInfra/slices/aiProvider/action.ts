@@ -7,7 +7,6 @@ import {
   LobeDefaultAiModelListItem,
   ModelAbilities,
 } from '@/model-bank';
-import { useEffect } from 'react';
 import { StateCreator } from 'zustand/vanilla';
 import { aiProviderService } from '@/services/aiProvider';
 import { DEFAULT_MODEL_PROVIDER_LIST } from '@/config/modelProviders';
@@ -100,9 +99,9 @@ export interface AiProviderAction {
   updateAiProviderConfig: (id: string, value: UpdateAiProviderConfigParams) => Promise<void>;
   updateAiProviderSort: (items: AiProviderSortMap[]) => Promise<void>;
 
-  useFetchAiProviderItem: (id: string) => void;
-  useFetchAiProviderList: (params?: { enabled?: boolean; suspense?: boolean }) => void;
-  useFetchAiProviderRuntimeState: (isLoginOnInit: boolean | undefined) => void;
+  internal_fetchAiProviderItem: (...) => Promise<void>;
+  internal_fetchAiProviderList: (...) => Promise<void>;
+  internal_fetchAiProviderRuntimeState: (...) => Promise<void>;
 }
 
 export const createAiProviderSlice: StateCreator<
@@ -207,7 +206,7 @@ export const createAiProviderSlice: StateCreator<
     await aiProviderService.updateAiProviderOrder(items);
     await get().refreshAiProviderList();
   },
-  useFetchAiProviderItem: (id) => {
+  internal_fetchAiProviderItem: (id) => {
     useEffect(() => {
       if (!id) return;
 
@@ -226,7 +225,7 @@ export const createAiProviderSlice: StateCreator<
     }, [id]);
   },
 
-  useFetchAiProviderList: (opts) => {
+  internal_fetchAiProviderList: (opts) => {
     useEffect(() => {
       if (opts?.enabled === false) return;
 
@@ -253,7 +252,7 @@ export const createAiProviderSlice: StateCreator<
     }, [opts?.enabled]);
   },
 
-  useFetchAiProviderRuntimeState: (isLogin) => {
+  internal_fetchAiProviderRuntimeState: (isLogin) => {
     useEffect(() => {
       const isAuthLoaded = authSelectors.isLoaded(useUserStore.getState());
       const shouldFetch =
