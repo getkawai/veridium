@@ -102,6 +102,8 @@ func main() {
 		log.Printf("   Database path: %s", vectorDBPath)
 		log.Printf("   Embedding provider: llama.cpp (llama-server)")
 		log.Printf("   Embedding endpoint: http://localhost:8080")
+		log.Printf("   Note: Embedding models auto-download in background")
+		log.Printf("   Note: Use llamaService.StartEmbeddingServer(8080) to start embedding server")
 	}
 
 	// Initialize File Processor service (file parsing + document storage + RAG)

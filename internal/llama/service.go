@@ -95,7 +95,18 @@ func (s *Service) initializeInBackground() {
 	log.Printf("✅ llama-server ready at: %s", serverPath)
 	log.Println("🎉 llama.cpp is ready to use!")
 
-	// Step 3: Auto-start llama-server if not already running
+	// Step 3: Auto-download embedding model (in background)
+	go func() {
+		log.Println("📦 Checking embedding models...")
+		if err := s.embeddingManager.AutoDownloadRecommendedModel(); err != nil {
+			log.Printf("⚠️  Failed to auto-download embedding model: %v", err)
+			log.Println("   Embedding features will require manual model download")
+		} else {
+			log.Println("✅ Embedding model ready!")
+		}
+	}()
+
+	// Step 4: Auto-start llama-server if not already running
 	// Wait a bit for any previous setup to complete
 	time.Sleep(1 * time.Second)
 
@@ -110,14 +121,14 @@ func (s *Service) initializeInBackground() {
 
 		if len(models) == 0 {
 			log.Println("⚠️  No GGUF models found. Starting auto-download...")
-			
+
 			// Auto-download recommended model based on hardware
 			if err := s.AutoDownloadRecommendedModel(); err != nil {
 				log.Printf("⚠️  Failed to auto-download model: %v", err)
 				log.Println("   You can download a model manually later")
-			return
+				return
 			}
-			
+
 			log.Println("✅ Model downloaded successfully!")
 		}
 
@@ -462,4 +473,75 @@ func (s *Service) DownloadEmbeddingModel(modelName string, progressCallback func
 // GetRecommendedEmbeddingModel returns the recommended embedding model
 func (s *Service) GetRecommendedEmbeddingModel() string {
 	return s.embeddingManager.GetRecommendedModel()
+}
+
+// StartEmbeddingServer starts llama-server with an embedding model
+func (s *Service) StartEmbeddingServer(port int) error {
+	s.serverMutex.Lock()
+	defer s.serverMutex.Unlock()
+
+	// Check if server is already running
+	if s.IsServerRunning() {
+		log.Printf("⚠️  llama-server is already running on port %d", s.serverPort)
+		return fmt.Errorf("server already running")
+	}
+
+	// Get embedding model path
+	embMgr := s.embeddingManager
+	downloaded := embMgr.GetDownloadedModels()
+
+	if len(downloaded) == 0 {
+		return fmt.Errorf("no embedding models downloaded")
+	}
+
+	modelPath, err := embMgr.GetModelPath(downloaded[0].Name)
+	if err != nil {
+		return fmt.Errorf("failed to get model path: %w", err)
+	}
+
+	// Get llama-server binary path
+	llamaServer := s.manager.GetServerBinaryPath()
+	if _, err := os.Stat(llamaServer); err != nil {
+		return fmt.Errorf("llama-server not found: %w", err)
+	}
+
+	log.Printf("🚀 Starting llama-server for embeddings...")
+	log.Printf("   Model: %s", downloaded[0].Name)
+	log.Printf("   Port: %d", port)
+
+	// Build command
+	cmd := exec.Command(llamaServer,
+		"-m", modelPath,
+		"--port", fmt.Sprintf("%d", port),
+		"--embedding",
+		"--pooling", "mean",
+		"--embd-normalize", "2",
+		"--ctx-size", "2048",
+		"--batch-size", "512",
+		"--threads", "4",
+	)
+
+	// Set output to logs
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	// Start the server
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start embedding server: %w", err)
+	}
+
+	s.serverProcess = cmd
+	s.serverPort = port
+	s.serverModelPath = modelPath
+
+	// Wait a bit for server to start
+	time.Sleep(2 * time.Second)
+
+	// Verify server is running
+	if !s.IsServerRunning() {
+		return fmt.Errorf("embedding server failed to start")
+	}
+
+	log.Printf("✅ Embedding server started successfully on port %d", port)
+	return nil
 }
