@@ -8,8 +8,6 @@
 import type { 
   User,
   File,
-  Chunk,
-  UnstructuredChunk,
 } from '@@/github.com/kawai-network/veridium/internal/database/generated/models';
 
 // Generation types
@@ -34,15 +32,33 @@ export type NewUser = Omit<User, 'createdAt' | 'updatedAt'> & {
 export type FileItem = File;
 
 // Chunk types
-export type NewChunkItem = Omit<Chunk, 'createdAt' | 'updatedAt' | 'id'> & {
+// Convert Go-generated Chunk to TypeScript-friendly NewChunkItem
+export interface NewChunkItem {
   id?: string;
+  text?: string | null;
+  abstract?: string | null;
+  metadata?: string | null;
+  index?: number;
+  type?: string | null;
+  clientId?: string | null;
+  userId?: string;
   createdAt?: number;
   updatedAt?: number;
-};
+}
 
-export type NewUnstructuredChunkItem = Omit<UnstructuredChunk, 'createdAt' | 'updatedAt' | 'id'> & {
+// Convert Go-generated UnstructuredChunk to TypeScript-friendly NewUnstructuredChunkItem
+export interface NewUnstructuredChunkItem {
   id?: string;
+  text?: string | null;
+  metadata?: string | null;
+  index?: number;
+  type?: string | null;
+  parentId?: string | null;
+  compositeId?: string | null;
+  clientId?: string | null;
+  userId?: string;
+  fileId?: string | null;
   createdAt?: number;
   updatedAt?: number;
-};
+}
 
