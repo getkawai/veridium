@@ -112,7 +112,14 @@ export class GenerationTopicModel {
       });
 
       await this.logger.methodExit('update', { id });
-      return updatedTopic;
+      return {
+        id: updatedTopic.id,
+        userId: updatedTopic.userId,
+        title: getNullableString(updatedTopic.title as any) ?? null,
+        coverUrl: getNullableString(updatedTopic.coverUrl as any) ?? null,
+        createdAt: updatedTopic.createdAt,
+        updatedAt: updatedTopic.updatedAt,
+      };
     } catch (error) {
       await this.logger.error('Failed to update generation topic', { error, id, data });
       await this.showErrorNotification(
@@ -180,7 +187,14 @@ export class GenerationTopicModel {
 
       await this.logger.methodExit('delete', { id, filesCount: filesToDelete.length });
       return {
-        deletedTopic: topic,
+        deletedTopic: {
+          id: topic.id,
+          userId: topic.userId,
+          title: getNullableString(topic.title as any) ?? null,
+          coverUrl: getNullableString(topic.coverUrl as any) ?? null,
+          createdAt: topic.createdAt,
+          updatedAt: topic.updatedAt,
+        },
         filesToDelete,
       };
     } catch (error) {

@@ -6,21 +6,22 @@
  */
 
 import type { 
-  ChatGroup, 
-  ChatGroupsAgent, 
-  GenerationTopic, 
   User,
   File,
   Chunk,
   UnstructuredChunk,
 } from '@@/github.com/kawai-network/veridium/internal/database/generated/models';
 
-// Chat Group types
-export type ChatGroupItem = ChatGroup;
-export type ChatGroupAgentItem = ChatGroupsAgent;
-
 // Generation types
-export type GenerationTopicItem = GenerationTopic;
+// Map GenerationTopic from Go-generated models to TypeScript-friendly types
+export interface GenerationTopicItem {
+  id: string;
+  userId: string;
+  title: string | null;
+  coverUrl: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
 
 // User types  
 export type UserItem = User;
@@ -33,22 +34,13 @@ export type NewUser = Omit<User, 'createdAt' | 'updatedAt'> & {
 export type FileItem = File;
 
 // Chunk types
-export type ChunkItem = Chunk;
 export type NewChunkItem = Omit<Chunk, 'createdAt' | 'updatedAt' | 'id'> & {
   id?: string;
   createdAt?: number;
   updatedAt?: number;
 };
 
-export type UnstructuredChunkItem = UnstructuredChunk;
 export type NewUnstructuredChunkItem = Omit<UnstructuredChunk, 'createdAt' | 'updatedAt' | 'id'> & {
-  id?: string;
-  createdAt?: number;
-  updatedAt?: number;
-};
-
-// New insert types (for backward compatibility)
-export type NewChatGroup = Omit<ChatGroup, 'id' | 'createdAt' | 'updatedAt'> & {
   id?: string;
   createdAt?: number;
   updatedAt?: number;
