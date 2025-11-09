@@ -15,21 +15,24 @@ import (
 
 // Service provides LLM inference using llama.cpp
 type Service struct {
-	manager         *LlamaCppReleaseManager
-	serverProcess   *exec.Cmd
-	serverPort      int
-	serverModelPath string
-	serverMutex     sync.Mutex
+	manager          *LlamaCppReleaseManager
+	embeddingManager *EmbeddingManager // NEW: For embedding models
+	serverProcess    *exec.Cmd
+	serverPort       int
+	serverModelPath  string
+	serverMutex      sync.Mutex
 }
 
 // NewService creates a new llama.cpp service instance
 // Automatically installs llama.cpp and downloads recommended model in background
 func NewService() (*Service, error) {
 	manager := NewLlamaCppReleaseManager()
+	embeddingManager := NewEmbeddingManager() // NEW: Initialize embedding manager
 
 	service := &Service{
-		manager:    manager,
-		serverPort: 8080, // Default port
+		manager:          manager,
+		embeddingManager: embeddingManager,
+		serverPort:       8080, // Default port
 	}
 
 	// Start background initialization
@@ -434,4 +437,29 @@ func (s *Service) GetAvailableModels() ([]string, error) {
 // GetModelsDirectory returns the directory where models are stored
 func (s *Service) GetModelsDirectory() string {
 	return s.manager.GetModelsDirectory()
+}
+
+// GetEmbeddingManager returns the embedding manager
+func (s *Service) GetEmbeddingManager() *EmbeddingManager {
+	return s.embeddingManager
+}
+
+// GetEmbeddingModelsDirectory returns the directory where embedding models are stored
+func (s *Service) GetEmbeddingModelsDirectory() string {
+	return s.embeddingManager.ModelsDir
+}
+
+// GetDownloadedEmbeddingModels returns a list of downloaded embedding models
+func (s *Service) GetDownloadedEmbeddingModels() []*EmbeddingModel {
+	return s.embeddingManager.GetDownloadedModels()
+}
+
+// DownloadEmbeddingModel downloads an embedding model with progress callback
+func (s *Service) DownloadEmbeddingModel(modelName string, progressCallback func(downloaded, total int64)) error {
+	return s.embeddingManager.DownloadModel(modelName, progressCallback)
+}
+
+// GetRecommendedEmbeddingModel returns the recommended embedding model
+func (s *Service) GetRecommendedEmbeddingModel() string {
+	return s.embeddingManager.GetRecommendedModel()
 }

@@ -60,17 +60,27 @@ func NewVectorSearchService(persistPath string, embeddingProvider string, embedd
 			embeddingModel = "nomic-embed-text"
 		}
 		embedFunc = chromem.NewEmbeddingFuncOllama(
-			"http://localhost:11434/api/embeddings",
 			embeddingModel,
+			"http://localhost:11434/api",
 		)
+	case "llama", "llama.cpp", "llamacpp":
+		// Use llama.cpp (llama-server) for embeddings
+		// Assumes llama-server is running on localhost:8080 with an embedding model
+		baseURL := "http://localhost:8080"
+		if embeddingModel != "" {
+			// Allow custom base URL via embeddingModel parameter
+			// e.g., "http://localhost:8081" for custom port
+			baseURL = embeddingModel
+		}
+		embedFunc = chromem.NewEmbeddingFuncLlama(baseURL)
 	case "openai":
 		if embeddingModel == "" {
 			embeddingModel = "text-embedding-3-small"
 		}
 		embedFunc = chromem.NewEmbeddingFuncDefault() // Uses OpenAI by default
 	default:
-		// Default to OpenAI
-		embedFunc = chromem.NewEmbeddingFuncDefault()
+		// Default to llama.cpp (local, no API key needed)
+		embedFunc = chromem.NewEmbeddingFuncLlama("http://localhost:8080")
 	}
 
 	return &VectorSearchService{

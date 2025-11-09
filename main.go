@@ -93,14 +93,15 @@ func main() {
 		userConfigDir = "."
 	}
 	vectorDBPath := filepath.Join(userConfigDir, "veridium", "vector-db")
-	vectorSearchService, err := services.NewVectorSearchService(vectorDBPath, "ollama", "nomic-embed-text")
+	vectorSearchService, err := services.NewVectorSearchService(vectorDBPath, "llama", "http://localhost:8080")
 	if err != nil {
 		log.Printf("⚠️  Warning: Failed to initialize Vector Search service: %v", err)
 		log.Printf("    Semantic search features will use fallback mode.")
 	} else {
 		log.Printf("✅ Vector Search service initialized (chromem)")
 		log.Printf("   Database path: %s", vectorDBPath)
-		log.Printf("   Embedding model: nomic-embed-text (Ollama)")
+		log.Printf("   Embedding provider: llama.cpp (llama-server)")
+		log.Printf("   Embedding endpoint: http://localhost:8080")
 	}
 
 	// Initialize File Processor service (file parsing + document storage + RAG)
