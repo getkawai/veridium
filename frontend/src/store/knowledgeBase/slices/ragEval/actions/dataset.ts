@@ -20,8 +20,8 @@ export interface RAGEvalDatasetAction {
   importDataset: (file: File, datasetId: number) => Promise<void>;
   refreshDatasetList: () => Promise<void>;
   removeDataset: (id: number) => Promise<void>;
-  useFetchDatasetRecords: (datasetId: number | null) => SWRResponse<EvalDatasetRecord[]>;
-  useFetchDatasets: (knowledgeBaseId: string) => SWRResponse<RAGEvalDataSetItem[]>;
+  useFetchDatasetRecords: (datasetId: number | null) => void;
+  useFetchDatasets: (knowledgeBaseId: string) => void;
 }
 
 export const createRagEvalDatasetSlice: StateCreator<

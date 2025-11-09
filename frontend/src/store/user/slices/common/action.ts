@@ -1,4 +1,3 @@
-import useSWR, { SWRResponse, mutate } from 'swr';
 import type { PartialDeep } from 'type-fest';
 import type { StateCreator } from 'zustand/vanilla';
 
@@ -22,14 +21,14 @@ const GET_USER_STATE_KEY = 'initUserState';
 export interface CommonAction {
   refreshUserState: () => Promise<void>;
   updateAvatar: (avatar: string) => Promise<void>;
-  useCheckTrace: (shouldFetch: boolean) => SWRResponse;
+  useCheckTrace: (shouldFetch: boolean) => void;
   useInitUserState: (
     isLogin: boolean | undefined,
     serverConfig: GlobalServerConfig,
     options?: {
       onSuccess: (data: UserInitializationState) => void;
     },
-  ) => SWRResponse;
+  ) => void;
 }
 
 export const createCommonSlice: StateCreator<

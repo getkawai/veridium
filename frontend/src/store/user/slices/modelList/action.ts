@@ -7,7 +7,6 @@ import type {
 } from '@/types';
 import { produce } from 'immer';
 import { ModelProvider } from '@/model-bank';
-import useSWR, { SWRResponse } from 'swr';
 import type { StateCreator } from 'zustand/vanilla';
 
 import { DEFAULT_MODEL_PROVIDER_LIST } from '@/config/modelProviders';
@@ -56,7 +55,7 @@ export interface ModelListAction {
   useFetchProviderModelList: (
     provider: GlobalLLMProviderKey,
     enabledAutoFetch: boolean,
-  ) => SWRResponse;
+  ) => void;
 }
 
 export const createModelListSlice: StateCreator<

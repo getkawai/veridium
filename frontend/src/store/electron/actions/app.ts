@@ -18,7 +18,7 @@ export interface ElectronAppAction {
    * Initializes the basic Electron application state, including system info and special paths.
    * Should be called once when the application starts.
    */
-  useInitElectronAppState: () => SWRResponse<ElectronAppState>;
+  useInitElectronAppState: () => void;
 }
 
 // ======== Action Implementation ======== //

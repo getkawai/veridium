@@ -16,8 +16,8 @@ export interface KnowledgeBaseCrudAction {
   removeKnowledgeBase: (id: string) => Promise<void>;
   updateKnowledgeBase: (id: string, value: CreateKnowledgeBaseParams) => Promise<void>;
 
-  useFetchKnowledgeBaseItem: (id: string) => SWRResponse<KnowledgeBaseItem | undefined>;
-  useFetchKnowledgeBaseList: (params?: { suspense?: boolean }) => SWRResponse<KnowledgeBaseItem[]>;
+  useFetchKnowledgeBaseItem: (id: string) => void;
+  useFetchKnowledgeBaseList: (params?: { suspense?: boolean }) => void;
 }
 
 export const createCrudSlice: StateCreator<

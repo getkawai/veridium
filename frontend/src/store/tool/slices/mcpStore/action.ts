@@ -4,7 +4,6 @@ import { TRPCClientError } from '@/types/trpc';
 import { produce } from 'immer';
 import { uniqBy } from 'lodash-es';
 import { gt, valid } from 'semver';
-import useSWR, { SWRResponse } from 'swr';
 import { StateCreator } from 'zustand/vanilla';
 
 import { CURRENT_VERSION } from '@/const/version';
@@ -50,7 +49,7 @@ export interface PluginMCPStoreAction {
   testMcpConnection: (params: McpConnectionParams) => Promise<TestMcpConnectionResult>;
   uninstallMCPPlugin: (identifier: string) => Promise<void>;
   updateMCPInstallProgress: (identifier: string, progress: MCPInstallProgress | undefined) => void;
-  useFetchMCPPluginList: (params: MCPPluginListParams) => SWRResponse<PluginListResponse>;
+  useFetchMCPPluginList: (params: MCPPluginListParams) => void;
 }
 
 export const createMCPPluginStoreSlice: StateCreator<

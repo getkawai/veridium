@@ -2,7 +2,6 @@ import { LobeTool } from '@/types';
 import { t } from 'i18next';
 import { produce } from 'immer';
 import { uniqBy } from 'lodash-es';
-import useSWR, { SWRResponse, mutate } from 'swr';
 import { StateCreator } from 'zustand/vanilla';
 
 import { notification } from '@/components/AntdStaticMethods';
@@ -38,9 +37,9 @@ export interface PluginStoreAction {
     progress: PluginInstallProgress | undefined,
   ) => void;
 
-  useFetchInstalledPlugins: (enabled: boolean) => SWRResponse<LobeTool[]>;
-  useFetchPluginList: (params: PluginQueryParams) => SWRResponse<PluginListResponse>;
-  useFetchPluginStore: () => SWRResponse<DiscoverPluginItem[]>;
+  useFetchInstalledPlugins: (enabled: boolean) => void;
+  useFetchPluginList: (params: PluginQueryParams) => void;
+  useFetchPluginStore: () => void;
 }
 
 export const createPluginStoreSlice: StateCreator<

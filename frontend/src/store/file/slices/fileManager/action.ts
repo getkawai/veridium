@@ -32,11 +32,9 @@ export interface FileManageAction {
   toggleEmbeddingIds: (ids: string[], loading?: boolean) => void;
   toggleParsingIds: (ids: string[], loading?: boolean) => void;
 
-  useFetchFileItem: (id?: string) => SWRResponse<FileListItem | undefined>;
-  useFetchFileManage: (params: QueryFileListParams) => SWRResponse<FileListItem[]>;
+  useFetchFileItem: (id?: string) => void;
+  useFetchFileManage: (params: QueryFileListParams) => void;
 }
-
-const FETCH_FILE_LIST_KEY = 'useFetchFileManage';
 
 export const createFileManageSlice: StateCreator<
   FileStore,
@@ -226,89 +224,102 @@ export const createFileManageSlice: StateCreator<
     });
   },
 
-  useFetchFileItem: (id) =>
-    useClientDataSWR<FileListItem | undefined>(
-      !id ? null : ['useFetchFileItem', id],
-      () => {
-        // Dummy implementation for UI focus
-        console.log('Fetching file item:', id);
-        return Promise.resolve(id ? {
-          id,
-          name: `Mock File ${id.slice(0, 8)}`,
-          fileType: 'application/pdf',
-          size: 1024000,
-          url: `mock://file/${id}`,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          chunkCount: 10,
-          chunkingError: null,
-          chunkingStatus: AsyncTaskStatus.Success,
-          embeddingError: null,
-          embeddingStatus: AsyncTaskStatus.Success,
-          finishEmbedding: true,
-        } : undefined);
-      },
-    ),
+  useFetchFileItem: (id) => {
+    useEffect(() => {
+      if (!id) return;
 
-  useFetchFileManage: (params) =>
-    useClientDataSWR<FileListItem[]>(
-      [FETCH_FILE_LIST_KEY, params],
-      () => {
-        // Dummy implementation for UI focus
-        console.log('Fetching file list:', params);
-        const mockFiles: FileListItem[] = [
-          {
-            id: 'mock-1',
-            name: 'Sample Document.pdf',
+      const fetchFileItem = async () => {
+        try {
+          // Dummy implementation for UI focus
+          console.log('Fetching file item:', id);
+          const fileItem: FileListItem | undefined = id ? {
+            id,
+            name: `Mock File ${id.slice(0, 8)}`,
             fileType: 'application/pdf',
-            size: 2048000,
-            url: 'mock://file/mock-1',
-            createdAt: new Date(Date.now() - 86400000),
-            updatedAt: new Date(Date.now() - 86400000),
-            chunkCount: 25,
-            chunkingError: null,
-            chunkingStatus: AsyncTaskStatus.Success,
-            embeddingError: null,
-            embeddingStatus: AsyncTaskStatus.Success,
-            finishEmbedding: true,
-          },
-          {
-            id: 'mock-2',
-            name: 'Presentation.pptx',
-            fileType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-            size: 5120000,
-            url: 'mock://file/mock-2',
-            createdAt: new Date(Date.now() - 172800000),
-            updatedAt: new Date(Date.now() - 172800000),
-            chunkCount: 15,
-            chunkingError: null,
-            chunkingStatus: AsyncTaskStatus.Success,
-            embeddingError: null,
-            embeddingStatus: AsyncTaskStatus.Processing,
-            finishEmbedding: false,
-          },
-          {
-            id: 'mock-3',
-            name: 'Spreadsheet.xlsx',
-            fileType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             size: 1024000,
-            url: 'mock://file/mock-3',
-            createdAt: new Date(Date.now() - 259200000),
-            updatedAt: new Date(Date.now() - 259200000),
-            chunkCount: 8,
+            url: `mock://file/${id}`,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            chunkCount: 10,
             chunkingError: null,
             chunkingStatus: AsyncTaskStatus.Success,
             embeddingError: null,
             embeddingStatus: AsyncTaskStatus.Success,
             finishEmbedding: true,
-          },
-        ];
-        return Promise.resolve(mockFiles);
-      },
-      {
-        onSuccess: (data) => {
-          set({ fileList: data, queryListParams: params });
-        },
-      },
-    ),
+          } : undefined;
+          
+          // Store the file item if needed
+          // set({ fileItemMap: { ...get().fileItemMap, [id]: fileItem } });
+        } catch (error) {
+          console.error('[useFetchFileItem] Error:', error);
+        }
+      };
+
+      fetchFileItem();
+    }, [id]);
+  },
+
+  useFetchFileManage: (params) => {
+    useEffect(() => {
+      const fetchFileList = async () => {
+        try {
+          // Dummy implementation for UI focus
+          console.log('Fetching file list:', params);
+          const mockFiles: FileListItem[] = [
+            {
+              id: 'mock-1',
+              name: 'Sample Document.pdf',
+              fileType: 'application/pdf',
+              size: 2048000,
+              url: 'mock://file/mock-1',
+              createdAt: new Date(Date.now() - 86400000),
+              updatedAt: new Date(Date.now() - 86400000),
+              chunkCount: 25,
+              chunkingError: null,
+              chunkingStatus: AsyncTaskStatus.Success,
+              embeddingError: null,
+              embeddingStatus: AsyncTaskStatus.Success,
+              finishEmbedding: true,
+            },
+            {
+              id: 'mock-2',
+              name: 'Presentation.pptx',
+              fileType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+              size: 5120000,
+              url: 'mock://file/mock-2',
+              createdAt: new Date(Date.now() - 172800000),
+              updatedAt: new Date(Date.now() - 172800000),
+              chunkCount: 15,
+              chunkingError: null,
+              chunkingStatus: AsyncTaskStatus.Success,
+              embeddingError: null,
+              embeddingStatus: AsyncTaskStatus.Processing,
+              finishEmbedding: false,
+            },
+            {
+              id: 'mock-3',
+              name: 'Spreadsheet.xlsx',
+              fileType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+              size: 1024000,
+              url: 'mock://file/mock-3',
+              createdAt: new Date(Date.now() - 259200000),
+              updatedAt: new Date(Date.now() - 259200000),
+              chunkCount: 8,
+              chunkingError: null,
+              chunkingStatus: AsyncTaskStatus.Success,
+              embeddingError: null,
+              embeddingStatus: AsyncTaskStatus.Success,
+              finishEmbedding: true,
+            },
+          ];
+          
+          set({ fileList: mockFiles, queryListParams: params });
+        } catch (error) {
+          console.error('[useFetchFileManage] Error:', error);
+        }
+      };
+
+      fetchFileList();
+    }, [params]);
+  },
 });

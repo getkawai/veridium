@@ -1,6 +1,5 @@
 import { NetworkProxySettings, ShortcutUpdateResult } from '@/electron-client-ipc';
 import isEqual from 'fast-deep-equal';
-import useSWR, { SWRResponse, mutate } from 'swr';
 import type { StateCreator } from 'zustand/vanilla';
 
 import { desktopSettingsService } from '@/services/electron/settings';
@@ -15,8 +14,8 @@ export interface ElectronSettingsAction {
   refreshProxySettings: () => Promise<void>;
   setProxySettings: (params: Partial<NetworkProxySettings>) => Promise<void>;
   updateDesktopHotkey: (id: string, accelerator: string) => Promise<ShortcutUpdateResult>;
-  useFetchDesktopHotkeys: () => SWRResponse;
-  useGetProxySettings: () => SWRResponse;
+  useFetchDesktopHotkeys: () => void;
+  useGetProxySettings: () => void;
 }
 
 const ELECTRON_PROXY_SETTINGS_KEY = 'electron:getProxySettings';

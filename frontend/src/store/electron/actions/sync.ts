@@ -1,6 +1,5 @@
 import { DataSyncConfig } from '@/electron-client-ipc';
 import isEqual from 'fast-deep-equal';
-import useSWR, { SWRResponse, mutate } from 'swr';
 import type { StateCreator } from 'zustand/vanilla';
 
 import { remoteServerService } from '@/services/electron/remoteServer';
@@ -19,7 +18,7 @@ export interface ElectronRemoteServerAction {
   disconnectRemoteServer: () => Promise<void>;
   refreshServerConfig: () => Promise<void>;
   refreshUserData: () => Promise<void>;
-  useDataSyncConfig: () => SWRResponse;
+  useDataSyncConfig: () => void;
 }
 
 const REMOTE_SERVER_CONFIG_KEY = 'electron:getRemoteServerConfig';

@@ -25,7 +25,7 @@ const n = setNamespace('generationTopic');
 export interface GenerationTopicAction {
   createGenerationTopic: (prompts: string[]) => Promise<string>;
   removeGenerationTopic: (id: string) => Promise<void>;
-  useFetchGenerationTopics: (enabled: boolean) => SWRResponse<ImageGenerationTopic[]>;
+  useFetchGenerationTopics: (enabled: boolean) => void;
   summaryGenerationTopicTitle: (topicId: string, prompts: string[]) => Promise<string>;
   refreshGenerationTopics: () => Promise<void>;
   switchGenerationTopic: (topicId: string) => void;

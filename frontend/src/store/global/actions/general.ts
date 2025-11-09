@@ -25,8 +25,8 @@ export interface GlobalGeneralAction {
   switchLocale: (locale: LocaleMode, params?: { skipBroadcast?: boolean }) => void;
   switchThemeMode: (themeMode: ThemeMode, params?: { skipBroadcast?: boolean }) => void;
   updateSystemStatus: (status: Partial<SystemStatus>, action?: any) => void;
-  useCheckLatestVersion: (enabledCheck?: boolean) => SWRResponse<string>;
-  useInitSystemStatus: () => SWRResponse;
+  useCheckLatestVersion: (enabledCheck?: boolean) => void;
+  useInitSystemStatus: () => void;
 }
 
 export const generalActionSlice: StateCreator<

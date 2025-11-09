@@ -57,7 +57,7 @@ export interface ChatMessageAction {
     messageContextId: string,
     activeTopicId?: string,
     type?: 'session' | 'group',
-  ) => SWRResponse<UIChatMessage[]>;
+  ) => void;
   copyMessage: (id: string, content: string) => Promise<void>;
   refreshMessages: () => Promise<void>;
   replaceMessages: (messages: UIChatMessage[]) => void;

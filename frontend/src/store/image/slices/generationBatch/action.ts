@@ -39,8 +39,8 @@ export interface GenerationBatchAction {
     asyncTaskId: string,
     topicId: string,
     enable?: boolean,
-  ) => SWRResponse<GetGenerationStatusResult>;
-  useFetchGenerationBatches: (topicId?: string | null) => SWRResponse<GenerationBatch[]>;
+  ) => void;
+  useFetchGenerationBatches: (topicId?: string | null) => void;
 }
 
 // ====== action implementation ====== //
