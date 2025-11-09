@@ -1047,6 +1047,12 @@ export function GetGlobalFile(hashID: string): $CancellablePromise<$models.Globa
     });
 }
 
+export function GetGlobalFileByHash(hashID: string): $CancellablePromise<$models.GlobalFile> {
+    return $Call.ByID(535572296, hashID).then(($result: any) => {
+        return $$createType16($result);
+    });
+}
+
 /**
  * Knowledge Bases
  */
@@ -2157,6 +2163,10 @@ export function UpdateGenerationTopic(arg: $models.UpdateGenerationTopicParams):
 
 export function UpdateGlobalFileAccess(arg: $models.UpdateGlobalFileAccessParams): $CancellablePromise<void> {
     return $Call.ByID(3382055242, arg);
+}
+
+export function UpdateGlobalFileAccessTime(arg: $models.UpdateGlobalFileAccessTimeParams): $CancellablePromise<void> {
+    return $Call.ByID(639664843, arg);
 }
 
 export function UpdateKnowledgeBase(arg: $models.UpdateKnowledgeBaseParams): $CancellablePromise<$models.KnowledgeBasis> {

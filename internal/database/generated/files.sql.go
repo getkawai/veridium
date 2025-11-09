@@ -505,6 +505,26 @@ func (q *Queries) GetGlobalFile(ctx context.Context, hashID string) (GlobalFile,
 	return i, err
 }
 
+const GetGlobalFileByHash = `-- name: GetGlobalFileByHash :one
+SELECT hash_id, file_type, size, url, metadata, creator, created_at, accessed_at FROM global_files WHERE hash_id = ?
+`
+
+func (q *Queries) GetGlobalFileByHash(ctx context.Context, hashID string) (GlobalFile, error) {
+	row := q.db.QueryRowContext(ctx, GetGlobalFileByHash, hashID)
+	var i GlobalFile
+	err := row.Scan(
+		&i.HashID,
+		&i.FileType,
+		&i.Size,
+		&i.Url,
+		&i.Metadata,
+		&i.Creator,
+		&i.CreatedAt,
+		&i.AccessedAt,
+	)
+	return i, err
+}
+
 const GetKnowledgeBase = `-- name: GetKnowledgeBase :one
 
 SELECT id, name, description, avatar, type, user_id, client_id, is_public, settings, created_at, updated_at FROM knowledge_bases WHERE id = ? AND user_id = ?
@@ -984,6 +1004,20 @@ type UpdateGlobalFileAccessParams struct {
 
 func (q *Queries) UpdateGlobalFileAccess(ctx context.Context, arg UpdateGlobalFileAccessParams) error {
 	_, err := q.db.ExecContext(ctx, UpdateGlobalFileAccess, arg.AccessedAt, arg.HashID)
+	return err
+}
+
+const UpdateGlobalFileAccessTime = `-- name: UpdateGlobalFileAccessTime :exec
+UPDATE global_files SET accessed_at = ? WHERE hash_id = ?
+`
+
+type UpdateGlobalFileAccessTimeParams struct {
+	AccessedAt int64  `json:"accessedAt"`
+	HashID     string `json:"hashId"`
+}
+
+func (q *Queries) UpdateGlobalFileAccessTime(ctx context.Context, arg UpdateGlobalFileAccessTimeParams) error {
+	_, err := q.db.ExecContext(ctx, UpdateGlobalFileAccessTime, arg.AccessedAt, arg.HashID)
 	return err
 }
 

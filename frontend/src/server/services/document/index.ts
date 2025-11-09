@@ -1,10 +1,8 @@
 import { DB } from '@@/database/sql/models';
-import { loadFile } from '@/file-loaders';
 import debug from 'debug';
 
-import { DocumentModel } from '@/database/models/document';
-import { FileModel } from '@/database/models/file';
 import { LobeDocument } from '@/types/document';
+import { GetDocument, DeleteDocument } from '@@/github.com/kawai-network/veridium/internal/database/generated/queries';
 
 import { FileService } from '../file';
 
@@ -12,55 +10,101 @@ const log = debug('lobe-chat:service:document');
 
 export class DocumentService {
   userId: string;
-  private fileModel: FileModel;
-  private documentModel: DocumentModel;
   private fileService: FileService;
 
   constructor(db: DB, userId: string) {
     this.userId = userId;
-    this.fileModel = new FileModel(db, userId);
     this.fileService = new FileService(db, userId);
-    this.documentModel = new DocumentModel(db, userId);
   }
 
   /**
-   * 解析文件内容
-   *
+   * Parse and save file content (handled in Go backend)
    */
   async parseFile(fileId: string): Promise<LobeDocument> {
     const { filePath, file, cleanup } = await this.fileService.downloadFileToLocal(fileId);
 
     const logPrefix = `[${file.name}]`;
-    log(`${logPrefix} 开始解析文件, 路径: ${filePath}`);
+    log(`${logPrefix} Processing file in Go backend: ${filePath}`);
 
     try {
-      // 使用loadFile加载文件内容
-      const fileDocument = await loadFile(filePath);
+      // Import FileProcessorService dynamically to avoid circular dependencies
+      const { ProcessFileForStorage } = await import('@@/github.com/kawai-network/veridium/fileprocessorservice');
 
-      log(`${logPrefix} 文件解析成功 %O`, {
-        fileType: fileDocument.fileType,
-        size: fileDocument.content.length,
+      // Single Go call: parse + save to database + RAG processing
+      const result = await ProcessFileForStorage(
+        filePath,
+        file.name,
+        file.fileType,
+        this.userId,
+        true, // enableRAG
+      );
+
+      if (!result) {
+        throw new Error('ProcessFileForStorage returned null');
+      }
+
+      log(`${logPrefix} File processed successfully`, {
+        fileId: result.fileId,
+        documentId: result.documentId,
+        chunks: result.chunkIds?.length || 0,
       });
 
-      const document = await this.documentModel.create({
-        content: fileDocument.content,
-        fileId,
-        fileType: file.fileType,
-        metadata: fileDocument.metadata,
-        pages: fileDocument.pages,
-        source: file.url,
-        sourceType: 'file',
-        title: fileDocument.metadata?.title,
-        totalCharCount: fileDocument.totalCharCount,
-        totalLineCount: fileDocument.totalLineCount,
-      });
+      // Fetch document from database (already saved by Go)
+      const document = await this.getDocument(result.documentId);
 
-      return document as LobeDocument;
+      return document;
     } catch (error) {
-      console.error(`${logPrefix} 文件解析失败:`, error);
+      console.error(`${logPrefix} File processing failed:`, error);
       throw error;
     } finally {
       cleanup();
     }
+  }
+
+  /**
+   * Get document by ID (read-only)
+   */
+  async getDocument(documentId: string): Promise<LobeDocument> {
+    const doc = await GetDocument({
+      id: documentId,
+      userId: this.userId,
+    });
+
+    // Helper to extract string from NullString
+    const getNullableString = (ns: any): string | undefined => {
+      if (!ns) return undefined;
+      if (typeof ns === 'string') return ns;
+      if (ns.String && ns.Valid) return ns.String;
+      return undefined;
+    };
+
+    return {
+      id: doc.id,
+      title: getNullableString(doc.title),
+      content: getNullableString(doc.content),
+      fileType: doc.fileType,
+      filename: getNullableString(doc.filename),
+      totalCharCount: doc.totalCharCount || 0,
+      totalLineCount: doc.totalLineCount || 0,
+      metadata: doc.metadata ? JSON.parse(getNullableString(doc.metadata) || '{}') : undefined,
+      pages: doc.pages ? JSON.parse(getNullableString(doc.pages) || '[]') : undefined,
+      sourceType: doc.sourceType,
+      source: doc.source,
+      fileId: getNullableString(doc.fileId),
+      userId: doc.userId,
+      clientId: getNullableString(doc.clientId),
+      createdAt: new Date(doc.createdAt),
+      updatedAt: new Date(doc.updatedAt),
+    } as LobeDocument;
+  }
+
+  /**
+   * Delete document
+   */
+  async deleteDocument(documentId: string): Promise<void> {
+    await DeleteDocument({
+      id: documentId,
+      userId: this.userId,
+    });
   }
 }

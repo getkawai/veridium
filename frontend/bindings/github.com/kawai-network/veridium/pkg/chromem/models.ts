@@ -30,3 +30,27 @@ export class Collection {
         return new Collection($$parsedSource as Partial<Collection>);
     }
 }
+
+/**
+ * DB is the chromem-go database. It holds collections, which hold documents.
+ * 
+ * 	+----+    1-n    +------------+    n-n    +----------+
+ * 	| DB |-----------| Collection |-----------| Document |
+ * 	+----+           +------------+           +----------+
+ */
+export class DB {
+
+    /** Creates a new DB instance. */
+    constructor($$source: Partial<DB> = {}) {
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DB instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DB {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DB($$parsedSource as Partial<DB>);
+    }
+}

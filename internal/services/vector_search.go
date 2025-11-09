@@ -307,3 +307,8 @@ func (s *VectorSearchService) Close() error {
 	return nil
 }
 
+// GetChromemDB returns the underlying chromem database instance
+// This is used by FileProcessorService for RAG processing
+func (s *VectorSearchService) GetChromemDB() *chromem.DB {
+	return s.db
+}

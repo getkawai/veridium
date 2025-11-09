@@ -222,6 +222,7 @@ type Querier interface {
 	GetGenerationWithAsyncTask(ctx context.Context, arg GetGenerationWithAsyncTaskParams) (GetGenerationWithAsyncTaskRow, error)
 	// Global Files
 	GetGlobalFile(ctx context.Context, hashID string) (GlobalFile, error)
+	GetGlobalFileByHash(ctx context.Context, hashID string) (GlobalFile, error)
 	// Knowledge Bases
 	GetKnowledgeBase(ctx context.Context, arg GetKnowledgeBaseParams) (KnowledgeBasis, error)
 	GetKnowledgeBaseFiles(ctx context.Context, arg GetKnowledgeBaseFilesParams) ([]File, error)
@@ -443,6 +444,7 @@ type Querier interface {
 	UpdateGeneration(ctx context.Context, arg UpdateGenerationParams) (Generation, error)
 	UpdateGenerationTopic(ctx context.Context, arg UpdateGenerationTopicParams) (GenerationTopic, error)
 	UpdateGlobalFileAccess(ctx context.Context, arg UpdateGlobalFileAccessParams) error
+	UpdateGlobalFileAccessTime(ctx context.Context, arg UpdateGlobalFileAccessTimeParams) error
 	UpdateKnowledgeBase(ctx context.Context, arg UpdateKnowledgeBaseParams) (KnowledgeBasis, error)
 	UpdateMessage(ctx context.Context, arg UpdateMessageParams) (Message, error)
 	UpdateMessagePlugin(ctx context.Context, arg UpdateMessagePluginParams) (MessagePlugin, error)

@@ -8,5 +8,6 @@ export {
 
 export {
     ChunkData,
+    ProcessFileResponse,
     SearchResult
 } from "./models.js";

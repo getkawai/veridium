@@ -31,6 +31,9 @@ DELETE FROM files WHERE id = ? AND user_id = ?;
 -- name: GetGlobalFile :one
 SELECT * FROM global_files WHERE hash_id = ?;
 
+-- name: GetGlobalFileByHash :one
+SELECT * FROM global_files WHERE hash_id = ?;
+
 -- name: CreateGlobalFile :one
 INSERT INTO global_files (
     hash_id, file_type, size, url, metadata, creator, created_at, accessed_at
@@ -38,6 +41,9 @@ INSERT INTO global_files (
 RETURNING *;
 
 -- name: UpdateGlobalFileAccess :exec
+UPDATE global_files SET accessed_at = ? WHERE hash_id = ?;
+
+-- name: UpdateGlobalFileAccessTime :exec
 UPDATE global_files SET accessed_at = ? WHERE hash_id = ?;
 
 -- Knowledge Bases

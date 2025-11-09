@@ -47,11 +47,21 @@ export function DeleteChunksByFileID(userID: string, fileID: string): $Cancellab
 }
 
 /**
+ * GetChromemDB returns the underlying chromem database instance
+ * This is used by FileProcessorService for RAG processing
+ */
+export function GetChromemDB(): $CancellablePromise<chromem$0.DB | null> {
+    return $Call.ByID(343570764).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
+/**
  * GetStats returns statistics about the vector database
  */
 export function GetStats(userID: string): $CancellablePromise<{ [_: string]: any }> {
     return $Call.ByID(2926512952, userID).then(($result: any) => {
-        return $$createType0($result);
+        return $$createType2($result);
     });
 }
 
@@ -60,7 +70,7 @@ export function GetStats(userID: string): $CancellablePromise<{ [_: string]: any
  */
 export function GetUserCollection(userID: string): $CancellablePromise<chromem$0.Collection | null> {
     return $Call.ByID(2975725854, userID).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType4($result);
     });
 }
 
@@ -69,7 +79,7 @@ export function GetUserCollection(userID: string): $CancellablePromise<chromem$0
  */
 export function SemanticSearch(userID: string, query: string, fileIDs: string[], limit: number): $CancellablePromise<$models.SearchResult[]> {
     return $Call.ByID(3829428111, userID, query, fileIDs, limit).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType6($result);
     });
 }
 
@@ -78,13 +88,15 @@ export function SemanticSearch(userID: string, query: string, fileIDs: string[],
  */
 export function SemanticSearchMultipleFiles(userID: string, query: string, fileIDs: string[], limit: number): $CancellablePromise<$models.SearchResult[]> {
     return $Call.ByID(3120119170, userID, query, fileIDs, limit).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType6($result);
     });
 }
 
 // Private type creation functions
-const $$createType0 = $Create.Map($Create.Any, $Create.Any);
-const $$createType1 = chromem$0.Collection.createFrom;
-const $$createType2 = $Create.Nullable($$createType1);
-const $$createType3 = $models.SearchResult.createFrom;
-const $$createType4 = $Create.Array($$createType3);
+const $$createType0 = chromem$0.DB.createFrom;
+const $$createType1 = $Create.Nullable($$createType0);
+const $$createType2 = $Create.Map($Create.Any, $Create.Any);
+const $$createType3 = chromem$0.Collection.createFrom;
+const $$createType4 = $Create.Nullable($$createType3);
+const $$createType5 = $models.SearchResult.createFrom;
+const $$createType6 = $Create.Array($$createType5);

@@ -17089,6 +17089,31 @@ export class UpdateGlobalFileAccessParams {
     }
 }
 
+export class UpdateGlobalFileAccessTimeParams {
+    "accessedAt": number;
+    "hashId": string;
+
+    /** Creates a new UpdateGlobalFileAccessTimeParams instance. */
+    constructor($$source: Partial<UpdateGlobalFileAccessTimeParams> = {}) {
+        if (!("accessedAt" in $$source)) {
+            this["accessedAt"] = 0;
+        }
+        if (!("hashId" in $$source)) {
+            this["hashId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpdateGlobalFileAccessTimeParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UpdateGlobalFileAccessTimeParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new UpdateGlobalFileAccessTimeParams($$parsedSource as Partial<UpdateGlobalFileAccessTimeParams>);
+    }
+}
+
 export class UpdateKnowledgeBaseParams {
     "name": string;
     "description": sql$0.NullString;

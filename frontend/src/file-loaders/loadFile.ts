@@ -8,6 +8,9 @@ const log = debug('file-loaders:loadFile');
 /**
  * Loads a file from the specified path using Go backend processing.
  * The content is returned in markdown format.
+ * 
+ * **IMPORTANT**: This function is for PREVIEW ONLY (e.g., displaying file content in UI).
+ * For saving files to the database, use `FileProcessorService.ProcessFileForStorage()` instead.
  *
  * @param filePath The path to the file to load.
  * @param fileMetadata Optional metadata to override information read from the filesystem.

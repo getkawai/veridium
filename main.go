@@ -103,6 +103,16 @@ func main() {
 		log.Printf("   Embedding model: nomic-embed-text (Ollama)")
 	}
 
+	// Initialize File Processor service (file parsing + document storage + RAG)
+	loadFileService := &LoadFileService{}
+	fileProcessorService := NewFileProcessorService(
+		dbService.DB(),
+		loadFileService,
+		vectorSearchService.GetChromemDB(),
+	)
+	log.Printf("✅ File Processor service initialized")
+	log.Printf("   Handles: file parsing → document storage → RAG processing")
+
 	// Create a new Wails application by providing the necessary options.
 	// Variables 'Name' and 'Description' are for application metadata.
 	// 'Assets' configures the asset server with the 'FS' variable pointing to the frontend files.
@@ -131,6 +141,8 @@ func main() {
 			application.NewService(audioRecorderService),
 			// Vector search service - for semantic search using chromem
 			application.NewService(vectorSearchService),
+			// File processor service - for file parsing + document storage + RAG
+			application.NewService(fileProcessorService),
 			// Machine ID service
 			application.NewService(&machineid.Service{}),
 			// Temp file service

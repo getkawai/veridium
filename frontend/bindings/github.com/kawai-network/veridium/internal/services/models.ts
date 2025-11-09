@@ -58,6 +58,40 @@ export class ChunkData {
 }
 
 /**
+ * ProcessFileResponse represents the result of file processing
+ */
+export class ProcessFileResponse {
+    "fileId": string;
+    "documentId": string;
+    "chunkIds"?: string[];
+    "globalFileId"?: string;
+
+    /** Creates a new ProcessFileResponse instance. */
+    constructor($$source: Partial<ProcessFileResponse> = {}) {
+        if (!("fileId" in $$source)) {
+            this["fileId"] = "";
+        }
+        if (!("documentId" in $$source)) {
+            this["documentId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ProcessFileResponse instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ProcessFileResponse {
+        const $$createField2_0 = $$createType1;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("chunkIds" in $$parsedSource) {
+            $$parsedSource["chunkIds"] = $$createField2_0($$parsedSource["chunkIds"]);
+        }
+        return new ProcessFileResponse($$parsedSource as Partial<ProcessFileResponse>);
+    }
+}
+
+/**
  * SearchResult represents a search result from vector database
  */
 export class SearchResult {
@@ -115,3 +149,4 @@ export class SearchResult {
 
 // Private type creation functions
 const $$createType0 = $Create.Map($Create.Any, $Create.Any);
+const $$createType1 = $Create.Array($Create.Any);
