@@ -31,8 +31,8 @@ export interface FileManageAction {
   toggleEmbeddingIds: (ids: string[], loading?: boolean) => void;
   toggleParsingIds: (ids: string[], loading?: boolean) => void;
 
-  internal_fetchFileItem: (...) => Promise<void>;
-  internal_fetchFileManage: (...) => Promise<void>;
+  internal_fetchFileItem: (id?: string) => Promise<void>;
+  internal_fetchFileManage: (params: QueryFileListParams) => Promise<void>;
 }
 
 export const createFileManageSlice: StateCreator<

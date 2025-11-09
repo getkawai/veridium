@@ -21,7 +21,7 @@ export interface PluginAction {
     settings: Partial<T>,
     options?: { override?: boolean },
   ) => Promise<void>;
-  internal_checkPluginsIsInstalled: (...) => Promise<void>;
+  internal_checkPluginsIsInstalled: (enable: boolean, plugins: string[]) => Promise<void>;
   validatePluginSettings: (identifier: string) => Promise<ValidationResult | undefined>;
 }
 

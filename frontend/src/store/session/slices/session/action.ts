@@ -74,8 +74,8 @@ export interface SessionAction {
 
   updateSearchKeywords: (keywords: string) => void;
 
-  internal_fetchSessions: (...) => Promise<void>;
-  internal_searchSessions: (...) => Promise<void>;
+  internal_fetchSessions: (enabled: boolean, isLogin: boolean | undefined) => Promise<void>;
+  internal_searchSessions: (keyword?: string) => Promise<void>;
 
   internal_dispatchSessions: (payload: SessionDispatch) => void;
   internal_updateSession: (id: string, data: Partial<UpdateSessionParams>) => Promise<void>;

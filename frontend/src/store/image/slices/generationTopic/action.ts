@@ -24,7 +24,7 @@ const n = setNamespace('generationTopic');
 export interface GenerationTopicAction {
   createGenerationTopic: (prompts: string[]) => Promise<string>;
   removeGenerationTopic: (id: string) => Promise<void>;
-  internal_fetchGenerationTopics: (...) => Promise<void>;
+  internal_fetchGenerationTopics: (topicId?: string) => Promise<void>;
   summaryGenerationTopicTitle: (topicId: string, prompts: string[]) => Promise<string>;
   refreshGenerationTopics: () => Promise<void>;
   switchGenerationTopic: (topicId: string) => void;

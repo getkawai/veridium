@@ -30,7 +30,7 @@ export interface AiModelAction {
   ) => Promise<void>;
   updateAiModelsSort: (providerId: string, items: AiModelSortMap[]) => Promise<void>;
 
-  internal_fetchAiProviderModels: (...) => Promise<void>;
+  internal_fetchAiProviderModels: (id: string) => Promise<void>;
 }
 
 export const createAiModelSlice: StateCreator<

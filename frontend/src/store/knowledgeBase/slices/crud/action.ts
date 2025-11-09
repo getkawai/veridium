@@ -15,8 +15,8 @@ export interface KnowledgeBaseCrudAction {
   removeKnowledgeBase: (id: string) => Promise<void>;
   updateKnowledgeBase: (id: string, value: CreateKnowledgeBaseParams) => Promise<void>;
 
-  internal_fetchKnowledgeBaseItem: (...) => Promise<void>;
-  internal_fetchKnowledgeBaseList: (...) => Promise<void>;
+  internal_fetchKnowledgeBaseItem: (id: string) => Promise<void>;
+  internal_fetchKnowledgeBaseList: (params: { suspense?: boolean }) => Promise<void>;
 }
 
 export const createCrudSlice: StateCreator<

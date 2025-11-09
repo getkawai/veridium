@@ -39,7 +39,7 @@ export interface GenerationBatchAction {
     topicId: string,
     enable?: boolean,
   ) => void;
-  internal_fetchGenerationBatches: (...) => Promise<void>;
+  internal_fetchGenerationBatches: (topicId: string) => Promise<void>;
 }
 
 // ====== action implementation ====== //

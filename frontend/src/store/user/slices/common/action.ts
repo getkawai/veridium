@@ -21,7 +21,7 @@ const GET_USER_STATE_KEY = 'initUserState';
 export interface CommonAction {
   refreshUserState: () => Promise<void>;
   updateAvatar: (avatar: string) => Promise<void>;
-  internal_checkTrace: (...) => Promise<void>;
+  internal_checkTrace: (shouldFetch: boolean) => Promise<boolean | undefined>;
   useInitUserState: (
     isLogin: boolean | undefined,
     serverConfig: GlobalServerConfig,
@@ -38,7 +38,8 @@ export const createCommonSlice: StateCreator<
   CommonAction
 > = (set, get) => ({
   refreshUserState: async () => {
-    await mutate(GET_USER_STATE_KEY);
+    // No-op: handled by useInitUserState
+    console.debug('[refreshUserState] Skipped (handled by useEffect)');
   },
   updateAvatar: async (avatar) => {
     // 1. 更新服务端/数据库中的头像

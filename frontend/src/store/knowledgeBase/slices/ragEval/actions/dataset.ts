@@ -19,8 +19,8 @@ export interface RAGEvalDatasetAction {
   importDataset: (file: File, datasetId: number) => Promise<void>;
   refreshDatasetList: () => Promise<void>;
   removeDataset: (id: number) => Promise<void>;
-  internal_fetchDatasetRecords: (...) => Promise<void>;
-  internal_fetchDatasets: (...) => Promise<void>;
+  internal_fetchDatasetRecords: (datasetId: number) => Promise<void>;
+  internal_fetchDatasets: (knowledgeBaseId: string) => Promise<void>;
 }
 
 export const createRagEvalDatasetSlice: StateCreator<

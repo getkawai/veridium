@@ -99,9 +99,9 @@ export interface AiProviderAction {
   updateAiProviderConfig: (id: string, value: UpdateAiProviderConfigParams) => Promise<void>;
   updateAiProviderSort: (items: AiProviderSortMap[]) => Promise<void>;
 
-  internal_fetchAiProviderItem: (...) => Promise<void>;
-  internal_fetchAiProviderList: (...) => Promise<void>;
-  internal_fetchAiProviderRuntimeState: (...) => Promise<void>;
+  internal_fetchAiProviderItem: (id: string) => Promise<void>;
+  internal_fetchAiProviderList: (opts?: { enabled?: boolean }) => Promise<void>;
+  internal_fetchAiProviderRuntimeState: (isLogin: boolean | null | undefined) => Promise<void>;
 }
 
 export const createAiProviderSlice: StateCreator<
