@@ -4,7 +4,7 @@ import { StateCreator } from 'zustand/vanilla';
 
 import { INBOX_SESSION_ID } from '@/const/session';
 import { DEFAULT_CHAT_GROUP_CHAT_CONFIG } from '@/const/settings';
-import type { ChatGroupItem } from '@/types/database-legacy';
+import type { ChatGroupItem, NewChatGroup } from '@/types/chatGroup';
 import { chatGroupService } from '@/services/chatGroup';
 import type { ChatStoreState } from '@/store/chat/initialState';
 import { useChatStore } from '@/store/chat/store';
@@ -66,7 +66,7 @@ export const chatGroupAction: StateCreator<
     /**
      * @param silent - if true, do not switch to the new group session
      */
-    createGroup: async (newGroup, agentIds, silent = false) => {
+    createGroup: async (newGroup: Omit<NewChatGroup, 'userId'>, agentIds?: string[], silent = false) => {
       const { switchSession } = getSessionStoreState();
 
       const group = await chatGroupService.createGroup(newGroup);
@@ -292,7 +292,7 @@ export const chatGroupAction: StateCreator<
       set({ activeThreadAgentId: agentId }, false, 'toggleThread');
     },
 
-    updateGroup: async (id, value) => {
+    updateGroup: async (id: string, value: Partial<ChatGroupItem>) => {
       await chatGroupService.updateGroup(id, value);
       dispatch({ payload: { id, value }, type: 'updateGroup' });
       await get().internal_refreshGroups();
@@ -326,7 +326,7 @@ export const chatGroupAction: StateCreator<
             draft.groupMaps[group.id] = {
               ...existing,
               config: mergedConfig,
-            } as ChatGroupItem;
+            };
           }
         }),
         false,
@@ -337,7 +337,7 @@ export const chatGroupAction: StateCreator<
       await get().internal_refreshGroups();
     },
 
-    updateGroupMeta: async (meta) => {
+    updateGroupMeta: async (meta: Partial<ChatGroupItem>) => {
       const group = chatGroupSelectors.currentGroup(get());
       if (!group) return;
 
@@ -349,7 +349,7 @@ export const chatGroupAction: StateCreator<
       await get().internal_refreshGroups();
     },
 
-    internal_fetchGroupDetail: async (enabled, groupId) => {
+    internal_fetchGroupDetail: async (enabled: boolean, groupId: string) => {
       if (!enabled || !groupId) return;
 
       try {
@@ -371,7 +371,7 @@ export const chatGroupAction: StateCreator<
       }
     },
 
-    internal_fetchGroups: async (enabled, isLogin) => {
+    internal_fetchGroups: async (enabled: boolean, isLogin: boolean) => {
       if (!enabled) return;
 
       try {
@@ -406,6 +406,16 @@ export const chatGroupAction: StateCreator<
       } catch (error) {
         console.error('[internal_fetchGroups] Error:', error);
       }
+    },
+
+    useFetchGroupDetail: async (enabled: boolean, groupId: string) => {
+      const store = get();
+      await (store as any).internal_fetchGroupDetail(enabled, groupId);
+    },
+
+    useFetchGroups: async (enabled: boolean, isLogin: boolean) => {
+      const store = get();
+      await (store as any).internal_fetchGroups(enabled, isLogin);
     },
   };
 };

@@ -10,11 +10,15 @@ import {
   boolToInt,
   intToBool,
 } from '@/types/database';
-import { createModelLogger } from '@/utils/logger';
+import {
+  ChatGroupItem,
+  ChatGroupAgentItem,
+  NewChatGroup,
+  NewChatGroupAgent,
+} from '@/types/chatGroup';
 
 export class ChatGroupModel {
   private userId: string;
-  private logger = createModelLogger('ChatGroup', 'ChatGroupModel', 'database/models/chatGroup');
 
   constructor(_db: any, userId: string) {
     this.userId = userId;
@@ -22,7 +26,7 @@ export class ChatGroupModel {
 
   // ******* Query Methods ******* //
 
-  async findById(id: string): Promise<any | undefined> {
+  async findById(id: string): Promise<ChatGroupItem | undefined> {
     const result = await DB.GetChatGroup({
       id,
       userId: this.userId,
@@ -32,9 +36,9 @@ export class ChatGroupModel {
 
     return {
       id: result.id,
-      title: getNullableString(result.title as any),
-      description: getNullableString(result.description as any),
-      config: parseNullableJSON(result.config as any),
+      title: getNullableString(result.title as any) ?? null,
+      description: getNullableString(result.description as any) ?? null,
+      config: parseNullableJSON(result.config as any) ?? null,
       pinned: intToBool(result.pinned || 0),
       userId: result.userId,
       createdAt: result.createdAt,
@@ -42,14 +46,14 @@ export class ChatGroupModel {
     };
   }
 
-  async query(): Promise<any[]> {
+  async query(): Promise<ChatGroupItem[]> {
     const results = await DB.ListChatGroups(this.userId);
 
     return results.map((r) => ({
       id: r.id,
-      title: getNullableString(r.title as any),
-      description: getNullableString(r.description as any),
-      config: parseNullableJSON(r.config as any),
+      title: getNullableString(r.title as any) ?? null,
+      description: getNullableString(r.description as any) ?? null,
+      config: parseNullableJSON(r.config as any) ?? null,
       pinned: intToBool(r.pinned || 0),
       userId: r.userId,
       createdAt: r.createdAt,
@@ -61,12 +65,12 @@ export class ChatGroupModel {
    * OPTIMIZED: Uses single JOIN query (3A) to fetch groups with agents
    * Much faster than N+1 approach
    */
-  async queryWithMemberDetails(): Promise<any[]> {
+  async queryWithMemberDetails(): Promise<(ChatGroupItem & { members?: any[] })[]> {
     // Single query with JOINs
     const results = await DB.ListChatGroupsWithAgents(this.userId);
 
     // Group by group_id
-    const groupsMap = new Map<string, any>();
+    const groupsMap = new Map<string, ChatGroupItem & { members?: any[] }>();
 
     for (const row of results) {
       const groupId = row.groupId;
@@ -74,9 +78,9 @@ export class ChatGroupModel {
       if (!groupsMap.has(groupId)) {
         groupsMap.set(groupId, {
           id: groupId,
-          title: getNullableString(row.groupTitle as any),
-          description: getNullableString(row.groupDescription as any),
-          config: parseNullableJSON(row.groupConfig as any),
+          title: getNullableString(row.groupTitle as any) ?? null,
+          description: getNullableString(row.groupDescription as any) ?? null,
+          config: parseNullableJSON(row.groupConfig as any) ?? null,
           pinned: intToBool(row.groupPinned || 0),
           createdAt: row.groupCreatedAt,
           updatedAt: row.groupUpdatedAt,
@@ -87,8 +91,8 @@ export class ChatGroupModel {
 
       // Add agent if exists
       if (row.agentId) {
-        const group = groupsMap.get(groupId);
-        group.members.push({
+        const group = groupsMap.get(groupId)!;
+        group.members!.push({
           id: row.agentId,
           title: getNullableString(row.agentTitle as any),
           description: getNullableString(row.agentDescription as any),
@@ -113,8 +117,8 @@ export class ChatGroupModel {
    * OPTIMIZED: Uses JOIN query to fetch group with agents
    */
   async findGroupWithAgents(groupId: string): Promise<{
-    agents: any[];
-    group: any;
+    agents: ChatGroupAgentItem[];
+    group: ChatGroupItem;
   } | null> {
     const results = await DB.GetChatGroupWithAgents({
       id: groupId,
@@ -125,11 +129,11 @@ export class ChatGroupModel {
 
     // First row contains group data
     const firstRow = results[0];
-    const group = {
+    const group: ChatGroupItem = {
       id: firstRow.groupId,
-      title: getNullableString(firstRow.groupTitle as any),
-      description: getNullableString(firstRow.groupDescription as any),
-      config: parseNullableJSON(firstRow.groupConfig as any),
+      title: getNullableString(firstRow.groupTitle as any) ?? null,
+      description: getNullableString(firstRow.groupDescription as any) ?? null,
+      config: parseNullableJSON(firstRow.groupConfig as any) ?? null,
       pinned: intToBool(firstRow.groupPinned || 0),
       createdAt: firstRow.groupCreatedAt,
       updatedAt: firstRow.groupUpdatedAt,
@@ -137,13 +141,13 @@ export class ChatGroupModel {
     };
 
     // Extract agents
-    const agents = results
+    const agents: ChatGroupAgentItem[] = results
       .filter((row) => row.agentId)
       .map((row) => ({
-        agentId: row.agentId,
+        agentId: String(row.agentId),
         chatGroupId: groupId,
         order: row.agentSortOrder?.Int64 || 0,
-        role: getNullableString(row.agentRole as any),
+        role: getNullableString(row.agentRole as any) ?? null,
         enabled: intToBool(row.agentEnabled?.Int64 || 1),
         userId: this.userId,
       }));
@@ -153,7 +157,7 @@ export class ChatGroupModel {
 
   // ******* Create Methods ******* //
 
-  async create(params: any): Promise<any> {
+  async create(params: Partial<NewChatGroup>): Promise<ChatGroupItem> {
     const id = params.id || nanoid();
     const now = currentTimestampMs();
 
@@ -162,7 +166,7 @@ export class ChatGroupModel {
       title: toNullString(params.title),
       description: toNullString(params.description),
       config: toNullJSON(params.config),
-      clientId: toNullString(params.clientId),
+      clientId: toNullString((params as any).clientId),
       userId: this.userId,
       pinned: boolToInt(params.pinned || false),
       createdAt: now,
@@ -171,9 +175,9 @@ export class ChatGroupModel {
 
     return {
       id: result.id,
-      title: getNullableString(result.title as any),
-      description: getNullableString(result.description as any),
-      config: parseNullableJSON(result.config as any),
+      title: getNullableString(result.title as any) ?? null,
+      description: getNullableString(result.description as any) ?? null,
+      config: parseNullableJSON(result.config as any) ?? null,
       pinned: intToBool(result.pinned || 0),
       userId: result.userId,
       createdAt: result.createdAt,
@@ -182,9 +186,9 @@ export class ChatGroupModel {
   }
 
   async createWithAgents(
-    groupParams: any,
+    groupParams: Partial<NewChatGroup>,
     agentIds: string[],
-  ): Promise<{ agents: any[]; group: any }> {
+  ): Promise<{ agents: ChatGroupAgentItem[]; group: ChatGroupItem }> {
     const group = await this.create(groupParams);
 
     if (agentIds.length === 0) {
@@ -220,7 +224,7 @@ export class ChatGroupModel {
 
   // ******* Update Methods ******* //
 
-  async update(id: string, value: any): Promise<any> {
+  async update(id: string, value: Partial<ChatGroupItem>): Promise<ChatGroupItem> {
     const result = await DB.UpdateChatGroup({
       id,
       userId: this.userId,
@@ -235,14 +239,23 @@ export class ChatGroupModel {
       throw new Error('Chat group not found or access denied');
     }
 
-    return result;
+    return {
+      id: result.id,
+      title: getNullableString(result.title as any) ?? null,
+      description: getNullableString(result.description as any) ?? null,
+      config: parseNullableJSON(result.config as any) ?? null,
+      pinned: intToBool(result.pinned || 0),
+      userId: result.userId,
+      createdAt: result.createdAt,
+      updatedAt: result.updatedAt,
+    };
   }
 
   async addAgentToGroup(
     groupId: string,
     agentId: string,
     options?: { order?: number; role?: string },
-  ): Promise<any> {
+  ): Promise<ChatGroupAgentItem> {
     const now = currentTimestampMs();
 
     await DB.LinkChatGroupToAgent({
@@ -265,12 +278,12 @@ export class ChatGroupModel {
     };
   }
 
-  async addAgentsToGroup(groupId: string, agentIds: string[]): Promise<any[]> {
+  async addAgentsToGroup(groupId: string, agentIds: string[]): Promise<ChatGroupAgentItem[]> {
     const group = await this.findById(groupId);
     if (!group) throw new Error('Group not found');
 
     const existingAgents = await this.getGroupAgents(groupId);
-    const existingAgentIds = new Set(existingAgents.map((a: any) => a.agentId));
+    const existingAgentIds = new Set(existingAgents.map((a) => a.agentId));
 
     const newAgentIds = agentIds.filter((id) => !existingAgentIds.has(id));
 
@@ -278,7 +291,7 @@ export class ChatGroupModel {
       return [];
     }
 
-    const newAgents: any[] = [];
+    const newAgents: ChatGroupAgentItem[] = [];
     const now = currentTimestampMs();
 
     for (const agentId of newAgentIds) {
@@ -315,8 +328,8 @@ export class ChatGroupModel {
   async updateAgentInGroup(
     groupId: string,
     agentId: string,
-    updates: Partial<any>,
-  ): Promise<any> {
+    updates: Partial<Pick<NewChatGroupAgent, 'order' | 'role' | 'enabled'>>,
+  ): Promise<ChatGroupAgentItem> {
     const result = await DB.UpdateChatGroupAgentLink({
       chatGroupId: groupId,
       agentId: agentId,
@@ -327,12 +340,19 @@ export class ChatGroupModel {
       updatedAt: currentTimestampMs(),
     });
 
-    return result;
+    return {
+      chatGroupId: result.chatGroupId,
+      agentId: result.agentId,
+      userId: result.userId,
+      role: getNullableString(result.role as any),
+      enabled: intToBool(result.enabled || 0),
+      order: result.sortOrder?.Int64 || 0,
+    };
   }
 
   // ******* Delete Methods ******* //
 
-  async delete(id: string): Promise<any> {
+  async delete(id: string): Promise<ChatGroupItem> {
     // Get group first to return it
     const group = await this.findById(id);
     if (!group) {
@@ -354,7 +374,7 @@ export class ChatGroupModel {
 
   // ******* Agent Query Methods ******* //
 
-  async getGroupAgents(groupId: string): Promise<any[]> {
+  async getGroupAgents(groupId: string): Promise<ChatGroupAgentItem[]> {
     const results = await DB.GetChatGroupAgentLinks({
       chatGroupId: groupId,
       userId: this.userId,
@@ -366,11 +386,11 @@ export class ChatGroupModel {
       userId: r.userId,
       role: getNullableString(r.role as any),
       enabled: intToBool(r.enabled || 0),
-      sortOrder: r.sortOrder?.Int64 || 0,
+      order: r.sortOrder?.Int64 || 0,
     }));
   }
 
-  async getEnabledGroupAgents(groupId: string): Promise<any[]> {
+  async getEnabledGroupAgents(groupId: string): Promise<ChatGroupAgentItem[]> {
     const results = await DB.GetEnabledChatGroupAgentLinks({
       chatGroupId: groupId,
       userId: this.userId,
@@ -382,11 +402,11 @@ export class ChatGroupModel {
       userId: r.userId,
       role: getNullableString(r.role as any),
       enabled: intToBool(r.enabled || 0),
-      sortOrder: r.sortOrder?.Int64 || 0,
+      order: r.sortOrder?.Int64 || 0,
     }));
   }
 
-  async getGroupsWithAgents(agentIds?: string[]): Promise<any[]> {
+  async getGroupsWithAgents(agentIds?: string[]): Promise<(ChatGroupItem & { members?: any[] })[]> {
     if (!agentIds || agentIds.length === 0) {
       return this.query();
     }
@@ -396,7 +416,7 @@ export class ChatGroupModel {
     const allGroups = await this.queryWithMemberDetails();
     
     return allGroups.filter((group) =>
-      group.members.some((member: any) => agentIds.includes(member.id)),
+      group.members?.some((member: any) => agentIds.includes(member.id)),
     );
   }
 }

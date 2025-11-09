@@ -29,11 +29,11 @@ export interface LobeChatGroupFullConfig {
 export interface ChatGroupAgent {
   agentId: string;
   chatGroupId: string;
-  createdAt: Date;
+  createdAt?: Date | number;
   enabled?: boolean;
   order?: number;
-  role?: string;
-  updatedAt: Date;
+  role?: string | null;
+  updatedAt?: Date | number;
   userId: string;
 }
 
@@ -45,3 +45,29 @@ export interface NewChatGroupAgent {
   role?: string;
   userId: string;
 }
+
+// Chat Group Item types (for database operations)
+export interface ChatGroupItem {
+  id: string;
+  title: string | null;
+  description: string | null;
+  config: LobeChatGroupConfig | null;
+  pinned: boolean;
+  userId: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface NewChatGroup {
+  id?: string;
+  title?: string | null;
+  description?: string | null;
+  config?: LobeChatGroupConfig | null;
+  pinned?: boolean;
+  userId: string;
+  createdAt?: number;
+  updatedAt?: number;
+}
+
+// ChatGroupAgentItem is the same as ChatGroupAgent (reuse)
+export type ChatGroupAgentItem = ChatGroupAgent;

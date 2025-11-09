@@ -3,7 +3,7 @@ import {
   ChatGroupItem,
   NewChatGroup,
   NewChatGroupAgent,
-} from '@/database/schemas';
+} from '@/types/chatGroup';
 
 export interface IChatGroupService {
   addAgentsToGroup(groupId: string, agentIds: string[]): Promise<ChatGroupAgentItem[]>;

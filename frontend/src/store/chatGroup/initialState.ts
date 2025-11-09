@@ -1,5 +1,4 @@
-import type { ChatGroupItem, NewChatGroup } from '@/types/database-legacy';
-import type { LobeChatGroupConfig } from '@/types/chatGroup';
+import type { ChatGroupItem, NewChatGroup, LobeChatGroupConfig } from '@/types/chatGroup';
 
 export interface ChatGroupState {
   activeThreadAgentId: string;
@@ -38,8 +37,10 @@ export interface ChatGroupAction {
   updateGroup: (id: string, value: Partial<ChatGroupItem>) => Promise<void>;
   updateGroupConfig: (config: Partial<LobeChatGroupConfig>) => Promise<void>;
   updateGroupMeta: (meta: Partial<ChatGroupItem>) => Promise<void>;
-  useFetchGroupDetail: (enabled: boolean, groupId: string) => void;
-  useFetchGroups: (enabled: boolean, isLogin: boolean) => void;
+  useFetchGroupDetail: (enabled: boolean, groupId: string) => Promise<void>;
+  useFetchGroups: (enabled: boolean, isLogin: boolean) => Promise<void>;
+  internal_fetchGroupDetail: (enabled: boolean, groupId: string) => Promise<void>;
+  internal_fetchGroups: (enabled: boolean, isLogin: boolean) => Promise<void>;
 }
 
 export type ChatGroupStore = ChatGroupState & ChatGroupAction;

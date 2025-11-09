@@ -1,5 +1,5 @@
 import { DEFAULT_CHAT_GROUP_CHAT_CONFIG, DEFAULT_CHAT_GROUP_META_CONFIG } from '@/const/settings';
-import { ChatGroupItem } from '@/types/database-legacy';
+import { ChatGroupItem } from '@/types/chatGroup';
 import { ChatStoreState } from '@/store/chat/initialState';
 import { useSessionStore } from '@/store/session';
 import { sessionSelectors } from '@/store/session/selectors';

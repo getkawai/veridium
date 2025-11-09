@@ -5,7 +5,7 @@ import {
   ChatGroupItem,
   NewChatGroup,
   NewChatGroupAgent,
-} from '@/database/schemas/chatGroup';
+} from '@/types/chatGroup';
 import { BaseClientService } from '@/services/baseClientService';
 
 import { IChatGroupService } from './type';
