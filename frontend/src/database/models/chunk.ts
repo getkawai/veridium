@@ -29,7 +29,7 @@ export class ChunkModel {
   bulkCreate = async (params: any[], fileId: string) => {
     if (params.length === 0) return [];
 
-    const result = [];
+    const result: any[] = [];
     
     // Create chunks in SQLite
     for (const param of params) {
@@ -44,7 +44,7 @@ export class ChunkModel {
         chunkIndex: param.index || 0,
         type: toNullString(param.type),
         clientId: toNullString(param.clientId),
-        userId: this.userId,
+        userId: toNullString(this.userId),
         createdAt: now,
         updatedAt: now,
       });
@@ -53,8 +53,8 @@ export class ChunkModel {
       
       // Link to file
       await DB.LinkFileToChunk({
-        fileId,
-        chunkId: id,
+        fileId: toNullString(fileId),
+        chunkId: toNullString(id),
         createdAt: now,
         userId: this.userId,
       });
@@ -88,7 +88,7 @@ export class ChunkModel {
   };
 
   bulkCreateUnstructuredChunks = async (params: any[]) => {
-    const results = [];
+    const results: any[] = [];
     for (const param of params) {
       const id = param.id || nanoid();
       const now = currentTimestampMs();
@@ -102,7 +102,7 @@ export class ChunkModel {
         parentId: toNullString(param.parentId),
         compositeId: toNullString(param.compositeId),
         clientId: toNullString(param.clientId),
-        userId: this.userId,
+        userId: toNullString(this.userId),
         fileId: toNullString(param.fileId),
         createdAt: now,
         updatedAt: now,
@@ -116,7 +116,7 @@ export class ChunkModel {
     // Delete from SQLite
     const result = await DB.DeleteChunk({
       id,
-      userId: this.userId,
+      userId: toNullString(this.userId),
     });
 
     // Delete from chromem (fire and forget)
@@ -142,10 +142,10 @@ export class ChunkModel {
       
       // Delete one by one (limitation of no slice support)
       await Promise.all(
-        batch.map((chunk) =>
+        batch.map((chunkId) =>
           DB.DeleteChunk({
-            id: chunk.chunkId,
-            userId: this.userId,
+            id: chunkId,
+            userId: toNullString(this.userId),
           }),
         ),
       );
@@ -155,7 +155,7 @@ export class ChunkModel {
   findById = async (id: string) => {
     return await DB.GetChunk({
       id,
-      userId: this.userId,
+      userId: toNullString(this.userId),
     });
   };
 
@@ -165,7 +165,7 @@ export class ChunkModel {
   findByFileId = async (id: string, page = 0) => {
     const data = await DB.GetFileChunksWithMetadata({
       fileId: toNullString(id),
-      userId: this.userId,
+      userId: toNullString(this.userId),
       limit: 20,
       offset: page * 20,
     });
@@ -178,22 +178,20 @@ export class ChunkModel {
         metadata, 
         pageNumber: metadata?.pageNumber,
         index: item.chunkIndex,
-      } as FileChunk;
+      } as unknown as FileChunk;
     });
   };
 
   getChunksTextByFileId = async (id: string): Promise<{ id: string; text: string }[]> => {
-    const data = await DB.GetChunksTextByFileId({
-      fileId: toNullString(id),
-    });
+    const data = await DB.GetChunksTextByFileId(toNullString(id));
 
     return data
       .map((item) => ({
         id: item.id,
         text: this.mapChunkText({
-          text: getNullableString(item.text as any),
+          text: getNullableString(item.text as any) || null,
           metadata: parseNullableJSON(item.metadata as any),
-          type: getNullableString(item.type as any),
+          type: getNullableString(item.type as any) || null,
         }),
       }))
       .filter((chunk) => chunk.text) as { id: string; text: string }[];
@@ -206,9 +204,7 @@ export class ChunkModel {
     if (ids.length === 0) return [];
 
     // Note: No support for IN clause with array, so fetch all and filter
-    const allCounts = await DB.CountChunksByFileIds({
-      userId: this.userId,
-    });
+    const allCounts = await DB.CountChunksByFileIds(this.userId);
 
     return allCounts.filter((item) =>
       ids.includes(getNullableString(item.fileId as any) || ''),
@@ -216,12 +212,12 @@ export class ChunkModel {
   };
 
   countByFileId = async (id: string) => {
-    const data = await DB.CountChunksByFileId({
+    const count = await DB.CountChunksByFileId({
       fileId: toNullString(id),
       userId: this.userId,
     });
 
-    return Number(data.count) || 0;
+    return Number(count) || 0;
   };
 
   /**
@@ -247,14 +243,14 @@ export class ChunkModel {
       );
 
       return results.map((item) => ({
-        fileId: item.FileID,
-        fileName: item.FileName,
-        id: item.ID,
-        index: item.Index,
+        fileId: item.fileId,
+        fileName: item.fileName,
+        id: item.id,
+        index: item.index,
         metadata: {} as ChunkMetadata, // Fetch from SQLite if needed
-        similarity: item.Similarity,
-        text: item.Text,
-        type: item.Type,
+        similarity: item.similarity,
+        text: item.text,
+        type: item.type,
       }));
     } catch (err) {
       this.logger.warn('Chromem search failed, falling back to client-side:', err);
@@ -265,14 +261,12 @@ export class ChunkModel {
             fileId: toNullString(fileIds[0]),
             userId: this.userId,
           })
-        : await DB.GetChunksWithEmbeddings({
-            userId: this.userId,
-          });
+        : await DB.GetChunksWithEmbeddings(toNullString(this.userId));
 
       const withSimilarity = data
         .filter((item) => item.chunkEmbedding)
         .map((item) => {
-          const chunkVector = bufferToVector(item.chunkEmbedding as ArrayBuffer | Uint8Array);
+          const chunkVector = bufferToVector(item.chunkEmbedding as any);
           const similarity = cosineSimilarity(embedding, chunkVector);
           return {
             fileId: getNullableString(item.fileId as any),
@@ -314,12 +308,12 @@ export class ChunkModel {
       );
 
       return results.map((item) => ({
-        fileId: item.FileID,
-        fileName: item.FileName,
-        id: item.ID,
-        index: item.Index,
-        similarity: item.Similarity,
-        text: item.Text, // Already mapped in backend
+        fileId: item.fileId,
+        fileName: item.fileName,
+        id: item.id,
+        index: item.index,
+        similarity: item.similarity,
+        text: item.text, // Already mapped in backend
       }));
     } catch (err) {
       this.logger.warn('Chromem search failed, falling back to client-side:', err);
@@ -333,7 +327,7 @@ export class ChunkModel {
       const withSimilarity = result
         .filter((item) => item.chunkEmbedding)
         .map((item) => {
-          const chunkVector = bufferToVector(item.chunkEmbedding as ArrayBuffer | Uint8Array);
+          const chunkVector = bufferToVector(item.chunkEmbedding as any);
           const similarity = cosineSimilarity(embedding, chunkVector);
           return {
             fileId: getNullableString(item.fileId as any),
@@ -342,9 +336,9 @@ export class ChunkModel {
             index: item.chunkIndex || 0,
             similarity,
             text: this.mapChunkText({
-              text: getNullableString(item.text as any),
+              text: getNullableString(item.text as any) || null,
               metadata: parseNullableJSON(item.metadata as any),
-              type: getNullableString(item.type as any),
+              type: getNullableString(item.type as any) || null,
             }),
           };
         })
