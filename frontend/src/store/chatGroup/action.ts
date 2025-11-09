@@ -349,75 +349,63 @@ export const chatGroupAction: StateCreator<
       await get().internal_refreshGroups();
     },
 
-    internal_fetchGroupDetail: (enabled, groupId) => {
-      useEffect(() => {
-        if (!enabled || !groupId) return;
+    internal_fetchGroupDetail: async (enabled, groupId) => {
+      if (!enabled || !groupId) return;
 
-        const fetchGroupDetail = async () => {
-          try {
-            const group = await chatGroupService.getGroup(groupId);
-            if (!group) throw new Error(`Group ${groupId} not found`);
+      try {
+        const group = await chatGroupService.getGroup(groupId);
+        if (!group) throw new Error(`Group ${groupId} not found`);
 
-            const currentGroup = get().groupMap[group.id];
-            if (isEqual(currentGroup, group)) return;
+        const currentGroup = get().groupMap[group.id];
+        if (isEqual(currentGroup, group)) return;
 
-            const nextGroupMap = {
-              ...get().groupMap,
-              [group.id]: group,
-            };
-
-            set({ groupMap: nextGroupMap }, false, n('useFetchGroupDetail/onSuccess'));
-            syncChatStoreGroupMap(nextGroupMap);
-          } catch (error) {
-            console.error('[useFetchGroupDetail] Error:', error);
-          }
+        const nextGroupMap = {
+          ...get().groupMap,
+          [group.id]: group,
         };
 
-        fetchGroupDetail();
-      }, [enabled, groupId]);
+        set({ groupMap: nextGroupMap }, false, n('internal_fetchGroupDetail/onSuccess'));
+        syncChatStoreGroupMap(nextGroupMap);
+      } catch (error) {
+        console.error('[internal_fetchGroupDetail] Error:', error);
+      }
     },
 
-    internal_fetchGroups: (enabled, isLogin) => {
-      useEffect(() => {
-        if (!enabled) return;
+    internal_fetchGroups: async (enabled, isLogin) => {
+      if (!enabled) return;
 
-        const fetchGroups = async () => {
-          try {
-            const groups = await chatGroupService.getGroups();
-            const incomingMap = groups.reduce(
-              (map, group) => {
-                map[group.id] = group;
-                return map;
-              },
-              {} as Record<string, ChatGroupItem>,
-            );
+      try {
+        const groups = await chatGroupService.getGroups();
+        const incomingMap = groups.reduce(
+          (map, group) => {
+            map[group.id] = group;
+            return map;
+          },
+          {} as Record<string, ChatGroupItem>,
+        );
 
-            const currentMap = get().groupMap;
-            const nextGroupMap = { ...currentMap, ...incomingMap };
+        const currentMap = get().groupMap;
+        const nextGroupMap = { ...currentMap, ...incomingMap };
 
-            if (get().groupsInit && isEqual(currentMap, nextGroupMap)) {
-              return;
-            }
+        if (get().groupsInit && isEqual(currentMap, nextGroupMap)) {
+          return;
+        }
 
-            set(
-              {
-                groupMap: nextGroupMap,
-                groups,
-                groupsInit: true,
-                isGroupsLoading: false,
-              },
-              false,
-              n('useFetchGroups/onSuccess'),
-            );
+        set(
+          {
+            groupMap: nextGroupMap,
+            groups,
+            groupsInit: true,
+            isGroupsLoading: false,
+          },
+          false,
+          n('internal_fetchGroups/onSuccess'),
+        );
 
-            syncChatStoreGroupMap(nextGroupMap);
-          } catch (error) {
-            console.error('[useFetchGroups] Error:', error);
-          }
-        };
-
-        fetchGroups();
-      }, [enabled, isLogin]);
+        syncChatStoreGroupMap(nextGroupMap);
+      } catch (error) {
+        console.error('[internal_fetchGroups] Error:', error);
+      }
     },
   };
 };

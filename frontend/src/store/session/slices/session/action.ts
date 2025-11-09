@@ -219,83 +219,71 @@ export const createSessionSlice: StateCreator<
     await refreshSessions();
   },
 
-  internal_fetchSessions: (enabled, isLogin) => {
-    useEffect(() => {
-      if (!enabled) return;
+  internal_fetchSessions: async (enabled, isLogin) => {
+    if (!enabled) return;
 
-      const fetchSessions = async () => {
-        try {
-          const data = await sessionService.getGroupedSessions();
+    try {
+      const data = await sessionService.getGroupedSessions();
 
-          // Skip update if data hasn't changed
-          if (
-            get().isSessionsFirstFetchFinished &&
-            isEqual(get().sessions, data.sessions) &&
-            isEqual(get().sessionGroups, data.sessionGroups)
-          ) {
-            return;
-          }
+      // Skip update if data hasn't changed
+      if (
+        get().isSessionsFirstFetchFinished &&
+        isEqual(get().sessions, data.sessions) &&
+        isEqual(get().sessionGroups, data.sessionGroups)
+      ) {
+        return;
+      }
 
-          get().internal_processSessions(
-            data.sessions,
-            data.sessionGroups,
-            n('useFetchSessions/updateData') as any,
-          );
+      get().internal_processSessions(
+        data.sessions,
+        data.sessionGroups,
+        n('internal_fetchSessions/updateData') as any,
+      );
 
-          // Sync chat groups from group sessions to chat store
-          const groupSessions = data.sessions.filter((session) => session.type === 'group');
-          if (groupSessions.length > 0) {
-            const chatGroupStore = getChatGroupStoreState();
-            const chatGroups = groupSessions.map((session) => ({
-              accessedAt: session.updatedAt,
-              clientId: null,
-              config: {
-                maxResponseInRow: 3,
-                orchestratorModel: 'gpt-4',
-                orchestratorProvider: 'openai',
-                responseOrder: 'sequential' as const,
-                responseSpeed: 'medium' as const,
-                scene: DEFAULT_CHAT_GROUP_CHAT_CONFIG.scene,
-              },
-              createdAt: session.createdAt,
-              description: session.meta?.description || '',
-              groupId: session.group || null,
-              id: session.id,
-              pinned: session.pinned || false,
-              slug: null,
-              title: session.meta?.title || 'Untitled Group',
-              updatedAt: session.updatedAt,
-              userId: '',
-            }));
+      // Sync chat groups from group sessions to chat store
+      const groupSessions = data.sessions.filter((session) => session.type === 'group');
+      if (groupSessions.length > 0) {
+        const chatGroupStore = getChatGroupStoreState();
+        const chatGroups = groupSessions.map((session) => ({
+          accessedAt: session.updatedAt,
+          clientId: null,
+          config: {
+            maxResponseInRow: 3,
+            orchestratorModel: 'gpt-4',
+            orchestratorProvider: 'openai',
+            responseOrder: 'sequential' as const,
+            responseSpeed: 'medium' as const,
+            scene: DEFAULT_CHAT_GROUP_CHAT_CONFIG.scene,
+          },
+          createdAt: session.createdAt,
+          description: session.meta?.description || '',
+          groupId: session.group || null,
+          id: session.id,
+          pinned: session.pinned || false,
+          slug: null,
+          title: session.meta?.title || 'Untitled Group',
+          updatedAt: session.updatedAt,
+          userId: '',
+        }));
 
-            chatGroupStore.internal_updateGroupMaps(chatGroups);
-          }
+        chatGroupStore.internal_updateGroupMaps(chatGroups);
+      }
 
-          set({ isSessionsFirstFetchFinished: true }, false, n('useFetchSessions/onSuccess'));
-        } catch (error) {
-          console.error('[useFetchSessions] Error fetching sessions:', error);
-        }
-      };
-
-      fetchSessions();
-    }, [enabled, isLogin]);
+      set({ isSessionsFirstFetchFinished: true }, false, n('internal_fetchSessions/onSuccess'));
+    } catch (error) {
+      console.error('[internal_fetchSessions] Error fetching sessions:', error);
+    }
   },
 
-  internal_searchSessions: (keyword) => {
-    useEffect(() => {
-      const searchSessions = async () => {
-        if (!keyword) return;
+  internal_searchSessions: async (keyword) => {
+    if (!keyword) return;
 
-        try {
-          const results = await sessionService.searchSessions(keyword);
-          console.debug('[useSearchSessions] Search results:', results.length);
-        } catch (error) {
-          console.error('[useSearchSessions] Error searching sessions:', error);
-        }
-      };
-
-      searchSessions();
-    }, [keyword]);
+    try {
+      const results = await sessionService.searchSessions(keyword);
+      console.debug('[internal_searchSessions] Search results:', results.length);
+    } catch (error) {
+      console.error('[internal_searchSessions] Error searching sessions:', error);
+    }
   },
 
   /* eslint-disable sort-keys-fix/sort-keys-fix */
