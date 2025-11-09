@@ -13,6 +13,7 @@ import (
 	"github.com/kawai-network/veridium/internal/llama"
 	"github.com/kawai-network/veridium/internal/machineid"
 	"github.com/kawai-network/veridium/internal/search"
+	"github.com/kawai-network/veridium/internal/services"
 	"github.com/kawai-network/veridium/internal/tableviewer"
 	"github.com/kawai-network/veridium/internal/tts"
 	"github.com/kawai-network/veridium/internal/whisper"
@@ -85,6 +86,23 @@ func main() {
 	// Initialize Audio Recorder service (app will be set after creation)
 	audioRecorderService := audio_recorder.NewAudioRecorderService(nil)
 
+	// Initialize Vector Search service (chromem for semantic search)
+	// Get user data directory for vector DB persistence
+	userConfigDir, err := os.UserConfigDir()
+	if err != nil {
+		userConfigDir = "."
+	}
+	vectorDBPath := filepath.Join(userConfigDir, "veridium", "vector-db")
+	vectorSearchService, err := services.NewVectorSearchService(vectorDBPath, "ollama", "nomic-embed-text")
+	if err != nil {
+		log.Printf("⚠️  Warning: Failed to initialize Vector Search service: %v", err)
+		log.Printf("    Semantic search features will use fallback mode.")
+	} else {
+		log.Printf("✅ Vector Search service initialized (chromem)")
+		log.Printf("   Database path: %s", vectorDBPath)
+		log.Printf("   Embedding model: nomic-embed-text (Ollama)")
+	}
+
 	// Create a new Wails application by providing the necessary options.
 	// Variables 'Name' and 'Description' are for application metadata.
 	// 'Assets' configures the asset server with the 'FS' variable pointing to the frontend files.
@@ -111,6 +129,8 @@ func main() {
 			application.NewService(llamaService),
 			// Audio recorder service - for native microphone recording
 			application.NewService(audioRecorderService),
+			// Vector search service - for semantic search using chromem
+			application.NewService(vectorSearchService),
 			// Machine ID service
 			application.NewService(&machineid.Service{}),
 			// Temp file service

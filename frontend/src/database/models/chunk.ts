@@ -12,6 +12,7 @@ import {
 import { createModelLogger } from '@/utils/logger';
 
 import { bufferToVector, cosineSimilarity } from '../utils/vectorSearch';
+import * as VectorSearch from '../../../bindings/github.com/kawai-network/veridium/internal/services/vectorsearchservice';
 
 export class ChunkModel {
   private userId: string;
@@ -23,14 +24,14 @@ export class ChunkModel {
 
   /**
    * OPTIMIZED: Uses transaction-like behavior via sequential inserts
-   * Note: True transactions would require backend service method
+   * Now also adds chunks to chromem vector database for semantic search
    */
   bulkCreate = async (params: any[], fileId: string) => {
     if (params.length === 0) return [];
 
     const result = [];
     
-    // Create chunks
+    // Create chunks in SQLite
     for (const param of params) {
       const id = param.id || nanoid();
       const now = currentTimestampMs();
@@ -57,6 +58,30 @@ export class ChunkModel {
         createdAt: now,
         userId: this.userId,
       });
+    }
+
+    // Add chunks to chromem vector database (async, non-blocking)
+    try {
+      // Get file name for metadata
+      const file = await DB.GetFile({ id: fileId, userId: this.userId });
+      const fileName = getNullableString(file?.name as any) || 'Unknown';
+
+      const vectorChunks = result.map((chunk) => ({
+        id: chunk.id,
+        text: getNullableString(chunk.text as any) || '',
+        fileId: fileId,
+        fileName: fileName,
+        type: getNullableString(chunk.type as any) || '',
+        index: chunk.chunkIndex || 0,
+        metadata: {},
+      }));
+
+      // Add to vector database (fire and forget, logs errors internally)
+      VectorSearch.AddChunks(this.userId, vectorChunks).catch((err) => {
+        this.logger.error('Failed to add chunks to vector database:', err);
+      });
+    } catch (err) {
+      this.logger.error('Failed to prepare chunks for vector database:', err);
     }
 
     return result;
@@ -88,10 +113,18 @@ export class ChunkModel {
   };
 
   delete = async (id: string) => {
-    return await DB.DeleteChunk({
+    // Delete from SQLite
+    const result = await DB.DeleteChunk({
       id,
       userId: this.userId,
     });
+
+    // Delete from chromem (fire and forget)
+    VectorSearch.DeleteChunks(this.userId, [id]).catch((err) => {
+      this.logger.error('Failed to delete chunk from vector database:', err);
+    });
+
+    return result;
   };
 
   /**
@@ -192,56 +225,77 @@ export class ChunkModel {
   };
 
   /**
-   * Semantic search with client-side similarity calculation
-   * SQLite doesn't have native vector search, so we:
-   * 1. Fetch all chunks with embeddings (with JOIN - optimized)
-   * 2. Calculate cosine similarity in JavaScript
-   * 3. Sort and return top results
+   * Semantic search using chromem vector database (FAST!)
+   * Falls back to client-side calculation if chromem is not available
    */
   semanticSearch = async ({
     embedding,
     fileIds,
+    query,
   }: {
     embedding: number[];
     fileIds: string[] | undefined;
     query: string;
   }) => {
-    // Fetch chunks with embeddings using JOIN query
-    const data = fileIds && fileIds.length > 0
-      ? await DB.GetChunksWithEmbeddingsByFileIds({
-          fileId: toNullString(fileIds[0]), // Single file for now
-          userId: this.userId,
+    try {
+      // Use chromem for fast semantic search
+      const results = await VectorSearch.SemanticSearchMultipleFiles(
+        this.userId,
+        query,
+        fileIds || [],
+        30
+      );
+
+      return results.map((item) => ({
+        fileId: item.FileID,
+        fileName: item.FileName,
+        id: item.ID,
+        index: item.Index,
+        metadata: {} as ChunkMetadata, // Fetch from SQLite if needed
+        similarity: item.Similarity,
+        text: item.Text,
+        type: item.Type,
+      }));
+    } catch (err) {
+      this.logger.warn('Chromem search failed, falling back to client-side:', err);
+
+      // Fallback to old client-side calculation
+      const data = fileIds && fileIds.length > 0
+        ? await DB.GetChunksWithEmbeddingsByFileIds({
+            fileId: toNullString(fileIds[0]),
+            userId: this.userId,
+          })
+        : await DB.GetChunksWithEmbeddings({
+            userId: this.userId,
+          });
+
+      const withSimilarity = data
+        .filter((item) => item.chunkEmbedding)
+        .map((item) => {
+          const chunkVector = bufferToVector(item.chunkEmbedding as ArrayBuffer | Uint8Array);
+          const similarity = cosineSimilarity(embedding, chunkVector);
+          return {
+            fileId: getNullableString(item.fileId as any),
+            fileName: getNullableString(item.fileName as any),
+            id: item.id,
+            index: item.chunkIndex || 0,
+            metadata: parseNullableJSON(item.metadata as any) as ChunkMetadata,
+            similarity,
+            text: getNullableString(item.text as any),
+            type: getNullableString(item.type as any),
+          };
         })
-      : await DB.GetChunksWithEmbeddings({
-          userId: this.userId,
-        });
+        .sort((a, b) => b.similarity - a.similarity)
+        .slice(0, 30);
 
-    // Calculate similarity in JavaScript
-    const withSimilarity = data
-      .filter((item) => item.chunkEmbedding) // Only items with embeddings
-      .map((item) => {
-        const chunkVector = bufferToVector(item.chunkEmbedding as ArrayBuffer | Uint8Array);
-        const similarity = cosineSimilarity(embedding, chunkVector);
-        return {
-          fileId: getNullableString(item.fileId as any),
-          fileName: getNullableString(item.fileName as any),
-          id: item.id,
-          index: item.chunkIndex || 0,
-          metadata: parseNullableJSON(item.metadata as any) as ChunkMetadata,
-          similarity,
-          text: getNullableString(item.text as any),
-          type: getNullableString(item.type as any),
-        };
-      })
-      .sort((a, b) => b.similarity - a.similarity)
-      .slice(0, 30);
-
-    return withSimilarity;
+      return withSimilarity;
+    }
   };
 
   semanticSearchForChat = async ({
     embedding,
     fileIds,
+    query,
   }: {
     embedding: number[];
     fileIds: string[] | undefined;
@@ -250,36 +304,55 @@ export class ChunkModel {
     const hasFiles = fileIds && fileIds.length > 0;
     if (!hasFiles) return [];
 
-    // Note: Multiple file IDs not fully supported due to SQL limitations
-    // For now, use first file ID
-    const result = await DB.GetChunksWithEmbeddingsByFileIds({
-      fileId: toNullString(fileIds[0]),
-      userId: this.userId,
-    });
+    try {
+      // Use chromem for fast semantic search
+      const results = await VectorSearch.SemanticSearchMultipleFiles(
+        this.userId,
+        query,
+        fileIds,
+        15
+      );
 
-    // Calculate similarity in JavaScript
-    const withSimilarity = result
-      .filter((item) => item.chunkEmbedding)
-      .map((item) => {
-        const chunkVector = bufferToVector(item.chunkEmbedding as ArrayBuffer | Uint8Array);
-        const similarity = cosineSimilarity(embedding, chunkVector);
-        return {
-          fileId: getNullableString(item.fileId as any),
-          fileName: getNullableString(item.fileName as any),
-          id: item.id,
-          index: item.chunkIndex || 0,
-          similarity,
-          text: this.mapChunkText({
-            text: getNullableString(item.text as any),
-            metadata: parseNullableJSON(item.metadata as any),
-            type: getNullableString(item.type as any),
-          }),
-        };
-      })
-      .sort((a, b) => b.similarity - a.similarity)
-      .slice(0, 15);
+      return results.map((item) => ({
+        fileId: item.FileID,
+        fileName: item.FileName,
+        id: item.ID,
+        index: item.Index,
+        similarity: item.Similarity,
+        text: item.Text, // Already mapped in backend
+      }));
+    } catch (err) {
+      this.logger.warn('Chromem search failed, falling back to client-side:', err);
 
-    return withSimilarity;
+      // Fallback to old client-side calculation
+      const result = await DB.GetChunksWithEmbeddingsByFileIds({
+        fileId: toNullString(fileIds[0]),
+        userId: this.userId,
+      });
+
+      const withSimilarity = result
+        .filter((item) => item.chunkEmbedding)
+        .map((item) => {
+          const chunkVector = bufferToVector(item.chunkEmbedding as ArrayBuffer | Uint8Array);
+          const similarity = cosineSimilarity(embedding, chunkVector);
+          return {
+            fileId: getNullableString(item.fileId as any),
+            fileName: getNullableString(item.fileName as any),
+            id: item.id,
+            index: item.chunkIndex || 0,
+            similarity,
+            text: this.mapChunkText({
+              text: getNullableString(item.text as any),
+              metadata: parseNullableJSON(item.metadata as any),
+              type: getNullableString(item.type as any),
+            }),
+          };
+        })
+        .sort((a, b) => b.similarity - a.similarity)
+        .slice(0, 15);
+
+      return withSimilarity;
+    }
   };
 
   private mapChunkText = (chunk: { metadata: any; text: string | null; type: string | null }) => {

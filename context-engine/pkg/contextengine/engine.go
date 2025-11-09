@@ -10,9 +10,9 @@ import (
 
 // Engine is the main context engineering engine
 type Engine struct {
-	graphBuilder      *eino.GraphBuilder
-	config            *types.ContextConfig
-	customProcessors  []CustomProcessor
+	graphBuilder       *eino.GraphBuilder
+	config             *types.ContextConfig
+	customProcessors   []CustomProcessor
 	disabledProcessors map[string]bool
 }
 

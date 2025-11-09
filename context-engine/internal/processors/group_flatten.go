@@ -19,7 +19,7 @@ type GroupMessageFlattenConfig struct {
 func NewGroupMessageFlattenLambda(config GroupMessageFlattenConfig) *compose.Lambda {
 	return compose.InvokableLambda(func(ctx context.Context, messages []*schema.Message) ([]*schema.Message, error) {
 		result := make([]*schema.Message, 0, len(messages))
-		
+
 		groupMessagesFlattened := 0
 		assistantMessagesCreated := 0
 		toolMessagesCreated := 0
@@ -164,4 +164,3 @@ func NewGroupMessageFlattenLambda(config GroupMessageFlattenConfig) *compose.Lam
 		return result, nil
 	})
 }
-
