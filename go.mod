@@ -9,6 +9,7 @@ require (
 	github.com/cloudwego/eino v0.5.12
 	github.com/dslipak/pdf v0.0.2
 	github.com/google/uuid v1.6.0
+	github.com/hybridgroup/yzma v0.9.0
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/pemistahl/lingua-go v1.4.0
 	github.com/ssor/bom v0.0.0-20170718123548-6386211fdfcf
@@ -36,7 +37,7 @@ require (
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/cyphar/filepath-securejoin v0.4.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/ebitengine/purego v0.8.2 // indirect
+	github.com/ebitengine/purego v0.9.1 // indirect
 	github.com/eino-contrib/jsonschema v1.0.2 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/getkin/kin-openapi v0.118.0 // indirect
@@ -55,6 +56,7 @@ require (
 	github.com/jchv/go-winloader v0.0.0-20210711035445-715c2860da7e // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
+	github.com/jupiterrider/ffi v0.5.1 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.9 // indirect
 	github.com/leaanthony/go-ansi-parser v1.6.1 // indirect
