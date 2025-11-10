@@ -43,7 +43,7 @@ type VectorSearchService struct {
 }
 
 // NewVectorSearchService creates a new vector search service
-func NewVectorSearchService(persistPath string, embeddingProvider string, embeddingModel string, llamaService *llama.Service) (*VectorSearchService, error) {
+func NewVectorSearchService(persistPath string, embeddingProvider string, embeddingModel string) (*VectorSearchService, error) {
 	if persistPath == "" {
 		persistPath = "./data/vector-db"
 	}
@@ -70,8 +70,9 @@ func NewVectorSearchService(persistPath string, embeddingProvider string, embedd
 		// Check if embedding model is downloaded, auto-download if needed
 		log.Println("🔍 Checking for embedding models...")
 
-		if llamaService == nil {
-			log.Printf("⚠️  No llama service provided")
+		llamaService, err := llama.NewService()
+		if err != nil {
+			log.Printf("⚠️  Failed to initialize llama service: %v", err)
 			log.Println("   Falling back to default llama-server endpoint")
 			embedFunc = chromem.NewEmbeddingFuncLlama("http://localhost:8080")
 		} else {

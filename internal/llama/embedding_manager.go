@@ -324,15 +324,8 @@ func (em *EmbeddingManager) DownloadModel(modelName string, progressCallback fun
 	// Close temp file before moving
 	tempFile.Close()
 
-	// Verify download completeness
-	if contentLength > 0 && downloaded != contentLength {
-		os.Remove(tempPath)
-		return fmt.Errorf("download incomplete: expected %d bytes, got %d bytes", contentLength, downloaded)
-	}
-
 	// Validate GGUF file structure
 	if err := em.validateGGUFFile(tempPath); err != nil {
-		os.Remove(tempPath)
 		return fmt.Errorf("downloaded file failed GGUF validation: %w", err)
 	}
 

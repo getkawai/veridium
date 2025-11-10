@@ -70,10 +70,6 @@ export const createWailsCompatibleRuntime = ({
         }
 
         // Direct Wails binding call - no OpenAI SDK, no custom fetch
-        if (this.debug) {
-          console.debug(`[${this.provider}] Calling Wails Fetch binding...`);
-        }
-        
         const proxyResponse = await Fetch({
           method: 'POST',
           path: '/v1/chat/completions',
@@ -81,13 +77,9 @@ export const createWailsCompatibleRuntime = ({
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(requestBody),
-        }).catch((error) => {
-          console.error(`[${this.provider}] Wails Fetch error:`, error);
-          throw error;
         });
 
         if (!proxyResponse) {
-          console.error(`[${this.provider}] No response from Wails proxy`);
           throw new Error('No response from Wails proxy');
         }
 

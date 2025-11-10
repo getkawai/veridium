@@ -72,13 +72,11 @@ func main() {
 
 	// Initialize Llama service (LLM inference using llama.cpp)
 	// Auto-installs llama.cpp in background
-	log.Println("📍 [main.go] Creating Llama service...")
 	llamaService, err := llama.NewService()
 	if err != nil {
 		log.Printf("⚠️  Warning: Failed to initialize Llama service: %v", err)
 		log.Printf("    LLM features will not be available.")
 	}
-	log.Printf("📍 [main.go] Llama service created: %p", llamaService)
 
 	defer whisperService.Close()
 	log.Printf("✅ Whisper STT service initialized")
@@ -95,7 +93,7 @@ func main() {
 		userConfigDir = "."
 	}
 	vectorDBPath := filepath.Join(userConfigDir, "veridium", "vector-db")
-	vectorSearchService, err := services.NewVectorSearchService(vectorDBPath, "llama", "http://localhost:8080", llamaService)
+	vectorSearchService, err := services.NewVectorSearchService(vectorDBPath, "llama", "http://localhost:8080")
 	if err != nil {
 		log.Printf("⚠️  Warning: Failed to initialize Vector Search service: %v", err)
 		log.Printf("    Semantic search features will use fallback mode.")
