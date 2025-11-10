@@ -119,7 +119,7 @@ func (s *Service) DownloadModelWithLlamaCLI(modelSpec QwenModelSpec) error {
 			os.Remove(destModelPath)
 		} else {
 			log.Printf("✅ Model already exists and is valid: %s", modelFileName)
-			return nil
+		return nil
 		}
 	}
 
@@ -132,9 +132,9 @@ func (s *Service) DownloadModelWithLlamaCLI(modelSpec QwenModelSpec) error {
 			os.Remove(cachedModelPath)
 		} else {
 			log.Printf("📦 Copying validated model to models directory...")
-			if err := s.copyFile(cachedModelPath, destModelPath); err != nil {
-				return fmt.Errorf("failed to copy cached model: %w", err)
-			}
+		if err := s.copyFile(cachedModelPath, destModelPath); err != nil {
+			return fmt.Errorf("failed to copy cached model: %w", err)
+		}
 
 			// Validate copied file
 			if err := s.validateGGUFFile(destModelPath); err != nil {
@@ -142,10 +142,10 @@ func (s *Service) DownloadModelWithLlamaCLI(modelSpec QwenModelSpec) error {
 				return fmt.Errorf("copied model failed validation: %w", err)
 			}
 
-			fileInfo, _ := os.Stat(destModelPath)
-			sizeMB := float64(fileInfo.Size()) / (1024 * 1024)
+		fileInfo, _ := os.Stat(destModelPath)
+		sizeMB := float64(fileInfo.Size()) / (1024 * 1024)
 			log.Printf("✅ Model copied and validated successfully: %s (%.1f MB)", modelFileName, sizeMB)
-			return nil
+		return nil
 		}
 	}
 
