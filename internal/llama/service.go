@@ -117,32 +117,32 @@ func (s *Service) initializeInBackground() {
 	// Step 4: Auto-start llama-server if not already running
 	// Use sync.Once to ensure this only happens once, even if called multiple times
 	s.initOnce.Do(func() {
-	// Wait a bit for any previous setup to complete
+		// Wait a bit for any previous setup to complete
 		time.Sleep(2 * time.Second)
 
-	if !s.IsServerRunning() {
+		if !s.IsServerRunning() {
 			log.Println("🚀 Attempting to auto-start llama-server...")
 
-		// Check if models are available before starting
-		models, err := s.GetAvailableModels()
-		if err != nil {
-			log.Printf("⚠️  Failed to check available models: %v", err)
+			// Check if models are available before starting
+			models, err := s.GetAvailableModels()
+			if err != nil {
+				log.Printf("⚠️  Failed to check available models: %v", err)
 				log.Println("   Will attempt to auto-download a model...")
 				models = []string{} // Treat as no models
-		}
-
-		if len(models) == 0 {
-			log.Println("⚠️  No GGUF models found. Starting auto-download...")
-
-			// Auto-download recommended model based on hardware
-			if err := s.AutoDownloadRecommendedModel(); err != nil {
-				log.Printf("⚠️  Failed to auto-download model: %v", err)
-					log.Println("   llama-server will not start without a model")
-					log.Println("   Please download a model manually to use chat features")
-				return
 			}
 
-			log.Println("✅ Model downloaded successfully!")
+			if len(models) == 0 {
+				log.Println("⚠️  No GGUF models found. Starting auto-download...")
+
+				// Auto-download recommended model based on hardware
+				if err := s.AutoDownloadRecommendedModel(); err != nil {
+					log.Printf("⚠️  Failed to auto-download model: %v", err)
+					log.Println("   llama-server will not start without a model")
+					log.Println("   Please download a model manually to use chat features")
+					return
+				}
+
+				log.Println("✅ Model downloaded successfully!")
 				// Re-check models after download (this will validate them)
 				models, err = s.GetAvailableModels()
 				if err != nil {
@@ -156,7 +156,7 @@ func (s *Service) initializeInBackground() {
 
 			if len(models) > 0 {
 				log.Printf("✅ Found %d model(s), starting llama-server...", len(models))
-		if err := s.StartServerAuto(); err != nil {
+				if err := s.StartServerAuto(); err != nil {
 					log.Printf("❌ Failed to auto-start llama-server: %v", err)
 					log.Println("   The server will be started automatically when you use chat features")
 				} else {
@@ -169,13 +169,13 @@ func (s *Service) initializeInBackground() {
 						log.Println("   It may still be initializing. Try again in a moment.")
 					}
 				}
-		} else {
+			} else {
 				log.Println("⚠️  No models available. llama-server will not start.")
 				log.Println("   Please download a model to use chat features")
+			}
+		} else {
+			log.Println("✅ llama-server is already running")
 		}
-	} else {
-		log.Println("✅ llama-server is already running")
-	}
 
 		s.autoStarted = true
 	})
