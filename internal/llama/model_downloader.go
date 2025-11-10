@@ -113,21 +113,40 @@ func (s *Service) DownloadModelWithLlamaCLI(modelSpec QwenModelSpec) error {
 
 	// Check if model already exists in our models directory
 	if _, err := os.Stat(destModelPath); err == nil {
-		log.Printf("✅ Model already exists: %s", modelFileName)
-		return nil
+		// Validate existing model
+		if err := s.validateGGUFFile(destModelPath); err != nil {
+			log.Printf("⚠️  Existing model %s failed validation, will re-download: %v", modelFileName, err)
+			os.Remove(destModelPath)
+		} else {
+			log.Printf("✅ Model already exists and is valid: %s", modelFileName)
+			return nil
+		}
 	}
 
 	// Check if model exists in llama-cli cache
 	if _, err := os.Stat(cachedModelPath); err == nil {
-		log.Printf("📦 Model found in llama-cli cache, copying to models directory...")
-		if err := s.copyFile(cachedModelPath, destModelPath); err != nil {
-			return fmt.Errorf("failed to copy cached model: %w", err)
-		}
+		log.Printf("📦 Model found in llama-cli cache, validating...")
+		// Validate cached model before copying
+		if err := s.validateGGUFFile(cachedModelPath); err != nil {
+			log.Printf("⚠️  Cached model failed validation, will re-download: %v", err)
+			os.Remove(cachedModelPath)
+		} else {
+			log.Printf("📦 Copying validated model to models directory...")
+			if err := s.copyFile(cachedModelPath, destModelPath); err != nil {
+				return fmt.Errorf("failed to copy cached model: %w", err)
+			}
 
-		fileInfo, _ := os.Stat(destModelPath)
-		sizeMB := float64(fileInfo.Size()) / (1024 * 1024)
-		log.Printf("✅ Model copied successfully: %s (%.1f MB)", modelFileName, sizeMB)
-		return nil
+			// Validate copied file
+			if err := s.validateGGUFFile(destModelPath); err != nil {
+				os.Remove(destModelPath)
+				return fmt.Errorf("copied model failed validation: %w", err)
+			}
+
+			fileInfo, _ := os.Stat(destModelPath)
+			sizeMB := float64(fileInfo.Size()) / (1024 * 1024)
+			log.Printf("✅ Model copied and validated successfully: %s (%.1f MB)", modelFileName, sizeMB)
+			return nil
+		}
 	}
 
 	log.Printf("📥 Downloading model using llama-cli...")
@@ -150,13 +169,74 @@ func (s *Service) DownloadModelWithLlamaCLI(modelSpec QwenModelSpec) error {
 	// Capture output for debugging
 	output, err := cmd.CombinedOutput()
 	if err != nil {
+		log.Printf("❌ llama-cli command failed")
 		log.Printf("❌ llama-cli output:\n%s", string(output))
 		return fmt.Errorf("failed to download model with llama-cli: %w", err)
 	}
 
+	// Log output for debugging (even if successful)
+	if len(output) > 0 {
+		log.Printf("📋 llama-cli output:\n%s", string(output))
+	}
+
 	// Verify model was downloaded to cache
+	// First try the expected path
 	if _, err := os.Stat(cachedModelPath); err != nil {
-		return fmt.Errorf("model file not found in cache after download: %w", err)
+		// If not found at expected path, search for GGUF files in cache directory
+		log.Printf("🔍 Model not found at expected path: %s", cachedModelPath)
+		log.Printf("🔍 Searching for GGUF files in cache directory: %s", cacheDir)
+
+		// Search for any GGUF files in cache directory
+		entries, readErr := os.ReadDir(cacheDir)
+		if readErr != nil {
+			log.Printf("⚠️  Failed to read cache directory: %v", readErr)
+			return fmt.Errorf("model file not found in cache after download (expected: %s): %w", cachedModelPath, err)
+		}
+
+		var foundGGUFFiles []string
+		for _, entry := range entries {
+			if !entry.IsDir() && strings.HasSuffix(strings.ToLower(entry.Name()), ".gguf") {
+				foundPath := filepath.Join(cacheDir, entry.Name())
+				foundGGUFFiles = append(foundGGUFFiles, foundPath)
+			}
+		}
+
+		if len(foundGGUFFiles) == 0 {
+			log.Printf("❌ No GGUF files found in cache directory")
+			return fmt.Errorf("model file not found in cache after download. Expected: %s. No GGUF files found in cache directory: %s", cachedModelPath, cacheDir)
+		}
+
+		// Use the first found GGUF file (or try to match by repo name)
+		var selectedFile string
+		for _, file := range foundGGUFFiles {
+			fileName := strings.ToLower(filepath.Base(file))
+			// Try to match by repo name
+			if strings.Contains(fileName, strings.ToLower(strings.ReplaceAll(modelSpec.Repo, "/", "_"))) ||
+				strings.Contains(fileName, strings.ToLower(modelSpec.Parameters)) {
+				selectedFile = file
+				break
+			}
+		}
+
+		// If no match found, use the first file
+		if selectedFile == "" {
+			selectedFile = foundGGUFFiles[0]
+			log.Printf("⚠️  Using first found GGUF file: %s", selectedFile)
+		} else {
+			log.Printf("✅ Found matching GGUF file: %s", selectedFile)
+		}
+
+		cachedModelPath = selectedFile
+	} else {
+		log.Printf("✅ Model found at expected cache path: %s", cachedModelPath)
+	}
+
+	// Validate cached model before copying
+	log.Printf("🔍 Validating cached model...")
+	if err := s.validateGGUFFile(cachedModelPath); err != nil {
+		// Remove corrupt cached file
+		os.Remove(cachedModelPath)
+		return fmt.Errorf("cached model failed validation: %w", err)
 	}
 
 	// Copy from cache to our models directory
@@ -165,13 +245,21 @@ func (s *Service) DownloadModelWithLlamaCLI(modelSpec QwenModelSpec) error {
 		return fmt.Errorf("failed to copy model from cache: %w", err)
 	}
 
+	// Validate copied file
+	log.Printf("🔍 Validating copied model...")
+	if err := s.validateGGUFFile(destModelPath); err != nil {
+		// Remove corrupt copied file
+		os.Remove(destModelPath)
+		return fmt.Errorf("copied model failed validation: %w", err)
+	}
+
 	// Get file size for confirmation
 	fileInfo, err := os.Stat(destModelPath)
 	if err == nil {
 		sizeMB := float64(fileInfo.Size()) / (1024 * 1024)
-		log.Printf("✅ Model downloaded successfully: %s (%.1f MB)", modelFileName, sizeMB)
+		log.Printf("✅ Model downloaded and validated successfully: %s (%.1f MB)", modelFileName, sizeMB)
 	} else {
-		log.Printf("✅ Model downloaded successfully: %s", modelFileName)
+		log.Printf("✅ Model downloaded and validated successfully: %s", modelFileName)
 	}
 
 	return nil

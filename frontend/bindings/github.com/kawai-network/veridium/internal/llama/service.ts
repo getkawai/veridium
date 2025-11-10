@@ -37,6 +37,7 @@ export function DownloadModelWithLlamaCLI(modelSpec: $models.QwenModelSpec): $Ca
 
 /**
  * GetAvailableModels returns a list of available GGUF models
+ * Only returns models that pass validation
  */
 export function GetAvailableModels(): $CancellablePromise<string[]> {
     return $Call.ByID(3259973076).then(($result: any) => {

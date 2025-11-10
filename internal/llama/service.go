@@ -1,8 +1,11 @@
 package llama
 
 import (
+	"encoding/binary"
 	"fmt"
+	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -21,6 +24,8 @@ type Service struct {
 	serverPort       int
 	serverModelPath  string
 	serverMutex      sync.Mutex
+	initOnce         sync.Once // Ensure initialization happens only once
+	autoStarted      bool      // Track if auto-start has been attempted
 }
 
 // NewService creates a new llama.cpp service instance
@@ -35,7 +40,10 @@ func NewService() (*Service, error) {
 		serverPort:       8080, // Default port
 	}
 
+	log.Printf("📍 [NewService] Created service instance: %p", service)
+
 	// Start background initialization
+	log.Printf("📍 [NewService] Starting goroutine for: %p", service)
 	go service.initializeInBackground()
 
 	return service, nil
@@ -43,7 +51,7 @@ func NewService() (*Service, error) {
 
 // initializeInBackground handles llama.cpp installation and setup
 func (s *Service) initializeInBackground() {
-	log.Println("🚀 Initializing llama.cpp in background...")
+	log.Printf("🚀 Initializing llama.cpp in background... (Service instance: %p)", s)
 
 	// Step 1: Check and install llama.cpp if needed
 	if !s.manager.IsLlamaCppInstalled() {
@@ -107,41 +115,70 @@ func (s *Service) initializeInBackground() {
 	}()
 
 	// Step 4: Auto-start llama-server if not already running
-	// Wait a bit for any previous setup to complete
-	time.Sleep(1 * time.Second)
+	// Use sync.Once to ensure this only happens once, even if called multiple times
+	s.initOnce.Do(func() {
+		// Wait a bit for any previous setup to complete
+		time.Sleep(2 * time.Second)
 
-	if !s.IsServerRunning() {
-		// Check if models are available before starting
-		models, err := s.GetAvailableModels()
-		if err != nil {
-			log.Printf("⚠️  Failed to check available models: %v", err)
-			log.Println("   llama-server will not auto-start. Please download a model first.")
-			return
-		}
+		if !s.IsServerRunning() {
+			log.Println("🚀 Attempting to auto-start llama-server...")
 
-		if len(models) == 0 {
-			log.Println("⚠️  No GGUF models found. Starting auto-download...")
-
-			// Auto-download recommended model based on hardware
-			if err := s.AutoDownloadRecommendedModel(); err != nil {
-				log.Printf("⚠️  Failed to auto-download model: %v", err)
-				log.Println("   You can download a model manually later")
-				return
+			// Check if models are available before starting
+			models, err := s.GetAvailableModels()
+			if err != nil {
+				log.Printf("⚠️  Failed to check available models: %v", err)
+				log.Println("   Will attempt to auto-download a model...")
+				models = []string{} // Treat as no models
 			}
 
-			log.Println("✅ Model downloaded successfully!")
+			if len(models) == 0 {
+				log.Println("⚠️  No GGUF models found. Starting auto-download...")
+
+				// Auto-download recommended model based on hardware
+				if err := s.AutoDownloadRecommendedModel(); err != nil {
+					log.Printf("⚠️  Failed to auto-download model: %v", err)
+					log.Println("   llama-server will not start without a model")
+					log.Println("   Please download a model manually to use chat features")
+					return
+				}
+
+				log.Println("✅ Model downloaded successfully!")
+				// Re-check models after download (this will validate them)
+				models, err = s.GetAvailableModels()
+				if err != nil {
+					log.Printf("⚠️  Failed to re-check models after download: %v", err)
+				} else if len(models) == 0 {
+					log.Println("⚠️  No valid models found after download. Model may be corrupt.")
+					log.Println("   Please try downloading again or download manually")
+					return
+				}
+			}
+
+			if len(models) > 0 {
+				log.Printf("✅ Found %d model(s), starting llama-server...", len(models))
+				if err := s.StartServerAuto(); err != nil {
+					log.Printf("❌ Failed to auto-start llama-server: %v", err)
+					log.Println("   The server will be started automatically when you use chat features")
+				} else {
+					// Wait a moment and verify server is running
+					time.Sleep(2 * time.Second)
+					if s.IsServerRunning() {
+						log.Println("✅ llama-server auto-started successfully and is responding")
+					} else {
+						log.Printf("⚠️  llama-server started but not responding yet")
+						log.Println("   It may still be initializing. Try again in a moment.")
+					}
+				}
+			} else {
+				log.Println("⚠️  No models available. llama-server will not start.")
+				log.Println("   Please download a model to use chat features")
+			}
+		} else {
+			log.Println("✅ llama-server is already running")
 		}
 
-		log.Println("🚀 Auto-starting llama-server...")
-		if err := s.StartServerAuto(); err != nil {
-			log.Printf("⚠️  Failed to auto-start llama-server: %v", err)
-			log.Println("   You can start it manually later")
-		} else {
-			log.Println("✅ llama-server auto-started successfully")
-		}
-	} else {
-		log.Println("✅ llama-server is already running")
-	}
+		s.autoStarted = true
+	})
 }
 
 // GetBinaryPath returns the path to the llama.cpp binary directory
@@ -165,9 +202,11 @@ func (s *Service) StartServer(modelPath string, port int) error {
 	s.serverMutex.Lock()
 	defer s.serverMutex.Unlock()
 
-	// Check if server is already running
-	if s.IsServerRunning() {
-		log.Println("llama-server is already running")
+	log.Printf("[StartServer] Called with modelPath=%s, port=%d (current process: %v)", modelPath, port, s.serverProcess != nil)
+
+	// Check if we already have a running process
+	if s.serverProcess != nil && s.serverProcess.Process != nil {
+		log.Printf("⚠️  llama-server process already exists (PID: %d)", s.serverProcess.Process.Pid)
 		return nil
 	}
 
@@ -201,6 +240,20 @@ func (s *Service) StartServer(modelPath string, port int) error {
 		s.serverPort = port
 	}
 
+	// Check if port is already in use
+	if s.isPortInUse(s.serverPort) {
+		log.Printf("⚠️  Port %d is already in use, attempting to find alternative port...", s.serverPort)
+
+		// Try to find an available port
+		newPort, err := s.findAvailablePort(s.serverPort)
+		if err != nil {
+			return fmt.Errorf("port %d is in use and no alternative port found: %w", s.serverPort, err)
+		}
+
+		log.Printf("✅ Found available port: %d", newPort)
+		s.serverPort = newPort
+	}
+
 	// Build command arguments
 	args := []string{
 		"--host", "127.0.0.1",
@@ -209,10 +262,15 @@ func (s *Service) StartServer(modelPath string, port int) error {
 		"--threads", fmt.Sprintf("%d", runtime.NumCPU()),
 		"--ctx-size", "4096",
 		"--batch-size", "512",
+		"--parallel", "4", // Allow 4 concurrent requests
 	}
 
 	// Create command
 	cmd := exec.Command(serverPath, args...)
+
+	// Capture stdout and stderr for debugging
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
 	// Start the process
 	if err := cmd.Start(); err != nil {
@@ -222,11 +280,14 @@ func (s *Service) StartServer(modelPath string, port int) error {
 	s.serverProcess = cmd
 	s.serverModelPath = modelPath
 	log.Printf("✅ llama-server started on port %d (PID: %d)", s.serverPort, cmd.Process.Pid)
+	log.Printf("   Model: %s", modelPath)
 
 	// Monitor the process in a goroutine
 	go func() {
 		if err := cmd.Wait(); err != nil {
-			log.Printf("⚠️  llama-server process ended: %v", err)
+			log.Printf("⚠️  llama-server process ended with error: %v", err)
+		} else {
+			log.Printf("⚠️  llama-server process ended normally")
 		}
 		s.serverMutex.Lock()
 		s.serverProcess = nil
@@ -264,6 +325,28 @@ func (s *Service) StopServer() error {
 	s.serverModelPath = ""
 
 	return nil
+}
+
+// isPortInUse checks if a port is already in use
+func (s *Service) isPortInUse(port int) bool {
+	address := fmt.Sprintf("127.0.0.1:%d", port)
+	listener, err := net.Listen("tcp", address)
+	if err != nil {
+		return true // Port is in use
+	}
+	listener.Close()
+	return false
+}
+
+// findAvailablePort tries to find an available port starting from the given port
+func (s *Service) findAvailablePort(startPort int) (int, error) {
+	// Try ports in range: startPort to startPort+100
+	for port := startPort + 1; port <= startPort+100; port++ {
+		if !s.isPortInUse(port) {
+			return port, nil
+		}
+	}
+	return 0, fmt.Errorf("no available port found in range %d-%d", startPort+1, startPort+100)
 }
 
 // IsServerRunning checks if llama-server is running by making a health check request
@@ -418,7 +501,92 @@ func (s *Service) selectBestModel() (string, error) {
 	return bestModel, nil
 }
 
+// validateGGUFFile validates a GGUF file by checking its header structure
+func (s *Service) validateGGUFFile(filePath string) error {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to open file: %w", err)
+	}
+	defer file.Close()
+
+	// GGUF files start with a magic number: "GGUF" (4 bytes)
+	magic := make([]byte, 4)
+	if _, err := io.ReadFull(file, magic); err != nil {
+		return fmt.Errorf("failed to read magic bytes: %w", err)
+	}
+
+	if string(magic) != "GGUF" {
+		return fmt.Errorf("invalid GGUF file: wrong magic bytes (expected 'GGUF', got '%s')", string(magic))
+	}
+
+	// Read version (4 bytes, little-endian uint32)
+	var version uint32
+	if err := binary.Read(file, binary.LittleEndian, &version); err != nil {
+		return fmt.Errorf("failed to read version: %w", err)
+	}
+
+	// Check if version is reasonable (GGUF versions are typically 1, 2, or 3)
+	if version == 0 || version > 10 {
+		return fmt.Errorf("invalid GGUF file: unreasonable version %d", version)
+	}
+
+	// Read tensor count (8 bytes, little-endian uint64)
+	var tensorCount uint64
+	if err := binary.Read(file, binary.LittleEndian, &tensorCount); err != nil {
+		return fmt.Errorf("failed to read tensor count: %w", err)
+	}
+
+	// Read metadata key-value count (8 bytes, little-endian uint64)
+	var metadataCount uint64
+	if err := binary.Read(file, binary.LittleEndian, &metadataCount); err != nil {
+		return fmt.Errorf("failed to read metadata count: %w", err)
+	}
+
+	// Basic sanity checks
+	if tensorCount == 0 {
+		return fmt.Errorf("invalid GGUF file: no tensors found")
+	}
+
+	if tensorCount > 100000 { // Reasonable upper bound
+		return fmt.Errorf("invalid GGUF file: unreasonable tensor count %d", tensorCount)
+	}
+
+	if metadataCount > 10000 { // Reasonable upper bound for metadata entries
+		return fmt.Errorf("invalid GGUF file: unreasonable metadata count %d", metadataCount)
+	}
+
+	log.Printf("GGUF file validation passed: version=%d, tensors=%d, metadata_entries=%d",
+		version, tensorCount, metadataCount)
+	return nil
+}
+
+// validateModelFile validates a model file and removes it if corrupt
+func (s *Service) validateModelFile(modelPath string) error {
+	// Check if file exists
+	fileInfo, err := os.Stat(modelPath)
+	if err != nil {
+		return fmt.Errorf("model file not found: %w", err)
+	}
+
+	// Check minimum file size (GGUF files should be at least a few MB)
+	if fileInfo.Size() < 1024*1024 { // Less than 1MB is suspicious
+		log.Printf("⚠️  Model file %s is suspiciously small (%d bytes), removing...", modelPath, fileInfo.Size())
+		os.Remove(modelPath)
+		return fmt.Errorf("model file too small, likely incomplete")
+	}
+
+	// Validate GGUF structure
+	if err := s.validateGGUFFile(modelPath); err != nil {
+		log.Printf("⚠️  Model file %s failed validation: %v, removing...", modelPath, err)
+		os.Remove(modelPath)
+		return fmt.Errorf("model validation failed: %w", err)
+	}
+
+	return nil
+}
+
 // GetAvailableModels returns a list of available GGUF models
+// Only returns models that pass validation
 func (s *Service) GetAvailableModels() ([]string, error) {
 	modelsDir := s.manager.GetModelsDirectory()
 
@@ -438,7 +606,13 @@ func (s *Service) GetAvailableModels() ([]string, error) {
 
 		name := entry.Name()
 		if strings.HasSuffix(strings.ToLower(name), ".gguf") {
-			models = append(models, filepath.Join(modelsDir, name))
+			modelPath := filepath.Join(modelsDir, name)
+			// Validate each model before including it
+			if err := s.validateModelFile(modelPath); err != nil {
+				log.Printf("⚠️  Skipping invalid model %s: %v", name, err)
+				continue
+			}
+			models = append(models, modelPath)
 		}
 	}
 
