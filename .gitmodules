@@ -1,0 +1,3 @@
+[submodule "yzma"]
+	path = yzma
+	url = https://github.com/hybridgroup/yzma.git
