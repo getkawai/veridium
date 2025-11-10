@@ -105,4 +105,6 @@ require (
 	modernc.org/memory v1.8.2 // indirect
 )
 
+replace github.com/hybridgroup/yzma => ./yzma
+
 replace github.com/wailsapp/wails/v3 => ../../wailsapp/wails/v3
