@@ -15,10 +15,18 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
- * AutoDownloadRecommendedModel automatically downloads the best model for the system using llama-cli
+ * AutoDownloadRecommendedModel automatically downloads the best model for the system
  */
 export function AutoDownloadRecommendedModel(): $CancellablePromise<void> {
     return $Call.ByID(2081361982);
+}
+
+/**
+ * CleanupStaleTempFiles removes all stale temporary download files
+ * This should be called on service startup to clean up interrupted downloads
+ */
+export function CleanupStaleTempFiles(): $CancellablePromise<void> {
+    return $Call.ByID(2583854929);
 }
 
 /**
@@ -29,10 +37,10 @@ export function DownloadEmbeddingModel(modelName: string, progressCallback: any)
 }
 
 /**
- * DownloadModelWithLlamaCLI downloads a model using llama-cli's built-in HuggingFace integration
+ * DownloadModel downloads a model directly from HuggingFace using yzma/pkg/download
  */
-export function DownloadModelWithLlamaCLI(modelSpec: $models.QwenModelSpec): $CancellablePromise<void> {
-    return $Call.ByID(2719622767, modelSpec);
+export function DownloadModel(modelSpec: $models.QwenModelSpec): $CancellablePromise<void> {
+    return $Call.ByID(743155514, modelSpec);
 }
 
 /**

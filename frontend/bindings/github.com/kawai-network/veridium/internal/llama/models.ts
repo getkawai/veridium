@@ -190,13 +190,18 @@ export class ProxyResponse {
 }
 
 /**
- * QwenModelSpec represents a Qwen model specification for llama-cli download
+ * QwenModelSpec represents a Qwen model specification for direct download
  */
 export class QwenModelSpec {
     /**
-     * HuggingFace repo (e.g., "Qwen/Qwen2.5-0.5B-Instruct-GGUF")
+     * Model name (e.g., "qwen2.5-0.5b-instruct-q4_k_m")
      */
-    "Repo": string;
+    "Name": string;
+
+    /**
+     * Direct download URL
+     */
+    "URL": string;
 
     /**
      * Quantization type (Q4_K_M, Q5_K_M, etc.)
@@ -214,14 +219,27 @@ export class QwenModelSpec {
     "MinRAM": number;
 
     /**
+     * Expected file size in bytes
+     */
+    "Size": number;
+
+    /**
+     * Expected SHA256 checksum (optional)
+     */
+    "SHA256": string;
+
+    /**
      * Model description
      */
     "Description": string;
 
     /** Creates a new QwenModelSpec instance. */
     constructor($$source: Partial<QwenModelSpec> = {}) {
-        if (!("Repo" in $$source)) {
-            this["Repo"] = "";
+        if (!("Name" in $$source)) {
+            this["Name"] = "";
+        }
+        if (!("URL" in $$source)) {
+            this["URL"] = "";
         }
         if (!("Quantization" in $$source)) {
             this["Quantization"] = "";
@@ -231,6 +249,12 @@ export class QwenModelSpec {
         }
         if (!("MinRAM" in $$source)) {
             this["MinRAM"] = 0;
+        }
+        if (!("Size" in $$source)) {
+            this["Size"] = 0;
+        }
+        if (!("SHA256" in $$source)) {
+            this["SHA256"] = "";
         }
         if (!("Description" in $$source)) {
             this["Description"] = "";

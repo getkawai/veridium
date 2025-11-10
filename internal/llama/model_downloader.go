@@ -1,53 +1,67 @@
 package llama
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/hybridgroup/yzma/pkg/download"
 )
 
-// QwenModelSpec represents a Qwen model specification for llama-cli download
+// QwenModelSpec represents a Qwen model specification for direct download
 type QwenModelSpec struct {
-	Repo         string // HuggingFace repo (e.g., "Qwen/Qwen2.5-0.5B-Instruct-GGUF")
+	Name         string // Model name (e.g., "qwen2.5-0.5b-instruct-q4_k_m")
+	URL          string // Direct download URL
 	Quantization string // Quantization type (Q4_K_M, Q5_K_M, etc.)
 	Parameters   string // Parameter size (0.5b, 1.5b, etc.)
 	MinRAM       int64  // Minimum RAM required in GB
+	Size         int64  // Expected file size in bytes
+	SHA256       string // Expected SHA256 checksum (optional)
 	Description  string // Model description
 }
 
-// GetRecommendedQwenModels returns recommended Qwen models for llama-cli download
+// GetRecommendedQwenModels returns recommended Qwen models for direct download
 func GetRecommendedQwenModels() []QwenModelSpec {
 	return []QwenModelSpec{
 		{
-			Repo:         "Qwen/Qwen2.5-0.5B-Instruct-GGUF",
+			Name:         "qwen2.5-0.5b-instruct-q4_k_m",
+			URL:          "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf",
 			Quantization: "Q4_K_M",
 			Parameters:   "0.5b",
 			MinRAM:       2,
+			Size:         491520000, // ~468 MB
 			Description:  "Smallest Qwen model, perfect for low-end hardware and testing",
 		},
 		{
-			Repo:         "Qwen/Qwen2.5-1.5B-Instruct-GGUF",
+			Name:         "qwen2.5-1.5b-instruct-q4_k_m",
+			URL:          "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf",
 			Quantization: "Q4_K_M",
 			Parameters:   "1.5b",
 			MinRAM:       4,
+			Size:         1100000000, // ~1.1 GB
 			Description:  "Lightweight Qwen model, good balance of speed and quality",
 		},
 		{
-			Repo:         "Qwen/Qwen2.5-3B-Instruct-GGUF",
+			Name:         "qwen2.5-3b-instruct-q4_k_m",
+			URL:          "https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/resolve/main/qwen2.5-3b-instruct-q4_k_m.gguf",
 			Quantization: "Q4_K_M",
 			Parameters:   "3b",
 			MinRAM:       6,
+			Size:         2100000000, // ~2.1 GB
 			Description:  "Mid-size Qwen model, excellent for most tasks",
 		},
 		{
-			Repo:         "Qwen/Qwen2.5-7B-Instruct-GGUF",
+			Name:         "qwen2.5-7b-instruct-q4_k_m",
+			URL:          "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-GGUF/resolve/main/qwen2.5-7b-instruct-q4_k_m.gguf",
 			Quantization: "Q4_K_M",
 			Parameters:   "7b",
 			MinRAM:       10,
+			Size:         4800000000, // ~4.8 GB
 			Description:  "High-quality Qwen model, great for advanced tasks",
 		},
 	}
@@ -68,26 +82,20 @@ func SelectOptimalQwenModel(availableRAM int64) QwenModelSpec {
 	}
 
 	// If no model fits, use the smallest one
-	if selectedModel.Repo == "" {
+	if selectedModel.Name == "" {
 		selectedModel = models[0]
 		log.Printf("⚠️  System has low RAM (%dGB), using smallest model", availableRAM)
 	}
 
 	log.Printf("📦 Selected model: %s (%s, %s) - requires %dGB RAM (system has %dGB)",
-		selectedModel.Repo, selectedModel.Parameters, selectedModel.Quantization,
+		selectedModel.Name, selectedModel.Parameters, selectedModel.Quantization,
 		selectedModel.MinRAM, availableRAM)
 
 	return selectedModel
 }
 
-// DownloadModelWithLlamaCLI downloads a model using llama-cli's built-in HuggingFace integration
-func (s *Service) DownloadModelWithLlamaCLI(modelSpec QwenModelSpec) error {
-	// Get llama-cli path
-	llamaCLI := s.manager.GetBinaryPath("llama-cli")
-	if _, err := os.Stat(llamaCLI); err != nil {
-		return fmt.Errorf("llama-cli not found at %s: %w", llamaCLI, err)
-	}
-
+// DownloadModel downloads a model directly from HuggingFace using yzma/pkg/download
+func (s *Service) DownloadModel(modelSpec QwenModelSpec) error {
 	modelsDir := s.manager.GetModelsDirectory()
 
 	// Ensure models directory exists
@@ -95,83 +103,129 @@ func (s *Service) DownloadModelWithLlamaCLI(modelSpec QwenModelSpec) error {
 		return fmt.Errorf("failed to create models directory: %w", err)
 	}
 
-	// Build HuggingFace repo string (without quantization suffix for URL)
-	hfRepo := modelSpec.Repo
-
-	// Generate expected model filename from llama-cli cache
-	// Cache location is platform-specific (see manager_*.go files)
-	cacheDir := GetLlamaCLICacheDirectory()
-
-	// Build cache filename: Repo_Name_model-quant.gguf
-	repoName := strings.ReplaceAll(modelSpec.Repo, "/", "_")
-	modelFileName := strings.ToLower(strings.ReplaceAll(filepath.Base(modelSpec.Repo), "-GGUF", ""))
-	modelFileName = fmt.Sprintf("%s-%s.gguf", modelFileName, strings.ToLower(modelSpec.Quantization))
-	cachedModelPath := filepath.Join(cacheDir, fmt.Sprintf("%s_%s", repoName, modelFileName))
-
-	// Destination in our models directory
+	// Build model filename
+	modelFileName := fmt.Sprintf("%s.gguf", modelSpec.Name)
 	destModelPath := filepath.Join(modelsDir, modelFileName)
+	tempModelPath := destModelPath + ".tmp"
 
-	// Check if model already exists in our models directory
+	// Clean up any stale temporary files from previous interrupted downloads
+	if _, err := os.Stat(tempModelPath); err == nil {
+		log.Printf("🧹 Cleaning up stale temporary file from previous download: %s", filepath.Base(tempModelPath))
+		os.Remove(tempModelPath)
+	}
+
+	// Check if model already exists
 	if _, err := os.Stat(destModelPath); err == nil {
 		log.Printf("✅ Model already exists: %s", modelFileName)
-		return nil
-	}
 
-	// Check if model exists in llama-cli cache
-	if _, err := os.Stat(cachedModelPath); err == nil {
-		log.Printf("📦 Model found in llama-cli cache, copying to models directory...")
-		if err := s.copyFile(cachedModelPath, destModelPath); err != nil {
-			return fmt.Errorf("failed to copy cached model: %w", err)
+		// Verify existing model integrity if checksum is provided
+		if modelSpec.SHA256 != "" {
+			if err := s.verifyModelChecksum(destModelPath, modelSpec.SHA256); err != nil {
+				log.Printf("⚠️  Existing model checksum invalid, re-downloading...")
+				os.Remove(destModelPath)
+			} else {
+				return nil
+			}
+		} else {
+			return nil
 		}
-
-		fileInfo, _ := os.Stat(destModelPath)
-		sizeMB := float64(fileInfo.Size()) / (1024 * 1024)
-		log.Printf("✅ Model copied successfully: %s (%.1f MB)", modelFileName, sizeMB)
-		return nil
 	}
 
-	log.Printf("📥 Downloading model using llama-cli...")
-	log.Printf("   Repository: %s", hfRepo)
-	log.Printf("   Quantization: %s (auto-selected by llama-cli)", modelSpec.Quantization)
-	log.Printf("   This may take several minutes depending on model size and network speed...")
+	log.Printf("📥 Downloading model: %s", modelSpec.Name)
+	log.Printf("   URL: %s", modelSpec.URL)
+	log.Printf("   Expected size: %.1f MB", float64(modelSpec.Size)/(1024*1024))
+	log.Printf("   This may take several minutes depending on network speed...")
 
-	// Build llama-cli command
-	// Let llama-cli download to its cache directory, then we'll copy it
-	args := []string{
-		"--hf-repo", hfRepo,
-		"--prompt", "Hello", // Minimal prompt
-		"-n", "1", // Generate only 1 token to exit quickly
-		"--log-disable",       // Disable verbose llama.cpp logging
-		"--no-display-prompt", // Don't display prompt
+	// Download to temporary file first
+	if err := download.GetModel(modelSpec.URL, tempModelPath); err != nil {
+		// Clean up failed download
+		os.Remove(tempModelPath)
+		return fmt.Errorf("failed to download model: %w", err)
 	}
 
-	cmd := exec.Command(llamaCLI, args...)
-
-	// Capture output for debugging
-	output, err := cmd.CombinedOutput()
+	// Verify downloaded file
+	fileInfo, err := os.Stat(tempModelPath)
 	if err != nil {
-		log.Printf("❌ llama-cli output:\n%s", string(output))
-		return fmt.Errorf("failed to download model with llama-cli: %w", err)
+		os.Remove(tempModelPath)
+		return fmt.Errorf("failed to stat downloaded file: %w", err)
 	}
 
-	// Verify model was downloaded to cache
-	if _, err := os.Stat(cachedModelPath); err != nil {
-		return fmt.Errorf("model file not found in cache after download: %w", err)
+	// Check file size (allow 5% variance for metadata)
+	actualSize := fileInfo.Size()
+	expectedSize := modelSpec.Size
+	sizeVariance := float64(actualSize) / float64(expectedSize)
+
+	if sizeVariance < 0.95 || sizeVariance > 1.05 {
+		os.Remove(tempModelPath)
+		return fmt.Errorf("downloaded file size mismatch: got %d bytes, expected ~%d bytes (%.1f%% of expected)",
+			actualSize, expectedSize, sizeVariance*100)
 	}
 
-	// Copy from cache to our models directory
-	log.Printf("📦 Copying model from cache to models directory...")
-	if err := s.copyFile(cachedModelPath, destModelPath); err != nil {
-		return fmt.Errorf("failed to copy model from cache: %w", err)
+	// Verify checksum if provided
+	if modelSpec.SHA256 != "" {
+		log.Printf("🔒 Verifying model integrity...")
+		if err := s.verifyModelChecksum(tempModelPath, modelSpec.SHA256); err != nil {
+			os.Remove(tempModelPath)
+			return fmt.Errorf("model integrity check failed: %w", err)
+		}
+		log.Printf("✅ Model integrity verified")
 	}
 
-	// Get file size for confirmation
-	fileInfo, err := os.Stat(destModelPath)
-	if err == nil {
-		sizeMB := float64(fileInfo.Size()) / (1024 * 1024)
-		log.Printf("✅ Model downloaded successfully: %s (%.1f MB)", modelFileName, sizeMB)
-	} else {
-		log.Printf("✅ Model downloaded successfully: %s", modelFileName)
+	// Verify it's a valid GGUF file
+	if err := s.validateGGUFFile(tempModelPath); err != nil {
+		os.Remove(tempModelPath)
+		return fmt.Errorf("invalid GGUF file: %w", err)
+	}
+
+	// Move temporary file to final destination
+	if err := os.Rename(tempModelPath, destModelPath); err != nil {
+		os.Remove(tempModelPath)
+		return fmt.Errorf("failed to move downloaded file: %w", err)
+	}
+
+	sizeMB := float64(actualSize) / (1024 * 1024)
+	log.Printf("✅ Model downloaded successfully: %s (%.1f MB)", modelFileName, sizeMB)
+
+	return nil
+}
+
+// verifyModelChecksum verifies the SHA256 checksum of a file
+func (s *Service) verifyModelChecksum(filePath, expectedChecksum string) error {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to open file for checksum: %w", err)
+	}
+	defer file.Close()
+
+	hash := sha256.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return fmt.Errorf("failed to compute checksum: %w", err)
+	}
+
+	actualChecksum := hex.EncodeToString(hash.Sum(nil))
+	if !strings.EqualFold(actualChecksum, expectedChecksum) {
+		return fmt.Errorf("checksum mismatch: got %s, expected %s", actualChecksum, expectedChecksum)
+	}
+
+	return nil
+}
+
+// validateGGUFFile performs basic validation on a GGUF file
+func (s *Service) validateGGUFFile(filePath string) error {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to open file: %w", err)
+	}
+	defer file.Close()
+
+	// Read GGUF magic number (first 4 bytes should be "GGUF")
+	magic := make([]byte, 4)
+	if _, err := io.ReadFull(file, magic); err != nil {
+		return fmt.Errorf("failed to read file header: %w", err)
+	}
+
+	if string(magic) != "GGUF" {
+		return fmt.Errorf("invalid GGUF magic number: got %q, expected \"GGUF\"", string(magic))
 	}
 
 	return nil
@@ -199,8 +253,60 @@ func (s *Service) copyFile(src, dst string) error {
 	return destFile.Sync()
 }
 
-// AutoDownloadRecommendedModel automatically downloads the best model for the system using llama-cli
+// CleanupStaleTempFiles removes all stale temporary download files
+// This should be called on service startup to clean up interrupted downloads
+func (s *Service) CleanupStaleTempFiles() error {
+	modelsDir := s.manager.GetModelsDirectory()
+
+	entries, err := os.ReadDir(modelsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil // Directory doesn't exist yet, nothing to clean
+		}
+		return fmt.Errorf("failed to read models directory: %w", err)
+	}
+
+	cleaned := 0
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		// Check if it's a temporary file (.tmp)
+		if strings.HasSuffix(entry.Name(), ".tmp") {
+			tmpPath := filepath.Join(modelsDir, entry.Name())
+
+			// Get file info to check age (optional: only delete if older than X)
+			info, err := entry.Info()
+			if err != nil {
+				continue
+			}
+
+			log.Printf("🧹 Removing stale temporary file: %s (size: %.1f MB)",
+				entry.Name(), float64(info.Size())/(1024*1024))
+
+			if err := os.Remove(tmpPath); err != nil {
+				log.Printf("⚠️  Failed to remove stale temp file %s: %v", entry.Name(), err)
+			} else {
+				cleaned++
+			}
+		}
+	}
+
+	if cleaned > 0 {
+		log.Printf("✅ Cleaned up %d stale temporary file(s)", cleaned)
+	}
+
+	return nil
+}
+
+// AutoDownloadRecommendedModel automatically downloads the best model for the system
 func (s *Service) AutoDownloadRecommendedModel() error {
+	// Clean up any stale temp files from previous interrupted downloads
+	if err := s.CleanupStaleTempFiles(); err != nil {
+		log.Printf("⚠️  Failed to cleanup stale temp files: %v", err)
+		// Don't fail, just log
+	}
 	// Check if any models already exist
 	models, err := s.GetAvailableModels()
 	if err != nil {
@@ -212,7 +318,7 @@ func (s *Service) AutoDownloadRecommendedModel() error {
 		return nil
 	}
 
-	log.Println("📦 No models found, starting auto-download with llama-cli...")
+	log.Println("📦 No models found, starting auto-download...")
 
 	// Detect hardware specs
 	specs := DetectHardwareSpecs()
@@ -220,8 +326,8 @@ func (s *Service) AutoDownloadRecommendedModel() error {
 	// Select optimal model based on available RAM
 	modelSpec := SelectOptimalQwenModel(specs.AvailableRAM)
 
-	// Download the model using llama-cli
-	if err := s.DownloadModelWithLlamaCLI(modelSpec); err != nil {
+	// Download the model
+	if err := s.DownloadModel(modelSpec); err != nil {
 		return fmt.Errorf("failed to download model: %w", err)
 	}
 
