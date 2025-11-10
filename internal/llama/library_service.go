@@ -43,7 +43,7 @@ type LibraryService struct {
 
 // NewLibraryService creates a new library-based llama.cpp service
 func NewLibraryService() (*LibraryService, error) {
-	manager := NewLlamaCppReleaseManager()
+	manager := NewLlamaCppInstaller()
 	embeddingManager := NewEmbeddingManager()
 
 	service := &LibraryService{

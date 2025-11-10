@@ -26,7 +26,7 @@ type Service struct {
 // NewService creates a new llama.cpp service instance
 // Automatically installs llama.cpp and downloads recommended model in background
 func NewService() (*Service, error) {
-	manager := NewLlamaCppReleaseManager()
+	manager := NewLlamaCppInstaller()
 	embeddingManager := NewEmbeddingManager() // NEW: Initialize embedding manager
 
 	service := &Service{

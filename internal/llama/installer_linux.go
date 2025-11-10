@@ -3,7 +3,6 @@
 package llama
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -13,22 +12,8 @@ import (
 	"strings"
 )
 
-// InstallLlamaCpp attempts to install llama.cpp on Linux
-// Note: Package managers on Linux require sudo which needs user interaction
-// So we skip package manager and go directly to GitHub download
-func (lcm *LlamaCppReleaseManager) InstallLlamaCpp() error {
-	if lcm.IsLlamaCppInstalled() {
-		log.Println("llama.cpp is already installed")
-		return nil
-	}
-
-	// Package managers on Linux require sudo (user interaction)
-	// Return error to trigger GitHub download fallback
-	return fmt.Errorf("package manager installation requires sudo. Will use GitHub download")
-}
-
 // hasNVIDIAGPU checks if system has NVIDIA GPU on Linux
-func (lcm *LlamaCppReleaseManager) hasNVIDIAGPU() bool {
+func (lcm *LlamaCppInstaller) hasNVIDIAGPU() bool {
 	// Check lspci for NVIDIA
 	if out, err := exec.Command("lspci").Output(); err == nil {
 		output := strings.ToLower(string(out))
@@ -46,7 +31,7 @@ func (lcm *LlamaCppReleaseManager) hasNVIDIAGPU() bool {
 }
 
 // detectLinuxCUDA detects CUDA availability on Linux
-func (lcm *LlamaCppReleaseManager) detectLinuxCUDA() bool {
+func (lcm *LlamaCppInstaller) detectLinuxCUDA() bool {
 	// Check for nvidia-smi
 	if _, err := exec.LookPath("nvidia-smi"); err == nil {
 		if err := exec.Command("nvidia-smi").Run(); err == nil {
@@ -72,7 +57,7 @@ func (lcm *LlamaCppReleaseManager) detectLinuxCUDA() bool {
 }
 
 // detectHardwareCapabilities detects Linux system hardware capabilities
-func (lcm *LlamaCppReleaseManager) detectHardwareCapabilities() *HardwareCapabilities {
+func (lcm *LlamaCppInstaller) detectHardwareCapabilities() *HardwareCapabilities {
 	caps := &HardwareCapabilities{
 		OS:        "linux",
 		Arch:      runtime.GOARCH,
@@ -92,7 +77,7 @@ func (lcm *LlamaCppReleaseManager) detectHardwareCapabilities() *HardwareCapabil
 }
 
 // getAssetPatterns returns Linux-specific asset patterns in priority order
-func (lcm *LlamaCppReleaseManager) getAssetPatterns(hardware *HardwareCapabilities) []string {
+func (lcm *LlamaCppInstaller) getAssetPatterns(hardware *HardwareCapabilities) []string {
 	var patterns []string
 
 	// Linux priority: CUDA > Ubuntu > Generic
@@ -165,31 +150,31 @@ func (specs *HardwareSpecs) detectPlatformSpecs() {
 
 // GetBinaryPath returns the path to a specific llama.cpp binary on Linux
 // Priority: 1) Local binary path, 2) Common system paths, 3) System PATH
-func (lcm *LlamaCppReleaseManager) GetBinaryPath(binaryName string) string {
+func (lcm *LlamaCppInstaller) GetBinaryPath(binaryName string) string {
 	// First check local binary path
 	localPath := filepath.Join(lcm.BinaryPath, binaryName)
 	if _, err := os.Stat(localPath); err == nil {
 		return localPath
 	}
-	
+
 	// Check common Linux paths
 	systemPaths := []string{
 		"/usr/local/bin/" + binaryName,
 		"/usr/bin/" + binaryName,
 		"/opt/llama.cpp/bin/" + binaryName,
 	}
-	
+
 	for _, path := range systemPaths {
 		if _, err := os.Stat(path); err == nil {
 			return path
 		}
 	}
-	
+
 	// Fallback to system PATH
 	if systemPath, err := exec.LookPath(binaryName); err == nil {
 		return systemPath
 	}
-	
+
 	// Return local path as default (even if not exists) for error messages
 	return localPath
 }

@@ -24,7 +24,7 @@ func setupTestService(t *testing.T) (*Service, string, func()) {
 	modelsDir := filepath.Join(tempDir, ".llama-cpp", "models")
 	os.MkdirAll(modelsDir, 0755)
 
-	manager := NewLlamaCppReleaseManager()
+	manager := NewLlamaCppInstaller()
 	service := &Service{manager: manager}
 
 	cleanup := func() {
@@ -130,7 +130,7 @@ func TestDownloadModel_NetworkFailure(t *testing.T) {
 	defer server.Close()
 
 	tempDir := t.TempDir()
-	manager := NewLlamaCppReleaseManager()
+	manager := NewLlamaCppInstaller()
 	manager.BinaryPath = filepath.Join(tempDir, "bin")
 	service := &Service{manager: manager}
 
@@ -168,7 +168,7 @@ func TestDownloadModel_SizeMismatch(t *testing.T) {
 	defer server.Close()
 
 	tempDir := t.TempDir()
-	manager := NewLlamaCppReleaseManager()
+	manager := NewLlamaCppInstaller()
 	manager.BinaryPath = filepath.Join(tempDir, "bin")
 	service := &Service{manager: manager}
 
@@ -203,7 +203,7 @@ func TestDownloadModel_InvalidGGUF(t *testing.T) {
 	defer server.Close()
 
 	tempDir := t.TempDir()
-	manager := NewLlamaCppReleaseManager()
+	manager := NewLlamaCppInstaller()
 	manager.BinaryPath = filepath.Join(tempDir, "bin")
 	service := &Service{manager: manager}
 
@@ -237,7 +237,7 @@ func TestDownloadModel_ChecksumMismatch(t *testing.T) {
 	defer server.Close()
 
 	tempDir := t.TempDir()
-	manager := NewLlamaCppReleaseManager()
+	manager := NewLlamaCppInstaller()
 	manager.BinaryPath = filepath.Join(tempDir, "bin")
 	service := &Service{manager: manager}
 
@@ -277,7 +277,7 @@ func TestDownloadModel_SlowConnection(t *testing.T) {
 	defer server.Close()
 
 	tempDir := t.TempDir()
-	manager := NewLlamaCppReleaseManager()
+	manager := NewLlamaCppInstaller()
 	manager.BinaryPath = filepath.Join(tempDir, "bin")
 	service := &Service{manager: manager}
 
@@ -313,7 +313,7 @@ func TestDownloadModel_ExistingModel(t *testing.T) {
 	}))
 	defer server.Close()
 
-	manager := NewLlamaCppReleaseManager()
+	manager := NewLlamaCppInstaller()
 	manager.BinaryPath = filepath.Join(tempDir, "bin")
 	service := &Service{manager: manager}
 
@@ -376,7 +376,7 @@ func TestValidateGGUFFile(t *testing.T) {
 				t.Fatalf("Failed to create test file: %v", err)
 			}
 
-			manager := NewLlamaCppReleaseManager()
+			manager := NewLlamaCppInstaller()
 			service := &Service{manager: manager}
 
 			err = service.validateGGUFFile(tempFile)
@@ -401,7 +401,7 @@ func TestVerifyModelChecksum(t *testing.T) {
 	// Calculate actual checksum
 	actualChecksum := "87de2c7cc9d3a7d03005c32f08a3d433c5c5c4b91b00baaee8b27b1f1f0e2e3d"
 
-	manager := NewLlamaCppReleaseManager()
+	manager := NewLlamaCppInstaller()
 	service := &Service{manager: manager}
 
 	tests := []struct {
@@ -452,7 +452,7 @@ func TestDownloadModel_PartialDownloadCleanup(t *testing.T) {
 	defer server.Close()
 
 	tempDir := t.TempDir()
-	manager := NewLlamaCppReleaseManager()
+	manager := NewLlamaCppInstaller()
 	manager.BinaryPath = filepath.Join(tempDir, "bin")
 	service := &Service{manager: manager}
 
@@ -707,7 +707,7 @@ func BenchmarkDownloadModel(b *testing.B) {
 	defer server.Close()
 
 	tempDir := b.TempDir()
-	manager := NewLlamaCppReleaseManager()
+	manager := NewLlamaCppInstaller()
 	manager.BinaryPath = filepath.Join(tempDir, "bin")
 
 	b.ResetTimer()

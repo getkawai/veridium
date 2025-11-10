@@ -4,7 +4,6 @@ package llama
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -14,33 +13,8 @@ import (
 	"strings"
 )
 
-// InstallLlamaCpp installs llama.cpp using Homebrew on macOS
-func (lcm *LlamaCppReleaseManager) InstallLlamaCpp() error {
-	if lcm.IsLlamaCppInstalled() {
-		log.Println("llama.cpp is already installed")
-		return nil
-	}
-
-	log.Println("Installing llama.cpp via Homebrew...")
-
-	// Check if Homebrew is installed
-	if _, err := exec.LookPath("brew"); err != nil {
-		return fmt.Errorf("homebrew is not installed. Please install Homebrew first: https://brew.sh")
-	}
-
-	// Install llama.cpp
-	cmd := exec.Command("brew", "install", "llama.cpp")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("failed to install llama.cpp: %w\nOutput: %s", err, string(output))
-	}
-
-	log.Println("llama.cpp installed successfully via Homebrew")
-	return nil
-}
-
 // detectHardwareCapabilities detects macOS system hardware capabilities
-func (lcm *LlamaCppReleaseManager) detectHardwareCapabilities() *HardwareCapabilities {
+func (lcm *LlamaCppInstaller) detectHardwareCapabilities() *HardwareCapabilities {
 	caps := &HardwareCapabilities{
 		OS:        "darwin",
 		Arch:      runtime.GOARCH,
@@ -57,20 +31,6 @@ func (lcm *LlamaCppReleaseManager) detectHardwareCapabilities() *HardwareCapabil
 		caps.OS, caps.Arch, caps.HasNVIDIA, caps.HasCUDA, caps.HasVulkan)
 
 	return caps
-}
-
-// getAssetPatterns returns macOS-specific asset patterns in priority order
-func (lcm *LlamaCppReleaseManager) getAssetPatterns(hardware *HardwareCapabilities) []string {
-	var patterns []string
-
-	// macOS: ARM64 vs x64
-	if hardware.Arch == "arm64" {
-		patterns = append(patterns, ".*macos.*arm64")
-	} else {
-		patterns = append(patterns, ".*macos.*x64")
-	}
-
-	return patterns
 }
 
 // detectPlatformSpecs detects hardware specs on macOS
@@ -120,7 +80,7 @@ func (specs *HardwareSpecs) parseGPUFromSystemProfiler(jsonStr string) {
 
 // GetBinaryPath returns the path to a specific llama.cpp binary on macOS
 // Priority: 1) Local binary path, 2) Homebrew paths, 3) System PATH
-func (lcm *LlamaCppReleaseManager) GetBinaryPath(binaryName string) string {
+func (lcm *LlamaCppInstaller) GetBinaryPath(binaryName string) string {
 	// First check local binary path
 	localPath := filepath.Join(lcm.BinaryPath, binaryName)
 	if _, err := os.Stat(localPath); err == nil {
@@ -154,53 +114,4 @@ func GetLlamaCLICacheDirectory() string {
 	return filepath.Join(homeDir, "Library", "Caches", "llama.cpp")
 }
 
-// IsLlamaCppInstalled checks if llama.cpp binaries exist and are valid on macOS
-// Checks both local binary path and Homebrew/system PATH installations
-func (lcm *LlamaCppReleaseManager) IsLlamaCppInstalled() bool {
-	// Use GetBinaryPath which checks Homebrew paths and system PATH
-	binaryName := "llama-cli"
-	binaryPath := lcm.GetBinaryPath(binaryName)
-
-	// Check if binary exists at the resolved path
-	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
-		return false
-	}
-
-	// Verify the binary integrity by trying to run it
-	// VerifyInstalledBinary will use GetBinaryPath internally, so it will check the same path
-	if err := lcm.VerifyInstalledBinary(); err != nil {
-		log.Printf("Binary integrity check failed: %v", err)
-		return false
-	}
-
-	return true
-}
-
-// VerifyInstalledBinary verifies the installed binary on macOS
-// Uses GetBinaryPath to check Homebrew installations as well
-func (lcm *LlamaCppReleaseManager) VerifyInstalledBinary() error {
-	binaryName := "llama-cli"
-	binaryPath := lcm.GetBinaryPath(binaryName)
-
-	// Check if the binary exists
-	if _, err := os.Stat(binaryPath); err != nil {
-		return fmt.Errorf("binary file not found: %w", err)
-	}
-
-	// Check if the binary is executable
-	info, err := os.Stat(binaryPath)
-	if err != nil {
-		return fmt.Errorf("failed to get binary info: %w", err)
-	}
-	if info.Mode()&0111 == 0 {
-		return fmt.Errorf("binary is not executable")
-	}
-
-	// Try to run the binary with --help to verify it works
-	cmd := exec.Command(binaryPath, "--help")
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("binary failed to execute: %w", err)
-	}
-
-	return nil
-}
+// IsLlamaCppInstalled and VerifyInstalledBinary are now in installer.go (unified)

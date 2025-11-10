@@ -3,20 +3,14 @@
 package llama
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 )
 
-// InstallLlamaCpp returns an error on unsupported platforms
-func (lcm *LlamaCppReleaseManager) InstallLlamaCpp() error {
-	return fmt.Errorf("llama.cpp installation not supported on this platform")
-}
-
 // detectHardwareCapabilities stub for unsupported platforms
-func (lcm *LlamaCppReleaseManager) detectHardwareCapabilities() *HardwareCapabilities {
+func (lcm *LlamaCppInstaller) detectHardwareCapabilities() *HardwareCapabilities {
 	return &HardwareCapabilities{
 		OS:        runtime.GOOS,
 		Arch:      runtime.GOARCH,
@@ -31,7 +25,7 @@ func (lcm *LlamaCppReleaseManager) detectHardwareCapabilities() *HardwareCapabil
 }
 
 // getAssetPatterns stub for unsupported platforms
-func (lcm *LlamaCppReleaseManager) getAssetPatterns(hardware *HardwareCapabilities) []string {
+func (lcm *LlamaCppInstaller) getAssetPatterns(hardware *HardwareCapabilities) []string {
 	// Return empty patterns for unsupported platforms
 	return []string{}
 }
@@ -48,7 +42,7 @@ func (specs *HardwareSpecs) detectPlatformSpecs() {
 
 // GetBinaryPath returns the path to a specific llama.cpp binary on unsupported platforms
 // Priority: 1) Local binary path, 2) System PATH
-func (lcm *LlamaCppReleaseManager) GetBinaryPath(binaryName string) string {
+func (lcm *LlamaCppInstaller) GetBinaryPath(binaryName string) string {
 	// First check local binary path
 	localPath := filepath.Join(lcm.BinaryPath, binaryName)
 	if _, err := os.Stat(localPath); err == nil {

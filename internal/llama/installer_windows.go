@@ -3,7 +3,6 @@
 package llama
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -12,47 +11,6 @@ import (
 	"strconv"
 	"strings"
 )
-
-// InstallLlamaCpp attempts to install llama.cpp on Windows using winget or scoop
-func (lcm *LlamaCppReleaseManager) InstallLlamaCpp() error {
-	if lcm.IsLlamaCppInstalled() {
-		log.Println("llama.cpp is already installed")
-		return nil
-	}
-
-	log.Println("Installing llama.cpp on Windows...")
-
-	// Try winget first (built-in on Windows 10/11)
-	if _, err := exec.LookPath("winget"); err == nil {
-		log.Println("Trying winget installation...")
-		cmd := exec.Command("winget", "install", "--id", "ggerganov.llama.cpp",
-			"--silent",
-			"--accept-package-agreements",
-			"--accept-source-agreements",
-			"--disable-interactivity")
-		output, err := cmd.CombinedOutput()
-		if err == nil {
-			log.Println("llama.cpp installed successfully via winget")
-			return nil
-		}
-		log.Printf("winget installation failed: %v\nOutput: %s", err, string(output))
-	}
-
-	// Try scoop as fallback (scoop is non-interactive by default)
-	if _, err := exec.LookPath("scoop"); err == nil {
-		log.Println("Trying scoop installation...")
-		cmd := exec.Command("scoop", "install", "llama.cpp", "--no-cache")
-		output, err := cmd.CombinedOutput()
-		if err == nil {
-			log.Println("llama.cpp installed successfully via scoop")
-			return nil
-		}
-		log.Printf("scoop installation failed: %v\nOutput: %s", err, string(output))
-	}
-
-	// If both package managers are not available or failed
-	return fmt.Errorf("no package manager found (winget/scoop). Will fallback to GitHub download")
-}
 
 // WindowsHardware represents detected Windows hardware capabilities
 type WindowsHardware struct {
@@ -67,7 +25,7 @@ type WindowsHardware struct {
 }
 
 // detectWindowsHardware detects Windows hardware capabilities
-func (lcm *LlamaCppReleaseManager) detectWindowsHardware() *WindowsHardware {
+func (lcm *LlamaCppInstaller) detectWindowsHardware() *WindowsHardware {
 	hardware := &WindowsHardware{}
 
 	// Detect GPU
@@ -94,7 +52,7 @@ func (lcm *LlamaCppReleaseManager) detectWindowsHardware() *WindowsHardware {
 }
 
 // detectWindowsGPU detects GPU on Windows
-func (lcm *LlamaCppReleaseManager) detectWindowsGPU() string {
+func (lcm *LlamaCppInstaller) detectWindowsGPU() string {
 	// Try wmic first
 	if out, err := exec.Command("wmic", "path", "win32_VideoController", "get", "name", "/value").Output(); err == nil {
 		lines := strings.Split(string(out), "\n")
@@ -124,7 +82,7 @@ func (lcm *LlamaCppReleaseManager) detectWindowsGPU() string {
 }
 
 // detectCUDA detects CUDA availability
-func (lcm *LlamaCppReleaseManager) detectCUDA() bool {
+func (lcm *LlamaCppInstaller) detectCUDA() bool {
 	// Check for nvidia-smi
 	if _, err := exec.LookPath("nvidia-smi"); err == nil {
 		// Try to run nvidia-smi to verify CUDA is working
@@ -149,7 +107,7 @@ func (lcm *LlamaCppReleaseManager) detectCUDA() bool {
 }
 
 // detectVulkan detects Vulkan availability
-func (lcm *LlamaCppReleaseManager) detectVulkan() bool {
+func (lcm *LlamaCppInstaller) detectVulkan() bool {
 	// Check Windows registry for Vulkan
 	if out, err := exec.Command("reg", "query", "HKEY_LOCAL_MACHINE\\SOFTWARE\\Khronos\\Vulkan\\Drivers").Output(); err == nil {
 		return len(strings.TrimSpace(string(out))) > 0
@@ -171,7 +129,7 @@ func (lcm *LlamaCppReleaseManager) detectVulkan() bool {
 }
 
 // detectOpenCL detects OpenCL availability
-func (lcm *LlamaCppReleaseManager) detectOpenCL() bool {
+func (lcm *LlamaCppInstaller) detectOpenCL() bool {
 	// Check for OpenCL DLLs
 	openclPaths := []string{
 		"C:\\Windows\\System32\\OpenCL.dll",
@@ -188,7 +146,7 @@ func (lcm *LlamaCppReleaseManager) detectOpenCL() bool {
 }
 
 // detectAVX2 detects AVX2 CPU instruction support
-func (lcm *LlamaCppReleaseManager) detectAVX2() bool {
+func (lcm *LlamaCppInstaller) detectAVX2() bool {
 	// Try to get CPU info via wmic
 	if out, err := exec.Command("wmic", "cpu", "get", "name", "/value").Output(); err == nil {
 		cpuInfo := strings.ToLower(string(out))
@@ -204,7 +162,7 @@ func (lcm *LlamaCppReleaseManager) detectAVX2() bool {
 }
 
 // detectHardwareCapabilities detects Windows system hardware capabilities
-func (lcm *LlamaCppReleaseManager) detectHardwareCapabilities() *HardwareCapabilities {
+func (lcm *LlamaCppInstaller) detectHardwareCapabilities() *HardwareCapabilities {
 	winHw := lcm.detectWindowsHardware()
 
 	caps := &HardwareCapabilities{
@@ -226,7 +184,7 @@ func (lcm *LlamaCppReleaseManager) detectHardwareCapabilities() *HardwareCapabil
 }
 
 // getAssetPatterns returns Windows-specific asset patterns in priority order
-func (lcm *LlamaCppReleaseManager) getAssetPatterns(hardware *HardwareCapabilities) []string {
+func (lcm *LlamaCppInstaller) getAssetPatterns(hardware *HardwareCapabilities) []string {
 	var patterns []string
 
 	// Windows priority: CUDA > Vulkan > OpenCL > AVX2 > Generic
@@ -279,7 +237,7 @@ func (specs *HardwareSpecs) detectPlatformSpecs() {
 
 // GetBinaryPath returns the path to a specific llama.cpp binary on Windows
 // Priority: 1) Local binary path, 2) System PATH
-func (lcm *LlamaCppReleaseManager) GetBinaryPath(binaryName string) string {
+func (lcm *LlamaCppInstaller) GetBinaryPath(binaryName string) string {
 	// Add .exe extension if not present
 	if !strings.HasSuffix(binaryName, ".exe") {
 		binaryName += ".exe"
