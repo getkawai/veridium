@@ -492,7 +492,7 @@ func (s *LibraryService) selectBestModel() (string, error) {
 		return "", fmt.Errorf("no GGUF models found in %s", modelsDir)
 	}
 
-	// Selection strategy (same as service.go)
+	// Selection strategy: prefer larger, higher quality models
 	var bestModel string
 	var bestScore int
 
@@ -500,31 +500,39 @@ func (s *LibraryService) selectBestModel() (string, error) {
 		score := 0
 		nameLower := strings.ToLower(model.name)
 
-		// Prefer Qwen models
-		if strings.Contains(nameLower, "qwen") {
-			score += 100
-		}
-
-		// Prefer Q4 quantization
-		if strings.Contains(nameLower, "q4") {
-			score += 50
-		} else if strings.Contains(nameLower, "q5") {
-			score += 30
-		} else if strings.Contains(nameLower, "q8") {
-			score += 10
-		}
-
-		// Prefer smaller models
+		// Prefer larger models (more parameters = better quality)
 		sizeMB := model.size / (1024 * 1024)
-		if sizeMB < 5000 {
-			score += 20
-		} else if sizeMB < 10000 {
-			score += 10
+		if sizeMB >= 4000 {
+			score += 100 // Large models (7B+) get highest priority
+		} else if sizeMB >= 2000 {
+			score += 50 // Medium models (3B)
+		} else if sizeMB >= 1000 {
+			score += 25 // Small models (1.5B)
+		} else {
+			score += 10 // Tiny models (0.5B)
+		}
+
+		// Prefer higher quantization quality
+		if strings.Contains(nameLower, "q8") {
+			score += 50 // Q8 = highest quality
+		} else if strings.Contains(nameLower, "q6") {
+			score += 40 // Q6 = very high quality
+		} else if strings.Contains(nameLower, "q5") {
+			score += 30 // Q5 = high quality
+		} else if strings.Contains(nameLower, "q4") {
+			score += 20 // Q4 = medium quality
 		}
 
 		// Prefer instruct/chat models
 		if strings.Contains(nameLower, "instruct") || strings.Contains(nameLower, "chat") {
 			score += 30
+		}
+
+		// Prefer Mistral over Qwen (Mistral generally better quality)
+		if strings.Contains(nameLower, "mistral") {
+			score += 20
+		} else if strings.Contains(nameLower, "qwen") {
+			score += 10
 		}
 
 		if score > bestScore {

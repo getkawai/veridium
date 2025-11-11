@@ -72,6 +72,15 @@ func GetRecommendedQwenModels() []QwenModelSpec {
 			Description:  "Mid-size Qwen model, excellent for most tasks",
 		},
 		{
+			Name:         "mistral-7b-instruct-v0.3-q5_k_m",
+			URL:          "https://huggingface.co/lmstudio-community/Mistral-7B-Instruct-v0.3-GGUF/resolve/main/Mistral-7B-Instruct-v0.3-Q5_K_M.gguf",
+			Quantization: "Q5_K_M",
+			Parameters:   "7b",
+			MinRAM:       8,
+			Size:         5130000000, // ~5.1 GB
+			Description:  "Mistral 7B - High quality, better than Qwen for general tasks",
+		},
+		{
 			Name:         "qwen2.5-7b-instruct-q4_k_m",
 			URL:          "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-GGUF/resolve/main/qwen2.5-7b-instruct-q4_k_m.gguf",
 			Quantization: "Q4_K_M",

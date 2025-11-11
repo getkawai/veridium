@@ -201,7 +201,7 @@ class ChatService {
         ...params,
         ...extendParams,
         enabledSearch: searchConfig.enabledSearch && searchConfig.useModelSearch ? true : undefined,
-        messages: oaiMessages,
+        messages: oaiMessages as OpenAIChatMessage[],
         tools,
       },
       options,
@@ -369,8 +369,18 @@ class ChatService {
 
       // remove plugins
       delete params.plugins;
+      
+      // Force non-streaming for preset tasks (topic/thread generation)
+      // These tasks don't need streaming as they generate short titles
+      const taskParams: Partial<ChatStreamPayload> = { 
+        ...params, 
+        messages: oaiMessages as OpenAIChatMessage[], 
+        tools, 
+        stream: false 
+      };
+      
       await this.getChatCompletion(
-        { ...params, messages: oaiMessages, tools },
+        taskParams,
         {
           onErrorHandle: (error) => {
             errorHandle(new Error(error.message), error);
