@@ -2,7 +2,6 @@ package llama
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/kawai-network/veridium/pkg/yzma/loader"
 )
@@ -76,16 +75,24 @@ func Load(path string) error {
 }
 
 // Init is a convenience function to handle initialization of llama.cpp.
+// It initializes the backend and loads all available GGML backends.
+// Note: You must call Load() before calling Init().
 func Init() {
 	BackendInit()
-
-	if os.Getenv("YZMA_LIB") != "" {
-		GGMLBackendLoadAllFromPath(os.Getenv("YZMA_LIB"))
-
-		return
-	}
-
 	GGMLBackendLoadAll()
+}
+
+// InitWithPath initializes llama.cpp and loads backends from a specific path.
+// This is useful when you want to load backends from a non-standard location.
+// Note: You must call Load() before calling InitWithPath().
+func InitWithPath(path string) {
+	BackendInit()
+
+	if path != "" {
+		GGMLBackendLoadAllFromPath(path)
+	} else {
+		GGMLBackendLoadAll()
+	}
 }
 
 func loadError(name string, err error) error {

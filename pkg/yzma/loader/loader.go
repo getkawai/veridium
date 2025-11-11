@@ -2,19 +2,23 @@ package loader
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"runtime"
 
 	"github.com/jupiterrider/ffi"
 )
 
-// LoadLibrary The path can be an empty string to use the location as set by the YZMA_LIB env variable.
+// LoadLibrary loads a shared library from the specified path.
+// The path should be a directory containing the library files.
 // The lib should be the "short name" for the library, for example:
-// gguf, llama, mtmd
+// ggml, ggml-base, llama, mtmd
+//
+// Example:
+//
+//	LoadLibrary("/usr/local/lib", "llama") -> loads /usr/local/lib/libllama.dylib (on macOS)
 func LoadLibrary(path, lib string) (ffi.Lib, error) {
-	if os.Getenv("YZMA_LIB") != "" {
-		path = os.Getenv("YZMA_LIB")
+	if path == "" {
+		return ffi.Lib{}, fmt.Errorf("library path cannot be empty")
 	}
 
 	var filename string
@@ -25,6 +29,8 @@ func LoadLibrary(path, lib string) (ffi.Lib, error) {
 		filename = filepath.Join(path, fmt.Sprintf("%s.dll", lib))
 	case "darwin":
 		filename = filepath.Join(path, fmt.Sprintf("lib%s.dylib", lib))
+	default:
+		return ffi.Lib{}, fmt.Errorf("unsupported platform: %s", runtime.GOOS)
 	}
 
 	return ffi.Load(filename)
