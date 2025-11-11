@@ -449,9 +449,10 @@ class ChatService {
     });
     const data = params.payload as ChatStreamPayload;
 
-    // Convert onMessageHandle to ChatStreamCallbacks format
+    // Convert onMessageHandle and onFinish to ChatStreamCallbacks format
     // OpenAIStream's createCallbacksTransformer will handle the actual callback invocation
-    const callbacks = params.options?.onMessageHandle ? {
+    // Create callbacks if either onMessageHandle or onFinish is provided
+    const callbacks = (params.options?.onMessageHandle || params.options?.onFinish) ? {
       onText: async (text: string) => {
         params.options?.onMessageHandle?.({ text, type: 'text' });
       },

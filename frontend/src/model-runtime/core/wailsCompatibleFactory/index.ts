@@ -7,6 +7,7 @@ import { StreamingResponse } from '../../utils/response';
 import { Events } from '@wailsio/runtime';
 import { OpenAIChatMessage } from '@/types';
 import { WailsEvent } from 'node_modules/@wailsio/runtime/types/events';
+import { transformResponseToStream } from '../openaiCompatibleFactory/nonStreamToStream';
 
 export interface WailsCompatibleFactoryOptions {
   provider: string;
@@ -177,13 +178,20 @@ export const createWailsCompatibleRuntime = ({
             console.debug(`[${this.provider}] Response:`, response);
           }
 
-          // Convert to Response object
-          return new Response(JSON.stringify(response), {
-            headers: {
-              'Content-Type': 'application/json',
-              ...options?.headers,
+          // Transform non-streaming response to stream format
+          // This ensures callbacks (onFinish, onMessageHandle) are properly triggered
+          const stream = transformResponseToStream(response as any);
+
+          return StreamingResponse(
+            OpenAIStream(stream, {
+              callbacks: options?.callback,
+              enableStreaming: false,
+              inputStartAt: Date.now(),
+            }),
+            {
+              headers: options?.headers,
             },
-          });
+          );
         }
         
       } catch (error) {
