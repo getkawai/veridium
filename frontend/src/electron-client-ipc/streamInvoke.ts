@@ -4,6 +4,16 @@ import { getRequestBody } from './utils/request';
 
 // eslint-disable-next-line no-undef
 export const streamInvoke = async (input: RequestInfo | URL, init?: RequestInit) => {
+  // Check if Electron API is available
+  if (!window.electronAPI || !window.electronAPI.onStreamInvoke) {
+    const error = new Error(
+      `Electron stream IPC is not available. This feature requires Electron environment.\n` +
+      `If you're using Wails, this Electron-specific feature is not supported.`
+    );
+    console.warn('[electron-client-ipc]', error.message);
+    return Promise.reject(error);
+  }
+
   const url = input.toString();
   const parsedUrl = new URL(url, window.location.origin);
   const urlPath = parsedUrl.pathname + parsedUrl.search;
