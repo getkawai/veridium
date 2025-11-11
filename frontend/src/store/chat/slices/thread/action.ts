@@ -319,7 +319,9 @@ export const chatThreadMessage: StateCreator<
 
         internal_updateThreadTitleInSummary(threadId, output);
       },
-      params: merge(threadConfig, chainSummaryTitle(messages, globalHelpers.getCurrentLanguage())),
+      params: merge(threadConfig, chainSummaryTitle(messages, globalHelpers.getCurrentLanguage()), {
+        stream: false, // Thread title generation doesn't need streaming
+      }),
     });
   },
 

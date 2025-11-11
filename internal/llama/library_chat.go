@@ -91,6 +91,11 @@ type ChatUsage struct {
 
 // ChatCompletion handles a chat completion request (non-streaming)
 func (c *LibraryChatService) ChatCompletion(ctx context.Context, req ChatCompletionRequest) (*ChatCompletionResponse, error) {
+	// Validate request
+	if err := validateChatRequest(req); err != nil {
+		return nil, fmt.Errorf("invalid request: %w", err)
+	}
+
 	// Ensure chat model is loaded
 	if !c.libService.IsChatModelLoaded() {
 		if err := c.libService.LoadChatModel(""); err != nil {
@@ -142,6 +147,11 @@ func (c *LibraryChatService) ChatCompletion(ctx context.Context, req ChatComplet
 
 // ChatCompletionStream handles a streaming chat completion request
 func (c *LibraryChatService) ChatCompletionStream(ctx context.Context, requestID string, req ChatCompletionRequest) error {
+	// Validate request
+	if err := validateChatRequest(req); err != nil {
+		return fmt.Errorf("invalid request: %w", err)
+	}
+
 	// Ensure chat model is loaded
 	if !c.libService.IsChatModelLoaded() {
 		if err := c.libService.LoadChatModel(""); err != nil {
@@ -191,23 +201,19 @@ func (c *LibraryChatService) generateStreaming(ctx context.Context, requestID st
 		},
 	})
 
-	// Tokenize prompt
+	// Tokenize prompt (add BOS for proper prompt processing)
 	tokens := llama.Tokenize(c.libService.chatVocab, prompt, true, true)
 	if len(tokens) == 0 {
 		return fmt.Errorf("failed to tokenize prompt")
 	}
 
-	// Create batch
-	batch := llama.BatchGetOne(tokens)
+	// Reset sampler state before new generation
+	llama.SamplerReset(c.libService.chatSampler)
 
-	// Handle encoder models
-	if llama.ModelHasEncoder(c.libService.chatModel) {
-		llama.Encode(c.libService.chatContext, batch)
-		start := llama.ModelDecoderStartToken(c.libService.chatModel)
-		if start == llama.TokenNull {
-			start := llama.VocabBOS(c.libService.chatVocab)
-			batch = llama.BatchGetOne([]llama.Token{start})
-		}
+	// Decode prompt tokens to initialize context
+	batch := llama.BatchGetOne(tokens)
+	if llama.Decode(c.libService.chatContext, batch) != 0 {
+		return fmt.Errorf("failed to decode prompt")
 	}
 
 	// Send first chunk with role
@@ -228,7 +234,7 @@ func (c *LibraryChatService) generateStreaming(ctx context.Context, requestID st
 	c.emitSSEChunk(requestID, firstChunk)
 
 	// Generate tokens and stream
-	for pos := int32(0); pos < maxTokens; pos += batch.NTokens {
+	for nGenerated := int32(0); nGenerated < maxTokens; nGenerated++ {
 		// Check context cancellation
 		select {
 		case <-ctx.Done():
@@ -236,7 +242,7 @@ func (c *LibraryChatService) generateStreaming(ctx context.Context, requestID st
 		default:
 		}
 
-		llama.Decode(c.libService.chatContext, batch)
+		// Sample next token
 		token := llama.SamplerSample(c.libService.chatSampler, c.libService.chatContext, -1)
 
 		// Check for end of generation
@@ -281,8 +287,14 @@ func (c *LibraryChatService) generateStreaming(ctx context.Context, requestID st
 		}
 		c.emitSSEChunk(requestID, chunk)
 
-		// Prepare next batch
-		batch = llama.BatchGetOne([]llama.Token{token})
+		// Accept the token and prepare for next generation
+		llama.SamplerAccept(c.libService.chatSampler, token)
+
+		// Decode the new token to update context
+		nextBatch := llama.BatchGetOne([]llama.Token{token})
+		if llama.Decode(c.libService.chatContext, nextBatch) != 0 {
+			return fmt.Errorf("failed to decode token")
+		}
 
 		// Small delay to prevent overwhelming the frontend
 		time.Sleep(10 * time.Millisecond)
@@ -345,21 +357,124 @@ func (c *LibraryChatService) buildPrompt(messages []ChatMessage) string {
 }
 
 // updateSampler updates the sampler parameters based on request
+// This recreates the sampler with custom parameters from the request
 func (c *LibraryChatService) updateSampler(req ChatCompletionRequest) {
 	c.libService.chatMutex.Lock()
 	defer c.libService.chatMutex.Unlock()
 
-	if c.libService.chatSampler == 0 {
+	// Only recreate if custom parameters are provided
+	needsUpdate := req.Temperature > 0 || req.TopP > 0 || req.TopK > 0
+
+	if !needsUpdate || c.libService.chatModel == 0 || c.libService.chatVocab == 0 {
 		return
 	}
 
-	// Recreate sampler with new parameters
-	// Note: In a production system, you might want to cache samplers
-	// or have a more sophisticated parameter update mechanism
+	// Free existing sampler
+	if c.libService.chatSampler != 0 {
+		llama.SamplerFree(c.libService.chatSampler)
+	}
 
-	// For now, we'll keep the existing sampler
-	// In a full implementation, you'd recreate it with custom parameters
-	// based on req.Temperature, req.TopP, req.TopK
+	// Create new sampler chain with custom parameters
+	c.libService.chatSampler = c.createCustomSampler(req)
+}
+
+// createCustomSampler creates a sampler chain with custom parameters
+func (c *LibraryChatService) createCustomSampler(req ChatCompletionRequest) llama.Sampler {
+	// Initialize sampler chain
+	params := llama.SamplerChainDefaultParams()
+	sampler := llama.SamplerChainInit(params)
+
+	// Add penalties (always included for quality)
+	penalties := llama.SamplerInitPenalties(
+		64,  // penalty_last_n: last 64 tokens
+		1.0, // penalty_repeat: 1.0 = disabled
+		0.0, // penalty_freq: 0.0 = disabled
+		0.0, // penalty_present: 0.0 = disabled
+	)
+	llama.SamplerChainAdd(sampler, penalties)
+
+	// Add Top-K if specified
+	if req.TopK > 0 {
+		topK := llama.SamplerInitTopK(req.TopK)
+		llama.SamplerChainAdd(sampler, topK)
+	} else {
+		// Default Top-K
+		topK := llama.SamplerInitTopK(40)
+		llama.SamplerChainAdd(sampler, topK)
+	}
+
+	// Add Top-P if specified
+	if req.TopP > 0 {
+		topP := llama.SamplerInitTopP(req.TopP, 0)
+		llama.SamplerChainAdd(sampler, topP)
+	} else {
+		// Default Top-P
+		topP := llama.SamplerInitTopP(0.95, 0)
+		llama.SamplerChainAdd(sampler, topP)
+	}
+
+	// Add Min-P (always included for quality)
+	minP := llama.SamplerInitMinP(0.05, 0)
+	llama.SamplerChainAdd(sampler, minP)
+
+	// Add Temperature if specified
+	if req.Temperature > 0 {
+		temp := llama.SamplerInitTempExt(req.Temperature, 0, 1.0)
+		llama.SamplerChainAdd(sampler, temp)
+	} else {
+		// Default temperature
+		temp := llama.SamplerInitTempExt(0.8, 0, 1.0)
+		llama.SamplerChainAdd(sampler, temp)
+	}
+
+	// Always add distribution sampler last
+	dist := llama.SamplerInitDist(llama.DefaultSeed)
+	llama.SamplerChainAdd(sampler, dist)
+
+	return sampler
+}
+
+// validateChatRequest validates a chat completion request
+func validateChatRequest(req ChatCompletionRequest) error {
+	// Validate messages
+	if len(req.Messages) == 0 {
+		return fmt.Errorf("messages cannot be empty")
+	}
+
+	// Validate each message
+	for i, msg := range req.Messages {
+		// Check role
+		if msg.Role != "system" && msg.Role != "user" && msg.Role != "assistant" {
+			return fmt.Errorf("invalid role '%s' in message %d: must be 'system', 'user', or 'assistant'", msg.Role, i)
+		}
+
+		// Check content
+		if strings.TrimSpace(msg.Content) == "" {
+			return fmt.Errorf("message content cannot be empty at index %d", i)
+		}
+	}
+
+	// Validate max_tokens
+	if req.MaxTokens < 0 {
+		return fmt.Errorf("max_tokens must be positive, got: %d", req.MaxTokens)
+	}
+
+	// Validate temperature (typically 0-2)
+	if req.Temperature < 0 || req.Temperature > 2 {
+		return fmt.Errorf("temperature must be between 0 and 2, got: %f", req.Temperature)
+	}
+
+	// Validate top_p (0-1)
+	if req.TopP < 0 || req.TopP > 1 {
+		return fmt.Errorf("top_p must be between 0 and 1, got: %f", req.TopP)
+	}
+
+	// Validate top_k
+	if req.TopK < 0 {
+		return fmt.Errorf("top_k must be non-negative, got: %d", req.TopK)
+	}
+
+	return nil
 }
 
 // Note: LibraryProxyService has been removed as it's not used in main.go

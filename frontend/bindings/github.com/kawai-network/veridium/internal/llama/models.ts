@@ -6,275 +6,191 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
- * EmbeddingManager handles embedding model downloads and management
+ * ChatCompletionChoice represents a single choice in the response
  */
-export class EmbeddingManager {
-    "ModelsDir": string;
-    "DownloadDir": string;
-    "AvailableModels": { [_: string]: EmbeddingModel | null };
+export class ChatCompletionChoice {
+    "index": number;
+    "message": ChatMessage;
+    "finish_reason": string;
 
-    /** Creates a new EmbeddingManager instance. */
-    constructor($$source: Partial<EmbeddingManager> = {}) {
-        if (!("ModelsDir" in $$source)) {
-            this["ModelsDir"] = "";
+    /** Creates a new ChatCompletionChoice instance. */
+    constructor($$source: Partial<ChatCompletionChoice> = {}) {
+        if (!("index" in $$source)) {
+            this["index"] = 0;
         }
-        if (!("DownloadDir" in $$source)) {
-            this["DownloadDir"] = "";
+        if (!("message" in $$source)) {
+            this["message"] = (new ChatMessage());
         }
-        if (!("AvailableModels" in $$source)) {
-            this["AvailableModels"] = {};
+        if (!("finish_reason" in $$source)) {
+            this["finish_reason"] = "";
         }
 
         Object.assign(this, $$source);
     }
 
     /**
-     * Creates a new EmbeddingManager instance from a string or object.
+     * Creates a new ChatCompletionChoice instance from a string or object.
      */
-    static createFrom($$source: any = {}): EmbeddingManager {
-        const $$createField2_0 = $$createType2;
+    static createFrom($$source: any = {}): ChatCompletionChoice {
+        const $$createField1_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("AvailableModels" in $$parsedSource) {
-            $$parsedSource["AvailableModels"] = $$createField2_0($$parsedSource["AvailableModels"]);
+        if ("message" in $$parsedSource) {
+            $$parsedSource["message"] = $$createField1_0($$parsedSource["message"]);
         }
-        return new EmbeddingManager($$parsedSource as Partial<EmbeddingManager>);
+        return new ChatCompletionChoice($$parsedSource as Partial<ChatCompletionChoice>);
     }
 }
 
 /**
- * EmbeddingModel represents an embedding model configuration
+ * ChatCompletionRequest represents an OpenAI-compatible chat completion request
  */
-export class EmbeddingModel {
-    "name": string;
-    "description": string;
-    "url": string;
-    "filename": string;
-    "size": number;
-    "sha256": string;
-    "quantization": string;
-    "dimensions": number;
-    "languages": string[];
+export class ChatCompletionRequest {
+    "model": string;
+    "messages": ChatMessage[];
+    "max_tokens"?: number;
+    "temperature"?: number;
+    "top_p"?: number;
+    "top_k"?: number;
+    "stream"?: boolean;
 
-    /**
-     * "embedding" or "llm"
-     */
-    "type": string;
-
-    /** Creates a new EmbeddingModel instance. */
-    constructor($$source: Partial<EmbeddingModel> = {}) {
-        if (!("name" in $$source)) {
-            this["name"] = "";
+    /** Creates a new ChatCompletionRequest instance. */
+    constructor($$source: Partial<ChatCompletionRequest> = {}) {
+        if (!("model" in $$source)) {
+            this["model"] = "";
         }
-        if (!("description" in $$source)) {
-            this["description"] = "";
-        }
-        if (!("url" in $$source)) {
-            this["url"] = "";
-        }
-        if (!("filename" in $$source)) {
-            this["filename"] = "";
-        }
-        if (!("size" in $$source)) {
-            this["size"] = 0;
-        }
-        if (!("sha256" in $$source)) {
-            this["sha256"] = "";
-        }
-        if (!("quantization" in $$source)) {
-            this["quantization"] = "";
-        }
-        if (!("dimensions" in $$source)) {
-            this["dimensions"] = 0;
-        }
-        if (!("languages" in $$source)) {
-            this["languages"] = [];
-        }
-        if (!("type" in $$source)) {
-            this["type"] = "";
+        if (!("messages" in $$source)) {
+            this["messages"] = [];
         }
 
         Object.assign(this, $$source);
     }
 
     /**
-     * Creates a new EmbeddingModel instance from a string or object.
+     * Creates a new ChatCompletionRequest instance from a string or object.
      */
-    static createFrom($$source: any = {}): EmbeddingModel {
-        const $$createField8_0 = $$createType3;
+    static createFrom($$source: any = {}): ChatCompletionRequest {
+        const $$createField1_0 = $$createType1;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("languages" in $$parsedSource) {
-            $$parsedSource["languages"] = $$createField8_0($$parsedSource["languages"]);
+        if ("messages" in $$parsedSource) {
+            $$parsedSource["messages"] = $$createField1_0($$parsedSource["messages"]);
         }
-        return new EmbeddingModel($$parsedSource as Partial<EmbeddingModel>);
+        return new ChatCompletionRequest($$parsedSource as Partial<ChatCompletionRequest>);
     }
 }
 
 /**
- * ProxyRequest represents a generic HTTP proxy request
+ * ChatCompletionResponse represents the response
  */
-export class ProxyRequest {
-    "method": string;
-    "path": string;
-    "headers": { [_: string]: string };
-    "body": string;
+export class ChatCompletionResponse {
+    "id": string;
+    "object": string;
+    "created": number;
+    "model": string;
+    "choices": ChatCompletionChoice[];
+    "usage"?: ChatUsage | null;
 
-    /** Creates a new ProxyRequest instance. */
-    constructor($$source: Partial<ProxyRequest> = {}) {
-        if (!("method" in $$source)) {
-            this["method"] = "";
+    /** Creates a new ChatCompletionResponse instance. */
+    constructor($$source: Partial<ChatCompletionResponse> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
         }
-        if (!("path" in $$source)) {
-            this["path"] = "";
+        if (!("object" in $$source)) {
+            this["object"] = "";
         }
-        if (!("headers" in $$source)) {
-            this["headers"] = {};
+        if (!("created" in $$source)) {
+            this["created"] = 0;
         }
-        if (!("body" in $$source)) {
-            this["body"] = "";
+        if (!("model" in $$source)) {
+            this["model"] = "";
+        }
+        if (!("choices" in $$source)) {
+            this["choices"] = [];
         }
 
         Object.assign(this, $$source);
     }
 
     /**
-     * Creates a new ProxyRequest instance from a string or object.
+     * Creates a new ChatCompletionResponse instance from a string or object.
      */
-    static createFrom($$source: any = {}): ProxyRequest {
-        const $$createField2_0 = $$createType4;
+    static createFrom($$source: any = {}): ChatCompletionResponse {
+        const $$createField4_0 = $$createType3;
+        const $$createField5_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("headers" in $$parsedSource) {
-            $$parsedSource["headers"] = $$createField2_0($$parsedSource["headers"]);
+        if ("choices" in $$parsedSource) {
+            $$parsedSource["choices"] = $$createField4_0($$parsedSource["choices"]);
         }
-        return new ProxyRequest($$parsedSource as Partial<ProxyRequest>);
+        if ("usage" in $$parsedSource) {
+            $$parsedSource["usage"] = $$createField5_0($$parsedSource["usage"]);
+        }
+        return new ChatCompletionResponse($$parsedSource as Partial<ChatCompletionResponse>);
     }
 }
 
 /**
- * ProxyResponse represents a generic HTTP proxy response
+ * ChatMessage represents a chat message
  */
-export class ProxyResponse {
-    "status": number;
-    "statusText": string;
-    "headers": { [_: string]: string };
-    "body": string;
+export class ChatMessage {
+    "role": string;
+    "content": string;
 
-    /** Creates a new ProxyResponse instance. */
-    constructor($$source: Partial<ProxyResponse> = {}) {
-        if (!("status" in $$source)) {
-            this["status"] = 0;
+    /** Creates a new ChatMessage instance. */
+    constructor($$source: Partial<ChatMessage> = {}) {
+        if (!("role" in $$source)) {
+            this["role"] = "";
         }
-        if (!("statusText" in $$source)) {
-            this["statusText"] = "";
-        }
-        if (!("headers" in $$source)) {
-            this["headers"] = {};
-        }
-        if (!("body" in $$source)) {
-            this["body"] = "";
+        if (!("content" in $$source)) {
+            this["content"] = "";
         }
 
         Object.assign(this, $$source);
     }
 
     /**
-     * Creates a new ProxyResponse instance from a string or object.
+     * Creates a new ChatMessage instance from a string or object.
      */
-    static createFrom($$source: any = {}): ProxyResponse {
-        const $$createField2_0 = $$createType4;
+    static createFrom($$source: any = {}): ChatMessage {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("headers" in $$parsedSource) {
-            $$parsedSource["headers"] = $$createField2_0($$parsedSource["headers"]);
-        }
-        return new ProxyResponse($$parsedSource as Partial<ProxyResponse>);
+        return new ChatMessage($$parsedSource as Partial<ChatMessage>);
     }
 }
 
 /**
- * QwenModelSpec represents a Qwen model specification for direct download
+ * ChatUsage represents token usage
  */
-export class QwenModelSpec {
-    /**
-     * Model name (e.g., "qwen2.5-0.5b-instruct-q4_k_m")
-     */
-    "Name": string;
+export class ChatUsage {
+    "prompt_tokens": number;
+    "completion_tokens": number;
+    "total_tokens": number;
 
-    /**
-     * Direct download URL
-     */
-    "URL": string;
-
-    /**
-     * Quantization type (Q4_K_M, Q5_K_M, etc.)
-     */
-    "Quantization": string;
-
-    /**
-     * Parameter size (0.5b, 1.5b, etc.)
-     */
-    "Parameters": string;
-
-    /**
-     * Minimum RAM required in GB
-     */
-    "MinRAM": number;
-
-    /**
-     * Expected file size in bytes
-     */
-    "Size": number;
-
-    /**
-     * Expected SHA256 checksum (optional)
-     */
-    "SHA256": string;
-
-    /**
-     * Model description
-     */
-    "Description": string;
-
-    /** Creates a new QwenModelSpec instance. */
-    constructor($$source: Partial<QwenModelSpec> = {}) {
-        if (!("Name" in $$source)) {
-            this["Name"] = "";
+    /** Creates a new ChatUsage instance. */
+    constructor($$source: Partial<ChatUsage> = {}) {
+        if (!("prompt_tokens" in $$source)) {
+            this["prompt_tokens"] = 0;
         }
-        if (!("URL" in $$source)) {
-            this["URL"] = "";
+        if (!("completion_tokens" in $$source)) {
+            this["completion_tokens"] = 0;
         }
-        if (!("Quantization" in $$source)) {
-            this["Quantization"] = "";
-        }
-        if (!("Parameters" in $$source)) {
-            this["Parameters"] = "";
-        }
-        if (!("MinRAM" in $$source)) {
-            this["MinRAM"] = 0;
-        }
-        if (!("Size" in $$source)) {
-            this["Size"] = 0;
-        }
-        if (!("SHA256" in $$source)) {
-            this["SHA256"] = "";
-        }
-        if (!("Description" in $$source)) {
-            this["Description"] = "";
+        if (!("total_tokens" in $$source)) {
+            this["total_tokens"] = 0;
         }
 
         Object.assign(this, $$source);
     }
 
     /**
-     * Creates a new QwenModelSpec instance from a string or object.
+     * Creates a new ChatUsage instance from a string or object.
      */
-    static createFrom($$source: any = {}): QwenModelSpec {
+    static createFrom($$source: any = {}): ChatUsage {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new QwenModelSpec($$parsedSource as Partial<QwenModelSpec>);
+        return new ChatUsage($$parsedSource as Partial<ChatUsage>);
     }
 }
 
 // Private type creation functions
-const $$createType0 = EmbeddingModel.createFrom;
-const $$createType1 = $Create.Nullable($$createType0);
-const $$createType2 = $Create.Map($Create.Any, $$createType1);
-const $$createType3 = $Create.Array($Create.Any);
-const $$createType4 = $Create.Map($Create.Any, $Create.Any);
+const $$createType0 = ChatMessage.createFrom;
+const $$createType1 = $Create.Array($$createType0);
+const $$createType2 = ChatCompletionChoice.createFrom;
+const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = ChatUsage.createFrom;
+const $$createType5 = $Create.Nullable($$createType4);

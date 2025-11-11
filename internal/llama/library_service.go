@@ -466,6 +466,12 @@ func (s *LibraryService) selectBestModel() (string, error) {
 			continue
 		}
 
+		// Skip embedding models for chat
+		nameLower := strings.ToLower(name)
+		if strings.Contains(nameLower, "embedding") || strings.Contains(nameLower, "embed") {
+			continue
+		}
+
 		info, err := entry.Info()
 		if err != nil {
 			continue

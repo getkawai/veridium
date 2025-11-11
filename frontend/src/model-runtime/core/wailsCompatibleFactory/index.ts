@@ -1,9 +1,12 @@
 import { LobeRuntimeAI } from '../BaseAI';
 import type { ChatStreamPayload, ChatMethodOptions } from '../../types';
-import { Fetch } from '@@/github.com/kawai-network/veridium/internal/llama/proxyservice';
-import { handleChatStream } from './chat';
+import { ChatCompletion, ChatCompletionStream } from '@@/github.com/kawai-network/veridium/internal/llama/librarychatservice';
+import type { ChatCompletionRequest } from '@@/github.com/kawai-network/veridium/internal/llama/models';
 import { OpenAIStream } from '../streams';
 import { StreamingResponse } from '../../utils/response';
+import { Events } from '@wailsio/runtime';
+import { OpenAIChatMessage } from '@/types';
+import { WailsEvent } from 'node_modules/@wailsio/runtime/types/events';
 
 export interface WailsCompatibleFactoryOptions {
   provider: string;
@@ -52,59 +55,136 @@ export const createWailsCompatibleRuntime = ({
       }
 
       try {
-        // Build request body in OpenAI-compatible format
-        const requestBody = {
+        // Build request in OpenAI-compatible format for LibraryChatService
+        const request: ChatCompletionRequest = {
           model: payload.model,
-          messages: payload.messages,
+          messages: payload.messages.map((msg: OpenAIChatMessage) => ({
+            role: msg.role,
+            content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
+          })),
           stream: payload.stream ?? true,
           ...(payload.temperature !== undefined && { temperature: payload.temperature }),
           ...(payload.top_p !== undefined && { top_p: payload.top_p }),
           ...(payload.max_tokens !== undefined && { max_tokens: payload.max_tokens }),
-          ...(payload.frequency_penalty !== undefined && { frequency_penalty: payload.frequency_penalty }),
-          ...(payload.presence_penalty !== undefined && { presence_penalty: payload.presence_penalty }),
-          ...(payload.stream && { stream_options: { include_usage: true } }),
         };
 
         if (this.debug) {
-          console.debug(`[${this.provider}] Request body:`, requestBody);
+          console.debug(`[${this.provider}] Request:`, request);
         }
 
-        // Direct Wails binding call - no OpenAI SDK, no custom fetch
-        const proxyResponse = await Fetch({
-          method: 'POST',
-          path: '/v1/chat/completions',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(requestBody),
-        });
+        // Check if streaming or non-streaming
+        if (request.stream) {
+          // Streaming mode using ChatCompletionStream
+          const requestID = `chat-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+          
+          if (this.debug) {
+            console.debug(`[${this.provider}] Starting stream with ID:`, requestID);
+          }
 
-        if (!proxyResponse) {
-          throw new Error('No response from Wails proxy');
-        }
+          // Create a ReadableStream to handle SSE events from Wails
+          const stream = new ReadableStream({
+            start: async (controller) => {
+              try {
+                // Listen for stream events
+            let streamClosed = false;
+            
+            const handleData = (data: any) => {
+              if (streamClosed) return;
+              
+              if (this.debug) {
+                console.debug(`[${this.provider}] Stream data:`, typeof data, data);
+              }
+              
+              // Data comes as array of SSE strings from Wails events
+              const dataArray = Array.isArray(data) ? data : [data];
+              
+              for (const item of dataArray) {
+                const sseString = typeof item === 'string' ? item : String(item);
+                
+                // Parse SSE data and enqueue
+                if (sseString.startsWith('data: ')) {
+                  const jsonStr = sseString.substring(6).trim();
+                  if (jsonStr === '[DONE]') {
+                    if (!streamClosed) {
+                      streamClosed = true;
+                      controller.close();
+                    }
+                    return;
+                  }
+                  try {
+                    const chunk = JSON.parse(jsonStr);
+                    controller.enqueue(chunk);
+                  } catch (e) {
+                    console.error('Failed to parse chunk:', jsonStr, e);
+                  }
+                }
+              }
+            };
 
-        if (this.debug) {
-          console.debug(`[${this.provider}] Response received:`, {
-            status: proxyResponse.status,
-            bodyLength: proxyResponse.body?.length || 0,
-            bodyPreview: proxyResponse.body?.substring(0, 100) || '',
+            const handleEnd = () => {
+              if (streamClosed) return;
+              
+              if (this.debug) {
+                console.debug(`[${this.provider}] Stream ended`);
+              }
+              
+              if (!streamClosed) {
+                streamClosed = true;
+                try {
+                  controller.close();
+                } catch (e) {
+                  // Stream already closed, ignore
+                  if (this.debug) {
+                    console.debug(`[${this.provider}] Stream already closed`);
+                  }
+                }
+              }
+            };
+
+                // Register event listeners
+                Events.On(`stream:${requestID}:data`, (ev: WailsEvent) => handleData(ev.data));
+                Events.On(`stream:${requestID}:end`, () => handleEnd());
+
+                // Start the stream
+                await ChatCompletionStream(requestID, request);
+                
+              } catch (error) {
+                console.error(`[${this.provider}] Stream error:`, error);
+                controller.error(error);
+              }
+            },
+          });
+
+          // Process through OpenAIStream
+          const processedStream = OpenAIStream(stream, {
+            callbacks: options?.callback,
+            inputStartAt: Date.now(),
+          });
+
+          return StreamingResponse(processedStream, {
+            headers: options?.headers,
+          });
+
+        } else {
+          // Non-streaming mode using ChatCompletion
+          const response = await ChatCompletion(request);
+          
+          if (!response) {
+            throw new Error('No response from LibraryChatService');
+          }
+
+          if (this.debug) {
+            console.debug(`[${this.provider}] Response:`, response);
+          }
+
+          // Convert to Response object
+          return new Response(JSON.stringify(response), {
+            headers: {
+              'Content-Type': 'application/json',
+              ...options?.headers,
+            },
           });
         }
-
-        // Convert SSE string to ReadableStream of parsed objects
-        const parsedStream = handleChatStream(proxyResponse, this.debug);
-        
-        // Process through OpenAIStream to convert to protocol format
-        // OpenAIStream expects a ReadableStream of ChatCompletionChunk objects
-        const processedStream = OpenAIStream(parsedStream, {
-          callbacks: options?.callback,
-          inputStartAt: Date.now(),
-        });
-        
-        // Return as StreamingResponse
-        return StreamingResponse(processedStream, {
-          headers: options?.headers,
-        });
         
       } catch (error) {
         console.error(`[${this.provider}] Chat error:`, error);

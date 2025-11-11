@@ -76,7 +76,9 @@ func NewVectorSearchService(persistPath string, embeddingProvider string, embedd
 		if embeddingModel == "" {
 			embeddingModel = llama.GetRecommendedEmbeddingModel()
 		}
-		embedFunc = chromem.NewEmbeddingFuncLlama(llama.GetEmbeddingModelsDirectory(), embeddingModel)
+		// Get models directory from installer
+		installer := llama.NewLlamaCppInstaller()
+		embedFunc = chromem.NewEmbeddingFuncLlama(installer.GetModelsDirectory(), embeddingModel)
 	}
 
 	return &VectorSearchService{

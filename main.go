@@ -10,6 +10,7 @@ import (
 
 	"github.com/kawai-network/veridium/internal/audio_recorder"
 	"github.com/kawai-network/veridium/internal/database"
+	"github.com/kawai-network/veridium/internal/llama"
 	"github.com/kawai-network/veridium/internal/machineid"
 	"github.com/kawai-network/veridium/internal/search"
 	"github.com/kawai-network/veridium/internal/services"
@@ -107,6 +108,18 @@ func main() {
 	log.Printf("✅ File Processor service initialized")
 	log.Printf("   Handles: file parsing → document storage → RAG processing")
 
+	// Initialize Llama.cpp Library Service (library-based LLM inference)
+	// Auto-installs llama.cpp binaries and downloads models in background
+	libService, err := llama.NewLibraryService()
+	if err != nil {
+		log.Printf("⚠️  Warning: Failed to initialize Llama Library service: %v", err)
+		log.Printf("    LLM chat features will not be available.")
+	} else {
+		log.Printf("✅ Llama Library service initialized")
+		log.Printf("   Models directory: %s", libService.GetModelsDirectory())
+		log.Printf("   Auto-setup running in background...")
+	}
+
 	// Create a new Wails application by providing the necessary options.
 	// Variables 'Name' and 'Description' are for application metadata.
 	// 'Assets' configures the asset server with the 'FS' variable pointing to the frontend files.
@@ -190,6 +203,22 @@ func main() {
 
 	// Set app instance for audio recorder service (for event emission)
 	audioRecorderService.SetApp(app)
+
+	// Initialize Llama Chat Service (OpenAI-compatible chat API)
+	// This service provides chat completion functionality using the library service
+	if libService != nil {
+		llamaChatService := llama.NewLibraryChatService(libService, app)
+		app.RegisterService(application.NewService(llamaChatService))
+		log.Printf("✅ Llama Chat service registered")
+		log.Printf("   OpenAI-compatible API: ChatCompletion, ChatCompletionStream")
+		log.Printf("   Supports: temperature, top_p, top_k, max_tokens")
+		
+		// Add cleanup on shutdown
+		app.OnShutdown(func() {
+			log.Printf("🧹 Cleaning up Llama Library service...")
+			libService.Cleanup()
+		})
+	}
 
 	// Create a new window with the necessary options.
 	// 'Title' is the title of the window.

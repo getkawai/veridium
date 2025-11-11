@@ -203,7 +203,9 @@ export const chatTopic: StateCreator<
 
         internal_updateTopicTitleInSummary(topicId, output);
       },
-      params: merge(topicConfig, chainSummaryTitle(messages, globalHelpers.getCurrentLanguage())),
+      params: merge(topicConfig, chainSummaryTitle(messages, globalHelpers.getCurrentLanguage()), {
+        stream: false, // Topic generation doesn't need streaming
+      }),
       trace: get().getCurrentTracePayload({ traceName: TraceNameMap.SummaryTopicTitle, topicId }),
     });
   },
