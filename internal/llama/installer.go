@@ -138,9 +138,45 @@ func (lcm *LlamaCppInstaller) DownloadRelease(version string, progressCallback f
 	// Download llama.cpp binaries using pkg/yzma/download
 	// This now uses grab internally for ZIP download (with resume support!)
 	// Then extracts the ZIP and handles platform-specific URLs
-	// For model downloads, we use grab directly (see downloader.go)
-	if err := download.Get(runtime.GOOS, processor, version, lcm.BinaryPath); err != nil {
-		return fmt.Errorf("failed to download llama.cpp: %w", err)
+	err := download.Get(runtime.GOOS, processor, version, lcm.BinaryPath)
+	if err != nil {
+		// If latest version returns 404 (release assets not ready yet),
+		// try to fallback to previous stable versions from GitHub
+		if strings.Contains(err.Error(), "404") && strings.Contains(err.Error(), "not available yet") {
+			log.Printf("⚠️  Latest version %s assets not ready yet, fetching previous versions...", version)
+
+			// Fetch last 10 releases from GitHub (in case recent ones aren't ready)
+			versions, vErr := download.LlamaAvailableVersions(10)
+			if vErr != nil {
+				return fmt.Errorf("failed to download %s and couldn't fetch fallback versions: %w", version, err)
+			}
+
+			// Try each version until one works (skip the first one as it's the one that failed)
+			var lastErr error
+			for i, fallbackVersion := range versions {
+				if i == 0 {
+					continue // Skip the latest (already failed)
+				}
+
+				log.Printf("📥 Trying version %s (%d/%d)...", fallbackVersion, i, len(versions)-1)
+				if fallbackErr := download.Get(runtime.GOOS, processor, fallbackVersion, lcm.BinaryPath); fallbackErr == nil {
+					// Success!
+					version = fallbackVersion
+					log.Printf("✅ Successfully downloaded version %s", fallbackVersion)
+					break
+				} else {
+					lastErr = fallbackErr
+					log.Printf("   ❌ Version %s failed: %v", fallbackVersion, fallbackErr)
+				}
+			}
+
+			// If all fallbacks failed
+			if lastErr != nil {
+				return fmt.Errorf("failed to download llama.cpp %s and all fallback versions failed. Last error: %w", version, lastErr)
+			}
+		} else {
+			return fmt.Errorf("failed to download llama.cpp: %w", err)
+		}
 	}
 
 	// Make binaries executable on Unix systems

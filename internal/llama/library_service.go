@@ -152,107 +152,21 @@ func (s *LibraryService) InitializeLibrary() error {
 		return nil
 	}
 
-	// Determine library path (must be a DIRECTORY containing all required libraries)
-	// yzma needs: libggml.dylib, libggml-base.dylib, libllama.dylib
-	libPath := os.Getenv("YZMA_LIB")
-	if libPath == "" {
-		// Try to find llama.cpp libraries in system paths
-		if runtime.GOOS == "darwin" {
-			// Check Homebrew paths
-			brewPaths := []string{
-				"/opt/homebrew/lib",
-				"/usr/local/lib",
-			}
-			for _, path := range brewPaths {
-				// Verify all required libraries exist
-				requiredLibs := []string{"libggml.dylib", "libggml-base.dylib", "libllama.dylib"}
-				allExist := true
-				for _, lib := range requiredLibs {
-					if _, err := os.Stat(filepath.Join(path, lib)); err != nil {
-						allExist = false
-						break
-					}
-				}
-				if allExist {
-					libPath = path
-					break
-				}
-			}
-		} else if runtime.GOOS == "linux" {
-			// Check Linux paths
-			linuxPaths := []string{
-				"/usr/local/lib",
-				"/usr/lib",
-			}
-			for _, path := range linuxPaths {
-				requiredLibs := []string{"libggml.so", "libggml-base.so", "libllama.so"}
-				allExist := true
-				for _, lib := range requiredLibs {
-					if _, err := os.Stat(filepath.Join(path, lib)); err != nil {
-						allExist = false
-						break
-					}
-				}
-				if allExist {
-					libPath = path
-					break
-				}
-			}
-		}
+	// Get library path from installer (programmatic, not env var)
+	libPath := s.manager.GetLibraryPath()
 
-		// If still not found, try the binary path from manager
-		if libPath == "" {
-			binPath := s.manager.BinaryPath
-			// Check if it's a directory containing llama-server binary
-			if stat, err := os.Stat(binPath); err == nil && !stat.IsDir() {
-				// It's a file, get its directory
-				binPath = filepath.Dir(binPath)
-			}
-
-			// Check if required libraries exist in the bin directory or its parent lib directory
-			checkPaths := []string{
-				binPath,
-				filepath.Join(filepath.Dir(binPath), "lib"),
-			}
-
-			for _, path := range checkPaths {
-				requiredLibs := []string{"libggml.dylib", "libggml-base.dylib", "libllama.dylib"}
-				if runtime.GOOS == "linux" {
-					requiredLibs = []string{"libggml.so", "libggml-base.so", "libllama.so"}
-				}
-
-				allExist := true
-				for _, lib := range requiredLibs {
-					if _, err := os.Stat(filepath.Join(path, lib)); err != nil {
-						allExist = false
-						break
-					}
-				}
-				if allExist {
-					libPath = path
-					break
-				}
-			}
-		}
-	}
-
-	if libPath == "" {
-		return fmt.Errorf("llama.cpp libraries not found. Please install llama.cpp or set YZMA_LIB environment variable")
+	// Verify all required libraries exist (libggml, libggml-base, libllama)
+	if !s.manager.VerifyAllLibrariesExist() {
+		return fmt.Errorf("llama.cpp libraries not found in %s. Please run installer first", libPath)
 	}
 
 	s.libPath = libPath
 	log.Printf("📚 Loading llama.cpp library from directory: %s", libPath)
 
-	// Verify all required libraries exist before loading
-	requiredLibs := []string{"libggml", "libggml-base", "libllama"}
-	if runtime.GOOS == "darwin" {
-		for _, lib := range requiredLibs {
-			fullPath := filepath.Join(libPath, lib+".dylib")
-			if _, err := os.Stat(fullPath); err != nil {
-				return fmt.Errorf("required library not found: %s (%w)", fullPath, err)
-			}
-			log.Printf("  ✓ Found: %s", filepath.Base(fullPath))
-		}
+	// Log which libraries were found
+	requiredPaths := s.manager.GetRequiredLibraryPaths()
+	for _, path := range requiredPaths {
+		log.Printf("  ✓ Found: %s", filepath.Base(path))
 	}
 
 	// Load the library (llama.Load expects a directory path)

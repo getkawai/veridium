@@ -65,6 +65,47 @@ func getLatestVersion() (string, error) {
 	return result.TagName, nil
 }
 
+// LlamaAvailableVersions returns a list of available llama.cpp versions from GitHub releases.
+// Returns versions in descending order (newest first).
+// limit specifies how many releases to fetch (default: 10, max: 100).
+func LlamaAvailableVersions(limit int) ([]string, error) {
+	if limit <= 0 {
+		limit = 10 // Default to 10 releases
+	}
+	if limit > 100 {
+		limit = 100 // GitHub API max per page
+	}
+
+	url := fmt.Sprintf("https://api.github.com/repos/ggml-org/llama.cpp/releases?per_page=%d", limit)
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch releases: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
+	}
+
+	var releases []struct {
+		TagName string `json:"tag_name"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&releases); err != nil {
+		return nil, fmt.Errorf("failed to decode releases: %w", err)
+	}
+
+	versions := make([]string, 0, len(releases))
+	for _, release := range releases {
+		if release.TagName != "" {
+			versions = append(versions, release.TagName)
+		}
+	}
+
+	return versions, nil
+}
+
 // Get downloads the llama.cpp precompiled binaries for the desired OS/processor.
 // os can be one of the following values: "linux", "darwin", "windows".
 // processor can be one of the following values: "cpu", "cuda", "vulkan", "metal".
@@ -116,12 +157,57 @@ func Get(os string, processor string, version string, dest string) error {
 		return errUnknownOS
 	}
 
-	url := fmt.Sprintf("%s/%s", location, filename)
+	// Extract the actual filename (before //) for URL construction
+	actualFilename := filename
+	if strings.Contains(filename, "//") {
+		actualFilename = strings.SplitN(filename, "//", 2)[0]
+	}
+
+	url := fmt.Sprintf("%s/%s", location, actualFilename)
 	return get(url, filename, dest)
 }
 
 // get downloads a file using grab and optionally extracts it if it's a ZIP
+// Implements retry logic with exponential backoff for GitHub CDN propagation delays
 func get(url, filename, dest string) error {
+	const maxRetries = 3
+	const initialBackoff = 2 * time.Second
+
+	var lastErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		if attempt > 0 {
+			backoff := initialBackoff * time.Duration(1<<uint(attempt-1)) // 2s, 4s, 8s
+			log.Printf("   ⏳ Retry %d/%d after %v (GitHub CDN may be propagating)...", attempt+1, maxRetries, backoff)
+			time.Sleep(backoff)
+		}
+
+		err := downloadAndExtract(url, filename, dest)
+		if err == nil {
+			return nil // Success!
+		}
+
+		lastErr = err
+
+		// Check if it's a 404 error (release assets not ready yet)
+		if strings.Contains(err.Error(), "404") {
+			// For 404, retry might help if it's CDN propagation delay
+			if attempt < maxRetries-1 {
+				log.Printf("   ⚠️  404 error, retrying (may be CDN delay)...")
+				continue
+			}
+			// After all retries, return specific 404 message
+			return fmt.Errorf("download failed: release assets not available yet (404). The release tag exists but binaries are still being built. Please try again in a few minutes or use a previous version")
+		}
+
+		// For other errors, don't retry
+		return err
+	}
+
+	return fmt.Errorf("download failed after %d attempts: %w", maxRetries, lastErr)
+}
+
+// downloadAndExtract performs a single download attempt with optional ZIP extraction
+func downloadAndExtract(url, filename, dest string) error {
 	// Create temp directory for download
 	tempDir, err := os.MkdirTemp("", "llama-download-*")
 	if err != nil {
@@ -153,6 +239,10 @@ func get(url, filename, dest string) error {
 	// Wait for download to complete
 	<-resp.Done
 	if err := resp.Err(); err != nil {
+		// Check if it's a 404 error
+		if resp.HTTPResponse != nil && resp.HTTPResponse.StatusCode == 404 {
+			return fmt.Errorf("404 error")
+		}
 		return fmt.Errorf("download failed: %w", err)
 	}
 
