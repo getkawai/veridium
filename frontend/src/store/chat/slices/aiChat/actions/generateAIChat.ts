@@ -295,7 +295,7 @@ export const generateAIChat: StateCreator<
         activeThreadId: get().activeThreadId,
         newTopicId,
       });
-      await get().internal_fetchMessages();
+      await get().internal_fetchMessages(activeId, newTopicId);
 
       // delete previous messages
       // remove the temp message map
