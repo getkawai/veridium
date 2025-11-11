@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/hybridgroup/yzma/pkg/llama"
+	"github.com/kawai-network/veridium/pkg/yzma/llama"
 )
 
 func main() {
@@ -135,4 +135,3 @@ func testWithTemplate(model llama.Model, ctx llama.Context, vocab llama.Vocab, s
 	}
 	fmt.Println()
 }
-

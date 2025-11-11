@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hybridgroup/yzma/pkg/llama"
+	"github.com/kawai-network/veridium/pkg/yzma/llama"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -62,18 +62,18 @@ type ChatCompletionChoice struct {
 
 // ChatCompletionChunk represents a streaming chunk
 type ChatCompletionChunk struct {
-	ID      string                    `json:"id"`
-	Object  string                    `json:"object"`
-	Created int64                     `json:"created"`
-	Model   string                    `json:"model"`
+	ID      string                      `json:"id"`
+	Object  string                      `json:"object"`
+	Created int64                       `json:"created"`
+	Model   string                      `json:"model"`
 	Choices []ChatCompletionChunkChoice `json:"choices"`
 }
 
 // ChatCompletionChunkChoice represents a streaming choice
 type ChatCompletionChunkChoice struct {
-	Index        int               `json:"index"`
-	Delta        ChatMessageDelta  `json:"delta"`
-	FinishReason string            `json:"finish_reason,omitempty"`
+	Index        int              `json:"index"`
+	Delta        ChatMessageDelta `json:"delta"`
+	FinishReason string           `json:"finish_reason,omitempty"`
 }
 
 // ChatMessageDelta represents delta content in streaming
@@ -97,25 +97,25 @@ func (c *LibraryChatService) ChatCompletion(ctx context.Context, req ChatComplet
 			return nil, fmt.Errorf("failed to load chat model: %w", err)
 		}
 	}
-	
+
 	// Build prompt from messages
 	prompt := c.buildPrompt(req.Messages)
-	
+
 	// Set default parameters
 	maxTokens := req.MaxTokens
 	if maxTokens == 0 {
 		maxTokens = 512
 	}
-	
+
 	// Update sampler if needed
 	c.updateSampler(req)
-	
+
 	// Generate response
 	response, err := c.libService.Generate(prompt, maxTokens)
 	if err != nil {
 		return nil, fmt.Errorf("generation failed: %w", err)
 	}
-	
+
 	// Build response
 	return &ChatCompletionResponse{
 		ID:      fmt.Sprintf("chatcmpl-%d", time.Now().Unix()),
@@ -148,25 +148,25 @@ func (c *LibraryChatService) ChatCompletionStream(ctx context.Context, requestID
 			return fmt.Errorf("failed to load chat model: %w", err)
 		}
 	}
-	
+
 	// Build prompt from messages
 	prompt := c.buildPrompt(req.Messages)
-	
+
 	// Set default parameters
 	maxTokens := req.MaxTokens
 	if maxTokens == 0 {
 		maxTokens = 512
 	}
-	
+
 	// Update sampler
 	c.updateSampler(req)
-	
+
 	// Generate response with streaming
 	err := c.generateStreaming(ctx, requestID, prompt, maxTokens)
 	if err != nil {
 		return fmt.Errorf("streaming generation failed: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -174,14 +174,14 @@ func (c *LibraryChatService) ChatCompletionStream(ctx context.Context, requestID
 func (c *LibraryChatService) generateStreaming(ctx context.Context, requestID string, prompt string, maxTokens int32) error {
 	c.libService.chatMutex.Lock()
 	defer c.libService.chatMutex.Unlock()
-	
+
 	if c.libService.chatModel == 0 || c.libService.chatContext == 0 {
 		return fmt.Errorf("chat model not loaded")
 	}
-	
+
 	modelPath := c.libService.chatModelPath
 	chatID := fmt.Sprintf("chatcmpl-%d", time.Now().Unix())
-	
+
 	// Send initial metadata
 	c.app.Event.Emit(fmt.Sprintf("stream:%s:meta", requestID), map[string]interface{}{
 		"status":     200,
@@ -190,26 +190,26 @@ func (c *LibraryChatService) generateStreaming(ctx context.Context, requestID st
 			"Content-Type": "text/event-stream",
 		},
 	})
-	
+
 	// Tokenize prompt
 	tokens := llama.Tokenize(c.libService.chatVocab, prompt, true, true)
 	if len(tokens) == 0 {
 		return fmt.Errorf("failed to tokenize prompt")
 	}
-	
+
 	// Create batch
 	batch := llama.BatchGetOne(tokens)
-	
+
 	// Handle encoder models
 	if llama.ModelHasEncoder(c.libService.chatModel) {
 		llama.Encode(c.libService.chatContext, batch)
 		start := llama.ModelDecoderStartToken(c.libService.chatModel)
 		if start == llama.TokenNull {
 			start := llama.VocabBOS(c.libService.chatVocab)
-		batch = llama.BatchGetOne([]llama.Token{start})
+			batch = llama.BatchGetOne([]llama.Token{start})
+		}
 	}
-	}
-	
+
 	// Send first chunk with role
 	firstChunk := ChatCompletionChunk{
 		ID:      chatID,
@@ -226,7 +226,7 @@ func (c *LibraryChatService) generateStreaming(ctx context.Context, requestID st
 		},
 	}
 	c.emitSSEChunk(requestID, firstChunk)
-	
+
 	// Generate tokens and stream
 	for pos := int32(0); pos < maxTokens; pos += batch.NTokens {
 		// Check context cancellation
@@ -235,10 +235,10 @@ func (c *LibraryChatService) generateStreaming(ctx context.Context, requestID st
 			return ctx.Err()
 		default:
 		}
-		
+
 		llama.Decode(c.libService.chatContext, batch)
 		token := llama.SamplerSample(c.libService.chatSampler, c.libService.chatContext, -1)
-		
+
 		// Check for end of generation
 		if llama.VocabIsEOG(c.libService.chatVocab, token) {
 			// Send final chunk with finish_reason
@@ -258,12 +258,12 @@ func (c *LibraryChatService) generateStreaming(ctx context.Context, requestID st
 			c.emitSSEChunk(requestID, finalChunk)
 			break
 		}
-		
+
 		// Convert token to text
 		buf := make([]byte, 256)
 		length := llama.TokenToPiece(c.libService.chatVocab, token, buf, 0, false)
 		content := string(buf[:length])
-		
+
 		// Send chunk with content
 		chunk := ChatCompletionChunk{
 			ID:      chatID,
@@ -280,18 +280,18 @@ func (c *LibraryChatService) generateStreaming(ctx context.Context, requestID st
 			},
 		}
 		c.emitSSEChunk(requestID, chunk)
-		
+
 		// Prepare next batch
 		batch = llama.BatchGetOne([]llama.Token{token})
-		
+
 		// Small delay to prevent overwhelming the frontend
 		time.Sleep(10 * time.Millisecond)
 	}
-	
+
 	// Send done signal
 	c.app.Event.Emit(fmt.Sprintf("stream:%s:data", requestID), "data: [DONE]\n\n")
 	c.app.Event.Emit(fmt.Sprintf("stream:%s:end", requestID))
-	
+
 	return nil
 }
 
@@ -302,7 +302,7 @@ func (c *LibraryChatService) emitSSEChunk(requestID string, chunk ChatCompletion
 		log.Printf("Failed to marshal chunk: %v", err)
 		return
 	}
-	
+
 	// Format as SSE
 	sseData := fmt.Sprintf("data: %s\n\n", string(data))
 	c.app.Event.Emit(fmt.Sprintf("stream:%s:data", requestID), sseData)
@@ -315,7 +315,7 @@ func (c *LibraryChatService) buildPrompt(messages []ChatMessage) string {
 	if c.libService.chatModel != 0 {
 		template = llama.ModelChatTemplate(c.libService.chatModel, "")
 	}
-	
+
 	// If no template, use a simple format
 	if template == "" {
 		var prompt strings.Builder
@@ -332,13 +332,13 @@ func (c *LibraryChatService) buildPrompt(messages []ChatMessage) string {
 		prompt.WriteString("Assistant:")
 		return prompt.String()
 	}
-	
+
 	// Use llama.cpp chat template
 	llamaMessages := make([]llama.ChatMessage, len(messages))
 	for i, msg := range messages {
 		llamaMessages[i] = llama.NewChatMessage(msg.Role, msg.Content)
 	}
-	
+
 	buf := make([]byte, 8192)
 	length := llama.ChatApplyTemplate(template, llamaMessages, true, buf)
 	return string(buf[:length])
@@ -348,94 +348,23 @@ func (c *LibraryChatService) buildPrompt(messages []ChatMessage) string {
 func (c *LibraryChatService) updateSampler(req ChatCompletionRequest) {
 	c.libService.chatMutex.Lock()
 	defer c.libService.chatMutex.Unlock()
-	
+
 	if c.libService.chatSampler == 0 {
 		return
 	}
-	
+
 	// Recreate sampler with new parameters
 	// Note: In a production system, you might want to cache samplers
 	// or have a more sophisticated parameter update mechanism
-	
+
 	// For now, we'll keep the existing sampler
 	// In a full implementation, you'd recreate it with custom parameters
 	// based on req.Temperature, req.TopP, req.TopK
 }
 
-// Proxy provides a compatibility layer for the existing proxy service
-// This allows gradual migration from binary to library approach
-type LibraryProxyService struct {
-	libService *LibraryService
-	chatService *LibraryChatService
-	app        *application.App
-}
-
-// NewLibraryProxyService creates a new library-based proxy service
-func NewLibraryProxyService(libService *LibraryService, app *application.App) *LibraryProxyService {
-	return &LibraryProxyService{
-		libService:  libService,
-		chatService: NewLibraryChatService(libService, app),
-		app:         app,
-	}
-}
-
-// Fetch handles non-streaming requests (compatible with existing Fetch interface)
-func (p *LibraryProxyService) Fetch(ctx context.Context, request ProxyRequest) (*ProxyResponse, error) {
-	log.Printf("📍 [LibraryProxyService.Fetch] method=%s, path=%s", request.Method, request.Path)
-	
-	// Parse request based on path
-	if strings.HasSuffix(request.Path, "/chat/completions") || strings.HasSuffix(request.Path, "/v1/chat/completions") {
-		// Chat completion request
-		var req ChatCompletionRequest
-		if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
-			return nil, fmt.Errorf("failed to parse request: %w", err)
-		}
-		
-		// Force non-streaming for Fetch
-		req.Stream = false
-		
-		// Handle the request
-		resp, err := p.chatService.ChatCompletion(ctx, req)
-		if err != nil {
-			return nil, err
-		}
-		
-		// Marshal response
-		respData, err := json.Marshal(resp)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal response: %w", err)
-		}
-		
-		return &ProxyResponse{
-			Status:     200,
-			StatusText: "OK",
-			Headers: map[string]string{
-				"Content-Type": "application/json",
-			},
-			Body: string(respData),
-		}, nil
-	}
-	
-	// For other endpoints, return error or forward to original service
-	return nil, fmt.Errorf("endpoint not supported by library service: %s", request.Path)
-}
-
-// StreamFetch handles streaming requests (compatible with existing StreamFetch interface)
-func (p *LibraryProxyService) StreamFetch(ctx context.Context, requestID string, request ProxyRequest) error {
-	log.Printf("[LibraryProxyService.StreamFetch] Starting stream for request ID: %s", requestID)
-	
-	// Parse request based on path
-	if strings.HasSuffix(request.Path, "/chat/completions") || strings.HasSuffix(request.Path, "/v1/chat/completions") {
-		// Chat completion request
-		var req ChatCompletionRequest
-		if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
-			return fmt.Errorf("failed to parse request: %w", err)
-		}
-		
-		// Handle streaming
-		return p.chatService.ChatCompletionStream(ctx, requestID, req)
-	}
-	
-	return fmt.Errorf("endpoint not supported by library service: %s", request.Path)
-}
-
+// Note: LibraryProxyService has been removed as it's not used in main.go
+// LibraryChatService can be used directly for chat functionality
+// Example usage:
+//   libService, _ := llama.NewLibraryService()
+//   chatService := llama.NewLibraryChatService(libService, app)
+//   app.Bind(chatService)

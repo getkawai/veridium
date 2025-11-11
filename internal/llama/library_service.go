@@ -9,14 +9,13 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/hybridgroup/yzma/pkg/llama"
+	"github.com/kawai-network/veridium/pkg/yzma/llama"
 )
 
 // LibraryService provides LLM inference using llama.cpp as a library (via yzma)
 // This replaces the binary-based approach with direct library calls
 type LibraryService struct {
-	manager          *LlamaCppReleaseManager
-	embeddingManager *EmbeddingManager
+	manager *LlamaCppInstaller
 
 	// Library state
 	libPath       string
@@ -44,11 +43,9 @@ type LibraryService struct {
 // NewLibraryService creates a new library-based llama.cpp service
 func NewLibraryService() (*LibraryService, error) {
 	manager := NewLlamaCppInstaller()
-	embeddingManager := NewEmbeddingManager()
 
 	service := &LibraryService{
-		manager:          manager,
-		embeddingManager: embeddingManager,
+		manager: manager,
 	}
 
 	log.Printf("📍 [NewLibraryService] Created library-based service instance: %p", service)
@@ -111,7 +108,7 @@ func (s *LibraryService) initializeInBackground() {
 	// Step 3: Auto-download embedding model (in background)
 	go func() {
 		log.Println("📦 Checking embedding models...")
-		if err := s.embeddingManager.AutoDownloadRecommendedModel(); err != nil {
+		if err := s.manager.AutoDownloadRecommendedEmbeddingModel(); err != nil {
 			log.Printf("⚠️  Failed to auto-download embedding model: %v", err)
 		} else {
 			log.Println("✅ Embedding model ready!")
@@ -365,15 +362,11 @@ func (s *LibraryService) LoadEmbeddingModel(modelPath string) error {
 
 	// Auto-select embedding model if not provided
 	if modelPath == "" {
-		downloaded := s.embeddingManager.GetDownloadedModels()
+		downloaded := s.manager.GetDownloadedEmbeddingModels()
 		if len(downloaded) == 0 {
 			return fmt.Errorf("no embedding models available")
 		}
-		var err error
-		modelPath, err = s.embeddingManager.GetModelPath(downloaded[0].Name)
-		if err != nil {
-			return fmt.Errorf("failed to get embedding model path: %w", err)
-		}
+		modelPath = filepath.Join(s.manager.ModelsDir, downloaded[0].Filename)
 		log.Printf("🤖 Auto-selected embedding model: %s", downloaded[0].Name)
 	}
 
@@ -659,9 +652,9 @@ func (s *LibraryService) GetModelsDirectory() string {
 	return s.manager.GetModelsDirectory()
 }
 
-// GetEmbeddingManager returns the embedding manager
-func (s *LibraryService) GetEmbeddingManager() *EmbeddingManager {
-	return s.embeddingManager
+// GetEmbeddingModelsDirectory returns the directory where embedding models are stored
+func (s *LibraryService) GetEmbeddingModelsDirectory() string {
+	return s.manager.GetModelsDirectory()
 }
 
 // IsChatModelLoaded returns true if a chat model is loaded
@@ -725,10 +718,14 @@ func (s *LibraryService) Cleanup() {
 }
 
 // AutoDownloadRecommendedModel downloads the recommended model based on hardware
+// Delegates to installer methods
 func (s *LibraryService) AutoDownloadRecommendedModel() error {
-	// Create a temporary service instance to use its download functionality
-	tempService := &Service{
-		manager: s.manager,
-	}
-	return tempService.AutoDownloadRecommendedModel()
+	return s.manager.AutoDownloadRecommendedChatModel()
 }
+
+// Note: Download-related methods have been moved to LlamaCppInstaller.
+// Use installer methods:
+//   - manager.DownloadChatModel(modelSpec)
+//   - manager.DownloadEmbeddingModel(model)
+//   - manager.AutoDownloadRecommendedChatModel()
+//   - manager.AutoDownloadRecommendedEmbeddingModel()

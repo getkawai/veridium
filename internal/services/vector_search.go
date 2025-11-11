@@ -65,53 +65,6 @@ func NewVectorSearchService(persistPath string, embeddingProvider string, embedd
 			embeddingModel,
 			"http://localhost:11434/api",
 		)
-	case "llama", "llama.cpp", "llamacpp":
-		// Use llama.cpp (llama-server) for embeddings
-		// Check if embedding model is downloaded, auto-download if needed
-		log.Println("🔍 Checking for embedding models...")
-
-		llamaService, err := llama.NewService()
-		if err != nil {
-			log.Printf("⚠️  Failed to initialize llama service: %v", err)
-			log.Println("   Falling back to default llama-server endpoint")
-			embedFunc = chromem.NewEmbeddingFuncLlama("http://localhost:8080")
-		} else {
-			embMgr := llamaService.GetEmbeddingManager()
-			downloaded := embMgr.GetDownloadedModels()
-
-			if len(downloaded) == 0 {
-				log.Println("📦 No embedding models found, auto-downloading...")
-				if err := embMgr.AutoDownloadRecommendedModel(); err != nil {
-					log.Printf("⚠️  Failed to download embedding model: %v", err)
-					log.Println("   Falling back to default llama-server endpoint")
-					embedFunc = chromem.NewEmbeddingFuncLlama("http://localhost:8080")
-				} else {
-					log.Println("✅ Embedding model downloaded successfully!")
-					modelName := embMgr.GetRecommendedModel()
-					modelPath, _ := embMgr.GetModelPath(modelName)
-					log.Printf("   Model path: %s", modelPath)
-
-					// Use the downloaded model
-					baseURL := "http://localhost:8080"
-					if embeddingModel != "" {
-						baseURL = embeddingModel
-					}
-					embedFunc = chromem.NewEmbeddingFuncLlama(baseURL)
-				}
-			} else {
-				log.Printf("✅ Found %d embedding model(s)", len(downloaded))
-				modelPath, _ := embMgr.GetModelPath(downloaded[0].Name)
-				log.Printf("   Using: %s", modelPath)
-
-				// Use existing model
-				baseURL := "http://localhost:8080"
-				if embeddingModel != "" {
-					baseURL = embeddingModel
-				}
-				embedFunc = chromem.NewEmbeddingFuncLlama(baseURL)
-			}
-		}
-
 	case "openai":
 		if embeddingModel == "" {
 			embeddingModel = "text-embedding-3-small"
@@ -120,7 +73,10 @@ func NewVectorSearchService(persistPath string, embeddingProvider string, embedd
 	default:
 		// Default to llama.cpp (local, no API key needed)
 		log.Println("🔍 Using default llama.cpp embedding provider...")
-		embedFunc = chromem.NewEmbeddingFuncLlama("http://localhost:8080")
+		if embeddingModel == "" {
+			embeddingModel = llama.GetRecommendedEmbeddingModel()
+		}
+		embedFunc = chromem.NewEmbeddingFuncLlama(llama.GetEmbeddingModelsDirectory(), embeddingModel)
 	}
 
 	return &VectorSearchService{

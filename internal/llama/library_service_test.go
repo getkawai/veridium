@@ -172,7 +172,8 @@ func TestEmbeddingModelLoading(t *testing.T) {
 	time.Sleep(5 * time.Second)
 
 	// Check if embedding models are available
-	downloaded := service.embeddingManager.GetDownloadedModels()
+	installer := NewLlamaCppInstaller()
+	downloaded := installer.GetDownloadedEmbeddingModels()
 	if len(downloaded) == 0 {
 		t.Skip("No embedding models available")
 	}
@@ -205,7 +206,8 @@ func TestEmbeddingGeneration(t *testing.T) {
 	time.Sleep(10 * time.Second)
 
 	// Check if embedding models are available
-	downloaded := service.embeddingManager.GetDownloadedModels()
+	installer := NewLlamaCppInstaller()
+	downloaded := installer.GetDownloadedEmbeddingModels()
 	if len(downloaded) == 0 {
 		t.Skip("No embedding models available")
 	}
@@ -296,7 +298,8 @@ func TestMultipleModels(t *testing.T) {
 	}
 
 	// Check if embedding models are available
-	downloaded := service.embeddingManager.GetDownloadedModels()
+	installer := NewLlamaCppInstaller()
+	downloaded := installer.GetDownloadedEmbeddingModels()
 	if len(downloaded) > 0 {
 		// Load embedding model
 		err = service.LoadEmbeddingModel("")
@@ -363,7 +366,8 @@ func BenchmarkEmbedding(b *testing.B) {
 	// Wait for initialization
 	time.Sleep(10 * time.Second)
 
-	downloaded := service.embeddingManager.GetDownloadedModels()
+	installer := NewLlamaCppInstaller()
+	downloaded := installer.GetDownloadedEmbeddingModels()
 	if len(downloaded) == 0 {
 		b.Skip("No embedding models available")
 	}
@@ -416,18 +420,20 @@ func TestGetModelsDirectory(t *testing.T) {
 	t.Logf("Models directory: %s", modelsDir)
 }
 
-// TestGetEmbeddingManager tests embedding manager retrieval
-func TestGetEmbeddingManager(t *testing.T) {
+// TestGetEmbeddingModelsDirectory tests embedding models directory retrieval
+func TestGetEmbeddingModelsDirectory(t *testing.T) {
 	service, err := NewLibraryService()
 	if err != nil {
 		t.Fatalf("Failed to create service: %v", err)
 	}
 	defer service.Cleanup()
 
-	embMgr := service.GetEmbeddingManager()
-	if embMgr == nil {
-		t.Fatal("Embedding manager should not be nil")
+	modelsDir := service.GetEmbeddingModelsDirectory()
+	if modelsDir == "" {
+		t.Fatal("Models directory should not be empty")
 	}
+
+	t.Logf("Models directory: %s", modelsDir)
 }
 
 // TestModelStatusChecks tests model status checking functions
@@ -705,95 +711,22 @@ func TestChatServiceWithNilApp(t *testing.T) {
 
 // TestEmbeddingServiceCreation tests embedding service creation
 func TestEmbeddingServiceCreation(t *testing.T) {
-	service, err := NewLibraryService()
-	if err != nil {
-		t.Fatalf("Failed to create service: %v", err)
-	}
-	defer service.Cleanup()
-
-	embService := NewLibraryEmbeddingService(service)
-	if embService == nil {
-		t.Fatal("Embedding service should not be nil")
-	}
+	t.Skip("LibraryEmbeddingService has been removed - use LibraryService.GenerateEmbedding() directly")
 }
 
 // TestProxyServiceCreation tests proxy service creation
 func TestProxyServiceCreation(t *testing.T) {
-	service, err := NewLibraryService()
-	if err != nil {
-		t.Fatalf("Failed to create service: %v", err)
-	}
-	defer service.Cleanup()
-
-	proxyService := NewLibraryProxyService(service, nil)
-	if proxyService == nil {
-		t.Fatal("Proxy service should not be nil")
-	}
+	t.Skip("LibraryProxyService has been removed - use LibraryChatService directly")
 }
 
 // TestBatchEmbeddingEmpty tests batch embedding with empty input
 func TestBatchEmbeddingEmpty(t *testing.T) {
-	if os.Getenv("INTEGRATION_TEST") == "" {
-		t.Skip("Skipping integration test")
-	}
-
-	service, err := NewLibraryService()
-	if err != nil {
-		t.Fatalf("Failed to create service: %v", err)
-	}
-	defer service.Cleanup()
-
-	embService := NewLibraryEmbeddingService(service)
-
-	// Empty batch
-	ctx := context.Background()
-	results, err := embService.BatchEmbedding(ctx, []string{})
-	if err != nil {
-		t.Logf("Empty batch error: %v", err)
-	}
-	if len(results) != 0 {
-		t.Error("Empty batch should return empty results")
-	}
+	t.Skip("LibraryEmbeddingService.BatchEmbedding has been removed - use LibraryService.GenerateEmbedding() in a loop")
 }
 
 // TestContextCancellation tests context cancellation during operations
 func TestContextCancellation(t *testing.T) {
-	if os.Getenv("INTEGRATION_TEST") == "" {
-		t.Skip("Skipping integration test")
-	}
-
-	service, err := NewLibraryService()
-	if err != nil {
-		t.Fatalf("Failed to create service: %v", err)
-	}
-	defer service.Cleanup()
-
-	time.Sleep(10 * time.Second)
-
-	downloaded := service.embeddingManager.GetDownloadedModels()
-	if len(downloaded) == 0 {
-		t.Skip("No embedding models available")
-	}
-
-	err = service.LoadEmbeddingModel("")
-	if err != nil {
-		t.Skipf("Failed to load embedding model: %v", err)
-	}
-
-	embService := NewLibraryEmbeddingService(service)
-
-	// Create context with immediate cancellation
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel() // Cancel immediately
-
-	_, err = embService.CreateEmbedding(ctx, EmbeddingRequest{
-		Model: "auto",
-		Input: []string{"test"},
-	})
-
-	if err != context.Canceled {
-		t.Logf("Context cancellation may not be immediate: %v", err)
-	}
+	t.Skip("LibraryEmbeddingService.CreateEmbedding has been removed - use LibraryService.GenerateEmbedding() directly")
 }
 
 // TestAutoDownloadWithoutModels tests auto-download functionality
