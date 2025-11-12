@@ -27,7 +27,7 @@ export class ThreadModel {
     try {
       const result: Thread = await DB.CreateThread({
         id: nanoid(),
-        title: toNullString(params.title as string),
+        title: params.title ?? 'Untitled',
         type: params.type,
         status: toNullString(ThreadStatus.Active as string), // New threads should always start as 'active'
         topicId: params.topicId,
@@ -142,7 +142,7 @@ export class ThreadModel {
     await DB.UpdateThread({
       id,
       userId: this.userId,
-      title: toNullString(value.title as any),
+      title: value.title ?? '',
       status: toNullString(value.status || ThreadStatus.Active) as any,
       lastActiveAt: value.lastActiveAt ? new Date(value.lastActiveAt).getTime() : now,
       updatedAt: now,
@@ -155,22 +155,14 @@ export class ThreadModel {
 
   private mapThread = (thread: Thread): ThreadItem => {
     const statusStr = getNullableString(thread.status as any);
-    // sourceMessageId and topicId are plain strings (not NullString) in the database model
-    // so we should use them directly instead of getNullableString()
-    const sourceMessageId = typeof thread.sourceMessageId === 'string' 
-      ? thread.sourceMessageId 
-      : getNullableString(thread.sourceMessageId as any) || '';
-    const topicId = typeof thread.topicId === 'string'
-      ? thread.topicId
-      : getNullableString(thread.topicId as any) || '';
     
     return {
       id: thread.id,
-      title: getNullableString(thread.title as any) || '',
+      title: thread.title,
       type: thread.type as ThreadType,
       status: (statusStr as ThreadStatus) || ThreadStatus.Active,
-      topicId: topicId,
-      sourceMessageId: sourceMessageId,
+      topicId: thread.topicId,
+      sourceMessageId: thread.sourceMessageId,
       parentThreadId: getNullableString(thread.parentThreadId as any),
       userId: thread.userId,
       lastActiveAt: new Date(thread.lastActiveAt),

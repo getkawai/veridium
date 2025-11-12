@@ -656,7 +656,7 @@ type SessionGroup struct {
 
 type Thread struct {
 	ID              string         `json:"id"`
-	Title           sql.NullString `json:"title"`
+	Title           string         `json:"title"`
 	Type            string         `json:"type"`
 	Status          sql.NullString `json:"status"`
 	TopicID         string         `json:"topicId"`

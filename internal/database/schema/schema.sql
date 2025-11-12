@@ -172,7 +172,7 @@ CREATE TABLE IF NOT EXISTS topics (
 -- Threads table
 CREATE TABLE IF NOT EXISTS threads (
   id TEXT PRIMARY KEY,
-  title TEXT,
+  title TEXT NOT NULL,
   type TEXT NOT NULL CHECK (type IN ('continuation', 'standalone')),
   status TEXT DEFAULT 'active' CHECK (status IN ('active', 'deprecated', 'archived')),
   topic_id TEXT NOT NULL REFERENCES topics(id) ON DELETE CASCADE,

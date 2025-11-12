@@ -4667,7 +4667,7 @@ export class CreateSessionParams {
 
 export class CreateThreadParams {
     "id": string;
-    "title": sql$0.NullString;
+    "title": string;
     "type": string;
     "status": sql$0.NullString;
     "topicId": string;
@@ -4685,7 +4685,7 @@ export class CreateThreadParams {
             this["id"] = "";
         }
         if (!("title" in $$source)) {
-            this["title"] = (new sql$0.NullString());
+            this["title"] = "";
         }
         if (!("type" in $$source)) {
             this["type"] = "";
@@ -4725,14 +4725,10 @@ export class CreateThreadParams {
      * Creates a new CreateThreadParams instance from a string or object.
      */
     static createFrom($$source: any = {}): CreateThreadParams {
-        const $$createField1_0 = $$createType0;
         const $$createField3_0 = $$createType0;
         const $$createField6_0 = $$createType0;
         const $$createField7_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("title" in $$parsedSource) {
-            $$parsedSource["title"] = $$createField1_0($$parsedSource["title"]);
-        }
         if ("status" in $$parsedSource) {
             $$parsedSource["status"] = $$createField3_0($$parsedSource["status"]);
         }
@@ -15233,7 +15229,7 @@ export class SessionGroup {
 
 export class Thread {
     "id": string;
-    "title": sql$0.NullString;
+    "title": string;
     "type": string;
     "status": sql$0.NullString;
     "topicId": string;
@@ -15251,7 +15247,7 @@ export class Thread {
             this["id"] = "";
         }
         if (!("title" in $$source)) {
-            this["title"] = (new sql$0.NullString());
+            this["title"] = "";
         }
         if (!("type" in $$source)) {
             this["type"] = "";
@@ -15291,14 +15287,10 @@ export class Thread {
      * Creates a new Thread instance from a string or object.
      */
     static createFrom($$source: any = {}): Thread {
-        const $$createField1_0 = $$createType0;
         const $$createField3_0 = $$createType0;
         const $$createField6_0 = $$createType0;
         const $$createField7_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("title" in $$parsedSource) {
-            $$parsedSource["title"] = $$createField1_0($$parsedSource["title"]);
-        }
         if ("status" in $$parsedSource) {
             $$parsedSource["status"] = $$createField3_0($$parsedSource["status"]);
         }
@@ -18026,7 +18018,7 @@ export class UpdateSessionParams {
 }
 
 export class UpdateThreadParams {
-    "title": sql$0.NullString;
+    "title": string;
     "status": sql$0.NullString;
     "lastActiveAt": number;
     "updatedAt": number;
@@ -18036,7 +18028,7 @@ export class UpdateThreadParams {
     /** Creates a new UpdateThreadParams instance. */
     constructor($$source: Partial<UpdateThreadParams> = {}) {
         if (!("title" in $$source)) {
-            this["title"] = (new sql$0.NullString());
+            this["title"] = "";
         }
         if (!("status" in $$source)) {
             this["status"] = (new sql$0.NullString());
@@ -18061,12 +18053,8 @@ export class UpdateThreadParams {
      * Creates a new UpdateThreadParams instance from a string or object.
      */
     static createFrom($$source: any = {}): UpdateThreadParams {
-        const $$createField0_0 = $$createType0;
         const $$createField1_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("title" in $$parsedSource) {
-            $$parsedSource["title"] = $$createField0_0($$parsedSource["title"]);
-        }
         if ("status" in $$parsedSource) {
             $$parsedSource["status"] = $$createField1_0($$parsedSource["status"]);
         }

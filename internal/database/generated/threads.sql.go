@@ -22,7 +22,7 @@ RETURNING id, title, type, status, topic_id, source_message_id, parent_thread_id
 
 type CreateThreadParams struct {
 	ID              string         `json:"id"`
-	Title           sql.NullString `json:"title"`
+	Title           string         `json:"title"`
 	Type            string         `json:"type"`
 	Status          sql.NullString `json:"status"`
 	TopicID         string         `json:"topicId"`
@@ -220,7 +220,7 @@ RETURNING id, title, type, status, topic_id, source_message_id, parent_thread_id
 `
 
 type UpdateThreadParams struct {
-	Title        sql.NullString `json:"title"`
+	Title        string         `json:"title"`
 	Status       sql.NullString `json:"status"`
 	LastActiveAt int64          `json:"lastActiveAt"`
 	UpdatedAt    int64          `json:"updatedAt"`
