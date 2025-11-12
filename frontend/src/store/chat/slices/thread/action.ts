@@ -126,6 +126,7 @@ export const chatThreadMessage: StateCreator<
     let tempMessageId: string | undefined = undefined;
 
     // if there is no portalThreadId, then create a thread and then append message
+    let currentThreadId: string | undefined = portalThreadId;
     if (!portalThreadId) {
       if (!threadStartMessageId) return;
       // we need to create a temp message for optimistic update
@@ -135,14 +136,65 @@ export const chatThreadMessage: StateCreator<
       });
       get().internal_toggleMessageLoading(true, tempMessageId);
 
-      const { threadId, messageId } = await get().createThread({
-        message: newMessage,
-        sourceMessageId: threadStartMessageId,
-        topicId: activeTopicId,
-        type: newThreadMode,
-      });
+      let threadResult;
+      try {
+        threadResult = await get().createThread({
+          message: newMessage,
+          sourceMessageId: threadStartMessageId,
+          topicId: activeTopicId,
+          type: newThreadMode,
+        });
+      } catch (error) {
+        // Thread creation threw an error (non-conflict error, e.g., database error)
+        console.error('[sendThreadMessage] Thread creation threw error:', error);
+        
+        // Clean up temp message
+        get().internal_toggleMessageLoading(false, tempMessageId);
+        if (tempMessageId) {
+          get().internal_dispatchMessage({ type: 'deleteMessage', id: tempMessageId });
+        }
+        
+        set({ isCreatingThreadMessage: false }, false, n('creatingThreadMessage/stop'));
+        return;
+      }
 
+      // Check if thread creation failed (conflict - returns undefined)
+      if (!threadResult || !threadResult.threadId) {
+        console.error('[sendThreadMessage] Failed to create thread (conflict or undefined):', threadResult);
+        
+        // Clean up orphaned message if it was created without a thread
+        if (threadResult?.messageId) {
+          console.warn('[sendThreadMessage] Cleaning up orphaned message:', threadResult.messageId);
+          try {
+            await get().internal_deleteMessage(threadResult.messageId);
+            // Refresh messages to remove the orphaned message from UI
+            await get().refreshMessages();
+          } catch (error) {
+            console.error('[sendThreadMessage] Failed to delete orphaned message:', error);
+          }
+        }
+        
+        // Clean up temp message
+        get().internal_toggleMessageLoading(false, tempMessageId);
+        if (tempMessageId) {
+          get().internal_dispatchMessage({ type: 'deleteMessage', id: tempMessageId });
+        }
+        
+        set({ isCreatingThreadMessage: false }, false, n('creatingThreadMessage/stop'));
+        return;
+      }
+
+      // Ensure messageId exists
+      if (!threadResult.messageId) {
+        console.error('[sendThreadMessage] Thread created but messageId is missing:', threadResult);
+        get().internal_toggleMessageLoading(false, tempMessageId);
+        set({ isCreatingThreadMessage: false }, false, n('creatingThreadMessage/stop'));
+        return;
+      }
+
+      const { threadId, messageId } = threadResult;
       parentMessageId = messageId;
+      currentThreadId = threadId;
 
       // mark the portal in thread mode
       await get().refreshThreads();
@@ -168,11 +220,38 @@ export const chatThreadMessage: StateCreator<
     useSessionStore.getState().triggerSessionUpdate(get().activeId);
 
     // Get the current messages to generate AI response
-    const messages = threadSelectors.portalAIChats(get());
+    // Use currentThreadId to ensure we have the correct threadId even if store hasn't updated yet
+    let messages = threadSelectors.portalAIChats(get());
+    
+    // Double-check: if messages are empty but we have a threadId, try refreshing again
+    if (messages.length === 0 && currentThreadId) {
+      console.warn('[sendThreadMessage] Messages array is empty, refreshing again...', {
+        currentThreadId,
+        portalThreadId: get().portalThreadId,
+      });
+      await get().refreshMessages();
+      messages = threadSelectors.portalAIChats(get());
+      if (messages.length > 0) {
+        console.debug('[sendThreadMessage] Messages found after refresh:', messages.length);
+      } else {
+        console.error('[sendThreadMessage] Messages still empty after refresh. This may cause the AI request to fail.');
+      }
+    }
+
+    // Ensure we have a valid threadId
+    const finalThreadId = currentThreadId || get().portalThreadId;
+    if (!finalThreadId) {
+      console.error('[sendThreadMessage] No threadId available:', {
+        currentThreadId,
+        portalThreadId: get().portalThreadId,
+      });
+      set({ isCreatingThreadMessage: false }, false, n('creatingThreadMessage/stop'));
+      return;
+    }
 
     await internal_coreProcessMessage(messages, parentMessageId, {
       ragQuery: get().internal_shouldUseRAG() ? message : undefined,
-      threadId: get().portalThreadId,
+      threadId: finalThreadId,
       inPortalThread: true,
     });
 

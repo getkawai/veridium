@@ -25,13 +25,13 @@ export class ThreadModel {
     const now = currentTimestampMs();
 
     try {
-      const result = await DB.CreateThread({
+      const result: Thread = await DB.CreateThread({
         id: nanoid(),
-        title: toNullString(params.title as any),
+        title: toNullString(params.title as string),
         type: params.type,
-        status: params.type as any, // ThreadStatus is string, need to pass as NullString
-        topicId: toNullString(params.topicId) as any,
-        sourceMessageId: toNullString(params.sourceMessageId) as any,
+        status: toNullString(ThreadStatus.Active as string), // New threads should always start as 'active'
+        topicId: params.topicId,
+        sourceMessageId: params.sourceMessageId,
         parentThreadId: toNullString(params.parentThreadId as any),
         clientId: toNullString(''),
         userId: this.userId,
@@ -40,12 +40,57 @@ export class ThreadModel {
         updatedAt: now,
       });
       
+      // With ON CONFLICT DO NOTHING, if conflict occurs, result might be empty/null
+      // Check if result is valid
+      if (!result || !result.id) {
+        await this.logger.warn('Thread create conflict (ON CONFLICT DO NOTHING), returning undefined', { 
+          params,
+        });
+        return undefined;
+      }
+      
       await this.logger.methodExit('create', { threadId: result.id });
       return this.mapThread(result);
-    } catch (error) {
-      // ON CONFLICT DO NOTHING behavior - return undefined if conflict
-      await this.logger.warn('Thread create conflict, returning undefined', { params });
-      return undefined;
+    } catch (error: any) {
+      // Check if this is a "no rows in result set" error (ON CONFLICT DO NOTHING with empty RETURNING)
+      const isNoRowsError = 
+        error?.message?.includes('no rows in result set') ||
+        error?.message?.includes('sql: no rows in result set') ||
+        error?.code === 'PGRST116'; // PostgREST no rows error code
+      
+      if (isNoRowsError) {
+        // ON CONFLICT DO NOTHING behavior - conflict occurred, no row returned
+        await this.logger.warn('Thread create conflict (ON CONFLICT DO NOTHING - no rows returned), returning undefined', { 
+          params,
+          errorMessage: error?.message,
+        });
+        return undefined;
+      }
+      
+      // Check if this is a UNIQUE constraint conflict (fallback for databases that throw error)
+      const isConflictError = 
+        error?.message?.includes('UNIQUE constraint') || 
+        error?.message?.includes('2067') ||
+        error?.code === 'SQLITE_CONSTRAINT_UNIQUE' ||
+        error?.code === 2067;
+      
+      if (isConflictError) {
+        // ON CONFLICT DO NOTHING behavior - return undefined if conflict
+        await this.logger.warn('Thread create conflict (UNIQUE constraint), returning undefined', { 
+          params,
+          errorMessage: error?.message,
+        });
+        return undefined;
+      }
+      
+      // For other errors, log the full error and re-throw
+      await this.logger.error('Thread create failed with non-conflict error', { 
+        params,
+        error: error?.message || String(error),
+        errorCode: error?.code,
+        stack: error?.stack,
+      });
+      throw error;
     }
   };
 

@@ -1445,9 +1445,6 @@ export function GetSessionWithGroup(arg: $models.GetSessionWithGroupParams): $Ca
     });
 }
 
-/**
- * Threads
- */
 export function GetThread(arg: $models.GetThreadParams): $CancellablePromise<$models.Thread> {
     return $Call.ByID(2286162976, arg).then(($result: any) => {
         return $$createType47($result);

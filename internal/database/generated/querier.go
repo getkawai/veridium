@@ -302,7 +302,6 @@ type Querier interface {
 	GetSessionGroupWithSessions(ctx context.Context, arg GetSessionGroupWithSessionsParams) (GetSessionGroupWithSessionsRow, error)
 	GetSessionRank(ctx context.Context, arg GetSessionRankParams) ([]GetSessionRankRow, error)
 	GetSessionWithGroup(ctx context.Context, arg GetSessionWithGroupParams) (GetSessionWithGroupRow, error)
-	// Threads
 	GetThread(ctx context.Context, arg GetThreadParams) (Thread, error)
 	GetTimeoutTasks(ctx context.Context, arg GetTimeoutTasksParams) ([]string, error)
 	GetTopic(ctx context.Context, arg GetTopicParams) (Topic, error)
