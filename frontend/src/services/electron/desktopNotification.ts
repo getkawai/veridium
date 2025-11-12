@@ -19,6 +19,31 @@ export interface DesktopNotificationResult {
 }
 
 /**
+ * Batasan jumlah kata untuk notifikasi desktop
+ * Mengikuti best practices untuk berbagai platform desktop
+ */
+const NOTIFICATION_LIMITS = {
+  title: 4,      // ~10 kata untuk title
+  subtitle: 5,  // ~10 kata untuk subtitle
+  body: 10,       // ~50 kata untuk body
+} as const;
+
+/**
+ * Memotong teks berdasarkan jumlah kata maksimal
+ * @param text Teks yang akan dipotong
+ * @param maxWords Jumlah kata maksimal
+ * @returns Teks yang sudah dipotong dengan ellipsis jika diperlukan
+ */
+function truncateByWords(text: string | undefined, maxWords: number): string | undefined {
+  if (!text) return text;
+  
+  const words = text.trim().split(/\s+/);
+  if (words.length <= maxWords) return text;
+  
+  return words.slice(0, maxWords).join(' ') + '...';
+}
+
+/**
  * 桌面通知服务
  */
 export class DesktopNotificationService {
@@ -69,12 +94,17 @@ export class DesktopNotificationService {
         }
       }
 
+      // Truncate text fields berdasarkan batasan jumlah kata
+      const truncatedTitle = truncateByWords(params.title, NOTIFICATION_LIMITS.title);
+      const truncatedSubtitle = truncateByWords(params.subtitle, NOTIFICATION_LIMITS.subtitle);
+      const truncatedBody = truncateByWords(params.body, NOTIFICATION_LIMITS.body);
+
       // Create notification options
       const options = new NotificationOptions({
         id: params.id || `notification-${Date.now()}`,
-        title: params.title,
-        subtitle: params.subtitle,
-        body: params.body,
+        title: truncatedTitle || params.title,
+        subtitle: truncatedSubtitle,
+        body: truncatedBody,
         categoryId: params.categoryId,
         data: params.data,
       });
@@ -115,12 +145,17 @@ export class DesktopNotificationService {
         }
       }
 
+      // Truncate text fields berdasarkan batasan jumlah kata
+      const truncatedTitle = truncateByWords(params.title, NOTIFICATION_LIMITS.title);
+      const truncatedSubtitle = truncateByWords(params.subtitle, NOTIFICATION_LIMITS.subtitle);
+      const truncatedBody = truncateByWords(params.body, NOTIFICATION_LIMITS.body);
+
       // Create notification options
       const options = new NotificationOptions({
         id: params.id || `notification-${Date.now()}`,
-        title: params.title,
-        subtitle: params.subtitle,
-        body: params.body,
+        title: truncatedTitle || params.title,
+        subtitle: truncatedSubtitle,
+        body: truncatedBody,
         categoryId: params.categoryId,
         data: params.data,
       });
