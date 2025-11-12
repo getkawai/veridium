@@ -28,6 +28,11 @@ export const UserActionsBar = memo<UserActionsProps>(({ id, data, index }) => {
   const searchParams = useSearchParams();
   const urlTopic = searchParams.get('topic');
 
+  const hasThreadSelector = useMemo(
+    () => threadSelectors.hasThreadBySourceMsgId(id),
+    [id],
+  );
+
   const [
     isThreadMode,
     hasThread,
@@ -43,7 +48,7 @@ export const UserActionsBar = memo<UserActionsProps>(({ id, data, index }) => {
     delAndResendThreadMessage,
   ] = useChatStore((s) => [
     !!s.activeThreadId,
-    threadSelectors.hasThreadBySourceMsgId(id)(s),
+    hasThreadSelector(s),
     s.activeTopicId,
 
     s.toggleMessageEditing,

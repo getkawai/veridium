@@ -1,5 +1,5 @@
 import { createStyles } from 'antd-style';
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 
 import SupervisorThinkingTag from '@/app/chat/Workspace/ChatConversation/features/ChatList/ChatItem/OrchestratorThinking';
 import { ChatItem } from '@/features/Conversation';
@@ -51,8 +51,13 @@ export interface ThreadChatItemProps {
 const MainChatItem = memo<ThreadChatItemProps>(({ id, index }) => {
   const { styles, cx } = useStyles();
 
+  const hasThreadSelector = useMemo(
+    () => threadSelectors.hasThreadBySourceMsgId(id),
+    [id],
+  );
+
   const [showThread, historyLength] = useChatStore((s) => [
-    threadSelectors.hasThreadBySourceMsgId(id)(s),
+    hasThreadSelector(s),
     chatSelectors.mainDisplayChatIDs(s).length,
   ]);
 

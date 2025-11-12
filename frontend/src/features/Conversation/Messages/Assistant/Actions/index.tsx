@@ -25,9 +25,15 @@ interface AssistantActionsProps {
 }
 export const AssistantActionsBar = memo<AssistantActionsProps>(({ id, data, index }) => {
   const { error, tools } = data;
+  
+  const hasThreadSelector = useMemo(
+    () => threadSelectors.hasThreadBySourceMsgId(id),
+    [id],
+  );
+  
   const [isThreadMode, hasThread] = useChatStore((s) => [
     !!s.activeThreadId,
-    threadSelectors.hasThreadBySourceMsgId(id)(s),
+    hasThreadSelector(s),
   ]);
   const isGroupSession = useSessionStore(sessionSelectors.isCurrentSessionGroupSession);
   const [showShareModal, setShareModal] = useState(false);
