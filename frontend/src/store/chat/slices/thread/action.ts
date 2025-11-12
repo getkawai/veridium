@@ -379,6 +379,10 @@ export const chatThreadMessage: StateCreator<
     let output = '';
     const threadConfig = systemAgentSelectors.thread(useUserStore.getState());
 
+    // Limit input messages to prevent AI confusion with long conversations
+    // For title generation, we only need recent context, not entire conversation
+    const limitedMessages = messages.slice(-1); // Last 6 messages max
+
     await chatService.fetchPresetTaskResult({
       onError: () => {
         internal_updateThreadTitleInSummary(threadId, portalThread.title);
@@ -398,7 +402,7 @@ export const chatThreadMessage: StateCreator<
 
         internal_updateThreadTitleInSummary(threadId, output);
       },
-      params: merge(threadConfig, chainSummaryTitle(messages, globalHelpers.getCurrentLanguage()), {
+      params: merge(threadConfig, chainSummaryTitle(limitedMessages, globalHelpers.getCurrentLanguage()), {
         stream: false, // Thread title generation doesn't need streaming
       }),
     });
