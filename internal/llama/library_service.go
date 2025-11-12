@@ -237,9 +237,12 @@ func (s *LibraryService) LoadChatModel(modelPath string) error {
 	s.chatVocab = llama.ModelGetVocab(s.chatModel)
 
 	// Create context with reasonable defaults
+	// CRITICAL: Batch size must be >= max tokens processed in a single batch
+	// For long prompts, n_tokens_all can exceed n_batch, causing GGML_ASSERT failure
+	// Increasing batch size to handle longer prompts safely
 	ctxParams := llama.ContextDefaultParams()
-	ctxParams.NCtx = 4096  // Context size
-	ctxParams.NBatch = 512 // Batch size
+	ctxParams.NCtx = 4096   // Context size
+	ctxParams.NBatch = 2048 // Batch size - increased from 512 to handle long prompts
 	ctxParams.NThreads = int32(runtime.NumCPU())
 
 	s.chatContext = llama.InitFromModel(s.chatModel, ctxParams)
