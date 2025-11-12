@@ -155,13 +155,22 @@ export class ThreadModel {
 
   private mapThread = (thread: Thread): ThreadItem => {
     const statusStr = getNullableString(thread.status as any);
+    // sourceMessageId and topicId are plain strings (not NullString) in the database model
+    // so we should use them directly instead of getNullableString()
+    const sourceMessageId = typeof thread.sourceMessageId === 'string' 
+      ? thread.sourceMessageId 
+      : getNullableString(thread.sourceMessageId as any) || '';
+    const topicId = typeof thread.topicId === 'string'
+      ? thread.topicId
+      : getNullableString(thread.topicId as any) || '';
+    
     return {
       id: thread.id,
       title: getNullableString(thread.title as any) || '',
       type: thread.type as ThreadType,
       status: (statusStr as ThreadStatus) || ThreadStatus.Active,
-      topicId: getNullableString(thread.topicId as any) || '',
-      sourceMessageId: getNullableString(thread.sourceMessageId as any) || '',
+      topicId: topicId,
+      sourceMessageId: sourceMessageId,
       parentThreadId: getNullableString(thread.parentThreadId as any),
       userId: thread.userId,
       lastActiveAt: new Date(thread.lastActiveAt),
