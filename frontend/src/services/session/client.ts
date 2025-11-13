@@ -1,4 +1,4 @@
-import { AgentItem, LobeAgentConfig } from '@/types';
+import { AgentItem, LobeAgentConfig, LobeGroupSession, LobeSessionType } from '@/types';
 
 import { INBOX_SESSION_ID } from '@/const/session';
 import { clientDB } from '@/database/client/db';
@@ -8,7 +8,8 @@ import { SessionGroupModel } from '@/database/models/sessionGroup';
 import { BaseClientService } from '@/services/baseClientService';
 
 import { ISessionService } from './type';
-import { toNullString, boolToInt, Session } from '@/types/database';
+import { toNullString, boolToInt, Session, Agent, getNullableString, parseNullableJSON } from '@/types/database';
+import { DEFAULT_AGENT_CHAT_CONFIG } from '@/const/settings';
 
 export class ClientService extends BaseClientService implements ISessionService {
   private get sessionModel(): SessionModel {
@@ -64,13 +65,23 @@ export class ClientService extends BaseClientService implements ISessionService 
     const chatGroups = await this.chatGroupModel.queryWithMemberDetails();
 
     const groupSessions = chatGroups.map((group) => {
-      const { title, description, avatar, backgroundColor, groupId, ...rest } = group;
       return {
-        ...rest,
-        group: groupId, // Map groupId to group for consistent API
-        meta: { avatar, backgroundColor, description, title },
-        type: 'group' as const,
-      };
+        id: group.id,
+        createdAt: new Date(group.createdAt),
+        updatedAt: new Date(group.updatedAt),
+        group: group.id, // Map id to group for consistent API
+        meta: {
+          avatar: undefined,
+          backgroundColor: undefined,
+          description: group.description || undefined,
+          title: group.title || undefined,
+        },
+        type: LobeSessionType.Group,
+        pinned: group.pinned,
+        userId: group.userId,
+        members: group.members,
+        config: group.config,
+      } as LobeGroupSession;
     });
 
     const allSessions = [...sessions, ...groupSessions].sort(
@@ -93,11 +104,26 @@ export class ClientService extends BaseClientService implements ISessionService 
       }
     }
 
-    const res: Session | undefined = await this.sessionModel.findByIdOrSlug(id);
+    const res: Session & { agent: Agent } | undefined = await this.sessionModel.findByIdOrSlug(id);
 
     if (!res) throw new Error('Session not found');
 
-    return res?.agent as LobeAgentConfig;
+    const agent = res.agent;
+    const config: LobeAgentConfig = {
+      id: agent.id,
+      model: getNullableString(agent.model as any) || '',
+      systemRole: getNullableString(agent.systemRole as any) || '',
+      plugins: parseNullableJSON(agent.plugins) || [],
+      chatConfig: parseNullableJSON(agent.chatConfig) || DEFAULT_AGENT_CHAT_CONFIG,
+      params: parseNullableJSON(agent.params) || {},
+      openingMessage: getNullableString(agent.openingMessage as any),
+      openingQuestions: parseNullableJSON(agent.openingQuestions) || [],
+      fewShots: parseNullableJSON(agent.fewShots),
+      virtual: Boolean(agent.virtual),
+      provider: getNullableString(agent.provider as any),
+    };
+
+    return config;
   };
 
   /**

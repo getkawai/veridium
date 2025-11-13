@@ -35,16 +35,30 @@ const SessionItem = memo<SessionItemProps>(({ id }) => {
   const [active] = useSessionStore((s) => [s.activeId === id]);
   const [loading] = useChatStore((s) => [chatSelectors.isAIGenerating(s) && id === s.activeId]);
 
-  const [pin, title, avatar, avatarBackground, updateAt, members, model, group, sessionType] =
+  const [pin, title, avatar, avatarBackground, updateAt, members, model, sessionGroup, sessionType] =
     useSessionStore((s) => {
       const session = sessionSelectors.getSessionById(id)(s);
       const meta = session.meta;
-      
+
       let sessionModel = session.type === 'agent' ? (session as any).model : undefined;
-      
+
       // Handle NullString from database (Go type with {String: string, Valid: boolean})
       if (sessionModel && typeof sessionModel === 'object' && 'Valid' in sessionModel && 'String' in sessionModel) {
         sessionModel = (sessionModel as any).Valid ? (sessionModel as any).String : undefined;
+      }
+
+      // Ensure sessionModel is a string or undefined
+      if (sessionModel && typeof sessionModel !== 'string') {
+        sessionModel = undefined;
+      }
+
+      // Ensure group is a string or undefined
+      let sessionGroup = session?.group;
+      if (sessionGroup && typeof sessionGroup === 'object' && 'Valid' in sessionGroup && 'String' in sessionGroup) {
+        sessionGroup = (sessionGroup as any).Valid ? (sessionGroup as any).String : undefined;
+      }
+      if (sessionGroup && typeof sessionGroup !== 'string') {
+        sessionGroup = undefined;
       }
 
       return [
@@ -55,7 +69,7 @@ const SessionItem = memo<SessionItemProps>(({ id }) => {
         session?.updatedAt,
         (session as LobeGroupSession).members,
         sessionModel,
-        session?.group,
+        sessionGroup,
         session.type,
       ];
     });
@@ -83,22 +97,21 @@ const SessionItem = memo<SessionItemProps>(({ id }) => {
   const actions = useMemo(
     () => (
       <Actions
-        group={group}
+        group={sessionGroup}
         id={id}
         openCreateGroupModal={() => setCreateGroupModalOpen(true)}
         parentType={sessionType}
         setOpen={setOpen}
       />
     ),
-    [group, id],
+    [sessionGroup, id],
   );
 
   const addon = useMemo(
     () =>
       !showModel ? undefined : (
         <Flexbox gap={4} horizontal style={{ flexWrap: 'wrap' }}>
-          {/* {model && typeof model === 'string' && <ModelTag model={model} />} */}
-          <ModelTag model={model} />
+          {model && typeof model === 'string' && <ModelTag model={model} />}
         </Flexbox>
       ),
     [showModel, model],

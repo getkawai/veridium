@@ -189,18 +189,18 @@ export const createSessionSlice: StateCreator<
       n('updateSearchKeywords'),
     );
   },
-  updateSessionGroupId: async (sessionId, group) => {
+  updateSessionGroupId: async (sessionId, groupId) => {
     const session = sessionSelectors.getSessionById(sessionId)(get());
 
     if (session?.type === 'group') {
       // For group sessions (chat groups), use the chat group service
       await chatGroupService.updateGroup(sessionId, {
-        groupId: group === 'default' ? null : group,
+        groupId: groupId === 'default' ? null : groupId,
       });
       await get().refreshSessions();
     } else {
       // For regular agent sessions, use the existing session service
-      await get().internal_updateSession(sessionId, { group });
+      await get().internal_updateSession(sessionId, { group: groupId });
     }
   },
 

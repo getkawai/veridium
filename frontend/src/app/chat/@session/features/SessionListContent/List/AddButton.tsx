@@ -5,19 +5,17 @@ import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 
 import { useAsyncAction } from '@/hooks/useAsyncAction';
-import { useServerConfigStore } from '@/store/serverConfig';
 import { useSessionStore } from '@/store/session';
 
 const AddButton = memo<{ groupId?: string }>(({ groupId }) => {
   const { t } = useTranslation('chat');
   const createSession = useSessionStore((s) => s.createSession);
-  const mobile = useServerConfigStore((s) => s.isMobile);
   const { mutate, isValidating } = useAsyncAction(() => {
     return createSession({ group: groupId });
   });
 
   return (
-    <Flexbox flex={1} padding={mobile ? 16 : 0}>
+    <Flexbox flex={1} padding={0}>
       <Button
         block
         icon={Plus}

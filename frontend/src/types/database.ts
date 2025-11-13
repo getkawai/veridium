@@ -18,53 +18,69 @@ export * from '@@/database/sql/models';
  * Type utilities for working with nullable fields
  */
 
-import type { NullString, NullInt64, NullBool } from '@@/database/sql/models';
+import type { NullString, NullInt64 } from '@@/database/sql/models';
 
 /**
  * Extract the value from a NullString, returning undefined if not valid
  */
 export function getNullableString(ns: NullString | undefined): string | undefined {
-  return ns?.Valid ? ns.String : undefined;
+  if (!ns?.Valid) return undefined;
+  // Ensure String is actually a string, not an object
+  const str = ns.String;
+  return typeof str === 'string' ? str : undefined;
 }
 
 /**
  * Extract the value from a NullInt64, returning undefined if not valid
  */
 export function getNullableInt(ni: NullInt64 | undefined): number | undefined {
-  return ni?.Valid ? ni.Int64 : undefined;
+  if (!ni?.Valid) return undefined;
+  // Ensure Int64 is actually a number
+  const num = ni.Int64;
+  return typeof num === 'number' ? num : undefined;
 }
 
 /**
- * Extract the value from a NullBool, returning undefined if not valid
+ * Extract the value from a nullable boolean, returning undefined if not valid
  */
-export function getNullableBool(nb: NullBool | undefined): boolean | undefined {
+export function getNullableBool(nb: { Bool: boolean; Valid: boolean } | undefined): boolean | undefined {
   return nb?.Valid ? nb.Bool : undefined;
 }
 
 /**
  * Create a NullString from a string value
+ * If the value is already a NullString, return it as-is to prevent double-wrapping
  */
-export function toNullString(value: string | undefined | null): NullString {
+export function toNullString(value: string | undefined | null | NullString): NullString {
+  // Check if already a NullString to prevent double-wrapping
+  if (value && typeof value === 'object' && 'String' in value && 'Valid' in value) {
+    return value as NullString;
+  }
   if (value === undefined || value === null || value === '') {
     return { String: '', Valid: false };
   }
-  return { String: value, Valid: true };
+  return { String: value as string, Valid: true };
 }
 
 /**
  * Create a NullInt64 from a number value
+ * If the value is already a NullInt64, return it as-is to prevent double-wrapping
  */
-export function toNullInt(value: number | undefined | null): NullInt64 {
+export function toNullInt(value: number | undefined | null | NullInt64): NullInt64 {
+  // Check if already a NullInt64 to prevent double-wrapping
+  if (value && typeof value === 'object' && 'Int64' in value && 'Valid' in value) {
+    return value as NullInt64;
+  }
   if (value === undefined || value === null) {
     return { Int64: 0, Valid: false };
   }
-  return { Int64: value, Valid: true };
+  return { Int64: value as number, Valid: true };
 }
 
 /**
- * Create a NullBool from a boolean value
+ * Create a nullable boolean from a boolean value
  */
-export function toNullBool(value: boolean | undefined | null): NullBool {
+export function toNullBool(value: boolean | undefined | null): { Bool: boolean; Valid: boolean } {
   if (value === undefined || value === null) {
     return { Bool: false, Valid: false };
   }
