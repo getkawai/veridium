@@ -15,7 +15,7 @@ const AddButton = memo<{ groupId?: string }>(({ groupId }) => {
   });
 
   return (
-    <Flexbox flex={1} padding={0}>
+    <Flexbox flex={1}>
       <Button
         block
         icon={Plus}

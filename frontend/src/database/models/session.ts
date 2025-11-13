@@ -377,14 +377,19 @@ export class SessionModel {
   };
 
   createInbox = async (defaultAgentConfig: PartialDeep<LobeAgentConfig>) => {
+    await this.logger.methodEntry('createInbox', { userId: this.userId });
+
+    // First check if inbox already exists
     try {
       const existing: Session = await DB.GetSessionBySlug({
         slug: INBOX_SESSION_ID,
         userId: this.userId,
       });
-      if (existing) return existing;
+      await this.logger.debug('Inbox session already exists, returning existing');
+      return existing;
     } catch {
-      // Doesn't exist, create it
+      // Doesn't exist, continue to create
+      await this.logger.debug('Inbox session does not exist, creating new one');
     }
 
     // Use try-catch to handle race condition where multiple
@@ -399,13 +404,20 @@ export class SessionModel {
       // If UNIQUE constraint error, another process created it first
       // Fetch and return the existing inbox
       if (error?.message?.includes('UNIQUE constraint') || error?.message?.includes('2067')) {
-        const existing = await DB.GetSessionBySlug({
-          slug: INBOX_SESSION_ID,
-          userId: this.userId,
-        });
-        return existing;
+        try {
+          const existing = await DB.GetSessionBySlug({
+            slug: INBOX_SESSION_ID,
+            userId: this.userId,
+          });
+          await this.logger.debug('Found existing inbox session created by another process');
+          return existing;
+        } catch (retryError) {
+          await this.logger.error('Failed to fetch existing inbox session after constraint error', { error: retryError });
+          throw retryError;
+        }
       }
       // Re-throw other errors
+      await this.logger.error('Unexpected error creating inbox session', { error: error?.message });
       throw error;
     }
   };

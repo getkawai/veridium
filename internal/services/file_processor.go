@@ -154,11 +154,6 @@ func (s *FileProcessorService) saveFileMetadata(ctx context.Context, req Process
 		existing, err := s.queries.GetGlobalFileByHash(ctx, fileHash)
 		if err == nil && existing.HashID != "" {
 			globalFileID = existing.HashID
-			// Update accessed_at
-			s.queries.UpdateGlobalFileAccessTime(ctx, db.UpdateGlobalFileAccessTimeParams{
-				HashID:     fileHash,
-				AccessedAt: now,
-			})
 		} else {
 			// Create new global file
 			fileInfo, err := getFileInfo(req.FilePath)
@@ -168,14 +163,13 @@ func (s *FileProcessorService) saveFileMetadata(ctx context.Context, req Process
 			globalFileID = fileHash
 
 			_, err = s.queries.CreateGlobalFile(ctx, db.CreateGlobalFileParams{
-				HashID:     fileHash,
-				FileType:   req.FileType,
-				Size:       fileInfo.Size,
-				Url:        req.FilePath,
-				Metadata:   sql.NullString{Valid: false},
-				Creator:    req.UserID,
-				CreatedAt:  now,
-				AccessedAt: now,
+				HashID:    fileHash,
+				FileType:  req.FileType,
+				Size:      fileInfo.Size,
+				Url:       req.FilePath,
+				Metadata:  sql.NullString{Valid: false},
+				Creator:   req.UserID,
+				CreatedAt: now,
 			})
 			if err != nil {
 				return "", "", fmt.Errorf("failed to create global file: %w", err)
