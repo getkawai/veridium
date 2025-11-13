@@ -52,8 +52,10 @@ export interface ChatGroupItem {
   title: string | null;
   description: string | null;
   config: LobeChatGroupConfig | null;
-  pinned: boolean;
+  clientId: string | null;
   userId: string;
+  groupId: string | null;
+  pinned: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -63,6 +65,8 @@ export interface NewChatGroup {
   title?: string | null;
   description?: string | null;
   config?: LobeChatGroupConfig | null;
+  clientId?: string | null;
+  groupId?: string | null;
   pinned?: boolean;
   userId: string;
   createdAt?: number;

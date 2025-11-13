@@ -39,8 +39,10 @@ export class ChatGroupModel {
       title: getNullableString(result.title as any) ?? null,
       description: getNullableString(result.description as any) ?? null,
       config: parseNullableJSON(result.config as any) ?? null,
-      pinned: intToBool(result.pinned || 0),
+      clientId: getNullableString(result.clientId as any) ?? null,
       userId: result.userId,
+      groupId: getNullableString(result.groupId as any) ?? null,
+      pinned: intToBool(result.pinned || 0),
       createdAt: result.createdAt,
       updatedAt: result.updatedAt,
     };
@@ -54,8 +56,10 @@ export class ChatGroupModel {
       title: getNullableString(r.title as any) ?? null,
       description: getNullableString(r.description as any) ?? null,
       config: parseNullableJSON(r.config as any) ?? null,
-      pinned: intToBool(r.pinned || 0),
+      clientId: getNullableString(r.clientId as any) ?? null,
       userId: r.userId,
+      groupId: getNullableString(r.groupId as any) ?? null,
+      pinned: intToBool(r.pinned || 0),
       createdAt: r.createdAt,
       updatedAt: r.updatedAt,
     }));
@@ -81,10 +85,12 @@ export class ChatGroupModel {
           title: getNullableString(row.groupTitle as any) ?? null,
           description: getNullableString(row.groupDescription as any) ?? null,
           config: parseNullableJSON(row.groupConfig as any) ?? null,
+          clientId: null, // Not available in JOIN query
+          userId: this.userId,
+          groupId: null, // Not available in JOIN query
           pinned: intToBool(row.groupPinned || 0),
           createdAt: row.groupCreatedAt,
           updatedAt: row.groupUpdatedAt,
-          userId: this.userId,
           members: [],
         });
       }
@@ -134,10 +140,12 @@ export class ChatGroupModel {
       title: getNullableString(firstRow.groupTitle as any) ?? null,
       description: getNullableString(firstRow.groupDescription as any) ?? null,
       config: parseNullableJSON(firstRow.groupConfig as any) ?? null,
+      clientId: null, // Not available in JOIN query
+      userId: this.userId,
+      groupId: null, // Not available in JOIN query
       pinned: intToBool(firstRow.groupPinned || 0),
       createdAt: firstRow.groupCreatedAt,
       updatedAt: firstRow.groupUpdatedAt,
-      userId: this.userId,
     };
 
     // Extract agents
@@ -179,8 +187,10 @@ export class ChatGroupModel {
       title: getNullableString(result.title as any) ?? null,
       description: getNullableString(result.description as any) ?? null,
       config: parseNullableJSON(result.config as any) ?? null,
-      pinned: intToBool(result.pinned || 0),
+      clientId: getNullableString(result.clientId as any) ?? null,
       userId: result.userId,
+      groupId: getNullableString(result.groupId as any) ?? null,
+      pinned: intToBool(result.pinned || 0),
       createdAt: result.createdAt,
       updatedAt: result.updatedAt,
     };
@@ -245,8 +255,10 @@ export class ChatGroupModel {
       title: getNullableString(result.title as any) ?? null,
       description: getNullableString(result.description as any) ?? null,
       config: parseNullableJSON(result.config as any) ?? null,
-      pinned: intToBool(result.pinned || 0),
+      clientId: getNullableString(result.clientId as any) ?? null,
       userId: result.userId,
+      groupId: getNullableString(result.groupId as any) ?? null,
+      pinned: intToBool(result.pinned || 0),
       createdAt: result.createdAt,
       updatedAt: result.updatedAt,
     };
