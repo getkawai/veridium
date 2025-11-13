@@ -168,6 +168,7 @@ export class ChatGroupModel {
       config: toNullJSON(params.config),
       clientId: toNullString((params as any).clientId),
       userId: this.userId,
+      groupId: toNullString((params as any).groupId),
       pinned: boolToInt(params.pinned || false),
       createdAt: now,
       updatedAt: now,

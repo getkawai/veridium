@@ -362,8 +362,6 @@ export {
     UpdateFileParams,
     UpdateGenerationParams,
     UpdateGenerationTopicParams,
-    UpdateGlobalFileAccessParams,
-    UpdateGlobalFileAccessTimeParams,
     UpdateKnowledgeBaseParams,
     UpdateMessageParams,
     UpdateMessagePluginParams,

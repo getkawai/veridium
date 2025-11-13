@@ -8,9 +8,9 @@ ORDER BY updated_at DESC;
 
 -- name: CreateChatGroup :one
 INSERT INTO chat_groups (
-    id, title, description, config, client_id, user_id, pinned,
+    id, title, description, config, client_id, user_id, group_id, pinned,
     created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpdateChatGroup :one
@@ -62,8 +62,8 @@ ORDER BY created_at ASC;
 -- name: CreateMessageGroup :one
 INSERT INTO message_groups (
     id, title, description, topic_id, user_id, parent_group_id,
-    client_id, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    parent_message_id, client_id, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: DeleteMessageGroup :exec

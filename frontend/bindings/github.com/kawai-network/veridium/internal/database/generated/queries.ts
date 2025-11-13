@@ -2158,14 +2158,6 @@ export function UpdateGenerationTopic(arg: $models.UpdateGenerationTopicParams):
     });
 }
 
-export function UpdateGlobalFileAccess(arg: $models.UpdateGlobalFileAccessParams): $CancellablePromise<void> {
-    return $Call.ByID(3382055242, arg);
-}
-
-export function UpdateGlobalFileAccessTime(arg: $models.UpdateGlobalFileAccessTimeParams): $CancellablePromise<void> {
-    return $Call.ByID(639664843, arg);
-}
-
 export function UpdateKnowledgeBase(arg: $models.UpdateKnowledgeBaseParams): $CancellablePromise<$models.KnowledgeBasis> {
     return $Call.ByID(3779737766, arg).then(($result: any) => {
         return $$createType17($result);

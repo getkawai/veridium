@@ -951,6 +951,7 @@ export class ChatGroup {
     "config": sql$0.NullString;
     "clientId": sql$0.NullString;
     "userId": string;
+    "groupId": sql$0.NullString;
     "pinned": number;
     "createdAt": number;
     "updatedAt": number;
@@ -975,6 +976,9 @@ export class ChatGroup {
         if (!("userId" in $$source)) {
             this["userId"] = "";
         }
+        if (!("groupId" in $$source)) {
+            this["groupId"] = (new sql$0.NullString());
+        }
         if (!("pinned" in $$source)) {
             this["pinned"] = 0;
         }
@@ -996,6 +1000,7 @@ export class ChatGroup {
         const $$createField2_0 = $$createType0;
         const $$createField3_0 = $$createType0;
         const $$createField4_0 = $$createType0;
+        const $$createField6_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("title" in $$parsedSource) {
             $$parsedSource["title"] = $$createField1_0($$parsedSource["title"]);
@@ -1008,6 +1013,9 @@ export class ChatGroup {
         }
         if ("clientId" in $$parsedSource) {
             $$parsedSource["clientId"] = $$createField4_0($$parsedSource["clientId"]);
+        }
+        if ("groupId" in $$parsedSource) {
+            $$parsedSource["groupId"] = $$createField6_0($$parsedSource["groupId"]);
         }
         return new ChatGroup($$parsedSource as Partial<ChatGroup>);
     }
@@ -1980,6 +1988,7 @@ export class CreateChatGroupParams {
     "config": sql$0.NullString;
     "clientId": sql$0.NullString;
     "userId": string;
+    "groupId": sql$0.NullString;
     "pinned": number;
     "createdAt": number;
     "updatedAt": number;
@@ -2004,6 +2013,9 @@ export class CreateChatGroupParams {
         if (!("userId" in $$source)) {
             this["userId"] = "";
         }
+        if (!("groupId" in $$source)) {
+            this["groupId"] = (new sql$0.NullString());
+        }
         if (!("pinned" in $$source)) {
             this["pinned"] = 0;
         }
@@ -2025,6 +2037,7 @@ export class CreateChatGroupParams {
         const $$createField2_0 = $$createType0;
         const $$createField3_0 = $$createType0;
         const $$createField4_0 = $$createType0;
+        const $$createField6_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("title" in $$parsedSource) {
             $$parsedSource["title"] = $$createField1_0($$parsedSource["title"]);
@@ -2037,6 +2050,9 @@ export class CreateChatGroupParams {
         }
         if ("clientId" in $$parsedSource) {
             $$parsedSource["clientId"] = $$createField4_0($$parsedSource["clientId"]);
+        }
+        if ("groupId" in $$parsedSource) {
+            $$parsedSource["groupId"] = $$createField6_0($$parsedSource["groupId"]);
         }
         return new CreateChatGroupParams($$parsedSource as Partial<CreateChatGroupParams>);
     }
@@ -2670,7 +2686,6 @@ export class CreateGlobalFileParams {
     "metadata": sql$0.NullString;
     "creator": string;
     "createdAt": number;
-    "accessedAt": number;
 
     /** Creates a new CreateGlobalFileParams instance. */
     constructor($$source: Partial<CreateGlobalFileParams> = {}) {
@@ -2694,9 +2709,6 @@ export class CreateGlobalFileParams {
         }
         if (!("createdAt" in $$source)) {
             this["createdAt"] = 0;
-        }
-        if (!("accessedAt" in $$source)) {
-            this["accessedAt"] = 0;
         }
 
         Object.assign(this, $$source);
@@ -2803,6 +2815,7 @@ export class CreateMessageGroupParams {
     "topicId": sql$0.NullString;
     "userId": string;
     "parentGroupId": sql$0.NullString;
+    "parentMessageId": sql$0.NullString;
     "clientId": sql$0.NullString;
     "createdAt": number;
     "updatedAt": number;
@@ -2827,6 +2840,9 @@ export class CreateMessageGroupParams {
         if (!("parentGroupId" in $$source)) {
             this["parentGroupId"] = (new sql$0.NullString());
         }
+        if (!("parentMessageId" in $$source)) {
+            this["parentMessageId"] = (new sql$0.NullString());
+        }
         if (!("clientId" in $$source)) {
             this["clientId"] = (new sql$0.NullString());
         }
@@ -2849,6 +2865,7 @@ export class CreateMessageGroupParams {
         const $$createField3_0 = $$createType0;
         const $$createField5_0 = $$createType0;
         const $$createField6_0 = $$createType0;
+        const $$createField7_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("title" in $$parsedSource) {
             $$parsedSource["title"] = $$createField1_0($$parsedSource["title"]);
@@ -2862,8 +2879,11 @@ export class CreateMessageGroupParams {
         if ("parentGroupId" in $$parsedSource) {
             $$parsedSource["parentGroupId"] = $$createField5_0($$parsedSource["parentGroupId"]);
         }
+        if ("parentMessageId" in $$parsedSource) {
+            $$parsedSource["parentMessageId"] = $$createField6_0($$parsedSource["parentMessageId"]);
+        }
         if ("clientId" in $$parsedSource) {
-            $$parsedSource["clientId"] = $$createField6_0($$parsedSource["clientId"]);
+            $$parsedSource["clientId"] = $$createField7_0($$parsedSource["clientId"]);
         }
         return new CreateMessageGroupParams($$parsedSource as Partial<CreateMessageGroupParams>);
     }
@@ -11003,7 +11023,6 @@ export class GlobalFile {
     "metadata": sql$0.NullString;
     "creator": string;
     "createdAt": number;
-    "accessedAt": number;
 
     /** Creates a new GlobalFile instance. */
     constructor($$source: Partial<GlobalFile> = {}) {
@@ -11027,9 +11046,6 @@ export class GlobalFile {
         }
         if (!("createdAt" in $$source)) {
             this["createdAt"] = 0;
-        }
-        if (!("accessedAt" in $$source)) {
-            this["accessedAt"] = 0;
         }
 
         Object.assign(this, $$source);
@@ -13052,6 +13068,7 @@ export class MessageGroup {
     "topicId": sql$0.NullString;
     "userId": string;
     "parentGroupId": sql$0.NullString;
+    "parentMessageId": sql$0.NullString;
     "clientId": sql$0.NullString;
     "createdAt": number;
     "updatedAt": number;
@@ -13076,6 +13093,9 @@ export class MessageGroup {
         if (!("parentGroupId" in $$source)) {
             this["parentGroupId"] = (new sql$0.NullString());
         }
+        if (!("parentMessageId" in $$source)) {
+            this["parentMessageId"] = (new sql$0.NullString());
+        }
         if (!("clientId" in $$source)) {
             this["clientId"] = (new sql$0.NullString());
         }
@@ -13098,6 +13118,7 @@ export class MessageGroup {
         const $$createField3_0 = $$createType0;
         const $$createField5_0 = $$createType0;
         const $$createField6_0 = $$createType0;
+        const $$createField7_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("title" in $$parsedSource) {
             $$parsedSource["title"] = $$createField1_0($$parsedSource["title"]);
@@ -13111,8 +13132,11 @@ export class MessageGroup {
         if ("parentGroupId" in $$parsedSource) {
             $$parsedSource["parentGroupId"] = $$createField5_0($$parsedSource["parentGroupId"]);
         }
+        if ("parentMessageId" in $$parsedSource) {
+            $$parsedSource["parentMessageId"] = $$createField6_0($$parsedSource["parentMessageId"]);
+        }
         if ("clientId" in $$parsedSource) {
-            $$parsedSource["clientId"] = $$createField6_0($$parsedSource["clientId"]);
+            $$parsedSource["clientId"] = $$createField7_0($$parsedSource["clientId"]);
         }
         return new MessageGroup($$parsedSource as Partial<MessageGroup>);
     }
@@ -17053,56 +17077,6 @@ export class UpdateGenerationTopicParams {
             $$parsedSource["coverUrl"] = $$createField1_0($$parsedSource["coverUrl"]);
         }
         return new UpdateGenerationTopicParams($$parsedSource as Partial<UpdateGenerationTopicParams>);
-    }
-}
-
-export class UpdateGlobalFileAccessParams {
-    "accessedAt": number;
-    "hashId": string;
-
-    /** Creates a new UpdateGlobalFileAccessParams instance. */
-    constructor($$source: Partial<UpdateGlobalFileAccessParams> = {}) {
-        if (!("accessedAt" in $$source)) {
-            this["accessedAt"] = 0;
-        }
-        if (!("hashId" in $$source)) {
-            this["hashId"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new UpdateGlobalFileAccessParams instance from a string or object.
-     */
-    static createFrom($$source: any = {}): UpdateGlobalFileAccessParams {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new UpdateGlobalFileAccessParams($$parsedSource as Partial<UpdateGlobalFileAccessParams>);
-    }
-}
-
-export class UpdateGlobalFileAccessTimeParams {
-    "accessedAt": number;
-    "hashId": string;
-
-    /** Creates a new UpdateGlobalFileAccessTimeParams instance. */
-    constructor($$source: Partial<UpdateGlobalFileAccessTimeParams> = {}) {
-        if (!("accessedAt" in $$source)) {
-            this["accessedAt"] = 0;
-        }
-        if (!("hashId" in $$source)) {
-            this["hashId"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new UpdateGlobalFileAccessTimeParams instance from a string or object.
-     */
-    static createFrom($$source: any = {}): UpdateGlobalFileAccessTimeParams {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new UpdateGlobalFileAccessTimeParams($$parsedSource as Partial<UpdateGlobalFileAccessTimeParams>);
     }
 }
 

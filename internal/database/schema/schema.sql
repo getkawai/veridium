@@ -53,8 +53,7 @@ CREATE TABLE IF NOT EXISTS global_files (
   url TEXT NOT NULL,
   metadata TEXT, -- JSON as text
   creator TEXT NOT NULL REFERENCES users(id) ON DELETE SET NULL,
-  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
-  accessed_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
+  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
 );
 
 -- Files table
@@ -406,6 +405,7 @@ CREATE TABLE IF NOT EXISTS chat_groups (
   config TEXT, -- JSON as text
   client_id TEXT,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  group_id TEXT,
   pinned INTEGER DEFAULT 0 NOT NULL, -- boolean as integer
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
@@ -432,6 +432,7 @@ CREATE TABLE IF NOT EXISTS message_groups (
   topic_id TEXT REFERENCES topics(id) ON DELETE CASCADE,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   parent_group_id TEXT REFERENCES message_groups(id) ON DELETE CASCADE,
+  parent_message_id TEXT,
   client_id TEXT,
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
@@ -877,7 +878,6 @@ CREATE TABLE IF NOT EXISTS user_memories (
   status TEXT,
   accessed_count INTEGER DEFAULT 0,
   last_accessed_at INTEGER NOT NULL,
-  accessed_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
 );
@@ -897,7 +897,6 @@ CREATE TABLE IF NOT EXISTS user_memories_contexts (
   current_status TEXT,
   score_impact REAL DEFAULT 0,
   score_urgency REAL DEFAULT 0,
-  accessed_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
 );
@@ -918,7 +917,6 @@ CREATE TABLE IF NOT EXISTS user_memories_experiences (
   key_learning_vector BLOB,  -- Store as BLOB in SQLite
   metadata TEXT,  -- JSON as text
   score_confidence REAL DEFAULT 0,
-  accessed_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
 );
@@ -935,7 +933,6 @@ CREATE TABLE IF NOT EXISTS user_memories_identities (
   relationship TEXT,
   role TEXT,
   type TEXT,
-  accessed_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
 );
@@ -952,7 +949,6 @@ CREATE TABLE IF NOT EXISTS user_memories_preferences (
   type TEXT,
   suggestions TEXT,
   score_priority REAL DEFAULT 0,
-  accessed_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
 );

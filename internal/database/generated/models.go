@@ -126,6 +126,7 @@ type ChatGroup struct {
 	Config      sql.NullString `json:"config"`
 	ClientID    sql.NullString `json:"clientId"`
 	UserID      string         `json:"userId"`
+	GroupID     sql.NullString `json:"groupId"`
 	Pinned      int64          `json:"pinned"`
 	CreatedAt   int64          `json:"createdAt"`
 	UpdatedAt   int64          `json:"updatedAt"`
@@ -264,14 +265,13 @@ type GenerationTopic struct {
 }
 
 type GlobalFile struct {
-	HashID     string         `json:"hashId"`
-	FileType   string         `json:"fileType"`
-	Size       int64          `json:"size"`
-	Url        string         `json:"url"`
-	Metadata   sql.NullString `json:"metadata"`
-	Creator    string         `json:"creator"`
-	CreatedAt  int64          `json:"createdAt"`
-	AccessedAt int64          `json:"accessedAt"`
+	HashID    string         `json:"hashId"`
+	FileType  string         `json:"fileType"`
+	Size      int64          `json:"size"`
+	Url       string         `json:"url"`
+	Metadata  sql.NullString `json:"metadata"`
+	Creator   string         `json:"creator"`
+	CreatedAt int64          `json:"createdAt"`
 }
 
 type KnowledgeBaseFile struct {
@@ -331,15 +331,16 @@ type MessageChunk struct {
 }
 
 type MessageGroup struct {
-	ID            string         `json:"id"`
-	Title         sql.NullString `json:"title"`
-	Description   sql.NullString `json:"description"`
-	TopicID       sql.NullString `json:"topicId"`
-	UserID        string         `json:"userId"`
-	ParentGroupID sql.NullString `json:"parentGroupId"`
-	ClientID      sql.NullString `json:"clientId"`
-	CreatedAt     int64          `json:"createdAt"`
-	UpdatedAt     int64          `json:"updatedAt"`
+	ID              string         `json:"id"`
+	Title           sql.NullString `json:"title"`
+	Description     sql.NullString `json:"description"`
+	TopicID         sql.NullString `json:"topicId"`
+	UserID          string         `json:"userId"`
+	ParentGroupID   sql.NullString `json:"parentGroupId"`
+	ParentMessageID sql.NullString `json:"parentMessageId"`
+	ClientID        sql.NullString `json:"clientId"`
+	CreatedAt       int64          `json:"createdAt"`
+	UpdatedAt       int64          `json:"updatedAt"`
 }
 
 type MessagePlugin struct {
@@ -757,7 +758,6 @@ type UserMemoriesContext struct {
 	CurrentStatus      sql.NullString  `json:"currentStatus"`
 	ScoreImpact        sql.NullFloat64 `json:"scoreImpact"`
 	ScoreUrgency       sql.NullFloat64 `json:"scoreUrgency"`
-	AccessedAt         int64           `json:"accessedAt"`
 	CreatedAt          int64           `json:"createdAt"`
 	UpdatedAt          int64           `json:"updatedAt"`
 }
@@ -778,7 +778,6 @@ type UserMemoriesExperience struct {
 	KeyLearningVector []byte          `json:"keyLearningVector"`
 	Metadata          sql.NullString  `json:"metadata"`
 	ScoreConfidence   sql.NullFloat64 `json:"scoreConfidence"`
-	AccessedAt        int64           `json:"accessedAt"`
 	CreatedAt         int64           `json:"createdAt"`
 	UpdatedAt         int64           `json:"updatedAt"`
 }
@@ -795,7 +794,6 @@ type UserMemoriesIdentity struct {
 	Relationship      sql.NullString `json:"relationship"`
 	Role              sql.NullString `json:"role"`
 	Type              sql.NullString `json:"type"`
-	AccessedAt        int64          `json:"accessedAt"`
 	CreatedAt         int64          `json:"createdAt"`
 	UpdatedAt         int64          `json:"updatedAt"`
 }
@@ -812,7 +810,6 @@ type UserMemoriesPreference struct {
 	Type                       sql.NullString  `json:"type"`
 	Suggestions                sql.NullString  `json:"suggestions"`
 	ScorePriority              sql.NullFloat64 `json:"scorePriority"`
-	AccessedAt                 int64           `json:"accessedAt"`
 	CreatedAt                  int64           `json:"createdAt"`
 	UpdatedAt                  int64           `json:"updatedAt"`
 }
@@ -831,7 +828,6 @@ type UserMemory struct {
 	Status            sql.NullString `json:"status"`
 	AccessedCount     sql.NullInt64  `json:"accessedCount"`
 	LastAccessedAt    int64          `json:"lastAccessedAt"`
-	AccessedAt        int64          `json:"accessedAt"`
 	CreatedAt         int64          `json:"createdAt"`
 	UpdatedAt         int64          `json:"updatedAt"`
 }

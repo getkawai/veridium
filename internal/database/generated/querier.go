@@ -442,8 +442,6 @@ type Querier interface {
 	UpdateFile(ctx context.Context, arg UpdateFileParams) (File, error)
 	UpdateGeneration(ctx context.Context, arg UpdateGenerationParams) (Generation, error)
 	UpdateGenerationTopic(ctx context.Context, arg UpdateGenerationTopicParams) (GenerationTopic, error)
-	UpdateGlobalFileAccess(ctx context.Context, arg UpdateGlobalFileAccessParams) error
-	UpdateGlobalFileAccessTime(ctx context.Context, arg UpdateGlobalFileAccessTimeParams) error
 	UpdateKnowledgeBase(ctx context.Context, arg UpdateKnowledgeBaseParams) (KnowledgeBasis, error)
 	UpdateMessage(ctx context.Context, arg UpdateMessageParams) (Message, error)
 	UpdateMessagePlugin(ctx context.Context, arg UpdateMessagePluginParams) (MessagePlugin, error)

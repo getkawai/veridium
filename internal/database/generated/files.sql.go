@@ -140,20 +140,19 @@ func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (File, e
 
 const CreateGlobalFile = `-- name: CreateGlobalFile :one
 INSERT INTO global_files (
-    hash_id, file_type, size, url, metadata, creator, created_at, accessed_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING hash_id, file_type, size, url, metadata, creator, created_at, accessed_at
+    hash_id, file_type, size, url, metadata, creator, created_at
+) VALUES (?, ?, ?, ?, ?, ?, ?)
+RETURNING hash_id, file_type, size, url, metadata, creator, created_at
 `
 
 type CreateGlobalFileParams struct {
-	HashID     string         `json:"hashId"`
-	FileType   string         `json:"fileType"`
-	Size       int64          `json:"size"`
-	Url        string         `json:"url"`
-	Metadata   sql.NullString `json:"metadata"`
-	Creator    string         `json:"creator"`
-	CreatedAt  int64          `json:"createdAt"`
-	AccessedAt int64          `json:"accessedAt"`
+	HashID    string         `json:"hashId"`
+	FileType  string         `json:"fileType"`
+	Size      int64          `json:"size"`
+	Url       string         `json:"url"`
+	Metadata  sql.NullString `json:"metadata"`
+	Creator   string         `json:"creator"`
+	CreatedAt int64          `json:"createdAt"`
 }
 
 func (q *Queries) CreateGlobalFile(ctx context.Context, arg CreateGlobalFileParams) (GlobalFile, error) {
@@ -165,7 +164,6 @@ func (q *Queries) CreateGlobalFile(ctx context.Context, arg CreateGlobalFilePara
 		arg.Metadata,
 		arg.Creator,
 		arg.CreatedAt,
-		arg.AccessedAt,
 	)
 	var i GlobalFile
 	err := row.Scan(
@@ -176,7 +174,6 @@ func (q *Queries) CreateGlobalFile(ctx context.Context, arg CreateGlobalFilePara
 		&i.Metadata,
 		&i.Creator,
 		&i.CreatedAt,
-		&i.AccessedAt,
 	)
 	return i, err
 }
@@ -485,7 +482,7 @@ func (q *Queries) GetFilesByNames(ctx context.Context, userID string) ([]File, e
 
 const GetGlobalFile = `-- name: GetGlobalFile :one
 
-SELECT hash_id, file_type, size, url, metadata, creator, created_at, accessed_at FROM global_files WHERE hash_id = ?
+SELECT hash_id, file_type, size, url, metadata, creator, created_at FROM global_files WHERE hash_id = ?
 `
 
 // Global Files
@@ -500,13 +497,12 @@ func (q *Queries) GetGlobalFile(ctx context.Context, hashID string) (GlobalFile,
 		&i.Metadata,
 		&i.Creator,
 		&i.CreatedAt,
-		&i.AccessedAt,
 	)
 	return i, err
 }
 
 const GetGlobalFileByHash = `-- name: GetGlobalFileByHash :one
-SELECT hash_id, file_type, size, url, metadata, creator, created_at, accessed_at FROM global_files WHERE hash_id = ?
+SELECT hash_id, file_type, size, url, metadata, creator, created_at FROM global_files WHERE hash_id = ?
 `
 
 func (q *Queries) GetGlobalFileByHash(ctx context.Context, hashID string) (GlobalFile, error) {
@@ -520,7 +516,6 @@ func (q *Queries) GetGlobalFileByHash(ctx context.Context, hashID string) (Globa
 		&i.Metadata,
 		&i.Creator,
 		&i.CreatedAt,
-		&i.AccessedAt,
 	)
 	return i, err
 }
@@ -991,34 +986,6 @@ func (q *Queries) UpdateFile(ctx context.Context, arg UpdateFileParams) (File, e
 		&i.UpdatedAt,
 	)
 	return i, err
-}
-
-const UpdateGlobalFileAccess = `-- name: UpdateGlobalFileAccess :exec
-UPDATE global_files SET accessed_at = ? WHERE hash_id = ?
-`
-
-type UpdateGlobalFileAccessParams struct {
-	AccessedAt int64  `json:"accessedAt"`
-	HashID     string `json:"hashId"`
-}
-
-func (q *Queries) UpdateGlobalFileAccess(ctx context.Context, arg UpdateGlobalFileAccessParams) error {
-	_, err := q.db.ExecContext(ctx, UpdateGlobalFileAccess, arg.AccessedAt, arg.HashID)
-	return err
-}
-
-const UpdateGlobalFileAccessTime = `-- name: UpdateGlobalFileAccessTime :exec
-UPDATE global_files SET accessed_at = ? WHERE hash_id = ?
-`
-
-type UpdateGlobalFileAccessTimeParams struct {
-	AccessedAt int64  `json:"accessedAt"`
-	HashID     string `json:"hashId"`
-}
-
-func (q *Queries) UpdateGlobalFileAccessTime(ctx context.Context, arg UpdateGlobalFileAccessTimeParams) error {
-	_, err := q.db.ExecContext(ctx, UpdateGlobalFileAccessTime, arg.AccessedAt, arg.HashID)
-	return err
 }
 
 const UpdateKnowledgeBase = `-- name: UpdateKnowledgeBase :one

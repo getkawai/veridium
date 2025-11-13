@@ -84,7 +84,6 @@ export class FileModel {
           metadata: toNullJSON(params.metadata) as any,
           creator: toNullString(this.userId) as any,
           createdAt: now,
-          accessedAt: now,
         } : null,
         KnowledgeBase: params.knowledgeBaseId || null,
       });
@@ -113,7 +112,6 @@ export class FileModel {
         metadata: toNullJSON(file.metadata) as any,
         creator: toNullString(file.creator || this.userId) as any,
         createdAt: now,
-        accessedAt: now,
       });
     } catch (error) {
       await this.logger.error('Failed to create global file', { error, file });
