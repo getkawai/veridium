@@ -54,16 +54,38 @@ const ListItem = memo<
     );
   }, [isHovering, avatar, avatarBackground, type]);
 
+  // Extract all props and explicitly pass only the ones we need
+  // Filter out description and children to avoid rendering "0"
+  const {
+    addon,
+    date,
+    draggable,
+    loading,
+    onDoubleClick,
+    onDragEnd,
+    onDragStart,
+    pin,
+    ...otherProps
+  } = props as any;
+
   return (
     <Item
       actions={actions}
       active={mobile ? false : active}
+      addon={addon}
       avatar={avatarRender}
       className={cx(styles.container, mobile && styles.mobile)}
+      date={date}
+      draggable={draggable}
+      loading={loading}
+      onDoubleClick={onDoubleClick}
+      onDragEnd={onDragEnd}
+      onDragStart={onDragStart}
+      pin={!!pin}
       ref={ref}
-      showAction={actions && (isHovering || showAction || mobile)}
+      showAction={!!(actions && (isHovering || showAction || mobile))}
       title={<span className={styles.title}>{title}</span>}
-      {...(props as any)}
+      {...otherProps}
     />
   );
 });
