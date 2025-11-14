@@ -3,10 +3,8 @@ import { ModelProviderCard } from '@/types/llm';
 const Kawai: ModelProviderCard = {
   chatModels: [
     {
-      abilities: {
-        functionCall: true,
-        vision: false,
-      },
+      functionCall: true,
+      vision: true,
       contextWindowTokens: 128_000,
       description:
         'Kawai AI automatically selects the best local model for your hardware. Powered by llama.cpp with GPU acceleration.',

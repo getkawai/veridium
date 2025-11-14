@@ -48,7 +48,7 @@ const ModelSelect = memo<ModelSelectProps>(
           {
             id: 'kawai-auto',
             displayName: 'Kawai Auto',
-            abilities: { functionCall: true, vision: false }
+            abilities: { functionCall: true, vision: true }
           }
         ]
       },

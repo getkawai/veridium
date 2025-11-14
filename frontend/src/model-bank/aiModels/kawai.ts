@@ -4,7 +4,7 @@ const kawaiChatModels: AIChatModelCard[] = [
   {
     abilities: {
       functionCall: true,
-      vision: false,
+      vision: true,
     },
     contextWindowTokens: 128_000,
     description:
