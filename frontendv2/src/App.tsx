@@ -107,7 +107,7 @@ const PairRouteWrapper = ({
 
   // Update URL with session ID when on /pair route (for refresh support)
   useEffect(() => {
-    if (process.env.ALPHA && sessionId && sessionId !== resumeSessionId) {
+    if (sessionId && sessionId !== resumeSessionId) {
       setSearchParams((prev) => {
         prev.set('resumeSessionId', sessionId);
         return prev;
@@ -117,29 +117,16 @@ const PairRouteWrapper = ({
 
   // Update active session state when session ID changes
   useEffect(() => {
-    if (process.env.ALPHA && sessionId && sessionId !== activeSessionId) {
+    if (sessionId && sessionId !== activeSessionId) {
       setActiveSessionId(sessionId);
     }
   }, [sessionId, activeSessionId, setActiveSessionId]);
 
-  return process.env.ALPHA ? (
+  return (
     <Pair2
       setChat={setChat}
       setIsGoosehintsModalOpen={setIsGoosehintsModalOpen}
       sessionId={sessionId}
-      initialMessage={initialMessage}
-    />
-  ) : (
-    <Pair
-      chat={chat}
-      setChat={setChat}
-      setView={setView}
-      agentState={agentState}
-      loadCurrentChat={loadCurrentChat}
-      setFatalError={setFatalError}
-      setAgentWaitingMessage={setAgentWaitingMessage}
-      setIsGoosehintsModalOpen={setIsGoosehintsModalOpen}
-      resumeSessionId={resumeSessionId}
       initialMessage={initialMessage}
     />
   );

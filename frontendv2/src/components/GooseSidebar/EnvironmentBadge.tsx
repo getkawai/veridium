@@ -2,16 +2,15 @@ import React from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/Tooltip';
 
 const EnvironmentBadge: React.FC = () => {
-  const isAlpha = process.env.ALPHA;
   const isDevelopment = import.meta.env.DEV;
 
   // Don't show badge in production
-  if (!isDevelopment && !isAlpha) {
+  if (!isDevelopment) {
     return null;
   }
 
-  const tooltipText = isAlpha ? 'Alpha' : 'Dev';
-  const bgColor = isAlpha ? 'bg-purple-600' : 'bg-orange-400';
+  const tooltipText = 'Alpha';
+  const bgColor = 'bg-purple-600';
 
   return (
     <Tooltip>
