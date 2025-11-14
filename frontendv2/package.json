@@ -39,8 +39,6 @@
     "start-alpha-gui": "ALPHA=true npm run start-gui"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^2.0.52",
-    "@ai-sdk/ui-utils": "^1.2.11",
     "@mcp-ui/client": "^5.13.0",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-avatar": "^1.1.10",
@@ -55,7 +53,6 @@
     "@radix-ui/themes": "^3.2.1",
     "@tanstack/react-form": "^1.23.7",
     "@types/react-router-dom": "^5.3.3",
-    "ai": "^5.0.76",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "compare-versions": "^6.1.1",
