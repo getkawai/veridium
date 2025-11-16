@@ -40,64 +40,89 @@ type QwenModelSpec struct {
 // Note: Service struct has been removed. All functions are now pure functions
 // that accept modelsDir as a parameter or use GetModelsDirectory() directly.
 
-// GetRecommendedQwenModels returns recommended Qwen models for direct download
+// GetRecommendedVLModels returns recommended Qwen models for direct download
 // Models are ordered from smallest to largest by MinRAM requirement
-func GetRecommendedQwenModels() []QwenModelSpec {
+func GetRecommendedVLModels() []QwenModelSpec {
 	return []QwenModelSpec{
 		{
-			Name:         "qwen2.5-0.5b-instruct-q4_k_m",
-			URL:          "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf",
+			Name:         "qwen3-vl-4b-instruct-q4_k_m",
+			URL:          "https://huggingface.co/bartowski/Qwen_Qwen3-VL-4B-Instruct-GGUF/resolve/main/Qwen_Qwen3-VL-4B-Instruct-Q4_K_M.gguf",
 			Quantization: "Q4_K_M",
-			Parameters:   "0.5b",
-			MinRAM:       2,
-			Size:         491520000, // ~468 MB
-			Description:  "Smallest Qwen model, perfect for low-end hardware and testing",
-		},
-		{
-			Name:         "qwen2.5-1.5b-instruct-q4_k_m",
-			URL:          "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf",
-			Quantization: "Q4_K_M",
-			Parameters:   "1.5b",
-			MinRAM:       4,
-			Size:         1100000000, // ~1.1 GB
-			Description:  "Lightweight Qwen model, good balance of speed and quality",
-		},
-		{
-			Name:         "qwen2.5-3b-instruct-q4_k_m",
-			URL:          "https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/resolve/main/qwen2.5-3b-instruct-q4_k_m.gguf",
-			Quantization: "Q4_K_M",
-			Parameters:   "3b",
+			Parameters:   "4b",
 			MinRAM:       6,
-			Size:         2100000000, // ~2.1 GB
-			Description:  "Mid-size Qwen model, excellent for most tasks",
+			Size:         2500000000, // ~2.5 GB
+			Description:  "Qwen3-VL 4B - Multimodal vision-language model, perfect for low-end hardware",
 		},
 		{
-			Name:         "mistral-7b-instruct-v0.3-q5_k_m",
-			URL:          "https://huggingface.co/lmstudio-community/Mistral-7B-Instruct-v0.3-GGUF/resolve/main/Mistral-7B-Instruct-v0.3-Q5_K_M.gguf",
-			Quantization: "Q5_K_M",
-			Parameters:   "7b",
-			MinRAM:       8,
-			Size:         5130000000, // ~5.1 GB
-			Description:  "Mistral 7B - High quality, better than Qwen for general tasks",
-		},
-		{
-			Name:         "qwen2.5-7b-instruct-q4_k_m",
-			URL:          "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-GGUF/resolve/main/qwen2.5-7b-instruct-q4_k_m.gguf",
+			Name:         "qwen3-vl-8b-instruct-q4_k_m",
+			URL:          "https://huggingface.co/bartowski/Qwen_Qwen3-VL-8B-Instruct-GGUF/resolve/main/Qwen_Qwen3-VL-8B-Instruct-Q4_K_M.gguf",
 			Quantization: "Q4_K_M",
-			Parameters:   "7b",
-			MinRAM:       10,
-			Size:         4800000000, // ~4.8 GB
-			Description:  "High-quality Qwen model, great for advanced tasks",
+			Parameters:   "8b",
+			MinRAM:       12,
+			Size:         5500000000, // ~5.5 GB
+			Description:  "Qwen3-VL 8B - Advanced multimodal model with excellent vision capabilities",
+		},
+		{
+			Name:         "qwen3-vl-32b-instruct-q4_k_m",
+			URL:          "https://huggingface.co/bartowski/Qwen_Qwen3-VL-32B-Instruct-GGUF/resolve/main/Qwen_Qwen3-VL-32B-Instruct-Q4_K_M.gguf",
+			Quantization: "Q4_K_M",
+			Parameters:   "32b",
+			MinRAM:       24,
+			Size:         22000000000, // ~22 GB
+			Description:  "Qwen3-VL 32B - High-quality multimodal model for advanced vision-language tasks",
 		},
 	}
 }
 
-// SelectOptimalQwenModel selects the best model based on available RAM.
+// GetRecommendedModels returns recommended Qwen3 models for direct download
+// Models are ordered from smallest to largest by MinRAM requirement
+func GetRecommendedModels() []QwenModelSpec {
+	return []QwenModelSpec{
+		{
+			Name:         "qwen3-4b-instruct-q4_k_m",
+			URL:          "https://huggingface.co/bartowski/Qwen_Qwen3-4B-GGUF/resolve/main/Qwen_Qwen3-4B-Q4_K_M.gguf",
+			Quantization: "Q4_K_M",
+			Parameters:   "4b",
+			MinRAM:       6,
+			Size:         2497280960, // ~2.5 GB
+			Description:  "Qwen3 4B - Powerful text model, perfect for low-end hardware",
+		},
+		{
+			Name:         "qwen3-8b-instruct-q4_k_m",
+			URL:          "https://huggingface.co/bartowski/Qwen_Qwen3-8B-GGUF/resolve/main/Qwen_Qwen3-8B-Q4_K_M.gguf",
+			Quantization: "Q4_K_M",
+			Parameters:   "8b",
+			MinRAM:       12,
+			Size:         5027784224, // ~5.0 GB
+			Description:  "Qwen3 8B - Advanced text model with excellent reasoning capabilities",
+		},
+		{
+			Name:         "qwen3-14b-instruct-q4_k_m",
+			URL:          "https://huggingface.co/bartowski/Qwen_Qwen3-14B-GGUF/resolve/main/Qwen_Qwen3-14B-Q4_K_M.gguf",
+			Quantization: "Q4_K_M",
+			Parameters:   "14b",
+			MinRAM:       16,
+			Size:         9001753632, // ~9.0 GB
+			Description:  "Qwen3 14B - High-performance text model for demanding applications",
+		},
+		{
+			Name:         "qwen3-32b-instruct-q4_k_m",
+			URL:          "https://huggingface.co/bartowski/Qwen_Qwen3-32B-GGUF/resolve/main/Qwen_Qwen3-32B-Q4_K_M.gguf",
+			Quantization: "Q4_K_M",
+			Parameters:   "32b",
+			MinRAM:       24,
+			Size:         19762149696, // ~19.8 GB
+			Description:  "Qwen3 32B - State-of-the-art text model for advanced reasoning tasks",
+		},
+	}
+}
+
+// SelectOptimalQwenModel selects the best VL model based on available RAM.
 // It returns the largest model that fits within the available RAM.
 // If no model fits, it returns the smallest model as a fallback.
 // Note: Currently excludes 7B model as it requires multi-file download support
 func SelectOptimalQwenModel(availableRAM int64) QwenModelSpec {
-	models := GetRecommendedQwenModels()
+	models := GetRecommendedVLModels()
 
 	// Select the largest model that fits in available RAM
 	// But skip 7B model for now (multi-file download not yet supported)
@@ -121,7 +146,36 @@ func SelectOptimalQwenModel(availableRAM int64) QwenModelSpec {
 		log.Printf("⚠️  System has low RAM (%dGB), using smallest model", availableRAM)
 	}
 
-	log.Printf("📦 Selected model: %s (%s, %s) - requires %dGB RAM (system has %dGB)",
+	log.Printf("📦 Selected VL model: %s (%s, %s) - requires %dGB RAM (system has %dGB)",
+		selectedModel.Name, selectedModel.Parameters, selectedModel.Quantization,
+		selectedModel.MinRAM, availableRAM)
+
+	return selectedModel
+}
+
+// SelectOptimalQwenTextModel selects the best text model based on available RAM.
+// It returns the largest model that fits within the available RAM.
+// If no model fits, it returns the smallest model as a fallback.
+func SelectOptimalQwenTextModel(availableRAM int64) QwenModelSpec {
+	models := GetRecommendedModels()
+
+	// Select the largest model that fits in available RAM
+	var selectedModel QwenModelSpec
+	for _, model := range models {
+		if model.MinRAM <= availableRAM {
+			selectedModel = model
+		} else {
+			break // Models are ordered, so we can stop here
+		}
+	}
+
+	// If no model fits, use the smallest one as fallback
+	if selectedModel.Name == "" {
+		selectedModel = models[0]
+		log.Printf("⚠️  System has low RAM (%dGB), using smallest model", availableRAM)
+	}
+
+	log.Printf("📦 Selected text model: %s (%s, %s) - requires %dGB RAM (system has %dGB)",
 		selectedModel.Name, selectedModel.Parameters, selectedModel.Quantization,
 		selectedModel.MinRAM, availableRAM)
 
@@ -287,6 +341,28 @@ var embeddingModelsCatalog = map[string]*EmbeddingModel{
 		Languages:    []string{"en", "de", "fr", "it", "pt", "es", "nl", "pl", "ru", "zh", "ja", "ko", "ar", "hi", "tr", "th", "vi", "id"},
 		Type:         "embedding",
 	},
+	"qwen3-embedding-0.6b-q4_k_m": {
+		Name:         "qwen3-embedding-0.6b-q4_k_m",
+		Description:  "Qwen3 Embedding 0.6B (Q4_K_M) - Efficient multilingual embeddings",
+		URL:          "https://huggingface.co/bartowski/Qwen_Qwen3-0.6B-GGUF/resolve/main/Qwen_Qwen3-0.6B-Q4_K_M.gguf",
+		Filename:     "Qwen_Qwen3-0.6B-Q4_K_M.gguf",
+		Size:         484220320,
+		Quantization: "Q4_K_M",
+		Dimensions:   1536,
+		Languages:    []string{"en", "de", "fr", "it", "pt", "es", "nl", "pl", "ru", "zh", "ja", "ko", "ar", "hi", "tr", "th", "vi", "id"},
+		Type:         "embedding",
+	},
+	"qwen3-embedding-1.7b-q4_k_m": {
+		Name:         "qwen3-embedding-1.7b-q4_k_m",
+		Description:  "Qwen3 Embedding 1.7B (Q4_K_M) - High-quality multilingual embeddings",
+		URL:          "https://huggingface.co/bartowski/Qwen_Qwen3-1.7B-GGUF/resolve/main/Qwen_Qwen3-1.7B-Q4_K_M.gguf",
+		Filename:     "Qwen_Qwen3-1.7B-Q4_K_M.gguf",
+		Size:         1282439584,
+		Quantization: "Q4_K_M",
+		Dimensions:   1536,
+		Languages:    []string{"en", "de", "fr", "it", "pt", "es", "nl", "pl", "ru", "zh", "ja", "ko", "ar", "hi", "tr", "th", "vi", "id"},
+		Type:         "embedding",
+	},
 }
 
 // GetAvailableEmbeddingModels returns the catalog of available embedding models
@@ -302,7 +378,59 @@ func GetEmbeddingModel(name string) (*EmbeddingModel, bool) {
 
 // GetRecommendedEmbeddingModel returns the recommended embedding model name
 func GetRecommendedEmbeddingModel() string {
-	return "granite-embedding-107m-multilingual-q6_k_l"
+	return "qwen3-embedding-1.7b-q4_k_m"
+}
+
+// SelectOptimalEmbeddingModel selects the best embedding model based on available RAM.
+// It returns the largest model that fits within the available RAM.
+// If no model fits, it returns the smallest model as a fallback.
+// Note: RAM requirements are estimated based on model size and typical embedding model memory usage
+func SelectOptimalEmbeddingModel(availableRAM int64) *EmbeddingModel {
+	models := GetAvailableEmbeddingModels()
+
+	// Convert map to slice for sorting by size
+	var modelList []*EmbeddingModel
+	for _, model := range models {
+		modelList = append(modelList, model)
+	}
+
+	// Sort models by estimated RAM requirement (based on model size)
+	// Smaller models generally require less RAM
+	for i := 0; i < len(modelList)-1; i++ {
+		for j := i + 1; j < len(modelList); j++ {
+			if modelList[i].Size > modelList[j].Size {
+				modelList[i], modelList[j] = modelList[j], modelList[i]
+			}
+		}
+	}
+
+	// Estimate minimum RAM requirement (roughly 2x model size for inference + overhead)
+	var selectedModel *EmbeddingModel
+	for _, model := range modelList {
+		// Estimate RAM requirement as roughly 3x model size (conservative estimate)
+		estimatedRAM := model.Size * 3 / (1024 * 1024 * 1024) // Convert to GB
+
+		if estimatedRAM <= availableRAM {
+			selectedModel = model
+		} else {
+			break // Models are sorted, so we can stop here
+		}
+	}
+
+	// If no model fits, use the smallest one as fallback
+	if selectedModel == nil && len(modelList) > 0 {
+		selectedModel = modelList[0]
+		log.Printf("⚠️  System has low RAM (%dGB), using smallest embedding model", availableRAM)
+	}
+
+	if selectedModel != nil {
+		estimatedRAM := selectedModel.Size * 3 / (1024 * 1024 * 1024)
+		log.Printf("📦 Selected embedding model: %s (%s, %d dims) - requires ~%dGB RAM (system has %dGB)",
+			selectedModel.Name, selectedModel.Quantization, selectedModel.Dimensions,
+			estimatedRAM, availableRAM)
+	}
+
+	return selectedModel
 }
 
 // Note: The following functions have been moved to installer.go as methods:

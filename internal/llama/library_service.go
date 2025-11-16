@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/kawai-network/veridium/pkg/yzma/llama"
+	"github.com/kawai-network/veridium/pkg/yzma/mtmd"
 )
 
 // LibraryService provides LLM inference using llama.cpp as a library (via yzma)
@@ -36,6 +37,15 @@ type LibraryService struct {
 	embVocab     llama.Vocab
 	embModelPath string
 	embMutex     sync.Mutex
+
+	// Vision-Language (VL) model state
+	vlModel     llama.Model
+	vlContext   llama.Context
+	vlVocab     llama.Vocab
+	vlSampler   llama.Sampler
+	vlMTMDCtx   mtmd.Context
+	vlModelPath string
+	vlMutex     sync.Mutex
 
 	initOnce sync.Once
 }
@@ -64,37 +74,17 @@ func (s *LibraryService) initializeInBackground() {
 	if !s.manager.IsLlamaCppInstalled() {
 		log.Println("🔧 llama.cpp not found, attempting auto-installation...")
 
-		// Try package manager first
+		// Use InstallLlamaCpp which now uses download.InstallLibraries
+		// This handles version management, auto-upgrade, and fallback automatically
 		if err := s.manager.InstallLlamaCpp(); err != nil {
-			log.Printf("⚠️  Package manager installation failed: %v", err)
-			log.Println("   Falling back to GitHub release download...")
-
-			// Clean up partial downloads
-			if err := s.manager.CleanupPartialDownloads(); err != nil {
-				log.Printf("⚠️  Cleanup partial downloads: %v", err)
-			}
-
-			// Get the latest release
-			release, err := s.manager.GetLatestRelease()
-			if err != nil {
-				log.Printf("⚠️  Failed to get latest llama.cpp release: %v", err)
-				log.Printf("   llama.cpp features will not be available")
-				return
-			}
-
-			log.Printf("📥 Downloading llama.cpp %s from GitHub...", release.Version)
-			if err := s.manager.DownloadRelease(release.Version, nil); err != nil {
-				log.Printf("⚠️  Failed to download llama.cpp: %v", err)
-				return
-			}
-
-			log.Printf("✅ llama.cpp %s installed successfully", release.Version)
-		} else {
-			log.Println("✅ llama.cpp installed via package manager")
+			log.Printf("⚠️  Failed to install llama.cpp: %v", err)
+			log.Printf("   llama.cpp features will not be available")
+			return
 		}
+
+		log.Println("✅ llama.cpp installed successfully")
 	} else {
-		version := s.manager.GetInstalledVersion()
-		log.Printf("✅ llama.cpp is installed (version: %s)", version)
+		log.Println("✅ llama.cpp is already installed")
 	}
 
 	// Step 2: Initialize the library
@@ -438,6 +428,290 @@ func (s *LibraryService) GenerateEmbedding(text string) ([]float32, error) {
 	return result, nil
 }
 
+// LoadVLModel loads a Vision-Language (VL) model
+// If modelPath is empty, automatically selects the best available VL model
+func (s *LibraryService) LoadVLModel(modelPath string) error {
+	s.vlMutex.Lock()
+	defer s.vlMutex.Unlock()
+
+	// Ensure library is initialized
+	if !s.isInitialized {
+		if err := s.InitializeLibrary(); err != nil {
+			return fmt.Errorf("failed to initialize library: %w", err)
+		}
+	}
+
+	// Auto-select VL model if not provided
+	if modelPath == "" {
+		autoModel, err := s.selectBestVLModel()
+		if err != nil {
+			return fmt.Errorf("failed to auto-select VL model: %w", err)
+		}
+		modelPath = autoModel
+		log.Printf("🤖 Auto-selected VL model: %s", modelPath)
+	}
+
+	// Verify model file exists
+	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
+		return fmt.Errorf("VL model file not found: %s", modelPath)
+	}
+
+	// Unload previous VL model if exists
+	if s.vlMTMDCtx != 0 {
+		log.Println("♻️  Unloading previous VL multimodal context...")
+		mtmd.Free(s.vlMTMDCtx)
+		s.vlMTMDCtx = 0
+	}
+	if s.vlContext != 0 {
+		llama.Free(s.vlContext)
+		s.vlContext = 0
+	}
+	if s.vlModel != 0 {
+		llama.ModelFree(s.vlModel)
+		s.vlModel = 0
+	}
+
+	log.Printf("📥 Loading VL model: %s", filepath.Base(modelPath))
+
+	// Load VL model
+	mParams := llama.ModelDefaultParams()
+	s.vlModel = llama.ModelLoadFromFile(modelPath, mParams)
+	if s.vlModel == 0 {
+		return fmt.Errorf("failed to load VL model from file")
+	}
+
+	// Get vocabulary
+	s.vlVocab = llama.ModelGetVocab(s.vlModel)
+
+	// Find the MMTRoj projector file (mmproj-xxx.gguf)
+	modelsDir := s.manager.GetModelsDirectory()
+	projectorPath, err := s.findProjectorForModel(modelPath, modelsDir)
+	if err != nil {
+		llama.ModelFree(s.vlModel)
+		s.vlModel = 0
+		return fmt.Errorf("failed to find projector file: %w", err)
+	}
+
+	log.Printf("📱 Found projector: %s", filepath.Base(projectorPath))
+
+	// Initialize MTMD multimodal context
+	mtmdParams := mtmd.ContextParamsDefault()
+	mtmdParams.UseGPU = true // Enable GPU acceleration
+
+	// Set logging level using mtmd.LogSet instead of Verbosity field
+	// mtmd.LogSet(llama.LogNormal) // Use LogNormal for standard logging, or LogSilent() to disable
+
+	s.vlMTMDCtx = mtmd.InitFromFile(projectorPath, s.vlModel, mtmdParams)
+	if s.vlMTMDCtx == 0 {
+		llama.ModelFree(s.vlModel)
+		s.vlModel = 0
+		return fmt.Errorf("failed to initialize MTMD context")
+	}
+
+	// Check if model supports vision
+	if !mtmd.SupportVision(s.vlMTMDCtx) {
+		mtmd.Free(s.vlMTMDCtx)
+		llama.ModelFree(s.vlModel)
+		s.vlMTMDCtx = 0
+		s.vlModel = 0
+		return fmt.Errorf("model does not support vision")
+	}
+
+	// Create llama context for text generation
+	ctxParams := llama.ContextDefaultParams()
+	ctxParams.NCtx = 4096   // Context size
+	ctxParams.NBatch = 2048 // Batch size
+	ctxParams.NThreads = int32(runtime.NumCPU())
+
+	s.vlContext = llama.InitFromModel(s.vlModel, ctxParams)
+	if s.vlContext == 0 {
+		mtmd.Free(s.vlMTMDCtx)
+		llama.ModelFree(s.vlModel)
+		s.vlMTMDCtx = 0
+		s.vlModel = 0
+		return fmt.Errorf("failed to create VL context")
+	}
+
+	// Create sampler chain for VL responses
+	s.vlSampler = llama.SamplerChainInit(llama.SamplerChainDefaultParams())
+	llama.SamplerChainAdd(s.vlSampler, llama.SamplerInitTopK(40))
+	llama.SamplerChainAdd(s.vlSampler, llama.SamplerInitTopP(0.95, 1))
+	llama.SamplerChainAdd(s.vlSampler, llama.SamplerInitTempExt(0.1, 0, 1.0)) // Lower temp for VL
+	llama.SamplerChainAdd(s.vlSampler, llama.SamplerInitDist(llama.DefaultSeed))
+
+	s.vlModelPath = modelPath
+	log.Printf("✅ VL model loaded successfully: %s", filepath.Base(modelPath))
+
+	return nil
+}
+
+// ProcessImageWithText processes an image with accompanying text using VL model
+func (s *LibraryService) ProcessImageWithText(imagePath, prompt string, maxTokens int32) (string, error) {
+	s.vlMutex.Lock()
+	defer s.vlMutex.Unlock()
+
+	if s.vlModel == 0 || s.vlContext == 0 || s.vlMTMDCtx == 0 {
+		return "", fmt.Errorf("VL model not loaded")
+	}
+
+	// Verify image file exists
+	if _, err := os.Stat(imagePath); os.IsNotExist(err) {
+		return "", fmt.Errorf("image file not found: %s", imagePath)
+	}
+
+	log.Printf("🖼️  Processing image: %s", filepath.Base(imagePath))
+	log.Printf("💬 Prompt: %s", prompt)
+
+	// Load image using MTMD
+	bitmap := mtmd.BitmapInitFromFile(s.vlMTMDCtx, imagePath)
+	if bitmap == 0 {
+		return "", fmt.Errorf("failed to load image")
+	}
+	defer mtmd.BitmapFree(bitmap)
+
+	// Create input text with image placeholder
+	imagePlaceholder := mtmd.DefaultMarker() // Usually "<__media__>"
+	fullPrompt := "Here is an image: " + imagePlaceholder + "\n\n" + prompt + "\n\nDescribe what you see in detail."
+
+	inputText := mtmd.NewInputText(fullPrompt, true, true)
+
+	// Tokenize input (text + image)
+	var outputChunks mtmd.InputChunks
+	bitmaps := []mtmd.Bitmap{bitmap}
+	if mtmd.Tokenize(s.vlMTMDCtx, outputChunks, inputText, bitmaps) != 0 {
+		return "", fmt.Errorf("failed to tokenize input with image")
+	}
+
+	// Get new n_past after processing chunks
+	var newNPast llama.Pos
+	nPast := llama.Pos(0)
+	seqID := llama.SeqId(0)
+
+	// Process multimodal input using helper function
+	nBatch := int32(512)
+	logitsLast := false
+	if mtmd.HelperEvalChunks(s.vlMTMDCtx, s.vlContext, outputChunks, nPast, seqID, nBatch, logitsLast, &newNPast) != 0 {
+		return "", fmt.Errorf("failed to process multimodal input")
+	}
+
+	// Generate response
+	var response strings.Builder
+	pos := int32(0)
+	for pos < maxTokens {
+		token := llama.SamplerSample(s.vlSampler, s.vlContext, -1)
+
+		// Check for end of generation
+		if llama.VocabIsEOG(s.vlVocab, token) {
+			break
+		}
+
+		// Convert token to text
+		tokenBuf := make([]byte, 256)
+		tokenLength := llama.TokenToPiece(s.vlVocab, token, tokenBuf, 0, false)
+		response.Write(tokenBuf[:tokenLength])
+
+		// Prepare next batch
+		batch := llama.BatchGetOne([]llama.Token{token})
+
+		// Decode next token
+		llama.Decode(s.vlContext, batch)
+		pos += batch.NTokens
+	}
+
+	result := response.String()
+	log.Printf("✅ Image processed successfully")
+
+	return result, nil
+}
+
+// findProjectorForModel finds the corresponding MMTRoj projector file for a VL model
+func (s *LibraryService) findProjectorForModel(modelPath, modelsDir string) (string, error) {
+	modelName := strings.TrimSuffix(filepath.Base(modelPath), ".gguf")
+
+	entries, err := os.ReadDir(modelsDir)
+	if err != nil {
+		return "", fmt.Errorf("failed to read models directory: %w", err)
+	}
+
+	// Look for projector files that match the model
+	possiblePrefixes := []string{
+		"mmproj-" + modelName,
+		"mmproj",
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		name := entry.Name()
+		if !strings.HasSuffix(strings.ToLower(name), ".gguf") {
+			continue
+		}
+
+		for _, prefix := range possiblePrefixes {
+			if strings.HasPrefix(strings.ToLower(name), strings.ToLower(prefix)) {
+				return filepath.Join(modelsDir, name), nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("no matching projector file found for model %s", modelName)
+}
+
+// selectBestVLModel automatically selects the best available VL model
+func (s *LibraryService) selectBestVLModel() (string, error) {
+	modelsDir := s.manager.GetModelsDirectory()
+
+	VLModels, err := s.manager.GetAvailableVLModels()
+	if err != nil {
+		return "", fmt.Errorf("failed to get available VL models: %w", err)
+	}
+
+	if len(VLModels) == 0 {
+		return "", fmt.Errorf("no VL models found in %s. Run AutoDownloadRecommendedVLModel() first", modelsDir)
+	}
+
+	// For now, just return the first (largest) model
+	// TODO: Implement scoring based on RAM and quality like selectBestModel
+	return VLModels[0], nil
+}
+
+// IsVLModelLoaded returns true if a VL model is loaded
+func (s *LibraryService) IsVLModelLoaded() bool {
+	s.vlMutex.Lock()
+	defer s.vlMutex.Unlock()
+	return s.vlModel != 0 && s.vlContext != 0 && s.vlMTMDCtx != 0
+}
+
+// GetLoadedVLModel returns the path of the currently loaded VL model
+func (s *LibraryService) GetLoadedVLModel() string {
+	s.vlMutex.Lock()
+	defer s.vlMutex.Unlock()
+	return s.vlModelPath
+}
+
+// AutoDownloadRecommendedVLModel downloads the recommended VL model with hardware detection
+// Delegates to installer methods
+func (s *LibraryService) AutoDownloadRecommendedVLModel() error {
+	log.Println("📦 Auto-downloading VL model...")
+	if err := s.manager.AutoDownloadRecommendedVLModel(); err != nil {
+		return fmt.Errorf("failed to download VL model: %w", err)
+	}
+
+	// Also check if projector file exists, if not it will be downloaded with the model
+	return s.AutoDownloadRecommendedVLProjector()
+}
+
+// AutoDownloadRecommendedVLProjector ensures projector files are available for VL models
+func (s *LibraryService) AutoDownloadRecommendedVLProjector() error {
+	// VL models typically come with their own projector files, so this is usually handled
+	// by the model download. This method can be extended if separate projector downloads
+	// are needed in the future.
+	log.Println("✅ VL projector files should be available with the model")
+	return nil
+}
+
 // selectBestModel automatically selects the best available model
 func (s *LibraryService) selectBestModel() (string, error) {
 	modelsDir := s.manager.GetModelsDirectory()
@@ -618,6 +892,23 @@ func (s *LibraryService) GetLoadedEmbeddingModel() string {
 
 // Cleanup releases all loaded models and frees resources
 func (s *LibraryService) Cleanup() {
+	// Cleanup VL model
+	s.vlMutex.Lock()
+	if s.vlMTMDCtx != 0 {
+		mtmd.Free(s.vlMTMDCtx)
+		s.vlMTMDCtx = 0
+	}
+	if s.vlContext != 0 {
+		llama.Free(s.vlContext)
+		s.vlContext = 0
+	}
+	if s.vlModel != 0 {
+		llama.ModelFree(s.vlModel)
+		s.vlModel = 0
+	}
+	s.vlMutex.Unlock()
+
+	// Cleanup chat model
 	s.chatMutex.Lock()
 	if s.chatContext != 0 {
 		llama.Free(s.chatContext)
@@ -629,6 +920,7 @@ func (s *LibraryService) Cleanup() {
 	}
 	s.chatMutex.Unlock()
 
+	// Cleanup embedding model
 	s.embMutex.Lock()
 	if s.embContext != 0 {
 		llama.Free(s.embContext)

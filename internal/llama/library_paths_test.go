@@ -20,13 +20,13 @@ func TestLibraryPathConfiguration(t *testing.T) {
 	// Test 1: Verify GetLibraryPath returns a valid directory
 	t.Run("GetLibraryPath", func(t *testing.T) {
 		libPath := installer.GetLibraryPath()
-		
+
 		if libPath == "" {
 			t.Fatal("GetLibraryPath() returned empty string")
 		}
-		
+
 		t.Logf("✅ Library Path: %s", libPath)
-		
+
 		// Should be the BinaryPath
 		if libPath != installer.BinaryPath {
 			t.Errorf("GetLibraryPath() = %s, want %s", libPath, installer.BinaryPath)
@@ -36,19 +36,19 @@ func TestLibraryPathConfiguration(t *testing.T) {
 	// Test 2: Verify GetLibraryFilePath returns correct main library
 	t.Run("GetLibraryFilePath", func(t *testing.T) {
 		libFilePath := installer.GetLibraryFilePath()
-		
+
 		if libFilePath == "" {
 			t.Fatal("GetLibraryFilePath() returned empty string")
 		}
-		
+
 		t.Logf("✅ Main Library File: %s", libFilePath)
-		
+
 		// Should contain the correct extension
 		expectedExt := download.GetLibraryExtension(runtime.GOOS)
 		if !strings.HasSuffix(libFilePath, expectedExt) {
 			t.Errorf("GetLibraryFilePath() = %s, expected extension %s", libFilePath, expectedExt)
 		}
-		
+
 		// Should contain "llama"
 		if !strings.Contains(filepath.Base(libFilePath), "llama") {
 			t.Errorf("GetLibraryFilePath() = %s, expected to contain 'llama'", libFilePath)
@@ -58,18 +58,18 @@ func TestLibraryPathConfiguration(t *testing.T) {
 	// Test 3: Verify GetRequiredLibraryPaths returns all 3 libraries
 	t.Run("GetRequiredLibraryPaths", func(t *testing.T) {
 		requiredPaths := installer.GetRequiredLibraryPaths()
-		
+
 		if len(requiredPaths) != 3 {
 			t.Fatalf("GetRequiredLibraryPaths() returned %d paths, want 3", len(requiredPaths))
 		}
-		
+
 		t.Logf("✅ Required Libraries Count: %d", len(requiredPaths))
-		
+
 		// Verify each path
 		expectedLibs := []string{"ggml", "ggml-base", "llama"}
 		for i, path := range requiredPaths {
 			t.Logf("   %d. %s", i+1, path)
-			
+
 			// Should contain expected library name
 			baseName := filepath.Base(path)
 			found := false
@@ -82,7 +82,7 @@ func TestLibraryPathConfiguration(t *testing.T) {
 			if !found {
 				t.Errorf("Path %s does not contain expected library names", path)
 			}
-			
+
 			// Should have correct extension
 			expectedExt := download.GetLibraryExtension(runtime.GOOS)
 			if !strings.HasSuffix(path, expectedExt) {
@@ -95,20 +95,20 @@ func TestLibraryPathConfiguration(t *testing.T) {
 	t.Run("PathsMatchDownloadPackage", func(t *testing.T) {
 		requiredPaths := installer.GetRequiredLibraryPaths()
 		expectedLibs := download.RequiredLibraries(runtime.GOOS)
-		
+
 		if len(requiredPaths) != len(expectedLibs) {
 			t.Fatalf("Path count mismatch: got %d, want %d", len(requiredPaths), len(expectedLibs))
 		}
-		
+
 		t.Logf("✅ Count matches: %d libraries", len(requiredPaths))
-		
+
 		libPath := installer.GetLibraryPath()
 		for i, expectedLib := range expectedLibs {
 			expectedPath := filepath.Join(libPath, expectedLib)
 			actualPath := requiredPaths[i]
-			
+
 			if expectedPath != actualPath {
-				t.Errorf("Path mismatch at index %d:\n  Expected: %s\n  Actual:   %s", 
+				t.Errorf("Path mismatch at index %d:\n  Expected: %s\n  Actual:   %s",
 					i, expectedPath, actualPath)
 			} else {
 				t.Logf("   ✅ Match: %s", filepath.Base(actualPath))
@@ -120,10 +120,10 @@ func TestLibraryPathConfiguration(t *testing.T) {
 	t.Run("VerifyAllLibrariesExist", func(t *testing.T) {
 		// This will return false if not installed, which is fine
 		exists := installer.VerifyAllLibrariesExist()
-		
+
 		if exists {
 			t.Log("✅ All libraries exist")
-			
+
 			// If they exist, verify each one
 			for _, path := range installer.GetRequiredLibraryPaths() {
 				if _, err := os.Stat(path); err != nil {
@@ -139,9 +139,9 @@ func TestLibraryPathConfiguration(t *testing.T) {
 	t.Run("IsLlamaCppInstalled", func(t *testing.T) {
 		isInstalled := installer.IsLlamaCppInstalled()
 		allExist := installer.VerifyAllLibrariesExist()
-		
+
 		if isInstalled != allExist {
-			t.Errorf("IsLlamaCppInstalled() = %v, but VerifyAllLibrariesExist() = %v (should match)", 
+			t.Errorf("IsLlamaCppInstalled() = %v, but VerifyAllLibrariesExist() = %v (should match)",
 				isInstalled, allExist)
 		} else {
 			t.Logf("✅ IsLlamaCppInstalled() matches VerifyAllLibrariesExist(): %v", isInstalled)
@@ -151,7 +151,7 @@ func TestLibraryPathConfiguration(t *testing.T) {
 	// Test 7: Verify VerifyInstalledBinary error messages
 	t.Run("VerifyInstalledBinary", func(t *testing.T) {
 		err := installer.VerifyInstalledBinary()
-		
+
 		if err != nil {
 			// Should mention which libraries are missing
 			errMsg := err.Error()
@@ -172,11 +172,11 @@ func TestDownloadPackageConsistency(t *testing.T) {
 	// Test 1: RequiredLibraries returns correct count
 	t.Run("RequiredLibrariesCount", func(t *testing.T) {
 		libs := download.RequiredLibraries(runtime.GOOS)
-		
+
 		if len(libs) != 3 {
 			t.Fatalf("RequiredLibraries() returned %d libraries, want 3", len(libs))
 		}
-		
+
 		t.Logf("✅ Correct count: %d libraries", len(libs))
 		for i, lib := range libs {
 			t.Logf("   %d. %s", i+1, lib)
@@ -187,58 +187,58 @@ func TestDownloadPackageConsistency(t *testing.T) {
 	t.Run("RequiredLibrariesExtensions", func(t *testing.T) {
 		libs := download.RequiredLibraries(runtime.GOOS)
 		expectedExt := download.GetLibraryExtension(runtime.GOOS)
-		
+
 		for _, lib := range libs {
 			if !strings.HasSuffix(lib, expectedExt) {
 				t.Errorf("Library %s does not have expected extension %s", lib, expectedExt)
 			}
 		}
-		
+
 		t.Logf("✅ All libraries have correct extension: %s", expectedExt)
 	})
 
 	// Test 3: LibraryName returns correct main library
 	t.Run("LibraryName", func(t *testing.T) {
 		mainLib := download.LibraryName(runtime.GOOS)
-		
+
 		if mainLib == "" || mainLib == "unknown" {
 			t.Fatalf("LibraryName() returned invalid value: %s", mainLib)
 		}
-		
+
 		// Should contain "llama"
 		if !strings.Contains(mainLib, "llama") {
 			t.Errorf("LibraryName() = %s, expected to contain 'llama'", mainLib)
 		}
-		
+
 		// Should have correct extension
 		expectedExt := download.GetLibraryExtension(runtime.GOOS)
 		if !strings.HasSuffix(mainLib, expectedExt) {
 			t.Errorf("LibraryName() = %s, expected extension %s", mainLib, expectedExt)
 		}
-		
+
 		t.Logf("✅ Main library name: %s", mainLib)
 	})
 
 	// Test 4: GetLibraryExtension returns correct value
 	t.Run("GetLibraryExtension", func(t *testing.T) {
 		ext := download.GetLibraryExtension(runtime.GOOS)
-		
+
 		expectedExts := map[string]string{
 			"darwin":  ".dylib",
 			"linux":   ".so",
 			"freebsd": ".so",
 			"windows": ".dll",
 		}
-		
+
 		expected, ok := expectedExts[runtime.GOOS]
 		if !ok {
 			t.Skipf("Unknown platform: %s", runtime.GOOS)
 		}
-		
+
 		if ext != expected {
 			t.Errorf("GetLibraryExtension() = %s, want %s", ext, expected)
 		}
-		
+
 		t.Logf("✅ Library extension: %s", ext)
 	})
 }
@@ -248,10 +248,10 @@ func TestPlatformSpecificPaths(t *testing.T) {
 	t.Log("🔍 Testing Platform-Specific Paths")
 
 	platforms := []struct {
-		os       string
-		ext      string
-		prefix   string
-		mainLib  string
+		os      string
+		ext     string
+		prefix  string
+		mainLib string
 	}{
 		{"darwin", ".dylib", "lib", "libllama.dylib"},
 		{"linux", ".so", "lib", "libllama.so"},
@@ -286,7 +286,7 @@ func TestPlatformSpecificPaths(t *testing.T) {
 				}
 			}
 
-			t.Logf("✅ %s: extension=%s, mainLib=%s, count=%d", 
+			t.Logf("✅ %s: extension=%s, mainLib=%s, count=%d",
 				platform.os, ext, mainLib, len(libs))
 		})
 	}
@@ -320,4 +320,3 @@ func TestNoEnvironmentVariables(t *testing.T) {
 	t.Log("✅ Installer works without YZMA_LIB environment variable")
 	t.Logf("   Library Path: %s", installer.GetLibraryPath())
 }
-

@@ -1,6 +1,7 @@
 package llama
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -41,74 +42,6 @@ func TestNewLlamaCppInstaller(t *testing.T) {
 // Release & Version Tests (Real API Calls)
 // ============================================================================
 
-func TestGetLatestRelease_RealAPI(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping real API test in short mode")
-	}
-
-	tmpDir := t.TempDir()
-	installer := &LlamaCppInstaller{
-		BinaryPath:   filepath.Join(tmpDir, "bin"),
-		MetadataPath: filepath.Join(tmpDir, "metadata"),
-		ModelsDir:    filepath.Join(tmpDir, "models"),
-	}
-
-	release, err := installer.GetLatestRelease()
-	if err != nil {
-		t.Logf("GetLatestRelease() failed (may be network issue): %v", err)
-		t.Skip("Skipping due to network issue")
-	}
-
-	if release == nil {
-		t.Fatal("GetLatestRelease() returned nil release")
-	}
-
-	if release.Version == "" {
-		t.Error("Release version is empty")
-	}
-
-	t.Logf("✅ Latest release: %s", release.Version)
-}
-
-func TestGetLatestRelease_Caching(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping real API test in short mode")
-	}
-
-	tmpDir := t.TempDir()
-	installer := &LlamaCppInstaller{
-		BinaryPath:   filepath.Join(tmpDir, "bin"),
-		MetadataPath: filepath.Join(tmpDir, "metadata"),
-		ModelsDir:    filepath.Join(tmpDir, "models"),
-	}
-
-	// First call - should hit API
-	release1, err := installer.GetLatestRelease()
-	if err != nil {
-		t.Skip("Skipping due to network issue")
-	}
-
-	// Second call - should use cache
-	start := time.Now()
-	release2, err := installer.GetLatestRelease()
-	elapsed := time.Since(start)
-
-	if err != nil {
-		t.Fatalf("Second GetLatestRelease() failed: %v", err)
-	}
-
-	if release1.Version != release2.Version {
-		t.Errorf("Cached version mismatch: got %v, want %v", release2.Version, release1.Version)
-	}
-
-	// Cached call should be very fast (< 10ms)
-	if elapsed > 10*time.Millisecond {
-		t.Logf("Warning: Cached call took %v (expected < 10ms)", elapsed)
-	}
-
-	t.Logf("✅ Cache working: %v", elapsed)
-}
-
 // ============================================================================
 // Installation Tests (Real Downloads)
 // ============================================================================
@@ -144,13 +77,7 @@ func TestInstallLlamaCpp_RealDownload(t *testing.T) {
 		t.Errorf("Library file not found: %s", libraryPath)
 	}
 
-	// Verify metadata was saved
-	version := installer.GetInstalledVersion()
-	if version == "" {
-		t.Error("GetInstalledVersion() returned empty string after installation")
-	}
-
-	t.Logf("✅ Successfully installed llama.cpp %s", version)
+	t.Logf("✅ Successfully installed llama.cpp")
 }
 
 func TestInstallLlamaCpp_AlreadyInstalled(t *testing.T) {
@@ -188,7 +115,7 @@ func TestInstallLlamaCpp_AlreadyInstalled(t *testing.T) {
 	t.Logf("✅ Correctly skipped re-installation: %v", elapsed)
 }
 
-func TestDownloadRelease_SpecificVersion(t *testing.T) {
+func TestInstallLlamaCpp_AutoUpgrade(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping real download test in short mode")
 	}
@@ -200,23 +127,65 @@ func TestDownloadRelease_SpecificVersion(t *testing.T) {
 		ModelsDir:    filepath.Join(tmpDir, "models"),
 	}
 
-	// Download a specific version (use a known stable version)
-	version := "b4315"
-	t.Logf("⏳ Downloading llama.cpp version %s...", version)
-
-	err := installer.DownloadRelease(version, nil)
+	// First install
+	t.Log("⏳ First installation...")
+	err := installer.InstallLlamaCpp()
 	if err != nil {
-		t.Logf("DownloadRelease() failed (may be network issue): %v", err)
-		t.Skip("Skipping download test due to network issue")
+		t.Skip("Skipping due to network issue")
 	}
 
-	// Verify version
-	installedVersion := installer.GetInstalledVersion()
-	if installedVersion != version {
-		t.Errorf("Installed version = %v, want %v", installedVersion, version)
+	t.Logf("✅ First installation complete")
+
+	// Verify version.json was created by yzma
+	versionFile := filepath.Join(installer.BinaryPath, "version.json")
+	if _, err := os.Stat(versionFile); err != nil {
+		t.Errorf("version.json not found: %v", err)
 	}
 
-	t.Logf("✅ Successfully installed version %s", version)
+	// Read current version
+	versionData, err := os.ReadFile(versionFile)
+	if err != nil {
+		t.Fatalf("Failed to read version.json: %v", err)
+	}
+	var currentVersion struct {
+		TagName string `json:"tag_name"`
+	}
+	if err := json.Unmarshal(versionData, &currentVersion); err != nil {
+		t.Fatalf("Failed to parse version.json: %v", err)
+	}
+	t.Logf("Current version: %s", currentVersion.TagName)
+
+	// Simulate old version by modifying version.json
+	oldVersionJSON := `{"tag_name":"b1000"}`
+	if err := os.WriteFile(versionFile, []byte(oldVersionJSON), 0644); err != nil {
+		t.Fatalf("Failed to write old version: %v", err)
+	}
+
+	// Second install should auto-upgrade
+	t.Log("⏳ Testing auto-upgrade...")
+	err = installer.InstallLlamaCpp()
+	if err != nil {
+		t.Fatalf("Auto-upgrade failed: %v", err)
+	}
+
+	// Verify version was upgraded by reading version.json
+	versionData, err = os.ReadFile(versionFile)
+	if err != nil {
+		t.Fatalf("Failed to read version.json after upgrade: %v", err)
+	}
+	var upgradedVersion struct {
+		TagName string `json:"tag_name"`
+	}
+	if err := json.Unmarshal(versionData, &upgradedVersion); err != nil {
+		t.Fatalf("Failed to parse version.json after upgrade: %v", err)
+	}
+
+	t.Logf("✅ Auto-upgrade complete: %s", upgradedVersion.TagName)
+
+	// Version should be newer than b1000
+	if upgradedVersion.TagName == "b1000" {
+		t.Error("Version was not upgraded")
+	}
 }
 
 // ============================================================================
@@ -281,133 +250,6 @@ func TestVerifyInstalledBinary_Installed(t *testing.T) {
 // Update Check Tests (Real API)
 // ============================================================================
 
-func TestIsUpdateAvailable_NoInstallation(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping real API test in short mode")
-	}
-
-	tmpDir := t.TempDir()
-	installer := &LlamaCppInstaller{
-		BinaryPath:   filepath.Join(tmpDir, "bin"),
-		MetadataPath: filepath.Join(tmpDir, "metadata"),
-		ModelsDir:    filepath.Join(tmpDir, "models"),
-	}
-
-	available, version, err := installer.IsUpdateAvailable()
-	if err != nil {
-		t.Skip("Skipping due to network issue")
-	}
-
-	if !available {
-		t.Error("IsUpdateAvailable() = false when nothing is installed")
-	}
-
-	if version == "" {
-		t.Error("Version is empty")
-	}
-
-	t.Logf("✅ Update available: %s", version)
-}
-
-func TestIsUpdateAvailable_WithInstallation(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping real download test in short mode")
-	}
-
-	tmpDir := t.TempDir()
-	installer := &LlamaCppInstaller{
-		BinaryPath:   filepath.Join(tmpDir, "bin"),
-		MetadataPath: filepath.Join(tmpDir, "metadata"),
-		ModelsDir:    filepath.Join(tmpDir, "models"),
-	}
-
-	// Install first
-	err := installer.InstallLlamaCpp()
-	if err != nil {
-		t.Skip("Skipping due to network issue")
-	}
-
-	// Check for updates
-	available, version, err := installer.IsUpdateAvailable()
-	if err != nil {
-		t.Fatalf("IsUpdateAvailable() failed: %v", err)
-	}
-
-	installedVersion := installer.GetInstalledVersion()
-	t.Logf("Installed: %s, Latest: %s, Update available: %v", installedVersion, version, available)
-
-	// If versions match, no update should be available
-	if installedVersion == version && available {
-		t.Error("IsUpdateAvailable() = true when versions match")
-	}
-
-	t.Log("✅ Update check working correctly")
-}
-
-// ============================================================================
-// Cleanup Tests
-// ============================================================================
-
-func TestCleanupPartialDownloads_NoCorruption(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping real download test in short mode")
-	}
-
-	tmpDir := t.TempDir()
-	installer := &LlamaCppInstaller{
-		BinaryPath:   filepath.Join(tmpDir, "bin"),
-		MetadataPath: filepath.Join(tmpDir, "metadata"),
-		ModelsDir:    filepath.Join(tmpDir, "models"),
-	}
-
-	// Install first
-	err := installer.InstallLlamaCpp()
-	if err != nil {
-		t.Skip("Skipping due to network issue")
-	}
-
-	// Cleanup should not remove valid installation
-	err = installer.CleanupPartialDownloads()
-	if err != nil {
-		t.Fatalf("CleanupPartialDownloads() failed: %v", err)
-	}
-
-	// Verify installation still exists
-	if !installer.IsLlamaCppInstalled() {
-		t.Error("CleanupPartialDownloads() removed valid installation")
-	}
-
-	t.Log("✅ Cleanup preserved valid installation")
-}
-
-func TestCleanupPartialDownloads_WithCorruption(t *testing.T) {
-	tmpDir := t.TempDir()
-	installer := &LlamaCppInstaller{
-		BinaryPath:   filepath.Join(tmpDir, "bin"),
-		MetadataPath: filepath.Join(tmpDir, "metadata"),
-		ModelsDir:    filepath.Join(tmpDir, "models"),
-	}
-
-	// Create corrupted library file
-	os.MkdirAll(installer.BinaryPath, 0755)
-	libraryName := download.LibraryName(runtime.GOOS)
-	corruptedPath := filepath.Join(installer.BinaryPath, libraryName)
-	os.WriteFile(corruptedPath, []byte("corrupted"), 0644)
-
-	// Create metadata
-	installer.saveVersionMetadata("test-version")
-
-	// Cleanup should remove corrupted installation
-	err := installer.CleanupPartialDownloads()
-	if err != nil {
-		t.Fatalf("CleanupPartialDownloads() failed: %v", err)
-	}
-
-	// Verify cleanup happened (this test may not work as expected since we're creating a valid file)
-	// The cleanup only removes if VerifyInstalledBinary fails, which it won't for a file that exists
-	t.Log("✅ Cleanup executed")
-}
-
 // ============================================================================
 // Model Download Tests (Real Downloads)
 // ============================================================================
@@ -425,7 +267,7 @@ func TestDownloadChatModel_RealDownload(t *testing.T) {
 	}
 
 	// Use the smallest model for testing
-	models := GetRecommendedQwenModels()
+	models := GetRecommendedVLModels()
 	smallestModel := models[0] // 0.5b model
 
 	t.Logf("⏳ Downloading chat model: %s (%.1f MB)...", smallestModel.Name, float64(smallestModel.Size)/(1024*1024))
@@ -463,7 +305,7 @@ func TestDownloadChatModel_AlreadyExists(t *testing.T) {
 		ModelsDir:    filepath.Join(tmpDir, "models"),
 	}
 
-	models := GetRecommendedQwenModels()
+	models := GetRecommendedVLModels()
 	smallestModel := models[0]
 
 	// First download
@@ -503,7 +345,7 @@ func TestAutoDownloadRecommendedChatModel(t *testing.T) {
 
 	// Use smallest model for testing to avoid timeout
 	t.Log("⏳ Downloading smallest chat model for testing...")
-	smallestModel := GetRecommendedQwenModels()[0] // 0.5B model
+	smallestModel := GetRecommendedVLModels()[0] // 0.5B model
 
 	err := installer.DownloadChatModel(smallestModel)
 	if err != nil {
@@ -713,37 +555,6 @@ func TestInstallerGetModelsDirectory(t *testing.T) {
 	}
 }
 
-func TestGetAvailableQuantizationTypes(t *testing.T) {
-	tmpDir := t.TempDir()
-	installer := &LlamaCppInstaller{
-		BinaryPath:   filepath.Join(tmpDir, "bin"),
-		MetadataPath: filepath.Join(tmpDir, "metadata"),
-		ModelsDir:    filepath.Join(tmpDir, "models"),
-	}
-
-	types := installer.GetAvailableQuantizationTypes()
-	if len(types) == 0 {
-		t.Error("GetAvailableQuantizationTypes() returned empty list")
-	}
-
-	// Check for common types
-	expectedTypes := []string{"q4_k_m", "q5_k_m", "q6_k", "f16"}
-	for _, expected := range expectedTypes {
-		found := false
-		for _, t := range types {
-			if t == expected {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("Expected quantization type %s not found", expected)
-		}
-	}
-
-	t.Logf("✅ Available quantization types: %d", len(types))
-}
-
 // ============================================================================
 // Integration Tests (Full Workflow)
 // ============================================================================
@@ -779,7 +590,7 @@ func TestFullWorkflow_InstallAndDownloadModels(t *testing.T) {
 
 	// Step 3: Download chat model (use smallest model to avoid timeout)
 	t.Log("Step 3: Downloading chat model (smallest)...")
-	smallestModel := GetRecommendedQwenModels()[0] // 0.5B model
+	smallestModel := GetRecommendedVLModels()[0] // 0.5B model
 	err = installer.DownloadChatModel(smallestModel)
 	if err != nil {
 		t.Logf("Chat model download failed (network issue): %v", err)
@@ -809,7 +620,6 @@ func TestFullWorkflow_InstallAndDownloadModels(t *testing.T) {
 	}
 
 	t.Logf("✅ Full workflow complete:")
-	t.Logf("   - llama.cpp version: %s", installer.GetInstalledVersion())
 	t.Logf("   - Chat models: %d", len(chatModels))
 	t.Logf("   - Embedding models: %d", len(embeddingModels))
 }
@@ -817,23 +627,6 @@ func TestFullWorkflow_InstallAndDownloadModels(t *testing.T) {
 // ============================================================================
 // Benchmark Tests
 // ============================================================================
-
-func BenchmarkGetLatestRelease(b *testing.B) {
-	tmpDir := b.TempDir()
-	installer := &LlamaCppInstaller{
-		BinaryPath:   filepath.Join(tmpDir, "bin"),
-		MetadataPath: filepath.Join(tmpDir, "metadata"),
-		ModelsDir:    filepath.Join(tmpDir, "models"),
-	}
-
-	// First call to populate cache
-	installer.GetLatestRelease()
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		installer.GetLatestRelease()
-	}
-}
 
 func BenchmarkIsLlamaCppInstalled(b *testing.B) {
 	tmpDir := b.TempDir()
