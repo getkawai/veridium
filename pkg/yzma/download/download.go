@@ -18,15 +18,23 @@ import (
 )
 
 var (
-	errUnknownOS        = errors.New("unknown OS")
-	errUnknownProcessor = errors.New("unknown processor")
-	errInvalidVersion   = errors.New("invalid version")
+	// ErrUnknownOS is returned when an unknown operating system is specified
+	ErrUnknownOS = errors.New("unknown OS")
+	// ErrUnknownProcessor is returned when an unknown processor is specified
+	ErrUnknownProcessor = errors.New("unknown processor")
+	// ErrInvalidVersion is returned when an invalid version string is provided
+	ErrInvalidVersion = errors.New("invalid version")
 )
 
 // RetryCount is how many times the package will retry to obtain the latest llama.cpp version.
 var RetryCount = 3
 
+// FallbackVersion is used when GitHub API is unavailable (rate limit, network issues, etc.)
+// This should be updated periodically to a known stable version
+const FallbackVersion = "b4315"
+
 // LlamaLatestVersion fetches the latest release tag of llama.cpp from the GitHub API.
+// Falls back to a hardcoded version if GitHub API is unavailable.
 func LlamaLatestVersion() (string, error) {
 	var version string
 	var err error
@@ -38,7 +46,10 @@ func LlamaLatestVersion() (string, error) {
 		time.Sleep(3 * time.Second)
 	}
 
-	return "", err
+	// If all retries failed, use fallback version
+	log.Printf("⚠️  Failed to fetch version from GitHub API: %v", err)
+	log.Printf("📦 Using fallback version: %s", FallbackVersion)
+	return FallbackVersion, nil
 }
 
 func getLatestVersion() (string, error) {
@@ -46,7 +57,7 @@ func getLatestVersion() (string, error) {
 
 	resp, err := http.Get(apiURL)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to fetch version from GitHub: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -59,9 +70,14 @@ func getLatestVersion() (string, error) {
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to decode GitHub API response: %w", err)
 	}
 
+	if result.TagName == "" {
+		return "", fmt.Errorf("empty version tag from GitHub API")
+	}
+
+	log.Printf("📦 Latest llama.cpp version from GitHub: %s", result.TagName)
 	return result.TagName, nil
 }
 
@@ -131,14 +147,14 @@ func Get(os string, processor string, version string, dest string) error {
 		case "vulkan":
 			filename = fmt.Sprintf("llama-%s-bin-ubuntu-vulkan-x64.zip//build/bin", version)
 		default:
-			return errUnknownProcessor
+			return ErrUnknownProcessor
 		}
 	case "darwin":
 		switch processor {
 		case "cpu", "metal":
 			filename = fmt.Sprintf("llama-%s-bin-macos-arm64.zip//build/bin", version)
 		default:
-			return errUnknownProcessor
+			return ErrUnknownProcessor
 		}
 
 	case "windows":
@@ -150,11 +166,11 @@ func Get(os string, processor string, version string, dest string) error {
 		case "vulkan":
 			filename = fmt.Sprintf("llama-%s-bin-win-vulkan-x64.zip//build/bin", version)
 		default:
-			return errUnknownProcessor
+			return ErrUnknownProcessor
 		}
 
 	default:
-		return errUnknownOS
+		return ErrUnknownOS
 	}
 
 	// Extract the actual filename (before //) for URL construction
@@ -339,8 +355,11 @@ func extractFile(f *zip.File, targetPath string) error {
 
 // VersionIsValid checks if the provided version string is valid.
 func VersionIsValid(version string) error {
+	if version == "" {
+		return fmt.Errorf("%w: version string is empty", ErrInvalidVersion)
+	}
 	if !strings.HasPrefix(version, "b") {
-		return errInvalidVersion
+		return fmt.Errorf("%w: version must start with 'b', got: %s", ErrInvalidVersion, version)
 	}
 
 	return nil
