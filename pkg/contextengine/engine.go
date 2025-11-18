@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kawai-network/veridium/context-engine/internal/eino"
-	"github.com/kawai-network/veridium/context-engine/internal/types"
+	"github.com/kawai-network/veridium/pkg/contextengine/eino"
+	"github.com/kawai-network/veridium/pkg/contextengine/types"
 )
 
 // Engine is the main context engineering engine

@@ -5,9 +5,9 @@ import (
 
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
-	proc "github.com/kawai-network/veridium/context-engine/internal/processors"
-	prov "github.com/kawai-network/veridium/context-engine/internal/providers"
-	"github.com/kawai-network/veridium/context-engine/internal/types"
+	proc "github.com/kawai-network/veridium/pkg/contextengine/processors"
+	prov "github.com/kawai-network/veridium/pkg/contextengine/providers"
+	"github.com/kawai-network/veridium/pkg/contextengine/types"
 )
 
 // MessageInput wraps messages for workflow input

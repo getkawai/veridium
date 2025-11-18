@@ -6,7 +6,7 @@ import (
 
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
-	"github.com/kawai-network/veridium/context-engine/internal/types"
+	"github.com/kawai-network/veridium/pkg/contextengine/types"
 )
 
 // GroupMessageFlattenConfig holds configuration for GroupMessageFlatten processor

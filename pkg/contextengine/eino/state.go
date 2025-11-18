@@ -3,7 +3,7 @@ package eino
 import (
 	"context"
 
-	"github.com/kawai-network/veridium/context-engine/internal/types"
+	"github.com/kawai-network/veridium/pkg/contextengine/types"
 )
 
 // ContextState holds shared state for the context engineering pipeline

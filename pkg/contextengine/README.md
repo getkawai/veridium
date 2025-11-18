@@ -25,7 +25,7 @@ package main
 
 import (
     "context"
-    "github.com/kawai-network/veridium/context-engine/pkg/contextengine"
+    "github.com/kawai-network/veridium/pkg/contextenginepkg/contextengine"
 )
 
 func main() {
