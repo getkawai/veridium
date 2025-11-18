@@ -1,4 +1,5 @@
 import UAParser from 'ua-parser-js';
+import { System } from '@wailsio/runtime';
 
 export const getParser = () => {
   let ua = navigator.userAgent;
@@ -19,7 +20,7 @@ export const browserInfo = {
   os: getParser().getOS().name,
 };
 
-export const isMacOS = () => getPlatform() === 'Mac OS';
+export const isMacOS = () => System.IsMac();
 
 export const isArc = () => {
   return (

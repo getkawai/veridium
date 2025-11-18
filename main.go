@@ -17,6 +17,7 @@ import (
 	"github.com/kawai-network/veridium/internal/tableviewer"
 	"github.com/kawai-network/veridium/internal/tts"
 	"github.com/kawai-network/veridium/internal/whisper"
+	"github.com/kawai-network/veridium/pkg/chromem"
 	"github.com/kawai-network/veridium/pkg/contextengine"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/services/fileserver"
@@ -121,6 +122,32 @@ func main() {
 		log.Printf("   Auto-setup running in background...")
 	}
 
+	// Initialize Knowledge Base Service (RAG with Chromem + Eino)
+	var kbService *services.KnowledgeBaseService
+	if libService != nil {
+		// Initialize embedding model for KB
+		embeddingModelPath := filepath.Join(libService.GetModelsDirectory(),
+			"granite-embedding-107m-multilingual-Q6_K_L.gguf")
+		embedFunc := chromem.NewEmbeddingFuncLlamaWithPreloadedLibrary(embeddingModelPath)
+
+		kbPath := filepath.Join(userConfigDir, "veridium", "knowledge-bases")
+		kbAssetPath := filepath.Join(userConfigDir, "veridium", "kb-assets")
+
+		kbService, err = services.NewKnowledgeBaseService(dbService, &services.KnowledgeBaseConfig{
+			ChromemPath:   kbPath,
+			EmbeddingFunc: embedFunc,
+			AssetDir:      kbAssetPath,
+		})
+		if err != nil {
+			log.Printf("⚠️  Warning: Failed to initialize Knowledge Base service: %v", err)
+		} else {
+			log.Printf("✅ Knowledge Base service initialized")
+			log.Printf("   Vector DB path: %s", kbPath)
+			log.Printf("   Asset path: %s", kbAssetPath)
+			log.Printf("   Embedding model: granite-embedding-107m-multilingual")
+		}
+	}
+
 	// Create a new Wails application by providing the necessary options.
 	// Variables 'Name' and 'Description' are for application metadata.
 	// 'Assets' configures the asset server with the 'FS' variable pointing to the frontend files.
@@ -153,6 +180,8 @@ func main() {
 			application.NewService(contextengine.NewContextEngineService()),
 			// Tools Engine service - for tool/plugin management
 			application.NewService(NewToolsEngineService()),
+			// Knowledge Base service - for RAG with Chromem + Eino
+			application.NewService(kbService),
 			// Machine ID service
 			application.NewService(&machineid.Service{}),
 			// Temp file service
@@ -209,6 +238,12 @@ func main() {
 	// Set app instance for audio recorder service (for event emission)
 	audioRecorderService.SetApp(app)
 
+	// Initialize Thread Management Service (needs to be before AgentChatService)
+	threadManagementService := services.NewThreadManagementService(app, dbService)
+	app.RegisterService(application.NewService(threadManagementService))
+	log.Printf("✅ Thread Management service registered")
+	log.Printf("   Supports: conversation branching, thread creation, thread switching")
+
 	// Initialize Llama Chat Service (OpenAI-compatible chat API)
 	// This service provides chat completion functionality using the library service
 	if libService != nil {
@@ -217,6 +252,50 @@ func main() {
 		log.Printf("✅ Llama Chat service registered")
 		log.Printf("   OpenAI-compatible API: ChatCompletion, ChatCompletionStream")
 		log.Printf("   Supports: temperature, top_p, top_k, max_tokens")
+
+		// Phase 3: Initialize integration bridges
+		// These bridge existing engines to Eino agent system
+		var toolsBridge *services.ToolsEngineBridge
+		var contextBridge *services.ContextEngineBridge
+
+		// Initialize tools engine bridge (from existing ToolsEngineService)
+		toolsEngineService := NewToolsEngineService()
+		if toolsEngineService.engine != nil {
+			toolsBridge = services.NewToolsEngineBridge(toolsEngineService.engine)
+			log.Printf("🔧 Tools Engine Bridge initialized")
+		}
+
+		// Initialize context engine bridge (from existing context engine)
+		contextEngine := contextengine.New(contextengine.Config{
+			SystemRole:         "",
+			EnableHistoryCount: true,
+			HistoryCount:       20, // Keep last 20 messages
+		})
+		contextBridge = services.NewContextEngineBridge(contextEngine)
+		log.Printf("🔄 Context Engine Bridge initialized")
+
+		// Initialize Agent Chat Service (Eino-based agent with RAG + DB persistence + Bridges)
+		// Phase 4: Now with Thread Management integration
+		if kbService != nil {
+			agentChatService := services.NewAgentChatService(
+				app,
+				dbService,
+				libService,
+				kbService,
+				toolsBridge,             // Phase 3: Tools integration
+				contextBridge,           // Phase 3: Context processing
+				threadManagementService, // Phase 4: Thread integration
+			)
+			app.RegisterService(application.NewService(agentChatService))
+			log.Printf("✅ Agent Chat service registered")
+			log.Printf("   Eino-based agent with RAG capabilities")
+			log.Printf("   Supports: tool calling, knowledge base search, multi-turn conversations")
+			log.Printf("   Session persistence: SQLite (messages + metadata)")
+			log.Printf("   Phase 3: Tools Engine Bridge integrated")
+			log.Printf("   Phase 3: Context Engine Bridge integrated")
+			log.Printf("   Phase 4: Thread Management integrated")
+			log.Printf("   Phase 4: Auto Topic & Thread support")
+		}
 
 		// Add cleanup on shutdown
 		app.OnShutdown(func() {
