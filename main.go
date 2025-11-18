@@ -17,6 +17,7 @@ import (
 	"github.com/kawai-network/veridium/internal/tableviewer"
 	"github.com/kawai-network/veridium/internal/tts"
 	"github.com/kawai-network/veridium/internal/whisper"
+	"github.com/kawai-network/veridium/pkg/contextengine"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/services/fileserver"
 	"github.com/wailsapp/wails/v3/pkg/services/kvstore"
@@ -148,6 +149,10 @@ func main() {
 			application.NewService(vectorSearchService),
 			// File processor service - for file parsing + document storage + RAG
 			application.NewService(fileProcessorService),
+			// Context Engine service - for message context engineering
+			application.NewService(contextengine.NewContextEngineService()),
+			// Tools Engine service - for tool/plugin management
+			application.NewService(NewToolsEngineService()),
 			// Machine ID service
 			application.NewService(&machineid.Service{}),
 			// Temp file service
@@ -212,7 +217,7 @@ func main() {
 		log.Printf("✅ Llama Chat service registered")
 		log.Printf("   OpenAI-compatible API: ChatCompletion, ChatCompletionStream")
 		log.Printf("   Supports: temperature, top_p, top_k, max_tokens")
-		
+
 		// Add cleanup on shutdown
 		app.OnShutdown(func() {
 			log.Printf("🧹 Cleaning up Llama Library service...")

@@ -7,6 +7,9 @@ import { Create as $Create } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as toolsengine$0 from "./pkg/toolsengine/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as time$0 from "../../../time/models.js";
 
 /**
@@ -205,6 +208,60 @@ export class ExecResult {
 }
 
 /**
+ * ExecuteToolRequest represents request to execute a tool
+ */
+export class ExecuteToolRequest {
+    "toolId": string;
+    "args": { [_: string]: any };
+
+    /** Creates a new ExecuteToolRequest instance. */
+    constructor($$source: Partial<ExecuteToolRequest> = {}) {
+        if (!("toolId" in $$source)) {
+            this["toolId"] = "";
+        }
+        if (!("args" in $$source)) {
+            this["args"] = {};
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ExecuteToolRequest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ExecuteToolRequest {
+        const $$createField1_0 = $$createType1;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("args" in $$parsedSource) {
+            $$parsedSource["args"] = $$createField1_0($$parsedSource["args"]);
+        }
+        return new ExecuteToolRequest($$parsedSource as Partial<ExecuteToolRequest>);
+    }
+}
+
+/**
+ * ExecuteToolResponse represents response from tool execution
+ */
+export class ExecuteToolResponse {
+    "result"?: any;
+    "error"?: string;
+
+    /** Creates a new ExecuteToolResponse instance. */
+    constructor($$source: Partial<ExecuteToolResponse> = {}) {
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ExecuteToolResponse instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ExecuteToolResponse {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ExecuteToolResponse($$parsedSource as Partial<ExecuteToolResponse>);
+    }
+}
+
+/**
  * ExtractedFile represents an extracted file from a ZIP archive
  */
 export class ExtractedFile {
@@ -327,6 +384,188 @@ export class FileMetadata {
 }
 
 /**
+ * GenerateToolsRequest represents the request for tool generation
+ */
+export class GenerateToolsRequest {
+    "toolIds": string[];
+    "model": string;
+    "provider": string;
+    "context"?: { [_: string]: any };
+
+    /** Creates a new GenerateToolsRequest instance. */
+    constructor($$source: Partial<GenerateToolsRequest> = {}) {
+        if (!("toolIds" in $$source)) {
+            this["toolIds"] = [];
+        }
+        if (!("model" in $$source)) {
+            this["model"] = "";
+        }
+        if (!("provider" in $$source)) {
+            this["provider"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GenerateToolsRequest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GenerateToolsRequest {
+        const $$createField0_0 = $$createType6;
+        const $$createField3_0 = $$createType1;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("toolIds" in $$parsedSource) {
+            $$parsedSource["toolIds"] = $$createField0_0($$parsedSource["toolIds"]);
+        }
+        if ("context" in $$parsedSource) {
+            $$parsedSource["context"] = $$createField3_0($$parsedSource["context"]);
+        }
+        return new GenerateToolsRequest($$parsedSource as Partial<GenerateToolsRequest>);
+    }
+}
+
+/**
+ * GenerateToolsResponse represents the response from tool generation
+ */
+export class GenerateToolsResponse {
+    "tools"?: toolsengine$0.ChatCompletionTool[];
+    "error"?: string;
+
+    /** Creates a new GenerateToolsResponse instance. */
+    constructor($$source: Partial<GenerateToolsResponse> = {}) {
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GenerateToolsResponse instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GenerateToolsResponse {
+        const $$createField0_0 = $$createType8;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("tools" in $$parsedSource) {
+            $$parsedSource["tools"] = $$createField0_0($$parsedSource["tools"]);
+        }
+        return new GenerateToolsResponse($$parsedSource as Partial<GenerateToolsResponse>);
+    }
+}
+
+/**
+ * GetAvailableToolsResponse represents response from getting available tools
+ */
+export class GetAvailableToolsResponse {
+    "tools": string[];
+    "error"?: string;
+
+    /** Creates a new GetAvailableToolsResponse instance. */
+    constructor($$source: Partial<GetAvailableToolsResponse> = {}) {
+        if (!("tools" in $$source)) {
+            this["tools"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetAvailableToolsResponse instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetAvailableToolsResponse {
+        const $$createField0_0 = $$createType6;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("tools" in $$parsedSource) {
+            $$parsedSource["tools"] = $$createField0_0($$parsedSource["tools"]);
+        }
+        return new GetAvailableToolsResponse($$parsedSource as Partial<GetAvailableToolsResponse>);
+    }
+}
+
+/**
+ * GetToolStatsResponse represents response from getting tool stats
+ */
+export class GetToolStatsResponse {
+    "totalTools": number;
+    "enabledTools": number;
+    "toolIds": string[];
+    "error"?: string;
+
+    /** Creates a new GetToolStatsResponse instance. */
+    constructor($$source: Partial<GetToolStatsResponse> = {}) {
+        if (!("totalTools" in $$source)) {
+            this["totalTools"] = 0;
+        }
+        if (!("enabledTools" in $$source)) {
+            this["enabledTools"] = 0;
+        }
+        if (!("toolIds" in $$source)) {
+            this["toolIds"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetToolStatsResponse instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetToolStatsResponse {
+        const $$createField2_0 = $$createType6;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("toolIds" in $$parsedSource) {
+            $$parsedSource["toolIds"] = $$createField2_0($$parsedSource["toolIds"]);
+        }
+        return new GetToolStatsResponse($$parsedSource as Partial<GetToolStatsResponse>);
+    }
+}
+
+/**
+ * HasToolRequest represents request to check if tool exists
+ */
+export class HasToolRequest {
+    "toolId": string;
+
+    /** Creates a new HasToolRequest instance. */
+    constructor($$source: Partial<HasToolRequest> = {}) {
+        if (!("toolId" in $$source)) {
+            this["toolId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new HasToolRequest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): HasToolRequest {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new HasToolRequest($$parsedSource as Partial<HasToolRequest>);
+    }
+}
+
+/**
+ * HasToolResponse represents response from tool check
+ */
+export class HasToolResponse {
+    "hasTool": boolean;
+    "error"?: string;
+
+    /** Creates a new HasToolResponse instance. */
+    constructor($$source: Partial<HasToolResponse> = {}) {
+        if (!("hasTool" in $$source)) {
+            this["hasTool"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new HasToolResponse instance from a string or object.
+     */
+    static createFrom($$source: any = {}): HasToolResponse {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new HasToolResponse($$parsedSource as Partial<HasToolResponse>);
+    }
+}
+
+/**
  * NetworkInterface represents network interface information (frontend compatible)
  */
 export class NetworkInterface {
@@ -414,3 +653,6 @@ const $$createType2 = $Create.Map($Create.Any, $Create.Any);
 const $$createType3 = FileMetadata.createFrom;
 const $$createType4 = DocumentPage.createFrom;
 const $$createType5 = $Create.Array($$createType4);
+const $$createType6 = $Create.Array($Create.Any);
+const $$createType7 = toolsengine$0.ChatCompletionTool.createFrom;
+const $$createType8 = $Create.Array($$createType7);

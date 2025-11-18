@@ -27,8 +27,11 @@ import { createTraceHeader, getTraceId } from '@/utils/trace';
 import { createHeaderWithAuth } from '../_auth';
 import { API_ENDPOINTS } from '../_url';
 import { initializeWithClientStore } from './clientModelRuntime';
-import { contextEngineering } from './contextEngineering';
+import { contextEngineeringBackend } from './contextEngineeringBackend';
 import { findDeploymentName, resolveRuntimeProvider } from './helper';
+
+// Feature flag: Use backend context engineering instead of frontend
+// Set to true to use Go backend, false to use TypeScript frontend
 import { FetchOptions } from './types';
 
 interface GetChatCompletionPayload extends Partial<Omit<ChatStreamPayload, 'messages'>> {
@@ -108,7 +111,7 @@ class ChatService {
     const chatConfig = agentChatConfigSelectors.currentChatConfig(agentStoreState);
 
     // Apply context engineering with preprocessing configuration
-    const oaiMessages = await contextEngineering({
+    const oaiMessages = await contextEngineeringBackend({
       enableHistoryCount: agentChatConfigSelectors.enableHistoryCount(agentStoreState),
       // include user messages
       historyCount: agentChatConfigSelectors.historyCount(agentStoreState) + 2,
@@ -353,7 +356,7 @@ class ChatService {
     onLoadingChange?.(true);
 
     try {
-      const oaiMessages = await contextEngineering({
+      const oaiMessages = await contextEngineeringBackend({
         messages: params.messages as any,
         model: params.model!,
         provider: params.provider!,

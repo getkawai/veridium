@@ -10,6 +10,7 @@ import * as NodeFsService from "./nodefsservice.js";
 import * as NodeOsService from "./nodeosservice.js";
 import * as NodePathService from "./nodepathservice.js";
 import * as TempFileService from "./tempfileservice.js";
+import * as ToolsEngineService from "./toolsengineservice.js";
 import * as ZipService from "./zipservice.js";
 export {
     FileProcessorService,
@@ -21,6 +22,7 @@ export {
     NodeOsService,
     NodePathService,
     TempFileService,
+    ToolsEngineService,
     ZipService
 };
 
@@ -30,9 +32,17 @@ export {
     DocumentPage,
     ExecOptions,
     ExecResult,
+    ExecuteToolRequest,
+    ExecuteToolResponse,
     ExtractedFile,
     FileDocument,
     FileMetadata,
+    GenerateToolsRequest,
+    GenerateToolsResponse,
+    GetAvailableToolsResponse,
+    GetToolStatsResponse,
+    HasToolRequest,
+    HasToolResponse,
     NetworkInterface,
     UserInfoResult
 } from "./models.js";

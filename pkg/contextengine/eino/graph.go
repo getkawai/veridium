@@ -62,8 +62,26 @@ func (gb *GraphBuilder) BuildContextEngineeringGraph() (*compose.Workflow[Messag
 	}
 
 	// 0. Group Message Flatten (MUST be first, to normalize group messages)
+	// Special handling for first node - it receives MessageInput from START
 	if processors.GroupMessageFlatten != nil {
-		wf.AddLambdaNode("groupFlatten", wrapLambda(processors.GroupMessageFlatten)).AddInput(compose.START)
+		firstNodeLambda := compose.InvokableLambda(func(ctx context.Context, input MessageInput) (MessageOutput, error) {
+			// Create a temporary workflow to invoke the lambda
+			tempWf := compose.NewWorkflow[[]*schema.Message, []*schema.Message]()
+			tempWf.AddLambdaNode("temp", processors.GroupMessageFlatten).AddInput(compose.START)
+			tempWf.End().AddInput("temp")
+
+			compiled, err := tempWf.Compile(ctx)
+			if err != nil {
+				return MessageOutput{}, err
+			}
+
+			result, err := compiled.Invoke(ctx, input.Messages)
+			if err != nil {
+				return MessageOutput{}, err
+			}
+			return MessageOutput{Messages: result}, nil
+		})
+		wf.AddLambdaNode("groupFlatten", firstNodeLambda).AddInput(compose.START)
 	} else {
 		// Passthrough wrapper
 		passthroughLambda := compose.InvokableLambda(func(ctx context.Context, input MessageInput) (MessageOutput, error) {
