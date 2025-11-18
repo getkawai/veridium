@@ -23,29 +23,35 @@
  * - Error display
  */
 
-import { MESSAGE_CANCEL_FLAT } from '@/const';
+import { MESSAGE_CANCEL_FLAT, isServerMode } from '@/const';
 import {
   CreateMessageParams,
   SendMessageParams,
   TraceEventType,
+  UIChatMessage,
 } from '@/types';
 import { StateCreator } from 'zustand/vanilla';
 
 import { backendAgentChat } from '@/services/backendAgentChat';
-import type { ChatResponse } from '@@/github.com/kawai-network/veridium/internal/services/models';
-
-// Fallback user ID (same as used by userService internally)
-const FALLBACK_USER_ID = 'DEFAULT_LOBE_CHAT_USER';
-
+import type { ChatRequest, ChatResponse } from '@/types/agent-chat';
+import { userService } from '@/services/user';
+import { useAgentStore } from '@/store/agent';
+import { agentChatConfigSelectors } from '@/store/agent/selectors';
+import { getAgentStoreState } from '@/store/agent/store';
 import { ChatStore } from '@/store/chat/store';
 import { useSessionStore } from '@/store/session';
-import { setNamespace } from '@/utils/storeDebug';
+import { Action, setNamespace } from '@/utils/storeDebug';
 
 import { chatSelectors } from '../../../selectors';
 
 const n = setNamespace('ai');
 
-// Removed: ProcessMessageParams (no longer needed after refactoring)
+/**
+ * Simplified process params (analytics only)
+ */
+interface ProcessMessageParams {
+  traceId?: string;
+}
 
 export interface AIGenerateAction {
   /**
@@ -83,6 +89,8 @@ export const generateAIChat: StateCreator<
    * Gets parent user message, deletes assistant message, and resends
    */
   delAndRegenerateMessage: async (id) => {
+    const traceId = chatSelectors.getTraceIdByMessageId(id)(get());
+    
     // Find parent user message
     const messages = chatSelectors.activeBaseChats(get());
     const assistantMsgIndex = messages.findIndex((m) => m.id === id);
@@ -116,6 +124,8 @@ export const generateAIChat: StateCreator<
    * Similar to delAndRegenerate but keeps the original
    */
   regenerateMessage: async (id) => {
+    const traceId = chatSelectors.getTraceIdByMessageId(id)(get());
+
     // Find parent user message
     const messages = chatSelectors.activeBaseChats(get());
     const assistantMsgIndex = messages.findIndex((m) => m.id === id);
@@ -158,7 +168,7 @@ export const generateAIChat: StateCreator<
    * Frontend only handles UI updates
    */
   sendMessage: async ({ message, files, onlyAddUserMessage, isWelcomeQuestion }) => {
-    const { activeTopicId, activeId, activeThreadId } = get();
+    const { activeTopicId, activeId, activeThreadId, sendMessageInServer } = get();
 
     console.debug('[generateAIChat.sendMessage] Initial state:', {
       activeId,
@@ -176,8 +186,10 @@ export const generateAIChat: StateCreator<
     // If message is empty or no files, then stop
     if (!message && !hasFile) return;
 
-    // Note: Server mode routing removed - all logic now in backend
-    
+    // Router to server mode send message (if applicable)
+    if (isServerMode)
+      return sendMessageInServer({ message, files, onlyAddUserMessage, isWelcomeQuestion });
+
     set({ isCreatingMessage: true }, false, n('creatingMessage/start'));
 
     // If only adding user message (no AI response needed)
@@ -191,14 +203,14 @@ export const generateAIChat: StateCreator<
         threadId: activeThreadId,
       };
 
-      await get().internal_createMessage(newMessage);
+      const id = await get().internal_createMessage(newMessage);
       set({ isCreatingMessage: false }, false, n('creatingMessage/stop'));
       return;
     }
 
     try {
-      // Get user ID (use fallback constant)
-      const userId = FALLBACK_USER_ID;
+      // Get user ID
+      const userId = userService.userId;
 
       // Get enabled tools (empty for now - can be added later via agent config)
       const tools: string[] = [];
@@ -277,14 +289,13 @@ export const generateAIChat: StateCreator<
    * Aborts the ongoing message generation request
    */
   stopGenerateMessage: () => {
-    const { chatLoadingIdsAbortController } = get();
+    const { chatLoadingIdsAbortController, internal_toggleChatLoading } = get();
 
     if (!chatLoadingIdsAbortController) return;
 
     chatLoadingIdsAbortController.abort(MESSAGE_CANCEL_FLAT);
 
-    // Update loading state
-    set({ isCreatingMessage: false }, false, n('stopGenerateMessage'));
+    internal_toggleChatLoading(false, undefined, n('stopGenerateMessage') as string);
   },
 
   /**

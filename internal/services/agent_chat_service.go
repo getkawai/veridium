@@ -50,7 +50,7 @@ type AgentChatService struct {
 	// Phase 3: Integration bridges
 	toolsBridge   *ToolsEngineBridge   // Bridge to existing tools engine
 	contextBridge *ContextEngineBridge // Bridge to existing context engine
-	
+
 	// Phase 4: Thread management
 	threadService *ThreadManagementService // Thread management service
 
@@ -71,7 +71,7 @@ type AgentSession struct {
 	CreatedAt       int64
 	UpdatedAt       int64
 	DBSession       *db.Session // Link to DB session
-	
+
 	// Phase 4: Topic & Thread support
 	TopicID  string // Current topic ID (may be auto-created)
 	ThreadID string // Current thread ID (for branching)
@@ -82,15 +82,15 @@ type ChatRequest struct {
 	// Identity
 	SessionID string `json:"session_id"`
 	UserID    string `json:"user_id"`
-	
+
 	// Message content
 	Message string `json:"message"`
-	
+
 	// Context (Phase 4: Topic & Thread support)
 	TopicID  string `json:"topic_id,omitempty"`  // Current topic (may be auto-created)
 	ThreadID string `json:"thread_id,omitempty"` // Current thread (for branching)
 	ParentID string `json:"parent_id,omitempty"` // Parent message (for threading)
-	
+
 	// Configuration
 	KnowledgeBaseID string         `json:"knowledge_base_id,omitempty"`
 	Tools           []string       `json:"tools,omitempty"`
@@ -107,14 +107,14 @@ type ChatResponse struct {
 	SessionID string `json:"session_id"`          // Session ID
 	TopicID   string `json:"topic_id,omitempty"`  // Topic ID (may be auto-created)
 	ThreadID  string `json:"thread_id,omitempty"` // Thread ID (if in thread)
-	
+
 	// Content
 	Message      string             `json:"message"`
 	ToolCalls    []schema.ToolCall  `json:"tool_calls,omitempty"`
 	Sources      []*schema.Document `json:"sources,omitempty"`
 	FinishReason string             `json:"finish_reason"`
 	Usage        *schema.TokenUsage `json:"usage,omitempty"`
-	
+
 	// Metadata (Phase 4)
 	CreatedAt int64  `json:"created_at"`      // Timestamp
 	Error     string `json:"error,omitempty"` // Error if any
@@ -410,9 +410,70 @@ func (s *AgentChatService) getOrCreateSession(ctx context.Context, req ChatReque
 	// 3. Session doesn't exist - create new one
 	log.Printf("🆕 Creating new session: %s", req.SessionID)
 
-	// Create session in DB
+	// Create session in DB (handle race condition with UNIQUE constraint)
 	dbSession, err = s.createSessionInDB(ctx, req.SessionID, req.UserID, req.KnowledgeBaseID)
 	if err != nil {
+		// Check if error is due to UNIQUE constraint (race condition)
+		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			// Another process created the session - try loading again
+			log.Printf("⚠️  Race condition detected, retrying load from DB...")
+			dbSession, dbMessages, err := s.loadSessionFromDB(ctx, req.SessionID, req.UserID)
+			if err != nil {
+				return nil, fmt.Errorf("failed to load session after race condition: %w", err)
+			}
+
+			// Convert DB messages to Eino messages
+			einoMessages := make([]*schema.Message, 0, len(dbMessages))
+			for _, dbMsg := range dbMessages {
+				einoMsg, err := convertDBMessageToEino(&dbMsg)
+				if err == nil {
+					einoMessages = append(einoMessages, einoMsg)
+				}
+			}
+
+			// Create session with history
+			session := &AgentSession{
+				SessionID:       req.SessionID,
+				UserID:          req.UserID,
+				Messages:        einoMessages,
+				KnowledgeBaseID: req.KnowledgeBaseID,
+				Context:         req.Context,
+				CreatedAt:       dbSession.CreatedAt,
+				UpdatedAt:       dbSession.UpdatedAt,
+				DBSession:       dbSession,
+			}
+
+			// Collect tools
+			var tools []tool.BaseTool
+			if req.KnowledgeBaseID != "" {
+				if kbTool, err := s.createKBSearchTool(ctx, req.KnowledgeBaseID, req.UserID); err == nil {
+					tools = append(tools, kbTool)
+				}
+			}
+
+			// Phase 3: Add tools from tools engine bridge
+			if s.toolsBridge != nil && len(req.Tools) > 0 {
+				bridgeTools := s.toolsBridge.GetToolsForAgent(req.Tools)
+				tools = append(tools, bridgeTools...)
+				log.Printf("🔧 Added %d tools from tools engine after race recovery", len(bridgeTools))
+			}
+
+			session.Tools = tools
+
+			// Create agent with history
+			agent, err := s.createAgent(ctx, session)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create agent after race recovery: %w", err)
+			}
+
+			session.Agent = agent
+			s.sessions[req.SessionID] = session
+
+			log.Printf("✅ Recovered from race condition: %s", req.SessionID)
+			return session, nil
+		}
+
+		// Other error - fail
 		return nil, fmt.Errorf("failed to create session in DB: %w", err)
 	}
 
@@ -934,7 +995,7 @@ func (s *AgentChatService) createSessionInDB(ctx context.Context, sessionID, use
 // Phase 4: Now accepts topicID and threadID for proper message linking
 func (s *AgentChatService) saveMessageToDB(ctx context.Context, msg *schema.Message, sessionID, userID, topicID, threadID string) (string, error) {
 	params := convertEinoMessageToDB(msg, sessionID, userID)
-	
+
 	// Phase 4: Add topic and thread IDs if provided
 	if topicID != "" {
 		params.TopicID = sql.NullString{String: topicID, Valid: true}
