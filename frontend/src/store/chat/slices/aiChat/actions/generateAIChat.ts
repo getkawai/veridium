@@ -151,9 +151,13 @@ export const generateAIChat: StateCreator<
         await refreshTopic();
       }
 
-      // Step 5: Remove temp messages and refresh from DB
+      // Step 5: Update mapKey if topic was created
+      const finalTopicId = response.topic_id || activeTopicId;
+      const finalMapKey = messageMapKey(activeId, finalTopicId);
+
+      // Step 6: Remove temp messages and refresh from DB
       set(produce((state: ChatStore) => {
-        state.messagesMap[mapKey] = state.messagesMap[mapKey].filter(
+        state.messagesMap[finalMapKey] = (state.messagesMap[finalMapKey] || []).filter(
           (msg) => !msg.id.startsWith('temp-')
         );
       }), false, n('optimistic/cleanup'));
