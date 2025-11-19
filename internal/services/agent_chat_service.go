@@ -415,11 +415,28 @@ func (s *AgentChatService) getOrCreateSession(ctx context.Context, req ChatReque
 	if err != nil {
 		// Check if error is due to UNIQUE constraint (race condition)
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
-			// Another process created the session - try loading again
+			// Another process created the session - retry loading with exponential backoff
 			log.Printf("⚠️  Race condition detected, retrying load from DB...")
-			dbSession, dbMessages, err := s.loadSessionFromDB(ctx, req.SessionID, req.UserID)
+
+			var dbMessages []db.Message
+			maxRetries := 3
+			for i := 0; i < maxRetries; i++ {
+				// Wait a bit for the other process to commit
+				time.Sleep(time.Duration(10*(i+1)) * time.Millisecond)
+
+				dbSession, dbMessages, err = s.loadSessionFromDB(ctx, req.SessionID, req.UserID)
+				if err == nil {
+					log.Printf("✅ Successfully loaded session after %d retries", i+1)
+					break
+				}
+
+				if i < maxRetries-1 {
+					log.Printf("⏳ Retry %d/%d: session not yet available, waiting...", i+1, maxRetries)
+				}
+			}
+
 			if err != nil {
-				return nil, fmt.Errorf("failed to load session after race condition: %w", err)
+				return nil, fmt.Errorf("failed to load session after race condition (tried %d times): %w", maxRetries, err)
 			}
 
 			// Convert DB messages to Eino messages
@@ -922,19 +939,20 @@ func convertEinoMessageToDB(einoMsg *schema.Message, sessionID, userID string) d
 
 // loadSessionFromDB loads a session from database
 func (s *AgentChatService) loadSessionFromDB(ctx context.Context, sessionID, userID string) (*db.Session, []db.Message, error) {
-	// Load session metadata
-	dbSession, err := s.db.Queries().GetSession(ctx, db.GetSessionParams{
+	// Load session metadata (sessionID can be either ID or slug)
+	dbSession, err := s.db.Queries().GetSessionByIdOrSlug(ctx, db.GetSessionByIdOrSlugParams{
 		ID:     sessionID,
+		Slug:   sessionID,
 		UserID: userID,
 	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("session not found in DB: %w", err)
 	}
 
-	// Load message history
+	// Load message history (use actual session ID from DB, not slug)
 	dbMessages, err := s.db.Queries().ListMessagesBySession(ctx, db.ListMessagesBySessionParams{
 		UserID:    userID,
-		SessionID: sql.NullString{String: sessionID, Valid: true},
+		SessionID: sql.NullString{String: dbSession.ID, Valid: true},
 		Limit:     1000, // Load up to 1000 messages
 		Offset:    0,
 	})

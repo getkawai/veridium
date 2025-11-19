@@ -356,12 +356,9 @@ class ChatService {
     onLoadingChange?.(true);
 
     try {
-      const oaiMessages = await contextEngineeringBackend({
-        messages: params.messages as any,
-        model: params.model!,
-        provider: params.provider!,
-        tools: params.plugins,
-      });
+      // NOTE: Context engineering now handled by AgentChatService backend
+      // This legacy code path is deprecated
+      const oaiMessages = params.messages as OpenAIChatMessage[];
       // Use simple tools engine without complex search logic
       const toolsEngine = createToolsEngine();
       const tools = toolsEngine.generateTools({
