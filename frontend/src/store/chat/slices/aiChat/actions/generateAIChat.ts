@@ -85,14 +85,6 @@ export const aiChatAction: StateCreator<
 
     const threadId = activeThreadId;
 
-    console.log('[BigBang] sendMessage:', {
-      activeId,
-      activeTopicId,
-      threadId,
-      messageLength: message?.length,
-      filesCount: files?.length || 0,
-    });
-
     // ================================================================
     // MAIN FLOW: User Message + AI Response
     // ================================================================
@@ -141,8 +133,6 @@ export const aiChatAction: StateCreator<
 
     try {
       // Step 3: Call backend (handles EVERYTHING)
-      console.log('[BigBang] Calling backend...');
-      
       const response = await backendAgentChat.sendMessage({
         session_id: activeId,
         user_id: 'default-user', // TODO: Get from user service
@@ -155,20 +145,9 @@ export const aiChatAction: StateCreator<
         max_tokens: 2000,
       });
 
-      console.log('[BigBang] Backend response:', {
-        messageId: response.message_id,
-        topicId: response.topic_id,
-        threadId: response.thread_id,
-        hasToolCalls: (response.tool_calls?.length || 0) > 0,
-        hasSources: (response.sources?.length || 0) > 0,
-      });
-
       // Step 4: Handle topic creation
       if (response.topic_id && !activeTopicId) {
-        console.log('[BigBang] Topic created:', response.topic_id);
         set({ activeTopicId: response.topic_id }, false, n('topic/created'));
-        
-        // Refresh topic list
         await refreshTopic();
       }
 
@@ -181,8 +160,6 @@ export const aiChatAction: StateCreator<
 
       // Refresh messages from database (gets real IDs and data)
       await refreshMessages();
-
-      console.log('[BigBang] Success!');
 
     } catch (error) {
       console.error('[BigBang] Failed:', error);
