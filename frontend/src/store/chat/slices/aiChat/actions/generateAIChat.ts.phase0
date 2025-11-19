@@ -32,10 +32,6 @@ import { Action, setNamespace } from '@/utils/storeDebug';
 
 import { chatSelectors, topicSelectors } from '../../../selectors';
 
-// Phase 1: Import feature flags and backend service
-import { FEATURE_FLAGS, logMigrationEvent, isBackendAvailable } from '@/config/features';
-import { backendAgentChat } from '@/services/backendAgentChat';
-
 const n = setNamespace('ai');
 
 interface ProcessMessageParams {
@@ -190,99 +186,6 @@ export const generateAIChat: StateCreator<
     // router to server mode send message
     if (isServerMode)
       return sendMessageInServer({ message, files, onlyAddUserMessage, isWelcomeQuestion });
-
-    // ================================================================
-    // Phase 1: BACKEND PATH (Feature Flag Controlled)
-    // ================================================================
-    // When USE_BACKEND_CHAT is enabled, try backend first
-    // Falls back to original frontend logic on error
-    // This allows safe, gradual migration with instant rollback
-    // ================================================================
-    if (FEATURE_FLAGS.USE_BACKEND_CHAT && isBackendAvailable()) {
-      logMigrationEvent('sendMessage: Attempting BACKEND path', {
-        activeId,
-        activeTopicId,
-        activeThreadId,
-        messagePreview: message?.substring(0, 50),
-      });
-
-      try {
-        set({ isCreatingMessage: true }, false, n('creatingMessage/start/backend'));
-
-        // Call backend agent chat service
-        const response = await backendAgentChat.sendMessage({
-          session_id: activeId,
-          user_id: 'default-user', // TODO: Get from userService when available
-          message: message,
-          topic_id: activeTopicId || undefined,
-          thread_id: activeThreadId || undefined,
-          tools: [], // TODO: Phase 3 - Get enabled tools from agent store
-          knowledge_base_id: undefined, // TODO: Phase 3 - Get from knowledge base state
-          temperature: 0.7, // TODO: Get from agent config
-          max_tokens: 2000, // TODO: Get from agent config
-        });
-
-        logMigrationEvent('sendMessage: Backend SUCCESS', {
-          messageId: response.message_id,
-          topicId: response.topic_id,
-          threadId: response.thread_id,
-          hasToolCalls: response.tool_calls && response.tool_calls.length > 0,
-          hasSources: response.sources && response.sources.length > 0,
-        });
-
-        // Phase 2 FIX: Update frontend state SYNCHRONOUSLY before refresh
-        // Handle topic creation if backend created a new topic
-        const topicWasCreated = response.topic_id && !activeTopicId;
-        if (topicWasCreated) {
-          logMigrationEvent('sendMessage: Backend created topic, switching to it', {
-            topicId: response.topic_id,
-            previousTopicId: activeTopicId,
-          });
-          
-          // Switch to new topic FIRST
-          set({ activeTopicId: response.topic_id }, false, n('switchTopic/backend'));
-          
-          // Refresh topic list to show new topic in sidebar
-          await get().refreshTopic();
-        }
-
-        // Refresh messages from database
-        // Now uses the updated activeTopicId
-        await get().refreshMessages();
-
-        set({ isCreatingMessage: false }, false, n('creatingMessage/stop/backend'));
-
-        logMigrationEvent('sendMessage: Backend path completed successfully', {
-          finalTopicId: get().activeTopicId,
-          topicSwitched: topicWasCreated,
-        });
-        return; // Success! Exit early, skip original frontend logic
-      } catch (error) {
-        // Backend failed - log and fall through to original frontend logic
-        console.error('[Migration] Backend chat failed, falling back to frontend:', error);
-        logMigrationEvent('sendMessage: Backend FAILED, falling back to frontend', {
-          error: error instanceof Error ? error.message : String(error),
-        });
-
-        // Reset loading state before falling back
-        set({ isCreatingMessage: false }, false, n('creatingMessage/error/backend'));
-
-        // Fall through to original frontend logic below
-        // This ensures users always have a working chat even if backend fails
-      }
-    } else if (FEATURE_FLAGS.USE_BACKEND_CHAT && !isBackendAvailable()) {
-      console.warn('[Migration] Backend chat enabled but Wails bindings not available');
-      logMigrationEvent('sendMessage: Backend unavailable, using frontend');
-    }
-
-    // ================================================================
-    // ORIGINAL FRONTEND LOGIC (Always Available as Fallback)
-    // ================================================================
-    // This is the complete original implementation
-    // Kept intact for safety and instant rollback capability
-    // When USE_BACKEND_CHAT is false, this runs by default
-    // When backend fails, this provides automatic fallback
-    // ================================================================
 
     set({ isCreatingMessage: true }, false, n('creatingMessage/start'));
 

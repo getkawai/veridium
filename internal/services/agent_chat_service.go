@@ -280,16 +280,27 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*ChatResp
 	}
 	session.Messages = append(session.Messages, assistantMsg)
 
-	// Phase 4: Generate topic title after first response if not already created
-	if currentTopicID == "" && len(session.Messages) == 2 {
-		// Topic was not created before - create it now with the actual conversation
-		topicID, err := s.createTopicForSessionWithTitle(ctx, session.SessionID, session.UserID, session.Messages)
-		if err != nil {
-			log.Printf("⚠️  Warning: Failed to create topic with title: %v", err)
+	// Phase 4: Generate topic title after first response
+	// If we already created a placeholder topic, update it with LLM-generated title
+	if len(session.Messages) == 2 {
+		if currentTopicID != "" {
+			// Update existing topic with LLM-generated title
+			err := s.updateTopicTitle(ctx, currentTopicID, session.UserID, session.Messages)
+			if err != nil {
+				log.Printf("⚠️  Warning: Failed to update topic title: %v", err)
+			} else {
+				log.Printf("📝 Updated topic %s with auto-generated title", currentTopicID)
+			}
 		} else {
-			currentTopicID = topicID
-			session.TopicID = topicID
-			log.Printf("📝 Created topic with auto-generated title: %s", topicID)
+			// Topic was not created before - create it now with the actual conversation
+			topicID, err := s.createTopicForSessionWithTitle(ctx, session.SessionID, session.UserID, session.Messages)
+			if err != nil {
+				log.Printf("⚠️  Warning: Failed to create topic with title: %v", err)
+			} else {
+				currentTopicID = topicID
+				session.TopicID = topicID
+				log.Printf("📝 Created topic with auto-generated title: %s", topicID)
+			}
 		}
 	}
 
@@ -750,6 +761,35 @@ func (s *AgentChatService) createTopicForSessionSync(ctx context.Context, sessio
 	}
 
 	return topicID, nil
+}
+
+// updateTopicTitle updates an existing topic with LLM-generated title
+// Phase 4 FIX: Used to update placeholder topic with meaningful title after first response
+func (s *AgentChatService) updateTopicTitle(ctx context.Context, topicID, userID string, messages []*schema.Message) error {
+	// Generate title (default locale: en-US)
+	title, err := s.generateTopicTitle(ctx, messages, "en-US")
+	if err != nil {
+		log.Printf("⚠️  Warning: Failed to generate topic title: %v", err)
+		title = "New Conversation"
+	}
+
+	// Update topic title in database
+	now := time.Now().UnixMilli()
+	_, err = s.db.Queries().UpdateTopic(ctx, db.UpdateTopicParams{
+		Title:          sql.NullString{String: title, Valid: true},
+		HistorySummary: sql.NullString{}, // Keep existing
+		Metadata:       sql.NullString{}, // Keep existing
+		UpdatedAt:      now,
+		ID:             topicID,
+		UserID:         userID,
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to update topic title: %w", err)
+	}
+
+	log.Printf("✅ Updated topic %s with title: %s", topicID, title)
+	return nil
 }
 
 // createTopicForSessionWithTitle creates a topic with LLM-generated title and returns topicID
