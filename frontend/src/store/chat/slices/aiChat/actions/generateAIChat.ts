@@ -21,11 +21,11 @@
  * - Optimistic UI (temp messages)
  */
 
-import { LOADING_FLAT, MESSAGE_CANCEL_FLAT } from '@/const';
+import { LOADING_FLAT } from '@/const';
 import {
-  CreateMessageParams,
   SendMessageParams,
   UIChatMessage,
+  ChatErrorType,
 } from '@/types';
 import { produce } from 'immer';
 import { StateCreator } from 'zustand/vanilla';
@@ -62,15 +62,14 @@ export const aiChatAction: StateCreator<
    * 4. Update UI with real data
    * 5. Refresh from DB
    */
-  sendMessage: async ({ message, onlyAddUserMessage, files, threadId: customThreadId }) => {
+  sendMessage: async (params) => {
+    const { message, files } = params;
     const {
       activeId,
       activeTopicId,
       activeThreadId,
       refreshMessages,
       refreshTopic,
-      internal_createTmpMessage,
-      internal_toggleMessageLoading,
     } = get();
 
     // Validation
@@ -84,7 +83,7 @@ export const aiChatAction: StateCreator<
       return;
     }
 
-    const threadId = customThreadId || activeThreadId;
+    const threadId = activeThreadId;
 
     console.log('[BigBang] sendMessage:', {
       activeId,
@@ -94,44 +93,11 @@ export const aiChatAction: StateCreator<
       filesCount: files?.length || 0,
     });
 
-    // Handle "only add user message" mode (for editing, etc)
-    if (onlyAddUserMessage) {
-      const tempId = internal_createTmpMessage({
-        content: message,
-        role: 'user',
-        sessionId: activeId,
-        topicId: activeTopicId,
-        threadId,
-        files,
-      });
-      
-      set({ isCreatingMessage: true, abortController: new AbortController() }, false, n('creatingMessage/start'));
-      
-      // Save to backend
-      try {
-        await backendAgentChat.sendMessage({
-          session_id: activeId,
-          user_id: 'default-user', // TODO: Get from user service
-          message: message,
-          topic_id: activeTopicId,
-          thread_id: threadId,
-        });
-        
-        await refreshMessages();
-      } catch (error) {
-        console.error('[BigBang] Failed to save user message:', error);
-      } finally {
-        internal_toggleMessageLoading(false, tempId);
-        set({ isCreatingMessage: false }, false, n('creatingMessage/stop'));
-      }
-      return;
-    }
-
     // ================================================================
     // MAIN FLOW: User Message + AI Response
     // ================================================================
 
-    set({ isCreatingMessage: true, abortController: new AbortController() }, false, n('creatingMessage/start'));
+    set({ isCreatingMessage: true }, false, n('creatingMessage/start'));
 
     // Step 1: Create optimistic user message
     const mapKey = messageMapKey(activeId, activeTopicId);
@@ -148,9 +114,10 @@ export const aiChatAction: StateCreator<
         sessionId: activeId,
         topicId: activeTopicId,
         threadId,
-        files,
+        files: files?.map(f => f.id),
         createdAt: Date.now(),
         updatedAt: Date.now(),
+        meta: {},
       } as UIChatMessage);
     }), false, n('optimistic/userMessage'));
 
@@ -168,6 +135,7 @@ export const aiChatAction: StateCreator<
         createdAt: Date.now(),
         updatedAt: Date.now(),
         loading: true,
+        meta: {},
       } as UIChatMessage);
     }), false, n('optimistic/assistantMessage'));
 
@@ -191,8 +159,8 @@ export const aiChatAction: StateCreator<
         messageId: response.message_id,
         topicId: response.topic_id,
         threadId: response.thread_id,
-        hasToolCalls: response.tool_calls?.length > 0,
-        hasSources: response.sources?.length > 0,
+        hasToolCalls: (response.tool_calls?.length || 0) > 0,
+        hasSources: (response.sources?.length || 0) > 0,
       });
 
       // Step 4: Handle topic creation
@@ -235,16 +203,17 @@ export const aiChatAction: StateCreator<
           sessionId: activeId,
           topicId: activeTopicId,
           error: {
-            type: 'ChatError',
+            type: ChatErrorType.CreateMessageError,
             message: error instanceof Error ? error.message : 'Unknown error',
           },
           createdAt: Date.now(),
           updatedAt: Date.now(),
+          meta: {},
         } as UIChatMessage);
       }), false, n('error/show'));
 
     } finally {
-      set({ isCreatingMessage: false, abortController: undefined }, false, n('creatingMessage/stop'));
+      set({ isCreatingMessage: false }, false, n('creatingMessage/stop'));
     }
   },
 
@@ -257,8 +226,8 @@ export const aiChatAction: StateCreator<
     const message = chatSelectors.getMessageById(id)(get());
     if (!message) return;
 
-    // Find parent user message
-    const messages = chatSelectors.currentChats(get());
+    // Find parent user message  
+    const messages = chatSelectors.activeBaseChats(get());
     const messageIndex = messages.findIndex((m) => m.id === id);
     
     if (messageIndex > 0) {
@@ -266,7 +235,6 @@ export const aiChatAction: StateCreator<
       if (userMessage.role === 'user') {
         await get().sendMessage({
           message: userMessage.content,
-          threadId: userMessage.threadId,
         });
       }
     }
@@ -283,14 +251,10 @@ export const aiChatAction: StateCreator<
   /**
    * Stop message generation
    * 
-   * Abort the current backend request
+   * Stop ongoing chat generation
    */
   stopGenerateMessage: () => {
-    const { abortController } = get();
-    if (abortController) {
-      abortController.abort();
-      set({ isCreatingMessage: false, abortController: undefined }, false, n('generating/stop'));
-    }
+    set({ isCreatingMessage: false }, false, n('generating/stop'));
   },
 });
 
