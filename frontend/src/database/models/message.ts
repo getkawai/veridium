@@ -611,8 +611,8 @@ export class MessageModel {
         id,
         role: normalizedMessage.role,
         content: toNullString(normalizedMessage.content as any),
-        reasoning: toNullString((normalizedMessage as any).reasoning as any),
-        search: toNullString((normalizedMessage as any).search as any),
+        reasoning: toNullJSON((normalizedMessage as any).reasoning),  // reasoning is object, use toNullJSON
+        search: toNullJSON((normalizedMessage as any).search),  // search is object, use toNullJSON
         metadata: toNullJSON((normalizedMessage as any).metadata),
         model: toNullString(modelStr as any),
         provider: toNullString(providerStr as any),
@@ -729,7 +729,7 @@ export class MessageModel {
       id,
       userId: this.userId,
       content: toNullString(message.content as any),
-      reasoning: toNullString(message.reasoning as any),
+      reasoning: toNullJSON(message.reasoning),  // reasoning is object, use toNullJSON
       metadata: toNullJSON(message.metadata),
       favorite: boolToInt(false), // favorite not in UpdateMessageParams
       updatedAt: currentTimestampMs(),
@@ -780,7 +780,7 @@ export class MessageModel {
       id,
       userId: this.userId,
       content: toNullString(item.content as any),
-      reasoning: toNullString(item.reasoning as any),
+      reasoning: toNullJSON(item.reasoning),  // reasoning is object, use toNullJSON
       metadata: toNullJSON(mergedMetadata),
       favorite: item.favorite,
       updatedAt: currentTimestampMs(),

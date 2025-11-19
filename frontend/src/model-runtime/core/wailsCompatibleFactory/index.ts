@@ -56,10 +56,27 @@ export const createWailsCompatibleRuntime = ({
       }
 
       try {
+        // Validate and filter messages before sending
+        const validMessages = payload.messages.filter((msg: OpenAIChatMessage) => {
+          if (!msg.role || !['system', 'user', 'assistant', 'tool'].includes(msg.role)) {
+            console.warn(`[${this.provider}] Skipping message with invalid role:`, {
+              role: msg.role,
+              hasContent: !!msg.content,
+              contentPreview: typeof msg.content === 'string' ? msg.content.substring(0, 50) : 'non-string',
+            });
+            return false;
+          }
+          return true;
+        });
+
+        if (validMessages.length === 0) {
+          throw new Error('No valid messages to send after filtering');
+        }
+
         // Build request in OpenAI-compatible format for LibraryChatService
         const request: ChatCompletionRequest = {
           model: payload.model,
-          messages: payload.messages.map((msg: OpenAIChatMessage) => ({
+          messages: validMessages.map((msg: OpenAIChatMessage) => ({
             role: msg.role,
             content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
           })),

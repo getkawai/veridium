@@ -7,6 +7,7 @@ import (
 	"log"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/kawai-network/veridium/pkg/yzma/llama"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -234,6 +235,8 @@ func (c *LibraryChatService) generateStreaming(ctx context.Context, requestID st
 	c.emitSSEChunk(requestID, firstChunk)
 
 	// Generate tokens and stream
+	var utf8Buffer []byte // Buffer for incomplete UTF-8 sequences across tokens
+
 	for nGenerated := int32(0); nGenerated < maxTokens; nGenerated++ {
 		// Check context cancellation
 		select {
@@ -265,12 +268,51 @@ func (c *LibraryChatService) generateStreaming(ctx context.Context, requestID st
 			break
 		}
 
-		// Convert token to text
+		// Convert token to raw bytes
 		buf := make([]byte, 256)
 		length := llama.TokenToPiece(c.libService.chatVocab, token, buf, 0, false)
-		content := string(buf[:length])
+		tokenBytes := buf[:length]
 
-		// Send chunk with content
+		// Append to UTF-8 buffer (accumulate bytes from multiple tokens)
+		// This is crucial for handling multibyte UTF-8 chars (emoji, etc) that span multiple tokens
+		utf8Buffer = append(utf8Buffer, tokenBytes...)
+
+		// Try to decode valid UTF-8 string from buffer
+		content := ""
+		validBytes := 0
+
+		// Find the longest valid UTF-8 prefix in buffer
+		for i := len(utf8Buffer); i > 0; i-- {
+			if utf8.Valid(utf8Buffer[:i]) {
+				// Found valid UTF-8 sequence up to position i
+				content = string(utf8Buffer[:i])
+				validBytes = i
+				break
+			}
+		}
+
+		// If we have valid content, emit it and remove from buffer
+		if validBytes > 0 {
+			// Keep incomplete bytes in buffer for next iteration
+			utf8Buffer = utf8Buffer[validBytes:]
+		} else {
+			// No valid UTF-8 yet - incomplete multibyte sequence
+			// Wait for more tokens to complete the sequence
+
+			// Accept the token and prepare for next generation
+			llama.SamplerAccept(c.libService.chatSampler, token)
+
+			// Decode the new token to update context
+			nextBatch := llama.BatchGetOne([]llama.Token{token})
+			if llama.Decode(c.libService.chatContext, nextBatch) != 0 {
+				return fmt.Errorf("failed to decode token")
+			}
+
+			// Don't send chunk yet, wait for complete UTF-8 sequence
+			continue
+		}
+
+		// Send chunk with content (only if valid UTF-8)
 		chunk := ChatCompletionChunk{
 			ID:      chatID,
 			Object:  "chat.completion.chunk",

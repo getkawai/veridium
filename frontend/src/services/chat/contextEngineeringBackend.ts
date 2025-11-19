@@ -37,9 +37,19 @@ export const contextEngineeringBackend = async ({
   sessionId,
   isWelcomeQuestion,
 }: ContextEngineeringContext): Promise<OpenAIChatMessage[]> => {
+  // Convert UIChatMessage[] (camelCase) to backend Message[] (PascalCase)
+  const backendMessages = messages.map((msg) => ({
+    ID: msg.id || '',
+    Role: msg.role || '',
+    Content: msg.content,
+    CreatedAt: msg.createdAt || 0,
+    UpdatedAt: msg.updatedAt || 0,
+    Meta: msg.meta || {},
+  }));
+
   // Call backend service
   const result = await processMessagesBackend({
-    messages,
+    messages: backendMessages as any, // Type cast because of case mismatch
     tools,
     model,
     provider,
@@ -52,7 +62,14 @@ export const contextEngineeringBackend = async ({
     isWelcomeQuestion,
   });
 
-  // Backend returns the same format as frontend
-  return result as OpenAIChatMessage[];
+  // Convert backend response (PascalCase) back to frontend format (camelCase)
+  return result.map((msg: any) => ({
+    id: msg.ID || msg.id,
+    role: msg.Role || msg.role,
+    content: msg.Content || msg.content,
+    createdAt: msg.CreatedAt || msg.createdAt,
+    updatedAt: msg.UpdatedAt || msg.updatedAt,
+    meta: msg.Meta || msg.meta,
+  })) as OpenAIChatMessage[];
 };
 

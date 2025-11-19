@@ -418,17 +418,15 @@ export const generateAIChat: StateCreator<
     });
 
     const agentStoreState = getAgentStoreState();
-    const { model: modelRaw, provider: providerRaw, chatConfig } = agentSelectors.currentAgentConfig(agentStoreState);
+    const { chatConfig } = agentSelectors.currentAgentConfig(agentStoreState);
     
-    // Convert NullString to plain strings
-    const model = getNullableString(modelRaw as any) || '';
-    const provider = getNullableString(providerRaw as any) || '';
+    // Use selectors that properly handle NullString and provide defaults
+    const model = agentSelectors.currentAgentModel(agentStoreState);
+    const provider = agentSelectors.currentAgentModelProvider(agentStoreState);
     
     console.debug('[generateAIChat.internal_coreProcessMessage] Agent config retrieved:', {
       model,
       provider,
-      modelRaw,
-      providerRaw,
       hasChatConfig: !!chatConfig,
       enableCompressHistory: chatConfig?.enableCompressHistory,
     });
