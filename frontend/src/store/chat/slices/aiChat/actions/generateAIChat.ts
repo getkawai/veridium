@@ -36,6 +36,9 @@ import { messageMapKey } from '@/store/chat/utils/messageMapKey';
 import { setNamespace } from '@/utils/storeDebug';
 import { chatSelectors } from '../../../selectors';
 
+// User ID constant for backend calls
+const FALLBACK_CLIENT_DB_USER_ID = 'DEFAULT_LOBE_CHAT_USER';
+
 const n = setNamespace('ai');
 
 export interface AIGenerateAction {
@@ -135,7 +138,7 @@ export const generateAIChat: StateCreator<
       // Step 3: Call backend (handles EVERYTHING)
       const response = await backendAgentChat.sendMessage({
         session_id: activeId,
-        user_id: 'default-user', // TODO: Get from user service
+        user_id: FALLBACK_CLIENT_DB_USER_ID,
         message: message,
         topic_id: activeTopicId || undefined,
         thread_id: threadId || undefined,
