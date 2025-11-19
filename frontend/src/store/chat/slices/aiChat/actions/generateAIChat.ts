@@ -45,7 +45,7 @@ export interface AIGenerateAction {
   stopGenerateMessage: () => void;
 }
 
-export const aiChatAction: StateCreator<
+export const generateAIChat: StateCreator<
   ChatStore,
   [['zustand/devtools', never]],
   [],
