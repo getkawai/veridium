@@ -147,25 +147,25 @@ export const generateAIChat: StateCreator<
         max_tokens: 2000,
       });
 
-      // Step 4: Handle topic creation
+      // Step 4: Determine final topic ID
       const finalTopicId = response.topic_id || activeTopicId;
-      
-      if (response.topic_id && !activeTopicId) {
-        set({ activeTopicId: response.topic_id }, false, n('topic/created'));
-        // Small delay to ensure DB transaction is committed
-        await new Promise(resolve => setTimeout(resolve, 100));
-        await refreshTopic();
-      }
-
-      // Step 5: Replace optimistic messages with real data from backend
-      // This is MUCH faster than refreshMessages() and avoids loading glitch
       const finalMapKey = messageMapKey(activeId, finalTopicId);
       
+      // Step 5: Update messages FIRST (before setting activeTopicId)
+      // This prevents useFetchMessages useEffect from triggering a re-fetch
       set(produce((state: ChatStore) => {
+        // If topic was created, copy messages from old mapKey to new mapKey
+        if (response.topic_id && !activeTopicId) {
+          const oldMapKey = messageMapKey(activeId, activeTopicId);
+          const oldMessages = state.messagesMap[oldMapKey] || [];
+          
+          // Copy messages to new topic's mapKey
+          state.messagesMap[finalMapKey] = [...oldMessages];
+        }
+        
         const messages = state.messagesMap[finalMapKey] || [];
         
         // Update temp user message with correct topicId
-        // (Backend saved it, but we keep temp ID for now - will be replaced on next refresh)
         const userMsgIndex = messages.findIndex(m => m.id === tempUserId);
         if (userMsgIndex !== -1) {
           messages[userMsgIndex] = {
@@ -178,7 +178,7 @@ export const generateAIChat: StateCreator<
         const assistantMsgIndex = messages.findIndex(m => m.id === tempAssistantId);
         if (assistantMsgIndex !== -1) {
           messages[assistantMsgIndex] = {
-            id: response.message_id, // Real assistant message ID from backend
+            id: response.message_id,
             role: 'assistant',
             content: response.message,
             sessionId: activeId,
@@ -188,17 +188,24 @@ export const generateAIChat: StateCreator<
             updatedAt: response.created_at || Date.now(),
             loading: false,
             meta: {},
-            // Add tool calls if present
             ...(response.tool_calls && response.tool_calls.length > 0 && {
               tools: response.tool_calls,
             }),
-            // Add sources if present
             ...(response.sources && response.sources.length > 0 && {
               // sources: response.sources, // TODO: Map to correct format
             }),
           } as UIChatMessage;
         }
       }), false, n('messages/updated'));
+      
+      // Step 6: NOW set activeTopicId (after messages are already in place)
+      // useFetchMessages will see messages exist and skip the fetch
+      if (response.topic_id && !activeTopicId) {
+        set({ activeTopicId: response.topic_id }, false, n('topic/created'));
+        // Small delay to ensure DB transaction is committed
+        await new Promise(resolve => setTimeout(resolve, 100));
+        await refreshTopic();
+      }
 
     } catch (error) {
       console.error('[BigBang] Failed:', error);
