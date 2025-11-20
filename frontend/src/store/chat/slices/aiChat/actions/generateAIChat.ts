@@ -71,7 +71,6 @@ export const generateAIChat: StateCreator<
       activeId,
       activeTopicId,
       activeThreadId,
-      refreshMessages,
       refreshTopic,
     } = get();
 
@@ -149,6 +148,8 @@ export const generateAIChat: StateCreator<
       });
 
       // Step 4: Handle topic creation
+      const finalTopicId = response.topic_id || activeTopicId;
+      
       if (response.topic_id && !activeTopicId) {
         set({ activeTopicId: response.topic_id }, false, n('topic/created'));
         // Small delay to ensure DB transaction is committed
@@ -156,20 +157,48 @@ export const generateAIChat: StateCreator<
         await refreshTopic();
       }
 
-      // Step 5: Update mapKey if topic was created
-      const finalTopicId = response.topic_id || activeTopicId;
-      
-      // Step 6: Refresh messages from database (replaces temp messages with real ones)
-      // Note: We don't clear temp messages first to avoid UI glitch
-      await refreshMessages();
-      
-      // Step 7: Clean up any remaining temp messages (shouldn't be any after refresh)
+      // Step 5: Replace optimistic messages with real data from backend
+      // This is MUCH faster than refreshMessages() and avoids loading glitch
       const finalMapKey = messageMapKey(activeId, finalTopicId);
+      
       set(produce((state: ChatStore) => {
-        state.messagesMap[finalMapKey] = (state.messagesMap[finalMapKey] || []).filter(
-          (msg) => !msg.id.startsWith('temp-')
-        );
-      }), false, n('optimistic/cleanup'));
+        const messages = state.messagesMap[finalMapKey] || [];
+        
+        // Update temp user message with correct topicId
+        // (Backend saved it, but we keep temp ID for now - will be replaced on next refresh)
+        const userMsgIndex = messages.findIndex(m => m.id === tempUserId);
+        if (userMsgIndex !== -1) {
+          messages[userMsgIndex] = {
+            ...messages[userMsgIndex],
+            topicId: finalTopicId,
+          };
+        }
+        
+        // Replace temp assistant message with real response from backend
+        const assistantMsgIndex = messages.findIndex(m => m.id === tempAssistantId);
+        if (assistantMsgIndex !== -1) {
+          messages[assistantMsgIndex] = {
+            id: response.message_id, // Real assistant message ID from backend
+            role: 'assistant',
+            content: response.message,
+            sessionId: activeId,
+            topicId: finalTopicId,
+            threadId: response.thread_id || threadId,
+            createdAt: response.created_at || Date.now(),
+            updatedAt: response.created_at || Date.now(),
+            loading: false,
+            meta: {},
+            // Add tool calls if present
+            ...(response.tool_calls && response.tool_calls.length > 0 && {
+              tools: response.tool_calls,
+            }),
+            // Add sources if present
+            ...(response.sources && response.sources.length > 0 && {
+              // sources: response.sources, // TODO: Map to correct format
+            }),
+          } as UIChatMessage;
+        }
+      }), false, n('messages/updated'));
 
     } catch (error) {
       console.error('[BigBang] Failed:', error);
