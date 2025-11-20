@@ -663,6 +663,26 @@ Example output format: Sleep Functions for Body and Mind`, locale)
 
 	// Clean up the title
 	title := strings.TrimSpace(response.Content)
+	
+	// Strip <think> tags if present (some models output reasoning)
+	if strings.Contains(title, "<think>") {
+		// Extract text after </think>
+		parts := strings.Split(title, "</think>")
+		if len(parts) > 1 {
+			title = strings.TrimSpace(parts[1])
+		}
+	}
+	
+	// Remove any remaining XML-like tags
+	title = strings.ReplaceAll(title, "<think>", "")
+	title = strings.ReplaceAll(title, "</think>", "")
+	title = strings.TrimSpace(title)
+	
+	// Fallback if title is empty after cleaning
+	if title == "" {
+		title = "New Conversation"
+	}
+	
 	if len(title) > 50 {
 		title = title[:50]
 	}
