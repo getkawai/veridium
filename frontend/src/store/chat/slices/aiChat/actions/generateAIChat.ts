@@ -151,6 +151,8 @@ export const generateAIChat: StateCreator<
       // Step 4: Handle topic creation
       if (response.topic_id && !activeTopicId) {
         set({ activeTopicId: response.topic_id }, false, n('topic/created'));
+        // Small delay to ensure DB transaction is committed
+        await new Promise(resolve => setTimeout(resolve, 100));
         await refreshTopic();
       }
 
