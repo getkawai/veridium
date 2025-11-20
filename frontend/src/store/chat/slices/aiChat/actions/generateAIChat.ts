@@ -158,17 +158,18 @@ export const generateAIChat: StateCreator<
 
       // Step 5: Update mapKey if topic was created
       const finalTopicId = response.topic_id || activeTopicId;
+      
+      // Step 6: Refresh messages from database (replaces temp messages with real ones)
+      // Note: We don't clear temp messages first to avoid UI glitch
+      await refreshMessages();
+      
+      // Step 7: Clean up any remaining temp messages (shouldn't be any after refresh)
       const finalMapKey = messageMapKey(activeId, finalTopicId);
-
-      // Step 6: Remove temp messages and refresh from DB
       set(produce((state: ChatStore) => {
         state.messagesMap[finalMapKey] = (state.messagesMap[finalMapKey] || []).filter(
           (msg) => !msg.id.startsWith('temp-')
         );
       }), false, n('optimistic/cleanup'));
-
-      // Refresh messages from database (gets real IDs and data)
-      await refreshMessages();
 
     } catch (error) {
       console.error('[BigBang] Failed:', error);
