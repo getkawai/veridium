@@ -151,6 +151,13 @@ export const generateAIChat: StateCreator<
       const finalTopicId = response.topic_id || activeTopicId;
       const finalMapKey = messageMapKey(activeId, finalTopicId);
       
+      console.log('[BigBang] Response received:', {
+        response_topic_id: response.topic_id,
+        current_activeTopicId: activeTopicId,
+        finalTopicId,
+        will_set_topic: !!(response.topic_id && !activeTopicId),
+      });
+      
       // Step 5: Update messages FIRST (before setting activeTopicId)
       // This prevents useFetchMessages useEffect from triggering a re-fetch
       set(produce((state: ChatStore) => {
