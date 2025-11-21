@@ -628,8 +628,10 @@ func (s *AgentChatService) generateTopicTitle(ctx context.Context, messages []*s
 	// Build summary prompt similar to frontend chainSummaryTitle
 	systemPrompt := fmt.Sprintf(`You are a professional conversation summarizer. Generate a concise title that captures the essence of the conversation.
 
-Rules:
-- Output ONLY the title text, no explanations or additional context
+CRITICAL RULES:
+- DO NOT use <think> tags or reasoning
+- DO NOT explain your thought process
+- Output ONLY the title text, nothing else
 - Maximum 10 words
 - Maximum 50 characters
 - No punctuation marks, quotes, or special characters
@@ -638,7 +640,9 @@ Rules:
 - The title should accurately reflect the main topic of the conversation
 - Keep it short and to the point
 
-Example output format: Sleep Functions for Body and Mind`, locale)
+Example output format: Sleep Functions for Body and Mind
+
+IMPORTANT: Start your response directly with the title. No reasoning, no thinking, no explanations.`, locale)
 
 	// Build conversation text
 	var conversationText string
@@ -668,7 +672,28 @@ Example output format: Sleep Functions for Body and Mind`, locale)
 	// Strip <think>...</think> tags using regex (some models output reasoning)
 	title = stripThinkTags(title)
 
-	// Fallback if title is empty after cleaning
+	// If title is empty after stripping, try to extract from the original response
+	// Look for quoted text which is often the actual title
+	if title == "" {
+		// Try to find text in quotes
+		quotePattern := regexp.MustCompile(`["']([^"']+)["']`)
+		matches := quotePattern.FindStringSubmatch(response.Content)
+		if len(matches) > 1 {
+			title = matches[1]
+		} else {
+			// Fallback: use first line after <think> tag
+			lines := strings.Split(response.Content, "\n")
+			for _, line := range lines {
+				line = strings.TrimSpace(line)
+				if line != "" && !strings.HasPrefix(line, "<think>") && !strings.HasPrefix(line, "</think>") {
+					title = line
+					break
+				}
+			}
+		}
+	}
+
+	// Final fallback if still empty
 	if title == "" {
 		title = "New Conversation"
 	}
@@ -683,9 +708,16 @@ Example output format: Sleep Functions for Body and Mind`, locale)
 
 // stripThinkTags removes <think>...</think> blocks from the text using regex
 func stripThinkTags(text string) string {
-	// Use regex to remove <think>...</think> blocks (including multiline)
+	// First, try to remove complete <think>...</think> blocks
 	re := regexp.MustCompile(`(?s)<think>.*?</think>`)
 	cleaned := re.ReplaceAllString(text, "")
+	
+	// If <think> tag still exists (incomplete/unclosed), remove everything from <think> onwards
+	if strings.Contains(cleaned, "<think>") {
+		idx := strings.Index(cleaned, "<think>")
+		cleaned = cleaned[:idx]
+	}
+	
 	return strings.TrimSpace(cleaned)
 }
 
