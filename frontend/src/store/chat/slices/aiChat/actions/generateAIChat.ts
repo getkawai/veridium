@@ -154,16 +154,9 @@ export const generateAIChat: StateCreator<
       // Step 5: Update messages FIRST (before setting activeTopicId)
       // This prevents useFetchMessages useEffect from triggering a re-fetch
       set(produce((state: ChatStore) => {
-        // If topic was created, copy messages from old mapKey to new mapKey
-        if (response.topic_id && !activeTopicId) {
-          const oldMapKey = messageMapKey(activeId, activeTopicId);
-          const oldMessages = state.messagesMap[oldMapKey] || [];
-          
-          // Copy messages to new topic's mapKey
-          state.messagesMap[finalMapKey] = [...oldMessages];
-        }
-        
-        const messages = state.messagesMap[finalMapKey] || [];
+        // Get the current mapKey where optimistic messages are stored
+        const currentMapKey = messageMapKey(activeId, activeTopicId);
+        const messages = state.messagesMap[currentMapKey] || [];
         
         // Update temp user message with correct topicId
         const userMsgIndex = messages.findIndex(m => m.id === tempUserId);
@@ -197,8 +190,14 @@ export const generateAIChat: StateCreator<
           } as UIChatMessage;
         }
         
-        // CRITICAL: Save updated messages back to state!
-        state.messagesMap[finalMapKey] = messages;
+        // CRITICAL: Save updated messages to BOTH keys
+        // 1. Update current key (where optimistic messages are)
+        state.messagesMap[currentMapKey] = messages;
+        
+        // 2. If topic was created, ALSO save to new topic's key
+        if (response.topic_id && !activeTopicId) {
+          state.messagesMap[finalMapKey] = messages;
+        }
       }), false, n('messages/updated'));
       
       // Step 6: NOW set activeTopicId (after messages are already in place)
