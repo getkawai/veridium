@@ -17,6 +17,7 @@ import { threadService } from '@/services/thread';
 import { threadSelectors } from './selectors';
 import { ChatStore } from '@/store/chat/store';
 import { globalHelpers } from '@/store/global/helpers';
+import { useGlobalStore } from '@/store/global';
 import { useSessionStore } from '@/store/session';
 import { useUserStore } from '@/store/user';
 import { systemAgentSelectors } from '@/store/user/selectors';
@@ -76,6 +77,11 @@ export const chatThreadMessage: StateCreator<
       false,
       'openThreadCreator',
     );
+    
+    // Reset portal width to 600px (CHAT_PORTAL_TOOL_UI_WIDTH) for consistent split view
+    // This prevents Portal from being full screen if user previously resized it
+    useGlobalStore.getState().updateSystemStatus({ portalWidth: 600 });
+    
     get().togglePortal(true);
   },
   openThreadInPortal: (threadId, sourceMessageId) => {
