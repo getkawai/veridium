@@ -201,10 +201,13 @@ export const generateAIChat: StateCreator<
       // Step 6: NOW set activeTopicId (after messages are already in place)
       // useFetchMessages will see messages exist and skip the fetch
       if (response.topic_id && !activeTopicId) {
+        console.log('[BigBang] Setting activeTopicId:', response.topic_id);
         set({ activeTopicId: response.topic_id }, false, n('topic/created'));
         // Small delay to ensure DB transaction is committed
         await new Promise(resolve => setTimeout(resolve, 100));
+        console.log('[BigBang] Calling refreshTopic...');
         await refreshTopic();
+        console.log('[BigBang] refreshTopic completed, activeTopicId should be:', get().activeTopicId);
       }
 
     } catch (error) {
