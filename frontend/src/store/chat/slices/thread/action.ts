@@ -1,6 +1,6 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix, typescript-sort-keys/interface */
 // Disable the auto sort key eslint rule to make the code more logic and readable
-import { LOADING_FLAT, THREAD_DRAFT_ID, isDeprecatedEdition } from '@/const';
+import { LOADING_FLAT, isDeprecatedEdition } from '@/const';
 import { chainSummaryTitle } from '@/prompts';
 import {
   CreateMessageParams,
@@ -17,7 +17,6 @@ import { threadService } from '@/services/thread';
 import { threadSelectors } from './selectors';
 import { ChatStore } from '@/store/chat/store';
 import { globalHelpers } from '@/store/global/helpers';
-import { useSessionStore } from '@/store/session';
 import { useUserStore } from '@/store/user';
 import { systemAgentSelectors } from '@/store/user/selectors';
 import { merge } from '@/utils/merge';
@@ -96,6 +95,13 @@ export const chatThreadMessage: StateCreator<
     get().togglePortal(false);
   },
   sendThreadMessage: async ({ message }) => {
+    // TODO: MIGRATE TO BACKEND
+    // internal_coreProcessMessage was removed in big bang migration
+    // Thread feature needs to be migrated to use backend agent chat
+    console.error('[Thread] sendThreadMessage not yet migrated to backend');
+    return;
+    
+    /* DISABLED - NEEDS MIGRATION
     const {
       internal_coreProcessMessage,
       activeTopicId,
@@ -266,15 +272,13 @@ export const chatThreadMessage: StateCreator<
       const chats = threadSelectors.portalAIChats(get());
       await get().summaryThreadTitle(portalThread.id, chats);
     }
+    */ // END DISABLED
   },
   resendThreadMessage: async (messageId) => {
-    const chats = threadSelectors.portalAIChats(get());
-
-    await get().internal_resendMessage(messageId, {
-      messages: chats,
-      threadId: get().portalThreadId,
-      inPortalThread: true,
-    });
+    // TODO: MIGRATE TO BACKEND
+    // internal_resendMessage was removed in big bang migration
+    console.error('[Thread] resendThreadMessage not yet migrated to backend');
+    return;
   },
   delAndResendThreadMessage: async (id) => {
     get().resendThreadMessage(id);
