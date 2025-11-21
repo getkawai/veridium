@@ -196,6 +196,9 @@ export const generateAIChat: StateCreator<
             }),
           } as UIChatMessage;
         }
+        
+        // CRITICAL: Save updated messages back to state!
+        state.messagesMap[finalMapKey] = messages;
       }), false, n('messages/updated'));
       
       // Step 6: NOW set activeTopicId (after messages are already in place)
