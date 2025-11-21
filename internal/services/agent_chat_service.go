@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -663,15 +664,15 @@ Example output format: Sleep Functions for Body and Mind`, locale)
 
 	// Clean up the title
 	title := strings.TrimSpace(response.Content)
-	
+
 	// Strip <think>...</think> tags using regex (some models output reasoning)
 	title = stripThinkTags(title)
-	
+
 	// Fallback if title is empty after cleaning
 	if title == "" {
 		title = "New Conversation"
 	}
-	
+
 	// Truncate to 50 characters AFTER stripping tags
 	if len(title) > 50 {
 		title = title[:50]
@@ -686,55 +687,6 @@ func stripThinkTags(text string) string {
 	re := regexp.MustCompile(`(?s)<think>.*?</think>`)
 	cleaned := re.ReplaceAllString(text, "")
 	return strings.TrimSpace(cleaned)
-}
-
-// createTopicForSession creates a topic for a session after first response
-func (s *AgentChatService) createTopicForSession(ctx context.Context, sessionID, userID string, messages []*schema.Message) error {
-	// Check if topic already exists for this session
-	count, err := s.db.Queries().CountTopicsBySession(ctx, db.CountTopicsBySessionParams{
-		SessionID: sql.NullString{String: sessionID, Valid: true},
-		UserID:    userID,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to check existing topics: %w", err)
-	}
-
-	if count > 0 {
-		// Topic already exists, skip
-		return nil
-	}
-
-	// Generate title (default locale: en-US)
-	title, err := s.generateTopicTitle(ctx, messages, "en-US")
-	if err != nil {
-		log.Printf("⚠️  Warning: Failed to generate topic title: %v", err)
-		title = "New Conversation"
-	}
-
-	// Create topic in database
-	topicID := uuid.New().String()
-	now := time.Now().UnixMilli()
-
-	_, err = s.db.Queries().CreateTopic(ctx, db.CreateTopicParams{
-		ID:             topicID,
-		Title:          sql.NullString{String: title, Valid: true},
-		Favorite:       0,
-		SessionID:      sql.NullString{String: sessionID, Valid: true},
-		GroupID:        sql.NullString{},
-		UserID:         userID,
-		ClientID:       sql.NullString{},
-		HistorySummary: sql.NullString{},
-		Metadata:       sql.NullString{},
-		CreatedAt:      now,
-		UpdatedAt:      now,
-	})
-
-	if err != nil {
-		return fmt.Errorf("failed to create topic: %w", err)
-	}
-
-	log.Printf("📝 Created topic for session %s: %s", sessionID, title)
-	return nil
 }
 
 // createTopicForSessionSync creates a topic synchronously and returns the topicID
