@@ -664,30 +664,28 @@ Example output format: Sleep Functions for Body and Mind`, locale)
 	// Clean up the title
 	title := strings.TrimSpace(response.Content)
 	
-	// Strip <think> tags if present (some models output reasoning)
-	if strings.Contains(title, "<think>") {
-		// Extract text after </think>
-		parts := strings.Split(title, "</think>")
-		if len(parts) > 1 {
-			title = strings.TrimSpace(parts[1])
-		}
-	}
-	
-	// Remove any remaining XML-like tags
-	title = strings.ReplaceAll(title, "<think>", "")
-	title = strings.ReplaceAll(title, "</think>", "")
-	title = strings.TrimSpace(title)
+	// Strip <think>...</think> tags using regex (some models output reasoning)
+	title = stripThinkTags(title)
 	
 	// Fallback if title is empty after cleaning
 	if title == "" {
 		title = "New Conversation"
 	}
 	
+	// Truncate to 50 characters AFTER stripping tags
 	if len(title) > 50 {
 		title = title[:50]
 	}
 
 	return title, nil
+}
+
+// stripThinkTags removes <think>...</think> blocks from the text using regex
+func stripThinkTags(text string) string {
+	// Use regex to remove <think>...</think> blocks (including multiline)
+	re := regexp.MustCompile(`(?s)<think>.*?</think>`)
+	cleaned := re.ReplaceAllString(text, "")
+	return strings.TrimSpace(cleaned)
 }
 
 // createTopicForSession creates a topic for a session after first response
