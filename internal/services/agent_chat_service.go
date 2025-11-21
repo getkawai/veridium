@@ -654,6 +654,9 @@ IMPORTANT: Start your response directly with the title. No reasoning, no thinkin
 		conversationText += fmt.Sprintf("%s: %s\n", role, msg.Content)
 	}
 
+	// Add /no_think command for Qwen models to disable reasoning
+	conversationText += "\n/no_think"
+
 	// Create messages for title generation
 	titleMessages := []*schema.Message{
 		{Role: schema.System, Content: systemPrompt},
@@ -711,13 +714,13 @@ func stripThinkTags(text string) string {
 	// First, try to remove complete <think>...</think> blocks
 	re := regexp.MustCompile(`(?s)<think>.*?</think>`)
 	cleaned := re.ReplaceAllString(text, "")
-	
+
 	// If <think> tag still exists (incomplete/unclosed), remove everything from <think> onwards
 	if strings.Contains(cleaned, "<think>") {
 		idx := strings.Index(cleaned, "<think>")
 		cleaned = cleaned[:idx]
 	}
-	
+
 	return strings.TrimSpace(cleaned)
 }
 
