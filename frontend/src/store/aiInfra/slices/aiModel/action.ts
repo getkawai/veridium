@@ -7,12 +7,11 @@ import {
 } from '@/model-bank';
 import { StateCreator } from 'zustand/vanilla';
 
-// ⚠️ MIGRATION NOTE: Service layer still used by some operations (see REMAINING_WORK.md)
-import { aiModelService } from '@/services/aiModel';
+// ✅ MIGRATION COMPLETE: All operations now use direct DB calls
 import { AIProviderStoreState } from '../../initialState';
 import type { AiProviderAction } from '../aiProvider/action';
 import { DB } from '@/types/database';
-import { getUserId, toNullInt64, boolToInt, toNullString, parseNullJSON } from '../aiProvider/helpers';
+import { getUserId, toNullInt64, boolToInt, toNullString, mapModelFromDB } from '../aiProvider/helpers';
 
 export interface AiModelAction {
   batchToggleAiModels: (ids: string[], enabled: boolean) => Promise<void>;
@@ -46,7 +45,27 @@ export const createAiModelSlice: StateCreator<
     const { activeAiProvider } = get();
     if (!activeAiProvider) return;
 
-    await aiModelService.batchToggleAiModels(activeAiProvider, ids, enabled);
+    const userId = getUserId();
+    const now = Date.now();
+
+    // Batch toggle all models in parallel
+    await Promise.all(
+      ids.map((id) =>
+        DB.ToggleAIModelEnabled({
+          id,
+          providerId: activeAiProvider,
+          userId,
+          enabled: toNullInt64(boolToInt(enabled)),
+          type: 'chat',
+          source: toNullString('custom'),
+          createdAt: now,
+          updatedAt: now,
+        }),
+      ),
+    );
+
+    console.log(`[AI Model] Batch toggled ${ids.length} models to ${enabled} via direct DB`);
+
     await get().refreshAiModelList();
   },
   batchUpdateAiModels: async (models) => {
@@ -89,11 +108,39 @@ export const createAiModelSlice: StateCreator<
     await get().refreshAiModelList();
   },
   clearModelsByProvider: async (provider) => {
-    await aiModelService.clearModelsByProvider(provider);
+    const userId = getUserId();
+
+    // Delete all models for this provider
+    await DB.DeleteAIModelsByProvider({
+      providerId: provider,
+      userId,
+    });
+
+    console.log(`[AI Model] Cleared all models for provider ${provider} via direct DB`);
+
     await get().refreshAiModelList();
   },
   clearRemoteModels: async (provider) => {
-    await aiModelService.clearRemoteModels(provider);
+    const userId = getUserId();
+
+    // Delete all remote models for this provider
+    // Note: We use DeleteAIModelsByProvider and filter by source in the future
+    // For now, get all models and delete remote ones
+    const models = await DB.ListAIModelsByProvider({ providerId: provider, userId });
+    const remoteModels = models.filter((m: any) => m.source?.String === 'remote');
+    
+    await Promise.all(
+      remoteModels.map((m: any) =>
+        DB.DeleteAIModel({
+          id: m.id,
+          providerId: provider,
+          userId,
+        }),
+      ),
+    );
+
+    console.log(`[AI Model] Cleared remote models for provider ${provider} via direct DB`);
+
     await get().refreshAiModelList();
   },
   createNewAiModel: async (data) => {
@@ -186,10 +233,16 @@ export const createAiModelSlice: StateCreator<
       const activeProvider = get().activeAiProvider;
       if (!activeProvider) return;
 
-      const data = await aiModelService.getAiProviderModelList(activeProvider);
+      const userId = getUserId();
+      const dbModels = await DB.ListAIModelsByProvider({
+        providerId: activeProvider,
+        userId,
+      });
+
+      const data = dbModels.map(mapModelFromDB) as any;
       
       if (!isEqual(data, get().aiProviderModelList)) {
-        set({ aiProviderModelList: data, isAiModelListInit: true }, false, 'refreshAiModelList');
+        set({ aiProviderModelList: data, isAiModelListInit: true }, false, 'refreshAiModelList/directDB');
       }
 
       // make refresh provide runtime state async, not block
@@ -241,7 +294,33 @@ export const createAiModelSlice: StateCreator<
   },
 
   updateAiModelsConfig: async (id, providerId, data) => {
-    await aiModelService.updateAiModel(id, providerId, data);
+    const userId = getUserId();
+    const now = Date.now();
+
+    // Get current model to merge
+    const current = await DB.GetAIModel({ id, providerId, userId });
+    if (!current) {
+      throw new Error(`Model ${id} not found`);
+    }
+
+    // Update model with merged data
+    await DB.UpdateAIModel({
+      id,
+      providerId,
+      userId,
+      displayName: data.displayName ? toNullString(data.displayName) : current.displayName,
+      description: current.description,
+      enabled: data.enabled !== undefined ? toNullInt64(boolToInt(data.enabled)) : current.enabled,
+      sort: current.sort,
+      pricing: current.pricing,
+      parameters: data.parameters ? toNullString(JSON.stringify(data.parameters)) : current.parameters,
+      config: data.config ? toNullString(JSON.stringify(data.config)) : current.config,
+      abilities: data.abilities ? toNullString(JSON.stringify(data.abilities)) : current.abilities,
+      updatedAt: now,
+    });
+
+    console.log(`[AI Model] Updated config for ${id} via direct DB`);
+
     await get().refreshAiModelList();
   },
   updateAiModelsSort: async (id, items) => {
@@ -274,7 +353,13 @@ export const createAiModelSlice: StateCreator<
     if (!id) return;
 
     try {
-      const data = await aiModelService.getAiProviderModelList(id);
+      const userId = getUserId();
+      const dbModels = await DB.ListAIModelsByProvider({
+        providerId: id,
+        userId,
+      });
+
+      const data = dbModels.map(mapModelFromDB) as any;
 
       // no need to update list if the list have been init and data is the same
       if (get().isAiModelListInit && isEqual(data, get().aiProviderModelList)) return;
@@ -282,7 +367,7 @@ export const createAiModelSlice: StateCreator<
       set(
         { aiProviderModelList: data, isAiModelListInit: true },
         false,
-        `internal_fetchAiProviderModels/${id}`,
+        `internal_fetchAiProviderModels/${id}/directDB`,
       );
     } catch (error) {
       console.error('[internal_fetchAiProviderModels] Error:', error);
