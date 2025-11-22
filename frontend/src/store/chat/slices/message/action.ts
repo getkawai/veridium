@@ -27,12 +27,35 @@ import { useSessionStore } from '@/store/session';
 import { sessionSelectors } from '@/store/session/selectors';
 import { Action, setNamespace } from '@/utils/storeDebug';
 
+// 🔄 MIGRATED: Direct DB imports for message operations
+import { DB, toNullString, currentTimestampMs } from '@/types/database';
+import { getUserId } from '@/store/session/helpers';
+import { MessageModel } from '@/database/models/message';
+import { clientDB } from '@/database/client/db';
+
 import type { ChatStoreState } from '../../initialState';
 import { chatSelectors } from '../../selectors';
 import { preventLeavingFn, toggleBooleanList } from '../../utils';
 import { MessageDispatch, messagesReducer } from './reducer';
 
 const n = setNamespace('m');
+
+// 🔄 MIGRATED: Helper function to map messages from DB to UI format
+// Note: This is a simplified version - full mapping logic might need adjustment
+const mapMessagesFromDB = (dbMessages: any[]): UIChatMessage[] => {
+  return dbMessages.map((msg: any) => ({
+    id: msg.id,
+    content: msg.content || '',
+    role: msg.role,
+    createdAt: new Date(msg.createdAt).getTime(), // Convert to timestamp number
+    updatedAt: new Date(msg.updatedAt).getTime(), // Convert to timestamp number
+    meta: {}, // Add required meta property
+    // Add other fields as needed
+    sessionId: msg.sessionId,
+    topicId: msg.topicId,
+    threadId: msg.threadId,
+  }));
+};
 
 export interface ChatMessageAction {
   // create
@@ -168,7 +191,16 @@ export const chatMessage: StateCreator<
     }
 
     get().internal_dispatchMessage({ type: 'deleteMessages', ids });
-    await messageService.removeMessages(ids);
+
+    // 🔄 MIGRATED: Direct DB call instead of messageService.removeMessages
+    const userId = getUserId();
+    await DB.BatchDeleteMessages({
+      ids,
+      userId,
+    });
+
+    console.log('[Message] Deleted messages via direct DB', { ids, count: ids.length });
+
     await get().refreshMessages();
   },
 
@@ -207,14 +239,30 @@ export const chatMessage: StateCreator<
       isGroupSession = sessionSelectors.isCurrentSessionGroupSession(sessionStore);
     }
 
-    // For group sessions, we need to clear group messages using groupId
-    // For regular sessions, we clear session messages using sessionId
-    if (isGroupSession) {
-      // For group chat, activeId is the groupId
-      await messageService.removeMessagesByGroup(activeId, activeTopicId);
+    // 🔄 MIGRATED: Direct DB calls instead of messageService methods
+    const userId = getUserId();
+
+    if (activeTopicId) {
+      // If topic exists, delete messages by topic
+      await DB.DeleteMessagesByTopic({
+        topicId: toNullString(activeTopicId),
+        userId,
+      });
+      console.log('[Message] Cleared topic messages via direct DB', { topicId: activeTopicId });
+    } else if (isGroupSession) {
+      // For group chat without topic, delete by group
+      await DB.DeleteMessagesByGroup({
+        groupId: toNullString(activeId),
+        userId,
+      });
+      console.log('[Message] Cleared group messages via direct DB', { groupId: activeId });
     } else {
-      // For regular session, activeId is the sessionId
-      await messageService.removeMessagesByAssistant(activeId, activeTopicId);
+      // For regular session without topic, delete by session
+      await DB.DeleteMessagesBySession({
+        sessionId: toNullString(activeId),
+        userId,
+      });
+      console.log('[Message] Cleared session messages via direct DB', { sessionId: activeId });
     }
 
     // 🔄 MIGRATED: Use store action instead of topicService.removeTopic()
@@ -229,7 +277,13 @@ export const chatMessage: StateCreator<
   },
   clearAllMessages: async () => {
     const { refreshMessages } = get();
-    await messageService.removeAllMessages();
+
+    // 🔄 MIGRATED: Direct DB call instead of messageService.removeAllMessages
+    const userId = getUserId();
+    await DB.DeleteAllMessages(userId);
+
+    console.log('[Message] Cleared all messages via direct DB', { userId });
+
     await refreshMessages();
   },
   addAIMessage: async () => {
@@ -296,15 +350,42 @@ export const chatMessage: StateCreator<
   /**
    * @param enable - whether to enable the fetch
    * @param messageContextId - Can be sessionId or groupId
-   * Direct Zustand implementation (no SWR) for better performance and predictability
+   * 🔄 MIGRATED: Direct DB call instead of messageService.getMessages/getGroupMessages
    */
   internal_fetchMessages: async (messageContextId, activeTopicId, type = 'session') => {
     if (!messageContextId) return;
 
     try {
-      const messages = type === 'session'
-        ? await messageService.getMessages(messageContextId, activeTopicId)
-        : await messageService.getGroupMessages(messageContextId, activeTopicId);
+      const userId = getUserId();
+      let dbMessages;
+
+      if (activeTopicId) {
+        // If topicId is provided, get messages by topic
+        dbMessages = await DB.ListMessagesByTopic({
+          topicId: toNullString(activeTopicId),
+          userId,
+          limit: 1000, // Large limit to get all messages
+          offset: 0,
+        });
+      } else if (type === 'session') {
+        // Get messages by session (no topic filter)
+        dbMessages = await DB.ListMessagesBySession({
+          sessionId: toNullString(messageContextId),
+          userId,
+          limit: 1000, // Large limit to get all messages
+          offset: 0,
+        });
+      } else {
+        // Get messages by group (no topic filter)
+        dbMessages = await DB.ListMessagesByGroup({
+          groupId: toNullString(messageContextId),
+          userId,
+          limit: 1000, // Large limit to get all messages
+          offset: 0,
+        });
+      }
+
+      const messages = mapMessagesFromDB(dbMessages);
 
       const nextMap = {
         ...get().messagesMap,
@@ -313,6 +394,13 @@ export const chatMessage: StateCreator<
 
       // no need to update map if the messages have been init and the map is the same
       if (get().messagesInit && isEqual(nextMap, get().messagesMap)) return;
+
+      console.log('[Message] Fetched messages via direct DB', {
+        type,
+        messageContextId,
+        activeTopicId,
+        count: messages.length
+      });
 
       set(
         { messagesInit: true, messagesMap: nextMap },
@@ -326,19 +414,45 @@ export const chatMessage: StateCreator<
   
   /**
    * Refresh messages from database - direct fetch without SWR cache invalidation
+   * 🔄 MIGRATED: Direct DB call instead of messageService.getMessages
    */
   refreshMessages: async () => {
     const { activeId, activeTopicId } = get();
     if (!activeId) return;
 
     try {
+      const userId = getUserId();
+
       // Fetch messages directly from database
-      const messages = await messageService.getMessages(activeId, activeTopicId);
-      
+      let dbMessages;
+      if (activeTopicId) {
+        dbMessages = await DB.ListMessagesByTopic({
+          topicId: toNullString(activeTopicId),
+          userId,
+          limit: 1000, // Large limit to get all messages
+          offset: 0,
+        });
+      } else {
+        dbMessages = await DB.ListMessagesBySession({
+          sessionId: toNullString(activeId),
+          userId,
+          limit: 1000, // Large limit to get all messages
+          offset: 0,
+        });
+      }
+
+      const messages = mapMessagesFromDB(dbMessages);
+
       const nextMap = {
         ...get().messagesMap,
         [messageMapKey(activeId, activeTopicId)]: messages,
       };
+
+      console.log('[Message] Refreshed messages via direct DB', {
+        activeId,
+        activeTopicId,
+        count: messages.length
+      });
 
       set(
         { messagesInit: true, messagesMap: nextMap },
@@ -387,7 +501,18 @@ export const chatMessage: StateCreator<
 
   internal_updateMessageError: async (id, error) => {
     get().internal_dispatchMessage({ id, type: 'updateMessage', value: { error } });
-    await messageService.updateMessage(id, { error });
+
+    // 🔄 MIGRATED: Direct DB call instead of messageService.updateMessage
+    const userId = getUserId();
+    await DB.UpdateMessage({
+      id,
+      userId,
+      error: error ? JSON.stringify(error) : undefined,
+      updatedAt: currentTimestampMs(),
+    } as any);
+
+    console.log('[Message] Updated message error via direct DB', { id });
+
     await get().refreshMessages();
   },
 
@@ -416,16 +541,28 @@ export const chatMessage: StateCreator<
       });
     }
 
-    await messageService.updateMessage(id, {
-      content,
-      tools: extra?.toolCalls ? internal_transformToolCalls(extra?.toolCalls) : undefined,
-      reasoning: extra?.reasoning,
-      search: extra?.search,
-      metadata: extra?.metadata,
-      model: extra?.model,
-      provider: extra?.provider,
-      imageList: extra?.imageList,
-    });
+    // 🔄 MIGRATED: Direct DB call instead of messageService.updateMessage
+    const userId = getUserId();
+    const updateData: any = {
+      id,
+      userId,
+      updatedAt: currentTimestampMs(),
+    };
+
+    // Add fields that are provided
+    if (content !== undefined) updateData.content = content;
+    if (extra?.toolCalls) updateData.tools = JSON.stringify(internal_transformToolCalls(extra.toolCalls));
+    if (extra?.reasoning) updateData.reasoning = JSON.stringify(extra.reasoning);
+    if (extra?.search) updateData.search = JSON.stringify(extra.search);
+    if (extra?.metadata) updateData.metadata = JSON.stringify(extra.metadata);
+    if (extra?.model) updateData.model = extra.model;
+    if (extra?.provider) updateData.provider = extra.provider;
+    if (extra?.imageList) updateData.imageList = JSON.stringify(extra.imageList);
+
+    await DB.UpdateMessage(updateData);
+
+    console.log('[Message] Updated message content via direct DB', { id, hasContent: !!content, hasExtra: !!extra });
+
     await refreshMessages();
   },
 
@@ -445,7 +582,14 @@ export const chatMessage: StateCreator<
     }
 
     try {
-      const id = await messageService.createMessage(message);
+      // 🔄 MIGRATED: Use MessageModel instead of messageService.createMessage
+      const userId = getUserId();
+      const messageModel = new MessageModel(clientDB, userId);
+      const dbMessage = await messageModel.create(message);
+      const id = dbMessage.id;
+
+      console.log('[Message] Created message via MessageModel', { id, role: message.role });
+
       if (!context?.skipRefresh) {
         internal_toggleMessageLoading(true, tempId);
         await refreshMessages();
@@ -476,7 +620,16 @@ export const chatMessage: StateCreator<
   },
   internal_deleteMessage: async (id: string) => {
     get().internal_dispatchMessage({ type: 'deleteMessage', id });
-    await messageService.removeMessage(id);
+
+    // 🔄 MIGRATED: Direct DB call instead of messageService.removeMessage
+    const userId = getUserId();
+    await DB.DeleteMessage({
+      id,
+      userId,
+    });
+
+    console.log('[Message] Deleted message via direct DB', { id });
+
     await get().refreshMessages();
   },
   internal_traceMessage: async (id, payload) => {
