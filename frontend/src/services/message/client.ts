@@ -16,9 +16,6 @@ export class ClientService extends BaseClientService implements IMessageService 
   };
 
 
-  updateMessagePluginError: IMessageService['updateMessagePluginError'] = async (id, value) => {
-    return this.messageModel.updateMessagePlugin(id, { error: value });
-  };
 
   updateMessageRAG: IMessageService['updateMessageRAG'] = async (id, value) => {
     console.log(id, value);

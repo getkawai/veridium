@@ -843,26 +843,6 @@ export class MessageModel {
     });
   };
 
-  updateTranslate = async (id: string, translate: Partial<ChatTranslate> | false) => {
-    // If translate is false, delete the translation
-    if (translate === false) {
-      return await DB.DeleteMessageTranslate({
-        id,
-        userId: this.userId,
-      });
-    }
-
-    // Otherwise, upsert the translation
-    return await DB.UpsertMessageTranslate({
-      id,
-      content: toNullString(translate.content as any),
-      from: toNullString(translate.from as any),
-      to: toNullString(translate.to as any),
-      clientId: toNullString(null),
-      userId: this.userId,
-    });
-  };
-
   // TTS functionality moved to backend (native OS TTS)
   // This method kept for backward compatibility but no longer used
   updateTTS = async (id: string, tts: Partial<ChatTTS>) => {

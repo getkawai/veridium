@@ -22,6 +22,7 @@ import {
   getNullableString,
   parseNullableJSON,
   currentTimestampMs,
+  File as DBFile,
 } from '@/types/database';
 import { Service as DBService } from '@@/github.com/kawai-network/veridium/internal/database';
 import { getUserId } from '@/store/session/helpers';
@@ -273,7 +274,7 @@ export const createFileManageSlice: StateCreator<
 
       // 1. Get file list first
       // No batch query available, fetch one by one
-      const fileList = [];
+      const fileList: DBFile[] = [];
       for (const id of ids) {
         try {
           const file = await DB.GetFile({ id, userId });
@@ -339,7 +340,7 @@ export const createFileManageSlice: StateCreator<
       // 5. Delete global files if needed
       if (hashList.length > 0) {
         // Check which hashes are still in use
-        const remainingFiles = await DB.GetFilesByHash({
+        await DB.GetFilesByHash({
           fileHash: toNullString(hashList[0]), // Check first hash as approximation or iterate all?
           // Ideally we should check each hash, but for now let's simplify
           userId,
@@ -414,22 +415,6 @@ export const createFileManageSlice: StateCreator<
         }
       }
 
-      const fileItem: FileListItem = {
-        id: item.id,
-        name: getNullableString(item.name as any) || 'Unknown',
-        fileType: getNullableString(item.fileType as any) || '',
-        size: item.size,
-        url: url || getNullableString(item.url as any) || '',
-        createdAt: new Date(item.createdAt),
-        updatedAt: new Date(item.updatedAt),
-        chunkCount: 0, // TODO: Count chunks
-        chunkingError: null,
-        chunkingStatus: AsyncTaskStatus.Success, // Placeholder
-        embeddingError: null,
-        embeddingStatus: AsyncTaskStatus.Success, // Placeholder
-        finishEmbedding: true,
-      };
-
       // Store the file item if needed - currently no state for single item in this slice
       // set({ fileItemMap: { ...get().fileItemMap, [id]: fileItem } });
     } catch (error) {
@@ -440,7 +425,7 @@ export const createFileManageSlice: StateCreator<
   internal_fetchFileManage: async (params) => {
     try {
       const userId = getUserId();
-      const { category, q, sortType, sorter, knowledgeBaseId, showFilesInKnowledgeBase } = params;
+      const { category, q, sortType, sorter, knowledgeBaseId } = params;
 
       let allFiles;
 
@@ -498,8 +483,6 @@ export const createFileManageSlice: StateCreator<
 
       // Map to FileListItem
       const fileListItems: FileListItem[] = await Promise.all(filtered.map(async (item) => {
-        const fileHash = getNullableString(item.fileHash as any);
-        let url = '';
         // Note: Generating object URLs for all files might be expensive/memory intensive
         // Consider doing this only on demand or using a different approach
 

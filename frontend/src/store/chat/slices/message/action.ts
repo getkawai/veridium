@@ -28,7 +28,7 @@ import { sessionSelectors } from '@/store/session/selectors';
 import { Action, setNamespace } from '@/utils/storeDebug';
 
 // 🔄 MIGRATED: Direct DB imports for message operations
-import { DB, toNullString, currentTimestampMs } from '@/types/database';
+import { DB, toNullString, toNullJSON, currentTimestampMs } from '@/types/database';
 import { getUserId } from '@/store/session/helpers';
 import { MessageModel } from '@/database/models/message';
 import { clientDB } from '@/database/client/db';
@@ -511,7 +511,30 @@ export const chatMessage: StateCreator<
   },
 
   internal_updateMessagePluginError: async (id, error) => {
-    await messageService.updateMessagePluginError(id, error);
+    // 🔄 MIGRATED: Direct DB call instead of messageService.updateMessagePluginError()
+    const userId = getUserId();
+
+    // Get current plugin item first
+    const item = await DB.GetMessagePlugin({
+      id,
+      userId,
+    });
+
+    if (!item) {
+      console.error('[Message] Plugin not found for error update', { id });
+      return;
+    }
+
+    // Update plugin error
+    await DB.UpdateMessagePlugin({
+      id,
+      userId,
+      state: item.state, // Keep existing state
+      error: error !== undefined ? toNullJSON(error) : item.error,
+    });
+
+    console.log('[Message] Updated message plugin error via direct DB', { id, hasError: !!error });
+
     await get().refreshMessages();
   },
 
