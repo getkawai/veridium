@@ -6,14 +6,16 @@ import {
   CreateMessageParams,
   SendThreadMessageParams,
   ThreadItem,
+  ThreadStatus,
   ThreadType,
   UIChatMessage,
 } from '@/types';
 import isEqual from 'fast-deep-equal';
 import { StateCreator } from 'zustand/vanilla';
+import { nanoid } from 'nanoid';
 
+import { clientDB } from '@/database/client/db';
 import { chatService } from '@/services/chat';
-import { threadService } from '@/services/thread';
 import { threadSelectors } from './selectors';
 import { ChatStore } from '@/store/chat/store';
 import { globalHelpers } from '@/store/global/helpers';
@@ -22,9 +24,33 @@ import { systemAgentSelectors } from '@/store/user/selectors';
 import { merge } from '@/utils/merge';
 import { setNamespace } from '@/utils/storeDebug';
 
+// 🔄 MIGRATED: Direct DB imports for thread operations
+import { DB, toNullString, getNullableString, currentTimestampMs, Thread } from '@/types/database';
+import { getUserId } from '@/store/session/helpers';
+import { MessageModel } from '@/database/models/message';
+
 import { ThreadDispatch, threadReducer } from './reducer';
 
 const n = setNamespace('thd');
+
+// 🔄 MIGRATED: Helper function to map Thread from DB to ThreadItem
+const mapThread = (thread: Thread): ThreadItem => {
+  const statusStr = getNullableString(thread.status as any);
+
+  return {
+    id: thread.id,
+    title: thread.title,
+    type: thread.type as ThreadType,
+    status: (statusStr as ThreadStatus) || ThreadStatus.Active,
+    topicId: thread.topicId,
+    sourceMessageId: thread.sourceMessageId,
+    parentThreadId: getNullableString(thread.parentThreadId as any),
+    userId: thread.userId,
+    lastActiveAt: new Date(thread.lastActiveAt),
+    createdAt: new Date(thread.createdAt),
+    updatedAt: new Date(thread.updatedAt),
+  };
+};
 
 export interface ChatThreadAction {
   // update
@@ -287,30 +313,111 @@ export const chatThreadMessage: StateCreator<
   createThread: async ({ message, sourceMessageId, topicId, type }) => {
     set({ isCreatingThread: true }, false, n('creatingThread/start'));
 
-    const data = await threadService.createThreadWithMessage({
-      topicId,
-      sourceMessageId,
-      type,
-      message,
-    });
-    set({ isCreatingThread: false }, false, n('creatingThread/end'));
+    // 🔄 MIGRATED: Direct DB call instead of threadService.createThreadWithMessage()
+    const userId = getUserId();
+    const now = currentTimestampMs();
+    let thread;
 
+    try {
+      // Create thread directly with DB call
+      const result: Thread = await DB.CreateThread({
+        id: nanoid(),
+        title: message.content.slice(0, 20),
+        type: type,
+        status: toNullString(ThreadStatus.Active),
+        topicId: topicId,
+        sourceMessageId: sourceMessageId,
+        parentThreadId: toNullString(''),
+        clientId: toNullString(''),
+        userId: userId,
+        lastActiveAt: now,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      // With ON CONFLICT DO NOTHING, if conflict occurs, result might be empty/null
+      if (!result || !result.id) {
+        console.error('[createThread] Thread creation failed (conflict), aborting message creation');
+        set({ isCreatingThread: false }, false, n('creatingThread/end'));
+        return { messageId: undefined as any, threadId: undefined as any };
+      }
+
+      thread = mapThread(result);
+      console.log('[Thread] Created thread via direct DB', { threadId: thread.id });
+    } catch (error: any) {
+      // Check if this is a "no rows in result set" error (ON CONFLICT DO NOTHING with empty RETURNING)
+      const isNoRowsError =
+        error?.message?.includes('no rows in result set') ||
+        error?.message?.includes('sql: no rows in result set') ||
+        error?.code === 'PGRST116';
+
+      if (isNoRowsError) {
+        console.error('[createThread] Thread creation conflict (ON CONFLICT DO NOTHING - no rows returned), aborting message creation');
+        set({ isCreatingThread: false }, false, n('creatingThread/end'));
+        return { messageId: undefined as any, threadId: undefined as any };
+      }
+
+      // Check if this is a UNIQUE constraint conflict
+      const isConflictError =
+        error?.message?.includes('UNIQUE constraint') ||
+        error?.message?.includes('2067') ||
+        error?.code === 'SQLITE_CONSTRAINT_UNIQUE' ||
+        error?.code === 2067;
+
+      if (isConflictError) {
+        console.error('[createThread] Thread creation conflict (UNIQUE constraint), aborting message creation');
+        set({ isCreatingThread: false }, false, n('creatingThread/end'));
+        return { messageId: undefined as any, threadId: undefined as any };
+      }
+
+      // For other errors, log and re-throw
+      console.error('[createThread] Thread creation failed with non-conflict error:', error);
+      set({ isCreatingThread: false }, false, n('creatingThread/end'));
+      throw error;
+    }
+
+    // Create message using MessageModel (not yet migrated to direct DB)
+    const messageModel = new MessageModel(clientDB as any, userId);
+    const dbMessage = await messageModel.create({
+      ...message,
+      sessionId: message.sessionId || '',
+      threadId: thread.id,
+    });
+
+    // If message creation failed, we still return the threadId but no messageId
+    if (!dbMessage?.id) {
+      console.error('[createThread] Message creation failed after thread creation');
+    }
+
+    const data = {
+      messageId: dbMessage?.id || (undefined as any),
+      threadId: thread.id
+    };
+
+    set({ isCreatingThread: false }, false, n('creatingThread/end'));
     return data;
   },
 
   /**
    * Fetch threads for a specific topic
-   * Direct Zustand implementation (no SWR) for better performance
+   * 🔄 MIGRATED: Direct DB call instead of threadService.getThreads()
    */
   internal_fetchThreads: async (topicId) => {
     if (!topicId || isDeprecatedEdition) return;
 
     try {
-      const threads = await threadService.getThreads(topicId);
+      const userId = getUserId();
+      const dbThreads = await DB.ListThreadsByTopic({
+        topicId: topicId,  // Plain string, not NullString
+        userId,
+      });
+      const threads = dbThreads.map(mapThread);
       const nextMap = { ...get().threadMaps, [topicId]: threads };
 
       // no need to update map if the threads have been init and the map is the same
       if (get().threadsInit && isEqual(nextMap, get().threadMaps)) return;
+
+      console.log('[Thread] Fetched threads via direct DB', { topicId, count: threads.length });
 
       set(
         { threadMaps: nextMap, threadsInit: true },
@@ -324,14 +431,22 @@ export const chatThreadMessage: StateCreator<
 
   /**
    * Refresh threads from database - direct fetch without SWR cache invalidation
+   * 🔄 MIGRATED: Direct DB call instead of threadService.getThreads()
    */
   refreshThreads: async () => {
     const topicId = get().activeTopicId;
     if (!topicId) return;
 
     try {
-      const threads = await threadService.getThreads(topicId);
+      const userId = getUserId();
+      const dbThreads = await DB.ListThreadsByTopic({
+        topicId: topicId,
+        userId,
+      });
+      const threads = dbThreads.map(mapThread);
       const nextMap = { ...get().threadMaps, [topicId]: threads };
+
+      console.log('[Thread] Refreshed threads via direct DB', { topicId, count: threads.length });
 
       set(
         { threadMaps: nextMap, threadsInit: true },
@@ -349,7 +464,16 @@ export const chatThreadMessage: StateCreator<
       currentActiveThreadId,
       willClearActiveThreadId: currentActiveThreadId === id,
     });
-    await threadService.removeThread(id);
+
+    // 🔄 MIGRATED: Direct DB call instead of threadService.removeThread()
+    const userId = getUserId();
+    await DB.DeleteThread({
+      id,
+      userId,
+    });
+
+    console.log('[Thread] Deleted thread via direct DB', { threadId: id });
+
     await get().refreshThreads();
 
     if (get().activeThreadId === id) {
@@ -436,7 +560,22 @@ export const chatThreadMessage: StateCreator<
     get().internal_dispatchThread({ type: 'updateThread', id, value: data });
 
     get().internal_updateThreadLoading(id, true);
-    await threadService.updateThread(id, data);
+
+    // 🔄 MIGRATED: Direct DB call instead of threadService.updateThread()
+    const userId = getUserId();
+    const now = currentTimestampMs();
+
+    await DB.UpdateThread({
+      id,
+      userId,
+      title: data.title ? toNullString(data.title) : undefined,
+      status: data.status ? toNullString(data.status) : undefined,
+      lastActiveAt: data.lastActiveAt ? new Date(data.lastActiveAt).getTime() : now,
+      updatedAt: now,
+    } as any);
+
+    console.log('[Thread] Updated thread via direct DB', { id });
+
     await get().refreshThreads();
     get().internal_updateThreadLoading(id, false);
   },
