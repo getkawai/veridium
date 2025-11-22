@@ -335,6 +335,7 @@ export const chatTopic: StateCreator<
       const dbTopics = await DB.SearchTopicsByTitle({
         userId,
         title: toNullString(searchPattern),
+        column3: containerId,
         sessionId: toNullString(toDbSessionId(sessionId)),
         groupId: toNullString(groupId),
       });
