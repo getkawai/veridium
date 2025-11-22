@@ -14,3 +14,14 @@ export const SemanticSearchSchema = z.object({
 export type SemanticSearchSchemaType = z.infer<typeof SemanticSearchSchema>;
 
 export type MessageSemanticSearchChunk = Pick<ChatSemanticSearchChunk, 'id' | 'similarity'>;
+
+export type SemanticSearchResult = {
+  id: string;
+  similarity: number;
+  text: string | null;
+  fileId: string;
+  fileName: string;
+  type: string | null;
+  index: number;
+  metadata: any;
+};
