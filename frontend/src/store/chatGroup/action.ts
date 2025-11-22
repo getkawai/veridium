@@ -5,11 +5,12 @@ import { StateCreator } from 'zustand/vanilla';
 import { INBOX_SESSION_ID } from '@/const/session';
 import { DEFAULT_CHAT_GROUP_CHAT_CONFIG } from '@/const/settings';
 import type { ChatGroupItem, NewChatGroup } from '@/types/chatGroup';
-import { chatGroupService } from '@/services/chatGroup';
 import type { ChatStoreState } from '@/store/chat/initialState';
 import { useChatStore } from '@/store/chat/store';
 import { getSessionStoreState } from '@/store/session';
 import { setNamespace } from '@/utils/storeDebug';
+import { DB, toNullString, toNullInt, toNullJSON, boolToInt } from '@/types/database';
+import { getUserId, mapChatGroupFromDB } from './helpers';
 
 import {
   ChatGroupAction,
@@ -59,7 +60,27 @@ export const chatGroupAction: StateCreator<
     ...initialChatGroupState,
 
     addAgentsToGroup: async (groupId, agentIds) => {
-      await chatGroupService.addAgentsToGroup(groupId, agentIds);
+      // 🔄 MIGRATED: Direct DB call instead of chatGroupService.addAgentsToGroup()
+      const userId = getUserId();
+      const now = Date.now();
+      
+      await Promise.all(
+        agentIds.map((agentId, index) =>
+          DB.LinkChatGroupToAgent({
+            chatGroupId: groupId,
+            agentId,
+            userId,
+            enabled: 1,
+            sortOrder: index,
+            role: toNullString('member'),
+            createdAt: now,
+            updatedAt: now,
+          })
+        )
+      );
+      
+      console.log('[ChatGroup] Added agents to group via direct DB', { groupId, count: agentIds.length });
+      
       await get().internal_refreshGroups();
     },
 
@@ -69,10 +90,45 @@ export const chatGroupAction: StateCreator<
     createGroup: async (newGroup: Omit<NewChatGroup, 'userId'>, agentIds?: string[], silent = false) => {
       const { switchSession } = getSessionStoreState();
 
-      const group = await chatGroupService.createGroup(newGroup);
+      // 🔄 MIGRATED: Direct DB call instead of chatGroupService.createGroup()
+      const userId = getUserId();
+      const groupId = crypto.randomUUID();
+      const now = Date.now();
+      
+      const dbGroup = await DB.CreateChatGroup({
+        id: groupId,
+        title: toNullString(newGroup.title || 'Untitled Group'),
+        description: toNullString(newGroup.description || ''),
+        config: toNullJSON(newGroup.config || {}),
+        clientId: toNullString(newGroup.clientId || ''),
+        userId,
+        groupId: toNullString(newGroup.groupId || ''),
+        pinned: toNullInt(boolToInt(newGroup.pinned || false)),
+        createdAt: now,
+        updatedAt: now,
+      });
+      
+      const group = mapChatGroupFromDB(dbGroup);
+      
+      console.log('[ChatGroup] Created group via direct DB', { groupId });
+
 
       if (agentIds && agentIds.length > 0) {
-        await chatGroupService.addAgentsToGroup(group.id, agentIds);
+        // Already migrated above, use the same logic
+        await Promise.all(
+          agentIds.map((agentId, index) =>
+            DB.LinkChatGroupToAgent({
+              chatGroupId: group.id,
+              agentId,
+              userId,
+              enabled: 1,
+              sortOrder: index,
+              role: toNullString('member'),
+              createdAt: now,
+              updatedAt: now,
+            })
+          )
+        );
 
         // Wait a brief moment to ensure database transactions are committed
         // This prevents race condition where loadGroups() executes before member addition is fully persisted
