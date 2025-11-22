@@ -36,7 +36,7 @@ import { ChatTopic } from '@/types/topic';
 import { merge } from '@/utils/merge';
 import { setNamespace } from '@/utils/storeDebug';
 import { getUserId, mapTopicFromDB, toDbSessionId } from '@/store/topic/helpers';
-import { toNullString, toNullInt } from '@/types/database';
+import { toNullString } from '@/types/database';
 import { DB } from '@/types/database';
 import { chatSelectors } from '../message/selectors';
 import { ChatTopicDispatch, topicReducer } from './reducer';
@@ -335,7 +335,6 @@ export const chatTopic: StateCreator<
       const dbTopics = await DB.SearchTopicsByTitle({
         userId,
         title: toNullString(searchPattern),
-        containerId: toNullString(containerId),
         sessionId: toNullString(toDbSessionId(sessionId)),
         groupId: toNullString(groupId),
       });
