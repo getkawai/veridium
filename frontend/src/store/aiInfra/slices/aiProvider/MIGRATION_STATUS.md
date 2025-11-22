@@ -60,21 +60,39 @@ Set `USE_DIRECT_DB_CALLS = false` in action.ts and aiModel/action.ts
 
 ---
 
-## Phase 3: Complex Write Operations ⏳ TODO
+## Phase 3: Complex Write Operations ✅ COMPLETED
 
-### Target Functions:
-- [ ] `createNewAiProvider` - With validation
-- [ ] `updateAiProvider` - With merge logic
-- [ ] `updateAiProviderConfig` - With config merge
-- [ ] `deleteAiProvider` - With cascade delete
-- [ ] `createNewAiModel` - With validation
-- [ ] `updateAiModel` - With merge logic
-- [ ] `deleteAiModel` - With cascade delete
+### Migrated Functions:
 
-### Estimated Impact:
-- Code reduction: ~150 lines
-- Performance: Minimal (writes are infrequent)
-- Risk: Medium (complex business logic)
+#### AI Provider Operations:
+- [x] `createNewAiProvider` - Direct DB with validation (existence check)
+- [x] `updateAiProvider` - Direct DB with merge logic (fetch current, merge, update)
+- [x] `updateAiProviderConfig` - Direct DB with deep merge (config, settings, keyVaults)
+- [x] `deleteAiProvider` - Direct DB cascade delete
+
+#### AI Model Operations:
+- [x] `createNewAiModel` - Direct DB with validation (existence check)
+- [x] `batchUpdateAiModels` - Direct DB with parallel batch updates
+- [x] `removeAiModel` - Direct DB delete
+
+### Changes:
+- Added validation logic (existence checks before create)
+- Implemented merge logic (fetch current, merge with updates)
+- Added deep merge for config objects
+- Used parallel `Promise.all` for batch operations
+- Added feature flag `USE_DIRECT_DB_CALLS` for rollback
+- Added operation logging
+
+### Performance:
+- Create operations: Minimal impact (infrequent)
+- Update operations: Faster with direct DB access
+- Batch operations: Much faster with parallel execution
+- Delete operations: Instant (no cascade logic in frontend)
+
+### Rollback Plan:
+Set `USE_DIRECT_DB_CALLS = false` in:
+- `action.ts` (AI Provider operations)
+- `aiModel/action.ts` (AI Model operations)
 
 ---
 

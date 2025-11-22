@@ -35,6 +35,7 @@ import {
   toNullString,
   toNullInt64,
   boolToInt,
+  parseNullJSON,
 } from './helpers';
 
 /**
@@ -121,11 +122,78 @@ export const createAiProviderSlice: StateCreator<
   AiProviderAction
 > = (set, get) => ({
   createNewAiProvider: async (params) => {
-    await aiProviderService.createAiProvider({ ...params, source: AiProviderSourceEnum.Custom });
+    // 🚀 PHASE 3 MIGRATION: Feature flag for rollback
+    const USE_DIRECT_DB_CALLS = true;
+
+    if (USE_DIRECT_DB_CALLS) {
+      // ✅ NEW: Direct DB call (Phase 3 - Complex Write with Validation)
+      const userId = getUserId();
+      const now = Date.now();
+
+      // Validation
+      if (!params.id || !params.name) {
+        throw new Error('Provider ID and name are required');
+      }
+
+      // Check if already exists
+      try {
+        const existing = await DB.GetAIProvider({ id: params.id, userId });
+        if (existing) {
+          throw new Error(`Provider ${params.id} already exists`);
+        }
+      } catch (e: any) {
+        // Not found error is OK, means we can create
+        if (!e.message?.includes('not found')) {
+          throw e;
+        }
+      }
+
+      // Create provider
+      await DB.CreateAIProvider({
+        id: params.id,
+        name: toNullString(params.name),
+        userId,
+        sort: toNullInt64(0), // Default sort
+        enabled: toNullInt64(1), // New providers enabled by default
+        fetchOnClient: toNullInt64(0), // Default false
+        checkModel: toNullString(''),
+        logo: toNullString(params.logo || ''),
+        description: toNullString(params.description || ''),
+        keyVaults: toNullString(JSON.stringify(params.keyVaults || {})),
+        source: toNullString('custom'),
+        settings: toNullString(JSON.stringify(params.settings || {})),
+        config: toNullString(JSON.stringify(params.config || {})),
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      console.log(`[AI Provider] Created provider ${params.id} via direct DB`);
+    } else {
+      // ⏳ OLD: Service layer (Phase 3 - Fallback)
+      await aiProviderService.createAiProvider({ ...params, source: AiProviderSourceEnum.Custom });
+    }
+
     await get().refreshAiProviderList();
   },
   deleteAiProvider: async (id: string) => {
-    await aiProviderService.deleteAiProvider(id);
+    // 🚀 PHASE 3 MIGRATION: Feature flag for rollback
+    const USE_DIRECT_DB_CALLS = true;
+
+    if (USE_DIRECT_DB_CALLS) {
+      // ✅ NEW: Direct DB call (Phase 3 - Delete with Cascade)
+      const userId = getUserId();
+
+      // Delete provider (backend handles cascade delete of models)
+      await DB.DeleteAIProvider({
+        id,
+        userId,
+      });
+
+      console.log(`[AI Provider] Deleted provider ${id} via direct DB`);
+    } else {
+      // ⏳ OLD: Service layer (Phase 3 - Fallback)
+      await aiProviderService.deleteAiProvider(id);
+    }
 
     await get().refreshAiProviderList();
   },
@@ -222,19 +290,109 @@ export const createAiProviderSlice: StateCreator<
 
   updateAiProvider: async (id, value) => {
     get().internal_toggleAiProviderLoading(id, true);
-    await aiProviderService.updateAiProvider(id, value);
-    await get().refreshAiProviderList();
-    await get().refreshAiProviderDetail();
 
-    get().internal_toggleAiProviderLoading(id, false);
+    // 🚀 PHASE 3 MIGRATION: Feature flag for rollback
+    const USE_DIRECT_DB_CALLS = true;
+
+    try {
+      if (USE_DIRECT_DB_CALLS) {
+        // ✅ NEW: Direct DB call (Phase 3 - Update with Merge)
+        const userId = getUserId();
+        const now = Date.now();
+
+        // Get current provider to merge with updates
+        const current = await DB.GetAIProvider({ id, userId });
+        if (!current) {
+          throw new Error(`Provider ${id} not found`);
+        }
+
+        // Merge updates with current values
+        await DB.UpdateAIProvider({
+          id,
+          userId,
+          name: value.name ? toNullString(value.name) : current.name,
+          sort: current.sort, // Keep current sort (use updateAiProviderSort for sort changes)
+          enabled: current.enabled, // Keep current enabled (use toggleProviderEnabled for enable changes)
+          fetchOnClient: current.fetchOnClient,
+          checkModel: current.checkModel,
+          logo: value.logo ? toNullString(value.logo) : current.logo,
+          description: value.description ? toNullString(value.description) : current.description,
+          keyVaults: current.keyVaults, // Keep current keyVaults (use updateAiProviderConfig for config changes)
+          settings: value.settings ? toNullString(JSON.stringify(value.settings)) : current.settings,
+          config: value.config ? toNullString(JSON.stringify(value.config)) : current.config,
+          updatedAt: now,
+        });
+
+        console.log(`[AI Provider] Updated provider ${id} via direct DB`);
+      } else {
+        // ⏳ OLD: Service layer (Phase 3 - Fallback)
+        await aiProviderService.updateAiProvider(id, value);
+      }
+
+      await get().refreshAiProviderList();
+      await get().refreshAiProviderDetail();
+    } finally {
+      get().internal_toggleAiProviderLoading(id, false);
+    }
   },
 
   updateAiProviderConfig: async (id, value) => {
     get().internal_toggleAiProviderConfigUpdating(id, true);
-    await aiProviderService.updateAiProviderConfig(id, value);
-    await get().refreshAiProviderDetail();
 
-    get().internal_toggleAiProviderConfigUpdating(id, false);
+    // 🚀 PHASE 3 MIGRATION: Feature flag for rollback
+    const USE_DIRECT_DB_CALLS = true;
+
+    try {
+      if (USE_DIRECT_DB_CALLS) {
+        // ✅ NEW: Direct DB call (Phase 3 - Config Update with Deep Merge)
+        const userId = getUserId();
+        const now = Date.now();
+
+        // Get current provider
+        const current = await DB.GetAIProvider({ id, userId });
+        if (!current) {
+          throw new Error(`Provider ${id} not found`);
+        }
+
+        // Parse current config and merge with updates
+        const currentConfig = parseNullJSON(current.config, {});
+        const mergedConfig = { ...currentConfig, ...(value.config || {}) };
+
+        const currentSettings = parseNullJSON(current.settings, {});
+        // Note: value.settings is not in UpdateAiProviderConfigParams, so we keep current settings
+        const mergedSettings = currentSettings;
+
+        const currentKeyVaults = parseNullJSON(current.keyVaults, {});
+        const mergedKeyVaults = { ...currentKeyVaults, ...(value.keyVaults || {}) };
+
+        // Update only config-related fields
+        await DB.UpdateAIProvider({
+          id,
+          userId,
+          config: toNullString(JSON.stringify(mergedConfig)),
+          settings: toNullString(JSON.stringify(mergedSettings)),
+          keyVaults: toNullString(JSON.stringify(mergedKeyVaults)),
+          updatedAt: now,
+          // Keep other fields unchanged
+          name: current.name,
+          sort: current.sort,
+          enabled: current.enabled,
+          fetchOnClient: current.fetchOnClient,
+          checkModel: current.checkModel,
+          logo: current.logo,
+          description: current.description,
+        });
+
+        console.log(`[AI Provider] Updated config for ${id} via direct DB`);
+      } else {
+        // ⏳ OLD: Service layer (Phase 3 - Fallback)
+        await aiProviderService.updateAiProviderConfig(id, value);
+      }
+
+      await get().refreshAiProviderDetail();
+    } finally {
+      get().internal_toggleAiProviderConfigUpdating(id, false);
+    }
   },
 
   updateAiProviderSort: async (items) => {

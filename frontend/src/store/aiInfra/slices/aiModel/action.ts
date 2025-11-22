@@ -11,7 +11,7 @@ import { aiModelService } from '@/services/aiModel';
 import { AIProviderStoreState } from '../../initialState';
 import type { AiProviderAction } from '../aiProvider/action';
 import { DB } from '@/types/database';
-import { getUserId, toNullInt64, boolToInt } from '../aiProvider/helpers';
+import { getUserId, toNullInt64, boolToInt, toNullString, parseNullJSON } from '../aiProvider/helpers';
 
 export interface AiModelAction {
   batchToggleAiModels: (ids: string[], enabled: boolean) => Promise<void>;
@@ -52,7 +52,48 @@ export const createAiModelSlice: StateCreator<
     const { activeAiProvider: id } = get();
     if (!id) return;
 
-    await aiModelService.batchUpdateAiModels(id, models);
+    // 🚀 PHASE 3 MIGRATION: Feature flag for rollback
+    const USE_DIRECT_DB_CALLS = true;
+
+    if (USE_DIRECT_DB_CALLS) {
+      // ✅ NEW: Direct DB call (Phase 3 - Batch Update)
+      const userId = getUserId();
+      const now = Date.now();
+
+      // Batch update all models in parallel
+      await Promise.all(
+        models.map(async (model) => {
+          // Get current model to merge
+          const current = await DB.GetAIModel({ id: model.id, providerId: id, userId });
+          if (!current) {
+            console.warn(`[AI Model] Model ${model.id} not found, skipping update`);
+            return;
+          }
+
+          // Merge updates (only fields that exist in UpdateAIModelParams)
+          await DB.UpdateAIModel({
+            id: model.id,
+            providerId: id,
+            userId,
+            displayName: model.displayName ? toNullString(model.displayName) : current.displayName,
+            description: current.description,
+            enabled: model.enabled !== undefined ? toNullInt64(boolToInt(model.enabled)) : current.enabled,
+            sort: current.sort, // Keep current sort (use updateAiModelsSort for sort changes)
+            pricing: current.pricing,
+            parameters: current.parameters,
+            config: current.config,
+            abilities: model.abilities ? toNullString(JSON.stringify(model.abilities)) : current.abilities,
+            updatedAt: now,
+          });
+        }),
+      );
+
+      console.log(`[AI Model] Batch updated ${models.length} models via direct DB`);
+    } else {
+      // ⏳ OLD: Service layer (Phase 3 - Fallback)
+      await aiModelService.batchUpdateAiModels(id, models);
+    }
+
     await get().refreshAiModelList();
   },
   clearModelsByProvider: async (provider) => {
@@ -64,7 +105,60 @@ export const createAiModelSlice: StateCreator<
     await get().refreshAiModelList();
   },
   createNewAiModel: async (data) => {
-    await aiModelService.createAiModel(data);
+    // 🚀 PHASE 3 MIGRATION: Feature flag for rollback
+    const USE_DIRECT_DB_CALLS = true;
+
+    if (USE_DIRECT_DB_CALLS) {
+      // ✅ NEW: Direct DB call (Phase 3 - Create with Validation)
+      const userId = getUserId();
+      const now = Date.now();
+
+      // Validation
+      if (!data.id || !data.displayName || !data.providerId) {
+        throw new Error('Model ID, display name, and provider ID are required');
+      }
+
+      // Check if already exists
+      try {
+        const existing = await DB.GetAIModel({ id: data.id, providerId: data.providerId, userId });
+        if (existing) {
+          throw new Error(`Model ${data.id} already exists`);
+        }
+      } catch (e: any) {
+        // Not found error is OK
+        if (!e.message?.includes('not found')) {
+          throw e;
+        }
+      }
+
+      // Create model
+      await DB.CreateAIModel({
+        id: data.id,
+        displayName: toNullString(data.displayName || data.id),
+        description: toNullString(''),
+        organization: toNullString(''),
+        enabled: toNullInt64(1), // New models enabled by default
+        providerId: data.providerId,
+        type: data.type || 'chat',
+        sort: toNullInt64(0),
+        userId,
+        pricing: toNullString('{}'),
+        parameters: toNullString('{}'),
+        config: toNullString('{}'),
+        abilities: toNullString(JSON.stringify(data.abilities || {})),
+        contextWindowTokens: toNullInt64(data.contextWindowTokens || 0),
+        source: toNullString('custom'),
+        releasedAt: toNullString(data.releasedAt || ''),
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      console.log(`[AI Model] Created model ${data.id} via direct DB`);
+    } else {
+      // ⏳ OLD: Service layer (Phase 3 - Fallback)
+      await aiModelService.createAiModel(data);
+    }
+
     await get().refreshAiModelList();
   },
   fetchRemoteModelList: async (providerId) => {
@@ -122,7 +216,25 @@ export const createAiModelSlice: StateCreator<
     }
   },
   removeAiModel: async (id, providerId) => {
-    await aiModelService.deleteAiModel({ id, providerId });
+    // 🚀 PHASE 3 MIGRATION: Feature flag for rollback
+    const USE_DIRECT_DB_CALLS = true;
+
+    if (USE_DIRECT_DB_CALLS) {
+      // ✅ NEW: Direct DB call (Phase 3 - Delete)
+      const userId = getUserId();
+
+      await DB.DeleteAIModel({
+        id,
+        providerId,
+        userId,
+      });
+
+      console.log(`[AI Model] Deleted model ${id} via direct DB`);
+    } else {
+      // ⏳ OLD: Service layer (Phase 3 - Fallback)
+      await aiModelService.deleteAiModel({ id, providerId });
+    }
+
     await get().refreshAiModelList();
   },
   toggleModelEnabled: async (params) => {
@@ -144,7 +256,9 @@ export const createAiModelSlice: StateCreator<
           id: params.id,
           providerId: activeAiProvider,
           userId,
-          enabled: boolToInt(params.enabled),
+          enabled: toNullInt64(boolToInt(params.enabled)),
+          type: 'chat', // Required field
+          source: toNullString('custom'), // Required field
           createdAt: now,
           updatedAt: now,
         });
@@ -182,7 +296,11 @@ export const createAiModelSlice: StateCreator<
             providerId: id,
             userId,
             sort: toNullInt64(sort),
+            type: 'chat', // Required field
+            enabled: toNullInt64(1), // Required field
+            source: toNullString('custom'), // Required field
             updatedAt: now,
+            createdAt: now, // Required field
           }),
         ),
       );
