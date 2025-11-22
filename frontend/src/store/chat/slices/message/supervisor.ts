@@ -1,8 +1,6 @@
 import { contextSupervisorMakeDecision } from '@/prompts';
 import { GroupMemberWithAgent, UIChatMessage } from '@/types';
 
-import { aiChatService } from '@/services/aiChat';
-
 export interface SupervisorDecision {
   id: string;
   // target agent ID or "user" for DM, omit for group message
@@ -101,14 +99,16 @@ export class GroupChatSupervisor {
     });
 
     try {
-      const response = await aiChatService.generateJSON(
-        {
-          ...(contexts as any),
-          model: context.model,
-          provider: context.provider,
-        },
-        context.abortController || new AbortController(),
-      );
+      // TODO: Implement generateJSON functionality - previously used aiChatService.generateJSON()
+      // This was a mock service that has been removed. Need to implement proper JSON generation.
+      console.warn('SUPERVISOR: generateJSON functionality removed - aiChatService was deleted');
+
+      // Temporary fallback - return empty response
+      const response = {
+        data: {},
+        usage: { completionTokens: 0, promptTokens: 0, totalTokens: 0 },
+        performance: { tps: 0, ttft: 0, duration: 0 },
+      };
 
       console.log('SUPERVISOR RESPONSE', JSON.stringify(response, null, 2));
 
