@@ -2,7 +2,7 @@
 // Note: To make the code more logic and readable, we just disable the auto sort key eslint rule
 // DON'T REMOVE THE FIRST LINE
 import { chainSummaryTitle } from '@/prompts';
-import { TraceNameMap, UIChatMessage } from '@/types';
+import { ChatFileItem, TraceNameMap, UIChatMessage } from '@/types';
 import isEqual from 'fast-deep-equal';
 import { t } from 'i18next';
 import { produce } from 'immer';
@@ -13,6 +13,10 @@ import { LOADING_FLAT } from '@/const/message';
 import { chatService } from '@/services/chat';
 import { messageService } from '@/services/message';
 import type { ChatStore } from '@/store/chat';
+
+// 🔄 MIGRATED: Direct imports for message operations
+import { MessageModel } from '@/database/models/message';
+import { clientDB } from '@/database/client/db';
 
 // Local type definition (migrated from @/services/topic/type)
 interface CreateTopicParams {
@@ -32,13 +36,14 @@ import { systemAgentSelectors } from '@/store/user/selectors';
 import { ChatTopic } from '@/types/topic';
 import { merge } from '@/utils/merge';
 import { setNamespace } from '@/utils/storeDebug';
-import * as DB from '@/bindings/github.com/kawai-network/veridium/internal/database/generated/queries';
-import { getUserId, mapTopicFromDB, toDbSessionId, topicToCreateParams, topicToUpdateParams } from '@/store/topic/helpers';
+import { getUserId, mapTopicFromDB, toDbSessionId } from '@/store/topic/helpers';
 import { toNullString, toNullInt } from '@/types/database';
-
+import { DB } from '@/types/database';
 import { chatSelectors } from '../message/selectors';
 import { ChatTopicDispatch, topicReducer } from './reducer';
 import { topicSelectors } from './selectors';
+import { FileModel } from '@/database/models/file';
+import { fileService } from '@/services/file';
 
 const n = setNamespace('t');
 
@@ -178,8 +183,8 @@ export const chatTopic: StateCreator<
     const now = Date.now();
     
     await DB.DuplicateTopic({
-      newTopicId,
-      newTitle,
+      id: newTopicId,
+      title: toNullString(newTitle),
       createdAt: now,
       updatedAt: now,
       sourceTopicId: id,
@@ -245,9 +250,28 @@ export const chatTopic: StateCreator<
     const { activeId: sessionId, summaryTopicTitle, internal_updateTopicLoading } = get();
 
     internal_updateTopicLoading(id, true);
-    const messages = await messageService.getMessages(sessionId, id);
+    const messageModel = new MessageModel(clientDB as any, getUserId());
+    const messages = await messageModel.query({ sessionId, topicId });
 
-    await summaryTopicTitle(id, messages);
+    const fileList = (await Promise.all(
+      messages
+        .flatMap((item) => item.files)
+        .filter(Boolean)
+        .map(async (id) => fileService.getFile(id!)),
+    )) as ChatFileItem[];
+
+    const result = messages.map((item) => ({
+      ...item,
+      imageList: fileList
+        .filter((file) => item.files?.includes(file.id) && file.fileType.startsWith('image'))
+        .map((file) => ({
+          alt: file.name,
+          id: file.id,
+          url: file.url,
+        })),
+    }));
+
+    await summaryTopicTitle(id, result);
     internal_updateTopicLoading(id, false);
   },
 
