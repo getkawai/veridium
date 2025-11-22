@@ -16,7 +16,6 @@ import type { ChatStore } from '@/store/chat';
 
 // 🔄 MIGRATED: Direct imports for message operations
 import { MessageModel } from '@/database/models/message';
-import { clientDB } from '@/database/client/db';
 
 // Local type definition (migrated from @/services/topic/type)
 interface CreateTopicParams {
@@ -186,7 +185,7 @@ export const chatTopic: StateCreator<
       title: toNullString(newTitle),
       createdAt: now,
       updatedAt: now,
-      sourceTopicId: id,
+      id2: id,
       userId,
     });
     
@@ -249,7 +248,7 @@ export const chatTopic: StateCreator<
     const { activeId: sessionId, summaryTopicTitle, internal_updateTopicLoading } = get();
 
     internal_updateTopicLoading(id, true);
-    const messageModel = new MessageModel(clientDB as any, getUserId());
+    const messageModel = new MessageModel(DB, getUserId());
     const messages = await messageModel.query({ sessionId, topicId: id });
 
     const fileList = (await Promise.all(
@@ -307,7 +306,7 @@ export const chatTopic: StateCreator<
 
       console.debug('[internal_fetchTopics] Updating topicMaps');
       set(
-        { topicMaps: nextMap, topicsInit: true },
+        { topicMaps: nextMap as Record<string, ChatTopic[]>, topicsInit: true },
         false,
         n('internal_fetchTopics', { containerId }),
       );
@@ -336,7 +335,7 @@ export const chatTopic: StateCreator<
       const dbTopics = await DB.SearchTopicsByTitle({
         userId,
         title: searchPattern,
-        containerId,
+        containerId: toNullString(containerId),
         sessionId: toNullString(toDbSessionId(sessionId)),
         groupId: toNullString(groupId),
       });

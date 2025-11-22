@@ -49,8 +49,8 @@ export const mapTopicFromDB = (dbTopic: any) => {
     clientId: getNullableString(dbTopic.clientId) || undefined,
     historySummary: getNullableString(dbTopic.historySummary) || undefined,
     metadata: parseNullableJSON(dbTopic.metadata) || {},
-    createdAt: new Date(dbTopic.createdAt),
-    updatedAt: new Date(dbTopic.updatedAt),
+    createdAt: Number(dbTopic.createdAt) || Date.now(),
+    updatedAt: Number(dbTopic.updatedAt) || Date.now(),
   };
 };
 
