@@ -53,47 +53,38 @@ export const createAiModelSlice: StateCreator<
     const { activeAiProvider: id } = get();
     if (!id) return;
 
-    // 🚀 PHASE 3 MIGRATION: Feature flag for rollback
-    const USE_DIRECT_DB_CALLS = true;
+    const userId = getUserId();
+    const now = Date.now();
 
-    if (USE_DIRECT_DB_CALLS) {
-      // ✅ NEW: Direct DB call (Phase 3 - Batch Update)
-      const userId = getUserId();
-      const now = Date.now();
+    // Batch update all models in parallel
+    await Promise.all(
+      models.map(async (model) => {
+        // Get current model to merge
+        const current = await DB.GetAIModel({ id: model.id, providerId: id, userId });
+        if (!current) {
+          console.warn(`[AI Model] Model ${model.id} not found, skipping update`);
+          return;
+        }
 
-      // Batch update all models in parallel
-      await Promise.all(
-        models.map(async (model) => {
-          // Get current model to merge
-          const current = await DB.GetAIModel({ id: model.id, providerId: id, userId });
-          if (!current) {
-            console.warn(`[AI Model] Model ${model.id} not found, skipping update`);
-            return;
-          }
+        // Merge updates (only fields that exist in UpdateAIModelParams)
+        await DB.UpdateAIModel({
+          id: model.id,
+          providerId: id,
+          userId,
+          displayName: model.displayName ? toNullString(model.displayName) : current.displayName,
+          description: current.description,
+          enabled: model.enabled !== undefined ? toNullInt64(boolToInt(model.enabled)) : current.enabled,
+          sort: current.sort, // Keep current sort (use updateAiModelsSort for sort changes)
+          pricing: current.pricing,
+          parameters: current.parameters,
+          config: current.config,
+          abilities: model.abilities ? toNullString(JSON.stringify(model.abilities)) : current.abilities,
+          updatedAt: now,
+        });
+      }),
+    );
 
-          // Merge updates (only fields that exist in UpdateAIModelParams)
-          await DB.UpdateAIModel({
-            id: model.id,
-            providerId: id,
-            userId,
-            displayName: model.displayName ? toNullString(model.displayName) : current.displayName,
-            description: current.description,
-            enabled: model.enabled !== undefined ? toNullInt64(boolToInt(model.enabled)) : current.enabled,
-            sort: current.sort, // Keep current sort (use updateAiModelsSort for sort changes)
-            pricing: current.pricing,
-            parameters: current.parameters,
-            config: current.config,
-            abilities: model.abilities ? toNullString(JSON.stringify(model.abilities)) : current.abilities,
-            updatedAt: now,
-          });
-        }),
-      );
-
-      console.log(`[AI Model] Batch updated ${models.length} models via direct DB`);
-    } else {
-      // ⏳ OLD: Service layer (Phase 3 - Fallback)
-      await aiModelService.batchUpdateAiModels(id, models);
-    }
+    console.log(`[AI Model] Batch updated ${models.length} models via direct DB`);
 
     await get().refreshAiModelList();
   },
@@ -106,59 +97,50 @@ export const createAiModelSlice: StateCreator<
     await get().refreshAiModelList();
   },
   createNewAiModel: async (data) => {
-    // 🚀 PHASE 3 MIGRATION: Feature flag for rollback
-    const USE_DIRECT_DB_CALLS = true;
+    const userId = getUserId();
+    const now = Date.now();
 
-    if (USE_DIRECT_DB_CALLS) {
-      // ✅ NEW: Direct DB call (Phase 3 - Create with Validation)
-      const userId = getUserId();
-      const now = Date.now();
-
-      // Validation
-      if (!data.id || !data.displayName || !data.providerId) {
-        throw new Error('Model ID, display name, and provider ID are required');
-      }
-
-      // Check if already exists
-      try {
-        const existing = await DB.GetAIModel({ id: data.id, providerId: data.providerId, userId });
-        if (existing) {
-          throw new Error(`Model ${data.id} already exists`);
-        }
-      } catch (e: any) {
-        // Not found error is OK
-        if (!e.message?.includes('not found')) {
-          throw e;
-        }
-      }
-
-      // Create model
-      await DB.CreateAIModel({
-        id: data.id,
-        displayName: toNullString(data.displayName || data.id),
-        description: toNullString(''),
-        organization: toNullString(''),
-        enabled: toNullInt64(1), // New models enabled by default
-        providerId: data.providerId,
-        type: data.type || 'chat',
-        sort: toNullInt64(0),
-        userId,
-        pricing: toNullString('{}'),
-        parameters: toNullString('{}'),
-        config: toNullString('{}'),
-        abilities: toNullString(JSON.stringify(data.abilities || {})),
-        contextWindowTokens: toNullInt64(data.contextWindowTokens || 0),
-        source: toNullString('custom'),
-        releasedAt: toNullString(data.releasedAt || ''),
-        createdAt: now,
-        updatedAt: now,
-      });
-
-      console.log(`[AI Model] Created model ${data.id} via direct DB`);
-    } else {
-      // ⏳ OLD: Service layer (Phase 3 - Fallback)
-      await aiModelService.createAiModel(data);
+    // Validation
+    if (!data.id || !data.displayName || !data.providerId) {
+      throw new Error('Model ID, display name, and provider ID are required');
     }
+
+    // Check if already exists
+    try {
+      const existing = await DB.GetAIModel({ id: data.id, providerId: data.providerId, userId });
+      if (existing) {
+        throw new Error(`Model ${data.id} already exists`);
+      }
+    } catch (e: any) {
+      // Not found error is OK
+      if (!e.message?.includes('not found')) {
+        throw e;
+      }
+    }
+
+    // Create model
+    await DB.CreateAIModel({
+      id: data.id,
+      displayName: toNullString(data.displayName || data.id),
+      description: toNullString(''),
+      organization: toNullString(''),
+      enabled: toNullInt64(1), // New models enabled by default
+      providerId: data.providerId,
+      type: data.type || 'chat',
+      sort: toNullInt64(0),
+      userId,
+      pricing: toNullString('{}'),
+      parameters: toNullString('{}'),
+      config: toNullString('{}'),
+      abilities: toNullString(JSON.stringify(data.abilities || {})),
+      contextWindowTokens: toNullInt64(data.contextWindowTokens || 0),
+      source: toNullString('custom'),
+      releasedAt: toNullString(data.releasedAt || ''),
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    console.log(`[AI Model] Created model ${data.id} via direct DB`);
 
     await get().refreshAiModelList();
   },
@@ -217,24 +199,15 @@ export const createAiModelSlice: StateCreator<
     }
   },
   removeAiModel: async (id, providerId) => {
-    // 🚀 PHASE 3 MIGRATION: Feature flag for rollback
-    const USE_DIRECT_DB_CALLS = true;
+    const userId = getUserId();
 
-    if (USE_DIRECT_DB_CALLS) {
-      // ✅ NEW: Direct DB call (Phase 3 - Delete)
-      const userId = getUserId();
+    await DB.DeleteAIModel({
+      id,
+      providerId,
+      userId,
+    });
 
-      await DB.DeleteAIModel({
-        id,
-        providerId,
-        userId,
-      });
-
-      console.log(`[AI Model] Deleted model ${id} via direct DB`);
-    } else {
-      // ⏳ OLD: Service layer (Phase 3 - Fallback)
-      await aiModelService.deleteAiModel({ id, providerId });
-    }
+    console.log(`[AI Model] Deleted model ${id} via direct DB`);
 
     await get().refreshAiModelList();
   },
@@ -244,31 +217,22 @@ export const createAiModelSlice: StateCreator<
 
     get().internal_toggleAiModelLoading(params.id, true);
 
-    // 🚀 PHASE 2 MIGRATION: Feature flag for rollback
-    const USE_DIRECT_DB_CALLS = true;
-
     try {
-      if (USE_DIRECT_DB_CALLS) {
-        // ✅ NEW: Direct DB call (Phase 2 - Simple Write)
-        const userId = getUserId();
-        const now = Date.now();
+      const userId = getUserId();
+      const now = Date.now();
 
-        await DB.ToggleAIModelEnabled({
-          id: params.id,
-          providerId: activeAiProvider,
-          userId,
-          enabled: toNullInt64(boolToInt(params.enabled)),
-          type: 'chat', // Required field
-          source: toNullString('custom'), // Required field
-          createdAt: now,
-          updatedAt: now,
-        });
+      await DB.ToggleAIModelEnabled({
+        id: params.id,
+        providerId: activeAiProvider,
+        userId,
+        enabled: toNullInt64(boolToInt(params.enabled)),
+        type: 'chat', // Required field
+        source: toNullString('custom'), // Required field
+        createdAt: now,
+        updatedAt: now,
+      });
 
-        console.log(`[AI Model] Toggled ${params.id} to ${params.enabled} via direct DB`);
-      } else {
-        // ⏳ OLD: Service layer (Phase 2 - Fallback)
-        await aiModelService.toggleModelEnabled({ ...params, providerId: activeAiProvider });
-      }
+      console.log(`[AI Model] Toggled ${params.id} to ${params.enabled} via direct DB`);
 
       await get().refreshAiModelList();
     } finally {
@@ -281,36 +245,27 @@ export const createAiModelSlice: StateCreator<
     await get().refreshAiModelList();
   },
   updateAiModelsSort: async (id, items) => {
-    // 🚀 PHASE 2 MIGRATION: Feature flag for rollback
-    const USE_DIRECT_DB_CALLS = true;
+    const userId = getUserId();
+    const now = Date.now();
 
-    if (USE_DIRECT_DB_CALLS) {
-      // ✅ NEW: Direct DB call (Phase 2 - Batch Write)
-      const userId = getUserId();
-      const now = Date.now();
+    // Batch update all model sorts in parallel
+    await Promise.all(
+      items.map(({ id: modelId, sort }) =>
+        DB.UpdateAIModelSort({
+          id: modelId,
+          providerId: id,
+          userId,
+          sort: toNullInt64(sort),
+          type: 'chat', // Required field
+          enabled: toNullInt64(1), // Required field
+          source: toNullString('custom'), // Required field
+          updatedAt: now,
+          createdAt: now, // Required field
+        }),
+      ),
+    );
 
-      // Batch update all model sorts in parallel
-      await Promise.all(
-        items.map(({ id: modelId, sort }) =>
-          DB.UpdateAIModelSort({
-            id: modelId,
-            providerId: id,
-            userId,
-            sort: toNullInt64(sort),
-            type: 'chat', // Required field
-            enabled: toNullInt64(1), // Required field
-            source: toNullString('custom'), // Required field
-            updatedAt: now,
-            createdAt: now, // Required field
-          }),
-        ),
-      );
-
-      console.log(`[AI Model] Updated sort order for ${items.length} models via direct DB`);
-    } else {
-      // ⏳ OLD: Service layer (Phase 2 - Fallback)
-      await aiModelService.updateAiModelOrder(id, items);
-    }
+    console.log(`[AI Model] Updated sort order for ${items.length} models via direct DB`);
 
     await get().refreshAiModelList();
   },
