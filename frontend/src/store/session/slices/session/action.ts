@@ -320,7 +320,6 @@ export const createSessionSlice: StateCreator<
     const controller = new AbortController();
     set({ signalSessionMeta: controller }, false, 'updateSessionMetaSignal');
 
-    // 🔄 MIGRATED: Direct DB call instead of sessionService.updateSessionMeta()
     const userId = getUserId();
     const now = Date.now();
     
@@ -343,7 +342,6 @@ export const createSessionSlice: StateCreator<
     if (!enabled) return;
 
     try {
-      // 🔄 MIGRATED: Direct DB call instead of sessionService.getGroupedSessions()
       const userId = getUserId();
       
       // Fetch sessions and session groups in parallel
@@ -421,7 +419,6 @@ export const createSessionSlice: StateCreator<
     if (!keyword) return;
 
     try {
-      // 🔄 MIGRATED: Direct DB call instead of sessionService.searchSessions()
       const userId = getUserId();
       const dbResults = await DB.SearchSessionsByKeyword({ 
         userId, 
@@ -444,7 +441,6 @@ export const createSessionSlice: StateCreator<
   internal_updateSession: async (id, data) => {
     get().internal_dispatchSessions({ type: 'updateSession', id, value: data });
 
-    // 🔄 MIGRATED: Direct DB call instead of sessionService.updateSession()
     const userId = getUserId();
     const now = Date.now();
     
@@ -492,7 +488,6 @@ export const createSessionSlice: StateCreator<
   },
   refreshSessions: async () => {
     try {
-      // 🔄 MIGRATED: Direct DB call instead of sessionService.getGroupedSessions()
       const userId = getUserId();
       
       // Fetch sessions and session groups in parallel

@@ -32,7 +32,6 @@ export const createPreferenceSlice: StateCreator<
 
     set({ preference: nextPreference }, false, action || n('updatePreference'));
 
-    // 🔄 MIGRATED: Direct LocalStorage call instead of userService.updatePreference()
     // Note: Preference is stored in LocalStorage, not DB
     await preferenceStorage.saveToLocalStorage(nextPreference);
     

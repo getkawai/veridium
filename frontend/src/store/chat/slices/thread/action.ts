@@ -556,7 +556,6 @@ export const chatThreadMessage: StateCreator<
 
     get().internal_updateThreadLoading(id, true);
 
-    // 🔄 MIGRATED: Direct DB call instead of threadService.updateThread()
     const userId = getUserId();
     const now = currentTimestampMs();
 

@@ -173,7 +173,6 @@ export const chatTopic: StateCreator<
       duration: 0,
     });
 
-    // 🔄 MIGRATED: Direct DB call instead of topicService.cloneTopic()
     const userId = getUserId();
     const newTopicId = crypto.randomUUID();
     const now = Date.now();
@@ -261,7 +260,6 @@ export const chatTopic: StateCreator<
     if (!containerId) return;
 
     try {
-      // 🔄 MIGRATED: Direct DB call instead of topicService.getTopics()
       const userId = getUserId();
       const dbSessionId = toDbSessionId(containerId);
       
@@ -308,7 +306,6 @@ export const chatTopic: StateCreator<
     try {
       set({ isSearchingTopic: true }, false, n('internal_searchTopics/start'));
       
-      // 🔄 MIGRATED: Direct DB call instead of topicService.searchTopics()
       const userId = getUserId();
       const searchPattern = `%${keywords}%`;
       const containerId = sessionId || groupId || '';
@@ -389,7 +386,6 @@ export const chatTopic: StateCreator<
   removeSessionTopics: async () => {
     const { switchTopic, activeId, refreshTopic } = get();
 
-    // 🔄 MIGRATED: Direct DB call instead of topicService.removeTopics()
     const userId = getUserId();
     const dbSessionId = toDbSessionId(activeId);
     
@@ -409,7 +405,6 @@ export const chatTopic: StateCreator<
   removeGroupTopics: async (groupId: string) => {
     const { switchTopic, refreshTopic } = get();
 
-    // 🔄 MIGRATED: Direct DB call instead of topicService.batchRemoveTopics()
     const userId = getUserId();
     
     await DB.DeleteTopicsByGroup({
@@ -427,7 +422,6 @@ export const chatTopic: StateCreator<
   removeAllTopics: async () => {
     const { refreshTopic } = get();
 
-    // 🔄 MIGRATED: Direct DB call instead of topicService.removeAllTopic()
     const userId = getUserId();
     
     await DB.DeleteAllTopics(userId);
@@ -443,7 +437,6 @@ export const chatTopic: StateCreator<
     // TODO: Need to remove because server service don't need to call it
     await messageService.removeMessagesByAssistant(activeId, id);
 
-    // 🔄 MIGRATED: Direct DB call instead of topicService.removeTopic()
     const userId = getUserId();
     
     await DB.DeleteTopic({ id, userId });
@@ -458,7 +451,6 @@ export const chatTopic: StateCreator<
     const { refreshTopic, switchTopic } = get();
     const topics = topicSelectors.currentUnFavTopics(get());
 
-    // 🔄 MIGRATED: Direct DB call instead of topicService.batchRemoveTopics()
     const userId = getUserId();
     
     // Delete all unstarred topics
@@ -492,7 +484,6 @@ export const chatTopic: StateCreator<
     try {
       console.debug('[refreshTopic] Fetching topics for activeId:', activeId);
       
-      // 🔄 MIGRATED: Direct DB call instead of topicService.getTopics()
       const userId = getUserId();
       const dbTopics = await DB.ListTopics({
         userId,
@@ -532,7 +523,6 @@ export const chatTopic: StateCreator<
 
     get().internal_updateTopicLoading(id, true);
     
-    // 🔄 MIGRATED: Direct DB call instead of topicService.updateTopic()
     const userId = getUserId();
     const now = Date.now();
     
@@ -561,7 +551,6 @@ export const chatTopic: StateCreator<
 
     get().internal_updateTopicLoading(tmpId, true);
     
-    // 🔄 MIGRATED: Direct DB call instead of topicService.createTopic()
     const userId = getUserId();
     const topicId = crypto.randomUUID();
     const now = Date.now();

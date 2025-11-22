@@ -13,7 +13,6 @@ import {
   TraceEventPayloads,
   TraceEventType,
   UIChatMessage,
-  UpdateMessageRAGParams,
 } from '@/types';
 import { nanoid } from '@/utils';
 import { copyToClipboard } from '@lobehub/ui';
@@ -27,7 +26,6 @@ import { useSessionStore } from '@/store/session';
 import { sessionSelectors } from '@/store/session/selectors';
 import { Action, setNamespace } from '@/utils/storeDebug';
 
-// 🔄 MIGRATED: Direct DB imports for message operations
 import { DB, toNullString, toNullJSON, currentTimestampMs } from '@/types/database';
 import { getUserId } from '@/store/session/helpers';
 import { MessageModel } from '@/database/models/message';
@@ -40,8 +38,7 @@ import { MessageDispatch, messagesReducer } from './reducer';
 
 const n = setNamespace('m');
 
-// 🔄 MIGRATED: Helper function to map messages from DB to UI format
-// Note: This is a simplified version - full mapping logic might need adjustment
+// Helper function to map messages from DB to UI format
 const mapMessagesFromDB = (dbMessages: any[]): UIChatMessage[] => {
   return dbMessages.map((msg: any) => ({
     id: msg.id,
@@ -225,7 +222,6 @@ export const chatMessage: StateCreator<
       activeId,
       activeTopicId,
       refreshMessages,
-      refreshTopic,
       switchTopic,
       activeSessionType,
     } = get();
@@ -263,7 +259,6 @@ export const chatMessage: StateCreator<
       console.log('[Message] Cleared session messages via direct DB', { sessionId: activeId });
     }
 
-    // 🔄 MIGRATED: Use store action instead of topicService.removeTopic()
     if (activeTopicId) {
       await get().removeTopic(activeTopicId);
     }
@@ -511,7 +506,6 @@ export const chatMessage: StateCreator<
   },
 
   internal_updateMessagePluginError: async (id, error) => {
-    // 🔄 MIGRATED: Direct DB call instead of messageService.updateMessagePluginError()
     const userId = getUserId();
 
     // Get current plugin item first

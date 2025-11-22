@@ -74,7 +74,6 @@ export const createSettingsSlice: StateCreator<
   },
 
   resetSettings: async () => {
-    // 🔄 MIGRATED: Direct DB call instead of userService.resetUserSettings()
     const userId = getUserId();
     await DB.DeleteUserSettings(userId);
     
@@ -94,7 +93,6 @@ export const createSettingsSlice: StateCreator<
 
     const abortController = get().internal_createSignal();
     
-    // 🔄 MIGRATED: Direct DB call instead of userService.updateUserSettings()
     const userId = getUserId();
     const { keyVaults, ...res } = diffs;
     

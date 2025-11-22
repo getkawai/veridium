@@ -60,7 +60,6 @@ export const chatGroupAction: StateCreator<
     ...initialChatGroupState,
 
     addAgentsToGroup: async (groupId, agentIds) => {
-      // 🔄 MIGRATED: Direct DB call instead of chatGroupService.addAgentsToGroup()
       const userId = getUserId();
       const now = Date.now();
       
@@ -90,7 +89,6 @@ export const chatGroupAction: StateCreator<
     createGroup: async (newGroup: Omit<NewChatGroup, 'userId'>, agentIds?: string[], silent = false) => {
       const { switchSession } = getSessionStoreState();
 
-      // 🔄 MIGRATED: Direct DB call instead of chatGroupService.createGroup()
       const userId = getUserId();
       const groupId = crypto.randomUUID();
       const now = Date.now();
@@ -152,14 +150,12 @@ export const chatGroupAction: StateCreator<
       // First, get all group members to identify virtual members
       // Note: ChatGroupAgentItem type is incorrectly defined in schema as agents table type
       // but getGroupAgents actually returns chatGroupsAgents junction table entries
-      // 🔄 MIGRATED: Direct DB call instead of chatGroupService.getGroupAgents()
       const userId = getUserId();
       const groupAgents = (await DB.GetChatGroupAgentLinks({ chatGroupId: id, userId })) as unknown as Array<{
         agentId: string;
         chatGroupId: string;
       }>;
 
-      // 🔄 MIGRATED: Direct DB call instead of chatGroupService.deleteGroup()
       await DB.DeleteChatGroup({ id, userId });
       
       console.log('[ChatGroup] Deleted group via direct DB', { id });
@@ -206,7 +202,6 @@ export const chatGroupAction: StateCreator<
     internal_refreshGroups: async () => {
       await get().loadGroups();
 
-      // 🔄 MIGRATED: Direct DB call instead of chatGroupService.getGroups()
       const userId = getUserId();
       const dbGroups = await DB.ListChatGroups(userId);
       const groups = dbGroups.map(mapChatGroupFromDB);
@@ -282,7 +277,6 @@ export const chatGroupAction: StateCreator<
     loadGroups: async () => {
       dispatch({ payload: true, type: 'setGroupsLoading' });
       
-      // 🔄 MIGRATED: Direct DB call instead of chatGroupService.getGroups()
       const userId = getUserId();
       const dbGroups = await DB.ListChatGroups(userId);
       const groups = dbGroups.map(mapChatGroupFromDB);
@@ -293,7 +287,6 @@ export const chatGroupAction: StateCreator<
     },
 
     pinGroup: async (id, pinned) => {
-      // 🔄 MIGRATED: Direct DB call instead of chatGroupService.updateGroup()
       const userId = getUserId();
       const now = Date.now();
       
@@ -315,7 +308,6 @@ export const chatGroupAction: StateCreator<
 
     refreshGroupDetail: async (groupId: string) => {
       try {
-        // 🔄 MIGRATED: Direct DB call instead of chatGroupService.getGroup()
         const userId = getUserId();
         const dbGroup = await DB.GetChatGroup({ id: groupId, userId });
         if (!dbGroup) throw new Error(`Group ${groupId} not found`);
@@ -341,7 +333,6 @@ export const chatGroupAction: StateCreator<
 
     refreshGroups: async () => {
       try {
-        // 🔄 MIGRATED: Direct DB call instead of chatGroupService.getGroups()
         const userId = getUserId();
         const dbGroups = await DB.ListChatGroups(userId);
         const groups = dbGroups.map(mapChatGroupFromDB);
@@ -365,7 +356,6 @@ export const chatGroupAction: StateCreator<
     },
 
     removeAgentFromGroup: async (groupId, agentId) => {
-      // 🔄 MIGRATED: Direct DB call instead of chatGroupService.removeAgentsFromGroup()
       const userId = getUserId();
       
       await DB.UnlinkChatGroupFromAgent({
@@ -382,7 +372,6 @@ export const chatGroupAction: StateCreator<
     reorderGroupMembers: async (groupId, orderedAgentIds) => {
       console.log('REORDER GROUP MEMBERS', groupId, orderedAgentIds);
 
-      // 🔄 MIGRATED: Direct DB call instead of chatGroupService.updateAgentInGroup()
       const userId = getUserId();
       const now = Date.now();
       
@@ -412,7 +401,6 @@ export const chatGroupAction: StateCreator<
     },
 
     updateGroup: async (id: string, value: Partial<ChatGroupItem>) => {
-      // 🔄 MIGRATED: Direct DB call instead of chatGroupService.updateGroup()
       const userId = getUserId();
       const now = Date.now();
       
@@ -442,7 +430,6 @@ export const chatGroupAction: StateCreator<
         ...config,
       };
 
-      // 🔄 MIGRATED: Direct DB call instead of chatGroupService.updateGroup()
       const userId = getUserId();
       const now = Date.now();
       
@@ -490,7 +477,6 @@ export const chatGroupAction: StateCreator<
 
       const id = group.id;
 
-      // 🔄 MIGRATED: Direct DB call instead of chatGroupService.updateGroup()
       const userId = getUserId();
       const now = Date.now();
       
@@ -514,7 +500,6 @@ export const chatGroupAction: StateCreator<
       if (!enabled || !groupId) return;
 
       try {
-        // 🔄 MIGRATED: Direct DB call instead of chatGroupService.getGroup()
         const userId = getUserId();
         const dbGroup = await DB.GetChatGroup({ id: groupId, userId });
         if (!dbGroup) throw new Error(`Group ${groupId} not found`);
@@ -540,7 +525,6 @@ export const chatGroupAction: StateCreator<
       if (!enabled) return;
 
       try {
-        // 🔄 MIGRATED: Direct DB call instead of chatGroupService.getGroups()
         const userId = getUserId();
         const dbGroups = await DB.ListChatGroups(userId);
         const groups = dbGroups.map(mapChatGroupFromDB);

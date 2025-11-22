@@ -46,7 +46,6 @@ export const createCommonSlice: StateCreator<
     console.debug('[refreshUserState] Skipped (handled by useEffect)');
   },
   updateAvatar: async (avatar) => {
-    // 🔄 MIGRATED: Direct DB call instead of userService.updateAvatar()
     const userId = getUserId();
     const now = Date.now();
     
@@ -84,7 +83,6 @@ export const createCommonSlice: StateCreator<
 
       const initUserState = async () => {
         try {
-          // 🔄 MIGRATED: Direct DB call instead of userService.getUserState()
           const userId = getUserId();
           
           // Ensure user exists

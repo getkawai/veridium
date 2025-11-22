@@ -7,7 +7,6 @@ import { supportLocales } from '@/locales/resources';
 import { chatService } from '@/services/chat';
 import { chatSelectors } from '../message/selectors';
 
-// 🔄 MIGRATED: Direct DB imports for translate operations
 import { DB, toNullString } from '@/types/database';
 import { getUserId } from '@/store/session/helpers';
 import { ChatStore } from '@/store/chat/store';
@@ -45,7 +44,7 @@ export const chatTranslate: StateCreator<
   }),
 
   translateMessage: async (id, targetLang) => {
-    const { internal_toggleChatLoading, updateMessageTranslate, internal_dispatchMessage } = get();
+    const { updateMessageTranslate, internal_dispatchMessage } = get();
 
     const message = chatSelectors.getMessageById(id)(get());
     if (!message) return;
@@ -111,7 +110,6 @@ export const chatTranslate: StateCreator<
   },
 
   updateMessageTranslate: async (id, data) => {
-    // 🔄 MIGRATED: Direct DB call instead of messageService.updateMessageTranslate()
     const userId = getUserId();
 
     if (data === false) {

@@ -40,7 +40,6 @@ export const chatMemory: StateCreator<
       },
     });
 
-    // 🔄 MIGRATED: Direct DB call instead of topicService.updateTopic()
     const userId = getUserId();
     await DB.UpdateTopic({
       id: topicId,

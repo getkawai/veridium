@@ -28,7 +28,6 @@ export const createSessionGroupSlice: StateCreator<
   SessionGroupAction
 > = (set, get) => ({
   addSessionGroup: async (name) => {
-    // 🔄 MIGRATED: Direct DB call instead of sessionService.createSessionGroup()
     const userId = getUserId();
     const id = crypto.randomUUID();
     const now = Date.now();
@@ -50,7 +49,6 @@ export const createSessionGroupSlice: StateCreator<
   },
 
   clearSessionGroups: async () => {
-    // 🔄 MIGRATED: Direct DB call instead of sessionService.removeSessionGroups()
     const userId = getUserId();
     await DB.DeleteAllSessionGroups(userId);
     
@@ -60,7 +58,6 @@ export const createSessionGroupSlice: StateCreator<
   },
 
   removeSessionGroup: async (id) => {
-    // 🔄 MIGRATED: Direct DB call instead of sessionService.removeSessionGroup()
     const userId = getUserId();
     await DB.DeleteSessionGroup({ id, userId });
     
@@ -70,7 +67,6 @@ export const createSessionGroupSlice: StateCreator<
   },
 
   updateSessionGroupName: async (id, name) => {
-    // 🔄 MIGRATED: Direct DB call instead of sessionService.updateSessionGroup()
     const userId = getUserId();
     const now = Date.now();
     
@@ -96,7 +92,6 @@ export const createSessionGroupSlice: StateCreator<
       key: 'updateSessionGroupSort',
     });
 
-    // 🔄 MIGRATED: Direct DB call instead of sessionService.updateSessionGroupOrder()
     const userId = getUserId();
     await DB.UpdateSessionGroupOrder({
       userId,

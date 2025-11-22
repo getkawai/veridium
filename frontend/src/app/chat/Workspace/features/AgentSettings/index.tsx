@@ -107,7 +107,6 @@ const AgentSettings = memo<AgentSettingsProps>(({ agentId, onClose, open }) => {
       );
 
       if (agentSession) {
-        // 🔄 MIGRATED: Use store action instead of sessionService
         // Switch to the agent session temporarily to update its meta
         const currentActiveId = useSessionStore.getState().activeId;
         useSessionStore.getState().switchSession(agentSession.id);

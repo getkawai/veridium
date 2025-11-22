@@ -163,7 +163,6 @@ export const createChatSlice: StateCreator<
     if (isLogin !== true || sessionId.startsWith('cg_')) return;
 
     try {
-      // 🔄 MIGRATED: Direct DB call instead of sessionService.getSessionConfig()
       const userId = getUserId();
       const dbAgent = await DB.GetAgentBySessionId({ sessionId, userId });
       const data = mapAgentConfigFromDB(dbAgent);
@@ -206,7 +205,6 @@ export const createChatSlice: StateCreator<
 
       const initInboxAgent = async () => {
         try {
-          // 🔄 MIGRATED: Direct DB call instead of sessionService.getSessionConfig()
           const userId = getUserId();
           const dbAgent = await DB.GetAgentBySessionId({ sessionId: INBOX_SESSION_ID, userId });
           const data = mapAgentConfigFromDB(dbAgent);
@@ -314,7 +312,6 @@ export const createChatSlice: StateCreator<
     // optimistic update at frontend
     get().internal_dispatchAgentMap(id, data, 'optimistic_updateAgentConfig');
 
-    // 🔄 MIGRATED: Direct DB call instead of sessionService.updateSessionConfig()
     const userId = getUserId();
     const now = Date.now();
     
@@ -344,7 +341,6 @@ export const createChatSlice: StateCreator<
 
   internal_refreshAgentConfig: async (id) => {
     try {
-      // 🔄 MIGRATED: Direct DB call instead of sessionService.getSessionConfig()
       const userId = getUserId();
       const dbAgent = await DB.GetAgentBySessionId({ sessionId: id, userId });
       const data = mapAgentConfigFromDB(dbAgent);
