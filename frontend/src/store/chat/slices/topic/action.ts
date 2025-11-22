@@ -334,7 +334,7 @@ export const chatTopic: StateCreator<
       
       const dbTopics = await DB.SearchTopicsByTitle({
         userId,
-        title: searchPattern,
+        title: toNullString(searchPattern),
         containerId: toNullString(containerId),
         sessionId: toNullString(toDbSessionId(sessionId)),
         groupId: toNullString(groupId),
@@ -580,7 +580,7 @@ export const chatTopic: StateCreator<
     await DB.CreateTopic({
       id: topicId,
       title: toNullString(params.title || 'Untitled'),
-      favorite: toNullInt(0),
+      favorite: 0,
       sessionId: toNullString(toDbSessionId(params.sessionId)),
       groupId: toNullString(params.groupId),
       userId,
