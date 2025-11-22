@@ -7,12 +7,15 @@ import { StateCreator } from 'zustand/vanilla';
 import { MESSAGE_CANCEL_FLAT } from '@/const/message';
 import { INBOX_SESSION_ID } from '@/const/session';
 // import { agentService } from '@/services/agent';
-import { sessionService } from '@/services/session';
 import { AgentState } from '@/store/agent/slices/chat/initialState';
 import { getSessionStoreState, useSessionStore } from '@/store/session';
 import { LobeAgentChatConfig, LobeAgentConfig } from '@/types/agent';
 import { KnowledgeItem } from '@/types/knowledgeBase';
 import { merge } from '@/utils/merge';
+import * as DB from '@/bindings/github.com/kawai-network/veridium/internal/database/generated/queries';
+import { getUserId } from '@/store/session/helpers';
+import { mapAgentConfigFromDB } from '@/store/session/helpers';
+import { toNullString, toNullJSON, toNullInt } from '@/types/database';
 
 import type { AgentStore } from '../../store';
 import { agentSelectors } from './selectors';
@@ -160,7 +163,13 @@ export const createChatSlice: StateCreator<
     if (isLogin !== true || sessionId.startsWith('cg_')) return;
 
     try {
-      const data = await sessionService.getSessionConfig(sessionId);
+      // 🔄 MIGRATED: Direct DB call instead of sessionService.getSessionConfig()
+      const userId = getUserId();
+      const dbAgent = await DB.GetAgentBySessionId({ sessionId, userId });
+      const data = mapAgentConfigFromDB(dbAgent);
+      
+      console.log('[Agent] Fetched agent config via direct DB', { sessionId });
+      
       get().internal_dispatchAgentMap(sessionId, data, 'fetch');
 
       set(
@@ -197,9 +206,12 @@ export const createChatSlice: StateCreator<
 
       const initInboxAgent = async () => {
         try {
-          // Backend ensures inbox session exists at startup (desktop single-user app)
-          // This just loads the config into frontend state
-          const data = await sessionService.getSessionConfig(INBOX_SESSION_ID);
+          // 🔄 MIGRATED: Direct DB call instead of sessionService.getSessionConfig()
+          const userId = getUserId();
+          const dbAgent = await DB.GetAgentBySessionId({ sessionId: INBOX_SESSION_ID, userId });
+          const data = mapAgentConfigFromDB(dbAgent);
+          
+          console.log('[Agent] Initialized inbox agent via direct DB');
 
           set(
             {
@@ -302,7 +314,28 @@ export const createChatSlice: StateCreator<
     // optimistic update at frontend
     get().internal_dispatchAgentMap(id, data, 'optimistic_updateAgentConfig');
 
-    await sessionService.updateSessionConfig(id, data, signal);
+    // 🔄 MIGRATED: Direct DB call instead of sessionService.updateSessionConfig()
+    const userId = getUserId();
+    const now = Date.now();
+    
+    await DB.UpdateAgent({
+      sessionId: id,
+      userId,
+      model: data.model ? toNullString(data.model) : undefined,
+      systemRole: data.systemRole ? toNullString(data.systemRole) : undefined,
+      plugins: data.plugins ? toNullJSON(data.plugins) : undefined,
+      chatConfig: data.chatConfig ? toNullJSON(data.chatConfig) : undefined,
+      params: data.params ? toNullJSON(data.params) : undefined,
+      openingMessage: data.openingMessage ? toNullString(data.openingMessage) : undefined,
+      openingQuestions: data.openingQuestions ? toNullJSON(data.openingQuestions) : undefined,
+      fewShots: data.fewShots ? toNullJSON(data.fewShots) : undefined,
+      virtual: data.virtual !== undefined ? toNullInt(data.virtual ? 1 : 0) : undefined,
+      provider: data.provider ? toNullString(data.provider) : undefined,
+      updatedAt: now,
+    } as any);
+    
+    console.log('[Agent] Updated agent config via direct DB', { sessionId: id });
+    
     await get().internal_refreshAgentConfig(id);
 
     // refresh sessions to update the agent config if the model has changed
@@ -311,7 +344,13 @@ export const createChatSlice: StateCreator<
 
   internal_refreshAgentConfig: async (id) => {
     try {
-      const data = await sessionService.getSessionConfig(id);
+      // 🔄 MIGRATED: Direct DB call instead of sessionService.getSessionConfig()
+      const userId = getUserId();
+      const dbAgent = await DB.GetAgentBySessionId({ sessionId: id, userId });
+      const data = mapAgentConfigFromDB(dbAgent);
+      
+      console.log('[Agent] Refreshed agent config via direct DB', { sessionId: id });
+      
       get().internal_dispatchAgentMap(id, data, 'refresh');
     } catch (error) {
       console.error('[internal_refreshAgentConfig] Error:', error);

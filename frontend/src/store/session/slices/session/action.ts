@@ -12,6 +12,9 @@ import { sessionService } from '@/services/session';
 import { useAgentStore } from '@/store/agent';
 import { getChatGroupStoreState } from '@/store/chatGroup';
 import { useUserStore } from '@/store/user';
+import * as DB from '@/bindings/github.com/kawai-network/veridium/internal/database/generated/queries';
+import { getUserId, mapSessionFromDB, mapAgentConfigFromDB } from '../../helpers';
+import { toNullString, toNullInt, boolToInt } from '@/types/database';
 
 import type { SessionStore } from '../../store';
 import { settingsSelectors } from '@/store/user/selectors';
@@ -94,7 +97,17 @@ export const createSessionSlice: StateCreator<
   SessionAction
 > = (set, get) => ({
   clearSessions: async () => {
-    await sessionService.removeAllSessions();
+    // 🔄 MIGRATED: Direct DB call instead of sessionService.removeAllSessions()
+    const userId = getUserId();
+    const sessions = await DB.GetAgentSessions({ userId });
+    
+    // Delete all sessions
+    await Promise.all(
+      sessions.map((session) => DB.DeleteSession({ id: session.id, userId }))
+    );
+    
+    console.log('[Session] Cleared all sessions via direct DB', { count: sessions.length });
+    
     await get().refreshSessions();
   },
 
@@ -109,22 +122,64 @@ export const createSessionSlice: StateCreator<
 
     const newSession: LobeAgentSession = merge(defaultAgent, agent);
 
-    const id = await sessionService.createSession(LobeSessionType.Agent, newSession);
+    // 🔄 MIGRATED: Direct DB call instead of sessionService.createSession()
+    const userId = getUserId();
+    const sessionId = crypto.randomUUID();
+    const agentId = crypto.randomUUID();
+    const now = Date.now();
+
+    // Create session with agent
+    await DB.CreateSession({
+      id: sessionId,
+      type: 'agent',
+      slug: { String: '', Valid: false },
+      title: { String: newSession.meta?.title || '', Valid: !!newSession.meta?.title },
+      description: { String: newSession.meta?.description || '', Valid: !!newSession.meta?.description },
+      avatar: { String: newSession.meta?.avatar || '', Valid: !!newSession.meta?.avatar },
+      backgroundColor: { String: newSession.meta?.backgroundColor || '', Valid: !!newSession.meta?.backgroundColor },
+      groupId: { String: newSession.group === 'default' ? '' : (newSession.group || ''), Valid: newSession.group !== 'default' && !!newSession.group },
+      pinned: { Int64: newSession.pinned ? 1 : 0, Valid: true },
+      userId,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // Create agent config
+    await DB.CreateAgent({
+      id: agentId,
+      sessionId,
+      model: { String: newSession.config?.model || '', Valid: !!newSession.config?.model },
+      systemRole: { String: newSession.config?.systemRole || '', Valid: !!newSession.config?.systemRole },
+      plugins: { String: JSON.stringify(newSession.config?.plugins || []), Valid: true },
+      chatConfig: { String: JSON.stringify(newSession.config?.chatConfig || {}), Valid: true },
+      params: { String: JSON.stringify(newSession.config?.params || {}), Valid: true },
+      openingMessage: { String: newSession.config?.openingMessage || '', Valid: !!newSession.config?.openingMessage },
+      openingQuestions: { String: JSON.stringify(newSession.config?.openingQuestions || []), Valid: true },
+      fewShots: { String: JSON.stringify(newSession.config?.fewShots || []), Valid: true },
+      virtual: { Int64: newSession.config?.virtual ? 1 : 0, Valid: true },
+      provider: { String: newSession.config?.provider || '', Valid: !!newSession.config?.provider },
+      userId,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    console.log('[Session] Created session via direct DB', { sessionId });
 
     // Immediately load agent config for new session
-    const config = await sessionService.getSessionConfig(id);
+    const dbAgent = await DB.GetAgentBySessionId({ sessionId, userId });
+    const config = mapAgentConfigFromDB(dbAgent);
     const agentStore = useAgentStore.getState();
-    agentStore.internal_dispatchAgentMap(id, config, 'createSession');
+    agentStore.internal_dispatchAgentMap(sessionId, config, 'createSession');
     
     // Mark config as loaded in agentConfigInitMap
-    agentStore.internal_updateAgentConfigInitMap(id, true);
+    agentStore.internal_updateAgentConfigInitMap(sessionId, true);
 
     await refreshSessions();
 
     // Whether to goto  to the new session after creation, the default is to switch to
-    if (isSwitchSession) switchSession(id);
+    if (isSwitchSession) switchSession(sessionId);
 
-    return id;
+    return sessionId;
   },
 
   duplicateSession: async (id) => {
@@ -163,7 +218,12 @@ export const createSessionSlice: StateCreator<
     await get().internal_updateSession(id, { pinned });
   },
   removeSession: async (sessionId) => {
-    await sessionService.removeSession(sessionId);
+    // 🔄 MIGRATED: Direct DB call instead of sessionService.removeSession()
+    const userId = getUserId();
+    await DB.DeleteSession({ id: sessionId, userId });
+    
+    console.log('[Session] Deleted session via direct DB', { sessionId });
+    
     await get().refreshSessions();
 
     // If the active session deleted, switch to the inbox session
@@ -210,12 +270,30 @@ export const createSessionSlice: StateCreator<
 
     const { activeId, refreshSessions } = get();
 
+    // Skip inbox session (cannot modify meta)
+    if (activeId === INBOX_SESSION_ID) return;
+
     const abortController = get().signalSessionMeta as AbortController;
     if (abortController) abortController.abort(MESSAGE_CANCEL_FLAT);
     const controller = new AbortController();
     set({ signalSessionMeta: controller }, false, 'updateSessionMetaSignal');
 
-    await sessionService.updateSessionMeta(activeId, meta, controller.signal);
+    // 🔄 MIGRATED: Direct DB call instead of sessionService.updateSessionMeta()
+    const userId = getUserId();
+    const now = Date.now();
+    
+    await DB.UpdateSession({
+      id: activeId,
+      userId,
+      title: meta.title ? toNullString(meta.title) : undefined,
+      description: meta.description ? toNullString(meta.description) : undefined,
+      avatar: meta.avatar ? toNullString(meta.avatar) : undefined,
+      backgroundColor: meta.backgroundColor ? toNullString(meta.backgroundColor) : undefined,
+      updatedAt: now,
+    } as any);
+    
+    console.log('[Session] Updated session meta via direct DB', { id: activeId });
+    
     await refreshSessions();
   },
 
@@ -223,25 +301,44 @@ export const createSessionSlice: StateCreator<
     if (!enabled) return;
 
     try {
-      const data = await sessionService.getGroupedSessions();
+      // 🔄 MIGRATED: Direct DB call instead of sessionService.getGroupedSessions()
+      const userId = getUserId();
+      
+      // Fetch sessions and session groups in parallel
+      const [dbSessions, dbSessionGroups] = await Promise.all([
+        DB.GetAgentSessions({ userId }),
+        DB.GetSessionGroups(userId),
+      ]);
+
+      // Map database results to frontend types
+      const sessions = dbSessions.map(mapSessionFromDB);
+      const sessionGroups = dbSessionGroups.map((g: any) => ({
+        id: g.id,
+        name: g.name || '',
+        sort: Number(g.sort) || 0,
+        createdAt: new Date(g.createdAt),
+        updatedAt: new Date(g.updatedAt),
+      }));
+
+      console.log('[Session] Fetched sessions via direct DB', { count: sessions.length });
 
       // Skip update if data hasn't changed
       if (
         get().isSessionsFirstFetchFinished &&
-        isEqual(get().sessions, data.sessions) &&
-        isEqual(get().sessionGroups, data.sessionGroups)
+        isEqual(get().sessions, sessions) &&
+        isEqual(get().sessionGroups, sessionGroups)
       ) {
         return;
       }
 
       get().internal_processSessions(
-        data.sessions,
-        data.sessionGroups,
+        sessions,
+        sessionGroups,
         n('internal_fetchSessions/updateData') as any,
       );
 
       // Sync chat groups from group sessions to chat store
-      const groupSessions = data.sessions.filter((session) => session.type === 'group');
+      const groupSessions = sessions.filter((session) => session.type === 'group');
       if (groupSessions.length > 0) {
         const chatGroupStore = getChatGroupStoreState();
         const chatGroups = groupSessions.map((session) => ({
@@ -279,8 +376,12 @@ export const createSessionSlice: StateCreator<
     if (!keyword) return;
 
     try {
-      const results = await sessionService.searchSessions(keyword);
-      console.debug('[internal_searchSessions] Search results:', results.length);
+      // 🔄 MIGRATED: Direct DB call instead of sessionService.searchSessions()
+      const userId = getUserId();
+      const dbResults = await DB.SearchSessions({ userId, keyword });
+      const results = dbResults.map(mapSessionFromDB);
+      
+      console.log('[Session] Searched sessions via direct DB', { keyword, count: results.length });
     } catch (error) {
       console.error('[internal_searchSessions] Error searching sessions:', error);
     }
@@ -294,7 +395,24 @@ export const createSessionSlice: StateCreator<
   internal_updateSession: async (id, data) => {
     get().internal_dispatchSessions({ type: 'updateSession', id, value: data });
 
-    await sessionService.updateSession(id, data);
+    // 🔄 MIGRATED: Direct DB call instead of sessionService.updateSession()
+    const userId = getUserId();
+    const now = Date.now();
+    
+    await DB.UpdateSession({
+      id,
+      userId,
+      title: data.title ? toNullString(data.title) : undefined,
+      description: data.description ? toNullString(data.description) : undefined,
+      avatar: data.avatar ? toNullString(data.avatar) : undefined,
+      backgroundColor: data.backgroundColor ? toNullString(data.backgroundColor) : undefined,
+      groupId: data.group !== undefined ? toNullString(data.group === 'default' ? '' : data.group) : undefined,
+      pinned: data.pinned !== undefined ? toNullInt(boolToInt(data.pinned)) : undefined,
+      updatedAt: data.updatedAt ? data.updatedAt.getTime() : now,
+    } as any);
+    
+    console.log('[Session] Updated session via direct DB', { id });
+    
     await get().refreshSessions();
   },
   internal_processSessions: (sessions, sessionGroups) => {
@@ -322,11 +440,31 @@ export const createSessionSlice: StateCreator<
   },
   refreshSessions: async () => {
     try {
-      const data = await sessionService.getGroupedSessions();
-      get().internal_processSessions(data.sessions, data.sessionGroups);
+      // 🔄 MIGRATED: Direct DB call instead of sessionService.getGroupedSessions()
+      const userId = getUserId();
+      
+      // Fetch sessions and session groups in parallel
+      const [dbSessions, dbSessionGroups] = await Promise.all([
+        DB.GetAgentSessions({ userId }),
+        DB.GetSessionGroups(userId),
+      ]);
+
+      // Map database results to frontend types
+      const sessions = dbSessions.map(mapSessionFromDB);
+      const sessionGroups = dbSessionGroups.map((g: any) => ({
+        id: g.id,
+        name: g.name || '',
+        sort: Number(g.sort) || 0,
+        createdAt: new Date(g.createdAt),
+        updatedAt: new Date(g.updatedAt),
+      }));
+
+      console.log('[Session] Refreshed sessions via direct DB', { count: sessions.length });
+      
+      get().internal_processSessions(sessions, sessionGroups);
 
       // Sync chat groups
-      const groupSessions = data.sessions.filter((session) => session.type === 'group');
+      const groupSessions = sessions.filter((session) => session.type === 'group');
       if (groupSessions.length > 0) {
         const chatGroupStore = getChatGroupStoreState();
         const chatGroups = groupSessions.map((session) => ({

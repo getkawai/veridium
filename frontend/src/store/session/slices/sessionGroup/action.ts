@@ -2,8 +2,10 @@ import { t } from 'i18next';
 import { StateCreator } from 'zustand/vanilla';
 
 import { message } from '@/components/AntdStaticMethods';
-import { sessionService } from '@/services/session';
 import { SessionGroupItem } from '@/types/session';
+import * as DB from '@/bindings/github.com/kawai-network/veridium/internal/database/generated/queries';
+import { getUserId } from '../../helpers';
+import { toNullString, toNullInt } from '@/types/database';
 
 import type { SessionStore } from '../../store';
 import { SessionGroupsDispatch, sessionGroupsReducer } from './reducer';
@@ -26,7 +28,21 @@ export const createSessionGroupSlice: StateCreator<
   SessionGroupAction
 > = (set, get) => ({
   addSessionGroup: async (name) => {
-    const id = await sessionService.createSessionGroup(name);
+    // 🔄 MIGRATED: Direct DB call instead of sessionService.createSessionGroup()
+    const userId = getUserId();
+    const id = crypto.randomUUID();
+    const now = Date.now();
+    
+    await DB.CreateSessionGroup({
+      id,
+      name: toNullString(name),
+      sort: toNullInt(0),
+      userId,
+      createdAt: now,
+      updatedAt: now,
+    });
+    
+    console.log('[SessionGroup] Created session group via direct DB', { id, name });
 
     await get().refreshSessions();
 
@@ -34,17 +50,39 @@ export const createSessionGroupSlice: StateCreator<
   },
 
   clearSessionGroups: async () => {
-    await sessionService.removeSessionGroups();
+    // 🔄 MIGRATED: Direct DB call instead of sessionService.removeSessionGroups()
+    const userId = getUserId();
+    await DB.DeleteAllSessionGroups(userId);
+    
+    console.log('[SessionGroup] Cleared all session groups via direct DB');
+    
     await get().refreshSessions();
   },
 
   removeSessionGroup: async (id) => {
-    await sessionService.removeSessionGroup(id);
+    // 🔄 MIGRATED: Direct DB call instead of sessionService.removeSessionGroup()
+    const userId = getUserId();
+    await DB.DeleteSessionGroup({ id, userId });
+    
+    console.log('[SessionGroup] Deleted session group via direct DB', { id });
+    
     await get().refreshSessions();
   },
 
   updateSessionGroupName: async (id, name) => {
-    await sessionService.updateSessionGroup(id, { name });
+    // 🔄 MIGRATED: Direct DB call instead of sessionService.updateSessionGroup()
+    const userId = getUserId();
+    const now = Date.now();
+    
+    await DB.UpdateSessionGroup({
+      id,
+      userId,
+      name: toNullString(name),
+      updatedAt: now,
+    } as any);
+    
+    console.log('[SessionGroup] Updated session group name via direct DB', { id, name });
+    
     await get().refreshSessions();
   },
   updateSessionGroupSort: async (items) => {
@@ -58,7 +96,15 @@ export const createSessionGroupSlice: StateCreator<
       key: 'updateSessionGroupSort',
     });
 
-    await sessionService.updateSessionGroupOrder(sortMap);
+    // 🔄 MIGRATED: Direct DB call instead of sessionService.updateSessionGroupOrder()
+    const userId = getUserId();
+    await DB.UpdateSessionGroupOrder({
+      userId,
+      sortMap: JSON.stringify(sortMap),
+    });
+    
+    console.log('[SessionGroup] Updated session group sort via direct DB', { count: sortMap.length });
+    
     message.destroy('updateSessionGroupSort');
     message.success(t('sessionGroup.sortSuccess', { ns: 'chat' }));
 
