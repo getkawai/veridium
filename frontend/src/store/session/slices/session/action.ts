@@ -11,17 +11,15 @@ import { chatGroupService } from '@/services/chatGroup';
 import { useAgentStore } from '@/store/agent';
 import { getChatGroupStoreState } from '@/store/chatGroup';
 import { useUserStore } from '@/store/user';
-import { getUserId, mapSessionFromDB, mapAgentConfigFromDB } from '../../helpers';
 import { DB, toNullString, toNullInt, boolToInt } from '@/types/database';
+import { getUserId, mapSessionFromDB, mapAgentConfigFromDB } from '../../helpers';
 
 import type { SessionStore } from '../../store';
 import { settingsSelectors } from '@/store/user/selectors';
 import { MetaData } from '@/types/meta';
 import {
-  ChatSessionList,
   LobeAgentSession,
   LobeSessionGroups,
-  LobeSessionType,
   LobeSessions,
   UpdateSessionParams,
 } from '@/types/session';
@@ -97,7 +95,7 @@ export const createSessionSlice: StateCreator<
   clearSessions: async () => {
     // 🔄 MIGRATED: Direct DB call instead of sessionService.removeAllSessions()
     const userId = getUserId();
-    const sessions = await DB.GetAgentSessions({ userId });
+    const sessions = await DB.ListSessions({ userId, limit: 1000, offset: 0 });
     
     // Delete all sessions
     await Promise.all(
@@ -205,7 +203,7 @@ export const createSessionSlice: StateCreator<
       const now = Date.now();
 
       // 1. Duplicate session
-      const newSession = await DB.DuplicateSession({
+      await DB.DuplicateSession({
         newSessionId,
         newTitle,
         createdAt: now,
@@ -215,7 +213,7 @@ export const createSessionSlice: StateCreator<
       });
 
       // 2. Duplicate agent
-      const newAgent = await DB.DuplicateAgentForSession({
+      await DB.DuplicateAgentForSession({
         newAgentId,
         newSessionId,
         sourceSessionId: id,
@@ -432,13 +430,16 @@ export const createSessionSlice: StateCreator<
     const userId = getUserId();
     const now = Date.now();
     
+    // Map UpdateSessionParams to DB params
+    const meta = data as any; // Cast to access meta properties
+    
     await DB.UpdateSession({
       id,
       userId,
-      title: data.title ? toNullString(data.title) : undefined,
-      description: data.description ? toNullString(data.description) : undefined,
-      avatar: data.avatar ? toNullString(data.avatar) : undefined,
-      backgroundColor: data.backgroundColor ? toNullString(data.backgroundColor) : undefined,
+      title: meta.title ? toNullString(meta.title) : undefined,
+      description: meta.description ? toNullString(meta.description) : undefined,
+      avatar: meta.avatar ? toNullString(meta.avatar) : undefined,
+      backgroundColor: meta.backgroundColor ? toNullString(meta.backgroundColor) : undefined,
       groupId: data.group !== undefined ? toNullString(data.group === 'default' ? '' : data.group) : undefined,
       pinned: data.pinned !== undefined ? toNullInt(boolToInt(data.pinned)) : undefined,
       updatedAt: data.updatedAt ? data.updatedAt.getTime() : now,
