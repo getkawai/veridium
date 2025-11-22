@@ -12,7 +12,7 @@ import { getSessionStoreState, useSessionStore } from '@/store/session';
 import { LobeAgentChatConfig, LobeAgentConfig } from '@/types/agent';
 import { KnowledgeItem } from '@/types/knowledgeBase';
 import { merge } from '@/utils/merge';
-import * as DB from '@/bindings/github.com/kawai-network/veridium/internal/database/generated/queries';
+import { DB } from '@/types/database';
 import { getUserId } from '@/store/session/helpers';
 import { mapAgentConfigFromDB } from '@/store/session/helpers';
 import { toNullString, toNullJSON, toNullInt } from '@/types/database';
