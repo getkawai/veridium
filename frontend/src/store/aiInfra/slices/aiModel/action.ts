@@ -7,6 +7,7 @@ import {
 } from '@/model-bank';
 import { StateCreator } from 'zustand/vanilla';
 
+// ⚠️ MIGRATION NOTE: Service layer still used by some operations (see REMAINING_WORK.md)
 import { aiModelService } from '@/services/aiModel';
 import { AIProviderStoreState } from '../../initialState';
 import type { AiProviderAction } from '../aiProvider/action';

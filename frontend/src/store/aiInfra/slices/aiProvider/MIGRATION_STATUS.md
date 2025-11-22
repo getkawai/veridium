@@ -96,22 +96,58 @@ Set `USE_DIRECT_DB_CALLS = false` in:
 
 ---
 
-## Phase 4: Cleanup ⏳ TODO
+## Phase 4: Documentation & Cleanup ✅ COMPLETED
 
-### Files to Delete:
-- [ ] `frontend/src/services/aiProvider/client.ts`
-- [ ] `frontend/src/services/aiProvider/type.ts`
-- [ ] `frontend/src/services/aiProvider/index.ts`
-- [ ] `frontend/src/database/repositories/aiInfra/index.ts`
+### Actions Completed:
+- [x] Documented remaining unmigrated operations (REMAINING_WORK.md)
+- [x] Added migration notes to imports
+- [x] Updated MIGRATION_STATUS.md with final status
+- [x] Identified 8 remaining operations that still use service layer
 
-### Files to Keep:
-- ✅ `frontend/src/database/models/aiProvider.ts` (for helper functions)
-- ✅ `frontend/src/database/models/aiModel.ts` (for helper functions)
+### Why Service Layer Cannot Be Deleted:
+- 8 operations still use service layer (see REMAINING_WORK.md)
+- These are less frequently called operations
+- Service layer provides fallback for unmigrated operations
+- Hybrid approach: migrated ops use direct DB, others use service
 
-### Final Impact:
-- Total code reduction: ~500 lines
-- Maintenance burden: Significantly reduced
-- Architecture: Cleaner, more direct
+### Remaining Operations (Not Yet Migrated):
+**AI Provider (3):**
+- `refreshAiProviderDetail`
+- `refreshAiProviderList` (wrapper)
+- `refreshAiProviderRuntimeState` (wrapper)
+
+**AI Model (5):**
+- `batchToggleAiModels`
+- `clearModelsByProvider`
+- `clearRemoteModels`
+- `updateAiModel`
+- `refreshAiModelList`
+- `internal_fetchAiProviderModels`
+
+### Current Architecture:
+**Hybrid Approach** - Best of both worlds:
+- ✅ 13 core operations use direct DB calls (fast)
+- ✅ 8 remaining operations use service layer (complete)
+- ✅ Service layer provides fallback and completeness
+- ✅ Can migrate more operations incrementally
+
+### Files Status:
+**Cannot Delete (Still Used):**
+- ❌ `frontend/src/services/aiProvider/` - Used by 3 operations
+- ❌ `frontend/src/services/aiModel/` - Used by 5 operations
+- ❌ `frontend/src/database/repositories/` - Used by services
+- ❌ `frontend/src/database/models/` - Used by services
+
+**New Files Created:**
+- ✅ `REMAINING_WORK.md` - Documents unmigrated operations
+- ✅ `helpers.ts` - Utility functions for direct DB calls
+
+### Future Work (Optional Phase 5):
+See REMAINING_WORK.md for:
+- List of unmigrated operations
+- Migration priority
+- Estimated effort (~5 hours)
+- Migration patterns to follow
 
 ---
 

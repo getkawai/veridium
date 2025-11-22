@@ -8,6 +8,7 @@ import {
   ModelAbilities,
 } from '@/model-bank';
 import { StateCreator } from 'zustand/vanilla';
+// ⚠️ MIGRATION NOTE: Service layer still used by some operations (see REMAINING_WORK.md)
 import { aiProviderService } from '@/services/aiProvider';
 import { DEFAULT_MODEL_PROVIDER_LIST } from '@/config/modelProviders';
 import { AIProviderStoreState } from '../../initialState';
