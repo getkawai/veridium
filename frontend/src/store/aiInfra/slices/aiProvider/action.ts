@@ -26,6 +26,13 @@ import {
   UpdateAiProviderConfigParams,
   UpdateAiProviderParams,
 } from '@/types/aiProvider';
+import { DB } from '@/types/database';
+import {
+  getUserId,
+  mapProviderFromDB,
+  mapModelFromDB,
+  mapRuntimeConfigFromDB,
+} from './helpers';
 
 /**
  * Get models by provider ID and type, with proper formatting and deduplication
@@ -222,19 +229,55 @@ export const createAiProviderSlice: StateCreator<
   internal_fetchAiProviderList: async (opts) => {
     if (opts?.enabled === false) return;
 
+    // 🚀 PHASE 1 MIGRATION: Feature flag for rollback
+    const USE_DIRECT_DB_CALLS = true;
+
     try {
-      const data = await aiProviderService.getAiProviderList();
+      if (USE_DIRECT_DB_CALLS) {
+        // ✅ NEW: Direct DB call (Phase 1 - Optimized)
+        const userId = getUserId();
+        const dbProviders = opts?.enabled
+          ? await DB.ListEnabledAIProviders(userId)
+          : await DB.ListAIProviders(userId);
 
-      if (!get().initAiProviderList) {
-        set(
-          { aiProviderList: data, initAiProviderList: true },
-          false,
-          'internal_fetchAiProviderList/init',
-        );
-        return;
+        const data: AiProviderListItem[] = dbProviders.map((p) => {
+          const mapped = mapProviderFromDB(p);
+          return {
+            id: mapped.id,
+            name: mapped.name,
+            enabled: mapped.enabled,
+            sort: mapped.sort,
+            source: mapped.source as any,
+            logo: mapped.logo,
+            description: mapped.description,
+          };
+        });
+
+        if (!get().initAiProviderList) {
+          set(
+            { aiProviderList: data, initAiProviderList: true },
+            false,
+            'internal_fetchAiProviderList/init/directDB',
+          );
+          return;
+        }
+
+        set({ aiProviderList: data }, false, 'internal_fetchAiProviderList/refresh/directDB');
+      } else {
+        // ⏳ OLD: Service layer (Phase 1 - Fallback)
+        const data = await aiProviderService.getAiProviderList();
+
+        if (!get().initAiProviderList) {
+          set(
+            { aiProviderList: data, initAiProviderList: true },
+            false,
+            'internal_fetchAiProviderList/init/service',
+          );
+          return;
+        }
+
+        set({ aiProviderList: data }, false, 'internal_fetchAiProviderList/refresh/service');
       }
-
-      set({ aiProviderList: data }, false, 'internal_fetchAiProviderList/refresh');
     } catch (error) {
       console.error('[internal_fetchAiProviderList] Error:', error);
     }
@@ -247,33 +290,104 @@ export const createAiProviderSlice: StateCreator<
 
     if (!shouldFetch) return;
 
+    // 🚀 PHASE 1 MIGRATION: Feature flag for rollback
+    const USE_DIRECT_DB_CALLS = true;
+
     try {
       const [{ LOBE_DEFAULT_MODEL_LIST: builtinAiModelList }] = await Promise.all([
         import('@/model-bank'),
       ]);
 
       if (isLogin) {
-        const data = await aiProviderService.getAiProviderRuntimeState();
+        if (USE_DIRECT_DB_CALLS) {
+          // ✅ NEW: Direct DB calls (Phase 1 - Optimized)
+          const startTime = performance.now();
+          const userId = getUserId();
 
-        const [enabledChatModelList, enabledImageModelList] = await Promise.all([
-          buildProviderModelLists(data.enabledChatAiProviders, data.enabledAiModels, 'chat'),
-          buildProviderModelLists(data.enabledImageAiProviders, data.enabledAiModels, 'image'),
-        ]);
+          // Parallel fetch from database
+          const [dbProviders, dbModels, dbConfigs] = await Promise.all([
+            DB.ListEnabledAIProviders(userId),
+            DB.ListEnabledAIModels(userId),
+            DB.GetAIProviderRuntimeConfigs(userId),
+          ]);
 
-        set(
-          {
-            aiProviderRuntimeConfig: data.runtimeConfig,
-            builtinAiModelList,
-            enabledAiModels: data.enabledAiModels,
-            enabledAiProviders: data.enabledAiProviders,
-            enabledChatModelList,
-            enabledImageModelList,
-            isInitAiProviderRuntimeState: true,
-          },
-          false,
-          'internal_fetchAiProviderRuntimeState/login',
-        );
+          const loadTime = performance.now() - startTime;
+          console.log(`[AI Provider] Direct DB load completed in ${loadTime.toFixed(2)}ms`);
+
+          // Transform DB results
+          const enabledAiProviders: EnabledProvider[] = dbProviders.map((p) => ({
+            id: p.id,
+            name: mapProviderFromDB(p).name,
+            source: mapProviderFromDB(p).source as any,
+          }));
+
+          const enabledAiModels: EnabledAiModel[] = dbModels.map(mapModelFromDB) as any;
+
+          // Build runtime config
+          const aiProviderRuntimeConfig: Record<string, any> = {};
+          dbConfigs.forEach((c) => {
+            const mapped = mapRuntimeConfigFromDB(c);
+            aiProviderRuntimeConfig[mapped.id] = {
+              keyVaults: mapped.keyVaults,
+              settings: mapped.settings,
+              config: mapped.config,
+              fetchOnClient: mapped.fetchOnClient,
+            };
+          });
+
+          // Filter providers by model type
+          const enabledChatAiProviders = enabledAiProviders.filter((provider) =>
+            enabledAiModels.some((m) => m.providerId === provider.id && m.type === 'chat'),
+          );
+
+          const enabledImageAiProviders = enabledAiProviders.filter((provider) =>
+            enabledAiModels.some((m) => m.providerId === provider.id && m.type === 'image'),
+          );
+
+          // Build model lists
+          const [enabledChatModelList, enabledImageModelList] = await Promise.all([
+            buildProviderModelLists(enabledChatAiProviders, enabledAiModels, 'chat'),
+            buildProviderModelLists(enabledImageAiProviders, enabledAiModels, 'image'),
+          ]);
+
+          set(
+            {
+              aiProviderRuntimeConfig,
+              builtinAiModelList,
+              enabledAiModels,
+              enabledAiProviders,
+              enabledChatModelList,
+              enabledImageModelList,
+              isInitAiProviderRuntimeState: true,
+            },
+            false,
+            'internal_fetchAiProviderRuntimeState/login/directDB',
+          );
+        } else {
+          // ⏳ OLD: Service layer (Phase 1 - Fallback)
+          const data = await aiProviderService.getAiProviderRuntimeState();
+
+          const [enabledChatModelList, enabledImageModelList] = await Promise.all([
+            buildProviderModelLists(data.enabledChatAiProviders, data.enabledAiModels, 'chat'),
+            buildProviderModelLists(data.enabledImageAiProviders, data.enabledAiModels, 'image'),
+          ]);
+
+          set(
+            {
+              aiProviderRuntimeConfig: data.runtimeConfig,
+              builtinAiModelList,
+              enabledAiModels: data.enabledAiModels,
+              enabledAiProviders: data.enabledAiProviders,
+              enabledChatModelList,
+              enabledImageModelList,
+              isInitAiProviderRuntimeState: true,
+            },
+            false,
+            'internal_fetchAiProviderRuntimeState/login/service',
+          );
+        }
       } else {
+        // No login: Use builtin models only
         const enabledAiProviders: EnabledProvider[] = DEFAULT_MODEL_PROVIDER_LIST.filter(
           (provider) => provider.enabled,
         ).map((item) => ({
