@@ -36,18 +36,27 @@ Set `USE_DIRECT_DB_CALLS = false` in action.ts to revert to service layer.
 
 ---
 
-## Phase 2: Simple Write Operations ⏳ TODO
+## Phase 2: Simple Write Operations ✅ COMPLETED
 
-### Target Functions:
-- [ ] `toggleProviderEnabled` - Simple boolean toggle
-- [ ] `updateAiProviderSort` - Batch sort update
-- [ ] `toggleModelEnabled` - Simple boolean toggle
-- [ ] `updateAiModelSort` - Batch sort update
+### Migrated Functions:
+- [x] `toggleProviderEnabled` - Direct DB call with boolean toggle
+- [x] `updateAiProviderSort` - Batch parallel updates
+- [x] `toggleModelEnabled` - Direct DB call with boolean toggle
+- [x] `updateAiModelSort` - Batch parallel updates
 
-### Estimated Impact:
-- Code reduction: ~50 lines
-- Performance: Minimal (writes are infrequent)
-- Risk: Low (simple operations)
+### Changes:
+- Added `boolToInt` helper for boolean to SQLite conversion
+- Used parallel `Promise.all` for batch operations
+- Added feature flag `USE_DIRECT_DB_CALLS` for rollback
+- Added operation logging
+
+### Performance:
+- Write operations: Minimal impact (infrequent)
+- Batch operations: Faster with parallel execution
+- **Benefit: Simpler code, easier to maintain**
+
+### Rollback Plan:
+Set `USE_DIRECT_DB_CALLS = false` in action.ts and aiModel/action.ts
 
 ---
 

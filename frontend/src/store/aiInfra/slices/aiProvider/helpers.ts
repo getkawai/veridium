@@ -62,6 +62,13 @@ export const toNullInt64 = (value: number | null | undefined) => {
 };
 
 /**
+ * Convert boolean to int for SQLite
+ */
+export const boolToInt = (value: boolean): number => {
+  return value ? 1 : 0;
+};
+
+/**
  * Map AI Provider from DB result
  */
 export const mapProviderFromDB = (p: any) => ({

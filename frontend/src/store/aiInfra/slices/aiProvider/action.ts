@@ -32,6 +32,9 @@ import {
   mapProviderFromDB,
   mapModelFromDB,
   mapRuntimeConfigFromDB,
+  toNullString,
+  toNullInt64,
+  boolToInt,
 } from './helpers';
 
 /**
@@ -186,10 +189,35 @@ export const createAiProviderSlice: StateCreator<
 
   toggleProviderEnabled: async (id: string, enabled: boolean) => {
     get().internal_toggleAiProviderLoading(id, true);
-    await aiProviderService.toggleProviderEnabled(id, enabled);
-    await get().refreshAiProviderList();
 
-    get().internal_toggleAiProviderLoading(id, false);
+    // 🚀 PHASE 2 MIGRATION: Feature flag for rollback
+    const USE_DIRECT_DB_CALLS = true;
+
+    try {
+      if (USE_DIRECT_DB_CALLS) {
+        // ✅ NEW: Direct DB call (Phase 2 - Simple Write)
+        const userId = getUserId();
+        const now = Date.now();
+
+        await DB.ToggleAIProviderEnabled({
+          id,
+          userId,
+          enabled: toNullInt64(boolToInt(enabled)),
+          source: toNullString('custom'),
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        console.log(`[AI Provider] Toggled ${id} to ${enabled} via direct DB`);
+      } else {
+        // ⏳ OLD: Service layer (Phase 2 - Fallback)
+        await aiProviderService.toggleProviderEnabled(id, enabled);
+      }
+
+      await get().refreshAiProviderList();
+    } finally {
+      get().internal_toggleAiProviderLoading(id, false);
+    }
   },
 
   updateAiProvider: async (id, value) => {
@@ -210,7 +238,42 @@ export const createAiProviderSlice: StateCreator<
   },
 
   updateAiProviderSort: async (items) => {
-    await aiProviderService.updateAiProviderOrder(items);
+    // 🚀 PHASE 2 MIGRATION: Feature flag for rollback
+    const USE_DIRECT_DB_CALLS = true;
+
+    if (USE_DIRECT_DB_CALLS) {
+      // ✅ NEW: Direct DB call (Phase 2 - Batch Write)
+      const userId = getUserId();
+      const now = Date.now();
+
+      // Batch update all sorts in parallel
+      await Promise.all(
+        items.map(({ id, sort }) =>
+          DB.UpdateAIProvider({
+            id,
+            userId,
+            sort: toNullInt64(sort),
+            updatedAt: now,
+            // Required fields (empty = no change)
+            name: toNullString(''),
+            enabled: toNullInt64(0),
+            fetchOnClient: toNullInt64(0),
+            checkModel: toNullString(''),
+            logo: toNullString(''),
+            description: toNullString(''),
+            keyVaults: toNullString(''),
+            settings: toNullString(''),
+            config: toNullString(''),
+          }),
+        ),
+      );
+
+      console.log(`[AI Provider] Updated sort order for ${items.length} providers via direct DB`);
+    } else {
+      // ⏳ OLD: Service layer (Phase 2 - Fallback)
+      await aiProviderService.updateAiProviderOrder(items);
+    }
+
     await get().refreshAiProviderList();
   },
   internal_fetchAiProviderItem: async (id) => {

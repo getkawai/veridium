@@ -10,6 +10,8 @@ import { StateCreator } from 'zustand/vanilla';
 import { aiModelService } from '@/services/aiModel';
 import { AIProviderStoreState } from '../../initialState';
 import type { AiProviderAction } from '../aiProvider/action';
+import { DB } from '@/types/database';
+import { getUserId, toNullInt64, boolToInt } from '../aiProvider/helpers';
 
 export interface AiModelAction {
   batchToggleAiModels: (ids: string[], enabled: boolean) => Promise<void>;
@@ -129,10 +131,34 @@ export const createAiModelSlice: StateCreator<
 
     get().internal_toggleAiModelLoading(params.id, true);
 
-    await aiModelService.toggleModelEnabled({ ...params, providerId: activeAiProvider });
-    await get().refreshAiModelList();
+    // 🚀 PHASE 2 MIGRATION: Feature flag for rollback
+    const USE_DIRECT_DB_CALLS = true;
 
-    get().internal_toggleAiModelLoading(params.id, false);
+    try {
+      if (USE_DIRECT_DB_CALLS) {
+        // ✅ NEW: Direct DB call (Phase 2 - Simple Write)
+        const userId = getUserId();
+        const now = Date.now();
+
+        await DB.ToggleAIModelEnabled({
+          id: params.id,
+          providerId: activeAiProvider,
+          userId,
+          enabled: boolToInt(params.enabled),
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        console.log(`[AI Model] Toggled ${params.id} to ${params.enabled} via direct DB`);
+      } else {
+        // ⏳ OLD: Service layer (Phase 2 - Fallback)
+        await aiModelService.toggleModelEnabled({ ...params, providerId: activeAiProvider });
+      }
+
+      await get().refreshAiModelList();
+    } finally {
+      get().internal_toggleAiModelLoading(params.id, false);
+    }
   },
 
   updateAiModelsConfig: async (id, providerId, data) => {
@@ -140,7 +166,33 @@ export const createAiModelSlice: StateCreator<
     await get().refreshAiModelList();
   },
   updateAiModelsSort: async (id, items) => {
-    await aiModelService.updateAiModelOrder(id, items);
+    // 🚀 PHASE 2 MIGRATION: Feature flag for rollback
+    const USE_DIRECT_DB_CALLS = true;
+
+    if (USE_DIRECT_DB_CALLS) {
+      // ✅ NEW: Direct DB call (Phase 2 - Batch Write)
+      const userId = getUserId();
+      const now = Date.now();
+
+      // Batch update all model sorts in parallel
+      await Promise.all(
+        items.map(({ id: modelId, sort }) =>
+          DB.UpdateAIModelSort({
+            id: modelId,
+            providerId: id,
+            userId,
+            sort: toNullInt64(sort),
+            updatedAt: now,
+          }),
+        ),
+      );
+
+      console.log(`[AI Model] Updated sort order for ${items.length} models via direct DB`);
+    } else {
+      // ⏳ OLD: Service layer (Phase 2 - Fallback)
+      await aiModelService.updateAiModelOrder(id, items);
+    }
+
     await get().refreshAiModelList();
   },
 
