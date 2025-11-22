@@ -15,9 +15,6 @@ export class ClientService extends BaseClientService implements IMessageService 
     return this.messageModel.update(id, { error });
   };
 
-  updateMessageTranslate: IMessageService['updateMessageTranslate'] = async (id, translate) => {
-    return this.messageModel.updateTranslate(id, translate as any);
-  };
 
   updateMessagePluginError: IMessageService['updateMessagePluginError'] = async (id, value) => {
     return this.messageModel.updateMessagePlugin(id, { error: value });

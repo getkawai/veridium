@@ -5,8 +5,11 @@ import { StateCreator } from 'zustand/vanilla';
 
 import { supportLocales } from '@/locales/resources';
 import { chatService } from '@/services/chat';
-import { messageService } from '@/services/message';
 import { chatSelectors } from '../message/selectors';
+
+// 🔄 MIGRATED: Direct DB imports for translate operations
+import { DB, toNullString } from '@/types/database';
+import { getUserId } from '@/store/session/helpers';
 import { ChatStore } from '@/store/chat/store';
 import { useUserStore } from '@/store/user';
 import { systemAgentSelectors } from '@/store/user/selectors';
@@ -108,7 +111,28 @@ export const chatTranslate: StateCreator<
   },
 
   updateMessageTranslate: async (id, data) => {
-    await messageService.updateMessageTranslate(id, data);
+    // 🔄 MIGRATED: Direct DB call instead of messageService.updateMessageTranslate()
+    const userId = getUserId();
+
+    if (data === false) {
+      // If translate is false, delete the translation
+      await DB.DeleteMessageTranslate({
+        id,
+        userId,
+      });
+    } else {
+      // Otherwise, upsert the translation
+      await DB.UpsertMessageTranslate({
+        id,
+        content: toNullString(data.content as any),
+        from: toNullString(data.from as any),
+        to: toNullString(data.to as any),
+        clientId: toNullString(null),
+        userId,
+      });
+    }
+
+    console.log('[Translate] Updated message translate via direct DB', { id, hasData: !!data });
 
     await get().refreshMessages();
   },
