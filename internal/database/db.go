@@ -68,10 +68,17 @@ func NewService() (*Service, error) {
 
 	queries := db.New(database)
 
-	return &Service{
+	service := &Service{
 		db:      database,
 		queries: queries,
-	}, nil
+	}
+
+	// Ensure default user and inbox session exist (for desktop single-user app)
+	if err := service.ensureDefaultUserAndInbox(context.Background()); err != nil {
+		return nil, fmt.Errorf("failed to ensure default user and inbox: %w", err)
+	}
+
+	return service, nil
 }
 
 // Close closes the database connection
@@ -455,4 +462,120 @@ func (s *Service) BatchInsertAIModels(ctx context.Context, models []db.CreateAIM
 	})
 
 	return results, err
+}
+
+// ============================================================================
+// DEFAULT USER AND INBOX INITIALIZATION (Desktop Single-User App)
+// ============================================================================
+
+const defaultUserID = "DEFAULT_LOBE_CHAT_USER"
+
+// ensureDefaultUserAndInbox ensures the default user and inbox session exist
+// This is called during database initialization for desktop single-user apps
+func (s *Service) ensureDefaultUserAndInbox(ctx context.Context) error {
+	now := int64(1000) // Use a fixed timestamp for default user
+
+	// 1. Ensure default user exists
+	err := s.queries.EnsureUserExists(ctx, db.EnsureUserExistsParams{
+		ID:        defaultUserID,
+		CreatedAt: now,
+		UpdatedAt: now,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to ensure default user: %w", err)
+	}
+
+	// 2. Check if inbox session already exists
+	_, err = s.queries.GetSessionBySlug(ctx, db.GetSessionBySlugParams{
+		Slug:   "inbox",
+		UserID: defaultUserID,
+	})
+
+	if err == sql.ErrNoRows {
+		// Inbox doesn't exist, create it
+		if err := s.createDefaultInboxSession(ctx); err != nil {
+			return fmt.Errorf("failed to create inbox session: %w", err)
+		}
+		fmt.Println("✅ Default inbox session created")
+	} else if err != nil {
+		return fmt.Errorf("failed to check inbox session: %w", err)
+	} else {
+		// Inbox already exists
+		fmt.Println("✅ Default inbox session already exists")
+	}
+
+	return nil
+}
+
+// createDefaultInboxSession creates the default inbox session with agent
+func (s *Service) createDefaultInboxSession(ctx context.Context) error {
+	return s.WithTx(ctx, func(q *db.Queries) error {
+		now := int64(1000)
+		sessionID := "default-inbox-session"
+		agentID := "default-inbox-agent"
+
+		// 1. Create session
+		_, err := q.CreateSession(ctx, db.CreateSessionParams{
+			ID:              sessionID,
+			UserID:          defaultUserID,
+			Slug:            "inbox",
+			Title:           sql.NullString{Valid: false},
+			Description:     sql.NullString{Valid: false},
+			Avatar:          sql.NullString{Valid: false},
+			BackgroundColor: sql.NullString{Valid: false},
+			Type:            sql.NullString{String: "agent", Valid: true},
+			GroupID:         sql.NullString{Valid: false},
+			ClientID:        sql.NullString{Valid: false},
+			Pinned:          0,
+			CreatedAt:       now,
+			UpdatedAt:       now,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to create session: %w", err)
+		}
+
+		// 2. Create default agent with kawai-auto model
+		defaultAgentConfig := `{"autoCreateTopicThreshold":2,"displayMode":"chat","enableAutoCreateTopic":true,"enableCompressHistory":true,"enableHistoryCount":true,"enableReasoning":false,"enableStreaming":true,"historyCount":20,"reasoningBudgetToken":1024,"searchFCModel":{"model":"kawai-auto","provider":"kawai"},"searchMode":"off"}`
+		defaultParams := `{"frequency_penalty":0,"presence_penalty":0,"temperature":1,"top_p":1}`
+
+		_, err = q.CreateAgent(ctx, db.CreateAgentParams{
+			ID:               agentID,
+			UserID:           defaultUserID,
+			Slug:             sql.NullString{Valid: false},
+			Title:            sql.NullString{Valid: false},
+			Description:      sql.NullString{Valid: false},
+			Tags:             sql.NullString{String: "[]", Valid: true},
+			Avatar:           sql.NullString{Valid: false},
+			BackgroundColor:  sql.NullString{Valid: false},
+			Plugins:          sql.NullString{String: "[]", Valid: true},
+			ClientID:         sql.NullString{Valid: false},
+			ChatConfig:       sql.NullString{String: defaultAgentConfig, Valid: true},
+			FewShots:         sql.NullString{Valid: false},
+			Model:            sql.NullString{String: "kawai-auto", Valid: true},
+			Params:           sql.NullString{String: defaultParams, Valid: true},
+			Provider:         sql.NullString{String: "kawai", Valid: true},
+			SystemRole:       sql.NullString{Valid: false},
+			Tts:              sql.NullString{Valid: false},
+			Virtual:          0,
+			OpeningMessage:   sql.NullString{Valid: false},
+			OpeningQuestions: sql.NullString{String: "[]", Valid: true},
+			CreatedAt:        now,
+			UpdatedAt:        now,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to create agent: %w", err)
+		}
+
+		// 3. Link agent to session
+		err = q.LinkAgentToSession(ctx, db.LinkAgentToSessionParams{
+			AgentID:   agentID,
+			SessionID: sessionID,
+			UserID:    defaultUserID,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to link agent to session: %w", err)
+		}
+
+		return nil
+	})
 }

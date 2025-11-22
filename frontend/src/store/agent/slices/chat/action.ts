@@ -197,6 +197,8 @@ export const createChatSlice: StateCreator<
 
       const initInboxAgent = async () => {
         try {
+          // Backend ensures inbox session exists at startup (desktop single-user app)
+          // This just loads the config into frontend state
           const data = await sessionService.getSessionConfig(INBOX_SESSION_ID);
 
           set(
@@ -213,7 +215,9 @@ export const createChatSlice: StateCreator<
             get().internal_dispatchAgentMap(INBOX_SESSION_ID, data, 'initInbox');
           }
         } catch (error) {
-          console.error('[useInitInboxAgentStore] Error:', error);
+          console.error('[useInitInboxAgentStore] Error loading inbox config:', error);
+          // Inbox should always exist (created by backend at startup)
+          // If this fails, it indicates a serious issue
         }
       };
 
@@ -231,15 +235,18 @@ export const createChatSlice: StateCreator<
           const sessionStore = getSessionStoreState();
           const sessions = sessionStore.sessions;
 
-          // Batch load all agent configs
-          const configPromises = sessions
-            .filter((s) => s.type === 'agent')
-            .map((session) =>
-              sessionService
-                .getSessionConfig(session.id)
-                .then((config) => ({ sessionId: session.id, config }))
-                .catch(() => null),
-            );
+        // Batch load all agent configs
+        // Skip inbox session as it's already handled by useInitInboxAgentStore
+        // This prevents race condition and redundant API calls
+        const configPromises = sessions
+          .filter((s) => s.type === 'agent')
+          .filter((s) => s.id !== INBOX_SESSION_ID)
+          .map((session) =>
+            sessionService
+              .getSessionConfig(session.id)
+              .then((config) => ({ sessionId: session.id, config }))
+              .catch(() => null),
+          );
 
           const results = await Promise.all(configPromises);
 

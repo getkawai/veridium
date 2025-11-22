@@ -92,18 +92,8 @@ export class ClientService extends BaseClientService implements ISessionService 
   };
 
   getSessionConfig: ISessionService['getSessionConfig'] = async (id) => {
-    if (id === INBOX_SESSION_ID) {
-      const item: Session | undefined = await this.sessionModel.findByIdOrSlug(INBOX_SESSION_ID);
-
-      // if there is no session for user, create one
-      if (!item) {
-        const defaultAgentConfig =
-          window.global_serverConfigStore.getState().serverConfig.defaultAgent?.config || {};
-
-        await this.sessionModel.createInbox(defaultAgentConfig);
-      }
-    }
-
+    // Backend now ensures inbox session exists at startup (desktop single-user app)
+    // No need to create inbox here - just fetch it
     const res: Session & { agent: Agent } | undefined = await this.sessionModel.findByIdOrSlug(id);
 
     if (!res) throw new Error('Session not found');
