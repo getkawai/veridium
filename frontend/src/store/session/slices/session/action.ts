@@ -128,15 +128,16 @@ export const createSessionSlice: StateCreator<
     // Create session with agent
     await DB.CreateSession({
       id: sessionId,
-      type: 'agent',
-      slug: { String: '', Valid: false },
-      title: { String: newSession.meta?.title || '', Valid: !!newSession.meta?.title },
-      description: { String: newSession.meta?.description || '', Valid: !!newSession.meta?.description },
-      avatar: { String: newSession.meta?.avatar || '', Valid: !!newSession.meta?.avatar },
-      backgroundColor: { String: newSession.meta?.backgroundColor || '', Valid: !!newSession.meta?.backgroundColor },
-      groupId: { String: newSession.group === 'default' ? '' : (newSession.group || ''), Valid: newSession.group !== 'default' && !!newSession.group },
-      pinned: { Int64: newSession.pinned ? 1 : 0, Valid: true },
+      slug: '',
+      title: toNullString(newSession.meta?.title),
+      description: toNullString(newSession.meta?.description),
+      avatar: toNullString(newSession.meta?.avatar),
+      backgroundColor: toNullString(newSession.meta?.backgroundColor),
+      type: toNullString('agent'),
       userId,
+      groupId: toNullString(newSession.group === 'default' ? '' : newSession.group),
+      clientId: toNullString(''),
+      pinned: newSession.pinned ? 1 : 0,
       createdAt: now,
       updatedAt: now,
     });
@@ -144,20 +145,34 @@ export const createSessionSlice: StateCreator<
     // Create agent config
     await DB.CreateAgent({
       id: agentId,
-      sessionId,
-      model: { String: newSession.config?.model || '', Valid: !!newSession.config?.model },
-      systemRole: { String: newSession.config?.systemRole || '', Valid: !!newSession.config?.systemRole },
-      plugins: { String: JSON.stringify(newSession.config?.plugins || []), Valid: true },
-      chatConfig: { String: JSON.stringify(newSession.config?.chatConfig || {}), Valid: true },
-      params: { String: JSON.stringify(newSession.config?.params || {}), Valid: true },
-      openingMessage: { String: newSession.config?.openingMessage || '', Valid: !!newSession.config?.openingMessage },
-      openingQuestions: { String: JSON.stringify(newSession.config?.openingQuestions || []), Valid: true },
-      fewShots: { String: JSON.stringify(newSession.config?.fewShots || []), Valid: true },
-      virtual: { Int64: newSession.config?.virtual ? 1 : 0, Valid: true },
-      provider: { String: newSession.config?.provider || '', Valid: !!newSession.config?.provider },
+      slug: toNullString(''),
+      title: toNullString(''),
+      description: toNullString(''),
+      tags: toNullString(''),
+      avatar: toNullString(''),
+      backgroundColor: toNullString(''),
+      plugins: toNullString(JSON.stringify(newSession.config?.plugins || [])),
+      clientId: toNullString(''),
       userId,
+      chatConfig: toNullString(JSON.stringify(newSession.config?.chatConfig || {})),
+      fewShots: toNullString(JSON.stringify(newSession.config?.fewShots || [])),
+      model: toNullString(newSession.config?.model),
+      params: toNullString(JSON.stringify(newSession.config?.params || {})),
+      provider: toNullString(newSession.config?.provider),
+      systemRole: toNullString(newSession.config?.systemRole),
+      tts: toNullString(''),
+      virtual: newSession.config?.virtual ? 1 : 0,
+      openingMessage: toNullString(newSession.config?.openingMessage),
+      openingQuestions: toNullString(JSON.stringify(newSession.config?.openingQuestions || [])),
       createdAt: now,
       updatedAt: now,
+    });
+    
+    // Link agent to session
+    await DB.LinkAgentToSession({
+      agentId,
+      sessionId,
+      userId,
     });
 
     console.log('[Session] Created session via direct DB', { sessionId });
@@ -363,7 +378,7 @@ export const createSessionSlice: StateCreator<
       }
 
       get().internal_processSessions(
-        sessions,
+        sessions as any,
         sessionGroups,
         n('internal_fetchSessions/updateData') as any,
       );
@@ -373,7 +388,7 @@ export const createSessionSlice: StateCreator<
       if (groupSessions.length > 0) {
         const chatGroupStore = getChatGroupStoreState();
         const chatGroups = groupSessions.map((session) => ({
-          accessedAt: session.updatedAt,
+          accessedAt: session.updatedAt.getTime(),
           clientId: null,
           config: {
             maxResponseInRow: 3,
@@ -382,15 +397,18 @@ export const createSessionSlice: StateCreator<
             responseOrder: 'sequential' as const,
             responseSpeed: 'medium' as const,
             scene: DEFAULT_CHAT_GROUP_CHAT_CONFIG.scene,
+            allowDM: DEFAULT_CHAT_GROUP_CHAT_CONFIG.allowDM,
+            enableSupervisor: DEFAULT_CHAT_GROUP_CHAT_CONFIG.enableSupervisor,
+            revealDM: DEFAULT_CHAT_GROUP_CHAT_CONFIG.revealDM,
           },
-          createdAt: session.createdAt,
+          createdAt: session.createdAt.getTime(),
           description: session.meta?.description || '',
           groupId: session.group || null,
           id: session.id,
           pinned: session.pinned || false,
           slug: null,
           title: session.meta?.title || 'Untitled Group',
-          updatedAt: session.updatedAt,
+          updatedAt: session.updatedAt.getTime(),
           userId: '',
         }));
 
@@ -499,14 +517,14 @@ export const createSessionSlice: StateCreator<
 
       console.log('[Session] Refreshed sessions via direct DB', { count: sessions.length });
       
-      get().internal_processSessions(sessions, sessionGroups);
+      get().internal_processSessions(sessions as any, sessionGroups);
 
       // Sync chat groups
       const groupSessions = sessions.filter((session) => session.type === 'group');
       if (groupSessions.length > 0) {
         const chatGroupStore = getChatGroupStoreState();
         const chatGroups = groupSessions.map((session) => ({
-          accessedAt: session.updatedAt,
+          accessedAt: session.updatedAt.getTime(),
           clientId: null,
           config: {
             maxResponseInRow: 3,
@@ -515,15 +533,18 @@ export const createSessionSlice: StateCreator<
             responseOrder: 'sequential' as const,
             responseSpeed: 'medium' as const,
             scene: DEFAULT_CHAT_GROUP_CHAT_CONFIG.scene,
+            allowDM: DEFAULT_CHAT_GROUP_CHAT_CONFIG.allowDM,
+            enableSupervisor: DEFAULT_CHAT_GROUP_CHAT_CONFIG.enableSupervisor,
+            revealDM: DEFAULT_CHAT_GROUP_CHAT_CONFIG.revealDM,
           },
-          createdAt: session.createdAt,
+          createdAt: session.createdAt.getTime(),
           description: session.meta?.description || '',
           groupId: session.group || null,
           id: session.id,
           pinned: session.pinned || false,
           slug: null,
           title: session.meta?.title || 'Untitled Group',
-          updatedAt: session.updatedAt,
+          updatedAt: session.updatedAt.getTime(),
           userId: '',
         }));
 
