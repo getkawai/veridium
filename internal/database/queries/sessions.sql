@@ -16,6 +16,11 @@ WHERE user_id = ? AND slug != 'inbox'
 ORDER BY updated_at DESC
 LIMIT ? OFFSET ?;
 
+-- name: ListAllSessions :many
+SELECT * FROM sessions
+WHERE user_id = ?
+ORDER BY updated_at DESC;
+
 -- name: CountSessions :one
 SELECT COUNT(*) FROM sessions
 WHERE user_id = ? AND slug != 'inbox';
@@ -61,6 +66,13 @@ WHERE user_id = ?
   AND (title LIKE ? OR description LIKE ?)
 ORDER BY updated_at DESC
 LIMIT ?;
+
+-- name: SearchSessionsByKeyword :many
+SELECT * FROM sessions
+WHERE user_id = ? 
+  AND (title LIKE '%' || ? || '%' OR description LIKE '%' || ? || '%')
+ORDER BY updated_at DESC
+LIMIT 100;
 
 -- name: GetSessionWithGroup :one
 SELECT 

@@ -32,15 +32,17 @@ export const mapSessionFromDB = (dbSession: any) => {
     id: dbSession.id,
     type: dbSession.type as LobeSessionType,
     slug: getNullableString(dbSession.slug) || '',
-    title: getNullableString(dbSession.title) || '',
-    description: getNullableString(dbSession.description) || '',
-    avatar: getNullableString(dbSession.avatar) || '',
-    backgroundColor: getNullableString(dbSession.backgroundColor) || '',
     group: getNullableString(dbSession.groupId) || 'default',
     pinned: Boolean(dbSession.pinned),
     createdAt: new Date(dbSession.createdAt),
     updatedAt: new Date(dbSession.updatedAt),
     userId: dbSession.userId,
+    meta: {
+      title: getNullableString(dbSession.title) || undefined,
+      description: getNullableString(dbSession.description) || undefined,
+      avatar: getNullableString(dbSession.avatar) || undefined,
+      backgroundColor: getNullableString(dbSession.backgroundColor) || undefined,
+    },
   };
 };
 

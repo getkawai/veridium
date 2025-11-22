@@ -15118,6 +15118,43 @@ export class SearchMessagesByKeywordParams {
     }
 }
 
+export class SearchSessionsByKeywordParams {
+    "userId": string;
+    "column2": sql$0.NullString;
+    "column3": sql$0.NullString;
+
+    /** Creates a new SearchSessionsByKeywordParams instance. */
+    constructor($$source: Partial<SearchSessionsByKeywordParams> = {}) {
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+        if (!("column2" in $$source)) {
+            this["column2"] = (new sql$0.NullString());
+        }
+        if (!("column3" in $$source)) {
+            this["column3"] = (new sql$0.NullString());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SearchSessionsByKeywordParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SearchSessionsByKeywordParams {
+        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("column2" in $$parsedSource) {
+            $$parsedSource["column2"] = $$createField1_0($$parsedSource["column2"]);
+        }
+        if ("column3" in $$parsedSource) {
+            $$parsedSource["column3"] = $$createField2_0($$parsedSource["column3"]);
+        }
+        return new SearchSessionsByKeywordParams($$parsedSource as Partial<SearchSessionsByKeywordParams>);
+    }
+}
+
 export class SearchSessionsParams {
     "userId": string;
     "title": sql$0.NullString;

@@ -324,6 +324,7 @@ export {
     RbacRole,
     SearchAgentsParams,
     SearchMessagesByKeywordParams,
+    SearchSessionsByKeywordParams,
     SearchSessionsParams,
     SearchTopicsByMessageContentParams,
     SearchTopicsByTitleParams,

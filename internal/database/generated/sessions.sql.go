@@ -421,6 +421,49 @@ func (q *Queries) GetSessionWithGroup(ctx context.Context, arg GetSessionWithGro
 	return i, err
 }
 
+const ListAllSessions = `-- name: ListAllSessions :many
+SELECT id, slug, title, description, avatar, background_color, type, user_id, group_id, client_id, pinned, created_at, updated_at FROM sessions
+WHERE user_id = ?
+ORDER BY updated_at DESC
+`
+
+func (q *Queries) ListAllSessions(ctx context.Context, userID string) ([]Session, error) {
+	rows, err := q.db.QueryContext(ctx, ListAllSessions, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Session{}
+	for rows.Next() {
+		var i Session
+		if err := rows.Scan(
+			&i.ID,
+			&i.Slug,
+			&i.Title,
+			&i.Description,
+			&i.Avatar,
+			&i.BackgroundColor,
+			&i.Type,
+			&i.UserID,
+			&i.GroupID,
+			&i.ClientID,
+			&i.Pinned,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const ListSessions = `-- name: ListSessions :many
 SELECT id, slug, title, description, avatar, background_color, type, user_id, group_id, client_id, pinned, created_at, updated_at FROM sessions
 WHERE user_id = ? AND slug != 'inbox'
@@ -587,6 +630,57 @@ func (q *Queries) SearchSessions(ctx context.Context, arg SearchSessionsParams) 
 		arg.Description,
 		arg.Limit,
 	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Session{}
+	for rows.Next() {
+		var i Session
+		if err := rows.Scan(
+			&i.ID,
+			&i.Slug,
+			&i.Title,
+			&i.Description,
+			&i.Avatar,
+			&i.BackgroundColor,
+			&i.Type,
+			&i.UserID,
+			&i.GroupID,
+			&i.ClientID,
+			&i.Pinned,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const SearchSessionsByKeyword = `-- name: SearchSessionsByKeyword :many
+SELECT id, slug, title, description, avatar, background_color, type, user_id, group_id, client_id, pinned, created_at, updated_at FROM sessions
+WHERE user_id = ? 
+  AND (title LIKE '%' || ? || '%' OR description LIKE '%' || ? || '%')
+ORDER BY updated_at DESC
+LIMIT 100
+`
+
+type SearchSessionsByKeywordParams struct {
+	UserID  string         `json:"userId"`
+	Column2 sql.NullString `json:"column2"`
+	Column3 sql.NullString `json:"column3"`
+}
+
+func (q *Queries) SearchSessionsByKeyword(ctx context.Context, arg SearchSessionsByKeywordParams) ([]Session, error) {
+	rows, err := q.db.QueryContext(ctx, SearchSessionsByKeyword, arg.UserID, arg.Column2, arg.Column3)
 	if err != nil {
 		return nil, err
 	}

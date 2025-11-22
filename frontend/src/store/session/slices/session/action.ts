@@ -95,14 +95,15 @@ export const createSessionSlice: StateCreator<
   clearSessions: async () => {
     // 🔄 MIGRATED: Direct DB call instead of sessionService.removeAllSessions()
     const userId = getUserId();
-    const sessions = await DB.ListSessions({ userId, limit: 1000, offset: 0 });
+    const sessions = await DB.ListAllSessions(userId);
     
-    // Delete all sessions
+    // Delete all sessions (except inbox)
+    const sessionsToDelete = sessions.filter(s => s.slug !== 'inbox');
     await Promise.all(
-      sessions.map((session) => DB.DeleteSession({ id: session.id, userId }))
+      sessionsToDelete.map((session) => DB.DeleteSession({ id: session.id, userId }))
     );
     
-    console.log('[Session] Cleared all sessions via direct DB', { count: sessions.length });
+    console.log('[Session] Cleared all sessions via direct DB', { count: sessionsToDelete.length });
     
     await get().refreshSessions();
   },
@@ -204,22 +205,21 @@ export const createSessionSlice: StateCreator<
 
       // 1. Duplicate session
       await DB.DuplicateSession({
-        newSessionId,
-        newTitle,
+        id: newSessionId,
+        title: toNullString(newTitle),
         createdAt: now,
         updatedAt: now,
-        sourceSessionId: id,
+        id2: id,
         userId,
       });
 
       // 2. Duplicate agent
       await DB.DuplicateAgentForSession({
-        newAgentId,
-        newSessionId,
-        sourceSessionId: id,
-        userId,
+        id: newAgentId,
         createdAt: now,
         updatedAt: now,
+        sessionId: id,
+        userId,
       });
 
       // 3. Link agent to session
@@ -337,8 +337,8 @@ export const createSessionSlice: StateCreator<
       
       // Fetch sessions and session groups in parallel
       const [dbSessions, dbSessionGroups] = await Promise.all([
-        DB.GetAgentSessions({ userId }),
-        DB.GetSessionGroups(userId),
+        DB.ListAllSessions(userId),
+        DB.ListSessionGroups(userId),
       ]);
 
       // Map database results to frontend types
@@ -409,7 +409,11 @@ export const createSessionSlice: StateCreator<
     try {
       // 🔄 MIGRATED: Direct DB call instead of sessionService.searchSessions()
       const userId = getUserId();
-      const dbResults = await DB.SearchSessions({ userId, keyword });
+      const dbResults = await DB.SearchSessionsByKeyword({ 
+        userId, 
+        column2: toNullString(keyword),
+        column3: toNullString(keyword),
+      });
       const results = dbResults.map(mapSessionFromDB);
       
       console.log('[Session] Searched sessions via direct DB', { keyword, count: results.length });
@@ -479,8 +483,8 @@ export const createSessionSlice: StateCreator<
       
       // Fetch sessions and session groups in parallel
       const [dbSessions, dbSessionGroups] = await Promise.all([
-        DB.GetAgentSessions({ userId }),
-        DB.GetSessionGroups(userId),
+        DB.ListAllSessions(userId),
+        DB.ListSessionGroups(userId),
       ]);
 
       // Map database results to frontend types

@@ -1699,6 +1699,12 @@ export function ListAgents(arg: $models.ListAgentsParams): $CancellablePromise<$
     });
 }
 
+export function ListAllSessions(userID: string): $CancellablePromise<$models.Session[]> {
+    return $Call.ByID(984596358, userID).then(($result: any) => {
+        return $$createType62($result);
+    });
+}
+
 export function ListAllThreads(userID: string): $CancellablePromise<$models.Thread[]> {
     return $Call.ByID(1216924956, userID).then(($result: any) => {
         return $$createType107($result);
@@ -2012,6 +2018,12 @@ export function SearchMessagesByKeyword(arg: $models.SearchMessagesByKeywordPara
 
 export function SearchSessions(arg: $models.SearchSessionsParams): $CancellablePromise<$models.Session[]> {
     return $Call.ByID(613389605, arg).then(($result: any) => {
+        return $$createType62($result);
+    });
+}
+
+export function SearchSessionsByKeyword(arg: $models.SearchSessionsByKeywordParams): $CancellablePromise<$models.Session[]> {
+    return $Call.ByID(1005433263, arg).then(($result: any) => {
         return $$createType62($result);
     });
 }
