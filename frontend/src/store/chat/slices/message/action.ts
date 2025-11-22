@@ -21,7 +21,6 @@ import isEqual from 'fast-deep-equal';
 import { StateCreator } from 'zustand/vanilla';
 
 import { messageService } from '@/services/message';
-import { topicService } from '@/services/topic';
 import { ChatStore } from '@/store/chat/store';
 import { messageMapKey } from '@/store/chat/utils/messageMapKey';
 import { useSessionStore } from '@/store/session';
@@ -218,10 +217,11 @@ export const chatMessage: StateCreator<
       await messageService.removeMessagesByAssistant(activeId, activeTopicId);
     }
 
+    // 🔄 MIGRATED: Use store action instead of topicService.removeTopic()
     if (activeTopicId) {
-      await topicService.removeTopic(activeTopicId);
+      await get().removeTopic(activeTopicId);
     }
-    await refreshTopic();
+    // refreshTopic is already called inside removeTopic
     await refreshMessages();
 
     // after remove topic , go back to default topic

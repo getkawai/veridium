@@ -15,7 +15,6 @@ import { AgentCategory, AgentSettings as Settings } from '@/features/AgentSettin
 import { AgentSettingsProvider } from '@/features/AgentSetting/AgentSettingsProvider';
 import { TITLE_BAR_HEIGHT } from '@/features/ElectronTitlebar';
 import Footer from '@/features/Setting/Footer';
-import { sessionService } from '@/services/session';
 import { useAgentStore } from '@/store/agent';
 import { agentSelectors } from '@/store/agent/slices/chat';
 import { ChatSettingsTabs } from '@/store/global/initialState';
@@ -108,10 +107,15 @@ const AgentSettings = memo<AgentSettingsProps>(({ agentId, onClose, open }) => {
       );
 
       if (agentSession) {
-        // Use the session service directly with the specific session ID
-        await sessionService.updateSessionMeta(agentSession.id, meta);
-        // Refresh sessions to update the UI
-        await useSessionStore.getState().refreshSessions();
+        // 🔄 MIGRATED: Use store action instead of sessionService
+        // Switch to the agent session temporarily to update its meta
+        const currentActiveId = useSessionStore.getState().activeId;
+        useSessionStore.getState().switchSession(agentSession.id);
+        await useSessionStore.getState().updateSessionMeta(meta);
+        // Switch back to original session
+        if (currentActiveId !== agentSession.id) {
+          useSessionStore.getState().switchSession(currentActiveId);
+        }
       }
     } else {
       // Use the global update function for current session
