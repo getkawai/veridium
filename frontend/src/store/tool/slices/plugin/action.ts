@@ -5,6 +5,10 @@ import { MESSAGE_CANCEL_FLAT } from '@/const/message';
 import { pluginService } from '@/services/plugin';
 import { merge } from '@/utils/merge';
 
+// 🔄 MIGRATED: Direct DB imports for plugin operations
+import { DB, toNullString, toNullJSON, parseNullableJSON, currentTimestampMs } from '@/types/database';
+import { getUserId } from '@/store/session/helpers';
+
 import { ToolStore } from '../../store';
 import { pluginStoreSelectors } from '../oldStore/selectors';
 import { pluginSelectors } from './selectors';
@@ -46,7 +50,12 @@ export const createPluginSlice: StateCreator<
     await installPlugins(plugins);
   },
   removeAllPlugins: async () => {
-    await pluginService.removeAllPlugins();
+    // 🔄 MIGRATED: Direct DB call instead of pluginService.removeAllPlugins()
+    const userId = getUserId();
+    await DB.DeleteAllPlugins(userId);
+
+    console.log('[Plugin] Removed all plugins via direct DB', { userId });
+
     await get().refreshPlugins();
   },
 
@@ -55,9 +64,18 @@ export const createPluginSlice: StateCreator<
 
     if (!installedPlugin) return;
 
-    await pluginService.updatePlugin(id, {
-      customParams: { mcp: merge(installedPlugin.customParams?.mcp, value) },
+    // 🔄 MIGRATED: Direct DB call instead of pluginService.updatePlugin()
+    const userId = getUserId();
+    const now = currentTimestampMs();
+
+    await DB.UpdatePlugin({
+      identifier: id,
+      userId,
+      customParams: toNullJSON({ mcp: merge(installedPlugin.customParams?.mcp, value) }),
+      updatedAt: now,
     });
+
+    console.log('[Plugin] Updated MCP plugin via direct DB', { id, hasMcpValue: !!value });
 
     await get().refreshPlugins();
   },
@@ -72,7 +90,19 @@ export const createPluginSlice: StateCreator<
     const nextSettings = override ? settings : merge(previousSettings, settings);
 
     set({ updatePluginSettingsSignal: newSignal }, false, 'create new Signal');
-    await pluginService.updatePluginSettings(id, nextSettings, newSignal.signal);
+
+    // 🔄 MIGRATED: Direct DB call instead of pluginService.updatePluginSettings()
+    const userId = getUserId();
+    const now = currentTimestampMs();
+
+    await DB.UpdatePlugin({
+      identifier: id,
+      userId,
+      settings: toNullJSON(nextSettings),
+      updatedAt: now,
+    });
+
+    console.log('[Plugin] Updated plugin settings via direct DB', { id, hasSettings: !!nextSettings });
 
     await get().refreshPlugins();
   },

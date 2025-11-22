@@ -8,6 +8,10 @@ import { mcpService } from '@/services/mcp';
 import { pluginService } from '@/services/plugin';
 import { toolService } from '@/services/tool';
 import { pluginHelpers } from '@/store/tool/helpers';
+
+// 🔄 MIGRATED: Direct DB imports for plugin operations
+import { DB, toNullString, toNullJSON, currentTimestampMs } from '@/types/database';
+import { getUserId } from '@/store/session/helpers';
 import { LobeToolCustomPlugin, PluginInstallError } from '@/types/tool/plugin';
 import { setNamespace } from '@/utils/storeDebug';
 
@@ -32,7 +36,22 @@ export const createCustomPluginSlice: StateCreator<
   CustomPluginAction
 > = (set, get) => ({
   installCustomPlugin: async (value) => {
-    await pluginService.createCustomPlugin(value);
+    // 🔄 MIGRATED: Direct DB call instead of pluginService.createCustomPlugin()
+    const userId = getUserId();
+    const now = currentTimestampMs();
+
+    await DB.UpsertPlugin({
+      identifier: value.identifier,
+      userId,
+      type: 'customPlugin',
+      manifest: toNullJSON(value.manifest),
+      customParams: toNullJSON(value.customParams),
+      settings: toNullJSON(value.settings),
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    console.log('[Plugin] Created custom plugin via direct DB', { identifier: value.identifier });
 
     await get().refreshPlugins();
     set({ newCustomPlugin: defaultCustomPlugin }, false, n('saveToCustomPluginList'));
@@ -69,7 +88,19 @@ export const createCustomPluginSlice: StateCreator<
       }
       updateInstallLoadingState(id, false);
 
-      await pluginService.updatePluginManifest(id, manifest);
+      // 🔄 MIGRATED: Direct DB call instead of pluginService.updatePluginManifest()
+      const userId = getUserId();
+      const now = currentTimestampMs();
+
+      await DB.UpdatePlugin({
+        identifier: id,
+        userId,
+        manifest: toNullJSON(manifest),
+        updatedAt: now,
+      });
+
+      console.log('[Plugin] Updated plugin manifest via direct DB', { id });
+
       await refreshPlugins();
     } catch (error) {
       updateInstallLoadingState(id, false);
@@ -87,14 +118,36 @@ export const createCustomPluginSlice: StateCreator<
     }
   },
   uninstallCustomPlugin: async (id) => {
-    await pluginService.uninstallPlugin(id);
+    // 🔄 MIGRATED: Direct DB call instead of pluginService.uninstallPlugin()
+    const userId = getUserId();
+    await DB.DeletePlugin({
+      identifier: id,
+      userId,
+    });
+
+    console.log('[Plugin] Uninstalled custom plugin via direct DB', { id });
+
     await get().refreshPlugins();
   },
 
   updateCustomPlugin: async (id, value) => {
     const { reinstallCustomPlugin } = get();
-    // 1. 更新 list 项信息
-    await pluginService.updatePlugin(id, value);
+
+    // 1. 🔄 MIGRATED: Direct DB call instead of pluginService.updatePlugin()
+    const userId = getUserId();
+    const now = currentTimestampMs();
+
+    await DB.UpdatePlugin({
+      identifier: id,
+      userId,
+      type: value.type || '',
+      manifest: toNullJSON(value.manifest),
+      customParams: toNullJSON(value.customParams),
+      settings: toNullJSON(value.settings),
+      updatedAt: now,
+    });
+
+    console.log('[Plugin] Updated custom plugin via direct DB', { id });
 
     // 2. 重新安装插件
     await reinstallCustomPlugin(id);
