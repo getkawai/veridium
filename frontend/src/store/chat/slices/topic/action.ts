@@ -12,9 +12,16 @@ import { message } from '@/components/AntdStaticMethods';
 import { LOADING_FLAT } from '@/const/message';
 import { chatService } from '@/services/chat';
 import { messageService } from '@/services/message';
-import { topicService } from '@/services/topic';
-import { CreateTopicParams } from '@/services/topic/type';
 import type { ChatStore } from '@/store/chat';
+
+// Local type definition (migrated from @/services/topic/type)
+interface CreateTopicParams {
+  favorite?: boolean;
+  groupId?: string | null;
+  messages?: string[];
+  sessionId?: string | null;
+  title: string;
+}
 import type { ChatStoreState } from '@/store/chat/initialState';
 import { messageMapKey } from '@/store/chat/utils/messageMapKey';
 import { globalHelpers } from '@/store/global/helpers';
@@ -166,7 +173,22 @@ export const chatTopic: StateCreator<
       duration: 0,
     });
 
-    const newTopicId = await topicService.cloneTopic(id, newTitle);
+    // 🔄 MIGRATED: Direct DB call instead of topicService.cloneTopic()
+    const userId = getUserId();
+    const newTopicId = crypto.randomUUID();
+    const now = Date.now();
+    
+    await DB.DuplicateTopic({
+      newTopicId,
+      newTitle,
+      createdAt: now,
+      updatedAt: now,
+      sourceTopicId: id,
+      userId,
+    });
+    
+    console.log('[Topic] Duplicated topic via direct DB', { sourceId: id, newId: newTopicId });
+    
     await refreshTopic();
     message.destroy('duplicateTopic');
     message.success(t('duplicateSuccess', { ns: 'topic' }));
@@ -436,7 +458,16 @@ export const chatTopic: StateCreator<
     const { refreshTopic, switchTopic } = get();
     const topics = topicSelectors.currentUnFavTopics(get());
 
-    await topicService.batchRemoveTopics(topics.map((t) => t.id));
+    // 🔄 MIGRATED: Direct DB call instead of topicService.batchRemoveTopics()
+    const userId = getUserId();
+    
+    // Delete all unstarred topics
+    await Promise.all(
+      topics.map((topic) => DB.DeleteTopic({ id: topic.id, userId }))
+    );
+    
+    console.log('[Topic] Deleted unstarred topics via direct DB', { count: topics.length });
+    
     await refreshTopic();
 
     // 切换到默认 topic
@@ -460,7 +491,17 @@ export const chatTopic: StateCreator<
 
     try {
       console.debug('[refreshTopic] Fetching topics for activeId:', activeId);
-      const topics = await topicService.getTopics({ containerId: activeId });
+      
+      // 🔄 MIGRATED: Direct DB call instead of topicService.getTopics()
+      const userId = getUserId();
+      const dbTopics = await DB.ListTopics({
+        userId,
+        sessionId: toNullString(activeId),
+        limit: 1000,
+        offset: 0,
+      });
+      const topics = dbTopics.map(mapTopicFromDB);
+      
       console.debug('[refreshTopic] Fetched topics:', topics.length, 'topics');
 
       const nextMap = { ...get().topicMaps, [activeId]: topics };
