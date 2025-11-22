@@ -8,7 +8,6 @@ import { enableNextAuth } from '@/const/auth';
 import { useFetchAiProviderRuntimeState } from '@/hooks/useFetchAiProviderRuntimeState';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { useAgentStore } from '@/store/agent';
-import { useAiInfraStore } from '@/store/aiInfra';
 import { useGlobalStore } from '@/store/global';
 import { systemStatusSelectors } from '@/store/global/selectors';
 import { useRouterStore } from '@/store/router';
