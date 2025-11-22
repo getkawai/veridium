@@ -485,7 +485,17 @@ func (s *Service) ensureDefaultUserAndInbox(ctx context.Context) error {
 		return fmt.Errorf("failed to ensure default user: %w", err)
 	}
 
-	// 2. Check if inbox session already exists
+	// 2. Ensure default user settings exist
+	if err := s.ensureDefaultUserSettings(ctx); err != nil {
+		return fmt.Errorf("failed to ensure default user settings: %w", err)
+	}
+
+	// 3. Ensure default AI provider (Kawai) exists
+	if err := s.ensureDefaultAIProvider(ctx); err != nil {
+		return fmt.Errorf("failed to ensure default AI provider: %w", err)
+	}
+
+	// 4. Check if inbox session already exists
 	_, err = s.queries.GetSessionBySlug(ctx, db.GetSessionBySlugParams{
 		Slug:   "inbox",
 		UserID: defaultUserID,
@@ -578,4 +588,120 @@ func (s *Service) createDefaultInboxSession(ctx context.Context) error {
 
 		return nil
 	})
+}
+
+// ensureDefaultUserSettings ensures default user settings exist
+func (s *Service) ensureDefaultUserSettings(ctx context.Context) error {
+	// Check if user settings already exist
+	_, err := s.queries.GetUserSettings(ctx, defaultUserID)
+	if err == nil {
+		// Settings already exist
+		fmt.Println("✅ Default user settings already exist")
+		return nil
+	}
+	if err != sql.ErrNoRows {
+		return fmt.Errorf("failed to check user settings: %w", err)
+	}
+
+	// Create default settings matching frontend defaults
+	defaultGeneral := `{"fontSize":14,"animationMode":"agile","transitionMode":"fadeIn","highlighterTheme":"lobe-theme","mermaidTheme":"lobe-theme"}`
+	defaultLanguageModel := `{"kawai":{"enabled":true}}`
+	defaultHotkey := `{}`
+	defaultTool := `{}`
+	defaultImage := `{}`
+
+	_, err = s.queries.UpsertUserSettings(ctx, db.UpsertUserSettingsParams{
+		ID:            defaultUserID,
+		General:       sql.NullString{String: defaultGeneral, Valid: true},
+		LanguageModel: sql.NullString{String: defaultLanguageModel, Valid: true},
+		Hotkey:        sql.NullString{String: defaultHotkey, Valid: true},
+		Tool:          sql.NullString{String: defaultTool, Valid: true},
+		Image:         sql.NullString{String: defaultImage, Valid: true},
+		KeyVaults:     sql.NullString{String: "{}", Valid: true},
+		Tts:           sql.NullString{String: "", Valid: false},
+		SystemAgent:   sql.NullString{String: "", Valid: false},
+		DefaultAgent:  sql.NullString{String: "", Valid: false},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create default user settings: %w", err)
+	}
+
+	fmt.Println("✅ Default user settings created")
+	return nil
+}
+
+// ensureDefaultAIProvider ensures the default Kawai AI provider exists
+func (s *Service) ensureDefaultAIProvider(ctx context.Context) error {
+	now := int64(1000) // Use a fixed timestamp for default entries
+
+	// Check if Kawai provider already exists
+	_, err := s.queries.GetAIProvider(ctx, db.GetAIProviderParams{
+		ID:     "kawai",
+		UserID: defaultUserID,
+	})
+	if err == nil {
+		// Provider already exists
+		fmt.Println("✅ Default Kawai AI provider already exists")
+		return nil
+	}
+	if err != sql.ErrNoRows {
+		return fmt.Errorf("failed to check AI provider: %w", err)
+	}
+
+	// Create default Kawai provider
+	providerSettings := `{"defaultShowBrowserRequest":true,"proxyUrl":{"placeholder":"http://127.0.0.1:8080/v1"},"responseAnimation":{"speed":2,"text":"smooth"},"showApiKey":false,"showModelFetcher":false}`
+	providerConfig := `{}`
+
+	_, err = s.queries.CreateAIProvider(ctx, db.CreateAIProviderParams{
+		ID:            "kawai",
+		Name:          sql.NullString{String: "Kawai", Valid: true},
+		UserID:        defaultUserID,
+		Sort:          sql.NullInt64{Int64: 0, Valid: true},
+		Enabled:       sql.NullInt64{Int64: 1, Valid: true}, // enabled = true
+		FetchOnClient: sql.NullInt64{Int64: 0, Valid: true}, // fetchOnClient = false
+		CheckModel:    sql.NullString{String: "", Valid: false},
+		Logo:          sql.NullString{String: "", Valid: false},
+		Description:   sql.NullString{String: "Kawai AI - Local LLM inference powered by llama.cpp", Valid: true},
+		KeyVaults:     sql.NullString{String: "", Valid: false},
+		Source:        sql.NullString{String: "builtin", Valid: true},
+		Settings:      sql.NullString{String: providerSettings, Valid: true},
+		Config:        sql.NullString{String: providerConfig, Valid: true},
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create Kawai AI provider: %w", err)
+	}
+
+	// Create default kawai-auto model
+	modelAbilities := `{"functionCall":true,"vision":true}`
+	modelParams := `{}`
+	modelConfig := `{}`
+
+	_, err = s.queries.CreateAIModel(ctx, db.CreateAIModelParams{
+		ID:                  "kawai-auto",
+		DisplayName:         sql.NullString{String: "Kawai Auto", Valid: true},
+		Description:         sql.NullString{String: "Automatically selects the best local model for your hardware", Valid: true},
+		Organization:        sql.NullString{String: "", Valid: false},
+		Enabled:             sql.NullInt64{Int64: 1, Valid: true},
+		ProviderID:          "kawai",
+		Type:                "chat",
+		Sort:                sql.NullInt64{Int64: 0, Valid: true},
+		UserID:              defaultUserID,
+		Pricing:             sql.NullString{String: "", Valid: false},
+		Parameters:          sql.NullString{String: modelParams, Valid: true},
+		Config:              sql.NullString{String: modelConfig, Valid: true},
+		Abilities:           sql.NullString{String: modelAbilities, Valid: true},
+		ContextWindowTokens: sql.NullInt64{Int64: 128000, Valid: true},
+		Source:              sql.NullString{String: "builtin", Valid: true},
+		ReleasedAt:          sql.NullString{String: "", Valid: false},
+		CreatedAt:           now,
+		UpdatedAt:           now,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create kawai-auto model: %w", err)
+	}
+
+	fmt.Println("✅ Default Kawai AI provider and model created")
+	return nil
 }
