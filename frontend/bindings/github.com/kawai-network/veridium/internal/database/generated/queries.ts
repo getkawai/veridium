@@ -722,6 +722,26 @@ export function DeleteUserSettings(id: string): $CancellablePromise<void> {
     return $Call.ByID(2220933969, id);
 }
 
+/**
+ * Duplicate an agent for a new session
+ * Parameters: new_agent_id, new_session_id, source_session_id, user_id, created_at, updated_at
+ */
+export function DuplicateAgentForSession(arg: $models.DuplicateAgentForSessionParams): $CancellablePromise<$models.Agent> {
+    return $Call.ByID(3497301951, arg).then(($result: any) => {
+        return $$createType6($result);
+    });
+}
+
+/**
+ * Duplicate a session by creating a new session with the same data but new IDs
+ * Parameters: new_session_id, new_title, created_at, updated_at, source_session_id, user_id
+ */
+export function DuplicateSession(arg: $models.DuplicateSessionParams): $CancellablePromise<$models.Session> {
+    return $Call.ByID(1700040391, arg).then(($result: any) => {
+        return $$createType45($result);
+    });
+}
+
 export function EnsureUserExists(arg: $models.EnsureUserExistsParams): $CancellablePromise<void> {
     return $Call.ByID(3875550213, arg);
 }
@@ -1568,6 +1588,13 @@ export function LinkChatGroupToAgent(arg: $models.LinkChatGroupToAgentParams): $
  */
 export function LinkDocumentToChunk(arg: $models.LinkDocumentToChunkParams): $CancellablePromise<void> {
     return $Call.ByID(3988272905, arg);
+}
+
+/**
+ * Link a duplicated agent to a new session
+ */
+export function LinkDuplicatedAgentToSession(arg: $models.LinkDuplicatedAgentToSessionParams): $CancellablePromise<void> {
+    return $Call.ByID(4200718027, arg);
 }
 
 /**

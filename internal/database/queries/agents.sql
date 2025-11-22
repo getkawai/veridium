@@ -137,3 +137,46 @@ INNER JOIN agents_to_sessions ats ON a.id = ats.agent_id
 WHERE ats.session_id = ? AND ats.user_id = ?
 LIMIT 1;
 
+-- name: DuplicateAgentForSession :one
+-- Duplicate an agent for a new session
+-- Parameters: new_agent_id, new_session_id, source_session_id, user_id, created_at, updated_at
+INSERT INTO agents (
+    id, slug, title, description, tags, avatar, background_color,
+    plugins, client_id, user_id, chat_config, few_shots, model,
+    params, provider, system_role, tts, virtual, opening_message,
+    opening_questions, created_at, updated_at
+)
+SELECT 
+    ? as id,           -- new_agent_id
+    NULL as slug,      -- no slug for duplicated agents
+    title,
+    description,
+    tags,
+    avatar,
+    background_color,
+    plugins,
+    client_id,
+    user_id,
+    chat_config,
+    few_shots,
+    model,
+    params,
+    provider,
+    system_role,
+    tts,
+    virtual,
+    opening_message,
+    opening_questions,
+    ? as created_at,   -- new created_at
+    ? as updated_at    -- new updated_at
+FROM agents a
+INNER JOIN agents_to_sessions ats ON a.id = ats.agent_id
+WHERE ats.session_id = ? AND ats.user_id = ?
+LIMIT 1
+RETURNING *;
+
+-- name: LinkDuplicatedAgentToSession :exec
+-- Link a duplicated agent to a new session
+INSERT INTO agents_to_sessions (agent_id, session_id, user_id)
+VALUES (?, ?, ?);
+

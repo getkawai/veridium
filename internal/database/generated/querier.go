@@ -162,6 +162,12 @@ type Querier interface {
 	DeleteUnstructuredChunk(ctx context.Context, arg DeleteUnstructuredChunkParams) error
 	DeleteUser(ctx context.Context, id string) error
 	DeleteUserSettings(ctx context.Context, id string) error
+	// Duplicate an agent for a new session
+	// Parameters: new_agent_id, new_session_id, source_session_id, user_id, created_at, updated_at
+	DuplicateAgentForSession(ctx context.Context, arg DuplicateAgentForSessionParams) (Agent, error)
+	// Duplicate a session by creating a new session with the same data but new IDs
+	// Parameters: new_session_id, new_title, created_at, updated_at, source_session_id, user_id
+	DuplicateSession(ctx context.Context, arg DuplicateSessionParams) (Session, error)
 	EnsureUserExists(ctx context.Context, arg EnsureUserExistsParams) error
 	// AI Models
 	GetAIModel(ctx context.Context, arg GetAIModelParams) (AiModel, error)
@@ -328,6 +334,8 @@ type Querier interface {
 	LinkChatGroupToAgent(ctx context.Context, arg LinkChatGroupToAgentParams) error
 	// Document Chunks
 	LinkDocumentToChunk(ctx context.Context, arg LinkDocumentToChunkParams) error
+	// Link a duplicated agent to a new session
+	LinkDuplicatedAgentToSession(ctx context.Context, arg LinkDuplicatedAgentToSessionParams) error
 	// File Chunks
 	LinkFileToChunk(ctx context.Context, arg LinkFileToChunkParams) error
 	// Files to Sessions

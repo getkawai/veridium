@@ -103,3 +103,29 @@ GROUP BY s.id, a.title, a.avatar, a.background_color
 ORDER BY topic_count DESC, s.updated_at DESC
 LIMIT ?;
 
+-- name: DuplicateSession :one
+-- Duplicate a session by creating a new session with the same data but new IDs
+-- Parameters: new_session_id, new_title, created_at, updated_at, source_session_id, user_id
+INSERT INTO sessions (
+    id, slug, title, description, avatar, background_color,
+    type, user_id, group_id, client_id, pinned,
+    created_at, updated_at
+)
+SELECT 
+    ? as id,                -- new_session_id
+    NULL as slug,           -- no slug for duplicated sessions
+    ? as title,             -- new_title
+    s.description,
+    s.avatar,
+    s.background_color,
+    s.type,
+    s.user_id,
+    s.group_id,
+    s.client_id,
+    s.pinned,
+    ? as created_at,        -- new created_at
+    ? as updated_at         -- new updated_at
+FROM sessions s
+WHERE s.id = ? AND s.user_id = ?
+RETURNING *;
+

@@ -6268,6 +6268,88 @@ export class Document {
     }
 }
 
+export class DuplicateAgentForSessionParams {
+    "id": string;
+    "createdAt": number;
+    "updatedAt": number;
+    "sessionId": string;
+    "userId": string;
+
+    /** Creates a new DuplicateAgentForSessionParams instance. */
+    constructor($$source: Partial<DuplicateAgentForSessionParams> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+        if (!("sessionId" in $$source)) {
+            this["sessionId"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DuplicateAgentForSessionParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DuplicateAgentForSessionParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DuplicateAgentForSessionParams($$parsedSource as Partial<DuplicateAgentForSessionParams>);
+    }
+}
+
+export class DuplicateSessionParams {
+    "id": string;
+    "title": sql$0.NullString;
+    "createdAt": number;
+    "updatedAt": number;
+    "id2": string;
+    "userId": string;
+
+    /** Creates a new DuplicateSessionParams instance. */
+    constructor($$source: Partial<DuplicateSessionParams> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("title" in $$source)) {
+            this["title"] = (new sql$0.NullString());
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+        if (!("id2" in $$source)) {
+            this["id2"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DuplicateSessionParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DuplicateSessionParams {
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("title" in $$parsedSource) {
+            $$parsedSource["title"] = $$createField1_0($$parsedSource["title"]);
+        }
+        return new DuplicateSessionParams($$parsedSource as Partial<DuplicateSessionParams>);
+    }
+}
+
 export class Embedding {
     "id": string;
     "chunkId": sql$0.NullString;
@@ -11408,6 +11490,35 @@ export class LinkDocumentToChunkParams {
             $$parsedSource["pageIndex"] = $$createField2_0($$parsedSource["pageIndex"]);
         }
         return new LinkDocumentToChunkParams($$parsedSource as Partial<LinkDocumentToChunkParams>);
+    }
+}
+
+export class LinkDuplicatedAgentToSessionParams {
+    "agentId": string;
+    "sessionId": string;
+    "userId": string;
+
+    /** Creates a new LinkDuplicatedAgentToSessionParams instance. */
+    constructor($$source: Partial<LinkDuplicatedAgentToSessionParams> = {}) {
+        if (!("agentId" in $$source)) {
+            this["agentId"] = "";
+        }
+        if (!("sessionId" in $$source)) {
+            this["sessionId"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new LinkDuplicatedAgentToSessionParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): LinkDuplicatedAgentToSessionParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new LinkDuplicatedAgentToSessionParams($$parsedSource as Partial<LinkDuplicatedAgentToSessionParams>);
     }
 }
 

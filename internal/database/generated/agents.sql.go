@@ -139,6 +139,89 @@ func (q *Queries) DeleteAgent(ctx context.Context, arg DeleteAgentParams) error 
 	return err
 }
 
+const DuplicateAgentForSession = `-- name: DuplicateAgentForSession :one
+INSERT INTO agents (
+    id, slug, title, description, tags, avatar, background_color,
+    plugins, client_id, user_id, chat_config, few_shots, model,
+    params, provider, system_role, tts, virtual, opening_message,
+    opening_questions, created_at, updated_at
+)
+SELECT 
+    ? as id,           -- new_agent_id
+    NULL as slug,      -- no slug for duplicated agents
+    title,
+    description,
+    tags,
+    avatar,
+    background_color,
+    plugins,
+    client_id,
+    user_id,
+    chat_config,
+    few_shots,
+    model,
+    params,
+    provider,
+    system_role,
+    tts,
+    virtual,
+    opening_message,
+    opening_questions,
+    ? as created_at,   -- new created_at
+    ? as updated_at    -- new updated_at
+FROM agents a
+INNER JOIN agents_to_sessions ats ON a.id = ats.agent_id
+WHERE ats.session_id = ? AND ats.user_id = ?
+LIMIT 1
+RETURNING id, slug, title, description, tags, avatar, background_color, plugins, client_id, user_id, chat_config, few_shots, model, params, provider, system_role, tts, "virtual", opening_message, opening_questions, created_at, updated_at
+`
+
+type DuplicateAgentForSessionParams struct {
+	ID        string `json:"id"`
+	CreatedAt int64  `json:"createdAt"`
+	UpdatedAt int64  `json:"updatedAt"`
+	SessionID string `json:"sessionId"`
+	UserID    string `json:"userId"`
+}
+
+// Duplicate an agent for a new session
+// Parameters: new_agent_id, new_session_id, source_session_id, user_id, created_at, updated_at
+func (q *Queries) DuplicateAgentForSession(ctx context.Context, arg DuplicateAgentForSessionParams) (Agent, error) {
+	row := q.db.QueryRowContext(ctx, DuplicateAgentForSession,
+		arg.ID,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+		arg.SessionID,
+		arg.UserID,
+	)
+	var i Agent
+	err := row.Scan(
+		&i.ID,
+		&i.Slug,
+		&i.Title,
+		&i.Description,
+		&i.Tags,
+		&i.Avatar,
+		&i.BackgroundColor,
+		&i.Plugins,
+		&i.ClientID,
+		&i.UserID,
+		&i.ChatConfig,
+		&i.FewShots,
+		&i.Model,
+		&i.Params,
+		&i.Provider,
+		&i.SystemRole,
+		&i.Tts,
+		&i.Virtual,
+		&i.OpeningMessage,
+		&i.OpeningQuestions,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const GetAgent = `-- name: GetAgent :one
 SELECT id, slug, title, description, tags, avatar, background_color, plugins, client_id, user_id, chat_config, few_shots, model, params, provider, system_role, tts, "virtual", opening_message, opening_questions, created_at, updated_at FROM agents WHERE id = ? AND user_id = ?
 `
@@ -716,6 +799,23 @@ type LinkAgentToSessionParams struct {
 // Agent to Session relationships
 func (q *Queries) LinkAgentToSession(ctx context.Context, arg LinkAgentToSessionParams) error {
 	_, err := q.db.ExecContext(ctx, LinkAgentToSession, arg.AgentID, arg.SessionID, arg.UserID)
+	return err
+}
+
+const LinkDuplicatedAgentToSession = `-- name: LinkDuplicatedAgentToSession :exec
+INSERT INTO agents_to_sessions (agent_id, session_id, user_id)
+VALUES (?, ?, ?)
+`
+
+type LinkDuplicatedAgentToSessionParams struct {
+	AgentID   string `json:"agentId"`
+	SessionID string `json:"sessionId"`
+	UserID    string `json:"userId"`
+}
+
+// Link a duplicated agent to a new session
+func (q *Queries) LinkDuplicatedAgentToSession(ctx context.Context, arg LinkDuplicatedAgentToSessionParams) error {
+	_, err := q.db.ExecContext(ctx, LinkDuplicatedAgentToSession, arg.AgentID, arg.SessionID, arg.UserID)
 	return err
 }
 

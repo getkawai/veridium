@@ -8,7 +8,6 @@ import { MESSAGE_CANCEL_FLAT } from '@/const/message';
 import { DEFAULT_AGENT_LOBE_SESSION, INBOX_SESSION_ID } from '@/const/session';
 import { DEFAULT_CHAT_GROUP_CHAT_CONFIG } from '@/const/settings';
 import { chatGroupService } from '@/services/chatGroup';
-import { sessionService } from '@/services/session';
 import { useAgentStore } from '@/store/agent';
 import { getChatGroupStoreState } from '@/store/chatGroup';
 import { useUserStore } from '@/store/user';
@@ -199,20 +198,55 @@ export const createSessionSlice: StateCreator<
       key: messageLoadingKey,
     });
 
-    const newId = await sessionService.cloneSession(id, newTitle);
+    try {
+      // 🔄 MIGRATED: Direct DB call instead of sessionService.cloneSession()
+      const userId = getUserId();
+      const newSessionId = crypto.randomUUID();
+      const newAgentId = crypto.randomUUID();
+      const now = Date.now();
 
-    // duplicate Session Error
-    if (!newId) {
+      // 1. Duplicate session
+      const newSession = await DB.DuplicateSession({
+        newSessionId,
+        newTitle,
+        createdAt: now,
+        updatedAt: now,
+        sourceSessionId: id,
+        userId,
+      });
+
+      // 2. Duplicate agent
+      const newAgent = await DB.DuplicateAgentForSession({
+        newAgentId,
+        newSessionId,
+        sourceSessionId: id,
+        userId,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      // 3. Link agent to session
+      await DB.LinkDuplicatedAgentToSession({
+        agentId: newAgentId,
+        sessionId: newSessionId,
+        userId,
+      });
+
+      console.log('[Session] Duplicated session via direct DB', { 
+        sourceId: id, 
+        newId: newSessionId 
+      });
+
+      await refreshSessions();
+      message.destroy(messageLoadingKey);
+      message.success(t('duplicateSession.success', { ns: 'chat' }));
+
+      switchSession(newSessionId);
+    } catch (error) {
+      console.error('[duplicateSession] Error:', error);
       message.destroy(messageLoadingKey);
       message.error(t('copyFail', { ns: 'common' }));
-      return;
     }
-
-    await refreshSessions();
-    message.destroy(messageLoadingKey);
-    message.success(t('duplicateSession.success', { ns: 'chat' }));
-
-    switchSession(newId);
   },
   pinSession: async (id, pinned) => {
     await get().internal_updateSession(id, { pinned });

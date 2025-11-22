@@ -145,6 +145,70 @@ func (q *Queries) DeleteSession(ctx context.Context, arg DeleteSessionParams) er
 	return err
 }
 
+const DuplicateSession = `-- name: DuplicateSession :one
+INSERT INTO sessions (
+    id, slug, title, description, avatar, background_color,
+    type, user_id, group_id, client_id, pinned,
+    created_at, updated_at
+)
+SELECT 
+    ? as id,                -- new_session_id
+    NULL as slug,           -- no slug for duplicated sessions
+    ? as title,             -- new_title
+    s.description,
+    s.avatar,
+    s.background_color,
+    s.type,
+    s.user_id,
+    s.group_id,
+    s.client_id,
+    s.pinned,
+    ? as created_at,        -- new created_at
+    ? as updated_at         -- new updated_at
+FROM sessions s
+WHERE s.id = ? AND s.user_id = ?
+RETURNING id, slug, title, description, avatar, background_color, type, user_id, group_id, client_id, pinned, created_at, updated_at
+`
+
+type DuplicateSessionParams struct {
+	ID        string         `json:"id"`
+	Title     sql.NullString `json:"title"`
+	CreatedAt int64          `json:"createdAt"`
+	UpdatedAt int64          `json:"updatedAt"`
+	ID_2      string         `json:"id2"`
+	UserID    string         `json:"userId"`
+}
+
+// Duplicate a session by creating a new session with the same data but new IDs
+// Parameters: new_session_id, new_title, created_at, updated_at, source_session_id, user_id
+func (q *Queries) DuplicateSession(ctx context.Context, arg DuplicateSessionParams) (Session, error) {
+	row := q.db.QueryRowContext(ctx, DuplicateSession,
+		arg.ID,
+		arg.Title,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+		arg.ID_2,
+		arg.UserID,
+	)
+	var i Session
+	err := row.Scan(
+		&i.ID,
+		&i.Slug,
+		&i.Title,
+		&i.Description,
+		&i.Avatar,
+		&i.BackgroundColor,
+		&i.Type,
+		&i.UserID,
+		&i.GroupID,
+		&i.ClientID,
+		&i.Pinned,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const GetSession = `-- name: GetSession :one
 SELECT id, slug, title, description, avatar, background_color, type, user_id, group_id, client_id, pinned, created_at, updated_at FROM sessions
 WHERE id = ? AND user_id = ?
