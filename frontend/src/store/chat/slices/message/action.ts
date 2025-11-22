@@ -20,6 +20,7 @@ import { copyToClipboard } from '@lobehub/ui';
 import isEqual from 'fast-deep-equal';
 import { StateCreator } from 'zustand/vanilla';
 
+import { messageService } from '@/services/message';
 import { ChatStore } from '@/store/chat/store';
 import { messageMapKey } from '@/store/chat/utils/messageMapKey';
 import { useSessionStore } from '@/store/session';
@@ -473,28 +474,7 @@ export const chatMessage: StateCreator<
   internal_updateMessageRAG: async (id, data) => {
     const { refreshMessages } = get();
 
-    // 🔄 MIGRATED: Direct DB call instead of messageService.updateMessageRAG()
-    const userId = getUserId();
-    const { ragQueryId, fileChunks } = data;
-
-    await Promise.all(
-      fileChunks.map((chunk) =>
-        DB.LinkMessageQueryToChunk({
-          messageId: toNullString(id),
-          queryId: toNullString(ragQueryId),
-          chunkId: toNullString(chunk.id),
-          similarity: { Int64: chunk.similarity || 0, Valid: !!chunk.similarity } as any,
-          userId,
-        }),
-      ),
-    );
-
-    console.log('[Message] Updated message RAG via direct DB', {
-      messageId: id,
-      queryId: ragQueryId,
-      chunkCount: fileChunks.length
-    });
-
+    await messageService.updateMessageRAG(id, data);
     await refreshMessages();
   },
 

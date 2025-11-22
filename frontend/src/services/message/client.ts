@@ -11,9 +11,16 @@ export class ClientService extends BaseClientService implements IMessageService 
     return new MessageModel(clientDB as any, this.userId);
   }
 
+  updateMessageError: IMessageService['updateMessageError'] = async (id, error) => {
+    return this.messageModel.update(id, { error });
+  };
 
 
 
+  updateMessageRAG: IMessageService['updateMessageRAG'] = async (id, value) => {
+    console.log(id, value);
+    throw new Error('not implemented');
+  };
 
   removeMessagesByAssistant: IMessageService['removeMessagesByAssistant'] = async (
     sessionId,
