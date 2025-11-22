@@ -42,7 +42,6 @@ import { DB } from '@/types/database';
 import { chatSelectors } from '../message/selectors';
 import { ChatTopicDispatch, topicReducer } from './reducer';
 import { topicSelectors } from './selectors';
-import { FileModel } from '@/database/models/file';
 import { fileService } from '@/services/file';
 
 const n = setNamespace('t');
@@ -251,7 +250,7 @@ export const chatTopic: StateCreator<
 
     internal_updateTopicLoading(id, true);
     const messageModel = new MessageModel(clientDB as any, getUserId());
-    const messages = await messageModel.query({ sessionId, topicId });
+    const messages = await messageModel.query({ sessionId, topicId: id });
 
     const fileList = (await Promise.all(
       messages
