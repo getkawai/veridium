@@ -4,8 +4,9 @@ import { StateCreator } from 'zustand/vanilla';
 import { chatService } from '@/services/chat';
 
 // 🔄 MIGRATED: Direct DB imports for RAG operations
-import { DB } from '@/types/database';
+import { DB, toNullString } from '@/types/database';
 import { getUserId } from '@/store/session/helpers';
+import { nanoid } from '@/utils';
 import { useAgentStore } from '@/store/agent';
 import { agentSelectors } from '@/store/agent/selectors';
 import { ChatStore } from '@/store/chat';
@@ -86,11 +87,24 @@ export const chatRag: StateCreator<ChatStore, [['zustand/devtools', never]], [],
     // 2. retrieve chunks from semantic search
     const files = chatSelectors.currentUserFiles(get()).map((f) => f.id);
     try {
-      const { chunks, queryId } = await ragService.semanticSearch(
+      const chunks = await ragService.semanticSearch(
         rewriteQuery || userQuery,
         knowledgeIds().fileIds.concat(files),
       );
+
+      // Create message query to get queryId
+      const userId = getUserId();
+      const messageQuery = await DB.CreateMessageQuery({
+        id: nanoid(),
+        messageId: id,
+        rewriteQuery: toNullString(rewriteQuery || userQuery),
+        userQuery: toNullString(userQuery),
+        clientId: toNullString(''),
+        userId,
+        embeddingsId: toNullString(null),
       });
+
+      const queryId = messageQuery.id;
 
       get().internal_toggleMessageRAGLoading(false, id);
 
