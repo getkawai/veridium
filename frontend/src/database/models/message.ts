@@ -923,12 +923,6 @@ export class MessageModel {
     });
   };
 
-  deleteMessageQuery = async (id: string) => {
-    await DB.DeleteMessageQuery({
-      id,
-      userId: this.userId,
-    });
-  };
 
   deleteMessagesBySession = async (
     sessionId?: string | null,
