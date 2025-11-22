@@ -6350,6 +6350,51 @@ export class DuplicateSessionParams {
     }
 }
 
+export class DuplicateTopicParams {
+    "id": string;
+    "title": sql$0.NullString;
+    "createdAt": number;
+    "updatedAt": number;
+    "id2": string;
+    "userId": string;
+
+    /** Creates a new DuplicateTopicParams instance. */
+    constructor($$source: Partial<DuplicateTopicParams> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("title" in $$source)) {
+            this["title"] = (new sql$0.NullString());
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+        if (!("id2" in $$source)) {
+            this["id2"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DuplicateTopicParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DuplicateTopicParams {
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("title" in $$parsedSource) {
+            $$parsedSource["title"] = $$createField1_0($$parsedSource["title"]);
+        }
+        return new DuplicateTopicParams($$parsedSource as Partial<DuplicateTopicParams>);
+    }
+}
+
 export class Embedding {
     "id": string;
     "chunkId": sql$0.NullString;

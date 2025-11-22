@@ -104,5 +104,25 @@ ORDER BY created_at ASC;
 UPDATE topics SET favorite = ?, updated_at = ?
 WHERE id = ? AND user_id = ?;
 
-
+-- name: DuplicateTopic :one
+-- Duplicate a topic with a new ID and title
+INSERT INTO topics (
+    id, title, favorite, session_id, group_id, user_id, client_id,
+    history_summary, metadata, created_at, updated_at
+)
+SELECT 
+    ? as id,                -- new_topic_id
+    ? as title,             -- new_title
+    t.favorite,
+    t.session_id,
+    t.group_id,
+    t.user_id,
+    t.client_id,
+    t.history_summary,
+    t.metadata,
+    ? as created_at,        -- new created_at
+    ? as updated_at         -- new updated_at
+FROM topics t
+WHERE t.id = ? AND t.user_id = ?
+RETURNING *;
 

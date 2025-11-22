@@ -11,9 +11,8 @@ import { chatGroupService } from '@/services/chatGroup';
 import { useAgentStore } from '@/store/agent';
 import { getChatGroupStoreState } from '@/store/chatGroup';
 import { useUserStore } from '@/store/user';
-import * as DB from '@/bindings/github.com/kawai-network/veridium/internal/database/generated/queries';
 import { getUserId, mapSessionFromDB, mapAgentConfigFromDB } from '../../helpers';
-import { toNullString, toNullInt, boolToInt } from '@/types/database';
+import { DB, toNullString, toNullInt, boolToInt } from '@/types/database';
 
 import type { SessionStore } from '../../store';
 import { settingsSelectors } from '@/store/user/selectors';

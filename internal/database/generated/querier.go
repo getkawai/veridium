@@ -168,6 +168,8 @@ type Querier interface {
 	// Duplicate a session by creating a new session with the same data but new IDs
 	// Parameters: new_session_id, new_title, created_at, updated_at, source_session_id, user_id
 	DuplicateSession(ctx context.Context, arg DuplicateSessionParams) (Session, error)
+	// Duplicate a topic with a new ID and title
+	DuplicateTopic(ctx context.Context, arg DuplicateTopicParams) (Topic, error)
 	EnsureUserExists(ctx context.Context, arg EnsureUserExistsParams) error
 	// AI Models
 	GetAIModel(ctx context.Context, arg GetAIModelParams) (AiModel, error)

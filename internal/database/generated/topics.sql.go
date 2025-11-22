@@ -191,6 +191,64 @@ func (q *Queries) DeleteTopicsBySession(ctx context.Context, arg DeleteTopicsByS
 	return err
 }
 
+const DuplicateTopic = `-- name: DuplicateTopic :one
+INSERT INTO topics (
+    id, title, favorite, session_id, group_id, user_id, client_id,
+    history_summary, metadata, created_at, updated_at
+)
+SELECT 
+    ? as id,                -- new_topic_id
+    ? as title,             -- new_title
+    t.favorite,
+    t.session_id,
+    t.group_id,
+    t.user_id,
+    t.client_id,
+    t.history_summary,
+    t.metadata,
+    ? as created_at,        -- new created_at
+    ? as updated_at         -- new updated_at
+FROM topics t
+WHERE t.id = ? AND t.user_id = ?
+RETURNING id, title, favorite, session_id, group_id, user_id, client_id, history_summary, metadata, created_at, updated_at
+`
+
+type DuplicateTopicParams struct {
+	ID        string         `json:"id"`
+	Title     sql.NullString `json:"title"`
+	CreatedAt int64          `json:"createdAt"`
+	UpdatedAt int64          `json:"updatedAt"`
+	ID_2      string         `json:"id2"`
+	UserID    string         `json:"userId"`
+}
+
+// Duplicate a topic with a new ID and title
+func (q *Queries) DuplicateTopic(ctx context.Context, arg DuplicateTopicParams) (Topic, error) {
+	row := q.db.QueryRowContext(ctx, DuplicateTopic,
+		arg.ID,
+		arg.Title,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+		arg.ID_2,
+		arg.UserID,
+	)
+	var i Topic
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Favorite,
+		&i.SessionID,
+		&i.GroupID,
+		&i.UserID,
+		&i.ClientID,
+		&i.HistorySummary,
+		&i.Metadata,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const GetMessagesByTopicId = `-- name: GetMessagesByTopicId :many
 SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, client_id, user_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages
 WHERE topic_id = ? AND user_id = ?

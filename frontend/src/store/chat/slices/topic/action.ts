@@ -25,6 +25,9 @@ import { systemAgentSelectors } from '@/store/user/selectors';
 import { ChatTopic } from '@/types/topic';
 import { merge } from '@/utils/merge';
 import { setNamespace } from '@/utils/storeDebug';
+import * as DB from '@/bindings/github.com/kawai-network/veridium/internal/database/generated/queries';
+import { getUserId, mapTopicFromDB, toDbSessionId, topicToCreateParams, topicToUpdateParams } from '@/store/topic/helpers';
+import { toNullString, toNullInt } from '@/types/database';
 
 import { chatSelectors } from '../message/selectors';
 import { ChatTopicDispatch, topicReducer } from './reducer';
@@ -236,9 +239,20 @@ export const chatTopic: StateCreator<
     if (!containerId) return;
 
     try {
-      console.debug('[internal_fetchTopics] Fetching topics for containerId:', containerId);
-      const topics = await topicService.getTopics({ containerId });
-      console.debug('[internal_fetchTopics] Fetched topics:', topics.length, 'topics');
+      // 🔄 MIGRATED: Direct DB call instead of topicService.getTopics()
+      const userId = getUserId();
+      const dbSessionId = toDbSessionId(containerId);
+      
+      const dbTopics = await DB.ListTopics({
+        userId,
+        sessionId: toNullString(dbSessionId),
+        limit: 1000,
+        offset: 0,
+      });
+      
+      const topics = dbTopics.map(mapTopicFromDB);
+      
+      console.log('[Topic] Fetched topics via direct DB', { containerId, count: topics.length });
 
       const nextMap = { ...get().topicMaps, [containerId]: topics };
 
@@ -271,7 +285,24 @@ export const chatTopic: StateCreator<
 
     try {
       set({ isSearchingTopic: true }, false, n('internal_searchTopics/start'));
-      const data = await topicService.searchTopics(keywords, sessionId, groupId);
+      
+      // 🔄 MIGRATED: Direct DB call instead of topicService.searchTopics()
+      const userId = getUserId();
+      const searchPattern = `%${keywords}%`;
+      const containerId = sessionId || groupId || '';
+      
+      const dbTopics = await DB.SearchTopicsByTitle({
+        userId,
+        title: searchPattern,
+        containerId,
+        sessionId: toNullString(toDbSessionId(sessionId)),
+        groupId: toNullString(groupId),
+      });
+      
+      const data = dbTopics.map(mapTopicFromDB);
+      
+      console.log('[Topic] Searched topics via direct DB', { keywords, count: data.length });
+      
       set(
         { searchTopics: data, isSearchingTopic: false },
         false,
@@ -336,7 +367,17 @@ export const chatTopic: StateCreator<
   removeSessionTopics: async () => {
     const { switchTopic, activeId, refreshTopic } = get();
 
-    await topicService.removeTopics(activeId);
+    // 🔄 MIGRATED: Direct DB call instead of topicService.removeTopics()
+    const userId = getUserId();
+    const dbSessionId = toDbSessionId(activeId);
+    
+    await DB.DeleteTopicsBySession({
+      userId,
+      sessionId: toNullString(dbSessionId),
+    });
+    
+    console.log('[Topic] Deleted session topics via direct DB', { sessionId: activeId });
+    
     await refreshTopic();
 
     // switch to default topic
@@ -346,13 +387,15 @@ export const chatTopic: StateCreator<
   removeGroupTopics: async (groupId: string) => {
     const { switchTopic, refreshTopic } = get();
 
-    // Get topics for this specific group from the topic map
-    const groupTopics = get().topicMaps[groupId] || [];
-    const topicIds = groupTopics.map((t) => t.id);
-
-    if (topicIds.length > 0) {
-      await topicService.batchRemoveTopics(topicIds);
-    }
+    // 🔄 MIGRATED: Direct DB call instead of topicService.batchRemoveTopics()
+    const userId = getUserId();
+    
+    await DB.DeleteTopicsByGroup({
+      userId,
+      groupId: toNullString(groupId),
+    });
+    
+    console.log('[Topic] Deleted group topics via direct DB', { groupId });
 
     await refreshTopic();
 
@@ -362,7 +405,13 @@ export const chatTopic: StateCreator<
   removeAllTopics: async () => {
     const { refreshTopic } = get();
 
-    await topicService.removeAllTopic();
+    // 🔄 MIGRATED: Direct DB call instead of topicService.removeAllTopic()
+    const userId = getUserId();
+    
+    await DB.DeleteAllTopics(userId);
+    
+    console.log('[Topic] Deleted all topics via direct DB');
+    
     await refreshTopic();
   },
   removeTopic: async (id) => {
@@ -372,8 +421,12 @@ export const chatTopic: StateCreator<
     // TODO: Need to remove because server service don't need to call it
     await messageService.removeMessagesByAssistant(activeId, id);
 
-    // remove topic
-    await topicService.removeTopic(id);
+    // 🔄 MIGRATED: Direct DB call instead of topicService.removeTopic()
+    const userId = getUserId();
+    
+    await DB.DeleteTopic({ id, userId });
+    
+    console.log('[Topic] Deleted topic via direct DB', { id });
     await refreshTopic();
 
     // switch bach to default topic
@@ -437,7 +490,22 @@ export const chatTopic: StateCreator<
     get().internal_dispatchTopic({ type: 'updateTopic', id, value: data });
 
     get().internal_updateTopicLoading(id, true);
-    await topicService.updateTopic(id, data);
+    
+    // 🔄 MIGRATED: Direct DB call instead of topicService.updateTopic()
+    const userId = getUserId();
+    const now = Date.now();
+    
+    await DB.UpdateTopic({
+      id,
+      userId,
+      title: data.title ? toNullString(data.title) : undefined,
+      historySummary: data.historySummary !== undefined ? toNullString(data.historySummary) : undefined,
+      metadata: data.metadata ? toNullString(JSON.stringify(data.metadata)) : undefined,
+      updatedAt: now,
+    } as any);
+    
+    console.log('[Topic] Updated topic via direct DB', { id });
+    
     await get().refreshTopic();
     get().internal_updateTopicLoading(id, false);
   },
@@ -451,9 +519,37 @@ export const chatTopic: StateCreator<
     );
 
     get().internal_updateTopicLoading(tmpId, true);
-    console.debug('[internal_createTopic] Calling topicService.createTopic...');
-    const topicId = await topicService.createTopic(params);
-    console.debug('[internal_createTopic] Topic created with ID:', topicId);
+    
+    // 🔄 MIGRATED: Direct DB call instead of topicService.createTopic()
+    const userId = getUserId();
+    const topicId = crypto.randomUUID();
+    const now = Date.now();
+    
+    await DB.CreateTopic({
+      id: topicId,
+      title: toNullString(params.title || 'Untitled'),
+      favorite: toNullInt(0),
+      sessionId: toNullString(toDbSessionId(params.sessionId)),
+      groupId: toNullString(params.groupId),
+      userId,
+      clientId: toNullString(''),
+      historySummary: toNullString(''),
+      metadata: toNullString(JSON.stringify({})),
+      createdAt: now,
+      updatedAt: now,
+    });
+    
+    // Update messages with topic ID
+    if (params.messages && params.messages.length > 0) {
+      await DB.UpdateMessagesTopicId({
+        topicId: toNullString(topicId),
+        userId,
+        ids: params.messages,
+      });
+    }
+    
+    console.log('[Topic] Created topic via direct DB', { topicId });
+    
     get().internal_updateTopicLoading(tmpId, false);
 
     get().internal_updateTopicLoading(topicId, true);

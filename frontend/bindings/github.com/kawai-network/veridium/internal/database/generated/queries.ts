@@ -742,6 +742,15 @@ export function DuplicateSession(arg: $models.DuplicateSessionParams): $Cancella
     });
 }
 
+/**
+ * Duplicate a topic with a new ID and title
+ */
+export function DuplicateTopic(arg: $models.DuplicateTopicParams): $CancellablePromise<$models.Topic> {
+    return $Call.ByID(3550474420, arg).then(($result: any) => {
+        return $$createType48($result);
+    });
+}
+
 export function EnsureUserExists(arg: $models.EnsureUserExistsParams): $CancellablePromise<void> {
     return $Call.ByID(3875550213, arg);
 }

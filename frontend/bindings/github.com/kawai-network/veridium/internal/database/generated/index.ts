@@ -128,6 +128,7 @@ export {
     Document,
     DuplicateAgentForSessionParams,
     DuplicateSessionParams,
+    DuplicateTopicParams,
     Embedding,
     EnsureUserExistsParams,
     File,
