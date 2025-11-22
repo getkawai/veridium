@@ -8,8 +8,7 @@ import {
   ModelAbilities,
 } from '@/model-bank';
 import { StateCreator } from 'zustand/vanilla';
-// ⚠️ MIGRATION NOTE: Service layer still used by some operations (see REMAINING_WORK.md)
-import { aiProviderService } from '@/services/aiProvider';
+// ✅ MIGRATION COMPLETE: All operations now use direct DB calls
 import { DEFAULT_MODEL_PROVIDER_LIST } from '@/config/modelProviders';
 import { AIProviderStoreState } from '../../initialState';
 import type { AiModelAction } from '../aiModel/action';
@@ -210,9 +209,15 @@ export const createAiProviderSlice: StateCreator<
       const activeProvider = get().activeAiProvider;
       if (!activeProvider) return;
 
-      const data = await aiProviderService.getAiProviderById(activeProvider);
-      if (data) {
-        set({ aiProviderDetail: data }, false, 'refreshAiProviderDetail');
+      const userId = getUserId();
+      const dbProvider = await DB.GetAIProviderDetail({
+        id: activeProvider,
+        userId,
+      });
+
+      if (dbProvider) {
+        const data = mapProviderFromDB(dbProvider);
+        set({ aiProviderDetail: data as any }, false, 'refreshAiProviderDetail/directDB');
       }
       await get().refreshAiProviderRuntimeState();
     } catch (error) {
@@ -221,8 +226,8 @@ export const createAiProviderSlice: StateCreator<
   },
   refreshAiProviderList: async () => {
     try {
-      const data = await aiProviderService.getAiProviderList();
-      set({ aiProviderList: data }, false, 'refreshAiProviderList');
+      // Just call the already-migrated internal_fetchAiProviderList
+      await get().internal_fetchAiProviderList();
       await get().refreshAiProviderRuntimeState();
     } catch (error) {
       console.error('[refreshAiProviderList] Error:', error);
@@ -234,8 +239,8 @@ export const createAiProviderSlice: StateCreator<
     console.debug('[refreshAiProviderRuntimeState] Skipped (handled by useEffect)');
   },
   removeAiProvider: async (id) => {
-    await aiProviderService.deleteAiProvider(id);
-    await get().refreshAiProviderList();
+    // Just call the already-migrated deleteAiProvider
+    await get().deleteAiProvider(id);
   },
 
   toggleProviderEnabled: async (id: string, enabled: boolean) => {
@@ -385,10 +390,16 @@ export const createAiProviderSlice: StateCreator<
     if (!id) return;
 
     try {
-      const data = await aiProviderService.getAiProviderById(id);
-      if (!data) return;
+      const userId = getUserId();
+      const dbProvider = await DB.GetAIProviderDetail({
+        id,
+        userId,
+      });
 
-      set({ activeAiProvider: id, aiProviderDetail: data }, false, 'internal_fetchAiProviderItem');
+      if (!dbProvider) return;
+
+      const data = mapProviderFromDB(dbProvider);
+      set({ activeAiProvider: id, aiProviderDetail: data as any }, false, 'internal_fetchAiProviderItem/directDB');
     } catch (error) {
       console.error('[internal_fetchAiProviderItem] Error:', error);
     }
