@@ -14,6 +14,7 @@ import { toggleBooleanList } from '@/store/chat/utils';
 import { useUserStore } from '@/store/user';
 import { systemAgentSelectors } from '@/store/user/selectors';
 import { ChatSemanticSearchChunk } from '@/types/chunk';
+import { ragService } from '@/services/rag';
 
 export interface ChatRAGAction {
   deleteUserMessageRagQuery: (id: string) => Promise<void>;
@@ -85,12 +86,10 @@ export const chatRag: StateCreator<ChatStore, [['zustand/devtools', never]], [],
     // 2. retrieve chunks from semantic search
     const files = chatSelectors.currentUserFiles(get()).map((f) => f.id);
     try {
-      const { chunks, queryId } = await ragService.semanticSearchForChat({
-        fileIds: knowledgeIds().fileIds.concat(files),
-        knowledgeIds: knowledgeIds().knowledgeBaseIds,
-        messageId: id,
-        rewriteQuery: rewriteQuery || userQuery,
-        userQuery,
+      const { chunks, queryId } = await ragService.semanticSearch(
+        rewriteQuery || userQuery,
+        knowledgeIds().fileIds.concat(files),
+      );
       });
 
       get().internal_toggleMessageRAGLoading(false, id);

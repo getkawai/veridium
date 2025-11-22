@@ -6,6 +6,5 @@ export interface IRAGService {
   retryParseFile(id: string): Promise<any>;
   createEmbeddingChunksTask(id: string): Promise<any>;
   semanticSearch(query: string, fileIds?: string[]): Promise<SemanticSearchResult[]>;
-  semanticSearchForChat(params: SemanticSearchSchemaType): Promise<SemanticSearchResult[]>;
 }
 

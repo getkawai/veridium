@@ -191,13 +191,6 @@ export class ClientService extends BaseClientService implements IRAGService {
     }
   };
 
-  /**
-   * Semantic search for chat with additional context
-   */
-  semanticSearchForChat = async (params: SemanticSearchSchemaType): Promise<SemanticSearchResult[]> => {
-    // Use the same semantic search but with chat-specific params
-    return this.semanticSearch(params.query, params.fileIds);
-  };
 
   /**
    * Delete message RAG query

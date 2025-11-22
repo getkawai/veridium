@@ -170,7 +170,6 @@ func main() {
 		Name:        "veridium",
 		Description: "A demo of using raw HTML & CSS",
 		Services: []application.Service{
-			application.NewService(&GreetService{}),
 			// Database queries - direct sqlc generated code
 			application.NewService(queries),
 			// Database service - for transaction methods
@@ -191,23 +190,11 @@ func main() {
 			application.NewService(fileProcessorService),
 			// Context Engine service - for message context engineering
 			application.NewService(contextengine.NewContextEngineService()),
-			// Tools Engine service - for tool/plugin management
-			application.NewService(NewToolsEngineService()),
 			// Knowledge Base service - for RAG with Chromem + Eino
 			application.NewService(kbService),
 			// Machine ID service
 			application.NewService(&machineid.Service{}),
-			// Temp file service
-			application.NewService(&TempFileService{}),
-			// Node.js equivalent services
-			application.NewService(&NodeFsService{}),
-			application.NewService(&NodePathService{}),
-			application.NewService(&NodeBufferService{}),
-			application.NewService(&NodeExecService{}),
-			application.NewService(&NodeOsService{}),
-			application.NewService(&ZipService{}),
-			application.NewService(&ZipService{}),
-			application.NewService(&LoadFileService{}),
+			// File service
 			application.NewService(fileSvc),
 			// Native Wails v3 notification service
 			application.NewService(notifications.New()),
