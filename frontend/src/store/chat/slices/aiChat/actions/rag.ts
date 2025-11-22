@@ -147,7 +147,7 @@ export const chatRag: StateCreator<ChatStore, [['zustand/devtools', never]], [],
           value: { ragQuery },
         });
       },
-      params: rewriteQueryParams,
+      params: rewriteQueryParams as any, // Type assertion to resolve OpenAIChatMessage type conflict
     });
 
     return rewriteQuery;
