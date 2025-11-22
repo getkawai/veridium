@@ -8,8 +8,6 @@ import { notification } from '@/components/AntdStaticMethods';
 import { pluginService } from '@/services/plugin';
 import { toolService } from '@/services/tool';
 import { globalHelpers } from '@/store/global/helpers';
-
-// 🔄 MIGRATED: Direct DB imports for plugin operations
 import { DB, parseNullableJSON } from '@/types/database';
 import { getUserId } from '@/store/session/helpers';
 import { pluginStoreSelectors } from '@/store/tool/selectors';
@@ -21,7 +19,6 @@ import { setNamespace } from '@/utils/storeDebug';
 import { ToolStore } from '../../store';
 import { PluginInstallProgress, PluginInstallStep, PluginStoreState } from './initialState';
 
-// 🔄 MIGRATED: Helper function to map plugins from DB to LobeTool format
 const mapPluginsFromDB = (dbPlugins: any[]): LobeTool[] => {
   return dbPlugins.map((item) => {
     const manifest = parseNullableJSON(item.manifest as any);
@@ -205,7 +202,6 @@ export const createPluginStoreSlice: StateCreator<
     );
   },
   uninstallPlugin: async (identifier) => {
-    // 🔄 MIGRATED: Direct DB call instead of pluginService.uninstallPlugin()
     const userId = getUserId();
     await DB.DeletePlugin({
       identifier,
@@ -239,7 +235,6 @@ export const createPluginStoreSlice: StateCreator<
     if (!enabled) return;
 
     try {
-      // 🔄 MIGRATED: Direct DB call instead of pluginService.getInstalledPlugins()
       const userId = getUserId();
       const dbPlugins = await DB.ListPlugins(userId);
       const data = mapPluginsFromDB(dbPlugins);

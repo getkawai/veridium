@@ -8,8 +8,6 @@ import { mcpService } from '@/services/mcp';
 import { pluginService } from '@/services/plugin';
 import { toolService } from '@/services/tool';
 import { pluginHelpers } from '@/store/tool/helpers';
-
-// 🔄 MIGRATED: Direct DB imports for plugin operations
 import { DB, toNullString, toNullJSON, currentTimestampMs } from '@/types/database';
 import { getUserId } from '@/store/session/helpers';
 import { LobeToolCustomPlugin, PluginInstallError } from '@/types/tool/plugin';
@@ -36,7 +34,6 @@ export const createCustomPluginSlice: StateCreator<
   CustomPluginAction
 > = (set, get) => ({
   installCustomPlugin: async (value) => {
-    // 🔄 MIGRATED: Direct DB call instead of pluginService.createCustomPlugin()
     const userId = getUserId();
     const now = currentTimestampMs();
 
@@ -88,7 +85,6 @@ export const createCustomPluginSlice: StateCreator<
       }
       updateInstallLoadingState(id, false);
 
-      // 🔄 MIGRATED: Direct DB call instead of pluginService.updatePluginManifest()
       const userId = getUserId();
       const now = currentTimestampMs();
 
@@ -118,7 +114,6 @@ export const createCustomPluginSlice: StateCreator<
     }
   },
   uninstallCustomPlugin: async (id) => {
-    // 🔄 MIGRATED: Direct DB call instead of pluginService.uninstallPlugin()
     const userId = getUserId();
     await DB.DeletePlugin({
       identifier: id,
@@ -133,7 +128,7 @@ export const createCustomPluginSlice: StateCreator<
   updateCustomPlugin: async (id, value) => {
     const { reinstallCustomPlugin } = get();
 
-    // 1. 🔄 MIGRATED: Direct DB call instead of pluginService.updatePlugin()
+    // 1. Update plugin info
     const userId = getUserId();
     const now = currentTimestampMs();
 

@@ -4,8 +4,6 @@ import { StateCreator } from 'zustand/vanilla';
 import { MESSAGE_CANCEL_FLAT } from '@/const/message';
 import { pluginService } from '@/services/plugin';
 import { merge } from '@/utils/merge';
-
-// 🔄 MIGRATED: Direct DB imports for plugin operations
 import { DB, toNullString, toNullJSON, parseNullableJSON, currentTimestampMs } from '@/types/database';
 import { getUserId } from '@/store/session/helpers';
 
@@ -50,7 +48,6 @@ export const createPluginSlice: StateCreator<
     await installPlugins(plugins);
   },
   removeAllPlugins: async () => {
-    // 🔄 MIGRATED: Direct DB call instead of pluginService.removeAllPlugins()
     const userId = getUserId();
     await DB.DeleteAllPlugins(userId);
 
@@ -64,7 +61,6 @@ export const createPluginSlice: StateCreator<
 
     if (!installedPlugin) return;
 
-    // 🔄 MIGRATED: Direct DB call instead of pluginService.updatePlugin()
     const userId = getUserId();
     const now = currentTimestampMs();
 
@@ -91,7 +87,6 @@ export const createPluginSlice: StateCreator<
 
     set({ updatePluginSettingsSignal: newSignal }, false, 'create new Signal');
 
-    // 🔄 MIGRATED: Direct DB call instead of pluginService.updatePluginSettings()
     const userId = getUserId();
     const now = currentTimestampMs();
 

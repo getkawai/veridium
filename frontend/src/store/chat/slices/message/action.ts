@@ -192,7 +192,6 @@ export const chatMessage: StateCreator<
 
     get().internal_dispatchMessage({ type: 'deleteMessages', ids });
 
-    // 🔄 MIGRATED: Direct DB call instead of messageService.removeMessages
     const userId = getUserId();
     await DB.BatchDeleteMessages({
       ids,
@@ -239,7 +238,6 @@ export const chatMessage: StateCreator<
       isGroupSession = sessionSelectors.isCurrentSessionGroupSession(sessionStore);
     }
 
-    // 🔄 MIGRATED: Direct DB calls instead of messageService methods
     const userId = getUserId();
 
     if (activeTopicId) {
@@ -278,7 +276,6 @@ export const chatMessage: StateCreator<
   clearAllMessages: async () => {
     const { refreshMessages } = get();
 
-    // 🔄 MIGRATED: Direct DB call instead of messageService.removeAllMessages
     const userId = getUserId();
     await DB.DeleteAllMessages(userId);
 
@@ -350,7 +347,6 @@ export const chatMessage: StateCreator<
   /**
    * @param enable - whether to enable the fetch
    * @param messageContextId - Can be sessionId or groupId
-   * 🔄 MIGRATED: Direct DB call instead of messageService.getMessages/getGroupMessages
    */
   internal_fetchMessages: async (messageContextId, activeTopicId, type = 'session') => {
     if (!messageContextId) return;
@@ -414,7 +410,6 @@ export const chatMessage: StateCreator<
   
   /**
    * Refresh messages from database - direct fetch without SWR cache invalidation
-   * 🔄 MIGRATED: Direct DB call instead of messageService.getMessages
    */
   refreshMessages: async () => {
     const { activeId, activeTopicId } = get();
@@ -502,7 +497,6 @@ export const chatMessage: StateCreator<
   internal_updateMessageError: async (id, error) => {
     get().internal_dispatchMessage({ id, type: 'updateMessage', value: { error } });
 
-    // 🔄 MIGRATED: Direct DB call instead of messageService.updateMessage
     const userId = getUserId();
     await DB.UpdateMessage({
       id,
@@ -541,7 +535,6 @@ export const chatMessage: StateCreator<
       });
     }
 
-    // 🔄 MIGRATED: Direct DB call instead of messageService.updateMessage
     const userId = getUserId();
     const updateData: any = {
       id,
@@ -582,7 +575,6 @@ export const chatMessage: StateCreator<
     }
 
     try {
-      // 🔄 MIGRATED: Use MessageModel instead of messageService.createMessage
       const userId = getUserId();
       const messageModel = new MessageModel(clientDB, userId);
       const dbMessage = await messageModel.create(message);
@@ -621,7 +613,6 @@ export const chatMessage: StateCreator<
   internal_deleteMessage: async (id: string) => {
     get().internal_dispatchMessage({ type: 'deleteMessage', id });
 
-    // 🔄 MIGRATED: Direct DB call instead of messageService.removeMessage
     const userId = getUserId();
     await DB.DeleteMessage({
       id,

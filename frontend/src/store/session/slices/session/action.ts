@@ -93,7 +93,6 @@ export const createSessionSlice: StateCreator<
   SessionAction
 > = (set, get) => ({
   clearSessions: async () => {
-    // 🔄 MIGRATED: Direct DB call instead of sessionService.removeAllSessions()
     const userId = getUserId();
     const sessions = await DB.ListAllSessions(userId);
     
@@ -119,7 +118,6 @@ export const createSessionSlice: StateCreator<
 
     const newSession: LobeAgentSession = merge(defaultAgent, agent);
 
-    // 🔄 MIGRATED: Direct DB call instead of sessionService.createSession()
     const userId = getUserId();
     const sessionId = crypto.randomUUID();
     const agentId = crypto.randomUUID();
@@ -212,7 +210,6 @@ export const createSessionSlice: StateCreator<
     });
 
     try {
-      // 🔄 MIGRATED: Direct DB call instead of sessionService.cloneSession()
       const userId = getUserId();
       const newSessionId = crypto.randomUUID();
       const newAgentId = crypto.randomUUID();
@@ -264,7 +261,6 @@ export const createSessionSlice: StateCreator<
     await get().internal_updateSession(id, { pinned });
   },
   removeSession: async (sessionId) => {
-    // 🔄 MIGRATED: Direct DB call instead of sessionService.removeSession()
     const userId = getUserId();
     await DB.DeleteSession({ id: sessionId, userId });
     

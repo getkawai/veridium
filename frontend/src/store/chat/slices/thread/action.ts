@@ -23,8 +23,6 @@ import { useUserStore } from '@/store/user';
 import { systemAgentSelectors } from '@/store/user/selectors';
 import { merge } from '@/utils/merge';
 import { setNamespace } from '@/utils/storeDebug';
-
-// 🔄 MIGRATED: Direct DB imports for thread operations
 import { DB, toNullString, getNullableString, currentTimestampMs, Thread } from '@/types/database';
 import { getUserId } from '@/store/session/helpers';
 import { MessageModel } from '@/database/models/message';
@@ -33,7 +31,6 @@ import { ThreadDispatch, threadReducer } from './reducer';
 
 const n = setNamespace('thd');
 
-// 🔄 MIGRATED: Helper function to map Thread from DB to ThreadItem
 const mapThread = (thread: Thread): ThreadItem => {
   const statusStr = getNullableString(thread.status as any);
 
@@ -313,7 +310,6 @@ export const chatThreadMessage: StateCreator<
   createThread: async ({ message, sourceMessageId, topicId, type }) => {
     set({ isCreatingThread: true }, false, n('creatingThread/start'));
 
-    // 🔄 MIGRATED: Direct DB call instead of threadService.createThreadWithMessage()
     const userId = getUserId();
     const now = currentTimestampMs();
     let thread;
@@ -465,7 +461,6 @@ export const chatThreadMessage: StateCreator<
       willClearActiveThreadId: currentActiveThreadId === id,
     });
 
-    // 🔄 MIGRATED: Direct DB call instead of threadService.removeThread()
     const userId = getUserId();
     await DB.DeleteThread({
       id,
