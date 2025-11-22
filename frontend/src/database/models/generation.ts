@@ -10,12 +10,6 @@ import { nanoid } from 'nanoid';
 
 import { FileService } from '@/server/services/file';
 
-import { NewFile } from '../schemas';
-import {
-  GenerationItem,
-  GenerationWithAsyncTask,
-  NewGeneration,
-} from '../schemas/generation';
 import {
   DB,
   toNullString,
@@ -25,21 +19,57 @@ import {
   currentTimestampMs,
   toNullInt,
 } from '@/types/database';
-import { FileModel } from './file';
-import { createModelLogger } from '@/utils/logger';
+import { Service as DBService } from '@@/github.com/kawai-network/veridium/internal/database';
+
+// Local type definitions since schemas are missing
+export interface NewFile {
+  fileType: string;
+  fileHash?: string;
+  name: string;
+  size?: number;
+  url: string;
+  metadata?: any;
+  knowledgeBaseId?: string;
+}
+
+export interface GenerationItem {
+  id: string;
+  userId: string;
+  generationBatchId: string;
+  asyncTaskId?: string;
+  fileId?: string;
+  seed?: number;
+  asset?: any;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface NewGeneration {
+  generationBatchId: string;
+  asyncTaskId?: string;
+  fileId?: string;
+  seed?: number;
+  asset?: any;
+  userId?: string;
+}
+
+export interface GenerationWithAsyncTask extends GenerationItem {
+  asyncTask?: {
+    id: string;
+    status: AsyncTaskStatus;
+    error?: any;
+  };
+}
 
 // Create debug logger
 const log = debug('lobe-image:generation-model');
 
 export class GenerationModel {
   private userId: string;
-  private fileModel: FileModel;
   private fileService: FileService;
-  private logger = createModelLogger('Generation', 'GenerationModel', 'database/models/generation');
 
   constructor(_db: any, userId: string) {
     this.userId = userId;
-    this.fileModel = new FileModel(_db, userId);
     this.fileService = new FileService(_db, userId);
   }
 
@@ -93,7 +123,7 @@ export class GenerationModel {
       });
 
       log('Generation %s: found', id);
-      
+
       // Map the joined result to GenerationWithAsyncTask
       return {
         ...this.mapGeneration(result),
@@ -143,13 +173,50 @@ export class GenerationModel {
     // This is a potential data consistency issue
 
     // Create file first
-    const newFile = await this.fileModel.create(
-      {
-        ...file,
-        source: FileSource.ImageGeneration,
+    const fileId = nanoid();
+    const now = currentTimestampMs();
+    const fileHash = file.fileHash || `gen-${fileId}`; // Fallback hash
+
+    // Check if global file exists (unlikely for new generation but good practice)
+    const existingGlobalFile = await DB.GetGlobalFile(fileHash);
+    const isExist = !!existingGlobalFile;
+
+    await DBService.CreateFileWithLinks({
+      File: {
+        id: fileId,
+        userId: this.userId,
+        fileType: toNullString(file.fileType) as any,
+        fileHash: toNullString(fileHash) as any,
+        name: toNullString(file.name) as any,
+        size: file.size || 0,
+        url: toNullString(file.url) as any,
+        source: toNullString(FileSource.ImageGeneration) as any,
+        clientId: toNullString(this.userId) as any,
+        metadata: toNullJSON(file.metadata) as any,
+        chunkTaskId: toNullString('') as any,
+        embeddingTaskId: toNullString('') as any,
+        createdAt: now,
+        updatedAt: now,
       },
-      true,
-    );
+      GlobalFile: !isExist ? {
+        hashId: toNullString(fileHash) as any,
+        fileType: toNullString(file.fileType) as any,
+        size: file.size || 0,
+        url: toNullString(file.url) as any,
+        metadata: toNullJSON(file.metadata) as any,
+        creator: toNullString(this.userId) as any,
+        createdAt: now,
+      } : null,
+      KnowledgeBase: null,
+    });
+
+    const newFile = {
+      ...file,
+      id: fileId,
+      userId: this.userId,
+      createdAt: now,
+      updatedAt: now,
+    };
 
     // Update generation with asset and fileId
     await this.update(id, {
@@ -176,7 +243,7 @@ export class GenerationModel {
     });
 
     log('Generation %s deleted successfully', id);
-    
+
     // Note: Drizzle returns the deleted item, but Wails DELETE doesn't return anything
     // We need to fetch it first if we need to return it
     return undefined;
@@ -248,4 +315,3 @@ export class GenerationModel {
     } as GenerationItem;
   };
 }
-

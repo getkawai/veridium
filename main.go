@@ -25,6 +25,8 @@ import (
 	wailslog "github.com/wailsapp/wails/v3/pkg/services/log"
 	"github.com/wailsapp/wails/v3/pkg/services/notifications"
 	"github.com/wailsapp/wails/v3/pkg/services/sqlite"
+
+	fileservice "github.com/kawai-network/veridium/internal/services/file"
 )
 
 // Wails uses Go's `embed` package to embed the frontend files into the binary.
@@ -110,6 +112,17 @@ func main() {
 	log.Printf("✅ File Processor service initialized")
 	log.Printf("   Handles: file parsing → document storage → RAG processing")
 
+	// Initialize File Service (from frontend/src/server/services/file)
+	// Using local storage for desktop
+	fileBaseDir := filepath.Join(userConfigDir, "veridium", "files")
+	os.MkdirAll(fileBaseDir, 0755)
+
+	fileServiceImpl := fileservice.CreateFileServiceModule(fileBaseDir, "", "", false, false, true)
+	// We use a placeholder user ID. In a real app, this might need to be dynamic or context-aware.
+	// For Wails service, it's a singleton.
+	fileSvc := fileservice.NewFileService("system", fileServiceImpl)
+	log.Printf("✅ File Service initialized")
+
 	// Initialize Llama.cpp Library Service (library-based LLM inference)
 	// Auto-installs llama.cpp binaries and downloads models in background
 	libService, err := llama.NewLibraryService()
@@ -193,7 +206,9 @@ func main() {
 			application.NewService(&NodeExecService{}),
 			application.NewService(&NodeOsService{}),
 			application.NewService(&ZipService{}),
+			application.NewService(&ZipService{}),
 			application.NewService(&LoadFileService{}),
+			application.NewService(fileSvc),
 			// Native Wails v3 notification service
 			application.NewService(notifications.New()),
 			// Native Wails v3 notification service

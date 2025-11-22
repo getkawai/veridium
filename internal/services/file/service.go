@@ -1,4 +1,4 @@
-package fileservice
+package file
 
 import (
 	"crypto/sha256"
@@ -200,19 +200,19 @@ func extractKeyFromUrlOrReturnOriginal(url string, getKeyFromFullUrl func(string
 
 // S3StaticFileImpl S3 file service implementation
 type S3StaticFileImpl struct {
-	Bucket         string
-	PublicDomain   string
+	Bucket          string
+	PublicDomain    string
 	EnablePathStyle bool
-	SetACL         bool
+	SetACL          bool
 }
 
 // CreateS3StaticFileImpl creates new S3 file service implementation
 func NewS3StaticFileImpl(bucket, publicDomain string, enablePathStyle, setACL bool) *S3StaticFileImpl {
 	return &S3StaticFileImpl{
-		Bucket:         bucket,
-		PublicDomain:   publicDomain,
+		Bucket:          bucket,
+		PublicDomain:    publicDomain,
 		EnablePathStyle: enablePathStyle,
-		SetACL:         setACL,
+		SetACL:          setACL,
 	}
 }
 
@@ -347,9 +347,9 @@ type FileModelInterface interface {
 
 // FileService wraps FileServiceImpl to provide high-level file operations
 type FileService struct {
-	UserId string
+	UserId    string
 	FileModel FileModelInterface
-	Impl FileServiceImpl
+	Impl      FileServiceImpl
 }
 
 // NewFileService creates new file service with database and implementation

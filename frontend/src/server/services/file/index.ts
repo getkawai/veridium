@@ -1,11 +1,12 @@
-import { DB } from '@@/database/sql/models';
 import { TRPCError } from '@/types';
-
-import { FileModel } from '@/database/models/file';
-import { FileItem } from '@/types/database-legacy';
 import { WriteTempFile, Cleanup } from 'bindings/github.com/kawai-network/veridium/tempfileservice';
 
 import { FileServiceImpl, createFileServiceModule } from './impls';
+import {
+  DB,
+  getNullableString,
+} from '@/types/database';
+import { Service as DBService } from '@@/github.com/kawai-network/veridium/internal/database';
 
 /**
  * 文件服务类
@@ -13,13 +14,11 @@ import { FileServiceImpl, createFileServiceModule } from './impls';
  */
 export class FileService {
   private userId: string;
-  private fileModel: FileModel;
 
   private impl: FileServiceImpl = createFileServiceModule();
 
-  constructor(db: DB, userId: string) {
+  constructor(_db: any, userId: string) {
     this.userId = userId;
-    this.fileModel = new FileModel(db, userId);
   }
 
   /**
@@ -94,20 +93,31 @@ export class FileService {
 
   async downloadFileToLocal(
     fileId: string,
-  ): Promise<{ cleanup: () => void; file: FileItem; filePath: string }> {
-    const file = await this.fileModel.findById(fileId);
+  ): Promise<{ cleanup: () => void; file: any; filePath: string }> {
+    const file = await DB.GetFile({ id: fileId, userId: this.userId });
     if (!file) {
       throw new TRPCError({ code: 'BAD_REQUEST', message: 'File not found' });
     }
 
+    const fileUrl = getNullableString(file.url as any);
+    if (!fileUrl) {
+      throw new TRPCError({ code: 'BAD_REQUEST', message: 'File URL not found' });
+    }
+
     let content: Uint8Array | undefined;
     try {
-      content = await this.getFileByteArray(file.url);
+      content = await this.getFileByteArray(fileUrl);
     } catch (e) {
       console.error(e);
       // if file not found, delete it from db
       if ((e as any).Code === 'NoSuchKey') {
-        await this.fileModel.delete(fileId, true);
+        const fileHash = getNullableString(file.fileHash as any);
+        await DBService.DeleteFileWithCascade({
+          FileID: fileId,
+          UserID: this.userId,
+          RemoveGlobalFile: true,
+          FileHash: fileHash || '',
+        });
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'File not found' });
       }
     }
@@ -116,7 +126,7 @@ export class FileService {
 
     // Convert Uint8Array to base64 string for Wails binding
     const dataStr = btoa(String.fromCharCode(...content));
-    const filePath = await WriteTempFile(dataStr, file.name);
+    const filePath = await WriteTempFile(dataStr, getNullableString(file.name as any) || 'unknown');
     return { cleanup: () => Cleanup(), file, filePath };
   }
 }
