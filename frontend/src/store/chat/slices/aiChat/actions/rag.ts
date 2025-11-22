@@ -2,7 +2,10 @@ import { chainRewriteQuery } from '@/prompts';
 import { StateCreator } from 'zustand/vanilla';
 
 import { chatService } from '@/services/chat';
-import { ragService } from '@/services/rag';
+
+// 🔄 MIGRATED: Direct DB imports for RAG operations
+import { DB } from '@/types/database';
+import { getUserId } from '@/store/session/helpers';
 import { useAgentStore } from '@/store/agent';
 import { agentSelectors } from '@/store/agent/selectors';
 import { ChatStore } from '@/store/chat';
@@ -54,7 +57,14 @@ export const chatRag: StateCreator<ChatStore, [['zustand/devtools', never]], [],
       value: { ragQuery: null },
     });
 
-    await ragService.deleteMessageRagQuery(message.ragQueryId);
+    // 🔄 MIGRATED: Direct DB call instead of ragService.deleteMessageRagQuery()
+    const userId = getUserId();
+    await DB.DeleteMessageQuery({
+      id: message.ragQueryId,
+      userId,
+    });
+
+    console.log('[RAG] Deleted message RAG query via direct DB', { queryId: message.ragQueryId });
     await get().refreshMessages();
   },
 

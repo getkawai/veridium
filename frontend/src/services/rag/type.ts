@@ -7,6 +7,5 @@ export interface IRAGService {
   createEmbeddingChunksTask(id: string): Promise<any>;
   semanticSearch(query: string, fileIds?: string[]): Promise<SemanticSearchResult[]>;
   semanticSearchForChat(params: SemanticSearchSchemaType): Promise<SemanticSearchResult[]>;
-  deleteMessageRagQuery(id: string): Promise<void>;
 }
 

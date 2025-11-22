@@ -202,9 +202,6 @@ export class ClientService extends BaseClientService implements IRAGService {
   /**
    * Delete message RAG query
    */
-  deleteMessageRagQuery = async (id: string): Promise<void> => {
-    await this.messageModel.deleteMessageQuery(id);
-  };
 
   /**
    * Helper to extract string from Go NullString
