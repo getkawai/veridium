@@ -3,8 +3,12 @@ import type { PartialDeep } from 'type-fest';
 import type { StateCreator } from 'zustand/vanilla';
 
 import { DEFAULT_PREFERENCE } from '@/const/user';
-import { userService } from '@/services/user';
 import type { UserStore } from '@/store/user';
+import { DB, toNullString, parseNullableJSON, getNullableString } from '@/types/database';
+import { getUserId } from '../../helpers';
+import { AsyncLocalStorage } from '@/utils/localStorage';
+
+const preferenceStorage = new AsyncLocalStorage('LOBE_PREFERENCE');
 import type { GlobalServerConfig } from '@/types/serverConfig';
 import { LobeUser, UserInitializationState } from '@/types/user';
 import type { UserSettings } from '@/types/user/settings';
@@ -15,7 +19,6 @@ import { preferenceSelectors } from '../preference/selectors';
 
 const n = setNamespace('common');
 
-const GET_USER_STATE_KEY = 'initUserState';
 /**
  * 设置操作
  */
@@ -43,8 +46,23 @@ export const createCommonSlice: StateCreator<
     console.debug('[refreshUserState] Skipped (handled by useEffect)');
   },
   updateAvatar: async (avatar) => {
-    // 1. 更新服务端/数据库中的头像
-    await userService.updateAvatar(avatar);
+    // 🔄 MIGRATED: Direct DB call instead of userService.updateAvatar()
+    const userId = getUserId();
+    const now = Date.now();
+    
+    await DB.UpdateUser({
+      id: userId,
+      username: toNullString(''),
+      email: toNullString(''),
+      avatar: toNullString(avatar),
+      phone: toNullString(''),
+      firstName: toNullString(''),
+      lastName: toNullString(''),
+      preference: toNullString(''),
+      updatedAt: now,
+    });
+    
+    console.log('[User] Updated avatar via direct DB');
 
     await get().refreshUserState();
   },
@@ -66,7 +84,59 @@ export const createCommonSlice: StateCreator<
 
       const initUserState = async () => {
         try {
-          const data = await userService.getUserState();
+          // 🔄 MIGRATED: Direct DB call instead of userService.getUserState()
+          const userId = getUserId();
+          
+          // Ensure user exists
+          await DB.EnsureUserExists({
+            id: userId,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          });
+          
+          // Get user with settings
+          const dbUser = await DB.GetUserWithSettings(userId);
+          
+          // Count messages and sessions
+          const [messageCount, sessionCount] = await Promise.all([
+            DB.CountMessages(userId),
+            DB.CountSessions(userId),
+          ]);
+          
+          // Get preference from LocalStorage
+          const preference = await preferenceStorage.getFromLocalStorage();
+          
+          // Map to UserInitializationState
+          const data: UserInitializationState = {
+            userId: dbUser.id,
+            username: getNullableString(dbUser.username) || undefined,
+            email: getNullableString(dbUser.email) || undefined,
+            avatar: getNullableString(dbUser.avatar) || '',
+            firstName: getNullableString(dbUser.firstName) || undefined,
+            lastName: getNullableString(dbUser.lastName) || undefined,
+            fullName: [getNullableString(dbUser.firstName), getNullableString(dbUser.lastName)]
+              .filter(Boolean)
+              .join(' ') || undefined,
+            isOnboard: Boolean(dbUser.isOnboarded),
+            canEnablePWAGuide: messageCount >= 4,
+            canEnableTrace: messageCount >= 4,
+            hasConversation: messageCount > 0 || sessionCount > 0,
+            preference: (preference || { telemetry: { enabled: false } }) as any,
+            settings: {
+              tts: parseNullableJSON(dbUser.settingsTts),
+              hotkey: parseNullableJSON(dbUser.settingsHotkey),
+              keyVaults: parseNullableJSON(dbUser.settingsKeyVaults),
+              general: parseNullableJSON(dbUser.settingsGeneral),
+              languageModel: parseNullableJSON(dbUser.settingsLanguageModel),
+              systemAgent: parseNullableJSON(dbUser.settingsSystemAgent),
+              defaultAgent: parseNullableJSON(dbUser.settingsDefaultAgent),
+              tool: parseNullableJSON(dbUser.settingsTool),
+              image: parseNullableJSON(dbUser.settingsImage),
+            } as any,
+          };
+          
+          console.log('[User] Fetched user state via direct DB');
+          
           options?.onSuccess?.(data);
 
           if (data) {

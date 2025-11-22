@@ -1,10 +1,12 @@
 import type { StateCreator } from 'zustand/vanilla';
 
-import { userService } from '@/services/user';
 import type { UserStore } from '@/store/user';
 import { UserGuide, UserPreference } from '@/types/user';
 import { merge } from '@/utils/merge';
 import { setNamespace } from '@/utils/storeDebug';
+import { AsyncLocalStorage } from '@/utils/localStorage';
+
+const preferenceStorage = new AsyncLocalStorage<UserPreference>('LOBE_PREFERENCE');
 
 const n = setNamespace('preference');
 
@@ -30,6 +32,10 @@ export const createPreferenceSlice: StateCreator<
 
     set({ preference: nextPreference }, false, action || n('updatePreference'));
 
-    await userService.updatePreference(nextPreference);
+    // 🔄 MIGRATED: Direct LocalStorage call instead of userService.updatePreference()
+    // Note: Preference is stored in LocalStorage, not DB
+    await preferenceStorage.saveToLocalStorage(nextPreference);
+    
+    console.log('[User] Updated preference via LocalStorage');
   },
 });

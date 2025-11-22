@@ -4,8 +4,9 @@ import type { StateCreator } from 'zustand/vanilla';
 
 import { MESSAGE_CANCEL_FLAT } from '@/const/message';
 import { shareService } from '@/services/share';
-import { userService } from '@/services/user';
 import type { UserStore } from '@/store/user';
+import { DB, toNullString } from '@/types/database';
+import { getUserId } from '../../helpers';
 import { LobeAgentSettings } from '@/types/session';
 import {
   SystemAgentItem,
@@ -73,7 +74,12 @@ export const createSettingsSlice: StateCreator<
   },
 
   resetSettings: async () => {
-    await userService.resetUserSettings();
+    // 🔄 MIGRATED: Direct DB call instead of userService.resetUserSettings()
+    const userId = getUserId();
+    await DB.DeleteUserSettings(userId);
+    
+    console.log('[User] Reset user settings via direct DB');
+    
     await get().refreshUserState();
   },
   setSettings: async (settings) => {
@@ -87,7 +93,26 @@ export const createSettingsSlice: StateCreator<
     set({ settings: diffs }, false, 'optimistic_updateSettings');
 
     const abortController = get().internal_createSignal();
-    await userService.updateUserSettings(diffs, abortController.signal);
+    
+    // 🔄 MIGRATED: Direct DB call instead of userService.updateUserSettings()
+    const userId = getUserId();
+    const { keyVaults, ...res } = diffs;
+    
+    await DB.UpsertUserSettings({
+      id: userId,
+      tts: toNullString(JSON.stringify(res.tts || {})),
+      hotkey: toNullString(JSON.stringify(res.hotkey || {})),
+      keyVaults: toNullString(JSON.stringify(keyVaults || {})),
+      general: toNullString(JSON.stringify(res.general || {})),
+      languageModel: toNullString(JSON.stringify(res.languageModel || {})),
+      systemAgent: toNullString(JSON.stringify(res.systemAgent || {})),
+      defaultAgent: toNullString(JSON.stringify(res.defaultAgent || {})),
+      tool: toNullString(JSON.stringify(res.tool || {})),
+      image: toNullString(JSON.stringify(res.image || {})),
+    });
+    
+    console.log('[User] Updated user settings via direct DB');
+    
     await get().refreshUserState();
   },
   updateDefaultAgent: async (defaultAgent) => {
