@@ -19,7 +19,10 @@ import { StateCreator } from 'zustand/vanilla';
 
 import { aiChatService } from '@/services/aiChat';
 import { chatService } from '@/services/chat';
-import { messageService } from '@/services/message';
+
+// 🔄 MIGRATED: Direct DB imports for message error operations
+import { DB, toNullJSON, currentTimestampMs } from '@/types/database';
+import { getUserId } from '@/store/session/helpers';
 import { getAgentStoreState } from '@/store/agent';
 import { agentChatConfigSelectors, agentSelectors } from '@/store/agent/slices/chat';
 import { aiModelSelectors, aiProviderSelectors, getAiInfraStoreState } from '@/store/aiInfra';
@@ -459,7 +462,17 @@ export const generateAIChatV2: StateCreator<
         },
         onErrorHandle: async (error) => {
           isError = true;
-          await messageService.updateMessageError(assistantId, error);
+
+          // 🔄 MIGRATED: Direct DB call instead of messageService.updateMessageError()
+          const userId = getUserId();
+          await DB.UpdateMessage({
+            id: assistantId,
+            userId,
+            error: toNullJSON(error),
+            updatedAt: currentTimestampMs(),
+          });
+
+          console.log('[AIChat] Updated message error via direct DB', { messageId: assistantId });
           await refreshMessages();
         },
       });
