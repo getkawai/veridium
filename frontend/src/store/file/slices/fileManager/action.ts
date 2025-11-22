@@ -20,7 +20,6 @@ import {
   toNullString,
   toNullJSON,
   getNullableString,
-  parseNullableJSON,
   currentTimestampMs,
   File as DBFile,
 } from '@/types/database';
@@ -182,7 +181,7 @@ export const createFileManageSlice: StateCreator<
           dispatchDockFileList({
             id: file.name,
             type: 'updateFile',
-            value: { status: 'error', error: { message: 'Upload failed' } },
+            value: { status: 'error' },
           });
           return { file, fileId: undefined, fileType: file.type };
         }
@@ -403,12 +402,11 @@ export const createFileManageSlice: StateCreator<
 
       // Get URL from S3
       const fileHash = getNullableString(item.fileHash as any);
-      let url = '';
       if (fileHash) {
         try {
           const fileItem = await clientS3Storage.getObject(fileHash);
           if (fileItem) {
-            url = URL.createObjectURL(fileItem);
+            // url = URL.createObjectURL(fileItem);
           }
         } catch (e) {
           console.error('Failed to get file from S3:', e);
