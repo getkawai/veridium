@@ -190,6 +190,8 @@ func main() {
 			application.NewService(fileProcessorService),
 			// Context Engine service - for message context engineering
 			application.NewService(contextengine.NewContextEngineService()),
+			// Tools Engine service - for tool/plugin management
+			application.NewService(NewToolsEngineService()),
 			// Knowledge Base service - for RAG with Chromem + Eino
 			application.NewService(kbService),
 			// Machine ID service

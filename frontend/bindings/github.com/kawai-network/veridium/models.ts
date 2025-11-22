@@ -8,204 +8,6 @@ import { Create as $Create } from "@wailsio/runtime";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as toolsengine$0 from "./pkg/toolsengine/models.js";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore: Unused imports
-import * as time$0 from "../../../time/models.js";
-
-/**
- * CpuInfo represents CPU information (frontend compatible)
- */
-export class CpuInfo {
-    "model": string;
-    "speed": number;
-    "times": CpuTimes;
-
-    /** Creates a new CpuInfo instance. */
-    constructor($$source: Partial<CpuInfo> = {}) {
-        if (!("model" in $$source)) {
-            this["model"] = "";
-        }
-        if (!("speed" in $$source)) {
-            this["speed"] = 0;
-        }
-        if (!("times" in $$source)) {
-            this["times"] = (new CpuTimes());
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new CpuInfo instance from a string or object.
-     */
-    static createFrom($$source: any = {}): CpuInfo {
-        const $$createField2_0 = $$createType0;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("times" in $$parsedSource) {
-            $$parsedSource["times"] = $$createField2_0($$parsedSource["times"]);
-        }
-        return new CpuInfo($$parsedSource as Partial<CpuInfo>);
-    }
-}
-
-/**
- * CpuTimes represents CPU timing information (frontend compatible)
- */
-export class CpuTimes {
-    "user": number;
-    "nice": number;
-    "sys": number;
-    "idle": number;
-    "irq": number;
-
-    /** Creates a new CpuTimes instance. */
-    constructor($$source: Partial<CpuTimes> = {}) {
-        if (!("user" in $$source)) {
-            this["user"] = 0;
-        }
-        if (!("nice" in $$source)) {
-            this["nice"] = 0;
-        }
-        if (!("sys" in $$source)) {
-            this["sys"] = 0;
-        }
-        if (!("idle" in $$source)) {
-            this["idle"] = 0;
-        }
-        if (!("irq" in $$source)) {
-            this["irq"] = 0;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new CpuTimes instance from a string or object.
-     */
-    static createFrom($$source: any = {}): CpuTimes {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new CpuTimes($$parsedSource as Partial<CpuTimes>);
-    }
-}
-
-/**
- * DocumentPage represents a page in a document
- */
-export class DocumentPage {
-    "charCount": number;
-    "lineCount": number;
-    "metadata": { [_: string]: any };
-    "pageContent": string;
-
-    /** Creates a new DocumentPage instance. */
-    constructor($$source: Partial<DocumentPage> = {}) {
-        if (!("charCount" in $$source)) {
-            this["charCount"] = 0;
-        }
-        if (!("lineCount" in $$source)) {
-            this["lineCount"] = 0;
-        }
-        if (!("metadata" in $$source)) {
-            this["metadata"] = {};
-        }
-        if (!("pageContent" in $$source)) {
-            this["pageContent"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new DocumentPage instance from a string or object.
-     */
-    static createFrom($$source: any = {}): DocumentPage {
-        const $$createField2_0 = $$createType1;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("metadata" in $$parsedSource) {
-            $$parsedSource["metadata"] = $$createField2_0($$parsedSource["metadata"]);
-        }
-        return new DocumentPage($$parsedSource as Partial<DocumentPage>);
-    }
-}
-
-/**
- * ExecOptions represents options for exec operations (frontend compatible)
- */
-export class ExecOptions {
-    "cwd"?: string;
-    "env"?: { [_: string]: string };
-
-    /**
-     * in milliseconds
-     */
-    "timeout"?: number;
-    "maxBuffer"?: number;
-    "shell"?: string;
-    "uid"?: number;
-    "gid"?: number;
-    "windowsHide"?: boolean;
-    "killSignal"?: string;
-
-    /** Creates a new ExecOptions instance. */
-    constructor($$source: Partial<ExecOptions> = {}) {
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new ExecOptions instance from a string or object.
-     */
-    static createFrom($$source: any = {}): ExecOptions {
-        const $$createField1_0 = $$createType2;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("env" in $$parsedSource) {
-            $$parsedSource["env"] = $$createField1_0($$parsedSource["env"]);
-        }
-        return new ExecOptions($$parsedSource as Partial<ExecOptions>);
-    }
-}
-
-/**
- * ExecResult represents the result of an exec operation (frontend compatible)
- */
-export class ExecResult {
-    "stdout": string;
-    "stderr": string;
-    "error"?: string;
-    "code": number;
-    "signal"?: string;
-    "success": boolean;
-    "command": string;
-
-    /** Creates a new ExecResult instance. */
-    constructor($$source: Partial<ExecResult> = {}) {
-        if (!("stdout" in $$source)) {
-            this["stdout"] = "";
-        }
-        if (!("stderr" in $$source)) {
-            this["stderr"] = "";
-        }
-        if (!("code" in $$source)) {
-            this["code"] = 0;
-        }
-        if (!("success" in $$source)) {
-            this["success"] = false;
-        }
-        if (!("command" in $$source)) {
-            this["command"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new ExecResult instance from a string or object.
-     */
-    static createFrom($$source: any = {}): ExecResult {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new ExecResult($$parsedSource as Partial<ExecResult>);
-    }
-}
 
 /**
  * ExecuteToolRequest represents request to execute a tool
@@ -230,7 +32,7 @@ export class ExecuteToolRequest {
      * Creates a new ExecuteToolRequest instance from a string or object.
      */
     static createFrom($$source: any = {}): ExecuteToolRequest {
-        const $$createField1_0 = $$createType1;
+        const $$createField1_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("args" in $$parsedSource) {
             $$parsedSource["args"] = $$createField1_0($$parsedSource["args"]);
@@ -262,128 +64,6 @@ export class ExecuteToolResponse {
 }
 
 /**
- * ExtractedFile represents an extracted file from a ZIP archive
- */
-export class ExtractedFile {
-    "content": string;
-    "path": string;
-
-    /** Creates a new ExtractedFile instance. */
-    constructor($$source: Partial<ExtractedFile> = {}) {
-        if (!("content" in $$source)) {
-            this["content"] = "";
-        }
-        if (!("path" in $$source)) {
-            this["path"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new ExtractedFile instance from a string or object.
-     */
-    static createFrom($$source: any = {}): ExtractedFile {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new ExtractedFile($$parsedSource as Partial<ExtractedFile>);
-    }
-}
-
-/**
- * FileDocument represents the loaded file document
- */
-export class FileDocument {
-    "content": string;
-    "createdTime": time$0.Time;
-    "fileType": string;
-    "filename": string;
-    "metadata": FileMetadata;
-    "modifiedTime": time$0.Time;
-    "pages": DocumentPage[];
-    "source": string;
-    "totalCharCount": number;
-    "totalLineCount": number;
-
-    /** Creates a new FileDocument instance. */
-    constructor($$source: Partial<FileDocument> = {}) {
-        if (!("content" in $$source)) {
-            this["content"] = "";
-        }
-        if (!("createdTime" in $$source)) {
-            this["createdTime"] = null;
-        }
-        if (!("fileType" in $$source)) {
-            this["fileType"] = "";
-        }
-        if (!("filename" in $$source)) {
-            this["filename"] = "";
-        }
-        if (!("metadata" in $$source)) {
-            this["metadata"] = (new FileMetadata());
-        }
-        if (!("modifiedTime" in $$source)) {
-            this["modifiedTime"] = null;
-        }
-        if (!("pages" in $$source)) {
-            this["pages"] = [];
-        }
-        if (!("source" in $$source)) {
-            this["source"] = "";
-        }
-        if (!("totalCharCount" in $$source)) {
-            this["totalCharCount"] = 0;
-        }
-        if (!("totalLineCount" in $$source)) {
-            this["totalLineCount"] = 0;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new FileDocument instance from a string or object.
-     */
-    static createFrom($$source: any = {}): FileDocument {
-        const $$createField4_0 = $$createType3;
-        const $$createField6_0 = $$createType5;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("metadata" in $$parsedSource) {
-            $$parsedSource["metadata"] = $$createField4_0($$parsedSource["metadata"]);
-        }
-        if ("pages" in $$parsedSource) {
-            $$parsedSource["pages"] = $$createField6_0($$parsedSource["pages"]);
-        }
-        return new FileDocument($$parsedSource as Partial<FileDocument>);
-    }
-}
-
-/**
- * FileMetadata represents file metadata
- */
-export class FileMetadata {
-    "source"?: string;
-    "filename"?: string;
-    "fileType"?: string;
-    "createdTime"?: time$0.Time;
-    "modifiedTime"?: time$0.Time;
-    "error"?: string;
-
-    /** Creates a new FileMetadata instance. */
-    constructor($$source: Partial<FileMetadata> = {}) {
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new FileMetadata instance from a string or object.
-     */
-    static createFrom($$source: any = {}): FileMetadata {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new FileMetadata($$parsedSource as Partial<FileMetadata>);
-    }
-}
-
-/**
  * GenerateToolsRequest represents the request for tool generation
  */
 export class GenerateToolsRequest {
@@ -411,8 +91,8 @@ export class GenerateToolsRequest {
      * Creates a new GenerateToolsRequest instance from a string or object.
      */
     static createFrom($$source: any = {}): GenerateToolsRequest {
-        const $$createField0_0 = $$createType6;
-        const $$createField3_0 = $$createType1;
+        const $$createField0_0 = $$createType1;
+        const $$createField3_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("toolIds" in $$parsedSource) {
             $$parsedSource["toolIds"] = $$createField0_0($$parsedSource["toolIds"]);
@@ -441,7 +121,7 @@ export class GenerateToolsResponse {
      * Creates a new GenerateToolsResponse instance from a string or object.
      */
     static createFrom($$source: any = {}): GenerateToolsResponse {
-        const $$createField0_0 = $$createType8;
+        const $$createField0_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tools" in $$parsedSource) {
             $$parsedSource["tools"] = $$createField0_0($$parsedSource["tools"]);
@@ -470,7 +150,7 @@ export class GetAvailableToolsResponse {
      * Creates a new GetAvailableToolsResponse instance from a string or object.
      */
     static createFrom($$source: any = {}): GetAvailableToolsResponse {
-        const $$createField0_0 = $$createType6;
+        const $$createField0_0 = $$createType1;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tools" in $$parsedSource) {
             $$parsedSource["tools"] = $$createField0_0($$parsedSource["tools"]);
@@ -507,7 +187,7 @@ export class GetToolStatsResponse {
      * Creates a new GetToolStatsResponse instance from a string or object.
      */
     static createFrom($$source: any = {}): GetToolStatsResponse {
-        const $$createField2_0 = $$createType6;
+        const $$createField2_0 = $$createType1;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("toolIds" in $$parsedSource) {
             $$parsedSource["toolIds"] = $$createField2_0($$parsedSource["toolIds"]);
@@ -565,94 +245,8 @@ export class HasToolResponse {
     }
 }
 
-/**
- * NetworkInterface represents network interface information (frontend compatible)
- */
-export class NetworkInterface {
-    "address": string;
-    "netmask": string;
-    "family": string;
-    "mac": string;
-    "scopeid"?: number;
-    "internal": boolean;
-
-    /** Creates a new NetworkInterface instance. */
-    constructor($$source: Partial<NetworkInterface> = {}) {
-        if (!("address" in $$source)) {
-            this["address"] = "";
-        }
-        if (!("netmask" in $$source)) {
-            this["netmask"] = "";
-        }
-        if (!("family" in $$source)) {
-            this["family"] = "";
-        }
-        if (!("mac" in $$source)) {
-            this["mac"] = "";
-        }
-        if (!("internal" in $$source)) {
-            this["internal"] = false;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new NetworkInterface instance from a string or object.
-     */
-    static createFrom($$source: any = {}): NetworkInterface {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new NetworkInterface($$parsedSource as Partial<NetworkInterface>);
-    }
-}
-
-/**
- * UserInfoResult represents user information (frontend compatible)
- */
-export class UserInfoResult {
-    "username": string;
-    "uid": number;
-    "gid": number;
-    "shell": string;
-    "homedir": string;
-
-    /** Creates a new UserInfoResult instance. */
-    constructor($$source: Partial<UserInfoResult> = {}) {
-        if (!("username" in $$source)) {
-            this["username"] = "";
-        }
-        if (!("uid" in $$source)) {
-            this["uid"] = 0;
-        }
-        if (!("gid" in $$source)) {
-            this["gid"] = 0;
-        }
-        if (!("shell" in $$source)) {
-            this["shell"] = "";
-        }
-        if (!("homedir" in $$source)) {
-            this["homedir"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new UserInfoResult instance from a string or object.
-     */
-    static createFrom($$source: any = {}): UserInfoResult {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new UserInfoResult($$parsedSource as Partial<UserInfoResult>);
-    }
-}
-
 // Private type creation functions
-const $$createType0 = CpuTimes.createFrom;
-const $$createType1 = $Create.Map($Create.Any, $Create.Any);
-const $$createType2 = $Create.Map($Create.Any, $Create.Any);
-const $$createType3 = FileMetadata.createFrom;
-const $$createType4 = DocumentPage.createFrom;
-const $$createType5 = $Create.Array($$createType4);
-const $$createType6 = $Create.Array($Create.Any);
-const $$createType7 = toolsengine$0.ChatCompletionTool.createFrom;
-const $$createType8 = $Create.Array($$createType7);
+const $$createType0 = $Create.Map($Create.Any, $Create.Any);
+const $$createType1 = $Create.Array($Create.Any);
+const $$createType2 = toolsengine$0.ChatCompletionTool.createFrom;
+const $$createType3 = $Create.Array($$createType2);
