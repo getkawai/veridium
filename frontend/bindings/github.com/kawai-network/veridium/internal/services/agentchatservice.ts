@@ -46,17 +46,63 @@ export function ClearSession(sessionID: string): $CancellablePromise<void> {
 }
 
 /**
+ * GetReasoningConfig returns the current reasoning configuration
+ */
+export function GetReasoningConfig(): $CancellablePromise<$models.ReasoningConfig> {
+    return $Call.ByID(46956079).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
+/**
+ * GetReasoningMode returns the current reasoning mode
+ */
+export function GetReasoningMode(): $CancellablePromise<$models.ReasoningMode> {
+    return $Call.ByID(2342951530);
+}
+
+/**
+ * GetRecommendedModelForMode returns the recommended model for current reasoning mode
+ */
+export function GetRecommendedModelForMode(): $CancellablePromise<string> {
+    return $Call.ByID(1751664809);
+}
+
+/**
  * GetSessionHistory returns the message history for a session
  */
 export function GetSessionHistory(sessionID: string): $CancellablePromise<(schema$0.Message | null)[]> {
     return $Call.ByID(396946379, sessionID).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType5($result);
     });
+}
+
+/**
+ * SetReasoningMode sets the reasoning mode for the service
+ * This affects all new conversations created after this call
+ */
+export function SetReasoningMode(mode: $models.ReasoningMode): $CancellablePromise<void> {
+    return $Call.ByID(3600806230, mode);
+}
+
+/**
+ * SwitchToRecommendedModel loads the recommended model for current reasoning mode
+ */
+export function SwitchToRecommendedModel(): $CancellablePromise<void> {
+    return $Call.ByID(3072995856);
+}
+
+/**
+ * ValidateModelForReasoningMode checks if the currently loaded model is appropriate
+ */
+export function ValidateModelForReasoningMode(): $CancellablePromise<void> {
+    return $Call.ByID(483038906);
 }
 
 // Private type creation functions
 const $$createType0 = $models.ChatResponse.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
-const $$createType2 = schema$0.Message.createFrom;
-const $$createType3 = $Create.Nullable($$createType2);
-const $$createType4 = $Create.Array($$createType3);
+const $$createType2 = $models.ReasoningConfig.createFrom;
+const $$createType3 = schema$0.Message.createFrom;
+const $$createType4 = $Create.Nullable($$createType3);
+const $$createType5 = $Create.Array($$createType4);

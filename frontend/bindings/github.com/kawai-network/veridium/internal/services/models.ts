@@ -374,6 +374,91 @@ export class ProcessFileResponse {
 }
 
 /**
+ * ReasoningConfig holds configuration for reasoning behavior
+ */
+export class ReasoningConfig {
+    "Mode": ReasoningMode;
+
+    /**
+     * e.g., "llama", "mistral"
+     */
+    "PreferredNonReasoning": string;
+
+    /**
+     * e.g., "qwen", "gpt-oss"
+     */
+    "PreferredReasoning": string;
+
+    /**
+     * Whether to strip <think> tags from output
+     */
+    "StripThinkTags": boolean;
+
+    /** Creates a new ReasoningConfig instance. */
+    constructor($$source: Partial<ReasoningConfig> = {}) {
+        if (!("Mode" in $$source)) {
+            this["Mode"] = ReasoningMode.$zero;
+        }
+        if (!("PreferredNonReasoning" in $$source)) {
+            this["PreferredNonReasoning"] = "";
+        }
+        if (!("PreferredReasoning" in $$source)) {
+            this["PreferredReasoning"] = "";
+        }
+        if (!("StripThinkTags" in $$source)) {
+            this["StripThinkTags"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ReasoningConfig instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ReasoningConfig {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ReasoningConfig($$parsedSource as Partial<ReasoningConfig>);
+    }
+}
+
+/**
+ * ReasoningMode defines the reasoning behavior of the chat model
+ */
+export enum ReasoningMode {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    /**
+     * ReasoningDisabled uses non-reasoning models (Llama 3.2, Mistral, etc.)
+     * - Fastest responses
+     * - Most efficient token usage
+     * - No internal reasoning shown
+     * - Best for long conversations (50-100 turns)
+     */
+    ReasoningDisabled = "disabled",
+
+    /**
+     * ReasoningEnabled uses reasoning models (Qwen3, GPT-OSS, etc.) with /no_think
+     * - Moderate speed
+     * - Balanced token usage
+     * - Minimal reasoning overhead
+     * - Good for medium conversations (30-50 turns)
+     */
+    ReasoningEnabled = "enabled",
+
+    /**
+     * ReasoningVerbose uses reasoning models with full thinking process
+     * - Slower responses
+     * - High token usage
+     * - Shows full reasoning process
+     * - Best for single-turn Q&A (3-5 turns)
+     */
+    ReasoningVerbose = "verbose",
+};
+
+/**
  * SearchResult represents a search result from vector database
  */
 export class SearchResult {

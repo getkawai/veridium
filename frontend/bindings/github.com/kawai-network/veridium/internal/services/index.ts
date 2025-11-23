@@ -20,6 +20,8 @@ export {
     CreateThreadResponse,
     ListThreadsRequest,
     ProcessFileResponse,
+    ReasoningConfig,
+    ReasoningMode,
     SearchResult,
     ThreadInfo,
     ThreadStatus,
