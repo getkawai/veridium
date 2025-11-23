@@ -644,14 +644,12 @@ Example output format: Sleep Functions for Body and Mind
 
 IMPORTANT: Start your response directly with the title. No reasoning, no thinking, no explanations.`, locale)
 
-	// Build conversation text
+	// Build conversation text (User messages only)
 	var conversationText string
 	for _, msg := range messages {
-		role := "user"
-		if msg.Role == schema.Assistant {
-			role = "assistant"
+		if msg.Role == schema.User {
+			conversationText += fmt.Sprintf("user: %s\n", msg.Content)
 		}
-		conversationText += fmt.Sprintf("%s: %s\n", role, msg.Content)
 	}
 
 	// Add /no_think command for Qwen models to disable reasoning
