@@ -7,7 +7,6 @@ import { message } from '@/components/AntdStaticMethods';
 import { MESSAGE_CANCEL_FLAT } from '@/const/message';
 import { DEFAULT_AGENT_LOBE_SESSION, INBOX_SESSION_ID } from '@/const/session';
 import { DEFAULT_CHAT_GROUP_CHAT_CONFIG } from '@/const/settings';
-import { chatGroupService } from '@/services/chatGroup';
 import { useAgentStore } from '@/store/agent';
 import { getChatGroupStoreState } from '@/store/chatGroup';
 import { useUserStore } from '@/store/user';
@@ -95,15 +94,15 @@ export const createSessionSlice: StateCreator<
   clearSessions: async () => {
     const userId = getUserId();
     const sessions = await DB.ListAllSessions(userId);
-    
+
     // Delete all sessions (except inbox)
     const sessionsToDelete = sessions.filter(s => s.slug !== 'inbox');
     await Promise.all(
       sessionsToDelete.map((session) => DB.DeleteSession({ id: session.id, userId }))
     );
-    
+
     console.log('[Session] Cleared all sessions via direct DB', { count: sessionsToDelete.length });
-    
+
     await get().refreshSessions();
   },
 
@@ -165,7 +164,7 @@ export const createSessionSlice: StateCreator<
       createdAt: now,
       updatedAt: now,
     });
-    
+
     // Link agent to session
     await DB.LinkAgentToSession({
       agentId,
@@ -180,7 +179,7 @@ export const createSessionSlice: StateCreator<
     const config = mapAgentConfigFromDB(dbAgent);
     const agentStore = useAgentStore.getState();
     agentStore.internal_dispatchAgentMap(sessionId, config, 'createSession');
-    
+
     // Mark config as loaded in agentConfigInitMap
     agentStore.internal_updateAgentConfigInitMap(sessionId, true);
 
@@ -241,9 +240,9 @@ export const createSessionSlice: StateCreator<
         userId,
       });
 
-      console.log('[Session] Duplicated session via direct DB', { 
-        sourceId: id, 
-        newId: newSessionId 
+      console.log('[Session] Duplicated session via direct DB', {
+        sourceId: id,
+        newId: newSessionId
       });
 
       await refreshSessions();
@@ -263,9 +262,9 @@ export const createSessionSlice: StateCreator<
   removeSession: async (sessionId) => {
     const userId = getUserId();
     await DB.DeleteSession({ id: sessionId, userId });
-    
+
     console.log('[Session] Deleted session via direct DB', { sessionId });
-    
+
     await get().refreshSessions();
 
     // If the active session deleted, switch to the inbox session
@@ -296,10 +295,10 @@ export const createSessionSlice: StateCreator<
 
     if (session?.type === 'group') {
       // For group sessions (chat groups), use the chat group service
-      await chatGroupService.updateGroup(sessionId, {
-        groupId: groupId === 'default' ? null : groupId,
-      });
-      await get().refreshSessions();
+      // await chatGroupService.updateGroup(sessionId, {
+      //   groupId: groupId === 'default' ? null : groupId,
+      // });
+      // await get().refreshSessions();
     } else {
       // For regular agent sessions, use the existing session service
       await get().internal_updateSession(sessionId, { group: groupId });
@@ -322,7 +321,7 @@ export const createSessionSlice: StateCreator<
 
     const userId = getUserId();
     const now = Date.now();
-    
+
     await DB.UpdateSession({
       id: activeId,
       userId,
@@ -332,9 +331,9 @@ export const createSessionSlice: StateCreator<
       backgroundColor: meta.backgroundColor ? toNullString(meta.backgroundColor) : undefined,
       updatedAt: now,
     } as any);
-    
+
     console.log('[Session] Updated session meta via direct DB', { id: activeId });
-    
+
     await refreshSessions();
   },
 
@@ -343,7 +342,7 @@ export const createSessionSlice: StateCreator<
 
     try {
       const userId = getUserId();
-      
+
       // Fetch sessions and session groups in parallel
       const [dbSessions, dbSessionGroups] = await Promise.all([
         DB.ListAllSessions(userId),
@@ -420,13 +419,13 @@ export const createSessionSlice: StateCreator<
 
     try {
       const userId = getUserId();
-      const dbResults = await DB.SearchSessionsByKeyword({ 
-        userId, 
+      const dbResults = await DB.SearchSessionsByKeyword({
+        userId,
         column2: toNullString(keyword),
         column3: toNullString(keyword),
       });
       const results = dbResults.map(mapSessionFromDB);
-      
+
       console.log('[Session] Searched sessions via direct DB', { keyword, count: results.length });
     } catch (error) {
       console.error('[internal_searchSessions] Error searching sessions:', error);
@@ -443,10 +442,10 @@ export const createSessionSlice: StateCreator<
 
     const userId = getUserId();
     const now = Date.now();
-    
+
     // Map UpdateSessionParams to DB params
     const meta = data as any; // Cast to access meta properties
-    
+
     await DB.UpdateSession({
       id,
       userId,
@@ -458,9 +457,9 @@ export const createSessionSlice: StateCreator<
       pinned: data.pinned !== undefined ? toNullInt(boolToInt(data.pinned)) : undefined,
       updatedAt: data.updatedAt ? data.updatedAt.getTime() : now,
     } as any);
-    
+
     console.log('[Session] Updated session via direct DB', { id });
-    
+
     await get().refreshSessions();
   },
   internal_processSessions: (sessions, sessionGroups) => {
@@ -489,7 +488,7 @@ export const createSessionSlice: StateCreator<
   refreshSessions: async () => {
     try {
       const userId = getUserId();
-      
+
       // Fetch sessions and session groups in parallel
       const [dbSessions, dbSessionGroups] = await Promise.all([
         DB.ListAllSessions(userId),
@@ -507,7 +506,7 @@ export const createSessionSlice: StateCreator<
       }));
 
       console.log('[Session] Refreshed sessions via direct DB', { count: sessions.length });
-      
+
       get().internal_processSessions(sessions as any, sessionGroups);
 
       // Sync chat groups

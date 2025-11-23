@@ -84,7 +84,7 @@ export const mapSessionGroupFromDB = (dbGroup: any) => {
  */
 export const sessionToCreateParams = (type: LobeSessionType, data: any, userId: string) => {
   const now = Date.now();
-  
+
   return {
     session: {
       id: data.id || crypto.randomUUID(),
@@ -125,7 +125,7 @@ export const sessionToCreateParams = (type: LobeSessionType, data: any, userId: 
  */
 export const sessionToUpdateParams = (id: string, data: any, userId: string) => {
   const now = Date.now();
-  
+
   return {
     id,
     userId,
@@ -137,4 +137,13 @@ export const sessionToUpdateParams = (id: string, data: any, userId: string) => 
     pinned: data.pinned !== undefined ? toNullInt(boolToInt(data.pinned)) : undefined,
     updatedAt: now,
   };
+};
+
+/**
+ * Get session pinned status
+ */
+export const getSessionPinned = (session: any) => session.pinned;
+
+export const sessionHelpers = {
+  getSessionPinned,
 };

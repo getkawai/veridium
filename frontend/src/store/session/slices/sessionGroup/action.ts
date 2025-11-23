@@ -3,9 +3,9 @@ import { StateCreator } from 'zustand/vanilla';
 
 import { message } from '@/components/AntdStaticMethods';
 import { SessionGroupItem } from '@/types/session';
-import * as DB from '@/bindings/github.com/kawai-network/veridium/internal/database/generated/queries';
+import { DB } from '@/types/database';
 import { getUserId } from '../../helpers';
-import { toNullString, toNullInt } from '@/types/database';
+import { toNullInt, toNullString } from '@/types/database';
 
 import type { SessionStore } from '../../store';
 import { SessionGroupsDispatch, sessionGroupsReducer } from './reducer';
@@ -34,9 +34,10 @@ export const createSessionGroupSlice: StateCreator<
     
     await DB.CreateSessionGroup({
       id,
-      name: toNullString(name),
+      name,
       sort: toNullInt(0),
       userId,
+      clientId: toNullString(''),
       createdAt: now,
       updatedAt: now,
     });
@@ -73,9 +74,10 @@ export const createSessionGroupSlice: StateCreator<
     await DB.UpdateSessionGroup({
       id,
       userId,
-      name: toNullString(name),
+      name,
+      sort: toNullInt(undefined),
       updatedAt: now,
-    } as any);
+    });
     
     console.log('[SessionGroup] Updated session group name via direct DB', { id, name });
     
@@ -93,13 +95,21 @@ export const createSessionGroupSlice: StateCreator<
     });
 
     const userId = getUserId();
-    await DB.UpdateSessionGroupOrder({
-      userId,
-      sortMap: JSON.stringify(sortMap),
-    });
-    
+    const now = Date.now();
+
+    await Promise.all(
+      sortMap.map(({ id, sort }) =>
+        DB.UpdateSessionGroupOrder({
+          id,
+          userId,
+          sort: toNullInt(sort),
+          updatedAt: now,
+        }),
+      ),
+    );
+
     console.log('[SessionGroup] Updated session group sort via direct DB', { count: sortMap.length });
-    
+
     message.destroy('updateSessionGroupSort');
     message.success(t('sessionGroup.sortSuccess', { ns: 'chat' }));
 
