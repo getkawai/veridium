@@ -190,8 +190,22 @@ export const chatThreadMessage: StateCreator<
       return;
     }
 
-    // Don't create temp messages - backend will save both user and assistant messages
-    // Just show loading state
+    // 1. Create optimistic user message
+    const tempUserMessageId = get().internal_createTmpMessage({
+      ...newMessage,
+      threadId: finalThreadId,
+    });
+
+    // 2. Create optimistic assistant message (loading state)
+    const tempAssistantMessageId = get().internal_createTmpMessage({
+      role: 'assistant',
+      content: '...',
+      threadId: finalThreadId,
+      sessionId: activeId,
+      topicId: activeTopicId,
+    });
+    get().internal_toggleMessageLoading(true, tempAssistantMessageId);
+
     set({ isCreatingThreadMessage: true }, false, n('sendingMessage/start'));
 
     // Use backend agent chat to generate AI response
@@ -207,7 +221,14 @@ export const chatThreadMessage: StateCreator<
         thread_id: finalThreadId,
       });
 
-      // Backend has saved both user and assistant messages
+      // 3. Cleanup temp messages BEFORE refreshing to avoid duplicates
+      // We use internal_dispatchMessage to remove them from the store immediately
+      get().internal_dispatchMessage({
+        type: 'deleteMessages',
+        ids: [tempUserMessageId, tempAssistantMessageId],
+      });
+
+      // 4. Backend has saved both user and assistant messages
       // Just refresh to get them from DB
       await get().refreshMessages();
 
@@ -223,6 +244,12 @@ export const chatThreadMessage: StateCreator<
 
     } catch (error) {
       console.error('[sendThreadMessage] Failed to get AI response:', error);
+      // On error, we should probably keep the user message but mark it as failed?
+      // For now, let's just remove the loading assistant message
+      get().internal_dispatchMessage({
+        type: 'deleteMessages',
+        ids: [tempAssistantMessageId],
+      });
     } finally {
       // Always clear loading state
       set({ isCreatingThreadMessage: false }, false, n('creatingThreadMessage/stop'));
