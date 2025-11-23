@@ -14,7 +14,6 @@ import isEqual from 'fast-deep-equal';
 import { StateCreator } from 'zustand/vanilla';
 import { nanoid } from 'nanoid';
 
-import { clientDB } from '@/database/client/db';
 import { chatService } from '@/services/chat';
 import { threadSelectors } from './selectors';
 import { ChatStore } from '@/store/chat/store';
@@ -25,7 +24,6 @@ import { merge } from '@/utils/merge';
 import { setNamespace } from '@/utils/storeDebug';
 import { DB, toNullString, getNullableString, currentTimestampMs, Thread } from '@/types/database';
 import { getUserId } from '@/store/session/helpers';
-import { MessageModel } from '@/database/models/message';
 
 import { ThreadDispatch, threadReducer } from './reducer';
 
@@ -118,52 +116,40 @@ export const chatThreadMessage: StateCreator<
     get().togglePortal(false);
   },
   sendThreadMessage: async ({ message }) => {
-    // TODO: MIGRATE TO BACKEND
-    // internal_coreProcessMessage was removed in big bang migration
-    // Thread feature needs to be migrated to use backend agent chat
-    console.error('[Thread] sendThreadMessage not yet migrated to backend');
-    return;
-    
-    /* DISABLED - NEEDS MIGRATION
     const {
-      internal_coreProcessMessage,
       activeTopicId,
       activeId,
       threadStartMessageId,
       newThreadMode,
       portalThreadId,
     } = get();
-    if (!activeId || !activeTopicId) return;
 
-    // if message is empty or no files, then stop
+    if (!activeId || !activeTopicId) {
+      console.error('[Thread] sendThreadMessage: Missing activeId or activeTopicId');
+      return;
+    }
+
+    // if message is empty, then stop
     if (!message) return;
 
     set({ isCreatingThreadMessage: true }, false, n('creatingThreadMessage/start'));
 
     const newMessage: CreateMessageParams = {
       content: message,
-      // if message has attached with files, then add files to message and the agent
-      // files: fileIdList,
       role: 'user',
       sessionId: activeId,
-      // if there is activeTopicId，then add topicId to message
       topicId: activeTopicId,
       threadId: portalThreadId,
     };
 
-    let parentMessageId: string | undefined = undefined;
-    let tempMessageId: string | undefined = undefined;
-
     // if there is no portalThreadId, then create a thread and then append message
     let currentThreadId: string | undefined = portalThreadId;
     if (!portalThreadId) {
-      if (!threadStartMessageId) return;
-      // we need to create a temp message for optimistic update
-      tempMessageId = get().internal_createTmpMessage({
-        ...newMessage,
-        threadId: THREAD_DRAFT_ID,
-      });
-      get().internal_toggleMessageLoading(true, tempMessageId);
+      if (!threadStartMessageId) {
+        console.error('[Thread] sendThreadMessage: Missing threadStartMessageId');
+        set({ isCreatingThreadMessage: false }, false, n('creatingThreadMessage/stop'));
+        return;
+      }
 
       let threadResult;
       try {
@@ -174,55 +160,19 @@ export const chatThreadMessage: StateCreator<
           type: newThreadMode,
         });
       } catch (error) {
-        // Thread creation threw an error (non-conflict error, e.g., database error)
         console.error('[sendThreadMessage] Thread creation threw error:', error);
-        
-        // Clean up temp message
-        get().internal_toggleMessageLoading(false, tempMessageId);
-        if (tempMessageId) {
-          get().internal_dispatchMessage({ type: 'deleteMessage', id: tempMessageId });
-        }
-        
         set({ isCreatingThreadMessage: false }, false, n('creatingThreadMessage/stop'));
         return;
       }
 
-      // Check if thread creation failed (conflict - returns undefined)
+      // Check if thread creation failed
       if (!threadResult || !threadResult.threadId) {
-        console.error('[sendThreadMessage] Failed to create thread (conflict or undefined):', threadResult);
-        
-        // Clean up orphaned message if it was created without a thread
-        if (threadResult?.messageId) {
-          console.warn('[sendThreadMessage] Cleaning up orphaned message:', threadResult.messageId);
-          try {
-            await get().internal_deleteMessage(threadResult.messageId);
-            // Refresh messages to remove the orphaned message from UI
-            await get().refreshMessages();
-          } catch (error) {
-            console.error('[sendThreadMessage] Failed to delete orphaned message:', error);
-          }
-        }
-        
-        // Clean up temp message
-        get().internal_toggleMessageLoading(false, tempMessageId);
-        if (tempMessageId) {
-          get().internal_dispatchMessage({ type: 'deleteMessage', id: tempMessageId });
-        }
-        
+        console.error('[sendThreadMessage] Failed to create thread:', threadResult);
         set({ isCreatingThreadMessage: false }, false, n('creatingThreadMessage/stop'));
         return;
       }
 
-      // Ensure messageId exists
-      if (!threadResult.messageId) {
-        console.error('[sendThreadMessage] Thread created but messageId is missing:', threadResult);
-        get().internal_toggleMessageLoading(false, tempMessageId);
-        set({ isCreatingThreadMessage: false }, false, n('creatingThreadMessage/stop'));
-        return;
-      }
-
-      const { threadId, messageId } = threadResult;
-      parentMessageId = messageId;
+      const { threadId } = threadResult;
       currentThreadId = threadId;
 
       // mark the portal in thread mode
@@ -230,72 +180,53 @@ export const chatThreadMessage: StateCreator<
       await get().refreshMessages();
 
       get().openThreadInPortal(threadId, threadStartMessageId);
-    } else {
-      // if there is a thread, just append message
-      // we need to create a temp message for optimistic update
-      tempMessageId = get().internal_createTmpMessage(newMessage);
-      get().internal_toggleMessageLoading(true, tempMessageId);
-
-      parentMessageId = await get().internal_createMessage(newMessage, { tempMessageId });
-      
-      // CRITICAL: Refresh messages after creating the message so portalAIChats can find it
-      await get().refreshMessages();
     }
 
-    get().internal_toggleMessageLoading(false, tempMessageId);
-
-    if (!parentMessageId) return;
-    //  update assistant update to make it rerank
-    useSessionStore.getState().triggerSessionUpdate(get().activeId);
-
-    // Get the current messages to generate AI response
-    // Use currentThreadId to ensure we have the correct threadId even if store hasn't updated yet
-    let messages = threadSelectors.portalAIChats(get());
-    
-    // Double-check: if messages are empty but we have a threadId, try refreshing again
-    if (messages.length === 0 && currentThreadId) {
-      console.warn('[sendThreadMessage] Messages array is empty, refreshing again...', {
-        currentThreadId,
-        portalThreadId: get().portalThreadId,
-      });
-      await get().refreshMessages();
-      messages = threadSelectors.portalAIChats(get());
-      if (messages.length > 0) {
-        console.debug('[sendThreadMessage] Messages found after refresh:', messages.length);
-      } else {
-        console.error('[sendThreadMessage] Messages still empty after refresh. This may cause the AI request to fail.');
-      }
-    }
-
-    // Ensure we have a valid threadId
+    // Determine the thread ID to use
     const finalThreadId = currentThreadId || get().portalThreadId;
     if (!finalThreadId) {
-      console.error('[sendThreadMessage] No threadId available:', {
-        currentThreadId,
-        portalThreadId: get().portalThreadId,
-      });
+      console.error('[sendThreadMessage] No threadId available');
       set({ isCreatingThreadMessage: false }, false, n('creatingThreadMessage/stop'));
       return;
     }
 
-    await internal_coreProcessMessage(messages, parentMessageId, {
-      ragQuery: get().internal_shouldUseRAG() ? message : undefined,
-      threadId: finalThreadId,
-      inPortalThread: true,
-    });
+    // Don't create temp messages - backend will save both user and assistant messages
+    // Just show loading state
+    set({ isCreatingThreadMessage: true }, false, n('sendingMessage/start'));
 
-    set({ isCreatingThreadMessage: false }, false, n('creatingThreadMessage/stop'));
+    // Use backend agent chat to generate AI response
+    try {
+      const userId = getUserId();
+      const backendAgentChat = await import('@/services/backendAgentChat').then(m => m.backendAgentChat);
 
-    // 说明是在新建 thread，需要自动总结标题
-    if (!portalThreadId) {
-      const portalThread = threadSelectors.currentPortalThread(get());
+      await backendAgentChat.sendMessage({
+        session_id: activeId,
+        user_id: userId,
+        message: message,
+        topic_id: activeTopicId,
+        thread_id: finalThreadId,
+      });
 
-      if (!portalThread) return;
+      // Backend has saved both user and assistant messages
+      // Just refresh to get them from DB
+      await get().refreshMessages();
 
-      const chats = threadSelectors.portalAIChats(get());
-      await get().summaryThreadTitle(portalThread.id, chats);
+      // Auto-generate thread title if this is a new thread
+      if (!portalThreadId) {
+        const portalThread = threadSelectors.currentPortalThread(get());
+
+        if (portalThread) {
+          const chats = threadSelectors.portalAIChats(get());
+          await get().summaryThreadTitle(portalThread.id, chats);
+        }
+      }
+
+    } catch (error) {
+      console.error('[sendThreadMessage] Failed to get AI response:', error);
+    } finally {
+      // Always clear loading state
+      set({ isCreatingThreadMessage: false }, false, n('creatingThreadMessage/stop'));
     }
-    */ // END DISABLED
   },
   resendThreadMessage: async (messageId) => {
     // TODO: MIGRATE TO BACKEND
@@ -372,21 +303,10 @@ export const chatThreadMessage: StateCreator<
       throw error;
     }
 
-    // Create message using MessageModel (not yet migrated to direct DB)
-    const messageModel = new MessageModel(clientDB as any, userId);
-    const dbMessage = await messageModel.create({
-      ...message,
-      sessionId: message.sessionId || '',
-      threadId: thread.id,
-    });
-
-    // If message creation failed, we still return the threadId but no messageId
-    if (!dbMessage?.id) {
-      console.error('[createThread] Message creation failed after thread creation');
-    }
-
+    // Don't create message here - backend will save it when sendMessage is called
+    // Just return the thread ID
     const data = {
-      messageId: dbMessage?.id || (undefined as any),
+      messageId: undefined as any, // Backend will create the message
       threadId: thread.id
     };
 
@@ -559,10 +479,15 @@ export const chatThreadMessage: StateCreator<
     const userId = getUserId();
     const now = currentTimestampMs();
 
+    // Extract string values from potential NullString objects
+    const titleValue = data.title
+      ? (typeof data.title === 'object' && data.title !== null && 'String' in data.title ? (data.title as any).String : data.title)
+      : undefined;
+
     await DB.UpdateThread({
       id,
       userId,
-      title: data.title ? toNullString(data.title) : undefined,
+      title: titleValue,
       status: data.status ? toNullString(data.status) : undefined,
       lastActiveAt: data.lastActiveAt ? new Date(data.lastActiveAt).getTime() : now,
       updatedAt: now,

@@ -563,18 +563,28 @@ export const chatMessage: StateCreator<
     };
 
     // Add fields that are provided
-    if (content !== undefined) updateData.content = content;
-    if (extra?.toolCalls) updateData.tools = JSON.stringify(internal_transformToolCalls(extra.toolCalls));
-    if (extra?.reasoning) updateData.reasoning = JSON.stringify(extra.reasoning);
-    if (extra?.search) updateData.search = JSON.stringify(extra.search);
-    if (extra?.metadata) updateData.metadata = JSON.stringify(extra.metadata);
-    if (extra?.model) updateData.model = extra.model;
-    if (extra?.provider) updateData.provider = extra.provider;
-    if (extra?.imageList) updateData.imageList = JSON.stringify(extra.imageList);
+    if (content !== undefined) updateData.content = toNullString(content);
+    if (extra?.toolCalls) updateData.tools = toNullString(JSON.stringify(internal_transformToolCalls(extra.toolCalls)));
+    if (extra?.reasoning) updateData.reasoning = toNullString(JSON.stringify(extra.reasoning));
+    if (extra?.search) updateData.search = toNullString(JSON.stringify(extra.search));
+    if (extra?.metadata) updateData.metadata = toNullString(JSON.stringify(extra.metadata));
+    if (extra?.model) updateData.model = toNullString(extra.model);
+    if (extra?.provider) updateData.provider = toNullString(extra.provider);
+    if (extra?.imageList) updateData.imageList = toNullString(JSON.stringify(extra.imageList));
 
-    await DB.UpdateMessage(updateData);
-
-    console.log('[Message] Updated message content via direct DB', { id, hasContent: !!content, hasExtra: !!extra });
+    try {
+      await DB.UpdateMessage(updateData);
+      console.log('[Message] Updated message content via direct DB', { id, hasContent: !!content, hasExtra: !!extra });
+    } catch (error: any) {
+      // If the message doesn't exist in DB (e.g., it's a temp message), skip the update
+      // The message will be saved when refreshMessages is called
+      if (error?.message?.includes('no rows in result set')) {
+        console.log('[Message] Skipping update for temp message (not in DB yet)', { id });
+      } else {
+        console.error('[Message] Failed to update message:', error);
+        throw error;
+      }
+    }
 
     await refreshMessages();
   },
