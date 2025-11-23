@@ -13,6 +13,7 @@ import {
   TraceEventPayloads,
   TraceEventType,
   UIChatMessage,
+  UpdateMessageRAGParams,
 } from '@/types';
 import { nanoid } from '@/utils';
 import { copyToClipboard } from '@lobehub/ui';

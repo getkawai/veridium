@@ -7,7 +7,6 @@ import {
   CreateMessageParams,
   MessageToolCall,
   ToolsCallingContext,
-  UIChatMessage,
 } from '@/types';
 import { LobeChatPluginManifest, PluginErrorType } from '@/chat-plugin-sdk';
 import isEqual from 'fast-deep-equal';
@@ -15,6 +14,8 @@ import { t } from 'i18next';
 import { StateCreator } from 'zustand/vanilla';
 
 // import { mcpService } from '@/services/mcp';
+import { backendAgentChat } from '@/services/backendAgentChat';
+import { backendLibraryChat } from '@/services/backendLibraryChat';
 import { ChatStore } from '@/store/chat/store';
 import { useToolStore } from '@/store/tool';
 import { pluginSelectors } from '@/store/tool/selectors';
@@ -24,7 +25,7 @@ import { safeParseJSON } from '@/utils/safeParseJSON';
 import { setNamespace } from '@/utils/storeDebug';
 
 import { chatSelectors } from '../message/selectors';
-import { threadSelectors } from '../thread/selectors';
+
 
 const n = setNamespace('plugin');
 
@@ -194,40 +195,68 @@ export const chatPlugin: StateCreator<
   },
 
   triggerAIMessage: async ({ parentId, traceId, threadId, inPortalThread, inSearchWorkflow }) => {
-    const { internal_coreProcessMessage } = get();
+    const { activeId, activeTopicId } = get();
 
-    const chats = inPortalThread
-      ? threadSelectors.portalAIChatsWithHistoryConfig(get())
-      : chatSelectors.mainAIChatsWithHistoryConfig(get());
+    // Use backendAgentChat to trigger AI response
+    // We send an empty message or just the context to trigger the agent
+    // In the new backend architecture, sending a request with the current session/thread context
+    // should be enough for the agent to pick up the conversation (including recent tool outputs).
 
-    await internal_coreProcessMessage(chats, parentId ?? chats.at(-1)!.id, {
-      traceId,
-      threadId,
-      inPortalThread,
-      inSearchWorkflow,
-    });
+    try {
+      await backendAgentChat.sendMessage({
+        session_id: activeId,
+        topic_id: activeTopicId,
+        thread_id: threadId,
+        // We don't send a user message here, just triggering the agent
+        // The backend should handle "continue" or "reply to tool output" logic
+        message: undefined,
+      });
+
+      // Refresh messages to show the new AI response
+      await get().refreshMessages();
+
+    } catch (error) {
+      console.error('[Plugin] triggerAIMessage failed:', error);
+    }
   },
 
   summaryPluginContent: async (id) => {
     const message = chatSelectors.getMessageById(id)(get());
     if (!message || message.role !== 'tool') return;
 
-    await get().internal_coreProcessMessage(
-      [
-        {
-          role: 'assistant',
-          content: '作为一名总结专家，请结合以上系统提示词，将以下内容进行总结：',
-        },
-        {
-          ...message,
-          content: message.content,
-          role: 'assistant',
-          name: undefined,
-          tool_call_id: undefined,
-        },
-      ] as UIChatMessage[],
-      message.id,
-    );
+    // Use backendLibraryChat for stateless summarization
+    const summaryPrompt = `Please summarize the following content:\n\n${message.content}`;
+
+    try {
+      // 1. Generate summary using stateless chat completion
+      const response = await backendLibraryChat.chatCompletion({
+        messages: [
+          { role: 'user', content: summaryPrompt }
+        ],
+        temperature: 0.5,
+      });
+
+      const summary = response.choices?.[0]?.message?.content;
+
+      if (!summary) return;
+
+      // 2. Add the summary as an assistant message to the UI
+      // We use internal_createMessage to add it to the store and DB
+      // This makes it look like the agent responded, but without the overhead of the full agent loop
+      const { activeId, activeTopicId, activeThreadId } = get();
+
+      await get().internal_createMessage({
+        role: 'assistant',
+        content: summary,
+        sessionId: activeId,
+        topicId: activeTopicId,
+        threadId: activeThreadId,
+        parentId: id, // Link to the tool message
+      });
+
+    } catch (error) {
+      console.error('[Plugin] summaryPluginContent failed:', error);
+    }
   },
 
   triggerToolCalls: async (assistantId, { threadId, inPortalThread, inSearchWorkflow } = {}) => {
