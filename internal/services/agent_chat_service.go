@@ -22,6 +22,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -54,6 +56,9 @@ type AgentChatService struct {
 
 	// Phase 4: Thread management
 	threadService *ThreadManagementService // Thread management service
+
+	// Reasoning mode configuration
+	reasoningConfig ReasoningConfig // Controls reasoning behavior
 
 	// Session management (hybrid: DB + in-memory cache)
 	sessions      map[string]*AgentSession // In-memory cache for active sessions
@@ -136,16 +141,17 @@ func NewAgentChatService(
 	ragWorkflow := NewRAGWorkflow(kbService)
 
 	return &AgentChatService{
-		app:           app,
-		db:            db,
-		libService:    libService,
-		llamaModel:    llamaModel,
-		kbService:     kbService,
-		ragWorkflow:   ragWorkflow,
-		toolsBridge:   toolsBridge,
-		contextBridge: contextBridge,
-		threadService: threadService,
-		sessions:      make(map[string]*AgentSession),
+		app:             app,
+		db:              db,
+		libService:      libService,
+		llamaModel:      llamaModel,
+		kbService:       kbService,
+		ragWorkflow:     ragWorkflow,
+		toolsBridge:     toolsBridge,
+		contextBridge:   contextBridge,
+		threadService:   threadService,
+		reasoningConfig: DefaultReasoningConfig(), // Default: disabled (non-reasoning)
+		sessions:        make(map[string]*AgentSession),
 	}
 }
 
@@ -266,6 +272,15 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*ChatResp
 					}
 				}
 			}
+		}
+	}
+
+	// Strip think tags if configured
+	if s.reasoningConfig.ShouldStripThinkTags() {
+		originalLength := len(finalMessage)
+		finalMessage = stripThinkTags(finalMessage)
+		if len(finalMessage) != originalLength {
+			log.Printf("✂️  Stripped think tags: %d → %d chars", originalLength, len(finalMessage))
 		}
 	}
 
@@ -557,12 +572,17 @@ func (s *AgentChatService) getOrCreateSession(ctx context.Context, req ChatReque
 
 // createAgent creates a new ADK agent for the session
 func (s *AgentChatService) createAgent(ctx context.Context, session *AgentSession) (adk.Agent, error) {
-	// Build instruction
-	instruction := "You are a helpful AI assistant. "
+	// Build base instruction
+	baseInstruction := "You are a helpful AI assistant. "
 	if session.KnowledgeBaseID != "" {
-		instruction += "You have access to a knowledge base. Use the search tool to find relevant information before answering questions. "
+		baseInstruction += "You have access to a knowledge base. Use the search tool to find relevant information before answering questions. "
 	}
-	instruction += "Be concise and accurate in your responses."
+
+	// Apply reasoning mode to instruction
+	instruction := s.reasoningConfig.GetSystemPrompt(baseInstruction)
+
+	log.Printf("🧠 Creating agent with reasoning mode: %s", s.reasoningConfig.Mode)
+	log.Printf("📝 System prompt: %s", instruction)
 
 	// Create agent config
 	config := &adk.ChatModelAgentConfig{
@@ -1106,4 +1126,83 @@ func (s *AgentChatService) updateSessionTimestamp(ctx context.Context, sessionID
 	})
 
 	return err
+}
+
+// SetReasoningMode sets the reasoning mode for the service
+// This affects all new conversations created after this call
+func (s *AgentChatService) SetReasoningMode(mode ReasoningMode) error {
+	s.sessionsMutex.Lock()
+	defer s.sessionsMutex.Unlock()
+
+	// Validate mode
+	if mode != ReasoningDisabled && mode != ReasoningEnabled && mode != ReasoningVerbose {
+		return fmt.Errorf("invalid reasoning mode: %s", mode)
+	}
+
+	s.reasoningConfig.Mode = mode
+	log.Printf("🧠 Reasoning mode changed to: %s (%s)", mode, s.reasoningConfig.GetModeDescription())
+
+	// Log performance expectations
+	perf := s.reasoningConfig.GetExpectedPerformance()
+	log.Printf("📊 Expected performance:")
+	log.Printf("   - Speed: %s", perf["speed"])
+	log.Printf("   - Token efficiency: %s", perf["token_efficiency"])
+	log.Printf("   - Max turns: %s", perf["max_turns"])
+	log.Printf("   - Response size: %s", perf["response_size"])
+
+	return nil
+}
+
+// GetReasoningMode returns the current reasoning mode
+func (s *AgentChatService) GetReasoningMode() ReasoningMode {
+	s.sessionsMutex.RLock()
+	defer s.sessionsMutex.RUnlock()
+	return s.reasoningConfig.Mode
+}
+
+// GetReasoningConfig returns the current reasoning configuration
+func (s *AgentChatService) GetReasoningConfig() ReasoningConfig {
+	s.sessionsMutex.RLock()
+	defer s.sessionsMutex.RUnlock()
+	return s.reasoningConfig
+}
+
+// ValidateModelForReasoningMode checks if the currently loaded model is appropriate
+func (s *AgentChatService) ValidateModelForReasoningMode() error {
+	modelPath := s.libService.GetLoadedChatModel()
+	if modelPath == "" {
+		return fmt.Errorf("no model loaded")
+	}
+
+	return s.reasoningConfig.ValidateModelForMode(modelPath)
+}
+
+// GetRecommendedModelForMode returns the recommended model for current reasoning mode
+func (s *AgentChatService) GetRecommendedModelForMode() string {
+	return s.reasoningConfig.GetRecommendedModel()
+}
+
+// SwitchToRecommendedModel loads the recommended model for current reasoning mode
+func (s *AgentChatService) SwitchToRecommendedModel() error {
+	recommendedModel := s.reasoningConfig.GetRecommendedModel()
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("failed to get home directory: %w", err)
+	}
+
+	modelsDir := filepath.Join(homeDir, ".llama-cpp", "models")
+	modelPath := filepath.Join(modelsDir, recommendedModel)
+
+	log.Printf("🔄 Switching to recommended model for %s mode: %s", s.reasoningConfig.Mode, recommendedModel)
+
+	if err := s.libService.LoadChatModel(modelPath); err != nil {
+		return fmt.Errorf("failed to load recommended model: %w", err)
+	}
+
+	// Recreate llama model adapter
+	s.llamaModel = llama.NewLlamaEinoModel(s.libService)
+
+	log.Printf("✅ Successfully switched to %s", recommendedModel)
+	return nil
 }

@@ -231,7 +231,7 @@ func (s *LibraryService) LoadChatModel(modelPath string) error {
 	// For long prompts, n_tokens_all can exceed n_batch, causing GGML_ASSERT failure
 	// Increasing batch size to handle longer prompts safely
 	ctxParams := llama.ContextDefaultParams()
-	ctxParams.NCtx = 4096   // Context size
+	ctxParams.NCtx = 16384  // Context size - increased from 4096 to support long conversations
 	ctxParams.NBatch = 2048 // Batch size - increased from 512 to handle long prompts
 	ctxParams.NThreads = int32(runtime.NumCPU())
 
@@ -348,7 +348,8 @@ func (s *LibraryService) Generate(prompt string, maxTokens int32) (string, error
 	}
 
 	// Apply chat template
-	buf := make([]byte, 8192)
+	// Increased buffer size to handle long conversation histories
+	buf := make([]byte, 65536) // 64KB buffer for long conversations
 	length := llama.ChatApplyTemplate(template, messages, true, buf)
 	formattedPrompt := string(buf[:length])
 
@@ -519,7 +520,7 @@ func (s *LibraryService) LoadVLModel(modelPath string) error {
 
 	// Create llama context for text generation
 	ctxParams := llama.ContextDefaultParams()
-	ctxParams.NCtx = 4096   // Context size
+	ctxParams.NCtx = 16384  // Context size - increased from 4096 to support long conversations
 	ctxParams.NBatch = 2048 // Batch size
 	ctxParams.NThreads = int32(runtime.NumCPU())
 

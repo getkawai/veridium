@@ -197,7 +197,8 @@ func (m *LlamaEinoModel) convertMessagesToPrompt(messages []*schema.Message) (st
 	}
 
 	// Apply chat template
-	buf := make([]byte, 16384) // Larger buffer for complex conversations
+	// Increased buffer size to handle very long conversation histories
+	buf := make([]byte, 65536) // 64KB buffer for long conversations
 	length := llama.ChatApplyTemplate(template, llamaMessages, true, buf)
 
 	return string(buf[:length]), nil
