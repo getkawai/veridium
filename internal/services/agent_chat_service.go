@@ -747,13 +747,8 @@ func (s *AgentChatService) createTopicForSessionSync(ctx context.Context, sessio
 	topicID := uuid.New().String()
 	now := time.Now().UnixMilli()
 
-	// Frontend convention: "inbox" session should be stored as NULL
-	var sessionIDForDB sql.NullString
-	if sessionID == "inbox" {
-		sessionIDForDB = sql.NullString{Valid: false}
-	} else {
-		sessionIDForDB = sql.NullString{String: sessionID, Valid: true}
-	}
+	// Use sessionID as is (don't convert "inbox" to NULL)
+	sessionIDForDB := sql.NullString{String: sessionID, Valid: true}
 
 	_, err = s.db.Queries().CreateTopic(ctx, db.CreateTopicParams{
 		ID:             topicID,
@@ -834,13 +829,8 @@ func (s *AgentChatService) createTopicForSessionWithTitle(ctx context.Context, s
 	topicID := uuid.New().String()
 	now := time.Now().UnixMilli()
 
-	// Frontend convention: "inbox" session should be stored as NULL
-	var sessionIDForDB sql.NullString
-	if sessionID == "inbox" {
-		sessionIDForDB = sql.NullString{Valid: false}
-	} else {
-		sessionIDForDB = sql.NullString{String: sessionID, Valid: true}
-	}
+	// Use sessionID as is (don't convert "inbox" to NULL)
+	sessionIDForDB := sql.NullString{String: sessionID, Valid: true}
 
 	_, err = s.db.Queries().CreateTopic(ctx, db.CreateTopicParams{
 		ID:             topicID,

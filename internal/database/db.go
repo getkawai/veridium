@@ -521,7 +521,7 @@ func (s *Service) ensureDefaultUserAndInbox(ctx context.Context) error {
 func (s *Service) createDefaultInboxSession(ctx context.Context) error {
 	return s.WithTx(ctx, func(q *db.Queries) error {
 		now := int64(1000)
-		sessionID := "default-inbox-session"
+		sessionID := "inbox"
 		agentID := "default-inbox-agent"
 
 		// 1. Create session

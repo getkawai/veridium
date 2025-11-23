@@ -54,7 +54,7 @@ export const generateAIChat: StateCreator<
   [],
   AIGenerateAction
 > = (set, get) => ({
-  
+
   /**
    * MAIN FUNCTION: Send Message
    * 
@@ -96,7 +96,7 @@ export const generateAIChat: StateCreator<
     // Step 1: Create optimistic user message
     const mapKey = messageMapKey(activeId, activeTopicId);
     const tempUserId = `temp-user-${Date.now()}`;
-    
+
     set(produce((state: ChatStore) => {
       if (!state.messagesMap[mapKey]) {
         state.messagesMap[mapKey] = [];
@@ -117,7 +117,7 @@ export const generateAIChat: StateCreator<
 
     // Step 2: Create optimistic assistant message (loading state)
     const tempAssistantId = `temp-assistant-${Date.now()}`;
-    
+
     set(produce((state: ChatStore) => {
       state.messagesMap[mapKey].push({
         id: tempAssistantId,
@@ -150,14 +150,14 @@ export const generateAIChat: StateCreator<
       // Step 4: Determine final topic ID
       const finalTopicId = response.topic_id || activeTopicId;
       const finalMapKey = messageMapKey(activeId, finalTopicId);
-      
+
       // Step 5: Update messages FIRST (before setting activeTopicId)
       // This prevents useFetchMessages useEffect from triggering a re-fetch
       set(produce((state: ChatStore) => {
         // Get the current mapKey where optimistic messages are stored
         const currentMapKey = messageMapKey(activeId, activeTopicId);
         const messages = state.messagesMap[currentMapKey] || [];
-        
+
         // Update temp user message with correct topicId
         const userMsgIndex = messages.findIndex(m => m.id === tempUserId);
         if (userMsgIndex !== -1) {
@@ -166,7 +166,7 @@ export const generateAIChat: StateCreator<
             topicId: finalTopicId,
           };
         }
-        
+
         // Replace temp assistant message with real response from backend
         const assistantMsgIndex = messages.findIndex(m => m.id === tempAssistantId);
         if (assistantMsgIndex !== -1) {
@@ -189,32 +189,31 @@ export const generateAIChat: StateCreator<
             }),
           } as UIChatMessage;
         }
-        
+
         // CRITICAL: Save updated messages to BOTH keys
         // 1. Update current key (where optimistic messages are)
         state.messagesMap[currentMapKey] = messages;
-        
+
         // 2. If topic was created, ALSO save to new topic's key
         if (response.topic_id && !activeTopicId) {
           state.messagesMap[finalMapKey] = messages;
         }
       }), false, n('messages/updated'));
-      
+
       // Step 6: NOW set activeTopicId (after messages are already in place)
       // useFetchMessages will see messages exist and skip the fetch
       if (response.topic_id && !activeTopicId) {
-        console.log('[BigBang] Setting activeTopicId:', response.topic_id);
+        // MOVED: Wait for DB to be consistent BEFORE triggering the hook
+        await new Promise((resolve) => setTimeout(resolve, 200));
+
         set({ activeTopicId: response.topic_id }, false, n('topic/created'));
-        // Small delay to ensure DB transaction is committed
-        await new Promise(resolve => setTimeout(resolve, 100));
-        console.log('[BigBang] Calling refreshTopic...');
+
         await refreshTopic();
-        console.log('[BigBang] refreshTopic completed, activeTopicId should be:', get().activeTopicId);
       }
 
     } catch (error) {
       console.error('[BigBang] Failed:', error);
-      
+
       // Remove temp messages on error
       set(produce((state: ChatStore) => {
         state.messagesMap[mapKey] = state.messagesMap[mapKey].filter(
@@ -257,7 +256,7 @@ export const generateAIChat: StateCreator<
     // Find parent user message  
     const messages = chatSelectors.activeBaseChats(get());
     const messageIndex = messages.findIndex((m) => m.id === id);
-    
+
     if (messageIndex > 0) {
       const userMessage = messages[messageIndex - 1];
       if (userMessage.role === 'user') {

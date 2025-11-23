@@ -27,7 +27,7 @@ import { useSessionStore } from '@/store/session';
 import { sessionSelectors } from '@/store/session/selectors';
 import { Action, setNamespace } from '@/utils/storeDebug';
 
-import { DB, toNullString, toNullJSON, currentTimestampMs } from '@/types/database';
+import { DB, toNullString, toNullJSON, currentTimestampMs, getNullableString } from '@/types/database';
 import { getUserId } from '@/store/session/helpers';
 import { MessageModel } from '@/database/models/message';
 import { clientDB } from '@/database/client/db';
@@ -43,15 +43,15 @@ const n = setNamespace('m');
 const mapMessagesFromDB = (dbMessages: any[]): UIChatMessage[] => {
   return dbMessages.map((msg: any) => ({
     id: msg.id,
-    content: msg.content || '',
+    content: getNullableString(msg.content) || '',
     role: msg.role,
     createdAt: new Date(msg.createdAt).getTime(), // Convert to timestamp number
     updatedAt: new Date(msg.updatedAt).getTime(), // Convert to timestamp number
     meta: {}, // Add required meta property
     // Add other fields as needed
-    sessionId: msg.sessionId,
-    topicId: msg.topicId,
-    threadId: msg.threadId,
+    sessionId: getNullableString(msg.sessionId),
+    topicId: getNullableString(msg.topicId),
+    threadId: getNullableString(msg.threadId),
   }));
 };
 
