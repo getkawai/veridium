@@ -61,8 +61,8 @@ func (m *LlamaEinoModel) Generate(ctx context.Context, input []*schema.Message, 
 	// Parse options
 	options := model.GetCommonOptions(nil, opts...)
 
-	// Set default max tokens
-	maxTokens := int32(512)
+	// Set default max tokens (practically unlimited - 32768 tokens ~24k words)
+	maxTokens := int32(32768)
 	if options.MaxTokens != nil && *options.MaxTokens > 0 {
 		maxTokens = int32(*options.MaxTokens)
 	}
@@ -112,8 +112,8 @@ func (m *LlamaEinoModel) Stream(ctx context.Context, input []*schema.Message, op
 	// Parse options
 	options := model.GetCommonOptions(nil, opts...)
 
-	// Set default max tokens
-	maxTokens := int32(512)
+	// Set default max tokens (practically unlimited - 32768 tokens ~24k words)
+	maxTokens := int32(32768)
 	if options.MaxTokens != nil && *options.MaxTokens > 0 {
 		maxTokens = int32(*options.MaxTokens)
 	}
