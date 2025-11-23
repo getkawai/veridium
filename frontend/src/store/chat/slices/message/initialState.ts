@@ -57,6 +57,10 @@ export interface ChatMessageState {
    * Supervisor todo list map keyed by session/topic combination
    */
   supervisorTodos: Record<string, SupervisorTodoItem[]>;
+  /**
+   * ids of messages that are calling tools
+   */
+  toolsCallingMessageIds: string[];
 }
 
 export const initialMessageState: ChatMessageState = {
@@ -74,4 +78,5 @@ export const initialMessageState: ChatMessageState = {
   supervisorDecisionAbortControllers: {},
   supervisorDecisionLoading: [],
   supervisorTodos: {},
+  toolsCallingMessageIds: [],
 };

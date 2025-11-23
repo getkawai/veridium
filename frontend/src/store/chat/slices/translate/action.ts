@@ -44,7 +44,7 @@ export const chatTranslate: StateCreator<
   }),
 
   translateMessage: async (id, targetLang) => {
-    const { updateMessageTranslate, internal_dispatchMessage } = get();
+    const { updateMessageTranslate, internal_dispatchMessage, internal_toggleChatLoading } = get();
 
     const message = chatSelectors.getMessageById(id)(get());
     if (!message) return;

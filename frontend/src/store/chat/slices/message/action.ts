@@ -142,6 +142,8 @@ export interface ChatMessageAction {
    * other message role like user and tool , only this method need to be called
    */
   internal_toggleMessageLoading: (loading: boolean, id: string) => void;
+  internal_toggleMessageInToolsCalling: (loading: boolean, id: string) => void;
+  internal_toggleChatLoading: (loading: boolean, id?: string, action?: Action) => void;
 
   /**
    * helper to toggle the loading state of the array,used by these three toggleXXXLoading
@@ -402,7 +404,7 @@ export const chatMessage: StateCreator<
       console.error('[internal_fetchMessages] Error fetching messages:', error);
     }
   },
-  
+
   /**
    * Refresh messages from database - direct fetch without SWR cache invalidation
    */
@@ -653,6 +655,12 @@ export const chatMessage: StateCreator<
       false,
       `internal_toggleMessageLoading/${loading ? 'start' : 'end'}`,
     );
+  },
+  internal_toggleChatLoading: (loading, id, action) => {
+    get().internal_toggleLoadingArrays('messageLoadingIds', loading, id, action);
+  },
+  internal_toggleMessageInToolsCalling: (loading, id) => {
+    get().internal_toggleLoadingArrays('toolsCallingMessageIds', loading, id);
   },
   internal_toggleLoadingArrays: (key, loading, id, action) => {
     const abortControllerKey = `${key}AbortController`;

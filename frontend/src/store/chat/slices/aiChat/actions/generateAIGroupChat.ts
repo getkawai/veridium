@@ -521,15 +521,15 @@ export const chatAiGroupChat: StateCreator<
       const sortedDecisions =
         groupConfig?.responseOrder === 'sequential'
           ? [...decisions].sort((a, b) => {
-              const agentA = agents?.find((agent) => agent.id === a.id);
-              const agentB = agents?.find((agent) => agent.id === b.id);
+            const agentA = agents?.find((agent) => agent.id === a.id);
+            const agentB = agents?.find((agent) => agent.id === b.id);
 
-              // Default to order 0 if not found or not set
-              const orderA = agentA?.order ?? 0;
-              const orderB = agentB?.order ?? 0;
+            // Default to order 0 if not found or not set
+            const orderA = agentA?.order ?? 0;
+            const orderB = agentB?.order ?? 0;
 
-              return orderA - orderB;
-            })
+            return orderA - orderB;
+          })
           : decisions;
 
       try {
@@ -603,6 +603,8 @@ export const chatAiGroupChat: StateCreator<
         triggerToolCalls,
       } = get();
 
+      let assistantId: string | undefined;
+
       try {
         const allMessages = messagesMap[messageMapKey(groupId, activeTopicId)] || [];
         if (allMessages.length === 0) return;
@@ -668,7 +670,7 @@ export const chatAiGroupChat: StateCreator<
 
         console.log('DEBUG: Creating agent message with:', agentMessage);
 
-        const assistantId = await internal_createMessage(agentMessage);
+        assistantId = await internal_createMessage(agentMessage);
 
         const systemMessage: UIChatMessage = {
           id: 'group-system',
