@@ -19,6 +19,18 @@ function App() {
         }, 'updateTopicTitleFromEvent');
       }
     });
+
+    // Global subscription to chat stream events
+    Events.On('chat:stream', (ev: any) => {
+      const data = ev.data;
+      const activeId = useChatStore.getState().activeId;
+
+      // Only handle events for the current active session
+      if (data && data.session_id === activeId) {
+        useChatStore.getState().internal_handleStreamEvent(data);
+      }
+    });
+
     // Reload WML so it picks up the wml tags
     WML.Reload();
   }, []);

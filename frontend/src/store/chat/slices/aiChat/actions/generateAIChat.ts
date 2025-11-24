@@ -29,7 +29,6 @@ import {
 } from '@/types';
 import { produce } from 'immer';
 import { StateCreator } from 'zustand/vanilla';
-import { Events } from '@wailsio/runtime';
 
 import { backendAgentChat } from '@/services/backendAgentChat';
 import { ChatStore } from '@/store/chat/store';
@@ -47,6 +46,9 @@ export interface AIGenerateAction {
   regenerateMessage: (id: string) => Promise<void>;
   delAndRegenerateMessage: (id: string) => Promise<void>;
   stopGenerateMessage: () => void;
+
+  // Internal action to handle stream events from App.tsx
+  internal_handleStreamEvent: (data: any) => void;
 }
 
 export const generateAIChat: StateCreator<
@@ -135,55 +137,8 @@ export const generateAIChat: StateCreator<
     }), false, n('optimistic/assistantMessage'));
 
     try {
-      // Step 3a: Setup streaming event listener (throttling done in backend)
-      const streamEventName = `chat:stream:${activeId}`;
-      let streamingMessageId: string | null = null;
-      
-      const unsubscribe = Events.On(streamEventName, (ev: any) => {
-        const data = ev.data;
-        
-        if (data.type === 'start') {
-          // Streaming started - store message ID
-          streamingMessageId = data.message_id;
-          console.log('[Stream] Started:', streamingMessageId);
-          
-          // Add to chatLoadingIds to enable animated rendering
-          set(produce((state: ChatStore) => {
-            if (!state.chatLoadingIds.includes(tempAssistantId)) {
-              state.chatLoadingIds.push(tempAssistantId);
-            }
-          }), false, n('streaming/start'));
-        } else if (data.type === 'chunk' && streamingMessageId) {
-          // Update assistant message with streaming content (already throttled by backend)
-          set(produce((state: ChatStore) => {
-            const messages = state.messagesMap[mapKey] || [];
-            const assistantMsg = messages.find(m => m.id === tempAssistantId);
-            if (assistantMsg) {
-              assistantMsg.content = data.full_content;
-              assistantMsg.updatedAt = Date.now();
-            }
-          }), false, n('streaming/chunk'));
-        } else if (data.type === 'complete') {
-          console.log('[Stream] Complete:', data.message_id);
-          // Final update with complete content
-          set(produce((state: ChatStore) => {
-            const messages = state.messagesMap[mapKey] || [];
-            const assistantMsg = messages.find(m => m.id === tempAssistantId);
-            if (assistantMsg) {
-              assistantMsg.content = data.content;
-              assistantMsg.updatedAt = Date.now();
-            }
-            
-            // Remove from chatLoadingIds to disable animated rendering
-            const loadingIndex = state.chatLoadingIds.indexOf(tempAssistantId);
-            if (loadingIndex > -1) {
-              state.chatLoadingIds.splice(loadingIndex, 1);
-            }
-          }), false, n('streaming/complete'));
-        }
-      });
-      
-      // Step 3b: Call backend (handles EVERYTHING)
+      // Step 3: Call backend (handles EVERYTHING)
+      // Streaming events are now handled globally in App.tsx
       const response = await backendAgentChat.sendMessage({
         session_id: activeId,
         user_id: FALLBACK_CLIENT_DB_USER_ID,
@@ -196,9 +151,6 @@ export const generateAIChat: StateCreator<
         max_tokens: 2000,
         stream: true, // Enable streaming
       });
-      
-      // Cleanup event listener
-      unsubscribe();
 
       // Step 4: Determine final topic ID
       const finalTopicId = response.topic_id || activeTopicId;
@@ -335,6 +287,59 @@ export const generateAIChat: StateCreator<
    */
   stopGenerateMessage: () => {
     set({ isCreatingMessage: false }, false, n('generating/stop'));
+  },
+
+  /**
+   * Handle stream events globally
+   * Called from App.tsx when a stream event is received
+   */
+  internal_handleStreamEvent: (data: any) => {
+    const { activeId, activeTopicId } = get();
+    const mapKey = messageMapKey(activeId, activeTopicId);
+
+    set(produce((state: ChatStore) => {
+      const messages = state.messagesMap[mapKey];
+      if (!messages) return;
+
+      if (data.type === 'start') {
+        // Find the latest temporary assistant message
+        let tempMsgIndex = -1;
+        for (let i = messages.length - 1; i >= 0; i--) {
+          if ((messages[i] as any).loading && messages[i].id.startsWith('temp-assistant-')) {
+            tempMsgIndex = i;
+            break;
+          }
+        }
+
+        if (tempMsgIndex !== -1) {
+          // Update ID to real ID
+          messages[tempMsgIndex].id = data.message_id;
+          console.log('[Stream] Linked temp message to real ID:', data.message_id);
+
+          // Add to loading IDs for animation
+          if (!state.chatLoadingIds.includes(data.message_id)) {
+            state.chatLoadingIds.push(data.message_id);
+          }
+        }
+      } else if (data.type === 'chunk') {
+        // Find message by REAL ID
+        const msg = messages.find(m => m.id === data.message_id);
+        if (msg) {
+          msg.content = data.full_content;
+          msg.updatedAt = Date.now();
+        }
+      } else if (data.type === 'complete') {
+        const msg = messages.find(m => m.id === data.message_id);
+        if (msg) {
+          msg.content = data.content;
+          msg.updatedAt = Date.now();
+          (msg as any).loading = false;
+        }
+
+        // Remove from loading IDs
+        state.chatLoadingIds = state.chatLoadingIds.filter(id => id !== data.message_id);
+      }
+    }), false, n('streamEvent'));
   },
 });
 

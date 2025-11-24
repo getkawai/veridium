@@ -537,8 +537,9 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*ChatResp
 
 	// Emit streaming complete event (if streaming enabled)
 	if req.Stream && s.app != nil {
-		s.app.Event.Emit(fmt.Sprintf("chat:stream:%s", session.SessionID), map[string]interface{}{
+		s.app.Event.Emit("chat:stream", map[string]interface{}{
 			"type":       "complete",
+			"session_id": session.SessionID,
 			"message_id": assistantMsgID,
 			"content":    finalMessage,
 			"topic_id":   currentTopicID,
@@ -1629,10 +1630,10 @@ func (s *AgentChatService) generateWithTokenStreaming(ctx context.Context, sessi
 	const emitInterval = 1 * time.Second // Emit max every 1s
 
 	// Emit start event
-	s.app.Event.Emit(fmt.Sprintf("chat:stream:%s", session.SessionID), map[string]interface{}{
+	s.app.Event.Emit("chat:stream", map[string]interface{}{
 		"type":       "start",
-		"message_id": messageID,
 		"session_id": session.SessionID,
+		"message_id": messageID,
 	})
 
 	unsubscribe := s.app.Event.On(eventName, func(event *application.CustomEvent) {
@@ -1651,8 +1652,9 @@ func (s *AgentChatService) generateWithTokenStreaming(ctx context.Context, sessi
 
 		if jsonData == "[DONE]" {
 			// Streaming complete - always emit final state
-			s.app.Event.Emit(fmt.Sprintf("chat:stream:%s", session.SessionID), map[string]interface{}{
+			s.app.Event.Emit("chat:stream", map[string]interface{}{
 				"type":       "complete",
+				"session_id": session.SessionID,
 				"message_id": messageID,
 				"content":    fullContent.String(),
 			})
@@ -1678,8 +1680,9 @@ func (s *AgentChatService) generateWithTokenStreaming(ctx context.Context, sessi
 					lastEmitTime = now
 
 					// Emit our chunk event
-					s.app.Event.Emit(fmt.Sprintf("chat:stream:%s", session.SessionID), map[string]interface{}{
+					s.app.Event.Emit("chat:stream", map[string]interface{}{
 						"type":         "chunk",
+						"session_id":   session.SessionID,
 						"message_id":   messageID,
 						"content":      content,
 						"full_content": fullContent.String(),
