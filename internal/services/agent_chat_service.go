@@ -288,14 +288,9 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*ChatResp
 		}
 	}
 
-	// Strip think tags if configured
-	if s.reasoningConfig.ShouldStripThinkTags() {
-		originalLength := len(finalMessage)
-		finalMessage = stripThinkTags(finalMessage)
-		if len(finalMessage) != originalLength {
-			log.Printf("✂️  Stripped think tags: %d → %d chars", originalLength, len(finalMessage))
-		}
-	}
+	// Note: Think tag stripping removed - proper model selection should prevent think tags
+	// If reasoning mode is disabled, use non-reasoning models (Llama 3.2)
+	// If reasoning mode is enabled, use reasoning models with /no_think (Qwen3)
 
 	// Add assistant response to session
 	assistantMsg := &schema.Message{
@@ -700,9 +695,6 @@ IMPORTANT: Start your response directly with the title. No reasoning, no thinkin
 		}
 	}
 
-	// Add /no_think command for Qwen models to disable reasoning
-	conversationText += "\n/no_think"
-
 	// Create messages for title generation
 	titleMessages := []*schema.Message{
 		{Role: schema.System, Content: systemPrompt},
@@ -717,9 +709,6 @@ IMPORTANT: Start your response directly with the title. No reasoning, no thinkin
 
 	// Clean up the title
 	title := strings.TrimSpace(response.Content)
-
-	// Strip <think>...</think> tags using regex (some models output reasoning)
-	title = stripThinkTags(title)
 
 	// If title is empty after stripping, try to extract from the original response
 	// Look for quoted text which is often the actual title
@@ -1270,7 +1259,7 @@ func (s *AgentChatService) generateWithTokenStreaming(ctx context.Context, sessi
 	var fullContent strings.Builder
 
 	// Throttling variables
-	var lastEmitTime time.Time
+	lastEmitTime := time.Now()           // Initialize to allow first chunk immediately
 	const emitInterval = 1 * time.Second // Emit max every 1s
 
 	// Emit start event

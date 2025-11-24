@@ -146,6 +146,13 @@ export const generateAIChat: StateCreator<
           // Streaming started - store message ID
           streamingMessageId = data.message_id;
           console.log('[Stream] Started:', streamingMessageId);
+          
+          // Add to chatLoadingIds to enable animated rendering
+          set(produce((state: ChatStore) => {
+            if (!state.chatLoadingIds.includes(tempAssistantId)) {
+              state.chatLoadingIds.push(tempAssistantId);
+            }
+          }), false, n('streaming/start'));
         } else if (data.type === 'chunk' && streamingMessageId) {
           // Update assistant message with streaming content (already throttled by backend)
           set(produce((state: ChatStore) => {
@@ -165,6 +172,12 @@ export const generateAIChat: StateCreator<
             if (assistantMsg) {
               assistantMsg.content = data.content;
               assistantMsg.updatedAt = Date.now();
+            }
+            
+            // Remove from chatLoadingIds to disable animated rendering
+            const loadingIndex = state.chatLoadingIds.indexOf(tempAssistantId);
+            if (loadingIndex > -1) {
+              state.chatLoadingIds.splice(loadingIndex, 1);
             }
           }), false, n('streaming/complete'));
         }

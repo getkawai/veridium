@@ -45,7 +45,7 @@ func DefaultReasoningConfig() ReasoningConfig {
 		Mode:                  ReasoningDisabled, // Default: non-reasoning for efficiency
 		PreferredNonReasoning: "llama",           // Llama 3.2 is most efficient
 		PreferredReasoning:    "qwen",            // Qwen3 has good reasoning
-		StripThinkTags:        true,              // Always strip think tags
+		StripThinkTags:        false,             // Disabled: rely on proper model selection instead
 	}
 }
 
@@ -71,9 +71,11 @@ func (rc ReasoningConfig) GetSystemPrompt(basePrompt string) string {
 
 // ShouldStripThinkTags returns whether think tags should be stripped for this mode
 func (rc ReasoningConfig) ShouldStripThinkTags() bool {
-	// Always strip for disabled and enabled modes
-	// Only keep for verbose mode if user wants to see reasoning
-	return rc.StripThinkTags && rc.Mode != ReasoningVerbose
+	// Disabled: Think tag stripping removed - proper model selection should prevent think tags
+	// - ReasoningDisabled: Use non-reasoning models (Llama 3.2) - no think tags generated
+	// - ReasoningEnabled: Use reasoning models with /no_think (Qwen3) - minimal think tags
+	// - ReasoningVerbose: Use reasoning models (Qwen3) - full think tags shown
+	return false // Always return false - no stripping
 }
 
 // GetPreferredModelPattern returns the model name pattern to prefer

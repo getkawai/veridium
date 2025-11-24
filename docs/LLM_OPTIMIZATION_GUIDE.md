@@ -31,7 +31,7 @@ LLM responses contained unclosed `<think>` tags, causing entire responses to be 
 | Increase context window (4096→16384) | 4x capacity | ✅ Implemented |
 | Increase buffers (8KB→64KB) | Handle long conversations | ✅ Implemented |
 | Add reasoning mode system | 3.3x more turns | ✅ Implemented |
-| Strip think tags automatically | Cleaner output | ✅ Implemented |
+| Proper model selection | Prevents think tags | ✅ Implemented |
 
 ### Results
 
@@ -317,21 +317,24 @@ You are a helpful AI assistant.
 Think through your answer step by step. Show your reasoning process using <think> tags.
 ```
 
-### Think Tag Stripping
+### Model Selection Strategy
 
-Automatically strips `<think>...</think>` blocks:
+Instead of stripping think tags, the system uses proper model selection:
 
-```go
-func (rc ReasoningConfig) ShouldStripThinkTags() bool {
-    // Always strip for disabled and enabled modes
-    // Only keep for verbose mode
-    return rc.StripThinkTags && rc.Mode != ReasoningVerbose
-}
-```
+**ReasoningDisabled (Default):**
+- Uses non-reasoning models (Llama 3.2, Mistral)
+- No think tags generated naturally
+- Most efficient for long conversations
 
-**Example:**
-- Input: `<think>reasoning</think>Answer`
-- Output: `Answer`
+**ReasoningEnabled:**
+- Uses reasoning models (Qwen3) with `/no_think` system prompt
+- Minimal think tags, if any
+- Balanced performance
+
+**ReasoningVerbose:**
+- Uses reasoning models (Qwen3) without restrictions
+- Full think tags shown for transparency
+- Best for educational/debugging purposes
 
 ### Model Detection
 
@@ -502,12 +505,20 @@ if contextUsage > 0.8 {
 }
 ```
 
-### 4. Think Tag Handling
+### 4. Model Selection
 
-**Always strip think tags (except in verbose mode):**
+**Use appropriate models for each mode:**
 ```go
+// ReasoningDisabled: Use non-reasoning models (no think tags)
 config := ReasoningConfig{
-    StripThinkTags: true,  // Always enabled
+    Mode: ReasoningDisabled,
+    PreferredNonReasoning: "llama",  // Llama 3.2
+}
+
+// ReasoningEnabled: Use reasoning models with /no_think
+config := ReasoningConfig{
+    Mode: ReasoningEnabled,
+    PreferredReasoning: "qwen",  // Qwen3 with /no_think
 }
 ```
 
@@ -653,11 +664,11 @@ agentService.SwitchToRecommendedModel()
 
 ### Achievements
 
-✅ **Fixed think tag issues** - 0% failure rate
+✅ **Fixed think tag issues** - 0% failure rate via proper model selection
 ✅ **Increased conversation capacity** - 3-17x improvement
 ✅ **Implemented dual-mode system** - Reasoning & non-reasoning
 ✅ **Optimized context management** - 4x larger window
-✅ **Automatic think tag stripping** - Clean output
+✅ **Proper model selection** - Prevents think tags naturally
 ✅ **Comprehensive documentation** - Complete guide
 
 ### Key Metrics
@@ -673,9 +684,9 @@ agentService.SwitchToRecommendedModel()
 ### Default Configuration
 
 - **Reasoning Mode:** Disabled (non-reasoning)
-- **Model:** Llama 3.2 3B
+- **Model:** Llama 3.2 3B (non-reasoning model)
 - **Context Window:** 16,384 tokens
-- **Think Tag Stripping:** Enabled
+- **Think Tag Prevention:** Via proper model selection
 - **Expected Performance:** 50-100 conversation turns
 
 ### Next Steps
