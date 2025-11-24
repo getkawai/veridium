@@ -29,6 +29,7 @@ import {
 } from '@/types';
 import { produce } from 'immer';
 import { StateCreator } from 'zustand/vanilla';
+import { Events } from '@wailsio/runtime';
 
 import { backendAgentChat } from '@/services/backendAgentChat';
 import { ChatStore } from '@/store/chat/store';
@@ -134,7 +135,42 @@ export const generateAIChat: StateCreator<
     }), false, n('optimistic/assistantMessage'));
 
     try {
-      // Step 3: Call backend (handles EVERYTHING)
+      // Step 3a: Setup streaming event listener (throttling done in backend)
+      const streamEventName = `chat:stream:${activeId}`;
+      let streamingMessageId: string | null = null;
+      
+      const unsubscribe = Events.On(streamEventName, (ev: any) => {
+        const data = ev.data;
+        
+        if (data.type === 'start') {
+          // Streaming started - store message ID
+          streamingMessageId = data.message_id;
+          console.log('[Stream] Started:', streamingMessageId);
+        } else if (data.type === 'chunk' && streamingMessageId) {
+          // Update assistant message with streaming content (already throttled by backend)
+          set(produce((state: ChatStore) => {
+            const messages = state.messagesMap[mapKey] || [];
+            const assistantMsg = messages.find(m => m.id === tempAssistantId);
+            if (assistantMsg) {
+              assistantMsg.content = data.full_content;
+              assistantMsg.updatedAt = Date.now();
+            }
+          }), false, n('streaming/chunk'));
+        } else if (data.type === 'complete') {
+          console.log('[Stream] Complete:', data.message_id);
+          // Final update with complete content
+          set(produce((state: ChatStore) => {
+            const messages = state.messagesMap[mapKey] || [];
+            const assistantMsg = messages.find(m => m.id === tempAssistantId);
+            if (assistantMsg) {
+              assistantMsg.content = data.content;
+              assistantMsg.updatedAt = Date.now();
+            }
+          }), false, n('streaming/complete'));
+        }
+      });
+      
+      // Step 3b: Call backend (handles EVERYTHING)
       const response = await backendAgentChat.sendMessage({
         session_id: activeId,
         user_id: FALLBACK_CLIENT_DB_USER_ID,
@@ -145,7 +181,11 @@ export const generateAIChat: StateCreator<
         knowledge_base_id: undefined, // TODO: Get from KB state
         temperature: 0.7,
         max_tokens: 2000,
+        stream: true, // Enable streaming
       });
+      
+      // Cleanup event listener
+      unsubscribe();
 
       // Step 4: Determine final topic ID
       const finalTopicId = response.topic_id || activeTopicId;

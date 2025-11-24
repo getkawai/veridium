@@ -239,36 +239,49 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*ChatResp
 		Messages: messagesToAgent,
 	}
 
-	// Run agent
-	iterator := session.Agent.Run(ctx, agentInput)
+	// Generate message ID for streaming
+	assistantMsgID := uuid.New().String()
 
-	// Collect response
+	// Run agent with streaming support
 	var finalMessage string
 	var toolCalls []schema.ToolCall
 	var finishReason string
 	var usage *schema.TokenUsage
 
-	for {
-		event, ok := iterator.Next()
-		if !ok {
-			break
+	if req.Stream && s.app != nil {
+		// Use token-by-token streaming via direct llama generation
+		finalMessage, err = s.generateWithTokenStreaming(ctx, session, assistantMsgID, messagesToAgent)
+		if err != nil {
+			return nil, fmt.Errorf("streaming generation failed: %w", err)
 		}
+		finishReason = "stop"
+	} else {
+		// Use standard Eino agent (non-streaming)
+		iterator := session.Agent.Run(ctx, agentInput)
 
-		if event.Err != nil {
-			return nil, fmt.Errorf("agent execution failed: %w", event.Err)
-		}
+		for {
+			event, ok := iterator.Next()
+			if !ok {
+				break
+			}
 
-		if event.Output != nil && event.Output.MessageOutput != nil {
-			msgVariant := event.Output.MessageOutput
-			if msgVariant.Message != nil {
-				if msgVariant.Role == schema.Assistant {
-					finalMessage += msgVariant.Message.Content
-					if len(msgVariant.Message.ToolCalls) > 0 {
-						toolCalls = append(toolCalls, msgVariant.Message.ToolCalls...)
-					}
-					if msgVariant.Message.ResponseMeta != nil {
-						finishReason = msgVariant.Message.ResponseMeta.FinishReason
-						usage = msgVariant.Message.ResponseMeta.Usage
+			if event.Err != nil {
+				return nil, fmt.Errorf("agent execution failed: %w", event.Err)
+			}
+
+			if event.Output != nil && event.Output.MessageOutput != nil {
+				msgVariant := event.Output.MessageOutput
+				if msgVariant.Message != nil {
+					if msgVariant.Role == schema.Assistant {
+						finalMessage += msgVariant.Message.Content
+
+						if len(msgVariant.Message.ToolCalls) > 0 {
+							toolCalls = append(toolCalls, msgVariant.Message.ToolCalls...)
+						}
+						if msgVariant.Message.ResponseMeta != nil {
+							finishReason = msgVariant.Message.ResponseMeta.FinishReason
+							usage = msgVariant.Message.ResponseMeta.Usage
+						}
 					}
 				}
 			}
@@ -321,11 +334,26 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*ChatResp
 	}
 
 	// Save assistant message to DB with topic and thread IDs
-	assistantMsgID, err := s.saveMessageToDB(ctx, assistantMsg, session.SessionID, session.UserID, currentTopicID, req.ThreadID)
+	savedMsgID, err := s.saveMessageToDB(ctx, assistantMsg, session.SessionID, session.UserID, currentTopicID, req.ThreadID)
 	if err != nil {
 		log.Printf("⚠️  Warning: Failed to save assistant message to DB: %v", err)
+		// Use the generated ID as fallback
+		savedMsgID = assistantMsgID
 	} else {
-		log.Printf("💾 Saved assistant message: %s (topic: %s, thread: %s)", assistantMsgID, currentTopicID, req.ThreadID)
+		log.Printf("💾 Saved assistant message: %s (topic: %s, thread: %s)", savedMsgID, currentTopicID, req.ThreadID)
+		// Update assistantMsgID with the actual DB ID
+		assistantMsgID = savedMsgID
+	}
+
+	// Emit streaming complete event (if streaming enabled)
+	if req.Stream && s.app != nil {
+		s.app.Event.Emit(fmt.Sprintf("chat:stream:%s", session.SessionID), map[string]interface{}{
+			"type":       "complete",
+			"message_id": assistantMsgID,
+			"content":    finalMessage,
+			"topic_id":   currentTopicID,
+			"thread_id":  req.ThreadID,
+		})
 	}
 
 	// Update session timestamp in DB
@@ -1205,4 +1233,137 @@ func (s *AgentChatService) SwitchToRecommendedModel() error {
 
 	log.Printf("✅ Successfully switched to %s", recommendedModel)
 	return nil
+}
+
+// generateWithTokenStreaming generates response with token-by-token streaming
+// This uses LibraryChatService for true token-by-token streaming
+func (s *AgentChatService) generateWithTokenStreaming(ctx context.Context, session *AgentSession, messageID string, messages []*schema.Message) (string, error) {
+	// Convert Eino messages to ChatMessage format
+	chatMessages := make([]llama.ChatMessage, 0, len(messages))
+	for _, msg := range messages {
+		role := ""
+		switch msg.Role {
+		case schema.System:
+			role = "system"
+		case schema.User:
+			role = "user"
+		case schema.Assistant:
+			role = "assistant"
+		default:
+			continue
+		}
+		chatMessages = append(chatMessages, llama.ChatMessage{
+			Role:    role,
+			Content: msg.Content,
+		})
+	}
+
+	// Create LibraryChatService
+	chatService := llama.NewLibraryChatService(s.libService, s.app)
+
+	// Setup event forwarding from LibraryChatService to our format
+	// LibraryChatService emits: stream:{requestID}:data with SSE format
+	// We need to convert to: chat:stream:{sessionID} with our format
+
+	streamRequestID := messageID
+	eventName := fmt.Sprintf("stream:%s:data", streamRequestID)
+	var fullContent strings.Builder
+
+	// Throttling variables
+	var lastEmitTime time.Time
+	const emitInterval = 1 * time.Second // Emit max every 1s
+
+	// Emit start event
+	s.app.Event.Emit(fmt.Sprintf("chat:stream:%s", session.SessionID), map[string]interface{}{
+		"type":       "start",
+		"message_id": messageID,
+		"session_id": session.SessionID,
+	})
+
+	unsubscribe := s.app.Event.On(eventName, func(event *application.CustomEvent) {
+		sseData, ok := event.Data.(string)
+		if !ok {
+			return
+		}
+
+		// Parse SSE data (format: "data: {...}\n\n")
+		if !strings.HasPrefix(sseData, "data: ") {
+			return
+		}
+
+		jsonData := strings.TrimPrefix(sseData, "data: ")
+		jsonData = strings.TrimSpace(jsonData)
+
+		if jsonData == "[DONE]" {
+			// Streaming complete - always emit final state
+			s.app.Event.Emit(fmt.Sprintf("chat:stream:%s", session.SessionID), map[string]interface{}{
+				"type":       "complete",
+				"message_id": messageID,
+				"content":    fullContent.String(),
+			})
+			return
+		}
+
+		// Parse JSON chunk
+		var chunk llama.ChatCompletionChunk
+		if err := json.Unmarshal([]byte(jsonData), &chunk); err != nil {
+			log.Printf("Failed to parse chunk: %v", err)
+			return
+		}
+
+		// Extract content from chunk
+		if len(chunk.Choices) > 0 {
+			content := chunk.Choices[0].Delta.Content
+			if content != "" {
+				fullContent.WriteString(content)
+
+				// Throttle chunk events - only emit if enough time has passed
+				now := time.Now()
+				if now.Sub(lastEmitTime) >= emitInterval {
+					lastEmitTime = now
+
+					// Emit our chunk event
+					s.app.Event.Emit(fmt.Sprintf("chat:stream:%s", session.SessionID), map[string]interface{}{
+						"type":         "chunk",
+						"message_id":   messageID,
+						"content":      content,
+						"full_content": fullContent.String(),
+					})
+				}
+			}
+		}
+	})
+	defer unsubscribe()
+
+	// Start streaming generation
+	err := chatService.ChatCompletionStream(ctx, streamRequestID, llama.ChatCompletionRequest{
+		Messages:  chatMessages,
+		MaxTokens: 2000,
+		Stream:    true,
+	})
+
+	if err != nil {
+		return "", fmt.Errorf("streaming generation failed: %w", err)
+	}
+
+	return fullContent.String(), nil
+}
+
+// buildPromptFromMessages builds a prompt string from Eino messages
+func (s *AgentChatService) buildPromptFromMessages(messages []*schema.Message) (string, error) {
+	// Convert Eino messages to simple prompt format
+	var prompt strings.Builder
+	for _, msg := range messages {
+		switch msg.Role {
+		case schema.System:
+			prompt.WriteString(fmt.Sprintf("System: %s\n\n", msg.Content))
+		case schema.User:
+			prompt.WriteString(fmt.Sprintf("User: %s\n\n", msg.Content))
+		case schema.Assistant:
+			prompt.WriteString(fmt.Sprintf("Assistant: %s\n\n", msg.Content))
+		}
+	}
+	prompt.WriteString("Assistant:")
+
+	return prompt.String(), nil
 }
