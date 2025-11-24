@@ -29,16 +29,6 @@ export function Chat(req: $models.ChatRequest): $CancellablePromise<$models.Chat
 }
 
 /**
- * ChatStream processes a chat request with streaming response
- * TODO: Implement streaming via Wails v3 events API once documented
- */
-export function ChatStream(req: $models.ChatRequest): $CancellablePromise<$models.ChatResponse | null> {
-    return $Call.ByID(3398888139, req).then(($result: any) => {
-        return $$createType1($result);
-    });
-}
-
-/**
  * ClearSession removes a session from memory
  */
 export function ClearSession(sessionID: string): $CancellablePromise<void> {
@@ -80,6 +70,7 @@ export function GetSessionHistory(sessionID: string): $CancellablePromise<(schem
 /**
  * SetReasoningMode sets the reasoning mode for the service
  * This affects all new conversations created after this call
+ * Validates hardware specs before allowing resource-intensive reasoning modes
  */
 export function SetReasoningMode(mode: $models.ReasoningMode): $CancellablePromise<void> {
     return $Call.ByID(3600806230, mode);

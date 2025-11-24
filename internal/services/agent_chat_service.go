@@ -483,14 +483,18 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*ChatResp
 
 	// Phase 4: Generate topic title after first response
 	// If we already created a placeholder topic, update it with LLM-generated title
-	if len(session.Messages) == 2 {
+	// We allow up to 4 messages (2 turns) to retry title generation if it failed or was skipped
+	if len(session.Messages) >= 2 && len(session.Messages) <= 4 {
+		log.Printf("📝 Checking if topic title needs update (msgs: %d, topic: %s)", len(session.Messages), currentTopicID)
+
 		if currentTopicID != "" {
 			// Update existing topic with LLM-generated title
+			// This runs in background, so it won't block response
 			err := s.updateTopicTitle(ctx, currentTopicID, session.UserID, session.Messages)
 			if err != nil {
-				log.Printf("⚠️  Warning: Failed to update topic title: %v", err)
+				log.Printf("⚠️  Warning: Failed to trigger topic title update: %v", err)
 			} else {
-				log.Printf("📝 Updated topic %s with auto-generated title", currentTopicID)
+				log.Printf("📝 Triggered background title update for topic %s", currentTopicID)
 			}
 		} else {
 			// Topic was not created before - create it now with the actual conversation
@@ -568,14 +572,6 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*ChatResp
 		Usage:        usage,
 		CreatedAt:    now,
 	}, nil
-}
-
-// ChatStream processes a chat request with streaming response
-// TODO: Implement streaming via Wails v3 events API once documented
-func (s *AgentChatService) ChatStream(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
-	// For now, use synchronous chat
-	// TODO: Implement proper streaming when Wails v3 event API is stable
-	return s.Chat(ctx, req)
 }
 
 // getOrCreateSession gets an existing session or creates a new one with DB persistence
@@ -909,6 +905,15 @@ Example: Sleep Functions for Body and Mind`, locale)
 		}
 	}
 
+	// Fallback: if no user messages found (unlikely but possible), use all messages
+	if conversationText == "" {
+		for _, msg := range messages {
+			conversationText += fmt.Sprintf("%s: %s\n", msg.Role, msg.Content)
+		}
+	}
+
+	log.Printf("📝 Generating title for conversation (%d messages, %d chars)", len(messages), len(conversationText))
+
 	// Create messages for title generation
 	titleMessages := []*schema.Message{
 		{Role: schema.System, Content: systemPrompt},
@@ -968,6 +973,8 @@ Example: Sleep Functions for Body and Mind`, locale)
 		return "", fmt.Errorf("failed to generate title: %w", err)
 	}
 
+	log.Printf("📝 Raw title response: %q", response.Content)
+
 	// Clean up the title
 	title := strings.TrimSpace(response.Content)
 
@@ -993,6 +1000,7 @@ Example: Sleep Functions for Body and Mind`, locale)
 
 	// Final fallback if still empty
 	if title == "" {
+		log.Printf("⚠️  Title generation failed (empty result), using default")
 		title = "New Conversation"
 	}
 
@@ -1100,6 +1108,14 @@ func (s *AgentChatService) updateTopicTitle(ctx context.Context, topicID, userID
 			log.Printf("⚠️  Failed to update topic title in DB: %v", err)
 		} else {
 			log.Printf("✅ Updated topic %s with title: %s", topicID, title)
+
+			// Emit event to notify UI
+			if s.app != nil {
+				s.app.Event.Emit("chat:topic:updated", map[string]interface{}{
+					"topic_id": topicID,
+					"title":    title,
+				})
+			}
 		}
 	}()
 
@@ -1182,6 +1198,14 @@ func (s *AgentChatService) createTopicForSessionWithTitle(ctx context.Context, s
 			log.Printf("⚠️  Failed to update topic title in DB: %v", err)
 		} else {
 			log.Printf("✅ Updated new topic %s with title: %s", topicIDCopy, title)
+
+			// Emit event to notify UI
+			if s.app != nil {
+				s.app.Event.Emit("chat:topic:updated", map[string]interface{}{
+					"topic_id": topicIDCopy,
+					"title":    title,
+				})
+			}
 		}
 	}()
 
