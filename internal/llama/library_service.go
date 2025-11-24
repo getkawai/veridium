@@ -16,7 +16,7 @@ import (
 // LibraryService provides LLM inference using llama.cpp as a library (via yzma)
 // This replaces the binary-based approach with direct library calls
 type LibraryService struct {
-	manager *LlamaCppInstaller
+	installer *LlamaCppInstaller
 
 	// Library state
 	libPath       string
@@ -52,10 +52,10 @@ type LibraryService struct {
 
 // NewLibraryService creates a new library-based llama.cpp service
 func NewLibraryService() (*LibraryService, error) {
-	manager := NewLlamaCppInstaller()
+	installer := NewLlamaCppInstaller()
 
 	service := &LibraryService{
-		manager: manager,
+		installer: installer,
 	}
 
 	log.Printf("📍 [NewLibraryService] Created library-based service instance: %p", service)
@@ -71,12 +71,12 @@ func (s *LibraryService) initializeInBackground() {
 	log.Printf("🚀 Initializing llama.cpp library in background...")
 
 	// Step 1: Check and install llama.cpp if needed
-	if !s.manager.IsLlamaCppInstalled() {
+	if !s.installer.IsLlamaCppInstalled() {
 		log.Println("🔧 llama.cpp not found, attempting auto-installation...")
 
 		// Use InstallLlamaCpp which now uses download.InstallLibraries
 		// This handles version management, auto-upgrade, and fallback automatically
-		if err := s.manager.InstallLlamaCpp(); err != nil {
+		if err := s.installer.InstallLlamaCpp(); err != nil {
 			log.Printf("⚠️  Failed to install llama.cpp: %v", err)
 			log.Printf("   llama.cpp features will not be available")
 			return
@@ -98,7 +98,7 @@ func (s *LibraryService) initializeInBackground() {
 	// Step 3: Auto-download embedding model (in background)
 	go func() {
 		log.Println("📦 Checking embedding models...")
-		if err := s.manager.AutoDownloadRecommendedEmbeddingModel(); err != nil {
+		if err := s.installer.AutoDownloadRecommendedEmbeddingModel(); err != nil {
 			log.Printf("⚠️  Failed to auto-download embedding model: %v", err)
 		} else {
 			log.Println("✅ Embedding model ready!")
@@ -145,10 +145,10 @@ func (s *LibraryService) InitializeLibrary() error {
 	}
 
 	// Get library path from installer (programmatic, not env var)
-	libPath := s.manager.GetLibraryPath()
+	libPath := s.installer.GetLibraryPath()
 
 	// Verify all required libraries exist (libggml, libggml-base, libllama)
-	if !s.manager.VerifyAllLibrariesExist() {
+	if !s.installer.VerifyAllLibrariesExist() {
 		return fmt.Errorf("llama.cpp libraries not found in %s. Please run installer first", libPath)
 	}
 
@@ -156,7 +156,7 @@ func (s *LibraryService) InitializeLibrary() error {
 	log.Printf("📚 Loading llama.cpp library from directory: %s", libPath)
 
 	// Log which libraries were found
-	requiredPaths := s.manager.GetRequiredLibraryPaths()
+	requiredPaths := s.installer.GetRequiredLibraryPaths()
 	for _, path := range requiredPaths {
 		log.Printf("  ✓ Found: %s", filepath.Base(path))
 	}
@@ -271,11 +271,11 @@ func (s *LibraryService) LoadEmbeddingModel(modelPath string) error {
 
 	// Auto-select embedding model if not provided
 	if modelPath == "" {
-		downloaded := s.manager.GetDownloadedEmbeddingModels()
+		downloaded := s.installer.GetDownloadedEmbeddingModels()
 		if len(downloaded) == 0 {
 			return fmt.Errorf("no embedding models available")
 		}
-		modelPath = filepath.Join(s.manager.ModelsDir, downloaded[0].Filename)
+		modelPath = filepath.Join(s.installer.ModelsDir, downloaded[0].Filename)
 		log.Printf("🤖 Auto-selected embedding model: %s", downloaded[0].Name)
 	}
 
@@ -487,7 +487,7 @@ func (s *LibraryService) LoadVLModel(modelPath string) error {
 	s.vlVocab = llama.ModelGetVocab(s.vlModel)
 
 	// Find the MMTRoj projector file (mmproj-xxx.gguf)
-	modelsDir := s.manager.GetModelsDirectory()
+	modelsDir := s.installer.GetModelsDirectory()
 	projectorPath, err := s.findProjectorForModel(modelPath, modelsDir)
 	if err != nil {
 		llama.ModelFree(s.vlModel)
@@ -664,9 +664,9 @@ func (s *LibraryService) findProjectorForModel(modelPath, modelsDir string) (str
 
 // selectBestVLModel automatically selects the best available VL model
 func (s *LibraryService) selectBestVLModel() (string, error) {
-	modelsDir := s.manager.GetModelsDirectory()
+	modelsDir := s.installer.GetModelsDirectory()
 
-	VLModels, err := s.manager.GetAvailableVLModels()
+	VLModels, err := s.installer.GetAvailableVLModels()
 	if err != nil {
 		return "", fmt.Errorf("failed to get available VL models: %w", err)
 	}
@@ -698,7 +698,7 @@ func (s *LibraryService) GetLoadedVLModel() string {
 // Delegates to installer methods
 func (s *LibraryService) AutoDownloadRecommendedVLModel() error {
 	log.Println("📦 Auto-downloading VL model...")
-	if err := s.manager.AutoDownloadRecommendedVLModel(); err != nil {
+	if err := s.installer.AutoDownloadRecommendedVLModel(); err != nil {
 		return fmt.Errorf("failed to download VL model: %w", err)
 	}
 
@@ -719,7 +719,7 @@ func (s *LibraryService) AutoDownloadRecommendedVLProjector() error {
 // For non-reasoning mode: prefer Llama 3.2 (non-reasoning models)
 // For reasoning mode: prefer Qwen3 (reasoning models)
 func (s *LibraryService) selectBestModel() (string, error) {
-	modelsDir := s.manager.GetModelsDirectory()
+	modelsDir := s.installer.GetModelsDirectory()
 
 	// Ensure models directory exists
 	if err := os.MkdirAll(modelsDir, 0755); err != nil {
@@ -836,7 +836,7 @@ func (s *LibraryService) selectBestModel() (string, error) {
 
 // GetAvailableModels returns a list of available GGUF models
 func (s *LibraryService) GetAvailableModels() ([]string, error) {
-	modelsDir := s.manager.GetModelsDirectory()
+	modelsDir := s.installer.GetModelsDirectory()
 
 	entries, err := os.ReadDir(modelsDir)
 	if err != nil {
@@ -863,12 +863,12 @@ func (s *LibraryService) GetAvailableModels() ([]string, error) {
 
 // GetModelsDirectory returns the directory where models are stored
 func (s *LibraryService) GetModelsDirectory() string {
-	return s.manager.GetModelsDirectory()
+	return s.installer.GetModelsDirectory()
 }
 
 // GetEmbeddingModelsDirectory returns the directory where embedding models are stored
 func (s *LibraryService) GetEmbeddingModelsDirectory() string {
-	return s.manager.GetModelsDirectory()
+	return s.installer.GetModelsDirectory()
 }
 
 // IsChatModelLoaded returns true if a chat model is loaded
@@ -952,7 +952,7 @@ func (s *LibraryService) Cleanup() {
 // AutoDownloadRecommendedModel downloads the recommended model based on hardware
 // Delegates to installer methods
 func (s *LibraryService) AutoDownloadRecommendedModel() error {
-	return s.manager.AutoDownloadRecommendedChatModel()
+	return s.installer.AutoDownloadRecommendedChatModel()
 }
 
 // Note: Download-related methods have been moved to LlamaCppInstaller.

@@ -36,6 +36,8 @@ type LlamaCppInstaller struct {
 	MetadataPath string
 	// ModelsDir is where GGUF models (chat & embedding) are stored
 	ModelsDir string
+	// HardwareSpecs caches the detected hardware specifications
+	HardwareSpecs *HardwareSpecs
 }
 
 // NewLlamaCppInstaller creates a new llama.cpp installer
@@ -48,9 +50,10 @@ func NewLlamaCppInstaller() *LlamaCppInstaller {
 	modelsDir := filepath.Join(basePath, "models")
 
 	installer := &LlamaCppInstaller{
-		BinaryPath:   binaryPath,
-		MetadataPath: metadataPath,
-		ModelsDir:    modelsDir,
+		BinaryPath:    binaryPath,
+		MetadataPath:  metadataPath,
+		ModelsDir:     modelsDir,
+		HardwareSpecs: DetectHardwareSpecs(),
 	}
 
 	// Clean up any stale temp files from previous sessions
@@ -371,11 +374,8 @@ func (lcm *LlamaCppInstaller) AutoDownloadRecommendedChatModel() error {
 
 	log.Println("📦 No chat models found, starting auto-download...")
 
-	// Detect hardware specs
-	specs := DetectHardwareSpecs()
-
 	// Select optimal model based on available RAM
-	modelSpec := SelectOptimalQwenModel(specs.AvailableRAM)
+	modelSpec := SelectOptimalQwenModel(lcm.HardwareSpecs.AvailableRAM)
 
 	// Download the model
 	if err := lcm.DownloadChatModel(modelSpec); err != nil {
@@ -406,11 +406,8 @@ func (lcm *LlamaCppInstaller) AutoDownloadRecommendedVLModel() error {
 
 	log.Println("📦 No VL models found, starting auto-download...")
 
-	// Detect hardware specs
-	specs := DetectHardwareSpecs()
-
 	// Select optimal model based on available RAM
-	modelSpec := SelectOptimalQwenModel(specs.AvailableRAM)
+	modelSpec := SelectOptimalQwenModel(lcm.HardwareSpecs.AvailableRAM)
 
 	// Download the model
 	if err := lcm.DownloadChatModel(modelSpec); err != nil {
@@ -441,11 +438,8 @@ func (lcm *LlamaCppInstaller) AutoDownloadRecommendedTextModel() error {
 
 	log.Println("📦 No text models found, starting auto-download...")
 
-	// Detect hardware specs
-	specs := DetectHardwareSpecs()
-
 	// Select optimal model based on available RAM
-	modelSpec := SelectOptimalQwenTextModel(specs.AvailableRAM)
+	modelSpec := SelectOptimalQwenTextModel(lcm.HardwareSpecs.AvailableRAM)
 
 	// Download the model
 	if err := lcm.DownloadChatModel(modelSpec); err != nil {
@@ -466,13 +460,10 @@ func (lcm *LlamaCppInstaller) AutoDownloadRecommendedEmbeddingModel() error {
 
 	log.Println("📦 No embedding models found, starting auto-download...")
 
-	// Detect hardware specs
-	specs := DetectHardwareSpecs()
-
 	// Select optimal embedding model based on available RAM
-	model := SelectOptimalEmbeddingModel(specs.AvailableRAM)
+	model := SelectOptimalEmbeddingModel(lcm.HardwareSpecs.AvailableRAM)
 	if model == nil {
-		return fmt.Errorf("no suitable embedding model found for system with %dGB RAM", specs.AvailableRAM)
+		return fmt.Errorf("no suitable embedding model found for system with %dGB RAM", lcm.HardwareSpecs.AvailableRAM)
 	}
 
 	if err := lcm.DownloadEmbeddingModel(model); err != nil {

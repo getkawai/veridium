@@ -322,7 +322,7 @@ func TestChatCompletion_Integration(t *testing.T) {
 		}
 
 		// Check if any models are available
-		installer := libService.manager
+		installer := libService.installer
 		models, _ := installer.GetAvailableChatModels()
 		if len(models) > 0 {
 			// Model exists but not loaded, try to load it
@@ -367,7 +367,7 @@ func TestChatCompletion_Integration(t *testing.T) {
 
 	// Verify model is ready - FAIL if not ready after timeout
 	if !libService.IsChatModelLoaded() {
-		installer := libService.manager
+		installer := libService.installer
 		models, _ := installer.GetAvailableChatModels()
 		if len(models) == 0 {
 			t.Fatalf("❌ Test FAILED: No chat models available after %v wait time. Model download may have failed or timed out.", maxWait)
@@ -460,7 +460,7 @@ func TestCustomSamplerCreation(t *testing.T) {
 		if libService.IsChatModelLoaded() {
 			break
 		}
-		installer := libService.manager
+		installer := libService.installer
 		models, _ := installer.GetAvailableChatModels()
 		if len(models) > 0 {
 			if err := libService.LoadChatModel(""); err == nil {
@@ -473,7 +473,7 @@ func TestCustomSamplerCreation(t *testing.T) {
 
 	// Verify model is ready - FAIL if not ready after timeout
 	if !libService.IsChatModelLoaded() {
-		installer := libService.manager
+		installer := libService.installer
 		models, _ := installer.GetAvailableChatModels()
 		if len(models) == 0 {
 			t.Fatalf("❌ Test FAILED: No chat models available after %v wait time", maxWait)
@@ -539,7 +539,7 @@ func TestSamplerParameterVariations(t *testing.T) {
 		if libService.IsChatModelLoaded() {
 			break
 		}
-		installer := libService.manager
+		installer := libService.installer
 		models, _ := installer.GetAvailableChatModels()
 		if len(models) > 0 {
 			if err := libService.LoadChatModel(""); err == nil {
@@ -552,7 +552,7 @@ func TestSamplerParameterVariations(t *testing.T) {
 
 	// Verify model is ready - FAIL if not ready after timeout
 	if !libService.IsChatModelLoaded() {
-		installer := libService.manager
+		installer := libService.installer
 		models, _ := installer.GetAvailableChatModels()
 		if len(models) == 0 {
 			t.Fatalf("❌ Test FAILED: No chat models available after %v wait time", maxWait)

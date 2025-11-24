@@ -32,7 +32,7 @@ func TestQwenVLImageProcessing(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	// Check if VL model is available, if not download it
-	vlModels, err := service.manager.GetAvailableVLModels()
+	vlModels, err := service.installer.GetAvailableVLModels()
 	if err != nil {
 		t.Fatalf("Failed to check available VL models: %v", err)
 	}
@@ -46,7 +46,7 @@ func TestQwenVLImageProcessing(t *testing.T) {
 		// Wait for download to complete
 		time.Sleep(5 * time.Second)
 
-		vlModels, _ = service.manager.GetAvailableVLModels()
+		vlModels, _ = service.installer.GetAvailableVLModels()
 		if len(vlModels) == 0 {
 			t.Skip("VL model download failed or took too long")
 		}
@@ -100,8 +100,8 @@ func TestQwenVLImageProcessing(t *testing.T) {
 	// Check if response contains image-related terms (basic sanity check)
 	responseLower := strings.ToLower(response)
 	if !strings.Contains(responseLower, "gambar") &&
-	   !strings.Contains(responseLower, "lihat") &&
-	   !strings.Contains(responseLower, "ada") {
+		!strings.Contains(responseLower, "lihat") &&
+		!strings.Contains(responseLower, "ada") {
 		t.Logf("⚠️  Response may not be image-related: %s", response)
 	}
 }
@@ -123,7 +123,7 @@ func TestQwenVLModelLoading(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	// Test VL model auto-selection
-	availableVL, err := service.manager.GetAvailableVLModels()
+	availableVL, err := service.installer.GetAvailableVLModels()
 	if err != nil {
 		t.Fatalf("Failed to get available VL models: %v", err)
 	}
@@ -205,7 +205,7 @@ func TestAutoDownloadVLModel(t *testing.T) {
 	defer service.Cleanup()
 
 	// Check initial state
-	initialVL, _ := service.manager.GetAvailableVLModels()
+	initialVL, _ := service.installer.GetAvailableVLModels()
 
 	t.Logf("Initial VL models: %d", len(initialVL))
 
@@ -217,7 +217,7 @@ func TestAutoDownloadVLModel(t *testing.T) {
 	}
 
 	// Verify download
-	afterVL, _ := service.manager.GetAvailableVLModels()
+	afterVL, _ := service.installer.GetAvailableVLModels()
 
 	t.Logf("VL models after download: %d", len(afterVL))
 
