@@ -2,7 +2,10 @@ package services
 
 import (
 	"fmt"
+	"log"
 	"strings"
+
+	"github.com/kawai-network/veridium/internal/llama"
 )
 
 // ReasoningMode defines the reasoning behavior of the chat model
@@ -206,4 +209,114 @@ func (rc ReasoningConfig) GetExpectedPerformance() map[string]string {
 	default:
 		return map[string]string{}
 	}
+}
+
+// HardwareRequirements defines minimum hardware specs for reasoning modes
+type HardwareRequirements struct {
+	MinRAM       int64  // Minimum RAM in GB
+	MinCPUCores  int    // Minimum CPU cores
+	RecommendGPU bool   // Whether GPU is recommended
+	Description  string // Human-readable description
+}
+
+// GetHardwareRequirements returns hardware requirements for the reasoning mode
+func (rc ReasoningConfig) GetHardwareRequirements() HardwareRequirements {
+	switch rc.Mode {
+	case ReasoningDisabled:
+		// Non-reasoning models (Llama 3.2 3B) are lightweight
+		return HardwareRequirements{
+			MinRAM:       4,
+			MinCPUCores:  2,
+			RecommendGPU: false,
+			Description:  "Lightweight - runs on most systems",
+		}
+	case ReasoningEnabled:
+		// Reasoning models with /no_think need moderate resources
+		return HardwareRequirements{
+			MinRAM:       8,
+			MinCPUCores:  4,
+			RecommendGPU: true,
+			Description:  "Moderate - 8GB RAM, 4+ cores recommended",
+		}
+	case ReasoningVerbose:
+		// Full reasoning mode is resource-intensive
+		return HardwareRequirements{
+			MinRAM:       16,
+			MinCPUCores:  6,
+			RecommendGPU: true,
+			Description:  "High-end - 16GB+ RAM, 6+ cores, GPU strongly recommended",
+		}
+	default:
+		return HardwareRequirements{
+			MinRAM:      4,
+			MinCPUCores: 2,
+		}
+	}
+}
+
+// ValidateHardware checks if the system hardware is sufficient for the reasoning mode
+// Returns true if hardware is sufficient, false otherwise with a reason
+func (rc ReasoningConfig) ValidateHardware(specs *llama.HardwareSpecs) (bool, string) {
+	if specs == nil {
+		// If we can't detect hardware, log warning but allow
+		log.Printf("⚠️  Unable to detect hardware specs, proceeding with caution")
+		return true, ""
+	}
+
+	requirements := rc.GetHardwareRequirements()
+
+	// Check RAM
+	if specs.AvailableRAM < requirements.MinRAM {
+		return false, fmt.Sprintf(
+			"Insufficient RAM: %dGB available, but %dGB required for %s mode. Consider using %s mode instead.",
+			specs.AvailableRAM,
+			requirements.MinRAM,
+			rc.Mode,
+			ReasoningDisabled,
+		)
+	}
+
+	// Check CPU cores
+	if specs.CPUCores < requirements.MinCPUCores {
+		return false, fmt.Sprintf(
+			"Insufficient CPU cores: %d cores available, but %d cores required for %s mode. Consider using %s mode instead.",
+			specs.CPUCores,
+			requirements.MinCPUCores,
+			rc.Mode,
+			ReasoningDisabled,
+		)
+	}
+
+	// Warn if GPU is recommended but not available
+	if requirements.RecommendGPU && specs.GPUMemory == 0 {
+		log.Printf("⚠️  %s mode recommends GPU acceleration, but no GPU detected. Performance may be degraded.", rc.Mode)
+		// Don't block - just warn
+	}
+
+	// Hardware is sufficient
+	log.Printf("✅ Hardware validation passed for %s mode: RAM=%dGB (need %dGB), Cores=%d (need %d)",
+		rc.Mode, specs.AvailableRAM, requirements.MinRAM, specs.CPUCores, requirements.MinCPUCores)
+	return true, ""
+}
+
+// SuggestModeForHardware suggests the best reasoning mode for given hardware
+func SuggestModeForHardware(specs *llama.HardwareSpecs) ReasoningMode {
+	if specs == nil {
+		// Default to safest mode if we can't detect hardware
+		return ReasoningDisabled
+	}
+
+	// Check from most demanding to least demanding
+	verboseReq := ReasoningConfig{Mode: ReasoningVerbose}.GetHardwareRequirements()
+	if specs.AvailableRAM >= verboseReq.MinRAM && specs.CPUCores >= verboseReq.MinCPUCores {
+		return ReasoningVerbose
+	}
+
+	enabledReq := ReasoningConfig{Mode: ReasoningEnabled}.GetHardwareRequirements()
+	if specs.AvailableRAM >= enabledReq.MinRAM && specs.CPUCores >= enabledReq.MinCPUCores {
+		return ReasoningEnabled
+	}
+
+	// Default to disabled (non-reasoning) for lower-end hardware
+	return ReasoningDisabled
 }

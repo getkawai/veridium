@@ -961,3 +961,12 @@ func (s *LibraryService) AutoDownloadRecommendedModel() error {
 //   - manager.DownloadEmbeddingModel(model)
 //   - manager.AutoDownloadRecommendedChatModel()
 //   - manager.AutoDownloadRecommendedEmbeddingModel()
+
+// GetHardwareSpecs returns the detected hardware specifications
+// This is used for validating if the system can handle reasoning models
+func (s *LibraryService) GetHardwareSpecs() *HardwareSpecs {
+	if s.installer == nil {
+		return nil
+	}
+	return s.installer.HardwareSpecs
+}

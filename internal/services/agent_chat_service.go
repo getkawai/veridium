@@ -1361,6 +1361,7 @@ func (s *AgentChatService) updateSessionTimestamp(ctx context.Context, sessionID
 
 // SetReasoningMode sets the reasoning mode for the service
 // This affects all new conversations created after this call
+// Validates hardware specs before allowing resource-intensive reasoning modes
 func (s *AgentChatService) SetReasoningMode(mode ReasoningMode) error {
 	s.sessionsMutex.Lock()
 	defer s.sessionsMutex.Unlock()
@@ -1370,8 +1371,49 @@ func (s *AgentChatService) SetReasoningMode(mode ReasoningMode) error {
 		return fmt.Errorf("invalid reasoning mode: %s", mode)
 	}
 
+	// Get hardware specs from the installer
+	var hardwareSpecs *llama.HardwareSpecs
+	if s.libService != nil {
+		hardwareSpecs = s.libService.GetHardwareSpecs()
+	}
+
+	// Create temp config to validate hardware
+	tempConfig := s.reasoningConfig
+	tempConfig.Mode = mode
+
+	// Validate hardware requirements for reasoning modes
+	if mode == ReasoningEnabled || mode == ReasoningVerbose {
+		if valid, reason := tempConfig.ValidateHardware(hardwareSpecs); !valid {
+			// Hardware insufficient - suggest alternative
+			suggested := SuggestModeForHardware(hardwareSpecs)
+			log.Printf("⚠️  Hardware validation failed for %s mode: %s", mode, reason)
+			log.Printf("💡 Auto-switching to %s mode based on available hardware", suggested)
+
+			// Auto-switch to suggested mode instead of failing
+			mode = suggested
+			tempConfig.Mode = suggested
+
+			// If still trying reasoning mode after suggestion, validate again
+			if mode != ReasoningDisabled {
+				if valid, reason := tempConfig.ValidateHardware(hardwareSpecs); !valid {
+					// Even suggested mode failed - force disable
+					log.Printf("⚠️  Even suggested mode failed: %s. Forcing disabled mode.", reason)
+					mode = ReasoningDisabled
+				}
+			}
+		}
+	}
+
 	s.reasoningConfig.Mode = mode
 	log.Printf("🧠 Reasoning mode changed to: %s (%s)", mode, s.reasoningConfig.GetModeDescription())
+
+	// Log hardware requirements
+	hwReq := s.reasoningConfig.GetHardwareRequirements()
+	log.Printf("💻 Hardware requirements: %s", hwReq.Description)
+	if hardwareSpecs != nil {
+		log.Printf("📊 Current system: RAM=%dGB, Cores=%d, GPU=%s",
+			hardwareSpecs.AvailableRAM, hardwareSpecs.CPUCores, hardwareSpecs.GPUModel)
+	}
 
 	// Log performance expectations
 	perf := s.reasoningConfig.GetExpectedPerformance()
