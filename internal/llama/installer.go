@@ -474,8 +474,56 @@ func (lcm *LlamaCppInstaller) AutoDownloadRecommendedEmbeddingModel() error {
 	return nil
 }
 
+// AutoDownloadRecommendedUtilityModel automatically downloads the best utility model for the system
+// Utility models are small, fast models used for:
+// - Summary generation (compress old conversation messages)
+// - Title generation (create conversation titles)
+// - Quick text processing tasks
+// These models are non-reasoning (no <think> tags) and optimized for background tasks
+func (lcm *LlamaCppInstaller) AutoDownloadRecommendedUtilityModel() error {
+	// Clean up any stale temp files
+	if err := lcm.CleanupStaleTempFiles(); err != nil {
+		log.Printf("⚠️  Failed to cleanup stale temp files: %v", err)
+	}
+
+	// Check if any utility models (Llama 1B/3B, Mistral) already exist
+	utilityModels, err := lcm.GetAvailableUtilityModels()
+	if err != nil {
+		return fmt.Errorf("failed to check existing utility models: %w", err)
+	}
+
+	if len(utilityModels) > 0 {
+		log.Printf("✅ Utility models already available (%d found), skipping auto-download", len(utilityModels))
+		log.Printf("   Available: %v", utilityModels)
+		return nil
+	}
+
+	log.Println("📦 No utility models found, starting auto-download...")
+	log.Println("💡 Utility models enable fast background tasks:")
+	log.Println("   - Summary generation (compress old messages)")
+	log.Println("   - Title generation (auto-create conversation titles)")
+	log.Println("   - Quick text processing")
+
+	// Select optimal utility model based on available RAM
+	modelSpec := SelectOptimalUtilityModel(lcm.HardwareSpecs.AvailableRAM)
+	if modelSpec == nil {
+		return fmt.Errorf("no suitable utility model found for system with %dGB RAM", lcm.HardwareSpecs.AvailableRAM)
+	}
+
+	// Download the model
+	if err := lcm.DownloadChatModel(*modelSpec); err != nil {
+		return fmt.Errorf("failed to download utility model: %w", err)
+	}
+
+	log.Println("🎉 Utility model download completed successfully!")
+	log.Printf("   Model: %s", modelSpec.Name)
+	log.Printf("   Size: %.1f MB", float64(modelSpec.Size)/(1024*1024))
+	log.Printf("   Use case: Summary & title generation (3-5x faster than main model)")
+	return nil
+}
+
 // AutoDownloadAllRecommendedModels automatically downloads all recommended model types for the system
-// Downloads text, VL, and embedding models based on hardware detection
+// Downloads text, VL, embedding, and utility models based on hardware detection
 func (lcm *LlamaCppInstaller) AutoDownloadAllRecommendedModels() error {
 	log.Println("🚀 Starting automatic download of all recommended models...")
 
@@ -494,11 +542,19 @@ func (lcm *LlamaCppInstaller) AutoDownloadAllRecommendedModels() error {
 		return fmt.Errorf("failed to download embedding model: %w", err)
 	}
 
+	// Download utility model (for summary/title generation)
+	if err := lcm.AutoDownloadRecommendedUtilityModel(); err != nil {
+		log.Printf("⚠️  Warning: Failed to download utility model (optional): %v", err)
+		log.Printf("💡 Main model will be used for summaries/titles (slower but functional)")
+		// Don't fail the entire download if utility model fails
+	}
+
 	log.Println("🎉 All recommended models downloaded successfully!")
 	log.Println("📊 Model download summary:")
 	log.Println("   ✅ Text model: Ready for text generation and reasoning")
 	log.Println("   ✅ VL model: Ready for vision-language tasks")
 	log.Println("   ✅ Embedding model: Ready for text embedding and similarity tasks")
+	log.Println("   ✅ Utility model: Ready for fast summaries and title generation")
 
 	return nil
 }
@@ -587,6 +643,52 @@ func (lcm *LlamaCppInstaller) GetAvailableTextModels() ([]string, error) {
 	}
 
 	return models, nil
+}
+
+// GetAvailableUtilityModels returns a list of available utility model file paths
+// Utility models are small, fast models (1B-3B) used for summary/title generation
+// Returns model filenames (not full paths) for easier checking
+func (lcm *LlamaCppInstaller) GetAvailableUtilityModels() ([]string, error) {
+	if err := os.MkdirAll(lcm.ModelsDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create models directory: %w", err)
+	}
+
+	entries, err := os.ReadDir(lcm.ModelsDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read models directory: %w", err)
+	}
+
+	var utilityModels []string
+	utilitySpecs := GetRecommendedUtilityModels()
+
+	// Build a map of utility model filenames for quick lookup
+	utilityFilenames := make(map[string]bool)
+	for _, spec := range utilitySpecs {
+		filename := fmt.Sprintf("%s.gguf", spec.Name)
+		utilityFilenames[strings.ToLower(filename)] = true
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		name := entry.Name()
+		nameLower := strings.ToLower(name)
+
+		// Check if it's a utility model (Llama 1B/3B, Mistral, etc.)
+		if strings.HasSuffix(nameLower, ".gguf") && !lcm.isEmbeddingModel(name) {
+			// Match against known utility model patterns
+			if utilityFilenames[nameLower] ||
+				strings.Contains(nameLower, "llama-3.2-1b") ||
+				strings.Contains(nameLower, "llama-3.2-3b") ||
+				(strings.Contains(nameLower, "mistral") && strings.Contains(nameLower, "7b")) {
+				utilityModels = append(utilityModels, name)
+			}
+		}
+	}
+
+	return utilityModels, nil
 }
 
 // GetDownloadedEmbeddingModels returns a list of downloaded embedding models

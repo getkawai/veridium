@@ -60,8 +60,9 @@ type AgentChatService struct {
 	// Reasoning mode configuration
 	reasoningConfig ReasoningConfig // Controls reasoning behavior
 
-	// Title generation: use separate small & fast model for efficiency
-	titleModelPath string // Path to title generation model (optional, falls back to main model)
+	// Utility models: use separate small & fast models for efficiency
+	titleModelPath   string // Path to title generation model (optional, falls back to main model)
+	summaryModelPath string // Path to summary generation model (optional, falls back to title/main model)
 
 	// Session management (hybrid: DB + in-memory cache)
 	sessions      map[string]*AgentSession // In-memory cache for active sessions
@@ -143,22 +144,24 @@ func NewAgentChatService(
 	llamaModel := llama.NewLlamaEinoModel(libService)
 	ragWorkflow := NewRAGWorkflow(kbService)
 
-	// Auto-detect smallest model for title generation (prefer 1B models)
+	// Auto-detect utility models for lightweight tasks
 	titleModelPath := detectTitleGenerationModel(libService)
+	summaryModelPath := detectSummaryGenerationModel(libService)
 
 	service := &AgentChatService{
-		app:             app,
-		db:              db,
-		libService:      libService,
-		llamaModel:      llamaModel,
-		kbService:       kbService,
-		ragWorkflow:     ragWorkflow,
-		toolsBridge:     toolsBridge,
-		contextBridge:   contextBridge,
-		threadService:   threadService,
-		reasoningConfig: DefaultReasoningConfig(), // Default: disabled (non-reasoning)
-		titleModelPath:  titleModelPath,
-		sessions:        make(map[string]*AgentSession),
+		app:              app,
+		db:               db,
+		libService:       libService,
+		llamaModel:       llamaModel,
+		kbService:        kbService,
+		ragWorkflow:      ragWorkflow,
+		toolsBridge:      toolsBridge,
+		contextBridge:    contextBridge,
+		threadService:    threadService,
+		reasoningConfig:  DefaultReasoningConfig(), // Default: disabled (non-reasoning)
+		titleModelPath:   titleModelPath,
+		summaryModelPath: summaryModelPath,
+		sessions:         make(map[string]*AgentSession),
 	}
 
 	if titleModelPath != "" {
@@ -167,12 +170,26 @@ func NewAgentChatService(
 		log.Printf("📝 No dedicated title model found, will use main chat model")
 	}
 
+	if summaryModelPath != "" {
+		log.Printf("📋 Auto-detected summary model: %s", filepath.Base(summaryModelPath))
+	} else {
+		log.Printf("📋 No dedicated summary model found, will use main chat model")
+	}
+
 	return service
 }
 
 // detectTitleGenerationModel finds the smallest, fastest model for title generation
-// Prefers 1B non-reasoning models (Llama 3.2 1B, Mistral 1B)
+// Prefers utility models (Llama 3.2 1B/3B) which are optimized for quick tasks
+// Reuses detectSummaryGenerationModel since both tasks need the same type of model
 func detectTitleGenerationModel(libService *llama.LibraryService) string {
+	return detectSummaryGenerationModel(libService)
+}
+
+// detectSummaryGenerationModel finds optimal model for summarization
+// Strategy: Prefer small non-reasoning models (Llama 3.2 1B/3B, Mistral)
+// These models are fast, don't generate <think> tags, and have good quality for utility tasks
+func detectSummaryGenerationModel(libService *llama.LibraryService) string {
 	models, err := libService.GetAvailableModels()
 	if err != nil || len(models) == 0 {
 		return ""
@@ -205,28 +222,46 @@ func detectTitleGenerationModel(libService *llama.LibraryService) string {
 		score := 0
 		sizeMB := info.Size() / (1024 * 1024)
 
-		// Prefer SMALLEST models for title generation (faster)
-		if sizeMB < 500 {
-			score += 100 // Tiny models (< 500MB) = 0.5B
-		} else if sizeMB < 1000 {
-			score += 80 // Small models (< 1GB) = 1B
-		} else if sizeMB < 2000 {
-			score += 50 // Medium models (< 2GB) = 1.5B
+		// Prefer SMALL but not TOO small (1B-1.5B ideal for summary)
+		// Summary needs slightly better quality than title
+		if sizeMB >= 500 && sizeMB < 1000 {
+			score += 100 // 1B models - BEST for summary (Llama 3.2 1B)
+		} else if sizeMB >= 1000 && sizeMB < 2000 {
+			score += 90 // 1.5B-3B models - good balance (Llama 3.2 3B)
+		} else if sizeMB < 500 {
+			score += 70 // 0.5B models - may be too simple
+		} else if sizeMB < 4500 {
+			score += 50 // 3B-7B models - slower, unnecessary (Mistral 7B)
 		} else {
-			score += 10 // Larger models are too slow for title gen
+			score += 10 // 7B+ models - too slow for background task
 		}
 
-		// Prefer non-reasoning models (Llama, Mistral) - no <think> tags
-		if strings.Contains(nameLower, "llama") {
-			score += 50 // Llama is best for quick tasks
+		// CRITICAL: Prefer non-reasoning models (NO <think> tags)
+		if strings.Contains(nameLower, "llama-3.2-1b") || strings.Contains(nameLower, "llama_3.2_1b") {
+			score += 100 // Llama 3.2 1B is BEST - fast, no think tags, good quality
+		} else if strings.Contains(nameLower, "llama-3.2-3b") || strings.Contains(nameLower, "llama_3.2_3b") {
+			score += 90 // Llama 3.2 3B is excellent - better quality
+		} else if strings.Contains(nameLower, "llama") && !strings.Contains(nameLower, "3.2") {
+			score += 70 // Other Llama models are okay
 		} else if strings.Contains(nameLower, "mistral") {
-			score += 40 // Mistral is also good
+			score += 60 // Mistral is decent
+		} else if strings.Contains(nameLower, "gemma") {
+			score += 50 // Gemma is okay
+		} else if strings.Contains(nameLower, "phi") {
+			score += 40 // Phi is acceptable
 		} else if strings.Contains(nameLower, "qwen") {
-			score -= 100 // Avoid Qwen for title gen (generates think tags)
+			score -= 200 // AVOID Qwen - generates <think> tags in summary!
+		} else if strings.Contains(nameLower, "deepseek") {
+			score -= 150 // AVOID DeepSeek - reasoning model
 		}
 
 		// Prefer instruct/chat models
 		if strings.Contains(nameLower, "instruct") || strings.Contains(nameLower, "chat") {
+			score += 30
+		}
+
+		// Prefer Q4 quantization (good balance of quality & speed)
+		if strings.Contains(nameLower, "q4") {
 			score += 20
 		}
 
@@ -245,6 +280,25 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*ChatResp
 	session, err := s.getOrCreateSession(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get/create session: %w", err)
+	}
+
+	// ✅ LOAD SUMMARY FROM DATABASE IF EXISTS
+	// Summary will be injected into system prompt when creating agent
+	if req.TopicID != "" {
+		topic, err := s.db.Queries().GetTopic(ctx, db.GetTopicParams{
+			ID:     req.TopicID,
+			UserID: req.UserID,
+		})
+
+		if err == nil && topic.HistorySummary.Valid && topic.HistorySummary.String != "" {
+			// Store summary in session context for agent creation
+			if session.Context == nil {
+				session.Context = make(map[string]any)
+			}
+			session.Context["history_summary"] = topic.HistorySummary.String
+			log.Printf("📋 Loaded history summary for topic %s (%d chars)",
+				req.TopicID, len(topic.HistorySummary.String))
+		}
 	}
 
 	// Phase 4: Handle topic and thread loading
@@ -461,6 +515,20 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*ChatResp
 		log.Printf("💾 Saved assistant message: %s (topic: %s, thread: %s)", savedMsgID, currentTopicID, req.ThreadID)
 		// Update assistantMsgID with the actual DB ID
 		assistantMsgID = savedMsgID
+	}
+
+	// ✅ AUTO-TRIGGER SUMMARY (NON-BLOCKING)
+	// This happens AFTER response is sent to user, so no blocking
+	// Summary generation runs in background goroutine
+	if currentTopicID != "" {
+		go func() {
+			bgCtx := context.Background()
+			// First: Try initial summary creation (if no summary exists)
+			s.autoSummarizeIfNeeded(bgCtx, session, currentTopicID, session.UserID)
+
+			// Second: Try incremental summary update (if summary exists and enough new messages)
+			s.incrementalSummarizeIfNeeded(bgCtx, session, currentTopicID, session.UserID)
+		}()
 	}
 
 	// Emit streaming complete event (if streaming enabled)
@@ -720,6 +788,21 @@ func (s *AgentChatService) getOrCreateSession(ctx context.Context, req ChatReque
 func (s *AgentChatService) createAgent(ctx context.Context, session *AgentSession) (adk.Agent, error) {
 	// Build base instruction
 	baseInstruction := "You are a helpful AI assistant. "
+
+	// ✅ INJECT SUMMARY IF EXISTS
+	if historySummary, ok := session.Context["history_summary"].(string); ok && historySummary != "" {
+		summaryContext := fmt.Sprintf(`
+
+<chat_history_summary>
+<docstring>Previous conversation summary (older messages have been compressed):</docstring>
+<summary>%s</summary>
+</chat_history_summary>
+
+`, historySummary)
+		baseInstruction += summaryContext
+		log.Printf("📋 Injected history summary into system prompt (%d chars)", len(historySummary))
+	}
+
 	if session.KnowledgeBaseID != "" {
 		baseInstruction += "You have access to a knowledge base. Use the search tool to find relevant information before answering questions. "
 	}
@@ -728,7 +811,10 @@ func (s *AgentChatService) createAgent(ctx context.Context, session *AgentSessio
 	instruction := s.reasoningConfig.GetSystemPrompt(baseInstruction)
 
 	log.Printf("🧠 Creating agent with reasoning mode: %s", s.reasoningConfig.Mode)
-	log.Printf("📝 System prompt: %s", instruction)
+	if log.Default().Writer() != nil {
+		// Only log full prompt in debug mode (can be very long with summary)
+		log.Printf("📝 System prompt length: %d chars", len(instruction))
+	}
 
 	// Create agent config
 	config := &adk.ChatModelAgentConfig{
@@ -1611,4 +1697,489 @@ func (s *AgentChatService) buildPromptFromMessages(messages []*schema.Message) (
 	prompt.WriteString("Assistant:")
 
 	return prompt.String(), nil
+}
+
+// ============================================================================
+// History Summary Functions
+// ============================================================================
+
+// autoSummarizeIfNeeded checks conditions and triggers summary automatically
+// Runs in background goroutine, does not block chat response
+func (s *AgentChatService) autoSummarizeIfNeeded(ctx context.Context, session *AgentSession, topicID, userID string) {
+	if topicID == "" {
+		return // No topic, no summary
+	}
+
+	// 1. Check if reasoning mode supports summarization
+	threshold := s.reasoningConfig.GetSummaryThreshold()
+	if threshold == 0 {
+		return // Verbose mode doesn't need summary (3-5 turns only)
+	}
+
+	// 2. Check turn count
+	turnCount := len(session.Messages) / 2
+	if turnCount < threshold {
+		return // Not enough turns yet
+	}
+
+	// 3. Check if we already summarized recently
+	topic, err := s.db.Queries().GetTopic(ctx, db.GetTopicParams{
+		ID:     topicID,
+		UserID: userID,
+	})
+	if err != nil {
+		log.Printf("⚠️  autoSummarize: Failed to get topic: %v", err)
+		return
+	}
+
+	// If summary exists, this will be handled by incrementalSummarizeIfNeeded()
+	if topic.HistorySummary.Valid && topic.HistorySummary.String != "" {
+		return // Summary already exists, incremental will handle updates
+	}
+
+	// 4. Get messages from database (not from session, could be stale)
+	messages, err := s.db.Queries().GetMessagesByTopicId(ctx, db.GetMessagesByTopicIdParams{
+		TopicID: sql.NullString{String: topicID, Valid: true},
+		UserID:  userID,
+	})
+	if err != nil || len(messages) < 4 {
+		log.Printf("⚠️  autoSummarize: Not enough messages to summarize: %d", len(messages))
+		return
+	}
+
+	// 5. Determine which messages to summarize
+	// Keep recent messages based on reasoning mode
+	keepCount := s.getKeepMessageCount()
+	if len(messages) <= keepCount {
+		return // Not enough messages to warrant summary
+	}
+
+	oldMessages := messages[:len(messages)-keepCount]
+
+	// 6. Convert to Eino format
+	einoMessages := make([]*schema.Message, 0, len(oldMessages))
+	for _, dbMsg := range oldMessages {
+		einoMsg, err := convertDBMessageToEino(&dbMsg)
+		if err == nil {
+			einoMessages = append(einoMessages, einoMsg)
+		}
+	}
+
+	if len(einoMessages) < 2 {
+		return // Need at least 2 messages (1 turn) to summarize
+	}
+
+	// 7. Generate summary (this is already in background goroutine)
+	log.Printf("🔄 Auto-generating summary for topic %s (%d old messages, keeping %d recent)",
+		topicID, len(einoMessages), keepCount)
+
+	summary, err := s.generateHistorySummary(ctx, einoMessages)
+	if err != nil {
+		log.Printf("❌ Auto-summary failed: %v", err)
+		return
+	}
+
+	// 8. Save summary to database
+	now := time.Now().UnixMilli()
+	metadata := fmt.Sprintf(`{"summarized_at":%d,"message_count":%d,"reasoning_mode":"%s"}`,
+		now, len(einoMessages), s.reasoningConfig.Mode)
+
+	_, err = s.db.Queries().UpdateTopic(ctx, db.UpdateTopicParams{
+		Title:          topic.Title,
+		HistorySummary: sql.NullString{String: summary, Valid: true},
+		Metadata: sql.NullString{
+			String: metadata,
+			Valid:  true,
+		},
+		UpdatedAt: now,
+		ID:        topicID,
+		UserID:    userID,
+	})
+
+	if err != nil {
+		log.Printf("❌ Failed to save auto-summary: %v", err)
+	} else {
+		log.Printf("✅ Auto-summary completed for topic %s (compressed %d messages into %d chars)",
+			topicID, len(einoMessages), len(summary))
+
+		// Emit subtle event to frontend (optional: show small toast or indicator)
+		if s.app != nil {
+			s.app.Event.Emit("chat:summary:auto-complete", map[string]interface{}{
+				"topic_id":       topicID,
+				"message_count":  len(einoMessages),
+				"summary_length": len(summary),
+			})
+		}
+	}
+}
+
+// getKeepMessageCount returns how many recent messages to keep (not summarize)
+func (s *AgentChatService) getKeepMessageCount() int {
+	switch s.reasoningConfig.Mode {
+	case ReasoningDisabled:
+		return 20 // Keep last 20 messages (10 turns)
+	case ReasoningEnabled:
+		return 12 // Keep last 12 messages (6 turns)
+	case ReasoningVerbose:
+		return 6 // Keep last 6 messages (3 turns) - but won't reach here
+	default:
+		return 16
+	}
+}
+
+// generateHistorySummary generates summary using optimal model
+// Uses 3-tier fallback: summary model → title model → main model
+func (s *AgentChatService) generateHistorySummary(ctx context.Context, messages []*schema.Message) (string, error) {
+	if len(messages) == 0 {
+		return "", fmt.Errorf("no messages to summarize")
+	}
+
+	// Build summary prompt
+	systemPrompt := `You're an assistant who's good at extracting key takeaways from conversations and summarizing them. 
+
+Rules:
+- Summarize the conversation in the user's original language
+- Focus on key decisions, actions, and outcomes
+- Maintain context for future conversation continuation
+- Maximum 400 tokens
+- Output ONLY the summary text, nothing else`
+
+	// Build conversation text
+	var conversationText string
+	for _, msg := range messages {
+		role := string(msg.Role)
+		conversationText += fmt.Sprintf("%s: %s\n\n", role, msg.Content)
+	}
+
+	conversationContent := fmt.Sprintf(`<chat_history>
+%s
+</chat_history>
+
+Please summarize the above conversation and retain key information. The summarized content will be used as context for subsequent prompts.`, conversationText)
+
+	summaryMessages := []*schema.Message{
+		{Role: schema.System, Content: systemPrompt},
+		{Role: schema.User, Content: conversationContent},
+	}
+
+	// ✅ STRATEGY: Use dedicated summary model (preferred) → title model → main model
+	var response *schema.Message
+	var err error
+	var modelUsed string
+
+	currentModel := s.libService.GetLoadedChatModel()
+
+	// Try 1: Dedicated summary model (BEST - optimized for this task)
+	if s.summaryModelPath != "" && s.summaryModelPath != currentModel {
+		log.Printf("📋 Using dedicated summary model: %s", filepath.Base(s.summaryModelPath))
+
+		if loadErr := s.libService.LoadChatModel(s.summaryModelPath); loadErr != nil {
+			log.Printf("⚠️  Failed to load summary model: %v", loadErr)
+		} else {
+			summaryModel := llama.NewLlamaEinoModel(s.libService)
+			response, err = summaryModel.Generate(ctx, summaryMessages)
+			modelUsed = "summary"
+
+			// Restore main model
+			if currentModel != "" {
+				if restoreErr := s.libService.LoadChatModel(currentModel); restoreErr != nil {
+					log.Printf("⚠️  Failed to restore main model: %v", restoreErr)
+				}
+			}
+		}
+	}
+
+	// Try 2: Title model (GOOD - small and fast, already tested)
+	if response == nil && s.titleModelPath != "" && s.titleModelPath != currentModel {
+		log.Printf("📋 Falling back to title model: %s", filepath.Base(s.titleModelPath))
+
+		if loadErr := s.libService.LoadChatModel(s.titleModelPath); loadErr != nil {
+			log.Printf("⚠️  Failed to load title model: %v", loadErr)
+		} else {
+			titleModel := llama.NewLlamaEinoModel(s.libService)
+			response, err = titleModel.Generate(ctx, summaryMessages)
+			modelUsed = "title"
+
+			// Restore main model
+			if currentModel != "" {
+				s.libService.LoadChatModel(currentModel)
+			}
+		}
+	}
+
+	// Try 3: Main chat model (FALLBACK - may be slow/reasoning model)
+	if response == nil {
+		log.Printf("📋 Using main chat model for summary (no dedicated model available)")
+		response, err = s.llamaModel.Generate(ctx, summaryMessages)
+		modelUsed = "main"
+	}
+
+	if err != nil {
+		return "", fmt.Errorf("failed to generate summary: %w", err)
+	}
+
+	// Clean up response
+	summary := strings.TrimSpace(response.Content)
+
+	// ⚠️ CRITICAL: Strip <think> tags if present
+	// This can happen if main model is reasoning model (Qwen, DeepSeek)
+	if strings.Contains(summary, "<think>") {
+		log.Printf("⚠️  WARNING: Summary contains <think> tags (model: %s), stripping...", modelUsed)
+		summary = stripThinkTags(summary)
+	}
+
+	if summary == "" {
+		return "", fmt.Errorf("empty summary generated")
+	}
+
+	log.Printf("✅ Summary generated using %s model (%d chars)", modelUsed, len(summary))
+	return summary, nil
+}
+
+// incrementalSummarizeIfNeeded checks if existing summary needs update with new messages
+// Runs in background goroutine, does not block chat response
+func (s *AgentChatService) incrementalSummarizeIfNeeded(ctx context.Context, session *AgentSession, topicID, userID string) {
+	if topicID == "" {
+		return // No topic, no summary
+	}
+
+	// 1. Check if reasoning mode supports incremental summarization
+	threshold := s.reasoningConfig.GetIncrementalSummaryThreshold()
+	if threshold == 0 {
+		return // Verbose mode doesn't use incremental summary
+	}
+
+	// 2. Get topic with existing summary
+	topic, err := s.db.Queries().GetTopic(ctx, db.GetTopicParams{
+		ID:     topicID,
+		UserID: userID,
+	})
+	if err != nil {
+		return // Topic not found
+	}
+
+	// 3. Check if summary exists (incremental only works if base summary exists)
+	if !topic.HistorySummary.Valid || topic.HistorySummary.String == "" {
+		return // No existing summary, nothing to update
+	}
+
+	// 4. Parse metadata to get summarized message count
+	var metadata struct {
+		SummarizedMessageCount int   `json:"summarized_message_count"`
+		SummaryVersion         int   `json:"summary_version"`
+		InitialSummaryAt       int64 `json:"initial_summary_at"`
+	}
+
+	if topic.Metadata.Valid && topic.Metadata.String != "" {
+		if err := json.Unmarshal([]byte(topic.Metadata.String), &metadata); err != nil {
+			log.Printf("⚠️  incrementalSummarize: Failed to parse metadata: %v", err)
+			return
+		}
+	}
+
+	// 5. Get all messages from database
+	allMessages, err := s.db.Queries().GetMessagesByTopicId(ctx, db.GetMessagesByTopicIdParams{
+		TopicID: sql.NullString{String: topicID, Valid: true},
+		UserID:  userID,
+	})
+	if err != nil {
+		log.Printf("⚠️  incrementalSummarize: Failed to get messages: %v", err)
+		return
+	}
+
+	// 6. Count new messages since last summary
+	newMessageCount := len(allMessages) - metadata.SummarizedMessageCount
+	if newMessageCount < threshold*2 { // *2 because 1 turn = 2 messages
+		return // Not enough new messages yet
+	}
+
+	log.Printf("🔄 Re-summarizing topic %s (v%d → v%d, %d new messages)",
+		topicID, metadata.SummaryVersion, metadata.SummaryVersion+1, newMessageCount)
+
+	// 7. Load existing summary
+	existingSummary := topic.HistorySummary.String
+
+	// 8. Get new messages to incorporate
+	newMessages := allMessages[metadata.SummarizedMessageCount:]
+	keepCount := s.getKeepMessageCount()
+
+	// Make sure we have messages to summarize
+	if len(newMessages) <= keepCount {
+		return // All new messages are in "keep" range, nothing to summarize
+	}
+
+	messagesToSummarize := newMessages[:len(newMessages)-keepCount]
+
+	// 9. Convert DB messages to Eino messages
+	einoMessages := make([]*schema.Message, 0, len(messagesToSummarize))
+	for _, dbMsg := range messagesToSummarize {
+		einoMsg, err := convertDBMessageToEino(&dbMsg)
+		if err == nil {
+			einoMessages = append(einoMessages, einoMsg)
+		}
+	}
+
+	if len(einoMessages) == 0 {
+		return // No valid messages to summarize
+	}
+
+	// 10. Generate merged summary
+	mergedSummary, err := s.generateIncrementalSummary(ctx, existingSummary, einoMessages)
+	if err != nil {
+		log.Printf("❌ Incremental summary failed: %v", err)
+		return
+	}
+
+	// 11. Update metadata
+	if metadata.InitialSummaryAt == 0 {
+		metadata.InitialSummaryAt = time.Now().UnixMilli()
+	}
+
+	newMetadata := map[string]interface{}{
+		"summary_version":          metadata.SummaryVersion + 1,
+		"last_summarized_at":       time.Now().UnixMilli(),
+		"summarized_message_count": len(allMessages) - keepCount,
+		"initial_summary_at":       metadata.InitialSummaryAt,
+		"reasoning_mode":           string(s.reasoningConfig.Mode),
+	}
+
+	metadataJSON, err := json.Marshal(newMetadata)
+	if err != nil {
+		log.Printf("⚠️  Failed to marshal metadata: %v", err)
+		metadataJSON = []byte("{}")
+	}
+
+	// 12. Save updated summary to database
+	_, err = s.db.Queries().UpdateTopic(ctx, db.UpdateTopicParams{
+		ID:             topicID,
+		UserID:         userID,
+		Title:          topic.Title,
+		HistorySummary: sql.NullString{String: mergedSummary, Valid: true},
+		Metadata:       sql.NullString{String: string(metadataJSON), Valid: true},
+		UpdatedAt:      time.Now().UnixMilli(),
+	})
+
+	if err != nil {
+		log.Printf("❌ Failed to save incremental summary: %v", err)
+		return
+	}
+
+	log.Printf("✅ Incremental summary v%d completed (%d total messages compressed)",
+		newMetadata["summary_version"], newMetadata["summarized_message_count"])
+}
+
+// generateIncrementalSummary creates updated summary by merging existing summary with new messages
+func (s *AgentChatService) generateIncrementalSummary(ctx context.Context, existingSummary string, newMessages []*schema.Message) (string, error) {
+	// Build conversation context from new messages
+	var messagesText strings.Builder
+	for i, msg := range newMessages {
+		role := "User"
+		if msg.Role == schema.Assistant {
+			role = "Assistant"
+		}
+		messagesText.WriteString(fmt.Sprintf("%s: %s\n", role, msg.Content))
+		if i < len(newMessages)-1 {
+			messagesText.WriteString("\n")
+		}
+	}
+
+	// Build prompt for incremental summarization
+	prompt := fmt.Sprintf(`You are a conversation summarizer. Your task is to UPDATE an existing summary with new information.
+
+EXISTING SUMMARY:
+%s
+
+NEW MESSAGES TO INCORPORATE:
+%s
+
+INSTRUCTIONS:
+1. Read the existing summary carefully
+2. Read the new messages to identify new topics and developments
+3. Create an UPDATED summary that:
+   - Preserves important information from the existing summary
+   - Adds new topics and details from recent messages
+   - Maintains chronological flow (what happened first, then next)
+   - Stays concise (maximum 400 tokens)
+4. Use the same language as the original messages
+5. Focus on key topics, decisions, and important information
+6. DO NOT use <think> tags or any XML/HTML markup
+
+UPDATED SUMMARY:`, existingSummary, messagesText.String())
+
+	// Use same 3-tier model selection as regular summary
+	summaryMessages := []*schema.Message{
+		{
+			Role:    schema.User,
+			Content: prompt,
+		},
+	}
+
+	// Try 1: Summary model (BEST)
+	var response *schema.Message
+	var err error
+	modelUsed := "unknown"
+
+	currentModel := s.libService.GetLoadedChatModel()
+
+	if s.summaryModelPath != "" && s.summaryModelPath != currentModel {
+		log.Printf("📋 Using dedicated summary model for incremental: %s", filepath.Base(s.summaryModelPath))
+
+		if loadErr := s.libService.LoadChatModel(s.summaryModelPath); loadErr != nil {
+			log.Printf("⚠️  Failed to load summary model: %v", loadErr)
+		} else {
+			summaryModel := llama.NewLlamaEinoModel(s.libService)
+			response, err = summaryModel.Generate(ctx, summaryMessages)
+			modelUsed = "summary"
+
+			// Restore main model
+			if currentModel != "" {
+				s.libService.LoadChatModel(currentModel)
+			}
+		}
+	}
+
+	// Try 2: Title model (GOOD)
+	if response == nil && s.titleModelPath != "" && s.titleModelPath != currentModel {
+		log.Printf("📋 Falling back to title model for incremental: %s", filepath.Base(s.titleModelPath))
+
+		if loadErr := s.libService.LoadChatModel(s.titleModelPath); loadErr != nil {
+			log.Printf("⚠️  Failed to load title model: %v", loadErr)
+		} else {
+			titleModel := llama.NewLlamaEinoModel(s.libService)
+			response, err = titleModel.Generate(ctx, summaryMessages)
+			modelUsed = "title"
+
+			// Restore main model
+			if currentModel != "" {
+				s.libService.LoadChatModel(currentModel)
+			}
+		}
+	}
+
+	// Try 3: Main chat model (FALLBACK)
+	if response == nil {
+		log.Printf("📋 Using main chat model for incremental summary")
+		response, err = s.llamaModel.Generate(ctx, summaryMessages)
+		modelUsed = "main"
+	}
+
+	if err != nil {
+		return "", fmt.Errorf("failed to generate incremental summary: %w", err)
+	}
+
+	// Clean up response
+	summary := strings.TrimSpace(response.Content)
+
+	// Strip <think> tags if present
+	if strings.Contains(summary, "<think>") {
+		log.Printf("⚠️  WARNING: Incremental summary contains <think> tags (model: %s), stripping...", modelUsed)
+		summary = stripThinkTags(summary)
+	}
+
+	if summary == "" {
+		return "", fmt.Errorf("empty incremental summary generated")
+	}
+
+	log.Printf("✅ Incremental summary generated using %s model (%d chars)", modelUsed, len(summary))
+	return summary, nil
 }

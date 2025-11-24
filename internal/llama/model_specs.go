@@ -268,6 +268,80 @@ func validateGGUFFile(filePath string) error {
 }
 
 // ============================================================================
+// Utility/Lightweight Model Functions (for Summary, Title, etc.)
+// ============================================================================
+
+// GetRecommendedUtilityModels returns recommended small models for utility tasks
+// These are optimized for:
+// - Summary generation (compress old messages)
+// - Title generation (create conversation titles)
+// - Quick text processing tasks
+// All models are non-reasoning (no <think> tags) and lightweight (<1GB)
+func GetRecommendedUtilityModels() []QwenModelSpec {
+	return []QwenModelSpec{
+		{
+			Name:         "llama-3.2-1b-instruct-q4_k_m",
+			URL:          "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf",
+			Quantization: "Q4_K_M",
+			Parameters:   "1b",
+			MinRAM:       2,
+			Size:         697000000, // ~697 MB
+			Description:  "Llama 3.2 1B - BEST for summary/title (fast, no <think> tags, good quality)",
+		},
+		{
+			Name:         "llama-3.2-1b-instruct-q5_k_m",
+			URL:          "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q5_K_M.gguf",
+			Quantization: "Q5_K_M",
+			Parameters:   "1b",
+			MinRAM:       2,
+			Size:         810000000, // ~810 MB
+			Description:  "Llama 3.2 1B Q5 - Better quality than Q4, slightly slower",
+		},
+		{
+			Name:         "llama-3.2-3b-instruct-q4_k_m",
+			URL:          "https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+			Quantization: "Q4_K_M",
+			Parameters:   "3b",
+			MinRAM:       4,
+			Size:         1900000000, // ~1.9 GB
+			Description:  "Llama 3.2 3B - Higher quality, good for systems with more RAM",
+		},
+		{
+			Name:         "mistral-7b-instruct-q4_k_m",
+			URL:          "https://huggingface.co/bartowski/Mistral-7B-Instruct-v0.3-GGUF/resolve/main/Mistral-7B-Instruct-v0.3-Q4_K_M.gguf",
+			Quantization: "Q4_K_M",
+			Parameters:   "7b",
+			MinRAM:       8,
+			Size:         4370000000, // ~4.37 GB
+			Description:  "Mistral 7B - Alternative, excellent quality (but larger)",
+		},
+	}
+}
+
+// SelectOptimalUtilityModel selects the best small model for utility tasks
+// Prefers: Llama 3.2 1B (fastest, no reasoning overhead) > Llama 3B > Mistral
+// Returns the smallest model that fits in RAM, or nil if none available
+func SelectOptimalUtilityModel(availableRAM int64) *QwenModelSpec {
+	models := GetRecommendedUtilityModels()
+
+	// Select the smallest model that fits (utility tasks don't need large models)
+	// Priority: 1B > 3B > 7B
+	for _, model := range models {
+		if model.MinRAM <= availableRAM {
+			log.Printf("📦 Selected utility model: %s (%s, %s) - requires %dGB RAM (system has %dGB)",
+				model.Name, model.Parameters, model.Quantization,
+				model.MinRAM, availableRAM)
+			return &model
+		}
+	}
+
+	// If even smallest model doesn't fit, return nil
+	log.Printf("⚠️  No utility model fits in %dGB RAM (minimum required: %dGB)",
+		availableRAM, models[0].MinRAM)
+	return nil
+}
+
+// ============================================================================
 // Embedding Model Functions
 // ============================================================================
 

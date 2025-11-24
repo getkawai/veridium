@@ -320,3 +320,73 @@ func SuggestModeForHardware(specs *llama.HardwareSpecs) ReasoningMode {
 	// Default to disabled (non-reasoning) for lower-end hardware
 	return ReasoningDisabled
 }
+
+// GetSummaryThreshold returns when to trigger auto-summarization (in turns)
+// Returns 0 if mode doesn't support summarization
+func (rc ReasoningConfig) GetSummaryThreshold() int {
+	switch rc.Mode {
+	case ReasoningDisabled:
+		// Most efficient mode - can handle long conversations
+		// Trigger summary after 10 turns (20 messages)
+		// Token estimate: ~4,800 tokens (29% of 16K context) ✅
+		return 10
+
+	case ReasoningEnabled:
+		// Balanced mode - moderate token usage
+		// Trigger summary after 5 turns (10 messages)
+		// Token estimate: ~2,400 tokens (15% of 16K context) ✅
+		return 5
+
+	case ReasoningVerbose:
+		// High token usage - very short conversations
+		// NO summary needed (3-5 turns max)
+		return 0
+
+	default:
+		return 8
+	}
+}
+
+// GetSummaryStrategy returns the summary strategy description
+func (rc ReasoningConfig) GetSummaryStrategy() string {
+	switch rc.Mode {
+	case ReasoningDisabled:
+		return "Auto-summarize after 10 turns (~4,800 tokens), keep last 20 messages"
+	case ReasoningEnabled:
+		return "Auto-summarize after 5 turns (~2,400 tokens), keep last 12 messages"
+	case ReasoningVerbose:
+		return "No summarization needed (short conversations only)"
+	default:
+		return "Auto-summarize after 8 turns (~3,840 tokens), keep last 16 messages"
+	}
+}
+
+// GetIncrementalSummaryThreshold returns when to trigger incremental re-summarization
+// This is used when a summary already exists and we want to update it with new messages
+func (rc ReasoningConfig) GetIncrementalSummaryThreshold() int {
+	switch rc.Mode {
+	case ReasoningDisabled:
+		// Re-summarize every 10 new turns (same as initial threshold)
+		return 10
+
+	case ReasoningEnabled:
+		// Re-summarize every 5 new turns (same as initial threshold)
+		return 5
+
+	case ReasoningVerbose:
+		// No incremental summary for verbose mode
+		return 0
+
+	default:
+		return 8
+	}
+}
+
+// ShouldSummarize checks if summarization should be triggered based on turn count
+func (rc ReasoningConfig) ShouldSummarize(turnCount int) bool {
+	threshold := rc.GetSummaryThreshold()
+	if threshold == 0 {
+		return false // Mode doesn't support summarization
+	}
+	return turnCount >= threshold
+}
