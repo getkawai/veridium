@@ -184,6 +184,18 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*ChatResp
 		}
 	}
 
+	// Validate model for current reasoning mode and auto-switch if needed
+	if err := s.ValidateModelForReasoningMode(); err != nil {
+		log.Printf("⚠️  Model mismatch detected: %v", err)
+		log.Printf("🔄 Auto-switching to recommended model...")
+		if switchErr := s.SwitchToRecommendedModel(); switchErr != nil {
+			log.Printf("❌ Failed to switch model: %v", switchErr)
+			log.Printf("⚠️  Continuing with current model, but expect suboptimal performance")
+		} else {
+			log.Printf("✅ Successfully switched to recommended model")
+		}
+	}
+
 	// Set TopicID from request (may be auto-created later)
 	currentTopicID := req.TopicID
 	if currentTopicID != "" {
@@ -303,6 +315,33 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*ChatResp
 		},
 	}
 	session.Messages = append(session.Messages, assistantMsg)
+
+	// Monitor context usage and provide warnings/recommendations
+	if usage != nil && usage.TotalTokens > 0 {
+		contextSize := 16384 // Current context window size
+		contextUsage := float64(usage.TotalTokens) / float64(contextSize)
+		turnCount := len(session.Messages) / 2 // Approximate turn count (user + assistant pairs)
+
+		log.Printf("📊 Context usage: %d/%d tokens (%.1f%%) after %d turns",
+			usage.TotalTokens, contextSize, contextUsage*100, turnCount)
+
+		// Warning at 50% usage
+		if contextUsage > 0.5 && contextUsage <= 0.8 {
+			log.Printf("⚠️  Context usage > 50%%. Consider switching to more efficient reasoning mode.")
+			if s.reasoningConfig.Mode != ReasoningDisabled {
+				log.Printf("💡 Recommendation: Switch to ReasoningDisabled (Llama 3.2) for longer conversations")
+			}
+		}
+
+		// Critical warning at 80% usage
+		if contextUsage > 0.8 {
+			log.Printf("🚨 Context usage > 80%% Conversation may become unstable.")
+			log.Printf("💡 Recommendations:")
+			log.Printf("   1. Switch to ReasoningDisabled mode")
+			log.Printf("   2. Summarize and truncate old messages")
+			log.Printf("   3. Start a new conversation")
+		}
+	}
 
 	// Phase 4: Generate topic title after first response
 	// If we already created a placeholder topic, update it with LLM-generated title

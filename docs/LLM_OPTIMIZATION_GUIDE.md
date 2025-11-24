@@ -491,7 +491,7 @@ func selectReasoningMode(turnCount int, contextUsage float64) ReasoningMode {
 
 ### 3. Context Management
 
-**Monitor context usage:**
+**Monitor context usage (✅ Auto-implemented in Chat method):**
 ```go
 if contextUsage > 0.5 {
     log.Warn("Conversation getting long")
@@ -504,6 +504,8 @@ if contextUsage > 0.8 {
     summarizeAndTruncate()
 }
 ```
+
+**Note:** Context usage monitoring is now automatically performed after every response generation with warnings at 50% and 80% thresholds.
 
 ### 4. Model Selection
 
@@ -548,7 +550,7 @@ interface UserSettings {
 
 ### 7. Error Handling
 
-**Graceful degradation:**
+**Graceful degradation (✅ Auto-implemented in Chat method):**
 ```go
 err := agentService.ValidateModelForReasoningMode()
 if err != nil {
@@ -556,6 +558,8 @@ if err != nil {
     agentService.SwitchToRecommendedModel()
 }
 ```
+
+**Note:** This validation and auto-switching is now automatically performed at the start of every `Chat()` call.
 
 ---
 
@@ -573,9 +577,13 @@ EinoAdapterBuffer = 65536   // 64KB
 
 // Reasoning mode
 Mode = ReasoningDisabled    // Non-reasoning by default
-StripThinkTags = true       // Always strip
+StripThinkTags = false      // Disabled - rely on model selection
 PreferredNonReasoning = "llama"  // Llama 3.2
 PreferredReasoning = "qwen"      // Qwen3
+
+// Auto-validation and monitoring
+AutoValidateModel = true    // Validate and switch model on every Chat() call
+MonitorContextUsage = true  // Monitor and warn about context usage
 ```
 
 ### Performance Expectations
@@ -691,10 +699,12 @@ agentService.SwitchToRecommendedModel()
 
 ### Next Steps
 
-1. Add frontend UI for reasoning mode toggle
-2. Implement automatic mode switching based on conversation length
-3. Add performance metrics tracking
-4. Consider implementing context window sliding for very long conversations
+1. ✅ **Implemented:** Model validation and auto-switching on every Chat() call
+2. ✅ **Implemented:** Context usage monitoring with warnings at 50% and 80%
+3. ⏳ **Pending:** Add frontend UI for reasoning mode toggle
+4. ⏳ **Pending:** Implement automatic mode switching based on conversation length
+5. ⏳ **Pending:** Add performance metrics tracking dashboard
+6. ⏳ **Pending:** Consider implementing context window sliding for very long conversations
 
 ---
 
