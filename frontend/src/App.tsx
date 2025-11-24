@@ -7,10 +7,8 @@ import { useChatStore } from './store/chat';
 
 function App() {
   useEffect(() => {
-    Events.On('time', (timeValue: any) => {
-    });
-
-    Events.On('chat:topic:updated', (data: any) => {
+    Events.On('chat:topic:updated', (ev: any) => {
+      const data = ev.data;
       if (data && data.topic_id && data.title) {
         useChatStore.getState().internal_dispatchTopic({
           type: 'updateTopic',
