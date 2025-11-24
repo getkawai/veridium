@@ -60,6 +60,9 @@ type AgentChatService struct {
 	// Reasoning mode configuration
 	reasoningConfig ReasoningConfig // Controls reasoning behavior
 
+	// Title generation: use separate small & fast model for efficiency
+	titleModelPath string // Path to title generation model (optional, falls back to main model)
+
 	// Session management (hybrid: DB + in-memory cache)
 	sessions      map[string]*AgentSession // In-memory cache for active sessions
 	sessionsMutex sync.RWMutex
@@ -140,7 +143,10 @@ func NewAgentChatService(
 	llamaModel := llama.NewLlamaEinoModel(libService)
 	ragWorkflow := NewRAGWorkflow(kbService)
 
-	return &AgentChatService{
+	// Auto-detect smallest model for title generation (prefer 1B models)
+	titleModelPath := detectTitleGenerationModel(libService)
+
+	service := &AgentChatService{
 		app:             app,
 		db:              db,
 		libService:      libService,
@@ -151,8 +157,86 @@ func NewAgentChatService(
 		contextBridge:   contextBridge,
 		threadService:   threadService,
 		reasoningConfig: DefaultReasoningConfig(), // Default: disabled (non-reasoning)
+		titleModelPath:  titleModelPath,
 		sessions:        make(map[string]*AgentSession),
 	}
+
+	if titleModelPath != "" {
+		log.Printf("📝 Auto-detected title model: %s", filepath.Base(titleModelPath))
+	} else {
+		log.Printf("📝 No dedicated title model found, will use main chat model")
+	}
+
+	return service
+}
+
+// detectTitleGenerationModel finds the smallest, fastest model for title generation
+// Prefers 1B non-reasoning models (Llama 3.2 1B, Mistral 1B)
+func detectTitleGenerationModel(libService *llama.LibraryService) string {
+	models, err := libService.GetAvailableModels()
+	if err != nil || len(models) == 0 {
+		return ""
+	}
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	modelsDir := filepath.Join(homeDir, ".llama-cpp", "models")
+
+	var bestModel string
+	var bestScore int
+
+	for _, modelName := range models {
+		modelPath := filepath.Join(modelsDir, modelName)
+		nameLower := strings.ToLower(modelName)
+
+		// Skip embedding models
+		if strings.Contains(nameLower, "embedding") || strings.Contains(nameLower, "embed") {
+			continue
+		}
+
+		// Get file size
+		info, err := os.Stat(modelPath)
+		if err != nil {
+			continue
+		}
+
+		score := 0
+		sizeMB := info.Size() / (1024 * 1024)
+
+		// Prefer SMALLEST models for title generation (faster)
+		if sizeMB < 500 {
+			score += 100 // Tiny models (< 500MB) = 0.5B
+		} else if sizeMB < 1000 {
+			score += 80 // Small models (< 1GB) = 1B
+		} else if sizeMB < 2000 {
+			score += 50 // Medium models (< 2GB) = 1.5B
+		} else {
+			score += 10 // Larger models are too slow for title gen
+		}
+
+		// Prefer non-reasoning models (Llama, Mistral) - no <think> tags
+		if strings.Contains(nameLower, "llama") {
+			score += 50 // Llama is best for quick tasks
+		} else if strings.Contains(nameLower, "mistral") {
+			score += 40 // Mistral is also good
+		} else if strings.Contains(nameLower, "qwen") {
+			score -= 100 // Avoid Qwen for title gen (generates think tags)
+		}
+
+		// Prefer instruct/chat models
+		if strings.Contains(nameLower, "instruct") || strings.Contains(nameLower, "chat") {
+			score += 20
+		}
+
+		if score > bestScore {
+			bestScore = score
+			bestModel = modelPath
+		}
+	}
+
+	return bestModel
 }
 
 // Chat processes a chat request and returns a response
@@ -701,30 +785,35 @@ func (s *AgentChatService) GetSessionHistory(sessionID string) ([]*schema.Messag
 	return session.Messages, nil
 }
 
+// SetTitleModel sets a specific model for title generation
+// Use a small, fast model (e.g., Llama 3.2 1B) for efficiency
+// If not set, falls back to main chat model
+func (s *AgentChatService) SetTitleModel(modelPath string) {
+	s.sessionsMutex.Lock()
+	defer s.sessionsMutex.Unlock()
+	s.titleModelPath = modelPath
+	log.Printf("📝 Title generation model set to: %s", modelPath)
+}
+
 // generateTopicTitle generates a concise title for the conversation using LLM
+// ALWAYS uses non-reasoning model to avoid <think> tags - no stripping needed!
+// Uses separate title model if configured, otherwise falls back to main chat model
 func (s *AgentChatService) generateTopicTitle(ctx context.Context, messages []*schema.Message, locale string) (string, error) {
 	if len(messages) == 0 {
 		return "New Conversation", nil
 	}
 
-	// Build summary prompt similar to frontend chainSummaryTitle
+	// Build summary prompt - simpler now since non-reasoning models don't need warnings about <think> tags
 	systemPrompt := fmt.Sprintf(`You are a professional conversation summarizer. Generate a concise title that captures the essence of the conversation.
 
-CRITICAL RULES:
-- DO NOT use <think> tags or reasoning
-- DO NOT explain your thought process
-- Output ONLY the title text, nothing else
+Rules:
 - Maximum 10 words
 - Maximum 50 characters
 - No punctuation marks, quotes, or special characters
-- Do not wrap the title in quotation marks or any other delimiters
 - Use the language specified by the locale code: %s
-- The title should accurately reflect the main topic of the conversation
-- Keep it short and to the point
+- Output ONLY the title text, nothing else
 
-Example output format: Sleep Functions for Body and Mind
-
-IMPORTANT: Start your response directly with the title. No reasoning, no thinking, no explanations.`, locale)
+Example: Sleep Functions for Body and Mind`, locale)
 
 	// Build conversation text (User messages only)
 	var conversationText string
@@ -740,8 +829,55 @@ IMPORTANT: Start your response directly with the title. No reasoning, no thinkin
 		{Role: schema.User, Content: conversationText},
 	}
 
-	// Generate title using LlamaEinoModel
-	response, err := s.llamaModel.Generate(ctx, titleMessages)
+	// Use separate title model if configured (should be non-reasoning model)
+	var response *schema.Message
+	var err error
+
+	if s.titleModelPath != "" {
+		// Temporarily load title model for generation
+		log.Printf("📝 Using dedicated non-reasoning title model: %s", filepath.Base(s.titleModelPath))
+
+		// Save current model state
+		currentModel := s.libService.GetLoadedChatModel()
+
+		// Load title model (should be non-reasoning: Llama/Mistral)
+		if err := s.libService.LoadChatModel(s.titleModelPath); err != nil {
+			log.Printf("⚠️  Failed to load title model, falling back to main model: %v", err)
+			// Fallback to main model (may be reasoning model, so strip <think> tags)
+			response, err = s.llamaModel.Generate(ctx, titleMessages)
+			if err == nil && strings.Contains(response.Content, "<think>") {
+				log.Printf("⚠️  Main model generated <think> tags in title - this shouldn't happen with proper model selection")
+				response.Content = stripThinkTags(response.Content)
+			}
+		} else {
+			// Generate with title model (non-reasoning, no <think> tags expected)
+			titleModel := llama.NewLlamaEinoModel(s.libService)
+			response, err = titleModel.Generate(ctx, titleMessages)
+
+			// Sanity check: if title model somehow generates <think> tags, warn and strip
+			if err == nil && strings.Contains(response.Content, "<think>") {
+				log.Printf("⚠️  WARNING: Non-reasoning title model generated <think> tags! Model: %s", filepath.Base(s.titleModelPath))
+				response.Content = stripThinkTags(response.Content)
+			}
+
+			// Restore main chat model
+			if currentModel != "" {
+				if restoreErr := s.libService.LoadChatModel(currentModel); restoreErr != nil {
+					log.Printf("⚠️  Failed to restore main model: %v", restoreErr)
+				}
+			}
+		}
+	} else {
+		// No dedicated title model - use main chat model
+		// This may be a reasoning model, so check for <think> tags
+		log.Printf("📝 Using main chat model for title generation (may be reasoning model)")
+		response, err = s.llamaModel.Generate(ctx, titleMessages)
+		if err == nil && strings.Contains(response.Content, "<think>") {
+			log.Printf("⚠️  Main model generated <think> tags in title (expected if using reasoning model)")
+			response.Content = stripThinkTags(response.Content)
+		}
+	}
+
 	if err != nil {
 		return "", fmt.Errorf("failed to generate title: %w", err)
 	}
@@ -749,8 +885,7 @@ IMPORTANT: Start your response directly with the title. No reasoning, no thinkin
 	// Clean up the title
 	title := strings.TrimSpace(response.Content)
 
-	// If title is empty after stripping, try to extract from the original response
-	// Look for quoted text which is often the actual title
+	// If title is empty, try to extract from the original response
 	if title == "" {
 		// Try to find text in quotes
 		quotePattern := regexp.MustCompile(`["']([^"']+)["']`)
@@ -758,11 +893,11 @@ IMPORTANT: Start your response directly with the title. No reasoning, no thinkin
 		if len(matches) > 1 {
 			title = matches[1]
 		} else {
-			// Fallback: use first line after <think> tag
+			// Fallback: use first non-empty line
 			lines := strings.Split(response.Content, "\n")
 			for _, line := range lines {
 				line = strings.TrimSpace(line)
-				if line != "" && !strings.HasPrefix(line, "<think>") && !strings.HasPrefix(line, "</think>") {
+				if line != "" {
 					title = line
 					break
 				}
@@ -775,7 +910,7 @@ IMPORTANT: Start your response directly with the title. No reasoning, no thinkin
 		title = "New Conversation"
 	}
 
-	// Truncate to 50 characters AFTER stripping tags
+	// Truncate to 50 characters
 	if len(title) > 50 {
 		title = title[:50]
 	}
@@ -848,29 +983,41 @@ func (s *AgentChatService) createTopicForSessionSync(ctx context.Context, sessio
 // updateTopicTitle updates an existing topic with LLM-generated title
 // Phase 4 FIX: Used to update placeholder topic with meaningful title after first response
 func (s *AgentChatService) updateTopicTitle(ctx context.Context, topicID, userID string, messages []*schema.Message) error {
-	// Generate title (default locale: en-US)
-	title, err := s.generateTopicTitle(ctx, messages, "en-US")
-	if err != nil {
-		log.Printf("⚠️  Warning: Failed to generate topic title: %v", err)
-		title = "New Conversation"
-	}
+	// Clone messages for background processing (avoid race conditions)
+	messagesCopy := make([]*schema.Message, len(messages))
+	copy(messagesCopy, messages)
 
-	// Update topic title in database
-	now := time.Now().UnixMilli()
-	_, err = s.db.Queries().UpdateTopic(ctx, db.UpdateTopicParams{
-		Title:          sql.NullString{String: title, Valid: true},
-		HistorySummary: sql.NullString{}, // Keep existing
-		Metadata:       sql.NullString{}, // Keep existing
-		UpdatedAt:      now,
-		ID:             topicID,
-		UserID:         userID,
-	})
+	// Generate title in BACKGROUND to avoid blocking chat response
+	// Model loading can take 2-5 seconds, so we don't want to block
+	go func() {
+		log.Printf("🔄 Generating topic title in background for topic %s...", topicID)
 
-	if err != nil {
-		return fmt.Errorf("failed to update topic title: %w", err)
-	}
+		// Generate title (default locale: en-US)
+		title, err := s.generateTopicTitle(context.Background(), messagesCopy, "en-US")
+		if err != nil {
+			log.Printf("⚠️  Warning: Failed to generate topic title: %v", err)
+			title = "New Conversation"
+		}
 
-	log.Printf("✅ Updated topic %s with title: %s", topicID, title)
+		// Update topic title in database
+		now := time.Now().UnixMilli()
+		_, err = s.db.Queries().UpdateTopic(context.Background(), db.UpdateTopicParams{
+			Title:          sql.NullString{String: title, Valid: true},
+			HistorySummary: sql.NullString{}, // Keep existing
+			Metadata:       sql.NullString{}, // Keep existing
+			UpdatedAt:      now,
+			ID:             topicID,
+			UserID:         userID,
+		})
+
+		if err != nil {
+			log.Printf("⚠️  Failed to update topic title in DB: %v", err)
+		} else {
+			log.Printf("✅ Updated topic %s with title: %s", topicID, title)
+		}
+	}()
+
+	// Return immediately - title will be updated in background
 	return nil
 }
 
@@ -892,14 +1039,7 @@ func (s *AgentChatService) createTopicForSessionWithTitle(ctx context.Context, s
 		return "", nil
 	}
 
-	// Generate title (default locale: en-US)
-	title, err := s.generateTopicTitle(ctx, messages, "en-US")
-	if err != nil {
-		log.Printf("⚠️  Warning: Failed to generate topic title: %v", err)
-		title = "New Conversation"
-	}
-
-	// Create topic in database
+	// Create topic in database with placeholder title first (non-blocking)
 	topicID := uuid.New().String()
 	now := time.Now().UnixMilli()
 
@@ -908,7 +1048,7 @@ func (s *AgentChatService) createTopicForSessionWithTitle(ctx context.Context, s
 
 	_, err = s.db.Queries().CreateTopic(ctx, db.CreateTopicParams{
 		ID:             topicID,
-		Title:          sql.NullString{String: title, Valid: true},
+		Title:          sql.NullString{String: "New Conversation", Valid: true}, // Placeholder
 		Favorite:       0,
 		SessionID:      sessionIDForDB,
 		GroupID:        sql.NullString{},
@@ -923,6 +1063,41 @@ func (s *AgentChatService) createTopicForSessionWithTitle(ctx context.Context, s
 	if err != nil {
 		return "", fmt.Errorf("failed to create topic: %w", err)
 	}
+
+	// Generate title in BACKGROUND to avoid blocking (model loading can take 2-5 seconds)
+	messagesCopy := make([]*schema.Message, len(messages))
+	copy(messagesCopy, messages)
+
+	topicIDCopy := topicID
+	userIDCopy := userID
+
+	go func() {
+		log.Printf("🔄 Generating title in background for new topic %s...", topicIDCopy)
+
+		// Generate title (default locale: en-US)
+		title, err := s.generateTopicTitle(context.Background(), messagesCopy, "en-US")
+		if err != nil {
+			log.Printf("⚠️  Warning: Failed to generate topic title: %v", err)
+			title = "New Conversation"
+		}
+
+		// Update topic title in database
+		now := time.Now().UnixMilli()
+		_, err = s.db.Queries().UpdateTopic(context.Background(), db.UpdateTopicParams{
+			Title:          sql.NullString{String: title, Valid: true},
+			HistorySummary: sql.NullString{}, // Keep existing
+			Metadata:       sql.NullString{}, // Keep existing
+			UpdatedAt:      now,
+			ID:             topicIDCopy,
+			UserID:         userIDCopy,
+		})
+
+		if err != nil {
+			log.Printf("⚠️  Failed to update topic title in DB: %v", err)
+		} else {
+			log.Printf("✅ Updated new topic %s with title: %s", topicIDCopy, title)
+		}
+	}()
 
 	return topicID, nil
 }

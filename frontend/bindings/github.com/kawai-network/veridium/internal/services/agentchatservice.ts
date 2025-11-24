@@ -86,6 +86,15 @@ export function SetReasoningMode(mode: $models.ReasoningMode): $CancellablePromi
 }
 
 /**
+ * SetTitleModel sets a specific model for title generation
+ * Use a small, fast model (e.g., Llama 3.2 1B) for efficiency
+ * If not set, falls back to main chat model
+ */
+export function SetTitleModel(modelPath: string): $CancellablePromise<void> {
+    return $Call.ByID(468930904, modelPath);
+}
+
+/**
  * SwitchToRecommendedModel loads the recommended model for current reasoning mode
  */
 export function SwitchToRecommendedModel(): $CancellablePromise<void> {

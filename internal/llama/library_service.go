@@ -105,32 +105,34 @@ func (s *LibraryService) initializeInBackground() {
 		}
 	}()
 
-	// Step 4: Auto-load chat model if available
-	s.initOnce.Do(func() {
-		models, err := s.GetAvailableModels()
-		if err != nil {
-			log.Printf("⚠️  Failed to check available models: %v", err)
-			return
-		}
-
-		if len(models) == 0 {
-			log.Println("⚠️  No GGUF models found. Auto-downloading...")
-			if err := s.AutoDownloadRecommendedModel(); err != nil {
-				log.Printf("⚠️  Failed to auto-download model: %v", err)
+	// Step 4: Auto-load chat model if available (in BACKGROUND to avoid blocking UI)
+	go func() {
+		s.initOnce.Do(func() {
+			models, err := s.GetAvailableModels()
+			if err != nil {
+				log.Printf("⚠️  Failed to check available models: %v", err)
 				return
 			}
-			models, _ = s.GetAvailableModels()
-		}
 
-		if len(models) > 0 {
-			log.Printf("✅ Found %d model(s), auto-loading first model...", len(models))
-			if err := s.LoadChatModel(""); err != nil {
-				log.Printf("⚠️  Failed to auto-load chat model: %v", err)
-			} else {
-				log.Println("✅ Chat model loaded and ready!")
+			if len(models) == 0 {
+				log.Println("⚠️  No GGUF models found. Auto-downloading...")
+				if err := s.AutoDownloadRecommendedModel(); err != nil {
+					log.Printf("⚠️  Failed to auto-download model: %v", err)
+					return
+				}
+				models, _ = s.GetAvailableModels()
 			}
-		}
-	})
+
+			if len(models) > 0 {
+				log.Printf("✅ Found %d model(s), auto-loading first model...", len(models))
+				if err := s.LoadChatModel(""); err != nil {
+					log.Printf("⚠️  Failed to auto-load chat model: %v", err)
+				} else {
+					log.Println("✅ Chat model loaded and ready!")
+				}
+			}
+		})
+	}()
 }
 
 // InitializeLibrary loads the llama.cpp shared library
@@ -714,6 +716,8 @@ func (s *LibraryService) AutoDownloadRecommendedVLProjector() error {
 }
 
 // selectBestModel automatically selects the best available model
+// For non-reasoning mode: prefer Llama 3.2 (non-reasoning models)
+// For reasoning mode: prefer Qwen3 (reasoning models)
 func (s *LibraryService) selectBestModel() (string, error) {
 	modelsDir := s.manager.GetModelsDirectory()
 
@@ -770,7 +774,8 @@ func (s *LibraryService) selectBestModel() (string, error) {
 		return "", fmt.Errorf("no GGUF models found in %s", modelsDir)
 	}
 
-	// Selection strategy: prefer larger, higher quality models
+	// Selection strategy: prefer non-reasoning models (Llama, Mistral) over reasoning models (Qwen)
+	// Reasoning models should only be used when explicitly requested
 	var bestModel string
 	var bestScore int
 
@@ -806,11 +811,14 @@ func (s *LibraryService) selectBestModel() (string, error) {
 			score += 30
 		}
 
-		// Prefer Mistral over Qwen (Mistral generally better quality)
-		if strings.Contains(nameLower, "mistral") {
-			score += 20
+		// CRITICAL: Prefer non-reasoning models (Llama, Mistral) by default
+		// Reasoning models (Qwen) generate <think> tags which should be avoided in default mode
+		if strings.Contains(nameLower, "llama") {
+			score += 100 // Llama is best for non-reasoning (no think tags)
+		} else if strings.Contains(nameLower, "mistral") {
+			score += 80 // Mistral is also good for non-reasoning
 		} else if strings.Contains(nameLower, "qwen") {
-			score += 10
+			score -= 50 // Penalize Qwen (reasoning model) - only use if explicitly requested
 		}
 
 		if score > bestScore {
