@@ -213,13 +213,17 @@ export const chatThreadMessage: StateCreator<
       const userId = getUserId();
       const backendAgentChat = await import('@/services/backendAgentChat').then(m => m.backendAgentChat);
 
-      await backendAgentChat.sendMessage({
+      const requestParams = {
         session_id: activeId,
         user_id: userId,
         message: message,
         topic_id: activeTopicId,
         thread_id: finalThreadId,
-      });
+        stream: true, // Enable streaming
+      };
+
+      console.log('[Thread] Sending message with params:', requestParams);
+      await backendAgentChat.sendMessage(requestParams);
 
       // 3. Cleanup temp messages BEFORE refreshing to avoid duplicates
       // We use internal_dispatchMessage to remove them from the store immediately

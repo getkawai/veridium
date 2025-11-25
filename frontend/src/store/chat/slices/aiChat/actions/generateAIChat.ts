@@ -303,9 +303,18 @@ export const generateAIChat: StateCreator<
 
       if (data.type === 'start') {
         // Find the latest temporary assistant message
+        // Support both prefixes: 'temp-assistant-' (main chat) and 'tmp_' (thread)
         let tempMsgIndex = -1;
         for (let i = messages.length - 1; i >= 0; i--) {
-          if ((messages[i] as any).loading && messages[i].id.startsWith('temp-assistant-')) {
+          const msg = messages[i];
+          // Check loading state from either message property (main chat) or store state (thread)
+          const isLoading = (msg as any).loading || state.messageLoadingIds.includes(msg.id);
+
+          const isTemp = (msg.id.startsWith('temp-assistant-') || msg.id.startsWith('tmp_')) &&
+            isLoading &&
+            msg.role === 'assistant';
+
+          if (isTemp) {
             tempMsgIndex = i;
             break;
           }
@@ -320,6 +329,8 @@ export const generateAIChat: StateCreator<
           if (!state.chatLoadingIds.includes(data.message_id)) {
             state.chatLoadingIds.push(data.message_id);
           }
+        } else {
+          console.warn('[Stream] Could not find temp assistant message for start event');
         }
       } else if (data.type === 'chunk') {
         // Find message by REAL ID
