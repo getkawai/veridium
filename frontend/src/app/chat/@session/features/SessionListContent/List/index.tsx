@@ -33,11 +33,13 @@ const SessionList = memo<SessionListProps>(({ dataSource, groupId, showAddButton
 
   const switchSession = useSwitchSession();
 
-  const isEmpty = !dataSource || dataSource.length === 0;
+  // Filter out inbox session (which is always present) before checking if empty
+  const nonInboxSessions = dataSource?.filter((session) => session.id !== 'inbox') || [];
+  const isEmpty = nonInboxSessions.length === 0;
   return !isInit ? (
     <SkeletonList />
   ) : !isEmpty ? (
-    dataSource.map(({ id }) => (
+    nonInboxSessions.map(({ id }) => (
       <div className={styles} key={id}>
         <a
           aria-label={id}
