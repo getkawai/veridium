@@ -3,6 +3,7 @@ import ChatInput from './features/ChatInput';
 import ChatList from './features/ChatList';
 import ChatMinimap from './features/ChatMinimap';
 // import ThreadHydration from './features/ThreadHydration';
+import TopicHydration from './features/TopicHydration';
 import ZenModeToast from './features/ZenModeToast';
 
 const ChatConversation = () => {
@@ -10,6 +11,7 @@ const ChatConversation = () => {
 
   return (
     <>
+      <TopicHydration />
       <ZenModeToast />
       <ChatList mobile={isMobile} />
       <ChatInput mobile={isMobile} />

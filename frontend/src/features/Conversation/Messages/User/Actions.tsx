@@ -60,9 +60,17 @@ export const UserActionsBar = memo<UserActionsProps>(({ id, data, index }) => {
     s.openThreadCreator,
     s.resendThreadMessage,
     s.delAndResendThreadMessage,
-  ]);
+  ])
 
   const topic = urlTopic || activeTopicId;
+
+  // Debug logging
+  console.log('[UserActions] Topic detection:', {
+    urlTopic,
+    activeTopicId,
+    finalTopic: topic,
+    hasTopic: !!topic
+  });
 
   const isGroupSession = useSessionStore(sessionSelectors.isCurrentSessionGroupSession);
 

@@ -201,7 +201,7 @@ export const chatTopic: StateCreator<
     const userId = getUserId();
     const newTopicId = crypto.randomUUID();
     const now = Date.now();
-    
+
     await DB.DuplicateTopic({
       id: newTopicId,
       title: toNullString(newTitle),
@@ -210,9 +210,9 @@ export const chatTopic: StateCreator<
       id2: id,
       userId,
     });
-    
+
     console.log('[Topic] Duplicated topic via direct DB', { sourceId: id, newId: newTopicId });
-    
+
     await refreshTopic();
     message.destroy('duplicateTopic');
     message.success(t('duplicateSuccess', { ns: 'topic' }));
@@ -306,16 +306,16 @@ export const chatTopic: StateCreator<
     try {
       const userId = getUserId();
       const dbSessionId = toDbSessionId(containerId);
-      
+
       const dbTopics = await DB.ListTopics({
         userId,
         sessionId: toNullString(dbSessionId),
         limit: 1000,
         offset: 0,
       });
-      
+
       const topics = dbTopics.map(mapTopicFromDB);
-      
+
       console.log('[Topic] Fetched topics via direct DB', { containerId, count: topics.length });
 
       const nextMap = { ...get().topicMaps, [containerId]: topics };
@@ -336,7 +336,7 @@ export const chatTopic: StateCreator<
       console.error('[internal_fetchTopics] Error fetching topics:', error);
     }
   },
-  
+
   /**
    * Search topics by keywords
    * Direct implementation (no SWR)
@@ -349,11 +349,11 @@ export const chatTopic: StateCreator<
 
     try {
       set({ isSearchingTopic: true }, false, n('internal_searchTopics/start'));
-      
+
       const userId = getUserId();
       const searchPattern = `%${keywords}%`;
       const containerId = sessionId || groupId || '';
-      
+
       const dbTopics = await DB.SearchTopicsByTitle({
         userId,
         title: toNullString(searchPattern),
@@ -361,11 +361,11 @@ export const chatTopic: StateCreator<
         sessionId: toNullString(toDbSessionId(sessionId)),
         groupId: toNullString(groupId),
       });
-      
+
       const data = dbTopics.map(mapTopicFromDB);
-      
+
       console.log('[Topic] Searched topics via direct DB', { keywords, count: data.length });
-      
+
       set(
         { searchTopics: data, isSearchingTopic: false },
         false,
@@ -395,6 +395,21 @@ export const chatTopic: StateCreator<
       activeThreadId: get().activeThreadId,
       wasCleared: previousActiveThreadId !== undefined,
     });
+
+    // Sync URL parameter with activeTopicId
+    console.log('[switchTopic] Syncing URL parameter:', { topicId: id });
+    const routerStore = await import('@/store/router').then(m => m.useRouterStore);
+    if (id) {
+      routerStore.getState().setSearchParam('topic', id);
+      console.log('[switchTopic] URL updated with topic:', id);
+    } else {
+      routerStore.getState().removeSearchParam('topic');
+      console.log('[switchTopic] URL topic parameter removed');
+    }
+
+    // Verify URL was updated
+    const currentParams = routerStore.getState().searchParams;
+    console.log('[switchTopic] Current URL params after sync:', currentParams);
 
     // Reset supervisor todos when switching topics in group chats
     try {
@@ -432,14 +447,14 @@ export const chatTopic: StateCreator<
 
     const userId = getUserId();
     const dbSessionId = toDbSessionId(activeId);
-    
+
     await DB.DeleteTopicsBySession({
       userId,
       sessionId: toNullString(dbSessionId),
     });
-    
+
     console.log('[Topic] Deleted session topics via direct DB', { sessionId: activeId });
-    
+
     await refreshTopic();
 
     // switch to default topic
@@ -450,12 +465,12 @@ export const chatTopic: StateCreator<
     const { switchTopic, refreshTopic } = get();
 
     const userId = getUserId();
-    
+
     await DB.DeleteTopicsByGroup({
       userId,
       groupId: toNullString(groupId),
     });
-    
+
     console.log('[Topic] Deleted group topics via direct DB', { groupId });
 
     await refreshTopic();
@@ -467,11 +482,11 @@ export const chatTopic: StateCreator<
     const { refreshTopic } = get();
 
     const userId = getUserId();
-    
+
     await DB.DeleteAllTopics(userId);
-    
+
     console.log('[Topic] Deleted all topics via direct DB');
-    
+
     await refreshTopic();
   },
   removeTopic: async (id) => {
@@ -482,9 +497,9 @@ export const chatTopic: StateCreator<
     await messageService.removeMessagesByAssistant(activeId, id);
 
     const userId = getUserId();
-    
+
     await DB.DeleteTopic({ id, userId });
-    
+
     console.log('[Topic] Deleted topic via direct DB', { id });
     await refreshTopic();
 
@@ -496,14 +511,14 @@ export const chatTopic: StateCreator<
     const topics = topicSelectors.currentUnFavTopics(get());
 
     const userId = getUserId();
-    
+
     // Delete all unstarred topics
     await Promise.all(
       topics.map((topic) => DB.DeleteTopic({ id: topic.id, userId }))
     );
-    
+
     console.log('[Topic] Deleted unstarred topics via direct DB', { count: topics.length });
-    
+
     await refreshTopic();
 
     // 切换到默认 topic
@@ -517,7 +532,7 @@ export const chatTopic: StateCreator<
       'updateTopicTitleInSummary',
     );
   },
-  
+
   /**
    * Refresh topics from database - direct fetch without SWR cache invalidation
    */
@@ -527,7 +542,7 @@ export const chatTopic: StateCreator<
 
     try {
       console.debug('[refreshTopic] Fetching topics for activeId:', activeId);
-      
+
       const userId = getUserId();
       const dbTopics = await DB.ListTopics({
         userId,
@@ -536,7 +551,7 @@ export const chatTopic: StateCreator<
         offset: 0,
       });
       const topics = dbTopics.map(mapTopicFromDB);
-      
+
       console.debug('[refreshTopic] Fetched topics:', topics.length, 'topics');
 
       const nextMap = { ...get().topicMaps, [activeId]: topics };
@@ -566,10 +581,10 @@ export const chatTopic: StateCreator<
     get().internal_dispatchTopic({ type: 'updateTopic', id, value: data });
 
     get().internal_updateTopicLoading(id, true);
-    
+
     const userId = getUserId();
     const now = Date.now();
-    
+
     await DB.UpdateTopic({
       id,
       userId,
@@ -578,27 +593,27 @@ export const chatTopic: StateCreator<
       metadata: data.metadata ? toNullString(JSON.stringify(data.metadata)) : undefined,
       updatedAt: now,
     } as any);
-    
+
     console.log('[Topic] Updated topic via direct DB', { id });
-    
+
     await get().refreshTopic();
     get().internal_updateTopicLoading(id, false);
   },
   internal_createTopic: async (params) => {
     const tmpId = Date.now().toString();
     console.debug('[internal_createTopic] Creating topic with tmpId:', tmpId, 'params:', params);
-    
+
     get().internal_dispatchTopic(
       { type: 'addTopic', value: { ...params, id: tmpId } },
       'internal_createTopic',
     );
 
     get().internal_updateTopicLoading(tmpId, true);
-    
+
     const userId = getUserId();
     const topicId = crypto.randomUUID();
     const now = Date.now();
-    
+
     await DB.CreateTopic({
       id: topicId,
       title: toNullString(params.title || 'Untitled'),
@@ -612,7 +627,7 @@ export const chatTopic: StateCreator<
       createdAt: now,
       updatedAt: now,
     });
-    
+
     // Update messages with topic ID
     if (params.messages && params.messages.length > 0) {
       await DB.UpdateMessagesTopicId({
@@ -621,9 +636,9 @@ export const chatTopic: StateCreator<
         ids: params.messages,
       });
     }
-    
+
     console.log('[Topic] Created topic via direct DB', { topicId });
-    
+
     get().internal_updateTopicLoading(tmpId, false);
 
     get().internal_updateTopicLoading(topicId, true);
