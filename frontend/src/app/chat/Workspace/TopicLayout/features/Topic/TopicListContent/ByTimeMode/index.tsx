@@ -18,6 +18,11 @@ const ByTimeMode = memo(() => {
   const [activeTopicId, activeThreadId] = useChatStore((s) => [s.activeTopicId, s.activeThreadId]);
   const groupTopics = useChatStore(topicSelectors.groupedTopicsSelector, isEqual);
 
+  // MASIH DIGUNAKAN: Membuat struktur data untuk menampilkan daftar topic dalam mode "By Time"
+  // - Menambahkan topic "default" di index 0 sebagai placeholder untuk temporary chat (chat yang belum disimpan ke topic)
+  // - Topic "default" ini akan ditampilkan dengan DefaultContent component (icon MessageSquareDashed + label "默认话题" + tag "Temp")
+  // - Ketika user belum membuat topic (activeTopicId === null), topic "default" akan menjadi active
+  // - Digunakan oleh GroupedVirtuoso untuk rendering list dengan grouping berdasarkan waktu
   const { groups, groupCounts, topics } = useMemo(() => {
     return {
       groupCounts: [1, ...groupTopics.map((group) => group.children.length)],

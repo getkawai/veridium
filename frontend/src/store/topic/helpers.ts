@@ -8,7 +8,6 @@
 import { INBOX_SESSION_ID } from '@/const/session';
 import {
   getNullableString,
-  getNullableInt,
   toNullString,
   toNullJSON,
   toNullInt,
@@ -26,7 +25,7 @@ export const getUserId = () => DEFAULT_USER_ID;
  * Convert sessionId to DB format (inbox -> null)
  */
 export const toDbSessionId = (sessionId?: string | null) => {
-  return sessionId === INBOX_SESSION_ID ? null : sessionId;
+  return sessionId;
 };
 
 /**
@@ -59,7 +58,7 @@ export const mapTopicFromDB = (dbTopic: any) => {
  */
 export const topicToCreateParams = (data: any, userId: string) => {
   const now = Date.now();
-  
+
   return {
     id: data.id || crypto.randomUUID(),
     title: toNullString(data.title || 'Untitled'),
@@ -80,7 +79,7 @@ export const topicToCreateParams = (data: any, userId: string) => {
  */
 export const topicToUpdateParams = (id: string, data: any, userId: string) => {
   const now = Date.now();
-  
+
   return {
     id,
     userId,

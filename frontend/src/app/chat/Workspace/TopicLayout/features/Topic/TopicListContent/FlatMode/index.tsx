@@ -17,6 +17,11 @@ const FlatMode = memo(() => {
   const [activeTopicId] = useChatStore((s) => [s.activeTopicId]);
   const activeTopicList = useChatStore(topicSelectors.displayTopics, isEqual);
 
+  // MASIH DIGUNAKAN: Membuat array topics untuk mode "Flat" (tanpa grouping)
+  // - Menambahkan topic "default" di index 0 sebagai placeholder untuk temporary chat (chat yang belum disimpan ke topic)
+  // - Topic "default" ini akan ditampilkan dengan DefaultContent component (icon MessageSquareDashed + label "默认话题" + tag "Temp")
+  // - Ketika user belum membuat topic (activeTopicId === null), topic "default" akan menjadi active
+  // - Digunakan oleh Virtuoso untuk rendering flat list tanpa grouping
   const topics = useMemo(
     () => [
       { favorite: false, id: 'default', title: t('defaultTitle') } as ChatTopic,

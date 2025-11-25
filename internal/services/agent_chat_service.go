@@ -1078,28 +1078,44 @@ func (s *AgentChatService) createTopicForSessionSync(ctx context.Context, sessio
 // updateTopicTitle updates an existing topic with LLM-generated title
 // Phase 4 FIX: Used to update placeholder topic with meaningful title after first response
 func (s *AgentChatService) updateTopicTitle(ctx context.Context, topicID, userID string, messages []*schema.Message) error {
-	// Clone messages for background processing (avoid race conditions)
+	// Create a copy of messages to avoid race conditions
 	messagesCopy := make([]*schema.Message, len(messages))
 	copy(messagesCopy, messages)
 
-	// Generate title in BACKGROUND to avoid blocking chat response
-	// Model loading can take 2-5 seconds, so we don't want to block
+	// Run in background
 	go func() {
-		log.Printf("🔄 Generating topic title in background for topic %s...", topicID)
+		// Add a small delay to ensure main chat request finishes and releases model resources
+		time.Sleep(2 * time.Second)
+
+		log.Printf("🔄 Generating title in background for topic %s...", topicID)
+
+		// Create context with timeout
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+		defer cancel()
 
 		// Generate title (default locale: en-US)
-		title, err := s.generateTopicTitle(context.Background(), messagesCopy, "en-US")
+		title, err := s.generateTopicTitle(ctx, messagesCopy, "en-US")
 		if err != nil {
 			log.Printf("⚠️  Warning: Failed to generate topic title: %v", err)
 			title = "New Conversation"
 		}
 
+		// Fetch existing topic first to preserve history_summary and metadata
+		existingTopic, err := s.db.Queries().GetTopic(ctx, db.GetTopicParams{
+			ID:     topicID,
+			UserID: userID,
+		})
+		if err != nil {
+			log.Printf("⚠️  Failed to fetch topic for update: %v", err)
+			return
+		}
+
 		// Update topic title in database
 		now := time.Now().UnixMilli()
-		_, err = s.db.Queries().UpdateTopic(context.Background(), db.UpdateTopicParams{
+		_, err = s.db.Queries().UpdateTopic(ctx, db.UpdateTopicParams{
 			Title:          sql.NullString{String: title, Valid: true},
-			HistorySummary: sql.NullString{}, // Keep existing
-			Metadata:       sql.NullString{}, // Keep existing
+			HistorySummary: existingTopic.HistorySummary, // Preserve existing
+			Metadata:       existingTopic.Metadata,       // Preserve existing
 			UpdatedAt:      now,
 			ID:             topicID,
 			UserID:         userID,

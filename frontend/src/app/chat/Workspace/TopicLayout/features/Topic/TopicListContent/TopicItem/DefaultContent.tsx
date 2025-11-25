@@ -5,6 +5,11 @@ import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 
+// MASIH DIGUNAKAN: Component untuk menampilkan UI dari topic "default" (temporary chat)
+// - Dipanggil dari TopicItem/index.tsx ketika id === undefined (line 75: {!id ? <DefaultContent /> : ...})
+// - Menampilkan icon MessageSquareDashed + text "默认话题" (defaultTitle) + tag "Temp"
+// - Digunakan untuk menandai bahwa chat saat ini belum disimpan ke topic permanen
+// - User bisa klik tombol "Save Topic" untuk mengkonversi temporary chat ini menjadi topic permanen
 const DefaultContent = memo(() => {
   const { t } = useTranslation('topic');
 

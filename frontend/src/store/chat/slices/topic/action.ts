@@ -96,6 +96,13 @@ export const chatTopic: StateCreator<
     }
   },
 
+  // MASIH DIGUNAKAN: Membuat topic baru dengan title default "默认话题" (defaultTitle)
+  // Fungsi ini digunakan untuk:
+  // - Membuat topic baru secara manual (belum ada pemanggilan langsung dari UI saat ini)
+  // - Menggunakan title default dari translation 'defaultTitle'
+  // - Tidak melakukan auto-summary title (berbeda dengan saveToTopic)
+  // - Mengikat semua messages dari temporary chat ke topic yang baru dibuat
+  // Note: Fungsi ini berbeda dengan saveToTopic yang juga melakukan auto-summary title
   createTopic: async (sessionId, groupId) => {
     const { activeId, activeSessionType, internal_createTopic } = get();
 
@@ -114,6 +121,21 @@ export const chatTopic: StateCreator<
     return topicId;
   },
 
+  // MASIH DIGUNAKAN: Menyimpan temporary chat ke topic permanen
+  // Dipanggil dari:
+  // 1. SaveTopic button (features/ChatInput/ActionBar/SaveTopic/index.tsx) melalui openNewTopicOrSaveTopic
+  // 2. Hotkey untuk save topic (HotkeyEnum.SaveTopic)
+  // 
+  // Alur kerja:
+  // 1. Membuat topic baru dengan title default "默认话题" (defaultTitle)
+  // 2. Mengikat semua messages dari temporary chat ke topic yang baru dibuat
+  // 3. Melakukan auto-summary title secara async (menggunakan LLM untuk generate title yang lebih deskriptif)
+  // 4. Membersihkan supervisor todos untuk temporary topic di group session
+  // 
+  // Perbedaan dengan createTopic:
+  // - saveToTopic melakukan auto-summary title (async)
+  // - saveToTopic membersihkan supervisor todos
+  // - saveToTopic lebih sering digunakan dari UI (via SaveTopic button)
   saveToTopic: async (sessionId, groupId) => {
     // if there is no message, stop
     const messages = chatSelectors.activeBaseChats(get());
