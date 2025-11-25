@@ -191,7 +191,7 @@ export const chatThreadMessage: StateCreator<
     }
 
     // 1. Create optimistic user message
-    const tempUserMessageId = get().internal_createTmpMessage({
+    get().internal_createTmpMessage({
       ...newMessage,
       threadId: finalThreadId,
     });
@@ -213,27 +213,15 @@ export const chatThreadMessage: StateCreator<
       const userId = getUserId();
       const backendAgentChat = await import('@/services/backendAgentChat').then(m => m.backendAgentChat);
 
-      const requestParams = {
+      await backendAgentChat.sendMessage({
         session_id: activeId,
         user_id: userId,
         message: message,
         topic_id: activeTopicId,
         thread_id: finalThreadId,
         stream: true, // Enable streaming
-      };
-
-      console.log('[Thread] Sending message with params:', requestParams);
-      await backendAgentChat.sendMessage(requestParams);
-
-      // 3. Cleanup temp messages BEFORE refreshing to avoid duplicates
-      // We use internal_dispatchMessage to remove them from the store immediately
-      get().internal_dispatchMessage({
-        type: 'deleteMessages',
-        ids: [tempUserMessageId, tempAssistantMessageId],
       });
-
-      // 4. Backend has saved both user and assistant messages
-      // Just refresh to get them from DB
+      // Just refresh to get them from DB (this will replace temp messages)
       await get().refreshMessages();
 
       // Auto-generate thread title if this is a new thread
