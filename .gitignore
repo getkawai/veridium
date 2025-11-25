@@ -4,8 +4,8 @@ frontend/dist
 frontend/node_modules
 build/linux/appimage/build
 build/windows/nsis/MicrosoftEdgeWebview2Setup.exe
-data/
+# data/
 frontend/.DS_Store
 .DS_Store
 dev.log
-backend-dev.log
+# backend-dev.log
