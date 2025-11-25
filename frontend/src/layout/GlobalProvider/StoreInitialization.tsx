@@ -9,7 +9,6 @@ import { useFetchAiProviderRuntimeState } from '@/hooks/useFetchAiProviderRuntim
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { useAgentStore } from '@/store/agent';
 import { useGlobalStore } from '@/store/global';
-import { systemStatusSelectors } from '@/store/global/selectors';
 import { useRouterStore } from '@/store/router';
 import { useServerConfigStore } from '@/store/serverConfig';
 import { serverConfigSelectors } from '@/store/serverConfig/selectors';
@@ -30,16 +29,12 @@ const StoreInitialization = memo(() => {
   const { serverConfig } = useServerConfigStore();
 
   const useInitSystemStatus = useGlobalStore((s) => s.useInitSystemStatus);
-  const useInitClientDB = useGlobalStore((s) => s.useInitClientDB);
 
   const useInitInboxAgentStore = useAgentStore((s) => s.useInitInboxAgentStore);
   const useLoadAllAgentConfigs = useAgentStore((s) => s.useLoadAllAgentConfigs);
 
   // init the system preference
   useInitSystemStatus();
-
-  // init the client database (connects to backend-initialized database)
-  useInitClientDB();
 
   // fetch server config
   const useFetchServerConfig = useServerConfigStore((s) => s.useInitServerConfig);
@@ -58,14 +53,13 @@ const StoreInitialization = memo(() => {
    * IMPORTANT: Explicitly convert to boolean to avoid passing null/undefined downstream,
    * which would cause unnecessary API requests with invalid login state.
    */
-  const isDBInited = useGlobalStore(systemStatusSelectors.isDBInited);
-  const isLoginOnInit = isDBInited ? Boolean(enableNextAuth ? isSignedIn : isLogin) : false;
+  const isLoginOnInit = Boolean(enableNextAuth ? isSignedIn : isLogin);
 
   // init inbox agent and default agent config
   useInitInboxAgentStore(isLoginOnInit, serverConfig.defaultAgent?.config);
 
   // batch load all agent configs after sessions are loaded
-  useLoadAllAgentConfigs(isDBInited && isLoginOnInit, isLoginOnInit);
+  useLoadAllAgentConfigs(isLoginOnInit);
 
   // init user provider key vaults
   useFetchAiProviderRuntimeState(isLoginOnInit);

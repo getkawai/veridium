@@ -57,7 +57,7 @@ export interface AgentChatAction {
     isLogin: boolean | undefined,
     defaultAgentConfig?: PartialDeep<LobeAgentConfig>,
   ) => void;
-  useLoadAllAgentConfigs: (isDBInited: boolean, isLogin: boolean) => void;
+  useLoadAllAgentConfigs: (isLogin: boolean) => void;
 }
 
 export const createChatSlice: StateCreator<
@@ -166,9 +166,9 @@ export const createChatSlice: StateCreator<
       const userId = getUserId();
       const dbAgent = await DB.GetAgentBySessionId({ sessionId, userId });
       const data = mapAgentConfigFromDB(dbAgent);
-      
+
       console.log('[Agent] Fetched agent config via direct DB', { sessionId });
-      
+
       get().internal_dispatchAgentMap(sessionId, data, 'fetch');
 
       set(
@@ -208,7 +208,7 @@ export const createChatSlice: StateCreator<
           const userId = getUserId();
           const dbAgent = await DB.GetAgentBySessionId({ sessionId: INBOX_SESSION_ID, userId });
           const data = mapAgentConfigFromDB(dbAgent);
-          
+
           console.log('[Agent] Initialized inbox agent via direct DB');
 
           set(
@@ -235,9 +235,9 @@ export const createChatSlice: StateCreator<
     }, [isLogin, defaultAgentConfig]);
   },
 
-  useLoadAllAgentConfigs: (isDBInited, isLogin) => {
+  useLoadAllAgentConfigs: (isLogin) => {
     useEffect(() => {
-      if (!isDBInited || !isLogin) return;
+      if (!isLogin) return;
       if (get().isAllAgentConfigsLoaded) return; // Only fetch once
 
       const loadAllConfigs = async () => {
@@ -245,18 +245,18 @@ export const createChatSlice: StateCreator<
           const sessionStore = getSessionStoreState();
           const sessions = sessionStore.sessions;
 
-        // Batch load all agent configs
-        // Skip inbox session as it's already handled by useInitInboxAgentStore
-        // This prevents race condition and redundant API calls
-        const configPromises = sessions
-          .filter((s) => s.type === 'agent')
-          .filter((s) => s.id !== INBOX_SESSION_ID)
-          .map((session) =>
-            sessionService
-              .getSessionConfig(session.id)
-              .then((config) => ({ sessionId: session.id, config }))
-              .catch(() => null),
-          );
+          // Batch load all agent configs
+          // Skip inbox session as it's already handled by useInitInboxAgentStore
+          // This prevents race condition and redundant API calls
+          const configPromises = sessions
+            .filter((s) => s.type === 'agent')
+            .filter((s) => s.id !== INBOX_SESSION_ID)
+            .map((session) =>
+              sessionService
+                .getSessionConfig(session.id)
+                .then((config) => ({ sessionId: session.id, config }))
+                .catch(() => null),
+            );
 
           const results = await Promise.all(configPromises);
 
@@ -281,7 +281,7 @@ export const createChatSlice: StateCreator<
       };
 
       loadAllConfigs();
-    }, [isDBInited, isLogin]);
+    }, [isLogin]);
   },
   /* eslint-disable sort-keys-fix/sort-keys-fix */
 
@@ -314,7 +314,7 @@ export const createChatSlice: StateCreator<
 
     const userId = getUserId();
     const now = Date.now();
-    
+
     await DB.UpdateAgent({
       sessionId: id,
       userId,
@@ -330,9 +330,9 @@ export const createChatSlice: StateCreator<
       provider: data.provider ? toNullString(data.provider) : undefined,
       updatedAt: now,
     } as any);
-    
+
     console.log('[Agent] Updated agent config via direct DB', { sessionId: id });
-    
+
     await get().internal_refreshAgentConfig(id);
 
     // refresh sessions to update the agent config if the model has changed
@@ -344,9 +344,9 @@ export const createChatSlice: StateCreator<
       const userId = getUserId();
       const dbAgent = await DB.GetAgentBySessionId({ sessionId: id, userId });
       const data = mapAgentConfigFromDB(dbAgent);
-      
+
       console.log('[Agent] Refreshed agent config via direct DB', { sessionId: id });
-      
+
       get().internal_dispatchAgentMap(id, data, 'refresh');
     } catch (error) {
       console.error('[internal_refreshAgentConfig] Error:', error);
