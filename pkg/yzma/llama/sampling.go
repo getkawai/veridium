@@ -4,8 +4,8 @@ import (
 	"math"
 	"unsafe"
 
-	"github.com/jupiterrider/ffi"
 	"github.com/kawai-network/veridium/pkg/yzma/utils"
+	"github.com/jupiterrider/ffi"
 )
 
 type SamplerType int32
@@ -389,7 +389,6 @@ var (
 
 // NewSampler creates a new sampling chain.
 // The samplers parameter is a list of SamplerType values to include in the chain.
-// The params parameter holds the configuration for each sampler type.
 // The samplers are added in the order they appear in the list.
 // The distribution sampler is always added last.
 // If the model is nil or the samplers list is empty, a zero Sampler is returned.

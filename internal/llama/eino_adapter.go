@@ -302,8 +302,9 @@ func (m *LlamaEinoModel) generateStreaming(ctx context.Context, writer *schema.S
 
 	// Decode prompt tokens
 	batch := llama.BatchGetOne(tokens)
-	if llama.Decode(m.libService.chatContext, batch) != 0 {
-		return fmt.Errorf("failed to decode prompt")
+	errCode, err := llama.Decode(m.libService.chatContext, batch)
+	if err != nil || errCode != 0 {
+		return fmt.Errorf("failed to decode prompt: %w", err)
 	}
 
 	// Send first chunk with role
@@ -360,8 +361,9 @@ func (m *LlamaEinoModel) generateStreaming(ctx context.Context, writer *schema.S
 
 		// Decode the new token
 		nextBatch := llama.BatchGetOne([]llama.Token{token})
-		if llama.Decode(m.libService.chatContext, nextBatch) != 0 {
-			return fmt.Errorf("failed to decode token")
+		errCode, err := llama.Decode(m.libService.chatContext, nextBatch)
+		if err != nil || errCode != 0 {
+			return fmt.Errorf("failed to decode token: %w", err)
 		}
 
 		// Small delay to prevent overwhelming

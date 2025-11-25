@@ -3,8 +3,8 @@ package llama
 import (
 	"unsafe"
 
-	"github.com/jupiterrider/ffi"
 	"github.com/kawai-network/veridium/pkg/yzma/utils"
+	"github.com/jupiterrider/ffi"
 )
 
 var (
@@ -173,7 +173,6 @@ func FlashAttnTypeName(flashAttnType FlashAttentionType) string {
 }
 
 // PrintSystemInfo returns system information as a string.
-// This includes information about the CPU, GPU, memory, and other system details.
 func PrintSystemInfo() string {
 	var result *byte
 	printSystemInfoFunc.Call(unsafe.Pointer(&result))

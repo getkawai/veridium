@@ -36,27 +36,44 @@ func main() {
 	mctxParams := mtmd.ContextParamsDefault()
 	if !*verbose {
 		llama.LogSet(llama.LogSilent())
-		mctxParams.Verbosity = llama.LogLevelContinue
+		mtmd.LogSet(llama.LogSilent())
 	}
 
 	llama.Init()
 	defer llama.BackendFree()
 
 	fmt.Println("Loading model", *modelFile)
-	model := llama.ModelLoadFromFile(*modelFile, llama.ModelDefaultParams())
+	model, err := llama.ModelLoadFromFile(*modelFile, llama.ModelDefaultParams())
+	if err != nil {
+		fmt.Println("unable to load model", err.Error())
+		os.Exit(1)
+	}
 	defer llama.ModelFree(model)
 
 	ctxParams := llama.ContextDefaultParams()
 	ctxParams.NCtx = 4096
 	ctxParams.NBatch = 2048
 
-	lctx := llama.InitFromModel(model, ctxParams)
+	lctx, err := llama.InitFromModel(model, ctxParams)
+	if err != nil {
+		fmt.Println("unable to init context", err.Error())
+		os.Exit(1)
+	}
 	defer llama.Free(lctx)
 
 	vocab := llama.ModelGetVocab(model)
-	// TODO: pass in flags as params to samplers
-	sampler := llama.NewSampler(model, llama.DefaultSamplers)
-	mtmdCtx := mtmd.InitFromFile(*projFile, model, mctxParams)
+	// Create sampler chain
+	sampler := llama.SamplerChainInit(llama.SamplerChainDefaultParams())
+	llama.SamplerChainAdd(sampler, llama.SamplerInitTopK(40))
+	llama.SamplerChainAdd(sampler, llama.SamplerInitTopP(0.95, 1))
+	llama.SamplerChainAdd(sampler, llama.SamplerInitTempExt(0.8, 0, 1.0))
+	llama.SamplerChainAdd(sampler, llama.SamplerInitDist(llama.DefaultSeed))
+	
+	mtmdCtx, err := mtmd.InitFromFile(*projFile, model, mctxParams)
+	if err != nil {
+		fmt.Println("unable to init mtmd context", err.Error())
+		os.Exit(1)
+	}
 	defer mtmd.Free(mtmdCtx)
 
 	if *template == "" {

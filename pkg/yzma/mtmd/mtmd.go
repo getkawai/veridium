@@ -1,12 +1,13 @@
 package mtmd
 
 import (
+	"errors"
 	"os"
 	"unsafe"
 
-	"github.com/jupiterrider/ffi"
 	"github.com/kawai-network/veridium/pkg/yzma/llama"
 	"github.com/kawai-network/veridium/pkg/yzma/utils"
+	"github.com/jupiterrider/ffi"
 )
 
 //	struct mtmd_input_text {
@@ -95,7 +96,7 @@ var (
 
 	// Set callback for all future logging events.
 	// If this is not called, or NULL is supplied, everything is output on stderr.
-	// MTMD_API void mtmd_log_set(ggml_log_callback log_callback, void * user_data);
+	// MTMD_API void mtmd_helper_log_set(ggml_log_callback log_callback, void * user_data);
 	mtmdLogSetFunc ffi.Fun
 )
 
@@ -148,8 +149,8 @@ func loadFuncs(lib ffi.Lib) error {
 		return loadError("mtmd_get_audio_bitrate", err)
 	}
 
-	if mtmdLogSetFunc, err = lib.Prep("mtmd_log_set", &ffi.TypeVoid, &ffi.TypePointer, &ffi.TypePointer); err != nil {
-		return loadError("mtmd_log_set", err)
+	if mtmdLogSetFunc, err = lib.Prep("mtmd_helper_log_set", &ffi.TypeVoid, &ffi.TypePointer, &ffi.TypePointer); err != nil {
+		return loadError("mtmd_helper_log_set", err)
 	}
 
 	return nil
@@ -171,24 +172,29 @@ func ContextParamsDefault() ContextParamsType {
 
 // InitFromFile initializes the mtmd context. mmprojFname is a projector file. model is a model that has already been opened.
 // ctxParams are the ContextParamsType for the new Context.
-func InitFromFile(mmprojFname string, model llama.Model, ctxParams ContextParamsType) Context {
+func InitFromFile(mmprojFname string, model llama.Model, ctxParams ContextParamsType) (Context, error) {
 	var ctx Context
-	if _, err := os.Stat(mmprojFname); os.IsNotExist(err) {
-		// no such file
-		return ctx
+	if _, err := os.Stat(mmprojFname); err != nil {
+		// no such file?
+		return ctx, err
 	}
 
 	file := &[]byte(mmprojFname + "\x00")[0]
 	initFromFileFunc.Call(unsafe.Pointer(&ctx), unsafe.Pointer(&file), unsafe.Pointer(&model), unsafe.Pointer(&ctxParams))
-	return ctx
+
+	if ctx == 0 {
+		return ctx, errors.New("failed to initialize mtmd context")
+	}
+	return ctx, nil
 }
 
 // Free frees a Context that has already been created using InitFromFile.
-func Free(ctx Context) {
+func Free(ctx Context) error {
 	if ctx == 0 {
-		return
+		return errors.New("invalid mtmd context handle")
 	}
 	freeFunc.Call(nil, unsafe.Pointer(&ctx))
+	return nil
 }
 
 // SupportVision returns whether the current model supports vision input.

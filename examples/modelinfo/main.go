@@ -23,7 +23,11 @@ func main() {
 
 	llama.Init()
 
-	model := llama.ModelLoadFromFile(modelFile, llama.ModelDefaultParams())
+	model, err := llama.ModelLoadFromFile(modelFile, llama.ModelDefaultParams())
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error loading model: %v\n", err)
+		os.Exit(1)
+	}
 	defer llama.ModelFree(model)
 
 	desc := llama.ModelDesc(model)

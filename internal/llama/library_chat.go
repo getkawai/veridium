@@ -213,8 +213,9 @@ func (c *LibraryChatService) generateStreaming(ctx context.Context, requestID st
 
 	// Decode prompt tokens to initialize context
 	batch := llama.BatchGetOne(tokens)
-	if llama.Decode(c.libService.chatContext, batch) != 0 {
-		return fmt.Errorf("failed to decode prompt")
+	errCode, err := llama.Decode(c.libService.chatContext, batch)
+	if err != nil || errCode != 0 {
+		return fmt.Errorf("failed to decode prompt: %w", err)
 	}
 
 	// Send first chunk with role
@@ -304,8 +305,9 @@ func (c *LibraryChatService) generateStreaming(ctx context.Context, requestID st
 
 			// Decode the new token to update context
 			nextBatch := llama.BatchGetOne([]llama.Token{token})
-			if llama.Decode(c.libService.chatContext, nextBatch) != 0 {
-				return fmt.Errorf("failed to decode token")
+			errCode, err := llama.Decode(c.libService.chatContext, nextBatch)
+			if err != nil || errCode != 0 {
+				return fmt.Errorf("failed to decode token: %w", err)
 			}
 
 			// Don't send chunk yet, wait for complete UTF-8 sequence
@@ -334,8 +336,9 @@ func (c *LibraryChatService) generateStreaming(ctx context.Context, requestID st
 
 		// Decode the new token to update context
 		nextBatch := llama.BatchGetOne([]llama.Token{token})
-		if llama.Decode(c.libService.chatContext, nextBatch) != 0 {
-			return fmt.Errorf("failed to decode token")
+		errCode, err := llama.Decode(c.libService.chatContext, nextBatch)
+		if err != nil || errCode != 0 {
+			return fmt.Errorf("failed to decode token: %w", err)
 		}
 
 		// Small delay to prevent overwhelming the frontend

@@ -220,9 +220,10 @@ func (s *LibraryService) LoadChatModel(modelPath string) error {
 
 	// Load model with default parameters
 	mParams := llama.ModelDefaultParams()
-	s.chatModel = llama.ModelLoadFromFile(modelPath, mParams)
-	if s.chatModel == 0 {
-		return fmt.Errorf("failed to load model from file")
+	var err error
+	s.chatModel, err = llama.ModelLoadFromFile(modelPath, mParams)
+	if err != nil || s.chatModel == 0 {
+		return fmt.Errorf("failed to load model from file: %w", err)
 	}
 
 	// Get vocabulary
@@ -237,11 +238,11 @@ func (s *LibraryService) LoadChatModel(modelPath string) error {
 	ctxParams.NBatch = 2048 // Batch size - increased from 512 to handle long prompts
 	ctxParams.NThreads = int32(runtime.NumCPU())
 
-	s.chatContext = llama.InitFromModel(s.chatModel, ctxParams)
-	if s.chatContext == 0 {
+	s.chatContext, err = llama.InitFromModel(s.chatModel, ctxParams)
+	if err != nil || s.chatContext == 0 {
 		llama.ModelFree(s.chatModel)
 		s.chatModel = 0
-		return fmt.Errorf("failed to create context")
+		return fmt.Errorf("failed to create context: %w", err)
 	}
 
 	// Create sampler chain
@@ -301,9 +302,10 @@ func (s *LibraryService) LoadEmbeddingModel(modelPath string) error {
 
 	// Load model
 	mParams := llama.ModelDefaultParams()
-	s.embModel = llama.ModelLoadFromFile(modelPath, mParams)
-	if s.embModel == 0 {
-		return fmt.Errorf("failed to load embedding model")
+	var err error
+	s.embModel, err = llama.ModelLoadFromFile(modelPath, mParams)
+	if err != nil || s.embModel == 0 {
+		return fmt.Errorf("failed to load embedding model: %w", err)
 	}
 
 	// Get vocabulary
@@ -316,11 +318,11 @@ func (s *LibraryService) LoadEmbeddingModel(modelPath string) error {
 	ctxParams.NThreads = 4
 	ctxParams.Embeddings = 1 // Enable embeddings
 
-	s.embContext = llama.InitFromModel(s.embModel, ctxParams)
-	if s.embContext == 0 {
+	s.embContext, err = llama.InitFromModel(s.embModel, ctxParams)
+	if err != nil || s.embContext == 0 {
 		llama.ModelFree(s.embModel)
 		s.embModel = 0
-		return fmt.Errorf("failed to create embedding context")
+		return fmt.Errorf("failed to create embedding context: %w", err)
 	}
 
 	s.embModelPath = modelPath
@@ -420,7 +422,10 @@ func (s *LibraryService) GenerateEmbedding(text string) ([]float32, error) {
 
 	// Get embeddings from context
 	nEmbd := llama.ModelNEmbd(s.embModel)
-	embeddings := llama.GetEmbeddingsSeq(s.embContext, 0, nEmbd)
+	embeddings, err := llama.GetEmbeddingsSeq(s.embContext, 0, nEmbd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get embeddings: %w", err)
+	}
 
 	// Copy embeddings to slice
 	result := make([]float32, nEmbd)
@@ -478,9 +483,10 @@ func (s *LibraryService) LoadVLModel(modelPath string) error {
 
 	// Load VL model
 	mParams := llama.ModelDefaultParams()
-	s.vlModel = llama.ModelLoadFromFile(modelPath, mParams)
-	if s.vlModel == 0 {
-		return fmt.Errorf("failed to load VL model from file")
+	var err error
+	s.vlModel, err = llama.ModelLoadFromFile(modelPath, mParams)
+	if err != nil || s.vlModel == 0 {
+		return fmt.Errorf("failed to load VL model from file: %w", err)
 	}
 
 	// Get vocabulary
@@ -504,11 +510,11 @@ func (s *LibraryService) LoadVLModel(modelPath string) error {
 	// Set logging level using mtmd.LogSet instead of Verbosity field
 	// mtmd.LogSet(llama.LogNormal) // Use LogNormal for standard logging, or LogSilent() to disable
 
-	s.vlMTMDCtx = mtmd.InitFromFile(projectorPath, s.vlModel, mtmdParams)
-	if s.vlMTMDCtx == 0 {
+	s.vlMTMDCtx, err = mtmd.InitFromFile(projectorPath, s.vlModel, mtmdParams)
+	if err != nil || s.vlMTMDCtx == 0 {
 		llama.ModelFree(s.vlModel)
 		s.vlModel = 0
-		return fmt.Errorf("failed to initialize MTMD context")
+		return fmt.Errorf("failed to initialize MTMD context: %w", err)
 	}
 
 	// Check if model supports vision
@@ -526,13 +532,13 @@ func (s *LibraryService) LoadVLModel(modelPath string) error {
 	ctxParams.NBatch = 2048 // Batch size
 	ctxParams.NThreads = int32(runtime.NumCPU())
 
-	s.vlContext = llama.InitFromModel(s.vlModel, ctxParams)
-	if s.vlContext == 0 {
+	s.vlContext, err = llama.InitFromModel(s.vlModel, ctxParams)
+	if err != nil || s.vlContext == 0 {
 		mtmd.Free(s.vlMTMDCtx)
 		llama.ModelFree(s.vlModel)
 		s.vlMTMDCtx = 0
 		s.vlModel = 0
-		return fmt.Errorf("failed to create VL context")
+		return fmt.Errorf("failed to create VL context: %w", err)
 	}
 
 	// Create sampler chain for VL responses

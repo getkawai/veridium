@@ -118,12 +118,13 @@ func (e *LlamaEmbedder) Initialize() error {
 			return
 		}
 
-		// Load model (this is safe to do even if library was loaded elsewhere)
-		e.model = llama.ModelLoadFromFile(expandedModelPath, llama.ModelDefaultParams())
-		if e.model == 0 {
-			e.initErr = fmt.Errorf("failed to load embedding model from: %s", expandedModelPath)
-			return
-		}
+	// Load model (this is safe to do even if library was loaded elsewhere)
+	var err error
+	e.model, err = llama.ModelLoadFromFile(expandedModelPath, llama.ModelDefaultParams())
+	if err != nil || e.model == 0 {
+		e.initErr = fmt.Errorf("failed to load embedding model from: %s (%w)", expandedModelPath, err)
+		return
+	}
 
 		// Get embedding dimensions
 		e.dimensions = llama.ModelNEmbd(e.model)
@@ -136,13 +137,13 @@ func (e *LlamaEmbedder) Initialize() error {
 		ctxParams.Embeddings = 1                      // Enable embeddings
 		ctxParams.PoolingType = llama.PoolingTypeMean // Mean pooling for better quality
 
-		e.context = llama.InitFromModel(e.model, ctxParams)
-		if e.context == 0 {
-			llama.ModelFree(e.model)
-			e.model = 0
-			e.initErr = errors.New("failed to create context for embeddings")
-			return
-		}
+	e.context, err = llama.InitFromModel(e.model, ctxParams)
+	if err != nil || e.context == 0 {
+		llama.ModelFree(e.model)
+		e.model = 0
+		e.initErr = fmt.Errorf("failed to create context for embeddings: %w", err)
+		return
+	}
 
 		// Get vocabulary
 		e.vocab = llama.ModelGetVocab(e.model)
@@ -204,14 +205,15 @@ func (e *LlamaEmbedder) GenerateEmbedding(ctx context.Context, text string) ([]f
 
 	// Create batch and decode
 	batch := llama.BatchGetOne(tokens)
-	if err := llama.Decode(e.context, batch); err != 0 {
-		return nil, fmt.Errorf("failed to decode tokens: error code %d", err)
+	errCode, err := llama.Decode(e.context, batch)
+	if err != nil || errCode != 0 {
+		return nil, fmt.Errorf("failed to decode tokens: error code %d (%w)", errCode, err)
 	}
 
 	// Get embeddings from sequence
-	vec := llama.GetEmbeddingsSeq(e.context, 0, e.dimensions)
-	if vec == nil {
-		return nil, errors.New("failed to get embeddings from context")
+	vec, err := llama.GetEmbeddingsSeq(e.context, 0, e.dimensions)
+	if err != nil || vec == nil {
+		return nil, fmt.Errorf("failed to get embeddings from context: %w", err)
 	}
 
 	// Copy to result slice

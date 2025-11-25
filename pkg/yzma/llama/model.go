@@ -1,12 +1,12 @@
 package llama
 
 import (
-	"fmt"
+	"errors"
 	"os"
 	"unsafe"
 
-	"github.com/jupiterrider/ffi"
 	"github.com/kawai-network/veridium/pkg/yzma/utils"
+	"github.com/jupiterrider/ffi"
 )
 
 var (
@@ -116,7 +116,7 @@ var (
 	// LLAMA_API struct llama_model_quantize_params llama_model_quantize_default_params(void);
 	modelQuantizeDefaultParamsFunc ffi.Fun
 
-	// LLAMA_API uint32_t llama_model_quantize(
+	//     LLAMA_API uint32_t llama_model_quantize(
 	//        const char * fname_inp,
 	//        const char * fname_out,
 	//        const llama_model_quantize_params * params);
@@ -257,35 +257,43 @@ func ModelDefaultParams() ModelParams {
 }
 
 // ModelLoadFromFile loads a Model from a GGUF file.
-func ModelLoadFromFile(pathModel string, params ModelParams) Model {
+func ModelLoadFromFile(pathModel string, params ModelParams) (Model, error) {
 	var model Model
 	if _, err := os.Stat(pathModel); os.IsNotExist(err) {
 		// no such file
-		return model
+		return model, err
 	}
 
 	file := &[]byte(pathModel + "\x00")[0]
 	modelLoadFromFileFunc.Call(unsafe.Pointer(&model), unsafe.Pointer(&file), unsafe.Pointer(&params))
-	return model
+	if model == 0 {
+		return model, errors.New("failed to load model")
+	}
+
+	return model, nil
 }
 
 // ModelFree frees a previously opened model.
-func ModelFree(model Model) {
+func ModelFree(model Model) error {
 	if model == 0 {
-		return
+		return errors.New("invalid model")
 	}
 	modelFreeFunc.Call(nil, unsafe.Pointer(&model))
+	return nil
 }
 
 // InitFromModel initializes a previously loaded Model, and then returns a new Context.
-func InitFromModel(model Model, params ContextParams) Context {
+func InitFromModel(model Model, params ContextParams) (Context, error) {
 	var ctx Context
 	if model == 0 {
-		return ctx
+		return ctx, errors.New("invalid model")
 	}
 	initFromModelFunc.Call(unsafe.Pointer(&ctx), unsafe.Pointer(&model), unsafe.Pointer(&params))
 
-	return ctx
+	if ctx == 0 {
+		return ctx, errors.New("failed to initialize model")
+	}
+	return ctx, nil
 }
 
 // ModelChatTemplate returns a named chat template for the Model.
@@ -519,9 +527,9 @@ func ModelRopeType(model Model) RopeScalingType {
 }
 
 // Warmup is to warm-up a model.
-func Warmup(lctx Context, model Model) {
+func Warmup(lctx Context, model Model) error {
 	if lctx == 0 || model == 0 {
-		return
+		return errors.New("invalid context or model")
 	}
 
 	vocab := ModelGetVocab(model)
@@ -558,13 +566,18 @@ func Warmup(lctx Context, model Model) {
 		Decode(lctx, batch)
 	}
 
-	mem := GetMemory(lctx)
-	MemoryClear(mem, true)
+	mem, err := GetMemory(lctx)
+	if err != nil {
+		return err
+	}
+	if err := MemoryClear(mem, true); err != nil {
+		return err
+	}
 
 	Synchronize(lctx)
-
-	// llama_perf_context_reset(lctx);
 	SetWarmup(lctx, false)
+
+	return nil
 }
 
 // ModelMetaValStr gets metadata value as a string by key name.
@@ -673,6 +686,8 @@ func (p *ModelParams) SetTensorBufOverrides(overrides []TensorBuftOverride) {
 	p.TensorBuftOverrides = uintptr(unsafe.Pointer(&overrides[0]))
 }
 
+var progressCallback unsafe.Pointer
+
 // SetProgressCallback sets a progress callback for model loading.
 func (p *ModelParams) SetProgressCallback(cb ProgressCallback) {
 	if cb == nil {
@@ -680,10 +695,13 @@ func (p *ModelParams) SetProgressCallback(cb ProgressCallback) {
 		return
 	}
 
-	var callback unsafe.Pointer
-	closure := ffi.ClosureAlloc(unsafe.Sizeof(ffi.Closure{}), &callback)
+	closure := ffi.ClosureAlloc(unsafe.Sizeof(ffi.Closure{}), &progressCallback)
 
 	fn := ffi.NewCallback(func(cif *ffi.Cif, ret unsafe.Pointer, args *unsafe.Pointer, userData unsafe.Pointer) uintptr {
+		if args == nil || ret == nil {
+			return 1 // error
+		}
+
 		arg := unsafe.Slice(args, cif.NArgs)
 		progress := *(*float32)(arg[0])
 		userDataPtr := *(*uintptr)(arg[1])
@@ -694,18 +712,28 @@ func (p *ModelParams) SetProgressCallback(cb ProgressCallback) {
 
 	var cifCallback ffi.Cif
 	if status := ffi.PrepCif(&cifCallback, ffi.DefaultAbi, 2, &ffi.TypeUint8, &ffi.TypeFloat, &ffi.TypePointer); status != ffi.OK {
-		fmt.Println(status)
-		return
+		panic(status)
 	}
 
 	if closure != nil {
-		if status := ffi.PrepClosureLoc(closure, &cifCallback, fn, nil, callback); status != ffi.OK {
-			fmt.Println(status)
-			return
+		if status := ffi.PrepClosureLoc(closure, &cifCallback, fn, nil, progressCallback); status != ffi.OK {
+			panic(status)
 		}
 	}
 
-	p.ProgressCallback = uintptr(callback)
+	p.ProgressCallback = uintptr(progressCallback)
+}
+
+// SetDevices sets the devices to be used for model execution.
+// An empty slice indicates that no specific devices are set, meaning
+// that the default device selection will be used.
+func (p *ModelParams) SetDevices(devices []GGMLBackendDevice) {
+	if len(devices) == 0 {
+		p.Devices = uintptr(0)
+		return
+	}
+
+	p.Devices = uintptr(unsafe.Pointer(&devices[0]))
 }
 
 // ModelQuantizeDefaultParams returns default parameters for model quantization.
@@ -716,7 +744,6 @@ func ModelQuantizeDefaultParams() ModelQuantizeParams {
 }
 
 // ModelQuantize quantizes a model from an input file to an output file using the specified parameters.
-// Returns 0 on success, non-zero on error.
 func ModelQuantize(fnameInp, fnameOut string, params *ModelQuantizeParams) uint32 {
 	fileInp, err := utils.BytePtrFromString(fnameInp)
 	if err != nil {

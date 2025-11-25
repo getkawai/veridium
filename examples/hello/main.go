@@ -18,8 +18,14 @@ func main() {
 	llama.Load(libPath)
 	llama.Init()
 
-	model := llama.ModelLoadFromFile(modelFile, llama.ModelDefaultParams())
-	lctx := llama.InitFromModel(model, llama.ContextDefaultParams())
+	model, err := llama.ModelLoadFromFile(modelFile, llama.ModelDefaultParams())
+	if err != nil {
+		panic(err)
+	}
+	lctx, err := llama.InitFromModel(model, llama.ContextDefaultParams())
+	if err != nil {
+		panic(err)
+	}
 
 	vocab := llama.ModelGetVocab(model)
 

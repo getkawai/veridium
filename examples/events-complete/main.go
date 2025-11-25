@@ -33,7 +33,7 @@ type ProgressData struct {
 }
 
 // Event void type untuk events tanpa data
-type Void application.Void
+type Void struct{}
 
 func init() {
 	// Register events dengan type safety
@@ -73,19 +73,8 @@ func main() {
 }
 
 func setupEventHandlers(app *application.App) {
-	// Hook system - intercept events before dispatch
-	app.Event.RegisterHook("notification", func(e *application.CustomEvent) {
-		data := e.Data.(NotificationData)
-
-		// Cancel high priority notifications if not in business hours
-		if data.Priority > 7 && !isBusinessHours() {
-			fmt.Printf("Cancelling high priority notification outside business hours: %s\n", data.Message)
-			e.Cancel()
-			return
-		}
-
-		fmt.Printf("Hook processed notification: %s\n", data.Message)
-	})
+	// Note: RegisterHook is not available in current Wails v3 API
+	// Using regular event listeners instead
 
 	// Regular event listeners
 	app.Event.On("user-updated", func(e *application.CustomEvent) {

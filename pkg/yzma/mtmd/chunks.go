@@ -3,9 +3,9 @@ package mtmd
 import (
 	"unsafe"
 
-	"github.com/jupiterrider/ffi"
 	"github.com/kawai-network/veridium/pkg/yzma/llama"
 	"github.com/kawai-network/veridium/pkg/yzma/utils"
+	"github.com/jupiterrider/ffi"
 )
 
 // enum mtmd_input_chunk_type

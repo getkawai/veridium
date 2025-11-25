@@ -6,8 +6,16 @@ import (
 	"github.com/kawai-network/veridium/pkg/yzma/loader"
 )
 
+var libPath string
+
+// LibPath returns the path to the loaded llama.cpp shared libraries.
+func LibPath() string {
+	return libPath
+}
+
 // Load loads the shared llama.cpp libraries from the specified path.
 func Load(path string) error {
+	libPath = path
 	lib, err := loader.LoadLibrary(path, "ggml")
 	if err != nil {
 		return err
@@ -71,27 +79,29 @@ func Load(path string) error {
 		return err
 	}
 
+	if err := loadLoraFuncs(lib); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 // Init is a convenience function to handle initialization of llama.cpp.
-// It initializes the backend and loads all available GGML backends.
-// Note: You must call Load() before calling Init().
 func Init() {
 	BackendInit()
-	GGMLBackendLoadAll()
+	GGMLBackendLoadAllFromPath(libPath)
 }
 
-// InitWithPath initializes llama.cpp and loads backends from a specific path.
-// This is useful when you want to load backends from a non-standard location.
-// Note: You must call Load() before calling InitWithPath().
-func InitWithPath(path string) {
-	BackendInit()
+// Close frees resources used by llama.cpp and unloads any dynamically loaded backends.
+func Close() {
+	BackendFree()
 
-	if path != "" {
-		GGMLBackendLoadAllFromPath(path)
-	} else {
-		GGMLBackendLoadAll()
+	for i := uint64(0); i < GGMLBackendRegCount(); i++ {
+		reg := GGMLBackendRegGet(i)
+		if reg == 0 {
+			continue
+		}
+		GGMLBackendUnload(reg)
 	}
 }
 

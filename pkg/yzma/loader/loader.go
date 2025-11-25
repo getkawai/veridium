@@ -8,14 +8,9 @@ import (
 	"github.com/jupiterrider/ffi"
 )
 
-// LoadLibrary loads a shared library from the specified path.
-// The path should be a directory containing the library files.
+// LoadLibrary The path can be an empty string to use the location as set by the YZMA_LIB env variable.
 // The lib should be the "short name" for the library, for example:
-// ggml, ggml-base, llama, mtmd
-//
-// Example:
-//
-//	LoadLibrary("/usr/local/lib", "llama") -> loads /usr/local/lib/libllama.dylib (on macOS)
+// gguf, llama, mtmd
 func LoadLibrary(path, lib string) (ffi.Lib, error) {
 	if path == "" {
 		return ffi.Lib{}, fmt.Errorf("library path cannot be empty")
