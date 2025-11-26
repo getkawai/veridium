@@ -640,8 +640,11 @@ func (s *Service) ensureDefaultAIProvider(ctx context.Context) error {
 		UserID: defaultUserID,
 	})
 	if err == nil {
-		// Provider already exists
+		// Provider already exists, ensure model abilities are up to date
 		fmt.Println("✅ Default Kawai AI provider already exists")
+		if err := s.updateKawaiAutoModelAbilities(ctx); err != nil {
+			return fmt.Errorf("failed to update kawai-auto model abilities: %w", err)
+		}
 		return nil
 	}
 	if err != sql.ErrNoRows {
@@ -674,7 +677,7 @@ func (s *Service) ensureDefaultAIProvider(ctx context.Context) error {
 	}
 
 	// Create default kawai-auto model
-	modelAbilities := `{"functionCall":true,"vision":true}`
+	modelAbilities := `{"functionCall":true,"vision":true,"files":true}`
 	modelParams := `{}`
 	modelConfig := `{}`
 
@@ -703,5 +706,47 @@ func (s *Service) ensureDefaultAIProvider(ctx context.Context) error {
 	}
 
 	fmt.Println("✅ Default Kawai AI provider and model created")
+	return nil
+}
+
+// updateKawaiAutoModelAbilities updates the abilities of the kawai-auto model
+// This is used to migrate existing databases to the latest model capabilities
+func (s *Service) updateKawaiAutoModelAbilities(ctx context.Context) error {
+	// Get current model
+	model, err := s.queries.GetAIModel(ctx, db.GetAIModelParams{
+		ID:         "kawai-auto",
+		ProviderID: "kawai",
+		UserID:     defaultUserID,
+	})
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// Model doesn't exist, skip update
+			return nil
+		}
+		return fmt.Errorf("failed to get kawai-auto model: %w", err)
+	}
+
+	// Check if abilities need updating
+	currentAbilities := model.Abilities.String
+	expectedAbilities := `{"functionCall":true,"vision":true,"files":true}`
+
+	if currentAbilities == expectedAbilities {
+		// Already up to date
+		return nil
+	}
+
+	// Update model abilities
+	_, err = s.queries.UpdateAIModel(ctx, db.UpdateAIModelParams{
+		ID:         "kawai-auto",
+		ProviderID: "kawai",
+		UserID:     defaultUserID,
+		Abilities:  sql.NullString{String: expectedAbilities, Valid: true},
+		UpdatedAt:  int64(1000),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update kawai-auto model abilities: %w", err)
+	}
+
+	fmt.Println("✅ Updated kawai-auto model abilities to include file support")
 	return nil
 }

@@ -89,23 +89,31 @@ export const mapProviderFromDB = (p: any) => ({
 /**
  * Map AI Model from DB result
  */
-export const mapModelFromDB = (m: any) => ({
-  id: m.id,
-  displayName: parseNullString(m.displayName),
-  providerId: m.providerId,
-  type: m.type,
-  enabled: Boolean(parseNullInt64(m.enabled)),
-  sort: parseNullInt64(m.sort),
-  abilities: parseNullJSON(m.abilities, {}),
-  contextWindowTokens: parseNullInt64(m.contextWindowTokens),
-  description: parseNullString(m.description),
-  parameters: parseNullJSON(m.parameters, {}),
-  config: parseNullJSON(m.config, {}),
-  organization: parseNullString(m.organization),
-  pricing: parseNullJSON(m.pricing),
-  source: parseNullString(m.source),
-  releasedAt: parseNullString(m.releasedAt),
-});
+export const mapModelFromDB = (m: any) => {
+  const mapped = {
+    id: m.id,
+    displayName: parseNullString(m.displayName),
+    providerId: m.providerId,
+    type: m.type,
+    enabled: Boolean(parseNullInt64(m.enabled)),
+    sort: parseNullInt64(m.sort),
+    abilities: parseNullJSON(m.abilities, {}),
+    contextWindowTokens: parseNullInt64(m.contextWindowTokens),
+    description: parseNullString(m.description),
+    parameters: parseNullJSON(m.parameters, {}),
+    config: parseNullJSON(m.config, {}),
+    organization: parseNullString(m.organization),
+    pricing: parseNullJSON(m.pricing),
+    source: parseNullString(m.source),
+    releasedAt: parseNullString(m.releasedAt),
+  };
+  
+  if (m.id === 'kawai-auto') {
+    console.log(`[MAP] kawai-auto rawAbilities="${m.abilities}" → parsed=${JSON.stringify(mapped.abilities)}`);
+  }
+  
+  return mapped;
+};
 
 /**
  * Map AI Provider runtime config from DB result

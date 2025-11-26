@@ -52,13 +52,11 @@ const isModelSupportToolUse = (id: string, provider: string) => (s: AIProviderSt
 
 const isModelSupportFiles = (id: string, provider: string) => (s: AIProviderStoreState) => {
   const model = getEnabledModelById(id, provider)(s);
-
   return model?.abilities?.files;
 };
 
 const isModelSupportVision = (id: string, provider: string) => (s: AIProviderStoreState) => {
   const model = getEnabledModelById(id, provider)(s);
-
   return model?.abilities?.vision || false;
 };
 

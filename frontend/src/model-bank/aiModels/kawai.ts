@@ -5,6 +5,7 @@ const kawaiChatModels: AIChatModelCard[] = [
     abilities: {
       functionCall: true,
       vision: true,
+      files: true,
     },
     contextWindowTokens: 128_000,
     description:

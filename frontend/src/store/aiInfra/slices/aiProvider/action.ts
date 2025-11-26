@@ -444,8 +444,9 @@ export const createAiProviderSlice: StateCreator<
 
   internal_fetchAiProviderRuntimeState: async (isLogin) => {
     const isAuthLoaded = authSelectors.isLoaded(useUserStore.getState());
+    // For desktop app, allow fetch even if auth is not fully loaded
     const shouldFetch =
-      isAuthLoaded && !isDeprecatedEdition && isLogin !== null && isLogin !== undefined;
+      !isDeprecatedEdition && isLogin !== null && isLogin !== undefined && (isAuthLoaded !== false);
 
     if (!shouldFetch) return;
 

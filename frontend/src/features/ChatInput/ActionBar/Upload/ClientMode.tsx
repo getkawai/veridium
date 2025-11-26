@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { message } from '@/components/AntdStaticMethods';
 import { useModelSupportFiles } from '@/hooks/useModelSupportFiles';
 import { useModelSupportVision } from '@/hooks/useModelSupportVision';
+import { aiProviderSelectors, useAiInfraStore } from '@/store/aiInfra';
 import { useAgentStore } from '@/store/agent';
 import { agentSelectors } from '@/store/agent/slices/chat';
 import { useFileStore } from '@/store/file';
