@@ -1,9 +1,7 @@
-import { validateVideoFileSize } from '@/utils/client';
 import { MenuProps, Tooltip } from '@lobehub/ui';
-import { Upload } from 'antd';
 import { css, cx } from 'antd-style';
 import { FileUp, FolderUp, ImageUp, Paperclip } from 'lucide-react';
-import { memo } from 'react';
+import { memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { message } from '@/components/AntdStaticMethods';
@@ -11,8 +9,31 @@ import { useModelSupportVision } from '@/hooks/useModelSupportVision';
 import { useAgentStore } from '@/store/agent';
 import { agentSelectors } from '@/store/agent/selectors';
 import { useFileStore } from '@/store/file';
+// @ts-ignore
+import { FileService } from '@/services';
 
 import Action from '../components/Action';
+
+// Wails runtime imports
+declare const window: Window & {
+  _wails?: {
+    Dialogs: {
+      OpenFile(options: {
+        CanChooseFiles?: boolean;
+        CanChooseDirectories?: boolean;
+        AllowsMultipleSelection?: boolean;
+        ShowHiddenFiles?: boolean;
+        CanCreateDirectories?: boolean;
+        ResolvesAliases?: boolean;
+        TreatPackagesAsDirectories?: boolean;
+        AllowedFileTypes?: string[];
+        Title?: string;
+        Message?: string;
+        ButtonText?: string;
+      }): Promise<string | string[] | null>;
+    };
+  };
+};
 
 const hotArea = css`
   &::before {
@@ -23,15 +44,186 @@ const hotArea = css`
   }
 `;
 
+// Helper to get MIME type from extension
+const getMimeType = (ext: string): string => {
+  const mimeTypes: Record<string, string> = {
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    gif: 'image/gif',
+    webp: 'image/webp',
+    svg: 'image/svg+xml',
+    mp4: 'video/mp4',
+    webm: 'video/webm',
+    pdf: 'application/pdf',
+    txt: 'text/plain',
+    json: 'application/json',
+    xml: 'application/xml',
+  };
+  return mimeTypes[ext] || 'application/octet-stream';
+};
+
 const FileUpload = memo(() => {
   const { t } = useTranslation('chat');
-
-  const upload = useFileStore((s) => s.uploadChatFiles);
 
   const model = useAgentStore(agentSelectors.currentAgentModel);
   const provider = useAgentStore(agentSelectors.currentAgentModelProvider);
 
   const canUploadImage = useModelSupportVision(model, provider);
+
+  // Handle native file dialog for images
+  const handleImageUpload = useCallback(async () => {
+    if (!window._wails?.Dialogs) {
+      message.error('Native dialogs not available');
+      return;
+    }
+
+    try {
+      const result = await window._wails.Dialogs.OpenFile({
+        CanChooseFiles: true,
+        CanChooseDirectories: false,
+        AllowsMultipleSelection: true,
+        AllowedFileTypes: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'],
+        Title: 'Select Images',
+      });
+
+      if (!result) return;
+
+      const filePaths = Array.isArray(result) ? result : [result];
+      
+      // Process files via backend
+      const processedFiles = await Promise.all(
+        filePaths.map(async (filePath) => {
+          const fileName = filePath.split('/').pop() || filePath.split('\\').pop() || 'file';
+          const ext = fileName.split('.').pop()?.toLowerCase() || '';
+          const mimeType = getMimeType(ext);
+
+          // Copy file to local storage via backend
+          const savedKey = await FileService.CopyFileFromAbsolutePath(filePath);
+          
+          return {
+            name: fileName,
+            type: mimeType,
+            url: `/files/${savedKey}`,
+          };
+        }),
+      );
+
+      // Create upload items and add directly to upload list (files already saved by backend)
+      const uploadItems = processedFiles.map((info) => ({
+        id: info.name,
+        file: { name: info.name, type: info.type, size: 0 } as File,
+        previewUrl: info.url,
+        base64Url: undefined,
+        status: 'success' as const,
+      }));
+
+      useFileStore.getState().dispatchChatUploadFileList({
+        files: uploadItems as any,
+        type: 'addFiles',
+      });
+
+      message.success(`Successfully uploaded ${uploadItems.length} image(s)`);
+    } catch (error) {
+      console.error('Image upload error:', error);
+      message.error('Failed to upload images');
+    }
+  }, [canUploadImage]);
+
+  // Handle native file dialog for files
+  const handleFileUpload = useCallback(async () => {
+    if (!window._wails?.Dialogs) {
+      message.error('Native dialogs not available');
+      return;
+    }
+
+    try {
+      const result = await window._wails.Dialogs.OpenFile({
+        CanChooseFiles: true,
+        CanChooseDirectories: false,
+        AllowsMultipleSelection: true,
+        Title: 'Select Files',
+      });
+
+      if (!result) return;
+
+      const filePaths = Array.isArray(result) ? result : [result];
+
+      // Process files via backend
+      const processedFiles = await Promise.all(
+        filePaths.map(async (filePath) => {
+          const fileName = filePath.split('/').pop() || filePath.split('\\').pop() || 'file';
+          const ext = fileName.split('.').pop()?.toLowerCase() || '';
+          const mimeType = getMimeType(ext);
+
+          // Skip image/video if model doesn't support vision
+          if (!canUploadImage && (mimeType.startsWith('image') || mimeType.startsWith('video'))) {
+            return null;
+          }
+
+          // Copy file to local storage via backend
+          const savedKey = await FileService.CopyFileFromAbsolutePath(filePath);
+
+          return {
+            name: fileName,
+            type: mimeType,
+            url: `/files/${savedKey}`,
+          };
+        }),
+      );
+
+      const validFiles = processedFiles.filter(Boolean);
+      
+      if (validFiles.length === 0) {
+        message.warning('No valid files to upload');
+        return;
+      }
+
+      // Create upload items and add directly to upload list (files already saved by backend)
+      const uploadItems = validFiles.map((info) => ({
+        id: info!.name,
+        file: { name: info!.name, type: info!.type, size: 0 } as File,
+        previewUrl: info!.url,
+        base64Url: undefined,
+        status: 'success' as const,
+      }));
+
+      useFileStore.getState().dispatchChatUploadFileList({
+        files: uploadItems as any,
+        type: 'addFiles',
+      });
+
+      message.success(`Successfully uploaded ${uploadItems.length} file(s)`);
+    } catch (error) {
+      console.error('File upload error:', error);
+      message.error('Failed to upload files');
+    }
+  }, [canUploadImage]);
+
+  // Handle native folder dialog
+  const handleFolderUpload = useCallback(async () => {
+    if (!window._wails?.Dialogs) {
+      message.error('Native dialogs not available');
+      return;
+    }
+
+    try {
+      const result = await window._wails.Dialogs.OpenFile({
+        CanChooseFiles: false,
+        CanChooseDirectories: true,
+        AllowsMultipleSelection: false,
+        Title: 'Select Folder',
+      });
+
+      if (!result) return;
+
+      message.info('Folder upload not yet implemented');
+      // TODO: Implement recursive folder scanning in backend
+    } catch (error) {
+      console.error('Folder upload error:', error);
+      message.error('Failed to upload folder');
+    }
+  }, []);
 
   const items: MenuProps['items'] = [
     {
@@ -39,18 +231,9 @@ const FileUpload = memo(() => {
       icon: ImageUp,
       key: 'upload-image',
       label: canUploadImage ? (
-        <Upload
-          accept={'image/*'}
-          beforeUpload={async (file) => {
-            await upload([file]);
-
-            return false;
-          }}
-          multiple
-          showUploadList={false}
-        >
-          <div className={cx(hotArea)}>{t('upload.action.imageUpload')}</div>
-        </Upload>
+        <div className={cx(hotArea)} onClick={handleImageUpload}>
+          {t('upload.action.imageUpload')}
+        </div>
       ) : (
         <Tooltip placement={'right'} title={t('upload.action.imageDisabled')}>
           <div className={cx(hotArea)}>{t('upload.action.imageUpload')}</div>
@@ -61,63 +244,18 @@ const FileUpload = memo(() => {
       icon: FileUp,
       key: 'upload-file',
       label: (
-        <Upload
-          beforeUpload={async (file) => {
-            if (!canUploadImage && (file.type.startsWith('image') || file.type.startsWith('video')))
-              return false;
-
-            // Validate video file size
-            const validation = validateVideoFileSize(file);
-            if (!validation.isValid) {
-              message.error(
-                t('upload.validation.videoSizeExceeded', {
-                  actualSize: validation.actualSize,
-                }),
-              );
-              return false;
-            }
-
-            await upload([file]);
-
-            return false;
-          }}
-          multiple
-          showUploadList={false}
-        >
-          <div className={cx(hotArea)}>{t('upload.action.fileUpload')}</div>
-        </Upload>
+        <div className={cx(hotArea)} onClick={handleFileUpload}>
+          {t('upload.action.fileUpload')}
+        </div>
       ),
     },
     {
       icon: FolderUp,
       key: 'upload-folder',
       label: (
-        <Upload
-          beforeUpload={async (file) => {
-            if (!canUploadImage && (file.type.startsWith('image') || file.type.startsWith('video')))
-              return false;
-
-            // Validate video file size
-            const validation = validateVideoFileSize(file);
-            if (!validation.isValid) {
-              message.error(
-                t('upload.validation.videoSizeExceeded', {
-                  actualSize: validation.actualSize,
-                }),
-              );
-              return false;
-            }
-
-            await upload([file]);
-
-            return false;
-          }}
-          directory
-          multiple={true}
-          showUploadList={false}
-        >
-          <div className={cx(hotArea)}>{t('upload.action.folderUpload')}</div>
-        </Upload>
+        <div className={cx(hotArea)} onClick={handleFolderUpload}>
+          {t('upload.action.folderUpload')}
+        </div>
       ),
     },
   ];
