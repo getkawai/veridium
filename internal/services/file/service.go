@@ -25,6 +25,7 @@ type FileServiceImpl interface {
 	GetKeyFromFullUrl(fullUrl string) string
 	UploadContent(path, content string) error
 	UploadMedia(key string, buffer []byte) (string, error)
+	ReadFileFromAbsolutePath(absolutePath string) ([]byte, error)
 }
 
 // DesktopLocalFileImpl desktop local file service implementation
@@ -157,6 +158,22 @@ func (d *DesktopLocalFileImpl) UploadContent(filePath, content string) error {
 	// This needs to be implemented according to specific requirements
 	log.Printf("UploadContent not implemented for path: %s", filePath)
 	return errors.New("uploadContent not implemented")
+}
+
+// ReadFileFromAbsolutePath reads file from absolute path (for drag & drop)
+func (d *DesktopLocalFileImpl) ReadFileFromAbsolutePath(absolutePath string) ([]byte, error) {
+	// Security check: ensure path is absolute and exists
+	if !filepath.IsAbs(absolutePath) {
+		return nil, fmt.Errorf("path must be absolute: %s", absolutePath)
+	}
+
+	// Check if file exists
+	if _, err := os.Stat(absolutePath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("file does not exist: %s", absolutePath)
+	}
+
+	// Read file
+	return ioutil.ReadFile(absolutePath)
 }
 
 // UploadMedia upload media file
@@ -322,6 +339,11 @@ func (s *S3StaticFileImpl) UploadMedia(key string, buffer []byte) (string, error
 	return key, nil
 }
 
+// ReadFileFromAbsolutePath not supported for S3 (only for local files)
+func (s *S3StaticFileImpl) ReadFileFromAbsolutePath(absolutePath string) ([]byte, error) {
+	return nil, errors.New("ReadFileFromAbsolutePath not supported for S3 implementation")
+}
+
 // CreateFileServiceModule creates file service module (factory function)
 func CreateFileServiceModule(baseDir, s3Bucket, s3PublicDomain string, s3EnablePathStyle, s3SetACL, isDesktop bool) FileServiceImpl {
 	if isDesktop {
@@ -409,6 +431,11 @@ func (fs *FileService) GetKeyFromFullUrl(url string) string {
 // UploadMedia uploads media file via implementation
 func (fs *FileService) UploadMedia(key string, buffer []byte) (string, error) {
 	return fs.Impl.UploadMedia(key, buffer)
+}
+
+// ReadFileFromAbsolutePath reads file from absolute path (for drag & drop)
+func (fs *FileService) ReadFileFromAbsolutePath(absolutePath string) ([]byte, error) {
+	return fs.Impl.ReadFileFromAbsolutePath(absolutePath)
 }
 
 // DownloadFileToLocal downloads file to local temp storage

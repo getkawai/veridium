@@ -1,6 +1,8 @@
 import { Events } from '@wailsio/runtime';
 import { memo, useEffect } from 'react';
 
+// @ts-ignore - Wails binding
+import * as FileService from '../../../../../../bindings/github.com/kawai-network/veridium/internal/services/file/fileservice.js';
 import { message } from '@/components/AntdStaticMethods';
 import { useModelSupportFiles } from '@/hooks/useModelSupportFiles';
 import { useModelSupportVision } from '@/hooks/useModelSupportVision';
@@ -34,8 +36,8 @@ const FilePreview = memo(() => {
     const unsubscribe = Events.On('files:dropped', async (event: any) => {
       console.log('[Wails D&D] Event received:', event);
 
-      // Extract data from Wails event
-      const data: WailsDropEvent = event.data?.[0] || event;
+      // Extract data from Wails event - data is directly in event.data
+      const data: WailsDropEvent = event.data || event;
       console.log('[Wails D&D] Files dropped:', data);
 
       if (!canUpload) {
@@ -45,6 +47,8 @@ const FilePreview = memo(() => {
       }
 
       const filePaths = data.files;
+      console.log('[Wails D&D] File paths:', filePaths, 'type:', typeof filePaths, 'isArray:', Array.isArray(filePaths));
+      
       if (!filePaths || filePaths.length === 0) {
         console.log('[Wails D&D] No files in drop event');
         return;
@@ -53,7 +57,7 @@ const FilePreview = memo(() => {
       console.log('[Wails D&D] Processing', filePaths.length, 'file(s)...');
 
       try {
-        // Convert file paths to File objects
+        // Convert file paths to File objects using Wails binding
         const files = await Promise.all(
           filePaths.map(async (filePath) => {
             console.log('[Wails D&D] Reading file:', filePath);
@@ -61,10 +65,12 @@ const FilePreview = memo(() => {
             // Extract filename from path
             const fileName = filePath.split('/').pop() || filePath.split('\\').pop() || 'file';
 
-            // Read file using fetch with file:// protocol
-            // In Wails, we can access local files directly
-            const response = await fetch(`file://${filePath}`);
-            const blob = await response.blob();
+            // Read file using Wails binding
+            const fileBytes = await FileService.ReadFileFromAbsolutePath(filePath);
+            console.log('[Wails D&D] File read successfully, size:', fileBytes.length, 'bytes');
+
+            // Convert Uint8Array to Blob
+            const blob = new Blob([fileBytes]);
 
             // Determine MIME type from extension
             const ext = fileName.split('.').pop()?.toLowerCase();
