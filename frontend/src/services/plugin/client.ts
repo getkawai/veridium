@@ -1,14 +1,14 @@
 import { LobeTool } from '@/types';
 
-import { clientDB } from '@/database/client/db';
 import { PluginModel } from '@/database/models/plugin';
 import { BaseClientService } from '@/services/baseClientService';
 
 import { IPluginService } from './type';
+import { DB } from '@/types/database';
 
 export class ClientService extends BaseClientService implements IPluginService {
   private get pluginModel(): PluginModel {
-    return new PluginModel(clientDB as any, this.userId);
+    return new PluginModel(DB as any, this.userId);
   }
 
   installPlugin: IPluginService['installPlugin'] = async (plugin) => {

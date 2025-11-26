@@ -1,5 +1,3 @@
-import { clientDB } from '@/database/client/db';
-import { MessageModel } from '@/database/models/message';
 import { BaseClientService } from '@/services/baseClientService';
 import { SemanticSearchSchemaType, SemanticSearchResult } from '@/types/rag';
 
@@ -14,10 +12,6 @@ import { IRAGService } from './type';
  * - DocumentService (Go): Document CRUD operations
  */
 export class ClientService extends BaseClientService implements IRAGService {
-  private get messageModel(): MessageModel {
-    return new MessageModel(clientDB as any, this.userId);
-  }
-
   /**
    * Parse file content and create document
    * Uses Go FileProcessorService.ProcessFileForStorage

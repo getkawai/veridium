@@ -1,10 +1,10 @@
-import { clientDB } from '@/database/client/db';
 import { DataExporterRepos } from '@/database/repositories/dataExporter';
 import { BaseClientService } from '@/services/baseClientService';
+import { DB } from '@/types/database';
 
 export class ClientService extends BaseClientService {
   private get dataExporterRepos(): DataExporterRepos {
-    return new DataExporterRepos(clientDB as any, this.userId);
+    return new DataExporterRepos(DB as any, this.userId);
   }
 
   exportData = async () => {

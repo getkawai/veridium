@@ -1,4 +1,3 @@
-import { DB } from '@@/database/sql/models';
 import { parseDataUri } from '@/model-runtime';
 import debug from 'debug';
 import { sha256 } from 'js-sha256';
@@ -73,7 +72,7 @@ interface ImageForGeneration {
 export class GenerationService {
   private fileService: FileService;
 
-  constructor(db: DB, userId: string) {
+  constructor(db: any, userId: string) {
     this.fileService = new FileService(db, userId);
   }
 

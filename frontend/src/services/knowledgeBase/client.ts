@@ -1,13 +1,13 @@
-import { clientDB } from '@/database/client/db';
 import { KnowledgeBaseModel } from '@/database/models/knowledgeBase';
 import { BaseClientService } from '@/services/baseClientService';
 import { CreateKnowledgeBaseParams, KnowledgeBaseItem } from '@/types';
 
 import { IKnowledgeBaseService } from './type';
+import { DB } from '@/types/database';
 
 export class ClientService extends BaseClientService implements IKnowledgeBaseService {
   private get knowledgeBaseModel(): KnowledgeBaseModel {
-    return new KnowledgeBaseModel(clientDB as any, this.userId);
+    return new KnowledgeBaseModel(DB as any, this.userId);
   }
 
   createKnowledgeBase = async (params: CreateKnowledgeBaseParams): Promise<KnowledgeBaseItem> => {

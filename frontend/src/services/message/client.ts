@@ -1,6 +1,5 @@
-
 import { INBOX_SESSION_ID } from '@/const/session';
-import { clientDB } from '@/database/client/db';
+import { DB } from '@/types/database';
 import { MessageModel } from '@/database/models/message';
 import { BaseClientService } from '@/services/baseClientService';
 
@@ -8,7 +7,7 @@ import { IMessageService } from './type';
 
 export class ClientService extends BaseClientService implements IMessageService {
   private get messageModel(): MessageModel {
-    return new MessageModel(clientDB as any, this.userId);
+    return new MessageModel(DB as any, this.userId);
   }
 
   updateMessageError: IMessageService['updateMessageError'] = async (id, error) => {

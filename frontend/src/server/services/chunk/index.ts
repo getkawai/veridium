@@ -1,4 +1,4 @@
-import { DB } from '@@/database/sql/models';
+import { DB } from '@/types/database';
 import { ClientSecretPayload } from '@/types';
 
 import { AsyncTaskModel } from '@/database/models/asyncTask';

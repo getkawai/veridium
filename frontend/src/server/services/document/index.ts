@@ -1,4 +1,3 @@
-import { DB } from '@@/database/sql/models';
 import debug from 'debug';
 
 import { LobeDocument } from '@/types/document';
@@ -12,7 +11,7 @@ export class DocumentService {
   userId: string;
   private fileService: FileService;
 
-  constructor(db: DB, userId: string) {
+  constructor(db: any, userId: string) {
     this.userId = userId;
     this.fileService = new FileService(db, userId);
   }

@@ -30,7 +30,6 @@ import { Action, setNamespace } from '@/utils/storeDebug';
 import { DB, toNullString, toNullJSON, currentTimestampMs, getNullableString } from '@/types/database';
 import { getUserId } from '@/store/session/helpers';
 import { MessageModel } from '@/database/models/message';
-import { clientDB } from '@/database/client/db';
 
 import type { ChatStoreState } from '../../initialState';
 import { chatSelectors } from '../../selectors';
@@ -606,7 +605,7 @@ export const chatMessage: StateCreator<
 
     try {
       const userId = getUserId();
-      const messageModel = new MessageModel(clientDB, userId);
+      const messageModel = new MessageModel(DB, userId);
       const dbMessage = await messageModel.create(message);
       const id = dbMessage.id;
 
