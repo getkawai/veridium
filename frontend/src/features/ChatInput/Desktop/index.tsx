@@ -78,6 +78,8 @@ const DesktopChatInput = memo<{ showFootnote?: boolean }>(({ showFootnote }) => 
       {!expand && fileNode}
       <Flexbox
         className={cx(styles.container, expand && styles.fullscreen)}
+        data-wails-dropzone
+        data-dropzone-id="chat-input"
         gap={8}
         paddingBlock={showFootnote ? '0 8px' : '0 12px'}
         paddingInline={12}

@@ -2,7 +2,6 @@ package main
 
 import (
 	"embed"
-	_ "embed"
 	"log"
 	"os"
 	"path/filepath"
@@ -20,6 +19,7 @@ import (
 	"github.com/kawai-network/veridium/pkg/chromem"
 	"github.com/kawai-network/veridium/pkg/contextengine"
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
 	"github.com/wailsapp/wails/v3/pkg/services/fileserver"
 	"github.com/wailsapp/wails/v3/pkg/services/kvstore"
 	wailslog "github.com/wailsapp/wails/v3/pkg/services/log"
@@ -313,9 +313,10 @@ func main() {
 	// 'Mac' options tailor the window when running on macOS.
 	// 'BackgroundColour' is the background colour of the window.
 	// 'URL' is the URL that will be loaded into the webview.
-	app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title:      "Window 1",
-		StartState: application.WindowStateMaximised,
+	win := app.Window.NewWithOptions(application.WebviewWindowOptions{
+		Title:             "Window 1",
+		StartState:        application.WindowStateMaximised,
+		EnableDragAndDrop: true, // Enable native drag & drop support
 		Mac: application.MacWindow{
 			Backdrop: application.MacBackdropTranslucent,
 			TitleBar: application.MacTitleBarHiddenInset,
@@ -323,6 +324,43 @@ func main() {
 		BackgroundColour: application.NewRGB(27, 38, 54),
 		URL:              "/",
 	})
+
+	// Setup drag & drop event handler
+	win.OnWindowEvent(
+		events.Common.WindowDropZoneFilesDropped,
+		func(event *application.WindowEvent) {
+			droppedFiles := event.Context().DroppedFiles()
+			details := event.Context().DropZoneDetails()
+
+			log.Printf("[Drag&Drop] Files dropped: %d files", len(droppedFiles))
+			for i, file := range droppedFiles {
+				log.Printf("[Drag&Drop]   %d. %s", i+1, file)
+			}
+
+			if details != nil {
+				log.Printf("[Drag&Drop] Drop zone details:")
+				log.Printf("[Drag&Drop]   ElementID: %s", details.ElementID)
+				log.Printf("[Drag&Drop]   ClassList: %v", details.ClassList)
+				log.Printf("[Drag&Drop]   Position: (%d, %d)", details.X, details.Y)
+
+				// Emit event to frontend with file paths and drop zone info
+				app.Event.Emit("files:dropped", map[string]interface{}{
+					"files":      droppedFiles,
+					"elementId":  details.ElementID,
+					"classList":  details.ClassList,
+					"x":          details.X,
+					"y":          details.Y,
+					"attributes": details.Attributes,
+				})
+			} else {
+				// Drop outside specific zone
+				log.Printf("[Drag&Drop] Drop outside specific zone")
+				app.Event.Emit("files:dropped", map[string]interface{}{
+					"files": droppedFiles,
+				})
+			}
+		},
+	)
 
 	// Create a goroutine that emits an event containing the current time every second.
 	// The frontend can listen to this event and update the UI accordingly.

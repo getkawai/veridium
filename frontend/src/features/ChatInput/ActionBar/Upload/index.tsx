@@ -6,7 +6,8 @@ import ServerMode from './ServerMode';
 
 const Upload = () => {
   const { enableKnowledgeBase } = useServerConfigStore(featureFlagsSelectors);
-  return isServerMode && enableKnowledgeBase ? <ServerMode /> : <ClientMode />;
+  // return isServerMode && enableKnowledgeBase ? <ServerMode /> : <ClientMode />;
+  return <ServerMode />;
 };
 
 export default Upload;
