@@ -2,7 +2,7 @@ import { Events } from '@wailsio/runtime';
 import { memo, useEffect } from 'react';
 
 // @ts-ignore - Wails binding
-import * as FileService from '../../../../../../bindings/github.com/kawai-network/veridium/internal/services/file/fileservice.js';
+import * as FileService from '@@/github.com/kawai-network/veridium/internal/services/file/fileservice';
 import { message } from '@/components/AntdStaticMethods';
 import { useModelSupportFiles } from '@/hooks/useModelSupportFiles';
 import { useModelSupportVision } from '@/hooks/useModelSupportVision';
@@ -12,8 +12,15 @@ import { useFileStore } from '@/store/file';
 
 import FileItemList from './FileList';
 
+interface ProcessedFile {
+  originalPath: string;
+  savedKey: string;
+  url: string;
+  name: string;
+}
+
 interface WailsDropEvent {
-  files: string[];
+  files: ProcessedFile[];
   elementId?: string;
   classList?: string[];
   x?: number;
@@ -34,69 +41,54 @@ const FilePreview = memo(() => {
   useEffect(() => {
     // Listen to Wails drag & drop event
     const unsubscribe = Events.On('files:dropped', async (event: any) => {
-      console.log('[Wails D&D] Event received:', event);
-
-      // Extract data from Wails event - data is directly in event.data
+      // Extract data from Wails event
       const data: WailsDropEvent = event.data || event;
-      console.log('[Wails D&D] Files dropped:', data);
 
       if (!canUpload) {
-        console.log('[Wails D&D] Upload not supported for current model');
         message.warning('File upload is not supported for the current model');
         return;
       }
 
-      const filePaths = data.files;
-      console.log('[Wails D&D] File paths:', filePaths, 'type:', typeof filePaths, 'isArray:', Array.isArray(filePaths));
+      const processedFiles = data.files;
       
-      if (!filePaths || filePaths.length === 0) {
-        console.log('[Wails D&D] No files in drop event');
+      if (!processedFiles || processedFiles.length === 0) {
         return;
       }
 
-      console.log('[Wails D&D] Processing', filePaths.length, 'file(s)...');
-
       try {
-        // Convert file paths to File objects using Wails binding
-        const files = await Promise.all(
-          filePaths.map(async (filePath) => {
-            console.log('[Wails D&D] Reading file:', filePath);
+        // Files are already saved to local storage by backend
+        // Just create upload items with local URLs
+        const uploadItems = processedFiles.map((fileInfo) => {
+          // Determine MIME type from extension
+          const ext = fileInfo.name.split('.').pop()?.toLowerCase();
+          const mimeType = getMimeType(ext || '');
 
-            // Extract filename from path
-            const fileName = filePath.split('/').pop() || filePath.split('\\').pop() || 'file';
-
-            // Read file using Wails binding
-            const fileBytes = await FileService.ReadFileFromAbsolutePath(filePath);
-            console.log('[Wails D&D] File read successfully, size:', fileBytes.length, 'bytes');
-
-            // Convert Uint8Array to Blob
-            const blob = new Blob([fileBytes]);
-
-            // Determine MIME type from extension
-            const ext = fileName.split('.').pop()?.toLowerCase();
-            const mimeType = getMimeType(ext || '');
-
-            return new File([blob], fileName, { type: mimeType });
-          }),
-        );
-
-        console.log('[Wails D&D] Files prepared:', files.length);
-
-        // Check if trying to upload non-image files when only vision is supported
-        if (!enabledFiles) {
-          const nonImageFiles = files.filter((file) => !file.type.startsWith('image'));
-          if (nonImageFiles.length > 0) {
-            console.warn('[Wails D&D] Non-image files not supported:', nonImageFiles);
-            message.warning('Only image files are supported for this model');
-            return;
+          // Check if trying to upload non-image files when only vision is supported
+          if (!enabledFiles && !mimeType.startsWith('image')) {
+            return null;
           }
+
+          return {
+            id: fileInfo.name,
+            file: { name: fileInfo.name, type: mimeType, size: 0 } as File,
+            previewUrl: fileInfo.url,
+            base64Url: undefined,
+            status: 'success' as const,
+          };
+        }).filter(Boolean);
+
+        if (uploadItems.length === 0) {
+          message.warning('No supported files to upload');
+          return;
         }
 
-        // Upload files
-        console.log('[Wails D&D] Uploading files...');
-        await uploadFiles(files);
-        console.log('[Wails D&D] Upload completed');
-        message.success(`Successfully uploaded ${files.length} file(s)`);
+        // Add files directly to upload list (already saved by backend)
+        useFileStore.getState().dispatchChatUploadFileList({ 
+          files: uploadItems as any, 
+          type: 'addFiles' 
+        });
+        
+        message.success(`Successfully uploaded ${uploadItems.length} file(s)`);
       } catch (error) {
         console.error('[Wails D&D] Error:', error);
         message.error('Failed to upload files');

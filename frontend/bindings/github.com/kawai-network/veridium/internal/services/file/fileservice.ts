@@ -15,6 +15,13 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
+ * CopyFileFromAbsolutePath copies file from absolute path to local storage (for drag & drop)
+ */
+export function CopyFileFromAbsolutePath(absolutePath: string): $CancellablePromise<string> {
+    return $Call.ByID(2151423296, absolutePath);
+}
+
+/**
  * CreatePreSignedUrl creates pre-signed upload URL via implementation
  */
 export function CreatePreSignedUrl(key: string): $CancellablePromise<string> {
@@ -83,6 +90,15 @@ export function GetKeyFromFullUrl(url: string): $CancellablePromise<string> {
 }
 
 /**
+ * ReadFileFromAbsolutePath reads file from absolute path (for drag & drop)
+ */
+export function ReadFileFromAbsolutePath(absolutePath: string): $CancellablePromise<string> {
+    return $Call.ByID(89408241, absolutePath).then(($result: any) => {
+        return $Create.ByteSlice($result);
+    });
+}
+
+/**
  * UploadContent uploads content via implementation
  */
 export function UploadContent(path: string, content: string): $CancellablePromise<void> {
@@ -92,7 +108,7 @@ export function UploadContent(path: string, content: string): $CancellablePromis
 /**
  * UploadMedia uploads media file via implementation
  */
-export function UploadMedia(key: string, buffer: string): $CancellablePromise<string> {
+export function UploadMedia(key: string, buffer: any): $CancellablePromise<string> {
     return $Call.ByID(926665968, key, buffer);
 }
 

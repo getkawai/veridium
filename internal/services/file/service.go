@@ -5,12 +5,14 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // FileServiceImpl defines file service interface
@@ -24,7 +26,7 @@ type FileServiceImpl interface {
 	GetFullFileUrl(fileUrl string) string
 	GetKeyFromFullUrl(fullUrl string) string
 	UploadContent(path, content string) error
-	UploadMedia(key string, buffer []byte) (string, error)
+	UploadMedia(key string, buffer interface{}) (string, error)
 	ReadFileFromAbsolutePath(absolutePath string) ([]byte, error)
 }
 
@@ -176,13 +178,91 @@ func (d *DesktopLocalFileImpl) ReadFileFromAbsolutePath(absolutePath string) ([]
 	return ioutil.ReadFile(absolutePath)
 }
 
+// CopyFileFromAbsolutePath copies file from absolute path to local storage (for drag & drop)
+// Returns the relative key path that can be used to access the file via fileserver
+func (d *DesktopLocalFileImpl) CopyFileFromAbsolutePath(absolutePath string) (string, error) {
+	// Security check: ensure path is absolute and exists
+	if !filepath.IsAbs(absolutePath) {
+		return "", fmt.Errorf("path must be absolute: %s", absolutePath)
+	}
+
+	// Check if file exists
+	if _, err := os.Stat(absolutePath); os.IsNotExist(err) {
+		return "", fmt.Errorf("file does not exist: %s", absolutePath)
+	}
+
+	// Extract filename
+	filename := filepath.Base(absolutePath)
+
+	// Sanitize filename
+	sanitizedName := filename
+	// Remove any path separators
+	sanitizedName = filepath.Base(sanitizedName)
+
+	// Generate unique filename with timestamp
+	timestamp := time.Now().UnixMilli()
+	uniqueFileName := fmt.Sprintf("%d-%s", timestamp, sanitizedName)
+	relativeKey := filepath.Join("uploads", uniqueFileName)
+
+	// Construct destination path
+	destPath := filepath.Join(d.BaseDir, relativeKey)
+
+	// Ensure directory exists
+	destDir := filepath.Dir(destPath)
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create directory %s: %w", destDir, err)
+	}
+
+	// Copy file
+	sourceFile, err := os.Open(absolutePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to open source file: %w", err)
+	}
+	defer sourceFile.Close()
+
+	destFile, err := os.Create(destPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to create destination file: %w", err)
+	}
+	defer destFile.Close()
+
+	// Copy content
+	written, err := io.Copy(destFile, sourceFile)
+	if err != nil {
+		return "", fmt.Errorf("failed to copy file: %w", err)
+	}
+
+	log.Printf("File copied successfully: %s -> %s (%d bytes)", filename, relativeKey, written)
+
+	return relativeKey, nil
+}
+
 // UploadMedia upload media file
-func (d *DesktopLocalFileImpl) UploadMedia(key string, buffer []byte) (string, error) {
+// buffer parameter can be either:
+// - []byte: raw binary data
+// - string: base64-encoded data (for Wails binding compatibility)
+func (d *DesktopLocalFileImpl) UploadMedia(key string, buffer interface{}) (string, error) {
 	// Extract filename from key
 	filename := filepath.Base(key)
 
+	// Convert buffer to []byte
+	var data []byte
+	switch v := buffer.(type) {
+	case []byte:
+		data = v
+	case string:
+		// Decode base64 string
+		decoded, err := base64.StdEncoding.DecodeString(v)
+		if err != nil {
+			return "", fmt.Errorf("failed to decode base64 data: %w", err)
+		}
+		data = decoded
+	default:
+		return "", fmt.Errorf("unsupported buffer type: %T", buffer)
+	}
+
 	// Calculate file's SHA256 hash
-	hash := sha256.Sum256(buffer)
+	hash := sha256.Sum256(data)
 	hashString := fmt.Sprintf("%x", hash)
 
 	// Construct local file path
@@ -195,11 +275,11 @@ func (d *DesktopLocalFileImpl) UploadMedia(key string, buffer []byte) (string, e
 	}
 
 	// Write file
-	if err := os.WriteFile(localPath, buffer, 0644); err != nil {
+	if err := os.WriteFile(localPath, data, 0644); err != nil {
 		return "", fmt.Errorf("failed to write file %s: %w", localPath, err)
 	}
 
-	log.Printf("File uploaded successfully: %s (hash: %s)", filename, hashString)
+	log.Printf("File uploaded successfully: %s (size: %d bytes, hash: %s)", filename, len(data), hashString)
 	return key, nil
 }
 
@@ -333,7 +413,7 @@ func (s *S3StaticFileImpl) UploadContent(path, content string) error {
 }
 
 // UploadMedia uploads media file to S3
-func (s *S3StaticFileImpl) UploadMedia(key string, buffer []byte) (string, error) {
+func (s *S3StaticFileImpl) UploadMedia(key string, buffer interface{}) (string, error) {
 	// Placeholder - in real implementation would upload buffer to S3
 	log.Printf("UploadMedia not implemented for key: %s", key)
 	return key, nil
@@ -429,13 +509,22 @@ func (fs *FileService) GetKeyFromFullUrl(url string) string {
 }
 
 // UploadMedia uploads media file via implementation
-func (fs *FileService) UploadMedia(key string, buffer []byte) (string, error) {
+func (fs *FileService) UploadMedia(key string, buffer interface{}) (string, error) {
 	return fs.Impl.UploadMedia(key, buffer)
 }
 
 // ReadFileFromAbsolutePath reads file from absolute path (for drag & drop)
 func (fs *FileService) ReadFileFromAbsolutePath(absolutePath string) ([]byte, error) {
 	return fs.Impl.ReadFileFromAbsolutePath(absolutePath)
+}
+
+// CopyFileFromAbsolutePath copies file from absolute path to local storage (for drag & drop)
+func (fs *FileService) CopyFileFromAbsolutePath(absolutePath string) (string, error) {
+	// Only DesktopLocalFileImpl supports this operation
+	if desktopImpl, ok := fs.Impl.(*DesktopLocalFileImpl); ok {
+		return desktopImpl.CopyFileFromAbsolutePath(absolutePath)
+	}
+	return "", fmt.Errorf("CopyFileFromAbsolutePath not supported by current file service implementation")
 }
 
 // DownloadFileToLocal downloads file to local temp storage

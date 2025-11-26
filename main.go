@@ -208,18 +208,12 @@ func main() {
 			// Frontend assets are handled by Wails' built-in asset server via embed
 			application.NewServiceWithOptions(
 				func() *fileserver.FileserverService {
-					// Get user data directory
-					userConfigDir, err := os.UserConfigDir()
-					if err != nil {
-						// Fallback to current directory
-						userConfigDir = "."
-					}
-					appDataDir := filepath.Join(userConfigDir, "veridium")
-
+					// Use same base directory as FileService for consistency
+					// This ensures uploaded files can be served via /files/ route
 					return fileserver.NewWithConfig(&fileserver.Config{
-						RootPath:               appDataDir,
-						EnableDirectoryListing: true, // Enable for user data access
-						EnableCORS:             true, // Enable CORS for web access
+						RootPath:               fileBaseDir, // Same as FileService baseDir
+						EnableDirectoryListing: true,        // Enable for user data access
+						EnableCORS:             true,        // Enable CORS for web access
 						IndexFile:              "index.html",
 						AllowedExtensions:      []string{".html", ".css", ".js", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".pdf", ".docx", ".txt", ".md"}, // User files + images
 					})
@@ -333,19 +327,36 @@ func main() {
 			details := event.Context().DropZoneDetails()
 
 			log.Printf("[Drag&Drop] Files dropped: %d files", len(droppedFiles))
-			for i, file := range droppedFiles {
-				log.Printf("[Drag&Drop]   %d. %s", i+1, file)
+
+			// Process files in backend - copy to local storage
+			processedFiles := make([]map[string]interface{}, 0, len(droppedFiles))
+			for i, filePath := range droppedFiles {
+				log.Printf("[Drag&Drop]   %d. %s", i+1, filePath)
+
+				// Copy file to local storage
+				relativeKey, err := fileSvc.CopyFileFromAbsolutePath(filePath)
+				if err != nil {
+					log.Printf("[Drag&Drop] Error copying file %s: %v", filePath, err)
+					continue
+				}
+
+				// Create file info for frontend
+				fileInfo := map[string]interface{}{
+					"originalPath": filePath,
+					"savedKey":     relativeKey,
+					"url":          "/files/" + relativeKey,
+					"name":         filepath.Base(filePath),
+				}
+				processedFiles = append(processedFiles, fileInfo)
+				log.Printf("[Drag&Drop] File saved: %s -> %s", filepath.Base(filePath), relativeKey)
 			}
 
 			if details != nil {
-				log.Printf("[Drag&Drop] Drop zone details:")
-				log.Printf("[Drag&Drop]   ElementID: %s", details.ElementID)
-				log.Printf("[Drag&Drop]   ClassList: %v", details.ClassList)
-				log.Printf("[Drag&Drop]   Position: (%d, %d)", details.X, details.Y)
+				log.Printf("[Drag&Drop] Drop zone: %s at (%d, %d)", details.ElementID, details.X, details.Y)
 
-				// Emit event to frontend with file paths and drop zone info
+				// Emit event to frontend with processed file info
 				app.Event.Emit("files:dropped", map[string]interface{}{
-					"files":      droppedFiles,
+					"files":      processedFiles,
 					"elementId":  details.ElementID,
 					"classList":  details.ClassList,
 					"x":          details.X,
@@ -356,7 +367,7 @@ func main() {
 				// Drop outside specific zone
 				log.Printf("[Drag&Drop] Drop outside specific zone")
 				app.Event.Emit("files:dropped", map[string]interface{}{
-					"files": droppedFiles,
+					"files": processedFiles,
 				})
 			}
 		},
