@@ -3,6 +3,7 @@ import { css, cx } from 'antd-style';
 import { FileUp, FolderUp, ImageUp, Paperclip } from 'lucide-react';
 import { memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Dialogs } from '@wailsio/runtime';
 
 import { message } from '@/components/AntdStaticMethods';
 import { useModelSupportVision } from '@/hooks/useModelSupportVision';
@@ -13,27 +14,6 @@ import { useFileStore } from '@/store/file';
 import { FileService } from '@/services';
 
 import Action from '../components/Action';
-
-// Wails runtime imports
-declare const window: Window & {
-  _wails?: {
-    Dialogs: {
-      OpenFile(options: {
-        CanChooseFiles?: boolean;
-        CanChooseDirectories?: boolean;
-        AllowsMultipleSelection?: boolean;
-        ShowHiddenFiles?: boolean;
-        CanCreateDirectories?: boolean;
-        ResolvesAliases?: boolean;
-        TreatPackagesAsDirectories?: boolean;
-        AllowedFileTypes?: string[];
-        Title?: string;
-        Message?: string;
-        ButtonText?: string;
-      }): Promise<string | string[] | null>;
-    };
-  };
-};
 
 const hotArea = css`
   &::before {
@@ -73,17 +53,17 @@ const FileUpload = memo(() => {
 
   // Handle native file dialog for images
   const handleImageUpload = useCallback(async () => {
-    if (!window._wails?.Dialogs) {
-      message.error('Native dialogs not available');
-      return;
-    }
-
     try {
-      const result = await window._wails.Dialogs.OpenFile({
+      const result = await Dialogs.OpenFile({
         CanChooseFiles: true,
         CanChooseDirectories: false,
         AllowsMultipleSelection: true,
-        AllowedFileTypes: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'],
+        Filters: [
+          {
+            DisplayName: 'Images',
+            Pattern: '*.png;*.jpg;*.jpeg;*.gif;*.webp;*.svg',
+          },
+        ],
         Title: 'Select Images',
       });
 
@@ -132,13 +112,8 @@ const FileUpload = memo(() => {
 
   // Handle native file dialog for files
   const handleFileUpload = useCallback(async () => {
-    if (!window._wails?.Dialogs) {
-      message.error('Native dialogs not available');
-      return;
-    }
-
     try {
-      const result = await window._wails.Dialogs.OpenFile({
+      const result = await Dialogs.OpenFile({
         CanChooseFiles: true,
         CanChooseDirectories: false,
         AllowsMultipleSelection: true,
@@ -202,13 +177,8 @@ const FileUpload = memo(() => {
 
   // Handle native folder dialog
   const handleFolderUpload = useCallback(async () => {
-    if (!window._wails?.Dialogs) {
-      message.error('Native dialogs not available');
-      return;
-    }
-
     try {
-      const result = await window._wails.Dialogs.OpenFile({
+      const result = await Dialogs.OpenFile({
         CanChooseFiles: false,
         CanChooseDirectories: true,
         AllowsMultipleSelection: false,
