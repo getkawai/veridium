@@ -359,8 +359,6 @@ export const createSessionSlice: StateCreator<
         updatedAt: new Date(g.updatedAt),
       }));
 
-      console.log('[Session] Fetched sessions via direct DB', { count: sessions.length });
-
       // Skip update if data hasn't changed
       if (
         get().isSessionsFirstFetchFinished &&

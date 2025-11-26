@@ -326,7 +326,6 @@ export const chatTopic: StateCreator<
         return;
       }
 
-      console.debug('[internal_fetchTopics] Updating topicMaps');
       set(
         { topicMaps: nextMap as Record<string, ChatTopic[]>, topicsInit: true },
         false,
@@ -378,6 +377,7 @@ export const chatTopic: StateCreator<
   },
 
   switchTopic: async (id, skipRefreshMessage) => {
+    console.trace('[switchTopic] Called from:');
     const previousActiveThreadId = get().activeThreadId;
     console.debug('[chatTopic.switchTopic] Switching topic:', {
       previousTopicId: get().activeTopicId,
@@ -396,20 +396,9 @@ export const chatTopic: StateCreator<
       wasCleared: previousActiveThreadId !== undefined,
     });
 
-    // Sync URL parameter with activeTopicId
-    console.log('[switchTopic] Syncing URL parameter:', { topicId: id });
-    const routerStore = await import('@/store/router').then(m => m.useRouterStore);
-    if (id) {
-      routerStore.getState().setSearchParam('topic', id);
-      console.log('[switchTopic] URL updated with topic:', id);
-    } else {
-      routerStore.getState().removeSearchParam('topic');
-      console.log('[switchTopic] URL topic parameter removed');
-    }
-
-    // Verify URL was updated
-    const currentParams = routerStore.getState().searchParams;
-    console.log('[switchTopic] Current URL params after sync:', currentParams);
+    // URL sync removed for desktop app - not needed in Wails
+    // Desktop apps don't use URL-based state management
+    // State is initialized from database/messages in StoreInitialization.tsx
 
     // Reset supervisor todos when switching topics in group chats
     try {

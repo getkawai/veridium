@@ -191,8 +191,6 @@ export const createChatSlice: StateCreator<
     try {
       // TODO: Implement when agentService is available
       // const data = await agentService.getFilesAndKnowledgeBases(activeAgentId);
-      const data: KnowledgeItem[] = [];
-      console.debug('[internal_fetchFilesAndKnowledgeBases] Fetched:', data.length);
     } catch (error) {
       console.error('[internal_fetchFilesAndKnowledgeBases] Error:', error);
     }
@@ -208,8 +206,6 @@ export const createChatSlice: StateCreator<
           const userId = getUserId();
           const dbAgent = await DB.GetAgentBySessionId({ sessionId: INBOX_SESSION_ID, userId });
           const data = mapAgentConfigFromDB(dbAgent);
-
-          console.log('[Agent] Initialized inbox agent via direct DB');
 
           set(
             {

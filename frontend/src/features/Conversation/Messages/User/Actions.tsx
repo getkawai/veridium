@@ -6,8 +6,6 @@ import { App } from 'antd';
 import { memo, use, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useSearchParams } from '@/hooks/useNavigation';
-
 import { useChatStore } from '@/store/chat';
 import { threadSelectors } from '@/store/chat/selectors';
 import { useSessionStore } from '@/store/session';
@@ -25,8 +23,6 @@ interface UserActionsProps {
 
 export const UserActionsBar = memo<UserActionsProps>(({ id, data, index }) => {
   const { t } = useTranslation('common');
-  const searchParams = useSearchParams();
-  const urlTopic = searchParams.get('topic');
 
   const hasThreadSelector = useMemo(
     () => threadSelectors.hasThreadBySourceMsgId(id),
@@ -62,11 +58,10 @@ export const UserActionsBar = memo<UserActionsProps>(({ id, data, index }) => {
     s.delAndResendThreadMessage,
   ])
 
-  const topic = urlTopic || activeTopicId;
+  const topic = activeTopicId;
 
   // Debug logging
   console.log('[UserActions] Topic detection:', {
-    urlTopic,
     activeTopicId,
     finalTopic: topic,
     hasTopic: !!topic

@@ -3,7 +3,8 @@ import ChatInput from './features/ChatInput';
 import ChatList from './features/ChatList';
 import ChatMinimap from './features/ChatMinimap';
 // import ThreadHydration from './features/ThreadHydration';
-import TopicHydration from './features/TopicHydration';
+// TopicHydration removed - replaced by useInitTopicState in StoreInitialization
+// import TopicHydration from './features/TopicHydration';
 import ZenModeToast from './features/ZenModeToast';
 
 const ChatConversation = () => {
@@ -11,7 +12,7 @@ const ChatConversation = () => {
 
   return (
     <>
-      <TopicHydration />
+      {/* TopicHydration removed - state initialized in StoreInitialization.tsx */}
       <ZenModeToast />
       <ChatList mobile={isMobile} />
       <ChatInput mobile={isMobile} />

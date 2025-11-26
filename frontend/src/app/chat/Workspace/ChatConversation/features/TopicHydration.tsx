@@ -1,5 +1,13 @@
 'use client';
 
+/**
+ * @deprecated This component is not used in desktop app (Veridium)
+ * Kept for reference only - was part of LobeChat web app architecture
+ * Desktop apps initialize state from database/messages, not URL
+ * See: useInitTopicState hook in hooks/useInitTopicState.ts
+ * Integrated in: layout/GlobalProvider/StoreInitialization.tsx
+ */
+
 import { useEffect } from 'react';
 
 import { useSearchParams } from '@/hooks/useNavigation';

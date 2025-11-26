@@ -350,35 +350,22 @@ export const chatMessage: StateCreator<
 
     try {
       const userId = getUserId();
-      let dbMessages;
+      let messages: UIChatMessage[] = [];
 
+      // Default topic (activeTopicId is null/undefined) should always show empty state (Welcome screen)
+      // Only fetch messages when a specific topic is selected
       if (activeTopicId) {
         // If topicId is provided, get messages by topic
-        dbMessages = await DB.ListMessagesByTopic({
+        const dbMessages = await DB.ListMessagesByTopic({
           topicId: toNullString(activeTopicId),
           userId,
           limit: 1000, // Large limit to get all messages
           offset: 0,
         });
-      } else if (type === 'session') {
-        // Get messages by session (no topic filter)
-        dbMessages = await DB.ListMessagesBySession({
-          sessionId: toNullString(messageContextId),
-          userId,
-          limit: 1000, // Large limit to get all messages
-          offset: 0,
-        });
-      } else {
-        // Get messages by group (no topic filter)
-        dbMessages = await DB.ListMessagesByGroup({
-          groupId: toNullString(messageContextId),
-          userId,
-          limit: 1000, // Large limit to get all messages
-          offset: 0,
-        });
+        messages = mapMessagesFromDB(dbMessages);
       }
-
-      const messages = mapMessagesFromDB(dbMessages);
+      // For default topic (no activeTopicId), keep messages as empty array []
+      // This ensures Welcome screen is shown in Content.tsx when data.length === 0
 
       const nextMap = {
         ...get().messagesMap,
@@ -392,7 +379,8 @@ export const chatMessage: StateCreator<
         type,
         messageContextId,
         activeTopicId,
-        count: messages.length
+        count: messages.length,
+        isDefaultTopic: !activeTopicId
       });
 
       set(
@@ -414,26 +402,21 @@ export const chatMessage: StateCreator<
 
     try {
       const userId = getUserId();
+      let messages: UIChatMessage[] = [];
 
-      // Fetch messages directly from database
-      let dbMessages;
+      // Default topic (activeTopicId is null/undefined) should always show empty state (Welcome screen)
+      // Only fetch messages when a specific topic is selected
       if (activeTopicId) {
-        dbMessages = await DB.ListMessagesByTopic({
+        const dbMessages = await DB.ListMessagesByTopic({
           topicId: toNullString(activeTopicId),
           userId,
           limit: 1000, // Large limit to get all messages
           offset: 0,
         });
-      } else {
-        dbMessages = await DB.ListMessagesBySession({
-          sessionId: toNullString(activeId),
-          userId,
-          limit: 1000, // Large limit to get all messages
-          offset: 0,
-        });
+        messages = mapMessagesFromDB(dbMessages);
       }
-
-      const messages = mapMessagesFromDB(dbMessages);
+      // For default topic (no activeTopicId), keep messages as empty array []
+      // This ensures Welcome screen is shown in Content.tsx when data.length === 0
 
       const nextMap = {
         ...get().messagesMap,
@@ -443,7 +426,8 @@ export const chatMessage: StateCreator<
       console.log('[Message] Refreshed messages via direct DB', {
         activeId,
         activeTopicId,
-        count: messages.length
+        count: messages.length,
+        isDefaultTopic: !activeTopicId
       });
 
       set(
