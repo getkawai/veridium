@@ -10,8 +10,7 @@ import { useModelSupportVision } from '@/hooks/useModelSupportVision';
 import { useAgentStore } from '@/store/agent';
 import { agentSelectors } from '@/store/agent/selectors';
 import { useFileStore } from '@/store/file';
-// @ts-ignore
-import { FileService } from '@/services';
+import * as FileService from '@@/github.com/kawai-network/veridium/internal/services/file/fileservice';
 
 import Action from '../components/Action';
 
