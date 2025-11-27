@@ -14,6 +14,7 @@ import * as FileService from '@@/github.com/kawai-network/veridium/internal/serv
 import { ProcessFileForStorage } from '@@/github.com/kawai-network/veridium/fileprocessorservice';
 
 import Action from '../components/Action';
+import { getUserId } from '@/store/user/helpers';
 
 const hotArea = css`
   &::before {
@@ -142,14 +143,16 @@ const FileUpload = memo(() => {
 
             // Copy file to local storage via backend
             const savedKey = await FileService.CopyFileFromAbsolutePath(filePath);
+            const userId = getUserId();
 
             // Process file for document storage (BLOCKING)
+            // Backend will automatically skip RAG for images/videos
             await ProcessFileForStorage(
               savedKey,           // filePath
               fileName,           // filename
               mimeType,           // fileType
-              'system',           // userID
-              false               // enableRAG (false for chat attachments)
+              userId,             // userID
+              true                // enableRAG (backend decides based on file type)
             );
 
             return {

@@ -10,7 +10,6 @@ import {
 } from '@/store/file/reducers/uploadFileList';
 import { FileListItem } from '@/types/files';
 import { UploadFileItem } from '@/types/files/upload';
-import { isChunkingUnsupported } from '@/utils/isChunkingUnsupported';
 import { setNamespace } from '@/utils/storeDebug';
 
 // @ts-ignore - Wails binding
@@ -161,12 +160,13 @@ export const createFileSlice: StateCreator<
         
         // Process file for document storage (BLOCKING)
         // Note: File card already shows "uploading" status, so user sees progress
+        // Backend will automatically skip RAG for images/videos
         await ProcessFileForStorage(
           savedKey,           // filePath
           file.name,          // filename
           file.type,          // fileType
           'system',           // userID
-          false               // enableRAG (false for chat attachments)
+          true                // enableRAG (backend decides based on file type)
         );
         
         // Create local file URL for preview
@@ -186,12 +186,6 @@ export const createFileSlice: StateCreator<
           },
         });
 
-        // image/video don't need to be chunked and embedding
-        if (isChunkingUnsupported(file.type)) {
-        return;
-        }
-
-        // TODO: Process file for RAG (chunking & embedding)
         console.log('[uploadChatFiles] File processing completed for:', file.name);
       } catch (error) {
         console.error('[uploadChatFiles] Error processing file:', file.name, error);

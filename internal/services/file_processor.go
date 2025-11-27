@@ -88,7 +88,8 @@ func (s *FileProcessorService) ProcessFile(ctx context.Context, req ProcessFileR
 	response.DocumentID = documentID
 
 	// Step 4: Process for RAG (optional, background)
-	if req.EnableRAG {
+	// Check if file type can be chunked (FileLoader is source of truth)
+	if req.EnableRAG && s.fileLoader.CanChunkForRAG(req.FileType) {
 		go func() {
 			chunkIDs, err := s.ragProcessor.ProcessFile(context.Background(), RAGProcessRequest{
 				FilePath:   req.FilePath,
@@ -103,6 +104,8 @@ func (s *FileProcessorService) ProcessFile(ctx context.Context, req ProcessFileR
 				xlog.Info("RAG processing completed", "file_id", fileID, "chunks", len(chunkIDs))
 			}
 		}()
+	} else if req.EnableRAG && !s.fileLoader.CanChunkForRAG(req.FileType) {
+		xlog.Info("Skipping RAG processing for unsupported file type", "file_type", req.FileType, "file_id", fileID)
 	}
 
 	return response, nil

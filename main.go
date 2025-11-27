@@ -109,8 +109,8 @@ func main() {
 	fileProcessorService := NewFileProcessorService(
 		dbService.DB(),
 		fileLoader,
-		vectorSearchService.GetChromemDB(),
-		fileBaseDir, // Pass file base directory for path resolution
+		vectorSearchService, // Pass entire service to get chromemDB and embedFunc
+		fileBaseDir,         // Pass file base directory for path resolution
 	)
 	log.Printf("✅ File Processor service initialized")
 	log.Printf("   Handles: file parsing → document storage → RAG processing")

@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 
 	"github.com/kawai-network/veridium/internal/services"
-	"github.com/kawai-network/veridium/pkg/chromem"
 )
 
 // FileProcessorService is the Wails-exposed service
@@ -19,12 +18,18 @@ type FileProcessorService struct {
 func NewFileProcessorService(
 	db *sql.DB,
 	fileLoader *services.FileLoader,
-	chromemDB *chromem.DB,
+	vectorSearchService *services.VectorSearchService,
 	fileBaseDir string,
 ) *FileProcessorService {
 	// Initialize sub-services
 	documentService := services.NewDocumentService(db)
-	ragProcessor := services.NewRAGProcessor(db, chromemDB, "./assets")
+
+	// Get chromem DB and embedding function from vector search service
+	chromemDB := vectorSearchService.GetChromemDB()
+	embedFunc := vectorSearchService.GetEmbeddingFunc()
+
+	// Create RAG processor with embedding function
+	ragProcessor := services.NewRAGProcessor(db, chromemDB, embedFunc)
 
 	// Create file processor
 	processor := services.NewFileProcessorService(

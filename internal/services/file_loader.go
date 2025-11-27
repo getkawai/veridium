@@ -154,6 +154,40 @@ func (l *FileLoader) isTextReadableFile(ext string) bool {
 	return false
 }
 
+// CanChunkForRAG checks if a MIME type can be chunked for RAG processing
+// Returns true if the file type can be parsed into text and chunked
+// Returns false for images, videos, audio, and binary formats
+func (l *FileLoader) CanChunkForRAG(mimeType string) bool {
+	// Media files cannot be chunked into text
+	if len(mimeType) >= 6 {
+		prefix := mimeType[:6]
+		if prefix == "image/" || prefix == "video/" || prefix == "audio/" {
+			return false
+		}
+	}
+	
+	// Binary/archive formats cannot be chunked
+	unsupportedTypes := []string{
+		"application/octet-stream",
+		"application/zip",
+		"application/x-rar",
+		"application/x-7z-compressed",
+		"application/x-tar",
+		"application/gzip",
+		"application/x-bzip2",
+		"application/x-xz",
+	}
+	
+	for _, unsupported := range unsupportedTypes {
+		if mimeType == unsupported {
+			return false
+		}
+	}
+	
+	// All other types (documents, text files) can be chunked
+	return true
+}
+
 // loadContent loads content based on file type and converts to markdown
 func (l *FileLoader) loadContent(filePath string, fileType SupportedFileType) ([]DocumentPage, string, string, error) {
 	switch fileType {

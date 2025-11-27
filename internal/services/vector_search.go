@@ -320,3 +320,9 @@ func (s *VectorSearchService) Close() error {
 func (s *VectorSearchService) GetChromemDB() *chromem.DB {
 	return s.db
 }
+
+// GetEmbeddingFunc returns the embedding function
+// This is used by RAGProcessor for generating embeddings
+func (s *VectorSearchService) GetEmbeddingFunc() chromem.EmbeddingFunc {
+	return s.embedFunc
+}
