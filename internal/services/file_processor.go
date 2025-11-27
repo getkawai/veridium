@@ -15,37 +15,10 @@ import (
 	"github.com/kawai-network/veridium/pkg/xlog"
 )
 
-// Type aliases for external types (from root package)
-type LoadFileService interface {
-	LoadFile(filePath string, metadata *FileMetadata) (*FileDocument, error)
-}
-
-type FileMetadata struct {
-	Source       string
-	Filename     string
-	FileType     string
-	CreatedTime  time.Time
-	ModifiedTime time.Time
-	Error        string
-}
-
-type FileDocument struct {
-	Content        string
-	CreatedTime    time.Time
-	FileType       string
-	Filename       string
-	Metadata       FileMetadata
-	ModifiedTime   time.Time
-	Pages          []DocumentPage
-	Source         string
-	TotalCharCount int
-	TotalLineCount int
-}
-
 // FileProcessorService orchestrates file processing pipeline
 type FileProcessorService struct {
 	queries         *db.Queries
-	loadFileService LoadFileService
+	fileLoader      *FileLoader
 	documentService *DocumentService
 	ragProcessor    *RAGProcessor
 }
@@ -53,13 +26,13 @@ type FileProcessorService struct {
 // NewFileProcessorService creates a new file processor service
 func NewFileProcessorService(
 	database *sql.DB,
-	loadFileService LoadFileService,
+	fileLoader *FileLoader,
 	documentService *DocumentService,
 	ragProcessor *RAGProcessor,
 ) *FileProcessorService {
 	return &FileProcessorService{
 		queries:         db.New(database),
-		loadFileService: loadFileService,
+		fileLoader:      fileLoader,
 		documentService: documentService,
 		ragProcessor:    ragProcessor,
 	}
@@ -101,8 +74,8 @@ func (s *FileProcessorService) ProcessFile(ctx context.Context, req ProcessFileR
 	response.FileID = fileID
 	response.GlobalFileID = globalFileID
 
-	// Step 2: Parse file using LoadFileService
-	fileDoc, err := s.loadFileService.LoadFile(req.FilePath, req.FileMetadata)
+	// Step 2: Parse file using FileLoader
+	fileDoc, err := s.fileLoader.LoadFile(req.FilePath, req.FileMetadata)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load file: %w", err)
 	}

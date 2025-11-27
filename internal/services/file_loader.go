@@ -1,4 +1,4 @@
-package main
+package services
 
 import (
 	"fmt"
@@ -13,56 +13,16 @@ import (
 	"github.com/kawai-network/veridium/gooxml/spreadsheet"
 )
 
-// LoadFileService provides file loading functionality as a Wails service
-type LoadFileService struct{}
+// FileLoader provides file loading functionality
+type FileLoader struct{}
 
-// SupportedFileType represents supported file types
-type SupportedFileType string
-
-const (
-	FileTypeTXT  SupportedFileType = "txt"
-	FileTypePDF  SupportedFileType = "pdf"
-	FileTypeDOC  SupportedFileType = "doc"
-	FileTypeDOCX SupportedFileType = "docx"
-	FileTypeXLS  SupportedFileType = "xls"
-	FileTypeXLSX SupportedFileType = "xlsx"
-	FileTypePPTX SupportedFileType = "pptx"
-)
-
-// FileMetadata represents file metadata
-type FileMetadata struct {
-	Source       string    `json:"source,omitempty"`
-	Filename     string    `json:"filename,omitempty"`
-	FileType     string    `json:"fileType,omitempty"`
-	CreatedTime  time.Time `json:"createdTime,omitempty"`
-	ModifiedTime time.Time `json:"modifiedTime,omitempty"`
-	Error        string    `json:"error,omitempty"`
-}
-
-// DocumentPage represents a page in a document
-type DocumentPage struct {
-	CharCount   int                    `json:"charCount"`
-	LineCount   int                    `json:"lineCount"`
-	Metadata    map[string]interface{} `json:"metadata"`
-	PageContent string                 `json:"pageContent"`
-}
-
-// FileDocument represents the loaded file document
-type FileDocument struct {
-	Content        string         `json:"content"`
-	CreatedTime    time.Time      `json:"createdTime"`
-	FileType       string         `json:"fileType"`
-	Filename       string         `json:"filename"`
-	Metadata       FileMetadata   `json:"metadata"`
-	ModifiedTime   time.Time      `json:"modifiedTime"`
-	Pages          []DocumentPage `json:"pages"`
-	Source         string         `json:"source"`
-	TotalCharCount int            `json:"totalCharCount"`
-	TotalLineCount int            `json:"totalLineCount"`
+// NewFileLoader creates a new FileLoader
+func NewFileLoader() *FileLoader {
+	return &FileLoader{}
 }
 
 // LoadFile loads a file and returns a FileDocument with markdown content
-func (l *LoadFileService) LoadFile(filePath string, fileMetadata *FileMetadata) (*FileDocument, error) {
+func (l *FileLoader) LoadFile(filePath string, fileMetadata *FileMetadata) (*FileDocument, error) {
 	// Get file stats
 	stats, err := os.Stat(filePath)
 	if err != nil {
@@ -150,7 +110,7 @@ func (l *LoadFileService) LoadFile(filePath string, fileMetadata *FileMetadata) 
 }
 
 // detectFileType determines file type based on extension
-func (l *LoadFileService) detectFileType(filePath string) (SupportedFileType, error) {
+func (l *FileLoader) detectFileType(filePath string) (SupportedFileType, error) {
 	ext := strings.ToLower(filepath.Ext(filePath))
 
 	switch ext {
@@ -176,7 +136,7 @@ func (l *LoadFileService) detectFileType(filePath string) (SupportedFileType, er
 }
 
 // isTextReadableFile checks if file extension indicates text-readable content
-func (l *LoadFileService) isTextReadableFile(ext string) bool {
+func (l *FileLoader) isTextReadableFile(ext string) bool {
 	// Remove leading dot
 	ext = strings.TrimPrefix(ext, ".")
 
@@ -195,7 +155,7 @@ func (l *LoadFileService) isTextReadableFile(ext string) bool {
 }
 
 // loadContent loads content based on file type and converts to markdown
-func (l *LoadFileService) loadContent(filePath string, fileType SupportedFileType) ([]DocumentPage, string, string, error) {
+func (l *FileLoader) loadContent(filePath string, fileType SupportedFileType) ([]DocumentPage, string, string, error) {
 	switch fileType {
 	case FileTypeTXT:
 		return l.loadTextFile(filePath)
@@ -213,7 +173,7 @@ func (l *LoadFileService) loadContent(filePath string, fileType SupportedFileTyp
 }
 
 // loadTextFile loads text files
-func (l *LoadFileService) loadTextFile(filePath string) ([]DocumentPage, string, string, error) {
+func (l *FileLoader) loadTextFile(filePath string) ([]DocumentPage, string, string, error) {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, "", fmt.Sprintf("Failed to read text file: %v", err), err
@@ -239,7 +199,7 @@ func (l *LoadFileService) loadTextFile(filePath string) ([]DocumentPage, string,
 }
 
 // loadPDFFile loads PDF files using github.com/dslipak/pdf
-func (l *LoadFileService) loadPDFFile(filePath string) ([]DocumentPage, string, string, error) {
+func (l *FileLoader) loadPDFFile(filePath string) ([]DocumentPage, string, string, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, "", fmt.Sprintf("Failed to open PDF file: %v", err), err
@@ -302,7 +262,7 @@ func (l *LoadFileService) loadPDFFile(filePath string) ([]DocumentPage, string, 
 }
 
 // loadDOCXFile loads DOCX files using gooxml/document
-func (l *LoadFileService) loadDOCXFile(filePath string) ([]DocumentPage, string, string, error) {
+func (l *FileLoader) loadDOCXFile(filePath string) ([]DocumentPage, string, string, error) {
 	markdown, err := l.extractDOCXContent(filePath)
 	if err != nil {
 		return nil, "", fmt.Sprintf("failed to convert DOCX to markdown: %v", err), err
@@ -326,7 +286,7 @@ func (l *LoadFileService) loadDOCXFile(filePath string) ([]DocumentPage, string,
 }
 
 // extractDOCXContent extracts content from DOCX file using gooxml/document
-func (l *LoadFileService) extractDOCXContent(filePath string) (string, error) {
+func (l *FileLoader) extractDOCXContent(filePath string) (string, error) {
 	// Open the DOCX document
 	doc, err := document.Open(filePath)
 	if err != nil {
@@ -347,7 +307,7 @@ func (l *LoadFileService) extractDOCXContent(filePath string) (string, error) {
 }
 
 // loadExcelFile loads Excel files using gooxml/spreadsheet
-func (l *LoadFileService) loadExcelFile(filePath string) ([]DocumentPage, string, string, error) {
+func (l *FileLoader) loadExcelFile(filePath string) ([]DocumentPage, string, string, error) {
 	markdown, err := l.extractXLSXContent(filePath)
 	if err != nil {
 		return nil, "", fmt.Sprintf("failed to convert XLSX to markdown: %v", err), err
@@ -371,7 +331,7 @@ func (l *LoadFileService) loadExcelFile(filePath string) ([]DocumentPage, string
 }
 
 // extractXLSXContent extracts content from XLSX file using gooxml/spreadsheet
-func (l *LoadFileService) extractXLSXContent(filePath string) (string, error) {
+func (l *FileLoader) extractXLSXContent(filePath string) (string, error) {
 	// Open the XLSX workbook
 	wb, err := spreadsheet.Open(filePath)
 	if err != nil {
@@ -393,7 +353,7 @@ func (l *LoadFileService) extractXLSXContent(filePath string) (string, error) {
 }
 
 // loadPPTXFile loads PPTX files using gooxml/presentation
-func (l *LoadFileService) loadPPTXFile(filePath string) ([]DocumentPage, string, string, error) {
+func (l *FileLoader) loadPPTXFile(filePath string) ([]DocumentPage, string, string, error) {
 	markdown, err := l.extractPPTXContent(filePath)
 	if err != nil {
 		return nil, "", fmt.Sprintf("failed to convert PPTX to markdown: %v", err), err
@@ -417,7 +377,7 @@ func (l *LoadFileService) loadPPTXFile(filePath string) ([]DocumentPage, string,
 }
 
 // extractPPTXContent extracts content from PPTX file using gooxml/presentation
-func (l *LoadFileService) extractPPTXContent(filePath string) (string, error) {
+func (l *FileLoader) extractPPTXContent(filePath string) (string, error) {
 	// Open the PPTX presentation
 	doc, err := presentation.Open(filePath)
 	if err != nil {
@@ -438,7 +398,7 @@ func (l *LoadFileService) extractPPTXContent(filePath string) (string, error) {
 }
 
 // createErrorDocument creates a FileDocument with error information
-func (l *LoadFileService) createErrorDocument(filePath string, fileMetadata *FileMetadata, errorMsg string) (*FileDocument, error) {
+func (l *FileLoader) createErrorDocument(filePath string, fileMetadata *FileMetadata, errorMsg string) (*FileDocument, error) {
 	baseFilename := filepath.Base(filePath)
 
 	filename := baseFilename

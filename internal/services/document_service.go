@@ -40,14 +40,6 @@ type CreateDocumentParams struct {
 	ClientID       string
 }
 
-// DocumentPage matches LoadFileService.DocumentPage
-type DocumentPage struct {
-	CharCount   int                    `json:"charCount"`
-	LineCount   int                    `json:"lineCount"`
-	Metadata    map[string]interface{} `json:"metadata"`
-	PageContent string                 `json:"pageContent"`
-}
-
 // CreateDocument creates a new document from LoadFileService output
 func (s *DocumentService) CreateDocument(ctx context.Context, params CreateDocumentParams) (string, error) {
 	documentID := uuid.New().String()
