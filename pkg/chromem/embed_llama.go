@@ -118,13 +118,13 @@ func (e *LlamaEmbedder) Initialize() error {
 			return
 		}
 
-	// Load model (this is safe to do even if library was loaded elsewhere)
-	var err error
-	e.model, err = llama.ModelLoadFromFile(expandedModelPath, llama.ModelDefaultParams())
-	if err != nil || e.model == 0 {
-		e.initErr = fmt.Errorf("failed to load embedding model from: %s (%w)", expandedModelPath, err)
-		return
-	}
+		// Load model (this is safe to do even if library was loaded elsewhere)
+		var err error
+		e.model, err = llama.ModelLoadFromFile(expandedModelPath, llama.ModelDefaultParams())
+		if err != nil || e.model == 0 {
+			e.initErr = fmt.Errorf("failed to load embedding model from: %s (%w)", expandedModelPath, err)
+			return
+		}
 
 		// Get embedding dimensions
 		e.dimensions = llama.ModelNEmbd(e.model)
@@ -132,18 +132,20 @@ func (e *LlamaEmbedder) Initialize() error {
 
 		// Create context for embeddings
 		ctxParams := llama.ContextDefaultParams()
-		ctxParams.NCtx = defaultContextSize           // Context size
-		ctxParams.NBatch = defaultBatchSize           // Batch size
-		ctxParams.Embeddings = 1                      // Enable embeddings
-		ctxParams.PoolingType = llama.PoolingTypeMean // Mean pooling for better quality
+		ctxParams.NCtx = defaultContextSize    // Context size (max tokens)
+		ctxParams.NBatch = defaultContextSize  // Batch size - MUST be same as NUbatch for embeddings!
+		ctxParams.NUbatch = defaultContextSize // Micro-batch size (physical batch) - must be >= n_tokens for embeddings
+		ctxParams.Embeddings = 1               // Enable embeddings
+		// Don't set PoolingType - let it use default from ContextDefaultParams()
+		// Overriding pooling type causes GGML_ASSERT failures with some models
 
-	e.context, err = llama.InitFromModel(e.model, ctxParams)
-	if err != nil || e.context == 0 {
-		llama.ModelFree(e.model)
-		e.model = 0
-		e.initErr = fmt.Errorf("failed to create context for embeddings: %w", err)
-		return
-	}
+		e.context, err = llama.InitFromModel(e.model, ctxParams)
+		if err != nil || e.context == 0 {
+			llama.ModelFree(e.model)
+			e.model = 0
+			e.initErr = fmt.Errorf("failed to create context for embeddings: %w", err)
+			return
+		}
 
 		// Get vocabulary
 		e.vocab = llama.ModelGetVocab(e.model)
@@ -203,24 +205,52 @@ func (e *LlamaEmbedder) GenerateEmbedding(ctx context.Context, text string) ([]f
 		return nil, fmt.Errorf("failed to tokenize text: %q", text)
 	}
 
-	// Create batch and decode
+	// Truncate tokens if they exceed context size
+	// This prevents assertion failures in llama.cpp
+	maxTokens := defaultContextSize
+	if len(tokens) > maxTokens {
+		log.Printf("⚠️  Text has %d tokens, truncating to %d tokens", len(tokens), maxTokens)
+		tokens = tokens[:maxTokens]
+	}
+
+	// Get model's native context size
+	nCtxTrain := int(llama.ModelNCtxTrain(e.model))
+	if nCtxTrain <= 0 {
+		nCtxTrain = defaultContextSize
+	}
+
+	// Strict truncation to context size
+	// llama.cpp cannot process more tokens than its context size in one go for embeddings
+	if len(tokens) > nCtxTrain {
+		log.Printf("⚠️  Input text too long (%d tokens), truncating to model context size (%d)", len(tokens), nCtxTrain)
+		tokens = tokens[:nCtxTrain]
+	}
+
+	// Create batch
 	batch := llama.BatchGetOne(tokens)
+
+	// Note: The example uses Decode even for embeddings.
+	// We previously tried Encode for encoder models, but maybe Decode is sufficient/correct
+	// if Embeddings=1 is set in context params.
+	// Let's stick to Decode as per the working example.
+
 	errCode, err := llama.Decode(e.context, batch)
 	if err != nil || errCode != 0 {
 		return nil, fmt.Errorf("failed to decode tokens: error code %d (%w)", errCode, err)
 	}
 
-	// Get embeddings from sequence
-	vec, err := llama.GetEmbeddingsSeq(e.context, 0, e.dimensions)
-	if err != nil || vec == nil {
+	// Get embeddings - use GetEmbeddingsSeq as in example
+	// The example uses GetEmbeddingsSeq(lctx, 0, nEmbd)
+	// My previous code used GetEmbeddings(ctx, 1, dim) which might be for older API?
+	// Let's switch to GetEmbeddingsSeq to be safe.
+
+	vec, err := llama.GetEmbeddingsSeq(e.context, 0, int32(e.dimensions))
+	if err != nil {
 		return nil, fmt.Errorf("failed to get embeddings from context: %w", err)
 	}
 
-	// Copy to result slice
-	result := make([]float32, e.dimensions)
-	for i := int32(0); i < e.dimensions; i++ {
-		result[i] = vec[i]
-	}
+	// vec is []float32
+	result := vec
 
 	// Normalize embeddings using L2 norm
 	result = normalizeVector(result)

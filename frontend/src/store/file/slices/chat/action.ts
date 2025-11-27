@@ -115,8 +115,8 @@ export const createFileSlice: StateCreator<
           } else {
             // Large file: create blob URL temporarily
             // This will be replaced with local file URL after upload
-            const data = await file.arrayBuffer();
-            previewUrl = URL.createObjectURL(new Blob([data!], { type: file.type }));
+          const data = await file.arrayBuffer();
+          previewUrl = URL.createObjectURL(new Blob([data!], { type: file.type }));
           }
         }
         return { base64Url, file, id: file.name, previewUrl, status: 'pending' } as UploadFileItem;
@@ -130,11 +130,11 @@ export const createFileSlice: StateCreator<
 
       try {
         // Update to uploading status
-        dispatchChatUploadFileList({
-          id: file.name,
-          type: 'updateFile',
-          value: { status: 'uploading', uploadState: { progress: 50, restTime: 1, speed: 1000 } },
-        });
+      dispatchChatUploadFileList({
+        id: file.name,
+        type: 'updateFile',
+        value: { status: 'uploading', uploadState: { progress: 50, restTime: 1, speed: 1000 } },
+      });
 
         // Read file content and convert to base64 for transfer
         const arrayBuffer = await file.arrayBuffer();
@@ -173,18 +173,18 @@ export const createFileSlice: StateCreator<
         const localFileUrl = `/files/${savedKey}`;
 
         // Update to success with local file URL
-        dispatchChatUploadFileList({
-          id: file.name,
-          type: 'updateFile',
-          value: {
-            status: 'success',
-            uploadState: { progress: 100, restTime: 0, speed: 0 },
+      dispatchChatUploadFileList({
+        id: file.name,
+        type: 'updateFile',
+        value: {
+          status: 'success',
+          uploadState: { progress: 100, restTime: 0, speed: 0 },
             // Update preview URL to use local file URL for large files
             ...(file.size >= 1024 * 1024 && (file.type.startsWith('image') || file.type.startsWith('video')) 
               ? { previewUrl: localFileUrl } 
               : {}),
-          },
-        });
+        },
+      });
 
         console.log('[uploadChatFiles] File processing completed for:', file.name);
       } catch (error) {

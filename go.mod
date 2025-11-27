@@ -7,7 +7,7 @@ toolchain go1.24.5
 require (
 	github.com/Knetic/govaluate v3.0.0+incompatible
 	github.com/PuerkitoBio/goquery v1.10.3
-	github.com/cloudwego/eino v0.5.12
+	github.com/cloudwego/eino v0.6.0
 	github.com/dslipak/pdf v0.0.2
 	github.com/ebitengine/purego v0.9.1
 	github.com/google/uuid v1.6.0
@@ -40,6 +40,7 @@ require (
 	github.com/bytedance/sonic/loader v0.3.0 // indirect
 	github.com/cloudflare/circl v1.6.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
+	github.com/cloudwego/eino-ext/components/document/transformer/splitter/markdown v0.0.0-00010101000000-000000000000 // indirect
 	github.com/cyphar/filepath-securejoin v0.4.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
@@ -104,3 +105,5 @@ require (
 replace github.com/wailsapp/wails/v3 => ../velora/wails/v3
 
 replace github.com/cloudwego/eino => ./cloudwego/eino
+
+replace github.com/cloudwego/eino-ext/components/document/transformer/splitter/markdown => ./cloudwego/eino-ext/components/document/transformer/splitter/markdown

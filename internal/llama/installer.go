@@ -460,11 +460,15 @@ func (lcm *LlamaCppInstaller) AutoDownloadRecommendedEmbeddingModel() error {
 
 	log.Println("📦 No embedding models found, starting auto-download...")
 
-	// Select optimal embedding model based on available RAM
-	model := SelectOptimalEmbeddingModel(lcm.HardwareSpecs.AvailableRAM)
-	if model == nil {
-		return fmt.Errorf("no suitable embedding model found for system with %dGB RAM", lcm.HardwareSpecs.AvailableRAM)
+	// Get recommended embedding model
+	recommendedName := GetRecommendedEmbeddingModel()
+	model, exists := GetEmbeddingModel(recommendedName)
+	if !exists {
+		return fmt.Errorf("recommended embedding model not found in catalog: %s", recommendedName)
 	}
+
+	log.Printf("📦 Selected recommended embedding model: %s (%s, %d dims, %.1f MB)",
+		model.Name, model.Quantization, model.Dimensions, float64(model.Size)/(1024*1024))
 
 	if err := lcm.DownloadEmbeddingModel(model); err != nil {
 		return fmt.Errorf("failed to download embedding model: %w", err)

@@ -37,14 +37,29 @@ type DocumentPage struct {
 
 // FileDocument represents the loaded file document
 type FileDocument struct {
-	Content        string         `json:"content"`
-	CreatedTime    time.Time      `json:"createdTime"`
-	FileType       string         `json:"fileType"`
-	Filename       string         `json:"filename"`
-	Metadata       FileMetadata   `json:"metadata"`
-	ModifiedTime   time.Time      `json:"modifiedTime"`
-	Pages          []DocumentPage `json:"pages"`
-	Source         string         `json:"source"`
-	TotalCharCount int            `json:"totalCharCount"`
-	TotalLineCount int            `json:"totalLineCount"`
+	Content        string          `json:"content"`
+	CreatedTime    time.Time       `json:"createdTime"`
+	FileType       string          `json:"fileType"`
+	Filename       string          `json:"filename"`
+	Metadata       FileMetadata    `json:"metadata"`
+	ModifiedTime   time.Time       `json:"modifiedTime"`
+	Pages          []DocumentPage  `json:"pages"`
+	Source         string          `json:"source"`
+	TotalCharCount int             `json:"totalCharCount"`
+	TotalLineCount int             `json:"totalLineCount"`
+	Chunks         []DocumentChunk `json:"chunks,omitempty"` // NEW: Pre-chunked content for RAG
+}
+
+// ChunkingConfig configures how documents are chunked
+type ChunkingConfig struct {
+	Enabled     bool // Whether to enable chunking
+	ChunkSize   int  // Maximum chunk size in characters
+	OverlapSize int  // Overlap between chunks in characters
+}
+
+// DocumentChunk represents a chunk of document content
+type DocumentChunk struct {
+	ID       string                 `json:"id"`       // Unique chunk identifier
+	Content  string                 `json:"content"`  // Chunk text content
+	Metadata map[string]interface{} `json:"metadata"` // Chunk metadata (page numbers, headers, etc.)
 }

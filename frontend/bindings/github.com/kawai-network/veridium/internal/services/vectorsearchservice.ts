@@ -57,6 +57,14 @@ export function GetChromemDB(): $CancellablePromise<chromem$0.DB | null> {
 }
 
 /**
+ * GetEmbeddingFunc returns the embedding function
+ * This is used by RAGProcessor for generating embeddings
+ */
+export function GetEmbeddingFunc(): $CancellablePromise<chromem$0.EmbeddingFunc> {
+    return $Call.ByID(3764412816);
+}
+
+/**
  * GetStats returns statistics about the vector database
  */
 export function GetStats(userID: string): $CancellablePromise<{ [_: string]: any }> {

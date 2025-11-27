@@ -80,24 +80,38 @@ func main() {
 	// Initialize Audio Recorder service (app will be set after creation)
 	audioRecorderService := audio_recorder.NewAudioRecorderService(nil)
 
-	// Initialize Vector Search service (chromem for semantic search)
-	// Get user data directory for vector DB persistence
+	// Get user data directory for all services
 	userConfigDir, err := os.UserConfigDir()
 	if err != nil {
 		userConfigDir = "."
 	}
+
+	// Initialize Llama.cpp Library Service FIRST (library-based LLM inference)
+	// This MUST be initialized before VectorSearchService to load llama.cpp library
+	// Auto-installs llama.cpp binaries and downloads models in background
+	libService, err := llama.NewLibraryService()
+	if err != nil {
+		log.Printf("⚠️  Warning: Failed to initialize Llama Library service: %v", err)
+		log.Printf("    LLM chat features will not be available.")
+	} else {
+		log.Printf("✅ Llama Library service initialized")
+		log.Printf("   Models directory: %s", libService.GetModelsDirectory())
+		log.Printf("   Auto-setup running in background...")
+	}
+
+	// Initialize Vector Search service (chromem for semantic search)
+	// This uses the llama.cpp library loaded by LibraryService above
 	vectorDBPath := filepath.Join(userConfigDir, "veridium", "vector-db")
-	vectorSearchService, err := services.NewVectorSearchService(vectorDBPath, "llama", "http://localhost:8080")
+	vectorSearchService, err := services.NewVectorSearchService(vectorDBPath, "llama", "", libService)
 	if err != nil {
 		log.Printf("⚠️  Warning: Failed to initialize Vector Search service: %v", err)
 		log.Printf("    Semantic search features will use fallback mode.")
 	} else {
 		log.Printf("✅ Vector Search service initialized (chromem)")
 		log.Printf("   Database path: %s", vectorDBPath)
-		log.Printf("   Embedding provider: llama.cpp (llama-server)")
-		log.Printf("   Embedding endpoint: http://localhost:8080")
+		log.Printf("   Embedding provider: llama.cpp (library)")
+		log.Printf("   Embedding model: granite-embedding-107m-multilingual")
 		log.Printf("   Note: Embedding models auto-download in background")
-		log.Printf("   Note: Use llamaService.StartEmbeddingServer(8080) to start embedding server")
 	}
 
 	// Initialize File Service base directory (needed by both FileService and FileProcessor)
@@ -116,22 +130,9 @@ func main() {
 	log.Printf("   Handles: file parsing → document storage → RAG processing")
 
 	// Initialize File Service (local storage for desktop)
-
 	fileStorage := services.NewLocalFileStorage(fileBaseDir)
 	fileSvc := services.NewFileService("system", fileStorage)
 	log.Printf("✅ File Service initialized")
-
-	// Initialize Llama.cpp Library Service (library-based LLM inference)
-	// Auto-installs llama.cpp binaries and downloads models in background
-	libService, err := llama.NewLibraryService()
-	if err != nil {
-		log.Printf("⚠️  Warning: Failed to initialize Llama Library service: %v", err)
-		log.Printf("    LLM chat features will not be available.")
-	} else {
-		log.Printf("✅ Llama Library service initialized")
-		log.Printf("   Models directory: %s", libService.GetModelsDirectory())
-		log.Printf("   Auto-setup running in background...")
-	}
 
 	// Initialize Knowledge Base Service (RAG with Chromem + Eino)
 	var kbService *services.KnowledgeBaseService

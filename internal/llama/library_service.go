@@ -1,6 +1,7 @@
 package llama
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -48,6 +49,7 @@ type LibraryService struct {
 	vlMutex     sync.Mutex
 
 	initOnce sync.Once
+	initChan chan struct{} // Closed when library is initialized
 }
 
 // NewLibraryService creates a new library-based llama.cpp service
@@ -56,6 +58,7 @@ func NewLibraryService() (*LibraryService, error) {
 
 	service := &LibraryService{
 		installer: installer,
+		initChan:  make(chan struct{}),
 	}
 
 	log.Printf("📍 [NewLibraryService] Created library-based service instance: %p", service)
@@ -170,9 +173,27 @@ func (s *LibraryService) InitializeLibrary() error {
 	llama.Init()
 
 	s.isInitialized = true
+
+	// Signal initialization complete (idempotent close)
+	select {
+	case <-s.initChan:
+	default:
+		close(s.initChan)
+	}
+
 	log.Println("✅ llama.cpp library loaded and backend initialized successfully")
 
 	return nil
+}
+
+// WaitForInitialization waits for the library to be initialized
+func (s *LibraryService) WaitForInitialization(ctx context.Context) error {
+	select {
+	case <-s.initChan:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // LoadChatModel loads a chat/generation model

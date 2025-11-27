@@ -6,6 +6,7 @@ import (
 	"log"
 	"runtime"
 	"sync"
+	"time"
 
 	"github.com/kawai-network/veridium/internal/llama"
 	"github.com/kawai-network/veridium/pkg/chromem"
@@ -43,7 +44,7 @@ type VectorSearchService struct {
 }
 
 // NewVectorSearchService creates a new vector search service
-func NewVectorSearchService(persistPath string, embeddingProvider string, embeddingModel string) (*VectorSearchService, error) {
+func NewVectorSearchService(persistPath string, embeddingProvider string, embeddingModel string, libService *llama.LibraryService) (*VectorSearchService, error) {
 	if persistPath == "" {
 		persistPath = "./data/vector-db"
 	}
@@ -73,12 +74,38 @@ func NewVectorSearchService(persistPath string, embeddingProvider string, embedd
 	default:
 		// Default to llama.cpp (local, no API key needed)
 		log.Println("🔍 Using default llama.cpp embedding provider...")
+
+		// Wait for library initialization if service is provided
+		if libService != nil {
+			log.Println("⏳ Waiting for llama.cpp library initialization...")
+			// Use a reasonable timeout
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second) // 30s timeout
+			defer cancel()
+
+			if err := libService.WaitForInitialization(ctx); err != nil {
+				log.Printf("⚠️  Timed out waiting for library initialization: %v", err)
+				// Continue anyway, maybe it's already loaded or will load lazily
+			} else {
+				log.Println("✅ llama.cpp library is ready")
+			}
+		}
+
 		if embeddingModel == "" {
 			embeddingModel = llama.GetRecommendedEmbeddingModel()
 		}
-		// Get models directory from installer
+
+		// Get model info from catalog to get correct filename
+		model, exists := llama.GetEmbeddingModel(embeddingModel)
+		if !exists {
+			return nil, fmt.Errorf("embedding model not found in catalog: %s", embeddingModel)
+		}
+
+		// Get full model path (library is already loaded by LibraryService)
 		installer := llama.NewLlamaCppInstaller()
-		embedFunc = chromem.NewEmbeddingFuncLlama(installer.GetModelsDirectory(), embeddingModel)
+		modelPath := installer.GetModelsDirectory() + "/" + model.Filename
+
+		// Use PreloadedLibrary version to avoid double initialization
+		embedFunc = chromem.NewEmbeddingFuncLlamaWithPreloadedLibrary(modelPath)
 	}
 
 	return &VectorSearchService{

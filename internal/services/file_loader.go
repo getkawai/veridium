@@ -165,7 +165,7 @@ func (l *FileLoader) CanChunkForRAG(mimeType string) bool {
 			return false
 		}
 	}
-	
+
 	// Binary/archive formats cannot be chunked
 	unsupportedTypes := []string{
 		"application/octet-stream",
@@ -177,13 +177,13 @@ func (l *FileLoader) CanChunkForRAG(mimeType string) bool {
 		"application/x-bzip2",
 		"application/x-xz",
 	}
-	
+
 	for _, unsupported := range unsupportedTypes {
 		if mimeType == unsupported {
 			return false
 		}
 	}
-	
+
 	// All other types (documents, text files) can be chunked
 	return true
 }

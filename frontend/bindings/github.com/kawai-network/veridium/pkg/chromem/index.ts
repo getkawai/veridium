@@ -5,3 +5,7 @@ export {
     Collection,
     DB
 } from "./models.js";
+
+export type {
+    EmbeddingFunc
+} from "./models.js";

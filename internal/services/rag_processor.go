@@ -47,7 +47,10 @@ func (r *RAGProcessor) ProcessFile(ctx context.Context, req RAGProcessRequest) (
 	xlog.Info("Starting RAG processing", "file_id", req.FileID, "document_id", req.DocumentID)
 
 	// 1. Get already-parsed document content from database
-	doc, err := r.queries.GetDocument(ctx, db.GetDocumentParams{ID: req.DocumentID})
+	doc, err := r.queries.GetDocument(ctx, db.GetDocumentParams{
+		ID:     req.DocumentID,
+		UserID: req.UserID,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get document: %w", err)
 	}
@@ -120,54 +123,154 @@ func (r *RAGProcessor) ProcessFile(ctx context.Context, req RAGProcessRequest) (
 	return chunkIDs, nil
 }
 
-// chunkText splits text into overlapping chunks
+// chunkText splits text into overlapping chunks using recursive splitting strategy
+// Inspired by CloudWeGo Eino's recursive splitter for production-grade text chunking
 func (r *RAGProcessor) chunkText(text string) []string {
 	if text == "" {
 		return []string{}
 	}
 
-	// Split by sentences (simple approach using periods)
-	sentences := strings.Split(text, ".")
+	// Define separators in order of preference (coarse to fine)
+	// Try to keep semantic units together as much as possible
+	separators := []string{
+		"\n\n", // Paragraph breaks (highest priority)
+		"\n",   // Line breaks
+		". ",   // Sentences
+		"? ",   // Questions
+		"! ",   // Exclamations
+		"; ",   // Semicolons
+		", ",   // Commas
+		" ",    // Words (last resort)
+	}
 
-	var chunks []string
-	var currentChunk strings.Builder
-	currentSize := 0
+	return r.recursiveSplit(text, separators, 0)
+}
 
-	for _, sentence := range sentences {
-		sentence = strings.TrimSpace(sentence)
-		if sentence == "" {
+// recursiveSplit implements recursive text splitting with multiple separators
+func (r *RAGProcessor) recursiveSplit(text string, separators []string, depth int) []string {
+	// Base case: text fits within chunk size
+	if len(text) <= r.chunkSize {
+		return []string{text}
+	}
+
+	// If we've exhausted all separators, force split by character count
+	if depth >= len(separators) {
+		return r.forceSplitBySize(text)
+	}
+
+	separator := separators[depth]
+
+	// Check if separator exists in text
+	if !strings.Contains(text, separator) {
+		// Try next separator
+		return r.recursiveSplit(text, separators, depth+1)
+	}
+
+	// Split by current separator
+	parts := strings.Split(text, separator)
+
+	var finalChunks []string
+	var goodParts []string
+
+	// Process each part
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
 			continue
 		}
 
-		sentenceLen := len(sentence)
+		if len(part) > r.chunkSize {
+			// Part is too large, need to process accumulated good parts first
+			if len(goodParts) > 0 {
+				merged := r.mergeParts(goodParts, separator)
+				finalChunks = append(finalChunks, merged...)
+				goodParts = nil
+			}
 
-		// If adding this sentence exceeds chunk size, save current chunk
-		if currentSize > 0 && currentSize+sentenceLen > r.chunkSize {
+			// Recursively split the large part with next separator
+			subChunks := r.recursiveSplit(part, separators, depth+1)
+			finalChunks = append(finalChunks, subChunks...)
+		} else {
+			// Part is small enough, accumulate it
+			goodParts = append(goodParts, part)
+		}
+	}
+
+	// Process remaining good parts
+	if len(goodParts) > 0 {
+		merged := r.mergeParts(goodParts, separator)
+		finalChunks = append(finalChunks, merged...)
+	}
+
+	return finalChunks
+}
+
+// mergeParts merges small parts into chunks with overlap support
+func (r *RAGProcessor) mergeParts(parts []string, separator string) []string {
+	var chunks []string
+	var currentChunk strings.Builder
+
+	for _, part := range parts {
+		partLen := len(part)
+		sepLen := 0
+		if currentChunk.Len() > 0 {
+			sepLen = len(separator)
+		}
+
+		// Check if adding this part would exceed chunk size
+		if currentChunk.Len() > 0 && currentChunk.Len()+sepLen+partLen > r.chunkSize {
+			// Save current chunk
 			chunks = append(chunks, currentChunk.String())
 
 			// Start new chunk with overlap
 			currentChunk.Reset()
-			// Add last part of previous chunk for overlap
 			if r.overlapSize > 0 && len(chunks) > 0 {
 				prevChunk := chunks[len(chunks)-1]
-				if len(prevChunk) > r.overlapSize {
-					currentChunk.WriteString(prevChunk[len(prevChunk)-r.overlapSize:])
-					currentChunk.WriteString(" ")
+				overlapStart := len(prevChunk) - r.overlapSize
+				if overlapStart < 0 {
+					overlapStart = 0
 				}
+				currentChunk.WriteString(prevChunk[overlapStart:])
+				currentChunk.WriteString(separator)
 			}
 		}
 
-		// Add sentence to current chunk
+		// Add part to current chunk
 		if currentChunk.Len() > 0 {
-			currentChunk.WriteString(". ")
+			currentChunk.WriteString(separator)
 		}
-		currentChunk.WriteString(sentence)
-		currentSize = currentChunk.Len()
+		currentChunk.WriteString(part)
 	}
 
 	// Add final chunk
 	if currentChunk.Len() > 0 {
 		chunks = append(chunks, currentChunk.String())
+	}
+
+	return chunks
+}
+
+// forceSplitBySize splits text by character count when no separator works
+// This is a last resort to ensure we never exceed chunk size
+func (r *RAGProcessor) forceSplitBySize(text string) []string {
+	var chunks []string
+
+	for len(text) > 0 {
+		if len(text) <= r.chunkSize {
+			chunks = append(chunks, text)
+			break
+		}
+
+		// Take chunk size worth of text
+		chunk := text[:r.chunkSize]
+		chunks = append(chunks, chunk)
+
+		// Move forward with overlap
+		step := r.chunkSize - r.overlapSize
+		if step <= 0 {
+			step = r.chunkSize
+		}
+		text = text[step:]
 	}
 
 	return chunks

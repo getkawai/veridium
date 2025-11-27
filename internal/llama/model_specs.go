@@ -415,28 +415,6 @@ var embeddingModelsCatalog = map[string]*EmbeddingModel{
 		Languages:    []string{"en", "de", "fr", "it", "pt", "es", "nl", "pl", "ru", "zh", "ja", "ko", "ar", "hi", "tr", "th", "vi", "id"},
 		Type:         "embedding",
 	},
-	"qwen3-embedding-0.6b-q4_k_m": {
-		Name:         "qwen3-embedding-0.6b-q4_k_m",
-		Description:  "Qwen3 Embedding 0.6B (Q4_K_M) - Efficient multilingual embeddings",
-		URL:          "https://huggingface.co/bartowski/Qwen_Qwen3-0.6B-GGUF/resolve/main/Qwen_Qwen3-0.6B-Q4_K_M.gguf",
-		Filename:     "Qwen_Qwen3-0.6B-Q4_K_M.gguf",
-		Size:         484220320,
-		Quantization: "Q4_K_M",
-		Dimensions:   1536,
-		Languages:    []string{"en", "de", "fr", "it", "pt", "es", "nl", "pl", "ru", "zh", "ja", "ko", "ar", "hi", "tr", "th", "vi", "id"},
-		Type:         "embedding",
-	},
-	"qwen3-embedding-1.7b-q4_k_m": {
-		Name:         "qwen3-embedding-1.7b-q4_k_m",
-		Description:  "Qwen3 Embedding 1.7B (Q4_K_M) - High-quality multilingual embeddings",
-		URL:          "https://huggingface.co/bartowski/Qwen_Qwen3-1.7B-GGUF/resolve/main/Qwen_Qwen3-1.7B-Q4_K_M.gguf",
-		Filename:     "Qwen_Qwen3-1.7B-Q4_K_M.gguf",
-		Size:         1282439584,
-		Quantization: "Q4_K_M",
-		Dimensions:   1536,
-		Languages:    []string{"en", "de", "fr", "it", "pt", "es", "nl", "pl", "ru", "zh", "ja", "ko", "ar", "hi", "tr", "th", "vi", "id"},
-		Type:         "embedding",
-	},
 }
 
 // GetAvailableEmbeddingModels returns the catalog of available embedding models
@@ -452,62 +430,10 @@ func GetEmbeddingModel(name string) (*EmbeddingModel, bool) {
 
 // GetRecommendedEmbeddingModel returns the recommended embedding model name
 func GetRecommendedEmbeddingModel() string {
-	return "qwen3-embedding-1.7b-q4_k_m"
+	return "granite-embedding-107m-multilingual-q6_k_l"
 }
 
-// SelectOptimalEmbeddingModel selects the best embedding model based on available RAM.
-// It returns the largest model that fits within the available RAM.
-// If no model fits, it returns the smallest model as a fallback.
-// Note: RAM requirements are estimated based on model size and typical embedding model memory usage
-func SelectOptimalEmbeddingModel(availableRAM int64) *EmbeddingModel {
-	models := GetAvailableEmbeddingModels()
-
-	// Convert map to slice for sorting by size
-	var modelList []*EmbeddingModel
-	for _, model := range models {
-		modelList = append(modelList, model)
-	}
-
-	// Sort models by estimated RAM requirement (based on model size)
-	// Smaller models generally require less RAM
-	for i := 0; i < len(modelList)-1; i++ {
-		for j := i + 1; j < len(modelList); j++ {
-			if modelList[i].Size > modelList[j].Size {
-				modelList[i], modelList[j] = modelList[j], modelList[i]
-			}
-		}
-	}
-
-	// Estimate minimum RAM requirement (roughly 2x model size for inference + overhead)
-	var selectedModel *EmbeddingModel
-	for _, model := range modelList {
-		// Estimate RAM requirement as roughly 3x model size (conservative estimate)
-		estimatedRAM := model.Size * 3 / (1024 * 1024 * 1024) // Convert to GB
-
-		if estimatedRAM <= availableRAM {
-			selectedModel = model
-		} else {
-			break // Models are sorted, so we can stop here
-		}
-	}
-
-	// If no model fits, use the smallest one as fallback
-	if selectedModel == nil && len(modelList) > 0 {
-		selectedModel = modelList[0]
-		log.Printf("⚠️  System has low RAM (%dGB), using smallest embedding model", availableRAM)
-	}
-
-	if selectedModel != nil {
-		estimatedRAM := selectedModel.Size * 3 / (1024 * 1024 * 1024)
-		log.Printf("📦 Selected embedding model: %s (%s, %d dims) - requires ~%dGB RAM (system has %dGB)",
-			selectedModel.Name, selectedModel.Quantization, selectedModel.Dimensions,
-			estimatedRAM, availableRAM)
-	}
-
-	return selectedModel
-}
-
-// Note: The following functions have been moved to installer.go as methods:
+// Embedding model catalog - contains verified embedding models with correct URLs
 //   - GetEmbeddingModelsDirectory() → installer.GetModelsDirectory()
 //   - IsEmbeddingModelDownloaded() → used internally by installer
 //   - GetDownloadedEmbeddingModels() → installer.GetDownloadedEmbeddingModels()
