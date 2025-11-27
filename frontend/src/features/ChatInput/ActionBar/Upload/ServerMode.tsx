@@ -10,7 +10,8 @@ import { useModelSupportVision } from '@/hooks/useModelSupportVision';
 import { useAgentStore } from '@/store/agent';
 import { agentSelectors } from '@/store/agent/selectors';
 import { useFileStore } from '@/store/file';
-import * as FileService from '@@/github.com/kawai-network/veridium/internal/services/file/fileservice';
+import * as FileService from '@@/github.com/kawai-network/veridium/internal/services/fileservice';
+import { ProcessFileForStorage } from '@@/github.com/kawai-network/veridium/fileprocessorservice';
 
 import Action from '../components/Action';
 
@@ -123,51 +124,70 @@ const FileUpload = memo(() => {
 
       const filePaths = Array.isArray(result) ? result : [result];
 
-      // Process files via backend
-      const processedFiles = await Promise.all(
-        filePaths.map(async (filePath) => {
-          const fileName = filePath.split('/').pop() || filePath.split('\\').pop() || 'file';
-          const ext = fileName.split('.').pop()?.toLowerCase() || '';
-          const mimeType = getMimeType(ext);
+      // Show loading message
+      const hideLoading = message.loading('Processing files...', 0);
 
-          // Skip image/video if model doesn't support vision
-          if (!canUploadImage && (mimeType.startsWith('image') || mimeType.startsWith('video'))) {
-            return null;
-          }
+      try {
+        // Process files via backend
+        const processedFiles = await Promise.all(
+          filePaths.map(async (filePath) => {
+            const fileName = filePath.split('/').pop() || filePath.split('\\').pop() || 'file';
+            const ext = fileName.split('.').pop()?.toLowerCase() || '';
+            const mimeType = getMimeType(ext);
 
-          // Copy file to local storage via backend
-          const savedKey = await FileService.CopyFileFromAbsolutePath(filePath);
+            // Skip image/video if model doesn't support vision
+            if (!canUploadImage && (mimeType.startsWith('image') || mimeType.startsWith('video'))) {
+              return null;
+            }
 
-          return {
-            name: fileName,
-            type: mimeType,
-            url: `/files/${savedKey}`,
-          };
-        }),
-      );
+            // Copy file to local storage via backend
+            const savedKey = await FileService.CopyFileFromAbsolutePath(filePath);
 
-      const validFiles = processedFiles.filter(Boolean);
-      
-      if (validFiles.length === 0) {
-        message.warning('No valid files to upload');
-        return;
+            // Process file for document storage (BLOCKING)
+            await ProcessFileForStorage(
+              savedKey,           // filePath
+              fileName,           // filename
+              mimeType,           // fileType
+              'system',           // userID
+              false               // enableRAG (false for chat attachments)
+            );
+
+            return {
+              name: fileName,
+              type: mimeType,
+              url: `/files/${savedKey}`,
+            };
+          }),
+        );
+
+        const validFiles = processedFiles.filter(Boolean);
+        
+        if (validFiles.length === 0) {
+          hideLoading();
+          message.warning('No valid files to upload');
+          return;
+        }
+
+        // Create upload items and add directly to upload list (files already saved by backend)
+        const uploadItems = validFiles.map((info) => ({
+          id: info!.name,
+          file: { name: info!.name, type: info!.type, size: 0 } as File,
+          previewUrl: info!.url,
+          base64Url: undefined,
+          status: 'success' as const,
+        }));
+
+        useFileStore.getState().dispatchChatUploadFileList({
+          files: uploadItems as any,
+          type: 'addFiles',
+        });
+
+        hideLoading();
+        message.success(`Successfully uploaded ${uploadItems.length} file(s)`);
+      } catch (error) {
+        hideLoading();
+        throw error;
       }
-
-      // Create upload items and add directly to upload list (files already saved by backend)
-      const uploadItems = validFiles.map((info) => ({
-        id: info!.name,
-        file: { name: info!.name, type: info!.type, size: 0 } as File,
-        previewUrl: info!.url,
-        base64Url: undefined,
-        status: 'success' as const,
-      }));
-
-      useFileStore.getState().dispatchChatUploadFileList({
-        files: uploadItems as any,
-        type: 'addFiles',
-      });
-
-      message.success(`Successfully uploaded ${uploadItems.length} file(s)`);
     } catch (error) {
       console.error('File upload error:', error);
       message.error('Failed to upload files');

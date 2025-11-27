@@ -312,6 +312,35 @@ export class CreateThreadResponse {
 }
 
 /**
+ * FileItem represents a file database record
+ */
+export class FileItem {
+    "url": string;
+    "name": string;
+    "size"?: number;
+
+    /** Creates a new FileItem instance. */
+    constructor($$source: Partial<FileItem> = {}) {
+        if (!("url" in $$source)) {
+            this["url"] = "";
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FileItem instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FileItem {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new FileItem($$parsedSource as Partial<FileItem>);
+    }
+}
+
+/**
  * ListThreadsRequest represents a request to list threads
  */
 export class ListThreadsRequest {

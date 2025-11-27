@@ -2,7 +2,7 @@ import { Events } from '@wailsio/runtime';
 import { memo, useEffect } from 'react';
 
 // @ts-ignore - Wails binding
-import * as FileService from '@@/github.com/kawai-network/veridium/internal/services/file/fileservice';
+import * as FileService from '@@/github.com/kawai-network/veridium/internal/services/fileservice';
 import { message } from '@/components/AntdStaticMethods';
 import { useModelSupportFiles } from '@/hooks/useModelSupportFiles';
 import { useModelSupportVision } from '@/hooks/useModelSupportVision';

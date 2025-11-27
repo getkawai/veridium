@@ -14,7 +14,8 @@ import { isChunkingUnsupported } from '@/utils/isChunkingUnsupported';
 import { setNamespace } from '@/utils/storeDebug';
 
 // @ts-ignore - Wails binding
-import * as FileService from '@@/github.com/kawai-network/veridium/internal/services/file/fileservice';
+import * as FileService from '@@/github.com/kawai-network/veridium/internal/services/fileservice';
+import { ProcessFileForStorage } from '@@/github.com/kawai-network/veridium/fileprocessorservice';
 
 import { FileStore } from '../../store';
 import { AsyncTaskStatus } from '@/types/asyncTask';
@@ -157,6 +158,16 @@ export const createFileSlice: StateCreator<
         
         // Save file to local storage using FileService with base64 data
         const savedKey = await FileService.UploadMedia(uploadPath, base64Data);
+        
+        // Process file for document storage (BLOCKING)
+        // Note: File card already shows "uploading" status, so user sees progress
+        await ProcessFileForStorage(
+          savedKey,           // filePath
+          file.name,          // filename
+          file.type,          // fileType
+          'system',           // userID
+          false               // enableRAG (false for chat attachments)
+        );
         
         // Create local file URL for preview
         const localFileUrl = `/files/${savedKey}`;

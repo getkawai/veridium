@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"path/filepath"
 
 	"github.com/kawai-network/veridium/internal/services"
 	"github.com/kawai-network/veridium/pkg/chromem"
@@ -10,7 +11,8 @@ import (
 
 // FileProcessorService is the Wails-exposed service
 type FileProcessorService struct {
-	processor *services.FileProcessorService
+	processor   *services.FileProcessorService
+	fileBaseDir string // Base directory for file storage
 }
 
 // NewFileProcessorService creates a new Wails file processor service
@@ -18,6 +20,7 @@ func NewFileProcessorService(
 	db *sql.DB,
 	fileLoader *services.FileLoader,
 	chromemDB *chromem.DB,
+	fileBaseDir string,
 ) *FileProcessorService {
 	// Initialize sub-services
 	documentService := services.NewDocumentService(db)
@@ -32,7 +35,8 @@ func NewFileProcessorService(
 	)
 
 	return &FileProcessorService{
-		processor: processor,
+		processor:   processor,
+		fileBaseDir: fileBaseDir,
 	}
 }
 
@@ -47,13 +51,19 @@ func (f *FileProcessorService) ProcessFileForStorage(
 ) (*services.ProcessFileResponse, error) {
 	ctx := context.Background()
 
+	// Convert relative path to absolute path if needed
+	absolutePath := filePath
+	if !filepath.IsAbs(filePath) {
+		absolutePath = filepath.Join(f.fileBaseDir, filePath)
+	}
+
 	req := services.ProcessFileRequest{
-		FilePath:  filePath,
+		FilePath:  absolutePath,
 		Filename:  filename,
 		FileType:  fileType,
 		UserID:    userID,
 		ClientID:  "", // Optional
-		Source:    filePath,
+		Source:    absolutePath,
 		EnableRAG: enableRAG,
 		IsShared:  false,
 		FileMetadata: &services.FileMetadata{

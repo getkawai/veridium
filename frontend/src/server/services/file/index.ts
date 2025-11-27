@@ -1,5 +1,5 @@
 import { TRPCError } from '@/types';
-import * as GoFileService from 'bindings/github.com/kawai-network/veridium/internal/services/file/fileservice';
+import * as GoFileService from 'bindings/github.com/kawai-network/veridium/internal/services/fileservice';
 
 /**
  * FileService - Wrapper around Go backend file service

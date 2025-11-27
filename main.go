@@ -100,19 +100,22 @@ func main() {
 		log.Printf("   Note: Use llamaService.StartEmbeddingServer(8080) to start embedding server")
 	}
 
+	// Initialize File Service base directory (needed by both FileService and FileProcessor)
+	fileBaseDir := filepath.Join(userConfigDir, "veridium", "files")
+	os.MkdirAll(fileBaseDir, 0755)
+
 	// Initialize File Processor service (file parsing + document storage + RAG)
 	fileLoader := services.NewFileLoader()
 	fileProcessorService := NewFileProcessorService(
 		dbService.DB(),
 		fileLoader,
 		vectorSearchService.GetChromemDB(),
+		fileBaseDir, // Pass file base directory for path resolution
 	)
 	log.Printf("✅ File Processor service initialized")
 	log.Printf("   Handles: file parsing → document storage → RAG processing")
 
 	// Initialize File Service (local storage for desktop)
-	fileBaseDir := filepath.Join(userConfigDir, "veridium", "files")
-	os.MkdirAll(fileBaseDir, 0755)
 
 	fileStorage := services.NewLocalFileStorage(fileBaseDir)
 	fileSvc := services.NewFileService("system", fileStorage)
