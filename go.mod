@@ -6,13 +6,13 @@ toolchain go1.24.5
 
 require (
 	github.com/Knetic/govaluate v3.0.0+incompatible
-	github.com/PuerkitoBio/goquery v1.10.3
 	github.com/cloudwego/eino v0.6.0
+	github.com/cloudwego/eino-ext/components/document/transformer/splitter/markdown v0.0.0-00010101000000-000000000000
 	github.com/dslipak/pdf v0.0.2
 	github.com/ebitengine/purego v0.9.1
 	github.com/google/uuid v1.6.0
 	github.com/jupiterrider/ffi v0.5.1
-	github.com/microcosm-cc/bluemonday v1.0.27
+	github.com/marcboeker/go-duckdb v1.8.5
 	github.com/pemistahl/lingua-go v1.4.0
 	github.com/samber/lo v1.49.1
 	github.com/ssor/bom v0.0.0-20170718123548-6386211fdfcf
@@ -30,9 +30,7 @@ require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/ProtonMail/go-crypto v1.1.6 // indirect
 	github.com/adrg/xdg v0.5.3 // indirect
-	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/apache/arrow-go/v18 v18.1.0 // indirect
-	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/bep/debounce v1.2.1 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
@@ -41,11 +39,10 @@ require (
 	github.com/bytedance/sonic/loader v0.3.0 // indirect
 	github.com/cloudflare/circl v1.6.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
-	github.com/cloudwego/eino-ext/components/document/transformer/splitter/markdown v0.0.0-00010101000000-000000000000 // indirect
 	github.com/cyphar/filepath-securejoin v0.4.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/eino-contrib/jsonschema v1.0.2 // indirect
+	github.com/eino-contrib/jsonschema v1.0.3 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.6.2 // indirect
@@ -57,7 +54,6 @@ require (
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/google/flatbuffers v25.1.24+incompatible // indirect
 	github.com/goph/emperror v0.17.2 // indirect
-	github.com/gorilla/css v1.0.1 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/jchv/go-winloader v0.0.0-20210711035445-715c2860da7e // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
@@ -68,7 +64,6 @@ require (
 	github.com/leaanthony/u v1.1.1 // indirect
 	github.com/lmittmann/tint v1.0.7 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
-	github.com/marcboeker/go-duckdb v1.8.5 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
