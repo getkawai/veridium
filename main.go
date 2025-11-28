@@ -259,12 +259,6 @@ func main() {
 	// Initialize Llama Chat Service (OpenAI-compatible chat API)
 	// This service provides chat completion functionality using the library service
 	if libService != nil {
-		llamaChatService := llama.NewLibraryChatService(libService, app)
-		app.RegisterService(application.NewService(llamaChatService))
-		log.Printf("✅ Llama Chat service registered")
-		log.Printf("   OpenAI-compatible API: ChatCompletion, ChatCompletionStream")
-		log.Printf("   Supports: temperature, top_p, top_k, max_tokens")
-
 		// Phase 3: Initialize integration bridges
 		// These bridge existing engines to Eino agent system
 		var toolsBridge *services.ToolsEngineBridge

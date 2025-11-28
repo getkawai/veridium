@@ -1,4 +1,5 @@
-import { createWailsCompatibleRuntime } from '../../core/wailsCompatibleFactory';
+import { ModelProvider } from '@/model-bank';
+import { createOpenAICompatibleRuntime } from '@/model-runtime/core/openaiCompatibleFactory';
 
 /**
  * Kawai AI Provider - Native Wails Implementation
@@ -15,12 +16,20 @@ import { createWailsCompatibleRuntime } from '../../core/wailsCompatibleFactory'
  * This is simpler and more reliable than fighting with OpenAI SDK's
  * expectations about HTTP streaming and SSE format.
  */
-export const LobeKawaiAI = createWailsCompatibleRuntime({
-  provider: 'kawai',
-  baseURL: 'http://127.0.0.1:8080/v1', // Not actually used for HTTP, just for reference
-  debug: {
-    chatCompletion: () => true, // Enable debug logging
+export const LobeKawaiAI = createOpenAICompatibleRuntime({
+  baseURL: 'https://api.ai21.com/studio/v1',
+  chatCompletion: {
+    handlePayload: (payload) => {
+      return {
+        ...payload,
+        stream: !payload.tools,
+      } as any;
+    },
   },
+  debug: {
+    chatCompletion: () => false, // Dummy replacement for process.env.DEBUG_AI21_CHAT_COMPLETION === '1'
+  },
+  provider: ModelProvider.Kawai,
 });
 
 export default LobeKawaiAI;

@@ -15,7 +15,6 @@ import { StateCreator } from 'zustand/vanilla';
 
 // import { mcpService } from '@/services/mcp';
 import { backendAgentChat } from '@/services/backendAgentChat';
-import { backendLibraryChat } from '@/services/backendLibraryChat';
 import { ChatStore } from '@/store/chat/store';
 import { useToolStore } from '@/store/tool';
 import { pluginSelectors } from '@/store/tool/selectors';
@@ -221,42 +220,42 @@ export const chatPlugin: StateCreator<
   },
 
   summaryPluginContent: async (id) => {
-    const message = chatSelectors.getMessageById(id)(get());
-    if (!message || message.role !== 'tool') return;
+    // const message = chatSelectors.getMessageById(id)(get());
+    // if (!message || message.role !== 'tool') return;
 
-    // Use backendLibraryChat for stateless summarization
-    const summaryPrompt = `Please summarize the following content:\n\n${message.content}`;
+    // // Use backendLibraryChat for stateless summarization
+    // const summaryPrompt = `Please summarize the following content:\n\n${message.content}`;
 
-    try {
-      // 1. Generate summary using stateless chat completion
-      const response = await backendLibraryChat.chatCompletion({
-        messages: [
-          { role: 'user', content: summaryPrompt }
-        ],
-        temperature: 0.5,
-      });
+    // try {
+    //   // 1. Generate summary using stateless chat completion
+    //   const response = await backendLibraryChat.chatCompletion({
+    //     messages: [
+    //       { role: 'user', content: summaryPrompt }
+    //     ],
+    //     temperature: 0.5,
+    //   });
 
-      const summary = response.choices?.[0]?.message?.content;
+    //   const summary = response.choices?.[0]?.message?.content;
 
-      if (!summary) return;
+    //   if (!summary) return;
 
-      // 2. Add the summary as an assistant message to the UI
-      // We use internal_createMessage to add it to the store and DB
-      // This makes it look like the agent responded, but without the overhead of the full agent loop
-      const { activeId, activeTopicId, activeThreadId } = get();
+    //   // 2. Add the summary as an assistant message to the UI
+    //   // We use internal_createMessage to add it to the store and DB
+    //   // This makes it look like the agent responded, but without the overhead of the full agent loop
+    //   const { activeId, activeTopicId, activeThreadId } = get();
 
-      await get().internal_createMessage({
-        role: 'assistant',
-        content: summary,
-        sessionId: activeId,
-        topicId: activeTopicId,
-        threadId: activeThreadId,
-        parentId: id, // Link to the tool message
-      });
+    //   await get().internal_createMessage({
+    //     role: 'assistant',
+    //     content: summary,
+    //     sessionId: activeId,
+    //     topicId: activeTopicId,
+    //     threadId: activeThreadId,
+    //     parentId: id, // Link to the tool message
+    //   });
 
-    } catch (error) {
-      console.error('[Plugin] summaryPluginContent failed:', error);
-    }
+    // } catch (error) {
+    //   console.error('[Plugin] summaryPluginContent failed:', error);
+    // }
   },
 
   triggerToolCalls: async (assistantId, { threadId, inPortalThread, inSearchWorkflow } = {}) => {

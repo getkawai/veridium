@@ -1,7 +1,6 @@
 package llama
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -231,49 +230,6 @@ func TestEmbeddingGeneration(t *testing.T) {
 
 	t.Logf("Generated embedding with dimension: %d", len(embedding))
 	t.Logf("First 5 values: %v", embedding[:min(5, len(embedding))])
-}
-
-// TestChatCompletion tests the chat completion API
-func TestChatCompletion(t *testing.T) {
-	if os.Getenv("INTEGRATION_TEST") == "" {
-		t.Skip("Skipping integration test")
-	}
-
-	service, err := NewLibraryService()
-	if err != nil {
-		t.Fatalf("Failed to create library service: %v", err)
-	}
-	defer service.Cleanup()
-
-	// Wait for initialization
-	time.Sleep(10 * time.Second)
-
-	chatService := NewLibraryChatService(service, nil)
-
-	req := ChatCompletionRequest{
-		Model: "auto",
-		Messages: []ChatMessage{
-			{Role: "user", Content: "What is 2+2?"},
-		},
-		MaxTokens:   50,
-		Temperature: 0.7,
-	}
-
-	ctx := context.Background()
-	resp, err := chatService.ChatCompletion(ctx, req)
-	if err != nil {
-		t.Fatalf("Failed to complete chat: %v", err)
-	}
-
-	if len(resp.Choices) == 0 {
-		t.Fatal("Response should have at least one choice")
-	}
-
-	if resp.Choices[0].Message.Content == "" {
-		t.Fatal("Response content should not be empty")
-	}
-
-	t.Logf("Chat response: %s", resp.Choices[0].Message.Content)
 }
 
 // TestMultipleModels tests loading multiple models simultaneously
@@ -691,21 +647,6 @@ func TestLibraryInitializationError(t *testing.T) {
 		t.Log("Library init didn't fail (may have fallback paths)")
 	} else {
 		t.Logf("Expected error with invalid path: %v", err)
-	}
-}
-
-// TestChatServiceWithNilApp tests chat service without Wails app
-func TestChatServiceWithNilApp(t *testing.T) {
-	service, err := NewLibraryService()
-	if err != nil {
-		t.Fatalf("Failed to create service: %v", err)
-	}
-	defer service.Cleanup()
-
-	// Create chat service with nil app (should not panic)
-	chatService := NewLibraryChatService(service, nil)
-	if chatService == nil {
-		t.Fatal("Chat service should not be nil")
 	}
 }
 
