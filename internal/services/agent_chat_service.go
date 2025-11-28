@@ -1608,116 +1608,71 @@ func (s *AgentChatService) SwitchToRecommendedModel() error {
 }
 
 // generateWithTokenStreaming generates response with token-by-token streaming
-// This uses LibraryChatService for true token-by-token streaming
+// Uses Eino's Stream() method for consistency with non-streaming path
 func (s *AgentChatService) generateWithTokenStreaming(ctx context.Context, session *AgentSession, messageID string, messages []*schema.Message) (string, error) {
-	// Convert Eino messages to ChatMessage format
-	chatMessages := make([]llama.ChatMessage, 0, len(messages))
-	for _, msg := range messages {
-		role := ""
-		switch msg.Role {
-		case schema.System:
-			role = "system"
-		case schema.User:
-			role = "user"
-		case schema.Assistant:
-			role = "assistant"
-		default:
-			continue
-		}
-		chatMessages = append(chatMessages, llama.ChatMessage{
-			Role:    role,
-			Content: msg.Content,
+	// Emit start event
+	if s.app != nil {
+		s.app.Event.Emit("chat:stream", map[string]interface{}{
+			"type":       "start",
+			"session_id": session.SessionID,
+			"message_id": messageID,
 		})
 	}
 
-	// Create LibraryChatService
-	chatService := llama.NewLibraryChatService(s.libService, s.app)
+	// Use Eino's Stream() method - consistent with non-streaming path
+	// This ensures same max tokens (32768), sampler config, and behavior
+	streamReader, err := s.llamaModel.Stream(ctx, messages)
+	if err != nil {
+		return "", fmt.Errorf("failed to start streaming: %w", err)
+	}
 
-	// Setup event forwarding from LibraryChatService to our format
-	// LibraryChatService emits: stream:{requestID}:data with SSE format
-	// We need to convert to: chat:stream:{sessionID} with our format
-
-	streamRequestID := messageID
-	eventName := fmt.Sprintf("stream:%s:data", streamRequestID)
 	var fullContent strings.Builder
 
-	// Throttling variables
-	lastEmitTime := time.Now()           // Initialize to allow first chunk immediately
-	const emitInterval = 1 * time.Second // Emit max every 1s
+	// Throttling variables for UI updates
+	lastEmitTime := time.Now()
+	const emitInterval = 100 * time.Millisecond // Emit max every 100ms for smoother UX
 
-	// Emit start event
-	s.app.Event.Emit("chat:stream", map[string]interface{}{
-		"type":       "start",
-		"session_id": session.SessionID,
-		"message_id": messageID,
-	})
-
-	unsubscribe := s.app.Event.On(eventName, func(event *application.CustomEvent) {
-		sseData, ok := event.Data.(string)
-		if !ok {
-			return
+	// Read from stream and emit events
+	for {
+		msg, err := streamReader.Recv()
+		if err != nil {
+			// Check if it's EOF (normal completion)
+			if err.Error() == "EOF" || strings.Contains(err.Error(), "EOF") {
+				break
+			}
+			// Real error occurred
+			return "", fmt.Errorf("streaming error: %w", err)
 		}
 
-		// Parse SSE data (format: "data: {...}\n\n")
-		if !strings.HasPrefix(sseData, "data: ") {
-			return
-		}
+		// Accumulate content
+		if msg != nil && msg.Content != "" {
+			fullContent.WriteString(msg.Content)
 
-		jsonData := strings.TrimPrefix(sseData, "data: ")
-		jsonData = strings.TrimSpace(jsonData)
+			// Throttle chunk events - only emit if enough time has passed
+			now := time.Now()
+			if s.app != nil && now.Sub(lastEmitTime) >= emitInterval {
+				lastEmitTime = now
 
-		if jsonData == "[DONE]" {
-			// Streaming complete - always emit final state
-			s.app.Event.Emit("chat:stream", map[string]interface{}{
-				"type":       "complete",
-				"session_id": session.SessionID,
-				"message_id": messageID,
-				"content":    fullContent.String(),
-			})
-			return
-		}
-
-		// Parse JSON chunk
-		var chunk llama.ChatCompletionChunk
-		if err := json.Unmarshal([]byte(jsonData), &chunk); err != nil {
-			log.Printf("Failed to parse chunk: %v", err)
-			return
-		}
-
-		// Extract content from chunk
-		if len(chunk.Choices) > 0 {
-			content := chunk.Choices[0].Delta.Content
-			if content != "" {
-				fullContent.WriteString(content)
-
-				// Throttle chunk events - only emit if enough time has passed
-				now := time.Now()
-				if now.Sub(lastEmitTime) >= emitInterval {
-					lastEmitTime = now
-
-					// Emit our chunk event
-					s.app.Event.Emit("chat:stream", map[string]interface{}{
-						"type":         "chunk",
-						"session_id":   session.SessionID,
-						"message_id":   messageID,
-						"content":      content,
-						"full_content": fullContent.String(),
-					})
-				}
+				// Emit chunk event
+				s.app.Event.Emit("chat:stream", map[string]interface{}{
+					"type":         "chunk",
+					"session_id":   session.SessionID,
+					"message_id":   messageID,
+					"content":      msg.Content,
+					"full_content": fullContent.String(),
+				})
 			}
 		}
-	})
-	defer unsubscribe()
+	}
 
-	// Start streaming generation
-	err := chatService.ChatCompletionStream(ctx, streamRequestID, llama.ChatCompletionRequest{
-		Messages:  chatMessages,
-		MaxTokens: 2000,
-		Stream:    true,
-	})
-
-	if err != nil {
-		return "", fmt.Errorf("streaming generation failed: %w", err)
+	// Emit final complete event
+	if s.app != nil {
+		s.app.Event.Emit("chat:stream", map[string]interface{}{
+			"type":       "complete",
+			"session_id": session.SessionID,
+			"message_id": messageID,
+			"content":    fullContent.String(),
+		})
 	}
 
 	return fullContent.String(), nil

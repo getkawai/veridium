@@ -1080,6 +1080,7 @@ export class ChatGroupsAgent {
 
 export class Chunk {
     "id": string;
+    "documentId": sql$0.NullString;
     "text": sql$0.NullString;
     "abstract": sql$0.NullString;
     "metadata": sql$0.NullString;
@@ -1094,6 +1095,9 @@ export class Chunk {
     constructor($$source: Partial<Chunk> = {}) {
         if (!("id" in $$source)) {
             this["id"] = "";
+        }
+        if (!("documentId" in $$source)) {
+            this["documentId"] = (new sql$0.NullString());
         }
         if (!("text" in $$source)) {
             this["text"] = (new sql$0.NullString());
@@ -1133,31 +1137,35 @@ export class Chunk {
         const $$createField1_0 = $$createType0;
         const $$createField2_0 = $$createType0;
         const $$createField3_0 = $$createType0;
-        const $$createField4_0 = $$createType1;
-        const $$createField5_0 = $$createType0;
+        const $$createField4_0 = $$createType0;
+        const $$createField5_0 = $$createType1;
         const $$createField6_0 = $$createType0;
         const $$createField7_0 = $$createType0;
+        const $$createField8_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("documentId" in $$parsedSource) {
+            $$parsedSource["documentId"] = $$createField1_0($$parsedSource["documentId"]);
+        }
         if ("text" in $$parsedSource) {
-            $$parsedSource["text"] = $$createField1_0($$parsedSource["text"]);
+            $$parsedSource["text"] = $$createField2_0($$parsedSource["text"]);
         }
         if ("abstract" in $$parsedSource) {
-            $$parsedSource["abstract"] = $$createField2_0($$parsedSource["abstract"]);
+            $$parsedSource["abstract"] = $$createField3_0($$parsedSource["abstract"]);
         }
         if ("metadata" in $$parsedSource) {
-            $$parsedSource["metadata"] = $$createField3_0($$parsedSource["metadata"]);
+            $$parsedSource["metadata"] = $$createField4_0($$parsedSource["metadata"]);
         }
         if ("chunkIndex" in $$parsedSource) {
-            $$parsedSource["chunkIndex"] = $$createField4_0($$parsedSource["chunkIndex"]);
+            $$parsedSource["chunkIndex"] = $$createField5_0($$parsedSource["chunkIndex"]);
         }
         if ("type" in $$parsedSource) {
-            $$parsedSource["type"] = $$createField5_0($$parsedSource["type"]);
+            $$parsedSource["type"] = $$createField6_0($$parsedSource["type"]);
         }
         if ("clientId" in $$parsedSource) {
-            $$parsedSource["clientId"] = $$createField6_0($$parsedSource["clientId"]);
+            $$parsedSource["clientId"] = $$createField7_0($$parsedSource["clientId"]);
         }
         if ("userId" in $$parsedSource) {
-            $$parsedSource["userId"] = $$createField7_0($$parsedSource["userId"]);
+            $$parsedSource["userId"] = $$createField8_0($$parsedSource["userId"]);
         }
         return new Chunk($$parsedSource as Partial<Chunk>);
     }
@@ -2060,6 +2068,7 @@ export class CreateChatGroupParams {
 
 export class CreateChunkParams {
     "id": string;
+    "documentId": sql$0.NullString;
     "text": sql$0.NullString;
     "abstract": sql$0.NullString;
     "metadata": sql$0.NullString;
@@ -2074,6 +2083,9 @@ export class CreateChunkParams {
     constructor($$source: Partial<CreateChunkParams> = {}) {
         if (!("id" in $$source)) {
             this["id"] = "";
+        }
+        if (!("documentId" in $$source)) {
+            this["documentId"] = (new sql$0.NullString());
         }
         if (!("text" in $$source)) {
             this["text"] = (new sql$0.NullString());
@@ -2113,31 +2125,35 @@ export class CreateChunkParams {
         const $$createField1_0 = $$createType0;
         const $$createField2_0 = $$createType0;
         const $$createField3_0 = $$createType0;
-        const $$createField4_0 = $$createType1;
-        const $$createField5_0 = $$createType0;
+        const $$createField4_0 = $$createType0;
+        const $$createField5_0 = $$createType1;
         const $$createField6_0 = $$createType0;
         const $$createField7_0 = $$createType0;
+        const $$createField8_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("documentId" in $$parsedSource) {
+            $$parsedSource["documentId"] = $$createField1_0($$parsedSource["documentId"]);
+        }
         if ("text" in $$parsedSource) {
-            $$parsedSource["text"] = $$createField1_0($$parsedSource["text"]);
+            $$parsedSource["text"] = $$createField2_0($$parsedSource["text"]);
         }
         if ("abstract" in $$parsedSource) {
-            $$parsedSource["abstract"] = $$createField2_0($$parsedSource["abstract"]);
+            $$parsedSource["abstract"] = $$createField3_0($$parsedSource["abstract"]);
         }
         if ("metadata" in $$parsedSource) {
-            $$parsedSource["metadata"] = $$createField3_0($$parsedSource["metadata"]);
+            $$parsedSource["metadata"] = $$createField4_0($$parsedSource["metadata"]);
         }
         if ("chunkIndex" in $$parsedSource) {
-            $$parsedSource["chunkIndex"] = $$createField4_0($$parsedSource["chunkIndex"]);
+            $$parsedSource["chunkIndex"] = $$createField5_0($$parsedSource["chunkIndex"]);
         }
         if ("type" in $$parsedSource) {
-            $$parsedSource["type"] = $$createField5_0($$parsedSource["type"]);
+            $$parsedSource["type"] = $$createField6_0($$parsedSource["type"]);
         }
         if ("clientId" in $$parsedSource) {
-            $$parsedSource["clientId"] = $$createField6_0($$parsedSource["clientId"]);
+            $$parsedSource["clientId"] = $$createField7_0($$parsedSource["clientId"]);
         }
         if ("userId" in $$parsedSource) {
-            $$parsedSource["userId"] = $$createField7_0($$parsedSource["userId"]);
+            $$parsedSource["userId"] = $$createField8_0($$parsedSource["userId"]);
         }
         return new CreateChunkParams($$parsedSource as Partial<CreateChunkParams>);
     }
@@ -7878,6 +7894,173 @@ export class GetChunkParams {
     }
 }
 
+export class GetChunksByDocumentIDParams {
+    "documentId": sql$0.NullString;
+    "userId": sql$0.NullString;
+
+    /** Creates a new GetChunksByDocumentIDParams instance. */
+    constructor($$source: Partial<GetChunksByDocumentIDParams> = {}) {
+        if (!("documentId" in $$source)) {
+            this["documentId"] = (new sql$0.NullString());
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = (new sql$0.NullString());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetChunksByDocumentIDParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetChunksByDocumentIDParams {
+        const $$createField0_0 = $$createType0;
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("documentId" in $$parsedSource) {
+            $$parsedSource["documentId"] = $$createField0_0($$parsedSource["documentId"]);
+        }
+        if ("userId" in $$parsedSource) {
+            $$parsedSource["userId"] = $$createField1_0($$parsedSource["userId"]);
+        }
+        return new GetChunksByDocumentIDParams($$parsedSource as Partial<GetChunksByDocumentIDParams>);
+    }
+}
+
+export class GetChunksByIDsParams {
+    "ids": string[];
+    "userId": sql$0.NullString;
+
+    /** Creates a new GetChunksByIDsParams instance. */
+    constructor($$source: Partial<GetChunksByIDsParams> = {}) {
+        if (!("ids" in $$source)) {
+            this["ids"] = [];
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = (new sql$0.NullString());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetChunksByIDsParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetChunksByIDsParams {
+        const $$createField0_0 = $$createType2;
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("ids" in $$parsedSource) {
+            $$parsedSource["ids"] = $$createField0_0($$parsedSource["ids"]);
+        }
+        if ("userId" in $$parsedSource) {
+            $$parsedSource["userId"] = $$createField1_0($$parsedSource["userId"]);
+        }
+        return new GetChunksByIDsParams($$parsedSource as Partial<GetChunksByIDsParams>);
+    }
+}
+
+export class GetChunksByIDsRow {
+    "id": string;
+    "documentId": sql$0.NullString;
+    "text": sql$0.NullString;
+    "abstract": sql$0.NullString;
+    "metadata": sql$0.NullString;
+    "chunkIndex": sql$0.NullInt64;
+    "type": sql$0.NullString;
+    "clientId": sql$0.NullString;
+    "userId": sql$0.NullString;
+    "createdAt": number;
+    "updatedAt": number;
+    "fileId": sql$0.NullString;
+
+    /** Creates a new GetChunksByIDsRow instance. */
+    constructor($$source: Partial<GetChunksByIDsRow> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("documentId" in $$source)) {
+            this["documentId"] = (new sql$0.NullString());
+        }
+        if (!("text" in $$source)) {
+            this["text"] = (new sql$0.NullString());
+        }
+        if (!("abstract" in $$source)) {
+            this["abstract"] = (new sql$0.NullString());
+        }
+        if (!("metadata" in $$source)) {
+            this["metadata"] = (new sql$0.NullString());
+        }
+        if (!("chunkIndex" in $$source)) {
+            this["chunkIndex"] = (new sql$0.NullInt64());
+        }
+        if (!("type" in $$source)) {
+            this["type"] = (new sql$0.NullString());
+        }
+        if (!("clientId" in $$source)) {
+            this["clientId"] = (new sql$0.NullString());
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = (new sql$0.NullString());
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+        if (!("fileId" in $$source)) {
+            this["fileId"] = (new sql$0.NullString());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetChunksByIDsRow instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetChunksByIDsRow {
+        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $$createType0;
+        const $$createField3_0 = $$createType0;
+        const $$createField4_0 = $$createType0;
+        const $$createField5_0 = $$createType1;
+        const $$createField6_0 = $$createType0;
+        const $$createField7_0 = $$createType0;
+        const $$createField8_0 = $$createType0;
+        const $$createField11_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("documentId" in $$parsedSource) {
+            $$parsedSource["documentId"] = $$createField1_0($$parsedSource["documentId"]);
+        }
+        if ("text" in $$parsedSource) {
+            $$parsedSource["text"] = $$createField2_0($$parsedSource["text"]);
+        }
+        if ("abstract" in $$parsedSource) {
+            $$parsedSource["abstract"] = $$createField3_0($$parsedSource["abstract"]);
+        }
+        if ("metadata" in $$parsedSource) {
+            $$parsedSource["metadata"] = $$createField4_0($$parsedSource["metadata"]);
+        }
+        if ("chunkIndex" in $$parsedSource) {
+            $$parsedSource["chunkIndex"] = $$createField5_0($$parsedSource["chunkIndex"]);
+        }
+        if ("type" in $$parsedSource) {
+            $$parsedSource["type"] = $$createField6_0($$parsedSource["type"]);
+        }
+        if ("clientId" in $$parsedSource) {
+            $$parsedSource["clientId"] = $$createField7_0($$parsedSource["clientId"]);
+        }
+        if ("userId" in $$parsedSource) {
+            $$parsedSource["userId"] = $$createField8_0($$parsedSource["userId"]);
+        }
+        if ("fileId" in $$parsedSource) {
+            $$parsedSource["fileId"] = $$createField11_0($$parsedSource["fileId"]);
+        }
+        return new GetChunksByIDsRow($$parsedSource as Partial<GetChunksByIDsRow>);
+    }
+}
+
 export class GetChunksTextByFileIdRow {
     "id": string;
     "text": sql$0.NullString;
@@ -11252,6 +11435,39 @@ export class InstallUserPluginParams {
     }
 }
 
+export class KnowledgeBaseFile {
+    "knowledgeBaseId": string;
+    "fileId": string;
+    "userId": string;
+    "createdAt": number;
+
+    /** Creates a new KnowledgeBaseFile instance. */
+    constructor($$source: Partial<KnowledgeBaseFile> = {}) {
+        if (!("knowledgeBaseId" in $$source)) {
+            this["knowledgeBaseId"] = "";
+        }
+        if (!("fileId" in $$source)) {
+            this["fileId"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new KnowledgeBaseFile instance from a string or object.
+     */
+    static createFrom($$source: any = {}): KnowledgeBaseFile {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new KnowledgeBaseFile($$parsedSource as Partial<KnowledgeBaseFile>);
+    }
+}
+
 export class KnowledgeBasis {
     "id": string;
     "name": string;
@@ -12562,6 +12778,31 @@ export class ListGenerationsParams {
     static createFrom($$source: any = {}): ListGenerationsParams {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new ListGenerationsParams($$parsedSource as Partial<ListGenerationsParams>);
+    }
+}
+
+export class ListKnowledgeBaseFilesParams {
+    "knowledgeBaseId": string;
+    "userId": string;
+
+    /** Creates a new ListKnowledgeBaseFilesParams instance. */
+    constructor($$source: Partial<ListKnowledgeBaseFilesParams> = {}) {
+        if (!("knowledgeBaseId" in $$source)) {
+            this["knowledgeBaseId"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ListKnowledgeBaseFilesParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ListKnowledgeBaseFilesParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ListKnowledgeBaseFilesParams($$parsedSource as Partial<ListKnowledgeBaseFilesParams>);
     }
 }
 

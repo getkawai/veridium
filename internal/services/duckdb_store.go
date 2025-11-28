@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/kawai-network/veridium/pkg/xlog"
-	_ "github.com/marcboeker/go-duckdb"
+	_ "github.com/duckdb/duckdb-go/v2"
 )
 
 // DuckDBStore handles vector storage using DuckDB

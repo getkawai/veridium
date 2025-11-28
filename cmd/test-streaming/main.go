@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"time"
 
@@ -60,30 +59,45 @@ func main() {
 	sessionID := "test-stream-session"
 	userID := "DEFAULT_LOBE_CHAT_USER"
 
-	// Setup event listener
-	eventChannel := fmt.Sprintf("chat:stream:%s", sessionID)
+	// Setup event listener for streaming events
+	// Note: Events are now emitted as "chat:stream" with type field
+	eventChannel := "chat:stream"
 	log.Printf("📡 Listening to events: %s", eventChannel)
 
+	chunkCount := 0
 	app.Event.On(eventChannel, func(event *application.CustomEvent) {
-		data := event.Data.(map[string]interface{})
-		eventType := data["type"].(string)
+		data, ok := event.Data.(map[string]interface{})
+		if !ok {
+			log.Printf("⚠️  Invalid event data type")
+			return
+		}
+
+		eventType, ok := data["type"].(string)
+		if !ok {
+			log.Printf("⚠️  Missing event type")
+			return
+		}
 
 		switch eventType {
 		case "start":
-			log.Printf("✅ [START] message_id: %s", data["message_id"])
+			log.Printf("✅ [START] message_id: %v", data["message_id"])
 		case "chunk":
-			content := data["content"].(string)
-			fullContent := data["full_content"].(string)
-			log.Printf("📦 [CHUNK] +%d chars, total: %d chars", len(content), len(fullContent))
+			chunkCount++
+			content, _ := data["content"].(string)
+			fullContent, _ := data["full_content"].(string)
+			log.Printf("📦 [CHUNK #%d] +%d chars, total: %d chars", chunkCount, len(content), len(fullContent))
 			// Print first 50 chars of full content
 			preview := fullContent
 			if len(preview) > 50 {
 				preview = preview[:50] + "..."
 			}
-			log.Printf("   Content: %s", preview)
+			log.Printf("   Preview: %s", preview)
 		case "complete":
-			log.Printf("✅ [COMPLETE] message_id: %s", data["message_id"])
-			log.Printf("   Topic: %s", data["topic_id"])
+			log.Printf("✅ [COMPLETE] message_id: %v", data["message_id"])
+			log.Printf("   Total chunks received: %d", chunkCount)
+			if topicID, ok := data["topic_id"].(string); ok && topicID != "" {
+				log.Printf("   Topic: %s", topicID)
+			}
 		}
 	})
 
@@ -115,4 +129,3 @@ func main() {
 
 	log.Println("✅ Test completed!")
 }
-

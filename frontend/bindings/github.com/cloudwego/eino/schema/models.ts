@@ -696,6 +696,12 @@ export class MessageInputFile {
      */
     "extra"?: { [_: string]: any };
 
+    /**
+     * Name represents the filename.
+     * Optional.
+     */
+    "name"?: string;
+
     /** Creates a new MessageInputFile instance. */
     constructor($$source: Partial<MessageInputFile> = {}) {
 

@@ -170,58 +170,6 @@ export class ChatResponse {
 }
 
 /**
- * ChunkData represents chunk data for vector storage
- */
-export class ChunkData {
-    "id": string;
-    "text": string;
-    "fileId": string;
-    "fileName": string;
-    "type": string;
-    "index": number;
-    "metadata": { [_: string]: string };
-
-    /** Creates a new ChunkData instance. */
-    constructor($$source: Partial<ChunkData> = {}) {
-        if (!("id" in $$source)) {
-            this["id"] = "";
-        }
-        if (!("text" in $$source)) {
-            this["text"] = "";
-        }
-        if (!("fileId" in $$source)) {
-            this["fileId"] = "";
-        }
-        if (!("fileName" in $$source)) {
-            this["fileName"] = "";
-        }
-        if (!("type" in $$source)) {
-            this["type"] = "";
-        }
-        if (!("index" in $$source)) {
-            this["index"] = 0;
-        }
-        if (!("metadata" in $$source)) {
-            this["metadata"] = {};
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new ChunkData instance from a string or object.
-     */
-    static createFrom($$source: any = {}): ChunkData {
-        const $$createField6_0 = $$createType9;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("metadata" in $$parsedSource) {
-            $$parsedSource["metadata"] = $$createField6_0($$parsedSource["metadata"]);
-        }
-        return new ChunkData($$parsedSource as Partial<ChunkData>);
-    }
-}
-
-/**
  * CreateThreadRequest represents a request to create a new thread
  */
 export class CreateThreadRequest {

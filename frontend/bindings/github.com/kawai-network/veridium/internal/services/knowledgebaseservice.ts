@@ -16,9 +16,6 @@ import * as schema$0 from "../../../../cloudwego/eino/schema/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as db$0 from "../database/generated/models.js";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore: Unused imports
-import * as chromem$0 from "../../pkg/eino-adapters/chromem/models.js";
 
 /**
  * AddFileToKnowledgeBase adds a file to a knowledge base
@@ -42,40 +39,20 @@ export function DeleteKnowledgeBase(kbID: string, userID: string): $CancellableP
 }
 
 /**
- * GetFileManager returns the file manager for a knowledge base
- */
-export function GetFileManager(kbID: string, userID: string): $CancellablePromise<chromem$0.FileManager | null> {
-    return $Call.ByID(2759124646, kbID, userID).then(($result: any) => {
-        return $$createType1($result);
-    });
-}
-
-/**
- * GetIndexer returns the Eino indexer for a knowledge base
- */
-export function GetIndexer(kbID: string, userID: string): $CancellablePromise<chromem$0.Indexer | null> {
-    return $Call.ByID(4150070740, kbID, userID).then(($result: any) => {
-        return $$createType3($result);
-    });
-}
-
-/**
  * GetKnowledgeBase gets a knowledge base by ID
  */
 export function GetKnowledgeBase(kbID: string, userID: string): $CancellablePromise<db$0.KnowledgeBasis> {
     return $Call.ByID(830733914, kbID, userID).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType0($result);
     });
 }
 
 /**
- * GetRetriever returns the Eino retriever for a knowledge base
- * This is used in RAG workflows and agent tools
+ * GetRetriever returns a simple retriever function for compatibility
+ * This replaces the Eino chromem adapter
  */
-export function GetRetriever(kbID: string, userID: string): $CancellablePromise<chromem$0.Retriever | null> {
-    return $Call.ByID(1834383765, kbID, userID).then(($result: any) => {
-        return $$createType6($result);
-    });
+export function GetRetriever(kbID: string, userID: string): $CancellablePromise<any> {
+    return $Call.ByID(1834383765, kbID, userID);
 }
 
 /**
@@ -83,7 +60,7 @@ export function GetRetriever(kbID: string, userID: string): $CancellablePromise<
  */
 export function ListKnowledgeBases(userID: string): $CancellablePromise<db$0.KnowledgeBasis[]> {
     return $Call.ByID(4122219297, userID).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType1($result);
     });
 }
 
@@ -92,7 +69,7 @@ export function ListKnowledgeBases(userID: string): $CancellablePromise<db$0.Kno
  */
 export function QueryKnowledgeBase(kbID: string, query: string, topK: number, userID: string): $CancellablePromise<(schema$0.Document | null)[]> {
     return $Call.ByID(3310437766, kbID, query, topK, userID).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType4($result);
     });
 }
 
@@ -111,14 +88,8 @@ export function UpdateKnowledgeBase(kbID: string, name: string, description: str
 }
 
 // Private type creation functions
-const $$createType0 = chromem$0.FileManager.createFrom;
-const $$createType1 = $Create.Nullable($$createType0);
-const $$createType2 = chromem$0.Indexer.createFrom;
+const $$createType0 = db$0.KnowledgeBasis.createFrom;
+const $$createType1 = $Create.Array($$createType0);
+const $$createType2 = schema$0.Document.createFrom;
 const $$createType3 = $Create.Nullable($$createType2);
-const $$createType4 = db$0.KnowledgeBasis.createFrom;
-const $$createType5 = chromem$0.Retriever.createFrom;
-const $$createType6 = $Create.Nullable($$createType5);
-const $$createType7 = $Create.Array($$createType4);
-const $$createType8 = schema$0.Document.createFrom;
-const $$createType9 = $Create.Nullable($$createType8);
-const $$createType10 = $Create.Array($$createType9);
+const $$createType4 = $Create.Array($$createType3);

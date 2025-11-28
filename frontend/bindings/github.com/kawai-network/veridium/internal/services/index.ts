@@ -17,7 +17,6 @@ export {
 export {
     ChatRequest,
     ChatResponse,
-    ChunkData,
     CreateThreadRequest,
     CreateThreadResponse,
     FileItem,

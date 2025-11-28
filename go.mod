@@ -9,10 +9,10 @@ require (
 	github.com/cloudwego/eino v0.6.0
 	github.com/cloudwego/eino-ext/components/document/transformer/splitter/markdown v0.0.0-00010101000000-000000000000
 	github.com/dslipak/pdf v0.0.2
+	github.com/duckdb/duckdb-go/v2 v2.5.3
 	github.com/ebitengine/purego v0.9.1
 	github.com/google/uuid v1.6.0
 	github.com/jupiterrider/ffi v0.5.1
-	github.com/marcboeker/go-duckdb v1.8.5
 	github.com/pemistahl/lingua-go v1.4.0
 	github.com/samber/lo v1.49.1
 	github.com/ssor/bom v0.0.0-20170718123548-6386211fdfcf
@@ -30,7 +30,7 @@ require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/ProtonMail/go-crypto v1.1.6 // indirect
 	github.com/adrg/xdg v0.5.3 // indirect
-	github.com/apache/arrow-go/v18 v18.1.0 // indirect
+	github.com/apache/arrow-go/v18 v18.4.1 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/bep/debounce v1.2.1 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
@@ -40,7 +40,15 @@ require (
 	github.com/cloudflare/circl v1.6.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/cyphar/filepath-securejoin v0.4.1 // indirect
-	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
+	github.com/duckdb/duckdb-go-bindings v0.1.23 // indirect
+	github.com/duckdb/duckdb-go-bindings/darwin-amd64 v0.1.23 // indirect
+	github.com/duckdb/duckdb-go-bindings/darwin-arm64 v0.1.23 // indirect
+	github.com/duckdb/duckdb-go-bindings/linux-amd64 v0.1.23 // indirect
+	github.com/duckdb/duckdb-go-bindings/linux-arm64 v0.1.23 // indirect
+	github.com/duckdb/duckdb-go-bindings/windows-amd64 v0.1.23 // indirect
+	github.com/duckdb/duckdb-go/arrowmapping v0.0.26 // indirect
+	github.com/duckdb/duckdb-go/mapping v0.0.25 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/eino-contrib/jsonschema v1.0.3 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
@@ -48,18 +56,18 @@ require (
 	github.com/go-git/go-billy/v5 v5.6.2 // indirect
 	github.com/go-git/go-git/v5 v5.13.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
-	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
+	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
-	github.com/google/flatbuffers v25.1.24+incompatible // indirect
+	github.com/google/flatbuffers v25.2.10+incompatible // indirect
 	github.com/goph/emperror v0.17.2 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/jchv/go-winloader v0.0.0-20210711035445-715c2860da7e // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
-	github.com/klauspost/cpuid/v2 v2.2.9 // indirect
+	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/leaanthony/go-ansi-parser v1.6.1 // indirect
 	github.com/leaanthony/u v1.1.1 // indirect
 	github.com/lmittmann/tint v1.0.7 // indirect
@@ -75,7 +83,7 @@ require (
 	github.com/pjbgf/sha1cd v0.3.2 // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rogpeppe/go-internal v1.13.1 // indirect
