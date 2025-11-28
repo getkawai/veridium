@@ -1,8 +1,9 @@
 /**
- * Tools Engineering - Unified tools processing using ToolsEngine
+ * Tools Engineering - Unified tools processing
+ * Context-engine removed - tools are now handled by backend
  */
-import { ToolsEngine } from '@/context-engine';
-import type { PluginEnableChecker } from '@/context-engine';
+// import { ToolsEngine } from '@/context-engine';
+// import type { PluginEnableChecker } from '@/context-engine';
 import { ChatCompletionTool, WorkingModel } from '@/types';
 import { LobeChatPluginManifest } from '@/chat-plugin-sdk';
 
@@ -13,6 +14,11 @@ import { WebBrowsingManifest } from '@/tools/web-browsing';
 import { getSearchConfig } from '../getSearchConfig';
 import { isCanUseFC } from '../isCanUseFC';
 import { shouldEnableTool } from '../toolFilters';
+
+/**
+ * Plugin enable checker type
+ */
+export type PluginEnableChecker = (context: { pluginId: string }) => boolean;
 
 /**
  * Tools engine configuration options
@@ -27,9 +33,64 @@ export interface ToolsEngineConfig {
 }
 
 /**
+ * Simple tools engine implementation (context-engine removed)
+ */
+class SimpleToolsEngine {
+  private manifests: LobeChatPluginManifest[];
+  private enableChecker?: PluginEnableChecker;
+  private functionCallChecker: (model: string, provider: string) => boolean;
+  private defaultToolIds?: string[];
+
+  constructor(config: {
+    manifestSchemas: LobeChatPluginManifest[];
+    enableChecker?: PluginEnableChecker;
+    functionCallChecker: (model: string, provider: string) => boolean;
+    defaultToolIds?: string[];
+  }) {
+    this.manifests = config.manifestSchemas;
+    this.enableChecker = config.enableChecker;
+    this.functionCallChecker = config.functionCallChecker;
+    this.defaultToolIds = config.defaultToolIds;
+  }
+
+  generateTools(params: {
+    model: string;
+    provider: string;
+    toolIds: string[];
+  }): ChatCompletionTool[] {
+    const { model, provider, toolIds } = params;
+
+    if (!this.functionCallChecker(model, provider)) {
+      return [];
+    }
+
+    const allToolIds = [...toolIds, ...(this.defaultToolIds || [])];
+    const tools: ChatCompletionTool[] = [];
+
+    for (const manifest of this.manifests) {
+      if (!allToolIds.includes(manifest.identifier)) continue;
+      if (this.enableChecker && !this.enableChecker({ pluginId: manifest.identifier })) continue;
+
+      for (const api of manifest.api || []) {
+        tools.push({
+          type: 'function',
+          function: {
+            name: `${manifest.identifier}____${api.name}`,
+            description: api.description || '',
+            parameters: api.parameters as any,
+          },
+        });
+      }
+    }
+
+    return tools;
+  }
+}
+
+/**
  * Initialize ToolsEngine with current manifest schemas and configurable options
  */
-export const createToolsEngine = (config: ToolsEngineConfig = {}): ToolsEngine => {
+export const createToolsEngine = (config: ToolsEngineConfig = {}): SimpleToolsEngine => {
   const { enableChecker, additionalManifests = [], defaultToolIds } = config;
 
   const toolStoreState = getToolStoreState();
@@ -45,7 +106,7 @@ export const createToolsEngine = (config: ToolsEngineConfig = {}): ToolsEngine =
   // Combine all manifests
   const allManifests = [...pluginManifests, ...builtinManifests, ...additionalManifests];
 
-  return new ToolsEngine({
+  return new SimpleToolsEngine({
     defaultToolIds,
     enableChecker,
     functionCallChecker: isCanUseFC,

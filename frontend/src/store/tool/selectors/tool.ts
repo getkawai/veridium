@@ -1,4 +1,4 @@
-import { ToolNameResolver } from '@/context-engine';
+// import { ToolNameResolver } from '@/context-engine';
 import { pluginPrompts } from '@/prompts';
 import { LobeChatPluginManifest } from '@/chat-plugin-sdk';
 
@@ -12,7 +12,11 @@ import { ToolStoreState } from '../initialState';
 import { builtinToolSelectors } from '../slices/builtin/selectors';
 import { pluginSelectors } from '../slices/plugin/selectors';
 
-const toolNameResolver = new ToolNameResolver();
+// const toolNameResolver = new ToolNameResolver();
+// Temporary simple tool name generator
+const toolNameResolver = {
+  generate: (identifier: string, apiName: string, _type?: string) => `${identifier}____${apiName}`,
+};
 
 const enabledSystemRoles =
   (tools: string[] = []) =>

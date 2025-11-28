@@ -1,5 +1,5 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix, typescript-sort-keys/interface */
-import { ToolNameResolver } from '@/context-engine';
+// import { ToolNameResolver } from '@/context-engine';
 import {
   ChatErrorType,
   ChatMessageError,
@@ -475,7 +475,25 @@ export const chatPlugin: StateCreator<
   },
 
   internal_transformToolCalls: (toolCalls) => {
-    const toolNameResolver = new ToolNameResolver();
+    // const toolNameResolver = new ToolNameResolver();
+    // Temporary simple tool name resolver
+    const toolNameResolver = {
+      resolve: (calls: any[], manifests: Record<string, LobeChatPluginManifest>) => {
+        return calls.map((call) => {
+          const fnName = call.function?.name || '';
+          const [identifier, apiName] = fnName.split('____');
+          const manifest = manifests[identifier];
+          const api = manifest?.api?.find((a) => a.name === apiName);
+          return {
+            apiName: apiName || fnName,
+            arguments: call.function?.arguments || '{}',
+            id: call.id,
+            identifier: identifier || fnName,
+            type: api ? (manifest?.type || 'default') : 'default',
+          };
+        });
+      },
+    };
 
     // Build manifests map from tool store
     const toolStoreState = useToolStore.getState();
