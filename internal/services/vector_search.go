@@ -107,13 +107,21 @@ func (s *VectorSearchService) SemanticSearch(ctx context.Context, userID string,
 	}
 
 	// Fetch more results than limit to account for potential filtering
-	ids, err := s.duckDB.SearchVectors(ctx, embedding, limit*2)
+	vectorResults, err := s.duckDB.SearchVectors(ctx, embedding, limit*2)
 	if err != nil {
 		return nil, fmt.Errorf("DuckDB search failed: %w", err)
 	}
 
-	if len(ids) == 0 {
+	if len(vectorResults) == 0 {
 		return []SearchResult{}, nil
+	}
+
+	// Extract IDs and create similarity map
+	ids := make([]string, len(vectorResults))
+	similarityMap := make(map[string]float64)
+	for i, vr := range vectorResults {
+		ids[i] = vr.ID
+		similarityMap[vr.ID] = vr.Similarity
 	}
 
 	// 3. Fetch full content from SQLite
@@ -153,12 +161,27 @@ func (s *VectorSearchService) SemanticSearch(ctx context.Context, userID string,
 			metadata["fileId"] = chunk.FileID.String
 		}
 
+		// Get similarity from map
+		similarity := float32(similarityMap[chunk.ID])
+
+		// Get filename from files table
+		fileName := ""
+		if chunk.FileID.Valid {
+			file, err := s.queries.GetFile(ctx, db.GetFileParams{
+				ID:     chunk.FileID.String,
+				UserID: userID,
+			})
+			if err == nil {
+				fileName = file.Name
+			}
+		}
+
 		results = append(results, SearchResult{
 			ID:         chunk.ID,
-			Similarity: 0.0, // TODO: Return similarity score from DuckDB
+			Similarity: similarity,
 			Text:       chunk.Text.String,
 			FileID:     chunk.FileID.String,
-			FileName:   "", // TODO: Join files table or store filename in metadata
+			FileName:   fileName,
 			Type:       chunk.Type.String,
 			Index:      int(chunk.ChunkIndex.Int64),
 			Metadata:   metadata,

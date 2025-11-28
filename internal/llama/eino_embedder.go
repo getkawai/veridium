@@ -158,7 +158,7 @@ func (e *Embedder) initialize() error {
 
 // EmbedStrings generates embeddings for multiple texts
 func (e *Embedder) EmbedStrings(ctx context.Context, texts []string, opts ...embedding.Option) (
-	embeddings [][]float64, err error) {
+	embeddings [][]float32, err error) {
 	defer func() {
 		if err != nil {
 			callbacks.OnError(ctx, err)
@@ -189,7 +189,7 @@ func (e *Embedder) EmbedStrings(ctx context.Context, texts []string, opts ...emb
 	})
 
 	// Generate embeddings for each text
-	result := make([][]float64, len(texts))
+	result := make([][]float32, len(texts))
 	for i, text := range texts {
 		// Check context cancellation
 		select {
@@ -203,11 +203,8 @@ func (e *Embedder) EmbedStrings(ctx context.Context, texts []string, opts ...emb
 			return nil, fmt.Errorf("failed to generate embedding for text %d: %w", i, err)
 		}
 
-		// Convert []float32 to []float64
-		result[i] = make([]float64, len(emb))
-		for j, v := range emb {
-			result[i][j] = float64(v)
-		}
+		// Use float32 directly (no conversion needed)
+		result[i] = emb
 	}
 
 	callbacks.OnEnd(ctx, &embedding.CallbackOutput{
