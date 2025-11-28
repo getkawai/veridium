@@ -1,7 +1,7 @@
 import { GenerationAsset, ImageGenerationTopic } from  '@/types';
 import { nanoid } from 'nanoid';
 
-import { FileService } from '@/server/services/file';
+// import { FileService } from '@/server/services/file';
 
 import {
   DB,
