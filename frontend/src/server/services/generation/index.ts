@@ -1,4 +1,4 @@
-import { parseDataUri } from '@/model-runtime';
+// import { parseDataUri } from '@/model-runtime';
 import debug from 'debug';
 import { sha256 } from 'js-sha256';
 import mime from 'mime';

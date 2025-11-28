@@ -1,5 +1,5 @@
 import { isDesktop, isServerMode } from '@/const';
-import { parseDataUri } from '@/model-runtime';
+// import { parseDataUri } from '@/model-runtime';
 import { uuid } from '@/utils';
 import dayjs from 'dayjs';
 import { sha256 } from 'js-sha256';

@@ -1,9 +1,9 @@
-import { isProviderDisableBrowserRequest } from '@/config/modelProviders';
+// import { isProviderDisableBrowserRequest } from '@/config/modelProviders';
 import { ChatModelCard } from '@/types/llm';
-import { getMessageError } from '@/utils/fetch';
+// import { getMessageError } from '@/utils/fetch';
 
-import { initializeWithClientStore } from './chat/clientModelRuntime';
-import { resolveRuntimeProvider } from './chat/helper';
+// import { initializeWithClientStore } from './chat/clientModelRuntime';
+// import { resolveRuntimeProvider } from './chat/helper';
 
 // 进度信息接口
 export interface ModelProgressInfo {
@@ -24,28 +24,31 @@ export class ModelsService {
 
   // 获取模型列表
   getModels = async (provider: string): Promise<ChatModelCard[] | undefined> => {
-    const runtimeProvider = resolveRuntimeProvider(provider);
+    // TODO: Implement without model-runtime
+    console.warn('getModels: model-runtime removed, needs new implementation');
+    return undefined;
+    // const runtimeProvider = resolveRuntimeProvider(provider);
 
-    try {
-      // Check if provider has CORS restrictions
-      if (isProviderDisableBrowserRequest(provider)) {
-        console.error(
-          `Provider "${provider}" cannot fetch models in browser due to CORS restrictions`,
-        );
-        return undefined;
-      }
+    // try {
+    //   // Check if provider has CORS restrictions
+    //   if (isProviderDisableBrowserRequest(provider)) {
+    //     console.error(
+    //       `Provider "${provider}" cannot fetch models in browser due to CORS restrictions`,
+    //     );
+    //     return undefined;
+    //   }
 
-      // Always use client runtime to fetch models directly
-      const agentRuntime = await initializeWithClientStore({
-        provider,
-        runtimeProvider,
-      });
+    //   // Always use client runtime to fetch models directly
+    //   const agentRuntime = await initializeWithClientStore({
+    //     provider,
+    //     runtimeProvider,
+    //   });
 
-      return await agentRuntime.models();
-    } catch (error) {
-      console.error(`Failed to fetch models for provider ${provider}:`, error);
-      return undefined;
-    }
+    //   return await agentRuntime.models();
+    // } catch (error) {
+    //   console.error(`Failed to fetch models for provider ${provider}:`, error);
+    //   return undefined;
+    // }
   };
 
   /**
@@ -55,49 +58,52 @@ export class ModelsService {
     { model, provider }: { model: string; provider: string },
     { onProgress, onError }: { onError?: ErrorCallback; onProgress?: ProgressCallback } = {},
   ): Promise<void> => {
-    try {
-      const runtimeProvider = resolveRuntimeProvider(provider);
+    // TODO: Implement without model-runtime
+    console.warn('downloadModel: model-runtime removed, needs new implementation');
+    onError?.({ message: 'Not implemented' });
+    // try {
+    //   const runtimeProvider = resolveRuntimeProvider(provider);
 
-      // Check if provider has CORS restrictions
-      if (isProviderDisableBrowserRequest(provider)) {
-        const errorMsg = `Provider "${provider}" cannot download models in browser due to CORS restrictions`;
-        console.error(errorMsg);
-        onError?.({ message: errorMsg });
-        throw new Error(errorMsg);
-      }
+    //   // Check if provider has CORS restrictions
+    //   if (isProviderDisableBrowserRequest(provider)) {
+    //     const errorMsg = `Provider "${provider}" cannot download models in browser due to CORS restrictions`;
+    //     console.error(errorMsg);
+    //     onError?.({ message: errorMsg });
+    //     throw new Error(errorMsg);
+    //   }
 
-      // Create a new AbortController
-      this._abortController = new AbortController();
-      const signal = this._abortController.signal;
+    //   // Create a new AbortController
+    //   this._abortController = new AbortController();
+    //   const signal = this._abortController.signal;
 
-      // Always use client runtime to pull models directly
-      const agentRuntime = await initializeWithClientStore({
-        provider,
-        runtimeProvider,
-      });
+    //   // Always use client runtime to pull models directly
+    //   const agentRuntime = await initializeWithClientStore({
+    //     provider,
+    //     runtimeProvider,
+    //   });
 
-      const res = await agentRuntime.pullModel({ model }, { signal });
+    //   const res = await agentRuntime.pullModel({ model }, { signal });
 
-      if (!res || !res.ok) {
-        throw await getMessageError(res!);
-      }
+    //   if (!res || !res.ok) {
+    //     throw await getMessageError(res!);
+    //   }
 
-      // Process response stream
-      if (res.body) {
-        await this.processModelPullStream(res, { onProgress, onError });
-      }
-    } catch (error) {
-      // If it's an abort operation, don't throw error
-      if (error instanceof DOMException && error.name === 'AbortError') {
-        return;
-      }
+    //   // Process response stream
+    //   if (res.body) {
+    //     await this.processModelPullStream(res, { onProgress, onError });
+    //   }
+    // } catch (error) {
+    //   // If it's an abort operation, don't throw error
+    //   if (error instanceof DOMException && error.name === 'AbortError') {
+    //     return;
+    //   }
 
-      console.error('download model error:', error);
-      throw error;
-    } finally {
-      // Clean up AbortController
-      this._abortController = null;
-    }
+    //   console.error('download model error:', error);
+    //   throw error;
+    // } finally {
+    //   // Clean up AbortController
+    //   this._abortController = null;
+    // }
   };
 
   // 中断模型下载

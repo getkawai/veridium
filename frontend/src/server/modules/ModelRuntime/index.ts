@@ -1,6 +1,6 @@
 import { GoogleGenAIOptions } from '@google/genai';
-import { ModelRuntime } from '@/model-runtime';
-import { LobeVertexAI } from '@/model-runtime/vertexai';
+// import { ModelRuntime } from '@/model-runtime';
+// import { LobeVertexAI } from '@/model-runtime/vertexai';
 import { ClientSecretPayload } from '@/types';
 import { safeParseJSON } from '@/utils';
 import { ModelProvider } from '@/model-bank';

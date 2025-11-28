@@ -1,4 +1,3 @@
-import { AgentRuntimeError, ChatCompletionErrorPayload } from '@/model-runtime';
 import { ChatErrorType, TracePayload, TraceTagMap, UIChatMessage } from '@/types';
 import { PluginRequestPayload, createHeadersWithPluginSettings } from '@/chat-plugin-sdk';
 import { merge } from 'lodash-es';
@@ -26,7 +25,7 @@ import { createTraceHeader, getTraceId } from '@/utils/trace';
 
 import { createHeaderWithAuth } from '../_auth';
 import { API_ENDPOINTS } from '../_url';
-import { initializeWithClientStore } from './clientModelRuntime';
+// import { initializeWithClientStore } from './clientModelRuntime';
 import { contextEngineeringBackend } from './contextEngineeringBackend';
 import { findDeploymentName, resolveRuntimeProvider } from './helper';
 
@@ -281,24 +280,28 @@ class ChatService {
 
     const sdkType = resolveRuntimeProvider(provider);
 
-    /**
-     * Always use client-side browser runtime to call model providers directly.
-     * This eliminates server-side routing overhead and keeps API keys in browser memory.
-     */
-    try {
-      return await this.fetchOnClient({ payload, provider, runtimeProvider: sdkType, signal, options });
-    } catch (e) {
-      const {
-        errorType = ChatErrorType.BadRequest,
-        error: errorContent,
-        ...res
-      } = e as ChatCompletionErrorPayload;
+    // /**
+    //  * Always use client-side browser runtime to call model providers directly.
+    //  * This eliminates server-side routing overhead and keeps API keys in browser memory.
+    //  */
+    // try {
+    //   return await this.fetchOnClient({ payload, provider, runtimeProvider: sdkType, signal, options });
+    // } catch (e) {
+    //   const {
+    //     errorType = ChatErrorType.BadRequest,
+    //     error: errorContent,
+    //     ...res
+    //   } = e as any;
 
-      const error = errorContent || e;
-      console.error(`Client Runtime Error: [${provider}] ${errorType}:`, error);
+    //   const error = errorContent || e;
+    //   console.error(`Client Runtime Error: [${provider}] ${errorType}:`, error);
 
-      return createErrorResponse(errorType, { error, ...res, provider });
-    }
+    //   return createErrorResponse(errorType, { error, ...res, provider });
+    // }
+    
+    // TODO: Implement new chat completion logic without model-runtime
+    console.warn('getChatCompletion: model-runtime removed, needs new implementation');
+    return new Response(JSON.stringify({ error: 'Not implemented' }), { status: 501 });
   };
 
   /**
@@ -413,97 +416,97 @@ class ChatService {
     };
   };
 
-  /**
-   * Fetch chat completion on the client side using model runtime directly.
-   * This bypasses API endpoints and calls provider SDKs directly from the browser.
-   */
-  private fetchOnClient = async (params: {
-    payload: Partial<ChatStreamPayload>;
-    provider: string;
-    runtimeProvider: string;
-    signal?: AbortSignal;
-    options?: FetchOptions;
-  }) => {
-    /**
-     * Check if provider has CORS restrictions that prevent browser requests
-     */
-    if (isProviderDisableBrowserRequest(params.provider)) {
-      throw AgentRuntimeError.createError(ChatErrorType.BadRequest, {
-        message: `Provider "${params.provider}" cannot run in browser due to CORS restrictions. Please configure this provider to use server-side routing or choose a different provider.`,
-        provider: params.provider,
-      } as any);
-    }
+  // /**
+  //  * Fetch chat completion on the client side using model runtime directly.
+  //  * This bypasses API endpoints and calls provider SDKs directly from the browser.
+  //  */
+  // private fetchOnClient = async (params: {
+  //   payload: Partial<ChatStreamPayload>;
+  //   provider: string;
+  //   runtimeProvider: string;
+  //   signal?: AbortSignal;
+  //   options?: FetchOptions;
+  // }) => {
+  //   /**
+  //    * Check if provider has CORS restrictions that prevent browser requests
+  //    */
+  //   if (isProviderDisableBrowserRequest(params.provider)) {
+  //     // throw AgentRuntimeError.createError(ChatErrorType.BadRequest, {
+  //     //   message: `Provider "${params.provider}" cannot run in browser due to CORS restrictions. Please configure this provider to use server-side routing or choose a different provider.`,
+  //     //   provider: params.provider,
+  //     // } as any);
+  //   }
 
-    /**
-     * if enable login and not signed in, return unauthorized error
-     */
-    const userStore = useUserStore.getState();
-    if (enableAuth && !userStore.isSignedIn) {
-      throw AgentRuntimeError.createError(ChatErrorType.InvalidAccessCode);
-    }
+  //   /**
+  //    * if enable login and not signed in, return unauthorized error
+  //    */
+  //   const userStore = useUserStore.getState();
+  //   if (enableAuth && !userStore.isSignedIn) {
+  //     // throw AgentRuntimeError.createError(ChatErrorType.InvalidAccessCode);
+  //   }
 
-    const agentRuntime = await initializeWithClientStore({
-      payload: params.payload,
-      provider: params.provider,
-      runtimeProvider: params.runtimeProvider,
-    });
-    const data = params.payload as ChatStreamPayload;
+  //   const agentRuntime = await initializeWithClientStore({
+  //     payload: params.payload,
+  //     provider: params.provider,
+  //     runtimeProvider: params.runtimeProvider,
+  //   });
+  //   const data = params.payload as ChatStreamPayload;
 
-    // Convert onMessageHandle and onFinish to ChatStreamCallbacks format
-    // OpenAIStream's createCallbacksTransformer will handle the actual callback invocation
-    // Create callbacks if either onMessageHandle or onFinish is provided
-    const callbacks = (params.options?.onMessageHandle || params.options?.onFinish) ? {
-      onText: async (text: string) => {
-        params.options?.onMessageHandle?.({ text, type: 'text' });
-      },
-      onStart: async () => {
-        // Optional: notify stream start
-      },
-      onFinal: async (data: any) => {
-        // Called when stream is complete with final data
-        if (params.options?.onFinish) {
-          await params.options.onFinish(data.text || '', {
-            usage: data.usage,
-            speed: data.speed,
-            toolCalls: data.toolsCalling,
-            reasoning: data.thinking ? { content: data.thinking } : undefined,
-            grounding: data.grounding,
-          });
-        }
-      },
-    } : undefined;
+  //   // Convert onMessageHandle and onFinish to ChatStreamCallbacks format
+  //   // OpenAIStream's createCallbacksTransformer will handle the actual callback invocation
+  //   // Create callbacks if either onMessageHandle or onFinish is provided
+  //   const callbacks = (params.options?.onMessageHandle || params.options?.onFinish) ? {
+  //     onText: async (text: string) => {
+  //       params.options?.onMessageHandle?.({ text, type: 'text' });
+  //     },
+  //     onStart: async () => {
+  //       // Optional: notify stream start
+  //     },
+  //     onFinal: async (data: any) => {
+  //       // Called when stream is complete with final data
+  //       if (params.options?.onFinish) {
+  //         await params.options.onFinish(data.text || '', {
+  //           usage: data.usage,
+  //           speed: data.speed,
+  //           toolCalls: data.toolsCalling,
+  //           reasoning: data.thinking ? { content: data.thinking } : undefined,
+  //           grounding: data.grounding,
+  //         });
+  //       }
+  //     },
+  //   } : undefined;
 
-    // Pass callbacks to agentRuntime.chat via options
-    const response = await agentRuntime.chat(data, { 
-      signal: params.signal,
-      callback: callbacks,
-    });
+  //   // Pass callbacks to agentRuntime.chat via options
+  //   const response = await agentRuntime.chat(data, { 
+  //     signal: params.signal,
+  //     callback: callbacks,
+  //   });
 
-    // CRITICAL: Consume the Response stream to trigger callbacks
-    // Without this, the ReadableStream won't be read and callbacks won't fire
-    if (response.body && callbacks) {
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
+  //   // CRITICAL: Consume the Response stream to trigger callbacks
+  //   // Without this, the ReadableStream won't be read and callbacks won't fire
+  //   if (response.body && callbacks) {
+  //     const reader = response.body.getReader();
+  //     const decoder = new TextDecoder();
       
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+  //     try {
+  //       while (true) {
+  //         const { done, value } = await reader.read();
+  //         if (done) break;
           
-          // The actual processing is done by OpenAIStream pipeline
-          // We just need to read the stream to trigger the callbacks
-          if (value) {
-            decoder.decode(value, { stream: true });
-          }
-        }
-      } finally {
-        reader.releaseLock();
-      }
-    }
+  //         // The actual processing is done by OpenAIStream pipeline
+  //         // We just need to read the stream to trigger the callbacks
+  //         if (value) {
+  //           decoder.decode(value, { stream: true });
+  //         }
+  //       }
+  //     } finally {
+  //       reader.releaseLock();
+  //     }
+  //   }
 
-    // Return a dummy successful response since stream is consumed
-    return new Response(null, { status: 200 });
-  };
+  //   // Return a dummy successful response since stream is consumed
+  //   return new Response(null, { status: 200 });
+  // };
 }
 
 export const chatService = new ChatService();

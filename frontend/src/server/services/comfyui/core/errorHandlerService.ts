@@ -4,11 +4,11 @@
  * Centralized error handling for ComfyUI runtime
  * Maps internal errors to framework errors
  */
-import {
-  AgentRuntimeError,
-  AgentRuntimeErrorType,
-  ILobeAgentRuntimeErrorType,
-} from '@/model-runtime';
+// import {
+//   AgentRuntimeError,
+//   AgentRuntimeErrorType,
+//   ILobeAgentRuntimeErrorType,
+// } from '@/model-runtime';
 import { TRPCError } from '@/types';
 
 import { SYSTEM_COMPONENTS } from '@/server/services/comfyui/config/systemComponents';
