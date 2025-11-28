@@ -11,10 +11,15 @@ LIMIT ? OFFSET ?;
 
 -- name: CreateChunk :one
 INSERT INTO chunks (
-    id, text, abstract, metadata, chunk_index, type, client_id,
+    id, document_id, text, abstract, metadata, chunk_index, type, client_id,
     user_id, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
+
+-- name: GetChunksByDocumentID :many
+SELECT * FROM chunks
+WHERE document_id = ? AND user_id = ?
+ORDER BY chunk_index ASC;
 
 -- name: UpdateChunk :one
 UPDATE chunks
@@ -124,6 +129,12 @@ WHERE fc.file_id IS NULL;
 -- name: BatchDeleteChunks :exec
 DELETE FROM chunks
 WHERE id IN (sqlc.slice('ids')) AND user_id = ?;
+
+-- name: GetChunksByIDs :many
+SELECT c.*, d.file_id
+FROM chunks c
+LEFT JOIN documents d ON c.document_id = d.id
+WHERE c.id IN (sqlc.slice('ids')) AND c.user_id = ?;
 
 -- Semantic search - fetch chunks with embeddings for JS similarity calculation
 -- name: GetChunksWithEmbeddings :many

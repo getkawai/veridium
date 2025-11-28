@@ -66,7 +66,7 @@ func (w *RAGWorkflow) BuildContext(ctx context.Context, req RAGRequest) (string,
 		topK = 5
 	}
 
-	docs, err := retriever.Retrieve(ctx, req.Query)
+	docs, err := retriever(ctx, req.Query)
 	if err != nil {
 		return "", nil, fmt.Errorf("retrieval failed: %w", err)
 	}
@@ -132,4 +132,3 @@ func (w *RAGWorkflow) ExecuteRAG(ctx context.Context, req RAGRequest) (*RAGRespo
 
 	return response, nil
 }
-

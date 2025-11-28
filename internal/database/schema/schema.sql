@@ -293,6 +293,7 @@ CREATE TABLE IF NOT EXISTS messages_files (
 -- Chunks table (RAG)
 CREATE TABLE IF NOT EXISTS chunks (
   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))),2) || '-' || substr('89ab',abs(random()) % 4 + 1, 1) || substr(lower(hex(randomblob(2))),2) || '-' || lower(hex(randomblob(6)))),
+  document_id TEXT REFERENCES documents(id) ON DELETE CASCADE,
   text TEXT,
   abstract TEXT,
   metadata TEXT, -- JSON as text
@@ -779,6 +780,7 @@ CREATE INDEX IF NOT EXISTS idx_topics_user_id ON topics(user_id);
 CREATE INDEX IF NOT EXISTS idx_topics_id_user_id ON topics(id, user_id);
 
 CREATE INDEX IF NOT EXISTS idx_chunks_user_id ON chunks(user_id);
+CREATE INDEX IF NOT EXISTS idx_chunks_document_id ON chunks(document_id);
 CREATE INDEX IF NOT EXISTS idx_chunks_client_id_user_id ON chunks(client_id, user_id);
 
 CREATE INDEX IF NOT EXISTS idx_unstructured_chunks_client_id_user_id ON unstructured_chunks(client_id, user_id);

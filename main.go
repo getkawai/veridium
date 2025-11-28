@@ -16,7 +16,6 @@ import (
 	"github.com/kawai-network/veridium/internal/tableviewer"
 	"github.com/kawai-network/veridium/internal/tts"
 	"github.com/kawai-network/veridium/internal/whisper"
-	"github.com/kawai-network/veridium/pkg/chromem"
 	"github.com/kawai-network/veridium/pkg/contextengine"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
@@ -99,31 +98,48 @@ func main() {
 		log.Printf("   Auto-setup running in background...")
 	}
 
-	// Initialize Vector Search service (chromem for semantic search)
+	// Initialize File Service base directory (needed by both FileService and FileProcessor)
+	fileBaseDir := filepath.Join(userConfigDir, "veridium", "files")
+	os.MkdirAll(fileBaseDir, 0755)
+
+	// Initialize DuckDB Store (Vector Engine)
+	duckDBPath := filepath.Join(userConfigDir, "veridium", "duckdb.db")
+	duckDBStore, err := services.NewDuckDBStore(duckDBPath, 384) // 384 dims for granite-embedding
+	if err != nil {
+		log.Printf("⚠️  Warning: Failed to initialize DuckDB Store: %v", err)
+		log.Printf("    Vector search will fall back to legacy mode.")
+	} else {
+		log.Printf("✅ DuckDB Store initialized")
+		log.Printf("   Database path: %s", duckDBPath)
+		defer duckDBStore.Close()
+	}
+
+	// Initialize Vector Search service (DuckDB + SQLite for semantic search)
 	// This uses the llama.cpp library loaded by LibraryService above
-	vectorDBPath := filepath.Join(userConfigDir, "veridium", "vector-db")
-	vectorSearchService, err := services.NewVectorSearchService(vectorDBPath, "llama", "", libService)
+	vectorSearchService, err := services.NewVectorSearchService(
+		dbService.DB(),
+		duckDBStore,
+		"llama",
+		"",
+		libService,
+	)
 	if err != nil {
 		log.Printf("⚠️  Warning: Failed to initialize Vector Search service: %v", err)
-		log.Printf("    Semantic search features will use fallback mode.")
+		log.Printf("    Semantic search features will not be available.")
 	} else {
-		log.Printf("✅ Vector Search service initialized (chromem)")
-		log.Printf("   Database path: %s", vectorDBPath)
+		log.Printf("✅ Vector Search service initialized (DuckDB + SQLite)")
 		log.Printf("   Embedding provider: llama.cpp (library)")
 		log.Printf("   Embedding model: granite-embedding-107m-multilingual")
 		log.Printf("   Note: Embedding models auto-download in background")
 	}
-
-	// Initialize File Service base directory (needed by both FileService and FileProcessor)
-	fileBaseDir := filepath.Join(userConfigDir, "veridium", "files")
-	os.MkdirAll(fileBaseDir, 0755)
 
 	// Initialize File Processor service (file parsing + document storage + RAG)
 	fileLoader := services.NewFileLoader()
 	fileProcessorService := NewFileProcessorService(
 		dbService.DB(),
 		fileLoader,
-		vectorSearchService, // Pass entire service to get chromemDB and embedFunc
+		vectorSearchService, // Pass entire service to get embedFunc
+		duckDBStore,         // Pass DuckDB store
 		fileBaseDir,         // Pass file base directory for path resolution
 	)
 	log.Printf("✅ File Processor service initialized")
@@ -134,29 +150,28 @@ func main() {
 	fileSvc := services.NewFileService("system", fileStorage)
 	log.Printf("✅ File Service initialized")
 
-	// Initialize Knowledge Base Service (RAG with Chromem + Eino)
+	// Initialize Knowledge Base Service (RAG with DuckDB + SQLite)
 	var kbService *services.KnowledgeBaseService
-	if libService != nil {
-		// Initialize embedding model for KB
-		embeddingModelPath := filepath.Join(libService.GetModelsDirectory(),
-			"granite-embedding-107m-multilingual-Q6_K_L.gguf")
-		embedFunc := chromem.NewEmbeddingFuncLlamaWithPreloadedLibrary(embeddingModelPath)
-
-		kbPath := filepath.Join(userConfigDir, "veridium", "knowledge-bases")
+	if vectorSearchService != nil && fileProcessorService != nil {
 		kbAssetPath := filepath.Join(userConfigDir, "veridium", "kb-assets")
 
+		// Get RAGProcessor from fileProcessorService (we need to expose it)
+		// For now, create a new one
+		fileLoader := services.NewFileLoader()
+		embedder := vectorSearchService.GetEmbedder()
+		ragProcessor := services.NewRAGProcessor(dbService.DB(), duckDBStore, fileLoader, embedder)
+
 		kbService, err = services.NewKnowledgeBaseService(dbService, &services.KnowledgeBaseConfig{
-			ChromemPath:   kbPath,
-			EmbeddingFunc: embedFunc,
-			AssetDir:      kbAssetPath,
+			RAGProcessor: ragProcessor,
+			VectorSearch: vectorSearchService,
+			FileLoader:   fileLoader,
+			AssetDir:     kbAssetPath,
 		})
 		if err != nil {
 			log.Printf("⚠️  Warning: Failed to initialize Knowledge Base service: %v", err)
 		} else {
-			log.Printf("✅ Knowledge Base service initialized")
-			log.Printf("   Vector DB path: %s", kbPath)
+			log.Printf("✅ Knowledge Base service initialized (DuckDB + SQLite)")
 			log.Printf("   Asset path: %s", kbAssetPath)
-			log.Printf("   Embedding model: granite-embedding-107m-multilingual")
 		}
 	}
 

@@ -29,58 +29,41 @@ import (
 	"github.com/google/uuid"
 	"github.com/kawai-network/veridium/internal/database"
 	db "github.com/kawai-network/veridium/internal/database/generated"
-	"github.com/kawai-network/veridium/pkg/chromem"
-	chromemAdapter "github.com/kawai-network/veridium/pkg/eino-adapters/chromem"
 )
 
 // KnowledgeBaseService manages knowledge bases with RAG capabilities
 type KnowledgeBaseService struct {
-	db              *database.Service
-	chromemDB       *chromem.DB
-	embedFunc       chromem.EmbeddingFunc
-	collections     map[string]*chromem.Collection
-	indexers        map[string]*chromemAdapter.Indexer
-	retrievers      map[string]*chromemAdapter.Retriever
-	fileManagers    map[string]*chromemAdapter.FileManager
+	dbService       *database.Service
+	ragProcessor    *RAGProcessor
+	vectorSearch    *VectorSearchService
+	fileLoader      *FileLoader
 	defaultAssetDir string
 }
 
 // KnowledgeBaseConfig holds configuration for KB service
 type KnowledgeBaseConfig struct {
-	ChromemPath   string                // Path for vector DB persistence
-	EmbeddingFunc chromem.EmbeddingFunc // Embedding function for vector generation
-	AssetDir      string                // Base directory for file copies
+	RAGProcessor *RAGProcessor
+	VectorSearch *VectorSearchService
+	FileLoader   *FileLoader
+	AssetDir     string // Base directory for file copies
 }
 
 // NewKnowledgeBaseService creates a new knowledge base service
-func NewKnowledgeBaseService(db *database.Service, config *KnowledgeBaseConfig) (*KnowledgeBaseService, error) {
-	// Create persistent chromem DB
-	chromemDB, err := chromem.NewPersistentDB(config.ChromemPath, true)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create chromem DB: %w", err)
-	}
-
+func NewKnowledgeBaseService(dbService *database.Service, config *KnowledgeBaseConfig) (*KnowledgeBaseService, error) {
 	// Ensure asset directory exists
 	if err := os.MkdirAll(config.AssetDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create asset directory: %w", err)
 	}
 
 	service := &KnowledgeBaseService{
-		db:              db,
-		chromemDB:       chromemDB,
-		embedFunc:       config.EmbeddingFunc,
-		collections:     make(map[string]*chromem.Collection),
-		indexers:        make(map[string]*chromemAdapter.Indexer),
-		retrievers:      make(map[string]*chromemAdapter.Retriever),
-		fileManagers:    make(map[string]*chromemAdapter.FileManager),
+		dbService:       dbService,
+		ragProcessor:    config.RAGProcessor,
+		vectorSearch:    config.VectorSearch,
+		fileLoader:      config.FileLoader,
 		defaultAssetDir: config.AssetDir,
 	}
 
-	// Load existing knowledge bases from DB
-	if err := service.loadKnowledgeBases(context.Background()); err != nil {
-		log.Printf("⚠️  Warning: Failed to load knowledge bases: %v", err)
-	}
-
+	log.Println("✅ Knowledge Base service initialized (DuckDB + SQLite)")
 	return service, nil
 }
 
@@ -89,9 +72,9 @@ func (s *KnowledgeBaseService) CreateKnowledgeBase(ctx context.Context, name, de
 	// Generate unique ID
 	kbID := uuid.New().String()
 
-	// 1. Create KB record in SQLite
+	// Create KB record in SQLite
 	now := time.Now().Unix() * 1000 // timestamp in milliseconds
-	kb, err := s.db.Queries().CreateKnowledgeBase(ctx, db.CreateKnowledgeBaseParams{
+	_, err := s.dbService.Queries().CreateKnowledgeBase(ctx, db.CreateKnowledgeBaseParams{
 		ID:          kbID,
 		Name:        name,
 		Description: sql.NullString{String: description, Valid: description != ""},
@@ -108,51 +91,13 @@ func (s *KnowledgeBaseService) CreateKnowledgeBase(ctx context.Context, name, de
 		return "", fmt.Errorf("failed to create knowledge base: %w", err)
 	}
 
-	// 2. Create chromem collection
-	collection, err := s.chromemDB.GetOrCreateCollection(
-		kb.ID, // Use KB ID as collection name
-		nil,   // No metadata
-		s.embedFunc,
-	)
-	if err != nil {
-		return "", fmt.Errorf("failed to create collection: %w", err)
-	}
-
-	// 3. Create Eino adapters
-	indexer := chromemAdapter.NewIndexer(collection)
-	retriever, err := chromemAdapter.NewRetriever(&chromemAdapter.RetrieverConfig{
-		Collection: collection,
-		TopK:       10,
-	})
-	if err != nil {
-		return "", fmt.Errorf("failed to create retriever: %w", err)
-	}
-
-	// 4. Create file manager
-	assetPath := filepath.Join(s.defaultAssetDir, kb.ID)
-	fileManager, err := chromemAdapter.NewFileManager(ctx, &chromemAdapter.FileManagerConfig{
-		Indexer:     indexer,
-		AssetDir:    assetPath,
-		ChunkSize:   1500,
-		OverlapSize: 300,
-	})
-	if err != nil {
-		return "", fmt.Errorf("failed to create file manager: %w", err)
-	}
-
-	// 5. Cache in memory
-	s.collections[kb.ID] = collection
-	s.indexers[kb.ID] = indexer
-	s.retrievers[kb.ID] = retriever
-	s.fileManagers[kb.ID] = fileManager
-
-	log.Printf("✅ Knowledge base created: %s (%s)", name, kb.ID)
-	return kb.ID, nil
+	log.Printf("✅ Knowledge base created: %s (%s)", name, kbID)
+	return kbID, nil
 }
 
 // GetKnowledgeBase gets a knowledge base by ID
 func (s *KnowledgeBaseService) GetKnowledgeBase(ctx context.Context, kbID, userID string) (db.KnowledgeBasis, error) {
-	return s.db.Queries().GetKnowledgeBase(ctx, db.GetKnowledgeBaseParams{
+	return s.dbService.Queries().GetKnowledgeBase(ctx, db.GetKnowledgeBaseParams{
 		ID:     kbID,
 		UserID: userID,
 	})
@@ -160,13 +105,13 @@ func (s *KnowledgeBaseService) GetKnowledgeBase(ctx context.Context, kbID, userI
 
 // ListKnowledgeBases lists all knowledge bases for a user
 func (s *KnowledgeBaseService) ListKnowledgeBases(ctx context.Context, userID string) ([]db.KnowledgeBasis, error) {
-	return s.db.Queries().ListKnowledgeBases(ctx, userID)
+	return s.dbService.Queries().ListKnowledgeBases(ctx, userID)
 }
 
 // UpdateKnowledgeBase updates a knowledge base
 func (s *KnowledgeBaseService) UpdateKnowledgeBase(ctx context.Context, kbID, name, description, userID string) error {
 	now := time.Now().Unix() * 1000
-	_, err := s.db.Queries().UpdateKnowledgeBase(ctx, db.UpdateKnowledgeBaseParams{
+	_, err := s.dbService.Queries().UpdateKnowledgeBase(ctx, db.UpdateKnowledgeBaseParams{
 		Name:        name,
 		Description: sql.NullString{String: description, Valid: description != ""},
 		Avatar:      sql.NullString{},
@@ -180,21 +125,16 @@ func (s *KnowledgeBaseService) UpdateKnowledgeBase(ctx context.Context, kbID, na
 
 // DeleteKnowledgeBase deletes a knowledge base
 func (s *KnowledgeBaseService) DeleteKnowledgeBase(ctx context.Context, kbID, userID string) error {
-	// Delete from database
-	if err := s.db.Queries().DeleteKnowledgeBase(ctx, db.DeleteKnowledgeBaseParams{
+	// Delete from database (cascades to files and chunks)
+	if err := s.dbService.Queries().DeleteKnowledgeBase(ctx, db.DeleteKnowledgeBaseParams{
 		ID:     kbID,
 		UserID: userID,
 	}); err != nil {
 		return fmt.Errorf("failed to delete knowledge base: %w", err)
 	}
 
-	// Remove from memory
-	delete(s.collections, kbID)
-	delete(s.indexers, kbID)
-	delete(s.retrievers, kbID)
-	delete(s.fileManagers, kbID)
-
-	// TODO: Delete chromem collection and asset files
+	// TODO: Delete vectors from DuckDB
+	// TODO: Delete asset files
 
 	log.Printf("🗑️  Knowledge base deleted: %s", kbID)
 	return nil
@@ -202,22 +142,13 @@ func (s *KnowledgeBaseService) DeleteKnowledgeBase(ctx context.Context, kbID, us
 
 // AddFileToKnowledgeBase adds a file to a knowledge base
 func (s *KnowledgeBaseService) AddFileToKnowledgeBase(ctx context.Context, kbID, filePath string, metadata map[string]any, userID string) error {
-	// 1. Get file manager
-	fm, ok := s.fileManagers[kbID]
-	if !ok {
-		// Try to load the KB
-		if err := s.loadKnowledgeBase(ctx, kbID, userID); err != nil {
-			return fmt.Errorf("knowledge base not found: %s", kbID)
-		}
-		fm = s.fileManagers[kbID]
+	// 1. Load and parse file
+	fileDoc, err := s.fileLoader.LoadFile(filePath, nil)
+	if err != nil {
+		return fmt.Errorf("failed to load file: %w", err)
 	}
 
-	// 2. Store file (auto-parses and indexes)
-	if err := fm.StoreFile(ctx, filePath, metadata); err != nil {
-		return fmt.Errorf("failed to store file: %w", err)
-	}
-
-	// 3. Create file record in SQLite
+	// 2. Create file record in SQLite
 	fileName := filepath.Base(filePath)
 	fileExt := filepath.Ext(filePath)
 
@@ -229,7 +160,7 @@ func (s *KnowledgeBaseService) AddFileToKnowledgeBase(ctx context.Context, kbID,
 	now := time.Now().Unix() * 1000
 	fileID := uuid.New().String()
 
-	file, err := s.db.Queries().CreateFile(ctx, db.CreateFileParams{
+	file, err := s.dbService.Queries().CreateFile(ctx, db.CreateFileParams{
 		ID:        fileID,
 		UserID:    userID,
 		FileType:  fileExt,
@@ -247,8 +178,45 @@ func (s *KnowledgeBaseService) AddFileToKnowledgeBase(ctx context.Context, kbID,
 		return fmt.Errorf("failed to create file record: %w", err)
 	}
 
-	// 4. Link file to knowledge base
-	if err := s.db.Queries().LinkKnowledgeBaseToFile(ctx, db.LinkKnowledgeBaseToFileParams{
+	// 3. Create document record
+	documentID := uuid.New().String()
+	_, err = s.dbService.Queries().CreateDocument(ctx, db.CreateDocumentParams{
+		ID:             documentID,
+		Title:          sql.NullString{String: fileName, Valid: true},
+		Content:        sql.NullString{String: fileDoc.Content, Valid: true},
+		FileType:       fileDoc.FileType,
+		Filename:       sql.NullString{String: fileName, Valid: true},
+		TotalCharCount: int64(fileDoc.TotalCharCount),
+		TotalLineCount: int64(fileDoc.TotalLineCount),
+		Metadata:       sql.NullString{String: "{}", Valid: true},
+		Pages:          sql.NullString{},
+		SourceType:     "file",
+		Source:         filePath,
+		FileID:         sql.NullString{String: fileID, Valid: true},
+		UserID:         userID,
+		ClientID:       sql.NullString{},
+		EditorData:     sql.NullString{},
+		CreatedAt:      now,
+		UpdatedAt:      now,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create document: %w", err)
+	}
+
+	// 4. Process for RAG (chunking + embedding + indexing)
+	_, err = s.ragProcessor.ProcessFile(ctx, RAGProcessRequest{
+		FilePath:   filePath,
+		FileID:     fileID,
+		DocumentID: documentID,
+		UserID:     userID,
+		Filename:   fileName,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to process file for RAG: %w", err)
+	}
+
+	// 5. Link file to knowledge base
+	if err := s.dbService.Queries().LinkKnowledgeBaseToFile(ctx, db.LinkKnowledgeBaseToFileParams{
 		KnowledgeBaseID: kbID,
 		FileID:          file.ID,
 		UserID:          userID,
@@ -264,7 +232,7 @@ func (s *KnowledgeBaseService) AddFileToKnowledgeBase(ctx context.Context, kbID,
 // RemoveFileFromKnowledgeBase removes a file from a knowledge base
 func (s *KnowledgeBaseService) RemoveFileFromKnowledgeBase(ctx context.Context, kbID, fileID, userID string) error {
 	// Unlink from KB
-	if err := s.db.Queries().UnlinkKnowledgeBaseFromFile(ctx, db.UnlinkKnowledgeBaseFromFileParams{
+	if err := s.dbService.Queries().UnlinkKnowledgeBaseFromFile(ctx, db.UnlinkKnowledgeBaseFromFileParams{
 		KnowledgeBaseID: kbID,
 		FileID:          fileID,
 		UserID:          userID,
@@ -272,139 +240,68 @@ func (s *KnowledgeBaseService) RemoveFileFromKnowledgeBase(ctx context.Context, 
 		return fmt.Errorf("failed to unlink file: %w", err)
 	}
 
-	// TODO: Remove file chunks from chromem
+	// TODO: Remove file chunks from DuckDB
 
 	return nil
 }
 
 // QueryKnowledgeBase performs semantic search on a knowledge base
 func (s *KnowledgeBaseService) QueryKnowledgeBase(ctx context.Context, kbID, query string, topK int, userID string) ([]*schema.Document, error) {
-	// Get retriever
-	retriever, ok := s.retrievers[kbID]
-	if !ok {
-		// Try to load the KB
-		if err := s.loadKnowledgeBase(ctx, kbID, userID); err != nil {
-			return nil, fmt.Errorf("knowledge base not found: %s", kbID)
-		}
-		retriever = s.retrievers[kbID]
-	}
-
 	// Set default topK
 	if topK <= 0 {
 		topK = 5
 	}
 
-	// Retrieve documents
-	docs, err := retriever.Retrieve(ctx, query)
+	// Get files in this KB
+	kbFiles, err := s.dbService.Queries().ListKnowledgeBaseFiles(ctx, db.ListKnowledgeBaseFilesParams{
+		KnowledgeBaseID: kbID,
+		UserID:          userID,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("retrieval failed: %w", err)
+		return nil, fmt.Errorf("failed to get KB files: %w", err)
 	}
 
-	// Limit to topK
-	if len(docs) > topK {
-		docs = docs[:topK]
+	if len(kbFiles) == 0 {
+		return []*schema.Document{}, nil
+	}
+
+	// Extract file IDs
+	fileIDs := make([]string, len(kbFiles))
+	for i, f := range kbFiles {
+		fileIDs[i] = f.FileID
+	}
+
+	// Perform semantic search
+	results, err := s.vectorSearch.SemanticSearchMultipleFiles(ctx, userID, query, fileIDs, topK)
+	if err != nil {
+		return nil, fmt.Errorf("semantic search failed: %w", err)
+	}
+
+	// Convert to Eino schema.Document format for compatibility
+	docs := make([]*schema.Document, len(results))
+	for i, r := range results {
+		docs[i] = &schema.Document{
+			ID:      r.ID,
+			Content: r.Text,
+			MetaData: map[string]any{
+				"file_id":    r.FileID,
+				"file_name":  r.FileName,
+				"type":       r.Type,
+				"index":      r.Index,
+				"similarity": r.Similarity,
+			},
+		}
 	}
 
 	return docs, nil
 }
 
-// GetRetriever returns the Eino retriever for a knowledge base
-// This is used in RAG workflows and agent tools
-func (s *KnowledgeBaseService) GetRetriever(ctx context.Context, kbID, userID string) (*chromemAdapter.Retriever, error) {
-	retriever, ok := s.retrievers[kbID]
-	if !ok {
-		// Try to load the KB
-		if err := s.loadKnowledgeBase(ctx, kbID, userID); err != nil {
-			return nil, fmt.Errorf("knowledge base not found: %s", kbID)
-		}
-		retriever = s.retrievers[kbID]
+// GetRetriever returns a simple retriever function for compatibility
+// This replaces the Eino chromem adapter
+func (s *KnowledgeBaseService) GetRetriever(ctx context.Context, kbID, userID string) (func(context.Context, string) ([]*schema.Document, error), error) {
+	// Return a closure that captures kbID and userID
+	retriever := func(ctx context.Context, query string) ([]*schema.Document, error) {
+		return s.QueryKnowledgeBase(ctx, kbID, query, 10, userID)
 	}
 	return retriever, nil
-}
-
-// GetIndexer returns the Eino indexer for a knowledge base
-func (s *KnowledgeBaseService) GetIndexer(ctx context.Context, kbID, userID string) (*chromemAdapter.Indexer, error) {
-	indexer, ok := s.indexers[kbID]
-	if !ok {
-		// Try to load the KB
-		if err := s.loadKnowledgeBase(ctx, kbID, userID); err != nil {
-			return nil, fmt.Errorf("knowledge base not found: %s", kbID)
-		}
-		indexer = s.indexers[kbID]
-	}
-	return indexer, nil
-}
-
-// GetFileManager returns the file manager for a knowledge base
-func (s *KnowledgeBaseService) GetFileManager(ctx context.Context, kbID, userID string) (*chromemAdapter.FileManager, error) {
-	fm, ok := s.fileManagers[kbID]
-	if !ok {
-		// Try to load the KB
-		if err := s.loadKnowledgeBase(ctx, kbID, userID); err != nil {
-			return nil, fmt.Errorf("knowledge base not found: %s", kbID)
-		}
-		fm = s.fileManagers[kbID]
-	}
-	return fm, nil
-}
-
-// loadKnowledgeBases loads existing KBs from database on startup
-func (s *KnowledgeBaseService) loadKnowledgeBases(ctx context.Context) error {
-	// TODO: Load all KBs for all users
-	// For now, this is a no-op as KBs are loaded on-demand
-	log.Println("📚 Knowledge bases will be loaded on-demand")
-	return nil
-}
-
-// loadKnowledgeBase loads a specific KB into memory
-func (s *KnowledgeBaseService) loadKnowledgeBase(ctx context.Context, kbID, userID string) error {
-	// Get KB from database
-	kb, err := s.db.Queries().GetKnowledgeBase(ctx, db.GetKnowledgeBaseParams{
-		ID:     kbID,
-		UserID: userID,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to get knowledge base: %w", err)
-	}
-
-	// Get or create chromem collection
-	collection, err := s.chromemDB.GetOrCreateCollection(
-		kb.ID,
-		nil,
-		s.embedFunc,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to get collection: %w", err)
-	}
-
-	// Create Eino adapters
-	indexer := chromemAdapter.NewIndexer(collection)
-	retriever, err := chromemAdapter.NewRetriever(&chromemAdapter.RetrieverConfig{
-		Collection: collection,
-		TopK:       10,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to create retriever: %w", err)
-	}
-
-	// Create file manager
-	assetPath := filepath.Join(s.defaultAssetDir, kb.ID)
-	fileManager, err := chromemAdapter.NewFileManager(ctx, &chromemAdapter.FileManagerConfig{
-		Indexer:     indexer,
-		AssetDir:    assetPath,
-		ChunkSize:   1500,
-		OverlapSize: 300,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to create file manager: %w", err)
-	}
-
-	// Cache in memory
-	s.collections[kb.ID] = collection
-	s.indexers[kb.ID] = indexer
-	s.retrievers[kb.ID] = retriever
-	s.fileManagers[kb.ID] = fileManager
-
-	log.Printf("📚 Knowledge base loaded: %s (%s)", kb.Name, kb.ID)
-	return nil
 }

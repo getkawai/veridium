@@ -741,6 +741,44 @@ func (q *Queries) ListFiles(ctx context.Context, arg ListFilesParams) ([]File, e
 	return items, nil
 }
 
+const ListKnowledgeBaseFiles = `-- name: ListKnowledgeBaseFiles :many
+SELECT knowledge_base_id, file_id, user_id, created_at FROM knowledge_base_files
+WHERE knowledge_base_id = ? AND user_id = ?
+`
+
+type ListKnowledgeBaseFilesParams struct {
+	KnowledgeBaseID string `json:"knowledgeBaseId"`
+	UserID          string `json:"userId"`
+}
+
+func (q *Queries) ListKnowledgeBaseFiles(ctx context.Context, arg ListKnowledgeBaseFilesParams) ([]KnowledgeBaseFile, error) {
+	rows, err := q.db.QueryContext(ctx, ListKnowledgeBaseFiles, arg.KnowledgeBaseID, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []KnowledgeBaseFile{}
+	for rows.Next() {
+		var i KnowledgeBaseFile
+		if err := rows.Scan(
+			&i.KnowledgeBaseID,
+			&i.FileID,
+			&i.UserID,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const ListKnowledgeBases = `-- name: ListKnowledgeBases :many
 SELECT id, name, description, avatar, type, user_id, client_id, is_public, settings, created_at, updated_at FROM knowledge_bases
 WHERE user_id = ?

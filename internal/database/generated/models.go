@@ -145,6 +145,7 @@ type ChatGroupsAgent struct {
 
 type Chunk struct {
 	ID         string         `json:"id"`
+	DocumentID sql.NullString `json:"documentId"`
 	Text       sql.NullString `json:"text"`
 	Abstract   sql.NullString `json:"abstract"`
 	Metadata   sql.NullString `json:"metadata"`

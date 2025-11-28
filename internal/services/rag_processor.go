@@ -6,27 +6,29 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/cloudwego/eino/components/embedding"
 	"github.com/google/uuid"
 	db "github.com/kawai-network/veridium/internal/database/generated"
-	"github.com/kawai-network/veridium/pkg/chromem"
 	"github.com/kawai-network/veridium/pkg/xlog"
 )
 
 // RAGProcessor handles RAG processing (chunking + embedding)
 type RAGProcessor struct {
 	queries     *db.Queries
-	chromemDB   *chromem.DB
-	embedFunc   chromem.EmbeddingFunc
+	duckDB      *DuckDBStore
+	fileLoader  *FileLoader
+	embedder    embedding.Embedder // Eino embedding interface
 	chunkSize   int
 	overlapSize int
 }
 
 // NewRAGProcessor creates a new RAG processor
-func NewRAGProcessor(database *sql.DB, chromemDB *chromem.DB, embedFunc chromem.EmbeddingFunc) *RAGProcessor {
+func NewRAGProcessor(database *sql.DB, duckDB *DuckDBStore, fileLoader *FileLoader, embedder embedding.Embedder) *RAGProcessor {
 	return &RAGProcessor{
 		queries:     db.New(database),
-		chromemDB:   chromemDB,
-		embedFunc:   embedFunc,
+		duckDB:      duckDB,
+		fileLoader:  fileLoader,
+		embedder:    embedder,
 		chunkSize:   1000,
 		overlapSize: 200,
 	}
@@ -61,15 +63,27 @@ func (r *RAGProcessor) ProcessFile(ctx context.Context, req RAGProcessRequest) (
 		return []string{}, nil
 	}
 
-	// 2. Get or create user-specific chromem collection
-	collectionName := fmt.Sprintf("user-%s-kb", req.UserID)
-	collection, err := r.chromemDB.GetOrCreateCollection(collectionName, nil, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get/create collection: %w", err)
+	// 2. Reconstruct FileDocument for chunking
+	// We need to unmarshal pages if available (for PDF chunking)
+	// TODO: Unmarshal pages from doc.Pages (JSON) if needed for PDF
+	// For now, we'll rely on content-based chunking for non-PDFs or if pages missing
+
+	fileDoc := &FileDocument{
+		Content:  doc.Content.String,
+		FileType: doc.FileType, // FileType is string, not sql.NullString
+		Filename: req.Filename,
+		// Pages: pages, // Populate if we implement JSON unmarshal
 	}
 
-	// 3. Chunk the already-parsed content
-	chunks := r.chunkText(doc.Content.String)
+	// Configure chunking
+	chunkConfig := ChunkingConfig{
+		Enabled:     true,
+		ChunkSize:   r.chunkSize,
+		OverlapSize: r.overlapSize,
+	}
+
+	// Use FileLoader's superior chunking logic (Eino, etc.)
+	chunks := r.fileLoader.ChunkDocument(fileDoc, chunkConfig)
 	if len(chunks) == 0 {
 		xlog.Warn("No chunks created from document", "document_id", req.DocumentID)
 		return []string{}, nil
@@ -77,39 +91,49 @@ func (r *RAGProcessor) ProcessFile(ctx context.Context, req RAGProcessRequest) (
 
 	xlog.Info("Created chunks", "count", len(chunks), "document_id", req.DocumentID)
 
-	// 4. Generate embeddings and store in ChromemDB
+	// 4. Generate embeddings and store in both SQLite and DuckDB (and Chromem for backward compat/fallback)
 	chunkIDs := make([]string, 0, len(chunks))
 	for i, chunk := range chunks {
 		chunkID := uuid.New().String()
+		chunkContent := chunk.Content
 
-		// Generate embedding using chromem embedding function
-		embedding, err := r.embedFunc(ctx, chunk)
+		// A. Save chunk to SQLite (Source of Truth)
+		_, err := r.queries.CreateChunk(ctx, db.CreateChunkParams{
+			ID:         chunkID,
+			DocumentID: sql.NullString{String: req.DocumentID, Valid: true},
+			Text:       sql.NullString{String: chunkContent, Valid: true},
+			Metadata:   sql.NullString{String: fmt.Sprintf(`{"filename": "%s", "chunk_index": %d, "type": "%s"}`, req.Filename, i, chunk.Metadata["type"]), Valid: true},
+			ChunkIndex: sql.NullInt64{Int64: int64(i), Valid: true},
+			Type:       sql.NullString{String: "text", Valid: true},
+			ClientID:   sql.NullString{String: "", Valid: false}, // Optional
+			UserID:     sql.NullString{String: req.UserID, Valid: true},
+		})
+		if err != nil {
+			xlog.Error("Failed to save chunk to SQLite", "error", err, "chunk_index", i)
+			continue
+		}
+
+		// Generate embedding using Eino embedder
+		embeddings, err := r.embedder.EmbedStrings(ctx, []string{chunkContent})
 		if err != nil {
 			xlog.Error("Failed to generate embedding", "error", err, "chunk_index", i)
 			continue
 		}
 
-		if len(embedding) == 0 {
+		if len(embeddings) == 0 || len(embeddings[0]) == 0 {
 			xlog.Error("Empty embedding response", "chunk_index", i)
 			continue
 		}
 
-		// Store in ChromemDB
-		err = collection.AddDocument(ctx, chromem.Document{
-			ID:        chunkID,
-			Content:   chunk,
-			Embedding: embedding,
-			Metadata: map[string]string{
-				"file_id":     req.FileID,
-				"document_id": req.DocumentID,
-				"user_id":     req.UserID,
-				"filename":    req.Filename,
-				"chunk_index": fmt.Sprintf("%d", i),
-			},
-		})
-		if err != nil {
-			xlog.Error("Failed to store chunk in ChromemDB", "error", err, "chunk_id", chunkID)
-			continue
+		// Use embedding directly ([]float64 from Eino)
+		embedding := embeddings[0]
+
+		// B. Save embedding to DuckDB (Vector Engine)
+		if r.duckDB != nil {
+			if err := r.duckDB.UpsertVector(ctx, chunkID, req.FileID, embedding); err != nil {
+				xlog.Error("Failed to save vector to DuckDB", "error", err, "chunk_id", chunkID)
+				// We continue even if DuckDB fails, as SQLite is the source of truth
+			}
 		}
 
 		chunkIDs = append(chunkIDs, chunkID)

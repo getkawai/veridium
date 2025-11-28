@@ -196,6 +196,8 @@ type Querier interface {
 	GetChatGroupWithAgents(ctx context.Context, arg GetChatGroupWithAgentsParams) ([]GetChatGroupWithAgentsRow, error)
 	// Chunks
 	GetChunk(ctx context.Context, arg GetChunkParams) (Chunk, error)
+	GetChunksByDocumentID(ctx context.Context, arg GetChunksByDocumentIDParams) ([]Chunk, error)
+	GetChunksByIDs(ctx context.Context, arg GetChunksByIDsParams) ([]GetChunksByIDsRow, error)
 	GetChunksTextByFileId(ctx context.Context, fileID sql.NullString) ([]GetChunksTextByFileIdRow, error)
 	// Semantic search - fetch chunks with embeddings for JS similarity calculation
 	GetChunksWithEmbeddings(ctx context.Context, userID sql.NullString) ([]GetChunksWithEmbeddingsRow, error)
@@ -380,6 +382,7 @@ type Querier interface {
 	ListGenerationTopics(ctx context.Context, userID string) ([]GenerationTopic, error)
 	ListGenerationTopicsWithCounts(ctx context.Context, userID string) ([]ListGenerationTopicsWithCountsRow, error)
 	ListGenerations(ctx context.Context, arg ListGenerationsParams) ([]Generation, error)
+	ListKnowledgeBaseFiles(ctx context.Context, arg ListKnowledgeBaseFilesParams) ([]KnowledgeBaseFile, error)
 	ListKnowledgeBases(ctx context.Context, userID string) ([]KnowledgeBasis, error)
 	ListMessageGroupsByTopic(ctx context.Context, arg ListMessageGroupsByTopicParams) ([]MessageGroup, error)
 	ListMessageQueriesByMessage(ctx context.Context, arg ListMessageQueriesByMessageParams) ([]MessageQuery, error)

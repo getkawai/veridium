@@ -561,7 +561,7 @@ func (q *Queries) GetMessageByToolCallId(ctx context.Context, arg GetMessageByTo
 }
 
 const GetMessageChunks = `-- name: GetMessageChunks :many
-SELECT c.id, c.text, c.abstract, c.metadata, c.chunk_index, c.type, c.client_id, c.user_id, c.created_at, c.updated_at FROM chunks c
+SELECT c.id, c.document_id, c.text, c.abstract, c.metadata, c.chunk_index, c.type, c.client_id, c.user_id, c.created_at, c.updated_at FROM chunks c
 INNER JOIN message_chunks mc ON c.id = mc.chunk_id
 WHERE mc.message_id = ? AND mc.user_id = ?
 `
@@ -582,6 +582,7 @@ func (q *Queries) GetMessageChunks(ctx context.Context, arg GetMessageChunksPara
 		var i Chunk
 		if err := rows.Scan(
 			&i.ID,
+			&i.DocumentID,
 			&i.Text,
 			&i.Abstract,
 			&i.Metadata,

@@ -84,6 +84,10 @@ VALUES (?, ?, ?, ?);
 INSERT INTO knowledge_base_files (knowledge_base_id, file_id, user_id, created_at)
 VALUES (?, ?, ?, ?);
 
+-- name: ListKnowledgeBaseFiles :many
+SELECT * FROM knowledge_base_files
+WHERE knowledge_base_id = ? AND user_id = ?;
+
 -- name: UnlinkKnowledgeBaseFromFile :exec
 DELETE FROM knowledge_base_files
 WHERE knowledge_base_id = ? AND file_id = ? AND user_id = ?;

@@ -140,7 +140,7 @@ func (q *Queries) GetDocument(ctx context.Context, arg GetDocumentParams) (Docum
 }
 
 const GetDocumentChunks = `-- name: GetDocumentChunks :many
-SELECT c.id, c.text, c.abstract, c.metadata, c.chunk_index, c.type, c.client_id, c.user_id, c.created_at, c.updated_at FROM chunks c
+SELECT c.id, c.document_id, c.text, c.abstract, c.metadata, c.chunk_index, c.type, c.client_id, c.user_id, c.created_at, c.updated_at FROM chunks c
 INNER JOIN document_chunks dc ON c.id = dc.chunk_id
 WHERE dc.document_id = ? AND dc.user_id = ?
 ORDER BY dc.page_index ASC, c.chunk_index ASC
@@ -162,6 +162,7 @@ func (q *Queries) GetDocumentChunks(ctx context.Context, arg GetDocumentChunksPa
 		var i Chunk
 		if err := rows.Scan(
 			&i.ID,
+			&i.DocumentID,
 			&i.Text,
 			&i.Abstract,
 			&i.Metadata,

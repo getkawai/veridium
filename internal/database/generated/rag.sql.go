@@ -116,14 +116,15 @@ func (q *Queries) CountChunksByFileIds(ctx context.Context, userID string) ([]Co
 
 const CreateChunk = `-- name: CreateChunk :one
 INSERT INTO chunks (
-    id, text, abstract, metadata, chunk_index, type, client_id,
+    id, document_id, text, abstract, metadata, chunk_index, type, client_id,
     user_id, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, text, abstract, metadata, chunk_index, type, client_id, user_id, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, document_id, text, abstract, metadata, chunk_index, type, client_id, user_id, created_at, updated_at
 `
 
 type CreateChunkParams struct {
 	ID         string         `json:"id"`
+	DocumentID sql.NullString `json:"documentId"`
 	Text       sql.NullString `json:"text"`
 	Abstract   sql.NullString `json:"abstract"`
 	Metadata   sql.NullString `json:"metadata"`
@@ -138,6 +139,7 @@ type CreateChunkParams struct {
 func (q *Queries) CreateChunk(ctx context.Context, arg CreateChunkParams) (Chunk, error) {
 	row := q.db.QueryRowContext(ctx, CreateChunk,
 		arg.ID,
+		arg.DocumentID,
 		arg.Text,
 		arg.Abstract,
 		arg.Metadata,
@@ -151,6 +153,7 @@ func (q *Queries) CreateChunk(ctx context.Context, arg CreateChunkParams) (Chunk
 	var i Chunk
 	err := row.Scan(
 		&i.ID,
+		&i.DocumentID,
 		&i.Text,
 		&i.Abstract,
 		&i.Metadata,
@@ -537,7 +540,7 @@ func (q *Queries) DeleteUnstructuredChunk(ctx context.Context, arg DeleteUnstruc
 
 const GetChunk = `-- name: GetChunk :one
 
-SELECT id, text, abstract, metadata, chunk_index, type, client_id, user_id, created_at, updated_at FROM chunks WHERE id = ? AND user_id = ?
+SELECT id, document_id, text, abstract, metadata, chunk_index, type, client_id, user_id, created_at, updated_at FROM chunks WHERE id = ? AND user_id = ?
 `
 
 type GetChunkParams struct {
@@ -551,6 +554,7 @@ func (q *Queries) GetChunk(ctx context.Context, arg GetChunkParams) (Chunk, erro
 	var i Chunk
 	err := row.Scan(
 		&i.ID,
+		&i.DocumentID,
 		&i.Text,
 		&i.Abstract,
 		&i.Metadata,
@@ -562,6 +566,126 @@ func (q *Queries) GetChunk(ctx context.Context, arg GetChunkParams) (Chunk, erro
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const GetChunksByDocumentID = `-- name: GetChunksByDocumentID :many
+SELECT id, document_id, text, abstract, metadata, chunk_index, type, client_id, user_id, created_at, updated_at FROM chunks
+WHERE document_id = ? AND user_id = ?
+ORDER BY chunk_index ASC
+`
+
+type GetChunksByDocumentIDParams struct {
+	DocumentID sql.NullString `json:"documentId"`
+	UserID     sql.NullString `json:"userId"`
+}
+
+func (q *Queries) GetChunksByDocumentID(ctx context.Context, arg GetChunksByDocumentIDParams) ([]Chunk, error) {
+	rows, err := q.db.QueryContext(ctx, GetChunksByDocumentID, arg.DocumentID, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Chunk{}
+	for rows.Next() {
+		var i Chunk
+		if err := rows.Scan(
+			&i.ID,
+			&i.DocumentID,
+			&i.Text,
+			&i.Abstract,
+			&i.Metadata,
+			&i.ChunkIndex,
+			&i.Type,
+			&i.ClientID,
+			&i.UserID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const GetChunksByIDs = `-- name: GetChunksByIDs :many
+SELECT c.id, c.document_id, c.text, c.abstract, c.metadata, c.chunk_index, c.type, c.client_id, c.user_id, c.created_at, c.updated_at, d.file_id
+FROM chunks c
+LEFT JOIN documents d ON c.document_id = d.id
+WHERE c.id IN (/*SLICE:ids*/?) AND c.user_id = ?
+`
+
+type GetChunksByIDsParams struct {
+	Ids    []string       `json:"ids"`
+	UserID sql.NullString `json:"userId"`
+}
+
+type GetChunksByIDsRow struct {
+	ID         string         `json:"id"`
+	DocumentID sql.NullString `json:"documentId"`
+	Text       sql.NullString `json:"text"`
+	Abstract   sql.NullString `json:"abstract"`
+	Metadata   sql.NullString `json:"metadata"`
+	ChunkIndex sql.NullInt64  `json:"chunkIndex"`
+	Type       sql.NullString `json:"type"`
+	ClientID   sql.NullString `json:"clientId"`
+	UserID     sql.NullString `json:"userId"`
+	CreatedAt  int64          `json:"createdAt"`
+	UpdatedAt  int64          `json:"updatedAt"`
+	FileID     sql.NullString `json:"fileId"`
+}
+
+func (q *Queries) GetChunksByIDs(ctx context.Context, arg GetChunksByIDsParams) ([]GetChunksByIDsRow, error) {
+	query := GetChunksByIDs
+	var queryParams []interface{}
+	if len(arg.Ids) > 0 {
+		for _, v := range arg.Ids {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(arg.Ids))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
+	}
+	queryParams = append(queryParams, arg.UserID)
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetChunksByIDsRow{}
+	for rows.Next() {
+		var i GetChunksByIDsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.DocumentID,
+			&i.Text,
+			&i.Abstract,
+			&i.Metadata,
+			&i.ChunkIndex,
+			&i.Type,
+			&i.ClientID,
+			&i.UserID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.FileID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const GetChunksTextByFileId = `-- name: GetChunksTextByFileId :many
@@ -782,7 +906,7 @@ func (q *Queries) GetEmbeddingByChunk(ctx context.Context, arg GetEmbeddingByChu
 }
 
 const GetFileChunks = `-- name: GetFileChunks :many
-SELECT c.id, c.text, c.abstract, c.metadata, c.chunk_index, c.type, c.client_id, c.user_id, c.created_at, c.updated_at FROM chunks c
+SELECT c.id, c.document_id, c.text, c.abstract, c.metadata, c.chunk_index, c.type, c.client_id, c.user_id, c.created_at, c.updated_at FROM chunks c
 INNER JOIN file_chunks fc ON c.id = fc.chunk_id
 WHERE fc.file_id = ? AND fc.user_id = ?
 ORDER BY c.chunk_index ASC
@@ -812,6 +936,7 @@ func (q *Queries) GetFileChunks(ctx context.Context, arg GetFileChunksParams) ([
 		var i Chunk
 		if err := rows.Scan(
 			&i.ID,
+			&i.DocumentID,
 			&i.Text,
 			&i.Abstract,
 			&i.Metadata,
@@ -1095,7 +1220,7 @@ func (q *Queries) LinkFileToChunk(ctx context.Context, arg LinkFileToChunkParams
 }
 
 const ListChunks = `-- name: ListChunks :many
-SELECT id, text, abstract, metadata, chunk_index, type, client_id, user_id, created_at, updated_at FROM chunks
+SELECT id, document_id, text, abstract, metadata, chunk_index, type, client_id, user_id, created_at, updated_at FROM chunks
 WHERE user_id = ?
 ORDER BY created_at DESC
 LIMIT ? OFFSET ?
@@ -1118,6 +1243,7 @@ func (q *Queries) ListChunks(ctx context.Context, arg ListChunksParams) ([]Chunk
 		var i Chunk
 		if err := rows.Scan(
 			&i.ID,
+			&i.DocumentID,
 			&i.Text,
 			&i.Abstract,
 			&i.Metadata,
@@ -1378,7 +1504,7 @@ SET text = ?,
     metadata = ?,
     updated_at = ?
 WHERE id = ? AND user_id = ?
-RETURNING id, text, abstract, metadata, chunk_index, type, client_id, user_id, created_at, updated_at
+RETURNING id, document_id, text, abstract, metadata, chunk_index, type, client_id, user_id, created_at, updated_at
 `
 
 type UpdateChunkParams struct {
@@ -1402,6 +1528,7 @@ func (q *Queries) UpdateChunk(ctx context.Context, arg UpdateChunkParams) (Chunk
 	var i Chunk
 	err := row.Scan(
 		&i.ID,
+		&i.DocumentID,
 		&i.Text,
 		&i.Abstract,
 		&i.Metadata,

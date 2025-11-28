@@ -2,26 +2,14 @@ package services
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
-	"log"
-	"runtime"
-	"sync"
-	"time"
 
+	"github.com/cloudwego/eino/components/embedding"
+	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/internal/llama"
-	"github.com/kawai-network/veridium/pkg/chromem"
+	"github.com/kawai-network/veridium/pkg/xlog"
 )
-
-// ChunkData represents chunk data for vector storage
-type ChunkData struct {
-	ID       string            `json:"id"`
-	Text     string            `json:"text"`
-	FileID   string            `json:"fileId"`
-	FileName string            `json:"fileName"`
-	Type     string            `json:"type"`
-	Index    int               `json:"index"`
-	Metadata map[string]string `json:"metadata"`
-}
 
 // SearchResult represents a search result from vector database
 type SearchResult struct {
@@ -35,60 +23,29 @@ type SearchResult struct {
 	Metadata   map[string]string `json:"metadata"`
 }
 
-// VectorSearchService handles vector search operations using chromem
+// VectorSearchService handles vector search operations using DuckDB + SQLite
 type VectorSearchService struct {
-	db          *chromem.DB
-	collections map[string]*chromem.Collection
-	mu          sync.RWMutex
-	embedFunc   chromem.EmbeddingFunc
+	queries  *db.Queries
+	duckDB   *DuckDBStore
+	embedder embedding.Embedder // Eino embedding interface
 }
 
 // NewVectorSearchService creates a new vector search service
-func NewVectorSearchService(persistPath string, embeddingProvider string, embeddingModel string, libService *llama.LibraryService) (*VectorSearchService, error) {
-	if persistPath == "" {
-		persistPath = "./data/vector-db"
-	}
+func NewVectorSearchService(
+	database *sql.DB,
+	duckDB *DuckDBStore,
+	embeddingProvider string,
+	embeddingModel string,
+	libService *llama.LibraryService,
+) (*VectorSearchService, error) {
+	// Setup embedding using Eino interface
+	var embedder embedding.Embedder
+	var err error
 
-	// Create persistent DB with compression
-	db, err := chromem.NewPersistentDB(persistPath, true)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create chromem DB: %w", err)
-	}
-
-	// Setup embedding function based on provider
-	var embedFunc chromem.EmbeddingFunc
 	switch embeddingProvider {
-	case "ollama":
-		if embeddingModel == "" {
-			embeddingModel = "nomic-embed-text"
-		}
-		embedFunc = chromem.NewEmbeddingFuncOllama(
-			embeddingModel,
-			"http://localhost:11434/api",
-		)
-	case "openai":
-		if embeddingModel == "" {
-			embeddingModel = "text-embedding-3-small"
-		}
-		embedFunc = chromem.NewEmbeddingFuncDefault() // Uses OpenAI by default
-	default:
+	case "llama", "":
 		// Default to llama.cpp (local, no API key needed)
-		log.Println("🔍 Using default llama.cpp embedding provider...")
-
-		// Wait for library initialization if service is provided
-		if libService != nil {
-			log.Println("⏳ Waiting for llama.cpp library initialization...")
-			// Use a reasonable timeout
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second) // 30s timeout
-			defer cancel()
-
-			if err := libService.WaitForInitialization(ctx); err != nil {
-				log.Printf("⚠️  Timed out waiting for library initialization: %v", err)
-				// Continue anyway, maybe it's already loaded or will load lazily
-			} else {
-				log.Println("✅ llama.cpp library is ready")
-			}
-		}
+		xlog.Info("Using llama.cpp embedding provider (Eino)")
 
 		if embeddingModel == "" {
 			embeddingModel = llama.GetRecommendedEmbeddingModel()
@@ -104,252 +61,130 @@ func NewVectorSearchService(persistPath string, embeddingProvider string, embedd
 		installer := llama.NewLlamaCppInstaller()
 		modelPath := installer.GetModelsDirectory() + "/" + model.Filename
 
-		// Use PreloadedLibrary version to avoid double initialization
-		embedFunc = chromem.NewEmbeddingFuncLlamaWithPreloadedLibrary(modelPath)
+		// Create Eino Llama embedder
+		embedder, err = llama.NewEmbedder(context.Background(), &llama.EmbeddingConfig{
+			ModelPath:       modelPath,
+			SkipLibraryInit: true, // Library already loaded by LibraryService
+			ContextSize:     2048,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to create Llama embedder: %w", err)
+		}
+
+	default:
+		return nil, fmt.Errorf("unsupported embedding provider: %s (only 'llama' is supported with Eino)", embeddingProvider)
 	}
 
 	return &VectorSearchService{
-		db:          db,
-		collections: make(map[string]*chromem.Collection),
-		embedFunc:   embedFunc,
+		queries:  db.New(database),
+		duckDB:   duckDB,
+		embedder: embedder,
 	}, nil
 }
 
-// GetUserCollection gets or creates a collection for a user
-func (s *VectorSearchService) GetUserCollection(ctx context.Context, userID string) (*chromem.Collection, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	collectionName := fmt.Sprintf("user_%s_chunks", userID)
-
-	// Check if collection already exists in memory
-	if col, exists := s.collections[collectionName]; exists {
-		return col, nil
-	}
-
-	// Get or create collection
-	col, err := s.db.GetOrCreateCollection(collectionName, nil, s.embedFunc)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get/create collection: %w", err)
-	}
-
-	s.collections[collectionName] = col
-	return col, nil
-}
-
-// AddChunks adds chunks with embeddings to the vector database
-func (s *VectorSearchService) AddChunks(ctx context.Context, userID string, chunks []ChunkData) error {
-	if len(chunks) == 0 {
-		return nil
-	}
-
-	col, err := s.GetUserCollection(ctx, userID)
-	if err != nil {
-		return err
-	}
-
-	// Convert to chromem documents
-	docs := make([]chromem.Document, len(chunks))
-	for i, chunk := range chunks {
-		metadata := map[string]string{
-			"fileId":   chunk.FileID,
-			"fileName": chunk.FileName,
-			"type":     chunk.Type,
-			"index":    fmt.Sprintf("%d", chunk.Index),
-			"userId":   userID,
-		}
-
-		// Add custom metadata if provided
-		for k, v := range chunk.Metadata {
-			metadata[k] = v
-		}
-
-		docs[i] = chromem.Document{
-			ID:       chunk.ID,
-			Content:  chunk.Text,
-			Metadata: metadata,
-		}
-	}
-
-	// Add documents concurrently (chromem handles threading)
-	err = col.AddDocuments(ctx, docs, runtime.NumCPU())
-	if err != nil {
-		return fmt.Errorf("failed to add documents: %w", err)
-	}
-
-	return nil
-}
-
-// SemanticSearch performs semantic search on chunks
+// SemanticSearch performs semantic search on chunks using DuckDB + SQLite
 func (s *VectorSearchService) SemanticSearch(ctx context.Context, userID string, query string, fileIDs []string, limit int) ([]SearchResult, error) {
 	if limit <= 0 {
 		limit = 30
 	}
 
-	col, err := s.GetUserCollection(ctx, userID)
+	// 1. Generate embedding for the query using Eino
+	embeddings, err := s.embedder.EmbedStrings(ctx, []string{query})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to generate embedding: %w", err)
 	}
 
-	// Build metadata filter
-	var where map[string]string
-	if len(fileIDs) > 0 {
-		// Note: chromem supports exact match only
-		// For multiple files, we'll need to query each and merge results
-		// For now, we'll use the first fileID
-		where = map[string]string{
-			"fileId": fileIDs[0],
-		}
+	if len(embeddings) == 0 || len(embeddings[0]) == 0 {
+		return nil, fmt.Errorf("empty embedding generated")
 	}
 
-	// Perform query
-	results, err := col.Query(ctx, query, limit, where, nil)
+	// Use embedding directly ([]float64 from Eino)
+	embedding := embeddings[0]
+
+	// 2. Search DuckDB for similar vectors
+	if s.duckDB == nil {
+		return nil, fmt.Errorf("DuckDB not initialized")
+	}
+
+	// Fetch more results than limit to account for potential filtering
+	ids, err := s.duckDB.SearchVectors(ctx, embedding, limit*2)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query: %w", err)
+		return nil, fmt.Errorf("DuckDB search failed: %w", err)
 	}
 
-	// Convert to search results
-	searchResults := make([]SearchResult, len(results))
-	for i, r := range results {
-		index := 0
-		if idxStr, ok := r.Metadata["index"]; ok {
-			fmt.Sscanf(idxStr, "%d", &index)
+	if len(ids) == 0 {
+		return []SearchResult{}, nil
+	}
+
+	// 3. Fetch full content from SQLite
+	chunks, err := s.queries.GetChunksByIDs(ctx, db.GetChunksByIDsParams{
+		Ids:    ids,
+		UserID: sql.NullString{String: userID, Valid: true},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch chunks from SQLite: %w", err)
+	}
+
+	// 4. Convert to SearchResult and Filter
+	results := make([]SearchResult, 0, len(chunks))
+	for _, chunk := range chunks {
+		// Filter by fileIDs if needed
+		if len(fileIDs) > 0 {
+			found := false
+			if chunk.FileID.Valid {
+				for _, fid := range fileIDs {
+					if chunk.FileID.String == fid {
+						found = true
+						break
+					}
+				}
+			}
+			if !found {
+				continue
+			}
 		}
 
-		searchResults[i] = SearchResult{
-			ID:         r.ID,
-			Similarity: r.Similarity,
-			Text:       r.Content,
-			FileID:     r.Metadata["fileId"],
-			FileName:   r.Metadata["fileName"],
-			Type:       r.Metadata["type"],
-			Index:      index,
-			Metadata:   r.Metadata,
+		// Parse metadata
+		metadata := make(map[string]string)
+		if chunk.Metadata.Valid {
+			metadata["raw"] = chunk.Metadata.String
+		}
+		if chunk.FileID.Valid {
+			metadata["fileId"] = chunk.FileID.String
+		}
+
+		results = append(results, SearchResult{
+			ID:         chunk.ID,
+			Similarity: 0.0, // TODO: Return similarity score from DuckDB
+			Text:       chunk.Text.String,
+			FileID:     chunk.FileID.String,
+			FileName:   "", // TODO: Join files table or store filename in metadata
+			Type:       chunk.Type.String,
+			Index:      int(chunk.ChunkIndex.Int64),
+			Metadata:   metadata,
+		})
+
+		if len(results) >= limit {
+			break
 		}
 	}
 
-	return searchResults, nil
+	return results, nil
 }
 
 // SemanticSearchMultipleFiles performs semantic search across multiple files
 func (s *VectorSearchService) SemanticSearchMultipleFiles(ctx context.Context, userID string, query string, fileIDs []string, limit int) ([]SearchResult, error) {
-	if len(fileIDs) == 0 {
-		// Search all files
-		return s.SemanticSearch(ctx, userID, query, nil, limit)
-	}
-
-	// Query each file and merge results
-	allResults := []SearchResult{}
-	for _, fileID := range fileIDs {
-		results, err := s.SemanticSearch(ctx, userID, query, []string{fileID}, limit)
-		if err != nil {
-			return nil, err
-		}
-		allResults = append(allResults, results...)
-	}
-
-	// Sort by similarity and limit
-	// Simple bubble sort for small datasets
-	for i := 0; i < len(allResults)-1; i++ {
-		for j := 0; j < len(allResults)-i-1; j++ {
-			if allResults[j].Similarity < allResults[j+1].Similarity {
-				allResults[j], allResults[j+1] = allResults[j+1], allResults[j]
-			}
-		}
-	}
-
-	if len(allResults) > limit {
-		allResults = allResults[:limit]
-	}
-
-	return allResults, nil
+	// Just call SemanticSearch with fileIDs filter
+	return s.SemanticSearch(ctx, userID, query, fileIDs, limit)
 }
 
-// DeleteChunks deletes chunks from the vector database
-func (s *VectorSearchService) DeleteChunks(ctx context.Context, userID string, chunkIDs []string) error {
-	if len(chunkIDs) == 0 {
-		return nil
-	}
-
-	col, err := s.GetUserCollection(ctx, userID)
-	if err != nil {
-		return err
-	}
-
-	// Delete documents by IDs
-	err = col.Delete(ctx, nil, nil, chunkIDs...)
-	if err != nil {
-		return fmt.Errorf("failed to delete chunks: %w", err)
-	}
-
-	return nil
+// GetEmbedder returns the Eino embedder
+func (s *VectorSearchService) GetEmbedder() embedding.Embedder {
+	return s.embedder
 }
 
-// DeleteChunksByFileID deletes all chunks for a specific file
-func (s *VectorSearchService) DeleteChunksByFileID(ctx context.Context, userID string, fileID string) error {
-	col, err := s.GetUserCollection(ctx, userID)
-	if err != nil {
-		return err
-	}
-
-	// Query all chunks for this file
-	where := map[string]string{
-		"fileId": fileID,
-	}
-
-	// Get all documents (use high limit)
-	results, err := col.Query(ctx, "", 10000, where, nil)
-	if err != nil {
-		return fmt.Errorf("failed to query chunks for deletion: %w", err)
-	}
-
-	// Delete each document
-	chunkIDs := make([]string, len(results))
-	for i, r := range results {
-		chunkIDs[i] = r.ID
-	}
-
-	return s.DeleteChunks(ctx, userID, chunkIDs)
-}
-
-// GetStats returns statistics about the vector database
-func (s *VectorSearchService) GetStats(ctx context.Context, userID string) (map[string]interface{}, error) {
-	col, err := s.GetUserCollection(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get all documents to count
-	results, err := col.Query(ctx, "", 100000, nil, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	stats := map[string]interface{}{
-		"totalChunks":    len(results),
-		"collectionName": fmt.Sprintf("user_%s_chunks", userID),
-	}
-
-	return stats, nil
-}
-
-// Close closes the vector database
+// Close closes the vector search service
 func (s *VectorSearchService) Close() error {
-	// chromem DB doesn't have explicit close, but we can clear collections
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.collections = make(map[string]*chromem.Collection)
+	// Nothing to close for now
 	return nil
-}
-
-// GetChromemDB returns the underlying chromem database instance
-// This is used by FileProcessorService for RAG processing
-func (s *VectorSearchService) GetChromemDB() *chromem.DB {
-	return s.db
-}
-
-// GetEmbeddingFunc returns the embedding function
-// This is used by RAGProcessor for generating embeddings
-func (s *VectorSearchService) GetEmbeddingFunc() chromem.EmbeddingFunc {
-	return s.embedFunc
 }

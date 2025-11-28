@@ -19,17 +19,17 @@ func NewFileProcessorService(
 	db *sql.DB,
 	fileLoader *services.FileLoader,
 	vectorSearchService *services.VectorSearchService,
+	duckDB *services.DuckDBStore,
 	fileBaseDir string,
 ) *FileProcessorService {
 	// Initialize sub-services
 	documentService := services.NewDocumentService(db)
 
-	// Get chromem DB and embedding function from vector search service
-	chromemDB := vectorSearchService.GetChromemDB()
-	embedFunc := vectorSearchService.GetEmbeddingFunc()
+	// Get embedding function from vector search service
+	embedder := vectorSearchService.GetEmbedder()
 
-	// Create RAG processor with embedding function
-	ragProcessor := services.NewRAGProcessor(db, chromemDB, embedFunc)
+	// Create RAG processor with Eino embedder and file loader
+	ragProcessor := services.NewRAGProcessor(db, duckDB, fileLoader, embedder)
 
 	// Create file processor
 	processor := services.NewFileProcessorService(
