@@ -15,5 +15,6 @@ export {
     CrawlSuccessResult,
     SearchParams,
     SearchQuery,
-    UniformSearchResponse
+    UniformSearchResponse,
+    UniformSearchResult
 } from "./models.js";

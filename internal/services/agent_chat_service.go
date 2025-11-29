@@ -29,32 +29,32 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cloudwego/eino/adk"
-	"github.com/cloudwego/eino/components/tool"
-	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 	"github.com/google/uuid"
 	"github.com/kawai-network/veridium/internal/database"
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/internal/llama"
-	"github.com/kawai-network/veridium/pkg/toolsengine"
-	"github.com/kawai-network/veridium/pkg/toolsengine/builtin"
+	"github.com/kawai-network/veridium/pkg/yzma/message"
+	"github.com/kawai-network/veridium/pkg/yzma/tools"
+	yzmabuiltin "github.com/kawai-network/veridium/pkg/yzma/tools/builtin"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 // AgentChatService provides agent-based chat with RAG, tools, and context awareness
-// This replaces/complements the existing LibraryChatService with Eino-based capabilities
+// This replaces/complements the existing LibraryChatService with Yzma-based capabilities
 type AgentChatService struct {
 	app         *application.App
 	db          *database.Service
 	libService  *llama.LibraryService
-	llamaModel  *llama.LlamaEinoModel
+	yzmaModel   *llama.LlamaYzmaModel // Yzma model for all LLM operations (chat, title, summary)
 	kbService   *KnowledgeBaseService
 	ragWorkflow *RAGWorkflow
 
-	// Phase 3: Integration bridges
-	toolsBridge   *ToolsEngineBridge   // Bridge to existing tools engine
-	contextBridge *ContextEngineBridge // Bridge to existing context engine
+	// LLM Generator interface (for testing/mocking)
+	llmGenerator LLMGenerator
+
+	// Yzma tool registry (replaces Eino tools)
+	toolRegistry *tools.ToolRegistry
 
 	// Phase 4: Thread management
 	threadService *ThreadManagementService // Thread management service
@@ -75,10 +75,9 @@ type AgentChatService struct {
 type AgentSession struct {
 	SessionID       string
 	UserID          string
-	Agent           adk.Agent
-	Messages        []*schema.Message
+	Messages        []message.Message // Native yzma messages
 	KnowledgeBaseID string
-	Tools           []tool.BaseTool
+	ToolNames       []string // Tool names to use for this session
 	Context         map[string]any
 	CreatedAt       int64
 	UpdatedAt       int64
@@ -121,11 +120,11 @@ type ChatResponse struct {
 	ThreadID  string `json:"thread_id,omitempty"` // Thread ID (if in thread)
 
 	// Content
-	Message      string             `json:"message"`
-	ToolCalls    []schema.ToolCall  `json:"tool_calls,omitempty"`
-	Sources      []*schema.Document `json:"sources,omitempty"`
-	FinishReason string             `json:"finish_reason"`
-	Usage        *schema.TokenUsage `json:"usage,omitempty"`
+	Message      string              `json:"message"`
+	ToolCalls    []message.ToolCall  `json:"tool_calls,omitempty"` // Using yzma ToolCall
+	Sources      []*schema.Document  `json:"sources,omitempty"`
+	FinishReason string              `json:"finish_reason"`
+	Usage        *llama.YzmaResponse `json:"usage,omitempty"` // Using yzma response for token info
 
 	// Metadata (Phase 4)
 	CreatedAt int64  `json:"created_at"`      // Timestamp
@@ -133,49 +132,43 @@ type ChatResponse struct {
 }
 
 // NewAgentChatService creates a new agent-based chat service
-// Set contextBridge and/or threadService to nil to disable those features
+// Set threadService to nil to disable thread management
 func NewAgentChatService(
 	app *application.App,
 	db *database.Service,
 	libService *llama.LibraryService,
 	kbService *KnowledgeBaseService,
-	contextBridge *ContextEngineBridge,
 	threadService *ThreadManagementService,
 ) *AgentChatService {
-	llamaModel := llama.NewLlamaEinoModel(libService)
 	ragWorkflow := NewRAGWorkflow(kbService)
 
-	// Initialize Tools Engine & Register Builtin Tools
-	toolsEngine, err := toolsengine.NewToolsEngine(toolsengine.Config{})
-	if err != nil {
-		log.Printf("⚠️  Warning: Failed to initialize internal ToolsEngine: %v", err)
+	// Initialize Yzma Tool Registry & Register Builtin Tools
+	toolRegistry := tools.NewToolRegistry()
+	if err := yzmabuiltin.RegisterAll(toolRegistry); err != nil {
+		log.Printf("⚠️  Warning: Failed to register yzma builtin tools: %v", err)
 	} else {
-		if err := builtin.RegisterAllBuiltinTools(toolsEngine); err != nil {
-			log.Printf("⚠️  Warning: Failed to register builtin tools: %v", err)
-		} else {
-			log.Printf("✅ AgentChatService: Builtin tools registered")
-		}
+		log.Printf("✅ AgentChatService: Yzma builtin tools registered")
 	}
 
-	// Create bridge
-	var toolsBridge *ToolsEngineBridge
-	if toolsEngine != nil {
-		toolsBridge = NewToolsEngineBridge(toolsEngine)
-	}
+	// Create Yzma model with tool registry (used for all LLM operations)
+	yzmaModel := llama.NewLlamaYzmaModel(libService, toolRegistry)
 
 	// Auto-detect utility models for lightweight tasks
 	titleModelPath := detectTitleGenerationModel(libService)
 	summaryModelPath := detectSummaryGenerationModel(libService)
 
+	// Create LLM generator adapter (wraps yzmaModel for interface compatibility)
+	llmGenerator := NewLLMGeneratorAdapter(yzmaModel)
+
 	service := &AgentChatService{
 		app:              app,
 		db:               db,
 		libService:       libService,
-		llamaModel:       llamaModel,
+		yzmaModel:        yzmaModel,
+		llmGenerator:     llmGenerator,
 		kbService:        kbService,
 		ragWorkflow:      ragWorkflow,
-		toolsBridge:      toolsBridge,
-		contextBridge:    contextBridge,
+		toolRegistry:     toolRegistry,
 		threadService:    threadService,
 		reasoningConfig:  DefaultReasoningConfig(), // Default: disabled (non-reasoning)
 		titleModelPath:   titleModelPath,
@@ -196,6 +189,20 @@ func NewAgentChatService(
 	}
 
 	return service
+}
+
+// SetLLMGenerator sets a custom LLM generator (useful for testing with mocks)
+func (s *AgentChatService) SetLLMGenerator(generator LLMGenerator) {
+	s.sessionsMutex.Lock()
+	defer s.sessionsMutex.Unlock()
+	s.llmGenerator = generator
+}
+
+// GetLLMGenerator returns the current LLM generator
+func (s *AgentChatService) GetLLMGenerator() LLMGenerator {
+	s.sessionsMutex.RLock()
+	defer s.sessionsMutex.RUnlock()
+	return s.llmGenerator
 }
 
 // detectTitleGenerationModel finds the smallest, fastest model for title generation
@@ -327,17 +334,17 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*ChatResp
 		if err != nil {
 			log.Printf("⚠️  Warning: Failed to load thread messages: %v", err)
 		} else {
-			// Convert thread messages to Eino format
-			einoMessages := make([]*schema.Message, 0, len(threadMessages))
+			// Convert thread messages to yzma format
+			yzmaMessages := make([]message.Message, 0, len(threadMessages))
 			for _, dbMsg := range threadMessages {
-				einoMsg, err := convertDBMessageToEino(&dbMsg)
-				if err == nil {
-					einoMessages = append(einoMessages, einoMsg)
+				yzmaMsg := convertDBMessageToYzma(&dbMsg)
+				if yzmaMsg != nil {
+					yzmaMessages = append(yzmaMessages, yzmaMsg)
 				}
 			}
-			session.Messages = einoMessages
+			session.Messages = yzmaMessages
 			session.ThreadID = req.ThreadID
-			log.Printf("📋 Loaded %d messages from thread %s", len(einoMessages), req.ThreadID)
+			log.Printf("📋 Loaded %d messages from thread %s", len(yzmaMessages), req.ThreadID)
 		}
 	}
 
@@ -359,9 +366,9 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*ChatResp
 		session.TopicID = currentTopicID
 	}
 
-	// Add user message to session
-	userMsg := &schema.Message{
-		Role:    schema.User,
+	// Add user message to session (native yzma format)
+	userMsg := message.Chat{
+		Role:    "user",
 		Content: req.Message,
 	}
 	session.Messages = append(session.Messages, userMsg)
@@ -382,96 +389,75 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*ChatResp
 	}
 
 	// Save user message to DB with topic and thread IDs
-	userMsgID, err := s.saveMessageToDB(ctx, userMsg, session.SessionID, session.UserID, currentTopicID, req.ThreadID)
+	userMsgID, err := s.saveYzmaMessageToDB(ctx, userMsg, session.SessionID, session.UserID, currentTopicID, req.ThreadID)
 	if err != nil {
 		log.Printf("⚠️  Warning: Failed to save user message to DB: %v", err)
 	} else {
 		log.Printf("💾 Saved user message: %s (topic: %s, thread: %s)", userMsgID, currentTopicID, req.ThreadID)
 	}
 
-	// Phase 3: Process messages through context engine (if available)
+	// Messages for agent (native yzma format)
 	messagesToAgent := session.Messages
-	if s.contextBridge != nil {
-		processedMessages, err := s.contextBridge.ProcessMessagesForAgent(ctx, session.Messages)
-		if err != nil {
-			log.Printf("⚠️  Warning: Context engine processing failed: %v", err)
-			// Continue with original messages
-		} else {
-			messagesToAgent = processedMessages
-			log.Printf("🔄 Context engine processed messages: %d → %d",
-				len(session.Messages), len(processedMessages))
-		}
-	}
 
-	// Prepare agent input
-	agentInput := &adk.AgentInput{
-		Messages: messagesToAgent,
-	}
+	// Prepare messages with system prompt
+	messagesWithSystem := s.prepareMessagesWithSystemPrompt(messagesToAgent, session)
 
 	// Generate message ID for streaming
 	assistantMsgID := uuid.New().String()
 
-	// Run agent with streaming support
+	// Get LLM generator with requested tools
+	llmWithTools := s.llmGenerator.WithTools(session.ToolNames)
+
+	// Run agent with LLM generator (streaming or non-streaming)
 	var finalMessage string
-	var toolCalls []schema.ToolCall
+	var toolCalls []message.ToolCall
 	var finishReason string
-	var usage *schema.TokenUsage
+	var usage *llama.YzmaResponse
+	var toolMessages []message.Message
 
 	if req.Stream && s.app != nil {
-		// Use token-by-token streaming via direct llama generation
-		finalMessage, err = s.generateWithTokenStreaming(ctx, session, assistantMsgID, messagesToAgent)
-		if err != nil {
-			return nil, fmt.Errorf("streaming generation failed: %w", err)
+		// Use streaming with agent loop
+		resp, tms, streamErr := s.generateWithStreaming(ctx, session, assistantMsgID, messagesWithSystem, llmWithTools)
+		if streamErr != nil {
+			return nil, fmt.Errorf("streaming generation failed: %w", streamErr)
 		}
+		finalMessage = resp.Content
+		toolCalls = resp.ToolCalls
+		toolMessages = tms
 		finishReason = "stop"
 	} else {
-		// Use standard Eino agent (non-streaming)
-		iterator := session.Agent.Run(ctx, agentInput)
-
-		for {
-			event, ok := iterator.Next()
-			if !ok {
-				break
-			}
-
-			if event.Err != nil {
-				return nil, fmt.Errorf("agent execution failed: %w", event.Err)
-			}
-
-			if event.Output != nil && event.Output.MessageOutput != nil {
-				msgVariant := event.Output.MessageOutput
-				if msgVariant.Message != nil {
-					if msgVariant.Role == schema.Assistant {
-						finalMessage += msgVariant.Message.Content
-
-						if len(msgVariant.Message.ToolCalls) > 0 {
-							toolCalls = append(toolCalls, msgVariant.Message.ToolCalls...)
-						}
-						if msgVariant.Message.ResponseMeta != nil {
-							finishReason = msgVariant.Message.ResponseMeta.FinishReason
-							usage = msgVariant.Message.ResponseMeta.Usage
-						}
-					}
-				}
-			}
+		// Use agent loop (non-streaming)
+		resp, tms, runErr := llmWithTools.RunAgentLoop(ctx, messagesWithSystem, 10)
+		if runErr != nil {
+			return nil, fmt.Errorf("agent execution failed: %w", runErr)
 		}
+
+		finalMessage = resp.Content
+		toolCalls = resp.ToolCalls
+		toolMessages = tms
+		usage = resp
+		finishReason = resp.FinishReason
 	}
+
+	// Add tool messages to session (for history)
+	session.Messages = append(session.Messages, toolMessages...)
 
 	// Note: Think tag stripping removed - proper model selection should prevent think tags
 	// If reasoning mode is disabled, use non-reasoning models (Llama 3.2)
 	// If reasoning mode is enabled, use reasoning models with /no_think (Qwen3)
 
-	// Add assistant response to session
-	assistantMsg := &schema.Message{
-		Role:      schema.Assistant,
-		Content:   finalMessage,
-		ToolCalls: toolCalls,
-		ResponseMeta: &schema.ResponseMeta{
-			FinishReason: finishReason,
-			Usage:        usage,
-		},
+	// Add assistant response to session (native yzma format)
+	if len(toolCalls) > 0 {
+		session.Messages = append(session.Messages, message.Tool{
+			Role:      "assistant",
+			ToolCalls: toolCalls,
+		})
+	} else {
+		session.Messages = append(session.Messages, message.Chat{
+			Role:    "assistant",
+			Content: finalMessage,
+		})
 	}
-	session.Messages = append(session.Messages, assistantMsg)
 
 	// Monitor context usage and provide warnings/recommendations
 	if usage != nil && usage.TotalTokens > 0 {
@@ -529,7 +515,19 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*ChatResp
 	}
 
 	// Save assistant message to DB with topic and thread IDs
-	savedMsgID, err := s.saveMessageToDB(ctx, assistantMsg, session.SessionID, session.UserID, currentTopicID, req.ThreadID)
+	var assistantMsgForDB message.Message
+	if len(toolCalls) > 0 {
+		assistantMsgForDB = message.Tool{
+			Role:      "assistant",
+			ToolCalls: toolCalls,
+		}
+	} else {
+		assistantMsgForDB = message.Chat{
+			Role:    "assistant",
+			Content: finalMessage,
+		}
+	}
+	savedMsgID, err := s.saveYzmaMessageToDB(ctx, assistantMsgForDB, session.SessionID, session.UserID, currentTopicID, req.ThreadID)
 	if err != nil {
 		log.Printf("⚠️  Warning: Failed to save assistant message to DB: %v", err)
 		// Use the generated ID as fallback
@@ -602,6 +600,8 @@ func (s *AgentChatService) getOrCreateSession(ctx context.Context, req ChatReque
 	// 1. Check in-memory cache first
 	if session, exists := s.sessions[req.SessionID]; exists {
 		log.Printf("♻️  Reusing cached session: %s", req.SessionID)
+		// Update tool names if changed
+		session.ToolNames = s.collectToolNames(ctx, req)
 		return session, nil
 	}
 
@@ -611,55 +611,35 @@ func (s *AgentChatService) getOrCreateSession(ctx context.Context, req ChatReque
 		// Session exists in DB - reconstruct from history
 		log.Printf("📂 Loading session from DB: %s (%d messages)", req.SessionID, len(dbMessages))
 
-		// Convert DB messages to Eino messages
-		einoMessages := make([]*schema.Message, 0, len(dbMessages))
+		// Convert DB messages to yzma format
+		yzmaMessages := make([]message.Message, 0, len(dbMessages))
 		for _, dbMsg := range dbMessages {
-			einoMsg, err := convertDBMessageToEino(&dbMsg)
-			if err == nil {
-				einoMessages = append(einoMessages, einoMsg)
+			yzmaMsg := convertDBMessageToYzma(&dbMsg)
+			if yzmaMsg != nil {
+				yzmaMessages = append(yzmaMessages, yzmaMsg)
 			}
 		}
+
+		// Collect tool names for yzma
+		toolNames := s.collectToolNames(ctx, req)
 
 		// Create session with history
 		session := &AgentSession{
 			SessionID:       req.SessionID,
 			UserID:          req.UserID,
-			Messages:        einoMessages,
+			Messages:        yzmaMessages,
 			KnowledgeBaseID: req.KnowledgeBaseID,
+			ToolNames:       toolNames,
 			Context:         req.Context,
 			CreatedAt:       dbSession.CreatedAt,
 			UpdatedAt:       dbSession.UpdatedAt,
 			DBSession:       dbSession,
 		}
 
-		// Collect tools
-		var tools []tool.BaseTool
-		if req.KnowledgeBaseID != "" {
-			if kbTool, err := s.createKBSearchTool(ctx, req.KnowledgeBaseID, req.UserID); err == nil {
-				tools = append(tools, kbTool)
-			}
-		}
-
-		// Phase 3: Add tools from tools engine bridge
-		if s.toolsBridge != nil && len(req.Tools) > 0 {
-			bridgeTools := s.toolsBridge.GetToolsForAgent(req.Tools)
-			tools = append(tools, bridgeTools...)
-			log.Printf("🔧 Reconstructed session: Added %d tools from tools engine", len(bridgeTools))
-		}
-
-		session.Tools = tools
-
-		// Create agent with history
-		agent, err := s.createAgent(ctx, session)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create agent: %w", err)
-		}
-
-		session.Agent = agent
 		s.sessions[req.SessionID] = session
 
-		log.Printf("✅ Reconstructed session from DB: %s (KB: %s, History: %d msgs)",
-			req.SessionID, req.KnowledgeBaseID, len(einoMessages))
+		log.Printf("✅ Reconstructed session from DB: %s (KB: %s, History: %d msgs, Tools: %v)",
+			req.SessionID, req.KnowledgeBaseID, len(yzmaMessages), toolNames)
 
 		return session, nil
 	}
@@ -696,51 +676,31 @@ func (s *AgentChatService) getOrCreateSession(ctx context.Context, req ChatReque
 				return nil, fmt.Errorf("failed to load session after race condition (tried %d times): %w", maxRetries, err)
 			}
 
-			// Convert DB messages to Eino messages
-			einoMessages := make([]*schema.Message, 0, len(dbMessages))
+			// Convert DB messages to yzma format
+			yzmaMessages := make([]message.Message, 0, len(dbMessages))
 			for _, dbMsg := range dbMessages {
-				einoMsg, err := convertDBMessageToEino(&dbMsg)
-				if err == nil {
-					einoMessages = append(einoMessages, einoMsg)
+				yzmaMsg := convertDBMessageToYzma(&dbMsg)
+				if yzmaMsg != nil {
+					yzmaMessages = append(yzmaMessages, yzmaMsg)
 				}
 			}
+
+			// Collect tool names for yzma
+			toolNames := s.collectToolNames(ctx, req)
 
 			// Create session with history
 			session := &AgentSession{
 				SessionID:       req.SessionID,
 				UserID:          req.UserID,
-				Messages:        einoMessages,
+				Messages:        yzmaMessages,
 				KnowledgeBaseID: req.KnowledgeBaseID,
+				ToolNames:       toolNames,
 				Context:         req.Context,
 				CreatedAt:       dbSession.CreatedAt,
 				UpdatedAt:       dbSession.UpdatedAt,
 				DBSession:       dbSession,
 			}
 
-			// Collect tools
-			var tools []tool.BaseTool
-			if req.KnowledgeBaseID != "" {
-				if kbTool, err := s.createKBSearchTool(ctx, req.KnowledgeBaseID, req.UserID); err == nil {
-					tools = append(tools, kbTool)
-				}
-			}
-
-			// Phase 3: Add tools from tools engine bridge
-			if s.toolsBridge != nil && len(req.Tools) > 0 {
-				bridgeTools := s.toolsBridge.GetToolsForAgent(req.Tools)
-				tools = append(tools, bridgeTools...)
-				log.Printf("🔧 Added %d tools from tools engine after race recovery", len(bridgeTools))
-			}
-
-			session.Tools = tools
-
-			// Create agent with history
-			agent, err := s.createAgent(ctx, session)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create agent after race recovery: %w", err)
-			}
-
-			session.Agent = agent
 			s.sessions[req.SessionID] = session
 
 			log.Printf("✅ Recovered from race condition: %s", req.SessionID)
@@ -751,63 +711,62 @@ func (s *AgentChatService) getOrCreateSession(ctx context.Context, req ChatReque
 		return nil, fmt.Errorf("failed to create session in DB: %w", err)
 	}
 
+	// Collect tool names for yzma
+	toolNames := s.collectToolNames(ctx, req)
+
 	// Create in-memory session
 	session := &AgentSession{
 		SessionID:       req.SessionID,
 		UserID:          req.UserID,
-		Messages:        make([]*schema.Message, 0),
+		Messages:        make([]message.Message, 0),
 		KnowledgeBaseID: req.KnowledgeBaseID,
+		ToolNames:       toolNames,
 		Context:         req.Context,
 		CreatedAt:       dbSession.CreatedAt,
 		UpdatedAt:       dbSession.UpdatedAt,
 		DBSession:       dbSession,
 	}
 
-	// Collect tools for the agent
-	var tools []tool.BaseTool
-
-	// Add KB search tool if KB is specified
-	if req.KnowledgeBaseID != "" {
-		kbTool, err := s.createKBSearchTool(ctx, req.KnowledgeBaseID, req.UserID)
-		if err != nil {
-			log.Printf("⚠️  Warning: Failed to create KB tool: %v", err)
-		} else {
-			tools = append(tools, kbTool)
-		}
-	}
-
-	// Phase 3: Add tools from tools engine bridge
-	if s.toolsBridge != nil && len(req.Tools) > 0 {
-		bridgeTools := s.toolsBridge.GetToolsForAgent(req.Tools)
-		tools = append(tools, bridgeTools...)
-		log.Printf("🔧 Added %d tools from tools engine: %v", len(bridgeTools), req.Tools)
-	}
-
-	session.Tools = tools
-
-	// Create agent for this session
-	agent, err := s.createAgent(ctx, session)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create agent: %w", err)
-	}
-
-	session.Agent = agent
 	s.sessions[req.SessionID] = session
 
-	log.Printf("✅ Created new agent session: %s (KB: %s, Tools: %d)",
-		req.SessionID, req.KnowledgeBaseID, len(tools))
+	log.Printf("✅ Created new session: %s (KB: %s, Tools: %v)",
+		req.SessionID, req.KnowledgeBaseID, toolNames)
 
 	return session, nil
 }
 
-// createAgent creates a new ADK agent for the session
-func (s *AgentChatService) createAgent(ctx context.Context, session *AgentSession) (adk.Agent, error) {
+// collectToolNames collects tool names for the session based on request
+func (s *AgentChatService) collectToolNames(ctx context.Context, req ChatRequest) []string {
+	var toolNames []string
+
+	// Add KB search tool if KB is specified
+	if req.KnowledgeBaseID != "" {
+		// Register KB tool to registry if not exists
+		if err := s.registerKBSearchTool(ctx, req.KnowledgeBaseID, req.UserID); err != nil {
+			log.Printf("⚠️  Warning: Failed to register KB tool: %v", err)
+		} else {
+			kb, err := s.kbService.GetKnowledgeBase(ctx, req.KnowledgeBaseID, req.UserID)
+			if err == nil {
+				toolNames = append(toolNames, fmt.Sprintf("search_%s", kb.Name))
+			}
+		}
+	}
+
+	// Add requested tools
+	toolNames = append(toolNames, req.Tools...)
+
+	return toolNames
+}
+
+// prepareMessagesWithSystemPrompt prepares messages with system prompt for yzma
+func (s *AgentChatService) prepareMessagesWithSystemPrompt(messages []message.Message, session *AgentSession) []message.Message {
 	// Build base instruction
 	baseInstruction := "You are a helpful AI assistant. "
 
-	// ✅ INJECT SUMMARY IF EXISTS
-	if historySummary, ok := session.Context["history_summary"].(string); ok && historySummary != "" {
-		summaryContext := fmt.Sprintf(`
+	// Inject summary if exists
+	if session.Context != nil {
+		if historySummary, ok := session.Context["history_summary"].(string); ok && historySummary != "" {
+			summaryContext := fmt.Sprintf(`
 
 <chat_history_summary>
 <docstring>Previous conversation summary (older messages have been compressed):</docstring>
@@ -815,8 +774,9 @@ func (s *AgentChatService) createAgent(ctx context.Context, session *AgentSessio
 </chat_history_summary>
 
 `, historySummary)
-		baseInstruction += summaryContext
-		log.Printf("📋 Injected history summary into system prompt (%d chars)", len(historySummary))
+			baseInstruction += summaryContext
+			log.Printf("📋 Injected history summary into system prompt (%d chars)", len(historySummary))
+		}
 	}
 
 	if session.KnowledgeBaseID != "" {
@@ -826,43 +786,164 @@ func (s *AgentChatService) createAgent(ctx context.Context, session *AgentSessio
 	// Apply reasoning mode to instruction
 	instruction := s.reasoningConfig.GetSystemPrompt(baseInstruction)
 
-	log.Printf("🧠 Creating agent with reasoning mode: %s", s.reasoningConfig.Mode)
-	if log.Default().Writer() != nil {
-		// Only log full prompt in debug mode (can be very long with summary)
-		log.Printf("📝 System prompt length: %d chars", len(instruction))
+	log.Printf("🧠 Preparing messages with reasoning mode: %s", s.reasoningConfig.Mode)
+	log.Printf("📝 System prompt length: %d chars", len(instruction))
+
+	// Check if messages already have system prompt
+	if len(messages) > 0 && messages[0].GetRole() == "system" {
+		// Update existing system prompt
+		result := make([]message.Message, len(messages))
+		copy(result, messages)
+		result[0] = message.Chat{
+			Role:    "system",
+			Content: instruction,
+		}
+		return result
 	}
 
-	// Create agent config
-	config := &adk.ChatModelAgentConfig{
-		Name:        fmt.Sprintf("agent_%s", session.SessionID),
-		Description: "AI assistant with RAG and tool capabilities",
-		Instruction: instruction,
-		Model:       s.llamaModel,
-		ToolsConfig: adk.ToolsConfig{
-			ToolsNodeConfig: compose.ToolsNodeConfig{
-				Tools: session.Tools,
-			},
-		},
-		MaxIterations: 10,
-	}
-
-	return adk.NewChatModelAgent(ctx, config)
+	// Prepend system prompt
+	result := make([]message.Message, 0, len(messages)+1)
+	result = append(result, message.Chat{
+		Role:    "system",
+		Content: instruction,
+	})
+	result = append(result, messages...)
+	return result
 }
 
-// createKBSearchTool creates a knowledge base search tool
-func (s *AgentChatService) createKBSearchTool(ctx context.Context, kbID, userID string) (tool.BaseTool, error) {
-	kb, err := s.kbService.GetKnowledgeBase(ctx, kbID, userID)
-	if err != nil {
-		return nil, err
+// generateWithStreaming generates response with streaming using LLMGenerator interface
+func (s *AgentChatService) generateWithStreaming(ctx context.Context, session *AgentSession, messageID string, messages []message.Message, llm LLMGenerator) (*llama.YzmaResponse, []message.Message, error) {
+	// Emit start event
+	if s.app != nil {
+		s.app.Event.Emit("chat:stream", map[string]interface{}{
+			"type":       "start",
+			"session_id": session.SessionID,
+			"message_id": messageID,
+		})
 	}
 
-	return &kbSearchTool{
-		name:        fmt.Sprintf("search_%s", kb.Name),
-		description: fmt.Sprintf("Search the %s knowledge base for relevant information", kb.Name),
-		kbService:   s.kbService,
-		kbID:        kbID,
-		userID:      userID,
-	}, nil
+	var fullContent strings.Builder
+
+	// Streaming callback
+	callback := func(token string, isLast bool) {
+		if token != "" {
+			fullContent.WriteString(token)
+
+			// Emit chunk event
+			if s.app != nil {
+				s.app.Event.Emit("chat:stream", map[string]interface{}{
+					"type":         "chunk",
+					"session_id":   session.SessionID,
+					"message_id":   messageID,
+					"content":      token,
+					"full_content": fullContent.String(),
+				})
+			}
+		}
+
+		if isLast {
+			// Emit complete event
+			if s.app != nil {
+				s.app.Event.Emit("chat:stream", map[string]interface{}{
+					"type":       "complete",
+					"session_id": session.SessionID,
+					"message_id": messageID,
+					"content":    fullContent.String(),
+				})
+			}
+		}
+	}
+
+	// Run agent loop with streaming
+	resp, toolMessages, err := llm.RunAgentLoopWithStreaming(ctx, messages, 10, callback)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return resp, toolMessages, nil
+}
+
+// registerKBSearchTool registers a knowledge base search tool to the yzma registry
+func (s *AgentChatService) registerKBSearchTool(ctx context.Context, kbID, userID string) error {
+	kb, err := s.kbService.GetKnowledgeBase(ctx, kbID, userID)
+	if err != nil {
+		return err
+	}
+
+	toolName := fmt.Sprintf("search_%s", kb.Name)
+
+	// Check if already registered
+	if _, exists := s.toolRegistry.Get(toolName); exists {
+		return nil // Already registered
+	}
+
+	// Create yzma tool
+	kbService := s.kbService
+	tool := &tools.YzmaTool{
+		Type: "function",
+		Function: tools.YzmaToolFunction{
+			Name:        toolName,
+			Description: fmt.Sprintf("Search the %s knowledge base for relevant information", kb.Name),
+			Parameters: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"query": map[string]interface{}{
+						"type":        "string",
+						"description": "The search query to find relevant information",
+					},
+					"top_k": map[string]interface{}{
+						"type":        "integer",
+						"description": "Number of results to return (default: 5)",
+					},
+				},
+				"required": []string{"query"},
+			},
+		},
+		Executor: func(execCtx context.Context, args map[string]string) (string, error) {
+			query := args["query"]
+			if query == "" {
+				return "", fmt.Errorf("query parameter is required")
+			}
+
+			topK := 5
+			if topKStr, ok := args["top_k"]; ok && topKStr != "" {
+				if n, err := fmt.Sscanf(topKStr, "%d", &topK); err != nil || n != 1 {
+					topK = 5
+				}
+			}
+
+			// Query knowledge base
+			docs, err := kbService.QueryKnowledgeBase(execCtx, kbID, query, topK, userID)
+			if err != nil {
+				return "", fmt.Errorf("KB search failed: %w", err)
+			}
+
+			// Format results
+			result := map[string]interface{}{
+				"found": len(docs),
+				"results": func() []map[string]interface{} {
+					results := make([]map[string]interface{}, len(docs))
+					for i, doc := range docs {
+						results[i] = map[string]interface{}{
+							"content":  doc.Content,
+							"metadata": doc.MetaData,
+						}
+					}
+					return results
+				}(),
+			}
+
+			resultJSON, err := json.Marshal(result)
+			if err != nil {
+				return "", fmt.Errorf("failed to marshal result: %w", err)
+			}
+
+			return string(resultJSON), nil
+		},
+		Enabled: true,
+	}
+
+	return s.toolRegistry.Register(tool)
 }
 
 // ClearSession removes a session from memory
@@ -874,8 +955,8 @@ func (s *AgentChatService) ClearSession(sessionID string) {
 	log.Printf("🗑️  Cleared session: %s", sessionID)
 }
 
-// GetSessionHistory returns the message history for a session
-func (s *AgentChatService) GetSessionHistory(sessionID string) ([]*schema.Message, error) {
+// GetSessionHistory returns the message history for a session (native yzma format)
+func (s *AgentChatService) GetSessionHistory(sessionID string) ([]message.Message, error) {
 	s.sessionsMutex.RLock()
 	defer s.sessionsMutex.RUnlock()
 
@@ -898,14 +979,13 @@ func (s *AgentChatService) SetTitleModel(modelPath string) {
 }
 
 // generateTopicTitle generates a concise title for the conversation using LLM
-// ALWAYS uses non-reasoning model to avoid <think> tags - no stripping needed!
-// Uses separate title model if configured, otherwise falls back to main chat model
-func (s *AgentChatService) generateTopicTitle(ctx context.Context, messages []*schema.Message, locale string) (string, error) {
+// Uses yzmaModel.Generate() without tools for lightweight title generation
+func (s *AgentChatService) generateTopicTitle(ctx context.Context, messages []message.Message, locale string) (string, error) {
 	if len(messages) == 0 {
 		return "New Conversation", nil
 	}
 
-	// Build summary prompt - simpler now since non-reasoning models don't need warnings about <think> tags
+	// Build summary prompt
 	systemPrompt := fmt.Sprintf(`You are a professional conversation summarizer. Generate a concise title that captures the essence of the conversation.
 
 Rules:
@@ -920,56 +1000,59 @@ Example: Sleep Functions for Body and Mind`, locale)
 	// Build conversation text (User messages only)
 	var conversationText string
 	for _, msg := range messages {
-		if msg.Role == schema.User {
-			conversationText += fmt.Sprintf("user: %s\n", msg.Content)
+		if msg.GetRole() == "user" {
+			if chatMsg, ok := msg.(message.Chat); ok {
+				conversationText += fmt.Sprintf("user: %s\n", chatMsg.Content)
+			}
 		}
 	}
 
 	// Fallback: if no user messages found (unlikely but possible), use all messages
 	if conversationText == "" {
 		for _, msg := range messages {
-			conversationText += fmt.Sprintf("%s: %s\n", msg.Role, msg.Content)
+			if chatMsg, ok := msg.(message.Chat); ok {
+				conversationText += fmt.Sprintf("%s: %s\n", chatMsg.Role, chatMsg.Content)
+			}
 		}
 	}
 
 	log.Printf("📝 Generating title for conversation (%d messages, %d chars)", len(messages), len(conversationText))
 
-	// Create messages for title generation
-	titleMessages := []*schema.Message{
-		{Role: schema.System, Content: systemPrompt},
-		{Role: schema.User, Content: conversationText},
+	// Create yzma messages for title generation
+	titleMessages := []message.Message{
+		message.Chat{Role: "system", Content: systemPrompt},
+		message.Chat{Role: "user", Content: conversationText},
 	}
 
-	// Use separate title model if configured (should be non-reasoning model)
-	var response *schema.Message
-	var err error
+	// Use separate title model if configured
+	var responseContent string
 
 	if s.titleModelPath != "" {
-		// Temporarily load title model for generation
-		log.Printf("📝 Using dedicated non-reasoning title model: %s", filepath.Base(s.titleModelPath))
+		log.Printf("📝 Using dedicated title model: %s", filepath.Base(s.titleModelPath))
 
 		// Save current model state
 		currentModel := s.libService.GetLoadedChatModel()
 
-		// Load title model (should be non-reasoning: Llama/Mistral)
+		// Load title model
 		if err := s.libService.LoadChatModel(s.titleModelPath); err != nil {
 			log.Printf("⚠️  Failed to load title model, falling back to main model: %v", err)
-			// Fallback to main model (may be reasoning model, so strip <think> tags)
-			response, err = s.llamaModel.Generate(ctx, titleMessages)
-			if err == nil && strings.Contains(response.Content, "<think>") {
-				log.Printf("⚠️  Main model generated <think> tags in title - this shouldn't happen with proper model selection")
-				response.Content = stripThinkTags(response.Content)
+			// Fallback to main model (WITHOUT tools for title generation)
+			resp, genErr := s.yzmaModel.WithoutTools().Generate(ctx, titleMessages)
+			if genErr != nil {
+				return "", fmt.Errorf("failed to generate title: %w", genErr)
 			}
+			responseContent = resp.Content
 		} else {
-			// Generate with title model (non-reasoning, no <think> tags expected)
-			titleModel := llama.NewLlamaEinoModel(s.libService)
-			response, err = titleModel.Generate(ctx, titleMessages)
-
-			// Sanity check: if title model somehow generates <think> tags, warn and strip
-			if err == nil && strings.Contains(response.Content, "<think>") {
-				log.Printf("⚠️  WARNING: Non-reasoning title model generated <think> tags! Model: %s", filepath.Base(s.titleModelPath))
-				response.Content = stripThinkTags(response.Content)
+			// Generate with title model (WITHOUT tools)
+			resp, genErr := s.yzmaModel.WithoutTools().Generate(ctx, titleMessages)
+			if genErr != nil {
+				// Restore main model before returning error
+				if currentModel != "" {
+					s.libService.LoadChatModel(currentModel)
+				}
+				return "", fmt.Errorf("failed to generate title: %w", genErr)
 			}
+			responseContent = resp.Content
 
 			// Restore main chat model
 			if currentModel != "" {
@@ -979,35 +1062,36 @@ Example: Sleep Functions for Body and Mind`, locale)
 			}
 		}
 	} else {
-		// No dedicated title model - use main chat model
-		// This may be a reasoning model, so check for <think> tags
-		log.Printf("📝 Using main chat model for title generation (may be reasoning model)")
-		response, err = s.llamaModel.Generate(ctx, titleMessages)
-		if err == nil && strings.Contains(response.Content, "<think>") {
-			log.Printf("⚠️  Main model generated <think> tags in title (expected if using reasoning model)")
-			response.Content = stripThinkTags(response.Content)
+		// No dedicated title model - use main chat model (WITHOUT tools)
+		log.Printf("📝 Using main chat model for title generation")
+		resp, err := s.yzmaModel.WithoutTools().Generate(ctx, titleMessages)
+		if err != nil {
+			return "", fmt.Errorf("failed to generate title: %w", err)
 		}
+		responseContent = resp.Content
 	}
 
-	if err != nil {
-		return "", fmt.Errorf("failed to generate title: %w", err)
+	// Strip <think> tags if present (for reasoning models)
+	if strings.Contains(responseContent, "<think>") {
+		log.Printf("⚠️  Model generated <think> tags in title, stripping...")
+		responseContent = stripThinkTags(responseContent)
 	}
 
-	log.Printf("📝 Raw title response: %q", response.Content)
+	log.Printf("📝 Raw title response: %q", responseContent)
 
 	// Clean up the title
-	title := strings.TrimSpace(response.Content)
+	title := strings.TrimSpace(responseContent)
 
 	// If title is empty, try to extract from the original response
 	if title == "" {
 		// Try to find text in quotes
 		quotePattern := regexp.MustCompile(`["']([^"']+)["']`)
-		matches := quotePattern.FindStringSubmatch(response.Content)
+		matches := quotePattern.FindStringSubmatch(responseContent)
 		if len(matches) > 1 {
 			title = matches[1]
 		} else {
 			// Fallback: use first non-empty line
-			lines := strings.Split(response.Content, "\n")
+			lines := strings.Split(responseContent, "\n")
 			for _, line := range lines {
 				line = strings.TrimSpace(line)
 				if line != "" {
@@ -1096,9 +1180,9 @@ func (s *AgentChatService) createTopicForSessionSync(ctx context.Context, sessio
 
 // updateTopicTitle updates an existing topic with LLM-generated title
 // Phase 4 FIX: Used to update placeholder topic with meaningful title after first response
-func (s *AgentChatService) updateTopicTitle(ctx context.Context, topicID, userID string, messages []*schema.Message) error {
+func (s *AgentChatService) updateTopicTitle(ctx context.Context, topicID, userID string, messages []message.Message) error {
 	// Create a copy of messages to avoid race conditions
-	messagesCopy := make([]*schema.Message, len(messages))
+	messagesCopy := make([]message.Message, len(messages))
 	copy(messagesCopy, messages)
 
 	// Run in background
@@ -1161,7 +1245,7 @@ func (s *AgentChatService) updateTopicTitle(ctx context.Context, topicID, userID
 
 // createTopicForSessionWithTitle creates a topic with LLM-generated title and returns topicID
 // Phase 4: Used after first response to create/update topic with meaningful title
-func (s *AgentChatService) createTopicForSessionWithTitle(ctx context.Context, sessionID, userID string, messages []*schema.Message) (string, error) {
+func (s *AgentChatService) createTopicForSessionWithTitle(ctx context.Context, sessionID, userID string, messages []message.Message) (string, error) {
 	// Check if topic already exists for this session
 	count, err := s.db.Queries().CountTopicsBySession(ctx, db.CountTopicsBySessionParams{
 		SessionID: sql.NullString{String: sessionID, Valid: true},
@@ -1203,7 +1287,7 @@ func (s *AgentChatService) createTopicForSessionWithTitle(ctx context.Context, s
 	}
 
 	// Generate title in BACKGROUND to avoid blocking (model loading can take 2-5 seconds)
-	messagesCopy := make([]*schema.Message, len(messages))
+	messagesCopy := make([]message.Message, len(messages))
 	copy(messagesCopy, messages)
 
 	topicIDCopy := topicID
@@ -1248,137 +1332,78 @@ func (s *AgentChatService) createTopicForSessionWithTitle(ctx context.Context, s
 	return topicID, nil
 }
 
-// kbSearchTool implements tool.BaseTool for knowledge base search
-type kbSearchTool struct {
-	name        string
-	description string
-	kbService   *KnowledgeBaseService
-	kbID        string
-	userID      string
-}
-
-func (t *kbSearchTool) Info(ctx context.Context) (*schema.ToolInfo, error) {
-	params := map[string]*schema.ParameterInfo{
-		"query": {
-			Type: "string",
-			Desc: "The search query to find relevant information",
-		},
-		"top_k": {
-			Type: "integer",
-			Desc: "Number of results to return (default: 5)",
-		},
-	}
-
-	return &schema.ToolInfo{
-		Name:        t.name,
-		Desc:        t.description,
-		ParamsOneOf: schema.NewParamsOneOfByParams(params),
-	}, nil
-}
-
-func (t *kbSearchTool) InvokableRun(ctx context.Context, argumentsInJSON string, opts ...tool.Option) (string, error) {
-	// Parse arguments
-	var args struct {
-		Query string `json:"query"`
-		TopK  int    `json:"top_k"`
-	}
-
-	if err := json.Unmarshal([]byte(argumentsInJSON), &args); err != nil {
-		return "", fmt.Errorf("failed to parse arguments: %w", err)
-	}
-
-	if args.TopK <= 0 {
-		args.TopK = 5
-	}
-
-	// Query knowledge base
-	docs, err := t.kbService.QueryKnowledgeBase(ctx, t.kbID, args.Query, args.TopK, t.userID)
-	if err != nil {
-		return "", fmt.Errorf("KB search failed: %w", err)
-	}
-
-	// Format results
-	result := map[string]any{
-		"found": len(docs),
-		"results": func() []map[string]any {
-			results := make([]map[string]any, len(docs))
-			for i, doc := range docs {
-				results[i] = map[string]any{
-					"content":  doc.Content,
-					"metadata": doc.MetaData,
-				}
-			}
-			return results
-		}(),
-	}
-
-	resultJSON, err := json.Marshal(result)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal result: %w", err)
-	}
-
-	return string(resultJSON), nil
-}
-
 // ============================================================================
 // Database Persistence Methods
 // ============================================================================
 
-// convertDBMessageToEino converts a database message to Eino schema message
-func convertDBMessageToEino(dbMsg *db.Message) (*schema.Message, error) {
-	msg := &schema.Message{
-		Role: schema.RoleType(dbMsg.Role),
-	}
-
-	// Content
+// convertDBMessageToYzma converts a database message to native yzma message
+func convertDBMessageToYzma(dbMsg *db.Message) message.Message {
+	role := dbMsg.Role
+	content := ""
 	if dbMsg.Content.Valid {
-		msg.Content = dbMsg.Content.String
+		content = dbMsg.Content.String
 	}
 
-	// Tool calls (stored as JSON in Tools field)
+	// Check for tool calls
 	if dbMsg.Tools.Valid && dbMsg.Tools.String != "" {
-		var toolCalls []schema.ToolCall
-		if err := json.Unmarshal([]byte(dbMsg.Tools.String), &toolCalls); err == nil {
-			msg.ToolCalls = toolCalls
+		var toolCalls []message.ToolCall
+		if err := json.Unmarshal([]byte(dbMsg.Tools.String), &toolCalls); err == nil && len(toolCalls) > 0 {
+			return message.Tool{
+				Role:      role,
+				ToolCalls: toolCalls,
+			}
 		}
 	}
 
-	// Note: Eino schema.Message doesn't have ResponseTo field
-	// Parent relationship is handled at the agent level
+	// Check for tool response
+	if role == "tool" && content != "" {
+		return message.ToolResponse{
+			Role:    role,
+			Name:    "", // Will be filled from context if needed
+			Content: content,
+		}
+	}
 
-	return msg, nil
+	// Regular chat message
+	return message.Chat{
+		Role:    role,
+		Content: content,
+	}
 }
 
-// convertEinoMessageToDB converts Eino schema message to DB message params
-func convertEinoMessageToDB(einoMsg *schema.Message, sessionID, userID string) db.CreateMessageParams {
+// convertYzmaMessageToDB converts yzma message to DB message params
+func convertYzmaMessageToDB(msg message.Message, sessionID, userID string) db.CreateMessageParams {
 	now := time.Now().UnixMilli()
 
 	params := db.CreateMessageParams{
 		ID:        uuid.New().String(),
-		Role:      string(einoMsg.Role),
+		Role:      msg.GetRole(),
 		UserID:    userID,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
 
-	// Session ID
 	if sessionID != "" {
 		params.SessionID = sql.NullString{String: sessionID, Valid: true}
 	}
 
-	// Content
-	if einoMsg.Content != "" {
-		params.Content = sql.NullString{String: einoMsg.Content, Valid: true}
-	}
-
-	// Tool calls
-	if len(einoMsg.ToolCalls) > 0 {
-		if toolCallsJSON, err := json.Marshal(einoMsg.ToolCalls); err == nil {
-			params.Tools = sql.NullString{String: string(toolCallsJSON), Valid: true}
+	switch m := msg.(type) {
+	case message.Chat:
+		if m.Content != "" {
+			params.Content = sql.NullString{String: m.Content, Valid: true}
 		}
+	case message.Tool:
+		if len(m.ToolCalls) > 0 {
+			if toolCallsJSON, err := json.Marshal(m.ToolCalls); err == nil {
+				params.Tools = sql.NullString{String: string(toolCallsJSON), Valid: true}
+			}
+		}
+	case message.ToolResponse:
+		if m.Content != "" {
+			params.Content = sql.NullString{String: m.Content, Valid: true}
+		}
+		params.Role = "tool"
 	}
-
-	// Note: Parent ID handling can be added later if needed
 
 	return params
 }
@@ -1457,10 +1482,9 @@ func (s *AgentChatService) createSessionInDB(ctx context.Context, sessionID, use
 // saveMessageToDB saves a message to database
 // saveMessageToDB saves a message to the database
 // Phase 4: Now accepts topicID and threadID for proper message linking
-func (s *AgentChatService) saveMessageToDB(ctx context.Context, msg *schema.Message, sessionID, userID, topicID, threadID string) (string, error) {
-	params := convertEinoMessageToDB(msg, sessionID, userID)
+func (s *AgentChatService) saveYzmaMessageToDB(ctx context.Context, msg message.Message, sessionID, userID, topicID, threadID string) (string, error) {
+	params := convertYzmaMessageToDB(msg, sessionID, userID)
 
-	// Phase 4: Add topic and thread IDs if provided
 	if topicID != "" {
 		params.TopicID = sql.NullString{String: topicID, Valid: true}
 	}
@@ -1619,101 +1643,10 @@ func (s *AgentChatService) SwitchToRecommendedModel() error {
 		return fmt.Errorf("failed to load recommended model: %w", err)
 	}
 
-	// Recreate llama model adapter
-	s.llamaModel = llama.NewLlamaEinoModel(s.libService)
+	// Note: yzmaModel uses libService internally, so no need to recreate
 
 	log.Printf("✅ Successfully switched to %s", recommendedModel)
 	return nil
-}
-
-// generateWithTokenStreaming generates response with token-by-token streaming
-// Uses Eino's Stream() method for consistency with non-streaming path
-func (s *AgentChatService) generateWithTokenStreaming(ctx context.Context, session *AgentSession, messageID string, messages []*schema.Message) (string, error) {
-	// Emit start event
-	if s.app != nil {
-		s.app.Event.Emit("chat:stream", map[string]interface{}{
-			"type":       "start",
-			"session_id": session.SessionID,
-			"message_id": messageID,
-		})
-	}
-
-	// Use Eino's Stream() method - consistent with non-streaming path
-	// This ensures same max tokens (32768), sampler config, and behavior
-	streamReader, err := s.llamaModel.Stream(ctx, messages)
-	if err != nil {
-		return "", fmt.Errorf("failed to start streaming: %w", err)
-	}
-
-	var fullContent strings.Builder
-
-	// Throttling variables for UI updates
-	lastEmitTime := time.Now()
-	const emitInterval = 100 * time.Millisecond // Emit max every 100ms for smoother UX
-
-	// Read from stream and emit events
-	for {
-		msg, err := streamReader.Recv()
-		if err != nil {
-			// Check if it's EOF (normal completion)
-			if err.Error() == "EOF" || strings.Contains(err.Error(), "EOF") {
-				break
-			}
-			// Real error occurred
-			return "", fmt.Errorf("streaming error: %w", err)
-		}
-
-		// Accumulate content
-		if msg != nil && msg.Content != "" {
-			fullContent.WriteString(msg.Content)
-
-			// Throttle chunk events - only emit if enough time has passed
-			now := time.Now()
-			if s.app != nil && now.Sub(lastEmitTime) >= emitInterval {
-				lastEmitTime = now
-
-				// Emit chunk event
-				s.app.Event.Emit("chat:stream", map[string]interface{}{
-					"type":         "chunk",
-					"session_id":   session.SessionID,
-					"message_id":   messageID,
-					"content":      msg.Content,
-					"full_content": fullContent.String(),
-				})
-			}
-		}
-	}
-
-	// Emit final complete event
-	if s.app != nil {
-		s.app.Event.Emit("chat:stream", map[string]interface{}{
-			"type":       "complete",
-			"session_id": session.SessionID,
-			"message_id": messageID,
-			"content":    fullContent.String(),
-		})
-	}
-
-	return fullContent.String(), nil
-}
-
-// buildPromptFromMessages builds a prompt string from Eino messages
-func (s *AgentChatService) buildPromptFromMessages(messages []*schema.Message) (string, error) {
-	// Convert Eino messages to simple prompt format
-	var prompt strings.Builder
-	for _, msg := range messages {
-		switch msg.Role {
-		case schema.System:
-			prompt.WriteString(fmt.Sprintf("System: %s\n\n", msg.Content))
-		case schema.User:
-			prompt.WriteString(fmt.Sprintf("User: %s\n\n", msg.Content))
-		case schema.Assistant:
-			prompt.WriteString(fmt.Sprintf("Assistant: %s\n\n", msg.Content))
-		}
-	}
-	prompt.WriteString("Assistant:")
-
-	return prompt.String(), nil
 }
 
 // ============================================================================
@@ -1773,24 +1706,24 @@ func (s *AgentChatService) autoSummarizeIfNeeded(ctx context.Context, session *A
 
 	oldMessages := messages[:len(messages)-keepCount]
 
-	// 6. Convert to Eino format
-	einoMessages := make([]*schema.Message, 0, len(oldMessages))
+	// 6. Convert to yzma format
+	yzmaMessages := make([]message.Message, 0, len(oldMessages))
 	for _, dbMsg := range oldMessages {
-		einoMsg, err := convertDBMessageToEino(&dbMsg)
-		if err == nil {
-			einoMessages = append(einoMessages, einoMsg)
+		yzmaMsg := convertDBMessageToYzma(&dbMsg)
+		if yzmaMsg != nil {
+			yzmaMessages = append(yzmaMessages, yzmaMsg)
 		}
 	}
 
-	if len(einoMessages) < 2 {
+	if len(yzmaMessages) < 2 {
 		return // Need at least 2 messages (1 turn) to summarize
 	}
 
 	// 7. Generate summary (this is already in background goroutine)
 	log.Printf("🔄 Auto-generating summary for topic %s (%d old messages, keeping %d recent)",
-		topicID, len(einoMessages), keepCount)
+		topicID, len(yzmaMessages), keepCount)
 
-	summary, err := s.generateHistorySummary(ctx, einoMessages)
+	summary, err := s.generateHistorySummary(ctx, yzmaMessages)
 	if err != nil {
 		log.Printf("❌ Auto-summary failed: %v", err)
 		return
@@ -1799,7 +1732,7 @@ func (s *AgentChatService) autoSummarizeIfNeeded(ctx context.Context, session *A
 	// 8. Save summary to database
 	now := time.Now().UnixMilli()
 	metadata := fmt.Sprintf(`{"summarized_at":%d,"message_count":%d,"reasoning_mode":"%s"}`,
-		now, len(einoMessages), s.reasoningConfig.Mode)
+		now, len(yzmaMessages), s.reasoningConfig.Mode)
 
 	_, err = s.db.Queries().UpdateTopic(ctx, db.UpdateTopicParams{
 		Title:          topic.Title,
@@ -1817,13 +1750,13 @@ func (s *AgentChatService) autoSummarizeIfNeeded(ctx context.Context, session *A
 		log.Printf("❌ Failed to save auto-summary: %v", err)
 	} else {
 		log.Printf("✅ Auto-summary completed for topic %s (compressed %d messages into %d chars)",
-			topicID, len(einoMessages), len(summary))
+			topicID, len(yzmaMessages), len(summary))
 
 		// Emit subtle event to frontend (optional: show small toast or indicator)
 		if s.app != nil {
 			s.app.Event.Emit("chat:summary:auto-complete", map[string]interface{}{
 				"topic_id":       topicID,
-				"message_count":  len(einoMessages),
+				"message_count":  len(yzmaMessages),
 				"summary_length": len(summary),
 			})
 		}
@@ -1844,9 +1777,9 @@ func (s *AgentChatService) getKeepMessageCount() int {
 	}
 }
 
-// generateHistorySummary generates summary using optimal model
+// generateHistorySummary generates summary using yzmaModel
 // Uses 3-tier fallback: summary model → title model → main model
-func (s *AgentChatService) generateHistorySummary(ctx context.Context, messages []*schema.Message) (string, error) {
+func (s *AgentChatService) generateHistorySummary(ctx context.Context, messages []message.Message) (string, error) {
 	if len(messages) == 0 {
 		return "", fmt.Errorf("no messages to summarize")
 	}
@@ -1864,8 +1797,12 @@ Rules:
 	// Build conversation text
 	var conversationText string
 	for _, msg := range messages {
-		role := string(msg.Role)
-		conversationText += fmt.Sprintf("%s: %s\n\n", role, msg.Content)
+		role := msg.GetRole()
+		if chatMsg, ok := msg.(message.Chat); ok {
+			conversationText += fmt.Sprintf("%s: %s\n\n", role, chatMsg.Content)
+		} else if toolResp, ok := msg.(message.ToolResponse); ok {
+			conversationText += fmt.Sprintf("%s: %s\n\n", role, toolResp.Content)
+		}
 	}
 
 	conversationContent := fmt.Sprintf(`<chat_history>
@@ -1874,17 +1811,20 @@ Rules:
 
 Please summarize the above conversation and retain key information. The summarized content will be used as context for subsequent prompts.`, conversationText)
 
-	summaryMessages := []*schema.Message{
-		{Role: schema.System, Content: systemPrompt},
-		{Role: schema.User, Content: conversationContent},
+	// Create yzma messages for summary generation
+	summaryMessages := []message.Message{
+		message.Chat{Role: "system", Content: systemPrompt},
+		message.Chat{Role: "user", Content: conversationContent},
 	}
 
-	// ✅ STRATEGY: Use dedicated summary model (preferred) → title model → main model
-	var response *schema.Message
-	var err error
+	// Strategy: Use dedicated summary model (preferred) → title model → main model
+	var responseContent string
 	var modelUsed string
 
 	currentModel := s.libService.GetLoadedChatModel()
+
+	// Use model WITHOUT tools for summary generation
+	modelWithoutTools := s.yzmaModel.WithoutTools()
 
 	// Try 1: Dedicated summary model (BEST - optimized for this task)
 	if s.summaryModelPath != "" && s.summaryModelPath != currentModel {
@@ -1893,9 +1833,13 @@ Please summarize the above conversation and retain key information. The summariz
 		if loadErr := s.libService.LoadChatModel(s.summaryModelPath); loadErr != nil {
 			log.Printf("⚠️  Failed to load summary model: %v", loadErr)
 		} else {
-			summaryModel := llama.NewLlamaEinoModel(s.libService)
-			response, err = summaryModel.Generate(ctx, summaryMessages)
-			modelUsed = "summary"
+			resp, genErr := modelWithoutTools.Generate(ctx, summaryMessages)
+			if genErr == nil {
+				responseContent = resp.Content
+				modelUsed = "summary"
+			} else {
+				log.Printf("⚠️  Summary model generation failed: %v", genErr)
+			}
 
 			// Restore main model
 			if currentModel != "" {
@@ -1907,15 +1851,19 @@ Please summarize the above conversation and retain key information. The summariz
 	}
 
 	// Try 2: Title model (GOOD - small and fast, already tested)
-	if response == nil && s.titleModelPath != "" && s.titleModelPath != currentModel {
+	if responseContent == "" && s.titleModelPath != "" && s.titleModelPath != currentModel {
 		log.Printf("📋 Falling back to title model: %s", filepath.Base(s.titleModelPath))
 
 		if loadErr := s.libService.LoadChatModel(s.titleModelPath); loadErr != nil {
 			log.Printf("⚠️  Failed to load title model: %v", loadErr)
 		} else {
-			titleModel := llama.NewLlamaEinoModel(s.libService)
-			response, err = titleModel.Generate(ctx, summaryMessages)
-			modelUsed = "title"
+			resp, genErr := modelWithoutTools.Generate(ctx, summaryMessages)
+			if genErr == nil {
+				responseContent = resp.Content
+				modelUsed = "title"
+			} else {
+				log.Printf("⚠️  Title model generation failed: %v", genErr)
+			}
 
 			// Restore main model
 			if currentModel != "" {
@@ -1925,21 +1873,20 @@ Please summarize the above conversation and retain key information. The summariz
 	}
 
 	// Try 3: Main chat model (FALLBACK - may be slow/reasoning model)
-	if response == nil {
+	if responseContent == "" {
 		log.Printf("📋 Using main chat model for summary (no dedicated model available)")
-		response, err = s.llamaModel.Generate(ctx, summaryMessages)
+		resp, err := modelWithoutTools.Generate(ctx, summaryMessages)
+		if err != nil {
+			return "", fmt.Errorf("failed to generate summary: %w", err)
+		}
+		responseContent = resp.Content
 		modelUsed = "main"
 	}
 
-	if err != nil {
-		return "", fmt.Errorf("failed to generate summary: %w", err)
-	}
-
 	// Clean up response
-	summary := strings.TrimSpace(response.Content)
+	summary := strings.TrimSpace(responseContent)
 
-	// ⚠️ CRITICAL: Strip <think> tags if present
-	// This can happen if main model is reasoning model (Qwen, DeepSeek)
+	// Strip <think> tags if present (for reasoning models)
 	if strings.Contains(summary, "<think>") {
 		log.Printf("⚠️  WARNING: Summary contains <think> tags (model: %s), stripping...", modelUsed)
 		summary = stripThinkTags(summary)
@@ -2027,21 +1974,21 @@ func (s *AgentChatService) incrementalSummarizeIfNeeded(ctx context.Context, ses
 
 	messagesToSummarize := newMessages[:len(newMessages)-keepCount]
 
-	// 9. Convert DB messages to Eino messages
-	einoMessages := make([]*schema.Message, 0, len(messagesToSummarize))
+	// 9. Convert DB messages to yzma messages
+	yzmaMessages := make([]message.Message, 0, len(messagesToSummarize))
 	for _, dbMsg := range messagesToSummarize {
-		einoMsg, err := convertDBMessageToEino(&dbMsg)
-		if err == nil {
-			einoMessages = append(einoMessages, einoMsg)
+		yzmaMsg := convertDBMessageToYzma(&dbMsg)
+		if yzmaMsg != nil {
+			yzmaMessages = append(yzmaMessages, yzmaMsg)
 		}
 	}
 
-	if len(einoMessages) == 0 {
+	if len(yzmaMessages) == 0 {
 		return // No valid messages to summarize
 	}
 
 	// 10. Generate merged summary
-	mergedSummary, err := s.generateIncrementalSummary(ctx, existingSummary, einoMessages)
+	mergedSummary, err := s.generateIncrementalSummary(ctx, existingSummary, yzmaMessages)
 	if err != nil {
 		log.Printf("❌ Incremental summary failed: %v", err)
 		return
@@ -2086,15 +2033,19 @@ func (s *AgentChatService) incrementalSummarizeIfNeeded(ctx context.Context, ses
 }
 
 // generateIncrementalSummary creates updated summary by merging existing summary with new messages
-func (s *AgentChatService) generateIncrementalSummary(ctx context.Context, existingSummary string, newMessages []*schema.Message) (string, error) {
+func (s *AgentChatService) generateIncrementalSummary(ctx context.Context, existingSummary string, newMessages []message.Message) (string, error) {
 	// Build conversation context from new messages
 	var messagesText strings.Builder
 	for i, msg := range newMessages {
 		role := "User"
-		if msg.Role == schema.Assistant {
+		if msg.GetRole() == "assistant" {
 			role = "Assistant"
 		}
-		messagesText.WriteString(fmt.Sprintf("%s: %s\n", role, msg.Content))
+		if chatMsg, ok := msg.(message.Chat); ok {
+			messagesText.WriteString(fmt.Sprintf("%s: %s\n", role, chatMsg.Content))
+		} else if toolResp, ok := msg.(message.ToolResponse); ok {
+			messagesText.WriteString(fmt.Sprintf("%s: %s\n", role, toolResp.Content))
+		}
 		if i < len(newMessages)-1 {
 			messagesText.WriteString("\n")
 		}
@@ -2123,20 +2074,19 @@ INSTRUCTIONS:
 
 UPDATED SUMMARY:`, existingSummary, messagesText.String())
 
-	// Use same 3-tier model selection as regular summary
-	summaryMessages := []*schema.Message{
-		{
-			Role:    schema.User,
-			Content: prompt,
-		},
+	// Create yzma messages for incremental summary
+	summaryMessages := []message.Message{
+		message.Chat{Role: "user", Content: prompt},
 	}
 
 	// Try 1: Summary model (BEST)
-	var response *schema.Message
-	var err error
+	var responseContent string
 	modelUsed := "unknown"
 
 	currentModel := s.libService.GetLoadedChatModel()
+
+	// Use model WITHOUT tools for summary generation
+	modelWithoutTools := s.yzmaModel.WithoutTools()
 
 	if s.summaryModelPath != "" && s.summaryModelPath != currentModel {
 		log.Printf("📋 Using dedicated summary model for incremental: %s", filepath.Base(s.summaryModelPath))
@@ -2144,9 +2094,13 @@ UPDATED SUMMARY:`, existingSummary, messagesText.String())
 		if loadErr := s.libService.LoadChatModel(s.summaryModelPath); loadErr != nil {
 			log.Printf("⚠️  Failed to load summary model: %v", loadErr)
 		} else {
-			summaryModel := llama.NewLlamaEinoModel(s.libService)
-			response, err = summaryModel.Generate(ctx, summaryMessages)
-			modelUsed = "summary"
+			resp, genErr := modelWithoutTools.Generate(ctx, summaryMessages)
+			if genErr == nil {
+				responseContent = resp.Content
+				modelUsed = "summary"
+			} else {
+				log.Printf("⚠️  Summary model generation failed: %v", genErr)
+			}
 
 			// Restore main model
 			if currentModel != "" {
@@ -2156,15 +2110,19 @@ UPDATED SUMMARY:`, existingSummary, messagesText.String())
 	}
 
 	// Try 2: Title model (GOOD)
-	if response == nil && s.titleModelPath != "" && s.titleModelPath != currentModel {
+	if responseContent == "" && s.titleModelPath != "" && s.titleModelPath != currentModel {
 		log.Printf("📋 Falling back to title model for incremental: %s", filepath.Base(s.titleModelPath))
 
 		if loadErr := s.libService.LoadChatModel(s.titleModelPath); loadErr != nil {
 			log.Printf("⚠️  Failed to load title model: %v", loadErr)
 		} else {
-			titleModel := llama.NewLlamaEinoModel(s.libService)
-			response, err = titleModel.Generate(ctx, summaryMessages)
-			modelUsed = "title"
+			resp, genErr := modelWithoutTools.Generate(ctx, summaryMessages)
+			if genErr == nil {
+				responseContent = resp.Content
+				modelUsed = "title"
+			} else {
+				log.Printf("⚠️  Title model generation failed: %v", genErr)
+			}
 
 			// Restore main model
 			if currentModel != "" {
@@ -2174,18 +2132,18 @@ UPDATED SUMMARY:`, existingSummary, messagesText.String())
 	}
 
 	// Try 3: Main chat model (FALLBACK)
-	if response == nil {
+	if responseContent == "" {
 		log.Printf("📋 Using main chat model for incremental summary")
-		response, err = s.llamaModel.Generate(ctx, summaryMessages)
+		resp, err := modelWithoutTools.Generate(ctx, summaryMessages)
+		if err != nil {
+			return "", fmt.Errorf("failed to generate incremental summary: %w", err)
+		}
+		responseContent = resp.Content
 		modelUsed = "main"
 	}
 
-	if err != nil {
-		return "", fmt.Errorf("failed to generate incremental summary: %w", err)
-	}
-
 	// Clean up response
-	summary := strings.TrimSpace(response.Content)
+	summary := strings.TrimSpace(responseContent)
 
 	// Strip <think> tags if present
 	if strings.Contains(summary, "<think>") {

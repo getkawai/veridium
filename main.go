@@ -16,7 +16,6 @@ import (
 	"github.com/kawai-network/veridium/internal/tableviewer"
 	"github.com/kawai-network/veridium/internal/tts"
 	"github.com/kawai-network/veridium/internal/whisper"
-	"github.com/kawai-network/veridium/pkg/contextengine"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 	"github.com/wailsapp/wails/v3/pkg/services/fileserver"
@@ -199,8 +198,6 @@ func main() {
 			application.NewService(vectorSearchService),
 			// File processor service - for file parsing + document storage + RAG
 			application.NewService(fileProcessorService),
-			// Context Engine service - for message context engineering
-			application.NewService(contextengine.NewContextEngineService()),
 			// Tools Engine service - for tool/plugin management
 			application.NewService(NewToolsEngineService()),
 			// Knowledge Base service - for RAG with Chromem + Eino
@@ -256,24 +253,7 @@ func main() {
 	// Initialize Llama Chat Service (OpenAI-compatible chat API)
 	// This service provides chat completion functionality using the library service
 	if libService != nil {
-		// Phase 3: Initialize integration bridges
-		// These bridge existing engines to Eino agent system
-		var contextBridge *services.ContextEngineBridge
-
-		// Initialize tools engine bridge (from existing ToolsEngineService)
-		// Note: AgentChatService now manages its own internal ToolsEngine
-		// toolsEngineService := NewToolsEngineService()
-
-		// Initialize context engine bridge (from existing context engine)
-		contextEngine := contextengine.New(contextengine.Config{
-			SystemRole:         "",
-			EnableHistoryCount: true,
-			HistoryCount:       20, // Keep last 20 messages
-		})
-		contextBridge = services.NewContextEngineBridge(contextEngine)
-		log.Printf("🔄 Context Engine Bridge initialized")
-
-		// Initialize Agent Chat Service (Eino-based agent with RAG + DB persistence + Bridges)
+		// Initialize Agent Chat Service (Yzma-based agent with RAG + DB persistence)
 		// Phase 4: Now with Thread Management integration
 		if kbService != nil {
 			agentChatService := services.NewAgentChatService(
@@ -281,16 +261,13 @@ func main() {
 				dbService,
 				libService,
 				kbService,
-				contextBridge,           // Phase 3: Context processing
 				threadManagementService, // Phase 4: Thread integration
 			)
 			app.RegisterService(application.NewService(agentChatService))
 			log.Printf("✅ Agent Chat service registered")
-			log.Printf("   Eino-based agent with RAG capabilities")
+			log.Printf("   Yzma-based agent with RAG capabilities")
 			log.Printf("   Supports: tool calling, knowledge base search, multi-turn conversations")
 			log.Printf("   Session persistence: SQLite (messages + metadata)")
-			log.Printf("   Phase 3: Tools Engine Bridge integrated")
-			log.Printf("   Phase 3: Context Engine Bridge integrated")
 			log.Printf("   Phase 4: Thread Management integrated")
 			log.Printf("   Phase 4: Auto Topic & Thread support")
 		}

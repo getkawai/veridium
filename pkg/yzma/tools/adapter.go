@@ -202,6 +202,7 @@ func parseToolCallFormat(response string) []message.ToolCall {
 }
 
 // parseXMLToolFormat parses <tool_name>...</tool_name> tags
+// Supports both <tool_name>JSON</tool_name> and <tool_name attr="value">content</tool_name> formats
 func parseXMLToolFormat(response string) []message.ToolCall {
 	var calls []message.ToolCall
 	
@@ -209,16 +210,39 @@ func parseXMLToolFormat(response string) []message.ToolCall {
 	toolNames := []string{"calculator", "web_search", "web-search", "search"}
 	
 	for _, toolName := range toolNames {
-		openTag := "<" + toolName + ">"
 		closeTag := "</" + toolName + ">"
 		
-		start := strings.Index(response, openTag)
-		end := strings.Index(response, closeTag)
-		
-		for start != -1 && end != -1 && start < end {
-			content := response[start+len(openTag):end]
+		// Find all occurrences of this tool
+		remaining := response
+		for {
+			// Find opening tag - could be <tool_name> or <tool_name attr="value">
+			openTagStart := strings.Index(remaining, "<"+toolName)
+			if openTagStart == -1 {
+				break
+			}
+			
+			// Find the end of opening tag (the closing >)
+			openTagEnd := strings.Index(remaining[openTagStart:], ">")
+			if openTagEnd == -1 {
+				break
+			}
+			openTagEnd += openTagStart
+			
+			// Extract the full opening tag to parse attributes
+			fullOpenTag := remaining[openTagStart : openTagEnd+1]
+			
+			// Find closing tag
+			end := strings.Index(remaining[openTagEnd:], closeTag)
+			if end == -1 {
+				break
+			}
+			end += openTagEnd
+			
+			// Content between tags
+			content := remaining[openTagEnd+1 : end]
 			content = strings.TrimSpace(content)
 			
+			// Try to parse as JSON first (format: <tool_name>{"name": "...", "arguments": {...}}</tool_name>)
 			var parsed struct {
 				Name      string            `json:"name"`
 				Arguments map[string]string `json:"arguments"`
@@ -232,15 +256,109 @@ func parseXMLToolFormat(response string) []message.ToolCall {
 						Arguments: parsed.Arguments,
 					},
 				})
+			} else {
+				// Try to parse attributes from opening tag (format: <tool_name query="..." max_results="5">)
+				args := parseTagAttributes(fullOpenTag, toolName)
+				
+				// If content looks like JSON, try to parse it and merge with attributes
+				if strings.HasPrefix(content, "{") {
+					var jsonArgs map[string]string
+					if err := json.Unmarshal([]byte(content), &jsonArgs); err == nil {
+						for k, v := range jsonArgs {
+							if _, exists := args[k]; !exists {
+								args[k] = v
+							}
+						}
+					}
+				} else if content != "" && len(args) == 0 {
+					// Content is plain text, use as query/expression
+					if toolName == "calculator" {
+						args["expression"] = content
+					} else {
+						args["query"] = content
+					}
+				}
+				
+				if len(args) > 0 {
+					calls = append(calls, message.ToolCall{
+						Type: "function",
+						Function: message.ToolFunction{
+							Name:      toolName,
+							Arguments: args,
+						},
+					})
+				}
 			}
 			
-			response = response[end+len(closeTag):]
-			start = strings.Index(response, openTag)
-			end = strings.Index(response, closeTag)
+			remaining = remaining[end+len(closeTag):]
 		}
 	}
 	
 	return calls
+}
+
+// parseTagAttributes extracts attributes from XML-like opening tag
+// e.g., <web_search query="AI news" max_results="5"> -> {"query": "AI news", "max_results": "5"}
+func parseTagAttributes(tag string, toolName string) map[string]string {
+	args := make(map[string]string)
+	
+	// Remove < and > and tool name
+	inner := strings.TrimPrefix(tag, "<"+toolName)
+	inner = strings.TrimSuffix(inner, ">")
+	inner = strings.TrimSpace(inner)
+	
+	if inner == "" {
+		return args
+	}
+	
+	// Parse attributes using regex-like approach
+	// Supports: attr="value" or attr='value'
+	for len(inner) > 0 {
+		inner = strings.TrimSpace(inner)
+		if inner == "" {
+			break
+		}
+		
+		// Find attribute name (until = or space)
+		eqIdx := strings.Index(inner, "=")
+		if eqIdx == -1 {
+			break
+		}
+		
+		attrName := strings.TrimSpace(inner[:eqIdx])
+		inner = inner[eqIdx+1:]
+		inner = strings.TrimSpace(inner)
+		
+		if len(inner) == 0 {
+			break
+		}
+		
+		// Find attribute value (quoted)
+		quote := inner[0]
+		if quote != '"' && quote != '\'' {
+			// Try to find space-separated value
+			spaceIdx := strings.Index(inner, " ")
+			if spaceIdx == -1 {
+				args[attrName] = inner
+				break
+			}
+			args[attrName] = inner[:spaceIdx]
+			inner = inner[spaceIdx:]
+			continue
+		}
+		
+		// Find closing quote
+		inner = inner[1:] // skip opening quote
+		closeIdx := strings.Index(inner, string(quote))
+		if closeIdx == -1 {
+			break
+		}
+		
+		args[attrName] = inner[:closeIdx]
+		inner = inner[closeIdx+1:]
+	}
+	
+	return args
 }
 
 // BuildSystemPrompt builds a system prompt with tool definitions

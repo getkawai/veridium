@@ -24,7 +24,7 @@ export function CrawlPages(req: $models.CrawlPagesRequest): $CancellablePromise<
 }
 
 /**
- * Query performs a search query using the configured provider
+ * Query performs a search query using Brave
  */
 export function Query(query: string, params: $models.SearchParams | null): $CancellablePromise<$models.UniformSearchResponse | null> {
     return $Call.ByID(2892717164, query, params).then(($result: any) => {
@@ -44,5 +44,5 @@ export function WebSearch(query: $models.SearchQuery): $CancellablePromise<$mode
 // Private type creation functions
 const $$createType0 = $models.CrawlPagesResponse.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
-const $$createType2 = $0.UniformSearchResponse.createFrom;
+const $$createType2 = $models.UniformSearchResponse.createFrom;
 const $$createType3 = $Create.Nullable($$createType2);

@@ -5,10 +5,6 @@
 // @ts-ignore: Unused imports
 import { Create as $Create } from "@wailsio/runtime";
 
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore: Unused imports
-import * as types$0 from "./providers/types/models.js";
-
 /**
  * CrawlErrorResult represents a failed crawl result
  */
@@ -183,14 +179,35 @@ export class CrawlSuccessResult {
 }
 
 /**
- * Re-export provider types for convenience
+ * SearchParams represents optional search parameters
  */
-export const SearchParams = types$0.SearchParams;
+export class SearchParams {
+    "searchCategories"?: string[];
+    "searchEngines"?: string[];
+    "searchTimeRange"?: string;
 
-/**
- * Re-export provider types for convenience
- */
-export type SearchParams = types$0.SearchParams;
+    /** Creates a new SearchParams instance. */
+    constructor($$source: Partial<SearchParams> = {}) {
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SearchParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SearchParams {
+        const $$createField0_0 = $$createType0;
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("searchCategories" in $$parsedSource) {
+            $$parsedSource["searchCategories"] = $$createField0_0($$parsedSource["searchCategories"]);
+        }
+        if ("searchEngines" in $$parsedSource) {
+            $$parsedSource["searchEngines"] = $$createField1_0($$parsedSource["searchEngines"]);
+        }
+        return new SearchParams($$parsedSource as Partial<SearchParams>);
+    }
+}
 
 /**
  * SearchQuery combines query string with search parameters
@@ -227,8 +244,101 @@ export class SearchQuery {
     }
 }
 
-export const UniformSearchResponse = types$0.UniformSearchResponse;
-export type UniformSearchResponse = types$0.UniformSearchResponse;
+/**
+ * UniformSearchResponse represents the response from a search query
+ */
+export class UniformSearchResponse {
+    /**
+     * milliseconds
+     */
+    "costTime": number;
+    "query": string;
+    "resultNumbers": number;
+    "results": UniformSearchResult[];
+
+    /** Creates a new UniformSearchResponse instance. */
+    constructor($$source: Partial<UniformSearchResponse> = {}) {
+        if (!("costTime" in $$source)) {
+            this["costTime"] = 0;
+        }
+        if (!("query" in $$source)) {
+            this["query"] = "";
+        }
+        if (!("resultNumbers" in $$source)) {
+            this["resultNumbers"] = 0;
+        }
+        if (!("results" in $$source)) {
+            this["results"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UniformSearchResponse instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UniformSearchResponse {
+        const $$createField3_0 = $$createType9;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("results" in $$parsedSource) {
+            $$parsedSource["results"] = $$createField3_0($$parsedSource["results"]);
+        }
+        return new UniformSearchResponse($$parsedSource as Partial<UniformSearchResponse>);
+    }
+}
+
+/**
+ * UniformSearchResult represents a single search result
+ */
+export class UniformSearchResult {
+    "category"?: string;
+    "content": string;
+    "engines": string[];
+    "iframeSrc"?: string;
+    "imgSrc"?: string;
+    "parsedUrl": string;
+    "publishedDate"?: string;
+    "score": number;
+    "thumbnail"?: string;
+    "title": string;
+    "url": string;
+
+    /** Creates a new UniformSearchResult instance. */
+    constructor($$source: Partial<UniformSearchResult> = {}) {
+        if (!("content" in $$source)) {
+            this["content"] = "";
+        }
+        if (!("engines" in $$source)) {
+            this["engines"] = [];
+        }
+        if (!("parsedUrl" in $$source)) {
+            this["parsedUrl"] = "";
+        }
+        if (!("score" in $$source)) {
+            this["score"] = 0;
+        }
+        if (!("title" in $$source)) {
+            this["title"] = "";
+        }
+        if (!("url" in $$source)) {
+            this["url"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UniformSearchResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UniformSearchResult {
+        const $$createField2_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("engines" in $$parsedSource) {
+            $$parsedSource["engines"] = $$createField2_0($$parsedSource["engines"]);
+        }
+        return new UniformSearchResult($$parsedSource as Partial<UniformSearchResult>);
+    }
+}
 
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);
@@ -239,3 +349,5 @@ const $$createType4 = CrawlSuccessResult.createFrom;
 const $$createType5 = $Create.Nullable($$createType4);
 const $$createType6 = CrawlErrorResult.createFrom;
 const $$createType7 = $Create.Nullable($$createType6);
+const $$createType8 = UniformSearchResult.createFrom;
+const $$createType9 = $Create.Array($$createType8);

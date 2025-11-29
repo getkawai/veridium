@@ -29,3 +29,7 @@ export {
     ThreadStatus,
     ThreadType
 } from "./models.js";
+
+export type {
+    LLMGenerator
+} from "./models.js";

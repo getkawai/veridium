@@ -98,8 +98,7 @@ func main() {
 		dbService,  // database
 		libService, // llama service
 		nil,        // kb service (nil for test)
-		nil,        // tools bridge (nil for test)
-		nil,        // context bridge (nil for test)
+		nil,        // thread service (nil for test)
 	)
 
 	// Set reasoning mode to Disabled (25 turn threshold)

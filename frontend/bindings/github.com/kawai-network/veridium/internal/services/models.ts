@@ -8,6 +8,12 @@ import { Create as $Create } from "@wailsio/runtime";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as schema$0 from "../../../../cloudwego/eino/schema/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as llama$0 from "../llama/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as message$0 from "../../pkg/yzma/message/models.js";
 
 /**
  * ChatRequest represents a chat request with agent capabilities
@@ -111,10 +117,18 @@ export class ChatResponse {
      * Content
      */
     "message": string;
-    "tool_calls"?: schema$0.ToolCall[];
+
+    /**
+     * Using yzma ToolCall
+     */
+    "tool_calls"?: message$0.ToolCall[];
     "sources"?: (schema$0.Document | null)[];
     "finish_reason": string;
-    "usage"?: schema$0.TokenUsage | null;
+
+    /**
+     * Using yzma response for token info
+     */
+    "usage"?: llama$0.YzmaResponse | null;
 
     /**
      * Metadata (Phase 4)
@@ -287,6 +301,12 @@ export class FileItem {
         return new FileItem($$parsedSource as Partial<FileItem>);
     }
 }
+
+/**
+ * LLMGenerator defines the interface for LLM generation operations
+ * This allows mocking the LLM for testing
+ */
+export type LLMGenerator = any;
 
 /**
  * ListThreadsRequest represents a request to list threads
@@ -585,11 +605,11 @@ export enum ThreadType {
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);
 const $$createType1 = $Create.Map($Create.Any, $Create.Any);
-const $$createType2 = schema$0.ToolCall.createFrom;
+const $$createType2 = message$0.ToolCall.createFrom;
 const $$createType3 = $Create.Array($$createType2);
 const $$createType4 = schema$0.Document.createFrom;
 const $$createType5 = $Create.Nullable($$createType4);
 const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = schema$0.TokenUsage.createFrom;
+const $$createType7 = llama$0.YzmaResponse.createFrom;
 const $$createType8 = $Create.Nullable($$createType7);
 const $$createType9 = $Create.Map($Create.Any, $Create.Any);

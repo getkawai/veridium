@@ -6,7 +6,7 @@
 import { UIChatMessage } from '@/types';
 
 // Import generated Wails bindings
-import * as ContextEngineService from '@@/github.com/kawai-network/veridium/pkg/contextengine/contextengineservice';
+// import * as ContextEngineService from '@@/github.com/kawai-network/veridium/pkg/contextengine/contextengineservice';
 import type {
   ContextEngineeringRequest as BackendRequest,
   ContextEngineeringResponse as BackendResponse,

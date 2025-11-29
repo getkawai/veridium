@@ -85,6 +85,47 @@ class SimpleToolsEngine {
 
     return tools;
   }
+
+  /**
+   * Generate tools with detailed information including enabled tool IDs
+   * @returns Object containing tools array and enabledToolIds array
+   */
+  generateToolsDetailed(params: {
+    model: string;
+    provider: string;
+    toolIds: string[];
+  }): { tools: ChatCompletionTool[]; enabledToolIds: string[] } {
+    const { model, provider, toolIds } = params;
+
+    if (!this.functionCallChecker(model, provider)) {
+      return { tools: [], enabledToolIds: [] };
+    }
+
+    const allToolIds = [...toolIds, ...(this.defaultToolIds || [])];
+    const tools: ChatCompletionTool[] = [];
+    const enabledToolIds: string[] = [];
+
+    for (const manifest of this.manifests) {
+      if (!allToolIds.includes(manifest.identifier)) continue;
+      if (this.enableChecker && !this.enableChecker({ pluginId: manifest.identifier })) continue;
+
+      // Add to enabled tool IDs
+      enabledToolIds.push(manifest.identifier);
+
+      for (const api of manifest.api || []) {
+        tools.push({
+          type: 'function',
+          function: {
+            name: `${manifest.identifier}____${api.name}`,
+            description: api.description || '',
+            parameters: api.parameters as any,
+          },
+        });
+      }
+    }
+
+    return { tools, enabledToolIds };
+  }
 }
 
 /**

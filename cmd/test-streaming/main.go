@@ -52,7 +52,7 @@ func main() {
 	})
 
 	// Create agent chat service
-	agentService := services.NewAgentChatService(app, dbService, libService, nil, nil, nil)
+	agentService := services.NewAgentChatService(app, dbService, libService, nil, nil)
 
 	// Test streaming
 	ctx := context.Background()

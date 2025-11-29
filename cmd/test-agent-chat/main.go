@@ -71,7 +71,6 @@ func main() {
 		dbService,
 		libService,
 		nil, // kbService
-		nil, // contextBridge
 		nil, // threadService
 	)
 

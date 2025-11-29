@@ -3,7 +3,7 @@
 
 /**
  * AgentChatService provides agent-based chat with RAG, tools, and context awareness
- * This replaces/complements the existing LibraryChatService with Eino-based capabilities
+ * This replaces/complements the existing LibraryChatService with Yzma-based capabilities
  * @module
  */
 
@@ -13,7 +13,7 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as schema$0 from "../../../../cloudwego/eino/schema/models.js";
+import * as message$0 from "../../pkg/yzma/message/models.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -33,6 +33,13 @@ export function Chat(req: $models.ChatRequest): $CancellablePromise<$models.Chat
  */
 export function ClearSession(sessionID: string): $CancellablePromise<void> {
     return $Call.ByID(3298569262, sessionID);
+}
+
+/**
+ * GetLLMGenerator returns the current LLM generator
+ */
+export function GetLLMGenerator(): $CancellablePromise<$models.LLMGenerator> {
+    return $Call.ByID(1599155355);
 }
 
 /**
@@ -59,12 +66,19 @@ export function GetRecommendedModelForMode(): $CancellablePromise<string> {
 }
 
 /**
- * GetSessionHistory returns the message history for a session
+ * GetSessionHistory returns the message history for a session (native yzma format)
  */
-export function GetSessionHistory(sessionID: string): $CancellablePromise<(schema$0.Message | null)[]> {
+export function GetSessionHistory(sessionID: string): $CancellablePromise<message$0.Message[]> {
     return $Call.ByID(396946379, sessionID).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType3($result);
     });
+}
+
+/**
+ * SetLLMGenerator sets a custom LLM generator (useful for testing with mocks)
+ */
+export function SetLLMGenerator(generator: $models.LLMGenerator): $CancellablePromise<void> {
+    return $Call.ByID(3521022399, generator);
 }
 
 /**
@@ -103,6 +117,4 @@ export function ValidateModelForReasoningMode(): $CancellablePromise<void> {
 const $$createType0 = $models.ChatResponse.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
 const $$createType2 = $models.ReasoningConfig.createFrom;
-const $$createType3 = schema$0.Message.createFrom;
-const $$createType4 = $Create.Nullable($$createType3);
-const $$createType5 = $Create.Array($$createType4);
+const $$createType3 = $Create.Array($Create.Any);
