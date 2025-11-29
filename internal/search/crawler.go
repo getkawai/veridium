@@ -241,9 +241,16 @@ func extractTextContent(n *html.Node) string {
 
 // extractWebsite extracts the website hostname from URL
 func extractWebsite(urlStr string) string {
+	if urlStr == "" {
+		return ""
+	}
 	u, err := url.Parse(urlStr)
 	if err != nil {
 		return urlStr
 	}
-	return u.Hostname()
+	hostname := u.Hostname()
+	if hostname == "" {
+		return urlStr
+	}
+	return hostname
 }

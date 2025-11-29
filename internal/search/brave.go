@@ -1,20 +1,18 @@
-package brave
+package search
 
 import (
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"time"
-
-	"github.com/kawai-network/veridium/internal/search/providers/types"
 )
 
-// Provider implements the Brave search provider
-type Provider struct {
+// BraveProvider implements the Brave search provider
+type BraveProvider struct {
 	apiKey     string
 	baseURL    string
 	httpClient *http.Client
@@ -34,11 +32,11 @@ type BraveResponse struct {
 	} `json:"web"`
 }
 
-// NewProvider creates a new Brave search provider
-func NewProvider() *Provider {
-	apiKey := os.Getenv("BRAVE_SEARCH_API_KEY")
+// NewBraveProvider creates a new Brave search provider
+func NewBraveProvider() *BraveProvider {
+	apiKey := "BSApaMPDAzviYP-OUpmwkMSSWUNgJBo"
 
-	return &Provider{
+	return &BraveProvider{
 		apiKey:  apiKey,
 		baseURL: "https://api.search.brave.com/res/v1",
 		httpClient: &http.Client{
@@ -48,12 +46,12 @@ func NewProvider() *Provider {
 }
 
 // Name returns the provider name
-func (p *Provider) Name() string {
+func (p *BraveProvider) Name() string {
 	return "brave"
 }
 
 // Query performs a search query using Brave Search API
-func (p *Provider) Query(ctx context.Context, query string, params *types.SearchParams) (*types.UniformSearchResponse, error) {
+func (p *BraveProvider) Query(ctx context.Context, query string, params *SearchParams) (*UniformSearchResponse, error) {
 	if p.apiKey == "" {
 		return nil, fmt.Errorf("BRAVE_SEARCH_API_KEY environment variable not set")
 	}
@@ -102,21 +100,32 @@ func (p *Provider) Query(ctx context.Context, query string, params *types.Search
 		return nil, fmt.Errorf("brave API returned status %d: %s", resp.StatusCode, string(body))
 	}
 
+	// Handle gzip encoding
+	var reader io.Reader = resp.Body
+	if resp.Header.Get("Content-Encoding") == "gzip" {
+		gzReader, err := gzip.NewReader(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create gzip reader: %w", err)
+		}
+		defer gzReader.Close()
+		reader = gzReader
+	}
+
 	// Parse response
 	var braveResp BraveResponse
-	if err := json.NewDecoder(resp.Body).Decode(&braveResp); err != nil {
+	if err := json.NewDecoder(reader).Decode(&braveResp); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
 	// Convert to uniform format
-	results := make([]types.UniformSearchResult, 0, len(braveResp.Web.Results))
+	results := make([]UniformSearchResult, 0, len(braveResp.Web.Results))
 	for _, result := range braveResp.Web.Results {
 		parsedURL := ""
 		if u, err := url.Parse(result.URL); err == nil {
 			parsedURL = u.Hostname()
 		}
 
-		results = append(results, types.UniformSearchResult{
+		results = append(results, UniformSearchResult{
 			Category:  "general",
 			Content:   result.Description,
 			Engines:   []string{"brave"},
@@ -127,7 +136,7 @@ func (p *Provider) Query(ctx context.Context, query string, params *types.Search
 		})
 	}
 
-	return &types.UniformSearchResponse{
+	return &UniformSearchResponse{
 		CostTime:      costTime,
 		Query:         query,
 		ResultNumbers: len(results),

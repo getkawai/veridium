@@ -2,43 +2,35 @@ package search
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"strings"
-	"sync"
-
-	"github.com/kawai-network/veridium/internal/search/providers/brave"
-	"github.com/kawai-network/veridium/internal/search/providers/searxng"
-	"github.com/kawai-network/veridium/internal/search/providers/tavily"
 )
 
 // Service provides search and crawl functionality
 type Service struct {
-	provider Provider
-	crawler  *Crawler
-	mu       sync.RWMutex
+	braveProvider *BraveProvider
+	crawler       *Crawler
 }
 
 // NewService creates a new search service
 func NewService() *Service {
-	// Get provider from environment or use default
-	providerType := getProviderFromEnv()
-	provider := createProvider(providerType)
+	// Create Brave provider
+	braveProvider := NewBraveProvider()
 
 	// Get crawler implementations from environment
 	crawlerImpls := getCrawlerImplsFromEnv()
 	crawler := NewCrawler(crawlerImpls)
 
 	return &Service{
-		provider: provider,
-		crawler:  crawler,
+		braveProvider: braveProvider,
+		crawler:       crawler,
 	}
 }
 
-// Query performs a search query using the configured provider
+// Query performs a search query using Brave
 func (s *Service) Query(query string, params *SearchParams) (*UniformSearchResponse, error) {
 	ctx := context.Background()
-	return s.provider.Query(ctx, query, params)
+	return s.braveProvider.Query(ctx, query, params)
 }
 
 // WebSearch performs a web search with retry logic
@@ -85,29 +77,6 @@ func (s *Service) CrawlPages(req CrawlPagesRequest) (*CrawlPagesResponse, error)
 	return &CrawlPagesResponse{Results: results}, nil
 }
 
-// getProviderFromEnv reads the search provider from environment variables
-func getProviderFromEnv() ProviderType {
-	envStr := os.Getenv("SEARCH_PROVIDERS")
-	if envStr == "" {
-		return ProviderSearXNG // default
-	}
-
-	// Parse comma-separated list and get first provider
-	providers := strings.Split(strings.ReplaceAll(envStr, "，", ","), ",")
-	if len(providers) > 0 {
-		switch strings.TrimSpace(providers[0]) {
-		case "brave":
-			return ProviderBrave
-		case "tavily":
-			return ProviderTavily
-		case "searxng":
-			return ProviderSearXNG
-		}
-	}
-
-	return ProviderSearXNG
-}
-
 // getCrawlerImplsFromEnv reads crawler implementations from environment
 func getCrawlerImplsFromEnv() []CrawlImplType {
 	envStr := os.Getenv("CRAWLER_IMPLS")
@@ -130,20 +99,4 @@ func getCrawlerImplsFromEnv() []CrawlImplType {
 	}
 
 	return impls
-}
-
-// createProvider creates a provider instance based on the type
-func createProvider(providerType ProviderType) Provider {
-	switch providerType {
-	case ProviderBrave:
-		return brave.NewProvider()
-	case ProviderTavily:
-		return tavily.NewProvider()
-	case ProviderSearXNG:
-		return searxng.NewProvider()
-	default:
-		// Fallback to SearXNG
-		fmt.Printf("Unknown provider type: %s, falling back to SearXNG\n", providerType)
-		return searxng.NewProvider()
-	}
 }
