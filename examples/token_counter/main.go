@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/hybridgroup/yzma/pkg/llama"
+	"github.com/kawai-network/veridium/pkg/yzma/llama"
 )
 
 func main() {
@@ -15,7 +15,7 @@ func main() {
 	}
 
 	modelPath := os.Args[1]
-	
+
 	// Load model
 	mparams := llama.ModelDefaultParams()
 	mparams.NGpuLayers = 35 // Enable GPU layers if available
@@ -28,7 +28,7 @@ func main() {
 	defer llama.ModelFree(model)
 
 	vocab := llama.ModelGetVocab(model)
-	
+
 	fmt.Printf("=== YZMA TOKEN COUNTER ===\n")
 	fmt.Printf("Model: %s\n", modelPath)
 	fmt.Printf("Vocab Size: %d tokens\n", llama.VocabNTokens(vocab))
@@ -48,15 +48,15 @@ func main() {
 func countTokens(vocab llama.Vocab, text, label string) {
 	// Tokenize with special tokens
 	tokensWithSpecial := llama.Tokenize(vocab, text, true, true)
-	
-	// Tokenize without special tokens  
+
+	// Tokenize without special tokens
 	tokensWithoutSpecial := llama.Tokenize(vocab, text, false, false)
-	
+
 	fmt.Printf("=== %s ===\n", label)
 	fmt.Printf("Text: \"%s\"\n", text)
 	fmt.Printf("With special tokens: %d tokens\n", len(tokensWithSpecial))
 	fmt.Printf("Without special tokens: %d tokens\n", len(tokensWithoutSpecial))
-	
+
 	if len(tokensWithSpecial) <= 10 {
 		fmt.Printf("Tokens: ")
 		for i, token := range tokensWithSpecial {
@@ -86,27 +86,27 @@ func showTokenExamples(vocab llama.Vocab) {
 	}
 
 	fmt.Println("=== TOKEN COUNTING EXAMPLES ===\n")
-	
+
 	for i, text := range examples {
 		if text == "" {
 			fmt.Printf("Example %d: [Empty String]\n", i+1)
 		} else {
 			fmt.Printf("Example %d: \"%s\"\n", i+1, text)
 		}
-		
+
 		tokensWithSpecial := llama.Tokenize(vocab, text, true, true)
 		tokensWithoutSpecial := llama.Tokenize(vocab, text, false, false)
-		
+
 		// Count characters
 		charCount := len(text)
-		
+
 		fmt.Printf("  Characters: %d\n", charCount)
 		fmt.Printf("  Tokens (with special): %d\n", len(tokensWithSpecial))
 		fmt.Printf("  Tokens (without special): %d\n", len(tokensWithoutSpecial))
 		fmt.Printf("  Characters per token (with special): %.2f\n", float64(charCount)/float64(len(tokensWithSpecial)))
 		fmt.Println()
 	}
-	
+
 	fmt.Println("=== SPECIAL TOKENS ===")
 	fmt.Printf("BOS (Beginning of Sentence): %d\n", llama.VocabBOS(vocab))
 	fmt.Printf("EOS (End of Sentence): %d\n", llama.VocabEOS(vocab))

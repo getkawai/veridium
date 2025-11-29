@@ -152,7 +152,11 @@ func (r *ToolRegistry) FormatForPrompt(toolNames []string) (string, error) {
 }
 
 // ParseToolCalls parses tool calls from LLM response
-// Supports both <tool_call> and <tool_name> formats
+// Supports multiple formats:
+// 1. <tool_call>{"name": "...", "arguments": {...}}</tool_call>
+// 2. <tool_name>JSON</tool_name> or <tool_name attr="value">content</tool_name>
+// 3. <tool_name {JSON}> or <tool_name {"key": "value"}> (no closing tag)
+// 4. {"name": "tool_name", "parameters": {...}} (pure JSON format)
 func ParseToolCalls(response string) []message.ToolCall {
 	var calls []message.ToolCall
 	
@@ -162,8 +166,195 @@ func ParseToolCalls(response string) []message.ToolCall {
 		return calls
 	}
 	
-	// Try format 2: <tool_name>{"name": "...", "arguments": {...}}</tool_name>
+	// Try format 2: <tool_name>...</tool_name> with closing tag
 	calls = parseXMLToolFormat(response)
+	if len(calls) > 0 {
+		return calls
+	}
+	
+	// Try format 3: <tool_name {JSON}> without closing tag
+	calls = parseInlineJSONToolFormat(response)
+	if len(calls) > 0 {
+		return calls
+	}
+	
+	// Try format 4: {"name": "tool_name", "parameters": {...}} pure JSON
+	calls = parsePureJSONToolFormat(response)
+	return calls
+}
+
+// parsePureJSONToolFormat parses pure JSON tool call format
+// Example: {"name": "web_search", "parameters": {"query": "AI news"}}
+func parsePureJSONToolFormat(response string) []message.ToolCall {
+	var calls []message.ToolCall
+	
+	// Known tool names
+	toolNames := []string{"calculator", "web_search", "web-search", "search"}
+	
+	// Try to find and parse JSON objects
+	remaining := strings.TrimSpace(response)
+	
+	// Check if the entire response is a JSON object
+	if strings.HasPrefix(remaining, "{") {
+		// Find matching closing brace
+		braceCount := 0
+		jsonEnd := -1
+		for i, ch := range remaining {
+			if ch == '{' {
+				braceCount++
+			} else if ch == '}' {
+				braceCount--
+				if braceCount == 0 {
+					jsonEnd = i + 1
+					break
+				}
+			}
+		}
+		
+		if jsonEnd > 0 {
+			jsonContent := remaining[:jsonEnd]
+			
+			// Try parsing as tool call with "name" and "parameters"/"arguments"
+			var toolCall struct {
+				Name       string                 `json:"name"`
+				Parameters map[string]interface{} `json:"parameters"`
+				Arguments  map[string]interface{} `json:"arguments"`
+			}
+			
+			if err := json.Unmarshal([]byte(jsonContent), &toolCall); err == nil {
+				// Check if it's a known tool
+				isKnownTool := false
+				for _, tn := range toolNames {
+					if toolCall.Name == tn {
+						isKnownTool = true
+						break
+					}
+				}
+				
+				if isKnownTool && toolCall.Name != "" {
+					// Use parameters or arguments
+					params := toolCall.Parameters
+					if params == nil {
+						params = toolCall.Arguments
+					}
+					
+					// Convert to map[string]string
+					args := make(map[string]string)
+					for k, v := range params {
+						switch val := v.(type) {
+						case string:
+							args[k] = val
+						case float64:
+							args[k] = fmt.Sprintf("%v", val)
+						case int:
+							args[k] = fmt.Sprintf("%d", val)
+						default:
+							args[k] = fmt.Sprintf("%v", val)
+						}
+					}
+					
+					if len(args) > 0 {
+						calls = append(calls, message.ToolCall{
+							Type: "function",
+							Function: message.ToolFunction{
+								Name:      toolCall.Name,
+								Arguments: args,
+							},
+						})
+					}
+				}
+			}
+		}
+	}
+	
+	return calls
+}
+
+// parseInlineJSONToolFormat parses <tool_name {JSON}> format (no closing tag)
+// Example: <web_search { "query": "AI news", "max_results": 10 }>
+func parseInlineJSONToolFormat(response string) []message.ToolCall {
+	var calls []message.ToolCall
+	
+	toolNames := []string{"calculator", "web_search", "web-search", "search"}
+	
+	for _, toolName := range toolNames {
+		remaining := response
+		for {
+			// Find opening tag
+			openTagStart := strings.Index(remaining, "<"+toolName)
+			if openTagStart == -1 {
+				break
+			}
+			
+			// Find the JSON object after tool name
+			afterToolName := remaining[openTagStart+len("<"+toolName):]
+			afterToolName = strings.TrimSpace(afterToolName)
+			
+			// Check if it starts with { (JSON object)
+			if !strings.HasPrefix(afterToolName, "{") {
+				remaining = remaining[openTagStart+1:]
+				continue
+			}
+			
+			// Find the end of JSON object - match braces
+			jsonStart := 0
+			braceCount := 0
+			jsonEnd := -1
+			
+			for i, ch := range afterToolName {
+				if ch == '{' {
+					braceCount++
+				} else if ch == '}' {
+					braceCount--
+					if braceCount == 0 {
+						jsonEnd = i + 1
+						break
+					}
+				}
+			}
+			
+			if jsonEnd == -1 {
+				remaining = remaining[openTagStart+1:]
+				continue
+			}
+			
+			jsonContent := afterToolName[jsonStart:jsonEnd]
+			
+			// Parse JSON - try different argument formats
+			var args map[string]string
+			
+			// Try parsing as map[string]interface{} first (handles numbers)
+			var rawArgs map[string]interface{}
+			if err := json.Unmarshal([]byte(jsonContent), &rawArgs); err == nil {
+				args = make(map[string]string)
+				for k, v := range rawArgs {
+					switch val := v.(type) {
+					case string:
+						args[k] = val
+					case float64:
+						args[k] = fmt.Sprintf("%v", val)
+					case int:
+						args[k] = fmt.Sprintf("%d", val)
+					default:
+						args[k] = fmt.Sprintf("%v", val)
+					}
+				}
+			}
+			
+			if len(args) > 0 {
+				calls = append(calls, message.ToolCall{
+					Type: "function",
+					Function: message.ToolFunction{
+						Name:      toolName,
+						Arguments: args,
+					},
+				})
+			}
+			
+			remaining = remaining[openTagStart+len("<"+toolName)+jsonEnd:]
+		}
+	}
+	
 	return calls
 }
 
@@ -369,15 +560,35 @@ func BuildSystemPrompt(basePrompt string, toolsJSON string) string {
 	
 	return fmt.Sprintf(`%s
 
+# Available Tools
+
 You have access to the following tools:
 
 %s
 
-When you need to use a tool, respond with a tool call in the following format:
+# Tool Usage Instructions
+
+IMPORTANT: When you need to use a tool, you MUST use EXACTLY this format:
+
 <tool_call>
-{"name": "function_name", "arguments": {"arg1": "value1", "arg2": "value2"}}
+{"name": "TOOL_NAME", "arguments": {"param1": "value1", "param2": "value2"}}
 </tool_call>
 
-After receiving tool results, provide a final answer to the user.`, basePrompt, toolsJSON)
+Example for web_search:
+<tool_call>
+{"name": "web_search", "arguments": {"query": "latest AI news", "max_results": "5"}}
+</tool_call>
+
+Example for calculator:
+<tool_call>
+{"name": "calculator", "arguments": {"expression": "2 + 2 * 3"}}
+</tool_call>
+
+Rules:
+1. ALWAYS use <tool_call> tags - other formats will NOT work
+2. Use "arguments" (not "parameters") for the parameter object
+3. All argument values must be strings (e.g., "5" not 5)
+4. Wait for tool results before providing your final answer
+5. After receiving results, synthesize them into a helpful response`, basePrompt, toolsJSON)
 }
 
