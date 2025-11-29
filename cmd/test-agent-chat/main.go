@@ -10,10 +10,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Knetic/govaluate"
+	"github.com/cloudwego/eino/schema"
 	"github.com/google/uuid"
 	"github.com/kawai-network/veridium/internal/database"
 	"github.com/kawai-network/veridium/internal/llama"
 	"github.com/kawai-network/veridium/internal/services"
+	"github.com/kawai-network/veridium/pkg/toolsengine"
 )
 
 func main() {
@@ -41,20 +44,14 @@ func main() {
 		log.Fatalf("Failed to initialize library: %v", err)
 	}
 
-	// Load a model (optional but good for real testing)
-	// We'll try to find a model or let the service handle it?
-	// AgentChatService uses LlamaEinoModel which needs a loaded model in libService?
-	// Actually LlamaEinoModel uses libService.
-	// We should probably load a model if we want it to work.
+	// Load a model
 	homeDir, _ := os.UserHomeDir()
 	modelsDir := filepath.Join(homeDir, ".llama-cpp", "models")
-	// Try to find a model
 	modelPath := ""
 	entries, _ := os.ReadDir(modelsDir)
 	for _, entry := range entries {
 		if strings.HasSuffix(entry.Name(), ".gguf") {
 			modelPath = filepath.Join(modelsDir, entry.Name())
-			// Prefer Qwen or Llama
 			if strings.Contains(strings.ToLower(entry.Name()), "qwen") || strings.Contains(strings.ToLower(entry.Name()), "llama") {
 				break
 			}
@@ -70,20 +67,65 @@ func main() {
 		fmt.Println("Warning: No model found in .llama-cpp/models")
 	}
 
-	// 3. Initialize AgentChatService
-	// We pass nil for optional services for now
+	// 3. Initialize Tools Engine & Calculator Tool
+	fmt.Println("Initializing Tools Engine...")
+	toolsEngine, err := toolsengine.NewToolsEngine(toolsengine.Config{})
+	if err != nil {
+		log.Fatalf("Failed to create tools engine: %v", err)
+	}
+
+	// Create Calculator Tool
+	calcExecutor := func(ctx context.Context, args map[string]interface{}) (interface{}, error) {
+		expression, ok := args["expression"].(string)
+		if !ok {
+			return nil, fmt.Errorf("expression argument is required")
+		}
+
+		fmt.Printf("🧮 Calculator Tool Invoked: %s\n", expression)
+
+		expr, err := govaluate.NewEvaluableExpression(expression)
+		if err != nil {
+			return nil, fmt.Errorf("invalid expression: %w", err)
+		}
+
+		result, err := expr.Evaluate(nil)
+		if err != nil {
+			return nil, fmt.Errorf("evaluation failed: %w", err)
+		}
+
+		return fmt.Sprintf("%v", result), nil
+	}
+
+	calcTool, err := toolsengine.NewToolBuilder("calculator", "Calculator").
+		WithDescription("Useful for performing mathematical calculations. Input should be a mathematical expression string.").
+		WithParameter("expression", schema.String, "The mathematical expression to evaluate (e.g. '2 + 2', '3 * 4')", true).
+		WithExecutor(calcExecutor).
+		WithCategory("utility").
+		Build()
+
+	if err != nil {
+		log.Fatalf("Failed to build calculator tool: %v", err)
+	}
+
+	if err := toolsEngine.RegisterTool(calcTool); err != nil {
+		log.Fatalf("Failed to register calculator tool: %v", err)
+	}
+
+	toolsBridge := services.NewToolsEngineBridge(toolsEngine)
+
+	// 4. Initialize AgentChatService
 	fmt.Println("Creating AgentChatService...")
 	agentService := services.NewAgentChatService(
 		nil, // app
 		dbService,
 		libService,
-		nil, // kbService
-		nil, // toolsBridge
-		nil, // contextBridge
-		nil, // threadService
+		nil,         // kbService
+		toolsBridge, // toolsBridge
+		nil,         // contextBridge
+		nil,         // threadService
 	)
 
-	// 4. Start Chat Loop
+	// 5. Start Chat Loop
 	reader := bufio.NewReader(os.Stdin)
 	sessionID := uuid.New().String()
 	userID := "DEFAULT_LOBE_CHAT_USER"
@@ -110,19 +152,9 @@ func main() {
 			SessionID: sessionID,
 			UserID:    userID,
 			Message:   input,
-			Stream:    true, // Enable streaming to test that path (though we won't see real-time stream in this simple CLI without callback)
-			// Actually, if we pass Stream: true, the service might try to emit events to `app`.
-			// Since `app` is nil, we should check if that causes panic.
-			// The code checks `if req.Stream && s.app != nil`. So it should be safe.
-			// But if app is nil, it falls back to non-streaming or just returns the full response?
-			// Let's check the code:
-			// if req.Stream && s.app != nil { ... } else { ... }
-			// So if app is nil, it goes to else block (standard Eino agent).
+			Stream:    false,
+			Tools:     []string{"calculator"}, // Enable calculator tool
 		}
-
-		// If we want to test streaming logic, we need to mock app or just test non-streaming.
-		// Let's test non-streaming first to be safe, or let it fall back.
-		req.Stream = false
 
 		fmt.Print("Agent: ")
 		startTime := time.Now()
@@ -136,6 +168,13 @@ func main() {
 
 		fmt.Printf("%s\n", resp.Message)
 		fmt.Printf("(Took %v)\n", duration)
+
+		if len(resp.ToolCalls) > 0 {
+			fmt.Printf("[Tool Calls: %d]\n", len(resp.ToolCalls))
+			for _, tc := range resp.ToolCalls {
+				fmt.Printf("  - %s(%s)\n", tc.Function.Name, tc.Function.Arguments)
+			}
+		}
 
 		if resp.TopicID != "" {
 			fmt.Printf("[Topic: %s]\n", resp.TopicID)
