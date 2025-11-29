@@ -37,6 +37,8 @@ import (
 	"github.com/kawai-network/veridium/internal/database"
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/internal/llama"
+	"github.com/kawai-network/veridium/pkg/toolsengine"
+	"github.com/kawai-network/veridium/pkg/toolsengine/builtin"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -131,18 +133,35 @@ type ChatResponse struct {
 }
 
 // NewAgentChatService creates a new agent-based chat service
-// Set toolsBridge, contextBridge, and/or threadService to nil to disable those features
+// Set contextBridge and/or threadService to nil to disable those features
 func NewAgentChatService(
 	app *application.App,
 	db *database.Service,
 	libService *llama.LibraryService,
 	kbService *KnowledgeBaseService,
-	toolsBridge *ToolsEngineBridge,
 	contextBridge *ContextEngineBridge,
 	threadService *ThreadManagementService,
 ) *AgentChatService {
 	llamaModel := llama.NewLlamaEinoModel(libService)
 	ragWorkflow := NewRAGWorkflow(kbService)
+
+	// Initialize Tools Engine & Register Builtin Tools
+	toolsEngine, err := toolsengine.NewToolsEngine(toolsengine.Config{})
+	if err != nil {
+		log.Printf("⚠️  Warning: Failed to initialize internal ToolsEngine: %v", err)
+	} else {
+		if err := builtin.RegisterAllBuiltinTools(toolsEngine); err != nil {
+			log.Printf("⚠️  Warning: Failed to register builtin tools: %v", err)
+		} else {
+			log.Printf("✅ AgentChatService: Builtin tools registered")
+		}
+	}
+
+	// Create bridge
+	var toolsBridge *ToolsEngineBridge
+	if toolsEngine != nil {
+		toolsBridge = NewToolsEngineBridge(toolsEngine)
+	}
 
 	// Auto-detect utility models for lightweight tasks
 	titleModelPath := detectTitleGenerationModel(libService)

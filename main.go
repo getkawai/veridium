@@ -261,15 +261,11 @@ func main() {
 	if libService != nil {
 		// Phase 3: Initialize integration bridges
 		// These bridge existing engines to Eino agent system
-		var toolsBridge *services.ToolsEngineBridge
 		var contextBridge *services.ContextEngineBridge
 
 		// Initialize tools engine bridge (from existing ToolsEngineService)
-		toolsEngineService := NewToolsEngineService()
-		if toolsEngineService.engine != nil {
-			toolsBridge = services.NewToolsEngineBridge(toolsEngineService.engine)
-			log.Printf("🔧 Tools Engine Bridge initialized")
-		}
+		// Note: AgentChatService now manages its own internal ToolsEngine
+		// toolsEngineService := NewToolsEngineService()
 
 		// Initialize context engine bridge (from existing context engine)
 		contextEngine := contextengine.New(contextengine.Config{
@@ -288,7 +284,6 @@ func main() {
 				dbService,
 				libService,
 				kbService,
-				toolsBridge,             // Phase 3: Tools integration
 				contextBridge,           // Phase 3: Context processing
 				threadManagementService, // Phase 4: Thread integration
 			)

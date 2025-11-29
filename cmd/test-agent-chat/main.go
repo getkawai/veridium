@@ -10,13 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Knetic/govaluate"
-	"github.com/cloudwego/eino/schema"
 	"github.com/google/uuid"
 	"github.com/kawai-network/veridium/internal/database"
 	"github.com/kawai-network/veridium/internal/llama"
 	"github.com/kawai-network/veridium/internal/services"
-	"github.com/kawai-network/veridium/pkg/toolsengine"
 )
 
 func main() {
@@ -67,62 +64,15 @@ func main() {
 		fmt.Println("Warning: No model found in .llama-cpp/models")
 	}
 
-	// 3. Initialize Tools Engine & Calculator Tool
-	fmt.Println("Initializing Tools Engine...")
-	toolsEngine, err := toolsengine.NewToolsEngine(toolsengine.Config{})
-	if err != nil {
-		log.Fatalf("Failed to create tools engine: %v", err)
-	}
-
-	// Create Calculator Tool
-	calcExecutor := func(ctx context.Context, args map[string]interface{}) (interface{}, error) {
-		expression, ok := args["expression"].(string)
-		if !ok {
-			return nil, fmt.Errorf("expression argument is required")
-		}
-
-		fmt.Printf("🧮 Calculator Tool Invoked: %s\n", expression)
-
-		expr, err := govaluate.NewEvaluableExpression(expression)
-		if err != nil {
-			return nil, fmt.Errorf("invalid expression: %w", err)
-		}
-
-		result, err := expr.Evaluate(nil)
-		if err != nil {
-			return nil, fmt.Errorf("evaluation failed: %w", err)
-		}
-
-		return fmt.Sprintf("%v", result), nil
-	}
-
-	calcTool, err := toolsengine.NewToolBuilder("calculator", "Calculator").
-		WithDescription("Useful for performing mathematical calculations. Input should be a mathematical expression string.").
-		WithParameter("expression", schema.String, "The mathematical expression to evaluate (e.g. '2 + 2', '3 * 4')", true).
-		WithExecutor(calcExecutor).
-		WithCategory("utility").
-		Build()
-
-	if err != nil {
-		log.Fatalf("Failed to build calculator tool: %v", err)
-	}
-
-	if err := toolsEngine.RegisterTool(calcTool); err != nil {
-		log.Fatalf("Failed to register calculator tool: %v", err)
-	}
-
-	toolsBridge := services.NewToolsEngineBridge(toolsEngine)
-
-	// 4. Initialize AgentChatService
+	// 3. Initialize AgentChatService
 	fmt.Println("Creating AgentChatService...")
 	agentService := services.NewAgentChatService(
 		nil, // app
 		dbService,
 		libService,
-		nil,         // kbService
-		toolsBridge, // toolsBridge
-		nil,         // contextBridge
-		nil,         // threadService
+		nil, // kbService
+		nil, // contextBridge
+		nil, // threadService
 	)
 
 	// 5. Start Chat Loop
@@ -153,7 +103,7 @@ func main() {
 			UserID:    userID,
 			Message:   input,
 			Stream:    false,
-			Tools:     []string{"calculator"}, // Enable calculator tool
+			Tools:     []string{"web-search"}, // Enable search tool (calculator removed)
 		}
 
 		fmt.Print("Agent: ")
