@@ -1,6 +1,6 @@
 module github.com/kawai-network/veridium
 
-go 1.24.1
+go 1.24.4
 
 toolchain go1.24.5
 
@@ -13,6 +13,7 @@ require (
 	github.com/ebitengine/purego v0.9.1
 	github.com/google/uuid v1.6.0
 	github.com/jupiterrider/ffi v0.5.1
+	github.com/nikolalohinski/gonja/v2 v2.4.2
 	github.com/pemistahl/lingua-go v1.4.0
 	github.com/samber/lo v1.49.1
 	github.com/ssor/bom v0.0.0-20170718123548-6386211fdfcf
