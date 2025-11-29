@@ -6,7 +6,7 @@ import { StateCreator } from 'zustand/vanilla';
 // import { searchService } from '@/server/services/search';
 import { chatSelectors } from '../../message/selectors';
 import { ChatStore } from '@/store/chat/store';
-import { WebBrowsingExecutionRuntime } from '@/tools/web-browsing/ExecutionRuntime';
+// import { WebBrowsingExecutionRuntime } from '@/tools/web-browsing/ExecutionRuntime';
 
 export interface SearchAction {
   crawlMultiPages: (
@@ -34,7 +34,7 @@ export interface SearchAction {
   ) => Promise<void>;
 }
 
-const runtime = new WebBrowsingExecutionRuntime({ searchService });
+// const runtime = new WebBrowsingExecutionRuntime({ searchService });
 
 export const searchSlice: StateCreator<
   ChatStore,
