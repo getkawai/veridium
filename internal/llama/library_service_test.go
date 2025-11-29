@@ -189,49 +189,6 @@ func TestEmbeddingModelLoading(t *testing.T) {
 	t.Logf("Loaded embedding model: %s", filepath.Base(service.GetLoadedEmbeddingModel()))
 }
 
-// TestEmbeddingGeneration tests embedding generation
-func TestEmbeddingGeneration(t *testing.T) {
-	if os.Getenv("INTEGRATION_TEST") == "" {
-		t.Skip("Skipping integration test")
-	}
-
-	service, err := NewLibraryService()
-	if err != nil {
-		t.Fatalf("Failed to create library service: %v", err)
-	}
-	defer service.Cleanup()
-
-	// Wait for initialization
-	time.Sleep(10 * time.Second)
-
-	// Check if embedding models are available
-	installer := NewLlamaCppInstaller()
-	downloaded := installer.GetDownloadedEmbeddingModels()
-	if len(downloaded) == 0 {
-		t.Skip("No embedding models available")
-	}
-
-	if !service.IsEmbeddingModelLoaded() {
-		err = service.LoadEmbeddingModel("")
-		if err != nil {
-			t.Fatalf("Failed to load embedding model: %v", err)
-		}
-	}
-
-	text := "This is a test sentence for embedding generation."
-	embedding, err := service.GenerateEmbedding(text)
-	if err != nil {
-		t.Fatalf("Failed to generate embedding: %v", err)
-	}
-
-	if len(embedding) == 0 {
-		t.Fatal("Embedding should not be empty")
-	}
-
-	t.Logf("Generated embedding with dimension: %d", len(embedding))
-	t.Logf("First 5 values: %v", embedding[:min(5, len(embedding))])
-}
-
 // TestMultipleModels tests loading multiple models simultaneously
 func TestMultipleModels(t *testing.T) {
 	if os.Getenv("INTEGRATION_TEST") == "" {
@@ -303,45 +260,6 @@ func BenchmarkTextGeneration(b *testing.B) {
 		_, err := service.Generate(prompt, 10)
 		if err != nil {
 			b.Fatalf("Failed to generate: %v", err)
-		}
-	}
-}
-
-// BenchmarkEmbedding benchmarks embedding generation performance
-func BenchmarkEmbedding(b *testing.B) {
-	if os.Getenv("BENCHMARK") == "" {
-		b.Skip("Skipping benchmark")
-	}
-
-	service, err := NewLibraryService()
-	if err != nil {
-		b.Fatalf("Failed to create library service: %v", err)
-	}
-	defer service.Cleanup()
-
-	// Wait for initialization
-	time.Sleep(10 * time.Second)
-
-	installer := NewLlamaCppInstaller()
-	downloaded := installer.GetDownloadedEmbeddingModels()
-	if len(downloaded) == 0 {
-		b.Skip("No embedding models available")
-	}
-
-	if !service.IsEmbeddingModelLoaded() {
-		err = service.LoadEmbeddingModel("")
-		if err != nil {
-			b.Fatalf("Failed to load embedding model: %v", err)
-		}
-	}
-
-	text := "This is a test sentence for benchmarking."
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_, err := service.GenerateEmbedding(text)
-		if err != nil {
-			b.Fatalf("Failed to generate embedding: %v", err)
 		}
 	}
 }
@@ -454,23 +372,6 @@ func TestGenerateWithoutModel(t *testing.T) {
 	_, err = service.Generate("test", 10)
 	if err == nil {
 		t.Error("Should fail when no model is loaded")
-	}
-
-	t.Logf("Expected error: %v", err)
-}
-
-// TestEmbeddingWithoutModel tests error when embedding without loaded model
-func TestEmbeddingWithoutModel(t *testing.T) {
-	service, err := NewLibraryService()
-	if err != nil {
-		t.Fatalf("Failed to create service: %v", err)
-	}
-	defer service.Cleanup()
-
-	// Try to generate embedding without loading model
-	_, err = service.GenerateEmbedding("test")
-	if err == nil {
-		t.Error("Should fail when no embedding model is loaded")
 	}
 
 	t.Logf("Expected error: %v", err)

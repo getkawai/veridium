@@ -48,9 +48,6 @@ func main() {
 	// Get queries - this is what we'll bind to Wails
 	queries := dbService.Queries()
 
-	// Create TableViewer service
-	tableViewerService := tableviewer.NewService(dbService.DB())
-
 	// Create Search service
 	searchService := search.NewService()
 
@@ -189,7 +186,7 @@ func main() {
 			// Database service - for transaction methods
 			application.NewService(dbService),
 			// TableViewer service - for database table inspection
-			application.NewService(tableViewerService),
+			application.NewService(tableviewer.NewService(dbService.DB())),
 			// Search service - for web search and crawling
 			application.NewService(searchService),
 			// TTS service - for text-to-speech (native OS)

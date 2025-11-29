@@ -420,43 +420,6 @@ func (s *LibraryService) Generate(prompt string, maxTokens int32) (string, error
 	return response.String(), nil
 }
 
-// GenerateEmbedding generates embeddings for the given text
-func (s *LibraryService) GenerateEmbedding(text string) ([]float32, error) {
-	s.embMutex.Lock()
-	defer s.embMutex.Unlock()
-
-	if s.embModel == 0 || s.embContext == 0 {
-		return nil, fmt.Errorf("embedding model not loaded")
-	}
-
-	// Tokenize text
-	tokens := llama.Tokenize(s.embVocab, text, true, false)
-	if len(tokens) == 0 {
-		return nil, fmt.Errorf("failed to tokenize text")
-	}
-
-	// Create batch
-	batch := llama.BatchGetOne(tokens)
-
-	// Decode to get embeddings
-	llama.Decode(s.embContext, batch)
-
-	// Get embeddings from context
-	nEmbd := llama.ModelNEmbd(s.embModel)
-	embeddings, err := llama.GetEmbeddingsSeq(s.embContext, 0, nEmbd)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get embeddings: %w", err)
-	}
-
-	// Copy embeddings to slice
-	result := make([]float32, nEmbd)
-	for i := int32(0); i < nEmbd; i++ {
-		result[i] = embeddings[i]
-	}
-
-	return result, nil
-}
-
 // LoadVLModel loads a Vision-Language (VL) model
 // If modelPath is empty, automatically selects the best available VL model
 func (s *LibraryService) LoadVLModel(modelPath string) error {
