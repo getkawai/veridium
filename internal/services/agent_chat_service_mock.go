@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/kawai-network/veridium/pkg/yzma/tools/builtin"
 )
 
 // ChatMock handles mock chat responses for testing UI flow without real AI backend
@@ -361,66 +362,89 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 	}
 
 	// Tool 1: Web Browsing - search
-	err = saveToolMsg("tool_1", "lobe-web-browsing", "search", tool1ArgsJSON,
-		map[string]interface{}{
-			"results": []map[string]interface{}{
-				{"title": "Weather Today - Current Conditions", "url": "https://weather.com/today", "description": "Current weather conditions and forecast."},
-				{"title": "Weather Report - Bing", "url": "https://www.bing.com/weather", "description": "Detailed weather information."},
+	// Using proper types from builtin.UniformSearchResponse
+	searchResponse := &builtin.UniformSearchResponse{
+		Query:         "What is the weather today?",
+		ResultNumbers: 2,
+		CostTime:      150,
+		Results: []builtin.UniformSearchResult{
+			{
+				Title:     "Weather Today - Current Conditions",
+				URL:       "https://weather.com/today",
+				Content:   "Current weather conditions and forecast.",
+				ParsedUrl: "weather.com",
+				Engines:   []string{"google"},
+				Score:     0.95,
 			},
-		}, nil, 2)
+			{
+				Title:     "Weather Report - Bing",
+				URL:       "https://www.bing.com/weather",
+				Content:   "Detailed weather information.",
+				ParsedUrl: "bing.com",
+				Engines:   []string{"bing"},
+				Score:     0.87,
+			},
+		},
+	}
+	err = saveToolMsg("tool_1", "lobe-web-browsing", "search", tool1ArgsJSON,
+		searchResponse, nil, 2)
 	if err != nil {
 		log.Printf("⚠️  %v", err)
 	}
 
 	// Tool 2: Web Browsing - crawlSinglePage
-	// Format: pluginState.results = [{ originalUrl, data: { content, url, title } }]
-	crawlSingleResult := []map[string]interface{}{
-		{
-			"originalUrl": "https://example.com/article",
-			"crawler":     "jina",
-			"data": map[string]interface{}{
-				"content":     "# Example Article\n\nThis is the full content of the crawled article. It contains detailed information about the topic discussed.\n\n## Section 1\nSome content here...\n\n## Section 2\nMore content here...",
-				"url":         "https://example.com/article",
-				"title":       "Example Article - Full Content",
-				"description": "A comprehensive article about the topic.",
+	// Using proper types from builtin.CrawlPluginState
+	crawlSingleState := &builtin.CrawlPluginState{
+		Results: []builtin.CrawlResult{
+			{
+				OriginalUrl: "https://example.com/article",
+				Crawler:     "jina",
+				Data: builtin.CrawlData{
+					Content:     "# Example Article\n\nThis is the full content of the crawled article. It contains detailed information about the topic discussed.\n\n## Section 1\nSome content here...\n\n## Section 2\nMore content here...",
+					URL:         "https://example.com/article",
+					Title:       "Example Article - Full Content",
+					Description: "A comprehensive article about the topic.",
+				},
 			},
 		},
 	}
 	err = saveToolMsg("tool_2", "lobe-web-browsing", "crawlSinglePage", tool2ArgsJSON,
-		nil, // content
-		map[string]interface{}{"results": crawlSingleResult}, // pluginState
+		nil,              // content
+		crawlSingleState, // pluginState
 		3)
 	if err != nil {
 		log.Printf("⚠️  %v", err)
 	}
 
 	// Tool 3: Web Browsing - crawlMultiPages
-	// Format: pluginState.results = [{ originalUrl, data: { content, url, title } }, ...]
-	crawlMultiResult := []map[string]interface{}{
-		{
-			"originalUrl": "https://example.com/page1",
-			"crawler":     "jina",
-			"data": map[string]interface{}{
-				"content":     "# Page 1\n\nThis is the content from page 1. It provides information about topic A.\n\n## Overview\nDetailed overview...",
-				"url":         "https://example.com/page1",
-				"title":       "Page 1 - Topic A",
-				"description": "Information about topic A.",
+	// Using proper types from builtin.CrawlPluginState
+	crawlMultiState := &builtin.CrawlPluginState{
+		Results: []builtin.CrawlResult{
+			{
+				OriginalUrl: "https://example.com/page1",
+				Crawler:     "jina",
+				Data: builtin.CrawlData{
+					Content:     "# Page 1\n\nThis is the content from page 1. It provides information about topic A.\n\n## Overview\nDetailed overview...",
+					URL:         "https://example.com/page1",
+					Title:       "Page 1 - Topic A",
+					Description: "Information about topic A.",
+				},
 			},
-		},
-		{
-			"originalUrl": "https://example.com/page2",
-			"crawler":     "jina",
-			"data": map[string]interface{}{
-				"content":     "# Page 2\n\nThis is the content from page 2. It provides information about topic B.\n\n## Details\nMore details here...",
-				"url":         "https://example.com/page2",
-				"title":       "Page 2 - Topic B",
-				"description": "Information about topic B.",
+			{
+				OriginalUrl: "https://example.com/page2",
+				Crawler:     "jina",
+				Data: builtin.CrawlData{
+					Content:     "# Page 2\n\nThis is the content from page 2. It provides information about topic B.\n\n## Details\nMore details here...",
+					URL:         "https://example.com/page2",
+					Title:       "Page 2 - Topic B",
+					Description: "Information about topic B.",
+				},
 			},
 		},
 	}
 	err = saveToolMsg("tool_3", "lobe-web-browsing", "crawlMultiPages", tool3ArgsJSON,
-		nil, // content
-		map[string]interface{}{"results": crawlMultiResult}, // pluginState
+		nil,             // content
+		crawlMultiState, // pluginState
 		4)
 	if err != nil {
 		log.Printf("⚠️  %v", err)
