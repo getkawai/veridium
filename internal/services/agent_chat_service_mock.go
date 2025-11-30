@@ -192,7 +192,12 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 	}
 	tool10ArgsJSON, _ := json.Marshal(tool10Args)
 
-
+	// Tool 11: Code Interpreter - python
+	tool11Args := map[string]interface{}{
+		"code":     "import pandas as pd\nimport numpy as np\n\ndf = pd.DataFrame({'a': [1, 2, 3], 'b': [4, 5, 6]})\nprint(df.describe())\nresult = df.sum().to_dict()",
+		"packages": []string{"pandas", "numpy"},
+	}
+	tool11ArgsJSON, _ := json.Marshal(tool11Args)
 
 	// Mock tools array (will be matched with tool messages below)
 	// Note: arguments must be JSON string for frontend compatibility
@@ -268,6 +273,14 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 			"identifier": "lobe-image-designer",
 			"apiName":    "text2image",
 			"arguments":  string(tool10ArgsJSON),
+			"type":       "builtin",
+		},
+		// Code Interpreter
+		{
+			"id":         "tool_11",
+			"identifier": "lobe-code-interpreter",
+			"apiName":    "python",
+			"arguments":  string(tool11ArgsJSON),
 			"type":       "builtin",
 		},
 	}
@@ -683,12 +696,12 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 		[]map[string]interface{}{
 			{
 				"prompt":        "A beautiful sunset over a calm ocean with vibrant orange and purple colors",
-				"imageUrl":      "https://via.placeholder.com/1024x1024/FF6B35/FFFFFF?text=Sunset+Ocean",
+				"imageUrl":      "https://picsum.photos/1024",
 				"revisedPrompt": "A breathtaking sunset scene over a tranquil ocean, with vibrant orange and deep purple hues painting the sky.",
 			},
 			{
 				"prompt":        "A futuristic cityscape at night with neon lights and flying cars",
-				"imageUrl":      "https://via.placeholder.com/1024x1024/1A1A2E/00FFFF?text=Futuristic+City",
+				"imageUrl":      "https://picsum.photos/1024",
 				"revisedPrompt": "A stunning futuristic cityscape at night, illuminated by neon lights with sleek flying cars hovering above.",
 			},
 		}, nil, 11)
@@ -696,7 +709,24 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 		log.Printf("⚠️  %v", err)
 	}
 
-	log.Printf("✅ [MOCK] Complete - saved %d messages (1 user, 1 assistant, 10 tools)", 12)
+	// Tool 11: Code Interpreter - python
+	// Format: content = { result, output: [{ type, data }], files: [] }
+	codeInterpreterContent := map[string]interface{}{
+		"result": "{'a': 6, 'b': 15}",
+		"output": []map[string]interface{}{
+			{"type": "stdout", "data": "              a         b\ncount  3.000000  3.000000\nmean   2.000000  5.000000\nstd    1.000000  1.000000\nmin    1.000000  4.000000\n25%    1.500000  4.500000\n50%    2.000000  5.000000\n75%    2.500000  5.500000\nmax    3.000000  6.000000\n"},
+		},
+		"files": []interface{}{},
+	}
+	err = createToolMessage("tool_11", "lobe-code-interpreter", "python", tool11ArgsJSON,
+		codeInterpreterContent, // content
+		nil,                    // pluginState (no error)
+		12)
+	if err != nil {
+		log.Printf("⚠️  %v", err)
+	}
+
+	log.Printf("✅ [MOCK] Complete - saved %d messages (1 user, 1 assistant, 11 tools)", 13)
 
 	// Return response
 	return &ChatResponse{
