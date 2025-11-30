@@ -203,21 +203,55 @@ export const generateAIChat: StateCreator<
             },
           ];
 
-          // Mock tool calls
+          // Mock tool calls - using correct identifiers from manifests
           (msg as any).tools = [
             {
               id: 'tool_1',
-              identifier: 'search',
+              identifier: 'lobe-web-browsing', // Correct identifier from WebBrowsingManifest
               apiName: 'search',
-              arguments: JSON.stringify({ query: 'test query' }),
+              arguments: JSON.stringify({ 
+                query: 'What is the weather today?',
+                searchEngines: ['google']
+              }),
               type: 'builtin',
+              result: {
+                id: 'tool_result_1',
+                content: JSON.stringify({
+                  results: [
+                    {
+                      title: 'Mock Search Result 1',
+                      url: 'https://example.com/result1',
+                      description: 'This is a mock search result for testing purposes.',
+                    },
+                    {
+                      title: 'Mock Search Result 2',
+                      url: 'https://example.com/result2',
+                      description: 'Another mock search result with relevant information.',
+                    },
+                  ],
+                }),
+                state: null,
+              },
             },
             {
               id: 'tool_2',
-              identifier: 'calculator',
-              apiName: 'calculator',
-              arguments: JSON.stringify({ expression: '2+2' }),
+              identifier: 'lobe-local-system', // Correct identifier from LocalSystemManifest
+              apiName: 'listLocalFiles',
+              arguments: JSON.stringify({ 
+                path: '/home/user/documents'
+              }),
               type: 'builtin',
+              result: {
+                id: 'tool_result_2',
+                content: JSON.stringify({
+                  files: [
+                    { name: 'document.pdf', size: 1024000, type: 'file' },
+                    { name: 'images', size: 0, type: 'directory' },
+                    { name: 'notes.txt', size: 2048, type: 'file' },
+                  ],
+                }),
+                state: null,
+              },
             },
           ];
 
@@ -266,6 +300,53 @@ export const generateAIChat: StateCreator<
             temperature: 0.7,
           };
         }
+
+        // Add tool messages (role='tool') for each tool call
+        // These are separate messages that contain tool execution results
+        state.messagesMap[mapKey].push({
+          id: `tool-msg-${Date.now()}-1`,
+          role: 'tool',
+          content: JSON.stringify({
+            results: [
+              {
+                title: 'Mock Search Result 1',
+                url: 'https://example.com/result1',
+                description: 'This is a mock search result for testing purposes.',
+              },
+              {
+                title: 'Mock Search Result 2',
+                url: 'https://example.com/result2',
+                description: 'Another mock search result with relevant information.',
+              },
+            ],
+          }),
+          tool_call_id: 'tool_1', // Must match the tool id
+          sessionId: activeId,
+          topicId: activeTopicId,
+          threadId,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          meta: {},
+        } as UIChatMessage);
+
+        state.messagesMap[mapKey].push({
+          id: `tool-msg-${Date.now()}-2`,
+          role: 'tool',
+          content: JSON.stringify({
+            files: [
+              { name: 'document.pdf', size: 1024000, type: 'file' },
+              { name: 'images', size: 0, type: 'directory' },
+              { name: 'notes.txt', size: 2048, type: 'file' },
+            ],
+          }),
+          tool_call_id: 'tool_2', // Must match the tool id
+          sessionId: activeId,
+          topicId: activeTopicId,
+          threadId,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          meta: {},
+        } as UIChatMessage);
       }), false, n('mock/response'));
 
       console.log('[MOCK] Response complete with full data');
