@@ -185,19 +185,21 @@ export const generateAIChat: StateCreator<
           (msg as any).chunksList = [
             {
               id: 'chunk_1',
-              content: 'This is a sample chunk from the knowledge base. It contains relevant information about the topic.',
-              metadata: {
-                source: 'document.pdf',
-                page: 1,
-              },
+              fileId: 'file_1',
+              filename: 'document.pdf',
+              fileType: 'application/pdf',
+              fileUrl: '/files/document.pdf',
+              text: 'This is a sample chunk from the knowledge base. It contains relevant information about the topic.',
+              similarity: 0.95,
             },
             {
               id: 'chunk_2',
-              content: 'Another chunk with more detailed information that was retrieved from the RAG system.',
-              metadata: {
-                source: 'guide.md',
-                section: 'Introduction',
-              },
+              fileId: 'file_2',
+              filename: 'guide.md',
+              fileType: 'text/markdown',
+              fileUrl: '/files/guide.md',
+              text: 'Another chunk with more detailed information that was retrieved from the RAG system.',
+              similarity: 0.87,
             },
           ];
 
