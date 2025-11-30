@@ -225,7 +225,132 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 	}
 	log.Printf("💾 Saved mock assistant message: %s", assistantMsgID)
 
-	// 3. Create tool messages (role='tool') with plugins - these are separate messages
+	// 3. Create mock RAG data (files, chunks, message_query_chunks)
+	// Create mock files
+	file1ID := uuid.New().String()
+	file1Params := db.CreateFileParams{
+		ID:        file1ID,
+		Name:      "document.pdf",
+		FileType:  "application/pdf",
+		Url:       "",
+		Size:      1024000,
+		UserID:    req.UserID,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	_, err = s.db.Queries().CreateFile(ctx, file1Params)
+	if err != nil {
+		log.Printf("⚠️  Failed to create mock file 1: %v", err)
+	}
+
+	file2ID := uuid.New().String()
+	file2Params := db.CreateFileParams{
+		ID:        file2ID,
+		Name:      "guide.md",
+		FileType:  "text/markdown",
+		Url:       "",
+		Size:      2048,
+		UserID:    req.UserID,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	_, err = s.db.Queries().CreateFile(ctx, file2Params)
+	if err != nil {
+		log.Printf("⚠️  Failed to create mock file 2: %v", err)
+	}
+
+	// Create mock chunks
+	chunk1ID := uuid.New().String()
+	chunk1Params := db.CreateChunkParams{
+		ID:         chunk1ID,
+		Text:       sql.NullString{String: "This is a sample chunk from the knowledge base. It contains relevant information about the topic.", Valid: true},
+		ChunkIndex: sql.NullInt64{Int64: 0, Valid: true},
+		Type:       sql.NullString{String: "text", Valid: true},
+		UserID:     sql.NullString{String: req.UserID, Valid: true},
+		CreatedAt:  now,
+		UpdatedAt:  now,
+	}
+	_, err = s.db.Queries().CreateChunk(ctx, chunk1Params)
+	if err != nil {
+		log.Printf("⚠️  Failed to create mock chunk 1: %v", err)
+	}
+
+	chunk2ID := uuid.New().String()
+	chunk2Params := db.CreateChunkParams{
+		ID:         chunk2ID,
+		Text:       sql.NullString{String: "Another chunk with more detailed information that was retrieved from the RAG system.", Valid: true},
+		ChunkIndex: sql.NullInt64{Int64: 0, Valid: true},
+		Type:       sql.NullString{String: "text", Valid: true},
+		UserID:     sql.NullString{String: req.UserID, Valid: true},
+		CreatedAt:  now,
+		UpdatedAt:  now,
+	}
+	_, err = s.db.Queries().CreateChunk(ctx, chunk2Params)
+	if err != nil {
+		log.Printf("⚠️  Failed to create mock chunk 2: %v", err)
+	}
+
+	// Link chunks to files
+	err = s.db.Queries().LinkFileToChunk(ctx, db.LinkFileToChunkParams{
+		FileID:    sql.NullString{String: file1ID, Valid: true},
+		ChunkID:   sql.NullString{String: chunk1ID, Valid: true},
+		CreatedAt: now,
+		UserID:    req.UserID,
+	})
+	if err != nil {
+		log.Printf("⚠️  Failed to link file 1 to chunk 1: %v", err)
+	}
+
+	err = s.db.Queries().LinkFileToChunk(ctx, db.LinkFileToChunkParams{
+		FileID:    sql.NullString{String: file2ID, Valid: true},
+		ChunkID:   sql.NullString{String: chunk2ID, Valid: true},
+		CreatedAt: now,
+		UserID:    req.UserID,
+	})
+	if err != nil {
+		log.Printf("⚠️  Failed to link file 2 to chunk 2: %v", err)
+	}
+
+	// Create message query
+	queryID := uuid.New().String()
+	queryParams := db.CreateMessageQueryParams{
+		ID:           queryID,
+		MessageID:    assistantMsgID,
+		UserQuery:    sql.NullString{String: req.Message, Valid: true},
+		RewriteQuery: sql.NullString{String: req.Message, Valid: true},
+		UserID:       req.UserID,
+	}
+	_, err = s.db.Queries().CreateMessageQuery(ctx, queryParams)
+	if err != nil {
+		log.Printf("⚠️  Failed to create message query: %v", err)
+	}
+
+	// Link message query to chunks
+	err = s.db.Queries().LinkMessageQueryToChunk(ctx, db.LinkMessageQueryToChunkParams{
+		MessageID:  sql.NullString{String: assistantMsgID, Valid: true},
+		QueryID:    sql.NullString{String: queryID, Valid: true},
+		ChunkID:    sql.NullString{String: chunk1ID, Valid: true},
+		Similarity: sql.NullInt64{Int64: 95, Valid: true},
+		UserID:     req.UserID,
+	})
+	if err != nil {
+		log.Printf("⚠️  Failed to link query to chunk 1: %v", err)
+	}
+
+	err = s.db.Queries().LinkMessageQueryToChunk(ctx, db.LinkMessageQueryToChunkParams{
+		MessageID:  sql.NullString{String: assistantMsgID, Valid: true},
+		QueryID:    sql.NullString{String: queryID, Valid: true},
+		ChunkID:    sql.NullString{String: chunk2ID, Valid: true},
+		Similarity: sql.NullInt64{Int64: 87, Valid: true},
+		UserID:     req.UserID,
+	})
+	if err != nil {
+		log.Printf("⚠️  Failed to link query to chunk 2: %v", err)
+	}
+
+	log.Printf("💾 Created mock RAG data: 2 files, 2 chunks, 1 query")
+
+	// 4. Create tool messages (role='tool') with plugins - these are separate messages
 	// Tool message 1: Web browsing results
 	toolMsg1ID := uuid.New().String()
 	toolResult1 := map[string]interface{}{
