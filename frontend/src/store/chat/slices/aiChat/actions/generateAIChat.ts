@@ -339,6 +339,26 @@ export const generateAIChat: StateCreator<
           msg.content = data.full_content;
           msg.updatedAt = Date.now();
         }
+      } else if (data.type === 'tool_calling') {
+        // Tool is being called - update tools array for Tool component rendering
+        console.log('[Stream] Tool calling event received:', data);
+        
+        const msg = messages.find(m => m.id === data.message_id);
+        if (msg) {
+          // Set tools array so Tool component renders
+          (msg as any).tools = data.tools?.map((t: any) => ({
+            id: t.id,
+            identifier: t.identifier,
+            apiName: t.apiName,
+            arguments: t.arguments || '{}',
+            type: t.type || 'builtin',
+          })) || [];
+          msg.updatedAt = Date.now();
+          
+          console.log('[Stream] Updated message with tools:', msg);
+        } else {
+          console.warn('[Stream] Could not find message for tool_calling:', data.message_id);
+        }
       } else if (data.type === 'complete') {
         const msg = messages.find(m => m.id === data.message_id);
         if (msg) {

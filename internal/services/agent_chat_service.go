@@ -823,32 +823,75 @@ func (s *AgentChatService) generateWithStreaming(ctx context.Context, session *A
 	}
 
 	var fullContent strings.Builder
+	var buffer strings.Builder // Buffer untuk detect tool tags
 
-	// Streaming callback
+	// Streaming callback with tool tag filtering
 	callback := func(token string, isLast bool) {
 		if token != "" {
 			fullContent.WriteString(token)
+			buffer.WriteString(token)
 
-			// Emit chunk event
+			// Check if we're inside a tool_call tag
+			bufferStr := buffer.String()
+
+			// If buffer contains complete tool_call tags, remove them from display
+			if strings.Contains(bufferStr, "</tool_call>") {
+				// Find all complete tool_call blocks
+				for strings.Contains(bufferStr, "<tool_call>") && strings.Contains(bufferStr, "</tool_call>") {
+					startIdx := strings.Index(bufferStr, "<tool_call>")
+					endIdx := strings.Index(bufferStr, "</tool_call>")
+
+					if startIdx < endIdx {
+						// Remove the tool_call block
+						bufferStr = bufferStr[:startIdx] + bufferStr[endIdx+len("</tool_call>"):]
+					} else {
+						break
+					}
+				}
+				buffer.Reset()
+				buffer.WriteString(bufferStr)
+			}
+
+			// Only emit content that's not inside tool tags
+			displayContent := bufferStr
+			if strings.Contains(displayContent, "<tool_call>") && !strings.Contains(displayContent, "</tool_call>") {
+				// We're in the middle of a tool_call tag, only show content before it
+				displayContent = displayContent[:strings.Index(displayContent, "<tool_call>")]
+			}
+
+			// Emit chunk event with filtered content
 			if s.app != nil {
 				s.app.Event.Emit("chat:stream", map[string]interface{}{
 					"type":         "chunk",
 					"session_id":   session.SessionID,
 					"message_id":   messageID,
 					"content":      token,
-					"full_content": fullContent.String(),
+					"full_content": strings.TrimSpace(displayContent),
 				})
 			}
 		}
 
 		if isLast {
+			// Clean final content from tool tags
+			finalContent := fullContent.String()
+			for strings.Contains(finalContent, "<tool_call>") {
+				start := strings.Index(finalContent, "<tool_call>")
+				end := strings.Index(finalContent, "</tool_call>")
+				if start != -1 && end != -1 {
+					finalContent = finalContent[:start] + finalContent[end+len("</tool_call>"):]
+				} else {
+					break
+				}
+			}
+			finalContent = strings.TrimSpace(finalContent)
+
 			// Emit complete event
 			if s.app != nil {
 				s.app.Event.Emit("chat:stream", map[string]interface{}{
 					"type":       "complete",
 					"session_id": session.SessionID,
 					"message_id": messageID,
-					"content":    fullContent.String(),
+					"content":    finalContent,
 				})
 			}
 		}
@@ -858,6 +901,33 @@ func (s *AgentChatService) generateWithStreaming(ctx context.Context, session *A
 	resp, toolMessages, err := llm.RunAgentLoopWithStreaming(ctx, messages, 10, callback)
 	if err != nil {
 		return nil, nil, err
+	}
+
+	// Emit tool calling event if tools were used
+	if len(resp.ToolCalls) > 0 && s.app != nil {
+		// Convert tool calls to frontend format
+		frontendTools := make([]map[string]interface{}, len(resp.ToolCalls))
+		for i, tc := range resp.ToolCalls {
+			// Generate unique ID for each tool call
+			toolCallID := fmt.Sprintf("%s_%d", messageID, i)
+
+			frontendTools[i] = map[string]interface{}{
+				"id":         toolCallID,
+				"identifier": tc.Function.Name,
+				"apiName":    tc.Function.Name,
+				"arguments":  tc.Function.Arguments,
+				"type":       tc.Type,
+			}
+		}
+
+		s.app.Event.Emit("chat:stream", map[string]interface{}{
+			"type":       "tool_calling",
+			"session_id": session.SessionID,
+			"message_id": messageID,
+			"tools":      frontendTools,
+		})
+
+		log.Printf("🔧 Emitted tool_calling event with %d tools", len(frontendTools))
 	}
 
 	return resp, toolMessages, nil
