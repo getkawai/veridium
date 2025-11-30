@@ -2,14 +2,12 @@ package services
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
 	"time"
 
 	"github.com/google/uuid"
-	db "github.com/kawai-network/veridium/internal/database/generated"
 )
 
 // ChatMock handles mock chat responses for testing UI flow without real AI backend
@@ -33,54 +31,27 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 	// Simulate processing delay
 	time.Sleep(500 * time.Millisecond)
 
-	// Get current timestamp
-	now := time.Now().UnixMilli()
-
-	// Get or create session
-	session, err := s.getOrCreateSession(ctx, req)
+	// 1. Setup session and topic using reusable helper
+	setup, err := s.setupSessionAndTopic(ctx, req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get/create session: %w", err)
+		return nil, fmt.Errorf("failed to setup session/topic: %w", err)
 	}
+	currentTopicID := setup.TopicID
 
-	// Auto-create topic if needed
-	currentTopicID := req.TopicID
-	if currentTopicID == "" {
-		topicID, err := s.createTopicForSessionSync(ctx, session.SessionID, session.UserID)
-		if err != nil {
-			log.Printf("⚠️  Warning: Failed to create topic: %v", err)
-		} else {
-			currentTopicID = topicID
-			session.TopicID = topicID
-			log.Printf("📝 Auto-created topic: %s", topicID)
-		}
-	}
-
-	// 1. Save user message
-	userMsgID := uuid.New().String()
-	userParams := db.CreateMessageParams{
-		ID:        userMsgID,
-		Role:      "user",
-		Content:   sql.NullString{String: req.Message, Valid: true},
-		SessionID: sql.NullString{String: req.SessionID, Valid: true},
+	// 2. Save user message using reusable helper
+	_, err = s.saveUserMessage(ctx, SaveUserMessageParams{
+		Content:   req.Message,
+		SessionID: req.SessionID,
+		TopicID:   currentTopicID,
+		ThreadID:  req.ThreadID,
 		UserID:    req.UserID,
-		CreatedAt: now,
-		UpdatedAt: now,
-	}
-	if currentTopicID != "" {
-		userParams.TopicID = sql.NullString{String: currentTopicID, Valid: true}
-	}
-	if req.ThreadID != "" {
-		userParams.ThreadID = sql.NullString{String: req.ThreadID, Valid: true}
-	}
-
-	_, err = s.db.Queries().CreateMessage(ctx, userParams)
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to save user message: %w", err)
 	}
-	log.Printf("💾 Saved mock user message: %s", userMsgID)
 
-	// 2. Create assistant message with full mock data
-	assistantMsgID := uuid.New().String()
+	// 3. Create assistant message with full mock data
+	var assistantMsgID string
 	mockContent := fmt.Sprintf(
 		"This is a mock response to: \"%s\"\n\nI'm simulating the AI response to test the UI flow without calling the backend.",
 		req.Message,
@@ -91,7 +62,6 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 		"content": "Let me think about this step by step:\n1. First, I need to understand the question\n2. Then, I will formulate a response\n3. Finally, I will provide a clear answer",
 		"status":  "complete",
 	}
-	reasoningJSON, _ := json.Marshal(reasoning)
 
 	// Mock RAG chunks
 	chunksList := []map[string]interface{}{
@@ -284,7 +254,6 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 			"type":       "builtin",
 		},
 	}
-	toolsJSON, _ := json.Marshal(tools)
 
 	// Mock search grounding
 	search := map[string]interface{}{
@@ -302,7 +271,6 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 		},
 		"searchQueries": []string{"test query", "related query"},
 	}
-	searchJSON, _ := json.Marshal(search)
 
 	// Mock image list
 	imageList := []map[string]interface{}{
@@ -335,216 +303,70 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 		"usage":       usage,
 		"performance": performance,
 	}
-	fullMetadataJSON, _ := json.Marshal(fullMetadata)
 
-	// Save assistant message
-	assistantParams := db.CreateMessageParams{
-		ID:        assistantMsgID,
-		Role:      "assistant",
-		Content:   sql.NullString{String: mockContent, Valid: true},
-		SessionID: sql.NullString{String: req.SessionID, Valid: true},
+	// 3. Save assistant message using reusable helper
+	assistantMsgID, err = s.saveAssistantMessage(ctx, SaveAssistantMessageParams{
+		Content:   mockContent,
+		SessionID: req.SessionID,
+		TopicID:   currentTopicID,
+		ThreadID:  req.ThreadID,
 		UserID:    req.UserID,
-		CreatedAt: now + 1,
-		UpdatedAt: now + 1,
-		Reasoning: sql.NullString{String: string(reasoningJSON), Valid: true},
-		Tools:     sql.NullString{String: string(toolsJSON), Valid: true},
-		Search:    sql.NullString{String: string(searchJSON), Valid: true},
-		Metadata:  sql.NullString{String: string(fullMetadataJSON), Valid: true},
-	}
-	if currentTopicID != "" {
-		assistantParams.TopicID = sql.NullString{String: currentTopicID, Valid: true}
-	}
-	if req.ThreadID != "" {
-		assistantParams.ThreadID = sql.NullString{String: req.ThreadID, Valid: true}
-	}
-
-	_, err = s.db.Queries().CreateMessage(ctx, assistantParams)
+		Reasoning: reasoning,
+		Tools:     tools,
+		Search:    search,
+		Metadata:  fullMetadata,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to save assistant message: %w", err)
 	}
-	log.Printf("💾 Saved mock assistant message: %s", assistantMsgID)
 
-	// 3. Create mock RAG data (files, chunks, message_query_chunks)
-	// Create mock files
+	// 4. Save RAG data using reusable helper
 	file1ID := uuid.New().String()
-	file1Params := db.CreateFileParams{
-		ID:        file1ID,
-		Name:      "document.pdf",
-		FileType:  "application/pdf",
-		Url:       "",
-		Size:      1024000,
-		UserID:    req.UserID,
-		CreatedAt: now,
-		UpdatedAt: now,
-	}
-	_, err = s.db.Queries().CreateFile(ctx, file1Params)
-	if err != nil {
-		log.Printf("⚠️  Failed to create mock file 1: %v", err)
-	}
-
 	file2ID := uuid.New().String()
-	file2Params := db.CreateFileParams{
-		ID:        file2ID,
-		Name:      "guide.md",
-		FileType:  "text/markdown",
-		Url:       "",
-		Size:      2048,
-		UserID:    req.UserID,
-		CreatedAt: now,
-		UpdatedAt: now,
-	}
-	_, err = s.db.Queries().CreateFile(ctx, file2Params)
-	if err != nil {
-		log.Printf("⚠️  Failed to create mock file 2: %v", err)
-	}
-
-	// Create mock chunks
 	chunk1ID := uuid.New().String()
-	chunk1Params := db.CreateChunkParams{
-		ID:         chunk1ID,
-		Text:       sql.NullString{String: "This is a sample chunk from the knowledge base. It contains relevant information about the topic.", Valid: true},
-		ChunkIndex: sql.NullInt64{Int64: 0, Valid: true},
-		Type:       sql.NullString{String: "text", Valid: true},
-		UserID:     sql.NullString{String: req.UserID, Valid: true},
-		CreatedAt:  now,
-		UpdatedAt:  now,
-	}
-	_, err = s.db.Queries().CreateChunk(ctx, chunk1Params)
-	if err != nil {
-		log.Printf("⚠️  Failed to create mock chunk 1: %v", err)
-	}
-
 	chunk2ID := uuid.New().String()
-	chunk2Params := db.CreateChunkParams{
-		ID:         chunk2ID,
-		Text:       sql.NullString{String: "Another chunk with more detailed information that was retrieved from the RAG system.", Valid: true},
-		ChunkIndex: sql.NullInt64{Int64: 0, Valid: true},
-		Type:       sql.NullString{String: "text", Valid: true},
-		UserID:     sql.NullString{String: req.UserID, Valid: true},
-		CreatedAt:  now,
-		UpdatedAt:  now,
-	}
-	_, err = s.db.Queries().CreateChunk(ctx, chunk2Params)
-	if err != nil {
-		log.Printf("⚠️  Failed to create mock chunk 2: %v", err)
-	}
 
-	// Link chunks to files
-	err = s.db.Queries().LinkFileToChunk(ctx, db.LinkFileToChunkParams{
-		FileID:    sql.NullString{String: file1ID, Valid: true},
-		ChunkID:   sql.NullString{String: chunk1ID, Valid: true},
-		CreatedAt: now,
+	err = s.saveRAGData(ctx, SaveRAGDataParams{
+		MessageID: assistantMsgID,
+		UserQuery: req.Message,
 		UserID:    req.UserID,
+		Files: []RAGFileParams{
+			{ID: file1ID, Name: "document.pdf", FileType: "application/pdf", URL: "", Size: 1024000},
+			{ID: file2ID, Name: "guide.md", FileType: "text/markdown", URL: "", Size: 2048},
+		},
+		Chunks: []RAGChunkParams{
+			{ID: chunk1ID, FileID: file1ID, Text: "This is a sample chunk from the knowledge base. It contains relevant information about the topic.", ChunkIndex: 0, Type: "text", Similarity: 95},
+			{ID: chunk2ID, FileID: file2ID, Text: "Another chunk with more detailed information that was retrieved from the RAG system.", ChunkIndex: 0, Type: "text", Similarity: 87},
+		},
 	})
 	if err != nil {
-		log.Printf("⚠️  Failed to link file 1 to chunk 1: %v", err)
+		log.Printf("⚠️  Failed to save RAG data: %v", err)
 	}
-
-	err = s.db.Queries().LinkFileToChunk(ctx, db.LinkFileToChunkParams{
-		FileID:    sql.NullString{String: file2ID, Valid: true},
-		ChunkID:   sql.NullString{String: chunk2ID, Valid: true},
-		CreatedAt: now,
-		UserID:    req.UserID,
-	})
-	if err != nil {
-		log.Printf("⚠️  Failed to link file 2 to chunk 2: %v", err)
-	}
-
-	// Create message query
-	queryID := uuid.New().String()
-	queryParams := db.CreateMessageQueryParams{
-		ID:           queryID,
-		MessageID:    assistantMsgID,
-		UserQuery:    sql.NullString{String: req.Message, Valid: true},
-		RewriteQuery: sql.NullString{String: req.Message, Valid: true},
-		UserID:       req.UserID,
-	}
-	_, err = s.db.Queries().CreateMessageQuery(ctx, queryParams)
-	if err != nil {
-		log.Printf("⚠️  Failed to create message query: %v", err)
-	}
-
-	// Link message query to chunks
-	err = s.db.Queries().LinkMessageQueryToChunk(ctx, db.LinkMessageQueryToChunkParams{
-		MessageID:  sql.NullString{String: assistantMsgID, Valid: true},
-		QueryID:    sql.NullString{String: queryID, Valid: true},
-		ChunkID:    sql.NullString{String: chunk1ID, Valid: true},
-		Similarity: sql.NullInt64{Int64: 95, Valid: true},
-		UserID:     req.UserID,
-	})
-	if err != nil {
-		log.Printf("⚠️  Failed to link query to chunk 1: %v", err)
-	}
-
-	err = s.db.Queries().LinkMessageQueryToChunk(ctx, db.LinkMessageQueryToChunkParams{
-		MessageID:  sql.NullString{String: assistantMsgID, Valid: true},
-		QueryID:    sql.NullString{String: queryID, Valid: true},
-		ChunkID:    sql.NullString{String: chunk2ID, Valid: true},
-		Similarity: sql.NullInt64{Int64: 87, Valid: true},
-		UserID:     req.UserID,
-	})
-	if err != nil {
-		log.Printf("⚠️  Failed to link query to chunk 2: %v", err)
-	}
-
-	log.Printf("💾 Created mock RAG data: 2 files, 2 chunks, 1 query")
 
 	// ============================================
-	// 4. Create tool messages (role='tool') with plugins for ALL builtin tools
+	// 5. Create tool messages using reusable helper
 	// ============================================
 
-	// Helper to create tool message and plugin
-	// result is stored in message.content, state is stored in plugin.state (for pluginState)
-	createToolMessage := func(toolID, identifier, apiName string, argsJSON []byte, result interface{}, state interface{}, timeOffset int64) error {
-		msgID := uuid.New().String()
-		resultJSON, _ := json.Marshal(result)
-
-		msgParams := db.CreateMessageParams{
-			ID:        msgID,
-			Role:      "tool",
-			Content:   sql.NullString{String: string(resultJSON), Valid: true},
-			SessionID: sql.NullString{String: req.SessionID, Valid: true},
-			UserID:    req.UserID,
-			CreatedAt: now + timeOffset,
-			UpdatedAt: now + timeOffset,
-		}
-		if currentTopicID != "" {
-			msgParams.TopicID = sql.NullString{String: currentTopicID, Valid: true}
-		}
-		if req.ThreadID != "" {
-			msgParams.ThreadID = sql.NullString{String: req.ThreadID, Valid: true}
-		}
-
-		_, err := s.db.Queries().CreateMessage(ctx, msgParams)
-		if err != nil {
-			return fmt.Errorf("failed to save tool message %s: %w", toolID, err)
-		}
-
-		pluginParams := db.CreateMessagePluginParams{
-			ID:         msgID,
-			ToolCallID: sql.NullString{String: toolID, Valid: true},
-			Type:       sql.NullString{String: "builtin", Valid: true},
-			ApiName:    sql.NullString{String: apiName, Valid: true},
-			Arguments:  sql.NullString{String: string(argsJSON), Valid: true},
-			Identifier: sql.NullString{String: identifier, Valid: true},
+	// Helper closure that wraps SaveToolMessage with common params
+	saveToolMsg := func(toolID, identifier, apiName string, argsJSON []byte, content interface{}, state interface{}, timeOffset int64) error {
+		_, err := s.saveToolMessage(ctx, SaveToolMessageParams{
+			ToolCallID: toolID,
+			Identifier: identifier,
+			APIName:    apiName,
+			Arguments:  string(argsJSON),
+			Content:    content,
+			State:      state,
+			SessionID:  req.SessionID,
+			TopicID:    currentTopicID,
+			ThreadID:   req.ThreadID,
 			UserID:     req.UserID,
-		}
-		// Add state if provided (for pluginState in frontend)
-		if state != nil {
-			stateJSON, _ := json.Marshal(state)
-			pluginParams.State = sql.NullString{String: string(stateJSON), Valid: true}
-		}
-		_, err = s.db.Queries().CreateMessagePlugin(ctx, pluginParams)
-		if err != nil {
-			return fmt.Errorf("failed to save tool plugin %s: %w", toolID, err)
-		}
-
-		log.Printf("💾 Saved tool message: %s (%s.%s)", toolID, identifier, apiName)
-		return nil
+			TimeOffset: timeOffset,
+		})
+		return err
 	}
 
 	// Tool 1: Web Browsing - search
-	err = createToolMessage("tool_1", "lobe-web-browsing", "search", tool1ArgsJSON,
+	err = saveToolMsg("tool_1", "lobe-web-browsing", "search", tool1ArgsJSON,
 		map[string]interface{}{
 			"results": []map[string]interface{}{
 				{"title": "Weather Today - Current Conditions", "url": "https://weather.com/today", "description": "Current weather conditions and forecast."},
@@ -569,7 +391,7 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 			},
 		},
 	}
-	err = createToolMessage("tool_2", "lobe-web-browsing", "crawlSinglePage", tool2ArgsJSON,
+	err = saveToolMsg("tool_2", "lobe-web-browsing", "crawlSinglePage", tool2ArgsJSON,
 		nil, // content
 		map[string]interface{}{"results": crawlSingleResult}, // pluginState
 		3)
@@ -601,7 +423,7 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 			},
 		},
 	}
-	err = createToolMessage("tool_3", "lobe-web-browsing", "crawlMultiPages", tool3ArgsJSON,
+	err = saveToolMsg("tool_3", "lobe-web-browsing", "crawlMultiPages", tool3ArgsJSON,
 		nil, // content
 		map[string]interface{}{"results": crawlMultiResult}, // pluginState
 		4)
@@ -617,7 +439,7 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 		{"name": "notes.txt", "size": 2048, "type": "file", "isDirectory": false, "path": "/home/user/documents/notes.txt"},
 		{"name": "readme.md", "size": 512, "type": "file", "isDirectory": false, "path": "/home/user/documents/readme.md"},
 	}
-	err = createToolMessage("tool_4", "lobe-local-system", "listLocalFiles", tool4ArgsJSON,
+	err = saveToolMsg("tool_4", "lobe-local-system", "listLocalFiles", tool4ArgsJSON,
 		nil, // content
 		map[string]interface{}{"listResults": listFilesResult}, // pluginState
 		5)
@@ -636,7 +458,7 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 		"totalCharCount": 120,
 		"totalLineCount": 8,
 	}
-	err = createToolMessage("tool_5", "lobe-local-system", "readLocalFile", tool5ArgsJSON,
+	err = saveToolMsg("tool_5", "lobe-local-system", "readLocalFile", tool5ArgsJSON,
 		nil, // content
 		map[string]interface{}{"fileContent": readFileResult}, // pluginState
 		6)
@@ -650,7 +472,7 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 		{"path": "/home/user/documents/important_doc.pdf", "name": "important_doc.pdf", "size": 2048000, "isDirectory": false, "type": "file"},
 		{"path": "/home/user/documents/important_notes.txt", "name": "important_notes.txt", "size": 1024, "isDirectory": false, "type": "file"},
 	}
-	err = createToolMessage("tool_6", "lobe-local-system", "searchLocalFiles", tool6ArgsJSON,
+	err = saveToolMsg("tool_6", "lobe-local-system", "searchLocalFiles", tool6ArgsJSON,
 		nil, // content
 		map[string]interface{}{"searchResults": searchFilesResult}, // pluginState
 		7)
@@ -659,7 +481,7 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 	}
 
 	// Tool 7: Local System - writeLocalFile
-	err = createToolMessage("tool_7", "lobe-local-system", "writeLocalFile", tool7ArgsJSON,
+	err = saveToolMsg("tool_7", "lobe-local-system", "writeLocalFile", tool7ArgsJSON,
 		map[string]interface{}{
 			"success": true,
 			"path":    "/home/user/documents/new_file.txt",
@@ -670,7 +492,7 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 	}
 
 	// Tool 8: Local System - renameLocalFile
-	err = createToolMessage("tool_8", "lobe-local-system", "renameLocalFile", tool8ArgsJSON,
+	err = saveToolMsg("tool_8", "lobe-local-system", "renameLocalFile", tool8ArgsJSON,
 		map[string]interface{}{
 			"success": true,
 			"oldPath": "/home/user/documents/old_name.txt",
@@ -681,7 +503,7 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 	}
 
 	// Tool 9: Local System - moveLocalFiles
-	err = createToolMessage("tool_9", "lobe-local-system", "moveLocalFiles", tool9ArgsJSON,
+	err = saveToolMsg("tool_9", "lobe-local-system", "moveLocalFiles", tool9ArgsJSON,
 		map[string]interface{}{
 			"results": []map[string]interface{}{
 				{"sourcePath": "/home/user/documents/file1.txt", "newPath": "/home/user/backup/file1.txt", "success": true},
@@ -693,7 +515,7 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 
 	// Tool 10: DALL-E Image Designer - text2image
 	// Format: content = [{ prompt, previewUrl, quality, size, style }]
-	err = createToolMessage("tool_10", "lobe-image-designer", "text2image", tool10ArgsJSON,
+	err = saveToolMsg("tool_10", "lobe-image-designer", "text2image", tool10ArgsJSON,
 		[]map[string]interface{}{
 			{
 				"prompt":     "A beautiful sunset over a calm ocean with vibrant orange and purple colors",
@@ -723,7 +545,7 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 		},
 		"files": []interface{}{},
 	}
-	err = createToolMessage("tool_11", "lobe-code-interpreter", "python", tool11ArgsJSON,
+	err = saveToolMsg("tool_11", "lobe-code-interpreter", "python", tool11ArgsJSON,
 		codeInterpreterContent, // content
 		nil,                    // pluginState (no error)
 		12)
@@ -741,6 +563,6 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 		ThreadID:     req.ThreadID,
 		Message:      mockContent,
 		FinishReason: "stop",
-		CreatedAt:    now,
+		CreatedAt:    time.Now().UnixMilli(),
 	}, nil
 }
