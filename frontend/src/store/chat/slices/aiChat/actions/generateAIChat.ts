@@ -155,7 +155,7 @@ export const generateAIChat: StateCreator<
       // MOCK RESPONSE - Frontend or Backend
       // ================================================================
       console.log('[Mock] USE_BACKEND_MOCK =', USE_BACKEND_MOCK);
-      
+
       if (USE_BACKEND_MOCK) {
         // ============================================================
         // BACKEND MOCK: Call backend ChatMock which saves to DB
@@ -168,7 +168,7 @@ export const generateAIChat: StateCreator<
           topic_id: activeTopicId,
           thread_id: threadId,
         });
-        
+
         const response = await backendAgentChat.sendMessageMock({
           session_id: activeId,
           user_id: FALLBACK_CLIENT_DB_USER_ID,
@@ -193,13 +193,13 @@ export const generateAIChat: StateCreator<
         // Refresh messages from DB to get all saved messages
         const finalTopicId = response.topic_id || activeTopicId;
         const newMapKey = messageMapKey(activeId, finalTopicId);
-        
+
         console.log('[Backend Mock] Fetching messages from DB with:', {
           activeId,
           finalTopicId,
           newMapKey,
         });
-        
+
         // If a new topic was created, switch to it first
         if (finalTopicId && finalTopicId !== activeTopicId) {
           console.log('[Backend Mock] New topic created, switching to:', finalTopicId);
@@ -212,7 +212,7 @@ export const generateAIChat: StateCreator<
           set(produce((state: ChatStore) => {
             state.messagesMap[newMapKey] = [];
           }), false, n('mock/clearBeforeRefresh'));
-          
+
           await get().internal_fetchMessages(activeId, finalTopicId);
         }
 
@@ -223,206 +223,206 @@ export const generateAIChat: StateCreator<
         // FRONTEND MOCK: Simulate streaming with full data
         // ============================================================
         console.log('[Frontend Mock] Simulating AI response...');
-        
+
         // Simulate delay
         await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Step 3: Update assistant message with FULL mock data
-      const mockResponse = `This is a mock response to: "${message}"\n\nI'm simulating the AI response to test the UI flow without calling the backend.`;
-      
-      set(produce((state: ChatStore) => {
-        console.log('[MOCK] Updating message with key:', mapKey);
-        console.log('[MOCK] messagesMap keys:', Object.keys(state.messagesMap));
-        
-        const messages = state.messagesMap[mapKey];
-        if (!messages) {
-          console.error('[MOCK] Messages not found for key:', mapKey);
-          return;
-        }
+        // Step 3: Update assistant message with FULL mock data
+        const mockResponse = `This is a mock response to: "${message}"\n\nI'm simulating the AI response to test the UI flow without calling the backend.`;
 
-        console.log('[MOCK] Found messages:', messages.length);
-        const assistantMsgIndex = messages.findIndex(m => m.id === tempAssistantId);
-        if (assistantMsgIndex !== -1) {
-          const msg = messages[assistantMsgIndex];
-          
-          // Update content
-          msg.content = mockResponse;
-          msg.updatedAt = Date.now();
-          (msg as any).loading = false;
+        set(produce((state: ChatStore) => {
+          console.log('[MOCK] Updating message with key:', mapKey);
+          console.log('[MOCK] messagesMap keys:', Object.keys(state.messagesMap));
 
-          // Mock reasoning data
-          (msg as any).reasoning = {
-            content: 'Let me think about this step by step:\n1. First, I need to understand the question\n2. Then, I will formulate a response\n3. Finally, I will provide a clear answer',
-            status: 'complete',
-          };
+          const messages = state.messagesMap[mapKey];
+          if (!messages) {
+            console.error('[MOCK] Messages not found for key:', mapKey);
+            return;
+          }
 
-          // Mock RAG chunks data
-          (msg as any).chunksList = [
-            {
-              id: 'chunk_1',
-              fileId: 'file_1',
-              filename: 'document.pdf',
-              fileType: 'application/pdf',
-              fileUrl: '/files/document.pdf',
-              text: 'This is a sample chunk from the knowledge base. It contains relevant information about the topic.',
-              similarity: 0.95,
-            },
-            {
-              id: 'chunk_2',
-              fileId: 'file_2',
-              filename: 'guide.md',
-              fileType: 'text/markdown',
-              fileUrl: '/files/guide.md',
-              text: 'Another chunk with more detailed information that was retrieved from the RAG system.',
-              similarity: 0.87,
-            },
-          ];
+          console.log('[MOCK] Found messages:', messages.length);
+          const assistantMsgIndex = messages.findIndex(m => m.id === tempAssistantId);
+          if (assistantMsgIndex !== -1) {
+            const msg = messages[assistantMsgIndex];
 
-          // Mock tool calls - using correct identifiers from manifests
-          (msg as any).tools = [
-            {
-              id: 'tool_1',
-              identifier: 'lobe-web-browsing', // Correct identifier from WebBrowsingManifest
-              apiName: 'search',
-              arguments: JSON.stringify({ 
-                query: 'What is the weather today?',
-                searchEngines: ['google']
-              }),
-              type: 'builtin',
-              result: {
-                id: 'tool_result_1',
-                content: JSON.stringify({
-                  results: [
-                    {
-                      title: 'Mock Search Result 1',
-                      url: 'https://example.com/result1',
-                      description: 'This is a mock search result for testing purposes.',
-                    },
-                    {
-                      title: 'Mock Search Result 2',
-                      url: 'https://example.com/result2',
-                      description: 'Another mock search result with relevant information.',
-                    },
-                  ],
+            // Update content
+            msg.content = mockResponse;
+            msg.updatedAt = Date.now();
+            (msg as any).loading = false;
+
+            // Mock reasoning data
+            (msg as any).reasoning = {
+              content: 'Let me think about this step by step:\n1. First, I need to understand the question\n2. Then, I will formulate a response\n3. Finally, I will provide a clear answer',
+              status: 'complete',
+            };
+
+            // Mock RAG chunks data
+            (msg as any).chunksList = [
+              {
+                id: 'chunk_1',
+                fileId: 'file_1',
+                filename: 'document.pdf',
+                fileType: 'application/pdf',
+                fileUrl: '/files/document.pdf',
+                text: 'This is a sample chunk from the knowledge base. It contains relevant information about the topic.',
+                similarity: 0.95,
+              },
+              {
+                id: 'chunk_2',
+                fileId: 'file_2',
+                filename: 'guide.md',
+                fileType: 'text/markdown',
+                fileUrl: '/files/guide.md',
+                text: 'Another chunk with more detailed information that was retrieved from the RAG system.',
+                similarity: 0.87,
+              },
+            ];
+
+            // Mock tool calls - using correct identifiers from manifests
+            (msg as any).tools = [
+              {
+                id: 'tool_1',
+                identifier: 'lobe-web-browsing', // Correct identifier from WebBrowsingManifest
+                apiName: 'search',
+                arguments: JSON.stringify({
+                  query: 'What is the weather today?',
+                  searchEngines: ['google']
                 }),
-                state: null,
+                type: 'builtin',
+                result: {
+                  id: 'tool_result_1',
+                  content: JSON.stringify({
+                    results: [
+                      {
+                        title: 'Mock Search Result 1',
+                        url: 'https://example.com/result1',
+                        description: 'This is a mock search result for testing purposes.',
+                      },
+                      {
+                        title: 'Mock Search Result 2',
+                        url: 'https://example.com/result2',
+                        description: 'Another mock search result with relevant information.',
+                      },
+                    ],
+                  }),
+                  state: null,
+                },
               },
-            },
-            {
-              id: 'tool_2',
-              identifier: 'lobe-local-system', // Correct identifier from LocalSystemManifest
-              apiName: 'listLocalFiles',
-              arguments: JSON.stringify({ 
-                path: '/home/user/documents'
-              }),
-              type: 'builtin',
-              result: {
-                id: 'tool_result_2',
-                content: JSON.stringify({
-                  files: [
-                    { name: 'document.pdf', size: 1024000, type: 'file' },
-                    { name: 'images', size: 0, type: 'directory' },
-                    { name: 'notes.txt', size: 2048, type: 'file' },
-                  ],
+              {
+                id: 'tool_2',
+                identifier: 'lobe-local-system', // Correct identifier from LocalSystemManifest
+                apiName: 'listLocalFiles',
+                arguments: JSON.stringify({
+                  path: '/home/user/documents'
                 }),
-                state: null,
+                type: 'builtin',
+                result: {
+                  id: 'tool_result_2',
+                  content: JSON.stringify({
+                    files: [
+                      { name: 'document.pdf', size: 1024000, type: 'file' },
+                      { name: 'images', size: 0, type: 'directory' },
+                      { name: 'notes.txt', size: 2048, type: 'file' },
+                    ],
+                  }),
+                  state: null,
+                },
               },
-            },
-          ];
+            ];
 
-          // Mock search grounding
-          (msg as any).search = {
-            citations: [
+            // Mock search grounding
+            (msg as any).search = {
+              citations: [
+                {
+                  id: 'citation_1',
+                  title: 'Wikipedia - Example Article',
+                  url: 'https://en.wikipedia.org/wiki/Example',
+                },
+                {
+                  id: 'citation_2',
+                  title: 'GitHub Documentation',
+                  url: 'https://docs.github.com/en',
+                },
+              ],
+              searchQueries: ['test query', 'related query'],
+            };
+
+            // Mock image list
+            (msg as any).imageList = [
               {
-                id: 'citation_1',
-                title: 'Wikipedia - Example Article',
-                url: 'https://en.wikipedia.org/wiki/Example',
+                id: 'img_1',
+                url: 'https://via.placeholder.com/300x200',
+                alt: 'Sample image 1',
               },
-              {
-                id: 'citation_2',
-                title: 'GitHub Documentation',
-                url: 'https://docs.github.com/en',
-              },
-            ],
-            searchQueries: ['test query', 'related query'],
-          };
+            ];
 
-          // Mock image list
-          (msg as any).imageList = [
-            {
-              id: 'img_1',
-              url: 'https://via.placeholder.com/300x200',
-              alt: 'Sample image 1',
-            },
-          ];
+            // Mock usage
+            (msg as any).usage = {
+              prompt_tokens: 150,
+              completion_tokens: 80,
+              total_tokens: 230,
+            };
 
-          // Mock usage
-          (msg as any).usage = {
-            prompt_tokens: 150,
-            completion_tokens: 80,
-            total_tokens: 230,
-          };
+            // Mock performance
+            (msg as any).performance = {
+              total_tokens: 230,
+              duration: 1500,
+            };
 
-          // Mock performance
-          (msg as any).performance = {
-            total_tokens: 230,
-            duration: 1500,
-          };
+            // Mock metadata
+            (msg as any).metadata = {
+              model: 'mock-model',
+              temperature: 0.7,
+            };
+          }
 
-          // Mock metadata
-          (msg as any).metadata = {
-            model: 'mock-model',
-            temperature: 0.7,
-          };
-        }
+          // Add tool messages (role='tool') for each tool call
+          // These are separate messages that contain tool execution results
+          state.messagesMap[mapKey].push({
+            id: `tool-msg-${Date.now()}-1`,
+            role: 'tool',
+            content: JSON.stringify({
+              results: [
+                {
+                  title: 'Mock Search Result 1',
+                  url: 'https://example.com/result1',
+                  description: 'This is a mock search result for testing purposes.',
+                },
+                {
+                  title: 'Mock Search Result 2',
+                  url: 'https://example.com/result2',
+                  description: 'Another mock search result with relevant information.',
+                },
+              ],
+            }),
+            tool_call_id: 'tool_1', // Must match the tool id
+            sessionId: activeId,
+            topicId: activeTopicId,
+            threadId,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            meta: {},
+          } as UIChatMessage);
 
-        // Add tool messages (role='tool') for each tool call
-        // These are separate messages that contain tool execution results
-        state.messagesMap[mapKey].push({
-          id: `tool-msg-${Date.now()}-1`,
-          role: 'tool',
-          content: JSON.stringify({
-            results: [
-              {
-                title: 'Mock Search Result 1',
-                url: 'https://example.com/result1',
-                description: 'This is a mock search result for testing purposes.',
-              },
-              {
-                title: 'Mock Search Result 2',
-                url: 'https://example.com/result2',
-                description: 'Another mock search result with relevant information.',
-              },
-            ],
-          }),
-          tool_call_id: 'tool_1', // Must match the tool id
-          sessionId: activeId,
-          topicId: activeTopicId,
-          threadId,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          meta: {},
-        } as UIChatMessage);
-
-        state.messagesMap[mapKey].push({
-          id: `tool-msg-${Date.now()}-2`,
-          role: 'tool',
-          content: JSON.stringify({
-            files: [
-              { name: 'document.pdf', size: 1024000, type: 'file' },
-              { name: 'images', size: 0, type: 'directory' },
-              { name: 'notes.txt', size: 2048, type: 'file' },
-            ],
-          }),
-          tool_call_id: 'tool_2', // Must match the tool id
-          sessionId: activeId,
-          topicId: activeTopicId,
-          threadId,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          meta: {},
-        } as UIChatMessage);
-      }), false, n('mock/response'));
+          state.messagesMap[mapKey].push({
+            id: `tool-msg-${Date.now()}-2`,
+            role: 'tool',
+            content: JSON.stringify({
+              files: [
+                { name: 'document.pdf', size: 1024000, type: 'file' },
+                { name: 'images', size: 0, type: 'directory' },
+                { name: 'notes.txt', size: 2048, type: 'file' },
+              ],
+            }),
+            tool_call_id: 'tool_2', // Must match the tool id
+            sessionId: activeId,
+            topicId: activeTopicId,
+            threadId,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            meta: {},
+          } as UIChatMessage);
+        }), false, n('mock/response'));
 
         console.log('[Frontend Mock] Response complete with full data');
       }
@@ -558,7 +558,7 @@ export const generateAIChat: StateCreator<
       } else if (data.type === 'tool_calling') {
         // Tool is being called - update tools array for Tool component rendering
         console.log('[Stream] Tool calling event received:', data);
-        
+
         const msg = messages.find(m => m.id === data.message_id);
         if (msg) {
           // Set tools array so Tool component renders
@@ -570,7 +570,7 @@ export const generateAIChat: StateCreator<
             type: t.type || 'builtin',
           })) || [];
           msg.updatedAt = Date.now();
-          
+
           console.log('[Stream] Updated message with tools:', msg);
         } else {
           console.warn('[Stream] Could not find message for tool_calling:', data.message_id);

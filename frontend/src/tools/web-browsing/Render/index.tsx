@@ -15,7 +15,7 @@ import PageContent from '@/tools/web-browsing/Render/PageContent';
 import Search from './Search';
 
 const WebBrowsing = memo<BuiltinRenderProps<SearchContent[]>>(
-  ({ messageId, args, pluginState, pluginError, apiName }) => {
+  ({ messageId, args, pluginState, pluginError, apiName, content }) => {
     switch (apiName) {
       case WebBrowsingApiName.search:
       case 'searchWithSearXNG': {
@@ -24,7 +24,7 @@ const WebBrowsing = memo<BuiltinRenderProps<SearchContent[]>>(
             messageId={messageId}
             pluginError={pluginError}
             searchQuery={(args as SearchQuery) || {}}
-            searchResponse={pluginState as UniformSearchResponse}
+            searchResponse={(pluginState || content) as UniformSearchResponse}
           />
         );
       }
@@ -33,7 +33,7 @@ const WebBrowsing = memo<BuiltinRenderProps<SearchContent[]>>(
         return (
           <PageContent
             messageId={messageId}
-            results={(pluginState as CrawlPluginState)?.results}
+            results={(pluginState as CrawlPluginState)?.results || (content as any)?.results}
             urls={[(args as CrawlSinglePageQuery)?.url]}
           />
         );
@@ -43,7 +43,7 @@ const WebBrowsing = memo<BuiltinRenderProps<SearchContent[]>>(
         return (
           <PageContent
             messageId={messageId}
-            results={(pluginState as CrawlPluginState)?.results}
+            results={(pluginState as CrawlPluginState)?.results || (content as any)?.results}
             urls={(args as CrawlMultiPagesQuery)?.urls}
           />
         );

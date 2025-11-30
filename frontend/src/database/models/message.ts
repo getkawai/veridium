@@ -14,7 +14,7 @@ import {
   UIChatMessage,
   UpdateMessageParams,
   UpdateMessageRAGParams,
-} from  '@/types';
+} from '@/types';
 import type { HeatmapsProps } from '@lobehub/charts';
 import dayjs from 'dayjs';
 import { nanoid } from 'nanoid';
@@ -45,7 +45,7 @@ export class MessageModel {
   }
 
   // **************** Query *************** //
-  
+
   /**
    * OPTIMIZED: Uses server-side filtering (2A) and JOIN queries (3A)
    * Much faster than previous client-side filtering approach
@@ -56,59 +56,59 @@ export class MessageModel {
       postProcessUrl?: (path: string | null, file: { fileType: string }) => Promise<string>;
     } = {},
   ) => {
-    await this.logger.methodEntry('query', { 
-      current, 
-      pageSize, 
-      sessionId, 
-      topicId, 
+    await this.logger.methodEntry('query', {
+      current,
+      pageSize,
+      sessionId,
+      topicId,
       groupId,
-      userId: this.userId 
+      userId: this.userId
     });
-    
+
     const offset = current * pageSize;
 
-      // OPTIMIZATION 2A: Server-side filtering
-      // Use specific query based on filter type
-      let messages;
-      if (sessionId !== undefined && sessionId !== null) {
-        await this.logger.debug(`Querying messages by session: ${sessionId}`);
-        messages = await DB.ListMessagesBySession({
-          userId: this.userId,
-          sessionId: toNullString(sessionId) as any,
-          limit: pageSize,
-          offset,
-        });
-      } else if (topicId !== undefined && topicId !== null) {
-        await this.logger.debug(`Querying messages by topic: ${topicId}`);
-        messages = await DB.ListMessagesByTopic({
-          userId: this.userId,
-          topicId: toNullString(topicId) as any,
-          limit: pageSize,
-          offset,
-        });
-      } else if (groupId !== undefined && groupId !== null) {
-        await this.logger.debug(`Querying messages by group: ${groupId}`);
-        messages = await DB.ListMessagesByGroup({
-          userId: this.userId,
-          groupId: toNullString(groupId) as any,
-          limit: pageSize,
-          offset,
-        });
-      } else {
-        await this.logger.debug('Querying all messages');
-        messages = await DB.ListMessages({
-          userId: this.userId,
-          limit: pageSize,
-          offset,
-        });
-      }
-      
-      await this.logger.debug(`Retrieved ${messages.length} messages from DB`);
+    // OPTIMIZATION 2A: Server-side filtering
+    // Use specific query based on filter type
+    let messages;
+    if (sessionId !== undefined && sessionId !== null) {
+      await this.logger.debug(`Querying messages by session: ${sessionId}`);
+      messages = await DB.ListMessagesBySession({
+        userId: this.userId,
+        sessionId: toNullString(sessionId) as any,
+        limit: pageSize,
+        offset,
+      });
+    } else if (topicId !== undefined && topicId !== null) {
+      await this.logger.debug(`Querying messages by topic: ${topicId}`);
+      messages = await DB.ListMessagesByTopic({
+        userId: this.userId,
+        topicId: toNullString(topicId) as any,
+        limit: pageSize,
+        offset,
+      });
+    } else if (groupId !== undefined && groupId !== null) {
+      await this.logger.debug(`Querying messages by group: ${groupId}`);
+      messages = await DB.ListMessagesByGroup({
+        userId: this.userId,
+        groupId: toNullString(groupId) as any,
+        limit: pageSize,
+        offset,
+      });
+    } else {
+      await this.logger.debug('Querying all messages');
+      messages = await DB.ListMessages({
+        userId: this.userId,
+        limit: pageSize,
+        offset,
+      });
+    }
 
-      if (messages.length === 0) {
-        await this.logger.methodExit('query', { count: 0 });
-        return [];
-      }
+    await this.logger.debug(`Retrieved ${messages.length} messages from DB`);
+
+    if (messages.length === 0) {
+      await this.logger.methodExit('query', { count: 0 });
+      return [];
+    }
 
     const messageIds = messages.map((m) => m.id);
 
@@ -119,7 +119,7 @@ export class MessageModel {
           messageId,
           userId: this.userId,
         });
-        
+
         return files.map((file) => ({
           id: file.id,
           messageId,
@@ -228,7 +228,7 @@ export class MessageModel {
             userId: this.userId,
           });
           if (plugin) pluginsMap.set(messageId, plugin);
-        } catch {}
+        } catch { }
 
         try {
           const translate = await DB.GetMessageTranslate({
@@ -236,7 +236,7 @@ export class MessageModel {
             userId: this.userId,
           });
           if (translate) translatesMap.set(messageId, translate);
-        } catch {}
+        } catch { }
 
         try {
           const tts = await DB.GetMessageTTS({
@@ -244,7 +244,7 @@ export class MessageModel {
             userId: this.userId,
           });
           if (tts) ttsMap.set(messageId, tts);
-        } catch {}
+        } catch { }
       }),
     );
 
@@ -259,8 +259,8 @@ export class MessageModel {
         id: message.id,
         role: message.role,
         content: getNullableString(message.content as any),
-        reasoning: getNullableString(message.reasoning as any),
-        search: getNullableString(message.search as any),
+        reasoning: parseNullableJSON(message.reasoning as any),
+        search: parseNullableJSON(message.search as any),
         metadata: parseNullableJSON(message.metadata as any),
         error: parseNullableJSON(message.error as any),
         createdAt: message.createdAt,
@@ -275,37 +275,37 @@ export class MessageModel {
         tool_call_id: plugin ? getNullableString(plugin.toolCallId as any) : undefined,
         plugin: plugin
           ? {
-              apiName: getNullableString(plugin.apiName as any),
-              arguments: getNullableString(plugin.arguments as any),
-              identifier: getNullableString(plugin.identifier as any),
-              type: getNullableString(plugin.type as any),
-            }
+            apiName: getNullableString(plugin.apiName as any),
+            arguments: getNullableString(plugin.arguments as any),
+            identifier: getNullableString(plugin.identifier as any),
+            type: getNullableString(plugin.type as any),
+          }
           : undefined,
         pluginError: plugin ? parseNullableJSON(plugin.error as any) : undefined,
         pluginState: plugin ? parseNullableJSON(plugin.state as any) : undefined,
         translate: translate
           ? {
-              content: getNullableString(translate.content as any),
-              from: getNullableString(translate.from as any),
-              to: getNullableString(translate.to as any),
-            }
+            content: getNullableString(translate.content as any),
+            from: getNullableString(translate.from as any),
+            to: getNullableString(translate.to as any),
+          }
           : undefined,
         extra: {
           fromModel: getNullableString(message.model as any),
           fromProvider: getNullableString(message.provider as any),
           translate: translate
             ? {
-                content: getNullableString(translate.content as any) || '',
-                from: getNullableString(translate.from as any) || '',
-                to: getNullableString(translate.to as any) || '',
-              }
+              content: getNullableString(translate.content as any) || '',
+              from: getNullableString(translate.from as any) || '',
+              to: getNullableString(translate.to as any) || '',
+            }
             : undefined,
           tts: tts
             ? {
-                contentMd5: getNullableString(tts.contentMd5 as any),
-                file: getNullableString(tts.fileId as any),
-                voice: getNullableString(tts.voice as any),
-              }
+              contentMd5: getNullableString(tts.contentMd5 as any),
+              file: getNullableString(tts.fileId as any),
+              voice: getNullableString(tts.voice as any),
+            }
             : undefined,
         },
         chunksList: chunksList
@@ -336,14 +336,14 @@ export class MessageModel {
         ragRawQuery: messageQuery?.userQuery,
       } as unknown as UIChatMessage;
     });
-    
+
     await this.logger.methodExit('query', { count: result.length });
     return result;
   };
 
   findById = async (id: string) => {
     await this.logger.methodEntry('findById', { id, userId: this.userId });
-    
+
     try {
       const message = await DB.GetMessage({
         id,
@@ -443,7 +443,7 @@ export class MessageModel {
     startDate?: string;
   }): Promise<number> => {
     await this.logger.methodEntry('count', { params, userId: this.userId });
-    
+
     if (!params) {
       const result = await DB.CountMessages(this.userId);
       const count = Number(result) || 0;
@@ -462,7 +462,7 @@ export class MessageModel {
       startTime = params.startDate ? new Date(params.startDate).getTime() : 0;
       endTime = params.endDate ? new Date(params.endDate).getTime() : Date.now();
     }
-    
+
     await this.logger.debug(`Counting messages in date range: ${new Date(startTime).toISOString()} to ${new Date(endTime).toISOString()}`);
 
     const result = await DB.CountMessagesByDateRange({
@@ -529,7 +529,7 @@ export class MessageModel {
     });
 
     const dateCountMap = new Map<string, number>();
-    
+
     for (const item of result) {
       if (item.date) {
         const dateStr = dayjs(item.date as any).format('YYYY-MM-DD');
@@ -590,14 +590,14 @@ export class MessageModel {
     }: CreateMessageParams,
     id: string = nanoid(14),
   ): Promise<DBMessageItem> => {
-    await this.logger.methodEntry('create', { 
-      id, 
-      role: message.role, 
+    await this.logger.methodEntry('create', {
+      id,
+      role: message.role,
       hasPlugin: !!plugin,
       filesCount: files?.length || 0,
-      userId: this.userId 
+      userId: this.userId
     });
-    
+
     const normalizedMessage = message.groupId ? { ...message, sessionId: null } : message;
     const now = currentTimestampMs();
 
@@ -605,7 +605,7 @@ export class MessageModel {
     // Ensure fromModel and fromProvider are plain strings (not already wrapped NullStrings)
     const modelStr = typeof fromModel === 'string' ? fromModel : (fromModel as any)?.String || undefined;
     const providerStr = typeof fromProvider === 'string' ? fromProvider : (fromProvider as any)?.String || undefined;
-    
+
     const item = await DBService.CreateMessageWithRelations({
       Message: {
         id,
@@ -654,7 +654,7 @@ export class MessageModel {
         Similarity: { Int64: chunk.similarity || 0, Valid: !!chunk.similarity } as any,
       })) : [],
     }, this.userId);
-    
+
     await this.logger.methodExit('create', { messageId: item.id });
     return item as unknown as DBMessageItem;
   };
@@ -685,18 +685,18 @@ export class MessageModel {
   };
 
   batchCreate = async (newMessages: DBMessageItem[]) => {
-    await this.logger.methodEntry('batchCreate', { 
+    await this.logger.methodEntry('batchCreate', {
       count: newMessages.length,
-      userId: this.userId 
+      userId: this.userId
     });
-    
+
     // No batch insert support - create one by one
     await Promise.all(
       newMessages.map((message) =>
         this.create(message as any, message.id),
       ),
     );
-    
+
     await this.logger.methodExit('batchCreate', { createdCount: newMessages.length });
   };
 
@@ -718,13 +718,13 @@ export class MessageModel {
    * OPTIMIZED: Uses atomic transaction (4A) when updating with images
    */
   update = async (id: string, { imageList, ...message }: Partial<UpdateMessageParams>) => {
-    await this.logger.methodEntry('update', { 
-      id, 
+    await this.logger.methodEntry('update', {
+      id,
       hasImages: !!(imageList && imageList.length > 0),
       imageCount: imageList?.length || 0,
-      userId: this.userId 
+      userId: this.userId
     });
-    
+
     const updateParams = {
       id,
       userId: this.userId,
@@ -755,12 +755,12 @@ export class MessageModel {
   };
 
   updateMetadata = async (id: string, metadata: Record<string, any>) => {
-    await this.logger.methodEntry('updateMetadata', { 
-      id, 
+    await this.logger.methodEntry('updateMetadata', {
+      id,
       metadataKeys: Object.keys(metadata),
-      userId: this.userId 
+      userId: this.userId
     });
-    
+
     const item = await this.findById(id);
     if (!item) {
       await this.logger.warn('Message not found for metadata update', { id });
@@ -769,11 +769,11 @@ export class MessageModel {
 
     const currentMetadata = parseNullableJSON(item.metadata as any) || {};
     const mergedMetadata = merge(currentMetadata, metadata);
-    
-    await this.logger.debug('Merging metadata', { 
+
+    await this.logger.debug('Merging metadata', {
       currentKeys: Object.keys(currentMetadata).length,
       newKeys: Object.keys(metadata).length,
-      mergedKeys: Object.keys(mergedMetadata).length 
+      mergedKeys: Object.keys(mergedMetadata).length
     });
 
     const result = await DB.UpdateMessage({
@@ -785,23 +785,23 @@ export class MessageModel {
       favorite: item.favorite,
       updatedAt: currentTimestampMs(),
     });
-    
+
     await this.logger.methodExit('updateMetadata', { id });
     return result;
   };
 
   updatePluginState = async (id: string, state: Record<string, any>) => {
-    await this.logger.methodEntry('updatePluginState', { 
-      id, 
+    await this.logger.methodEntry('updatePluginState', {
+      id,
       stateKeys: Object.keys(state),
-      userId: this.userId 
+      userId: this.userId
     });
-    
+
     const item = await DB.GetMessagePlugin({
       id,
       userId: this.userId,
     });
-    
+
     if (!item) {
       await this.logger.error('Plugin not found', null, { id });
       throw new Error('Plugin not found');
@@ -809,7 +809,7 @@ export class MessageModel {
 
     const currentState = parseNullableJSON(item.state as any) || {};
     const mergedState = merge(currentState, state);
-    
+
     await this.logger.debug('Merging plugin state', {
       currentKeys: Object.keys(currentState).length,
       newKeys: Object.keys(state).length,
@@ -822,7 +822,7 @@ export class MessageModel {
       state: toNullJSON(mergedState),
       error: item.error,
     });
-    
+
     await this.logger.methodExit('updatePluginState', { id });
     return result;
   };
@@ -832,7 +832,7 @@ export class MessageModel {
       id,
       userId: this.userId,
     });
-    
+
     if (!item) throw new Error('Plugin not found');
 
     return await DB.UpdateMessagePlugin({
@@ -847,7 +847,7 @@ export class MessageModel {
   // This method kept for backward compatibility but no longer used
   updateTTS = async (id: string, tts: Partial<ChatTTS>) => {
     await this.logger.warn('updateTTS called but TTS now handled by backend', { id });
-      return;
+    return;
   };
 
   async updateMessageRAG(id: string, { ragQueryId, fileChunks }: UpdateMessageRAGParams) {
@@ -872,7 +872,7 @@ export class MessageModel {
    */
   deleteMessage = async (id: string) => {
     await this.logger.methodEntry('deleteMessage', { id, userId: this.userId });
-    
+
     const message = await this.findById(id);
     if (!message) {
       await this.logger.warn('Message not found for deletion', { id });
@@ -881,7 +881,7 @@ export class MessageModel {
 
     const tools = parseNullableJSON(message.tools as any) as ChatToolPayload[] | null;
     const toolCallIds = tools?.map((tool) => tool.id).filter(Boolean) || [];
-    
+
     await this.logger.debug(`Deleting message with ${toolCallIds.length} tool calls`);
 
     // OPTIMIZATION 4A: Use atomic transaction
@@ -891,21 +891,21 @@ export class MessageModel {
       [id],
       this.userId
     );
-    
+
     await this.logger.methodExit('deleteMessage', { id, deletedToolCalls: toolCallIds.length });
   };
 
   deleteMessages = async (ids: string[]) => {
-    await this.logger.methodEntry('deleteMessages', { 
-      count: ids.length, 
-      userId: this.userId 
+    await this.logger.methodEntry('deleteMessages', {
+      count: ids.length,
+      userId: this.userId
     });
-    
+
     await DB.BatchDeleteMessages({
       userId: this.userId,
       ids,
     });
-    
+
     await this.logger.methodExit('deleteMessages', { deletedCount: ids.length });
   };
 
@@ -929,13 +929,13 @@ export class MessageModel {
     topicId?: string | null,
     groupId?: string | null,
   ) => {
-    await this.logger.methodEntry('deleteMessagesBySession', { 
-      sessionId, 
-      topicId, 
-      groupId, 
-      userId: this.userId 
+    await this.logger.methodEntry('deleteMessagesBySession', {
+      sessionId,
+      topicId,
+      groupId,
+      userId: this.userId
     });
-    
+
     if (sessionId) {
       await this.logger.debug(`Deleting messages by session: ${sessionId}`);
       await DB.DeleteMessagesBySession({
@@ -955,7 +955,7 @@ export class MessageModel {
         userId: this.userId,
       });
     }
-    
+
     await this.logger.methodExit('deleteMessagesBySession', { sessionId, topicId, groupId });
   };
 

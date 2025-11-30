@@ -41,23 +41,23 @@ const getMeta = (message: UIChatMessage) => {
 
 const getBaseChatsByKey =
   (key: string) =>
-  (s: ChatStoreState): UIChatMessage[] => {
-    const messages = s.messagesMap[key];
-    
-    // Safety check: ensure messages is an array
-    if (!Array.isArray(messages)) {
-      if (messages !== undefined) {
-        console.warn('[getBaseChatsByKey] messagesMap entry is not an array', key, messages);
-      }
-      return [];
-    }
+    (s: ChatStoreState): UIChatMessage[] => {
+      const messages = s.messagesMap[key];
 
-    return messages.map((i) => {
-      // Safety check: ensure i exists before spreading
-      if (!i) return null;
-      return { ...i, meta: getMeta(i) };
-    }).filter(Boolean) as UIChatMessage[];
-  };
+      // Safety check: ensure messages is an array
+      if (!Array.isArray(messages)) {
+        if (messages !== undefined) {
+          console.warn('[getBaseChatsByKey] messagesMap entry is not an array', key, messages);
+        }
+        return [];
+      }
+
+      return messages.map((i) => {
+        // Safety check: ensure i exists before spreading
+        if (!i) return null;
+        return { ...i, meta: getMeta(i) };
+      }).filter(Boolean) as UIChatMessage[];
+    };
 
 const currentChatKey = (s: ChatStoreState) => messageMapKey(s.activeId, s.activeTopicId);
 
@@ -82,7 +82,7 @@ const activeBaseChatsWithoutTool = (s: ChatStoreState) => {
 const getChatsWithThread = (s: ChatStoreState, messages: UIChatMessage[]) => {
   // Safety check: ensure messages is an array
   if (!messages || !Array.isArray(messages)) return [];
-  
+
   // 如果没有 activeThreadId，则返回所有的主消息
   if (!s.activeThreadId) return messages.filter((m) => !m.threadId);
 
@@ -253,39 +253,39 @@ const inboxActiveTopicMessages = (state: ChatStoreState) => {
  */
 const getThreadMessages =
   (agentId: string) =>
-  (s: ChatStoreState): UIChatMessage[] => {
-    if (!agentId) return [];
+    (s: ChatStoreState): UIChatMessage[] => {
+      if (!agentId) return [];
 
-    const allMessages = activeBaseChats(s);
+      const allMessages = activeBaseChats(s);
 
-    // Filter messages to only include:
-    // 1. User messages sent TO the specific agent (role: 'user' && targetId matches agentId)
-    // 2. Assistant messages FROM the specific agent sent TO user (role: 'assistant' && agentId matches && targetId is 'user')
-    return allMessages.filter((message) => {
-      if (message.role === 'user' && message.targetId === agentId) {
-        return true; // Include user messages sent to the specific agent
-      }
+      // Filter messages to only include:
+      // 1. User messages sent TO the specific agent (role: 'user' && targetId matches agentId)
+      // 2. Assistant messages FROM the specific agent sent TO user (role: 'assistant' && agentId matches && targetId is 'user')
+      return allMessages.filter((message) => {
+        if (message.role === 'user' && message.targetId === agentId) {
+          return true; // Include user messages sent to the specific agent
+        }
 
-      if (
-        message.role === 'assistant' &&
-        message.agentId === agentId &&
-        message.targetId === 'user'
-      ) {
-        return true; // Include messages from the specific agent sent to user
-      }
+        if (
+          message.role === 'assistant' &&
+          message.agentId === agentId &&
+          message.targetId === 'user'
+        ) {
+          return true; // Include messages from the specific agent sent to user
+        }
 
-      return false; // Exclude all other messages
-    });
-  };
+        return false; // Exclude all other messages
+      });
+    };
 
 /**
  * Gets thread message IDs for a specific agent
  */
 const getThreadMessageIDs =
   (agentId: string) =>
-  (s: ChatStoreState): string[] => {
-    return getThreadMessages(agentId)(s).map((message) => message.id);
-  };
+    (s: ChatStoreState): string[] => {
+      return getThreadMessages(agentId)(s).map((message) => message.id);
+    };
 
 const isSupervisorLoading = (groupId: string) => (s: ChatStoreState) =>
   s.supervisorDecisionLoading.includes(groupId);
