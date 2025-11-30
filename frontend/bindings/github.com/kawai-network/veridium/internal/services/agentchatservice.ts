@@ -30,15 +30,20 @@ export function Chat(req: $models.ChatRequest): $CancellablePromise<$models.Chat
 
 /**
  * ChatMock handles mock chat responses for testing UI flow without real AI backend
- * This method returns a simple mock response that matches ChatResponse structure
+ * This method saves complete mock messages to DB with all UI components:
+ * - Reasoning (step-by-step thinking)
+ * - RAG Chunks (file chunks with similarity scores)
+ * - Tool Calls (web browsing, local file system)
+ * - Tool Messages (separate role='tool' messages with results)
+ * - Search Grounding (citations from web search)
+ * - Images (placeholder images)
+ * - Usage & Performance metrics
  * 
  * Usage from frontend:
  * 
  * 	const response = await AgentChatService.ChatMock(request);
  * 
- * Note: This is a simplified mock that doesn't save to DB or handle streaming.
- * For full mock with all UI components (reasoning, tools, chunks, etc.),
- * the frontend currently handles mock data directly in generateAIChat.ts
+ * The frontend can then fetch messages from DB normally using internal_fetchMessages
  */
 export function ChatMock(req: $models.ChatRequest): $CancellablePromise<$models.ChatResponse | null> {
     return $Call.ByID(944716749, req).then(($result: any) => {

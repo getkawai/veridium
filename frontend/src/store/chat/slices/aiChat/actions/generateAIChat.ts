@@ -30,14 +30,21 @@ import {
 import { produce } from 'immer';
 import { StateCreator } from 'zustand/vanilla';
 
-// import { backendAgentChat } from '@/services/backendAgentChat';
+import { backendAgentChat } from '@/services/backendAgentChat';
 import { ChatStore } from '@/store/chat/store';
 import { messageMapKey } from '@/store/chat/utils/messageMapKey';
 import { setNamespace } from '@/utils/storeDebug';
 import { chatSelectors } from '../../../selectors';
 
 // User ID constant for backend calls
-// const FALLBACK_CLIENT_DB_USER_ID = 'DEFAULT_LOBE_CHAT_USER';
+const FALLBACK_CLIENT_DB_USER_ID = 'DEFAULT_LOBE_CHAT_USER';
+
+// ================================================================
+// MOCK CONFIGURATION
+// ================================================================
+// Set to true to use backend mock (realistic, saves to DB)
+// Set to false to use frontend mock (fast, no DB)
+const USE_BACKEND_MOCK = true;
 
 const n = setNamespace('ai');
 
@@ -145,12 +152,71 @@ export const generateAIChat: StateCreator<
 
     try {
       // ================================================================
-      // MOCK RESPONSE - Simulate streaming with full data
+      // MOCK RESPONSE - Frontend or Backend
       // ================================================================
-      console.log('[MOCK] Simulating AI response...');
+      console.log('[Mock] USE_BACKEND_MOCK =', USE_BACKEND_MOCK);
       
-      // Simulate delay
-      await new Promise(resolve => setTimeout(resolve, 500));
+      if (USE_BACKEND_MOCK) {
+        // ============================================================
+        // BACKEND MOCK: Call backend ChatMock which saves to DB
+        // ============================================================
+        console.log('[Backend Mock] Starting backend mock flow...');
+        console.log('[Backend Mock] Params:', {
+          session_id: activeId,
+          user_id: FALLBACK_CLIENT_DB_USER_ID,
+          message: message,
+          topic_id: activeTopicId,
+          thread_id: threadId,
+        });
+        
+        const response = await backendAgentChat.sendMessageMock({
+          session_id: activeId,
+          user_id: FALLBACK_CLIENT_DB_USER_ID,
+          message: message,
+          topic_id: activeTopicId || undefined,
+          thread_id: threadId || undefined,
+        });
+
+        console.log('[Backend Mock] Response received:', response);
+
+        // Remove temp messages
+        console.log('[Backend Mock] Removing temp messages from key:', mapKey);
+        set(produce((state: ChatStore) => {
+          const beforeCount = state.messagesMap[mapKey]?.length || 0;
+          state.messagesMap[mapKey] = state.messagesMap[mapKey].filter(
+            (msg) => !msg.id.startsWith('temp-')
+          );
+          const afterCount = state.messagesMap[mapKey]?.length || 0;
+          console.log('[Backend Mock] Removed', beforeCount - afterCount, 'temp messages');
+        }), false, n('mock/removeTempMessages'));
+
+        // Refresh messages from DB to get all saved messages
+        const finalTopicId = response.topic_id || activeTopicId;
+        const newMapKey = messageMapKey(activeId, finalTopicId);
+        
+        console.log('[Backend Mock] Fetching messages from DB with:', {
+          activeId,
+          finalTopicId,
+          newMapKey,
+        });
+        
+        // Clear messagesMap first to force refresh (bypass guard in internal_fetchMessages)
+        set(produce((state: ChatStore) => {
+          state.messagesMap[newMapKey] = [];
+        }), false, n('mock/clearBeforeRefresh'));
+        
+        await get().internal_fetchMessages(activeId, finalTopicId);
+
+        console.log('[Backend Mock] Messages refreshed from DB, current messages:', get().messagesMap[newMapKey]?.length);
+
+      } else {
+        // ============================================================
+        // FRONTEND MOCK: Simulate streaming with full data
+        // ============================================================
+        console.log('[Frontend Mock] Simulating AI response...');
+        
+        // Simulate delay
+        await new Promise(resolve => setTimeout(resolve, 500));
 
       // Step 3: Update assistant message with FULL mock data
       const mockResponse = `This is a mock response to: "${message}"\n\nI'm simulating the AI response to test the UI flow without calling the backend.`;
@@ -349,29 +415,16 @@ export const generateAIChat: StateCreator<
         } as UIChatMessage);
       }), false, n('mock/response'));
 
-      console.log('[MOCK] Response complete with full data');
-
-      // COMMENTED OUT: Real backend call
-      /*
-      const response = await backendAgentChat.sendMessage({
-        session_id: activeId,
-        user_id: FALLBACK_CLIENT_DB_USER_ID,
-        message: message,
-        topic_id: activeTopicId || undefined,
-        thread_id: threadId || undefined,
-        tools: [], // TODO: Get enabled tools from agent store
-        knowledge_base_id: undefined, // TODO: Get from KB state
-        temperature: 0.7,
-        max_tokens: 2000,
-        stream: true, // Enable streaming
-      });
-      */
-
-      // MOCK: No backend response to process
-      console.log('[MOCK] Skipping backend response processing');
+        console.log('[Frontend Mock] Response complete with full data');
+      }
 
     } catch (error) {
       console.error('[BigBang] Failed:', error);
+      console.error('[BigBang] Error details:', {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        error,
+      });
 
       // Remove temp messages on error
       set(produce((state: ChatStore) => {
