@@ -21,7 +21,6 @@ import { useState } from 'react';
 // Import Wails-generated bindings (correct way)
 import * as AgentChatService from '@@/github.com/kawai-network/veridium/internal/services/agentchatservice';
 import { ChatRequest, type ChatResponse } from '@@/github.com/kawai-network/veridium/internal/services/models';
-import type { Message } from '@@/github.com/cloudwego/eino/schema/models';
 
 class BackendAgentChatService {
   /**
@@ -63,6 +62,39 @@ class BackendAgentChatService {
   }
 
   /**
+   * Send a mock message for testing UI flow
+   * 
+   * This calls the backend ChatMock method which returns a simple mock response
+   * without calling the actual LLM or saving to database.
+   * 
+   * Note: For full mock with all UI components (reasoning, tools, chunks, etc.),
+   * use the frontend mock in generateAIChat.ts instead.
+   * 
+   * @param params Chat request parameters
+   * @returns Mock chat response
+   */
+  async sendMessageMock(params: Partial<ChatRequest>): Promise<ChatResponse> {
+    try {
+      const request = new ChatRequest(params);
+      
+      const response = await AgentChatService.ChatMock(request);
+
+      if (!response) {
+        throw new Error('Backend returned null response');
+      }
+      
+      if (response.error) {
+        throw new Error(response.error);
+      }
+
+      return response;
+    } catch (error) {
+      console.error('[BackendAgentChat] Send mock message failed:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Stream a message to the agent (not yet implemented in backend)
    * 
    * For now, this delegates to the synchronous sendMessage method.
@@ -92,24 +124,6 @@ class BackendAgentChatService {
       console.log(`[BackendAgentChat] Cleared session: ${sessionID}`);
     } catch (error) {
       console.error('[BackendAgentChat] Clear session failed:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get session history from backend
-   * 
-   * This retrieves the full message history for a session.
-   * 
-   * @param sessionID Session ID
-   * @returns Array of messages
-   */
-  async getSessionHistory(sessionID: string): Promise<(Message | null)[]> {
-    try {
-      const history = await AgentChatService.GetSessionHistory(sessionID);
-      return history || [];
-    } catch (error) {
-      console.error('[BackendAgentChat] Get session history failed:', error);
       throw error;
     }
   }

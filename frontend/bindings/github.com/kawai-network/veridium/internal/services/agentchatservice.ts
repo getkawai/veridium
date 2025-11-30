@@ -29,6 +29,24 @@ export function Chat(req: $models.ChatRequest): $CancellablePromise<$models.Chat
 }
 
 /**
+ * ChatMock handles mock chat responses for testing UI flow without real AI backend
+ * This method returns a simple mock response that matches ChatResponse structure
+ * 
+ * Usage from frontend:
+ * 
+ * 	const response = await AgentChatService.ChatMock(request);
+ * 
+ * Note: This is a simplified mock that doesn't save to DB or handle streaming.
+ * For full mock with all UI components (reasoning, tools, chunks, etc.),
+ * the frontend currently handles mock data directly in generateAIChat.ts
+ */
+export function ChatMock(req: $models.ChatRequest): $CancellablePromise<$models.ChatResponse | null> {
+    return $Call.ByID(944716749, req).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
+/**
  * ClearSession removes a session from memory
  */
 export function ClearSession(sessionID: string): $CancellablePromise<void> {
