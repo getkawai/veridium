@@ -115,21 +115,89 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 		},
 	}
 
-	// Mock tools arguments (will be saved to plugin table)
+	// ============================================
+	// Mock ALL builtin tools with their arguments
+	// ============================================
+
+	// Tool 1: Web Browsing - search
 	tool1Args := map[string]interface{}{
 		"query":         "What is the weather today?",
-		"searchEngines": []string{"google"},
+		"searchEngines": []string{"google", "bing"},
 	}
 	tool1ArgsJSON, _ := json.Marshal(tool1Args)
 
+	// Tool 2: Web Browsing - crawlSinglePage
 	tool2Args := map[string]interface{}{
-		"path": "/home/user/documents",
+		"url": "https://example.com/article",
 	}
 	tool2ArgsJSON, _ := json.Marshal(tool2Args)
 
-	// Mock tools (will be matched with tool messages below)
+	// Tool 3: Web Browsing - crawlMultiPages
+	tool3Args := map[string]interface{}{
+		"urls": []string{"https://example.com/page1", "https://example.com/page2"},
+	}
+	tool3ArgsJSON, _ := json.Marshal(tool3Args)
+
+	// Tool 4: Local System - listLocalFiles
+	tool4Args := map[string]interface{}{
+		"path": "/home/user/documents",
+	}
+	tool4ArgsJSON, _ := json.Marshal(tool4Args)
+
+	// Tool 5: Local System - readLocalFile
+	tool5Args := map[string]interface{}{
+		"path": "/home/user/documents/readme.md",
+		"loc":  []int{0, 100},
+	}
+	tool5ArgsJSON, _ := json.Marshal(tool5Args)
+
+	// Tool 6: Local System - searchLocalFiles
+	tool6Args := map[string]interface{}{
+		"keywords":  "important document",
+		"directory": "/home/user/documents",
+	}
+	tool6ArgsJSON, _ := json.Marshal(tool6Args)
+
+	// Tool 7: Local System - writeLocalFile
+	tool7Args := map[string]interface{}{
+		"path":    "/home/user/documents/new_file.txt",
+		"content": "Hello, this is a new file content.",
+	}
+	tool7ArgsJSON, _ := json.Marshal(tool7Args)
+
+	// Tool 8: Local System - renameLocalFile
+	tool8Args := map[string]interface{}{
+		"path":    "/home/user/documents/old_name.txt",
+		"newName": "new_name.txt",
+	}
+	tool8ArgsJSON, _ := json.Marshal(tool8Args)
+
+	// Tool 9: Local System - moveLocalFiles
+	tool9Args := map[string]interface{}{
+		"items": []map[string]interface{}{
+			{"oldPath": "/home/user/documents/file1.txt", "newPath": "/home/user/backup/file1.txt"},
+		},
+	}
+	tool9ArgsJSON, _ := json.Marshal(tool9Args)
+
+	// Tool 10: DALL-E Image Designer - text2image
+	tool10Args := map[string]interface{}{
+		"prompts": []string{
+			"A beautiful sunset over a calm ocean with vibrant orange and purple colors",
+			"A futuristic cityscape at night with neon lights and flying cars",
+		},
+		"size":    "1024x1024",
+		"quality": "hd",
+		"style":   "vivid",
+	}
+	tool10ArgsJSON, _ := json.Marshal(tool10Args)
+
+
+
+	// Mock tools array (will be matched with tool messages below)
 	// Note: arguments must be JSON string for frontend compatibility
 	tools := []map[string]interface{}{
+		// Web Browsing tools
 		{
 			"id":         "tool_1",
 			"identifier": "lobe-web-browsing",
@@ -139,9 +207,67 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 		},
 		{
 			"id":         "tool_2",
+			"identifier": "lobe-web-browsing",
+			"apiName":    "crawlSinglePage",
+			"arguments":  string(tool2ArgsJSON),
+			"type":       "builtin",
+		},
+		{
+			"id":         "tool_3",
+			"identifier": "lobe-web-browsing",
+			"apiName":    "crawlMultiPages",
+			"arguments":  string(tool3ArgsJSON),
+			"type":       "builtin",
+		},
+		// Local System tools
+		{
+			"id":         "tool_4",
 			"identifier": "lobe-local-system",
 			"apiName":    "listLocalFiles",
-			"arguments":  string(tool2ArgsJSON),
+			"arguments":  string(tool4ArgsJSON),
+			"type":       "builtin",
+		},
+		{
+			"id":         "tool_5",
+			"identifier": "lobe-local-system",
+			"apiName":    "readLocalFile",
+			"arguments":  string(tool5ArgsJSON),
+			"type":       "builtin",
+		},
+		{
+			"id":         "tool_6",
+			"identifier": "lobe-local-system",
+			"apiName":    "searchLocalFiles",
+			"arguments":  string(tool6ArgsJSON),
+			"type":       "builtin",
+		},
+		{
+			"id":         "tool_7",
+			"identifier": "lobe-local-system",
+			"apiName":    "writeLocalFile",
+			"arguments":  string(tool7ArgsJSON),
+			"type":       "builtin",
+		},
+		{
+			"id":         "tool_8",
+			"identifier": "lobe-local-system",
+			"apiName":    "renameLocalFile",
+			"arguments":  string(tool8ArgsJSON),
+			"type":       "builtin",
+		},
+		{
+			"id":         "tool_9",
+			"identifier": "lobe-local-system",
+			"apiName":    "moveLocalFiles",
+			"arguments":  string(tool9ArgsJSON),
+			"type":       "builtin",
+		},
+		// DALL-E Image Designer
+		{
+			"id":         "tool_10",
+			"identifier": "lobe-image-designer",
+			"apiName":    "text2image",
+			"arguments":  string(tool10ArgsJSON),
 			"type":       "builtin",
 		},
 	}
@@ -350,111 +476,182 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 
 	log.Printf("💾 Created mock RAG data: 2 files, 2 chunks, 1 query")
 
-	// 4. Create tool messages (role='tool') with plugins - these are separate messages
-	// Tool message 1: Web browsing results
-	toolMsg1ID := uuid.New().String()
-	toolResult1 := map[string]interface{}{
-		"results": []map[string]interface{}{
+	// ============================================
+	// 4. Create tool messages (role='tool') with plugins for ALL builtin tools
+	// ============================================
+
+	// Helper to create tool message and plugin
+	createToolMessage := func(toolID, identifier, apiName string, argsJSON []byte, result interface{}, timeOffset int64) error {
+		msgID := uuid.New().String()
+		resultJSON, _ := json.Marshal(result)
+
+		msgParams := db.CreateMessageParams{
+			ID:        msgID,
+			Role:      "tool",
+			Content:   sql.NullString{String: string(resultJSON), Valid: true},
+			SessionID: sql.NullString{String: req.SessionID, Valid: true},
+			UserID:    req.UserID,
+			CreatedAt: now + timeOffset,
+			UpdatedAt: now + timeOffset,
+		}
+		if currentTopicID != "" {
+			msgParams.TopicID = sql.NullString{String: currentTopicID, Valid: true}
+		}
+		if req.ThreadID != "" {
+			msgParams.ThreadID = sql.NullString{String: req.ThreadID, Valid: true}
+		}
+
+		_, err := s.db.Queries().CreateMessage(ctx, msgParams)
+		if err != nil {
+			return fmt.Errorf("failed to save tool message %s: %w", toolID, err)
+		}
+
+		pluginParams := db.CreateMessagePluginParams{
+			ID:         msgID,
+			ToolCallID: sql.NullString{String: toolID, Valid: true},
+			Type:       sql.NullString{String: "builtin", Valid: true},
+			ApiName:    sql.NullString{String: apiName, Valid: true},
+			Arguments:  sql.NullString{String: string(argsJSON), Valid: true},
+			Identifier: sql.NullString{String: identifier, Valid: true},
+			UserID:     req.UserID,
+		}
+		_, err = s.db.Queries().CreateMessagePlugin(ctx, pluginParams)
+		if err != nil {
+			return fmt.Errorf("failed to save tool plugin %s: %w", toolID, err)
+		}
+
+		log.Printf("💾 Saved tool message: %s (%s.%s)", toolID, identifier, apiName)
+		return nil
+	}
+
+	// Tool 1: Web Browsing - search
+	err = createToolMessage("tool_1", "lobe-web-browsing", "search", tool1ArgsJSON,
+		map[string]interface{}{
+			"results": []map[string]interface{}{
+				{"title": "Weather Today - Current Conditions", "url": "https://weather.com/today", "description": "Current weather conditions and forecast."},
+				{"title": "Weather Report - Bing", "url": "https://www.bing.com/weather", "description": "Detailed weather information."},
+			},
+		}, 2)
+	if err != nil {
+		log.Printf("⚠️  %v", err)
+	}
+
+	// Tool 2: Web Browsing - crawlSinglePage
+	err = createToolMessage("tool_2", "lobe-web-browsing", "crawlSinglePage", tool2ArgsJSON,
+		map[string]interface{}{
+			"title":   "Example Article - Full Content",
+			"content": "This is the full content of the crawled article. It contains detailed information about the topic discussed.",
+			"url":     "https://example.com/article",
+		}, 3)
+	if err != nil {
+		log.Printf("⚠️  %v", err)
+	}
+
+	// Tool 3: Web Browsing - crawlMultiPages
+	err = createToolMessage("tool_3", "lobe-web-browsing", "crawlMultiPages", tool3ArgsJSON,
+		map[string]interface{}{
+			"pages": []map[string]interface{}{
+				{"url": "https://example.com/page1", "title": "Page 1", "content": "Content from page 1..."},
+				{"url": "https://example.com/page2", "title": "Page 2", "content": "Content from page 2..."},
+			},
+		}, 4)
+	if err != nil {
+		log.Printf("⚠️  %v", err)
+	}
+
+	// Tool 4: Local System - listLocalFiles
+	err = createToolMessage("tool_4", "lobe-local-system", "listLocalFiles", tool4ArgsJSON,
+		map[string]interface{}{
+			"files": []map[string]interface{}{
+				{"name": "document.pdf", "size": 1024000, "type": "file", "isDirectory": false},
+				{"name": "images", "size": 0, "type": "directory", "isDirectory": true},
+				{"name": "notes.txt", "size": 2048, "type": "file", "isDirectory": false},
+				{"name": "readme.md", "size": 512, "type": "file", "isDirectory": false},
+			},
+		}, 5)
+	if err != nil {
+		log.Printf("⚠️  %v", err)
+	}
+
+	// Tool 5: Local System - readLocalFile
+	err = createToolMessage("tool_5", "lobe-local-system", "readLocalFile", tool5ArgsJSON,
+		map[string]interface{}{
+			"content":        "# README\n\nThis is a sample readme file.\n\n## Features\n- Feature 1\n- Feature 2\n- Feature 3",
+			"filename":       "readme.md",
+			"fileType":       "text/markdown",
+			"charCount":      120,
+			"lineCount":      8,
+			"totalCharCount": 120,
+			"totalLineCount": 8,
+		}, 6)
+	if err != nil {
+		log.Printf("⚠️  %v", err)
+	}
+
+	// Tool 6: Local System - searchLocalFiles
+	err = createToolMessage("tool_6", "lobe-local-system", "searchLocalFiles", tool6ArgsJSON,
+		map[string]interface{}{
+			"results": []map[string]interface{}{
+				{"path": "/home/user/documents/important_doc.pdf", "name": "important_doc.pdf", "size": 2048000},
+				{"path": "/home/user/documents/important_notes.txt", "name": "important_notes.txt", "size": 1024},
+			},
+		}, 7)
+	if err != nil {
+		log.Printf("⚠️  %v", err)
+	}
+
+	// Tool 7: Local System - writeLocalFile
+	err = createToolMessage("tool_7", "lobe-local-system", "writeLocalFile", tool7ArgsJSON,
+		map[string]interface{}{
+			"success": true,
+			"path":    "/home/user/documents/new_file.txt",
+			"message": "File written successfully",
+		}, 8)
+	if err != nil {
+		log.Printf("⚠️  %v", err)
+	}
+
+	// Tool 8: Local System - renameLocalFile
+	err = createToolMessage("tool_8", "lobe-local-system", "renameLocalFile", tool8ArgsJSON,
+		map[string]interface{}{
+			"success": true,
+			"oldPath": "/home/user/documents/old_name.txt",
+			"newPath": "/home/user/documents/new_name.txt",
+		}, 9)
+	if err != nil {
+		log.Printf("⚠️  %v", err)
+	}
+
+	// Tool 9: Local System - moveLocalFiles
+	err = createToolMessage("tool_9", "lobe-local-system", "moveLocalFiles", tool9ArgsJSON,
+		map[string]interface{}{
+			"results": []map[string]interface{}{
+				{"sourcePath": "/home/user/documents/file1.txt", "newPath": "/home/user/backup/file1.txt", "success": true},
+			},
+		}, 10)
+	if err != nil {
+		log.Printf("⚠️  %v", err)
+	}
+
+	// Tool 10: DALL-E Image Designer - text2image
+	err = createToolMessage("tool_10", "lobe-image-designer", "text2image", tool10ArgsJSON,
+		[]map[string]interface{}{
 			{
-				"title":       "Mock Search Result 1",
-				"url":         "https://example.com/result1",
-				"description": "This is a mock search result for testing purposes.",
+				"prompt":       "A beautiful sunset over a calm ocean with vibrant orange and purple colors",
+				"imageUrl":     "https://via.placeholder.com/1024x1024/FF6B35/FFFFFF?text=Sunset+Ocean",
+				"revisedPrompt": "A breathtaking sunset scene over a tranquil ocean, with vibrant orange and deep purple hues painting the sky.",
 			},
 			{
-				"title":       "Mock Search Result 2",
-				"url":         "https://example.com/result2",
-				"description": "Another mock search result with relevant information.",
+				"prompt":       "A futuristic cityscape at night with neon lights and flying cars",
+				"imageUrl":     "https://via.placeholder.com/1024x1024/1A1A2E/00FFFF?text=Futuristic+City",
+				"revisedPrompt": "A stunning futuristic cityscape at night, illuminated by neon lights with sleek flying cars hovering above.",
 			},
-		},
-	}
-	toolResult1JSON, _ := json.Marshal(toolResult1)
-
-	toolMsg1Params := db.CreateMessageParams{
-		ID:        toolMsg1ID,
-		Role:      "tool",
-		Content:   sql.NullString{String: string(toolResult1JSON), Valid: true},
-		SessionID: sql.NullString{String: req.SessionID, Valid: true},
-		UserID:    req.UserID,
-		CreatedAt: now + 2,
-		UpdatedAt: now + 2,
-	}
-	if currentTopicID != "" {
-		toolMsg1Params.TopicID = sql.NullString{String: currentTopicID, Valid: true}
-	}
-	if req.ThreadID != "" {
-		toolMsg1Params.ThreadID = sql.NullString{String: req.ThreadID, Valid: true}
-	}
-
-	_, err = s.db.Queries().CreateMessage(ctx, toolMsg1Params)
+		}, 11)
 	if err != nil {
-		return nil, fmt.Errorf("failed to save tool message 1: %w", err)
+		log.Printf("⚠️  %v", err)
 	}
 
-	// Create plugin entry for tool message 1
-	plugin1Params := db.CreateMessagePluginParams{
-		ID:         toolMsg1ID,
-		ToolCallID: sql.NullString{String: "tool_1", Valid: true}, // Must match tool id
-		Type:       sql.NullString{String: "builtin", Valid: true},
-		ApiName:    sql.NullString{String: "search", Valid: true},
-		Arguments:  sql.NullString{String: string(tool1ArgsJSON), Valid: true},
-		Identifier: sql.NullString{String: "lobe-web-browsing", Valid: true},
-		UserID:     req.UserID,
-	}
-	_, err = s.db.Queries().CreateMessagePlugin(ctx, plugin1Params)
-	if err != nil {
-		return nil, fmt.Errorf("failed to save tool plugin 1: %w", err)
-	}
-	log.Printf("💾 Saved mock tool message 1 with plugin: %s", toolMsg1ID)
-
-	// Tool message 2: Local file system results
-	toolMsg2ID := uuid.New().String()
-	toolResult2 := map[string]interface{}{
-		"files": []map[string]interface{}{
-			{"name": "document.pdf", "size": 1024000, "type": "file"},
-			{"name": "images", "size": 0, "type": "directory"},
-			{"name": "notes.txt", "size": 2048, "type": "file"},
-		},
-	}
-	toolResult2JSON, _ := json.Marshal(toolResult2)
-
-	toolMsg2Params := db.CreateMessageParams{
-		ID:        toolMsg2ID,
-		Role:      "tool",
-		Content:   sql.NullString{String: string(toolResult2JSON), Valid: true},
-		SessionID: sql.NullString{String: req.SessionID, Valid: true},
-		UserID:    req.UserID,
-		CreatedAt: now + 3,
-		UpdatedAt: now + 3,
-	}
-	if currentTopicID != "" {
-		toolMsg2Params.TopicID = sql.NullString{String: currentTopicID, Valid: true}
-	}
-	if req.ThreadID != "" {
-		toolMsg2Params.ThreadID = sql.NullString{String: req.ThreadID, Valid: true}
-	}
-
-	_, err = s.db.Queries().CreateMessage(ctx, toolMsg2Params)
-	if err != nil {
-		return nil, fmt.Errorf("failed to save tool message 2: %w", err)
-	}
-
-	// Create plugin entry for tool message 2
-	plugin2Params := db.CreateMessagePluginParams{
-		ID:         toolMsg2ID,
-		ToolCallID: sql.NullString{String: "tool_2", Valid: true}, // Must match tool id
-		Type:       sql.NullString{String: "builtin", Valid: true},
-		ApiName:    sql.NullString{String: "listLocalFiles", Valid: true},
-		Arguments:  sql.NullString{String: string(tool2ArgsJSON), Valid: true},
-		Identifier: sql.NullString{String: "lobe-local-system", Valid: true},
-		UserID:     req.UserID,
-	}
-	_, err = s.db.Queries().CreateMessagePlugin(ctx, plugin2Params)
-	if err != nil {
-		return nil, fmt.Errorf("failed to save tool plugin 2: %w", err)
-	}
-	log.Printf("💾 Saved mock tool message 2 with plugin: %s", toolMsg2ID)
-
-	log.Printf("✅ [MOCK] Complete - saved 4 messages (1 user, 1 assistant, 2 tools)")
+	log.Printf("✅ [MOCK] Complete - saved %d messages (1 user, 1 assistant, 10 tools)", 12)
 
 	// Return response
 	return &ChatResponse{
