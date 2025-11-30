@@ -31,26 +31,21 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 	// Simulate processing delay
 	time.Sleep(500 * time.Millisecond)
 
-	// 1. Setup session and topic using reusable helper
+	// 1. Setup session, topic, and save user message using reusable helper
+	// SetupSessionAndTopic now handles:
+	// - Get/create session
+	// - Load history summary
+	// - Load thread messages
+	// - Auto-create topic
+	// - Add user message to session (in-memory)
+	// - Save user message to DB
 	setup, err := s.setupSessionAndTopic(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to setup session/topic: %w", err)
 	}
 	currentTopicID := setup.TopicID
 
-	// 2. Save user message using reusable helper
-	_, err = s.saveUserMessage(ctx, SaveUserMessageParams{
-		Content:   req.Message,
-		SessionID: req.SessionID,
-		TopicID:   currentTopicID,
-		ThreadID:  req.ThreadID,
-		UserID:    req.UserID,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to save user message: %w", err)
-	}
-
-	// 3. Create assistant message with full mock data
+	// 2. Create assistant message with full mock data
 	var assistantMsgID string
 	mockContent := fmt.Sprintf(
 		"This is a mock response to: \"%s\"\n\nI'm simulating the AI response to test the UI flow without calling the backend.",
@@ -304,7 +299,7 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 		"performance": performance,
 	}
 
-	// 3. Save assistant message using reusable helper
+	// 2b. Save assistant message using reusable helper
 	assistantMsgID, err = s.saveAssistantMessage(ctx, SaveAssistantMessageParams{
 		Content:   mockContent,
 		SessionID: req.SessionID,
@@ -320,7 +315,7 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 		return nil, fmt.Errorf("failed to save assistant message: %w", err)
 	}
 
-	// 4. Save RAG data using reusable helper
+	// 3. Save RAG data using reusable helper
 	file1ID := uuid.New().String()
 	file2ID := uuid.New().String()
 	chunk1ID := uuid.New().String()
@@ -344,7 +339,7 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 	}
 
 	// ============================================
-	// 5. Create tool messages using reusable helper
+	// 4. Create tool messages using reusable helper
 	// ============================================
 
 	// Helper closure that wraps SaveToolMessage with common params

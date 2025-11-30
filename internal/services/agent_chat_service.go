@@ -302,53 +302,23 @@ func detectSummaryGenerationModel(libService *llama.LibraryService) string {
 
 // Chat processes a chat request and returns a response
 func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
-	// Get or create session
-	session, err := s.getOrCreateSession(ctx, req)
+	// 1. Setup session, topic, and save user message using reusable helper
+	// SetupSessionAndTopic handles:
+	// - Get/create session
+	// - Load history summary from DB
+	// - Load thread messages
+	// - Auto-create topic
+	// - Add user message to session (in-memory)
+	// - Save user message to DB
+	setup, err := s.setupSessionAndTopic(ctx, req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get/create session: %w", err)
+		return nil, fmt.Errorf("failed to setup session/topic: %w", err)
 	}
+	session := setup.Session
+	currentTopicID := setup.TopicID
 
-	// ✅ LOAD SUMMARY FROM DATABASE IF EXISTS
-	// Summary will be injected into system prompt when creating agent
-	if req.TopicID != "" {
-		topic, err := s.db.Queries().GetTopic(ctx, db.GetTopicParams{
-			ID:     req.TopicID,
-			UserID: req.UserID,
-		})
-
-		if err == nil && topic.HistorySummary.Valid && topic.HistorySummary.String != "" {
-			// Store summary in session context for agent creation
-			if session.Context == nil {
-				session.Context = make(map[string]any)
-			}
-			session.Context["history_summary"] = topic.HistorySummary.String
-			log.Printf("📋 Loaded history summary for topic %s (%d chars)",
-				req.TopicID, len(topic.HistorySummary.String))
-		}
-	}
-
-	// Phase 4: Handle topic and thread loading
-	// If ThreadID is provided, load thread context
-	if req.ThreadID != "" && s.threadService != nil {
-		threadMessages, err := s.threadService.GetThreadMessages(ctx, req.ThreadID, req.UserID)
-		if err != nil {
-			log.Printf("⚠️  Warning: Failed to load thread messages: %v", err)
-		} else {
-			// Convert thread messages to yzma format
-			yzmaMessages := make([]message.Message, 0, len(threadMessages))
-			for _, dbMsg := range threadMessages {
-				yzmaMsg := convertDBMessageToYzma(&dbMsg)
-				if yzmaMsg != nil {
-					yzmaMessages = append(yzmaMessages, yzmaMsg)
-				}
-			}
-			session.Messages = yzmaMessages
-			session.ThreadID = req.ThreadID
-			log.Printf("📋 Loaded %d messages from thread %s", len(yzmaMessages), req.ThreadID)
-		}
-	}
-
-	// Validate model for current reasoning mode and auto-switch if needed
+	// 2. Validate model for current reasoning mode and auto-switch if needed
+	// Note: This is NOT in SetupSessionAndTopic because it's specific to Chat()
 	if err := s.ValidateModelForReasoningMode(); err != nil {
 		log.Printf("⚠️  Model mismatch detected: %v", err)
 		log.Printf("🔄 Auto-switching to recommended model...")
@@ -358,42 +328,6 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*ChatResp
 		} else {
 			log.Printf("✅ Successfully switched to recommended model")
 		}
-	}
-
-	// Set TopicID from request (may be auto-created later)
-	currentTopicID := req.TopicID
-	if currentTopicID != "" {
-		session.TopicID = currentTopicID
-	}
-
-	// Add user message to session (native yzma format)
-	userMsg := message.Chat{
-		Role:    "user",
-		Content: req.Message,
-	}
-	session.Messages = append(session.Messages, userMsg)
-
-	// Phase 4: Auto-create topic if needed BEFORE saving first message
-	// Only create if this is first message (session.Messages == 1 after adding user msg)
-	if currentTopicID == "" && len(session.Messages) == 1 {
-		// Create topic synchronously to get topicID for message saving
-		topicID, err := s.createTopicForSessionSync(ctx, session.SessionID, session.UserID)
-		if err != nil {
-			log.Printf("⚠️  Warning: Failed to create topic: %v", err)
-			// Continue without topic - will retry after response
-		} else {
-			currentTopicID = topicID
-			session.TopicID = topicID
-			log.Printf("📝 Auto-created topic: %s", topicID)
-		}
-	}
-
-	// Save user message to DB with topic and thread IDs
-	userMsgID, err := s.saveYzmaMessageToDB(ctx, userMsg, session.SessionID, session.UserID, currentTopicID, req.ThreadID)
-	if err != nil {
-		log.Printf("⚠️  Warning: Failed to save user message to DB: %v", err)
-	} else {
-		log.Printf("💾 Saved user message: %s (topic: %s, thread: %s)", userMsgID, currentTopicID, req.ThreadID)
 	}
 
 	// Messages for agent (native yzma format)

@@ -26,6 +26,7 @@ import (
 
 	"github.com/google/uuid"
 	db "github.com/kawai-network/veridium/internal/database/generated"
+	"github.com/kawai-network/veridium/pkg/yzma/message"
 )
 
 // ============================================================================
@@ -34,10 +35,11 @@ import (
 
 // SessionSetupResult contains the result of session and topic setup
 type SessionSetupResult struct {
-	Session   *AgentSession
-	TopicID   string
-	SessionID string
-	IsNew     bool
+	Session       *AgentSession
+	TopicID       string
+	SessionID     string
+	UserMessageID string // ID of saved user message
+	IsNew         bool
 }
 
 // SaveUserMessageParams contains parameters for saving a user message
@@ -112,12 +114,20 @@ type RAGChunkParams struct {
 // Reusable Helper Methods
 // ============================================================================
 
-// setupSessionAndTopic gets or creates a session and auto-creates a topic if needed
-// This is extracted from ChatMock and can be reused by real agent implementation
+// setupSessionAndTopic gets or creates a session, adds user message, and auto-creates a topic if needed.
+// This follows the same pattern as Chat() in agent_chat_service.go:
+// 1. Get or create session
+// 2. Load history summary from DB (if topic exists)
+// 3. Load thread messages (if ThreadID provided)
+// 4. Auto-create topic if needed (before saving user message)
+// 5. Add user message to session (in-memory)
+// 6. Save user message to DB
+//
+// Note: Model validation is NOT included here - caller should handle it if needed.
 func (s *AgentChatService) setupSessionAndTopic(ctx context.Context, req ChatRequest) (*SessionSetupResult, error) {
-	log.Printf("🔧 SetupSessionAndTopic: session=%s, topic=%s", req.SessionID, req.TopicID)
+	log.Printf("🔧 SetupSessionAndTopic: session=%s, topic=%s, thread=%s", req.SessionID, req.TopicID, req.ThreadID)
 
-	// Get or create session
+	// 1. Get or create session
 	session, err := s.getOrCreateSession(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get/create session: %w", err)
@@ -130,8 +140,49 @@ func (s *AgentChatService) setupSessionAndTopic(ctx context.Context, req ChatReq
 		IsNew:     len(session.Messages) == 0,
 	}
 
-	// Auto-create topic if needed
-	if result.TopicID == "" {
+	// 2. Load history summary from DB if topic exists
+	if req.TopicID != "" {
+		topic, err := s.db.Queries().GetTopic(ctx, db.GetTopicParams{
+			ID:     req.TopicID,
+			UserID: req.UserID,
+		})
+		if err == nil && topic.HistorySummary.Valid && topic.HistorySummary.String != "" {
+			if session.Context == nil {
+				session.Context = make(map[string]any)
+			}
+			session.Context["history_summary"] = topic.HistorySummary.String
+			log.Printf("📋 Loaded history summary for topic %s (%d chars)",
+				req.TopicID, len(topic.HistorySummary.String))
+		}
+	}
+
+	// 3. Load thread messages if ThreadID provided
+	if req.ThreadID != "" && s.threadService != nil {
+		threadMessages, err := s.threadService.GetThreadMessages(ctx, req.ThreadID, req.UserID)
+		if err != nil {
+			log.Printf("⚠️  Warning: Failed to load thread messages: %v", err)
+		} else {
+			// Convert thread messages to yzma format
+			yzmaMessages := make([]message.Message, 0, len(threadMessages))
+			for _, dbMsg := range threadMessages {
+				yzmaMsg := convertDBMessageToYzma(&dbMsg)
+				if yzmaMsg != nil {
+					yzmaMessages = append(yzmaMessages, yzmaMsg)
+				}
+			}
+			session.Messages = yzmaMessages
+			session.ThreadID = req.ThreadID
+			log.Printf("📋 Loaded %d messages from thread %s", len(yzmaMessages), req.ThreadID)
+		}
+	}
+
+	// 4. Set TopicID from request
+	if req.TopicID != "" {
+		session.TopicID = req.TopicID
+	}
+
+	// 5. Auto-create topic if needed (BEFORE saving user message so we have topicID)
+	if result.TopicID == "" && result.IsNew {
 		topicID, err := s.createTopicForSessionSync(ctx, session.SessionID, session.UserID)
 		if err != nil {
 			log.Printf("⚠️  Warning: Failed to create topic: %v", err)
@@ -140,6 +191,28 @@ func (s *AgentChatService) setupSessionAndTopic(ctx context.Context, req ChatReq
 			session.TopicID = topicID
 			log.Printf("📝 Auto-created topic: %s", topicID)
 		}
+	}
+
+	// 6. Add user message to session (in-memory for LLM context)
+	userMsg := message.Chat{
+		Role:    "user",
+		Content: req.Message,
+	}
+	session.Messages = append(session.Messages, userMsg)
+
+	// 7. Save user message to DB
+	userMsgID, err := s.saveUserMessage(ctx, SaveUserMessageParams{
+		Content:   req.Message,
+		SessionID: session.SessionID,
+		TopicID:   result.TopicID,
+		ThreadID:  req.ThreadID,
+		UserID:    req.UserID,
+	})
+	if err != nil {
+		log.Printf("⚠️  Warning: Failed to save user message to DB: %v", err)
+	} else {
+		result.UserMessageID = userMsgID
+		log.Printf("💾 Saved user message: %s (topic: %s, thread: %s)", userMsgID, result.TopicID, req.ThreadID)
 	}
 
 	return result, nil
