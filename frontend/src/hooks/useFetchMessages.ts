@@ -30,6 +30,12 @@ export const useFetchMessages = () => {
   useEffect(() => {
     if (!sessionId) return;
 
+    console.log('[useFetchMessages] Triggered with:', {
+      sessionId,
+      activeTopicId,
+      isGroupSession,
+    });
+
     internal_fetchMessages(
       sessionId,
       activeTopicId,

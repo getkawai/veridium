@@ -30,14 +30,14 @@ import {
 import { produce } from 'immer';
 import { StateCreator } from 'zustand/vanilla';
 
-import { backendAgentChat } from '@/services/backendAgentChat';
+// import { backendAgentChat } from '@/services/backendAgentChat';
 import { ChatStore } from '@/store/chat/store';
 import { messageMapKey } from '@/store/chat/utils/messageMapKey';
 import { setNamespace } from '@/utils/storeDebug';
 import { chatSelectors } from '../../../selectors';
 
 // User ID constant for backend calls
-const FALLBACK_CLIENT_DB_USER_ID = 'DEFAULT_LOBE_CHAT_USER';
+// const FALLBACK_CLIENT_DB_USER_ID = 'DEFAULT_LOBE_CHAT_USER';
 
 const n = setNamespace('ai');
 
@@ -74,7 +74,7 @@ export const generateAIChat: StateCreator<
       activeId,
       activeTopicId,
       activeThreadId,
-      refreshTopic,
+      // refreshTopic,
     } = get();
 
     // Validation
@@ -100,10 +100,17 @@ export const generateAIChat: StateCreator<
     const mapKey = messageMapKey(activeId, activeTopicId);
     const tempUserId = `temp-user-${Date.now()}`;
 
+    console.log('[MOCK] Creating messages with key:', mapKey, {
+      activeId,
+      activeTopicId,
+      threadId,
+    });
+
     set(produce((state: ChatStore) => {
       if (!state.messagesMap[mapKey]) {
         state.messagesMap[mapKey] = [];
       }
+      console.log('[MOCK] messagesMap before push:', Object.keys(state.messagesMap));
       state.messagesMap[mapKey].push({
         id: tempUserId,
         role: 'user',
@@ -137,8 +144,132 @@ export const generateAIChat: StateCreator<
     }), false, n('optimistic/assistantMessage'));
 
     try {
-      // Step 3: Call backend (handles EVERYTHING)
-      // Streaming events are now handled globally in App.tsx
+      // ================================================================
+      // MOCK RESPONSE - Simulate streaming with full data
+      // ================================================================
+      console.log('[MOCK] Simulating AI response...');
+      
+      // Simulate delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Step 3: Update assistant message with FULL mock data
+      const mockResponse = `This is a mock response to: "${message}"\n\nI'm simulating the AI response to test the UI flow without calling the backend.`;
+      
+      set(produce((state: ChatStore) => {
+        console.log('[MOCK] Updating message with key:', mapKey);
+        console.log('[MOCK] messagesMap keys:', Object.keys(state.messagesMap));
+        
+        const messages = state.messagesMap[mapKey];
+        if (!messages) {
+          console.error('[MOCK] Messages not found for key:', mapKey);
+          return;
+        }
+
+        console.log('[MOCK] Found messages:', messages.length);
+        const assistantMsgIndex = messages.findIndex(m => m.id === tempAssistantId);
+        if (assistantMsgIndex !== -1) {
+          const msg = messages[assistantMsgIndex];
+          
+          // Update content
+          msg.content = mockResponse;
+          msg.updatedAt = Date.now();
+          (msg as any).loading = false;
+
+          // Mock reasoning data
+          (msg as any).reasoning = {
+            content: 'Let me think about this step by step:\n1. First, I need to understand the question\n2. Then, I will formulate a response\n3. Finally, I will provide a clear answer',
+            status: 'complete',
+          };
+
+          // Mock RAG chunks data
+          (msg as any).chunksList = [
+            {
+              id: 'chunk_1',
+              content: 'This is a sample chunk from the knowledge base. It contains relevant information about the topic.',
+              metadata: {
+                source: 'document.pdf',
+                page: 1,
+              },
+            },
+            {
+              id: 'chunk_2',
+              content: 'Another chunk with more detailed information that was retrieved from the RAG system.',
+              metadata: {
+                source: 'guide.md',
+                section: 'Introduction',
+              },
+            },
+          ];
+
+          // Mock tool calls
+          (msg as any).tools = [
+            {
+              id: 'tool_1',
+              identifier: 'search',
+              apiName: 'search',
+              arguments: JSON.stringify({ query: 'test query' }),
+              type: 'builtin',
+            },
+            {
+              id: 'tool_2',
+              identifier: 'calculator',
+              apiName: 'calculator',
+              arguments: JSON.stringify({ expression: '2+2' }),
+              type: 'builtin',
+            },
+          ];
+
+          // Mock search grounding
+          (msg as any).search = {
+            citations: [
+              {
+                id: 'citation_1',
+                title: 'Wikipedia - Example Article',
+                url: 'https://en.wikipedia.org/wiki/Example',
+              },
+              {
+                id: 'citation_2',
+                title: 'GitHub Documentation',
+                url: 'https://docs.github.com/en',
+              },
+            ],
+            searchQueries: ['test query', 'related query'],
+          };
+
+          // Mock image list
+          (msg as any).imageList = [
+            {
+              id: 'img_1',
+              url: 'https://via.placeholder.com/300x200',
+              alt: 'Sample image 1',
+            },
+          ];
+
+          // Mock usage
+          (msg as any).usage = {
+            prompt_tokens: 150,
+            completion_tokens: 80,
+            total_tokens: 230,
+          };
+
+          // Mock performance
+          (msg as any).performance = {
+            total_tokens: 230,
+            duration: 1500,
+          };
+
+          // Mock metadata
+          (msg as any).metadata = {
+            model: 'mock-model',
+            temperature: 0.7,
+          };
+        }
+      }), false, n('mock/response'));
+
+      console.log('[MOCK] Response complete with full data');
+
+      // COMMENTED OUT: Real backend call
+      /*
       const response = await backendAgentChat.sendMessage({
         session_id: activeId,
         user_id: FALLBACK_CLIENT_DB_USER_ID,
@@ -151,70 +282,10 @@ export const generateAIChat: StateCreator<
         max_tokens: 2000,
         stream: true, // Enable streaming
       });
+      */
 
-      // Step 4: Determine final topic ID
-      const finalTopicId = response.topic_id || activeTopicId;
-      const finalMapKey = messageMapKey(activeId, finalTopicId);
-
-      // Step 5: Update messages FIRST (before setting activeTopicId)
-      // This prevents useFetchMessages useEffect from triggering a re-fetch
-      set(produce((state: ChatStore) => {
-        // Get the current mapKey where optimistic messages are stored
-        const currentMapKey = messageMapKey(activeId, activeTopicId);
-        const messages = state.messagesMap[currentMapKey] || [];
-
-        // Update temp user message with correct topicId
-        const userMsgIndex = messages.findIndex(m => m.id === tempUserId);
-        if (userMsgIndex !== -1) {
-          messages[userMsgIndex] = {
-            ...messages[userMsgIndex],
-            topicId: finalTopicId,
-          };
-        }
-
-        // Replace temp assistant message with real response from backend
-        const assistantMsgIndex = messages.findIndex(m => m.id === tempAssistantId);
-        if (assistantMsgIndex !== -1) {
-          messages[assistantMsgIndex] = {
-            id: response.message_id,
-            role: 'assistant',
-            content: response.message,
-            sessionId: activeId,
-            topicId: finalTopicId,
-            threadId: response.thread_id || threadId,
-            createdAt: response.created_at || Date.now(),
-            updatedAt: response.created_at || Date.now(),
-            loading: false,
-            meta: {},
-            ...(response.tool_calls && response.tool_calls.length > 0 && {
-              tools: response.tool_calls,
-            }),
-            ...(response.sources && response.sources.length > 0 && {
-              // sources: response.sources, // TODO: Map to correct format
-            }),
-          } as UIChatMessage;
-        }
-
-        // CRITICAL: Save updated messages to BOTH keys
-        // 1. Update current key (where optimistic messages are)
-        state.messagesMap[currentMapKey] = messages;
-
-        // 2. If topic was created, ALSO save to new topic's key
-        if (response.topic_id && !activeTopicId) {
-          state.messagesMap[finalMapKey] = messages;
-        }
-      }), false, n('messages/updated'));
-
-      // Step 6: NOW set activeTopicId (after messages are already in place)
-      // useFetchMessages will see messages exist and skip the fetch
-      if (response.topic_id && !activeTopicId) {
-        // MOVED: Wait for DB to be consistent BEFORE triggering the hook
-        await new Promise((resolve) => setTimeout(resolve, 200));
-
-        set({ activeTopicId: response.topic_id }, false, n('topic/created'));
-
-        await refreshTopic();
-      }
+      // MOCK: No backend response to process
+      console.log('[MOCK] Skipping backend response processing');
 
     } catch (error) {
       console.error('[BigBang] Failed:', error);

@@ -348,9 +348,29 @@ export const chatMessage: StateCreator<
   internal_fetchMessages: async (messageContextId, activeTopicId, type = 'session') => {
     if (!messageContextId) return;
 
+    const mapKey = messageMapKey(messageContextId, activeTopicId);
+    console.log('[internal_fetchMessages] Called with:', {
+      messageContextId,
+      activeTopicId,
+      type,
+      mapKey,
+    });
+
     try {
       const userId = getUserId();
       let messages: UIChatMessage[] = [];
+
+      // CRITICAL FIX: Check if there are existing messages in this key
+      // Don't overwrite with empty array from DB if messages already exist
+      const existingMessages = get().messagesMap[mapKey];
+      
+      if (existingMessages && existingMessages.length > 0) {
+        console.log('[internal_fetchMessages] Skipping - messages already exist:', {
+          mapKey,
+          count: existingMessages.length,
+        });
+        return;
+      }
 
       // Default topic (activeTopicId is null/undefined) should always show empty state (Welcome screen)
       // Only fetch messages when a specific topic is selected
@@ -369,18 +389,23 @@ export const chatMessage: StateCreator<
 
       const nextMap = {
         ...get().messagesMap,
-        [messageMapKey(messageContextId, activeTopicId)]: messages,
+        [mapKey]: messages,
       };
 
       // no need to update map if the messages have been init and the map is the same
-      if (get().messagesInit && isEqual(nextMap, get().messagesMap)) return;
+      if (get().messagesInit && isEqual(nextMap, get().messagesMap)) {
+        console.log('[internal_fetchMessages] Skipping - map unchanged');
+        return;
+      }
 
       console.log('[Message] Fetched messages via direct DB', {
         type,
         messageContextId,
         activeTopicId,
+        mapKey,
         count: messages.length,
-        isDefaultTopic: !activeTopicId
+        isDefaultTopic: !activeTopicId,
+        existingKeys: Object.keys(get().messagesMap),
       });
 
       set(
