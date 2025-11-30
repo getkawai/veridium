@@ -311,8 +311,15 @@ export class MessageModel {
         chunksList: chunksList
           .filter((c: any) => c.messageId === message.id)
           .map((c: any) => ({
-            ...c,
-            similarity: Number(c.similarity) ?? undefined,
+            id: getNullableString(c.id as any) || c.id,
+            fileId: getNullableString(c.fileId as any) || getNullableString(c.fileID as any) || c.fileId,
+            filename: getNullableString(c.filename as any) || getNullableString(c.Filename as any) || c.filename,
+            fileType: getNullableString(c.fileType as any) || getNullableString(c.FileType as any) || c.fileType,
+            fileUrl: getNullableString(c.fileUrl as any) || getNullableString(c.FileUrl as any) || c.fileUrl,
+            text: getNullableString(c.text as any) || c.text,
+            similarity: typeof c.similarity === 'number' 
+              ? c.similarity 
+              : (c.similarity?.Int64 ?? c.similarity?.Valid ? Number(c.similarity.Int64) : undefined),
           })),
         fileList: fileList
           .filter((f) => f.messageId === message.id)

@@ -27,7 +27,7 @@ import { useSessionStore } from '@/store/session';
 import { sessionSelectors } from '@/store/session/selectors';
 import { Action, setNamespace } from '@/utils/storeDebug';
 
-import { DB, toNullString, toNullJSON, currentTimestampMs, getNullableString } from '@/types/database';
+import { DB, toNullString, toNullJSON, currentTimestampMs } from '@/types/database';
 import { getUserId } from '@/store/session/helpers';
 import { MessageModel } from '@/database/models/message';
 
@@ -64,38 +64,68 @@ const normalizeTools = (tools: any): any[] | undefined => {
 };
 
 // Helper function to map messages from DB to UI format
+// Helper to get value - handles both NullString format and direct values
+const getValue = (val: any): any => {
+  if (val === null || val === undefined) return undefined;
+  // If it's a NullString format { String: "...", Valid: bool }
+  if (typeof val === 'object' && 'String' in val && 'Valid' in val) {
+    return val.Valid ? val.String : undefined;
+  }
+  return val;
+};
+
+// Helper to parse value - tries to parse JSON string, otherwise returns as-is
+const parseValue = (val: any): any => {
+  const v = getValue(val);
+  if (v === undefined || v === null) return undefined;
+  if (typeof v === 'string') {
+    try {
+      return JSON.parse(v);
+    } catch {
+      return v;
+    }
+  }
+  return v;
+};
+
 const mapMessagesFromDB = (dbMessages: any[]): UIChatMessage[] => {
   return dbMessages.map((msg: any) => {
     // Parse reasoning - can be string JSON or object
-    const reasoning = parseJSONField(getNullableString(msg.reasoning));
+    const reasoning = parseValue(msg.reasoning);
     
     // Parse tools - can be string JSON or object array, then normalize arguments
-    const rawTools = parseJSONField(getNullableString(msg.tools)) ?? msg.tools;
+    const rawTools = parseValue(msg.tools);
     const tools = normalizeTools(rawTools);
     
     // Parse search - can be string JSON or object
-    const search = parseJSONField(getNullableString(msg.search));
+    const search = parseValue(msg.search);
     
     // Parse metadata - contains chunksList, imageList, usage, performance
-    const metadata = parseJSONField(getNullableString(msg.metadata)) ?? msg.metadata;
+    const metadata = parseValue(msg.metadata);
     
     // Parse error - can be string JSON or object
-    const error = parseJSONField(getNullableString(msg.error));
+    const error = parseValue(msg.error);
     
+    // Helper to get string value
+    const getStr = (val: any): string | undefined => {
+      const v = getValue(val);
+      return typeof v === 'string' ? v : undefined;
+    };
+
     return {
       id: msg.id,
-      content: getNullableString(msg.content) || '',
+      content: getStr(msg.content) || '',
       role: msg.role,
       createdAt: typeof msg.createdAt === 'number' ? msg.createdAt : new Date(msg.createdAt).getTime(),
       updatedAt: typeof msg.updatedAt === 'number' ? msg.updatedAt : new Date(msg.updatedAt).getTime(),
       meta: {},
-      sessionId: getNullableString(msg.sessionId),
-      topicId: getNullableString(msg.topicId),
-      threadId: getNullableString(msg.threadId),
-      parentId: getNullableString(msg.parentId),
-      groupId: getNullableString(msg.groupId),
-      agentId: getNullableString(msg.agentId),
-      targetId: getNullableString(msg.targetId),
+      sessionId: getStr(msg.sessionId),
+      topicId: getStr(msg.topicId),
+      threadId: getStr(msg.threadId),
+      parentId: getStr(msg.parentId),
+      groupId: getStr(msg.groupId),
+      agentId: getStr(msg.agentId),
+      targetId: getStr(msg.targetId),
       // Reasoning data for Reasoning component
       reasoning,
       // Tool calls for Tool component
@@ -104,14 +134,14 @@ const mapMessagesFromDB = (dbMessages: any[]): UIChatMessage[] => {
       search,
       // Error state
       error,
-      // Extract chunksList from metadata for FileChunks component
-      chunksList: metadata?.chunksList,
-      // Extract imageList from metadata
-      imageList: metadata?.imageList,
+      // chunksList: prefer from msg.chunksList (from DB query), fallback to metadata.chunksList (from mock)
+      chunksList: msg.chunksList?.length > 0 ? msg.chunksList : metadata?.chunksList,
+      // imageList: prefer from msg.imageList (from DB query), fallback to metadata.imageList (from mock)
+      imageList: msg.imageList?.length > 0 ? msg.imageList : metadata?.imageList,
       // Extra info (model, provider, translate, tts)
       extra: {
-        fromModel: getNullableString(msg.model),
-        fromProvider: getNullableString(msg.provider),
+        fromModel: getStr(msg.model),
+        fromProvider: getStr(msg.provider),
       },
       // Metadata for Usage component
       metadata: {
