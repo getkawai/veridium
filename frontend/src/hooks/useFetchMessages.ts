@@ -1,13 +1,10 @@
 import { useEffect } from 'react';
 
 import { useChatStore } from '@/store/chat';
-import { useGlobalStore } from '@/store/global';
-import { systemStatusSelectors } from '@/store/global/selectors';
 import { useSessionStore } from '@/store/session';
 import { sessionSelectors } from '@/store/session/selectors';
 
 export const useFetchMessages = () => {
-  const isDBInited = useGlobalStore(systemStatusSelectors.isDBInited);
   const sessionId = useSessionStore((s) => s.activeId);
   const [activeTopicId, internal_fetchMessages, internal_updateActiveSessionType] = useChatStore((s) => [
     s.activeTopicId,
@@ -31,12 +28,12 @@ export const useFetchMessages = () => {
 
   // Fetch messages when dependencies change
   useEffect(() => {
-    if (!isDBInited || !sessionId) return;
+    if (!sessionId) return;
 
     internal_fetchMessages(
       sessionId,
       activeTopicId,
       isGroupSession ? 'group' : 'session'
     );
-  }, [isDBInited, sessionId, activeTopicId, isGroupSession, internal_fetchMessages]);
+  }, [sessionId, activeTopicId, isGroupSession, internal_fetchMessages]);
 };
