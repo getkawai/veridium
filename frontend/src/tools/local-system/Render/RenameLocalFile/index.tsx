@@ -29,6 +29,8 @@ interface RenameLocalFileProps {
 const RenameLocalFile = memo<RenameLocalFileProps>(({ args }) => {
   const { styles } = useStyles();
 
+  if (!args?.path) return null;
+
   const { base: oldFileName, dir } = path.parse(args.path);
 
   return (

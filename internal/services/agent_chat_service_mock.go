@@ -115,26 +115,34 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 		},
 	}
 
+	// Mock tools arguments (will be saved to plugin table)
+	tool1Args := map[string]interface{}{
+		"query":         "What is the weather today?",
+		"searchEngines": []string{"google"},
+	}
+	tool1ArgsJSON, _ := json.Marshal(tool1Args)
+
+	tool2Args := map[string]interface{}{
+		"path": "/home/user/documents",
+	}
+	tool2ArgsJSON, _ := json.Marshal(tool2Args)
+
 	// Mock tools (will be matched with tool messages below)
+	// Note: arguments must be JSON string for frontend compatibility
 	tools := []map[string]interface{}{
 		{
 			"id":         "tool_1",
 			"identifier": "lobe-web-browsing",
 			"apiName":    "search",
-			"arguments": map[string]interface{}{
-				"query":         "What is the weather today?",
-				"searchEngines": []string{"google"},
-			},
-			"type": "builtin",
+			"arguments":  string(tool1ArgsJSON),
+			"type":       "builtin",
 		},
 		{
 			"id":         "tool_2",
 			"identifier": "lobe-local-system",
 			"apiName":    "listLocalFiles",
-			"arguments": map[string]interface{}{
-				"path": "/home/user/documents",
-			},
-			"type": "builtin",
+			"arguments":  string(tool2ArgsJSON),
+			"type":       "builtin",
 		},
 	}
 	toolsJSON, _ := json.Marshal(tools)
@@ -263,6 +271,7 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 		ToolCallID: sql.NullString{String: "tool_1", Valid: true}, // Must match tool id
 		Type:       sql.NullString{String: "builtin", Valid: true},
 		ApiName:    sql.NullString{String: "search", Valid: true},
+		Arguments:  sql.NullString{String: string(tool1ArgsJSON), Valid: true},
 		Identifier: sql.NullString{String: "lobe-web-browsing", Valid: true},
 		UserID:     req.UserID,
 	}
@@ -310,6 +319,7 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 		ToolCallID: sql.NullString{String: "tool_2", Valid: true}, // Must match tool id
 		Type:       sql.NullString{String: "builtin", Valid: true},
 		ApiName:    sql.NullString{String: "listLocalFiles", Valid: true},
+		Arguments:  sql.NullString{String: string(tool2ArgsJSON), Valid: true},
 		Identifier: sql.NullString{String: "lobe-local-system", Valid: true},
 		UserID:     req.UserID,
 	}

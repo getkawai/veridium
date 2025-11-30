@@ -200,12 +200,21 @@ export const generateAIChat: StateCreator<
           newMapKey,
         });
         
-        // Clear messagesMap first to force refresh (bypass guard in internal_fetchMessages)
-        set(produce((state: ChatStore) => {
-          state.messagesMap[newMapKey] = [];
-        }), false, n('mock/clearBeforeRefresh'));
-        
-        await get().internal_fetchMessages(activeId, finalTopicId);
+        // If a new topic was created, switch to it first
+        if (finalTopicId && finalTopicId !== activeTopicId) {
+          console.log('[Backend Mock] New topic created, switching to:', finalTopicId);
+          // Refresh topics list first so the new topic appears in the sidebar
+          await get().refreshTopic();
+          // Switch to the new topic (this will also trigger message fetch)
+          await get().switchTopic(finalTopicId);
+        } else {
+          // Clear messagesMap first to force refresh (bypass guard in internal_fetchMessages)
+          set(produce((state: ChatStore) => {
+            state.messagesMap[newMapKey] = [];
+          }), false, n('mock/clearBeforeRefresh'));
+          
+          await get().internal_fetchMessages(activeId, finalTopicId);
+        }
 
         console.log('[Backend Mock] Messages refreshed from DB, current messages:', get().messagesMap[newMapKey]?.length);
 

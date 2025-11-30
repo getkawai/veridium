@@ -17,7 +17,7 @@ interface ListFilesProps {
 const ListFiles = memo<ListFilesProps>(({ messageId, pluginError, args, pluginState }) => {
   return (
     <>
-      <LocalFolder path={args.path} />
+      {args?.path && <LocalFolder path={args.path} />}
       <SearchResult
         listResults={pluginState?.listResults}
         messageId={messageId}

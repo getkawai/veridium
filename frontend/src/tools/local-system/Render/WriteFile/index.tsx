@@ -16,7 +16,7 @@ interface WriteFileProps {
 }
 
 const WriteFile = memo<WriteFileProps>(({ args }) => {
-  if (!args) return <Skeleton active />;
+  if (!args || !args.path) return <Skeleton active />;
 
   const { base, dir } = path.parse(args.path);
 

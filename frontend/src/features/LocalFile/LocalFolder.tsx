@@ -40,10 +40,12 @@ interface LocalFolderProps {
 export const LocalFolder = ({ path: pathname, size = 22 }: LocalFolderProps) => {
   const { styles } = useStyles();
   const handleClick = () => {
-    if (!path) return;
+    if (!pathname) return;
 
     localFileService.openLocalFolder({ isDirectory: true, path: pathname });
   };
+
+  if (!pathname) return null;
 
   const { base } = path.parse(pathname);
 

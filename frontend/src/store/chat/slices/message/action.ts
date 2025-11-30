@@ -38,20 +38,90 @@ import { MessageDispatch, messagesReducer } from './reducer';
 
 const n = setNamespace('m');
 
+// Helper function to parse JSON string or return the value as-is
+const parseJSONField = (value: any): any => {
+  if (!value) return undefined;
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return value;
+    }
+  }
+  return value;
+};
+
+// Helper function to ensure tool arguments is always a string
+const normalizeTools = (tools: any): any[] | undefined => {
+  if (!tools || !Array.isArray(tools)) return undefined;
+  return tools.map((tool: any) => ({
+    ...tool,
+    // Ensure arguments is always a JSON string (UI expects string, will parse with safeParseJSON)
+    arguments: typeof tool.arguments === 'object' 
+      ? JSON.stringify(tool.arguments) 
+      : tool.arguments,
+  }));
+};
+
 // Helper function to map messages from DB to UI format
 const mapMessagesFromDB = (dbMessages: any[]): UIChatMessage[] => {
-  return dbMessages.map((msg: any) => ({
-    id: msg.id,
-    content: getNullableString(msg.content) || '',
-    role: msg.role,
-    createdAt: new Date(msg.createdAt).getTime(), // Convert to timestamp number
-    updatedAt: new Date(msg.updatedAt).getTime(), // Convert to timestamp number
-    meta: {}, // Add required meta property
-    // Add other fields as needed
-    sessionId: getNullableString(msg.sessionId),
-    topicId: getNullableString(msg.topicId),
-    threadId: getNullableString(msg.threadId),
-  }));
+  return dbMessages.map((msg: any) => {
+    // Parse reasoning - can be string JSON or object
+    const reasoning = parseJSONField(getNullableString(msg.reasoning));
+    
+    // Parse tools - can be string JSON or object array, then normalize arguments
+    const rawTools = parseJSONField(getNullableString(msg.tools)) ?? msg.tools;
+    const tools = normalizeTools(rawTools);
+    
+    // Parse search - can be string JSON or object
+    const search = parseJSONField(getNullableString(msg.search));
+    
+    // Parse metadata - contains chunksList, imageList, usage, performance
+    const metadata = parseJSONField(getNullableString(msg.metadata)) ?? msg.metadata;
+    
+    // Parse error - can be string JSON or object
+    const error = parseJSONField(getNullableString(msg.error));
+    
+    return {
+      id: msg.id,
+      content: getNullableString(msg.content) || '',
+      role: msg.role,
+      createdAt: typeof msg.createdAt === 'number' ? msg.createdAt : new Date(msg.createdAt).getTime(),
+      updatedAt: typeof msg.updatedAt === 'number' ? msg.updatedAt : new Date(msg.updatedAt).getTime(),
+      meta: {},
+      sessionId: getNullableString(msg.sessionId),
+      topicId: getNullableString(msg.topicId),
+      threadId: getNullableString(msg.threadId),
+      parentId: getNullableString(msg.parentId),
+      groupId: getNullableString(msg.groupId),
+      agentId: getNullableString(msg.agentId),
+      targetId: getNullableString(msg.targetId),
+      // Reasoning data for Reasoning component
+      reasoning,
+      // Tool calls for Tool component
+      tools,
+      // Search grounding for SearchGrounding component
+      search,
+      // Error state
+      error,
+      // Extract chunksList from metadata for FileChunks component
+      chunksList: metadata?.chunksList,
+      // Extract imageList from metadata
+      imageList: metadata?.imageList,
+      // Extra info (model, provider, translate, tts)
+      extra: {
+        fromModel: getNullableString(msg.model),
+        fromProvider: getNullableString(msg.provider),
+      },
+      // Metadata for Usage component
+      metadata: {
+        usage: metadata?.usage,
+        performance: metadata?.performance,
+        model: metadata?.model,
+        temperature: metadata?.temperature,
+      },
+    } as UIChatMessage;
+  });
 };
 
 export interface ChatMessageAction {
@@ -375,14 +445,12 @@ export const chatMessage: StateCreator<
       // Default topic (activeTopicId is null/undefined) should always show empty state (Welcome screen)
       // Only fetch messages when a specific topic is selected
       if (activeTopicId) {
-        // If topicId is provided, get messages by topic
-        const dbMessages = await DB.ListMessagesByTopic({
-          topicId: toNullString(activeTopicId),
-          userId,
-          limit: 1000, // Large limit to get all messages
-          offset: 0,
+        // Use MessageModel.query() to get full message data including plugins, files, chunks
+        const messageModel = new MessageModel(DB, userId);
+        messages = await messageModel.query({
+          topicId: activeTopicId,
+          pageSize: 1000,
         });
-        messages = mapMessagesFromDB(dbMessages);
       }
       // For default topic (no activeTopicId), keep messages as empty array []
       // This ensures Welcome screen is shown in Content.tsx when data.length === 0
@@ -398,7 +466,7 @@ export const chatMessage: StateCreator<
         return;
       }
 
-      console.log('[Message] Fetched messages via direct DB', {
+      console.log('[Message] Fetched messages via MessageModel', {
         type,
         messageContextId,
         activeTopicId,
@@ -432,13 +500,12 @@ export const chatMessage: StateCreator<
       // Default topic (activeTopicId is null/undefined) should always show empty state (Welcome screen)
       // Only fetch messages when a specific topic is selected
       if (activeTopicId) {
-        const dbMessages = await DB.ListMessagesByTopic({
-          topicId: toNullString(activeTopicId),
-          userId,
-          limit: 1000, // Large limit to get all messages
-          offset: 0,
+        // Use MessageModel.query() to get full message data including plugins, files, chunks
+        const messageModel = new MessageModel(DB, userId);
+        messages = await messageModel.query({
+          topicId: activeTopicId,
+          pageSize: 1000,
         });
-        messages = mapMessagesFromDB(dbMessages);
       }
       // For default topic (no activeTopicId), keep messages as empty array []
       // This ensures Welcome screen is shown in Content.tsx when data.length === 0
@@ -448,7 +515,7 @@ export const chatMessage: StateCreator<
         [messageMapKey(activeId, activeTopicId)]: messages,
       };
 
-      console.log('[Message] Refreshed messages via direct DB', {
+      console.log('[Message] Refreshed messages via MessageModel', {
         activeId,
         activeTopicId,
         count: messages.length,
