@@ -481,7 +481,8 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 	// ============================================
 
 	// Helper to create tool message and plugin
-	createToolMessage := func(toolID, identifier, apiName string, argsJSON []byte, result interface{}, timeOffset int64) error {
+	// result is stored in message.content, state is stored in plugin.state (for pluginState)
+	createToolMessage := func(toolID, identifier, apiName string, argsJSON []byte, result interface{}, state interface{}, timeOffset int64) error {
 		msgID := uuid.New().String()
 		resultJSON, _ := json.Marshal(result)
 
@@ -515,6 +516,11 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 			Identifier: sql.NullString{String: identifier, Valid: true},
 			UserID:     req.UserID,
 		}
+		// Add state if provided (for pluginState in frontend)
+		if state != nil {
+			stateJSON, _ := json.Marshal(state)
+			pluginParams.State = sql.NullString{String: string(stateJSON), Valid: true}
+		}
 		_, err = s.db.Queries().CreateMessagePlugin(ctx, pluginParams)
 		if err != nil {
 			return fmt.Errorf("failed to save tool plugin %s: %w", toolID, err)
@@ -531,71 +537,110 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 				{"title": "Weather Today - Current Conditions", "url": "https://weather.com/today", "description": "Current weather conditions and forecast."},
 				{"title": "Weather Report - Bing", "url": "https://www.bing.com/weather", "description": "Detailed weather information."},
 			},
-		}, 2)
+		}, nil, 2)
 	if err != nil {
 		log.Printf("⚠️  %v", err)
 	}
 
 	// Tool 2: Web Browsing - crawlSinglePage
+	// Format: pluginState.results = [{ originalUrl, data: { content, url, title } }]
+	crawlSingleResult := []map[string]interface{}{
+		{
+			"originalUrl": "https://example.com/article",
+			"crawler":     "jina",
+			"data": map[string]interface{}{
+				"content":     "# Example Article\n\nThis is the full content of the crawled article. It contains detailed information about the topic discussed.\n\n## Section 1\nSome content here...\n\n## Section 2\nMore content here...",
+				"url":         "https://example.com/article",
+				"title":       "Example Article - Full Content",
+				"description": "A comprehensive article about the topic.",
+			},
+		},
+	}
 	err = createToolMessage("tool_2", "lobe-web-browsing", "crawlSinglePage", tool2ArgsJSON,
-		map[string]interface{}{
-			"title":   "Example Article - Full Content",
-			"content": "This is the full content of the crawled article. It contains detailed information about the topic discussed.",
-			"url":     "https://example.com/article",
-		}, 3)
+		nil, // content
+		map[string]interface{}{"results": crawlSingleResult}, // pluginState
+		3)
 	if err != nil {
 		log.Printf("⚠️  %v", err)
 	}
 
 	// Tool 3: Web Browsing - crawlMultiPages
-	err = createToolMessage("tool_3", "lobe-web-browsing", "crawlMultiPages", tool3ArgsJSON,
-		map[string]interface{}{
-			"pages": []map[string]interface{}{
-				{"url": "https://example.com/page1", "title": "Page 1", "content": "Content from page 1..."},
-				{"url": "https://example.com/page2", "title": "Page 2", "content": "Content from page 2..."},
+	// Format: pluginState.results = [{ originalUrl, data: { content, url, title } }, ...]
+	crawlMultiResult := []map[string]interface{}{
+		{
+			"originalUrl": "https://example.com/page1",
+			"crawler":     "jina",
+			"data": map[string]interface{}{
+				"content":     "# Page 1\n\nThis is the content from page 1. It provides information about topic A.\n\n## Overview\nDetailed overview...",
+				"url":         "https://example.com/page1",
+				"title":       "Page 1 - Topic A",
+				"description": "Information about topic A.",
 			},
-		}, 4)
+		},
+		{
+			"originalUrl": "https://example.com/page2",
+			"crawler":     "jina",
+			"data": map[string]interface{}{
+				"content":     "# Page 2\n\nThis is the content from page 2. It provides information about topic B.\n\n## Details\nMore details here...",
+				"url":         "https://example.com/page2",
+				"title":       "Page 2 - Topic B",
+				"description": "Information about topic B.",
+			},
+		},
+	}
+	err = createToolMessage("tool_3", "lobe-web-browsing", "crawlMultiPages", tool3ArgsJSON,
+		nil, // content
+		map[string]interface{}{"results": crawlMultiResult}, // pluginState
+		4)
 	if err != nil {
 		log.Printf("⚠️  %v", err)
 	}
 
 	// Tool 4: Local System - listLocalFiles
+	// Format: pluginState.listResults = [{ name, size, type, isDirectory, path, ... }]
+	listFilesResult := []map[string]interface{}{
+		{"name": "document.pdf", "size": 1024000, "type": "file", "isDirectory": false, "path": "/home/user/documents/document.pdf"},
+		{"name": "images", "size": 0, "type": "directory", "isDirectory": true, "path": "/home/user/documents/images"},
+		{"name": "notes.txt", "size": 2048, "type": "file", "isDirectory": false, "path": "/home/user/documents/notes.txt"},
+		{"name": "readme.md", "size": 512, "type": "file", "isDirectory": false, "path": "/home/user/documents/readme.md"},
+	}
 	err = createToolMessage("tool_4", "lobe-local-system", "listLocalFiles", tool4ArgsJSON,
-		map[string]interface{}{
-			"files": []map[string]interface{}{
-				{"name": "document.pdf", "size": 1024000, "type": "file", "isDirectory": false},
-				{"name": "images", "size": 0, "type": "directory", "isDirectory": true},
-				{"name": "notes.txt", "size": 2048, "type": "file", "isDirectory": false},
-				{"name": "readme.md", "size": 512, "type": "file", "isDirectory": false},
-			},
-		}, 5)
+		nil, // content
+		map[string]interface{}{"listResults": listFilesResult}, // pluginState
+		5)
 	if err != nil {
 		log.Printf("⚠️  %v", err)
 	}
 
 	// Tool 5: Local System - readLocalFile
+	// Format: pluginState.fileContent = { content, filename, fileType, charCount, lineCount, ... }
+	readFileResult := map[string]interface{}{
+		"content":        "# README\n\nThis is a sample readme file.\n\n## Features\n- Feature 1\n- Feature 2\n- Feature 3",
+		"filename":       "readme.md",
+		"fileType":       "text/markdown",
+		"charCount":      120,
+		"lineCount":      8,
+		"totalCharCount": 120,
+		"totalLineCount": 8,
+	}
 	err = createToolMessage("tool_5", "lobe-local-system", "readLocalFile", tool5ArgsJSON,
-		map[string]interface{}{
-			"content":        "# README\n\nThis is a sample readme file.\n\n## Features\n- Feature 1\n- Feature 2\n- Feature 3",
-			"filename":       "readme.md",
-			"fileType":       "text/markdown",
-			"charCount":      120,
-			"lineCount":      8,
-			"totalCharCount": 120,
-			"totalLineCount": 8,
-		}, 6)
+		nil, // content
+		map[string]interface{}{"fileContent": readFileResult}, // pluginState
+		6)
 	if err != nil {
 		log.Printf("⚠️  %v", err)
 	}
 
 	// Tool 6: Local System - searchLocalFiles
+	// Format: pluginState.searchResults = [{ path, name, size, isDirectory, ... }]
+	searchFilesResult := []map[string]interface{}{
+		{"path": "/home/user/documents/important_doc.pdf", "name": "important_doc.pdf", "size": 2048000, "isDirectory": false, "type": "file"},
+		{"path": "/home/user/documents/important_notes.txt", "name": "important_notes.txt", "size": 1024, "isDirectory": false, "type": "file"},
+	}
 	err = createToolMessage("tool_6", "lobe-local-system", "searchLocalFiles", tool6ArgsJSON,
-		map[string]interface{}{
-			"results": []map[string]interface{}{
-				{"path": "/home/user/documents/important_doc.pdf", "name": "important_doc.pdf", "size": 2048000},
-				{"path": "/home/user/documents/important_notes.txt", "name": "important_notes.txt", "size": 1024},
-			},
-		}, 7)
+		nil, // content
+		map[string]interface{}{"searchResults": searchFilesResult}, // pluginState
+		7)
 	if err != nil {
 		log.Printf("⚠️  %v", err)
 	}
@@ -606,7 +651,7 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 			"success": true,
 			"path":    "/home/user/documents/new_file.txt",
 			"message": "File written successfully",
-		}, 8)
+		}, nil, 8)
 	if err != nil {
 		log.Printf("⚠️  %v", err)
 	}
@@ -617,7 +662,7 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 			"success": true,
 			"oldPath": "/home/user/documents/old_name.txt",
 			"newPath": "/home/user/documents/new_name.txt",
-		}, 9)
+		}, nil, 9)
 	if err != nil {
 		log.Printf("⚠️  %v", err)
 	}
@@ -628,7 +673,7 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 			"results": []map[string]interface{}{
 				{"sourcePath": "/home/user/documents/file1.txt", "newPath": "/home/user/backup/file1.txt", "success": true},
 			},
-		}, 10)
+		}, nil, 10)
 	if err != nil {
 		log.Printf("⚠️  %v", err)
 	}
@@ -637,16 +682,16 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 	err = createToolMessage("tool_10", "lobe-image-designer", "text2image", tool10ArgsJSON,
 		[]map[string]interface{}{
 			{
-				"prompt":       "A beautiful sunset over a calm ocean with vibrant orange and purple colors",
-				"imageUrl":     "https://via.placeholder.com/1024x1024/FF6B35/FFFFFF?text=Sunset+Ocean",
+				"prompt":        "A beautiful sunset over a calm ocean with vibrant orange and purple colors",
+				"imageUrl":      "https://via.placeholder.com/1024x1024/FF6B35/FFFFFF?text=Sunset+Ocean",
 				"revisedPrompt": "A breathtaking sunset scene over a tranquil ocean, with vibrant orange and deep purple hues painting the sky.",
 			},
 			{
-				"prompt":       "A futuristic cityscape at night with neon lights and flying cars",
-				"imageUrl":     "https://via.placeholder.com/1024x1024/1A1A2E/00FFFF?text=Futuristic+City",
+				"prompt":        "A futuristic cityscape at night with neon lights and flying cars",
+				"imageUrl":      "https://via.placeholder.com/1024x1024/1A1A2E/00FFFF?text=Futuristic+City",
 				"revisedPrompt": "A stunning futuristic cityscape at night, illuminated by neon lights with sleek flying cars hovering above.",
 			},
-		}, 11)
+		}, nil, 11)
 	if err != nil {
 		log.Printf("⚠️  %v", err)
 	}
