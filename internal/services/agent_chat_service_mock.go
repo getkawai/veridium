@@ -692,17 +692,22 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 	}
 
 	// Tool 10: DALL-E Image Designer - text2image
+	// Format: content = [{ prompt, previewUrl, quality, size, style }]
 	err = createToolMessage("tool_10", "lobe-image-designer", "text2image", tool10ArgsJSON,
 		[]map[string]interface{}{
 			{
-				"prompt":        "A beautiful sunset over a calm ocean with vibrant orange and purple colors",
-				"imageUrl":      "https://picsum.photos/1024",
-				"revisedPrompt": "A breathtaking sunset scene over a tranquil ocean, with vibrant orange and deep purple hues painting the sky.",
+				"prompt":     "A beautiful sunset over a calm ocean with vibrant orange and purple colors",
+				"previewUrl": "https://picsum.photos/seed/sunset/1024/1024",
+				"quality":    "hd",
+				"size":       "1024x1024",
+				"style":      "vivid",
 			},
 			{
-				"prompt":        "A futuristic cityscape at night with neon lights and flying cars",
-				"imageUrl":      "https://picsum.photos/1024",
-				"revisedPrompt": "A stunning futuristic cityscape at night, illuminated by neon lights with sleek flying cars hovering above.",
+				"prompt":     "A futuristic cityscape at night with neon lights and flying cars",
+				"previewUrl": "https://picsum.photos/seed/cityscape/1024/1024",
+				"quality":    "hd",
+				"size":       "1024x1024",
+				"style":      "vivid",
 			},
 		}, nil, 11)
 	if err != nil {
