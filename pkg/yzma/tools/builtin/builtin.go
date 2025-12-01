@@ -22,6 +22,12 @@ func RegisterAll(registry *tools.ToolRegistry) error {
 	}
 	log.Println("✅ Registered: lobe-web-browsing (search, crawlSinglePage, crawlMultiPages)")
 
+	// Register lobe-local-system (file operations)
+	if err := RegisterLocalSystem(registry); err != nil {
+		return err
+	}
+	log.Println("✅ Registered: lobe-local-system (list, read, search, write, rename, move)")
+
 	// Register calculator
 	if err := RegisterCalculator(registry); err != nil {
 		return err

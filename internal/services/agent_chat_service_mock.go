@@ -451,83 +451,157 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 	}
 
 	// Tool 4: Local System - listLocalFiles
-	// Format: pluginState.listResults = [{ name, size, type, isDirectory, path, ... }]
-	listFilesResult := []map[string]interface{}{
-		{"name": "document.pdf", "size": 1024000, "type": "file", "isDirectory": false, "path": "/home/user/documents/document.pdf"},
-		{"name": "images", "size": 0, "type": "directory", "isDirectory": true, "path": "/home/user/documents/images"},
-		{"name": "notes.txt", "size": 2048, "type": "file", "isDirectory": false, "path": "/home/user/documents/notes.txt"},
-		{"name": "readme.md", "size": 512, "type": "file", "isDirectory": false, "path": "/home/user/documents/readme.md"},
+	// Using proper types from builtin.LocalFileListState
+	listFilesState := &builtin.LocalFileListState{
+		ListResults: []builtin.LocalFileItem{
+			{
+				Name:         "document.pdf",
+				Path:         "/home/user/documents/document.pdf",
+				Size:         1024000,
+				Type:         "file",
+				IsDirectory:  false,
+				ContentType:  "application/pdf",
+				CreatedTime:  time.Now().Add(-24 * time.Hour),
+				ModifiedTime: time.Now().Add(-24 * time.Hour),
+			},
+			{
+				Name:         "images",
+				Path:         "/home/user/documents/images",
+				Size:         0,
+				Type:         "directory",
+				IsDirectory:  true,
+				CreatedTime:  time.Now().Add(-48 * time.Hour),
+				ModifiedTime: time.Now().Add(-48 * time.Hour),
+			},
+			{
+				Name:         "notes.txt",
+				Path:         "/home/user/documents/notes.txt",
+				Size:         2048,
+				Type:         "file",
+				IsDirectory:  false,
+				ContentType:  "text/plain",
+				CreatedTime:  time.Now().Add(-12 * time.Hour),
+				ModifiedTime: time.Now().Add(-12 * time.Hour),
+			},
+			{
+				Name:         "readme.md",
+				Path:         "/home/user/documents/readme.md",
+				Size:         512,
+				Type:         "file",
+				IsDirectory:  false,
+				ContentType:  "text/markdown",
+				CreatedTime:  time.Now().Add(-6 * time.Hour),
+				ModifiedTime: time.Now().Add(-6 * time.Hour),
+			},
+		},
 	}
 	err = saveToolMsg("tool_4", "lobe-local-system", "listLocalFiles", tool4ArgsJSON,
-		nil, // content
-		map[string]interface{}{"listResults": listFilesResult}, // pluginState
+		nil,            // content
+		listFilesState, // pluginState
 		5)
 	if err != nil {
 		log.Printf("⚠️  %v", err)
 	}
 
 	// Tool 5: Local System - readLocalFile
-	// Format: pluginState.fileContent = { content, filename, fileType, charCount, lineCount, ... }
-	readFileResult := map[string]interface{}{
-		"content":        "# README\n\nThis is a sample readme file.\n\n## Features\n- Feature 1\n- Feature 2\n- Feature 3",
-		"filename":       "readme.md",
-		"fileType":       "text/markdown",
-		"charCount":      120,
-		"lineCount":      8,
-		"totalCharCount": 120,
-		"totalLineCount": 8,
+	// Using proper types from builtin.LocalReadFileState
+	readFileState := &builtin.LocalReadFileState{
+		FileContent: builtin.LocalReadFileResult{
+			Content:        "# README\n\nThis is a sample readme file.\n\n## Features\n- Feature 1\n- Feature 2\n- Feature 3",
+			Filename:       "readme.md",
+			FileType:       "text/markdown",
+			CharCount:      120,
+			LineCount:      8,
+			TotalCharCount: 120,
+			TotalLineCount: 8,
+			Loc:            [2]int{0, 100},
+			CreatedTime:    time.Now().Add(-6 * time.Hour),
+			ModifiedTime:   time.Now().Add(-6 * time.Hour),
+		},
 	}
 	err = saveToolMsg("tool_5", "lobe-local-system", "readLocalFile", tool5ArgsJSON,
-		nil, // content
-		map[string]interface{}{"fileContent": readFileResult}, // pluginState
+		nil,           // content
+		readFileState, // pluginState
 		6)
 	if err != nil {
 		log.Printf("⚠️  %v", err)
 	}
 
 	// Tool 6: Local System - searchLocalFiles
-	// Format: pluginState.searchResults = [{ path, name, size, isDirectory, ... }]
-	searchFilesResult := []map[string]interface{}{
-		{"path": "/home/user/documents/important_doc.pdf", "name": "important_doc.pdf", "size": 2048000, "isDirectory": false, "type": "file"},
-		{"path": "/home/user/documents/important_notes.txt", "name": "important_notes.txt", "size": 1024, "isDirectory": false, "type": "file"},
+	// Using proper types from builtin.LocalFileSearchState
+	searchFilesState := &builtin.LocalFileSearchState{
+		SearchResults: []builtin.LocalFileItem{
+			{
+				Name:         "important_doc.pdf",
+				Path:         "/home/user/documents/important_doc.pdf",
+				Size:         2048000,
+				Type:         "file",
+				IsDirectory:  false,
+				ContentType:  "application/pdf",
+				CreatedTime:  time.Now().Add(-72 * time.Hour),
+				ModifiedTime: time.Now().Add(-72 * time.Hour),
+			},
+			{
+				Name:         "important_notes.txt",
+				Path:         "/home/user/documents/important_notes.txt",
+				Size:         1024,
+				Type:         "file",
+				IsDirectory:  false,
+				ContentType:  "text/plain",
+				CreatedTime:  time.Now().Add(-36 * time.Hour),
+				ModifiedTime: time.Now().Add(-36 * time.Hour),
+			},
+		},
 	}
 	err = saveToolMsg("tool_6", "lobe-local-system", "searchLocalFiles", tool6ArgsJSON,
-		nil, // content
-		map[string]interface{}{"searchResults": searchFilesResult}, // pluginState
+		nil,              // content
+		searchFilesState, // pluginState
 		7)
 	if err != nil {
 		log.Printf("⚠️  %v", err)
 	}
 
 	// Tool 7: Local System - writeLocalFile
+	// Using proper types from builtin.WriteFileResult
+	writeFileResult := &builtin.WriteFileResult{
+		Path:    "/home/user/documents/new_file.txt",
+		Success: true,
+		Message: "File written successfully",
+	}
 	err = saveToolMsg("tool_7", "lobe-local-system", "writeLocalFile", tool7ArgsJSON,
-		map[string]interface{}{
-			"success": true,
-			"path":    "/home/user/documents/new_file.txt",
-			"message": "File written successfully",
-		}, nil, 8)
+		writeFileResult, nil, 8)
 	if err != nil {
 		log.Printf("⚠️  %v", err)
 	}
 
 	// Tool 8: Local System - renameLocalFile
+	// Using proper types from builtin.LocalRenameFileState
+	renameFileState := &builtin.LocalRenameFileState{
+		OldPath: "/home/user/documents/old_name.txt",
+		NewPath: "/home/user/documents/new_name.txt",
+		Success: true,
+	}
 	err = saveToolMsg("tool_8", "lobe-local-system", "renameLocalFile", tool8ArgsJSON,
-		map[string]interface{}{
-			"success": true,
-			"oldPath": "/home/user/documents/old_name.txt",
-			"newPath": "/home/user/documents/new_name.txt",
-		}, nil, 9)
+		renameFileState, nil, 9)
 	if err != nil {
 		log.Printf("⚠️  %v", err)
 	}
 
 	// Tool 9: Local System - moveLocalFiles
-	err = saveToolMsg("tool_9", "lobe-local-system", "moveLocalFiles", tool9ArgsJSON,
-		map[string]interface{}{
-			"results": []map[string]interface{}{
-				{"sourcePath": "/home/user/documents/file1.txt", "newPath": "/home/user/backup/file1.txt", "success": true},
+	// Using proper types from builtin.LocalMoveFilesState
+	moveFilesState := &builtin.LocalMoveFilesState{
+		Results: []builtin.LocalMoveFilesResultItem{
+			{
+				SourcePath: "/home/user/documents/file1.txt",
+				NewPath:    "/home/user/backup/file1.txt",
+				Success:    true,
 			},
-		}, nil, 10)
+		},
+		SuccessCount: 1,
+		TotalCount:   1,
+	}
+	err = saveToolMsg("tool_9", "lobe-local-system", "moveLocalFiles", tool9ArgsJSON,
+		moveFilesState, nil, 10)
 	if err != nil {
 		log.Printf("⚠️  %v", err)
 	}
