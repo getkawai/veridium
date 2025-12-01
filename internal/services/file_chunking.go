@@ -1,12 +1,10 @@
 package services
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
-	"github.com/cloudwego/eino-ext/components/document/transformer/splitter/markdown"
-	"github.com/cloudwego/eino/schema"
+	"github.com/kawai-network/veridium/pkg/mdsplitter"
 )
 
 // ChunkDocument chunks a FileDocument based on its type and configuration
@@ -31,13 +29,11 @@ func (l *FileLoader) ChunkDocument(doc *FileDocument, config ChunkingConfig) []D
 	}
 }
 
-// chunkMarkdownWithEino uses Eino's markdown header splitter with size enforcement
+// chunkMarkdownWithEino uses local markdown header splitter with size enforcement
 func (l *FileLoader) chunkMarkdownWithEino(content string, config ChunkingConfig) []DocumentChunk {
-	ctx := context.Background()
-
-	// Configure Eino markdown splitter
+	// Configure markdown splitter
 	// Split by ## and ### headers
-	einoConfig := &markdown.HeaderConfig{
+	splitterConfig := &mdsplitter.Config{
 		Headers: map[string]string{
 			"##":  "h2",
 			"###": "h3",
@@ -45,31 +41,21 @@ func (l *FileLoader) chunkMarkdownWithEino(content string, config ChunkingConfig
 		TrimHeaders: false, // Keep headers in chunks for context
 	}
 
-	splitter, err := markdown.NewHeaderSplitter(ctx, einoConfig)
+	splitter, err := mdsplitter.New(splitterConfig)
 	if err != nil {
-		// Fallback to recursive split if Eino fails
+		// Fallback to recursive split if splitter creation fails
 		return l.chunkByRecursiveSplit(content, config)
-	}
-
-	// Create Eino document
-	einoDoc := &schema.Document{
-		ID:      "doc",
-		Content: content,
 	}
 
 	// Split by headers
-	einoDocs, err := splitter.Transform(ctx, []*schema.Document{einoDoc})
-	if err != nil {
-		// Fallback to recursive split
-		return l.chunkByRecursiveSplit(content, config)
-	}
+	mdChunks := splitter.Split(content)
 
-	// Convert Eino chunks to DocumentChunks with size enforcement
+	// Convert markdown chunks to DocumentChunks with size enforcement
 	var chunks []DocumentChunk
 	chunkID := 1
 
-	for _, einoChunk := range einoDocs {
-		chunkContent := einoChunk.Content
+	for _, mdChunk := range mdChunks {
+		chunkContent := mdChunk.Content
 
 		// If chunk exceeds size limit, apply recursive splitting
 		if len(chunkContent) > config.ChunkSize {
@@ -80,9 +66,9 @@ func (l *FileLoader) chunkMarkdownWithEino(content string, config ChunkingConfig
 					Content: subContent,
 					Metadata: map[string]interface{}{
 						"type":   "markdown-header",
-						"h2":     einoChunk.MetaData["h2"],
-						"h3":     einoChunk.MetaData["h3"],
-						"source": "eino-split",
+						"h2":     mdChunk.Metadata["h2"],
+						"h3":     mdChunk.Metadata["h3"],
+						"source": "mdsplitter-split",
 					},
 				})
 				chunkID++
@@ -93,9 +79,9 @@ func (l *FileLoader) chunkMarkdownWithEino(content string, config ChunkingConfig
 				Content: chunkContent,
 				Metadata: map[string]interface{}{
 					"type":   "markdown-header",
-					"h2":     einoChunk.MetaData["h2"],
-					"h3":     einoChunk.MetaData["h3"],
-					"source": "eino",
+					"h2":     mdChunk.Metadata["h2"],
+					"h3":     mdChunk.Metadata["h3"],
+					"source": "mdsplitter",
 				},
 			})
 			chunkID++

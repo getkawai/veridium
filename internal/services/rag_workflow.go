@@ -20,8 +20,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-
-	"github.com/cloudwego/eino/schema"
 )
 
 // RAGWorkflow implements Retrieval-Augmented Generation using Eino
@@ -41,7 +39,7 @@ type RAGRequest struct {
 // RAGResponse represents the RAG result
 type RAGResponse struct {
 	Context         string
-	Sources         []*schema.Document
+	Sources         []*Document
 	RetrievedChunks int
 }
 
@@ -53,7 +51,7 @@ func NewRAGWorkflow(kbService *KnowledgeBaseService) *RAGWorkflow {
 }
 
 // BuildContext retrieves relevant documents and builds context for LLM
-func (w *RAGWorkflow) BuildContext(ctx context.Context, req RAGRequest) (string, []*schema.Document, error) {
+func (w *RAGWorkflow) BuildContext(ctx context.Context, req RAGRequest) (string, []*Document, error) {
 	// 1. Get retriever
 	retriever, err := w.kbService.GetRetriever(ctx, req.KnowledgeBaseID, req.UserID)
 	if err != nil {
@@ -96,7 +94,7 @@ func (w *RAGWorkflow) BuildContext(ctx context.Context, req RAGRequest) (string,
 }
 
 // FormatContextForLLM formats retrieved documents for LLM context
-func (w *RAGWorkflow) FormatContextForLLM(docs []*schema.Document) string {
+func (w *RAGWorkflow) FormatContextForLLM(docs []*Document) string {
 	var builder strings.Builder
 	builder.WriteString("Here are relevant documents from the knowledge base:\n\n")
 

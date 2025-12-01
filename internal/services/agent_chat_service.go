@@ -29,7 +29,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cloudwego/eino/schema"
 	"github.com/google/uuid"
 	"github.com/kawai-network/veridium/internal/database"
 	db "github.com/kawai-network/veridium/internal/database/generated"
@@ -122,7 +121,7 @@ type ChatResponse struct {
 	// Content
 	Message      string              `json:"message"`
 	ToolCalls    []message.ToolCall  `json:"tool_calls,omitempty"` // Using yzma ToolCall
-	Sources      []*schema.Document  `json:"sources,omitempty"`
+	Sources      []*Document         `json:"sources,omitempty"`
 	FinishReason string              `json:"finish_reason"`
 	Usage        *llama.YzmaResponse `json:"usage,omitempty"` // Using yzma response for token info
 
@@ -504,7 +503,7 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*ChatResp
 	}
 
 	// Get sources if KB was used
-	var sources []*schema.Document
+	var sources []*Document
 	if req.KnowledgeBaseID != "" {
 		// Query KB to get sources that were used
 		sources, _ = s.kbService.QueryKnowledgeBase(ctx, req.KnowledgeBaseID, req.Message, 3, req.UserID)
