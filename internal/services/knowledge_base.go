@@ -30,16 +30,6 @@ import (
 	db "github.com/kawai-network/veridium/internal/database/generated"
 )
 
-// Document is a piece of text with metadata.
-type Document struct {
-	// ID is the unique identifier of the document.
-	ID string `json:"id"`
-	// Content is the content of the document.
-	Content string `json:"content"`
-	// MetaData is the metadata of the document, can be used to store extra information.
-	MetaData map[string]any `json:"meta_data"`
-}
-
 // KnowledgeBaseService manages knowledge bases with RAG capabilities
 type KnowledgeBaseService struct {
 	dbService       *database.Service
@@ -292,7 +282,7 @@ func (s *KnowledgeBaseService) QueryKnowledgeBase(ctx context.Context, kbID, que
 		docs[i] = &Document{
 			ID:      r.ID,
 			Content: r.Text,
-			MetaData: map[string]any{
+			Metadata: map[string]any{
 				"file_id":    r.FileID,
 				"file_name":  r.FileName,
 				"type":       r.Type,

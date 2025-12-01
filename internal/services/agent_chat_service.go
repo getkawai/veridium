@@ -929,7 +929,7 @@ func (s *AgentChatService) registerKBSearchTool(ctx context.Context, kbID, userI
 					for i, doc := range docs {
 						results[i] = map[string]interface{}{
 							"content":  doc.Content,
-							"metadata": doc.MetaData,
+							"metadata": doc.Metadata,
 						}
 					}
 					return results

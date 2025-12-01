@@ -84,7 +84,7 @@ func (w *RAGWorkflow) BuildContext(ctx context.Context, req RAGRequest) (string,
 		contextBuilder.WriteString("\n\n")
 
 		// Add source info if available
-		if source, ok := doc.MetaData["source_file"].(string); ok {
+		if source, ok := doc.Metadata["source_file"].(string); ok {
 			contextBuilder.WriteString(fmt.Sprintf("Source: %s\n", source))
 		}
 		contextBuilder.WriteString("---\n\n")
@@ -104,7 +104,7 @@ func (w *RAGWorkflow) FormatContextForLLM(docs []*Document) string {
 		builder.WriteString("\n\n")
 
 		// Add source info if available
-		if source, ok := doc.MetaData["source_file"].(string); ok {
+		if source, ok := doc.Metadata["source_file"].(string); ok {
 			builder.WriteString(fmt.Sprintf("Source: %s\n", source))
 		}
 		builder.WriteString("---\n\n")

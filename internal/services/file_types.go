@@ -59,8 +59,14 @@ type ChunkingConfig struct {
 }
 
 // DocumentChunk represents a chunk of document content
-type DocumentChunk struct {
-	ID       string                 `json:"id"`       // Unique chunk identifier
-	Content  string                 `json:"content"`  // Chunk text content
-	Metadata map[string]interface{} `json:"metadata"` // Chunk metadata (page numbers, headers, etc.)
+type DocumentChunk = Document
+
+// Document is a piece of text with metadata.
+type Document struct {
+	// ID is the unique identifier of the document.
+	ID string `json:"id"`
+	// Content is the content of the document.
+	Content string `json:"content"`
+	// Metadata is the metadata of the document, can be used to store extra information.
+	Metadata map[string]interface{} `json:"metadata"`
 }
