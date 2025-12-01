@@ -19,6 +19,7 @@ export {
     ChatResponse,
     CreateThreadRequest,
     CreateThreadResponse,
+    Document,
     FileItem,
     ListThreadsRequest,
     ProcessFileResponse,

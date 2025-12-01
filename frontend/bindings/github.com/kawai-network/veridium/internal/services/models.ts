@@ -7,9 +7,6 @@ import { Create as $Create } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as schema$0 from "../../../../cloudwego/eino/schema/models.js";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore: Unused imports
 import * as llama$0 from "../llama/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -122,7 +119,7 @@ export class ChatResponse {
      * Using yzma ToolCall
      */
     "tool_calls"?: message$0.ToolCall[];
-    "sources"?: (schema$0.Document | null)[];
+    "sources"?: (Document | null)[];
     "finish_reason": string;
 
     /**
@@ -270,6 +267,53 @@ export class CreateThreadResponse {
     static createFrom($$source: any = {}): CreateThreadResponse {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new CreateThreadResponse($$parsedSource as Partial<CreateThreadResponse>);
+    }
+}
+
+/**
+ * Document is a piece of text with metadata.
+ */
+export class Document {
+    /**
+     * ID is the unique identifier of the document.
+     */
+    "id": string;
+
+    /**
+     * Content is the content of the document.
+     */
+    "content": string;
+
+    /**
+     * Metadata is the metadata of the document, can be used to store extra information.
+     */
+    "metadata": { [_: string]: any };
+
+    /** Creates a new Document instance. */
+    constructor($$source: Partial<Document> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("content" in $$source)) {
+            this["content"] = "";
+        }
+        if (!("metadata" in $$source)) {
+            this["metadata"] = {};
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Document instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Document {
+        const $$createField2_0 = $$createType1;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("metadata" in $$parsedSource) {
+            $$parsedSource["metadata"] = $$createField2_0($$parsedSource["metadata"]);
+        }
+        return new Document($$parsedSource as Partial<Document>);
     }
 }
 
@@ -612,7 +656,7 @@ const $$createType0 = $Create.Array($Create.Any);
 const $$createType1 = $Create.Map($Create.Any, $Create.Any);
 const $$createType2 = message$0.ToolCall.createFrom;
 const $$createType3 = $Create.Array($$createType2);
-const $$createType4 = schema$0.Document.createFrom;
+const $$createType4 = Document.createFrom;
 const $$createType5 = $Create.Nullable($$createType4);
 const $$createType6 = $Create.Array($$createType5);
 const $$createType7 = llama$0.YzmaResponse.createFrom;

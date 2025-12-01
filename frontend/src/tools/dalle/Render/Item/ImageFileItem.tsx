@@ -3,7 +3,6 @@ import { createStyles } from 'antd-style';
 import { CSSProperties, memo } from 'react';
 
 import { usePlatform } from '@/hooks/usePlatform';
-import { useChatStore } from '@/store/chat';
 
 const MIN_IMAGE_SIZE = 64;
 
@@ -34,20 +33,21 @@ interface FileItemProps {
   style?: CSSProperties;
 }
 const ImageFileItem = memo<FileItemProps>(({ editable, id, alwaysShowClose }) => {
-  const [useFetchDalleImageItem] = useChatStore((s) => [s.useFetchDalleImageItem]);
   const IMAGE_SIZE = editable ? MIN_IMAGE_SIZE : '100%';
-  const { data, isLoading } = useFetchDalleImageItem(id);
   const { styles, cx } = useStyles();
   const { isSafari } = usePlatform();
 
+  // Use file server URL directly with imageId
+  const imageUrl = `/files/${id}`;
+
   return (
     <Image
-      alt={data?.name || id || ''}
+      alt={id || ''}
       alwaysShowActions={alwaysShowClose}
       height={isSafari ? 'auto' : '100%'}
-      isLoading={isLoading}
+      isLoading={false}
       size={IMAGE_SIZE as any}
-      src={data?.url}
+      src={imageUrl}
       style={{ height: isSafari ? 'auto' : '100%' }}
       wrapperClassName={cx(styles.image, editable && styles.editableImage)}
     />

@@ -96,7 +96,8 @@ func main() {
 	}
 
 	// Initialize File Service base directory (needed by both FileService and FileProcessor)
-	fileBaseDir := filepath.Join(userConfigDir, "veridium", "files")
+	// Use project root directory for easier development access
+	fileBaseDir := filepath.Join("data", "files")
 	os.MkdirAll(fileBaseDir, 0755)
 
 	// Initialize DuckDB Store (Vector Engine)
