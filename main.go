@@ -16,6 +16,7 @@ import (
 	"github.com/kawai-network/veridium/internal/tableviewer"
 	"github.com/kawai-network/veridium/internal/tts"
 	"github.com/kawai-network/veridium/internal/whisper"
+	"github.com/kawai-network/veridium/pkg/localfs"
 	"github.com/kawai-network/veridium/pkg/yzma/embedding"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
@@ -227,6 +228,8 @@ func main() {
 			application.NewService(kbService),
 			// Machine ID service
 			application.NewService(&machineid.Service{}),
+			// Local file system service
+			application.NewService(localfs.NewService()),
 			// File service
 			application.NewService(fileSvc),
 			// Native Wails v3 notification service
@@ -242,11 +245,7 @@ func main() {
 					// Use same base directory as FileService for consistency
 					// This ensures uploaded files can be served via /files/ route
 					return fileserver.NewWithConfig(&fileserver.Config{
-						RootPath:               fileBaseDir, // Same as FileService baseDir
-						EnableDirectoryListing: true,        // Enable for user data access
-						EnableCORS:             true,        // Enable CORS for web access
-						IndexFile:              "index.html",
-						AllowedExtensions:      []string{".html", ".css", ".js", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".pdf", ".docx", ".txt", ".md"}, // User files + images
+						RootPath: fileBaseDir, // Same as FileService baseDir
 					})
 				}(),
 				application.ServiceOptions{

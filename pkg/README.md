@@ -1,8 +1,59 @@
-# Node.js Equivalents for Go
+# Veridium Go Packages
 
-This package provides Go equivalents for Node.js built-in modules, making it easier to port Node.js applications to Go or use familiar APIs in Go programs.
+This directory contains reusable Go packages for the Veridium project, including Node.js equivalents and local file system operations.
 
 ## Packages
+
+### `localfs` - Local File System Service
+
+A comprehensive service for local file system operations, providing a modern, service-oriented interface.
+
+```go
+import "github.com/kawai-network/veridium/pkg/localfs"
+
+// Create service
+service := localfs.NewService()
+ctx := context.Background()
+
+// Write and read files
+service.WriteFile(ctx, localfs.WriteFileParams{
+    Path:    "/path/to/file.txt",
+    Content: "Hello, World!",
+})
+
+result, _ := service.ReadFile(ctx, localfs.ReadFileParams{
+    Path: "/path/to/file.txt",
+})
+
+// Edit files with search/replace
+service.EditFile(ctx, localfs.EditFileParams{
+    FilePath:   "/path/to/file.txt",
+    OldString:  "old",
+    NewString:  "new",
+    ReplaceAll: true,
+})
+
+// Run shell commands
+result, _ := service.RunCommand(ctx, localfs.RunCommandParams{
+    Command: "ls -la",
+})
+
+// Search content (grep-like)
+result, _ := service.GrepContent(ctx, localfs.GrepContentParams{
+    Pattern: "search term",
+    Path:    "/path/to/search",
+})
+```
+
+**Features:**
+- File operations: read, write, edit, list, search, move, rename
+- Shell command execution (sync and async)
+- Content search (grep) and glob pattern matching
+- Cross-platform support (macOS, Linux, Windows)
+- Context-aware with cancellation support
+- Comprehensive test coverage
+
+See [localfs/README.md](localfs/README.md) for detailed documentation.
 
 ### `nodefs` - File System Operations
 

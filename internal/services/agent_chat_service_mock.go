@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/kawai-network/veridium/pkg/localfs"
 	"github.com/kawai-network/veridium/pkg/yzma/tools/builtin"
 )
 
@@ -453,7 +454,7 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 	// Tool 4: Local System - listLocalFiles
 	// Using proper types from builtin.LocalFileListState
 	listFilesState := &builtin.LocalFileListState{
-		ListResults: []builtin.LocalFileItem{
+		ListResults: []localfs.LocalFileItem{
 			{
 				Name:         "document.pdf",
 				Path:         "/home/user/documents/document.pdf",
@@ -506,7 +507,7 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 	// Tool 5: Local System - readLocalFile
 	// Using proper types from builtin.LocalReadFileState
 	readFileState := &builtin.LocalReadFileState{
-		FileContent: builtin.LocalReadFileResult{
+		FileContent: localfs.LocalReadFileResult{
 			Content:        "# README\n\nThis is a sample readme file.\n\n## Features\n- Feature 1\n- Feature 2\n- Feature 3",
 			Filename:       "readme.md",
 			FileType:       "text/markdown",
@@ -530,7 +531,7 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 	// Tool 6: Local System - searchLocalFiles
 	// Using proper types from builtin.LocalFileSearchState
 	searchFilesState := &builtin.LocalFileSearchState{
-		SearchResults: []builtin.LocalFileItem{
+		SearchResults: []localfs.LocalFileItem{
 			{
 				Name:         "important_doc.pdf",
 				Path:         "/home/user/documents/important_doc.pdf",
@@ -563,7 +564,7 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 
 	// Tool 7: Local System - writeLocalFile
 	// Using proper types from builtin.WriteFileResult
-	writeFileResult := &builtin.WriteFileResult{
+	writeFileResult := &localfs.WriteFileResult{
 		Path:    "/home/user/documents/new_file.txt",
 		Success: true,
 		Message: "File written successfully",
@@ -590,7 +591,7 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 	// Tool 9: Local System - moveLocalFiles
 	// Using proper types from builtin.LocalMoveFilesState
 	moveFilesState := &builtin.LocalMoveFilesState{
-		Results: []builtin.LocalMoveFilesResultItem{
+		Results: []localfs.LocalMoveFilesResultItem{
 			{
 				SourcePath: "/home/user/documents/file1.txt",
 				NewPath:    "/home/user/backup/file1.txt",

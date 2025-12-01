@@ -9,8 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
+	"github.com/kawai-network/veridium/pkg/localfs"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
 )
 
@@ -18,63 +18,27 @@ import (
 // Response Types (matching frontend expected format)
 // ============================================================================
 
-// LocalFileItem matches frontend LocalFileItem interface
-type LocalFileItem struct {
-	Name           string                 `json:"name"`
-	Path           string                 `json:"path"`
-	Size           int64                  `json:"size"`
-	Type           string                 `json:"type"`
-	IsDirectory    bool                   `json:"isDirectory"`
-	ContentType    string                 `json:"contentType,omitempty"`
-	CreatedTime    time.Time              `json:"createdTime"`
-	ModifiedTime   time.Time              `json:"modifiedTime"`
-	LastAccessTime time.Time              `json:"lastAccessTime"`
-	Metadata       map[string]interface{} `json:"metadata,omitempty"`
-}
-
 // LocalFileListState matches frontend LocalFileListState interface
 type LocalFileListState struct {
-	ListResults []LocalFileItem `json:"listResults"`
-}
-
-// LocalReadFileResult matches frontend LocalReadFileResult interface
-type LocalReadFileResult struct {
-	Content        string    `json:"content"`
-	Filename       string    `json:"filename"`
-	FileType       string    `json:"fileType"`
-	CharCount      int       `json:"charCount"`
-	LineCount      int       `json:"lineCount"`
-	TotalCharCount int       `json:"totalCharCount"`
-	TotalLineCount int       `json:"totalLineCount"`
-	Loc            [2]int    `json:"loc"`
-	CreatedTime    time.Time `json:"createdTime"`
-	ModifiedTime   time.Time `json:"modifiedTime"`
+	ListResults []localfs.LocalFileItem `json:"listResults"`
 }
 
 // LocalReadFileState matches frontend LocalReadFileState interface
 type LocalReadFileState struct {
-	FileContent LocalReadFileResult `json:"fileContent"`
+	FileContent localfs.LocalReadFileResult `json:"fileContent"`
 }
 
 // LocalFileSearchState matches frontend LocalFileSearchState interface
 type LocalFileSearchState struct {
-	SearchResults []LocalFileItem `json:"searchResults"`
-}
-
-// LocalMoveFilesResultItem matches frontend LocalMoveFilesResultItem interface
-type LocalMoveFilesResultItem struct {
-	SourcePath string `json:"sourcePath"`
-	NewPath    string `json:"newPath,omitempty"`
-	Success    bool   `json:"success"`
-	Error      string `json:"error,omitempty"`
+	SearchResults []localfs.LocalFileItem `json:"searchResults"`
 }
 
 // LocalMoveFilesState matches frontend LocalMoveFilesState interface
 type LocalMoveFilesState struct {
-	Results      []LocalMoveFilesResultItem `json:"results"`
-	SuccessCount int                        `json:"successCount"`
-	TotalCount   int                        `json:"totalCount"`
-	Error        string                     `json:"error,omitempty"`
+	Results      []localfs.LocalMoveFilesResultItem `json:"results"`
+	SuccessCount int                                `json:"successCount"`
+	TotalCount   int                                `json:"totalCount"`
+	Error        string                             `json:"error,omitempty"`
 }
 
 // LocalRenameFileState matches frontend LocalRenameFileState interface
@@ -82,14 +46,6 @@ type LocalRenameFileState struct {
 	OldPath string `json:"oldPath"`
 	NewPath string `json:"newPath"`
 	Success bool   `json:"success"`
-	Error   string `json:"error,omitempty"`
-}
-
-// WriteFileResult for write operations
-type WriteFileResult struct {
-	Path    string `json:"path"`
-	Success bool   `json:"success"`
-	Message string `json:"message"`
 	Error   string `json:"error,omitempty"`
 }
 
@@ -112,7 +68,7 @@ func (s *LocalSystemService) ListLocalFiles(path string) (*LocalFileListState, e
 		return nil, fmt.Errorf("failed to read directory: %w", err)
 	}
 
-	results := make([]LocalFileItem, 0, len(entries))
+	results := make([]localfs.LocalFileItem, 0, len(entries))
 	for _, entry := range entries {
 		info, err := entry.Info()
 		if err != nil {
@@ -125,7 +81,7 @@ func (s *LocalSystemService) ListLocalFiles(path string) (*LocalFileListState, e
 			fileType = "directory"
 		}
 
-		results = append(results, LocalFileItem{
+		results = append(results, localfs.LocalFileItem{
 			Name:           entry.Name(),
 			Path:           fullPath,
 			Size:           info.Size(),
@@ -183,7 +139,7 @@ func (s *LocalSystemService) ReadLocalFile(path string, loc [2]int) (*LocalReadF
 	selectedContent := strings.Join(selectedLines, "\n")
 
 	return &LocalReadFileState{
-		FileContent: LocalReadFileResult{
+		FileContent: localfs.LocalReadFileResult{
 			Content:        selectedContent,
 			Filename:       filepath.Base(path),
 			FileType:       getContentType(path),
@@ -208,7 +164,7 @@ func (s *LocalSystemService) SearchLocalFiles(keywords string, directory string)
 		}
 	}
 
-	results := make([]LocalFileItem, 0)
+	results := make([]localfs.LocalFileItem, 0)
 	keywordsLower := strings.ToLower(keywords)
 
 	err := filepath.Walk(directory, func(path string, info os.FileInfo, err error) error {
@@ -231,7 +187,7 @@ func (s *LocalSystemService) SearchLocalFiles(keywords string, directory string)
 				fileType = "directory"
 			}
 
-			results = append(results, LocalFileItem{
+			results = append(results, localfs.LocalFileItem{
 				Name:           info.Name(),
 				Path:           path,
 				Size:           info.Size(),
@@ -260,11 +216,11 @@ func (s *LocalSystemService) SearchLocalFiles(keywords string, directory string)
 }
 
 // WriteLocalFile writes content to a file
-func (s *LocalSystemService) WriteLocalFile(path string, content string) (*WriteFileResult, error) {
+func (s *LocalSystemService) WriteLocalFile(path string, content string) (*localfs.WriteFileResult, error) {
 	// Create parent directories if needed
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		return &WriteFileResult{
+		return &localfs.WriteFileResult{
 			Path:    path,
 			Success: false,
 			Error:   fmt.Sprintf("failed to create directory: %v", err),
@@ -272,14 +228,14 @@ func (s *LocalSystemService) WriteLocalFile(path string, content string) (*Write
 	}
 
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
-		return &WriteFileResult{
+		return &localfs.WriteFileResult{
 			Path:    path,
 			Success: false,
 			Error:   fmt.Sprintf("failed to write file: %v", err),
 		}, nil
 	}
 
-	return &WriteFileResult{
+	return &localfs.WriteFileResult{
 		Path:    path,
 		Success: true,
 		Message: "File written successfully",
@@ -308,18 +264,15 @@ func (s *LocalSystemService) RenameLocalFile(path string, newName string) (*Loca
 }
 
 // MoveLocalFiles moves multiple files
-func (s *LocalSystemService) MoveLocalFiles(items []struct {
-	OldPath string `json:"oldPath"`
-	NewPath string `json:"newPath"`
-}) (*LocalMoveFilesState, error) {
-	results := make([]LocalMoveFilesResultItem, 0, len(items))
+func (s *LocalSystemService) MoveLocalFiles(items []localfs.MoveLocalFileParams) (*LocalMoveFilesState, error) {
+	results := make([]localfs.LocalMoveFilesResultItem, 0, len(items))
 	successCount := 0
 
 	for _, item := range items {
 		// Create parent directory if needed
 		dir := filepath.Dir(item.NewPath)
 		if err := os.MkdirAll(dir, 0755); err != nil {
-			results = append(results, LocalMoveFilesResultItem{
+			results = append(results, localfs.LocalMoveFilesResultItem{
 				SourcePath: item.OldPath,
 				Success:    false,
 				Error:      fmt.Sprintf("failed to create directory: %v", err),
@@ -328,13 +281,13 @@ func (s *LocalSystemService) MoveLocalFiles(items []struct {
 		}
 
 		if err := os.Rename(item.OldPath, item.NewPath); err != nil {
-			results = append(results, LocalMoveFilesResultItem{
+			results = append(results, localfs.LocalMoveFilesResultItem{
 				SourcePath: item.OldPath,
 				Success:    false,
 				Error:      fmt.Sprintf("failed to move: %v", err),
 			})
 		} else {
-			results = append(results, LocalMoveFilesResultItem{
+			results = append(results, localfs.LocalMoveFilesResultItem{
 				SourcePath: item.OldPath,
 				NewPath:    item.NewPath,
 				Success:    true,
@@ -670,10 +623,7 @@ func RegisterLocalSystem(registry *tools.ToolRegistry) error {
 				return "", fmt.Errorf("items is required")
 			}
 
-			var items []struct {
-				OldPath string `json:"oldPath"`
-				NewPath string `json:"newPath"`
-			}
+			var items []localfs.MoveLocalFileParams
 			if err := json.Unmarshal([]byte(itemsStr), &items); err != nil {
 				return "", fmt.Errorf("failed to parse items: %w", err)
 			}
