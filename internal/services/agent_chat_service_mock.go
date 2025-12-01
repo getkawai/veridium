@@ -613,7 +613,7 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 		{
 			Prompt:     "A beautiful sunset over a calm ocean with vibrant orange and purple colors",
 			PreviewUrl: "https://picsum.photos/seed/sunset/1024/1024",
-			ImageId:    "dalle-sunset-001.jpg", // Actual file in data/files/
+			ImageId:    "501-1024x1024.jpg", // Actual file in data/files/
 			Quality:    "hd",
 			Size:       "1024x1024",
 			Style:      "vivid",
@@ -621,7 +621,7 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 		{
 			Prompt:     "A futuristic cityscape at night with neon lights and flying cars",
 			PreviewUrl: "https://picsum.photos/seed/cityscape/1024/1024",
-			ImageId:    "dalle-cityscape-001.jpg", // Actual file in data/files/
+			ImageId:    "622-1024x1024.jpg", // Actual file in data/files/
 			Quality:    "hd",
 			Size:       "1024x1024",
 			Style:      "vivid",

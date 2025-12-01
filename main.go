@@ -97,7 +97,7 @@ func main() {
 
 	// Initialize File Service base directory (needed by both FileService and FileProcessor)
 	// Use project root directory for easier development access
-	fileBaseDir := filepath.Join("data", "files")
+	fileBaseDir := filepath.Join("files")
 	os.MkdirAll(fileBaseDir, 0755)
 
 	// Initialize DuckDB Store (Vector Engine)
