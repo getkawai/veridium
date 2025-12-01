@@ -345,6 +345,11 @@ export class ProcessFileResponse {
     "chunkIds"?: string[];
     "globalFileId"?: string;
 
+    /**
+     * True if async processing is in progress
+     */
+    "processing"?: boolean;
+
     /** Creates a new ProcessFileResponse instance. */
     constructor($$source: Partial<ProcessFileResponse> = {}) {
         if (!("fileId" in $$source)) {

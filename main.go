@@ -222,8 +222,6 @@ func main() {
 			application.NewService(vectorSearchService),
 			// File processor service - for file parsing + document storage + RAG
 			application.NewService(fileProcessorService),
-			// Tools Engine service - for tool/plugin management
-			application.NewService(NewToolsEngineService()),
 			// Knowledge Base service - for RAG with Chromem + Eino
 			application.NewService(kbService),
 			// Machine ID service
