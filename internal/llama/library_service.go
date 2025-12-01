@@ -136,6 +136,16 @@ func (s *LibraryService) initializeInBackground() {
 			}
 		})
 	}()
+
+	// Step 5: Auto-download VL model (in background)
+	go func() {
+		log.Println("📦 Checking VL models...")
+		if err := s.AutoDownloadRecommendedVLModel(); err != nil {
+			log.Printf("⚠️  Failed to auto-download VL model: %v", err)
+		} else {
+			log.Println("✅ VL model ready!")
+		}
+	}()
 }
 
 // InitializeLibrary loads the llama.cpp shared library

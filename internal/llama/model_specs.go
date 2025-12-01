@@ -21,8 +21,6 @@ const (
 	maxGGUFVersion      = 10
 	maxTensorCount      = 100000
 	maxMetadataCount    = 10000
-	sizeVarianceMin     = 0.95
-	sizeVarianceMax     = 1.05
 )
 
 // QwenModelSpec represents a Qwen model specification for direct download
@@ -191,21 +189,6 @@ func SelectOptimalQwenTextModel(availableRAM int64) QwenModelSpec {
 // validateDownloadedFile performs all validation checks on a downloaded file
 // Used by installer.go for model validation
 func validateDownloadedFile(filePath string, modelSpec QwenModelSpec) error {
-	// Check file size
-	fileInfo, err := os.Stat(filePath)
-	if err != nil {
-		return fmt.Errorf("failed to stat downloaded file: %w", err)
-	}
-
-	actualSize := fileInfo.Size()
-	expectedSize := modelSpec.Size
-	sizeVariance := float64(actualSize) / float64(expectedSize)
-
-	if sizeVariance < sizeVarianceMin || sizeVariance > sizeVarianceMax {
-		return fmt.Errorf("downloaded file size mismatch: got %d bytes, expected ~%d bytes (%.1f%% of expected)",
-			actualSize, expectedSize, sizeVariance*100)
-	}
-
 	// Verify checksum if provided
 	if modelSpec.SHA256 != "" {
 		log.Printf("🔒 Verifying model integrity...")

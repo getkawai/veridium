@@ -4,14 +4,17 @@ import (
 	"context"
 	"database/sql"
 	"path/filepath"
+	"strings"
 
+	"github.com/kawai-network/veridium/internal/llama"
 	"github.com/kawai-network/veridium/internal/services"
 )
 
 // FileProcessorService is the Wails-exposed service
 type FileProcessorService struct {
-	processor   *services.FileProcessorService
-	fileBaseDir string // Base directory for file storage
+	processor      *services.FileProcessorService
+	libraryService *llama.LibraryService
+	fileBaseDir    string // Base directory for file storage
 }
 
 // NewFileProcessorService creates a new Wails file processor service
@@ -20,6 +23,7 @@ func NewFileProcessorService(
 	fileLoader *services.FileLoader,
 	vectorSearchService *services.VectorSearchService,
 	duckDB *services.DuckDBStore,
+	libraryService *llama.LibraryService,
 	fileBaseDir string,
 ) *FileProcessorService {
 	// Initialize sub-services
@@ -37,11 +41,13 @@ func NewFileProcessorService(
 		fileLoader,
 		documentService,
 		ragProcessor,
+		libraryService,
 	)
 
 	return &FileProcessorService{
-		processor:   processor,
-		fileBaseDir: fileBaseDir,
+		processor:      processor,
+		libraryService: libraryService,
+		fileBaseDir:    fileBaseDir,
 	}
 }
 
@@ -62,10 +68,17 @@ func (f *FileProcessorService) ProcessFileForStorage(
 		absolutePath = filepath.Join(f.fileBaseDir, filePath)
 	}
 
+	// Normalize file type for images to ensure Qwen-VL processing is triggered
+	// The frontend sends "image/jpeg" etc, but the internal service expects "image"
+	normalizedFileType := fileType
+	if strings.HasPrefix(fileType, "image/") {
+		normalizedFileType = string(services.FileTypeImage)
+	}
+
 	req := services.ProcessFileRequest{
 		FilePath:  absolutePath,
 		Filename:  filename,
-		FileType:  fileType,
+		FileType:  normalizedFileType,
 		UserID:    userID,
 		ClientID:  "", // Optional
 		Source:    absolutePath,
@@ -73,7 +86,7 @@ func (f *FileProcessorService) ProcessFileForStorage(
 		IsShared:  false,
 		FileMetadata: &services.FileMetadata{
 			Filename: filename,
-			FileType: fileType,
+			FileType: normalizedFileType,
 		},
 	}
 

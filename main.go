@@ -99,7 +99,7 @@ func main() {
 	os.MkdirAll(fileBaseDir, 0755)
 
 	// Initialize DuckDB Store (Vector Engine)
-	duckDBPath := filepath.Join(userConfigDir, "veridium", "duckdb.db")
+	duckDBPath := "data/duckdb.db"
 	duckDBStore, err := services.NewDuckDBStore(duckDBPath, 384) // 384 dims for granite-embedding
 	if err != nil {
 		log.Printf("⚠️  Warning: Failed to initialize DuckDB Store: %v", err)
@@ -136,6 +136,7 @@ func main() {
 		fileLoader,
 		vectorSearchService, // Pass entire service to get embedFunc
 		duckDBStore,         // Pass DuckDB store
+		libService,          // Pass LibraryService for VL model
 		fileBaseDir,         // Pass file base directory for path resolution
 	)
 	log.Printf("✅ File Processor service initialized")

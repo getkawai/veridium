@@ -8,10 +8,12 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	db "github.com/kawai-network/veridium/internal/database/generated"
+	"github.com/kawai-network/veridium/internal/llama"
 	"github.com/kawai-network/veridium/pkg/xlog"
 )
 
@@ -21,6 +23,7 @@ type FileProcessorService struct {
 	fileLoader      *FileLoader
 	documentService *DocumentService
 	ragProcessor    *RAGProcessor
+	libraryService  *llama.LibraryService
 }
 
 // NewFileProcessorService creates a new file processor service
@@ -29,12 +32,14 @@ func NewFileProcessorService(
 	fileLoader *FileLoader,
 	documentService *DocumentService,
 	ragProcessor *RAGProcessor,
+	libraryService *llama.LibraryService,
 ) *FileProcessorService {
 	return &FileProcessorService{
 		queries:         db.New(database),
 		fileLoader:      fileLoader,
 		documentService: documentService,
 		ragProcessor:    ragProcessor,
+		libraryService:  libraryService,
 	}
 }
 
@@ -78,6 +83,44 @@ func (s *FileProcessorService) ProcessFile(ctx context.Context, req ProcessFileR
 	fileDoc, err := s.fileLoader.LoadFile(req.FilePath, req.FileMetadata)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load file: %w", err)
+	}
+
+	// Step 2.5: If image, generate description using VL model
+	if req.FileType == string(FileTypeImage) && s.libraryService != nil {
+		xlog.Info("Generating image description", "filename", req.Filename)
+
+		// Ensure VL model is loaded
+		if !s.libraryService.IsVLModelLoaded() {
+			// Try to load VL model
+			if err := s.libraryService.LoadVLModel(""); err != nil {
+				xlog.Error("Failed to load VL model for image processing", "error", err)
+				// Continue without description
+			}
+		}
+
+		if s.libraryService.IsVLModelLoaded() {
+			prompt := "Describe this image in detail. Include all visible text, objects, and layout."
+			description, err := s.libraryService.ProcessImageWithText(req.FilePath, prompt, 512)
+			if err != nil {
+				xlog.Error("Failed to process image with VL model", "error", err)
+			} else {
+				xlog.Info("Image description generated", "length", len(description))
+
+				// Append description to content
+				descriptionMarkdown := fmt.Sprintf("\n\n### Image Description (AI Generated)\n\n%s", description)
+				fileDoc.Content += descriptionMarkdown
+
+				// Also update the page content
+				if len(fileDoc.Pages) > 0 {
+					fileDoc.Pages[0].PageContent += descriptionMarkdown
+					fileDoc.Pages[0].CharCount += len(descriptionMarkdown)
+					fileDoc.Pages[0].LineCount += len(strings.Split(descriptionMarkdown, "\n"))
+				}
+
+				fileDoc.TotalCharCount += len(descriptionMarkdown)
+				fileDoc.TotalLineCount += len(strings.Split(descriptionMarkdown, "\n"))
+			}
+		}
 	}
 
 	// Step 3: Save to documents table

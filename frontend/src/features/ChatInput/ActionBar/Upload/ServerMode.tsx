@@ -71,7 +71,7 @@ const FileUpload = memo(() => {
       if (!result) return;
 
       const filePaths = Array.isArray(result) ? result : [result];
-      
+
       // Process files via backend
       const processedFiles = await Promise.all(
         filePaths.map(async (filePath) => {
@@ -81,7 +81,18 @@ const FileUpload = memo(() => {
 
           // Copy file to local storage via backend
           const savedKey = await FileService.CopyFileFromAbsolutePath(filePath);
-          
+          const userId = getUserId();
+
+          // Process file for document storage (BLOCKING)
+          // Backend will automatically skip RAG for images/videos unless enabled (images now enabled via VL)
+          await ProcessFileForStorage(
+            savedKey,           // filePath
+            fileName,           // filename
+            mimeType,           // fileType
+            userId,             // userID
+            true                // enableRAG (backend decides based on file type)
+          );
+
           return {
             name: fileName,
             type: mimeType,
@@ -136,8 +147,8 @@ const FileUpload = memo(() => {
             const ext = fileName.split('.').pop()?.toLowerCase() || '';
             const mimeType = getMimeType(ext);
 
-            // Skip image/video if model doesn't support vision
-            if (!canUploadImage && (mimeType.startsWith('image') || mimeType.startsWith('video'))) {
+            // Skip video if model doesn't support vision (images are now handled by backend VL model)
+            if (!canUploadImage && mimeType.startsWith('video')) {
               return null;
             }
 
@@ -164,7 +175,7 @@ const FileUpload = memo(() => {
         );
 
         const validFiles = processedFiles.filter(Boolean);
-        
+
         if (validFiles.length === 0) {
           hideLoading();
           message.warning('No valid files to upload');
