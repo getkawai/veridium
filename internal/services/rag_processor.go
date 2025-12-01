@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cloudwego/eino/components/embedding"
 	"github.com/google/uuid"
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/pkg/xlog"
+	"github.com/kawai-network/veridium/pkg/yzma/embedding"
 )
 
 // RAGProcessor handles RAG processing (chunking + embedding)
@@ -17,7 +17,7 @@ type RAGProcessor struct {
 	queries     *db.Queries
 	duckDB      *DuckDBStore
 	fileLoader  *FileLoader
-	embedder    embedding.Embedder // Eino embedding interface
+	embedder    embedding.Embedder
 	chunkSize   int
 	overlapSize int
 }
@@ -113,8 +113,8 @@ func (r *RAGProcessor) ProcessFile(ctx context.Context, req RAGProcessRequest) (
 			continue
 		}
 
-		// Generate embedding using Eino embedder
-		embeddings, err := r.embedder.EmbedStrings(ctx, []string{chunkContent})
+		// Generate embedding
+		embeddings, err := r.embedder.Embed(ctx, []string{chunkContent})
 		if err != nil {
 			xlog.Error("Failed to generate embedding", "error", err, "chunk_index", i)
 			continue
@@ -125,7 +125,6 @@ func (r *RAGProcessor) ProcessFile(ctx context.Context, req RAGProcessRequest) (
 			continue
 		}
 
-		// Use embedding directly ([]float64 from Eino)
 		embedding := embeddings[0]
 
 		// B. Save embedding to DuckDB (Vector Engine)

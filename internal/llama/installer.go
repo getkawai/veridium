@@ -298,6 +298,41 @@ func (lcm *LlamaCppInstaller) DownloadChatModel(modelSpec QwenModelSpec) error {
 	sizeMB := float64(fileInfo.Size()) / (1024 * 1024)
 	log.Printf("✅ Model downloaded successfully: %s (%.1f MB)", modelFileName, sizeMB)
 
+	// Download projector file if specified (for VL models)
+	if modelSpec.ProjectorURL != "" {
+		projectorFileName := filepath.Base(modelSpec.ProjectorURL)
+		destProjectorPath := filepath.Join(lcm.ModelsDir, projectorFileName)
+		tempProjectorPath := destProjectorPath + ".tmp"
+
+		// Clean up any stale temporary files
+		if err := lcm.cleanupTempFile(tempProjectorPath); err != nil {
+			log.Printf("⚠️  Failed to cleanup stale projector temp file: %v", err)
+		}
+
+		// Check if projector already exists
+		if _, err := os.Stat(destProjectorPath); err == nil {
+			log.Printf("✅ Projector already exists: %s", projectorFileName)
+		} else {
+			log.Printf("📥 Downloading projector file: %s", projectorFileName)
+			log.Printf("   URL: %s", modelSpec.ProjectorURL)
+			log.Printf("   Expected size: %.1f MB", float64(modelSpec.ProjectorSize)/(1024*1024))
+
+			if err := download.GetWithProgress(modelSpec.ProjectorURL, tempProjectorPath, opts); err != nil {
+				lcm.cleanupTempFile(tempProjectorPath)
+				// Don't fail the whole process if projector fails, but warn
+				log.Printf("⚠️  Failed to download projector: %v", err)
+			} else {
+				// Move temporary file to final destination
+				if err := os.Rename(tempProjectorPath, destProjectorPath); err != nil {
+					lcm.cleanupTempFile(tempProjectorPath)
+					log.Printf("⚠️  Failed to move downloaded projector: %v", err)
+				} else {
+					log.Printf("✅ Projector downloaded successfully: %s", projectorFileName)
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -399,17 +434,54 @@ func (lcm *LlamaCppInstaller) AutoDownloadRecommendedVLModel() error {
 		return fmt.Errorf("failed to check existing models: %w", err)
 	}
 
+	var modelSpec QwenModelSpec
 	if len(models) > 0 {
 		log.Printf("✅ VL models already available (%d found), skipping auto-download", len(models))
+
+		// Model exists, but check if projector exists
+		// Get the model spec for the existing model
+		modelSpec = SelectOptimalQwenModel(lcm.HardwareSpecs.AvailableRAM)
+
+		// Check if projector file exists
+		if modelSpec.ProjectorURL != "" {
+			projectorFileName := filepath.Base(modelSpec.ProjectorURL)
+			destProjectorPath := filepath.Join(lcm.ModelsDir, projectorFileName)
+
+			if _, err := os.Stat(destProjectorPath); os.IsNotExist(err) {
+				// Projector doesn't exist, download it
+				log.Printf("📥 VL model exists but projector missing, downloading projector...")
+				log.Printf("   Projector: %s", projectorFileName)
+				log.Printf("   URL: %s", modelSpec.ProjectorURL)
+
+				tempProjectorPath := destProjectorPath + ".tmp"
+				lcm.cleanupTempFile(tempProjectorPath)
+
+				opts := download.DefaultDownloadOptions()
+				if err := download.GetWithProgress(modelSpec.ProjectorURL, tempProjectorPath, opts); err != nil {
+					lcm.cleanupTempFile(tempProjectorPath)
+					log.Printf("⚠️  Failed to download projector: %v", err)
+				} else {
+					if err := os.Rename(tempProjectorPath, destProjectorPath); err != nil {
+						lcm.cleanupTempFile(tempProjectorPath)
+						log.Printf("⚠️  Failed to move downloaded projector: %v", err)
+					} else {
+						log.Printf("✅ Projector downloaded successfully: %s", projectorFileName)
+					}
+				}
+			} else {
+				log.Printf("✅ Projector file already exists: %s", projectorFileName)
+			}
+		}
+
 		return nil
 	}
 
 	log.Println("📦 No VL models found, starting auto-download...")
 
 	// Select optimal model based on available RAM
-	modelSpec := SelectOptimalQwenModel(lcm.HardwareSpecs.AvailableRAM)
+	modelSpec = SelectOptimalQwenModel(lcm.HardwareSpecs.AvailableRAM)
 
-	// Download the model
+	// Download the model (this will also download projector via DownloadChatModel)
 	if err := lcm.DownloadChatModel(modelSpec); err != nil {
 		return fmt.Errorf("failed to download model: %w", err)
 	}

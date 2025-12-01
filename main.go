@@ -16,6 +16,7 @@ import (
 	"github.com/kawai-network/veridium/internal/tableviewer"
 	"github.com/kawai-network/veridium/internal/tts"
 	"github.com/kawai-network/veridium/internal/whisper"
+	"github.com/kawai-network/veridium/pkg/yzma/embedding"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 	"github.com/wailsapp/wails/v3/pkg/services/fileserver"
@@ -110,23 +111,45 @@ func main() {
 		defer duckDBStore.Close()
 	}
 
-	// Initialize Vector Search service (DuckDB + SQLite for semantic search)
-	// This uses the llama.cpp library loaded by LibraryService above
-	vectorSearchService, err := services.NewVectorSearchService(
-		dbService.DB(),
-		duckDBStore,
-		"llama",
-		"",
-		libService,
-	)
-	if err != nil {
-		log.Printf("⚠️  Warning: Failed to initialize Vector Search service: %v", err)
-		log.Printf("    Semantic search features will not be available.")
+	// Initialize Embedder using pkg/yzma/embedding (custom interface, replaces Eino)
+	var embedder embedding.Embedder
+	embeddingModelName := llama.GetRecommendedEmbeddingModel()
+	embeddingModel, exists := llama.GetEmbeddingModel(embeddingModelName)
+	if !exists {
+		log.Printf("⚠️  Warning: Embedding model not found: %s", embeddingModelName)
 	} else {
-		log.Printf("✅ Vector Search service initialized (DuckDB + SQLite)")
-		log.Printf("   Embedding provider: llama.cpp (library)")
-		log.Printf("   Embedding model: granite-embedding-107m-multilingual")
-		log.Printf("   Note: Embedding models auto-download in background")
+		installer := llama.NewLlamaCppInstaller()
+		modelPath := filepath.Join(installer.GetModelsDirectory(), embeddingModel.Filename)
+		embedder, err = embedding.NewLlamaEmbedder(&embedding.LlamaConfig{
+			ModelPath:   modelPath,
+			ContextSize: 2048,
+		})
+		if err != nil {
+			log.Printf("⚠️  Warning: Failed to create embedder: %v", err)
+		} else {
+			log.Printf("✅ Embedder initialized (pkg/yzma/embedding)")
+			log.Printf("   Model: %s", embeddingModel.Name)
+			log.Printf("   Dimensions: %d", embedder.Dimensions())
+			defer embedder.Close()
+		}
+	}
+
+	// Initialize Vector Search service (DuckDB + SQLite for semantic search)
+	var vectorSearchService *services.VectorSearchService
+	if embedder != nil {
+		vectorSearchService, err = services.NewVectorSearchService(
+			dbService.DB(),
+			duckDBStore,
+			embedder,
+		)
+		if err != nil {
+			log.Printf("⚠️  Warning: Failed to initialize Vector Search service: %v", err)
+			log.Printf("    Semantic search features will not be available.")
+		} else {
+			log.Printf("✅ Vector Search service initialized (DuckDB + SQLite)")
+		}
+	} else {
+		log.Printf("⚠️  Warning: Embedder not available, Vector Search service disabled")
 	}
 
 	// Initialize File Processor service (file parsing + document storage + RAG)

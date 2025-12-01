@@ -5,10 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/cloudwego/eino/components/embedding"
 	db "github.com/kawai-network/veridium/internal/database/generated"
-	"github.com/kawai-network/veridium/internal/llama"
-	"github.com/kawai-network/veridium/pkg/xlog"
+	"github.com/kawai-network/veridium/pkg/yzma/embedding"
 )
 
 // SearchResult represents a search result from vector database
@@ -27,52 +25,17 @@ type SearchResult struct {
 type VectorSearchService struct {
 	queries  *db.Queries
 	duckDB   *DuckDBStore
-	embedder embedding.Embedder // Eino embedding interface
+	embedder embedding.Embedder
 }
 
 // NewVectorSearchService creates a new vector search service
 func NewVectorSearchService(
 	database *sql.DB,
 	duckDB *DuckDBStore,
-	embeddingProvider string,
-	embeddingModel string,
-	libService *llama.LibraryService,
+	embedder embedding.Embedder,
 ) (*VectorSearchService, error) {
-	// Setup embedding using Eino interface
-	var embedder embedding.Embedder
-	var err error
-
-	switch embeddingProvider {
-	case "llama", "":
-		// Default to llama.cpp (local, no API key needed)
-		xlog.Info("Using llama.cpp embedding provider (Eino)")
-
-		if embeddingModel == "" {
-			embeddingModel = llama.GetRecommendedEmbeddingModel()
-		}
-
-		// Get model info from catalog to get correct filename
-		model, exists := llama.GetEmbeddingModel(embeddingModel)
-		if !exists {
-			return nil, fmt.Errorf("embedding model not found in catalog: %s", embeddingModel)
-		}
-
-		// Get full model path (library is already loaded by LibraryService)
-		installer := llama.NewLlamaCppInstaller()
-		modelPath := installer.GetModelsDirectory() + "/" + model.Filename
-
-		// Create Eino Llama embedder
-		embedder, err = llama.NewEmbedder(context.Background(), &llama.EmbeddingConfig{
-			ModelPath:       modelPath,
-			SkipLibraryInit: true, // Library already loaded by LibraryService
-			ContextSize:     2048,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to create Llama embedder: %w", err)
-		}
-
-	default:
-		return nil, fmt.Errorf("unsupported embedding provider: %s (only 'llama' is supported with Eino)", embeddingProvider)
+	if embedder == nil {
+		return nil, fmt.Errorf("embedder is required")
 	}
 
 	return &VectorSearchService{
@@ -88,8 +51,8 @@ func (s *VectorSearchService) SemanticSearch(ctx context.Context, userID string,
 		limit = 30
 	}
 
-	// 1. Generate embedding for the query using Eino
-	embeddings, err := s.embedder.EmbedStrings(ctx, []string{query})
+	// 1. Generate embedding for the query
+	embeddings, err := s.embedder.Embed(ctx, []string{query})
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate embedding: %w", err)
 	}
@@ -98,7 +61,6 @@ func (s *VectorSearchService) SemanticSearch(ctx context.Context, userID string,
 		return nil, fmt.Errorf("empty embedding generated")
 	}
 
-	// Use embedding directly ([]float64 from Eino)
 	embedding := embeddings[0]
 
 	// 2. Search DuckDB for similar vectors
@@ -201,7 +163,7 @@ func (s *VectorSearchService) SemanticSearchMultipleFiles(ctx context.Context, u
 	return s.SemanticSearch(ctx, userID, query, fileIDs, limit)
 }
 
-// GetEmbedder returns the Eino embedder
+// GetEmbedder returns the embedder
 func (s *VectorSearchService) GetEmbedder() embedding.Embedder {
 	return s.embedder
 }

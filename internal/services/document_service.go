@@ -99,3 +99,37 @@ func (s *DocumentService) DeleteDocument(ctx context.Context, documentID, userID
 		UserID: userID,
 	})
 }
+
+// AppendContentToDocument appends content to an existing document
+// This is used for async operations like image description generation
+func (s *DocumentService) AppendContentToDocument(ctx context.Context, documentID, userID, additionalContent string) error {
+	// First, get the existing document to retrieve current content
+	doc, err := s.queries.GetDocument(ctx, db.GetDocumentParams{
+		ID:     documentID,
+		UserID: userID,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to get document: %w", err)
+	}
+
+	// Append new content to existing content
+	newContent := doc.Content.String + additionalContent
+	now := time.Now().UnixMilli()
+
+	// Update the document with appended content
+	_, err = s.queries.UpdateDocument(ctx, db.UpdateDocumentParams{
+		ID:         documentID,
+		UserID:     userID,
+		Title:      doc.Title,
+		Content:    sql.NullString{String: newContent, Valid: true},
+		Metadata:   doc.Metadata,
+		EditorData: doc.EditorData,
+		UpdatedAt:  now,
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to update document: %w", err)
+	}
+
+	return nil
+}

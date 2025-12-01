@@ -5,4 +5,8 @@
 // @ts-ignore: Unused imports
 import { Create as $Create } from "@wailsio/runtime";
 
+/**
+ * Embedder is a simple interface for text embedding generation.
+ * This replaces the Eino embedding.Embedder interface with a simpler, custom interface.
+ */
 export type Embedder = any;

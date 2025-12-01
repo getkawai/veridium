@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -58,14 +57,16 @@ type ProcessFileRequest struct {
 
 // ProcessFileResponse represents the result of file processing
 type ProcessFileResponse struct {
-	FileID       string   `json:"fileId"`
-	DocumentID   string   `json:"documentId"`
+	FileID       string `json:"fileId"`
+	DocumentID   string `json:"documentId"`
 	ChunkIDs     []string `json:"chunkIds,omitempty"`
-	GlobalFileID string   `json:"globalFileId,omitempty"`
+	GlobalFileID string `json:"globalFileId,omitempty"`
+	Processing   bool   `json:"processing,omitempty"` // True if async processing is in progress
 }
 
 // ProcessFile is the main entry point for file processing
 // It handles: files → global_files (optional) → documents → chunks (optional)
+// For images, VL model processing is done asynchronously to avoid blocking the UI
 func (s *FileProcessorService) ProcessFile(ctx context.Context, req ProcessFileRequest) (*ProcessFileResponse, error) {
 	xlog.Info("Processing file", "filename", req.Filename, "user_id", req.UserID)
 
@@ -85,55 +86,22 @@ func (s *FileProcessorService) ProcessFile(ctx context.Context, req ProcessFileR
 		return nil, fmt.Errorf("failed to load file: %w", err)
 	}
 
-	// Step 2.5: If image, generate description using VL model
-	if req.FileType == string(FileTypeImage) && s.libraryService != nil {
-		xlog.Info("Generating image description", "filename", req.Filename)
-
-		// Ensure VL model is loaded
-		if !s.libraryService.IsVLModelLoaded() {
-			// Try to load VL model
-			if err := s.libraryService.LoadVLModel(""); err != nil {
-				xlog.Error("Failed to load VL model for image processing", "error", err)
-				// Continue without description
-			}
-		}
-
-		if s.libraryService.IsVLModelLoaded() {
-			prompt := "Describe this image in detail. Include all visible text, objects, and layout."
-			description, err := s.libraryService.ProcessImageWithText(req.FilePath, prompt, 512)
-			if err != nil {
-				xlog.Error("Failed to process image with VL model", "error", err)
-			} else {
-				xlog.Info("Image description generated", "length", len(description))
-
-				// Append description to content
-				descriptionMarkdown := fmt.Sprintf("\n\n### Image Description (AI Generated)\n\n%s", description)
-				fileDoc.Content += descriptionMarkdown
-
-				// Also update the page content
-				if len(fileDoc.Pages) > 0 {
-					fileDoc.Pages[0].PageContent += descriptionMarkdown
-					fileDoc.Pages[0].CharCount += len(descriptionMarkdown)
-					fileDoc.Pages[0].LineCount += len(strings.Split(descriptionMarkdown, "\n"))
-				}
-
-				fileDoc.TotalCharCount += len(descriptionMarkdown)
-				fileDoc.TotalLineCount += len(strings.Split(descriptionMarkdown, "\n"))
-			}
-		}
-	}
-
-	// Step 3: Save to documents table
+	// Step 3: Save to documents table (immediately, without waiting for VL processing)
 	documentID, err := s.saveDocument(ctx, fileDoc, fileID, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to save document: %w", err)
 	}
 	response.DocumentID = documentID
 
-	// Step 4: Process for RAG (optional, synchronous to ensure data consistency)
-	// Check if file type can be chunked (FileLoader is source of truth)
-	if req.EnableRAG && s.fileLoader.CanChunkForRAG(req.FileType) {
-		// Process synchronously using same context to ensure transaction is visible
+	// Step 4: If image, generate description using VL model ASYNCHRONOUSLY
+	// This allows the UI to show the image immediately while description is being generated
+	if req.FileType == string(FileTypeImage) && s.libraryService != nil {
+		response.Processing = true
+		xlog.Info("Starting async image description generation", "filename", req.Filename, "document_id", documentID)
+
+		go s.processImageDescriptionAsync(req.FilePath, req.Filename, documentID, fileID, req.UserID, req.EnableRAG)
+	} else if req.EnableRAG && s.fileLoader.CanChunkForRAG(req.FileType) {
+		// Step 5: Process for RAG (for non-image files, do it synchronously)
 		chunkIDs, err := s.ragProcessor.ProcessFile(ctx, RAGProcessRequest{
 			FilePath:   req.FilePath,
 			FileID:     fileID,
@@ -143,7 +111,6 @@ func (s *FileProcessorService) ProcessFile(ctx context.Context, req ProcessFileR
 		})
 		if err != nil {
 			xlog.Error("Failed to process file for RAG", "error", err, "file_id", fileID)
-			// Don't fail the whole operation, just log the error
 		} else {
 			xlog.Info("RAG processing completed", "file_id", fileID, "chunks", len(chunkIDs))
 		}
@@ -152,6 +119,65 @@ func (s *FileProcessorService) ProcessFile(ctx context.Context, req ProcessFileR
 	}
 
 	return response, nil
+}
+
+// processImageDescriptionAsync generates image description asynchronously
+// and updates the document when complete
+func (s *FileProcessorService) processImageDescriptionAsync(filePath, filename, documentID, fileID, userID string, enableRAG bool) {
+	ctx := context.Background()
+
+	xlog.Info("Async: Starting VL model image processing", "filename", filename)
+
+	// Ensure VL model is loaded
+	if !s.libraryService.IsVLModelLoaded() {
+		if err := s.libraryService.LoadVLModel(""); err != nil {
+			xlog.Error("Async: Failed to load VL model for image processing", "error", err)
+			return
+		}
+	}
+
+	if !s.libraryService.IsVLModelLoaded() {
+		xlog.Error("Async: VL model not available", "filename", filename)
+		return
+	}
+
+	// Generate description
+	prompt := "Describe this image in detail. Include all visible text, objects, and layout."
+	description, err := s.libraryService.ProcessImageWithText(filePath, prompt, 512)
+	if err != nil {
+		xlog.Error("Async: Failed to process image with VL model", "error", err, "filename", filename)
+		return
+	}
+
+	xlog.Info("Async: Image description generated", "length", len(description), "filename", filename)
+
+	// Format description as markdown
+	descriptionMarkdown := fmt.Sprintf("\n\n### Image Description (AI Generated)\n\n%s", description)
+
+	// Update document with description
+	err = s.documentService.AppendContentToDocument(ctx, documentID, userID, descriptionMarkdown)
+	if err != nil {
+		xlog.Error("Async: Failed to update document with description", "error", err, "document_id", documentID)
+		return
+	}
+
+	xlog.Info("Async: Document updated with image description", "document_id", documentID)
+
+	// Process for RAG if enabled (now that we have the description)
+	if enableRAG {
+		chunkIDs, err := s.ragProcessor.ProcessFile(ctx, RAGProcessRequest{
+			FilePath:   filePath,
+			FileID:     fileID,
+			DocumentID: documentID,
+			UserID:     userID,
+			Filename:   filename,
+		})
+		if err != nil {
+			xlog.Error("Async: Failed to process file for RAG", "error", err, "file_id", fileID)
+		} else {
+			xlog.Info("Async: RAG processing completed", "file_id", fileID, "chunks", len(chunkIDs))
+		}
+	}
 }
 
 // saveFileMetadata saves file metadata to files and optionally global_files

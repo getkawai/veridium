@@ -25,14 +25,16 @@ const (
 
 // QwenModelSpec represents a Qwen model specification for direct download
 type QwenModelSpec struct {
-	Name         string // Model name (e.g., "qwen2.5-0.5b-instruct-q4_k_m")
-	URL          string // Direct download URL
-	Quantization string // Quantization type (Q4_K_M, Q5_K_M, etc.)
-	Parameters   string // Parameter size (0.5b, 1.5b, etc.)
-	MinRAM       int64  // Minimum RAM required in GB
-	Size         int64  // Expected file size in bytes
-	SHA256       string // Expected SHA256 checksum (optional)
-	Description  string // Model description
+	Name          string // Model name (e.g., "qwen2.5-0.5b-instruct-q4_k_m")
+	URL           string // Direct download URL
+	Quantization  string // Quantization type (Q4_K_M, Q5_K_M, etc.)
+	Parameters    string // Parameter size (0.5b, 1.5b, etc.)
+	MinRAM        int64  // Minimum RAM required in GB
+	Size          int64  // Expected file size in bytes
+	SHA256        string // Expected SHA256 checksum (optional)
+	Description   string // Model description
+	ProjectorURL  string // URL for the multimodal projector file (for VL models)
+	ProjectorSize int64  // Expected size of the projector file
 }
 
 // Note: Service struct has been removed. All functions are now pure functions
@@ -43,31 +45,37 @@ type QwenModelSpec struct {
 func GetRecommendedVLModels() []QwenModelSpec {
 	return []QwenModelSpec{
 		{
-			Name:         "qwen3-vl-4b-instruct-q4_k_m",
-			URL:          "https://huggingface.co/bartowski/Qwen_Qwen3-VL-4B-Instruct-GGUF/resolve/main/Qwen_Qwen3-VL-4B-Instruct-Q4_K_M.gguf",
-			Quantization: "Q4_K_M",
-			Parameters:   "4b",
-			MinRAM:       6,
-			Size:         2500000000, // ~2.5 GB
-			Description:  "Qwen3-VL 4B - Multimodal vision-language model, perfect for low-end hardware",
+			Name:          "qwen3-vl-4b-instruct-q4_k_m",
+			URL:           "https://huggingface.co/bartowski/Qwen_Qwen3-VL-4B-Instruct-GGUF/resolve/main/Qwen_Qwen3-VL-4B-Instruct-Q4_K_M.gguf",
+			Quantization:  "Q4_K_M",
+			Parameters:    "4b",
+			MinRAM:        6,
+			Size:          2500000000, // ~2.5 GB
+			Description:   "Qwen3-VL 4B - Multimodal vision-language model, perfect for low-end hardware",
+			ProjectorURL:  "https://huggingface.co/bartowski/Qwen_Qwen3-VL-4B-Instruct-GGUF/resolve/main/mmproj-Qwen_Qwen3-VL-4B-Instruct-f16.gguf",
+			ProjectorSize: 600000000, // ~600 MB
 		},
 		{
-			Name:         "qwen3-vl-8b-instruct-q4_k_m",
-			URL:          "https://huggingface.co/bartowski/Qwen_Qwen3-VL-8B-Instruct-GGUF/resolve/main/Qwen_Qwen3-VL-8B-Instruct-Q4_K_M.gguf",
-			Quantization: "Q4_K_M",
-			Parameters:   "8b",
-			MinRAM:       12,
-			Size:         5500000000, // ~5.5 GB
-			Description:  "Qwen3-VL 8B - Advanced multimodal model with excellent vision capabilities",
+			Name:          "qwen3-vl-8b-instruct-q4_k_m",
+			URL:           "https://huggingface.co/bartowski/Qwen_Qwen3-VL-8B-Instruct-GGUF/resolve/main/Qwen_Qwen3-VL-8B-Instruct-Q4_K_M.gguf",
+			Quantization:  "Q4_K_M",
+			Parameters:    "8b",
+			MinRAM:        12,
+			Size:          5500000000, // ~5.5 GB
+			Description:   "Qwen3-VL 8B - Advanced multimodal model with excellent vision capabilities",
+			ProjectorURL:  "https://huggingface.co/bartowski/Qwen_Qwen3-VL-8B-Instruct-GGUF/resolve/main/mmproj-Qwen_Qwen3-VL-8B-Instruct-f16.gguf",
+			ProjectorSize: 1159029920, // ~1.16 GB
 		},
 		{
-			Name:         "qwen3-vl-32b-instruct-q4_k_m",
-			URL:          "https://huggingface.co/bartowski/Qwen_Qwen3-VL-32B-Instruct-GGUF/resolve/main/Qwen_Qwen3-VL-32B-Instruct-Q4_K_M.gguf",
-			Quantization: "Q4_K_M",
-			Parameters:   "32b",
-			MinRAM:       24,
-			Size:         22000000000, // ~22 GB
-			Description:  "Qwen3-VL 32B - High-quality multimodal model for advanced vision-language tasks",
+			Name:          "qwen3-vl-32b-instruct-q4_k_m",
+			URL:           "https://huggingface.co/bartowski/Qwen_Qwen3-VL-32B-Instruct-GGUF/resolve/main/Qwen_Qwen3-VL-32B-Instruct-Q4_K_M.gguf",
+			Quantization:  "Q4_K_M",
+			Parameters:    "32b",
+			MinRAM:        24,
+			Size:          22000000000, // ~22 GB
+			Description:   "Qwen3-VL 32B - High-quality multimodal model for advanced vision-language tasks",
+			ProjectorURL:  "https://huggingface.co/bartowski/Qwen_Qwen3-VL-32B-Instruct-GGUF/resolve/main/mmproj-Qwen_Qwen3-VL-32B-Instruct-f16.gguf",
+			ProjectorSize: 1200000000, // ~1.2 GB
 		},
 	}
 }
