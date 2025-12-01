@@ -179,11 +179,6 @@ func (s *LibraryService) InitializeLibrary() error {
 		return fmt.Errorf("failed to load llama.cpp library from %s: %w", libPath, err)
 	}
 
-	// Load the mtmd library for multimodal support
-	if err := mtmd.Load(libPath); err != nil {
-		return fmt.Errorf("failed to load mtmd library from %s: %w", libPath, err)
-	}
-
 	// Initialize llama.cpp backend
 	llama.Init()
 
@@ -584,12 +579,7 @@ func (s *LibraryService) ProcessImageWithText(imagePath, prompt string, maxToken
 	inputText := mtmd.NewInputText(fullPrompt, true, true)
 
 	// Tokenize input (text + image)
-	outputChunks := mtmd.InputChunksInit()
-	if outputChunks == 0 {
-		return "", fmt.Errorf("failed to create input chunks")
-	}
-	defer mtmd.InputChunksFree(outputChunks)
-
+	var outputChunks mtmd.InputChunks
 	bitmaps := []mtmd.Bitmap{bitmap}
 	if mtmd.Tokenize(s.vlMTMDCtx, outputChunks, inputText, bitmaps) != 0 {
 		return "", fmt.Errorf("failed to tokenize input with image")
@@ -601,9 +591,8 @@ func (s *LibraryService) ProcessImageWithText(imagePath, prompt string, maxToken
 	seqID := llama.SeqId(0)
 
 	// Process multimodal input using helper function
-	// logitsLast=true ensures logits are computed for the last token (needed for sampling)
 	nBatch := int32(512)
-	logitsLast := true
+	logitsLast := false
 	if mtmd.HelperEvalChunks(s.vlMTMDCtx, s.vlContext, outputChunks, nPast, seqID, nBatch, logitsLast, &newNPast) != 0 {
 		return "", fmt.Errorf("failed to process multimodal input")
 	}
@@ -612,7 +601,6 @@ func (s *LibraryService) ProcessImageWithText(imagePath, prompt string, maxToken
 	var response strings.Builder
 	pos := int32(0)
 	for pos < maxTokens {
-		// Sample the next token (index -1 means last token with logits)
 		token := llama.SamplerSample(s.vlSampler, s.vlContext, -1)
 
 		// Check for end of generation
@@ -625,14 +613,11 @@ func (s *LibraryService) ProcessImageWithText(imagePath, prompt string, maxToken
 		tokenLength := llama.TokenToPiece(s.vlVocab, token, tokenBuf, 0, false)
 		response.Write(tokenBuf[:tokenLength])
 
-		// Prepare next batch with logits enabled for the token
+		// Prepare next batch
 		batch := llama.BatchGetOne([]llama.Token{token})
 
 		// Decode next token
-		decodeResult, err := llama.Decode(s.vlContext, batch)
-		if err != nil || decodeResult != 0 {
-			return "", fmt.Errorf("failed to decode token during generation: %v", err)
-		}
+		llama.Decode(s.vlContext, batch)
 		pos += batch.NTokens
 	}
 
@@ -963,6 +948,8 @@ func (s *LibraryService) Cleanup() {
 
 	log.Println("✅ LibraryService cleaned up")
 }
+
+
 
 // AutoDownloadRecommendedModel downloads the recommended model based on hardware
 // Delegates to installer methods
