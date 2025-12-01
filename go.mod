@@ -96,4 +96,4 @@ require (
 	modernc.org/memory v1.8.2 // indirect
 )
 
-replace github.com/wailsapp/wails/v3 => ../velora/wails/v3
+replace github.com/wailsapp/wails/v3 => ./wails/v3
