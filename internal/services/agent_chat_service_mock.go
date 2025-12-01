@@ -607,40 +607,46 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 	}
 
 	// Tool 10: DALL-E Image Designer - text2image
-	// Format: content = [{ prompt, previewUrl, quality, size, style }]
+	// Using proper types from builtin.DallEImageItem
+	dalleImages := []builtin.DallEImageItem{
+		{
+			Prompt:     "A beautiful sunset over a calm ocean with vibrant orange and purple colors",
+			PreviewUrl: "https://picsum.photos/seed/sunset/1024/1024",
+			ImageId:    uuid.New().String(),
+			Quality:    "hd",
+			Size:       "1024x1024",
+			Style:      "vivid",
+		},
+		{
+			Prompt:     "A futuristic cityscape at night with neon lights and flying cars",
+			PreviewUrl: "https://picsum.photos/seed/cityscape/1024/1024",
+			ImageId:    uuid.New().String(),
+			Quality:    "hd",
+			Size:       "1024x1024",
+			Style:      "vivid",
+		},
+	}
 	err = saveToolMsg("tool_10", "lobe-image-designer", "text2image", tool10ArgsJSON,
-		[]map[string]interface{}{
-			{
-				"prompt":     "A beautiful sunset over a calm ocean with vibrant orange and purple colors",
-				"previewUrl": "https://picsum.photos/seed/sunset/1024/1024",
-				"quality":    "hd",
-				"size":       "1024x1024",
-				"style":      "vivid",
-			},
-			{
-				"prompt":     "A futuristic cityscape at night with neon lights and flying cars",
-				"previewUrl": "https://picsum.photos/seed/cityscape/1024/1024",
-				"quality":    "hd",
-				"size":       "1024x1024",
-				"style":      "vivid",
-			},
-		}, nil, 11)
+		dalleImages, nil, 11)
 	if err != nil {
 		log.Printf("⚠️  %v", err)
 	}
 
 	// Tool 11: Code Interpreter - python
-	// Format: content = { result, output: [{ type, data }], files: [] }
-	codeInterpreterContent := map[string]interface{}{
-		"result": "{'a': 6, 'b': 15}",
-		"output": []map[string]interface{}{
-			{"type": "stdout", "data": "              a         b\ncount  3.000000  3.000000\nmean   2.000000  5.000000\nstd    1.000000  1.000000\nmin    1.000000  4.000000\n25%    1.500000  4.500000\n50%    2.000000  5.000000\n75%    2.500000  5.500000\nmax    3.000000  6.000000\n"},
+	// Using proper types from builtin.CodeInterpreterResponse
+	codeInterpreterResponse := &builtin.CodeInterpreterResponse{
+		Result: "{'a': 6, 'b': 15}",
+		Output: []builtin.CodeInterpreterOutput{
+			{
+				Type: "stdout",
+				Data: "              a         b\ncount  3.000000  3.000000\nmean   2.000000  5.000000\nstd    1.000000  1.000000\nmin    1.000000  4.000000\n25%    1.500000  4.500000\n50%    2.000000  5.000000\n75%    2.500000  5.500000\nmax    3.000000  6.000000\n",
+			},
 		},
-		"files": []interface{}{},
+		Files: []builtin.CodeInterpreterFileItem{},
 	}
 	err = saveToolMsg("tool_11", "lobe-code-interpreter", "python", tool11ArgsJSON,
-		codeInterpreterContent, // content
-		nil,                    // pluginState (no error)
+		codeInterpreterResponse, // content
+		nil,                     // pluginState (no error)
 		12)
 	if err != nil {
 		log.Printf("⚠️  %v", err)
