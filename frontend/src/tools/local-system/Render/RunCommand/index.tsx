@@ -1,10 +1,10 @@
-import { RunCommandParams } from '@/electron-client-ipc';
+import { RunCommandParams } from '@@/github.com/kawai-network/veridium/pkg/localfs';
 import { ChatMessagePluginError } from '@/types';
 import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
 import { memo, useEffect, useRef } from 'react';
 
-import { LocalReadFileState } from '@/tools/local-system/type';
+import { LocalReadFileState } from '@@/github.com/kawai-network/veridium/pkg/yzma/tools/builtin';
 
 interface RunCommandProps {
   args: RunCommandParams;

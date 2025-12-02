@@ -1,9 +1,9 @@
-import { LocalSearchFilesParams } from '@/electron-client-ipc';
+import { LocalSearchFilesParams } from '@@/github.com/kawai-network/veridium/pkg/localfs';
 import { ChatMessagePluginError } from '@/types';
 import { memo } from 'react';
 import { Flexbox } from 'react-layout-kit';
 
-import { LocalFileSearchState } from '@/tools/local-system/type';
+import { LocalFileSearchState } from '@@/github.com/kawai-network/veridium/pkg/yzma/tools/builtin';
 
 import SearchResult from './Result';
 import SearchQuery from './SearchQuery';

@@ -1,10 +1,10 @@
-import { LocalReadFileParams } from '@/electron-client-ipc';
+import { LocalReadFileParams } from '@@/github.com/kawai-network/veridium/pkg/localfs';
 import { ChatMessagePluginError } from '@/types';
 import { memo } from 'react';
 
 import { useChatStore } from '@/store/chat';
 import { chatToolSelectors } from '@/store/chat/slices/builtinTool/selectors';
-import { LocalReadFileState } from '@/tools/local-system/type';
+import { LocalReadFileState } from '@@/github.com/kawai-network/veridium/pkg/yzma/tools/builtin';
 
 import ReadFileSkeleton from './ReadFileSkeleton';
 import ReadFileView from './ReadFileView';
@@ -25,7 +25,13 @@ const ReadFileQuery = memo<ReadFileQueryProps>(({ args, pluginState, messageId }
 
   if (!args?.path || !pluginState) return null;
 
-  return <ReadFileView {...pluginState.fileContent} path={args.path} />;
+  return (
+    <ReadFileView
+      {...pluginState.fileContent}
+      loc={pluginState.fileContent.loc as [number, number]}
+      path={args.path}
+    />
+  );
 });
 
 export default ReadFileQuery;

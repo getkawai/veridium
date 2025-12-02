@@ -1,9 +1,9 @@
-import { ListLocalFileParams } from '@/electron-client-ipc';
+import { ListLocalFileParams } from '@@/github.com/kawai-network/veridium/pkg/localfs';
 import { ChatMessagePluginError } from '@/types';
 import React, { memo } from 'react';
 
 import { LocalFolder } from '@/features/LocalFile';
-import { LocalFileListState } from '@/tools/local-system/type';
+import { LocalFileListState } from '@@/github.com/kawai-network/veridium/pkg/yzma/tools/builtin';
 
 import SearchResult from './Result';
 

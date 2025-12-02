@@ -1,4 +1,4 @@
-import { LocalSearchFilesParams } from '@/electron-client-ipc';
+import { LocalSearchFilesParams } from '@@/github.com/kawai-network/veridium/pkg/localfs';
 import { ActionIcon, Button, Icon, SearchBar } from '@lobehub/ui';
 import { SearchIcon, XIcon } from 'lucide-react';
 import { memo, useState } from 'react';
@@ -7,7 +7,7 @@ import { Flexbox } from 'react-layout-kit';
 
 import { useChatStore } from '@/store/chat';
 import { chatToolSelectors } from '@/store/chat/selectors';
-import { LocalFileSearchState } from '@/tools/local-system/type';
+import { LocalFileSearchState } from '@@/github.com/kawai-network/veridium/pkg/yzma/tools/builtin';
 
 import SearchView from './SearchView';
 

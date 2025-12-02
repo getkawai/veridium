@@ -4,11 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
-	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/kawai-network/veridium/pkg/localfs"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
@@ -49,51 +45,69 @@ type LocalRenameFileState struct {
 	Error   string `json:"error,omitempty"`
 }
 
+// LocalReadFilesState matches frontend LocalReadFilesState interface
+type LocalReadFilesState struct {
+	FilesContent []localfs.LocalReadFileResult `json:"filesContent"`
+}
+
+// RunCommandState matches frontend RunCommandState interface
+type RunCommandState struct {
+	Message string                   `json:"message"`
+	Result  localfs.RunCommandResult `json:"result"`
+}
+
+// GetCommandOutputState matches frontend GetCommandOutputState interface
+type GetCommandOutputState struct {
+	Message string                         `json:"message"`
+	Result  localfs.GetCommandOutputResult `json:"result"`
+}
+
+// KillCommandState matches frontend KillCommandState interface
+type KillCommandState struct {
+	Message string                    `json:"message"`
+	Result  localfs.KillCommandResult `json:"result"`
+}
+
+// GrepContentState matches frontend GrepContentState interface
+type GrepContentState struct {
+	Message string                    `json:"message"`
+	Result  localfs.GrepContentResult `json:"result"`
+}
+
+// GlobFilesState matches frontend GlobFilesState interface
+type GlobFilesState struct {
+	Message string                  `json:"message"`
+	Result  localfs.GlobFilesResult `json:"result"`
+}
+
+// EditLocalFileState matches frontend EditLocalFileState interface
+type EditLocalFileState struct {
+	Message string                      `json:"message"`
+	Result  localfs.EditLocalFileResult `json:"result"`
+}
+
 // ============================================================================
 // LocalSystemService
 // ============================================================================
 
 // LocalSystemService provides local file system operations
-type LocalSystemService struct{}
+type LocalSystemService struct {
+	service *localfs.Service
+}
 
 // NewLocalSystemService creates a new local system service
 func NewLocalSystemService() *LocalSystemService {
-	return &LocalSystemService{}
+	return &LocalSystemService{
+		service: localfs.NewService(),
+	}
 }
 
 // ListLocalFiles lists files in a directory
 func (s *LocalSystemService) ListLocalFiles(path string) (*LocalFileListState, error) {
-	entries, err := os.ReadDir(path)
+	results, err := s.service.ListFiles(context.Background(), localfs.ListLocalFileParams{Path: path})
 	if err != nil {
-		return nil, fmt.Errorf("failed to read directory: %w", err)
+		return nil, err
 	}
-
-	results := make([]localfs.LocalFileItem, 0, len(entries))
-	for _, entry := range entries {
-		info, err := entry.Info()
-		if err != nil {
-			continue
-		}
-
-		fullPath := filepath.Join(path, entry.Name())
-		fileType := "file"
-		if entry.IsDir() {
-			fileType = "directory"
-		}
-
-		results = append(results, localfs.LocalFileItem{
-			Name:           entry.Name(),
-			Path:           fullPath,
-			Size:           info.Size(),
-			Type:           fileType,
-			IsDirectory:    entry.IsDir(),
-			ContentType:    getContentType(entry.Name()),
-			CreatedTime:    info.ModTime(), // Go doesn't have creation time cross-platform
-			ModifiedTime:   info.ModTime(),
-			LastAccessTime: info.ModTime(),
-		})
-	}
-
 	return &LocalFileListState{ListResults: results}, nil
 }
 
@@ -104,194 +118,71 @@ func (s *LocalSystemService) ReadLocalFile(path string, loc [2]int) (*LocalReadF
 		loc = [2]int{0, 200}
 	}
 
-	content, err := os.ReadFile(path)
+	result, err := s.service.ReadFile(context.Background(), localfs.LocalReadFileParams{
+		Path: path,
+		Loc:  &loc,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to read file: %w", err)
+		return nil, err
 	}
 
-	info, err := os.Stat(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to stat file: %w", err)
-	}
-
-	// Split into lines
-	lines := strings.Split(string(content), "\n")
-	totalLines := len(lines)
-	totalChars := len(content)
-
-	// Apply line range
-	startLine := loc[0]
-	endLine := loc[1]
-	if startLine < 0 {
-		startLine = 0
-	}
-	if endLine > totalLines {
-		endLine = totalLines
-	}
-	if startLine >= totalLines {
-		startLine = totalLines - 1
-		if startLine < 0 {
-			startLine = 0
-		}
-	}
-
-	selectedLines := lines[startLine:endLine]
-	selectedContent := strings.Join(selectedLines, "\n")
-
-	return &LocalReadFileState{
-		FileContent: localfs.LocalReadFileResult{
-			Content:        selectedContent,
-			Filename:       filepath.Base(path),
-			FileType:       getContentType(path),
-			CharCount:      len(selectedContent),
-			LineCount:      len(selectedLines),
-			TotalCharCount: totalChars,
-			TotalLineCount: totalLines,
-			Loc:            [2]int{startLine, endLine},
-			CreatedTime:    info.ModTime(),
-			ModifiedTime:   info.ModTime(),
-		},
-	}, nil
+	return &LocalReadFileState{FileContent: *result}, nil
 }
 
 // SearchLocalFiles searches for files matching keywords
 func (s *LocalSystemService) SearchLocalFiles(keywords string, directory string) (*LocalFileSearchState, error) {
-	if directory == "" {
-		var err error
-		directory, err = os.Getwd()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get working directory: %w", err)
-		}
-	}
-
-	results := make([]localfs.LocalFileItem, 0)
-	keywordsLower := strings.ToLower(keywords)
-
-	err := filepath.Walk(directory, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil // Skip errors
-		}
-
-		// Skip hidden files/directories
-		if strings.HasPrefix(info.Name(), ".") {
-			if info.IsDir() {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-
-		// Check if name contains keywords
-		if strings.Contains(strings.ToLower(info.Name()), keywordsLower) {
-			fileType := "file"
-			if info.IsDir() {
-				fileType = "directory"
-			}
-
-			results = append(results, localfs.LocalFileItem{
-				Name:           info.Name(),
-				Path:           path,
-				Size:           info.Size(),
-				Type:           fileType,
-				IsDirectory:    info.IsDir(),
-				ContentType:    getContentType(info.Name()),
-				CreatedTime:    info.ModTime(),
-				ModifiedTime:   info.ModTime(),
-				LastAccessTime: info.ModTime(),
-			})
-		}
-
-		// Limit results
-		if len(results) >= 100 {
-			return io.EOF
-		}
-
-		return nil
+	results, err := s.service.SearchFiles(context.Background(), localfs.LocalSearchFilesParams{
+		Keywords:  keywords,
+		Directory: directory,
 	})
-
-	if err != nil && err != io.EOF {
-		return nil, fmt.Errorf("search failed: %w", err)
+	if err != nil {
+		return nil, err
 	}
-
 	return &LocalFileSearchState{SearchResults: results}, nil
 }
 
 // WriteLocalFile writes content to a file
 func (s *LocalSystemService) WriteLocalFile(path string, content string) (*localfs.WriteFileResult, error) {
-	// Create parent directories if needed
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return &localfs.WriteFileResult{
-			Path:    path,
-			Success: false,
-			Error:   fmt.Sprintf("failed to create directory: %v", err),
-		}, nil
-	}
-
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
-		return &localfs.WriteFileResult{
-			Path:    path,
-			Success: false,
-			Error:   fmt.Sprintf("failed to write file: %v", err),
-		}, nil
-	}
-
-	return &localfs.WriteFileResult{
+	return s.service.WriteFile(context.Background(), localfs.WriteLocalFileParams{
 		Path:    path,
-		Success: true,
-		Message: "File written successfully",
-	}, nil
+		Content: content,
+	})
 }
 
 // RenameLocalFile renames a file or directory
 func (s *LocalSystemService) RenameLocalFile(path string, newName string) (*LocalRenameFileState, error) {
-	dir := filepath.Dir(path)
-	newPath := filepath.Join(dir, newName)
-
-	if err := os.Rename(path, newPath); err != nil {
+	result, err := s.service.RenameFile(context.Background(), localfs.RenameLocalFileParams{
+		Path:    path,
+		NewName: newName,
+	})
+	if err != nil {
 		return &LocalRenameFileState{
 			OldPath: path,
-			NewPath: newPath,
 			Success: false,
-			Error:   fmt.Sprintf("failed to rename: %v", err),
+			Error:   err.Error(),
 		}, nil
 	}
 
 	return &LocalRenameFileState{
 		OldPath: path,
-		NewPath: newPath,
-		Success: true,
+		NewPath: result.NewPath,
+		Success: result.Success,
+		Error:   result.Error,
 	}, nil
 }
 
 // MoveLocalFiles moves multiple files
 func (s *LocalSystemService) MoveLocalFiles(items []localfs.MoveLocalFileParams) (*LocalMoveFilesState, error) {
-	results := make([]localfs.LocalMoveFilesResultItem, 0, len(items))
+	results, err := s.service.MoveFiles(context.Background(), localfs.MoveLocalFilesParams{
+		Items: items,
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	successCount := 0
-
-	for _, item := range items {
-		// Create parent directory if needed
-		dir := filepath.Dir(item.NewPath)
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			results = append(results, localfs.LocalMoveFilesResultItem{
-				SourcePath: item.OldPath,
-				Success:    false,
-				Error:      fmt.Sprintf("failed to create directory: %v", err),
-			})
-			continue
-		}
-
-		if err := os.Rename(item.OldPath, item.NewPath); err != nil {
-			results = append(results, localfs.LocalMoveFilesResultItem{
-				SourcePath: item.OldPath,
-				Success:    false,
-				Error:      fmt.Sprintf("failed to move: %v", err),
-			})
-		} else {
-			results = append(results, localfs.LocalMoveFilesResultItem{
-				SourcePath: item.OldPath,
-				NewPath:    item.NewPath,
-				Success:    true,
-			})
+	for _, result := range results {
+		if result.Success {
 			successCount++
 		}
 	}
@@ -299,45 +190,155 @@ func (s *LocalSystemService) MoveLocalFiles(items []localfs.MoveLocalFileParams)
 	return &LocalMoveFilesState{
 		Results:      results,
 		SuccessCount: successCount,
-		TotalCount:   len(items),
+		TotalCount:   len(results),
 	}, nil
 }
 
-// getContentType returns content type based on file extension
-func getContentType(filename string) string {
-	ext := strings.ToLower(filepath.Ext(filename))
-	switch ext {
-	case ".txt":
-		return "text/plain"
-	case ".md":
-		return "text/markdown"
-	case ".json":
-		return "application/json"
-	case ".js":
-		return "application/javascript"
-	case ".ts":
-		return "application/typescript"
-	case ".go":
-		return "text/x-go"
-	case ".py":
-		return "text/x-python"
-	case ".html":
-		return "text/html"
-	case ".css":
-		return "text/css"
-	case ".pdf":
-		return "application/pdf"
-	case ".png":
-		return "image/png"
-	case ".jpg", ".jpeg":
-		return "image/jpeg"
-	case ".gif":
-		return "image/gif"
-	case ".svg":
-		return "image/svg+xml"
-	default:
-		return "application/octet-stream"
+// ReadLocalFiles reads multiple files
+func (s *LocalSystemService) ReadLocalFiles(paths []string) (*LocalReadFilesState, error) {
+	results, err := s.service.ReadFiles(context.Background(), localfs.LocalReadFilesParams{
+		Paths: paths,
+	})
+	if err != nil {
+		return nil, err
 	}
+
+	// Convert []*LocalReadFileResult to []LocalReadFileResult
+	filesContent := make([]localfs.LocalReadFileResult, 0, len(results))
+	for _, result := range results {
+		if result != nil {
+			filesContent = append(filesContent, *result)
+		}
+	}
+
+	return &LocalReadFilesState{FilesContent: filesContent}, nil
+}
+
+// EditLocalFile edits a file with search and replace
+func (s *LocalSystemService) EditLocalFile(filePath, oldString, newString string, replaceAll bool) (*EditLocalFileState, error) {
+	result, err := s.service.EditFile(context.Background(), localfs.EditLocalFileParams{
+		FilePath:   filePath,
+		OldString:  oldString,
+		NewString:  newString,
+		ReplaceAll: replaceAll,
+	})
+	if err != nil {
+		return &EditLocalFileState{
+			Message: fmt.Sprintf("Failed to edit file: %v", err),
+			Result:  *result,
+		}, nil
+	}
+
+	message := fmt.Sprintf("Successfully replaced %d occurrence(s)", result.Replacements)
+	return &EditLocalFileState{
+		Message: message,
+		Result:  *result,
+	}, nil
+}
+
+// RunCommand runs a shell command
+func (s *LocalSystemService) RunCommand(command, description string, runInBackground bool, timeout int) (*RunCommandState, error) {
+	result, err := s.service.RunCommand(context.Background(), localfs.RunCommandParams{
+		Command:         command,
+		Description:     description,
+		RunInBackground: runInBackground,
+		Timeout:         timeout,
+	})
+	if err != nil {
+		return &RunCommandState{
+			Message: fmt.Sprintf("Failed to run command: %v", err),
+			Result:  *result,
+		}, nil
+	}
+
+	message := "Command executed successfully"
+	if runInBackground {
+		message = fmt.Sprintf("Command started in background with shell ID: %s", result.ShellID)
+	}
+
+	return &RunCommandState{
+		Message: message,
+		Result:  *result,
+	}, nil
+}
+
+// GetCommandOutput gets output from a running command
+func (s *LocalSystemService) GetCommandOutput(shellID, filter string) (*GetCommandOutputState, error) {
+	result, err := s.service.GetCommandOutput(context.Background(), localfs.GetCommandOutputParams{
+		ShellID: shellID,
+		Filter:  filter,
+	})
+	if err != nil {
+		return &GetCommandOutputState{
+			Message: fmt.Sprintf("Failed to get command output: %v", err),
+			Result:  *result,
+		}, nil
+	}
+
+	message := "Command output retrieved"
+	if result.Running {
+		message = "Command is still running"
+	}
+
+	return &GetCommandOutputState{
+		Message: message,
+		Result:  *result,
+	}, nil
+}
+
+// KillCommand kills a running command
+func (s *LocalSystemService) KillCommand(shellID string) (*KillCommandState, error) {
+	result, err := s.service.KillCommand(context.Background(), localfs.KillCommandParams{
+		ShellID: shellID,
+	})
+	if err != nil {
+		return &KillCommandState{
+			Message: fmt.Sprintf("Failed to kill command: %v", err),
+			Result:  *result,
+		}, nil
+	}
+
+	return &KillCommandState{
+		Message: "Command killed successfully",
+		Result:  *result,
+	}, nil
+}
+
+// GrepContent searches for content in files
+func (s *LocalSystemService) GrepContent(params localfs.GrepContentParams) (*GrepContentState, error) {
+	result, err := s.service.GrepContent(context.Background(), params)
+	if err != nil {
+		return &GrepContentState{
+			Message: fmt.Sprintf("Failed to grep content: %v", err),
+			Result:  *result,
+		}, nil
+	}
+
+	message := fmt.Sprintf("Found %d matches", result.TotalMatches)
+	return &GrepContentState{
+		Message: message,
+		Result:  *result,
+	}, nil
+}
+
+// GlobFiles searches for files using glob patterns
+func (s *LocalSystemService) GlobFiles(pattern, path string) (*GlobFilesState, error) {
+	result, err := s.service.GlobFiles(context.Background(), localfs.GlobFilesParams{
+		Pattern: pattern,
+		Path:    path,
+	})
+	if err != nil {
+		return &GlobFilesState{
+			Message: fmt.Sprintf("Failed to glob files: %v", err),
+			Result:  *result,
+		}, nil
+	}
+
+	message := fmt.Sprintf("Found %d files", result.TotalFiles)
+	return &GlobFilesState{
+		Message: message,
+		Result:  *result,
+	}, nil
 }
 
 // ============================================================================

@@ -18,6 +18,7 @@ import (
 	"github.com/kawai-network/veridium/internal/whisper"
 	"github.com/kawai-network/veridium/pkg/localfs"
 	"github.com/kawai-network/veridium/pkg/yzma/embedding"
+	"github.com/kawai-network/veridium/pkg/yzma/tools/builtin"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 	"github.com/wailsapp/wails/v3/pkg/services/fileserver"
@@ -230,6 +231,8 @@ func main() {
 			application.NewService(&machineid.Service{}),
 			// Local file system service
 			application.NewService(localfs.NewService()),
+			// Local file system service
+			application.NewService(builtin.NewLocalSystemService()),
 			// File service
 			application.NewService(fileSvc),
 			// Native Wails v3 notification service

@@ -13,7 +13,7 @@ import {
   RenameLocalFileParams,
   RunCommandParams,
   WriteLocalFileParams,
-} from '@/electron-client-ipc';
+} from '@@/github.com/kawai-network/veridium/pkg/localfs';
 import { StateCreator } from 'zustand/vanilla';
 
 import { localFileService } from '@/services/electron/localFileService';
@@ -31,7 +31,7 @@ import {
   LocalReadFilesState,
   LocalRenameFileState,
   RunCommandState,
-} from '@/tools/local-system/type';
+} from '@@/github.com/kawai-network/veridium/pkg/yzma/tools/builtin';
 
 /* eslint-disable typescript-sort-keys/interface */
 export interface LocalFileAction {
@@ -168,7 +168,7 @@ export const localSystemSlice: StateCreator<
           oldPath: params.path,
           success: false,
         };
-        content = { message: errorMessage, success: false };
+        content = { message: errorMessage || '', success: false };
       }
       return { content, state };
     });
