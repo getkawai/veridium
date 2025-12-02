@@ -44,6 +44,7 @@ type SessionSetupResult struct {
 
 // SaveUserMessageParams contains parameters for saving a user message
 type SaveUserMessageParams struct {
+	MessageID string // Optional: Pre-generated message ID from frontend
 	Content   string
 	SessionID string
 	TopicID   string
@@ -53,6 +54,7 @@ type SaveUserMessageParams struct {
 
 // SaveAssistantMessageParams contains parameters for saving an assistant message
 type SaveAssistantMessageParams struct {
+	MessageID string // Optional: Pre-generated message ID from frontend
 	Content   string
 	SessionID string
 	TopicID   string
@@ -202,6 +204,7 @@ func (s *AgentChatService) setupSessionAndTopic(ctx context.Context, req ChatReq
 
 	// 7. Save user message to DB
 	userMsgID, err := s.saveUserMessage(ctx, SaveUserMessageParams{
+		MessageID: req.MessageUserID, // Use pre-generated ID from frontend
 		Content:   req.Message,
 		SessionID: session.SessionID,
 		TopicID:   result.TopicID,
@@ -221,7 +224,11 @@ func (s *AgentChatService) setupSessionAndTopic(ctx context.Context, req ChatReq
 // saveUserMessage saves a user message to the database
 // Returns the message ID
 func (s *AgentChatService) saveUserMessage(ctx context.Context, params SaveUserMessageParams) (string, error) {
-	msgID := uuid.New().String()
+	// Use pre-generated ID if provided, otherwise generate new one
+	msgID := params.MessageID
+	if msgID == "" {
+		msgID = uuid.New().String()
+	}
 	now := time.Now().UnixMilli()
 
 	dbParams := db.CreateMessageParams{
@@ -255,7 +262,11 @@ func (s *AgentChatService) saveUserMessage(ctx context.Context, params SaveUserM
 // saveAssistantMessage saves an assistant message with all optional rich content
 // Returns the message ID
 func (s *AgentChatService) saveAssistantMessage(ctx context.Context, params SaveAssistantMessageParams) (string, error) {
-	msgID := uuid.New().String()
+	// Use pre-generated ID if provided, otherwise generate new one
+	msgID := params.MessageID
+	if msgID == "" {
+		msgID = uuid.New().String()
+	}
 	now := time.Now().UnixMilli()
 
 	dbParams := db.CreateMessageParams{

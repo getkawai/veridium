@@ -339,6 +339,7 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 
 	// 2b. Save assistant message using reusable helper
 	assistantMsgID, err = s.saveAssistantMessage(ctx, SaveAssistantMessageParams{
+		MessageID: req.MessageAssistantID, // Use pre-generated ID from frontend
 		Content:   mockContent,
 		SessionID: req.SessionID,
 		TopicID:   currentTopicID,

@@ -35,6 +35,7 @@ import { ChatStore } from '@/store/chat/store';
 import { messageMapKey } from '@/store/chat/utils/messageMapKey';
 import { setNamespace } from '@/utils/storeDebug';
 import { chatSelectors } from '../../../selectors';
+import { idGenerator } from '@/database/utils/idGenerator';
 
 // User ID constant for backend calls
 const FALLBACK_CLIENT_DB_USER_ID = 'DEFAULT_LOBE_CHAT_USER';
@@ -92,9 +93,11 @@ async function handleRealAPI(
     activeTopicId: string | undefined;
     threadId: string | undefined;
     message: string;
+    messageUserId: string;
+    messageAssistantId: string;
   }
 ) {
-  const { activeId, activeTopicId, threadId, message } = context;
+  const { activeId, activeTopicId, threadId, message, messageUserId, messageAssistantId } = context;
 
   console.log('[Real API] Calling real backend with LLM...');
 
@@ -106,6 +109,8 @@ async function handleRealAPI(
     message: message,
     topic_id: activeTopicId || undefined,
     thread_id: threadId || undefined,
+    message_user_id: messageUserId,
+    message_assistant_id: messageAssistantId,
   });
 
   console.log('[Real API] Response received:', response);
@@ -138,9 +143,11 @@ async function handleBackendMock(
     activeTopicId: string | undefined;
     threadId: string | undefined;
     message: string;
+    messageUserId: string;
+    messageAssistantId: string;
   }
 ) {
-  const { activeId, activeTopicId, threadId, message } = context;
+  const { activeId, activeTopicId, threadId, message, messageUserId, messageAssistantId } = context;
 
   console.log('[Backend Mock] Calling backend mock (saves to DB)...');
   console.log('[Backend Mock] Params:', {
@@ -149,6 +156,8 @@ async function handleBackendMock(
     message: message,
     topic_id: activeTopicId,
     thread_id: threadId,
+    message_user_id: messageUserId,
+    message_assistant_id: messageAssistantId,
   });
 
   const response = await backendAgentChat.sendMessageMock({
@@ -157,6 +166,8 @@ async function handleBackendMock(
     message: message,
     topic_id: activeTopicId || undefined,
     thread_id: threadId || undefined,
+    message_user_id: messageUserId,
+    message_assistant_id: messageAssistantId,
   });
 
   console.log('[Backend Mock] Response received:', response);
@@ -189,10 +200,10 @@ async function handleFrontendMock(
     threadId: string | undefined;
     message: string;
     mapKey: string;
-    tempAssistantId: string;
+    messageAssistantId: string;
   }
 ) {
-  const { activeId, activeTopicId, threadId, message, mapKey, tempAssistantId } = context;
+  const { activeId, activeTopicId, threadId, message, mapKey, messageAssistantId } = context;
 
   console.log('[Frontend Mock] Simulating AI response (no backend)...');
 
@@ -208,7 +219,7 @@ async function handleFrontendMock(
       return;
     }
 
-    const assistantMsgIndex = messages.findIndex(m => m.id === tempAssistantId);
+    const assistantMsgIndex = messages.findIndex(m => m.id === messageAssistantId);
     if (assistantMsgIndex === -1) {
       console.error('[Frontend Mock] Assistant message not found');
       return;
@@ -460,10 +471,11 @@ export const generateAIChat: StateCreator<
     // ================================================================
     // STEP 2: CREATE OPTIMISTIC UI
     // ================================================================
-    set({ isCreatingMessage: true }, false, n('creatingMessage/start'));
+    // set({ isCreatingMessage: true }, false, n('creatingMessage/start'));
 
-    const tempUserId = `temp-user-${Date.now()}`;
-    const tempAssistantId = `temp-assistant-${Date.now()}`;
+    // Generate actual message IDs that will be registered in backend and database
+    const messageUserId = idGenerator('messages');
+    const messageAssistantId = idGenerator('messages');
 
     // Create optimistic user message
     set(produce((state: ChatStore) => {
@@ -471,7 +483,7 @@ export const generateAIChat: StateCreator<
         state.messagesMap[mapKey] = [];
       }
       state.messagesMap[mapKey].push({
-        id: tempUserId,
+        id: messageUserId,
         role: 'user',
         content: message,
         sessionId: activeId,
@@ -487,7 +499,7 @@ export const generateAIChat: StateCreator<
     // Create optimistic assistant message (loading state)
     set(produce((state: ChatStore) => {
       state.messagesMap[mapKey].push({
-        id: tempAssistantId,
+        id: messageAssistantId,
         role: 'assistant',
         content: LOADING_FLAT,
         sessionId: activeId,
@@ -511,6 +523,8 @@ export const generateAIChat: StateCreator<
             activeTopicId,
             threadId,
             message,
+            messageUserId,
+            messageAssistantId,
           });
           break;
 
@@ -520,6 +534,8 @@ export const generateAIChat: StateCreator<
             activeTopicId,
             threadId,
             message,
+            messageUserId,
+            messageAssistantId,
           });
           break;
 
@@ -530,7 +546,7 @@ export const generateAIChat: StateCreator<
             threadId,
             message,
             mapKey,
-            tempAssistantId,
+            messageAssistantId,
           });
           break;
 
@@ -545,10 +561,10 @@ export const generateAIChat: StateCreator<
         stack: error instanceof Error ? error.stack : undefined,
       });
 
-      // Remove temp messages on error
+      // Remove optimistic messages on error
       set(produce((state: ChatStore) => {
         state.messagesMap[mapKey] = state.messagesMap[mapKey].filter(
-          (msg) => !msg.id.startsWith('temp-')
+          (msg) => msg.id !== messageUserId && msg.id !== messageAssistantId
         );
       }), false, n('optimistic/error'));
 
@@ -628,35 +644,18 @@ export const generateAIChat: StateCreator<
       if (!messages) return;
 
       if (data.type === 'start') {
-        // Find the latest temporary assistant message
-        // Support both prefixes: 'temp-assistant-' (main chat) and 'tmp_' (thread)
-        let tempMsgIndex = -1;
-        for (let i = messages.length - 1; i >= 0; i--) {
-          const msg = messages[i];
-          // Check loading state from either message property (main chat) or store state (thread)
-          const isLoading = (msg as any).loading || state.messageLoadingIds.includes(msg.id);
+        // Find the loading assistant message by ID (we already have the real ID)
+        const msgIndex = messages.findIndex(m => m.id === data.message_id);
 
-          const isTemp = (msg.id.startsWith('temp-assistant-') || msg.id.startsWith('tmp_')) &&
-            isLoading &&
-            msg.role === 'assistant';
-
-          if (isTemp) {
-            tempMsgIndex = i;
-            break;
-          }
-        }
-
-        if (tempMsgIndex !== -1) {
-          // Update ID to real ID
-          messages[tempMsgIndex].id = data.message_id;
-          console.log('[Stream] Linked temp message to real ID:', data.message_id);
+        if (msgIndex !== -1) {
+          console.log('[Stream] Found assistant message with ID:', data.message_id);
 
           // Add to loading IDs for animation
           if (!state.chatLoadingIds.includes(data.message_id)) {
             state.chatLoadingIds.push(data.message_id);
           }
         } else {
-          console.warn('[Stream] Could not find temp assistant message for start event');
+          console.warn('[Stream] Could not find assistant message for start event:', data.message_id);
         }
       } else if (data.type === 'chunk') {
         // Find message by REAL ID
