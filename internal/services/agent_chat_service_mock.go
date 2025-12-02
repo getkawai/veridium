@@ -8,9 +8,33 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/kawai-network/veridium/internal/search"
 	"github.com/kawai-network/veridium/pkg/localfs"
 	"github.com/kawai-network/veridium/pkg/yzma/tools/builtin"
 )
+
+// CitationItem represents a citation from search results
+type CitationItem struct {
+	Favicon string `json:"favicon,omitempty"`
+	ID      string `json:"id,omitempty"`
+	Title   string `json:"title,omitempty"`
+	URL     string `json:"url"`
+}
+
+// GroundingSearch represents search grounding data for messages
+type GroundingSearch struct {
+	Citations     []CitationItem `json:"citations,omitempty"`
+	SearchQueries []string       `json:"searchQueries,omitempty"`
+}
+
+// ChatToolPayload represents a tool call payload
+type ChatToolPayload struct {
+	APIName    string `json:"apiName"`
+	Arguments  string `json:"arguments"`
+	ID         string `json:"id"`
+	Identifier string `json:"identifier"`
+	Type       string `json:"type"` // "builtin" or other tool types
+}
 
 // ChatMock handles mock chat responses for testing UI flow without real AI backend
 // This method saves complete mock messages to DB with all UI components:
@@ -169,105 +193,105 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 
 	// Mock tools array (will be matched with tool messages below)
 	// Note: arguments must be JSON string for frontend compatibility
-	tools := []map[string]interface{}{
+	tools := []ChatToolPayload{
 		// Web Browsing tools
 		{
-			"id":         "tool_1",
-			"identifier": "lobe-web-browsing",
-			"apiName":    "search",
-			"arguments":  string(tool1ArgsJSON),
-			"type":       "builtin",
+			ID:         "tool_1",
+			Identifier: "lobe-web-browsing",
+			APIName:    "search",
+			Arguments:  string(tool1ArgsJSON),
+			Type:       "builtin",
 		},
 		{
-			"id":         "tool_2",
-			"identifier": "lobe-web-browsing",
-			"apiName":    "crawlSinglePage",
-			"arguments":  string(tool2ArgsJSON),
-			"type":       "builtin",
+			ID:         "tool_2",
+			Identifier: "lobe-web-browsing",
+			APIName:    "crawlSinglePage",
+			Arguments:  string(tool2ArgsJSON),
+			Type:       "builtin",
 		},
 		{
-			"id":         "tool_3",
-			"identifier": "lobe-web-browsing",
-			"apiName":    "crawlMultiPages",
-			"arguments":  string(tool3ArgsJSON),
-			"type":       "builtin",
+			ID:         "tool_3",
+			Identifier: "lobe-web-browsing",
+			APIName:    "crawlMultiPages",
+			Arguments:  string(tool3ArgsJSON),
+			Type:       "builtin",
 		},
 		// Local System tools
 		{
-			"id":         "tool_4",
-			"identifier": "lobe-local-system",
-			"apiName":    "listLocalFiles",
-			"arguments":  string(tool4ArgsJSON),
-			"type":       "builtin",
+			ID:         "tool_4",
+			Identifier: "lobe-local-system",
+			APIName:    "listLocalFiles",
+			Arguments:  string(tool4ArgsJSON),
+			Type:       "builtin",
 		},
 		{
-			"id":         "tool_5",
-			"identifier": "lobe-local-system",
-			"apiName":    "readLocalFile",
-			"arguments":  string(tool5ArgsJSON),
-			"type":       "builtin",
+			ID:         "tool_5",
+			Identifier: "lobe-local-system",
+			APIName:    "readLocalFile",
+			Arguments:  string(tool5ArgsJSON),
+			Type:       "builtin",
 		},
 		{
-			"id":         "tool_6",
-			"identifier": "lobe-local-system",
-			"apiName":    "searchLocalFiles",
-			"arguments":  string(tool6ArgsJSON),
-			"type":       "builtin",
+			ID:         "tool_6",
+			Identifier: "lobe-local-system",
+			APIName:    "searchLocalFiles",
+			Arguments:  string(tool6ArgsJSON),
+			Type:       "builtin",
 		},
 		{
-			"id":         "tool_7",
-			"identifier": "lobe-local-system",
-			"apiName":    "writeLocalFile",
-			"arguments":  string(tool7ArgsJSON),
-			"type":       "builtin",
+			ID:         "tool_7",
+			Identifier: "lobe-local-system",
+			APIName:    "writeLocalFile",
+			Arguments:  string(tool7ArgsJSON),
+			Type:       "builtin",
 		},
 		{
-			"id":         "tool_8",
-			"identifier": "lobe-local-system",
-			"apiName":    "renameLocalFile",
-			"arguments":  string(tool8ArgsJSON),
-			"type":       "builtin",
+			ID:         "tool_8",
+			Identifier: "lobe-local-system",
+			APIName:    "renameLocalFile",
+			Arguments:  string(tool8ArgsJSON),
+			Type:       "builtin",
 		},
 		{
-			"id":         "tool_9",
-			"identifier": "lobe-local-system",
-			"apiName":    "moveLocalFiles",
-			"arguments":  string(tool9ArgsJSON),
-			"type":       "builtin",
+			ID:         "tool_9",
+			Identifier: "lobe-local-system",
+			APIName:    "moveLocalFiles",
+			Arguments:  string(tool9ArgsJSON),
+			Type:       "builtin",
 		},
 		// DALL-E Image Designer
 		{
-			"id":         "tool_10",
-			"identifier": "lobe-image-designer",
-			"apiName":    "text2image",
-			"arguments":  string(tool10ArgsJSON),
-			"type":       "builtin",
+			ID:         "tool_10",
+			Identifier: "lobe-image-designer",
+			APIName:    "text2image",
+			Arguments:  string(tool10ArgsJSON),
+			Type:       "builtin",
 		},
 		// Code Interpreter
 		{
-			"id":         "tool_11",
-			"identifier": "lobe-code-interpreter",
-			"apiName":    "python",
-			"arguments":  string(tool11ArgsJSON),
-			"type":       "builtin",
+			ID:         "tool_11",
+			Identifier: "lobe-code-interpreter",
+			APIName:    "python",
+			Arguments:  string(tool11ArgsJSON),
+			Type:       "builtin",
 		},
 	}
 
 	// Mock search grounding
-	search := map[string]interface{}{
-		"citations": []map[string]interface{}{
+	searchGrounding := &GroundingSearch{
+		Citations: []CitationItem{
 			{
-				"id":    "citation_1",
-				"title": "Wikipedia - Example Article",
-				"url":   "https://en.wikipedia.org/wiki/Example",
+				ID:    "citation_1",
+				Title: "Wikipedia - Example Article",
+				URL:   "https://en.wikipedia.org/wiki/Example",
 			},
 			{
-				"id":    "citation_2",
-				"title": "GitHub Documentation",
-				"url":   "https://docs.github.com/en",
+				ID:    "citation_2",
+				Title: "GitHub Documentation",
+				URL:   "https://docs.github.com/en",
 			},
 		},
-		"searchQueries": []string{"test query", "related query"},
+		SearchQueries: []string{"test query", "related query"},
 	}
 
 	// Mock image list
@@ -311,7 +335,7 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 		UserID:    req.UserID,
 		Reasoning: reasoning,
 		Tools:     tools,
-		Search:    search,
+		Search:    searchGrounding,
 		Metadata:  fullMetadata,
 	})
 	if err != nil {
@@ -364,12 +388,12 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 	}
 
 	// Tool 1: Web Browsing - search
-	// Using proper types from builtin.UniformSearchResponse
-	searchResponse := &builtin.UniformSearchResponse{
+	// Using proper types from searchpkg.UniformSearchResponse
+	searchResponse := &search.UniformSearchResponse{
 		Query:         "What is the weather today?",
 		ResultNumbers: 2,
 		CostTime:      150,
-		Results: []builtin.UniformSearchResult{
+		Results: []search.UniformSearchResult{
 			{
 				Title:     "Weather Today - Current Conditions",
 				URL:       "https://weather.com/today",

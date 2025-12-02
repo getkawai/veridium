@@ -27,28 +27,8 @@ func NewWebBrowsingService() *WebBrowsingService {
 // Response Types (matching frontend expected format)
 // ============================================================================
 
-// UniformSearchResult matches frontend UniformSearchResult interface
-type UniformSearchResult struct {
-	Category      string   `json:"category,omitempty"`
-	Content       string   `json:"content"`
-	Engines       []string `json:"engines"`
-	IframeSrc     string   `json:"iframeSrc,omitempty"`
-	ImgSrc        string   `json:"imgSrc,omitempty"`
-	ParsedUrl     string   `json:"parsedUrl"`
-	PublishedDate string   `json:"publishedDate,omitempty"`
-	Score         float64  `json:"score"`
-	Thumbnail     string   `json:"thumbnail,omitempty"`
-	Title         string   `json:"title"`
-	URL           string   `json:"url"`
-}
-
-// UniformSearchResponse matches frontend UniformSearchResponse interface
-type UniformSearchResponse struct {
-	CostTime      int64                 `json:"costTime"`
-	Query         string                `json:"query"`
-	ResultNumbers int                   `json:"resultNumbers"`
-	Results       []UniformSearchResult `json:"results"`
-}
+// Note: UniformSearchResult and UniformSearchResponse are imported from internal/search
+// to avoid duplication. They match the frontend UniformSearchResult interface.
 
 // CrawlData matches frontend expected crawl data format
 type CrawlData struct {
@@ -75,7 +55,7 @@ type CrawlPluginState struct {
 // ============================================================================
 
 // Search performs web search and returns frontend-compatible response
-func (s *WebBrowsingService) Search(query string, categories, engines []string, timeRange string) (*UniformSearchResponse, error) {
+func (s *WebBrowsingService) Search(query string, categories, engines []string, timeRange string) (*search.UniformSearchResponse, error) {
 	startTime := time.Now()
 
 	searchQuery := search.SearchQuery{
@@ -90,32 +70,11 @@ func (s *WebBrowsingService) Search(query string, categories, engines []string, 
 		return nil, fmt.Errorf("search failed: %w", err)
 	}
 
-	// Transform to frontend format
-	results := make([]UniformSearchResult, 0, len(response.Results))
-	for _, r := range response.Results {
-		results = append(results, UniformSearchResult{
-			Category:      r.Category,
-			Content:       r.Content,
-			Engines:       r.Engines,
-			IframeSrc:     r.IframeSrc,
-			ImgSrc:        r.ImgSrc,
-			ParsedUrl:     r.ParsedUrl,
-			PublishedDate: r.PublishedDate,
-			Score:         r.Score,
-			Thumbnail:     r.Thumbnail,
-			Title:         r.Title,
-			URL:           r.URL,
-		})
-	}
+	// No transformation needed - response is already in the correct format
+	// Just update the cost time
+	response.CostTime = time.Since(startTime).Milliseconds()
 
-	costTime := time.Since(startTime).Milliseconds()
-
-	return &UniformSearchResponse{
-		CostTime:      costTime,
-		Query:         response.Query,
-		ResultNumbers: len(results),
-		Results:       results,
-	}, nil
+	return response, nil
 }
 
 // CrawlSinglePage crawls a single URL and returns frontend-compatible response
