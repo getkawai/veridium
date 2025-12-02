@@ -92,10 +92,9 @@ async function handleRealAPI(
     activeTopicId: string | undefined;
     threadId: string | undefined;
     message: string;
-    mapKey: string;
   }
 ) {
-  const { activeId, activeTopicId, threadId, message, mapKey } = context;
+  const { activeId, activeTopicId, threadId, message } = context;
 
   console.log('[Real API] Calling real backend with LLM...');
 
@@ -111,16 +110,8 @@ async function handleRealAPI(
 
   console.log('[Real API] Response received:', response);
 
-  // Remove temp messages
-  set(produce((state: ChatStore) => {
-    state.messagesMap[mapKey] = state.messagesMap[mapKey].filter(
-      (msg) => !msg.id.startsWith('temp-')
-    );
-  }), false, n('real/removeTempMessages'));
-
-  // Refresh messages from DB
+  // Refresh messages from DB only if topic changed
   const finalTopicId = response.topic_id || activeTopicId;
-  const newMapKey = messageMapKey(activeId, finalTopicId);
 
   // If a new topic was created, switch to it
   if (finalTopicId && finalTopicId !== activeTopicId) {
@@ -128,15 +119,12 @@ async function handleRealAPI(
     await get().refreshTopic();
     await get().switchTopic(finalTopicId);
   } else {
-    // Clear and refresh messages
-    set(produce((state: ChatStore) => {
-      state.messagesMap[newMapKey] = [];
-    }), false, n('real/clearBeforeRefresh'));
-
-    await get().internal_fetchMessages(activeId, finalTopicId);
+    // For same topic, we rely on stream events to update the UI state
+    // No need to fetch messages again
+    console.log('[Real API] Staying on same topic, relying on stream updates');
   }
 
-  console.log('[Real API] Complete, messages count:', get().messagesMap[newMapKey]?.length);
+  console.log('[Real API] Complete');
 }
 
 /**
@@ -150,10 +138,9 @@ async function handleBackendMock(
     activeTopicId: string | undefined;
     threadId: string | undefined;
     message: string;
-    mapKey: string;
   }
 ) {
-  const { activeId, activeTopicId, threadId, message, mapKey } = context;
+  const { activeId, activeTopicId, threadId, message } = context;
 
   console.log('[Backend Mock] Calling backend mock (saves to DB)...');
   console.log('[Backend Mock] Params:', {
@@ -174,25 +161,8 @@ async function handleBackendMock(
 
   console.log('[Backend Mock] Response received:', response);
 
-  // Remove temp messages
-  set(produce((state: ChatStore) => {
-    const beforeCount = state.messagesMap[mapKey]?.length || 0;
-    state.messagesMap[mapKey] = state.messagesMap[mapKey].filter(
-      (msg) => !msg.id.startsWith('temp-')
-    );
-    const afterCount = state.messagesMap[mapKey]?.length || 0;
-    console.log('[Backend Mock] Removed', beforeCount - afterCount, 'temp messages');
-  }), false, n('mock/removeTempMessages'));
-
-  // Refresh messages from DB
+  // Refresh messages from DB only if topic changed
   const finalTopicId = response.topic_id || activeTopicId;
-  const newMapKey = messageMapKey(activeId, finalTopicId);
-
-  console.log('[Backend Mock] Fetching messages from DB with:', {
-    activeId,
-    finalTopicId,
-    newMapKey,
-  });
 
   // If a new topic was created, switch to it
   if (finalTopicId && finalTopicId !== activeTopicId) {
@@ -200,15 +170,12 @@ async function handleBackendMock(
     await get().refreshTopic();
     await get().switchTopic(finalTopicId);
   } else {
-    // Clear and refresh messages
-    set(produce((state: ChatStore) => {
-      state.messagesMap[newMapKey] = [];
-    }), false, n('mock/clearBeforeRefresh'));
-
-    await get().internal_fetchMessages(activeId, finalTopicId);
+    // For same topic, we rely on stream events to update the UI state
+    // No need to fetch messages again
+    console.log('[Backend Mock] Staying on same topic, relying on stream updates');
   }
 
-  console.log('[Backend Mock] Complete, messages count:', get().messagesMap[newMapKey]?.length);
+  console.log('[Backend Mock] Complete');
 }
 
 /**
@@ -544,7 +511,6 @@ export const generateAIChat: StateCreator<
             activeTopicId,
             threadId,
             message,
-            mapKey,
           });
           break;
 
@@ -554,7 +520,6 @@ export const generateAIChat: StateCreator<
             activeTopicId,
             threadId,
             message,
-            mapKey,
           });
           break;
 
