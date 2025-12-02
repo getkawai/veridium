@@ -40,13 +40,398 @@ import { chatSelectors } from '../../../selectors';
 const FALLBACK_CLIENT_DB_USER_ID = 'DEFAULT_LOBE_CHAT_USER';
 
 // ================================================================
-// MOCK CONFIGURATION
+// API MODE CONFIGURATION
 // ================================================================
-// Set to true to use backend mock (realistic, saves to DB)
-// Set to false to use frontend mock (fast, no DB)
-const USE_BACKEND_MOCK = true;
+/**
+ * API_MODE controls which backend to use:
+ * 
+ * - 'REAL': Production mode - calls real backend API with LLM
+ * - 'BACKEND_MOCK': Development mode - calls backend mock API (saves to DB, no LLM)
+ * - 'FRONTEND_MOCK': UI testing mode - frontend-only mock (no backend, no DB)
+ */
+type ApiMode = 'REAL' | 'BACKEND_MOCK' | 'FRONTEND_MOCK';
+
+const API_MODE: ApiMode = 'BACKEND_MOCK' as ApiMode;
+
+// ================================================================
+// MODE DESCRIPTIONS
+// ================================================================
+// REAL: 
+//   - Uses real LLM (OpenAI, Claude, etc)
+//   - Saves to database
+//   - Full tool execution
+//   - Production-ready
+//
+// BACKEND_MOCK:
+//   - No LLM calls (saves costs)
+//   - Saves to database (realistic data flow)
+//   - Mock tool results
+//   - Good for backend integration testing
+//
+// FRONTEND_MOCK:
+//   - No backend calls
+//   - No database
+//   - Instant responses
+//   - Good for UI/UX development
+// ================================================================
 
 const n = setNamespace('ai');
+
+// ================================================================
+// HELPER FUNCTIONS FOR DIFFERENT API MODES
+// ================================================================
+
+/**
+ * Handle REAL API mode - Production with real LLM
+ */
+async function handleRealAPI(
+  get: any,
+  set: any,
+  context: {
+    activeId: string;
+    activeTopicId: string | undefined;
+    threadId: string | undefined;
+    message: string;
+    mapKey: string;
+  }
+) {
+  const { activeId, activeTopicId, threadId, message, mapKey } = context;
+
+  console.log('[Real API] Calling real backend with LLM...');
+
+  // TODO: Implement real API call
+  // This will be similar to backend mock but calls the real endpoint
+  const response = await backendAgentChat.sendMessage({
+    session_id: activeId,
+    user_id: FALLBACK_CLIENT_DB_USER_ID,
+    message: message,
+    topic_id: activeTopicId || undefined,
+    thread_id: threadId || undefined,
+  });
+
+  console.log('[Real API] Response received:', response);
+
+  // Remove temp messages
+  set(produce((state: ChatStore) => {
+    state.messagesMap[mapKey] = state.messagesMap[mapKey].filter(
+      (msg) => !msg.id.startsWith('temp-')
+    );
+  }), false, n('real/removeTempMessages'));
+
+  // Refresh messages from DB
+  const finalTopicId = response.topic_id || activeTopicId;
+  const newMapKey = messageMapKey(activeId, finalTopicId);
+
+  // If a new topic was created, switch to it
+  if (finalTopicId && finalTopicId !== activeTopicId) {
+    console.log('[Real API] New topic created, switching to:', finalTopicId);
+    await get().refreshTopic();
+    await get().switchTopic(finalTopicId);
+  } else {
+    // Clear and refresh messages
+    set(produce((state: ChatStore) => {
+      state.messagesMap[newMapKey] = [];
+    }), false, n('real/clearBeforeRefresh'));
+
+    await get().internal_fetchMessages(activeId, finalTopicId);
+  }
+
+  console.log('[Real API] Complete, messages count:', get().messagesMap[newMapKey]?.length);
+}
+
+/**
+ * Handle BACKEND_MOCK mode - Backend mock with DB persistence
+ */
+async function handleBackendMock(
+  get: any,
+  set: any,
+  context: {
+    activeId: string;
+    activeTopicId: string | undefined;
+    threadId: string | undefined;
+    message: string;
+    mapKey: string;
+  }
+) {
+  const { activeId, activeTopicId, threadId, message, mapKey } = context;
+
+  console.log('[Backend Mock] Calling backend mock (saves to DB)...');
+  console.log('[Backend Mock] Params:', {
+    session_id: activeId,
+    user_id: FALLBACK_CLIENT_DB_USER_ID,
+    message: message,
+    topic_id: activeTopicId,
+    thread_id: threadId,
+  });
+
+  const response = await backendAgentChat.sendMessageMock({
+    session_id: activeId,
+    user_id: FALLBACK_CLIENT_DB_USER_ID,
+    message: message,
+    topic_id: activeTopicId || undefined,
+    thread_id: threadId || undefined,
+  });
+
+  console.log('[Backend Mock] Response received:', response);
+
+  // Remove temp messages
+  set(produce((state: ChatStore) => {
+    const beforeCount = state.messagesMap[mapKey]?.length || 0;
+    state.messagesMap[mapKey] = state.messagesMap[mapKey].filter(
+      (msg) => !msg.id.startsWith('temp-')
+    );
+    const afterCount = state.messagesMap[mapKey]?.length || 0;
+    console.log('[Backend Mock] Removed', beforeCount - afterCount, 'temp messages');
+  }), false, n('mock/removeTempMessages'));
+
+  // Refresh messages from DB
+  const finalTopicId = response.topic_id || activeTopicId;
+  const newMapKey = messageMapKey(activeId, finalTopicId);
+
+  console.log('[Backend Mock] Fetching messages from DB with:', {
+    activeId,
+    finalTopicId,
+    newMapKey,
+  });
+
+  // If a new topic was created, switch to it
+  if (finalTopicId && finalTopicId !== activeTopicId) {
+    console.log('[Backend Mock] New topic created, switching to:', finalTopicId);
+    await get().refreshTopic();
+    await get().switchTopic(finalTopicId);
+  } else {
+    // Clear and refresh messages
+    set(produce((state: ChatStore) => {
+      state.messagesMap[newMapKey] = [];
+    }), false, n('mock/clearBeforeRefresh'));
+
+    await get().internal_fetchMessages(activeId, finalTopicId);
+  }
+
+  console.log('[Backend Mock] Complete, messages count:', get().messagesMap[newMapKey]?.length);
+}
+
+/**
+ * Handle FRONTEND_MOCK mode - Frontend-only mock for UI testing
+ */
+async function handleFrontendMock(
+  set: any,
+  context: {
+    activeId: string;
+    activeTopicId: string | undefined;
+    threadId: string | undefined;
+    message: string;
+    mapKey: string;
+    tempAssistantId: string;
+  }
+) {
+  const { activeId, activeTopicId, threadId, message, mapKey, tempAssistantId } = context;
+
+  console.log('[Frontend Mock] Simulating AI response (no backend)...');
+
+  // Simulate network delay
+  await new Promise(resolve => setTimeout(resolve, 500));
+
+  const mockResponse = `This is a mock response to: "${message}"\n\nI'm simulating the AI response to test the UI flow without calling the backend.`;
+
+  set(produce((state: ChatStore) => {
+    const messages = state.messagesMap[mapKey];
+    if (!messages) {
+      console.error('[Frontend Mock] Messages not found for key:', mapKey);
+      return;
+    }
+
+    const assistantMsgIndex = messages.findIndex(m => m.id === tempAssistantId);
+    if (assistantMsgIndex === -1) {
+      console.error('[Frontend Mock] Assistant message not found');
+      return;
+    }
+
+    const msg = messages[assistantMsgIndex];
+
+    // Update content
+    msg.content = mockResponse;
+    msg.updatedAt = Date.now();
+    (msg as any).loading = false;
+
+    // Mock reasoning data
+    (msg as any).reasoning = {
+      content: 'Let me think about this step by step:\n1. First, I need to understand the question\n2. Then, I will formulate a response\n3. Finally, I will provide a clear answer',
+      status: 'complete',
+    };
+
+    // Mock RAG chunks data
+    (msg as any).chunksList = [
+      {
+        id: 'chunk_1',
+        fileId: 'file_1',
+        filename: 'document.pdf',
+        fileType: 'application/pdf',
+        fileUrl: '/files/document.pdf',
+        text: 'This is a sample chunk from the knowledge base. It contains relevant information about the topic.',
+        similarity: 0.95,
+      },
+      {
+        id: 'chunk_2',
+        fileId: 'file_2',
+        filename: 'guide.md',
+        fileType: 'text/markdown',
+        fileUrl: '/files/guide.md',
+        text: 'Another chunk with more detailed information that was retrieved from the RAG system.',
+        similarity: 0.87,
+      },
+    ];
+
+    // Mock tool calls
+    (msg as any).tools = [
+      {
+        id: 'tool_1',
+        identifier: 'lobe-web-browsing',
+        apiName: 'search',
+        arguments: JSON.stringify({
+          query: 'What is the weather today?',
+          searchEngines: ['google']
+        }),
+        type: 'builtin',
+        result: {
+          id: 'tool_result_1',
+          content: JSON.stringify({
+            results: [
+              {
+                title: 'Mock Search Result 1',
+                url: 'https://example.com/result1',
+                description: 'This is a mock search result for testing purposes.',
+              },
+              {
+                title: 'Mock Search Result 2',
+                url: 'https://example.com/result2',
+                description: 'Another mock search result with relevant information.',
+              },
+            ],
+          }),
+          state: null,
+        },
+      },
+      {
+        id: 'tool_2',
+        identifier: 'lobe-local-system',
+        apiName: 'listLocalFiles',
+        arguments: JSON.stringify({
+          path: '/home/user/documents'
+        }),
+        type: 'builtin',
+        result: {
+          id: 'tool_result_2',
+          content: JSON.stringify({
+            files: [
+              { name: 'document.pdf', size: 1024000, type: 'file' },
+              { name: 'images', size: 0, type: 'directory' },
+              { name: 'notes.txt', size: 2048, type: 'file' },
+            ],
+          }),
+          state: null,
+        },
+      },
+    ];
+
+    // Mock search grounding
+    (msg as any).search = {
+      citations: [
+        {
+          id: 'citation_1',
+          title: 'Wikipedia - Example Article',
+          url: 'https://en.wikipedia.org/wiki/Example',
+        },
+        {
+          id: 'citation_2',
+          title: 'GitHub Documentation',
+          url: 'https://docs.github.com/en',
+        },
+      ],
+      searchQueries: ['test query', 'related query'],
+    };
+
+    // Mock image list
+    (msg as any).imageList = [
+      {
+        id: 'img_1',
+        url: 'https://via.placeholder.com/300x200',
+        alt: 'Sample image 1',
+      },
+    ];
+
+    // Mock usage
+    (msg as any).usage = {
+      prompt_tokens: 150,
+      completion_tokens: 80,
+      total_tokens: 230,
+    };
+
+    // Mock performance
+    (msg as any).performance = {
+      total_tokens: 230,
+      duration: 1500,
+    };
+
+    // Mock metadata
+    (msg as any).metadata = {
+      model: 'mock-model',
+      temperature: 0.7,
+    };
+
+    // Add tool messages (role='tool') for each tool call
+    state.messagesMap[mapKey].push({
+      id: `tool-msg-${Date.now()}-1`,
+      role: 'tool',
+      content: JSON.stringify({
+        results: [
+          {
+            title: 'Mock Search Result 1',
+            url: 'https://example.com/result1',
+            description: 'This is a mock search result for testing purposes.',
+          },
+          {
+            title: 'Mock Search Result 2',
+            url: 'https://example.com/result2',
+            description: 'Another mock search result with relevant information.',
+          },
+        ],
+      }),
+      tool_call_id: 'tool_1',
+      sessionId: activeId,
+      topicId: activeTopicId,
+      threadId,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      meta: {},
+    } as UIChatMessage);
+
+    state.messagesMap[mapKey].push({
+      id: `tool-msg-${Date.now()}-2`,
+      role: 'tool',
+      content: JSON.stringify({
+        files: [
+          { name: 'document.pdf', size: 1024000, type: 'file' },
+          { name: 'images', size: 0, type: 'directory' },
+          { name: 'notes.txt', size: 2048, type: 'file' },
+        ],
+      }),
+      tool_call_id: 'tool_2',
+      sessionId: activeId,
+      topicId: activeTopicId,
+      threadId,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      meta: {},
+    } as UIChatMessage);
+  }), false, n('frontendMock/response'));
+
+  console.log('[Frontend Mock] Response complete with full mock data');
+}
+
+// ================================================================
+// MAIN STORE ACTIONS
+// ================================================================
 
 export interface AIGenerateAction {
   sendMessage: (params: SendMessageParams) => Promise<void>;
@@ -81,43 +466,43 @@ export const generateAIChat: StateCreator<
       activeId,
       activeTopicId,
       activeThreadId,
-      // refreshTopic,
     } = get();
 
-    // Validation
+    // ================================================================
+    // STEP 1: VALIDATION
+    // ================================================================
     if (!activeId) {
-      console.error('[BigBang] No active session');
+      console.error('[SendMessage] No active session');
       return;
     }
 
     if (!message?.trim() && (!files || files.length === 0)) {
-      console.error('[BigBang] No message content');
+      console.error('[SendMessage] No message content');
       return;
     }
 
     const threadId = activeThreadId;
-
-    // ================================================================
-    // MAIN FLOW: User Message + AI Response
-    // ================================================================
-
-    set({ isCreatingMessage: true }, false, n('creatingMessage/start'));
-
-    // Step 1: Create optimistic user message
     const mapKey = messageMapKey(activeId, activeTopicId);
-    const tempUserId = `temp-user-${Date.now()}`;
 
-    console.log('[MOCK] Creating messages with key:', mapKey, {
+    console.log(`[SendMessage] Mode: ${API_MODE}`, {
       activeId,
       activeTopicId,
       threadId,
     });
 
+    // ================================================================
+    // STEP 2: CREATE OPTIMISTIC UI
+    // ================================================================
+    set({ isCreatingMessage: true }, false, n('creatingMessage/start'));
+
+    const tempUserId = `temp-user-${Date.now()}`;
+    const tempAssistantId = `temp-assistant-${Date.now()}`;
+
+    // Create optimistic user message
     set(produce((state: ChatStore) => {
       if (!state.messagesMap[mapKey]) {
         state.messagesMap[mapKey] = [];
       }
-      console.log('[MOCK] messagesMap before push:', Object.keys(state.messagesMap));
       state.messagesMap[mapKey].push({
         id: tempUserId,
         role: 'user',
@@ -132,9 +517,7 @@ export const generateAIChat: StateCreator<
       } as UIChatMessage);
     }), false, n('optimistic/userMessage'));
 
-    // Step 2: Create optimistic assistant message (loading state)
-    const tempAssistantId = `temp-assistant-${Date.now()}`;
-
+    // Create optimistic assistant message (loading state)
     set(produce((state: ChatStore) => {
       state.messagesMap[mapKey].push({
         id: tempAssistantId,
@@ -150,289 +533,51 @@ export const generateAIChat: StateCreator<
       } as UIChatMessage);
     }), false, n('optimistic/assistantMessage'));
 
+    // ================================================================
+    // STEP 3: CALL API BASED ON MODE
+    // ================================================================
     try {
-      // ================================================================
-      // MOCK RESPONSE - Frontend or Backend
-      // ================================================================
-      console.log('[Mock] USE_BACKEND_MOCK =', USE_BACKEND_MOCK);
-
-      if (USE_BACKEND_MOCK) {
-        // ============================================================
-        // BACKEND MOCK: Call backend ChatMock which saves to DB
-        // ============================================================
-        console.log('[Backend Mock] Starting backend mock flow...');
-        console.log('[Backend Mock] Params:', {
-          session_id: activeId,
-          user_id: FALLBACK_CLIENT_DB_USER_ID,
-          message: message,
-          topic_id: activeTopicId,
-          thread_id: threadId,
-        });
-
-        const response = await backendAgentChat.sendMessageMock({
-          session_id: activeId,
-          user_id: FALLBACK_CLIENT_DB_USER_ID,
-          message: message,
-          topic_id: activeTopicId || undefined,
-          thread_id: threadId || undefined,
-        });
-
-        console.log('[Backend Mock] Response received:', response);
-
-        // Remove temp messages
-        console.log('[Backend Mock] Removing temp messages from key:', mapKey);
-        set(produce((state: ChatStore) => {
-          const beforeCount = state.messagesMap[mapKey]?.length || 0;
-          state.messagesMap[mapKey] = state.messagesMap[mapKey].filter(
-            (msg) => !msg.id.startsWith('temp-')
-          );
-          const afterCount = state.messagesMap[mapKey]?.length || 0;
-          console.log('[Backend Mock] Removed', beforeCount - afterCount, 'temp messages');
-        }), false, n('mock/removeTempMessages'));
-
-        // Refresh messages from DB to get all saved messages
-        const finalTopicId = response.topic_id || activeTopicId;
-        const newMapKey = messageMapKey(activeId, finalTopicId);
-
-        console.log('[Backend Mock] Fetching messages from DB with:', {
-          activeId,
-          finalTopicId,
-          newMapKey,
-        });
-
-        // If a new topic was created, switch to it first
-        if (finalTopicId && finalTopicId !== activeTopicId) {
-          console.log('[Backend Mock] New topic created, switching to:', finalTopicId);
-          // Refresh topics list first so the new topic appears in the sidebar
-          await get().refreshTopic();
-          // Switch to the new topic (this will also trigger message fetch)
-          await get().switchTopic(finalTopicId);
-        } else {
-          // Clear messagesMap first to force refresh (bypass guard in internal_fetchMessages)
-          set(produce((state: ChatStore) => {
-            state.messagesMap[newMapKey] = [];
-          }), false, n('mock/clearBeforeRefresh'));
-
-          await get().internal_fetchMessages(activeId, finalTopicId);
-        }
-
-        console.log('[Backend Mock] Messages refreshed from DB, current messages:', get().messagesMap[newMapKey]?.length);
-
-      } else {
-        // ============================================================
-        // FRONTEND MOCK: Simulate streaming with full data
-        // ============================================================
-        console.log('[Frontend Mock] Simulating AI response...');
-
-        // Simulate delay
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        // Step 3: Update assistant message with FULL mock data
-        const mockResponse = `This is a mock response to: "${message}"\n\nI'm simulating the AI response to test the UI flow without calling the backend.`;
-
-        set(produce((state: ChatStore) => {
-          console.log('[MOCK] Updating message with key:', mapKey);
-          console.log('[MOCK] messagesMap keys:', Object.keys(state.messagesMap));
-
-          const messages = state.messagesMap[mapKey];
-          if (!messages) {
-            console.error('[MOCK] Messages not found for key:', mapKey);
-            return;
-          }
-
-          console.log('[MOCK] Found messages:', messages.length);
-          const assistantMsgIndex = messages.findIndex(m => m.id === tempAssistantId);
-          if (assistantMsgIndex !== -1) {
-            const msg = messages[assistantMsgIndex];
-
-            // Update content
-            msg.content = mockResponse;
-            msg.updatedAt = Date.now();
-            (msg as any).loading = false;
-
-            // Mock reasoning data
-            (msg as any).reasoning = {
-              content: 'Let me think about this step by step:\n1. First, I need to understand the question\n2. Then, I will formulate a response\n3. Finally, I will provide a clear answer',
-              status: 'complete',
-            };
-
-            // Mock RAG chunks data
-            (msg as any).chunksList = [
-              {
-                id: 'chunk_1',
-                fileId: 'file_1',
-                filename: 'document.pdf',
-                fileType: 'application/pdf',
-                fileUrl: '/files/document.pdf',
-                text: 'This is a sample chunk from the knowledge base. It contains relevant information about the topic.',
-                similarity: 0.95,
-              },
-              {
-                id: 'chunk_2',
-                fileId: 'file_2',
-                filename: 'guide.md',
-                fileType: 'text/markdown',
-                fileUrl: '/files/guide.md',
-                text: 'Another chunk with more detailed information that was retrieved from the RAG system.',
-                similarity: 0.87,
-              },
-            ];
-
-            // Mock tool calls - using correct identifiers from manifests
-            (msg as any).tools = [
-              {
-                id: 'tool_1',
-                identifier: 'lobe-web-browsing', // Correct identifier from WebBrowsingManifest
-                apiName: 'search',
-                arguments: JSON.stringify({
-                  query: 'What is the weather today?',
-                  searchEngines: ['google']
-                }),
-                type: 'builtin',
-                result: {
-                  id: 'tool_result_1',
-                  content: JSON.stringify({
-                    results: [
-                      {
-                        title: 'Mock Search Result 1',
-                        url: 'https://example.com/result1',
-                        description: 'This is a mock search result for testing purposes.',
-                      },
-                      {
-                        title: 'Mock Search Result 2',
-                        url: 'https://example.com/result2',
-                        description: 'Another mock search result with relevant information.',
-                      },
-                    ],
-                  }),
-                  state: null,
-                },
-              },
-              {
-                id: 'tool_2',
-                identifier: 'lobe-local-system', // Correct identifier from LocalSystemManifest
-                apiName: 'listLocalFiles',
-                arguments: JSON.stringify({
-                  path: '/home/user/documents'
-                }),
-                type: 'builtin',
-                result: {
-                  id: 'tool_result_2',
-                  content: JSON.stringify({
-                    files: [
-                      { name: 'document.pdf', size: 1024000, type: 'file' },
-                      { name: 'images', size: 0, type: 'directory' },
-                      { name: 'notes.txt', size: 2048, type: 'file' },
-                    ],
-                  }),
-                  state: null,
-                },
-              },
-            ];
-
-            // Mock search grounding
-            (msg as any).search = {
-              citations: [
-                {
-                  id: 'citation_1',
-                  title: 'Wikipedia - Example Article',
-                  url: 'https://en.wikipedia.org/wiki/Example',
-                },
-                {
-                  id: 'citation_2',
-                  title: 'GitHub Documentation',
-                  url: 'https://docs.github.com/en',
-                },
-              ],
-              searchQueries: ['test query', 'related query'],
-            };
-
-            // Mock image list
-            (msg as any).imageList = [
-              {
-                id: 'img_1',
-                url: 'https://via.placeholder.com/300x200',
-                alt: 'Sample image 1',
-              },
-            ];
-
-            // Mock usage
-            (msg as any).usage = {
-              prompt_tokens: 150,
-              completion_tokens: 80,
-              total_tokens: 230,
-            };
-
-            // Mock performance
-            (msg as any).performance = {
-              total_tokens: 230,
-              duration: 1500,
-            };
-
-            // Mock metadata
-            (msg as any).metadata = {
-              model: 'mock-model',
-              temperature: 0.7,
-            };
-          }
-
-          // Add tool messages (role='tool') for each tool call
-          // These are separate messages that contain tool execution results
-          state.messagesMap[mapKey].push({
-            id: `tool-msg-${Date.now()}-1`,
-            role: 'tool',
-            content: JSON.stringify({
-              results: [
-                {
-                  title: 'Mock Search Result 1',
-                  url: 'https://example.com/result1',
-                  description: 'This is a mock search result for testing purposes.',
-                },
-                {
-                  title: 'Mock Search Result 2',
-                  url: 'https://example.com/result2',
-                  description: 'Another mock search result with relevant information.',
-                },
-              ],
-            }),
-            tool_call_id: 'tool_1', // Must match the tool id
-            sessionId: activeId,
-            topicId: activeTopicId,
+      switch (API_MODE) {
+        case 'REAL':
+          await handleRealAPI(get, set, {
+            activeId,
+            activeTopicId,
             threadId,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-            meta: {},
-          } as UIChatMessage);
+            message,
+            mapKey,
+          });
+          break;
 
-          state.messagesMap[mapKey].push({
-            id: `tool-msg-${Date.now()}-2`,
-            role: 'tool',
-            content: JSON.stringify({
-              files: [
-                { name: 'document.pdf', size: 1024000, type: 'file' },
-                { name: 'images', size: 0, type: 'directory' },
-                { name: 'notes.txt', size: 2048, type: 'file' },
-              ],
-            }),
-            tool_call_id: 'tool_2', // Must match the tool id
-            sessionId: activeId,
-            topicId: activeTopicId,
+        case 'BACKEND_MOCK':
+          await handleBackendMock(get, set, {
+            activeId,
+            activeTopicId,
             threadId,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-            meta: {},
-          } as UIChatMessage);
-        }), false, n('mock/response'));
+            message,
+            mapKey,
+          });
+          break;
 
-        console.log('[Frontend Mock] Response complete with full data');
+        case 'FRONTEND_MOCK':
+          await handleFrontendMock(set, {
+            activeId,
+            activeTopicId,
+            threadId,
+            message,
+            mapKey,
+            tempAssistantId,
+          });
+          break;
+
+        default:
+          throw new Error(`Unknown API_MODE: ${API_MODE}`);
       }
 
     } catch (error) {
-      console.error('[BigBang] Failed:', error);
-      console.error('[BigBang] Error details:', {
+      console.error('[SendMessage] Failed:', error);
+      console.error('[SendMessage] Error details:', {
         message: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
-        error,
       });
 
       // Remove temp messages on error
