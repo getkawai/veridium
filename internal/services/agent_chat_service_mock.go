@@ -36,6 +36,17 @@ type ChatToolPayload struct {
 	Type       string `json:"type"` // "builtin" or other tool types
 }
 
+// ChatFileChunk represents a file chunk from RAG system
+type ChatFileChunk struct {
+	FileID     string  `json:"fileId"`
+	FileType   string  `json:"fileType"`
+	FileURL    string  `json:"fileUrl"`
+	Filename   string  `json:"filename"`
+	ID         string  `json:"id"`
+	Similarity float64 `json:"similarity,omitempty"`
+	Text       string  `json:"text"`
+}
+
 // ChatMock handles mock chat responses for testing UI flow without real AI backend
 // This method saves complete mock messages to DB with all UI components:
 // - Reasoning (step-by-step thinking)
@@ -85,24 +96,24 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 	}
 
 	// Mock RAG chunks
-	chunksList := []map[string]interface{}{
+	chunksList := []ChatFileChunk{
 		{
-			"id":         "chunk_1",
-			"fileId":     "file_1",
-			"filename":   "document.pdf",
-			"fileType":   "application/pdf",
-			"fileUrl":    "/files/document.pdf",
-			"text":       "This is a sample chunk from the knowledge base. It contains relevant information about the topic.",
-			"similarity": 0.95,
+			ID:         "chunk_1",
+			FileID:     "file_1",
+			Filename:   "document.pdf",
+			FileType:   "application/pdf",
+			FileURL:    "/files/document.pdf",
+			Text:       "This is a sample chunk from the knowledge base. It contains relevant information about the topic.",
+			Similarity: 0.95,
 		},
 		{
-			"id":         "chunk_2",
-			"fileId":     "file_2",
-			"filename":   "guide.md",
-			"fileType":   "text/markdown",
-			"fileUrl":    "/files/guide.md",
-			"text":       "Another chunk with more detailed information that was retrieved from the RAG system.",
-			"similarity": 0.87,
+			ID:         "chunk_2",
+			FileID:     "file_2",
+			Filename:   "guide.md",
+			FileType:   "text/markdown",
+			FileURL:    "/files/guide.md",
+			Text:       "Another chunk with more detailed information that was retrieved from the RAG system.",
+			Similarity: 0.87,
 		},
 	}
 
