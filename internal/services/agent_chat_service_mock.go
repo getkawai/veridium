@@ -106,43 +106,44 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 	tool3ArgsJSON, _ := json.Marshal(tool3Args)
 
 	// Tool 4: Local System - listLocalFiles
-	tool4Args := map[string]interface{}{
-		"path": "/home/user/documents",
+	tool4Args := localfs.ListLocalFileParams{
+		Path: "/home/user/documents",
 	}
 	tool4ArgsJSON, _ := json.Marshal(tool4Args)
 
 	// Tool 5: Local System - readLocalFile
-	tool5Args := map[string]interface{}{
-		"path": "/home/user/documents/readme.md",
-		"loc":  []int{0, 100},
+	loc := [2]int{0, 100}
+	tool5Args := localfs.LocalReadFileParams{
+		Path: "/home/user/documents/readme.md",
+		Loc:  &loc,
 	}
 	tool5ArgsJSON, _ := json.Marshal(tool5Args)
 
 	// Tool 6: Local System - searchLocalFiles
-	tool6Args := map[string]interface{}{
-		"keywords":  "important document",
-		"directory": "/home/user/documents",
+	tool6Args := localfs.LocalSearchFilesParams{
+		Keywords:  "important document",
+		Directory: "/home/user/documents",
 	}
 	tool6ArgsJSON, _ := json.Marshal(tool6Args)
 
 	// Tool 7: Local System - writeLocalFile
-	tool7Args := map[string]interface{}{
-		"path":    "/home/user/documents/new_file.txt",
-		"content": "Hello, this is a new file content.",
+	tool7Args := localfs.WriteLocalFileParams{
+		Path:    "/home/user/documents/new_file.txt",
+		Content: "Hello, this is a new file content.",
 	}
 	tool7ArgsJSON, _ := json.Marshal(tool7Args)
 
 	// Tool 8: Local System - renameLocalFile
-	tool8Args := map[string]interface{}{
-		"path":    "/home/user/documents/old_name.txt",
-		"newName": "new_name.txt",
+	tool8Args := localfs.RenameLocalFileParams{
+		Path:    "/home/user/documents/old_name.txt",
+		NewName: "new_name.txt",
 	}
 	tool8ArgsJSON, _ := json.Marshal(tool8Args)
 
 	// Tool 9: Local System - moveLocalFiles
-	tool9Args := map[string]interface{}{
-		"items": []map[string]interface{}{
-			{"oldPath": "/home/user/documents/file1.txt", "newPath": "/home/user/backup/file1.txt"},
+	tool9Args := localfs.MoveLocalFilesParams{
+		Items: []localfs.MoveLocalFileParams{
+			{OldPath: "/home/user/documents/file1.txt", NewPath: "/home/user/backup/file1.txt"},
 		},
 	}
 	tool9ArgsJSON, _ := json.Marshal(tool9Args)
