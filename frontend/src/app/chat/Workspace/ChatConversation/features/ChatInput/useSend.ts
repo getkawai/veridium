@@ -26,16 +26,13 @@ export const useSend = () => {
     sendMessage,
     addAIMessage,
     stopGenerateMessage,
-    cancelSendMessageInServer,
     generating,
     isSendButtonDisabledByMessage,
-    isSendingMessage,
   ] = useChatStore((s) => [
     !s.inputMessage,
     s.sendMessage,
     s.addAIMessage,
     s.stopGenerateMessage,
-    s.cancelSendMessageInServer,
     chatSelectors.isAIGenerating(s),
     chatSelectors.isSendButtonDisabledByMessage(s),
     aiChatSelectors.isCurrentSendMessageLoading(s),
@@ -52,7 +49,7 @@ export const useSend = () => {
   const isInputEmpty = isContentEmpty && reactiveFileList.length === 0;
 
   const canNotSend =
-    isInputEmpty || isUploadingFiles || isSendButtonDisabledByMessage || isSendingMessage;
+    isInputEmpty || isUploadingFiles || isSendButtonDisabledByMessage;
 
   const handleSend = async (params: UseSendMessageParams = {}) => {
     if (canNotSend) return;
@@ -109,18 +106,18 @@ export const useSend = () => {
     const isCreatingMessage = aiChatSelectors.isCurrentSendMessageLoading(store);
 
     if (isCreatingMessage) {
-      cancelSendMessageInServer();
+      // cancelSendMessageInServer();
     }
   };
 
   return useMemo(
     () => ({
       disabled: canNotSend,
-      generating: generating || isSendingMessage,
+      generating: generating,
       send: handleSend,
       stop,
     }),
-    [canNotSend, generating, isSendingMessage, stop, handleSend],
+    [canNotSend, generating, stop, handleSend],
   );
 };
 
