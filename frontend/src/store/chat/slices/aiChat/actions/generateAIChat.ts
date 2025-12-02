@@ -471,7 +471,11 @@ export const generateAIChat: StateCreator<
     // ================================================================
     // STEP 2: CREATE OPTIMISTIC UI
     // ================================================================
-    // set({ isCreatingMessage: true }, false, n('creatingMessage/start'));
+    // Flag ini digunakan oleh selector isSendButtonDisabledByMessage 
+    // untuk menonaktifkan tombol kirim selama proses pembuatan pesan, 
+    // mencegah user mengirim pesan berulang saat yang pertama belum 
+    // selesai diproses.
+    set({ isCreatingMessage: true }, false, n('creatingMessage/start'));
 
     // Generate actual message IDs that will be registered in backend and database
     const messageUserId = idGenerator('messages');
