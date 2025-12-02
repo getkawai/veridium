@@ -133,63 +133,6 @@ async function handleRealAPI(
 }
 
 /**
- * Handle BACKEND_MOCK mode - Backend mock with DB persistence
- */
-async function handleBackendMock(
-  get: any,
-  set: any,
-  context: {
-    activeId: string;
-    activeTopicId: string | undefined;
-    threadId: string | undefined;
-    message: string;
-    messageUserId: string;
-    messageAssistantId: string;
-  }
-) {
-  const { activeId, activeTopicId, threadId, message, messageUserId, messageAssistantId } = context;
-
-  console.log('[Backend Mock] Calling backend mock (saves to DB)...');
-  console.log('[Backend Mock] Params:', {
-    session_id: activeId,
-    user_id: FALLBACK_CLIENT_DB_USER_ID,
-    message: message,
-    topic_id: activeTopicId,
-    thread_id: threadId,
-    message_user_id: messageUserId,
-    message_assistant_id: messageAssistantId,
-  });
-
-  const response = await backendAgentChat.sendMessageMock({
-    session_id: activeId,
-    user_id: FALLBACK_CLIENT_DB_USER_ID,
-    message: message,
-    topic_id: activeTopicId || undefined,
-    thread_id: threadId || undefined,
-    message_user_id: messageUserId,
-    message_assistant_id: messageAssistantId,
-  });
-
-  console.log('[Backend Mock] Response received:', response);
-
-  // Refresh messages from DB only if topic changed
-  const finalTopicId = response.topic_id || activeTopicId;
-
-  // If a new topic was created, switch to it
-  if (finalTopicId && finalTopicId !== activeTopicId) {
-    console.log('[Backend Mock] New topic created, switching to:', finalTopicId);
-    await get().refreshTopic();
-    await get().switchTopic(finalTopicId);
-  } else {
-    // For same topic, we rely on stream events to update the UI state
-    // No need to fetch messages again
-    console.log('[Backend Mock] Staying on same topic, relying on stream updates');
-  }
-
-  console.log('[Backend Mock] Complete');
-}
-
-/**
  * Handle FRONTEND_MOCK mode - Frontend-only mock for UI testing
  */
 async function handleFrontendMock(
@@ -533,14 +476,44 @@ export const generateAIChat: StateCreator<
           break;
 
         case 'BACKEND_MOCK':
-          await handleBackendMock(get, set, {
-            activeId,
-            activeTopicId,
-            threadId,
-            message,
-            messageUserId,
-            messageAssistantId,
+          console.log('[Backend Mock] Calling backend mock (saves to DB)...');
+          console.log('[Backend Mock] Params:', {
+            session_id: activeId,
+            user_id: FALLBACK_CLIENT_DB_USER_ID,
+            message: message,
+            topic_id: activeTopicId,
+            thread_id: threadId,
+            message_user_id: messageUserId,
+            message_assistant_id: messageAssistantId,
           });
+
+          const response = await backendAgentChat.sendMessageMock({
+            session_id: activeId,
+            user_id: FALLBACK_CLIENT_DB_USER_ID,
+            message: message,
+            topic_id: activeTopicId || undefined,
+            thread_id: threadId || undefined,
+            message_user_id: messageUserId,
+            message_assistant_id: messageAssistantId,
+          });
+
+          console.log('[Backend Mock] Response received:', response);
+
+          // Refresh messages from DB only if topic changed
+          const finalTopicId = response.topic_id || activeTopicId;
+
+          // If a new topic was created, switch to it
+          if (finalTopicId && finalTopicId !== activeTopicId) {
+            console.log('[Backend Mock] New topic created, switching to:', finalTopicId);
+            await get().refreshTopic();
+            await get().switchTopic(finalTopicId);
+          } else {
+            // For same topic, we rely on stream events to update the UI state
+            // No need to fetch messages again
+            console.log('[Backend Mock] Staying on same topic, relying on stream updates');
+          }
+
+          console.log('[Backend Mock] Complete');
           break;
 
         case 'FRONTEND_MOCK':
