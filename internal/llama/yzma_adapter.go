@@ -447,6 +447,12 @@ func (m *LlamaYzmaModel) clearKVCache() error {
 // StreamCallback is called for each generated token during streaming
 type StreamCallback func(token string, isLast bool)
 
+// ToolEventCallback is called when tool events occur during agent loop
+// eventType: "tool_call" (before execution) or "tool_result" (after execution)
+// toolCall: the tool call being processed
+// result: tool execution result (only for "tool_result" event)
+type ToolEventCallback func(eventType string, toolCall message.ToolCall, result string)
+
 // Stream generates a response with streaming (native yzma interface)
 // Returns the response and any error
 func (m *LlamaYzmaModel) Stream(ctx context.Context, messages []message.Message, callback StreamCallback) (*YzmaResponse, error) {
@@ -588,7 +594,9 @@ func (m *LlamaYzmaModel) generateStreaming(ctx context.Context, prompt string, m
 // RunAgentLoopWithStreaming runs agent loop with streaming support (native yzma interface)
 // Returns the final response, all tool messages, and any error
 // The returned YzmaResponse contains ALL tool calls from all iterations (not just the last one)
-func (m *LlamaYzmaModel) RunAgentLoopWithStreaming(ctx context.Context, messages []message.Message, maxIterations int, callback StreamCallback) (*YzmaResponse, []message.Message, error) {
+// streamCallback: called for each token during generation
+// toolCallback: called for tool events (tool_call before execution, tool_result after)
+func (m *LlamaYzmaModel) RunAgentLoopWithStreaming(ctx context.Context, messages []message.Message, maxIterations int, streamCallback StreamCallback, toolCallback ToolEventCallback) (*YzmaResponse, []message.Message, error) {
 	if maxIterations <= 0 {
 		maxIterations = DefaultMaxIterations
 	}
@@ -604,7 +612,7 @@ func (m *LlamaYzmaModel) RunAgentLoopWithStreaming(ctx context.Context, messages
 		log.Printf("🔄 Agent loop (streaming) iteration %d/%d", i+1, maxIterations)
 
 		// Generate response with streaming
-		resp, err := m.Stream(ctx, allMessages, callback)
+		resp, err := m.Stream(ctx, allMessages, streamCallback)
 		if err != nil {
 			return nil, allToolMessages, fmt.Errorf("streaming generation failed at iteration %d: %w", i+1, err)
 		}
@@ -632,10 +640,28 @@ func (m *LlamaYzmaModel) RunAgentLoopWithStreaming(ctx context.Context, messages
 			return finalResponse, allToolMessages, nil
 		}
 
+		// Emit tool_call events BEFORE execution (for UI loading state)
+		if toolCallback != nil {
+			for _, tc := range resp.ToolCalls {
+				toolCallback("tool_call", tc, "")
+			}
+		}
+
 		// Execute tool calls
 		toolMessages, err := m.ExecuteToolCalls(ctx, resp.ToolCalls)
 		if err != nil {
 			log.Printf("⚠️  Tool execution error: %v", err)
+		}
+
+		// Emit tool_result events AFTER execution
+		if toolCallback != nil {
+			for i, tc := range resp.ToolCalls {
+				if i < len(toolMessages) {
+					if toolResp, ok := toolMessages[i].(message.ToolResponse); ok {
+						toolCallback("tool_result", tc, toolResp.Content)
+					}
+				}
+			}
 		}
 
 		for _, tm := range toolMessages {

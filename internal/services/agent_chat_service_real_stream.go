@@ -59,6 +59,14 @@ func mapToolName(yzmaToolName string) (identifier, apiName, toolType string) {
 	return yzmaToolName, yzmaToolName, "builtin"
 }
 
+// minInt returns the minimum of two integers
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 // stripToolCallTags removes <tool_call>...</tool_call> blocks from the text using regex
 func stripToolCallTags(text string) string {
 	// First, try to remove complete <tool_call>...</tool_call> blocks
@@ -223,22 +231,18 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 		} else {
 			// Regular content (not in <think> tag)
 
-			// Track tool_call tag state
+			// Track tool_call tag state - must check BEFORE appending to content
 			if strings.Contains(token, "<tool_call>") {
 				inToolCallTag = true
+				return // Skip the opening tag token entirely
 			}
 			if strings.Contains(token, "</tool_call>") {
 				inToolCallTag = false
-				return // Skip the closing tag token
+				return // Skip the closing tag token entirely
 			}
 
-			// Skip content if we're inside a tool_call tag
+			// Skip ALL content if we're inside a tool_call tag
 			if inToolCallTag {
-				return
-			}
-
-			// Skip tokens that contain tool_call tag markers
-			if strings.Contains(token, "<tool_call>") || strings.Contains(token, "</tool_call>") {
 				return
 			}
 
@@ -261,8 +265,66 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 		}
 	}
 
-	// Run agent loop with streaming
-	resp, tms, runErr := llmWithTools.RunAgentLoopWithStreaming(ctx, messagesWithSystem, 10, streamCallback)
+	// Tool event callback - emits tool events to frontend in real-time
+	var toolCallIndex int
+	toolEventCallback := func(eventType string, tc message.ToolCall, result string) {
+		argsJSON, _ := json.Marshal(tc.Function.Arguments)
+		identifier, apiName, toolType := mapToolName(tc.Function.Name)
+
+		if eventType == "tool_call" {
+			// Tool call initiated - emit loading state
+			toolCallID := fmt.Sprintf("%s_tool_%d", assistantMsgID, toolCallIndex)
+			log.Printf("🔧 [REAL STREAM] Tool call (loading): %s -> identifier=%s, apiName=%s", tc.Function.Name, identifier, apiName)
+
+			tool := ChatToolPayload{
+				ID:         toolCallID,
+				APIName:    apiName,
+				Identifier: identifier,
+				Arguments:  string(argsJSON),
+				Type:       toolType,
+			}
+			uiTools = append(uiTools, tool)
+
+			emit(StreamEventToolCall, &UIChatMessage{
+				Tools: uiTools,
+			})
+			toolCallIndex++
+		} else if eventType == "tool_result" {
+			// Tool execution completed - emit result
+			log.Printf("🔧 [REAL STREAM] Tool result: %s -> %s", tc.Function.Name, result[:minInt(50, len(result))])
+
+			// Parse result as JSON for state
+			var toolState interface{}
+			if err := json.Unmarshal([]byte(result), &toolState); err == nil {
+				// Successfully parsed as JSON
+			}
+
+			toolResultsData = append(toolResultsData, ToolResultData{
+				Content: result,
+				State:   toolState,
+			})
+
+			// Find the tool index for this result
+			resultIndex := len(toolResultsData) - 1
+			toolCallID := fmt.Sprintf("%s_tool_%d", assistantMsgID, resultIndex)
+
+			emit(StreamEventToolResult, map[string]interface{}{
+				"tool_call_id": toolCallID,
+				"tool_msg_id":  fmt.Sprintf("tool_msg_%s_%d", assistantMsgID, resultIndex+1),
+				"plugin": ChatPluginPayload{
+					Identifier: identifier,
+					APIName:    apiName,
+					Arguments:  string(argsJSON),
+					Type:       toolType,
+				},
+				"pluginState": toolState,
+				"content":     result,
+			})
+		}
+	}
+
+	// Run agent loop with streaming and tool callbacks
+	resp, tms, runErr := llmWithTools.RunAgentLoopWithStreaming(ctx, messagesWithSystem, 10, streamCallback, toolEventCallback)
 	if runErr != nil {
 		log.Printf("❌ [REAL STREAM] Agent execution failed: %v", runErr)
 		emit(StreamEventComplete, &UIChatMessage{
@@ -288,73 +350,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 		}
 	}
 
-	// 6. Process tool calls and emit tool events
-	if len(toolCalls) > 0 {
-		uiTools = make([]ChatToolPayload, len(toolCalls))
-		toolResultsData = make([]ToolResultData, len(toolCalls))
-
-		for i, tc := range toolCalls {
-			toolCallID := fmt.Sprintf("%s_tool_%d", assistantMsgID, i)
-			argsJSON, _ := json.Marshal(tc.Function.Arguments)
-
-			// Map Yzma tool name to frontend-compatible identifier/apiName
-			identifier, apiName, toolType := mapToolName(tc.Function.Name)
-			log.Printf("🔧 [REAL STREAM] Tool mapping: %s -> identifier=%s, apiName=%s", tc.Function.Name, identifier, apiName)
-
-			uiTools[i] = ChatToolPayload{
-				ID:         toolCallID,
-				APIName:    apiName,
-				Identifier: identifier,
-				Arguments:  string(argsJSON),
-				Type:       toolType,
-			}
-
-			// Emit tool_call event
-			emit(StreamEventToolCall, &UIChatMessage{
-				Tools: uiTools[:i+1],
-			})
-
-			// Get tool result from toolMessages (if available)
-			var toolContent interface{}
-			var toolState interface{}
-
-			// Find corresponding tool response in toolMessages
-			for _, tm := range toolMessages {
-				if toolResp, ok := tm.(message.ToolResponse); ok {
-					if toolResp.Name == tc.Function.Name {
-						toolContent = toolResp.Content
-						// Try to parse as JSON for state (pluginState)
-						var parsed interface{}
-						if err := json.Unmarshal([]byte(toolResp.Content), &parsed); err == nil {
-							toolState = parsed
-						}
-						break
-					}
-				}
-			}
-
-			toolResultsData[i] = ToolResultData{
-				Content: toolContent,
-				State:   toolState,
-			}
-
-			// Emit tool_result event with frontend-compatible structure
-			emit(StreamEventToolResult, map[string]interface{}{
-				"tool_call_id": toolCallID,
-				"tool_msg_id":  fmt.Sprintf("tool_msg_%s_%d", assistantMsgID, i+1),
-				"plugin": ChatPluginPayload{
-					Identifier: identifier,
-					APIName:    apiName,
-					Arguments:  string(argsJSON),
-					Type:       toolType,
-				},
-				"pluginState": toolState,
-				"content":     toolContent,
-			})
-		}
-	}
-
-	// 7. Clean final content - remove both think tags and tool_call tags
+	// 6. Clean final content - remove both think tags and tool_call tags
 	finalContentStr := finalContent.String()
 	finalContentStr = stripThinkTags(finalContentStr)
 	finalContentStr = stripToolCallTags(finalContentStr)

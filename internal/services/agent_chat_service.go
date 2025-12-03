@@ -1070,8 +1070,8 @@ func (s *AgentChatService) generateWithStreaming(ctx context.Context, session *A
 		}
 	}
 
-	// Run agent loop with streaming
-	resp, toolMessages, err := llm.RunAgentLoopWithStreaming(ctx, messages, 10, callback)
+	// Run agent loop with streaming (no tool callback for legacy method)
+	resp, toolMessages, err := llm.RunAgentLoopWithStreaming(ctx, messages, 10, callback, nil)
 	if err != nil {
 		return nil, nil, err
 	}

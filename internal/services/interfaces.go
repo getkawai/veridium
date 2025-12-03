@@ -32,8 +32,8 @@ type LLMGenerator interface {
 	// RunAgentLoop runs the agent loop with tool execution
 	RunAgentLoop(ctx context.Context, messages []message.Message, maxIterations int) (*llama.YzmaResponse, []message.Message, error)
 
-	// RunAgentLoopWithStreaming runs the agent loop with streaming callback
-	RunAgentLoopWithStreaming(ctx context.Context, messages []message.Message, maxIterations int, callback func(token string, isLast bool)) (*llama.YzmaResponse, []message.Message, error)
+	// RunAgentLoopWithStreaming runs the agent loop with streaming callback and tool event callback
+	RunAgentLoopWithStreaming(ctx context.Context, messages []message.Message, maxIterations int, streamCallback llama.StreamCallback, toolCallback llama.ToolEventCallback) (*llama.YzmaResponse, []message.Message, error)
 
 	// WithTools returns a new generator configured with specific tools
 	WithTools(toolNames []string) LLMGenerator
@@ -60,8 +60,8 @@ func (a *LLMGeneratorAdapter) RunAgentLoop(ctx context.Context, messages []messa
 }
 
 // RunAgentLoopWithStreaming implements LLMGenerator.RunAgentLoopWithStreaming
-func (a *LLMGeneratorAdapter) RunAgentLoopWithStreaming(ctx context.Context, messages []message.Message, maxIterations int, callback func(token string, isLast bool)) (*llama.YzmaResponse, []message.Message, error) {
-	return a.model.RunAgentLoopWithStreaming(ctx, messages, maxIterations, callback)
+func (a *LLMGeneratorAdapter) RunAgentLoopWithStreaming(ctx context.Context, messages []message.Message, maxIterations int, streamCallback llama.StreamCallback, toolCallback llama.ToolEventCallback) (*llama.YzmaResponse, []message.Message, error) {
+	return a.model.RunAgentLoopWithStreaming(ctx, messages, maxIterations, streamCallback, toolCallback)
 }
 
 // WithTools implements LLMGenerator.WithTools
