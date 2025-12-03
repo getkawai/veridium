@@ -5,38 +5,32 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/kawai-network/veridium/pkg/yzma/message"
 )
 
 // ============================================
-// ChatMockStream - Event Streaming Mock
+// ChatRealStream - Real LLM Event Streaming
 // ============================================
 
-// StreamEventType represents the type of stream event
-type StreamEventType string
-
-const (
-	StreamEventStart      StreamEventType = "start"       // Generation started
-	StreamEventChunk      StreamEventType = "chunk"       // Content chunk
-	StreamEventReasoning  StreamEventType = "reasoning"   // Reasoning content
-	StreamEventToolCall   StreamEventType = "tool_call"   // Tool call initiated
-	StreamEventToolResult StreamEventType = "tool_result" // Tool execution result
-	StreamEventComplete   StreamEventType = "complete"    // Generation complete
-)
-
-// ChatMockStream handles mock chat with event streaming for realistic UI testing
-// Instead of returning all messages at once, it emits events progressively:
+// ChatRealStream handles chat with REAL LLM calls using event streaming.
+// This combines:
+// - Real LLM logic from Chat() in agent_chat_service.go
+// - Streaming architecture from ChatMockStream
+//
+// Flow:
 // 1. start - Generation begins
-// 2. reasoning - Thinking content (streamed)
-// 3. chunk - Content chunks (streamed word by word)
-// 4. tool_call - Tool call initiated
-// 5. tool_result - Tool execution result (with pluginState)
+// 2. reasoning - Real thinking content from LLM (if reasoning model)
+// 3. chunk - Real content chunks from LLM
+// 4. tool_call - Real tool call initiated by LLM
+// 5. tool_result - Real tool execution result
 // 6. complete - Generation finished
 //
 // Frontend listens to 'chat:stream' events via Events.On()
-// Data is saved to DB at the end (same as ChatMock)
+// Data is saved to DB at the end.
 //
 // Usage from frontend:
 //
@@ -44,7 +38,8 @@ const (
 //	// No return value - data comes via events
 //	// Events.On('chat:stream', handler) receives all updates
 func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) error {
-	log.Printf("🎭 [REAL STREAM] Starting streaming real for session: %s", req.SessionID)
+	log.Printf("🚀 [REAL STREAM] Starting real LLM streaming for session: %s", req.SessionID)
+	startTime := time.Now()
 
 	// Helper to emit events with type safety
 	emit := func(eventType StreamEventType, data interface{}) {
@@ -52,16 +47,12 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 			return
 		}
 
-		// 1. Create base map with common fields
 		payload := map[string]interface{}{
 			"type":       string(eventType),
 			"session_id": req.SessionID,
 			"message_id": req.MessageAssistantID,
 		}
 
-		// 2. Merge data fields into payload
-		// Using JSON round-trip to convert struct to map[string]interface{}
-		// This is a simple way to merge without reflection complexity
 		if data != nil {
 			jsonData, _ := json.Marshal(data)
 			var dataMap map[string]interface{}
@@ -80,158 +71,280 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	if err != nil {
 		return fmt.Errorf("failed to setup session/topic: %w", err)
 	}
+	session := setup.Session
 	currentTopicID := setup.TopicID
 
-	// 2. Emit START event
-	// Use UIChatMessage for consistency
+	// 2. Validate model for current reasoning mode and auto-switch if needed
+	if err := s.ValidateModelForReasoningMode(); err != nil {
+		log.Printf("⚠️  Model mismatch detected: %v", err)
+		log.Printf("🔄 Auto-switching to recommended model...")
+		if switchErr := s.SwitchToRecommendedModel(); switchErr != nil {
+			log.Printf("❌ Failed to switch model: %v", switchErr)
+			log.Printf("⚠️  Continuing with current model, but expect suboptimal performance")
+		} else {
+			log.Printf("✅ Successfully switched to recommended model")
+		}
+	}
+
+	// 3. Emit START event
 	emit(StreamEventStart, &UIChatMessage{
 		TopicID: currentTopicID,
 	})
-	time.Sleep(100 * time.Millisecond)
 
-	// 3. Stream REASONING content
-	reasoningContent := "Let me think about this step by step:\n1. First, I need to understand the question\n2. Then, I will formulate a response\n3. Finally, I will provide a clear answer"
-	reasoningWords := splitIntoChunks(reasoningContent, 5) // 5 words per chunk
+	// 4. Prepare messages for LLM
+	messagesWithSystem := s.prepareMessagesWithSystemPrompt(session.Messages, session)
 
-	for i, chunk := range reasoningWords {
-		partialContent := joinChunks(reasoningWords[:i+1])
-		// Use UIChatMessage with Reasoning field
-		emit(StreamEventReasoning, &UIChatMessage{
-			Reasoning: &ModelReasoning{
-				Content: partialContent, // Frontend expects full content in reasoning.content
-			},
-			Content: chunk, // Optional: delta content
-		})
-		time.Sleep(50 * time.Millisecond)
-	}
-	time.Sleep(200 * time.Millisecond)
-
-	// 4. Stream CONTENT
-	mockContent := fmt.Sprintf(
-		"This is a mock response to: \"%s\"\n\nI'm simulating the AI response to test the UI flow without calling the backend.",
-		req.Message,
-	)
-	contentWords := splitIntoChunks(mockContent, 3) // 3 words per chunk
-
-	for i, _ := range contentWords {
-		partialContent := joinChunks(contentWords[:i+1])
-		// Use UIChatMessage with Content field
-		emit(StreamEventChunk, &UIChatMessage{
-			Content: partialContent, // Frontend expects full content
-		})
-		time.Sleep(30 * time.Millisecond)
-	}
-	time.Sleep(200 * time.Millisecond)
-
-	// 5. Prepare mock data (same as ChatMock)
-	reasoning := &ModelReasoning{
-		Content:  reasoningContent,
-		Duration: 1500,
+	// Use pre-generated assistant message ID from frontend, or generate new one
+	assistantMsgID := req.MessageAssistantID
+	if assistantMsgID == "" {
+		assistantMsgID = uuid.New().String()
 	}
 
-	chunksList := []ChatFileChunk{
-		{ID: "chunk_1", FileID: "file_1", Filename: "document.pdf", FileType: "application/pdf", FileURL: "/files/document.pdf", Text: "Sample chunk from knowledge base.", Similarity: 0.95},
-		{ID: "chunk_2", FileID: "file_2", Filename: "guide.md", FileType: "text/markdown", FileURL: "/files/guide.md", Text: "Another chunk with detailed information.", Similarity: 0.87},
-	}
+	// Get LLM generator with requested tools
+	llmWithTools := s.llmGenerator.WithTools(session.ToolNames)
 
-	// Build tools array
-	tools := s.buildMockTools()
+	// 5. Run LLM with streaming + tool execution
+	var finalContent strings.Builder
+	var reasoningContent strings.Builder
+	var toolCalls []message.ToolCall
+	var toolMessages []message.Message
+	var usage *ModelUsage
+	var llmResp interface{}
+	var uiTools []ChatToolPayload
+	var toolResultsData []ToolResultData
 
-	// 6. Stream TOOL_CALL and TOOL_RESULT for each tool
-	toolResults := s.buildMockToolResults()
+	// Track timing
+	var ttft int64 // Time to first token
 
-	for i, tool := range tools {
-		// Emit tool_call
-		// Use UIChatMessage with Tools field
-		emit(StreamEventToolCall, &UIChatMessage{
-			Tools: tools[:i+1], // All tools so far (for UI to render)
-		})
-		time.Sleep(300 * time.Millisecond) // Simulate tool execution
-
-		// Get result for this tool
-		result := toolResults[tool.ID]
-
-		// Emit tool_result with pluginState for UI rendering
-		// Let's go back to map for tool_result loop to avoid complexity,
-		// BUT use ChatPluginPayload for the plugin field.
-		toolResultPayload := map[string]interface{}{
-			"tool_call_id": tool.ID,
-			"tool_msg_id":  fmt.Sprintf("tool_msg_%s_%d", req.MessageAssistantID, i+1),
-			"plugin": ChatPluginPayload{
-				Identifier: tool.Identifier,
-				APIName:    tool.APIName,
-				Arguments:  tool.Arguments,
-				Type:       tool.Type,
-			},
-			"pluginState": result.State,
-			"content":     result.Content, // Content can be string or marshaled JSON
+	// Streaming callback that emits events to frontend
+	streamCallback := func(token string, isLast bool) {
+		if token == "" && !isLast {
+			return
 		}
-		emit(StreamEventToolResult, toolResultPayload)
 
-		time.Sleep(200 * time.Millisecond)
+		// Measure TTFT
+		if ttft == 0 && token != "" {
+			ttft = time.Since(startTime).Milliseconds()
+		}
+
+		// Detect if this is reasoning content (inside <think> tags)
+		currentContent := finalContent.String() + token
+
+		// Check for reasoning mode patterns
+		isInThinkTag := strings.Contains(currentContent, "<think>") && !strings.Contains(currentContent, "</think>")
+		hasThinkContent := strings.Contains(currentContent, "<think>")
+
+		if isInThinkTag || (hasThinkContent && !strings.Contains(currentContent, "</think>")) {
+			// Extract reasoning content from <think> tag
+			if strings.Contains(token, "<think>") {
+				// Start of thinking
+				reasoningContent.Reset()
+			} else if strings.Contains(token, "</think>") {
+				// End of thinking - emit final reasoning
+				emit(StreamEventReasoning, &UIChatMessage{
+					Reasoning: &ModelReasoning{
+						Content: reasoningContent.String(),
+					},
+				})
+			} else if isInThinkTag {
+				// Inside thinking - accumulate and emit
+				reasoningContent.WriteString(token)
+				emit(StreamEventReasoning, &UIChatMessage{
+					Reasoning: &ModelReasoning{
+						Content: reasoningContent.String(),
+					},
+				})
+			}
+		} else {
+			// Regular content (not in <think> tag)
+			// Filter out tool_call tags from display
+			displayToken := token
+			if strings.Contains(displayToken, "<tool_call>") || strings.Contains(displayToken, "</tool_call>") {
+				return // Skip tool_call tags in content display
+			}
+
+			finalContent.WriteString(displayToken)
+
+			// Clean content for display (remove any remaining tags)
+			cleanContent := finalContent.String()
+			cleanContent = strings.TrimPrefix(cleanContent, "</think>")
+			cleanContent = strings.TrimSpace(cleanContent)
+
+			if cleanContent != "" {
+				emit(StreamEventChunk, &UIChatMessage{
+					Content: cleanContent,
+				})
+			}
+		}
+
+		if isLast {
+			log.Printf("📝 [REAL STREAM] Streaming complete, final content length: %d", finalContent.Len())
+		}
 	}
 
-	// 7. Build final metadata
-	searchGrounding := &GroundingSearch{
-		Citations: []CitationItem{
-			{ID: "citation_1", Title: "Wikipedia - Example Article", URL: "https://en.wikipedia.org/wiki/Example"},
-			{ID: "citation_2", Title: "GitHub Documentation", URL: "https://docs.github.com/en"},
-		},
-		SearchQueries: []string{"test query", "related query"},
+	// Run agent loop with streaming
+	resp, tms, runErr := llmWithTools.RunAgentLoopWithStreaming(ctx, messagesWithSystem, 10, streamCallback)
+	if runErr != nil {
+		log.Printf("❌ [REAL STREAM] Agent execution failed: %v", runErr)
+		emit(StreamEventComplete, &UIChatMessage{
+			Content: fmt.Sprintf("Error: %v", runErr),
+			Error: &ChatMessageError{
+				Type:    "LLMError",
+				Message: runErr.Error(),
+			},
+		})
+		return fmt.Errorf("agent execution failed: %w", runErr)
 	}
 
-	imageList := []ChatImageItem{
-		{ID: "img_1", URL: "https://via.placeholder.com/300x200", Alt: "Sample image 1"},
+	llmResp = resp
+	toolCalls = resp.ToolCalls
+	toolMessages = tms
+
+	// Build usage from response
+	if resp != nil {
+		usage = &ModelUsage{
+			TotalInputTokens:  resp.PromptTokens,
+			TotalOutputTokens: resp.CompletionTokens,
+			TotalTokens:       resp.TotalTokens,
+		}
 	}
 
-	mockUsage := &ModelUsage{TotalInputTokens: 150, TotalOutputTokens: 80, TotalTokens: 230}
-	mockPerformance := &ModelPerformance{Duration: 1500, Latency: 1800}
+	// 6. Process tool calls and emit tool events
+	if len(toolCalls) > 0 {
+		uiTools = make([]ChatToolPayload, len(toolCalls))
+		toolResultsData = make([]ToolResultData, len(toolCalls))
 
+		for i, tc := range toolCalls {
+			toolCallID := fmt.Sprintf("%s_tool_%d", assistantMsgID, i)
+			argsJSON, _ := json.Marshal(tc.Function.Arguments)
+
+			uiTools[i] = ChatToolPayload{
+				ID:         toolCallID,
+				APIName:    tc.Function.Name,
+				Identifier: tc.Function.Name, // Will be mapped by frontend if needed
+				Arguments:  string(argsJSON),
+				Type:       tc.Type,
+			}
+
+			// Emit tool_call event
+			emit(StreamEventToolCall, &UIChatMessage{
+				Tools: uiTools[:i+1],
+			})
+
+			// Get tool result from toolMessages (if available)
+			var toolContent interface{}
+			var toolState interface{}
+
+			// Find corresponding tool response in toolMessages
+			for _, tm := range toolMessages {
+				if toolResp, ok := tm.(message.ToolResponse); ok {
+					if toolResp.Name == tc.Function.Name {
+						toolContent = toolResp.Content
+						// Try to parse as JSON for state
+						var parsed interface{}
+						if err := json.Unmarshal([]byte(toolResp.Content), &parsed); err == nil {
+							toolState = parsed
+						}
+						break
+					}
+				}
+			}
+
+			toolResultsData[i] = ToolResultData{
+				Content: toolContent,
+				State:   toolState,
+			}
+
+			// Emit tool_result event
+			emit(StreamEventToolResult, map[string]interface{}{
+				"tool_call_id": toolCallID,
+				"tool_msg_id":  fmt.Sprintf("tool_msg_%s_%d", assistantMsgID, i+1),
+				"plugin": ChatPluginPayload{
+					Identifier: tc.Function.Name,
+					APIName:    tc.Function.Name,
+					Arguments:  string(argsJSON),
+					Type:       tc.Type,
+				},
+				"pluginState": toolState,
+				"content":     toolContent,
+			})
+		}
+	}
+
+	// 7. Clean final content
+	finalContentStr := finalContent.String()
+	finalContentStr = stripThinkTags(finalContentStr)
+	finalContentStr = strings.TrimSpace(finalContentStr)
+
+	// If final content is empty but we have response content, use that
+	if finalContentStr == "" && resp != nil && resp.Content != "" {
+		finalContentStr = stripThinkTags(resp.Content)
+		finalContentStr = strings.TrimSpace(finalContentStr)
+	}
+
+	// 8. Add messages to session history
+	session.Messages = append(session.Messages, toolMessages...)
+	if len(toolCalls) > 0 {
+		session.Messages = append(session.Messages, message.Tool{
+			Role:      "assistant",
+			ToolCalls: toolCalls,
+		})
+	} else {
+		session.Messages = append(session.Messages, message.Chat{
+			Role:    "assistant",
+			Content: finalContentStr,
+		})
+	}
+
+	// 9. Build performance metrics
+	duration := time.Since(startTime).Milliseconds()
+	performance := &ModelPerformance{
+		Duration: duration,
+		Latency:  duration,
+		TTFT:     ttft,
+	}
+	if usage != nil && usage.TotalOutputTokens > 0 && duration > 0 {
+		performance.TPS = float64(usage.TotalOutputTokens) / (float64(duration) / 1000.0)
+	}
+
+	// 10. Build reasoning data if present
+	var reasoning *ModelReasoning
+	if reasoningContent.Len() > 0 {
+		reasoning = &ModelReasoning{
+			Content:  reasoningContent.String(),
+			Duration: duration,
+		}
+	}
+
+	// 11. Save assistant message to DB
 	fullMetadata := map[string]interface{}{
-		"model": "mock-model", "temperature": 0.7,
-		"chunksList": chunksList, "imageList": imageList,
-		"usage": mockUsage, "performance": mockPerformance,
+		"model":       s.libService.GetLoadedChatModel(),
+		"usage":       usage,
+		"performance": performance,
+		"llm_resp":    llmResp,
 	}
 
-	// 8. Save assistant message to DB
-	assistantMsgID, err := s.saveAssistantMessage(ctx, SaveAssistantMessageParams{
-		MessageID: req.MessageAssistantID,
-		Content:   mockContent,
+	savedMsgID, err := s.saveAssistantMessage(ctx, SaveAssistantMessageParams{
+		MessageID: assistantMsgID,
+		Content:   finalContentStr,
 		SessionID: req.SessionID,
 		TopicID:   currentTopicID,
 		ThreadID:  req.ThreadID,
 		UserID:    req.UserID,
 		Reasoning: reasoning,
-		Tools:     tools,
-		Search:    searchGrounding,
+		Tools:     uiTools,
 		Metadata:  fullMetadata,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to save assistant message: %w", err)
+		log.Printf("⚠️  Warning: Failed to save assistant message to DB: %v", err)
+		savedMsgID = assistantMsgID
+	} else {
+		log.Printf("💾 Saved assistant message: %s (topic: %s, thread: %s)", savedMsgID, currentTopicID, req.ThreadID)
 	}
 
-	// 9. Save RAG data
-	file1ID := uuid.New().String()
-	file2ID := uuid.New().String()
-	chunk1ID := uuid.New().String()
-	chunk2ID := uuid.New().String()
-	_ = s.saveRAGData(ctx, SaveRAGDataParams{
-		MessageID: assistantMsgID,
-		UserQuery: req.Message,
-		UserID:    req.UserID,
-		Files: []RAGFileParams{
-			{ID: file1ID, Name: "document.pdf", FileType: "application/pdf", URL: "", Size: 1024000},
-			{ID: file2ID, Name: "guide.md", FileType: "text/markdown", URL: "", Size: 2048},
-		},
-		Chunks: []RAGChunkParams{
-			{ID: chunk1ID, FileID: file1ID, Text: "Sample chunk.", ChunkIndex: 0, Type: "text", Similarity: 95},
-			{ID: chunk2ID, FileID: file2ID, Text: "Another chunk.", ChunkIndex: 0, Type: "text", Similarity: 87},
-		},
-	})
-
-	// 10. Save tool messages to DB
-	for i, tool := range tools {
-		result := toolResults[tool.ID]
+	// 12. Save tool messages to DB
+	for i, tool := range uiTools {
+		result := toolResultsData[i]
 		_, _ = s.saveToolMessage(ctx, SaveToolMessageParams{
 			ToolCallID: tool.ID,
 			Identifier: tool.Identifier,
@@ -247,25 +360,46 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 		})
 	}
 
-	// 11. Emit COMPLETE event with final data
-	// Use UIChatMessage for complete event
+	// 13. Generate topic title after first response (background)
+	if len(session.Messages) >= 2 && len(session.Messages) <= 4 {
+		if currentTopicID != "" {
+			err := s.updateTopicTitle(ctx, currentTopicID, session.UserID, session.Messages)
+			if err != nil {
+				log.Printf("⚠️  Warning: Failed to trigger topic title update: %v", err)
+			}
+		}
+	}
+
+	// 14. Update session timestamp
+	if err := s.updateSessionTimestamp(ctx, session.SessionID, session.UserID); err != nil {
+		log.Printf("⚠️  Warning: Failed to update session timestamp: %v", err)
+	}
+
+	// 15. Auto-summarize if needed (background)
+	if currentTopicID != "" {
+		go func() {
+			bgCtx := context.Background()
+			s.autoSummarizeIfNeeded(bgCtx, session, currentTopicID, session.UserID)
+			s.incrementalSummarizeIfNeeded(bgCtx, session, currentTopicID, session.UserID)
+		}()
+	}
+
+	// 16. Emit COMPLETE event with final data
 	emit(StreamEventComplete, &UIChatMessage{
-		Content:     mockContent,
+		Content:     finalContentStr,
 		TopicID:     currentTopicID,
 		Reasoning:   reasoning,
-		Search:      searchGrounding,
-		ChunksList:  chunksList,
-		ImageList:   imageList,
-		Usage:       mockUsage,
-		Performance: mockPerformance,
+		Usage:       usage,
+		Performance: performance,
+		Tools:       uiTools,
 	})
 
-	log.Printf("✅ [MOCK STREAM] Complete - emitted all events for session: %s", req.SessionID)
-	return nil
-}
+	totalTokens := 0
+	if usage != nil {
+		totalTokens = usage.TotalTokens
+	}
+	log.Printf("✅ [REAL STREAM] Complete - session: %s, duration: %dms, tokens: %d",
+		req.SessionID, duration, totalTokens)
 
-// ToolResultData holds content and state for a tool result
-type ToolResultData struct {
-	Content interface{}
-	State   interface{}
+	return nil
 }

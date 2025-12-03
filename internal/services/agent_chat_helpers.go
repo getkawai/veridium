@@ -30,6 +30,28 @@ import (
 )
 
 // ============================================================================
+// Stream Event Types for ChatMockStream and ChatRealStream
+// ============================================================================
+
+// StreamEventType represents the type of stream event
+type StreamEventType string
+
+const (
+	StreamEventStart      StreamEventType = "start"       // Generation started
+	StreamEventChunk      StreamEventType = "chunk"       // Content chunk
+	StreamEventReasoning  StreamEventType = "reasoning"   // Reasoning content
+	StreamEventToolCall   StreamEventType = "tool_call"   // Tool call initiated
+	StreamEventToolResult StreamEventType = "tool_result" // Tool execution result
+	StreamEventComplete   StreamEventType = "complete"    // Generation complete
+)
+
+// ToolResultData holds content and state for a tool result
+type ToolResultData struct {
+	Content interface{}
+	State   interface{}
+}
+
+// ============================================================================
 // Parameter Structs for Reusable Methods
 // ============================================================================
 

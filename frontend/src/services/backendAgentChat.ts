@@ -136,6 +136,39 @@ class BackendAgentChatService {
   }
 
   /**
+   * Send a real message with streaming events (REAL LLM)
+   * 
+   * This calls the backend ChatRealStream method which:
+   * - Calls real LLM (e.g., Llama, Qwen, etc.)
+   * - Executes real tools
+   * - Emits events via Wails for streaming UI:
+   *   - 'start': Generation started
+   *   - 'reasoning': Thinking content (streamed for reasoning models)
+   *   - 'chunk': Content chunks (streamed token by token)  
+   *   - 'tool_call': Tool call initiated by LLM
+   *   - 'tool_result': Tool execution result with pluginState
+   *   - 'complete': Generation finished with full metadata
+   * 
+   * Frontend listens via Events.On('chat:stream', handler) in App.tsx
+   * Data is saved to database at the end.
+   * 
+   * @param params Chat request parameters
+   * @returns void - all data comes via events
+   */
+  async sendMessageRealStream(params: Partial<ChatRequest>): Promise<void> {
+    try {
+      const request = new ChatRequest(params);
+      
+      await AgentChatService.ChatRealStream(request);
+      
+      console.log('[BackendAgentChat] Real stream completed');
+    } catch (error) {
+      console.error('[BackendAgentChat] Real stream failed:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Clear a session from backend cache
    * 
    * This removes the session from the in-memory cache but does NOT delete

@@ -89,14 +89,15 @@ const FALLBACK_CLIENT_DB_USER_ID = 'DEFAULT_LOBE_CHAT_USER';
 /**
  * API_MODE controls which backend to use:
  * 
- * - 'REAL': Production mode - calls real backend API with LLM
+ * - 'REAL': Production mode - calls real backend API with LLM (non-streaming)
  * - 'BACKEND_MOCK': Development mode - calls backend mock API (saves to DB, no LLM)
  * - 'BACKEND_MOCK_STREAM': Streaming mock - emits events with delays for realistic UI testing
+ * - 'BACKEND_REAL_STREAM': Production streaming - real LLM with event streaming
  * - 'FRONTEND_MOCK': UI testing mode - frontend-only mock (no backend, no DB)
  */
-type ApiMode = 'REAL' | 'BACKEND_MOCK' | 'BACKEND_MOCK_STREAM' | 'FRONTEND_MOCK';
+type ApiMode = 'REAL' | 'BACKEND_MOCK' | 'BACKEND_MOCK_STREAM' | 'BACKEND_REAL_STREAM' | 'FRONTEND_MOCK';
 
-const API_MODE: ApiMode = 'BACKEND_MOCK_STREAM' as ApiMode;
+const API_MODE: ApiMode = 'BACKEND_REAL_STREAM' as ApiMode;
 
 // ================================================================
 // MODE DESCRIPTIONS
@@ -121,6 +122,14 @@ const API_MODE: ApiMode = 'BACKEND_MOCK_STREAM' as ApiMode;
 //   - Emits events progressively with delays (simulates real streaming)
 //   - Events: start, reasoning, chunk, tool_call, tool_result, complete
 //   - Good for testing streaming UI
+//
+// BACKEND_REAL_STREAM:
+//   - Uses REAL local LLM (Llama, Qwen, etc.)
+//   - Real tool execution
+//   - Saves to database
+//   - Emits events progressively (real streaming from LLM)
+//   - Events: start, reasoning, chunk, tool_call, tool_result, complete
+//   - Production-ready with streaming UI
 //
 // FRONTEND_MOCK:
 //   - No backend calls
@@ -651,6 +660,28 @@ export const generateAIChat: StateCreator<
           // The optimistic user message will be updated with real data
 
           console.log('[Backend Mock Stream] Streaming complete, data came via events');
+          break;
+        }
+
+        case 'BACKEND_REAL_STREAM': {
+          console.log('[Backend Real Stream] Starting real LLM streaming...');
+
+          // Call real streaming - uses real LLM with streaming events
+          // Events are handled by internal_handleStreamEvent (called from App.tsx)
+          await backendAgentChat.sendMessageRealStream({
+            session_id: activeId,
+            user_id: FALLBACK_CLIENT_DB_USER_ID,
+            message: message,
+            topic_id: activeTopicId || undefined,
+            thread_id: threadId || undefined,
+            message_user_id: messageUserId,
+            message_assistant_id: messageAssistantId,
+          });
+
+          // Note: User message is also created via streaming events
+          // Real LLM response comes token by token via events
+
+          console.log('[Backend Real Stream] Streaming complete, data came via events');
           break;
         }
 

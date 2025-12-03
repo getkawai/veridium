@@ -77,6 +77,33 @@ export function ChatMockStream(req: $models.ChatRequest): $CancellablePromise<vo
 }
 
 /**
+ * ChatRealStream handles chat with REAL LLM calls using event streaming.
+ * This combines:
+ * - Real LLM logic from Chat() in agent_chat_service.go
+ * - Streaming architecture from ChatMockStream
+ * 
+ * Flow:
+ * 1. start - Generation begins
+ * 2. reasoning - Real thinking content from LLM (if reasoning model)
+ * 3. chunk - Real content chunks from LLM
+ * 4. tool_call - Real tool call initiated by LLM
+ * 5. tool_result - Real tool execution result
+ * 6. complete - Generation finished
+ * 
+ * Frontend listens to 'chat:stream' events via Events.On()
+ * Data is saved to DB at the end.
+ * 
+ * Usage from frontend:
+ * 
+ * 	await AgentChatService.ChatRealStream(request);
+ * 	// No return value - data comes via events
+ * 	// Events.On('chat:stream', handler) receives all updates
+ */
+export function ChatRealStream(req: $models.ChatRequest): $CancellablePromise<void> {
+    return $Call.ByID(564759359, req);
+}
+
+/**
  * ClearSession removes a session from memory
  */
 export function ClearSession(sessionID: string): $CancellablePromise<void> {
