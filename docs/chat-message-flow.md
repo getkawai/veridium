@@ -291,12 +291,13 @@ Proposed Architecture untuk Mock Stream
      │                                                            │    │
      │  Events.On('chat:stream') ◄────────────────────────────────┼────┤
      │       │                                                    │    │
-     │       │  Handle events:                                    │    │
+     │       │  Handle events (StreamEventPayload):               │    │
      │       │  - start: Mark as generating                       │    │
-     │       │  - chunk: Append content                           │    │
-     │       │  - tool_call: Add tool to message                  │    │
-     │       │  - tool_result: Update tool message                │    │
-     │       │  - complete: Finalize message                      │    │
+     │       │  - chunk: Append content (UIChatMessage.Content)   │    │
+     │       │  - reasoning: Update reasoning (UIChatMessage.Reasoning) │
+     │       │  - tool_call: Add tool (UIChatMessage.Tools)       │    │
+     │       │  - tool_result: Add tool msg (UIChatMessage)       │    │
+     │       │  - complete: Finalize (UIChatMessage)              │    │
      │       ▼                                                    │    │
      │  [Real-time UI Updates]                                    │    │
      └─────────────────────────────────────────────────────────────────┘
@@ -308,25 +309,25 @@ Proposed Architecture untuk Mock Stream
      │                                                                 │
      │  1. Save user message to DB                                     │
      │                                                                 │
-     │  2. Emit("chat:stream", {type: "start", message_id: "..."})     │
+     │  2. Emit("chat:stream", {type: "start", ...UIChatMessage})      │
      │     └── delay 200ms                                             │
      │                                                                 │
      │  3. Emit content in chunks:                                     │
      │     └── For each word/chunk:                                    │
-     │         Emit("chat:stream", {type: "chunk", content: "..."})    │
+     │         Emit("chat:stream", {type: "chunk", ...UIChatMessage})  │
      │         delay 50-100ms                                          │
      │                                                                 │
      │  4. Emit tool calls one by one:                                 │
      │     └── For each tool:                                          │
-     │         Emit("chat:stream", {type: "tool_call", tool: {...}})   │
+     │         Emit("chat:stream", {type: "tool_call", ...UIChatMessage}) │
      │         delay 500-1000ms (simulating execution)                 │
-     │         Emit("chat:stream", {type: "tool_result", ...})         │
+     │         Emit("chat:stream", {type: "tool_result", ...UIChatMessage})         │
      │                                                                 │
-     │  5. Emit("chat:stream", {type: "complete", ...})                │
+     │  5. Emit("chat:stream", {type: "complete", ...UIChatMessage})   │
      │                                                                 │
      │  6. Save all messages to DB                                     │
      │                                                                 │
-     │  7. Return final []UIChatMessage                                │
+     │  7. Return nil (data sent via events)                           │
      └─────────────────────────────────────────────────────────────────┘
 ```
 
