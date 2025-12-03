@@ -36,6 +36,7 @@ import { messageMapKey } from '@/store/chat/utils/messageMapKey';
 import { setNamespace } from '@/utils/storeDebug';
 import { chatSelectors } from '../../../selectors';
 import { idGenerator } from '@/database/utils/idGenerator';
+import type { UIChatMessage as BackendUIChatMessage } from '@@/github.com/kawai-network/veridium/internal/services/models';
 
 // User ID constant for backend calls
 const FALLBACK_CLIENT_DB_USER_ID = 'DEFAULT_LOBE_CHAT_USER';
@@ -79,7 +80,49 @@ const API_MODE: ApiMode = 'BACKEND_MOCK' as ApiMode;
 const n = setNamespace('ai');
 
 // ================================================================
-// HELPER FUNCTIONS FOR DIFFERENT API MODES
+// HELPER FUNCTIONS
+// ================================================================
+
+/**
+ * Map backend UIChatMessage to frontend UIChatMessage
+ * Backend uses camelCase consistently now after the refactor
+ */
+function mapBackendToFrontendMessage(
+  backendMsg: BackendUIChatMessage,
+  existingMsg: UIChatMessage,
+  defaults: { activeId: string; activeTopicId?: string; threadId?: string }
+): void {
+  const { activeId, activeTopicId, threadId } = defaults;
+
+  // Map core fields
+  existingMsg.id = backendMsg.id || existingMsg.id;
+  existingMsg.content = backendMsg.content || existingMsg.content;
+  existingMsg.sessionId = backendMsg.sessionId || activeId;
+  existingMsg.topicId = backendMsg.topicId || activeTopicId;
+  existingMsg.threadId = backendMsg.threadId || threadId;
+  existingMsg.createdAt = backendMsg.createdAt || Date.now();
+  existingMsg.updatedAt = backendMsg.updatedAt || Date.now();
+  (existingMsg as any).loading = false;
+
+  // Map optional fields directly (backend now uses same structure as frontend)
+  if (backendMsg.tools?.length) (existingMsg as any).tools = backendMsg.tools;
+  if (backendMsg.children?.length) (existingMsg as any).children = backendMsg.children;
+  if (backendMsg.chunksList?.length) (existingMsg as any).chunksList = backendMsg.chunksList;
+  if (backendMsg.imageList?.length) (existingMsg as any).imageList = backendMsg.imageList;
+  if (backendMsg.fileList?.length) (existingMsg as any).fileList = backendMsg.fileList;
+  if (backendMsg.videoList?.length) (existingMsg as any).videoList = backendMsg.videoList;
+  if (backendMsg.reasoning) (existingMsg as any).reasoning = backendMsg.reasoning;
+  if (backendMsg.search) (existingMsg as any).search = backendMsg.search;
+  if (backendMsg.usage) (existingMsg as any).usage = backendMsg.usage;
+  if (backendMsg.performance) (existingMsg as any).performance = backendMsg.performance;
+  if (backendMsg.metadata) (existingMsg as any).metadata = backendMsg.metadata;
+  if (backendMsg.extra) (existingMsg as any).extra = backendMsg.extra;
+  if (backendMsg.plugin) (existingMsg as any).plugin = backendMsg.plugin;
+  if (backendMsg.meta) existingMsg.meta = backendMsg.meta as any;
+}
+
+// ================================================================
+// API MODE HANDLERS
 // ================================================================
 
 /**
@@ -95,14 +138,13 @@ async function handleRealAPI(
     message: string;
     messageUserId: string;
     messageAssistantId: string;
+    mapKey: string;
   }
 ) {
-  const { activeId, activeTopicId, threadId, message, messageUserId, messageAssistantId } = context;
+  const { activeId, activeTopicId, threadId, message, messageUserId, messageAssistantId, mapKey } = context;
 
   console.log('[Real API] Calling real backend with LLM...');
 
-  // TODO: Implement real API call
-  // This will be similar to backend mock but calls the real endpoint
   const response = await backendAgentChat.sendMessage({
     session_id: activeId,
     user_id: FALLBACK_CLIENT_DB_USER_ID,
@@ -115,8 +157,22 @@ async function handleRealAPI(
 
   console.log('[Real API] Response received:', response);
 
-  // Refresh messages from DB only if topic changed
-  const finalTopicId = response.topic_id || activeTopicId;
+  const finalTopicId = response.topicId || activeTopicId;
+
+  // Update the assistant message with backend response
+  set(produce((state: ChatStore) => {
+    const messages = state.messagesMap[mapKey];
+    if (!messages) return;
+
+    const assistantMsgIndex = messages.findIndex((m: UIChatMessage) => m.id === messageAssistantId);
+    if (assistantMsgIndex === -1) {
+      console.error('[Real API] Assistant message not found');
+      return;
+    }
+
+    mapBackendToFrontendMessage(response, messages[assistantMsgIndex], { activeId, activeTopicId, threadId });
+    console.log('[Real API] Updated assistant message with backend data');
+  }), false, n('realAPI/updateAssistantMessage'));
 
   // If a new topic was created, switch to it
   if (finalTopicId && finalTopicId !== activeTopicId) {
@@ -124,9 +180,7 @@ async function handleRealAPI(
     await get().refreshTopic();
     await get().switchTopic(finalTopicId);
   } else {
-    // For same topic, we rely on stream events to update the UI state
-    // No need to fetch messages again
-    console.log('[Real API] Staying on same topic, relying on stream updates');
+    console.log('[Real API] Staying on same topic');
   }
 
   console.log('[Real API] Complete');
@@ -472,22 +526,15 @@ export const generateAIChat: StateCreator<
             message,
             messageUserId,
             messageAssistantId,
+            mapKey,
           });
           break;
 
-        case 'BACKEND_MOCK':
+        case 'BACKEND_MOCK': {
           console.log('[Backend Mock] Calling backend mock (saves to DB)...');
-          console.log('[Backend Mock] Params:', {
-            session_id: activeId,
-            user_id: FALLBACK_CLIENT_DB_USER_ID,
-            message: message,
-            topic_id: activeTopicId,
-            thread_id: threadId,
-            message_user_id: messageUserId,
-            message_assistant_id: messageAssistantId,
-          });
 
-          const response = await backendAgentChat.sendMessageMock({
+          // Backend returns array: [userMsg, assistantMsg, toolMsg1, toolMsg2, ...]
+          const mockMessages = await backendAgentChat.sendMessageMock({
             session_id: activeId,
             user_id: FALLBACK_CLIENT_DB_USER_ID,
             message: message,
@@ -497,24 +544,41 @@ export const generateAIChat: StateCreator<
             message_assistant_id: messageAssistantId,
           });
 
-          console.log('[Backend Mock] Response received:', response);
+          console.log('[Backend Mock] Received', mockMessages.length, 'messages');
 
-          // Refresh messages from DB only if topic changed
-          const finalTopicId = response.topic_id || activeTopicId;
+          // Find assistant message to get topicId
+          const assistantMsg = mockMessages.find(m => m.role === 'assistant');
+          const mockFinalTopicId = assistantMsg?.topicId || activeTopicId;
+
+          // Replace optimistic messages with backend messages
+          set(produce((state: ChatStore) => {
+            const messages = state.messagesMap[mapKey];
+            if (!messages) return;
+
+            // Remove optimistic user and assistant messages
+            const filteredMessages = messages.filter(
+              m => m.id !== messageUserId && m.id !== messageAssistantId
+            );
+
+            // Add all messages from backend (user, assistant, tools)
+            for (const msg of mockMessages) {
+              filteredMessages.push(msg as unknown as UIChatMessage);
+            }
+
+            state.messagesMap[mapKey] = filteredMessages;
+            console.log('[Backend Mock] Replaced optimistic messages with', mockMessages.length, 'backend messages');
+          }), false, n('backendMock/replaceMessages'));
 
           // If a new topic was created, switch to it
-          if (finalTopicId && finalTopicId !== activeTopicId) {
-            console.log('[Backend Mock] New topic created, switching to:', finalTopicId);
+          if (mockFinalTopicId && mockFinalTopicId !== activeTopicId) {
+            console.log('[Backend Mock] New topic created, switching to:', mockFinalTopicId);
             await get().refreshTopic();
-            await get().switchTopic(finalTopicId);
-          } else {
-            // For same topic, we rely on stream events to update the UI state
-            // No need to fetch messages again
-            console.log('[Backend Mock] Staying on same topic, relying on stream updates');
+            await get().switchTopic(mockFinalTopicId);
           }
 
           console.log('[Backend Mock] Complete');
           break;
+        }
 
         case 'FRONTEND_MOCK':
           await handleFrontendMock(set, {

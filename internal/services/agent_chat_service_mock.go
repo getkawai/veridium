@@ -13,39 +13,8 @@ import (
 	"github.com/kawai-network/veridium/pkg/yzma/tools/builtin"
 )
 
-// CitationItem represents a citation from search results
-type CitationItem struct {
-	Favicon string `json:"favicon,omitempty"`
-	ID      string `json:"id,omitempty"`
-	Title   string `json:"title,omitempty"`
-	URL     string `json:"url"`
-}
-
-// GroundingSearch represents search grounding data for messages
-type GroundingSearch struct {
-	Citations     []CitationItem `json:"citations,omitempty"`
-	SearchQueries []string       `json:"searchQueries,omitempty"`
-}
-
-// ChatToolPayload represents a tool call payload
-type ChatToolPayload struct {
-	APIName    string `json:"apiName"`
-	Arguments  string `json:"arguments"`
-	ID         string `json:"id"`
-	Identifier string `json:"identifier"`
-	Type       string `json:"type"` // "builtin" or other tool types
-}
-
-// ChatFileChunk represents a file chunk from RAG system
-type ChatFileChunk struct {
-	FileID     string  `json:"fileId"`
-	FileType   string  `json:"fileType"`
-	FileURL    string  `json:"fileUrl"`
-	Filename   string  `json:"filename"`
-	ID         string  `json:"id"`
-	Similarity float64 `json:"similarity,omitempty"`
-	Text       string  `json:"text"`
-}
+// Note: Types CitationItem, GroundingSearch, ChatToolPayload, ChatFileChunk
+// are defined in agent_chat_service.go and reused here
 
 // ChatMock handles mock chat responses for testing UI flow without real AI backend
 // This method saves complete mock messages to DB with all UI components:
@@ -57,12 +26,14 @@ type ChatFileChunk struct {
 // - Images (placeholder images)
 // - Usage & Performance metrics
 //
+// Returns array of all messages created: [user, assistant, tool1, tool2, ...]
+// This matches the real flow where frontend fetches all messages from DB.
+//
 // Usage from frontend:
 //
-//	const response = await AgentChatService.ChatMock(request);
-//
-// The frontend can then fetch messages from DB normally using internal_fetchMessages
-func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
+//	const messages = await AgentChatService.ChatMock(request);
+//	// messages is array: [userMsg, assistantMsg, toolMsg1, toolMsg2, ...]
+func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) ([]UIChatMessage, error) {
 	log.Printf("🎭 [MOCK] Starting mock chat for session: %s", req.SessionID)
 
 	// Simulate processing delay
@@ -90,9 +61,9 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 	)
 
 	// Mock reasoning
-	reasoning := map[string]interface{}{
-		"content": "Let me think about this step by step:\n1. First, I need to understand the question\n2. Then, I will formulate a response\n3. Finally, I will provide a clear answer",
-		"status":  "complete",
+	reasoning := &ModelReasoning{
+		Content:  "Let me think about this step by step:\n1. First, I need to understand the question\n2. Then, I will formulate a response\n3. Finally, I will provide a clear answer",
+		Duration: 1500,
 	}
 
 	// Mock RAG chunks
@@ -306,25 +277,25 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 	}
 
 	// Mock image list
-	imageList := []map[string]interface{}{
+	imageList := []ChatImageItem{
 		{
-			"id":  "img_1",
-			"url": "https://via.placeholder.com/300x200",
-			"alt": "Sample image 1",
+			ID:  "img_1",
+			URL: "https://via.placeholder.com/300x200",
+			Alt: "Sample image 1",
 		},
 	}
 
 	// Mock usage
-	usage := map[string]interface{}{
-		"prompt_tokens":     150,
-		"completion_tokens": 80,
-		"total_tokens":      230,
+	mockUsage := &ModelUsage{
+		TotalInputTokens:  150,
+		TotalOutputTokens: 80,
+		TotalTokens:       230,
 	}
 
 	// Mock performance
-	performance := map[string]interface{}{
-		"total_tokens": 230,
-		"duration":     1500,
+	mockPerformance := &ModelPerformance{
+		Duration: 1500,
+		Latency:  1800,
 	}
 
 	// Combine all metadata into one JSON object
@@ -333,8 +304,8 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 		"temperature": 0.7,
 		"chunksList":  chunksList,
 		"imageList":   imageList,
-		"usage":       usage,
-		"performance": performance,
+		"usage":       mockUsage,
+		"performance": mockPerformance,
 	}
 
 	// 2b. Save assistant message using reusable helper
@@ -607,7 +578,9 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 		Message: "File written successfully",
 	}
 	err = saveToolMsg("tool_7", "lobe-local-system", "writeLocalFile", tool7ArgsJSON,
-		writeFileResult, nil, 8)
+		nil,             // content
+		writeFileResult, // pluginState
+		8)
 	if err != nil {
 		log.Printf("⚠️  %v", err)
 	}
@@ -620,7 +593,9 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 		Success: true,
 	}
 	err = saveToolMsg("tool_8", "lobe-local-system", "renameLocalFile", tool8ArgsJSON,
-		renameFileState, nil, 9)
+		nil,             // content
+		renameFileState, // pluginState
+		9)
 	if err != nil {
 		log.Printf("⚠️  %v", err)
 	}
@@ -639,7 +614,9 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 		TotalCount:   1,
 	}
 	err = saveToolMsg("tool_9", "lobe-local-system", "moveLocalFiles", tool9ArgsJSON,
-		moveFilesState, nil, 10)
+		nil,            // content
+		moveFilesState, // pluginState
+		10)
 	if err != nil {
 		log.Printf("⚠️  %v", err)
 	}
@@ -693,14 +670,132 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) (*Chat
 
 	log.Printf("✅ [MOCK] Complete - saved %d messages (1 user, 1 assistant, 11 tools)", 13)
 
-	// Return response
-	return &ChatResponse{
-		MessageID:    assistantMsgID,
-		SessionID:    req.SessionID,
-		TopicID:      currentTopicID,
-		ThreadID:     req.ThreadID,
-		Message:      mockContent,
-		FinishReason: "stop",
-		CreatedAt:    time.Now().UnixMilli(),
-	}, nil
+	// Build tools with results for response
+	// Convert tool results to JSON strings for ChatToolResult.Content
+	searchResponseJSON, _ := json.Marshal(searchResponse)
+	crawlSingleStateJSON, _ := json.Marshal(crawlSingleState)
+	crawlMultiStateJSON, _ := json.Marshal(crawlMultiState)
+	listFilesStateJSON, _ := json.Marshal(listFilesState)
+	readFileStateJSON, _ := json.Marshal(readFileState)
+	searchFilesStateJSON, _ := json.Marshal(searchFilesState)
+	writeFileResultJSON, _ := json.Marshal(writeFileResult)
+	renameFileStateJSON, _ := json.Marshal(renameFileState)
+	moveFilesStateJSON, _ := json.Marshal(moveFilesState)
+	dalleImagesJSON, _ := json.Marshal(dalleImages)
+	codeInterpreterResponseJSON, _ := json.Marshal(codeInterpreterResponse)
+
+	toolsWithResults := []ChatToolPayloadWithResult{
+		{ChatToolPayload: tools[0], Result: &ChatToolResult{ID: "tool_1", Content: string(searchResponseJSON)}},
+		{ChatToolPayload: tools[1], Result: &ChatToolResult{ID: "tool_2", Content: string(crawlSingleStateJSON)}},
+		{ChatToolPayload: tools[2], Result: &ChatToolResult{ID: "tool_3", Content: string(crawlMultiStateJSON)}},
+		{ChatToolPayload: tools[3], Result: &ChatToolResult{ID: "tool_4", Content: string(listFilesStateJSON)}},
+		{ChatToolPayload: tools[4], Result: &ChatToolResult{ID: "tool_5", Content: string(readFileStateJSON)}},
+		{ChatToolPayload: tools[5], Result: &ChatToolResult{ID: "tool_6", Content: string(searchFilesStateJSON)}},
+		{ChatToolPayload: tools[6], Result: &ChatToolResult{ID: "tool_7", Content: string(writeFileResultJSON)}},
+		{ChatToolPayload: tools[7], Result: &ChatToolResult{ID: "tool_8", Content: string(renameFileStateJSON)}},
+		{ChatToolPayload: tools[8], Result: &ChatToolResult{ID: "tool_9", Content: string(moveFilesStateJSON)}},
+		{ChatToolPayload: tools[9], Result: &ChatToolResult{ID: "tool_10", Content: string(dalleImagesJSON)}},
+		{ChatToolPayload: tools[10], Result: &ChatToolResult{ID: "tool_11", Content: string(codeInterpreterResponseJSON)}},
+	}
+
+	// Create children block with tools results
+	children := []AssistantContentBlock{
+		{
+			ID:          assistantMsgID + "_block_1",
+			Content:     mockContent,
+			Tools:       toolsWithResults,
+			ImageList:   imageList,
+			Usage:       mockUsage,
+			Performance: mockPerformance,
+		},
+	}
+
+	// Build tool messages for frontend (so UI doesn't show loading state)
+	// Map tool ID to pluginState for local-system tools
+	toolStates := map[string]interface{}{
+		"tool_1":  nil,              // web-browsing uses content, not pluginState
+		"tool_2":  crawlSingleState, // web-browsing crawlSinglePage
+		"tool_3":  crawlMultiState,  // web-browsing crawlMultiPages
+		"tool_4":  listFilesState,   // local-system listLocalFiles
+		"tool_5":  readFileState,    // local-system readLocalFile
+		"tool_6":  searchFilesState, // local-system searchLocalFiles
+		"tool_7":  writeFileResult,  // local-system writeLocalFile
+		"tool_8":  renameFileState,  // local-system renameLocalFile
+		"tool_9":  moveFilesState,   // local-system moveLocalFiles
+		"tool_10": dalleImages,      // dalle images
+		"tool_11": nil,              // code-interpreter uses content
+	}
+
+	now := time.Now().UnixMilli()
+	toolMessages := make([]UIChatMessage, len(tools))
+	for i, tool := range tools {
+		var content string
+		if i < len(toolsWithResults) && toolsWithResults[i].Result != nil {
+			content = toolsWithResults[i].Result.Content
+		}
+		// Tool messages are UIChatMessage with role='tool'
+		toolMessages[i] = UIChatMessage{
+			ID:          fmt.Sprintf("tool_msg_%s_%d", assistantMsgID, i+1),
+			Role:        UIMessageRoleTool,
+			Content:     content,
+			ToolCallID:  tool.ID,
+			ParentID:    assistantMsgID,
+			SessionID:   req.SessionID,
+			TopicID:     currentTopicID,
+			ThreadID:    req.ThreadID,
+			PluginState: toolStates[tool.ID],
+			Plugin: &ChatPluginPayload{
+				APIName:    tool.APIName,
+				Arguments:  tool.Arguments,
+				Identifier: tool.Identifier,
+				Type:       tool.Type,
+			},
+			Meta:      MetaData{},
+			CreatedAt: now + int64(i+1), // Offset to ensure order
+			UpdatedAt: now + int64(i+1),
+		}
+	}
+
+	// Build user message
+	userMsg := UIChatMessage{
+		ID:        req.MessageUserID,
+		SessionID: req.SessionID,
+		TopicID:   currentTopicID,
+		ThreadID:  req.ThreadID,
+		Content:   req.Message,
+		Role:      UIMessageRoleUser,
+		Meta:      MetaData{},
+		CreatedAt: now - 1000, // 1 second before assistant
+		UpdatedAt: now - 1000,
+	}
+
+	// Build assistant message
+	assistantMsg := UIChatMessage{
+		ID:          assistantMsgID,
+		SessionID:   req.SessionID,
+		TopicID:     currentTopicID,
+		ThreadID:    req.ThreadID,
+		Content:     mockContent,
+		Role:        UIMessageRoleAssistant,
+		Tools:       tools,
+		Children:    children,
+		ChunksList:  chunksList,
+		ImageList:   imageList,
+		Reasoning:   reasoning,
+		Search:      searchGrounding,
+		Usage:       mockUsage,
+		Performance: mockPerformance,
+		Meta:        MetaData{},
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+
+	// Return all messages: [user, assistant, tool1, tool2, ...]
+	result := make([]UIChatMessage, 0, 2+len(toolMessages))
+	result = append(result, userMsg)
+	result = append(result, assistantMsg)
+	result = append(result, toolMessages...)
+
+	log.Printf("✅ [MOCK] Returning %d messages (1 user, 1 assistant, %d tools)", len(result), len(toolMessages))
+	return result, nil
 }

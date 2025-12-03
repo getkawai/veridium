@@ -20,7 +20,7 @@ import { useState } from 'react';
 
 // Import Wails-generated bindings (correct way)
 import * as AgentChatService from '@@/github.com/kawai-network/veridium/internal/services/agentchatservice';
-import { ChatRequest, type ChatResponse } from '@@/github.com/kawai-network/veridium/internal/services/models';
+import { ChatRequest, type UIChatMessage } from '@@/github.com/kawai-network/veridium/internal/services/models';
 
 class BackendAgentChatService {
   /**
@@ -35,10 +35,10 @@ class BackendAgentChatService {
    * - Returning all relevant IDs for frontend state management
    * 
    * @param params Chat request parameters
-   * @returns Chat response with message, IDs, sources, tool calls
+   * @returns UIChatMessage with all message data (tools, reasoning, usage, etc.)
    * @throws Error if backend returns an error
    */
-  async sendMessage(params: Partial<ChatRequest>): Promise<ChatResponse> {
+  async sendMessage(params: Partial<ChatRequest>): Promise<UIChatMessage> {
     try {
       // Create ChatRequest instance from params
       const request = new ChatRequest(params);
@@ -51,7 +51,7 @@ class BackendAgentChatService {
       }
       
       if (response.error) {
-        throw new Error(response.error);
+        throw new Error(response.error.message || 'Unknown error');
       }
 
       return response;
@@ -64,30 +64,25 @@ class BackendAgentChatService {
   /**
    * Send a mock message for testing UI flow
    * 
-   * This calls the backend ChatMock method which returns a simple mock response
-   * without calling the actual LLM or saving to database.
+   * This calls the backend ChatMock method which returns all messages created:
+   * [userMessage, assistantMessage, toolMessage1, toolMessage2, ...]
    * 
-   * Note: For full mock with all UI components (reasoning, tools, chunks, etc.),
-   * use the frontend mock in generateAIChat.ts instead.
+   * All messages are saved to database for realistic data flow testing.
    * 
    * @param params Chat request parameters
-   * @returns Mock chat response
+   * @returns Array of UIChatMessage (user + assistant + tool messages)
    */
-  async sendMessageMock(params: Partial<ChatRequest>): Promise<ChatResponse> {
+  async sendMessageMock(params: Partial<ChatRequest>): Promise<UIChatMessage[]> {
     try {
       const request = new ChatRequest(params);
       
-      const response = await AgentChatService.ChatMock(request);
+      const messages = await AgentChatService.ChatMock(request);
 
-      if (!response) {
-        throw new Error('Backend returned null response');
-      }
-      
-      if (response.error) {
-        throw new Error(response.error);
+      if (!messages || messages.length === 0) {
+        throw new Error('Backend returned empty response');
       }
 
-      return response;
+      return messages as unknown as UIChatMessage[];
     } catch (error) {
       console.error('[BackendAgentChat] Send mock message failed:', error);
       throw error;
@@ -101,9 +96,9 @@ class BackendAgentChatService {
    * Once backend streaming is implemented via Wails events, this will be updated.
    * 
    * @param params Chat request parameters
-   * @returns Chat response
+   * @returns UIChatMessage response
    */
-  async sendMessageStream(params: Partial<ChatRequest>): Promise<ChatResponse> {
+  async sendMessageStream(params: Partial<ChatRequest>): Promise<UIChatMessage> {
     console.warn(
       '[BackendAgentChat] Streaming not yet implemented, using synchronous chat',
     );
@@ -165,7 +160,7 @@ export function useBackendAgentChat() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const sendMessage = async (params: Partial<ChatRequest>): Promise<ChatResponse | null> => {
+  const sendMessage = async (params: Partial<ChatRequest>): Promise<UIChatMessage | null> => {
     setIsLoading(true);
     setError(null);
 

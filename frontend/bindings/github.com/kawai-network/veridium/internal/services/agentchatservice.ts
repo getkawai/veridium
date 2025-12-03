@@ -22,7 +22,7 @@ import * as $models from "./models.js";
 /**
  * Chat processes a chat request and returns a response
  */
-export function Chat(req: $models.ChatRequest): $CancellablePromise<$models.ChatResponse | null> {
+export function Chat(req: $models.ChatRequest): $CancellablePromise<$models.UIChatMessage | null> {
     return $Call.ByID(3994848739, req).then(($result: any) => {
         return $$createType1($result);
     });
@@ -39,15 +39,17 @@ export function Chat(req: $models.ChatRequest): $CancellablePromise<$models.Chat
  * - Images (placeholder images)
  * - Usage & Performance metrics
  * 
+ * Returns array of all messages created: [user, assistant, tool1, tool2, ...]
+ * This matches the real flow where frontend fetches all messages from DB.
+ * 
  * Usage from frontend:
  * 
- * 	const response = await AgentChatService.ChatMock(request);
- * 
- * The frontend can then fetch messages from DB normally using internal_fetchMessages
+ * 	const messages = await AgentChatService.ChatMock(request);
+ * 	// messages is array: [userMsg, assistantMsg, toolMsg1, toolMsg2, ...]
  */
-export function ChatMock(req: $models.ChatRequest): $CancellablePromise<$models.ChatResponse | null> {
+export function ChatMock(req: $models.ChatRequest): $CancellablePromise<$models.UIChatMessage[]> {
     return $Call.ByID(944716749, req).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType2($result);
     });
 }
 
@@ -70,7 +72,7 @@ export function GetLLMGenerator(): $CancellablePromise<$models.LLMGenerator> {
  */
 export function GetReasoningConfig(): $CancellablePromise<$models.ReasoningConfig> {
     return $Call.ByID(46956079).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType3($result);
     });
 }
 
@@ -93,7 +95,7 @@ export function GetRecommendedModelForMode(): $CancellablePromise<string> {
  */
 export function GetSessionHistory(sessionID: string): $CancellablePromise<message$0.Message[]> {
     return $Call.ByID(396946379, sessionID).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType4($result);
     });
 }
 
@@ -137,7 +139,8 @@ export function ValidateModelForReasoningMode(): $CancellablePromise<void> {
 }
 
 // Private type creation functions
-const $$createType0 = $models.ChatResponse.createFrom;
+const $$createType0 = $models.UIChatMessage.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
-const $$createType2 = $models.ReasoningConfig.createFrom;
-const $$createType3 = $Create.Array($Create.Any);
+const $$createType2 = $Create.Array($$createType0);
+const $$createType3 = $models.ReasoningConfig.createFrom;
+const $$createType4 = $Create.Array($Create.Any);

@@ -15,20 +15,41 @@ export {
 };
 
 export {
+    AssistantContentBlock,
+    ChatFileChunk,
+    ChatFileItem,
+    ChatImageItem,
+    ChatMessageError,
+    ChatMessageExtra,
+    ChatPluginPayload,
     ChatRequest,
-    ChatResponse,
+    ChatTTS,
+    ChatToolPayload,
+    ChatToolPayloadWithResult,
+    ChatToolResult,
+    ChatTranslate,
+    ChatVideoItem,
+    CitationItem,
     CreateThreadRequest,
     CreateThreadResponse,
     Document,
     FileItem,
+    GroundingSearch,
     ListThreadsRequest,
+    MessageMetadata,
+    MetaData,
+    ModelPerformance,
+    ModelReasoning,
+    ModelUsage,
     ProcessFileResponse,
     ReasoningConfig,
     ReasoningMode,
     SearchResult,
     ThreadInfo,
     ThreadStatus,
-    ThreadType
+    ThreadType,
+    UIChatMessage,
+    UIMessageRoleType
 } from "./models.js";
 
 export type {

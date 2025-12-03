@@ -114,24 +114,239 @@ type ChatRequest struct {
 	Stream          bool           `json:"stream,omitempty"`
 }
 
-// ChatResponse represents the response from agent
-type ChatResponse struct {
-	// IDs (Phase 4: Return created/used IDs)
-	MessageID string `json:"message_id"`          // Created assistant message ID
-	SessionID string `json:"session_id"`          // Session ID
-	TopicID   string `json:"topic_id,omitempty"`  // Topic ID (may be auto-created)
-	ThreadID  string `json:"thread_id,omitempty"` // Thread ID (if in thread)
+// UIMessageRoleType represents the role of a message
+type UIMessageRoleType string
 
-	// Content
-	Message      string              `json:"message"`
-	ToolCalls    []message.ToolCall  `json:"tool_calls,omitempty"` // Using yzma ToolCall
-	Sources      []*Document         `json:"sources,omitempty"`
-	FinishReason string              `json:"finish_reason"`
-	Usage        *llama.YzmaResponse `json:"usage,omitempty"` // Using yzma response for token info
+const (
+	UIMessageRoleUser       UIMessageRoleType = "user"
+	UIMessageRoleSystem     UIMessageRoleType = "system"
+	UIMessageRoleAssistant  UIMessageRoleType = "assistant"
+	UIMessageRoleTool       UIMessageRoleType = "tool"
+	UIMessageRoleSupervisor UIMessageRoleType = "supervisor"
+	UIMessageRoleGroup      UIMessageRoleType = "group"
+)
 
-	// Metadata (Phase 4)
-	CreatedAt int64  `json:"created_at"`      // Timestamp
-	Error     string `json:"error,omitempty"` // Error if any
+// MetaData represents metadata for messages/agents
+type MetaData struct {
+	Avatar          string   `json:"avatar,omitempty"`
+	BackgroundColor string   `json:"backgroundColor,omitempty"`
+	Description     string   `json:"description,omitempty"`
+	Tags            []string `json:"tags,omitempty"`
+	Title           string   `json:"title,omitempty"`
+}
+
+// ChatFileItem represents a file attachment
+type ChatFileItem struct {
+	Content  string `json:"content,omitempty"`
+	FileType string `json:"fileType"`
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Size     int64  `json:"size"`
+	URL      string `json:"url"`
+}
+
+// ChatImageItem represents an image attachment
+type ChatImageItem struct {
+	Alt string `json:"alt,omitempty"`
+	ID  string `json:"id"`
+	URL string `json:"url"`
+}
+
+// ChatVideoItem represents a video attachment
+type ChatVideoItem struct {
+	Cover string `json:"cover,omitempty"`
+	ID    string `json:"id"`
+	Name  string `json:"name,omitempty"`
+	Size  int64  `json:"size,omitempty"`
+	URL   string `json:"url"`
+}
+
+// ModelUsage represents token usage metrics
+type ModelUsage struct {
+	InputCachedTokens        int     `json:"inputCachedTokens,omitempty"`
+	InputCacheMissTokens     int     `json:"inputCacheMissTokens,omitempty"`
+	InputWriteCacheTokens    int     `json:"inputWriteCacheTokens,omitempty"`
+	InputTextTokens          int     `json:"inputTextTokens,omitempty"`
+	InputImageTokens         int     `json:"inputImageTokens,omitempty"`
+	InputAudioTokens         int     `json:"inputAudioTokens,omitempty"`
+	InputCitationTokens      int     `json:"inputCitationTokens,omitempty"`
+	OutputTextTokens         int     `json:"outputTextTokens,omitempty"`
+	OutputImageTokens        int     `json:"outputImageTokens,omitempty"`
+	OutputAudioTokens        int     `json:"outputAudioTokens,omitempty"`
+	OutputReasoningTokens    int     `json:"outputReasoningTokens,omitempty"`
+	AcceptedPredictionTokens int     `json:"acceptedPredictionTokens,omitempty"`
+	RejectedPredictionTokens int     `json:"rejectedPredictionTokens,omitempty"`
+	TotalInputTokens         int     `json:"totalInputTokens,omitempty"`
+	TotalOutputTokens        int     `json:"totalOutputTokens,omitempty"`
+	TotalTokens              int     `json:"totalTokens,omitempty"`
+	Cost                     float64 `json:"cost,omitempty"`
+}
+
+// ModelPerformance represents performance metrics
+type ModelPerformance struct {
+	TPS      float64 `json:"tps,omitempty"`
+	TTFT     int64   `json:"ttft,omitempty"`
+	Duration int64   `json:"duration,omitempty"`
+	Latency  int64   `json:"latency,omitempty"`
+}
+
+// ModelReasoning represents reasoning/thinking content
+type ModelReasoning struct {
+	Content   string `json:"content,omitempty"`
+	Duration  int64  `json:"duration,omitempty"`
+	Signature string `json:"signature,omitempty"`
+}
+
+// ChatMessageError represents an error in a message
+type ChatMessageError struct {
+	Body    interface{} `json:"body,omitempty"`
+	Message string      `json:"message"`
+	Type    string      `json:"type"`
+}
+
+// MessageMetadata combines usage and performance metrics
+type MessageMetadata struct {
+	ModelUsage
+	ModelPerformance
+}
+
+// ChatTTS represents text-to-speech data
+type ChatTTS struct {
+	ContentMd5 string `json:"contentMd5,omitempty"`
+	File       string `json:"file,omitempty"`
+	Voice      string `json:"voice,omitempty"`
+}
+
+// ChatTranslate represents translation data
+type ChatTranslate struct {
+	Content string `json:"content,omitempty"`
+	From    string `json:"from,omitempty"`
+	To      string `json:"to,omitempty"`
+}
+
+// ChatMessageExtra represents extra message fields
+type ChatMessageExtra struct {
+	FromModel    string         `json:"fromModel,omitempty"`
+	FromProvider string         `json:"fromProvider,omitempty"`
+	Translate    *ChatTranslate `json:"translate,omitempty"`
+	TTS          *ChatTTS       `json:"tts,omitempty"`
+}
+
+// ChatToolResult represents tool execution result
+type ChatToolResult struct {
+	Content string      `json:"content"`
+	Error   interface{} `json:"error,omitempty"`
+	ID      string      `json:"id"`
+	State   interface{} `json:"state,omitempty"`
+}
+
+// ChatToolPayload represents a tool call payload
+type ChatToolPayload struct {
+	APIName    string `json:"apiName"`
+	Arguments  string `json:"arguments"`
+	ID         string `json:"id"`
+	Identifier string `json:"identifier"`
+	Type       string `json:"type"`
+}
+
+// ChatFileChunk represents a file chunk from RAG system
+type ChatFileChunk struct {
+	FileID     string  `json:"fileId"`
+	FileType   string  `json:"fileType"`
+	FileURL    string  `json:"fileUrl"`
+	Filename   string  `json:"filename"`
+	ID         string  `json:"id"`
+	Similarity float64 `json:"similarity,omitempty"`
+	Text       string  `json:"text"`
+}
+
+// CitationItem represents a citation from search results
+type CitationItem struct {
+	Favicon string `json:"favicon,omitempty"`
+	ID      string `json:"id,omitempty"`
+	Title   string `json:"title,omitempty"`
+	URL     string `json:"url"`
+}
+
+// GroundingSearch represents search grounding data for messages
+type GroundingSearch struct {
+	Citations     []CitationItem `json:"citations,omitempty"`
+	SearchQueries []string       `json:"searchQueries,omitempty"`
+}
+
+// ChatToolPayloadWithResult combines tool payload with result
+type ChatToolPayloadWithResult struct {
+	ChatToolPayload
+	Result *ChatToolResult `json:"result,omitempty"`
+}
+
+// ChatPluginPayload represents a plugin call payload
+type ChatPluginPayload struct {
+	APIName    string `json:"apiName"`
+	Arguments  string `json:"arguments"`
+	Identifier string `json:"identifier"`
+	Type       string `json:"type"`
+}
+
+// AssistantContentBlock represents content block in grouped messages
+type AssistantContentBlock struct {
+	Content     string                      `json:"content"`
+	FileList    []ChatFileItem              `json:"fileList,omitempty"`
+	ID          string                      `json:"id"`
+	ImageList   []ChatImageItem             `json:"imageList,omitempty"`
+	Performance *ModelPerformance           `json:"performance,omitempty"`
+	Tools       []ChatToolPayloadWithResult `json:"tools,omitempty"`
+	Usage       *ModelUsage                 `json:"usage,omitempty"`
+}
+
+// UIChatMessage represents the response from agent (matches frontend/src/types/message/ui/chat.ts)
+// This type is used for ALL message roles: user, assistant, tool, system, etc.
+// For tool messages (role='tool'), use ToolCallID to link back to the tool call in assistant message.
+type UIChatMessage struct {
+	AgentID    string                  `json:"agentId,omitempty"`
+	Children   []AssistantContentBlock `json:"children,omitempty"`
+	ChunksList []ChatFileChunk         `json:"chunksList,omitempty"`
+	Content    string                  `json:"content"`
+	CreatedAt  int64                   `json:"createdAt"`
+	Error      *ChatMessageError       `json:"error,omitempty"`
+	Extra      *ChatMessageExtra       `json:"extra,omitempty"`
+	FileList   []ChatFileItem          `json:"fileList,omitempty"`
+	Files      []string                `json:"files,omitempty"` // deprecated
+	GroupID    string                  `json:"groupId,omitempty"`
+	ID         string                  `json:"id"`
+	ImageList  []ChatImageItem         `json:"imageList,omitempty"`
+	Meta       MetaData                `json:"meta"`
+	Metadata   *MessageMetadata        `json:"metadata,omitempty"`
+
+	ObservationID string            `json:"observationId,omitempty"`
+	ParentID      string            `json:"parentId,omitempty"`
+	Performance   *ModelPerformance `json:"performance,omitempty"`
+
+	Plugin      *ChatPluginPayload `json:"plugin,omitempty"`
+	PluginError interface{}        `json:"pluginError,omitempty"`
+	PluginState interface{}        `json:"pluginState,omitempty"`
+
+	QuotaID     string `json:"quotaId,omitempty"`
+	RagQuery    string `json:"ragQuery,omitempty"`
+	RagQueryID  string `json:"ragQueryId,omitempty"`
+	RagRawQuery string `json:"ragRawQuery,omitempty"`
+
+	Reasoning *ModelReasoning   `json:"reasoning,omitempty"`
+	Role      UIMessageRoleType `json:"role"`
+	Search    *GroundingSearch  `json:"search,omitempty"`
+
+	SessionID  string `json:"sessionId,omitempty"`
+	TargetID   string `json:"targetId,omitempty"`
+	ThreadID   string `json:"threadId,omitempty"`
+	ToolCallID string `json:"tool_call_id,omitempty"`
+
+	Tools   []ChatToolPayload `json:"tools,omitempty"`
+	TopicID string            `json:"topicId,omitempty"`
+	TraceID string `json:"traceId,omitempty"`
+
+	UpdatedAt int64           `json:"updatedAt"`
+	Usage     *ModelUsage     `json:"usage,omitempty"`
+	VideoList []ChatVideoItem `json:"videoList,omitempty"`
 }
 
 // NewAgentChatService creates a new agent-based chat service
@@ -304,7 +519,7 @@ func detectSummaryGenerationModel(libService *llama.LibraryService) string {
 }
 
 // Chat processes a chat request and returns a response
-func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
+func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*UIChatMessage, error) {
 	// 1. Setup session, topic, and save user message using reusable helper
 	// SetupSessionAndTopic handles:
 	// - Get/create session
@@ -351,7 +566,6 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*ChatResp
 	// Run agent with LLM generator (streaming or non-streaming)
 	var finalMessage string
 	var toolCalls []message.ToolCall
-	var finishReason string
 	var usage *llama.YzmaResponse
 	var toolMessages []message.Message
 
@@ -364,7 +578,6 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*ChatResp
 		finalMessage = resp.Content
 		toolCalls = resp.ToolCalls
 		toolMessages = tms
-		finishReason = "stop"
 	} else {
 		// Use agent loop (non-streaming)
 		resp, tms, runErr := llmWithTools.RunAgentLoop(ctx, messagesWithSystem, 10)
@@ -376,7 +589,6 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*ChatResp
 		toolCalls = resp.ToolCalls
 		toolMessages = tms
 		usage = resp
-		finishReason = resp.FinishReason
 	}
 
 	// Add tool messages to session (for history)
@@ -509,26 +721,47 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*ChatResp
 		log.Printf("⚠️  Warning: Failed to update session timestamp: %v", err)
 	}
 
-	// Get sources if KB was used
-	var sources []*Document
-	if req.KnowledgeBaseID != "" {
-		// Query KB to get sources that were used
-		sources, _ = s.kbService.QueryKnowledgeBase(ctx, req.KnowledgeBaseID, req.Message, 3, req.UserID)
-	}
-
 	// Phase 4: Return with all relevant IDs
 	now := time.Now().UnixMilli()
-	return &ChatResponse{
-		MessageID:    assistantMsgID,
-		SessionID:    session.SessionID,
-		TopicID:      currentTopicID,
-		ThreadID:     req.ThreadID,
-		Message:      finalMessage,
-		ToolCalls:    toolCalls,
-		Sources:      sources,
-		FinishReason: finishReason,
-		Usage:        usage,
-		CreatedAt:    now,
+
+	// Convert yzma ToolCalls to UI format
+	var uiTools []ChatToolPayload
+	if len(toolCalls) > 0 {
+		uiTools = make([]ChatToolPayload, len(toolCalls))
+		for i, tc := range toolCalls {
+			argsJSON, _ := json.Marshal(tc.Function.Arguments)
+			uiTools[i] = ChatToolPayload{
+				ID:         fmt.Sprintf("%s_%d", assistantMsgID, i),
+				APIName:    tc.Function.Name,
+				Identifier: tc.Function.Name,
+				Arguments:  string(argsJSON),
+				Type:       tc.Type,
+			}
+		}
+	}
+
+	// Convert usage to UI format
+	var uiUsage *ModelUsage
+	if usage != nil {
+		uiUsage = &ModelUsage{
+			TotalInputTokens:  usage.PromptTokens,
+			TotalOutputTokens: usage.CompletionTokens,
+			TotalTokens:       usage.TotalTokens,
+		}
+	}
+
+	return &UIChatMessage{
+		ID:        assistantMsgID,
+		SessionID: session.SessionID,
+		TopicID:   currentTopicID,
+		ThreadID:  req.ThreadID,
+		Content:   finalMessage,
+		Role:      UIMessageRoleAssistant,
+		Tools:     uiTools,
+		Usage:     uiUsage,
+		Meta:      MetaData{},
+		CreatedAt: now,
+		UpdatedAt: now,
 	}, nil
 }
 

@@ -5,6 +5,7 @@ import { memo } from 'react';
 import { LocalSystemApiName } from '@/tools/local-system';
 
 import ListFiles from './ListFiles';
+import MoveFiles from './MoveFiles';
 import ReadLocalFile from './ReadLocalFile';
 import RenameLocalFile from './RenameLocalFile';
 import SearchFiles from './SearchFiles';
@@ -15,6 +16,7 @@ const RenderMap = {
   [LocalSystemApiName.listLocalFiles]: ListFiles,
   [LocalSystemApiName.readLocalFile]: ReadLocalFile,
   [LocalSystemApiName.renameLocalFile]: RenameLocalFile,
+  [LocalSystemApiName.moveLocalFiles]: MoveFiles,
   [LocalSystemApiName.writeLocalFile]: WriteFile,
 };
 
