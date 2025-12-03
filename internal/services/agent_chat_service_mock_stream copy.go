@@ -14,22 +14,6 @@ import (
 	"github.com/kawai-network/veridium/pkg/yzma/tools/builtin"
 )
 
-// ============================================
-// ChatMockStream - Event Streaming Mock
-// ============================================
-
-// StreamEventType represents the type of stream event
-type StreamEventType string
-
-const (
-	StreamEventStart      StreamEventType = "start"       // Generation started
-	StreamEventChunk      StreamEventType = "chunk"       // Content chunk
-	StreamEventReasoning  StreamEventType = "reasoning"   // Reasoning content
-	StreamEventToolCall   StreamEventType = "tool_call"   // Tool call initiated
-	StreamEventToolResult StreamEventType = "tool_result" // Tool execution result
-	StreamEventComplete   StreamEventType = "complete"    // Generation complete
-)
-
 // ChatMockStream handles mock chat with event streaming for realistic UI testing
 // Instead of returning all messages at once, it emits events progressively:
 // 1. start - Generation begins
@@ -266,12 +250,6 @@ func (s *AgentChatService) ChatMockStream(ctx context.Context, req ChatRequest) 
 
 	log.Printf("✅ [MOCK STREAM] Complete - emitted all events for session: %s", req.SessionID)
 	return nil
-}
-
-// ToolResultData holds content and state for a tool result
-type ToolResultData struct {
-	Content interface{}
-	State   interface{}
 }
 
 // buildMockTools returns the mock tools array
