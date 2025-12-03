@@ -1,4 +1,4 @@
-.PHONY: help db-generate bindings-generate dev build clean test
+.PHONY: help db-generate bindings-generate dev build clean test update-llama
 
 # Default target
 help:
@@ -16,6 +16,7 @@ help:
 	@echo "Maintenance:"
 	@echo "  make clean                Clean generated files and build artifacts"
 	@echo "  make test                 Run tests"
+	@echo "  make update-llama         Update llama.cpp to latest version"
 
 # Generate Go code from SQL queries using sqlc
 db-generate:
@@ -63,3 +64,23 @@ watch:
 	@echo "👀 Watching for changes in queries..."
 	@echo "Install 'entr' first: brew install entr"
 	find internal/database/queries -name "*.sql" | entr -r make generate
+
+# Update llama.cpp to latest version
+update-llama:
+	@echo "🔧 Updating llama.cpp..."
+	@./scripts/update-llama.sh
+
+# Update llama.cpp (force reinstall)
+update-llama-force:
+	@echo "🔧 Force updating llama.cpp..."
+	@./scripts/update-llama.sh --force
+
+# Check llama.cpp version
+llama-version:
+	@echo "📦 Checking llama.cpp version..."
+	@go run ./cmd/update-llama/main.go --version
+
+# List available llama.cpp versions
+llama-versions:
+	@echo "📋 Listing available llama.cpp versions..."
+	@go run ./cmd/update-llama/main.go --list
