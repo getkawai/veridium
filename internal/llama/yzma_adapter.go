@@ -32,14 +32,18 @@ import (
 // Default max iterations for agent loop
 const DefaultMaxIterations = 10
 
+// Default batch size for token processing (must match context NBatch parameter)
+// This prevents GGML_ASSERT failures when processing long prompts
+const DefaultBatchSize = 2048
+
 // YzmaResponse represents a response from yzma model generation
 type YzmaResponse struct {
-	Content      string
-	ToolCalls    []message.ToolCall
-	FinishReason string
-	PromptTokens int
+	Content          string
+	ToolCalls        []message.ToolCall
+	FinishReason     string
+	PromptTokens     int
 	CompletionTokens int
-	TotalTokens  int
+	TotalTokens      int
 }
 
 // LlamaYzmaModel implements chat model with yzma tool calling
@@ -381,11 +385,29 @@ func (m *LlamaYzmaModel) generateStreaming(ctx context.Context, prompt string, m
 	// Reset sampler state
 	llama.SamplerReset(m.libService.chatSampler)
 
-	// Decode prompt tokens
-	batch := llama.BatchGetOne(tokens)
-	errCode, err := llama.Decode(m.libService.chatContext, batch)
-	if err != nil || errCode != 0 {
-		return "", fmt.Errorf("failed to decode prompt: %w", err)
+	// CRITICAL FIX: Process prompt tokens in batches to avoid GGML_ASSERT
+	// When prompt is long (especially with tool definitions), total tokens can exceed
+	// the batch size limit (2048), causing llama.cpp to crash with:
+	// GGML_ASSERT(n_tokens_all <= cparams.n_batch) failed
+	//
+	// Solution: Split tokens into batches of DefaultBatchSize and process sequentially
+	log.Printf("🔢 Processing %d prompt tokens in batches of %d", len(tokens), DefaultBatchSize)
+
+	for i := 0; i < len(tokens); i += DefaultBatchSize {
+		end := i + DefaultBatchSize
+		if end > len(tokens) {
+			end = len(tokens)
+		}
+
+		batchTokens := tokens[i:end]
+		batch := llama.BatchGetOne(batchTokens)
+
+		errCode, err := llama.Decode(m.libService.chatContext, batch)
+		if err != nil || errCode != 0 {
+			return "", fmt.Errorf("failed to decode prompt batch %d-%d: %w", i, end, err)
+		}
+
+		log.Printf("✅ Processed token batch %d-%d/%d", i, end, len(tokens))
 	}
 
 	var response strings.Builder
@@ -499,4 +521,3 @@ func (m *LlamaYzmaModel) RunAgentLoopWithStreaming(ctx context.Context, messages
 	log.Printf("⚠️  Agent loop (streaming) reached max iterations (%d)", maxIterations)
 	return finalResponse, allToolMessages, nil
 }
-
