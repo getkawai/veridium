@@ -13,6 +13,52 @@ import (
 	"github.com/kawai-network/veridium/pkg/yzma/message"
 )
 
+// ToolNameMapping maps Yzma tool names to frontend-compatible identifier/apiName pairs
+// This is critical for frontend to render tool results correctly
+type ToolNameMapping struct {
+	Identifier string // Frontend identifier (e.g., "lobe-web-browsing")
+	APIName    string // Frontend API name (e.g., "search")
+	Type       string // Tool type (e.g., "builtin")
+}
+
+// toolNameMappings maps Yzma tool names to frontend-compatible values
+var toolNameMappings = map[string]ToolNameMapping{
+	// Web search tools
+	"web_search":                {Identifier: "lobe-web-browsing", APIName: "search", Type: "builtin"},
+	"lobe-web-browsing__search": {Identifier: "lobe-web-browsing", APIName: "search", Type: "builtin"},
+
+	// Web crawling tools
+	"lobe-web-browsing__crawlSinglePage": {Identifier: "lobe-web-browsing", APIName: "crawlSinglePage", Type: "builtin"},
+	"lobe-web-browsing__crawlMultiPages": {Identifier: "lobe-web-browsing", APIName: "crawlMultiPages", Type: "builtin"},
+
+	// Local file system tools
+	"lobe-local-system__listLocalFiles":   {Identifier: "lobe-local-system", APIName: "listLocalFiles", Type: "builtin"},
+	"lobe-local-system__readLocalFile":    {Identifier: "lobe-local-system", APIName: "readLocalFile", Type: "builtin"},
+	"lobe-local-system__searchLocalFiles": {Identifier: "lobe-local-system", APIName: "searchLocalFiles", Type: "builtin"},
+	"lobe-local-system__writeLocalFile":   {Identifier: "lobe-local-system", APIName: "writeLocalFile", Type: "builtin"},
+	"lobe-local-system__renameLocalFile":  {Identifier: "lobe-local-system", APIName: "renameLocalFile", Type: "builtin"},
+	"lobe-local-system__moveLocalFiles":   {Identifier: "lobe-local-system", APIName: "moveLocalFiles", Type: "builtin"},
+
+	// Image tools
+	"lobe-image-designer__text2image": {Identifier: "lobe-image-designer", APIName: "text2image", Type: "builtin"},
+
+	// Code interpreter
+	"lobe-code-interpreter__python": {Identifier: "lobe-code-interpreter", APIName: "python", Type: "builtin"},
+
+	// Calculator
+	"calculator": {Identifier: "calculator", APIName: "calculate", Type: "builtin"},
+}
+
+// mapToolName maps a Yzma tool name to frontend-compatible identifier/apiName
+// Returns the original name if no mapping exists
+func mapToolName(yzmaToolName string) (identifier, apiName, toolType string) {
+	if mapping, ok := toolNameMappings[yzmaToolName]; ok {
+		return mapping.Identifier, mapping.APIName, mapping.Type
+	}
+	// Fallback: use tool name as both identifier and apiName
+	return yzmaToolName, yzmaToolName, "builtin"
+}
+
 // stripToolCallTags removes <tool_call>...</tool_call> blocks from the text using regex
 func stripToolCallTags(text string) string {
 	// First, try to remove complete <tool_call>...</tool_call> blocks
@@ -251,12 +297,16 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 			toolCallID := fmt.Sprintf("%s_tool_%d", assistantMsgID, i)
 			argsJSON, _ := json.Marshal(tc.Function.Arguments)
 
+			// Map Yzma tool name to frontend-compatible identifier/apiName
+			identifier, apiName, toolType := mapToolName(tc.Function.Name)
+			log.Printf("🔧 [REAL STREAM] Tool mapping: %s -> identifier=%s, apiName=%s", tc.Function.Name, identifier, apiName)
+
 			uiTools[i] = ChatToolPayload{
 				ID:         toolCallID,
-				APIName:    tc.Function.Name,
-				Identifier: tc.Function.Name, // Will be mapped by frontend if needed
+				APIName:    apiName,
+				Identifier: identifier,
 				Arguments:  string(argsJSON),
-				Type:       tc.Type,
+				Type:       toolType,
 			}
 
 			// Emit tool_call event
@@ -273,7 +323,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 				if toolResp, ok := tm.(message.ToolResponse); ok {
 					if toolResp.Name == tc.Function.Name {
 						toolContent = toolResp.Content
-						// Try to parse as JSON for state
+						// Try to parse as JSON for state (pluginState)
 						var parsed interface{}
 						if err := json.Unmarshal([]byte(toolResp.Content), &parsed); err == nil {
 							toolState = parsed
@@ -288,15 +338,15 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 				State:   toolState,
 			}
 
-			// Emit tool_result event
+			// Emit tool_result event with frontend-compatible structure
 			emit(StreamEventToolResult, map[string]interface{}{
 				"tool_call_id": toolCallID,
 				"tool_msg_id":  fmt.Sprintf("tool_msg_%s_%d", assistantMsgID, i+1),
 				"plugin": ChatPluginPayload{
-					Identifier: tc.Function.Name,
-					APIName:    tc.Function.Name,
+					Identifier: identifier,
+					APIName:    apiName,
 					Arguments:  string(argsJSON),
-					Type:       tc.Type,
+					Type:       toolType,
 				},
 				"pluginState": toolState,
 				"content":     toolContent,

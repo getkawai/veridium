@@ -36,6 +36,103 @@ const DefaultMaxIterations = 10
 // This prevents GGML_ASSERT failures when processing long prompts
 const DefaultBatchSize = 2048
 
+// Llama32ToolTemplate is a custom chat template for Llama 3.2 models with tool support.
+// The original Llama 3.2 template has raise_exception for multiple tool calls,
+// but gonja doesn't support that function. This template provides tool call support
+// without the restrictive validation, following the same structure as Qwen.
+const Llama32ToolTemplate = `{%- if tools %}
+{{- '<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+' }}
+{%- if messages[0]['role'] == 'system' %}
+{{- messages[0]['content'] }}
+{%- else %}
+{{- 'You are a helpful assistant with access to the following functions.' }}
+{%- endif %}
+{{- '
+
+# Tools
+
+You may call one or more functions to assist with the user query.
+
+You are provided with function signatures within <tools></tools> XML tags:
+<tools>' }}
+{%- for tool in tools %}
+{{- '
+' }}
+{{- tool | tojson }}
+{%- endfor %}
+{{- '
+</tools>
+
+For each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:
+<tool_call>
+{"name": <function-name>, "arguments": <args-json-object>}
+</tool_call><|eot_id|>
+' }}
+{%- else %}
+{%- if messages[0]['role'] == 'system' %}
+{{- '<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+' + messages[0]['content'] + '<|eot_id|>
+' }}
+{%- else %}
+{{- '<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+You are a helpful assistant.<|eot_id|>
+' }}
+{%- endif %}
+{%- endif %}
+{%- for message in messages %}
+{%- if (message.role == "user") or (message.role == "system" and not loop.first) or (message.role == "assistant" and not message.tool_calls) %}
+{{- '<|start_header_id|>' + message.role + '<|end_header_id|>
+
+' + message.content + '<|eot_id|>
+' }}
+{%- elif message.role == "assistant" %}
+{{- '<|start_header_id|>' + message.role + '<|end_header_id|>
+' }}
+{%- if message.content %}
+{{- message.content }}
+{%- endif %}
+{%- for tool_call in message.tool_calls %}
+{%- if tool_call.function is defined %}
+{%- set tool_call = tool_call.function %}
+{%- endif %}
+{{- '
+<tool_call>
+{"name": "' }}
+{{- tool_call.name }}
+{{- '", "arguments": ' }}
+{{- tool_call.arguments | tojson }}
+{{- '}
+</tool_call>' }}
+{%- endfor %}
+{{- '<|eot_id|>
+' }}
+{%- elif message.role == "tool" %}
+{%- if (loop.index0 == 0) or (messages[loop.index0 - 1].role != "tool") %}
+{{- '<|start_header_id|>ipython<|end_header_id|>
+' }}
+{%- endif %}
+{{- '
+<tool_response>
+' }}
+{{- message.content }}
+{{- '
+</tool_response>' }}
+{%- if loop.last or (messages[loop.index0 + 1].role != "tool") %}
+{{- '<|eot_id|>
+' }}
+{%- endif %}
+{%- endif %}
+{%- endfor %}
+{%- if add_generation_prompt %}
+{{- '<|start_header_id|>assistant<|end_header_id|>
+
+' }}
+{%- endif %}`
+
 // YzmaResponse represents a response from yzma model generation
 type YzmaResponse struct {
 	Content          string
@@ -85,6 +182,23 @@ func (m *LlamaYzmaModel) WithoutTools() *LlamaYzmaModel {
 	}
 }
 
+// getChatTemplate returns the appropriate chat template for the current model
+// For Llama 3.2 models, we use a custom template that supports tool calls properly
+// because the embedded template has raise_exception which gonja doesn't support
+func (m *LlamaYzmaModel) getChatTemplate() string {
+	modelPath := m.libService.GetLoadedChatModel()
+	modelPathLower := strings.ToLower(modelPath)
+
+	// Check if this is a Llama 3.2 model
+	if strings.Contains(modelPathLower, "llama-3.2") || strings.Contains(modelPathLower, "llama_3.2") || strings.Contains(modelPathLower, "llama3.2") {
+		log.Printf("🔧 Using custom Llama 3.2 tool template")
+		return Llama32ToolTemplate
+	}
+
+	// Use embedded template from model for other models
+	return llama.ModelChatTemplate(m.libService.chatModel, "")
+}
+
 // Generate generates a response from yzma messages (native yzma interface)
 func (m *LlamaYzmaModel) Generate(ctx context.Context, messages []message.Message) (*YzmaResponse, error) {
 	// Ensure chat model is loaded
@@ -97,8 +211,8 @@ func (m *LlamaYzmaModel) Generate(ctx context.Context, messages []message.Messag
 	// Enhance system prompt with tools if available
 	enhancedMessages := m.enhanceWithTools(messages)
 
-	// Apply chat template
-	chatTemplate := llama.ModelChatTemplate(m.libService.chatModel, "")
+	// Apply chat template - use custom template for Llama 3.2
+	chatTemplate := m.getChatTemplate()
 	prompt, err := template.Apply(chatTemplate, enhancedMessages, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to apply template: %w", err)
@@ -232,6 +346,7 @@ func minInt(a, b int) int {
 
 // RunAgentLoop runs the agent loop with tool calling until no more tool calls or max iterations
 // This is the main entry point for agentic conversations (native yzma interface)
+// The returned YzmaResponse contains ALL tool calls from all iterations (not just the last one)
 func (m *LlamaYzmaModel) RunAgentLoop(ctx context.Context, messages []message.Message, maxIterations int) (*YzmaResponse, []message.Message, error) {
 	if maxIterations <= 0 {
 		maxIterations = DefaultMaxIterations
@@ -243,6 +358,7 @@ func (m *LlamaYzmaModel) RunAgentLoop(ctx context.Context, messages []message.Me
 
 	var finalResponse *YzmaResponse
 	var allToolMessages []message.Message
+	var allToolCalls []message.ToolCall // Collect all tool calls from all iterations
 
 	for i := 0; i < maxIterations; i++ {
 		log.Printf("🔄 Agent loop iteration %d/%d", i+1, maxIterations)
@@ -260,6 +376,8 @@ func (m *LlamaYzmaModel) RunAgentLoop(ctx context.Context, messages []message.Me
 				Role:      "assistant",
 				ToolCalls: resp.ToolCalls,
 			})
+			// Collect tool calls from this iteration
+			allToolCalls = append(allToolCalls, resp.ToolCalls...)
 		} else {
 			// Regular assistant message
 			allMessages = append(allMessages, message.Chat{
@@ -272,6 +390,8 @@ func (m *LlamaYzmaModel) RunAgentLoop(ctx context.Context, messages []message.Me
 		// Check if no tool calls - we're done
 		if len(resp.ToolCalls) == 0 {
 			log.Printf("✅ Agent loop completed after %d iterations (no tool calls)", i+1)
+			// Include all collected tool calls in the final response
+			finalResponse.ToolCalls = allToolCalls
 			return finalResponse, allToolMessages, nil
 		}
 
@@ -295,6 +415,10 @@ func (m *LlamaYzmaModel) RunAgentLoop(ctx context.Context, messages []message.Me
 	}
 
 	log.Printf("⚠️  Agent loop reached max iterations (%d)", maxIterations)
+	// Include all collected tool calls in the final response even when max iterations reached
+	if finalResponse != nil {
+		finalResponse.ToolCalls = allToolCalls
+	}
 	return finalResponse, allToolMessages, nil
 }
 
@@ -336,8 +460,8 @@ func (m *LlamaYzmaModel) Stream(ctx context.Context, messages []message.Message,
 	// Enhance system prompt with tools if available
 	enhancedMessages := m.enhanceWithTools(messages)
 
-	// Apply chat template
-	chatTemplate := llama.ModelChatTemplate(m.libService.chatModel, "")
+	// Apply chat template - use custom template for Llama 3.2
+	chatTemplate := m.getChatTemplate()
 	prompt, err := template.Apply(chatTemplate, enhancedMessages, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to apply template: %w", err)
@@ -462,6 +586,8 @@ func (m *LlamaYzmaModel) generateStreaming(ctx context.Context, prompt string, m
 }
 
 // RunAgentLoopWithStreaming runs agent loop with streaming support (native yzma interface)
+// Returns the final response, all tool messages, and any error
+// The returned YzmaResponse contains ALL tool calls from all iterations (not just the last one)
 func (m *LlamaYzmaModel) RunAgentLoopWithStreaming(ctx context.Context, messages []message.Message, maxIterations int, callback StreamCallback) (*YzmaResponse, []message.Message, error) {
 	if maxIterations <= 0 {
 		maxIterations = DefaultMaxIterations
@@ -472,6 +598,7 @@ func (m *LlamaYzmaModel) RunAgentLoopWithStreaming(ctx context.Context, messages
 
 	var finalResponse *YzmaResponse
 	var allToolMessages []message.Message
+	var allToolCalls []message.ToolCall // Collect all tool calls from all iterations
 
 	for i := 0; i < maxIterations; i++ {
 		log.Printf("🔄 Agent loop (streaming) iteration %d/%d", i+1, maxIterations)
@@ -488,6 +615,8 @@ func (m *LlamaYzmaModel) RunAgentLoopWithStreaming(ctx context.Context, messages
 				Role:      "assistant",
 				ToolCalls: resp.ToolCalls,
 			})
+			// Collect tool calls from this iteration
+			allToolCalls = append(allToolCalls, resp.ToolCalls...)
 		} else {
 			allMessages = append(allMessages, message.Chat{
 				Role:    "assistant",
@@ -498,6 +627,8 @@ func (m *LlamaYzmaModel) RunAgentLoopWithStreaming(ctx context.Context, messages
 
 		if len(resp.ToolCalls) == 0 {
 			log.Printf("✅ Agent loop (streaming) completed after %d iterations", i+1)
+			// Include all collected tool calls in the final response
+			finalResponse.ToolCalls = allToolCalls
 			return finalResponse, allToolMessages, nil
 		}
 
@@ -519,5 +650,9 @@ func (m *LlamaYzmaModel) RunAgentLoopWithStreaming(ctx context.Context, messages
 	}
 
 	log.Printf("⚠️  Agent loop (streaming) reached max iterations (%d)", maxIterations)
+	// Include all collected tool calls in the final response even when max iterations reached
+	if finalResponse != nil {
+		finalResponse.ToolCalls = allToolCalls
+	}
 	return finalResponse, allToolMessages, nil
 }
