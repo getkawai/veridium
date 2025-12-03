@@ -5,12 +5,28 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/kawai-network/veridium/pkg/yzma/message"
 )
+
+// stripToolCallTags removes <tool_call>...</tool_call> blocks from the text using regex
+func stripToolCallTags(text string) string {
+	// First, try to remove complete <tool_call>...</tool_call> blocks
+	re := regexp.MustCompile(`(?s)<tool_call>.*?</tool_call>`)
+	cleaned := re.ReplaceAllString(text, "")
+
+	// If <tool_call> tag still exists (incomplete/unclosed), remove everything from <tool_call> onwards
+	if strings.Contains(cleaned, "<tool_call>") {
+		idx := strings.Index(cleaned, "<tool_call>")
+		cleaned = cleaned[:idx]
+	}
+
+	return strings.TrimSpace(cleaned)
+}
 
 // ============================================
 // ChatRealStream - Real LLM Event Streaming
@@ -116,6 +132,9 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	// Track timing
 	var ttft int64 // Time to first token
 
+	// Track state for filtering tool_call tags
+	var inToolCallTag bool
+
 	// Streaming callback that emits events to frontend
 	streamCallback := func(token string, isLast bool) {
 		if token == "" && !isLast {
@@ -157,13 +176,27 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 			}
 		} else {
 			// Regular content (not in <think> tag)
-			// Filter out tool_call tags from display
-			displayToken := token
-			if strings.Contains(displayToken, "<tool_call>") || strings.Contains(displayToken, "</tool_call>") {
-				return // Skip tool_call tags in content display
+
+			// Track tool_call tag state
+			if strings.Contains(token, "<tool_call>") {
+				inToolCallTag = true
+			}
+			if strings.Contains(token, "</tool_call>") {
+				inToolCallTag = false
+				return // Skip the closing tag token
 			}
 
-			finalContent.WriteString(displayToken)
+			// Skip content if we're inside a tool_call tag
+			if inToolCallTag {
+				return
+			}
+
+			// Skip tokens that contain tool_call tag markers
+			if strings.Contains(token, "<tool_call>") || strings.Contains(token, "</tool_call>") {
+				return
+			}
+
+			finalContent.WriteString(token)
 
 			// Clean content for display (remove any remaining tags)
 			cleanContent := finalContent.String()
@@ -271,14 +304,16 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 		}
 	}
 
-	// 7. Clean final content
+	// 7. Clean final content - remove both think tags and tool_call tags
 	finalContentStr := finalContent.String()
 	finalContentStr = stripThinkTags(finalContentStr)
+	finalContentStr = stripToolCallTags(finalContentStr)
 	finalContentStr = strings.TrimSpace(finalContentStr)
 
 	// If final content is empty but we have response content, use that
 	if finalContentStr == "" && resp != nil && resp.Content != "" {
 		finalContentStr = stripThinkTags(resp.Content)
+		finalContentStr = stripToolCallTags(resp.Content)
 		finalContentStr = strings.TrimSpace(finalContentStr)
 	}
 
