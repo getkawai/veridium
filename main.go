@@ -180,7 +180,6 @@ func main() {
 
 		// Get RAGProcessor from fileProcessorService (we need to expose it)
 		// For now, create a new one
-		fileLoader := services.NewFileLoader()
 		embedder := vectorSearchService.GetEmbedder()
 		ragProcessor := services.NewRAGProcessor(dbService.DB(), duckDBStore, fileLoader, embedder)
 
