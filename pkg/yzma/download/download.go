@@ -31,7 +31,7 @@ var RetryCount = 3
 
 // FallbackVersion is used when GitHub API is unavailable (rate limit, network issues, etc.)
 // This should be updated periodically to a known stable version
-const FallbackVersion = "b4315"
+const FallbackVersion = "b7248"
 
 // LlamaLatestVersion fetches the latest release tag of llama.cpp from the GitHub API.
 // Falls back to a hardcoded version if GitHub API is unavailable.
