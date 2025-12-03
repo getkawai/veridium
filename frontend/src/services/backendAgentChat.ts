@@ -106,6 +106,36 @@ class BackendAgentChatService {
   }
 
   /**
+   * Send a mock message with streaming events
+   * 
+   * This calls the backend ChatMockStream method which emits events via Wails:
+   * - 'start': Generation started
+   * - 'reasoning': Thinking content (streamed)
+   * - 'chunk': Content chunks (streamed word by word)  
+   * - 'tool_call': Tool call initiated
+   * - 'tool_result': Tool execution result with pluginState
+   * - 'complete': Generation finished
+   * 
+   * Frontend listens via Events.On('chat:stream', handler) in App.tsx
+   * Data is saved to database at the end.
+   * 
+   * @param params Chat request parameters
+   * @returns void - all data comes via events
+   */
+  async sendMessageMockStream(params: Partial<ChatRequest>): Promise<void> {
+    try {
+      const request = new ChatRequest(params);
+      
+      await AgentChatService.ChatMockStream(request);
+      
+      console.log('[BackendAgentChat] Mock stream completed');
+    } catch (error) {
+      console.error('[BackendAgentChat] Mock stream failed:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Clear a session from backend cache
    * 
    * This removes the session from the in-memory cache but does NOT delete

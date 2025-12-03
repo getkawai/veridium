@@ -49,11 +49,12 @@ const FALLBACK_CLIENT_DB_USER_ID = 'DEFAULT_LOBE_CHAT_USER';
  * 
  * - 'REAL': Production mode - calls real backend API with LLM
  * - 'BACKEND_MOCK': Development mode - calls backend mock API (saves to DB, no LLM)
+ * - 'BACKEND_MOCK_STREAM': Streaming mock - emits events with delays for realistic UI testing
  * - 'FRONTEND_MOCK': UI testing mode - frontend-only mock (no backend, no DB)
  */
-type ApiMode = 'REAL' | 'BACKEND_MOCK' | 'FRONTEND_MOCK';
+type ApiMode = 'REAL' | 'BACKEND_MOCK' | 'BACKEND_MOCK_STREAM' | 'FRONTEND_MOCK';
 
-const API_MODE: ApiMode = 'BACKEND_MOCK' as ApiMode;
+const API_MODE: ApiMode = 'BACKEND_MOCK_STREAM' as ApiMode;
 
 // ================================================================
 // MODE DESCRIPTIONS
@@ -68,7 +69,16 @@ const API_MODE: ApiMode = 'BACKEND_MOCK' as ApiMode;
 //   - No LLM calls (saves costs)
 //   - Saves to database (realistic data flow)
 //   - Mock tool results
+//   - Returns all messages at once
 //   - Good for backend integration testing
+//
+// BACKEND_MOCK_STREAM:
+//   - No LLM calls (saves costs)
+//   - Saves to database (realistic data flow)
+//   - Mock tool results
+//   - Emits events progressively with delays (simulates real streaming)
+//   - Events: start, reasoning, chunk, tool_call, tool_result, complete
+//   - Good for testing streaming UI
 //
 // FRONTEND_MOCK:
 //   - No backend calls
@@ -580,6 +590,28 @@ export const generateAIChat: StateCreator<
           break;
         }
 
+        case 'BACKEND_MOCK_STREAM': {
+          console.log('[Backend Mock Stream] Starting streaming mock...');
+
+          // Call streaming mock - all updates come via events
+          // Events are handled by internal_handleStreamEvent (called from App.tsx)
+          await backendAgentChat.sendMessageMockStream({
+            session_id: activeId,
+            user_id: FALLBACK_CLIENT_DB_USER_ID,
+            message: message,
+            topic_id: activeTopicId || undefined,
+            thread_id: threadId || undefined,
+            message_user_id: messageUserId,
+            message_assistant_id: messageAssistantId,
+          });
+
+          // Note: User message is also created via streaming events
+          // The optimistic user message will be updated with real data
+
+          console.log('[Backend Mock Stream] Streaming complete, data came via events');
+          break;
+        }
+
         case 'FRONTEND_MOCK':
           await handleFrontendMock(set, {
             activeId,
@@ -675,6 +707,15 @@ export const generateAIChat: StateCreator<
   /**
    * Handle stream events globally
    * Called from App.tsx when a stream event is received
+   * 
+   * Event types:
+   * - start: Generation started, add to loading IDs
+   * - reasoning: Thinking content (update reasoning field)
+   * - chunk: Content chunks (update content field)
+   * - tool_call: Tool call initiated (update tools array)
+   * - tool_result: Tool execution result (add tool message to messagesMap)
+   * - tool_calling: Legacy - tool is being called (same as tool_call)
+   * - complete: Generation finished (finalize message, remove from loading)
    */
   internal_handleStreamEvent: (data: any) => {
     const { activeId, activeTopicId } = get();
@@ -685,56 +726,117 @@ export const generateAIChat: StateCreator<
       if (!messages) return;
 
       if (data.type === 'start') {
-        // Find the loading assistant message by ID (we already have the real ID)
+        // Find the loading assistant message by ID
         const msgIndex = messages.findIndex(m => m.id === data.message_id);
 
         if (msgIndex !== -1) {
-          console.log('[Stream] Found assistant message with ID:', data.message_id);
+          console.log('[Stream] Start - found assistant message:', data.message_id);
 
           // Add to loading IDs for animation
           if (!state.chatLoadingIds.includes(data.message_id)) {
             state.chatLoadingIds.push(data.message_id);
           }
+
+          // Update topic_id if provided
+          if (data.topic_id) {
+            messages[msgIndex].topicId = data.topic_id;
+          }
         } else {
-          console.warn('[Stream] Could not find assistant message for start event:', data.message_id);
+          console.warn('[Stream] Start - could not find assistant message:', data.message_id);
+        }
+      } else if (data.type === 'reasoning') {
+        // Reasoning/thinking content streamed
+        const msg = messages.find(m => m.id === data.message_id);
+        if (msg) {
+          (msg as any).reasoning = {
+            content: data.full_content,
+            duration: 0,
+          };
+          msg.updatedAt = Date.now();
         }
       } else if (data.type === 'chunk') {
-        // Find message by REAL ID
+        // Content chunk streamed
         const msg = messages.find(m => m.id === data.message_id);
         if (msg) {
           msg.content = data.full_content;
           msg.updatedAt = Date.now();
         }
-      } else if (data.type === 'tool_calling') {
-        // Tool is being called - update tools array for Tool component rendering
-        console.log('[Stream] Tool calling event received:', data);
+      } else if (data.type === 'tool_call' || data.type === 'tool_calling') {
+        // Tool call initiated - update tools array on assistant message
+        console.log('[Stream] Tool call:', data.tool?.apiName || 'unknown');
 
         const msg = messages.find(m => m.id === data.message_id);
         if (msg) {
-          // Set tools array so Tool component renders
+          // Set/update tools array so Tool component renders
           (msg as any).tools = data.tools?.map((t: any) => ({
-            id: t.id,
-            identifier: t.identifier,
-            apiName: t.apiName,
-            arguments: t.arguments || '{}',
-            type: t.type || 'builtin',
+            id: t.id || t.ID,
+            identifier: t.identifier || t.Identifier,
+            apiName: t.apiName || t.APIName,
+            arguments: t.arguments || t.Arguments || '{}',
+            type: t.type || t.Type || 'builtin',
           })) || [];
           msg.updatedAt = Date.now();
+        }
+      } else if (data.type === 'tool_result') {
+        // Tool execution result - add tool message to messagesMap
+        console.log('[Stream] Tool result:', data.tool_call_id);
 
-          console.log('[Stream] Updated message with tools:', msg);
-        } else {
-          console.warn('[Stream] Could not find message for tool_calling:', data.message_id);
+        // Create tool message
+        const toolMessage: UIChatMessage = {
+          id: data.tool_msg_id,
+          role: 'tool',
+          content: typeof data.content === 'string' ? data.content : JSON.stringify(data.content || ''),
+          tool_call_id: data.tool_call_id,
+          sessionId: activeId,
+          topicId: activeTopicId,
+          pluginState: data.pluginState,
+          plugin: data.plugin ? {
+            apiName: data.plugin.apiName,
+            arguments: data.plugin.arguments,
+            identifier: data.plugin.identifier,
+            type: data.plugin.type,
+          } : undefined,
+          meta: {},
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        } as UIChatMessage;
+
+        // Add to messages if not already exists
+        if (!messages.find(m => m.id === toolMessage.id)) {
+          messages.push(toolMessage);
         }
       } else if (data.type === 'complete') {
+        // Generation finished
         const msg = messages.find(m => m.id === data.message_id);
         if (msg) {
-          msg.content = data.content;
+          msg.content = data.content || msg.content;
           msg.updatedAt = Date.now();
           (msg as any).loading = false;
+
+          // Update additional fields if provided
+          if (data.reasoning) {
+            (msg as any).reasoning = data.reasoning;
+          }
+          if (data.search) {
+            (msg as any).search = data.search;
+          }
+          if (data.chunksList) {
+            (msg as any).chunksList = data.chunksList;
+          }
+          if (data.imageList) {
+            (msg as any).imageList = data.imageList;
+          }
+          if (data.usage) {
+            (msg as any).usage = data.usage;
+          }
+          if (data.performance) {
+            (msg as any).performance = data.performance;
+          }
         }
 
         // Remove from loading IDs
         state.chatLoadingIds = state.chatLoadingIds.filter(id => id !== data.message_id);
+        console.log('[Stream] Complete - message finalized:', data.message_id);
       }
     }), false, n('streamEvent'));
   },

@@ -54,6 +54,29 @@ export function ChatMock(req: $models.ChatRequest): $CancellablePromise<$models.
 }
 
 /**
+ * ChatMockStream handles mock chat with event streaming for realistic UI testing
+ * Instead of returning all messages at once, it emits events progressively:
+ * 1. start - Generation begins
+ * 2. reasoning - Thinking content (streamed)
+ * 3. chunk - Content chunks (streamed word by word)
+ * 4. tool_call - Tool call initiated
+ * 5. tool_result - Tool execution result (with pluginState)
+ * 6. complete - Generation finished
+ * 
+ * Frontend listens to 'chat:stream' events via Events.On()
+ * Data is saved to DB at the end (same as ChatMock)
+ * 
+ * Usage from frontend:
+ * 
+ * 	await AgentChatService.ChatMockStream(request);
+ * 	// No return value - data comes via events
+ * 	// Events.On('chat:stream', handler) receives all updates
+ */
+export function ChatMockStream(req: $models.ChatRequest): $CancellablePromise<void> {
+    return $Call.ByID(3416642717, req);
+}
+
+/**
  * ClearSession removes a session from memory
  */
 export function ClearSession(sessionID: string): $CancellablePromise<void> {

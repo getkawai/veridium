@@ -244,6 +244,92 @@ messagesMap[sessionKey] = [
 ]
 ```
 
+### BACKEND_MOCK_STREAM Flow
+
+```mermaid
+graph TD
+    subgraph Frontend
+        A[sendMessage] -->|1. Create Optimistic UI| B[Optimistic Messages]
+        B -->|User: loading=false| B1[User Msg]
+        B -->|Asst: loading=true| B2[Asst Msg]
+        
+        A -->|2. Call ChatMockStream| C[Backend]
+        
+        E[Events.On 'chat:stream'] -->|Handle events| F[Real-time UI Updates]
+        F -->|start| F1[Mark generating]
+        F -->|chunk| F2[Append content]
+        F -->|tool_call| F3[Add tool]
+        F -->|tool_result| F4[Update tool]
+        F -->|complete| F5[Finalize]
+    end
+
+    subgraph Backend_Go
+        C -->|1. Save User Msg| D1[DB]
+        C -->|2. Emit start| E
+        C -->|3. Emit chunks| E
+        C -->|4. Emit tool calls| E
+        C -->|5. Emit tool results| E
+        C -->|6. Emit complete| E
+        C -->|7. Save All Msgs| D1
+    end
+```
+
+```text
+Proposed Architecture untuk Mock Stream
+
+     ┌─────────────────────────────────────────────────────────────────┐
+     │ Frontend                                                        │
+     │                                                                 │
+     │  sendMessage() ────────────────────────────────────────────┐    │
+     │       │                                                    │    │
+     │       │  1. Create optimistic UI                           │    │
+     │       │  2. Call ChatMockStream()                          │    │
+     │       ▼                                                    │    │
+     │  [Optimistic Messages]                                     │    │
+     │  - User message (loading=false)                            │    │
+     │  - Assistant message (loading=true)                        │    │
+     │                                                            │    │
+     │  Events.On('chat:stream') ◄────────────────────────────────┼────┤
+     │       │                                                    │    │
+     │       │  Handle events:                                    │    │
+     │       │  - start: Mark as generating                       │    │
+     │       │  - chunk: Append content                           │    │
+     │       │  - tool_call: Add tool to message                  │    │
+     │       │  - tool_result: Update tool message                │    │
+     │       │  - complete: Finalize message                      │    │
+     │       ▼                                                    │    │
+     │  [Real-time UI Updates]                                    │    │
+     └─────────────────────────────────────────────────────────────────┘
+                                   ▲
+                                   │ Events via Wails
+                                   │
+     ┌─────────────────────────────────────────────────────────────────┐
+     │ Backend (Go) - ChatMockStream()                                 │
+     │                                                                 │
+     │  1. Save user message to DB                                     │
+     │                                                                 │
+     │  2. Emit("chat:stream", {type: "start", message_id: "..."})     │
+     │     └── delay 200ms                                             │
+     │                                                                 │
+     │  3. Emit content in chunks:                                     │
+     │     └── For each word/chunk:                                    │
+     │         Emit("chat:stream", {type: "chunk", content: "..."})    │
+     │         delay 50-100ms                                          │
+     │                                                                 │
+     │  4. Emit tool calls one by one:                                 │
+     │     └── For each tool:                                          │
+     │         Emit("chat:stream", {type: "tool_call", tool: {...}})   │
+     │         delay 500-1000ms (simulating execution)                 │
+     │         Emit("chat:stream", {type: "tool_result", ...})         │
+     │                                                                 │
+     │  5. Emit("chat:stream", {type: "complete", ...})                │
+     │                                                                 │
+     │  6. Save all messages to DB                                     │
+     │                                                                 │
+     │  7. Return final []UIChatMessage                                │
+     └─────────────────────────────────────────────────────────────────┘
+```
+
 ## Tool Message Lookup Flow
 
 ```
