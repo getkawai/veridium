@@ -50,19 +50,32 @@ const (
 func (s *AgentChatService) ChatMockStream(ctx context.Context, req ChatRequest) error {
 	log.Printf("🎭 [MOCK STREAM] Starting streaming mock for session: %s", req.SessionID)
 
-	// Helper to emit events
-	emit := func(eventType StreamEventType, data map[string]interface{}) {
+	// Helper to emit events with type safety
+	emit := func(eventType StreamEventType, data interface{}) {
 		if s.app == nil {
 			return
 		}
+
+		// 1. Create base map with common fields
 		payload := map[string]interface{}{
 			"type":       string(eventType),
 			"session_id": req.SessionID,
 			"message_id": req.MessageAssistantID,
 		}
-		for k, v := range data {
-			payload[k] = v
+
+		// 2. Merge data fields into payload
+		// Using JSON round-trip to convert struct to map[string]interface{}
+		// This is a simple way to merge without reflection complexity
+		if data != nil {
+			jsonData, _ := json.Marshal(data)
+			var dataMap map[string]interface{}
+			_ = json.Unmarshal(jsonData, &dataMap)
+
+			for k, v := range dataMap {
+				payload[k] = v
+			}
 		}
+
 		s.app.Event.Emit("chat:stream", payload)
 	}
 
@@ -74,8 +87,9 @@ func (s *AgentChatService) ChatMockStream(ctx context.Context, req ChatRequest) 
 	currentTopicID := setup.TopicID
 
 	// 2. Emit START event
-	emit(StreamEventStart, map[string]interface{}{
-		"topic_id": currentTopicID,
+	// Use UIChatMessage for consistency
+	emit(StreamEventStart, &UIChatMessage{
+		TopicID: currentTopicID,
 	})
 	time.Sleep(100 * time.Millisecond)
 
@@ -85,9 +99,12 @@ func (s *AgentChatService) ChatMockStream(ctx context.Context, req ChatRequest) 
 
 	for i, chunk := range reasoningWords {
 		partialContent := joinChunks(reasoningWords[:i+1])
-		emit(StreamEventReasoning, map[string]interface{}{
-			"content":      chunk,
-			"full_content": partialContent,
+		// Use UIChatMessage with Reasoning field
+		emit(StreamEventReasoning, &UIChatMessage{
+			Reasoning: &ModelReasoning{
+				Content: partialContent, // Frontend expects full content in reasoning.content
+			},
+			Content: chunk, // Optional: delta content
 		})
 		time.Sleep(50 * time.Millisecond)
 	}
@@ -100,11 +117,11 @@ func (s *AgentChatService) ChatMockStream(ctx context.Context, req ChatRequest) 
 	)
 	contentWords := splitIntoChunks(mockContent, 3) // 3 words per chunk
 
-	for i, chunk := range contentWords {
+	for i, _ := range contentWords {
 		partialContent := joinChunks(contentWords[:i+1])
-		emit(StreamEventChunk, map[string]interface{}{
-			"content":      chunk,
-			"full_content": partialContent,
+		// Use UIChatMessage with Content field
+		emit(StreamEventChunk, &UIChatMessage{
+			Content: partialContent, // Frontend expects full content
 		})
 		time.Sleep(30 * time.Millisecond)
 	}
@@ -129,15 +146,9 @@ func (s *AgentChatService) ChatMockStream(ctx context.Context, req ChatRequest) 
 
 	for i, tool := range tools {
 		// Emit tool_call
-		emit(StreamEventToolCall, map[string]interface{}{
-			"tool": map[string]interface{}{
-				"id":         tool.ID,
-				"identifier": tool.Identifier,
-				"apiName":    tool.APIName,
-				"arguments":  tool.Arguments,
-				"type":       tool.Type,
-			},
-			"tools": tools[:i+1], // All tools so far (for UI to render)
+		// Use UIChatMessage with Tools field
+		emit(StreamEventToolCall, &UIChatMessage{
+			Tools: tools[:i+1], // All tools so far (for UI to render)
 		})
 		time.Sleep(300 * time.Millisecond) // Simulate tool execution
 
@@ -145,18 +156,22 @@ func (s *AgentChatService) ChatMockStream(ctx context.Context, req ChatRequest) 
 		result := toolResults[tool.ID]
 
 		// Emit tool_result with pluginState for UI rendering
-		emit(StreamEventToolResult, map[string]interface{}{
+		// Let's go back to map for tool_result loop to avoid complexity,
+		// BUT use ChatPluginPayload for the plugin field.
+		toolResultPayload := map[string]interface{}{
 			"tool_call_id": tool.ID,
 			"tool_msg_id":  fmt.Sprintf("tool_msg_%s_%d", req.MessageAssistantID, i+1),
-			"plugin": map[string]interface{}{
-				"identifier": tool.Identifier,
-				"apiName":    tool.APIName,
-				"arguments":  tool.Arguments,
-				"type":       tool.Type,
+			"plugin": ChatPluginPayload{
+				Identifier: tool.Identifier,
+				APIName:    tool.APIName,
+				Arguments:  tool.Arguments,
+				Type:       tool.Type,
 			},
 			"pluginState": result.State,
-			"content":     result.Content,
-		})
+			"content":     result.Content, // Content can be string or marshaled JSON
+		}
+		emit(StreamEventToolResult, toolResultPayload)
+
 		time.Sleep(200 * time.Millisecond)
 	}
 
@@ -237,15 +252,16 @@ func (s *AgentChatService) ChatMockStream(ctx context.Context, req ChatRequest) 
 	}
 
 	// 11. Emit COMPLETE event with final data
-	emit(StreamEventComplete, map[string]interface{}{
-		"content":     mockContent,
-		"topic_id":    currentTopicID,
-		"reasoning":   reasoning,
-		"search":      searchGrounding,
-		"chunksList":  chunksList,
-		"imageList":   imageList,
-		"usage":       mockUsage,
-		"performance": mockPerformance,
+	// Use UIChatMessage for complete event
+	emit(StreamEventComplete, &UIChatMessage{
+		Content:     mockContent,
+		TopicID:     currentTopicID,
+		Reasoning:   reasoning,
+		Search:      searchGrounding,
+		ChunksList:  chunksList,
+		ImageList:   imageList,
+		Usage:       mockUsage,
+		Performance: mockPerformance,
 	})
 
 	log.Printf("✅ [MOCK STREAM] Complete - emitted all events for session: %s", req.SessionID)

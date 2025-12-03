@@ -36,7 +36,49 @@ import { messageMapKey } from '@/store/chat/utils/messageMapKey';
 import { setNamespace } from '@/utils/storeDebug';
 import { chatSelectors } from '../../../selectors';
 import { idGenerator } from '@/database/utils/idGenerator';
-import type { UIChatMessage as BackendUIChatMessage } from '@@/github.com/kawai-network/veridium/internal/services/models';
+import {
+  ChatFileChunk,
+  ChatImageItem,
+  ChatPluginPayload,
+  ChatToolPayload,
+  GroundingSearch,
+  ModelPerformance,
+  ModelReasoning,
+  ModelUsage,
+  UIChatMessage as BackendUIChatMessage,
+} from '@@/github.com/kawai-network/veridium/internal/services/models';
+
+// Define StreamEventPayload using generated types
+export interface StreamEventPayload {
+  type: 'start' | 'chunk' | 'reasoning' | 'tool_call' | 'tool_calling' | 'tool_result' | 'complete';
+  session_id: string;
+  message_id: string;
+  topic_id?: string;
+
+  // Content fields
+  content?: string;
+  full_content?: string; // Legacy support
+
+  // Reasoning
+  reasoning?: ModelReasoning;
+
+  // Tools
+  tool?: ChatToolPayload; // For single tool call event (legacy/alternative)
+  tools?: ChatToolPayload[]; // For tool_call event
+
+  // Tool Result
+  tool_call_id?: string;
+  tool_msg_id?: string;
+  plugin?: ChatPluginPayload;
+  pluginState?: any;
+
+  // Complete event fields
+  search?: GroundingSearch;
+  chunksList?: ChatFileChunk[];
+  imageList?: ChatImageItem[];
+  usage?: ModelUsage;
+  performance?: ModelPerformance;
+}
 
 // User ID constant for backend calls
 const FALLBACK_CLIENT_DB_USER_ID = 'DEFAULT_LOBE_CHAT_USER';
@@ -717,7 +759,7 @@ export const generateAIChat: StateCreator<
    * - tool_calling: Legacy - tool is being called (same as tool_call)
    * - complete: Generation finished (finalize message, remove from loading)
    */
-  internal_handleStreamEvent: (data: any) => {
+  internal_handleStreamEvent: (data: StreamEventPayload) => {
     const { activeId, activeTopicId } = get();
     const mapKey = messageMapKey(activeId, activeTopicId);
 
@@ -748,8 +790,11 @@ export const generateAIChat: StateCreator<
         // Reasoning/thinking content streamed
         const msg = messages.find(m => m.id === data.message_id);
         if (msg) {
+          // Support both flat full_content (legacy) and nested reasoning.content (standard UIChatMessage)
+          const content = data.reasoning?.content || data.full_content || data.content;
+
           (msg as any).reasoning = {
-            content: data.full_content,
+            content: content,
             duration: 0,
           };
           msg.updatedAt = Date.now();
@@ -758,7 +803,8 @@ export const generateAIChat: StateCreator<
         // Content chunk streamed
         const msg = messages.find(m => m.id === data.message_id);
         if (msg) {
-          msg.content = data.full_content;
+          // Support both full_content (legacy) and content (standard UIChatMessage)
+          msg.content = data.content || data.full_content || msg.content || '';
           msg.updatedAt = Date.now();
         }
       } else if (data.type === 'tool_call' || data.type === 'tool_calling') {
