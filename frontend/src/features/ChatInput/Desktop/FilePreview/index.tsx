@@ -3,7 +3,6 @@ import { memo, useEffect } from 'react';
 
 import { message } from '@/components/AntdStaticMethods';
 import { useModelSupportFiles } from '@/hooks/useModelSupportFiles';
-import { useModelSupportVision } from '@/hooks/useModelSupportVision';
 import { useAgentStore } from '@/store/agent';
 import { agentSelectors } from '@/store/agent/slices/chat';
 import { useFileStore } from '@/store/file';
@@ -12,9 +11,11 @@ import FileItemList from './FileList';
 
 interface ProcessedFile {
   originalPath: string;
-  savedKey: string;
   url: string;
   name: string;
+  fileId: string;
+  documentId: string;
+  processing: boolean;
 }
 
 interface WailsDropEvent {
@@ -31,19 +32,12 @@ const FilePreview = memo(() => {
   const provider = useAgentStore(agentSelectors.currentAgentModelProvider);
 
   const enabledFiles = useModelSupportFiles(model, provider);
-  const supportVision = useModelSupportVision(model, provider);
-  const canUpload = enabledFiles || supportVision;
 
   useEffect(() => {
     // Listen to Wails drag & drop event
     const unsubscribe = Events.On('files:dropped', async (event: any) => {
       // Extract data from Wails event
       const data: WailsDropEvent = event.data || event;
-
-      if (!canUpload) {
-        message.warning('File upload is not supported for the current model');
-        return;
-      }
 
       const processedFiles = data.files;
       
@@ -52,7 +46,7 @@ const FilePreview = memo(() => {
       }
 
       try {
-        // Files are already saved to local storage by backend
+        // Files are already processed by backend (copy + parse + RAG)
         // Just create upload items with local URLs
         const uploadItems = processedFiles.map((fileInfo) => {
           // Determine MIME type from extension
@@ -65,11 +59,11 @@ const FilePreview = memo(() => {
           }
 
           return {
-            id: fileInfo.name,
+            id: fileInfo.fileId || fileInfo.name,
             file: { name: fileInfo.name, type: mimeType, size: 0 } as File,
             previewUrl: fileInfo.url,
             base64Url: undefined,
-            status: 'success' as const,
+            status: fileInfo.processing ? ('pending' as const) : ('success' as const),
           };
         }).filter(Boolean);
 
@@ -94,7 +88,7 @@ const FilePreview = memo(() => {
     return () => {
       unsubscribe();
     };
-  }, [canUpload, enabledFiles]);
+  }, [enabledFiles]);
 
   return <FileItemList />;
 });

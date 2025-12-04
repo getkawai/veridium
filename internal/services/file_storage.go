@@ -5,13 +5,11 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 )
 
 // LocalFileStorage handles local file storage operations
@@ -143,60 +141,6 @@ func (s *LocalFileStorage) ReadFileFromAbsolutePath(absolutePath string) ([]byte
 	return os.ReadFile(absolutePath)
 }
 
-// CopyFileFromAbsolutePath copies file from absolute path to local storage (for drag & drop)
-// Returns the relative key path that can be used to access the file via fileserver
-func (s *LocalFileStorage) CopyFileFromAbsolutePath(absolutePath string) (string, error) {
-	// Security check: ensure path is absolute and exists
-	if !filepath.IsAbs(absolutePath) {
-		return "", fmt.Errorf("path must be absolute: %s", absolutePath)
-	}
-
-	// Check if file exists
-	if _, err := os.Stat(absolutePath); os.IsNotExist(err) {
-		return "", fmt.Errorf("file does not exist: %s", absolutePath)
-	}
-
-	// Extract filename
-	filename := filepath.Base(absolutePath)
-
-	// Generate unique filename with timestamp
-	timestamp := time.Now().UnixMilli()
-	uniqueFileName := fmt.Sprintf("%d-%s", timestamp, filename)
-	relativeKey := filepath.Join("uploads", uniqueFileName)
-
-	// Construct destination path
-	destPath := filepath.Join(s.BaseDir, relativeKey)
-
-	// Ensure directory exists
-	destDir := filepath.Dir(destPath)
-	if err := os.MkdirAll(destDir, 0755); err != nil {
-		return "", fmt.Errorf("failed to create directory %s: %w", destDir, err)
-	}
-
-	// Copy file
-	sourceFile, err := os.Open(absolutePath)
-	if err != nil {
-		return "", fmt.Errorf("failed to open source file: %w", err)
-	}
-	defer sourceFile.Close()
-
-	destFile, err := os.Create(destPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to create destination file: %w", err)
-	}
-	defer destFile.Close()
-
-	// Copy content
-	written, err := io.Copy(destFile, sourceFile)
-	if err != nil {
-		return "", fmt.Errorf("failed to copy file: %w", err)
-	}
-
-	log.Printf("File copied successfully: %s -> %s (%d bytes)", filename, relativeKey, written)
-
-	return relativeKey, nil
-}
-
 // UploadMedia uploads media file
 // buffer parameter can be either:
 // - []byte: raw binary data
@@ -240,141 +184,4 @@ func (s *LocalFileStorage) UploadMedia(key string, buffer interface{}) (string, 
 
 	log.Printf("File uploaded successfully: %s (size: %d bytes, hash: %s)", filename, len(data), hashString)
 	return key, nil
-}
-
-// FileItem represents a file database record
-type FileItem struct {
-	URL  string `json:"url"`
-	Name string `json:"name"`
-	Size int    `json:"size,omitempty"`
-}
-
-// FileModelInterface defines file model operations
-type FileModelInterface interface {
-	FindById(fileId string) (*FileItem, error)
-	Delete(fileId string, globalFile bool) error
-}
-
-// FileService wraps LocalFileStorage to provide high-level file operations
-type FileService struct {
-	UserId    string
-	FileModel FileModelInterface
-	Storage   *LocalFileStorage
-}
-
-// NewFileService creates new file service
-func NewFileService(userId string, storage *LocalFileStorage) *FileService {
-	return &FileService{
-		UserId:  userId,
-		Storage: storage,
-	}
-}
-
-// DeleteFile deletes file
-func (fs *FileService) DeleteFile(key string) error {
-	return fs.Storage.DeleteFile(key)
-}
-
-// DeleteFiles batch deletes files
-func (fs *FileService) DeleteFiles(keys []string) error {
-	return fs.Storage.DeleteFiles(keys)
-}
-
-// GetFileContent gets file content
-func (fs *FileService) GetFileContent(key string) (string, error) {
-	return fs.Storage.GetFileContent(key)
-}
-
-// GetFileByteArray gets file byte array
-func (fs *FileService) GetFileByteArray(key string) ([]byte, error) {
-	return fs.Storage.GetFileByteArray(key)
-}
-
-// CreatePreSignedUrl creates pre-signed upload URL
-func (fs *FileService) CreatePreSignedUrl(key string) string {
-	return fs.Storage.CreatePreSignedUrl(key)
-}
-
-// CreatePreSignedUrlForPreview creates pre-signed preview URL
-func (fs *FileService) CreatePreSignedUrlForPreview(key string) string {
-	return fs.Storage.CreatePreSignedUrlForPreview(key)
-}
-
-// UploadContent uploads content
-func (fs *FileService) UploadContent(path, content string) error {
-	return fs.Storage.UploadContent(path, content)
-}
-
-// GetFullFileUrl gets complete file URL
-func (fs *FileService) GetFullFileUrl(url string) string {
-	return fs.Storage.GetFullFileUrl(url)
-}
-
-// GetKeyFromFullUrl extracts key from full URL
-func (fs *FileService) GetKeyFromFullUrl(url string) string {
-	return fs.Storage.GetKeyFromFullUrl(url)
-}
-
-// UploadMedia uploads media file
-func (fs *FileService) UploadMedia(key string, buffer interface{}) (string, error) {
-	return fs.Storage.UploadMedia(key, buffer)
-}
-
-// ReadFileFromAbsolutePath reads file from absolute path (for drag & drop)
-func (fs *FileService) ReadFileFromAbsolutePath(absolutePath string) ([]byte, error) {
-	return fs.Storage.ReadFileFromAbsolutePath(absolutePath)
-}
-
-// CopyFileFromAbsolutePath copies file from absolute path to local storage (for drag & drop)
-func (fs *FileService) CopyFileFromAbsolutePath(absolutePath string) (string, error) {
-	return fs.Storage.CopyFileFromAbsolutePath(absolutePath)
-}
-
-// DownloadFileToLocal downloads file to local temp storage
-func (fs *FileService) DownloadFileToLocal(fileId string) (cleanup func(), file *FileItem, filePath string, err error) {
-	// Find file by ID
-	file, err = fs.FileModel.FindById(fileId)
-	if err != nil {
-		return nil, nil, "", fmt.Errorf("file not found: %w", err)
-	}
-	if file == nil {
-		return nil, nil, "", errors.New("file not found")
-	}
-
-	// Get file content bytes
-	content, err := fs.GetFileByteArray(file.URL)
-	if err != nil {
-		return nil, nil, "", fmt.Errorf("failed to get file content: %w", err)
-	}
-
-	if len(content) == 0 {
-		return nil, nil, "", errors.New("file content is empty")
-	}
-
-	// Convert to base64 string for Wails temp file binding
-	dataStr := base64.StdEncoding.EncodeToString(content)
-	filePath, err = WriteTempFile(dataStr, file.Name)
-	if err != nil {
-		return nil, nil, "", fmt.Errorf("failed to create temp file: %w", err)
-	}
-
-	// Return cleanup function, file info, and temp file path
-	cleanup = func() {
-		Cleanup()
-	}
-
-	return cleanup, file, filePath, nil
-}
-
-// WriteTempFile writes data to temp file (placeholder)
-func WriteTempFile(data, name string) (string, error) {
-	log.Printf("WriteTempFile not implemented: data length %d, name %s", len(data), name)
-	// In actual Wails app, this would call bindings/github.com/kawai-network/veridium/tempfileservice.WriteTempFile
-	return "/tmp/placeholder-" + name, nil
-}
-
-// Cleanup cleans up temp files (placeholder)
-func Cleanup() {
-	log.Println("Cleanup not implemented")
-	// In actual Wails app, this would call bindings/github.com/kawai-network/veridium/tempfileservice.Cleanup
 }

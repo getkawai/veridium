@@ -168,11 +168,6 @@ func main() {
 	log.Printf("✅ File Processor service initialized")
 	log.Printf("   Handles: file parsing → document storage → RAG processing")
 
-	// Initialize File Service (local storage for desktop)
-	fileStorage := services.NewLocalFileStorage(fileBaseDir)
-	fileSvc := services.NewFileService("system", fileStorage)
-	log.Printf("✅ File Service initialized")
-
 	// Initialize Knowledge Base Service (RAG with DuckDB + SQLite)
 	var kbService *services.KnowledgeBaseService
 	if vectorSearchService != nil && fileProcessorService != nil {
@@ -232,8 +227,6 @@ func main() {
 			application.NewService(localfs.NewService()),
 			// Local file system service
 			application.NewService(builtin.NewLocalSystemService()),
-			// File service
-			application.NewService(fileSvc),
 			// Native Wails v3 notification service
 			application.NewService(notifications.New()),
 			// Native Wails v3 notification service
@@ -329,27 +322,29 @@ func main() {
 
 			log.Printf("[Drag&Drop] Files dropped: %d files", len(droppedFiles))
 
-			// Process files in backend - copy to local storage
+			// Process files in backend - copy to local storage AND process for RAG
 			processedFiles := make([]map[string]interface{}, 0, len(droppedFiles))
 			for i, filePath := range droppedFiles {
 				log.Printf("[Drag&Drop]   %d. %s", i+1, filePath)
 
-				// Copy file to local storage
-				relativeKey, err := fileSvc.CopyFileFromAbsolutePath(filePath)
+				// Process file: copy to local storage + parse + RAG (all in one)
+				result, err := fileProcessorService.ProcessFileFromPath(filePath, "system")
 				if err != nil {
-					log.Printf("[Drag&Drop] Error copying file %s: %v", filePath, err)
+					log.Printf("[Drag&Drop] Error processing file %s: %v", filePath, err)
 					continue
 				}
 
 				// Create file info for frontend
 				fileInfo := map[string]interface{}{
 					"originalPath": filePath,
-					"savedKey":     relativeKey,
-					"url":          "/files/" + relativeKey,
-					"name":         filepath.Base(filePath),
+					"url":          result.RelativeURL,
+					"name":         result.Filename,
+					"fileId":       result.FileID,
+					"documentId":   result.DocumentID,
+					"processing":   result.Processing,
 				}
 				processedFiles = append(processedFiles, fileInfo)
-				log.Printf("[Drag&Drop] File saved: %s -> %s", filepath.Base(filePath), relativeKey)
+				log.Printf("[Drag&Drop] File processed: %s -> %s (fileId: %s)", result.Filename, result.RelativeURL, result.FileID)
 			}
 
 			if details != nil {
