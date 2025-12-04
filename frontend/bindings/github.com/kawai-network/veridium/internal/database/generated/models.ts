@@ -2059,7 +2059,6 @@ export class CreateChunkParams {
 }
 
 export class CreateDocumentParams {
-    "id": string;
     "title": sql$0.NullString;
     "content": sql$0.NullString;
     "fileType": string;
@@ -2073,14 +2072,9 @@ export class CreateDocumentParams {
     "fileId": sql$0.NullString;
     "userId": string;
     "editorData": sql$0.NullString;
-    "createdAt": number;
-    "updatedAt": number;
 
     /** Creates a new CreateDocumentParams instance. */
     constructor($$source: Partial<CreateDocumentParams> = {}) {
-        if (!("id" in $$source)) {
-            this["id"] = "";
-        }
         if (!("title" in $$source)) {
             this["title"] = (new sql$0.NullString());
         }
@@ -2120,12 +2114,6 @@ export class CreateDocumentParams {
         if (!("editorData" in $$source)) {
             this["editorData"] = (new sql$0.NullString());
         }
-        if (!("createdAt" in $$source)) {
-            this["createdAt"] = 0;
-        }
-        if (!("updatedAt" in $$source)) {
-            this["updatedAt"] = 0;
-        }
 
         Object.assign(this, $$source);
     }
@@ -2134,34 +2122,34 @@ export class CreateDocumentParams {
      * Creates a new CreateDocumentParams instance from a string or object.
      */
     static createFrom($$source: any = {}): CreateDocumentParams {
+        const $$createField0_0 = $$createType0;
         const $$createField1_0 = $$createType0;
-        const $$createField2_0 = $$createType0;
-        const $$createField4_0 = $$createType0;
+        const $$createField3_0 = $$createType0;
+        const $$createField6_0 = $$createType0;
         const $$createField7_0 = $$createType0;
-        const $$createField8_0 = $$createType0;
-        const $$createField11_0 = $$createType0;
-        const $$createField13_0 = $$createType0;
+        const $$createField10_0 = $$createType0;
+        const $$createField12_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("title" in $$parsedSource) {
-            $$parsedSource["title"] = $$createField1_0($$parsedSource["title"]);
+            $$parsedSource["title"] = $$createField0_0($$parsedSource["title"]);
         }
         if ("content" in $$parsedSource) {
-            $$parsedSource["content"] = $$createField2_0($$parsedSource["content"]);
+            $$parsedSource["content"] = $$createField1_0($$parsedSource["content"]);
         }
         if ("filename" in $$parsedSource) {
-            $$parsedSource["filename"] = $$createField4_0($$parsedSource["filename"]);
+            $$parsedSource["filename"] = $$createField3_0($$parsedSource["filename"]);
         }
         if ("metadata" in $$parsedSource) {
-            $$parsedSource["metadata"] = $$createField7_0($$parsedSource["metadata"]);
+            $$parsedSource["metadata"] = $$createField6_0($$parsedSource["metadata"]);
         }
         if ("pages" in $$parsedSource) {
-            $$parsedSource["pages"] = $$createField8_0($$parsedSource["pages"]);
+            $$parsedSource["pages"] = $$createField7_0($$parsedSource["pages"]);
         }
         if ("fileId" in $$parsedSource) {
-            $$parsedSource["fileId"] = $$createField11_0($$parsedSource["fileId"]);
+            $$parsedSource["fileId"] = $$createField10_0($$parsedSource["fileId"]);
         }
         if ("editorData" in $$parsedSource) {
-            $$parsedSource["editorData"] = $$createField13_0($$parsedSource["editorData"]);
+            $$parsedSource["editorData"] = $$createField12_0($$parsedSource["editorData"]);
         }
         return new CreateDocumentParams($$parsedSource as Partial<CreateDocumentParams>);
     }
@@ -2274,7 +2262,6 @@ export class CreateEmbeddingsItemParams {
 }
 
 export class CreateFileParams {
-    "id": string;
     "userId": string;
     "fileType": string;
     "fileHash": sql$0.NullString;
@@ -2286,9 +2273,6 @@ export class CreateFileParams {
 
     /** Creates a new CreateFileParams instance. */
     constructor($$source: Partial<CreateFileParams> = {}) {
-        if (!("id" in $$source)) {
-            this["id"] = "";
-        }
         if (!("userId" in $$source)) {
             this["userId"] = "";
         }
@@ -2321,18 +2305,18 @@ export class CreateFileParams {
      * Creates a new CreateFileParams instance from a string or object.
      */
     static createFrom($$source: any = {}): CreateFileParams {
-        const $$createField3_0 = $$createType0;
+        const $$createField2_0 = $$createType0;
+        const $$createField6_0 = $$createType0;
         const $$createField7_0 = $$createType0;
-        const $$createField8_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("fileHash" in $$parsedSource) {
-            $$parsedSource["fileHash"] = $$createField3_0($$parsedSource["fileHash"]);
+            $$parsedSource["fileHash"] = $$createField2_0($$parsedSource["fileHash"]);
         }
         if ("source" in $$parsedSource) {
-            $$parsedSource["source"] = $$createField7_0($$parsedSource["source"]);
+            $$parsedSource["source"] = $$createField6_0($$parsedSource["source"]);
         }
         if ("metadata" in $$parsedSource) {
-            $$parsedSource["metadata"] = $$createField8_0($$parsedSource["metadata"]);
+            $$parsedSource["metadata"] = $$createField7_0($$parsedSource["metadata"]);
         }
         return new CreateFileParams($$parsedSource as Partial<CreateFileParams>);
     }
@@ -2544,7 +2528,6 @@ export class CreateGlobalFileParams {
     "url": string;
     "metadata": sql$0.NullString;
     "creator": string;
-    "createdAt": number;
 
     /** Creates a new CreateGlobalFileParams instance. */
     constructor($$source: Partial<CreateGlobalFileParams> = {}) {
@@ -2565,9 +2548,6 @@ export class CreateGlobalFileParams {
         }
         if (!("creator" in $$source)) {
             this["creator"] = "";
-        }
-        if (!("createdAt" in $$source)) {
-            this["createdAt"] = 0;
         }
 
         Object.assign(this, $$source);

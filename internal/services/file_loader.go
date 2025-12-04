@@ -41,7 +41,7 @@ func (l *FileLoader) LoadFile(filePath string, fileMetadata *types.FileMetadata)
 	baseFilename := filepath.Base(filePath)
 	fileExtension := strings.ToLower(strings.TrimPrefix(ext, "."))
 
-	// Apply metadata overrides or use defaults
+	// Apply metadata overrides or use defaults (except fileType which is always detected from extension)
 	source := filePath
 	filename := baseFilename
 	if fileMetadata != nil {
@@ -51,9 +51,7 @@ func (l *FileLoader) LoadFile(filePath string, fileMetadata *types.FileMetadata)
 		if fileMetadata.Filename != "" {
 			filename = fileMetadata.Filename
 		}
-		if fileMetadata.FileType != "" {
-			fileExtension = fileMetadata.FileType
-		}
+		// Note: fileType is NOT overridden from metadata to ensure consistent detection from file extension
 	}
 
 	createdTime := stats.ModTime()

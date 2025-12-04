@@ -3,12 +3,15 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"io"
+	"os"
 	"path/filepath"
-	"strings"
+	"time"
 
 	"github.com/kawai-network/veridium/internal/llama"
 	"github.com/kawai-network/veridium/internal/services"
-	"github.com/kawai-network/veridium/types"
+	"github.com/kawai-network/veridium/pkg/xlog"
 )
 
 // FileProcessorService is the Wails-exposed service
@@ -48,43 +51,96 @@ func NewFileProcessorService(
 	}
 }
 
-// ProcessFileForStorage processes a file and saves to database
-// This is called from frontend after file upload
-func (f *FileProcessorService) ProcessFileForStorage(
-	filePath string,
-	filename string,
-	fileType string,
+// ProcessFileFromPath processes a file from absolute path (e.g., from file dialog)
+// It copies the file to local storage and processes it for RAG
+// Returns the processed file response with the relative URL for frontend display
+func (f *FileProcessorService) ProcessFileFromPath(
+	absolutePath string,
 	userID string,
-	enableRAG bool,
-) (*services.ProcessFileResponse, error) {
+) (*ProcessFileFromPathResponse, error) {
 	ctx := context.Background()
 
-	// Convert relative path to absolute path if needed
-	absolutePath := filePath
-	if !filepath.IsAbs(filePath) {
-		absolutePath = filepath.Join(f.fileBaseDir, filePath)
+	// Security check: ensure path is absolute and exists
+	if !filepath.IsAbs(absolutePath) {
+		return nil, fmt.Errorf("path must be absolute: %s", absolutePath)
 	}
 
-	// Normalize file type for images to ensure Qwen-VL processing is triggered
-	// The frontend sends "image/jpeg" etc, but the internal service expects "image"
-	normalizedFileType := fileType
-	if strings.HasPrefix(fileType, "image/") {
-		normalizedFileType = string(types.FileTypeImage)
+	// Check if file exists
+	if _, err := os.Stat(absolutePath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("file does not exist: %s", absolutePath)
 	}
 
+	// Extract filename
+	filename := filepath.Base(absolutePath)
+
+	// Generate unique filename with timestamp
+	timestamp := time.Now().UnixMilli()
+	uniqueFileName := fmt.Sprintf("%d-%s", timestamp, filename)
+	relativeKey := filepath.Join("uploads", uniqueFileName)
+
+	// Construct destination path
+	destPath := filepath.Join(f.fileBaseDir, relativeKey)
+
+	// Ensure directory exists
+	destDir := filepath.Dir(destPath)
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create directory %s: %w", destDir, err)
+	}
+
+	// Copy file
+	sourceFile, err := os.Open(absolutePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open source file: %w", err)
+	}
+	defer sourceFile.Close()
+
+	destFile, err := os.Create(destPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create destination file: %w", err)
+	}
+	defer destFile.Close()
+
+	// Copy content
+	written, err := io.Copy(destFile, sourceFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to copy file: %w", err)
+	}
+
+	xlog.Info("File copied successfully", "filename", filename, "destPath", relativeKey, "bytes", written)
+
+	// Process file for storage and RAG
 	req := services.ProcessFileRequest{
-		FilePath:  absolutePath,
+		FilePath:  destPath,
 		Filename:  filename,
-		FileType:  normalizedFileType,
 		UserID:    userID,
-		Source:    absolutePath,
-		EnableRAG: enableRAG,
+		Source:    destPath,
+		EnableRAG: true,
 		IsShared:  false,
-		FileMetadata: &types.FileMetadata{
-			Filename: filename,
-			FileType: normalizedFileType,
-		},
 	}
 
-	return f.processor.ProcessFile(ctx, req)
+	result, err := f.processor.ProcessFile(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to process file: %w", err)
+	}
+
+	return &ProcessFileFromPathResponse{
+		FileID:       result.FileID,
+		DocumentID:   result.DocumentID,
+		ChunkIDs:     result.ChunkIDs,
+		GlobalFileID: result.GlobalFileID,
+		Processing:   result.Processing,
+		RelativeURL:  "/files/" + relativeKey,
+		Filename:     filename,
+	}, nil
+}
+
+// ProcessFileFromPathResponse represents the result of processing a file from absolute path
+type ProcessFileFromPathResponse struct {
+	FileID       string   `json:"fileId"`
+	DocumentID   string   `json:"documentId"`
+	ChunkIDs     []string `json:"chunkIds,omitempty"`
+	GlobalFileID string   `json:"globalFileId,omitempty"`
+	Processing   bool     `json:"processing,omitempty"`
+	RelativeURL  string   `json:"relativeUrl"` // URL for frontend to display (e.g., /files/uploads/123-file.pdf)
+	Filename     string   `json:"filename"`    // Original filename
 }

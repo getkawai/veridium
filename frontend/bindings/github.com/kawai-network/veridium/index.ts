@@ -5,3 +5,7 @@ import * as FileProcessorService from "./fileprocessorservice.js";
 export {
     FileProcessorService
 };
+
+export {
+    ProcessFileFromPathResponse
+} from "./models.js";

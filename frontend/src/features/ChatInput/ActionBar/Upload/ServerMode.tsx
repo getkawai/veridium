@@ -10,8 +10,7 @@ import { useModelSupportVision } from '@/hooks/useModelSupportVision';
 import { useAgentStore } from '@/store/agent';
 import { agentSelectors } from '@/store/agent/selectors';
 import { useFileStore } from '@/store/file';
-import * as FileService from '@@/github.com/kawai-network/veridium/internal/services/fileservice';
-import { ProcessFileForStorage } from '@@/github.com/kawai-network/veridium/fileprocessorservice';
+import { ProcessFileFromPath } from '@@/github.com/kawai-network/veridium/fileprocessorservice';
 
 import Action from '../components/Action';
 import { getUserId } from '@/store/user/helpers';
@@ -25,7 +24,7 @@ const hotArea = css`
   }
 `;
 
-// Helper to get MIME type from extension
+// Helper to get MIME type from extension (for UI display only)
 const getMimeType = (ext: string): string => {
   const mimeTypes: Record<string, string> = {
     png: 'image/png',
@@ -72,40 +71,38 @@ const FileUpload = memo(() => {
 
       const filePaths = Array.isArray(result) ? result : [result];
 
-      // Process files via backend
+      // Process files via backend (copy + parse + RAG in one call)
       const processedFiles = await Promise.all(
         filePaths.map(async (filePath) => {
-          const fileName = filePath.split('/').pop() || filePath.split('\\').pop() || 'file';
-          const ext = fileName.split('.').pop()?.toLowerCase() || '';
-          const mimeType = getMimeType(ext);
-
-          // Copy file to local storage via backend
-          const savedKey = await FileService.CopyFileFromAbsolutePath(filePath);
           const userId = getUserId();
 
-          // Process file for document storage (BLOCKING)
-          // Backend will automatically skip RAG for images/videos unless enabled (images now enabled via VL)
-          await ProcessFileForStorage(
-            savedKey,           // filePath
-            fileName,           // filename
-            mimeType,           // fileType
-            userId,             // userID
-            true                // enableRAG (backend decides based on file type)
-          );
+          // Process file from absolute path (copies to local storage and processes)
+          const result = await ProcessFileFromPath(filePath, userId);
+          if (!result) return null;
+
+          const ext = result.filename.split('.').pop()?.toLowerCase() || '';
+          const mimeType = getMimeType(ext); // For UI display only
 
           return {
-            name: fileName,
+            name: result.filename,
             type: mimeType,
-            url: `/files/${savedKey}`,
+            url: result.relativeUrl,
           };
         }),
       );
 
+      const validFiles = processedFiles.filter(Boolean);
+
+      if (validFiles.length === 0) {
+        message.warning('No valid files to upload');
+        return;
+      }
+
       // Create upload items and add directly to upload list (files already saved by backend)
-      const uploadItems = processedFiles.map((info) => ({
-        id: info.name,
-        file: { name: info.name, type: info.type, size: 0 } as File,
-        previewUrl: info.url,
+      const uploadItems = validFiles.map((info) => ({
+        id: info!.name,
+        file: { name: info!.name, type: info!.type, size: 0 } as File,
+        previewUrl: info!.url,
         base64Url: undefined,
         status: 'success' as const,
       }));
@@ -140,36 +137,28 @@ const FileUpload = memo(() => {
       const hideLoading = message.loading('Processing files...', 0);
 
       try {
-        // Process files via backend
+        // Process files via backend (copy + parse + RAG in one call)
         const processedFiles = await Promise.all(
           filePaths.map(async (filePath) => {
             const fileName = filePath.split('/').pop() || filePath.split('\\').pop() || 'file';
             const ext = fileName.split('.').pop()?.toLowerCase() || '';
-            const mimeType = getMimeType(ext);
+            const mimeType = getMimeType(ext); // For UI display only
 
-            // Skip video if model doesn't support vision (images are now handled by backend VL model)
+            // Skip video if model doesn't support vision
             if (!canUploadImage && mimeType.startsWith('video')) {
               return null;
             }
 
-            // Copy file to local storage via backend
-            const savedKey = await FileService.CopyFileFromAbsolutePath(filePath);
             const userId = getUserId();
 
-            // Process file for document storage (BLOCKING)
-            // Backend will automatically skip RAG for images/videos
-            await ProcessFileForStorage(
-              savedKey,           // filePath
-              fileName,           // filename
-              mimeType,           // fileType
-              userId,             // userID
-              true                // enableRAG (backend decides based on file type)
-            );
+            // Process file from absolute path (copies to local storage and processes)
+            const result = await ProcessFileFromPath(filePath, userId);
+            if (!result) return null;
 
             return {
-              name: fileName,
+              name: result.filename,
               type: mimeType,
-              url: `/files/${savedKey}`,
+              url: result.relativeUrl,
             };
           }),
         );

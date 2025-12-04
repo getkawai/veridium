@@ -42,14 +42,12 @@ func NewFileProcessorService(
 
 // ProcessFileRequest represents a file processing request
 type ProcessFileRequest struct {
-	FilePath     string
-	Filename     string
-	FileType     string
-	UserID       string
-	Source       string
-	EnableRAG    bool // Whether to process for RAG
-	IsShared     bool // Whether to store in global_files
-	FileMetadata *types.FileMetadata
+	FilePath  string
+	Filename  string
+	UserID    string
+	Source    string
+	EnableRAG bool // Whether to process for RAG
+	IsShared  bool // Whether to store in global_files
 }
 
 // ProcessFileResponse represents the result of file processing
@@ -69,19 +67,22 @@ func (s *FileProcessorService) ProcessFile(ctx context.Context, req ProcessFileR
 
 	response := &ProcessFileResponse{}
 
-	// Step 1: Save to files table (always)
-	fileID, globalFileID, err := s.saveFileMetadata(ctx, req)
+	// Step 1: Parse file using FileLoader (detects file type from extension)
+	fileDoc, err := s.fileLoader.LoadFile(req.FilePath, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load file: %w", err)
+	}
+
+	// Get detected file type from FileLoader
+	detectedFileType := fileDoc.FileType
+
+	// Step 2: Save to files table (always)
+	fileID, globalFileID, err := s.saveFileMetadata(ctx, req, detectedFileType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to save file metadata: %w", err)
 	}
 	response.FileID = fileID
 	response.GlobalFileID = globalFileID
-
-	// Step 2: Parse file using FileLoader
-	fileDoc, err := s.fileLoader.LoadFile(req.FilePath, req.FileMetadata)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load file: %w", err)
-	}
 
 	// Step 3: Save to documents table (immediately, without waiting for VL processing)
 	documentID, err := s.saveDocument(ctx, fileDoc, fileID, req)
@@ -92,12 +93,12 @@ func (s *FileProcessorService) ProcessFile(ctx context.Context, req ProcessFileR
 
 	// Step 4: If image, generate description using VL model ASYNCHRONOUSLY
 	// This allows the UI to show the image immediately while description is being generated
-	if req.FileType == string(types.FileTypeImage) && s.libraryService != nil {
+	if detectedFileType == string(types.FileTypeImage) && s.libraryService != nil {
 		response.Processing = true
 		xlog.Info("Starting async image description generation", "filename", req.Filename, "document_id", documentID)
 
 		go s.processImageDescriptionAsync(req.FilePath, req.Filename, documentID, fileID, req.UserID, req.EnableRAG)
-	} else if req.EnableRAG && s.fileLoader.CanChunkForRAG(req.FileType) {
+	} else if req.EnableRAG && s.fileLoader.CanChunkForRAG(detectedFileType) {
 		// Step 5: Process for RAG (for non-image files, do it synchronously)
 		chunkIDs, err := s.ragProcessor.ProcessFile(ctx, RAGProcessRequest{
 			FilePath:   req.FilePath,
@@ -111,8 +112,8 @@ func (s *FileProcessorService) ProcessFile(ctx context.Context, req ProcessFileR
 		} else {
 			xlog.Info("RAG processing completed", "file_id", fileID, "chunks", len(chunkIDs))
 		}
-	} else if req.EnableRAG && !s.fileLoader.CanChunkForRAG(req.FileType) {
-		xlog.Info("Skipping RAG processing for unsupported file type", "file_type", req.FileType, "file_id", fileID)
+	} else if req.EnableRAG && !s.fileLoader.CanChunkForRAG(detectedFileType) {
+		xlog.Info("Skipping RAG processing for unsupported file type", "file_type", detectedFileType, "file_id", fileID)
 	}
 
 	return response, nil
@@ -178,7 +179,7 @@ func (s *FileProcessorService) processImageDescriptionAsync(filePath, filename, 
 }
 
 // saveFileMetadata saves file metadata to files and optionally global_files
-func (s *FileProcessorService) saveFileMetadata(ctx context.Context, req ProcessFileRequest) (string, string, error) {
+func (s *FileProcessorService) saveFileMetadata(ctx context.Context, req ProcessFileRequest, fileType string) (string, string, error) {
 	var globalFileID string
 
 	// If shared, save to global_files first
@@ -203,7 +204,7 @@ func (s *FileProcessorService) saveFileMetadata(ctx context.Context, req Process
 
 			_, err = s.queries.CreateGlobalFile(ctx, db.CreateGlobalFileParams{
 				HashID:   fileHash,
-				FileType: req.FileType,
+				FileType: fileType,
 				Size:     fileInfo.Size,
 				Url:      req.FilePath,
 				Metadata: sql.NullString{Valid: false},
@@ -223,7 +224,7 @@ func (s *FileProcessorService) saveFileMetadata(ctx context.Context, req Process
 
 	file, err := s.queries.CreateFile(ctx, db.CreateFileParams{
 		UserID:   req.UserID,
-		FileType: req.FileType,
+		FileType: fileType,
 		FileHash: sql.NullString{String: globalFileID, Valid: globalFileID != ""},
 		Name:     req.Filename,
 		Size:     fileInfo.Size,

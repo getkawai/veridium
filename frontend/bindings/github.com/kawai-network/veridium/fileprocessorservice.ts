@@ -12,18 +12,19 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as services$0 from "./internal/services/models.js";
+import * as $models from "./models.js";
 
 /**
- * ProcessFileForStorage processes a file and saves to database
- * This is called from frontend after file upload
+ * ProcessFileFromPath processes a file from absolute path (e.g., from file dialog)
+ * It copies the file to local storage and processes it for RAG
+ * Returns the processed file response with the relative URL for frontend display
  */
-export function ProcessFileForStorage(filePath: string, filename: string, fileType: string, userID: string, enableRAG: boolean): $CancellablePromise<services$0.ProcessFileResponse | null> {
-    return $Call.ByID(4059865018, filePath, filename, fileType, userID, enableRAG).then(($result: any) => {
+export function ProcessFileFromPath(absolutePath: string, userID: string): $CancellablePromise<$models.ProcessFileFromPathResponse | null> {
+    return $Call.ByID(1128345069, absolutePath, userID).then(($result: any) => {
         return $$createType1($result);
     });
 }
 
 // Private type creation functions
-const $$createType0 = services$0.ProcessFileResponse.createFrom;
+const $$createType0 = $models.ProcessFileFromPathResponse.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);

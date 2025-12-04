@@ -40,7 +40,6 @@ export {
     ModelPerformance,
     ModelReasoning,
     ModelUsage,
-    ProcessFileResponse,
     ReasoningConfig,
     ReasoningMode,
     SearchResult,

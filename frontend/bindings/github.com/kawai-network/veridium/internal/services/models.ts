@@ -909,45 +909,6 @@ export class ModelUsage {
 }
 
 /**
- * ProcessFileResponse represents the result of file processing
- */
-export class ProcessFileResponse {
-    "fileId": string;
-    "documentId": string;
-    "chunkIds"?: string[];
-    "globalFileId"?: string;
-
-    /**
-     * True if async processing is in progress
-     */
-    "processing"?: boolean;
-
-    /** Creates a new ProcessFileResponse instance. */
-    constructor($$source: Partial<ProcessFileResponse> = {}) {
-        if (!("fileId" in $$source)) {
-            this["fileId"] = "";
-        }
-        if (!("documentId" in $$source)) {
-            this["documentId"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new ProcessFileResponse instance from a string or object.
-     */
-    static createFrom($$source: any = {}): ProcessFileResponse {
-        const $$createField2_0 = $$createType14;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("chunkIds" in $$parsedSource) {
-            $$parsedSource["chunkIds"] = $$createField2_0($$parsedSource["chunkIds"]);
-        }
-        return new ProcessFileResponse($$parsedSource as Partial<ProcessFileResponse>);
-    }
-}
-
-/**
  * ReasoningConfig holds configuration for reasoning behavior
  */
 export class ReasoningConfig {

@@ -1,8 +1,6 @@
 import { Events } from '@wailsio/runtime';
 import { memo, useEffect } from 'react';
 
-// @ts-ignore - Wails binding
-import * as FileService from '@@/github.com/kawai-network/veridium/internal/services/fileservice';
 import { message } from '@/components/AntdStaticMethods';
 import { useModelSupportFiles } from '@/hooks/useModelSupportFiles';
 import { useModelSupportVision } from '@/hooks/useModelSupportVision';
@@ -35,8 +33,6 @@ const FilePreview = memo(() => {
   const enabledFiles = useModelSupportFiles(model, provider);
   const supportVision = useModelSupportVision(model, provider);
   const canUpload = enabledFiles || supportVision;
-
-  const [uploadFiles] = useFileStore((s) => [s.uploadChatFiles]);
 
   useEffect(() => {
     // Listen to Wails drag & drop event
@@ -98,7 +94,7 @@ const FilePreview = memo(() => {
     return () => {
       unsubscribe();
     };
-  }, [canUpload, enabledFiles, uploadFiles]);
+  }, [canUpload, enabledFiles]);
 
   return <FileItemList />;
 });
