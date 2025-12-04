@@ -134,16 +134,6 @@ You are a helpful assistant.<|eot_id|>
 ' }}
 {%- endif %}`
 
-// YzmaResponse represents a response from yzma model generation
-type YzmaResponse struct {
-	Content          string
-	ToolCalls        []types.ToolCall
-	FinishReason     string
-	PromptTokens     int
-	CompletionTokens int
-	TotalTokens      int
-}
-
 // LlamaYzmaModel implements chat model with yzma tool calling
 type LlamaYzmaModel struct {
 	libService   *LibraryService
@@ -201,7 +191,7 @@ func (m *LlamaYzmaModel) getChatTemplate() string {
 }
 
 // Generate generates a response from yzma messages (native yzma interface)
-func (m *LlamaYzmaModel) Generate(ctx context.Context, messages []message.Message) (*YzmaResponse, error) {
+func (m *LlamaYzmaModel) Generate(ctx context.Context, messages []message.Message) (*types.LLMResponse, error) {
 	// Ensure chat model is loaded
 	if !m.libService.IsChatModelLoaded() {
 		if err := m.libService.LoadChatModel(""); err != nil {
@@ -238,7 +228,7 @@ func (m *LlamaYzmaModel) Generate(ctx context.Context, messages []message.Messag
 		response = m.cleanToolCallTags(response)
 	}
 
-	return &YzmaResponse{
+	return &types.LLMResponse{
 		Content:          response,
 		ToolCalls:        toolCalls,
 		FinishReason:     "stop",
@@ -347,8 +337,8 @@ func minInt(a, b int) int {
 
 // RunAgentLoop runs the agent loop with tool calling until no more tool calls or max iterations
 // This is the main entry point for agentic conversations (native yzma interface)
-// The returned YzmaResponse contains ALL tool calls from all iterations (not just the last one)
-func (m *LlamaYzmaModel) RunAgentLoop(ctx context.Context, messages []message.Message, maxIterations int) (*YzmaResponse, []message.Message, error) {
+// The returned types.LLMResponse contains ALL tool calls from all iterations (not just the last one)
+func (m *LlamaYzmaModel) RunAgentLoop(ctx context.Context, messages []message.Message, maxIterations int) (*types.LLMResponse, []message.Message, error) {
 	if maxIterations <= 0 {
 		maxIterations = DefaultMaxIterations
 	}
@@ -357,7 +347,7 @@ func (m *LlamaYzmaModel) RunAgentLoop(ctx context.Context, messages []message.Me
 	allMessages := make([]message.Message, len(messages))
 	copy(allMessages, messages)
 
-	var finalResponse *YzmaResponse
+	var finalResponse *types.LLMResponse
 	var allToolMessages []message.Message
 	var allToolCalls []types.ToolCall // Collect all tool calls from all iterations
 
@@ -447,7 +437,7 @@ func (m *LlamaYzmaModel) clearKVCache() error {
 
 // Stream generates a response with streaming (native yzma interface)
 // Returns the response and any error
-func (m *LlamaYzmaModel) Stream(ctx context.Context, messages []message.Message, callback types.StreamCallback) (*YzmaResponse, error) {
+func (m *LlamaYzmaModel) Stream(ctx context.Context, messages []message.Message, callback types.StreamCallback) (*types.LLMResponse, error) {
 	// Ensure chat model is loaded
 	if !m.libService.IsChatModelLoaded() {
 		if err := m.libService.LoadChatModel(""); err != nil {
@@ -479,7 +469,7 @@ func (m *LlamaYzmaModel) Stream(ctx context.Context, messages []message.Message,
 		response = m.cleanToolCallTags(response)
 	}
 
-	return &YzmaResponse{
+	return &types.LLMResponse{
 		Content:          response,
 		ToolCalls:        toolCalls,
 		FinishReason:     "stop",
@@ -585,10 +575,10 @@ func (m *LlamaYzmaModel) generateStreaming(ctx context.Context, prompt string, m
 
 // RunAgentLoopWithStreaming runs agent loop with streaming support (native yzma interface)
 // Returns the final response, all tool messages, and any error
-// The returned YzmaResponse contains ALL tool calls from all iterations (not just the last one)
+// The returned types.LLMResponse contains ALL tool calls from all iterations (not just the last one)
 // streamCallback: called for each token during generation
 // toolCallback: called for tool events (tool_call before execution, tool_result after)
-func (m *LlamaYzmaModel) RunAgentLoopWithStreaming(ctx context.Context, messages []message.Message, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*YzmaResponse, []message.Message, error) {
+func (m *LlamaYzmaModel) RunAgentLoopWithStreaming(ctx context.Context, messages []message.Message, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*types.LLMResponse, []message.Message, error) {
 	if maxIterations <= 0 {
 		maxIterations = DefaultMaxIterations
 	}
@@ -596,7 +586,7 @@ func (m *LlamaYzmaModel) RunAgentLoopWithStreaming(ctx context.Context, messages
 	allMessages := make([]message.Message, len(messages))
 	copy(allMessages, messages)
 
-	var finalResponse *YzmaResponse
+	var finalResponse *types.LLMResponse
 	var allToolMessages []message.Message
 	var allToolCalls []types.ToolCall // Collect all tool calls from all iterations
 

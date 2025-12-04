@@ -8,6 +8,7 @@ import (
 
 	"github.com/kawai-network/veridium/internal/llama"
 	"github.com/kawai-network/veridium/internal/services"
+	"github.com/kawai-network/veridium/types"
 )
 
 // FileProcessorService is the Wails-exposed service
@@ -72,7 +73,7 @@ func (f *FileProcessorService) ProcessFileForStorage(
 	// The frontend sends "image/jpeg" etc, but the internal service expects "image"
 	normalizedFileType := fileType
 	if strings.HasPrefix(fileType, "image/") {
-		normalizedFileType = string(services.FileTypeImage)
+		normalizedFileType = string(types.FileTypeImage)
 	}
 
 	req := services.ProcessFileRequest{
@@ -84,7 +85,7 @@ func (f *FileProcessorService) ProcessFileForStorage(
 		Source:    absolutePath,
 		EnableRAG: enableRAG,
 		IsShared:  false,
-		FileMetadata: &services.FileMetadata{
+		FileMetadata: &types.FileMetadata{
 			Filename: filename,
 			FileType: normalizedFileType,
 		},

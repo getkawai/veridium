@@ -28,13 +28,13 @@ import (
 // This allows mocking the LLM for testing
 type LLMGenerator interface {
 	// Generate generates a response from messages (single turn, no tool execution)
-	Generate(ctx context.Context, messages []message.Message) (*llama.YzmaResponse, error)
+	Generate(ctx context.Context, messages []message.Message) (*types.LLMResponse, error)
 
 	// RunAgentLoop runs the agent loop with tool execution
-	RunAgentLoop(ctx context.Context, messages []message.Message, maxIterations int) (*llama.YzmaResponse, []message.Message, error)
+	RunAgentLoop(ctx context.Context, messages []message.Message, maxIterations int) (*types.LLMResponse, []message.Message, error)
 
 	// RunAgentLoopWithStreaming runs the agent loop with streaming callback and tool event callback
-	RunAgentLoopWithStreaming(ctx context.Context, messages []message.Message, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*llama.YzmaResponse, []message.Message, error)
+	RunAgentLoopWithStreaming(ctx context.Context, messages []message.Message, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*types.LLMResponse, []message.Message, error)
 
 	// WithTools returns a new generator configured with specific tools
 	WithTools(toolNames []string) LLMGenerator
@@ -51,17 +51,17 @@ func NewLLMGeneratorAdapter(model *llama.LlamaYzmaModel) *LLMGeneratorAdapter {
 }
 
 // Generate implements LLMGenerator.Generate
-func (a *LLMGeneratorAdapter) Generate(ctx context.Context, messages []message.Message) (*llama.YzmaResponse, error) {
+func (a *LLMGeneratorAdapter) Generate(ctx context.Context, messages []message.Message) (*types.LLMResponse, error) {
 	return a.model.Generate(ctx, messages)
 }
 
 // RunAgentLoop implements LLMGenerator.RunAgentLoop
-func (a *LLMGeneratorAdapter) RunAgentLoop(ctx context.Context, messages []message.Message, maxIterations int) (*llama.YzmaResponse, []message.Message, error) {
+func (a *LLMGeneratorAdapter) RunAgentLoop(ctx context.Context, messages []message.Message, maxIterations int) (*types.LLMResponse, []message.Message, error) {
 	return a.model.RunAgentLoop(ctx, messages, maxIterations)
 }
 
 // RunAgentLoopWithStreaming implements LLMGenerator.RunAgentLoopWithStreaming
-func (a *LLMGeneratorAdapter) RunAgentLoopWithStreaming(ctx context.Context, messages []message.Message, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*llama.YzmaResponse, []message.Message, error) {
+func (a *LLMGeneratorAdapter) RunAgentLoopWithStreaming(ctx context.Context, messages []message.Message, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*types.LLMResponse, []message.Message, error) {
 	return a.model.RunAgentLoopWithStreaming(ctx, messages, maxIterations, streamCallback, toolCallback)
 }
 

@@ -48,6 +48,21 @@ type ToolCall struct {
 }
 
 // ============================================================================
+// LLM Response Types
+// ============================================================================
+
+// LLMResponse represents a response from any LLM provider
+type LLMResponse struct {
+	Content          string     `json:"content"`
+	ToolCalls        []ToolCall `json:"tool_calls,omitempty"`
+	FinishReason     string     `json:"finish_reason"`
+	PromptTokens     int        `json:"prompt_tokens"`
+	CompletionTokens int        `json:"completion_tokens"`
+	TotalTokens      int        `json:"total_tokens"`
+	ReasoningContent string     `json:"reasoning_content,omitempty"` // For reasoning models (Qwen3, DeepSeek R1)
+}
+
+// ============================================================================
 // Event Types
 // ============================================================================
 

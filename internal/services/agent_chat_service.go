@@ -567,7 +567,7 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*UIChatMe
 	// Run agent with LLM generator (streaming or non-streaming)
 	var finalMessage string
 	var toolCalls []types.ToolCall
-	var usage *llama.YzmaResponse
+	var usage *types.LLMResponse
 	var toolMessages []message.Message
 
 	if req.Stream && s.app != nil {
@@ -986,7 +986,7 @@ func (s *AgentChatService) prepareMessagesWithSystemPrompt(messages []message.Me
 }
 
 // generateWithStreaming generates response with streaming using LLMGenerator interface
-func (s *AgentChatService) generateWithStreaming(ctx context.Context, session *AgentSession, messageID string, messages []message.Message, llm LLMGenerator) (*llama.YzmaResponse, []message.Message, error) {
+func (s *AgentChatService) generateWithStreaming(ctx context.Context, session *AgentSession, messageID string, messages []message.Message, llm LLMGenerator) (*types.LLMResponse, []message.Message, error) {
 	// Emit start event
 	if s.app != nil {
 		s.app.Event.Emit("chat:stream", map[string]interface{}{
