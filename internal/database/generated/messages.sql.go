@@ -248,9 +248,9 @@ func (q *Queries) CreateMessagePlugin(ctx context.Context, arg CreateMessagePlug
 
 const CreateMessageQuery = `-- name: CreateMessageQuery :one
 INSERT INTO message_queries (
-    id, message_id, rewrite_query, user_query, user_id, embeddings_id
-) VALUES (?, ?, ?, ?, ?, ?)
-RETURNING id, message_id, rewrite_query, user_query, user_id, embeddings_id
+    id, message_id, rewrite_query, user_query, user_id
+) VALUES (?, ?, ?, ?, ?)
+RETURNING id, message_id, rewrite_query, user_query, user_id
 `
 
 type CreateMessageQueryParams struct {
@@ -259,7 +259,6 @@ type CreateMessageQueryParams struct {
 	RewriteQuery sql.NullString `json:"rewriteQuery"`
 	UserQuery    sql.NullString `json:"userQuery"`
 	UserID       string         `json:"userId"`
-	EmbeddingsID sql.NullString `json:"embeddingsId"`
 }
 
 func (q *Queries) CreateMessageQuery(ctx context.Context, arg CreateMessageQueryParams) (MessageQuery, error) {
@@ -269,7 +268,6 @@ func (q *Queries) CreateMessageQuery(ctx context.Context, arg CreateMessageQuery
 		arg.RewriteQuery,
 		arg.UserQuery,
 		arg.UserID,
-		arg.EmbeddingsID,
 	)
 	var i MessageQuery
 	err := row.Scan(
@@ -278,7 +276,6 @@ func (q *Queries) CreateMessageQuery(ctx context.Context, arg CreateMessageQuery
 		&i.RewriteQuery,
 		&i.UserQuery,
 		&i.UserID,
-		&i.EmbeddingsID,
 	)
 	return i, err
 }
@@ -711,7 +708,7 @@ func (q *Queries) GetMessagePlugin(ctx context.Context, arg GetMessagePluginPara
 
 const GetMessageQuery = `-- name: GetMessageQuery :one
 
-SELECT id, message_id, rewrite_query, user_query, user_id, embeddings_id FROM message_queries WHERE id = ? AND user_id = ?
+SELECT id, message_id, rewrite_query, user_query, user_id FROM message_queries WHERE id = ? AND user_id = ?
 `
 
 type GetMessageQueryParams struct {
@@ -729,7 +726,6 @@ func (q *Queries) GetMessageQuery(ctx context.Context, arg GetMessageQueryParams
 		&i.RewriteQuery,
 		&i.UserQuery,
 		&i.UserID,
-		&i.EmbeddingsID,
 	)
 	return i, err
 }
@@ -1213,7 +1209,7 @@ func (q *Queries) LinkMessageToFile(ctx context.Context, arg LinkMessageToFilePa
 }
 
 const ListMessageQueriesByMessage = `-- name: ListMessageQueriesByMessage :many
-SELECT id, message_id, rewrite_query, user_query, user_id, embeddings_id FROM message_queries
+SELECT id, message_id, rewrite_query, user_query, user_id FROM message_queries
 WHERE message_id = ? AND user_id = ?
 `
 
@@ -1237,7 +1233,6 @@ func (q *Queries) ListMessageQueriesByMessage(ctx context.Context, arg ListMessa
 			&i.RewriteQuery,
 			&i.UserQuery,
 			&i.UserID,
-			&i.EmbeddingsID,
 		); err != nil {
 			return nil, err
 		}

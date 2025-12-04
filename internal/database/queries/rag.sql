@@ -32,23 +32,6 @@ RETURNING *;
 -- name: DeleteChunk :exec
 DELETE FROM chunks WHERE id = ? AND user_id = ?;
 
--- Embeddings
-
--- name: GetEmbedding :one
-SELECT * FROM embeddings WHERE id = ? AND user_id = ?;
-
--- name: GetEmbeddingByChunk :one
-SELECT * FROM embeddings WHERE chunk_id = ? AND user_id = ?;
-
--- name: CreateEmbedding :one
-INSERT INTO embeddings (
-    id, chunk_id, embeddings, model, user_id
-) VALUES (?, ?, ?, ?, ?)
-RETURNING *;
-
--- name: DeleteEmbedding :exec
-DELETE FROM embeddings WHERE id = ? AND user_id = ?;
-
 -- Unstructured Chunks
 
 -- name: GetUnstructuredChunk :one
@@ -134,40 +117,6 @@ SELECT c.*, d.file_id
 FROM chunks c
 LEFT JOIN documents d ON c.document_id = d.id
 WHERE c.id IN (sqlc.slice('ids')) AND c.user_id = ?;
-
--- Semantic search - fetch chunks with embeddings for JS similarity calculation
--- name: GetChunksWithEmbeddings :many
-SELECT 
-    c.id,
-    c.text,
-    c.metadata,
-    c.chunk_index,
-    c.type,
-    e.embeddings as chunk_embedding,
-    fc.file_id,
-    f.name as file_name
-FROM chunks c
-LEFT JOIN embeddings e ON c.id = e.chunk_id
-LEFT JOIN file_chunks fc ON c.id = fc.chunk_id
-LEFT JOIN files f ON fc.file_id = f.id
-WHERE c.user_id = ?;
-
--- name: GetChunksWithEmbeddingsByFileIds :many
-SELECT 
-    c.id,
-    c.text,
-    c.metadata,
-    c.chunk_index,
-    c.type,
-    e.embeddings as chunk_embedding,
-    fc.file_id,
-    f.name as file_name
-FROM chunks c
-LEFT JOIN embeddings e ON c.id = e.chunk_id
-LEFT JOIN file_chunks fc ON c.id = fc.chunk_id
-LEFT JOIN files f ON fc.file_id = f.id
-WHERE fc.file_id = ? AND fc.user_id = ?
-ORDER BY c.chunk_index ASC;
 
 -- RAG Evaluation
 

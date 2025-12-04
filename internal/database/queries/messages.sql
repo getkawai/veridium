@@ -291,8 +291,8 @@ SELECT * FROM message_queries WHERE id = ? AND user_id = ?;
 
 -- name: CreateMessageQuery :one
 INSERT INTO message_queries (
-    id, message_id, rewrite_query, user_query, user_id, embeddings_id
-) VALUES (?, ?, ?, ?, ?, ?)
+    id, message_id, rewrite_query, user_query, user_id
+) VALUES (?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: ListMessageQueriesByMessage :many

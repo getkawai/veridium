@@ -871,59 +871,6 @@ export class BatchUpdateAIModelEnabledParams {
     }
 }
 
-export class BulkCreateEmbeddingsItemsParams {
-    "id": string;
-    "chunkId": sql$0.NullString;
-    "embeddings": string;
-    "model": sql$0.NullString;
-    "userId": sql$0.NullString;
-
-    /** Creates a new BulkCreateEmbeddingsItemsParams instance. */
-    constructor($$source: Partial<BulkCreateEmbeddingsItemsParams> = {}) {
-        if (!("id" in $$source)) {
-            this["id"] = "";
-        }
-        if (!("chunkId" in $$source)) {
-            this["chunkId"] = (new sql$0.NullString());
-        }
-        if (!("embeddings" in $$source)) {
-            this["embeddings"] = "";
-        }
-        if (!("model" in $$source)) {
-            this["model"] = (new sql$0.NullString());
-        }
-        if (!("userId" in $$source)) {
-            this["userId"] = (new sql$0.NullString());
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new BulkCreateEmbeddingsItemsParams instance from a string or object.
-     */
-    static createFrom($$source: any = {}): BulkCreateEmbeddingsItemsParams {
-        const $$createField1_0 = $$createType0;
-        const $$createField2_0 = $Create.ByteSlice;
-        const $$createField3_0 = $$createType0;
-        const $$createField4_0 = $$createType0;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("chunkId" in $$parsedSource) {
-            $$parsedSource["chunkId"] = $$createField1_0($$parsedSource["chunkId"]);
-        }
-        if ("embeddings" in $$parsedSource) {
-            $$parsedSource["embeddings"] = $$createField2_0($$parsedSource["embeddings"]);
-        }
-        if ("model" in $$parsedSource) {
-            $$parsedSource["model"] = $$createField3_0($$parsedSource["model"]);
-        }
-        if ("userId" in $$parsedSource) {
-            $$parsedSource["userId"] = $$createField4_0($$parsedSource["userId"]);
-        }
-        return new BulkCreateEmbeddingsItemsParams($$parsedSource as Partial<BulkCreateEmbeddingsItemsParams>);
-    }
-}
-
 export class ChatGroup {
     "id": string;
     "title": sql$0.NullString;
@@ -2155,112 +2102,6 @@ export class CreateDocumentParams {
     }
 }
 
-export class CreateEmbeddingParams {
-    "id": string;
-    "chunkId": sql$0.NullString;
-    "embeddings": string;
-    "model": sql$0.NullString;
-    "userId": sql$0.NullString;
-
-    /** Creates a new CreateEmbeddingParams instance. */
-    constructor($$source: Partial<CreateEmbeddingParams> = {}) {
-        if (!("id" in $$source)) {
-            this["id"] = "";
-        }
-        if (!("chunkId" in $$source)) {
-            this["chunkId"] = (new sql$0.NullString());
-        }
-        if (!("embeddings" in $$source)) {
-            this["embeddings"] = "";
-        }
-        if (!("model" in $$source)) {
-            this["model"] = (new sql$0.NullString());
-        }
-        if (!("userId" in $$source)) {
-            this["userId"] = (new sql$0.NullString());
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new CreateEmbeddingParams instance from a string or object.
-     */
-    static createFrom($$source: any = {}): CreateEmbeddingParams {
-        const $$createField1_0 = $$createType0;
-        const $$createField2_0 = $Create.ByteSlice;
-        const $$createField3_0 = $$createType0;
-        const $$createField4_0 = $$createType0;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("chunkId" in $$parsedSource) {
-            $$parsedSource["chunkId"] = $$createField1_0($$parsedSource["chunkId"]);
-        }
-        if ("embeddings" in $$parsedSource) {
-            $$parsedSource["embeddings"] = $$createField2_0($$parsedSource["embeddings"]);
-        }
-        if ("model" in $$parsedSource) {
-            $$parsedSource["model"] = $$createField3_0($$parsedSource["model"]);
-        }
-        if ("userId" in $$parsedSource) {
-            $$parsedSource["userId"] = $$createField4_0($$parsedSource["userId"]);
-        }
-        return new CreateEmbeddingParams($$parsedSource as Partial<CreateEmbeddingParams>);
-    }
-}
-
-export class CreateEmbeddingsItemParams {
-    "id": string;
-    "chunkId": sql$0.NullString;
-    "embeddings": string;
-    "model": sql$0.NullString;
-    "userId": sql$0.NullString;
-
-    /** Creates a new CreateEmbeddingsItemParams instance. */
-    constructor($$source: Partial<CreateEmbeddingsItemParams> = {}) {
-        if (!("id" in $$source)) {
-            this["id"] = "";
-        }
-        if (!("chunkId" in $$source)) {
-            this["chunkId"] = (new sql$0.NullString());
-        }
-        if (!("embeddings" in $$source)) {
-            this["embeddings"] = "";
-        }
-        if (!("model" in $$source)) {
-            this["model"] = (new sql$0.NullString());
-        }
-        if (!("userId" in $$source)) {
-            this["userId"] = (new sql$0.NullString());
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new CreateEmbeddingsItemParams instance from a string or object.
-     */
-    static createFrom($$source: any = {}): CreateEmbeddingsItemParams {
-        const $$createField1_0 = $$createType0;
-        const $$createField2_0 = $Create.ByteSlice;
-        const $$createField3_0 = $$createType0;
-        const $$createField4_0 = $$createType0;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("chunkId" in $$parsedSource) {
-            $$parsedSource["chunkId"] = $$createField1_0($$parsedSource["chunkId"]);
-        }
-        if ("embeddings" in $$parsedSource) {
-            $$parsedSource["embeddings"] = $$createField2_0($$parsedSource["embeddings"]);
-        }
-        if ("model" in $$parsedSource) {
-            $$parsedSource["model"] = $$createField3_0($$parsedSource["model"]);
-        }
-        if ("userId" in $$parsedSource) {
-            $$parsedSource["userId"] = $$createField4_0($$parsedSource["userId"]);
-        }
-        return new CreateEmbeddingsItemParams($$parsedSource as Partial<CreateEmbeddingsItemParams>);
-    }
-}
-
 export class CreateFileParams {
     "userId": string;
     "fileType": string;
@@ -2984,7 +2825,6 @@ export class CreateMessageQueryParams {
     "rewriteQuery": sql$0.NullString;
     "userQuery": sql$0.NullString;
     "userId": string;
-    "embeddingsId": sql$0.NullString;
 
     /** Creates a new CreateMessageQueryParams instance. */
     constructor($$source: Partial<CreateMessageQueryParams> = {}) {
@@ -3003,9 +2843,6 @@ export class CreateMessageQueryParams {
         if (!("userId" in $$source)) {
             this["userId"] = "";
         }
-        if (!("embeddingsId" in $$source)) {
-            this["embeddingsId"] = (new sql$0.NullString());
-        }
 
         Object.assign(this, $$source);
     }
@@ -3016,16 +2853,12 @@ export class CreateMessageQueryParams {
     static createFrom($$source: any = {}): CreateMessageQueryParams {
         const $$createField2_0 = $$createType0;
         const $$createField3_0 = $$createType0;
-        const $$createField5_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("rewriteQuery" in $$parsedSource) {
             $$parsedSource["rewriteQuery"] = $$createField2_0($$parsedSource["rewriteQuery"]);
         }
         if ("userQuery" in $$parsedSource) {
             $$parsedSource["userQuery"] = $$createField3_0($$parsedSource["userQuery"]);
-        }
-        if ("embeddingsId" in $$parsedSource) {
-            $$parsedSource["embeddingsId"] = $$createField5_0($$parsedSource["embeddingsId"]);
         }
         return new CreateMessageQueryParams($$parsedSource as Partial<CreateMessageQueryParams>);
     }
@@ -4428,64 +4261,6 @@ export class DeleteDocumentParams {
     }
 }
 
-export class DeleteEmbeddingParams {
-    "id": string;
-    "userId": sql$0.NullString;
-
-    /** Creates a new DeleteEmbeddingParams instance. */
-    constructor($$source: Partial<DeleteEmbeddingParams> = {}) {
-        if (!("id" in $$source)) {
-            this["id"] = "";
-        }
-        if (!("userId" in $$source)) {
-            this["userId"] = (new sql$0.NullString());
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new DeleteEmbeddingParams instance from a string or object.
-     */
-    static createFrom($$source: any = {}): DeleteEmbeddingParams {
-        const $$createField1_0 = $$createType0;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("userId" in $$parsedSource) {
-            $$parsedSource["userId"] = $$createField1_0($$parsedSource["userId"]);
-        }
-        return new DeleteEmbeddingParams($$parsedSource as Partial<DeleteEmbeddingParams>);
-    }
-}
-
-export class DeleteEmbeddingsItemParams {
-    "id": string;
-    "userId": sql$0.NullString;
-
-    /** Creates a new DeleteEmbeddingsItemParams instance. */
-    constructor($$source: Partial<DeleteEmbeddingsItemParams> = {}) {
-        if (!("id" in $$source)) {
-            this["id"] = "";
-        }
-        if (!("userId" in $$source)) {
-            this["userId"] = (new sql$0.NullString());
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new DeleteEmbeddingsItemParams instance from a string or object.
-     */
-    static createFrom($$source: any = {}): DeleteEmbeddingsItemParams {
-        const $$createField1_0 = $$createType0;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("userId" in $$parsedSource) {
-            $$parsedSource["userId"] = $$createField1_0($$parsedSource["userId"]);
-        }
-        return new DeleteEmbeddingsItemParams($$parsedSource as Partial<DeleteEmbeddingsItemParams>);
-    }
-}
-
 export class DeleteFileParams {
     "id": string;
     "userId": string;
@@ -5468,59 +5243,6 @@ export class DuplicateTopicParams {
             $$parsedSource["title"] = $$createField1_0($$parsedSource["title"]);
         }
         return new DuplicateTopicParams($$parsedSource as Partial<DuplicateTopicParams>);
-    }
-}
-
-export class Embedding {
-    "id": string;
-    "chunkId": sql$0.NullString;
-    "embeddings": string;
-    "model": sql$0.NullString;
-    "userId": sql$0.NullString;
-
-    /** Creates a new Embedding instance. */
-    constructor($$source: Partial<Embedding> = {}) {
-        if (!("id" in $$source)) {
-            this["id"] = "";
-        }
-        if (!("chunkId" in $$source)) {
-            this["chunkId"] = (new sql$0.NullString());
-        }
-        if (!("embeddings" in $$source)) {
-            this["embeddings"] = "";
-        }
-        if (!("model" in $$source)) {
-            this["model"] = (new sql$0.NullString());
-        }
-        if (!("userId" in $$source)) {
-            this["userId"] = (new sql$0.NullString());
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new Embedding instance from a string or object.
-     */
-    static createFrom($$source: any = {}): Embedding {
-        const $$createField1_0 = $$createType0;
-        const $$createField2_0 = $Create.ByteSlice;
-        const $$createField3_0 = $$createType0;
-        const $$createField4_0 = $$createType0;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("chunkId" in $$parsedSource) {
-            $$parsedSource["chunkId"] = $$createField1_0($$parsedSource["chunkId"]);
-        }
-        if ("embeddings" in $$parsedSource) {
-            $$parsedSource["embeddings"] = $$createField2_0($$parsedSource["embeddings"]);
-        }
-        if ("model" in $$parsedSource) {
-            $$parsedSource["model"] = $$createField3_0($$parsedSource["model"]);
-        }
-        if ("userId" in $$parsedSource) {
-            $$parsedSource["userId"] = $$createField4_0($$parsedSource["userId"]);
-        }
-        return new Embedding($$parsedSource as Partial<Embedding>);
     }
 }
 
@@ -7094,189 +6816,6 @@ export class GetChunksTextByFileIdRow {
     }
 }
 
-export class GetChunksWithEmbeddingsByFileIdsParams {
-    "fileId": sql$0.NullString;
-    "userId": string;
-
-    /** Creates a new GetChunksWithEmbeddingsByFileIdsParams instance. */
-    constructor($$source: Partial<GetChunksWithEmbeddingsByFileIdsParams> = {}) {
-        if (!("fileId" in $$source)) {
-            this["fileId"] = (new sql$0.NullString());
-        }
-        if (!("userId" in $$source)) {
-            this["userId"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new GetChunksWithEmbeddingsByFileIdsParams instance from a string or object.
-     */
-    static createFrom($$source: any = {}): GetChunksWithEmbeddingsByFileIdsParams {
-        const $$createField0_0 = $$createType0;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("fileId" in $$parsedSource) {
-            $$parsedSource["fileId"] = $$createField0_0($$parsedSource["fileId"]);
-        }
-        return new GetChunksWithEmbeddingsByFileIdsParams($$parsedSource as Partial<GetChunksWithEmbeddingsByFileIdsParams>);
-    }
-}
-
-export class GetChunksWithEmbeddingsByFileIdsRow {
-    "id": string;
-    "text": sql$0.NullString;
-    "metadata": sql$0.NullString;
-    "chunkIndex": sql$0.NullInt64;
-    "type": sql$0.NullString;
-    "chunkEmbedding": string;
-    "fileId": sql$0.NullString;
-    "fileName": sql$0.NullString;
-
-    /** Creates a new GetChunksWithEmbeddingsByFileIdsRow instance. */
-    constructor($$source: Partial<GetChunksWithEmbeddingsByFileIdsRow> = {}) {
-        if (!("id" in $$source)) {
-            this["id"] = "";
-        }
-        if (!("text" in $$source)) {
-            this["text"] = (new sql$0.NullString());
-        }
-        if (!("metadata" in $$source)) {
-            this["metadata"] = (new sql$0.NullString());
-        }
-        if (!("chunkIndex" in $$source)) {
-            this["chunkIndex"] = (new sql$0.NullInt64());
-        }
-        if (!("type" in $$source)) {
-            this["type"] = (new sql$0.NullString());
-        }
-        if (!("chunkEmbedding" in $$source)) {
-            this["chunkEmbedding"] = "";
-        }
-        if (!("fileId" in $$source)) {
-            this["fileId"] = (new sql$0.NullString());
-        }
-        if (!("fileName" in $$source)) {
-            this["fileName"] = (new sql$0.NullString());
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new GetChunksWithEmbeddingsByFileIdsRow instance from a string or object.
-     */
-    static createFrom($$source: any = {}): GetChunksWithEmbeddingsByFileIdsRow {
-        const $$createField1_0 = $$createType0;
-        const $$createField2_0 = $$createType0;
-        const $$createField3_0 = $$createType1;
-        const $$createField4_0 = $$createType0;
-        const $$createField5_0 = $Create.ByteSlice;
-        const $$createField6_0 = $$createType0;
-        const $$createField7_0 = $$createType0;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("text" in $$parsedSource) {
-            $$parsedSource["text"] = $$createField1_0($$parsedSource["text"]);
-        }
-        if ("metadata" in $$parsedSource) {
-            $$parsedSource["metadata"] = $$createField2_0($$parsedSource["metadata"]);
-        }
-        if ("chunkIndex" in $$parsedSource) {
-            $$parsedSource["chunkIndex"] = $$createField3_0($$parsedSource["chunkIndex"]);
-        }
-        if ("type" in $$parsedSource) {
-            $$parsedSource["type"] = $$createField4_0($$parsedSource["type"]);
-        }
-        if ("chunkEmbedding" in $$parsedSource) {
-            $$parsedSource["chunkEmbedding"] = $$createField5_0($$parsedSource["chunkEmbedding"]);
-        }
-        if ("fileId" in $$parsedSource) {
-            $$parsedSource["fileId"] = $$createField6_0($$parsedSource["fileId"]);
-        }
-        if ("fileName" in $$parsedSource) {
-            $$parsedSource["fileName"] = $$createField7_0($$parsedSource["fileName"]);
-        }
-        return new GetChunksWithEmbeddingsByFileIdsRow($$parsedSource as Partial<GetChunksWithEmbeddingsByFileIdsRow>);
-    }
-}
-
-export class GetChunksWithEmbeddingsRow {
-    "id": string;
-    "text": sql$0.NullString;
-    "metadata": sql$0.NullString;
-    "chunkIndex": sql$0.NullInt64;
-    "type": sql$0.NullString;
-    "chunkEmbedding": string;
-    "fileId": sql$0.NullString;
-    "fileName": sql$0.NullString;
-
-    /** Creates a new GetChunksWithEmbeddingsRow instance. */
-    constructor($$source: Partial<GetChunksWithEmbeddingsRow> = {}) {
-        if (!("id" in $$source)) {
-            this["id"] = "";
-        }
-        if (!("text" in $$source)) {
-            this["text"] = (new sql$0.NullString());
-        }
-        if (!("metadata" in $$source)) {
-            this["metadata"] = (new sql$0.NullString());
-        }
-        if (!("chunkIndex" in $$source)) {
-            this["chunkIndex"] = (new sql$0.NullInt64());
-        }
-        if (!("type" in $$source)) {
-            this["type"] = (new sql$0.NullString());
-        }
-        if (!("chunkEmbedding" in $$source)) {
-            this["chunkEmbedding"] = "";
-        }
-        if (!("fileId" in $$source)) {
-            this["fileId"] = (new sql$0.NullString());
-        }
-        if (!("fileName" in $$source)) {
-            this["fileName"] = (new sql$0.NullString());
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new GetChunksWithEmbeddingsRow instance from a string or object.
-     */
-    static createFrom($$source: any = {}): GetChunksWithEmbeddingsRow {
-        const $$createField1_0 = $$createType0;
-        const $$createField2_0 = $$createType0;
-        const $$createField3_0 = $$createType1;
-        const $$createField4_0 = $$createType0;
-        const $$createField5_0 = $Create.ByteSlice;
-        const $$createField6_0 = $$createType0;
-        const $$createField7_0 = $$createType0;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("text" in $$parsedSource) {
-            $$parsedSource["text"] = $$createField1_0($$parsedSource["text"]);
-        }
-        if ("metadata" in $$parsedSource) {
-            $$parsedSource["metadata"] = $$createField2_0($$parsedSource["metadata"]);
-        }
-        if ("chunkIndex" in $$parsedSource) {
-            $$parsedSource["chunkIndex"] = $$createField3_0($$parsedSource["chunkIndex"]);
-        }
-        if ("type" in $$parsedSource) {
-            $$parsedSource["type"] = $$createField4_0($$parsedSource["type"]);
-        }
-        if ("chunkEmbedding" in $$parsedSource) {
-            $$parsedSource["chunkEmbedding"] = $$createField5_0($$parsedSource["chunkEmbedding"]);
-        }
-        if ("fileId" in $$parsedSource) {
-            $$parsedSource["fileId"] = $$createField6_0($$parsedSource["fileId"]);
-        }
-        if ("fileName" in $$parsedSource) {
-            $$parsedSource["fileName"] = $$createField7_0($$parsedSource["fileName"]);
-        }
-        return new GetChunksWithEmbeddingsRow($$parsedSource as Partial<GetChunksWithEmbeddingsRow>);
-    }
-}
-
 export class GetDocumentByFileIdParams {
     "fileId": sql$0.NullString;
     "userId": string;
@@ -7386,97 +6925,6 @@ export class GetDocumentParams {
     static createFrom($$source: any = {}): GetDocumentParams {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new GetDocumentParams($$parsedSource as Partial<GetDocumentParams>);
-    }
-}
-
-export class GetEmbeddingByChunkParams {
-    "chunkId": sql$0.NullString;
-    "userId": sql$0.NullString;
-
-    /** Creates a new GetEmbeddingByChunkParams instance. */
-    constructor($$source: Partial<GetEmbeddingByChunkParams> = {}) {
-        if (!("chunkId" in $$source)) {
-            this["chunkId"] = (new sql$0.NullString());
-        }
-        if (!("userId" in $$source)) {
-            this["userId"] = (new sql$0.NullString());
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new GetEmbeddingByChunkParams instance from a string or object.
-     */
-    static createFrom($$source: any = {}): GetEmbeddingByChunkParams {
-        const $$createField0_0 = $$createType0;
-        const $$createField1_0 = $$createType0;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("chunkId" in $$parsedSource) {
-            $$parsedSource["chunkId"] = $$createField0_0($$parsedSource["chunkId"]);
-        }
-        if ("userId" in $$parsedSource) {
-            $$parsedSource["userId"] = $$createField1_0($$parsedSource["userId"]);
-        }
-        return new GetEmbeddingByChunkParams($$parsedSource as Partial<GetEmbeddingByChunkParams>);
-    }
-}
-
-export class GetEmbeddingParams {
-    "id": string;
-    "userId": sql$0.NullString;
-
-    /** Creates a new GetEmbeddingParams instance. */
-    constructor($$source: Partial<GetEmbeddingParams> = {}) {
-        if (!("id" in $$source)) {
-            this["id"] = "";
-        }
-        if (!("userId" in $$source)) {
-            this["userId"] = (new sql$0.NullString());
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new GetEmbeddingParams instance from a string or object.
-     */
-    static createFrom($$source: any = {}): GetEmbeddingParams {
-        const $$createField1_0 = $$createType0;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("userId" in $$parsedSource) {
-            $$parsedSource["userId"] = $$createField1_0($$parsedSource["userId"]);
-        }
-        return new GetEmbeddingParams($$parsedSource as Partial<GetEmbeddingParams>);
-    }
-}
-
-export class GetEmbeddingsItemParams {
-    "id": string;
-    "userId": sql$0.NullString;
-
-    /** Creates a new GetEmbeddingsItemParams instance. */
-    constructor($$source: Partial<GetEmbeddingsItemParams> = {}) {
-        if (!("id" in $$source)) {
-            this["id"] = "";
-        }
-        if (!("userId" in $$source)) {
-            this["userId"] = (new sql$0.NullString());
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new GetEmbeddingsItemParams instance from a string or object.
-     */
-    static createFrom($$source: any = {}): GetEmbeddingsItemParams {
-        const $$createField1_0 = $$createType0;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("userId" in $$parsedSource) {
-            $$parsedSource["userId"] = $$createField1_0($$parsedSource["userId"]);
-        }
-        return new GetEmbeddingsItemParams($$parsedSource as Partial<GetEmbeddingsItemParams>);
     }
 }
 
@@ -12512,7 +11960,6 @@ export class MessageQuery {
     "rewriteQuery": sql$0.NullString;
     "userQuery": sql$0.NullString;
     "userId": string;
-    "embeddingsId": sql$0.NullString;
 
     /** Creates a new MessageQuery instance. */
     constructor($$source: Partial<MessageQuery> = {}) {
@@ -12531,9 +11978,6 @@ export class MessageQuery {
         if (!("userId" in $$source)) {
             this["userId"] = "";
         }
-        if (!("embeddingsId" in $$source)) {
-            this["embeddingsId"] = (new sql$0.NullString());
-        }
 
         Object.assign(this, $$source);
     }
@@ -12544,16 +11988,12 @@ export class MessageQuery {
     static createFrom($$source: any = {}): MessageQuery {
         const $$createField2_0 = $$createType0;
         const $$createField3_0 = $$createType0;
-        const $$createField5_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("rewriteQuery" in $$parsedSource) {
             $$parsedSource["rewriteQuery"] = $$createField2_0($$parsedSource["rewriteQuery"]);
         }
         if ("userQuery" in $$parsedSource) {
             $$parsedSource["userQuery"] = $$createField3_0($$parsedSource["userQuery"]);
-        }
-        if ("embeddingsId" in $$parsedSource) {
-            $$parsedSource["embeddingsId"] = $$createField5_0($$parsedSource["embeddingsId"]);
         }
         return new MessageQuery($$parsedSource as Partial<MessageQuery>);
     }

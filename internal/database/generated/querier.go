@@ -20,10 +20,8 @@ type Querier interface {
 	BatchLinkKnowledgeBaseToFiles(ctx context.Context, arg BatchLinkKnowledgeBaseToFilesParams) error
 	BatchUnlinkKnowledgeBaseFromFiles(ctx context.Context, arg BatchUnlinkKnowledgeBaseFromFilesParams) error
 	BatchUpdateAIModelEnabled(ctx context.Context, arg BatchUpdateAIModelEnabledParams) error
-	BulkCreateEmbeddingsItems(ctx context.Context, arg BulkCreateEmbeddingsItemsParams) error
 	CountChunksByFileId(ctx context.Context, arg CountChunksByFileIdParams) (int64, error)
 	CountChunksByFileIds(ctx context.Context, userID string) ([]CountChunksByFileIdsRow, error)
-	CountEmbeddingsItems(ctx context.Context, userID sql.NullString) (int64, error)
 	// Complex file queries
 	CountFilesByHash(ctx context.Context, fileHash sql.NullString) (int64, error)
 	CountFilesUsage(ctx context.Context, userID string) (interface{}, error)
@@ -45,8 +43,6 @@ type Querier interface {
 	CreateChatGroup(ctx context.Context, arg CreateChatGroupParams) (ChatGroup, error)
 	CreateChunk(ctx context.Context, arg CreateChunkParams) (Chunk, error)
 	CreateDocument(ctx context.Context, arg CreateDocumentParams) (Document, error)
-	CreateEmbedding(ctx context.Context, arg CreateEmbeddingParams) (Embedding, error)
-	CreateEmbeddingsItem(ctx context.Context, arg CreateEmbeddingsItemParams) (Embedding, error)
 	CreateFile(ctx context.Context, arg CreateFileParams) (File, error)
 	CreateGeneration(ctx context.Context, arg CreateGenerationParams) (Generation, error)
 	CreateGenerationBatch(ctx context.Context, arg CreateGenerationBatchParams) (GenerationBatch, error)
@@ -100,8 +96,6 @@ type Querier interface {
 	DeleteChatGroup(ctx context.Context, arg DeleteChatGroupParams) error
 	DeleteChunk(ctx context.Context, arg DeleteChunkParams) error
 	DeleteDocument(ctx context.Context, arg DeleteDocumentParams) error
-	DeleteEmbedding(ctx context.Context, arg DeleteEmbeddingParams) error
-	DeleteEmbeddingsItem(ctx context.Context, arg DeleteEmbeddingsItemParams) error
 	DeleteExpiredNextAuthSessions(ctx context.Context, expires int64) error
 	DeleteExpiredNextAuthVerificationTokens(ctx context.Context, expires int64) error
 	DeleteFile(ctx context.Context, arg DeleteFileParams) error
@@ -176,16 +170,9 @@ type Querier interface {
 	GetChunksByDocumentID(ctx context.Context, arg GetChunksByDocumentIDParams) ([]Chunk, error)
 	GetChunksByIDs(ctx context.Context, arg GetChunksByIDsParams) ([]GetChunksByIDsRow, error)
 	GetChunksTextByFileId(ctx context.Context, fileID sql.NullString) ([]GetChunksTextByFileIdRow, error)
-	// Semantic search - fetch chunks with embeddings for JS similarity calculation
-	GetChunksWithEmbeddings(ctx context.Context, userID sql.NullString) ([]GetChunksWithEmbeddingsRow, error)
-	GetChunksWithEmbeddingsByFileIds(ctx context.Context, arg GetChunksWithEmbeddingsByFileIdsParams) ([]GetChunksWithEmbeddingsByFileIdsRow, error)
 	GetDocument(ctx context.Context, arg GetDocumentParams) (Document, error)
 	GetDocumentByFileId(ctx context.Context, arg GetDocumentByFileIdParams) (GetDocumentByFileIdRow, error)
 	GetDocumentChunks(ctx context.Context, arg GetDocumentChunksParams) ([]Chunk, error)
-	// Embeddings
-	GetEmbedding(ctx context.Context, arg GetEmbeddingParams) (Embedding, error)
-	GetEmbeddingByChunk(ctx context.Context, arg GetEmbeddingByChunkParams) (Embedding, error)
-	GetEmbeddingsItem(ctx context.Context, arg GetEmbeddingsItemParams) (Embedding, error)
 	GetEnabledChatGroupAgentLinks(ctx context.Context, arg GetEnabledChatGroupAgentLinksParams) ([]ChatGroupsAgent, error)
 	GetFile(ctx context.Context, arg GetFileParams) (File, error)
 	GetFileChunkIds(ctx context.Context, fileID sql.NullString) ([]sql.NullString, error)
@@ -328,7 +315,6 @@ type Querier interface {
 	ListChatGroupsWithAgents(ctx context.Context, userID string) ([]ListChatGroupsWithAgentsRow, error)
 	ListChunks(ctx context.Context, arg ListChunksParams) ([]Chunk, error)
 	ListDocuments(ctx context.Context, arg ListDocumentsParams) ([]Document, error)
-	ListEmbeddingsItems(ctx context.Context, userID sql.NullString) ([]Embedding, error)
 	ListEnabledAIModels(ctx context.Context, userID string) ([]AiModel, error)
 	ListEnabledAIProviders(ctx context.Context, userID string) ([]AiProvider, error)
 	ListFiles(ctx context.Context, arg ListFilesParams) ([]File, error)

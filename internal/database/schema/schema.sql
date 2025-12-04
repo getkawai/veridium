@@ -241,8 +241,7 @@ CREATE TABLE IF NOT EXISTS message_queries (
   message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
   rewrite_query TEXT,
   user_query TEXT,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  embeddings_id TEXT REFERENCES embeddings(id) ON DELETE SET NULL
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- Message query chunks
@@ -298,15 +297,6 @@ CREATE TABLE IF NOT EXISTS unstructured_chunks (
   file_id TEXT REFERENCES files(id) ON DELETE CASCADE,
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
-);
-
--- Embeddings table
-CREATE TABLE IF NOT EXISTS embeddings (
-  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))),2) || '-' || substr('89ab',abs(random()) % 4 + 1, 1) || substr(lower(hex(randomblob(2))),2) || '-' || lower(hex(randomblob(6)))),
-  chunk_id TEXT UNIQUE REFERENCES chunks(id) ON DELETE CASCADE,
-  embeddings BLOB, -- Store embeddings as binary data
-  model TEXT,
-  user_id TEXT REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- File chunks junction table
@@ -638,8 +628,6 @@ CREATE INDEX IF NOT EXISTS idx_topics_id_user_id ON topics(id, user_id);
 
 CREATE INDEX IF NOT EXISTS idx_chunks_user_id ON chunks(user_id);
 CREATE INDEX IF NOT EXISTS idx_chunks_document_id ON chunks(document_id);
-
-CREATE INDEX IF NOT EXISTS idx_embeddings_chunk_id ON embeddings(chunk_id);
 
 CREATE INDEX IF NOT EXISTS idx_files_file_hash ON files(file_hash);
 CREATE INDEX IF NOT EXISTS idx_files_user_id ON files(user_id);

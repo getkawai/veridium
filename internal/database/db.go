@@ -359,18 +359,7 @@ func (s *Service) DeleteFileWithCascade(ctx context.Context, params DeleteFileWi
 			return fmt.Errorf("failed to get chunk IDs: %w", err)
 		}
 
-		// 2. Delete embeddings for each chunk
-		for _, chunkId := range chunkIds {
-			if chunkId.Valid {
-				// Try to delete embedding (may not exist)
-				_ = q.DeleteEmbedding(ctx, db.DeleteEmbeddingParams{
-					ID:     chunkId.String,
-					UserID: sql.NullString{String: params.UserID, Valid: true},
-				})
-			}
-		}
-
-		// 3. Delete chunks
+		// 2. Delete chunks (embeddings are stored in DuckDB, not SQLite)
 		for _, chunkId := range chunkIds {
 			if chunkId.Valid {
 				err := q.DeleteChunk(ctx, db.DeleteChunkParams{

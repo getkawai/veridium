@@ -186,14 +186,6 @@ type DrizzleMigration struct {
 	CreatedAt sql.NullInt64 `json:"createdAt"`
 }
 
-type Embedding struct {
-	ID         string         `json:"id"`
-	ChunkID    sql.NullString `json:"chunkId"`
-	Embeddings []byte         `json:"embeddings"`
-	Model      sql.NullString `json:"model"`
-	UserID     sql.NullString `json:"userId"`
-}
-
 type File struct {
 	ID        string         `json:"id"`
 	UserID    string         `json:"userId"`
@@ -351,7 +343,6 @@ type MessageQuery struct {
 	RewriteQuery sql.NullString `json:"rewriteQuery"`
 	UserQuery    sql.NullString `json:"userQuery"`
 	UserID       string         `json:"userId"`
-	EmbeddingsID sql.NullString `json:"embeddingsId"`
 }
 
 type MessageQueryChunk struct {
