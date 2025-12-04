@@ -1138,6 +1138,165 @@ export class SearchResult {
 }
 
 /**
+ * StreamEventPayload represents the payload for chat stream events.
+ * This is emitted via Wails events ('chat:stream') and consumed by frontend.
+ * Frontend can import this type from generated bindings.
+ */
+export class StreamEventPayload {
+    "type": StreamEventType;
+    "session_id": string;
+    "message_id": string;
+    "topic_id"?: string;
+
+    /**
+     * Content fields
+     */
+    "content"?: string;
+
+    /**
+     * Legacy support
+     */
+    "full_content"?: string;
+
+    /**
+     * Reasoning
+     */
+    "reasoning"?: ModelReasoning | null;
+
+    /**
+     * Tools
+     * For single tool call event (legacy/alternative)
+     */
+    "tool"?: ChatToolPayload | null;
+
+    /**
+     * For tool_call event
+     */
+    "tools"?: ChatToolPayload[];
+
+    /**
+     * Tool Result
+     */
+    "tool_call_id"?: string;
+    "tool_msg_id"?: string;
+    "plugin"?: ChatPluginPayload | null;
+    "pluginState"?: any;
+
+    /**
+     * Complete event fields
+     */
+    "search"?: GroundingSearch | null;
+    "chunksList"?: ChatFileChunk[];
+    "imageList"?: ChatImageItem[];
+    "usage"?: ModelUsage | null;
+    "error"?: ChatMessageError | null;
+    "performance"?: ModelPerformance | null;
+
+    /** Creates a new StreamEventPayload instance. */
+    constructor($$source: Partial<StreamEventPayload> = {}) {
+        if (!("type" in $$source)) {
+            this["type"] = StreamEventType.$zero;
+        }
+        if (!("session_id" in $$source)) {
+            this["session_id"] = "";
+        }
+        if (!("message_id" in $$source)) {
+            this["message_id"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new StreamEventPayload instance from a string or object.
+     */
+    static createFrom($$source: any = {}): StreamEventPayload {
+        const $$createField6_0 = $$createType22;
+        const $$createField7_0 = $$createType24;
+        const $$createField8_0 = $$createType25;
+        const $$createField11_0 = $$createType27;
+        const $$createField13_0 = $$createType29;
+        const $$createField14_0 = $$createType31;
+        const $$createField15_0 = $$createType3;
+        const $$createField16_0 = $$createType9;
+        const $$createField17_0 = $$createType33;
+        const $$createField18_0 = $$createType5;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("reasoning" in $$parsedSource) {
+            $$parsedSource["reasoning"] = $$createField6_0($$parsedSource["reasoning"]);
+        }
+        if ("tool" in $$parsedSource) {
+            $$parsedSource["tool"] = $$createField7_0($$parsedSource["tool"]);
+        }
+        if ("tools" in $$parsedSource) {
+            $$parsedSource["tools"] = $$createField8_0($$parsedSource["tools"]);
+        }
+        if ("plugin" in $$parsedSource) {
+            $$parsedSource["plugin"] = $$createField11_0($$parsedSource["plugin"]);
+        }
+        if ("search" in $$parsedSource) {
+            $$parsedSource["search"] = $$createField13_0($$parsedSource["search"]);
+        }
+        if ("chunksList" in $$parsedSource) {
+            $$parsedSource["chunksList"] = $$createField14_0($$parsedSource["chunksList"]);
+        }
+        if ("imageList" in $$parsedSource) {
+            $$parsedSource["imageList"] = $$createField15_0($$parsedSource["imageList"]);
+        }
+        if ("usage" in $$parsedSource) {
+            $$parsedSource["usage"] = $$createField16_0($$parsedSource["usage"]);
+        }
+        if ("error" in $$parsedSource) {
+            $$parsedSource["error"] = $$createField17_0($$parsedSource["error"]);
+        }
+        if ("performance" in $$parsedSource) {
+            $$parsedSource["performance"] = $$createField18_0($$parsedSource["performance"]);
+        }
+        return new StreamEventPayload($$parsedSource as Partial<StreamEventPayload>);
+    }
+}
+
+/**
+ * StreamEventType represents the type of stream event
+ */
+export enum StreamEventType {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    /**
+     * Generation started
+     */
+    StreamEventStart = "start",
+
+    /**
+     * Content chunk
+     */
+    StreamEventChunk = "chunk",
+
+    /**
+     * Reasoning content
+     */
+    StreamEventReasoning = "reasoning",
+
+    /**
+     * Tool call initiated
+     */
+    StreamEventToolCall = "tool_call",
+
+    /**
+     * Tool execution result
+     */
+    StreamEventToolResult = "tool_result",
+
+    /**
+     * Generation complete
+     */
+    StreamEventComplete = "complete",
+};
+
+/**
  * ThreadInfo represents thread information
  */
 export class ThreadInfo {
@@ -1304,22 +1463,22 @@ export class UIChatMessage {
      * Creates a new UIChatMessage instance from a string or object.
      */
     static createFrom($$source: any = {}): UIChatMessage {
-        const $$createField1_0 = $$createType22;
-        const $$createField2_0 = $$createType24;
-        const $$createField5_0 = $$createType26;
-        const $$createField6_0 = $$createType28;
+        const $$createField1_0 = $$createType35;
+        const $$createField2_0 = $$createType31;
+        const $$createField5_0 = $$createType33;
+        const $$createField6_0 = $$createType37;
         const $$createField7_0 = $$createType1;
         const $$createField8_0 = $$createType14;
         const $$createField11_0 = $$createType3;
-        const $$createField12_0 = $$createType29;
-        const $$createField13_0 = $$createType31;
+        const $$createField12_0 = $$createType38;
+        const $$createField13_0 = $$createType40;
         const $$createField16_0 = $$createType5;
-        const $$createField17_0 = $$createType33;
-        const $$createField24_0 = $$createType35;
-        const $$createField26_0 = $$createType37;
-        const $$createField31_0 = $$createType39;
+        const $$createField17_0 = $$createType27;
+        const $$createField24_0 = $$createType22;
+        const $$createField26_0 = $$createType29;
+        const $$createField31_0 = $$createType25;
         const $$createField35_0 = $$createType9;
-        const $$createField36_0 = $$createType41;
+        const $$createField36_0 = $$createType42;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("children" in $$parsedSource) {
             $$parsedSource["children"] = $$createField1_0($$parsedSource["children"]);
@@ -1412,24 +1571,25 @@ const $$createType17 = $Create.Nullable($$createType16);
 const $$createType18 = CitationItem.createFrom;
 const $$createType19 = $Create.Array($$createType18);
 const $$createType20 = $Create.Map($Create.Any, $Create.Any);
-const $$createType21 = AssistantContentBlock.createFrom;
-const $$createType22 = $Create.Array($$createType21);
-const $$createType23 = ChatFileChunk.createFrom;
-const $$createType24 = $Create.Array($$createType23);
-const $$createType25 = ChatMessageError.createFrom;
-const $$createType26 = $Create.Nullable($$createType25);
-const $$createType27 = ChatMessageExtra.createFrom;
-const $$createType28 = $Create.Nullable($$createType27);
-const $$createType29 = MetaData.createFrom;
-const $$createType30 = MessageMetadata.createFrom;
-const $$createType31 = $Create.Nullable($$createType30);
-const $$createType32 = ChatPluginPayload.createFrom;
+const $$createType21 = ModelReasoning.createFrom;
+const $$createType22 = $Create.Nullable($$createType21);
+const $$createType23 = ChatToolPayload.createFrom;
+const $$createType24 = $Create.Nullable($$createType23);
+const $$createType25 = $Create.Array($$createType23);
+const $$createType26 = ChatPluginPayload.createFrom;
+const $$createType27 = $Create.Nullable($$createType26);
+const $$createType28 = GroundingSearch.createFrom;
+const $$createType29 = $Create.Nullable($$createType28);
+const $$createType30 = ChatFileChunk.createFrom;
+const $$createType31 = $Create.Array($$createType30);
+const $$createType32 = ChatMessageError.createFrom;
 const $$createType33 = $Create.Nullable($$createType32);
-const $$createType34 = ModelReasoning.createFrom;
-const $$createType35 = $Create.Nullable($$createType34);
-const $$createType36 = GroundingSearch.createFrom;
+const $$createType34 = AssistantContentBlock.createFrom;
+const $$createType35 = $Create.Array($$createType34);
+const $$createType36 = ChatMessageExtra.createFrom;
 const $$createType37 = $Create.Nullable($$createType36);
-const $$createType38 = ChatToolPayload.createFrom;
-const $$createType39 = $Create.Array($$createType38);
-const $$createType40 = ChatVideoItem.createFrom;
-const $$createType41 = $Create.Array($$createType40);
+const $$createType38 = MetaData.createFrom;
+const $$createType39 = MessageMetadata.createFrom;
+const $$createType40 = $Create.Nullable($$createType39);
+const $$createType41 = ChatVideoItem.createFrom;
+const $$createType42 = $Create.Array($$createType41);

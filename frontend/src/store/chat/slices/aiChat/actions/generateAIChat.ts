@@ -37,48 +37,12 @@ import { setNamespace } from '@/utils/storeDebug';
 import { chatSelectors } from '../../../selectors';
 import { idGenerator } from '@/database/utils/idGenerator';
 import {
-  ChatFileChunk,
-  ChatImageItem,
-  ChatPluginPayload,
-  ChatToolPayload,
-  GroundingSearch,
-  ModelPerformance,
-  ModelReasoning,
-  ModelUsage,
+  StreamEventPayload,
   UIChatMessage as BackendUIChatMessage,
 } from '@@/github.com/kawai-network/veridium/internal/services/models';
 
-// Define StreamEventPayload using generated types
-export interface StreamEventPayload {
-  type: 'start' | 'chunk' | 'reasoning' | 'tool_call' | 'tool_calling' | 'tool_result' | 'complete';
-  session_id: string;
-  message_id: string;
-  topic_id?: string;
-
-  // Content fields
-  content?: string;
-  full_content?: string; // Legacy support
-
-  // Reasoning
-  reasoning?: ModelReasoning;
-
-  // Tools
-  tool?: ChatToolPayload; // For single tool call event (legacy/alternative)
-  tools?: ChatToolPayload[]; // For tool_call event
-
-  // Tool Result
-  tool_call_id?: string;
-  tool_msg_id?: string;
-  plugin?: ChatPluginPayload;
-  pluginState?: any;
-
-  // Complete event fields
-  search?: GroundingSearch;
-  chunksList?: ChatFileChunk[];
-  imageList?: ChatImageItem[];
-  usage?: ModelUsage;
-  performance?: ModelPerformance;
-}
+// Re-export StreamEventPayload for consumers
+export type { StreamEventPayload };
 
 // User ID constant for backend calls
 const FALLBACK_CLIENT_DB_USER_ID = 'DEFAULT_LOBE_CHAT_USER';
@@ -787,7 +751,6 @@ export const generateAIChat: StateCreator<
    * - chunk: Content chunks (update content field)
    * - tool_call: Tool call initiated (update tools array)
    * - tool_result: Tool execution result (add tool message to messagesMap)
-   * - tool_calling: Legacy - tool is being called (same as tool_call)
    * - complete: Generation finished (finalize message, remove from loading)
    */
   internal_handleStreamEvent: (data: StreamEventPayload) => {
@@ -838,7 +801,7 @@ export const generateAIChat: StateCreator<
           msg.content = data.content || data.full_content || msg.content || '';
           msg.updatedAt = Date.now();
         }
-      } else if (data.type === 'tool_call' || data.type === 'tool_calling') {
+      } else if (data.type === 'tool_call') {
         // Tool call initiated - update tools array on assistant message
         console.log('[Stream] Tool call:', data.tool?.apiName || 'unknown');
 

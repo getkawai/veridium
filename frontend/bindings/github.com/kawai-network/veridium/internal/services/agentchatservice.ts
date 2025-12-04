@@ -150,6 +150,17 @@ export function GetSessionHistory(sessionID: string): $CancellablePromise<messag
 }
 
 /**
+ * GetStreamEventPayloadType returns an empty StreamEventPayload for type inference.
+ * This method exists to expose StreamEventPayload in Wails bindings.
+ * Frontend can use this type for handling 'chat:stream' events.
+ */
+export function GetStreamEventPayloadType(): $CancellablePromise<$models.StreamEventPayload> {
+    return $Call.ByID(1681290149).then(($result: any) => {
+        return $$createType5($result);
+    });
+}
+
+/**
  * SetLLMGenerator sets a custom LLM generator (useful for testing with mocks)
  */
 export function SetLLMGenerator(generator: $models.LLMGenerator): $CancellablePromise<void> {
@@ -194,3 +205,4 @@ const $$createType1 = $Create.Nullable($$createType0);
 const $$createType2 = $Create.Array($$createType0);
 const $$createType3 = $models.ReasoningConfig.createFrom;
 const $$createType4 = $Create.Array($Create.Any);
+const $$createType5 = $models.StreamEventPayload.createFrom;

@@ -51,6 +51,41 @@ type ToolResultData struct {
 	State   interface{}
 }
 
+// StreamEventPayload represents the payload for chat stream events.
+// This is emitted via Wails events ('chat:stream') and consumed by frontend.
+// Frontend can import this type from generated bindings.
+type StreamEventPayload struct {
+	Type      StreamEventType `json:"type"`
+	SessionID string          `json:"session_id"`
+	MessageID string          `json:"message_id"`
+	TopicID   string          `json:"topic_id,omitempty"`
+
+	// Content fields
+	Content     string `json:"content,omitempty"`
+	FullContent string `json:"full_content,omitempty"` // Legacy support
+
+	// Reasoning
+	Reasoning *ModelReasoning `json:"reasoning,omitempty"`
+
+	// Tools
+	Tool  *ChatToolPayload  `json:"tool,omitempty"`  // For single tool call event (legacy/alternative)
+	Tools []ChatToolPayload `json:"tools,omitempty"` // For tool_call event
+
+	// Tool Result
+	ToolCallID  string             `json:"tool_call_id,omitempty"`
+	ToolMsgID   string             `json:"tool_msg_id,omitempty"`
+	Plugin      *ChatPluginPayload `json:"plugin,omitempty"`
+	PluginState interface{}        `json:"pluginState,omitempty"`
+
+	// Complete event fields
+	Search      *GroundingSearch  `json:"search,omitempty"`
+	ChunksList  []ChatFileChunk   `json:"chunksList,omitempty"`
+	ImageList   []ChatImageItem   `json:"imageList,omitempty"`
+	Usage       *ModelUsage       `json:"usage,omitempty"`
+	Error       *ChatMessageError `json:"error,omitempty"`
+	Performance *ModelPerformance `json:"performance,omitempty"`
+}
+
 // ============================================================================
 // Parameter Structs for Reusable Methods
 // ============================================================================
@@ -535,4 +570,11 @@ func (s *AgentChatService) linkMessageToChunks(ctx context.Context, messageID, u
 
 	log.Printf("💾 Linked message %s to %d chunks", messageID, len(chunks))
 	return nil
+}
+
+// GetStreamEventPayloadType returns an empty StreamEventPayload for type inference.
+// This method exists to expose StreamEventPayload in Wails bindings.
+// Frontend can use this type for handling 'chat:stream' events.
+func (s *AgentChatService) GetStreamEventPayloadType() StreamEventPayload {
+	return StreamEventPayload{}
 }

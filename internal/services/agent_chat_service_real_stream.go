@@ -111,28 +111,14 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	log.Printf("🚀 [REAL STREAM] Starting real LLM streaming for session: %s", req.SessionID)
 	startTime := time.Now()
 
-	// Helper to emit events with type safety
-	emit := func(eventType StreamEventType, data interface{}) {
+	// Helper to emit events with type safety using StreamEventPayload
+	emit := func(payload StreamEventPayload) {
 		if s.app == nil {
 			return
 		}
-
-		payload := map[string]interface{}{
-			"type":       string(eventType),
-			"session_id": req.SessionID,
-			"message_id": req.MessageAssistantID,
-		}
-
-		if data != nil {
-			jsonData, _ := json.Marshal(data)
-			var dataMap map[string]interface{}
-			_ = json.Unmarshal(jsonData, &dataMap)
-
-			for k, v := range dataMap {
-				payload[k] = v
-			}
-		}
-
+		// Set common fields
+		payload.SessionID = req.SessionID
+		payload.MessageID = req.MessageAssistantID
 		s.app.Event.Emit("chat:stream", payload)
 	}
 
@@ -157,7 +143,8 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	}
 
 	// 3. Emit START event
-	emit(StreamEventStart, &UIChatMessage{
+	emit(StreamEventPayload{
+		Type:    StreamEventStart,
 		TopicID: currentTopicID,
 	})
 
@@ -214,7 +201,8 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 				reasoningContent.Reset()
 			} else if strings.Contains(token, "</think>") {
 				// End of thinking - emit final reasoning
-				emit(StreamEventReasoning, &UIChatMessage{
+				emit(StreamEventPayload{
+					Type: StreamEventReasoning,
 					Reasoning: &ModelReasoning{
 						Content: reasoningContent.String(),
 					},
@@ -222,7 +210,8 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 			} else if isInThinkTag {
 				// Inside thinking - accumulate and emit
 				reasoningContent.WriteString(token)
-				emit(StreamEventReasoning, &UIChatMessage{
+				emit(StreamEventPayload{
+					Type: StreamEventReasoning,
 					Reasoning: &ModelReasoning{
 						Content: reasoningContent.String(),
 					},
@@ -254,7 +243,8 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 			cleanContent = strings.TrimSpace(cleanContent)
 
 			if cleanContent != "" {
-				emit(StreamEventChunk, &UIChatMessage{
+				emit(StreamEventPayload{
+					Type:    StreamEventChunk,
 					Content: cleanContent,
 				})
 			}
@@ -285,7 +275,8 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 			}
 			uiTools = append(uiTools, tool)
 
-			emit(StreamEventToolCall, &UIChatMessage{
+			emit(StreamEventPayload{
+				Type:  StreamEventToolCall,
 				Tools: uiTools,
 			})
 			toolCallIndex++
@@ -308,17 +299,18 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 			resultIndex := len(toolResultsData) - 1
 			toolCallID := fmt.Sprintf("%s_tool_%d", assistantMsgID, resultIndex)
 
-			emit(StreamEventToolResult, map[string]interface{}{
-				"tool_call_id": toolCallID,
-				"tool_msg_id":  fmt.Sprintf("tool_msg_%s_%d", assistantMsgID, resultIndex+1),
-				"plugin": ChatPluginPayload{
+			emit(StreamEventPayload{
+				Type:       StreamEventToolResult,
+				ToolCallID: toolCallID,
+				ToolMsgID:  fmt.Sprintf("tool_msg_%s_%d", assistantMsgID, resultIndex+1),
+				Plugin: &ChatPluginPayload{
 					Identifier: identifier,
 					APIName:    apiName,
 					Arguments:  string(argsJSON),
 					Type:       toolType,
 				},
-				"pluginState": toolState,
-				"content":     result,
+				PluginState: toolState,
+				Content:     result,
 			})
 		}
 	}
@@ -327,7 +319,8 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	resp, tms, runErr := llmWithTools.RunAgentLoopWithStreaming(ctx, messagesWithSystem, 10, streamCallback, toolEventCallback)
 	if runErr != nil {
 		log.Printf("❌ [REAL STREAM] Agent execution failed: %v", runErr)
-		emit(StreamEventComplete, &UIChatMessage{
+		emit(StreamEventPayload{
+			Type:    StreamEventComplete,
 			Content: fmt.Sprintf("Error: %v", runErr),
 			Error: &ChatMessageError{
 				Type:    "LLMError",
@@ -466,7 +459,8 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	}
 
 	// 16. Emit COMPLETE event with final data
-	emit(StreamEventComplete, &UIChatMessage{
+	emit(StreamEventPayload{
+		Type:        StreamEventComplete,
 		Content:     finalContentStr,
 		TopicID:     currentTopicID,
 		Reasoning:   reasoning,
