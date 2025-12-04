@@ -200,20 +200,18 @@ type Embedding struct {
 }
 
 type File struct {
-	ID              string         `json:"id"`
-	UserID          string         `json:"userId"`
-	FileType        string         `json:"fileType"`
-	FileHash        sql.NullString `json:"fileHash"`
-	Name            string         `json:"name"`
-	Size            int64          `json:"size"`
-	Url             string         `json:"url"`
-	Source          sql.NullString `json:"source"`
-	ClientID        sql.NullString `json:"clientId"`
-	Metadata        sql.NullString `json:"metadata"`
-	ChunkTaskID     sql.NullString `json:"chunkTaskId"`
-	EmbeddingTaskID sql.NullString `json:"embeddingTaskId"`
-	CreatedAt       int64          `json:"createdAt"`
-	UpdatedAt       int64          `json:"updatedAt"`
+	ID        string         `json:"id"`
+	UserID    string         `json:"userId"`
+	FileType  string         `json:"fileType"`
+	FileHash  sql.NullString `json:"fileHash"`
+	Name      string         `json:"name"`
+	Size      int64          `json:"size"`
+	Url       string         `json:"url"`
+	Source    sql.NullString `json:"source"`
+	ClientID  sql.NullString `json:"clientId"`
+	Metadata  sql.NullString `json:"metadata"`
+	CreatedAt int64          `json:"createdAt"`
+	UpdatedAt int64          `json:"updatedAt"`
 }
 
 type FileChunk struct {

@@ -607,7 +607,7 @@ func (q *Queries) GetMessageChunks(ctx context.Context, arg GetMessageChunksPara
 }
 
 const GetMessageFiles = `-- name: GetMessageFiles :many
-SELECT f.id, f.user_id, f.file_type, f.file_hash, f.name, f.size, f.url, f.source, f.client_id, f.metadata, f.chunk_task_id, f.embedding_task_id, f.created_at, f.updated_at FROM files f
+SELECT f.id, f.user_id, f.file_type, f.file_hash, f.name, f.size, f.url, f.source, f.client_id, f.metadata, f.created_at, f.updated_at FROM files f
 INNER JOIN messages_files mf ON f.id = mf.file_id
 WHERE mf.message_id = ? AND mf.user_id = ?
 `
@@ -637,8 +637,6 @@ func (q *Queries) GetMessageFiles(ctx context.Context, arg GetMessageFilesParams
 			&i.Source,
 			&i.ClientID,
 			&i.Metadata,
-			&i.ChunkTaskID,
-			&i.EmbeddingTaskID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {

@@ -10,8 +10,8 @@ LIMIT ? OFFSET ?;
 -- name: CreateFile :one
 INSERT INTO files (
     id, user_id, file_type, file_hash, name, size, url, source,
-    client_id, metadata, chunk_task_id, embedding_task_id
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    client_id, metadata
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpdateFile :one
@@ -159,9 +159,7 @@ SELECT
     f.size,
     f.url,
     f.created_at,
-    f.updated_at,
-    f.chunk_task_id,
-    f.embedding_task_id
+    f.updated_at
 FROM files f
 WHERE f.user_id = ?
 ORDER BY f.created_at DESC;
@@ -174,9 +172,7 @@ SELECT
     f.size,
     f.url,
     f.created_at,
-    f.updated_at,
-    f.chunk_task_id,
-    f.embedding_task_id
+    f.updated_at
 FROM files f
 INNER JOIN knowledge_base_files kbf ON f.id = kbf.file_id
 WHERE kbf.knowledge_base_id = ? AND f.user_id = ?

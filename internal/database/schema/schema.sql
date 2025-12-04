@@ -68,8 +68,6 @@ CREATE TABLE IF NOT EXISTS files (
   source TEXT, -- JSON as text
   client_id TEXT,
   metadata TEXT, -- JSON as text
-  chunk_task_id TEXT REFERENCES async_tasks(id) ON DELETE SET NULL,
-  embedding_task_id TEXT REFERENCES async_tasks(id) ON DELETE SET NULL,
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
 );

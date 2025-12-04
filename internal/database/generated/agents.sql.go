@@ -389,7 +389,7 @@ func (q *Queries) GetAgentFileIds(ctx context.Context, arg GetAgentFileIdsParams
 }
 
 const GetAgentFiles = `-- name: GetAgentFiles :many
-SELECT f.id, f.user_id, f.file_type, f.file_hash, f.name, f.size, f.url, f.source, f.client_id, f.metadata, f.chunk_task_id, f.embedding_task_id, f.created_at, f.updated_at FROM files f
+SELECT f.id, f.user_id, f.file_type, f.file_hash, f.name, f.size, f.url, f.source, f.client_id, f.metadata, f.created_at, f.updated_at FROM files f
 INNER JOIN agents_files af ON f.id = af.file_id
 WHERE af.agent_id = ? AND af.user_id = ?
 `
@@ -419,8 +419,6 @@ func (q *Queries) GetAgentFiles(ctx context.Context, arg GetAgentFilesParams) ([
 			&i.Source,
 			&i.ClientID,
 			&i.Metadata,
-			&i.ChunkTaskID,
-			&i.EmbeddingTaskID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -438,7 +436,7 @@ func (q *Queries) GetAgentFiles(ctx context.Context, arg GetAgentFilesParams) ([
 }
 
 const GetAgentFilesWithEnabled = `-- name: GetAgentFilesWithEnabled :many
-SELECT f.id, f.user_id, f.file_type, f.file_hash, f.name, f.size, f.url, f.source, f.client_id, f.metadata, f.chunk_task_id, f.embedding_task_id, f.created_at, f.updated_at, af.enabled
+SELECT f.id, f.user_id, f.file_type, f.file_hash, f.name, f.size, f.url, f.source, f.client_id, f.metadata, f.created_at, f.updated_at, af.enabled
 FROM files f
 INNER JOIN agents_files af ON f.id = af.file_id
 WHERE af.agent_id = ? AND af.user_id = ?
@@ -451,21 +449,19 @@ type GetAgentFilesWithEnabledParams struct {
 }
 
 type GetAgentFilesWithEnabledRow struct {
-	ID              string         `json:"id"`
-	UserID          string         `json:"userId"`
-	FileType        string         `json:"fileType"`
-	FileHash        sql.NullString `json:"fileHash"`
-	Name            string         `json:"name"`
-	Size            int64          `json:"size"`
-	Url             string         `json:"url"`
-	Source          sql.NullString `json:"source"`
-	ClientID        sql.NullString `json:"clientId"`
-	Metadata        sql.NullString `json:"metadata"`
-	ChunkTaskID     sql.NullString `json:"chunkTaskId"`
-	EmbeddingTaskID sql.NullString `json:"embeddingTaskId"`
-	CreatedAt       int64          `json:"createdAt"`
-	UpdatedAt       int64          `json:"updatedAt"`
-	Enabled         int64          `json:"enabled"`
+	ID        string         `json:"id"`
+	UserID    string         `json:"userId"`
+	FileType  string         `json:"fileType"`
+	FileHash  sql.NullString `json:"fileHash"`
+	Name      string         `json:"name"`
+	Size      int64          `json:"size"`
+	Url       string         `json:"url"`
+	Source    sql.NullString `json:"source"`
+	ClientID  sql.NullString `json:"clientId"`
+	Metadata  sql.NullString `json:"metadata"`
+	CreatedAt int64          `json:"createdAt"`
+	UpdatedAt int64          `json:"updatedAt"`
+	Enabled   int64          `json:"enabled"`
 }
 
 func (q *Queries) GetAgentFilesWithEnabled(ctx context.Context, arg GetAgentFilesWithEnabledParams) ([]GetAgentFilesWithEnabledRow, error) {
@@ -488,8 +484,6 @@ func (q *Queries) GetAgentFilesWithEnabled(ctx context.Context, arg GetAgentFile
 			&i.Source,
 			&i.ClientID,
 			&i.Metadata,
-			&i.ChunkTaskID,
-			&i.EmbeddingTaskID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Enabled,

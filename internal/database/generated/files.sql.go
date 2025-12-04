@@ -72,24 +72,22 @@ func (q *Queries) CountFilesUsage(ctx context.Context, userID string) (interface
 const CreateFile = `-- name: CreateFile :one
 INSERT INTO files (
     id, user_id, file_type, file_hash, name, size, url, source,
-    client_id, metadata, chunk_task_id, embedding_task_id
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, user_id, file_type, file_hash, name, size, url, source, client_id, metadata, chunk_task_id, embedding_task_id, created_at, updated_at
+    client_id, metadata
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, user_id, file_type, file_hash, name, size, url, source, client_id, metadata, created_at, updated_at
 `
 
 type CreateFileParams struct {
-	ID              string         `json:"id"`
-	UserID          string         `json:"userId"`
-	FileType        string         `json:"fileType"`
-	FileHash        sql.NullString `json:"fileHash"`
-	Name            string         `json:"name"`
-	Size            int64          `json:"size"`
-	Url             string         `json:"url"`
-	Source          sql.NullString `json:"source"`
-	ClientID        sql.NullString `json:"clientId"`
-	Metadata        sql.NullString `json:"metadata"`
-	ChunkTaskID     sql.NullString `json:"chunkTaskId"`
-	EmbeddingTaskID sql.NullString `json:"embeddingTaskId"`
+	ID       string         `json:"id"`
+	UserID   string         `json:"userId"`
+	FileType string         `json:"fileType"`
+	FileHash sql.NullString `json:"fileHash"`
+	Name     string         `json:"name"`
+	Size     int64          `json:"size"`
+	Url      string         `json:"url"`
+	Source   sql.NullString `json:"source"`
+	ClientID sql.NullString `json:"clientId"`
+	Metadata sql.NullString `json:"metadata"`
 }
 
 func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (File, error) {
@@ -104,8 +102,6 @@ func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (File, e
 		arg.Source,
 		arg.ClientID,
 		arg.Metadata,
-		arg.ChunkTaskID,
-		arg.EmbeddingTaskID,
 	)
 	var i File
 	err := row.Scan(
@@ -119,8 +115,6 @@ func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (File, e
 		&i.Source,
 		&i.ClientID,
 		&i.Metadata,
-		&i.ChunkTaskID,
-		&i.EmbeddingTaskID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -272,7 +266,7 @@ func (q *Queries) DeleteKnowledgeBase(ctx context.Context, arg DeleteKnowledgeBa
 }
 
 const GetFile = `-- name: GetFile :one
-SELECT id, user_id, file_type, file_hash, name, size, url, source, client_id, metadata, chunk_task_id, embedding_task_id, created_at, updated_at FROM files WHERE id = ? AND user_id = ?
+SELECT id, user_id, file_type, file_hash, name, size, url, source, client_id, metadata, created_at, updated_at FROM files WHERE id = ? AND user_id = ?
 `
 
 type GetFileParams struct {
@@ -294,8 +288,6 @@ func (q *Queries) GetFile(ctx context.Context, arg GetFileParams) (File, error) 
 		&i.Source,
 		&i.ClientID,
 		&i.Metadata,
-		&i.ChunkTaskID,
-		&i.EmbeddingTaskID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -331,7 +323,7 @@ func (q *Queries) GetFileChunkIds(ctx context.Context, fileID sql.NullString) ([
 }
 
 const GetFilesByHash = `-- name: GetFilesByHash :many
-SELECT id, user_id, file_type, file_hash, name, size, url, source, client_id, metadata, chunk_task_id, embedding_task_id, created_at, updated_at FROM files
+SELECT id, user_id, file_type, file_hash, name, size, url, source, client_id, metadata, created_at, updated_at FROM files
 WHERE file_hash = ? AND user_id = ?
 `
 
@@ -360,8 +352,6 @@ func (q *Queries) GetFilesByHash(ctx context.Context, arg GetFilesByHashParams) 
 			&i.Source,
 			&i.ClientID,
 			&i.Metadata,
-			&i.ChunkTaskID,
-			&i.EmbeddingTaskID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -379,7 +369,7 @@ func (q *Queries) GetFilesByHash(ctx context.Context, arg GetFilesByHashParams) 
 }
 
 const GetFilesByIds = `-- name: GetFilesByIds :many
-SELECT id, user_id, file_type, file_hash, name, size, url, source, client_id, metadata, chunk_task_id, embedding_task_id, created_at, updated_at FROM files
+SELECT id, user_id, file_type, file_hash, name, size, url, source, client_id, metadata, created_at, updated_at FROM files
 WHERE user_id = ?
 `
 
@@ -403,8 +393,6 @@ func (q *Queries) GetFilesByIds(ctx context.Context, userID string) ([]File, err
 			&i.Source,
 			&i.ClientID,
 			&i.Metadata,
-			&i.ChunkTaskID,
-			&i.EmbeddingTaskID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -422,7 +410,7 @@ func (q *Queries) GetFilesByIds(ctx context.Context, userID string) ([]File, err
 }
 
 const GetFilesByNames = `-- name: GetFilesByNames :many
-SELECT id, user_id, file_type, file_hash, name, size, url, source, client_id, metadata, chunk_task_id, embedding_task_id, created_at, updated_at FROM files
+SELECT id, user_id, file_type, file_hash, name, size, url, source, client_id, metadata, created_at, updated_at FROM files
 WHERE user_id = ?
 ORDER BY created_at DESC
 `
@@ -447,8 +435,6 @@ func (q *Queries) GetFilesByNames(ctx context.Context, userID string) ([]File, e
 			&i.Source,
 			&i.ClientID,
 			&i.Metadata,
-			&i.ChunkTaskID,
-			&i.EmbeddingTaskID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -536,7 +522,7 @@ func (q *Queries) GetKnowledgeBase(ctx context.Context, arg GetKnowledgeBasePara
 }
 
 const GetKnowledgeBaseFiles = `-- name: GetKnowledgeBaseFiles :many
-SELECT f.id, f.user_id, f.file_type, f.file_hash, f.name, f.size, f.url, f.source, f.client_id, f.metadata, f.chunk_task_id, f.embedding_task_id, f.created_at, f.updated_at FROM files f
+SELECT f.id, f.user_id, f.file_type, f.file_hash, f.name, f.size, f.url, f.source, f.client_id, f.metadata, f.created_at, f.updated_at FROM files f
 INNER JOIN knowledge_base_files kbf ON f.id = kbf.file_id
 WHERE kbf.knowledge_base_id = ? AND kbf.user_id = ?
 `
@@ -566,8 +552,6 @@ func (q *Queries) GetKnowledgeBaseFiles(ctx context.Context, arg GetKnowledgeBas
 			&i.Source,
 			&i.ClientID,
 			&i.Metadata,
-			&i.ChunkTaskID,
-			&i.EmbeddingTaskID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -585,7 +569,7 @@ func (q *Queries) GetKnowledgeBaseFiles(ctx context.Context, arg GetKnowledgeBas
 }
 
 const GetSessionFiles = `-- name: GetSessionFiles :many
-SELECT f.id, f.user_id, f.file_type, f.file_hash, f.name, f.size, f.url, f.source, f.client_id, f.metadata, f.chunk_task_id, f.embedding_task_id, f.created_at, f.updated_at FROM files f
+SELECT f.id, f.user_id, f.file_type, f.file_hash, f.name, f.size, f.url, f.source, f.client_id, f.metadata, f.created_at, f.updated_at FROM files f
 INNER JOIN files_to_sessions fts ON f.id = fts.file_id
 WHERE fts.session_id = ? AND fts.user_id = ?
 `
@@ -615,8 +599,6 @@ func (q *Queries) GetSessionFiles(ctx context.Context, arg GetSessionFilesParams
 			&i.Source,
 			&i.ClientID,
 			&i.Metadata,
-			&i.ChunkTaskID,
-			&i.EmbeddingTaskID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -670,7 +652,7 @@ func (q *Queries) LinkKnowledgeBaseToFile(ctx context.Context, arg LinkKnowledge
 }
 
 const ListFiles = `-- name: ListFiles :many
-SELECT id, user_id, file_type, file_hash, name, size, url, source, client_id, metadata, chunk_task_id, embedding_task_id, created_at, updated_at FROM files
+SELECT id, user_id, file_type, file_hash, name, size, url, source, client_id, metadata, created_at, updated_at FROM files
 WHERE user_id = ?
 ORDER BY created_at DESC
 LIMIT ? OFFSET ?
@@ -702,8 +684,6 @@ func (q *Queries) ListFiles(ctx context.Context, arg ListFilesParams) ([]File, e
 			&i.Source,
 			&i.ClientID,
 			&i.Metadata,
-			&i.ChunkTaskID,
-			&i.EmbeddingTaskID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -807,24 +787,20 @@ SELECT
     f.size,
     f.url,
     f.created_at,
-    f.updated_at,
-    f.chunk_task_id,
-    f.embedding_task_id
+    f.updated_at
 FROM files f
 WHERE f.user_id = ?
 ORDER BY f.created_at DESC
 `
 
 type QueryFilesRow struct {
-	ID              string         `json:"id"`
-	Name            string         `json:"name"`
-	FileType        string         `json:"fileType"`
-	Size            int64          `json:"size"`
-	Url             string         `json:"url"`
-	CreatedAt       int64          `json:"createdAt"`
-	UpdatedAt       int64          `json:"updatedAt"`
-	ChunkTaskID     sql.NullString `json:"chunkTaskId"`
-	EmbeddingTaskID sql.NullString `json:"embeddingTaskId"`
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	FileType  string `json:"fileType"`
+	Size      int64  `json:"size"`
+	Url       string `json:"url"`
+	CreatedAt int64  `json:"createdAt"`
+	UpdatedAt int64  `json:"updatedAt"`
 }
 
 // File query with filters
@@ -845,8 +821,6 @@ func (q *Queries) QueryFiles(ctx context.Context, userID string) ([]QueryFilesRo
 			&i.Url,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.ChunkTaskID,
-			&i.EmbeddingTaskID,
 		); err != nil {
 			return nil, err
 		}
@@ -869,9 +843,7 @@ SELECT
     f.size,
     f.url,
     f.created_at,
-    f.updated_at,
-    f.chunk_task_id,
-    f.embedding_task_id
+    f.updated_at
 FROM files f
 INNER JOIN knowledge_base_files kbf ON f.id = kbf.file_id
 WHERE kbf.knowledge_base_id = ? AND f.user_id = ?
@@ -884,15 +856,13 @@ type QueryFilesByKnowledgeBaseParams struct {
 }
 
 type QueryFilesByKnowledgeBaseRow struct {
-	ID              string         `json:"id"`
-	Name            string         `json:"name"`
-	FileType        string         `json:"fileType"`
-	Size            int64          `json:"size"`
-	Url             string         `json:"url"`
-	CreatedAt       int64          `json:"createdAt"`
-	UpdatedAt       int64          `json:"updatedAt"`
-	ChunkTaskID     sql.NullString `json:"chunkTaskId"`
-	EmbeddingTaskID sql.NullString `json:"embeddingTaskId"`
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	FileType  string `json:"fileType"`
+	Size      int64  `json:"size"`
+	Url       string `json:"url"`
+	CreatedAt int64  `json:"createdAt"`
+	UpdatedAt int64  `json:"updatedAt"`
 }
 
 func (q *Queries) QueryFilesByKnowledgeBase(ctx context.Context, arg QueryFilesByKnowledgeBaseParams) ([]QueryFilesByKnowledgeBaseRow, error) {
@@ -912,8 +882,6 @@ func (q *Queries) QueryFilesByKnowledgeBase(ctx context.Context, arg QueryFilesB
 			&i.Url,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.ChunkTaskID,
-			&i.EmbeddingTaskID,
 		); err != nil {
 			return nil, err
 		}
@@ -966,7 +934,7 @@ SET name = ?,
     metadata = ?,
     updated_at = ?
 WHERE id = ? AND user_id = ?
-RETURNING id, user_id, file_type, file_hash, name, size, url, source, client_id, metadata, chunk_task_id, embedding_task_id, created_at, updated_at
+RETURNING id, user_id, file_type, file_hash, name, size, url, source, client_id, metadata, created_at, updated_at
 `
 
 type UpdateFileParams struct {
@@ -997,8 +965,6 @@ func (q *Queries) UpdateFile(ctx context.Context, arg UpdateFileParams) (File, e
 		&i.Source,
 		&i.ClientID,
 		&i.Metadata,
-		&i.ChunkTaskID,
-		&i.EmbeddingTaskID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

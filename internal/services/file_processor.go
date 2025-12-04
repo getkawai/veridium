@@ -230,18 +230,16 @@ func (s *FileProcessorService) saveFileMetadata(ctx context.Context, req Process
 	}
 
 	_, err = s.queries.CreateFile(ctx, db.CreateFileParams{
-		ID:              fileID,
-		UserID:          req.UserID,
-		FileType:        req.FileType,
-		FileHash:        sql.NullString{String: globalFileID, Valid: globalFileID != ""},
-		Name:            req.Filename,
-		Size:            fileInfo.Size,
-		Url:             req.FilePath,
-		Source:          sql.NullString{String: req.Source, Valid: req.Source != ""},
-		ClientID:        sql.NullString{String: req.ClientID, Valid: req.ClientID != ""},
-		Metadata:        sql.NullString{Valid: false},
-		ChunkTaskID:     sql.NullString{Valid: false},
-		EmbeddingTaskID: sql.NullString{Valid: false},
+		ID:       fileID,
+		UserID:   req.UserID,
+		FileType: req.FileType,
+		FileHash: sql.NullString{String: globalFileID, Valid: globalFileID != ""},
+		Name:     req.Filename,
+		Size:     fileInfo.Size,
+		Url:      req.FilePath,
+		Source:   sql.NullString{String: req.Source, Valid: req.Source != ""},
+		ClientID: sql.NullString{String: req.ClientID, Valid: req.ClientID != ""},
+		Metadata: sql.NullString{Valid: false},
 	})
 
 	if err != nil {

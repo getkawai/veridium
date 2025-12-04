@@ -788,7 +788,6 @@ export class BatchLinkKnowledgeBaseToFilesParams {
     "knowledgeBaseId": string;
     "fileId": string;
     "userId": string;
-    "createdAt": number;
 
     /** Creates a new BatchLinkKnowledgeBaseToFilesParams instance. */
     constructor($$source: Partial<BatchLinkKnowledgeBaseToFilesParams> = {}) {
@@ -800,9 +799,6 @@ export class BatchLinkKnowledgeBaseToFilesParams {
         }
         if (!("userId" in $$source)) {
             this["userId"] = "";
-        }
-        if (!("createdAt" in $$source)) {
-            this["createdAt"] = 0;
         }
 
         Object.assign(this, $$source);
@@ -2076,8 +2072,6 @@ export class CreateChunkParams {
     "type": sql$0.NullString;
     "clientId": sql$0.NullString;
     "userId": sql$0.NullString;
-    "createdAt": number;
-    "updatedAt": number;
 
     /** Creates a new CreateChunkParams instance. */
     constructor($$source: Partial<CreateChunkParams> = {}) {
@@ -2107,12 +2101,6 @@ export class CreateChunkParams {
         }
         if (!("userId" in $$source)) {
             this["userId"] = (new sql$0.NullString());
-        }
-        if (!("createdAt" in $$source)) {
-            this["createdAt"] = 0;
-        }
-        if (!("updatedAt" in $$source)) {
-            this["updatedAt"] = 0;
         }
 
         Object.assign(this, $$source);
@@ -2409,10 +2397,6 @@ export class CreateFileParams {
     "source": sql$0.NullString;
     "clientId": sql$0.NullString;
     "metadata": sql$0.NullString;
-    "chunkTaskId": sql$0.NullString;
-    "embeddingTaskId": sql$0.NullString;
-    "createdAt": number;
-    "updatedAt": number;
 
     /** Creates a new CreateFileParams instance. */
     constructor($$source: Partial<CreateFileParams> = {}) {
@@ -2446,18 +2430,6 @@ export class CreateFileParams {
         if (!("metadata" in $$source)) {
             this["metadata"] = (new sql$0.NullString());
         }
-        if (!("chunkTaskId" in $$source)) {
-            this["chunkTaskId"] = (new sql$0.NullString());
-        }
-        if (!("embeddingTaskId" in $$source)) {
-            this["embeddingTaskId"] = (new sql$0.NullString());
-        }
-        if (!("createdAt" in $$source)) {
-            this["createdAt"] = 0;
-        }
-        if (!("updatedAt" in $$source)) {
-            this["updatedAt"] = 0;
-        }
 
         Object.assign(this, $$source);
     }
@@ -2470,8 +2442,6 @@ export class CreateFileParams {
         const $$createField7_0 = $$createType0;
         const $$createField8_0 = $$createType0;
         const $$createField9_0 = $$createType0;
-        const $$createField10_0 = $$createType0;
-        const $$createField11_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("fileHash" in $$parsedSource) {
             $$parsedSource["fileHash"] = $$createField3_0($$parsedSource["fileHash"]);
@@ -2484,12 +2454,6 @@ export class CreateFileParams {
         }
         if ("metadata" in $$parsedSource) {
             $$parsedSource["metadata"] = $$createField9_0($$parsedSource["metadata"]);
-        }
-        if ("chunkTaskId" in $$parsedSource) {
-            $$parsedSource["chunkTaskId"] = $$createField10_0($$parsedSource["chunkTaskId"]);
-        }
-        if ("embeddingTaskId" in $$parsedSource) {
-            $$parsedSource["embeddingTaskId"] = $$createField11_0($$parsedSource["embeddingTaskId"]);
         }
         return new CreateFileParams($$parsedSource as Partial<CreateFileParams>);
     }
@@ -2753,8 +2717,6 @@ export class CreateKnowledgeBaseParams {
     "clientId": sql$0.NullString;
     "isPublic": number;
     "settings": sql$0.NullString;
-    "createdAt": number;
-    "updatedAt": number;
 
     /** Creates a new CreateKnowledgeBaseParams instance. */
     constructor($$source: Partial<CreateKnowledgeBaseParams> = {}) {
@@ -2784,12 +2746,6 @@ export class CreateKnowledgeBaseParams {
         }
         if (!("settings" in $$source)) {
             this["settings"] = (new sql$0.NullString());
-        }
-        if (!("createdAt" in $$source)) {
-            this["createdAt"] = 0;
-        }
-        if (!("updatedAt" in $$source)) {
-            this["updatedAt"] = 0;
         }
 
         Object.assign(this, $$source);
@@ -4271,8 +4227,6 @@ export class CreateRagEvalDatasetParams {
     "name": string;
     "description": sql$0.NullString;
     "userId": string;
-    "createdAt": number;
-    "updatedAt": number;
 
     /** Creates a new CreateRagEvalDatasetParams instance. */
     constructor($$source: Partial<CreateRagEvalDatasetParams> = {}) {
@@ -4287,12 +4241,6 @@ export class CreateRagEvalDatasetParams {
         }
         if (!("userId" in $$source)) {
             this["userId"] = "";
-        }
-        if (!("createdAt" in $$source)) {
-            this["createdAt"] = 0;
-        }
-        if (!("updatedAt" in $$source)) {
-            this["updatedAt"] = 0;
         }
 
         Object.assign(this, $$source);
@@ -4319,8 +4267,6 @@ export class CreateRagEvalDatasetRecordParams {
     "referenceContexts": sql$0.NullString;
     "metadata": sql$0.NullString;
     "userId": string;
-    "createdAt": number;
-    "updatedAt": number;
 
     /** Creates a new CreateRagEvalDatasetRecordParams instance. */
     constructor($$source: Partial<CreateRagEvalDatasetRecordParams> = {}) {
@@ -4344,12 +4290,6 @@ export class CreateRagEvalDatasetRecordParams {
         }
         if (!("userId" in $$source)) {
             this["userId"] = "";
-        }
-        if (!("createdAt" in $$source)) {
-            this["createdAt"] = 0;
-        }
-        if (!("updatedAt" in $$source)) {
-            this["updatedAt"] = 0;
         }
 
         Object.assign(this, $$source);
@@ -4383,8 +4323,6 @@ export class CreateRagEvalEvaluationParams {
     "config": sql$0.NullString;
     "status": string;
     "userId": string;
-    "createdAt": number;
-    "updatedAt": number;
 
     /** Creates a new CreateRagEvalEvaluationParams instance. */
     constructor($$source: Partial<CreateRagEvalEvaluationParams> = {}) {
@@ -4405,12 +4343,6 @@ export class CreateRagEvalEvaluationParams {
         }
         if (!("userId" in $$source)) {
             this["userId"] = "";
-        }
-        if (!("createdAt" in $$source)) {
-            this["createdAt"] = 0;
-        }
-        if (!("updatedAt" in $$source)) {
-            this["updatedAt"] = 0;
         }
 
         Object.assign(this, $$source);
@@ -4437,8 +4369,6 @@ export class CreateRagEvalEvaluationRecordParams {
     "generatedAnswer": sql$0.NullString;
     "metrics": sql$0.NullString;
     "userId": string;
-    "createdAt": number;
-    "updatedAt": number;
 
     /** Creates a new CreateRagEvalEvaluationRecordParams instance. */
     constructor($$source: Partial<CreateRagEvalEvaluationRecordParams> = {}) {
@@ -4462,12 +4392,6 @@ export class CreateRagEvalEvaluationRecordParams {
         }
         if (!("userId" in $$source)) {
             this["userId"] = "";
-        }
-        if (!("createdAt" in $$source)) {
-            this["createdAt"] = 0;
-        }
-        if (!("updatedAt" in $$source)) {
-            this["updatedAt"] = 0;
         }
 
         Object.assign(this, $$source);
@@ -4874,8 +4798,6 @@ export class CreateUnstructuredChunkParams {
     "clientId": sql$0.NullString;
     "userId": sql$0.NullString;
     "fileId": sql$0.NullString;
-    "createdAt": number;
-    "updatedAt": number;
 
     /** Creates a new CreateUnstructuredChunkParams instance. */
     constructor($$source: Partial<CreateUnstructuredChunkParams> = {}) {
@@ -4908,12 +4830,6 @@ export class CreateUnstructuredChunkParams {
         }
         if (!("fileId" in $$source)) {
             this["fileId"] = (new sql$0.NullString());
-        }
-        if (!("createdAt" in $$source)) {
-            this["createdAt"] = 0;
-        }
-        if (!("updatedAt" in $$source)) {
-            this["updatedAt"] = 0;
         }
 
         Object.assign(this, $$source);
@@ -6512,8 +6428,6 @@ export class File {
     "source": sql$0.NullString;
     "clientId": sql$0.NullString;
     "metadata": sql$0.NullString;
-    "chunkTaskId": sql$0.NullString;
-    "embeddingTaskId": sql$0.NullString;
     "createdAt": number;
     "updatedAt": number;
 
@@ -6549,12 +6463,6 @@ export class File {
         if (!("metadata" in $$source)) {
             this["metadata"] = (new sql$0.NullString());
         }
-        if (!("chunkTaskId" in $$source)) {
-            this["chunkTaskId"] = (new sql$0.NullString());
-        }
-        if (!("embeddingTaskId" in $$source)) {
-            this["embeddingTaskId"] = (new sql$0.NullString());
-        }
         if (!("createdAt" in $$source)) {
             this["createdAt"] = 0;
         }
@@ -6573,8 +6481,6 @@ export class File {
         const $$createField7_0 = $$createType0;
         const $$createField8_0 = $$createType0;
         const $$createField9_0 = $$createType0;
-        const $$createField10_0 = $$createType0;
-        const $$createField11_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("fileHash" in $$parsedSource) {
             $$parsedSource["fileHash"] = $$createField3_0($$parsedSource["fileHash"]);
@@ -6587,12 +6493,6 @@ export class File {
         }
         if ("metadata" in $$parsedSource) {
             $$parsedSource["metadata"] = $$createField9_0($$parsedSource["metadata"]);
-        }
-        if ("chunkTaskId" in $$parsedSource) {
-            $$parsedSource["chunkTaskId"] = $$createField10_0($$parsedSource["chunkTaskId"]);
-        }
-        if ("embeddingTaskId" in $$parsedSource) {
-            $$parsedSource["embeddingTaskId"] = $$createField11_0($$parsedSource["embeddingTaskId"]);
         }
         return new File($$parsedSource as Partial<File>);
     }
@@ -7272,8 +7172,6 @@ export class GetAgentFilesWithEnabledRow {
     "source": sql$0.NullString;
     "clientId": sql$0.NullString;
     "metadata": sql$0.NullString;
-    "chunkTaskId": sql$0.NullString;
-    "embeddingTaskId": sql$0.NullString;
     "createdAt": number;
     "updatedAt": number;
     "enabled": number;
@@ -7310,12 +7208,6 @@ export class GetAgentFilesWithEnabledRow {
         if (!("metadata" in $$source)) {
             this["metadata"] = (new sql$0.NullString());
         }
-        if (!("chunkTaskId" in $$source)) {
-            this["chunkTaskId"] = (new sql$0.NullString());
-        }
-        if (!("embeddingTaskId" in $$source)) {
-            this["embeddingTaskId"] = (new sql$0.NullString());
-        }
         if (!("createdAt" in $$source)) {
             this["createdAt"] = 0;
         }
@@ -7337,8 +7229,6 @@ export class GetAgentFilesWithEnabledRow {
         const $$createField7_0 = $$createType0;
         const $$createField8_0 = $$createType0;
         const $$createField9_0 = $$createType0;
-        const $$createField10_0 = $$createType0;
-        const $$createField11_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("fileHash" in $$parsedSource) {
             $$parsedSource["fileHash"] = $$createField3_0($$parsedSource["fileHash"]);
@@ -7351,12 +7241,6 @@ export class GetAgentFilesWithEnabledRow {
         }
         if ("metadata" in $$parsedSource) {
             $$parsedSource["metadata"] = $$createField9_0($$parsedSource["metadata"]);
-        }
-        if ("chunkTaskId" in $$parsedSource) {
-            $$parsedSource["chunkTaskId"] = $$createField10_0($$parsedSource["chunkTaskId"]);
-        }
-        if ("embeddingTaskId" in $$parsedSource) {
-            $$parsedSource["embeddingTaskId"] = $$createField11_0($$parsedSource["embeddingTaskId"]);
         }
         return new GetAgentFilesWithEnabledRow($$parsedSource as Partial<GetAgentFilesWithEnabledRow>);
     }
@@ -11786,7 +11670,6 @@ export class LinkDuplicatedAgentToSessionParams {
 export class LinkFileToChunkParams {
     "fileId": sql$0.NullString;
     "chunkId": sql$0.NullString;
-    "createdAt": number;
     "userId": string;
 
     /** Creates a new LinkFileToChunkParams instance. */
@@ -11796,9 +11679,6 @@ export class LinkFileToChunkParams {
         }
         if (!("chunkId" in $$source)) {
             this["chunkId"] = (new sql$0.NullString());
-        }
-        if (!("createdAt" in $$source)) {
-            this["createdAt"] = 0;
         }
         if (!("userId" in $$source)) {
             this["userId"] = "";
@@ -11857,7 +11737,6 @@ export class LinkKnowledgeBaseToFileParams {
     "knowledgeBaseId": string;
     "fileId": string;
     "userId": string;
-    "createdAt": number;
 
     /** Creates a new LinkKnowledgeBaseToFileParams instance. */
     constructor($$source: Partial<LinkKnowledgeBaseToFileParams> = {}) {
@@ -11869,9 +11748,6 @@ export class LinkKnowledgeBaseToFileParams {
         }
         if (!("userId" in $$source)) {
             this["userId"] = "";
-        }
-        if (!("createdAt" in $$source)) {
-            this["createdAt"] = 0;
         }
 
         Object.assign(this, $$source);
@@ -14709,8 +14585,6 @@ export class QueryFilesByKnowledgeBaseRow {
     "url": string;
     "createdAt": number;
     "updatedAt": number;
-    "chunkTaskId": sql$0.NullString;
-    "embeddingTaskId": sql$0.NullString;
 
     /** Creates a new QueryFilesByKnowledgeBaseRow instance. */
     constructor($$source: Partial<QueryFilesByKnowledgeBaseRow> = {}) {
@@ -14735,12 +14609,6 @@ export class QueryFilesByKnowledgeBaseRow {
         if (!("updatedAt" in $$source)) {
             this["updatedAt"] = 0;
         }
-        if (!("chunkTaskId" in $$source)) {
-            this["chunkTaskId"] = (new sql$0.NullString());
-        }
-        if (!("embeddingTaskId" in $$source)) {
-            this["embeddingTaskId"] = (new sql$0.NullString());
-        }
 
         Object.assign(this, $$source);
     }
@@ -14749,15 +14617,7 @@ export class QueryFilesByKnowledgeBaseRow {
      * Creates a new QueryFilesByKnowledgeBaseRow instance from a string or object.
      */
     static createFrom($$source: any = {}): QueryFilesByKnowledgeBaseRow {
-        const $$createField7_0 = $$createType0;
-        const $$createField8_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("chunkTaskId" in $$parsedSource) {
-            $$parsedSource["chunkTaskId"] = $$createField7_0($$parsedSource["chunkTaskId"]);
-        }
-        if ("embeddingTaskId" in $$parsedSource) {
-            $$parsedSource["embeddingTaskId"] = $$createField8_0($$parsedSource["embeddingTaskId"]);
-        }
         return new QueryFilesByKnowledgeBaseRow($$parsedSource as Partial<QueryFilesByKnowledgeBaseRow>);
     }
 }
@@ -14770,8 +14630,6 @@ export class QueryFilesRow {
     "url": string;
     "createdAt": number;
     "updatedAt": number;
-    "chunkTaskId": sql$0.NullString;
-    "embeddingTaskId": sql$0.NullString;
 
     /** Creates a new QueryFilesRow instance. */
     constructor($$source: Partial<QueryFilesRow> = {}) {
@@ -14796,12 +14654,6 @@ export class QueryFilesRow {
         if (!("updatedAt" in $$source)) {
             this["updatedAt"] = 0;
         }
-        if (!("chunkTaskId" in $$source)) {
-            this["chunkTaskId"] = (new sql$0.NullString());
-        }
-        if (!("embeddingTaskId" in $$source)) {
-            this["embeddingTaskId"] = (new sql$0.NullString());
-        }
 
         Object.assign(this, $$source);
     }
@@ -14810,15 +14662,7 @@ export class QueryFilesRow {
      * Creates a new QueryFilesRow instance from a string or object.
      */
     static createFrom($$source: any = {}): QueryFilesRow {
-        const $$createField7_0 = $$createType0;
-        const $$createField8_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("chunkTaskId" in $$parsedSource) {
-            $$parsedSource["chunkTaskId"] = $$createField7_0($$parsedSource["chunkTaskId"]);
-        }
-        if ("embeddingTaskId" in $$parsedSource) {
-            $$parsedSource["embeddingTaskId"] = $$createField8_0($$parsedSource["embeddingTaskId"]);
-        }
         return new QueryFilesRow($$parsedSource as Partial<QueryFilesRow>);
     }
 }
