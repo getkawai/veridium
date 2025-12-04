@@ -1,4 +1,4 @@
-package services
+package types
 
 import (
 	"time"
@@ -8,14 +8,15 @@ import (
 type SupportedFileType string
 
 const (
-	FileTypeTXT   SupportedFileType = "txt"
-	FileTypePDF   SupportedFileType = "pdf"
-	FileTypeDOC   SupportedFileType = "doc"
-	FileTypeDOCX  SupportedFileType = "docx"
-	FileTypeXLS   SupportedFileType = "xls"
-	FileTypeXLSX  SupportedFileType = "xlsx"
-	FileTypePPTX  SupportedFileType = "pptx"
-	FileTypeImage SupportedFileType = "image"
+	FileTypeTXT      SupportedFileType = "txt"
+	FileTypePDF      SupportedFileType = "pdf"
+	FileTypeDOC      SupportedFileType = "doc"
+	FileTypeDOCX     SupportedFileType = "docx"
+	FileTypeXLS      SupportedFileType = "xls"
+	FileTypeXLSX     SupportedFileType = "xlsx"
+	FileTypePPTX     SupportedFileType = "pptx"
+	FileTypeImage    SupportedFileType = "image"
+	FileTypeMarkdown SupportedFileType = "markdown"
 )
 
 // FileMetadata represents file metadata

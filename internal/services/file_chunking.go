@@ -5,24 +5,21 @@ import (
 	"strings"
 
 	"github.com/kawai-network/veridium/pkg/mdsplitter"
+	"github.com/kawai-network/veridium/types"
 )
 
 // ChunkDocument chunks a FileDocument based on its type and configuration
-func (l *FileLoader) ChunkDocument(doc *FileDocument, config ChunkingConfig) []DocumentChunk {
+func (l *FileLoader) ChunkDocument(doc *types.FileDocument, config types.ChunkingConfig) []types.DocumentChunk {
 	if !config.Enabled || doc == nil {
 		return nil
 	}
 
 	// Choose chunking strategy based on file type
-	switch doc.FileType {
-	case "pdf":
+	switch types.SupportedFileType(doc.FileType) {
+	case types.FileTypePDF:
 		return l.chunkPDFByPages(doc.Pages, config)
-	case "docx", "pptx", "xlsx", "md", "markdown":
+	case types.FileTypeDOCX, types.FileTypePPTX, types.FileTypeXLSX, types.FileTypeTXT, types.FileTypeMarkdown:
 		return l.chunkMarkdownWithEino(doc.Content, config)
-	case "go", "py", "js", "ts", "java", "cpp", "c", "rs":
-		// For code files, use recursive splitter
-		// TODO: Implement AST-based chunking for better semantic splitting
-		return l.chunkByRecursiveSplit(doc.Content, config)
 	default:
 		// Fallback to recursive splitter for all other text files
 		return l.chunkByRecursiveSplit(doc.Content, config)
@@ -30,7 +27,7 @@ func (l *FileLoader) ChunkDocument(doc *FileDocument, config ChunkingConfig) []D
 }
 
 // chunkMarkdownWithEino uses local markdown header splitter with size enforcement
-func (l *FileLoader) chunkMarkdownWithEino(content string, config ChunkingConfig) []DocumentChunk {
+func (l *FileLoader) chunkMarkdownWithEino(content string, config types.ChunkingConfig) []types.DocumentChunk {
 	// Configure markdown splitter
 	// Split by ## and ### headers
 	splitterConfig := &mdsplitter.Config{
@@ -51,7 +48,7 @@ func (l *FileLoader) chunkMarkdownWithEino(content string, config ChunkingConfig
 	mdChunks := splitter.Split(content)
 
 	// Convert markdown chunks to DocumentChunks with size enforcement
-	var chunks []DocumentChunk
+	var chunks []types.DocumentChunk
 	chunkID := 1
 
 	for _, mdChunk := range mdChunks {
@@ -61,7 +58,7 @@ func (l *FileLoader) chunkMarkdownWithEino(content string, config ChunkingConfig
 		if len(chunkContent) > config.ChunkSize {
 			subChunks := l.chunkText(chunkContent, config)
 			for _, subContent := range subChunks {
-				chunks = append(chunks, DocumentChunk{
+				chunks = append(chunks, types.DocumentChunk{
 					ID:      fmt.Sprintf("chunk-%d", chunkID),
 					Content: subContent,
 					Metadata: map[string]interface{}{
@@ -74,7 +71,7 @@ func (l *FileLoader) chunkMarkdownWithEino(content string, config ChunkingConfig
 				chunkID++
 			}
 		} else {
-			chunks = append(chunks, DocumentChunk{
+			chunks = append(chunks, types.DocumentChunk{
 				ID:      fmt.Sprintf("chunk-%d", chunkID),
 				Content: chunkContent,
 				Metadata: map[string]interface{}{
@@ -92,8 +89,8 @@ func (l *FileLoader) chunkMarkdownWithEino(content string, config ChunkingConfig
 }
 
 // chunkPDFByPages chunks PDF by merging pages until chunkSize is reached
-func (l *FileLoader) chunkPDFByPages(pages []DocumentPage, config ChunkingConfig) []DocumentChunk {
-	var chunks []DocumentChunk
+func (l *FileLoader) chunkPDFByPages(pages []types.DocumentPage, config types.ChunkingConfig) []types.DocumentChunk {
+	var chunks []types.DocumentChunk
 	var currentChunk strings.Builder
 	var currentPages []int
 	chunkID := 1
@@ -104,7 +101,7 @@ func (l *FileLoader) chunkPDFByPages(pages []DocumentPage, config ChunkingConfig
 		// Check if adding this page would exceed chunk size
 		if currentChunk.Len() > 0 && currentChunk.Len()+page.CharCount > config.ChunkSize {
 			// Save current chunk
-			chunks = append(chunks, DocumentChunk{
+			chunks = append(chunks, types.DocumentChunk{
 				ID:      fmt.Sprintf("chunk-%d", chunkID),
 				Content: currentChunk.String(),
 				Metadata: map[string]interface{}{
@@ -137,7 +134,7 @@ func (l *FileLoader) chunkPDFByPages(pages []DocumentPage, config ChunkingConfig
 
 	// Add final chunk
 	if currentChunk.Len() > 0 {
-		chunks = append(chunks, DocumentChunk{
+		chunks = append(chunks, types.DocumentChunk{
 			ID:      fmt.Sprintf("chunk-%d", chunkID),
 			Content: currentChunk.String(),
 			Metadata: map[string]interface{}{
@@ -151,12 +148,12 @@ func (l *FileLoader) chunkPDFByPages(pages []DocumentPage, config ChunkingConfig
 }
 
 // chunkByRecursiveSplit uses recursive splitting strategy (fallback)
-func (l *FileLoader) chunkByRecursiveSplit(content string, config ChunkingConfig) []DocumentChunk {
+func (l *FileLoader) chunkByRecursiveSplit(content string, config types.ChunkingConfig) []types.DocumentChunk {
 	textChunks := l.chunkText(content, config)
 
-	var chunks []DocumentChunk
+	var chunks []types.DocumentChunk
 	for i, text := range textChunks {
-		chunks = append(chunks, DocumentChunk{
+		chunks = append(chunks, types.DocumentChunk{
 			ID:      fmt.Sprintf("chunk-%d", i+1),
 			Content: text,
 			Metadata: map[string]interface{}{
@@ -170,7 +167,7 @@ func (l *FileLoader) chunkByRecursiveSplit(content string, config ChunkingConfig
 }
 
 // chunkText splits text into chunks using specified configuration
-func (l *FileLoader) chunkText(text string, config ChunkingConfig) []string {
+func (l *FileLoader) chunkText(text string, config types.ChunkingConfig) []string {
 	if text == "" || !config.Enabled {
 		return []string{}
 	}

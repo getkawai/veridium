@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	db "github.com/kawai-network/veridium/internal/database/generated"
+	"github.com/kawai-network/veridium/types"
 )
 
 // DocumentService handles document CRUD operations
@@ -32,8 +33,8 @@ type CreateDocumentParams struct {
 	TotalCharCount int
 	TotalLineCount int
 	Metadata       map[string]interface{}
-	Pages          []DocumentPage // from LoadFileService
-	SourceType     string         // "file", "web", "api"
+	Pages          []types.DocumentPage // from LoadFileService
+	SourceType     string               // "file", "web", "api"
 	Source         string
 	FileID         string
 	UserID         string

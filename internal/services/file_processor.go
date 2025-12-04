@@ -14,6 +14,7 @@ import (
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/internal/llama"
 	"github.com/kawai-network/veridium/pkg/xlog"
+	"github.com/kawai-network/veridium/types"
 )
 
 // FileProcessorService orchestrates file processing pipeline
@@ -52,16 +53,16 @@ type ProcessFileRequest struct {
 	Source       string
 	EnableRAG    bool // Whether to process for RAG
 	IsShared     bool // Whether to store in global_files
-	FileMetadata *FileMetadata
+	FileMetadata *types.FileMetadata
 }
 
 // ProcessFileResponse represents the result of file processing
 type ProcessFileResponse struct {
-	FileID       string `json:"fileId"`
-	DocumentID   string `json:"documentId"`
+	FileID       string   `json:"fileId"`
+	DocumentID   string   `json:"documentId"`
 	ChunkIDs     []string `json:"chunkIds,omitempty"`
-	GlobalFileID string `json:"globalFileId,omitempty"`
-	Processing   bool   `json:"processing,omitempty"` // True if async processing is in progress
+	GlobalFileID string   `json:"globalFileId,omitempty"`
+	Processing   bool     `json:"processing,omitempty"` // True if async processing is in progress
 }
 
 // ProcessFile is the main entry point for file processing
@@ -95,7 +96,7 @@ func (s *FileProcessorService) ProcessFile(ctx context.Context, req ProcessFileR
 
 	// Step 4: If image, generate description using VL model ASYNCHRONOUSLY
 	// This allows the UI to show the image immediately while description is being generated
-	if req.FileType == string(FileTypeImage) && s.libraryService != nil {
+	if req.FileType == string(types.FileTypeImage) && s.libraryService != nil {
 		response.Processing = true
 		xlog.Info("Starting async image description generation", "filename", req.Filename, "document_id", documentID)
 
@@ -253,7 +254,7 @@ func (s *FileProcessorService) saveFileMetadata(ctx context.Context, req Process
 }
 
 // saveDocument saves parsed file content to documents table
-func (s *FileProcessorService) saveDocument(ctx context.Context, fileDoc *FileDocument, fileID string, req ProcessFileRequest) (string, error) {
+func (s *FileProcessorService) saveDocument(ctx context.Context, fileDoc *types.FileDocument, fileID string, req ProcessFileRequest) (string, error) {
 	// Convert FileDocument.Metadata to map[string]interface{}
 	metadata := map[string]interface{}{
 		"source":       fileDoc.Metadata.Source,
@@ -268,9 +269,9 @@ func (s *FileProcessorService) saveDocument(ctx context.Context, fileDoc *FileDo
 	}
 
 	// Convert FileDocument.Pages to []DocumentPage
-	pages := make([]DocumentPage, len(fileDoc.Pages))
+	pages := make([]types.DocumentPage, len(fileDoc.Pages))
 	for i, page := range fileDoc.Pages {
-		pages[i] = DocumentPage{
+		pages[i] = types.DocumentPage{
 			CharCount:   page.CharCount,
 			LineCount:   page.LineCount,
 			Metadata:    page.Metadata,

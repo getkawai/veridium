@@ -11,6 +11,7 @@ import (
 	"github.com/kawai-network/veridium/gooxml/document"
 	"github.com/kawai-network/veridium/gooxml/presentation"
 	"github.com/kawai-network/veridium/gooxml/spreadsheet"
+	"github.com/kawai-network/veridium/types"
 )
 
 // FileLoader provides file loading functionality
@@ -22,7 +23,7 @@ func NewFileLoader() *FileLoader {
 }
 
 // LoadFile loads a file and returns a FileDocument with markdown content
-func (l *FileLoader) LoadFile(filePath string, fileMetadata *FileMetadata) (*FileDocument, error) {
+func (l *FileLoader) LoadFile(filePath string, fileMetadata *types.FileMetadata) (*types.FileDocument, error) {
 	// Get file stats
 	stats, err := os.Stat(filePath)
 	if err != nil {
@@ -67,7 +68,7 @@ func (l *FileLoader) LoadFile(filePath string, fileMetadata *FileMetadata) (*Fil
 	}
 
 	// Load content based on file type
-	pages, aggregatedContent, loaderError, err := l.loadContent(filePath, SupportedFileType(fileType))
+	pages, aggregatedContent, loaderError, err := l.loadContent(filePath, types.SupportedFileType(fileType))
 	if err != nil {
 		return l.createErrorDocument(filePath, fileMetadata, fmt.Sprintf("Failed to load content: %v", err))
 	}
@@ -81,7 +82,7 @@ func (l *FileLoader) LoadFile(filePath string, fileMetadata *FileMetadata) (*Fil
 	}
 
 	// Create metadata
-	metadata := FileMetadata{
+	metadata := types.FileMetadata{
 		Source:       source,
 		Filename:     filename,
 		FileType:     fileExtension,
@@ -93,7 +94,7 @@ func (l *FileLoader) LoadFile(filePath string, fileMetadata *FileMetadata) (*Fil
 	}
 
 	// Create document
-	doc := &FileDocument{
+	doc := &types.FileDocument{
 		Content:        aggregatedContent,
 		CreatedTime:    createdTime,
 		FileType:       fileExtension,
@@ -110,30 +111,30 @@ func (l *FileLoader) LoadFile(filePath string, fileMetadata *FileMetadata) (*Fil
 }
 
 // detectFileType determines file type based on extension
-func (l *FileLoader) detectFileType(filePath string) (SupportedFileType, error) {
+func (l *FileLoader) detectFileType(filePath string) (types.SupportedFileType, error) {
 	ext := strings.ToLower(filepath.Ext(filePath))
 
 	switch ext {
 	case ".pdf":
-		return FileTypePDF, nil
+		return types.FileTypePDF, nil
 	case ".doc":
-		return FileTypeDOC, nil
+		return types.FileTypeDOC, nil
 	case ".docx":
-		return FileTypeDOCX, nil
+		return types.FileTypeDOCX, nil
 	case ".xlsx", ".xls":
-		return FileTypeXLSX, nil
+		return types.FileTypeXLSX, nil
 	case ".pptx":
-		return FileTypePPTX, nil
+		return types.FileTypePPTX, nil
 	case ".txt", "":
-		return FileTypeTXT, nil
+		return types.FileTypeTXT, nil
 	default:
 		// Check if it's text readable
 		if l.isTextReadableFile(ext) {
-			return FileTypeTXT, nil
+			return types.FileTypeTXT, nil
 		}
 		// Check if it's an image
 		if l.isImageFile(ext) {
-			return FileTypeImage, nil
+			return types.FileTypeImage, nil
 		}
 		return "", fmt.Errorf("unsupported file type: %s", ext)
 	}
@@ -215,19 +216,19 @@ func (l *FileLoader) CanChunkForRAG(mimeType string) bool {
 }
 
 // loadContent loads content based on file type and converts to markdown
-func (l *FileLoader) loadContent(filePath string, fileType SupportedFileType) ([]DocumentPage, string, string, error) {
+func (l *FileLoader) loadContent(filePath string, fileType types.SupportedFileType) ([]types.DocumentPage, string, string, error) {
 	switch fileType {
-	case FileTypeTXT:
+	case types.FileTypeTXT:
 		return l.loadTextFile(filePath)
-	case FileTypePDF:
+	case types.FileTypePDF:
 		return l.loadPDFFile(filePath)
-	case FileTypeDOCX:
+	case types.FileTypeDOCX:
 		return l.loadDOCXFile(filePath)
-	case FileTypeXLSX:
+	case types.FileTypeXLSX:
 		return l.loadExcelFile(filePath)
-	case FileTypePPTX:
+	case types.FileTypePPTX:
 		return l.loadPPTXFile(filePath)
-	case FileTypeImage:
+	case types.FileTypeImage:
 		return l.loadImageFile(filePath)
 	default:
 		return nil, "", "", fmt.Errorf("unsupported file type: %s", fileType)
@@ -235,7 +236,7 @@ func (l *FileLoader) loadContent(filePath string, fileType SupportedFileType) ([
 }
 
 // loadTextFile loads text files
-func (l *FileLoader) loadTextFile(filePath string) ([]DocumentPage, string, string, error) {
+func (l *FileLoader) loadTextFile(filePath string) ([]types.DocumentPage, string, string, error) {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, "", fmt.Sprintf("Failed to read text file: %v", err), err
@@ -246,14 +247,14 @@ func (l *FileLoader) loadTextFile(filePath string) ([]DocumentPage, string, stri
 	lineCount := len(lines)
 	charCount := len(textContent)
 
-	page := DocumentPage{
+	page := types.DocumentPage{
 		CharCount:   charCount,
 		LineCount:   lineCount,
 		Metadata:    map[string]interface{}{"lineNumberEnd": lineCount, "lineNumberStart": 1},
 		PageContent: textContent,
 	}
 
-	pages := []DocumentPage{page}
+	pages := []types.DocumentPage{page}
 	// For text files, content is already in readable format, wrap in markdown code block
 	aggregatedContent := fmt.Sprintf("```\n%s\n```", textContent)
 
@@ -261,7 +262,7 @@ func (l *FileLoader) loadTextFile(filePath string) ([]DocumentPage, string, stri
 }
 
 // loadPDFFile loads PDF files using github.com/dslipak/pdf
-func (l *FileLoader) loadPDFFile(filePath string) ([]DocumentPage, string, string, error) {
+func (l *FileLoader) loadPDFFile(filePath string) ([]types.DocumentPage, string, string, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, "", fmt.Sprintf("Failed to open PDF file: %v", err), err
@@ -278,7 +279,7 @@ func (l *FileLoader) loadPDFFile(filePath string) ([]DocumentPage, string, strin
 		return nil, "", fmt.Sprintf("Failed to create PDF reader: %v", err), err
 	}
 
-	var pages []DocumentPage
+	var pages []types.DocumentPage
 	var markdownContent strings.Builder
 
 	markdownContent.WriteString("# PDF Document\n\n")
@@ -309,7 +310,7 @@ func (l *FileLoader) loadPDFFile(filePath string) ([]DocumentPage, string, strin
 		charCount := len(pageContent)
 		lineCount := len(lines)
 
-		docPage := DocumentPage{
+		docPage := types.DocumentPage{
 			CharCount:   charCount,
 			LineCount:   lineCount,
 			Metadata:    map[string]interface{}{"pageNumber": i},
@@ -324,7 +325,7 @@ func (l *FileLoader) loadPDFFile(filePath string) ([]DocumentPage, string, strin
 }
 
 // loadDOCXFile loads DOCX files using gooxml/document
-func (l *FileLoader) loadDOCXFile(filePath string) ([]DocumentPage, string, string, error) {
+func (l *FileLoader) loadDOCXFile(filePath string) ([]types.DocumentPage, string, string, error) {
 	markdown, err := l.extractDOCXContent(filePath)
 	if err != nil {
 		return nil, "", fmt.Sprintf("failed to convert DOCX to markdown: %v", err), err
@@ -335,14 +336,14 @@ func (l *FileLoader) loadDOCXFile(filePath string) ([]DocumentPage, string, stri
 	charCount := len(markdown)
 	lineCount := len(lines)
 
-	page := DocumentPage{
+	page := types.DocumentPage{
 		CharCount:   charCount,
 		LineCount:   lineCount,
 		Metadata:    map[string]interface{}{},
 		PageContent: markdown,
 	}
 
-	pages := []DocumentPage{page}
+	pages := []types.DocumentPage{page}
 
 	return pages, markdown, "", nil
 }
@@ -369,7 +370,7 @@ func (l *FileLoader) extractDOCXContent(filePath string) (string, error) {
 }
 
 // loadExcelFile loads Excel files using gooxml/spreadsheet
-func (l *FileLoader) loadExcelFile(filePath string) ([]DocumentPage, string, string, error) {
+func (l *FileLoader) loadExcelFile(filePath string) ([]types.DocumentPage, string, string, error) {
 	markdown, err := l.extractXLSXContent(filePath)
 	if err != nil {
 		return nil, "", fmt.Sprintf("failed to convert XLSX to markdown: %v", err), err
@@ -380,14 +381,14 @@ func (l *FileLoader) loadExcelFile(filePath string) ([]DocumentPage, string, str
 	charCount := len(markdown)
 	lineCount := len(lines)
 
-	page := DocumentPage{
+	page := types.DocumentPage{
 		CharCount:   charCount,
 		LineCount:   lineCount,
 		Metadata:    map[string]interface{}{},
 		PageContent: markdown,
 	}
 
-	pages := []DocumentPage{page}
+	pages := []types.DocumentPage{page}
 
 	return pages, markdown, "", nil
 }
@@ -415,7 +416,7 @@ func (l *FileLoader) extractXLSXContent(filePath string) (string, error) {
 }
 
 // loadPPTXFile loads PPTX files using gooxml/presentation
-func (l *FileLoader) loadPPTXFile(filePath string) ([]DocumentPage, string, string, error) {
+func (l *FileLoader) loadPPTXFile(filePath string) ([]types.DocumentPage, string, string, error) {
 	markdown, err := l.extractPPTXContent(filePath)
 	if err != nil {
 		return nil, "", fmt.Sprintf("failed to convert PPTX to markdown: %v", err), err
@@ -426,20 +427,20 @@ func (l *FileLoader) loadPPTXFile(filePath string) ([]DocumentPage, string, stri
 	charCount := len(markdown)
 	lineCount := len(lines)
 
-	page := DocumentPage{
+	page := types.DocumentPage{
 		CharCount:   charCount,
 		LineCount:   lineCount,
 		Metadata:    map[string]interface{}{},
 		PageContent: markdown,
 	}
 
-	pages := []DocumentPage{page}
+	pages := []types.DocumentPage{page}
 
 	return pages, markdown, "", nil
 }
 
 // loadImageFile loads image files
-func (l *FileLoader) loadImageFile(filePath string) ([]DocumentPage, string, string, error) {
+func (l *FileLoader) loadImageFile(filePath string) ([]types.DocumentPage, string, string, error) {
 	// For images, we just create a markdown reference
 	// The actual description will be generated by the FileProcessorService using VL model
 	// and appended to this content
@@ -448,14 +449,14 @@ func (l *FileLoader) loadImageFile(filePath string) ([]DocumentPage, string, str
 	// We use the /files/ route which is served by the fileserver service
 	markdown := fmt.Sprintf("![%s](/files/%s)\n\n", filename, filename)
 
-	page := DocumentPage{
+	page := types.DocumentPage{
 		CharCount:   len(markdown),
 		LineCount:   1,
 		Metadata:    map[string]interface{}{"type": "image"},
 		PageContent: markdown,
 	}
 
-	pages := []DocumentPage{page}
+	pages := []types.DocumentPage{page}
 
 	return pages, markdown, "", nil
 }
@@ -482,7 +483,7 @@ func (l *FileLoader) extractPPTXContent(filePath string) (string, error) {
 }
 
 // createErrorDocument creates a FileDocument with error information
-func (l *FileLoader) createErrorDocument(filePath string, fileMetadata *FileMetadata, errorMsg string) (*FileDocument, error) {
+func (l *FileLoader) createErrorDocument(filePath string, fileMetadata *types.FileMetadata, errorMsg string) (*types.FileDocument, error) {
 	baseFilename := filepath.Base(filePath)
 
 	filename := baseFilename
@@ -496,24 +497,24 @@ func (l *FileLoader) createErrorDocument(filePath string, fileMetadata *FileMeta
 		}
 	}
 
-	errorPage := DocumentPage{
+	errorPage := types.DocumentPage{
 		CharCount:   0,
 		LineCount:   0,
 		Metadata:    map[string]interface{}{"error": errorMsg},
 		PageContent: "",
 	}
 
-	doc := &FileDocument{
+	doc := &types.FileDocument{
 		Content:     "",
 		CreatedTime: time.Now(),
 		FileType:    "",
 		Filename:    filename,
-		Metadata: FileMetadata{
+		Metadata: types.FileMetadata{
 			Source: source,
 			Error:  errorMsg,
 		},
 		ModifiedTime:   time.Now(),
-		Pages:          []DocumentPage{errorPage},
+		Pages:          []types.DocumentPage{errorPage},
 		Source:         source,
 		TotalCharCount: 0,
 		TotalLineCount: 0,

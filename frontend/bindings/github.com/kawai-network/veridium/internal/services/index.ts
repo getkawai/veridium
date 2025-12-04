@@ -32,7 +32,6 @@ export {
     CitationItem,
     CreateThreadRequest,
     CreateThreadResponse,
-    Document,
     FileItem,
     GroundingSearch,
     ListThreadsRequest,

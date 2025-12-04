@@ -47,3 +47,53 @@ export enum ChatStreamEvent {
      */
     ChatEventToolResult = "tool_result",
 };
+
+/**
+ * Document is a piece of text with metadata.
+ */
+export class Document {
+    /**
+     * ID is the unique identifier of the document.
+     */
+    "id": string;
+
+    /**
+     * Content is the content of the document.
+     */
+    "content": string;
+
+    /**
+     * Metadata is the metadata of the document, can be used to store extra information.
+     */
+    "metadata": { [_: string]: any };
+
+    /** Creates a new Document instance. */
+    constructor($$source: Partial<Document> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("content" in $$source)) {
+            this["content"] = "";
+        }
+        if (!("metadata" in $$source)) {
+            this["metadata"] = {};
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Document instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Document {
+        const $$createField2_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("metadata" in $$parsedSource) {
+            $$parsedSource["metadata"] = $$createField2_0($$parsedSource["metadata"]);
+        }
+        return new Document($$parsedSource as Partial<Document>);
+    }
+}
+
+// Private type creation functions
+const $$createType0 = $Create.Map($Create.Any, $Create.Any);

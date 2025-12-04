@@ -28,6 +28,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/kawai-network/veridium/internal/database"
 	db "github.com/kawai-network/veridium/internal/database/generated"
+	"github.com/kawai-network/veridium/types"
 )
 
 // KnowledgeBaseService manages knowledge bases with RAG capabilities
@@ -245,7 +246,7 @@ func (s *KnowledgeBaseService) RemoveFileFromKnowledgeBase(ctx context.Context, 
 }
 
 // QueryKnowledgeBase performs semantic search on a knowledge base
-func (s *KnowledgeBaseService) QueryKnowledgeBase(ctx context.Context, kbID, query string, topK int, userID string) ([]*Document, error) {
+func (s *KnowledgeBaseService) QueryKnowledgeBase(ctx context.Context, kbID, query string, topK int, userID string) ([]*types.Document, error) {
 	// Set default topK
 	if topK <= 0 {
 		topK = 5
@@ -261,7 +262,7 @@ func (s *KnowledgeBaseService) QueryKnowledgeBase(ctx context.Context, kbID, que
 	}
 
 	if len(kbFiles) == 0 {
-		return []*Document{}, nil
+		return []*types.Document{}, nil
 	}
 
 	// Extract file IDs
@@ -277,9 +278,9 @@ func (s *KnowledgeBaseService) QueryKnowledgeBase(ctx context.Context, kbID, que
 	}
 
 	// Convert to Eino Document format for compatibility
-	docs := make([]*Document, len(results))
+	docs := make([]*types.Document, len(results))
 	for i, r := range results {
-		docs[i] = &Document{
+		docs[i] = &types.Document{
 			ID:      r.ID,
 			Content: r.Text,
 			Metadata: map[string]any{
@@ -297,9 +298,9 @@ func (s *KnowledgeBaseService) QueryKnowledgeBase(ctx context.Context, kbID, que
 
 // GetRetriever returns a simple retriever function for compatibility
 // This replaces the Eino chromem adapter
-func (s *KnowledgeBaseService) GetRetriever(ctx context.Context, kbID, userID string) (func(context.Context, string) ([]*Document, error), error) {
+func (s *KnowledgeBaseService) GetRetriever(ctx context.Context, kbID, userID string) (func(context.Context, string) ([]*types.Document, error), error) {
 	// Return a closure that captures kbID and userID
-	retriever := func(ctx context.Context, query string) ([]*Document, error) {
+	retriever := func(ctx context.Context, query string) ([]*types.Document, error) {
 		return s.QueryKnowledgeBase(ctx, kbID, query, 10, userID)
 	}
 	return retriever, nil

@@ -9,6 +9,7 @@ import (
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/pkg/xlog"
 	"github.com/kawai-network/veridium/pkg/yzma/embedding"
+	"github.com/kawai-network/veridium/types"
 )
 
 // RAGProcessor handles RAG processing (chunking + embedding)
@@ -67,22 +68,19 @@ func (r *RAGProcessor) ProcessFile(ctx context.Context, req RAGProcessRequest) (
 	// TODO: Unmarshal pages from doc.Pages (JSON) if needed for PDF
 	// For now, we'll rely on content-based chunking for non-PDFs or if pages missing
 
-	fileDoc := &FileDocument{
+	fileDoc := &types.FileDocument{
 		Content:  doc.Content.String,
 		FileType: doc.FileType, // FileType is string, not sql.NullString
 		Filename: req.Filename,
 		// Pages: pages, // Populate if we implement JSON unmarshal
 	}
 
-	// Configure chunking
-	chunkConfig := ChunkingConfig{
+	// Use FileLoader's superior chunking logic (Eino, etc.)
+	chunks := r.fileLoader.ChunkDocument(fileDoc, types.ChunkingConfig{
 		Enabled:     true,
 		ChunkSize:   r.chunkSize,
 		OverlapSize: r.overlapSize,
-	}
-
-	// Use FileLoader's superior chunking logic (Eino, etc.)
-	chunks := r.fileLoader.ChunkDocument(fileDoc, chunkConfig)
+	})
 	if len(chunks) == 0 {
 		xlog.Warn("No chunks created from document", "document_id", req.DocumentID)
 		return []string{}, nil

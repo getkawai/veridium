@@ -13,10 +13,9 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as db$0 from "../database/generated/models.js";
-
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as $models from "./models.js";
+import * as types$0 from "../../types/models.js";
 
 /**
  * AddFileToKnowledgeBase adds a file to a knowledge base
@@ -68,7 +67,7 @@ export function ListKnowledgeBases(userID: string): $CancellablePromise<db$0.Kno
 /**
  * QueryKnowledgeBase performs semantic search on a knowledge base
  */
-export function QueryKnowledgeBase(kbID: string, query: string, topK: number, userID: string): $CancellablePromise<($models.Document | null)[]> {
+export function QueryKnowledgeBase(kbID: string, query: string, topK: number, userID: string): $CancellablePromise<(types$0.Document | null)[]> {
     return $Call.ByID(3310437766, kbID, query, topK, userID).then(($result: any) => {
         return $$createType4($result);
     });
@@ -91,6 +90,6 @@ export function UpdateKnowledgeBase(kbID: string, name: string, description: str
 // Private type creation functions
 const $$createType0 = db$0.KnowledgeBasis.createFrom;
 const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = $models.Document.createFrom;
+const $$createType2 = types$0.Document.createFrom;
 const $$createType3 = $Create.Nullable($$createType2);
 const $$createType4 = $Create.Array($$createType3);
