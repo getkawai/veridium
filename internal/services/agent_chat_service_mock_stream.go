@@ -12,6 +12,7 @@ import (
 	"github.com/kawai-network/veridium/internal/search"
 	"github.com/kawai-network/veridium/pkg/localfs"
 	"github.com/kawai-network/veridium/pkg/yzma/tools/builtin"
+	"github.com/kawai-network/veridium/types"
 )
 
 // ChatMockStream handles mock chat with event streaming for realistic UI testing
@@ -35,7 +36,7 @@ func (s *AgentChatService) ChatMockStream(ctx context.Context, req ChatRequest) 
 	log.Printf("🎭 [MOCK STREAM] Starting streaming mock for session: %s", req.SessionID)
 
 	// Helper to emit events with type safety
-	emit := func(eventType StreamEventType, data interface{}) {
+	emit := func(eventType types.ChatStreamEvent, data interface{}) {
 		if s.app == nil {
 			return
 		}
@@ -72,7 +73,7 @@ func (s *AgentChatService) ChatMockStream(ctx context.Context, req ChatRequest) 
 
 	// 2. Emit START event
 	// Use UIChatMessage for consistency
-	emit(StreamEventStart, &UIChatMessage{
+	emit(types.ChatEventStart, &UIChatMessage{
 		TopicID: currentTopicID,
 	})
 	time.Sleep(100 * time.Millisecond)
@@ -84,7 +85,7 @@ func (s *AgentChatService) ChatMockStream(ctx context.Context, req ChatRequest) 
 	for i, chunk := range reasoningWords {
 		partialContent := joinChunks(reasoningWords[:i+1])
 		// Use UIChatMessage with Reasoning field
-		emit(StreamEventReasoning, &UIChatMessage{
+		emit(types.ChatEventReasoning, &UIChatMessage{
 			Reasoning: &ModelReasoning{
 				Content: partialContent, // Frontend expects full content in reasoning.content
 			},
@@ -104,7 +105,7 @@ func (s *AgentChatService) ChatMockStream(ctx context.Context, req ChatRequest) 
 	for i, _ := range contentWords {
 		partialContent := joinChunks(contentWords[:i+1])
 		// Use UIChatMessage with Content field
-		emit(StreamEventChunk, &UIChatMessage{
+		emit(types.ChatEventChunk, &UIChatMessage{
 			Content: partialContent, // Frontend expects full content
 		})
 		time.Sleep(30 * time.Millisecond)
@@ -131,7 +132,7 @@ func (s *AgentChatService) ChatMockStream(ctx context.Context, req ChatRequest) 
 	for i, tool := range tools {
 		// Emit tool_call
 		// Use UIChatMessage with Tools field
-		emit(StreamEventToolCall, &UIChatMessage{
+		emit(types.ChatEventToolCall, &UIChatMessage{
 			Tools: tools[:i+1], // All tools so far (for UI to render)
 		})
 		time.Sleep(300 * time.Millisecond) // Simulate tool execution
@@ -154,7 +155,7 @@ func (s *AgentChatService) ChatMockStream(ctx context.Context, req ChatRequest) 
 			"pluginState": result.State,
 			"content":     result.Content, // Content can be string or marshaled JSON
 		}
-		emit(StreamEventToolResult, toolResultPayload)
+		emit(types.ChatEventToolResult, toolResultPayload)
 
 		time.Sleep(200 * time.Millisecond)
 	}
@@ -237,7 +238,7 @@ func (s *AgentChatService) ChatMockStream(ctx context.Context, req ChatRequest) 
 
 	// 11. Emit COMPLETE event with final data
 	// Use UIChatMessage for complete event
-	emit(StreamEventComplete, &UIChatMessage{
+	emit(types.ChatEventComplete, &UIChatMessage{
 		Content:     mockContent,
 		TopicID:     currentTopicID,
 		Reasoning:   reasoning,

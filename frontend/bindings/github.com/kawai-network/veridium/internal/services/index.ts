@@ -46,7 +46,6 @@ export {
     ReasoningMode,
     SearchResult,
     StreamEventPayload,
-    StreamEventType,
     ThreadInfo,
     ThreadStatus,
     ThreadType,

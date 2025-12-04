@@ -27,23 +27,12 @@ import (
 	"github.com/google/uuid"
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/pkg/yzma/message"
+	"github.com/kawai-network/veridium/types"
 )
 
 // ============================================================================
 // Stream Event Types for ChatMockStream and ChatRealStream
 // ============================================================================
-
-// StreamEventType represents the type of stream event
-type StreamEventType string
-
-const (
-	StreamEventStart      StreamEventType = "start"       // Generation started
-	StreamEventChunk      StreamEventType = "chunk"       // Content chunk
-	StreamEventReasoning  StreamEventType = "reasoning"   // Reasoning content
-	StreamEventToolCall   StreamEventType = "tool_call"   // Tool call initiated
-	StreamEventToolResult StreamEventType = "tool_result" // Tool execution result
-	StreamEventComplete   StreamEventType = "complete"    // Generation complete
-)
 
 // ToolResultData holds content and state for a tool result
 type ToolResultData struct {
@@ -55,10 +44,10 @@ type ToolResultData struct {
 // This is emitted via Wails events ('chat:stream') and consumed by frontend.
 // Frontend can import this type from generated bindings.
 type StreamEventPayload struct {
-	Type      StreamEventType `json:"type"`
-	SessionID string          `json:"session_id"`
-	MessageID string          `json:"message_id"`
-	TopicID   string          `json:"topic_id,omitempty"`
+	Type      types.ChatStreamEvent `json:"type"`
+	SessionID string                `json:"session_id"`
+	MessageID string                `json:"message_id"`
+	TopicID   string                `json:"topic_id,omitempty"`
 
 	// Content fields
 	Content     string `json:"content,omitempty"`

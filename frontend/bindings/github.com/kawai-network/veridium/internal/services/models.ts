@@ -5,6 +5,10 @@
 // @ts-ignore: Unused imports
 import { Create as $Create } from "@wailsio/runtime";
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as types$0 from "../../types/models.js";
+
 /**
  * AssistantContentBlock represents content block in grouped messages
  */
@@ -1143,7 +1147,7 @@ export class SearchResult {
  * Frontend can import this type from generated bindings.
  */
 export class StreamEventPayload {
-    "type": StreamEventType;
+    "type": types$0.ChatStreamEvent;
     "session_id": string;
     "message_id": string;
     "topic_id"?: string;
@@ -1195,7 +1199,7 @@ export class StreamEventPayload {
     /** Creates a new StreamEventPayload instance. */
     constructor($$source: Partial<StreamEventPayload> = {}) {
         if (!("type" in $$source)) {
-            this["type"] = StreamEventType.$zero;
+            this["type"] = types$0.ChatStreamEvent.$zero;
         }
         if (!("session_id" in $$source)) {
             this["session_id"] = "";
@@ -1255,46 +1259,6 @@ export class StreamEventPayload {
         return new StreamEventPayload($$parsedSource as Partial<StreamEventPayload>);
     }
 }
-
-/**
- * StreamEventType represents the type of stream event
- */
-export enum StreamEventType {
-    /**
-     * The Go zero value for the underlying type of the enum.
-     */
-    $zero = "",
-
-    /**
-     * Generation started
-     */
-    StreamEventStart = "start",
-
-    /**
-     * Content chunk
-     */
-    StreamEventChunk = "chunk",
-
-    /**
-     * Reasoning content
-     */
-    StreamEventReasoning = "reasoning",
-
-    /**
-     * Tool call initiated
-     */
-    StreamEventToolCall = "tool_call",
-
-    /**
-     * Tool execution result
-     */
-    StreamEventToolResult = "tool_result",
-
-    /**
-     * Generation complete
-     */
-    StreamEventComplete = "complete",
-};
 
 /**
  * ThreadInfo represents thread information

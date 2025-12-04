@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/kawai-network/veridium/pkg/yzma/message"
+	"github.com/kawai-network/veridium/types"
 )
 
 func TestChatMLTemplate(t *testing.T) {
@@ -61,10 +62,10 @@ func TestQwen25InstructTemplateWithToolCall(t *testing.T) {
 		},
 		message.Tool{
 			Role: "assistant",
-			ToolCalls: []message.ToolCall{
+			ToolCalls: []types.ToolCall{
 				{
 					Type: "function",
-					Function: message.ToolFunction{
+					Function: types.ToolFunction{
 						Name: "add",
 						Arguments: map[string]string{
 							"a": "2",
@@ -126,10 +127,10 @@ func TestApplyJinjaTemplateWithToolMessage(t *testing.T) {
 		},
 		message.Tool{
 			Role: "assistant",
-			ToolCalls: []message.ToolCall{
+			ToolCalls: []types.ToolCall{
 				{
 					Type: "function",
-					Function: message.ToolFunction{
+					Function: types.ToolFunction{
 						Name: "calculator",
 						Arguments: map[string]string{
 							"operation": "add",
@@ -184,10 +185,10 @@ func TestApplyJinjaTemplateWithToolResponseMessage(t *testing.T) {
 		},
 		message.Tool{
 			Role: "assistant",
-			ToolCalls: []message.ToolCall{
+			ToolCalls: []types.ToolCall{
 				{
 					Type: "function",
-					Function: message.ToolFunction{
+					Function: types.ToolFunction{
 						Name: "calculator",
 						Arguments: map[string]string{
 							"x": "10",
@@ -243,10 +244,10 @@ func TestApplyJinjaTemplateWithMultipleToolCalls(t *testing.T) {
 		},
 		message.Tool{
 			Role: "assistant",
-			ToolCalls: []message.ToolCall{
+			ToolCalls: []types.ToolCall{
 				{
 					Type: "function",
-					Function: message.ToolFunction{
+					Function: types.ToolFunction{
 						Name: "add",
 						Arguments: map[string]string{
 							"a": "2",
@@ -256,7 +257,7 @@ func TestApplyJinjaTemplateWithMultipleToolCalls(t *testing.T) {
 				},
 				{
 					Type: "function",
-					Function: message.ToolFunction{
+					Function: types.ToolFunction{
 						Name: "multiply",
 						Arguments: map[string]string{
 							"a": "5",

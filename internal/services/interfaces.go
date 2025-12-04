@@ -21,6 +21,7 @@ import (
 
 	"github.com/kawai-network/veridium/internal/llama"
 	"github.com/kawai-network/veridium/pkg/yzma/message"
+	"github.com/kawai-network/veridium/types"
 )
 
 // LLMGenerator defines the interface for LLM generation operations
@@ -33,7 +34,7 @@ type LLMGenerator interface {
 	RunAgentLoop(ctx context.Context, messages []message.Message, maxIterations int) (*llama.YzmaResponse, []message.Message, error)
 
 	// RunAgentLoopWithStreaming runs the agent loop with streaming callback and tool event callback
-	RunAgentLoopWithStreaming(ctx context.Context, messages []message.Message, maxIterations int, streamCallback llama.StreamCallback, toolCallback llama.ToolEventCallback) (*llama.YzmaResponse, []message.Message, error)
+	RunAgentLoopWithStreaming(ctx context.Context, messages []message.Message, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*llama.YzmaResponse, []message.Message, error)
 
 	// WithTools returns a new generator configured with specific tools
 	WithTools(toolNames []string) LLMGenerator
@@ -60,7 +61,7 @@ func (a *LLMGeneratorAdapter) RunAgentLoop(ctx context.Context, messages []messa
 }
 
 // RunAgentLoopWithStreaming implements LLMGenerator.RunAgentLoopWithStreaming
-func (a *LLMGeneratorAdapter) RunAgentLoopWithStreaming(ctx context.Context, messages []message.Message, maxIterations int, streamCallback llama.StreamCallback, toolCallback llama.ToolEventCallback) (*llama.YzmaResponse, []message.Message, error) {
+func (a *LLMGeneratorAdapter) RunAgentLoopWithStreaming(ctx context.Context, messages []message.Message, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*llama.YzmaResponse, []message.Message, error) {
 	return a.model.RunAgentLoopWithStreaming(ctx, messages, maxIterations, streamCallback, toolCallback)
 }
 

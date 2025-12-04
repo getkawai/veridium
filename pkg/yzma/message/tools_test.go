@@ -3,6 +3,8 @@ package message
 import (
 	"reflect"
 	"testing"
+
+	"github.com/kawai-network/veridium/types"
 )
 
 func TestToolMessage_GetRole(t *testing.T) {
@@ -15,10 +17,10 @@ func TestToolMessage_GetRole(t *testing.T) {
 func TestToolMessage_GetContent(t *testing.T) {
 	msg := Tool{
 		Role: "tool",
-		ToolCalls: []ToolCall{
+		ToolCalls: []types.ToolCall{
 			{
 				Type: "function",
-				Function: ToolFunction{
+				Function: types.ToolFunction{
 					Name: "add",
 					Arguments: map[string]string{
 						"a": "1",

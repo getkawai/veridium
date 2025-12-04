@@ -1,21 +1,11 @@
 package message
 
-// ToolFunction represents a function within a tool call.
-type ToolFunction struct {
-	Name      string
-	Arguments map[string]string
-}
-
-// ToolCall represents a call to a tool function within a tool message.
-type ToolCall struct {
-	Type     string
-	Function ToolFunction
-}
+import "github.com/kawai-network/veridium/types"
 
 // Tool represents a message that contains tool calls.
 type Tool struct {
 	Role      string
-	ToolCalls []ToolCall
+	ToolCalls []types.ToolCall
 }
 
 // GetRole returns the role of the tool message.

@@ -36,6 +36,7 @@ import (
 	"github.com/kawai-network/veridium/pkg/yzma/message"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
 	yzmabuiltin "github.com/kawai-network/veridium/pkg/yzma/tools/builtin"
+	"github.com/kawai-network/veridium/types"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -342,7 +343,7 @@ type UIChatMessage struct {
 
 	Tools   []ChatToolPayload `json:"tools,omitempty"`
 	TopicID string            `json:"topicId,omitempty"`
-	TraceID string `json:"traceId,omitempty"`
+	TraceID string            `json:"traceId,omitempty"`
 
 	UpdatedAt int64           `json:"updatedAt"`
 	Usage     *ModelUsage     `json:"usage,omitempty"`
@@ -565,7 +566,7 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*UIChatMe
 
 	// Run agent with LLM generator (streaming or non-streaming)
 	var finalMessage string
-	var toolCalls []message.ToolCall
+	var toolCalls []types.ToolCall
 	var usage *llama.YzmaResponse
 	var toolMessages []message.Message
 
@@ -1589,7 +1590,7 @@ func convertDBMessageToYzma(dbMsg *db.Message) message.Message {
 
 	// Check for tool calls
 	if dbMsg.Tools.Valid && dbMsg.Tools.String != "" {
-		var toolCalls []message.ToolCall
+		var toolCalls []types.ToolCall
 		if err := json.Unmarshal([]byte(dbMsg.Tools.String), &toolCalls); err == nil && len(toolCalls) > 0 {
 			return message.Tool{
 				Role:      role,

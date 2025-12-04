@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/kawai-network/veridium/pkg/yzma/message"
+	"github.com/kawai-network/veridium/types"
 )
 
 // ToolNameMapping maps Yzma tool names to frontend-compatible identifier/apiName pairs
@@ -144,7 +145,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 
 	// 3. Emit START event
 	emit(StreamEventPayload{
-		Type:    StreamEventStart,
+		Type:    types.ChatEventStart,
 		TopicID: currentTopicID,
 	})
 
@@ -163,7 +164,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	// 5. Run LLM with streaming + tool execution
 	var finalContent strings.Builder
 	var reasoningContent strings.Builder
-	var toolCalls []message.ToolCall
+	var toolCalls []types.ToolCall
 	var toolMessages []message.Message
 	var usage *ModelUsage
 	var llmResp interface{}
@@ -202,7 +203,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 			} else if strings.Contains(token, "</think>") {
 				// End of thinking - emit final reasoning
 				emit(StreamEventPayload{
-					Type: StreamEventReasoning,
+					Type: types.ChatEventReasoning,
 					Reasoning: &ModelReasoning{
 						Content: reasoningContent.String(),
 					},
@@ -211,7 +212,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 				// Inside thinking - accumulate and emit
 				reasoningContent.WriteString(token)
 				emit(StreamEventPayload{
-					Type: StreamEventReasoning,
+					Type: types.ChatEventReasoning,
 					Reasoning: &ModelReasoning{
 						Content: reasoningContent.String(),
 					},
@@ -244,7 +245,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 
 			if cleanContent != "" {
 				emit(StreamEventPayload{
-					Type:    StreamEventChunk,
+					Type:    types.ChatEventChunk,
 					Content: cleanContent,
 				})
 			}
@@ -257,11 +258,11 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 
 	// Tool event callback - emits tool events to frontend in real-time
 	var toolCallIndex int
-	toolEventCallback := func(eventType string, tc message.ToolCall, result string) {
+	toolEventCallback := func(eventType types.ChatStreamEvent, tc types.ToolCall, result string) {
 		argsJSON, _ := json.Marshal(tc.Function.Arguments)
 		identifier, apiName, toolType := mapToolName(tc.Function.Name)
 
-		if eventType == "tool_call" {
+		if eventType == types.ChatEventToolCall {
 			// Tool call initiated - emit loading state
 			toolCallID := fmt.Sprintf("%s_tool_%d", assistantMsgID, toolCallIndex)
 			log.Printf("🔧 [REAL STREAM] Tool call (loading): %s -> identifier=%s, apiName=%s", tc.Function.Name, identifier, apiName)
@@ -276,11 +277,11 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 			uiTools = append(uiTools, tool)
 
 			emit(StreamEventPayload{
-				Type:  StreamEventToolCall,
+				Type:  types.ChatEventToolCall,
 				Tools: uiTools,
 			})
 			toolCallIndex++
-		} else if eventType == "tool_result" {
+		} else if eventType == types.ChatEventToolResult {
 			// Tool execution completed - emit result
 			log.Printf("🔧 [REAL STREAM] Tool result: %s -> %s", tc.Function.Name, result[:minInt(50, len(result))])
 
@@ -300,7 +301,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 			toolCallID := fmt.Sprintf("%s_tool_%d", assistantMsgID, resultIndex)
 
 			emit(StreamEventPayload{
-				Type:       StreamEventToolResult,
+				Type:       types.ChatEventToolResult,
 				ToolCallID: toolCallID,
 				ToolMsgID:  fmt.Sprintf("tool_msg_%s_%d", assistantMsgID, resultIndex+1),
 				Plugin: &ChatPluginPayload{
@@ -320,7 +321,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	if runErr != nil {
 		log.Printf("❌ [REAL STREAM] Agent execution failed: %v", runErr)
 		emit(StreamEventPayload{
-			Type:    StreamEventComplete,
+			Type:    types.ChatEventComplete,
 			Content: fmt.Sprintf("Error: %v", runErr),
 			Error: &ChatMessageError{
 				Type:    "LLMError",
@@ -460,7 +461,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 
 	// 16. Emit COMPLETE event with final data
 	emit(StreamEventPayload{
-		Type:        StreamEventComplete,
+		Type:        types.ChatEventComplete,
 		Content:     finalContentStr,
 		TopicID:     currentTopicID,
 		Reasoning:   reasoning,
