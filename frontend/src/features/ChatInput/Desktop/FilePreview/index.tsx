@@ -48,24 +48,32 @@ const FilePreview = memo(() => {
       try {
         // Files are already processed by backend (copy + parse + RAG)
         // Just create upload items with local URLs
-        const uploadItems = processedFiles.map((fileInfo) => {
-          // Determine MIME type from extension
-          const ext = fileInfo.name.split('.').pop()?.toLowerCase();
-          const mimeType = getMimeType(ext || '');
+        const uploadItems = processedFiles
+          .map((fileInfo) => {
+            // Skip files that failed to process (no fileId)
+            if (!fileInfo.fileId) {
+              console.warn('[Wails D&D] Skipping file without fileId:', fileInfo.name);
+              return null;
+            }
 
-          // Check if trying to upload non-image files when only vision is supported
-          if (!enabledFiles && !mimeType.startsWith('image')) {
-            return null;
-          }
+            // Determine MIME type from extension
+            const ext = fileInfo.name.split('.').pop()?.toLowerCase();
+            const mimeType = getMimeType(ext || '');
 
-          return {
-            id: fileInfo.fileId || fileInfo.name,
-            file: { name: fileInfo.name, type: mimeType, size: 0 } as File,
-            previewUrl: fileInfo.url,
-            base64Url: undefined,
-            status: fileInfo.processing ? ('pending' as const) : ('success' as const),
-          };
-        }).filter(Boolean);
+            // Check if trying to upload non-image files when only vision is supported
+            if (!enabledFiles && !mimeType.startsWith('image')) {
+              return null;
+            }
+
+            return {
+              id: fileInfo.fileId,
+              file: { name: fileInfo.name, type: mimeType, size: 0 } as File,
+              previewUrl: fileInfo.url,
+              base64Url: undefined,
+              status: fileInfo.processing ? ('pending' as const) : ('success' as const),
+            };
+          })
+          .filter(Boolean);
 
         if (uploadItems.length === 0) {
           message.warning('No supported files to upload');
