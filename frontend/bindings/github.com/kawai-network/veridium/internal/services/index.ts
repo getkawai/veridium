@@ -53,5 +53,5 @@ export {
 } from "./models.js";
 
 export type {
-    LLMGenerator
+    llm.Provider
 } from "./models.js";

@@ -727,10 +727,10 @@ export class GroundingSearch {
 }
 
 /**
- * LLMGenerator defines the interface for LLM generation operations
+ * llm.Provider defines the interface for LLM generation operations
  * This allows mocking the LLM for testing
  */
-export type LLMGenerator = any;
+export type llm.Provider = any;
 
 /**
  * ListThreadsRequest represents a request to list threads

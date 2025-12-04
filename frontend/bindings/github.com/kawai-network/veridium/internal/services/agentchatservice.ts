@@ -113,7 +113,7 @@ export function ClearSession(sessionID: string): $CancellablePromise<void> {
 /**
  * GetLLMGenerator returns the current LLM generator
  */
-export function GetLLMGenerator(): $CancellablePromise<$models.LLMGenerator> {
+export function GetLLMGenerator(): $CancellablePromise<$models.llm.Provider> {
     return $Call.ByID(1599155355);
 }
 
@@ -163,7 +163,7 @@ export function GetStreamEventPayloadType(): $CancellablePromise<$models.StreamE
 /**
  * SetLLMGenerator sets a custom LLM generator (useful for testing with mocks)
  */
-export function SetLLMGenerator(generator: $models.LLMGenerator): $CancellablePromise<void> {
+export function SetLLMGenerator(generator: $models.llm.Provider): $CancellablePromise<void> {
     return $Call.ByID(3521022399, generator);
 }
 

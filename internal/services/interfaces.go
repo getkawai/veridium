@@ -20,57 +20,47 @@ import (
 	"context"
 
 	"github.com/kawai-network/veridium/internal/llama"
+	"github.com/kawai-network/veridium/internal/llm"
 	"github.com/kawai-network/veridium/pkg/yzma/message"
 	"github.com/kawai-network/veridium/types"
 )
 
-// LLMGenerator defines the interface for LLM generation operations
-// This allows mocking the LLM for testing
-type LLMGenerator interface {
-	// Generate generates a response from messages (single turn, no tool execution)
-	Generate(ctx context.Context, messages []message.Message) (*types.LLMResponse, error)
-
-	// RunAgentLoop runs the agent loop with tool execution
-	RunAgentLoop(ctx context.Context, messages []message.Message, maxIterations int) (*types.LLMResponse, []message.Message, error)
-
-	// RunAgentLoopWithStreaming runs the agent loop with streaming callback and tool event callback
-	RunAgentLoopWithStreaming(ctx context.Context, messages []message.Message, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*types.LLMResponse, []message.Message, error)
-
-	// WithTools returns a new generator configured with specific tools
-	WithTools(toolNames []string) LLMGenerator
-}
-
-// LLMGeneratorAdapter wraps LlamaYzmaModel to implement LLMGenerator interface
-type LLMGeneratorAdapter struct {
+// LlamaProviderAdapter wraps LlamaYzmaModel to implement llm.Provider interface
+type LlamaProviderAdapter struct {
 	model *llama.LlamaYzmaModel
 }
 
-// NewLLMGeneratorAdapter creates a new adapter wrapping LlamaYzmaModel
-func NewLLMGeneratorAdapter(model *llama.LlamaYzmaModel) *LLMGeneratorAdapter {
-	return &LLMGeneratorAdapter{model: model}
+// NewLlamaProviderAdapter creates a new adapter wrapping LlamaYzmaModel
+func NewLlamaProviderAdapter(model *llama.LlamaYzmaModel) *LlamaProviderAdapter {
+	return &LlamaProviderAdapter{model: model}
 }
 
-// Generate implements LLMGenerator.Generate
-func (a *LLMGeneratorAdapter) Generate(ctx context.Context, messages []message.Message) (*types.LLMResponse, error) {
+// Generate implements llm.Provider.Generate
+func (a *LlamaProviderAdapter) Generate(ctx context.Context, messages []message.Message) (*types.LLMResponse, error) {
 	return a.model.Generate(ctx, messages)
 }
 
-// RunAgentLoop implements LLMGenerator.RunAgentLoop
-func (a *LLMGeneratorAdapter) RunAgentLoop(ctx context.Context, messages []message.Message, maxIterations int) (*types.LLMResponse, []message.Message, error) {
+// RunAgentLoop implements llm.Provider.RunAgentLoop
+func (a *LlamaProviderAdapter) RunAgentLoop(ctx context.Context, messages []message.Message, maxIterations int) (*types.LLMResponse, []message.Message, error) {
 	return a.model.RunAgentLoop(ctx, messages, maxIterations)
 }
 
-// RunAgentLoopWithStreaming implements LLMGenerator.RunAgentLoopWithStreaming
-func (a *LLMGeneratorAdapter) RunAgentLoopWithStreaming(ctx context.Context, messages []message.Message, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*types.LLMResponse, []message.Message, error) {
+// RunAgentLoopWithStreaming implements llm.Provider.RunAgentLoopWithStreaming
+func (a *LlamaProviderAdapter) RunAgentLoopWithStreaming(ctx context.Context, messages []message.Message, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*types.LLMResponse, []message.Message, error) {
 	return a.model.RunAgentLoopWithStreaming(ctx, messages, maxIterations, streamCallback, toolCallback)
 }
 
-// WithTools implements LLMGenerator.WithTools
-func (a *LLMGeneratorAdapter) WithTools(toolNames []string) LLMGenerator {
-	return &LLMGeneratorAdapter{model: a.model.WithTools(toolNames)}
+// WithTools implements llm.Provider.WithTools
+func (a *LlamaProviderAdapter) WithTools(toolNames []string) llm.Provider {
+	return &LlamaProviderAdapter{model: a.model.WithTools(toolNames)}
+}
+
+// WithoutTools implements llm.Provider.WithoutTools
+func (a *LlamaProviderAdapter) WithoutTools() llm.Provider {
+	return &LlamaProviderAdapter{model: a.model.WithoutTools()}
 }
 
 // GetModel returns the underlying LlamaYzmaModel (for cases where direct access is needed)
-func (a *LLMGeneratorAdapter) GetModel() *llama.LlamaYzmaModel {
+func (a *LlamaProviderAdapter) GetModel() *llama.LlamaYzmaModel {
 	return a.model
 }

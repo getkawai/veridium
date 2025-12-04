@@ -33,6 +33,7 @@ import (
 	"github.com/kawai-network/veridium/internal/database"
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/internal/llama"
+	"github.com/kawai-network/veridium/internal/llm"
 	"github.com/kawai-network/veridium/pkg/yzma/message"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
 	yzmabuiltin "github.com/kawai-network/veridium/pkg/yzma/tools/builtin"
@@ -51,7 +52,7 @@ type AgentChatService struct {
 	ragWorkflow *RAGWorkflow
 
 	// LLM Generator interface (for testing/mocking)
-	llmGenerator LLMGenerator
+	llmGenerator llm.Provider
 
 	// Yzma tool registry (replaces Eino tools)
 	toolRegistry *tools.ToolRegistry
@@ -376,8 +377,8 @@ func NewAgentChatService(
 	titleModelPath := detectTitleGenerationModel(libService)
 	summaryModelPath := detectSummaryGenerationModel(libService)
 
-	// Create LLM generator adapter (wraps yzmaModel for interface compatibility)
-	llmGenerator := NewLLMGeneratorAdapter(yzmaModel)
+	// Create LLM provider adapter (wraps yzmaModel for interface compatibility)
+	llmGenerator := NewLlamaProviderAdapter(yzmaModel)
 
 	service := &AgentChatService{
 		app:              app,
@@ -411,14 +412,14 @@ func NewAgentChatService(
 }
 
 // SetLLMGenerator sets a custom LLM generator (useful for testing with mocks)
-func (s *AgentChatService) SetLLMGenerator(generator LLMGenerator) {
+func (s *AgentChatService) SetLLMGenerator(generator llm.Provider) {
 	s.sessionsMutex.Lock()
 	defer s.sessionsMutex.Unlock()
 	s.llmGenerator = generator
 }
 
 // GetLLMGenerator returns the current LLM generator
-func (s *AgentChatService) GetLLMGenerator() LLMGenerator {
+func (s *AgentChatService) GetLLMGenerator() llm.Provider {
 	s.sessionsMutex.RLock()
 	defer s.sessionsMutex.RUnlock()
 	return s.llmGenerator
@@ -985,8 +986,8 @@ func (s *AgentChatService) prepareMessagesWithSystemPrompt(messages []message.Me
 	return result
 }
 
-// generateWithStreaming generates response with streaming using LLMGenerator interface
-func (s *AgentChatService) generateWithStreaming(ctx context.Context, session *AgentSession, messageID string, messages []message.Message, llm LLMGenerator) (*types.LLMResponse, []message.Message, error) {
+// generateWithStreaming generates response with streaming using llm.Provider interface
+func (s *AgentChatService) generateWithStreaming(ctx context.Context, session *AgentSession, messageID string, messages []message.Message, provider llm.Provider) (*types.LLMResponse, []message.Message, error) {
 	// Emit start event
 	if s.app != nil {
 		s.app.Event.Emit("chat:stream", map[string]interface{}{
@@ -1072,7 +1073,7 @@ func (s *AgentChatService) generateWithStreaming(ctx context.Context, session *A
 	}
 
 	// Run agent loop with streaming (no tool callback for legacy method)
-	resp, toolMessages, err := llm.RunAgentLoopWithStreaming(ctx, messages, 10, callback, nil)
+	resp, toolMessages, err := provider.RunAgentLoopWithStreaming(ctx, messages, 10, callback, nil)
 	if err != nil {
 		return nil, nil, err
 	}
