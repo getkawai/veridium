@@ -21,8 +21,6 @@ type Querier interface {
 	BatchUnlinkKnowledgeBaseFromFiles(ctx context.Context, arg BatchUnlinkKnowledgeBaseFromFilesParams) error
 	BatchUpdateAIModelEnabled(ctx context.Context, arg BatchUpdateAIModelEnabledParams) error
 	BulkCreateEmbeddingsItems(ctx context.Context, arg BulkCreateEmbeddingsItemsParams) error
-	CleanupExpiredOAuthHandoffs(ctx context.Context, createdAt int64) error
-	ConsumeOIDCAuthorizationCode(ctx context.Context, arg ConsumeOIDCAuthorizationCodeParams) error
 	CountChunksByFileId(ctx context.Context, arg CountChunksByFileIdParams) (int64, error)
 	CountChunksByFileIds(ctx context.Context, userID string) ([]CountChunksByFileIdsRow, error)
 	CountEmbeddingsItems(ctx context.Context, userID sql.NullString) (int64, error)
@@ -65,16 +63,6 @@ type Querier interface {
 	CreateNextAuthAuthenticator(ctx context.Context, arg CreateNextAuthAuthenticatorParams) (NextauthAuthenticator, error)
 	CreateNextAuthSession(ctx context.Context, arg CreateNextAuthSessionParams) (NextauthSession, error)
 	CreateNextAuthVerificationToken(ctx context.Context, arg CreateNextAuthVerificationTokenParams) (NextauthVerificationtoken, error)
-	CreateOAuthHandoff(ctx context.Context, arg CreateOAuthHandoffParams) (OauthHandoff, error)
-	CreateOIDCAccessToken(ctx context.Context, arg CreateOIDCAccessTokenParams) (OidcAccessToken, error)
-	CreateOIDCAuthorizationCode(ctx context.Context, arg CreateOIDCAuthorizationCodeParams) (OidcAuthorizationCode, error)
-	CreateOIDCClient(ctx context.Context, arg CreateOIDCClientParams) (OidcClient, error)
-	CreateOIDCConsent(ctx context.Context, arg CreateOIDCConsentParams) (OidcConsent, error)
-	CreateOIDCDeviceCode(ctx context.Context, arg CreateOIDCDeviceCodeParams) (OidcDeviceCode, error)
-	CreateOIDCGrant(ctx context.Context, arg CreateOIDCGrantParams) (OidcGrant, error)
-	CreateOIDCInteraction(ctx context.Context, arg CreateOIDCInteractionParams) (OidcInteraction, error)
-	CreateOIDCRefreshToken(ctx context.Context, arg CreateOIDCRefreshTokenParams) (OidcRefreshToken, error)
-	CreateOIDCSession(ctx context.Context, arg CreateOIDCSessionParams) (OidcSession, error)
 	CreatePermission(ctx context.Context, arg CreatePermissionParams) (RbacPermission, error)
 	CreatePlugin(ctx context.Context, arg CreatePluginParams) (UserInstalledPlugin, error)
 	CreateRagEvalDataset(ctx context.Context, arg CreateRagEvalDatasetParams) (RagEvalDataset, error)
@@ -116,7 +104,6 @@ type Querier interface {
 	DeleteEmbeddingsItem(ctx context.Context, arg DeleteEmbeddingsItemParams) error
 	DeleteExpiredNextAuthSessions(ctx context.Context, expires int64) error
 	DeleteExpiredNextAuthVerificationTokens(ctx context.Context, expires int64) error
-	DeleteExpiredOIDCSessions(ctx context.Context, expiresAt int64) error
 	DeleteFile(ctx context.Context, arg DeleteFileParams) error
 	DeleteGeneration(ctx context.Context, arg DeleteGenerationParams) error
 	DeleteGenerationBatch(ctx context.Context, arg DeleteGenerationBatchParams) error
@@ -136,16 +123,6 @@ type Querier interface {
 	DeleteNextAuthAuthenticator(ctx context.Context, arg DeleteNextAuthAuthenticatorParams) error
 	DeleteNextAuthSession(ctx context.Context, sessionToken string) error
 	DeleteNextAuthVerificationToken(ctx context.Context, arg DeleteNextAuthVerificationTokenParams) error
-	DeleteOAuthHandoff(ctx context.Context, id string) error
-	DeleteOIDCAccessToken(ctx context.Context, id string) error
-	DeleteOIDCAuthorizationCode(ctx context.Context, id string) error
-	DeleteOIDCClient(ctx context.Context, id string) error
-	DeleteOIDCConsent(ctx context.Context, arg DeleteOIDCConsentParams) error
-	DeleteOIDCDeviceCode(ctx context.Context, id string) error
-	DeleteOIDCGrant(ctx context.Context, id string) error
-	DeleteOIDCInteraction(ctx context.Context, id string) error
-	DeleteOIDCRefreshToken(ctx context.Context, id string) error
-	DeleteOIDCSession(ctx context.Context, id string) error
 	DeletePermission(ctx context.Context, id int64) error
 	DeletePlugin(ctx context.Context, arg DeletePluginParams) error
 	DeleteRagEvalDataset(ctx context.Context, arg DeleteRagEvalDatasetParams) error
@@ -265,28 +242,6 @@ type Querier interface {
 	GetNextAuthSession(ctx context.Context, sessionToken string) (NextauthSession, error)
 	// NextAuth Verification Tokens
 	GetNextAuthVerificationToken(ctx context.Context, arg GetNextAuthVerificationTokenParams) (NextauthVerificationtoken, error)
-	// OAuth Handoffs
-	GetOAuthHandoff(ctx context.Context, id string) (OauthHandoff, error)
-	GetOAuthHandoffByClient(ctx context.Context, arg GetOAuthHandoffByClientParams) (OauthHandoff, error)
-	// OIDC Access Tokens
-	GetOIDCAccessToken(ctx context.Context, id string) (OidcAccessToken, error)
-	// OIDC Authorization Codes
-	GetOIDCAuthorizationCode(ctx context.Context, id string) (OidcAuthorizationCode, error)
-	// OIDC Clients
-	GetOIDCClient(ctx context.Context, id string) (OidcClient, error)
-	// OIDC Consents
-	GetOIDCConsent(ctx context.Context, arg GetOIDCConsentParams) (OidcConsent, error)
-	// OIDC Device Codes
-	GetOIDCDeviceCode(ctx context.Context, id string) (OidcDeviceCode, error)
-	GetOIDCDeviceCodeByUserCode(ctx context.Context, userCode sql.NullString) (OidcDeviceCode, error)
-	// OIDC Grants
-	GetOIDCGrant(ctx context.Context, id string) (OidcGrant, error)
-	// OIDC Interactions
-	GetOIDCInteraction(ctx context.Context, id string) (OidcInteraction, error)
-	// OIDC Refresh Tokens
-	GetOIDCRefreshToken(ctx context.Context, id string) (OidcRefreshToken, error)
-	// OIDC Sessions
-	GetOIDCSession(ctx context.Context, id string) (OidcSession, error)
 	GetOrphanedAgents(ctx context.Context, userID string) ([]Agent, error)
 	GetOrphanedChunks(ctx context.Context) ([]string, error)
 	// Permissions
@@ -393,7 +348,6 @@ type Querier interface {
 	ListMessagesByTopic(ctx context.Context, arg ListMessagesByTopicParams) ([]Message, error)
 	ListNextAuthAccountsByUser(ctx context.Context, userID string) ([]NextauthAccount, error)
 	ListNextAuthAuthenticatorsByUser(ctx context.Context, userID string) ([]NextauthAuthenticator, error)
-	ListOIDCClients(ctx context.Context) ([]OidcClient, error)
 	ListPermissions(ctx context.Context) ([]RbacPermission, error)
 	ListPermissionsByCategory(ctx context.Context, category string) ([]RbacPermission, error)
 	ListPlugins(ctx context.Context, userID string) ([]UserInstalledPlugin, error)
@@ -464,8 +418,6 @@ type Querier interface {
 	UpdateNextAuthAccount(ctx context.Context, arg UpdateNextAuthAccountParams) (NextauthAccount, error)
 	UpdateNextAuthAuthenticator(ctx context.Context, arg UpdateNextAuthAuthenticatorParams) (NextauthAuthenticator, error)
 	UpdateNextAuthSession(ctx context.Context, arg UpdateNextAuthSessionParams) (NextauthSession, error)
-	UpdateOIDCClient(ctx context.Context, arg UpdateOIDCClientParams) (OidcClient, error)
-	UpdateOIDCConsent(ctx context.Context, arg UpdateOIDCConsentParams) (OidcConsent, error)
 	UpdatePermission(ctx context.Context, arg UpdatePermissionParams) (RbacPermission, error)
 	UpdatePlugin(ctx context.Context, arg UpdatePluginParams) error
 	UpdateRagEvalDataset(ctx context.Context, arg UpdateRagEvalDatasetParams) error

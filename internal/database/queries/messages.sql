@@ -54,10 +54,10 @@ ORDER BY created_at ASC;
 -- name: CreateMessage :one
 INSERT INTO messages (
     id, role, content, reasoning, search, metadata, model, provider,
-    favorite, error, tools, trace_id, observation_id, client_id,
+    favorite, error, tools, trace_id, observation_id,
     user_id, session_id, topic_id, thread_id, parent_id, quota_id,
     agent_id, group_id, target_id, message_group_id, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpdateMessage :one
@@ -226,8 +226,8 @@ SELECT * FROM message_plugins WHERE id = ? AND user_id = ?;
 -- name: CreateMessagePlugin :one
 INSERT INTO message_plugins (
     id, tool_call_id, type, api_name, arguments, identifier,
-    state, error, client_id, user_id
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    state, error, user_id
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpdateMessagePlugin :one
@@ -243,14 +243,14 @@ SELECT * FROM message_tts WHERE id = ? AND user_id = ?;
 
 -- name: CreateMessageTTS :one
 INSERT INTO message_tts (
-    id, content_md5, file_id, voice, client_id, user_id
-) VALUES (?, ?, ?, ?, ?, ?)
+    id, content_md5, file_id, voice, user_id
+) VALUES (?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpsertMessageTTS :one
 INSERT INTO message_tts (
-    id, content_md5, file_id, voice, client_id, user_id
-) VALUES (?, ?, ?, ?, ?, ?)
+    id, content_md5, file_id, voice, user_id
+) VALUES (?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
     content_md5 = excluded.content_md5,
     file_id = excluded.file_id,
@@ -267,14 +267,14 @@ SELECT * FROM message_translates WHERE id = ? AND user_id = ?;
 
 -- name: CreateMessageTranslate :one
 INSERT INTO message_translates (
-    id, content, "from", "to", client_id, user_id
-) VALUES (?, ?, ?, ?, ?, ?)
+    id, content, "from", "to", user_id
+) VALUES (?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpsertMessageTranslate :one
 INSERT INTO message_translates (
-    id, content, "from", "to", client_id, user_id
-) VALUES (?, ?, ?, ?, ?, ?)
+    id, content, "from", "to", user_id
+) VALUES (?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
     content = excluded.content,
     "from" = excluded."from",
@@ -291,8 +291,8 @@ SELECT * FROM message_queries WHERE id = ? AND user_id = ?;
 
 -- name: CreateMessageQuery :one
 INSERT INTO message_queries (
-    id, message_id, rewrite_query, user_query, client_id, user_id, embeddings_id
-) VALUES (?, ?, ?, ?, ?, ?, ?)
+    id, message_id, rewrite_query, user_query, user_id, embeddings_id
+) VALUES (?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: ListMessageQueriesByMessage :many

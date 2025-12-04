@@ -116,10 +116,9 @@ func (q *Queries) CountChunksByFileIds(ctx context.Context, userID string) ([]Co
 
 const CreateChunk = `-- name: CreateChunk :one
 INSERT INTO chunks (
-    id, document_id, text, abstract, metadata, chunk_index, type, client_id,
-    user_id
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, document_id, text, abstract, metadata, chunk_index, type, client_id, user_id, created_at, updated_at
+    id, document_id, text, abstract, metadata, chunk_index, type, user_id
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, document_id, text, abstract, metadata, chunk_index, type, user_id, created_at, updated_at
 `
 
 type CreateChunkParams struct {
@@ -130,7 +129,6 @@ type CreateChunkParams struct {
 	Metadata   sql.NullString `json:"metadata"`
 	ChunkIndex sql.NullInt64  `json:"chunkIndex"`
 	Type       sql.NullString `json:"type"`
-	ClientID   sql.NullString `json:"clientId"`
 	UserID     sql.NullString `json:"userId"`
 }
 
@@ -143,7 +141,6 @@ func (q *Queries) CreateChunk(ctx context.Context, arg CreateChunkParams) (Chunk
 		arg.Metadata,
 		arg.ChunkIndex,
 		arg.Type,
-		arg.ClientID,
 		arg.UserID,
 	)
 	var i Chunk
@@ -155,7 +152,6 @@ func (q *Queries) CreateChunk(ctx context.Context, arg CreateChunkParams) (Chunk
 		&i.Metadata,
 		&i.ChunkIndex,
 		&i.Type,
-		&i.ClientID,
 		&i.UserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -165,9 +161,9 @@ func (q *Queries) CreateChunk(ctx context.Context, arg CreateChunkParams) (Chunk
 
 const CreateEmbedding = `-- name: CreateEmbedding :one
 INSERT INTO embeddings (
-    id, chunk_id, embeddings, model, client_id, user_id
-) VALUES (?, ?, ?, ?, ?, ?)
-RETURNING id, chunk_id, embeddings, model, client_id, user_id
+    id, chunk_id, embeddings, model, user_id
+) VALUES (?, ?, ?, ?, ?)
+RETURNING id, chunk_id, embeddings, model, user_id
 `
 
 type CreateEmbeddingParams struct {
@@ -175,7 +171,6 @@ type CreateEmbeddingParams struct {
 	ChunkID    sql.NullString `json:"chunkId"`
 	Embeddings []byte         `json:"embeddings"`
 	Model      sql.NullString `json:"model"`
-	ClientID   sql.NullString `json:"clientId"`
 	UserID     sql.NullString `json:"userId"`
 }
 
@@ -185,7 +180,6 @@ func (q *Queries) CreateEmbedding(ctx context.Context, arg CreateEmbeddingParams
 		arg.ChunkID,
 		arg.Embeddings,
 		arg.Model,
-		arg.ClientID,
 		arg.UserID,
 	)
 	var i Embedding
@@ -194,7 +188,6 @@ func (q *Queries) CreateEmbedding(ctx context.Context, arg CreateEmbeddingParams
 		&i.ChunkID,
 		&i.Embeddings,
 		&i.Model,
-		&i.ClientID,
 		&i.UserID,
 	)
 	return i, err
@@ -367,9 +360,9 @@ func (q *Queries) CreateRagEvalEvaluationRecord(ctx context.Context, arg CreateR
 const CreateUnstructuredChunk = `-- name: CreateUnstructuredChunk :one
 INSERT INTO unstructured_chunks (
     id, text, metadata, chunk_index, type, parent_id, composite_id,
-    client_id, user_id, file_id
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, text, metadata, chunk_index, type, parent_id, composite_id, client_id, user_id, file_id, created_at, updated_at
+    user_id, file_id
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, text, metadata, chunk_index, type, parent_id, composite_id, user_id, file_id, created_at, updated_at
 `
 
 type CreateUnstructuredChunkParams struct {
@@ -380,7 +373,6 @@ type CreateUnstructuredChunkParams struct {
 	Type        sql.NullString `json:"type"`
 	ParentID    sql.NullString `json:"parentId"`
 	CompositeID sql.NullString `json:"compositeId"`
-	ClientID    sql.NullString `json:"clientId"`
 	UserID      sql.NullString `json:"userId"`
 	FileID      sql.NullString `json:"fileId"`
 }
@@ -394,7 +386,6 @@ func (q *Queries) CreateUnstructuredChunk(ctx context.Context, arg CreateUnstruc
 		arg.Type,
 		arg.ParentID,
 		arg.CompositeID,
-		arg.ClientID,
 		arg.UserID,
 		arg.FileID,
 	)
@@ -407,7 +398,6 @@ func (q *Queries) CreateUnstructuredChunk(ctx context.Context, arg CreateUnstruc
 		&i.Type,
 		&i.ParentID,
 		&i.CompositeID,
-		&i.ClientID,
 		&i.UserID,
 		&i.FileID,
 		&i.CreatedAt,
@@ -516,7 +506,7 @@ func (q *Queries) DeleteUnstructuredChunk(ctx context.Context, arg DeleteUnstruc
 
 const GetChunk = `-- name: GetChunk :one
 
-SELECT id, document_id, text, abstract, metadata, chunk_index, type, client_id, user_id, created_at, updated_at FROM chunks WHERE id = ? AND user_id = ?
+SELECT id, document_id, text, abstract, metadata, chunk_index, type, user_id, created_at, updated_at FROM chunks WHERE id = ? AND user_id = ?
 `
 
 type GetChunkParams struct {
@@ -536,7 +526,6 @@ func (q *Queries) GetChunk(ctx context.Context, arg GetChunkParams) (Chunk, erro
 		&i.Metadata,
 		&i.ChunkIndex,
 		&i.Type,
-		&i.ClientID,
 		&i.UserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -545,7 +534,7 @@ func (q *Queries) GetChunk(ctx context.Context, arg GetChunkParams) (Chunk, erro
 }
 
 const GetChunksByDocumentID = `-- name: GetChunksByDocumentID :many
-SELECT id, document_id, text, abstract, metadata, chunk_index, type, client_id, user_id, created_at, updated_at FROM chunks
+SELECT id, document_id, text, abstract, metadata, chunk_index, type, user_id, created_at, updated_at FROM chunks
 WHERE document_id = ? AND user_id = ?
 ORDER BY chunk_index ASC
 `
@@ -572,7 +561,6 @@ func (q *Queries) GetChunksByDocumentID(ctx context.Context, arg GetChunksByDocu
 			&i.Metadata,
 			&i.ChunkIndex,
 			&i.Type,
-			&i.ClientID,
 			&i.UserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -591,7 +579,7 @@ func (q *Queries) GetChunksByDocumentID(ctx context.Context, arg GetChunksByDocu
 }
 
 const GetChunksByIDs = `-- name: GetChunksByIDs :many
-SELECT c.id, c.document_id, c.text, c.abstract, c.metadata, c.chunk_index, c.type, c.client_id, c.user_id, c.created_at, c.updated_at, d.file_id
+SELECT c.id, c.document_id, c.text, c.abstract, c.metadata, c.chunk_index, c.type, c.user_id, c.created_at, c.updated_at, d.file_id
 FROM chunks c
 LEFT JOIN documents d ON c.document_id = d.id
 WHERE c.id IN (/*SLICE:ids*/?) AND c.user_id = ?
@@ -610,7 +598,6 @@ type GetChunksByIDsRow struct {
 	Metadata   sql.NullString `json:"metadata"`
 	ChunkIndex sql.NullInt64  `json:"chunkIndex"`
 	Type       sql.NullString `json:"type"`
-	ClientID   sql.NullString `json:"clientId"`
 	UserID     sql.NullString `json:"userId"`
 	CreatedAt  int64          `json:"createdAt"`
 	UpdatedAt  int64          `json:"updatedAt"`
@@ -645,7 +632,6 @@ func (q *Queries) GetChunksByIDs(ctx context.Context, arg GetChunksByIDsParams) 
 			&i.Metadata,
 			&i.ChunkIndex,
 			&i.Type,
-			&i.ClientID,
 			&i.UserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -835,7 +821,7 @@ func (q *Queries) GetChunksWithEmbeddingsByFileIds(ctx context.Context, arg GetC
 
 const GetEmbedding = `-- name: GetEmbedding :one
 
-SELECT id, chunk_id, embeddings, model, client_id, user_id FROM embeddings WHERE id = ? AND user_id = ?
+SELECT id, chunk_id, embeddings, model, user_id FROM embeddings WHERE id = ? AND user_id = ?
 `
 
 type GetEmbeddingParams struct {
@@ -852,14 +838,13 @@ func (q *Queries) GetEmbedding(ctx context.Context, arg GetEmbeddingParams) (Emb
 		&i.ChunkID,
 		&i.Embeddings,
 		&i.Model,
-		&i.ClientID,
 		&i.UserID,
 	)
 	return i, err
 }
 
 const GetEmbeddingByChunk = `-- name: GetEmbeddingByChunk :one
-SELECT id, chunk_id, embeddings, model, client_id, user_id FROM embeddings WHERE chunk_id = ? AND user_id = ?
+SELECT id, chunk_id, embeddings, model, user_id FROM embeddings WHERE chunk_id = ? AND user_id = ?
 `
 
 type GetEmbeddingByChunkParams struct {
@@ -875,14 +860,13 @@ func (q *Queries) GetEmbeddingByChunk(ctx context.Context, arg GetEmbeddingByChu
 		&i.ChunkID,
 		&i.Embeddings,
 		&i.Model,
-		&i.ClientID,
 		&i.UserID,
 	)
 	return i, err
 }
 
 const GetFileChunks = `-- name: GetFileChunks :many
-SELECT c.id, c.document_id, c.text, c.abstract, c.metadata, c.chunk_index, c.type, c.client_id, c.user_id, c.created_at, c.updated_at FROM chunks c
+SELECT c.id, c.document_id, c.text, c.abstract, c.metadata, c.chunk_index, c.type, c.user_id, c.created_at, c.updated_at FROM chunks c
 INNER JOIN file_chunks fc ON c.id = fc.chunk_id
 WHERE fc.file_id = ? AND fc.user_id = ?
 ORDER BY c.chunk_index ASC
@@ -918,7 +902,6 @@ func (q *Queries) GetFileChunks(ctx context.Context, arg GetFileChunksParams) ([
 			&i.Metadata,
 			&i.ChunkIndex,
 			&i.Type,
-			&i.ClientID,
 			&i.UserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -1142,7 +1125,7 @@ func (q *Queries) GetRagEvalEvaluationRecord(ctx context.Context, arg GetRagEval
 
 const GetUnstructuredChunk = `-- name: GetUnstructuredChunk :one
 
-SELECT id, text, metadata, chunk_index, type, parent_id, composite_id, client_id, user_id, file_id, created_at, updated_at FROM unstructured_chunks WHERE id = ? AND user_id = ?
+SELECT id, text, metadata, chunk_index, type, parent_id, composite_id, user_id, file_id, created_at, updated_at FROM unstructured_chunks WHERE id = ? AND user_id = ?
 `
 
 type GetUnstructuredChunkParams struct {
@@ -1162,7 +1145,6 @@ func (q *Queries) GetUnstructuredChunk(ctx context.Context, arg GetUnstructuredC
 		&i.Type,
 		&i.ParentID,
 		&i.CompositeID,
-		&i.ClientID,
 		&i.UserID,
 		&i.FileID,
 		&i.CreatedAt,
@@ -1190,7 +1172,7 @@ func (q *Queries) LinkFileToChunk(ctx context.Context, arg LinkFileToChunkParams
 }
 
 const ListChunks = `-- name: ListChunks :many
-SELECT id, document_id, text, abstract, metadata, chunk_index, type, client_id, user_id, created_at, updated_at FROM chunks
+SELECT id, document_id, text, abstract, metadata, chunk_index, type, user_id, created_at, updated_at FROM chunks
 WHERE user_id = ?
 ORDER BY created_at DESC
 LIMIT ? OFFSET ?
@@ -1219,7 +1201,6 @@ func (q *Queries) ListChunks(ctx context.Context, arg ListChunksParams) ([]Chunk
 			&i.Metadata,
 			&i.ChunkIndex,
 			&i.Type,
-			&i.ClientID,
 			&i.UserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -1405,7 +1386,7 @@ func (q *Queries) ListRagEvalEvaluationsByDataset(ctx context.Context, arg ListR
 }
 
 const ListUnstructuredChunksByFile = `-- name: ListUnstructuredChunksByFile :many
-SELECT id, text, metadata, chunk_index, type, parent_id, composite_id, client_id, user_id, file_id, created_at, updated_at FROM unstructured_chunks
+SELECT id, text, metadata, chunk_index, type, parent_id, composite_id, user_id, file_id, created_at, updated_at FROM unstructured_chunks
 WHERE file_id = ? AND user_id = ?
 ORDER BY chunk_index ASC
 `
@@ -1432,7 +1413,6 @@ func (q *Queries) ListUnstructuredChunksByFile(ctx context.Context, arg ListUnst
 			&i.Type,
 			&i.ParentID,
 			&i.CompositeID,
-			&i.ClientID,
 			&i.UserID,
 			&i.FileID,
 			&i.CreatedAt,
@@ -1474,7 +1454,7 @@ SET text = ?,
     metadata = ?,
     updated_at = ?
 WHERE id = ? AND user_id = ?
-RETURNING id, document_id, text, abstract, metadata, chunk_index, type, client_id, user_id, created_at, updated_at
+RETURNING id, document_id, text, abstract, metadata, chunk_index, type, user_id, created_at, updated_at
 `
 
 type UpdateChunkParams struct {
@@ -1504,7 +1484,6 @@ func (q *Queries) UpdateChunk(ctx context.Context, arg UpdateChunkParams) (Chunk
 		&i.Metadata,
 		&i.ChunkIndex,
 		&i.Type,
-		&i.ClientID,
 		&i.UserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,

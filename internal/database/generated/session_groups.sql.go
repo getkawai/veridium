@@ -29,19 +29,18 @@ func (q *Queries) CountSessionsInGroup(ctx context.Context, arg CountSessionsInG
 
 const CreateSessionGroup = `-- name: CreateSessionGroup :one
 INSERT INTO session_groups (
-    id, name, sort, user_id, client_id, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?)
-RETURNING id, name, sort, user_id, client_id, created_at, updated_at
+    id, name, sort, user_id, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?)
+RETURNING id, name, sort, user_id, created_at, updated_at
 `
 
 type CreateSessionGroupParams struct {
-	ID        string         `json:"id"`
-	Name      string         `json:"name"`
-	Sort      sql.NullInt64  `json:"sort"`
-	UserID    string         `json:"userId"`
-	ClientID  sql.NullString `json:"clientId"`
-	CreatedAt int64          `json:"createdAt"`
-	UpdatedAt int64          `json:"updatedAt"`
+	ID        string        `json:"id"`
+	Name      string        `json:"name"`
+	Sort      sql.NullInt64 `json:"sort"`
+	UserID    string        `json:"userId"`
+	CreatedAt int64         `json:"createdAt"`
+	UpdatedAt int64         `json:"updatedAt"`
 }
 
 func (q *Queries) CreateSessionGroup(ctx context.Context, arg CreateSessionGroupParams) (SessionGroup, error) {
@@ -50,7 +49,6 @@ func (q *Queries) CreateSessionGroup(ctx context.Context, arg CreateSessionGroup
 		arg.Name,
 		arg.Sort,
 		arg.UserID,
-		arg.ClientID,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
@@ -60,7 +58,6 @@ func (q *Queries) CreateSessionGroup(ctx context.Context, arg CreateSessionGroup
 		&i.Name,
 		&i.Sort,
 		&i.UserID,
-		&i.ClientID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -92,7 +89,7 @@ func (q *Queries) DeleteSessionGroup(ctx context.Context, arg DeleteSessionGroup
 }
 
 const GetSessionGroup = `-- name: GetSessionGroup :one
-SELECT id, name, sort, user_id, client_id, created_at, updated_at FROM session_groups
+SELECT id, name, sort, user_id, created_at, updated_at FROM session_groups
 WHERE id = ? AND user_id = ?
 `
 
@@ -109,7 +106,6 @@ func (q *Queries) GetSessionGroup(ctx context.Context, arg GetSessionGroupParams
 		&i.Name,
 		&i.Sort,
 		&i.UserID,
-		&i.ClientID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -118,7 +114,7 @@ func (q *Queries) GetSessionGroup(ctx context.Context, arg GetSessionGroupParams
 
 const GetSessionGroupWithSessions = `-- name: GetSessionGroupWithSessions :one
 SELECT 
-    sg.id, sg.name, sg.sort, sg.user_id, sg.client_id, sg.created_at, sg.updated_at,
+    sg.id, sg.name, sg.sort, sg.user_id, sg.created_at, sg.updated_at,
     COUNT(s.id) as session_count
 FROM session_groups sg
 LEFT JOIN sessions s ON sg.id = s.group_id
@@ -132,14 +128,13 @@ type GetSessionGroupWithSessionsParams struct {
 }
 
 type GetSessionGroupWithSessionsRow struct {
-	ID           string         `json:"id"`
-	Name         string         `json:"name"`
-	Sort         sql.NullInt64  `json:"sort"`
-	UserID       string         `json:"userId"`
-	ClientID     sql.NullString `json:"clientId"`
-	CreatedAt    int64          `json:"createdAt"`
-	UpdatedAt    int64          `json:"updatedAt"`
-	SessionCount int64          `json:"sessionCount"`
+	ID           string        `json:"id"`
+	Name         string        `json:"name"`
+	Sort         sql.NullInt64 `json:"sort"`
+	UserID       string        `json:"userId"`
+	CreatedAt    int64         `json:"createdAt"`
+	UpdatedAt    int64         `json:"updatedAt"`
+	SessionCount int64         `json:"sessionCount"`
 }
 
 func (q *Queries) GetSessionGroupWithSessions(ctx context.Context, arg GetSessionGroupWithSessionsParams) (GetSessionGroupWithSessionsRow, error) {
@@ -150,7 +145,6 @@ func (q *Queries) GetSessionGroupWithSessions(ctx context.Context, arg GetSessio
 		&i.Name,
 		&i.Sort,
 		&i.UserID,
-		&i.ClientID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.SessionCount,
@@ -159,7 +153,7 @@ func (q *Queries) GetSessionGroupWithSessions(ctx context.Context, arg GetSessio
 }
 
 const ListSessionGroups = `-- name: ListSessionGroups :many
-SELECT id, name, sort, user_id, client_id, created_at, updated_at FROM session_groups
+SELECT id, name, sort, user_id, created_at, updated_at FROM session_groups
 WHERE user_id = ?
 ORDER BY sort ASC, created_at DESC
 `
@@ -178,7 +172,6 @@ func (q *Queries) ListSessionGroups(ctx context.Context, userID string) ([]Sessi
 			&i.Name,
 			&i.Sort,
 			&i.UserID,
-			&i.ClientID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -199,7 +192,7 @@ const UpdateSessionGroup = `-- name: UpdateSessionGroup :one
 UPDATE session_groups
 SET name = ?, sort = ?, updated_at = ?
 WHERE id = ? AND user_id = ?
-RETURNING id, name, sort, user_id, client_id, created_at, updated_at
+RETURNING id, name, sort, user_id, created_at, updated_at
 `
 
 type UpdateSessionGroupParams struct {
@@ -224,7 +217,6 @@ func (q *Queries) UpdateSessionGroup(ctx context.Context, arg UpdateSessionGroup
 		&i.Name,
 		&i.Sort,
 		&i.UserID,
-		&i.ClientID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

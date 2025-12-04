@@ -105,11 +105,11 @@ func (q *Queries) CountMessagesByDateRange(ctx context.Context, arg CountMessage
 const CreateMessage = `-- name: CreateMessage :one
 INSERT INTO messages (
     id, role, content, reasoning, search, metadata, model, provider,
-    favorite, error, tools, trace_id, observation_id, client_id,
+    favorite, error, tools, trace_id, observation_id,
     user_id, session_id, topic_id, thread_id, parent_id, quota_id,
     agent_id, group_id, target_id, message_group_id, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, client_id, user_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, user_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at
 `
 
 type CreateMessageParams struct {
@@ -126,7 +126,6 @@ type CreateMessageParams struct {
 	Tools          sql.NullString `json:"tools"`
 	TraceID        sql.NullString `json:"traceId"`
 	ObservationID  sql.NullString `json:"observationId"`
-	ClientID       sql.NullString `json:"clientId"`
 	UserID         string         `json:"userId"`
 	SessionID      sql.NullString `json:"sessionId"`
 	TopicID        sql.NullString `json:"topicId"`
@@ -156,7 +155,6 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (M
 		arg.Tools,
 		arg.TraceID,
 		arg.ObservationID,
-		arg.ClientID,
 		arg.UserID,
 		arg.SessionID,
 		arg.TopicID,
@@ -185,7 +183,6 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (M
 		&i.Tools,
 		&i.TraceID,
 		&i.ObservationID,
-		&i.ClientID,
 		&i.UserID,
 		&i.SessionID,
 		&i.TopicID,
@@ -205,9 +202,9 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (M
 const CreateMessagePlugin = `-- name: CreateMessagePlugin :one
 INSERT INTO message_plugins (
     id, tool_call_id, type, api_name, arguments, identifier,
-    state, error, client_id, user_id
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, tool_call_id, type, api_name, arguments, identifier, state, error, client_id, user_id
+    state, error, user_id
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, tool_call_id, type, api_name, arguments, identifier, state, error, user_id
 `
 
 type CreateMessagePluginParams struct {
@@ -219,7 +216,6 @@ type CreateMessagePluginParams struct {
 	Identifier sql.NullString `json:"identifier"`
 	State      sql.NullString `json:"state"`
 	Error      sql.NullString `json:"error"`
-	ClientID   sql.NullString `json:"clientId"`
 	UserID     string         `json:"userId"`
 }
 
@@ -233,7 +229,6 @@ func (q *Queries) CreateMessagePlugin(ctx context.Context, arg CreateMessagePlug
 		arg.Identifier,
 		arg.State,
 		arg.Error,
-		arg.ClientID,
 		arg.UserID,
 	)
 	var i MessagePlugin
@@ -246,7 +241,6 @@ func (q *Queries) CreateMessagePlugin(ctx context.Context, arg CreateMessagePlug
 		&i.Identifier,
 		&i.State,
 		&i.Error,
-		&i.ClientID,
 		&i.UserID,
 	)
 	return i, err
@@ -254,9 +248,9 @@ func (q *Queries) CreateMessagePlugin(ctx context.Context, arg CreateMessagePlug
 
 const CreateMessageQuery = `-- name: CreateMessageQuery :one
 INSERT INTO message_queries (
-    id, message_id, rewrite_query, user_query, client_id, user_id, embeddings_id
-) VALUES (?, ?, ?, ?, ?, ?, ?)
-RETURNING id, message_id, rewrite_query, user_query, client_id, user_id, embeddings_id
+    id, message_id, rewrite_query, user_query, user_id, embeddings_id
+) VALUES (?, ?, ?, ?, ?, ?)
+RETURNING id, message_id, rewrite_query, user_query, user_id, embeddings_id
 `
 
 type CreateMessageQueryParams struct {
@@ -264,7 +258,6 @@ type CreateMessageQueryParams struct {
 	MessageID    string         `json:"messageId"`
 	RewriteQuery sql.NullString `json:"rewriteQuery"`
 	UserQuery    sql.NullString `json:"userQuery"`
-	ClientID     sql.NullString `json:"clientId"`
 	UserID       string         `json:"userId"`
 	EmbeddingsID sql.NullString `json:"embeddingsId"`
 }
@@ -275,7 +268,6 @@ func (q *Queries) CreateMessageQuery(ctx context.Context, arg CreateMessageQuery
 		arg.MessageID,
 		arg.RewriteQuery,
 		arg.UserQuery,
-		arg.ClientID,
 		arg.UserID,
 		arg.EmbeddingsID,
 	)
@@ -285,7 +277,6 @@ func (q *Queries) CreateMessageQuery(ctx context.Context, arg CreateMessageQuery
 		&i.MessageID,
 		&i.RewriteQuery,
 		&i.UserQuery,
-		&i.ClientID,
 		&i.UserID,
 		&i.EmbeddingsID,
 	)
@@ -294,9 +285,9 @@ func (q *Queries) CreateMessageQuery(ctx context.Context, arg CreateMessageQuery
 
 const CreateMessageTTS = `-- name: CreateMessageTTS :one
 INSERT INTO message_tts (
-    id, content_md5, file_id, voice, client_id, user_id
-) VALUES (?, ?, ?, ?, ?, ?)
-RETURNING id, content_md5, file_id, voice, client_id, user_id
+    id, content_md5, file_id, voice, user_id
+) VALUES (?, ?, ?, ?, ?)
+RETURNING id, content_md5, file_id, voice, user_id
 `
 
 type CreateMessageTTSParams struct {
@@ -304,7 +295,6 @@ type CreateMessageTTSParams struct {
 	ContentMd5 sql.NullString `json:"contentMd5"`
 	FileID     sql.NullString `json:"fileId"`
 	Voice      sql.NullString `json:"voice"`
-	ClientID   sql.NullString `json:"clientId"`
 	UserID     string         `json:"userId"`
 }
 
@@ -314,7 +304,6 @@ func (q *Queries) CreateMessageTTS(ctx context.Context, arg CreateMessageTTSPara
 		arg.ContentMd5,
 		arg.FileID,
 		arg.Voice,
-		arg.ClientID,
 		arg.UserID,
 	)
 	var i MessageTt
@@ -323,7 +312,6 @@ func (q *Queries) CreateMessageTTS(ctx context.Context, arg CreateMessageTTSPara
 		&i.ContentMd5,
 		&i.FileID,
 		&i.Voice,
-		&i.ClientID,
 		&i.UserID,
 	)
 	return i, err
@@ -331,18 +319,17 @@ func (q *Queries) CreateMessageTTS(ctx context.Context, arg CreateMessageTTSPara
 
 const CreateMessageTranslate = `-- name: CreateMessageTranslate :one
 INSERT INTO message_translates (
-    id, content, "from", "to", client_id, user_id
-) VALUES (?, ?, ?, ?, ?, ?)
-RETURNING id, content, "from", "to", client_id, user_id
+    id, content, "from", "to", user_id
+) VALUES (?, ?, ?, ?, ?)
+RETURNING id, content, "from", "to", user_id
 `
 
 type CreateMessageTranslateParams struct {
-	ID       string         `json:"id"`
-	Content  sql.NullString `json:"content"`
-	From     sql.NullString `json:"from"`
-	To       sql.NullString `json:"to"`
-	ClientID sql.NullString `json:"clientId"`
-	UserID   string         `json:"userId"`
+	ID      string         `json:"id"`
+	Content sql.NullString `json:"content"`
+	From    sql.NullString `json:"from"`
+	To      sql.NullString `json:"to"`
+	UserID  string         `json:"userId"`
 }
 
 func (q *Queries) CreateMessageTranslate(ctx context.Context, arg CreateMessageTranslateParams) (MessageTranslate, error) {
@@ -351,7 +338,6 @@ func (q *Queries) CreateMessageTranslate(ctx context.Context, arg CreateMessageT
 		arg.Content,
 		arg.From,
 		arg.To,
-		arg.ClientID,
 		arg.UserID,
 	)
 	var i MessageTranslate
@@ -360,7 +346,6 @@ func (q *Queries) CreateMessageTranslate(ctx context.Context, arg CreateMessageT
 		&i.Content,
 		&i.From,
 		&i.To,
-		&i.ClientID,
 		&i.UserID,
 	)
 	return i, err
@@ -497,7 +482,7 @@ func (q *Queries) GetDocumentByFileId(ctx context.Context, arg GetDocumentByFile
 }
 
 const GetMessage = `-- name: GetMessage :one
-SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, client_id, user_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages WHERE id = ? AND user_id = ?
+SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, user_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages WHERE id = ? AND user_id = ?
 `
 
 type GetMessageParams struct {
@@ -522,7 +507,6 @@ func (q *Queries) GetMessage(ctx context.Context, arg GetMessageParams) (Message
 		&i.Tools,
 		&i.TraceID,
 		&i.ObservationID,
-		&i.ClientID,
 		&i.UserID,
 		&i.SessionID,
 		&i.TopicID,
@@ -561,7 +545,7 @@ func (q *Queries) GetMessageByToolCallId(ctx context.Context, arg GetMessageByTo
 }
 
 const GetMessageChunks = `-- name: GetMessageChunks :many
-SELECT c.id, c.document_id, c.text, c.abstract, c.metadata, c.chunk_index, c.type, c.client_id, c.user_id, c.created_at, c.updated_at FROM chunks c
+SELECT c.id, c.document_id, c.text, c.abstract, c.metadata, c.chunk_index, c.type, c.user_id, c.created_at, c.updated_at FROM chunks c
 INNER JOIN message_chunks mc ON c.id = mc.chunk_id
 WHERE mc.message_id = ? AND mc.user_id = ?
 `
@@ -588,7 +572,6 @@ func (q *Queries) GetMessageChunks(ctx context.Context, arg GetMessageChunksPara
 			&i.Metadata,
 			&i.ChunkIndex,
 			&i.Type,
-			&i.ClientID,
 			&i.UserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -607,7 +590,7 @@ func (q *Queries) GetMessageChunks(ctx context.Context, arg GetMessageChunksPara
 }
 
 const GetMessageFiles = `-- name: GetMessageFiles :many
-SELECT f.id, f.user_id, f.file_type, f.file_hash, f.name, f.size, f.url, f.source, f.client_id, f.metadata, f.created_at, f.updated_at FROM files f
+SELECT f.id, f.user_id, f.file_type, f.file_hash, f.name, f.size, f.url, f.source, f.metadata, f.created_at, f.updated_at FROM files f
 INNER JOIN messages_files mf ON f.id = mf.file_id
 WHERE mf.message_id = ? AND mf.user_id = ?
 `
@@ -635,7 +618,6 @@ func (q *Queries) GetMessageFiles(ctx context.Context, arg GetMessageFilesParams
 			&i.Size,
 			&i.Url,
 			&i.Source,
-			&i.ClientID,
 			&i.Metadata,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -701,7 +683,7 @@ func (q *Queries) GetMessageHeatmaps(ctx context.Context, arg GetMessageHeatmaps
 
 const GetMessagePlugin = `-- name: GetMessagePlugin :one
 
-SELECT id, tool_call_id, type, api_name, arguments, identifier, state, error, client_id, user_id FROM message_plugins WHERE id = ? AND user_id = ?
+SELECT id, tool_call_id, type, api_name, arguments, identifier, state, error, user_id FROM message_plugins WHERE id = ? AND user_id = ?
 `
 
 type GetMessagePluginParams struct {
@@ -722,7 +704,6 @@ func (q *Queries) GetMessagePlugin(ctx context.Context, arg GetMessagePluginPara
 		&i.Identifier,
 		&i.State,
 		&i.Error,
-		&i.ClientID,
 		&i.UserID,
 	)
 	return i, err
@@ -730,7 +711,7 @@ func (q *Queries) GetMessagePlugin(ctx context.Context, arg GetMessagePluginPara
 
 const GetMessageQuery = `-- name: GetMessageQuery :one
 
-SELECT id, message_id, rewrite_query, user_query, client_id, user_id, embeddings_id FROM message_queries WHERE id = ? AND user_id = ?
+SELECT id, message_id, rewrite_query, user_query, user_id, embeddings_id FROM message_queries WHERE id = ? AND user_id = ?
 `
 
 type GetMessageQueryParams struct {
@@ -747,7 +728,6 @@ func (q *Queries) GetMessageQuery(ctx context.Context, arg GetMessageQueryParams
 		&i.MessageID,
 		&i.RewriteQuery,
 		&i.UserQuery,
-		&i.ClientID,
 		&i.UserID,
 		&i.EmbeddingsID,
 	)
@@ -832,7 +812,7 @@ func (q *Queries) GetMessageQueryChunks(ctx context.Context, arg GetMessageQuery
 
 const GetMessageTTS = `-- name: GetMessageTTS :one
 
-SELECT id, content_md5, file_id, voice, client_id, user_id FROM message_tts WHERE id = ? AND user_id = ?
+SELECT id, content_md5, file_id, voice, user_id FROM message_tts WHERE id = ? AND user_id = ?
 `
 
 type GetMessageTTSParams struct {
@@ -849,7 +829,6 @@ func (q *Queries) GetMessageTTS(ctx context.Context, arg GetMessageTTSParams) (M
 		&i.ContentMd5,
 		&i.FileID,
 		&i.Voice,
-		&i.ClientID,
 		&i.UserID,
 	)
 	return i, err
@@ -857,7 +836,7 @@ func (q *Queries) GetMessageTTS(ctx context.Context, arg GetMessageTTSParams) (M
 
 const GetMessageTranslate = `-- name: GetMessageTranslate :one
 
-SELECT id, content, "from", "to", client_id, user_id FROM message_translates WHERE id = ? AND user_id = ?
+SELECT id, content, "from", "to", user_id FROM message_translates WHERE id = ? AND user_id = ?
 `
 
 type GetMessageTranslateParams struct {
@@ -874,7 +853,6 @@ func (q *Queries) GetMessageTranslate(ctx context.Context, arg GetMessageTransla
 		&i.Content,
 		&i.From,
 		&i.To,
-		&i.ClientID,
 		&i.UserID,
 	)
 	return i, err
@@ -1235,7 +1213,7 @@ func (q *Queries) LinkMessageToFile(ctx context.Context, arg LinkMessageToFilePa
 }
 
 const ListMessageQueriesByMessage = `-- name: ListMessageQueriesByMessage :many
-SELECT id, message_id, rewrite_query, user_query, client_id, user_id, embeddings_id FROM message_queries
+SELECT id, message_id, rewrite_query, user_query, user_id, embeddings_id FROM message_queries
 WHERE message_id = ? AND user_id = ?
 `
 
@@ -1258,7 +1236,6 @@ func (q *Queries) ListMessageQueriesByMessage(ctx context.Context, arg ListMessa
 			&i.MessageID,
 			&i.RewriteQuery,
 			&i.UserQuery,
-			&i.ClientID,
 			&i.UserID,
 			&i.EmbeddingsID,
 		); err != nil {
@@ -1276,7 +1253,7 @@ func (q *Queries) ListMessageQueriesByMessage(ctx context.Context, arg ListMessa
 }
 
 const ListMessages = `-- name: ListMessages :many
-SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, client_id, user_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages
+SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, user_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages
 WHERE user_id = ?
 ORDER BY created_at ASC
 LIMIT ? OFFSET ?
@@ -1311,7 +1288,6 @@ func (q *Queries) ListMessages(ctx context.Context, arg ListMessagesParams) ([]M
 			&i.Tools,
 			&i.TraceID,
 			&i.ObservationID,
-			&i.ClientID,
 			&i.UserID,
 			&i.SessionID,
 			&i.TopicID,
@@ -1339,7 +1315,7 @@ func (q *Queries) ListMessages(ctx context.Context, arg ListMessagesParams) ([]M
 }
 
 const ListMessagesByGroup = `-- name: ListMessagesByGroup :many
-SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, client_id, user_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages
+SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, user_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages
 WHERE user_id = ? AND group_id = ?
 ORDER BY created_at ASC
 LIMIT ? OFFSET ?
@@ -1380,7 +1356,6 @@ func (q *Queries) ListMessagesByGroup(ctx context.Context, arg ListMessagesByGro
 			&i.Tools,
 			&i.TraceID,
 			&i.ObservationID,
-			&i.ClientID,
 			&i.UserID,
 			&i.SessionID,
 			&i.TopicID,
@@ -1408,7 +1383,7 @@ func (q *Queries) ListMessagesByGroup(ctx context.Context, arg ListMessagesByGro
 }
 
 const ListMessagesBySession = `-- name: ListMessagesBySession :many
-SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, client_id, user_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages
+SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, user_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages
 WHERE user_id = ? AND session_id = ?
 ORDER BY created_at ASC
 LIMIT ? OFFSET ?
@@ -1449,7 +1424,6 @@ func (q *Queries) ListMessagesBySession(ctx context.Context, arg ListMessagesByS
 			&i.Tools,
 			&i.TraceID,
 			&i.ObservationID,
-			&i.ClientID,
 			&i.UserID,
 			&i.SessionID,
 			&i.TopicID,
@@ -1477,7 +1451,7 @@ func (q *Queries) ListMessagesBySession(ctx context.Context, arg ListMessagesByS
 }
 
 const ListMessagesByThread = `-- name: ListMessagesByThread :many
-SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, client_id, user_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages
+SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, user_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages
 WHERE user_id = ? AND thread_id = ?
 ORDER BY created_at ASC
 `
@@ -1510,7 +1484,6 @@ func (q *Queries) ListMessagesByThread(ctx context.Context, arg ListMessagesByTh
 			&i.Tools,
 			&i.TraceID,
 			&i.ObservationID,
-			&i.ClientID,
 			&i.UserID,
 			&i.SessionID,
 			&i.TopicID,
@@ -1538,7 +1511,7 @@ func (q *Queries) ListMessagesByThread(ctx context.Context, arg ListMessagesByTh
 }
 
 const ListMessagesByTopic = `-- name: ListMessagesByTopic :many
-SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, client_id, user_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages
+SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, user_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages
 WHERE user_id = ? AND topic_id = ?
 ORDER BY created_at ASC
 LIMIT ? OFFSET ?
@@ -1579,7 +1552,6 @@ func (q *Queries) ListMessagesByTopic(ctx context.Context, arg ListMessagesByTop
 			&i.Tools,
 			&i.TraceID,
 			&i.ObservationID,
-			&i.ClientID,
 			&i.UserID,
 			&i.SessionID,
 			&i.TopicID,
@@ -1650,7 +1622,7 @@ func (q *Queries) RankModels(ctx context.Context, arg RankModelsParams) ([]RankM
 }
 
 const SearchMessagesByKeyword = `-- name: SearchMessagesByKeyword :many
-SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, client_id, user_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages
+SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, user_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages
 WHERE user_id = ? AND content LIKE ?
 ORDER BY created_at DESC
 LIMIT ?
@@ -1685,7 +1657,6 @@ func (q *Queries) SearchMessagesByKeyword(ctx context.Context, arg SearchMessage
 			&i.Tools,
 			&i.TraceID,
 			&i.ObservationID,
-			&i.ClientID,
 			&i.UserID,
 			&i.SessionID,
 			&i.TopicID,
@@ -1758,7 +1729,7 @@ SET content = ?,
     favorite = ?,
     updated_at = ?
 WHERE id = ? AND user_id = ?
-RETURNING id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, client_id, user_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at
+RETURNING id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, user_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at
 `
 
 type UpdateMessageParams struct {
@@ -1796,7 +1767,6 @@ func (q *Queries) UpdateMessage(ctx context.Context, arg UpdateMessageParams) (M
 		&i.Tools,
 		&i.TraceID,
 		&i.ObservationID,
-		&i.ClientID,
 		&i.UserID,
 		&i.SessionID,
 		&i.TopicID,
@@ -1817,7 +1787,7 @@ const UpdateMessagePlugin = `-- name: UpdateMessagePlugin :one
 UPDATE message_plugins
 SET state = ?, error = ?
 WHERE id = ? AND user_id = ?
-RETURNING id, tool_call_id, type, api_name, arguments, identifier, state, error, client_id, user_id
+RETURNING id, tool_call_id, type, api_name, arguments, identifier, state, error, user_id
 `
 
 type UpdateMessagePluginParams struct {
@@ -1844,7 +1814,6 @@ func (q *Queries) UpdateMessagePlugin(ctx context.Context, arg UpdateMessagePlug
 		&i.Identifier,
 		&i.State,
 		&i.Error,
-		&i.ClientID,
 		&i.UserID,
 	)
 	return i, err
@@ -1852,13 +1821,13 @@ func (q *Queries) UpdateMessagePlugin(ctx context.Context, arg UpdateMessagePlug
 
 const UpsertMessageTTS = `-- name: UpsertMessageTTS :one
 INSERT INTO message_tts (
-    id, content_md5, file_id, voice, client_id, user_id
-) VALUES (?, ?, ?, ?, ?, ?)
+    id, content_md5, file_id, voice, user_id
+) VALUES (?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
     content_md5 = excluded.content_md5,
     file_id = excluded.file_id,
     voice = excluded.voice
-RETURNING id, content_md5, file_id, voice, client_id, user_id
+RETURNING id, content_md5, file_id, voice, user_id
 `
 
 type UpsertMessageTTSParams struct {
@@ -1866,7 +1835,6 @@ type UpsertMessageTTSParams struct {
 	ContentMd5 sql.NullString `json:"contentMd5"`
 	FileID     sql.NullString `json:"fileId"`
 	Voice      sql.NullString `json:"voice"`
-	ClientID   sql.NullString `json:"clientId"`
 	UserID     string         `json:"userId"`
 }
 
@@ -1876,7 +1844,6 @@ func (q *Queries) UpsertMessageTTS(ctx context.Context, arg UpsertMessageTTSPara
 		arg.ContentMd5,
 		arg.FileID,
 		arg.Voice,
-		arg.ClientID,
 		arg.UserID,
 	)
 	var i MessageTt
@@ -1885,7 +1852,6 @@ func (q *Queries) UpsertMessageTTS(ctx context.Context, arg UpsertMessageTTSPara
 		&i.ContentMd5,
 		&i.FileID,
 		&i.Voice,
-		&i.ClientID,
 		&i.UserID,
 	)
 	return i, err
@@ -1893,22 +1859,21 @@ func (q *Queries) UpsertMessageTTS(ctx context.Context, arg UpsertMessageTTSPara
 
 const UpsertMessageTranslate = `-- name: UpsertMessageTranslate :one
 INSERT INTO message_translates (
-    id, content, "from", "to", client_id, user_id
-) VALUES (?, ?, ?, ?, ?, ?)
+    id, content, "from", "to", user_id
+) VALUES (?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
     content = excluded.content,
     "from" = excluded."from",
     "to" = excluded."to"
-RETURNING id, content, "from", "to", client_id, user_id
+RETURNING id, content, "from", "to", user_id
 `
 
 type UpsertMessageTranslateParams struct {
-	ID       string         `json:"id"`
-	Content  sql.NullString `json:"content"`
-	From     sql.NullString `json:"from"`
-	To       sql.NullString `json:"to"`
-	ClientID sql.NullString `json:"clientId"`
-	UserID   string         `json:"userId"`
+	ID      string         `json:"id"`
+	Content sql.NullString `json:"content"`
+	From    sql.NullString `json:"from"`
+	To      sql.NullString `json:"to"`
+	UserID  string         `json:"userId"`
 }
 
 func (q *Queries) UpsertMessageTranslate(ctx context.Context, arg UpsertMessageTranslateParams) (MessageTranslate, error) {
@@ -1917,7 +1882,6 @@ func (q *Queries) UpsertMessageTranslate(ctx context.Context, arg UpsertMessageT
 		arg.Content,
 		arg.From,
 		arg.To,
-		arg.ClientID,
 		arg.UserID,
 	)
 	var i MessageTranslate
@@ -1926,7 +1890,6 @@ func (q *Queries) UpsertMessageTranslate(ctx context.Context, arg UpsertMessageT
 		&i.Content,
 		&i.From,
 		&i.To,
-		&i.ClientID,
 		&i.UserID,
 	)
 	return i, err

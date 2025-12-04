@@ -9,8 +9,8 @@ ORDER BY sort ASC, created_at DESC;
 
 -- name: CreateSessionGroup :one
 INSERT INTO session_groups (
-    id, name, sort, user_id, client_id, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?)
+    id, name, sort, user_id, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpdateSessionGroup :one

@@ -11,9 +11,8 @@ LIMIT ? OFFSET ?;
 
 -- name: CreateChunk :one
 INSERT INTO chunks (
-    id, document_id, text, abstract, metadata, chunk_index, type, client_id,
-    user_id
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    id, document_id, text, abstract, metadata, chunk_index, type, user_id
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: GetChunksByDocumentID :many
@@ -43,8 +42,8 @@ SELECT * FROM embeddings WHERE chunk_id = ? AND user_id = ?;
 
 -- name: CreateEmbedding :one
 INSERT INTO embeddings (
-    id, chunk_id, embeddings, model, client_id, user_id
-) VALUES (?, ?, ?, ?, ?, ?)
+    id, chunk_id, embeddings, model, user_id
+) VALUES (?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: DeleteEmbedding :exec
@@ -63,8 +62,8 @@ ORDER BY chunk_index ASC;
 -- name: CreateUnstructuredChunk :one
 INSERT INTO unstructured_chunks (
     id, text, metadata, chunk_index, type, parent_id, composite_id,
-    client_id, user_id, file_id
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    user_id, file_id
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: DeleteUnstructuredChunk :exec

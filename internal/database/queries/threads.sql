@@ -9,9 +9,9 @@ ORDER BY last_active_at DESC;
 -- name: CreateThread :one
 INSERT INTO threads (
     id, title, type, status, topic_id, source_message_id,
-    parent_thread_id, client_id, user_id, last_active_at,
+    parent_thread_id, user_id, last_active_at,
     created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO NOTHING
 RETURNING *;
 

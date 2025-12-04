@@ -80,7 +80,6 @@ func (s *KnowledgeBaseService) CreateKnowledgeBase(ctx context.Context, name, de
 		Avatar:      sql.NullString{},
 		Type:        sql.NullString{},
 		UserID:      userID,
-		ClientID:    sql.NullString{},
 		IsPublic:    0,
 		Settings:    sql.NullString{String: "{}", Valid: true},
 	})
@@ -166,7 +165,6 @@ func (s *KnowledgeBaseService) AddFileToKnowledgeBase(ctx context.Context, kbID,
 		Size:     fileInfo.Size(),
 		Url:      filePath,
 		Source:   sql.NullString{},
-		ClientID: sql.NullString{},
 		Metadata: sql.NullString{String: "{}", Valid: true},
 	})
 	if err != nil {
@@ -189,7 +187,6 @@ func (s *KnowledgeBaseService) AddFileToKnowledgeBase(ctx context.Context, kbID,
 		Source:         filePath,
 		FileID:         sql.NullString{String: fileID, Valid: true},
 		UserID:         userID,
-		ClientID:       sql.NullString{},
 		EditorData:     sql.NullString{},
 		CreatedAt:      now,
 		UpdatedAt:      now,

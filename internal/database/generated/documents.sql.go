@@ -14,9 +14,9 @@ const CreateDocument = `-- name: CreateDocument :one
 INSERT INTO documents (
     id, title, content, file_type, filename, total_char_count,
     total_line_count, metadata, pages, source_type, source,
-    file_id, user_id, client_id, editor_data, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, title, content, file_type, filename, total_char_count, total_line_count, metadata, pages, source_type, source, file_id, user_id, client_id, editor_data, created_at, updated_at
+    file_id, user_id, editor_data, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, title, content, file_type, filename, total_char_count, total_line_count, metadata, pages, source_type, source, file_id, user_id, editor_data, created_at, updated_at
 `
 
 type CreateDocumentParams struct {
@@ -33,7 +33,6 @@ type CreateDocumentParams struct {
 	Source         string         `json:"source"`
 	FileID         sql.NullString `json:"fileId"`
 	UserID         string         `json:"userId"`
-	ClientID       sql.NullString `json:"clientId"`
 	EditorData     sql.NullString `json:"editorData"`
 	CreatedAt      int64          `json:"createdAt"`
 	UpdatedAt      int64          `json:"updatedAt"`
@@ -54,7 +53,6 @@ func (q *Queries) CreateDocument(ctx context.Context, arg CreateDocumentParams) 
 		arg.Source,
 		arg.FileID,
 		arg.UserID,
-		arg.ClientID,
 		arg.EditorData,
 		arg.CreatedAt,
 		arg.UpdatedAt,
@@ -74,7 +72,6 @@ func (q *Queries) CreateDocument(ctx context.Context, arg CreateDocumentParams) 
 		&i.Source,
 		&i.FileID,
 		&i.UserID,
-		&i.ClientID,
 		&i.EditorData,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -106,7 +103,7 @@ func (q *Queries) DeleteDocument(ctx context.Context, arg DeleteDocumentParams) 
 }
 
 const GetDocument = `-- name: GetDocument :one
-SELECT id, title, content, file_type, filename, total_char_count, total_line_count, metadata, pages, source_type, source, file_id, user_id, client_id, editor_data, created_at, updated_at FROM documents WHERE id = ? AND user_id = ?
+SELECT id, title, content, file_type, filename, total_char_count, total_line_count, metadata, pages, source_type, source, file_id, user_id, editor_data, created_at, updated_at FROM documents WHERE id = ? AND user_id = ?
 `
 
 type GetDocumentParams struct {
@@ -131,7 +128,6 @@ func (q *Queries) GetDocument(ctx context.Context, arg GetDocumentParams) (Docum
 		&i.Source,
 		&i.FileID,
 		&i.UserID,
-		&i.ClientID,
 		&i.EditorData,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -140,7 +136,7 @@ func (q *Queries) GetDocument(ctx context.Context, arg GetDocumentParams) (Docum
 }
 
 const GetDocumentChunks = `-- name: GetDocumentChunks :many
-SELECT c.id, c.document_id, c.text, c.abstract, c.metadata, c.chunk_index, c.type, c.client_id, c.user_id, c.created_at, c.updated_at FROM chunks c
+SELECT c.id, c.document_id, c.text, c.abstract, c.metadata, c.chunk_index, c.type, c.user_id, c.created_at, c.updated_at FROM chunks c
 INNER JOIN document_chunks dc ON c.id = dc.chunk_id
 WHERE dc.document_id = ? AND dc.user_id = ?
 ORDER BY dc.page_index ASC, c.chunk_index ASC
@@ -168,7 +164,6 @@ func (q *Queries) GetDocumentChunks(ctx context.Context, arg GetDocumentChunksPa
 			&i.Metadata,
 			&i.ChunkIndex,
 			&i.Type,
-			&i.ClientID,
 			&i.UserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -187,7 +182,7 @@ func (q *Queries) GetDocumentChunks(ctx context.Context, arg GetDocumentChunksPa
 }
 
 const GetTopicDocuments = `-- name: GetTopicDocuments :many
-SELECT d.id, d.title, d.content, d.file_type, d.filename, d.total_char_count, d.total_line_count, d.metadata, d.pages, d.source_type, d.source, d.file_id, d.user_id, d.client_id, d.editor_data, d.created_at, d.updated_at FROM documents d
+SELECT d.id, d.title, d.content, d.file_type, d.filename, d.total_char_count, d.total_line_count, d.metadata, d.pages, d.source_type, d.source, d.file_id, d.user_id, d.editor_data, d.created_at, d.updated_at FROM documents d
 INNER JOIN topic_documents td ON d.id = td.document_id
 WHERE td.topic_id = ? AND td.user_id = ?
 `
@@ -220,7 +215,6 @@ func (q *Queries) GetTopicDocuments(ctx context.Context, arg GetTopicDocumentsPa
 			&i.Source,
 			&i.FileID,
 			&i.UserID,
-			&i.ClientID,
 			&i.EditorData,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -287,7 +281,7 @@ func (q *Queries) LinkTopicToDocument(ctx context.Context, arg LinkTopicToDocume
 }
 
 const ListDocuments = `-- name: ListDocuments :many
-SELECT id, title, content, file_type, filename, total_char_count, total_line_count, metadata, pages, source_type, source, file_id, user_id, client_id, editor_data, created_at, updated_at FROM documents
+SELECT id, title, content, file_type, filename, total_char_count, total_line_count, metadata, pages, source_type, source, file_id, user_id, editor_data, created_at, updated_at FROM documents
 WHERE user_id = ?
 ORDER BY created_at DESC
 LIMIT ? OFFSET ?
@@ -322,7 +316,6 @@ func (q *Queries) ListDocuments(ctx context.Context, arg ListDocumentsParams) ([
 			&i.Source,
 			&i.FileID,
 			&i.UserID,
-			&i.ClientID,
 			&i.EditorData,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -380,7 +373,7 @@ SET title = ?,
     editor_data = ?,
     updated_at = ?
 WHERE id = ? AND user_id = ?
-RETURNING id, title, content, file_type, filename, total_char_count, total_line_count, metadata, pages, source_type, source, file_id, user_id, client_id, editor_data, created_at, updated_at
+RETURNING id, title, content, file_type, filename, total_char_count, total_line_count, metadata, pages, source_type, source, file_id, user_id, editor_data, created_at, updated_at
 `
 
 type UpdateDocumentParams struct {
@@ -418,7 +411,6 @@ func (q *Queries) UpdateDocument(ctx context.Context, arg UpdateDocumentParams) 
 		&i.Source,
 		&i.FileID,
 		&i.UserID,
-		&i.ClientID,
 		&i.EditorData,
 		&i.CreatedAt,
 		&i.UpdatedAt,

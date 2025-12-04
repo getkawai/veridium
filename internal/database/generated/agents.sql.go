@@ -40,11 +40,11 @@ func (q *Queries) BatchLinkAgentToFiles(ctx context.Context, arg BatchLinkAgentT
 const CreateAgent = `-- name: CreateAgent :one
 INSERT INTO agents (
     id, slug, title, description, tags, avatar, background_color,
-    plugins, client_id, user_id, chat_config, few_shots, model,
+    plugins, user_id, chat_config, few_shots, model,
     params, provider, system_role, tts, virtual, opening_message,
     opening_questions, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, slug, title, description, tags, avatar, background_color, plugins, client_id, user_id, chat_config, few_shots, model, params, provider, system_role, tts, "virtual", opening_message, opening_questions, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, slug, title, description, tags, avatar, background_color, plugins, user_id, chat_config, few_shots, model, params, provider, system_role, tts, "virtual", opening_message, opening_questions, created_at, updated_at
 `
 
 type CreateAgentParams struct {
@@ -56,7 +56,6 @@ type CreateAgentParams struct {
 	Avatar           sql.NullString `json:"avatar"`
 	BackgroundColor  sql.NullString `json:"backgroundColor"`
 	Plugins          sql.NullString `json:"plugins"`
-	ClientID         sql.NullString `json:"clientId"`
 	UserID           string         `json:"userId"`
 	ChatConfig       sql.NullString `json:"chatConfig"`
 	FewShots         sql.NullString `json:"fewShots"`
@@ -82,7 +81,6 @@ func (q *Queries) CreateAgent(ctx context.Context, arg CreateAgentParams) (Agent
 		arg.Avatar,
 		arg.BackgroundColor,
 		arg.Plugins,
-		arg.ClientID,
 		arg.UserID,
 		arg.ChatConfig,
 		arg.FewShots,
@@ -107,7 +105,6 @@ func (q *Queries) CreateAgent(ctx context.Context, arg CreateAgentParams) (Agent
 		&i.Avatar,
 		&i.BackgroundColor,
 		&i.Plugins,
-		&i.ClientID,
 		&i.UserID,
 		&i.ChatConfig,
 		&i.FewShots,
@@ -142,7 +139,7 @@ func (q *Queries) DeleteAgent(ctx context.Context, arg DeleteAgentParams) error 
 const DuplicateAgentForSession = `-- name: DuplicateAgentForSession :one
 INSERT INTO agents (
     id, slug, title, description, tags, avatar, background_color,
-    plugins, client_id, user_id, chat_config, few_shots, model,
+    plugins, user_id, chat_config, few_shots, model,
     params, provider, system_role, tts, virtual, opening_message,
     opening_questions, created_at, updated_at
 )
@@ -155,7 +152,6 @@ SELECT
     avatar,
     background_color,
     plugins,
-    client_id,
     user_id,
     chat_config,
     few_shots,
@@ -173,7 +169,7 @@ FROM agents a
 INNER JOIN agents_to_sessions ats ON a.id = ats.agent_id
 WHERE ats.session_id = ? AND ats.user_id = ?
 LIMIT 1
-RETURNING id, slug, title, description, tags, avatar, background_color, plugins, client_id, user_id, chat_config, few_shots, model, params, provider, system_role, tts, "virtual", opening_message, opening_questions, created_at, updated_at
+RETURNING id, slug, title, description, tags, avatar, background_color, plugins, user_id, chat_config, few_shots, model, params, provider, system_role, tts, "virtual", opening_message, opening_questions, created_at, updated_at
 `
 
 type DuplicateAgentForSessionParams struct {
@@ -204,7 +200,6 @@ func (q *Queries) DuplicateAgentForSession(ctx context.Context, arg DuplicateAge
 		&i.Avatar,
 		&i.BackgroundColor,
 		&i.Plugins,
-		&i.ClientID,
 		&i.UserID,
 		&i.ChatConfig,
 		&i.FewShots,
@@ -223,7 +218,7 @@ func (q *Queries) DuplicateAgentForSession(ctx context.Context, arg DuplicateAge
 }
 
 const GetAgent = `-- name: GetAgent :one
-SELECT id, slug, title, description, tags, avatar, background_color, plugins, client_id, user_id, chat_config, few_shots, model, params, provider, system_role, tts, "virtual", opening_message, opening_questions, created_at, updated_at FROM agents WHERE id = ? AND user_id = ?
+SELECT id, slug, title, description, tags, avatar, background_color, plugins, user_id, chat_config, few_shots, model, params, provider, system_role, tts, "virtual", opening_message, opening_questions, created_at, updated_at FROM agents WHERE id = ? AND user_id = ?
 `
 
 type GetAgentParams struct {
@@ -243,7 +238,6 @@ func (q *Queries) GetAgent(ctx context.Context, arg GetAgentParams) (Agent, erro
 		&i.Avatar,
 		&i.BackgroundColor,
 		&i.Plugins,
-		&i.ClientID,
 		&i.UserID,
 		&i.ChatConfig,
 		&i.FewShots,
@@ -262,7 +256,7 @@ func (q *Queries) GetAgent(ctx context.Context, arg GetAgentParams) (Agent, erro
 }
 
 const GetAgentBySessionId = `-- name: GetAgentBySessionId :one
-SELECT a.id, a.slug, a.title, a.description, a.tags, a.avatar, a.background_color, a.plugins, a.client_id, a.user_id, a.chat_config, a.few_shots, a.model, a.params, a.provider, a.system_role, a.tts, a."virtual", a.opening_message, a.opening_questions, a.created_at, a.updated_at FROM agents a
+SELECT a.id, a.slug, a.title, a.description, a.tags, a.avatar, a.background_color, a.plugins, a.user_id, a.chat_config, a.few_shots, a.model, a.params, a.provider, a.system_role, a.tts, a."virtual", a.opening_message, a.opening_questions, a.created_at, a.updated_at FROM agents a
 INNER JOIN agents_to_sessions ats ON a.id = ats.agent_id
 WHERE ats.session_id = ? AND ats.user_id = ?
 LIMIT 1
@@ -285,7 +279,6 @@ func (q *Queries) GetAgentBySessionId(ctx context.Context, arg GetAgentBySession
 		&i.Avatar,
 		&i.BackgroundColor,
 		&i.Plugins,
-		&i.ClientID,
 		&i.UserID,
 		&i.ChatConfig,
 		&i.FewShots,
@@ -304,7 +297,7 @@ func (q *Queries) GetAgentBySessionId(ctx context.Context, arg GetAgentBySession
 }
 
 const GetAgentBySlug = `-- name: GetAgentBySlug :one
-SELECT id, slug, title, description, tags, avatar, background_color, plugins, client_id, user_id, chat_config, few_shots, model, params, provider, system_role, tts, "virtual", opening_message, opening_questions, created_at, updated_at FROM agents WHERE slug = ? AND user_id = ?
+SELECT id, slug, title, description, tags, avatar, background_color, plugins, user_id, chat_config, few_shots, model, params, provider, system_role, tts, "virtual", opening_message, opening_questions, created_at, updated_at FROM agents WHERE slug = ? AND user_id = ?
 `
 
 type GetAgentBySlugParams struct {
@@ -324,7 +317,6 @@ func (q *Queries) GetAgentBySlug(ctx context.Context, arg GetAgentBySlugParams) 
 		&i.Avatar,
 		&i.BackgroundColor,
 		&i.Plugins,
-		&i.ClientID,
 		&i.UserID,
 		&i.ChatConfig,
 		&i.FewShots,
@@ -389,7 +381,7 @@ func (q *Queries) GetAgentFileIds(ctx context.Context, arg GetAgentFileIdsParams
 }
 
 const GetAgentFiles = `-- name: GetAgentFiles :many
-SELECT f.id, f.user_id, f.file_type, f.file_hash, f.name, f.size, f.url, f.source, f.client_id, f.metadata, f.created_at, f.updated_at FROM files f
+SELECT f.id, f.user_id, f.file_type, f.file_hash, f.name, f.size, f.url, f.source, f.metadata, f.created_at, f.updated_at FROM files f
 INNER JOIN agents_files af ON f.id = af.file_id
 WHERE af.agent_id = ? AND af.user_id = ?
 `
@@ -417,7 +409,6 @@ func (q *Queries) GetAgentFiles(ctx context.Context, arg GetAgentFilesParams) ([
 			&i.Size,
 			&i.Url,
 			&i.Source,
-			&i.ClientID,
 			&i.Metadata,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -436,7 +427,7 @@ func (q *Queries) GetAgentFiles(ctx context.Context, arg GetAgentFilesParams) ([
 }
 
 const GetAgentFilesWithEnabled = `-- name: GetAgentFilesWithEnabled :many
-SELECT f.id, f.user_id, f.file_type, f.file_hash, f.name, f.size, f.url, f.source, f.client_id, f.metadata, f.created_at, f.updated_at, af.enabled
+SELECT f.id, f.user_id, f.file_type, f.file_hash, f.name, f.size, f.url, f.source, f.metadata, f.created_at, f.updated_at, af.enabled
 FROM files f
 INNER JOIN agents_files af ON f.id = af.file_id
 WHERE af.agent_id = ? AND af.user_id = ?
@@ -457,7 +448,6 @@ type GetAgentFilesWithEnabledRow struct {
 	Size      int64          `json:"size"`
 	Url       string         `json:"url"`
 	Source    sql.NullString `json:"source"`
-	ClientID  sql.NullString `json:"clientId"`
 	Metadata  sql.NullString `json:"metadata"`
 	CreatedAt int64          `json:"createdAt"`
 	UpdatedAt int64          `json:"updatedAt"`
@@ -482,7 +472,6 @@ func (q *Queries) GetAgentFilesWithEnabled(ctx context.Context, arg GetAgentFile
 			&i.Size,
 			&i.Url,
 			&i.Source,
-			&i.ClientID,
 			&i.Metadata,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -502,7 +491,7 @@ func (q *Queries) GetAgentFilesWithEnabled(ctx context.Context, arg GetAgentFile
 }
 
 const GetAgentKnowledgeBases = `-- name: GetAgentKnowledgeBases :many
-SELECT kb.id, kb.name, kb.description, kb.avatar, kb.type, kb.user_id, kb.client_id, kb.is_public, kb.settings, kb.created_at, kb.updated_at, akb.enabled
+SELECT kb.id, kb.name, kb.description, kb.avatar, kb.type, kb.user_id, kb.is_public, kb.settings, kb.created_at, kb.updated_at, akb.enabled
 FROM knowledge_bases kb
 INNER JOIN agents_knowledge_bases akb ON kb.id = akb.knowledge_base_id
 WHERE akb.agent_id = ? AND akb.user_id = ?
@@ -521,7 +510,6 @@ type GetAgentKnowledgeBasesRow struct {
 	Avatar      sql.NullString `json:"avatar"`
 	Type        sql.NullString `json:"type"`
 	UserID      string         `json:"userId"`
-	ClientID    sql.NullString `json:"clientId"`
 	IsPublic    int64          `json:"isPublic"`
 	Settings    sql.NullString `json:"settings"`
 	CreatedAt   int64          `json:"createdAt"`
@@ -545,7 +533,6 @@ func (q *Queries) GetAgentKnowledgeBases(ctx context.Context, arg GetAgentKnowle
 			&i.Avatar,
 			&i.Type,
 			&i.UserID,
-			&i.ClientID,
 			&i.IsPublic,
 			&i.Settings,
 			&i.CreatedAt,
@@ -566,7 +553,7 @@ func (q *Queries) GetAgentKnowledgeBases(ctx context.Context, arg GetAgentKnowle
 }
 
 const GetAgentSessions = `-- name: GetAgentSessions :many
-SELECT s.id, s.slug, s.title, s.description, s.avatar, s.background_color, s.type, s.user_id, s.group_id, s.client_id, s.pinned, s.created_at, s.updated_at FROM sessions s
+SELECT s.id, s.slug, s.title, s.description, s.avatar, s.background_color, s.type, s.user_id, s.group_id, s.pinned, s.created_at, s.updated_at FROM sessions s
 INNER JOIN agents_to_sessions ats ON s.id = ats.session_id
 WHERE ats.agent_id = ? AND ats.user_id = ?
 `
@@ -595,7 +582,6 @@ func (q *Queries) GetAgentSessions(ctx context.Context, arg GetAgentSessionsPara
 			&i.Type,
 			&i.UserID,
 			&i.GroupID,
-			&i.ClientID,
 			&i.Pinned,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -614,7 +600,7 @@ func (q *Queries) GetAgentSessions(ctx context.Context, arg GetAgentSessionsPara
 }
 
 const GetOrphanedAgents = `-- name: GetOrphanedAgents :many
-SELECT a.id, a.slug, a.title, a.description, a.tags, a.avatar, a.background_color, a.plugins, a.client_id, a.user_id, a.chat_config, a.few_shots, a.model, a.params, a.provider, a.system_role, a.tts, a."virtual", a.opening_message, a.opening_questions, a.created_at, a.updated_at FROM agents a
+SELECT a.id, a.slug, a.title, a.description, a.tags, a.avatar, a.background_color, a.plugins, a.user_id, a.chat_config, a.few_shots, a.model, a.params, a.provider, a.system_role, a.tts, a."virtual", a.opening_message, a.opening_questions, a.created_at, a.updated_at FROM agents a
 LEFT JOIN agents_to_sessions ats ON a.id = ats.agent_id
 WHERE a.user_id = ? AND ats.agent_id IS NULL
 `
@@ -637,7 +623,6 @@ func (q *Queries) GetOrphanedAgents(ctx context.Context, userID string) ([]Agent
 			&i.Avatar,
 			&i.BackgroundColor,
 			&i.Plugins,
-			&i.ClientID,
 			&i.UserID,
 			&i.ChatConfig,
 			&i.FewShots,
@@ -666,7 +651,7 @@ func (q *Queries) GetOrphanedAgents(ctx context.Context, userID string) ([]Agent
 }
 
 const GetSessionAgents = `-- name: GetSessionAgents :many
-SELECT a.id, a.slug, a.title, a.description, a.tags, a.avatar, a.background_color, a.plugins, a.client_id, a.user_id, a.chat_config, a.few_shots, a.model, a.params, a.provider, a.system_role, a.tts, a."virtual", a.opening_message, a.opening_questions, a.created_at, a.updated_at FROM agents a
+SELECT a.id, a.slug, a.title, a.description, a.tags, a.avatar, a.background_color, a.plugins, a.user_id, a.chat_config, a.few_shots, a.model, a.params, a.provider, a.system_role, a.tts, a."virtual", a.opening_message, a.opening_questions, a.created_at, a.updated_at FROM agents a
 INNER JOIN agents_to_sessions ats ON a.id = ats.agent_id
 WHERE ats.session_id = ? AND ats.user_id = ?
 `
@@ -694,7 +679,6 @@ func (q *Queries) GetSessionAgents(ctx context.Context, arg GetSessionAgentsPara
 			&i.Avatar,
 			&i.BackgroundColor,
 			&i.Plugins,
-			&i.ClientID,
 			&i.UserID,
 			&i.ChatConfig,
 			&i.FewShots,
@@ -814,7 +798,7 @@ func (q *Queries) LinkDuplicatedAgentToSession(ctx context.Context, arg LinkDupl
 }
 
 const ListAgents = `-- name: ListAgents :many
-SELECT id, slug, title, description, tags, avatar, background_color, plugins, client_id, user_id, chat_config, few_shots, model, params, provider, system_role, tts, "virtual", opening_message, opening_questions, created_at, updated_at FROM agents
+SELECT id, slug, title, description, tags, avatar, background_color, plugins, user_id, chat_config, few_shots, model, params, provider, system_role, tts, "virtual", opening_message, opening_questions, created_at, updated_at FROM agents
 WHERE user_id = ?
 ORDER BY updated_at DESC
 LIMIT ? OFFSET ?
@@ -844,7 +828,6 @@ func (q *Queries) ListAgents(ctx context.Context, arg ListAgentsParams) ([]Agent
 			&i.Avatar,
 			&i.BackgroundColor,
 			&i.Plugins,
-			&i.ClientID,
 			&i.UserID,
 			&i.ChatConfig,
 			&i.FewShots,
@@ -873,7 +856,7 @@ func (q *Queries) ListAgents(ctx context.Context, arg ListAgentsParams) ([]Agent
 }
 
 const SearchAgents = `-- name: SearchAgents :many
-SELECT id, slug, title, description, tags, avatar, background_color, plugins, client_id, user_id, chat_config, few_shots, model, params, provider, system_role, tts, "virtual", opening_message, opening_questions, created_at, updated_at FROM agents
+SELECT id, slug, title, description, tags, avatar, background_color, plugins, user_id, chat_config, few_shots, model, params, provider, system_role, tts, "virtual", opening_message, opening_questions, created_at, updated_at FROM agents
 WHERE user_id = ? AND (title LIKE ? OR description LIKE ?)
 ORDER BY updated_at DESC
 LIMIT ?
@@ -909,7 +892,6 @@ func (q *Queries) SearchAgents(ctx context.Context, arg SearchAgentsParams) ([]A
 			&i.Avatar,
 			&i.BackgroundColor,
 			&i.Plugins,
-			&i.ClientID,
 			&i.UserID,
 			&i.ChatConfig,
 			&i.FewShots,
@@ -1050,7 +1032,7 @@ SET title = ?,
     opening_questions = ?,
     updated_at = ?
 WHERE id = ? AND user_id = ?
-RETURNING id, slug, title, description, tags, avatar, background_color, plugins, client_id, user_id, chat_config, few_shots, model, params, provider, system_role, tts, "virtual", opening_message, opening_questions, created_at, updated_at
+RETURNING id, slug, title, description, tags, avatar, background_color, plugins, user_id, chat_config, few_shots, model, params, provider, system_role, tts, "virtual", opening_message, opening_questions, created_at, updated_at
 `
 
 type UpdateAgentParams struct {
@@ -1105,7 +1087,6 @@ func (q *Queries) UpdateAgent(ctx context.Context, arg UpdateAgentParams) (Agent
 		&i.Avatar,
 		&i.BackgroundColor,
 		&i.Plugins,
-		&i.ClientID,
 		&i.UserID,
 		&i.ChatConfig,
 		&i.FewShots,

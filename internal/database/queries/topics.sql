@@ -10,9 +10,9 @@ LIMIT ? OFFSET ?;
 
 -- name: CreateTopic :one
 INSERT INTO topics (
-    id, title, favorite, session_id, group_id, user_id, client_id,
+    id, title, favorite, session_id, group_id, user_id,
     history_summary, metadata, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpdateTopic :one
@@ -107,7 +107,7 @@ WHERE id = ? AND user_id = ?;
 -- name: DuplicateTopic :one
 -- Duplicate a topic with a new ID and title
 INSERT INTO topics (
-    id, title, favorite, session_id, group_id, user_id, client_id,
+    id, title, favorite, session_id, group_id, user_id,
     history_summary, metadata, created_at, updated_at
 )
 SELECT 
@@ -117,7 +117,6 @@ SELECT
     t.session_id,
     t.group_id,
     t.user_id,
-    t.client_id,
     t.history_summary,
     t.metadata,
     ? as created_at,        -- new created_at

@@ -12,8 +12,8 @@ import (
 
 const BulkCreateEmbeddingsItems = `-- name: BulkCreateEmbeddingsItems :exec
 INSERT INTO embeddings (
-    id, chunk_id, embeddings, model, client_id, user_id
-) VALUES (?, ?, ?, ?, ?, ?)
+    id, chunk_id, embeddings, model, user_id
+) VALUES (?, ?, ?, ?, ?)
 ON CONFLICT(chunk_id) DO NOTHING
 `
 
@@ -22,7 +22,6 @@ type BulkCreateEmbeddingsItemsParams struct {
 	ChunkID    sql.NullString `json:"chunkId"`
 	Embeddings []byte         `json:"embeddings"`
 	Model      sql.NullString `json:"model"`
-	ClientID   sql.NullString `json:"clientId"`
 	UserID     sql.NullString `json:"userId"`
 }
 
@@ -32,7 +31,6 @@ func (q *Queries) BulkCreateEmbeddingsItems(ctx context.Context, arg BulkCreateE
 		arg.ChunkID,
 		arg.Embeddings,
 		arg.Model,
-		arg.ClientID,
 		arg.UserID,
 	)
 	return err
@@ -51,9 +49,9 @@ func (q *Queries) CountEmbeddingsItems(ctx context.Context, userID sql.NullStrin
 
 const CreateEmbeddingsItem = `-- name: CreateEmbeddingsItem :one
 INSERT INTO embeddings (
-    id, chunk_id, embeddings, model, client_id, user_id
-) VALUES (?, ?, ?, ?, ?, ?)
-RETURNING id, chunk_id, embeddings, model, client_id, user_id
+    id, chunk_id, embeddings, model, user_id
+) VALUES (?, ?, ?, ?, ?)
+RETURNING id, chunk_id, embeddings, model, user_id
 `
 
 type CreateEmbeddingsItemParams struct {
@@ -61,7 +59,6 @@ type CreateEmbeddingsItemParams struct {
 	ChunkID    sql.NullString `json:"chunkId"`
 	Embeddings []byte         `json:"embeddings"`
 	Model      sql.NullString `json:"model"`
-	ClientID   sql.NullString `json:"clientId"`
 	UserID     sql.NullString `json:"userId"`
 }
 
@@ -71,7 +68,6 @@ func (q *Queries) CreateEmbeddingsItem(ctx context.Context, arg CreateEmbeddings
 		arg.ChunkID,
 		arg.Embeddings,
 		arg.Model,
-		arg.ClientID,
 		arg.UserID,
 	)
 	var i Embedding
@@ -80,7 +76,6 @@ func (q *Queries) CreateEmbeddingsItem(ctx context.Context, arg CreateEmbeddings
 		&i.ChunkID,
 		&i.Embeddings,
 		&i.Model,
-		&i.ClientID,
 		&i.UserID,
 	)
 	return i, err
@@ -101,7 +96,7 @@ func (q *Queries) DeleteEmbeddingsItem(ctx context.Context, arg DeleteEmbeddings
 }
 
 const GetEmbeddingsItem = `-- name: GetEmbeddingsItem :one
-SELECT id, chunk_id, embeddings, model, client_id, user_id FROM embeddings WHERE id = ? AND user_id = ?
+SELECT id, chunk_id, embeddings, model, user_id FROM embeddings WHERE id = ? AND user_id = ?
 `
 
 type GetEmbeddingsItemParams struct {
@@ -117,14 +112,13 @@ func (q *Queries) GetEmbeddingsItem(ctx context.Context, arg GetEmbeddingsItemPa
 		&i.ChunkID,
 		&i.Embeddings,
 		&i.Model,
-		&i.ClientID,
 		&i.UserID,
 	)
 	return i, err
 }
 
 const ListEmbeddingsItems = `-- name: ListEmbeddingsItems :many
-SELECT id, chunk_id, embeddings, model, client_id, user_id FROM embeddings
+SELECT id, chunk_id, embeddings, model, user_id FROM embeddings
 WHERE user_id = ?
 ORDER BY created_at DESC
 `
@@ -143,7 +137,6 @@ func (q *Queries) ListEmbeddingsItems(ctx context.Context, userID sql.NullString
 			&i.ChunkID,
 			&i.Embeddings,
 			&i.Model,
-			&i.ClientID,
 			&i.UserID,
 		); err != nil {
 			return nil, err

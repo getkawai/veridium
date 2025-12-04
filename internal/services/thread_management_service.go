@@ -150,7 +150,6 @@ func (s *ThreadManagementService) CreateThread(ctx context.Context, req CreateTh
 		TopicID:         req.TopicID,
 		SourceMessageID: req.SourceMessageID,
 		ParentThreadID:  parentThreadID,
-		ClientID:        sql.NullString{},
 		UserID:          req.UserID,
 		LastActiveAt:    now,
 		CreatedAt:       now,

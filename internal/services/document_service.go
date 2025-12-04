@@ -73,7 +73,7 @@ func (s *DocumentService) CreateDocument(ctx context.Context, params CreateDocum
 		Source:         params.Source,
 		FileID:         sql.NullString{String: params.FileID, Valid: params.FileID != ""},
 		UserID:         params.UserID,
-		ClientID:       sql.NullString{String: params.ClientID, Valid: params.ClientID != ""},
+		EditorData:     sql.NullString{},
 		CreatedAt:      now,
 		UpdatedAt:      now,
 	})

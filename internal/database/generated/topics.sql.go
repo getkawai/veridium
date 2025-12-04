@@ -87,10 +87,10 @@ func (q *Queries) CountTopicsBySession(ctx context.Context, arg CountTopicsBySes
 
 const CreateTopic = `-- name: CreateTopic :one
 INSERT INTO topics (
-    id, title, favorite, session_id, group_id, user_id, client_id,
+    id, title, favorite, session_id, group_id, user_id,
     history_summary, metadata, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, title, favorite, session_id, group_id, user_id, client_id, history_summary, metadata, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, title, favorite, session_id, group_id, user_id, history_summary, metadata, created_at, updated_at
 `
 
 type CreateTopicParams struct {
@@ -100,7 +100,6 @@ type CreateTopicParams struct {
 	SessionID      sql.NullString `json:"sessionId"`
 	GroupID        sql.NullString `json:"groupId"`
 	UserID         string         `json:"userId"`
-	ClientID       sql.NullString `json:"clientId"`
 	HistorySummary sql.NullString `json:"historySummary"`
 	Metadata       sql.NullString `json:"metadata"`
 	CreatedAt      int64          `json:"createdAt"`
@@ -115,7 +114,6 @@ func (q *Queries) CreateTopic(ctx context.Context, arg CreateTopicParams) (Topic
 		arg.SessionID,
 		arg.GroupID,
 		arg.UserID,
-		arg.ClientID,
 		arg.HistorySummary,
 		arg.Metadata,
 		arg.CreatedAt,
@@ -129,7 +127,6 @@ func (q *Queries) CreateTopic(ctx context.Context, arg CreateTopicParams) (Topic
 		&i.SessionID,
 		&i.GroupID,
 		&i.UserID,
-		&i.ClientID,
 		&i.HistorySummary,
 		&i.Metadata,
 		&i.CreatedAt,
@@ -193,7 +190,7 @@ func (q *Queries) DeleteTopicsBySession(ctx context.Context, arg DeleteTopicsByS
 
 const DuplicateTopic = `-- name: DuplicateTopic :one
 INSERT INTO topics (
-    id, title, favorite, session_id, group_id, user_id, client_id,
+    id, title, favorite, session_id, group_id, user_id,
     history_summary, metadata, created_at, updated_at
 )
 SELECT 
@@ -203,14 +200,13 @@ SELECT
     t.session_id,
     t.group_id,
     t.user_id,
-    t.client_id,
     t.history_summary,
     t.metadata,
     ? as created_at,        -- new created_at
     ? as updated_at         -- new updated_at
 FROM topics t
 WHERE t.id = ? AND t.user_id = ?
-RETURNING id, title, favorite, session_id, group_id, user_id, client_id, history_summary, metadata, created_at, updated_at
+RETURNING id, title, favorite, session_id, group_id, user_id, history_summary, metadata, created_at, updated_at
 `
 
 type DuplicateTopicParams struct {
@@ -240,7 +236,6 @@ func (q *Queries) DuplicateTopic(ctx context.Context, arg DuplicateTopicParams) 
 		&i.SessionID,
 		&i.GroupID,
 		&i.UserID,
-		&i.ClientID,
 		&i.HistorySummary,
 		&i.Metadata,
 		&i.CreatedAt,
@@ -250,7 +245,7 @@ func (q *Queries) DuplicateTopic(ctx context.Context, arg DuplicateTopicParams) 
 }
 
 const GetMessagesByTopicId = `-- name: GetMessagesByTopicId :many
-SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, client_id, user_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages
+SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, user_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages
 WHERE topic_id = ? AND user_id = ?
 ORDER BY created_at ASC
 `
@@ -283,7 +278,6 @@ func (q *Queries) GetMessagesByTopicId(ctx context.Context, arg GetMessagesByTop
 			&i.Tools,
 			&i.TraceID,
 			&i.ObservationID,
-			&i.ClientID,
 			&i.UserID,
 			&i.SessionID,
 			&i.TopicID,
@@ -311,7 +305,7 @@ func (q *Queries) GetMessagesByTopicId(ctx context.Context, arg GetMessagesByTop
 }
 
 const GetTopic = `-- name: GetTopic :one
-SELECT id, title, favorite, session_id, group_id, user_id, client_id, history_summary, metadata, created_at, updated_at FROM topics WHERE id = ? AND user_id = ?
+SELECT id, title, favorite, session_id, group_id, user_id, history_summary, metadata, created_at, updated_at FROM topics WHERE id = ? AND user_id = ?
 `
 
 type GetTopicParams struct {
@@ -329,7 +323,6 @@ func (q *Queries) GetTopic(ctx context.Context, arg GetTopicParams) (Topic, erro
 		&i.SessionID,
 		&i.GroupID,
 		&i.UserID,
-		&i.ClientID,
 		&i.HistorySummary,
 		&i.Metadata,
 		&i.CreatedAt,
@@ -339,7 +332,7 @@ func (q *Queries) GetTopic(ctx context.Context, arg GetTopicParams) (Topic, erro
 }
 
 const ListAllTopics = `-- name: ListAllTopics :many
-SELECT id, title, favorite, session_id, group_id, user_id, client_id, history_summary, metadata, created_at, updated_at FROM topics
+SELECT id, title, favorite, session_id, group_id, user_id, history_summary, metadata, created_at, updated_at FROM topics
 WHERE user_id = ?
 ORDER BY updated_at DESC
 `
@@ -360,7 +353,6 @@ func (q *Queries) ListAllTopics(ctx context.Context, userID string) ([]Topic, er
 			&i.SessionID,
 			&i.GroupID,
 			&i.UserID,
-			&i.ClientID,
 			&i.HistorySummary,
 			&i.Metadata,
 			&i.CreatedAt,
@@ -380,7 +372,7 @@ func (q *Queries) ListAllTopics(ctx context.Context, userID string) ([]Topic, er
 }
 
 const ListTopics = `-- name: ListTopics :many
-SELECT id, title, favorite, session_id, group_id, user_id, client_id, history_summary, metadata, created_at, updated_at FROM topics
+SELECT id, title, favorite, session_id, group_id, user_id, history_summary, metadata, created_at, updated_at FROM topics
 WHERE user_id = ? 
   AND (COALESCE(session_id, '') = COALESCE(?, ''))
 ORDER BY updated_at DESC
@@ -415,7 +407,6 @@ func (q *Queries) ListTopics(ctx context.Context, arg ListTopicsParams) ([]Topic
 			&i.SessionID,
 			&i.GroupID,
 			&i.UserID,
-			&i.ClientID,
 			&i.HistorySummary,
 			&i.Metadata,
 			&i.CreatedAt,
@@ -490,7 +481,7 @@ func (q *Queries) RankTopics(ctx context.Context, arg RankTopicsParams) ([]RankT
 }
 
 const SearchTopicsByMessageContent = `-- name: SearchTopicsByMessageContent :many
-SELECT DISTINCT t.id, t.title, t.favorite, t.session_id, t.group_id, t.user_id, t.client_id, t.history_summary, t.metadata, t.created_at, t.updated_at
+SELECT DISTINCT t.id, t.title, t.favorite, t.session_id, t.group_id, t.user_id, t.history_summary, t.metadata, t.created_at, t.updated_at
 FROM topics t
 INNER JOIN messages m ON t.id = m.topic_id
 WHERE t.user_id = ? 
@@ -529,7 +520,6 @@ func (q *Queries) SearchTopicsByMessageContent(ctx context.Context, arg SearchTo
 			&i.SessionID,
 			&i.GroupID,
 			&i.UserID,
-			&i.ClientID,
 			&i.HistorySummary,
 			&i.Metadata,
 			&i.CreatedAt,
@@ -549,7 +539,7 @@ func (q *Queries) SearchTopicsByMessageContent(ctx context.Context, arg SearchTo
 }
 
 const SearchTopicsByTitle = `-- name: SearchTopicsByTitle :many
-SELECT id, title, favorite, session_id, group_id, user_id, client_id, history_summary, metadata, created_at, updated_at FROM topics
+SELECT id, title, favorite, session_id, group_id, user_id, history_summary, metadata, created_at, updated_at FROM topics
 WHERE user_id = ? 
   AND title LIKE ?
   AND (? = '' OR session_id = ? OR group_id = ?)
@@ -586,7 +576,6 @@ func (q *Queries) SearchTopicsByTitle(ctx context.Context, arg SearchTopicsByTit
 			&i.SessionID,
 			&i.GroupID,
 			&i.UserID,
-			&i.ClientID,
 			&i.HistorySummary,
 			&i.Metadata,
 			&i.CreatedAt,
@@ -663,7 +652,7 @@ SET title = ?,
     metadata = ?,
     updated_at = ?
 WHERE id = ? AND user_id = ?
-RETURNING id, title, favorite, session_id, group_id, user_id, client_id, history_summary, metadata, created_at, updated_at
+RETURNING id, title, favorite, session_id, group_id, user_id, history_summary, metadata, created_at, updated_at
 `
 
 type UpdateTopicParams struct {
@@ -692,7 +681,6 @@ func (q *Queries) UpdateTopic(ctx context.Context, arg UpdateTopicParams) (Topic
 		&i.SessionID,
 		&i.GroupID,
 		&i.UserID,
-		&i.ClientID,
 		&i.HistorySummary,
 		&i.Metadata,
 		&i.CreatedAt,

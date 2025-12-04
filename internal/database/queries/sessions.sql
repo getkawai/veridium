@@ -35,9 +35,9 @@ WHERE user_id = ?
 -- name: CreateSession :one
 INSERT INTO sessions (
     id, slug, title, description, avatar, background_color,
-    type, user_id, group_id, client_id, pinned,
+    type, user_id, group_id, pinned,
     created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpdateSession :one
@@ -120,7 +120,7 @@ LIMIT ?;
 -- Parameters: new_session_id, new_title, created_at, updated_at, source_session_id, user_id
 INSERT INTO sessions (
     id, slug, title, description, avatar, background_color,
-    type, user_id, group_id, client_id, pinned,
+    type, user_id, group_id, pinned,
     created_at, updated_at
 )
 SELECT 
@@ -133,7 +133,6 @@ SELECT
     s.type,
     s.user_id,
     s.group_id,
-    s.client_id,
     s.pinned,
     ? as created_at,        -- new created_at
     ? as updated_at         -- new updated_at

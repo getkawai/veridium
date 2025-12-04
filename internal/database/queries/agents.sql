@@ -19,10 +19,10 @@ LIMIT ?;
 -- name: CreateAgent :one
 INSERT INTO agents (
     id, slug, title, description, tags, avatar, background_color,
-    plugins, client_id, user_id, chat_config, few_shots, model,
+    plugins, user_id, chat_config, few_shots, model,
     params, provider, system_role, tts, virtual, opening_message,
     opening_questions, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpdateAgent :one
@@ -142,7 +142,7 @@ LIMIT 1;
 -- Parameters: new_agent_id, new_session_id, source_session_id, user_id, created_at, updated_at
 INSERT INTO agents (
     id, slug, title, description, tags, avatar, background_color,
-    plugins, client_id, user_id, chat_config, few_shots, model,
+    plugins, user_id, chat_config, few_shots, model,
     params, provider, system_role, tts, virtual, opening_message,
     opening_questions, created_at, updated_at
 )
@@ -155,7 +155,6 @@ SELECT
     avatar,
     background_color,
     plugins,
-    client_id,
     user_id,
     chat_config,
     few_shots,

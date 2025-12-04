@@ -66,7 +66,6 @@ CREATE TABLE IF NOT EXISTS files (
   size INTEGER NOT NULL,
   url TEXT NOT NULL,
   source TEXT, -- JSON as text
-  client_id TEXT,
   metadata TEXT, -- JSON as text
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
@@ -80,7 +79,6 @@ CREATE TABLE IF NOT EXISTS knowledge_bases (
   avatar TEXT,
   type TEXT,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  client_id TEXT,
   is_public INTEGER DEFAULT 0 NOT NULL, -- boolean as integer
   settings TEXT, -- JSON as text
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
@@ -106,7 +104,6 @@ CREATE TABLE IF NOT EXISTS agents (
   avatar TEXT,
   background_color TEXT,
   plugins TEXT DEFAULT '[]', -- JSON as text
-  client_id TEXT,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   chat_config TEXT, -- JSON as text
   few_shots TEXT, -- JSON as text
@@ -128,7 +125,6 @@ CREATE TABLE IF NOT EXISTS session_groups (
   name TEXT NOT NULL,
   sort INTEGER,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  client_id TEXT,
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
 );
@@ -144,7 +140,6 @@ CREATE TABLE IF NOT EXISTS sessions (
   type TEXT DEFAULT 'agent',
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   group_id TEXT REFERENCES session_groups(id) ON DELETE SET NULL,
-  client_id TEXT,
   pinned INTEGER DEFAULT 0 NOT NULL, -- boolean as integer
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
@@ -159,7 +154,6 @@ CREATE TABLE IF NOT EXISTS topics (
   session_id TEXT REFERENCES sessions(id) ON DELETE CASCADE,
   group_id TEXT REFERENCES chat_groups(id) ON DELETE CASCADE,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  client_id TEXT,
   history_summary TEXT, -- JSON as text
   metadata TEXT, -- JSON as text
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
@@ -175,7 +169,6 @@ CREATE TABLE IF NOT EXISTS threads (
   topic_id TEXT NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
   source_message_id TEXT NOT NULL,
   parent_thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL,
-  client_id TEXT,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   last_active_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
@@ -197,7 +190,6 @@ CREATE TABLE IF NOT EXISTS messages (
   tools TEXT, -- JSON as text
   trace_id TEXT,
   observation_id TEXT,
-  client_id TEXT,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   session_id TEXT REFERENCES sessions(id) ON DELETE CASCADE,
   topic_id TEXT REFERENCES topics(id) ON DELETE CASCADE,
@@ -209,8 +201,7 @@ CREATE TABLE IF NOT EXISTS messages (
   target_id TEXT,
   message_group_id TEXT REFERENCES message_groups(id) ON DELETE CASCADE,
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
-  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
-  UNIQUE(client_id, user_id)
+  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
 );
 
 -- Message plugins
@@ -223,9 +214,7 @@ CREATE TABLE IF NOT EXISTS message_plugins (
   identifier TEXT,
   state TEXT, -- JSON as text
   error TEXT, -- JSON as text
-  client_id TEXT,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  UNIQUE(client_id, user_id)
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- Message TTS
@@ -234,9 +223,7 @@ CREATE TABLE IF NOT EXISTS message_tts (
   content_md5 TEXT,
   file_id TEXT REFERENCES files(id) ON DELETE CASCADE,
   voice TEXT,
-  client_id TEXT,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  UNIQUE(client_id, user_id)
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- Message translates
@@ -245,9 +232,7 @@ CREATE TABLE IF NOT EXISTS message_translates (
   content TEXT, -- JSON as text
   "from" TEXT,
   "to" TEXT,
-  client_id TEXT,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  UNIQUE(client_id, user_id)
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- Message queries
@@ -256,10 +241,8 @@ CREATE TABLE IF NOT EXISTS message_queries (
   message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
   rewrite_query TEXT,
   user_query TEXT,
-  client_id TEXT,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  embeddings_id TEXT REFERENCES embeddings(id) ON DELETE SET NULL,
-  UNIQUE(client_id, user_id)
+  embeddings_id TEXT REFERENCES embeddings(id) ON DELETE SET NULL
 );
 
 -- Message query chunks
@@ -297,11 +280,9 @@ CREATE TABLE IF NOT EXISTS chunks (
   metadata TEXT, -- JSON as text
   chunk_index INTEGER,
   type TEXT,
-  client_id TEXT,
   user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
-  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
-  UNIQUE(client_id, user_id)
+  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
 );
 
 -- Unstructured chunks
@@ -313,7 +294,6 @@ CREATE TABLE IF NOT EXISTS unstructured_chunks (
   type TEXT,
   parent_id TEXT,
   composite_id TEXT REFERENCES chunks(id) ON DELETE CASCADE,
-  client_id TEXT,
   user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
   file_id TEXT REFERENCES files(id) ON DELETE CASCADE,
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
@@ -326,9 +306,7 @@ CREATE TABLE IF NOT EXISTS embeddings (
   chunk_id TEXT UNIQUE REFERENCES chunks(id) ON DELETE CASCADE,
   embeddings BLOB, -- Store embeddings as binary data
   model TEXT,
-  client_id TEXT,
-  user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
-  UNIQUE(client_id, user_id)
+  user_id TEXT REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- File chunks junction table
@@ -402,7 +380,6 @@ CREATE TABLE IF NOT EXISTS chat_groups (
   title TEXT,
   description TEXT,
   config TEXT, -- JSON as text
-  client_id TEXT,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   group_id TEXT,
   pinned INTEGER DEFAULT 0 NOT NULL, -- boolean as integer
@@ -432,7 +409,6 @@ CREATE TABLE IF NOT EXISTS message_groups (
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   parent_group_id TEXT REFERENCES message_groups(id) ON DELETE CASCADE,
   parent_message_id TEXT,
-  client_id TEXT,
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
 );
@@ -546,7 +522,6 @@ CREATE TABLE IF NOT EXISTS documents (
   source TEXT NOT NULL,
   file_id TEXT REFERENCES files(id) ON DELETE SET NULL,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  client_id TEXT,
   editor_data TEXT, -- JSON as text
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
@@ -645,122 +620,6 @@ CREATE TABLE IF NOT EXISTS nextauth_authenticators (
   PRIMARY KEY (user_id, credential_id)
 );
 
--- OIDC tables
-CREATE TABLE IF NOT EXISTS oidc_authorization_codes (
-  id TEXT PRIMARY KEY,
-  data TEXT NOT NULL,
-  expires_at INTEGER NOT NULL,
-  consumed_at INTEGER,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  client_id TEXT NOT NULL,
-  grant_id TEXT,
-  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
-  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
-);
-
-CREATE TABLE IF NOT EXISTS oidc_access_tokens (
-  id TEXT PRIMARY KEY,
-  data TEXT NOT NULL,
-  expires_at INTEGER NOT NULL,
-  consumed_at INTEGER,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  client_id TEXT NOT NULL,
-  grant_id TEXT,
-  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
-  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
-);
-
-CREATE TABLE IF NOT EXISTS oidc_refresh_tokens (
-  id TEXT PRIMARY KEY,
-  data TEXT NOT NULL,
-  expires_at INTEGER NOT NULL,
-  consumed_at INTEGER,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  client_id TEXT NOT NULL,
-  grant_id TEXT,
-  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
-  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
-);
-
-CREATE TABLE IF NOT EXISTS oidc_device_codes (
-  id TEXT PRIMARY KEY,
-  data TEXT NOT NULL,
-  expires_at INTEGER NOT NULL,
-  consumed_at INTEGER,
-  user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
-  client_id TEXT NOT NULL,
-  grant_id TEXT,
-  user_code TEXT,
-  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
-  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
-);
-
-CREATE TABLE IF NOT EXISTS oidc_interactions (
-  id TEXT PRIMARY KEY,
-  data TEXT NOT NULL,
-  expires_at INTEGER NOT NULL,
-  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
-  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
-);
-
-CREATE TABLE IF NOT EXISTS oidc_grants (
-  id TEXT PRIMARY KEY,
-  data TEXT NOT NULL,
-  expires_at INTEGER NOT NULL,
-  consumed_at INTEGER,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  client_id TEXT NOT NULL,
-  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
-  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
-);
-
-CREATE TABLE IF NOT EXISTS oidc_clients (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  description TEXT,
-  client_secret TEXT,
-  redirect_uris TEXT NOT NULL,
-  grants TEXT NOT NULL,
-  response_types TEXT NOT NULL,
-  scopes TEXT NOT NULL,
-  token_endpoint_auth_method TEXT,
-  application_type TEXT,
-  client_uri TEXT,
-  logo_uri TEXT,
-  policy_uri TEXT,
-  tos_uri TEXT,
-  is_first_party INTEGER DEFAULT 0 NOT NULL, -- boolean as integer
-  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
-  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
-);
-
-CREATE TABLE IF NOT EXISTS oidc_sessions (
-  id TEXT PRIMARY KEY,
-  data TEXT NOT NULL,
-  expires_at INTEGER NOT NULL,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
-  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
-);
-
-CREATE TABLE IF NOT EXISTS oidc_consents (
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  client_id TEXT NOT NULL REFERENCES oidc_clients(id) ON DELETE CASCADE,
-  scopes TEXT NOT NULL,
-  expires_at INTEGER,
-  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
-  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
-  PRIMARY KEY (user_id, client_id)
-);
-
--- OAuth handoffs
-CREATE TABLE IF NOT EXISTS oauth_handoffs (
-  id TEXT PRIMARY KEY,
-  client TEXT NOT NULL,
-  payload TEXT NOT NULL, -- JSON as text
-  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
-  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
-);
 
 -- Indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
@@ -779,21 +638,17 @@ CREATE INDEX IF NOT EXISTS idx_topics_id_user_id ON topics(id, user_id);
 
 CREATE INDEX IF NOT EXISTS idx_chunks_user_id ON chunks(user_id);
 CREATE INDEX IF NOT EXISTS idx_chunks_document_id ON chunks(document_id);
-CREATE INDEX IF NOT EXISTS idx_chunks_client_id_user_id ON chunks(client_id, user_id);
 
-CREATE INDEX IF NOT EXISTS idx_unstructured_chunks_client_id_user_id ON unstructured_chunks(client_id, user_id);
-
-CREATE INDEX IF NOT EXISTS idx_embeddings_client_id_user_id ON embeddings(client_id, user_id);
 CREATE INDEX IF NOT EXISTS idx_embeddings_chunk_id ON embeddings(chunk_id);
 
 CREATE INDEX IF NOT EXISTS idx_files_file_hash ON files(file_hash);
-CREATE INDEX IF NOT EXISTS idx_files_client_id_user_id ON files(client_id, user_id);
+CREATE INDEX IF NOT EXISTS idx_files_user_id ON files(user_id);
 
-CREATE INDEX IF NOT EXISTS idx_agents_client_id_user_id ON agents(client_id, user_id);
+CREATE INDEX IF NOT EXISTS idx_agents_user_id ON agents(user_id);
 CREATE INDEX IF NOT EXISTS idx_agents_title ON agents(title);
 CREATE INDEX IF NOT EXISTS idx_agents_description ON agents(description);
 
-CREATE INDEX IF NOT EXISTS idx_knowledge_bases_client_id_user_id ON knowledge_bases(client_id, user_id);
+CREATE INDEX IF NOT EXISTS idx_knowledge_bases_user_id ON knowledge_bases(user_id);
 
 CREATE INDEX IF NOT EXISTS idx_documents_source ON documents(source);
 CREATE INDEX IF NOT EXISTS idx_documents_file_type ON documents(file_type);

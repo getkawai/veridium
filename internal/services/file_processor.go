@@ -238,7 +238,6 @@ func (s *FileProcessorService) saveFileMetadata(ctx context.Context, req Process
 		Size:     fileInfo.Size,
 		Url:      req.FilePath,
 		Source:   sql.NullString{String: req.Source, Valid: req.Source != ""},
-		ClientID: sql.NullString{String: req.ClientID, Valid: req.ClientID != ""},
 		Metadata: sql.NullString{Valid: false},
 	})
 

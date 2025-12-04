@@ -44,10 +44,10 @@ func (q *Queries) BatchLinkChatGroupToAgents(ctx context.Context, arg BatchLinkC
 
 const CreateChatGroup = `-- name: CreateChatGroup :one
 INSERT INTO chat_groups (
-    id, title, description, config, client_id, user_id, group_id, pinned,
+    id, title, description, config, user_id, group_id, pinned,
     created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, title, description, config, client_id, user_id, group_id, pinned, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, title, description, config, user_id, group_id, pinned, created_at, updated_at
 `
 
 type CreateChatGroupParams struct {
@@ -55,7 +55,6 @@ type CreateChatGroupParams struct {
 	Title       sql.NullString `json:"title"`
 	Description sql.NullString `json:"description"`
 	Config      sql.NullString `json:"config"`
-	ClientID    sql.NullString `json:"clientId"`
 	UserID      string         `json:"userId"`
 	GroupID     sql.NullString `json:"groupId"`
 	Pinned      int64          `json:"pinned"`
@@ -69,7 +68,6 @@ func (q *Queries) CreateChatGroup(ctx context.Context, arg CreateChatGroupParams
 		arg.Title,
 		arg.Description,
 		arg.Config,
-		arg.ClientID,
 		arg.UserID,
 		arg.GroupID,
 		arg.Pinned,
@@ -82,7 +80,6 @@ func (q *Queries) CreateChatGroup(ctx context.Context, arg CreateChatGroupParams
 		&i.Title,
 		&i.Description,
 		&i.Config,
-		&i.ClientID,
 		&i.UserID,
 		&i.GroupID,
 		&i.Pinned,
@@ -95,9 +92,9 @@ func (q *Queries) CreateChatGroup(ctx context.Context, arg CreateChatGroupParams
 const CreateMessageGroup = `-- name: CreateMessageGroup :one
 INSERT INTO message_groups (
     id, title, description, topic_id, user_id, parent_group_id,
-    parent_message_id, client_id, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, title, description, topic_id, user_id, parent_group_id, parent_message_id, client_id, created_at, updated_at
+    parent_message_id, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, title, description, topic_id, user_id, parent_group_id, parent_message_id, created_at, updated_at
 `
 
 type CreateMessageGroupParams struct {
@@ -108,7 +105,6 @@ type CreateMessageGroupParams struct {
 	UserID          string         `json:"userId"`
 	ParentGroupID   sql.NullString `json:"parentGroupId"`
 	ParentMessageID sql.NullString `json:"parentMessageId"`
-	ClientID        sql.NullString `json:"clientId"`
 	CreatedAt       int64          `json:"createdAt"`
 	UpdatedAt       int64          `json:"updatedAt"`
 }
@@ -122,7 +118,6 @@ func (q *Queries) CreateMessageGroup(ctx context.Context, arg CreateMessageGroup
 		arg.UserID,
 		arg.ParentGroupID,
 		arg.ParentMessageID,
-		arg.ClientID,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
@@ -135,7 +130,6 @@ func (q *Queries) CreateMessageGroup(ctx context.Context, arg CreateMessageGroup
 		&i.UserID,
 		&i.ParentGroupID,
 		&i.ParentMessageID,
-		&i.ClientID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -180,7 +174,7 @@ func (q *Queries) DeleteMessageGroup(ctx context.Context, arg DeleteMessageGroup
 }
 
 const GetChatGroup = `-- name: GetChatGroup :one
-SELECT id, title, description, config, client_id, user_id, group_id, pinned, created_at, updated_at FROM chat_groups WHERE id = ? AND user_id = ?
+SELECT id, title, description, config, user_id, group_id, pinned, created_at, updated_at FROM chat_groups WHERE id = ? AND user_id = ?
 `
 
 type GetChatGroupParams struct {
@@ -196,7 +190,6 @@ func (q *Queries) GetChatGroup(ctx context.Context, arg GetChatGroupParams) (Cha
 		&i.Title,
 		&i.Description,
 		&i.Config,
-		&i.ClientID,
 		&i.UserID,
 		&i.GroupID,
 		&i.Pinned,
@@ -250,7 +243,7 @@ func (q *Queries) GetChatGroupAgentLinks(ctx context.Context, arg GetChatGroupAg
 }
 
 const GetChatGroupAgents = `-- name: GetChatGroupAgents :many
-SELECT a.id, a.slug, a.title, a.description, a.tags, a.avatar, a.background_color, a.plugins, a.client_id, a.user_id, a.chat_config, a.few_shots, a.model, a.params, a.provider, a.system_role, a.tts, a."virtual", a.opening_message, a.opening_questions, a.created_at, a.updated_at FROM agents a
+SELECT a.id, a.slug, a.title, a.description, a.tags, a.avatar, a.background_color, a.plugins, a.user_id, a.chat_config, a.few_shots, a.model, a.params, a.provider, a.system_role, a.tts, a."virtual", a.opening_message, a.opening_questions, a.created_at, a.updated_at FROM agents a
 INNER JOIN chat_groups_agents cga ON a.id = cga.agent_id
 WHERE cga.chat_group_id = ? AND cga.user_id = ?
 ORDER BY cga.sort_order ASC
@@ -279,7 +272,6 @@ func (q *Queries) GetChatGroupAgents(ctx context.Context, arg GetChatGroupAgents
 			&i.Avatar,
 			&i.BackgroundColor,
 			&i.Plugins,
-			&i.ClientID,
 			&i.UserID,
 			&i.ChatConfig,
 			&i.FewShots,
@@ -462,7 +454,7 @@ func (q *Queries) GetEnabledChatGroupAgentLinks(ctx context.Context, arg GetEnab
 
 const GetMessageGroup = `-- name: GetMessageGroup :one
 
-SELECT id, title, description, topic_id, user_id, parent_group_id, parent_message_id, client_id, created_at, updated_at FROM message_groups WHERE id = ? AND user_id = ?
+SELECT id, title, description, topic_id, user_id, parent_group_id, parent_message_id, created_at, updated_at FROM message_groups WHERE id = ? AND user_id = ?
 `
 
 type GetMessageGroupParams struct {
@@ -482,7 +474,6 @@ func (q *Queries) GetMessageGroup(ctx context.Context, arg GetMessageGroupParams
 		&i.UserID,
 		&i.ParentGroupID,
 		&i.ParentMessageID,
-		&i.ClientID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -524,7 +515,7 @@ func (q *Queries) LinkChatGroupToAgent(ctx context.Context, arg LinkChatGroupToA
 }
 
 const ListChatGroups = `-- name: ListChatGroups :many
-SELECT id, title, description, config, client_id, user_id, group_id, pinned, created_at, updated_at FROM chat_groups
+SELECT id, title, description, config, user_id, group_id, pinned, created_at, updated_at FROM chat_groups
 WHERE user_id = ?
 ORDER BY updated_at DESC
 `
@@ -543,7 +534,6 @@ func (q *Queries) ListChatGroups(ctx context.Context, userID string) ([]ChatGrou
 			&i.Title,
 			&i.Description,
 			&i.Config,
-			&i.ClientID,
 			&i.UserID,
 			&i.GroupID,
 			&i.Pinned,
@@ -671,7 +661,7 @@ func (q *Queries) ListChatGroupsWithAgents(ctx context.Context, userID string) (
 }
 
 const ListMessageGroupsByTopic = `-- name: ListMessageGroupsByTopic :many
-SELECT id, title, description, topic_id, user_id, parent_group_id, parent_message_id, client_id, created_at, updated_at FROM message_groups
+SELECT id, title, description, topic_id, user_id, parent_group_id, parent_message_id, created_at, updated_at FROM message_groups
 WHERE topic_id = ? AND user_id = ?
 ORDER BY created_at ASC
 `
@@ -698,7 +688,6 @@ func (q *Queries) ListMessageGroupsByTopic(ctx context.Context, arg ListMessageG
 			&i.UserID,
 			&i.ParentGroupID,
 			&i.ParentMessageID,
-			&i.ClientID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -739,7 +728,7 @@ SET title = ?,
     pinned = ?,
     updated_at = ?
 WHERE id = ? AND user_id = ?
-RETURNING id, title, description, config, client_id, user_id, group_id, pinned, created_at, updated_at
+RETURNING id, title, description, config, user_id, group_id, pinned, created_at, updated_at
 `
 
 type UpdateChatGroupParams struct {
@@ -768,7 +757,6 @@ func (q *Queries) UpdateChatGroup(ctx context.Context, arg UpdateChatGroupParams
 		&i.Title,
 		&i.Description,
 		&i.Config,
-		&i.ClientID,
 		&i.UserID,
 		&i.GroupID,
 		&i.Pinned,

@@ -9,9 +9,8 @@ LIMIT ? OFFSET ?;
 
 -- name: CreateFile :one
 INSERT INTO files (
-    id, user_id, file_type, file_hash, name, size, url, source,
-    client_id, metadata
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    id, user_id, file_type, file_hash, name, size, url, source, metadata
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpdateFile :one
@@ -52,9 +51,9 @@ ORDER BY created_at DESC;
 
 -- name: CreateKnowledgeBase :one
 INSERT INTO knowledge_bases (
-    id, name, description, avatar, type, user_id, client_id,
+    id, name, description, avatar, type, user_id,
     is_public, settings
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpdateKnowledgeBase :one

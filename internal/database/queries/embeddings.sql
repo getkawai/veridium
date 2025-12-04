@@ -8,14 +8,14 @@ ORDER BY created_at DESC;
 
 -- name: CreateEmbeddingsItem :one
 INSERT INTO embeddings (
-    id, chunk_id, embeddings, model, client_id, user_id
-) VALUES (?, ?, ?, ?, ?, ?)
+    id, chunk_id, embeddings, model, user_id
+) VALUES (?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: BulkCreateEmbeddingsItems :exec
 INSERT INTO embeddings (
-    id, chunk_id, embeddings, model, client_id, user_id
-) VALUES (?, ?, ?, ?, ?, ?)
+    id, chunk_id, embeddings, model, user_id
+) VALUES (?, ?, ?, ?, ?)
 ON CONFLICT(chunk_id) DO NOTHING;
 
 -- name: DeleteEmbeddingsItem :exec
