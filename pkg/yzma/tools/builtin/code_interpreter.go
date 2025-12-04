@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
+	"github.com/kawai-network/veridium/types"
 )
 
 // ============================================================================
@@ -211,9 +212,9 @@ func escapeCode(code string) string {
 func RegisterCodeInterpreter(registry *tools.ToolRegistry) error {
 	service := NewCodeInterpreterService()
 
-	tool := &tools.YzmaTool{
+	tool := &types.Tool{
 		Type: "function",
-		Function: tools.YzmaToolFunction{
+		Function: types.ToolFunction{
 			Name:        "lobe-code-interpreter__python",
 			Description: "Execute Python code. Use this to run Python scripts, perform calculations, data analysis, or generate files.",
 			Parameters: map[string]interface{}{

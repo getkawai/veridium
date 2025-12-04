@@ -9,38 +9,20 @@ import (
 	"github.com/kawai-network/veridium/types"
 )
 
-// YzmaTool represents a tool in yzma format
-type YzmaTool struct {
-	Type     string           `json:"type"`
-	Function YzmaToolFunction `json:"function"`
-	Executor ToolExecutor
-	Enabled  bool
-}
-
-// YzmaToolFunction represents a function definition
-type YzmaToolFunction struct {
-	Name        string                 `json:"name"`
-	Description string                 `json:"description"`
-	Parameters  map[string]interface{} `json:"parameters"`
-}
-
-// ToolExecutor is a function that executes a tool
-type ToolExecutor func(ctx context.Context, args map[string]string) (string, error)
-
 // ToolRegistry manages yzma tools
 type ToolRegistry struct {
-	tools map[string]*YzmaTool
+	tools map[string]*types.Tool
 }
 
 // NewToolRegistry creates a new tool registry
 func NewToolRegistry() *ToolRegistry {
 	return &ToolRegistry{
-		tools: make(map[string]*YzmaTool),
+		tools: make(map[string]*types.Tool),
 	}
 }
 
 // Register registers a tool
-func (r *ToolRegistry) Register(tool *YzmaTool) error {
+func (r *ToolRegistry) Register(tool *types.Tool) error {
 	if tool.Function.Name == "" {
 		return fmt.Errorf("tool name is required")
 	}
@@ -53,14 +35,14 @@ func (r *ToolRegistry) Register(tool *YzmaTool) error {
 }
 
 // Get retrieves a tool by name
-func (r *ToolRegistry) Get(name string) (*YzmaTool, bool) {
+func (r *ToolRegistry) Get(name string) (*types.Tool, bool) {
 	tool, ok := r.tools[name]
 	return tool, ok
 }
 
 // GetAll returns all tools
-func (r *ToolRegistry) GetAll() []*YzmaTool {
-	tools := make([]*YzmaTool, 0, len(r.tools))
+func (r *ToolRegistry) GetAll() []*types.Tool {
+	tools := make([]*types.Tool, 0, len(r.tools))
 	for _, t := range r.tools {
 		tools = append(tools, t)
 	}
@@ -68,8 +50,8 @@ func (r *ToolRegistry) GetAll() []*YzmaTool {
 }
 
 // GetEnabled returns all enabled tools
-func (r *ToolRegistry) GetEnabled() []*YzmaTool {
-	tools := make([]*YzmaTool, 0, len(r.tools))
+func (r *ToolRegistry) GetEnabled() []*types.Tool {
+	tools := make([]*types.Tool, 0, len(r.tools))
 	for _, t := range r.tools {
 		if t.Enabled {
 			tools = append(tools, t)
@@ -79,12 +61,12 @@ func (r *ToolRegistry) GetEnabled() []*YzmaTool {
 }
 
 // GetByNames returns tools by names (or all enabled if empty)
-func (r *ToolRegistry) GetByNames(names []string) []*YzmaTool {
+func (r *ToolRegistry) GetByNames(names []string) []*types.Tool {
 	if len(names) == 0 {
 		return r.GetEnabled()
 	}
 
-	tools := make([]*YzmaTool, 0, len(names))
+	tools := make([]*types.Tool, 0, len(names))
 	for _, name := range names {
 		if tool, ok := r.tools[name]; ok && tool.Enabled {
 			tools = append(tools, tool)

@@ -1123,9 +1123,9 @@ func (s *AgentChatService) registerKBSearchTool(ctx context.Context, kbID, userI
 
 	// Create yzma tool
 	kbService := s.kbService
-	tool := &tools.YzmaTool{
+	tool := &types.Tool{
 		Type: "function",
-		Function: tools.YzmaToolFunction{
+		Function: types.ToolFunction{
 			Name:        toolName,
 			Description: fmt.Sprintf("Search the %s knowledge base for relevant information", kb.Name),
 			Parameters: map[string]interface{}{

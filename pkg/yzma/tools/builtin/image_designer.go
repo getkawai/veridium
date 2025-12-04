@@ -17,6 +17,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/kawai-network/veridium/internal/stablediffusion"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
+	"github.com/kawai-network/veridium/types"
 )
 
 // ============================================================================
@@ -271,9 +272,9 @@ func truncateString(s string, maxLen int) string {
 func RegisterImageDesigner(registry *tools.ToolRegistry) error {
 	service := NewImageDesignerService()
 
-	tool := &tools.YzmaTool{
+	tool := &types.Tool{
 		Type: "function",
-		Function: tools.YzmaToolFunction{
+		Function: types.ToolFunction{
 			Name:        "lobe-image-designer__text2image",
 			Description: "Create images from text prompts using AI image generation. Generate up to 4 diverse images based on the description.",
 			Parameters: map[string]interface{}{

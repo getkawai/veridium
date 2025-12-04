@@ -16,20 +16,35 @@
 
 package types
 
+import "context"
+
 // ============================================================================
 // Tool Types
 // ============================================================================
 
-// ToolFunction represents a function within a tool call.
+// ToolExecutor is a function that executes a tool
+type ToolExecutor func(ctx context.Context, args map[string]string) (string, error)
+
+// ToolFunction represents both tool definition and tool call
 type ToolFunction struct {
-	Name      string
-	Arguments map[string]string
+	Name        string                 `json:"name"`
+	Description string                 `json:"description,omitempty"` // For definition
+	Parameters  map[string]interface{} `json:"parameters,omitempty"`  // For definition (schema)
+	Arguments   map[string]string      `json:"arguments,omitempty"`   // For call (values)
 }
 
-// ToolCall represents a call to a tool function within a tool message.
+// Tool represents a tool (definition + executor)
+type Tool struct {
+	Type     string       `json:"type"`
+	Function ToolFunction `json:"function"`
+	Executor ToolExecutor `json:"-"`
+	Enabled  bool         `json:"-"`
+}
+
+// ToolCall represents a tool call from LLM
 type ToolCall struct {
-	Type     string
-	Function ToolFunction
+	Type     string       `json:"type"`
+	Function ToolFunction `json:"function"`
 }
 
 // ============================================================================

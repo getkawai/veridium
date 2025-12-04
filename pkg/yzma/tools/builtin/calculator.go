@@ -6,13 +6,14 @@ import (
 
 	"github.com/Knetic/govaluate"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
+	"github.com/kawai-network/veridium/types"
 )
 
 // RegisterCalculator registers the calculator tool
 func RegisterCalculator(registry *tools.ToolRegistry) error {
-	tool := &tools.YzmaTool{
+	tool := &types.Tool{
 		Type: "function",
-		Function: tools.YzmaToolFunction{
+		Function: types.ToolFunction{
 			Name:        "calculator",
 			Description: "Perform mathematical calculations. Supports: +, -, *, /, sqrt(), sin(), cos(), tan(), pow(), pi, e",
 			Parameters: map[string]interface{}{
@@ -31,25 +32,24 @@ func RegisterCalculator(registry *tools.ToolRegistry) error {
 			if !ok || expression == "" {
 				return "", fmt.Errorf("expression parameter is required")
 			}
-			
+
 			// Create evaluator with math functions
 			expr, err := govaluate.NewEvaluableExpression(expression)
 			if err != nil {
 				return "", fmt.Errorf("invalid expression: %w", err)
 			}
-			
+
 			// Evaluate expression
 			result, err := expr.Evaluate(nil)
 			if err != nil {
 				return "", fmt.Errorf("evaluation failed: %w", err)
 			}
-			
+
 			// Format result
 			return fmt.Sprintf("%v", result), nil
 		},
 		Enabled: true,
 	}
-	
+
 	return registry.Register(tool)
 }
-

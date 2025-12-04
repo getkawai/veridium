@@ -8,15 +8,16 @@ import (
 
 	"github.com/kawai-network/veridium/internal/search"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
+	"github.com/kawai-network/veridium/types"
 )
 
 // RegisterWebSearch registers the web search tool
 func RegisterWebSearch(registry *tools.ToolRegistry) error {
 	searchService := search.NewService()
-	
-	tool := &tools.YzmaTool{
+
+	tool := &types.Tool{
 		Type: "function",
-		Function: tools.YzmaToolFunction{
+		Function: types.ToolFunction{
 			Name:        "web_search",
 			Description: "Search the web for current information using Brave Search. Returns real-time search results with titles, URLs, and descriptions.",
 			Parameters: map[string]interface{}{
@@ -39,7 +40,7 @@ func RegisterWebSearch(registry *tools.ToolRegistry) error {
 			if !ok || query == "" {
 				return "", fmt.Errorf("query parameter is required")
 			}
-			
+
 			maxResults := 10
 			if maxStr, ok := args["max_results"]; ok && maxStr != "" {
 				// Parse max_results if provided
@@ -48,7 +49,7 @@ func RegisterWebSearch(registry *tools.ToolRegistry) error {
 					maxResults = mr
 				}
 			}
-			
+
 			// Use real Brave Search API
 			searchQuery := search.SearchQuery{
 				Query:            query,
@@ -56,13 +57,13 @@ func RegisterWebSearch(registry *tools.ToolRegistry) error {
 				SearchEngines:    []string{},
 				SearchTimeRange:  "anytime",
 			}
-			
+
 			response, err := searchService.WebSearch(searchQuery)
 			if err != nil {
 				log.Printf("⚠️  Web search failed: %v", err)
 				return "", fmt.Errorf("search failed: %w", err)
 			}
-			
+
 			// Format results for LLM
 			results := make([]map[string]interface{}, 0, len(response.Results))
 			for i, result := range response.Results {
@@ -75,24 +76,23 @@ func RegisterWebSearch(registry *tools.ToolRegistry) error {
 					"snippet": result.Content,
 				})
 			}
-			
+
 			resultData := map[string]interface{}{
 				"query":       query,
 				"results":     results,
 				"count":       len(results),
 				"max_results": maxResults,
 			}
-			
+
 			resultJSON, err := json.Marshal(resultData)
 			if err != nil {
 				return "", fmt.Errorf("failed to marshal results: %w", err)
 			}
-			
+
 			return string(resultJSON), nil
 		},
 		Enabled: true,
 	}
-	
+
 	return registry.Register(tool)
 }
-
