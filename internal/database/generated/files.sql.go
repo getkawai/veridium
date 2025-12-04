@@ -11,24 +11,18 @@ import (
 )
 
 const BatchLinkKnowledgeBaseToFiles = `-- name: BatchLinkKnowledgeBaseToFiles :exec
-INSERT INTO knowledge_base_files (knowledge_base_id, file_id, user_id, created_at)
-VALUES (?, ?, ?, ?)
+INSERT INTO knowledge_base_files (knowledge_base_id, file_id, user_id)
+VALUES (?, ?, ?)
 `
 
 type BatchLinkKnowledgeBaseToFilesParams struct {
 	KnowledgeBaseID string `json:"knowledgeBaseId"`
 	FileID          string `json:"fileId"`
 	UserID          string `json:"userId"`
-	CreatedAt       int64  `json:"createdAt"`
 }
 
 func (q *Queries) BatchLinkKnowledgeBaseToFiles(ctx context.Context, arg BatchLinkKnowledgeBaseToFilesParams) error {
-	_, err := q.db.ExecContext(ctx, BatchLinkKnowledgeBaseToFiles,
-		arg.KnowledgeBaseID,
-		arg.FileID,
-		arg.UserID,
-		arg.CreatedAt,
-	)
+	_, err := q.db.ExecContext(ctx, BatchLinkKnowledgeBaseToFiles, arg.KnowledgeBaseID, arg.FileID, arg.UserID)
 	return err
 }
 
@@ -78,9 +72,8 @@ func (q *Queries) CountFilesUsage(ctx context.Context, userID string) (interface
 const CreateFile = `-- name: CreateFile :one
 INSERT INTO files (
     id, user_id, file_type, file_hash, name, size, url, source,
-    client_id, metadata, chunk_task_id, embedding_task_id,
-    created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    client_id, metadata, chunk_task_id, embedding_task_id
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id, user_id, file_type, file_hash, name, size, url, source, client_id, metadata, chunk_task_id, embedding_task_id, created_at, updated_at
 `
 
@@ -97,8 +90,6 @@ type CreateFileParams struct {
 	Metadata        sql.NullString `json:"metadata"`
 	ChunkTaskID     sql.NullString `json:"chunkTaskId"`
 	EmbeddingTaskID sql.NullString `json:"embeddingTaskId"`
-	CreatedAt       int64          `json:"createdAt"`
-	UpdatedAt       int64          `json:"updatedAt"`
 }
 
 func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (File, error) {
@@ -115,8 +106,6 @@ func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (File, e
 		arg.Metadata,
 		arg.ChunkTaskID,
 		arg.EmbeddingTaskID,
-		arg.CreatedAt,
-		arg.UpdatedAt,
 	)
 	var i File
 	err := row.Scan(
@@ -181,8 +170,8 @@ func (q *Queries) CreateGlobalFile(ctx context.Context, arg CreateGlobalFilePara
 const CreateKnowledgeBase = `-- name: CreateKnowledgeBase :one
 INSERT INTO knowledge_bases (
     id, name, description, avatar, type, user_id, client_id,
-    is_public, settings, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    is_public, settings
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id, name, description, avatar, type, user_id, client_id, is_public, settings, created_at, updated_at
 `
 
@@ -196,8 +185,6 @@ type CreateKnowledgeBaseParams struct {
 	ClientID    sql.NullString `json:"clientId"`
 	IsPublic    int64          `json:"isPublic"`
 	Settings    sql.NullString `json:"settings"`
-	CreatedAt   int64          `json:"createdAt"`
-	UpdatedAt   int64          `json:"updatedAt"`
 }
 
 func (q *Queries) CreateKnowledgeBase(ctx context.Context, arg CreateKnowledgeBaseParams) (KnowledgeBasis, error) {
@@ -211,8 +198,6 @@ func (q *Queries) CreateKnowledgeBase(ctx context.Context, arg CreateKnowledgeBa
 		arg.ClientID,
 		arg.IsPublic,
 		arg.Settings,
-		arg.CreatedAt,
-		arg.UpdatedAt,
 	)
 	var i KnowledgeBasis
 	err := row.Scan(
@@ -668,25 +653,19 @@ func (q *Queries) LinkFileToSession(ctx context.Context, arg LinkFileToSessionPa
 
 const LinkKnowledgeBaseToFile = `-- name: LinkKnowledgeBaseToFile :exec
 
-INSERT INTO knowledge_base_files (knowledge_base_id, file_id, user_id, created_at)
-VALUES (?, ?, ?, ?)
+INSERT INTO knowledge_base_files (knowledge_base_id, file_id, user_id)
+VALUES (?, ?, ?)
 `
 
 type LinkKnowledgeBaseToFileParams struct {
 	KnowledgeBaseID string `json:"knowledgeBaseId"`
 	FileID          string `json:"fileId"`
 	UserID          string `json:"userId"`
-	CreatedAt       int64  `json:"createdAt"`
 }
 
 // Knowledge Base Files
 func (q *Queries) LinkKnowledgeBaseToFile(ctx context.Context, arg LinkKnowledgeBaseToFileParams) error {
-	_, err := q.db.ExecContext(ctx, LinkKnowledgeBaseToFile,
-		arg.KnowledgeBaseID,
-		arg.FileID,
-		arg.UserID,
-		arg.CreatedAt,
-	)
+	_, err := q.db.ExecContext(ctx, LinkKnowledgeBaseToFile, arg.KnowledgeBaseID, arg.FileID, arg.UserID)
 	return err
 }
 

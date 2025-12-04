@@ -10,9 +10,8 @@ LIMIT ? OFFSET ?;
 -- name: CreateFile :one
 INSERT INTO files (
     id, user_id, file_type, file_hash, name, size, url, source,
-    client_id, metadata, chunk_task_id, embedding_task_id,
-    created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    client_id, metadata, chunk_task_id, embedding_task_id
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpdateFile :one
@@ -54,8 +53,8 @@ ORDER BY created_at DESC;
 -- name: CreateKnowledgeBase :one
 INSERT INTO knowledge_bases (
     id, name, description, avatar, type, user_id, client_id,
-    is_public, settings, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    is_public, settings
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpdateKnowledgeBase :one
@@ -75,14 +74,14 @@ DELETE FROM knowledge_bases WHERE id = ? AND user_id = ?;
 DELETE FROM knowledge_bases WHERE user_id = ?;
 
 -- name: BatchLinkKnowledgeBaseToFiles :exec
-INSERT INTO knowledge_base_files (knowledge_base_id, file_id, user_id, created_at)
-VALUES (?, ?, ?, ?);
+INSERT INTO knowledge_base_files (knowledge_base_id, file_id, user_id)
+VALUES (?, ?, ?);
 
 -- Knowledge Base Files
 
 -- name: LinkKnowledgeBaseToFile :exec
-INSERT INTO knowledge_base_files (knowledge_base_id, file_id, user_id, created_at)
-VALUES (?, ?, ?, ?);
+INSERT INTO knowledge_base_files (knowledge_base_id, file_id, user_id)
+VALUES (?, ?, ?);
 
 -- name: ListKnowledgeBaseFiles :many
 SELECT * FROM knowledge_base_files

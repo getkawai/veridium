@@ -12,8 +12,8 @@ LIMIT ? OFFSET ?;
 -- name: CreateChunk :one
 INSERT INTO chunks (
     id, document_id, text, abstract, metadata, chunk_index, type, client_id,
-    user_id, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    user_id
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: GetChunksByDocumentID :many
@@ -63,8 +63,8 @@ ORDER BY chunk_index ASC;
 -- name: CreateUnstructuredChunk :one
 INSERT INTO unstructured_chunks (
     id, text, metadata, chunk_index, type, parent_id, composite_id,
-    client_id, user_id, file_id, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    client_id, user_id, file_id
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: DeleteUnstructuredChunk :exec
@@ -73,8 +73,8 @@ DELETE FROM unstructured_chunks WHERE id = ? AND user_id = ?;
 -- File Chunks
 
 -- name: LinkFileToChunk :exec
-INSERT INTO file_chunks (file_id, chunk_id, created_at, user_id)
-VALUES (?, ?, ?, ?);
+INSERT INTO file_chunks (file_id, chunk_id, user_id)
+VALUES (?, ?, ?);
 
 -- name: UnlinkFileFromChunk :exec
 DELETE FROM file_chunks
@@ -182,8 +182,8 @@ ORDER BY created_at DESC;
 
 -- name: CreateRagEvalDataset :one
 INSERT INTO rag_eval_datasets (
-    id, name, description, user_id, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?)
+    id, name, description, user_id
+) VALUES (?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpdateRagEvalDataset :exec
@@ -207,8 +207,8 @@ ORDER BY created_at ASC;
 -- name: CreateRagEvalDatasetRecord :one
 INSERT INTO rag_eval_dataset_records (
     id, dataset_id, query, reference_answer, reference_contexts,
-    metadata, user_id, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    metadata, user_id
+) VALUES (?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpdateRagEvalDatasetRecord :exec
@@ -228,8 +228,8 @@ DELETE FROM rag_eval_dataset_records WHERE id = ? AND user_id = ?;
 -- name: CreateRagEvalEvaluation :one
 INSERT INTO rag_eval_evaluations (
     id, name, dataset_id, config, status,
-    user_id, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    user_id
+) VALUES (?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: GetRagEvalEvaluation :one
@@ -257,8 +257,8 @@ DELETE FROM rag_eval_evaluations WHERE id = ? AND user_id = ?;
 INSERT INTO rag_eval_evaluation_records (
     id, evaluation_id, dataset_record_id,
     retrieved_contexts, generated_answer, metrics,
-    user_id, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    user_id
+) VALUES (?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: GetRagEvalEvaluationRecord :one

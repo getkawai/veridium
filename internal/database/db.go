@@ -328,7 +328,6 @@ func (s *Service) CreateFileWithLinks(ctx context.Context, params CreateFileWith
 				KnowledgeBaseID: *params.KnowledgeBase,
 				FileID:          file.ID,
 				UserID:          params.File.UserID,
-				CreatedAt:       params.File.CreatedAt,
 			})
 			if err != nil {
 				return fmt.Errorf("failed to link to knowledge base: %w", err)

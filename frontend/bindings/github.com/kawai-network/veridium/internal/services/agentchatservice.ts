@@ -13,6 +13,9 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as llm$0 from "../llm/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as message$0 from "../../pkg/yzma/message/models.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -113,7 +116,7 @@ export function ClearSession(sessionID: string): $CancellablePromise<void> {
 /**
  * GetLLMGenerator returns the current LLM generator
  */
-export function GetLLMGenerator(): $CancellablePromise<$models.llm.Provider> {
+export function GetLLMGenerator(): $CancellablePromise<llm$0.Provider> {
     return $Call.ByID(1599155355);
 }
 
@@ -163,7 +166,7 @@ export function GetStreamEventPayloadType(): $CancellablePromise<$models.StreamE
 /**
  * SetLLMGenerator sets a custom LLM generator (useful for testing with mocks)
  */
-export function SetLLMGenerator(generator: $models.llm.Provider): $CancellablePromise<void> {
+export function SetLLMGenerator(generator: llm$0.Provider): $CancellablePromise<void> {
     return $Call.ByID(3521022399, generator);
 }
 

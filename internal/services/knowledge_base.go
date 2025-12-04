@@ -73,7 +73,6 @@ func (s *KnowledgeBaseService) CreateKnowledgeBase(ctx context.Context, name, de
 	kbID := uuid.New().String()
 
 	// Create KB record in SQLite
-	now := time.Now().Unix() * 1000 // timestamp in milliseconds
 	_, err := s.dbService.Queries().CreateKnowledgeBase(ctx, db.CreateKnowledgeBaseParams{
 		ID:          kbID,
 		Name:        name,
@@ -84,8 +83,6 @@ func (s *KnowledgeBaseService) CreateKnowledgeBase(ctx context.Context, name, de
 		ClientID:    sql.NullString{},
 		IsPublic:    0,
 		Settings:    sql.NullString{String: "{}", Valid: true},
-		CreatedAt:   now,
-		UpdatedAt:   now,
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to create knowledge base: %w", err)
@@ -161,18 +158,16 @@ func (s *KnowledgeBaseService) AddFileToKnowledgeBase(ctx context.Context, kbID,
 	fileID := uuid.New().String()
 
 	file, err := s.dbService.Queries().CreateFile(ctx, db.CreateFileParams{
-		ID:        fileID,
-		UserID:    userID,
-		FileType:  fileExt,
-		FileHash:  sql.NullString{},
-		Name:      fileName,
-		Size:      fileInfo.Size(),
-		Url:       filePath,
-		Source:    sql.NullString{},
-		ClientID:  sql.NullString{},
-		Metadata:  sql.NullString{String: "{}", Valid: true},
-		CreatedAt: now,
-		UpdatedAt: now,
+		ID:       fileID,
+		UserID:   userID,
+		FileType: fileExt,
+		FileHash: sql.NullString{},
+		Name:     fileName,
+		Size:     fileInfo.Size(),
+		Url:      filePath,
+		Source:   sql.NullString{},
+		ClientID: sql.NullString{},
+		Metadata: sql.NullString{String: "{}", Valid: true},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create file record: %w", err)
@@ -220,7 +215,6 @@ func (s *KnowledgeBaseService) AddFileToKnowledgeBase(ctx context.Context, kbID,
 		KnowledgeBaseID: kbID,
 		FileID:          file.ID,
 		UserID:          userID,
-		CreatedAt:       now,
 	}); err != nil {
 		return fmt.Errorf("failed to link file to KB: %w", err)
 	}

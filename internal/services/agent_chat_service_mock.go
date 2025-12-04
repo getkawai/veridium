@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/internal/search"
 	"github.com/kawai-network/veridium/pkg/localfs"
 	"github.com/kawai-network/veridium/pkg/yzma/tools/builtin"
@@ -335,9 +336,9 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) ([]UIC
 		MessageID: assistantMsgID,
 		UserQuery: req.Message,
 		UserID:    req.UserID,
-		Files: []RAGFileParams{
-			{ID: file1ID, Name: "document.pdf", FileType: "application/pdf", URL: "", Size: 1024000},
-			{ID: file2ID, Name: "guide.md", FileType: "text/markdown", URL: "", Size: 2048},
+		Files: []db.CreateFileParams{
+			{ID: file1ID, Name: "document.pdf", FileType: "application/pdf", Url: "", Size: 1024000},
+			{ID: file2ID, Name: "guide.md", FileType: "text/markdown", Url: "", Size: 2048},
 		},
 		Chunks: []RAGChunkParams{
 			{ID: chunk1ID, FileID: file1ID, Text: "This is a sample chunk from the knowledge base. It contains relevant information about the topic.", ChunkIndex: 0, Type: "text", Similarity: 95},

@@ -117,8 +117,8 @@ func (q *Queries) CountChunksByFileIds(ctx context.Context, userID string) ([]Co
 const CreateChunk = `-- name: CreateChunk :one
 INSERT INTO chunks (
     id, document_id, text, abstract, metadata, chunk_index, type, client_id,
-    user_id, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    user_id
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id, document_id, text, abstract, metadata, chunk_index, type, client_id, user_id, created_at, updated_at
 `
 
@@ -132,8 +132,6 @@ type CreateChunkParams struct {
 	Type       sql.NullString `json:"type"`
 	ClientID   sql.NullString `json:"clientId"`
 	UserID     sql.NullString `json:"userId"`
-	CreatedAt  int64          `json:"createdAt"`
-	UpdatedAt  int64          `json:"updatedAt"`
 }
 
 func (q *Queries) CreateChunk(ctx context.Context, arg CreateChunkParams) (Chunk, error) {
@@ -147,8 +145,6 @@ func (q *Queries) CreateChunk(ctx context.Context, arg CreateChunkParams) (Chunk
 		arg.Type,
 		arg.ClientID,
 		arg.UserID,
-		arg.CreatedAt,
-		arg.UpdatedAt,
 	)
 	var i Chunk
 	err := row.Scan(
@@ -206,8 +202,8 @@ func (q *Queries) CreateEmbedding(ctx context.Context, arg CreateEmbeddingParams
 
 const CreateRagEvalDataset = `-- name: CreateRagEvalDataset :one
 INSERT INTO rag_eval_datasets (
-    id, name, description, user_id, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?)
+    id, name, description, user_id
+) VALUES (?, ?, ?, ?)
 RETURNING id, name, description, user_id, created_at, updated_at
 `
 
@@ -216,8 +212,6 @@ type CreateRagEvalDatasetParams struct {
 	Name        string         `json:"name"`
 	Description sql.NullString `json:"description"`
 	UserID      string         `json:"userId"`
-	CreatedAt   int64          `json:"createdAt"`
-	UpdatedAt   int64          `json:"updatedAt"`
 }
 
 func (q *Queries) CreateRagEvalDataset(ctx context.Context, arg CreateRagEvalDatasetParams) (RagEvalDataset, error) {
@@ -226,8 +220,6 @@ func (q *Queries) CreateRagEvalDataset(ctx context.Context, arg CreateRagEvalDat
 		arg.Name,
 		arg.Description,
 		arg.UserID,
-		arg.CreatedAt,
-		arg.UpdatedAt,
 	)
 	var i RagEvalDataset
 	err := row.Scan(
@@ -244,8 +236,8 @@ func (q *Queries) CreateRagEvalDataset(ctx context.Context, arg CreateRagEvalDat
 const CreateRagEvalDatasetRecord = `-- name: CreateRagEvalDatasetRecord :one
 INSERT INTO rag_eval_dataset_records (
     id, dataset_id, query, reference_answer, reference_contexts,
-    metadata, user_id, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    metadata, user_id
+) VALUES (?, ?, ?, ?, ?, ?, ?)
 RETURNING id, dataset_id, "query", reference_answer, reference_contexts, metadata, user_id, created_at, updated_at
 `
 
@@ -257,8 +249,6 @@ type CreateRagEvalDatasetRecordParams struct {
 	ReferenceContexts sql.NullString `json:"referenceContexts"`
 	Metadata          sql.NullString `json:"metadata"`
 	UserID            string         `json:"userId"`
-	CreatedAt         int64          `json:"createdAt"`
-	UpdatedAt         int64          `json:"updatedAt"`
 }
 
 func (q *Queries) CreateRagEvalDatasetRecord(ctx context.Context, arg CreateRagEvalDatasetRecordParams) (RagEvalDatasetRecord, error) {
@@ -270,8 +260,6 @@ func (q *Queries) CreateRagEvalDatasetRecord(ctx context.Context, arg CreateRagE
 		arg.ReferenceContexts,
 		arg.Metadata,
 		arg.UserID,
-		arg.CreatedAt,
-		arg.UpdatedAt,
 	)
 	var i RagEvalDatasetRecord
 	err := row.Scan(
@@ -292,8 +280,8 @@ const CreateRagEvalEvaluation = `-- name: CreateRagEvalEvaluation :one
 
 INSERT INTO rag_eval_evaluations (
     id, name, dataset_id, config, status,
-    user_id, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    user_id
+) VALUES (?, ?, ?, ?, ?, ?)
 RETURNING id, name, dataset_id, config, status, user_id, created_at, updated_at
 `
 
@@ -304,8 +292,6 @@ type CreateRagEvalEvaluationParams struct {
 	Config    sql.NullString `json:"config"`
 	Status    string         `json:"status"`
 	UserID    string         `json:"userId"`
-	CreatedAt int64          `json:"createdAt"`
-	UpdatedAt int64          `json:"updatedAt"`
 }
 
 // RAG Eval Evaluations
@@ -317,8 +303,6 @@ func (q *Queries) CreateRagEvalEvaluation(ctx context.Context, arg CreateRagEval
 		arg.Config,
 		arg.Status,
 		arg.UserID,
-		arg.CreatedAt,
-		arg.UpdatedAt,
 	)
 	var i RagEvalEvaluation
 	err := row.Scan(
@@ -339,8 +323,8 @@ const CreateRagEvalEvaluationRecord = `-- name: CreateRagEvalEvaluationRecord :o
 INSERT INTO rag_eval_evaluation_records (
     id, evaluation_id, dataset_record_id,
     retrieved_contexts, generated_answer, metrics,
-    user_id, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    user_id
+) VALUES (?, ?, ?, ?, ?, ?, ?)
 RETURNING id, evaluation_id, dataset_record_id, retrieved_contexts, generated_answer, metrics, user_id, created_at, updated_at
 `
 
@@ -352,8 +336,6 @@ type CreateRagEvalEvaluationRecordParams struct {
 	GeneratedAnswer   sql.NullString `json:"generatedAnswer"`
 	Metrics           sql.NullString `json:"metrics"`
 	UserID            string         `json:"userId"`
-	CreatedAt         int64          `json:"createdAt"`
-	UpdatedAt         int64          `json:"updatedAt"`
 }
 
 // RAG Eval Evaluation Records
@@ -366,8 +348,6 @@ func (q *Queries) CreateRagEvalEvaluationRecord(ctx context.Context, arg CreateR
 		arg.GeneratedAnswer,
 		arg.Metrics,
 		arg.UserID,
-		arg.CreatedAt,
-		arg.UpdatedAt,
 	)
 	var i RagEvalEvaluationRecord
 	err := row.Scan(
@@ -387,8 +367,8 @@ func (q *Queries) CreateRagEvalEvaluationRecord(ctx context.Context, arg CreateR
 const CreateUnstructuredChunk = `-- name: CreateUnstructuredChunk :one
 INSERT INTO unstructured_chunks (
     id, text, metadata, chunk_index, type, parent_id, composite_id,
-    client_id, user_id, file_id, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    client_id, user_id, file_id
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id, text, metadata, chunk_index, type, parent_id, composite_id, client_id, user_id, file_id, created_at, updated_at
 `
 
@@ -403,8 +383,6 @@ type CreateUnstructuredChunkParams struct {
 	ClientID    sql.NullString `json:"clientId"`
 	UserID      sql.NullString `json:"userId"`
 	FileID      sql.NullString `json:"fileId"`
-	CreatedAt   int64          `json:"createdAt"`
-	UpdatedAt   int64          `json:"updatedAt"`
 }
 
 func (q *Queries) CreateUnstructuredChunk(ctx context.Context, arg CreateUnstructuredChunkParams) (UnstructuredChunk, error) {
@@ -419,8 +397,6 @@ func (q *Queries) CreateUnstructuredChunk(ctx context.Context, arg CreateUnstruc
 		arg.ClientID,
 		arg.UserID,
 		arg.FileID,
-		arg.CreatedAt,
-		arg.UpdatedAt,
 	)
 	var i UnstructuredChunk
 	err := row.Scan(
@@ -1197,25 +1173,19 @@ func (q *Queries) GetUnstructuredChunk(ctx context.Context, arg GetUnstructuredC
 
 const LinkFileToChunk = `-- name: LinkFileToChunk :exec
 
-INSERT INTO file_chunks (file_id, chunk_id, created_at, user_id)
-VALUES (?, ?, ?, ?)
+INSERT INTO file_chunks (file_id, chunk_id, user_id)
+VALUES (?, ?, ?)
 `
 
 type LinkFileToChunkParams struct {
-	FileID    sql.NullString `json:"fileId"`
-	ChunkID   sql.NullString `json:"chunkId"`
-	CreatedAt int64          `json:"createdAt"`
-	UserID    string         `json:"userId"`
+	FileID  sql.NullString `json:"fileId"`
+	ChunkID sql.NullString `json:"chunkId"`
+	UserID  string         `json:"userId"`
 }
 
 // File Chunks
 func (q *Queries) LinkFileToChunk(ctx context.Context, arg LinkFileToChunkParams) error {
-	_, err := q.db.ExecContext(ctx, LinkFileToChunk,
-		arg.FileID,
-		arg.ChunkID,
-		arg.CreatedAt,
-		arg.UserID,
-	)
+	_, err := q.db.ExecContext(ctx, LinkFileToChunk, arg.FileID, arg.ChunkID, arg.UserID)
 	return err
 }
 

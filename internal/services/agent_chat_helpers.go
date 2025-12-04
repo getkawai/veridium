@@ -135,23 +135,14 @@ type SaveRAGDataParams struct {
 	MessageID string
 	UserQuery string
 	UserID    string
-	Files     []RAGFileParams
+	Files     []db.CreateFileParams
 	Chunks    []RAGChunkParams
-}
-
-// RAGFileParams contains parameters for a single file
-type RAGFileParams struct {
-	ID       string
-	Name     string
-	FileType string
-	URL      string
-	Size     int64
 }
 
 // RAGChunkParams contains parameters for a single chunk with its file link
 type RAGChunkParams struct {
 	ID         string
-	FileID     string // Links to RAGFileParams.ID
+	FileID     string // Links to db.CreateFileParams.ID
 	Text       string
 	ChunkIndex int64
 	Type       string
@@ -438,21 +429,9 @@ func (s *AgentChatService) saveToolMessage(ctx context.Context, params SaveToolM
 
 // saveRAGData saves RAG-related data (files, chunks, and links them to a message)
 func (s *AgentChatService) saveRAGData(ctx context.Context, params SaveRAGDataParams) error {
-	now := time.Now().UnixMilli()
-
 	// 1. Create files
 	for _, file := range params.Files {
-		fileParams := db.CreateFileParams{
-			ID:        file.ID,
-			Name:      file.Name,
-			FileType:  file.FileType,
-			Url:       file.URL,
-			Size:      file.Size,
-			UserID:    params.UserID,
-			CreatedAt: now,
-			UpdatedAt: now,
-		}
-		_, err := s.db.Queries().CreateFile(ctx, fileParams)
+		_, err := s.db.Queries().CreateFile(ctx, file)
 		if err != nil {
 			log.Printf("⚠️  Failed to create file %s: %v", file.ID, err)
 		}
@@ -466,8 +445,6 @@ func (s *AgentChatService) saveRAGData(ctx context.Context, params SaveRAGDataPa
 			ChunkIndex: sql.NullInt64{Int64: chunk.ChunkIndex, Valid: true},
 			Type:       sql.NullString{String: chunk.Type, Valid: true},
 			UserID:     sql.NullString{String: params.UserID, Valid: true},
-			CreatedAt:  now,
-			UpdatedAt:  now,
 		}
 		_, err := s.db.Queries().CreateChunk(ctx, chunkParams)
 		if err != nil {
@@ -478,10 +455,9 @@ func (s *AgentChatService) saveRAGData(ctx context.Context, params SaveRAGDataPa
 		// Link chunk to file
 		if chunk.FileID != "" {
 			err = s.db.Queries().LinkFileToChunk(ctx, db.LinkFileToChunkParams{
-				FileID:    sql.NullString{String: chunk.FileID, Valid: true},
-				ChunkID:   sql.NullString{String: chunk.ID, Valid: true},
-				CreatedAt: now,
-				UserID:    params.UserID,
+				FileID:  sql.NullString{String: chunk.FileID, Valid: true},
+				ChunkID: sql.NullString{String: chunk.ID, Valid: true},
+				UserID:  params.UserID,
 			})
 			if err != nil {
 				log.Printf("⚠️  Failed to link file %s to chunk %s: %v", chunk.FileID, chunk.ID, err)

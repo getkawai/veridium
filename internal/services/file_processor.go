@@ -242,8 +242,6 @@ func (s *FileProcessorService) saveFileMetadata(ctx context.Context, req Process
 		Metadata:        sql.NullString{Valid: false},
 		ChunkTaskID:     sql.NullString{Valid: false},
 		EmbeddingTaskID: sql.NullString{Valid: false},
-		CreatedAt:       now,
-		UpdatedAt:       now,
 	})
 
 	if err != nil {

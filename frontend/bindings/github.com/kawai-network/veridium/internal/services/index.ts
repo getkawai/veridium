@@ -51,7 +51,3 @@ export {
     UIChatMessage,
     UIMessageRoleType
 } from "./models.js";
-
-export type {
-    llm.Provider
-} from "./models.js";
