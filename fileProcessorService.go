@@ -27,9 +27,6 @@ func NewFileProcessorService(
 	libraryService *llama.LibraryService,
 	fileBaseDir string,
 ) *FileProcessorService {
-	// Initialize sub-services
-	documentService := services.NewDocumentService(db)
-
 	// Get embedding function from vector search service
 	embedder := vectorSearchService.GetEmbedder()
 
@@ -40,7 +37,6 @@ func NewFileProcessorService(
 	processor := services.NewFileProcessorService(
 		db,
 		fileLoader,
-		documentService,
 		ragProcessor,
 		libraryService,
 	)
@@ -81,7 +77,6 @@ func (f *FileProcessorService) ProcessFileForStorage(
 		Filename:  filename,
 		FileType:  normalizedFileType,
 		UserID:    userID,
-		ClientID:  "", // Optional
 		Source:    absolutePath,
 		EnableRAG: enableRAG,
 		IsShared:  false,

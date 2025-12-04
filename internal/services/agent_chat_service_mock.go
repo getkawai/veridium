@@ -327,8 +327,6 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) ([]UIC
 	}
 
 	// 3. Save RAG data using reusable helper
-	file1ID := uuid.New().String()
-	file2ID := uuid.New().String()
 	chunk1ID := uuid.New().String()
 	chunk2ID := uuid.New().String()
 
@@ -337,12 +335,12 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) ([]UIC
 		UserQuery: req.Message,
 		UserID:    req.UserID,
 		Files: []db.CreateFileParams{
-			{ID: file1ID, Name: "document.pdf", FileType: "application/pdf", Url: "", Size: 1024000},
-			{ID: file2ID, Name: "guide.md", FileType: "text/markdown", Url: "", Size: 2048},
+			{Name: "document.pdf", FileType: "application/pdf", Url: "", Size: 1024000},
+			{Name: "guide.md", FileType: "text/markdown", Url: "", Size: 2048},
 		},
 		Chunks: []RAGChunkParams{
-			{ID: chunk1ID, FileID: file1ID, Text: "This is a sample chunk from the knowledge base. It contains relevant information about the topic.", ChunkIndex: 0, Type: "text", Similarity: 95},
-			{ID: chunk2ID, FileID: file2ID, Text: "Another chunk with more detailed information that was retrieved from the RAG system.", ChunkIndex: 0, Type: "text", Similarity: 87},
+			{ID: chunk1ID, FileIndex: 0, Text: "This is a sample chunk from the knowledge base. It contains relevant information about the topic.", ChunkIndex: 0, Type: "text", Similarity: 95},
+			{ID: chunk2ID, FileIndex: 1, Text: "Another chunk with more detailed information that was retrieved from the RAG system.", ChunkIndex: 0, Type: "text", Similarity: 87},
 		},
 	})
 	if err != nil {

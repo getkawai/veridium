@@ -9,10 +9,10 @@ LIMIT ? OFFSET ?;
 
 -- name: CreateDocument :one
 INSERT INTO documents (
-    id, title, content, file_type, filename, total_char_count,
+    title, content, file_type, filename, total_char_count,
     total_line_count, metadata, pages, source_type, source,
-    file_id, user_id, editor_data, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    file_id, user_id, editor_data
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpdateDocument :one

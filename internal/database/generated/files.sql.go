@@ -71,13 +71,12 @@ func (q *Queries) CountFilesUsage(ctx context.Context, userID string) (interface
 
 const CreateFile = `-- name: CreateFile :one
 INSERT INTO files (
-    id, user_id, file_type, file_hash, name, size, url, source, metadata
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    user_id, file_type, file_hash, name, size, url, source, metadata
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id, user_id, file_type, file_hash, name, size, url, source, metadata, created_at, updated_at
 `
 
 type CreateFileParams struct {
-	ID       string         `json:"id"`
 	UserID   string         `json:"userId"`
 	FileType string         `json:"fileType"`
 	FileHash sql.NullString `json:"fileHash"`
@@ -90,7 +89,6 @@ type CreateFileParams struct {
 
 func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (File, error) {
 	row := q.db.QueryRowContext(ctx, CreateFile,
-		arg.ID,
 		arg.UserID,
 		arg.FileType,
 		arg.FileHash,
@@ -119,19 +117,18 @@ func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (File, e
 
 const CreateGlobalFile = `-- name: CreateGlobalFile :one
 INSERT INTO global_files (
-    hash_id, file_type, size, url, metadata, creator, created_at
-) VALUES (?, ?, ?, ?, ?, ?, ?)
+    hash_id, file_type, size, url, metadata, creator
+) VALUES (?, ?, ?, ?, ?, ?)
 RETURNING hash_id, file_type, size, url, metadata, creator, created_at
 `
 
 type CreateGlobalFileParams struct {
-	HashID    string         `json:"hashId"`
-	FileType  string         `json:"fileType"`
-	Size      int64          `json:"size"`
-	Url       string         `json:"url"`
-	Metadata  sql.NullString `json:"metadata"`
-	Creator   string         `json:"creator"`
-	CreatedAt int64          `json:"createdAt"`
+	HashID   string         `json:"hashId"`
+	FileType string         `json:"fileType"`
+	Size     int64          `json:"size"`
+	Url      string         `json:"url"`
+	Metadata sql.NullString `json:"metadata"`
+	Creator  string         `json:"creator"`
 }
 
 func (q *Queries) CreateGlobalFile(ctx context.Context, arg CreateGlobalFileParams) (GlobalFile, error) {
@@ -142,7 +139,6 @@ func (q *Queries) CreateGlobalFile(ctx context.Context, arg CreateGlobalFilePara
 		arg.Url,
 		arg.Metadata,
 		arg.Creator,
-		arg.CreatedAt,
 	)
 	var i GlobalFile
 	err := row.Scan(

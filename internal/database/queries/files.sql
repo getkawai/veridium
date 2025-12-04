@@ -9,8 +9,8 @@ LIMIT ? OFFSET ?;
 
 -- name: CreateFile :one
 INSERT INTO files (
-    id, user_id, file_type, file_hash, name, size, url, source, metadata
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    user_id, file_type, file_hash, name, size, url, source, metadata
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpdateFile :one
@@ -34,8 +34,8 @@ SELECT * FROM global_files WHERE hash_id = ?;
 
 -- name: CreateGlobalFile :one
 INSERT INTO global_files (
-    hash_id, file_type, size, url, metadata, creator, created_at
-) VALUES (?, ?, ?, ?, ?, ?, ?)
+    hash_id, file_type, size, url, metadata, creator
+) VALUES (?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 

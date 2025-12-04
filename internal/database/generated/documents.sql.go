@@ -12,15 +12,14 @@ import (
 
 const CreateDocument = `-- name: CreateDocument :one
 INSERT INTO documents (
-    id, title, content, file_type, filename, total_char_count,
+    title, content, file_type, filename, total_char_count,
     total_line_count, metadata, pages, source_type, source,
-    file_id, user_id, editor_data, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    file_id, user_id, editor_data
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id, title, content, file_type, filename, total_char_count, total_line_count, metadata, pages, source_type, source, file_id, user_id, editor_data, created_at, updated_at
 `
 
 type CreateDocumentParams struct {
-	ID             string         `json:"id"`
 	Title          sql.NullString `json:"title"`
 	Content        sql.NullString `json:"content"`
 	FileType       string         `json:"fileType"`
@@ -34,13 +33,10 @@ type CreateDocumentParams struct {
 	FileID         sql.NullString `json:"fileId"`
 	UserID         string         `json:"userId"`
 	EditorData     sql.NullString `json:"editorData"`
-	CreatedAt      int64          `json:"createdAt"`
-	UpdatedAt      int64          `json:"updatedAt"`
 }
 
 func (q *Queries) CreateDocument(ctx context.Context, arg CreateDocumentParams) (Document, error) {
 	row := q.db.QueryRowContext(ctx, CreateDocument,
-		arg.ID,
 		arg.Title,
 		arg.Content,
 		arg.FileType,
@@ -54,8 +50,6 @@ func (q *Queries) CreateDocument(ctx context.Context, arg CreateDocumentParams) 
 		arg.FileID,
 		arg.UserID,
 		arg.EditorData,
-		arg.CreatedAt,
-		arg.UpdatedAt,
 	)
 	var i Document
 	err := row.Scan(

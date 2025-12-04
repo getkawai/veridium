@@ -142,7 +142,7 @@ type SaveRAGDataParams struct {
 // RAGChunkParams contains parameters for a single chunk with its file link
 type RAGChunkParams struct {
 	ID         string
-	FileID     string // Links to db.CreateFileParams.ID
+	FileIndex  int // Index into SaveRAGDataParams.Files array (-1 if no file link)
 	Text       string
 	ChunkIndex int64
 	Type       string
@@ -429,15 +429,19 @@ func (s *AgentChatService) saveToolMessage(ctx context.Context, params SaveToolM
 
 // saveRAGData saves RAG-related data (files, chunks, and links them to a message)
 func (s *AgentChatService) saveRAGData(ctx context.Context, params SaveRAGDataParams) error {
-	// 1. Create files
-	for _, file := range params.Files {
-		_, err := s.db.Queries().CreateFile(ctx, file)
+	// 1. Create files and collect their IDs
+	fileIDs := make([]string, len(params.Files))
+	for i, file := range params.Files {
+		file.UserID = params.UserID
+		createdFile, err := s.db.Queries().CreateFile(ctx, file)
 		if err != nil {
-			log.Printf("⚠️  Failed to create file %s: %v", file.ID, err)
+			log.Printf("⚠️  Failed to create file: %v", err)
+			continue
 		}
+		fileIDs[i] = createdFile.ID
 	}
 
-	// 2. Create chunks and link to files
+	// 2. Create chunks and link to files using FileIndex
 	for _, chunk := range params.Chunks {
 		chunkParams := db.CreateChunkParams{
 			ID:         chunk.ID,
@@ -452,15 +456,16 @@ func (s *AgentChatService) saveRAGData(ctx context.Context, params SaveRAGDataPa
 			continue
 		}
 
-		// Link chunk to file
-		if chunk.FileID != "" {
+		// Link chunk to file using FileIndex
+		if chunk.FileIndex >= 0 && chunk.FileIndex < len(fileIDs) && fileIDs[chunk.FileIndex] != "" {
+			fileID := fileIDs[chunk.FileIndex]
 			err = s.db.Queries().LinkFileToChunk(ctx, db.LinkFileToChunkParams{
-				FileID:  sql.NullString{String: chunk.FileID, Valid: true},
+				FileID:  sql.NullString{String: fileID, Valid: true},
 				ChunkID: sql.NullString{String: chunk.ID, Valid: true},
 				UserID:  params.UserID,
 			})
 			if err != nil {
-				log.Printf("⚠️  Failed to link file %s to chunk %s: %v", chunk.FileID, chunk.ID, err)
+				log.Printf("⚠️  Failed to link file to chunk %s: %v", chunk.ID, err)
 			}
 		}
 	}

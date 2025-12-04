@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS global_files (
 
 -- Files table
 CREATE TABLE IF NOT EXISTS files (
-  id TEXT PRIMARY KEY,
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))),2) || '-' || substr('89ab',abs(random()) % 4 + 1, 1) || substr(lower(hex(randomblob(2))),2) || '-' || lower(hex(randomblob(6)))),
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   file_type TEXT NOT NULL,
   file_hash TEXT REFERENCES global_files(hash_id),
@@ -509,7 +509,7 @@ CREATE TABLE IF NOT EXISTS generations (
 
 -- Documents table
 CREATE TABLE IF NOT EXISTS documents (
-  id TEXT PRIMARY KEY,
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))),2) || '-' || substr('89ab',abs(random()) % 4 + 1, 1) || substr(lower(hex(randomblob(2))),2) || '-' || lower(hex(randomblob(6)))),
   title TEXT,
   content TEXT,
   file_type TEXT NOT NULL,

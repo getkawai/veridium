@@ -201,8 +201,6 @@ func (s *AgentChatService) ChatMockStream(ctx context.Context, req ChatRequest) 
 	}
 
 	// 9. Save RAG data
-	file1ID := uuid.New().String()
-	file2ID := uuid.New().String()
 	chunk1ID := uuid.New().String()
 	chunk2ID := uuid.New().String()
 	_ = s.saveRAGData(ctx, SaveRAGDataParams{
@@ -210,12 +208,12 @@ func (s *AgentChatService) ChatMockStream(ctx context.Context, req ChatRequest) 
 		UserQuery: req.Message,
 		UserID:    req.UserID,
 		Files: []db.CreateFileParams{
-			{ID: file1ID, Name: "document.pdf", FileType: "application/pdf", Url: "", Size: 1024000},
-			{ID: file2ID, Name: "guide.md", FileType: "text/markdown", Url: "", Size: 2048},
+			{Name: "document.pdf", FileType: "application/pdf", Url: "", Size: 1024000},
+			{Name: "guide.md", FileType: "text/markdown", Url: "", Size: 2048},
 		},
 		Chunks: []RAGChunkParams{
-			{ID: chunk1ID, FileID: file1ID, Text: "Sample chunk.", ChunkIndex: 0, Type: "text", Similarity: 95},
-			{ID: chunk2ID, FileID: file2ID, Text: "Another chunk.", ChunkIndex: 0, Type: "text", Similarity: 87},
+			{ID: chunk1ID, FileIndex: 0, Text: "Sample chunk.", ChunkIndex: 0, Type: "text", Similarity: 95},
+			{ID: chunk2ID, FileIndex: 1, Text: "Another chunk.", ChunkIndex: 0, Type: "text", Similarity: 87},
 		},
 	})
 
