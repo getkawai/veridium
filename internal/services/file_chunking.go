@@ -59,7 +59,7 @@ func (l *FileLoader) chunkMarkdownWithEino(content string, config ChunkingConfig
 
 		// If chunk exceeds size limit, apply recursive splitting
 		if len(chunkContent) > config.ChunkSize {
-			subChunks := l.recursiveSplitText(chunkContent, config)
+			subChunks := l.chunkText(chunkContent, config)
 			for _, subContent := range subChunks {
 				chunks = append(chunks, DocumentChunk{
 					ID:      fmt.Sprintf("chunk-%d", chunkID),
@@ -152,7 +152,7 @@ func (l *FileLoader) chunkPDFByPages(pages []DocumentPage, config ChunkingConfig
 
 // chunkByRecursiveSplit uses recursive splitting strategy (fallback)
 func (l *FileLoader) chunkByRecursiveSplit(content string, config ChunkingConfig) []DocumentChunk {
-	textChunks := l.recursiveSplitText(content, config)
+	textChunks := l.chunkText(content, config)
 
 	var chunks []DocumentChunk
 	for i, text := range textChunks {
@@ -169,32 +169,48 @@ func (l *FileLoader) chunkByRecursiveSplit(content string, config ChunkingConfig
 	return chunks
 }
 
-// recursiveSplitText implements recursive text splitting (reused from RAGProcessor logic)
-func (l *FileLoader) recursiveSplitText(text string, config ChunkingConfig) []string {
+// chunkText splits text into chunks using specified configuration
+func (l *FileLoader) chunkText(text string, config ChunkingConfig) []string {
+	if text == "" || !config.Enabled {
+		return []string{}
+	}
+
+	// Use defaults if not specified
+	chunkSize := config.ChunkSize
+	overlapSize := config.OverlapSize
+	if chunkSize <= 0 {
+		chunkSize = 1000 // Default chunk size
+	}
+	if overlapSize < 0 {
+		overlapSize = 200 // Default overlap size
+	}
+
+	// Define separators in order of preference (coarse to fine)
+	// Try to keep semantic units together as much as possible
 	separators := []string{
-		"\n\n", // Paragraph breaks
+		"\n\n", // Paragraph breaks (highest priority)
 		"\n",   // Line breaks
 		". ",   // Sentences
 		"? ",   // Questions
 		"! ",   // Exclamations
 		"; ",   // Semicolons
 		", ",   // Commas
-		" ",    // Words
+		" ",    // Words (last resort)
 	}
 
-	return l.recursiveSplit(text, separators, 0, config)
+	return l.recursiveSplit(text, separators, 0, chunkSize, overlapSize)
 }
 
-// recursiveSplit implements the recursive splitting algorithm
-func (l *FileLoader) recursiveSplit(text string, separators []string, depth int, config ChunkingConfig) []string {
+// recursiveSplit implements recursive text splitting with multiple separators
+func (l *FileLoader) recursiveSplit(text string, separators []string, depth int, chunkSize, overlapSize int) []string {
 	// Base case: text fits within chunk size
-	if len(text) <= config.ChunkSize {
+	if len(text) <= chunkSize {
 		return []string{text}
 	}
 
-	// If exhausted all separators, force split by size
+	// If we've exhausted all separators, force split by character count
 	if depth >= len(separators) {
-		return l.forceSplitBySize(text, config)
+		return l.forceSplitBySize(text, chunkSize, overlapSize)
 	}
 
 	separator := separators[depth]
@@ -202,7 +218,7 @@ func (l *FileLoader) recursiveSplit(text string, separators []string, depth int,
 	// Check if separator exists in text
 	if !strings.Contains(text, separator) {
 		// Try next separator
-		return l.recursiveSplit(text, separators, depth+1, config)
+		return l.recursiveSplit(text, separators, depth+1, chunkSize, overlapSize)
 	}
 
 	// Split by current separator
@@ -218,16 +234,16 @@ func (l *FileLoader) recursiveSplit(text string, separators []string, depth int,
 			continue
 		}
 
-		if len(part) > config.ChunkSize {
-			// Part too large, process accumulated good parts first
+		if len(part) > chunkSize {
+			// Part is too large, need to process accumulated good parts first
 			if len(goodParts) > 0 {
-				merged := l.mergeParts(goodParts, separator, config)
+				merged := l.mergeParts(goodParts, separator, chunkSize, overlapSize)
 				finalChunks = append(finalChunks, merged...)
 				goodParts = nil
 			}
 
-			// Recursively split large part
-			subChunks := l.recursiveSplit(part, separators, depth+1, config)
+			// Recursively split large part with next separator
+			subChunks := l.recursiveSplit(part, separators, depth+1, chunkSize, overlapSize)
 			finalChunks = append(finalChunks, subChunks...)
 		} else {
 			// Part is small enough, accumulate it
@@ -237,15 +253,15 @@ func (l *FileLoader) recursiveSplit(text string, separators []string, depth int,
 
 	// Process remaining good parts
 	if len(goodParts) > 0 {
-		merged := l.mergeParts(goodParts, separator, config)
+		merged := l.mergeParts(goodParts, separator, chunkSize, overlapSize)
 		finalChunks = append(finalChunks, merged...)
 	}
 
 	return finalChunks
 }
 
-// mergeParts merges small parts into chunks with overlap
-func (l *FileLoader) mergeParts(parts []string, separator string, config ChunkingConfig) []string {
+// mergeParts merges small parts into chunks with overlap support
+func (l *FileLoader) mergeParts(parts []string, separator string, chunkSize, overlapSize int) []string {
 	var chunks []string
 	var currentChunk strings.Builder
 
@@ -257,15 +273,15 @@ func (l *FileLoader) mergeParts(parts []string, separator string, config Chunkin
 		}
 
 		// Check if adding this part would exceed chunk size
-		if currentChunk.Len() > 0 && currentChunk.Len()+sepLen+partLen > config.ChunkSize {
+		if currentChunk.Len() > 0 && currentChunk.Len()+sepLen+partLen > chunkSize {
 			// Save current chunk
 			chunks = append(chunks, currentChunk.String())
 
 			// Start new chunk with overlap
 			currentChunk.Reset()
-			if config.OverlapSize > 0 && len(chunks) > 0 {
+			if overlapSize > 0 && len(chunks) > 0 {
 				prevChunk := chunks[len(chunks)-1]
-				overlapStart := len(prevChunk) - config.OverlapSize
+				overlapStart := len(prevChunk) - overlapSize
 				if overlapStart < 0 {
 					overlapStart = 0
 				}
@@ -289,24 +305,25 @@ func (l *FileLoader) mergeParts(parts []string, separator string, config Chunkin
 	return chunks
 }
 
-// forceSplitBySize splits text by character count (last resort)
-func (l *FileLoader) forceSplitBySize(text string, config ChunkingConfig) []string {
+// forceSplitBySize splits text by character count when no separator works
+// This is a last resort to ensure we never exceed chunk size
+func (l *FileLoader) forceSplitBySize(text string, chunkSize, overlapSize int) []string {
 	var chunks []string
 
 	for len(text) > 0 {
-		if len(text) <= config.ChunkSize {
+		if len(text) <= chunkSize {
 			chunks = append(chunks, text)
 			break
 		}
 
 		// Take chunk size worth of text
-		chunk := text[:config.ChunkSize]
+		chunk := text[:chunkSize]
 		chunks = append(chunks, chunk)
 
 		// Move forward with overlap
-		step := config.ChunkSize - config.OverlapSize
+		step := chunkSize - overlapSize
 		if step <= 0 {
-			step = config.ChunkSize
+			step = chunkSize
 		}
 		text = text[step:]
 	}
