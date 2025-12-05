@@ -164,9 +164,10 @@ async function handleRealAPI(
     messageUserId: string;
     messageAssistantId: string;
     mapKey: string;
+    fileIds?: string[];
   }
 ) {
-  const { activeId, activeTopicId, threadId, message, messageUserId, messageAssistantId, mapKey } = context;
+  const { activeId, activeTopicId, threadId, message, messageUserId, messageAssistantId, mapKey, fileIds } = context;
 
   console.log('[Real API] Calling real backend with LLM...');
 
@@ -178,6 +179,7 @@ async function handleRealAPI(
     thread_id: threadId || undefined,
     message_user_id: messageUserId,
     message_assistant_id: messageAssistantId,
+    file_ids: fileIds && fileIds.length > 0 ? fileIds : undefined,
   });
 
   console.log('[Real API] Response received:', response);
@@ -484,10 +486,14 @@ export const generateAIChat: StateCreator<
     const threadId = activeThreadId;
     const mapKey = messageMapKey(activeId, activeTopicId);
 
+    // Extract file IDs from uploaded files (already processed by FileProcessorService)
+    const fileIds = files?.map(f => f.id).filter(Boolean) || [];
+
     console.log(`[SendMessage] Mode: ${API_MODE}`, {
       activeId,
       activeTopicId,
       threadId,
+      fileIds,
     });
 
     // ================================================================
@@ -552,6 +558,7 @@ export const generateAIChat: StateCreator<
             messageUserId,
             messageAssistantId,
             mapKey,
+            fileIds,
           });
           break;
 
@@ -567,6 +574,7 @@ export const generateAIChat: StateCreator<
             thread_id: threadId || undefined,
             message_user_id: messageUserId,
             message_assistant_id: messageAssistantId,
+            file_ids: fileIds.length > 0 ? fileIds : undefined,
           });
 
           console.log('[Backend Mock] Received', mockMessages.length, 'messages');
@@ -618,6 +626,7 @@ export const generateAIChat: StateCreator<
             thread_id: threadId || undefined,
             message_user_id: messageUserId,
             message_assistant_id: messageAssistantId,
+            file_ids: fileIds.length > 0 ? fileIds : undefined,
           });
 
           // Note: User message is also created via streaming events
@@ -640,6 +649,7 @@ export const generateAIChat: StateCreator<
             thread_id: threadId || undefined,
             message_user_id: messageUserId,
             message_assistant_id: messageAssistantId,
+            file_ids: fileIds.length > 0 ? fileIds : undefined,
           });
 
           // Note: User message is also created via streaming events

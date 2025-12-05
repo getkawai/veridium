@@ -36,9 +36,10 @@ func (tm Tool) GetContent() map[string]interface{} {
 
 // ToolResponse represents a message that contains a tool response.
 type ToolResponse struct {
-	Role    string
-	Name    string
-	Content string
+	Role       string
+	Name       string
+	Content    string
+	ToolCallID string // Required by OpenAI API to link response to tool call
 }
 
 // GetRole returns the role of the tool response message.

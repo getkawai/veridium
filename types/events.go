@@ -42,7 +42,9 @@ type Tool struct {
 }
 
 // ToolCall represents a tool call from LLM
+// Uses ToolFunction which contains both Name and Arguments
 type ToolCall struct {
+	ID       string       `json:"id,omitempty"` // Tool call ID (required by OpenAI API)
 	Type     string       `json:"type"`
 	Function ToolFunction `json:"function"`
 }

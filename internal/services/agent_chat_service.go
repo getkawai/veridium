@@ -51,6 +51,9 @@ type AgentChatService struct {
 	kbService   *KnowledgeBaseService
 	ragWorkflow *RAGWorkflow
 
+	// Vector search for file-based RAG (direct file attachments)
+	vectorSearch *VectorSearchService
+
 	// LLM Generator interface (for testing/mocking)
 	llmGenerator llm.Provider
 
@@ -106,6 +109,9 @@ type ChatRequest struct {
 	TopicID  string `json:"topic_id,omitempty"`  // Current topic (may be auto-created)
 	ThreadID string `json:"thread_id,omitempty"` // Current thread (for branching)
 	ParentID string `json:"parent_id,omitempty"` // Parent message (for threading)
+
+	// File attachments (processed by FileProcessorService)
+	FileIDs []string `json:"file_ids,omitempty"` // File IDs for RAG context retrieval
 
 	// Configuration
 	KnowledgeBaseID string         `json:"knowledge_base_id,omitempty"`
@@ -358,6 +364,7 @@ func NewAgentChatService(
 	db *database.Service,
 	libService *llama.LibraryService,
 	kbService *KnowledgeBaseService,
+	vectorSearch *VectorSearchService,
 	threadService *ThreadManagementService,
 ) *AgentChatService {
 	ragWorkflow := NewRAGWorkflow(kbService)
@@ -388,6 +395,7 @@ func NewAgentChatService(
 		llmGenerator:     llmGenerator,
 		kbService:        kbService,
 		ragWorkflow:      ragWorkflow,
+		vectorSearch:     vectorSearch,
 		toolRegistry:     toolRegistry,
 		threadService:    threadService,
 		reasoningConfig:  DefaultReasoningConfig(), // Default: disabled (non-reasoning)

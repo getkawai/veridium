@@ -149,8 +149,54 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 		TopicID: currentTopicID,
 	})
 
+	// 3.5. Perform semantic search on attached files (if any)
+	var fileChunks []ChatFileChunk
+	if len(req.FileIDs) > 0 && s.vectorSearch != nil {
+		log.Printf("📎 [REAL STREAM] Searching %d attached files for context", len(req.FileIDs))
+		searchResults, err := s.vectorSearch.SemanticSearch(ctx, req.UserID, req.Message, req.FileIDs, 10)
+		if err != nil {
+			log.Printf("⚠️  [REAL STREAM] File search failed: %v", err)
+		} else if len(searchResults) > 0 {
+			log.Printf("📚 [REAL STREAM] Found %d relevant chunks from attached files", len(searchResults))
+			for _, result := range searchResults {
+				fileChunks = append(fileChunks, ChatFileChunk{
+					ID:         result.ID,
+					FileID:     result.FileID,
+					Filename:   result.FileName,
+					Text:       result.Text,
+					Similarity: float64(result.Similarity), // Convert float32 to float64
+				})
+			}
+		}
+	}
+
 	// 4. Prepare messages for LLM
 	messagesWithSystem := s.prepareMessagesWithSystemPrompt(session.Messages, session)
+
+	// 4.5. Inject file context into system prompt if we have relevant chunks
+	if len(fileChunks) > 0 {
+		fileContext := "\n\n## Relevant Context from Attached Files:\n"
+		for i, chunk := range fileChunks {
+			fileContext += fmt.Sprintf("\n### [%d] From: %s (similarity: %.2f)\n%s\n", i+1, chunk.Filename, chunk.Similarity, chunk.Text)
+		}
+		fileContext += "\n---\nUse the above context to help answer the user's question.\n"
+
+		// Inject file context by modifying the user's last message
+		// This is more compatible with different message types
+		if len(messagesWithSystem) > 0 {
+			// Find and modify the last user message to include file context
+			for i := len(messagesWithSystem) - 1; i >= 0; i-- {
+				if msg, ok := messagesWithSystem[i].(message.Chat); ok && msg.Role == "user" {
+					messagesWithSystem[i] = message.Chat{
+						Role:    msg.Role,
+						Content: msg.Content + fileContext,
+					}
+					break
+				}
+			}
+		}
+		log.Printf("📝 [REAL STREAM] Injected %d file chunks into context", len(fileChunks))
+	}
 
 	// Use pre-generated assistant message ID from frontend, or generate new one
 	assistantMsgID := req.MessageAssistantID
@@ -468,6 +514,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 		Usage:       usage,
 		Performance: performance,
 		Tools:       uiTools,
+		ChunksList:  fileChunks, // Include RAG chunks from file attachments
 	})
 
 	totalTokens := 0

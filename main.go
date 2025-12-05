@@ -278,12 +278,14 @@ func main() {
 				dbService,
 				libService,
 				kbService,
+				vectorSearchService,     // File-based RAG (direct attachments)
 				threadManagementService, // Phase 4: Thread integration
 			)
 			app.RegisterService(application.NewService(agentChatService))
 			log.Printf("✅ Agent Chat service registered")
 			log.Printf("   Yzma-based agent with RAG capabilities")
 			log.Printf("   Supports: tool calling, knowledge base search, multi-turn conversations")
+			log.Printf("   Supports: file attachments with semantic search")
 			log.Printf("   Session persistence: SQLite (messages + metadata)")
 			log.Printf("   Phase 4: Thread Management integrated")
 			log.Printf("   Phase 4: Auto Topic & Thread support")

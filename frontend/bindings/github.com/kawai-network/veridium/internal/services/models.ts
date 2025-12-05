@@ -317,6 +317,12 @@ export class ChatRequest {
     "parent_id"?: string;
 
     /**
+     * File attachments (processed by FileProcessorService)
+     * File IDs for RAG context retrieval
+     */
+    "file_ids"?: string[];
+
+    /**
      * Configuration
      */
     "knowledge_base_id"?: string;
@@ -345,14 +351,18 @@ export class ChatRequest {
      * Creates a new ChatRequest instance from a string or object.
      */
     static createFrom($$source: any = {}): ChatRequest {
-        const $$createField9_0 = $$createType14;
-        const $$createField10_0 = $$createType15;
+        const $$createField8_0 = $$createType14;
+        const $$createField10_0 = $$createType14;
+        const $$createField11_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("file_ids" in $$parsedSource) {
+            $$parsedSource["file_ids"] = $$createField8_0($$parsedSource["file_ids"]);
+        }
         if ("tools" in $$parsedSource) {
-            $$parsedSource["tools"] = $$createField9_0($$parsedSource["tools"]);
+            $$parsedSource["tools"] = $$createField10_0($$parsedSource["tools"]);
         }
         if ("context" in $$parsedSource) {
-            $$parsedSource["context"] = $$createField10_0($$parsedSource["context"]);
+            $$parsedSource["context"] = $$createField11_0($$parsedSource["context"]);
         }
         return new ChatRequest($$parsedSource as Partial<ChatRequest>);
     }
