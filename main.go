@@ -163,11 +163,12 @@ func main() {
 		vectorSearchService, // Pass entire service to get embedFunc
 		duckDBStore,         // Pass DuckDB store
 		libService,          // Pass LibraryService for VL model
+		whisperService,      // Pass Whisper service for video transcription
 		fileBaseDir,         // Pass file base directory for path resolution
 	)
 	log.Printf("✅ File Processor service initialized")
 	log.Printf("   Handles: file parsing → document storage → RAG processing")
-	log.Printf("   Video understanding: OpenRouter nvidia/nemotron-nano-12b-v2-vl:free")
+	log.Printf("   Video transcription: ffmpeg + Whisper STT")
 
 	// Initialize Knowledge Base Service (RAG with DuckDB + SQLite)
 	var kbService *services.KnowledgeBaseService

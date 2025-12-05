@@ -34,9 +34,6 @@ const Render = memo<RenderProps>(
     const loading = useChatStore(chatSelectors.isToolCallStreaming(messageId, toolIndex));
     const toolMessage = useChatStore(chatSelectors.getMessageByToolCallId(toolCallId), isEqual);
 
-    // Debug: log tool message lookup
-    console.log('[ToolRender] toolCallId:', toolCallId, 'toolMessage:', toolMessage ? 'found' : 'not found', toolMessage?.content?.substring(0, 100));
-
     if (loading || !toolMessage) return null;
 
     if (!!toolMessage) {

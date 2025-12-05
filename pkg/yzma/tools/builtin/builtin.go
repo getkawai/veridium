@@ -59,8 +59,15 @@ func RegisterAllWithDB(registry *tools.ToolRegistry, sqlDB *sql.DB) error {
 			return err
 		}
 		log.Println("✅ Registered: lobe-image-describe (getImageDescription)")
+
+		// Register lobe-video-describe (requires DB for querying Whisper transcriptions)
+		if err := RegisterVideoDescribe(registry, sqlDB); err != nil {
+			return err
+		}
+		log.Println("✅ Registered: lobe-video-describe (getVideoTranscription)")
 	} else {
 		log.Println("⚠️  Skipped: lobe-image-describe (no database connection)")
+		log.Println("⚠️  Skipped: lobe-video-describe (no database connection)")
 	}
 
 	return nil

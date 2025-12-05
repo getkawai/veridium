@@ -11,6 +11,7 @@ import (
 
 	"github.com/kawai-network/veridium/internal/llama"
 	"github.com/kawai-network/veridium/internal/services"
+	"github.com/kawai-network/veridium/internal/whisper"
 	"github.com/kawai-network/veridium/pkg/xlog"
 )
 
@@ -28,6 +29,7 @@ func NewFileProcessorService(
 	vectorSearchService *services.VectorSearchService,
 	duckDB *services.DuckDBStore,
 	libraryService *llama.LibraryService,
+	whisperService *whisper.Service,
 	fileBaseDir string,
 ) *FileProcessorService {
 	// Get embedding function from vector search service
@@ -36,12 +38,13 @@ func NewFileProcessorService(
 	// Create RAG processor with Eino embedder and file loader
 	ragProcessor := services.NewRAGProcessor(db, duckDB, fileLoader, embedder)
 
-	// Create file processor
+	// Create file processor with whisper service for video transcription
 	processor := services.NewFileProcessorService(
 		db,
 		fileLoader,
 		ragProcessor,
 		libraryService,
+		whisperService,
 	)
 
 	return &FileProcessorService{

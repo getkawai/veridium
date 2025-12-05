@@ -35,6 +35,22 @@ export function GetAvailableModels(): $CancellablePromise<{ [_: string]: any }[]
 }
 
 /**
+ * GetDependencyStatus returns the status of all dependencies
+ */
+export function GetDependencyStatus(): $CancellablePromise<{ [_: string]: any }> {
+    return $Call.ByID(2632820599).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
+/**
+ * GetFFmpegVersion returns the ffmpeg version
+ */
+export function GetFFmpegVersion(): $CancellablePromise<string> {
+    return $Call.ByID(2192842503);
+}
+
+/**
  * GetModelsDirectory returns the path to the models directory
  */
 export function GetModelsDirectory(): $CancellablePromise<string> {
@@ -56,10 +72,24 @@ export function GetVersion(): $CancellablePromise<string> {
 }
 
 /**
+ * InstallFFmpeg installs ffmpeg (platform-specific)
+ */
+export function InstallFFmpeg(): $CancellablePromise<void> {
+    return $Call.ByID(2674346258);
+}
+
+/**
  * InstallWhisper installs whisper-cpp (platform-specific)
  */
 export function InstallWhisper(): $CancellablePromise<void> {
     return $Call.ByID(1612841699);
+}
+
+/**
+ * IsFFmpegInstalled checks if ffmpeg is installed
+ */
+export function IsFFmpegInstalled(): $CancellablePromise<boolean> {
+    return $Call.ByID(71865805);
 }
 
 /**

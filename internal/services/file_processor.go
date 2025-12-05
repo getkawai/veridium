@@ -4,20 +4,19 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/internal/llama"
-	"github.com/kawai-network/veridium/internal/llm"
-	"github.com/kawai-network/veridium/internal/llm/openai"
+	"github.com/kawai-network/veridium/internal/whisper"
 	"github.com/kawai-network/veridium/pkg/xlog"
 	"github.com/kawai-network/veridium/types"
 )
@@ -28,6 +27,7 @@ type FileProcessorService struct {
 	fileLoader     *FileLoader
 	ragProcessor   *RAGProcessor
 	libraryService *llama.LibraryService
+	whisperService *whisper.Service
 }
 
 // NewFileProcessorService creates a new file processor service
@@ -36,12 +36,14 @@ func NewFileProcessorService(
 	fileLoader *FileLoader,
 	ragProcessor *RAGProcessor,
 	libraryService *llama.LibraryService,
+	whisperService *whisper.Service,
 ) *FileProcessorService {
 	return &FileProcessorService{
 		queries:        db.New(database),
 		fileLoader:     fileLoader,
 		ragProcessor:   ragProcessor,
 		libraryService: libraryService,
+		whisperService: whisperService,
 	}
 }
 
@@ -191,99 +193,70 @@ func (s *FileProcessorService) processImageDescriptionAsync(filePath, filename, 
 	}
 }
 
-// processVideoDescriptionAsync generates video description using OpenRouter VL model
+// processVideoDescriptionAsync extracts audio from video using ffmpeg and transcribes using whisper
 func (s *FileProcessorService) processVideoDescriptionAsync(filePath, filename, documentID, fileID, userID string, enableRAG bool) {
 	ctx := context.Background()
 
-	xlog.Info("Async: Starting OpenRouter video understanding", "filename", filename)
+	xlog.Info("Async: Starting video transcription", "filename", filename)
 
-	// Read video file and encode to base64
-	videoData, err := os.ReadFile(filePath)
+	// Check if whisper service is available
+	if s.whisperService == nil {
+		xlog.Error("Async: Whisper service not available", "filename", filename)
+		return
+	}
+
+	// Check if whisper is installed
+	if !s.whisperService.IsWhisperInstalled() {
+		xlog.Error("Async: Whisper CLI not installed", "filename", filename)
+		return
+	}
+
+	// Check if we have a model
+	models, err := s.whisperService.ListModels()
+	if err != nil || len(models) == 0 {
+		xlog.Error("Async: No whisper models available", "error", err, "filename", filename)
+		return
+	}
+	modelName := models[0] // Use first available model
+
+	// Step 1: Extract audio from video using ffmpeg
+	audioPath, err := s.extractAudioFromVideo(filePath)
 	if err != nil {
-		xlog.Error("Async: Failed to read video file", "error", err, "filename", filename)
+		xlog.Error("Async: Failed to extract audio from video", "error", err, "filename", filename)
 		return
 	}
+	defer os.Remove(audioPath) // Clean up temp audio file
 
-	// Encode video to base64
-	videoBase64 := base64.StdEncoding.EncodeToString(videoData)
+	xlog.Info("Async: Audio extracted from video", "audio_path", audioPath, "filename", filename)
 
-	// Get video MIME type
-	mimeType := getVideoMimeType(filename)
-
-	xlog.Info("Async: Video encoded", "filename", filename, "size_bytes", len(videoData), "mime_type", mimeType)
-
-	// Create OpenAI client for OpenRouter
-	config := llm.GetDefaultDevConfig()
-	client := openai.NewClient(types.ProviderConfig{
-		Type:   types.ProviderOpenRouter,
-		APIKey: config.Chat.APIKey,
-		Options: map[string]any{
-			"app_name": "Veridium",
-		},
-	})
-
-	// Create message with video content (multimodal)
-	prompt := "Describe this video in detail. Include the main events, objects, people, actions, and any visible text or information. Provide a comprehensive summary."
-
-	// Build multimodal content array
-	contentParts := []types.ContentPart{
-		{
-			Type: "video_url",
-			VideoURL: &types.MediaURL{
-				URL: fmt.Sprintf("data:%s;base64,%s", mimeType, videoBase64),
-			},
-		},
-		{
-			Type: "text",
-			Text: prompt,
-		},
-	}
-
-	maxTokens := 1024
-	req := types.ChatCompletionRequest{
-		Model: "nvidia/nemotron-nano-12b-v2-vl:free",
-		Messages: []types.ChatCompletionMsg{
-			{
-				Role:    "user",
-				Content: contentParts,
-			},
-		},
-		MaxTokens: &maxTokens,
-	}
-
-	// Generate description
-	response, err := client.ChatCompletion(ctx, req)
+	// Step 2: Transcribe audio using whisper
+	xlog.Info("Async: Starting whisper transcription", "model", modelName, "filename", filename)
+	transcription, err := s.whisperService.Transcribe(ctx, modelName, audioPath)
 	if err != nil {
-		xlog.Error("Async: Failed to generate video description via OpenRouter", "error", err, "filename", filename)
+		xlog.Error("Async: Failed to transcribe audio", "error", err, "filename", filename)
 		return
 	}
 
-	if len(response.Choices) == 0 {
-		xlog.Error("Async: No choices in video description response", "filename", filename)
-		return
+	if transcription == "" {
+		xlog.Warn("Async: Empty transcription result", "filename", filename)
+		transcription = "(No speech detected in video)"
 	}
 
-	description, ok := response.Choices[0].Message.Content.(string)
-	if !ok || description == "" {
-		xlog.Error("Async: Empty or invalid video description from OpenRouter", "filename", filename)
-		return
-	}
+	xlog.Info("Async: Video transcription completed", "length", len(transcription), "filename", filename)
 
-	xlog.Info("Async: Video description generated", "length", len(description), "filename", filename)
+	// Format transcription as markdown
+	transcriptionMarkdown := fmt.Sprintf("\n\n### Video Transcription (AI Generated via Whisper)\n\n%s", transcription)
 
-	// Format description as markdown
-	descriptionMarkdown := fmt.Sprintf("\n\n### Video Description (AI Generated via OpenRouter)\n\n%s", description)
-
-	// Update document with description
-	err = s.appendContentToDocument(ctx, documentID, userID, descriptionMarkdown)
+	// Update document with transcription
+	err = s.appendContentToDocument(ctx, documentID, userID, transcriptionMarkdown)
 	if err != nil {
-		xlog.Error("Async: Failed to update document with video description", "error", err, "document_id", documentID)
+		xlog.Error("Async: Failed to update document with transcription", "error", err, "document_id", documentID)
 		return
 	}
 
-	xlog.Info("Async: Document updated with video description", "document_id", documentID)
+	xlog.Info("Async: Document updated with video transcription", "document_id", documentID)
 
-	// Process for RAG if enabled (now that we have the description)
+	// Process for RAG if enabled (now that we have the transcription)
 	if enableRAG {
 		chunkIDs, err := s.ragProcessor.ProcessFile(ctx, RAGProcessRequest{
 			FilePath:   filePath,
@@ -298,6 +271,50 @@ func (s *FileProcessorService) processVideoDescriptionAsync(filePath, filename, 
 			xlog.Info("Async: RAG processing completed for video", "file_id", fileID, "chunks", len(chunkIDs))
 		}
 	}
+}
+
+// extractAudioFromVideo extracts audio from video file using ffmpeg
+// Returns path to temporary WAV file (caller must clean up)
+func (s *FileProcessorService) extractAudioFromVideo(videoPath string) (string, error) {
+	// Create temp file for audio
+	tempDir := os.TempDir()
+	audioPath := filepath.Join(tempDir, fmt.Sprintf("audio_%d.wav", time.Now().UnixNano()))
+
+	// Find ffmpeg binary
+	ffmpegPath, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		// Try common locations
+		homeDir, _ := os.UserHomeDir()
+		localFFmpeg := filepath.Join(homeDir, ".local", "bin", "ffmpeg")
+		if _, statErr := os.Stat(localFFmpeg); statErr == nil {
+			ffmpegPath = localFFmpeg
+		} else {
+			return "", fmt.Errorf("ffmpeg not found: %w", err)
+		}
+	}
+
+	// Extract audio: convert to 16kHz mono WAV (whisper's preferred format)
+	cmd := exec.Command(ffmpegPath,
+		"-i", videoPath,
+		"-vn",           // No video
+		"-acodec", "pcm_s16le", // 16-bit PCM
+		"-ar", "16000",  // 16kHz sample rate
+		"-ac", "1",      // Mono
+		"-y",            // Overwrite
+		audioPath,
+	)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("ffmpeg failed: %w, output: %s", err, string(output))
+	}
+
+	// Verify audio file was created
+	if _, err := os.Stat(audioPath); err != nil {
+		return "", fmt.Errorf("audio file not created: %w", err)
+	}
+
+	return audioPath, nil
 }
 
 // getVideoMimeType returns the MIME type for a video file based on extension
