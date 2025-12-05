@@ -289,6 +289,14 @@ func main() {
 			log.Printf("   Session persistence: SQLite (messages + metadata)")
 			log.Printf("   Phase 4: Thread Management integrated")
 			log.Printf("   Phase 4: Auto Topic & Thread support")
+
+			// Log TaskRouter configuration
+			if taskRouter := agentChatService.GetTaskRouter(); taskRouter != nil {
+				log.Printf("🔀 TaskRouter enabled - multi-provider task distribution")
+				for _, task := range taskRouter.ListConfiguredTasks() {
+					log.Printf("   Task '%s': configured", task)
+				}
+			}
 		}
 
 		// Add cleanup on shutdown
@@ -330,7 +338,8 @@ func main() {
 				log.Printf("[Drag&Drop]   %d. %s", i+1, filePath)
 
 				// Process file: copy to local storage + parse + RAG (all in one)
-				result, err := fileProcessorService.ProcessFileFromPath(filePath, "system")
+				// Use DEFAULT_LOBE_CHAT_USER to match the frontend's default user ID
+				result, err := fileProcessorService.ProcessFileFromPath(filePath, "DEFAULT_LOBE_CHAT_USER")
 				if err != nil {
 					log.Printf("[Drag&Drop] Error processing file %s: %v", filePath, err)
 					continue

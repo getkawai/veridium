@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/kawai-network/veridium/internal/llm"
 	"github.com/kawai-network/veridium/pkg/yzma/message"
 	"github.com/kawai-network/veridium/types"
 )
@@ -204,8 +205,18 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 		assistantMsgID = uuid.New().String()
 	}
 
-	// Get LLM generator with requested tools
-	llmWithTools := s.llmGenerator.WithTools(session.ToolNames)
+	// Get LLM provider with requested tools
+	// Use TaskRouter if configured, otherwise fallback to llmGenerator
+	var llmWithTools llm.Provider
+	if s.taskRouter != nil {
+		llmWithTools = s.taskRouter.ChatWithTools(session.ToolNames)
+		if llmWithTools == nil {
+			// Fallback to llmGenerator if TaskRouter has no chat provider
+			llmWithTools = s.llmGenerator.WithTools(session.ToolNames)
+		}
+	} else {
+		llmWithTools = s.llmGenerator.WithTools(session.ToolNames)
+	}
 
 	// 5. Run LLM with streaming + tool execution
 	var finalContent strings.Builder

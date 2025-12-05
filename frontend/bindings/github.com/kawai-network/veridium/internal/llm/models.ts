@@ -10,3 +10,27 @@ import { Create as $Create } from "@wailsio/runtime";
  * This interface is implemented by all LLM providers (local llama, OpenAI-compatible APIs, etc.)
  */
 export type Provider = any;
+
+/**
+ * TaskRouter routes different LLM tasks to appropriate providers
+ * This enables using different providers for different tasks:
+ * - Chat: OpenRouter for quality + streaming
+ * - Title: Zhipu GLM for speed + cost
+ * - Summary: Local Llama for background processing
+ */
+export class TaskRouter {
+
+    /** Creates a new TaskRouter instance. */
+    constructor($$source: Partial<TaskRouter> = {}) {
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TaskRouter instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TaskRouter {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new TaskRouter($$parsedSource as Partial<TaskRouter>);
+    }
+}

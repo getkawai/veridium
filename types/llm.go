@@ -46,11 +46,11 @@ type ProviderConfig struct {
 // ProviderEndpoints contains default API endpoints for each provider
 var ProviderEndpoints = map[ProviderType]string{
 	ProviderOpenRouter: "https://openrouter.ai/api/v1",
-	ProviderZhipuAI:    "https://open.bigmodel.cn/api/paas/v4",
+	ProviderZhipuAI:    "https://api.z.ai/api/coding/paas/v4", // Z.AI coding endpoint (has free quota)
 }
 
 // DefaultModels contains recommended default models per provider
 var DefaultModels = map[ProviderType]string{
 	ProviderOpenRouter: "anthropic/claude-3.5-sonnet", // Best general-purpose model
-	ProviderZhipuAI:    "glm-4-flash",                 // Fast and cost-effective
+	ProviderZhipuAI:    "glm-4.6",                     // Latest GLM model
 }

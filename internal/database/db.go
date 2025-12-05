@@ -23,16 +23,28 @@ type Service struct {
 	queries *db.Queries
 }
 
-// NewService creates a new database service
+// NewService creates a new database service using default path (./data/veridium.db)
 func NewService() (*Service, error) {
-	// Use project directory for database storage
-	appDataDir := "./data"
+	return NewServiceWithPath("")
+}
 
-	if err := os.MkdirAll(appDataDir, 0o755); err != nil {
-		return nil, err
+// NewServiceWithPath creates a new database service with custom database path
+// If dbPath is empty, uses default path (./data/veridium.db)
+func NewServiceWithPath(dbPath string) (*Service, error) {
+	if dbPath == "" {
+		// Use project directory for database storage
+		appDataDir := "./data"
+		if err := os.MkdirAll(appDataDir, 0o755); err != nil {
+			return nil, err
+		}
+		dbPath = filepath.Join(appDataDir, "veridium.db")
+	} else {
+		// Ensure parent directory exists for custom path
+		if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
+			return nil, err
+		}
 	}
 
-	dbPath := filepath.Join(appDataDir, "veridium.db")
 	database, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		return nil, err

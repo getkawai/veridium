@@ -57,6 +57,10 @@ type AgentChatService struct {
 	// LLM Generator interface (for testing/mocking)
 	llmGenerator llm.Provider
 
+	// TaskRouter for multi-provider task distribution
+	// Routes different tasks (chat, title, summary) to appropriate providers
+	taskRouter *llm.TaskRouter
+
 	// Yzma tool registry (replaces Eino tools)
 	toolRegistry *tools.ToolRegistry
 
@@ -387,12 +391,18 @@ func NewAgentChatService(
 	// Create LLM provider adapter (wraps yzmaModel for interface compatibility)
 	llmGenerator := NewLlamaProviderAdapter(yzmaModel)
 
+	// Build TaskRouter with default dev config
+	// This routes different tasks to appropriate providers
+	devConfig := llm.GetDefaultDevConfig()
+	taskRouter := llm.BuildTaskRouter(devConfig, toolRegistry, llmGenerator)
+
 	service := &AgentChatService{
 		app:              app,
 		db:               db,
 		libService:       libService,
 		yzmaModel:        yzmaModel,
 		llmGenerator:     llmGenerator,
+		taskRouter:       taskRouter,
 		kbService:        kbService,
 		ragWorkflow:      ragWorkflow,
 		vectorSearch:     vectorSearch,
@@ -431,6 +441,21 @@ func (s *AgentChatService) GetLLMGenerator() llm.Provider {
 	s.sessionsMutex.RLock()
 	defer s.sessionsMutex.RUnlock()
 	return s.llmGenerator
+}
+
+// SetTaskRouter sets a custom task router for multi-provider routing
+func (s *AgentChatService) SetTaskRouter(router *llm.TaskRouter) {
+	s.sessionsMutex.Lock()
+	defer s.sessionsMutex.Unlock()
+	s.taskRouter = router
+	log.Printf("🔀 TaskRouter updated")
+}
+
+// GetTaskRouter returns the current task router
+func (s *AgentChatService) GetTaskRouter() *llm.TaskRouter {
+	s.sessionsMutex.RLock()
+	defer s.sessionsMutex.RUnlock()
+	return s.taskRouter
 }
 
 // detectTitleGenerationModel finds the smallest, fastest model for title generation
@@ -570,8 +595,17 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*UIChatMe
 		assistantMsgID = uuid.New().String()
 	}
 
-	// Get LLM generator with requested tools
-	llmWithTools := s.llmGenerator.WithTools(session.ToolNames)
+	// Get LLM provider with requested tools
+	// Use TaskRouter if configured, otherwise fallback to llmGenerator
+	var llmWithTools llm.Provider
+	if s.taskRouter != nil {
+		llmWithTools = s.taskRouter.ChatWithTools(session.ToolNames)
+		if llmWithTools == nil {
+			llmWithTools = s.llmGenerator.WithTools(session.ToolNames)
+		}
+	} else {
+		llmWithTools = s.llmGenerator.WithTools(session.ToolNames)
+	}
 
 	// Run agent with LLM generator (streaming or non-streaming)
 	var finalMessage string
@@ -834,7 +868,11 @@ func (s *AgentChatService) getOrCreateSession(ctx context.Context, req ChatReque
 	dbSession, err = s.createSessionInDB(ctx, req.SessionID, req.UserID, req.KnowledgeBaseID)
 	if err != nil {
 		// Check if error is due to UNIQUE constraint (race condition)
-		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+		// Must NOT be FOREIGN KEY constraint (which is a real error, not race condition)
+		errStr := err.Error()
+		isUniqueConstraint := strings.Contains(errStr, "UNIQUE constraint failed")
+		isForeignKey := strings.Contains(errStr, "FOREIGN KEY")
+		if isUniqueConstraint && !isForeignKey {
 			// Another process created the session - retry loading with exponential backoff
 			log.Printf("⚠️  Race condition detected, retrying load from DB...")
 
@@ -1232,7 +1270,7 @@ func (s *AgentChatService) SetTitleModel(modelPath string) {
 }
 
 // generateTopicTitle generates a concise title for the conversation using LLM
-// Uses yzmaModel.Generate() without tools for lightweight title generation
+// Uses TaskRouter to route to appropriate provider (remote or local)
 func (s *AgentChatService) generateTopicTitle(ctx context.Context, messages []message.Message, locale string) (string, error) {
 	if len(messages) == 0 {
 		return "New Conversation", nil
@@ -1277,51 +1315,59 @@ Example: Sleep Functions for Body and Mind`, locale)
 		message.Chat{Role: "user", Content: conversationText},
 	}
 
-	// Use separate title model if configured
 	var responseContent string
 
-	if s.titleModelPath != "" {
-		log.Printf("📝 Using dedicated title model: %s", filepath.Base(s.titleModelPath))
-
-		// Save current model state
-		currentModel := s.libService.GetLoadedChatModel()
-
-		// Load title model
-		if err := s.libService.LoadChatModel(s.titleModelPath); err != nil {
-			log.Printf("⚠️  Failed to load title model, falling back to main model: %v", err)
-			// Fallback to main model (WITHOUT tools for title generation)
-			resp, genErr := s.yzmaModel.WithoutTools().Generate(ctx, titleMessages)
-			if genErr != nil {
-				return "", fmt.Errorf("failed to generate title: %w", genErr)
-			}
-			responseContent = resp.Content
-		} else {
-			// Generate with title model (WITHOUT tools)
-			resp, genErr := s.yzmaModel.WithoutTools().Generate(ctx, titleMessages)
-			if genErr != nil {
-				// Restore main model before returning error
-				if currentModel != "" {
-					s.libService.LoadChatModel(currentModel)
-				}
-				return "", fmt.Errorf("failed to generate title: %w", genErr)
-			}
-			responseContent = resp.Content
-
-			// Restore main chat model
-			if currentModel != "" {
-				if restoreErr := s.libService.LoadChatModel(currentModel); restoreErr != nil {
-					log.Printf("⚠️  Failed to restore main model: %v", restoreErr)
-				}
-			}
-		}
-	} else {
-		// No dedicated title model - use main chat model (WITHOUT tools)
-		log.Printf("📝 Using main chat model for title generation")
-		resp, err := s.yzmaModel.WithoutTools().Generate(ctx, titleMessages)
+	// Try TaskRouter first (routes to configured provider)
+	if s.taskRouter != nil && s.taskRouter.HasProvider(llm.TaskTitleGen) {
+		log.Printf("📝 Using TaskRouter for title generation")
+		resp, err := s.taskRouter.GenerateTitle(ctx, titleMessages)
 		if err != nil {
-			return "", fmt.Errorf("failed to generate title: %w", err)
+			log.Printf("⚠️  TaskRouter title generation failed: %v, falling back to local", err)
+		} else {
+			responseContent = resp.Content
 		}
-		responseContent = resp.Content
+	}
+
+	// Fallback to local model if TaskRouter failed or not configured
+	if responseContent == "" {
+		if s.titleModelPath != "" {
+			log.Printf("📝 Using dedicated local title model: %s", filepath.Base(s.titleModelPath))
+
+			// Save current model state
+			currentModel := s.libService.GetLoadedChatModel()
+
+			// Load title model
+			if err := s.libService.LoadChatModel(s.titleModelPath); err != nil {
+				log.Printf("⚠️  Failed to load title model, falling back to main model: %v", err)
+				resp, genErr := s.yzmaModel.WithoutTools().Generate(ctx, titleMessages)
+				if genErr != nil {
+					return "", fmt.Errorf("failed to generate title: %w", genErr)
+				}
+				responseContent = resp.Content
+			} else {
+				resp, genErr := s.yzmaModel.WithoutTools().Generate(ctx, titleMessages)
+				if genErr != nil {
+					if currentModel != "" {
+						s.libService.LoadChatModel(currentModel)
+					}
+					return "", fmt.Errorf("failed to generate title: %w", genErr)
+				}
+				responseContent = resp.Content
+
+				if currentModel != "" {
+					if restoreErr := s.libService.LoadChatModel(currentModel); restoreErr != nil {
+						log.Printf("⚠️  Failed to restore main model: %v", restoreErr)
+					}
+				}
+			}
+		} else {
+			log.Printf("📝 Using main chat model for title generation")
+			resp, err := s.yzmaModel.WithoutTools().Generate(ctx, titleMessages)
+			if err != nil {
+				return "", fmt.Errorf("failed to generate title: %w", err)
+			}
+			responseContent = resp.Content
+		}
 	}
 
 	// Strip <think> tags if present (for reasoning models)
@@ -1702,10 +1748,12 @@ func (s *AgentChatService) loadSessionFromDB(ctx context.Context, sessionID, use
 func (s *AgentChatService) createSessionInDB(ctx context.Context, sessionID, userID, kbID string) (*db.Session, error) {
 	now := time.Now().UnixMilli()
 
-	// Generate slug from sessionID (take first 8 chars)
+	// Generate unique slug from sessionID
+	// Use last 8 chars to ensure uniqueness (they contain timestamps/random)
 	slug := sessionID
 	if len(slug) > 8 {
-		slug = slug[:8]
+		// Take last 8 chars for better uniqueness with timestamps
+		slug = slug[len(slug)-8:]
 	}
 
 	params := db.CreateSessionParams{
@@ -2043,8 +2091,8 @@ func (s *AgentChatService) getKeepMessageCount() int {
 	}
 }
 
-// generateHistorySummary generates summary using yzmaModel
-// Uses 3-tier fallback: summary model → title model → main model
+// generateHistorySummary generates summary using TaskRouter or local fallback
+// Uses TaskRouter first, then falls back to local models
 func (s *AgentChatService) generateHistorySummary(ctx context.Context, messages []message.Message) (string, error) {
 	if len(messages) == 0 {
 		return "", fmt.Errorf("no messages to summarize")
@@ -2083,70 +2131,82 @@ Please summarize the above conversation and retain key information. The summariz
 		message.Chat{Role: "user", Content: conversationContent},
 	}
 
-	// Strategy: Use dedicated summary model (preferred) → title model → main model
 	var responseContent string
 	var modelUsed string
 
-	currentModel := s.libService.GetLoadedChatModel()
-
-	// Use model WITHOUT tools for summary generation
-	modelWithoutTools := s.yzmaModel.WithoutTools()
-
-	// Try 1: Dedicated summary model (BEST - optimized for this task)
-	if s.summaryModelPath != "" && s.summaryModelPath != currentModel {
-		log.Printf("📋 Using dedicated summary model: %s", filepath.Base(s.summaryModelPath))
-
-		if loadErr := s.libService.LoadChatModel(s.summaryModelPath); loadErr != nil {
-			log.Printf("⚠️  Failed to load summary model: %v", loadErr)
+	// Try TaskRouter first (routes to configured provider)
+	if s.taskRouter != nil && s.taskRouter.HasProvider(llm.TaskSummaryGen) {
+		log.Printf("📋 Using TaskRouter for summary generation")
+		resp, err := s.taskRouter.GenerateSummary(ctx, summaryMessages)
+		if err != nil {
+			log.Printf("⚠️  TaskRouter summary generation failed: %v, falling back to local", err)
 		} else {
-			resp, genErr := modelWithoutTools.Generate(ctx, summaryMessages)
-			if genErr == nil {
-				responseContent = resp.Content
-				modelUsed = "summary"
-			} else {
-				log.Printf("⚠️  Summary model generation failed: %v", genErr)
-			}
+			responseContent = resp.Content
+			modelUsed = "taskrouter"
+		}
+	}
 
-			// Restore main model
-			if currentModel != "" {
-				if restoreErr := s.libService.LoadChatModel(currentModel); restoreErr != nil {
-					log.Printf("⚠️  Failed to restore main model: %v", restoreErr)
+	// Fallback to local models if TaskRouter failed or not configured
+	if responseContent == "" {
+		currentModel := s.libService.GetLoadedChatModel()
+		modelWithoutTools := s.yzmaModel.WithoutTools()
+
+		// Try 1: Dedicated summary model (BEST - optimized for this task)
+		if s.summaryModelPath != "" && s.summaryModelPath != currentModel {
+			log.Printf("📋 Using dedicated summary model: %s", filepath.Base(s.summaryModelPath))
+
+			if loadErr := s.libService.LoadChatModel(s.summaryModelPath); loadErr != nil {
+				log.Printf("⚠️  Failed to load summary model: %v", loadErr)
+			} else {
+				resp, genErr := modelWithoutTools.Generate(ctx, summaryMessages)
+				if genErr == nil {
+					responseContent = resp.Content
+					modelUsed = "summary"
+				} else {
+					log.Printf("⚠️  Summary model generation failed: %v", genErr)
+				}
+
+				// Restore main model
+				if currentModel != "" {
+					if restoreErr := s.libService.LoadChatModel(currentModel); restoreErr != nil {
+						log.Printf("⚠️  Failed to restore main model: %v", restoreErr)
+					}
 				}
 			}
 		}
-	}
 
-	// Try 2: Title model (GOOD - small and fast, already tested)
-	if responseContent == "" && s.titleModelPath != "" && s.titleModelPath != currentModel {
-		log.Printf("📋 Falling back to title model: %s", filepath.Base(s.titleModelPath))
+		// Try 2: Title model (GOOD - small and fast, already tested)
+		if responseContent == "" && s.titleModelPath != "" && s.titleModelPath != currentModel {
+			log.Printf("📋 Falling back to title model: %s", filepath.Base(s.titleModelPath))
 
-		if loadErr := s.libService.LoadChatModel(s.titleModelPath); loadErr != nil {
-			log.Printf("⚠️  Failed to load title model: %v", loadErr)
-		} else {
-			resp, genErr := modelWithoutTools.Generate(ctx, summaryMessages)
-			if genErr == nil {
-				responseContent = resp.Content
-				modelUsed = "title"
+			if loadErr := s.libService.LoadChatModel(s.titleModelPath); loadErr != nil {
+				log.Printf("⚠️  Failed to load title model: %v", loadErr)
 			} else {
-				log.Printf("⚠️  Title model generation failed: %v", genErr)
-			}
+				resp, genErr := modelWithoutTools.Generate(ctx, summaryMessages)
+				if genErr == nil {
+					responseContent = resp.Content
+					modelUsed = "title"
+				} else {
+					log.Printf("⚠️  Title model generation failed: %v", genErr)
+				}
 
-			// Restore main model
-			if currentModel != "" {
-				s.libService.LoadChatModel(currentModel)
+				// Restore main model
+				if currentModel != "" {
+					s.libService.LoadChatModel(currentModel)
+				}
 			}
 		}
-	}
 
-	// Try 3: Main chat model (FALLBACK - may be slow/reasoning model)
-	if responseContent == "" {
-		log.Printf("📋 Using main chat model for summary (no dedicated model available)")
-		resp, err := modelWithoutTools.Generate(ctx, summaryMessages)
-		if err != nil {
-			return "", fmt.Errorf("failed to generate summary: %w", err)
+		// Try 3: Main chat model (FALLBACK - may be slow/reasoning model)
+		if responseContent == "" {
+			log.Printf("📋 Using main chat model for summary (no dedicated model available)")
+			resp, err := modelWithoutTools.Generate(ctx, summaryMessages)
+			if err != nil {
+				return "", fmt.Errorf("failed to generate summary: %w", err)
+			}
+			responseContent = resp.Content
+			modelUsed = "main"
 		}
-		responseContent = resp.Content
-		modelUsed = "main"
 	}
 
 	// Clean up response

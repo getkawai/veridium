@@ -164,6 +164,15 @@ export function GetStreamEventPayloadType(): $CancellablePromise<$models.StreamE
 }
 
 /**
+ * GetTaskRouter returns the current task router
+ */
+export function GetTaskRouter(): $CancellablePromise<llm$0.TaskRouter | null> {
+    return $Call.ByID(2202841655).then(($result: any) => {
+        return $$createType7($result);
+    });
+}
+
+/**
  * SetLLMGenerator sets a custom LLM generator (useful for testing with mocks)
  */
 export function SetLLMGenerator(generator: llm$0.Provider): $CancellablePromise<void> {
@@ -177,6 +186,13 @@ export function SetLLMGenerator(generator: llm$0.Provider): $CancellablePromise<
  */
 export function SetReasoningMode(mode: $models.ReasoningMode): $CancellablePromise<void> {
     return $Call.ByID(3600806230, mode);
+}
+
+/**
+ * SetTaskRouter sets a custom task router for multi-provider routing
+ */
+export function SetTaskRouter(router: llm$0.TaskRouter | null): $CancellablePromise<void> {
+    return $Call.ByID(19462235, router);
 }
 
 /**
@@ -209,3 +225,5 @@ const $$createType2 = $Create.Array($$createType0);
 const $$createType3 = $models.ReasoningConfig.createFrom;
 const $$createType4 = $Create.Array($Create.Any);
 const $$createType5 = $models.StreamEventPayload.createFrom;
+const $$createType6 = llm$0.TaskRouter.createFrom;
+const $$createType7 = $Create.Nullable($$createType6);
