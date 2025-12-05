@@ -16,6 +16,7 @@ const (
 	FileTypeXLSX     SupportedFileType = "xlsx"
 	FileTypePPTX     SupportedFileType = "pptx"
 	FileTypeImage    SupportedFileType = "image"
+	FileTypeVideo    SupportedFileType = "video"
 	FileTypeMarkdown SupportedFileType = "markdown"
 )
 

@@ -171,6 +171,7 @@ type Querier interface {
 	GetChunksByIDs(ctx context.Context, arg GetChunksByIDsParams) ([]GetChunksByIDsRow, error)
 	GetChunksTextByFileId(ctx context.Context, fileID sql.NullString) ([]GetChunksTextByFileIdRow, error)
 	GetDocument(ctx context.Context, arg GetDocumentParams) (Document, error)
+	GetDocumentByFileID(ctx context.Context, fileID sql.NullString) (Document, error)
 	GetDocumentByFileId(ctx context.Context, arg GetDocumentByFileIdParams) (GetDocumentByFileIdRow, error)
 	GetDocumentChunks(ctx context.Context, arg GetDocumentChunksParams) ([]Chunk, error)
 	GetEnabledChatGroupAgentLinks(ctx context.Context, arg GetEnabledChatGroupAgentLinksParams) ([]ChatGroupsAgent, error)

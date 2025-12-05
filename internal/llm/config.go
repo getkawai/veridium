@@ -92,7 +92,7 @@ func GetDefaultDevConfig() DevConfig {
 		ImageDescribe: TaskProviderConfig{
 			ProviderType: types.ProviderZhipuAI,
 			APIKey:       "a10854167085448cac33753523919ac9.D41CLq6KxXTY7g4u",
-			Model:        "glm-4v-flash",
+			Model:        "glm-4.5v",
 			MaxTokens:    1024,
 		},
 

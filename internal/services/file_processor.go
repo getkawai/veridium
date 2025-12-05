@@ -4,15 +4,20 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/internal/llama"
+	"github.com/kawai-network/veridium/internal/llm"
+	"github.com/kawai-network/veridium/internal/llm/openai"
 	"github.com/kawai-network/veridium/pkg/xlog"
 	"github.com/kawai-network/veridium/types"
 )
@@ -39,6 +44,8 @@ func NewFileProcessorService(
 		libraryService: libraryService,
 	}
 }
+
+
 
 // ProcessFileRequest represents a file processing request
 type ProcessFileRequest struct {
@@ -93,11 +100,17 @@ func (s *FileProcessorService) ProcessFile(ctx context.Context, req ProcessFileR
 
 	// Step 4: If image, generate description using VL model ASYNCHRONOUSLY
 	// This allows the UI to show the image immediately while description is being generated
-	if detectedFileType == string(types.FileTypeImage) && s.libraryService != nil {
-		response.Processing = true
+	// Note: detectedFileType is the file extension (e.g., "jpg"), not the SupportedFileType ("image")
+	// We don't set Processing=true because the file IS ready for use - only the AI description is pending
+	if s.fileLoader.IsImageFile(detectedFileType) && s.libraryService != nil {
 		xlog.Info("Starting async image description generation", "filename", req.Filename, "document_id", documentID)
 
 		go s.processImageDescriptionAsync(req.FilePath, req.Filename, documentID, fileID, req.UserID, req.EnableRAG)
+	} else if s.fileLoader.IsVideoFile(detectedFileType) {
+		// Step 4b: If video, generate description using OpenRouter VL model ASYNCHRONOUSLY
+		xlog.Info("Starting async video understanding generation", "filename", req.Filename, "document_id", documentID)
+
+		go s.processVideoDescriptionAsync(req.FilePath, req.Filename, documentID, fileID, req.UserID, req.EnableRAG)
 	} else if req.EnableRAG && s.fileLoader.CanChunkForRAG(detectedFileType) {
 		// Step 5: Process for RAG (for non-image files, do it synchronously)
 		chunkIDs, err := s.ragProcessor.ProcessFile(ctx, RAGProcessRequest{
@@ -175,6 +188,144 @@ func (s *FileProcessorService) processImageDescriptionAsync(filePath, filename, 
 		} else {
 			xlog.Info("Async: RAG processing completed", "file_id", fileID, "chunks", len(chunkIDs))
 		}
+	}
+}
+
+// processVideoDescriptionAsync generates video description using OpenRouter VL model
+func (s *FileProcessorService) processVideoDescriptionAsync(filePath, filename, documentID, fileID, userID string, enableRAG bool) {
+	ctx := context.Background()
+
+	xlog.Info("Async: Starting OpenRouter video understanding", "filename", filename)
+
+	// Read video file and encode to base64
+	videoData, err := os.ReadFile(filePath)
+	if err != nil {
+		xlog.Error("Async: Failed to read video file", "error", err, "filename", filename)
+		return
+	}
+
+	// Encode video to base64
+	videoBase64 := base64.StdEncoding.EncodeToString(videoData)
+
+	// Get video MIME type
+	mimeType := getVideoMimeType(filename)
+
+	xlog.Info("Async: Video encoded", "filename", filename, "size_bytes", len(videoData), "mime_type", mimeType)
+
+	// Create OpenAI client for OpenRouter
+	config := llm.GetDefaultDevConfig()
+	client := openai.NewClient(types.ProviderConfig{
+		Type:   types.ProviderOpenRouter,
+		APIKey: config.Chat.APIKey,
+		Options: map[string]any{
+			"app_name": "Veridium",
+		},
+	})
+
+	// Create message with video content (multimodal)
+	prompt := "Describe this video in detail. Include the main events, objects, people, actions, and any visible text or information. Provide a comprehensive summary."
+
+	// Build multimodal content array
+	contentParts := []types.ContentPart{
+		{
+			Type: "video_url",
+			VideoURL: &types.MediaURL{
+				URL: fmt.Sprintf("data:%s;base64,%s", mimeType, videoBase64),
+			},
+		},
+		{
+			Type: "text",
+			Text: prompt,
+		},
+	}
+
+	maxTokens := 1024
+	req := types.ChatCompletionRequest{
+		Model: "nvidia/nemotron-nano-12b-v2-vl:free",
+		Messages: []types.ChatCompletionMsg{
+			{
+				Role:    "user",
+				Content: contentParts,
+			},
+		},
+		MaxTokens: &maxTokens,
+	}
+
+	// Generate description
+	response, err := client.ChatCompletion(ctx, req)
+	if err != nil {
+		xlog.Error("Async: Failed to generate video description via OpenRouter", "error", err, "filename", filename)
+		return
+	}
+
+	if len(response.Choices) == 0 {
+		xlog.Error("Async: No choices in video description response", "filename", filename)
+		return
+	}
+
+	description, ok := response.Choices[0].Message.Content.(string)
+	if !ok || description == "" {
+		xlog.Error("Async: Empty or invalid video description from OpenRouter", "filename", filename)
+		return
+	}
+
+	xlog.Info("Async: Video description generated", "length", len(description), "filename", filename)
+
+	// Format description as markdown
+	descriptionMarkdown := fmt.Sprintf("\n\n### Video Description (AI Generated via OpenRouter)\n\n%s", description)
+
+	// Update document with description
+	err = s.appendContentToDocument(ctx, documentID, userID, descriptionMarkdown)
+	if err != nil {
+		xlog.Error("Async: Failed to update document with video description", "error", err, "document_id", documentID)
+		return
+	}
+
+	xlog.Info("Async: Document updated with video description", "document_id", documentID)
+
+	// Process for RAG if enabled (now that we have the description)
+	if enableRAG {
+		chunkIDs, err := s.ragProcessor.ProcessFile(ctx, RAGProcessRequest{
+			FilePath:   filePath,
+			FileID:     fileID,
+			DocumentID: documentID,
+			UserID:     userID,
+			Filename:   filename,
+		})
+		if err != nil {
+			xlog.Error("Async: Failed to process video for RAG", "error", err, "file_id", fileID)
+		} else {
+			xlog.Info("Async: RAG processing completed for video", "file_id", fileID, "chunks", len(chunkIDs))
+		}
+	}
+}
+
+// getVideoMimeType returns the MIME type for a video file based on extension
+func getVideoMimeType(filename string) string {
+	ext := strings.ToLower(filepath.Ext(filename))
+	switch ext {
+	case ".mp4":
+		return "video/mp4"
+	case ".mkv":
+		return "video/x-matroska"
+	case ".avi":
+		return "video/x-msvideo"
+	case ".mov":
+		return "video/quicktime"
+	case ".wmv":
+		return "video/x-ms-wmv"
+	case ".flv":
+		return "video/x-flv"
+	case ".webm":
+		return "video/webm"
+	case ".m4v":
+		return "video/x-m4v"
+	case ".mpeg", ".mpg":
+		return "video/mpeg"
+	case ".3gp":
+		return "video/3gpp"
+	default:
+		return "video/mp4"
 	}
 }
 

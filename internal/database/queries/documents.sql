@@ -1,6 +1,9 @@
 -- name: GetDocument :one
 SELECT * FROM documents WHERE id = ? AND user_id = ?;
 
+-- name: GetDocumentByFileID :one
+SELECT * FROM documents WHERE file_id = ? LIMIT 1;
+
 -- name: ListDocuments :many
 SELECT * FROM documents
 WHERE user_id = ?

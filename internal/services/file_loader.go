@@ -131,8 +131,12 @@ func (l *FileLoader) detectFileType(filePath string) (types.SupportedFileType, e
 			return types.FileTypeTXT, nil
 		}
 		// Check if it's an image
-		if l.isImageFile(ext) {
+		if l.IsImageFile(ext) {
 			return types.FileTypeImage, nil
+		}
+		// Check if it's a video
+		if l.IsVideoFile(ext) {
+			return types.FileTypeVideo, nil
 		}
 		return "", fmt.Errorf("unsupported file type: %s", ext)
 	}
@@ -157,8 +161,8 @@ func (l *FileLoader) isTextReadableFile(ext string) bool {
 	return false
 }
 
-// isImageFile checks if file extension indicates an image
-func (l *FileLoader) isImageFile(ext string) bool {
+// IsImageFile checks if file extension indicates an image
+func (l *FileLoader) IsImageFile(ext string) bool {
 	// Remove leading dot
 	ext = strings.TrimPrefix(ext, ".")
 	ext = strings.ToLower(ext)
@@ -169,6 +173,23 @@ func (l *FileLoader) isImageFile(ext string) bool {
 
 	for _, imgExt := range imageExtensions {
 		if ext == imgExt {
+			return true
+		}
+	}
+	return false
+}
+
+// IsVideoFile checks if file extension indicates a video
+func (l *FileLoader) IsVideoFile(ext string) bool {
+	ext = strings.TrimPrefix(ext, ".")
+	ext = strings.ToLower(ext)
+
+	videoExtensions := []string{
+		"mp4", "mkv", "avi", "mov", "wmv", "flv", "webm", "m4v", "mpeg", "mpg", "3gp",
+	}
+
+	for _, vidExt := range videoExtensions {
+		if ext == vidExt {
 			return true
 		}
 	}
@@ -228,6 +249,8 @@ func (l *FileLoader) loadContent(filePath string, fileType types.SupportedFileTy
 		return l.loadPPTXFile(filePath)
 	case types.FileTypeImage:
 		return l.loadImageFile(filePath)
+	case types.FileTypeVideo:
+		return l.loadVideoFile(filePath)
 	default:
 		return nil, "", "", fmt.Errorf("unsupported file type: %s", fileType)
 	}
@@ -451,6 +474,25 @@ func (l *FileLoader) loadImageFile(filePath string) ([]types.DocumentPage, strin
 		CharCount:   len(markdown),
 		LineCount:   1,
 		Metadata:    map[string]interface{}{"type": "image"},
+		PageContent: markdown,
+	}
+
+	pages := []types.DocumentPage{page}
+
+	return pages, markdown, "", nil
+}
+
+// loadVideoFile loads video files (placeholder for video understanding)
+func (l *FileLoader) loadVideoFile(filePath string) ([]types.DocumentPage, string, string, error) {
+	filename := filepath.Base(filePath)
+
+	// Create placeholder markdown - actual video understanding done async via OpenRouter
+	markdown := fmt.Sprintf("# Video: %s\n\n*Video processing in progress...*\n", filename)
+
+	page := types.DocumentPage{
+		CharCount:   len(markdown),
+		LineCount:   3,
+		Metadata:    map[string]interface{}{"type": "video"},
 		PageContent: markdown,
 	}
 

@@ -290,7 +290,7 @@ func (p *Provider) generateWithStreaming(ctx context.Context, messages []message
 	// Stream callback adapter
 	streamAdapter := func(chunk *types.ChatCompletionStreamResponse) error {
 		if callback != nil && len(chunk.Choices) > 0 {
-			content := chunk.Choices[0].Delta.Content
+			content, _ := chunk.Choices[0].Delta.Content.(string)
 			isLast := chunk.Choices[0].FinishReason != ""
 			callback(content, isLast)
 		}
@@ -423,8 +423,9 @@ func (p *Provider) convertResponse(resp *types.ChatCompletionResponse) *types.LL
 	}
 
 	choice := resp.Choices[0]
+	contentStr, _ := choice.Message.Content.(string)
 	result := &types.LLMResponse{
-		Content:      strings.TrimSpace(choice.Message.Content),
+		Content:      strings.TrimSpace(contentStr),
 		FinishReason: choice.FinishReason,
 	}
 

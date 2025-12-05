@@ -199,9 +199,9 @@ func (c *Client) processSSEStream(body io.Reader, callback func(chunk *types.Cha
 
 		// Process choices
 		for _, choice := range chunk.Choices {
-			// Accumulate content
-			if choice.Delta.Content != "" {
-				fullContent.WriteString(choice.Delta.Content)
+			// Accumulate content (handle both string and interface{})
+			if content, ok := choice.Delta.Content.(string); ok && content != "" {
+				fullContent.WriteString(content)
 			}
 
 			// Accumulate tool calls

@@ -37,10 +37,24 @@ type ChatCompletionRequest struct {
 // ChatCompletionMsg represents a message in API format
 type ChatCompletionMsg struct {
 	Role       string        `json:"role"` // system, user, assistant, tool
-	Content    string        `json:"content,omitempty"`
+	Content    interface{}   `json:"content,omitempty"` // string or []ContentPart for multimodal
 	Name       string        `json:"name,omitempty"`        // For tool messages
 	ToolCalls  []APIToolCall `json:"tool_calls,omitempty"`  // For assistant messages with tool calls
 	ToolCallID string        `json:"tool_call_id,omitempty"` // For tool response messages
+}
+
+// ContentPart represents a part of multimodal content
+type ContentPart struct {
+	Type     string    `json:"type"` // "text", "image_url", "video_url"
+	Text     string    `json:"text,omitempty"`
+	ImageURL *MediaURL `json:"image_url,omitempty"`
+	VideoURL *MediaURL `json:"video_url,omitempty"`
+}
+
+// MediaURL represents an image or video URL for multimodal content
+type MediaURL struct {
+	URL    string `json:"url"` // Can be URL or data:mime;base64,... for inline
+	Detail string `json:"detail,omitempty"` // "auto", "low", "high" for images
 }
 
 // APIToolDefinition defines a tool for the API

@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -167,6 +168,35 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 					Text:       result.Text,
 					Similarity: float64(result.Similarity), // Convert float32 to float64
 				})
+			}
+		}
+
+		// Fallback: If RAG returned no results but we have file IDs, try to get document content directly
+		// This handles cases where VL description is still processing (async) or embeddings haven't been created yet
+		if len(fileChunks) == 0 {
+			log.Printf("⚠️  [REAL STREAM] No RAG results, falling back to direct document fetch")
+			for _, fileID := range req.FileIDs {
+				// Get document content directly from database
+				doc, err := s.db.Queries().GetDocumentByFileID(ctx, sql.NullString{String: fileID, Valid: true})
+				if err != nil {
+					log.Printf("⚠️  [REAL STREAM] Failed to get document for file %s: %v", fileID, err)
+					continue
+				}
+				// Use filename from document if available, otherwise use file ID
+				filename := fileID
+				if doc.Filename.Valid && doc.Filename.String != "" {
+					filename = doc.Filename.String
+				}
+				if doc.Content.Valid && doc.Content.String != "" {
+					fileChunks = append(fileChunks, ChatFileChunk{
+						ID:         doc.ID,
+						FileID:     fileID,
+						Filename:   filename,
+						Text:       doc.Content.String,
+						Similarity: 1.0, // Direct fetch = perfect match
+					})
+					log.Printf("📄 [REAL STREAM] Got document content for file %s (%d chars)", filename, len(doc.Content.String))
+				}
 			}
 		}
 	}

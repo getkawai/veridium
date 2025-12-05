@@ -780,6 +780,12 @@ export function GetDocument(arg: $models.GetDocumentParams): $CancellablePromise
     });
 }
 
+export function GetDocumentByFileID(fileID: sql$0.NullString): $CancellablePromise<$models.Document> {
+    return $Call.ByID(2210173283, fileID).then(($result: any) => {
+        return $$createType10($result);
+    });
+}
+
 export function GetDocumentByFileId(arg: $models.GetDocumentByFileIdParams): $CancellablePromise<$models.GetDocumentByFileIdRow> {
     return $Call.ByID(1673289475, arg).then(($result: any) => {
         return $$createType63($result);

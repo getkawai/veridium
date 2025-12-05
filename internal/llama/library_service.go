@@ -179,6 +179,14 @@ func (s *LibraryService) InitializeLibrary() error {
 		return fmt.Errorf("failed to load llama.cpp library from %s: %w", libPath, err)
 	}
 
+	// Load the mtmd library for multimodal/VL support
+	if err := mtmd.Load(libPath); err != nil {
+		log.Printf("⚠️  Failed to load mtmd library (VL features may not work): %v", err)
+		// Don't fail completely - VL is optional
+	} else {
+		log.Println("✅ mtmd library loaded (VL support enabled)")
+	}
+
 	// Initialize llama.cpp backend
 	llama.Init()
 
@@ -578,8 +586,11 @@ func (s *LibraryService) ProcessImageWithText(imagePath, prompt string, maxToken
 
 	inputText := mtmd.NewInputText(fullPrompt, true, true)
 
+	// Initialize output chunks container (must be initialized before Tokenize)
+	outputChunks := mtmd.InputChunksInit()
+	defer mtmd.InputChunksFree(outputChunks)
+
 	// Tokenize input (text + image)
-	var outputChunks mtmd.InputChunks
 	bitmaps := []mtmd.Bitmap{bitmap}
 	if mtmd.Tokenize(s.vlMTMDCtx, outputChunks, inputText, bitmaps) != 0 {
 		return "", fmt.Errorf("failed to tokenize input with image")
@@ -591,8 +602,9 @@ func (s *LibraryService) ProcessImageWithText(imagePath, prompt string, maxToken
 	seqID := llama.SeqId(0)
 
 	// Process multimodal input using helper function
+	// logitsLast must be true to compute logits for the last token (needed for sampling)
 	nBatch := int32(512)
-	logitsLast := false
+	logitsLast := true
 	if mtmd.HelperEvalChunks(s.vlMTMDCtx, s.vlContext, outputChunks, nPast, seqID, nBatch, logitsLast, &newNPast) != 0 {
 		return "", fmt.Errorf("failed to process multimodal input")
 	}

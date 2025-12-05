@@ -129,6 +129,34 @@ func (q *Queries) GetDocument(ctx context.Context, arg GetDocumentParams) (Docum
 	return i, err
 }
 
+const GetDocumentByFileID = `-- name: GetDocumentByFileID :one
+SELECT id, title, content, file_type, filename, total_char_count, total_line_count, metadata, pages, source_type, source, file_id, user_id, editor_data, created_at, updated_at FROM documents WHERE file_id = ? LIMIT 1
+`
+
+func (q *Queries) GetDocumentByFileID(ctx context.Context, fileID sql.NullString) (Document, error) {
+	row := q.db.QueryRowContext(ctx, GetDocumentByFileID, fileID)
+	var i Document
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Content,
+		&i.FileType,
+		&i.Filename,
+		&i.TotalCharCount,
+		&i.TotalLineCount,
+		&i.Metadata,
+		&i.Pages,
+		&i.SourceType,
+		&i.Source,
+		&i.FileID,
+		&i.UserID,
+		&i.EditorData,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const GetDocumentChunks = `-- name: GetDocumentChunks :many
 SELECT c.id, c.document_id, c.text, c.abstract, c.metadata, c.chunk_index, c.type, c.user_id, c.created_at, c.updated_at FROM chunks c
 INNER JOIN document_chunks dc ON c.id = dc.chunk_id

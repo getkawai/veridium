@@ -167,6 +167,7 @@ func main() {
 	)
 	log.Printf("✅ File Processor service initialized")
 	log.Printf("   Handles: file parsing → document storage → RAG processing")
+	log.Printf("   Video understanding: OpenRouter nvidia/nemotron-nano-12b-v2-vl:free")
 
 	// Initialize Knowledge Base Service (RAG with DuckDB + SQLite)
 	var kbService *services.KnowledgeBaseService
