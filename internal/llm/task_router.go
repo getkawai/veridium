@@ -36,11 +36,38 @@ const (
 	TaskImageDescribe TaskType = "image_describe" // Image description (VL model)
 )
 
-// TaskRouter routes different LLM tasks to appropriate providers
-// This enables using different providers for different tasks:
-// - Chat: OpenRouter for quality + streaming
-// - Title: Zhipu GLM for speed + cost
-// - Summary: Local Llama for background processing
+// ============================================================================
+// TASK ROUTING CONFIGURATION
+// ============================================================================
+//
+// TaskRouter distributes different LLM tasks to appropriate providers based on
+// their strengths and cost efficiency.
+//
+// CURRENT TASK ASSIGNMENTS:
+//
+// | Task           | Primary       | Model              | Fallback     | Notes                     |
+// |----------------|---------------|--------------------|--------------|---------------------------|
+// | Chat           | OpenRouter    | amazon/nova-2-lite | Local Llama  | Main conversation         |
+// | Title          | Zhipu AI      | glm-4.6            | Local Llama  | Fast title generation     |
+// | Summary        | Zhipu AI      | glm-4.6            | Local Llama  | Topic summarization       |
+// | ImageDescribe  | Local Qwen VL | qwen3-vl           | None         | Vision-language (async)   |
+//
+// FALLBACK BEHAVIOR:
+// - GenerateWithoutTools() automatically tries fallback if primary fails
+// - Chat streaming has its own error handling (no auto-fallback yet)
+// - ImageDescribe has no fallback (requires VL capability)
+//
+// IMAGE/VIDEO PROCESSING FLOW:
+// 1. File uploaded → FileProcessorService.ProcessFileFromPath()
+// 2. For images/videos → processImageDescriptionAsync() / processVideoDescriptionAsync()
+// 3. Local Qwen VL generates description (async, ~60-90 seconds for images)
+// 4. Description saved to documents table
+// 5. When user sends message with file attachment:
+//    - RAG search for relevant chunks
+//    - If no results, poll document for up to 60 seconds waiting for VL description
+//    - Inject description into chat context
+//
+// ============================================================================
 type TaskRouter struct {
 	providers    map[TaskType]Provider
 	fallback     Provider
@@ -110,6 +137,7 @@ func (r *TaskRouter) Generate(ctx context.Context, task TaskType, messages []mes
 }
 
 // GenerateWithoutTools routes to provider with tools disabled (for utility tasks)
+// If the primary provider fails, it will try the fallback provider
 func (r *TaskRouter) GenerateWithoutTools(ctx context.Context, task TaskType, messages []message.Message) (*types.LLMResponse, error) {
 	provider := r.GetProvider(task)
 	if provider == nil {
@@ -118,7 +146,21 @@ func (r *TaskRouter) GenerateWithoutTools(ctx context.Context, task TaskType, me
 	}
 
 	log.Printf("🔀 TaskRouter: Routing '%s' task to provider (no tools)", task)
-	return provider.WithoutTools().Generate(ctx, messages)
+	resp, err := provider.WithoutTools().Generate(ctx, messages)
+
+	// If primary provider failed and we have a fallback, try it
+	if err != nil && r.fallback != nil && r.fallback != provider {
+		log.Printf("⚠️  TaskRouter: Primary provider failed for '%s': %v, trying fallback", task, err)
+		fallbackResp, fallbackErr := r.fallback.WithoutTools().Generate(ctx, messages)
+		if fallbackErr == nil {
+			log.Printf("✅ TaskRouter: Fallback succeeded for '%s'", task)
+			return fallbackResp, nil
+		}
+		log.Printf("⚠️  TaskRouter: Fallback also failed for '%s': %v", task, fallbackErr)
+		// Return original error
+	}
+
+	return resp, err
 }
 
 // Chat is a convenience method for chat task with full agent loop

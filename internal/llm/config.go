@@ -49,9 +49,6 @@ type DevConfig struct {
 	// Summary generation - background task, can be slower
 	Summary TaskProviderConfig
 
-	// Image description - needs VL (Vision-Language) capability
-	ImageDescribe TaskProviderConfig
-
 	// UseLocalFallback - if true, use local llama as fallback for all tasks
 	UseLocalFallback bool
 }
@@ -80,19 +77,11 @@ func GetDefaultDevConfig() DevConfig {
 			MaxTokens:    256,
 		},
 
-		// Summary: Use local Llama for background summarization
-		// No network latency, runs efficiently in background
+		// Summary: Use Zhipu GLM for summarization, fallback to local Llama
 		Summary: TaskProviderConfig{
-			ProviderType: types.ProviderLlama,
-			Model:        "", // Will use auto-detected model
-			MaxTokens:    512,
-		},
-
-		// ImageDescribe: Use Zhipu GLM-4V for vision tasks
-		ImageDescribe: TaskProviderConfig{
 			ProviderType: types.ProviderZhipuAI,
 			APIKey:       "a10854167085448cac33753523919ac9.D41CLq6KxXTY7g4u",
-			Model:        "glm-4.5v",
+			Model:        "glm-4.6",
 			MaxTokens:    1024,
 		},
 
@@ -157,16 +146,6 @@ func BuildTaskRouter(
 		router.SetProvider(TaskSummaryGen, localProvider)
 		log.Printf("🔀 TaskRouter: Summary -> Local Llama (default)")
 	}
-
-	// Configure ImageDescribe provider
-	if config.ImageDescribe.APIKey != "" {
-		imageProvider := createProviderFromConfig(factory, config.ImageDescribe)
-		if imageProvider != nil {
-			router.SetProvider(TaskImageDescribe, imageProvider)
-			log.Printf("🔀 TaskRouter: ImageDescribe -> %s (%s)", config.ImageDescribe.ProviderType, config.ImageDescribe.Model)
-		}
-	}
-	// Note: No fallback for ImageDescribe - requires VL capability
 
 	return router
 }
