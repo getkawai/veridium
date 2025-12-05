@@ -172,30 +172,13 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 		}
 
 		// Fallback: If RAG returned no results but we have file IDs, try to get document content directly
-		// This handles cases where VL description is still processing (async) or embeddings haven't been created yet
+		// For images/videos, VL description may still be processing async - poll with timeout
 		if len(fileChunks) == 0 {
-			log.Printf("⚠️  [REAL STREAM] No RAG results, falling back to direct document fetch")
+			log.Printf("⚠️  [REAL STREAM] No RAG results, falling back to direct document fetch with polling")
 			for _, fileID := range req.FileIDs {
-				// Get document content directly from database
-				doc, err := s.db.Queries().GetDocumentByFileID(ctx, sql.NullString{String: fileID, Valid: true})
-				if err != nil {
-					log.Printf("⚠️  [REAL STREAM] Failed to get document for file %s: %v", fileID, err)
-					continue
-				}
-				// Use filename from document if available, otherwise use file ID
-				filename := fileID
-				if doc.Filename.Valid && doc.Filename.String != "" {
-					filename = doc.Filename.String
-				}
-				if doc.Content.Valid && doc.Content.String != "" {
-					fileChunks = append(fileChunks, ChatFileChunk{
-						ID:         doc.ID,
-						FileID:     fileID,
-						Filename:   filename,
-						Text:       doc.Content.String,
-						Similarity: 1.0, // Direct fetch = perfect match
-					})
-					log.Printf("📄 [REAL STREAM] Got document content for file %s (%d chars)", filename, len(doc.Content.String))
+				chunk := s.waitForDocumentContent(ctx, fileID, 60*time.Second)
+				if chunk != nil {
+					fileChunks = append(fileChunks, *chunk)
 				}
 			}
 		}
@@ -565,5 +548,62 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	log.Printf("✅ [REAL STREAM] Complete - session: %s, duration: %dms, tokens: %d",
 		req.SessionID, duration, totalTokens)
 
+	return nil
+}
+
+// waitForDocumentContent polls for document content with VL description.
+// For images/videos, VL processing is async and may take time.
+// This polls every 2 seconds for up to maxWait duration.
+// Returns nil if timeout or no meaningful content found.
+func (s *AgentChatService) waitForDocumentContent(ctx context.Context, fileID string, maxWait time.Duration) *ChatFileChunk {
+	const pollInterval = 2 * time.Second
+	deadline := time.Now().Add(maxWait)
+
+	for attempt := 1; time.Now().Before(deadline); attempt++ {
+		doc, err := s.db.Queries().GetDocumentByFileID(ctx, sql.NullString{String: fileID, Valid: true})
+		if err != nil {
+			log.Printf("⚠️  [REAL STREAM] Failed to get document for file %s: %v", fileID, err)
+			return nil
+		}
+
+		// Check if document has meaningful content (VL description marker)
+		if doc.Content.Valid && doc.Content.String != "" {
+			content := doc.Content.String
+			hasVLDescription := strings.Contains(content, "Image Description (AI Generated)") ||
+				strings.Contains(content, "Video Description (AI Generated)")
+
+			// If VL description is present, or content is substantial (>100 chars), use it
+			if hasVLDescription || len(content) > 100 {
+				filename := fileID
+				if doc.Filename.Valid && doc.Filename.String != "" {
+					filename = doc.Filename.String
+				}
+				log.Printf("📄 [REAL STREAM] Got document content for file %s (%d chars, attempt %d)", filename, len(content), attempt)
+				return &ChatFileChunk{
+					ID:         doc.ID,
+					FileID:     fileID,
+					Filename:   filename,
+					Text:       content,
+					Similarity: 1.0,
+				}
+			}
+		}
+
+		// Check if we should continue polling
+		if time.Now().Add(pollInterval).After(deadline) {
+			break
+		}
+
+		log.Printf("⏳ [REAL STREAM] Waiting for VL description for file %s (attempt %d)", fileID, attempt)
+		select {
+		case <-ctx.Done():
+			log.Printf("⚠️  [REAL STREAM] Context cancelled while waiting for file %s", fileID)
+			return nil
+		case <-time.After(pollInterval):
+			// Continue polling
+		}
+	}
+
+	log.Printf("⏰ [REAL STREAM] Timeout waiting for VL description for file %s", fileID)
 	return nil
 }

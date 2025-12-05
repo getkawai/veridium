@@ -152,9 +152,9 @@ func (s *FileProcessorService) processImageDescriptionAsync(filePath, filename, 
 		return
 	}
 
-	// Generate description
+	// Generate description with sufficient tokens for document OCR
 	prompt := "Describe this image in detail. Include all visible text, objects, and layout."
-	description, err := s.libraryService.ProcessImageWithText(filePath, prompt, 512)
+	description, err := s.libraryService.ProcessImageWithText(filePath, prompt, 2048)
 	if err != nil {
 		xlog.Error("Async: Failed to process image with VL model", "error", err, "filename", filename)
 		return

@@ -84,6 +84,7 @@ const FileUpload = memo(() => {
           const mimeType = getMimeType(ext); // For UI display only
 
           return {
+            fileId: result.fileId,  // Include file ID from backend
             name: result.filename,
             type: mimeType,
             url: result.relativeUrl,
@@ -100,7 +101,7 @@ const FileUpload = memo(() => {
 
       // Create upload items and add directly to upload list (files already saved by backend)
       const uploadItems = validFiles.map((info) => ({
-        id: info!.name,
+        id: info!.fileId,  // Use actual file ID from backend, not filename
         file: { name: info!.name, type: info!.type, size: 0 } as File,
         previewUrl: info!.url,
         base64Url: undefined,
@@ -156,6 +157,7 @@ const FileUpload = memo(() => {
             if (!result) return null;
 
             return {
+              fileId: result.fileId,  // Include file ID from backend
               name: result.filename,
               type: mimeType,
               url: result.relativeUrl,
@@ -173,7 +175,7 @@ const FileUpload = memo(() => {
 
         // Create upload items and add directly to upload list (files already saved by backend)
         const uploadItems = validFiles.map((info) => ({
-          id: info!.name,
+          id: info!.fileId,  // Use actual file ID from backend, not filename
           file: { name: info!.name, type: info!.type, size: 0 } as File,
           previewUrl: info!.url,
           base64Url: undefined,
