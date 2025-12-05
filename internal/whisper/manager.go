@@ -35,6 +35,66 @@ func (m *Manager) IsWhisperInstalled() bool {
 	return err == nil
 }
 
+// IsFFmpegInstalled checks if ffmpeg is available in PATH or local directory
+func (m *Manager) IsFFmpegInstalled() bool {
+	// Check PATH first
+	if _, err := exec.LookPath("ffmpeg"); err == nil {
+		return true
+	}
+
+	// Check ~/.local/bin/ffmpeg
+	homeDir, err := os.UserHomeDir()
+	if err == nil {
+		localFFmpeg := filepath.Join(homeDir, ".local", "bin", "ffmpeg")
+		if _, err := os.Stat(localFFmpeg); err == nil {
+			return true
+		}
+	}
+
+	return false
+}
+
+// GetFFmpegPath returns the path to ffmpeg binary
+func (m *Manager) GetFFmpegPath() string {
+	// Check PATH first
+	if path, err := exec.LookPath("ffmpeg"); err == nil {
+		return path
+	}
+
+	// Check ~/.local/bin/ffmpeg
+	homeDir, err := os.UserHomeDir()
+	if err == nil {
+		localFFmpeg := filepath.Join(homeDir, ".local", "bin", "ffmpeg")
+		if _, err := os.Stat(localFFmpeg); err == nil {
+			return localFFmpeg
+		}
+	}
+
+	return ""
+}
+
+// GetFFmpegVersion returns the ffmpeg version string
+func (m *Manager) GetFFmpegVersion() string {
+	ffmpegPath := m.GetFFmpegPath()
+	if ffmpegPath == "" {
+		return "not installed"
+	}
+
+	cmd := exec.Command(ffmpegPath, "-version")
+	output, err := cmd.Output()
+	if err != nil {
+		return "unknown"
+	}
+
+	// Parse first line for version
+	lines := strings.Split(string(output), "\n")
+	if len(lines) > 0 {
+		return strings.TrimSpace(lines[0])
+	}
+
+	return "installed"
+}
+
 // GetAvailableModels returns a list of available whisper models
 func (m *Manager) GetAvailableModels() []string {
 	return []string{
@@ -78,7 +138,7 @@ func (m *Manager) DownloadModel(ctx context.Context, modelName string) error {
 	if err != nil {
 		return fmt.Errorf("model file not found after download: %w", err)
 	}
-	
+
 	// Models should be at least 10 MB (even tiny is ~39 MB)
 	if info.Size() < 10*1024*1024 {
 		os.Remove(modelPath) // Remove incomplete file
@@ -113,22 +173,22 @@ func (m *Manager) GetInstalledModels() ([]string, error) {
 	for _, file := range files {
 		if strings.HasPrefix(file.Name(), "ggml-") && strings.HasSuffix(file.Name(), ".bin") {
 			modelPath := filepath.Join(m.ModelsDir, file.Name())
-			
+
 			// Validate model file size
 			info, err := os.Stat(modelPath)
 			if err != nil {
 				log.Printf("⚠️  Warning: Cannot stat model file %s: %v", file.Name(), err)
 				continue
 			}
-			
+
 			// Check if model file is too small (corrupted/incomplete)
 			if info.Size() < 10*1024*1024 { // Less than 10 MB
-				log.Printf("⚠️  Removing corrupted model %s (size: %.2f MB, expected > 10 MB)", 
+				log.Printf("⚠️  Removing corrupted model %s (size: %.2f MB, expected > 10 MB)",
 					file.Name(), float64(info.Size())/(1024*1024))
 				os.Remove(modelPath)
 				continue
 			}
-			
+
 			// Extract model name from filename
 			name := strings.TrimPrefix(file.Name(), "ggml-")
 			name = strings.TrimSuffix(name, ".bin")
@@ -187,21 +247,21 @@ func (m *Manager) TranscribeFile(ctx context.Context, audioPath, modelName strin
 
 	// whisper-cli with --output-txt creates a .txt file next to the audio file
 	txtFile := audioPath + ".txt"
-	
+
 	// Wait a moment for file to be written
 	maxRetries := 10
 	var content []byte
 	for i := 0; i < maxRetries; i++ {
-	if _, err := os.Stat(txtFile); err == nil {
+		if _, err := os.Stat(txtFile); err == nil {
 			content, err = os.ReadFile(txtFile)
 			if err == nil && len(content) > 0 {
-			// Clean up the generated txt file
-			os.Remove(txtFile)
+				// Clean up the generated txt file
+				os.Remove(txtFile)
 				transcription := strings.TrimSpace(string(content))
 				log.Printf("Transcription result: %s", transcription)
 				return transcription, nil
+			}
 		}
-	}
 		if i < maxRetries-1 {
 			// Wait 100ms before retry
 			time.Sleep(100 * time.Millisecond)
@@ -212,7 +272,7 @@ func (m *Manager) TranscribeFile(ctx context.Context, audioPath, modelName strin
 	if len(output) > 0 {
 		log.Printf("Warning: Could not read output file %s, output was: %s", txtFile, string(output))
 	}
-	
+
 	return "", fmt.Errorf("no transcription output generated")
 }
 

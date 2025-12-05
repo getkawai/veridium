@@ -34,7 +34,26 @@ func (s *Service) initializeInBackground() {
 
 	log.Println("🚀 Initializing Whisper STT in background...")
 
-	// Step 1: Check and install whisper-cpp if needed
+	// Step 1: Check and install FFmpeg (required by whisper-cpp for audio processing)
+	if !s.manager.IsFFmpegInstalled() {
+		log.Println("🔧 ffmpeg not found, attempting auto-installation...")
+		log.Println("   (FFmpeg is required by whisper-cpp for audio format conversion)")
+		if err := s.manager.InstallFFmpeg(); err != nil {
+			log.Printf("⚠️  Failed to auto-install ffmpeg: %v", err)
+			log.Printf("   Please install manually:")
+			log.Printf("   - macOS: brew install ffmpeg")
+			log.Printf("   - Linux: sudo apt install ffmpeg")
+			log.Printf("   - Windows: winget install ffmpeg")
+			// Continue anyway - whisper might still work with WAV files
+		} else {
+			log.Println("✅ ffmpeg installed successfully")
+		}
+	} else {
+		ffmpegVersion := s.manager.GetFFmpegVersion()
+		log.Printf("✅ ffmpeg is installed: %s", ffmpegVersion)
+	}
+
+	// Step 2: Check and install whisper-cpp if needed
 	if !s.manager.IsWhisperInstalled() {
 		log.Println("🔧 whisper-cpp not found, attempting auto-installation...")
 		if err := s.manager.InstallWhisper(); err != nil {
@@ -47,7 +66,7 @@ func (s *Service) initializeInBackground() {
 		log.Println("✅ whisper-cli is installed and ready")
 	}
 
-	// Step 2: Check if any model is installed (this also validates and removes corrupted models)
+	// Step 3: Check if any model is installed (this also validates and removes corrupted models)
 	log.Println("🔍 Checking for installed Whisper models...")
 	models, err := s.manager.GetInstalledModels()
 	if err != nil {
@@ -55,7 +74,7 @@ func (s *Service) initializeInBackground() {
 		return
 	}
 
-	// Step 3: Download recommended model if no models exist
+	// Step 4: Download recommended model if no models exist
 	if len(models) == 0 {
 		recommendedModel := s.manager.GetRecommendedModel()
 		log.Printf("📥 No valid models found, downloading recommended model: %s", recommendedModel)
@@ -184,6 +203,36 @@ func (s *Service) GetVersion() string {
 // GetRecommendedModel returns a recommended model
 func (s *Service) GetRecommendedModel() string {
 	return s.manager.GetRecommendedModel()
+}
+
+// IsFFmpegInstalled checks if ffmpeg is installed
+func (s *Service) IsFFmpegInstalled() bool {
+	return s.manager.IsFFmpegInstalled()
+}
+
+// InstallFFmpeg installs ffmpeg (platform-specific)
+func (s *Service) InstallFFmpeg() error {
+	return s.manager.InstallFFmpeg()
+}
+
+// GetFFmpegVersion returns the ffmpeg version
+func (s *Service) GetFFmpegVersion() string {
+	return s.manager.GetFFmpegVersion()
+}
+
+// GetDependencyStatus returns the status of all dependencies
+func (s *Service) GetDependencyStatus() map[string]interface{} {
+	return map[string]interface{}{
+		"whisper": map[string]interface{}{
+			"installed": s.manager.IsWhisperInstalled(),
+			"version":   s.manager.GetVersion(),
+		},
+		"ffmpeg": map[string]interface{}{
+			"installed": s.manager.IsFFmpegInstalled(),
+			"version":   s.manager.GetFFmpegVersion(),
+			"path":      s.manager.GetFFmpegPath(),
+		},
+	}
 }
 
 // Close is a no-op for CLI-based service (kept for interface compatibility)
