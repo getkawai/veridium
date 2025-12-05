@@ -49,6 +49,9 @@ type DevConfig struct {
 	// Summary generation - background task, can be slower
 	Summary TaskProviderConfig
 
+	// OCRCleanup - OCR text cleanup and formatting (remote first, local fallback)
+	OCRCleanup TaskProviderConfig
+
 	// UseLocalFallback - if true, use local llama as fallback for all tasks
 	UseLocalFallback bool
 }
@@ -83,6 +86,14 @@ func GetDefaultDevConfig() DevConfig {
 			APIKey:       "a10854167085448cac33753523919ac9.D41CLq6KxXTY7g4u",
 			Model:        "glm-4.6",
 			MaxTokens:    1024,
+		},
+
+		// OCRCleanup: Use Zhipu GLM for OCR text cleanup (remote first, local fallback)
+		OCRCleanup: TaskProviderConfig{
+			ProviderType: types.ProviderZhipuAI,
+			APIKey:       "a10854167085448cac33753523919ac9.D41CLq6KxXTY7g4u",
+			Model:        "glm-4.6",
+			MaxTokens:    2048,
 		},
 
 		// Use local Llama as fallback when remote providers fail
@@ -145,6 +156,18 @@ func BuildTaskRouter(
 	} else if localProvider != nil {
 		router.SetProvider(TaskSummaryGen, localProvider)
 		log.Printf("🔀 TaskRouter: Summary -> Local Llama (default)")
+	}
+
+	// Configure OCRCleanup provider (remote first, local fallback via TaskRouter)
+	if config.OCRCleanup.APIKey != "" {
+		ocrProvider := createProviderFromConfig(factory, config.OCRCleanup)
+		if ocrProvider != nil {
+			router.SetProvider(TaskOCRCleanup, ocrProvider)
+			log.Printf("🔀 TaskRouter: OCRCleanup -> %s (%s)", config.OCRCleanup.ProviderType, config.OCRCleanup.Model)
+		}
+	} else if localProvider != nil {
+		router.SetProvider(TaskOCRCleanup, localProvider)
+		log.Printf("🔀 TaskRouter: OCRCleanup -> Local Llama (no remote API key)")
 	}
 
 	return router

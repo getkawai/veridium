@@ -423,7 +423,21 @@ func (p *Provider) convertResponse(resp *types.ChatCompletionResponse) *types.LL
 	}
 
 	choice := resp.Choices[0]
-	contentStr, _ := choice.Message.Content.(string)
+	contentStr, ok := choice.Message.Content.(string)
+	if !ok && choice.Message.Content != nil {
+		// Try to handle other content types (e.g., []interface{} from some providers)
+		log.Printf("⚠️  Content is not string: %T = %+v", choice.Message.Content, choice.Message.Content)
+		// Try to extract text from content if it's a slice of content parts
+		if parts, ok := choice.Message.Content.([]interface{}); ok {
+			for _, part := range parts {
+				if partMap, ok := part.(map[string]interface{}); ok {
+					if text, ok := partMap["text"].(string); ok {
+						contentStr += text
+					}
+				}
+			}
+		}
+	}
 	result := &types.LLMResponse{
 		Content:      strings.TrimSpace(contentStr),
 		FinishReason: choice.FinishReason,

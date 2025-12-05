@@ -34,6 +34,7 @@ const (
 	TaskTitleGen      TaskType = "title"          // Title generation (lightweight)
 	TaskSummaryGen    TaskType = "summary"        // Summary generation (background)
 	TaskImageDescribe TaskType = "image_describe" // Image description (VL model)
+	TaskOCRCleanup    TaskType = "ocr_cleanup"    // OCR text cleanup (remote first, local fallback)
 )
 
 // ============================================================================
@@ -51,6 +52,7 @@ const (
 // | Title          | Zhipu AI      | glm-4.6            | Local Llama  | Fast title generation     |
 // | Summary        | Zhipu AI      | glm-4.6            | Local Llama  | Topic summarization       |
 // | ImageDescribe  | Local Qwen VL | qwen3-vl           | None         | Vision-language (async)   |
+// | OCRCleanup     | Zhipu AI      | glm-4.6            | Local Llama  | OCR text cleanup & format |
 //
 // FALLBACK BEHAVIOR:
 // - GenerateWithoutTools() automatically tries fallback if primary fails

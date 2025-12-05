@@ -26,8 +26,9 @@ func NewImageDescribeService(sqlDB *sql.DB) *ImageDescribeService {
 	}
 }
 
-// GetImageDescription retrieves the AI-generated description for an image
-// It polls the database for up to maxWait duration waiting for VL processing to complete
+// GetImageDescription retrieves the AI-generated description or OCR text for an image
+// It polls the database for up to maxWait duration waiting for processing to complete
+// Supports both fast OCR path (Tesseract) and slow VL path
 func (s *ImageDescribeService) GetImageDescription(ctx context.Context, fileID string, maxWait time.Duration) (string, error) {
 	const pollInterval = 2 * time.Second
 	deadline := time.Now().Add(maxWait)
@@ -41,14 +42,18 @@ func (s *ImageDescribeService) GetImageDescription(ctx context.Context, fileID s
 				return "", fmt.Errorf("failed to query document: %w", err)
 			}
 		} else {
-			// Check if document has VL description
+			// Check if document has image content (OCR or VL description)
 			if doc.Content.Valid && doc.Content.String != "" {
 				content := doc.Content.String
-				hasVLDescription := strings.Contains(content, "Image Description (AI Generated)") ||
+				
+				// Check for any of the possible content markers
+				hasContent := strings.Contains(content, "OCR Text (Tesseract") ||
+					strings.Contains(content, "Image Description (VL Model)") ||
+					strings.Contains(content, "Image Description (AI Generated)") ||
 					strings.Contains(content, "Video Description (AI Generated)")
 
-				if hasVLDescription {
-					log.Printf("✅ [ImageDescribe] Found description for file %s (%d chars, attempt %d)", fileID, len(content), attempt)
+				if hasContent {
+					log.Printf("✅ [ImageDescribe] Found content for file %s (%d chars, attempt %d)", fileID, len(content), attempt)
 					return content, nil
 				}
 			}
@@ -59,7 +64,7 @@ func (s *ImageDescribeService) GetImageDescription(ctx context.Context, fileID s
 			break
 		}
 
-		log.Printf("⏳ [ImageDescribe] Waiting for VL description for file %s (attempt %d)", fileID, attempt)
+		log.Printf("⏳ [ImageDescribe] Waiting for image content for file %s (attempt %d)", fileID, attempt)
 		select {
 		case <-ctx.Done():
 			return "", ctx.Err()

@@ -298,6 +298,11 @@ func main() {
 				for _, task := range taskRouter.ListConfiguredTasks() {
 					log.Printf("   Task '%s': configured", task)
 				}
+
+				// Connect TaskRouter to FileProcessorService for OCR text cleanup
+				llmAdapter := services.NewTaskRouterAdapter(taskRouter)
+				fileProcessorService.SetLLMProvider(llmAdapter)
+				log.Printf("🔗 FileProcessor connected to TaskRouter for OCR cleanup")
 			}
 		}
 

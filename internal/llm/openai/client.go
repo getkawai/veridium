@@ -96,8 +96,14 @@ func (c *Client) ChatCompletion(ctx context.Context, req types.ChatCompletionReq
 		return nil, c.parseError(resp)
 	}
 
+	// Read body for debugging
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
 	var result types.ChatCompletionResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if err := json.Unmarshal(bodyBytes, &result); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
@@ -106,6 +112,21 @@ func (c *Client) ChatCompletion(ctx context.Context, req types.ChatCompletionReq
 			c.providerType, result.ID, result.Usage.TotalTokens)
 	} else {
 		log.Printf("✅ [%s] Chat completion successful (id: %s)", c.providerType, result.ID)
+	}
+
+	// Debug: Log content if choices exist
+	if len(result.Choices) > 0 {
+		contentPreview := ""
+		if content, ok := result.Choices[0].Message.Content.(string); ok {
+			if len(content) > 100 {
+				contentPreview = content[:100] + "..."
+			} else {
+				contentPreview = content
+			}
+		} else {
+			contentPreview = fmt.Sprintf("(non-string: %T)", result.Choices[0].Message.Content)
+		}
+		log.Printf("📝 [%s] Response content: %s", c.providerType, contentPreview)
 	}
 
 	return &result, nil

@@ -54,6 +54,11 @@ func NewFileProcessorService(
 	}
 }
 
+// SetLLMProvider sets the LLM provider for OCR text cleanup
+func (f *FileProcessorService) SetLLMProvider(provider services.LLMProvider) {
+	f.processor.SetLLMProvider(provider)
+}
+
 // ProcessFileFromPath processes a file from absolute path (e.g., from file dialog)
 // It copies the file to local storage and processes it for RAG
 // Returns the processed file response with the relative URL for frontend display

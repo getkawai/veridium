@@ -23,11 +23,18 @@ import (
 
 // FileProcessorService orchestrates file processing pipeline
 type FileProcessorService struct {
+	db             *sql.DB
 	queries        *db.Queries
 	fileLoader     *FileLoader
 	ragProcessor   *RAGProcessor
 	libraryService *llama.LibraryService
 	whisperService *whisper.Service
+	llmProvider    LLMProvider // For OCR text cleanup
+}
+
+// LLMProvider interface for text generation (used for OCR cleanup)
+type LLMProvider interface {
+	GenerateText(ctx context.Context, prompt string) (string, error)
 }
 
 // NewFileProcessorService creates a new file processor service
@@ -39,12 +46,18 @@ func NewFileProcessorService(
 	whisperService *whisper.Service,
 ) *FileProcessorService {
 	return &FileProcessorService{
+		db:             database,
 		queries:        db.New(database),
 		fileLoader:     fileLoader,
 		ragProcessor:   ragProcessor,
 		libraryService: libraryService,
 		whisperService: whisperService,
 	}
+}
+
+// SetLLMProvider sets the LLM provider for OCR text cleanup
+func (s *FileProcessorService) SetLLMProvider(provider LLMProvider) {
+	s.llmProvider = provider
 }
 
 
@@ -104,8 +117,9 @@ func (s *FileProcessorService) ProcessFile(ctx context.Context, req ProcessFileR
 	// This allows the UI to show the image immediately while description is being generated
 	// Note: detectedFileType is the file extension (e.g., "jpg"), not the SupportedFileType ("image")
 	// We don't set Processing=true because the file IS ready for use - only the AI description is pending
-	if s.fileLoader.IsImageFile(detectedFileType) && s.libraryService != nil {
-		xlog.Info("Starting async image description generation", "filename", req.Filename, "document_id", documentID)
+	// Always try image processing - OCR can work without VL model
+	if s.fileLoader.IsImageFile(detectedFileType) {
+		xlog.Info("Starting async image processing (hybrid OCR/VL)", "filename", req.Filename, "document_id", documentID)
 
 		go s.processImageDescriptionAsync(req.FilePath, req.Filename, documentID, fileID, req.UserID, req.EnableRAG)
 	} else if s.fileLoader.IsVideoFile(detectedFileType) {
@@ -134,49 +148,118 @@ func (s *FileProcessorService) ProcessFile(ctx context.Context, req ProcessFileR
 	return response, nil
 }
 
-// processImageDescriptionAsync generates image description asynchronously
-// and updates the document when complete
+// processImageDescriptionAsync generates image description asynchronously using hybrid approach:
+// 1. First try Tesseract OCR (fast) for text extraction
+// 2. If significant text found, use that (fast path)
+// 3. If no/minimal text, fallback to VL model for image description (slow path)
 func (s *FileProcessorService) processImageDescriptionAsync(filePath, filename, documentID, fileID, userID string, enableRAG bool) {
 	ctx := context.Background()
 
-	xlog.Info("Async: Starting VL model image processing", "filename", filename)
+	xlog.Info("Async: Starting hybrid image processing", "filename", filename)
 
-	// Ensure VL model is loaded
-	if !s.libraryService.IsVLModelLoaded() {
-		if err := s.libraryService.LoadVLModel(""); err != nil {
-			xlog.Error("Async: Failed to load VL model for image processing", "error", err)
+	var finalContent string
+	var contentType string
+
+	// Step 1: Try Tesseract OCR first (fast path)
+	ocrText, err := s.extractTextWithTesseract(filePath)
+	if err != nil {
+		xlog.Warn("Async: Tesseract OCR failed, will try VL model", "error", err, "filename", filename)
+	}
+
+	// Check if we got meaningful text (more than 20 chars, excluding whitespace)
+	// Lower threshold to catch short but valid text like logos, labels, etc.
+	cleanedText := strings.TrimSpace(ocrText)
+	if len(cleanedText) > 20 {
+		// Fast path: sufficient text extracted via OCR
+		xlog.Info("Async: OCR extracted sufficient text", "length", len(cleanedText), "filename", filename)
+		
+		// Step 2: Clean up OCR text using LLM (if available)
+		if s.llmProvider != nil {
+			xlog.Info("Async: Cleaning up OCR text with LLM", "filename", filename)
+			cleanedContent, err := s.cleanupOCRText(ctx, cleanedText, filename)
+			if err != nil {
+				xlog.Warn("Async: LLM cleanup failed, using raw OCR", "error", err, "filename", filename)
+				finalContent = cleanedText
+				contentType = "OCR Text (Tesseract - raw)"
+			} else {
+				finalContent = cleanedContent
+				contentType = "OCR Text (Tesseract + LLM cleanup)"
+			}
+		} else {
+			finalContent = cleanedText
+			contentType = "OCR Text (Tesseract)"
+		}
+	} else {
+		// Slow path: use VL model for image description
+		xlog.Info("Async: Minimal text from OCR, using VL model", "ocr_length", len(cleanedText), "filename", filename)
+
+		// Ensure VL model is loaded
+		if s.libraryService != nil {
+			if !s.libraryService.IsVLModelLoaded() {
+				if err := s.libraryService.LoadVLModel(""); err != nil {
+					xlog.Error("Async: Failed to load VL model", "error", err)
+					// If VL fails but we have some OCR text, use that
+					if len(cleanedText) > 0 {
+						finalContent = cleanedText
+						contentType = "OCR Text (Tesseract - partial)"
+					} else {
+						return
+					}
+				}
+			}
+
+			if s.libraryService.IsVLModelLoaded() && finalContent == "" {
+				prompt := "Describe this image in detail. Include all visible text, objects, people, colors, and layout."
+				description, err := s.libraryService.ProcessImageWithText(filePath, prompt, 2048)
+				if err != nil {
+					xlog.Error("Async: VL model processing failed", "error", err, "filename", filename)
+					// Fallback to OCR text if available
+					if len(cleanedText) > 0 {
+						finalContent = cleanedText
+						contentType = "OCR Text (Tesseract - VL fallback failed)"
+					} else {
+						return
+					}
+				} else {
+					finalContent = description
+					contentType = "Image Description (VL Model)"
+					
+					// If we also have OCR text, append it
+					if len(cleanedText) > 0 {
+						finalContent = fmt.Sprintf("%s\n\n**Extracted Text (OCR):**\n%s", description, cleanedText)
+					}
+				}
+			}
+		} else if len(cleanedText) > 0 {
+			// No VL service but have some OCR text
+			finalContent = cleanedText
+			contentType = "OCR Text (Tesseract - no VL available)"
+		} else {
+			xlog.Error("Async: No VL model available and no OCR text", "filename", filename)
 			return
 		}
 	}
 
-	if !s.libraryService.IsVLModelLoaded() {
-		xlog.Error("Async: VL model not available", "filename", filename)
+	if finalContent == "" {
+		xlog.Warn("Async: No content extracted from image", "filename", filename)
 		return
 	}
 
-	// Generate description with sufficient tokens for document OCR
-	prompt := "Describe this image in detail. Include all visible text, objects, and layout."
-	description, err := s.libraryService.ProcessImageWithText(filePath, prompt, 2048)
+	xlog.Info("Async: Image processing completed", "type", contentType, "length", len(finalContent), "filename", filename)
+
+	// Format content as markdown
+	contentMarkdown := fmt.Sprintf("\n\n### %s\n\n%s", contentType, finalContent)
+
+	// Update document with content
+	err = s.appendContentToDocument(ctx, documentID, userID, contentMarkdown)
 	if err != nil {
-		xlog.Error("Async: Failed to process image with VL model", "error", err, "filename", filename)
+		xlog.Error("Async: Failed to update document", "error", err, "document_id", documentID)
 		return
 	}
 
-	xlog.Info("Async: Image description generated", "length", len(description), "filename", filename)
+	xlog.Info("Async: Document updated", "document_id", documentID, "type", contentType)
 
-	// Format description as markdown
-	descriptionMarkdown := fmt.Sprintf("\n\n### Image Description (AI Generated)\n\n%s", description)
-
-	// Update document with description
-	err = s.appendContentToDocument(ctx, documentID, userID, descriptionMarkdown)
-	if err != nil {
-		xlog.Error("Async: Failed to update document with description", "error", err, "document_id", documentID)
-		return
-	}
-
-	xlog.Info("Async: Document updated with image description", "document_id", documentID)
-
-	// Process for RAG if enabled (now that we have the description)
+	// Process for RAG if enabled
 	if enableRAG {
 		chunkIDs, err := s.ragProcessor.ProcessFile(ctx, RAGProcessRequest{
 			FilePath:   filePath,
@@ -193,11 +276,93 @@ func (s *FileProcessorService) processImageDescriptionAsync(filePath, filename, 
 	}
 }
 
+// extractTextWithTesseract extracts text from image using Tesseract OCR
+func (s *FileProcessorService) extractTextWithTesseract(imagePath string) (string, error) {
+	tesseractPath, err := exec.LookPath("tesseract")
+	if err != nil {
+		return "", fmt.Errorf("tesseract not found: %w", err)
+	}
+
+	// Run tesseract: tesseract <image> stdout
+	cmd := exec.Command(tesseractPath, imagePath, "stdout", "-l", "eng+ind+jpn+chi_sim")
+	output, err := cmd.Output()
+	if err != nil {
+		// Try without language packs (just default)
+		cmd = exec.Command(tesseractPath, imagePath, "stdout")
+		output, err = cmd.Output()
+		if err != nil {
+			return "", fmt.Errorf("tesseract failed: %w", err)
+		}
+	}
+
+	return string(output), nil
+}
+
+// cleanupOCRText uses LLM to clean up raw OCR text and format it as markdown
+func (s *FileProcessorService) cleanupOCRText(ctx context.Context, rawText, filename string) (string, error) {
+	if s.llmProvider == nil {
+		return rawText, nil
+	}
+
+	// Determine likely document type from filename
+	ext := strings.ToLower(filepath.Ext(filename))
+	docHint := ""
+	switch ext {
+	case ".pdf":
+		docHint = "This appears to be from a PDF document."
+	case ".png", ".jpg", ".jpeg":
+		docHint = "This is from a screenshot or image."
+	default:
+		docHint = "This is from an image file."
+	}
+
+	prompt := fmt.Sprintf(`Clean up the following OCR-extracted text and format it as clean markdown.
+
+%s
+
+Instructions:
+1. Fix obvious OCR errors and typos
+2. Remove artifacts like random characters, broken words
+3. Preserve the original meaning and structure
+4. Format as proper markdown:
+   - Use headers (##, ###) for section titles
+   - Use bullet points or numbered lists where appropriate
+   - Use **bold** for emphasis or important terms
+   - Use code blocks for any code or technical content
+5. If it's a table, format it as a markdown table
+6. Keep the content concise but complete
+7. Output ONLY the cleaned markdown, no explanations
+
+Raw OCR text:
+---
+%s
+---
+
+Cleaned markdown:`, docHint, rawText)
+
+	result, err := s.llmProvider.GenerateText(ctx, prompt)
+	if err != nil {
+		return "", fmt.Errorf("LLM cleanup failed: %w", err)
+	}
+
+	// Trim any leading/trailing whitespace
+	result = strings.TrimSpace(result)
+	
+	// If result is empty or too short, return original
+	if len(result) < 10 {
+		return rawText, nil
+	}
+
+	xlog.Info("Async: OCR text cleaned up", "original_len", len(rawText), "cleaned_len", len(result))
+	return result, nil
+}
+
 // processVideoDescriptionAsync extracts audio from video using ffmpeg and transcribes using whisper
+// Uses parallel chunked transcription for faster processing with progressive DB updates
 func (s *FileProcessorService) processVideoDescriptionAsync(filePath, filename, documentID, fileID, userID string, enableRAG bool) {
 	ctx := context.Background()
 
-	xlog.Info("Async: Starting video transcription", "filename", filename)
+	xlog.Info("Async: Starting video transcription (parallel)", "filename", filename)
 
 	// Check if whisper service is available
 	if s.whisperService == nil {
@@ -211,52 +376,92 @@ func (s *FileProcessorService) processVideoDescriptionAsync(filePath, filename, 
 		return
 	}
 
-	// Check if we have a model
+	// Check if we have a model - prefer tiny for speed in parallel mode
 	models, err := s.whisperService.ListModels()
 	if err != nil || len(models) == 0 {
 		xlog.Error("Async: No whisper models available", "error", err, "filename", filename)
 		return
 	}
-	modelName := models[0] // Use first available model
+	
+	// Prefer tiny model for parallel processing (faster), fallback to first available
+	modelName := models[0]
+	for _, m := range models {
+		if m == "tiny" || m == "tiny.en" {
+			modelName = m
+			break
+		}
+	}
 
-	// Step 1: Extract audio from video using ffmpeg
-	audioPath, err := s.extractAudioFromVideo(filePath)
+	// Get video duration
+	duration, err := s.getVideoDuration(filePath)
 	if err != nil {
-		xlog.Error("Async: Failed to extract audio from video", "error", err, "filename", filename)
-		return
+		xlog.Warn("Async: Could not get video duration, using sequential mode", "error", err)
+		duration = 0
 	}
-	defer os.Remove(audioPath) // Clean up temp audio file
 
-	xlog.Info("Async: Audio extracted from video", "audio_path", audioPath, "filename", filename)
+	xlog.Info("Async: Video info", "duration_sec", duration, "model", modelName, "filename", filename)
 
-	// Step 2: Transcribe audio using whisper
-	xlog.Info("Async: Starting whisper transcription", "model", modelName, "filename", filename)
-	transcription, err := s.whisperService.Transcribe(ctx, modelName, audioPath)
+	// Initialize transcription header in document
+	err = s.appendContentToDocument(ctx, documentID, userID, "\n\n### Video Transcription (AI Generated via Whisper)\n\n*Transcribing...*\n")
 	if err != nil {
-		xlog.Error("Async: Failed to transcribe audio", "error", err, "filename", filename)
-		return
+		xlog.Error("Async: Failed to initialize transcription header", "error", err)
 	}
 
-	if transcription == "" {
-		xlog.Warn("Async: Empty transcription result", "filename", filename)
-		transcription = "(No speech detected in video)"
+	var fullTranscription string
+
+	// Use parallel chunked transcription for videos > 2 minutes
+	if duration > 120 {
+		// Calculate number of chunks (each chunk ~5 minutes = 300 seconds)
+		chunkDuration := 300.0
+		numChunks := int(duration/chunkDuration) + 1
+		if numChunks > 8 {
+			numChunks = 8 // Cap at 8 parallel workers
+		}
+		if numChunks < 2 {
+			numChunks = 2
+		}
+
+		xlog.Info("Async: Using parallel transcription", "chunks", numChunks, "chunk_duration", chunkDuration)
+
+		fullTranscription, err = s.transcribeVideoParallel(ctx, filePath, modelName, numChunks, chunkDuration, documentID, userID)
+		if err != nil {
+			xlog.Error("Async: Parallel transcription failed", "error", err, "filename", filename)
+			return
+		}
+	} else {
+		// Short video - use sequential transcription
+		xlog.Info("Async: Using sequential transcription (short video)")
+		
+		audioPath, err := s.extractAudioFromVideo(filePath, 0, 0) // Full video
+		if err != nil {
+			xlog.Error("Async: Failed to extract audio", "error", err)
+			return
+		}
+		defer os.Remove(audioPath)
+
+		fullTranscription, err = s.whisperService.Transcribe(ctx, modelName, audioPath)
+		if err != nil {
+			xlog.Error("Async: Transcription failed", "error", err)
+			return
+		}
 	}
 
-	xlog.Info("Async: Video transcription completed", "length", len(transcription), "filename", filename)
+	if fullTranscription == "" {
+		fullTranscription = "(No speech detected in video)"
+	}
 
-	// Format transcription as markdown
-	transcriptionMarkdown := fmt.Sprintf("\n\n### Video Transcription (AI Generated via Whisper)\n\n%s", transcription)
+	xlog.Info("Async: Video transcription completed", "length", len(fullTranscription), "filename", filename)
 
-	// Update document with transcription
-	err = s.appendContentToDocument(ctx, documentID, userID, transcriptionMarkdown)
+	// Update document with final complete transcription
+	finalMarkdown := fmt.Sprintf("\n\n### Video Transcription (AI Generated via Whisper)\n\n%s", fullTranscription)
+	err = s.replaceTranscriptionInDocument(ctx, documentID, userID, finalMarkdown)
 	if err != nil {
-		xlog.Error("Async: Failed to update document with transcription", "error", err, "document_id", documentID)
-		return
+		xlog.Error("Async: Failed to update document with final transcription", "error", err)
 	}
 
-	xlog.Info("Async: Document updated with video transcription", "document_id", documentID)
+	xlog.Info("Async: Document updated with complete transcription", "document_id", documentID)
 
-	// Process for RAG if enabled (now that we have the transcription)
+	// Process for RAG if enabled
 	if enableRAG {
 		chunkIDs, err := s.ragProcessor.ProcessFile(ctx, RAGProcessRequest{
 			FilePath:   filePath,
@@ -273,9 +478,217 @@ func (s *FileProcessorService) processVideoDescriptionAsync(filePath, filename, 
 	}
 }
 
+// transcribeVideoParallel transcribes video in parallel chunks with progressive updates
+func (s *FileProcessorService) transcribeVideoParallel(ctx context.Context, videoPath, modelName string, numChunks int, chunkDuration float64, documentID, userID string) (string, error) {
+	// Create temp directory for chunks
+	tempDir, err := os.MkdirTemp("", "whisper_chunks_*")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp dir: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Extract audio chunks in parallel
+	type chunkResult struct {
+		index   int
+		path    string
+		err     error
+	}
+	
+	extractChan := make(chan chunkResult, numChunks)
+	
+	xlog.Info("Async: Extracting audio chunks", "count", numChunks)
+	
+	for i := 0; i < numChunks; i++ {
+		go func(idx int) {
+			startTime := float64(idx) * chunkDuration
+			chunkPath := filepath.Join(tempDir, fmt.Sprintf("chunk_%d.wav", idx))
+			
+			err := s.extractAudioChunk(videoPath, chunkPath, startTime, chunkDuration)
+			extractChan <- chunkResult{index: idx, path: chunkPath, err: err}
+		}(i)
+	}
+
+	// Collect extracted chunks
+	chunkPaths := make([]string, numChunks)
+	for i := 0; i < numChunks; i++ {
+		result := <-extractChan
+		if result.err != nil {
+			xlog.Warn("Async: Failed to extract chunk", "index", result.index, "error", result.err)
+			continue
+		}
+		chunkPaths[result.index] = result.path
+	}
+
+	// Transcribe chunks in parallel with progressive updates
+	type transcribeResult struct {
+		index        int
+		transcription string
+		err          error
+	}
+	
+	transcribeChan := make(chan transcribeResult, numChunks)
+	transcriptions := make([]string, numChunks)
+	completedChunks := 0
+	
+	xlog.Info("Async: Starting parallel transcription", "chunks", numChunks)
+	
+	for i := 0; i < numChunks; i++ {
+		if chunkPaths[i] == "" {
+			transcribeChan <- transcribeResult{index: i, transcription: "", err: nil}
+			continue
+		}
+		
+		go func(idx int, audioPath string) {
+			text, err := s.whisperService.Transcribe(ctx, modelName, audioPath)
+			transcribeChan <- transcribeResult{index: idx, transcription: text, err: err}
+		}(i, chunkPaths[i])
+	}
+
+	// Collect transcriptions with progressive updates
+	for i := 0; i < numChunks; i++ {
+		result := <-transcribeChan
+		if result.err != nil {
+			xlog.Warn("Async: Chunk transcription failed", "index", result.index, "error", result.err)
+			continue
+		}
+		
+		transcriptions[result.index] = result.transcription
+		completedChunks++
+		
+		// Progressive update: update DB with current progress
+		progress := fmt.Sprintf("*Transcribing... (%d/%d segments completed)*\n\n", completedChunks, numChunks)
+		partialTranscription := s.combineTranscriptions(transcriptions)
+		progressMarkdown := fmt.Sprintf("\n\n### Video Transcription (AI Generated via Whisper)\n\n%s%s", progress, partialTranscription)
+		
+		if err := s.replaceTranscriptionInDocument(ctx, documentID, userID, progressMarkdown); err != nil {
+			xlog.Warn("Async: Failed to update progress", "error", err)
+		} else {
+			xlog.Info("Async: Progress updated", "completed", completedChunks, "total", numChunks)
+		}
+	}
+
+	return s.combineTranscriptions(transcriptions), nil
+}
+
+// combineTranscriptions combines transcription segments in order
+func (s *FileProcessorService) combineTranscriptions(transcriptions []string) string {
+	var result strings.Builder
+	for i, t := range transcriptions {
+		if t == "" {
+			continue
+		}
+		if result.Len() > 0 {
+			result.WriteString("\n\n")
+		}
+		result.WriteString(fmt.Sprintf("**[Segment %d]**\n%s", i+1, strings.TrimSpace(t)))
+	}
+	return result.String()
+}
+
+// getVideoDuration gets video duration in seconds using ffprobe
+func (s *FileProcessorService) getVideoDuration(videoPath string) (float64, error) {
+	ffprobePath, err := exec.LookPath("ffprobe")
+	if err != nil {
+		// Try ffmpeg location
+		ffmpegPath, _ := exec.LookPath("ffmpeg")
+		if ffmpegPath != "" {
+			ffprobePath = filepath.Join(filepath.Dir(ffmpegPath), "ffprobe")
+		}
+		if _, statErr := os.Stat(ffprobePath); statErr != nil {
+			return 0, fmt.Errorf("ffprobe not found")
+		}
+	}
+
+	cmd := exec.Command(ffprobePath,
+		"-v", "error",
+		"-show_entries", "format=duration",
+		"-of", "default=noprint_wrappers=1:nokey=1",
+		videoPath,
+	)
+	
+	output, err := cmd.Output()
+	if err != nil {
+		return 0, err
+	}
+	
+	var duration float64
+	_, err = fmt.Sscanf(strings.TrimSpace(string(output)), "%f", &duration)
+	return duration, err
+}
+
+// extractAudioChunk extracts a specific chunk of audio from video
+func (s *FileProcessorService) extractAudioChunk(videoPath, outputPath string, startTime, duration float64) error {
+	ffmpegPath, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		homeDir, _ := os.UserHomeDir()
+		localFFmpeg := filepath.Join(homeDir, ".local", "bin", "ffmpeg")
+		if _, statErr := os.Stat(localFFmpeg); statErr == nil {
+			ffmpegPath = localFFmpeg
+		} else {
+			return fmt.Errorf("ffmpeg not found: %w", err)
+		}
+	}
+
+	args := []string{
+		"-i", videoPath,
+		"-vn",
+		"-acodec", "pcm_s16le",
+		"-ar", "16000",
+		"-ac", "1",
+		"-ss", fmt.Sprintf("%.2f", startTime),
+		"-t", fmt.Sprintf("%.2f", duration),
+		"-y",
+		outputPath,
+	}
+	
+	cmd := exec.Command(ffmpegPath, args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("ffmpeg chunk extraction failed: %w, output: %s", err, string(output))
+	}
+	
+	return nil
+}
+
+// replaceTranscriptionInDocument replaces the transcription section in document
+func (s *FileProcessorService) replaceTranscriptionInDocument(ctx context.Context, documentID, userID, newContent string) error {
+	// Get current document by document ID (not file ID)
+	var docID string
+	var currentContent sql.NullString
+	
+	err := s.db.QueryRowContext(ctx, 
+		"SELECT id, content FROM documents WHERE id = ?", 
+		documentID,
+	).Scan(&docID, &currentContent)
+	if err != nil {
+		return fmt.Errorf("failed to get document: %w", err)
+	}
+	
+	content := currentContent.String
+	
+	// Find and replace transcription section
+	marker := "### Video Transcription (AI Generated via Whisper)"
+	idx := strings.Index(content, marker)
+	if idx >= 0 {
+		// Replace from marker to end
+		content = content[:idx] + strings.TrimPrefix(newContent, "\n\n")
+	} else {
+		// Append if not found
+		content += newContent
+	}
+	
+	// Update document using raw SQL
+	_, err = s.db.ExecContext(ctx,
+		"UPDATE documents SET content = ?, updated_at = ? WHERE id = ?",
+		content, time.Now().Unix(), docID,
+	)
+	return err
+}
+
 // extractAudioFromVideo extracts audio from video file using ffmpeg
+// If startTime and duration are both 0, extracts full audio
 // Returns path to temporary WAV file (caller must clean up)
-func (s *FileProcessorService) extractAudioFromVideo(videoPath string) (string, error) {
+func (s *FileProcessorService) extractAudioFromVideo(videoPath string, startTime, duration float64) (string, error) {
 	// Create temp file for audio
 	tempDir := os.TempDir()
 	audioPath := filepath.Join(tempDir, fmt.Sprintf("audio_%d.wav", time.Now().UnixNano()))
@@ -293,17 +706,28 @@ func (s *FileProcessorService) extractAudioFromVideo(videoPath string) (string, 
 		}
 	}
 
-	// Extract audio: convert to 16kHz mono WAV (whisper's preferred format)
-	cmd := exec.Command(ffmpegPath,
+	// Build ffmpeg arguments
+	args := []string{
 		"-i", videoPath,
-		"-vn",           // No video
+		"-vn",                  // No video
 		"-acodec", "pcm_s16le", // 16-bit PCM
-		"-ar", "16000",  // 16kHz sample rate
-		"-ac", "1",      // Mono
-		"-y",            // Overwrite
-		audioPath,
-	)
+		"-ar", "16000",         // 16kHz sample rate
+		"-ac", "1",             // Mono
+	}
+	
+	// Add time range if specified
+	if startTime > 0 || duration > 0 {
+		if startTime > 0 {
+			args = append(args, "-ss", fmt.Sprintf("%.2f", startTime))
+		}
+		if duration > 0 {
+			args = append(args, "-t", fmt.Sprintf("%.2f", duration))
+		}
+	}
+	
+	args = append(args, "-y", audioPath) // Overwrite
 
+	cmd := exec.Command(ffmpegPath, args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("ffmpeg failed: %w, output: %s", err, string(output))
