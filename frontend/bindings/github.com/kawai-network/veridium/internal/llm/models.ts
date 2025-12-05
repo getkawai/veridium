@@ -12,11 +12,37 @@ import { Create as $Create } from "@wailsio/runtime";
 export type Provider = any;
 
 /**
- * TaskRouter routes different LLM tasks to appropriate providers
- * This enables using different providers for different tasks:
- * - Chat: OpenRouter for quality + streaming
- * - Title: Zhipu GLM for speed + cost
- * - Summary: Local Llama for background processing
+ * ============================================================================
+ * TASK ROUTING CONFIGURATION
+ * ============================================================================
+ * 
+ * TaskRouter distributes different LLM tasks to appropriate providers based on
+ * their strengths and cost efficiency.
+ * 
+ * CURRENT TASK ASSIGNMENTS:
+ * 
+ * | Task           | Primary       | Model              | Fallback     | Notes                     |
+ * |----------------|---------------|--------------------|--------------|---------------------------|
+ * | Chat           | OpenRouter    | amazon/nova-2-lite | Local Llama  | Main conversation         |
+ * | Title          | Zhipu AI      | glm-4.6            | Local Llama  | Fast title generation     |
+ * | Summary        | Zhipu AI      | glm-4.6            | Local Llama  | Topic summarization       |
+ * | ImageDescribe  | Local Qwen VL | qwen3-vl           | None         | Vision-language (async)   |
+ * 
+ * FALLBACK BEHAVIOR:
+ * - GenerateWithoutTools() automatically tries fallback if primary fails
+ * - Chat streaming has its own error handling (no auto-fallback yet)
+ * - ImageDescribe has no fallback (requires VL capability)
+ * 
+ * IMAGE/VIDEO PROCESSING FLOW:
+ * 1. File uploaded → FileProcessorService.ProcessFileFromPath()
+ * 2. For images/videos → processImageDescriptionAsync() / processVideoDescriptionAsync()
+ * 3. Local Qwen VL generates description (async, ~60-90 seconds for images)
+ * 4. Description saved to documents table
+ * 5. LLM uses "lobe-image-describe__getImageDescription" tool to get description
+ *    - Tool polls DB for up to 2 minutes waiting for VL to complete
+ *    - Returns description content from documents table
+ * 
+ * ============================================================================
  */
 export class TaskRouter {
 

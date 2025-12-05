@@ -5,6 +5,7 @@ import { isDesktop } from '@/const/version';
 import { ArtifactsManifest } from './artifacts';
 import { CodeInterpreterManifest } from './code-interpreter';
 import { DalleManifest } from './dalle';
+import { ImageDescribeManifest } from './image-describe';
 import { LocalSystemManifest } from './local-system';
 import { WebBrowsingManifest } from './web-browsing';
 
@@ -34,6 +35,12 @@ export const builtinTools: LobeBuiltinTool[] = [
   {
     identifier: CodeInterpreterManifest.identifier,
     manifest: CodeInterpreterManifest,
+    type: 'builtin',
+  },
+  {
+    hidden: !isDesktop,
+    identifier: ImageDescribeManifest.identifier,
+    manifest: ImageDescribeManifest,
     type: 'builtin',
   },
 ];

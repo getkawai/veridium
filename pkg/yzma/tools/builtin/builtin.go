@@ -1,6 +1,7 @@
 package builtin
 
 import (
+	"database/sql"
 	"log"
 
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
@@ -8,6 +9,12 @@ import (
 
 // RegisterAll registers all builtin tools
 func RegisterAll(registry *tools.ToolRegistry) error {
+	return RegisterAllWithDB(registry, nil)
+}
+
+// RegisterAllWithDB registers all builtin tools with optional database connection
+// Some tools (like image describe) require database access
+func RegisterAllWithDB(registry *tools.ToolRegistry, sqlDB *sql.DB) error {
 	log.Println("Registering builtin tools (yzma)...")
 
 	// Register web search (simple version)
@@ -45,6 +52,16 @@ func RegisterAll(registry *tools.ToolRegistry) error {
 		return err
 	}
 	log.Println("✅ Registered: calculator")
+
+	// Register lobe-image-describe (requires DB for querying VL descriptions)
+	if sqlDB != nil {
+		if err := RegisterImageDescribe(registry, sqlDB); err != nil {
+			return err
+		}
+		log.Println("✅ Registered: lobe-image-describe (getImageDescription)")
+	} else {
+		log.Println("⚠️  Skipped: lobe-image-describe (no database connection)")
+	}
 
 	return nil
 }

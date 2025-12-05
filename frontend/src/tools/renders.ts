@@ -4,6 +4,8 @@ import { CodeInterpreterManifest } from './code-interpreter';
 import CodeInterpreterRender from './code-interpreter/Render';
 import { DalleManifest } from './dalle';
 import DalleRender from './dalle/Render';
+import { ImageDescribeManifest } from './image-describe';
+import ImageDescribeRender from './image-describe/Render';
 import { LocalSystemManifest } from './local-system';
 import LocalFilesRender from './local-system/Render';
 import { WebBrowsingManifest } from './web-browsing';
@@ -14,4 +16,5 @@ export const BuiltinToolsRenders: Record<string, BuiltinRender> = {
   [WebBrowsingManifest.identifier]: WebBrowsing as BuiltinRender,
   [LocalSystemManifest.identifier]: LocalFilesRender as BuiltinRender,
   [CodeInterpreterManifest.identifier]: CodeInterpreterRender as BuiltinRender,
+  [ImageDescribeManifest.identifier]: ImageDescribeRender as BuiltinRender,
 };

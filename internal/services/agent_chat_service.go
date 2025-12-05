@@ -374,8 +374,9 @@ func NewAgentChatService(
 	ragWorkflow := NewRAGWorkflow(kbService)
 
 	// Initialize Yzma Tool Registry & Register Builtin Tools
+	// Pass SQL DB for tools that need database access (e.g., image describe)
 	toolRegistry := tools.NewToolRegistry()
-	if err := yzmabuiltin.RegisterAll(toolRegistry); err != nil {
+	if err := yzmabuiltin.RegisterAllWithDB(toolRegistry, db.DB()); err != nil {
 		log.Printf("⚠️  Warning: Failed to register yzma builtin tools: %v", err)
 	} else {
 		log.Printf("✅ AgentChatService: Yzma builtin tools registered")
@@ -957,6 +958,7 @@ func (s *AgentChatService) getOrCreateSession(ctx context.Context, req ChatReque
 }
 
 // collectToolNames collects tool names for the session based on request
+// If no tools specified, returns nil which means "use all registered tools"
 func (s *AgentChatService) collectToolNames(ctx context.Context, req ChatRequest) []string {
 	var toolNames []string
 
@@ -975,6 +977,12 @@ func (s *AgentChatService) collectToolNames(ctx context.Context, req ChatRequest
 
 	// Add requested tools
 	toolNames = append(toolNames, req.Tools...)
+
+	// If no tools specified, return nil to use all registered tools
+	// This allows LLM to use any available tool including lobe-image-describe
+	if len(toolNames) == 0 {
+		return nil
+	}
 
 	return toolNames
 }

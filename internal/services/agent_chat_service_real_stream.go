@@ -50,6 +50,9 @@ var toolNameMappings = map[string]ToolNameMapping{
 
 	// Calculator
 	"calculator": {Identifier: "calculator", APIName: "calculate", Type: "builtin"},
+
+	// Image describe (VL description from uploaded images)
+	"lobe-image-describe__getImageDescription": {Identifier: "lobe-image-describe", APIName: "getImageDescription", Type: "builtin"},
 }
 
 // mapToolName maps a Yzma tool name to frontend-compatible identifier/apiName
@@ -191,9 +194,10 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	if len(fileChunks) > 0 {
 		fileContext := "\n\n## Relevant Context from Attached Files:\n"
 		for i, chunk := range fileChunks {
-			fileContext += fmt.Sprintf("\n### [%d] From: %s (similarity: %.2f)\n%s\n", i+1, chunk.Filename, chunk.Similarity, chunk.Text)
+			// Include file_id so LLM can use it when calling tools like getImageDescription
+			fileContext += fmt.Sprintf("\n### [%d] From: %s (file_id: %s, similarity: %.2f)\n%s\n", i+1, chunk.Filename, chunk.FileID, chunk.Similarity, chunk.Text)
 		}
-		fileContext += "\n---\nUse the above context to help answer the user's question.\n"
+		fileContext += "\n---\nUse the above context to help answer the user's question. When using tools like getImageDescription, use the file_id provided above.\n"
 
 		// Inject file context by modifying the user's last message
 		// This is more compatible with different message types

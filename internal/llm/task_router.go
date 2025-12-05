@@ -62,10 +62,9 @@ const (
 // 2. For images/videos → processImageDescriptionAsync() / processVideoDescriptionAsync()
 // 3. Local Qwen VL generates description (async, ~60-90 seconds for images)
 // 4. Description saved to documents table
-// 5. When user sends message with file attachment:
-//    - RAG search for relevant chunks
-//    - If no results, poll document for up to 60 seconds waiting for VL description
-//    - Inject description into chat context
+// 5. LLM uses "lobe-image-describe__getImageDescription" tool to get description
+//    - Tool polls DB for up to 2 minutes waiting for VL to complete
+//    - Returns description content from documents table
 //
 // ============================================================================
 type TaskRouter struct {
