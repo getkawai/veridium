@@ -226,8 +226,13 @@ func (m *Manager) TranscribeFile(ctx context.Context, audioPath, modelName strin
 	}
 
 	// Add optional parameters
-	if language, ok := options["language"].(string); ok && language != "" && language != "auto" {
+	// Note: whisper-cli defaults to "en" if no language is specified
+	// We must explicitly pass "-l auto" for auto-detection to work properly
+	if language, ok := options["language"].(string); ok && language != "" {
 		args = append(args, "-l", language)
+	} else {
+		// Default to auto-detect if no language specified
+		args = append(args, "-l", "auto")
 	}
 	if threads, ok := options["threads"].(int); ok && threads > 0 {
 		args = append(args, "-t", fmt.Sprintf("%d", threads))
@@ -301,9 +306,33 @@ func (m *Manager) parseWhisperOutput(output string) string {
 }
 
 // GetRecommendedModel returns a recommended model based on system resources
+// Model accuracy: large > medium > small > base > tiny
+// IMPORTANT: Minimum recommended model is "small" for acceptable accuracy
+// Model RAM requirements (approximate during inference):
+//   - tiny:   ~1GB RAM   (~75MB download)  - NOT recommended
+//   - base:   ~2GB RAM   (~150MB download) - NOT recommended
+//   - small:  ~4GB RAM   (~500MB download) - MINIMUM recommended
+//   - medium: ~8GB RAM   (~1.5GB download) - Good accuracy
+//   - large:  ~16GB RAM  (~3GB download)   - Best accuracy
 func (m *Manager) GetRecommendedModel() string {
-	// For simplicity, recommend base model as good balance of speed/accuracy
-	return "base"
+	availableRAM := m.getAvailableRAMGB()
+
+	// Select model based on available RAM
+	// Minimum model is "small" for acceptable transcription quality
+	switch {
+	case availableRAM >= 16:
+		return "medium" // Best practical choice for most use cases
+	case availableRAM >= 8:
+		return "medium" // Good accuracy
+	default:
+		return "small" // Minimum recommended for acceptable accuracy
+	}
+}
+
+// getAvailableRAMGB returns available RAM in GB (platform-specific)
+func (m *Manager) getAvailableRAMGB() int64 {
+	// This will be overridden by platform-specific implementations
+	return m.detectAvailableRAM()
 }
 
 // GetVersion returns the whisper-cpp version

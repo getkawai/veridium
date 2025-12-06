@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"os/exec"
+	"strconv"
+	"strings"
 )
 
 // InstallWhisper installs whisper-cpp using Homebrew on macOS
@@ -56,4 +58,27 @@ func (m *Manager) InstallFFmpeg() error {
 
 	log.Println("✅ ffmpeg installed successfully via Homebrew")
 	return nil
+}
+
+// detectAvailableRAM detects available RAM in GB on macOS
+func (m *Manager) detectAvailableRAM() int64 {
+	// Get total memory using sysctl
+	out, err := exec.Command("sysctl", "-n", "hw.memsize").Output()
+	if err != nil {
+		log.Printf("⚠️  Failed to detect RAM: %v, defaulting to 8GB", err)
+		return 8 // Default fallback
+	}
+
+	memBytes, err := strconv.ParseInt(strings.TrimSpace(string(out)), 10, 64)
+	if err != nil {
+		log.Printf("⚠️  Failed to parse RAM size: %v, defaulting to 8GB", err)
+		return 8
+	}
+
+	totalRAM := memBytes / (1024 * 1024 * 1024) // Convert to GB
+	// Estimate available as ~80% of total (conservative)
+	availableRAM := int64(float64(totalRAM) * 0.8)
+
+	log.Printf("📊 Detected RAM: %dGB total, ~%dGB available for Whisper model selection", totalRAM, availableRAM)
+	return availableRAM
 }

@@ -8,6 +8,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
+	"strings"
 )
 
 // InstallWhisper provides instructions for Windows installation
@@ -84,4 +86,36 @@ func (m *Manager) isFFmpegInCommonPaths() string {
 	}
 
 	return ""
+}
+
+// detectAvailableRAM detects available RAM in GB on Windows
+func (m *Manager) detectAvailableRAM() int64 {
+	// Get total memory using wmic
+	out, err := exec.Command("wmic", "computersystem", "get", "TotalPhysicalMemory", "/value").Output()
+	if err != nil {
+		log.Printf("⚠️  Failed to detect RAM: %v, defaulting to 8GB", err)
+		return 8
+	}
+
+	var totalRAM int64
+	lines := strings.Split(string(out), "\n")
+	for _, line := range lines {
+		if strings.HasPrefix(line, "TotalPhysicalMemory=") {
+			memStr := strings.TrimPrefix(line, "TotalPhysicalMemory=")
+			memStr = strings.TrimSpace(memStr)
+			if memBytes, err := strconv.ParseInt(memStr, 10, 64); err == nil {
+				totalRAM = memBytes / (1024 * 1024 * 1024) // Convert to GB
+			}
+		}
+	}
+
+	if totalRAM == 0 {
+		log.Printf("⚠️  Could not parse RAM info, defaulting to 8GB")
+		return 8
+	}
+
+	// Estimate available as 80% of total
+	availableRAM := int64(float64(totalRAM) * 0.8)
+	log.Printf("📊 Detected RAM: %dGB total, ~%dGB available for Whisper model selection", totalRAM, availableRAM)
+	return availableRAM
 }

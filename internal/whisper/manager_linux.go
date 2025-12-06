@@ -11,6 +11,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
+	"strings"
 )
 
 // InstallWhisper provides instructions for Linux installation
@@ -159,4 +161,47 @@ func copyFile(src, dst string) error {
 
 	_, err = io.Copy(destFile, sourceFile)
 	return err
+}
+
+// detectAvailableRAM detects available RAM in GB on Linux
+func (m *Manager) detectAvailableRAM() int64 {
+	// Read from /proc/meminfo
+	out, err := exec.Command("cat", "/proc/meminfo").Output()
+	if err != nil {
+		log.Printf("⚠️  Failed to detect RAM: %v, defaulting to 8GB", err)
+		return 8
+	}
+
+	var totalRAM, availableRAM int64
+	lines := strings.Split(string(out), "\n")
+	for _, line := range lines {
+		if strings.HasPrefix(line, "MemTotal:") {
+			fields := strings.Fields(line)
+			if len(fields) >= 2 {
+				if memKB, err := strconv.ParseInt(fields[1], 10, 64); err == nil {
+					totalRAM = memKB / (1024 * 1024) // Convert KB to GB
+				}
+			}
+		} else if strings.HasPrefix(line, "MemAvailable:") {
+			fields := strings.Fields(line)
+			if len(fields) >= 2 {
+				if memKB, err := strconv.ParseInt(fields[1], 10, 64); err == nil {
+					availableRAM = memKB / (1024 * 1024) // Convert KB to GB
+				}
+			}
+		}
+	}
+
+	// If MemAvailable not found, estimate as 80% of total
+	if availableRAM == 0 && totalRAM > 0 {
+		availableRAM = int64(float64(totalRAM) * 0.8)
+	}
+
+	if availableRAM == 0 {
+		log.Printf("⚠️  Could not parse RAM info, defaulting to 8GB")
+		return 8
+	}
+
+	log.Printf("📊 Detected RAM: %dGB total, %dGB available for Whisper model selection", totalRAM, availableRAM)
+	return availableRAM
 }

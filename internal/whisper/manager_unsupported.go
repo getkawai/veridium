@@ -27,3 +27,9 @@ func (m *Manager) InstallFFmpeg() error {
 
 	return fmt.Errorf("ffmpeg installation not supported on %s. Please install manually from: https://ffmpeg.org/download.html", runtime.GOOS)
 }
+
+// detectAvailableRAM returns default RAM for unsupported platforms
+func (m *Manager) detectAvailableRAM() int64 {
+	log.Printf("⚠️  RAM detection not supported on %s, defaulting to 8GB", runtime.GOOS)
+	return 8 // Default to 8GB
+}
