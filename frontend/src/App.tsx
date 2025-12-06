@@ -34,7 +34,7 @@ function App() {
   }, []);
 
   return (
-    <GlobalLayout appearance={'auto'} isMobile={false} locale={''} neutralColor={undefined} primaryColor={undefined} variants={undefined}>
+    <GlobalLayout appearance={'dark'} isMobile={false} locale={''} neutralColor={undefined} primaryColor={undefined} variants={undefined}>
       <DesktopMainLayout>
         <DesktopChatLayout />
       </DesktopMainLayout>

@@ -9,12 +9,14 @@ import {
 } from '@lobehub/ui';
 import { ThemeAppearance, createStyles } from 'antd-style';
 import 'antd/dist/reset.css';
-import {Image} from '@lobehub/ui';
+import { Image } from '@lobehub/ui';
 import { ReactNode, memo } from 'react';
 
 import AntdStaticMethods from '@/components/AntdStaticMethods';
 import { GlobalStyle } from '@/styles';
 import { setCookie } from '@/utils/client/cookie';
+import { useGlobalStore } from '@/store/global';
+import { systemStatusSelectors } from '@/store/global/selectors/systemStatus';
 
 const useStyles = createStyles(({ css, token }) => ({
   app: css`
@@ -93,10 +95,10 @@ const AppTheme = memo<AppThemeProps>(
     customFontFamily,
   }) => {
     const { styles, cx, theme } = useStyles();
+    const themeMode = useGlobalStore(systemStatusSelectors.themeMode);
 
     return (
       <ThemeProvider
-        appearance={'auto'}
         className={cx(styles.app, styles.scrollbar, styles.scrollbarPolyfill)}
         customTheme={{
           neutralColor: defaultNeutralColor,
@@ -114,7 +116,7 @@ const AppTheme = memo<AppThemeProps>(
             motionUnit: 0.05,
           },
         }}
-        themeMode={'auto'}
+        themeMode={themeMode}
       >
         {!!customFontURL && <FontLoader url={customFontURL} />}
         <GlobalStyle />

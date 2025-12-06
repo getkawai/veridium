@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build:dev": "vite build --minify false --mode development",
+    "build:dev": "bash -c 'vite build --minify false --mode development > /dev/null 2>&1 || { echo \"Build failed with errors:\"; vite build --minify false --mode development 2>&1 | grep -E \"(Error|error|ERROR|Build failed|failed|Failed|✗|×)\"; exit 1; }'",
     "build": "tsc && vite build --mode production",
     "preview": "vite preview"
   },
@@ -46,7 +46,7 @@
     "remark": "^15.0.1",
     "remark-gfm": "^4.0.1",
     "remark-html": "^16.0.1",
-    "resolve-accept-language": "^3.1.15",
+    "resolve-accept-language": "^3.1.2",
     "rtl-detect": "^1.1.2",
     "systemjs": "^6.15.1",
     "tokenx": "^1.2.1",
