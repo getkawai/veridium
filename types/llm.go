@@ -27,6 +27,7 @@ type ProviderType string
 
 const (
 	ProviderLlama      ProviderType = "llama"      // Local llama.cpp (via yzma)
+	ProviderOpenAI     ProviderType = "openai"     // OpenAI API
 	ProviderOpenRouter ProviderType = "openrouter" // OpenRouter (OpenAI-compatible, multi-model)
 	ProviderZhipuAI    ProviderType = "zhipu"      // Zhipu GLM (OpenAI-compatible, Chinese AI)
 )
@@ -46,11 +47,11 @@ type ProviderConfig struct {
 // ProviderEndpoints contains default API endpoints for each provider
 var ProviderEndpoints = map[ProviderType]string{
 	ProviderOpenRouter: "https://openrouter.ai/api/v1",
-	ProviderZhipuAI:    "https://api.z.ai/api/coding/paas/v4", // Z.AI coding endpoint (has free quota)
+	ProviderZhipuAI:    "https://api.z.ai/api/coding/paas/v4", // Z.AI (free quota)
 }
 
 // DefaultModels contains recommended default models per provider
 var DefaultModels = map[ProviderType]string{
-	ProviderOpenRouter: "anthropic/claude-3.5-sonnet", // Best general-purpose model
-	ProviderZhipuAI:    "glm-4.6",                     // Latest GLM model
+	ProviderOpenRouter: "amazon/nova-2-lite-v1:free", // Free model for development
+	ProviderZhipuAI:    "glm-4.6",                    // Latest GLM model
 }

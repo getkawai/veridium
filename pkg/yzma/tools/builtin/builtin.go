@@ -17,13 +17,7 @@ func RegisterAll(registry *tools.ToolRegistry) error {
 func RegisterAllWithDB(registry *tools.ToolRegistry, sqlDB *sql.DB) error {
 	log.Println("Registering builtin tools (yzma)...")
 
-	// Register web search (simple version)
-	if err := RegisterWebSearch(registry); err != nil {
-		return err
-	}
-	log.Println("✅ Registered: web_search")
-
-	// Register lobe-web-browsing (full version with search, crawlSinglePage, crawlMultiPages)
+	// Register lobe-web-browsing (search, crawlSinglePage, crawlMultiPages)
 	if err := RegisterWebBrowsing(registry); err != nil {
 		return err
 	}

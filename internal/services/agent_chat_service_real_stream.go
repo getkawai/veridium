@@ -25,8 +25,7 @@ type ToolNameMapping struct {
 
 // toolNameMappings maps Yzma tool names to frontend-compatible values
 var toolNameMappings = map[string]ToolNameMapping{
-	// Web search tools
-	"web_search":                {Identifier: "lobe-web-browsing", APIName: "search", Type: "builtin"},
+	// Web search tool
 	"lobe-web-browsing__search": {Identifier: "lobe-web-browsing", APIName: "search", Type: "builtin"},
 
 	// Web crawling tools

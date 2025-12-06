@@ -17,11 +17,13 @@
 package llm
 
 import (
-	"context"
 	"fmt"
 	"log"
 
-	"github.com/kawai-network/veridium/internal/llm/openai"
+	"github.com/kawai-network/veridium/fantasy"
+	"github.com/kawai-network/veridium/fantasy/providers/openai"
+	"github.com/kawai-network/veridium/fantasy/providers/openaicompat"
+	"github.com/kawai-network/veridium/fantasy/providers/openrouter"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
 	"github.com/kawai-network/veridium/types"
 )
@@ -39,103 +41,92 @@ func NewProviderFactory(toolRegistry *tools.ToolRegistry) *ProviderFactory {
 }
 
 // CreateProvider creates an LLM provider from configuration
-// For local llama provider, use the existing LlamaProviderAdapter instead
 func (f *ProviderFactory) CreateProvider(config types.ProviderConfig) (Provider, error) {
 	log.Printf("🏭 Creating provider: type=%s, model=%s", config.Type, config.Model)
 
+	// Set default model if not specified
+	if config.Model == "" {
+		if defaultModel, ok := types.DefaultModels[config.Type]; ok {
+			config.Model = defaultModel
+		}
+	}
+
+	var fantasyProvider fantasy.Provider
+	var err error
+
 	switch config.Type {
-	case types.ProviderOpenRouter, types.ProviderZhipuAI:
-		// OpenAI-compatible providers use the same implementation
-		// Wrap in adapter to implement Provider interface
-		return NewOpenAIProviderAdapter(openai.NewProvider(config, f.toolRegistry)), nil
+	case types.ProviderOpenRouter:
+		opts := []openrouter.Option{
+			openrouter.WithAPIKey(config.APIKey),
+		}
+		if config.Name != "" {
+			opts = append(opts, openrouter.WithName(config.Name))
+		}
+		fantasyProvider, err = openrouter.New(opts...)
+
+	case types.ProviderZhipuAI:
+		baseURL := config.BaseURL
+		if baseURL == "" {
+			baseURL = types.ProviderEndpoints[types.ProviderZhipuAI]
+		}
+		opts := []openaicompat.Option{
+			openaicompat.WithBaseURL(baseURL),
+			openaicompat.WithAPIKey(config.APIKey),
+			openaicompat.WithName("zhipu"),
+		}
+		fantasyProvider, err = openaicompat.New(opts...)
+
+	case types.ProviderOpenAI:
+		opts := []openai.Option{
+			openai.WithAPIKey(config.APIKey),
+		}
+		if config.BaseURL != "" {
+			opts = append(opts, openai.WithBaseURL(config.BaseURL))
+		}
+		fantasyProvider, err = openai.New(opts...)
 
 	case types.ProviderLlama:
-		// Local llama provider should be created via NewLlamaProviderAdapter
-		// in agent_chat_service.go which has access to LibraryService
 		return nil, fmt.Errorf("llama provider must be created with LibraryService, use NewLlamaProviderAdapter instead")
 
 	default:
 		return nil, fmt.Errorf("unsupported provider type: %s", config.Type)
 	}
-}
 
-// ============================================================================
-// OpenAI Provider Adapter (implements llm.Provider interface)
-// ============================================================================
+	if err != nil {
+		return nil, fmt.Errorf("failed to create fantasy provider: %w", err)
+	}
 
-// OpenAIProviderAdapter wraps openai.Provider to implement llm.Provider interface
-type OpenAIProviderAdapter struct {
-	provider *openai.Provider
-}
+	adapter, err := NewFantasyProviderAdapter(fantasyProvider, config.Model, f.toolRegistry)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create adapter: %w", err)
+	}
 
-// NewOpenAIProviderAdapter creates a new adapter
-func NewOpenAIProviderAdapter(provider *openai.Provider) *OpenAIProviderAdapter {
-	return &OpenAIProviderAdapter{provider: provider}
-}
-
-// Generate implements Provider.Generate
-func (a *OpenAIProviderAdapter) Generate(ctx context.Context, messages []types.Message) (*types.LLMResponse, error) {
-	return a.provider.Generate(ctx, types.Prompt(messages))
-}
-
-// RunAgentLoop implements Provider.RunAgentLoop
-func (a *OpenAIProviderAdapter) RunAgentLoop(ctx context.Context, messages types.Prompt, maxIterations int) (*types.LLMResponse, types.Prompt, error) {
-	return a.provider.RunAgentLoop(ctx, messages, maxIterations)
-}
-
-// RunAgentLoopWithStreaming implements Provider.RunAgentLoopWithStreaming
-func (a *OpenAIProviderAdapter) RunAgentLoopWithStreaming(ctx context.Context, messages types.Prompt, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*types.LLMResponse, types.Prompt, error) {
-	return a.provider.RunAgentLoopWithStreaming(ctx, messages, maxIterations, streamCallback, toolCallback)
-}
-
-// WithTools implements Provider.WithTools
-func (a *OpenAIProviderAdapter) WithTools(toolNames []string) Provider {
-	return &OpenAIProviderAdapter{provider: a.provider.WithTools(toolNames)}
-}
-
-// WithoutTools implements Provider.WithoutTools
-func (a *OpenAIProviderAdapter) WithoutTools() Provider {
-	return &OpenAIProviderAdapter{provider: a.provider.WithoutTools()}
-}
-
-// GetConfig returns the provider configuration
-func (a *OpenAIProviderAdapter) GetConfig() types.ProviderConfig {
-	return a.provider.GetConfig()
-}
-
-// SetModel changes the model
-func (a *OpenAIProviderAdapter) SetModel(model string) {
-	a.provider.SetModel(model)
+	return adapter, nil
 }
 
 // CreateOpenRouterProvider creates an OpenRouter provider with convenient defaults
-func (f *ProviderFactory) CreateOpenRouterProvider(apiKey, model string) Provider {
+func (f *ProviderFactory) CreateOpenRouterProvider(apiKey, model string) (Provider, error) {
 	config := types.ProviderConfig{
-		Type:      types.ProviderOpenRouter,
-		Name:      "OpenRouter",
-		APIKey:    apiKey,
-		Model:     model,
-		MaxTokens: 4096,
-		Options: map[string]any{
-			"app_name": "Veridium",
-		},
+		Type:   types.ProviderOpenRouter,
+		Name:   "OpenRouter",
+		APIKey: apiKey,
+		Model:  model,
 	}
-	return NewOpenAIProviderAdapter(openai.NewProvider(config, f.toolRegistry))
+	return f.CreateProvider(config)
 }
 
 // CreateZhipuProvider creates a Zhipu GLM provider with convenient defaults
-func (f *ProviderFactory) CreateZhipuProvider(apiKey, model string) Provider {
+func (f *ProviderFactory) CreateZhipuProvider(apiKey, model string) (Provider, error) {
 	if model == "" {
-		model = "glm-4-flash" // Fast and cost-effective
+		model = "glm-4-flash"
 	}
 	config := types.ProviderConfig{
-		Type:      types.ProviderZhipuAI,
-		Name:      "Zhipu GLM",
-		APIKey:    apiKey,
-		Model:     model,
-		MaxTokens: 4096,
+		Type:   types.ProviderZhipuAI,
+		Name:   "Zhipu GLM",
+		APIKey: apiKey,
+		Model:  model,
 	}
-	return NewOpenAIProviderAdapter(openai.NewProvider(config, f.toolRegistry))
+	return f.CreateProvider(config)
 }
 
 // ============================================================================
@@ -145,9 +136,9 @@ func (f *ProviderFactory) CreateZhipuProvider(apiKey, model string) Provider {
 // ProviderRegistry manages multiple LLM provider configurations
 type ProviderRegistry struct {
 	factory   *ProviderFactory
-	providers map[string]Provider             // name -> provider instance
-	configs   map[string]types.ProviderConfig // name -> config
-	active    string                          // currently active provider name
+	providers map[string]Provider
+	configs   map[string]types.ProviderConfig
+	active    string
 }
 
 // NewProviderRegistry creates a new provider registry
@@ -167,18 +158,15 @@ func (r *ProviderRegistry) RegisterConfig(name string, config types.ProviderConf
 
 // GetProvider gets or creates a provider by name
 func (r *ProviderRegistry) GetProvider(name string) (Provider, error) {
-	// Check if already instantiated
 	if provider, exists := r.providers[name]; exists {
 		return provider, nil
 	}
 
-	// Check if config exists
 	config, exists := r.configs[name]
 	if !exists {
 		return nil, fmt.Errorf("provider not found: %s", name)
 	}
 
-	// Create provider
 	provider, err := r.factory.CreateProvider(config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create provider %s: %w", name, err)

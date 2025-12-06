@@ -28,240 +28,109 @@ import (
 // TODO: Move to config file or environment variables for production
 // ============================================================================
 
-// TaskProviderConfig holds the provider configuration for a specific task
-type TaskProviderConfig struct {
-	ProviderType types.ProviderType
-	APIKey       string
-	Model        string
-	MaxTokens    int
-	Options      map[string]any
-}
-
 // DevConfig holds all hardcoded development configurations
-// This is where developers configure which provider to use for each task
+// Uses types.ProviderConfig directly - no duplicate types
 type DevConfig struct {
-	// Chat task - main conversation (needs streaming, tool calling)
-	Chat TaskProviderConfig
-
-	// Title generation - lightweight, fast
-	Title TaskProviderConfig
-
-	// Summary generation - background task, can be slower
-	Summary TaskProviderConfig
-
-	// OCRCleanup - OCR text cleanup and formatting (remote first, local fallback)
-	OCRCleanup TaskProviderConfig
-
-	// TranscriptCleanup - Video transcript cleanup and correction (remote first, local fallback)
-	TranscriptCleanup TaskProviderConfig
-
-	// UseLocalFallback - if true, use local llama as fallback for all tasks
-	UseLocalFallback bool
+	Chat              types.ProviderConfig
+	Title             types.ProviderConfig
+	Summary           types.ProviderConfig
+	OCRCleanup        types.ProviderConfig
+	TranscriptCleanup types.ProviderConfig
+	UseLocalFallback  bool
 }
 
 // GetDefaultDevConfig returns the default development configuration
-// Developers can modify this function to change provider assignments
 func GetDefaultDevConfig() DevConfig {
 	return DevConfig{
-		// Chat: Use OpenRouter with free model for development
-		Chat: TaskProviderConfig{
-			ProviderType: types.ProviderOpenRouter,
-			APIKey:       "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",
-			Model:        "amazon/nova-2-lite-v1:free",
-			MaxTokens:    4096,
-			Options: map[string]any{
-				"app_name": "Veridium",
-			},
+		Chat: types.ProviderConfig{
+			Type:      types.ProviderOpenRouter,
+			Name:      "OpenRouter",
+			APIKey:    "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",
+			Model:     "amazon/nova-2-lite-v1:free",
+			MaxTokens: 4096,
+			Options:   map[string]any{"app_name": "Veridium"},
 		},
-
-		// Title: Use Zhipu GLM for fast, cheap title generation
-		// GLM-4.6 is the latest model with good performance
-		Title: TaskProviderConfig{
-			ProviderType: types.ProviderZhipuAI,
-			APIKey:       "a10854167085448cac33753523919ac9.D41CLq6KxXTY7g4u",
-			Model:        "glm-4.6",
-			MaxTokens:    256,
+		Title: types.ProviderConfig{
+			Type:      types.ProviderZhipuAI,
+			Name:      "Zhipu GLM",
+			APIKey:    "a10854167085448cac33753523919ac9.D41CLq6KxXTY7g4u",
+			Model:     "glm-4.6",
+			MaxTokens: 256,
 		},
-
-		// Summary: Use Zhipu GLM for summarization, fallback to local Llama
-		Summary: TaskProviderConfig{
-			ProviderType: types.ProviderZhipuAI,
-			APIKey:       "a10854167085448cac33753523919ac9.D41CLq6KxXTY7g4u",
-			Model:        "glm-4.6",
-			MaxTokens:    1024,
+		Summary: types.ProviderConfig{
+			Type:      types.ProviderZhipuAI,
+			Name:      "Zhipu GLM",
+			APIKey:    "a10854167085448cac33753523919ac9.D41CLq6KxXTY7g4u",
+			Model:     "glm-4.6",
+			MaxTokens: 1024,
 		},
-
-		// OCRCleanup: Use Zhipu GLM for OCR text cleanup (remote first, local fallback)
-		OCRCleanup: TaskProviderConfig{
-			ProviderType: types.ProviderZhipuAI,
-			APIKey:       "a10854167085448cac33753523919ac9.D41CLq6KxXTY7g4u",
-			Model:        "glm-4.6",
-			MaxTokens:    2048,
+		OCRCleanup: types.ProviderConfig{
+			Type:      types.ProviderZhipuAI,
+			Name:      "Zhipu GLM",
+			APIKey:    "a10854167085448cac33753523919ac9.D41CLq6KxXTY7g4u",
+			Model:     "glm-4.6",
+			MaxTokens: 2048,
 		},
-
-		// TranscriptCleanup: Use Zhipu GLM for video transcript cleanup (remote first, local fallback)
-		// Note: Need large max_tokens because transcripts can be very long
-		TranscriptCleanup: TaskProviderConfig{
-			ProviderType: types.ProviderZhipuAI,
-			APIKey:       "a10854167085448cac33753523919ac9.D41CLq6KxXTY7g4u",
-			Model:        "glm-4.6",
-			MaxTokens:    16384, // Very large for long transcripts + output
+		TranscriptCleanup: types.ProviderConfig{
+			Type:      types.ProviderZhipuAI,
+			Name:      "Zhipu GLM",
+			APIKey:    "a10854167085448cac33753523919ac9.D41CLq6KxXTY7g4u",
+			Model:     "glm-4.6",
+			MaxTokens: 16384,
 		},
-
-		// Use local Llama as fallback when remote providers fail
 		UseLocalFallback: true,
 	}
 }
 
 // BuildTaskRouter creates a TaskRouter from DevConfig
-// This is the main entry point for setting up multi-provider routing
-func BuildTaskRouter(
-	config DevConfig,
-	toolRegistry *tools.ToolRegistry,
-	localProvider Provider, // Local llama provider as fallback
-) *TaskRouter {
+func BuildTaskRouter(config DevConfig, toolRegistry *tools.ToolRegistry, localProvider Provider) *TaskRouter {
 	factory := NewProviderFactory(toolRegistry)
 	router := NewTaskRouter(toolRegistry, nil)
 
-	// Set local provider as fallback if enabled
 	if config.UseLocalFallback && localProvider != nil {
 		router.SetFallback(localProvider)
 		log.Printf("🔀 TaskRouter: Local Llama set as fallback provider")
 	}
 
-	// Configure Chat provider
-	if config.Chat.APIKey != "" {
-		chatProvider := createProviderFromConfig(factory, config.Chat)
-		if chatProvider != nil {
-			router.SetProvider(TaskChat, chatProvider)
-			log.Printf("🔀 TaskRouter: Chat -> %s (%s)", config.Chat.ProviderType, config.Chat.Model)
+	// Helper to configure a task provider
+	configureTask := func(task TaskType, cfg types.ProviderConfig, taskName string) {
+		if cfg.Type == types.ProviderLlama {
+			if localProvider != nil {
+				router.SetProvider(task, localProvider)
+				log.Printf("🔀 TaskRouter: %s -> Local Llama", taskName)
+			}
+			return
 		}
-	} else if localProvider != nil {
-		router.SetProvider(TaskChat, localProvider)
-		log.Printf("🔀 TaskRouter: Chat -> Local Llama (no remote API key)")
+		if cfg.APIKey != "" {
+			provider, err := factory.CreateProvider(cfg)
+			if err != nil {
+				log.Printf("⚠️  Failed to create %s provider: %v", taskName, err)
+				return
+			}
+			router.SetProvider(task, provider)
+			log.Printf("🔀 TaskRouter: %s -> %s (%s)", taskName, cfg.Type, cfg.Model)
+		} else if localProvider != nil {
+			router.SetProvider(task, localProvider)
+			log.Printf("🔀 TaskRouter: %s -> Local Llama (no API key)", taskName)
+		}
 	}
 
-	// Configure Title provider
-	if config.Title.APIKey != "" {
-		titleProvider := createProviderFromConfig(factory, config.Title)
-		if titleProvider != nil {
-			router.SetProvider(TaskTitleGen, titleProvider)
-			log.Printf("🔀 TaskRouter: Title -> %s (%s)", config.Title.ProviderType, config.Title.Model)
-		}
-	} else if localProvider != nil {
-		// Use local provider for title if no API key
-		router.SetProvider(TaskTitleGen, localProvider)
-		log.Printf("🔀 TaskRouter: Title -> Local Llama (no remote API key)")
-	}
-
-	// Configure Summary provider
-	if config.Summary.ProviderType == types.ProviderLlama && localProvider != nil {
-		// Explicitly use local for summary
-		router.SetProvider(TaskSummaryGen, localProvider)
-		log.Printf("🔀 TaskRouter: Summary -> Local Llama (configured)")
-	} else if config.Summary.APIKey != "" {
-		summaryProvider := createProviderFromConfig(factory, config.Summary)
-		if summaryProvider != nil {
-			router.SetProvider(TaskSummaryGen, summaryProvider)
-			log.Printf("🔀 TaskRouter: Summary -> %s (%s)", config.Summary.ProviderType, config.Summary.Model)
-		}
-	} else if localProvider != nil {
-		router.SetProvider(TaskSummaryGen, localProvider)
-		log.Printf("🔀 TaskRouter: Summary -> Local Llama (default)")
-	}
-
-	// Configure OCRCleanup provider (remote first, local fallback via TaskRouter)
-	if config.OCRCleanup.APIKey != "" {
-		ocrProvider := createProviderFromConfig(factory, config.OCRCleanup)
-		if ocrProvider != nil {
-			router.SetProvider(TaskOCRCleanup, ocrProvider)
-			log.Printf("🔀 TaskRouter: OCRCleanup -> %s (%s)", config.OCRCleanup.ProviderType, config.OCRCleanup.Model)
-		}
-	} else if localProvider != nil {
-		router.SetProvider(TaskOCRCleanup, localProvider)
-		log.Printf("🔀 TaskRouter: OCRCleanup -> Local Llama (no remote API key)")
-	}
-
-	// Configure TranscriptCleanup provider (remote first, local fallback via TaskRouter)
-	if config.TranscriptCleanup.APIKey != "" {
-		transcriptProvider := createProviderFromConfig(factory, config.TranscriptCleanup)
-		if transcriptProvider != nil {
-			router.SetProvider(TaskTranscriptCleanup, transcriptProvider)
-			log.Printf("🔀 TaskRouter: TranscriptCleanup -> %s (%s)", config.TranscriptCleanup.ProviderType, config.TranscriptCleanup.Model)
-		}
-	} else if localProvider != nil {
-		router.SetProvider(TaskTranscriptCleanup, localProvider)
-		log.Printf("🔀 TaskRouter: TranscriptCleanup -> Local Llama (no remote API key)")
-	}
+	configureTask(TaskChat, config.Chat, "Chat")
+	configureTask(TaskTitleGen, config.Title, "Title")
+	configureTask(TaskSummaryGen, config.Summary, "Summary")
+	configureTask(TaskOCRCleanup, config.OCRCleanup, "OCRCleanup")
+	configureTask(TaskTranscriptCleanup, config.TranscriptCleanup, "TranscriptCleanup")
 
 	return router
 }
 
-// createProviderFromConfig creates a provider from TaskProviderConfig
-func createProviderFromConfig(factory *ProviderFactory, config TaskProviderConfig) Provider {
-	if config.ProviderType == types.ProviderLlama {
-		// Local provider is handled separately
-		return nil
-	}
-
-	providerConfig := types.ProviderConfig{
-		Type:      config.ProviderType,
-		APIKey:    config.APIKey,
-		Model:     config.Model,
-		MaxTokens: config.MaxTokens,
-		Options:   config.Options,
-	}
-
-	// Set name based on type
-	switch config.ProviderType {
-	case types.ProviderOpenRouter:
-		providerConfig.Name = "OpenRouter"
-	case types.ProviderZhipuAI:
-		providerConfig.Name = "Zhipu GLM"
-	}
-
-	provider, err := factory.CreateProvider(providerConfig)
+// UpdateProvider updates a task's provider configuration at runtime
+func (r *TaskRouter) UpdateProvider(task TaskType, config types.ProviderConfig) error {
+	factory := NewProviderFactory(r.toolRegistry)
+	provider, err := factory.CreateProvider(config)
 	if err != nil {
-		log.Printf("⚠️  Failed to create provider %s: %v", config.ProviderType, err)
-		return nil
+		return &RouterError{Message: "failed to create provider: " + err.Error()}
 	}
-
-	return provider
-}
-
-// ============================================================================
-// Helper functions for updating config at runtime
-// ============================================================================
-
-// UpdateChatProvider updates the chat provider configuration
-func (r *TaskRouter) UpdateChatProvider(config TaskProviderConfig) error {
-	factory := NewProviderFactory(r.toolRegistry)
-	provider := createProviderFromConfig(factory, config)
-	if provider == nil {
-		return &RouterError{Message: "failed to create chat provider"}
-	}
-	r.SetProvider(TaskChat, provider)
-	return nil
-}
-
-// UpdateTitleProvider updates the title provider configuration
-func (r *TaskRouter) UpdateTitleProvider(config TaskProviderConfig) error {
-	factory := NewProviderFactory(r.toolRegistry)
-	provider := createProviderFromConfig(factory, config)
-	if provider == nil {
-		return &RouterError{Message: "failed to create title provider"}
-	}
-	r.SetProvider(TaskTitleGen, provider)
-	return nil
-}
-
-// UpdateSummaryProvider updates the summary provider configuration
-func (r *TaskRouter) UpdateSummaryProvider(config TaskProviderConfig) error {
-	factory := NewProviderFactory(r.toolRegistry)
-	provider := createProviderFromConfig(factory, config)
-	if provider == nil {
-		return &RouterError{Message: "failed to create summary provider"}
-	}
-	r.SetProvider(TaskSummaryGen, provider)
+	r.SetProvider(task, provider)
 	return nil
 }
