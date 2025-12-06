@@ -610,7 +610,7 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*UIChatMe
 
 	// Run agent with LLM generator (streaming or non-streaming)
 	var finalMessage string
-	var toolCalls []types.ToolCall
+	var toolCalls []fantasy.ToolCall
 	var usage *types.LLMResponse
 	var toolMessages []fantasy.Message
 
@@ -1635,7 +1635,7 @@ func convertDBMessageToYzma(dbMsg *db.Message) (fantasy.Message, bool) {
 
 	// Check for tool calls
 	if dbMsg.Tools.Valid && dbMsg.Tools.String != "" {
-		var toolCalls []types.ToolCall
+		var toolCalls []fantasy.ToolCall
 		if err := json.Unmarshal([]byte(dbMsg.Tools.String), &toolCalls); err == nil && len(toolCalls) > 0 {
 			return types.NewToolCallMessage(toolCalls), true
 		}

@@ -235,7 +235,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	// 5. Run LLM with streaming + tool execution
 	var finalContent strings.Builder
 	var reasoningContent strings.Builder
-	var toolCalls []types.ToolCall
+	var toolCalls []fantasy.ToolCall
 	var toolMessages []fantasy.Message
 	var usage *ModelUsage
 	var llmResp interface{}
@@ -329,7 +329,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 
 	// Tool event callback - emits tool events to frontend in real-time
 	var toolCallIndex int
-	toolEventCallback := func(eventType types.ChatStreamEvent, tc types.ToolCall, result string) {
+	toolEventCallback := func(eventType types.ChatStreamEvent, tc fantasy.ToolCall, result string) {
 		identifier, apiName, toolType := mapToolName(tc.Name)
 
 		if eventType == types.ChatEventToolCall {

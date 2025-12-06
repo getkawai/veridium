@@ -23,9 +23,6 @@ import (
 	"github.com/kawai-network/veridium/fantasy"
 )
 
-// ToolCall is an alias to fantasy.ToolCall for backward compatibility
-type ToolCall = fantasy.ToolCall
-
 // GetToolCallArguments parses Input JSON string to map[string]string
 // Helper function since fantasy.ToolCall doesn't have this method
 func GetToolCallArguments(tc fantasy.ToolCall) map[string]string {
@@ -61,21 +58,19 @@ type Tool struct {
 	Enabled    bool             `json:"-"`
 }
 
-
-
 // ============================================================================
 // LLM Response Types
 // ============================================================================
 
 // LLMResponse represents a response from any LLM provider
 type LLMResponse struct {
-	Content          string     `json:"content"`
-	ToolCalls        []ToolCall `json:"tool_calls,omitempty"`
-	FinishReason     string     `json:"finish_reason"`
-	PromptTokens     int        `json:"prompt_tokens"`
-	CompletionTokens int        `json:"completion_tokens"`
-	TotalTokens      int        `json:"total_tokens"`
-	ReasoningContent string     `json:"reasoning_content,omitempty"` // For reasoning models (Qwen3, DeepSeek R1)
+	Content          string             `json:"content"`
+	ToolCalls        []fantasy.ToolCall `json:"tool_calls,omitempty"`
+	FinishReason     string             `json:"finish_reason"`
+	PromptTokens     int                `json:"prompt_tokens"`
+	CompletionTokens int                `json:"completion_tokens"`
+	TotalTokens      int                `json:"total_tokens"`
+	ReasoningContent string             `json:"reasoning_content,omitempty"` // For reasoning models (Qwen3, DeepSeek R1)
 }
 
 // ============================================================================
@@ -109,4 +104,4 @@ type StreamCallback func(token string, isLast bool)
 // eventType: ChatEventToolCall (before execution) or ChatEventToolResult (after execution)
 // toolCall: the tool call being processed
 // result: tool execution result (only for ChatEventToolResult event)
-type ToolEventCallback func(eventType ChatStreamEvent, toolCall ToolCall, result string)
+type ToolEventCallback func(eventType ChatStreamEvent, toolCall fantasy.ToolCall, result string)

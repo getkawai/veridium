@@ -54,7 +54,7 @@ func TestQwen25InstructTemplateWithToolCall(t *testing.T) {
 	// Prepare messages with a tool call
 	messages := fantasy.Prompt{
 		fantasy.NewUserMessage("What is 2 + 3?"),
-		types.NewToolCallMessage([]types.ToolCall{
+		types.NewToolCallMessage([]fantasy.ToolCall{
 			{
 				ID:    "call_1",
 				Name:  "add",
@@ -104,7 +104,7 @@ func TestApplyJinjaTemplateWithToolMessage(t *testing.T) {
 	// Prepare messages with ToolCallMessage
 	messages := fantasy.Prompt{
 		fantasy.NewUserMessage("Call the calculator function"),
-		types.NewToolCallMessage([]types.ToolCall{
+		types.NewToolCallMessage([]fantasy.ToolCall{
 			{
 				ID:    "call_1",
 				Name:  "calculator",
@@ -150,7 +150,7 @@ func TestApplyJinjaTemplateWithToolResponseMessage(t *testing.T) {
 	// Prepare messages with ToolResultMessage
 	messages := fantasy.Prompt{
 		fantasy.NewUserMessage("What is the result?"),
-		types.NewToolCallMessage([]types.ToolCall{
+		types.NewToolCallMessage([]fantasy.ToolCall{
 			{
 				ID:    "call_1",
 				Name:  "calculator",
@@ -194,7 +194,7 @@ func TestApplyJinjaTemplateWithMultipleToolCalls(t *testing.T) {
 	// Prepare messages with multiple tool calls
 	messages := fantasy.Prompt{
 		fantasy.NewUserMessage("Calculate 2+3 and 5*7"),
-		types.NewToolCallMessage([]types.ToolCall{
+		types.NewToolCallMessage([]fantasy.ToolCall{
 			{
 				ID:    "call_1",
 				Name:  "add",

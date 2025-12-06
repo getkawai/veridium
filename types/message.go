@@ -30,7 +30,7 @@ import (
 // ============================================================================
 
 // NewToolCallMessage creates a new assistant message with tool calls.
-func NewToolCallMessage(toolCalls []ToolCall) fantasy.Message {
+func NewToolCallMessage(toolCalls []fantasy.ToolCall) fantasy.Message {
 	content := make([]fantasy.MessagePart, len(toolCalls))
 	for i, tc := range toolCalls {
 		content[i] = fantasy.ToolCallPart{
@@ -87,11 +87,11 @@ func GetMessageText(m fantasy.Message) string {
 }
 
 // GetMessageToolCalls returns all tool calls from the message.
-func GetMessageToolCalls(m fantasy.Message) []ToolCall {
-	var calls []ToolCall
+func GetMessageToolCalls(m fantasy.Message) []fantasy.ToolCall {
+	var calls []fantasy.ToolCall
 	for _, part := range m.Content {
 		if p, ok := fantasy.AsMessagePart[fantasy.ToolCallPart](part); ok {
-			calls = append(calls, ToolCall{
+			calls = append(calls, fantasy.ToolCall{
 				ID:    p.ToolCallID,
 				Name:  p.ToolName,
 				Input: p.Input,

@@ -102,7 +102,7 @@ func (a *FantasyProviderAdapter) RunAgentLoop(ctx context.Context, messages fant
 
 	var finalResponse *types.LLMResponse
 	var allToolMessages fantasy.Prompt
-	var allToolCalls []types.ToolCall
+	var allToolCalls []fantasy.ToolCall
 
 	for i := 0; i < maxIterations; i++ {
 		log.Printf("🔄 [fantasy] Agent loop iteration %d/%d", i+1, maxIterations)
@@ -163,7 +163,7 @@ func (a *FantasyProviderAdapter) RunAgentLoopWithStreaming(ctx context.Context, 
 
 	var finalResponse *types.LLMResponse
 	var allToolMessages fantasy.Prompt
-	var allToolCalls []types.ToolCall
+	var allToolCalls []fantasy.ToolCall
 
 	for i := 0; i < maxIterations; i++ {
 		log.Printf("🔄 [fantasy] Agent loop (streaming) iteration %d/%d", i+1, maxIterations)
@@ -344,7 +344,7 @@ func (a *FantasyProviderAdapter) convertResponse(resp *fantasy.Response) *types.
 	// Convert tool calls
 	toolCalls := resp.Content.ToolCalls()
 	if len(toolCalls) > 0 {
-		result.ToolCalls = make([]types.ToolCall, len(toolCalls))
+		result.ToolCalls = make([]fantasy.ToolCall, len(toolCalls))
 		for i, tc := range toolCalls {
 			var args map[string]string
 			if err := json.Unmarshal([]byte(tc.Input), &args); err != nil {
@@ -357,7 +357,7 @@ func (a *FantasyProviderAdapter) convertResponse(resp *fantasy.Response) *types.
 				}
 			}
 			argsJSON, _ := json.Marshal(args)
-			result.ToolCalls[i] = types.ToolCall{
+			result.ToolCalls[i] = fantasy.ToolCall{
 				ID:    tc.ToolCallID,
 				Name:  tc.ToolName,
 				Input: string(argsJSON),
@@ -376,10 +376,10 @@ func (a *FantasyProviderAdapter) convertResponse(resp *fantasy.Response) *types.
 // consumeStream consumes a stream response and calls the callback
 func (a *FantasyProviderAdapter) consumeStream(stream fantasy.StreamResponse, callback types.StreamCallback) *types.LLMResponse {
 	var content strings.Builder
-	var toolCalls []types.ToolCall
+	var toolCalls []fantasy.ToolCall
 	var finishReason string
 	var usage fantasy.Usage
-	toolCallMap := make(map[string]*types.ToolCall)
+	toolCallMap := make(map[string]*fantasy.ToolCall)
 
 	for part := range stream {
 		switch part.Type {
@@ -404,7 +404,7 @@ func (a *FantasyProviderAdapter) consumeStream(stream fantasy.StreamResponse, ca
 				}
 			}
 			argsJSON, _ := json.Marshal(args)
-			tc := types.ToolCall{
+			tc := fantasy.ToolCall{
 				ID:    part.ID,
 				Name:  part.ToolCallName,
 				Input: string(argsJSON),
@@ -436,7 +436,7 @@ func (a *FantasyProviderAdapter) consumeStream(stream fantasy.StreamResponse, ca
 }
 
 // executeToolCalls executes tool calls and returns tool response messages
-func (a *FantasyProviderAdapter) executeToolCalls(ctx context.Context, toolCalls []types.ToolCall) (fantasy.Prompt, error) {
+func (a *FantasyProviderAdapter) executeToolCalls(ctx context.Context, toolCalls []fantasy.ToolCall) (fantasy.Prompt, error) {
 	if a.toolRegistry == nil {
 		return nil, fmt.Errorf("tool registry not available")
 	}

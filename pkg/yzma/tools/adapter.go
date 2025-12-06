@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/types"
 )
 
@@ -152,8 +153,8 @@ func (r *ToolRegistry) FormatForPrompt(toolNames []string) (string, error) {
 // 2. <tool_name>JSON</tool_name> or <tool_name attr="value">content</tool_name>
 // 3. <tool_name {JSON}> or <tool_name {"key": "value"}> (no closing tag)
 // 4. {"name": "tool_name", "parameters": {...}} (pure JSON format)
-func ParseToolCalls(response string) []types.ToolCall {
-	var calls []types.ToolCall
+func ParseToolCalls(response string) []fantasy.ToolCall {
+	var calls []fantasy.ToolCall
 
 	// Try format 1: <tool_call>{"name": "...", "arguments": {...}}</tool_call>
 	calls = parseToolCallFormat(response)
@@ -180,8 +181,8 @@ func ParseToolCalls(response string) []types.ToolCall {
 
 // parsePureJSONToolFormat parses pure JSON tool call format
 // Example: {"name": "web_search", "parameters": {"query": "AI news"}}
-func parsePureJSONToolFormat(response string) []types.ToolCall {
-	var calls []types.ToolCall
+func parsePureJSONToolFormat(response string) []fantasy.ToolCall {
+	var calls []fantasy.ToolCall
 
 	// Known tool names
 	toolNames := []string{"calculator", "web_search", "web-search", "search"}
@@ -249,7 +250,7 @@ func parsePureJSONToolFormat(response string) []types.ToolCall {
 					}
 
 					if len(args) > 0 {
-						calls = append(calls, types.ToolCall{
+						calls = append(calls, fantasy.ToolCall{
 							ID:    uuid.New().String(),
 							Name:  toolCall.Name,
 							Input: argsToJSON(args),
@@ -265,8 +266,8 @@ func parsePureJSONToolFormat(response string) []types.ToolCall {
 
 // parseInlineJSONToolFormat parses <tool_name {JSON}> format (no closing tag)
 // Example: <web_search { "query": "AI news", "max_results": 10 }>
-func parseInlineJSONToolFormat(response string) []types.ToolCall {
-	var calls []types.ToolCall
+func parseInlineJSONToolFormat(response string) []fantasy.ToolCall {
+	var calls []fantasy.ToolCall
 
 	toolNames := []string{"calculator", "web_search", "web-search", "search"}
 
@@ -335,7 +336,7 @@ func parseInlineJSONToolFormat(response string) []types.ToolCall {
 			}
 
 			if len(args) > 0 {
-				calls = append(calls, types.ToolCall{
+				calls = append(calls, fantasy.ToolCall{
 					ID:    uuid.New().String(),
 					Name:  toolName,
 					Input: argsToJSON(args),
@@ -350,8 +351,8 @@ func parseInlineJSONToolFormat(response string) []types.ToolCall {
 }
 
 // parseToolCallFormat parses <tool_call> tags
-func parseToolCallFormat(response string) []types.ToolCall {
-	var calls []types.ToolCall
+func parseToolCallFormat(response string) []fantasy.ToolCall {
+	var calls []fantasy.ToolCall
 
 	start := strings.Index(response, "<tool_call>")
 	end := strings.Index(response, "</tool_call>")
@@ -366,7 +367,7 @@ func parseToolCallFormat(response string) []types.ToolCall {
 		}
 
 		if err := json.Unmarshal([]byte(content), &parsed); err == nil {
-			calls = append(calls, types.ToolCall{
+			calls = append(calls, fantasy.ToolCall{
 				ID:    uuid.New().String(),
 				Name:  parsed.Name,
 				Input: argsToJSON(parsed.Arguments),
@@ -383,8 +384,8 @@ func parseToolCallFormat(response string) []types.ToolCall {
 
 // parseXMLToolFormat parses <tool_name>...</tool_name> tags
 // Supports both <tool_name>JSON</tool_name> and <tool_name attr="value">content</tool_name> formats
-func parseXMLToolFormat(response string) []types.ToolCall {
-	var calls []types.ToolCall
+func parseXMLToolFormat(response string) []fantasy.ToolCall {
+	var calls []fantasy.ToolCall
 
 	// Common tool names to look for
 	toolNames := []string{"calculator", "web_search", "web-search", "search"}
@@ -429,7 +430,7 @@ func parseXMLToolFormat(response string) []types.ToolCall {
 			}
 
 			if err := json.Unmarshal([]byte(content), &parsed); err == nil {
-				calls = append(calls, types.ToolCall{
+				calls = append(calls, fantasy.ToolCall{
 					ID:    uuid.New().String(),
 					Name:  parsed.Name,
 					Input: argsToJSON(parsed.Arguments),
@@ -458,7 +459,7 @@ func parseXMLToolFormat(response string) []types.ToolCall {
 				}
 
 				if len(args) > 0 {
-					calls = append(calls, types.ToolCall{
+					calls = append(calls, fantasy.ToolCall{
 						ID:    uuid.New().String(),
 						Name:  toolName,
 						Input: argsToJSON(args),

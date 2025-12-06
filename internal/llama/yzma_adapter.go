@@ -289,7 +289,7 @@ func (m *LlamaYzmaModel) cleanToolCallTags(response string) string {
 }
 
 // ExecuteToolCalls executes tool calls and returns tool response messages
-func (m *LlamaYzmaModel) ExecuteToolCalls(ctx context.Context, toolCalls []types.ToolCall) (fantasy.Prompt, error) {
+func (m *LlamaYzmaModel) ExecuteToolCalls(ctx context.Context, toolCalls []fantasy.ToolCall) (fantasy.Prompt, error) {
 	if m.toolRegistry == nil {
 		return nil, fmt.Errorf("tool registry not available")
 	}
@@ -334,7 +334,7 @@ func (m *LlamaYzmaModel) RunAgentLoop(ctx context.Context, messages fantasy.Prom
 
 	var finalResponse *types.LLMResponse
 	var allToolMessages fantasy.Prompt
-	var allToolCalls []types.ToolCall // Collect all tool calls from all iterations
+	var allToolCalls []fantasy.ToolCall // Collect all tool calls from all iterations
 
 	for i := 0; i < maxIterations; i++ {
 		log.Printf("🔄 Agent loop iteration %d/%d", i+1, maxIterations)
@@ -565,7 +565,7 @@ func (m *LlamaYzmaModel) RunAgentLoopWithStreaming(ctx context.Context, messages
 
 	var finalResponse *types.LLMResponse
 	var allToolMessages fantasy.Prompt
-	var allToolCalls []types.ToolCall // Collect all tool calls from all iterations
+	var allToolCalls []fantasy.ToolCall // Collect all tool calls from all iterations
 
 	for i := 0; i < maxIterations; i++ {
 		log.Printf("🔄 Agent loop (streaming) iteration %d/%d", i+1, maxIterations)
