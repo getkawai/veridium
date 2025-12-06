@@ -95,58 +95,5 @@ export class Document {
     }
 }
 
-/**
- * Message represents a message in a conversation.
- */
-export class Message {
-    "role": MessageRole;
-    "content": MessagePart[];
-
-    /** Creates a new Message instance. */
-    constructor($$source: Partial<Message> = {}) {
-        if (!("role" in $$source)) {
-            this["role"] = MessageRole.$zero;
-        }
-        if (!("content" in $$source)) {
-            this["content"] = [];
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new Message instance from a string or object.
-     */
-    static createFrom($$source: any = {}): Message {
-        const $$createField1_0 = $$createType1;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("content" in $$parsedSource) {
-            $$parsedSource["content"] = $$createField1_0($$parsedSource["content"]);
-        }
-        return new Message($$parsedSource as Partial<Message>);
-    }
-}
-
-/**
- * MessagePart represents a part of a message content.
- */
-export type MessagePart = any;
-
-/**
- * MessageRole represents the role of a message sender.
- */
-export enum MessageRole {
-    /**
-     * The Go zero value for the underlying type of the enum.
-     */
-    $zero = "",
-
-    MessageRoleSystem = "system",
-    MessageRoleUser = "user",
-    MessageRoleAssistant = "assistant",
-    MessageRoleTool = "tool",
-};
-
 // Private type creation functions
 const $$createType0 = $Create.Map($Create.Any, $Create.Any);
-const $$createType1 = $Create.Array($Create.Any);

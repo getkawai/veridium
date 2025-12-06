@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/pkg/yzma/llama"
 	"github.com/kawai-network/veridium/pkg/yzma/template"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
@@ -190,7 +191,7 @@ func (m *LlamaYzmaModel) getChatTemplate() string {
 }
 
 // Generate generates a response from messages (native interface)
-func (m *LlamaYzmaModel) Generate(ctx context.Context, messages types.Prompt) (*types.LLMResponse, error) {
+func (m *LlamaYzmaModel) Generate(ctx context.Context, messages fantasy.Prompt) (*types.LLMResponse, error) {
 	// Ensure chat model is loaded
 	if !m.libService.IsChatModelLoaded() {
 		if err := m.libService.LoadChatModel(""); err != nil {
@@ -238,7 +239,7 @@ func (m *LlamaYzmaModel) Generate(ctx context.Context, messages types.Prompt) (*
 }
 
 // enhanceWithTools adds tool definitions to system prompt
-func (m *LlamaYzmaModel) enhanceWithTools(messages types.Prompt) types.Prompt {
+func (m *LlamaYzmaModel) enhanceWithTools(messages fantasy.Prompt) fantasy.Prompt {
 	// Skip tool enhancement if noTools flag is set (for title/summary generation)
 	if m.noTools {
 		return messages
@@ -254,18 +255,18 @@ func (m *LlamaYzmaModel) enhanceWithTools(messages types.Prompt) types.Prompt {
 	}
 
 	// Make a copy to avoid modifying original
-	result := make(types.Prompt, len(messages))
+	result := make(fantasy.Prompt, len(messages))
 	copy(result, messages)
 
 	// Find or create system message
-	if result[0].GetRole() == "system" {
+	if types.GetMessageRole(result[0]) == "system" {
 		// Enhance existing system message
-		enhancedContent := tools.BuildSystemPrompt(result[0].GetText(), toolsJSON)
-		result[0] = types.NewSystemMessage(enhancedContent)
+		enhancedContent := tools.BuildSystemPrompt(types.GetMessageText(result[0]), toolsJSON)
+		result[0] = fantasy.NewSystemMessage(enhancedContent)
 	} else {
 		// Prepend new system message with tools
 		systemContent := tools.BuildSystemPrompt("You are a helpful AI assistant.", toolsJSON)
-		result = append(types.Prompt{types.NewSystemMessage(systemContent)}, result...)
+		result = append(fantasy.Prompt{fantasy.NewSystemMessage(systemContent)}, result...)
 	}
 
 	log.Printf("🔧 Enhanced system prompt with %d tools", len(m.toolRegistry.GetByNames(m.toolNames)))
@@ -288,12 +289,12 @@ func (m *LlamaYzmaModel) cleanToolCallTags(response string) string {
 }
 
 // ExecuteToolCalls executes tool calls and returns tool response messages
-func (m *LlamaYzmaModel) ExecuteToolCalls(ctx context.Context, toolCalls []types.ToolCall) (types.Prompt, error) {
+func (m *LlamaYzmaModel) ExecuteToolCalls(ctx context.Context, toolCalls []types.ToolCall) (fantasy.Prompt, error) {
 	if m.toolRegistry == nil {
 		return nil, fmt.Errorf("tool registry not available")
 	}
 
-	toolMessages := make(types.Prompt, 0, len(toolCalls))
+	toolMessages := make(fantasy.Prompt, 0, len(toolCalls))
 
 	for _, tc := range toolCalls {
 		log.Printf("🔧 Executing tool: %s", tc.Function.Name)
@@ -322,17 +323,17 @@ func minInt(a, b int) int {
 // RunAgentLoop runs the agent loop with tool calling until no more tool calls or max iterations
 // This is the main entry point for agentic conversations (native interface)
 // The returned types.LLMResponse contains ALL tool calls from all iterations (not just the last one)
-func (m *LlamaYzmaModel) RunAgentLoop(ctx context.Context, messages types.Prompt, maxIterations int) (*types.LLMResponse, types.Prompt, error) {
+func (m *LlamaYzmaModel) RunAgentLoop(ctx context.Context, messages fantasy.Prompt, maxIterations int) (*types.LLMResponse, fantasy.Prompt, error) {
 	if maxIterations <= 0 {
 		maxIterations = DefaultMaxIterations
 	}
 
 	// Track all messages for history
-	allMessages := make(types.Prompt, len(messages))
+	allMessages := make(fantasy.Prompt, len(messages))
 	copy(allMessages, messages)
 
 	var finalResponse *types.LLMResponse
-	var allToolMessages types.Prompt
+	var allToolMessages fantasy.Prompt
 	var allToolCalls []types.ToolCall // Collect all tool calls from all iterations
 
 	for i := 0; i < maxIterations; i++ {
@@ -349,7 +350,10 @@ func (m *LlamaYzmaModel) RunAgentLoop(ctx context.Context, messages types.Prompt
 			allMessages = append(allMessages, types.NewToolCallMessage(resp.ToolCalls))
 			allToolCalls = append(allToolCalls, resp.ToolCalls...)
 		} else {
-			allMessages = append(allMessages, types.NewAssistantMessage(resp.Content))
+			allMessages = append(allMessages, fantasy.Message{
+				Role:    fantasy.MessageRoleAssistant,
+				Content: []fantasy.MessagePart{fantasy.TextPart{Text: resp.Content}},
+			})
 		}
 		finalResponse = resp
 
@@ -410,7 +414,7 @@ func (m *LlamaYzmaModel) clearKVCache() error {
 
 // Stream generates a response with streaming (native interface)
 // Returns the response and any error
-func (m *LlamaYzmaModel) Stream(ctx context.Context, messages types.Prompt, callback types.StreamCallback) (*types.LLMResponse, error) {
+func (m *LlamaYzmaModel) Stream(ctx context.Context, messages fantasy.Prompt, callback types.StreamCallback) (*types.LLMResponse, error) {
 	// Ensure chat model is loaded
 	if !m.libService.IsChatModelLoaded() {
 		if err := m.libService.LoadChatModel(""); err != nil {
@@ -551,16 +555,16 @@ func (m *LlamaYzmaModel) generateStreaming(ctx context.Context, prompt string, m
 // The returned types.LLMResponse contains ALL tool calls from all iterations (not just the last one)
 // streamCallback: called for each token during generation
 // toolCallback: called for tool events (tool_call before execution, tool_result after)
-func (m *LlamaYzmaModel) RunAgentLoopWithStreaming(ctx context.Context, messages types.Prompt, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*types.LLMResponse, types.Prompt, error) {
+func (m *LlamaYzmaModel) RunAgentLoopWithStreaming(ctx context.Context, messages fantasy.Prompt, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*types.LLMResponse, fantasy.Prompt, error) {
 	if maxIterations <= 0 {
 		maxIterations = DefaultMaxIterations
 	}
 
-	allMessages := make(types.Prompt, len(messages))
+	allMessages := make(fantasy.Prompt, len(messages))
 	copy(allMessages, messages)
 
 	var finalResponse *types.LLMResponse
-	var allToolMessages types.Prompt
+	var allToolMessages fantasy.Prompt
 	var allToolCalls []types.ToolCall // Collect all tool calls from all iterations
 
 	for i := 0; i < maxIterations; i++ {
@@ -577,7 +581,10 @@ func (m *LlamaYzmaModel) RunAgentLoopWithStreaming(ctx context.Context, messages
 			allMessages = append(allMessages, types.NewToolCallMessage(resp.ToolCalls))
 			allToolCalls = append(allToolCalls, resp.ToolCalls...)
 		} else {
-			allMessages = append(allMessages, types.NewAssistantMessage(resp.Content))
+			allMessages = append(allMessages, fantasy.Message{
+				Role:    fantasy.MessageRoleAssistant,
+				Content: []fantasy.MessagePart{fantasy.TextPart{Text: resp.Content}},
+			})
 		}
 		finalResponse = resp
 
@@ -605,8 +612,8 @@ func (m *LlamaYzmaModel) RunAgentLoopWithStreaming(ctx context.Context, messages
 		if toolCallback != nil {
 			for idx, tc := range resp.ToolCalls {
 				if idx < len(toolMessages) {
-					part := toolMessages[idx].Content[0].(types.ToolResultPart)
-					toolCallback(types.ChatEventToolResult, tc, part.Content)
+					part := toolMessages[idx].Content[0].(fantasy.ToolResultPart)
+					toolCallback(types.ChatEventToolResult, tc, types.GetToolResultContent(part))
 				}
 			}
 		}

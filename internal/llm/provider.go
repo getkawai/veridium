@@ -20,6 +20,7 @@ package llm
 import (
 	"context"
 
+	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/types"
 )
 
@@ -27,13 +28,13 @@ import (
 // This interface is implemented by all LLM providers (local llama, OpenAI-compatible APIs, etc.)
 type Provider interface {
 	// Generate generates a response from messages (single turn, no tool execution)
-	Generate(ctx context.Context, messages []types.Message) (*types.LLMResponse, error)
+	Generate(ctx context.Context, messages []fantasy.Message) (*types.LLMResponse, error)
 
 	// RunAgentLoop runs the agent loop with tool execution
-	RunAgentLoop(ctx context.Context, messages types.Prompt, maxIterations int) (*types.LLMResponse, types.Prompt, error)
+	RunAgentLoop(ctx context.Context, messages fantasy.Prompt, maxIterations int) (*types.LLMResponse, fantasy.Prompt, error)
 
 	// RunAgentLoopWithStreaming runs the agent loop with streaming callback and tool event callback
-	RunAgentLoopWithStreaming(ctx context.Context, messages types.Prompt, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*types.LLMResponse, types.Prompt, error)
+	RunAgentLoopWithStreaming(ctx context.Context, messages fantasy.Prompt, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*types.LLMResponse, fantasy.Prompt, error)
 
 	// WithTools returns a new provider configured with specific tools
 	WithTools(toolNames []string) Provider

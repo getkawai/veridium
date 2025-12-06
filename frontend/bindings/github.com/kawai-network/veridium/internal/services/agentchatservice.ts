@@ -13,10 +13,10 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as llm$0 from "../llm/models.js";
+import * as fantasy$0 from "../../fantasy/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as types$0 from "../../types/models.js";
+import * as llm$0 from "../llm/models.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -146,7 +146,7 @@ export function GetRecommendedModelForMode(): $CancellablePromise<string> {
 /**
  * GetSessionHistory returns the message history for a session (native yzma format)
  */
-export function GetSessionHistory(sessionID: string): $CancellablePromise<types$0.Message[]> {
+export function GetSessionHistory(sessionID: string): $CancellablePromise<fantasy$0.Message[]> {
     return $Call.ByID(396946379, sessionID).then(($result: any) => {
         return $$createType5($result);
     });
@@ -223,7 +223,7 @@ const $$createType0 = $models.UIChatMessage.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
 const $$createType2 = $Create.Array($$createType0);
 const $$createType3 = $models.ReasoningConfig.createFrom;
-const $$createType4 = types$0.Message.createFrom;
+const $$createType4 = fantasy$0.Message.createFrom;
 const $$createType5 = $Create.Array($$createType4);
 const $$createType6 = $models.StreamEventPayload.createFrom;
 const $$createType7 = llm$0.TaskRouter.createFrom;

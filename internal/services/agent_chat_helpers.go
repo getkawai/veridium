@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/kawai-network/veridium/fantasy"
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/types"
 )
@@ -201,7 +202,7 @@ func (s *AgentChatService) setupSessionAndTopic(ctx context.Context, req ChatReq
 			log.Printf("⚠️  Warning: Failed to load thread messages: %v", err)
 		} else {
 			// Convert thread messages to message format
-			yzmaMessages := make([]types.Message, 0, len(threadMessages))
+			yzmaMessages := make([]fantasy.Message, 0, len(threadMessages))
 			for _, dbMsg := range threadMessages {
 				if msg, ok := convertDBMessageToYzma(&dbMsg); ok {
 					yzmaMessages = append(yzmaMessages, msg)
@@ -231,7 +232,7 @@ func (s *AgentChatService) setupSessionAndTopic(ctx context.Context, req ChatReq
 	}
 
 	// 6. Add user message to session (in-memory for LLM context)
-	session.Messages = append(session.Messages, types.NewUserMessage(req.Message))
+	session.Messages = append(session.Messages, fantasy.NewUserMessage(req.Message))
 
 	// 7. Save user message to DB
 	userMsgID, err := s.saveUserMessage(ctx, SaveUserMessageParams{

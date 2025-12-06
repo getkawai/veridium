@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/internal/llm"
 	"github.com/kawai-network/veridium/types"
 )
@@ -202,9 +203,9 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 		if len(messagesWithSystem) > 0 {
 			// Find and modify the last user message to include file context
 			for i := len(messagesWithSystem) - 1; i >= 0; i-- {
-				if messagesWithSystem[i].GetRole() == "user" {
-					originalText := messagesWithSystem[i].GetText()
-					messagesWithSystem[i] = types.NewUserMessage(originalText + fileContext)
+				if types.GetMessageRole(messagesWithSystem[i]) == "user" {
+					originalText := types.GetMessageText(messagesWithSystem[i])
+					messagesWithSystem[i] = fantasy.NewUserMessage(originalText + fileContext)
 					break
 				}
 			}
@@ -235,7 +236,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	var finalContent strings.Builder
 	var reasoningContent strings.Builder
 	var toolCalls []types.ToolCall
-	var toolMessages []types.Message
+	var toolMessages []fantasy.Message
 	var usage *ModelUsage
 	var llmResp interface{}
 	var uiTools []ChatToolPayload
@@ -432,7 +433,10 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	if len(toolCalls) > 0 {
 		session.Messages = append(session.Messages, types.NewToolCallMessage(toolCalls))
 	} else {
-		session.Messages = append(session.Messages, types.NewAssistantMessage(finalContentStr))
+		session.Messages = append(session.Messages, fantasy.Message{
+			Role:    fantasy.MessageRoleAssistant,
+			Content: []fantasy.MessagePart{fantasy.TextPart{Text: finalContentStr}},
+		})
 	}
 
 	// 9. Build performance metrics

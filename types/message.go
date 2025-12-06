@@ -14,128 +14,128 @@
  * limitations under the License.
  */
 
+// Package types provides shared types and helper functions for message handling.
+// For core message types (Message, MessagePart, TextPart, etc.), import fantasy package directly.
 package types
 
-// ============================================================================
-// Message Types
-// ============================================================================
+import (
+	"encoding/json"
+	"errors"
 
-// MessageRole represents the role of a message sender.
-type MessageRole string
-
-const (
-	MessageRoleSystem    MessageRole = "system"
-	MessageRoleUser      MessageRole = "user"
-	MessageRoleAssistant MessageRole = "assistant"
-	MessageRoleTool      MessageRole = "tool"
+	"github.com/kawai-network/veridium/fantasy"
 )
 
-// MessageContentType represents the type of content in a message part.
-type MessageContentType string
+// ============================================================================
+// Message Helper Functions
+// ============================================================================
 
-const (
-	MessageContentTypeText       MessageContentType = "text"
-	MessageContentTypeReasoning  MessageContentType = "reasoning"
-	MessageContentTypeFile       MessageContentType = "file"
-	MessageContentTypeToolCall   MessageContentType = "tool-call"
-	MessageContentTypeToolResult MessageContentType = "tool-result"
-)
-
-// MessagePart represents a part of a message content.
-type MessagePart interface {
-	GetType() MessageContentType
+// NewToolCallMessage creates a new assistant message with tool calls.
+// Converts from legacy ToolCall format to fantasy.ToolCallPart.
+func NewToolCallMessage(toolCalls []ToolCall) fantasy.Message {
+	parts := ToolCallsToToolCallParts(toolCalls)
+	content := make([]fantasy.MessagePart, len(parts))
+	for i, p := range parts {
+		content[i] = p
+	}
+	return fantasy.Message{
+		Role:    fantasy.MessageRoleAssistant,
+		Content: content,
+	}
 }
 
-// TextPart represents text content in a message.
-type TextPart struct {
-	Text string `json:"text"`
+// NewToolResultMessage creates a new tool result message.
+func NewToolResultMessage(toolCallID, toolName, result string) fantasy.Message {
+	return fantasy.Message{
+		Role: fantasy.MessageRoleTool,
+		Content: []fantasy.MessagePart{
+			fantasy.ToolResultPart{
+				ToolCallID: toolCallID,
+				Output:     fantasy.ToolResultOutputContentText{Text: result},
+			},
+		},
+	}
 }
 
-func (t TextPart) GetType() MessageContentType {
-	return MessageContentTypeText
+// NewToolErrorMessage creates a new tool error message.
+func NewToolErrorMessage(toolCallID, toolName, errorMsg string) fantasy.Message {
+	return fantasy.Message{
+		Role: fantasy.MessageRoleTool,
+		Content: []fantasy.MessagePart{
+			fantasy.ToolResultPart{
+				ToolCallID: toolCallID,
+				Output:     fantasy.ToolResultOutputContentError{Error: errors.New(errorMsg)},
+			},
+		},
+	}
 }
 
-// ReasoningPart represents reasoning/thinking content from the model.
-type ReasoningPart struct {
-	Text string `json:"text"`
+// ============================================================================
+// Message Accessor Helper Functions
+// ============================================================================
+
+// GetMessageText returns concatenated text content from the message.
+func GetMessageText(m fantasy.Message) string {
+	var text string
+	for _, part := range m.Content {
+		if p, ok := fantasy.AsMessagePart[fantasy.TextPart](part); ok {
+			text += p.Text
+		}
+	}
+	return text
 }
 
-func (r ReasoningPart) GetType() MessageContentType {
-	return MessageContentTypeReasoning
+// GetMessageToolCalls returns all tool calls from the message as legacy ToolCall format.
+func GetMessageToolCalls(m fantasy.Message) []ToolCall {
+	var parts []fantasy.ToolCallPart
+	for _, part := range m.Content {
+		if p, ok := fantasy.AsMessagePart[fantasy.ToolCallPart](part); ok {
+			parts = append(parts, p)
+		}
+	}
+	return ToolCallPartsToToolCalls(parts)
 }
 
-// FilePart represents file content in a message.
-type FilePart struct {
-	Filename  string `json:"filename"`
-	Data      []byte `json:"data"`
-	MediaType string `json:"media_type"`
+// HasMessageToolCalls returns true if the message contains tool calls.
+func HasMessageToolCalls(m fantasy.Message) bool {
+	for _, part := range m.Content {
+		if _, ok := fantasy.AsMessagePart[fantasy.ToolCallPart](part); ok {
+			return true
+		}
+	}
+	return false
 }
 
-func (f FilePart) GetType() MessageContentType {
-	return MessageContentTypeFile
-}
-
-// ToolCallPart represents a tool call in a message.
-type ToolCallPart struct {
-	ToolCall ToolCall `json:"tool_call"`
-}
-
-func (t ToolCallPart) GetType() MessageContentType {
-	return MessageContentTypeToolCall
-}
-
-// ToolResultPart represents a tool result in a message.
-type ToolResultPart struct {
-	ToolCallID string `json:"tool_call_id"`
-	ToolName   string `json:"tool_name"`
-	Content    string `json:"content"`
-	IsError    bool   `json:"is_error,omitempty"`
-}
-
-func (t ToolResultPart) GetType() MessageContentType {
-	return MessageContentTypeToolResult
-}
-
-// Message represents a message in a conversation.
-type Message struct {
-	Role    MessageRole   `json:"role"`
-	Content []MessagePart `json:"content"`
-}
-
-// GetRole returns the role as string (for template compatibility).
-func (m Message) GetRole() string {
+// GetMessageRole returns the role as string (for template compatibility).
+func GetMessageRole(m fantasy.Message) string {
 	return string(m.Role)
 }
 
-// GetContent returns the content as a map for template rendering.
+// GetMessageContent returns the content as a map for template rendering.
 // This maintains compatibility with jinja templates that expect map access.
-func (m Message) GetContent() map[string]interface{} {
+func GetMessageContent(m fantasy.Message) map[string]interface{} {
 	result := make(map[string]interface{})
 
-	// Extract text content
 	var textContent string
 	var toolCalls []map[string]interface{}
 
 	for _, part := range m.Content {
 		switch p := part.(type) {
-		case TextPart:
+		case fantasy.TextPart:
 			textContent += p.Text
-		case ReasoningPart:
-			// Reasoning is separate, could add to result if needed
-		case ToolCallPart:
-			tc := p.ToolCall
+		case fantasy.ToolCallPart:
 			toolCalls = append(toolCalls, map[string]interface{}{
-				"id":   tc.ID,
-				"type": tc.Type,
+				"id":   p.ToolCallID,
+				"type": "function",
 				"function": map[string]interface{}{
-					"name":      tc.Function.Name,
-					"arguments": tc.Function.Arguments,
+					"name":      p.ToolName,
+					"arguments": p.Input,
 				},
 			})
-		case ToolResultPart:
-			result["name"] = p.ToolName
-			result["content"] = p.Content
+		case fantasy.ToolResultPart:
 			result["tool_call_id"] = p.ToolCallID
+			if textOutput, ok := p.Output.(fantasy.ToolResultOutputContentText); ok {
+				result["content"] = textOutput.Text
+			}
 		}
 	}
 
@@ -149,118 +149,84 @@ func (m Message) GetContent() map[string]interface{} {
 	return result
 }
 
-// GetText returns concatenated text content from the message.
-func (m Message) GetText() string {
-	var text string
-	for _, part := range m.Content {
-		if p, ok := part.(TextPart); ok {
-			text += p.Text
+// GetToolResultContent extracts the text content from a ToolResultPart.
+func GetToolResultContent(trp fantasy.ToolResultPart) string {
+	if textOutput, ok := trp.Output.(fantasy.ToolResultOutputContentText); ok {
+		return textOutput.Text
+	}
+	if errOutput, ok := trp.Output.(fantasy.ToolResultOutputContentError); ok {
+		if errOutput.Error != nil {
+			return errOutput.Error.Error()
 		}
 	}
-	return text
+	return ""
 }
 
-// GetToolCalls returns all tool calls from the message.
-func (m Message) GetToolCalls() []ToolCall {
-	var calls []ToolCall
-	for _, part := range m.Content {
-		if p, ok := part.(ToolCallPart); ok {
-			calls = append(calls, p.ToolCall)
-		}
+// ============================================================================
+// ToolCall Conversion Functions
+// ============================================================================
+
+// ToolCallToToolCallPart converts legacy ToolCall to fantasy.ToolCallPart.
+func ToolCallToToolCallPart(tc ToolCall) fantasy.ToolCallPart {
+	return fantasy.ToolCallPart{
+		ToolCallID: tc.ID,
+		ToolName:   tc.Function.Name,
+		Input:      mustMarshalArgs(tc.Function.Arguments),
+	}
+}
+
+// ToolCallPartToToolCall converts fantasy.ToolCallPart to legacy ToolCall.
+func ToolCallPartToToolCall(tcp fantasy.ToolCallPart) ToolCall {
+	return ToolCall{
+		ID:   tcp.ToolCallID,
+		Type: "function",
+		Function: ToolFunction{
+			Name:      tcp.ToolName,
+			Arguments: mustUnmarshalArgs(tcp.Input),
+		},
+	}
+}
+
+// ToolCallsToToolCallParts converts a slice of ToolCall to ToolCallPart.
+func ToolCallsToToolCallParts(tcs []ToolCall) []fantasy.ToolCallPart {
+	parts := make([]fantasy.ToolCallPart, len(tcs))
+	for i, tc := range tcs {
+		parts[i] = ToolCallToToolCallPart(tc)
+	}
+	return parts
+}
+
+// ToolCallPartsToToolCalls converts a slice of ToolCallPart to ToolCall.
+func ToolCallPartsToToolCalls(tcps []fantasy.ToolCallPart) []ToolCall {
+	calls := make([]ToolCall, len(tcps))
+	for i, tcp := range tcps {
+		calls[i] = ToolCallPartToToolCall(tcp)
 	}
 	return calls
 }
 
-// HasToolCalls returns true if the message contains tool calls.
-func (m Message) HasToolCalls() bool {
-	for _, part := range m.Content {
-		if _, ok := part.(ToolCallPart); ok {
-			return true
-		}
-	}
-	return false
-}
-
-// Prompt represents a list of messages for the language model.
-type Prompt []Message
-
 // ============================================================================
-// Message Helper Functions
+// Internal helper functions
 // ============================================================================
 
-// NewTextMessage creates a new message with text content.
-func NewTextMessage(role MessageRole, text string) Message {
-	return Message{
-		Role:    role,
-		Content: []MessagePart{TextPart{Text: text}},
+func mustMarshalArgs(args map[string]string) string {
+	if args == nil {
+		return "{}"
 	}
+	b, err := json.Marshal(args)
+	if err != nil {
+		return "{}"
+	}
+	return string(b)
 }
 
-// NewUserMessage creates a new user message with text and optional files.
-func NewUserMessage(text string, files ...FilePart) Message {
-	content := []MessagePart{TextPart{Text: text}}
-	for _, f := range files {
-		content = append(content, f)
+func mustUnmarshalArgs(input string) map[string]string {
+	if input == "" {
+		return nil
 	}
-	return Message{
-		Role:    MessageRoleUser,
-		Content: content,
+	var args map[string]string
+	if err := json.Unmarshal([]byte(input), &args); err != nil {
+		return nil
 	}
-}
-
-// NewSystemMessage creates a new system message.
-func NewSystemMessage(text string) Message {
-	return Message{
-		Role:    MessageRoleSystem,
-		Content: []MessagePart{TextPart{Text: text}},
-	}
-}
-
-// NewAssistantMessage creates a new assistant message with text.
-func NewAssistantMessage(text string) Message {
-	return Message{
-		Role:    MessageRoleAssistant,
-		Content: []MessagePart{TextPart{Text: text}},
-	}
-}
-
-// NewToolCallMessage creates a new assistant message with tool calls.
-func NewToolCallMessage(toolCalls []ToolCall) Message {
-	content := make([]MessagePart, len(toolCalls))
-	for i, tc := range toolCalls {
-		content[i] = ToolCallPart{ToolCall: tc}
-	}
-	return Message{
-		Role:    MessageRoleAssistant,
-		Content: content,
-	}
-}
-
-// NewToolResultMessage creates a new tool result message.
-func NewToolResultMessage(toolCallID, toolName, result string) Message {
-	return Message{
-		Role: MessageRoleTool,
-		Content: []MessagePart{
-			ToolResultPart{
-				ToolCallID: toolCallID,
-				ToolName:   toolName,
-				Content:    result,
-			},
-		},
-	}
-}
-
-// NewToolErrorMessage creates a new tool error message.
-func NewToolErrorMessage(toolCallID, toolName, errorMsg string) Message {
-	return Message{
-		Role: MessageRoleTool,
-		Content: []MessagePart{
-			ToolResultPart{
-				ToolCallID: toolCallID,
-				ToolName:   toolName,
-				Content:    errorMsg,
-				IsError:    true,
-			},
-		},
-	}
+	return args
 }

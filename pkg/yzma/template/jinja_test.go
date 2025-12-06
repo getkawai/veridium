@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/types"
 )
 
@@ -18,9 +19,12 @@ func TestChatMLTemplate(t *testing.T) {
 	tmpl := string(tmplBytes)
 
 	// Prepare chat messages
-	messages := types.Prompt{
-		types.NewUserMessage("Hello, how are you?"),
-		types.NewAssistantMessage("I'm fine, thank you!"),
+	messages := fantasy.Prompt{
+		fantasy.NewUserMessage("Hello, how are you?"),
+		fantasy.Message{
+			Role:    fantasy.MessageRoleAssistant,
+			Content: []fantasy.MessagePart{fantasy.TextPart{Text: "I'm fine, thank you!"}},
+		},
 	}
 
 	result, err := Apply(tmpl, messages, true)
@@ -48,8 +52,8 @@ func TestQwen25InstructTemplateWithToolCall(t *testing.T) {
 	tmpl := string(tmplBytes)
 
 	// Prepare messages with a tool call
-	messages := types.Prompt{
-		types.NewUserMessage("What is 2 + 3?"),
+	messages := fantasy.Prompt{
+		fantasy.NewUserMessage("What is 2 + 3?"),
 		types.NewToolCallMessage([]types.ToolCall{
 			{
 				Type: "function",
@@ -103,8 +107,8 @@ func TestApplyJinjaTemplateWithToolMessage(t *testing.T) {
 	tmpl := string(tmplBytes)
 
 	// Prepare messages with ToolCallMessage
-	messages := types.Prompt{
-		types.NewUserMessage("Call the calculator function"),
+	messages := fantasy.Prompt{
+		fantasy.NewUserMessage("Call the calculator function"),
 		types.NewToolCallMessage([]types.ToolCall{
 			{
 				Type: "function",
@@ -155,8 +159,8 @@ func TestApplyJinjaTemplateWithToolResponseMessage(t *testing.T) {
 	tmpl := string(tmplBytes)
 
 	// Prepare messages with ToolResultMessage
-	messages := types.Prompt{
-		types.NewUserMessage("What is the result?"),
+	messages := fantasy.Prompt{
+		fantasy.NewUserMessage("What is the result?"),
 		types.NewToolCallMessage([]types.ToolCall{
 			{
 				Type: "function",
@@ -204,8 +208,8 @@ func TestApplyJinjaTemplateWithMultipleToolCalls(t *testing.T) {
 	tmpl := string(tmplBytes)
 
 	// Prepare messages with multiple tool calls
-	messages := types.Prompt{
-		types.NewUserMessage("Calculate 2+3 and 5*7"),
+	messages := fantasy.Prompt{
+		fantasy.NewUserMessage("Calculate 2+3 and 5*7"),
 		types.NewToolCallMessage([]types.ToolCall{
 			{
 				Type: "function",

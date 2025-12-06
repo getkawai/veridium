@@ -80,8 +80,8 @@ func (a *FantasyProviderAdapter) WithoutTools() Provider {
 }
 
 // Generate generates a response from messages (single turn, no tool execution)
-func (a *FantasyProviderAdapter) Generate(ctx context.Context, messages []types.Message) (*types.LLMResponse, error) {
-	call := a.buildCall(types.Prompt(messages))
+func (a *FantasyProviderAdapter) Generate(ctx context.Context, messages []fantasy.Message) (*types.LLMResponse, error) {
+	call := a.buildCall(fantasy.Prompt(messages))
 
 	resp, err := a.model.Generate(ctx, call)
 	if err != nil {
@@ -92,16 +92,16 @@ func (a *FantasyProviderAdapter) Generate(ctx context.Context, messages []types.
 }
 
 // RunAgentLoop runs the agent loop with tool execution
-func (a *FantasyProviderAdapter) RunAgentLoop(ctx context.Context, messages types.Prompt, maxIterations int) (*types.LLMResponse, types.Prompt, error) {
+func (a *FantasyProviderAdapter) RunAgentLoop(ctx context.Context, messages fantasy.Prompt, maxIterations int) (*types.LLMResponse, fantasy.Prompt, error) {
 	if maxIterations <= 0 {
 		maxIterations = 10
 	}
 
-	allMessages := make(types.Prompt, len(messages))
+	allMessages := make(fantasy.Prompt, len(messages))
 	copy(allMessages, messages)
 
 	var finalResponse *types.LLMResponse
-	var allToolMessages types.Prompt
+	var allToolMessages fantasy.Prompt
 	var allToolCalls []types.ToolCall
 
 	for i := 0; i < maxIterations; i++ {
@@ -120,7 +120,10 @@ func (a *FantasyProviderAdapter) RunAgentLoop(ctx context.Context, messages type
 			allMessages = append(allMessages, types.NewToolCallMessage(llmResp.ToolCalls))
 			allToolCalls = append(allToolCalls, llmResp.ToolCalls...)
 		} else {
-			allMessages = append(allMessages, types.NewAssistantMessage(llmResp.Content))
+			allMessages = append(allMessages, fantasy.Message{
+				Role:    fantasy.MessageRoleAssistant,
+				Content: []fantasy.MessagePart{fantasy.TextPart{Text: llmResp.Content}},
+			})
 		}
 		finalResponse = llmResp
 
@@ -150,16 +153,16 @@ func (a *FantasyProviderAdapter) RunAgentLoop(ctx context.Context, messages type
 }
 
 // RunAgentLoopWithStreaming runs the agent loop with streaming callback
-func (a *FantasyProviderAdapter) RunAgentLoopWithStreaming(ctx context.Context, messages types.Prompt, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*types.LLMResponse, types.Prompt, error) {
+func (a *FantasyProviderAdapter) RunAgentLoopWithStreaming(ctx context.Context, messages fantasy.Prompt, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*types.LLMResponse, fantasy.Prompt, error) {
 	if maxIterations <= 0 {
 		maxIterations = 10
 	}
 
-	allMessages := make(types.Prompt, len(messages))
+	allMessages := make(fantasy.Prompt, len(messages))
 	copy(allMessages, messages)
 
 	var finalResponse *types.LLMResponse
-	var allToolMessages types.Prompt
+	var allToolMessages fantasy.Prompt
 	var allToolCalls []types.ToolCall
 
 	for i := 0; i < maxIterations; i++ {
@@ -178,7 +181,10 @@ func (a *FantasyProviderAdapter) RunAgentLoopWithStreaming(ctx context.Context, 
 			allMessages = append(allMessages, types.NewToolCallMessage(llmResp.ToolCalls))
 			allToolCalls = append(allToolCalls, llmResp.ToolCalls...)
 		} else {
-			allMessages = append(allMessages, types.NewAssistantMessage(llmResp.Content))
+			allMessages = append(allMessages, fantasy.Message{
+				Role:    fantasy.MessageRoleAssistant,
+				Content: []fantasy.MessagePart{fantasy.TextPart{Text: llmResp.Content}},
+			})
 		}
 		finalResponse = llmResp
 
@@ -206,8 +212,8 @@ func (a *FantasyProviderAdapter) RunAgentLoopWithStreaming(ctx context.Context, 
 		if toolCallback != nil {
 			for idx, tc := range llmResp.ToolCalls {
 				if idx < len(toolMessages) {
-					part := toolMessages[idx].Content[0].(types.ToolResultPart)
-					toolCallback(types.ChatEventToolResult, tc, part.Content)
+					part := toolMessages[idx].Content[0].(fantasy.ToolResultPart)
+					toolCallback(types.ChatEventToolResult, tc, types.GetToolResultContent(part))
 				}
 			}
 		}
@@ -225,7 +231,7 @@ func (a *FantasyProviderAdapter) RunAgentLoopWithStreaming(ctx context.Context, 
 }
 
 // buildCall builds a fantasy.Call from messages
-func (a *FantasyProviderAdapter) buildCall(messages types.Prompt) fantasy.Call {
+func (a *FantasyProviderAdapter) buildCall(messages fantasy.Prompt) fantasy.Call {
 	prompt := a.convertToFantasyPrompt(messages)
 
 	call := fantasy.Call{
@@ -244,23 +250,23 @@ func (a *FantasyProviderAdapter) buildCall(messages types.Prompt) fantasy.Call {
 	return call
 }
 
-// convertToFantasyPrompt converts types.Prompt to fantasy.Prompt
-func (a *FantasyProviderAdapter) convertToFantasyPrompt(messages types.Prompt) fantasy.Prompt {
+// convertToFantasyPrompt converts fantasy.Prompt to normalized fantasy.Prompt
+func (a *FantasyProviderAdapter) convertToFantasyPrompt(messages fantasy.Prompt) fantasy.Prompt {
 	result := make(fantasy.Prompt, 0, len(messages))
 
 	for _, msg := range messages {
 		var fantasyMsg fantasy.Message
 
 		switch msg.Role {
-		case types.MessageRoleSystem:
-			fantasyMsg = fantasy.NewSystemMessage(msg.GetText())
-		case types.MessageRoleUser:
-			fantasyMsg = fantasy.NewUserMessage(msg.GetText())
-		case types.MessageRoleAssistant:
-			if msg.HasToolCalls() {
-				toolCalls := msg.GetToolCalls()
+		case fantasy.MessageRoleSystem:
+			fantasyMsg = fantasy.NewSystemMessage(types.GetMessageText(msg))
+		case fantasy.MessageRoleUser:
+			fantasyMsg = fantasy.NewUserMessage(types.GetMessageText(msg))
+		case fantasy.MessageRoleAssistant:
+			if types.HasMessageToolCalls(msg) {
+				toolCalls := types.GetMessageToolCalls(msg)
 				content := make([]fantasy.MessagePart, 0, len(toolCalls)+1)
-				if text := msg.GetText(); text != "" {
+				if text := types.GetMessageText(msg); text != "" {
 					content = append(content, fantasy.TextPart{Text: text})
 				}
 				for _, tc := range toolCalls {
@@ -278,18 +284,18 @@ func (a *FantasyProviderAdapter) convertToFantasyPrompt(messages types.Prompt) f
 			} else {
 				fantasyMsg = fantasy.Message{
 					Role:    fantasy.MessageRoleAssistant,
-					Content: []fantasy.MessagePart{fantasy.TextPart{Text: msg.GetText()}},
+					Content: []fantasy.MessagePart{fantasy.TextPart{Text: types.GetMessageText(msg)}},
 				}
 			}
-		case types.MessageRoleTool:
+		case fantasy.MessageRoleTool:
 			for _, part := range msg.Content {
-				if trp, ok := part.(types.ToolResultPart); ok {
+				if trp, ok := part.(fantasy.ToolResultPart); ok {
 					fantasyMsg = fantasy.Message{
 						Role: fantasy.MessageRoleTool,
 						Content: []fantasy.MessagePart{
 							fantasy.ToolResultPart{
 								ToolCallID: trp.ToolCallID,
-								Output:     fantasy.ToolResultOutputContentText{Text: trp.Content},
+								Output:     fantasy.ToolResultOutputContentText{Text: types.GetToolResultContent(trp)},
 							},
 						},
 					}
@@ -435,12 +441,12 @@ func (a *FantasyProviderAdapter) consumeStream(stream fantasy.StreamResponse, ca
 }
 
 // executeToolCalls executes tool calls and returns tool response messages
-func (a *FantasyProviderAdapter) executeToolCalls(ctx context.Context, toolCalls []types.ToolCall) (types.Prompt, error) {
+func (a *FantasyProviderAdapter) executeToolCalls(ctx context.Context, toolCalls []types.ToolCall) (fantasy.Prompt, error) {
 	if a.toolRegistry == nil {
 		return nil, fmt.Errorf("tool registry not available")
 	}
 
-	toolMessages := make(types.Prompt, 0, len(toolCalls))
+	toolMessages := make(fantasy.Prompt, 0, len(toolCalls))
 
 	for _, tc := range toolCalls {
 		log.Printf("🔧 [fantasy] Executing tool: %s", tc.Function.Name)

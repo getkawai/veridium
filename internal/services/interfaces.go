@@ -19,6 +19,7 @@ package services
 import (
 	"context"
 
+	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/internal/llama"
 	"github.com/kawai-network/veridium/internal/llm"
 	"github.com/kawai-network/veridium/types"
@@ -35,17 +36,17 @@ func NewLlamaProviderAdapter(model *llama.LlamaYzmaModel) *LlamaProviderAdapter 
 }
 
 // Generate implements llm.Provider.Generate
-func (a *LlamaProviderAdapter) Generate(ctx context.Context, messages []types.Message) (*types.LLMResponse, error) {
-	return a.model.Generate(ctx, types.Prompt(messages))
+func (a *LlamaProviderAdapter) Generate(ctx context.Context, messages []fantasy.Message) (*types.LLMResponse, error) {
+	return a.model.Generate(ctx, fantasy.Prompt(messages))
 }
 
 // RunAgentLoop implements llm.Provider.RunAgentLoop
-func (a *LlamaProviderAdapter) RunAgentLoop(ctx context.Context, messages types.Prompt, maxIterations int) (*types.LLMResponse, types.Prompt, error) {
+func (a *LlamaProviderAdapter) RunAgentLoop(ctx context.Context, messages fantasy.Prompt, maxIterations int) (*types.LLMResponse, fantasy.Prompt, error) {
 	return a.model.RunAgentLoop(ctx, messages, maxIterations)
 }
 
 // RunAgentLoopWithStreaming implements llm.Provider.RunAgentLoopWithStreaming
-func (a *LlamaProviderAdapter) RunAgentLoopWithStreaming(ctx context.Context, messages types.Prompt, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*types.LLMResponse, types.Prompt, error) {
+func (a *LlamaProviderAdapter) RunAgentLoopWithStreaming(ctx context.Context, messages fantasy.Prompt, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*types.LLMResponse, fantasy.Prompt, error) {
 	return a.model.RunAgentLoopWithStreaming(ctx, messages, maxIterations, streamCallback, toolCallback)
 }
 

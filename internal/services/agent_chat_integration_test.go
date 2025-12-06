@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/internal/database"
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/internal/llama"
@@ -336,21 +337,21 @@ type MockProvider struct {
 	name string
 }
 
-func (m *MockProvider) Generate(ctx context.Context, messages []types.Message) (*types.LLMResponse, error) {
+func (m *MockProvider) Generate(ctx context.Context, messages []fantasy.Message) (*types.LLMResponse, error) {
 	return &types.LLMResponse{
 		Content:      "Mock response from " + m.name,
 		FinishReason: "stop",
 	}, nil
 }
 
-func (m *MockProvider) RunAgentLoop(ctx context.Context, messages []types.Message, maxIterations int) (*types.LLMResponse, []types.Message, error) {
+func (m *MockProvider) RunAgentLoop(ctx context.Context, messages []fantasy.Message, maxIterations int) (*types.LLMResponse, []fantasy.Message, error) {
 	return &types.LLMResponse{
 		Content:      "Mock response from " + m.name,
 		FinishReason: "stop",
 	}, nil, nil
 }
 
-func (m *MockProvider) RunAgentLoopWithStreaming(ctx context.Context, messages []types.Message, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*types.LLMResponse, []types.Message, error) {
+func (m *MockProvider) RunAgentLoopWithStreaming(ctx context.Context, messages []fantasy.Message, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*types.LLMResponse, []fantasy.Message, error) {
 	if streamCallback != nil {
 		streamCallback("Mock ", false)
 		streamCallback("response ", false)

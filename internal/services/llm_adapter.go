@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/internal/llm"
-	"github.com/kawai-network/veridium/types"
 )
 
 // TaskRouterAdapter wraps TaskRouter to implement LLMProvider interface
@@ -62,18 +62,18 @@ func (a *TaskRouterAdapter) GenerateText(ctx context.Context, prompt string) (st
 	taskType := a.detectTaskType(prompt)
 
 	// Build messages with system prompt
-	messages := types.Prompt{}
+	messages := fantasy.Prompt{}
 
 	// Add system prompt based on task type
 	switch taskType {
 	case llm.TaskTranscriptCleanup:
-		messages = append(messages, types.NewSystemMessage(SystemPromptTranscriptCleanup))
+		messages = append(messages, fantasy.NewSystemMessage(SystemPromptTranscriptCleanup))
 	case llm.TaskOCRCleanup:
-		messages = append(messages, types.NewSystemMessage(SystemPromptOCRCleanup))
+		messages = append(messages, fantasy.NewSystemMessage(SystemPromptOCRCleanup))
 	}
 
 	// Add user prompt
-	messages = append(messages, types.NewUserMessage(prompt))
+	messages = append(messages, fantasy.NewUserMessage(prompt))
 
 	resp, err := a.router.GenerateWithoutTools(ctx, taskType, messages)
 	if err != nil {

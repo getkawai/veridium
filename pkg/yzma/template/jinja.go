@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/types"
 	"github.com/nikolalohinski/gonja/v2"
 	"github.com/nikolalohinski/gonja/v2/exec"
@@ -21,9 +22,9 @@ func raiseExceptionFunc(msg string) string {
 	return ""
 }
 
-// Apply applies a jinja chat template to a slice of [types.Message], Set addAssistantPrompt to true to generate the
+// Apply applies a jinja chat template to a slice of [fantasy.Message], Set addAssistantPrompt to true to generate the
 // assistant prompt, for example on the first message.
-func Apply(tmpl string, messages []types.Message, addAssistantPrompt bool) (string, error) {
+func Apply(tmpl string, messages []fantasy.Message, addAssistantPrompt bool) (string, error) {
 	// prevent filesystem access
 	gonja.DefaultLoader = &NoFSLoader{}
 
@@ -35,9 +36,9 @@ func Apply(tmpl string, messages []types.Message, addAssistantPrompt bool) (stri
 	msgs := make([]map[string]interface{}, len(messages))
 	for i, m := range messages {
 		msgs[i] = map[string]interface{}{
-			"role": m.GetRole(),
+			"role": types.GetMessageRole(m),
 		}
-		for k, v := range m.GetContent() {
+		for k, v := range types.GetMessageContent(m) {
 			msgs[i][k] = v
 		}
 	}
