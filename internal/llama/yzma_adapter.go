@@ -300,7 +300,7 @@ func (m *LlamaYzmaModel) ExecuteToolCalls(ctx context.Context, toolCalls []types
 		log.Printf("🔧 Executing tool: %s", tc.Name)
 
 		// Execute tool with arguments parsed from Input JSON
-		result, err := m.toolRegistry.Execute(ctx, tc.Name, tc.GetArguments())
+		result, err := m.toolRegistry.Execute(ctx, tc.Name, types.GetToolCallArguments(tc))
 		if err != nil {
 			log.Printf("⚠️  Tool execution failed: %v", err)
 			toolMessages = append(toolMessages, types.NewToolErrorMessage(tc.ID, tc.Name, fmt.Sprintf("Error: %v", err)))

@@ -23,6 +23,22 @@ import (
 	"github.com/kawai-network/veridium/fantasy"
 )
 
+// ToolCall is an alias to fantasy.ToolCall for backward compatibility
+type ToolCall = fantasy.ToolCall
+
+// GetToolCallArguments parses Input JSON string to map[string]string
+// Helper function since fantasy.ToolCall doesn't have this method
+func GetToolCallArguments(tc fantasy.ToolCall) map[string]string {
+	if tc.Input == "" {
+		return nil
+	}
+	var args map[string]string
+	if err := json.Unmarshal([]byte(tc.Input), &args); err != nil {
+		return nil
+	}
+	return args
+}
+
 // ============================================================================
 // Tool Types
 // ============================================================================
@@ -45,24 +61,7 @@ type Tool struct {
 	Enabled    bool             `json:"-"`
 }
 
-// ToolCall represents a tool call from LLM (flat structure, matches fantasy.ToolCallPart)
-type ToolCall struct {
-	ID    string `json:"id"`    // Tool call ID
-	Name  string `json:"name"`  // Tool name (flat, not nested)
-	Input string `json:"input"` // JSON string of arguments
-}
 
-// GetArguments parses Input JSON string to map[string]string
-func (tc ToolCall) GetArguments() map[string]string {
-	if tc.Input == "" {
-		return nil
-	}
-	var args map[string]string
-	if err := json.Unmarshal([]byte(tc.Input), &args); err != nil {
-		return nil
-	}
-	return args
-}
 
 // ============================================================================
 // LLM Response Types

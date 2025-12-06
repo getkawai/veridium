@@ -446,7 +446,7 @@ func (a *FantasyProviderAdapter) executeToolCalls(ctx context.Context, toolCalls
 	for _, tc := range toolCalls {
 		log.Printf("🔧 [fantasy] Executing tool: %s", tc.Name)
 
-		result, err := a.toolRegistry.Execute(ctx, tc.Name, tc.GetArguments())
+		result, err := a.toolRegistry.Execute(ctx, tc.Name, types.GetToolCallArguments(tc))
 		if err != nil {
 			log.Printf("⚠️  Tool execution failed: %v", err)
 			toolMessages = append(toolMessages, types.NewToolErrorMessage(tc.ID, tc.Name, fmt.Sprintf("Error: %v", err)))
