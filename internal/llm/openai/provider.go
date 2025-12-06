@@ -97,6 +97,12 @@ func (p *Provider) Generate(ctx context.Context, messages []message.Message) (*t
 		MaxTokens: &p.config.MaxTokens,
 	}
 
+	// Disable thinking/reasoning mode for Zhipu to get faster responses
+	// This prevents the model from using tokens for reasoning_content
+	if p.config.Type == types.ProviderZhipuAI {
+		req.Thinking = &types.ThinkingConfig{Type: "disabled"}
+	}
+
 	// Add tools if enabled
 	if !p.noTools && p.toolRegistry != nil {
 		req.Tools = p.getToolDefinitions()

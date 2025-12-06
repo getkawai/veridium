@@ -12,6 +12,10 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as services$0 from "./internal/services/models.js";
+
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
 /**
@@ -23,6 +27,13 @@ export function ProcessFileFromPath(absolutePath: string, userID: string): $Canc
     return $Call.ByID(1128345069, absolutePath, userID).then(($result: any) => {
         return $$createType1($result);
     });
+}
+
+/**
+ * SetLLMProvider sets the LLM provider for OCR text cleanup
+ */
+export function SetLLMProvider(provider: services$0.LLMProvider): $CancellablePromise<void> {
+    return $Call.ByID(3800136077, provider);
 }
 
 // Private type creation functions

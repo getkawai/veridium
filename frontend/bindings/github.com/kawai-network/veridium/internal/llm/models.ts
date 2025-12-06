@@ -21,12 +21,14 @@ export type Provider = any;
  * 
  * CURRENT TASK ASSIGNMENTS:
  * 
- * | Task           | Primary       | Model              | Fallback     | Notes                     |
- * |----------------|---------------|--------------------|--------------|---------------------------|
- * | Chat           | OpenRouter    | amazon/nova-2-lite | Local Llama  | Main conversation         |
- * | Title          | Zhipu AI      | glm-4.6            | Local Llama  | Fast title generation     |
- * | Summary        | Zhipu AI      | glm-4.6            | Local Llama  | Topic summarization       |
- * | ImageDescribe  | Local Qwen VL | qwen3-vl           | None         | Vision-language (async)   |
+ * | Task              | Primary       | Model              | Fallback     | Notes                     |
+ * |-------------------|---------------|--------------------|--------------|---------------------------|
+ * | Chat              | OpenRouter    | amazon/nova-2-lite | Local Llama  | Main conversation         |
+ * | Title             | Zhipu AI      | glm-4.6            | Local Llama  | Fast title generation     |
+ * | Summary           | Zhipu AI      | glm-4.6            | Local Llama  | Topic summarization       |
+ * | ImageDescribe     | Local Qwen VL | qwen3-vl           | None         | Vision-language (async)   |
+ * | OCRCleanup        | Zhipu AI      | glm-4.6            | Local Llama  | OCR text cleanup & format |
+ * | TranscriptCleanup | Zhipu AI      | glm-4.6            | Local Llama  | Video transcript cleanup  |
  * 
  * FALLBACK BEHAVIOR:
  * - GenerateWithoutTools() automatically tries fallback if primary fails

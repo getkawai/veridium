@@ -120,13 +120,22 @@ func (c *Client) ChatCompletion(ctx context.Context, req types.ChatCompletionReq
 		if content, ok := result.Choices[0].Message.Content.(string); ok {
 			if len(content) > 100 {
 				contentPreview = content[:100] + "..."
+			} else if content == "" {
+				contentPreview = "(empty string)"
+				// Log raw body when content is empty for debugging
+				log.Printf("⚠️  [%s] Empty content - raw response: %s", c.providerType, string(bodyBytes))
 			} else {
 				contentPreview = content
 			}
+		} else if result.Choices[0].Message.Content == nil {
+			contentPreview = "(nil content)"
+			log.Printf("⚠️  [%s] Nil content - raw response: %s", c.providerType, string(bodyBytes))
 		} else {
 			contentPreview = fmt.Sprintf("(non-string: %T)", result.Choices[0].Message.Content)
 		}
 		log.Printf("📝 [%s] Response content: %s", c.providerType, contentPreview)
+	} else {
+		log.Printf("⚠️  [%s] No choices in response - raw response: %s", c.providerType, string(bodyBytes))
 	}
 
 	return &result, nil

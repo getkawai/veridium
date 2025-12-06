@@ -708,6 +708,11 @@ export class GroundingSearch {
 }
 
 /**
+ * LLMProvider interface for text generation (used for OCR cleanup)
+ */
+export type LLMProvider = any;
+
+/**
  * ListThreadsRequest represents a request to list threads
  */
 export class ListThreadsRequest {

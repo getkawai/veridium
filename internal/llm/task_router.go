@@ -30,11 +30,12 @@ import (
 type TaskType string
 
 const (
-	TaskChat          TaskType = "chat"           // Main conversation with streaming & tools
-	TaskTitleGen      TaskType = "title"          // Title generation (lightweight)
-	TaskSummaryGen    TaskType = "summary"        // Summary generation (background)
-	TaskImageDescribe TaskType = "image_describe" // Image description (VL model)
-	TaskOCRCleanup    TaskType = "ocr_cleanup"    // OCR text cleanup (remote first, local fallback)
+	TaskChat               TaskType = "chat"                // Main conversation with streaming & tools
+	TaskTitleGen           TaskType = "title"               // Title generation (lightweight)
+	TaskSummaryGen         TaskType = "summary"             // Summary generation (background)
+	TaskImageDescribe      TaskType = "image_describe"      // Image description (VL model)
+	TaskOCRCleanup         TaskType = "ocr_cleanup"         // OCR text cleanup (remote first, local fallback)
+	TaskTranscriptCleanup  TaskType = "transcript_cleanup"  // Video transcript cleanup (remote first, local fallback)
 )
 
 // ============================================================================
@@ -46,13 +47,14 @@ const (
 //
 // CURRENT TASK ASSIGNMENTS:
 //
-// | Task           | Primary       | Model              | Fallback     | Notes                     |
-// |----------------|---------------|--------------------|--------------|---------------------------|
-// | Chat           | OpenRouter    | amazon/nova-2-lite | Local Llama  | Main conversation         |
-// | Title          | Zhipu AI      | glm-4.6            | Local Llama  | Fast title generation     |
-// | Summary        | Zhipu AI      | glm-4.6            | Local Llama  | Topic summarization       |
-// | ImageDescribe  | Local Qwen VL | qwen3-vl           | None         | Vision-language (async)   |
-// | OCRCleanup     | Zhipu AI      | glm-4.6            | Local Llama  | OCR text cleanup & format |
+// | Task              | Primary       | Model              | Fallback     | Notes                     |
+// |-------------------|---------------|--------------------|--------------|---------------------------|
+// | Chat              | OpenRouter    | amazon/nova-2-lite | Local Llama  | Main conversation         |
+// | Title             | Zhipu AI      | glm-4.6            | Local Llama  | Fast title generation     |
+// | Summary           | Zhipu AI      | glm-4.6            | Local Llama  | Topic summarization       |
+// | ImageDescribe     | Local Qwen VL | qwen3-vl           | None         | Vision-language (async)   |
+// | OCRCleanup        | Zhipu AI      | glm-4.6            | Local Llama  | OCR text cleanup & format |
+// | TranscriptCleanup | Zhipu AI      | glm-4.6            | Local Llama  | Video transcript cleanup  |
 //
 // FALLBACK BEHAVIOR:
 // - GenerateWithoutTools() automatically tries fallback if primary fails

@@ -357,6 +357,43 @@ Cleaned markdown:`, docHint, rawText)
 	return result, nil
 }
 
+// cleanupTranscription uses LLM to clean up and correct Whisper transcription
+// Fixes common Whisper errors like misheard words, typos, and formatting issues
+func (s *FileProcessorService) cleanupTranscription(ctx context.Context, rawTranscript string) (string, error) {
+	if s.llmProvider == nil {
+		return rawTranscript, nil // Return original if no LLM available
+	}
+
+	// Skip if transcript is too short
+	if len(rawTranscript) < 50 {
+		return rawTranscript, nil
+	}
+
+	// Simple user prompt - system prompt in llm_adapter handles the instructions
+	// This keeps the user message small and lets system prompt define the task globally
+	prompt := fmt.Sprintf(`Fix this transcription from Whisper speech-to-text:
+
+%s`, rawTranscript)
+
+	result, err := s.llmProvider.GenerateText(ctx, prompt)
+	if err != nil {
+		xlog.Warn("Async: Transcript cleanup failed, using original", "error", err)
+		return rawTranscript, nil // Return original on error, don't fail
+	}
+
+	result = strings.TrimSpace(result)
+	
+	// If result is empty or significantly shorter, return original
+	if len(result) < len(rawTranscript)/2 {
+		xlog.Warn("Async: Transcript cleanup result too short, using original", 
+			"original_len", len(rawTranscript), "result_len", len(result))
+		return rawTranscript, nil
+	}
+
+	xlog.Info("Async: Transcript cleaned up", "original_len", len(rawTranscript), "cleaned_len", len(result))
+	return result, nil
+}
+
 // processVideoDescriptionAsync extracts audio from video using ffmpeg and transcribes using whisper
 // Uses parallel chunked transcription for faster processing with progressive DB updates
 func (s *FileProcessorService) processVideoDescriptionAsync(filePath, filename, documentID, fileID, userID string, enableRAG bool) {
@@ -383,14 +420,11 @@ func (s *FileProcessorService) processVideoDescriptionAsync(filePath, filename, 
 		return
 	}
 	
-	// Prefer tiny model for parallel processing (faster), fallback to first available
-	modelName := models[0]
-	for _, m := range models {
-		if m == "tiny" || m == "tiny.en" {
-			modelName = m
-			break
-		}
-	}
+	// Select Whisper model based on available RAM
+	// Model sizes: tiny (~75MB), base (~150MB), small (~500MB), medium (~1.5GB), large (~3GB)
+	// RAM requirements: tiny=1GB, base=2GB, small=4GB, medium=8GB, large=16GB
+	modelName := selectWhisperModelByHardware(models)
+	xlog.Info("Async: Selected Whisper model based on hardware", "model", modelName)
 
 	// Get video duration
 	duration, err := s.getVideoDuration(filePath)
@@ -452,8 +486,18 @@ func (s *FileProcessorService) processVideoDescriptionAsync(filePath, filename, 
 
 	xlog.Info("Async: Video transcription completed", "length", len(fullTranscription), "filename", filename)
 
+	// Post-process transcription with LLM to fix common Whisper errors
+	if s.llmProvider != nil && len(fullTranscription) > 50 {
+		xlog.Info("Async: Cleaning up transcription with LLM", "filename", filename)
+		cleanedTranscription, err := s.cleanupTranscription(ctx, fullTranscription)
+		if err == nil && len(cleanedTranscription) > 0 {
+			fullTranscription = cleanedTranscription
+			xlog.Info("Async: Transcription cleanup completed", "length", len(fullTranscription))
+		}
+	}
+
 	// Update document with final complete transcription
-	finalMarkdown := fmt.Sprintf("\n\n### Video Transcription (AI Generated via Whisper)\n\n%s", fullTranscription)
+	finalMarkdown := fmt.Sprintf("\n\n### Video Transcription (AI Generated via Whisper + LLM Cleanup)\n\n%s", fullTranscription)
 	err = s.replaceTranscriptionInDocument(ctx, documentID, userID, finalMarkdown)
 	if err != nil {
 		xlog.Error("Async: Failed to update document with final transcription", "error", err)
@@ -571,6 +615,7 @@ func (s *FileProcessorService) transcribeVideoParallel(ctx context.Context, vide
 }
 
 // combineTranscriptions combines transcription segments in order
+// Also deduplicates repetitive sentences common in Whisper hallucinations
 func (s *FileProcessorService) combineTranscriptions(transcriptions []string) string {
 	var result strings.Builder
 	for i, t := range transcriptions {
@@ -580,9 +625,124 @@ func (s *FileProcessorService) combineTranscriptions(transcriptions []string) st
 		if result.Len() > 0 {
 			result.WriteString("\n\n")
 		}
+		// Deduplicate repetitive lines before adding
+		// TODO: Uncomment after testing with different Whisper model
+		// cleaned := deduplicateRepetitiveText(strings.TrimSpace(t))
+		// result.WriteString(fmt.Sprintf("**[Segment %d]**\n%s", i+1, cleaned))
 		result.WriteString(fmt.Sprintf("**[Segment %d]**\n%s", i+1, strings.TrimSpace(t)))
 	}
 	return result.String()
+}
+
+// deduplicateRepetitiveText removes consecutive duplicate sentences
+// This helps clean up Whisper hallucinations where it repeats the same sentence
+func deduplicateRepetitiveText(text string) string {
+	// Split by sentence boundaries
+	sentences := splitIntoSentences(text)
+	if len(sentences) == 0 {
+		return text
+	}
+
+	var result []string
+	seen := make(map[string]int)
+	maxOccurrences := 2 // Allow max 2 occurrences of same sentence
+
+	for _, sentence := range sentences {
+		trimmed := strings.TrimSpace(sentence)
+		if trimmed == "" {
+			continue
+		}
+		// Normalize for comparison
+		normalized := strings.ToLower(trimmed)
+		if seen[normalized] < maxOccurrences {
+			result = append(result, trimmed)
+			seen[normalized]++
+		}
+	}
+
+	if len(result) == 0 {
+		return text
+	}
+	return strings.Join(result, " ")
+}
+
+// splitIntoSentences splits text into sentences
+func splitIntoSentences(text string) []string {
+	// Replace newlines with spaces first
+	text = strings.ReplaceAll(text, "\n", " ")
+	
+	// Split by sentence-ending punctuation
+	var sentences []string
+	var current strings.Builder
+	
+	for i, r := range text {
+		current.WriteRune(r)
+		// Check for sentence boundary
+		if r == '.' || r == '!' || r == '?' {
+			// Check if followed by space or end of text
+			if i+1 >= len(text) || text[i+1] == ' ' {
+				sentence := strings.TrimSpace(current.String())
+				if len(sentence) > 0 {
+					sentences = append(sentences, sentence)
+				}
+				current.Reset()
+			}
+		}
+	}
+	
+	// Add any remaining text
+	remaining := strings.TrimSpace(current.String())
+	if len(remaining) > 0 {
+		sentences = append(sentences, remaining)
+	}
+	
+	return sentences
+}
+
+// selectWhisperModelByHardware selects the best Whisper model based on available RAM
+// Model accuracy: large > medium > small > base > tiny
+// IMPORTANT: Minimum recommended model is "small" for acceptable accuracy
+// Model RAM requirements (approximate during inference):
+//   - tiny:   ~1GB RAM   (not recommended - poor accuracy)
+//   - base:   ~2GB RAM   (not recommended - poor accuracy)
+//   - small:  ~4GB RAM   (minimum recommended)
+//   - medium: ~8GB RAM   (good accuracy)
+//   - large:  ~16GB RAM  (best accuracy)
+func selectWhisperModelByHardware(availableModels []string) string {
+	if len(availableModels) == 0 {
+		return "small" // fallback to minimum recommended
+	}
+
+	// Detect hardware
+	specs := llama.DetectHardwareSpecs()
+	availableRAM := specs.AvailableRAM
+
+	// Determine best model based on RAM
+	// Minimum model is "small" for acceptable transcription quality
+	var preferredModels []string
+	switch {
+	case availableRAM >= 16:
+		// 16GB+ RAM: can use large or medium
+		preferredModels = []string{"large", "large-v3", "large-v2", "medium", "medium.en", "small", "small.en"}
+	case availableRAM >= 8:
+		// 8-16GB RAM: use medium or small
+		preferredModels = []string{"medium", "medium.en", "small", "small.en"}
+	default:
+		// <8GB RAM: use small (minimum recommended)
+		preferredModels = []string{"small", "small.en"}
+	}
+
+	// Find first available model from preference list
+	for _, preferred := range preferredModels {
+		for _, available := range availableModels {
+			if available == preferred {
+				return available
+			}
+		}
+	}
+
+	// Fallback to first available
+	return availableModels[0]
 }
 
 // getVideoDuration gets video duration in seconds using ffprobe

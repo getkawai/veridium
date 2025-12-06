@@ -32,6 +32,12 @@ type ChatCompletionRequest struct {
 	Stop        []string              `json:"stop,omitempty"`
 	Tools       []APIToolDefinition   `json:"tools,omitempty"`
 	ToolChoice  interface{}           `json:"tool_choice,omitempty"` // "auto", "none", or specific tool
+	Thinking    *ThinkingConfig       `json:"thinking,omitempty"`    // Zhipu GLM thinking/reasoning mode config
+}
+
+// ThinkingConfig configures thinking/reasoning mode for models that support it (e.g., Zhipu GLM)
+type ThinkingConfig struct {
+	Type string `json:"type"` // "enabled" or "disabled"
 }
 
 // ChatCompletionMsg represents a message in API format

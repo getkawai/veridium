@@ -47,3 +47,7 @@ export {
     UIChatMessage,
     UIMessageRoleType
 } from "./models.js";
+
+export type {
+    LLMProvider
+} from "./models.js";

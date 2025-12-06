@@ -52,6 +52,9 @@ type DevConfig struct {
 	// OCRCleanup - OCR text cleanup and formatting (remote first, local fallback)
 	OCRCleanup TaskProviderConfig
 
+	// TranscriptCleanup - Video transcript cleanup and correction (remote first, local fallback)
+	TranscriptCleanup TaskProviderConfig
+
 	// UseLocalFallback - if true, use local llama as fallback for all tasks
 	UseLocalFallback bool
 }
@@ -94,6 +97,15 @@ func GetDefaultDevConfig() DevConfig {
 			APIKey:       "a10854167085448cac33753523919ac9.D41CLq6KxXTY7g4u",
 			Model:        "glm-4.6",
 			MaxTokens:    2048,
+		},
+
+		// TranscriptCleanup: Use Zhipu GLM for video transcript cleanup (remote first, local fallback)
+		// Note: Need large max_tokens because transcripts can be very long
+		TranscriptCleanup: TaskProviderConfig{
+			ProviderType: types.ProviderZhipuAI,
+			APIKey:       "a10854167085448cac33753523919ac9.D41CLq6KxXTY7g4u",
+			Model:        "glm-4.6",
+			MaxTokens:    16384, // Very large for long transcripts + output
 		},
 
 		// Use local Llama as fallback when remote providers fail
@@ -168,6 +180,18 @@ func BuildTaskRouter(
 	} else if localProvider != nil {
 		router.SetProvider(TaskOCRCleanup, localProvider)
 		log.Printf("🔀 TaskRouter: OCRCleanup -> Local Llama (no remote API key)")
+	}
+
+	// Configure TranscriptCleanup provider (remote first, local fallback via TaskRouter)
+	if config.TranscriptCleanup.APIKey != "" {
+		transcriptProvider := createProviderFromConfig(factory, config.TranscriptCleanup)
+		if transcriptProvider != nil {
+			router.SetProvider(TaskTranscriptCleanup, transcriptProvider)
+			log.Printf("🔀 TaskRouter: TranscriptCleanup -> %s (%s)", config.TranscriptCleanup.ProviderType, config.TranscriptCleanup.Model)
+		}
+	} else if localProvider != nil {
+		router.SetProvider(TaskTranscriptCleanup, localProvider)
+		log.Printf("🔀 TaskRouter: TranscriptCleanup -> Local Llama (no remote API key)")
 	}
 
 	return router
