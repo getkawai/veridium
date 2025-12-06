@@ -80,11 +80,12 @@ func (a *TaskRouterAdapter) GenerateText(ctx context.Context, prompt string) (st
 		return "", fmt.Errorf("LLM generation failed: %w", err)
 	}
 
-	if resp == nil || resp.Content == "" {
+	respText := resp.Content.Text()
+	if resp == nil || respText == "" {
 		return "", fmt.Errorf("empty response from LLM")
 	}
 
-	return resp.Content, nil
+	return respText, nil
 }
 
 // detectTaskType determines which task type to use based on prompt content

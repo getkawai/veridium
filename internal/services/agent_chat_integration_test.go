@@ -337,29 +337,29 @@ type MockProvider struct {
 	name string
 }
 
-func (m *MockProvider) Generate(ctx context.Context, messages []fantasy.Message) (*types.LLMResponse, error) {
-	return &types.LLMResponse{
-		Content:      "Mock response from " + m.name,
-		FinishReason: "stop",
+func (m *MockProvider) Generate(ctx context.Context, messages []fantasy.Message) (*fantasy.Response, error) {
+	return &fantasy.Response{
+		Content:      fantasy.ResponseContent{fantasy.TextContent{Text: "Mock response from " + m.name}},
+		FinishReason: fantasy.FinishReasonStop,
 	}, nil
 }
 
-func (m *MockProvider) RunAgentLoop(ctx context.Context, messages []fantasy.Message, maxIterations int) (*types.LLMResponse, []fantasy.Message, error) {
-	return &types.LLMResponse{
-		Content:      "Mock response from " + m.name,
-		FinishReason: "stop",
+func (m *MockProvider) RunAgentLoop(ctx context.Context, messages []fantasy.Message, maxIterations int) (*fantasy.Response, []fantasy.Message, error) {
+	return &fantasy.Response{
+		Content:      fantasy.ResponseContent{fantasy.TextContent{Text: "Mock response from " + m.name}},
+		FinishReason: fantasy.FinishReasonStop,
 	}, nil, nil
 }
 
-func (m *MockProvider) RunAgentLoopWithStreaming(ctx context.Context, messages []fantasy.Message, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*types.LLMResponse, []fantasy.Message, error) {
+func (m *MockProvider) RunAgentLoopWithStreaming(ctx context.Context, messages []fantasy.Message, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*fantasy.Response, []fantasy.Message, error) {
 	if streamCallback != nil {
 		streamCallback("Mock ", false)
 		streamCallback("response ", false)
 		streamCallback("from "+m.name, true)
 	}
-	return &types.LLMResponse{
-		Content:      "Mock response from " + m.name,
-		FinishReason: "stop",
+	return &fantasy.Response{
+		Content:      fantasy.ResponseContent{fantasy.TextContent{Text: "Mock response from " + m.name}},
+		FinishReason: fantasy.FinishReasonStop,
 	}, nil, nil
 }
 

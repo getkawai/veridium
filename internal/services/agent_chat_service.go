@@ -610,8 +610,8 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*UIChatMe
 
 	// Run agent with LLM generator (streaming or non-streaming)
 	var finalMessage string
-	var toolCalls []fantasy.ToolCall
-	var usage *types.LLMResponse
+	var toolCalls []fantasy.ToolCallContent
+	var usage *fantasy.Response
 	var toolMessages []fantasy.Message
 
 	if req.Stream && s.app != nil {
@@ -620,8 +620,8 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*UIChatMe
 		if streamErr != nil {
 			return nil, fmt.Errorf("streaming generation failed: %w", streamErr)
 		}
-		finalMessage = resp.Content
-		toolCalls = resp.ToolCalls
+		finalMessage = resp.Content.Text()
+		toolCalls = resp.Content.ToolCalls()
 		toolMessages = tms
 	} else {
 		// Use agent loop (non-streaming)
@@ -630,8 +630,8 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*UIChatMe
 			return nil, fmt.Errorf("agent execution failed: %w", runErr)
 		}
 
-		finalMessage = resp.Content
-		toolCalls = resp.ToolCalls
+		finalMessage = resp.Content.Text()
+		toolCalls = resp.Content.ToolCalls()
 		toolMessages = tms
 		usage = resp
 	}
@@ -645,7 +645,7 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*UIChatMe
 
 	// Add assistant response to session
 	if len(toolCalls) > 0 {
-		session.Messages = append(session.Messages, types.NewToolCallMessage(toolCalls))
+		session.Messages = append(session.Messages, types.NewToolCallMessageFromContent(toolCalls))
 	} else {
 		session.Messages = append(session.Messages, fantasy.Message{
 			Role:    fantasy.MessageRoleAssistant,
@@ -654,13 +654,13 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*UIChatMe
 	}
 
 	// Monitor context usage and provide warnings/recommendations
-	if usage != nil && usage.TotalTokens > 0 {
-		contextSize := 16384 // Current context window size
-		contextUsage := float64(usage.TotalTokens) / float64(contextSize)
+	if usage != nil && usage.Usage.TotalTokens > 0 {
+		contextSize := int64(16384) // Current context window size
+		contextUsage := float64(usage.Usage.TotalTokens) / float64(contextSize)
 		turnCount := len(session.Messages) / 2 // Approximate turn count (user + assistant pairs)
 
 		log.Printf("📊 Context usage: %d/%d tokens (%.1f%%) after %d turns",
-			usage.TotalTokens, contextSize, contextUsage*100, turnCount)
+			usage.Usage.TotalTokens, contextSize, contextUsage*100, turnCount)
 
 		// Warning at 50% usage
 		if contextUsage > 0.5 && contextUsage <= 0.8 {
@@ -711,7 +711,7 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*UIChatMe
 	// Save assistant message to DB with topic and thread IDs
 	var assistantMsgForDB fantasy.Message
 	if len(toolCalls) > 0 {
-		assistantMsgForDB = types.NewToolCallMessage(toolCalls)
+		assistantMsgForDB = types.NewToolCallMessageFromContent(toolCalls)
 	} else {
 		assistantMsgForDB = fantasy.Message{
 			Role:    fantasy.MessageRoleAssistant,
@@ -768,7 +768,7 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*UIChatMe
 	if len(toolCalls) > 0 {
 		uiTools = make([]ChatToolPayload, len(toolCalls))
 		for i, tc := range toolCalls {
-			identifier, apiName, toolType := mapToolName(tc.Name)
+			identifier, apiName, toolType := mapToolName(tc.ToolName)
 			uiTools[i] = ChatToolPayload{
 				ID:         fmt.Sprintf("%s_%d", assistantMsgID, i),
 				APIName:    apiName,
@@ -783,9 +783,9 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*UIChatMe
 	var uiUsage *ModelUsage
 	if usage != nil {
 		uiUsage = &ModelUsage{
-			TotalInputTokens:  usage.PromptTokens,
-			TotalOutputTokens: usage.CompletionTokens,
-			TotalTokens:       usage.TotalTokens,
+			TotalInputTokens:  int(usage.Usage.InputTokens),
+			TotalOutputTokens: int(usage.Usage.OutputTokens),
+			TotalTokens:       int(usage.Usage.TotalTokens),
 		}
 	}
 
@@ -1027,7 +1027,7 @@ func (s *AgentChatService) prepareMessagesWithSystemPrompt(messages []fantasy.Me
 }
 
 // generateWithStreaming generates response with streaming using llm.Provider interface
-func (s *AgentChatService) generateWithStreaming(ctx context.Context, session *AgentSession, messageID string, messages []fantasy.Message, provider llm.Provider) (*types.LLMResponse, []fantasy.Message, error) {
+func (s *AgentChatService) generateWithStreaming(ctx context.Context, session *AgentSession, messageID string, messages []fantasy.Message, provider llm.Provider) (*fantasy.Response, []fantasy.Message, error) {
 	// Emit start event
 	if s.app != nil {
 		s.app.Event.Emit("chat:stream", map[string]interface{}{
@@ -1119,13 +1119,14 @@ func (s *AgentChatService) generateWithStreaming(ctx context.Context, session *A
 	}
 
 	// Emit tool calling event if tools were used
-	if len(resp.ToolCalls) > 0 && s.app != nil {
+	respToolCalls := resp.Content.ToolCalls()
+	if len(respToolCalls) > 0 && s.app != nil {
 		// Convert tool calls to frontend format
-		frontendTools := make([]map[string]interface{}, len(resp.ToolCalls))
-		for i, tc := range resp.ToolCalls {
+		frontendTools := make([]map[string]interface{}, len(respToolCalls))
+		for i, tc := range respToolCalls {
 			// Generate unique ID for each tool call
 			toolCallID := fmt.Sprintf("%s_%d", messageID, i)
-			identifier, apiName, toolType := mapToolName(tc.Name)
+			identifier, apiName, toolType := mapToolName(tc.ToolName)
 
 			frontendTools[i] = map[string]interface{}{
 				"id":         toolCallID,
@@ -1315,7 +1316,7 @@ Example: Sleep Functions for Body and Mind`, locale)
 		if err != nil {
 			log.Printf("⚠️  TaskRouter title generation failed: %v, falling back to local", err)
 		} else {
-			responseContent = resp.Content
+			responseContent = resp.Content.Text()
 		}
 	}
 
@@ -1334,7 +1335,7 @@ Example: Sleep Functions for Body and Mind`, locale)
 				if genErr != nil {
 					return "", fmt.Errorf("failed to generate title: %w", genErr)
 				}
-				responseContent = resp.Content
+				responseContent = resp.Content.Text()
 			} else {
 				resp, genErr := s.yzmaModel.WithoutTools().Generate(ctx, titleMessages)
 				if genErr != nil {
@@ -1343,7 +1344,7 @@ Example: Sleep Functions for Body and Mind`, locale)
 					}
 					return "", fmt.Errorf("failed to generate title: %w", genErr)
 				}
-				responseContent = resp.Content
+				responseContent = resp.Content.Text()
 
 				if currentModel != "" {
 					if restoreErr := s.libService.LoadChatModel(currentModel); restoreErr != nil {
@@ -1357,7 +1358,7 @@ Example: Sleep Functions for Body and Mind`, locale)
 			if err != nil {
 				return "", fmt.Errorf("failed to generate title: %w", err)
 			}
-			responseContent = resp.Content
+			responseContent = resp.Content.Text()
 		}
 	}
 
@@ -2134,7 +2135,7 @@ Please summarize the above conversation and retain key information. The summariz
 		if err != nil {
 			log.Printf("⚠️  TaskRouter summary generation failed: %v, falling back to local", err)
 		} else {
-			responseContent = resp.Content
+			responseContent = resp.Content.Text()
 			modelUsed = "taskrouter"
 		}
 	}
@@ -2153,7 +2154,7 @@ Please summarize the above conversation and retain key information. The summariz
 			} else {
 				resp, genErr := modelWithoutTools.Generate(ctx, summaryMessages)
 				if genErr == nil {
-					responseContent = resp.Content
+					responseContent = resp.Content.Text()
 					modelUsed = "summary"
 				} else {
 					log.Printf("⚠️  Summary model generation failed: %v", genErr)
@@ -2177,7 +2178,7 @@ Please summarize the above conversation and retain key information. The summariz
 			} else {
 				resp, genErr := modelWithoutTools.Generate(ctx, summaryMessages)
 				if genErr == nil {
-					responseContent = resp.Content
+					responseContent = resp.Content.Text()
 					modelUsed = "title"
 				} else {
 					log.Printf("⚠️  Title model generation failed: %v", genErr)
@@ -2197,7 +2198,7 @@ Please summarize the above conversation and retain key information. The summariz
 			if err != nil {
 				return "", fmt.Errorf("failed to generate summary: %w", err)
 			}
-			responseContent = resp.Content
+			responseContent = resp.Content.Text()
 			modelUsed = "main"
 		}
 	}
@@ -2413,7 +2414,7 @@ UPDATED SUMMARY:`, existingSummary, messagesText.String())
 		} else {
 			resp, genErr := modelWithoutTools.Generate(ctx, summaryMessages)
 			if genErr == nil {
-				responseContent = resp.Content
+				responseContent = resp.Content.Text()
 				modelUsed = "summary"
 			} else {
 				log.Printf("⚠️  Summary model generation failed: %v", genErr)
@@ -2435,7 +2436,7 @@ UPDATED SUMMARY:`, existingSummary, messagesText.String())
 		} else {
 			resp, genErr := modelWithoutTools.Generate(ctx, summaryMessages)
 			if genErr == nil {
-				responseContent = resp.Content
+				responseContent = resp.Content.Text()
 				modelUsed = "title"
 			} else {
 				log.Printf("⚠️  Title model generation failed: %v", genErr)
@@ -2455,7 +2456,7 @@ UPDATED SUMMARY:`, existingSummary, messagesText.String())
 		if err != nil {
 			return "", fmt.Errorf("failed to generate incremental summary: %w", err)
 		}
-		responseContent = resp.Content
+		responseContent = resp.Content.Text()
 		modelUsed = "main"
 	}
 

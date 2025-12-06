@@ -18,7 +18,6 @@ package llm
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -80,7 +79,7 @@ func (a *FantasyProviderAdapter) WithoutTools() Provider {
 }
 
 // Generate generates a response from messages (single turn, no tool execution)
-func (a *FantasyProviderAdapter) Generate(ctx context.Context, messages []fantasy.Message) (*types.LLMResponse, error) {
+func (a *FantasyProviderAdapter) Generate(ctx context.Context, messages []fantasy.Message) (*fantasy.Response, error) {
 	call := a.buildCall(fantasy.Prompt(messages))
 
 	resp, err := a.model.Generate(ctx, call)
@@ -88,11 +87,11 @@ func (a *FantasyProviderAdapter) Generate(ctx context.Context, messages []fantas
 		return nil, err
 	}
 
-	return a.convertResponse(resp), nil
+	return resp, nil
 }
 
 // RunAgentLoop runs the agent loop with tool execution
-func (a *FantasyProviderAdapter) RunAgentLoop(ctx context.Context, messages fantasy.Prompt, maxIterations int) (*types.LLMResponse, fantasy.Prompt, error) {
+func (a *FantasyProviderAdapter) RunAgentLoop(ctx context.Context, messages fantasy.Prompt, maxIterations int) (*fantasy.Response, fantasy.Prompt, error) {
 	if maxIterations <= 0 {
 		maxIterations = 10
 	}
@@ -100,9 +99,9 @@ func (a *FantasyProviderAdapter) RunAgentLoop(ctx context.Context, messages fant
 	allMessages := make(fantasy.Prompt, len(messages))
 	copy(allMessages, messages)
 
-	var finalResponse *types.LLMResponse
+	var finalResponse *fantasy.Response
 	var allToolMessages fantasy.Prompt
-	var allToolCalls []fantasy.ToolCall
+	var allToolCalls []fantasy.ToolCallContent
 
 	for i := 0; i < maxIterations; i++ {
 		log.Printf("🔄 [fantasy] Agent loop iteration %d/%d", i+1, maxIterations)
@@ -113,29 +112,29 @@ func (a *FantasyProviderAdapter) RunAgentLoop(ctx context.Context, messages fant
 			return nil, allToolMessages, fmt.Errorf("generation failed at iteration %d: %w", i+1, err)
 		}
 
-		llmResp := a.convertResponse(resp)
+		toolCalls := resp.Content.ToolCalls()
 
 		// Add assistant response to history
-		if len(llmResp.ToolCalls) > 0 {
-			allMessages = append(allMessages, types.NewToolCallMessage(llmResp.ToolCalls))
-			allToolCalls = append(allToolCalls, llmResp.ToolCalls...)
+		if len(toolCalls) > 0 {
+			allMessages = append(allMessages, types.NewToolCallMessageFromContent(toolCalls))
+			allToolCalls = append(allToolCalls, toolCalls...)
 		} else {
 			allMessages = append(allMessages, fantasy.Message{
 				Role:    fantasy.MessageRoleAssistant,
-				Content: []fantasy.MessagePart{fantasy.TextPart{Text: llmResp.Content}},
+				Content: []fantasy.MessagePart{fantasy.TextPart{Text: resp.Content.Text()}},
 			})
 		}
-		finalResponse = llmResp
+		finalResponse = resp
 
 		// Check if no tool calls - we're done
-		if len(llmResp.ToolCalls) == 0 {
+		if len(toolCalls) == 0 {
 			log.Printf("✅ [fantasy] Agent loop completed after %d iterations", i+1)
-			finalResponse.ToolCalls = allToolCalls
+			finalResponse = a.appendToolCallsToResponse(finalResponse, allToolCalls)
 			return finalResponse, allToolMessages, nil
 		}
 
 		// Execute tool calls
-		toolMessages, err := a.executeToolCalls(ctx, llmResp.ToolCalls)
+		toolMessages, err := a.executeToolCallsFromContent(ctx, toolCalls)
 		if err != nil {
 			log.Printf("⚠️  Tool execution error: %v", err)
 		}
@@ -147,13 +146,13 @@ func (a *FantasyProviderAdapter) RunAgentLoop(ctx context.Context, messages fant
 
 	log.Printf("⚠️  [fantasy] Agent loop reached max iterations (%d)", maxIterations)
 	if finalResponse != nil {
-		finalResponse.ToolCalls = allToolCalls
+		finalResponse = a.appendToolCallsToResponse(finalResponse, allToolCalls)
 	}
 	return finalResponse, allToolMessages, nil
 }
 
 // RunAgentLoopWithStreaming runs the agent loop with streaming callback
-func (a *FantasyProviderAdapter) RunAgentLoopWithStreaming(ctx context.Context, messages fantasy.Prompt, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*types.LLMResponse, fantasy.Prompt, error) {
+func (a *FantasyProviderAdapter) RunAgentLoopWithStreaming(ctx context.Context, messages fantasy.Prompt, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*fantasy.Response, fantasy.Prompt, error) {
 	if maxIterations <= 0 {
 		maxIterations = 10
 	}
@@ -161,9 +160,9 @@ func (a *FantasyProviderAdapter) RunAgentLoopWithStreaming(ctx context.Context, 
 	allMessages := make(fantasy.Prompt, len(messages))
 	copy(allMessages, messages)
 
-	var finalResponse *types.LLMResponse
+	var finalResponse *fantasy.Response
 	var allToolMessages fantasy.Prompt
-	var allToolCalls []fantasy.ToolCall
+	var allToolCalls []fantasy.ToolCallContent
 
 	for i := 0; i < maxIterations; i++ {
 		log.Printf("🔄 [fantasy] Agent loop (streaming) iteration %d/%d", i+1, maxIterations)
@@ -174,46 +173,47 @@ func (a *FantasyProviderAdapter) RunAgentLoopWithStreaming(ctx context.Context, 
 			return nil, allToolMessages, fmt.Errorf("streaming generation failed at iteration %d: %w", i+1, err)
 		}
 
-		llmResp := a.consumeStream(streamResp, streamCallback)
+		resp := a.consumeStream(streamResp, streamCallback)
+		toolCalls := resp.Content.ToolCalls()
 
 		// Add assistant response to history
-		if len(llmResp.ToolCalls) > 0 {
-			allMessages = append(allMessages, types.NewToolCallMessage(llmResp.ToolCalls))
-			allToolCalls = append(allToolCalls, llmResp.ToolCalls...)
+		if len(toolCalls) > 0 {
+			allMessages = append(allMessages, types.NewToolCallMessageFromContent(toolCalls))
+			allToolCalls = append(allToolCalls, toolCalls...)
 		} else {
 			allMessages = append(allMessages, fantasy.Message{
 				Role:    fantasy.MessageRoleAssistant,
-				Content: []fantasy.MessagePart{fantasy.TextPart{Text: llmResp.Content}},
+				Content: []fantasy.MessagePart{fantasy.TextPart{Text: resp.Content.Text()}},
 			})
 		}
-		finalResponse = llmResp
+		finalResponse = resp
 
 		// Check if no tool calls - we're done
-		if len(llmResp.ToolCalls) == 0 {
+		if len(toolCalls) == 0 {
 			log.Printf("✅ [fantasy] Agent loop (streaming) completed after %d iterations", i+1)
-			finalResponse.ToolCalls = allToolCalls
+			finalResponse = a.appendToolCallsToResponse(finalResponse, allToolCalls)
 			return finalResponse, allToolMessages, nil
 		}
 
 		// Emit tool_call events before execution
 		if toolCallback != nil {
-			for _, tc := range llmResp.ToolCalls {
-				toolCallback(types.ChatEventToolCall, tc, "")
+			for _, tc := range toolCalls {
+				toolCallback(types.ChatEventToolCall, types.ToolCallContentToToolCall(tc), "")
 			}
 		}
 
 		// Execute tool calls
-		toolMessages, err := a.executeToolCalls(ctx, llmResp.ToolCalls)
+		toolMessages, err := a.executeToolCallsFromContent(ctx, toolCalls)
 		if err != nil {
 			log.Printf("⚠️  Tool execution error: %v", err)
 		}
 
 		// Emit tool_result events after execution
 		if toolCallback != nil {
-			for idx, tc := range llmResp.ToolCalls {
+			for idx, tc := range toolCalls {
 				if idx < len(toolMessages) {
 					part := toolMessages[idx].Content[0].(fantasy.ToolResultPart)
-					toolCallback(types.ChatEventToolResult, tc, types.GetToolResultContent(part))
+					toolCallback(types.ChatEventToolResult, types.ToolCallContentToToolCall(tc), types.GetToolResultContent(part))
 				}
 			}
 		}
@@ -225,7 +225,7 @@ func (a *FantasyProviderAdapter) RunAgentLoopWithStreaming(ctx context.Context, 
 
 	log.Printf("⚠️  [fantasy] Agent loop (streaming) reached max iterations (%d)", maxIterations)
 	if finalResponse != nil {
-		finalResponse.ToolCalls = allToolCalls
+		finalResponse = a.appendToolCallsToResponse(finalResponse, allToolCalls)
 	}
 	return finalResponse, allToolMessages, nil
 }
@@ -334,52 +334,74 @@ func (a *FantasyProviderAdapter) getFantasyTools() []fantasy.Tool {
 	return fantasyTools
 }
 
-// convertResponse converts fantasy.Response to types.LLMResponse
-func (a *FantasyProviderAdapter) convertResponse(resp *fantasy.Response) *types.LLMResponse {
-	result := &types.LLMResponse{
-		Content:      resp.Content.Text(),
-		FinishReason: string(resp.FinishReason),
+// appendToolCallsToResponse creates a new Response replacing tool calls with the provided ones
+// This replaces any existing tool calls in the response with allToolCalls to avoid duplication
+func (a *FantasyProviderAdapter) appendToolCallsToResponse(resp *fantasy.Response, allToolCalls []fantasy.ToolCallContent) *fantasy.Response {
+	if len(allToolCalls) == 0 {
+		return resp
 	}
 
-	// Convert tool calls
-	toolCalls := resp.Content.ToolCalls()
-	if len(toolCalls) > 0 {
-		result.ToolCalls = make([]fantasy.ToolCall, len(toolCalls))
-		for i, tc := range toolCalls {
-			var args map[string]string
-			if err := json.Unmarshal([]byte(tc.Input), &args); err != nil {
-				var argsAny map[string]interface{}
-				if err := json.Unmarshal([]byte(tc.Input), &argsAny); err == nil {
-					args = make(map[string]string)
-					for k, v := range argsAny {
-						args[k] = fmt.Sprintf("%v", v)
-					}
-				}
-			}
-			argsJSON, _ := json.Marshal(args)
-			result.ToolCalls[i] = fantasy.ToolCall{
-				ID:    tc.ToolCallID,
-				Name:  tc.ToolName,
-				Input: string(argsJSON),
-			}
+	// Create new content with non-tool-call content from response + all collected tool calls
+	newContent := make(fantasy.ResponseContent, 0)
+
+	// Copy non-tool-call content (text, reasoning, etc.)
+	for _, c := range resp.Content {
+		if c.GetType() != fantasy.ContentTypeToolCall {
+			newContent = append(newContent, c)
 		}
 	}
 
-	// Set usage
-	result.PromptTokens = int(resp.Usage.InputTokens)
-	result.CompletionTokens = int(resp.Usage.OutputTokens)
-	result.TotalTokens = int(resp.Usage.TotalTokens)
+	// Add all collected tool calls (replacing any existing ones)
+	for _, tc := range allToolCalls {
+		newContent = append(newContent, tc)
+	}
 
-	return result
+	return &fantasy.Response{
+		Content:          newContent,
+		FinishReason:     resp.FinishReason,
+		Usage:            resp.Usage,
+		Warnings:         resp.Warnings,
+		ProviderMetadata: resp.ProviderMetadata,
+	}
+}
+
+// executeToolCallsFromContent executes tool calls from ToolCallContent and returns tool response messages
+func (a *FantasyProviderAdapter) executeToolCallsFromContent(ctx context.Context, toolCalls []fantasy.ToolCallContent) (fantasy.Prompt, error) {
+	if a.toolRegistry == nil {
+		return nil, fmt.Errorf("tool registry not available")
+	}
+
+	toolMessages := make(fantasy.Prompt, 0, len(toolCalls))
+
+	for _, tc := range toolCalls {
+		log.Printf("🔧 [fantasy] Executing tool: %s (input: %s)", tc.ToolName, tc.Input)
+
+		// Parse arguments from Input JSON
+		args := types.GetToolCallArgumentsFromContent(tc)
+		log.Printf("🔧 [fantasy] Parsed args: %v", args)
+		result, err := a.toolRegistry.Execute(ctx, tc.ToolName, args)
+		if err != nil {
+			log.Printf("⚠️  Tool execution failed: %v", err)
+			toolMessages = append(toolMessages, types.NewToolErrorMessage(tc.ToolCallID, tc.ToolName, fmt.Sprintf("Error: %v", err)))
+		} else {
+			displayResult := result
+			if len(displayResult) > 100 {
+				displayResult = displayResult[:100] + "..."
+			}
+			log.Printf("✅ Tool result: %s", displayResult)
+			toolMessages = append(toolMessages, types.NewToolResultMessage(tc.ToolCallID, tc.ToolName, result))
+		}
+	}
+
+	return toolMessages, nil
 }
 
 // consumeStream consumes a stream response and calls the callback
-func (a *FantasyProviderAdapter) consumeStream(stream fantasy.StreamResponse, callback types.StreamCallback) *types.LLMResponse {
+func (a *FantasyProviderAdapter) consumeStream(stream fantasy.StreamResponse, callback types.StreamCallback) *fantasy.Response {
 	var content strings.Builder
-	var toolCalls []fantasy.ToolCall
-	var finishReason string
+	var finishReason fantasy.FinishReason
 	var usage fantasy.Usage
-	toolCallMap := make(map[string]*fantasy.ToolCall)
+	toolCallMap := make(map[string]*fantasy.ToolCallContent)
 
 	for part := range stream {
 		switch part.Type {
@@ -393,25 +415,15 @@ func (a *FantasyProviderAdapter) consumeStream(stream fantasy.StreamResponse, ca
 				callback("", false)
 			}
 		case fantasy.StreamPartTypeToolCall:
-			var args map[string]string
-			if err := json.Unmarshal([]byte(part.ToolCallInput), &args); err != nil {
-				var argsAny map[string]interface{}
-				if err := json.Unmarshal([]byte(part.ToolCallInput), &argsAny); err == nil {
-					args = make(map[string]string)
-					for k, v := range argsAny {
-						args[k] = fmt.Sprintf("%v", v)
-					}
-				}
-			}
-			argsJSON, _ := json.Marshal(args)
-			tc := fantasy.ToolCall{
-				ID:    part.ID,
-				Name:  part.ToolCallName,
-				Input: string(argsJSON),
+			log.Printf("🔧 [fantasy] StreamPartTypeToolCall: ID=%s, Name=%s, Input=%s", part.ID, part.ToolCallName, part.ToolCallInput)
+			tc := fantasy.ToolCallContent{
+				ToolCallID: part.ID,
+				ToolName:   part.ToolCallName,
+				Input:      part.ToolCallInput,
 			}
 			toolCallMap[part.ID] = &tc
 		case fantasy.StreamPartTypeFinish:
-			finishReason = string(part.FinishReason)
+			finishReason = part.FinishReason
 			usage = part.Usage
 			if callback != nil {
 				callback("", true)
@@ -421,46 +433,21 @@ func (a *FantasyProviderAdapter) consumeStream(stream fantasy.StreamResponse, ca
 		}
 	}
 
+	// Build response content
+	responseContent := make(fantasy.ResponseContent, 0)
+	text := strings.TrimSpace(content.String())
+	if text != "" {
+		responseContent = append(responseContent, fantasy.TextContent{Text: text})
+	}
 	for _, tc := range toolCallMap {
-		toolCalls = append(toolCalls, *tc)
+		responseContent = append(responseContent, *tc)
 	}
 
-	return &types.LLMResponse{
-		Content:          strings.TrimSpace(content.String()),
-		ToolCalls:        toolCalls,
-		FinishReason:     finishReason,
-		PromptTokens:     int(usage.InputTokens),
-		CompletionTokens: int(usage.OutputTokens),
-		TotalTokens:      int(usage.TotalTokens),
+	return &fantasy.Response{
+		Content:      responseContent,
+		FinishReason: finishReason,
+		Usage:        usage,
 	}
-}
-
-// executeToolCalls executes tool calls and returns tool response messages
-func (a *FantasyProviderAdapter) executeToolCalls(ctx context.Context, toolCalls []fantasy.ToolCall) (fantasy.Prompt, error) {
-	if a.toolRegistry == nil {
-		return nil, fmt.Errorf("tool registry not available")
-	}
-
-	toolMessages := make(fantasy.Prompt, 0, len(toolCalls))
-
-	for _, tc := range toolCalls {
-		log.Printf("🔧 [fantasy] Executing tool: %s", tc.Name)
-
-		result, err := a.toolRegistry.Execute(ctx, tc.Name, types.GetToolCallArguments(tc))
-		if err != nil {
-			log.Printf("⚠️  Tool execution failed: %v", err)
-			toolMessages = append(toolMessages, types.NewToolErrorMessage(tc.ID, tc.Name, fmt.Sprintf("Error: %v", err)))
-		} else {
-			displayResult := result
-			if len(displayResult) > 100 {
-				displayResult = displayResult[:100] + "..."
-			}
-			log.Printf("✅ Tool result: %s", displayResult)
-			toolMessages = append(toolMessages, types.NewToolResultMessage(tc.ID, tc.Name, result))
-		}
-	}
-
-	return toolMessages, nil
 }
 
 // GetModel returns the model ID

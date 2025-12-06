@@ -235,7 +235,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	// 5. Run LLM with streaming + tool execution
 	var finalContent strings.Builder
 	var reasoningContent strings.Builder
-	var toolCalls []fantasy.ToolCall
+	var toolCalls []fantasy.ToolCallContent
 	var toolMessages []fantasy.Message
 	var usage *ModelUsage
 	var llmResp interface{}
@@ -402,15 +402,15 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	}
 
 	llmResp = resp
-	toolCalls = resp.ToolCalls
+	toolCalls = resp.Content.ToolCalls()
 	toolMessages = tms
 
 	// Build usage from response
 	if resp != nil {
 		usage = &ModelUsage{
-			TotalInputTokens:  resp.PromptTokens,
-			TotalOutputTokens: resp.CompletionTokens,
-			TotalTokens:       resp.TotalTokens,
+			TotalInputTokens:  int(resp.Usage.InputTokens),
+			TotalOutputTokens: int(resp.Usage.OutputTokens),
+			TotalTokens:       int(resp.Usage.TotalTokens),
 		}
 	}
 
@@ -421,16 +421,17 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	finalContentStr = strings.TrimSpace(finalContentStr)
 
 	// If final content is empty but we have response content, use that
-	if finalContentStr == "" && resp != nil && resp.Content != "" {
-		finalContentStr = stripThinkTags(resp.Content)
-		finalContentStr = stripToolCallTags(resp.Content)
+	respText := resp.Content.Text()
+	if finalContentStr == "" && resp != nil && respText != "" {
+		finalContentStr = stripThinkTags(respText)
+		finalContentStr = stripToolCallTags(finalContentStr)
 		finalContentStr = strings.TrimSpace(finalContentStr)
 	}
 
 	// 8. Add messages to session history
 	session.Messages = append(session.Messages, toolMessages...)
 	if len(toolCalls) > 0 {
-		session.Messages = append(session.Messages, types.NewToolCallMessage(toolCalls))
+		session.Messages = append(session.Messages, types.NewToolCallMessageFromContent(toolCalls))
 	} else {
 		session.Messages = append(session.Messages, fantasy.Message{
 			Role:    fantasy.MessageRoleAssistant,

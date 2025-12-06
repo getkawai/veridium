@@ -19,6 +19,7 @@ package types
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/kawai-network/veridium/fantasy"
 )
@@ -34,6 +35,67 @@ func GetToolCallArguments(tc fantasy.ToolCall) map[string]string {
 		return nil
 	}
 	return args
+}
+
+// GetToolCallArgumentsFromContent parses Input JSON string from ToolCallContent to map[string]string
+func GetToolCallArgumentsFromContent(tc fantasy.ToolCallContent) map[string]string {
+	if tc.Input == "" {
+		return nil
+	}
+	// First try direct map[string]string
+	var args map[string]string
+	if err := json.Unmarshal([]byte(tc.Input), &args); err == nil {
+		return args
+	}
+	// Fallback: parse as map[string]interface{} and convert
+	var argsAny map[string]interface{}
+	if err := json.Unmarshal([]byte(tc.Input), &argsAny); err != nil {
+		return nil
+	}
+	args = make(map[string]string)
+	for k, v := range argsAny {
+		switch val := v.(type) {
+		case string:
+			args[k] = val
+		case float64:
+			args[k] = fmt.Sprintf("%v", val)
+		case bool:
+			args[k] = fmt.Sprintf("%v", val)
+		default:
+			// For complex types, marshal back to JSON
+			if jsonBytes, err := json.Marshal(v); err == nil {
+				args[k] = string(jsonBytes)
+			} else {
+				args[k] = fmt.Sprintf("%v", v)
+			}
+		}
+	}
+	return args
+}
+
+// ToolCallContentToToolCall converts fantasy.ToolCallContent to fantasy.ToolCall
+func ToolCallContentToToolCall(tc fantasy.ToolCallContent) fantasy.ToolCall {
+	return fantasy.ToolCall{
+		ID:    tc.ToolCallID,
+		Name:  tc.ToolName,
+		Input: tc.Input,
+	}
+}
+
+// NewToolCallMessageFromContent creates an assistant message with tool calls from ToolCallContent
+func NewToolCallMessageFromContent(toolCalls []fantasy.ToolCallContent) fantasy.Message {
+	content := make([]fantasy.MessagePart, 0, len(toolCalls))
+	for _, tc := range toolCalls {
+		content = append(content, fantasy.ToolCallPart{
+			ToolCallID: tc.ToolCallID,
+			ToolName:   tc.ToolName,
+			Input:      tc.Input,
+		})
+	}
+	return fantasy.Message{
+		Role:    fantasy.MessageRoleAssistant,
+		Content: content,
+	}
 }
 
 // ============================================================================
@@ -56,21 +118,6 @@ type Tool struct {
 	Definition ToolDefinition   `json:"definition"`
 	Executor   ToolExecutor     `json:"-"`
 	Enabled    bool             `json:"-"`
-}
-
-// ============================================================================
-// LLM Response Types
-// ============================================================================
-
-// LLMResponse represents a response from any LLM provider
-type LLMResponse struct {
-	Content          string             `json:"content"`
-	ToolCalls        []fantasy.ToolCall `json:"tool_calls,omitempty"`
-	FinishReason     string             `json:"finish_reason"`
-	PromptTokens     int                `json:"prompt_tokens"`
-	CompletionTokens int                `json:"completion_tokens"`
-	TotalTokens      int                `json:"total_tokens"`
-	ReasoningContent string             `json:"reasoning_content,omitempty"` // For reasoning models (Qwen3, DeepSeek R1)
 }
 
 // ============================================================================

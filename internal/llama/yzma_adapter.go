@@ -191,7 +191,7 @@ func (m *LlamaYzmaModel) getChatTemplate() string {
 }
 
 // Generate generates a response from messages (native interface)
-func (m *LlamaYzmaModel) Generate(ctx context.Context, messages fantasy.Prompt) (*types.LLMResponse, error) {
+func (m *LlamaYzmaModel) Generate(ctx context.Context, messages fantasy.Prompt) (*fantasy.Response, error) {
 	// Ensure chat model is loaded
 	if !m.libService.IsChatModelLoaded() {
 		if err := m.libService.LoadChatModel(""); err != nil {
@@ -228,13 +228,32 @@ func (m *LlamaYzmaModel) Generate(ctx context.Context, messages fantasy.Prompt) 
 		response = m.cleanToolCallTags(response)
 	}
 
-	return &types.LLMResponse{
-		Content:          response,
-		ToolCalls:        toolCalls,
-		FinishReason:     "stop",
-		PromptTokens:     len(prompt) / 4,
-		CompletionTokens: len(response) / 4,
-		TotalTokens:      (len(prompt) + len(response)) / 4,
+	// Build response content
+	content := make(fantasy.ResponseContent, 0)
+	if response != "" {
+		content = append(content, fantasy.TextContent{Text: response})
+	}
+	for _, tc := range toolCalls {
+		content = append(content, fantasy.ToolCallContent{
+			ToolCallID: tc.ID,
+			ToolName:   tc.Name,
+			Input:      tc.Input,
+		})
+	}
+
+	finishReason := fantasy.FinishReasonStop
+	if len(toolCalls) > 0 {
+		finishReason = fantasy.FinishReasonToolCalls
+	}
+
+	return &fantasy.Response{
+		Content:      content,
+		FinishReason: finishReason,
+		Usage: fantasy.Usage{
+			InputTokens:  int64(len(prompt) / 4),
+			OutputTokens: int64(len(response) / 4),
+			TotalTokens:  int64((len(prompt) + len(response)) / 4),
+		},
 	}, nil
 }
 
@@ -320,10 +339,71 @@ func minInt(a, b int) int {
 	return b
 }
 
+// appendToolCallsToResponse creates a new Response replacing tool calls with the provided ones
+// This replaces any existing tool calls in the response with allToolCalls to avoid duplication
+func (m *LlamaYzmaModel) appendToolCallsToResponse(resp *fantasy.Response, allToolCalls []fantasy.ToolCallContent) *fantasy.Response {
+	if len(allToolCalls) == 0 {
+		return resp
+	}
+
+	// Create new content with non-tool-call content from response + all collected tool calls
+	newContent := make(fantasy.ResponseContent, 0)
+
+	// Copy non-tool-call content (text, reasoning, etc.)
+	for _, c := range resp.Content {
+		if c.GetType() != fantasy.ContentTypeToolCall {
+			newContent = append(newContent, c)
+		}
+	}
+
+	// Add all collected tool calls (replacing any existing ones)
+	for _, tc := range allToolCalls {
+		newContent = append(newContent, tc)
+	}
+
+	return &fantasy.Response{
+		Content:          newContent,
+		FinishReason:     resp.FinishReason,
+		Usage:            resp.Usage,
+		Warnings:         resp.Warnings,
+		ProviderMetadata: resp.ProviderMetadata,
+	}
+}
+
+// executeToolCallsFromContent executes tool calls from ToolCallContent and returns tool response messages
+func (m *LlamaYzmaModel) executeToolCallsFromContent(ctx context.Context, toolCalls []fantasy.ToolCallContent) (fantasy.Prompt, error) {
+	if m.toolRegistry == nil {
+		return nil, fmt.Errorf("tool registry not available")
+	}
+
+	toolMessages := make(fantasy.Prompt, 0, len(toolCalls))
+
+	for _, tc := range toolCalls {
+		log.Printf("🔧 Executing tool: %s", tc.ToolName)
+
+		// Parse arguments from Input JSON
+		args := types.GetToolCallArgumentsFromContent(tc)
+		result, err := m.toolRegistry.Execute(ctx, tc.ToolName, args)
+		if err != nil {
+			log.Printf("⚠️  Tool execution failed: %v", err)
+			toolMessages = append(toolMessages, types.NewToolErrorMessage(tc.ToolCallID, tc.ToolName, fmt.Sprintf("Error: %v", err)))
+		} else {
+			displayResult := result
+			if len(displayResult) > 100 {
+				displayResult = displayResult[:100] + "..."
+			}
+			log.Printf("✅ Tool result: %s", displayResult)
+			toolMessages = append(toolMessages, types.NewToolResultMessage(tc.ToolCallID, tc.ToolName, result))
+		}
+	}
+
+	return toolMessages, nil
+}
+
 // RunAgentLoop runs the agent loop with tool calling until no more tool calls or max iterations
 // This is the main entry point for agentic conversations (native interface)
-// The returned types.LLMResponse contains ALL tool calls from all iterations (not just the last one)
-func (m *LlamaYzmaModel) RunAgentLoop(ctx context.Context, messages fantasy.Prompt, maxIterations int) (*types.LLMResponse, fantasy.Prompt, error) {
+// The returned fantasy.Response contains ALL tool calls from all iterations (not just the last one)
+func (m *LlamaYzmaModel) RunAgentLoop(ctx context.Context, messages fantasy.Prompt, maxIterations int) (*fantasy.Response, fantasy.Prompt, error) {
 	if maxIterations <= 0 {
 		maxIterations = DefaultMaxIterations
 	}
@@ -332,9 +412,9 @@ func (m *LlamaYzmaModel) RunAgentLoop(ctx context.Context, messages fantasy.Prom
 	allMessages := make(fantasy.Prompt, len(messages))
 	copy(allMessages, messages)
 
-	var finalResponse *types.LLMResponse
+	var finalResponse *fantasy.Response
 	var allToolMessages fantasy.Prompt
-	var allToolCalls []fantasy.ToolCall // Collect all tool calls from all iterations
+	var allToolCalls []fantasy.ToolCallContent // Collect all tool calls from all iterations
 
 	for i := 0; i < maxIterations; i++ {
 		log.Printf("🔄 Agent loop iteration %d/%d", i+1, maxIterations)
@@ -345,28 +425,30 @@ func (m *LlamaYzmaModel) RunAgentLoop(ctx context.Context, messages fantasy.Prom
 			return nil, allToolMessages, fmt.Errorf("generation failed at iteration %d: %w", i+1, err)
 		}
 
+		toolCalls := resp.Content.ToolCalls()
+
 		// Add assistant response to history
-		if len(resp.ToolCalls) > 0 {
-			allMessages = append(allMessages, types.NewToolCallMessage(resp.ToolCalls))
-			allToolCalls = append(allToolCalls, resp.ToolCalls...)
+		if len(toolCalls) > 0 {
+			allMessages = append(allMessages, types.NewToolCallMessageFromContent(toolCalls))
+			allToolCalls = append(allToolCalls, toolCalls...)
 		} else {
 			allMessages = append(allMessages, fantasy.Message{
 				Role:    fantasy.MessageRoleAssistant,
-				Content: []fantasy.MessagePart{fantasy.TextPart{Text: resp.Content}},
+				Content: []fantasy.MessagePart{fantasy.TextPart{Text: resp.Content.Text()}},
 			})
 		}
 		finalResponse = resp
 
 		// Check if no tool calls - we're done
-		if len(resp.ToolCalls) == 0 {
+		if len(toolCalls) == 0 {
 			log.Printf("✅ Agent loop completed after %d iterations (no tool calls)", i+1)
 			// Include all collected tool calls in the final response
-			finalResponse.ToolCalls = allToolCalls
+			finalResponse = m.appendToolCallsToResponse(finalResponse, allToolCalls)
 			return finalResponse, allToolMessages, nil
 		}
 
 		// Execute tool calls
-		toolMessages, err := m.ExecuteToolCalls(ctx, resp.ToolCalls)
+		toolMessages, err := m.executeToolCallsFromContent(ctx, toolCalls)
 		if err != nil {
 			log.Printf("⚠️  Tool execution error: %v", err)
 			// Continue anyway with error message
@@ -385,7 +467,7 @@ func (m *LlamaYzmaModel) RunAgentLoop(ctx context.Context, messages fantasy.Prom
 	log.Printf("⚠️  Agent loop reached max iterations (%d)", maxIterations)
 	// Include all collected tool calls in the final response even when max iterations reached
 	if finalResponse != nil {
-		finalResponse.ToolCalls = allToolCalls
+		finalResponse = m.appendToolCallsToResponse(finalResponse, allToolCalls)
 	}
 	return finalResponse, allToolMessages, nil
 }
@@ -414,7 +496,7 @@ func (m *LlamaYzmaModel) clearKVCache() error {
 
 // Stream generates a response with streaming (native interface)
 // Returns the response and any error
-func (m *LlamaYzmaModel) Stream(ctx context.Context, messages fantasy.Prompt, callback types.StreamCallback) (*types.LLMResponse, error) {
+func (m *LlamaYzmaModel) Stream(ctx context.Context, messages fantasy.Prompt, callback types.StreamCallback) (*fantasy.Response, error) {
 	// Ensure chat model is loaded
 	if !m.libService.IsChatModelLoaded() {
 		if err := m.libService.LoadChatModel(""); err != nil {
@@ -446,13 +528,32 @@ func (m *LlamaYzmaModel) Stream(ctx context.Context, messages fantasy.Prompt, ca
 		response = m.cleanToolCallTags(response)
 	}
 
-	return &types.LLMResponse{
-		Content:          response,
-		ToolCalls:        toolCalls,
-		FinishReason:     "stop",
-		PromptTokens:     len(prompt) / 4,
-		CompletionTokens: len(response) / 4,
-		TotalTokens:      (len(prompt) + len(response)) / 4,
+	// Build response content
+	content := make(fantasy.ResponseContent, 0)
+	if response != "" {
+		content = append(content, fantasy.TextContent{Text: response})
+	}
+	for _, tc := range toolCalls {
+		content = append(content, fantasy.ToolCallContent{
+			ToolCallID: tc.ID,
+			ToolName:   tc.Name,
+			Input:      tc.Input,
+		})
+	}
+
+	finishReason := fantasy.FinishReasonStop
+	if len(toolCalls) > 0 {
+		finishReason = fantasy.FinishReasonToolCalls
+	}
+
+	return &fantasy.Response{
+		Content:      content,
+		FinishReason: finishReason,
+		Usage: fantasy.Usage{
+			InputTokens:  int64(len(prompt) / 4),
+			OutputTokens: int64(len(response) / 4),
+			TotalTokens:  int64((len(prompt) + len(response)) / 4),
+		},
 	}, nil
 }
 
@@ -552,10 +653,10 @@ func (m *LlamaYzmaModel) generateStreaming(ctx context.Context, prompt string, m
 
 // RunAgentLoopWithStreaming runs agent loop with streaming support (native interface)
 // Returns the final response, all tool messages, and any error
-// The returned types.LLMResponse contains ALL tool calls from all iterations (not just the last one)
+// The returned fantasy.Response contains ALL tool calls from all iterations (not just the last one)
 // streamCallback: called for each token during generation
 // toolCallback: called for tool events (tool_call before execution, tool_result after)
-func (m *LlamaYzmaModel) RunAgentLoopWithStreaming(ctx context.Context, messages fantasy.Prompt, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*types.LLMResponse, fantasy.Prompt, error) {
+func (m *LlamaYzmaModel) RunAgentLoopWithStreaming(ctx context.Context, messages fantasy.Prompt, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*fantasy.Response, fantasy.Prompt, error) {
 	if maxIterations <= 0 {
 		maxIterations = DefaultMaxIterations
 	}
@@ -563,9 +664,9 @@ func (m *LlamaYzmaModel) RunAgentLoopWithStreaming(ctx context.Context, messages
 	allMessages := make(fantasy.Prompt, len(messages))
 	copy(allMessages, messages)
 
-	var finalResponse *types.LLMResponse
+	var finalResponse *fantasy.Response
 	var allToolMessages fantasy.Prompt
-	var allToolCalls []fantasy.ToolCall // Collect all tool calls from all iterations
+	var allToolCalls []fantasy.ToolCallContent // Collect all tool calls from all iterations
 
 	for i := 0; i < maxIterations; i++ {
 		log.Printf("🔄 Agent loop (streaming) iteration %d/%d", i+1, maxIterations)
@@ -576,44 +677,46 @@ func (m *LlamaYzmaModel) RunAgentLoopWithStreaming(ctx context.Context, messages
 			return nil, allToolMessages, fmt.Errorf("streaming generation failed at iteration %d: %w", i+1, err)
 		}
 
+		toolCalls := resp.Content.ToolCalls()
+
 		// Add assistant response to history
-		if len(resp.ToolCalls) > 0 {
-			allMessages = append(allMessages, types.NewToolCallMessage(resp.ToolCalls))
-			allToolCalls = append(allToolCalls, resp.ToolCalls...)
+		if len(toolCalls) > 0 {
+			allMessages = append(allMessages, types.NewToolCallMessageFromContent(toolCalls))
+			allToolCalls = append(allToolCalls, toolCalls...)
 		} else {
 			allMessages = append(allMessages, fantasy.Message{
 				Role:    fantasy.MessageRoleAssistant,
-				Content: []fantasy.MessagePart{fantasy.TextPart{Text: resp.Content}},
+				Content: []fantasy.MessagePart{fantasy.TextPart{Text: resp.Content.Text()}},
 			})
 		}
 		finalResponse = resp
 
-		if len(resp.ToolCalls) == 0 {
+		if len(toolCalls) == 0 {
 			log.Printf("✅ Agent loop (streaming) completed after %d iterations", i+1)
 			// Include all collected tool calls in the final response
-			finalResponse.ToolCalls = allToolCalls
+			finalResponse = m.appendToolCallsToResponse(finalResponse, allToolCalls)
 			return finalResponse, allToolMessages, nil
 		}
 
 		// Emit tool_call events BEFORE execution (for UI loading state)
 		if toolCallback != nil {
-			for _, tc := range resp.ToolCalls {
-				toolCallback(types.ChatEventToolCall, tc, "")
+			for _, tc := range toolCalls {
+				toolCallback(types.ChatEventToolCall, types.ToolCallContentToToolCall(tc), "")
 			}
 		}
 
 		// Execute tool calls
-		toolMessages, err := m.ExecuteToolCalls(ctx, resp.ToolCalls)
+		toolMessages, err := m.executeToolCallsFromContent(ctx, toolCalls)
 		if err != nil {
 			log.Printf("⚠️  Tool execution error: %v", err)
 		}
 
 		// Emit tool_result events AFTER execution
 		if toolCallback != nil {
-			for idx, tc := range resp.ToolCalls {
+			for idx, tc := range toolCalls {
 				if idx < len(toolMessages) {
 					part := toolMessages[idx].Content[0].(fantasy.ToolResultPart)
-					toolCallback(types.ChatEventToolResult, tc, types.GetToolResultContent(part))
+					toolCallback(types.ChatEventToolResult, types.ToolCallContentToToolCall(tc), types.GetToolResultContent(part))
 				}
 			}
 		}
@@ -630,7 +733,7 @@ func (m *LlamaYzmaModel) RunAgentLoopWithStreaming(ctx context.Context, messages
 	log.Printf("⚠️  Agent loop (streaming) reached max iterations (%d)", maxIterations)
 	// Include all collected tool calls in the final response even when max iterations reached
 	if finalResponse != nil {
-		finalResponse.ToolCalls = allToolCalls
+		finalResponse = m.appendToolCallsToResponse(finalResponse, allToolCalls)
 	}
 	return finalResponse, allToolMessages, nil
 }

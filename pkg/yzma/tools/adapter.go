@@ -538,6 +538,19 @@ func parseTagAttributes(tag string, toolName string) map[string]string {
 	return args
 }
 
+// FormatToolsJSON formats tool definitions as JSON string
+func FormatToolsJSON(toolDefs []map[string]any) string {
+	if len(toolDefs) == 0 {
+		return ""
+	}
+
+	toolsJSON, err := json.MarshalIndent(toolDefs, "", "  ")
+	if err != nil {
+		return ""
+	}
+	return string(toolsJSON)
+}
+
 // BuildSystemPrompt builds a system prompt with tool definitions
 func BuildSystemPrompt(basePrompt string, toolsJSON string) string {
 	if toolsJSON == "" {

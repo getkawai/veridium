@@ -23,7 +23,6 @@ import (
 
 	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
-	"github.com/kawai-network/veridium/types"
 )
 
 // TaskType defines the type of LLM task for routing
@@ -128,7 +127,7 @@ func (r *TaskRouter) GetToolRegistry() *tools.ToolRegistry {
 }
 
 // Generate routes to the appropriate provider and generates a response
-func (r *TaskRouter) Generate(ctx context.Context, task TaskType, messages fantasy.Prompt) (*types.LLMResponse, error) {
+func (r *TaskRouter) Generate(ctx context.Context, task TaskType, messages fantasy.Prompt) (*fantasy.Response, error) {
 	provider := r.GetProvider(task)
 	if provider == nil {
 		log.Printf("⚠️  TaskRouter: No provider for task '%s' and no fallback set", task)
@@ -141,7 +140,7 @@ func (r *TaskRouter) Generate(ctx context.Context, task TaskType, messages fanta
 
 // GenerateWithoutTools routes to provider with tools disabled (for utility tasks)
 // If the primary provider fails, it will try the fallback provider
-func (r *TaskRouter) GenerateWithoutTools(ctx context.Context, task TaskType, messages fantasy.Prompt) (*types.LLMResponse, error) {
+func (r *TaskRouter) GenerateWithoutTools(ctx context.Context, task TaskType, messages fantasy.Prompt) (*fantasy.Response, error) {
 	provider := r.GetProvider(task)
 	if provider == nil {
 		log.Printf("⚠️  TaskRouter: No provider for task '%s' and no fallback set", task)
@@ -167,21 +166,12 @@ func (r *TaskRouter) GenerateWithoutTools(ctx context.Context, task TaskType, me
 }
 
 // Chat is a convenience method for chat task with full agent loop
-func (r *TaskRouter) Chat(ctx context.Context, messages fantasy.Prompt, maxIterations int) (*types.LLMResponse, fantasy.Prompt, error) {
+func (r *TaskRouter) Chat(ctx context.Context, messages fantasy.Prompt, maxIterations int) (*fantasy.Response, fantasy.Prompt, error) {
 	provider := r.GetProvider(TaskChat)
 	if provider == nil {
 		return nil, nil, ErrNoProvider
 	}
 	return provider.RunAgentLoop(ctx, messages, maxIterations)
-}
-
-// ChatWithStreaming is a convenience method for streaming chat
-func (r *TaskRouter) ChatWithStreaming(ctx context.Context, messages fantasy.Prompt, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*types.LLMResponse, fantasy.Prompt, error) {
-	provider := r.GetProvider(TaskChat)
-	if provider == nil {
-		return nil, nil, ErrNoProvider
-	}
-	return provider.RunAgentLoopWithStreaming(ctx, messages, maxIterations, streamCallback, toolCallback)
 }
 
 // ChatWithTools returns the chat provider with specific tools enabled
@@ -194,17 +184,17 @@ func (r *TaskRouter) ChatWithTools(toolNames []string) Provider {
 }
 
 // GenerateTitle is a convenience method for title generation
-func (r *TaskRouter) GenerateTitle(ctx context.Context, messages fantasy.Prompt) (*types.LLMResponse, error) {
+func (r *TaskRouter) GenerateTitle(ctx context.Context, messages fantasy.Prompt) (*fantasy.Response, error) {
 	return r.GenerateWithoutTools(ctx, TaskTitleGen, messages)
 }
 
 // GenerateSummary is a convenience method for summary generation
-func (r *TaskRouter) GenerateSummary(ctx context.Context, messages fantasy.Prompt) (*types.LLMResponse, error) {
+func (r *TaskRouter) GenerateSummary(ctx context.Context, messages fantasy.Prompt) (*fantasy.Response, error) {
 	return r.GenerateWithoutTools(ctx, TaskSummaryGen, messages)
 }
 
 // DescribeImage is a convenience method for image description (VL task)
-func (r *TaskRouter) DescribeImage(ctx context.Context, messages fantasy.Prompt) (*types.LLMResponse, error) {
+func (r *TaskRouter) DescribeImage(ctx context.Context, messages fantasy.Prompt) (*fantasy.Response, error) {
 	return r.GenerateWithoutTools(ctx, TaskImageDescribe, messages)
 }
 
