@@ -80,9 +80,48 @@ func GetRecommendedVLModels() []QwenModelSpec {
 	}
 }
 
-// GetRecommendedModels returns recommended Qwen3 models for direct download
+// GetRecommendedModels returns recommended non-reasoning text models for direct download
+// These models do NOT generate <think> tags and are suitable for general chat
 // Models are ordered from smallest to largest by MinRAM requirement
+// Using Llama 3.2 series - proven, stable, no reasoning overhead
 func GetRecommendedModels() []QwenModelSpec {
+	return []QwenModelSpec{
+		// Llama 3.2 1B - Smallest, fastest
+		{
+			Name:         "llama-3.2-1b-instruct-q4_k_m",
+			URL:          "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf",
+			Quantization: "Q4_K_M",
+			Parameters:   "1b",
+			MinRAM:       2,
+			Size:         697000000, // ~697 MB
+			Description:  "Llama 3.2 1B - Ultra fast, no reasoning tags",
+		},
+		// Llama 3.2 3B - Good balance
+		{
+			Name:         "llama-3.2-3b-instruct-q4_k_m",
+			URL:          "https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+			Quantization: "Q4_K_M",
+			Parameters:   "3b",
+			MinRAM:       4,
+			Size:         2019000000, // ~2.0 GB
+			Description:  "Llama 3.2 3B - Fast, no reasoning tags, great for general chat",
+		},
+		// Llama 3.2 3B Q8 - Higher quality
+		{
+			Name:         "llama-3.2-3b-instruct-q8_0",
+			URL:          "https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-Q8_0.gguf",
+			Quantization: "Q8_0",
+			Parameters:   "3b",
+			MinRAM:       6,
+			Size:         3420000000, // ~3.4 GB
+			Description:  "Llama 3.2 3B Q8 - Better quality, no reasoning tags",
+		},
+	}
+}
+
+// GetRecommendedReasoningModels returns Qwen3 models that support reasoning (<think> tags)
+// Use these only when reasoning mode is explicitly enabled
+func GetRecommendedReasoningModels() []QwenModelSpec {
 	return []QwenModelSpec{
 		{
 			Name:         "qwen3-4b-instruct-q4_k_m",
@@ -91,7 +130,7 @@ func GetRecommendedModels() []QwenModelSpec {
 			Parameters:   "4b",
 			MinRAM:       6,
 			Size:         2497280960, // ~2.5 GB
-			Description:  "Qwen3 4B - Powerful text model, perfect for low-end hardware",
+			Description:  "Qwen3 4B - Reasoning model with <think> tags",
 		},
 		{
 			Name:         "qwen3-8b-instruct-q4_k_m",
@@ -100,7 +139,7 @@ func GetRecommendedModels() []QwenModelSpec {
 			Parameters:   "8b",
 			MinRAM:       12,
 			Size:         5027784224, // ~5.0 GB
-			Description:  "Qwen3 8B - Advanced text model with excellent reasoning capabilities",
+			Description:  "Qwen3 8B - Reasoning model with <think> tags",
 		},
 		{
 			Name:         "qwen3-14b-instruct-q4_k_m",
@@ -109,7 +148,7 @@ func GetRecommendedModels() []QwenModelSpec {
 			Parameters:   "14b",
 			MinRAM:       16,
 			Size:         9001753632, // ~9.0 GB
-			Description:  "Qwen3 14B - High-performance text model for demanding applications",
+			Description:  "Qwen3 14B - Reasoning model with <think> tags",
 		},
 		{
 			Name:         "qwen3-32b-instruct-q4_k_m",
@@ -118,7 +157,7 @@ func GetRecommendedModels() []QwenModelSpec {
 			Parameters:   "32b",
 			MinRAM:       24,
 			Size:         19762149696, // ~19.8 GB
-			Description:  "Qwen3 32B - State-of-the-art text model for advanced reasoning tasks",
+			Description:  "Qwen3 32B - Reasoning model with <think> tags",
 		},
 	}
 }

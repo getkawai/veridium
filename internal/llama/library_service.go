@@ -48,7 +48,6 @@ type LibraryService struct {
 	vlModelPath string
 	vlMutex     sync.Mutex
 
-	initOnce sync.Once
 	initChan chan struct{} // Closed when library is initialized
 }
 
@@ -108,33 +107,31 @@ func (s *LibraryService) initializeInBackground() {
 		}
 	}()
 
-	// Step 4: Auto-load chat model if available (in BACKGROUND to avoid blocking UI)
+	// Step 4: Auto-download text model if not available (in BACKGROUND to avoid blocking UI)
+	// Note: This specifically checks for text-only models (not VL models)
 	go func() {
-		s.initOnce.Do(func() {
-			models, err := s.GetAvailableModels()
-			if err != nil {
-				log.Printf("⚠️  Failed to check available models: %v", err)
-				return
-			}
+		log.Println("📦 Checking text models...")
+		if err := s.installer.AutoDownloadRecommendedTextModel(); err != nil {
+			log.Printf("⚠️  Failed to auto-download text model: %v", err)
+		} else {
+			log.Println("✅ Text model ready!")
+		}
 
-			if len(models) == 0 {
-				log.Println("⚠️  No GGUF models found. Auto-downloading...")
-				if err := s.AutoDownloadRecommendedModel(); err != nil {
-					log.Printf("⚠️  Failed to auto-download model: %v", err)
-					return
-				}
-				models, _ = s.GetAvailableModels()
-			}
+		// After ensuring text model exists, load the best chat model
+		models, err := s.GetAvailableModels()
+		if err != nil {
+			log.Printf("⚠️  Failed to check available models: %v", err)
+			return
+		}
 
-			if len(models) > 0 {
-				log.Printf("✅ Found %d model(s), auto-loading first model...", len(models))
-				if err := s.LoadChatModel(""); err != nil {
-					log.Printf("⚠️  Failed to auto-load chat model: %v", err)
-				} else {
-					log.Println("✅ Chat model loaded and ready!")
-				}
+		if len(models) > 0 {
+			log.Printf("✅ Found %d model(s), auto-loading first model...", len(models))
+			if err := s.LoadChatModel(""); err != nil {
+				log.Printf("⚠️  Failed to auto-load chat model: %v", err)
+			} else {
+				log.Println("✅ Chat model loaded and ready!")
 			}
-		})
+		}
 	}()
 
 	// Step 5: Auto-download VL model (in background)
@@ -902,6 +899,34 @@ func (s *LibraryService) GetLoadedChatModel() string {
 	s.chatMutex.Lock()
 	defer s.chatMutex.Unlock()
 	return s.chatModelPath
+}
+
+// GetChatModel returns the loaded chat model handle (for advanced usage)
+func (s *LibraryService) GetChatModel() llama.Model {
+	s.chatMutex.Lock()
+	defer s.chatMutex.Unlock()
+	return s.chatModel
+}
+
+// GetChatContext returns the chat context handle (for advanced usage)
+func (s *LibraryService) GetChatContext() llama.Context {
+	s.chatMutex.Lock()
+	defer s.chatMutex.Unlock()
+	return s.chatContext
+}
+
+// GetChatVocab returns the chat vocabulary handle (for advanced usage)
+func (s *LibraryService) GetChatVocab() llama.Vocab {
+	s.chatMutex.Lock()
+	defer s.chatMutex.Unlock()
+	return s.chatVocab
+}
+
+// GetChatSampler returns the chat sampler handle (for advanced usage)
+func (s *LibraryService) GetChatSampler() llama.Sampler {
+	s.chatMutex.Lock()
+	defer s.chatMutex.Unlock()
+	return s.chatSampler
 }
 
 // GetLoadedEmbeddingModel returns the path of the currently loaded embedding model

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -130,26 +129,6 @@ type HardwareCapabilities struct {
 	HasOpenCL bool
 	HasAVX2   bool
 }
-
-// GetServerBinaryPath returns the path to the llama-server binary
-// First checks system PATH (for package manager installations), then local binary path
-func (lcm *LlamaCppInstaller) GetServerBinaryPath() string {
-	binaryName := "llama-server"
-	if runtime.GOOS == "windows" {
-		binaryName += ".exe"
-	}
-
-	// First, check if llama-server is in system PATH (e.g., from Homebrew)
-	if path, err := exec.LookPath(binaryName); err == nil {
-		return path
-	}
-
-	// Fallback to local binary path (from GitHub release download)
-	return filepath.Join(lcm.BinaryPath, binaryName)
-}
-
-// GetBinaryPath returns the path to a specific llama.cpp binary
-// Platform-specific implementation in installer_*.go files
 
 // IsLlamaCppInstalled checks if all required llama.cpp libraries are installed
 // Verifies that libggml, libggml-base, and libllama all exist
@@ -693,6 +672,8 @@ func (lcm *LlamaCppInstaller) GetAvailableVLModels() ([]string, error) {
 }
 
 // GetAvailableTextModels returns a list of available text model file paths
+// Text models are non-reasoning chat models (Llama, Mistral, Gemma, etc.)
+// Excludes: VL models, embedding models, projector files
 func (lcm *LlamaCppInstaller) GetAvailableTextModels() ([]string, error) {
 	if err := os.MkdirAll(lcm.ModelsDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create models directory: %w", err)
@@ -710,10 +691,36 @@ func (lcm *LlamaCppInstaller) GetAvailableTextModels() ([]string, error) {
 		}
 
 		name := entry.Name()
-		if strings.HasSuffix(strings.ToLower(name), ".gguf") &&
-			strings.HasPrefix(name, "qwen3-") &&
-			!strings.HasPrefix(name, "qwen3-vl-") &&
-			!lcm.isEmbeddingModel(name) {
+		nameLower := strings.ToLower(name)
+
+		// Must be a GGUF file
+		if !strings.HasSuffix(nameLower, ".gguf") {
+			continue
+		}
+
+		// Skip embedding models
+		if lcm.isEmbeddingModel(name) {
+			continue
+		}
+
+		// Skip VL models (vision-language)
+		if strings.Contains(nameLower, "-vl-") || strings.Contains(nameLower, "_vl_") {
+			continue
+		}
+
+		// Skip projector files (mmproj-*)
+		if strings.HasPrefix(nameLower, "mmproj") {
+			continue
+		}
+
+		// Check if it's a known text model prefix
+		isTextModel := strings.HasPrefix(nameLower, "llama-") ||
+			strings.HasPrefix(nameLower, "mistral-") ||
+			strings.HasPrefix(nameLower, "gemma-") ||
+			strings.HasPrefix(nameLower, "phi-") ||
+			(strings.HasPrefix(nameLower, "qwen") && !strings.Contains(nameLower, "-vl-"))
+
+		if isTextModel {
 			models = append(models, filepath.Join(lcm.ModelsDir, name))
 		}
 	}

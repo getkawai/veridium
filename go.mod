@@ -14,7 +14,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jupiterrider/ffi v0.5.1
 	github.com/kaptinlin/jsonschema v0.6.2
-	github.com/nikolalohinski/gonja/v2 v2.4.2
+	github.com/nikolalohinski/gonja/v2 v2.5.0
 	github.com/openai/openai-go/v2 v2.7.1
 	github.com/pemistahl/lingua-go v1.4.0
 	github.com/ssor/bom v0.0.0-20170718123548-6386211fdfcf
