@@ -3,5 +3,11 @@
 
 export {
     ChatStreamEvent,
-    Document
+    Document,
+    Message,
+    MessageRole
+} from "./models.js";
+
+export type {
+    MessagePart
 } from "./models.js";
