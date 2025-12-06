@@ -60,8 +60,6 @@ func (s *FileProcessorService) SetLLMProvider(provider LLMProvider) {
 	s.llmProvider = provider
 }
 
-
-
 // ProcessFileRequest represents a file processing request
 type ProcessFileRequest struct {
 	FilePath  string
@@ -172,7 +170,7 @@ func (s *FileProcessorService) processImageDescriptionAsync(filePath, filename, 
 	if len(cleanedText) > 20 {
 		// Fast path: sufficient text extracted via OCR
 		xlog.Info("Async: OCR extracted sufficient text", "length", len(cleanedText), "filename", filename)
-		
+
 		// Step 2: Clean up OCR text using LLM (if available)
 		if s.llmProvider != nil {
 			xlog.Info("Async: Cleaning up OCR text with LLM", "filename", filename)
@@ -223,7 +221,7 @@ func (s *FileProcessorService) processImageDescriptionAsync(filePath, filename, 
 				} else {
 					finalContent = description
 					contentType = "Image Description (VL Model)"
-					
+
 					// If we also have OCR text, append it
 					if len(cleanedText) > 0 {
 						finalContent = fmt.Sprintf("%s\n\n**Extracted Text (OCR):**\n%s", description, cleanedText)
@@ -347,7 +345,7 @@ Cleaned markdown:`, docHint, rawText)
 
 	// Trim any leading/trailing whitespace
 	result = strings.TrimSpace(result)
-	
+
 	// If result is empty or too short, return original
 	if len(result) < 10 {
 		return rawText, nil
@@ -382,10 +380,10 @@ func (s *FileProcessorService) cleanupTranscription(ctx context.Context, rawTran
 	}
 
 	result = strings.TrimSpace(result)
-	
+
 	// If result is empty or significantly shorter, return original
 	if len(result) < len(rawTranscript)/2 {
-		xlog.Warn("Async: Transcript cleanup result too short, using original", 
+		xlog.Warn("Async: Transcript cleanup result too short, using original",
 			"original_len", len(rawTranscript), "result_len", len(result))
 		return rawTranscript, nil
 	}
@@ -419,7 +417,7 @@ func (s *FileProcessorService) processVideoDescriptionAsync(filePath, filename, 
 		xlog.Error("Async: No whisper models available", "error", err, "filename", filename)
 		return
 	}
-	
+
 	// Select Whisper model based on available RAM
 	// Model sizes: tiny (~75MB), base (~150MB), small (~500MB), medium (~1.5GB), large (~3GB)
 	// RAM requirements: tiny=1GB, base=2GB, small=4GB, medium=8GB, large=16GB
@@ -465,7 +463,7 @@ func (s *FileProcessorService) processVideoDescriptionAsync(filePath, filename, 
 	} else {
 		// Short video - use sequential transcription
 		xlog.Info("Async: Using sequential transcription (short video)")
-		
+
 		audioPath, err := s.extractAudioFromVideo(filePath, 0, 0) // Full video
 		if err != nil {
 			xlog.Error("Async: Failed to extract audio", "error", err)
@@ -533,20 +531,20 @@ func (s *FileProcessorService) transcribeVideoParallel(ctx context.Context, vide
 
 	// Extract audio chunks in parallel
 	type chunkResult struct {
-		index   int
-		path    string
-		err     error
+		index int
+		path  string
+		err   error
 	}
-	
+
 	extractChan := make(chan chunkResult, numChunks)
-	
+
 	xlog.Info("Async: Extracting audio chunks", "count", numChunks)
-	
+
 	for i := 0; i < numChunks; i++ {
 		go func(idx int) {
 			startTime := float64(idx) * chunkDuration
 			chunkPath := filepath.Join(tempDir, fmt.Sprintf("chunk_%d.wav", idx))
-			
+
 			err := s.extractAudioChunk(videoPath, chunkPath, startTime, chunkDuration)
 			extractChan <- chunkResult{index: idx, path: chunkPath, err: err}
 		}(i)
@@ -565,23 +563,23 @@ func (s *FileProcessorService) transcribeVideoParallel(ctx context.Context, vide
 
 	// Transcribe chunks in parallel with progressive updates
 	type transcribeResult struct {
-		index        int
+		index         int
 		transcription string
-		err          error
+		err           error
 	}
-	
+
 	transcribeChan := make(chan transcribeResult, numChunks)
 	transcriptions := make([]string, numChunks)
 	completedChunks := 0
-	
+
 	xlog.Info("Async: Starting parallel transcription", "chunks", numChunks)
-	
+
 	for i := 0; i < numChunks; i++ {
 		if chunkPaths[i] == "" {
 			transcribeChan <- transcribeResult{index: i, transcription: "", err: nil}
 			continue
 		}
-		
+
 		go func(idx int, audioPath string) {
 			text, err := s.whisperService.Transcribe(ctx, modelName, audioPath)
 			transcribeChan <- transcribeResult{index: idx, transcription: text, err: err}
@@ -595,15 +593,15 @@ func (s *FileProcessorService) transcribeVideoParallel(ctx context.Context, vide
 			xlog.Warn("Async: Chunk transcription failed", "index", result.index, "error", result.err)
 			continue
 		}
-		
+
 		transcriptions[result.index] = result.transcription
 		completedChunks++
-		
+
 		// Progressive update: update DB with current progress
 		progress := fmt.Sprintf("*Transcribing... (%d/%d segments completed)*\n\n", completedChunks, numChunks)
 		partialTranscription := s.combineTranscriptions(transcriptions)
 		progressMarkdown := fmt.Sprintf("\n\n### Video Transcription (AI Generated via Whisper)\n\n%s%s", progress, partialTranscription)
-		
+
 		if err := s.replaceTranscriptionInDocument(ctx, documentID, userID, progressMarkdown); err != nil {
 			xlog.Warn("Async: Failed to update progress", "error", err)
 		} else {
@@ -670,11 +668,11 @@ func deduplicateRepetitiveText(text string) string {
 func splitIntoSentences(text string) []string {
 	// Replace newlines with spaces first
 	text = strings.ReplaceAll(text, "\n", " ")
-	
+
 	// Split by sentence-ending punctuation
 	var sentences []string
 	var current strings.Builder
-	
+
 	for i, r := range text {
 		current.WriteRune(r)
 		// Check for sentence boundary
@@ -689,13 +687,13 @@ func splitIntoSentences(text string) []string {
 			}
 		}
 	}
-	
+
 	// Add any remaining text
 	remaining := strings.TrimSpace(current.String())
 	if len(remaining) > 0 {
 		sentences = append(sentences, remaining)
 	}
-	
+
 	return sentences
 }
 
@@ -765,12 +763,12 @@ func (s *FileProcessorService) getVideoDuration(videoPath string) (float64, erro
 		"-of", "default=noprint_wrappers=1:nokey=1",
 		videoPath,
 	)
-	
+
 	output, err := cmd.Output()
 	if err != nil {
 		return 0, err
 	}
-	
+
 	var duration float64
 	_, err = fmt.Sscanf(strings.TrimSpace(string(output)), "%f", &duration)
 	return duration, err
@@ -800,13 +798,13 @@ func (s *FileProcessorService) extractAudioChunk(videoPath, outputPath string, s
 		"-y",
 		outputPath,
 	}
-	
+
 	cmd := exec.Command(ffmpegPath, args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("ffmpeg chunk extraction failed: %w, output: %s", err, string(output))
 	}
-	
+
 	return nil
 }
 
@@ -815,17 +813,17 @@ func (s *FileProcessorService) replaceTranscriptionInDocument(ctx context.Contex
 	// Get current document by document ID (not file ID)
 	var docID string
 	var currentContent sql.NullString
-	
-	err := s.db.QueryRowContext(ctx, 
-		"SELECT id, content FROM documents WHERE id = ?", 
+
+	err := s.db.QueryRowContext(ctx,
+		"SELECT id, content FROM documents WHERE id = ?",
 		documentID,
 	).Scan(&docID, &currentContent)
 	if err != nil {
 		return fmt.Errorf("failed to get document: %w", err)
 	}
-	
+
 	content := currentContent.String
-	
+
 	// Find and replace transcription section
 	marker := "### Video Transcription (AI Generated via Whisper)"
 	idx := strings.Index(content, marker)
@@ -836,7 +834,7 @@ func (s *FileProcessorService) replaceTranscriptionInDocument(ctx context.Contex
 		// Append if not found
 		content += newContent
 	}
-	
+
 	// Update document using raw SQL
 	_, err = s.db.ExecContext(ctx,
 		"UPDATE documents SET content = ?, updated_at = ? WHERE id = ?",
@@ -871,10 +869,10 @@ func (s *FileProcessorService) extractAudioFromVideo(videoPath string, startTime
 		"-i", videoPath,
 		"-vn",                  // No video
 		"-acodec", "pcm_s16le", // 16-bit PCM
-		"-ar", "16000",         // 16kHz sample rate
-		"-ac", "1",             // Mono
+		"-ar", "16000", // 16kHz sample rate
+		"-ac", "1", // Mono
 	}
-	
+
 	// Add time range if specified
 	if startTime > 0 || duration > 0 {
 		if startTime > 0 {
@@ -884,7 +882,7 @@ func (s *FileProcessorService) extractAudioFromVideo(videoPath string, startTime
 			args = append(args, "-t", fmt.Sprintf("%.2f", duration))
 		}
 	}
-	
+
 	args = append(args, "-y", audioPath) // Overwrite
 
 	cmd := exec.Command(ffmpegPath, args...)

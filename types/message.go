@@ -14,36 +14,36 @@
  * limitations under the License.
  */
 
-// Package message provides types for creating, manipulating,
-// and processing LLM messages in various formats.
-package message
+package types
 
-import "github.com/kawai-network/veridium/types"
+// ============================================================================
+// Message Types
+// ============================================================================
 
-// Role represents the role of a message sender.
-type Role string
-
-const (
-	RoleSystem    Role = "system"
-	RoleUser      Role = "user"
-	RoleAssistant Role = "assistant"
-	RoleTool      Role = "tool"
-)
-
-// ContentType represents the type of content in a message part.
-type ContentType string
+// MessageRole represents the role of a message sender.
+type MessageRole string
 
 const (
-	ContentTypeText       ContentType = "text"
-	ContentTypeReasoning  ContentType = "reasoning"
-	ContentTypeFile       ContentType = "file"
-	ContentTypeToolCall   ContentType = "tool-call"
-	ContentTypeToolResult ContentType = "tool-result"
+	MessageRoleSystem    MessageRole = "system"
+	MessageRoleUser      MessageRole = "user"
+	MessageRoleAssistant MessageRole = "assistant"
+	MessageRoleTool      MessageRole = "tool"
 )
 
-// Part represents a part of a message content.
-type Part interface {
-	GetType() ContentType
+// MessageContentType represents the type of content in a message part.
+type MessageContentType string
+
+const (
+	MessageContentTypeText       MessageContentType = "text"
+	MessageContentTypeReasoning  MessageContentType = "reasoning"
+	MessageContentTypeFile       MessageContentType = "file"
+	MessageContentTypeToolCall   MessageContentType = "tool-call"
+	MessageContentTypeToolResult MessageContentType = "tool-result"
+)
+
+// MessagePart represents a part of a message content.
+type MessagePart interface {
+	GetType() MessageContentType
 }
 
 // TextPart represents text content in a message.
@@ -51,8 +51,8 @@ type TextPart struct {
 	Text string `json:"text"`
 }
 
-func (t TextPart) GetType() ContentType {
-	return ContentTypeText
+func (t TextPart) GetType() MessageContentType {
+	return MessageContentTypeText
 }
 
 // ReasoningPart represents reasoning/thinking content from the model.
@@ -60,8 +60,8 @@ type ReasoningPart struct {
 	Text string `json:"text"`
 }
 
-func (r ReasoningPart) GetType() ContentType {
-	return ContentTypeReasoning
+func (r ReasoningPart) GetType() MessageContentType {
+	return MessageContentTypeReasoning
 }
 
 // FilePart represents file content in a message.
@@ -71,18 +71,17 @@ type FilePart struct {
 	MediaType string `json:"media_type"`
 }
 
-func (f FilePart) GetType() ContentType {
-	return ContentTypeFile
+func (f FilePart) GetType() MessageContentType {
+	return MessageContentTypeFile
 }
 
 // ToolCallPart represents a tool call in a message.
-// Uses types.ToolCall for compatibility with existing tool system.
 type ToolCallPart struct {
-	ToolCall types.ToolCall `json:"tool_call"`
+	ToolCall ToolCall `json:"tool_call"`
 }
 
-func (t ToolCallPart) GetType() ContentType {
-	return ContentTypeToolCall
+func (t ToolCallPart) GetType() MessageContentType {
+	return MessageContentTypeToolCall
 }
 
 // ToolResultPart represents a tool result in a message.
@@ -93,14 +92,14 @@ type ToolResultPart struct {
 	IsError    bool   `json:"is_error,omitempty"`
 }
 
-func (t ToolResultPart) GetType() ContentType {
-	return ContentTypeToolResult
+func (t ToolResultPart) GetType() MessageContentType {
+	return MessageContentTypeToolResult
 }
 
 // Message represents a message in a conversation.
 type Message struct {
-	Role    Role   `json:"role"`
-	Content []Part `json:"content"`
+	Role    MessageRole   `json:"role"`
+	Content []MessagePart `json:"content"`
 }
 
 // GetRole returns the role as string (for template compatibility).
@@ -162,8 +161,8 @@ func (m Message) GetText() string {
 }
 
 // GetToolCalls returns all tool calls from the message.
-func (m Message) GetToolCalls() []types.ToolCall {
-	var calls []types.ToolCall
+func (m Message) GetToolCalls() []ToolCall {
+	var calls []ToolCall
 	for _, part := range m.Content {
 		if p, ok := part.(ToolCallPart); ok {
 			calls = append(calls, p.ToolCall)
@@ -185,22 +184,26 @@ func (m Message) HasToolCalls() bool {
 // Prompt represents a list of messages for the language model.
 type Prompt []Message
 
+// ============================================================================
+// Message Helper Functions
+// ============================================================================
+
 // NewTextMessage creates a new message with text content.
-func NewTextMessage(role Role, text string) Message {
+func NewTextMessage(role MessageRole, text string) Message {
 	return Message{
 		Role:    role,
-		Content: []Part{TextPart{Text: text}},
+		Content: []MessagePart{TextPart{Text: text}},
 	}
 }
 
 // NewUserMessage creates a new user message with text and optional files.
 func NewUserMessage(text string, files ...FilePart) Message {
-	content := []Part{TextPart{Text: text}}
+	content := []MessagePart{TextPart{Text: text}}
 	for _, f := range files {
 		content = append(content, f)
 	}
 	return Message{
-		Role:    RoleUser,
+		Role:    MessageRoleUser,
 		Content: content,
 	}
 }
@@ -208,27 +211,27 @@ func NewUserMessage(text string, files ...FilePart) Message {
 // NewSystemMessage creates a new system message.
 func NewSystemMessage(text string) Message {
 	return Message{
-		Role:    RoleSystem,
-		Content: []Part{TextPart{Text: text}},
+		Role:    MessageRoleSystem,
+		Content: []MessagePart{TextPart{Text: text}},
 	}
 }
 
 // NewAssistantMessage creates a new assistant message with text.
 func NewAssistantMessage(text string) Message {
 	return Message{
-		Role:    RoleAssistant,
-		Content: []Part{TextPart{Text: text}},
+		Role:    MessageRoleAssistant,
+		Content: []MessagePart{TextPart{Text: text}},
 	}
 }
 
 // NewToolCallMessage creates a new assistant message with tool calls.
-func NewToolCallMessage(toolCalls []types.ToolCall) Message {
-	content := make([]Part, len(toolCalls))
+func NewToolCallMessage(toolCalls []ToolCall) Message {
+	content := make([]MessagePart, len(toolCalls))
 	for i, tc := range toolCalls {
 		content[i] = ToolCallPart{ToolCall: tc}
 	}
 	return Message{
-		Role:    RoleAssistant,
+		Role:    MessageRoleAssistant,
 		Content: content,
 	}
 }
@@ -236,8 +239,8 @@ func NewToolCallMessage(toolCalls []types.ToolCall) Message {
 // NewToolResultMessage creates a new tool result message.
 func NewToolResultMessage(toolCallID, toolName, result string) Message {
 	return Message{
-		Role: RoleTool,
-		Content: []Part{
+		Role: MessageRoleTool,
+		Content: []MessagePart{
 			ToolResultPart{
 				ToolCallID: toolCallID,
 				ToolName:   toolName,
@@ -250,8 +253,8 @@ func NewToolResultMessage(toolCallID, toolName, result string) Message {
 // NewToolErrorMessage creates a new tool error message.
 func NewToolErrorMessage(toolCallID, toolName, errorMsg string) Message {
 	return Message{
-		Role: RoleTool,
-		Content: []Part{
+		Role: MessageRoleTool,
+		Content: []MessagePart{
 			ToolResultPart{
 				ToolCallID: toolCallID,
 				ToolName:   toolName,

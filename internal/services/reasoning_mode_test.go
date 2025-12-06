@@ -79,9 +79,9 @@ func TestHardwareValidation(t *testing.T) {
 			expectContain: "Insufficient RAM",
 		},
 		{
-			name: "Nil specs - should allow (with warning)",
-			mode: ReasoningVerbose,
-			specs: nil,
+			name:        "Nil specs - should allow (with warning)",
+			mode:        ReasoningVerbose,
+			specs:       nil,
 			expectValid: true,
 		},
 	}
@@ -216,4 +216,3 @@ func TestGetHardwareRequirements(t *testing.T) {
 		})
 	}
 }
-

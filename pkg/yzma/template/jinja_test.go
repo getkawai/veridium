@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/kawai-network/veridium/types"
-	"github.com/kawai-network/veridium/types/message"
 )
 
 func TestChatMLTemplate(t *testing.T) {
@@ -19,9 +18,9 @@ func TestChatMLTemplate(t *testing.T) {
 	tmpl := string(tmplBytes)
 
 	// Prepare chat messages
-	messages := message.Prompt{
-		message.NewUserMessage("Hello, how are you?"),
-		message.NewAssistantMessage("I'm fine, thank you!"),
+	messages := types.Prompt{
+		types.NewUserMessage("Hello, how are you?"),
+		types.NewAssistantMessage("I'm fine, thank you!"),
 	}
 
 	result, err := Apply(tmpl, messages, true)
@@ -49,9 +48,9 @@ func TestQwen25InstructTemplateWithToolCall(t *testing.T) {
 	tmpl := string(tmplBytes)
 
 	// Prepare messages with a tool call
-	messages := message.Prompt{
-		message.NewUserMessage("What is 2 + 3?"),
-		message.NewToolCallMessage([]types.ToolCall{
+	messages := types.Prompt{
+		types.NewUserMessage("What is 2 + 3?"),
+		types.NewToolCallMessage([]types.ToolCall{
 			{
 				Type: "function",
 				Function: types.ToolFunction{
@@ -63,7 +62,7 @@ func TestQwen25InstructTemplateWithToolCall(t *testing.T) {
 				},
 			},
 		}),
-		message.NewToolResultMessage("", "add", "5"),
+		types.NewToolResultMessage("", "add", "5"),
 	}
 
 	result, err := Apply(tmpl, messages, true)
@@ -104,9 +103,9 @@ func TestApplyJinjaTemplateWithToolMessage(t *testing.T) {
 	tmpl := string(tmplBytes)
 
 	// Prepare messages with ToolCallMessage
-	messages := message.Prompt{
-		message.NewUserMessage("Call the calculator function"),
-		message.NewToolCallMessage([]types.ToolCall{
+	messages := types.Prompt{
+		types.NewUserMessage("Call the calculator function"),
+		types.NewToolCallMessage([]types.ToolCall{
 			{
 				Type: "function",
 				Function: types.ToolFunction{
@@ -156,9 +155,9 @@ func TestApplyJinjaTemplateWithToolResponseMessage(t *testing.T) {
 	tmpl := string(tmplBytes)
 
 	// Prepare messages with ToolResultMessage
-	messages := message.Prompt{
-		message.NewUserMessage("What is the result?"),
-		message.NewToolCallMessage([]types.ToolCall{
+	messages := types.Prompt{
+		types.NewUserMessage("What is the result?"),
+		types.NewToolCallMessage([]types.ToolCall{
 			{
 				Type: "function",
 				Function: types.ToolFunction{
@@ -170,7 +169,7 @@ func TestApplyJinjaTemplateWithToolResponseMessage(t *testing.T) {
 				},
 			},
 		}),
-		message.NewToolResultMessage("", "calculator", "30"),
+		types.NewToolResultMessage("", "calculator", "30"),
 	}
 
 	result, err := Apply(tmpl, messages, true)
@@ -205,9 +204,9 @@ func TestApplyJinjaTemplateWithMultipleToolCalls(t *testing.T) {
 	tmpl := string(tmplBytes)
 
 	// Prepare messages with multiple tool calls
-	messages := message.Prompt{
-		message.NewUserMessage("Calculate 2+3 and 5*7"),
-		message.NewToolCallMessage([]types.ToolCall{
+	messages := types.Prompt{
+		types.NewUserMessage("Calculate 2+3 and 5*7"),
+		types.NewToolCallMessage([]types.ToolCall{
 			{
 				Type: "function",
 				Function: types.ToolFunction{
@@ -229,8 +228,8 @@ func TestApplyJinjaTemplateWithMultipleToolCalls(t *testing.T) {
 				},
 			},
 		}),
-		message.NewToolResultMessage("", "add", "5"),
-		message.NewToolResultMessage("", "multiply", "35"),
+		types.NewToolResultMessage("", "add", "5"),
+		types.NewToolResultMessage("", "multiply", "35"),
 	}
 
 	result, err := Apply(tmpl, messages, true)

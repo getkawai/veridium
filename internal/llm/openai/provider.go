@@ -25,7 +25,6 @@ import (
 
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
 	"github.com/kawai-network/veridium/types"
-	"github.com/kawai-network/veridium/types/message"
 )
 
 // Note: Provider implements llm.Provider interface
@@ -86,7 +85,7 @@ func (p *Provider) WithoutTools() *Provider {
 }
 
 // Generate generates a response from messages (single turn)
-func (p *Provider) Generate(ctx context.Context, messages message.Prompt) (*types.LLMResponse, error) {
+func (p *Provider) Generate(ctx context.Context, messages types.Prompt) (*types.LLMResponse, error) {
 	// Convert yzma messages to API format
 	apiMessages := p.convertMessages(messages)
 
@@ -127,16 +126,16 @@ func (p *Provider) Generate(ctx context.Context, messages message.Prompt) (*type
 }
 
 // RunAgentLoop runs the agent loop with tool execution
-func (p *Provider) RunAgentLoop(ctx context.Context, messages message.Prompt, maxIterations int) (*types.LLMResponse, message.Prompt, error) {
+func (p *Provider) RunAgentLoop(ctx context.Context, messages types.Prompt, maxIterations int) (*types.LLMResponse, types.Prompt, error) {
 	if maxIterations <= 0 {
 		maxIterations = 10
 	}
 
-	allMessages := make(message.Prompt, len(messages))
+	allMessages := make(types.Prompt, len(messages))
 	copy(allMessages, messages)
 
 	var finalResponse *types.LLMResponse
-	var allToolMessages message.Prompt
+	var allToolMessages types.Prompt
 	var allToolCalls []types.ToolCall
 
 	for i := 0; i < maxIterations; i++ {
@@ -150,10 +149,10 @@ func (p *Provider) RunAgentLoop(ctx context.Context, messages message.Prompt, ma
 
 		// Add assistant response to history
 		if len(resp.ToolCalls) > 0 {
-			allMessages = append(allMessages, message.NewToolCallMessage(resp.ToolCalls))
+			allMessages = append(allMessages, types.NewToolCallMessage(resp.ToolCalls))
 			allToolCalls = append(allToolCalls, resp.ToolCalls...)
 		} else {
-			allMessages = append(allMessages, message.NewAssistantMessage(resp.Content))
+			allMessages = append(allMessages, types.NewAssistantMessage(resp.Content))
 		}
 		finalResponse = resp
 
@@ -183,16 +182,16 @@ func (p *Provider) RunAgentLoop(ctx context.Context, messages message.Prompt, ma
 }
 
 // RunAgentLoopWithStreaming runs the agent loop with streaming
-func (p *Provider) RunAgentLoopWithStreaming(ctx context.Context, messages message.Prompt, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*types.LLMResponse, message.Prompt, error) {
+func (p *Provider) RunAgentLoopWithStreaming(ctx context.Context, messages types.Prompt, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*types.LLMResponse, types.Prompt, error) {
 	if maxIterations <= 0 {
 		maxIterations = 10
 	}
 
-	allMessages := make(message.Prompt, len(messages))
+	allMessages := make(types.Prompt, len(messages))
 	copy(allMessages, messages)
 
 	var finalResponse *types.LLMResponse
-	var allToolMessages message.Prompt
+	var allToolMessages types.Prompt
 	var allToolCalls []types.ToolCall
 
 	for i := 0; i < maxIterations; i++ {
@@ -206,10 +205,10 @@ func (p *Provider) RunAgentLoopWithStreaming(ctx context.Context, messages messa
 
 		// Add assistant response to history
 		if len(resp.ToolCalls) > 0 {
-			allMessages = append(allMessages, message.NewToolCallMessage(resp.ToolCalls))
+			allMessages = append(allMessages, types.NewToolCallMessage(resp.ToolCalls))
 			allToolCalls = append(allToolCalls, resp.ToolCalls...)
 		} else {
-			allMessages = append(allMessages, message.NewAssistantMessage(resp.Content))
+			allMessages = append(allMessages, types.NewAssistantMessage(resp.Content))
 		}
 		finalResponse = resp
 
@@ -237,7 +236,7 @@ func (p *Provider) RunAgentLoopWithStreaming(ctx context.Context, messages messa
 		if toolCallback != nil {
 			for idx, tc := range resp.ToolCalls {
 				if idx < len(toolMessages) {
-					part := toolMessages[idx].Content[0].(message.ToolResultPart)
+					part := toolMessages[idx].Content[0].(types.ToolResultPart)
 					toolCallback(types.ChatEventToolResult, tc, part.Content)
 				}
 			}
@@ -256,7 +255,7 @@ func (p *Provider) RunAgentLoopWithStreaming(ctx context.Context, messages messa
 }
 
 // generateWithStreaming generates a response with streaming
-func (p *Provider) generateWithStreaming(ctx context.Context, messages message.Prompt, callback types.StreamCallback) (*types.LLMResponse, error) {
+func (p *Provider) generateWithStreaming(ctx context.Context, messages types.Prompt, callback types.StreamCallback) (*types.LLMResponse, error) {
 	// Convert messages
 	apiMessages := p.convertMessages(messages)
 
@@ -296,7 +295,7 @@ func (p *Provider) generateWithStreaming(ctx context.Context, messages message.P
 }
 
 // convertMessages converts messages to API format
-func (p *Provider) convertMessages(messages message.Prompt) []types.ChatCompletionMsg {
+func (p *Provider) convertMessages(messages types.Prompt) []types.ChatCompletionMsg {
 	result := make([]types.ChatCompletionMsg, 0, len(messages))
 
 	for _, msg := range messages {
@@ -325,9 +324,9 @@ func (p *Provider) convertMessages(messages message.Prompt) []types.ChatCompleti
 		// Check for tool result
 		for _, part := range msg.Content {
 			switch p := part.(type) {
-			case message.TextPart:
+			case types.TextPart:
 				apiMsg.Content = p.Text
-			case message.ToolResultPart:
+			case types.ToolResultPart:
 				apiMsg.Content = p.Content
 				apiMsg.Name = p.ToolName
 				apiMsg.ToolCallID = p.ToolCallID
@@ -368,12 +367,12 @@ func (p *Provider) getToolDefinitions() []types.APIToolDefinition {
 }
 
 // executeToolCalls executes tool calls and returns tool response messages
-func (p *Provider) executeToolCalls(ctx context.Context, toolCalls []types.ToolCall) (message.Prompt, error) {
+func (p *Provider) executeToolCalls(ctx context.Context, toolCalls []types.ToolCall) (types.Prompt, error) {
 	if p.toolRegistry == nil {
 		return nil, fmt.Errorf("tool registry not available")
 	}
 
-	toolMessages := make(message.Prompt, 0, len(toolCalls))
+	toolMessages := make(types.Prompt, 0, len(toolCalls))
 
 	for _, tc := range toolCalls {
 		log.Printf("🔧 [%s] Executing tool: %s", p.config.Type, tc.Function.Name)
@@ -381,7 +380,7 @@ func (p *Provider) executeToolCalls(ctx context.Context, toolCalls []types.ToolC
 		result, err := p.toolRegistry.Execute(ctx, tc.Function.Name, tc.Function.Arguments)
 		if err != nil {
 			log.Printf("⚠️  Tool execution failed: %v", err)
-			toolMessages = append(toolMessages, message.NewToolErrorMessage(tc.ID, tc.Function.Name, fmt.Sprintf("Error: %v", err)))
+			toolMessages = append(toolMessages, types.NewToolErrorMessage(tc.ID, tc.Function.Name, fmt.Sprintf("Error: %v", err)))
 		} else {
 			// Log truncated result
 			displayResult := result
@@ -389,7 +388,7 @@ func (p *Provider) executeToolCalls(ctx context.Context, toolCalls []types.ToolC
 				displayResult = displayResult[:100] + "..."
 			}
 			log.Printf("✅ Tool result: %s", displayResult)
-			toolMessages = append(toolMessages, message.NewToolResultMessage(tc.ID, tc.Function.Name, result))
+			toolMessages = append(toolMessages, types.NewToolResultMessage(tc.ID, tc.Function.Name, result))
 		}
 	}
 

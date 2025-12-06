@@ -143,11 +143,11 @@ func TestVideoTranscriptionPipeline(t *testing.T) {
 	}
 
 	t.Logf("Transcription completed! Length: %d chars", len(transcription))
-	
+
 	// Count segments
 	segmentCount := strings.Count(transcription, "[Segment")
 	t.Logf("Total segments: %d", segmentCount)
-	
+
 	t.Logf("Preview: %s...", transcription[:min(800, len(transcription))])
 }
 

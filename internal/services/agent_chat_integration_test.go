@@ -19,7 +19,6 @@ import (
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
 	yzmabuiltin "github.com/kawai-network/veridium/pkg/yzma/tools/builtin"
 	"github.com/kawai-network/veridium/types"
-	"github.com/kawai-network/veridium/types/message"
 )
 
 // TestChatRealStream_Integration tests the ChatRealStream method with real LLM providers.
@@ -337,21 +336,21 @@ type MockProvider struct {
 	name string
 }
 
-func (m *MockProvider) Generate(ctx context.Context, messages []message.Message) (*types.LLMResponse, error) {
+func (m *MockProvider) Generate(ctx context.Context, messages []types.Message) (*types.LLMResponse, error) {
 	return &types.LLMResponse{
 		Content:      "Mock response from " + m.name,
 		FinishReason: "stop",
 	}, nil
 }
 
-func (m *MockProvider) RunAgentLoop(ctx context.Context, messages []message.Message, maxIterations int) (*types.LLMResponse, []message.Message, error) {
+func (m *MockProvider) RunAgentLoop(ctx context.Context, messages []types.Message, maxIterations int) (*types.LLMResponse, []types.Message, error) {
 	return &types.LLMResponse{
 		Content:      "Mock response from " + m.name,
 		FinishReason: "stop",
 	}, nil, nil
 }
 
-func (m *MockProvider) RunAgentLoopWithStreaming(ctx context.Context, messages []message.Message, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*types.LLMResponse, []message.Message, error) {
+func (m *MockProvider) RunAgentLoopWithStreaming(ctx context.Context, messages []types.Message, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*types.LLMResponse, []types.Message, error) {
 	if streamCallback != nil {
 		streamCallback("Mock ", false)
 		streamCallback("response ", false)

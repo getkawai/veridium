@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/kawai-network/veridium/types/message"
+	"github.com/kawai-network/veridium/types"
 	"github.com/nikolalohinski/gonja/v2"
 	"github.com/nikolalohinski/gonja/v2/exec"
 	"github.com/nikolalohinski/gonja/v2/loaders"
@@ -21,9 +21,9 @@ func raiseExceptionFunc(msg string) string {
 	return ""
 }
 
-// Apply applies a jinja chat template to a slice of [message.Message], Set addAssistantPrompt to true to generate the
+// Apply applies a jinja chat template to a slice of [types.Message], Set addAssistantPrompt to true to generate the
 // assistant prompt, for example on the first message.
-func Apply(tmpl string, messages []message.Message, addAssistantPrompt bool) (string, error) {
+func Apply(tmpl string, messages []types.Message, addAssistantPrompt bool) (string, error) {
 	// prevent filesystem access
 	gonja.DefaultLoader = &NoFSLoader{}
 

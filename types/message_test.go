@@ -1,10 +1,8 @@
-package message
+package types
 
 import (
 	"reflect"
 	"testing"
-
-	"github.com/kawai-network/veridium/types"
 )
 
 func TestMessage_GetRole(t *testing.T) {
@@ -38,11 +36,11 @@ func TestMessage_GetContent(t *testing.T) {
 	})
 
 	t.Run("tool call message", func(t *testing.T) {
-		toolCalls := []types.ToolCall{
+		toolCalls := []ToolCall{
 			{
 				ID:   "call_123",
 				Type: "function",
-				Function: types.ToolFunction{
+				Function: ToolFunction{
 					Name: "add",
 					Arguments: map[string]string{
 						"a": "1",
@@ -90,9 +88,9 @@ func TestMessage_GetText(t *testing.T) {
 }
 
 func TestMessage_GetToolCalls(t *testing.T) {
-	toolCalls := []types.ToolCall{
-		{ID: "call_1", Type: "function", Function: types.ToolFunction{Name: "func1"}},
-		{ID: "call_2", Type: "function", Function: types.ToolFunction{Name: "func2"}},
+	toolCalls := []ToolCall{
+		{ID: "call_1", Type: "function", Function: ToolFunction{Name: "func1"}},
+		{ID: "call_2", Type: "function", Function: ToolFunction{Name: "func2"}},
 	}
 	msg := NewToolCallMessage(toolCalls)
 
@@ -107,7 +105,7 @@ func TestMessage_GetToolCalls(t *testing.T) {
 
 func TestMessage_HasToolCalls(t *testing.T) {
 	t.Run("message with tool calls", func(t *testing.T) {
-		msg := NewToolCallMessage([]types.ToolCall{{ID: "1"}})
+		msg := NewToolCallMessage([]ToolCall{{ID: "1"}})
 		if !msg.HasToolCalls() {
 			t.Error("HasToolCalls() = false, want true")
 		}
@@ -124,8 +122,8 @@ func TestMessage_HasToolCalls(t *testing.T) {
 func TestNewUserMessage(t *testing.T) {
 	t.Run("text only", func(t *testing.T) {
 		msg := NewUserMessage("Hello")
-		if msg.Role != RoleUser {
-			t.Errorf("Role = %v, want %v", msg.Role, RoleUser)
+		if msg.Role != MessageRoleUser {
+			t.Errorf("Role = %v, want %v", msg.Role, MessageRoleUser)
 		}
 		if len(msg.Content) != 1 {
 			t.Errorf("Content length = %d, want %d", len(msg.Content), 1)
@@ -148,8 +146,8 @@ func TestNewUserMessage(t *testing.T) {
 func TestNewToolResultMessage(t *testing.T) {
 	msg := NewToolResultMessage("call_123", "search", "results")
 
-	if msg.Role != RoleTool {
-		t.Errorf("Role = %v, want %v", msg.Role, RoleTool)
+	if msg.Role != MessageRoleTool {
+		t.Errorf("Role = %v, want %v", msg.Role, MessageRoleTool)
 	}
 
 	if len(msg.Content) != 1 {
@@ -187,14 +185,14 @@ func TestNewToolErrorMessage(t *testing.T) {
 func TestPartTypes(t *testing.T) {
 	tests := []struct {
 		name string
-		part Part
-		want ContentType
+		part MessagePart
+		want MessageContentType
 	}{
-		{"TextPart", TextPart{Text: "hello"}, ContentTypeText},
-		{"ReasoningPart", ReasoningPart{Text: "thinking..."}, ContentTypeReasoning},
-		{"FilePart", FilePart{Filename: "test.txt"}, ContentTypeFile},
-		{"ToolCallPart", ToolCallPart{}, ContentTypeToolCall},
-		{"ToolResultPart", ToolResultPart{}, ContentTypeToolResult},
+		{"TextPart", TextPart{Text: "hello"}, MessageContentTypeText},
+		{"ReasoningPart", ReasoningPart{Text: "thinking..."}, MessageContentTypeReasoning},
+		{"FilePart", FilePart{Filename: "test.txt"}, MessageContentTypeFile},
+		{"ToolCallPart", ToolCallPart{}, MessageContentTypeToolCall},
+		{"ToolResultPart", ToolResultPart{}, MessageContentTypeToolResult},
 	}
 
 	for _, tt := range tests {
@@ -224,12 +222,12 @@ func TestPrompt(t *testing.T) {
 
 func TestNewTextMessage(t *testing.T) {
 	tests := []struct {
-		role Role
+		role MessageRole
 		text string
 	}{
-		{RoleUser, "user message"},
-		{RoleAssistant, "assistant message"},
-		{RoleSystem, "system message"},
+		{MessageRoleUser, "user message"},
+		{MessageRoleAssistant, "assistant message"},
+		{MessageRoleSystem, "system message"},
 	}
 
 	for _, tt := range tests {
@@ -246,7 +244,7 @@ func TestNewTextMessage(t *testing.T) {
 }
 
 func TestGetContent_Empty(t *testing.T) {
-	msg := Message{Role: RoleUser, Content: []Part{}}
+	msg := Message{Role: MessageRoleUser, Content: []MessagePart{}}
 	content := msg.GetContent()
 
 	if len(content) != 0 {
@@ -261,8 +259,8 @@ func TestFilePart_GetType(t *testing.T) {
 		MediaType: "image/png",
 	}
 
-	if got := f.GetType(); got != ContentTypeFile {
-		t.Errorf("GetType() = %v, want %v", got, ContentTypeFile)
+	if got := f.GetType(); got != MessageContentTypeFile {
+		t.Errorf("GetType() = %v, want %v", got, MessageContentTypeFile)
 	}
 
 	if !reflect.DeepEqual(f.Data, []byte{0x89, 0x50, 0x4E, 0x47}) {

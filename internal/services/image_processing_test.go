@@ -67,7 +67,7 @@ func TestHybridImageProcessing_OCRPath(t *testing.T) {
 	// Process image
 	t.Log("Processing image (expecting OCR fast path)...")
 	start := time.Now()
-	
+
 	result, err := processor.ProcessFile(ctx, services.ProcessFileRequest{
 		FilePath:  testImagePath,
 		Filename:  "test_image.png",
@@ -89,8 +89,8 @@ func TestHybridImageProcessing_OCRPath(t *testing.T) {
 	for time.Now().Before(deadline) {
 		doc, err := queries.GetDocumentByFileID(ctx, sql.NullString{String: result.FileID, Valid: true})
 		if err == nil && doc.Content.Valid {
-			if strings.Contains(doc.Content.String, "OCR Text") || 
-			   strings.Contains(doc.Content.String, "Image Description") {
+			if strings.Contains(doc.Content.String, "OCR Text") ||
+				strings.Contains(doc.Content.String, "Image Description") {
 				content = doc.Content.String
 				break
 			}
@@ -99,7 +99,7 @@ func TestHybridImageProcessing_OCRPath(t *testing.T) {
 	}
 
 	elapsed := time.Since(start)
-	
+
 	if content == "" {
 		t.Fatal("Image content not generated within timeout")
 	}
@@ -107,7 +107,7 @@ func TestHybridImageProcessing_OCRPath(t *testing.T) {
 	t.Logf("Processing completed in %v", elapsed)
 	t.Logf("Content type: %s", getContentType(content))
 	t.Logf("Content length: %d chars", len(content))
-	
+
 	// Check if it used OCR (fast path)
 	if strings.Contains(content, "OCR Text (Tesseract") {
 		t.Log("✅ Used OCR fast path")

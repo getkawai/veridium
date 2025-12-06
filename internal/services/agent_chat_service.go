@@ -37,7 +37,6 @@ import (
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
 	yzmabuiltin "github.com/kawai-network/veridium/pkg/yzma/tools/builtin"
 	"github.com/kawai-network/veridium/types"
-	"github.com/kawai-network/veridium/types/message"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -83,7 +82,7 @@ type AgentChatService struct {
 type AgentSession struct {
 	SessionID       string
 	UserID          string
-	Messages        []message.Message // Native yzma messages
+	Messages        []types.Message // Native yzma messages
 	KnowledgeBaseID string
 	ToolNames       []string // Tool names to use for this session
 	Context         map[string]any
@@ -612,7 +611,7 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*UIChatMe
 	var finalMessage string
 	var toolCalls []types.ToolCall
 	var usage *types.LLMResponse
-	var toolMessages []message.Message
+	var toolMessages []types.Message
 
 	if req.Stream && s.app != nil {
 		// Use streaming with agent loop
@@ -645,9 +644,9 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*UIChatMe
 
 	// Add assistant response to session
 	if len(toolCalls) > 0 {
-		session.Messages = append(session.Messages, message.NewToolCallMessage(toolCalls))
+		session.Messages = append(session.Messages, types.NewToolCallMessage(toolCalls))
 	} else {
-		session.Messages = append(session.Messages, message.NewAssistantMessage(finalMessage))
+		session.Messages = append(session.Messages, types.NewAssistantMessage(finalMessage))
 	}
 
 	// Monitor context usage and provide warnings/recommendations
@@ -706,11 +705,11 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*UIChatMe
 	}
 
 	// Save assistant message to DB with topic and thread IDs
-	var assistantMsgForDB message.Message
+	var assistantMsgForDB types.Message
 	if len(toolCalls) > 0 {
-		assistantMsgForDB = message.NewToolCallMessage(toolCalls)
+		assistantMsgForDB = types.NewToolCallMessage(toolCalls)
 	} else {
-		assistantMsgForDB = message.NewAssistantMessage(finalMessage)
+		assistantMsgForDB = types.NewAssistantMessage(finalMessage)
 	}
 	savedMsgID, err := s.saveYzmaMessageToDBWithID(ctx, assistantMsgForDB, session.SessionID, session.UserID, currentTopicID, req.ThreadID, assistantMsgID)
 	if err != nil {
@@ -818,7 +817,7 @@ func (s *AgentChatService) getOrCreateSession(ctx context.Context, req ChatReque
 		log.Printf("📂 Loading session from DB: %s (%d messages)", req.SessionID, len(dbMessages))
 
 		// Convert DB messages to message format
-		yzmaMessages := make([]message.Message, 0, len(dbMessages))
+		yzmaMessages := make([]types.Message, 0, len(dbMessages))
 		for _, dbMsg := range dbMessages {
 			if msg, ok := convertDBMessageToYzma(&dbMsg); ok {
 				yzmaMessages = append(yzmaMessages, msg)
@@ -886,7 +885,7 @@ func (s *AgentChatService) getOrCreateSession(ctx context.Context, req ChatReque
 			}
 
 			// Convert DB messages to message format
-			yzmaMessages := make([]message.Message, 0, len(dbMessages))
+			yzmaMessages := make([]types.Message, 0, len(dbMessages))
 			for _, dbMsg := range dbMessages {
 				if msg, ok := convertDBMessageToYzma(&dbMsg); ok {
 					yzmaMessages = append(yzmaMessages, msg)
@@ -926,7 +925,7 @@ func (s *AgentChatService) getOrCreateSession(ctx context.Context, req ChatReque
 	session := &AgentSession{
 		SessionID:       req.SessionID,
 		UserID:          req.UserID,
-		Messages:        make([]message.Message, 0),
+		Messages:        make([]types.Message, 0),
 		KnowledgeBaseID: req.KnowledgeBaseID,
 		ToolNames:       toolNames,
 		Context:         req.Context,
@@ -974,7 +973,7 @@ func (s *AgentChatService) collectToolNames(ctx context.Context, req ChatRequest
 }
 
 // prepareMessagesWithSystemPrompt prepares messages with system prompt for yzma
-func (s *AgentChatService) prepareMessagesWithSystemPrompt(messages []message.Message, session *AgentSession) []message.Message {
+func (s *AgentChatService) prepareMessagesWithSystemPrompt(messages []types.Message, session *AgentSession) []types.Message {
 	// Build base instruction
 	baseInstruction := "You are a helpful AI assistant. "
 
@@ -1007,21 +1006,21 @@ func (s *AgentChatService) prepareMessagesWithSystemPrompt(messages []message.Me
 	// Check if messages already have system prompt
 	if len(messages) > 0 && messages[0].GetRole() == "system" {
 		// Update existing system prompt
-		result := make([]message.Message, len(messages))
+		result := make([]types.Message, len(messages))
 		copy(result, messages)
-		result[0] = message.NewSystemMessage(instruction)
+		result[0] = types.NewSystemMessage(instruction)
 		return result
 	}
 
 	// Prepend system prompt
-	result := make([]message.Message, 0, len(messages)+1)
-	result = append(result, message.NewSystemMessage(instruction))
+	result := make([]types.Message, 0, len(messages)+1)
+	result = append(result, types.NewSystemMessage(instruction))
 	result = append(result, messages...)
 	return result
 }
 
 // generateWithStreaming generates response with streaming using llm.Provider interface
-func (s *AgentChatService) generateWithStreaming(ctx context.Context, session *AgentSession, messageID string, messages []message.Message, provider llm.Provider) (*types.LLMResponse, []message.Message, error) {
+func (s *AgentChatService) generateWithStreaming(ctx context.Context, session *AgentSession, messageID string, messages []types.Message, provider llm.Provider) (*types.LLMResponse, []types.Message, error) {
 	// Emit start event
 	if s.app != nil {
 		s.app.Event.Emit("chat:stream", map[string]interface{}{
@@ -1235,7 +1234,7 @@ func (s *AgentChatService) ClearSession(sessionID string) {
 }
 
 // GetSessionHistory returns the message history for a session (native yzma format)
-func (s *AgentChatService) GetSessionHistory(sessionID string) ([]message.Message, error) {
+func (s *AgentChatService) GetSessionHistory(sessionID string) ([]types.Message, error) {
 	s.sessionsMutex.RLock()
 	defer s.sessionsMutex.RUnlock()
 
@@ -1259,7 +1258,7 @@ func (s *AgentChatService) SetTitleModel(modelPath string) {
 
 // generateTopicTitle generates a concise title for the conversation using LLM
 // Uses TaskRouter to route to appropriate provider (remote or local)
-func (s *AgentChatService) generateTopicTitle(ctx context.Context, messages []message.Message, locale string) (string, error) {
+func (s *AgentChatService) generateTopicTitle(ctx context.Context, messages []types.Message, locale string) (string, error) {
 	if len(messages) == 0 {
 		return "New Conversation", nil
 	}
@@ -1294,9 +1293,9 @@ Example: Sleep Functions for Body and Mind`, locale)
 	log.Printf("📝 Generating title for conversation (%d messages, %d chars)", len(messages), len(conversationText))
 
 	// Create messages for title generation
-	titleMessages := message.Prompt{
-		message.NewSystemMessage(systemPrompt),
-		message.NewUserMessage(conversationText),
+	titleMessages := types.Prompt{
+		types.NewSystemMessage(systemPrompt),
+		types.NewUserMessage(conversationText),
 	}
 
 	var responseContent string
@@ -1462,9 +1461,9 @@ func (s *AgentChatService) createTopicForSessionSync(ctx context.Context, sessio
 
 // updateTopicTitle updates an existing topic with LLM-generated title
 // Phase 4 FIX: Used to update placeholder topic with meaningful title after first response
-func (s *AgentChatService) updateTopicTitle(ctx context.Context, topicID, userID string, messages []message.Message) error {
+func (s *AgentChatService) updateTopicTitle(ctx context.Context, topicID, userID string, messages []types.Message) error {
 	// Create a copy of messages to avoid race conditions
-	messagesCopy := make([]message.Message, len(messages))
+	messagesCopy := make([]types.Message, len(messages))
 	copy(messagesCopy, messages)
 
 	// Run in background
@@ -1527,7 +1526,7 @@ func (s *AgentChatService) updateTopicTitle(ctx context.Context, topicID, userID
 
 // createTopicForSessionWithTitle creates a topic with LLM-generated title and returns topicID
 // Phase 4: Used after first response to create/update topic with meaningful title
-func (s *AgentChatService) createTopicForSessionWithTitle(ctx context.Context, sessionID, userID string, messages []message.Message) (string, error) {
+func (s *AgentChatService) createTopicForSessionWithTitle(ctx context.Context, sessionID, userID string, messages []types.Message) (string, error) {
 	// Check if topic already exists for this session
 	count, err := s.db.Queries().CountTopicsBySession(ctx, db.CountTopicsBySessionParams{
 		SessionID: sql.NullString{String: sessionID, Valid: true},
@@ -1568,7 +1567,7 @@ func (s *AgentChatService) createTopicForSessionWithTitle(ctx context.Context, s
 	}
 
 	// Generate title in BACKGROUND to avoid blocking (model loading can take 2-5 seconds)
-	messagesCopy := make([]message.Message, len(messages))
+	messagesCopy := make([]types.Message, len(messages))
 	copy(messagesCopy, messages)
 
 	topicIDCopy := topicID
@@ -1619,7 +1618,7 @@ func (s *AgentChatService) createTopicForSessionWithTitle(ctx context.Context, s
 
 // convertDBMessageToYzma converts a database message to native message
 // Returns the message and a boolean indicating if conversion was successful
-func convertDBMessageToYzma(dbMsg *db.Message) (message.Message, bool) {
+func convertDBMessageToYzma(dbMsg *db.Message) (types.Message, bool) {
 	role := dbMsg.Role
 	content := ""
 	if dbMsg.Content.Valid {
@@ -1630,31 +1629,31 @@ func convertDBMessageToYzma(dbMsg *db.Message) (message.Message, bool) {
 	if dbMsg.Tools.Valid && dbMsg.Tools.String != "" {
 		var toolCalls []types.ToolCall
 		if err := json.Unmarshal([]byte(dbMsg.Tools.String), &toolCalls); err == nil && len(toolCalls) > 0 {
-			return message.NewToolCallMessage(toolCalls), true
+			return types.NewToolCallMessage(toolCalls), true
 		}
 	}
 
 	// Check for tool response
 	if role == "tool" && content != "" {
-		return message.NewToolResultMessage("", "", content), true
+		return types.NewToolResultMessage("", "", content), true
 	}
 
 	// Skip empty messages
 	if role == "" && content == "" {
-		return message.Message{}, false
+		return types.Message{}, false
 	}
 
 	// Regular chat message
-	return message.NewTextMessage(message.Role(role), content), true
+	return types.NewTextMessage(types.MessageRole(role), content), true
 }
 
 // convertYzmaMessageToDB converts yzma message to DB message params
-func convertYzmaMessageToDB(msg message.Message, sessionID, userID string) db.CreateMessageParams {
+func convertYzmaMessageToDB(msg types.Message, sessionID, userID string) db.CreateMessageParams {
 	return convertYzmaMessageToDBWithID(msg, sessionID, userID, "")
 }
 
 // convertYzmaMessageToDBWithID converts yzma message to DB message params with optional pre-generated ID
-func convertYzmaMessageToDBWithID(msg message.Message, sessionID, userID, messageID string) db.CreateMessageParams {
+func convertYzmaMessageToDBWithID(msg types.Message, sessionID, userID, messageID string) db.CreateMessageParams {
 	now := time.Now().UnixMilli()
 
 	// Use pre-generated ID if provided, otherwise generate new one
@@ -1691,7 +1690,7 @@ func convertYzmaMessageToDBWithID(msg message.Message, sessionID, userID, messag
 
 	// Check for tool result
 	for _, part := range msg.Content {
-		if p, ok := part.(message.ToolResultPart); ok {
+		if p, ok := part.(types.ToolResultPart); ok {
 			params.Content = sql.NullString{String: p.Content, Valid: true}
 			params.Role = "tool"
 			break
@@ -1777,11 +1776,11 @@ func (s *AgentChatService) createSessionInDB(ctx context.Context, sessionID, use
 // saveMessageToDB saves a message to database
 // saveMessageToDB saves a message to the database
 // Phase 4: Now accepts topicID and threadID for proper message linking
-func (s *AgentChatService) saveYzmaMessageToDB(ctx context.Context, msg message.Message, sessionID, userID, topicID, threadID string) (string, error) {
+func (s *AgentChatService) saveYzmaMessageToDB(ctx context.Context, msg types.Message, sessionID, userID, topicID, threadID string) (string, error) {
 	return s.saveYzmaMessageToDBWithID(ctx, msg, sessionID, userID, topicID, threadID, "")
 }
 
-func (s *AgentChatService) saveYzmaMessageToDBWithID(ctx context.Context, msg message.Message, sessionID, userID, topicID, threadID, messageID string) (string, error) {
+func (s *AgentChatService) saveYzmaMessageToDBWithID(ctx context.Context, msg types.Message, sessionID, userID, topicID, threadID, messageID string) (string, error) {
 	params := convertYzmaMessageToDBWithID(msg, sessionID, userID, messageID)
 
 	if topicID != "" {
@@ -2006,7 +2005,7 @@ func (s *AgentChatService) autoSummarizeIfNeeded(ctx context.Context, session *A
 	oldMessages := messages[:len(messages)-keepCount]
 
 	// 6. Convert to message format
-	yzmaMessages := make([]message.Message, 0, len(oldMessages))
+	yzmaMessages := make([]types.Message, 0, len(oldMessages))
 	for _, dbMsg := range oldMessages {
 		if msg, ok := convertDBMessageToYzma(&dbMsg); ok {
 			yzmaMessages = append(yzmaMessages, msg)
@@ -2077,7 +2076,7 @@ func (s *AgentChatService) getKeepMessageCount() int {
 
 // generateHistorySummary generates summary using TaskRouter or local fallback
 // Uses TaskRouter first, then falls back to local models
-func (s *AgentChatService) generateHistorySummary(ctx context.Context, messages []message.Message) (string, error) {
+func (s *AgentChatService) generateHistorySummary(ctx context.Context, messages []types.Message) (string, error) {
 	if len(messages) == 0 {
 		return "", fmt.Errorf("no messages to summarize")
 	}
@@ -2109,9 +2108,9 @@ Rules:
 Please summarize the above conversation and retain key information. The summarized content will be used as context for subsequent prompts.`, conversationText)
 
 	// Create messages for summary generation
-	summaryMessages := message.Prompt{
-		message.NewSystemMessage(systemPrompt),
-		message.NewUserMessage(conversationContent),
+	summaryMessages := types.Prompt{
+		types.NewSystemMessage(systemPrompt),
+		types.NewUserMessage(conversationContent),
 	}
 
 	var responseContent string
@@ -2284,7 +2283,7 @@ func (s *AgentChatService) incrementalSummarizeIfNeeded(ctx context.Context, ses
 	messagesToSummarize := newMessages[:len(newMessages)-keepCount]
 
 	// 9. Convert DB messages to messages
-	yzmaMessages := make([]message.Message, 0, len(messagesToSummarize))
+	yzmaMessages := make([]types.Message, 0, len(messagesToSummarize))
 	for _, dbMsg := range messagesToSummarize {
 		if msg, ok := convertDBMessageToYzma(&dbMsg); ok {
 			yzmaMessages = append(yzmaMessages, msg)
@@ -2341,7 +2340,7 @@ func (s *AgentChatService) incrementalSummarizeIfNeeded(ctx context.Context, ses
 }
 
 // generateIncrementalSummary creates updated summary by merging existing summary with new messages
-func (s *AgentChatService) generateIncrementalSummary(ctx context.Context, existingSummary string, newMessages []message.Message) (string, error) {
+func (s *AgentChatService) generateIncrementalSummary(ctx context.Context, existingSummary string, newMessages []types.Message) (string, error) {
 	// Build conversation context from new messages
 	var messagesText strings.Builder
 	for i, msg := range newMessages {
@@ -2382,8 +2381,8 @@ INSTRUCTIONS:
 UPDATED SUMMARY:`, existingSummary, messagesText.String())
 
 	// Create messages for incremental summary
-	summaryMessages := message.Prompt{
-		message.NewUserMessage(prompt),
+	summaryMessages := types.Prompt{
+		types.NewUserMessage(prompt),
 	}
 
 	// Try 1: Summary model (BEST)

@@ -13,7 +13,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/kawai-network/veridium/internal/llm"
 	"github.com/kawai-network/veridium/types"
-	"github.com/kawai-network/veridium/types/message"
 )
 
 // ToolNameMapping maps Yzma tool names to frontend-compatible identifier/apiName pairs
@@ -206,7 +205,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 			for i := len(messagesWithSystem) - 1; i >= 0; i-- {
 				if messagesWithSystem[i].GetRole() == "user" {
 					originalText := messagesWithSystem[i].GetText()
-					messagesWithSystem[i] = message.NewUserMessage(originalText + fileContext)
+					messagesWithSystem[i] = types.NewUserMessage(originalText + fileContext)
 					break
 				}
 			}
@@ -237,7 +236,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	var finalContent strings.Builder
 	var reasoningContent strings.Builder
 	var toolCalls []types.ToolCall
-	var toolMessages []message.Message
+	var toolMessages []types.Message
 	var usage *ModelUsage
 	var llmResp interface{}
 	var uiTools []ChatToolPayload
@@ -432,9 +431,9 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	// 8. Add messages to session history
 	session.Messages = append(session.Messages, toolMessages...)
 	if len(toolCalls) > 0 {
-		session.Messages = append(session.Messages, message.NewToolCallMessage(toolCalls))
+		session.Messages = append(session.Messages, types.NewToolCallMessage(toolCalls))
 	} else {
-		session.Messages = append(session.Messages, message.NewAssistantMessage(finalContentStr))
+		session.Messages = append(session.Messages, types.NewAssistantMessage(finalContentStr))
 	}
 
 	// 9. Build performance metrics
