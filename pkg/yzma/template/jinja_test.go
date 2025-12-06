@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kawai-network/veridium/pkg/yzma/message"
 	"github.com/kawai-network/veridium/types"
+	"github.com/kawai-network/veridium/types/message"
 )
 
 func TestChatMLTemplate(t *testing.T) {

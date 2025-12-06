@@ -24,10 +24,10 @@ import (
 	"time"
 
 	"github.com/kawai-network/veridium/pkg/yzma/llama"
-	"github.com/kawai-network/veridium/pkg/yzma/message"
 	"github.com/kawai-network/veridium/pkg/yzma/template"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
 	"github.com/kawai-network/veridium/types"
+	"github.com/kawai-network/veridium/types/message"
 )
 
 // Default max iterations for agent loop

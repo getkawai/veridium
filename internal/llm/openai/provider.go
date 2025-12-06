@@ -23,9 +23,9 @@ import (
 	"log"
 	"strings"
 
-	"github.com/kawai-network/veridium/pkg/yzma/message"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
 	"github.com/kawai-network/veridium/types"
+	"github.com/kawai-network/veridium/types/message"
 )
 
 // Note: Provider implements llm.Provider interface

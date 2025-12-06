@@ -20,8 +20,8 @@ package llm
 import (
 	"context"
 
-	"github.com/kawai-network/veridium/pkg/yzma/message"
 	"github.com/kawai-network/veridium/types"
+	"github.com/kawai-network/veridium/types/message"
 )
 
 // Provider defines the interface for LLM generation operations
@@ -42,4 +42,3 @@ type Provider interface {
 	// WithoutTools returns a new provider with tools disabled
 	WithoutTools() Provider
 }
-

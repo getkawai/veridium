@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/kawai-network/veridium/internal/llm"
-	"github.com/kawai-network/veridium/pkg/yzma/message"
+	"github.com/kawai-network/veridium/types/message"
 )
 
 // TaskRouterAdapter wraps TaskRouter to implement LLMProvider interface
@@ -99,7 +99,7 @@ func (a *TaskRouterAdapter) GenerateText(ctx context.Context, prompt string) (st
 // detectTaskType determines which task type to use based on prompt content
 func (a *TaskRouterAdapter) detectTaskType(prompt string) llm.TaskType {
 	promptLower := strings.ToLower(prompt)
-	
+
 	// Check for transcript cleanup indicators
 	if strings.Contains(promptLower, "transcription") ||
 		strings.Contains(promptLower, "whisper") ||
@@ -107,7 +107,7 @@ func (a *TaskRouterAdapter) detectTaskType(prompt string) llm.TaskType {
 		strings.Contains(promptLower, "video transcription") {
 		return llm.TaskTranscriptCleanup
 	}
-	
+
 	// Default to OCR cleanup
 	return llm.TaskOCRCleanup
 }

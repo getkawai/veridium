@@ -21,21 +21,21 @@ import (
 	"log"
 	"sync"
 
-	"github.com/kawai-network/veridium/pkg/yzma/message"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
 	"github.com/kawai-network/veridium/types"
+	"github.com/kawai-network/veridium/types/message"
 )
 
 // TaskType defines the type of LLM task for routing
 type TaskType string
 
 const (
-	TaskChat               TaskType = "chat"                // Main conversation with streaming & tools
-	TaskTitleGen           TaskType = "title"               // Title generation (lightweight)
-	TaskSummaryGen         TaskType = "summary"             // Summary generation (background)
-	TaskImageDescribe      TaskType = "image_describe"      // Image description (VL model)
-	TaskOCRCleanup         TaskType = "ocr_cleanup"         // OCR text cleanup (remote first, local fallback)
-	TaskTranscriptCleanup  TaskType = "transcript_cleanup"  // Video transcript cleanup (remote first, local fallback)
+	TaskChat              TaskType = "chat"               // Main conversation with streaming & tools
+	TaskTitleGen          TaskType = "title"              // Title generation (lightweight)
+	TaskSummaryGen        TaskType = "summary"            // Summary generation (background)
+	TaskImageDescribe     TaskType = "image_describe"     // Image description (VL model)
+	TaskOCRCleanup        TaskType = "ocr_cleanup"        // OCR text cleanup (remote first, local fallback)
+	TaskTranscriptCleanup TaskType = "transcript_cleanup" // Video transcript cleanup (remote first, local fallback)
 )
 
 // ============================================================================
@@ -67,8 +67,8 @@ const (
 // 3. Local Qwen VL generates description (async, ~60-90 seconds for images)
 // 4. Description saved to documents table
 // 5. LLM uses "lobe-image-describe__getImageDescription" tool to get description
-//    - Tool polls DB for up to 2 minutes waiting for VL to complete
-//    - Returns description content from documents table
+//   - Tool polls DB for up to 2 minutes waiting for VL to complete
+//   - Returns description content from documents table
 //
 // ============================================================================
 type TaskRouter struct {

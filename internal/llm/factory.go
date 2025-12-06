@@ -22,9 +22,9 @@ import (
 	"log"
 
 	"github.com/kawai-network/veridium/internal/llm/openai"
-	"github.com/kawai-network/veridium/pkg/yzma/message"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
 	"github.com/kawai-network/veridium/types"
+	"github.com/kawai-network/veridium/types/message"
 )
 
 // ProviderFactory creates LLM providers based on configuration

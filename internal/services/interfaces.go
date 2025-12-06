@@ -21,8 +21,8 @@ import (
 
 	"github.com/kawai-network/veridium/internal/llama"
 	"github.com/kawai-network/veridium/internal/llm"
-	"github.com/kawai-network/veridium/pkg/yzma/message"
 	"github.com/kawai-network/veridium/types"
+	"github.com/kawai-network/veridium/types/message"
 )
 
 // LlamaProviderAdapter wraps LlamaYzmaModel to implement llm.Provider interface

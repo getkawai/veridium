@@ -34,10 +34,10 @@ import (
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/internal/llama"
 	"github.com/kawai-network/veridium/internal/llm"
-	"github.com/kawai-network/veridium/pkg/yzma/message"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
 	yzmabuiltin "github.com/kawai-network/veridium/pkg/yzma/tools/builtin"
 	"github.com/kawai-network/veridium/types"
+	"github.com/kawai-network/veridium/types/message"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 

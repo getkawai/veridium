@@ -12,8 +12,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/kawai-network/veridium/internal/llm"
-	"github.com/kawai-network/veridium/pkg/yzma/message"
 	"github.com/kawai-network/veridium/types"
+	"github.com/kawai-network/veridium/types/message"
 )
 
 // ToolNameMapping maps Yzma tool names to frontend-compatible identifier/apiName pairs
