@@ -768,13 +768,13 @@ func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*UIChatMe
 	if len(toolCalls) > 0 {
 		uiTools = make([]ChatToolPayload, len(toolCalls))
 		for i, tc := range toolCalls {
-			argsJSON, _ := json.Marshal(tc.Function.Arguments)
+			identifier, apiName, toolType := mapToolName(tc.Name)
 			uiTools[i] = ChatToolPayload{
 				ID:         fmt.Sprintf("%s_%d", assistantMsgID, i),
-				APIName:    tc.Function.Name,
-				Identifier: tc.Function.Name,
-				Arguments:  string(argsJSON),
-				Type:       tc.Type,
+				APIName:    apiName,
+				Identifier: identifier,
+				Arguments:  tc.Input,
+				Type:       toolType,
 			}
 		}
 	}
@@ -1125,13 +1125,14 @@ func (s *AgentChatService) generateWithStreaming(ctx context.Context, session *A
 		for i, tc := range resp.ToolCalls {
 			// Generate unique ID for each tool call
 			toolCallID := fmt.Sprintf("%s_%d", messageID, i)
+			identifier, apiName, toolType := mapToolName(tc.Name)
 
 			frontendTools[i] = map[string]interface{}{
 				"id":         toolCallID,
-				"identifier": tc.Function.Name,
-				"apiName":    tc.Function.Name,
-				"arguments":  tc.Function.Arguments,
-				"type":       tc.Type,
+				"identifier": identifier,
+				"apiName":    apiName,
+				"arguments":  tc.Input,
+				"type":       toolType,
 			}
 		}
 
@@ -1165,8 +1166,8 @@ func (s *AgentChatService) registerKBSearchTool(ctx context.Context, kbID, userI
 	// Create yzma tool
 	kbService := s.kbService
 	tool := &types.Tool{
-		Type: "function",
-		Function: types.ToolFunction{
+		Type: fantasy.ToolTypeFunction,
+		Definition: types.ToolDefinition{
 			Name:        toolName,
 			Description: fmt.Sprintf("Search the %s knowledge base for relevant information", kb.Name),
 			Parameters: map[string]interface{}{

@@ -6,8 +6,21 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/kawai-network/veridium/types"
 )
+
+// argsToJSON converts map[string]string to JSON string
+func argsToJSON(args map[string]string) string {
+	if args == nil {
+		return "{}"
+	}
+	b, err := json.Marshal(args)
+	if err != nil {
+		return "{}"
+	}
+	return string(b)
+}
 
 // ToolRegistry manages yzma tools
 type ToolRegistry struct {
@@ -23,14 +36,14 @@ func NewToolRegistry() *ToolRegistry {
 
 // Register registers a tool
 func (r *ToolRegistry) Register(tool *types.Tool) error {
-	if tool.Function.Name == "" {
+	if tool.Definition.Name == "" {
 		return fmt.Errorf("tool name is required")
 	}
 	if tool.Executor == nil {
 		return fmt.Errorf("tool executor is required")
 	}
 
-	r.tools[tool.Function.Name] = tool
+	r.tools[tool.Definition.Name] = tool
 	return nil
 }
 
@@ -119,9 +132,9 @@ func (r *ToolRegistry) FormatForPrompt(toolNames []string) (string, error) {
 		simplified[i] = map[string]interface{}{
 			"type": t.Type,
 			"function": map[string]interface{}{
-				"name":        t.Function.Name,
-				"description": t.Function.Description,
-				"parameters":  t.Function.Parameters,
+				"name":        t.Definition.Name,
+				"description": t.Definition.Description,
+				"parameters":  t.Definition.Parameters,
 			},
 		}
 	}
@@ -237,11 +250,9 @@ func parsePureJSONToolFormat(response string) []types.ToolCall {
 
 					if len(args) > 0 {
 						calls = append(calls, types.ToolCall{
-							Type: "function",
-							Function: types.ToolFunction{
-								Name:      toolCall.Name,
-								Arguments: args,
-							},
+							ID:    uuid.New().String(),
+							Name:  toolCall.Name,
+							Input: argsToJSON(args),
 						})
 					}
 				}
@@ -325,11 +336,9 @@ func parseInlineJSONToolFormat(response string) []types.ToolCall {
 
 			if len(args) > 0 {
 				calls = append(calls, types.ToolCall{
-					Type: "function",
-					Function: types.ToolFunction{
-						Name:      toolName,
-						Arguments: args,
-					},
+					ID:    uuid.New().String(),
+					Name:  toolName,
+					Input: argsToJSON(args),
 				})
 			}
 
@@ -358,11 +367,9 @@ func parseToolCallFormat(response string) []types.ToolCall {
 
 		if err := json.Unmarshal([]byte(content), &parsed); err == nil {
 			calls = append(calls, types.ToolCall{
-				Type: "function",
-				Function: types.ToolFunction{
-					Name:      parsed.Name,
-					Arguments: parsed.Arguments,
-				},
+				ID:    uuid.New().String(),
+				Name:  parsed.Name,
+				Input: argsToJSON(parsed.Arguments),
 			})
 		}
 
@@ -423,11 +430,9 @@ func parseXMLToolFormat(response string) []types.ToolCall {
 
 			if err := json.Unmarshal([]byte(content), &parsed); err == nil {
 				calls = append(calls, types.ToolCall{
-					Type: "function",
-					Function: types.ToolFunction{
-						Name:      parsed.Name,
-						Arguments: parsed.Arguments,
-					},
+					ID:    uuid.New().String(),
+					Name:  parsed.Name,
+					Input: argsToJSON(parsed.Arguments),
 				})
 			} else {
 				// Try to parse attributes from opening tag (format: <tool_name query="..." max_results="5">)
@@ -454,11 +459,9 @@ func parseXMLToolFormat(response string) []types.ToolCall {
 
 				if len(args) > 0 {
 					calls = append(calls, types.ToolCall{
-						Type: "function",
-						Function: types.ToolFunction{
-							Name:      toolName,
-							Arguments: args,
-						},
+						ID:    uuid.New().String(),
+						Name:  toolName,
+						Input: argsToJSON(args),
 					})
 				}
 			}

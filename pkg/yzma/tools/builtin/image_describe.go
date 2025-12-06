@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kawai-network/veridium/fantasy"
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
 	"github.com/kawai-network/veridium/types"
@@ -45,7 +46,7 @@ func (s *ImageDescribeService) GetImageDescription(ctx context.Context, fileID s
 			// Check if document has image content (OCR or VL description)
 			if doc.Content.Valid && doc.Content.String != "" {
 				content := doc.Content.String
-				
+
 				// Check for any of the possible content markers
 				hasContent := strings.Contains(content, "OCR Text (Tesseract") ||
 					strings.Contains(content, "Image Description (VL Model)") ||
@@ -81,8 +82,8 @@ func RegisterImageDescribe(registry *tools.ToolRegistry, sqlDB *sql.DB) error {
 	service := NewImageDescribeService(sqlDB)
 
 	tool := &types.Tool{
-		Type: "function",
-		Function: types.ToolFunction{
+		Type: fantasy.ToolTypeFunction,
+		Definition: types.ToolDefinition{
 			Name:        "lobe-image-describe__getImageDescription",
 			Description: "Get AI-generated description of an uploaded image or video. Use this when user asks about image content, text extraction, OCR, or visual analysis. The description is pre-generated when the file was uploaded.",
 			Parameters: map[string]interface{}{

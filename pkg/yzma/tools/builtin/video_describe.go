@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kawai-network/veridium/fantasy"
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
 	"github.com/kawai-network/veridium/types"
@@ -75,8 +76,8 @@ func RegisterVideoDescribe(registry *tools.ToolRegistry, sqlDB *sql.DB) error {
 	service := NewVideoDescribeService(sqlDB)
 
 	tool := &types.Tool{
-		Type: "function",
-		Function: types.ToolFunction{
+		Type: fantasy.ToolTypeFunction,
+		Definition: types.ToolDefinition{
 			Name:        "lobe-video-describe__getVideoTranscription",
 			Description: "Get AI-generated transcription of an uploaded video's audio. Use this when user asks about what is said in the video, video content, spoken words, dialogue, or audio transcription. The transcription is generated using Whisper STT when the video was uploaded.",
 			Parameters: map[string]interface{}{

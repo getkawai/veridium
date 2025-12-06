@@ -56,17 +56,12 @@ func TestQwen25InstructTemplateWithToolCall(t *testing.T) {
 		fantasy.NewUserMessage("What is 2 + 3?"),
 		types.NewToolCallMessage([]types.ToolCall{
 			{
-				Type: "function",
-				Function: types.ToolFunction{
-					Name: "add",
-					Arguments: map[string]string{
-						"a": "2",
-						"b": "3",
-					},
-				},
+				ID:    "call_1",
+				Name:  "add",
+				Input: `{"a": "2", "b": "3"}`,
 			},
 		}),
-		types.NewToolResultMessage("", "add", "5"),
+		types.NewToolResultMessage("call_1", "add", "5"),
 	}
 
 	result, err := Apply(tmpl, messages, true)
@@ -111,15 +106,9 @@ func TestApplyJinjaTemplateWithToolMessage(t *testing.T) {
 		fantasy.NewUserMessage("Call the calculator function"),
 		types.NewToolCallMessage([]types.ToolCall{
 			{
-				Type: "function",
-				Function: types.ToolFunction{
-					Name: "calculator",
-					Arguments: map[string]string{
-						"operation": "add",
-						"x":         "10",
-						"y":         "20",
-					},
-				},
+				ID:    "call_1",
+				Name:  "calculator",
+				Input: `{"operation": "add", "x": "10", "y": "20"}`,
 			},
 		}),
 	}
@@ -163,17 +152,12 @@ func TestApplyJinjaTemplateWithToolResponseMessage(t *testing.T) {
 		fantasy.NewUserMessage("What is the result?"),
 		types.NewToolCallMessage([]types.ToolCall{
 			{
-				Type: "function",
-				Function: types.ToolFunction{
-					Name: "calculator",
-					Arguments: map[string]string{
-						"x": "10",
-						"y": "20",
-					},
-				},
+				ID:    "call_1",
+				Name:  "calculator",
+				Input: `{"x": "10", "y": "20"}`,
 			},
 		}),
-		types.NewToolResultMessage("", "calculator", "30"),
+		types.NewToolResultMessage("call_1", "calculator", "30"),
 	}
 
 	result, err := Apply(tmpl, messages, true)
@@ -212,28 +196,18 @@ func TestApplyJinjaTemplateWithMultipleToolCalls(t *testing.T) {
 		fantasy.NewUserMessage("Calculate 2+3 and 5*7"),
 		types.NewToolCallMessage([]types.ToolCall{
 			{
-				Type: "function",
-				Function: types.ToolFunction{
-					Name: "add",
-					Arguments: map[string]string{
-						"a": "2",
-						"b": "3",
-					},
-				},
+				ID:    "call_1",
+				Name:  "add",
+				Input: `{"a": "2", "b": "3"}`,
 			},
 			{
-				Type: "function",
-				Function: types.ToolFunction{
-					Name: "multiply",
-					Arguments: map[string]string{
-						"a": "5",
-						"b": "7",
-					},
-				},
+				ID:    "call_2",
+				Name:  "multiply",
+				Input: `{"a": "5", "b": "7"}`,
 			},
 		}),
-		types.NewToolResultMessage("", "add", "5"),
-		types.NewToolResultMessage("", "multiply", "35"),
+		types.NewToolResultMessage("call_1", "add", "5"),
+		types.NewToolResultMessage("call_2", "multiply", "35"),
 	}
 
 	result, err := Apply(tmpl, messages, true)

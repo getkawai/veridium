@@ -330,19 +330,18 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	// Tool event callback - emits tool events to frontend in real-time
 	var toolCallIndex int
 	toolEventCallback := func(eventType types.ChatStreamEvent, tc types.ToolCall, result string) {
-		argsJSON, _ := json.Marshal(tc.Function.Arguments)
-		identifier, apiName, toolType := mapToolName(tc.Function.Name)
+		identifier, apiName, toolType := mapToolName(tc.Name)
 
 		if eventType == types.ChatEventToolCall {
 			// Tool call initiated - emit loading state
 			toolCallID := fmt.Sprintf("%s_tool_%d", assistantMsgID, toolCallIndex)
-			log.Printf("🔧 [REAL STREAM] Tool call (loading): %s -> identifier=%s, apiName=%s", tc.Function.Name, identifier, apiName)
+			log.Printf("🔧 [REAL STREAM] Tool call (loading): %s -> identifier=%s, apiName=%s", tc.Name, identifier, apiName)
 
 			tool := ChatToolPayload{
 				ID:         toolCallID,
 				APIName:    apiName,
 				Identifier: identifier,
-				Arguments:  string(argsJSON),
+				Arguments:  tc.Input,
 				Type:       toolType,
 			}
 			uiTools = append(uiTools, tool)
@@ -354,7 +353,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 			toolCallIndex++
 		} else if eventType == types.ChatEventToolResult {
 			// Tool execution completed - emit result
-			log.Printf("🔧 [REAL STREAM] Tool result: %s -> %s", tc.Function.Name, result[:minInt(50, len(result))])
+			log.Printf("🔧 [REAL STREAM] Tool result: %s -> %s", tc.Name, result[:minInt(50, len(result))])
 
 			// Parse result as JSON for state
 			var toolState interface{}
@@ -378,7 +377,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 				Plugin: &ChatPluginPayload{
 					Identifier: identifier,
 					APIName:    apiName,
-					Arguments:  string(argsJSON),
+					Arguments:  tc.Input,
 					Type:       toolType,
 				},
 				PluginState: toolState,

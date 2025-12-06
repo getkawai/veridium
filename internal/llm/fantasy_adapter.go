@@ -270,11 +270,10 @@ func (a *FantasyProviderAdapter) convertToFantasyPrompt(messages fantasy.Prompt)
 					content = append(content, fantasy.TextPart{Text: text})
 				}
 				for _, tc := range toolCalls {
-					argsJSON, _ := json.Marshal(tc.Function.Arguments)
 					content = append(content, fantasy.ToolCallPart{
 						ToolCallID: tc.ID,
-						ToolName:   tc.Function.Name,
-						Input:      string(argsJSON),
+						ToolName:   tc.Name,
+						Input:      tc.Input,
 					})
 				}
 				fantasyMsg = fantasy.Message{
@@ -326,9 +325,9 @@ func (a *FantasyProviderAdapter) getFantasyTools() []fantasy.Tool {
 		}
 
 		fantasyTools = append(fantasyTools, fantasy.FunctionTool{
-			Name:        tool.Function.Name,
-			Description: tool.Function.Description,
-			InputSchema: tool.Function.Parameters,
+			Name:        tool.Definition.Name,
+			Description: tool.Definition.Description,
+			InputSchema: tool.Definition.Parameters,
 		})
 	}
 
@@ -357,13 +356,11 @@ func (a *FantasyProviderAdapter) convertResponse(resp *fantasy.Response) *types.
 					}
 				}
 			}
+			argsJSON, _ := json.Marshal(args)
 			result.ToolCalls[i] = types.ToolCall{
-				ID:   tc.ToolCallID,
-				Type: "function",
-				Function: types.ToolFunction{
-					Name:      tc.ToolName,
-					Arguments: args,
-				},
+				ID:    tc.ToolCallID,
+				Name:  tc.ToolName,
+				Input: string(argsJSON),
 			}
 		}
 	}
@@ -406,13 +403,11 @@ func (a *FantasyProviderAdapter) consumeStream(stream fantasy.StreamResponse, ca
 					}
 				}
 			}
+			argsJSON, _ := json.Marshal(args)
 			tc := types.ToolCall{
-				ID:   part.ID,
-				Type: "function",
-				Function: types.ToolFunction{
-					Name:      part.ToolCallName,
-					Arguments: args,
-				},
+				ID:    part.ID,
+				Name:  part.ToolCallName,
+				Input: string(argsJSON),
 			}
 			toolCallMap[part.ID] = &tc
 		case fantasy.StreamPartTypeFinish:
@@ -449,19 +444,19 @@ func (a *FantasyProviderAdapter) executeToolCalls(ctx context.Context, toolCalls
 	toolMessages := make(fantasy.Prompt, 0, len(toolCalls))
 
 	for _, tc := range toolCalls {
-		log.Printf("🔧 [fantasy] Executing tool: %s", tc.Function.Name)
+		log.Printf("🔧 [fantasy] Executing tool: %s", tc.Name)
 
-		result, err := a.toolRegistry.Execute(ctx, tc.Function.Name, tc.Function.Arguments)
+		result, err := a.toolRegistry.Execute(ctx, tc.Name, tc.GetArguments())
 		if err != nil {
 			log.Printf("⚠️  Tool execution failed: %v", err)
-			toolMessages = append(toolMessages, types.NewToolErrorMessage(tc.ID, tc.Function.Name, fmt.Sprintf("Error: %v", err)))
+			toolMessages = append(toolMessages, types.NewToolErrorMessage(tc.ID, tc.Name, fmt.Sprintf("Error: %v", err)))
 		} else {
 			displayResult := result
 			if len(displayResult) > 100 {
 				displayResult = displayResult[:100] + "..."
 			}
 			log.Printf("✅ Tool result: %s", displayResult)
-			toolMessages = append(toolMessages, types.NewToolResultMessage(tc.ID, tc.Function.Name, result))
+			toolMessages = append(toolMessages, types.NewToolResultMessage(tc.ID, tc.Name, result))
 		}
 	}
 

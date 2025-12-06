@@ -8,10 +8,10 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/fantasy/object"
 	"github.com/kawai-network/veridium/fantasy/schema"
-	"github.com/google/uuid"
 	"github.com/openai/openai-go/v2"
 	"github.com/openai/openai-go/v2/packages/param"
 	"github.com/openai/openai-go/v2/responses"

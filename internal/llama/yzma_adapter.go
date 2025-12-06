@@ -221,7 +221,7 @@ func (m *LlamaYzmaModel) Generate(ctx context.Context, messages fantasy.Prompt) 
 	if len(toolCalls) > 0 {
 		log.Printf("🔧 Detected %d tool calls in response", len(toolCalls))
 		for i, tc := range toolCalls {
-			log.Printf("🔧 Tool call #%d: %s(%v)", i+1, tc.Function.Name, tc.Function.Arguments)
+			log.Printf("🔧 Tool call #%d: %s(%s)", i+1, tc.Name, tc.Input)
 		}
 
 		// Remove tool call tags from response for cleaner output
@@ -297,16 +297,16 @@ func (m *LlamaYzmaModel) ExecuteToolCalls(ctx context.Context, toolCalls []types
 	toolMessages := make(fantasy.Prompt, 0, len(toolCalls))
 
 	for _, tc := range toolCalls {
-		log.Printf("🔧 Executing tool: %s", tc.Function.Name)
+		log.Printf("🔧 Executing tool: %s", tc.Name)
 
-		// Execute tool with arguments directly (already map[string]string)
-		result, err := m.toolRegistry.Execute(ctx, tc.Function.Name, tc.Function.Arguments)
+		// Execute tool with arguments parsed from Input JSON
+		result, err := m.toolRegistry.Execute(ctx, tc.Name, tc.GetArguments())
 		if err != nil {
 			log.Printf("⚠️  Tool execution failed: %v", err)
-			toolMessages = append(toolMessages, types.NewToolErrorMessage(tc.ID, tc.Function.Name, fmt.Sprintf("Error: %v", err)))
+			toolMessages = append(toolMessages, types.NewToolErrorMessage(tc.ID, tc.Name, fmt.Sprintf("Error: %v", err)))
 		} else {
 			log.Printf("✅ Tool result: %s", result[:minInt(100, len(result))])
-			toolMessages = append(toolMessages, types.NewToolResultMessage(tc.ID, tc.Function.Name, result))
+			toolMessages = append(toolMessages, types.NewToolResultMessage(tc.ID, tc.Name, result))
 		}
 	}
 

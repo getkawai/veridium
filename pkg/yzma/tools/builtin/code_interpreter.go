@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
 	"github.com/kawai-network/veridium/types"
 )
@@ -213,8 +214,8 @@ func RegisterCodeInterpreter(registry *tools.ToolRegistry) error {
 	service := NewCodeInterpreterService()
 
 	tool := &types.Tool{
-		Type: "function",
-		Function: types.ToolFunction{
+		Type: fantasy.ToolTypeFunction,
+		Definition: types.ToolDefinition{
 			Name:        "lobe-code-interpreter__python",
 			Description: "Execute Python code. Use this to run Python scripts, perform calculations, data analysis, or generate files.",
 			Parameters: map[string]interface{}{

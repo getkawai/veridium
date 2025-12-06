@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/internal/search"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
 	"github.com/kawai-network/veridium/types"
@@ -16,8 +17,8 @@ func RegisterWebSearch(registry *tools.ToolRegistry) error {
 	searchService := search.NewService()
 
 	tool := &types.Tool{
-		Type: "function",
-		Function: types.ToolFunction{
+		Type: fantasy.ToolTypeFunction,
+		Definition: types.ToolDefinition{
 			Name:        "web_search",
 			Description: "Search the web for current information using Brave Search. Returns real-time search results with titles, URLs, and descriptions.",
 			Parameters: map[string]interface{}{

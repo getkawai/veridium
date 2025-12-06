@@ -7,6 +7,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/internal/search"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
 	"github.com/kawai-network/veridium/types"
@@ -141,8 +142,8 @@ func RegisterWebBrowsing(registry *tools.ToolRegistry) error {
 
 	// Tool 1: search
 	searchTool := &types.Tool{
-		Type: "function",
-		Function: types.ToolFunction{
+		Type: fantasy.ToolTypeFunction,
+		Definition: types.ToolDefinition{
 			Name:        "lobe-web-browsing__search",
 			Description: "Search the web for information. Returns a list of search results with title, content, and URL.",
 			Parameters: map[string]interface{}{
@@ -211,8 +212,8 @@ func RegisterWebBrowsing(registry *tools.ToolRegistry) error {
 
 	// Tool 2: crawlSinglePage
 	crawlSingleTool := &types.Tool{
-		Type: "function",
-		Function: types.ToolFunction{
+		Type: fantasy.ToolTypeFunction,
+		Definition: types.ToolDefinition{
 			Name:        "lobe-web-browsing__crawlSinglePage",
 			Description: "Retrieve content from a specific webpage. Returns the page title, content, URL and website.",
 			Parameters: map[string]interface{}{
@@ -254,8 +255,8 @@ func RegisterWebBrowsing(registry *tools.ToolRegistry) error {
 
 	// Tool 3: crawlMultiPages
 	crawlMultiTool := &types.Tool{
-		Type: "function",
-		Function: types.ToolFunction{
+		Type: fantasy.ToolTypeFunction,
+		Definition: types.ToolDefinition{
 			Name:        "lobe-web-browsing__crawlMultiPages",
 			Description: "Retrieve content from multiple webpages simultaneously. Returns an array of page results.",
 			Parameters: map[string]interface{}{

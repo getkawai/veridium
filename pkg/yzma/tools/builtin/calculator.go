@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/Knetic/govaluate"
+	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
 	"github.com/kawai-network/veridium/types"
 )
@@ -12,8 +13,8 @@ import (
 // RegisterCalculator registers the calculator tool
 func RegisterCalculator(registry *tools.ToolRegistry) error {
 	tool := &types.Tool{
-		Type: "function",
-		Function: types.ToolFunction{
+		Type: fantasy.ToolTypeFunction,
+		Definition: types.ToolDefinition{
 			Name:        "calculator",
 			Description: "Perform mathematical calculations. Supports: +, -, *, /, sqrt(), sin(), cos(), tan(), pow(), pi, e",
 			Parameters: map[string]interface{}{

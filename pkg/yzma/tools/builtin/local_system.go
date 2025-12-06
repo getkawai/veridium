@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/pkg/localfs"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
 	"github.com/kawai-network/veridium/types"
@@ -352,8 +353,8 @@ func RegisterLocalSystem(registry *tools.ToolRegistry) error {
 
 	// Tool 1: listLocalFiles
 	listTool := &types.Tool{
-		Type: "function",
-		Function: types.ToolFunction{
+		Type: fantasy.ToolTypeFunction,
+		Definition: types.ToolDefinition{
 			Name:        "lobe-local-system__listLocalFiles",
 			Description: "List files and folders in a specified directory. Returns a JSON array of file/folder information.",
 			Parameters: map[string]interface{}{
@@ -394,8 +395,8 @@ func RegisterLocalSystem(registry *tools.ToolRegistry) error {
 
 	// Tool 2: readLocalFile
 	readTool := &types.Tool{
-		Type: "function",
-		Function: types.ToolFunction{
+		Type: fantasy.ToolTypeFunction,
+		Definition: types.ToolDefinition{
 			Name:        "lobe-local-system__readLocalFile",
 			Description: "Read the content of a specific file. Returns the file content with metadata.",
 			Parameters: map[string]interface{}{
@@ -449,8 +450,8 @@ func RegisterLocalSystem(registry *tools.ToolRegistry) error {
 
 	// Tool 3: searchLocalFiles
 	searchTool := &types.Tool{
-		Type: "function",
-		Function: types.ToolFunction{
+		Type: fantasy.ToolTypeFunction,
+		Definition: types.ToolDefinition{
 			Name:        "lobe-local-system__searchLocalFiles",
 			Description: "Search for files within a directory based on keywords. Returns matching files.",
 			Parameters: map[string]interface{}{
@@ -496,8 +497,8 @@ func RegisterLocalSystem(registry *tools.ToolRegistry) error {
 
 	// Tool 4: writeLocalFile
 	writeTool := &types.Tool{
-		Type: "function",
-		Function: types.ToolFunction{
+		Type: fantasy.ToolTypeFunction,
+		Definition: types.ToolDefinition{
 			Name:        "lobe-local-system__writeLocalFile",
 			Description: "Write content to a specific file. Creates the file if it doesn't exist.",
 			Parameters: map[string]interface{}{
@@ -543,8 +544,8 @@ func RegisterLocalSystem(registry *tools.ToolRegistry) error {
 
 	// Tool 5: renameLocalFile
 	renameTool := &types.Tool{
-		Type: "function",
-		Function: types.ToolFunction{
+		Type: fantasy.ToolTypeFunction,
+		Definition: types.ToolDefinition{
 			Name:        "lobe-local-system__renameLocalFile",
 			Description: "Rename a file or folder in its current location.",
 			Parameters: map[string]interface{}{
@@ -590,8 +591,8 @@ func RegisterLocalSystem(registry *tools.ToolRegistry) error {
 
 	// Tool 6: moveLocalFiles
 	moveTool := &types.Tool{
-		Type: "function",
-		Function: types.ToolFunction{
+		Type: fantasy.ToolTypeFunction,
+		Definition: types.ToolDefinition{
 			Name:        "lobe-local-system__moveLocalFiles",
 			Description: "Move or rename multiple files/directories.",
 			Parameters: map[string]interface{}{

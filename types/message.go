@@ -19,7 +19,6 @@
 package types
 
 import (
-	"encoding/json"
 	"errors"
 
 	"github.com/kawai-network/veridium/fantasy"
@@ -30,12 +29,14 @@ import (
 // ============================================================================
 
 // NewToolCallMessage creates a new assistant message with tool calls.
-// Converts from legacy ToolCall format to fantasy.ToolCallPart.
 func NewToolCallMessage(toolCalls []ToolCall) fantasy.Message {
-	parts := ToolCallsToToolCallParts(toolCalls)
-	content := make([]fantasy.MessagePart, len(parts))
-	for i, p := range parts {
-		content[i] = p
+	content := make([]fantasy.MessagePart, len(toolCalls))
+	for i, tc := range toolCalls {
+		content[i] = fantasy.ToolCallPart{
+			ToolCallID: tc.ID,
+			ToolName:   tc.Name,
+			Input:      tc.Input,
+		}
 	}
 	return fantasy.Message{
 		Role:    fantasy.MessageRoleAssistant,
@@ -84,15 +85,19 @@ func GetMessageText(m fantasy.Message) string {
 	return text
 }
 
-// GetMessageToolCalls returns all tool calls from the message as legacy ToolCall format.
+// GetMessageToolCalls returns all tool calls from the message.
 func GetMessageToolCalls(m fantasy.Message) []ToolCall {
-	var parts []fantasy.ToolCallPart
+	var calls []ToolCall
 	for _, part := range m.Content {
 		if p, ok := fantasy.AsMessagePart[fantasy.ToolCallPart](part); ok {
-			parts = append(parts, p)
+			calls = append(calls, ToolCall{
+				ID:    p.ToolCallID,
+				Name:  p.ToolName,
+				Input: p.Input,
+			})
 		}
 	}
-	return ToolCallPartsToToolCalls(parts)
+	return calls
 }
 
 // HasMessageToolCalls returns true if the message contains tool calls.
@@ -124,12 +129,9 @@ func GetMessageContent(m fantasy.Message) map[string]interface{} {
 			textContent += p.Text
 		case fantasy.ToolCallPart:
 			toolCalls = append(toolCalls, map[string]interface{}{
-				"id":   p.ToolCallID,
-				"type": "function",
-				"function": map[string]interface{}{
-					"name":      p.ToolName,
-					"arguments": p.Input,
-				},
+				"id":    p.ToolCallID,
+				"name":  p.ToolName,
+				"input": p.Input,
 			})
 		case fantasy.ToolResultPart:
 			result["tool_call_id"] = p.ToolCallID
@@ -160,73 +162,4 @@ func GetToolResultContent(trp fantasy.ToolResultPart) string {
 		}
 	}
 	return ""
-}
-
-// ============================================================================
-// ToolCall Conversion Functions
-// ============================================================================
-
-// ToolCallToToolCallPart converts legacy ToolCall to fantasy.ToolCallPart.
-func ToolCallToToolCallPart(tc ToolCall) fantasy.ToolCallPart {
-	return fantasy.ToolCallPart{
-		ToolCallID: tc.ID,
-		ToolName:   tc.Function.Name,
-		Input:      mustMarshalArgs(tc.Function.Arguments),
-	}
-}
-
-// ToolCallPartToToolCall converts fantasy.ToolCallPart to legacy ToolCall.
-func ToolCallPartToToolCall(tcp fantasy.ToolCallPart) ToolCall {
-	return ToolCall{
-		ID:   tcp.ToolCallID,
-		Type: "function",
-		Function: ToolFunction{
-			Name:      tcp.ToolName,
-			Arguments: mustUnmarshalArgs(tcp.Input),
-		},
-	}
-}
-
-// ToolCallsToToolCallParts converts a slice of ToolCall to ToolCallPart.
-func ToolCallsToToolCallParts(tcs []ToolCall) []fantasy.ToolCallPart {
-	parts := make([]fantasy.ToolCallPart, len(tcs))
-	for i, tc := range tcs {
-		parts[i] = ToolCallToToolCallPart(tc)
-	}
-	return parts
-}
-
-// ToolCallPartsToToolCalls converts a slice of ToolCallPart to ToolCall.
-func ToolCallPartsToToolCalls(tcps []fantasy.ToolCallPart) []ToolCall {
-	calls := make([]ToolCall, len(tcps))
-	for i, tcp := range tcps {
-		calls[i] = ToolCallPartToToolCall(tcp)
-	}
-	return calls
-}
-
-// ============================================================================
-// Internal helper functions
-// ============================================================================
-
-func mustMarshalArgs(args map[string]string) string {
-	if args == nil {
-		return "{}"
-	}
-	b, err := json.Marshal(args)
-	if err != nil {
-		return "{}"
-	}
-	return string(b)
-}
-
-func mustUnmarshalArgs(input string) map[string]string {
-	if input == "" {
-		return nil
-	}
-	var args map[string]string
-	if err := json.Unmarshal([]byte(input), &args); err != nil {
-		return nil
-	}
-	return args
 }

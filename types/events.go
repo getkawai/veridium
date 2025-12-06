@@ -16,7 +16,12 @@
 
 package types
 
-import "context"
+import (
+	"context"
+	"encoding/json"
+
+	"github.com/kawai-network/veridium/fantasy"
+)
 
 // ============================================================================
 // Tool Types
@@ -25,28 +30,38 @@ import "context"
 // ToolExecutor is a function that executes a tool
 type ToolExecutor func(ctx context.Context, args map[string]string) (string, error)
 
-// ToolFunction represents both tool definition and tool call
-type ToolFunction struct {
+// ToolDefinition represents a tool definition for registration
+type ToolDefinition struct {
 	Name        string                 `json:"name"`
-	Description string                 `json:"description,omitempty"` // For definition
-	Parameters  map[string]interface{} `json:"parameters,omitempty"`  // For definition (schema)
-	Arguments   map[string]string      `json:"arguments,omitempty"`   // For call (values)
+	Description string                 `json:"description,omitempty"`
+	Parameters  map[string]interface{} `json:"parameters,omitempty"` // JSON Schema
 }
 
 // Tool represents a tool (definition + executor)
 type Tool struct {
-	Type     string       `json:"type"`
-	Function ToolFunction `json:"function"`
-	Executor ToolExecutor `json:"-"`
-	Enabled  bool         `json:"-"`
+	Type       fantasy.ToolType `json:"type"`
+	Definition ToolDefinition   `json:"definition"`
+	Executor   ToolExecutor     `json:"-"`
+	Enabled    bool             `json:"-"`
 }
 
-// ToolCall represents a tool call from LLM
-// Uses ToolFunction which contains both Name and Arguments
+// ToolCall represents a tool call from LLM (flat structure, matches fantasy.ToolCallPart)
 type ToolCall struct {
-	ID       string       `json:"id,omitempty"` // Tool call ID (required by OpenAI API)
-	Type     string       `json:"type"`
-	Function ToolFunction `json:"function"`
+	ID    string `json:"id"`    // Tool call ID
+	Name  string `json:"name"`  // Tool name (flat, not nested)
+	Input string `json:"input"` // JSON string of arguments
+}
+
+// GetArguments parses Input JSON string to map[string]string
+func (tc ToolCall) GetArguments() map[string]string {
+	if tc.Input == "" {
+		return nil
+	}
+	var args map[string]string
+	if err := json.Unmarshal([]byte(tc.Input), &args); err != nil {
+		return nil
+	}
+	return args
 }
 
 // ============================================================================
