@@ -201,12 +201,11 @@ func (s *AgentChatService) setupSessionAndTopic(ctx context.Context, req ChatReq
 		if err != nil {
 			log.Printf("⚠️  Warning: Failed to load thread messages: %v", err)
 		} else {
-			// Convert thread messages to yzma format
+			// Convert thread messages to message format
 			yzmaMessages := make([]message.Message, 0, len(threadMessages))
 			for _, dbMsg := range threadMessages {
-				yzmaMsg := convertDBMessageToYzma(&dbMsg)
-				if yzmaMsg != nil {
-					yzmaMessages = append(yzmaMessages, yzmaMsg)
+				if msg, ok := convertDBMessageToYzma(&dbMsg); ok {
+					yzmaMessages = append(yzmaMessages, msg)
 				}
 			}
 			session.Messages = yzmaMessages
@@ -233,11 +232,7 @@ func (s *AgentChatService) setupSessionAndTopic(ctx context.Context, req ChatReq
 	}
 
 	// 6. Add user message to session (in-memory for LLM context)
-	userMsg := message.Chat{
-		Role:    "user",
-		Content: req.Message,
-	}
-	session.Messages = append(session.Messages, userMsg)
+	session.Messages = append(session.Messages, message.NewUserMessage(req.Message))
 
 	// 7. Save user message to DB
 	userMsgID, err := s.saveUserMessage(ctx, SaveUserMessageParams{

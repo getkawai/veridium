@@ -76,16 +76,16 @@ func NewOpenAIProviderAdapter(provider *openai.Provider) *OpenAIProviderAdapter 
 
 // Generate implements Provider.Generate
 func (a *OpenAIProviderAdapter) Generate(ctx context.Context, messages []message.Message) (*types.LLMResponse, error) {
-	return a.provider.Generate(ctx, messages)
+	return a.provider.Generate(ctx, message.Prompt(messages))
 }
 
 // RunAgentLoop implements Provider.RunAgentLoop
-func (a *OpenAIProviderAdapter) RunAgentLoop(ctx context.Context, messages []message.Message, maxIterations int) (*types.LLMResponse, []message.Message, error) {
+func (a *OpenAIProviderAdapter) RunAgentLoop(ctx context.Context, messages message.Prompt, maxIterations int) (*types.LLMResponse, message.Prompt, error) {
 	return a.provider.RunAgentLoop(ctx, messages, maxIterations)
 }
 
 // RunAgentLoopWithStreaming implements Provider.RunAgentLoopWithStreaming
-func (a *OpenAIProviderAdapter) RunAgentLoopWithStreaming(ctx context.Context, messages []message.Message, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*types.LLMResponse, []message.Message, error) {
+func (a *OpenAIProviderAdapter) RunAgentLoopWithStreaming(ctx context.Context, messages message.Prompt, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*types.LLMResponse, message.Prompt, error) {
 	return a.provider.RunAgentLoopWithStreaming(ctx, messages, maxIterations, streamCallback, toolCallback)
 }
 

@@ -41,8 +41,8 @@ export type Provider = any;
  * 3. Local Qwen VL generates description (async, ~60-90 seconds for images)
  * 4. Description saved to documents table
  * 5. LLM uses "lobe-image-describe__getImageDescription" tool to get description
- *    - Tool polls DB for up to 2 minutes waiting for VL to complete
- *    - Returns description content from documents table
+ *   - Tool polls DB for up to 2 minutes waiting for VL to complete
+ *   - Returns description content from documents table
  * 
  * ============================================================================
  */

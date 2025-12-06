@@ -19,15 +19,9 @@ func TestChatMLTemplate(t *testing.T) {
 	tmpl := string(tmplBytes)
 
 	// Prepare chat messages
-	messages := []message.Message{
-		message.Chat{
-			Role:    "user",
-			Content: "Hello, how are you?",
-		},
-		message.Chat{
-			Role:    "assistant",
-			Content: "I'm fine, thank you!",
-		},
+	messages := message.Prompt{
+		message.NewUserMessage("Hello, how are you?"),
+		message.NewAssistantMessage("I'm fine, thank you!"),
 	}
 
 	result, err := Apply(tmpl, messages, true)
@@ -55,31 +49,21 @@ func TestQwen25InstructTemplateWithToolCall(t *testing.T) {
 	tmpl := string(tmplBytes)
 
 	// Prepare messages with a tool call
-	messages := []message.Message{
-		message.Chat{
-			Role:    "user",
-			Content: "What is 2 + 3?",
-		},
-		message.Tool{
-			Role: "assistant",
-			ToolCalls: []types.ToolCall{
-				{
-					Type: "function",
-					Function: types.ToolFunction{
-						Name: "add",
-						Arguments: map[string]string{
-							"a": "2",
-							"b": "3",
-						},
+	messages := message.Prompt{
+		message.NewUserMessage("What is 2 + 3?"),
+		message.NewToolCallMessage([]types.ToolCall{
+			{
+				Type: "function",
+				Function: types.ToolFunction{
+					Name: "add",
+					Arguments: map[string]string{
+						"a": "2",
+						"b": "3",
 					},
 				},
 			},
-		},
-		message.ToolResponse{
-			Role:    "tool",
-			Name:    "add",
-			Content: "5",
-		},
+		}),
+		message.NewToolResultMessage("", "add", "5"),
 	}
 
 	result, err := Apply(tmpl, messages, true)
@@ -119,28 +103,22 @@ func TestApplyJinjaTemplateWithToolMessage(t *testing.T) {
 	}
 	tmpl := string(tmplBytes)
 
-	// Prepare messages with ToolMessage
-	messages := []message.Message{
-		message.Chat{
-			Role:    "user",
-			Content: "Call the calculator function",
-		},
-		message.Tool{
-			Role: "assistant",
-			ToolCalls: []types.ToolCall{
-				{
-					Type: "function",
-					Function: types.ToolFunction{
-						Name: "calculator",
-						Arguments: map[string]string{
-							"operation": "add",
-							"x":         "10",
-							"y":         "20",
-						},
+	// Prepare messages with ToolCallMessage
+	messages := message.Prompt{
+		message.NewUserMessage("Call the calculator function"),
+		message.NewToolCallMessage([]types.ToolCall{
+			{
+				Type: "function",
+				Function: types.ToolFunction{
+					Name: "calculator",
+					Arguments: map[string]string{
+						"operation": "add",
+						"x":         "10",
+						"y":         "20",
 					},
 				},
 			},
-		},
+		}),
 	}
 
 	result, err := Apply(tmpl, messages, true)
@@ -177,32 +155,22 @@ func TestApplyJinjaTemplateWithToolResponseMessage(t *testing.T) {
 	}
 	tmpl := string(tmplBytes)
 
-	// Prepare messages with ToolResponseMessage
-	messages := []message.Message{
-		message.Chat{
-			Role:    "user",
-			Content: "What is the result?",
-		},
-		message.Tool{
-			Role: "assistant",
-			ToolCalls: []types.ToolCall{
-				{
-					Type: "function",
-					Function: types.ToolFunction{
-						Name: "calculator",
-						Arguments: map[string]string{
-							"x": "10",
-							"y": "20",
-						},
+	// Prepare messages with ToolResultMessage
+	messages := message.Prompt{
+		message.NewUserMessage("What is the result?"),
+		message.NewToolCallMessage([]types.ToolCall{
+			{
+				Type: "function",
+				Function: types.ToolFunction{
+					Name: "calculator",
+					Arguments: map[string]string{
+						"x": "10",
+						"y": "20",
 					},
 				},
 			},
-		},
-		message.ToolResponse{
-			Role:    "tool",
-			Name:    "calculator",
-			Content: "30",
-		},
+		}),
+		message.NewToolResultMessage("", "calculator", "30"),
 	}
 
 	result, err := Apply(tmpl, messages, true)
@@ -237,46 +205,32 @@ func TestApplyJinjaTemplateWithMultipleToolCalls(t *testing.T) {
 	tmpl := string(tmplBytes)
 
 	// Prepare messages with multiple tool calls
-	messages := []message.Message{
-		message.Chat{
-			Role:    "user",
-			Content: "Calculate 2+3 and 5*7",
-		},
-		message.Tool{
-			Role: "assistant",
-			ToolCalls: []types.ToolCall{
-				{
-					Type: "function",
-					Function: types.ToolFunction{
-						Name: "add",
-						Arguments: map[string]string{
-							"a": "2",
-							"b": "3",
-						},
-					},
-				},
-				{
-					Type: "function",
-					Function: types.ToolFunction{
-						Name: "multiply",
-						Arguments: map[string]string{
-							"a": "5",
-							"b": "7",
-						},
+	messages := message.Prompt{
+		message.NewUserMessage("Calculate 2+3 and 5*7"),
+		message.NewToolCallMessage([]types.ToolCall{
+			{
+				Type: "function",
+				Function: types.ToolFunction{
+					Name: "add",
+					Arguments: map[string]string{
+						"a": "2",
+						"b": "3",
 					},
 				},
 			},
-		},
-		message.ToolResponse{
-			Role:    "tool",
-			Name:    "add",
-			Content: "5",
-		},
-		message.ToolResponse{
-			Role:    "tool",
-			Name:    "multiply",
-			Content: "35",
-		},
+			{
+				Type: "function",
+				Function: types.ToolFunction{
+					Name: "multiply",
+					Arguments: map[string]string{
+						"a": "5",
+						"b": "7",
+					},
+				},
+			},
+		}),
+		message.NewToolResultMessage("", "add", "5"),
+		message.NewToolResultMessage("", "multiply", "35"),
 	}
 
 	result, err := Apply(tmpl, messages, true)

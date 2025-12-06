@@ -190,8 +190,8 @@ func (m *LlamaYzmaModel) getChatTemplate() string {
 	return llama.ModelChatTemplate(m.libService.chatModel, "")
 }
 
-// Generate generates a response from yzma messages (native yzma interface)
-func (m *LlamaYzmaModel) Generate(ctx context.Context, messages []message.Message) (*types.LLMResponse, error) {
+// Generate generates a response from messages (native interface)
+func (m *LlamaYzmaModel) Generate(ctx context.Context, messages message.Prompt) (*types.LLMResponse, error) {
 	// Ensure chat model is loaded
 	if !m.libService.IsChatModelLoaded() {
 		if err := m.libService.LoadChatModel(""); err != nil {
@@ -239,7 +239,7 @@ func (m *LlamaYzmaModel) Generate(ctx context.Context, messages []message.Messag
 }
 
 // enhanceWithTools adds tool definitions to system prompt
-func (m *LlamaYzmaModel) enhanceWithTools(messages []message.Message) []message.Message {
+func (m *LlamaYzmaModel) enhanceWithTools(messages message.Prompt) message.Prompt {
 	// Skip tool enhancement if noTools flag is set (for title/summary generation)
 	if m.noTools {
 		return messages
@@ -255,25 +255,18 @@ func (m *LlamaYzmaModel) enhanceWithTools(messages []message.Message) []message.
 	}
 
 	// Make a copy to avoid modifying original
-	result := make([]message.Message, len(messages))
+	result := make(message.Prompt, len(messages))
 	copy(result, messages)
 
 	// Find or create system message
 	if result[0].GetRole() == "system" {
 		// Enhance existing system message
-		if chat, ok := result[0].(message.Chat); ok {
-			enhancedContent := tools.BuildSystemPrompt(chat.Content, toolsJSON)
-			result[0] = message.Chat{
-				Role:    "system",
-				Content: enhancedContent,
-			}
-		}
+		enhancedContent := tools.BuildSystemPrompt(result[0].GetText(), toolsJSON)
+		result[0] = message.NewSystemMessage(enhancedContent)
 	} else {
 		// Prepend new system message with tools
 		systemContent := tools.BuildSystemPrompt("You are a helpful AI assistant.", toolsJSON)
-		result = append([]message.Message{
-			message.Chat{Role: "system", Content: systemContent},
-		}, result...)
+		result = append(message.Prompt{message.NewSystemMessage(systemContent)}, result...)
 	}
 
 	log.Printf("🔧 Enhanced system prompt with %d tools", len(m.toolRegistry.GetByNames(m.toolNames)))
@@ -296,12 +289,12 @@ func (m *LlamaYzmaModel) cleanToolCallTags(response string) string {
 }
 
 // ExecuteToolCalls executes tool calls and returns tool response messages
-func (m *LlamaYzmaModel) ExecuteToolCalls(ctx context.Context, toolCalls []types.ToolCall) ([]message.Message, error) {
+func (m *LlamaYzmaModel) ExecuteToolCalls(ctx context.Context, toolCalls []types.ToolCall) (message.Prompt, error) {
 	if m.toolRegistry == nil {
 		return nil, fmt.Errorf("tool registry not available")
 	}
 
-	toolMessages := make([]message.Message, 0, len(toolCalls))
+	toolMessages := make(message.Prompt, 0, len(toolCalls))
 
 	for _, tc := range toolCalls {
 		log.Printf("🔧 Executing tool: %s", tc.Function.Name)
@@ -310,19 +303,11 @@ func (m *LlamaYzmaModel) ExecuteToolCalls(ctx context.Context, toolCalls []types
 		result, err := m.toolRegistry.Execute(ctx, tc.Function.Name, tc.Function.Arguments)
 		if err != nil {
 			log.Printf("⚠️  Tool execution failed: %v", err)
-			result = fmt.Sprintf("Error: %v", err)
+			toolMessages = append(toolMessages, message.NewToolErrorMessage(tc.ID, tc.Function.Name, fmt.Sprintf("Error: %v", err)))
 		} else {
 			log.Printf("✅ Tool result: %s", result[:minInt(100, len(result))])
+			toolMessages = append(toolMessages, message.NewToolResultMessage(tc.ID, tc.Function.Name, result))
 		}
-
-		// Create tool response message
-		toolMsg := message.ToolResponse{
-			Role:    "tool",
-			Name:    tc.Function.Name,
-			Content: result,
-		}
-
-		toolMessages = append(toolMessages, toolMsg)
 	}
 
 	return toolMessages, nil
@@ -336,19 +321,19 @@ func minInt(a, b int) int {
 }
 
 // RunAgentLoop runs the agent loop with tool calling until no more tool calls or max iterations
-// This is the main entry point for agentic conversations (native yzma interface)
+// This is the main entry point for agentic conversations (native interface)
 // The returned types.LLMResponse contains ALL tool calls from all iterations (not just the last one)
-func (m *LlamaYzmaModel) RunAgentLoop(ctx context.Context, messages []message.Message, maxIterations int) (*types.LLMResponse, []message.Message, error) {
+func (m *LlamaYzmaModel) RunAgentLoop(ctx context.Context, messages message.Prompt, maxIterations int) (*types.LLMResponse, message.Prompt, error) {
 	if maxIterations <= 0 {
 		maxIterations = DefaultMaxIterations
 	}
 
 	// Track all messages for history
-	allMessages := make([]message.Message, len(messages))
+	allMessages := make(message.Prompt, len(messages))
 	copy(allMessages, messages)
 
 	var finalResponse *types.LLMResponse
-	var allToolMessages []message.Message
+	var allToolMessages message.Prompt
 	var allToolCalls []types.ToolCall // Collect all tool calls from all iterations
 
 	for i := 0; i < maxIterations; i++ {
@@ -362,19 +347,10 @@ func (m *LlamaYzmaModel) RunAgentLoop(ctx context.Context, messages []message.Me
 
 		// Add assistant response to history
 		if len(resp.ToolCalls) > 0 {
-			// Assistant message with tool calls
-			allMessages = append(allMessages, message.Tool{
-				Role:      "assistant",
-				ToolCalls: resp.ToolCalls,
-			})
-			// Collect tool calls from this iteration
+			allMessages = append(allMessages, message.NewToolCallMessage(resp.ToolCalls))
 			allToolCalls = append(allToolCalls, resp.ToolCalls...)
 		} else {
-			// Regular assistant message
-			allMessages = append(allMessages, message.Chat{
-				Role:    "assistant",
-				Content: resp.Content,
-			})
+			allMessages = append(allMessages, message.NewAssistantMessage(resp.Content))
 		}
 		finalResponse = resp
 
@@ -394,10 +370,8 @@ func (m *LlamaYzmaModel) RunAgentLoop(ctx context.Context, messages []message.Me
 		}
 
 		// Add tool messages to history
-		for _, tm := range toolMessages {
-			allMessages = append(allMessages, tm)
-			allToolMessages = append(allToolMessages, tm)
-		}
+		allMessages = append(allMessages, toolMessages...)
+		allToolMessages = append(allToolMessages, toolMessages...)
 
 		// Clear KV cache before regenerating (from yzma/examples/tooluse pattern)
 		if err := m.clearKVCache(); err != nil {
@@ -435,9 +409,9 @@ func (m *LlamaYzmaModel) clearKVCache() error {
 	return nil
 }
 
-// Stream generates a response with streaming (native yzma interface)
+// Stream generates a response with streaming (native interface)
 // Returns the response and any error
-func (m *LlamaYzmaModel) Stream(ctx context.Context, messages []message.Message, callback types.StreamCallback) (*types.LLMResponse, error) {
+func (m *LlamaYzmaModel) Stream(ctx context.Context, messages message.Prompt, callback types.StreamCallback) (*types.LLMResponse, error) {
 	// Ensure chat model is loaded
 	if !m.libService.IsChatModelLoaded() {
 		if err := m.libService.LoadChatModel(""); err != nil {
@@ -573,21 +547,21 @@ func (m *LlamaYzmaModel) generateStreaming(ctx context.Context, prompt string, m
 	return response.String(), nil
 }
 
-// RunAgentLoopWithStreaming runs agent loop with streaming support (native yzma interface)
+// RunAgentLoopWithStreaming runs agent loop with streaming support (native interface)
 // Returns the final response, all tool messages, and any error
 // The returned types.LLMResponse contains ALL tool calls from all iterations (not just the last one)
 // streamCallback: called for each token during generation
 // toolCallback: called for tool events (tool_call before execution, tool_result after)
-func (m *LlamaYzmaModel) RunAgentLoopWithStreaming(ctx context.Context, messages []message.Message, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*types.LLMResponse, []message.Message, error) {
+func (m *LlamaYzmaModel) RunAgentLoopWithStreaming(ctx context.Context, messages message.Prompt, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*types.LLMResponse, message.Prompt, error) {
 	if maxIterations <= 0 {
 		maxIterations = DefaultMaxIterations
 	}
 
-	allMessages := make([]message.Message, len(messages))
+	allMessages := make(message.Prompt, len(messages))
 	copy(allMessages, messages)
 
 	var finalResponse *types.LLMResponse
-	var allToolMessages []message.Message
+	var allToolMessages message.Prompt
 	var allToolCalls []types.ToolCall // Collect all tool calls from all iterations
 
 	for i := 0; i < maxIterations; i++ {
@@ -601,17 +575,10 @@ func (m *LlamaYzmaModel) RunAgentLoopWithStreaming(ctx context.Context, messages
 
 		// Add assistant response to history
 		if len(resp.ToolCalls) > 0 {
-			allMessages = append(allMessages, message.Tool{
-				Role:      "assistant",
-				ToolCalls: resp.ToolCalls,
-			})
-			// Collect tool calls from this iteration
+			allMessages = append(allMessages, message.NewToolCallMessage(resp.ToolCalls))
 			allToolCalls = append(allToolCalls, resp.ToolCalls...)
 		} else {
-			allMessages = append(allMessages, message.Chat{
-				Role:    "assistant",
-				Content: resp.Content,
-			})
+			allMessages = append(allMessages, message.NewAssistantMessage(resp.Content))
 		}
 		finalResponse = resp
 
@@ -637,19 +604,16 @@ func (m *LlamaYzmaModel) RunAgentLoopWithStreaming(ctx context.Context, messages
 
 		// Emit tool_result events AFTER execution
 		if toolCallback != nil {
-			for i, tc := range resp.ToolCalls {
-				if i < len(toolMessages) {
-					if toolResp, ok := toolMessages[i].(message.ToolResponse); ok {
-						toolCallback(types.ChatEventToolResult, tc, toolResp.Content)
-					}
+			for idx, tc := range resp.ToolCalls {
+				if idx < len(toolMessages) {
+					part := toolMessages[idx].Content[0].(message.ToolResultPart)
+					toolCallback(types.ChatEventToolResult, tc, part.Content)
 				}
 			}
 		}
 
-		for _, tm := range toolMessages {
-			allMessages = append(allMessages, tm)
-			allToolMessages = append(allToolMessages, tm)
-		}
+		allMessages = append(allMessages, toolMessages...)
+		allToolMessages = append(allToolMessages, toolMessages...)
 
 		// Clear KV cache before regenerating
 		if err := m.clearKVCache(); err != nil {

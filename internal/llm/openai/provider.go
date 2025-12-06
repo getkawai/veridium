@@ -86,7 +86,7 @@ func (p *Provider) WithoutTools() *Provider {
 }
 
 // Generate generates a response from messages (single turn)
-func (p *Provider) Generate(ctx context.Context, messages []message.Message) (*types.LLMResponse, error) {
+func (p *Provider) Generate(ctx context.Context, messages message.Prompt) (*types.LLMResponse, error) {
 	// Convert yzma messages to API format
 	apiMessages := p.convertMessages(messages)
 
@@ -127,16 +127,16 @@ func (p *Provider) Generate(ctx context.Context, messages []message.Message) (*t
 }
 
 // RunAgentLoop runs the agent loop with tool execution
-func (p *Provider) RunAgentLoop(ctx context.Context, messages []message.Message, maxIterations int) (*types.LLMResponse, []message.Message, error) {
+func (p *Provider) RunAgentLoop(ctx context.Context, messages message.Prompt, maxIterations int) (*types.LLMResponse, message.Prompt, error) {
 	if maxIterations <= 0 {
 		maxIterations = 10
 	}
 
-	allMessages := make([]message.Message, len(messages))
+	allMessages := make(message.Prompt, len(messages))
 	copy(allMessages, messages)
 
 	var finalResponse *types.LLMResponse
-	var allToolMessages []message.Message
+	var allToolMessages message.Prompt
 	var allToolCalls []types.ToolCall
 
 	for i := 0; i < maxIterations; i++ {
@@ -150,16 +150,10 @@ func (p *Provider) RunAgentLoop(ctx context.Context, messages []message.Message,
 
 		// Add assistant response to history
 		if len(resp.ToolCalls) > 0 {
-			allMessages = append(allMessages, message.Tool{
-				Role:      "assistant",
-				ToolCalls: resp.ToolCalls,
-			})
+			allMessages = append(allMessages, message.NewToolCallMessage(resp.ToolCalls))
 			allToolCalls = append(allToolCalls, resp.ToolCalls...)
 		} else {
-			allMessages = append(allMessages, message.Chat{
-				Role:    "assistant",
-				Content: resp.Content,
-			})
+			allMessages = append(allMessages, message.NewAssistantMessage(resp.Content))
 		}
 		finalResponse = resp
 
@@ -177,10 +171,8 @@ func (p *Provider) RunAgentLoop(ctx context.Context, messages []message.Message,
 		}
 
 		// Add tool messages to history
-		for _, tm := range toolMessages {
-			allMessages = append(allMessages, tm)
-			allToolMessages = append(allToolMessages, tm)
-		}
+		allMessages = append(allMessages, toolMessages...)
+		allToolMessages = append(allToolMessages, toolMessages...)
 	}
 
 	log.Printf("⚠️  [%s] Agent loop reached max iterations (%d)", p.config.Type, maxIterations)
@@ -191,16 +183,16 @@ func (p *Provider) RunAgentLoop(ctx context.Context, messages []message.Message,
 }
 
 // RunAgentLoopWithStreaming runs the agent loop with streaming
-func (p *Provider) RunAgentLoopWithStreaming(ctx context.Context, messages []message.Message, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*types.LLMResponse, []message.Message, error) {
+func (p *Provider) RunAgentLoopWithStreaming(ctx context.Context, messages message.Prompt, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*types.LLMResponse, message.Prompt, error) {
 	if maxIterations <= 0 {
 		maxIterations = 10
 	}
 
-	allMessages := make([]message.Message, len(messages))
+	allMessages := make(message.Prompt, len(messages))
 	copy(allMessages, messages)
 
 	var finalResponse *types.LLMResponse
-	var allToolMessages []message.Message
+	var allToolMessages message.Prompt
 	var allToolCalls []types.ToolCall
 
 	for i := 0; i < maxIterations; i++ {
@@ -214,16 +206,10 @@ func (p *Provider) RunAgentLoopWithStreaming(ctx context.Context, messages []mes
 
 		// Add assistant response to history
 		if len(resp.ToolCalls) > 0 {
-			allMessages = append(allMessages, message.Tool{
-				Role:      "assistant",
-				ToolCalls: resp.ToolCalls,
-			})
+			allMessages = append(allMessages, message.NewToolCallMessage(resp.ToolCalls))
 			allToolCalls = append(allToolCalls, resp.ToolCalls...)
 		} else {
-			allMessages = append(allMessages, message.Chat{
-				Role:    "assistant",
-				Content: resp.Content,
-			})
+			allMessages = append(allMessages, message.NewAssistantMessage(resp.Content))
 		}
 		finalResponse = resp
 
@@ -251,18 +237,15 @@ func (p *Provider) RunAgentLoopWithStreaming(ctx context.Context, messages []mes
 		if toolCallback != nil {
 			for idx, tc := range resp.ToolCalls {
 				if idx < len(toolMessages) {
-					if toolResp, ok := toolMessages[idx].(message.ToolResponse); ok {
-						toolCallback(types.ChatEventToolResult, tc, toolResp.Content)
-					}
+					part := toolMessages[idx].Content[0].(message.ToolResultPart)
+					toolCallback(types.ChatEventToolResult, tc, part.Content)
 				}
 			}
 		}
 
 		// Add tool messages to history
-		for _, tm := range toolMessages {
-			allMessages = append(allMessages, tm)
-			allToolMessages = append(allToolMessages, tm)
-		}
+		allMessages = append(allMessages, toolMessages...)
+		allToolMessages = append(allToolMessages, toolMessages...)
 	}
 
 	log.Printf("⚠️  [%s] Agent loop (streaming) reached max iterations (%d)", p.config.Type, maxIterations)
@@ -273,7 +256,7 @@ func (p *Provider) RunAgentLoopWithStreaming(ctx context.Context, messages []mes
 }
 
 // generateWithStreaming generates a response with streaming
-func (p *Provider) generateWithStreaming(ctx context.Context, messages []message.Message, callback types.StreamCallback) (*types.LLMResponse, error) {
+func (p *Provider) generateWithStreaming(ctx context.Context, messages message.Prompt, callback types.StreamCallback) (*types.LLMResponse, error) {
 	// Convert messages
 	apiMessages := p.convertMessages(messages)
 
@@ -312,22 +295,20 @@ func (p *Provider) generateWithStreaming(ctx context.Context, messages []message
 	return p.convertResponse(resp), nil
 }
 
-// convertMessages converts yzma messages to API format
-func (p *Provider) convertMessages(messages []message.Message) []types.ChatCompletionMsg {
+// convertMessages converts messages to API format
+func (p *Provider) convertMessages(messages message.Prompt) []types.ChatCompletionMsg {
 	result := make([]types.ChatCompletionMsg, 0, len(messages))
 
 	for _, msg := range messages {
-		switch m := msg.(type) {
-		case message.Chat:
-			result = append(result, types.ChatCompletionMsg{
-				Role:    m.Role,
-				Content: m.Content,
-			})
+		apiMsg := types.ChatCompletionMsg{
+			Role: msg.GetRole(),
+		}
 
-		case message.Tool:
-			// Assistant message with tool calls
-			apiToolCalls := make([]types.APIToolCall, len(m.ToolCalls))
-			for i, tc := range m.ToolCalls {
+		// Check for tool calls
+		if msg.HasToolCalls() {
+			toolCalls := msg.GetToolCalls()
+			apiToolCalls := make([]types.APIToolCall, len(toolCalls))
+			for i, tc := range toolCalls {
 				argsJSON, _ := json.Marshal(tc.Function.Arguments)
 				apiToolCalls[i] = types.APIToolCall{
 					ID:   tc.ID,
@@ -338,20 +319,22 @@ func (p *Provider) convertMessages(messages []message.Message) []types.ChatCompl
 					},
 				}
 			}
-			result = append(result, types.ChatCompletionMsg{
-				Role:      m.Role,
-				ToolCalls: apiToolCalls,
-			})
-
-		case message.ToolResponse:
-			// Tool response message
-			result = append(result, types.ChatCompletionMsg{
-				Role:       "tool",
-				Content:    m.Content,
-				Name:       m.Name,
-				ToolCallID: m.ToolCallID,
-			})
+			apiMsg.ToolCalls = apiToolCalls
 		}
+
+		// Check for tool result
+		for _, part := range msg.Content {
+			switch p := part.(type) {
+			case message.TextPart:
+				apiMsg.Content = p.Text
+			case message.ToolResultPart:
+				apiMsg.Content = p.Content
+				apiMsg.Name = p.ToolName
+				apiMsg.ToolCallID = p.ToolCallID
+			}
+		}
+
+		result = append(result, apiMsg)
 	}
 
 	return result
@@ -385,12 +368,12 @@ func (p *Provider) getToolDefinitions() []types.APIToolDefinition {
 }
 
 // executeToolCalls executes tool calls and returns tool response messages
-func (p *Provider) executeToolCalls(ctx context.Context, toolCalls []types.ToolCall) ([]message.Message, error) {
+func (p *Provider) executeToolCalls(ctx context.Context, toolCalls []types.ToolCall) (message.Prompt, error) {
 	if p.toolRegistry == nil {
 		return nil, fmt.Errorf("tool registry not available")
 	}
 
-	toolMessages := make([]message.Message, 0, len(toolCalls))
+	toolMessages := make(message.Prompt, 0, len(toolCalls))
 
 	for _, tc := range toolCalls {
 		log.Printf("🔧 [%s] Executing tool: %s", p.config.Type, tc.Function.Name)
@@ -398,7 +381,7 @@ func (p *Provider) executeToolCalls(ctx context.Context, toolCalls []types.ToolC
 		result, err := p.toolRegistry.Execute(ctx, tc.Function.Name, tc.Function.Arguments)
 		if err != nil {
 			log.Printf("⚠️  Tool execution failed: %v", err)
-			result = fmt.Sprintf("Error: %v", err)
+			toolMessages = append(toolMessages, message.NewToolErrorMessage(tc.ID, tc.Function.Name, fmt.Sprintf("Error: %v", err)))
 		} else {
 			// Log truncated result
 			displayResult := result
@@ -406,15 +389,8 @@ func (p *Provider) executeToolCalls(ctx context.Context, toolCalls []types.ToolC
 				displayResult = displayResult[:100] + "..."
 			}
 			log.Printf("✅ Tool result: %s", displayResult)
+			toolMessages = append(toolMessages, message.NewToolResultMessage(tc.ID, tc.Function.Name, result))
 		}
-
-		toolMsg := message.ToolResponse{
-			Role:       "tool",
-			Name:       tc.Function.Name,
-			Content:    result,
-			ToolCallID: tc.ID,
-		}
-		toolMessages = append(toolMessages, toolMsg)
 	}
 
 	return toolMessages, nil

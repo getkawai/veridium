@@ -37,16 +37,16 @@ func NewLlamaProviderAdapter(model *llama.LlamaYzmaModel) *LlamaProviderAdapter 
 
 // Generate implements llm.Provider.Generate
 func (a *LlamaProviderAdapter) Generate(ctx context.Context, messages []message.Message) (*types.LLMResponse, error) {
-	return a.model.Generate(ctx, messages)
+	return a.model.Generate(ctx, message.Prompt(messages))
 }
 
 // RunAgentLoop implements llm.Provider.RunAgentLoop
-func (a *LlamaProviderAdapter) RunAgentLoop(ctx context.Context, messages []message.Message, maxIterations int) (*types.LLMResponse, []message.Message, error) {
+func (a *LlamaProviderAdapter) RunAgentLoop(ctx context.Context, messages message.Prompt, maxIterations int) (*types.LLMResponse, message.Prompt, error) {
 	return a.model.RunAgentLoop(ctx, messages, maxIterations)
 }
 
 // RunAgentLoopWithStreaming implements llm.Provider.RunAgentLoopWithStreaming
-func (a *LlamaProviderAdapter) RunAgentLoopWithStreaming(ctx context.Context, messages []message.Message, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*types.LLMResponse, []message.Message, error) {
+func (a *LlamaProviderAdapter) RunAgentLoopWithStreaming(ctx context.Context, messages message.Prompt, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*types.LLMResponse, message.Prompt, error) {
 	return a.model.RunAgentLoopWithStreaming(ctx, messages, maxIterations, streamCallback, toolCallback)
 }
 

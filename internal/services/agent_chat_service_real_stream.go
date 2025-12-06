@@ -204,11 +204,9 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 		if len(messagesWithSystem) > 0 {
 			// Find and modify the last user message to include file context
 			for i := len(messagesWithSystem) - 1; i >= 0; i-- {
-				if msg, ok := messagesWithSystem[i].(message.Chat); ok && msg.Role == "user" {
-					messagesWithSystem[i] = message.Chat{
-						Role:    msg.Role,
-						Content: msg.Content + fileContext,
-					}
+				if messagesWithSystem[i].GetRole() == "user" {
+					originalText := messagesWithSystem[i].GetText()
+					messagesWithSystem[i] = message.NewUserMessage(originalText + fileContext)
 					break
 				}
 			}
@@ -434,15 +432,9 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	// 8. Add messages to session history
 	session.Messages = append(session.Messages, toolMessages...)
 	if len(toolCalls) > 0 {
-		session.Messages = append(session.Messages, message.Tool{
-			Role:      "assistant",
-			ToolCalls: toolCalls,
-		})
+		session.Messages = append(session.Messages, message.NewToolCallMessage(toolCalls))
 	} else {
-		session.Messages = append(session.Messages, message.Chat{
-			Role:    "assistant",
-			Content: finalContentStr,
-		})
+		session.Messages = append(session.Messages, message.NewAssistantMessage(finalContentStr))
 	}
 
 	// 9. Build performance metrics

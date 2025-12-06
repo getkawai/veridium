@@ -16,7 +16,7 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as llm$0 from "../llm/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as message$0 from "../../pkg/yzma/message/models.js";
+import * as message$0 from "../../types/message/models.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -148,7 +148,7 @@ export function GetRecommendedModelForMode(): $CancellablePromise<string> {
  */
 export function GetSessionHistory(sessionID: string): $CancellablePromise<message$0.Message[]> {
     return $Call.ByID(396946379, sessionID).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType5($result);
     });
 }
 
@@ -159,7 +159,7 @@ export function GetSessionHistory(sessionID: string): $CancellablePromise<messag
  */
 export function GetStreamEventPayloadType(): $CancellablePromise<$models.StreamEventPayload> {
     return $Call.ByID(1681290149).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType6($result);
     });
 }
 
@@ -168,7 +168,7 @@ export function GetStreamEventPayloadType(): $CancellablePromise<$models.StreamE
  */
 export function GetTaskRouter(): $CancellablePromise<llm$0.TaskRouter | null> {
     return $Call.ByID(2202841655).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType8($result);
     });
 }
 
@@ -223,7 +223,8 @@ const $$createType0 = $models.UIChatMessage.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
 const $$createType2 = $Create.Array($$createType0);
 const $$createType3 = $models.ReasoningConfig.createFrom;
-const $$createType4 = $Create.Array($Create.Any);
-const $$createType5 = $models.StreamEventPayload.createFrom;
-const $$createType6 = llm$0.TaskRouter.createFrom;
-const $$createType7 = $Create.Nullable($$createType6);
+const $$createType4 = message$0.Message.createFrom;
+const $$createType5 = $Create.Array($$createType4);
+const $$createType6 = $models.StreamEventPayload.createFrom;
+const $$createType7 = llm$0.TaskRouter.createFrom;
+const $$createType8 = $Create.Nullable($$createType7);

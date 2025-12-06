@@ -62,27 +62,18 @@ func (a *TaskRouterAdapter) GenerateText(ctx context.Context, prompt string) (st
 	taskType := a.detectTaskType(prompt)
 
 	// Build messages with system prompt
-	messages := []message.Message{}
+	messages := message.Prompt{}
 
 	// Add system prompt based on task type
 	switch taskType {
 	case llm.TaskTranscriptCleanup:
-		messages = append(messages, message.Chat{
-			Role:    "system",
-			Content: SystemPromptTranscriptCleanup,
-		})
+		messages = append(messages, message.NewSystemMessage(SystemPromptTranscriptCleanup))
 	case llm.TaskOCRCleanup:
-		messages = append(messages, message.Chat{
-			Role:    "system",
-			Content: SystemPromptOCRCleanup,
-		})
+		messages = append(messages, message.NewSystemMessage(SystemPromptOCRCleanup))
 	}
 
 	// Add user prompt
-	messages = append(messages, message.Chat{
-		Role:    "user",
-		Content: prompt,
-	})
+	messages = append(messages, message.NewUserMessage(prompt))
 
 	resp, err := a.router.GenerateWithoutTools(ctx, taskType, messages)
 	if err != nil {

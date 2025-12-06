@@ -31,10 +31,10 @@ type Provider interface {
 	Generate(ctx context.Context, messages []message.Message) (*types.LLMResponse, error)
 
 	// RunAgentLoop runs the agent loop with tool execution
-	RunAgentLoop(ctx context.Context, messages []message.Message, maxIterations int) (*types.LLMResponse, []message.Message, error)
+	RunAgentLoop(ctx context.Context, messages message.Prompt, maxIterations int) (*types.LLMResponse, message.Prompt, error)
 
 	// RunAgentLoopWithStreaming runs the agent loop with streaming callback and tool event callback
-	RunAgentLoopWithStreaming(ctx context.Context, messages []message.Message, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*types.LLMResponse, []message.Message, error)
+	RunAgentLoopWithStreaming(ctx context.Context, messages message.Prompt, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*types.LLMResponse, message.Prompt, error)
 
 	// WithTools returns a new provider configured with specific tools
 	WithTools(toolNames []string) Provider
