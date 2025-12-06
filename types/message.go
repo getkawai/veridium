@@ -19,6 +19,7 @@
 package types
 
 import (
+	"encoding/json"
 	"errors"
 
 	"github.com/kawai-network/veridium/fantasy"
@@ -128,10 +129,19 @@ func GetMessageContent(m fantasy.Message) map[string]interface{} {
 		case fantasy.TextPart:
 			textContent += p.Text
 		case fantasy.ToolCallPart:
+			// Parse Input JSON string to arguments map for template compatibility
+			var arguments interface{}
+			if p.Input != "" {
+				var parsed map[string]interface{}
+				if err := json.Unmarshal([]byte(p.Input), &parsed); err == nil {
+					arguments = parsed
+				}
+			}
 			toolCalls = append(toolCalls, map[string]interface{}{
-				"id":    p.ToolCallID,
-				"name":  p.ToolName,
-				"input": p.Input,
+				"id":        p.ToolCallID,
+				"name":      p.ToolName,
+				"input":     p.Input,
+				"arguments": arguments,
 			})
 		case fantasy.ToolResultPart:
 			result["tool_call_id"] = p.ToolCallID
