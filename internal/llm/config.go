@@ -124,10 +124,10 @@ func GetDefaultDevConfig() DevConfig {
 // BuildTaskRouter creates a TaskRouter from DevConfig
 func BuildTaskRouter(config DevConfig, toolRegistry *tools.ToolRegistry, localModel fantasy.LanguageModel) *TaskRouter {
 	factory := NewProviderFactory(toolRegistry)
-	router := NewTaskRouter(toolRegistry, nil)
+	router := NewTaskRouter(nil)
 
 	if config.UseLocalFallback && localModel != nil {
-		router.SetFallback(localModel)
+		router.setFallback(localModel)
 		log.Printf("🔀 TaskRouter: Local Llama set as fallback model")
 	}
 
@@ -161,15 +161,4 @@ func BuildTaskRouter(config DevConfig, toolRegistry *tools.ToolRegistry, localMo
 	configureTask(TaskTranscriptCleanup, config.WhisperCleanup, "TranscriptCleanup")
 
 	return router
-}
-
-// UpdateModel updates a task's model configuration at runtime
-func (r *TaskRouter) UpdateModel(task TaskType, config ProviderConfig) error {
-	factory := NewProviderFactory(r.toolRegistry)
-	model, err := factory.CreateLanguageModel(config)
-	if err != nil {
-		return &RouterError{Message: "failed to create model: " + err.Error()}
-	}
-	r.SetModel(task, model)
-	return nil
 }

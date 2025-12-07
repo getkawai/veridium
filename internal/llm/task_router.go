@@ -22,7 +22,6 @@ import (
 	"sync"
 
 	"github.com/kawai-network/veridium/fantasy"
-	"github.com/kawai-network/veridium/pkg/yzma/tools"
 )
 
 // TaskType defines the type of LLM task for routing
@@ -71,18 +70,16 @@ const (
 //
 // ============================================================================
 type TaskRouter struct {
-	models       map[TaskType]fantasy.LanguageModel
-	fallback     fantasy.LanguageModel
-	toolRegistry *tools.ToolRegistry
-	mu           sync.RWMutex
+	models   map[TaskType]fantasy.LanguageModel
+	fallback fantasy.LanguageModel
+	mu       sync.RWMutex
 }
 
 // NewTaskRouter creates a new task router with optional fallback model
-func NewTaskRouter(toolRegistry *tools.ToolRegistry, fallback fantasy.LanguageModel) *TaskRouter {
+func NewTaskRouter(fallback fantasy.LanguageModel) *TaskRouter {
 	return &TaskRouter{
-		models:       make(map[TaskType]fantasy.LanguageModel),
-		fallback:     fallback,
-		toolRegistry: toolRegistry,
+		models:   make(map[TaskType]fantasy.LanguageModel),
+		fallback: fallback,
 	}
 }
 
@@ -94,16 +91,16 @@ func (r *TaskRouter) SetModel(task TaskType, model fantasy.LanguageModel) {
 	log.Printf("🔀 TaskRouter: Set model for task '%s'", task)
 }
 
-// SetFallback sets the fallback model used when no specific model is set
-func (r *TaskRouter) SetFallback(model fantasy.LanguageModel) {
+// setFallback sets the fallback model used when no specific model is set
+func (r *TaskRouter) setFallback(model fantasy.LanguageModel) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.fallback = model
 	log.Printf("🔀 TaskRouter: Set fallback model")
 }
 
-// GetModel returns the model for a task, or fallback if not set
-func (r *TaskRouter) GetModel(task TaskType) fantasy.LanguageModel {
+// getModel returns the model for a task, or fallback if not set
+func (r *TaskRouter) getModel(task TaskType) fantasy.LanguageModel {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -121,14 +118,9 @@ func (r *TaskRouter) HasModel(task TaskType) bool {
 	return exists
 }
 
-// GetToolRegistry returns the tool registry
-func (r *TaskRouter) GetToolRegistry() *tools.ToolRegistry {
-	return r.toolRegistry
-}
-
 // Generate routes to the appropriate model and generates a response
 func (r *TaskRouter) Generate(ctx context.Context, task TaskType, messages fantasy.Prompt) (*fantasy.Response, error) {
-	model := r.GetModel(task)
+	model := r.getModel(task)
 	if model == nil {
 		log.Printf("⚠️  TaskRouter: No model for task '%s' and no fallback set", task)
 		return nil, ErrNoProvider
@@ -138,10 +130,10 @@ func (r *TaskRouter) Generate(ctx context.Context, task TaskType, messages fanta
 	return model.Generate(ctx, fantasy.Call{Prompt: messages})
 }
 
-// GenerateWithFallback routes to model and tries fallback if primary fails
+// generateWithFallback routes to model and tries fallback if primary fails
 // Used for utility tasks (title, summary, OCR cleanup, etc.)
-func (r *TaskRouter) GenerateWithFallback(ctx context.Context, task TaskType, messages fantasy.Prompt) (*fantasy.Response, error) {
-	model := r.GetModel(task)
+func (r *TaskRouter) generateWithFallback(ctx context.Context, task TaskType, messages fantasy.Prompt) (*fantasy.Response, error) {
+	model := r.getModel(task)
 	if model == nil {
 		log.Printf("⚠️  TaskRouter: No model for task '%s' and no fallback set", task)
 		return nil, ErrNoProvider
@@ -166,35 +158,18 @@ func (r *TaskRouter) GenerateWithFallback(ctx context.Context, task TaskType, me
 
 // GenerateTitle is a convenience method for title generation
 func (r *TaskRouter) GenerateTitle(ctx context.Context, messages fantasy.Prompt) (*fantasy.Response, error) {
-	return r.GenerateWithFallback(ctx, TaskTitleGen, messages)
+	return r.generateWithFallback(ctx, TaskTitleGen, messages)
 }
 
 // GenerateSummary is a convenience method for summary generation
 func (r *TaskRouter) GenerateSummary(ctx context.Context, messages fantasy.Prompt) (*fantasy.Response, error) {
-	return r.GenerateWithFallback(ctx, TaskSummaryGen, messages)
-}
-
-// DescribeImage is a convenience method for image description (VL task)
-func (r *TaskRouter) DescribeImage(ctx context.Context, messages fantasy.Prompt) (*fantasy.Response, error) {
-	return r.GenerateWithFallback(ctx, TaskImageDescribe, messages)
-}
-
-// ListConfiguredTasks returns all task types that have models set
-func (r *TaskRouter) ListConfiguredTasks() []TaskType {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	tasks := make([]TaskType, 0, len(r.models))
-	for task := range r.models {
-		tasks = append(tasks, task)
-	}
-	return tasks
+	return r.generateWithFallback(ctx, TaskSummaryGen, messages)
 }
 
 // GetChatModel returns the fantasy.LanguageModel for chat tasks
 // This is used by fantasy.Agent for streaming
 func (r *TaskRouter) GetChatModel() fantasy.LanguageModel {
-	return r.GetModel(TaskChat)
+	return r.getModel(TaskChat)
 }
 
 // Error types
