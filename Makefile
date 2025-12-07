@@ -40,7 +40,7 @@ dev:
 	killport 9245
 	rm -rf data
 	rm -f backend-dev.log
-	wails3 dev 2>&1 | tee backend-dev.log
+	VERIDIUM_DEV=true wails3 dev 2>&1 | tee backend-dev.log
 
 # Build production binary
 build:
