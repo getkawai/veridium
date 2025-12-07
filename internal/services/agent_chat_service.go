@@ -429,19 +429,15 @@ func NewAgentChatService(
 	return service
 }
 
-// SetTaskRouter sets a custom task router for multi-provider routing
-func (s *AgentChatService) SetTaskRouter(router *llm.TaskRouter) {
-	s.sessionsMutex.Lock()
-	defer s.sessionsMutex.Unlock()
-	s.taskRouter = router
-	log.Printf("🔀 TaskRouter updated")
-}
-
-// GetTaskRouter returns the current task router
-func (s *AgentChatService) GetTaskRouter() *llm.TaskRouter {
-	s.sessionsMutex.RLock()
-	defer s.sessionsMutex.RUnlock()
-	return s.taskRouter
+// generateWithoutTools generates a response using the local LLM with tools disabled.
+// This is used for title/summary generation where tools should not be included.
+// Uses fantasy.ToolChoiceNone to disable tool enhancement in the prompt.
+func (s *AgentChatService) generateWithoutTools(ctx context.Context, messages fantasy.Prompt) (*fantasy.Response, error) {
+	toolChoice := fantasy.ToolChoiceNone
+	return s.llamaLM.Generate(ctx, fantasy.Call{
+		Prompt:     messages,
+		ToolChoice: &toolChoice,
+	})
 }
 
 // detectTitleGenerationModel finds the smallest, fastest model for title generation
@@ -767,28 +763,6 @@ func (s *AgentChatService) getHistoryMessages(session *AgentSession) []fantasy.M
 	return history
 }
 
-// prepareMessagesWithSystemPrompt prepares messages with system prompt for yzma
-// DEPRECATED: Use buildSystemPrompt() + getHistoryMessages() with fantasy.Agent instead
-// Kept for backward compatibility with non-Agent code paths
-func (s *AgentChatService) prepareMessagesWithSystemPrompt(messages []fantasy.Message, session *AgentSession) []fantasy.Message {
-	instruction := s.buildSystemPrompt(session)
-
-	// Check if messages already have system prompt
-	if len(messages) > 0 && types.GetMessageRole(messages[0]) == "system" {
-		// Update existing system prompt
-		result := make([]fantasy.Message, len(messages))
-		copy(result, messages)
-		result[0] = fantasy.NewSystemMessage(instruction)
-		return result
-	}
-
-	// Prepend system prompt
-	result := make([]fantasy.Message, 0, len(messages)+1)
-	result = append(result, fantasy.NewSystemMessage(instruction))
-	result = append(result, messages...)
-	return result
-}
-
 // registerKBSearchTool registers a knowledge base search tool to the yzma registry
 func (s *AgentChatService) registerKBSearchTool(ctx context.Context, kbID, userID string) error {
 	kb, err := s.kbService.GetKnowledgeBase(ctx, kbID, userID)
@@ -852,38 +826,6 @@ func (s *AgentChatService) registerKBSearchTool(ctx context.Context, kbID, userI
 	})
 
 	return s.toolRegistry.Register(tool)
-}
-
-// ClearSession removes a session from memory
-func (s *AgentChatService) ClearSession(sessionID string) {
-	s.sessionsMutex.Lock()
-	defer s.sessionsMutex.Unlock()
-
-	delete(s.sessions, sessionID)
-	log.Printf("🗑️  Cleared session: %s", sessionID)
-}
-
-// GetSessionHistory returns the message history for a session (native yzma format)
-func (s *AgentChatService) GetSessionHistory(sessionID string) ([]fantasy.Message, error) {
-	s.sessionsMutex.RLock()
-	defer s.sessionsMutex.RUnlock()
-
-	session, exists := s.sessions[sessionID]
-	if !exists {
-		return nil, fmt.Errorf("session not found: %s", sessionID)
-	}
-
-	return session.Messages, nil
-}
-
-// SetTitleModel sets a specific model for title generation
-// Use a small, fast model (e.g., Llama 3.2 1B) for efficiency
-// If not set, falls back to main chat model
-func (s *AgentChatService) SetTitleModel(modelPath string) {
-	s.sessionsMutex.Lock()
-	defer s.sessionsMutex.Unlock()
-	s.titleModelPath = modelPath
-	log.Printf("📝 Title generation model set to: %s", modelPath)
 }
 
 // generateTopicTitle generates a concise title for the conversation using LLM
@@ -952,13 +894,13 @@ Example: Sleep Functions for Body and Mind`, locale)
 			// Load title model
 			if err := s.libService.LoadChatModel(s.titleModelPath); err != nil {
 				log.Printf("⚠️  Failed to load title model, falling back to main model: %v", err)
-				resp, genErr := s.yzmaModel.WithoutTools().Generate(ctx, titleMessages)
+				resp, genErr := s.generateWithoutTools(ctx, titleMessages)
 				if genErr != nil {
 					return "", fmt.Errorf("failed to generate title: %w", genErr)
 				}
 				responseContent = resp.Content.Text()
 			} else {
-				resp, genErr := s.yzmaModel.WithoutTools().Generate(ctx, titleMessages)
+				resp, genErr := s.generateWithoutTools(ctx, titleMessages)
 				if genErr != nil {
 					if currentModel != "" {
 						s.libService.LoadChatModel(currentModel)
@@ -975,7 +917,7 @@ Example: Sleep Functions for Body and Mind`, locale)
 			}
 		} else {
 			log.Printf("📝 Using main chat model for title generation")
-			resp, err := s.yzmaModel.WithoutTools().Generate(ctx, titleMessages)
+			resp, err := s.generateWithoutTools(ctx, titleMessages)
 			if err != nil {
 				return "", fmt.Errorf("failed to generate title: %w", err)
 			}
@@ -1154,98 +1096,6 @@ func (s *AgentChatService) updateTopicTitle(ctx context.Context, topicID, userID
 	return nil
 }
 
-// createTopicForSessionWithTitle creates a topic with LLM-generated title and returns topicID
-// Phase 4: Used after first response to create/update topic with meaningful title
-func (s *AgentChatService) createTopicForSessionWithTitle(ctx context.Context, sessionID, userID string, messages []fantasy.Message) (string, error) {
-	// Check if topic already exists for this session
-	count, err := s.db.Queries().CountTopicsBySession(ctx, db.CountTopicsBySessionParams{
-		SessionID: sql.NullString{String: sessionID, Valid: true},
-		UserID:    userID,
-	})
-	if err != nil {
-		return "", fmt.Errorf("failed to check existing topics: %w", err)
-	}
-
-	if count > 0 {
-		// Topic already exists - could update title here if needed
-		// For now, just return success
-		return "", nil
-	}
-
-	// Create topic in database with placeholder title first (non-blocking)
-	topicID := uuid.New().String()
-	now := time.Now().UnixMilli()
-
-	// Use sessionID as is (don't convert "inbox" to NULL)
-	sessionIDForDB := sql.NullString{String: sessionID, Valid: true}
-
-	_, err = s.db.Queries().CreateTopic(ctx, db.CreateTopicParams{
-		ID:             topicID,
-		Title:          sql.NullString{String: "New Conversation", Valid: true}, // Placeholder
-		Favorite:       0,
-		SessionID:      sessionIDForDB,
-		GroupID:        sql.NullString{},
-		UserID:         userID,
-		HistorySummary: sql.NullString{},
-		Metadata:       sql.NullString{},
-		CreatedAt:      now,
-		UpdatedAt:      now,
-	})
-
-	if err != nil {
-		return "", fmt.Errorf("failed to create topic: %w", err)
-	}
-
-	// Generate title in BACKGROUND to avoid blocking (model loading can take 2-5 seconds)
-	messagesCopy := make([]fantasy.Message, len(messages))
-	copy(messagesCopy, messages)
-
-	topicIDCopy := topicID
-	userIDCopy := userID
-
-	go func() {
-		log.Printf("🔄 Generating title in background for new topic %s...", topicIDCopy)
-
-		// Generate title (default locale: en-US)
-		title, err := s.generateTopicTitle(context.Background(), messagesCopy, "en-US")
-		if err != nil {
-			log.Printf("⚠️  Warning: Failed to generate topic title: %v", err)
-			title = "New Conversation"
-		}
-
-		// Update topic title in database
-		now := time.Now().UnixMilli()
-		_, err = s.db.Queries().UpdateTopic(context.Background(), db.UpdateTopicParams{
-			Title:          sql.NullString{String: title, Valid: true},
-			HistorySummary: sql.NullString{}, // Keep existing
-			Metadata:       sql.NullString{}, // Keep existing
-			UpdatedAt:      now,
-			ID:             topicIDCopy,
-			UserID:         userIDCopy,
-		})
-
-		if err != nil {
-			log.Printf("⚠️  Failed to update topic title in DB: %v", err)
-		} else {
-			log.Printf("✅ Updated new topic %s with title: %s", topicIDCopy, title)
-
-			// Emit event to notify UI
-			if s.app != nil {
-				s.app.Event.Emit("chat:topic:updated", map[string]interface{}{
-					"topic_id": topicIDCopy,
-					"title":    title,
-				})
-			}
-		}
-	}()
-
-	return topicID, nil
-}
-
-// ============================================================================
-// Database Persistence Methods
-// ============================================================================
-
 // convertDBMessageToYzma converts a database message to native message
 // Returns the message and a boolean indicating if conversion was successful
 func convertDBMessageToYzma(dbMsg *db.Message) (fantasy.Message, bool) {
@@ -1278,59 +1128,6 @@ func convertDBMessageToYzma(dbMsg *db.Message) (fantasy.Message, bool) {
 		Role:    fantasy.MessageRole(role),
 		Content: []fantasy.MessagePart{fantasy.TextPart{Text: content}},
 	}, true
-}
-
-// convertYzmaMessageToDB converts yzma message to DB message params
-func convertYzmaMessageToDB(msg fantasy.Message, sessionID, userID string) db.CreateMessageParams {
-	return convertYzmaMessageToDBWithID(msg, sessionID, userID, "")
-}
-
-// convertYzmaMessageToDBWithID converts yzma message to DB message params with optional pre-generated ID
-func convertYzmaMessageToDBWithID(msg fantasy.Message, sessionID, userID, messageID string) db.CreateMessageParams {
-	now := time.Now().UnixMilli()
-
-	// Use pre-generated ID if provided, otherwise generate new one
-	msgID := messageID
-	if msgID == "" {
-		msgID = uuid.New().String()
-	}
-
-	params := db.CreateMessageParams{
-		ID:        msgID,
-		Role:      types.GetMessageRole(msg),
-		UserID:    userID,
-		CreatedAt: now,
-		UpdatedAt: now,
-	}
-
-	if sessionID != "" {
-		params.SessionID = sql.NullString{String: sessionID, Valid: true}
-	}
-
-	// Extract content based on message parts
-	textContent := types.GetMessageText(msg)
-	if textContent != "" {
-		params.Content = sql.NullString{String: textContent, Valid: true}
-	}
-
-	// Check for tool calls
-	if types.HasMessageToolCalls(msg) {
-		toolCalls := types.GetMessageToolCalls(msg)
-		if toolCallsJSON, err := json.Marshal(toolCalls); err == nil {
-			params.Tools = sql.NullString{String: string(toolCallsJSON), Valid: true}
-		}
-	}
-
-	// Check for tool result
-	for _, part := range msg.Content {
-		if p, ok := part.(fantasy.ToolResultPart); ok {
-			params.Content = sql.NullString{String: types.GetToolResultContent(p), Valid: true}
-			params.Role = "tool"
-			break
-		}
-	}
-
-	return params
 }
 
 // loadSessionFromDB loads a session from database
@@ -1404,31 +1201,6 @@ func (s *AgentChatService) createSessionInDB(ctx context.Context, sessionID, use
 	}
 
 	return &dbSession, nil
-}
-
-// saveMessageToDB saves a message to database
-// saveMessageToDB saves a message to the database
-// Phase 4: Now accepts topicID and threadID for proper message linking
-func (s *AgentChatService) saveYzmaMessageToDB(ctx context.Context, msg fantasy.Message, sessionID, userID, topicID, threadID string) (string, error) {
-	return s.saveYzmaMessageToDBWithID(ctx, msg, sessionID, userID, topicID, threadID, "")
-}
-
-func (s *AgentChatService) saveYzmaMessageToDBWithID(ctx context.Context, msg fantasy.Message, sessionID, userID, topicID, threadID, messageID string) (string, error) {
-	params := convertYzmaMessageToDBWithID(msg, sessionID, userID, messageID)
-
-	if topicID != "" {
-		params.TopicID = sql.NullString{String: topicID, Valid: true}
-	}
-	if threadID != "" {
-		params.ThreadID = sql.NullString{String: threadID, Valid: true}
-	}
-
-	dbMsg, err := s.db.Queries().CreateMessage(ctx, params)
-	if err != nil {
-		return "", fmt.Errorf("failed to save message to DB: %w", err)
-	}
-
-	return dbMsg.ID, nil
 }
 
 // updateSessionTimestamp updates the session's updated_at timestamp
@@ -1527,22 +1299,8 @@ func (s *AgentChatService) SetReasoningMode(mode ReasoningMode) error {
 	return nil
 }
 
-// GetReasoningMode returns the current reasoning mode
-func (s *AgentChatService) GetReasoningMode() ReasoningMode {
-	s.sessionsMutex.RLock()
-	defer s.sessionsMutex.RUnlock()
-	return s.reasoningConfig.Mode
-}
-
-// GetReasoningConfig returns the current reasoning configuration
-func (s *AgentChatService) GetReasoningConfig() ReasoningConfig {
-	s.sessionsMutex.RLock()
-	defer s.sessionsMutex.RUnlock()
-	return s.reasoningConfig
-}
-
-// ValidateModelForReasoningMode checks if the currently loaded model is appropriate
-func (s *AgentChatService) ValidateModelForReasoningMode() error {
+// validateModelForReasoningMode checks if the currently loaded model is appropriate
+func (s *AgentChatService) validateModelForReasoningMode() error {
 	modelPath := s.libService.GetLoadedChatModel()
 	if modelPath == "" {
 		return fmt.Errorf("no model loaded")
@@ -1551,13 +1309,8 @@ func (s *AgentChatService) ValidateModelForReasoningMode() error {
 	return s.reasoningConfig.ValidateModelForMode(modelPath)
 }
 
-// GetRecommendedModelForMode returns the recommended model for current reasoning mode
-func (s *AgentChatService) GetRecommendedModelForMode() string {
-	return s.reasoningConfig.GetRecommendedModel()
-}
-
-// SwitchToRecommendedModel loads the recommended model for current reasoning mode
-func (s *AgentChatService) SwitchToRecommendedModel() error {
+// switchToRecommendedModel loads the recommended model for current reasoning mode
+func (s *AgentChatService) switchToRecommendedModel() error {
 	recommendedModel := s.reasoningConfig.GetRecommendedModel()
 
 	homeDir, err := os.UserHomeDir()
@@ -1764,7 +1517,6 @@ Please summarize the above conversation and retain key information. The summariz
 	// Fallback to local models if TaskRouter failed or not configured
 	if responseContent == "" {
 		currentModel := s.libService.GetLoadedChatModel()
-		modelWithoutTools := s.yzmaModel.WithoutTools()
 
 		// Try 1: Dedicated summary model (BEST - optimized for this task)
 		if s.summaryModelPath != "" && s.summaryModelPath != currentModel {
@@ -1773,7 +1525,7 @@ Please summarize the above conversation and retain key information. The summariz
 			if loadErr := s.libService.LoadChatModel(s.summaryModelPath); loadErr != nil {
 				log.Printf("⚠️  Failed to load summary model: %v", loadErr)
 			} else {
-				resp, genErr := modelWithoutTools.Generate(ctx, summaryMessages)
+				resp, genErr := s.generateWithoutTools(ctx, summaryMessages)
 				if genErr == nil {
 					responseContent = resp.Content.Text()
 					modelUsed = "summary"
@@ -1797,7 +1549,7 @@ Please summarize the above conversation and retain key information. The summariz
 			if loadErr := s.libService.LoadChatModel(s.titleModelPath); loadErr != nil {
 				log.Printf("⚠️  Failed to load title model: %v", loadErr)
 			} else {
-				resp, genErr := modelWithoutTools.Generate(ctx, summaryMessages)
+				resp, genErr := s.generateWithoutTools(ctx, summaryMessages)
 				if genErr == nil {
 					responseContent = resp.Content.Text()
 					modelUsed = "title"
@@ -1815,7 +1567,7 @@ Please summarize the above conversation and retain key information. The summariz
 		// Try 3: Main chat model (FALLBACK - may be slow/reasoning model)
 		if responseContent == "" {
 			log.Printf("📋 Using main chat model for summary (no dedicated model available)")
-			resp, err := modelWithoutTools.Generate(ctx, summaryMessages)
+			resp, err := s.generateWithoutTools(ctx, summaryMessages)
 			if err != nil {
 				return "", fmt.Errorf("failed to generate summary: %w", err)
 			}
@@ -2024,16 +1776,13 @@ UPDATED SUMMARY:`, existingSummary, messagesText.String())
 
 	currentModel := s.libService.GetLoadedChatModel()
 
-	// Use model WITHOUT tools for summary generation
-	modelWithoutTools := s.yzmaModel.WithoutTools()
-
 	if s.summaryModelPath != "" && s.summaryModelPath != currentModel {
 		log.Printf("📋 Using dedicated summary model for incremental: %s", filepath.Base(s.summaryModelPath))
 
 		if loadErr := s.libService.LoadChatModel(s.summaryModelPath); loadErr != nil {
 			log.Printf("⚠️  Failed to load summary model: %v", loadErr)
 		} else {
-			resp, genErr := modelWithoutTools.Generate(ctx, summaryMessages)
+			resp, genErr := s.generateWithoutTools(ctx, summaryMessages)
 			if genErr == nil {
 				responseContent = resp.Content.Text()
 				modelUsed = "summary"
@@ -2055,7 +1804,7 @@ UPDATED SUMMARY:`, existingSummary, messagesText.String())
 		if loadErr := s.libService.LoadChatModel(s.titleModelPath); loadErr != nil {
 			log.Printf("⚠️  Failed to load title model: %v", loadErr)
 		} else {
-			resp, genErr := modelWithoutTools.Generate(ctx, summaryMessages)
+			resp, genErr := s.generateWithoutTools(ctx, summaryMessages)
 			if genErr == nil {
 				responseContent = resp.Content.Text()
 				modelUsed = "title"
@@ -2073,7 +1822,7 @@ UPDATED SUMMARY:`, existingSummary, messagesText.String())
 	// Try 3: Main chat model (FALLBACK)
 	if responseContent == "" {
 		log.Printf("📋 Using main chat model for incremental summary")
-		resp, err := modelWithoutTools.Generate(ctx, summaryMessages)
+		resp, err := s.generateWithoutTools(ctx, summaryMessages)
 		if err != nil {
 			return "", fmt.Errorf("failed to generate incremental summary: %w", err)
 		}

@@ -136,10 +136,10 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	currentTopicID := setup.TopicID
 
 	// 2. Validate model for current reasoning mode and auto-switch if needed
-	if err := s.ValidateModelForReasoningMode(); err != nil {
+	if err := s.validateModelForReasoningMode(); err != nil {
 		log.Printf("⚠️  Model mismatch detected: %v", err)
 		log.Printf("🔄 Auto-switching to recommended model...")
-		if switchErr := s.SwitchToRecommendedModel(); switchErr != nil {
+		if switchErr := s.switchToRecommendedModel(); switchErr != nil {
 			log.Printf("❌ Failed to switch model: %v", switchErr)
 			log.Printf("⚠️  Continuing with current model, but expect suboptimal performance")
 		} else {

@@ -1008,3 +1008,18 @@ func (s *LibraryService) GetHardwareSpecs() *hardware.HardwareSpecs {
 	}
 	return s.installer.HardwareSpecs
 }
+
+// WithChatLock executes the given function while holding the chat mutex lock.
+// This is useful for operations that need to access chat model resources directly
+// without the lock being released between getter calls.
+func (s *LibraryService) WithChatLock(fn func()) {
+	s.chatMutex.Lock()
+	defer s.chatMutex.Unlock()
+	fn()
+}
+
+// GetChatResourcesUnsafe returns chat resources without locking.
+// IMPORTANT: Only call this within WithChatLock or when you already hold the lock.
+func (s *LibraryService) GetChatResourcesUnsafe() (model llama.Model, ctx llama.Context, vocab llama.Vocab, sampler llama.Sampler) {
+	return s.chatModel, s.chatContext, s.chatVocab, s.chatSampler
+}

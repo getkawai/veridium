@@ -229,8 +229,13 @@ func (l *languageModel) preparePrompt(call fantasy.Call) (string, error) {
 	// Convert fantasy.Prompt to template-compatible messages
 	messages := l.convertToTemplateMessages(call.Prompt)
 
-	// Enhance with tools if available
-	if l.toolRegistry != nil && len(call.Tools) > 0 {
+	// Enhance with tools if available and ToolChoice is not "none"
+	// ToolChoiceNone disables all tools (useful for title/summary generation)
+	shouldEnhanceTools := l.toolRegistry != nil && len(call.Tools) > 0
+	if call.ToolChoice != nil && *call.ToolChoice == fantasy.ToolChoiceNone {
+		shouldEnhanceTools = false
+	}
+	if shouldEnhanceTools {
 		messages = l.enhanceWithTools(messages, call.Tools)
 	}
 
@@ -345,87 +350,93 @@ func (l *languageModel) generateWithTokenCounts(ctx context.Context, prompt stri
 }
 
 // generateStreaming performs token-by-token generation with callback
+// Uses WithChatLock to ensure thread-safe access to chat model resources
 func (l *languageModel) generateStreaming(ctx context.Context, prompt string, maxTokens int32, callback func(token string, done bool)) (int, error) {
-	chatModel := l.libService.GetChatModel()
-	chatContext := l.libService.GetChatContext()
-	chatVocab := l.libService.GetChatVocab()
-	chatSampler := l.libService.GetChatSampler()
-
-	if chatModel == 0 || chatContext == 0 {
-		return 0, fmt.Errorf("chat model not loaded")
-	}
-
-	// Tokenize prompt
-	tokens := llama.Tokenize(chatVocab, prompt, true, true)
-	if len(tokens) == 0 {
-		return 0, fmt.Errorf("failed to tokenize prompt")
-	}
-
-	// Reset sampler state
-	llama.SamplerReset(chatSampler)
-
-	// Process prompt tokens in batches
-	log.Printf("🔢 Processing %d prompt tokens in batches of %d", len(tokens), defaultBatchSize)
-
-	for i := 0; i < len(tokens); i += defaultBatchSize {
-		end := i + defaultBatchSize
-		if end > len(tokens) {
-			end = len(tokens)
-		}
-
-		batchTokens := tokens[i:end]
-		batch := llama.BatchGetOne(batchTokens)
-
-		errCode, err := llama.Decode(chatContext, batch)
-		if err != nil || errCode != 0 {
-			return 0, fmt.Errorf("failed to decode prompt batch %d-%d: %w", i, end, err)
-		}
-	}
-
 	var completionTokens int
+	var genErr error
 
-	// Generate tokens and stream
-	for nGenerated := int32(0); nGenerated < maxTokens; nGenerated++ {
-		// Check context cancellation
-		select {
-		case <-ctx.Done():
-			callback("", true)
-			return completionTokens, ctx.Err()
-		default:
+	l.libService.WithChatLock(func() {
+		chatModel, chatContext, chatVocab, chatSampler := l.libService.GetChatResourcesUnsafe()
+
+		if chatModel == 0 || chatContext == 0 {
+			genErr = fmt.Errorf("chat model not loaded")
+			return
 		}
 
-		// Sample next token
-		token := llama.SamplerSample(chatSampler, chatContext, -1)
-
-		// Check for end of generation
-		if llama.VocabIsEOG(chatVocab, token) {
-			callback("", true)
-			break
+		// Tokenize prompt
+		tokens := llama.Tokenize(chatVocab, prompt, true, true)
+		if len(tokens) == 0 {
+			genErr = fmt.Errorf("failed to tokenize prompt")
+			return
 		}
 
-		// Convert token to text
-		buf := make([]byte, 256)
-		length := llama.TokenToPiece(chatVocab, token, buf, 0, false)
-		content := string(buf[:length])
+		// Reset sampler state
+		llama.SamplerReset(chatSampler)
 
-		completionTokens++
-		callback(content, false)
+		// Process prompt tokens in batches
+		log.Printf("🔢 Processing %d prompt tokens in batches of %d", len(tokens), defaultBatchSize)
 
-		// Accept token and prepare for next generation
-		llama.SamplerAccept(chatSampler, token)
+		for i := 0; i < len(tokens); i += defaultBatchSize {
+			end := i + defaultBatchSize
+			if end > len(tokens) {
+				end = len(tokens)
+			}
 
-		// Decode the new token
-		nextBatch := llama.BatchGetOne([]llama.Token{token})
-		errCode, err := llama.Decode(chatContext, nextBatch)
-		if err != nil || errCode != 0 {
-			return completionTokens, fmt.Errorf("failed to decode token: %w", err)
+			batchTokens := tokens[i:end]
+			batch := llama.BatchGetOne(batchTokens)
+
+			errCode, err := llama.Decode(chatContext, batch)
+			if err != nil || errCode != 0 {
+				genErr = fmt.Errorf("failed to decode prompt batch %d-%d: %w", i, end, err)
+				return
+			}
 		}
 
-		// Small delay to prevent overwhelming
-		time.Sleep(5 * time.Millisecond)
-	}
+		// Generate tokens and stream
+		for nGenerated := int32(0); nGenerated < maxTokens; nGenerated++ {
+			// Check context cancellation
+			select {
+			case <-ctx.Done():
+				callback("", true)
+				genErr = ctx.Err()
+				return
+			default:
+			}
 
-	return completionTokens, nil
+			// Sample next token
+			token := llama.SamplerSample(chatSampler, chatContext, -1)
+
+			// Check for end of generation
+			if llama.VocabIsEOG(chatVocab, token) {
+				callback("", true)
+				break
+			}
+
+			// Convert token to text
+			buf := make([]byte, 256)
+			length := llama.TokenToPiece(chatVocab, token, buf, 0, false)
+			content := string(buf[:length])
+
+			completionTokens++
+			callback(content, false)
+
+			// Accept token and prepare for next generation
+			llama.SamplerAccept(chatSampler, token)
+
+			// Decode the new token
+			nextBatch := llama.BatchGetOne([]llama.Token{token})
+			errCode, err := llama.Decode(chatContext, nextBatch)
+			if err != nil || errCode != 0 {
+				genErr = fmt.Errorf("failed to decode token: %w", err)
+				return
+			}
+
+			// Small delay to prevent overwhelming
+			time.Sleep(5 * time.Millisecond)
+		}
+	})
+
+	return completionTokens, genErr
 }
 
 // cleanToolCallTags removes tool call XML tags from response

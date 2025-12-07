@@ -42,6 +42,11 @@ func (m *LlamaLanguageModel) Generate(ctx context.Context, call fantasy.Call) (*
 	// Convert Call.Prompt to []fantasy.Message
 	messages := call.Prompt
 
+	// Check if tools should be disabled (ToolChoiceNone)
+	if call.ToolChoice != nil && *call.ToolChoice == fantasy.ToolChoiceNone {
+		return m.model.WithoutTools().Generate(ctx, messages)
+	}
+
 	// If tools are provided, set them on the underlying model
 	if len(call.Tools) > 0 {
 		// Tools are already in the messages via system prompt enhancement
@@ -54,6 +59,12 @@ func (m *LlamaLanguageModel) Generate(ctx context.Context, call fantasy.Call) (*
 // Stream implements fantasy.LanguageModel.Stream
 func (m *LlamaLanguageModel) Stream(ctx context.Context, call fantasy.Call) (fantasy.StreamResponse, error) {
 	messages := call.Prompt
+
+	// Check if tools should be disabled (ToolChoiceNone)
+	modelToUse := m.model
+	if call.ToolChoice != nil && *call.ToolChoice == fantasy.ToolChoiceNone {
+		modelToUse = m.model.WithoutTools()
+	}
 
 	// Create an iterator that yields stream parts
 	streamFunc := func(yield func(fantasy.StreamPart) bool) {
@@ -79,7 +90,7 @@ func (m *LlamaLanguageModel) Stream(ctx context.Context, call fantasy.Call) (fan
 		}
 
 		// Run streaming generation
-		resp, err := m.model.Stream(ctx, messages, callback)
+		resp, err := modelToUse.Stream(ctx, messages, callback)
 
 		// Emit text end
 		yield(fantasy.StreamPart{

@@ -10,7 +10,6 @@ import (
 	"github.com/kawai-network/veridium/internal/audio_recorder"
 	"github.com/kawai-network/veridium/internal/database"
 	"github.com/kawai-network/veridium/internal/llama"
-	"github.com/kawai-network/veridium/internal/llm"
 	"github.com/kawai-network/veridium/internal/machineid"
 	"github.com/kawai-network/veridium/internal/search"
 	"github.com/kawai-network/veridium/internal/services"
@@ -294,8 +293,6 @@ func main() {
 	// Initialize Thread Management Service (needs to be before AgentChatService)
 	threadManagementService := services.NewThreadManagementService(app, dbService)
 	app.RegisterService(application.NewService(threadManagementService))
-	log.Printf("✅ Thread Management service registered")
-	log.Printf("   Supports: conversation branching, thread creation, thread switching")
 
 	// Initialize Llama Chat Service (OpenAI-compatible chat API)
 	// This service provides chat completion functionality using the library service
@@ -312,27 +309,6 @@ func main() {
 				threadManagementService, // Phase 4: Thread integration
 			)
 			app.RegisterService(application.NewService(agentChatService))
-			log.Printf("✅ Agent Chat service registered")
-			log.Printf("   Yzma-based agent with RAG capabilities")
-			log.Printf("   Supports: tool calling, knowledge base search, multi-turn conversations")
-			log.Printf("   Supports: file attachments with semantic search")
-			log.Printf("   Session persistence: SQLite (messages + metadata)")
-			log.Printf("   Phase 4: Thread Management integrated")
-			log.Printf("   Phase 4: Auto Topic & Thread support")
-
-			// Log TaskRouter configuration
-			if taskRouter := agentChatService.GetTaskRouter(); taskRouter != nil {
-				log.Printf("🔀 TaskRouter enabled - multi-provider task distribution")
-				for _, task := range taskRouter.ListConfiguredTasks() {
-					log.Printf("   Task '%s': configured", task)
-				}
-
-				// Connect TaskRouter to FileProcessorService for OCR/transcript cleanup
-				if model := taskRouter.GetModel(llm.TaskOCRCleanup); model != nil {
-					fileProcessorService.SetLanguageModel(model)
-					log.Printf("🔗 FileProcessor connected to TaskRouter for OCR/transcript cleanup")
-				}
-			}
 		}
 
 		// Add cleanup on shutdown
