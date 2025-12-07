@@ -210,6 +210,24 @@ func (r *TaskRouter) ListConfiguredTasks() []TaskType {
 	return tasks
 }
 
+// GetChatModel returns the fantasy.LanguageModel for chat tasks
+// This is used by fantasy.Agent for streaming
+func (r *TaskRouter) GetChatModel() fantasy.LanguageModel {
+	provider := r.GetProvider(TaskChat)
+	if provider == nil {
+		provider = r.fallback
+	}
+	if provider == nil {
+		return nil
+	}
+
+	// Try to extract LanguageModel from FantasyProviderAdapter
+	if fpa, ok := provider.(*FantasyProviderAdapter); ok {
+		return fpa.GetLanguageModel()
+	}
+	return nil
+}
+
 // Error types
 var (
 	ErrNoProvider = &RouterError{Message: "no provider configured for task"}

@@ -8,11 +8,11 @@ import (
 	"log"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/kawai-network/veridium/fantasy"
-	"github.com/kawai-network/veridium/internal/llm"
 	"github.com/kawai-network/veridium/types"
 )
 
@@ -219,97 +219,284 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 		assistantMsgID = uuid.New().String()
 	}
 
-	// Get LLM provider with requested tools
-	// Use TaskRouter if configured, otherwise fallback to llmGenerator
-	var llmWithTools llm.Provider
-	if s.taskRouter != nil {
-		llmWithTools = s.taskRouter.ChatWithTools(session.ToolNames)
-		if llmWithTools == nil {
-			// Fallback to llmGenerator if TaskRouter has no chat provider
-			llmWithTools = s.llmGenerator.WithTools(session.ToolNames)
-		}
-	} else {
-		llmWithTools = s.llmGenerator.WithTools(session.ToolNames)
-	}
-
-	// 5. Run LLM with streaming + tool execution
+	// State for streaming
 	var finalContent strings.Builder
 	var reasoningContent strings.Builder
 	var toolCalls []fantasy.ToolCallContent
 	var toolMessages []fantasy.Message
 	var usage *ModelUsage
-	var llmResp interface{}
 	var uiTools []ChatToolPayload
 	var toolResultsData []ToolResultData
-
-	// Track timing
 	var ttft int64 // Time to first token
-
-	// Track state for filtering tool_call tags
 	var inToolCallTag bool
+	var toolCallIndex int
+	var mu sync.Mutex // Protect concurrent access
 
-	// Streaming callback that emits events to frontend
-	streamCallback := func(token string, isLast bool) {
-		if token == "" && !isLast {
-			return
-		}
+	// Get LanguageModel from TaskRouter
+	var model fantasy.LanguageModel
+	if s.taskRouter != nil {
+		model = s.taskRouter.GetChatModel()
+	}
 
-		// Measure TTFT
-		if ttft == 0 && token != "" {
-			ttft = time.Since(startTime).Milliseconds()
-		}
+	// Use fantasy.Agent if we have a LanguageModel, otherwise fallback to legacy method
+	if model != nil {
+		// Convert tools from ToolRegistry to fantasy.AgentTool
+		agentTools := s.toolRegistry.ToAgentTools(session.ToolNames)
 
-		// Detect if this is reasoning content (inside <think> tags)
-		currentContent := finalContent.String() + token
+		// Extract system prompt and prepare messages for fantasy.Agent
+		// fantasy.Agent.createPrompt expects: system (optional), prompt (required), messages (history)
+		var systemPrompt string
+		var historyMessages []fantasy.Message
+		var userPrompt string
 
-		// Check for reasoning mode patterns
-		isInThinkTag := strings.Contains(currentContent, "<think>") && !strings.Contains(currentContent, "</think>")
-		hasThinkContent := strings.Contains(currentContent, "<think>")
-
-		if isInThinkTag || (hasThinkContent && !strings.Contains(currentContent, "</think>")) {
-			// Extract reasoning content from <think> tag
-			if strings.Contains(token, "<think>") {
-				// Start of thinking
-				reasoningContent.Reset()
-			} else if strings.Contains(token, "</think>") {
-				// End of thinking - emit final reasoning
-				emit(StreamEventPayload{
-					Type: types.ChatEventReasoning,
-					Reasoning: &ModelReasoning{
-						Content: reasoningContent.String(),
-					},
-				})
-			} else if isInThinkTag {
-				// Inside thinking - accumulate and emit
-				reasoningContent.WriteString(token)
-				emit(StreamEventPayload{
-					Type: types.ChatEventReasoning,
-					Reasoning: &ModelReasoning{
-						Content: reasoningContent.String(),
-					},
-				})
+		for i, msg := range messagesWithSystem {
+			role := types.GetMessageRole(msg)
+			if role == "system" && i == 0 {
+				systemPrompt = types.GetMessageText(msg)
+			} else if role == "user" && i == len(messagesWithSystem)-1 {
+				// Last user message becomes the prompt
+				userPrompt = types.GetMessageText(msg)
+			} else {
+				historyMessages = append(historyMessages, msg)
 			}
-		} else {
-			// Regular content (not in <think> tag)
+		}
 
-			// Track tool_call tag state - must check BEFORE appending to content
+		// Fallback: if no user prompt found, use the original request message
+		if userPrompt == "" {
+			userPrompt = req.Message
+		}
+
+		// 5. Create fantasy.Agent with tools and system prompt
+		agent := fantasy.NewAgent(model,
+			fantasy.WithTools(agentTools...),
+			fantasy.WithSystemPrompt(systemPrompt),
+			fantasy.WithStopConditions(fantasy.StepCountIs(10)), // Max 10 iterations
+		)
+
+		// Run agent with streaming callbacks
+		result, runErr := agent.Stream(ctx, fantasy.AgentStreamCall{
+			Prompt:   userPrompt,
+			Messages: historyMessages,
+
+			// Text streaming callbacks
+			OnTextDelta: func(id, text string) error {
+				mu.Lock()
+				defer mu.Unlock()
+
+				// Measure TTFT
+				if ttft == 0 && text != "" {
+					ttft = time.Since(startTime).Milliseconds()
+				}
+
+				// Track tool_call tag state
+				if strings.Contains(text, "<tool_call>") {
+					inToolCallTag = true
+					return nil
+				}
+				if strings.Contains(text, "</tool_call>") {
+					inToolCallTag = false
+					return nil
+				}
+				if inToolCallTag {
+					return nil
+				}
+
+				finalContent.WriteString(text)
+
+				// Clean content for display
+				cleanContent := finalContent.String()
+				cleanContent = strings.TrimPrefix(cleanContent, "</think>")
+				cleanContent = strings.TrimSpace(cleanContent)
+
+				if cleanContent != "" {
+					emit(StreamEventPayload{
+						Type:    types.ChatEventChunk,
+						Content: cleanContent,
+					})
+				}
+				return nil
+			},
+
+			// Reasoning callbacks
+			OnReasoningDelta: func(id, text string) error {
+				mu.Lock()
+				defer mu.Unlock()
+
+				reasoningContent.WriteString(text)
+				emit(StreamEventPayload{
+					Type: types.ChatEventReasoning,
+					Reasoning: &ModelReasoning{
+						Content: reasoningContent.String(),
+					},
+				})
+				return nil
+			},
+
+			// Tool call callback - when tool call is detected
+			OnToolCall: func(tc fantasy.ToolCallContent) error {
+				mu.Lock()
+				defer mu.Unlock()
+
+				identifier, apiName, toolType := mapToolName(tc.ToolName)
+				toolCallID := fmt.Sprintf("%s_tool_%d", assistantMsgID, toolCallIndex)
+				log.Printf("🔧 [REAL STREAM] Tool call (loading): %s -> identifier=%s, apiName=%s", tc.ToolName, identifier, apiName)
+
+				tool := ChatToolPayload{
+					ID:         toolCallID,
+					APIName:    apiName,
+					Identifier: identifier,
+					Arguments:  tc.Input,
+					Type:       toolType,
+				}
+				uiTools = append(uiTools, tool)
+				toolCalls = append(toolCalls, tc)
+
+				emit(StreamEventPayload{
+					Type:  types.ChatEventToolCall,
+					Tools: uiTools,
+				})
+				toolCallIndex++
+				return nil
+			},
+
+			// Tool result callback - when tool execution completes
+			OnToolResult: func(tr fantasy.ToolResultContent) error {
+				mu.Lock()
+				defer mu.Unlock()
+
+				identifier, apiName, toolType := mapToolName(tr.ToolName)
+
+				// Get result content as string
+				resultContent := ""
+				switch r := tr.Result.(type) {
+				case fantasy.ToolResultOutputContentText:
+					resultContent = r.Text
+				case fantasy.ToolResultOutputContentError:
+					if r.Error != nil {
+						resultContent = r.Error.Error()
+					}
+				}
+
+				if len(resultContent) > 50 {
+					log.Printf("🔧 [REAL STREAM] Tool result: %s -> %s...", tr.ToolName, resultContent[:50])
+				} else {
+					log.Printf("🔧 [REAL STREAM] Tool result: %s -> %s", tr.ToolName, resultContent)
+				}
+
+				// Parse result as JSON for state
+				var toolState interface{}
+				if err := json.Unmarshal([]byte(resultContent), &toolState); err == nil {
+					// Successfully parsed as JSON
+				}
+
+				toolResultsData = append(toolResultsData, ToolResultData{
+					Content: resultContent,
+					State:   toolState,
+				})
+
+				resultIndex := len(toolResultsData) - 1
+				toolCallID := fmt.Sprintf("%s_tool_%d", assistantMsgID, resultIndex)
+
+				// Find the corresponding tool input
+				toolInput := ""
+				if resultIndex < len(uiTools) {
+					toolInput = uiTools[resultIndex].Arguments
+				}
+
+				emit(StreamEventPayload{
+					Type:       types.ChatEventToolResult,
+					ToolCallID: toolCallID,
+					ToolMsgID:  fmt.Sprintf("tool_msg_%s_%d", assistantMsgID, resultIndex+1),
+					Plugin: &ChatPluginPayload{
+						Identifier: identifier,
+						APIName:    apiName,
+						Arguments:  toolInput,
+						Type:       toolType,
+					},
+					PluginState: toolState,
+					Content:     resultContent,
+				})
+				return nil
+			},
+
+			// Step finish callback - build tool messages from step
+			OnStepFinish: func(step fantasy.StepResult) error {
+				mu.Lock()
+				defer mu.Unlock()
+
+				// Add step messages to toolMessages
+				toolMessages = append(toolMessages, step.Messages...)
+				return nil
+			},
+
+			OnError: func(err error) {
+				log.Printf("❌ [REAL STREAM] Agent stream error: %v", err)
+			},
+		})
+
+		if runErr != nil {
+			log.Printf("❌ [REAL STREAM] Agent execution failed: %v", runErr)
+			emit(StreamEventPayload{
+				Type:    types.ChatEventComplete,
+				Content: fmt.Sprintf("Error: %v", runErr),
+				Error: &ChatMessageError{
+					Type:    "LLMError",
+					Message: runErr.Error(),
+				},
+			})
+			return fmt.Errorf("agent execution failed: %w", runErr)
+		}
+
+		// Build usage from result
+		if result != nil {
+			usage = &ModelUsage{
+				TotalInputTokens:  int(result.TotalUsage.InputTokens),
+				TotalOutputTokens: int(result.TotalUsage.OutputTokens),
+				TotalTokens:       int(result.TotalUsage.TotalTokens),
+			}
+			// Update toolCalls from final response if not captured via callbacks
+			if len(toolCalls) == 0 {
+				toolCalls = result.Response.Content.ToolCalls()
+			}
+		}
+	} else {
+		// Fallback: Use legacy RunAgentLoopWithStreaming for local llama model
+		log.Printf("📝 [REAL STREAM] Using legacy agent loop (no fantasy.LanguageModel available)")
+
+		if s.yzmaModel == nil {
+			return fmt.Errorf("no language model available")
+		}
+
+		// Streaming callback for legacy method
+		streamCallback := func(token string, isLast bool) {
+			if token == "" && !isLast {
+				return
+			}
+
+			mu.Lock()
+			defer mu.Unlock()
+
+			// Measure TTFT
+			if ttft == 0 && token != "" {
+				ttft = time.Since(startTime).Milliseconds()
+			}
+
+			// Track tool_call tag state
 			if strings.Contains(token, "<tool_call>") {
 				inToolCallTag = true
-				return // Skip the opening tag token entirely
+				return
 			}
 			if strings.Contains(token, "</tool_call>") {
 				inToolCallTag = false
-				return // Skip the closing tag token entirely
+				return
 			}
-
-			// Skip ALL content if we're inside a tool_call tag
 			if inToolCallTag {
 				return
 			}
 
 			finalContent.WriteString(token)
 
-			// Clean content for display (remove any remaining tags)
+			// Clean content for display
 			cleanContent := finalContent.String()
 			cleanContent = strings.TrimPrefix(cleanContent, "</think>")
 			cleanContent = strings.TrimSpace(cleanContent)
@@ -322,95 +509,92 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 			}
 		}
 
-		if isLast {
-			log.Printf("📝 [REAL STREAM] Streaming complete, final content length: %d", finalContent.Len())
-		}
-	}
+		// Tool event callback for legacy method
+		toolEventCallback := func(eventType types.ChatStreamEvent, tc fantasy.ToolCall, result string) {
+			mu.Lock()
+			defer mu.Unlock()
 
-	// Tool event callback - emits tool events to frontend in real-time
-	var toolCallIndex int
-	toolEventCallback := func(eventType types.ChatStreamEvent, tc fantasy.ToolCall, result string) {
-		identifier, apiName, toolType := mapToolName(tc.Name)
+			identifier, apiName, toolType := mapToolName(tc.Name)
 
-		if eventType == types.ChatEventToolCall {
-			// Tool call initiated - emit loading state
-			toolCallID := fmt.Sprintf("%s_tool_%d", assistantMsgID, toolCallIndex)
-			log.Printf("🔧 [REAL STREAM] Tool call (loading): %s -> identifier=%s, apiName=%s", tc.Name, identifier, apiName)
+			if eventType == types.ChatEventToolCall {
+				toolCallID := fmt.Sprintf("%s_tool_%d", assistantMsgID, toolCallIndex)
+				log.Printf("🔧 [REAL STREAM] Tool call (loading): %s -> identifier=%s, apiName=%s", tc.Name, identifier, apiName)
 
-			tool := ChatToolPayload{
-				ID:         toolCallID,
-				APIName:    apiName,
-				Identifier: identifier,
-				Arguments:  tc.Input,
-				Type:       toolType,
-			}
-			uiTools = append(uiTools, tool)
-
-			emit(StreamEventPayload{
-				Type:  types.ChatEventToolCall,
-				Tools: uiTools,
-			})
-			toolCallIndex++
-		} else if eventType == types.ChatEventToolResult {
-			// Tool execution completed - emit result
-			log.Printf("🔧 [REAL STREAM] Tool result: %s -> %s", tc.Name, result[:minInt(50, len(result))])
-
-			// Parse result as JSON for state
-			var toolState interface{}
-			if err := json.Unmarshal([]byte(result), &toolState); err == nil {
-				// Successfully parsed as JSON
-			}
-
-			toolResultsData = append(toolResultsData, ToolResultData{
-				Content: result,
-				State:   toolState,
-			})
-
-			// Find the tool index for this result
-			resultIndex := len(toolResultsData) - 1
-			toolCallID := fmt.Sprintf("%s_tool_%d", assistantMsgID, resultIndex)
-
-			emit(StreamEventPayload{
-				Type:       types.ChatEventToolResult,
-				ToolCallID: toolCallID,
-				ToolMsgID:  fmt.Sprintf("tool_msg_%s_%d", assistantMsgID, resultIndex+1),
-				Plugin: &ChatPluginPayload{
-					Identifier: identifier,
+				tool := ChatToolPayload{
+					ID:         toolCallID,
 					APIName:    apiName,
+					Identifier: identifier,
 					Arguments:  tc.Input,
 					Type:       toolType,
-				},
-				PluginState: toolState,
-				Content:     result,
-			})
+				}
+				uiTools = append(uiTools, tool)
+
+				emit(StreamEventPayload{
+					Type:  types.ChatEventToolCall,
+					Tools: uiTools,
+				})
+				toolCallIndex++
+			} else if eventType == types.ChatEventToolResult {
+				if len(result) > 50 {
+					log.Printf("🔧 [REAL STREAM] Tool result: %s -> %s...", tc.Name, result[:50])
+				} else {
+					log.Printf("🔧 [REAL STREAM] Tool result: %s -> %s", tc.Name, result)
+				}
+
+				var toolState interface{}
+				if err := json.Unmarshal([]byte(result), &toolState); err == nil {
+					// Successfully parsed as JSON
+				}
+
+				toolResultsData = append(toolResultsData, ToolResultData{
+					Content: result,
+					State:   toolState,
+				})
+
+				resultIndex := len(toolResultsData) - 1
+				toolCallID := fmt.Sprintf("%s_tool_%d", assistantMsgID, resultIndex)
+
+				emit(StreamEventPayload{
+					Type:       types.ChatEventToolResult,
+					ToolCallID: toolCallID,
+					ToolMsgID:  fmt.Sprintf("tool_msg_%s_%d", assistantMsgID, resultIndex+1),
+					Plugin: &ChatPluginPayload{
+						Identifier: identifier,
+						APIName:    apiName,
+						Arguments:  tc.Input,
+						Type:       toolType,
+					},
+					PluginState: toolState,
+					Content:     result,
+				})
+			}
 		}
-	}
 
-	// Run agent loop with streaming and tool callbacks
-	resp, tms, runErr := llmWithTools.RunAgentLoopWithStreaming(ctx, messagesWithSystem, 10, streamCallback, toolEventCallback)
-	if runErr != nil {
-		log.Printf("❌ [REAL STREAM] Agent execution failed: %v", runErr)
-		emit(StreamEventPayload{
-			Type:    types.ChatEventComplete,
-			Content: fmt.Sprintf("Error: %v", runErr),
-			Error: &ChatMessageError{
-				Type:    "LLMError",
-				Message: runErr.Error(),
-			},
-		})
-		return fmt.Errorf("agent execution failed: %w", runErr)
-	}
+		// Run legacy agent loop
+		resp, tms, runErr := s.yzmaModel.RunAgentLoopWithStreaming(ctx, messagesWithSystem, 10, streamCallback, toolEventCallback)
+		if runErr != nil {
+			log.Printf("❌ [REAL STREAM] Agent execution failed: %v", runErr)
+			emit(StreamEventPayload{
+				Type:    types.ChatEventComplete,
+				Content: fmt.Sprintf("Error: %v", runErr),
+				Error: &ChatMessageError{
+					Type:    "LLMError",
+					Message: runErr.Error(),
+				},
+			})
+			return fmt.Errorf("agent execution failed: %w", runErr)
+		}
 
-	llmResp = resp
-	toolCalls = resp.Content.ToolCalls()
-	toolMessages = tms
+		toolCalls = resp.Content.ToolCalls()
+		toolMessages = tms
 
-	// Build usage from response
-	if resp != nil {
-		usage = &ModelUsage{
-			TotalInputTokens:  int(resp.Usage.InputTokens),
-			TotalOutputTokens: int(resp.Usage.OutputTokens),
-			TotalTokens:       int(resp.Usage.TotalTokens),
+		// Build usage from response
+		if resp != nil {
+			usage = &ModelUsage{
+				TotalInputTokens:  int(resp.Usage.InputTokens),
+				TotalOutputTokens: int(resp.Usage.OutputTokens),
+				TotalTokens:       int(resp.Usage.TotalTokens),
+			}
 		}
 	}
 
@@ -419,14 +603,6 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	finalContentStr = stripThinkTags(finalContentStr)
 	finalContentStr = stripToolCallTags(finalContentStr)
 	finalContentStr = strings.TrimSpace(finalContentStr)
-
-	// If final content is empty but we have response content, use that
-	respText := resp.Content.Text()
-	if finalContentStr == "" && resp != nil && respText != "" {
-		finalContentStr = stripThinkTags(respText)
-		finalContentStr = stripToolCallTags(finalContentStr)
-		finalContentStr = strings.TrimSpace(finalContentStr)
-	}
 
 	// 8. Add messages to session history
 	session.Messages = append(session.Messages, toolMessages...)
@@ -464,7 +640,6 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 		"model":       s.libService.GetLoadedChatModel(),
 		"usage":       usage,
 		"performance": performance,
-		"llm_resp":    llmResp,
 	}
 
 	savedMsgID, err := s.saveAssistantMessage(ctx, SaveAssistantMessageParams{

@@ -152,6 +152,7 @@ func (a *FantasyProviderAdapter) RunAgentLoop(ctx context.Context, messages fant
 }
 
 // RunAgentLoopWithStreaming runs the agent loop with streaming callback
+// Deprecated: Use fantasy.Agent.Stream() instead for new code. This method is kept for backward compatibility.
 func (a *FantasyProviderAdapter) RunAgentLoopWithStreaming(ctx context.Context, messages fantasy.Prompt, maxIterations int, streamCallback types.StreamCallback, toolCallback types.ToolEventCallback) (*fantasy.Response, fantasy.Prompt, error) {
 	if maxIterations <= 0 {
 		maxIterations = 10
@@ -458,4 +459,9 @@ func (a *FantasyProviderAdapter) GetModel() string {
 // GetProviderName returns the provider name
 func (a *FantasyProviderAdapter) GetProviderName() string {
 	return a.model.Provider()
+}
+
+// GetLanguageModel returns the underlying fantasy.LanguageModel
+func (a *FantasyProviderAdapter) GetLanguageModel() fantasy.LanguageModel {
+	return a.model
 }
