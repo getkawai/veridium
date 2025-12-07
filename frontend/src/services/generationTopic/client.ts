@@ -1,4 +1,4 @@
-import { clientDB } from '@/database/client/db';
+// import { clientDB } from '@/database/client/db';
 import { GenerationTopicItem } from '@/types/database-legacy';
 import { GenerationTopicModel } from '@/database/models/generationTopic';
 import { BaseClientService } from '@/services/baseClientService';
@@ -9,7 +9,7 @@ import { IGenerationTopicService } from './type';
 
 export class ClientService extends BaseClientService implements IGenerationTopicService {
   private get generationTopicModel(): GenerationTopicModel {
-    return new GenerationTopicModel(clientDB as any, this.userId);
+    return new GenerationTopicModel(this.userId);
   }
 
   getAllGenerationTopics = async (): Promise<ImageGenerationTopic[]> => {

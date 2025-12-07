@@ -3,8 +3,8 @@ import { useRef } from 'react';
 import { StateCreator } from 'zustand';
 
 import { GetGenerationStatusResult } from '@/types/generation-types';
-import { generationService } from '@/services/generation';
-import { generationBatchService } from '@/services/generationBatch';
+// import { generationService } from '@/services/generation';
+// import { generationBatchService } from '@/services/generationBatch';
 import { AsyncTaskStatus } from '@/types/asyncTask';
 import { GenerationBatch } from '@/types/generation';
 import { setNamespace } from '@/utils/storeDebug';
@@ -33,7 +33,7 @@ export interface GenerationBatchAction {
   removeGenerationBatch: (batchId: string, topicId: string) => Promise<void>;
   internal_deleteGenerationBatch: (batchId: string, topicId: string) => Promise<void>;
   refreshGenerationBatches: () => Promise<void>;
-  internal_checkGenerationStatus: (
+  useCheckGenerationStatus: (
     generationId: string,
     asyncTaskId: string,
     topicId: string,
@@ -113,7 +113,7 @@ export const createGenerationBatchSlice: StateCreator<
     );
 
     // 2. 调用后端服务删除generation
-    await generationService.deleteGeneration(generationId);
+    // await generationService.deleteGeneration(generationId);
 
     // 3. 刷新数据确保一致性
     await refreshGenerationBatches();
@@ -135,7 +135,7 @@ export const createGenerationBatchSlice: StateCreator<
     );
 
     // 2. 调用后端服务
-    await generationBatchService.deleteGenerationBatch(batchId);
+    // await generationBatchService.deleteGenerationBatch(batchId);
 
     // 3. 刷新数据确保一致性
     await refreshGenerationBatches();
@@ -173,11 +173,11 @@ export const createGenerationBatchSlice: StateCreator<
     if (!topicId) return;
 
     try {
-      const data = await generationBatchService.getGenerationBatches(topicId);
-      
+      // const data = await generationBatchService.getGenerationBatches(topicId);
+
       const nextMap = {
         ...get().generationBatchesMap,
-        [topicId]: data,
+        [topicId]: [],
       };
 
       // no need to update map if the map is the same
@@ -198,8 +198,8 @@ export const createGenerationBatchSlice: StateCreator<
   // TODO: This polling logic should be moved to a component-level hook
   // Polling with useRef violates React Rules of Hooks when called from store
   // For now, this is a no-op. Components should implement their own polling.
-  internal_checkGenerationStatus: (generationId, asyncTaskId, topicId, enable = true) => {
-    console.warn('[internal_checkGenerationStatus] This method needs to be refactored to component-level polling');
+  useCheckGenerationStatus: (generationId, asyncTaskId, topicId, enable = true) => {
+    console.warn('[checkGenerationStatus] This method needs to be refactored to component-level polling');
     // DEPRECATED: Remove this entire implementation
     /*
     const requestCountRef = useRef(0);
@@ -306,6 +306,7 @@ export const createGenerationBatchSlice: StateCreator<
     */
   },
   useFetchGenerationBatches: async (topicId) => {
-    return generationBatchService.getGenerationBatches(topicId);
+    // return generationBatchService.getGenerationBatches(topicId);
+    return [];
   },
 });

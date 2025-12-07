@@ -6,7 +6,7 @@ import { memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Center } from 'react-layout-kit';
 
-import { AgentRuntimeErrorType } from '@lobechat/model-runtime';
+// import { AgentRuntimeErrorType } from '@lobechat/model-runtime';
 
 import { ActionButtons } from './ActionButtons';
 import { useStyles } from './styles';
@@ -29,30 +29,30 @@ export const ErrorState = memo<ErrorStateProps>(
       // Try to translate based on error type if it matches known AgentRuntimeErrorType
       if (errorBody) {
         // Check if the error body is an AgentRuntimeErrorType that needs translation
-        const knownErrorTypes = Object.values(AgentRuntimeErrorType);
-        if (
-          knownErrorTypes.includes(
-            errorBody as (typeof AgentRuntimeErrorType)[keyof typeof AgentRuntimeErrorType],
-          )
-        ) {
-          // Use localized error message - ComfyUI errors are under 'response' namespace
-          const translationKey = `response.${errorBody}`;
-          const translated = tError(translationKey as any);
+        // const knownErrorTypes = Object.values(AgentRuntimeErrorType);
+        // if (
+        //   knownErrorTypes.includes(
+        //     errorBody as (typeof AgentRuntimeErrorType)[keyof typeof AgentRuntimeErrorType],
+        //   )
+        // ) {
+        //   // Use localized error message - ComfyUI errors are under 'response' namespace
+        //   const translationKey = `response.${errorBody}`;
+        //   const translated = tError(translationKey as any);
 
-          // If translation key is not found, it returns the key itself
-          // Check if we got back the key (meaning translation failed)
-          if (translated === translationKey || (translated as string).startsWith('response.')) {
-            // Try without any prefix (for backwards compatibility)
-            const directTranslated = tError(errorBody as any);
-            if (directTranslated !== errorBody) {
-              return directTranslated as string;
-            }
-            // Final fallback to the original error message
-            return errorBody;
-          }
+        //   // If translation key is not found, it returns the key itself
+        //   // Check if we got back the key (meaning translation failed)
+        //   if (translated === translationKey || (translated as string).startsWith('response.')) {
+        //     // Try without any prefix (for backwards compatibility)
+        //     const directTranslated = tError(errorBody as any);
+        //     if (directTranslated !== errorBody) {
+        //       return directTranslated as string;
+        //     }
+        //     // Final fallback to the original error message
+        //     return errorBody;
+        //   }
 
-          return translated as string;
-        }
+        //   return translated as string;
+        // }
       }
 
       // Fallback to original error message
