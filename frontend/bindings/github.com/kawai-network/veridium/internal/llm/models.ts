@@ -6,12 +6,6 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
- * Provider defines the interface for LLM generation operations
- * This interface is implemented by all LLM providers (local llama, OpenAI-compatible APIs, etc.)
- */
-export type Provider = any;
-
-/**
  * ============================================================================
  * TASK ROUTING CONFIGURATION
  * ============================================================================

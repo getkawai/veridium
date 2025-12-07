@@ -17,6 +17,7 @@
 package llm
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -40,9 +41,9 @@ func NewProviderFactory(toolRegistry *tools.ToolRegistry) *ProviderFactory {
 	}
 }
 
-// CreateProvider creates an LLM provider from configuration
-func (f *ProviderFactory) CreateProvider(config types.ProviderConfig) (Provider, error) {
-	log.Printf("🏭 Creating provider: type=%s, model=%s", config.Type, config.Model)
+// CreateLanguageModel creates a fantasy.LanguageModel from configuration
+func (f *ProviderFactory) CreateLanguageModel(config types.ProviderConfig) (fantasy.LanguageModel, error) {
+	log.Printf("🏭 Creating language model: type=%s, model=%s", config.Type, config.Model)
 
 	// Set default model if not specified
 	if config.Model == "" {
@@ -86,7 +87,7 @@ func (f *ProviderFactory) CreateProvider(config types.ProviderConfig) (Provider,
 		fantasyProvider, err = openai.New(opts...)
 
 	case types.ProviderLlama:
-		return nil, fmt.Errorf("llama provider must be created with LibraryService, use NewLlamaProviderAdapter instead")
+		return nil, fmt.Errorf("llama model must be created with LibraryService, use LlamaLanguageModel instead")
 
 	default:
 		return nil, fmt.Errorf("unsupported provider type: %s", config.Type)
@@ -96,27 +97,29 @@ func (f *ProviderFactory) CreateProvider(config types.ProviderConfig) (Provider,
 		return nil, fmt.Errorf("failed to create fantasy provider: %w", err)
 	}
 
-	adapter, err := NewFantasyProviderAdapter(fantasyProvider, config.Model, f.toolRegistry)
+	// Create language model directly from provider
+	ctx := context.Background()
+	model, err := fantasyProvider.LanguageModel(ctx, config.Model)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create adapter: %w", err)
+		return nil, fmt.Errorf("failed to create language model: %w", err)
 	}
 
-	return adapter, nil
+	return model, nil
 }
 
-// CreateOpenRouterProvider creates an OpenRouter provider with convenient defaults
-func (f *ProviderFactory) CreateOpenRouterProvider(apiKey, model string) (Provider, error) {
+// CreateOpenRouterModel creates an OpenRouter model with convenient defaults
+func (f *ProviderFactory) CreateOpenRouterModel(apiKey, model string) (fantasy.LanguageModel, error) {
 	config := types.ProviderConfig{
 		Type:   types.ProviderOpenRouter,
 		Name:   "OpenRouter",
 		APIKey: apiKey,
 		Model:  model,
 	}
-	return f.CreateProvider(config)
+	return f.CreateLanguageModel(config)
 }
 
-// CreateZhipuProvider creates a Zhipu GLM provider with convenient defaults
-func (f *ProviderFactory) CreateZhipuProvider(apiKey, model string) (Provider, error) {
+// CreateZhipuModel creates a Zhipu GLM model with convenient defaults
+func (f *ProviderFactory) CreateZhipuModel(apiKey, model string) (fantasy.LanguageModel, error) {
 	if model == "" {
 		model = "glm-4-flash"
 	}
@@ -126,81 +129,81 @@ func (f *ProviderFactory) CreateZhipuProvider(apiKey, model string) (Provider, e
 		APIKey: apiKey,
 		Model:  model,
 	}
-	return f.CreateProvider(config)
+	return f.CreateLanguageModel(config)
 }
 
 // ============================================================================
-// Provider Registry (for managing multiple configured providers)
+// Model Registry (for managing multiple configured models)
 // ============================================================================
 
-// ProviderRegistry manages multiple LLM provider configurations
-type ProviderRegistry struct {
-	factory   *ProviderFactory
-	providers map[string]Provider
-	configs   map[string]types.ProviderConfig
-	active    string
+// ModelRegistry manages multiple LLM model configurations
+type ModelRegistry struct {
+	factory *ProviderFactory
+	models  map[string]fantasy.LanguageModel
+	configs map[string]types.ProviderConfig
+	active  string
 }
 
-// NewProviderRegistry creates a new provider registry
-func NewProviderRegistry(toolRegistry *tools.ToolRegistry) *ProviderRegistry {
-	return &ProviderRegistry{
-		factory:   NewProviderFactory(toolRegistry),
-		providers: make(map[string]Provider),
-		configs:   make(map[string]types.ProviderConfig),
+// NewModelRegistry creates a new model registry
+func NewModelRegistry(toolRegistry *tools.ToolRegistry) *ModelRegistry {
+	return &ModelRegistry{
+		factory: NewProviderFactory(toolRegistry),
+		models:  make(map[string]fantasy.LanguageModel),
+		configs: make(map[string]types.ProviderConfig),
 	}
 }
 
-// RegisterConfig registers a provider configuration (does not create provider yet)
-func (r *ProviderRegistry) RegisterConfig(name string, config types.ProviderConfig) {
+// RegisterConfig registers a model configuration (does not create model yet)
+func (r *ModelRegistry) RegisterConfig(name string, config types.ProviderConfig) {
 	r.configs[name] = config
-	log.Printf("📋 Registered provider config: %s (type: %s, model: %s)", name, config.Type, config.Model)
+	log.Printf("📋 Registered model config: %s (type: %s, model: %s)", name, config.Type, config.Model)
 }
 
-// GetProvider gets or creates a provider by name
-func (r *ProviderRegistry) GetProvider(name string) (Provider, error) {
-	if provider, exists := r.providers[name]; exists {
-		return provider, nil
+// GetModel gets or creates a model by name
+func (r *ModelRegistry) GetModel(name string) (fantasy.LanguageModel, error) {
+	if model, exists := r.models[name]; exists {
+		return model, nil
 	}
 
 	config, exists := r.configs[name]
 	if !exists {
-		return nil, fmt.Errorf("provider not found: %s", name)
+		return nil, fmt.Errorf("model not found: %s", name)
 	}
 
-	provider, err := r.factory.CreateProvider(config)
+	model, err := r.factory.CreateLanguageModel(config)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create provider %s: %w", name, err)
+		return nil, fmt.Errorf("failed to create model %s: %w", name, err)
 	}
 
-	r.providers[name] = provider
-	return provider, nil
+	r.models[name] = model
+	return model, nil
 }
 
-// SetActive sets the active provider
-func (r *ProviderRegistry) SetActive(name string) error {
+// SetActive sets the active model
+func (r *ModelRegistry) SetActive(name string) error {
 	if _, exists := r.configs[name]; !exists {
-		return fmt.Errorf("provider not found: %s", name)
+		return fmt.Errorf("model not found: %s", name)
 	}
 	r.active = name
-	log.Printf("✅ Active provider set to: %s", name)
+	log.Printf("✅ Active model set to: %s", name)
 	return nil
 }
 
-// GetActive returns the currently active provider
-func (r *ProviderRegistry) GetActive() (Provider, error) {
+// GetActive returns the currently active model
+func (r *ModelRegistry) GetActive() (fantasy.LanguageModel, error) {
 	if r.active == "" {
-		return nil, fmt.Errorf("no active provider set")
+		return nil, fmt.Errorf("no active model set")
 	}
-	return r.GetProvider(r.active)
+	return r.GetModel(r.active)
 }
 
-// GetActiveName returns the name of the active provider
-func (r *ProviderRegistry) GetActiveName() string {
+// GetActiveName returns the name of the active model
+func (r *ModelRegistry) GetActiveName() string {
 	return r.active
 }
 
-// ListProviders returns all registered provider names
-func (r *ProviderRegistry) ListProviders() []string {
+// ListModels returns all registered model names
+func (r *ModelRegistry) ListModels() []string {
 	names := make([]string, 0, len(r.configs))
 	for name := range r.configs {
 		names = append(names, name)
@@ -208,18 +211,18 @@ func (r *ProviderRegistry) ListProviders() []string {
 	return names
 }
 
-// GetConfig returns the configuration for a provider
-func (r *ProviderRegistry) GetConfig(name string) (types.ProviderConfig, bool) {
+// GetConfig returns the configuration for a model
+func (r *ModelRegistry) GetConfig(name string) (types.ProviderConfig, bool) {
 	config, exists := r.configs[name]
 	return config, exists
 }
 
-// RemoveProvider removes a provider from the registry
-func (r *ProviderRegistry) RemoveProvider(name string) {
-	delete(r.providers, name)
+// RemoveModel removes a model from the registry
+func (r *ModelRegistry) RemoveModel(name string) {
+	delete(r.models, name)
 	delete(r.configs, name)
 	if r.active == name {
 		r.active = ""
 	}
-	log.Printf("🗑️  Removed provider: %s", name)
+	log.Printf("🗑️  Removed model: %s", name)
 }

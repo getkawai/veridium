@@ -4,7 +4,3 @@
 export {
     TaskRouter
 } from "./models.js";
-
-export type {
-    Provider
-} from "./models.js";

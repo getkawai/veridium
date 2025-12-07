@@ -47,18 +47,16 @@ type AgentChatService struct {
 	app         *application.App
 	db          *database.Service
 	libService  *llama.LibraryService
-	yzmaModel   *llama.LlamaYzmaModel // Yzma model for all LLM operations (chat, title, summary)
+	yzmaModel   *llama.LlamaYzmaModel     // Yzma model for all LLM operations (chat, title, summary)
+	llamaLM     *llama.LlamaLanguageModel // fantasy.LanguageModel wrapper for local llama
 	kbService   *KnowledgeBaseService
 	ragWorkflow *RAGWorkflow
 
 	// Vector search for file-based RAG (direct file attachments)
 	vectorSearch *VectorSearchService
 
-	// LLM Generator interface (for testing/mocking)
-	llmGenerator llm.Provider
-
 	// TaskRouter for multi-provider task distribution
-	// Routes different tasks (chat, title, summary) to appropriate providers
+	// Routes different tasks (chat, title, summary) to appropriate models
 	taskRouter *llm.TaskRouter
 
 	// Yzma tool registry (replaces Eino tools)
@@ -385,24 +383,24 @@ func NewAgentChatService(
 	// Create Yzma model with tool registry (used for all LLM operations)
 	yzmaModel := llama.NewLlamaYzmaModel(libService, toolRegistry)
 
+	// Create fantasy.LanguageModel wrapper for local llama
+	llamaLM := llama.NewLlamaLanguageModel(yzmaModel, libService.GetLoadedChatModel())
+
 	// Auto-detect utility models for lightweight tasks
 	titleModelPath := detectTitleGenerationModel(libService)
 	summaryModelPath := detectSummaryGenerationModel(libService)
 
-	// Create LLM provider adapter (wraps yzmaModel for interface compatibility)
-	llmGenerator := NewLlamaProviderAdapter(yzmaModel)
-
 	// Build TaskRouter with default dev config
-	// This routes different tasks to appropriate providers
+	// This routes different tasks to appropriate models
 	devConfig := llm.GetDefaultDevConfig()
-	taskRouter := llm.BuildTaskRouter(devConfig, toolRegistry, llmGenerator)
+	taskRouter := llm.BuildTaskRouter(devConfig, toolRegistry, llamaLM)
 
 	service := &AgentChatService{
 		app:              app,
 		db:               db,
 		libService:       libService,
 		yzmaModel:        yzmaModel,
-		llmGenerator:     llmGenerator,
+		llamaLM:          llamaLM,
 		taskRouter:       taskRouter,
 		kbService:        kbService,
 		ragWorkflow:      ragWorkflow,
@@ -428,20 +426,6 @@ func NewAgentChatService(
 	}
 
 	return service
-}
-
-// SetLLMGenerator sets a custom LLM generator (useful for testing with mocks)
-func (s *AgentChatService) SetLLMGenerator(generator llm.Provider) {
-	s.sessionsMutex.Lock()
-	defer s.sessionsMutex.Unlock()
-	s.llmGenerator = generator
-}
-
-// GetLLMGenerator returns the current LLM generator
-func (s *AgentChatService) GetLLMGenerator() llm.Provider {
-	s.sessionsMutex.RLock()
-	defer s.sessionsMutex.RUnlock()
-	return s.llmGenerator
 }
 
 // SetTaskRouter sets a custom task router for multi-provider routing
@@ -552,256 +536,6 @@ func detectSummaryGenerationModel(libService *llama.LibraryService) string {
 	}
 
 	return bestModel
-}
-
-// Chat processes a chat request and returns a response
-func (s *AgentChatService) Chat(ctx context.Context, req ChatRequest) (*UIChatMessage, error) {
-	// 1. Setup session, topic, and save user message using reusable helper
-	// SetupSessionAndTopic handles:
-	// - Get/create session
-	// - Load history summary from DB
-	// - Load thread messages
-	// - Auto-create topic
-	// - Add user message to session (in-memory)
-	// - Save user message to DB
-	setup, err := s.setupSessionAndTopic(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to setup session/topic: %w", err)
-	}
-	session := setup.Session
-	currentTopicID := setup.TopicID
-
-	// 2. Validate model for current reasoning mode and auto-switch if needed
-	// Note: This is NOT in SetupSessionAndTopic because it's specific to Chat()
-	if err := s.ValidateModelForReasoningMode(); err != nil {
-		log.Printf("⚠️  Model mismatch detected: %v", err)
-		log.Printf("🔄 Auto-switching to recommended model...")
-		if switchErr := s.SwitchToRecommendedModel(); switchErr != nil {
-			log.Printf("❌ Failed to switch model: %v", switchErr)
-			log.Printf("⚠️  Continuing with current model, but expect suboptimal performance")
-		} else {
-			log.Printf("✅ Successfully switched to recommended model")
-		}
-	}
-
-	// Messages for agent (native yzma format)
-	messagesToAgent := session.Messages
-
-	// Prepare messages with system prompt
-	messagesWithSystem := s.prepareMessagesWithSystemPrompt(messagesToAgent, session)
-
-	// Use pre-generated assistant message ID from frontend, or generate new one
-	assistantMsgID := req.MessageAssistantID
-	if assistantMsgID == "" {
-		assistantMsgID = uuid.New().String()
-	}
-
-	// Get LLM provider with requested tools
-	// Use TaskRouter if configured, otherwise fallback to llmGenerator
-	var llmWithTools llm.Provider
-	if s.taskRouter != nil {
-		llmWithTools = s.taskRouter.ChatWithTools(session.ToolNames)
-		if llmWithTools == nil {
-			llmWithTools = s.llmGenerator.WithTools(session.ToolNames)
-		}
-	} else {
-		llmWithTools = s.llmGenerator.WithTools(session.ToolNames)
-	}
-
-	// Run agent with LLM generator (streaming or non-streaming)
-	var finalMessage string
-	var toolCalls []fantasy.ToolCallContent
-	var usage *fantasy.Response
-	var toolMessages []fantasy.Message
-
-	if req.Stream && s.app != nil {
-		// Use streaming with agent loop
-		resp, tms, streamErr := s.generateWithStreaming(ctx, session, assistantMsgID, messagesWithSystem, llmWithTools)
-		if streamErr != nil {
-			return nil, fmt.Errorf("streaming generation failed: %w", streamErr)
-		}
-		finalMessage = resp.Content.Text()
-		toolCalls = resp.Content.ToolCalls()
-		toolMessages = tms
-	} else {
-		// Use agent loop (non-streaming)
-		resp, tms, runErr := llmWithTools.RunAgentLoop(ctx, messagesWithSystem, 10)
-		if runErr != nil {
-			return nil, fmt.Errorf("agent execution failed: %w", runErr)
-		}
-
-		finalMessage = resp.Content.Text()
-		toolCalls = resp.Content.ToolCalls()
-		toolMessages = tms
-		usage = resp
-	}
-
-	// Add tool messages to session (for history)
-	session.Messages = append(session.Messages, toolMessages...)
-
-	// Note: Think tag stripping removed - proper model selection should prevent think tags
-	// If reasoning mode is disabled, use non-reasoning models (Llama 3.2)
-	// If reasoning mode is enabled, use reasoning models with /no_think (Qwen3)
-
-	// Add assistant response to session
-	if len(toolCalls) > 0 {
-		session.Messages = append(session.Messages, types.NewToolCallMessageFromContent(toolCalls))
-	} else {
-		session.Messages = append(session.Messages, fantasy.Message{
-			Role:    fantasy.MessageRoleAssistant,
-			Content: []fantasy.MessagePart{fantasy.TextPart{Text: finalMessage}},
-		})
-	}
-
-	// Monitor context usage and provide warnings/recommendations
-	if usage != nil && usage.Usage.TotalTokens > 0 {
-		contextSize := int64(16384) // Current context window size
-		contextUsage := float64(usage.Usage.TotalTokens) / float64(contextSize)
-		turnCount := len(session.Messages) / 2 // Approximate turn count (user + assistant pairs)
-
-		log.Printf("📊 Context usage: %d/%d tokens (%.1f%%) after %d turns",
-			usage.Usage.TotalTokens, contextSize, contextUsage*100, turnCount)
-
-		// Warning at 50% usage
-		if contextUsage > 0.5 && contextUsage <= 0.8 {
-			log.Printf("⚠️  Context usage > 50%%. Consider switching to more efficient reasoning mode.")
-			if s.reasoningConfig.Mode != ReasoningDisabled {
-				log.Printf("💡 Recommendation: Switch to ReasoningDisabled (Llama 3.2) for longer conversations")
-			}
-		}
-
-		// Critical warning at 80% usage
-		if contextUsage > 0.8 {
-			log.Printf("🚨 Context usage > 80%% Conversation may become unstable.")
-			log.Printf("💡 Recommendations:")
-			log.Printf("   1. Switch to ReasoningDisabled mode")
-			log.Printf("   2. Summarize and truncate old messages")
-			log.Printf("   3. Start a new conversation")
-		}
-	}
-
-	// Phase 4: Generate topic title after first response
-	// If we already created a placeholder topic, update it with LLM-generated title
-	// We allow up to 4 messages (2 turns) to retry title generation if it failed or was skipped
-	if len(session.Messages) >= 2 && len(session.Messages) <= 4 {
-		log.Printf("📝 Checking if topic title needs update (msgs: %d, topic: %s)", len(session.Messages), currentTopicID)
-
-		if currentTopicID != "" {
-			// Update existing topic with LLM-generated title
-			// This runs in background, so it won't block response
-			err := s.updateTopicTitle(ctx, currentTopicID, session.UserID, session.Messages)
-			if err != nil {
-				log.Printf("⚠️  Warning: Failed to trigger topic title update: %v", err)
-			} else {
-				log.Printf("📝 Triggered background title update for topic %s", currentTopicID)
-			}
-		} else {
-			// Topic was not created before - create it now with the actual conversation
-			topicID, err := s.createTopicForSessionWithTitle(ctx, session.SessionID, session.UserID, session.Messages)
-			if err != nil {
-				log.Printf("⚠️  Warning: Failed to create topic with title: %v", err)
-			} else {
-				currentTopicID = topicID
-				session.TopicID = topicID
-				log.Printf("📝 Created topic with auto-generated title: %s", topicID)
-			}
-		}
-	}
-
-	// Save assistant message to DB with topic and thread IDs
-	var assistantMsgForDB fantasy.Message
-	if len(toolCalls) > 0 {
-		assistantMsgForDB = types.NewToolCallMessageFromContent(toolCalls)
-	} else {
-		assistantMsgForDB = fantasy.Message{
-			Role:    fantasy.MessageRoleAssistant,
-			Content: []fantasy.MessagePart{fantasy.TextPart{Text: finalMessage}},
-		}
-	}
-	savedMsgID, err := s.saveYzmaMessageToDBWithID(ctx, assistantMsgForDB, session.SessionID, session.UserID, currentTopicID, req.ThreadID, assistantMsgID)
-	if err != nil {
-		log.Printf("⚠️  Warning: Failed to save assistant message to DB: %v", err)
-		// Use the generated ID as fallback
-		savedMsgID = assistantMsgID
-	} else {
-		log.Printf("💾 Saved assistant message: %s (topic: %s, thread: %s)", savedMsgID, currentTopicID, req.ThreadID)
-		// Update assistantMsgID with the actual DB ID (should be the same as we passed it in)
-		assistantMsgID = savedMsgID
-	}
-
-	// ✅ AUTO-TRIGGER SUMMARY (NON-BLOCKING)
-	// This happens AFTER response is sent to user, so no blocking
-	// Summary generation runs in background goroutine
-	if currentTopicID != "" {
-		go func() {
-			bgCtx := context.Background()
-			// First: Try initial summary creation (if no summary exists)
-			s.autoSummarizeIfNeeded(bgCtx, session, currentTopicID, session.UserID)
-
-			// Second: Try incremental summary update (if summary exists and enough new messages)
-			s.incrementalSummarizeIfNeeded(bgCtx, session, currentTopicID, session.UserID)
-		}()
-	}
-
-	// Emit streaming complete event (if streaming enabled)
-	if req.Stream && s.app != nil {
-		s.app.Event.Emit("chat:stream", map[string]interface{}{
-			"type":       "complete",
-			"session_id": session.SessionID,
-			"message_id": assistantMsgID,
-			"content":    finalMessage,
-			"topic_id":   currentTopicID,
-			"thread_id":  req.ThreadID,
-		})
-	}
-
-	// Update session timestamp in DB
-	if err := s.updateSessionTimestamp(ctx, session.SessionID, session.UserID); err != nil {
-		log.Printf("⚠️  Warning: Failed to update session timestamp: %v", err)
-	}
-
-	// Phase 4: Return with all relevant IDs
-	now := time.Now().UnixMilli()
-
-	// Convert yzma ToolCalls to UI format
-	var uiTools []ChatToolPayload
-	if len(toolCalls) > 0 {
-		uiTools = make([]ChatToolPayload, len(toolCalls))
-		for i, tc := range toolCalls {
-			identifier, apiName, toolType := mapToolName(tc.ToolName)
-			uiTools[i] = ChatToolPayload{
-				ID:         fmt.Sprintf("%s_%d", assistantMsgID, i),
-				APIName:    apiName,
-				Identifier: identifier,
-				Arguments:  tc.Input,
-				Type:       toolType,
-			}
-		}
-	}
-
-	// Convert usage to UI format
-	var uiUsage *ModelUsage
-	if usage != nil {
-		uiUsage = &ModelUsage{
-			TotalInputTokens:  int(usage.Usage.InputTokens),
-			TotalOutputTokens: int(usage.Usage.OutputTokens),
-			TotalTokens:       int(usage.Usage.TotalTokens),
-		}
-	}
-
-	return &UIChatMessage{
-		ID:        assistantMsgID,
-		SessionID: session.SessionID,
-		TopicID:   currentTopicID,
-		ThreadID:  req.ThreadID,
-		Content:   finalMessage,
-		Role:      UIMessageRoleAssistant,
-		Tools:     uiTools,
-		Usage:     uiUsage,
-		Meta:      MetaData{},
-		CreatedAt: now,
-		UpdatedAt: now,
-	}, nil
 }
 
 // getOrCreateSession gets an existing session or creates a new one with DB persistence
@@ -1026,130 +760,6 @@ func (s *AgentChatService) prepareMessagesWithSystemPrompt(messages []fantasy.Me
 	return result
 }
 
-// generateWithStreaming generates response with streaming using llm.Provider interface
-func (s *AgentChatService) generateWithStreaming(ctx context.Context, session *AgentSession, messageID string, messages []fantasy.Message, provider llm.Provider) (*fantasy.Response, []fantasy.Message, error) {
-	// Emit start event
-	if s.app != nil {
-		s.app.Event.Emit("chat:stream", map[string]interface{}{
-			"type":       "start",
-			"session_id": session.SessionID,
-			"message_id": messageID,
-		})
-	}
-
-	var fullContent strings.Builder
-	var buffer strings.Builder // Buffer untuk detect tool tags
-
-	// Streaming callback with tool tag filtering
-	callback := func(token string, isLast bool) {
-		if token != "" {
-			fullContent.WriteString(token)
-			buffer.WriteString(token)
-
-			// Check if we're inside a tool_call tag
-			bufferStr := buffer.String()
-
-			// If buffer contains complete tool_call tags, remove them from display
-			if strings.Contains(bufferStr, "</tool_call>") {
-				// Find all complete tool_call blocks
-				for strings.Contains(bufferStr, "<tool_call>") && strings.Contains(bufferStr, "</tool_call>") {
-					startIdx := strings.Index(bufferStr, "<tool_call>")
-					endIdx := strings.Index(bufferStr, "</tool_call>")
-
-					if startIdx < endIdx {
-						// Remove the tool_call block
-						bufferStr = bufferStr[:startIdx] + bufferStr[endIdx+len("</tool_call>"):]
-					} else {
-						break
-					}
-				}
-				buffer.Reset()
-				buffer.WriteString(bufferStr)
-			}
-
-			// Only emit content that's not inside tool tags
-			displayContent := bufferStr
-			if strings.Contains(displayContent, "<tool_call>") && !strings.Contains(displayContent, "</tool_call>") {
-				// We're in the middle of a tool_call tag, only show content before it
-				displayContent = displayContent[:strings.Index(displayContent, "<tool_call>")]
-			}
-
-			// Emit chunk event with filtered content
-			if s.app != nil {
-				s.app.Event.Emit("chat:stream", map[string]interface{}{
-					"type":         "chunk",
-					"session_id":   session.SessionID,
-					"message_id":   messageID,
-					"content":      token,
-					"full_content": strings.TrimSpace(displayContent),
-				})
-			}
-		}
-
-		if isLast {
-			// Clean final content from tool tags
-			finalContent := fullContent.String()
-			for strings.Contains(finalContent, "<tool_call>") {
-				start := strings.Index(finalContent, "<tool_call>")
-				end := strings.Index(finalContent, "</tool_call>")
-				if start != -1 && end != -1 {
-					finalContent = finalContent[:start] + finalContent[end+len("</tool_call>"):]
-				} else {
-					break
-				}
-			}
-			finalContent = strings.TrimSpace(finalContent)
-
-			// Emit complete event
-			if s.app != nil {
-				s.app.Event.Emit("chat:stream", map[string]interface{}{
-					"type":       "complete",
-					"session_id": session.SessionID,
-					"message_id": messageID,
-					"content":    finalContent,
-				})
-			}
-		}
-	}
-
-	// Run agent loop with streaming (no tool callback for legacy method)
-	resp, toolMessages, err := provider.RunAgentLoopWithStreaming(ctx, messages, 10, callback, nil)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Emit tool calling event if tools were used
-	respToolCalls := resp.Content.ToolCalls()
-	if len(respToolCalls) > 0 && s.app != nil {
-		// Convert tool calls to frontend format
-		frontendTools := make([]map[string]interface{}, len(respToolCalls))
-		for i, tc := range respToolCalls {
-			// Generate unique ID for each tool call
-			toolCallID := fmt.Sprintf("%s_%d", messageID, i)
-			identifier, apiName, toolType := mapToolName(tc.ToolName)
-
-			frontendTools[i] = map[string]interface{}{
-				"id":         toolCallID,
-				"identifier": identifier,
-				"apiName":    apiName,
-				"arguments":  tc.Input,
-				"type":       toolType,
-			}
-		}
-
-		s.app.Event.Emit("chat:stream", map[string]interface{}{
-			"type":       "tool_calling",
-			"session_id": session.SessionID,
-			"message_id": messageID,
-			"tools":      frontendTools,
-		})
-
-		log.Printf("🔧 Emitted tool_calling event with %d tools", len(frontendTools))
-	}
-
-	return resp, toolMessages, nil
-}
-
 // registerKBSearchTool registers a knowledge base search tool to the yzma registry
 func (s *AgentChatService) registerKBSearchTool(ctx context.Context, kbID, userID string) error {
 	kb, err := s.kbService.GetKnowledgeBase(ctx, kbID, userID)
@@ -1309,8 +919,8 @@ Example: Sleep Functions for Body and Mind`, locale)
 
 	var responseContent string
 
-	// Try TaskRouter first (routes to configured provider)
-	if s.taskRouter != nil && s.taskRouter.HasProvider(llm.TaskTitleGen) {
+	// Try TaskRouter first (routes to configured model)
+	if s.taskRouter != nil && s.taskRouter.HasModel(llm.TaskTitleGen) {
 		log.Printf("📝 Using TaskRouter for title generation")
 		resp, err := s.taskRouter.GenerateTitle(ctx, titleMessages)
 		if err != nil {
@@ -2128,8 +1738,8 @@ Please summarize the above conversation and retain key information. The summariz
 	var responseContent string
 	var modelUsed string
 
-	// Try TaskRouter first (routes to configured provider)
-	if s.taskRouter != nil && s.taskRouter.HasProvider(llm.TaskSummaryGen) {
+	// Try TaskRouter first (routes to configured model)
+	if s.taskRouter != nil && s.taskRouter.HasModel(llm.TaskSummaryGen) {
 		log.Printf("📋 Using TaskRouter for summary generation")
 		resp, err := s.taskRouter.GenerateSummary(ctx, summaryMessages)
 		if err != nil {

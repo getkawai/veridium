@@ -23,15 +23,6 @@ import * as llm$0 from "../llm/models.js";
 import * as $models from "./models.js";
 
 /**
- * Chat processes a chat request and returns a response
- */
-export function Chat(req: $models.ChatRequest): $CancellablePromise<$models.UIChatMessage | null> {
-    return $Call.ByID(3994848739, req).then(($result: any) => {
-        return $$createType1($result);
-    });
-}
-
-/**
  * ChatMock handles mock chat responses for testing UI flow without real AI backend
  * This method saves complete mock messages to DB with all UI components:
  * - Reasoning (step-by-step thinking)
@@ -52,7 +43,7 @@ export function Chat(req: $models.ChatRequest): $CancellablePromise<$models.UICh
  */
 export function ChatMock(req: $models.ChatRequest): $CancellablePromise<$models.UIChatMessage[]> {
     return $Call.ByID(944716749, req).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType1($result);
     });
 }
 
@@ -114,18 +105,11 @@ export function ClearSession(sessionID: string): $CancellablePromise<void> {
 }
 
 /**
- * GetLLMGenerator returns the current LLM generator
- */
-export function GetLLMGenerator(): $CancellablePromise<llm$0.Provider> {
-    return $Call.ByID(1599155355);
-}
-
-/**
  * GetReasoningConfig returns the current reasoning configuration
  */
 export function GetReasoningConfig(): $CancellablePromise<$models.ReasoningConfig> {
     return $Call.ByID(46956079).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType2($result);
     });
 }
 
@@ -148,7 +132,7 @@ export function GetRecommendedModelForMode(): $CancellablePromise<string> {
  */
 export function GetSessionHistory(sessionID: string): $CancellablePromise<fantasy$0.Message[]> {
     return $Call.ByID(396946379, sessionID).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType4($result);
     });
 }
 
@@ -159,7 +143,7 @@ export function GetSessionHistory(sessionID: string): $CancellablePromise<fantas
  */
 export function GetStreamEventPayloadType(): $CancellablePromise<$models.StreamEventPayload> {
     return $Call.ByID(1681290149).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType5($result);
     });
 }
 
@@ -168,15 +152,8 @@ export function GetStreamEventPayloadType(): $CancellablePromise<$models.StreamE
  */
 export function GetTaskRouter(): $CancellablePromise<llm$0.TaskRouter | null> {
     return $Call.ByID(2202841655).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType7($result);
     });
-}
-
-/**
- * SetLLMGenerator sets a custom LLM generator (useful for testing with mocks)
- */
-export function SetLLMGenerator(generator: llm$0.Provider): $CancellablePromise<void> {
-    return $Call.ByID(3521022399, generator);
 }
 
 /**
@@ -220,11 +197,10 @@ export function ValidateModelForReasoningMode(): $CancellablePromise<void> {
 
 // Private type creation functions
 const $$createType0 = $models.UIChatMessage.createFrom;
-const $$createType1 = $Create.Nullable($$createType0);
-const $$createType2 = $Create.Array($$createType0);
-const $$createType3 = $models.ReasoningConfig.createFrom;
-const $$createType4 = fantasy$0.Message.createFrom;
-const $$createType5 = $Create.Array($$createType4);
-const $$createType6 = $models.StreamEventPayload.createFrom;
-const $$createType7 = llm$0.TaskRouter.createFrom;
-const $$createType8 = $Create.Nullable($$createType7);
+const $$createType1 = $Create.Array($$createType0);
+const $$createType2 = $models.ReasoningConfig.createFrom;
+const $$createType3 = fantasy$0.Message.createFrom;
+const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = $models.StreamEventPayload.createFrom;
+const $$createType6 = llm$0.TaskRouter.createFrom;
+const $$createType7 = $Create.Nullable($$createType6);

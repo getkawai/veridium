@@ -71,53 +71,53 @@ const (
 //
 // ============================================================================
 type TaskRouter struct {
-	providers    map[TaskType]Provider
-	fallback     Provider
+	models       map[TaskType]fantasy.LanguageModel
+	fallback     fantasy.LanguageModel
 	toolRegistry *tools.ToolRegistry
 	mu           sync.RWMutex
 }
 
-// NewTaskRouter creates a new task router with optional fallback provider
-func NewTaskRouter(toolRegistry *tools.ToolRegistry, fallback Provider) *TaskRouter {
+// NewTaskRouter creates a new task router with optional fallback model
+func NewTaskRouter(toolRegistry *tools.ToolRegistry, fallback fantasy.LanguageModel) *TaskRouter {
 	return &TaskRouter{
-		providers:    make(map[TaskType]Provider),
+		models:       make(map[TaskType]fantasy.LanguageModel),
 		fallback:     fallback,
 		toolRegistry: toolRegistry,
 	}
 }
 
-// SetProvider sets a provider for a specific task type
-func (r *TaskRouter) SetProvider(task TaskType, provider Provider) {
+// SetModel sets a language model for a specific task type
+func (r *TaskRouter) SetModel(task TaskType, model fantasy.LanguageModel) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.providers[task] = provider
-	log.Printf("🔀 TaskRouter: Set provider for task '%s'", task)
+	r.models[task] = model
+	log.Printf("🔀 TaskRouter: Set model for task '%s'", task)
 }
 
-// SetFallback sets the fallback provider used when no specific provider is set
-func (r *TaskRouter) SetFallback(provider Provider) {
+// SetFallback sets the fallback model used when no specific model is set
+func (r *TaskRouter) SetFallback(model fantasy.LanguageModel) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.fallback = provider
-	log.Printf("🔀 TaskRouter: Set fallback provider")
+	r.fallback = model
+	log.Printf("🔀 TaskRouter: Set fallback model")
 }
 
-// GetProvider returns the provider for a task, or fallback if not set
-func (r *TaskRouter) GetProvider(task TaskType) Provider {
+// GetModel returns the model for a task, or fallback if not set
+func (r *TaskRouter) GetModel(task TaskType) fantasy.LanguageModel {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	if provider, exists := r.providers[task]; exists {
-		return provider
+	if model, exists := r.models[task]; exists {
+		return model
 	}
 	return r.fallback
 }
 
-// HasProvider checks if a specific provider is set for a task
-func (r *TaskRouter) HasProvider(task TaskType) bool {
+// HasModel checks if a specific model is set for a task
+func (r *TaskRouter) HasModel(task TaskType) bool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	_, exists := r.providers[task]
+	_, exists := r.models[task]
 	return exists
 }
 
@@ -126,85 +126,66 @@ func (r *TaskRouter) GetToolRegistry() *tools.ToolRegistry {
 	return r.toolRegistry
 }
 
-// Generate routes to the appropriate provider and generates a response
+// Generate routes to the appropriate model and generates a response
 func (r *TaskRouter) Generate(ctx context.Context, task TaskType, messages fantasy.Prompt) (*fantasy.Response, error) {
-	provider := r.GetProvider(task)
-	if provider == nil {
-		log.Printf("⚠️  TaskRouter: No provider for task '%s' and no fallback set", task)
+	model := r.GetModel(task)
+	if model == nil {
+		log.Printf("⚠️  TaskRouter: No model for task '%s' and no fallback set", task)
 		return nil, ErrNoProvider
 	}
 
-	log.Printf("🔀 TaskRouter: Routing '%s' task to provider", task)
-	return provider.Generate(ctx, messages)
+	log.Printf("🔀 TaskRouter: Routing '%s' task to model %s", task, model.Model())
+	return model.Generate(ctx, fantasy.Call{Prompt: messages})
 }
 
-// GenerateWithoutTools routes to provider with tools disabled (for utility tasks)
-// If the primary provider fails, it will try the fallback provider
-func (r *TaskRouter) GenerateWithoutTools(ctx context.Context, task TaskType, messages fantasy.Prompt) (*fantasy.Response, error) {
-	provider := r.GetProvider(task)
-	if provider == nil {
-		log.Printf("⚠️  TaskRouter: No provider for task '%s' and no fallback set", task)
+// GenerateWithFallback routes to model and tries fallback if primary fails
+// Used for utility tasks (title, summary, OCR cleanup, etc.)
+func (r *TaskRouter) GenerateWithFallback(ctx context.Context, task TaskType, messages fantasy.Prompt) (*fantasy.Response, error) {
+	model := r.GetModel(task)
+	if model == nil {
+		log.Printf("⚠️  TaskRouter: No model for task '%s' and no fallback set", task)
 		return nil, ErrNoProvider
 	}
 
-	log.Printf("🔀 TaskRouter: Routing '%s' task to provider (no tools)", task)
-	resp, err := provider.WithoutTools().Generate(ctx, messages)
+	log.Printf("🔀 TaskRouter: Routing '%s' task to model %s", task, model.Model())
+	resp, err := model.Generate(ctx, fantasy.Call{Prompt: messages})
 
-	// If primary provider failed and we have a fallback, try it
-	if err != nil && r.fallback != nil && r.fallback != provider {
-		log.Printf("⚠️  TaskRouter: Primary provider failed for '%s': %v, trying fallback", task, err)
-		fallbackResp, fallbackErr := r.fallback.WithoutTools().Generate(ctx, messages)
+	// If primary model failed and we have a fallback, try it
+	if err != nil && r.fallback != nil && r.fallback != model {
+		log.Printf("⚠️  TaskRouter: Primary model failed for '%s': %v, trying fallback", task, err)
+		fallbackResp, fallbackErr := r.fallback.Generate(ctx, fantasy.Call{Prompt: messages})
 		if fallbackErr == nil {
 			log.Printf("✅ TaskRouter: Fallback succeeded for '%s'", task)
 			return fallbackResp, nil
 		}
 		log.Printf("⚠️  TaskRouter: Fallback also failed for '%s': %v", task, fallbackErr)
-		// Return original error
 	}
 
 	return resp, err
 }
 
-// Chat is a convenience method for chat task with full agent loop
-func (r *TaskRouter) Chat(ctx context.Context, messages fantasy.Prompt, maxIterations int) (*fantasy.Response, fantasy.Prompt, error) {
-	provider := r.GetProvider(TaskChat)
-	if provider == nil {
-		return nil, nil, ErrNoProvider
-	}
-	return provider.RunAgentLoop(ctx, messages, maxIterations)
-}
-
-// ChatWithTools returns the chat provider with specific tools enabled
-func (r *TaskRouter) ChatWithTools(toolNames []string) Provider {
-	provider := r.GetProvider(TaskChat)
-	if provider == nil {
-		return nil
-	}
-	return provider.WithTools(toolNames)
-}
-
 // GenerateTitle is a convenience method for title generation
 func (r *TaskRouter) GenerateTitle(ctx context.Context, messages fantasy.Prompt) (*fantasy.Response, error) {
-	return r.GenerateWithoutTools(ctx, TaskTitleGen, messages)
+	return r.GenerateWithFallback(ctx, TaskTitleGen, messages)
 }
 
 // GenerateSummary is a convenience method for summary generation
 func (r *TaskRouter) GenerateSummary(ctx context.Context, messages fantasy.Prompt) (*fantasy.Response, error) {
-	return r.GenerateWithoutTools(ctx, TaskSummaryGen, messages)
+	return r.GenerateWithFallback(ctx, TaskSummaryGen, messages)
 }
 
 // DescribeImage is a convenience method for image description (VL task)
 func (r *TaskRouter) DescribeImage(ctx context.Context, messages fantasy.Prompt) (*fantasy.Response, error) {
-	return r.GenerateWithoutTools(ctx, TaskImageDescribe, messages)
+	return r.GenerateWithFallback(ctx, TaskImageDescribe, messages)
 }
 
-// ListConfiguredTasks returns all task types that have providers set
+// ListConfiguredTasks returns all task types that have models set
 func (r *TaskRouter) ListConfiguredTasks() []TaskType {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	tasks := make([]TaskType, 0, len(r.providers))
-	for task := range r.providers {
+	tasks := make([]TaskType, 0, len(r.models))
+	for task := range r.models {
 		tasks = append(tasks, task)
 	}
 	return tasks
@@ -213,19 +194,7 @@ func (r *TaskRouter) ListConfiguredTasks() []TaskType {
 // GetChatModel returns the fantasy.LanguageModel for chat tasks
 // This is used by fantasy.Agent for streaming
 func (r *TaskRouter) GetChatModel() fantasy.LanguageModel {
-	provider := r.GetProvider(TaskChat)
-	if provider == nil {
-		provider = r.fallback
-	}
-	if provider == nil {
-		return nil
-	}
-
-	// Try to extract LanguageModel from FantasyProviderAdapter
-	if fpa, ok := provider.(*FantasyProviderAdapter); ok {
-		return fpa.GetLanguageModel()
-	}
-	return nil
+	return r.GetModel(TaskChat)
 }
 
 // Error types

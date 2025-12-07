@@ -19,6 +19,7 @@ package llm
 import (
 	"log"
 
+	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
 	"github.com/kawai-network/veridium/types"
 )
@@ -83,34 +84,34 @@ func GetDefaultDevConfig() DevConfig {
 }
 
 // BuildTaskRouter creates a TaskRouter from DevConfig
-func BuildTaskRouter(config DevConfig, toolRegistry *tools.ToolRegistry, localProvider Provider) *TaskRouter {
+func BuildTaskRouter(config DevConfig, toolRegistry *tools.ToolRegistry, localModel fantasy.LanguageModel) *TaskRouter {
 	factory := NewProviderFactory(toolRegistry)
 	router := NewTaskRouter(toolRegistry, nil)
 
-	if config.UseLocalFallback && localProvider != nil {
-		router.SetFallback(localProvider)
-		log.Printf("🔀 TaskRouter: Local Llama set as fallback provider")
+	if config.UseLocalFallback && localModel != nil {
+		router.SetFallback(localModel)
+		log.Printf("🔀 TaskRouter: Local Llama set as fallback model")
 	}
 
-	// Helper to configure a task provider
+	// Helper to configure a task model
 	configureTask := func(task TaskType, cfg types.ProviderConfig, taskName string) {
 		if cfg.Type == types.ProviderLlama {
-			if localProvider != nil {
-				router.SetProvider(task, localProvider)
+			if localModel != nil {
+				router.SetModel(task, localModel)
 				log.Printf("🔀 TaskRouter: %s -> Local Llama", taskName)
 			}
 			return
 		}
 		if cfg.APIKey != "" {
-			provider, err := factory.CreateProvider(cfg)
+			model, err := factory.CreateLanguageModel(cfg)
 			if err != nil {
-				log.Printf("⚠️  Failed to create %s provider: %v", taskName, err)
+				log.Printf("⚠️  Failed to create %s model: %v", taskName, err)
 				return
 			}
-			router.SetProvider(task, provider)
+			router.SetModel(task, model)
 			log.Printf("🔀 TaskRouter: %s -> %s (%s)", taskName, cfg.Type, cfg.Model)
-		} else if localProvider != nil {
-			router.SetProvider(task, localProvider)
+		} else if localModel != nil {
+			router.SetModel(task, localModel)
 			log.Printf("🔀 TaskRouter: %s -> Local Llama (no API key)", taskName)
 		}
 	}
@@ -124,13 +125,13 @@ func BuildTaskRouter(config DevConfig, toolRegistry *tools.ToolRegistry, localPr
 	return router
 }
 
-// UpdateProvider updates a task's provider configuration at runtime
-func (r *TaskRouter) UpdateProvider(task TaskType, config types.ProviderConfig) error {
+// UpdateModel updates a task's model configuration at runtime
+func (r *TaskRouter) UpdateModel(task TaskType, config types.ProviderConfig) error {
 	factory := NewProviderFactory(r.toolRegistry)
-	provider, err := factory.CreateProvider(config)
+	model, err := factory.CreateLanguageModel(config)
 	if err != nil {
-		return &RouterError{Message: "failed to create provider: " + err.Error()}
+		return &RouterError{Message: "failed to create model: " + err.Error()}
 	}
-	r.SetProvider(task, provider)
+	r.SetModel(task, model)
 	return nil
 }

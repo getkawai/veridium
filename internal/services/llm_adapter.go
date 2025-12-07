@@ -75,7 +75,7 @@ func (a *TaskRouterAdapter) GenerateText(ctx context.Context, prompt string) (st
 	// Add user prompt
 	messages = append(messages, fantasy.NewUserMessage(prompt))
 
-	resp, err := a.router.GenerateWithoutTools(ctx, taskType, messages)
+	resp, err := a.router.GenerateWithFallback(ctx, taskType, messages)
 	if err != nil {
 		return "", fmt.Errorf("LLM generation failed: %w", err)
 	}

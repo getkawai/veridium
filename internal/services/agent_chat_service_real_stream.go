@@ -232,13 +232,18 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	var toolCallIndex int
 	var mu sync.Mutex // Protect concurrent access
 
-	// Get LanguageModel from TaskRouter
+	// Get LanguageModel from TaskRouter or fallback to local llama
 	var model fantasy.LanguageModel
 	if s.taskRouter != nil {
 		model = s.taskRouter.GetChatModel()
 	}
+	// Fallback to local llama model if no remote provider configured
+	if model == nil && s.llamaLM != nil {
+		model = s.llamaLM
+		log.Printf("📝 [REAL STREAM] Using local llama model via fantasy.LanguageModel")
+	}
 
-	// Use fantasy.Agent if we have a LanguageModel, otherwise fallback to legacy method
+	// Use fantasy.Agent if we have a LanguageModel
 	if model != nil {
 		// Convert tools from ToolRegistry to fantasy.AgentTool
 		agentTools := s.toolRegistry.ToAgentTools(session.ToolNames)
@@ -460,142 +465,17 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 			}
 		}
 	} else {
-		// Fallback: Use legacy RunAgentLoopWithStreaming for local llama model
-		log.Printf("📝 [REAL STREAM] Using legacy agent loop (no fantasy.LanguageModel available)")
-
-		if s.yzmaModel == nil {
-			return fmt.Errorf("no language model available")
-		}
-
-		// Streaming callback for legacy method
-		streamCallback := func(token string, isLast bool) {
-			if token == "" && !isLast {
-				return
-			}
-
-			mu.Lock()
-			defer mu.Unlock()
-
-			// Measure TTFT
-			if ttft == 0 && token != "" {
-				ttft = time.Since(startTime).Milliseconds()
-			}
-
-			// Track tool_call tag state
-			if strings.Contains(token, "<tool_call>") {
-				inToolCallTag = true
-				return
-			}
-			if strings.Contains(token, "</tool_call>") {
-				inToolCallTag = false
-				return
-			}
-			if inToolCallTag {
-				return
-			}
-
-			finalContent.WriteString(token)
-
-			// Clean content for display
-			cleanContent := finalContent.String()
-			cleanContent = strings.TrimPrefix(cleanContent, "</think>")
-			cleanContent = strings.TrimSpace(cleanContent)
-
-			if cleanContent != "" {
-				emit(StreamEventPayload{
-					Type:    types.ChatEventChunk,
-					Content: cleanContent,
-				})
-			}
-		}
-
-		// Tool event callback for legacy method
-		toolEventCallback := func(eventType types.ChatStreamEvent, tc fantasy.ToolCall, result string) {
-			mu.Lock()
-			defer mu.Unlock()
-
-			identifier, apiName, toolType := mapToolName(tc.Name)
-
-			if eventType == types.ChatEventToolCall {
-				toolCallID := fmt.Sprintf("%s_tool_%d", assistantMsgID, toolCallIndex)
-				log.Printf("🔧 [REAL STREAM] Tool call (loading): %s -> identifier=%s, apiName=%s", tc.Name, identifier, apiName)
-
-				tool := ChatToolPayload{
-					ID:         toolCallID,
-					APIName:    apiName,
-					Identifier: identifier,
-					Arguments:  tc.Input,
-					Type:       toolType,
-				}
-				uiTools = append(uiTools, tool)
-
-				emit(StreamEventPayload{
-					Type:  types.ChatEventToolCall,
-					Tools: uiTools,
-				})
-				toolCallIndex++
-			} else if eventType == types.ChatEventToolResult {
-				if len(result) > 50 {
-					log.Printf("🔧 [REAL STREAM] Tool result: %s -> %s...", tc.Name, result[:50])
-				} else {
-					log.Printf("🔧 [REAL STREAM] Tool result: %s -> %s", tc.Name, result)
-				}
-
-				var toolState interface{}
-				if err := json.Unmarshal([]byte(result), &toolState); err == nil {
-					// Successfully parsed as JSON
-				}
-
-				toolResultsData = append(toolResultsData, ToolResultData{
-					Content: result,
-					State:   toolState,
-				})
-
-				resultIndex := len(toolResultsData) - 1
-				toolCallID := fmt.Sprintf("%s_tool_%d", assistantMsgID, resultIndex)
-
-				emit(StreamEventPayload{
-					Type:       types.ChatEventToolResult,
-					ToolCallID: toolCallID,
-					ToolMsgID:  fmt.Sprintf("tool_msg_%s_%d", assistantMsgID, resultIndex+1),
-					Plugin: &ChatPluginPayload{
-						Identifier: identifier,
-						APIName:    apiName,
-						Arguments:  tc.Input,
-						Type:       toolType,
-					},
-					PluginState: toolState,
-					Content:     result,
-				})
-			}
-		}
-
-		// Run legacy agent loop
-		resp, tms, runErr := s.yzmaModel.RunAgentLoopWithStreaming(ctx, messagesWithSystem, 10, streamCallback, toolEventCallback)
-		if runErr != nil {
-			log.Printf("❌ [REAL STREAM] Agent execution failed: %v", runErr)
-			emit(StreamEventPayload{
-				Type:    types.ChatEventComplete,
-				Content: fmt.Sprintf("Error: %v", runErr),
-				Error: &ChatMessageError{
-					Type:    "LLMError",
-					Message: runErr.Error(),
-				},
-			})
-			return fmt.Errorf("agent execution failed: %w", runErr)
-		}
-
-		toolCalls = resp.Content.ToolCalls()
-		toolMessages = tms
-
-		// Build usage from response
-		if resp != nil {
-			usage = &ModelUsage{
-				TotalInputTokens:  int(resp.Usage.InputTokens),
-				TotalOutputTokens: int(resp.Usage.OutputTokens),
-				TotalTokens:       int(resp.Usage.TotalTokens),
-			}
-		}
+		// No language model available
+		log.Printf("❌ [REAL STREAM] No language model available")
+		emit(StreamEventPayload{
+			Type:    types.ChatEventComplete,
+			Content: "Error: No language model available",
+			Error: &ChatMessageError{
+				Type:    "ConfigError",
+				Message: "No language model configured. Please configure a provider or load a local model.",
+			},
+		})
+		return fmt.Errorf("no language model available")
 	}
 
 	// 6. Clean final content - remove both think tags and tool_call tags
