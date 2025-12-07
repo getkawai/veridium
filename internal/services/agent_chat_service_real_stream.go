@@ -322,7 +322,20 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 				return nil
 			},
 
-			// Reasoning callbacks
+			// Reasoning callbacks - for models like DeepSeek R1, o1, etc.
+			OnReasoningStart: func(id string, content fantasy.ReasoningContent) error {
+				mu.Lock()
+				defer mu.Unlock()
+
+				emit(StreamEventPayload{
+					Type: types.ChatEventReasoningStart,
+					Reasoning: &ModelReasoning{
+						Content: content.Text,
+					},
+				})
+				return nil
+			},
+
 			OnReasoningDelta: func(id, text string) error {
 				mu.Lock()
 				defer mu.Unlock()
@@ -332,6 +345,19 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 					Type: types.ChatEventReasoning,
 					Reasoning: &ModelReasoning{
 						Content: reasoningContent.String(),
+					},
+				})
+				return nil
+			},
+
+			OnReasoningEnd: func(id string, content fantasy.ReasoningContent) error {
+				mu.Lock()
+				defer mu.Unlock()
+
+				emit(StreamEventPayload{
+					Type: types.ChatEventReasoningEnd,
+					Reasoning: &ModelReasoning{
+						Content: content.Text,
 					},
 				})
 				return nil

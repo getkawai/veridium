@@ -8,6 +8,7 @@
 package formula
 
 // ReferenceType is a type of reference
+//
 //go:generate stringer -type=ReferenceType
 type ReferenceType byte
 

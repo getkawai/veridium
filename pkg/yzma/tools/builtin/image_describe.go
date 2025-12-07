@@ -82,7 +82,8 @@ func RegisterImageDescribe(registry *tools.ToolRegistry, sqlDB *sql.DB) error {
 	service := NewImageDescribeService(sqlDB)
 
 	tool := &types.Tool{
-		Type: fantasy.ToolTypeFunction,
+		Type:     fantasy.ToolTypeFunction,
+		Parallel: true, // Safe to run in parallel - read-only database query
 		Definition: types.ToolDefinition{
 			Name:        "lobe-image-describe__getImageDescription",
 			Description: "Get AI-generated description of an uploaded image or video. Use this when user asks about image content, text extraction, OCR, or visual analysis. The description is pre-generated when the file was uploaded.",

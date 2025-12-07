@@ -9,4 +9,3 @@ func (sdrm *StableDiffusionReleaseManager) selectBestAsset(assets []Asset) *Asse
 	log.Printf("ERROR: Stable Diffusion is not supported on this platform")
 	return nil
 }
-

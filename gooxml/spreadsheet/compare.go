@@ -14,6 +14,7 @@ import (
 )
 
 // SortOrder is a column sort order.
+//
 //go:generate stringer -type=SortOrder
 type SortOrder byte
 

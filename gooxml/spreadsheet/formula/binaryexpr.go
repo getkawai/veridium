@@ -13,6 +13,7 @@ import (
 )
 
 // BinOpType is the binary operation operator type
+//
 //go:generate stringer -type=BinOpType
 type BinOpType byte
 

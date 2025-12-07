@@ -13,6 +13,7 @@ import (
 )
 
 // ResultType is the type of the result
+//
 //go:generate stringer -type=ResultType
 type ResultType byte
 

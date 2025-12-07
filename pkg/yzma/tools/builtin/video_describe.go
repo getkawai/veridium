@@ -76,7 +76,8 @@ func RegisterVideoDescribe(registry *tools.ToolRegistry, sqlDB *sql.DB) error {
 	service := NewVideoDescribeService(sqlDB)
 
 	tool := &types.Tool{
-		Type: fantasy.ToolTypeFunction,
+		Type:     fantasy.ToolTypeFunction,
+		Parallel: true, // Safe to run in parallel - read-only database query
 		Definition: types.ToolDefinition{
 			Name:        "lobe-video-describe__getVideoTranscription",
 			Description: "Get AI-generated transcription of an uploaded video's audio. Use this when user asks about what is said in the video, video content, spoken words, dialogue, or audio transcription. The transcription is generated using Whisper STT when the video was uploaded.",

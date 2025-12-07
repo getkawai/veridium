@@ -41,6 +41,7 @@ type Format struct {
 }
 
 // FmtType is the type of a format token.
+//
 //go:generate stringer -type=FmtType
 type FmtType byte
 

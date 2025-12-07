@@ -118,6 +118,7 @@ type Tool struct {
 	Definition ToolDefinition   `json:"definition"`
 	Executor   ToolExecutor     `json:"-"`
 	Enabled    bool             `json:"-"`
+	Parallel   bool             `json:"-"` // Whether tool can run in parallel with other tools
 }
 
 // ============================================================================
@@ -132,8 +133,12 @@ const (
 	// Streaming events
 	ChatEventStart     ChatStreamEvent = "start"     // Generation started
 	ChatEventChunk     ChatStreamEvent = "chunk"     // Content chunk
-	ChatEventReasoning ChatStreamEvent = "reasoning" // Reasoning content
+	ChatEventReasoning ChatStreamEvent = "reasoning" // Reasoning content delta
 	ChatEventComplete  ChatStreamEvent = "complete"  // Generation complete
+
+	// Reasoning events (for models like DeepSeek R1, o1, etc.)
+	ChatEventReasoningStart ChatStreamEvent = "reasoning_start" // Reasoning started
+	ChatEventReasoningEnd   ChatStreamEvent = "reasoning_end"   // Reasoning finished
 
 	// Tool events
 	ChatEventToolCall   ChatStreamEvent = "tool_call"   // Tool call initiated (before execution)

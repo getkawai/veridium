@@ -28,4 +28,3 @@ func DetectHardwareSpecs() *HardwareSpecs {
 
 	return specs
 }
-

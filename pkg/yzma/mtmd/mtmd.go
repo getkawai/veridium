@@ -5,9 +5,9 @@ import (
 	"os"
 	"unsafe"
 
+	"github.com/jupiterrider/ffi"
 	"github.com/kawai-network/veridium/pkg/yzma/llama"
 	"github.com/kawai-network/veridium/pkg/yzma/utils"
-	"github.com/jupiterrider/ffi"
 )
 
 //	struct mtmd_input_text {

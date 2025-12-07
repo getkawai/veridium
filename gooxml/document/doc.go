@@ -6,7 +6,6 @@
 // commercial license can be purchased by contacting sales@baliance.com.
 
 /*
-
 Package document provides creation, reading, and writing of ECMA 376 Open
 Office XML documents.
 

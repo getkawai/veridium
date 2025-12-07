@@ -48,12 +48,12 @@ func (lcm *LlamaCppInstaller) GetBinaryPath(binaryName string) string {
 	if _, err := os.Stat(localPath); err == nil {
 		return localPath
 	}
-	
+
 	// Try system PATH as fallback
 	if systemPath, err := exec.LookPath(binaryName); err == nil {
 		return systemPath
 	}
-	
+
 	// Return local path as default (even if not exists) for error messages
 	return localPath
 }

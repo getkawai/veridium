@@ -353,7 +353,8 @@ func RegisterLocalSystem(registry *tools.ToolRegistry) error {
 
 	// Tool 1: listLocalFiles
 	listTool := &types.Tool{
-		Type: fantasy.ToolTypeFunction,
+		Type:     fantasy.ToolTypeFunction,
+		Parallel: true, // Safe to run in parallel - read-only filesystem operation
 		Definition: types.ToolDefinition{
 			Name:        "lobe-local-system__listLocalFiles",
 			Description: "List files and folders in a specified directory. Returns a JSON array of file/folder information.",
@@ -395,7 +396,8 @@ func RegisterLocalSystem(registry *tools.ToolRegistry) error {
 
 	// Tool 2: readLocalFile
 	readTool := &types.Tool{
-		Type: fantasy.ToolTypeFunction,
+		Type:     fantasy.ToolTypeFunction,
+		Parallel: true, // Safe to run in parallel - read-only filesystem operation
 		Definition: types.ToolDefinition{
 			Name:        "lobe-local-system__readLocalFile",
 			Description: "Read the content of a specific file. Returns the file content with metadata.",
@@ -450,7 +452,8 @@ func RegisterLocalSystem(registry *tools.ToolRegistry) error {
 
 	// Tool 3: searchLocalFiles
 	searchTool := &types.Tool{
-		Type: fantasy.ToolTypeFunction,
+		Type:     fantasy.ToolTypeFunction,
+		Parallel: true, // Safe to run in parallel - read-only filesystem operation
 		Definition: types.ToolDefinition{
 			Name:        "lobe-local-system__searchLocalFiles",
 			Description: "Search for files within a directory based on keywords. Returns matching files.",

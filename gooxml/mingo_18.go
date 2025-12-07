@@ -5,6 +5,7 @@
 // appearing in the file LICENSE included in the packaging of this file. A
 // commercial license can be purchased by contacting sales@baliance.com.
 
+//go:build go1.8
 // +build go1.8
 
 package gooxml

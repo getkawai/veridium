@@ -43,4 +43,3 @@ func openFolderWithDefaultApp(path string) error {
 	cmd := exec.Command("xdg-open", path)
 	return cmd.Run()
 }
-

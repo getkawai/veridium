@@ -19,8 +19,7 @@ package types
 // ============================================================================
 // LLM Provider Configuration Types
 // ============================================================================
-// Note: LLMProvider interface is defined in internal/llm/provider.go
-// to avoid circular imports with pkg/yzma/message
+// Note: LLM uses fantasy.LanguageModel interface directly from fantasy package
 
 // ProviderType identifies the LLM provider type
 type ProviderType string

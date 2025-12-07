@@ -3,8 +3,8 @@ package llama
 import (
 	"unsafe"
 
-	"github.com/kawai-network/veridium/pkg/yzma/utils"
 	"github.com/jupiterrider/ffi"
+	"github.com/kawai-network/veridium/pkg/yzma/utils"
 )
 
 var (

@@ -66,4 +66,3 @@ func RegisterAllWithDB(registry *tools.ToolRegistry, sqlDB *sql.DB) error {
 
 	return nil
 }
-

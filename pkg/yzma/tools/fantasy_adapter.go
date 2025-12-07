@@ -50,7 +50,7 @@ func (a *ToolRegistryAdapter) Info() fantasy.ToolInfo {
 		Description: a.tool.Definition.Description,
 		Parameters:  params,
 		Required:    required,
-		Parallel:    false, // Default to sequential for safety
+		Parallel:    a.tool.Parallel, // Use tool's parallel setting
 	}
 }
 

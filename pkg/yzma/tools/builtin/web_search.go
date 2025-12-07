@@ -17,7 +17,8 @@ func RegisterWebSearch(registry *tools.ToolRegistry) error {
 	searchService := search.NewService()
 
 	tool := &types.Tool{
-		Type: fantasy.ToolTypeFunction,
+		Type:     fantasy.ToolTypeFunction,
+		Parallel: true, // Safe to run in parallel - read-only external API call
 		Definition: types.ToolDefinition{
 			Name:        "web_search",
 			Description: "Search the web for current information using Brave Search. Returns real-time search results with titles, URLs, and descriptions.",

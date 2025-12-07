@@ -142,7 +142,8 @@ func RegisterWebBrowsing(registry *tools.ToolRegistry) error {
 
 	// Tool 1: search
 	searchTool := &types.Tool{
-		Type: fantasy.ToolTypeFunction,
+		Type:     fantasy.ToolTypeFunction,
+		Parallel: true, // Safe to run in parallel - read-only external API call
 		Definition: types.ToolDefinition{
 			Name:        "lobe-web-browsing__search",
 			Description: "Search the web for information. Returns a list of search results with title, content, and URL.",
@@ -212,7 +213,8 @@ func RegisterWebBrowsing(registry *tools.ToolRegistry) error {
 
 	// Tool 2: crawlSinglePage
 	crawlSingleTool := &types.Tool{
-		Type: fantasy.ToolTypeFunction,
+		Type:     fantasy.ToolTypeFunction,
+		Parallel: true, // Safe to run in parallel - read-only external fetch
 		Definition: types.ToolDefinition{
 			Name:        "lobe-web-browsing__crawlSinglePage",
 			Description: "Retrieve content from a specific webpage. Returns the page title, content, URL and website.",
@@ -255,7 +257,8 @@ func RegisterWebBrowsing(registry *tools.ToolRegistry) error {
 
 	// Tool 3: crawlMultiPages
 	crawlMultiTool := &types.Tool{
-		Type: fantasy.ToolTypeFunction,
+		Type:     fantasy.ToolTypeFunction,
+		Parallel: true, // Safe to run in parallel - read-only external fetch
 		Definition: types.ToolDefinition{
 			Name:        "lobe-web-browsing__crawlMultiPages",
 			Description: "Retrieve content from multiple webpages simultaneously. Returns an array of page results.",

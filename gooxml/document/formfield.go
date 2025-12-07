@@ -12,6 +12,7 @@ import (
 )
 
 // FormFieldType is the type of the form field.
+//
 //go:generate stringer -type=FormFieldType
 type FormFieldType byte
 

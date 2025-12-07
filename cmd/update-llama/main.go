@@ -121,7 +121,7 @@ func main() {
 		log.Println("💡 Some libraries may be missing. Try running with --force")
 	} else {
 		log.Println("✅ All required libraries verified")
-		
+
 		// List installed libraries with actual sizes
 		libs := installer.GetRequiredLibraryPaths()
 		log.Println("\n📚 Installed libraries:")
@@ -154,7 +154,7 @@ func detectProcessor(installer *llama.LlamaCppInstaller, processorType string) s
 
 	// Use the same detection logic as installer.detectProcessor()
 	// Priority: CUDA > Vulkan > Metal > CPU
-	
+
 	// Check for NVIDIA GPU (CUDA)
 	if runtime.GOOS == "linux" || runtime.GOOS == "windows" {
 		// On Linux/Windows, check for nvidia-smi
@@ -165,7 +165,7 @@ func detectProcessor(installer *llama.LlamaCppInstaller, processorType string) s
 			return "cuda"
 		}
 	}
-	
+
 	// Check for Vulkan support
 	if runtime.GOOS == "linux" || runtime.GOOS == "windows" {
 		// Basic check for Vulkan
@@ -173,12 +173,12 @@ func detectProcessor(installer *llama.LlamaCppInstaller, processorType string) s
 			return "vulkan"
 		}
 	}
-	
+
 	// macOS always supports Metal
 	if runtime.GOOS == "darwin" {
 		return "metal"
 	}
-	
+
 	// Default to CPU
 	return "cpu"
 }
@@ -233,7 +233,7 @@ func checkIfLatestVersion(libPath string) (isLatest bool, currentVersion, latest
 // listAvailableVersions lists available versions from GitHub
 func listAvailableVersions() {
 	log.Println("\n📦 Fetching available versions from GitHub...")
-	
+
 	versions, err := download.LlamaAvailableVersions(20)
 	if err != nil {
 		log.Fatalf("❌ Failed to fetch versions: %v", err)
@@ -272,25 +272,25 @@ func confirmUpdate(force bool) bool {
 func resolveLibraryPath(path string) string {
 	maxDepth := 10 // Prevent infinite loops
 	currentPath := path
-	
+
 	for i := 0; i < maxDepth; i++ {
 		info, err := os.Stat(currentPath)
 		if err != nil {
 			return path // Return original if we can't stat
 		}
-		
+
 		// If file is small (< 1KB), it might be a text file redirect
 		if info.Size() < 1024 {
 			content, err := os.ReadFile(currentPath)
 			if err != nil {
 				return currentPath
 			}
-			
+
 			targetName := strings.TrimSpace(string(content))
 			if targetName == "" {
 				return currentPath
 			}
-			
+
 			// Resolve relative to directory of current file
 			var targetPath string
 			if filepath.IsAbs(targetName) {
@@ -298,14 +298,14 @@ func resolveLibraryPath(path string) string {
 			} else {
 				targetPath = filepath.Join(filepath.Dir(currentPath), targetName)
 			}
-			
+
 			// Check if target exists
 			if _, err := os.Stat(targetPath); err == nil {
 				currentPath = targetPath
 				continue
 			}
 		}
-		
+
 		// Try readlink for actual symlinks
 		if linkTarget, err := os.Readlink(currentPath); err == nil {
 			if filepath.IsAbs(linkTarget) {
@@ -315,65 +315,65 @@ func resolveLibraryPath(path string) string {
 			}
 			continue
 		}
-		
+
 		// If we get here, we've found the actual file
 		return currentPath
 	}
-	
+
 	return currentPath
 }
 
 // testLibraryLoading tests if the llama.cpp library files are valid
 func testLibraryLoading(installer *llama.LlamaCppInstaller) error {
 	libPath := installer.GetLibraryPath()
-	
+
 	log.Printf("   Checking library files in: %s", libPath)
-	
+
 	// Verify actual library files exist and are valid
 	requiredLibs := installer.GetRequiredLibraryPaths()
-	
+
 	for _, lib := range requiredLibs {
 		actualPath := resolveLibraryPath(lib)
 		info, err := os.Stat(actualPath)
 		if err != nil {
 			return fmt.Errorf("library file not found: %s", filepath.Base(lib))
 		}
-		
+
 		// Verify it's a real library file (> 1KB)
 		if info.Size() < 1024 {
 			return fmt.Errorf("library file too small (may be corrupted): %s (size: %d bytes)", filepath.Base(lib), info.Size())
 		}
-		
+
 		// Read first 4 bytes to check for Mach-O magic number
 		f, err := os.Open(actualPath)
 		if err != nil {
 			return fmt.Errorf("cannot open library: %s", filepath.Base(lib))
 		}
-		
+
 		magic := make([]byte, 4)
 		n, err := f.Read(magic)
 		f.Close()
-		
+
 		if err != nil || n != 4 {
 			return fmt.Errorf("cannot read library header: %s", filepath.Base(lib))
 		}
-		
+
 		// Check for Mach-O magic numbers
 		// 0xfeedface (32-bit), 0xfeedfacf (64-bit), 0xcafebabe (universal)
 		isMachO := (magic[0] == 0xfe && magic[1] == 0xed && magic[2] == 0xfa && (magic[3] == 0xce || magic[3] == 0xcf)) ||
 			(magic[0] == 0xca && magic[1] == 0xfe && magic[2] == 0xba && magic[3] == 0xbe) ||
 			(magic[0] == 0xcf && magic[1] == 0xfa && magic[2] == 0xed && magic[3] == 0xfe) // Little-endian 64-bit
-		
+
 		if !isMachO {
 			return fmt.Errorf("invalid library format: %s (not a valid Mach-O file)", filepath.Base(lib))
 		}
-		
+
 		sizeMB := float64(info.Size()) / (1024 * 1024)
 		log.Printf("   ✓ %s (%.1f MB, valid Mach-O)", filepath.Base(actualPath), sizeMB)
 	}
-	
+
 	log.Printf("   ✓ All %d library files are valid", len(requiredLibs))
-	
+
 	// Try to actually load the library (this will test if it can be loaded by the system)
 	log.Println("   Testing library loading...")
 	if err := yzmaLlama.Load(libPath); err != nil {
@@ -383,13 +383,13 @@ func testLibraryLoading(installer *llama.LlamaCppInstaller) error {
 		log.Println("   💡 Libraries are valid but may need to be loaded by main app")
 		return nil // Don't fail - files are valid
 	}
-	
+
 	log.Println("   ✓ Library loaded successfully")
-	
+
 	// Initialize backend
 	yzmaLlama.Init()
 	log.Println("   ✓ Backend initialized")
-	
+
 	// Get system info to verify library is working
 	systemInfo := yzmaLlama.PrintSystemInfo()
 	if systemInfo != "" {
@@ -398,11 +398,10 @@ func testLibraryLoading(installer *llama.LlamaCppInstaller) error {
 			log.Printf("   ✓ System: %s", strings.TrimSpace(lines[0]))
 		}
 	}
-	
+
 	// Cleanup
 	yzmaLlama.BackendFree()
 	log.Println("   ✓ Backend freed")
-	
+
 	return nil
 }
-

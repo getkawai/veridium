@@ -13,7 +13,8 @@ import (
 // RegisterCalculator registers the calculator tool
 func RegisterCalculator(registry *tools.ToolRegistry) error {
 	tool := &types.Tool{
-		Type: fantasy.ToolTypeFunction,
+		Type:     fantasy.ToolTypeFunction,
+		Parallel: true, // Safe to run in parallel - pure computation, no side effects
 		Definition: types.ToolDefinition{
 			Name:        "calculator",
 			Description: "Perform mathematical calculations. Supports: +, -, *, /, sqrt(), sin(), cos(), tan(), pow(), pi, e",

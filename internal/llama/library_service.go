@@ -986,8 +986,6 @@ func (s *LibraryService) Cleanup() {
 	log.Println("✅ LibraryService cleaned up")
 }
 
-
-
 // AutoDownloadRecommendedModel downloads the recommended model based on hardware
 // Delegates to installer methods
 func (s *LibraryService) AutoDownloadRecommendedModel() error {

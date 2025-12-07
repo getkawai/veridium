@@ -54,7 +54,7 @@ func TestURLConstruction(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// We can't actually call Get() without downloading
 			// So we'll test the URL construction logic directly
-			
+
 			var location, filename string
 			location = "https://github.com/ggml-org/llama.cpp/releases/download/" + tt.version
 
@@ -112,9 +112,9 @@ func TestURLConstruction(t *testing.T) {
 // TestFilenameExtraction verifies that extraction path is preserved for internal use
 func TestFilenameExtraction(t *testing.T) {
 	tests := []struct {
-		filename         string
-		expectedZipFile  string
-		expectedExtract  string
+		filename        string
+		expectedZipFile string
+		expectedExtract string
 	}{
 		{
 			filename:        "llama-b7018-bin-macos-arm64.zip//build/bin",
@@ -156,4 +156,3 @@ func TestFilenameExtraction(t *testing.T) {
 		})
 	}
 }
-

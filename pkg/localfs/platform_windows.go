@@ -42,4 +42,3 @@ func openFolderWithDefaultApp(path string) error {
 	cmd := exec.Command("explorer", path)
 	return cmd.Run()
 }
-
