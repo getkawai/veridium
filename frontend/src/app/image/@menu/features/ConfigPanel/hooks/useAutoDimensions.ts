@@ -1,4 +1,4 @@
-import { DEFAULT_DIMENSION_CONSTRAINTS } from 'model-bank';
+import { DEFAULT_DIMENSION_CONSTRAINTS } from '@/model-bank';
 
 import { useImageStore } from '@/store/image';
 import { imageGenerationConfigSelectors } from '@/store/image/selectors';

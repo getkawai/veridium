@@ -10,6 +10,7 @@ const n = setNamespace('w');
 
 export interface GlobalWorkspacePaneAction {
   switchBackToChat: (sessionId?: string) => void;
+  switchToImage: () => void;
   toggleAgentSystemRoleExpand: (agentId: string, expanded?: boolean) => void;
   toggleChatSideBar: (visible?: boolean) => void;
   toggleExpandInputActionbar: (expand?: boolean) => void;
@@ -30,11 +31,17 @@ export const globalWorkspaceSlice: StateCreator<
   switchBackToChat: (sessionId) => {
     const isMobile = get().isMobile;
     const id = sessionId || INBOX_SESSION_ID;
-    
+
+    set({ sidebarKey: 'chat' as any }, false, n('switchBackToChat'));
+
     // Use Zustand router to navigate
     useRouterStore.getState().push('/chat', {
       query: isMobile ? { session: id, showMobileWorkspace: 'true' } : { session: id },
     });
+  },
+
+  switchToImage: () => {
+    set({ sidebarKey: 'image' as any }, false, n('switchToImage'));
   },
 
   toggleAgentSystemRoleExpand: (agentId, expanded) => {

@@ -5,7 +5,7 @@ import { Skeleton } from 'antd';
 import { memo } from 'react';
 import { Center, Flexbox } from 'react-layout-kit';
 
-import PromptInput from '@/app/[variants]/(main)/image/features/PromptInput';
+import PromptInput from '@/app/image/features/PromptInput';
 
 const SkeletonList = memo(() => {
   return (

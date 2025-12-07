@@ -5,7 +5,7 @@ import {
   RuntimeImageGenParamsKeys,
   RuntimeImageGenParamsValue,
   extractDefaultValues,
-} from 'model-bank';
+} from '@/model-bank';
 import { StateCreator } from 'zustand/vanilla';
 
 import { aiProviderSelectors, getAiInfraStoreState } from '@/store/aiInfra';

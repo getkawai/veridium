@@ -1,5 +1,5 @@
-import { ModelParamsSchema, RuntimeImageGenParams, gptImage1ParamsSchema } from 'model-bank';
-import { AIImageModelCard } from 'model-bank';
+import { ModelParamsSchema, RuntimeImageGenParams, gptImage1ParamsSchema } from '@/model-bank';
+import { AIImageModelCard } from '@/model-bank';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ImageStore } from '@/store/image';

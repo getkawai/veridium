@@ -4,9 +4,7 @@ import { Tabs } from '@lobehub/ui';
 import { useTheme } from 'antd-style';
 import isEqual from 'fast-deep-equal';
 import { memo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 
-import PageTitle from '@/components/PageTitle';
 import { useCategory } from '@/features/AgentSetting/AgentCategory/useCategory';
 import AgentSettings from '@/features/AgentSetting/AgentSettings';
 import { useAgentStore } from '@/store/agent';
@@ -16,11 +14,10 @@ import { useSessionStore } from '@/store/session';
 import { sessionMetaSelectors } from '@/store/session/selectors';
 
 const EditPage = memo(() => {
-  const { t } = useTranslation('setting');
   const [tab, setTab] = useState(ChatSettingsTabs.Prompt);
   const theme = useTheme();
   const cateItems = useCategory();
-  const [id, updateAgentMeta, title] = useSessionStore((s) => [
+  const [id, updateAgentMeta] = useSessionStore((s) => [
     s.activeId,
     s.updateSessionMeta,
     sessionMetaSelectors.currentAgentTitle(s),
@@ -37,7 +34,6 @@ const EditPage = memo(() => {
 
   return (
     <>
-      <PageTitle title={t('header.sessionWithName', { name: title })} />
       <Tabs
         activeKey={tab}
         compact

@@ -1,9 +1,8 @@
 'use client';
 
-import { App } from 'antd';
+import { App, Image } from 'antd';
 import { createStyles, useTheme } from 'antd-style';
 import { Image as ImageIcon, X } from 'lucide-react';
-import Image from 'next/image';
 import React, { type FC, memo, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Center } from 'react-layout-kit';
@@ -347,10 +346,9 @@ const UploadingDisplay: FC<UploadingDisplayProps> = memo(({ previewUrl, progress
     <div className={styles.uploadingDisplay}>
       <Image
         alt="Uploading preview"
-        fill
         src={previewUrl}
-        style={{ objectFit: 'cover' }}
-        unoptimized
+        style={{ objectFit: 'cover', width: '100%', height: '100%', position: 'absolute', inset: 0 }}
+        preview={false}
       />
       <div className={styles.uploadingOverlay}>
         <CircularProgress value={progress} />
@@ -394,10 +392,9 @@ const SuccessDisplay: FC<SuccessDisplayProps> = memo(
       >
         <Image
           alt="Uploaded image"
-          fill
           src={imageUrl}
-          style={{ objectFit: 'cover' }}
-          unoptimized
+          style={{ objectFit: 'cover', width: '100%', height: '100%', position: 'absolute', inset: 0 }}
+          preview={false}
         />
 
         {/* Delete button */}
@@ -498,10 +495,10 @@ const ImageUpload: FC<ImageUploadProps> = memo(
         setUploadState((prev) =>
           prev
             ? {
-                ...prev,
-                error: 'Upload failed',
-                status: 'error',
-              }
+              ...prev,
+              error: 'Upload failed',
+              status: 'error',
+            }
             : null,
         );
       } finally {
@@ -581,10 +578,10 @@ const ImageUpload: FC<ImageUploadProps> = memo(
         setUploadState((prev) =>
           prev
             ? {
-                ...prev,
-                error: 'Upload failed',
-                status: 'error',
-              }
+              ...prev,
+              error: 'Upload failed',
+              status: 'error',
+            }
             : null,
         );
       } finally {

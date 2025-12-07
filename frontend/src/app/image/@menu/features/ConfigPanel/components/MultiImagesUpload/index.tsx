@@ -3,7 +3,7 @@
 // Removed Image import - using img tags instead
 import { createStyles, useTheme } from 'antd-style';
 import { Image as ImageIcon, X } from 'lucide-react';
-import Image from 'next/image';
+import { Image } from '@lobehub/ui';
 import React, { type FC, memo, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Center } from 'react-layout-kit';
@@ -476,10 +476,8 @@ const ImageThumbnails: FC<ImageThumbnailsProps> = memo(
         <div className={styles.imageItem} key={`${imageUrl}-${index}`}>
           <Image
             alt={`Uploaded image ${index + 1}`}
-            fill
             src={imageUrl}
             style={{ objectFit: 'cover' }}
-            unoptimized
           />
           {!showOverlay && (
             <div
@@ -536,10 +534,8 @@ const SingleImageDisplay: FC<SingleImageDisplayProps> = memo(
       >
         <Image
           alt="Uploaded image"
-          fill
           src={imageUrl}
           style={{ objectFit: 'contain' }}
-          unoptimized
         />
 
         {/* Delete button */}
@@ -636,11 +632,11 @@ const MultiImagesUpload: FC<MultiImagesUploadProps> = memo(
                 prev.map((displayItem) =>
                   displayItem.id === item.id
                     ? {
-                        ...displayItem,
-                        error: updateData.value.status === 'error' ? 'Upload failed' : undefined,
-                        progress: updateData.value.uploadState?.progress || 0,
-                        status: updateData.value.status,
-                      }
+                      ...displayItem,
+                      error: updateData.value.status === 'error' ? 'Upload failed' : undefined,
+                      progress: updateData.value.uploadState?.progress || 0,
+                      status: updateData.value.status,
+                    }
                     : displayItem,
                 ),
               );
@@ -673,12 +669,12 @@ const MultiImagesUpload: FC<MultiImagesUploadProps> = memo(
             prev.map((item) =>
               item.id === displayItem.id
                 ? {
-                    ...item,
-                    file: undefined,
-                    progress: 100,
-                    status: 'success',
-                    url: result.value!.url, // Clear file reference after successful upload
-                  }
+                  ...item,
+                  file: undefined,
+                  progress: 100,
+                  status: 'success',
+                  url: result.value!.url, // Clear file reference after successful upload
+                }
                 : item,
             ),
           );
@@ -688,11 +684,11 @@ const MultiImagesUpload: FC<MultiImagesUploadProps> = memo(
             prev.map((item) =>
               item.id === displayItem.id
                 ? {
-                    ...item,
-                    error: 'Upload failed',
-                    progress: 0,
-                    status: 'error',
-                  }
+                  ...item,
+                  error: 'Upload failed',
+                  progress: 0,
+                  status: 'error',
+                }
                 : item,
             ),
           );

@@ -1,8 +1,6 @@
 import { ActionIcon, Icon, Select, type SelectProps } from '@lobehub/ui';
 import { createStyles, useTheme } from 'antd-style';
 import { LucideArrowRight, LucideBolt } from 'lucide-react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
@@ -35,7 +33,6 @@ const ModelSelect = memo(() => {
   const { t } = useTranslation('components');
   const theme = useTheme();
   const { showLLM } = useServerConfigStore(featureFlagsSelectors);
-  const router = useRouter();
 
   const [currentModel, currentProvider] = useImageStore((s) => [
     imageGenerationConfigSelectors.model(s),
@@ -65,11 +62,9 @@ const ModelSelect = memo(() => {
               </Flexbox>
             ),
             onClick: () => {
-              router.push(
-                isDeprecatedEdition
-                  ? '/settings?active=llm'
-                  : `/settings?active=provider&provider=${provider.id}`,
-              );
+              window.location.href = isDeprecatedEdition
+                ? '/settings?active=llm'
+                : `/settings?active=provider&provider=${provider.id}`;
             },
             value: `${provider.id}/empty`,
           },
@@ -91,7 +86,7 @@ const ModelSelect = memo(() => {
             </Flexbox>
           ),
           onClick: () => {
-            router.push(isDeprecatedEdition ? '/settings?active=llm' : '/settings?active=provider');
+            window.location.href = isDeprecatedEdition ? '/settings?active=llm' : '/settings?active=provider';
           },
           value: 'no-provider',
         },
@@ -113,7 +108,7 @@ const ModelSelect = memo(() => {
             source={provider.source}
           />
           {showLLM && (
-            <Link
+            <a
               href={
                 isDeprecatedEdition
                   ? '/settings?active=llm'
@@ -125,13 +120,13 @@ const ModelSelect = memo(() => {
                 size={'small'}
                 title={t('ModelSwitchPanel.goToSettings')}
               />
-            </Link>
+            </a>
           )}
         </Flexbox>
       ),
       options: getImageModels(provider),
     }));
-  }, [enabledImageModelList, showLLM, t, theme.colorTextTertiary, router]);
+  }, [enabledImageModelList, showLLM, t, theme.colorTextTertiary]);
 
   return (
     <Select

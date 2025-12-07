@@ -5,8 +5,12 @@ import DesktopMainLayout from './layout/Desktop';
 import DesktopChatLayout from './app/chat';
 import { useChatStore } from './store/chat';
 import DesktopImageLayout from './app/image';
+import { useGlobalStore } from './store/global';
+import { SidebarTabKey } from './store/global/initialState';
 
 function App() {
+  const sidebarKey = useGlobalStore((s) => s.sidebarKey);
+
   useEffect(() => {
     Events.On('chat:topic:updated', (ev: any) => {
       const data = ev.data;
@@ -37,8 +41,8 @@ function App() {
   return (
     <GlobalLayout appearance={'dark'} isMobile={false} locale={''} neutralColor={undefined} primaryColor={undefined} variants={undefined}>
       <DesktopMainLayout>
-        <DesktopChatLayout />
-        <DesktopImageLayout />
+        {sidebarKey === SidebarTabKey.Chat && <DesktopChatLayout />}
+        {sidebarKey === SidebarTabKey.Image && <DesktopImageLayout />}
       </DesktopMainLayout>
     </GlobalLayout>
   )

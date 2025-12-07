@@ -1,4 +1,4 @@
-import { ModelProvider } from 'model-bank';
+import { ModelProvider } from '@/model-bank';
 import OpenAI from 'openai';
 
 import { ChatStreamPayload } from './chat';

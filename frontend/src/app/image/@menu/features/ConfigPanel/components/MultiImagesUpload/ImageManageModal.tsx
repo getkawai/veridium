@@ -1,9 +1,8 @@
 'use client';
 
-import { Button, Modal } from '@lobehub/ui';
+import { Button, Modal, Image } from '@lobehub/ui';
 import { createStyles } from 'antd-style';
 import { Upload, X } from 'lucide-react';
-import Image from 'next/image';
 import React, { type FC, memo, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -327,10 +326,8 @@ const ImageManageModal: FC<ImageManageModalProps> = memo(
         >
           <Image
             alt={`Image ${index + 1}`}
-            fill
             src={displayUrl}
             style={{ objectFit: 'cover' }}
-            unoptimized
           />
 
           {/* 新文件标识 */}
@@ -391,7 +388,6 @@ const ImageManageModal: FC<ImageManageModalProps> = memo(
                   height={320}
                   src={getDisplayUrl(selectedItem)}
                   style={{ objectFit: 'contain' }}
-                  unoptimized
                   width={400}
                 />
                 <div className={styles.fileName}>{getDisplayFileName(selectedItem)}</div>

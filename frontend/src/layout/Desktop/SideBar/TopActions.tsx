@@ -27,6 +27,7 @@ export interface TopActionProps {
 const TopActions = memo<TopActionProps>(({ tab, isPinned }) => {
   const { t } = useTranslation('common');
   const switchBackToChat = useGlobalStore((s) => s.switchBackToChat);
+  const switchToImage = useGlobalStore((s) => s.switchToImage);
   const { showMarket, enableKnowledgeBase, showAiImage } =
     useServerConfigStore(featureFlagsSelectors);
   const hotkey = useUserStore(settingsSelectors.getHotkeyById(HotkeyEnum.NavigateToChat));
@@ -76,7 +77,13 @@ const TopActions = memo<TopActionProps>(({ tab, isPinned }) => {
         </a>
       )}
       {showAiImage && (
-        <a aria-label={t('tab.aiImage')}>
+        <a
+          aria-label={t('tab.aiImage')}
+          onClick={(e) => {
+            e.preventDefault();
+            switchToImage();
+          }}
+        >
           <ActionIcon
             active={isImageActive}
             icon={Palette}

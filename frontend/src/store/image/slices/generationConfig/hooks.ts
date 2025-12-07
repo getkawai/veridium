@@ -3,7 +3,7 @@ import {
   PRESET_ASPECT_RATIOS,
   RuntimeImageGenParams,
   RuntimeImageGenParamsKeys,
-} from 'model-bank';
+} from '@/model-bank';
 import { useCallback, useMemo } from 'react';
 
 import { useImageStore } from '../../store';

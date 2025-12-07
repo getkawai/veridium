@@ -5,7 +5,7 @@ import {
   RuntimeImageGenParams,
   extractDefaultValues,
   gptImage1ParamsSchema,
-} from 'model-bank';
+} from '@/model-bank';
 
 import { DEFAULT_IMAGE_CONFIG } from '@/const/settings';
 
