@@ -6,47 +6,36 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/internal/search"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
 )
+
+// WebSearchInput defines input for web search tool
+type WebSearchInput struct {
+	Query      string `json:"query" jsonschema:"description=The search query"`
+	MaxResults int    `json:"max_results,omitempty" jsonschema:"description=Maximum number of results (default: 10)"`
+}
 
 // RegisterWebSearch registers the web search tool
 func RegisterWebSearch(registry *tools.ToolRegistry) error {
 	searchService := search.NewService()
 
-	tool := tools.NewSimpleTool(tools.SimpleToolConfig{
-		Name:        "web_search",
-		Description: "Search the web for current information using Brave Search. Returns real-time search results with titles, URLs, and descriptions.",
-		Parameters: map[string]any{
-			"query": map[string]any{
-				"type":        "string",
-				"description": "The search query",
-			},
-			"max_results": map[string]any{
-				"type":        "number",
-				"description": "Maximum number of results (default: 10)",
-			},
-		},
-		Required: []string{"query"},
-		Parallel: true, // Safe to run in parallel - read-only external API call
-		Executor: func(ctx context.Context, args map[string]string) (string, error) {
-			query, ok := args["query"]
-			if !ok || query == "" {
-				return "", fmt.Errorf("query parameter is required")
+	tool := fantasy.NewParallelAgentTool("web_search",
+		"Search the web for current information using Brave Search. Returns real-time search results with titles, URLs, and descriptions.",
+		func(ctx context.Context, input WebSearchInput, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
+			if input.Query == "" {
+				return fantasy.NewTextErrorResponse("query parameter is required"), nil
 			}
 
-			maxResults := 10
-			if maxStr, ok := args["max_results"]; ok && maxStr != "" {
-				// Parse max_results if provided
-				var mr int
-				if _, err := fmt.Sscanf(maxStr, "%d", &mr); err == nil && mr > 0 {
-					maxResults = mr
-				}
+			maxResults := input.MaxResults
+			if maxResults <= 0 {
+				maxResults = 10
 			}
 
 			// Use real Brave Search API
 			searchQuery := search.SearchQuery{
-				Query:            query,
+				Query:            input.Query,
 				SearchCategories: []string{"general"},
 				SearchEngines:    []string{},
 				SearchTimeRange:  "anytime",
@@ -55,7 +44,7 @@ func RegisterWebSearch(registry *tools.ToolRegistry) error {
 			response, err := searchService.WebSearch(searchQuery)
 			if err != nil {
 				log.Printf("⚠️  Web search failed: %v", err)
-				return "", fmt.Errorf("search failed: %w", err)
+				return fantasy.NewTextErrorResponse(fmt.Sprintf("search failed: %v", err)), nil
 			}
 
 			// Format results for LLM
@@ -72,7 +61,7 @@ func RegisterWebSearch(registry *tools.ToolRegistry) error {
 			}
 
 			resultData := map[string]interface{}{
-				"query":       query,
+				"query":       input.Query,
 				"results":     results,
 				"count":       len(results),
 				"max_results": maxResults,
@@ -80,12 +69,12 @@ func RegisterWebSearch(registry *tools.ToolRegistry) error {
 
 			resultJSON, err := json.Marshal(resultData)
 			if err != nil {
-				return "", fmt.Errorf("failed to marshal results: %w", err)
+				return fantasy.NewTextErrorResponse(fmt.Sprintf("failed to marshal results: %v", err)), nil
 			}
 
-			return string(resultJSON), nil
+			return fantasy.NewTextResponse(string(resultJSON)), nil
 		},
-	})
+	)
 
 	return registry.Register(tool)
 }

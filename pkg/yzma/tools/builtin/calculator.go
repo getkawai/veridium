@@ -5,44 +5,39 @@ import (
 	"fmt"
 
 	"github.com/Knetic/govaluate"
+	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
 )
 
+// CalculatorInput defines input for calculator tool
+type CalculatorInput struct {
+	Expression string `json:"expression" jsonschema:"description=The mathematical expression to evaluate (e.g. '2 + 2'&#44; 'sqrt(16)'&#44; 'sin(pi/2)')"`
+}
+
 // RegisterCalculator registers the calculator tool
 func RegisterCalculator(registry *tools.ToolRegistry) error {
-	tool := tools.NewSimpleTool(tools.SimpleToolConfig{
-		Name:        "calculator",
-		Description: "Perform mathematical calculations. Supports: +, -, *, /, sqrt(), sin(), cos(), tan(), pow(), pi, e",
-		Parameters: map[string]any{
-			"expression": map[string]any{
-				"type":        "string",
-				"description": "The mathematical expression to evaluate (e.g., '2 + 2', 'sqrt(16)', 'sin(pi/2)')",
-			},
-		},
-		Required: []string{"expression"},
-		Parallel: true, // Safe to run in parallel - pure computation, no side effects
-		Executor: func(ctx context.Context, args map[string]string) (string, error) {
-			expression, ok := args["expression"]
-			if !ok || expression == "" {
-				return "", fmt.Errorf("expression parameter is required")
+	tool := fantasy.NewParallelAgentTool("calculator",
+		"Perform mathematical calculations. Supports: +, -, *, /, sqrt(), sin(), cos(), tan(), pow(), pi, e",
+		func(ctx context.Context, input CalculatorInput, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
+			if input.Expression == "" {
+				return fantasy.NewTextErrorResponse("expression parameter is required"), nil
 			}
 
 			// Create evaluator with math functions
-			expr, err := govaluate.NewEvaluableExpression(expression)
+			expr, err := govaluate.NewEvaluableExpression(input.Expression)
 			if err != nil {
-				return "", fmt.Errorf("invalid expression: %w", err)
+				return fantasy.NewTextErrorResponse(fmt.Sprintf("invalid expression: %v", err)), nil
 			}
 
 			// Evaluate expression
 			result, err := expr.Evaluate(nil)
 			if err != nil {
-				return "", fmt.Errorf("evaluation failed: %w", err)
+				return fantasy.NewTextErrorResponse(fmt.Sprintf("evaluation failed: %v", err)), nil
 			}
 
-			// Format result
-			return fmt.Sprintf("%v", result), nil
+			return fantasy.NewTextResponse(fmt.Sprintf("%v", result)), nil
 		},
-	})
+	)
 
 	return registry.Register(tool)
 }

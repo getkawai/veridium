@@ -7,9 +7,32 @@ import (
 	"log"
 	"time"
 
+	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/internal/search"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
 )
+
+// ============================================================================
+// Input Types for fantasy.NewAgentTool
+// ============================================================================
+
+// WebSearchInput defines input for web search tool
+type WebBrowsingSearchInput struct {
+	Query            string   `json:"query" jsonschema:"description=The search query string"`
+	SearchCategories []string `json:"searchCategories,omitempty" jsonschema:"description=Search categories: general&#44; images&#44; news&#44; science&#44; videos"`
+	SearchEngines    []string `json:"searchEngines,omitempty" jsonschema:"description=Search engines: google&#44; bing&#44; duckduckgo&#44; brave&#44; wikipedia&#44; github&#44; arxiv"`
+	SearchTimeRange  string   `json:"searchTimeRange,omitempty" jsonschema:"description=Time range filter: anytime&#44; day&#44; week&#44; month&#44; year"`
+}
+
+// CrawlSingleInput defines input for crawl single page tool
+type CrawlSingleInput struct {
+	URL string `json:"url" jsonschema:"description=The URL of the webpage to crawl"`
+}
+
+// CrawlMultiInput defines input for crawl multiple pages tool
+type CrawlMultiInput struct {
+	URLs []string `json:"urls" jsonschema:"description=The URLs of the webpages to crawl"`
+}
 
 // WebBrowsingService wraps search.Service to provide lobe-web-browsing compatible responses
 type WebBrowsingService struct {
@@ -139,148 +162,86 @@ func RegisterWebBrowsing(registry *tools.ToolRegistry) error {
 	service := NewWebBrowsingService()
 
 	// Tool 1: search
-	searchTool := tools.NewSimpleTool(tools.SimpleToolConfig{
-		Name:        "lobe-web-browsing__search",
-		Description: "Search the web for information. Returns a list of search results with title, content, and URL.",
-		Parameters: map[string]any{
-			"query": map[string]any{
-				"type":        "string",
-				"description": "The search query string",
-			},
-			"searchCategories": map[string]any{
-				"type":        "array",
-				"items":       map[string]any{"type": "string"},
-				"description": "Search categories: general, images, news, science, videos",
-			},
-			"searchEngines": map[string]any{
-				"type":        "array",
-				"items":       map[string]any{"type": "string"},
-				"description": "Search engines: google, bing, duckduckgo, brave, wikipedia, github, arxiv",
-			},
-			"searchTimeRange": map[string]any{
-				"type":        "string",
-				"description": "Time range filter: anytime, day, week, month, year",
-			},
-		},
-		Required: []string{"query"},
-		Parallel: true, // Safe to run in parallel - read-only external API call
-		Executor: func(ctx context.Context, args map[string]string) (string, error) {
-			query := args["query"]
-			if query == "" {
-				return "", fmt.Errorf("query is required")
+	searchTool := fantasy.NewParallelAgentTool("lobe-web-browsing__search",
+		"Search the web for information. Returns a list of search results with title, content, and URL.",
+		func(ctx context.Context, input WebBrowsingSearchInput, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
+			if input.Query == "" {
+				return fantasy.NewTextErrorResponse("query is required"), nil
 			}
 
-			var categories, engines []string
-			timeRange := "anytime"
-
-			if catStr := args["searchCategories"]; catStr != "" {
-				json.Unmarshal([]byte(catStr), &categories)
-			}
-			if engStr := args["searchEngines"]; engStr != "" {
-				json.Unmarshal([]byte(engStr), &engines)
-			}
-			if tr := args["searchTimeRange"]; tr != "" {
-				timeRange = tr
+			timeRange := input.SearchTimeRange
+			if timeRange == "" {
+				timeRange = "anytime"
 			}
 
-			response, err := service.Search(query, categories, engines, timeRange)
+			response, err := service.Search(input.Query, input.SearchCategories, input.SearchEngines, timeRange)
 			if err != nil {
-				return "", err
+				return fantasy.NewTextErrorResponse(err.Error()), nil
 			}
 
 			resultJSON, err := json.Marshal(response)
 			if err != nil {
-				return "", fmt.Errorf("failed to marshal response: %w", err)
+				return fantasy.NewTextErrorResponse(fmt.Sprintf("failed to marshal response: %v", err)), nil
 			}
 
-			log.Printf("🔍 Web search completed: query=%s, results=%d", query, len(response.Results))
-			return string(resultJSON), nil
+			log.Printf("🔍 Web search completed: query=%s, results=%d", input.Query, len(response.Results))
+			return fantasy.NewTextResponse(string(resultJSON)), nil
 		},
-	})
+	)
 
 	if err := registry.Register(searchTool); err != nil {
 		return fmt.Errorf("failed to register search tool: %w", err)
 	}
 
 	// Tool 2: crawlSinglePage
-	crawlSingleTool := tools.NewSimpleTool(tools.SimpleToolConfig{
-		Name:        "lobe-web-browsing__crawlSinglePage",
-		Description: "Retrieve content from a specific webpage. Returns the page title, content, URL and website.",
-		Parameters: map[string]any{
-			"url": map[string]any{
-				"type":        "string",
-				"description": "The URL of the webpage to crawl",
-			},
-		},
-		Required: []string{"url"},
-		Parallel: true, // Safe to run in parallel - read-only external fetch
-		Executor: func(ctx context.Context, args map[string]string) (string, error) {
-			url := args["url"]
-			if url == "" {
-				return "", fmt.Errorf("url is required")
+	crawlSingleTool := fantasy.NewParallelAgentTool("lobe-web-browsing__crawlSinglePage",
+		"Retrieve content from a specific webpage. Returns the page title, content, URL and website.",
+		func(ctx context.Context, input CrawlSingleInput, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
+			if input.URL == "" {
+				return fantasy.NewTextErrorResponse("url is required"), nil
 			}
 
-			response, err := service.CrawlSinglePage(url)
+			response, err := service.CrawlSinglePage(input.URL)
 			if err != nil {
-				return "", err
+				return fantasy.NewTextErrorResponse(err.Error()), nil
 			}
 
 			resultJSON, err := json.Marshal(response)
 			if err != nil {
-				return "", fmt.Errorf("failed to marshal response: %w", err)
+				return fantasy.NewTextErrorResponse(fmt.Sprintf("failed to marshal response: %v", err)), nil
 			}
 
-			log.Printf("🌐 Crawled single page: url=%s", url)
-			return string(resultJSON), nil
+			log.Printf("🌐 Crawled single page: url=%s", input.URL)
+			return fantasy.NewTextResponse(string(resultJSON)), nil
 		},
-	})
+	)
 
 	if err := registry.Register(crawlSingleTool); err != nil {
 		return fmt.Errorf("failed to register crawlSinglePage tool: %w", err)
 	}
 
 	// Tool 3: crawlMultiPages
-	crawlMultiTool := tools.NewSimpleTool(tools.SimpleToolConfig{
-		Name:        "lobe-web-browsing__crawlMultiPages",
-		Description: "Retrieve content from multiple webpages simultaneously. Returns an array of page results.",
-		Parameters: map[string]any{
-			"urls": map[string]any{
-				"type":        "array",
-				"items":       map[string]any{"type": "string"},
-				"description": "The URLs of the webpages to crawl",
-			},
-		},
-		Required: []string{"urls"},
-		Parallel: true, // Safe to run in parallel - read-only external fetch
-		Executor: func(ctx context.Context, args map[string]string) (string, error) {
-			urlsStr := args["urls"]
-			if urlsStr == "" {
-				return "", fmt.Errorf("urls is required")
+	crawlMultiTool := fantasy.NewParallelAgentTool("lobe-web-browsing__crawlMultiPages",
+		"Retrieve content from multiple webpages simultaneously. Returns an array of page results.",
+		func(ctx context.Context, input CrawlMultiInput, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
+			if len(input.URLs) == 0 {
+				return fantasy.NewTextErrorResponse("at least one URL is required"), nil
 			}
 
-			var urls []string
-			if err := json.Unmarshal([]byte(urlsStr), &urls); err != nil {
-				return "", fmt.Errorf("failed to parse urls: %w", err)
-			}
-
-			if len(urls) == 0 {
-				return "", fmt.Errorf("at least one URL is required")
-			}
-
-			response, err := service.CrawlMultiPages(urls)
+			response, err := service.CrawlMultiPages(input.URLs)
 			if err != nil {
-				return "", err
+				return fantasy.NewTextErrorResponse(err.Error()), nil
 			}
 
 			resultJSON, err := json.Marshal(response)
 			if err != nil {
-				return "", fmt.Errorf("failed to marshal response: %w", err)
+				return fantasy.NewTextErrorResponse(fmt.Sprintf("failed to marshal response: %v", err)), nil
 			}
 
-			log.Printf("🌐 Crawled %d pages", len(urls))
-			return string(resultJSON), nil
+			log.Printf("🌐 Crawled %d pages", len(input.URLs))
+			return fantasy.NewTextResponse(string(resultJSON)), nil
 		},
-	})
+	)
 
 	if err := registry.Register(crawlMultiTool); err != nil {
 		return fmt.Errorf("failed to register crawlMultiPages tool: %w", err)

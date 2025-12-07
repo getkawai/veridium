@@ -9,9 +9,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kawai-network/veridium/fantasy"
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
 )
+
+// VideoDescribeInput defines input for video describe tool
+type VideoDescribeInput struct {
+	FileID string `json:"file_id" jsonschema:"description=The file ID of the uploaded video"`
+}
 
 // VideoDescribeService provides video transcription functionality
 type VideoDescribeService struct {
@@ -73,44 +79,34 @@ func (s *VideoDescribeService) GetVideoTranscription(ctx context.Context, fileID
 func RegisterVideoDescribe(registry *tools.ToolRegistry, sqlDB *sql.DB) error {
 	service := NewVideoDescribeService(sqlDB)
 
-	tool := tools.NewSimpleTool(tools.SimpleToolConfig{
-		Name:        "lobe-video-describe__getVideoTranscription",
-		Description: "Get AI-generated transcription of an uploaded video's audio. Use this when user asks about what is said in the video, video content, spoken words, dialogue, or audio transcription. The transcription is generated using Whisper STT when the video was uploaded.",
-		Parameters: map[string]any{
-			"file_id": map[string]any{
-				"type":        "string",
-				"description": "The file ID of the uploaded video",
-			},
-		},
-		Required: []string{"file_id"},
-		Parallel: true, // Safe to run in parallel - read-only database query
-		Executor: func(ctx context.Context, args map[string]string) (string, error) {
-			fileID, ok := args["file_id"]
-			if !ok || fileID == "" {
-				return "", fmt.Errorf("file_id parameter is required")
+	tool := fantasy.NewParallelAgentTool("lobe-video-describe__getVideoTranscription",
+		"Get AI-generated transcription of an uploaded video's audio. Use this when user asks about what is said in the video, video content, spoken words, dialogue, or audio transcription. The transcription is generated using Whisper STT when the video was uploaded.",
+		func(ctx context.Context, input VideoDescribeInput, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
+			if input.FileID == "" {
+				return fantasy.NewTextErrorResponse("file_id parameter is required"), nil
 			}
 
 			// Wait up to 3 minutes for transcription (video processing takes longer)
-			transcription, err := service.GetVideoTranscription(ctx, fileID, 3*time.Minute)
+			transcription, err := service.GetVideoTranscription(ctx, input.FileID, 3*time.Minute)
 			if err != nil {
 				log.Printf("⚠️  [VideoDescribe] Failed to get transcription: %v", err)
-				return "", err
+				return fantasy.NewTextErrorResponse(err.Error()), nil
 			}
 
 			result := map[string]interface{}{
-				"file_id":       fileID,
+				"file_id":       input.FileID,
 				"transcription": transcription,
 				"status":        "success",
 			}
 
 			resultJSON, err := json.Marshal(result)
 			if err != nil {
-				return "", fmt.Errorf("failed to marshal result: %w", err)
+				return fantasy.NewTextErrorResponse(fmt.Sprintf("failed to marshal result: %v", err)), nil
 			}
 
-			return string(resultJSON), nil
+			return fantasy.NewTextResponse(string(resultJSON)), nil
 		},
-	})
+	)
 
 	return registry.Register(tool)
 }

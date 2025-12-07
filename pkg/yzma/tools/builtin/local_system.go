@@ -6,9 +6,48 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/pkg/localfs"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
 )
+
+// ============================================================================
+// Input Types for fantasy.NewAgentTool
+// ============================================================================
+
+// ListFilesInput defines input for list files tool
+type ListFilesInput struct {
+	Path string `json:"path" jsonschema:"description=The directory path to list"`
+}
+
+// ReadFileInput defines input for read file tool
+type ReadFileInput struct {
+	Path string `json:"path" jsonschema:"description=The file path to read"`
+	Loc  []int  `json:"loc,omitempty" jsonschema:"description=Optional range of lines to read [startLine&#44; endLine]. Defaults to [0&#44; 200]"`
+}
+
+// SearchFilesInput defines input for search files tool
+type SearchFilesInput struct {
+	Keywords  string `json:"keywords" jsonschema:"description=The search keywords string"`
+	Directory string `json:"directory,omitempty" jsonschema:"description=Optional directory to limit search"`
+}
+
+// WriteFileInput defines input for write file tool
+type WriteFileInput struct {
+	Path    string `json:"path" jsonschema:"description=The file path to write to"`
+	Content string `json:"content" jsonschema:"description=The content to write"`
+}
+
+// RenameFileInput defines input for rename file tool
+type RenameFileInput struct {
+	Path    string `json:"path" jsonschema:"description=The current full path of the file or folder to rename"`
+	NewName string `json:"newName" jsonschema:"description=The new name for the file or folder (without path)"`
+}
+
+// MoveFilesInput defines input for move files tool
+type MoveFilesInput struct {
+	Items []localfs.MoveLocalFileParams `json:"items" jsonschema:"description=A list of move/rename operations to perform"`
+}
 
 // ============================================================================
 // Response Types (matching frontend expected format)
@@ -350,184 +389,126 @@ func RegisterLocalSystem(registry *tools.ToolRegistry) error {
 	service := NewLocalSystemService()
 
 	// Tool 1: listLocalFiles (read-only, parallel safe)
-	if err := registry.Register(tools.NewSimpleTool(tools.SimpleToolConfig{
-		Name:        "lobe-local-system__listLocalFiles",
-		Description: "List files and folders in a specified directory. Returns a JSON array of file/folder information.",
-		Parameters: map[string]any{
-			"path": map[string]any{"type": "string", "description": "The directory path to list"},
-		},
-		Required: []string{"path"},
-		Parallel: true,
-		Executor: func(ctx context.Context, args map[string]string) (string, error) {
-			path := args["path"]
-			if path == "" {
-				return "", fmt.Errorf("path is required")
+	listTool := fantasy.NewParallelAgentTool("lobe-local-system__listLocalFiles",
+		"List files and folders in a specified directory. Returns a JSON array of file/folder information.",
+		func(ctx context.Context, input ListFilesInput, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
+			if input.Path == "" {
+				return fantasy.NewTextErrorResponse("path is required"), nil
 			}
-			result, err := service.ListLocalFiles(path)
+			result, err := service.ListLocalFiles(input.Path)
 			if err != nil {
-				return "", err
+				return fantasy.NewTextErrorResponse(err.Error()), nil
 			}
 			resultJSON, _ := json.Marshal(result)
-			log.Printf("📁 Listed %d items in: %s", len(result.ListResults), path)
-			return string(resultJSON), nil
+			log.Printf("📁 Listed %d items in: %s", len(result.ListResults), input.Path)
+			return fantasy.NewTextResponse(string(resultJSON)), nil
 		},
-	})); err != nil {
+	)
+	if err := registry.Register(listTool); err != nil {
 		return fmt.Errorf("failed to register listLocalFiles: %w", err)
 	}
 
 	// Tool 2: readLocalFile (read-only, parallel safe)
-	if err := registry.Register(tools.NewSimpleTool(tools.SimpleToolConfig{
-		Name:        "lobe-local-system__readLocalFile",
-		Description: "Read the content of a specific file. Returns the file content with metadata.",
-		Parameters: map[string]any{
-			"path": map[string]any{"type": "string", "description": "The file path to read"},
-			"loc":  map[string]any{"type": "array", "items": map[string]any{"type": "number"}, "description": "Optional range of lines to read [startLine, endLine]. Defaults to [0, 200]"},
-		},
-		Required: []string{"path"},
-		Parallel: true,
-		Executor: func(ctx context.Context, args map[string]string) (string, error) {
-			path := args["path"]
-			if path == "" {
-				return "", fmt.Errorf("path is required")
+	readTool := fantasy.NewParallelAgentTool("lobe-local-system__readLocalFile",
+		"Read the content of a specific file. Returns the file content with metadata.",
+		func(ctx context.Context, input ReadFileInput, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
+			if input.Path == "" {
+				return fantasy.NewTextErrorResponse("path is required"), nil
 			}
 			loc := [2]int{0, 200}
-			if locStr := args["loc"]; locStr != "" {
-				var locArr []int
-				if err := json.Unmarshal([]byte(locStr), &locArr); err == nil && len(locArr) >= 2 {
-					loc = [2]int{locArr[0], locArr[1]}
-				}
+			if len(input.Loc) >= 2 {
+				loc = [2]int{input.Loc[0], input.Loc[1]}
 			}
-			result, err := service.ReadLocalFile(path, loc)
+			result, err := service.ReadLocalFile(input.Path, loc)
 			if err != nil {
-				return "", err
+				return fantasy.NewTextErrorResponse(err.Error()), nil
 			}
 			resultJSON, _ := json.Marshal(result)
-			log.Printf("📄 Read file: %s (lines %d-%d)", path, loc[0], loc[1])
-			return string(resultJSON), nil
+			log.Printf("📄 Read file: %s (lines %d-%d)", input.Path, loc[0], loc[1])
+			return fantasy.NewTextResponse(string(resultJSON)), nil
 		},
-	})); err != nil {
+	)
+	if err := registry.Register(readTool); err != nil {
 		return fmt.Errorf("failed to register readLocalFile: %w", err)
 	}
 
 	// Tool 3: searchLocalFiles (read-only, parallel safe)
-	if err := registry.Register(tools.NewSimpleTool(tools.SimpleToolConfig{
-		Name:        "lobe-local-system__searchLocalFiles",
-		Description: "Search for files within a directory based on keywords. Returns matching files.",
-		Parameters: map[string]any{
-			"keywords":  map[string]any{"type": "string", "description": "The search keywords string"},
-			"directory": map[string]any{"type": "string", "description": "Optional directory to limit search"},
-		},
-		Required: []string{"keywords"},
-		Parallel: true,
-		Executor: func(ctx context.Context, args map[string]string) (string, error) {
-			keywords := args["keywords"]
-			if keywords == "" {
-				return "", fmt.Errorf("keywords is required")
+	searchTool := fantasy.NewParallelAgentTool("lobe-local-system__searchLocalFiles",
+		"Search for files within a directory based on keywords. Returns matching files.",
+		func(ctx context.Context, input SearchFilesInput, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
+			if input.Keywords == "" {
+				return fantasy.NewTextErrorResponse("keywords is required"), nil
 			}
-			result, err := service.SearchLocalFiles(keywords, args["directory"])
+			result, err := service.SearchLocalFiles(input.Keywords, input.Directory)
 			if err != nil {
-				return "", err
+				return fantasy.NewTextErrorResponse(err.Error()), nil
 			}
 			resultJSON, _ := json.Marshal(result)
-			log.Printf("🔍 Found %d files matching: %s", len(result.SearchResults), keywords)
-			return string(resultJSON), nil
+			log.Printf("🔍 Found %d files matching: %s", len(result.SearchResults), input.Keywords)
+			return fantasy.NewTextResponse(string(resultJSON)), nil
 		},
-	})); err != nil {
+	)
+	if err := registry.Register(searchTool); err != nil {
 		return fmt.Errorf("failed to register searchLocalFiles: %w", err)
 	}
 
 	// Tool 4: writeLocalFile (modifies filesystem, NOT parallel safe)
-	if err := registry.Register(tools.NewSimpleTool(tools.SimpleToolConfig{
-		Name:        "lobe-local-system__writeLocalFile",
-		Description: "Write content to a specific file. Creates the file if it doesn't exist.",
-		Parameters: map[string]any{
-			"path":    map[string]any{"type": "string", "description": "The file path to write to"},
-			"content": map[string]any{"type": "string", "description": "The content to write"},
-		},
-		Required: []string{"path", "content"},
-		Parallel: false,
-		Executor: func(ctx context.Context, args map[string]string) (string, error) {
-			path := args["path"]
-			if path == "" {
-				return "", fmt.Errorf("path is required")
+	writeTool := fantasy.NewAgentTool("lobe-local-system__writeLocalFile",
+		"Write content to a specific file. Creates the file if it doesn't exist.",
+		func(ctx context.Context, input WriteFileInput, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
+			if input.Path == "" {
+				return fantasy.NewTextErrorResponse("path is required"), nil
 			}
-			result, err := service.WriteLocalFile(path, args["content"])
+			result, err := service.WriteLocalFile(input.Path, input.Content)
 			if err != nil {
-				return "", err
+				return fantasy.NewTextErrorResponse(err.Error()), nil
 			}
 			resultJSON, _ := json.Marshal(result)
-			log.Printf("✏️  Wrote file: %s", path)
-			return string(resultJSON), nil
+			log.Printf("✏️  Wrote file: %s", input.Path)
+			return fantasy.NewTextResponse(string(resultJSON)), nil
 		},
-	})); err != nil {
+	)
+	if err := registry.Register(writeTool); err != nil {
 		return fmt.Errorf("failed to register writeLocalFile: %w", err)
 	}
 
 	// Tool 5: renameLocalFile (modifies filesystem, NOT parallel safe)
-	if err := registry.Register(tools.NewSimpleTool(tools.SimpleToolConfig{
-		Name:        "lobe-local-system__renameLocalFile",
-		Description: "Rename a file or folder in its current location.",
-		Parameters: map[string]any{
-			"path":    map[string]any{"type": "string", "description": "The current full path of the file or folder to rename"},
-			"newName": map[string]any{"type": "string", "description": "The new name for the file or folder (without path)"},
-		},
-		Required: []string{"path", "newName"},
-		Parallel: false,
-		Executor: func(ctx context.Context, args map[string]string) (string, error) {
-			path, newName := args["path"], args["newName"]
-			if path == "" || newName == "" {
-				return "", fmt.Errorf("path and newName are required")
+	renameTool := fantasy.NewAgentTool("lobe-local-system__renameLocalFile",
+		"Rename a file or folder in its current location.",
+		func(ctx context.Context, input RenameFileInput, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
+			if input.Path == "" || input.NewName == "" {
+				return fantasy.NewTextErrorResponse("path and newName are required"), nil
 			}
-			result, err := service.RenameLocalFile(path, newName)
+			result, err := service.RenameLocalFile(input.Path, input.NewName)
 			if err != nil {
-				return "", err
+				return fantasy.NewTextErrorResponse(err.Error()), nil
 			}
 			resultJSON, _ := json.Marshal(result)
-			log.Printf("📝 Renamed: %s -> %s", path, result.NewPath)
-			return string(resultJSON), nil
+			log.Printf("📝 Renamed: %s -> %s", input.Path, result.NewPath)
+			return fantasy.NewTextResponse(string(resultJSON)), nil
 		},
-	})); err != nil {
+	)
+	if err := registry.Register(renameTool); err != nil {
 		return fmt.Errorf("failed to register renameLocalFile: %w", err)
 	}
 
 	// Tool 6: moveLocalFiles (modifies filesystem, NOT parallel safe)
-	if err := registry.Register(tools.NewSimpleTool(tools.SimpleToolConfig{
-		Name:        "lobe-local-system__moveLocalFiles",
-		Description: "Move or rename multiple files/directories.",
-		Parameters: map[string]any{
-			"items": map[string]any{
-				"type": "array",
-				"items": map[string]any{
-					"type": "object",
-					"properties": map[string]any{
-						"oldPath": map[string]any{"type": "string", "description": "The current absolute path"},
-						"newPath": map[string]any{"type": "string", "description": "The target absolute path"},
-					},
-					"required": []string{"oldPath", "newPath"},
-				},
-				"description": "A list of move/rename operations to perform",
-			},
-		},
-		Required: []string{"items"},
-		Parallel: false,
-		Executor: func(ctx context.Context, args map[string]string) (string, error) {
-			itemsStr := args["items"]
-			if itemsStr == "" {
-				return "", fmt.Errorf("items is required")
+	moveTool := fantasy.NewAgentTool("lobe-local-system__moveLocalFiles",
+		"Move or rename multiple files/directories.",
+		func(ctx context.Context, input MoveFilesInput, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
+			if len(input.Items) == 0 {
+				return fantasy.NewTextErrorResponse("items is required"), nil
 			}
-			var items []localfs.MoveLocalFileParams
-			if err := json.Unmarshal([]byte(itemsStr), &items); err != nil {
-				return "", fmt.Errorf("failed to parse items: %w", err)
-			}
-			result, err := service.MoveLocalFiles(items)
+			result, err := service.MoveLocalFiles(input.Items)
 			if err != nil {
-				return "", err
+				return fantasy.NewTextErrorResponse(err.Error()), nil
 			}
 			resultJSON, _ := json.Marshal(result)
 			log.Printf("📦 Moved %d/%d files", result.SuccessCount, result.TotalCount)
-			return string(resultJSON), nil
+			return fantasy.NewTextResponse(string(resultJSON)), nil
 		},
-	})); err != nil {
+	)
+	if err := registry.Register(moveTool); err != nil {
 		return fmt.Errorf("failed to register moveLocalFiles: %w", err)
 	}
 

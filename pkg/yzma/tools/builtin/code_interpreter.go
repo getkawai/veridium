@@ -10,8 +10,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
 )
+
+// PythonCodeInput defines input for code interpreter tool
+type PythonCodeInput struct {
+	Code     string   `json:"code" jsonschema:"description=The Python code to execute"`
+	Packages []string `json:"packages" jsonschema:"description=Python packages to install before running (e.g. ['pandas'&#44; 'numpy'])"`
+}
 
 // ============================================================================
 // Response Types (matching frontend expected format)
@@ -211,40 +218,27 @@ func escapeCode(code string) string {
 func RegisterCodeInterpreter(registry *tools.ToolRegistry) error {
 	service := NewCodeInterpreterService()
 
-	tool := tools.NewSimpleTool(tools.SimpleToolConfig{
-		Name:        "lobe-code-interpreter__python",
-		Description: "Execute Python code. Use this to run Python scripts, perform calculations, data analysis, or generate files.",
-		Parameters: map[string]any{
-			"code":     map[string]any{"type": "string", "description": "The Python code to execute"},
-			"packages": map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Python packages to install before running (e.g., ['pandas', 'numpy'])"},
-		},
-		Required: []string{"code", "packages"},
-		Parallel: false, // NOT parallel safe - executes code that may have side effects
-		Executor: func(ctx context.Context, args map[string]string) (string, error) {
-			code := args["code"]
-			if code == "" {
-				return "", fmt.Errorf("code is required")
+	tool := fantasy.NewAgentTool("lobe-code-interpreter__python",
+		"Execute Python code. Use this to run Python scripts, perform calculations, data analysis, or generate files.",
+		func(ctx context.Context, input PythonCodeInput, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
+			if input.Code == "" {
+				return fantasy.NewTextErrorResponse("code is required"), nil
 			}
 
-			var packages []string
-			if packagesStr := args["packages"]; packagesStr != "" {
-				json.Unmarshal([]byte(packagesStr), &packages)
-			}
+			log.Printf("🐍 Executing Python code (%d chars, %d packages)", len(input.Code), len(input.Packages))
 
-			log.Printf("🐍 Executing Python code (%d chars, %d packages)", len(code), len(packages))
-
-			response, err := service.ExecutePython(code, packages)
+			response, err := service.ExecutePython(input.Code, input.Packages)
 			if err != nil {
-				return "", err
+				return fantasy.NewTextErrorResponse(err.Error()), nil
 			}
 
 			resultJSON, _ := json.Marshal(response)
 			log.Printf("✅ Python execution complete (result: %v, outputs: %d, files: %d)",
 				response.Result != "", len(response.Output), len(response.Files))
 
-			return string(resultJSON), nil
+			return fantasy.NewTextResponse(string(resultJSON)), nil
 		},
-	})
+	)
 
 	return registry.Register(tool)
 }

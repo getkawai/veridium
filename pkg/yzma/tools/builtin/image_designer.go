@@ -15,9 +15,19 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/internal/stablediffusion"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
 )
+
+// Text2ImageInput defines input for text2image tool
+type Text2ImageInput struct {
+	Prompts []string `json:"prompts" jsonschema:"description=Array of detailed image descriptions. Create diverse prompts if user doesn't specify exact number.,minItems=1,maxItems=4"`
+	Quality string   `json:"quality,omitempty" jsonschema:"description=Image quality. 'hd' creates images with finer details.,enum=standard,enum=hd,default=standard"`
+	Size    string   `json:"size,omitempty" jsonschema:"description=Image resolution. Use 1024x1024 (square) as default.,enum=1792x1024,enum=1024x1024,enum=1024x1792,default=1024x1024"`
+	Style   string   `json:"style,omitempty" jsonschema:"description=Image style. 'vivid' for hyper-real/dramatic&#44; 'natural' for more realistic.,enum=vivid,enum=natural,default=vivid"`
+	Seeds   []int    `json:"seeds,omitempty" jsonschema:"description=Optional seeds for reproducible generation when modifying previous images."`
+}
 
 // ============================================================================
 // Response Types (matching frontend expected format)
@@ -271,51 +281,28 @@ func truncateString(s string, maxLen int) string {
 func RegisterImageDesigner(registry *tools.ToolRegistry) error {
 	service := NewImageDesignerService()
 
-	tool := tools.NewSimpleTool(tools.SimpleToolConfig{
-		Name:        "lobe-image-designer__text2image",
-		Description: "Create images from text prompts using AI image generation. Generate up to 4 diverse images based on the description.",
-		Parameters: map[string]any{
-			"prompts": map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "minItems": 1, "maxItems": 4, "description": "Array of detailed image descriptions. Create diverse prompts if user doesn't specify exact number."},
-			"quality": map[string]any{"type": "string", "enum": []string{"standard", "hd"}, "default": "standard", "description": "Image quality. 'hd' creates images with finer details."},
-			"size":    map[string]any{"type": "string", "enum": []string{"1792x1024", "1024x1024", "1024x1792"}, "default": "1024x1024", "description": "Image resolution. Use 1024x1024 (square) as default, 1792x1024 for wide, 1024x1792 for tall/portrait."},
-			"style":   map[string]any{"type": "string", "enum": []string{"vivid", "natural"}, "default": "vivid", "description": "Image style. 'vivid' for hyper-real/dramatic, 'natural' for more realistic."},
-			"seeds":   map[string]any{"type": "array", "items": map[string]any{"type": "integer"}, "description": "Optional seeds for reproducible generation when modifying previous images."},
-		},
-		Required: []string{"prompts"},
-		Parallel: false, // NOT parallel safe - heavy resource usage
-		Executor: func(ctx context.Context, args map[string]string) (string, error) {
-			promptsStr := args["prompts"]
-			if promptsStr == "" {
-				return "", fmt.Errorf("prompts is required")
+	tool := fantasy.NewAgentTool("lobe-image-designer__text2image",
+		"Create images from text prompts using AI image generation. Generate up to 4 diverse images based on the description.",
+		func(ctx context.Context, input Text2ImageInput, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
+			if len(input.Prompts) == 0 {
+				return fantasy.NewTextErrorResponse("at least one prompt is required"), nil
 			}
 
-			var prompts []string
-			if err := json.Unmarshal([]byte(promptsStr), &prompts); err != nil {
-				return "", fmt.Errorf("failed to parse prompts: %w", err)
-			}
-
-			if len(prompts) == 0 {
-				return "", fmt.Errorf("at least one prompt is required")
-			}
+			prompts := input.Prompts
 			if len(prompts) > 4 {
 				prompts = prompts[:4]
 			}
 
-			var seeds []int
-			if seedsStr := args["seeds"]; seedsStr != "" {
-				json.Unmarshal([]byte(seedsStr), &seeds)
-			}
-
-			results, err := service.Text2Image(prompts, args["quality"], args["size"], args["style"], seeds)
+			results, err := service.Text2Image(prompts, input.Quality, input.Size, input.Style, input.Seeds)
 			if err != nil {
-				return "", err
+				return fantasy.NewTextErrorResponse(err.Error()), nil
 			}
 
 			resultJSON, _ := json.Marshal(results)
 			log.Printf("🖼️  Generated %d images", len(results))
-			return string(resultJSON), nil
+			return fantasy.NewTextResponse(string(resultJSON)), nil
 		},
-	})
+	)
 
 	return registry.Register(tool)
 }
