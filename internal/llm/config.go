@@ -21,8 +21,45 @@ import (
 
 	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
-	"github.com/kawai-network/veridium/types"
 )
+
+// ============================================================================
+// LLM Provider Configuration Types
+// ============================================================================
+
+// ProviderType identifies the LLM provider type
+type ProviderType string
+
+const (
+	ProviderLlama      ProviderType = "llama"      // Local llama.cpp (via yzma)
+	ProviderOpenAI     ProviderType = "openai"     // OpenAI API
+	ProviderOpenRouter ProviderType = "openrouter" // OpenRouter (OpenAI-compatible, multi-model)
+	ProviderZhipuAI    ProviderType = "zhipu"      // Zhipu GLM (OpenAI-compatible, Chinese AI)
+)
+
+// ProviderConfig holds configuration for an LLM provider
+type ProviderConfig struct {
+	Type        ProviderType   `json:"type"`
+	Name        string         `json:"name"`
+	BaseURL     string         `json:"base_url"`
+	APIKey      string         `json:"api_key"`
+	Model       string         `json:"model"`
+	MaxTokens   int            `json:"max_tokens"`
+	Temperature float32        `json:"temperature"`
+	Options     map[string]any `json:"options"`
+}
+
+// ProviderEndpoints contains default API endpoints for each provider
+var ProviderEndpoints = map[ProviderType]string{
+	ProviderOpenRouter: "https://openrouter.ai/api/v1",
+	ProviderZhipuAI:    "https://api.z.ai/api/coding/paas/v4",
+}
+
+// DefaultModels contains recommended default models per provider
+var DefaultModels = map[ProviderType]string{
+	ProviderOpenRouter: "amazon/nova-2-lite-v1:free",
+	ProviderZhipuAI:    "glm-4.6",
+}
 
 // ============================================================================
 // Developer-configured provider settings (hardcoded for development)
@@ -30,54 +67,55 @@ import (
 // ============================================================================
 
 // DevConfig holds all hardcoded development configurations
-// Uses types.ProviderConfig directly - no duplicate types
 type DevConfig struct {
-	Chat              types.ProviderConfig
-	Title             types.ProviderConfig
-	Summary           types.ProviderConfig
-	OCRCleanup        types.ProviderConfig
-	TranscriptCleanup types.ProviderConfig
-	UseLocalFallback  bool
+	Chat             ProviderConfig
+	Title            ProviderConfig
+	Summary          ProviderConfig
+	OCRCleanup       ProviderConfig
+	WhisperCleanup   ProviderConfig
+	UseLocalFallback bool
 }
 
 // GetDefaultDevConfig returns the default development configuration
 func GetDefaultDevConfig() DevConfig {
 	return DevConfig{
-		Chat: types.ProviderConfig{
-			Type:      types.ProviderOpenRouter,
+		Chat: ProviderConfig{
+			Type:      ProviderOpenRouter,
 			Name:      "OpenRouter",
 			APIKey:    "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",
 			Model:     "amazon/nova-2-lite-v1:free",
 			MaxTokens: 4096,
 			Options:   map[string]any{"app_name": "Veridium"},
 		},
-		Title: types.ProviderConfig{
-			Type:      types.ProviderZhipuAI,
+		Title: ProviderConfig{
+			Type:      ProviderZhipuAI,
 			Name:      "Zhipu GLM",
 			APIKey:    "a10854167085448cac33753523919ac9.D41CLq6KxXTY7g4u",
 			Model:     "glm-4.6",
 			MaxTokens: 256,
 		},
-		Summary: types.ProviderConfig{
-			Type:      types.ProviderZhipuAI,
+		Summary: ProviderConfig{
+			Type:      ProviderZhipuAI,
 			Name:      "Zhipu GLM",
 			APIKey:    "a10854167085448cac33753523919ac9.D41CLq6KxXTY7g4u",
 			Model:     "glm-4.6",
 			MaxTokens: 1024,
 		},
-		OCRCleanup: types.ProviderConfig{
-			Type:      types.ProviderZhipuAI,
-			Name:      "Zhipu GLM",
-			APIKey:    "a10854167085448cac33753523919ac9.D41CLq6KxXTY7g4u",
-			Model:     "glm-4.6",
+		OCRCleanup: ProviderConfig{
+			Type:      ProviderOpenRouter,
+			Name:      "OpenRouter",
+			APIKey:    "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",
+			Model:     "amazon/nova-2-lite-v1:free",
 			MaxTokens: 2048,
+			Options:   map[string]any{"app_name": "Veridium"},
 		},
-		TranscriptCleanup: types.ProviderConfig{
-			Type:      types.ProviderZhipuAI,
-			Name:      "Zhipu GLM",
-			APIKey:    "a10854167085448cac33753523919ac9.D41CLq6KxXTY7g4u",
-			Model:     "glm-4.6",
+		WhisperCleanup: ProviderConfig{
+			Type:      ProviderOpenRouter,
+			Name:      "OpenRouter",
+			APIKey:    "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",
+			Model:     "amazon/nova-2-lite-v1:free",
 			MaxTokens: 16384,
+			Options:   map[string]any{"app_name": "Veridium"},
 		},
 		UseLocalFallback: true,
 	}
@@ -94,8 +132,8 @@ func BuildTaskRouter(config DevConfig, toolRegistry *tools.ToolRegistry, localMo
 	}
 
 	// Helper to configure a task model
-	configureTask := func(task TaskType, cfg types.ProviderConfig, taskName string) {
-		if cfg.Type == types.ProviderLlama {
+	configureTask := func(task TaskType, cfg ProviderConfig, taskName string) {
+		if cfg.Type == ProviderLlama {
 			if localModel != nil {
 				router.SetModel(task, localModel)
 				log.Printf("🔀 TaskRouter: %s -> Local Llama", taskName)
@@ -120,13 +158,13 @@ func BuildTaskRouter(config DevConfig, toolRegistry *tools.ToolRegistry, localMo
 	configureTask(TaskTitleGen, config.Title, "Title")
 	configureTask(TaskSummaryGen, config.Summary, "Summary")
 	configureTask(TaskOCRCleanup, config.OCRCleanup, "OCRCleanup")
-	configureTask(TaskTranscriptCleanup, config.TranscriptCleanup, "TranscriptCleanup")
+	configureTask(TaskTranscriptCleanup, config.WhisperCleanup, "TranscriptCleanup")
 
 	return router
 }
 
 // UpdateModel updates a task's model configuration at runtime
-func (r *TaskRouter) UpdateModel(task TaskType, config types.ProviderConfig) error {
+func (r *TaskRouter) UpdateModel(task TaskType, config ProviderConfig) error {
 	factory := NewProviderFactory(r.toolRegistry)
 	model, err := factory.CreateLanguageModel(config)
 	if err != nil {

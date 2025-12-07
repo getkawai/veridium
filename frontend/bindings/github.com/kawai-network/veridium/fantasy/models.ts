@@ -6,6 +6,11 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
+ * LanguageModel represents a language model that can generate responses and stream responses.
+ */
+export type LanguageModel = any;
+
+/**
  * Message represents a message in a prompt.
  */
 export class Message {

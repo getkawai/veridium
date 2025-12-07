@@ -340,7 +340,13 @@ Raw OCR text:
 
 Cleaned markdown:`, docHint, rawText)
 
-	resp, err := s.languageModel.Generate(ctx, fantasy.Call{
+	xlog.Info("Async: Calling LLM for OCR cleanup", "prompt_len", len(userPrompt))
+
+	// Use timeout context - 60s should be enough for OCR cleanup
+	timeoutCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+
+	resp, err := s.languageModel.Generate(timeoutCtx, fantasy.Call{
 		Prompt: []fantasy.Message{
 			fantasy.NewSystemMessage(systemPrompt),
 			fantasy.NewUserMessage(userPrompt),
@@ -349,6 +355,8 @@ Cleaned markdown:`, docHint, rawText)
 	if err != nil {
 		return "", fmt.Errorf("LLM cleanup failed: %w", err)
 	}
+
+	xlog.Info("Async: LLM OCR response received", "response_len", len(resp.Content.Text()))
 
 	result := resp.Content.Text()
 
@@ -397,7 +405,13 @@ Output ONLY the corrected text without explanations.`
 
 %s`, rawTranscript)
 
-	resp, err := s.languageModel.Generate(ctx, fantasy.Call{
+	xlog.Info("Async: Calling LLM for transcript cleanup", "prompt_len", len(userPrompt))
+
+	// Use timeout context - LLM calls for long transcripts can take a while
+	timeoutCtx, cancel := context.WithTimeout(ctx, 120*time.Second)
+	defer cancel()
+
+	resp, err := s.languageModel.Generate(timeoutCtx, fantasy.Call{
 		Prompt: []fantasy.Message{
 			fantasy.NewSystemMessage(systemPrompt),
 			fantasy.NewUserMessage(userPrompt),
@@ -407,6 +421,8 @@ Output ONLY the corrected text without explanations.`
 		xlog.Warn("Async: Transcript cleanup failed, using original", "error", err)
 		return rawTranscript, nil // Return original on error, don't fail
 	}
+
+	xlog.Info("Async: LLM response received", "response_len", len(resp.Content.Text()))
 
 	result := strings.TrimSpace(resp.Content.Text())
 

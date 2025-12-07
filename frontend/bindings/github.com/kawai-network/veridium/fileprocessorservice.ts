@@ -12,7 +12,7 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as services$0 from "./internal/services/models.js";
+import * as fantasy$0 from "./fantasy/models.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -30,10 +30,10 @@ export function ProcessFileFromPath(absolutePath: string, userID: string): $Canc
 }
 
 /**
- * SetLLMProvider sets the LLM provider for OCR text cleanup
+ * SetLanguageModel sets the language model for OCR/transcript cleanup
  */
-export function SetLLMProvider(provider: services$0.LLMProvider): $CancellablePromise<void> {
-    return $Call.ByID(3800136077, provider);
+export function SetLanguageModel(model: fantasy$0.LanguageModel): $CancellablePromise<void> {
+    return $Call.ByID(3608364688, model);
 }
 
 // Private type creation functions

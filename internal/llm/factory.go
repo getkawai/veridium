@@ -26,7 +26,6 @@ import (
 	"github.com/kawai-network/veridium/fantasy/providers/openaicompat"
 	"github.com/kawai-network/veridium/fantasy/providers/openrouter"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
-	"github.com/kawai-network/veridium/types"
 )
 
 // ProviderFactory creates LLM providers based on configuration
@@ -42,12 +41,12 @@ func NewProviderFactory(toolRegistry *tools.ToolRegistry) *ProviderFactory {
 }
 
 // CreateLanguageModel creates a fantasy.LanguageModel from configuration
-func (f *ProviderFactory) CreateLanguageModel(config types.ProviderConfig) (fantasy.LanguageModel, error) {
+func (f *ProviderFactory) CreateLanguageModel(config ProviderConfig) (fantasy.LanguageModel, error) {
 	log.Printf("🏭 Creating language model: type=%s, model=%s", config.Type, config.Model)
 
 	// Set default model if not specified
 	if config.Model == "" {
-		if defaultModel, ok := types.DefaultModels[config.Type]; ok {
+		if defaultModel, ok := DefaultModels[config.Type]; ok {
 			config.Model = defaultModel
 		}
 	}
@@ -56,7 +55,7 @@ func (f *ProviderFactory) CreateLanguageModel(config types.ProviderConfig) (fant
 	var err error
 
 	switch config.Type {
-	case types.ProviderOpenRouter:
+	case ProviderOpenRouter:
 		opts := []openrouter.Option{
 			openrouter.WithAPIKey(config.APIKey),
 		}
@@ -65,10 +64,10 @@ func (f *ProviderFactory) CreateLanguageModel(config types.ProviderConfig) (fant
 		}
 		fantasyProvider, err = openrouter.New(opts...)
 
-	case types.ProviderZhipuAI:
+	case ProviderZhipuAI:
 		baseURL := config.BaseURL
 		if baseURL == "" {
-			baseURL = types.ProviderEndpoints[types.ProviderZhipuAI]
+			baseURL = ProviderEndpoints[ProviderZhipuAI]
 		}
 		opts := []openaicompat.Option{
 			openaicompat.WithBaseURL(baseURL),
@@ -77,7 +76,7 @@ func (f *ProviderFactory) CreateLanguageModel(config types.ProviderConfig) (fant
 		}
 		fantasyProvider, err = openaicompat.New(opts...)
 
-	case types.ProviderOpenAI:
+	case ProviderOpenAI:
 		opts := []openai.Option{
 			openai.WithAPIKey(config.APIKey),
 		}
@@ -86,7 +85,7 @@ func (f *ProviderFactory) CreateLanguageModel(config types.ProviderConfig) (fant
 		}
 		fantasyProvider, err = openai.New(opts...)
 
-	case types.ProviderLlama:
+	case ProviderLlama:
 		return nil, fmt.Errorf("llama model must be created with LibraryService, use LlamaLanguageModel instead")
 
 	default:
@@ -109,8 +108,8 @@ func (f *ProviderFactory) CreateLanguageModel(config types.ProviderConfig) (fant
 
 // CreateOpenRouterModel creates an OpenRouter model with convenient defaults
 func (f *ProviderFactory) CreateOpenRouterModel(apiKey, model string) (fantasy.LanguageModel, error) {
-	config := types.ProviderConfig{
-		Type:   types.ProviderOpenRouter,
+	config := ProviderConfig{
+		Type:   ProviderOpenRouter,
 		Name:   "OpenRouter",
 		APIKey: apiKey,
 		Model:  model,
@@ -123,8 +122,8 @@ func (f *ProviderFactory) CreateZhipuModel(apiKey, model string) (fantasy.Langua
 	if model == "" {
 		model = "glm-4-flash"
 	}
-	config := types.ProviderConfig{
-		Type:   types.ProviderZhipuAI,
+	config := ProviderConfig{
+		Type:   ProviderZhipuAI,
 		Name:   "Zhipu GLM",
 		APIKey: apiKey,
 		Model:  model,
@@ -140,7 +139,7 @@ func (f *ProviderFactory) CreateZhipuModel(apiKey, model string) (fantasy.Langua
 type ModelRegistry struct {
 	factory *ProviderFactory
 	models  map[string]fantasy.LanguageModel
-	configs map[string]types.ProviderConfig
+	configs map[string]ProviderConfig
 	active  string
 }
 
@@ -149,12 +148,12 @@ func NewModelRegistry(toolRegistry *tools.ToolRegistry) *ModelRegistry {
 	return &ModelRegistry{
 		factory: NewProviderFactory(toolRegistry),
 		models:  make(map[string]fantasy.LanguageModel),
-		configs: make(map[string]types.ProviderConfig),
+		configs: make(map[string]ProviderConfig),
 	}
 }
 
 // RegisterConfig registers a model configuration (does not create model yet)
-func (r *ModelRegistry) RegisterConfig(name string, config types.ProviderConfig) {
+func (r *ModelRegistry) RegisterConfig(name string, config ProviderConfig) {
 	r.configs[name] = config
 	log.Printf("📋 Registered model config: %s (type: %s, model: %s)", name, config.Type, config.Model)
 }
@@ -212,7 +211,7 @@ func (r *ModelRegistry) ListModels() []string {
 }
 
 // GetConfig returns the configuration for a model
-func (r *ModelRegistry) GetConfig(name string) (types.ProviderConfig, bool) {
+func (r *ModelRegistry) GetConfig(name string) (ProviderConfig, bool) {
 	config, exists := r.configs[name]
 	return config, exists
 }
