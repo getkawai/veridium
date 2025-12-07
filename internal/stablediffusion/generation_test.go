@@ -58,9 +58,9 @@ func TestGenerateImage_Integration(t *testing.T) {
 		Prompt:     "a small red cube",
 		ModelPath:  modelPath,
 		OutputPath: outputPath,
-		Width:      64, // Small for speed if possible, though SD usually wants 512+
-		Height:     64,
-		Steps:      1, // Minimal steps for speed
+		Width:      256,
+		Height:     256,
+		Steps:      2,
 		Seed:       12345,
 	}
 

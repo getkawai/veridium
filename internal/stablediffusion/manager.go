@@ -221,36 +221,62 @@ func (sdrm *StableDiffusionReleaseManager) getFallbackRelease() (*Release, error
 	log.Printf("Using fallback release information...")
 
 	// Create a fallback release with known good assets
-	// This is based on the current stable-diffusion.cpp release structure
+	// Updated from: https://github.com/leejet/stable-diffusion.cpp/releases/tag/master-398-2f0bd31
+	version := "master-398-2f0bd31"
 	fallbackRelease := &Release{
-		Version: "master-fce6afc", // Known stable version
+		Version: version,
 		Name:    "Stable Diffusion CPP - Master Build",
 		Body:    "Fallback release used when GitHub API is rate limited",
 		Assets: []Asset{
 			{
-				Name:               "sd-master--bin-Darwin-macOS-15.5-arm64.zip",
-				BrowserDownloadURL: "https://github.com/leejet/stable-diffusion.cpp/releases/download/master-fce6afc/sd-master--bin-Darwin-macOS-15.5-arm64.zip",
-				Size:               11340000, // ~10.8 MB
+				Name:               "sd-master-2f0bd31-bin-Darwin-macOS-15.7.2-arm64.zip",
+				BrowserDownloadURL: "https://github.com/leejet/stable-diffusion.cpp/releases/download/master-398-2f0bd31/sd-master-2f0bd31-bin-Darwin-macOS-15.7.2-arm64.zip",
+				Size:               17721344, // 16.9 MB
 			},
 			{
-				Name:               "sd-master--bin-Linux-Ubuntu-24.04-x86_64.zip",
-				BrowserDownloadURL: "https://github.com/leejet/stable-diffusion.cpp/releases/download/master-fce6afc/sd-master--bin-Linux-Ubuntu-24.04-x86_64.zip",
-				Size:               5870000, // ~5.6 MB
+				Name:               "sd-master-2f0bd31-bin-Linux-Ubuntu-24.04-x86_64.zip",
+				BrowserDownloadURL: "https://github.com/leejet/stable-diffusion.cpp/releases/download/master-398-2f0bd31/sd-master-2f0bd31-bin-Linux-Ubuntu-24.04-x86_64.zip",
+				Size:               9154355, // 8.73 MB
 			},
 			{
 				Name:               "cudart-sd-bin-win-cu12-x64.zip",
-				BrowserDownloadURL: "https://github.com/leejet/stable-diffusion.cpp/releases/download/master-fce6afc/cudart-sd-bin-win-cu12-x64.zip",
-				Size:               428400000, // ~408.6 MB
+				BrowserDownloadURL: "https://github.com/leejet/stable-diffusion.cpp/releases/download/master-398-2f0bd31/cudart-sd-bin-win-cu12-x64.zip",
+				Size:               428867584, // 409 MB
 			},
 			{
-				Name:               "sd-master-fce6afc-bin-win-vulkan-x64.zip",
-				BrowserDownloadURL: "https://github.com/leejet/stable-diffusion.cpp/releases/download/master-fce6afc/sd-master-fce6afc-bin-win-vulkan-x64.zip",
-				Size:               14800000, // ~14.1 MB
+				Name:               "sd-master-2f0bd31-bin-win-cuda12-x64.zip",
+				BrowserDownloadURL: "https://github.com/leejet/stable-diffusion.cpp/releases/download/master-398-2f0bd31/sd-master-2f0bd31-bin-win-cuda12-x64.zip",
+				Size:               65325465, // 62.3 MB
 			},
 			{
-				Name:               "sd-master-fce6afc-bin-win-avx2-x64.zip",
-				BrowserDownloadURL: "https://github.com/leejet/stable-diffusion.cpp/releases/download/master-fce6afc/sd-master-fce6afc-bin-win-avx2-x64.zip",
-				Size:               5030000, // ~4.8 MB
+				Name:               "sd-master-2f0bd31-bin-win-vulkan-x64.zip",
+				BrowserDownloadURL: "https://github.com/leejet/stable-diffusion.cpp/releases/download/master-398-2f0bd31/sd-master-2f0bd31-bin-win-vulkan-x64.zip",
+				Size:               20971520, // 20 MB
+			},
+			{
+				Name:               "sd-master-2f0bd31-bin-win-avx2-x64.zip",
+				BrowserDownloadURL: "https://github.com/leejet/stable-diffusion.cpp/releases/download/master-398-2f0bd31/sd-master-2f0bd31-bin-win-avx2-x64.zip",
+				Size:               7969177, // 7.6 MB
+			},
+			{
+				Name:               "sd-master-2f0bd31-bin-win-avx-x64.zip",
+				BrowserDownloadURL: "https://github.com/leejet/stable-diffusion.cpp/releases/download/master-398-2f0bd31/sd-master-2f0bd31-bin-win-avx-x64.zip",
+				Size:               7958732, // 7.59 MB
+			},
+			{
+				Name:               "sd-master-2f0bd31-bin-win-avx512-x64.zip",
+				BrowserDownloadURL: "https://github.com/leejet/stable-diffusion.cpp/releases/download/master-398-2f0bd31/sd-master-2f0bd31-bin-win-avx512-x64.zip",
+				Size:               7979622, // 7.61 MB
+			},
+			{
+				Name:               "sd-master-2f0bd31-bin-win-noavx-x64.zip",
+				BrowserDownloadURL: "https://github.com/leejet/stable-diffusion.cpp/releases/download/master-398-2f0bd31/sd-master-2f0bd31-bin-win-noavx-x64.zip",
+				Size:               7937843, // 7.57 MB
+			},
+			{
+				Name:               "sd-master-2f0bd31-bin-win-rocm-x64.zip",
+				BrowserDownloadURL: "https://github.com/leejet/stable-diffusion.cpp/releases/download/master-398-2f0bd31/sd-master-2f0bd31-bin-win-rocm-x64.zip",
+				Size:               332447744, // 317 MB
 			},
 		},
 	}
@@ -1001,7 +1027,8 @@ func (sdrm *StableDiffusionReleaseManager) CheckInstalledModels() ([]string, err
 			if strings.HasSuffix(name, ".ckpt") ||
 				strings.HasSuffix(name, ".safetensors") ||
 				strings.HasSuffix(name, ".pt") ||
-				strings.HasSuffix(name, ".bin") {
+				strings.HasSuffix(name, ".bin") ||
+				strings.HasSuffix(name, ".gguf") {
 				// Remove extension to get model name
 				modelName := strings.TrimSuffix(name, filepath.Ext(name))
 				models = append(models, modelName)

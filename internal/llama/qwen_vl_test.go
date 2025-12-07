@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/kawai-network/veridium/pkg/hardware"
 )
 
 // TestQwenVLImageProcessing tests the Qwen-VL model for image explanation
@@ -162,7 +164,7 @@ func TestQwenVLHardwareDetection(t *testing.T) {
 	}
 
 	// Test hardware detection
-	specs := DetectHardwareSpecs()
+	specs := hardware.DetectHardwareSpecs()
 
 	t.Logf("Detected hardware: RAM=%dGB, CPU cores=%d", specs.AvailableRAM, specs.CPUCores)
 
