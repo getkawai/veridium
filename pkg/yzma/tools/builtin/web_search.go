@@ -6,37 +6,29 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/internal/search"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
-	"github.com/kawai-network/veridium/types"
 )
 
 // RegisterWebSearch registers the web search tool
 func RegisterWebSearch(registry *tools.ToolRegistry) error {
 	searchService := search.NewService()
 
-	tool := &types.Tool{
-		Type:     fantasy.ToolTypeFunction,
-		Parallel: true, // Safe to run in parallel - read-only external API call
-		Definition: types.ToolDefinition{
-			Name:        "web_search",
-			Description: "Search the web for current information using Brave Search. Returns real-time search results with titles, URLs, and descriptions.",
-			Parameters: map[string]interface{}{
-				"type": "object",
-				"properties": map[string]interface{}{
-					"query": map[string]interface{}{
-						"type":        "string",
-						"description": "The search query",
-					},
-					"max_results": map[string]interface{}{
-						"type":        "number",
-						"description": "Maximum number of results (default: 10)",
-					},
-				},
-				"required": []string{"query"},
+	tool := tools.NewSimpleTool(tools.SimpleToolConfig{
+		Name:        "web_search",
+		Description: "Search the web for current information using Brave Search. Returns real-time search results with titles, URLs, and descriptions.",
+		Parameters: map[string]any{
+			"query": map[string]any{
+				"type":        "string",
+				"description": "The search query",
+			},
+			"max_results": map[string]any{
+				"type":        "number",
+				"description": "Maximum number of results (default: 10)",
 			},
 		},
+		Required: []string{"query"},
+		Parallel: true, // Safe to run in parallel - read-only external API call
 		Executor: func(ctx context.Context, args map[string]string) (string, error) {
 			query, ok := args["query"]
 			if !ok || query == "" {
@@ -93,8 +85,7 @@ func RegisterWebSearch(registry *tools.ToolRegistry) error {
 
 			return string(resultJSON), nil
 		},
-		Enabled: true,
-	}
+	})
 
 	return registry.Register(tool)
 }

@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kawai-network/veridium/fantasy"
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/internal/llama"
 	"github.com/kawai-network/veridium/internal/whisper"
@@ -29,12 +30,7 @@ type FileProcessorService struct {
 	ragProcessor   *RAGProcessor
 	libraryService *llama.LibraryService
 	whisperService *whisper.Service
-	llmProvider    LLMProvider // For OCR text cleanup
-}
-
-// LLMProvider interface for text generation (used for OCR cleanup)
-type LLMProvider interface {
-	GenerateText(ctx context.Context, prompt string) (string, error)
+	languageModel  fantasy.LanguageModel // For OCR/transcript cleanup
 }
 
 // NewFileProcessorService creates a new file processor service
@@ -55,9 +51,9 @@ func NewFileProcessorService(
 	}
 }
 
-// SetLLMProvider sets the LLM provider for OCR text cleanup
-func (s *FileProcessorService) SetLLMProvider(provider LLMProvider) {
-	s.llmProvider = provider
+// SetLanguageModel sets the language model for OCR/transcript cleanup
+func (s *FileProcessorService) SetLanguageModel(model fantasy.LanguageModel) {
+	s.languageModel = model
 }
 
 // ProcessFileRequest represents a file processing request
@@ -172,7 +168,7 @@ func (s *FileProcessorService) processImageDescriptionAsync(filePath, filename, 
 		xlog.Info("Async: OCR extracted sufficient text", "length", len(cleanedText), "filename", filename)
 
 		// Step 2: Clean up OCR text using LLM (if available)
-		if s.llmProvider != nil {
+		if s.languageModel != nil {
 			xlog.Info("Async: Cleaning up OCR text with LLM", "filename", filename)
 			cleanedContent, err := s.cleanupOCRText(ctx, cleanedText, filename)
 			if err != nil {
@@ -298,7 +294,7 @@ func (s *FileProcessorService) extractTextWithTesseract(imagePath string) (strin
 
 // cleanupOCRText uses LLM to clean up raw OCR text and format it as markdown
 func (s *FileProcessorService) cleanupOCRText(ctx context.Context, rawText, filename string) (string, error) {
-	if s.llmProvider == nil {
+	if s.languageModel == nil {
 		return rawText, nil
 	}
 
@@ -314,7 +310,13 @@ func (s *FileProcessorService) cleanupOCRText(ctx context.Context, rawText, file
 		docHint = "This is from an image file."
 	}
 
-	prompt := fmt.Sprintf(`Clean up the following OCR-extracted text and format it as clean markdown.
+	systemPrompt := `You are an OCR text editor. Clean up raw OCR output:
+- Fix obvious typos and character recognition errors
+- Preserve original structure and formatting
+- Format as proper markdown when appropriate
+- Output ONLY the cleaned text without explanations.`
+
+	userPrompt := fmt.Sprintf(`Clean up the following OCR-extracted text and format it as clean markdown.
 
 %s
 
@@ -338,10 +340,17 @@ Raw OCR text:
 
 Cleaned markdown:`, docHint, rawText)
 
-	result, err := s.llmProvider.GenerateText(ctx, prompt)
+	resp, err := s.languageModel.Generate(ctx, fantasy.Call{
+		Prompt: []fantasy.Message{
+			fantasy.NewSystemMessage(systemPrompt),
+			fantasy.NewUserMessage(userPrompt),
+		},
+	})
 	if err != nil {
 		return "", fmt.Errorf("LLM cleanup failed: %w", err)
 	}
+
+	result := resp.Content.Text()
 
 	// Trim any leading/trailing whitespace
 	result = strings.TrimSpace(result)
@@ -358,7 +367,7 @@ Cleaned markdown:`, docHint, rawText)
 // cleanupTranscription uses LLM to clean up and correct Whisper transcription
 // Fixes common Whisper errors like misheard words, typos, and formatting issues
 func (s *FileProcessorService) cleanupTranscription(ctx context.Context, rawTranscript string) (string, error) {
-	if s.llmProvider == nil {
+	if s.languageModel == nil {
 		return rawTranscript, nil // Return original if no LLM available
 	}
 
@@ -367,19 +376,39 @@ func (s *FileProcessorService) cleanupTranscription(ctx context.Context, rawTran
 		return rawTranscript, nil
 	}
 
-	// Simple user prompt - system prompt in llm_adapter handles the instructions
-	// This keeps the user message small and lets system prompt define the task globally
-	prompt := fmt.Sprintf(`Fix this transcription from Whisper speech-to-text:
+	systemPrompt := `You are a transcription editor for Indonesian language content.
+Your task is to fix common speech-to-text errors. Apply these corrections:
+- terlion/terliunan → triliun
+- stengah → setengah
+- merogikan → merugikan
+- ngontongnya → menguntungkan
+- meleksaham → melek saham
+- persubstritp → oversubscribe
+- SOJK/SCUJK → SEOJK
+- IHSK → IHSG
+- rebu → ribu
+- lokasinya → alokasinya
+- timis → tipis
+
+Keep segment markers (**[Segment X]**). Keep stock codes (RLCO, GOTO, PGHB).
+Output ONLY the corrected text without explanations.`
+
+	userPrompt := fmt.Sprintf(`Fix this transcription from Whisper speech-to-text:
 
 %s`, rawTranscript)
 
-	result, err := s.llmProvider.GenerateText(ctx, prompt)
+	resp, err := s.languageModel.Generate(ctx, fantasy.Call{
+		Prompt: []fantasy.Message{
+			fantasy.NewSystemMessage(systemPrompt),
+			fantasy.NewUserMessage(userPrompt),
+		},
+	})
 	if err != nil {
 		xlog.Warn("Async: Transcript cleanup failed, using original", "error", err)
 		return rawTranscript, nil // Return original on error, don't fail
 	}
 
-	result = strings.TrimSpace(result)
+	result := strings.TrimSpace(resp.Content.Text())
 
 	// If result is empty or significantly shorter, return original
 	if len(result) < len(rawTranscript)/2 {
@@ -485,7 +514,7 @@ func (s *FileProcessorService) processVideoDescriptionAsync(filePath, filename, 
 	xlog.Info("Async: Video transcription completed", "length", len(fullTranscription), "filename", filename)
 
 	// Post-process transcription with LLM to fix common Whisper errors
-	if s.llmProvider != nil && len(fullTranscription) > 50 {
+	if s.languageModel != nil && len(fullTranscription) > 50 {
 		xlog.Info("Async: Cleaning up transcription with LLM", "filename", filename)
 		cleanedTranscription, err := s.cleanupTranscription(ctx, fullTranscription)
 		if err == nil && len(cleanedTranscription) > 0 {

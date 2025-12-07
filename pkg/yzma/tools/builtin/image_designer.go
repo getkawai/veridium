@@ -15,10 +15,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/internal/stablediffusion"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
-	"github.com/kawai-network/veridium/types"
 )
 
 // ============================================================================
@@ -273,50 +271,19 @@ func truncateString(s string, maxLen int) string {
 func RegisterImageDesigner(registry *tools.ToolRegistry) error {
 	service := NewImageDesignerService()
 
-	tool := &types.Tool{
-		Type: fantasy.ToolTypeFunction,
-		Definition: types.ToolDefinition{
-			Name:        "lobe-image-designer__text2image",
-			Description: "Create images from text prompts using AI image generation. Generate up to 4 diverse images based on the description.",
-			Parameters: map[string]interface{}{
-				"type": "object",
-				"properties": map[string]interface{}{
-					"prompts": map[string]interface{}{
-						"type":        "array",
-						"items":       map[string]interface{}{"type": "string"},
-						"minItems":    1,
-						"maxItems":    4,
-						"description": "Array of detailed image descriptions. Create diverse prompts if user doesn't specify exact number.",
-					},
-					"quality": map[string]interface{}{
-						"type":        "string",
-						"enum":        []string{"standard", "hd"},
-						"default":     "standard",
-						"description": "Image quality. 'hd' creates images with finer details.",
-					},
-					"size": map[string]interface{}{
-						"type":        "string",
-						"enum":        []string{"1792x1024", "1024x1024", "1024x1792"},
-						"default":     "1024x1024",
-						"description": "Image resolution. Use 1024x1024 (square) as default, 1792x1024 for wide, 1024x1792 for tall/portrait.",
-					},
-					"style": map[string]interface{}{
-						"type":        "string",
-						"enum":        []string{"vivid", "natural"},
-						"default":     "vivid",
-						"description": "Image style. 'vivid' for hyper-real/dramatic, 'natural' for more realistic.",
-					},
-					"seeds": map[string]interface{}{
-						"type":        "array",
-						"items":       map[string]interface{}{"type": "integer"},
-						"description": "Optional seeds for reproducible generation when modifying previous images.",
-					},
-				},
-				"required": []string{"prompts"},
-			},
+	tool := tools.NewSimpleTool(tools.SimpleToolConfig{
+		Name:        "lobe-image-designer__text2image",
+		Description: "Create images from text prompts using AI image generation. Generate up to 4 diverse images based on the description.",
+		Parameters: map[string]any{
+			"prompts": map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "minItems": 1, "maxItems": 4, "description": "Array of detailed image descriptions. Create diverse prompts if user doesn't specify exact number."},
+			"quality": map[string]any{"type": "string", "enum": []string{"standard", "hd"}, "default": "standard", "description": "Image quality. 'hd' creates images with finer details."},
+			"size":    map[string]any{"type": "string", "enum": []string{"1792x1024", "1024x1024", "1024x1792"}, "default": "1024x1024", "description": "Image resolution. Use 1024x1024 (square) as default, 1792x1024 for wide, 1024x1792 for tall/portrait."},
+			"style":   map[string]any{"type": "string", "enum": []string{"vivid", "natural"}, "default": "vivid", "description": "Image style. 'vivid' for hyper-real/dramatic, 'natural' for more realistic."},
+			"seeds":   map[string]any{"type": "array", "items": map[string]any{"type": "integer"}, "description": "Optional seeds for reproducible generation when modifying previous images."},
 		},
+		Required: []string{"prompts"},
+		Parallel: false, // NOT parallel safe - heavy resource usage
 		Executor: func(ctx context.Context, args map[string]string) (string, error) {
-			// Parse prompts
 			promptsStr := args["prompts"]
 			if promptsStr == "" {
 				return "", fmt.Errorf("prompts is required")
@@ -331,35 +298,24 @@ func RegisterImageDesigner(registry *tools.ToolRegistry) error {
 				return "", fmt.Errorf("at least one prompt is required")
 			}
 			if len(prompts) > 4 {
-				prompts = prompts[:4] // Limit to 4
+				prompts = prompts[:4]
 			}
-
-			// Parse optional parameters
-			quality := args["quality"]
-			size := args["size"]
-			style := args["style"]
 
 			var seeds []int
 			if seedsStr := args["seeds"]; seedsStr != "" {
 				json.Unmarshal([]byte(seedsStr), &seeds)
 			}
 
-			// Generate images
-			results, err := service.Text2Image(prompts, quality, size, style, seeds)
+			results, err := service.Text2Image(prompts, args["quality"], args["size"], args["style"], seeds)
 			if err != nil {
 				return "", err
 			}
 
-			resultJSON, err := json.Marshal(results)
-			if err != nil {
-				return "", fmt.Errorf("failed to marshal results: %w", err)
-			}
-
+			resultJSON, _ := json.Marshal(results)
 			log.Printf("🖼️  Generated %d images", len(results))
 			return string(resultJSON), nil
 		},
-		Enabled: true,
-	}
+	})
 
 	return registry.Register(tool)
 }

@@ -774,28 +774,17 @@ func (s *AgentChatService) registerKBSearchTool(ctx context.Context, kbID, userI
 		return nil // Already registered
 	}
 
-	// Create yzma tool
+	// Create tool using SimpleTool
 	kbService := s.kbService
-	tool := &types.Tool{
-		Type: fantasy.ToolTypeFunction,
-		Definition: types.ToolDefinition{
-			Name:        toolName,
-			Description: fmt.Sprintf("Search the %s knowledge base for relevant information", kb.Name),
-			Parameters: map[string]interface{}{
-				"type": "object",
-				"properties": map[string]interface{}{
-					"query": map[string]interface{}{
-						"type":        "string",
-						"description": "The search query to find relevant information",
-					},
-					"top_k": map[string]interface{}{
-						"type":        "integer",
-						"description": "Number of results to return (default: 5)",
-					},
-				},
-				"required": []string{"query"},
-			},
+	tool := tools.NewSimpleTool(tools.SimpleToolConfig{
+		Name:        toolName,
+		Description: fmt.Sprintf("Search the %s knowledge base for relevant information", kb.Name),
+		Parameters: map[string]any{
+			"query": map[string]any{"type": "string", "description": "The search query to find relevant information"},
+			"top_k": map[string]any{"type": "integer", "description": "Number of results to return (default: 5)"},
 		},
+		Required: []string{"query"},
+		Parallel: true, // Safe to run in parallel - read-only search
 		Executor: func(execCtx context.Context, args map[string]string) (string, error) {
 			query := args["query"]
 			if query == "" {
@@ -809,13 +798,11 @@ func (s *AgentChatService) registerKBSearchTool(ctx context.Context, kbID, userI
 				}
 			}
 
-			// Query knowledge base
 			docs, err := kbService.QueryKnowledgeBase(execCtx, kbID, query, topK, userID)
 			if err != nil {
 				return "", fmt.Errorf("KB search failed: %w", err)
 			}
 
-			// Format results
 			result := map[string]interface{}{
 				"found": len(docs),
 				"results": func() []map[string]interface{} {
@@ -830,15 +817,10 @@ func (s *AgentChatService) registerKBSearchTool(ctx context.Context, kbID, userI
 				}(),
 			}
 
-			resultJSON, err := json.Marshal(result)
-			if err != nil {
-				return "", fmt.Errorf("failed to marshal result: %w", err)
-			}
-
+			resultJSON, _ := json.Marshal(result)
 			return string(resultJSON), nil
 		},
-		Enabled: true,
-	}
+	})
 
 	return s.toolRegistry.Register(tool)
 }

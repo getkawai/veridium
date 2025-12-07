@@ -9,10 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kawai-network/veridium/fantasy"
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
-	"github.com/kawai-network/veridium/types"
 )
 
 // VideoDescribeService provides video transcription functionality
@@ -75,23 +73,17 @@ func (s *VideoDescribeService) GetVideoTranscription(ctx context.Context, fileID
 func RegisterVideoDescribe(registry *tools.ToolRegistry, sqlDB *sql.DB) error {
 	service := NewVideoDescribeService(sqlDB)
 
-	tool := &types.Tool{
-		Type:     fantasy.ToolTypeFunction,
-		Parallel: true, // Safe to run in parallel - read-only database query
-		Definition: types.ToolDefinition{
-			Name:        "lobe-video-describe__getVideoTranscription",
-			Description: "Get AI-generated transcription of an uploaded video's audio. Use this when user asks about what is said in the video, video content, spoken words, dialogue, or audio transcription. The transcription is generated using Whisper STT when the video was uploaded.",
-			Parameters: map[string]interface{}{
-				"type": "object",
-				"properties": map[string]interface{}{
-					"file_id": map[string]interface{}{
-						"type":        "string",
-						"description": "The file ID of the uploaded video",
-					},
-				},
-				"required": []string{"file_id"},
+	tool := tools.NewSimpleTool(tools.SimpleToolConfig{
+		Name:        "lobe-video-describe__getVideoTranscription",
+		Description: "Get AI-generated transcription of an uploaded video's audio. Use this when user asks about what is said in the video, video content, spoken words, dialogue, or audio transcription. The transcription is generated using Whisper STT when the video was uploaded.",
+		Parameters: map[string]any{
+			"file_id": map[string]any{
+				"type":        "string",
+				"description": "The file ID of the uploaded video",
 			},
 		},
+		Required: []string{"file_id"},
+		Parallel: true, // Safe to run in parallel - read-only database query
 		Executor: func(ctx context.Context, args map[string]string) (string, error) {
 			fileID, ok := args["file_id"]
 			if !ok || fileID == "" {
@@ -118,8 +110,7 @@ func RegisterVideoDescribe(registry *tools.ToolRegistry, sqlDB *sql.DB) error {
 
 			return string(resultJSON), nil
 		},
-		Enabled: true,
-	}
+	})
 
 	return registry.Register(tool)
 }

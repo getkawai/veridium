@@ -10,6 +10,7 @@ import (
 	"github.com/kawai-network/veridium/internal/audio_recorder"
 	"github.com/kawai-network/veridium/internal/database"
 	"github.com/kawai-network/veridium/internal/llama"
+	"github.com/kawai-network/veridium/internal/llm"
 	"github.com/kawai-network/veridium/internal/machineid"
 	"github.com/kawai-network/veridium/internal/search"
 	"github.com/kawai-network/veridium/internal/services"
@@ -299,10 +300,11 @@ func main() {
 					log.Printf("   Task '%s': configured", task)
 				}
 
-				// Connect TaskRouter to FileProcessorService for OCR text cleanup
-				llmAdapter := services.NewTaskRouterAdapter(taskRouter)
-				fileProcessorService.SetLLMProvider(llmAdapter)
-				log.Printf("🔗 FileProcessor connected to TaskRouter for OCR cleanup")
+				// Connect TaskRouter to FileProcessorService for OCR/transcript cleanup
+				if model := taskRouter.GetModel(llm.TaskOCRCleanup); model != nil {
+					fileProcessorService.SetLanguageModel(model)
+					log.Printf("🔗 FileProcessor connected to TaskRouter for OCR/transcript cleanup")
+				}
 			}
 		}
 

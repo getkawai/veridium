@@ -27,7 +27,7 @@ export enum ChatStreamEvent {
     ChatEventChunk = "chunk",
 
     /**
-     * Reasoning content
+     * Reasoning content delta
      */
     ChatEventReasoning = "reasoning",
 
@@ -35,6 +35,17 @@ export enum ChatStreamEvent {
      * Generation complete
      */
     ChatEventComplete = "complete",
+
+    /**
+     * Reasoning events (for models like DeepSeek R1, o1, etc.)
+     * Reasoning started
+     */
+    ChatEventReasoningStart = "reasoning_start",
+
+    /**
+     * Reasoning finished
+     */
+    ChatEventReasoningEnd = "reasoning_end",
 
     /**
      * Tool events

@@ -9,10 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kawai-network/veridium/fantasy"
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
-	"github.com/kawai-network/veridium/types"
 )
 
 // ImageDescribeService provides image description functionality
@@ -81,23 +79,17 @@ func (s *ImageDescribeService) GetImageDescription(ctx context.Context, fileID s
 func RegisterImageDescribe(registry *tools.ToolRegistry, sqlDB *sql.DB) error {
 	service := NewImageDescribeService(sqlDB)
 
-	tool := &types.Tool{
-		Type:     fantasy.ToolTypeFunction,
-		Parallel: true, // Safe to run in parallel - read-only database query
-		Definition: types.ToolDefinition{
-			Name:        "lobe-image-describe__getImageDescription",
-			Description: "Get AI-generated description of an uploaded image or video. Use this when user asks about image content, text extraction, OCR, or visual analysis. The description is pre-generated when the file was uploaded.",
-			Parameters: map[string]interface{}{
-				"type": "object",
-				"properties": map[string]interface{}{
-					"file_id": map[string]interface{}{
-						"type":        "string",
-						"description": "The file ID of the uploaded image or video",
-					},
-				},
-				"required": []string{"file_id"},
+	tool := tools.NewSimpleTool(tools.SimpleToolConfig{
+		Name:        "lobe-image-describe__getImageDescription",
+		Description: "Get AI-generated description of an uploaded image or video. Use this when user asks about image content, text extraction, OCR, or visual analysis. The description is pre-generated when the file was uploaded.",
+		Parameters: map[string]any{
+			"file_id": map[string]any{
+				"type":        "string",
+				"description": "The file ID of the uploaded image or video",
 			},
 		},
+		Required: []string{"file_id"},
+		Parallel: true, // Safe to run in parallel - read-only database query
 		Executor: func(ctx context.Context, args map[string]string) (string, error) {
 			fileID, ok := args["file_id"]
 			if !ok || fileID == "" {
@@ -124,8 +116,7 @@ func RegisterImageDescribe(registry *tools.ToolRegistry, sqlDB *sql.DB) error {
 
 			return string(resultJSON), nil
 		},
-		Enabled: true,
-	}
+	})
 
 	return registry.Register(tool)
 }

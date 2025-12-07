@@ -5,30 +5,22 @@ import (
 	"fmt"
 
 	"github.com/Knetic/govaluate"
-	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
-	"github.com/kawai-network/veridium/types"
 )
 
 // RegisterCalculator registers the calculator tool
 func RegisterCalculator(registry *tools.ToolRegistry) error {
-	tool := &types.Tool{
-		Type:     fantasy.ToolTypeFunction,
-		Parallel: true, // Safe to run in parallel - pure computation, no side effects
-		Definition: types.ToolDefinition{
-			Name:        "calculator",
-			Description: "Perform mathematical calculations. Supports: +, -, *, /, sqrt(), sin(), cos(), tan(), pow(), pi, e",
-			Parameters: map[string]interface{}{
-				"type": "object",
-				"properties": map[string]interface{}{
-					"expression": map[string]interface{}{
-						"type":        "string",
-						"description": "The mathematical expression to evaluate (e.g., '2 + 2', 'sqrt(16)', 'sin(pi/2)')",
-					},
-				},
-				"required": []string{"expression"},
+	tool := tools.NewSimpleTool(tools.SimpleToolConfig{
+		Name:        "calculator",
+		Description: "Perform mathematical calculations. Supports: +, -, *, /, sqrt(), sin(), cos(), tan(), pow(), pi, e",
+		Parameters: map[string]any{
+			"expression": map[string]any{
+				"type":        "string",
+				"description": "The mathematical expression to evaluate (e.g., '2 + 2', 'sqrt(16)', 'sin(pi/2)')",
 			},
 		},
+		Required: []string{"expression"},
+		Parallel: true, // Safe to run in parallel - pure computation, no side effects
 		Executor: func(ctx context.Context, args map[string]string) (string, error) {
 			expression, ok := args["expression"]
 			if !ok || expression == "" {
@@ -50,8 +42,7 @@ func RegisterCalculator(registry *tools.ToolRegistry) error {
 			// Format result
 			return fmt.Sprintf("%v", result), nil
 		},
-		Enabled: true,
-	}
+	})
 
 	return registry.Register(tool)
 }

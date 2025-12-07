@@ -10,9 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
-	"github.com/kawai-network/veridium/types"
 )
 
 // ============================================================================
@@ -213,27 +211,15 @@ func escapeCode(code string) string {
 func RegisterCodeInterpreter(registry *tools.ToolRegistry) error {
 	service := NewCodeInterpreterService()
 
-	tool := &types.Tool{
-		Type: fantasy.ToolTypeFunction,
-		Definition: types.ToolDefinition{
-			Name:        "lobe-code-interpreter__python",
-			Description: "Execute Python code. Use this to run Python scripts, perform calculations, data analysis, or generate files.",
-			Parameters: map[string]interface{}{
-				"type": "object",
-				"properties": map[string]interface{}{
-					"code": map[string]interface{}{
-						"type":        "string",
-						"description": "The Python code to execute",
-					},
-					"packages": map[string]interface{}{
-						"type":        "array",
-						"items":       map[string]interface{}{"type": "string"},
-						"description": "Python packages to install before running (e.g., ['pandas', 'numpy'])",
-					},
-				},
-				"required": []string{"code", "packages"},
-			},
+	tool := tools.NewSimpleTool(tools.SimpleToolConfig{
+		Name:        "lobe-code-interpreter__python",
+		Description: "Execute Python code. Use this to run Python scripts, perform calculations, data analysis, or generate files.",
+		Parameters: map[string]any{
+			"code":     map[string]any{"type": "string", "description": "The Python code to execute"},
+			"packages": map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Python packages to install before running (e.g., ['pandas', 'numpy'])"},
 		},
+		Required: []string{"code", "packages"},
+		Parallel: false, // NOT parallel safe - executes code that may have side effects
 		Executor: func(ctx context.Context, args map[string]string) (string, error) {
 			code := args["code"]
 			if code == "" {
@@ -252,18 +238,13 @@ func RegisterCodeInterpreter(registry *tools.ToolRegistry) error {
 				return "", err
 			}
 
-			resultJSON, err := json.Marshal(response)
-			if err != nil {
-				return "", fmt.Errorf("failed to marshal response: %w", err)
-			}
-
+			resultJSON, _ := json.Marshal(response)
 			log.Printf("✅ Python execution complete (result: %v, outputs: %d, files: %d)",
 				response.Result != "", len(response.Output), len(response.Files))
 
 			return string(resultJSON), nil
 		},
-		Enabled: true,
-	}
+	})
 
 	return registry.Register(tool)
 }

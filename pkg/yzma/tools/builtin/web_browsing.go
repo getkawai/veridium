@@ -7,10 +7,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/internal/search"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
-	"github.com/kawai-network/veridium/types"
 )
 
 // WebBrowsingService wraps search.Service to provide lobe-web-browsing compatible responses
@@ -141,37 +139,31 @@ func RegisterWebBrowsing(registry *tools.ToolRegistry) error {
 	service := NewWebBrowsingService()
 
 	// Tool 1: search
-	searchTool := &types.Tool{
-		Type:     fantasy.ToolTypeFunction,
-		Parallel: true, // Safe to run in parallel - read-only external API call
-		Definition: types.ToolDefinition{
-			Name:        "lobe-web-browsing__search",
-			Description: "Search the web for information. Returns a list of search results with title, content, and URL.",
-			Parameters: map[string]interface{}{
-				"type": "object",
-				"properties": map[string]interface{}{
-					"query": map[string]interface{}{
-						"type":        "string",
-						"description": "The search query string",
-					},
-					"searchCategories": map[string]interface{}{
-						"type":        "array",
-						"items":       map[string]interface{}{"type": "string"},
-						"description": "Search categories: general, images, news, science, videos",
-					},
-					"searchEngines": map[string]interface{}{
-						"type":        "array",
-						"items":       map[string]interface{}{"type": "string"},
-						"description": "Search engines: google, bing, duckduckgo, brave, wikipedia, github, arxiv",
-					},
-					"searchTimeRange": map[string]interface{}{
-						"type":        "string",
-						"description": "Time range filter: anytime, day, week, month, year",
-					},
-				},
-				"required": []string{"query"},
+	searchTool := tools.NewSimpleTool(tools.SimpleToolConfig{
+		Name:        "lobe-web-browsing__search",
+		Description: "Search the web for information. Returns a list of search results with title, content, and URL.",
+		Parameters: map[string]any{
+			"query": map[string]any{
+				"type":        "string",
+				"description": "The search query string",
+			},
+			"searchCategories": map[string]any{
+				"type":        "array",
+				"items":       map[string]any{"type": "string"},
+				"description": "Search categories: general, images, news, science, videos",
+			},
+			"searchEngines": map[string]any{
+				"type":        "array",
+				"items":       map[string]any{"type": "string"},
+				"description": "Search engines: google, bing, duckduckgo, brave, wikipedia, github, arxiv",
+			},
+			"searchTimeRange": map[string]any{
+				"type":        "string",
+				"description": "Time range filter: anytime, day, week, month, year",
 			},
 		},
+		Required: []string{"query"},
+		Parallel: true, // Safe to run in parallel - read-only external API call
 		Executor: func(ctx context.Context, args map[string]string) (string, error) {
 			query := args["query"]
 			if query == "" {
@@ -204,31 +196,24 @@ func RegisterWebBrowsing(registry *tools.ToolRegistry) error {
 			log.Printf("🔍 Web search completed: query=%s, results=%d", query, len(response.Results))
 			return string(resultJSON), nil
 		},
-		Enabled: true,
-	}
+	})
 
 	if err := registry.Register(searchTool); err != nil {
 		return fmt.Errorf("failed to register search tool: %w", err)
 	}
 
 	// Tool 2: crawlSinglePage
-	crawlSingleTool := &types.Tool{
-		Type:     fantasy.ToolTypeFunction,
-		Parallel: true, // Safe to run in parallel - read-only external fetch
-		Definition: types.ToolDefinition{
-			Name:        "lobe-web-browsing__crawlSinglePage",
-			Description: "Retrieve content from a specific webpage. Returns the page title, content, URL and website.",
-			Parameters: map[string]interface{}{
-				"type": "object",
-				"properties": map[string]interface{}{
-					"url": map[string]interface{}{
-						"type":        "string",
-						"description": "The URL of the webpage to crawl",
-					},
-				},
-				"required": []string{"url"},
+	crawlSingleTool := tools.NewSimpleTool(tools.SimpleToolConfig{
+		Name:        "lobe-web-browsing__crawlSinglePage",
+		Description: "Retrieve content from a specific webpage. Returns the page title, content, URL and website.",
+		Parameters: map[string]any{
+			"url": map[string]any{
+				"type":        "string",
+				"description": "The URL of the webpage to crawl",
 			},
 		},
+		Required: []string{"url"},
+		Parallel: true, // Safe to run in parallel - read-only external fetch
 		Executor: func(ctx context.Context, args map[string]string) (string, error) {
 			url := args["url"]
 			if url == "" {
@@ -248,32 +233,25 @@ func RegisterWebBrowsing(registry *tools.ToolRegistry) error {
 			log.Printf("🌐 Crawled single page: url=%s", url)
 			return string(resultJSON), nil
 		},
-		Enabled: true,
-	}
+	})
 
 	if err := registry.Register(crawlSingleTool); err != nil {
 		return fmt.Errorf("failed to register crawlSinglePage tool: %w", err)
 	}
 
 	// Tool 3: crawlMultiPages
-	crawlMultiTool := &types.Tool{
-		Type:     fantasy.ToolTypeFunction,
-		Parallel: true, // Safe to run in parallel - read-only external fetch
-		Definition: types.ToolDefinition{
-			Name:        "lobe-web-browsing__crawlMultiPages",
-			Description: "Retrieve content from multiple webpages simultaneously. Returns an array of page results.",
-			Parameters: map[string]interface{}{
-				"type": "object",
-				"properties": map[string]interface{}{
-					"urls": map[string]interface{}{
-						"type":        "array",
-						"items":       map[string]interface{}{"type": "string"},
-						"description": "The URLs of the webpages to crawl",
-					},
-				},
-				"required": []string{"urls"},
+	crawlMultiTool := tools.NewSimpleTool(tools.SimpleToolConfig{
+		Name:        "lobe-web-browsing__crawlMultiPages",
+		Description: "Retrieve content from multiple webpages simultaneously. Returns an array of page results.",
+		Parameters: map[string]any{
+			"urls": map[string]any{
+				"type":        "array",
+				"items":       map[string]any{"type": "string"},
+				"description": "The URLs of the webpages to crawl",
 			},
 		},
+		Required: []string{"urls"},
+		Parallel: true, // Safe to run in parallel - read-only external fetch
 		Executor: func(ctx context.Context, args map[string]string) (string, error) {
 			urlsStr := args["urls"]
 			if urlsStr == "" {
@@ -302,8 +280,7 @@ func RegisterWebBrowsing(registry *tools.ToolRegistry) error {
 			log.Printf("🌐 Crawled %d pages", len(urls))
 			return string(resultJSON), nil
 		},
-		Enabled: true,
-	}
+	})
 
 	if err := registry.Register(crawlMultiTool); err != nil {
 		return fmt.Errorf("failed to register crawlMultiPages tool: %w", err)

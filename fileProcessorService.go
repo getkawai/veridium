@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/internal/llama"
 	"github.com/kawai-network/veridium/internal/services"
 	"github.com/kawai-network/veridium/internal/whisper"
@@ -54,9 +55,9 @@ func NewFileProcessorService(
 	}
 }
 
-// SetLLMProvider sets the LLM provider for OCR text cleanup
-func (f *FileProcessorService) SetLLMProvider(provider services.LLMProvider) {
-	f.processor.SetLLMProvider(provider)
+// SetLanguageModel sets the language model for OCR/transcript cleanup
+func (f *FileProcessorService) SetLanguageModel(model fantasy.LanguageModel) {
+	f.processor.SetLanguageModel(model)
 }
 
 // ProcessFileFromPath processes a file from absolute path (e.g., from file dialog)

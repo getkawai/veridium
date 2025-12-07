@@ -17,7 +17,6 @@
 package types
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 
@@ -99,31 +98,9 @@ func NewToolCallMessageFromContent(toolCalls []fantasy.ToolCallContent) fantasy.
 }
 
 // ============================================================================
-// Tool Types
-// ============================================================================
-
-// ToolExecutor is a function that executes a tool
-type ToolExecutor func(ctx context.Context, args map[string]string) (string, error)
-
-// ToolDefinition represents a tool definition for registration
-type ToolDefinition struct {
-	Name        string                 `json:"name"`
-	Description string                 `json:"description,omitempty"`
-	Parameters  map[string]interface{} `json:"parameters,omitempty"` // JSON Schema
-}
-
-// Tool represents a tool (definition + executor)
-type Tool struct {
-	Type       fantasy.ToolType `json:"type"`
-	Definition ToolDefinition   `json:"definition"`
-	Executor   ToolExecutor     `json:"-"`
-	Enabled    bool             `json:"-"`
-	Parallel   bool             `json:"-"` // Whether tool can run in parallel with other tools
-}
-
-// ============================================================================
 // Event Types
 // ============================================================================
+// Note: Tool types moved to pkg/yzma/tools - use fantasy.AgentTool interface
 
 // ChatStreamEvent represents the type of event during LLM interaction
 // This is used for both streaming events and tool execution events
