@@ -51,6 +51,16 @@ func (f *ProviderFactory) CreateLanguageModel(config ProviderConfig) (fantasy.La
 		}
 	}
 
+	// Enrich config from catalog if available
+	catalog := GetCatalog()
+	if modelInfo := catalog.GetModelInfo(config.Model); modelInfo != nil {
+		if config.MaxTokens == 0 {
+			config.MaxTokens = modelInfo.DefaultMaxTokens
+		}
+		log.Printf("📚 ModelCatalog: %s (context=%d, max_tokens=%d, can_reason=%v)",
+			modelInfo.Name, modelInfo.ContextWindow, modelInfo.DefaultMaxTokens, modelInfo.CanReason)
+	}
+
 	var fantasyProvider fantasy.Provider
 	var err error
 
