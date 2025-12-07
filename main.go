@@ -14,6 +14,7 @@ import (
 	"github.com/kawai-network/veridium/internal/machineid"
 	"github.com/kawai-network/veridium/internal/search"
 	"github.com/kawai-network/veridium/internal/services"
+	"github.com/kawai-network/veridium/internal/services/cache"
 	"github.com/kawai-network/veridium/internal/tableviewer"
 	"github.com/kawai-network/veridium/internal/tts"
 	"github.com/kawai-network/veridium/internal/whisper"
@@ -37,10 +38,18 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
+// Dev mode flag - set via environment variable or build tag
+var devMode = os.Getenv("VERIDIUM_DEV") == "1" || os.Getenv("DEV") == "1"
+
 // main function serves as the application's entry point. It initializes the application, creates a window,
 // and starts a goroutine that emits a time-based event every second. It subsequently runs the application and
 // logs any error that might occur.
 func main() {
+	// Check dev mode
+	if devMode {
+		log.Printf("🔧 Development mode enabled (cache disabled)")
+	}
+
 	// Initialize database service
 	dbService, err := database.NewService()
 	if err != nil {
@@ -117,6 +126,7 @@ func main() {
 
 	// Initialize Embedder using pkg/yzma/embedding (custom interface, replaces Eino)
 	var embedder embedding.Embedder
+	var cacheManager *cache.CacheManager
 	embeddingModelName := llama.GetRecommendedEmbeddingModel()
 	embeddingModel, exists := llama.GetEmbeddingModel(embeddingModelName)
 	if !exists {
@@ -124,17 +134,29 @@ func main() {
 	} else {
 		installer := llama.NewLlamaCppInstaller()
 		modelPath := filepath.Join(installer.GetModelsDirectory(), embeddingModel.Filename)
-		embedder, err = embedding.NewLlamaEmbedder(&embedding.LlamaConfig{
+		baseEmbedder, embedErr := embedding.NewLlamaEmbedder(&embedding.LlamaConfig{
 			ModelPath:   modelPath,
 			ContextSize: 2048,
 		})
-		if err != nil {
-			log.Printf("⚠️  Warning: Failed to create embedder: %v", err)
+		if embedErr != nil {
+			log.Printf("⚠️  Warning: Failed to create embedder: %v", embedErr)
 		} else {
 			log.Printf("✅ Embedder initialized (pkg/yzma/embedding)")
 			log.Printf("   Model: %s", embeddingModel.Name)
-			log.Printf("   Dimensions: %d", embedder.Dimensions())
-			defer embedder.Close()
+			log.Printf("   Dimensions: %d", baseEmbedder.Dimensions())
+			defer baseEmbedder.Close()
+
+			// Wrap embedder with cache (disabled in dev mode)
+			if devMode {
+				embedder = baseEmbedder
+				log.Printf("⚠️  Cache disabled (dev mode)")
+			} else {
+				cacheManager = cache.NewCacheManager(baseEmbedder, nil)
+				embedder = cacheManager.GetCachedEmbedder(baseEmbedder)
+				log.Printf("✅ Cache layer initialized")
+				log.Printf("   Embedding cache: max 10000 entries, TTL 24h")
+				log.Printf("   LLM cache: max 1000 entries, TTL 1h, similarity threshold 0.95")
+			}
 		}
 	}
 
@@ -144,7 +166,7 @@ func main() {
 		vectorSearchService, err = services.NewVectorSearchService(
 			dbService.DB(),
 			duckDBStore,
-			embedder,
+			embedder, // Now using cached embedder
 		)
 		if err != nil {
 			log.Printf("⚠️  Warning: Failed to initialize Vector Search service: %v", err)
