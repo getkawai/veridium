@@ -1,4 +1,4 @@
-package llama
+package hardware
 
 import (
 	"log"

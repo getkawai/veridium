@@ -17,7 +17,7 @@ const useStyles = createStyles(({ css, token }) => ({
     border-radius: 8px;
 
     font-size: 12px;
-    color: initial;
+    color: ${token.colorText};
 
     background: ${token.colorFillQuaternary};
 
@@ -31,6 +31,7 @@ const useStyles = createStyles(({ css, token }) => ({
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
 
+    color: ${token.colorText};
     text-overflow: ellipsis;
   `,
 }));

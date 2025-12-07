@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/kawai-network/veridium/pkg/hardware"
 	"github.com/kawai-network/veridium/pkg/yzma/download"
 )
 
@@ -36,7 +37,7 @@ type LlamaCppInstaller struct {
 	// ModelsDir is where GGUF models (chat & embedding) are stored
 	ModelsDir string
 	// HardwareSpecs caches the detected hardware specifications
-	HardwareSpecs *HardwareSpecs
+	HardwareSpecs *hardware.HardwareSpecs
 }
 
 // NewLlamaCppInstaller creates a new llama.cpp installer
@@ -52,7 +53,7 @@ func NewLlamaCppInstaller() *LlamaCppInstaller {
 		BinaryPath:    binaryPath,
 		MetadataPath:  metadataPath,
 		ModelsDir:     modelsDir,
-		HardwareSpecs: DetectHardwareSpecs(),
+		HardwareSpecs: hardware.DetectHardwareSpecs(),
 	}
 
 	// Clean up any stale temp files from previous sessions

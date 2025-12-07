@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/kawai-network/veridium/pkg/hardware"
 	"github.com/kawai-network/veridium/pkg/yzma/llama"
 	"github.com/kawai-network/veridium/pkg/yzma/mtmd"
 )
@@ -1001,7 +1002,7 @@ func (s *LibraryService) AutoDownloadRecommendedModel() error {
 
 // GetHardwareSpecs returns the detected hardware specifications
 // This is used for validating if the system can handle reasoning models
-func (s *LibraryService) GetHardwareSpecs() *HardwareSpecs {
+func (s *LibraryService) GetHardwareSpecs() *hardware.HardwareSpecs {
 	if s.installer == nil {
 		return nil
 	}

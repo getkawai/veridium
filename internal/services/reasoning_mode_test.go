@@ -3,21 +3,21 @@ package services
 import (
 	"testing"
 
-	"github.com/kawai-network/veridium/internal/llama"
+	"github.com/kawai-network/veridium/pkg/hardware"
 )
 
 func TestHardwareValidation(t *testing.T) {
 	tests := []struct {
 		name          string
 		mode          ReasoningMode
-		specs         *llama.HardwareSpecs
+		specs         *hardware.HardwareSpecs
 		expectValid   bool
 		expectContain string
 	}{
 		{
 			name: "Disabled mode with low-end hardware - should pass",
 			mode: ReasoningDisabled,
-			specs: &llama.HardwareSpecs{
+			specs: &hardware.HardwareSpecs{
 				AvailableRAM: 4,
 				CPUCores:     2,
 				GPUMemory:    0,
@@ -27,7 +27,7 @@ func TestHardwareValidation(t *testing.T) {
 		{
 			name: "Enabled mode with sufficient hardware - should pass",
 			mode: ReasoningEnabled,
-			specs: &llama.HardwareSpecs{
+			specs: &hardware.HardwareSpecs{
 				AvailableRAM: 8,
 				CPUCores:     4,
 				GPUMemory:    0,
@@ -37,7 +37,7 @@ func TestHardwareValidation(t *testing.T) {
 		{
 			name: "Enabled mode with insufficient RAM - should fail",
 			mode: ReasoningEnabled,
-			specs: &llama.HardwareSpecs{
+			specs: &hardware.HardwareSpecs{
 				AvailableRAM: 4,
 				CPUCores:     4,
 				GPUMemory:    0,
@@ -48,7 +48,7 @@ func TestHardwareValidation(t *testing.T) {
 		{
 			name: "Enabled mode with insufficient CPU - should fail",
 			mode: ReasoningEnabled,
-			specs: &llama.HardwareSpecs{
+			specs: &hardware.HardwareSpecs{
 				AvailableRAM: 8,
 				CPUCores:     2,
 				GPUMemory:    0,
@@ -59,7 +59,7 @@ func TestHardwareValidation(t *testing.T) {
 		{
 			name: "Verbose mode with high-end hardware - should pass",
 			mode: ReasoningVerbose,
-			specs: &llama.HardwareSpecs{
+			specs: &hardware.HardwareSpecs{
 				AvailableRAM: 16,
 				CPUCores:     8,
 				GPUMemory:    8,
@@ -70,7 +70,7 @@ func TestHardwareValidation(t *testing.T) {
 		{
 			name: "Verbose mode with insufficient RAM - should fail",
 			mode: ReasoningVerbose,
-			specs: &llama.HardwareSpecs{
+			specs: &hardware.HardwareSpecs{
 				AvailableRAM: 8,
 				CPUCores:     8,
 				GPUMemory:    0,
@@ -107,12 +107,12 @@ func TestHardwareValidation(t *testing.T) {
 func TestSuggestModeForHardware(t *testing.T) {
 	tests := []struct {
 		name         string
-		specs        *llama.HardwareSpecs
+		specs        *hardware.HardwareSpecs
 		expectedMode ReasoningMode
 	}{
 		{
 			name: "High-end system - suggest verbose",
-			specs: &llama.HardwareSpecs{
+			specs: &hardware.HardwareSpecs{
 				AvailableRAM: 32,
 				CPUCores:     16,
 				GPUMemory:    16,
@@ -121,7 +121,7 @@ func TestSuggestModeForHardware(t *testing.T) {
 		},
 		{
 			name: "Mid-range system - suggest enabled",
-			specs: &llama.HardwareSpecs{
+			specs: &hardware.HardwareSpecs{
 				AvailableRAM: 8,
 				CPUCores:     4,
 				GPUMemory:    0,
@@ -130,7 +130,7 @@ func TestSuggestModeForHardware(t *testing.T) {
 		},
 		{
 			name: "Low-end system - suggest disabled",
-			specs: &llama.HardwareSpecs{
+			specs: &hardware.HardwareSpecs{
 				AvailableRAM: 4,
 				CPUCores:     2,
 				GPUMemory:    0,
@@ -139,7 +139,7 @@ func TestSuggestModeForHardware(t *testing.T) {
 		},
 		{
 			name: "Just enough for enabled",
-			specs: &llama.HardwareSpecs{
+			specs: &hardware.HardwareSpecs{
 				AvailableRAM: 8,
 				CPUCores:     4,
 				GPUMemory:    0,
@@ -148,7 +148,7 @@ func TestSuggestModeForHardware(t *testing.T) {
 		},
 		{
 			name: "Just enough for verbose",
-			specs: &llama.HardwareSpecs{
+			specs: &hardware.HardwareSpecs{
 				AvailableRAM: 16,
 				CPUCores:     6,
 				GPUMemory:    0,

@@ -5,7 +5,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/kawai-network/veridium/internal/llama"
+	"github.com/kawai-network/veridium/pkg/hardware"
 )
 
 // ReasoningMode defines the reasoning behavior of the chat model
@@ -256,7 +256,7 @@ func (rc ReasoningConfig) GetHardwareRequirements() HardwareRequirements {
 
 // ValidateHardware checks if the system hardware is sufficient for the reasoning mode
 // Returns true if hardware is sufficient, false otherwise with a reason
-func (rc ReasoningConfig) ValidateHardware(specs *llama.HardwareSpecs) (bool, string) {
+func (rc ReasoningConfig) ValidateHardware(specs *hardware.HardwareSpecs) (bool, string) {
 	if specs == nil {
 		// If we can't detect hardware, log warning but allow
 		log.Printf("⚠️  Unable to detect hardware specs, proceeding with caution")
@@ -300,7 +300,7 @@ func (rc ReasoningConfig) ValidateHardware(specs *llama.HardwareSpecs) (bool, st
 }
 
 // SuggestModeForHardware suggests the best reasoning mode for given hardware
-func SuggestModeForHardware(specs *llama.HardwareSpecs) ReasoningMode {
+func SuggestModeForHardware(specs *hardware.HardwareSpecs) ReasoningMode {
 	if specs == nil {
 		// Default to safest mode if we can't detect hardware
 		return ReasoningDisabled

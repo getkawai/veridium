@@ -30,16 +30,6 @@ func (lcm *LlamaCppInstaller) getAssetPatterns(hardware *HardwareCapabilities) [
 	return []string{}
 }
 
-// detectPlatformSpecs stub for unsupported platforms
-func (specs *HardwareSpecs) detectPlatformSpecs() {
-	// Fallback values for unsupported platforms
-	specs.TotalRAM = 8
-	specs.AvailableRAM = 6
-	specs.CPU = "Unknown CPU"
-	specs.GPUModel = "Unknown GPU"
-	specs.GPUMemory = 0
-}
-
 // GetBinaryPath returns the path to a specific llama.cpp binary on unsupported platforms
 // Priority: 1) Local binary path, 2) System PATH
 func (lcm *LlamaCppInstaller) GetBinaryPath(binaryName string) string {

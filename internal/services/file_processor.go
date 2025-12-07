@@ -18,6 +18,7 @@ import (
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/internal/llama"
 	"github.com/kawai-network/veridium/internal/whisper"
+	"github.com/kawai-network/veridium/pkg/hardware"
 	"github.com/kawai-network/veridium/pkg/xlog"
 	"github.com/kawai-network/veridium/types"
 )
@@ -757,7 +758,7 @@ func selectWhisperModelByHardware(availableModels []string) string {
 	}
 
 	// Detect hardware
-	specs := llama.DetectHardwareSpecs()
+	specs := hardware.DetectHardwareSpecs()
 	availableRAM := specs.AvailableRAM
 
 	// Determine best model based on RAM

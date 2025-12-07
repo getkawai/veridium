@@ -19,6 +19,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/kawai-network/veridium/pkg/grab"
 )
 
 // Release represents a GitHub release
@@ -35,24 +37,6 @@ type Asset struct {
 	Name               string `json:"name"`
 	BrowserDownloadURL string `json:"browser_download_url"`
 	Size               int64  `json:"size"`
-}
-
-// progressReader wraps an io.Reader to report progress
-type progressReader struct {
-	Reader   io.Reader
-	Total    int64
-	Current  int64
-	Callback func(float64)
-}
-
-func (pr *progressReader) Read(p []byte) (int, error) {
-	n, err := pr.Reader.Read(p)
-	pr.Current += int64(n)
-	if pr.Callback != nil && pr.Total > 0 {
-		progress := float64(pr.Current) / float64(pr.Total) * 100
-		pr.Callback(progress)
-	}
-	return n, err
 }
 
 // isARM64 checks if the current architecture is ARM64
@@ -637,51 +621,46 @@ func (sdrm *StableDiffusionReleaseManager) extractZip(archivePath, outputPath st
 
 // downloadFile downloads a file from a URL to a local path with optional progress callback
 func (sdrm *StableDiffusionReleaseManager) downloadFile(url, filepath string, progressCallback func(float64)) error {
-	// Create HTTP client with proper configuration for downloads
-	client := &http.Client{
-		Timeout: 300 * time.Second, // 5 minutes for large downloads
-		Transport: &http.Transport{
-			DisableKeepAlives: true, // Prevent connection reuse issues
-		},
-	}
-
-	// Create request with proper headers
-	req, err := http.NewRequest("GET", url, nil)
+	client := grab.NewClient()
+	req, err := grab.NewRequest(filepath, url)
 	if err != nil {
 		return fmt.Errorf("failed to create download request: %w", err)
 	}
 
 	// Add User-Agent header
-	req.Header.Set("User-Agent", "Kawai-Agent/1.0")
+	req.HTTPRequest.Header.Set("User-Agent", "Kawai-Agent/1.0")
 
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
+	// Start download
+	resp := client.Do(req)
 
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("bad status: %s", resp.Status)
-	}
+	// Monitor progress
+	if progressCallback != nil {
+		t := time.NewTicker(500 * time.Millisecond)
+		defer t.Stop()
 
-	out, err := os.Create(filepath)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	// Create a progress reader if callback is provided
-	var reader io.Reader = resp.Body
-	if progressCallback != nil && resp.ContentLength > 0 {
-		reader = &progressReader{
-			Reader:   resp.Body,
-			Total:    resp.ContentLength,
-			Callback: progressCallback,
-		}
+		go func() {
+			for {
+				select {
+				case <-t.C:
+					progressCallback(resp.Progress() * 100)
+				case <-resp.Done:
+					return
+				}
+			}
+		}()
 	}
 
-	_, err = io.Copy(out, reader)
-	return err
+	// Block until complete
+	if err := resp.Err(); err != nil {
+		return fmt.Errorf("download failed: %w", err)
+	}
+
+	// Final progress update
+	if progressCallback != nil {
+		progressCallback(100)
+	}
+
+	return nil
 }
 
 // saveChecksums saves checksums persistently for future verification
@@ -1060,7 +1039,6 @@ func (sdrm *StableDiffusionReleaseManager) DownloadModel(modelSpec interface{}, 
 	name := spec["name"].(string)
 	url := spec["url"].(string)
 	filename := spec["filename"].(string)
-	size := spec["size"].(int64)
 
 	// Ensure the models directory exists
 	modelsPath := sdrm.GetModelsPath()
@@ -1071,20 +1049,36 @@ func (sdrm *StableDiffusionReleaseManager) DownloadModel(modelSpec interface{}, 
 	// Full path to the model file
 	modelPath := filepath.Join(modelsPath, filename)
 
-	// Check if model already exists and is valid
-	if stat, err := os.Stat(modelPath); err == nil {
-		currentSize := stat.Size() / (1024 * 1024)
-		// Allow 1% variance
-		if currentSize >= int64(float64(size)*0.99) {
-			log.Printf("Model %s already exists (verified size), skipping download", name)
-			return nil
-		}
-		log.Printf("Model %s exists but size mismatch (%d MB vs %d MB). Deleting and redownloading...",
-			name, currentSize, size)
-		os.Remove(modelPath)
+	// Get expected size from HTTP HEAD request (dynamic, not hardcoded)
+	expectedSize, err := sdrm.getRemoteFileSize(url)
+	if err != nil {
+		log.Printf("Warning: Could not get remote file size: %v", err)
+		expectedSize = 0 // Skip size validation if we can't get remote size
 	}
 
-	log.Printf("Downloading Stable Diffusion model: %s (%.1f GB)", name, float64(size)/1024)
+	// Check if model already exists and is valid
+	if stat, err := os.Stat(modelPath); err == nil {
+		currentSize := stat.Size()
+		// If we have expected size, validate; otherwise just check file exists and is reasonable
+		if expectedSize > 0 {
+			// Allow 1% variance
+			if currentSize >= int64(float64(expectedSize)*0.99) {
+				log.Printf("Model %s already exists (verified size: %d MB), skipping download", name, currentSize/(1024*1024))
+				return nil
+			}
+			log.Printf("Model %s exists but size mismatch (%d bytes vs %d bytes). Deleting and redownloading...",
+				name, currentSize, expectedSize)
+			os.Remove(modelPath)
+		} else if currentSize > 100*1024*1024 { // At least 100MB for a valid model
+			log.Printf("Model %s already exists (%d MB), skipping download", name, currentSize/(1024*1024))
+			return nil
+		}
+	}
+
+	log.Printf("Downloading Stable Diffusion model: %s", name)
+	if expectedSize > 0 {
+		log.Printf("Expected size: %.2f GB", float64(expectedSize)/(1024*1024*1024))
+	}
 
 	// Download the model file
 	if err := sdrm.downloadFile(url, modelPath, progressCallback); err != nil {
@@ -1093,22 +1087,50 @@ func (sdrm *StableDiffusionReleaseManager) DownloadModel(modelSpec interface{}, 
 
 	// Verify the downloaded file size
 	if stat, err := os.Stat(modelPath); err == nil {
-		downloadedSize := stat.Size() / (1024 * 1024) // Convert to MB
-		expectedSize := size
+		downloadedSize := stat.Size()
 
-		// Allow 1% variance in file size
-		if downloadedSize < int64(float64(expectedSize)*0.99) {
-			log.Printf("Error: Downloaded model size (%d MB) is smaller than expected (%d MB)",
-				downloadedSize, expectedSize)
-
-			// Delete the incomplete file
-			os.Remove(modelPath)
-			return fmt.Errorf("download incomplete: size mismatch")
+		// Only validate if we have expected size
+		if expectedSize > 0 {
+			// Allow 1% variance in file size
+			if downloadedSize < int64(float64(expectedSize)*0.99) {
+				log.Printf("Error: Downloaded model size (%d bytes) is smaller than expected (%d bytes)",
+					downloadedSize, expectedSize)
+				os.Remove(modelPath)
+				return fmt.Errorf("download incomplete: size mismatch")
+			}
 		}
+		log.Printf("Successfully downloaded model: %s (%.2f GB)", name, float64(downloadedSize)/(1024*1024*1024))
 	}
 
-	log.Printf("Successfully downloaded model: %s", name)
 	return nil
+}
+
+// getRemoteFileSize fetches the file size from remote URL via HTTP HEAD request
+func (sdrm *StableDiffusionReleaseManager) getRemoteFileSize(url string) (int64, error) {
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return nil // Follow redirects
+		},
+	}
+
+	req, err := http.NewRequest("HEAD", url, nil)
+	if err != nil {
+		return 0, err
+	}
+	req.Header.Set("User-Agent", "Kawai-Agent/1.0")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return 0, fmt.Errorf("HEAD request failed with status: %d", resp.StatusCode)
+	}
+
+	return resp.ContentLength, nil
 }
 
 // VerifyModelInstalled checks if a specific model is actually installed and available

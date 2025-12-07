@@ -35,6 +35,7 @@ import (
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/internal/llama"
 	"github.com/kawai-network/veridium/internal/llm"
+	"github.com/kawai-network/veridium/pkg/hardware"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
 	yzmabuiltin "github.com/kawai-network/veridium/pkg/yzma/tools/builtin"
 	"github.com/kawai-network/veridium/types"
@@ -1472,7 +1473,7 @@ func (s *AgentChatService) SetReasoningMode(mode ReasoningMode) error {
 	}
 
 	// Get hardware specs from the installer
-	var hardwareSpecs *llama.HardwareSpecs
+	var hardwareSpecs *hardware.HardwareSpecs
 	if s.libService != nil {
 		hardwareSpecs = s.libService.GetHardwareSpecs()
 	}
