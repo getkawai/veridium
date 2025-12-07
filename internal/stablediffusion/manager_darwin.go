@@ -5,7 +5,7 @@ package stablediffusion
 import "log"
 
 // selectBestAsset selects the best asset for macOS
-func (sdrm *StableDiffusionReleaseManager) selectBestAsset(assets []Asset) *Asset {
+func (sdrm *StableDiffusion) selectBestAsset(assets []Asset) *Asset {
 	var patterns []string
 
 	// macOS releases - actual format: sd-master--bin-Darwin-macOS-15.5-arm64.zip

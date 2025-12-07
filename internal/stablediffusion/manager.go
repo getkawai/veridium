@@ -80,8 +80,8 @@ func (e *DefaultCommandExecutor) Run(name string, args ...string) error {
 	return nil
 }
 
-// StableDiffusionReleaseManager handles Stable Diffusion CPP release management
-type StableDiffusionReleaseManager struct {
+// StableDiffusion handles Stable Diffusion CPP release management
+type StableDiffusion struct {
 	// GitHubOwner is the GitHub repository owner
 	GitHubOwner string
 	// GitHubRepo is the GitHub repository name
@@ -97,14 +97,14 @@ type StableDiffusionReleaseManager struct {
 	Executor CommandExecutor
 }
 
-// NewStableDiffusionReleaseManager creates a new Stable Diffusion release manager
-func NewStableDiffusionReleaseManager() *StableDiffusionReleaseManager {
+// New creates a new Stable Diffusion release manager
+func New() *StableDiffusion {
 	homeDir, _ := os.UserHomeDir()
 	binaryPath := filepath.Join(homeDir, ".stable-diffusion", "bin")
 	checksumsPath := filepath.Join(homeDir, ".stable-diffusion", "checksums")
 	metadataPath := filepath.Join(homeDir, ".stable-diffusion", "metadata")
 
-	return &StableDiffusionReleaseManager{
+	return &StableDiffusion{
 		GitHubOwner:   "leejet",
 		GitHubRepo:    "stable-diffusion.cpp",
 		BinaryPath:    binaryPath,
@@ -114,8 +114,8 @@ func NewStableDiffusionReleaseManager() *StableDiffusionReleaseManager {
 	}
 }
 
-// GetLatestRelease fetches the latest release information from GitHub with retry logic and rate limiting
-func (sdrm *StableDiffusionReleaseManager) GetLatestRelease() (*Release, error) {
+// getLatestRelease fetches the latest release information from GitHub with retry logic and rate limiting
+func (sdrm *StableDiffusion) getLatestRelease() (*Release, error) {
 	// Check if we have a cached release (within last hour)
 	if cachedRelease := sdrm.getCachedRelease(); cachedRelease != nil {
 		log.Printf("Using cached release: %s", cachedRelease.Version)
@@ -142,7 +142,7 @@ func (sdrm *StableDiffusionReleaseManager) GetLatestRelease() (*Release, error) 
 }
 
 // fetchFromGitHubAPI attempts to fetch release from GitHub API with rate limiting
-func (sdrm *StableDiffusionReleaseManager) fetchFromGitHubAPI() (*Release, error) {
+func (sdrm *StableDiffusion) fetchFromGitHubAPI() (*Release, error) {
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", sdrm.GitHubOwner, sdrm.GitHubRepo)
 
 	var lastErr error
@@ -217,7 +217,7 @@ func (sdrm *StableDiffusionReleaseManager) fetchFromGitHubAPI() (*Release, error
 }
 
 // getFallbackRelease provides a fallback release when GitHub API is rate limited
-func (sdrm *StableDiffusionReleaseManager) getFallbackRelease() (*Release, error) {
+func (sdrm *StableDiffusion) getFallbackRelease() (*Release, error) {
 	log.Printf("Using fallback release information...")
 
 	// Create a fallback release with known good assets
@@ -289,7 +289,7 @@ func (sdrm *StableDiffusionReleaseManager) getFallbackRelease() (*Release, error
 }
 
 // parseGitHubResponse parses the GitHub API response
-func (sdrm *StableDiffusionReleaseManager) parseGitHubResponse(resp *http.Response) (*Release, error) {
+func (sdrm *StableDiffusion) parseGitHubResponse(resp *http.Response) (*Release, error) {
 	// Parse the JSON response properly
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -309,15 +309,15 @@ func (sdrm *StableDiffusionReleaseManager) parseGitHubResponse(resp *http.Respon
 	return release, nil
 }
 
-// DownloadRelease downloads a specific version of Stable Diffusion CPP
-func (sdrm *StableDiffusionReleaseManager) DownloadRelease(version string, progressCallback func(float64)) error {
+// downloadRelease downloads a specific version of Stable Diffusion CPP
+func (sdrm *StableDiffusion) downloadRelease(version string, progressCallback func(float64)) error {
 	// Ensure the binary directory exists
 	if err := os.MkdirAll(sdrm.BinaryPath, 0755); err != nil {
 		return fmt.Errorf("failed to create binary directory: %w", err)
 	}
 
 	// Get the release information with assets
-	release, err := sdrm.GetLatestRelease()
+	release, err := sdrm.getLatestRelease()
 	if err != nil {
 		return fmt.Errorf("failed to get release information: %w", err)
 	}
@@ -327,7 +327,7 @@ func (sdrm *StableDiffusionReleaseManager) DownloadRelease(version string, progr
 }
 
 // downloadBestAsset finds and downloads the best asset for the current platform
-func (sdrm *StableDiffusionReleaseManager) downloadBestAsset(release *Release, progressCallback func(float64)) error {
+func (sdrm *StableDiffusion) downloadBestAsset(release *Release, progressCallback func(float64)) error {
 	if len(release.Assets) == 0 {
 		return fmt.Errorf("no assets found in release %s", release.Version)
 	}
@@ -354,7 +354,7 @@ func (sdrm *StableDiffusionReleaseManager) downloadBestAsset(release *Release, p
 // selectBestAsset is implemented in platform-specific files (manager_*.go)
 
 // matchesPattern checks if an asset name matches a pattern
-func (sdrm *StableDiffusionReleaseManager) matchesPattern(assetName, pattern string) bool {
+func (sdrm *StableDiffusion) matchesPattern(assetName, pattern string) bool {
 	// Convert to lowercase for case-insensitive matching
 	name := strings.ToLower(assetName)
 
@@ -371,7 +371,7 @@ func (sdrm *StableDiffusionReleaseManager) matchesPattern(assetName, pattern str
 }
 
 // downloadAsset downloads a specific asset
-func (sdrm *StableDiffusionReleaseManager) downloadAsset(asset *Asset, progressCallback func(float64)) error {
+func (sdrm *StableDiffusion) downloadAsset(asset *Asset, progressCallback func(float64)) error {
 	archivePath := filepath.Join(sdrm.BinaryPath, asset.Name)
 
 	// Final binary path
@@ -429,9 +429,9 @@ func (sdrm *StableDiffusionReleaseManager) downloadAsset(asset *Asset, progressC
 }
 
 // saveVersionMetadataWithAsset saves the installed version information with asset details
-func (sdrm *StableDiffusionReleaseManager) saveVersionMetadataWithAsset(assetName string) error {
+func (sdrm *StableDiffusion) saveVersionMetadataWithAsset(assetName string) error {
 	// Get the release information to extract version
-	release, err := sdrm.GetLatestRelease()
+	release, err := sdrm.getLatestRelease()
 	if err != nil {
 		return fmt.Errorf("failed to get release info: %w", err)
 	}
@@ -451,7 +451,7 @@ func (sdrm *StableDiffusionReleaseManager) saveVersionMetadataWithAsset(assetNam
 		Version:     release.Version,
 		AssetName:   assetName,
 		InstalledAt: time.Now(),
-		BinaryPath:  sdrm.GetBinaryPath(),
+		BinaryPath:  sdrm.getBinaryPath(),
 	}
 
 	// Marshal to JSON
@@ -470,8 +470,8 @@ func (sdrm *StableDiffusionReleaseManager) saveVersionMetadataWithAsset(assetNam
 	return nil
 }
 
-// GetBinaryName returns the appropriate binary name for the current platform
-func (sdrm *StableDiffusionReleaseManager) GetBinaryName(version string) string {
+// getBinaryName returns the appropriate binary name for the current platform
+func (sdrm *StableDiffusion) getBinaryName(version string) string {
 	osName := runtime.GOOS
 	arch := runtime.GOARCH
 
@@ -508,7 +508,7 @@ func (sdrm *StableDiffusionReleaseManager) GetBinaryName(version string) string 
 }
 
 // extractBinary extracts the Stable Diffusion binary from the downloaded archive
-func (sdrm *StableDiffusionReleaseManager) extractBinary(archivePath, outputPath string) error {
+func (sdrm *StableDiffusion) extractBinary(archivePath, outputPath string) error {
 	ext := filepath.Ext(archivePath)
 
 	switch ext {
@@ -522,7 +522,7 @@ func (sdrm *StableDiffusionReleaseManager) extractBinary(archivePath, outputPath
 }
 
 // extractTarGz extracts the binary from a .tgz archive
-func (sdrm *StableDiffusionReleaseManager) extractTarGz(archivePath, outputPath string) error {
+func (sdrm *StableDiffusion) extractTarGz(archivePath, outputPath string) error {
 	file, err := os.Open(archivePath)
 	if err != nil {
 		return fmt.Errorf("failed to open archive: %w", err)
@@ -573,7 +573,7 @@ func (sdrm *StableDiffusionReleaseManager) extractTarGz(archivePath, outputPath 
 }
 
 // extractZip extracts the binary and supporting libraries from a .zip archive
-func (sdrm *StableDiffusionReleaseManager) extractZip(archivePath, outputPath string) error {
+func (sdrm *StableDiffusion) extractZip(archivePath, outputPath string) error {
 	reader, err := zip.OpenReader(archivePath)
 	if err != nil {
 		return fmt.Errorf("failed to open zip archive: %w", err)
@@ -646,7 +646,7 @@ func (sdrm *StableDiffusionReleaseManager) extractZip(archivePath, outputPath st
 }
 
 // downloadFile downloads a file from a URL to a local path with optional progress callback
-func (sdrm *StableDiffusionReleaseManager) downloadFile(url, filepath string, progressCallback func(float64)) error {
+func (sdrm *StableDiffusion) downloadFile(url, filepath string, progressCallback func(float64)) error {
 	client := grab.NewClient()
 	req, err := grab.NewRequest(filepath, url)
 	if err != nil {
@@ -690,7 +690,7 @@ func (sdrm *StableDiffusionReleaseManager) downloadFile(url, filepath string, pr
 }
 
 // saveChecksums saves checksums persistently for future verification
-func (sdrm *StableDiffusionReleaseManager) saveChecksums(version, checksumPath, binaryName string) error {
+func (sdrm *StableDiffusion) saveChecksums(version, checksumPath, binaryName string) error {
 	// Ensure checksums directory exists
 	if err := os.MkdirAll(sdrm.ChecksumsPath, 0755); err != nil {
 		return fmt.Errorf("failed to create checksums directory: %w", err)
@@ -719,7 +719,7 @@ func (sdrm *StableDiffusionReleaseManager) saveChecksums(version, checksumPath, 
 }
 
 // saveVersionMetadata saves the installed version information
-func (sdrm *StableDiffusionReleaseManager) saveVersionMetadata(version string) error {
+func (sdrm *StableDiffusion) saveVersionMetadata(version string) error {
 	// Ensure metadata directory exists
 	if err := os.MkdirAll(sdrm.MetadataPath, 0755); err != nil {
 		return fmt.Errorf("failed to create metadata directory: %w", err)
@@ -733,7 +733,7 @@ func (sdrm *StableDiffusionReleaseManager) saveVersionMetadata(version string) e
 	}{
 		Version:     version,
 		InstalledAt: time.Now(),
-		BinaryPath:  sdrm.GetBinaryPath(),
+		BinaryPath:  sdrm.getBinaryPath(),
 	}
 
 	// Marshal to JSON
@@ -753,7 +753,7 @@ func (sdrm *StableDiffusionReleaseManager) saveVersionMetadata(version string) e
 }
 
 // VerifyChecksum verifies the downloaded file against the provided checksums
-func (sdrm *StableDiffusionReleaseManager) VerifyChecksum(filePath, checksumPath, binaryName string) error {
+func (sdrm *StableDiffusion) VerifyChecksum(filePath, checksumPath, binaryName string) error {
 	// Calculate the SHA256 of the downloaded file
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -793,15 +793,15 @@ func (sdrm *StableDiffusionReleaseManager) VerifyChecksum(filePath, checksumPath
 	return fmt.Errorf("checksum not found for %s", binaryName)
 }
 
-// GetInstalledVersion returns the currently installed version
-func (sdrm *StableDiffusionReleaseManager) GetInstalledVersion() string {
+// getInstalledVersion returns the currently installed version
+func (sdrm *StableDiffusion) getInstalledVersion() string {
 	// First try to get version from metadata
 	if version := sdrm.loadVersionMetadata(); version != "" {
 		return version
 	}
 
 	// Fallback: Check if the Stable Diffusion binary exists and try to get its version
-	binaryPath := sdrm.GetBinaryPath()
+	binaryPath := sdrm.getBinaryPath()
 	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
 		return "" // No version installed
 	}
@@ -831,7 +831,7 @@ func (sdrm *StableDiffusionReleaseManager) GetInstalledVersion() string {
 }
 
 // loadVersionMetadata loads the installed version from metadata file
-func (sdrm *StableDiffusionReleaseManager) loadVersionMetadata() string {
+func (sdrm *StableDiffusion) loadVersionMetadata() string {
 	metadataPath := filepath.Join(sdrm.MetadataPath, "installed-version.json")
 
 	// Check if metadata file exists
@@ -859,7 +859,7 @@ func (sdrm *StableDiffusionReleaseManager) loadVersionMetadata() string {
 	}
 
 	// Verify that the binary path in metadata matches current binary path
-	if metadata.BinaryPath != sdrm.GetBinaryPath() {
+	if metadata.BinaryPath != sdrm.getBinaryPath() {
 		log.Printf("Binary path mismatch in metadata, ignoring")
 		return ""
 	}
@@ -868,8 +868,8 @@ func (sdrm *StableDiffusionReleaseManager) loadVersionMetadata() string {
 	return metadata.Version
 }
 
-// GetBinaryPath returns the path to the Stable Diffusion binary
-func (sdrm *StableDiffusionReleaseManager) GetBinaryPath() string {
+// getBinaryPath returns the path to the Stable Diffusion binary
+func (sdrm *StableDiffusion) getBinaryPath() string {
 	binaryName := "sd"
 	if runtime.GOOS == "windows" {
 		binaryName += ".exe"
@@ -877,18 +877,18 @@ func (sdrm *StableDiffusionReleaseManager) GetBinaryPath() string {
 	return filepath.Join(sdrm.BinaryPath, binaryName)
 }
 
-// IsUpdateAvailable checks if an update is available
-func (sdrm *StableDiffusionReleaseManager) IsUpdateAvailable() (bool, string, error) {
+// isUpdateAvailable checks if an update is available
+func (sdrm *StableDiffusion) isUpdateAvailable() (bool, string, error) {
 	log.Printf("IsUpdateAvailable: checking for updates...")
 
-	latest, err := sdrm.GetLatestRelease()
+	latest, err := sdrm.getLatestRelease()
 	if err != nil {
 		log.Printf("IsUpdateAvailable: failed to get latest release: %v", err)
 		return false, "", err
 	}
 	log.Printf("IsUpdateAvailable: latest release version: %s", latest.Version)
 
-	current := sdrm.GetInstalledVersion()
+	current := sdrm.getInstalledVersion()
 	log.Printf("IsUpdateAvailable: current installed version: %s", current)
 
 	if current == "" {
@@ -903,14 +903,14 @@ func (sdrm *StableDiffusionReleaseManager) IsUpdateAvailable() (bool, string, er
 }
 
 // IsStableDiffusionInstalled checks if Stable Diffusion binary exists and is valid
-func (sdrm *StableDiffusionReleaseManager) IsStableDiffusionInstalled() bool {
-	binaryPath := sdrm.GetBinaryPath()
+func (sdrm *StableDiffusion) IsStableDiffusionInstalled() bool {
+	binaryPath := sdrm.getBinaryPath()
 	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
 		return false
 	}
 
 	// Verify the binary integrity if we have checksums
-	if err := sdrm.VerifyInstalledBinary(); err != nil {
+	if err := sdrm.verifyInstalledBinary(); err != nil {
 		log.Printf("Binary integrity check failed: %v", err)
 		// Remove corrupted binary
 		if removeErr := os.Remove(binaryPath); removeErr != nil {
@@ -922,9 +922,9 @@ func (sdrm *StableDiffusionReleaseManager) IsStableDiffusionInstalled() bool {
 	return true
 }
 
-// VerifyInstalledBinary verifies the installed binary against saved checksums
-func (sdrm *StableDiffusionReleaseManager) VerifyInstalledBinary() error {
-	binaryPath := sdrm.GetBinaryPath()
+// verifyInstalledBinary verifies the installed binary against saved checksums
+func (sdrm *StableDiffusion) verifyInstalledBinary() error {
+	binaryPath := sdrm.getBinaryPath()
 
 	// Check if the binary exists
 	if _, err := os.Stat(binaryPath); err != nil {
@@ -960,14 +960,14 @@ func (sdrm *StableDiffusionReleaseManager) VerifyInstalledBinary() error {
 	return nil
 }
 
-// CleanupPartialDownloads removes any partial or corrupted downloads
-func (sdrm *StableDiffusionReleaseManager) CleanupPartialDownloads() error {
-	binaryPath := sdrm.GetBinaryPath()
+// cleanupPartialDownloads removes any partial or corrupted downloads
+func (sdrm *StableDiffusion) cleanupPartialDownloads() error {
+	binaryPath := sdrm.getBinaryPath()
 
 	// Check if binary exists but is corrupted
 	if _, err := os.Stat(binaryPath); err == nil {
 		// Binary exists, verify it
-		if verifyErr := sdrm.VerifyInstalledBinary(); verifyErr != nil {
+		if verifyErr := sdrm.verifyInstalledBinary(); verifyErr != nil {
 			log.Printf("Found corrupted binary, removing: %v", verifyErr)
 			if removeErr := os.Remove(binaryPath); removeErr != nil {
 				log.Printf("Failed to remove corrupted binary: %v", removeErr)
@@ -989,7 +989,7 @@ func (sdrm *StableDiffusionReleaseManager) CleanupPartialDownloads() error {
 }
 
 // clearVersionMetadata clears the version metadata (used when binary is corrupted or removed)
-func (sdrm *StableDiffusionReleaseManager) clearVersionMetadata() {
+func (sdrm *StableDiffusion) clearVersionMetadata() {
 	metadataPath := filepath.Join(sdrm.MetadataPath, "installed-version.json")
 	if err := os.Remove(metadataPath); err != nil && !os.IsNotExist(err) {
 		log.Printf("Failed to clear version metadata: %v", err)
@@ -999,13 +999,13 @@ func (sdrm *StableDiffusionReleaseManager) clearVersionMetadata() {
 }
 
 // GetModelsPath returns the path where Stable Diffusion models are stored
-func (sdrm *StableDiffusionReleaseManager) GetModelsPath() string {
+func (sdrm *StableDiffusion) GetModelsPath() string {
 	homeDir, _ := os.UserHomeDir()
 	return filepath.Join(homeDir, ".stable-diffusion", "models")
 }
 
 // CheckInstalledModels checks what Stable Diffusion models are currently installed
-func (sdrm *StableDiffusionReleaseManager) CheckInstalledModels() ([]string, error) {
+func (sdrm *StableDiffusion) CheckInstalledModels() ([]string, error) {
 	modelsPath := sdrm.GetModelsPath()
 
 	// Check if models directory exists
@@ -1039,8 +1039,8 @@ func (sdrm *StableDiffusionReleaseManager) CheckInstalledModels() ([]string, err
 	return models, nil
 }
 
-// HasStableDiffusionModel checks if any Stable Diffusion model is installed
-func (sdrm *StableDiffusionReleaseManager) HasStableDiffusionModel(installedModels []string) bool {
+// hasStableDiffusionModel checks if any Stable Diffusion model is installed
+func (sdrm *StableDiffusion) hasStableDiffusionModel(installedModels []string) bool {
 	// Check for common Stable Diffusion model names
 	for _, model := range installedModels {
 		modelLower := strings.ToLower(model)
@@ -1055,8 +1055,8 @@ func (sdrm *StableDiffusionReleaseManager) HasStableDiffusionModel(installedMode
 	return false
 }
 
-// DownloadModel downloads a Stable Diffusion model from the specified URL
-func (sdrm *StableDiffusionReleaseManager) DownloadModel(modelSpec interface{}, progressCallback func(float64)) error {
+// downloadModel downloads a Stable Diffusion model from the specified URL
+func (sdrm *StableDiffusion) downloadModel(modelSpec interface{}, progressCallback func(float64)) error {
 	// Type assertion to get the model spec (we'll pass it from main.go)
 	spec, ok := modelSpec.(map[string]interface{})
 	if !ok {
@@ -1133,7 +1133,7 @@ func (sdrm *StableDiffusionReleaseManager) DownloadModel(modelSpec interface{}, 
 }
 
 // getRemoteFileSize fetches the file size from remote URL via HTTP HEAD request
-func (sdrm *StableDiffusionReleaseManager) getRemoteFileSize(url string) (int64, error) {
+func (sdrm *StableDiffusion) getRemoteFileSize(url string) (int64, error) {
 	client := &http.Client{
 		Timeout: 30 * time.Second,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -1160,8 +1160,8 @@ func (sdrm *StableDiffusionReleaseManager) getRemoteFileSize(url string) (int64,
 	return resp.ContentLength, nil
 }
 
-// VerifyModelInstalled checks if a specific model is actually installed and available
-func (sdrm *StableDiffusionReleaseManager) VerifyModelInstalled(modelName string) bool {
+// verifyModelInstalled checks if a specific model is actually installed and available
+func (sdrm *StableDiffusion) verifyModelInstalled(modelName string) bool {
 	installedModels, err := sdrm.CheckInstalledModels()
 	if err != nil {
 		log.Printf("Failed to verify model installation: %v", err)
@@ -1178,12 +1178,12 @@ func (sdrm *StableDiffusionReleaseManager) VerifyModelInstalled(modelName string
 }
 
 // GetModelPath returns the full path to a specific model file
-func (sdrm *StableDiffusionReleaseManager) GetModelPath(filename string) string {
+func (sdrm *StableDiffusion) GetModelPath(filename string) string {
 	return filepath.Join(sdrm.GetModelsPath(), filename)
 }
 
 // getCachedRelease returns a cached release if it's still valid (within 1 hour)
-func (sdrm *StableDiffusionReleaseManager) getCachedRelease() *Release {
+func (sdrm *StableDiffusion) getCachedRelease() *Release {
 	cachePath := filepath.Join(sdrm.MetadataPath, "release-cache.json")
 
 	// Check if cache file exists
@@ -1212,7 +1212,7 @@ func (sdrm *StableDiffusionReleaseManager) getCachedRelease() *Release {
 }
 
 // cacheRelease saves a release to cache
-func (sdrm *StableDiffusionReleaseManager) cacheRelease(release *Release) {
+func (sdrm *StableDiffusion) cacheRelease(release *Release) {
 	// Ensure metadata directory exists
 	os.MkdirAll(sdrm.MetadataPath, 0755)
 
@@ -1230,7 +1230,7 @@ func (sdrm *StableDiffusionReleaseManager) cacheRelease(release *Release) {
 }
 
 // clearReleaseCache removes the cached release data (useful for testing)
-func (sdrm *StableDiffusionReleaseManager) clearReleaseCache() {
+func (sdrm *StableDiffusion) clearReleaseCache() {
 	cachePath := filepath.Join(sdrm.MetadataPath, "release-cache.json")
 	if err := os.Remove(cachePath); err != nil && !os.IsNotExist(err) {
 		log.Printf("Failed to clear release cache: %v", err)
@@ -1239,8 +1239,8 @@ func (sdrm *StableDiffusionReleaseManager) clearReleaseCache() {
 	}
 }
 
-// CleanupModels removes any corrupted or incomplete model files
-func (sdrm *StableDiffusionReleaseManager) CleanupModels() error {
+// cleanupModels removes any corrupted or incomplete model files
+func (sdrm *StableDiffusion) cleanupModels() error {
 	modelsPath := sdrm.GetModelsPath()
 
 	// Check if models directory exists

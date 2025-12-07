@@ -15,6 +15,7 @@ import (
 	"github.com/kawai-network/veridium/internal/search"
 	"github.com/kawai-network/veridium/internal/services"
 	"github.com/kawai-network/veridium/internal/services/cache"
+	"github.com/kawai-network/veridium/internal/stablediffusion"
 	"github.com/kawai-network/veridium/internal/tableviewer"
 	"github.com/kawai-network/veridium/internal/tts"
 	"github.com/kawai-network/veridium/internal/whisper"
@@ -250,6 +251,8 @@ func main() {
 			application.NewService(services.NewFileService(fileBaseDir)),
 			// Machine ID service
 			application.NewService(&machineid.Service{}),
+			// Stable Diffusion service - for image generation
+			application.NewService(stablediffusion.New()),
 			// Local file system service
 			application.NewService(localfs.NewService()),
 			// Local file system service

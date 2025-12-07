@@ -42,7 +42,7 @@ type DallEImageItem struct {
 
 // ImageDesignerService provides image generation capabilities using Stable Diffusion
 type ImageDesignerService struct {
-	sdManager   *stablediffusion.StableDiffusionReleaseManager
+	sdManager   *stablediffusion.StableDiffusion
 	outputDir   string
 	initialized bool
 }
@@ -54,7 +54,7 @@ func NewImageDesignerService() *ImageDesignerService {
 	os.MkdirAll(outputDir, 0755)
 
 	return &ImageDesignerService{
-		sdManager:   stablediffusion.NewStableDiffusionReleaseManager(),
+		sdManager:   stablediffusion.New(),
 		outputDir:   outputDir,
 		initialized: false,
 	}
@@ -163,13 +163,13 @@ func (s *ImageDesignerService) Text2Image(prompts []string, quality, size, style
 			Width:          width,
 			Height:         height,
 			Steps:          steps,
-			Seed:           seed,
+			Seed:           &seed,
 		}
 
 		log.Printf("🖼️  Generating image %d/%d: %s", i+1, len(prompts), truncateString(prompt, 50))
 
 		// Execute SD via the manager
-		if err := s.sdManager.GenerateImage(options); err != nil {
+		if err := s.sdManager.CreateImageWithOptions(options); err != nil {
 			log.Printf("⚠️  SD generation failed: %v", err)
 			// Fallback to placeholder
 			result := s.generateSinglePlaceholder(prompt, quality, size, style, i)

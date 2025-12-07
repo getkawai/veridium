@@ -22,7 +22,7 @@ func TestGenerateImage_Integration(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	manager := NewStableDiffusionReleaseManager()
+	manager := New()
 
 	// Check if binary exists, if not skip
 	if !manager.IsStableDiffusionInstalled() {
@@ -54,6 +54,7 @@ func TestGenerateImage_Integration(t *testing.T) {
 
 	outputPath := filepath.Join(tmpDir, "test_output.png")
 
+	seed := int64(12345)
 	opts := GenerationOptions{
 		Prompt:     "a small red cube",
 		ModelPath:  modelPath,
@@ -61,10 +62,10 @@ func TestGenerateImage_Integration(t *testing.T) {
 		Width:      256,
 		Height:     256,
 		Steps:      2,
-		Seed:       12345,
+		Seed:       &seed,
 	}
 
-	err = manager.GenerateImage(opts)
+	err = manager.createImageInternal(opts)
 	if err != nil {
 		t.Fatalf("GenerateImage failed: %v", err)
 	}
@@ -77,7 +78,7 @@ func TestGenerateImage_Integration(t *testing.T) {
 // TestGenerateImage_Structure validates that we can call the method and it checks for binary existence properly
 func TestGenerateImage_BinaryCheck(t *testing.T) {
 	// Setup a dummy manager pointing to non-existent binary
-	manager := &StableDiffusionReleaseManager{
+	manager := &StableDiffusion{
 		BinaryPath: "/path/to/non/existent/binary",
 	}
 
@@ -87,7 +88,7 @@ func TestGenerateImage_BinaryCheck(t *testing.T) {
 		OutputPath: "out.png",
 	}
 
-	err := manager.GenerateImage(opts)
+	err := manager.createImageInternal(opts)
 	if err == nil {
 		t.Error("Expected error when binary is missing, got nil")
 	}

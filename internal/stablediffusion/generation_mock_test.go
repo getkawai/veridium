@@ -42,7 +42,7 @@ func (m *MockCommandExecutor) Run(name string, args ...string) error {
 func TestGenerateImage_Mock(t *testing.T) {
 	mockExecutor := &MockCommandExecutor{}
 
-	manager := NewStableDiffusionReleaseManager()
+	manager := New()
 	manager.Executor = mockExecutor
 
 	// Create temp output file path
@@ -76,7 +76,7 @@ func TestGenerateImage_Mock(t *testing.T) {
 	realBinPath := filepath.Join(dummyBinDir, binName)
 	os.WriteFile(realBinPath, []byte("dummy binary"), 0755)
 
-	err := manager.GenerateImage(opts)
+	err := manager.createImageInternal(opts)
 	if err != nil {
 		t.Fatalf("GenerateImage failed with mock: %v", err)
 	}

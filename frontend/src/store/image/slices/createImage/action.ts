@@ -1,6 +1,6 @@
 import { StateCreator } from 'zustand';
 
-import { imageService } from '@/services/image';
+import { CreateImage } from '@@/github.com/kawai-network/veridium/internal/stablediffusion/stablediffusion';
 
 import { ImageStore } from '../../store';
 import { generationBatchSelectors } from '../generationBatch/selectors';
@@ -73,7 +73,7 @@ export const createCreateImageSlice: StateCreator<
       }
 
       // 5. Create image via service
-      await imageService.createImage({
+      await CreateImage({
         generationTopicId: finalTopicId!,
         provider,
         model,
@@ -128,7 +128,7 @@ export const createCreateImageSlice: StateCreator<
       await removeGenerationBatch(generationBatchId, activeGenerationTopicId);
 
       // 2. Create image via service
-      await imageService.createImage({
+      await CreateImage({
         generationTopicId: activeGenerationTopicId,
         provider: batch.provider,
         model: batch.model,
