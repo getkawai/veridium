@@ -40,6 +40,7 @@ export interface GenerationBatchAction {
     enable?: boolean,
   ) => void;
   internal_fetchGenerationBatches: (topicId: string) => Promise<void>;
+  useFetchGenerationBatches: (topicId?: string | null) => Promise<GenerationBatch[]>;
 }
 
 // ====== action implementation ====== //
@@ -303,5 +304,8 @@ export const createGenerationBatchSlice: StateCreator<
       },
     );
     */
+  },
+  useFetchGenerationBatches: async (topicId) => {
+    return generationBatchService.getGenerationBatches(topicId);
   },
 });

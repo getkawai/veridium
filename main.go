@@ -246,6 +246,8 @@ func main() {
 			application.NewService(fileProcessorService),
 			// Knowledge Base service - for RAG with Chromem + Eino
 			application.NewService(kbService),
+			// File service - for local file storage
+			application.NewService(services.NewFileService(fileBaseDir)),
 			// Machine ID service
 			application.NewService(&machineid.Service{}),
 			// Local file system service

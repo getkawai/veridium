@@ -33,16 +33,7 @@ const DesktopMainLayout = memo<PropsWithChildren>(({ children }) => {
         }}
         width={'100%'}
       >
-        {isDesktop ? (
-          <DesktopLayoutContainer>{children}</DesktopLayoutContainer>
-        ) : (
-          <>
-            <Suspense>
-              <SideBar />
-            </Suspense>
-            {children}
-          </>
-        )}
+        <DesktopLayoutContainer>{children}</DesktopLayoutContainer>
       </Flexbox>
       <HotkeyHelperPanel />
       <Suspense>

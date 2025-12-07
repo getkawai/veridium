@@ -1,4 +1,4 @@
-import { RuntimeImageGenParamsKeys } from 'model-bank';
+import { RuntimeImageGenParamsKeys } from '@/model-bank';
 
 import { GenerationConfigState } from './initialState';
 

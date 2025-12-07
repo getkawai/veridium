@@ -16,6 +16,8 @@ import { setNamespace } from '@/utils/storeDebug';
 import type { ImageStore } from '../../store';
 import { GenerationTopicDispatch, generationTopicReducer } from './reducer';
 import { generationTopicSelectors } from './selectors';
+import { GenerationTopicModel } from '@/database/models/generationTopic';
+import { getUserId } from '@/store/user/helpers';
 
 const FETCH_GENERATION_TOPICS_KEY = 'fetchGenerationTopics';
 
@@ -25,6 +27,7 @@ export interface GenerationTopicAction {
   createGenerationTopic: (prompts: string[]) => Promise<string>;
   removeGenerationTopic: (id: string) => Promise<void>;
   internal_fetchGenerationTopics: (enabled?: boolean) => Promise<void>;
+  useFetchGenerationTopics: (enabled: boolean) => Promise<ImageGenerationTopic[]>;
   summaryGenerationTopicTitle: (topicId: string, prompts: string[]) => Promise<string>;
   refreshGenerationTopics: () => Promise<void>;
   switchGenerationTopic: (topicId: string) => void;
@@ -46,6 +49,11 @@ export const createGenerationTopicSlice: StateCreator<
   [],
   GenerationTopicAction
 > = (set, get) => ({
+  useFetchGenerationTopics: async (enabled) => {
+    if (!enabled) return [];
+    const generationTopicModel = new GenerationTopicModel(getUserId());
+    return generationTopicModel.queryAll();
+  },
   createGenerationTopic: async (prompts: string[]) => {
     // Validate prompts - cannot be empty
     if (!prompts || prompts.length === 0) {

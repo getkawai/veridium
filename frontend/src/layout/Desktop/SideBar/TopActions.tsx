@@ -40,7 +40,6 @@ const TopActions = memo<TopActionProps>(({ tab, isPinned }) => {
     <Flexbox gap={8}>
       <a
         aria-label={t('tab.chat')}
-        href={'/chat'}
         onClick={(e) => {
           // If Cmd key is pressed, let the default a behavior happen (open in new tab)
           if (e.metaKey || e.ctrlKey) {
@@ -77,7 +76,7 @@ const TopActions = memo<TopActionProps>(({ tab, isPinned }) => {
         </a>
       )}
       {showAiImage && (
-        <a aria-label={t('tab.aiImage')} href={'/image'}>
+        <a aria-label={t('tab.aiImage')}>
           <ActionIcon
             active={isImageActive}
             icon={Palette}

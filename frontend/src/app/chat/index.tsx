@@ -26,13 +26,12 @@ const DesktopChatLayout = () => {
         <Flexbox
           flex={1}
           style={{
-            // background: theme.colorBgContainerSecondary,
-            background: theme.colorBgContainer,
+            background: theme.colorBgContainerSecondary,
             overflow: 'hidden',
             position: 'relative',
           }}
         >
-          <Workspace/>
+          <Workspace />
         </Flexbox>
       </Flexbox>
       <Suspense>

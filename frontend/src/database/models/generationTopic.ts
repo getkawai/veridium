@@ -1,8 +1,5 @@
 import { GenerationAsset, ImageGenerationTopic } from  '@/types';
 import { nanoid } from 'nanoid';
-
-// import { FileService } from '@/server/services/file';
-
 import {
   DB,
   toNullString,
@@ -14,16 +11,14 @@ import {
 import { createModelLogger } from '@/utils/logger';
 import { GenerationTopicItem } from '@/types/database-legacy';
 import { NotificationService, NotificationOptions } from '@@/github.com/wailsapp/wails/v3/pkg/services/notifications';
+import { GetFullFileUrl } from '@@/github.com/kawai-network/veridium/internal/services/fileservice';
 
 export class GenerationTopicModel {
   private userId: string;
-  private fileService: FileService;
   private logger = createModelLogger('GenerationTopic', 'GenerationTopicModel', 'database/models/generationTopic');
 
-  constructor(_db: any, userId: string) {
+  constructor(userId: string) {
     this.userId = userId;
-    // Note: FileService still needs db for now, pass dummy
-    this.fileService = new FileService(null as any, userId);
   }
 
   /**
@@ -51,7 +46,7 @@ export class GenerationTopicModel {
       return Promise.all(
         topics.map(async (topic): Promise<ImageGenerationTopic> => {
           const coverUrl = getNullableString(topic.coverUrl as any);
-          const fullCoverUrl = coverUrl ? await this.fileService.getFullFileUrl(coverUrl) : null;
+          const fullCoverUrl = coverUrl ? await GetFullFileUrl(coverUrl) : null;
           
           return {
             id: topic.id,

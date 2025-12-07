@@ -4,6 +4,7 @@ import GlobalLayout from './layout/GlobalProvider';
 import DesktopMainLayout from './layout/Desktop';
 import DesktopChatLayout from './app/chat';
 import { useChatStore } from './store/chat';
+import DesktopImageLayout from './app/image';
 
 function App() {
   useEffect(() => {
@@ -37,6 +38,7 @@ function App() {
     <GlobalLayout appearance={'dark'} isMobile={false} locale={''} neutralColor={undefined} primaryColor={undefined} variants={undefined}>
       <DesktopMainLayout>
         <DesktopChatLayout />
+        <DesktopImageLayout />
       </DesktopMainLayout>
     </GlobalLayout>
   )

@@ -12,33 +12,33 @@ import (
 	"strings"
 )
 
-// LocalFileStorage handles local file storage operations
-type LocalFileStorage struct {
+// FileService handles local file storage operations
+type FileService struct {
 	BaseDir string // Base file directory
 }
 
-// NewLocalFileStorage creates new local file storage
-func NewLocalFileStorage(baseDir string) *LocalFileStorage {
-	return &LocalFileStorage{BaseDir: baseDir}
+// NewFileService creates new local file storage
+func NewFileService(baseDir string) *FileService {
+	return &FileService{BaseDir: baseDir}
 }
 
 // CreatePreSignedUrl creates pre-signed upload URL (for local files, just returns path)
-func (s *LocalFileStorage) CreatePreSignedUrl(key string) string {
+func (s *FileService) CreatePreSignedUrl(key string) string {
 	return filepath.Join(s.BaseDir, key)
 }
 
 // CreatePreSignedUrlForPreview creates pre-signed preview URL
-func (s *LocalFileStorage) CreatePreSignedUrlForPreview(key string) string {
+func (s *FileService) CreatePreSignedUrlForPreview(key string) string {
 	return filepath.Join(s.BaseDir, key)
 }
 
 // DeleteFile deletes a single file
-func (s *LocalFileStorage) DeleteFile(key string) error {
+func (s *FileService) DeleteFile(key string) error {
 	return s.DeleteFiles([]string{key})
 }
 
 // DeleteFiles batch deletes files
-func (s *LocalFileStorage) DeleteFiles(keys []string) error {
+func (s *FileService) DeleteFiles(keys []string) error {
 	if len(keys) == 0 {
 		return nil
 	}
@@ -65,7 +65,7 @@ func (s *LocalFileStorage) DeleteFiles(keys []string) error {
 }
 
 // isValidKey validates if key is valid (prevent path traversal attack)
-func (s *LocalFileStorage) isValidKey(key string) bool {
+func (s *FileService) isValidKey(key string) bool {
 	cleanKey := filepath.Clean(key)
 	if strings.Contains(cleanKey, "..") {
 		return false
@@ -74,13 +74,13 @@ func (s *LocalFileStorage) isValidKey(key string) bool {
 }
 
 // GetFileByteArray gets file byte array
-func (s *LocalFileStorage) GetFileByteArray(key string) ([]byte, error) {
+func (s *FileService) GetFileByteArray(key string) ([]byte, error) {
 	localPath := filepath.Join(s.BaseDir, key)
 	return os.ReadFile(localPath)
 }
 
 // GetFileContent gets file content as string
-func (s *LocalFileStorage) GetFileContent(key string) (string, error) {
+func (s *FileService) GetFileContent(key string) (string, error) {
 	localPath := filepath.Join(s.BaseDir, key)
 	content, err := os.ReadFile(localPath)
 	if err != nil {
@@ -90,7 +90,7 @@ func (s *LocalFileStorage) GetFileContent(key string) (string, error) {
 }
 
 // GetFullFileUrl gets complete file URL (for local files, returns the key)
-func (s *LocalFileStorage) GetFullFileUrl(fileUrl string) string {
+func (s *FileService) GetFullFileUrl(fileUrl string) string {
 	if fileUrl == "" {
 		return ""
 	}
@@ -98,7 +98,7 @@ func (s *LocalFileStorage) GetFullFileUrl(fileUrl string) string {
 }
 
 // GetKeyFromFullUrl extracts key from complete URL
-func (s *LocalFileStorage) GetKeyFromFullUrl(fullUrl string) string {
+func (s *FileService) GetKeyFromFullUrl(fullUrl string) string {
 	// If it's already a file path, return directly
 	if !strings.Contains(fullUrl, "://") {
 		return fullUrl
@@ -121,13 +121,13 @@ func (s *LocalFileStorage) GetKeyFromFullUrl(fullUrl string) string {
 }
 
 // UploadContent uploads content (not implemented)
-func (s *LocalFileStorage) UploadContent(filePath, content string) error {
+func (s *FileService) UploadContent(filePath, content string) error {
 	log.Printf("UploadContent not implemented for path: %s", filePath)
 	return errors.New("uploadContent not implemented")
 }
 
 // ReadFileFromAbsolutePath reads file from absolute path (for drag & drop)
-func (s *LocalFileStorage) ReadFileFromAbsolutePath(absolutePath string) ([]byte, error) {
+func (s *FileService) ReadFileFromAbsolutePath(absolutePath string) ([]byte, error) {
 	// Security check: ensure path is absolute and exists
 	if !filepath.IsAbs(absolutePath) {
 		return nil, fmt.Errorf("path must be absolute: %s", absolutePath)
@@ -145,7 +145,7 @@ func (s *LocalFileStorage) ReadFileFromAbsolutePath(absolutePath string) ([]byte
 // buffer parameter can be either:
 // - []byte: raw binary data
 // - string: base64-encoded data (for Wails binding compatibility)
-func (s *LocalFileStorage) UploadMedia(key string, buffer interface{}) (string, error) {
+func (s *FileService) UploadMedia(key string, buffer interface{}) (string, error) {
 	filename := filepath.Base(key)
 
 	// Convert buffer to []byte
