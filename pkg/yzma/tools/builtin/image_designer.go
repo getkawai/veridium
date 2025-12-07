@@ -1,16 +1,13 @@
 package builtin
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -119,7 +116,7 @@ func (s *ImageDesignerService) Text2Image(prompts []string, quality, size, style
 	}
 
 	// Get SD binary and model paths
-	sdBinary := s.sdManager.GetBinaryPath()
+	// Get model path
 	modelPath := s.GetFirstAvailableModel()
 
 	if modelPath == "" {
@@ -151,34 +148,29 @@ func (s *ImageDesignerService) Text2Image(prompts []string, quality, size, style
 			steps = 30
 		}
 
-		// Build SD command
-		// sd -m model.safetensors -p "prompt" -o output.png --width 1024 --height 1024 --steps 20 --seed 12345
-		args := []string{
-			"-m", modelPath,
-			"-p", prompt,
-			"-o", outputPath,
-			"--width", strconv.Itoa(width),
-			"--height", strconv.Itoa(height),
-			"--steps", strconv.Itoa(steps),
-			"--seed", strconv.FormatInt(seed, 10),
-		}
-
 		// Add negative prompt for better quality
 		negativePrompt := "ugly, blurry, low quality, distorted"
 		if style == "natural" {
 			negativePrompt = "cartoon, anime, illustration, " + negativePrompt
 		}
-		args = append(args, "-n", negativePrompt)
+
+		// Prepare generation options
+		options := stablediffusion.GenerationOptions{
+			Prompt:         prompt,
+			NegativePrompt: negativePrompt,
+			ModelPath:      modelPath,
+			OutputPath:     outputPath,
+			Width:          width,
+			Height:         height,
+			Steps:          steps,
+			Seed:           seed,
+		}
 
 		log.Printf("🖼️  Generating image %d/%d: %s", i+1, len(prompts), truncateString(prompt, 50))
 
-		// Execute SD
-		cmd := exec.Command(sdBinary, args...)
-		var stderr bytes.Buffer
-		cmd.Stderr = &stderr
-
-		if err := cmd.Run(); err != nil {
-			log.Printf("⚠️  SD generation failed: %v, stderr: %s", err, stderr.String())
+		// Execute SD via the manager
+		if err := s.sdManager.GenerateImage(options); err != nil {
+			log.Printf("⚠️  SD generation failed: %v", err)
 			// Fallback to placeholder
 			result := s.generateSinglePlaceholder(prompt, quality, size, style, i)
 			results = append(results, result)

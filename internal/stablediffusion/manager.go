@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"archive/zip"
 	"bufio"
+	"bytes"
 	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
@@ -59,6 +60,42 @@ func isARM64() bool {
 	return runtime.GOARCH == "arm64"
 }
 
+// CommandExecutor interface for executing commands
+type CommandExecutor interface {
+	Run(name string, args ...string) error
+}
+
+// DefaultCommandExecutor implements CommandExecutor using os/exec
+type DefaultCommandExecutor struct{}
+
+func (e *DefaultCommandExecutor) Run(name string, args ...string) error {
+	cmd := exec.Command(name, args...)
+
+	// Create environment variables for dynamic libraries based on OS
+	// Reuse logic from previous GenerateImage implementation
+	env := os.Environ()
+	binDir := filepath.Dir(name)
+
+	switch runtime.GOOS {
+	case "darwin":
+		env = append(env, fmt.Sprintf("DYLD_LIBRARY_PATH=%s", binDir))
+	case "linux":
+		env = append(env, fmt.Sprintf("LD_LIBRARY_PATH=%s", binDir))
+	case "windows":
+		env = append(env, fmt.Sprintf("PATH=%s;%%PATH%%", binDir))
+	}
+	cmd.Env = env
+
+	// Check if we need to capture output (could be enhanced)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("command execution failed: %w, stderr: %s", err, stderr.String())
+	}
+	return nil
+}
+
 // StableDiffusionReleaseManager handles Stable Diffusion CPP release management
 type StableDiffusionReleaseManager struct {
 	// GitHubOwner is the GitHub repository owner
@@ -67,12 +104,13 @@ type StableDiffusionReleaseManager struct {
 	GitHubRepo string
 	// BinaryPath is where the Stable Diffusion binary is stored locally
 	BinaryPath string
-	// CurrentVersion is the currently installed version
-	CurrentVersion string
 	// ChecksumsPath is where checksums are stored
 	ChecksumsPath string
 	// MetadataPath is where version metadata is stored
 	MetadataPath string
+
+	// Executor handles command execution, simpler for testing
+	Executor CommandExecutor
 }
 
 // NewStableDiffusionReleaseManager creates a new Stable Diffusion release manager
@@ -83,12 +121,12 @@ func NewStableDiffusionReleaseManager() *StableDiffusionReleaseManager {
 	metadataPath := filepath.Join(homeDir, ".stable-diffusion", "metadata")
 
 	return &StableDiffusionReleaseManager{
-		GitHubOwner:    "leejet",
-		GitHubRepo:     "stable-diffusion.cpp",
-		BinaryPath:     binaryPath,
-		CurrentVersion: "",
-		ChecksumsPath:  checksumsPath,
-		MetadataPath:   metadataPath,
+		GitHubOwner:   "leejet",
+		GitHubRepo:    "stable-diffusion.cpp",
+		BinaryPath:    binaryPath,
+		ChecksumsPath: checksumsPath,
+		MetadataPath:  metadataPath,
+		Executor:      &DefaultCommandExecutor{},
 	}
 }
 
@@ -524,7 +562,7 @@ func (sdrm *StableDiffusionReleaseManager) extractTarGz(archivePath, outputPath 
 	return fmt.Errorf("sd binary not found in archive")
 }
 
-// extractZip extracts the binary from a .zip archive
+// extractZip extracts the binary and supporting libraries from a .zip archive
 func (sdrm *StableDiffusionReleaseManager) extractZip(archivePath, outputPath string) error {
 	reader, err := zip.OpenReader(archivePath)
 	if err != nil {
@@ -532,38 +570,69 @@ func (sdrm *StableDiffusionReleaseManager) extractZip(archivePath, outputPath st
 	}
 	defer reader.Close()
 
+	binaryFound := false
+	binDir := filepath.Dir(outputPath)
+
 	for _, file := range reader.File {
-		// Look for the sd binary (could be sd.exe on Windows or sd on Unix)
-		if (strings.Contains(file.Name, "sd") && !strings.Contains(file.Name, ".")) ||
+		if file.FileInfo().IsDir() {
+			continue
+		}
+
+		// Extract the sd binary
+		isBinary := (strings.Contains(file.Name, "sd") && !strings.Contains(file.Name, ".")) ||
 			strings.HasSuffix(file.Name, "sd") ||
 			strings.HasSuffix(file.Name, "sd.exe") ||
-			strings.Contains(file.Name, "bin/sd") {
-			if !file.FileInfo().IsDir() {
-				// Found the binary, extract it
-				rc, err := file.Open()
-				if err != nil {
-					return fmt.Errorf("failed to open file in archive: %w", err)
-				}
-				defer rc.Close()
+			strings.Contains(file.Name, "bin/sd")
 
-				outputFile, err := os.Create(outputPath)
-				if err != nil {
-					return fmt.Errorf("failed to create output file: %w", err)
-				}
-				defer outputFile.Close()
+		// Extract .dylib files (macOS), .so files (Linux), .dll files (Windows)
+		isLibrary := strings.HasSuffix(file.Name, ".dylib") ||
+			strings.HasSuffix(file.Name, ".so") ||
+			strings.HasSuffix(file.Name, ".dll")
 
-				_, err = io.Copy(outputFile, rc)
-				if err != nil {
-					return fmt.Errorf("failed to extract binary: %w", err)
-				}
-
-				log.Printf("Extracted binary from %s to %s", file.Name, outputPath)
-				return nil
+		if isBinary || isLibrary {
+			rc, err := file.Open()
+			if err != nil {
+				return fmt.Errorf("failed to open file in archive: %w", err)
 			}
+			defer rc.Close()
+
+			// Determine output path
+			var targetPath string
+			if isBinary {
+				targetPath = outputPath
+				binaryFound = true
+			} else {
+				// Extract libraries to the same directory as the binary
+				targetPath = filepath.Join(binDir, filepath.Base(file.Name))
+			}
+
+			outputFile, err := os.Create(targetPath)
+			if err != nil {
+				return fmt.Errorf("failed to create output file: %w", err)
+			}
+			defer outputFile.Close()
+
+			_, err = io.Copy(outputFile, rc)
+			if err != nil {
+				return fmt.Errorf("failed to extract file: %w", err)
+			}
+
+			// Make executable on Unix systems
+			if runtime.GOOS != "windows" && (isBinary || isLibrary) {
+				if err := os.Chmod(targetPath, 0755); err != nil {
+					log.Printf("Warning: failed to make file executable: %v", err)
+				}
+			}
+
+			log.Printf("Extracted %s from %s to %s", filepath.Base(file.Name), file.Name, targetPath)
 		}
 	}
 
-	return fmt.Errorf("sd binary not found in zip archive")
+	if !binaryFound {
+		return fmt.Errorf("sd binary not found in zip archive")
+	}
+
+	return nil
 }
 
 // downloadFile downloads a file from a URL to a local path with optional progress callback
@@ -1002,10 +1071,17 @@ func (sdrm *StableDiffusionReleaseManager) DownloadModel(modelSpec interface{}, 
 	// Full path to the model file
 	modelPath := filepath.Join(modelsPath, filename)
 
-	// Check if model already exists
-	if _, err := os.Stat(modelPath); err == nil {
-		log.Printf("Model %s already exists, skipping download", name)
-		return nil
+	// Check if model already exists and is valid
+	if stat, err := os.Stat(modelPath); err == nil {
+		currentSize := stat.Size() / (1024 * 1024)
+		// Allow 1% variance
+		if currentSize >= int64(float64(size)*0.99) {
+			log.Printf("Model %s already exists (verified size), skipping download", name)
+			return nil
+		}
+		log.Printf("Model %s exists but size mismatch (%d MB vs %d MB). Deleting and redownloading...",
+			name, currentSize, size)
+		os.Remove(modelPath)
 	}
 
 	log.Printf("Downloading Stable Diffusion model: %s (%.1f GB)", name, float64(size)/1024)
@@ -1015,15 +1091,19 @@ func (sdrm *StableDiffusionReleaseManager) DownloadModel(modelSpec interface{}, 
 		return fmt.Errorf("failed to download model %s: %w", name, err)
 	}
 
-	// Verify the downloaded file size (basic check)
+	// Verify the downloaded file size
 	if stat, err := os.Stat(modelPath); err == nil {
 		downloadedSize := stat.Size() / (1024 * 1024) // Convert to MB
 		expectedSize := size
 
-		// Allow 10% variance in file size
-		if downloadedSize < int64(float64(expectedSize)*0.9) {
-			log.Printf("Warning: Downloaded model size (%d MB) is significantly smaller than expected (%d MB)",
+		// Allow 1% variance in file size
+		if downloadedSize < int64(float64(expectedSize)*0.99) {
+			log.Printf("Error: Downloaded model size (%d MB) is smaller than expected (%d MB)",
 				downloadedSize, expectedSize)
+
+			// Delete the incomplete file
+			os.Remove(modelPath)
+			return fmt.Errorf("download incomplete: size mismatch")
 		}
 	}
 

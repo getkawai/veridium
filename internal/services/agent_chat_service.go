@@ -713,8 +713,10 @@ func (s *AgentChatService) collectToolNames(ctx context.Context, req ChatRequest
 	return toolNames
 }
 
-// prepareMessagesWithSystemPrompt prepares messages with system prompt for yzma
-func (s *AgentChatService) prepareMessagesWithSystemPrompt(messages []fantasy.Message, session *AgentSession) []fantasy.Message {
+// buildSystemPrompt builds the system prompt string for fantasy.Agent
+// This is optimized for use with fantasy.WithSystemPrompt() which handles
+// system prompt injection internally. Returns just the prompt string.
+func (s *AgentChatService) buildSystemPrompt(session *AgentSession) string {
 	// Build base instruction
 	baseInstruction := "You are a helpful AI assistant. "
 
@@ -741,8 +743,34 @@ func (s *AgentChatService) prepareMessagesWithSystemPrompt(messages []fantasy.Me
 	// Apply reasoning mode to instruction
 	instruction := s.reasoningConfig.GetSystemPrompt(baseInstruction)
 
-	log.Printf("🧠 Preparing messages with reasoning mode: %s", s.reasoningConfig.Mode)
+	log.Printf("🧠 Building system prompt with reasoning mode: %s", s.reasoningConfig.Mode)
 	log.Printf("📝 System prompt length: %d chars", len(instruction))
+
+	return instruction
+}
+
+// getHistoryMessages returns message history from session, excluding system messages
+// This is optimized for use with fantasy.Agent which handles system prompt separately
+func (s *AgentChatService) getHistoryMessages(session *AgentSession) []fantasy.Message {
+	if len(session.Messages) == 0 {
+		return nil
+	}
+
+	// Filter out system messages - fantasy.Agent handles system prompt via WithSystemPrompt()
+	history := make([]fantasy.Message, 0, len(session.Messages))
+	for _, msg := range session.Messages {
+		if types.GetMessageRole(msg) != "system" {
+			history = append(history, msg)
+		}
+	}
+	return history
+}
+
+// prepareMessagesWithSystemPrompt prepares messages with system prompt for yzma
+// DEPRECATED: Use buildSystemPrompt() + getHistoryMessages() with fantasy.Agent instead
+// Kept for backward compatibility with non-Agent code paths
+func (s *AgentChatService) prepareMessagesWithSystemPrompt(messages []fantasy.Message, session *AgentSession) []fantasy.Message {
+	instruction := s.buildSystemPrompt(session)
 
 	// Check if messages already have system prompt
 	if len(messages) > 0 && types.GetMessageRole(messages[0]) == "system" {

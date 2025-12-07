@@ -186,31 +186,25 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 		}
 	}
 
-	// 4. Prepare messages for LLM
-	messagesWithSystem := s.prepareMessagesWithSystemPrompt(session.Messages, session)
+	// 4. Build system prompt and get history messages (optimized for fantasy.Agent)
+	systemPrompt := s.buildSystemPrompt(session)
+	historyMessages := s.getHistoryMessages(session)
 
-	// 4.5. Inject file context into system prompt if we have relevant chunks
+	// 4.5. Build file context if we have relevant chunks
+	var fileContext string
 	if len(fileChunks) > 0 {
-		fileContext := "\n\n## Relevant Context from Attached Files:\n"
+		fileContext = "\n\n## Relevant Context from Attached Files:\n"
 		for i, chunk := range fileChunks {
-			// Include file_id so LLM can use it when calling tools like getImageDescription
 			fileContext += fmt.Sprintf("\n### [%d] From: %s (file_id: %s, similarity: %.2f)\n%s\n", i+1, chunk.Filename, chunk.FileID, chunk.Similarity, chunk.Text)
 		}
 		fileContext += "\n---\nUse the above context to help answer the user's question. When using tools like getImageDescription, use the file_id provided above.\n"
+		log.Printf("📝 [REAL STREAM] Prepared %d file chunks for context", len(fileChunks))
+	}
 
-		// Inject file context by modifying the user's last message
-		// This is more compatible with different message types
-		if len(messagesWithSystem) > 0 {
-			// Find and modify the last user message to include file context
-			for i := len(messagesWithSystem) - 1; i >= 0; i-- {
-				if types.GetMessageRole(messagesWithSystem[i]) == "user" {
-					originalText := types.GetMessageText(messagesWithSystem[i])
-					messagesWithSystem[i] = fantasy.NewUserMessage(originalText + fileContext)
-					break
-				}
-			}
-		}
-		log.Printf("📝 [REAL STREAM] Injected %d file chunks into context", len(fileChunks))
+	// Build user prompt with file context if available
+	userPrompt := req.Message
+	if fileContext != "" {
+		userPrompt = req.Message + fileContext
 	}
 
 	// Use pre-generated assistant message ID from frontend, or generate new one
@@ -248,37 +242,17 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 		// Convert tools from ToolRegistry to fantasy.AgentTool
 		agentTools := s.toolRegistry.ToAgentTools(session.ToolNames)
 
-		// Extract system prompt and prepare messages for fantasy.Agent
-		// fantasy.Agent.createPrompt expects: system (optional), prompt (required), messages (history)
-		var systemPrompt string
-		var historyMessages []fantasy.Message
-		var userPrompt string
-
-		for i, msg := range messagesWithSystem {
-			role := types.GetMessageRole(msg)
-			if role == "system" && i == 0 {
-				systemPrompt = types.GetMessageText(msg)
-			} else if role == "user" && i == len(messagesWithSystem)-1 {
-				// Last user message becomes the prompt
-				userPrompt = types.GetMessageText(msg)
-			} else {
-				historyMessages = append(historyMessages, msg)
-			}
-		}
-
-		// Fallback: if no user prompt found, use the original request message
-		if userPrompt == "" {
-			userPrompt = req.Message
-		}
-
-		// 5. Create fantasy.Agent with tools and system prompt
+		// 5. Create fantasy.Agent with tools, system prompt, and repair function
+		// fantasy.Agent handles: system prompt injection, history, and current prompt internally
 		agent := fantasy.NewAgent(model,
 			fantasy.WithTools(agentTools...),
 			fantasy.WithSystemPrompt(systemPrompt),
 			fantasy.WithStopConditions(fantasy.StepCountIs(10)), // Max 10 iterations
+			fantasy.WithRepairToolCall(RepairToolCall),          // Auto-repair malformed tool calls
 		)
 
 		// Run agent with streaming callbacks
+		// fantasy.Agent.createPrompt will build: [system] + historyMessages + [user: userPrompt]
 		result, runErr := agent.Stream(ctx, fantasy.AgentStreamCall{
 			Prompt:   userPrompt,
 			Messages: historyMessages,
