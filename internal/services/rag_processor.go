@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/pkg/xlog"
-	"github.com/kawai-network/veridium/pkg/yzma/embedding"
+	llamaembed "github.com/kawai-network/veridium/fantasy/providers/llama-embed"
 	"github.com/kawai-network/veridium/types"
 )
 
@@ -17,13 +17,13 @@ type RAGProcessor struct {
 	queries     *db.Queries
 	duckDB      *DuckDBStore
 	fileLoader  *FileLoader
-	embedder    embedding.Embedder
+	embedder    llamaembed.Embedder
 	chunkSize   int
 	overlapSize int
 }
 
 // NewRAGProcessor creates a new RAG processor
-func NewRAGProcessor(database *sql.DB, duckDB *DuckDBStore, fileLoader *FileLoader, embedder embedding.Embedder) *RAGProcessor {
+func NewRAGProcessor(database *sql.DB, duckDB *DuckDBStore, fileLoader *FileLoader, embedder llamaembed.Embedder) *RAGProcessor {
 	return &RAGProcessor{
 		queries:     db.New(database),
 		duckDB:      duckDB,

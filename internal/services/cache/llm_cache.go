@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/kawai-network/veridium/pkg/xlog"
-	"github.com/kawai-network/veridium/pkg/yzma/embedding"
+	llamaembed "github.com/kawai-network/veridium/fantasy/providers/llama-embed"
 )
 
 // LLMCacheEntry represents a cached LLM response
@@ -51,7 +51,7 @@ type LLMCacheStats struct {
 
 // LLMCache provides semantic caching for LLM responses
 type LLMCache struct {
-	embedder  embedding.Embedder
+	embedder  llamaembed.Embedder
 	entries   map[string]*LLMCacheEntry // ID → Entry
 	embedIdx  map[string]string         // embedding hash → ID (for exact match)
 	mu        sync.RWMutex
@@ -91,7 +91,7 @@ func DefaultLLMCacheConfig() *LLMCacheConfig {
 }
 
 // NewLLMCache creates a new semantic LLM cache
-func NewLLMCache(embedder embedding.Embedder, config *LLMCacheConfig) *LLMCache {
+func NewLLMCache(embedder llamaembed.Embedder, config *LLMCacheConfig) *LLMCache {
 	if config == nil {
 		config = DefaultLLMCacheConfig()
 	}

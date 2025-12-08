@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	db "github.com/kawai-network/veridium/internal/database/generated"
-	"github.com/kawai-network/veridium/pkg/yzma/embedding"
+	llamaembed "github.com/kawai-network/veridium/fantasy/providers/llama-embed"
 )
 
 // SearchResult represents a search result from vector database
@@ -25,14 +25,14 @@ type SearchResult struct {
 type VectorSearchService struct {
 	queries  *db.Queries
 	duckDB   *DuckDBStore
-	embedder embedding.Embedder
+	embedder llamaembed.Embedder
 }
 
 // NewVectorSearchService creates a new vector search service
 func NewVectorSearchService(
 	database *sql.DB,
 	duckDB *DuckDBStore,
-	embedder embedding.Embedder,
+	embedder llamaembed.Embedder,
 ) (*VectorSearchService, error) {
 	if embedder == nil {
 		return nil, fmt.Errorf("embedder is required")
@@ -164,7 +164,7 @@ func (s *VectorSearchService) SemanticSearchMultipleFiles(ctx context.Context, u
 }
 
 // GetEmbedder returns the embedder
-func (s *VectorSearchService) GetEmbedder() embedding.Embedder {
+func (s *VectorSearchService) GetEmbedder() llamaembed.Embedder {
 	return s.embedder
 }
 

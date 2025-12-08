@@ -36,7 +36,7 @@ package cache
 
 import (
 	"github.com/kawai-network/veridium/pkg/xlog"
-	"github.com/kawai-network/veridium/pkg/yzma/embedding"
+	llamaembed "github.com/kawai-network/veridium/fantasy/providers/llama-embed"
 )
 
 // CacheManager manages all cache instances
@@ -62,7 +62,7 @@ func DefaultCacheConfig() *CacheConfig {
 }
 
 // NewCacheManager creates a new cache manager
-func NewCacheManager(embedder embedding.Embedder, config *CacheConfig) *CacheManager {
+func NewCacheManager(embedder llamaembed.Embedder, config *CacheConfig) *CacheManager {
 	if config == nil {
 		config = DefaultCacheConfig()
 	}
@@ -82,7 +82,7 @@ func NewCacheManager(embedder embedding.Embedder, config *CacheConfig) *CacheMan
 	return manager
 }
 
-// GetEmbeddingCache returns the embedding cache (implements embedding.Embedder)
+// GetEmbeddingCache returns the embedding cache (implements llamaembed.Embedder)
 func (m *CacheManager) GetEmbeddingCache() *EmbeddingCache {
 	return m.embeddingCache
 }
@@ -93,7 +93,7 @@ func (m *CacheManager) GetLLMCache() *LLMCache {
 }
 
 // GetCachedEmbedder returns the cached embedder if available, otherwise returns the original
-func (m *CacheManager) GetCachedEmbedder(original embedding.Embedder) embedding.Embedder {
+func (m *CacheManager) GetCachedEmbedder(original llamaembed.Embedder) llamaembed.Embedder {
 	if m.embeddingCache != nil {
 		return m.embeddingCache
 	}

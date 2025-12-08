@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/kawai-network/veridium/pkg/xlog"
-	"github.com/kawai-network/veridium/pkg/yzma/embedding"
+	llamaembed "github.com/kawai-network/veridium/fantasy/providers/llama-embed"
 )
 
 // EmbeddingCacheEntry represents a cached embedding with metadata
@@ -44,7 +44,7 @@ type EmbeddingCacheStats struct {
 
 // EmbeddingCache wraps an embedder with caching capability
 type EmbeddingCache struct {
-	embedder   embedding.Embedder
+	embedder   llamaembed.Embedder
 	cache      map[string]*EmbeddingCacheEntry
 	mu         sync.RWMutex
 	maxSize    int
@@ -71,7 +71,7 @@ func DefaultEmbeddingCacheConfig() *EmbeddingCacheConfig {
 }
 
 // NewEmbeddingCache creates a new embedding cache wrapper
-func NewEmbeddingCache(embedder embedding.Embedder, config *EmbeddingCacheConfig) *EmbeddingCache {
+func NewEmbeddingCache(embedder llamaembed.Embedder, config *EmbeddingCacheConfig) *EmbeddingCache {
 	if config == nil {
 		config = DefaultEmbeddingCacheConfig()
 	}
@@ -275,5 +275,5 @@ func (c *EmbeddingCache) Warmup(ctx context.Context, texts []string) error {
 	return nil
 }
 
-// Ensure EmbeddingCache implements embedding.Embedder
-var _ embedding.Embedder = (*EmbeddingCache)(nil)
+// Ensure EmbeddingCache implements llamaembed.Embedder
+var _ llamaembed.Embedder = (*EmbeddingCache)(nil)

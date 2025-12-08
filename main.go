@@ -23,7 +23,7 @@ import (
 	"github.com/kawai-network/veridium/internal/tts"
 	"github.com/kawai-network/veridium/internal/whisper"
 	"github.com/kawai-network/veridium/pkg/localfs"
-	"github.com/kawai-network/veridium/pkg/yzma/embedding"
+	llamaembed "github.com/kawai-network/veridium/fantasy/providers/llama-embed"
 	"github.com/kawai-network/veridium/pkg/yzma/tools/builtin"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
@@ -129,7 +129,7 @@ func main() {
 	}
 
 	// Initialize Embedder using pkg/yzma/embedding (custom interface, replaces Eino)
-	var embedder embedding.Embedder
+	var embedder llamaembed.Embedder
 	var cacheManager *cache.CacheManager
 	embeddingModelName := llamalib.GetRecommendedEmbeddingModel()
 	embeddingModel, exists := llamalib.GetEmbeddingModel(embeddingModelName)
@@ -138,7 +138,7 @@ func main() {
 	} else {
 		installer := llamalib.NewLlamaCppInstaller()
 		modelPath := filepath.Join(installer.GetModelsDirectory(), embeddingModel.Filename)
-		baseEmbedder, embedErr := embedding.NewLlamaEmbedder(&embedding.LlamaConfig{
+		baseEmbedder, embedErr := llamaembed.NewLlamaEmbedder(&llamaembed.LlamaConfig{
 			ModelPath:   modelPath,
 			ContextSize: 2048,
 		})
