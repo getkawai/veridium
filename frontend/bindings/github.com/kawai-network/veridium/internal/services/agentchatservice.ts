@@ -13,13 +13,6 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as fantasy$0 from "../../fantasy/models.js";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore: Unused imports
-import * as llm$0 from "../llm/models.js";
-
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
 /**
@@ -98,61 +91,13 @@ export function ChatRealStream(req: $models.ChatRequest): $CancellablePromise<vo
 }
 
 /**
- * ClearSession removes a session from memory
- */
-export function ClearSession(sessionID: string): $CancellablePromise<void> {
-    return $Call.ByID(3298569262, sessionID);
-}
-
-/**
- * GetReasoningConfig returns the current reasoning configuration
- */
-export function GetReasoningConfig(): $CancellablePromise<$models.ReasoningConfig> {
-    return $Call.ByID(46956079).then(($result: any) => {
-        return $$createType2($result);
-    });
-}
-
-/**
- * GetReasoningMode returns the current reasoning mode
- */
-export function GetReasoningMode(): $CancellablePromise<$models.ReasoningMode> {
-    return $Call.ByID(2342951530);
-}
-
-/**
- * GetRecommendedModelForMode returns the recommended model for current reasoning mode
- */
-export function GetRecommendedModelForMode(): $CancellablePromise<string> {
-    return $Call.ByID(1751664809);
-}
-
-/**
- * GetSessionHistory returns the message history for a session (native yzma format)
- */
-export function GetSessionHistory(sessionID: string): $CancellablePromise<fantasy$0.Message[]> {
-    return $Call.ByID(396946379, sessionID).then(($result: any) => {
-        return $$createType4($result);
-    });
-}
-
-/**
  * GetStreamEventPayloadType returns an empty StreamEventPayload for type inference.
  * This method exists to expose StreamEventPayload in Wails bindings.
  * Frontend can use this type for handling 'chat:stream' events.
  */
 export function GetStreamEventPayloadType(): $CancellablePromise<$models.StreamEventPayload> {
     return $Call.ByID(1681290149).then(($result: any) => {
-        return $$createType5($result);
-    });
-}
-
-/**
- * GetTaskRouter returns the current task router
- */
-export function GetTaskRouter(): $CancellablePromise<llm$0.TaskRouter | null> {
-    return $Call.ByID(2202841655).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType2($result);
     });
 }
 
@@ -165,42 +110,7 @@ export function SetReasoningMode(mode: $models.ReasoningMode): $CancellablePromi
     return $Call.ByID(3600806230, mode);
 }
 
-/**
- * SetTaskRouter sets a custom task router for multi-provider routing
- */
-export function SetTaskRouter(router: llm$0.TaskRouter | null): $CancellablePromise<void> {
-    return $Call.ByID(19462235, router);
-}
-
-/**
- * SetTitleModel sets a specific model for title generation
- * Use a small, fast model (e.g., Llama 3.2 1B) for efficiency
- * If not set, falls back to main chat model
- */
-export function SetTitleModel(modelPath: string): $CancellablePromise<void> {
-    return $Call.ByID(468930904, modelPath);
-}
-
-/**
- * SwitchToRecommendedModel loads the recommended model for current reasoning mode
- */
-export function SwitchToRecommendedModel(): $CancellablePromise<void> {
-    return $Call.ByID(3072995856);
-}
-
-/**
- * ValidateModelForReasoningMode checks if the currently loaded model is appropriate
- */
-export function ValidateModelForReasoningMode(): $CancellablePromise<void> {
-    return $Call.ByID(483038906);
-}
-
 // Private type creation functions
 const $$createType0 = $models.UIChatMessage.createFrom;
 const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = $models.ReasoningConfig.createFrom;
-const $$createType3 = fantasy$0.Message.createFrom;
-const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = $models.StreamEventPayload.createFrom;
-const $$createType6 = llm$0.TaskRouter.createFrom;
-const $$createType7 = $Create.Nullable($$createType6);
+const $$createType2 = $models.StreamEventPayload.createFrom;

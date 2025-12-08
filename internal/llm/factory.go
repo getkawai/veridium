@@ -96,7 +96,7 @@ func (f *ProviderFactory) CreateLanguageModel(config ProviderConfig) (fantasy.La
 		fantasyProvider, err = openai.New(opts...)
 
 	case ProviderLlama:
-		return nil, fmt.Errorf("llama model must be created with LibraryService, use LlamaLanguageModel instead")
+		return nil, fmt.Errorf("llama model must be created via fantasy/providers/llama provider with LibraryService")
 
 	default:
 		return nil, fmt.Errorf("unsupported provider type: %s", config.Type)

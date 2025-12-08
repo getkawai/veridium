@@ -890,54 +890,6 @@ export class ModelUsage {
 }
 
 /**
- * ReasoningConfig holds configuration for reasoning behavior
- */
-export class ReasoningConfig {
-    "Mode": ReasoningMode;
-
-    /**
-     * e.g., "llama", "mistral"
-     */
-    "PreferredNonReasoning": string;
-
-    /**
-     * e.g., "qwen", "gpt-oss"
-     */
-    "PreferredReasoning": string;
-
-    /**
-     * Whether to strip <think> tags from output
-     */
-    "StripThinkTags": boolean;
-
-    /** Creates a new ReasoningConfig instance. */
-    constructor($$source: Partial<ReasoningConfig> = {}) {
-        if (!("Mode" in $$source)) {
-            this["Mode"] = ReasoningMode.$zero;
-        }
-        if (!("PreferredNonReasoning" in $$source)) {
-            this["PreferredNonReasoning"] = "";
-        }
-        if (!("PreferredReasoning" in $$source)) {
-            this["PreferredReasoning"] = "";
-        }
-        if (!("StripThinkTags" in $$source)) {
-            this["StripThinkTags"] = false;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new ReasoningConfig instance from a string or object.
-     */
-    static createFrom($$source: any = {}): ReasoningConfig {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new ReasoningConfig($$parsedSource as Partial<ReasoningConfig>);
-    }
-}
-
-/**
  * ReasoningMode defines the reasoning behavior of the chat model
  */
 export enum ReasoningMode {

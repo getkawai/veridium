@@ -31,6 +31,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/kawai-network/veridium/fantasy"
+	llamaprovider "github.com/kawai-network/veridium/fantasy/providers/llama"
 	"github.com/kawai-network/veridium/internal/database"
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/internal/llama"
@@ -45,12 +46,11 @@ import (
 // AgentChatService provides agent-based chat with RAG, tools, and context awareness
 // This replaces/complements the existing LibraryChatService with Yzma-based capabilities
 type AgentChatService struct {
-	app         *application.App
-	db          *database.Service
-	libService  *llama.LibraryService
-	yzmaModel   *llama.LlamaYzmaModel     // Yzma model for all LLM operations (chat, title, summary)
-	llamaLM     *llama.LlamaLanguageModel // fantasy.LanguageModel wrapper for local llama
-	kbService   *KnowledgeBaseService
+	app        *application.App
+	db         *database.Service
+	libService *llama.LibraryService
+	llamaLM    fantasy.LanguageModel // fantasy.LanguageModel from llama provider
+	kbService  *KnowledgeBaseService
 	ragWorkflow *RAGWorkflow
 
 	// Vector search for file-based RAG (direct file attachments)
@@ -381,11 +381,26 @@ func NewAgentChatService(
 		log.Printf("✅ AgentChatService: Yzma builtin tools registered")
 	}
 
-	// Create Yzma model with tool registry (used for all LLM operations)
-	yzmaModel := llama.NewLlamaYzmaModel(libService, toolRegistry)
+	// Create llama provider with LibraryService and ToolRegistry
+	provider, err := llamaprovider.New(
+		llamaprovider.WithLibraryService(libService),
+		llamaprovider.WithToolRegistry(toolRegistry),
+	)
+	if err != nil {
+		log.Printf("⚠️  Warning: Failed to create llama provider: %v", err)
+	}
 
-	// Create fantasy.LanguageModel wrapper for local llama
-	llamaLM := llama.NewLlamaLanguageModel(yzmaModel, libService.GetLoadedChatModel())
+	// Get fantasy.LanguageModel from provider
+	var llamaLM fantasy.LanguageModel
+	if provider != nil {
+		ctx := context.Background()
+		llamaLM, err = provider.LanguageModel(ctx, "")
+		if err != nil {
+			log.Printf("⚠️  Warning: Failed to get language model from provider: %v", err)
+		} else {
+			log.Printf("✅ AgentChatService: Llama provider initialized")
+		}
+	}
 
 	// Auto-detect utility models for lightweight tasks
 	titleModelPath := detectTitleGenerationModel(libService)
@@ -400,7 +415,6 @@ func NewAgentChatService(
 		app:              app,
 		db:               db,
 		libService:       libService,
-		yzmaModel:        yzmaModel,
 		llamaLM:          llamaLM,
 		taskRouter:       taskRouter,
 		kbService:        kbService,
@@ -1327,7 +1341,7 @@ func (s *AgentChatService) switchToRecommendedModel() error {
 		return fmt.Errorf("failed to load recommended model: %w", err)
 	}
 
-	// Note: yzmaModel uses libService internally, so no need to recreate
+	// Note: llamaLM from provider uses libService internally, so no need to recreate
 
 	log.Printf("✅ Successfully switched to %s", recommendedModel)
 	return nil
