@@ -8,8 +8,8 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/kawai-network/veridium/fantasy/llamalib/download"
 	"github.com/kawai-network/veridium/pkg/hardware"
-	"github.com/kawai-network/veridium/pkg/yzma/download"
 )
 
 // Release represents a GitHub release

@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/kawai-network/veridium/fantasy/llamalib/tools/builtin"
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/internal/search"
 	"github.com/kawai-network/veridium/pkg/localfs"
-	"github.com/kawai-network/veridium/pkg/yzma/tools/builtin"
 	"github.com/kawai-network/veridium/types"
 )
 

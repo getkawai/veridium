@@ -22,10 +22,10 @@ import (
 	"log"
 
 	"github.com/kawai-network/veridium/fantasy"
+	"github.com/kawai-network/veridium/fantasy/llamalib/tools"
 	"github.com/kawai-network/veridium/fantasy/providers/openai"
 	"github.com/kawai-network/veridium/fantasy/providers/openaicompat"
 	"github.com/kawai-network/veridium/fantasy/providers/openrouter"
-	"github.com/kawai-network/veridium/pkg/yzma/tools"
 )
 
 // ProviderFactory creates LLM providers based on configuration

@@ -10,9 +10,9 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/kawai-network/veridium/fantasy/llamalib/llama"
+	"github.com/kawai-network/veridium/fantasy/llamalib/mtmd"
 	"github.com/kawai-network/veridium/pkg/hardware"
-	"github.com/kawai-network/veridium/pkg/yzma/llama"
-	"github.com/kawai-network/veridium/pkg/yzma/mtmd"
 )
 
 // Service provides LLM inference using llama.cpp as a library (via yzma)

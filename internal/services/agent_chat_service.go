@@ -32,10 +32,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/fantasy/llamalib"
+	"github.com/kawai-network/veridium/fantasy/llamalib/tools"
+	yzmabuiltin "github.com/kawai-network/veridium/fantasy/llamalib/tools/builtin"
 	"github.com/kawai-network/veridium/internal/database"
 	db "github.com/kawai-network/veridium/internal/database/generated"
-	"github.com/kawai-network/veridium/pkg/yzma/tools"
-	yzmabuiltin "github.com/kawai-network/veridium/pkg/yzma/tools/builtin"
 	"github.com/kawai-network/veridium/types"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )

@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/kawai-network/veridium/pkg/yzma/llama"
+	"github.com/kawai-network/veridium/fantasy/llamalib/llama"
 )
 
 const defaultContextSize = 2048

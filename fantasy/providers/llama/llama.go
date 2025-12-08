@@ -9,7 +9,7 @@ import (
 
 	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/fantasy/llamalib"
-	"github.com/kawai-network/veridium/pkg/yzma/tools"
+	"github.com/kawai-network/veridium/fantasy/llamalib/tools"
 )
 
 const (

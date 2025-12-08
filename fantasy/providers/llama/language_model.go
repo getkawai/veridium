@@ -10,9 +10,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/fantasy/llamalib"
-	"github.com/kawai-network/veridium/pkg/yzma/llama"
-	"github.com/kawai-network/veridium/pkg/yzma/template"
-	"github.com/kawai-network/veridium/pkg/yzma/tools"
+	"github.com/kawai-network/veridium/fantasy/llamalib/llama"
+	"github.com/kawai-network/veridium/fantasy/llamalib/template"
+	"github.com/kawai-network/veridium/fantasy/llamalib/tools"
 )
 
 // Default batch size for token processing

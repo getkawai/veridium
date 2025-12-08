@@ -10,7 +10,9 @@ import (
 
 	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/fantasy/llamalib"
+	"github.com/kawai-network/veridium/fantasy/llamalib/tools/builtin"
 	llamaprovider "github.com/kawai-network/veridium/fantasy/providers/llama"
+	llamaembed "github.com/kawai-network/veridium/fantasy/providers/llama-embed"
 	"github.com/kawai-network/veridium/fantasy/providers/openrouter"
 	"github.com/kawai-network/veridium/internal/audio_recorder"
 	"github.com/kawai-network/veridium/internal/database"
@@ -23,8 +25,6 @@ import (
 	"github.com/kawai-network/veridium/internal/tts"
 	"github.com/kawai-network/veridium/internal/whisper"
 	"github.com/kawai-network/veridium/pkg/localfs"
-	llamaembed "github.com/kawai-network/veridium/fantasy/providers/llama-embed"
-	"github.com/kawai-network/veridium/pkg/yzma/tools/builtin"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 	"github.com/wailsapp/wails/v3/pkg/services/fileserver"
