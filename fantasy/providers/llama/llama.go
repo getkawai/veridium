@@ -52,10 +52,7 @@ func New(opts ...Option) (Provider, error) {
 
 	// Create Service if not provided
 	if providerOptions.service == nil {
-		service, err := llamalib.NewService()
-		if err != nil {
-			return nil, fmt.Errorf("failed to create llamalib service: %w", err)
-		}
+		service := llamalib.NewService()
 		providerOptions.service = service
 	}
 

@@ -101,15 +101,7 @@ func main() {
 	// Initialize Llama.cpp Service FIRST (library-based LLM inference)
 	// This MUST be initialized before VectorSearchService to load llama.cpp library
 	// Auto-installs llama.cpp binaries and downloads models in background
-	libService, err := llamalib.NewService()
-	if err != nil {
-		log.Printf("⚠️  Warning: Failed to initialize Llama service: %v", err)
-		log.Printf("    LLM chat features will not be available.")
-	} else {
-		log.Printf("✅ Llama service initialized")
-		log.Printf("   Models directory: %s", libService.GetModelsDirectory())
-		log.Printf("   Auto-setup running in background...")
-	}
+	libService := llamalib.NewService()
 
 	// Initialize File Service base directory (needed by both FileService and FileProcessor)
 	// Use project root directory for easier development access
@@ -324,13 +316,14 @@ func main() {
 					if err != nil {
 						log.Printf("⚠️  Warning: Failed to create OpenRouter provider: %v", err)
 					} else {
-						// Use a capable model for tool calling
-						remoteModel, err := openRouterProvider.LanguageModel(ctx, "anthropic/claude-3.5-haiku")
+						// Auto-select best free model for agent/tool-calling tasks
+						selectedModelID := openrouter.AutoSelectModelForAgent()
+						remoteModel, err := openRouterProvider.LanguageModel(ctx, selectedModelID)
 						if err != nil {
 							log.Printf("⚠️  Warning: Failed to get OpenRouter language model: %v", err)
 						} else {
 							chainModels = append(chainModels, remoteModel)
-							log.Printf("✅ OpenRouter added as primary model (anthropic/claude-3.5-haiku)")
+							log.Printf("✅ OpenRouter added as primary model (%s)", selectedModelID)
 						}
 					}
 				}

@@ -53,7 +53,7 @@ type Service struct {
 }
 
 // NewService creates a new library-based llama.cpp service
-func NewService() (*Service, error) {
+func NewService() *Service {
 	installer := NewLlamaCppInstaller()
 
 	service := &Service{
@@ -66,7 +66,7 @@ func NewService() (*Service, error) {
 	// Start background initialization
 	go service.initializeInBackground()
 
-	return service, nil
+	return service
 }
 
 // initializeInBackground handles llama.cpp installation and library loading
