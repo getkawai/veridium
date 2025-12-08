@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/kawai-network/veridium/fantasy"
+	llamaprovider "github.com/kawai-network/veridium/fantasy/providers/llama"
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/internal/llama"
 	"github.com/kawai-network/veridium/internal/whisper"
@@ -30,6 +31,7 @@ type FileProcessorService struct {
 	fileLoader     *FileLoader
 	ragProcessor   *RAGProcessor
 	libraryService *llama.LibraryService
+	llamaProvider  llamaprovider.Provider // For VL (Vision-Language) processing
 	whisperService *whisper.Service
 	languageModel  fantasy.LanguageModel // For OCR/transcript cleanup
 }
@@ -55,6 +57,11 @@ func NewFileProcessorService(
 // SetLanguageModel sets the language model for OCR/transcript cleanup
 func (s *FileProcessorService) SetLanguageModel(model fantasy.LanguageModel) {
 	s.languageModel = model
+}
+
+// SetLlamaProvider sets the llama provider for VL (Vision-Language) processing
+func (s *FileProcessorService) SetLlamaProvider(provider llamaprovider.Provider) {
+	s.llamaProvider = provider
 }
 
 // ProcessFileRequest represents a file processing request
@@ -188,8 +195,31 @@ func (s *FileProcessorService) processImageDescriptionAsync(filePath, filename, 
 		// Slow path: use VL model for image description
 		xlog.Info("Async: Minimal text from OCR, using VL model", "ocr_length", len(cleanedText), "filename", filename)
 
-		// Ensure VL model is loaded
-		if s.libraryService != nil {
+		// Use llamaProvider for VL processing (preferred), fallback to libraryService
+		if s.llamaProvider != nil {
+			// Use provider's ProcessImage which handles model loading automatically
+			prompt := "Describe this image in detail. Include all visible text, objects, people, colors, and layout."
+			description, err := s.llamaProvider.ProcessImage(context.Background(), filePath, prompt, 2048)
+			if err != nil {
+				xlog.Error("Async: VL model processing failed", "error", err, "filename", filename)
+				// Fallback to OCR text if available
+				if len(cleanedText) > 0 {
+					finalContent = cleanedText
+					contentType = "OCR Text (Tesseract - VL fallback failed)"
+				} else {
+					return
+				}
+			} else {
+				finalContent = description
+				contentType = "Image Description (VL Model)"
+
+				// If we also have OCR text, append it
+				if len(cleanedText) > 0 {
+					finalContent = fmt.Sprintf("%s\n\n**Extracted Text (OCR):**\n%s", description, cleanedText)
+				}
+			}
+		} else if s.libraryService != nil {
+			// Fallback to libraryService for backward compatibility
 			if !s.libraryService.IsVLModelLoaded() {
 				if err := s.libraryService.LoadVLModel(""); err != nil {
 					xlog.Error("Async: Failed to load VL model", "error", err)

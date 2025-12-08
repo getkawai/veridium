@@ -15,6 +15,22 @@ const (
 	Name = "llama"
 )
 
+// Provider extends fantasy.Provider with llama-specific capabilities.
+// This interface provides access to VL (Vision-Language) model features
+// that are not part of the standard fantasy.Provider interface.
+type Provider interface {
+	fantasy.Provider
+
+	// VL (Vision-Language) model methods
+	ProcessImage(ctx context.Context, imagePath, prompt string, maxTokens int32) (string, error)
+	IsVLModelLoaded() bool
+	LoadVLModel(ctx context.Context, modelPath string) error
+
+	// Resource management
+	GetLibraryService() *internalllama.LibraryService
+	Cleanup()
+}
+
 type provider struct {
 	options options
 }
@@ -30,7 +46,8 @@ type options struct {
 type Option = func(*options)
 
 // New creates a new llama provider with the given options.
-func New(opts ...Option) (fantasy.Provider, error) {
+// Returns Provider interface which extends fantasy.Provider with VL capabilities.
+func New(opts ...Option) (Provider, error) {
 	providerOptions := options{
 		name: Name,
 	}
@@ -121,3 +138,47 @@ func (p *provider) Cleanup() {
 		p.options.libService.Cleanup()
 	}
 }
+
+// ============================================================================
+// VL (Vision-Language) Model Methods
+// ============================================================================
+
+// ProcessImage processes an image with accompanying text using VL model.
+// imagePath is the path to the image file to process.
+// prompt is the text prompt to guide the image description.
+// maxTokens is the maximum number of tokens to generate.
+func (p *provider) ProcessImage(ctx context.Context, imagePath, prompt string, maxTokens int32) (string, error) {
+	// Ensure library is initialized
+	if err := p.options.libService.WaitForInitialization(ctx); err != nil {
+		return "", fmt.Errorf("library initialization failed: %w", err)
+	}
+
+	// Check if VL model is loaded
+	if !p.options.libService.IsVLModelLoaded() {
+		// Try to auto-load VL model
+		if err := p.options.libService.LoadVLModel(""); err != nil {
+			return "", fmt.Errorf("VL model not loaded and failed to auto-load: %w", err)
+		}
+	}
+
+	return p.options.libService.ProcessImageWithText(imagePath, prompt, maxTokens)
+}
+
+// IsVLModelLoaded returns true if a VL model is currently loaded.
+func (p *provider) IsVLModelLoaded() bool {
+	return p.options.libService.IsVLModelLoaded()
+}
+
+// LoadVLModel loads a Vision-Language model.
+// If modelPath is empty, automatically selects the best available VL model.
+func (p *provider) LoadVLModel(ctx context.Context, modelPath string) error {
+	// Ensure library is initialized
+	if err := p.options.libService.WaitForInitialization(ctx); err != nil {
+		return fmt.Errorf("library initialization failed: %w", err)
+	}
+
+	return p.options.libService.LoadVLModel(modelPath)
+}
+
+// Ensure provider implements Provider interface
+var _ Provider = (*provider)(nil)
