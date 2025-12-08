@@ -13,9 +13,11 @@ import { authSelectors } from '@/store/user/slices/auth/selectors';
 import NewTopicButton from './NewTopicButton';
 import TopicItem from './TopicItem';
 
+// Lists existing generation topics and the “new topic” entry.
 const TopicsList = memo(() => {
   const isLogin = useUserStore(authSelectors.isLogin);
   const useFetchGenerationTopics = useImageStore((s) => s.useFetchGenerationTopics);
+  // Only fetch topics after the user logs in.
   useFetchGenerationTopics(!!isLogin);
   const ref = useRef(null);
   const { width = 80 } = useSize(ref) || {};
@@ -27,6 +29,7 @@ const TopicsList = memo(() => {
 
   const isEmpty = !generationTopics || generationTopics.length === 0;
   if (isEmpty) {
+    // Hide the list until topics are available.
     return null;
   }
 

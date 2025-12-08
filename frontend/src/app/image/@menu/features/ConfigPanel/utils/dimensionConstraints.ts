@@ -1,14 +1,23 @@
+/**
+ * Constraint untuk dimensi width dan height
+ */
 interface DimensionConstraints {
   height: { max: number; min: number };
   width: { max: number; min: number };
 }
 
 /**
- * Adjust image dimensions to fit within model constraints while maintaining aspect ratio
- * @param originalWidth Original image width
- * @param originalHeight Original image height
- * @param constraints Width and height constraints from model schema
- * @returns Adjusted dimensions within constraints
+ * Menyesuaikan dimensi gambar agar sesuai dengan constraint model sambil mempertahankan aspect ratio
+ * Algoritma:
+ * 1. Scale down jika melebihi maksimal
+ * 2. Scale up jika di bawah minimal
+ * 3. Round ke kelipatan 8 (requirement umum model AI)
+ * 4. Final bounds check
+ * 
+ * @param originalWidth - Lebar gambar asli
+ * @param originalHeight - Tinggi gambar asli
+ * @param constraints - Constraint width dan height dari schema model
+ * @returns Dimensi yang sudah disesuaikan dalam constraint
  */
 export const constrainDimensions = (
   originalWidth: number,

@@ -117,6 +117,13 @@ interface ImageNumSelectorProps {
   presetCounts?: number[];
 }
 
+/**
+ * Selector untuk jumlah gambar yang akan di-generate
+ * Fitur:
+ * - Preset buttons untuk nilai umum (1, 2, 4, 8)
+ * - Custom input dengan validasi range
+ * - Edit mode dengan confirm/cancel
+ */
 const ImageNum = memo<ImageNumSelectorProps>(
   ({ presetCounts = [1, 2, 4, 8], min = 1, max = 50, disabled = false }) => {
     const imageNum = useImageStore(imageGenerationConfigSelectors.imageNum);

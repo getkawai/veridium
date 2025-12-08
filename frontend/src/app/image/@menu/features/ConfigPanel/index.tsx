@@ -23,11 +23,18 @@ import SeedNumberInput from './components/SeedNumberInput';
 import SizeSelect from './components/SizeSelect';
 import StepsSliderInput from './components/StepsSliderInput';
 
+/**
+ * Props untuk layout item konfigurasi
+ */
 interface ConfigItemLayoutProps {
   children: ReactNode;
   label?: string;
 }
 
+/**
+ * Layout wrapper untuk setiap item konfigurasi
+ * Menampilkan label dan children dengan spacing konsisten
+ */
 const ConfigItemLayout = memo<ConfigItemLayoutProps>(({ label, children }) => {
   return (
     <Flexbox gap={8}>
@@ -39,6 +46,14 @@ const ConfigItemLayout = memo<ConfigItemLayoutProps>(({ label, children }) => {
 
 const isSupportedParamSelector = imageGenerationConfigSelectors.isSupportedParam;
 
+/**
+ * Panel konfigurasi utama untuk pengaturan generasi gambar
+ * Menampilkan kontrol dinamis berdasarkan model yang dipilih
+ * Fitur:
+ * - Auto-scroll detection untuk sticky footer
+ * - Dynamic parameter visibility berdasarkan model
+ * - Responsive layout dengan overflow handling
+ */
 const ConfigPanel = memo(() => {
   const { t } = useTranslation('image');
   const theme = useTheme();

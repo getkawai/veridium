@@ -16,17 +16,21 @@ import { useConfigPanelStyles } from '../style';
 
 // ======== Business Types ======== //
 
+/**
+ * Props untuk komponen ImageUpload
+ * Mendukung upload gambar tunggal dengan preview dan progress
+ */
 export interface ImageUploadProps {
-  // Callback when URL changes - supports both old API (string) and new API (object with dimensions)
-  className?: string; // Image URL
-  maxFileSize?: number;
+  className?: string;
+  maxFileSize?: number; // Maksimal ukuran file dalam bytes
+  // Callback saat URL berubah - mendukung API lama (string) dan baru (object dengan dimensi)
   onChange?: (
     data?:
-      | string // Old API: just URL
-      | { dimensions?: { height: number, width: number; }, url: string; }, // New API: URL with dimensions
+      | string // API lama: hanya URL
+      | { dimensions?: { height: number, width: number; }, url: string; }, // API baru: URL dengan dimensi
   ) => void;
   style?: React.CSSProperties;
-  value?: string | null;
+  value?: string | null; // URL gambar saat ini
 }
 
 /**
@@ -417,6 +421,15 @@ SuccessDisplay.displayName = 'SuccessDisplay';
 
 // ======== Main Component ======== //
 
+/**
+ * Komponen upload gambar tunggal dengan drag-and-drop
+ * Fitur:
+ * - Drag and drop support
+ * - Preview gambar dengan blob URL
+ * - Upload progress dengan circular indicator
+ * - Auto-extract dimensi gambar
+ * - Validasi ukuran file
+ */
 const ImageUpload: FC<ImageUploadProps> = memo(
   ({ value, onChange, style, className, maxFileSize }) => {
     const inputRef = useRef<HTMLInputElement>(null);

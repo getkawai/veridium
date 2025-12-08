@@ -6,6 +6,12 @@ import { useAutoDimensions } from '../hooks/useAutoDimensions';
 import ImageUpload from './ImageUpload';
 import MultiImagesUpload from './MultiImagesUpload';
 
+/**
+ * Komponen upload gambar yang adaptif berdasarkan maxCount
+ * - Jika maxCount = 1: gunakan ImageUpload (single)
+ * - Jika maxCount > 1: gunakan MultiImagesUpload (multiple)
+ * Auto-set dimensi dari gambar pertama jika belum ada gambar
+ */
 const ImageUrlsUpload = memo(() => {
   const { value, setValue, maxCount, maxFileSize } = useGenerationConfigParam('imageUrls');
   const { autoSetDimensions, extractUrlAndDimensions } = useAutoDimensions();

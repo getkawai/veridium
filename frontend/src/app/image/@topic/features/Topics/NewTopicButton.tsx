@@ -12,6 +12,7 @@ interface NewTopicButtonProps {
   showMoreInfo?: boolean;
 }
 
+// Renders the “new topic” entry; expands to show count when there is room.
 const NewTopicButton = memo<NewTopicButtonProps>(({ count, onClick, showMoreInfo }) => {
   const { t } = useTranslation('image');
 

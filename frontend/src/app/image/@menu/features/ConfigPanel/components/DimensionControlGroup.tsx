@@ -19,6 +19,13 @@ const styles = {
   },
 } as const;
 
+/**
+ * Grup kontrol untuk dimensi gambar (aspect ratio, width, height)
+ * Fitur:
+ * - Lock/unlock aspect ratio untuk maintain proporsi
+ * - Preset aspect ratio options
+ * - Manual width/height adjustment dengan slider
+ */
 const DimensionControlGroup = memo(() => {
   const { t } = useTranslation('image');
   const {

@@ -7,7 +7,7 @@ import { createStoreUpdater } from 'zustand-utils';
 import { useImageStore } from '@/store/image';
 
 /**
- * 双向绑定 url 的 topic 参数到 image store 的 activeGenerationTopicId
+ * Two-way sync between the `topic` query param and `activeGenerationTopicId`.
  */
 const TopicUrlSync = () => {
   const useStoreUpdater = createStoreUpdater(useImageStore);
@@ -28,7 +28,7 @@ const TopicUrlSync = () => {
     };
   }, [setTopic]);
 
-  // 这个组件不渲染任何UI，仅用于同步状态
+  // This component renders nothing; it only keeps URL and store in sync.
   return null;
 };
 

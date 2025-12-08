@@ -4,6 +4,10 @@ import { useTranslation } from 'react-i18next';
 
 import { useGenerationConfigParam } from '@/store/image/slices/generationConfig/hooks';
 
+/**
+ * Dropdown selector untuk kualitas gambar
+ * Biasanya: standard atau hd (high definition)
+ */
 const QualitySelect = memo(() => {
   const { t } = useTranslation('image');
   const { value, setValue, enumValues } = useGenerationConfigParam('quality');

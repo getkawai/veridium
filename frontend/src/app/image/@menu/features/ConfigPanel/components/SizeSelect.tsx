@@ -4,6 +4,11 @@ import { useGenerationConfigParam } from '@/store/image/slices/generationConfig/
 
 import Select from '../../../components/SizeSelect';
 
+/**
+ * Dropdown selector untuk ukuran gambar preset
+ * Contoh: "1024x1024", "512x768", dll
+ * Options dinamis berdasarkan model yang dipilih
+ */
 const SizeSelect = memo(() => {
   const { value, setValue, enumValues } = useGenerationConfigParam('size');
   const options = enumValues!.map((size) => ({

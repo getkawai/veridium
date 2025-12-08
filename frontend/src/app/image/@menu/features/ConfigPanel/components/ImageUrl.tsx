@@ -5,6 +5,10 @@ import { useGenerationConfigParam } from '@/store/image/slices/generationConfig/
 import { useAutoDimensions } from '../hooks/useAutoDimensions';
 import ImageUpload from './ImageUpload';
 
+/**
+ * Wrapper untuk ImageUpload yang terintegrasi dengan config store
+ * Auto-set dimensi gambar ke parameter width/height jika didukung model
+ */
 const ImageUrl = memo(() => {
   const { value: imageUrl, setValue, maxFileSize } = useGenerationConfigParam('imageUrl');
   const { autoSetDimensions, extractUrlAndDimensions } = useAutoDimensions();

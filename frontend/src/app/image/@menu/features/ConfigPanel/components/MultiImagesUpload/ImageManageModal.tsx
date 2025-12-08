@@ -11,28 +11,28 @@ import { useUploadFilesValidation } from '../../hooks/useUploadFilesValidation';
 // ======== Types ======== //
 
 /**
- * Unified image item data structure
- * - url: Remote URL of existing image
- * - file: Newly selected file that needs to be uploaded
- * - previewUrl: Preview URL for local file (blob URL)
- * Items with url are existing images, items with file are files to be uploaded
+ * Struktur data unified untuk image item
+ * - url: URL remote dari gambar yang sudah ada
+ * - file: File baru yang perlu di-upload
+ * - previewUrl: Preview URL untuk file lokal (blob URL)
+ * Item dengan url adalah gambar existing, item dengan file adalah file yang akan di-upload
  */
 export interface ImageItem {
-  // URL of existing image
-  file?: File;
-  id: string;
-  // Newly selected file
-  previewUrl?: string;
-  url?: string; // Preview URL for local file, only used when file exists
+  file?: File; // File baru yang dipilih
+  id: string; // ID unik
+  previewUrl?: string; // Preview URL untuk file lokal, hanya digunakan saat file ada
+  url?: string; // URL gambar yang sudah ada
 }
 
+/**
+ * Props untuk modal manajemen gambar
+ */
 interface ImageManageModalProps {
-  images: string[];
-  maxCount?: number;
-  // Array of existing image URLs
-  onClose: () => void;
-  onComplete: (imageItems: ImageItem[]) => void;
-  open: boolean; // Unified completion callback
+  images: string[]; // Array URL gambar yang sudah ada
+  maxCount?: number; // Maksimal jumlah gambar
+  onClose: () => void; // Callback saat modal ditutup
+  onComplete: (imageItems: ImageItem[]) => void; // Callback unified saat selesai
+  open: boolean; // Status modal terbuka/tertutup
 }
 
 // ======== Utils ======== //
@@ -195,6 +195,15 @@ const useStyles = createStyles(({ css, token }) => ({
 
 // ======== Main Component ======== //
 
+/**
+ * Modal untuk mengelola gambar yang sudah di-upload
+ * Fitur:
+ * - Preview gambar dalam ukuran besar
+ * - Thumbnail sidebar untuk navigasi
+ * - Delete gambar individual
+ * - Upload gambar tambahan
+ * - Indicator untuk file baru yang belum di-upload
+ */
 const ImageManageModal: FC<ImageManageModalProps> = memo(
   ({ open, images, maxCount, onClose, onComplete }) => {
     const { styles } = useStyles();

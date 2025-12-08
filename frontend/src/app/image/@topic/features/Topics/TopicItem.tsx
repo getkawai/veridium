@@ -33,7 +33,7 @@ const TopicItem = memo<TopicItemProps>(({ topic, showMoreInfo, style }) => {
   const { modal } = App.useApp();
   const locale = useGlobalStore(globalGeneralSelectors.currentLanguage);
 
-  // 检查当前 topic 是否在加载中
+  // Keep avatar in loading state when this topic is being fetched/saved.
   const isLoading = useImageStore(generationTopicSelectors.isLoadingGenerationTopic(topic.id));
   const removeGenerationTopic = useImageStore((s) => s.removeGenerationTopic);
   const switchGenerationTopic = useImageStore((s) => s.switchGenerationTopic);
@@ -64,6 +64,7 @@ const TopicItem = memo<TopicItemProps>(({ topic, showMoreInfo, style }) => {
     });
   };
 
+  // Shared tooltip content, shown inline when there is enough width.
   const tooltipContent = (
     <Flexbox
       align={'center'}

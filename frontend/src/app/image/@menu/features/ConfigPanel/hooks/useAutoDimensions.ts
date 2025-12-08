@@ -6,7 +6,7 @@ import { imageGenerationConfigSelectors } from '@/store/image/selectors';
 import { constrainDimensions } from '../utils/dimensionConstraints';
 
 /**
- * Extract URL and dimensions from callback data (supports both old and new API)
+ * Extract URL dan dimensi dari callback data (mendukung API lama dan baru)
  */
 const extractUrlAndDimensions = (
   data?: string | { dimensions?: { height: number; width: number }; url: string },
@@ -17,8 +17,9 @@ const extractUrlAndDimensions = (
 };
 
 /**
- * Custom hook for automatically setting image dimensions with model constraints
- * @returns Function to auto-set dimensions and type processing utilities
+ * Custom hook untuk auto-set dimensi gambar dengan constraint model
+ * Digunakan saat upload gambar untuk otomatis set width/height parameter
+ * @returns Function untuk auto-set dimensi dan utilities processing tipe
  */
 export const useAutoDimensions = () => {
   const paramsSchema = useImageStore(imageGenerationConfigSelectors.parametersSchema);

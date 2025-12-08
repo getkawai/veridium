@@ -1,3 +1,10 @@
+// Package main is the entry point for the Veridium desktop application.
+// Veridium is a Wails v3 application that provides AI-powered features including:
+//   - Local LLM inference via llama.cpp
+//   - Vector search and RAG (Retrieval-Augmented Generation)
+//   - Speech-to-text (Whisper) and text-to-speech
+//   - Knowledge base management
+//   - File processing with automatic embedding
 package main
 
 import (
@@ -6,7 +13,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/fantasy/llamalib"
@@ -16,6 +22,7 @@ import (
 	"github.com/kawai-network/veridium/fantasy/providers/openrouter"
 	"github.com/kawai-network/veridium/internal/audio_recorder"
 	"github.com/kawai-network/veridium/internal/database"
+	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/internal/machineid"
 	"github.com/kawai-network/veridium/internal/search"
 	"github.com/kawai-network/veridium/internal/services"
@@ -34,247 +41,319 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/services/sqlite"
 )
 
-// Wails uses Go's `embed` package to embed the frontend files into the binary.
-// Any files in the frontend/dist folder will be embedded into the binary and
-// made available to the frontend.
-// See https://pkg.go.dev/embed for more information.
+// ============================================================================
+// EMBEDDED ASSETS
+// ============================================================================
 
+// assets embeds the frontend build output (frontend/dist) into the binary.
+// This allows the application to serve the frontend without external files.
+//
 //go:embed all:frontend/dist
 var assets embed.FS
 
-// Dev mode flag - set via environment variable or build tag
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+
+// devMode enables development mode which disables caching for faster iteration.
+// Set VERIDIUM_DEV=1 or DEV=1 environment variable to enable.
 var devMode = os.Getenv("VERIDIUM_DEV") == "1" || os.Getenv("DEV") == "1"
 
-// main function serves as the application's entry point. It initializes the application, creates a window,
-// and starts a goroutine that emits a time-based event every second. It subsequently runs the application and
-// logs any error that might occur.
-func main() {
-	// Check dev mode
-	if devMode {
-		log.Printf("🔧 Development mode enabled (cache disabled)")
-	}
+const (
+	// fileBaseDir is the directory for storing uploaded/processed files.
+	fileBaseDir = "files"
 
-	// Initialize database service
-	dbService, err := database.NewService()
-	if err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
-	}
-	defer dbService.Close()
+	// duckDBPath is the path to the DuckDB database file for vector storage.
+	duckDBPath = "data/duckdb.db"
 
-	// Get queries - this is what we'll bind to Wails
-	queries := dbService.Queries()
+	// embeddingDims is the dimension size for the embedding model (granite-embedding uses 384).
+	embeddingDims = 384
 
-	// Create Search service
-	searchService := search.NewService()
+	// defaultUserID is the default user ID for single-user desktop mode.
+	defaultUserID = "DEFAULT_LOBE_CHAT_USER"
+)
 
-	// Initialize TTS service (native OS text-to-speech)
-	ttsService, err := tts.NewTTSService()
-	if err != nil {
-		log.Printf("⚠️  Warning: Failed to initialize TTS service: %v", err)
-	} else {
-		log.Printf("✅ TTS service initialized successfully")
-		log.Printf("   Platform: %s", ttsService.GetPlatformInfo()["platform"])
-	}
+// ============================================================================
+// APPLICATION CONTEXT
+// ============================================================================
 
-	// Initialize Whisper STT service (offline, 99 languages, whisper-cpp CLI)
-	// Auto-installs whisper-cpp and downloads recommended model in background
-	whisperService, err := whisper.NewService()
-	if err != nil {
-		log.Printf("⚠️  Warning: Failed to initialize Whisper service: %v", err)
-		log.Printf("    Speech-to-text features will not be available.")
-	}
+// AppContext holds all application services and state.
+// It provides a centralized place to manage service lifecycle and dependencies.
+type AppContext struct {
+	// Core Services
+	DB            *database.Service // SQLite database service
+	Queries       *db.Queries       // Generated sqlc queries
+	UserConfigDir string            // User's config directory path
 
-	defer whisperService.Close()
-	log.Printf("✅ Whisper STT service initialized")
-	log.Printf("   Models directory: %s", whisperService.GetModelsDirectory())
-	log.Printf("   Auto-setup running in background...")
+	// AI/ML Services
+	LibService   *llamalib.Service   // llama.cpp library service for LLM inference
+	Embedder     llamaembed.Embedder // Text embedding service
+	CacheManager *cache.CacheManager // Cache manager for embeddings and LLM responses
 
-	// Initialize Audio Recorder service (app will be set after creation)
-	audioRecorderService := audio_recorder.NewAudioRecorderService(nil)
+	// Storage Services
+	DuckDBStore *services.DuckDBStore // DuckDB vector store for embeddings
+	FileLoader  *services.FileLoader  // File loading and parsing service
 
-	// Get user data directory for all services
+	// Feature Services
+	SearchService  *search.Service                      // Web search service
+	TTSService     *tts.TTSService                      // Text-to-speech service (native OS)
+	WhisperService *whisper.Service                     // Speech-to-text service (Whisper)
+	AudioRecorder  *audio_recorder.AudioRecorderService // Microphone recording service
+	VectorSearch   *services.VectorSearchService        // Semantic vector search service
+	FileProcessor  *FileProcessorService                // File processing and RAG pipeline
+	KBService      *services.KnowledgeBaseService       // Knowledge base management
+
+	// Language Models - ChainLanguageModel instances for fallback support
+	ChatModel    fantasy.LanguageModel // Primary chat completion model
+	TitleModel   fantasy.LanguageModel // Model for generating chat titles
+	SummaryModel fantasy.LanguageModel // Model for summarization tasks
+	CleanupModel fantasy.LanguageModel // Model for text cleanup/formatting
+
+	// cleanupFuncs stores cleanup functions to be called on shutdown (LIFO order)
+	cleanupFuncs []func()
+}
+
+// NewAppContext creates a new AppContext with initialized user config directory.
+func NewAppContext() *AppContext {
 	userConfigDir, err := os.UserConfigDir()
 	if err != nil {
 		userConfigDir = "."
 	}
+	return &AppContext{
+		UserConfigDir: userConfigDir,
+		cleanupFuncs:  make([]func(), 0),
+	}
+}
 
-	// Initialize Llama.cpp Service FIRST (library-based LLM inference)
-	// This MUST be initialized before VectorSearchService to load llama.cpp library
-	// Auto-installs llama.cpp binaries and downloads models in background
-	libService := llamalib.NewService()
+// AddCleanup registers a cleanup function to be called on application shutdown.
+// Functions are called in reverse order (LIFO) during Cleanup().
+func (ctx *AppContext) AddCleanup(fn func()) {
+	ctx.cleanupFuncs = append(ctx.cleanupFuncs, fn)
+}
 
-	// Initialize File Service base directory (needed by both FileService and FileProcessor)
-	// Use project root directory for easier development access
-	fileBaseDir := filepath.Join("files")
-	os.MkdirAll(fileBaseDir, 0755)
+// Cleanup executes all registered cleanup functions in reverse order.
+// This ensures proper resource cleanup (e.g., closing database connections).
+func (ctx *AppContext) Cleanup() {
+	for i := len(ctx.cleanupFuncs) - 1; i >= 0; i-- {
+		ctx.cleanupFuncs[i]()
+	}
+}
 
-	// Initialize DuckDB Store (Vector Engine)
-	duckDBPath := "data/duckdb.db"
-	duckDBStore, err := services.NewDuckDBStore(duckDBPath, 384) // 384 dims for granite-embedding
+// ============================================================================
+// SERVICE INITIALIZATION
+// ============================================================================
+
+// initDatabase initializes the SQLite database service and sqlc queries.
+// Returns error if database initialization fails (fatal for the application).
+func (ctx *AppContext) initDatabase() error {
+	dbService, err := database.NewService()
 	if err != nil {
-		log.Printf("⚠️  Warning: Failed to initialize DuckDB Store: %v", err)
-		log.Printf("    Vector search will fall back to legacy mode.")
+		return err
+	}
+	ctx.DB = dbService
+	ctx.Queries = dbService.Queries()
+	ctx.AddCleanup(func() { dbService.Close() })
+	return nil
+}
+
+// initBasicServices initializes non-critical services (search, TTS, Whisper, audio).
+// These services are optional - failures are logged but don't stop the application.
+func (ctx *AppContext) initBasicServices() {
+	ctx.SearchService = search.NewService()
+
+	if ttsService, err := tts.NewTTSService(); err != nil {
+		log.Printf("Warning: Failed to initialize TTS service: %v", err)
 	} else {
-		log.Printf("✅ DuckDB Store initialized")
-		log.Printf("   Database path: %s", duckDBPath)
-		defer duckDBStore.Close()
+		ctx.TTSService = ttsService
+		log.Printf("TTS service initialized (platform: %s)", ttsService.GetPlatformInfo()["platform"])
 	}
 
-	// Initialize Embedder using pkg/yzma/embedding (custom interface, replaces Eino)
-	var embedder llamaembed.Embedder
-	var cacheManager *cache.CacheManager
+	if whisperService, err := whisper.NewService(); err != nil {
+		log.Printf("Warning: Failed to initialize Whisper service: %v", err)
+	} else {
+		ctx.WhisperService = whisperService
+		ctx.AddCleanup(func() { whisperService.Close() })
+		log.Printf("Whisper STT service initialized (models: %s)", whisperService.GetModelsDirectory())
+	}
+
+	ctx.AudioRecorder = audio_recorder.NewAudioRecorderService(nil)
+}
+
+// initLlamaService initializes the llama.cpp library service.
+// This MUST be called before initVectorStore and initEmbedder as they depend on llama.cpp.
+func (ctx *AppContext) initLlamaService() {
+	ctx.LibService = llamalib.NewService()
+}
+
+// initVectorStore initializes DuckDB for vector storage.
+// Creates the files directory and sets up the vector database for embedding storage.
+func (ctx *AppContext) initVectorStore() {
+	os.MkdirAll(fileBaseDir, 0755)
+
+	duckDBStore, err := services.NewDuckDBStore(duckDBPath, embeddingDims)
+	if err != nil {
+		log.Printf("Warning: Failed to initialize DuckDB Store: %v", err)
+		return
+	}
+	ctx.DuckDBStore = duckDBStore
+	ctx.AddCleanup(func() { duckDBStore.Close() })
+	log.Printf("DuckDB Store initialized (path: %s)", duckDBPath)
+}
+
+// initEmbedder initializes the text embedding service using llama.cpp.
+// In production mode, embeddings are cached to improve performance.
+// In dev mode, caching is disabled for faster iteration.
+func (ctx *AppContext) initEmbedder() {
 	embeddingModelName := llamalib.GetRecommendedEmbeddingModel()
 	embeddingModel, exists := llamalib.GetEmbeddingModel(embeddingModelName)
 	if !exists {
-		log.Printf("⚠️  Warning: Embedding model not found: %s", embeddingModelName)
-	} else {
-		installer := llamalib.NewLlamaCppInstaller()
-		modelPath := filepath.Join(installer.GetModelsDirectory(), embeddingModel.Filename)
-		baseEmbedder, embedErr := llamaembed.NewLlamaEmbedder(&llamaembed.LlamaConfig{
-			ModelPath:   modelPath,
-			ContextSize: 2048,
-		})
-		if embedErr != nil {
-			log.Printf("⚠️  Warning: Failed to create embedder: %v", embedErr)
-		} else {
-			log.Printf("✅ Embedder initialized (pkg/yzma/embedding)")
-			log.Printf("   Model: %s", embeddingModel.Name)
-			log.Printf("   Dimensions: %d", baseEmbedder.Dimensions())
-			defer baseEmbedder.Close()
+		log.Printf("Warning: Embedding model not found: %s", embeddingModelName)
+		return
+	}
 
-			// Wrap embedder with cache (disabled in dev mode)
-			if devMode {
-				embedder = baseEmbedder
-				log.Printf("⚠️  Cache disabled (dev mode)")
-			} else {
-				cacheManager = cache.NewCacheManager(baseEmbedder, nil)
-				embedder = cacheManager.GetCachedEmbedder(baseEmbedder)
-				log.Printf("✅ Cache layer initialized")
-				log.Printf("   Embedding cache: max 10000 entries, TTL 24h")
-				log.Printf("   LLM cache: max 1000 entries, TTL 1h, similarity threshold 0.95")
+	installer := llamalib.NewLlamaCppInstaller()
+	modelPath := filepath.Join(installer.GetModelsDirectory(), embeddingModel.Filename)
+
+	baseEmbedder, err := llamaembed.NewLlamaEmbedder(&llamaembed.LlamaConfig{
+		ModelPath:   modelPath,
+		ContextSize: 2048,
+	})
+	if err != nil {
+		log.Printf("Warning: Failed to create embedder: %v", err)
+		return
+	}
+	ctx.AddCleanup(func() { baseEmbedder.Close() })
+	log.Printf("Embedder initialized (model: %s, dims: %d)", embeddingModel.Name, baseEmbedder.Dimensions())
+
+	if devMode {
+		ctx.Embedder = baseEmbedder
+		log.Printf("Cache disabled (dev mode)")
+	} else {
+		ctx.CacheManager = cache.NewCacheManager(baseEmbedder, nil)
+		ctx.Embedder = ctx.CacheManager.GetCachedEmbedder(baseEmbedder)
+		log.Printf("Cache layer initialized")
+	}
+}
+
+// initVectorSearch initializes the semantic vector search service.
+// Requires Embedder to be initialized first. Combines DuckDB and SQLite for search.
+func (ctx *AppContext) initVectorSearch() {
+	if ctx.Embedder == nil {
+		log.Printf("Warning: Embedder not available, Vector Search service disabled")
+		return
+	}
+
+	vectorSearch, err := services.NewVectorSearchService(ctx.DB.DB(), ctx.DuckDBStore, ctx.Embedder)
+	if err != nil {
+		log.Printf("Warning: Failed to initialize Vector Search service: %v", err)
+		return
+	}
+	ctx.VectorSearch = vectorSearch
+	log.Printf("Vector Search service initialized (DuckDB + SQLite)")
+}
+
+// initFileProcessor initializes the file processing service.
+// Handles file parsing, document storage, RAG processing, and video transcription.
+func (ctx *AppContext) initFileProcessor() {
+	ctx.FileLoader = services.NewFileLoader()
+	ctx.FileProcessor = NewFileProcessorService(
+		ctx.DB.DB(),
+		ctx.FileLoader,
+		ctx.VectorSearch,
+		ctx.DuckDBStore,
+		ctx.LibService,
+		ctx.WhisperService,
+		fileBaseDir,
+	)
+	log.Printf("File Processor service initialized")
+}
+
+// initKnowledgeBase initializes the knowledge base service for RAG.
+// Requires VectorSearch and FileProcessor to be initialized first.
+func (ctx *AppContext) initKnowledgeBase() {
+	if ctx.VectorSearch == nil || ctx.FileProcessor == nil {
+		return
+	}
+
+	kbAssetPath := filepath.Join(ctx.UserConfigDir, "veridium", "kb-assets")
+	embedder := ctx.VectorSearch.GetEmbedder()
+	ragProcessor := services.NewRAGProcessor(ctx.DB.DB(), ctx.DuckDBStore, ctx.FileLoader, embedder)
+
+	kbService, err := services.NewKnowledgeBaseService(ctx.DB, &services.KnowledgeBaseConfig{
+		RAGProcessor: ragProcessor,
+		VectorSearch: ctx.VectorSearch,
+		FileLoader:   ctx.FileLoader,
+		AssetDir:     kbAssetPath,
+	})
+	if err != nil {
+		log.Printf("Warning: Failed to initialize Knowledge Base service: %v", err)
+		return
+	}
+	ctx.KBService = kbService
+	log.Printf("Knowledge Base service initialized (asset path: %s)", kbAssetPath)
+}
+
+// initLanguageModels initializes the language models for chat, title generation, etc.
+// Creates a chain of models with remote (OpenRouter) as primary and local (llama) as fallback.
+func (ctx *AppContext) initLanguageModels() {
+	if ctx.LibService == nil {
+		return
+	}
+
+	bgCtx := context.Background()
+
+	llamaProvider, err := llamaprovider.New(llamaprovider.WithService(ctx.LibService))
+	if err != nil {
+		log.Printf("Warning: Failed to create llama provider: %v", err)
+		return
+	}
+
+	localModel, err := llamaProvider.LanguageModel(bgCtx, "")
+	if err != nil {
+		log.Printf("Warning: Failed to get language model from llama provider: %v", err)
+		return
+	}
+
+	chainModels := ctx.buildModelChain(bgCtx, localModel)
+
+	ctx.ChatModel, _ = fantasy.NewChain(chainModels)
+	ctx.TitleModel, _ = fantasy.NewChain(chainModels)
+	ctx.SummaryModel, _ = fantasy.NewChain(chainModels)
+	ctx.CleanupModel, _ = fantasy.NewChain(chainModels)
+	log.Printf("ChainLanguageModel instances created (%d models in chain)", len(chainModels))
+}
+
+// buildModelChain creates a chain of language models with fallback support.
+// Remote model (OpenRouter) is tried first, falling back to local llama model.
+func (ctx *AppContext) buildModelChain(bgCtx context.Context, localModel fantasy.LanguageModel) []fantasy.LanguageModel {
+	var chainModels []fantasy.LanguageModel
+
+	// TODO: Move to config file or environment variable for production
+	openRouterKey := "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"
+	if openRouterKey != "" {
+		if provider, err := openrouter.New(openrouter.WithAPIKey(openRouterKey)); err == nil {
+			if remoteModel, err := provider.LanguageModel(bgCtx, "anthropic/claude-3.5-haiku"); err == nil {
+				chainModels = append(chainModels, remoteModel)
+				log.Printf("OpenRouter added as primary model (anthropic/claude-3.5-haiku)")
 			}
 		}
 	}
 
-	// Initialize Vector Search service (DuckDB + SQLite for semantic search)
-	var vectorSearchService *services.VectorSearchService
-	if embedder != nil {
-		vectorSearchService, err = services.NewVectorSearchService(
-			dbService.DB(),
-			duckDBStore,
-			embedder, // Now using cached embedder
-		)
-		if err != nil {
-			log.Printf("⚠️  Warning: Failed to initialize Vector Search service: %v", err)
-			log.Printf("    Semantic search features will not be available.")
-		} else {
-			log.Printf("✅ Vector Search service initialized (DuckDB + SQLite)")
-		}
-	} else {
-		log.Printf("⚠️  Warning: Embedder not available, Vector Search service disabled")
-	}
+	chainModels = append(chainModels, localModel)
+	return chainModels
+}
 
-	// Initialize File Processor service (file parsing + document storage + RAG)
-	fileLoader := services.NewFileLoader()
-	fileProcessorService := NewFileProcessorService(
-		dbService.DB(),
-		fileLoader,
-		vectorSearchService, // Pass entire service to get embedFunc
-		duckDBStore,         // Pass DuckDB store
-		libService,          // Pass LibraryService for VL model
-		whisperService,      // Pass Whisper service for video transcription
-		fileBaseDir,         // Pass file base directory for path resolution
-	)
-	log.Printf("✅ File Processor service initialized")
-	log.Printf("   Handles: file parsing → document storage → RAG processing")
-	log.Printf("   Video transcription: ffmpeg + Whisper STT")
+// ============================================================================
+// WAILS APPLICATION SETUP
+// ============================================================================
 
-	// Initialize Knowledge Base Service (RAG with DuckDB + SQLite)
-	var kbService *services.KnowledgeBaseService
-	if vectorSearchService != nil && fileProcessorService != nil {
-		kbAssetPath := filepath.Join(userConfigDir, "veridium", "kb-assets")
-
-		// Get RAGProcessor from fileProcessorService (we need to expose it)
-		// For now, create a new one
-		embedder := vectorSearchService.GetEmbedder()
-		ragProcessor := services.NewRAGProcessor(dbService.DB(), duckDBStore, fileLoader, embedder)
-
-		kbService, err = services.NewKnowledgeBaseService(dbService, &services.KnowledgeBaseConfig{
-			RAGProcessor: ragProcessor,
-			VectorSearch: vectorSearchService,
-			FileLoader:   fileLoader,
-			AssetDir:     kbAssetPath,
-		})
-		if err != nil {
-			log.Printf("⚠️  Warning: Failed to initialize Knowledge Base service: %v", err)
-		} else {
-			log.Printf("✅ Knowledge Base service initialized (DuckDB + SQLite)")
-			log.Printf("   Asset path: %s", kbAssetPath)
-		}
-	}
-
-	// Create a new Wails application by providing the necessary options.
-	// Variables 'Name' and 'Description' are for application metadata.
-	// 'Assets' configures the asset server with the 'FS' variable pointing to the frontend files.
-	// 'Bind' is a list of Go struct instances. The frontend has access to the methods of these instances.
-	// 'Mac' options tailor the application when running an macOS.
-	app := application.New(application.Options{
+// createWailsApp creates and configures the Wails v3 application instance.
+// Sets up all services, asset handling, and macOS-specific options.
+func createWailsApp(ctx *AppContext) *application.App {
+	return application.New(application.Options{
 		Name:        "veridium",
 		Description: "A demo of using raw HTML & CSS",
-		Services: []application.Service{
-			// Database queries - direct sqlc generated code
-			application.NewService(queries),
-			// Database service - for transaction methods
-			application.NewService(dbService),
-			// TableViewer service - for database table inspection
-			application.NewService(tableviewer.NewService(dbService.DB())),
-			// Search service - for web search and crawling
-			application.NewService(searchService),
-			// TTS service - for text-to-speech (native OS)
-			application.NewService(ttsService),
-			// Whisper service - for speech-to-text (offline, 99 languages)
-			application.NewService(whisperService),
-			// Audio recorder service - for native microphone recording
-			application.NewService(audioRecorderService),
-			// Vector search service - for semantic search using chromem
-			application.NewService(vectorSearchService),
-			// File processor service - for file parsing + document storage + RAG
-			application.NewService(fileProcessorService),
-			// Knowledge Base service - for RAG with Chromem + Eino
-			application.NewService(kbService),
-			// File service - for local file storage
-			application.NewService(services.NewFileService(fileBaseDir)),
-			// Machine ID service
-			application.NewService(&machineid.Service{}),
-			// Stable Diffusion service - for image generation
-			application.NewService(stablediffusion.New()),
-			// Local file system service
-			application.NewService(localfs.NewService()),
-			// Local file system service
-			application.NewService(builtin.NewLocalSystemService()),
-			// Native Wails v3 notification service
-			application.NewService(notifications.New()),
-			// Native Wails v3 notification service
-			application.NewService(wailslog.New()),
-			// Native Wails v3 sqlite service
-			application.NewService(sqlite.New()),
-			// User data fileserver (user config directory)
-			// Frontend assets are handled by Wails' built-in asset server via embed
-			application.NewServiceWithOptions(
-				func() *fileserver.FileserverService {
-					// Use same base directory as FileService for consistency
-					// This ensures uploaded files can be served via /files/ route
-					return fileserver.NewWithConfig(&fileserver.Config{
-						RootPath: fileBaseDir, // Same as FileService baseDir
-					})
-				}(),
-				application.ServiceOptions{
-					Route: "/files",
-				},
-			),
-			// Native Wails v3 kvstore service
-			application.NewService(kvstore.New()),
-		},
+		Services:    buildServiceList(ctx),
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
 		},
@@ -282,112 +361,101 @@ func main() {
 			ApplicationShouldTerminateAfterLastWindowClosed: true,
 		},
 	})
+}
 
-	// Set app instance for audio recorder service (for event emission)
-	audioRecorderService.SetApp(app)
+// buildServiceList creates the list of services to register with Wails.
+// Services are grouped by category: Database, Core Features, AI/ML, Storage, Utilities.
+func buildServiceList(ctx *AppContext) []application.Service {
+	return []application.Service{
+		// Database
+		application.NewService(ctx.Queries),
+		application.NewService(ctx.DB),
+		application.NewService(tableviewer.NewService(ctx.DB.DB())),
 
-	// Initialize Thread Management Service (needs to be before AgentChatService)
-	threadManagementService := services.NewThreadManagementService(app, dbService)
-	app.RegisterService(application.NewService(threadManagementService))
+		// Core Features
+		application.NewService(ctx.SearchService),
+		application.NewService(ctx.TTSService),
+		application.NewService(ctx.WhisperService),
+		application.NewService(ctx.AudioRecorder),
 
-	// Initialize Llama Chat Service (OpenAI-compatible chat API)
-	// This service provides chat completion functionality using the library service
-	var chatModel, titleModel, summaryModel, cleanupModel fantasy.LanguageModel
-	if libService != nil {
-		// Create llama provider with library service
-		ctx := context.Background()
-		llamaProvider, err := llamaprovider.New(llamaprovider.WithService(libService))
-		if err != nil {
-			log.Printf("⚠️  Warning: Failed to create llama provider: %v", err)
-		} else {
-			// Get the default language model from llama provider
-			localModel, err := llamaProvider.LanguageModel(ctx, "")
-			if err != nil {
-				log.Printf("⚠️  Warning: Failed to get language model from llama provider: %v", err)
-			} else {
-				// Build chain of models: remote first (if configured), local fallback
-				var chainModels []fantasy.LanguageModel
+		// AI/ML
+		application.NewService(ctx.VectorSearch),
+		application.NewService(ctx.FileProcessor),
+		application.NewService(ctx.KBService),
 
-				// [DEV] Hardcoded OpenRouter API key for development testing
-				// TODO: Move to config file or environment variable for production
-				openRouterKey := "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"
-				if openRouterKey != "" {
-					openRouterProvider, err := openrouter.New(openrouter.WithAPIKey(openRouterKey))
-					if err != nil {
-						log.Printf("⚠️  Warning: Failed to create OpenRouter provider: %v", err)
-					} else {
-						// Auto-select best free model for agent/tool-calling tasks
-						selectedModelID := openrouter.AutoSelectModelForAgent()
-						remoteModel, err := openRouterProvider.LanguageModel(ctx, selectedModelID)
-						if err != nil {
-							log.Printf("⚠️  Warning: Failed to get OpenRouter language model: %v", err)
-						} else {
-							chainModels = append(chainModels, remoteModel)
-							log.Printf("✅ OpenRouter added as primary model (%s)", selectedModelID)
-						}
-					}
-				}
+		// File & Storage
+		application.NewService(services.NewFileService(fileBaseDir)),
+		application.NewService(localfs.NewService()),
+		application.NewService(builtin.NewLocalSystemService()),
 
-				// Add local llama as fallback
-				chainModels = append(chainModels, localModel)
+		// Utilities
+		application.NewService(&machineid.Service{}),
+		application.NewService(stablediffusion.New()),
 
-				// Create ChainLanguageModel instances for fallback support
-				chatModel, _ = fantasy.NewChain(chainModels)
-				titleModel, _ = fantasy.NewChain(chainModels)
-				summaryModel, _ = fantasy.NewChain(chainModels)
-				cleanupModel, _ = fantasy.NewChain(chainModels)
-				log.Printf("✅ ChainLanguageModel instances created (%d models in chain)", len(chainModels))
-			}
+		// Wails Native Services
+		application.NewService(notifications.New()),
+		application.NewService(wailslog.New()),
+		application.NewService(sqlite.New()),
+		application.NewService(kvstore.New()),
+
+		// File Server
+		application.NewServiceWithOptions(
+			fileserver.NewWithConfig(&fileserver.Config{RootPath: fileBaseDir}),
+			application.ServiceOptions{Route: "/files"},
+		),
+	}
+}
+
+// registerAgentServices registers services that need the Wails app instance.
+// This includes ThreadManagement, AgentChat, and sets up shutdown handlers.
+func registerAgentServices(app *application.App, ctx *AppContext) {
+	ctx.AudioRecorder.SetApp(app)
+
+	threadService := services.NewThreadManagementService(app, ctx.DB)
+	app.RegisterService(application.NewService(threadService))
+
+	if ctx.LibService != nil && ctx.KBService != nil {
+		agentService := services.NewAgentChatService(
+			app, ctx.DB, ctx.LibService, ctx.KBService, ctx.VectorSearch, threadService,
+		)
+
+		if ctx.ChatModel != nil {
+			agentService.SetChatModel(ctx.ChatModel)
+		}
+		if ctx.TitleModel != nil {
+			agentService.SetTitleModel(ctx.TitleModel)
+		}
+		if ctx.SummaryModel != nil {
+			agentService.SetSummaryModel(ctx.SummaryModel)
 		}
 
-		// Initialize Agent Chat Service (Yzma-based agent with RAG + DB persistence)
-		// Phase 4: Now with Thread Management integration
-		if kbService != nil {
-			agentChatService := services.NewAgentChatService(
-				app,
-				dbService,
-				libService,
-				kbService,
-				vectorSearchService,     // File-based RAG (direct attachments)
-				threadManagementService, // Phase 4: Thread integration
-			)
-
-			// Inject ChainLanguageModel instances for decentralized LLM routing
-			if chatModel != nil {
-				agentChatService.SetChatModel(chatModel)
-			}
-			if titleModel != nil {
-				agentChatService.SetTitleModel(titleModel)
-			}
-			if summaryModel != nil {
-				agentChatService.SetSummaryModel(summaryModel)
-			}
-
-			app.RegisterService(application.NewService(agentChatService))
-		}
-
-		// Inject cleanup model to FileProcessorService
-		if cleanupModel != nil {
-			fileProcessorService.SetLanguageModel(cleanupModel)
-			log.Printf("✅ FileProcessorService: LLM cleanup model injected")
-		}
-
-		// Add cleanup on shutdown
-		app.OnShutdown(func() {
-			log.Printf("🧹 Cleaning up Llama Library service...")
-			libService.Cleanup()
-		})
+		app.RegisterService(application.NewService(agentService))
 	}
 
-	// Create a new window with the necessary options.
-	// 'Title' is the title of the window.
-	// 'Mac' options tailor the window when running on macOS.
-	// 'BackgroundColour' is the background colour of the window.
-	// 'URL' is the URL that will be loaded into the webview.
+	if ctx.CleanupModel != nil {
+		ctx.FileProcessor.SetLanguageModel(ctx.CleanupModel)
+		log.Printf("FileProcessorService: LLM cleanup model injected")
+	}
+
+	if ctx.LibService != nil {
+		app.OnShutdown(func() {
+			log.Printf("Cleaning up Llama Library service...")
+			ctx.LibService.Cleanup()
+		})
+	}
+}
+
+// ============================================================================
+// WINDOW SETUP
+// ============================================================================
+
+// createMainWindow creates and configures the main application window.
+// Sets up window properties, drag-and-drop support, and macOS styling.
+func createMainWindow(app *application.App, ctx *AppContext) {
 	win := app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title:             "Window 1",
+		Title:             "Veridium",
 		StartState:        application.WindowStateMaximised,
-		EnableDragAndDrop: true, // Enable native drag & drop support
+		EnableDragAndDrop: true,
 		Mac: application.MacWindow{
 			Backdrop: application.MacBackdropTranslucent,
 			TitleBar: application.MacTitleBarHiddenInset,
@@ -396,75 +464,107 @@ func main() {
 		URL:              "/",
 	})
 
-	// Setup drag & drop event handler
-	win.OnWindowEvent(
-		events.Common.WindowDropZoneFilesDropped,
-		func(event *application.WindowEvent) {
-			droppedFiles := event.Context().DroppedFiles()
-			details := event.Context().DropZoneDetails()
+	setupDragDropHandler(win, app, ctx)
+}
 
-			log.Printf("[Drag&Drop] Files dropped: %d files", len(droppedFiles))
+// setupDragDropHandler configures the drag-and-drop event handler for the window.
+// Processes dropped files through FileProcessor and emits events to frontend.
+func setupDragDropHandler(win *application.WebviewWindow, app *application.App, ctx *AppContext) {
+	win.OnWindowEvent(events.Common.WindowDropZoneFilesDropped, func(event *application.WindowEvent) {
+		droppedFiles := event.Context().DroppedFiles()
+		details := event.Context().DropZoneDetails()
 
-			// Process files in backend - copy to local storage AND process for RAG
-			processedFiles := make([]map[string]interface{}, 0, len(droppedFiles))
-			for i, filePath := range droppedFiles {
-				log.Printf("[Drag&Drop]   %d. %s", i+1, filePath)
+		log.Printf("[Drag&Drop] Files dropped: %d files", len(droppedFiles))
 
-				// Process file: copy to local storage + parse + RAG (all in one)
-				// Use DEFAULT_LOBE_CHAT_USER to match the frontend's default user ID
-				result, err := fileProcessorService.ProcessFileFromPath(filePath, "DEFAULT_LOBE_CHAT_USER")
-				if err != nil {
-					log.Printf("[Drag&Drop] Error processing file %s: %v", filePath, err)
-					continue
-				}
+		processedFiles := processDroppedFiles(droppedFiles, ctx)
+		emitDropEvent(app, processedFiles, details)
+	})
+}
 
-				// Create file info for frontend
-				fileInfo := map[string]interface{}{
-					"originalPath": filePath,
-					"url":          result.RelativeURL,
-					"name":         result.Filename,
-					"fileId":       result.FileID,
-					"documentId":   result.DocumentID,
-					"processing":   result.Processing,
-				}
-				processedFiles = append(processedFiles, fileInfo)
-				log.Printf("[Drag&Drop] File processed: %s -> %s (fileId: %s)", result.Filename, result.RelativeURL, result.FileID)
-			}
+// processDroppedFiles processes each dropped file through the FileProcessor.
+// Returns a slice of file info maps containing URLs, IDs, and processing status.
+func processDroppedFiles(files []string, ctx *AppContext) []map[string]interface{} {
+	processedFiles := make([]map[string]interface{}, 0, len(files))
 
-			if details != nil {
-				log.Printf("[Drag&Drop] Drop zone: %s at (%d, %d)", details.ElementID, details.X, details.Y)
+	for i, filePath := range files {
+		log.Printf("[Drag&Drop]   %d. %s", i+1, filePath)
 
-				// Emit event to frontend with processed file info
-				app.Event.Emit("files:dropped", map[string]interface{}{
-					"files":      processedFiles,
-					"elementId":  details.ElementID,
-					"classList":  details.ClassList,
-					"x":          details.X,
-					"y":          details.Y,
-					"attributes": details.Attributes,
-				})
-			} else {
-				// Drop outside specific zone
-				log.Printf("[Drag&Drop] Drop outside specific zone")
-				app.Event.Emit("files:dropped", map[string]interface{}{
-					"files": processedFiles,
-				})
-			}
-		},
-	)
-
-	// Create a goroutine that emits an event containing the current time every second.
-	// The frontend can listen to this event and update the UI accordingly.
-	go func() {
-		for {
-			now := time.Now().Format(time.RFC1123)
-			app.Event.Emit("time", now)
-			time.Sleep(time.Second)
+		result, err := ctx.FileProcessor.ProcessFileFromPath(filePath, defaultUserID)
+		if err != nil {
+			log.Printf("[Drag&Drop] Error processing file %s: %v", filePath, err)
+			continue
 		}
-	}()
 
-	// Run the application. This blocks until the application has been exited.
-	if err = app.Run(); err != nil {
+		fileInfo := map[string]interface{}{
+			"originalPath": filePath,
+			"url":          result.RelativeURL,
+			"name":         result.Filename,
+			"fileId":       result.FileID,
+			"documentId":   result.DocumentID,
+			"processing":   result.Processing,
+		}
+		processedFiles = append(processedFiles, fileInfo)
+		log.Printf("[Drag&Drop] File processed: %s -> %s (fileId: %s)", result.Filename, result.RelativeURL, result.FileID)
+	}
+
+	return processedFiles
+}
+
+// emitDropEvent emits the "files:dropped" event to the frontend with processed file info.
+// Includes drop zone details (element ID, coordinates) if available.
+func emitDropEvent(app *application.App, files []map[string]interface{}, details *application.DropZoneDetails) {
+	eventData := map[string]interface{}{"files": files}
+
+	if details != nil {
+		log.Printf("[Drag&Drop] Drop zone: %s at (%d, %d)", details.ElementID, details.X, details.Y)
+		eventData["elementId"] = details.ElementID
+		eventData["classList"] = details.ClassList
+		eventData["x"] = details.X
+		eventData["y"] = details.Y
+		eventData["attributes"] = details.Attributes
+	} else {
+		log.Printf("[Drag&Drop] Drop outside specific zone")
+	}
+
+	app.Event.Emit("files:dropped", eventData)
+}
+
+// ============================================================================
+// MAIN ENTRY POINT
+// ============================================================================
+
+// main is the application entry point.
+// Initializes all services, creates the Wails app, and starts the event loop.
+func main() {
+	if devMode {
+		log.Printf("Development mode enabled (cache disabled)")
+	}
+
+	ctx := NewAppContext()
+	defer ctx.Cleanup()
+
+	// Initialize all services
+	if err := ctx.initDatabase(); err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
+
+	ctx.initBasicServices()
+	ctx.initLlamaService()
+	ctx.initVectorStore()
+	ctx.initEmbedder()
+	ctx.initVectorSearch()
+	ctx.initFileProcessor()
+	ctx.initKnowledgeBase()
+	ctx.initLanguageModels()
+
+	// Create and configure Wails app
+	app := createWailsApp(ctx)
+	registerAgentServices(app, ctx)
+	createMainWindow(app, ctx)
+	startTimeEmitter(app)
+
+	// Run application
+	if err := app.Run(); err != nil {
 		log.Fatal(err)
 	}
 }

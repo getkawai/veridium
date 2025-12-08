@@ -20,34 +20,32 @@ import ImageManageModal, { type ImageItem } from './ImageManageModal';
 // ======== Business Types ======== //
 
 /**
- * Internal type for managing upload state and display
+ * Tipe internal untuk mengelola state upload dan display
  */
 interface DisplayItem {
-  // Upload status - using the correct type from file upload system
-  error?: string;
-  // URL for display, can be a blob: URL for local previews or a remote URL
-  file?: File;
-  id: string;
-  // Error message if upload failed
-  progress?: number;
-  // The raw File object, present only for new, not-yet-uploaded images
-  status?: FileUploadStatus;
-  // Unique identifier for the item
-  url: string; // Upload progress (0-100)
+  error?: string; // Pesan error jika upload gagal
+  file?: File; // File object mentah, hanya ada untuk gambar baru yang belum di-upload
+  id: string; // Identifier unik untuk item
+  progress?: number; // Progress upload (0-100)
+  status?: FileUploadStatus; // Status upload dari file upload system
+  url: string; // URL untuk display, bisa blob: URL untuk preview lokal atau remote URL
 }
 
+/**
+ * Props untuk komponen MultiImagesUpload
+ */
 export interface MultiImagesUploadProps {
-  // Callback when URLs change - supports both old API (string[]) and new API (object with dimensions)
-  className?: string; // Array of image URLs
-  maxCount?: number;
-  maxFileSize?: number;
+  className?: string;
+  maxCount?: number; // Maksimal jumlah gambar
+  maxFileSize?: number; // Maksimal ukuran file per gambar
+  // Callback saat URLs berubah - mendukung API lama (string[]) dan baru (object dengan dimensi)
   onChange?: (
     data:
-      | string[] // Old API: just URLs
-      | { dimensions?: { height: number, width: number; }, urls: string[]; }, // New API: URLs with first image dimensions
+      | string[] // API lama: hanya URLs
+      | { dimensions?: { height: number, width: number; }, urls: string[]; }, // API baru: URLs dengan dimensi gambar pertama
   ) => void;
   style?: React.CSSProperties;
-  value?: string[];
+  value?: string[]; // Array URL gambar saat ini
 }
 
 // ======== Styles ======== //
@@ -561,6 +559,17 @@ SingleImageDisplay.displayName = 'SingleImageDisplay';
 
 // ======== Main Component ======== //
 
+/**
+ * Komponen upload multiple gambar dengan drag-and-drop
+ * Fitur:
+ * - Upload multiple files sekaligus
+ * - Drag and drop support
+ * - Thumbnail grid view (max 4 thumbnails)
+ * - Image management modal untuk edit/reorder
+ * - Batch upload dengan progress tracking
+ * - Auto-extract dimensi dari gambar pertama
+ * - Validasi count dan size
+ */
 const MultiImagesUpload: FC<MultiImagesUploadProps> = memo(
   ({ value, onChange, style, className, maxCount, maxFileSize }) => {
     const inputRef = useRef<HTMLInputElement>(null);

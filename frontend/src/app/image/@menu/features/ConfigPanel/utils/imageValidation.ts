@@ -1,11 +1,12 @@
 /**
- * Image file validation utility functions
+ * Utility functions untuk validasi file gambar
+ * Menyediakan validasi ukuran file, jumlah file, dan formatting
  */
 
 /**
- * Format file size to human readable format
- * @param bytes - File size in bytes
- * @returns Formatted string like "1.5 MB"
+ * Format ukuran file ke format yang mudah dibaca manusia
+ * @param bytes - Ukuran file dalam bytes
+ * @returns String terformat seperti "1.5 MB"
  */
 export const formatFileSize = (bytes: number): string => {
   if (bytes === 0) return '0 B';
@@ -17,20 +18,22 @@ export const formatFileSize = (bytes: number): string => {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 };
 
+/**
+ * Hasil validasi dengan detail tambahan untuk pesan error
+ */
 export interface ValidationResult {
-  // Additional details for error messages
-  actualSize?: number;
-  error?: string;
-  fileName?: string;
-  maxSize?: number;
-  valid: boolean;
+  actualSize?: number; // Ukuran file aktual
+  error?: string; // Tipe error
+  fileName?: string; // Nama file
+  maxSize?: number; // Ukuran maksimal yang diizinkan
+  valid: boolean; // Apakah validasi berhasil
 }
 
 /**
- * Validate single image file size
- * @param file - File to validate
- * @param maxSize - Maximum file size in bytes, defaults to 10MB if not provided
- * @returns Validation result
+ * Validasi ukuran file gambar tunggal
+ * @param file - File yang akan divalidasi
+ * @param maxSize - Ukuran maksimal file dalam bytes, default 10MB jika tidak disediakan
+ * @returns Hasil validasi
  */
 export const validateImageFileSize = (file: File, maxSize?: number): ValidationResult => {
   const defaultMaxSize = 10 * 1024 * 1024; // 10MB default limit
@@ -50,10 +53,10 @@ export const validateImageFileSize = (file: File, maxSize?: number): ValidationR
 };
 
 /**
- * Validate image count
- * @param count - Current image count
- * @param maxCount - Maximum allowed count, skip validation if not provided
- * @returns Validation result
+ * Validasi jumlah gambar
+ * @param count - Jumlah gambar saat ini
+ * @param maxCount - Jumlah maksimal yang diizinkan, skip validasi jika tidak disediakan
+ * @returns Hasil validasi
  */
 export const validateImageCount = (count: number, maxCount?: number): ValidationResult => {
   if (!maxCount) return { valid: true };
@@ -69,23 +72,22 @@ export const validateImageCount = (count: number, maxCount?: number): Validation
 };
 
 /**
- * Validate image file list
- * @param files - File list
- * @param constraints - Constraint configuration
- * @returns Validation result, including validation result for each file
+ * Validasi list file gambar
+ * @param files - Array file yang akan divalidasi
+ * @param constraints - Konfigurasi constraint (maxAddedFiles, maxFileSize)
+ * @returns Hasil validasi, termasuk hasil validasi untuk setiap file
  */
 export const validateImageFiles = (
   files: File[],
   constraints: {
-    maxAddedFiles?: number;
-    maxFileSize?: number;
+    maxAddedFiles?: number; // Maksimal file yang bisa ditambahkan
+    maxFileSize?: number; // Maksimal ukuran per file
   },
 ): {
-  errors: string[];
-  // Additional details for error messages
-  failedFiles?: ValidationResult[];
-  fileResults: ValidationResult[];
-  valid: boolean;
+  errors: string[]; // Array error yang ditemukan
+  failedFiles?: ValidationResult[]; // Detail file yang gagal validasi
+  fileResults: ValidationResult[]; // Hasil validasi per file
+  valid: boolean; // Apakah semua file valid
 } => {
   const errors: string[] = [];
   const fileResults: ValidationResult[] = [];

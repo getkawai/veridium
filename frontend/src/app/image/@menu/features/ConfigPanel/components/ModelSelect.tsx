@@ -28,6 +28,14 @@ interface ModelOption {
   value: string;
 }
 
+/**
+ * Dropdown selector untuk memilih model AI dan provider
+ * Fitur:
+ * - Grouped by provider
+ * - Empty state handling dengan link ke settings
+ * - Dynamic options berdasarkan enabled providers
+ * - Quick access ke provider settings
+ */
 const ModelSelect = memo(() => {
   const { styles } = useStyles();
   const { t } = useTranslation('components');

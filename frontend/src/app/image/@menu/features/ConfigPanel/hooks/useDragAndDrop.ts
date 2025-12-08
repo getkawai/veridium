@@ -1,10 +1,18 @@
 import React, { useRef, useState } from 'react';
 
+/**
+ * Options untuk drag and drop
+ */
 interface UseDragAndDropOptions {
-  accept?: string; // MIME type filter, e.g., 'image/*'
-  onDrop: (files: File[]) => void;
+  accept?: string; // Filter MIME type, contoh: 'image/*'
+  onDrop: (files: File[]) => void; // Callback saat file di-drop
 }
 
+/**
+ * Custom hook untuk implementasi drag and drop
+ * Menangani state drag over dan filter file berdasarkan MIME type
+ * @returns Drag handlers dan state isDragOver
+ */
 export const useDragAndDrop = ({ onDrop, accept = 'image/*' }: UseDragAndDropOptions) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const dragCounter = useRef(0);

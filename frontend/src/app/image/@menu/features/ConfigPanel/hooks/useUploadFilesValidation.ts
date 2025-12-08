@@ -5,8 +5,12 @@ import { useTranslation } from 'react-i18next';
 import { formatFileSize, validateImageFiles } from '../utils/imageValidation';
 
 /**
- * File upload validation hook
- * Encapsulates file size and count validation logic, provides user-friendly error messages
+ * Hook untuk validasi file upload
+ * Mengenkapsulasi logika validasi ukuran file dan jumlah
+ * Menampilkan pesan error yang user-friendly
+ * @param maxCount - Maksimal jumlah file yang bisa di-upload
+ * @param maxFileSize - Maksimal ukuran file dalam bytes
+ * @returns Function validateFiles untuk validasi array file
  */
 export const useUploadFilesValidation = (maxCount?: number, maxFileSize?: number) => {
   const { t } = useTranslation('components');
