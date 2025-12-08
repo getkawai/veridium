@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package llama
+package llamalib
 
 // Llama32ToolTemplate is a custom chat template for Llama 3.2 models with tool support.
 // The original Llama 3.2 template has raise_exception for multiple tool calls,

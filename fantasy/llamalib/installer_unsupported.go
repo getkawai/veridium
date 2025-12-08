@@ -1,6 +1,6 @@
 //go:build !darwin && !linux && !windows
 
-package llama
+package llamalib
 
 import (
 	"os"

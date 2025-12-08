@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/kawai-network/veridium/fantasy"
-	"github.com/kawai-network/veridium/internal/llama"
+	"github.com/kawai-network/veridium/fantasy/llamalib"
 	"github.com/kawai-network/veridium/internal/services"
 	"github.com/kawai-network/veridium/internal/whisper"
 	"github.com/kawai-network/veridium/pkg/xlog"
@@ -19,7 +19,7 @@ import (
 // FileProcessorService is the Wails-exposed service
 type FileProcessorService struct {
 	processor      *services.FileProcessorService
-	libraryService *llama.LibraryService
+	libraryService *llamalib.Service
 	fileBaseDir    string // Base directory for file storage
 }
 
@@ -29,7 +29,7 @@ func NewFileProcessorService(
 	fileLoader *services.FileLoader,
 	vectorSearchService *services.VectorSearchService,
 	duckDB *services.DuckDBStore,
-	libraryService *llama.LibraryService,
+	libraryService *llamalib.Service,
 	whisperService *whisper.Service,
 	fileBaseDir string,
 ) *FileProcessorService {

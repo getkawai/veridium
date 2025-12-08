@@ -15,9 +15,9 @@ import (
 	"time"
 
 	"github.com/kawai-network/veridium/fantasy"
-	llamaprovider "github.com/kawai-network/veridium/fantasy/providers/llama"
+	"github.com/kawai-network/veridium/fantasy/llamalib"
+	llamavl "github.com/kawai-network/veridium/fantasy/providers/llama-vl"
 	db "github.com/kawai-network/veridium/internal/database/generated"
-	"github.com/kawai-network/veridium/internal/llama"
 	"github.com/kawai-network/veridium/internal/whisper"
 	"github.com/kawai-network/veridium/pkg/hardware"
 	"github.com/kawai-network/veridium/pkg/xlog"
@@ -30,8 +30,8 @@ type FileProcessorService struct {
 	queries        *db.Queries
 	fileLoader     *FileLoader
 	ragProcessor   *RAGProcessor
-	libraryService *llama.LibraryService
-	llamaProvider  llamaprovider.Provider // For VL (Vision-Language) processing
+	libraryService *llamalib.Service
+	vlProvider     llamavl.Provider      // For VL (Vision-Language) processing
 	whisperService *whisper.Service
 	languageModel  fantasy.LanguageModel // For OCR/transcript cleanup
 }
@@ -41,7 +41,7 @@ func NewFileProcessorService(
 	database *sql.DB,
 	fileLoader *FileLoader,
 	ragProcessor *RAGProcessor,
-	libraryService *llama.LibraryService,
+	libraryService *llamalib.Service,
 	whisperService *whisper.Service,
 ) *FileProcessorService {
 	return &FileProcessorService{
@@ -59,9 +59,9 @@ func (s *FileProcessorService) SetLanguageModel(model fantasy.LanguageModel) {
 	s.languageModel = model
 }
 
-// SetLlamaProvider sets the llama provider for VL (Vision-Language) processing
-func (s *FileProcessorService) SetLlamaProvider(provider llamaprovider.Provider) {
-	s.llamaProvider = provider
+// SetVLProvider sets the VL provider for Vision-Language processing
+func (s *FileProcessorService) SetVLProvider(provider llamavl.Provider) {
+	s.vlProvider = provider
 }
 
 // ProcessFileRequest represents a file processing request
@@ -195,11 +195,11 @@ func (s *FileProcessorService) processImageDescriptionAsync(filePath, filename, 
 		// Slow path: use VL model for image description
 		xlog.Info("Async: Minimal text from OCR, using VL model", "ocr_length", len(cleanedText), "filename", filename)
 
-		// Use llamaProvider for VL processing (preferred), fallback to libraryService
-		if s.llamaProvider != nil {
+		// Use vlProvider for VL processing (preferred), fallback to libraryService
+		if s.vlProvider != nil {
 			// Use provider's ProcessImage which handles model loading automatically
 			prompt := "Describe this image in detail. Include all visible text, objects, people, colors, and layout."
-			description, err := s.llamaProvider.ProcessImage(context.Background(), filePath, prompt, 2048)
+			description, err := s.vlProvider.ProcessImage(context.Background(), filePath, prompt, 2048)
 			if err != nil {
 				xlog.Error("Async: VL model processing failed", "error", err, "filename", filename)
 				// Fallback to OCR text if available

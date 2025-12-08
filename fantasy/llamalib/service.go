@@ -1,4 +1,4 @@
-package llama
+package llamalib
 
 import (
 	"context"
@@ -15,9 +15,9 @@ import (
 	"github.com/kawai-network/veridium/pkg/yzma/mtmd"
 )
 
-// LibraryService provides LLM inference using llama.cpp as a library (via yzma)
+// Service provides LLM inference using llama.cpp as a library (via yzma)
 // This replaces the binary-based approach with direct library calls
-type LibraryService struct {
+type Service struct {
 	installer *LlamaCppInstaller
 
 	// Library state
@@ -52,16 +52,16 @@ type LibraryService struct {
 	initChan chan struct{} // Closed when library is initialized
 }
 
-// NewLibraryService creates a new library-based llama.cpp service
-func NewLibraryService() (*LibraryService, error) {
+// NewService creates a new library-based llama.cpp service
+func NewService() (*Service, error) {
 	installer := NewLlamaCppInstaller()
 
-	service := &LibraryService{
+	service := &Service{
 		installer: installer,
 		initChan:  make(chan struct{}),
 	}
 
-	log.Printf("📍 [NewLibraryService] Created library-based service instance: %p", service)
+	log.Printf("📍 [NewService] Created library-based service instance: %p", service)
 
 	// Start background initialization
 	go service.initializeInBackground()
@@ -70,7 +70,7 @@ func NewLibraryService() (*LibraryService, error) {
 }
 
 // initializeInBackground handles llama.cpp installation and library loading
-func (s *LibraryService) initializeInBackground() {
+func (s *Service) initializeInBackground() {
 	log.Printf("🚀 Initializing llama.cpp library in background...")
 
 	// Step 1: Check and install llama.cpp if needed
@@ -147,7 +147,7 @@ func (s *LibraryService) initializeInBackground() {
 }
 
 // InitializeLibrary loads the llama.cpp shared library
-func (s *LibraryService) InitializeLibrary() error {
+func (s *Service) InitializeLibrary() error {
 	s.initMutex.Lock()
 	defer s.initMutex.Unlock()
 
@@ -203,7 +203,7 @@ func (s *LibraryService) InitializeLibrary() error {
 }
 
 // WaitForInitialization waits for the library to be initialized
-func (s *LibraryService) WaitForInitialization(ctx context.Context) error {
+func (s *Service) WaitForInitialization(ctx context.Context) error {
 	select {
 	case <-s.initChan:
 		return nil
@@ -214,7 +214,7 @@ func (s *LibraryService) WaitForInitialization(ctx context.Context) error {
 
 // LoadChatModel loads a chat/generation model
 // If modelPath is empty, automatically selects the best available model
-func (s *LibraryService) LoadChatModel(modelPath string) error {
+func (s *Service) LoadChatModel(modelPath string) error {
 	s.chatMutex.Lock()
 	defer s.chatMutex.Unlock()
 
@@ -296,7 +296,7 @@ func (s *LibraryService) LoadChatModel(modelPath string) error {
 }
 
 // LoadEmbeddingModel loads an embedding model
-func (s *LibraryService) LoadEmbeddingModel(modelPath string) error {
+func (s *Service) LoadEmbeddingModel(modelPath string) error {
 	s.embMutex.Lock()
 	defer s.embMutex.Unlock()
 
@@ -369,7 +369,7 @@ func (s *LibraryService) LoadEmbeddingModel(modelPath string) error {
 }
 
 // Generate generates text from a prompt
-func (s *LibraryService) Generate(prompt string, maxTokens int32) (string, error) {
+func (s *Service) Generate(prompt string, maxTokens int32) (string, error) {
 	s.chatMutex.Lock()
 	defer s.chatMutex.Unlock()
 
@@ -438,7 +438,7 @@ func (s *LibraryService) Generate(prompt string, maxTokens int32) (string, error
 
 // LoadVLModel loads a Vision-Language (VL) model
 // If modelPath is empty, automatically selects the best available VL model
-func (s *LibraryService) LoadVLModel(modelPath string) error {
+func (s *Service) LoadVLModel(modelPath string) error {
 	s.vlMutex.Lock()
 	defer s.vlMutex.Unlock()
 
@@ -555,7 +555,7 @@ func (s *LibraryService) LoadVLModel(modelPath string) error {
 }
 
 // ProcessImageWithText processes an image with accompanying text using VL model
-func (s *LibraryService) ProcessImageWithText(imagePath, prompt string, maxTokens int32) (string, error) {
+func (s *Service) ProcessImageWithText(imagePath, prompt string, maxTokens int32) (string, error) {
 	s.vlMutex.Lock()
 	defer s.vlMutex.Unlock()
 
@@ -638,7 +638,7 @@ func (s *LibraryService) ProcessImageWithText(imagePath, prompt string, maxToken
 }
 
 // findProjectorForModel finds the corresponding MMTRoj projector file for a VL model
-func (s *LibraryService) findProjectorForModel(modelPath, modelsDir string) (string, error) {
+func (s *Service) findProjectorForModel(modelPath, modelsDir string) (string, error) {
 	modelName := strings.TrimSuffix(filepath.Base(modelPath), ".gguf")
 
 	entries, err := os.ReadDir(modelsDir)
@@ -673,7 +673,7 @@ func (s *LibraryService) findProjectorForModel(modelPath, modelsDir string) (str
 }
 
 // selectBestVLModel automatically selects the best available VL model
-func (s *LibraryService) selectBestVLModel() (string, error) {
+func (s *Service) selectBestVLModel() (string, error) {
 	modelsDir := s.installer.GetModelsDirectory()
 
 	VLModels, err := s.installer.GetAvailableVLModels()
@@ -691,14 +691,14 @@ func (s *LibraryService) selectBestVLModel() (string, error) {
 }
 
 // IsVLModelLoaded returns true if a VL model is loaded
-func (s *LibraryService) IsVLModelLoaded() bool {
+func (s *Service) IsVLModelLoaded() bool {
 	s.vlMutex.Lock()
 	defer s.vlMutex.Unlock()
 	return s.vlModel != 0 && s.vlContext != 0 && s.vlMTMDCtx != 0
 }
 
 // GetLoadedVLModel returns the path of the currently loaded VL model
-func (s *LibraryService) GetLoadedVLModel() string {
+func (s *Service) GetLoadedVLModel() string {
 	s.vlMutex.Lock()
 	defer s.vlMutex.Unlock()
 	return s.vlModelPath
@@ -706,7 +706,7 @@ func (s *LibraryService) GetLoadedVLModel() string {
 
 // AutoDownloadRecommendedVLModel downloads the recommended VL model with hardware detection
 // Delegates to installer methods
-func (s *LibraryService) AutoDownloadRecommendedVLModel() error {
+func (s *Service) AutoDownloadRecommendedVLModel() error {
 	log.Println("📦 Auto-downloading VL model...")
 	if err := s.installer.AutoDownloadRecommendedVLModel(); err != nil {
 		return fmt.Errorf("failed to download VL model: %w", err)
@@ -717,7 +717,7 @@ func (s *LibraryService) AutoDownloadRecommendedVLModel() error {
 }
 
 // AutoDownloadRecommendedVLProjector ensures projector files are available for VL models
-func (s *LibraryService) AutoDownloadRecommendedVLProjector() error {
+func (s *Service) AutoDownloadRecommendedVLProjector() error {
 	// VL models typically come with their own projector files, so this is usually handled
 	// by the model download. This method can be extended if separate projector downloads
 	// are needed in the future.
@@ -728,7 +728,7 @@ func (s *LibraryService) AutoDownloadRecommendedVLProjector() error {
 // selectBestModel automatically selects the best available model
 // For non-reasoning mode: prefer Llama 3.2 (non-reasoning models)
 // For reasoning mode: prefer Qwen3 (reasoning models)
-func (s *LibraryService) selectBestModel() (string, error) {
+func (s *Service) selectBestModel() (string, error) {
 	modelsDir := s.installer.GetModelsDirectory()
 
 	// Ensure models directory exists
@@ -845,7 +845,7 @@ func (s *LibraryService) selectBestModel() (string, error) {
 }
 
 // GetAvailableModels returns a list of available GGUF models
-func (s *LibraryService) GetAvailableModels() ([]string, error) {
+func (s *Service) GetAvailableModels() ([]string, error) {
 	modelsDir := s.installer.GetModelsDirectory()
 
 	entries, err := os.ReadDir(modelsDir)
@@ -872,73 +872,73 @@ func (s *LibraryService) GetAvailableModels() ([]string, error) {
 }
 
 // GetModelsDirectory returns the directory where models are stored
-func (s *LibraryService) GetModelsDirectory() string {
+func (s *Service) GetModelsDirectory() string {
 	return s.installer.GetModelsDirectory()
 }
 
 // GetEmbeddingModelsDirectory returns the directory where embedding models are stored
-func (s *LibraryService) GetEmbeddingModelsDirectory() string {
+func (s *Service) GetEmbeddingModelsDirectory() string {
 	return s.installer.GetModelsDirectory()
 }
 
 // IsChatModelLoaded returns true if a chat model is loaded
-func (s *LibraryService) IsChatModelLoaded() bool {
+func (s *Service) IsChatModelLoaded() bool {
 	s.chatMutex.Lock()
 	defer s.chatMutex.Unlock()
 	return s.chatModel != 0 && s.chatContext != 0
 }
 
 // IsEmbeddingModelLoaded returns true if an embedding model is loaded
-func (s *LibraryService) IsEmbeddingModelLoaded() bool {
+func (s *Service) IsEmbeddingModelLoaded() bool {
 	s.embMutex.Lock()
 	defer s.embMutex.Unlock()
 	return s.embModel != 0 && s.embContext != 0
 }
 
 // GetLoadedChatModel returns the path of the currently loaded chat model
-func (s *LibraryService) GetLoadedChatModel() string {
+func (s *Service) GetLoadedChatModel() string {
 	s.chatMutex.Lock()
 	defer s.chatMutex.Unlock()
 	return s.chatModelPath
 }
 
 // GetChatModel returns the loaded chat model handle (for advanced usage)
-func (s *LibraryService) GetChatModel() llama.Model {
+func (s *Service) GetChatModel() llama.Model {
 	s.chatMutex.Lock()
 	defer s.chatMutex.Unlock()
 	return s.chatModel
 }
 
 // GetChatContext returns the chat context handle (for advanced usage)
-func (s *LibraryService) GetChatContext() llama.Context {
+func (s *Service) GetChatContext() llama.Context {
 	s.chatMutex.Lock()
 	defer s.chatMutex.Unlock()
 	return s.chatContext
 }
 
 // GetChatVocab returns the chat vocabulary handle (for advanced usage)
-func (s *LibraryService) GetChatVocab() llama.Vocab {
+func (s *Service) GetChatVocab() llama.Vocab {
 	s.chatMutex.Lock()
 	defer s.chatMutex.Unlock()
 	return s.chatVocab
 }
 
 // GetChatSampler returns the chat sampler handle (for advanced usage)
-func (s *LibraryService) GetChatSampler() llama.Sampler {
+func (s *Service) GetChatSampler() llama.Sampler {
 	s.chatMutex.Lock()
 	defer s.chatMutex.Unlock()
 	return s.chatSampler
 }
 
 // GetLoadedEmbeddingModel returns the path of the currently loaded embedding model
-func (s *LibraryService) GetLoadedEmbeddingModel() string {
+func (s *Service) GetLoadedEmbeddingModel() string {
 	s.embMutex.Lock()
 	defer s.embMutex.Unlock()
 	return s.embModelPath
 }
 
 // Cleanup releases all loaded models and frees resources
-func (s *LibraryService) Cleanup() {
+func (s *Service) Cleanup() {
 	// Cleanup VL model
 	s.vlMutex.Lock()
 	if s.vlMTMDCtx != 0 {
@@ -984,12 +984,12 @@ func (s *LibraryService) Cleanup() {
 		s.isInitialized = false
 	}
 
-	log.Println("✅ LibraryService cleaned up")
+	log.Println("✅ Service cleaned up")
 }
 
 // AutoDownloadRecommendedModel downloads the recommended model based on hardware
 // Delegates to installer methods
-func (s *LibraryService) AutoDownloadRecommendedModel() error {
+func (s *Service) AutoDownloadRecommendedModel() error {
 	return s.installer.AutoDownloadRecommendedChatModel()
 }
 
@@ -1002,7 +1002,7 @@ func (s *LibraryService) AutoDownloadRecommendedModel() error {
 
 // GetHardwareSpecs returns the detected hardware specifications
 // This is used for validating if the system can handle reasoning models
-func (s *LibraryService) GetHardwareSpecs() *hardware.HardwareSpecs {
+func (s *Service) GetHardwareSpecs() *hardware.HardwareSpecs {
 	if s.installer == nil {
 		return nil
 	}
@@ -1012,7 +1012,7 @@ func (s *LibraryService) GetHardwareSpecs() *hardware.HardwareSpecs {
 // WithChatLock executes the given function while holding the chat mutex lock.
 // This is useful for operations that need to access chat model resources directly
 // without the lock being released between getter calls.
-func (s *LibraryService) WithChatLock(fn func()) {
+func (s *Service) WithChatLock(fn func()) {
 	s.chatMutex.Lock()
 	defer s.chatMutex.Unlock()
 	fn()
@@ -1020,6 +1020,6 @@ func (s *LibraryService) WithChatLock(fn func()) {
 
 // GetChatResourcesUnsafe returns chat resources without locking.
 // IMPORTANT: Only call this within WithChatLock or when you already hold the lock.
-func (s *LibraryService) GetChatResourcesUnsafe() (model llama.Model, ctx llama.Context, vocab llama.Vocab, sampler llama.Sampler) {
+func (s *Service) GetChatResourcesUnsafe() (model llama.Model, ctx llama.Context, vocab llama.Vocab, sampler llama.Sampler) {
 	return s.chatModel, s.chatContext, s.chatVocab, s.chatSampler
 }

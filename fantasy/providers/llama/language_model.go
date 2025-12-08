@@ -9,7 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/kawai-network/veridium/fantasy"
-	internalllama "github.com/kawai-network/veridium/internal/llama"
+	"github.com/kawai-network/veridium/fantasy/llamalib"
 	"github.com/kawai-network/veridium/pkg/yzma/llama"
 	"github.com/kawai-network/veridium/pkg/yzma/template"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
@@ -21,15 +21,15 @@ const defaultBatchSize = 2048
 type languageModel struct {
 	provider     string
 	modelID      string
-	libService   *internalllama.LibraryService
+	service      *llamalib.Service
 	toolRegistry *tools.ToolRegistry
 }
 
-func newLanguageModel(modelID string, provider string, libService *internalllama.LibraryService, toolRegistry *tools.ToolRegistry) *languageModel {
+func newLanguageModel(modelID string, provider string, service *llamalib.Service, toolRegistry *tools.ToolRegistry) *languageModel {
 	return &languageModel{
 		modelID:      modelID,
 		provider:     provider,
-		libService:   libService,
+		service:      service,
 		toolRegistry: toolRegistry,
 	}
 }
@@ -313,23 +313,23 @@ func (l *languageModel) enhanceWithTools(messages fantasy.Prompt, callTools []fa
 
 // getChatTemplate returns the appropriate chat template for the current model
 func (l *languageModel) getChatTemplate() string {
-	modelPath := l.libService.GetLoadedChatModel()
+	modelPath := l.service.GetLoadedChatModel()
 	modelPathLower := strings.ToLower(modelPath)
 
 	// Check if this is a Llama 3.2 model - use custom template
 	if strings.Contains(modelPathLower, "llama-3.2") || strings.Contains(modelPathLower, "llama_3.2") || strings.Contains(modelPathLower, "llama3.2") {
 		log.Printf("🔧 Using custom Llama 3.2 tool template")
-		return internalllama.Llama32ToolTemplate
+		return llamalib.Llama32ToolTemplate
 	}
 
 	// Use embedded template from model for other models
-	return llama.ModelChatTemplate(l.libService.GetChatModel(), "")
+	return llama.ModelChatTemplate(l.service.GetChatModel(), "")
 }
 
 // generateWithTokenCounts generates response and returns token counts
 func (l *languageModel) generateWithTokenCounts(ctx context.Context, prompt string, maxTokens int32) (string, int, int, error) {
 	// Tokenize prompt
-	vocab := l.libService.GetChatVocab()
+	vocab := l.service.GetChatVocab()
 	tokens := llama.Tokenize(vocab, prompt, true, true)
 	if len(tokens) == 0 {
 		return "", 0, 0, fmt.Errorf("failed to tokenize prompt")
@@ -338,7 +338,7 @@ func (l *languageModel) generateWithTokenCounts(ctx context.Context, prompt stri
 	promptTokens := len(tokens)
 
 	// Generate response
-	response, err := l.libService.Generate(prompt, maxTokens)
+	response, err := l.service.Generate(prompt, maxTokens)
 	if err != nil {
 		return "", promptTokens, 0, err
 	}
@@ -355,8 +355,8 @@ func (l *languageModel) generateStreaming(ctx context.Context, prompt string, ma
 	var completionTokens int
 	var genErr error
 
-	l.libService.WithChatLock(func() {
-		chatModel, chatContext, chatVocab, chatSampler := l.libService.GetChatResourcesUnsafe()
+	l.service.WithChatLock(func() {
+		chatModel, chatContext, chatVocab, chatSampler := l.service.GetChatResourcesUnsafe()
 
 		if chatModel == 0 || chatContext == 0 {
 			genErr = fmt.Errorf("chat model not loaded")

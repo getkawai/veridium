@@ -1,4 +1,4 @@
-package llama
+package llamalib
 
 import (
 	"crypto/sha256"

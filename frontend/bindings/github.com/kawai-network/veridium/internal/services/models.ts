@@ -890,43 +890,6 @@ export class ModelUsage {
 }
 
 /**
- * ReasoningMode defines the reasoning behavior of the chat model
- */
-export enum ReasoningMode {
-    /**
-     * The Go zero value for the underlying type of the enum.
-     */
-    $zero = "",
-
-    /**
-     * ReasoningDisabled uses non-reasoning models (Llama 3.2, Mistral, etc.)
-     * - Fastest responses
-     * - Most efficient token usage
-     * - No internal reasoning shown
-     * - Best for long conversations (50-100 turns)
-     */
-    ReasoningDisabled = "disabled",
-
-    /**
-     * ReasoningEnabled uses reasoning models (Qwen3, GPT-OSS, etc.) with /no_think
-     * - Moderate speed
-     * - Balanced token usage
-     * - Minimal reasoning overhead
-     * - Good for medium conversations (30-50 turns)
-     */
-    ReasoningEnabled = "enabled",
-
-    /**
-     * ReasoningVerbose uses reasoning models with full thinking process
-     * - Slower responses
-     * - High token usage
-     * - Shows full reasoning process
-     * - Best for single-turn Q&A (3-5 turns)
-     */
-    ReasoningVerbose = "verbose",
-};
-
-/**
  * SearchResult represents a search result from vector database
  */
 export class SearchResult {

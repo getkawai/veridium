@@ -31,12 +31,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/kawai-network/veridium/fantasy"
-	llamaprovider "github.com/kawai-network/veridium/fantasy/providers/llama"
+	"github.com/kawai-network/veridium/fantasy/llamalib"
 	"github.com/kawai-network/veridium/internal/database"
 	db "github.com/kawai-network/veridium/internal/database/generated"
-	"github.com/kawai-network/veridium/internal/llama"
-	"github.com/kawai-network/veridium/internal/llm"
-	"github.com/kawai-network/veridium/pkg/hardware"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
 	yzmabuiltin "github.com/kawai-network/veridium/pkg/yzma/tools/builtin"
 	"github.com/kawai-network/veridium/types"
@@ -46,19 +43,20 @@ import (
 // AgentChatService provides agent-based chat with RAG, tools, and context awareness
 // This replaces/complements the existing LibraryChatService with Yzma-based capabilities
 type AgentChatService struct {
-	app        *application.App
-	db         *database.Service
-	libService *llama.LibraryService
-	llamaLM    fantasy.LanguageModel // fantasy.LanguageModel from llama provider
-	kbService  *KnowledgeBaseService
+	app         *application.App
+	db          *database.Service
+	libService  *llamalib.Service
+	kbService   *KnowledgeBaseService
 	ragWorkflow *RAGWorkflow
 
 	// Vector search for file-based RAG (direct file attachments)
 	vectorSearch *VectorSearchService
 
-	// TaskRouter for multi-provider task distribution
-	// Routes different tasks (chat, title, summary) to appropriate models
-	taskRouter *llm.TaskRouter
+	// Language models for different tasks (all fantasy.LanguageModel interface)
+	// These can be ChainLanguageModel for fallback support
+	chatModel    fantasy.LanguageModel // Main chat model (streaming + tools)
+	titleModel   fantasy.LanguageModel // Title generation model (lightweight)
+	summaryModel fantasy.LanguageModel // Summary generation model
 
 	// Yzma tool registry (replaces Eino tools)
 	toolRegistry *tools.ToolRegistry
@@ -68,10 +66,6 @@ type AgentChatService struct {
 
 	// Reasoning mode configuration
 	reasoningConfig ReasoningConfig // Controls reasoning behavior
-
-	// Utility models: use separate small & fast models for efficiency
-	titleModelPath   string // Path to title generation model (optional, falls back to main model)
-	summaryModelPath string // Path to summary generation model (optional, falls back to title/main model)
 
 	// Session management (hybrid: DB + in-memory cache)
 	sessions      map[string]*AgentSession // In-memory cache for active sessions
@@ -365,7 +359,7 @@ type UIChatMessage struct {
 func NewAgentChatService(
 	app *application.App,
 	db *database.Service,
-	libService *llama.LibraryService,
+	libService *llamalib.Service,
 	kbService *KnowledgeBaseService,
 	vectorSearch *VectorSearchService,
 	threadService *ThreadManagementService,
@@ -381,172 +375,51 @@ func NewAgentChatService(
 		log.Printf("✅ AgentChatService: Yzma builtin tools registered")
 	}
 
-	// Create llama provider with LibraryService and ToolRegistry
-	provider, err := llamaprovider.New(
-		llamaprovider.WithLibraryService(libService),
-		llamaprovider.WithToolRegistry(toolRegistry),
-	)
-	if err != nil {
-		log.Printf("⚠️  Warning: Failed to create llama provider: %v", err)
-	}
-
-	// Get fantasy.LanguageModel from provider
-	var llamaLM fantasy.LanguageModel
-	if provider != nil {
-		ctx := context.Background()
-		llamaLM, err = provider.LanguageModel(ctx, "")
-		if err != nil {
-			log.Printf("⚠️  Warning: Failed to get language model from provider: %v", err)
-		} else {
-			log.Printf("✅ AgentChatService: Llama provider initialized")
-		}
-	}
-
-	// Auto-detect utility models for lightweight tasks
-	titleModelPath := detectTitleGenerationModel(libService)
-	summaryModelPath := detectSummaryGenerationModel(libService)
-
-	// Build TaskRouter with default dev config
-	// This routes different tasks to appropriate models
-	devConfig := llm.GetDefaultDevConfig()
-	taskRouter := llm.BuildTaskRouter(devConfig, toolRegistry, llamaLM)
-
 	service := &AgentChatService{
-		app:              app,
-		db:               db,
-		libService:       libService,
-		llamaLM:          llamaLM,
-		taskRouter:       taskRouter,
-		kbService:        kbService,
-		ragWorkflow:      ragWorkflow,
-		vectorSearch:     vectorSearch,
-		toolRegistry:     toolRegistry,
-		threadService:    threadService,
-		reasoningConfig:  DefaultReasoningConfig(), // Default: disabled (non-reasoning)
-		titleModelPath:   titleModelPath,
-		summaryModelPath: summaryModelPath,
-		sessions:         make(map[string]*AgentSession),
+		app:             app,
+		db:              db,
+		libService:      libService,
+		kbService:       kbService,
+		ragWorkflow:     ragWorkflow,
+		vectorSearch:    vectorSearch,
+		toolRegistry:    toolRegistry,
+		threadService:   threadService,
+		reasoningConfig: DefaultReasoningConfig(), // Default: disabled (non-reasoning)
+		sessions:        make(map[string]*AgentSession),
 	}
 
-	if titleModelPath != "" {
-		log.Printf("📝 Auto-detected title model: %s", filepath.Base(titleModelPath))
-	} else {
-		log.Printf("📝 No dedicated title model found, will use main chat model")
-	}
-
-	if summaryModelPath != "" {
-		log.Printf("📋 Auto-detected summary model: %s", filepath.Base(summaryModelPath))
-	} else {
-		log.Printf("📋 No dedicated summary model found, will use main chat model")
-	}
+	log.Printf("✅ AgentChatService: Initialized (models will be injected via SetChatModel/SetTitleModel/SetSummaryModel)")
 
 	return service
 }
 
-// generateWithoutTools generates a response using the local LLM with tools disabled.
-// This is used for title/summary generation where tools should not be included.
-// Uses fantasy.ToolChoiceNone to disable tool enhancement in the prompt.
-func (s *AgentChatService) generateWithoutTools(ctx context.Context, messages fantasy.Prompt) (*fantasy.Response, error) {
-	toolChoice := fantasy.ToolChoiceNone
-	return s.llamaLM.Generate(ctx, fantasy.Call{
-		Prompt:     messages,
-		ToolChoice: &toolChoice,
-	})
+// SetChatModel sets the main chat model (for streaming chat with tools)
+func (s *AgentChatService) SetChatModel(model fantasy.LanguageModel) {
+	s.chatModel = model
+	if model != nil {
+		log.Printf("✅ AgentChatService: Chat model set (%s/%s)", model.Provider(), model.Model())
+	}
 }
 
-// detectTitleGenerationModel finds the smallest, fastest model for title generation
-// Prefers utility models (Llama 3.2 1B/3B) which are optimized for quick tasks
-// Reuses detectSummaryGenerationModel since both tasks need the same type of model
-func detectTitleGenerationModel(libService *llama.LibraryService) string {
-	return detectSummaryGenerationModel(libService)
+// SetTitleModel sets the title generation model
+func (s *AgentChatService) SetTitleModel(model fantasy.LanguageModel) {
+	s.titleModel = model
+	if model != nil {
+		log.Printf("✅ AgentChatService: Title model set (%s/%s)", model.Provider(), model.Model())
+	}
 }
 
-// detectSummaryGenerationModel finds optimal model for summarization
-// Strategy: Prefer small non-reasoning models (Llama 3.2 1B/3B, Mistral)
-// These models are fast, don't generate <think> tags, and have good quality for utility tasks
-func detectSummaryGenerationModel(libService *llama.LibraryService) string {
-	models, err := libService.GetAvailableModels()
-	if err != nil || len(models) == 0 {
-		return ""
+// SetSummaryModel sets the summary generation model
+func (s *AgentChatService) SetSummaryModel(model fantasy.LanguageModel) {
+	s.summaryModel = model
+	if model != nil {
+		log.Printf("✅ AgentChatService: Summary model set (%s/%s)", model.Provider(), model.Model())
 	}
+}
 
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return ""
-	}
-	modelsDir := filepath.Join(homeDir, ".llama-cpp", "models")
-
-	var bestModel string
-	var bestScore int
-
-	for _, modelName := range models {
-		modelPath := filepath.Join(modelsDir, modelName)
-		nameLower := strings.ToLower(modelName)
-
-		// Skip embedding models
-		if strings.Contains(nameLower, "embedding") || strings.Contains(nameLower, "embed") {
-			continue
-		}
-
-		// Get file size
-		info, err := os.Stat(modelPath)
-		if err != nil {
-			continue
-		}
-
-		score := 0
-		sizeMB := info.Size() / (1024 * 1024)
-
-		// Prefer SMALL but not TOO small (1B-1.5B ideal for summary)
-		// Summary needs slightly better quality than title
-		if sizeMB >= 500 && sizeMB < 1000 {
-			score += 100 // 1B models - BEST for summary (Llama 3.2 1B)
-		} else if sizeMB >= 1000 && sizeMB < 2000 {
-			score += 90 // 1.5B-3B models - good balance (Llama 3.2 3B)
-		} else if sizeMB < 500 {
-			score += 70 // 0.5B models - may be too simple
-		} else if sizeMB < 4500 {
-			score += 50 // 3B-7B models - slower, unnecessary (Mistral 7B)
-		} else {
-			score += 10 // 7B+ models - too slow for background task
-		}
-
-		// CRITICAL: Prefer non-reasoning models (NO <think> tags)
-		if strings.Contains(nameLower, "llama-3.2-1b") || strings.Contains(nameLower, "llama_3.2_1b") {
-			score += 100 // Llama 3.2 1B is BEST - fast, no think tags, good quality
-		} else if strings.Contains(nameLower, "llama-3.2-3b") || strings.Contains(nameLower, "llama_3.2_3b") {
-			score += 90 // Llama 3.2 3B is excellent - better quality
-		} else if strings.Contains(nameLower, "llama") && !strings.Contains(nameLower, "3.2") {
-			score += 70 // Other Llama models are okay
-		} else if strings.Contains(nameLower, "mistral") {
-			score += 60 // Mistral is decent
-		} else if strings.Contains(nameLower, "gemma") {
-			score += 50 // Gemma is okay
-		} else if strings.Contains(nameLower, "phi") {
-			score += 40 // Phi is acceptable
-		} else if strings.Contains(nameLower, "qwen") {
-			score -= 200 // AVOID Qwen - generates <think> tags in summary!
-		} else if strings.Contains(nameLower, "deepseek") {
-			score -= 150 // AVOID DeepSeek - reasoning model
-		}
-
-		// Prefer instruct/chat models
-		if strings.Contains(nameLower, "instruct") || strings.Contains(nameLower, "chat") {
-			score += 30
-		}
-
-		// Prefer Q4 quantization (good balance of quality & speed)
-		if strings.Contains(nameLower, "q4") {
-			score += 20
-		}
-
-		if score > bestScore {
-			bestScore = score
-			bestModel = modelPath
-		}
-	}
-
-	return bestModel
+// GetToolRegistry returns the tool registry for external configuration
+func (s *AgentChatService) GetToolRegistry() *tools.ToolRegistry {
+	return s.toolRegistry
 }
 
 // getOrCreateSession gets an existing session or creates a new one with DB persistence
@@ -728,14 +601,19 @@ func (s *AgentChatService) collectToolNames(ctx context.Context, req ChatRequest
 // This is optimized for use with fantasy.WithSystemPrompt() which handles
 // system prompt injection internally. Returns just the prompt string.
 func (s *AgentChatService) buildSystemPrompt(session *AgentSession) string {
-	// Build base instruction
-	baseInstruction := "You are a helpful AI assistant. "
+	// Get current time for LLM awareness
+	now := time.Now()
+	currentTime := fmt.Sprintf("Current date and time: %s (%s)",
+		now.Format("Monday, January 2, 2006 15:04:05"),
+		now.Format("2006-01-02T15:04:05-07:00"))
+
+	// Build base instruction with current time
+	baseInstruction := fmt.Sprintf("You are a helpful AI assistant. %s\n\n", currentTime)
 
 	// Inject summary if exists
 	if session.Context != nil {
 		if historySummary, ok := session.Context["history_summary"].(string); ok && historySummary != "" {
 			summaryContext := fmt.Sprintf(`
-
 <chat_history_summary>
 <docstring>Previous conversation summary (older messages have been compressed):</docstring>
 <summary>%s</summary>
@@ -842,10 +720,16 @@ func (s *AgentChatService) registerKBSearchTool(ctx context.Context, kbID, userI
 	return s.toolRegistry.Register(tool)
 }
 
-// generateTopicTitle generates a concise title for the conversation using LLM
-// Uses TaskRouter to route to appropriate provider (remote or local)
+// generateTopicTitle generates a concise title for the conversation using titleModel
+// ChainLanguageModel handles fallback internally if configured
 func (s *AgentChatService) generateTopicTitle(ctx context.Context, messages []fantasy.Message, locale string) (string, error) {
 	if len(messages) == 0 {
+		return "New Conversation", nil
+	}
+
+	// Check if title model is configured
+	if s.titleModel == nil {
+		log.Printf("⚠️  Title model not configured, using default title")
 		return "New Conversation", nil
 	}
 
@@ -884,60 +768,14 @@ Example: Sleep Functions for Body and Mind`, locale)
 		fantasy.NewUserMessage(conversationText),
 	}
 
-	var responseContent string
-
-	// Try TaskRouter first (routes to configured model)
-	if s.taskRouter != nil && s.taskRouter.HasModel(llm.TaskTitleGen) {
-		log.Printf("📝 Using TaskRouter for title generation")
-		resp, err := s.taskRouter.GenerateTitle(ctx, titleMessages)
-		if err != nil {
-			log.Printf("⚠️  TaskRouter title generation failed: %v, falling back to local", err)
-		} else {
-			responseContent = resp.Content.Text()
-		}
+	// Use titleModel directly (ChainLanguageModel handles fallback)
+	resp, err := s.titleModel.Generate(ctx, fantasy.Call{Prompt: titleMessages})
+	if err != nil {
+		log.Printf("⚠️  Title generation failed: %v, using default", err)
+		return "New Conversation", nil
 	}
 
-	// Fallback to local model if TaskRouter failed or not configured
-	if responseContent == "" {
-		if s.titleModelPath != "" {
-			log.Printf("📝 Using dedicated local title model: %s", filepath.Base(s.titleModelPath))
-
-			// Save current model state
-			currentModel := s.libService.GetLoadedChatModel()
-
-			// Load title model
-			if err := s.libService.LoadChatModel(s.titleModelPath); err != nil {
-				log.Printf("⚠️  Failed to load title model, falling back to main model: %v", err)
-				resp, genErr := s.generateWithoutTools(ctx, titleMessages)
-				if genErr != nil {
-					return "", fmt.Errorf("failed to generate title: %w", genErr)
-				}
-				responseContent = resp.Content.Text()
-			} else {
-				resp, genErr := s.generateWithoutTools(ctx, titleMessages)
-				if genErr != nil {
-					if currentModel != "" {
-						s.libService.LoadChatModel(currentModel)
-					}
-					return "", fmt.Errorf("failed to generate title: %w", genErr)
-				}
-				responseContent = resp.Content.Text()
-
-				if currentModel != "" {
-					if restoreErr := s.libService.LoadChatModel(currentModel); restoreErr != nil {
-						log.Printf("⚠️  Failed to restore main model: %v", restoreErr)
-					}
-				}
-			}
-		} else {
-			log.Printf("📝 Using main chat model for title generation")
-			resp, err := s.generateWithoutTools(ctx, titleMessages)
-			if err != nil {
-				return "", fmt.Errorf("failed to generate title: %w", err)
-			}
-			responseContent = resp.Content.Text()
-		}
-	}
+	responseContent := resp.Content.Text()
 
 	// Strip <think> tags if present (for reasoning models)
 	if strings.Contains(responseContent, "<think>") {
@@ -1246,73 +1084,6 @@ func (s *AgentChatService) updateSessionTimestamp(ctx context.Context, sessionID
 	return err
 }
 
-// SetReasoningMode sets the reasoning mode for the service
-// This affects all new conversations created after this call
-// Validates hardware specs before allowing resource-intensive reasoning modes
-func (s *AgentChatService) SetReasoningMode(mode ReasoningMode) error {
-	s.sessionsMutex.Lock()
-	defer s.sessionsMutex.Unlock()
-
-	// Validate mode
-	if mode != ReasoningDisabled && mode != ReasoningEnabled && mode != ReasoningVerbose {
-		return fmt.Errorf("invalid reasoning mode: %s", mode)
-	}
-
-	// Get hardware specs from the installer
-	var hardwareSpecs *hardware.HardwareSpecs
-	if s.libService != nil {
-		hardwareSpecs = s.libService.GetHardwareSpecs()
-	}
-
-	// Create temp config to validate hardware
-	tempConfig := s.reasoningConfig
-	tempConfig.Mode = mode
-
-	// Validate hardware requirements for reasoning modes
-	if mode == ReasoningEnabled || mode == ReasoningVerbose {
-		if valid, reason := tempConfig.ValidateHardware(hardwareSpecs); !valid {
-			// Hardware insufficient - suggest alternative
-			suggested := SuggestModeForHardware(hardwareSpecs)
-			log.Printf("⚠️  Hardware validation failed for %s mode: %s", mode, reason)
-			log.Printf("💡 Auto-switching to %s mode based on available hardware", suggested)
-
-			// Auto-switch to suggested mode instead of failing
-			mode = suggested
-			tempConfig.Mode = suggested
-
-			// If still trying reasoning mode after suggestion, validate again
-			if mode != ReasoningDisabled {
-				if valid, reason := tempConfig.ValidateHardware(hardwareSpecs); !valid {
-					// Even suggested mode failed - force disable
-					log.Printf("⚠️  Even suggested mode failed: %s. Forcing disabled mode.", reason)
-					mode = ReasoningDisabled
-				}
-			}
-		}
-	}
-
-	s.reasoningConfig.Mode = mode
-	log.Printf("🧠 Reasoning mode changed to: %s (%s)", mode, s.reasoningConfig.GetModeDescription())
-
-	// Log hardware requirements
-	hwReq := s.reasoningConfig.GetHardwareRequirements()
-	log.Printf("💻 Hardware requirements: %s", hwReq.Description)
-	if hardwareSpecs != nil {
-		log.Printf("📊 Current system: RAM=%dGB, Cores=%d, GPU=%s",
-			hardwareSpecs.AvailableRAM, hardwareSpecs.CPUCores, hardwareSpecs.GPUModel)
-	}
-
-	// Log performance expectations
-	perf := s.reasoningConfig.GetExpectedPerformance()
-	log.Printf("📊 Expected performance:")
-	log.Printf("   - Speed: %s", perf["speed"])
-	log.Printf("   - Token efficiency: %s", perf["token_efficiency"])
-	log.Printf("   - Max turns: %s", perf["max_turns"])
-	log.Printf("   - Response size: %s", perf["response_size"])
-
-	return nil
-}
-
 // validateModelForReasoningMode checks if the currently loaded model is appropriate
 func (s *AgentChatService) validateModelForReasoningMode() error {
 	modelPath := s.libService.GetLoadedChatModel()
@@ -1474,11 +1245,16 @@ func (s *AgentChatService) getKeepMessageCount() int {
 	}
 }
 
-// generateHistorySummary generates summary using TaskRouter or local fallback
-// Uses TaskRouter first, then falls back to local models
+// generateHistorySummary generates summary using summaryModel
+// ChainLanguageModel handles fallback internally if configured
 func (s *AgentChatService) generateHistorySummary(ctx context.Context, messages []fantasy.Message) (string, error) {
 	if len(messages) == 0 {
 		return "", fmt.Errorf("no messages to summarize")
+	}
+
+	// Check if summary model is configured
+	if s.summaryModel == nil {
+		return "", fmt.Errorf("summary model not configured")
 	}
 
 	// Build summary prompt
@@ -1513,89 +1289,18 @@ Please summarize the above conversation and retain key information. The summariz
 		fantasy.NewUserMessage(conversationContent),
 	}
 
-	var responseContent string
-	var modelUsed string
-
-	// Try TaskRouter first (routes to configured model)
-	if s.taskRouter != nil && s.taskRouter.HasModel(llm.TaskSummaryGen) {
-		log.Printf("📋 Using TaskRouter for summary generation")
-		resp, err := s.taskRouter.GenerateSummary(ctx, summaryMessages)
-		if err != nil {
-			log.Printf("⚠️  TaskRouter summary generation failed: %v, falling back to local", err)
-		} else {
-			responseContent = resp.Content.Text()
-			modelUsed = "taskrouter"
-		}
-	}
-
-	// Fallback to local models if TaskRouter failed or not configured
-	if responseContent == "" {
-		currentModel := s.libService.GetLoadedChatModel()
-
-		// Try 1: Dedicated summary model (BEST - optimized for this task)
-		if s.summaryModelPath != "" && s.summaryModelPath != currentModel {
-			log.Printf("📋 Using dedicated summary model: %s", filepath.Base(s.summaryModelPath))
-
-			if loadErr := s.libService.LoadChatModel(s.summaryModelPath); loadErr != nil {
-				log.Printf("⚠️  Failed to load summary model: %v", loadErr)
-			} else {
-				resp, genErr := s.generateWithoutTools(ctx, summaryMessages)
-				if genErr == nil {
-					responseContent = resp.Content.Text()
-					modelUsed = "summary"
-				} else {
-					log.Printf("⚠️  Summary model generation failed: %v", genErr)
-				}
-
-				// Restore main model
-				if currentModel != "" {
-					if restoreErr := s.libService.LoadChatModel(currentModel); restoreErr != nil {
-						log.Printf("⚠️  Failed to restore main model: %v", restoreErr)
-					}
-				}
-			}
-		}
-
-		// Try 2: Title model (GOOD - small and fast, already tested)
-		if responseContent == "" && s.titleModelPath != "" && s.titleModelPath != currentModel {
-			log.Printf("📋 Falling back to title model: %s", filepath.Base(s.titleModelPath))
-
-			if loadErr := s.libService.LoadChatModel(s.titleModelPath); loadErr != nil {
-				log.Printf("⚠️  Failed to load title model: %v", loadErr)
-			} else {
-				resp, genErr := s.generateWithoutTools(ctx, summaryMessages)
-				if genErr == nil {
-					responseContent = resp.Content.Text()
-					modelUsed = "title"
-				} else {
-					log.Printf("⚠️  Title model generation failed: %v", genErr)
-				}
-
-				// Restore main model
-				if currentModel != "" {
-					s.libService.LoadChatModel(currentModel)
-				}
-			}
-		}
-
-		// Try 3: Main chat model (FALLBACK - may be slow/reasoning model)
-		if responseContent == "" {
-			log.Printf("📋 Using main chat model for summary (no dedicated model available)")
-			resp, err := s.generateWithoutTools(ctx, summaryMessages)
-			if err != nil {
-				return "", fmt.Errorf("failed to generate summary: %w", err)
-			}
-			responseContent = resp.Content.Text()
-			modelUsed = "main"
-		}
+	// Use summaryModel directly (ChainLanguageModel handles fallback)
+	resp, err := s.summaryModel.Generate(ctx, fantasy.Call{Prompt: summaryMessages})
+	if err != nil {
+		return "", fmt.Errorf("summary generation failed: %w", err)
 	}
 
 	// Clean up response
-	summary := strings.TrimSpace(responseContent)
+	summary := strings.TrimSpace(resp.Content.Text())
 
 	// Strip <think> tags if present (for reasoning models)
 	if strings.Contains(summary, "<think>") {
-		log.Printf("⚠️  WARNING: Summary contains <think> tags (model: %s), stripping...", modelUsed)
+		log.Printf("⚠️  WARNING: Summary contains <think> tags, stripping...")
 		summary = stripThinkTags(summary)
 	}
 
@@ -1603,7 +1308,7 @@ Please summarize the above conversation and retain key information. The summariz
 		return "", fmt.Errorf("empty summary generated")
 	}
 
-	log.Printf("✅ Summary generated using %s model (%d chars)", modelUsed, len(summary))
+	log.Printf("✅ Summary generated (%d chars)", len(summary))
 	return summary, nil
 }
 
@@ -1739,7 +1444,13 @@ func (s *AgentChatService) incrementalSummarizeIfNeeded(ctx context.Context, ses
 }
 
 // generateIncrementalSummary creates updated summary by merging existing summary with new messages
+// Uses summaryModel directly (ChainLanguageModel handles fallback internally)
 func (s *AgentChatService) generateIncrementalSummary(ctx context.Context, existingSummary string, newMessages []fantasy.Message) (string, error) {
+	// Check if summary model is configured
+	if s.summaryModel == nil {
+		return "", fmt.Errorf("summary model not configured")
+	}
+
 	// Build conversation context from new messages
 	var messagesText strings.Builder
 	for i, msg := range newMessages {
@@ -1784,72 +1495,18 @@ UPDATED SUMMARY:`, existingSummary, messagesText.String())
 		fantasy.NewUserMessage(prompt),
 	}
 
-	// Try 1: Summary model (BEST)
-	var responseContent string
-	modelUsed := "unknown"
-
-	currentModel := s.libService.GetLoadedChatModel()
-
-	if s.summaryModelPath != "" && s.summaryModelPath != currentModel {
-		log.Printf("📋 Using dedicated summary model for incremental: %s", filepath.Base(s.summaryModelPath))
-
-		if loadErr := s.libService.LoadChatModel(s.summaryModelPath); loadErr != nil {
-			log.Printf("⚠️  Failed to load summary model: %v", loadErr)
-		} else {
-			resp, genErr := s.generateWithoutTools(ctx, summaryMessages)
-			if genErr == nil {
-				responseContent = resp.Content.Text()
-				modelUsed = "summary"
-			} else {
-				log.Printf("⚠️  Summary model generation failed: %v", genErr)
-			}
-
-			// Restore main model
-			if currentModel != "" {
-				s.libService.LoadChatModel(currentModel)
-			}
-		}
-	}
-
-	// Try 2: Title model (GOOD)
-	if responseContent == "" && s.titleModelPath != "" && s.titleModelPath != currentModel {
-		log.Printf("📋 Falling back to title model for incremental: %s", filepath.Base(s.titleModelPath))
-
-		if loadErr := s.libService.LoadChatModel(s.titleModelPath); loadErr != nil {
-			log.Printf("⚠️  Failed to load title model: %v", loadErr)
-		} else {
-			resp, genErr := s.generateWithoutTools(ctx, summaryMessages)
-			if genErr == nil {
-				responseContent = resp.Content.Text()
-				modelUsed = "title"
-			} else {
-				log.Printf("⚠️  Title model generation failed: %v", genErr)
-			}
-
-			// Restore main model
-			if currentModel != "" {
-				s.libService.LoadChatModel(currentModel)
-			}
-		}
-	}
-
-	// Try 3: Main chat model (FALLBACK)
-	if responseContent == "" {
-		log.Printf("📋 Using main chat model for incremental summary")
-		resp, err := s.generateWithoutTools(ctx, summaryMessages)
-		if err != nil {
-			return "", fmt.Errorf("failed to generate incremental summary: %w", err)
-		}
-		responseContent = resp.Content.Text()
-		modelUsed = "main"
+	// Use summaryModel directly (ChainLanguageModel handles fallback)
+	resp, err := s.summaryModel.Generate(ctx, fantasy.Call{Prompt: summaryMessages})
+	if err != nil {
+		return "", fmt.Errorf("failed to generate incremental summary: %w", err)
 	}
 
 	// Clean up response
-	summary := strings.TrimSpace(responseContent)
+	summary := strings.TrimSpace(resp.Content.Text())
 
 	// Strip <think> tags if present
 	if strings.Contains(summary, "<think>") {
-		log.Printf("⚠️  WARNING: Incremental summary contains <think> tags (model: %s), stripping...", modelUsed)
+		log.Printf("⚠️  WARNING: Incremental summary contains <think> tags, stripping...")
 		summary = stripThinkTags(summary)
 	}
 
@@ -1857,6 +1514,6 @@ UPDATED SUMMARY:`, existingSummary, messagesText.String())
 		return "", fmt.Errorf("empty incremental summary generated")
 	}
 
-	log.Printf("✅ Incremental summary generated using %s model (%d chars)", modelUsed, len(summary))
+	log.Printf("✅ Incremental summary generated (%d chars)", len(summary))
 	return summary, nil
 }

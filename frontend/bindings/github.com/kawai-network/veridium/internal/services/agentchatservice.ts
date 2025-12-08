@@ -13,6 +13,13 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as fantasy$0 from "../../fantasy/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as tools$0 from "../../pkg/yzma/tools/models.js";
+
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
 /**
@@ -102,15 +109,38 @@ export function GetStreamEventPayloadType(): $CancellablePromise<$models.StreamE
 }
 
 /**
- * SetReasoningMode sets the reasoning mode for the service
- * This affects all new conversations created after this call
- * Validates hardware specs before allowing resource-intensive reasoning modes
+ * GetToolRegistry returns the tool registry for external configuration
  */
-export function SetReasoningMode(mode: $models.ReasoningMode): $CancellablePromise<void> {
-    return $Call.ByID(3600806230, mode);
+export function GetToolRegistry(): $CancellablePromise<tools$0.ToolRegistry | null> {
+    return $Call.ByID(306369018).then(($result: any) => {
+        return $$createType4($result);
+    });
+}
+
+/**
+ * SetChatModel sets the main chat model (for streaming chat with tools)
+ */
+export function SetChatModel(model: fantasy$0.LanguageModel): $CancellablePromise<void> {
+    return $Call.ByID(8199130, model);
+}
+
+/**
+ * SetSummaryModel sets the summary generation model
+ */
+export function SetSummaryModel(model: fantasy$0.LanguageModel): $CancellablePromise<void> {
+    return $Call.ByID(3154586890, model);
+}
+
+/**
+ * SetTitleModel sets the title generation model
+ */
+export function SetTitleModel(model: fantasy$0.LanguageModel): $CancellablePromise<void> {
+    return $Call.ByID(468930904, model);
 }
 
 // Private type creation functions
 const $$createType0 = $models.UIChatMessage.createFrom;
 const $$createType1 = $Create.Array($$createType0);
 const $$createType2 = $models.StreamEventPayload.createFrom;
+const $$createType3 = tools$0.ToolRegistry.createFrom;
+const $$createType4 = $Create.Nullable($$createType3);

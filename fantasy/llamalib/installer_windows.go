@@ -1,6 +1,6 @@
 //go:build windows
 
-package llama
+package llamalib
 
 import (
 	"log"

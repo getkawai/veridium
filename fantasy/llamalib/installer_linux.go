@@ -1,6 +1,6 @@
 //go:build linux
 
-package llama
+package llamalib
 
 import (
 	"log"

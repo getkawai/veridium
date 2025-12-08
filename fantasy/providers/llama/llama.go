@@ -1,4 +1,6 @@
 // Package llama provides an implementation of the fantasy AI SDK for local llama.cpp models.
+// This provider handles text generation using llama.cpp.
+// For Vision-Language (VL) capabilities, use fantasy/providers/llama-vl.
 package llama
 
 import (
@@ -6,7 +8,7 @@ import (
 	"fmt"
 
 	"github.com/kawai-network/veridium/fantasy"
-	internalllama "github.com/kawai-network/veridium/internal/llama"
+	"github.com/kawai-network/veridium/fantasy/llamalib"
 	"github.com/kawai-network/veridium/pkg/yzma/tools"
 )
 
@@ -16,18 +18,11 @@ const (
 )
 
 // Provider extends fantasy.Provider with llama-specific capabilities.
-// This interface provides access to VL (Vision-Language) model features
-// that are not part of the standard fantasy.Provider interface.
 type Provider interface {
 	fantasy.Provider
 
-	// VL (Vision-Language) model methods
-	ProcessImage(ctx context.Context, imagePath, prompt string, maxTokens int32) (string, error)
-	IsVLModelLoaded() bool
-	LoadVLModel(ctx context.Context, modelPath string) error
-
 	// Resource management
-	GetLibraryService() *internalllama.LibraryService
+	GetService() *llamalib.Service
 	Cleanup()
 }
 
@@ -37,7 +32,7 @@ type provider struct {
 
 type options struct {
 	name         string
-	libService   *internalllama.LibraryService
+	service      *llamalib.Service
 	toolRegistry *tools.ToolRegistry
 	modelPath    string
 }
@@ -46,7 +41,7 @@ type options struct {
 type Option = func(*options)
 
 // New creates a new llama provider with the given options.
-// Returns Provider interface which extends fantasy.Provider with VL capabilities.
+// Returns Provider interface which extends fantasy.Provider.
 func New(opts ...Option) (Provider, error) {
 	providerOptions := options{
 		name: Name,
@@ -55,13 +50,13 @@ func New(opts ...Option) (Provider, error) {
 		o(&providerOptions)
 	}
 
-	// Create LibraryService if not provided
-	if providerOptions.libService == nil {
-		libService, err := internalllama.NewLibraryService()
+	// Create Service if not provided
+	if providerOptions.service == nil {
+		service, err := llamalib.NewService()
 		if err != nil {
-			return nil, fmt.Errorf("failed to create library service: %w", err)
+			return nil, fmt.Errorf("failed to create llamalib service: %w", err)
 		}
-		providerOptions.libService = libService
+		providerOptions.service = service
 	}
 
 	return &provider{options: providerOptions}, nil
@@ -74,10 +69,10 @@ func WithName(name string) Option {
 	}
 }
 
-// WithLibraryService sets a pre-configured LibraryService.
-func WithLibraryService(libService *internalllama.LibraryService) Option {
+// WithService sets a pre-configured llamalib.Service.
+func WithService(service *llamalib.Service) Option {
 	return func(o *options) {
-		o.libService = libService
+		o.service = service
 	}
 }
 
@@ -98,7 +93,7 @@ func WithModelPath(modelPath string) Option {
 // LanguageModel implements fantasy.Provider.
 func (p *provider) LanguageModel(ctx context.Context, modelID string) (fantasy.LanguageModel, error) {
 	// Wait for library initialization
-	if err := p.options.libService.WaitForInitialization(ctx); err != nil {
+	if err := p.options.service.WaitForInitialization(ctx); err != nil {
 		return nil, fmt.Errorf("library initialization failed: %w", err)
 	}
 
@@ -108,16 +103,16 @@ func (p *provider) LanguageModel(ctx context.Context, modelID string) (fantasy.L
 		modelPath = modelID
 	}
 
-	if !p.options.libService.IsChatModelLoaded() || modelPath != "" {
-		if err := p.options.libService.LoadChatModel(modelPath); err != nil {
+	if !p.options.service.IsChatModelLoaded() || modelPath != "" {
+		if err := p.options.service.LoadChatModel(modelPath); err != nil {
 			return nil, fmt.Errorf("failed to load chat model: %w", err)
 		}
 	}
 
 	return newLanguageModel(
-		p.options.libService.GetLoadedChatModel(),
+		p.options.service.GetLoadedChatModel(),
 		p.options.name,
-		p.options.libService,
+		p.options.service,
 		p.options.toolRegistry,
 	), nil
 }
@@ -127,57 +122,16 @@ func (p *provider) Name() string {
 	return p.options.name
 }
 
-// GetLibraryService returns the underlying LibraryService for advanced usage.
-func (p *provider) GetLibraryService() *internalllama.LibraryService {
-	return p.options.libService
+// GetService returns the underlying llamalib.Service for advanced usage.
+func (p *provider) GetService() *llamalib.Service {
+	return p.options.service
 }
 
 // Cleanup releases all resources held by the provider.
 func (p *provider) Cleanup() {
-	if p.options.libService != nil {
-		p.options.libService.Cleanup()
+	if p.options.service != nil {
+		p.options.service.Cleanup()
 	}
-}
-
-// ============================================================================
-// VL (Vision-Language) Model Methods
-// ============================================================================
-
-// ProcessImage processes an image with accompanying text using VL model.
-// imagePath is the path to the image file to process.
-// prompt is the text prompt to guide the image description.
-// maxTokens is the maximum number of tokens to generate.
-func (p *provider) ProcessImage(ctx context.Context, imagePath, prompt string, maxTokens int32) (string, error) {
-	// Ensure library is initialized
-	if err := p.options.libService.WaitForInitialization(ctx); err != nil {
-		return "", fmt.Errorf("library initialization failed: %w", err)
-	}
-
-	// Check if VL model is loaded
-	if !p.options.libService.IsVLModelLoaded() {
-		// Try to auto-load VL model
-		if err := p.options.libService.LoadVLModel(""); err != nil {
-			return "", fmt.Errorf("VL model not loaded and failed to auto-load: %w", err)
-		}
-	}
-
-	return p.options.libService.ProcessImageWithText(imagePath, prompt, maxTokens)
-}
-
-// IsVLModelLoaded returns true if a VL model is currently loaded.
-func (p *provider) IsVLModelLoaded() bool {
-	return p.options.libService.IsVLModelLoaded()
-}
-
-// LoadVLModel loads a Vision-Language model.
-// If modelPath is empty, automatically selects the best available VL model.
-func (p *provider) LoadVLModel(ctx context.Context, modelPath string) error {
-	// Ensure library is initialized
-	if err := p.options.libService.WaitForInitialization(ctx); err != nil {
-		return fmt.Errorf("library initialization failed: %w", err)
-	}
-
-	return p.options.libService.LoadVLModel(modelPath)
 }
 
 // Ensure provider implements Provider interface

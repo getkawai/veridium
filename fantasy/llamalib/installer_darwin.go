@@ -1,6 +1,6 @@
 //go:build darwin
 
-package llama
+package llamalib
 
 import (
 	"log"

@@ -39,7 +39,6 @@ export {
     ModelPerformance,
     ModelReasoning,
     ModelUsage,
-    ReasoningMode,
     SearchResult,
     StreamEventPayload,
     ThreadInfo,

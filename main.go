@@ -1,15 +1,19 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"log"
 	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/kawai-network/veridium/fantasy"
+	"github.com/kawai-network/veridium/fantasy/llamalib"
+	llamaprovider "github.com/kawai-network/veridium/fantasy/providers/llama"
+	"github.com/kawai-network/veridium/fantasy/providers/openrouter"
 	"github.com/kawai-network/veridium/internal/audio_recorder"
 	"github.com/kawai-network/veridium/internal/database"
-	"github.com/kawai-network/veridium/internal/llama"
 	"github.com/kawai-network/veridium/internal/machineid"
 	"github.com/kawai-network/veridium/internal/search"
 	"github.com/kawai-network/veridium/internal/services"
@@ -94,15 +98,15 @@ func main() {
 		userConfigDir = "."
 	}
 
-	// Initialize Llama.cpp Library Service FIRST (library-based LLM inference)
+	// Initialize Llama.cpp Service FIRST (library-based LLM inference)
 	// This MUST be initialized before VectorSearchService to load llama.cpp library
 	// Auto-installs llama.cpp binaries and downloads models in background
-	libService, err := llama.NewLibraryService()
+	libService, err := llamalib.NewService()
 	if err != nil {
-		log.Printf("⚠️  Warning: Failed to initialize Llama Library service: %v", err)
+		log.Printf("⚠️  Warning: Failed to initialize Llama service: %v", err)
 		log.Printf("    LLM chat features will not be available.")
 	} else {
-		log.Printf("✅ Llama Library service initialized")
+		log.Printf("✅ Llama service initialized")
 		log.Printf("   Models directory: %s", libService.GetModelsDirectory())
 		log.Printf("   Auto-setup running in background...")
 	}
@@ -127,12 +131,12 @@ func main() {
 	// Initialize Embedder using pkg/yzma/embedding (custom interface, replaces Eino)
 	var embedder embedding.Embedder
 	var cacheManager *cache.CacheManager
-	embeddingModelName := llama.GetRecommendedEmbeddingModel()
-	embeddingModel, exists := llama.GetEmbeddingModel(embeddingModelName)
+	embeddingModelName := llamalib.GetRecommendedEmbeddingModel()
+	embeddingModel, exists := llamalib.GetEmbeddingModel(embeddingModelName)
 	if !exists {
 		log.Printf("⚠️  Warning: Embedding model not found: %s", embeddingModelName)
 	} else {
-		installer := llama.NewLlamaCppInstaller()
+		installer := llamalib.NewLlamaCppInstaller()
 		modelPath := filepath.Join(installer.GetModelsDirectory(), embeddingModel.Filename)
 		baseEmbedder, embedErr := embedding.NewLlamaEmbedder(&embedding.LlamaConfig{
 			ModelPath:   modelPath,
@@ -296,7 +300,53 @@ func main() {
 
 	// Initialize Llama Chat Service (OpenAI-compatible chat API)
 	// This service provides chat completion functionality using the library service
+	var chatModel, titleModel, summaryModel, cleanupModel fantasy.LanguageModel
 	if libService != nil {
+		// Create llama provider with library service
+		ctx := context.Background()
+		llamaProvider, err := llamaprovider.New(llamaprovider.WithService(libService))
+		if err != nil {
+			log.Printf("⚠️  Warning: Failed to create llama provider: %v", err)
+		} else {
+			// Get the default language model from llama provider
+			localModel, err := llamaProvider.LanguageModel(ctx, "")
+			if err != nil {
+				log.Printf("⚠️  Warning: Failed to get language model from llama provider: %v", err)
+			} else {
+				// Build chain of models: remote first (if configured), local fallback
+				var chainModels []fantasy.LanguageModel
+
+				// [DEV] Hardcoded OpenRouter API key for development testing
+				// TODO: Move to config file or environment variable for production
+				openRouterKey := "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"
+				if openRouterKey != "" {
+					openRouterProvider, err := openrouter.New(openrouter.WithAPIKey(openRouterKey))
+					if err != nil {
+						log.Printf("⚠️  Warning: Failed to create OpenRouter provider: %v", err)
+					} else {
+						// Use a capable model for tool calling
+						remoteModel, err := openRouterProvider.LanguageModel(ctx, "anthropic/claude-3.5-haiku")
+						if err != nil {
+							log.Printf("⚠️  Warning: Failed to get OpenRouter language model: %v", err)
+						} else {
+							chainModels = append(chainModels, remoteModel)
+							log.Printf("✅ OpenRouter added as primary model (anthropic/claude-3.5-haiku)")
+						}
+					}
+				}
+
+				// Add local llama as fallback
+				chainModels = append(chainModels, localModel)
+
+				// Create ChainLanguageModel instances for fallback support
+				chatModel, _ = fantasy.NewChain(chainModels)
+				titleModel, _ = fantasy.NewChain(chainModels)
+				summaryModel, _ = fantasy.NewChain(chainModels)
+				cleanupModel, _ = fantasy.NewChain(chainModels)
+				log.Printf("✅ ChainLanguageModel instances created (%d models in chain)", len(chainModels))
+			}
+		}
+
 		// Initialize Agent Chat Service (Yzma-based agent with RAG + DB persistence)
 		// Phase 4: Now with Thread Management integration
 		if kbService != nil {
@@ -308,7 +358,25 @@ func main() {
 				vectorSearchService,     // File-based RAG (direct attachments)
 				threadManagementService, // Phase 4: Thread integration
 			)
+
+			// Inject ChainLanguageModel instances for decentralized LLM routing
+			if chatModel != nil {
+				agentChatService.SetChatModel(chatModel)
+			}
+			if titleModel != nil {
+				agentChatService.SetTitleModel(titleModel)
+			}
+			if summaryModel != nil {
+				agentChatService.SetSummaryModel(summaryModel)
+			}
+
 			app.RegisterService(application.NewService(agentChatService))
+		}
+
+		// Inject cleanup model to FileProcessorService
+		if cleanupModel != nil {
+			fileProcessorService.SetLanguageModel(cleanupModel)
+			log.Printf("✅ FileProcessorService: LLM cleanup model injected")
 		}
 
 		// Add cleanup on shutdown

@@ -226,16 +226,8 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	var toolCallIndex int
 	var mu sync.Mutex // Protect concurrent access
 
-	// Get LanguageModel from TaskRouter or fallback to local llama
-	var model fantasy.LanguageModel
-	if s.taskRouter != nil {
-		model = s.taskRouter.GetChatModel()
-	}
-	// Fallback to local llama model if no remote provider configured
-	if model == nil && s.llamaLM != nil {
-		model = s.llamaLM
-		log.Printf("📝 [REAL STREAM] Using local llama model via fantasy.LanguageModel")
-	}
+	// Get LanguageModel from chatModel (set via SetChatModel, can be ChainLanguageModel for fallback)
+	model := s.chatModel
 
 	// Use fantasy.Agent if we have a LanguageModel
 	if model != nil {
