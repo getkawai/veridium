@@ -107,7 +107,7 @@ type AppContext struct {
 	ChatModel    fantasy.LanguageModel // Primary chat completion model
 	TitleModel   fantasy.LanguageModel // Model for generating chat titles
 	SummaryModel fantasy.LanguageModel // Model for summarization tasks
-	CleanupModel fantasy.LanguageModel // Model for text cleanup/formatting
+	CleanupModel fantasy.LanguageModel // Model for text cleanup/formatting after OCR/Whisper
 
 	// cleanupFuncs stores cleanup functions to be called on shutdown (LIFO order)
 	cleanupFuncs []func()
@@ -294,7 +294,7 @@ func (ctx *AppContext) initKnowledgeBase() {
 }
 
 // initLanguageModels initializes the language models for chat, title generation, etc.
-// Creates a chain of models with remote (OpenRouter) as primary and local (llama) as fallback.
+// Creates separate model chains with appropriate criteria for each task.
 func (ctx *AppContext) initLanguageModels() {
 	if ctx.LibService == nil {
 		return
@@ -314,27 +314,48 @@ func (ctx *AppContext) initLanguageModels() {
 		return
 	}
 
-	chainModels := ctx.buildModelChain(bgCtx, localModel)
+	// ChatModel: needs reasoning, attachments, large context for conversation
+	chatChain := ctx.buildModelChainWithCriteria(bgCtx, localModel, openrouter.ModelSelectionCriteria{
+		RequireReasoning:   true,
+		RequireAttachments: true,
+		MinContextWindow:   100000,
+	}, "ChatModel")
+	ctx.ChatModel, _ = fantasy.NewChain(chatChain)
 
-	ctx.ChatModel, _ = fantasy.NewChain(chainModels)
-	ctx.TitleModel, _ = fantasy.NewChain(chainModels)
-	ctx.SummaryModel, _ = fantasy.NewChain(chainModels)
-	ctx.CleanupModel, _ = fantasy.NewChain(chainModels)
-	log.Printf("ChainLanguageModel instances created (%d models in chain)", len(chainModels))
+	// TitleModel: simple task, no special requirements
+	titleChain := ctx.buildModelChainWithCriteria(bgCtx, localModel, openrouter.ModelSelectionCriteria{}, "TitleModel")
+	ctx.TitleModel, _ = fantasy.NewChain(titleChain)
+
+	// SummaryModel: needs large context for long input, no reasoning needed
+	summaryChain := ctx.buildModelChainWithCriteria(bgCtx, localModel, openrouter.ModelSelectionCriteria{
+		MinContextWindow: 50000,
+	}, "SummaryModel")
+	ctx.SummaryModel, _ = fantasy.NewChain(summaryChain)
+
+	// CleanupModel: simple text cleanup, no special requirements
+	cleanupChain := ctx.buildModelChainWithCriteria(bgCtx, localModel, openrouter.ModelSelectionCriteria{}, "CleanupModel")
+	ctx.CleanupModel, _ = fantasy.NewChain(cleanupChain)
+
+	log.Printf("Language models initialized with task-specific criteria")
 }
 
-// buildModelChain creates a chain of language models with fallback support.
-// Remote model (OpenRouter) is tried first, falling back to local llama model.
-func (ctx *AppContext) buildModelChain(bgCtx context.Context, localModel fantasy.LanguageModel) []fantasy.LanguageModel {
+// buildModelChainWithCriteria creates a chain with OpenRouter (auto-selected) + local fallback.
+func (ctx *AppContext) buildModelChainWithCriteria(bgCtx context.Context, localModel fantasy.LanguageModel, criteria openrouter.ModelSelectionCriteria, taskName string) []fantasy.LanguageModel {
 	var chainModels []fantasy.LanguageModel
 
 	// TODO: Move to config file or environment variable for production
 	openRouterKey := "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"
 	if openRouterKey != "" {
-		if provider, err := openrouter.New(openrouter.WithAPIKey(openRouterKey)); err == nil {
-			if remoteModel, err := provider.LanguageModel(bgCtx, "anthropic/claude-3.5-haiku"); err == nil {
+		if provider, err := openrouter.New(openrouter.WithAPIKey(openRouterKey), openrouter.WithModelSelection(criteria)); err == nil {
+			if remoteModel, err := provider.LanguageModel(bgCtx, ""); err == nil {
+				catalog := openrouter.GetCatalog()
+				selected := catalog.SelectFreeModel(criteria)
+				modelName := "none found"
+				if selected != nil {
+					modelName = selected.ID
+				}
 				chainModels = append(chainModels, remoteModel)
-				log.Printf("OpenRouter added as primary model (anthropic/claude-3.5-haiku)")
+				log.Printf("%s: OpenRouter (%s)", taskName, modelName)
 			}
 		}
 	}
@@ -561,7 +582,6 @@ func main() {
 	app := createWailsApp(ctx)
 	registerAgentServices(app, ctx)
 	createMainWindow(app, ctx)
-	startTimeEmitter(app)
 
 	// Run application
 	if err := app.Run(); err != nil {

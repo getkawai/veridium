@@ -12,7 +12,7 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as embedding$0 from "../../pkg/yzma/embedding/models.js";
+import * as llamaembed$0 from "../../fantasy/providers/llama-embed/models.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -28,7 +28,7 @@ export function Close(): $CancellablePromise<void> {
 /**
  * GetEmbedder returns the embedder
  */
-export function GetEmbedder(): $CancellablePromise<embedding$0.Embedder> {
+export function GetEmbedder(): $CancellablePromise<llamaembed$0.Embedder> {
     return $Call.ByID(3125806893);
 }
 

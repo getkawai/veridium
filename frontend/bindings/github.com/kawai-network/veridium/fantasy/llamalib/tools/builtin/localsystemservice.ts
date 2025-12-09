@@ -12,7 +12,7 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as localfs$0 from "../../../localfs/models.js";
+import * as localfs$0 from "../../../../pkg/localfs/models.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -22,7 +22,7 @@ import * as $models from "./models.js";
  * EditLocalFile edits a file with search and replace
  */
 export function EditLocalFile(filePath: string, oldString: string, newString: string, replaceAll: boolean): $CancellablePromise<$models.EditLocalFileState | null> {
-    return $Call.ByID(2564320431, filePath, oldString, newString, replaceAll).then(($result: any) => {
+    return $Call.ByID(2916167292, filePath, oldString, newString, replaceAll).then(($result: any) => {
         return $$createType1($result);
     });
 }
@@ -31,7 +31,7 @@ export function EditLocalFile(filePath: string, oldString: string, newString: st
  * GetCommandOutput gets output from a running command
  */
 export function GetCommandOutput(shellID: string, filter: string): $CancellablePromise<$models.GetCommandOutputState | null> {
-    return $Call.ByID(3595368630, shellID, filter).then(($result: any) => {
+    return $Call.ByID(3473904407, shellID, filter).then(($result: any) => {
         return $$createType3($result);
     });
 }
@@ -40,7 +40,7 @@ export function GetCommandOutput(shellID: string, filter: string): $CancellableP
  * GlobFiles searches for files using glob patterns
  */
 export function GlobFiles(pattern: string, path: string): $CancellablePromise<$models.GlobFilesState | null> {
-    return $Call.ByID(2631097731, pattern, path).then(($result: any) => {
+    return $Call.ByID(1681227316, pattern, path).then(($result: any) => {
         return $$createType5($result);
     });
 }
@@ -49,7 +49,7 @@ export function GlobFiles(pattern: string, path: string): $CancellablePromise<$m
  * GrepContent searches for content in files
  */
 export function GrepContent(params: localfs$0.GrepContentParams): $CancellablePromise<$models.GrepContentState | null> {
-    return $Call.ByID(209331199, params).then(($result: any) => {
+    return $Call.ByID(3979908380, params).then(($result: any) => {
         return $$createType7($result);
     });
 }
@@ -58,7 +58,7 @@ export function GrepContent(params: localfs$0.GrepContentParams): $CancellablePr
  * KillCommand kills a running command
  */
 export function KillCommand(shellID: string): $CancellablePromise<$models.KillCommandState | null> {
-    return $Call.ByID(3979997811, shellID).then(($result: any) => {
+    return $Call.ByID(4186894884, shellID).then(($result: any) => {
         return $$createType9($result);
     });
 }
@@ -67,7 +67,7 @@ export function KillCommand(shellID: string): $CancellablePromise<$models.KillCo
  * ListLocalFiles lists files in a directory
  */
 export function ListLocalFiles(path: string): $CancellablePromise<$models.LocalFileListState | null> {
-    return $Call.ByID(2310686316, path).then(($result: any) => {
+    return $Call.ByID(1598760897, path).then(($result: any) => {
         return $$createType11($result);
     });
 }
@@ -76,7 +76,7 @@ export function ListLocalFiles(path: string): $CancellablePromise<$models.LocalF
  * MoveLocalFiles moves multiple files
  */
 export function MoveLocalFiles(items: localfs$0.MoveLocalFileParams[]): $CancellablePromise<$models.LocalMoveFilesState | null> {
-    return $Call.ByID(2230675341, items).then(($result: any) => {
+    return $Call.ByID(1915038832, items).then(($result: any) => {
         return $$createType13($result);
     });
 }
@@ -85,7 +85,7 @@ export function MoveLocalFiles(items: localfs$0.MoveLocalFileParams[]): $Cancell
  * ReadLocalFile reads content from a file
  */
 export function ReadLocalFile(path: string, loc: number[]): $CancellablePromise<$models.LocalReadFileState | null> {
-    return $Call.ByID(1869559691, path, loc).then(($result: any) => {
+    return $Call.ByID(4167158684, path, loc).then(($result: any) => {
         return $$createType15($result);
     });
 }
@@ -94,7 +94,7 @@ export function ReadLocalFile(path: string, loc: number[]): $CancellablePromise<
  * ReadLocalFiles reads multiple files
  */
 export function ReadLocalFiles(paths: string[]): $CancellablePromise<$models.LocalReadFilesState | null> {
-    return $Call.ByID(1679104872, paths).then(($result: any) => {
+    return $Call.ByID(4042524989, paths).then(($result: any) => {
         return $$createType17($result);
     });
 }
@@ -103,7 +103,7 @@ export function ReadLocalFiles(paths: string[]): $CancellablePromise<$models.Loc
  * RenameLocalFile renames a file or directory
  */
 export function RenameLocalFile(path: string, newName: string): $CancellablePromise<$models.LocalRenameFileState | null> {
-    return $Call.ByID(3294300029, path, newName).then(($result: any) => {
+    return $Call.ByID(2028885878, path, newName).then(($result: any) => {
         return $$createType19($result);
     });
 }
@@ -112,7 +112,7 @@ export function RenameLocalFile(path: string, newName: string): $CancellableProm
  * RunCommand runs a shell command
  */
 export function RunCommand(command: string, description: string, runInBackground: boolean, timeout: number): $CancellablePromise<$models.RunCommandState | null> {
-    return $Call.ByID(28957268, command, description, runInBackground, timeout).then(($result: any) => {
+    return $Call.ByID(286847241, command, description, runInBackground, timeout).then(($result: any) => {
         return $$createType21($result);
     });
 }
@@ -121,7 +121,7 @@ export function RunCommand(command: string, description: string, runInBackground
  * SearchLocalFiles searches for files matching keywords
  */
 export function SearchLocalFiles(keywords: string, directory: string): $CancellablePromise<$models.LocalFileSearchState | null> {
-    return $Call.ByID(358953872, keywords, directory).then(($result: any) => {
+    return $Call.ByID(2374022281, keywords, directory).then(($result: any) => {
         return $$createType23($result);
     });
 }
@@ -130,7 +130,7 @@ export function SearchLocalFiles(keywords: string, directory: string): $Cancella
  * WriteLocalFile writes content to a file
  */
 export function WriteLocalFile(path: string, content: string): $CancellablePromise<localfs$0.WriteFileResult | null> {
-    return $Call.ByID(2573361898, path, content).then(($result: any) => {
+    return $Call.ByID(433221607, path, content).then(($result: any) => {
         return $$createType25($result);
     });
 }

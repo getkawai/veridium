@@ -2,6 +2,7 @@
 package openrouter
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/kawai-network/veridium/fantasy"
@@ -13,6 +14,13 @@ type options struct {
 	openaiOptions        []openai.Option
 	languageModelOptions []openai.LanguageModelOption
 	objectMode           fantasy.ObjectMode
+	selectionCriteria    ModelSelectionCriteria
+}
+
+// provider wraps openai provider to add model selection
+type provider struct {
+	inner    fantasy.Provider
+	criteria ModelSelectionCriteria
 }
 
 const (
@@ -58,7 +66,40 @@ func New(opts ...Option) (fantasy.Provider, error) {
 		openai.WithLanguageModelOptions(providerOptions.languageModelOptions...),
 		openai.WithObjectMode(objectMode),
 	)
-	return openai.New(providerOptions.openaiOptions...)
+
+	inner, err := openai.New(providerOptions.openaiOptions...)
+	if err != nil {
+		return nil, err
+	}
+
+	return &provider{
+		inner:    inner,
+		criteria: providerOptions.selectionCriteria,
+	}, nil
+}
+
+// Name implements fantasy.Provider.
+func (p *provider) Name() string {
+	return Name
+}
+
+// LanguageModel implements fantasy.Provider with auto model selection.
+// If modelID is empty, selects the best free model based on criteria.
+func (p *provider) LanguageModel(ctx context.Context, modelID string) (fantasy.LanguageModel, error) {
+	if modelID == "" {
+		catalog := GetCatalog()
+		if selected := catalog.SelectFreeModel(p.criteria); selected != nil {
+			modelID = selected.ID
+		}
+	}
+	return p.inner.LanguageModel(ctx, modelID)
+}
+
+// WithModelSelection sets model selection criteria for auto-selecting free models.
+func WithModelSelection(criteria ModelSelectionCriteria) Option {
+	return func(o *options) {
+		o.selectionCriteria = criteria
+	}
 }
 
 // WithAPIKey sets the API key for the OpenRouter provider.
