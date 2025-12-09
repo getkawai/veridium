@@ -3,6 +3,7 @@
 import { LOADING_FLAT } from '@/const';
 import { UIChatMessage } from '@/types';
 import { Tag } from '@lobehub/ui';
+import { Browser } from '@wailsio/runtime';
 import { useResponsive } from 'antd-style';
 import { ReactNode, memo, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -137,14 +138,29 @@ const AssistantMessage = memo<AssistantMessageProps>((props) => {
   // ======================================================================== //
 
   const components = useMemo(
-    () =>
-      Object.fromEntries(
+    () => ({
+      ...Object.fromEntries(
         markdownElements.map((element) => {
           const Component = element.Component;
 
           return [element.tag, (props: any) => <Component {...props} id={id} />];
         }),
       ),
+      a: ({ href, children, ...props }: any) => (
+        <a
+          {...props}
+          href={href}
+          onClick={(e) => {
+            e.preventDefault();
+            if (href) Browser.OpenURL(href);
+          }}
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          {children}
+        </a>
+      ),
+    }),
     [id],
   );
 

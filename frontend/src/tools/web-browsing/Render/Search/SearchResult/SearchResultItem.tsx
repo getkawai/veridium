@@ -1,5 +1,6 @@
 import { UniformSearchResult } from '@/types';
 import { Text } from '@lobehub/ui';
+import { Browser } from '@wailsio/runtime';
 import { createStyles } from 'antd-style';
 
 import { memo } from 'react';
@@ -49,7 +50,14 @@ const SearchResultItem = memo<UniformSearchResult>(({ url, title }) => {
   const urlObj = new URL(url);
   const host = urlObj.hostname;
   return (
-    <a href={url} target={'_blank'}>
+    <a
+      href={url}
+      onClick={(e) => {
+        e.preventDefault();
+        Browser.OpenURL(url);
+      }}
+      target={'_blank'}
+    >
       <Flexbox className={styles.container} gap={2} justify={'space-between'}>
         <div className={styles.title}>{title}</div>
         <Flexbox align={'center'} gap={4} horizontal>

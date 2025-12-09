@@ -1,5 +1,6 @@
 import { UniformSearchResult } from '@/types';
 import { Text } from '@lobehub/ui';
+import { Browser } from '@wailsio/runtime';
 import { createStyles } from 'antd-style';
 import { memo } from 'react';
 import { Flexbox } from 'react-layout-kit';
@@ -63,7 +64,16 @@ const SearchItem = memo<SearchResultProps>((props) => {
   if (category === 'videos') return <Video {...props} />;
 
   return (
-    <a className={styles.container} href={url!} rel="noreferrer" target={'_blank'}>
+    <a
+      className={styles.container}
+      href={url!}
+      onClick={(e) => {
+        e.preventDefault();
+        if (url) Browser.OpenURL(url);
+      }}
+      rel="noreferrer"
+      target={'_blank'}
+    >
       <Flexbox distribution={'space-between'} flex={1} gap={8} padding={12}>
         <Flexbox gap={8}>
           <Flexbox align={'center'} distribution={'space-between'} horizontal>
