@@ -53,6 +53,7 @@ type CrawlSuccessResult struct {
 	Content string `json:"content"`
 	URL     string `json:"url"`
 	Website string `json:"website"`
+	Crawler string `json:"crawler"` // "jina" or "kawai" (naive)
 }
 
 // CrawlErrorResult represents a failed crawl result

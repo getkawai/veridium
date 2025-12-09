@@ -70,6 +70,9 @@ type AgentChatService struct {
 	// Session management (hybrid: DB + in-memory cache)
 	sessions      map[string]*AgentSession // In-memory cache for active sessions
 	sessionsMutex sync.RWMutex
+
+	// Memory integration for MemGPT-style memory
+	memoryIntegration *MemoryIntegration
 }
 
 // AgentSession represents an ongoing conversation with context
@@ -420,6 +423,20 @@ func (s *AgentChatService) SetSummaryModel(model fantasy.LanguageModel) {
 // GetToolRegistry returns the tool registry for external configuration
 func (s *AgentChatService) GetToolRegistry() *tools.ToolRegistry {
 	return s.toolRegistry
+}
+
+// RegisterMemoryTool registers the search_memory tool for recalling stored memories
+// Also stores reference to memoryIntegration for auto-storing conversations
+func (s *AgentChatService) RegisterMemoryTool(memoryIntegration *MemoryIntegration, userID string) error {
+	if memoryIntegration == nil {
+		return nil
+	}
+	s.memoryIntegration = memoryIntegration
+	if err := memoryIntegration.RegisterMemoryTool(s.toolRegistry, userID); err != nil {
+		return err
+	}
+	log.Printf("✅ AgentChatService: Memory tool registered (search_memory)")
+	return nil
 }
 
 // getOrCreateSession gets an existing session or creates a new one with DB persistence

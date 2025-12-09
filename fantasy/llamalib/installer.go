@@ -471,29 +471,34 @@ func (lcm *LlamaCppInstaller) AutoDownloadRecommendedVLModel() error {
 }
 
 // AutoDownloadRecommendedTextModel automatically downloads the best text model for the system
+// Prefers OpenThinker-Agent-v1 for agentic tasks - downloads if not present even if other models exist
 func (lcm *LlamaCppInstaller) AutoDownloadRecommendedTextModel() error {
 	// Clean up any stale temp files
 	if err := lcm.CleanupStaleTempFiles(); err != nil {
 		log.Printf("⚠️  Failed to cleanup stale temp files: %v", err)
 	}
 
-	// Check if any text models already exist
-	models, err := lcm.GetAvailableTextModels()
-	if err != nil {
-		return fmt.Errorf("failed to check existing models: %w", err)
-	}
-
-	if len(models) > 0 {
-		log.Printf("✅ Text models already available (%d found), skipping auto-download", len(models))
-		return nil
-	}
-
-	log.Println("📦 No text models found, starting auto-download...")
-
 	// Select optimal model based on available RAM
 	modelSpec := SelectOptimalQwenTextModel(lcm.HardwareSpecs.AvailableRAM)
 
-	// Download the model
+	// Check if the preferred model already exists
+	expectedFileName := filepath.Base(modelSpec.URL)
+	expectedPath := filepath.Join(lcm.ModelsDir, expectedFileName)
+
+	if _, err := os.Stat(expectedPath); err == nil {
+		log.Printf("✅ Preferred text model already available: %s", modelSpec.Name)
+		return nil
+	}
+
+	// Check if any text models exist (for logging purposes)
+	models, _ := lcm.GetAvailableTextModels()
+	if len(models) > 0 {
+		log.Printf("📦 Found %d other text model(s), but downloading preferred model: %s", len(models), modelSpec.Name)
+	} else {
+		log.Printf("📦 No text models found, downloading: %s", modelSpec.Name)
+	}
+
+	// Download the preferred model
 	if err := lcm.DownloadChatModel(modelSpec); err != nil {
 		return fmt.Errorf("failed to download model: %w", err)
 	}

@@ -99,6 +99,11 @@ func (c *ChainLanguageModel) isCircuitOpen(idx int) bool {
 		return false
 	}
 
+	// If resetTimeout is 0, circuit stays open until app restart (for daily rate limits)
+	if c.resetTimeout == 0 {
+		return true
+	}
+
 	// Check if reset timeout has passed
 	if time.Since(c.lastFailure[idx]) > c.resetTimeout {
 		return false // allow retry (will be reset on success or re-opened on failure)

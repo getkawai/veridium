@@ -184,3 +184,29 @@ func (m *MemoryIntegration) GetMemoryService() *MemoryService {
 func (m *MemoryIntegration) GetEnrichmentService() *MemoryEnrichmentService {
 	return m.enrichmentService
 }
+
+// StoreConversationMemory stores a conversation exchange as memory
+// This is called automatically after each chat response
+func (m *MemoryIntegration) StoreConversationMemory(ctx context.Context, userID, userMessage, assistantResponse string) error {
+	if m.enrichmentService == nil {
+		return nil
+	}
+
+	// Create messages from the conversation
+	messages := []fantasy.Message{
+		{Role: fantasy.MessageRoleUser, Content: []fantasy.MessagePart{fantasy.TextPart{Text: userMessage}}},
+		{Role: fantasy.MessageRoleAssistant, Content: []fantasy.MessagePart{fantasy.TextPart{Text: assistantResponse}}},
+	}
+
+	// Enrich and store
+	result, err := m.enrichmentService.EnrichMessages(ctx, userID, messages)
+	if err != nil {
+		return err
+	}
+
+	if result.FactCount > 0 {
+		log.Printf("🧠 [Memory] Stored %d facts from conversation", result.FactCount)
+	}
+
+	return nil
+}

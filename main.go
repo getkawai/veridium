@@ -135,6 +135,13 @@ func registerAgentServices(wailsApp *application.App, ctx *app.Context, fileProc
 			agentService.SetSummaryModel(ctx.SummaryModel)
 		}
 
+		// Register memory tool for recalling stored memories
+		if ctx.MemoryIntegration != nil {
+			if err := agentService.RegisterMemoryTool(ctx.MemoryIntegration, app.DefaultUserID); err != nil {
+				log.Printf("⚠️  Failed to register memory tool: %v", err)
+			}
+		}
+
 		wailsApp.RegisterService(application.NewService(agentService))
 	}
 

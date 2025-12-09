@@ -151,6 +151,11 @@ export class CrawlSuccessResult {
     "url": string;
     "website": string;
 
+    /**
+     * "jina" or "kawai" (naive)
+     */
+    "crawler": string;
+
     /** Creates a new CrawlSuccessResult instance. */
     constructor($$source: Partial<CrawlSuccessResult> = {}) {
         if (!("title" in $$source)) {
@@ -164,6 +169,9 @@ export class CrawlSuccessResult {
         }
         if (!("website" in $$source)) {
             this["website"] = "";
+        }
+        if (!("crawler" in $$source)) {
+            this["crawler"] = "";
         }
 
         Object.assign(this, $$source);

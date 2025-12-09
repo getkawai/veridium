@@ -126,7 +126,7 @@ func (s *WebBrowsingService) CrawlMultiPages(urls []string) (*CrawlPluginState, 
 			// Include error in data
 			results = append(results, CrawlResult{
 				OriginalUrl: originalUrl,
-				Crawler:     "jina",
+				Crawler:     "kawai", // Error case defaults to kawai
 				Data: CrawlData{
 					Content:     fmt.Sprintf("Error: %s", r.Error.ErrorMessage),
 					URL:         r.Error.URL,
@@ -135,9 +135,14 @@ func (s *WebBrowsingService) CrawlMultiPages(urls []string) (*CrawlPluginState, 
 				},
 			})
 		} else if r.Success != nil {
+			// Use crawler label from result: "jina" for Jina, "kawai" for naive
+			crawlerLabel := r.Success.Crawler
+			if crawlerLabel == "" {
+				crawlerLabel = "kawai"
+			}
 			results = append(results, CrawlResult{
 				OriginalUrl: originalUrl,
-				Crawler:     "jina",
+				Crawler:     crawlerLabel,
 				Data: CrawlData{
 					Content:     r.Success.Content,
 					URL:         r.Success.URL,

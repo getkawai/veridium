@@ -80,13 +80,16 @@ func GetRecommendedVLModels() []QwenModelSpec {
 	}
 }
 
-// GetRecommendedModels returns recommended non-reasoning text models for direct download
-// These models do NOT generate <think> tags and are suitable for general chat
+// GetRecommendedModels returns recommended text models for direct download
 // Models are ordered from smallest to largest by MinRAM requirement
-// Using Llama 3.2 series - proven, stable, no reasoning overhead
+// Primary models:
+//   - Nemotron-Orchestrator-8B: Best for orchestration/coordination (outperforms GPT-5 on HLE)
+//   - OpenThinker-Agent-v1: Best for agentic tasks (tool calling, coding)
+//
+// Fallback models: Qwen3-4B for medium RAM, Llama 3.2 for very low RAM
 func GetRecommendedModels() []QwenModelSpec {
 	return []QwenModelSpec{
-		// Llama 3.2 1B - Smallest, fastest
+		// Llama 3.2 1B - Smallest, fastest (for very low RAM systems <4GB)
 		{
 			Name:         "llama-3.2-1b-instruct-q4_k_m",
 			URL:          "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf",
@@ -94,27 +97,72 @@ func GetRecommendedModels() []QwenModelSpec {
 			Parameters:   "1b",
 			MinRAM:       2,
 			Size:         697000000, // ~697 MB
-			Description:  "Llama 3.2 1B - Ultra fast, no reasoning tags",
+			Description:  "Llama 3.2 1B - Ultra fast, for very low RAM systems",
 		},
-		// Llama 3.2 3B - Good balance
+		// Qwen3-4B Q4_K_M - Good balance for low-medium RAM (4-8GB)
+		// Supports thinking/non-thinking modes, good for agentic tasks
 		{
-			Name:         "llama-3.2-3b-instruct-q4_k_m",
-			URL:          "https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+			Name:         "Qwen3-4B-Q4_K_M",
+			URL:          "https://huggingface.co/unsloth/Qwen3-4B-GGUF/resolve/main/Qwen3-4B-Q4_K_M.gguf",
 			Quantization: "Q4_K_M",
-			Parameters:   "3b",
+			Parameters:   "4b",
 			MinRAM:       4,
-			Size:         2019000000, // ~2.0 GB
-			Description:  "Llama 3.2 3B - Fast, no reasoning tags, great for general chat",
+			Size:         2500000000, // ~2.5 GB
+			Description:  "Qwen3 4B - Good for low RAM, supports thinking mode",
 		},
-		// Llama 3.2 3B Q8 - Higher quality
+		// Qwen3-4B Q6_K - Higher quality for medium RAM
 		{
-			Name:         "llama-3.2-3b-instruct-q8_0",
-			URL:          "https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-Q8_0.gguf",
-			Quantization: "Q8_0",
-			Parameters:   "3b",
+			Name:         "Qwen3-4B-Q6_K",
+			URL:          "https://huggingface.co/unsloth/Qwen3-4B-GGUF/resolve/main/Qwen3-4B-Q6_K.gguf",
+			Quantization: "Q6_K",
+			Parameters:   "4b",
 			MinRAM:       6,
-			Size:         3420000000, // ~3.4 GB
-			Description:  "Llama 3.2 3B Q8 - Better quality, no reasoning tags",
+			Size:         3310000000, // ~3.31 GB
+			Description:  "Qwen3 4B Q6 - Better quality for medium RAM",
+		},
+		// Nemotron-Orchestrator-8B Q4_K_M - NVIDIA's orchestration model
+		// Outperforms GPT-5 on Humanity's Last Exam (37.1% vs 35.1%)
+		// Optimized for coordinating multiple models and tools
+		{
+			Name:         "Nemotron-Orchestrator-8B-Q4_K_M",
+			URL:          "https://huggingface.co/bartowski/nvidia_Orchestrator-8B-GGUF/resolve/main/nvidia_Orchestrator-8B-Q4_K_M.gguf",
+			Quantization: "Q4_K_M",
+			Parameters:   "8b",
+			MinRAM:       8,
+			Size:         5030000000, // ~5.03 GB
+			Description:  "Nemotron-Orchestrator 8B - Best for orchestration, outperforms GPT-5",
+		},
+		// OpenThinker-Agent-v1 Q4_K_M - Best for agentic tasks (8B, based on Qwen3-8B)
+		// State-of-the-art on Terminal-Bench 2.0 and SWE-Bench
+		// Optimized for tool calling, software engineering, and agent tasks
+		{
+			Name:         "OpenThinker-Agent-v1-Q4_K_M",
+			URL:          "https://huggingface.co/bartowski/open-thoughts_OpenThinker-Agent-v1-GGUF/resolve/main/open-thoughts_OpenThinker-Agent-v1-Q4_K_M.gguf",
+			Quantization: "Q4_K_M",
+			Parameters:   "8b",
+			MinRAM:       10,
+			Size:         5030000000, // ~5.03 GB
+			Description:  "OpenThinker-Agent-v1 8B - Best for agentic tasks, tool calling, coding",
+		},
+		// Nemotron-Orchestrator-8B Q6_K - Higher quality orchestration
+		{
+			Name:         "Nemotron-Orchestrator-8B-Q6_K",
+			URL:          "https://huggingface.co/bartowski/nvidia_Orchestrator-8B-GGUF/resolve/main/nvidia_Orchestrator-8B-Q6_K.gguf",
+			Quantization: "Q6_K",
+			Parameters:   "8b",
+			MinRAM:       12,
+			Size:         6730000000, // ~6.73 GB
+			Description:  "Nemotron-Orchestrator 8B Q6 - Higher quality orchestration",
+		},
+		// OpenThinker-Agent-v1 Q6_K - Higher quality for systems with more RAM
+		{
+			Name:         "OpenThinker-Agent-v1-Q6_K",
+			URL:          "https://huggingface.co/bartowski/open-thoughts_OpenThinker-Agent-v1-GGUF/resolve/main/open-thoughts_OpenThinker-Agent-v1-Q6_K.gguf",
+			Quantization: "Q6_K",
+			Parameters:   "8b",
+			MinRAM:       14,
+			Size:         6730000000, // ~6.73 GB
+			Description:  "OpenThinker-Agent-v1 8B Q6 - Higher quality for agentic tasks",
 		},
 	}
 }

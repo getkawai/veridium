@@ -758,9 +758,17 @@ func (s *Service) selectBestModel() (string, error) {
 			continue
 		}
 
-		// Skip embedding models for chat
+		// Skip embedding models and VL models for chat
 		nameLower := strings.ToLower(name)
 		if strings.Contains(nameLower, "embedding") || strings.Contains(nameLower, "embed") {
+			continue
+		}
+		// Skip VL (Vision-Language) models - they have different templates
+		if strings.Contains(nameLower, "-vl-") || strings.Contains(nameLower, "_vl_") || strings.Contains(nameLower, "qwen3-vl") {
+			continue
+		}
+		// Skip projector files
+		if strings.Contains(nameLower, "mmproj") || strings.Contains(nameLower, "projector") {
 			continue
 		}
 
@@ -821,14 +829,21 @@ func (s *Service) selectBestModel() (string, error) {
 			score += 30
 		}
 
-		// CRITICAL: Prefer non-reasoning models (Llama, Mistral) by default
-		// Reasoning models (Qwen) generate <think> tags which should be avoided in default mode
-		if strings.Contains(nameLower, "llama") {
-			score += 100 // Llama is best for non-reasoning (no think tags)
+		// Model preference scoring
+		// Nemotron-Orchestrator: Best for orchestration (outperforms GPT-5) - highest priority
+		// OpenThinker-Agent-v1: Best for agentic tasks (tool calling, coding)
+		// Qwen3: Good for agentic tasks with thinking mode support
+		// Llama/Mistral: Good general purpose models
+		if strings.Contains(nameLower, "orchestrator") || strings.Contains(nameLower, "nemotron") {
+			score += 250 // Nemotron-Orchestrator is best for orchestration tasks
+		} else if strings.Contains(nameLower, "openthinker") {
+			score += 200 // OpenThinker is best for agentic tasks
+		} else if strings.Contains(nameLower, "qwen3") {
+			score += 150 // Qwen3 is good for agentic tasks with thinking mode
+		} else if strings.Contains(nameLower, "llama") {
+			score += 100 // Llama is good for general chat
 		} else if strings.Contains(nameLower, "mistral") {
-			score += 80 // Mistral is also good for non-reasoning
-		} else if strings.Contains(nameLower, "qwen") {
-			score -= 50 // Penalize Qwen (reasoning model) - only use if explicitly requested
+			score += 80 // Mistral is also good
 		}
 
 		if score > bestScore {

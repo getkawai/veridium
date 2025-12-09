@@ -118,6 +118,14 @@ export function GetToolRegistry(): $CancellablePromise<tools$0.ToolRegistry | nu
 }
 
 /**
+ * RegisterMemoryTool registers the search_memory tool for recalling stored memories
+ * Also stores reference to memoryIntegration for auto-storing conversations
+ */
+export function RegisterMemoryTool(memoryIntegration: $models.MemoryIntegration | null, userID: string): $CancellablePromise<void> {
+    return $Call.ByID(1423546677, memoryIntegration, userID);
+}
+
+/**
  * SetChatModel sets the main chat model (for streaming chat with tools)
  */
 export function SetChatModel(model: fantasy$0.LanguageModel): $CancellablePromise<void> {

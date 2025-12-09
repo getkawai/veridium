@@ -78,17 +78,15 @@ const InboxWelcome = memo(() => {
           customRender={(dom, context) => {
             if (context.text.includes('<plus />')) {
               return (
-                <a data-wml-openurl="https://lobehub.com/docs/guide/chat/custom-assistant">
-                  <Trans
-                    components={{
-                      br: <br />,
-                      plus: <AddButton />,
-                    }}
-                    i18nKey="guide.defaultMessage"
-                    ns="welcome"
-                    values={{ appName: BRANDING_NAME }}
-                  />
-                </a>
+                <Trans
+                  components={{
+                    br: <br />,
+                    plus: <AddButton />,
+                  }}
+                  i18nKey="guide.defaultMessage"
+                  ns="welcome"
+                  values={{ appName: BRANDING_NAME }}
+                />
               );
             }
             return dom;

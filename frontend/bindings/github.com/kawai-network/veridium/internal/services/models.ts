@@ -736,6 +736,26 @@ export class ListThreadsRequest {
 }
 
 /**
+ * MemoryIntegration provides integration between memory services and chat
+ */
+export class MemoryIntegration {
+
+    /** Creates a new MemoryIntegration instance. */
+    constructor($$source: Partial<MemoryIntegration> = {}) {
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MemoryIntegration instance from a string or object.
+     */
+    static createFrom($$source: any = {}): MemoryIntegration {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new MemoryIntegration($$parsedSource as Partial<MemoryIntegration>);
+    }
+}
+
+/**
  * MessageMetadata combines usage and performance metrics
  */
 export class MessageMetadata {

@@ -581,6 +581,16 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 		}()
 	}
 
+	// 15.5. Store conversation to memory (background) - MemGPT-style
+	if s.memoryIntegration != nil && finalContentStr != "" {
+		go func() {
+			bgCtx := context.Background()
+			if err := s.memoryIntegration.StoreConversationMemory(bgCtx, req.UserID, req.Message, finalContentStr); err != nil {
+				log.Printf("⚠️  [Memory] Failed to store conversation: %v", err)
+			}
+		}()
+	}
+
 	// 16. Emit COMPLETE event with final data
 	emit(StreamEventPayload{
 		Type:        types.ChatEventComplete,

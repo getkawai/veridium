@@ -81,7 +81,8 @@ func (s *Service) CrawlPages(req CrawlPagesRequest) (*CrawlPagesResponse, error)
 func getCrawlerImplsFromEnv() []CrawlImplType {
 	envStr := os.Getenv("CRAWLER_IMPLS")
 	if envStr == "" {
-		return []CrawlImplType{CrawlImplJina} // default to Jina
+		// Default: try Jina first, then fallback to Naive
+		return []CrawlImplType{CrawlImplJina, CrawlImplNaive}
 	}
 
 	// Parse comma-separated list
@@ -95,7 +96,7 @@ func getCrawlerImplsFromEnv() []CrawlImplType {
 	}
 
 	if len(impls) == 0 {
-		return []CrawlImplType{CrawlImplJina}
+		return []CrawlImplType{CrawlImplJina, CrawlImplNaive}
 	}
 
 	return impls

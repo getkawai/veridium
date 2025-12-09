@@ -34,6 +34,7 @@ export {
     CreateThreadResponse,
     GroundingSearch,
     ListThreadsRequest,
+    MemoryIntegration,
     MessageMetadata,
     MetaData,
     ModelPerformance,
