@@ -2,6 +2,7 @@
 
 import { CrawlErrorResult, CrawlSuccessResult } from '@/web-crawler';
 import { Alert, Icon, Text } from '@lobehub/ui';
+import { Browser } from '@wailsio/runtime';
 import { Descriptions } from 'antd';
 import { createStyles } from 'antd-style';
 import { ExternalLink } from 'lucide-react';
@@ -139,7 +140,15 @@ const CrawlerResultCard = memo<CrawlerData>(({ result, messageId, crawler, origi
           <Flexbox>
             <div className={styles.title}>{title || originalUrl}</div>
           </Flexbox>
-          <a href={url} onClick={(e) => e.stopPropagation()} target={'_blank'}>
+          <a
+            href={url}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              Browser.OpenURL(url);
+            }}
+            target={'_blank'}
+          >
             <Center className={styles.externalLink}>
               <Icon icon={ExternalLink} />
             </Center>

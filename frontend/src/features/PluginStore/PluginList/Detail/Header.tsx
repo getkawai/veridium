@@ -2,6 +2,7 @@
 
 import { Github } from '@lobehub/icons';
 import { ActionIcon, Avatar, Collapse, Icon, Text } from '@lobehub/ui';
+import { Browser } from '@wailsio/runtime';
 import { createStyles, useResponsive } from 'antd-style';
 import { DotIcon } from 'lucide-react';
 
@@ -96,7 +97,14 @@ const Header = memo<{ inModal?: boolean; mobile?: boolean }>(({ mobile: isMobile
             <Flexbox>
               <Flexbox align={'center'} gap={4} horizontal>
                 {author && (
-                  <a href={urlJoin('https://github.com', author)} target={'_blank'}>
+                  <a
+                    href={urlJoin('https://github.com', author)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      Browser.OpenURL(urlJoin('https://github.com', author));
+                    }}
+                    target={'_blank'}
+                  >
                     {author}
                   </a>
                 )}

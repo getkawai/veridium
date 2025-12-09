@@ -1,6 +1,7 @@
 'use client';
 
 import { Button, Icon } from '@lobehub/ui';
+import { Browser } from '@wailsio/runtime';
 import { useSize } from 'ahooks';
 import { createStyles } from 'antd-style';
 import { ArrowRightIcon } from 'lucide-react';
@@ -77,7 +78,14 @@ const CloudBanner = memo<{ mobile?: boolean }>(({ mobile }) => {
       <div className={styles.background} />
       <Center className={styles.wrapper} gap={16} horizontal width={'100%'}>
         {isTruncated ? <Marquee pauseOnHover>{content}</Marquee> : content}
-        <a href={`${OFFICIAL_URL}?utm_source=${UTM_SOURCE}&utm_medium=banner`} target={'_blank'}>
+        <a
+          href={`${OFFICIAL_URL}?utm_source=${UTM_SOURCE}&utm_medium=banner`}
+          onClick={(e) => {
+            e.preventDefault();
+            Browser.OpenURL(`${OFFICIAL_URL}?utm_source=${UTM_SOURCE}&utm_medium=banner`);
+          }}
+          target={'_blank'}
+        >
           <Button size={'small'} type="primary">
             {t('alert.cloud.action')} <Icon icon={ArrowRightIcon} />
           </Button>

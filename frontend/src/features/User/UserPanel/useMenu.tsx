@@ -1,5 +1,6 @@
 import { Hotkey, Icon } from '@lobehub/ui';
 import { DiscordIcon } from '@lobehub/ui/icons';
+import { Browser } from '@wailsio/runtime';
 import { Badge } from 'antd';
 import { ItemType } from 'antd/es/menu/interface';
 import {
@@ -140,7 +141,14 @@ export const useMenu = () => {
       icon: <Icon icon={Cloudy} />,
       key: 'cloud',
       label: (
-        <a href={`${OFFICIAL_URL}?utm_source=${UTM_SOURCE}`} target={'_blank'}>
+        <a
+          href={`${OFFICIAL_URL}?utm_source=${UTM_SOURCE}`}
+          onClick={(e) => {
+            e.preventDefault();
+            Browser.OpenURL(`${OFFICIAL_URL}?utm_source=${UTM_SOURCE}`);
+          }}
+          target={'_blank'}
+        >
           {t('userPanel.cloud', { name: LOBE_CHAT_CLOUD })}
         </a>
       ),
@@ -156,7 +164,14 @@ export const useMenu = () => {
           icon: <Icon icon={Book} />,
           key: 'docs',
           label: (
-            <a href={DOCUMENTS_REFER_URL} target={'_blank'}>
+            <a
+              href={DOCUMENTS_REFER_URL}
+              onClick={(e) => {
+                e.preventDefault();
+                Browser.OpenURL(DOCUMENTS_REFER_URL);
+              }}
+              target={'_blank'}
+            >
               {t('userPanel.docs')}
             </a>
           ),
@@ -165,7 +180,14 @@ export const useMenu = () => {
           icon: <Icon icon={Feather} />,
           key: 'feedback',
           label: (
-            <a href={GITHUB_ISSUES} target={'_blank'}>
+            <a
+              href={GITHUB_ISSUES}
+              onClick={(e) => {
+                e.preventDefault();
+                Browser.OpenURL(GITHUB_ISSUES);
+              }}
+              target={'_blank'}
+            >
               {t('userPanel.feedback')}
             </a>
           ),
@@ -174,7 +196,14 @@ export const useMenu = () => {
           icon: <Icon icon={DiscordIcon} />,
           key: 'discord',
           label: (
-            <a href={SOCIAL_URL.discord} target={'_blank'}>
+            <a
+              href={SOCIAL_URL.discord}
+              onClick={(e) => {
+                e.preventDefault();
+                Browser.OpenURL(SOCIAL_URL.discord);
+              }}
+              target={'_blank'}
+            >
               {t('userPanel.discord')}
             </a>
           ),
@@ -183,7 +212,14 @@ export const useMenu = () => {
           icon: <Icon icon={Mail} />,
           key: 'email',
           label: (
-            <a href={mailTo(BRANDING_EMAIL.support)} target={'_blank'}>
+            <a
+              href={mailTo(BRANDING_EMAIL.support)}
+              onClick={(e) => {
+                e.preventDefault();
+                Browser.OpenURL(mailTo(BRANDING_EMAIL.support));
+              }}
+              target={'_blank'}
+            >
               {t('userPanel.email')}
             </a>
           ),

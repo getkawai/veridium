@@ -1,5 +1,6 @@
 import { IDocument } from '@cyntler/react-doc-viewer';
 import { Button, FluentEmoji } from '@lobehub/ui';
+import { Browser } from '@wailsio/runtime';
 import { createStyles } from 'antd-style';
 
 import React, { ComponentType, useState } from 'react';
@@ -39,7 +40,15 @@ const NotSupport: ComponentType<{
           <Flexbox style={{ textAlign: 'center' }}>
             <Trans i18nKey="preview.unsupportedFileAndContact" ns={'file'}>
               此文件格式暂不支持在线预览，如有预览诉求，欢迎
-              <a aria-label={'todo'} href={MORE_FILE_PREVIEW_REQUEST_URL} target="_blank">
+              <a
+                aria-label={'todo'}
+                href={MORE_FILE_PREVIEW_REQUEST_URL}
+                onClick={(e) => {
+                  e.preventDefault();
+                  Browser.OpenURL(MORE_FILE_PREVIEW_REQUEST_URL);
+                }}
+                target="_blank"
+              >
                 反馈给我们
               </a>
             </Trans>

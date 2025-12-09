@@ -1,6 +1,7 @@
 'use client';
 
 import { CopyButton } from '@lobehub/ui';
+import { Browser } from '@wailsio/runtime';
 import { Skeleton } from 'antd';
 import { createStyles } from 'antd-style';
 
@@ -48,7 +49,15 @@ const LoadingCard = memo<{ url: string }>(({ url }) => {
   return (
     <Flexbox className={styles.container}>
       <Flexbox className={styles.cardBody} horizontal justify={'space-between'}>
-        <a href={url} rel={'nofollow'} target={'_blank'}>
+        <a
+          href={url}
+          onClick={(e) => {
+            e.preventDefault();
+            Browser.OpenURL(url);
+          }}
+          rel={'nofollow'}
+          target={'_blank'}
+        >
           <div className={styles.text}>{url}</div>
         </a>
         <CopyButton content={url} size={'small'} />

@@ -1,4 +1,5 @@
 import { ActionIcon, ActionIconProps } from '@lobehub/ui';
+import { Browser } from '@wailsio/runtime';
 import { FlaskConical, Github } from 'lucide-react';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -20,7 +21,15 @@ const BottomActions = memo(() => {
   return (
     <Flexbox gap={8}>
       {!hideGitHub && (
-        <a aria-label={'GitHub'} href={GITHUB} target={'_blank'}>
+        <a
+          aria-label={'GitHub'}
+          href={GITHUB}
+          onClick={(e) => {
+            e.preventDefault();
+            Browser.OpenURL(GITHUB);
+          }}
+          target={'_blank'}
+        >
           <ActionIcon
             icon={Github}
             size={ICON_SIZE}
