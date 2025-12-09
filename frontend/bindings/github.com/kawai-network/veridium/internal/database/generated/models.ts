@@ -493,6 +493,39 @@ export class ApiKey {
     }
 }
 
+export class ArchiveOldMemoriesParams {
+    "updatedAt": number;
+    "userId": sql$0.NullString;
+    "lastAccessedAt": number;
+
+    /** Creates a new ArchiveOldMemoriesParams instance. */
+    constructor($$source: Partial<ArchiveOldMemoriesParams> = {}) {
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = (new sql$0.NullString());
+        }
+        if (!("lastAccessedAt" in $$source)) {
+            this["lastAccessedAt"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ArchiveOldMemoriesParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ArchiveOldMemoriesParams {
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("userId" in $$parsedSource) {
+            $$parsedSource["userId"] = $$createField1_0($$parsedSource["userId"]);
+        }
+        return new ArchiveOldMemoriesParams($$parsedSource as Partial<ArchiveOldMemoriesParams>);
+    }
+}
+
 export class AsyncTask {
     "id": string;
     "type": sql$0.NullString;
@@ -675,6 +708,39 @@ export class BatchDeleteTopicsParams {
             $$parsedSource["ids"] = $$createField1_0($$parsedSource["ids"]);
         }
         return new BatchDeleteTopicsParams($$parsedSource as Partial<BatchDeleteTopicsParams>);
+    }
+}
+
+export class BatchDeleteUserMemoriesParams {
+    "ids": string[];
+    "userId": sql$0.NullString;
+
+    /** Creates a new BatchDeleteUserMemoriesParams instance. */
+    constructor($$source: Partial<BatchDeleteUserMemoriesParams> = {}) {
+        if (!("ids" in $$source)) {
+            this["ids"] = [];
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = (new sql$0.NullString());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BatchDeleteUserMemoriesParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): BatchDeleteUserMemoriesParams {
+        const $$createField0_0 = $$createType2;
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("ids" in $$parsedSource) {
+            $$parsedSource["ids"] = $$createField0_0($$parsedSource["ids"]);
+        }
+        if ("userId" in $$parsedSource) {
+            $$parsedSource["userId"] = $$createField1_0($$parsedSource["userId"]);
+        }
+        return new BatchDeleteUserMemoriesParams($$parsedSource as Partial<BatchDeleteUserMemoriesParams>);
     }
 }
 
@@ -3890,6 +3956,619 @@ export class CreateUnstructuredChunkParams {
     }
 }
 
+export class CreateUserMemoryContextParams {
+    "id": string;
+    "userMemoryIds": sql$0.NullString;
+    "labels": sql$0.NullString;
+    "extractedLabels": sql$0.NullString;
+    "associatedObjects": sql$0.NullString;
+    "associatedSubjects": sql$0.NullString;
+    "title": sql$0.NullString;
+    "titleVector": string;
+    "description": sql$0.NullString;
+    "descriptionVector": string;
+    "type": sql$0.NullString;
+    "currentStatus": sql$0.NullString;
+    "scoreImpact": sql$0.NullFloat64;
+    "scoreUrgency": sql$0.NullFloat64;
+    "createdAt": number;
+    "updatedAt": number;
+
+    /** Creates a new CreateUserMemoryContextParams instance. */
+    constructor($$source: Partial<CreateUserMemoryContextParams> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("userMemoryIds" in $$source)) {
+            this["userMemoryIds"] = (new sql$0.NullString());
+        }
+        if (!("labels" in $$source)) {
+            this["labels"] = (new sql$0.NullString());
+        }
+        if (!("extractedLabels" in $$source)) {
+            this["extractedLabels"] = (new sql$0.NullString());
+        }
+        if (!("associatedObjects" in $$source)) {
+            this["associatedObjects"] = (new sql$0.NullString());
+        }
+        if (!("associatedSubjects" in $$source)) {
+            this["associatedSubjects"] = (new sql$0.NullString());
+        }
+        if (!("title" in $$source)) {
+            this["title"] = (new sql$0.NullString());
+        }
+        if (!("titleVector" in $$source)) {
+            this["titleVector"] = "";
+        }
+        if (!("description" in $$source)) {
+            this["description"] = (new sql$0.NullString());
+        }
+        if (!("descriptionVector" in $$source)) {
+            this["descriptionVector"] = "";
+        }
+        if (!("type" in $$source)) {
+            this["type"] = (new sql$0.NullString());
+        }
+        if (!("currentStatus" in $$source)) {
+            this["currentStatus"] = (new sql$0.NullString());
+        }
+        if (!("scoreImpact" in $$source)) {
+            this["scoreImpact"] = (new sql$0.NullFloat64());
+        }
+        if (!("scoreUrgency" in $$source)) {
+            this["scoreUrgency"] = (new sql$0.NullFloat64());
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CreateUserMemoryContextParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CreateUserMemoryContextParams {
+        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $$createType0;
+        const $$createField3_0 = $$createType0;
+        const $$createField4_0 = $$createType0;
+        const $$createField5_0 = $$createType0;
+        const $$createField6_0 = $$createType0;
+        const $$createField7_0 = $Create.ByteSlice;
+        const $$createField8_0 = $$createType0;
+        const $$createField9_0 = $Create.ByteSlice;
+        const $$createField10_0 = $$createType0;
+        const $$createField11_0 = $$createType0;
+        const $$createField12_0 = $$createType3;
+        const $$createField13_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("userMemoryIds" in $$parsedSource) {
+            $$parsedSource["userMemoryIds"] = $$createField1_0($$parsedSource["userMemoryIds"]);
+        }
+        if ("labels" in $$parsedSource) {
+            $$parsedSource["labels"] = $$createField2_0($$parsedSource["labels"]);
+        }
+        if ("extractedLabels" in $$parsedSource) {
+            $$parsedSource["extractedLabels"] = $$createField3_0($$parsedSource["extractedLabels"]);
+        }
+        if ("associatedObjects" in $$parsedSource) {
+            $$parsedSource["associatedObjects"] = $$createField4_0($$parsedSource["associatedObjects"]);
+        }
+        if ("associatedSubjects" in $$parsedSource) {
+            $$parsedSource["associatedSubjects"] = $$createField5_0($$parsedSource["associatedSubjects"]);
+        }
+        if ("title" in $$parsedSource) {
+            $$parsedSource["title"] = $$createField6_0($$parsedSource["title"]);
+        }
+        if ("titleVector" in $$parsedSource) {
+            $$parsedSource["titleVector"] = $$createField7_0($$parsedSource["titleVector"]);
+        }
+        if ("description" in $$parsedSource) {
+            $$parsedSource["description"] = $$createField8_0($$parsedSource["description"]);
+        }
+        if ("descriptionVector" in $$parsedSource) {
+            $$parsedSource["descriptionVector"] = $$createField9_0($$parsedSource["descriptionVector"]);
+        }
+        if ("type" in $$parsedSource) {
+            $$parsedSource["type"] = $$createField10_0($$parsedSource["type"]);
+        }
+        if ("currentStatus" in $$parsedSource) {
+            $$parsedSource["currentStatus"] = $$createField11_0($$parsedSource["currentStatus"]);
+        }
+        if ("scoreImpact" in $$parsedSource) {
+            $$parsedSource["scoreImpact"] = $$createField12_0($$parsedSource["scoreImpact"]);
+        }
+        if ("scoreUrgency" in $$parsedSource) {
+            $$parsedSource["scoreUrgency"] = $$createField13_0($$parsedSource["scoreUrgency"]);
+        }
+        return new CreateUserMemoryContextParams($$parsedSource as Partial<CreateUserMemoryContextParams>);
+    }
+}
+
+export class CreateUserMemoryExperienceParams {
+    "id": string;
+    "userMemoryId": sql$0.NullString;
+    "labels": sql$0.NullString;
+    "extractedLabels": sql$0.NullString;
+    "type": sql$0.NullString;
+    "situation": sql$0.NullString;
+    "situationVector": string;
+    "reasoning": sql$0.NullString;
+    "possibleOutcome": sql$0.NullString;
+    "action": sql$0.NullString;
+    "actionVector": string;
+    "keyLearning": sql$0.NullString;
+    "keyLearningVector": string;
+    "metadata": sql$0.NullString;
+    "scoreConfidence": sql$0.NullFloat64;
+    "createdAt": number;
+    "updatedAt": number;
+
+    /** Creates a new CreateUserMemoryExperienceParams instance. */
+    constructor($$source: Partial<CreateUserMemoryExperienceParams> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("userMemoryId" in $$source)) {
+            this["userMemoryId"] = (new sql$0.NullString());
+        }
+        if (!("labels" in $$source)) {
+            this["labels"] = (new sql$0.NullString());
+        }
+        if (!("extractedLabels" in $$source)) {
+            this["extractedLabels"] = (new sql$0.NullString());
+        }
+        if (!("type" in $$source)) {
+            this["type"] = (new sql$0.NullString());
+        }
+        if (!("situation" in $$source)) {
+            this["situation"] = (new sql$0.NullString());
+        }
+        if (!("situationVector" in $$source)) {
+            this["situationVector"] = "";
+        }
+        if (!("reasoning" in $$source)) {
+            this["reasoning"] = (new sql$0.NullString());
+        }
+        if (!("possibleOutcome" in $$source)) {
+            this["possibleOutcome"] = (new sql$0.NullString());
+        }
+        if (!("action" in $$source)) {
+            this["action"] = (new sql$0.NullString());
+        }
+        if (!("actionVector" in $$source)) {
+            this["actionVector"] = "";
+        }
+        if (!("keyLearning" in $$source)) {
+            this["keyLearning"] = (new sql$0.NullString());
+        }
+        if (!("keyLearningVector" in $$source)) {
+            this["keyLearningVector"] = "";
+        }
+        if (!("metadata" in $$source)) {
+            this["metadata"] = (new sql$0.NullString());
+        }
+        if (!("scoreConfidence" in $$source)) {
+            this["scoreConfidence"] = (new sql$0.NullFloat64());
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CreateUserMemoryExperienceParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CreateUserMemoryExperienceParams {
+        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $$createType0;
+        const $$createField3_0 = $$createType0;
+        const $$createField4_0 = $$createType0;
+        const $$createField5_0 = $$createType0;
+        const $$createField6_0 = $Create.ByteSlice;
+        const $$createField7_0 = $$createType0;
+        const $$createField8_0 = $$createType0;
+        const $$createField9_0 = $$createType0;
+        const $$createField10_0 = $Create.ByteSlice;
+        const $$createField11_0 = $$createType0;
+        const $$createField12_0 = $Create.ByteSlice;
+        const $$createField13_0 = $$createType0;
+        const $$createField14_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("userMemoryId" in $$parsedSource) {
+            $$parsedSource["userMemoryId"] = $$createField1_0($$parsedSource["userMemoryId"]);
+        }
+        if ("labels" in $$parsedSource) {
+            $$parsedSource["labels"] = $$createField2_0($$parsedSource["labels"]);
+        }
+        if ("extractedLabels" in $$parsedSource) {
+            $$parsedSource["extractedLabels"] = $$createField3_0($$parsedSource["extractedLabels"]);
+        }
+        if ("type" in $$parsedSource) {
+            $$parsedSource["type"] = $$createField4_0($$parsedSource["type"]);
+        }
+        if ("situation" in $$parsedSource) {
+            $$parsedSource["situation"] = $$createField5_0($$parsedSource["situation"]);
+        }
+        if ("situationVector" in $$parsedSource) {
+            $$parsedSource["situationVector"] = $$createField6_0($$parsedSource["situationVector"]);
+        }
+        if ("reasoning" in $$parsedSource) {
+            $$parsedSource["reasoning"] = $$createField7_0($$parsedSource["reasoning"]);
+        }
+        if ("possibleOutcome" in $$parsedSource) {
+            $$parsedSource["possibleOutcome"] = $$createField8_0($$parsedSource["possibleOutcome"]);
+        }
+        if ("action" in $$parsedSource) {
+            $$parsedSource["action"] = $$createField9_0($$parsedSource["action"]);
+        }
+        if ("actionVector" in $$parsedSource) {
+            $$parsedSource["actionVector"] = $$createField10_0($$parsedSource["actionVector"]);
+        }
+        if ("keyLearning" in $$parsedSource) {
+            $$parsedSource["keyLearning"] = $$createField11_0($$parsedSource["keyLearning"]);
+        }
+        if ("keyLearningVector" in $$parsedSource) {
+            $$parsedSource["keyLearningVector"] = $$createField12_0($$parsedSource["keyLearningVector"]);
+        }
+        if ("metadata" in $$parsedSource) {
+            $$parsedSource["metadata"] = $$createField13_0($$parsedSource["metadata"]);
+        }
+        if ("scoreConfidence" in $$parsedSource) {
+            $$parsedSource["scoreConfidence"] = $$createField14_0($$parsedSource["scoreConfidence"]);
+        }
+        return new CreateUserMemoryExperienceParams($$parsedSource as Partial<CreateUserMemoryExperienceParams>);
+    }
+}
+
+export class CreateUserMemoryIdentityParams {
+    "id": string;
+    "userMemoryId": sql$0.NullString;
+    "currentFocuses": sql$0.NullString;
+    "description": sql$0.NullString;
+    "descriptionVector": string;
+    "experience": sql$0.NullString;
+    "extractedLabels": sql$0.NullString;
+    "labels": sql$0.NullString;
+    "relationship": sql$0.NullString;
+    "role": sql$0.NullString;
+    "type": sql$0.NullString;
+    "createdAt": number;
+    "updatedAt": number;
+
+    /** Creates a new CreateUserMemoryIdentityParams instance. */
+    constructor($$source: Partial<CreateUserMemoryIdentityParams> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("userMemoryId" in $$source)) {
+            this["userMemoryId"] = (new sql$0.NullString());
+        }
+        if (!("currentFocuses" in $$source)) {
+            this["currentFocuses"] = (new sql$0.NullString());
+        }
+        if (!("description" in $$source)) {
+            this["description"] = (new sql$0.NullString());
+        }
+        if (!("descriptionVector" in $$source)) {
+            this["descriptionVector"] = "";
+        }
+        if (!("experience" in $$source)) {
+            this["experience"] = (new sql$0.NullString());
+        }
+        if (!("extractedLabels" in $$source)) {
+            this["extractedLabels"] = (new sql$0.NullString());
+        }
+        if (!("labels" in $$source)) {
+            this["labels"] = (new sql$0.NullString());
+        }
+        if (!("relationship" in $$source)) {
+            this["relationship"] = (new sql$0.NullString());
+        }
+        if (!("role" in $$source)) {
+            this["role"] = (new sql$0.NullString());
+        }
+        if (!("type" in $$source)) {
+            this["type"] = (new sql$0.NullString());
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CreateUserMemoryIdentityParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CreateUserMemoryIdentityParams {
+        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $$createType0;
+        const $$createField3_0 = $$createType0;
+        const $$createField4_0 = $Create.ByteSlice;
+        const $$createField5_0 = $$createType0;
+        const $$createField6_0 = $$createType0;
+        const $$createField7_0 = $$createType0;
+        const $$createField8_0 = $$createType0;
+        const $$createField9_0 = $$createType0;
+        const $$createField10_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("userMemoryId" in $$parsedSource) {
+            $$parsedSource["userMemoryId"] = $$createField1_0($$parsedSource["userMemoryId"]);
+        }
+        if ("currentFocuses" in $$parsedSource) {
+            $$parsedSource["currentFocuses"] = $$createField2_0($$parsedSource["currentFocuses"]);
+        }
+        if ("description" in $$parsedSource) {
+            $$parsedSource["description"] = $$createField3_0($$parsedSource["description"]);
+        }
+        if ("descriptionVector" in $$parsedSource) {
+            $$parsedSource["descriptionVector"] = $$createField4_0($$parsedSource["descriptionVector"]);
+        }
+        if ("experience" in $$parsedSource) {
+            $$parsedSource["experience"] = $$createField5_0($$parsedSource["experience"]);
+        }
+        if ("extractedLabels" in $$parsedSource) {
+            $$parsedSource["extractedLabels"] = $$createField6_0($$parsedSource["extractedLabels"]);
+        }
+        if ("labels" in $$parsedSource) {
+            $$parsedSource["labels"] = $$createField7_0($$parsedSource["labels"]);
+        }
+        if ("relationship" in $$parsedSource) {
+            $$parsedSource["relationship"] = $$createField8_0($$parsedSource["relationship"]);
+        }
+        if ("role" in $$parsedSource) {
+            $$parsedSource["role"] = $$createField9_0($$parsedSource["role"]);
+        }
+        if ("type" in $$parsedSource) {
+            $$parsedSource["type"] = $$createField10_0($$parsedSource["type"]);
+        }
+        return new CreateUserMemoryIdentityParams($$parsedSource as Partial<CreateUserMemoryIdentityParams>);
+    }
+}
+
+export class CreateUserMemoryParams {
+    "id": string;
+    "userId": sql$0.NullString;
+    "memoryCategory": sql$0.NullString;
+    "memoryLayer": sql$0.NullString;
+    "memoryType": sql$0.NullString;
+    "title": sql$0.NullString;
+    "summary": sql$0.NullString;
+    "summaryVector1024": string;
+    "details": sql$0.NullString;
+    "detailsVector1024": string;
+    "status": sql$0.NullString;
+    "accessedCount": sql$0.NullInt64;
+    "lastAccessedAt": number;
+    "createdAt": number;
+    "updatedAt": number;
+
+    /** Creates a new CreateUserMemoryParams instance. */
+    constructor($$source: Partial<CreateUserMemoryParams> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = (new sql$0.NullString());
+        }
+        if (!("memoryCategory" in $$source)) {
+            this["memoryCategory"] = (new sql$0.NullString());
+        }
+        if (!("memoryLayer" in $$source)) {
+            this["memoryLayer"] = (new sql$0.NullString());
+        }
+        if (!("memoryType" in $$source)) {
+            this["memoryType"] = (new sql$0.NullString());
+        }
+        if (!("title" in $$source)) {
+            this["title"] = (new sql$0.NullString());
+        }
+        if (!("summary" in $$source)) {
+            this["summary"] = (new sql$0.NullString());
+        }
+        if (!("summaryVector1024" in $$source)) {
+            this["summaryVector1024"] = "";
+        }
+        if (!("details" in $$source)) {
+            this["details"] = (new sql$0.NullString());
+        }
+        if (!("detailsVector1024" in $$source)) {
+            this["detailsVector1024"] = "";
+        }
+        if (!("status" in $$source)) {
+            this["status"] = (new sql$0.NullString());
+        }
+        if (!("accessedCount" in $$source)) {
+            this["accessedCount"] = (new sql$0.NullInt64());
+        }
+        if (!("lastAccessedAt" in $$source)) {
+            this["lastAccessedAt"] = 0;
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CreateUserMemoryParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CreateUserMemoryParams {
+        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $$createType0;
+        const $$createField3_0 = $$createType0;
+        const $$createField4_0 = $$createType0;
+        const $$createField5_0 = $$createType0;
+        const $$createField6_0 = $$createType0;
+        const $$createField7_0 = $Create.ByteSlice;
+        const $$createField8_0 = $$createType0;
+        const $$createField9_0 = $Create.ByteSlice;
+        const $$createField10_0 = $$createType0;
+        const $$createField11_0 = $$createType1;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("userId" in $$parsedSource) {
+            $$parsedSource["userId"] = $$createField1_0($$parsedSource["userId"]);
+        }
+        if ("memoryCategory" in $$parsedSource) {
+            $$parsedSource["memoryCategory"] = $$createField2_0($$parsedSource["memoryCategory"]);
+        }
+        if ("memoryLayer" in $$parsedSource) {
+            $$parsedSource["memoryLayer"] = $$createField3_0($$parsedSource["memoryLayer"]);
+        }
+        if ("memoryType" in $$parsedSource) {
+            $$parsedSource["memoryType"] = $$createField4_0($$parsedSource["memoryType"]);
+        }
+        if ("title" in $$parsedSource) {
+            $$parsedSource["title"] = $$createField5_0($$parsedSource["title"]);
+        }
+        if ("summary" in $$parsedSource) {
+            $$parsedSource["summary"] = $$createField6_0($$parsedSource["summary"]);
+        }
+        if ("summaryVector1024" in $$parsedSource) {
+            $$parsedSource["summaryVector1024"] = $$createField7_0($$parsedSource["summaryVector1024"]);
+        }
+        if ("details" in $$parsedSource) {
+            $$parsedSource["details"] = $$createField8_0($$parsedSource["details"]);
+        }
+        if ("detailsVector1024" in $$parsedSource) {
+            $$parsedSource["detailsVector1024"] = $$createField9_0($$parsedSource["detailsVector1024"]);
+        }
+        if ("status" in $$parsedSource) {
+            $$parsedSource["status"] = $$createField10_0($$parsedSource["status"]);
+        }
+        if ("accessedCount" in $$parsedSource) {
+            $$parsedSource["accessedCount"] = $$createField11_0($$parsedSource["accessedCount"]);
+        }
+        return new CreateUserMemoryParams($$parsedSource as Partial<CreateUserMemoryParams>);
+    }
+}
+
+export class CreateUserMemoryPreferenceParams {
+    "id": string;
+    "contextId": sql$0.NullString;
+    "userMemoryId": sql$0.NullString;
+    "labels": sql$0.NullString;
+    "extractedLabels": sql$0.NullString;
+    "extractedScopes": sql$0.NullString;
+    "conclusionDirectives": sql$0.NullString;
+    "conclusionDirectivesVector": string;
+    "type": sql$0.NullString;
+    "suggestions": sql$0.NullString;
+    "scorePriority": sql$0.NullFloat64;
+    "createdAt": number;
+    "updatedAt": number;
+
+    /** Creates a new CreateUserMemoryPreferenceParams instance. */
+    constructor($$source: Partial<CreateUserMemoryPreferenceParams> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("contextId" in $$source)) {
+            this["contextId"] = (new sql$0.NullString());
+        }
+        if (!("userMemoryId" in $$source)) {
+            this["userMemoryId"] = (new sql$0.NullString());
+        }
+        if (!("labels" in $$source)) {
+            this["labels"] = (new sql$0.NullString());
+        }
+        if (!("extractedLabels" in $$source)) {
+            this["extractedLabels"] = (new sql$0.NullString());
+        }
+        if (!("extractedScopes" in $$source)) {
+            this["extractedScopes"] = (new sql$0.NullString());
+        }
+        if (!("conclusionDirectives" in $$source)) {
+            this["conclusionDirectives"] = (new sql$0.NullString());
+        }
+        if (!("conclusionDirectivesVector" in $$source)) {
+            this["conclusionDirectivesVector"] = "";
+        }
+        if (!("type" in $$source)) {
+            this["type"] = (new sql$0.NullString());
+        }
+        if (!("suggestions" in $$source)) {
+            this["suggestions"] = (new sql$0.NullString());
+        }
+        if (!("scorePriority" in $$source)) {
+            this["scorePriority"] = (new sql$0.NullFloat64());
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CreateUserMemoryPreferenceParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CreateUserMemoryPreferenceParams {
+        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $$createType0;
+        const $$createField3_0 = $$createType0;
+        const $$createField4_0 = $$createType0;
+        const $$createField5_0 = $$createType0;
+        const $$createField6_0 = $$createType0;
+        const $$createField7_0 = $Create.ByteSlice;
+        const $$createField8_0 = $$createType0;
+        const $$createField9_0 = $$createType0;
+        const $$createField10_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("contextId" in $$parsedSource) {
+            $$parsedSource["contextId"] = $$createField1_0($$parsedSource["contextId"]);
+        }
+        if ("userMemoryId" in $$parsedSource) {
+            $$parsedSource["userMemoryId"] = $$createField2_0($$parsedSource["userMemoryId"]);
+        }
+        if ("labels" in $$parsedSource) {
+            $$parsedSource["labels"] = $$createField3_0($$parsedSource["labels"]);
+        }
+        if ("extractedLabels" in $$parsedSource) {
+            $$parsedSource["extractedLabels"] = $$createField4_0($$parsedSource["extractedLabels"]);
+        }
+        if ("extractedScopes" in $$parsedSource) {
+            $$parsedSource["extractedScopes"] = $$createField5_0($$parsedSource["extractedScopes"]);
+        }
+        if ("conclusionDirectives" in $$parsedSource) {
+            $$parsedSource["conclusionDirectives"] = $$createField6_0($$parsedSource["conclusionDirectives"]);
+        }
+        if ("conclusionDirectivesVector" in $$parsedSource) {
+            $$parsedSource["conclusionDirectivesVector"] = $$createField7_0($$parsedSource["conclusionDirectivesVector"]);
+        }
+        if ("type" in $$parsedSource) {
+            $$parsedSource["type"] = $$createField8_0($$parsedSource["type"]);
+        }
+        if ("suggestions" in $$parsedSource) {
+            $$parsedSource["suggestions"] = $$createField9_0($$parsedSource["suggestions"]);
+        }
+        if ("scorePriority" in $$parsedSource) {
+            $$parsedSource["scorePriority"] = $$createField10_0($$parsedSource["scorePriority"]);
+        }
+        return new CreateUserMemoryPreferenceParams($$parsedSource as Partial<CreateUserMemoryPreferenceParams>);
+    }
+}
+
 export class CreateUserParams {
     "id": string;
     "username": sql$0.NullString;
@@ -5007,6 +5686,35 @@ export class DeleteUnstructuredChunkParams {
             $$parsedSource["userId"] = $$createField1_0($$parsedSource["userId"]);
         }
         return new DeleteUnstructuredChunkParams($$parsedSource as Partial<DeleteUnstructuredChunkParams>);
+    }
+}
+
+export class DeleteUserMemoryParams {
+    "id": string;
+    "userId": sql$0.NullString;
+
+    /** Creates a new DeleteUserMemoryParams instance. */
+    constructor($$source: Partial<DeleteUserMemoryParams> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = (new sql$0.NullString());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DeleteUserMemoryParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DeleteUserMemoryParams {
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("userId" in $$parsedSource) {
+            $$parsedSource["userId"] = $$createField1_0($$parsedSource["userId"]);
+        }
+        return new DeleteUserMemoryParams($$parsedSource as Partial<DeleteUserMemoryParams>);
     }
 }
 
@@ -7660,6 +8368,35 @@ export class GetKnowledgeBaseParams {
     }
 }
 
+export class GetMemoriesBySessionContextParams {
+    "userId": sql$0.NullString;
+    "limit": number;
+
+    /** Creates a new GetMemoriesBySessionContextParams instance. */
+    constructor($$source: Partial<GetMemoriesBySessionContextParams> = {}) {
+        if (!("userId" in $$source)) {
+            this["userId"] = (new sql$0.NullString());
+        }
+        if (!("limit" in $$source)) {
+            this["limit"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetMemoriesBySessionContextParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetMemoriesBySessionContextParams {
+        const $$createField0_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("userId" in $$parsedSource) {
+            $$parsedSource["userId"] = $$createField0_0($$parsedSource["userId"]);
+        }
+        return new GetMemoriesBySessionContextParams($$parsedSource as Partial<GetMemoriesBySessionContextParams>);
+    }
+}
+
 export class GetMessageByToolCallIdParams {
     "toolCallId": sql$0.NullString;
     "userId": string;
@@ -7892,7 +8629,7 @@ export class GetMessageQueryChunksParams {
      * Creates a new GetMessageQueryChunksParams instance from a string or object.
      */
     static createFrom($$source: any = {}): GetMessageQueryChunksParams {
-        const $$createField0_0 = $$createType3;
+        const $$createField0_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("messageIds" in $$parsedSource) {
             $$parsedSource["messageIds"] = $$createField0_0($$parsedSource["messageIds"]);
@@ -8674,6 +9411,35 @@ export class GetMessagesWithRelationsRow {
     }
 }
 
+export class GetMostAccessedMemoriesParams {
+    "userId": sql$0.NullString;
+    "limit": number;
+
+    /** Creates a new GetMostAccessedMemoriesParams instance. */
+    constructor($$source: Partial<GetMostAccessedMemoriesParams> = {}) {
+        if (!("userId" in $$source)) {
+            this["userId"] = (new sql$0.NullString());
+        }
+        if (!("limit" in $$source)) {
+            this["limit"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetMostAccessedMemoriesParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetMostAccessedMemoriesParams {
+        const $$createField0_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("userId" in $$parsedSource) {
+            $$parsedSource["userId"] = $$createField0_0($$parsedSource["userId"]);
+        }
+        return new GetMostAccessedMemoriesParams($$parsedSource as Partial<GetMostAccessedMemoriesParams>);
+    }
+}
+
 export class GetNextAuthAccountParams {
     "provider": string;
     "providerAccountId": string;
@@ -8871,6 +9637,35 @@ export class GetRagEvalEvaluationRecordParams {
     static createFrom($$source: any = {}): GetRagEvalEvaluationRecordParams {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new GetRagEvalEvaluationRecordParams($$parsedSource as Partial<GetRagEvalEvaluationRecordParams>);
+    }
+}
+
+export class GetRecentMemoriesParams {
+    "userId": sql$0.NullString;
+    "limit": number;
+
+    /** Creates a new GetRecentMemoriesParams instance. */
+    constructor($$source: Partial<GetRecentMemoriesParams> = {}) {
+        if (!("userId" in $$source)) {
+            this["userId"] = (new sql$0.NullString());
+        }
+        if (!("limit" in $$source)) {
+            this["limit"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetRecentMemoriesParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetRecentMemoriesParams {
+        const $$createField0_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("userId" in $$parsedSource) {
+            $$parsedSource["userId"] = $$createField0_0($$parsedSource["userId"]);
+        }
+        return new GetRecentMemoriesParams($$parsedSource as Partial<GetRecentMemoriesParams>);
     }
 }
 
@@ -9452,6 +10247,68 @@ export class GetUnstructuredChunkParams {
             $$parsedSource["userId"] = $$createField1_0($$parsedSource["userId"]);
         }
         return new GetUnstructuredChunkParams($$parsedSource as Partial<GetUnstructuredChunkParams>);
+    }
+}
+
+export class GetUserMemoriesByIdsParams {
+    "ids": string[];
+    "userId": sql$0.NullString;
+
+    /** Creates a new GetUserMemoriesByIdsParams instance. */
+    constructor($$source: Partial<GetUserMemoriesByIdsParams> = {}) {
+        if (!("ids" in $$source)) {
+            this["ids"] = [];
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = (new sql$0.NullString());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetUserMemoriesByIdsParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetUserMemoriesByIdsParams {
+        const $$createField0_0 = $$createType2;
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("ids" in $$parsedSource) {
+            $$parsedSource["ids"] = $$createField0_0($$parsedSource["ids"]);
+        }
+        if ("userId" in $$parsedSource) {
+            $$parsedSource["userId"] = $$createField1_0($$parsedSource["userId"]);
+        }
+        return new GetUserMemoriesByIdsParams($$parsedSource as Partial<GetUserMemoriesByIdsParams>);
+    }
+}
+
+export class GetUserMemoryParams {
+    "id": string;
+    "userId": sql$0.NullString;
+
+    /** Creates a new GetUserMemoryParams instance. */
+    constructor($$source: Partial<GetUserMemoryParams> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = (new sql$0.NullString());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetUserMemoryParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetUserMemoryParams {
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("userId" in $$parsedSource) {
+            $$parsedSource["userId"] = $$createField1_0($$parsedSource["userId"]);
+        }
+        return new GetUserMemoryParams($$parsedSource as Partial<GetUserMemoryParams>);
     }
 }
 
@@ -11607,6 +12464,146 @@ export class ListUnstructuredChunksByFileParams {
     }
 }
 
+export class ListUserMemoriesByCategoryParams {
+    "userId": sql$0.NullString;
+    "memoryCategory": sql$0.NullString;
+    "limit": number;
+    "offset": number;
+
+    /** Creates a new ListUserMemoriesByCategoryParams instance. */
+    constructor($$source: Partial<ListUserMemoriesByCategoryParams> = {}) {
+        if (!("userId" in $$source)) {
+            this["userId"] = (new sql$0.NullString());
+        }
+        if (!("memoryCategory" in $$source)) {
+            this["memoryCategory"] = (new sql$0.NullString());
+        }
+        if (!("limit" in $$source)) {
+            this["limit"] = 0;
+        }
+        if (!("offset" in $$source)) {
+            this["offset"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ListUserMemoriesByCategoryParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ListUserMemoriesByCategoryParams {
+        const $$createField0_0 = $$createType0;
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("userId" in $$parsedSource) {
+            $$parsedSource["userId"] = $$createField0_0($$parsedSource["userId"]);
+        }
+        if ("memoryCategory" in $$parsedSource) {
+            $$parsedSource["memoryCategory"] = $$createField1_0($$parsedSource["memoryCategory"]);
+        }
+        return new ListUserMemoriesByCategoryParams($$parsedSource as Partial<ListUserMemoriesByCategoryParams>);
+    }
+}
+
+export class ListUserMemoriesByTypeParams {
+    "userId": sql$0.NullString;
+    "memoryType": sql$0.NullString;
+    "limit": number;
+    "offset": number;
+
+    /** Creates a new ListUserMemoriesByTypeParams instance. */
+    constructor($$source: Partial<ListUserMemoriesByTypeParams> = {}) {
+        if (!("userId" in $$source)) {
+            this["userId"] = (new sql$0.NullString());
+        }
+        if (!("memoryType" in $$source)) {
+            this["memoryType"] = (new sql$0.NullString());
+        }
+        if (!("limit" in $$source)) {
+            this["limit"] = 0;
+        }
+        if (!("offset" in $$source)) {
+            this["offset"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ListUserMemoriesByTypeParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ListUserMemoriesByTypeParams {
+        const $$createField0_0 = $$createType0;
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("userId" in $$parsedSource) {
+            $$parsedSource["userId"] = $$createField0_0($$parsedSource["userId"]);
+        }
+        if ("memoryType" in $$parsedSource) {
+            $$parsedSource["memoryType"] = $$createField1_0($$parsedSource["memoryType"]);
+        }
+        return new ListUserMemoriesByTypeParams($$parsedSource as Partial<ListUserMemoriesByTypeParams>);
+    }
+}
+
+export class ListUserMemoriesParams {
+    "userId": sql$0.NullString;
+    "limit": number;
+    "offset": number;
+
+    /** Creates a new ListUserMemoriesParams instance. */
+    constructor($$source: Partial<ListUserMemoriesParams> = {}) {
+        if (!("userId" in $$source)) {
+            this["userId"] = (new sql$0.NullString());
+        }
+        if (!("limit" in $$source)) {
+            this["limit"] = 0;
+        }
+        if (!("offset" in $$source)) {
+            this["offset"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ListUserMemoriesParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ListUserMemoriesParams {
+        const $$createField0_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("userId" in $$parsedSource) {
+            $$parsedSource["userId"] = $$createField0_0($$parsedSource["userId"]);
+        }
+        return new ListUserMemoriesParams($$parsedSource as Partial<ListUserMemoriesParams>);
+    }
+}
+
+export class ListUserMemoryContextsParams {
+    "limit": number;
+    "offset": number;
+
+    /** Creates a new ListUserMemoryContextsParams instance. */
+    constructor($$source: Partial<ListUserMemoryContextsParams> = {}) {
+        if (!("limit" in $$source)) {
+            this["limit"] = 0;
+        }
+        if (!("offset" in $$source)) {
+            this["offset"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ListUserMemoryContextsParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ListUserMemoryContextsParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ListUserMemoryContextsParams($$parsedSource as Partial<ListUserMemoryContextsParams>);
+    }
+}
+
 export class Message {
     "id": string;
     "role": string;
@@ -12999,6 +13996,43 @@ export class SearchAgentsParams {
             $$parsedSource["description"] = $$createField2_0($$parsedSource["description"]);
         }
         return new SearchAgentsParams($$parsedSource as Partial<SearchAgentsParams>);
+    }
+}
+
+export class SearchMemoriesByTitleParams {
+    "userId": sql$0.NullString;
+    "column2": sql$0.NullString;
+    "limit": number;
+
+    /** Creates a new SearchMemoriesByTitleParams instance. */
+    constructor($$source: Partial<SearchMemoriesByTitleParams> = {}) {
+        if (!("userId" in $$source)) {
+            this["userId"] = (new sql$0.NullString());
+        }
+        if (!("column2" in $$source)) {
+            this["column2"] = (new sql$0.NullString());
+        }
+        if (!("limit" in $$source)) {
+            this["limit"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SearchMemoriesByTitleParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SearchMemoriesByTitleParams {
+        const $$createField0_0 = $$createType0;
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("userId" in $$parsedSource) {
+            $$parsedSource["userId"] = $$createField0_0($$parsedSource["userId"]);
+        }
+        if ("column2" in $$parsedSource) {
+            $$parsedSource["column2"] = $$createField1_0($$parsedSource["column2"]);
+        }
+        return new SearchMemoriesByTitleParams($$parsedSource as Partial<SearchMemoriesByTitleParams>);
     }
 }
 
@@ -15207,6 +16241,43 @@ export class UpdateKnowledgeBaseParams {
     }
 }
 
+export class UpdateMemoryAccessCountParams {
+    "lastAccessedAt": number;
+    "updatedAt": number;
+    "id": string;
+    "userId": sql$0.NullString;
+
+    /** Creates a new UpdateMemoryAccessCountParams instance. */
+    constructor($$source: Partial<UpdateMemoryAccessCountParams> = {}) {
+        if (!("lastAccessedAt" in $$source)) {
+            this["lastAccessedAt"] = 0;
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = (new sql$0.NullString());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpdateMemoryAccessCountParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UpdateMemoryAccessCountParams {
+        const $$createField3_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("userId" in $$parsedSource) {
+            $$parsedSource["userId"] = $$createField3_0($$parsedSource["userId"]);
+        }
+        return new UpdateMemoryAccessCountParams($$parsedSource as Partial<UpdateMemoryAccessCountParams>);
+    }
+}
+
 export class UpdateMessageParams {
     "content": sql$0.NullString;
     "reasoning": sql$0.NullString;
@@ -16107,6 +17178,87 @@ export class UpdateTopicParams {
             $$parsedSource["metadata"] = $$createField2_0($$parsedSource["metadata"]);
         }
         return new UpdateTopicParams($$parsedSource as Partial<UpdateTopicParams>);
+    }
+}
+
+export class UpdateUserMemoryParams {
+    "title": sql$0.NullString;
+    "summary": sql$0.NullString;
+    "summaryVector1024": string;
+    "details": sql$0.NullString;
+    "detailsVector1024": string;
+    "status": sql$0.NullString;
+    "updatedAt": number;
+    "id": string;
+    "userId": sql$0.NullString;
+
+    /** Creates a new UpdateUserMemoryParams instance. */
+    constructor($$source: Partial<UpdateUserMemoryParams> = {}) {
+        if (!("title" in $$source)) {
+            this["title"] = (new sql$0.NullString());
+        }
+        if (!("summary" in $$source)) {
+            this["summary"] = (new sql$0.NullString());
+        }
+        if (!("summaryVector1024" in $$source)) {
+            this["summaryVector1024"] = "";
+        }
+        if (!("details" in $$source)) {
+            this["details"] = (new sql$0.NullString());
+        }
+        if (!("detailsVector1024" in $$source)) {
+            this["detailsVector1024"] = "";
+        }
+        if (!("status" in $$source)) {
+            this["status"] = (new sql$0.NullString());
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = (new sql$0.NullString());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpdateUserMemoryParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UpdateUserMemoryParams {
+        const $$createField0_0 = $$createType0;
+        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $Create.ByteSlice;
+        const $$createField3_0 = $$createType0;
+        const $$createField4_0 = $Create.ByteSlice;
+        const $$createField5_0 = $$createType0;
+        const $$createField8_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("title" in $$parsedSource) {
+            $$parsedSource["title"] = $$createField0_0($$parsedSource["title"]);
+        }
+        if ("summary" in $$parsedSource) {
+            $$parsedSource["summary"] = $$createField1_0($$parsedSource["summary"]);
+        }
+        if ("summaryVector1024" in $$parsedSource) {
+            $$parsedSource["summaryVector1024"] = $$createField2_0($$parsedSource["summaryVector1024"]);
+        }
+        if ("details" in $$parsedSource) {
+            $$parsedSource["details"] = $$createField3_0($$parsedSource["details"]);
+        }
+        if ("detailsVector1024" in $$parsedSource) {
+            $$parsedSource["detailsVector1024"] = $$createField4_0($$parsedSource["detailsVector1024"]);
+        }
+        if ("status" in $$parsedSource) {
+            $$parsedSource["status"] = $$createField5_0($$parsedSource["status"]);
+        }
+        if ("userId" in $$parsedSource) {
+            $$parsedSource["userId"] = $$createField8_0($$parsedSource["userId"]);
+        }
+        return new UpdateUserMemoryParams($$parsedSource as Partial<UpdateUserMemoryParams>);
     }
 }
 
@@ -17134,6 +18286,619 @@ export class UserInstalledPlugin {
     }
 }
 
+export class UserMemoriesContext {
+    "id": string;
+    "userMemoryIds": sql$0.NullString;
+    "labels": sql$0.NullString;
+    "extractedLabels": sql$0.NullString;
+    "associatedObjects": sql$0.NullString;
+    "associatedSubjects": sql$0.NullString;
+    "title": sql$0.NullString;
+    "titleVector": string;
+    "description": sql$0.NullString;
+    "descriptionVector": string;
+    "type": sql$0.NullString;
+    "currentStatus": sql$0.NullString;
+    "scoreImpact": sql$0.NullFloat64;
+    "scoreUrgency": sql$0.NullFloat64;
+    "createdAt": number;
+    "updatedAt": number;
+
+    /** Creates a new UserMemoriesContext instance. */
+    constructor($$source: Partial<UserMemoriesContext> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("userMemoryIds" in $$source)) {
+            this["userMemoryIds"] = (new sql$0.NullString());
+        }
+        if (!("labels" in $$source)) {
+            this["labels"] = (new sql$0.NullString());
+        }
+        if (!("extractedLabels" in $$source)) {
+            this["extractedLabels"] = (new sql$0.NullString());
+        }
+        if (!("associatedObjects" in $$source)) {
+            this["associatedObjects"] = (new sql$0.NullString());
+        }
+        if (!("associatedSubjects" in $$source)) {
+            this["associatedSubjects"] = (new sql$0.NullString());
+        }
+        if (!("title" in $$source)) {
+            this["title"] = (new sql$0.NullString());
+        }
+        if (!("titleVector" in $$source)) {
+            this["titleVector"] = "";
+        }
+        if (!("description" in $$source)) {
+            this["description"] = (new sql$0.NullString());
+        }
+        if (!("descriptionVector" in $$source)) {
+            this["descriptionVector"] = "";
+        }
+        if (!("type" in $$source)) {
+            this["type"] = (new sql$0.NullString());
+        }
+        if (!("currentStatus" in $$source)) {
+            this["currentStatus"] = (new sql$0.NullString());
+        }
+        if (!("scoreImpact" in $$source)) {
+            this["scoreImpact"] = (new sql$0.NullFloat64());
+        }
+        if (!("scoreUrgency" in $$source)) {
+            this["scoreUrgency"] = (new sql$0.NullFloat64());
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UserMemoriesContext instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UserMemoriesContext {
+        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $$createType0;
+        const $$createField3_0 = $$createType0;
+        const $$createField4_0 = $$createType0;
+        const $$createField5_0 = $$createType0;
+        const $$createField6_0 = $$createType0;
+        const $$createField7_0 = $Create.ByteSlice;
+        const $$createField8_0 = $$createType0;
+        const $$createField9_0 = $Create.ByteSlice;
+        const $$createField10_0 = $$createType0;
+        const $$createField11_0 = $$createType0;
+        const $$createField12_0 = $$createType3;
+        const $$createField13_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("userMemoryIds" in $$parsedSource) {
+            $$parsedSource["userMemoryIds"] = $$createField1_0($$parsedSource["userMemoryIds"]);
+        }
+        if ("labels" in $$parsedSource) {
+            $$parsedSource["labels"] = $$createField2_0($$parsedSource["labels"]);
+        }
+        if ("extractedLabels" in $$parsedSource) {
+            $$parsedSource["extractedLabels"] = $$createField3_0($$parsedSource["extractedLabels"]);
+        }
+        if ("associatedObjects" in $$parsedSource) {
+            $$parsedSource["associatedObjects"] = $$createField4_0($$parsedSource["associatedObjects"]);
+        }
+        if ("associatedSubjects" in $$parsedSource) {
+            $$parsedSource["associatedSubjects"] = $$createField5_0($$parsedSource["associatedSubjects"]);
+        }
+        if ("title" in $$parsedSource) {
+            $$parsedSource["title"] = $$createField6_0($$parsedSource["title"]);
+        }
+        if ("titleVector" in $$parsedSource) {
+            $$parsedSource["titleVector"] = $$createField7_0($$parsedSource["titleVector"]);
+        }
+        if ("description" in $$parsedSource) {
+            $$parsedSource["description"] = $$createField8_0($$parsedSource["description"]);
+        }
+        if ("descriptionVector" in $$parsedSource) {
+            $$parsedSource["descriptionVector"] = $$createField9_0($$parsedSource["descriptionVector"]);
+        }
+        if ("type" in $$parsedSource) {
+            $$parsedSource["type"] = $$createField10_0($$parsedSource["type"]);
+        }
+        if ("currentStatus" in $$parsedSource) {
+            $$parsedSource["currentStatus"] = $$createField11_0($$parsedSource["currentStatus"]);
+        }
+        if ("scoreImpact" in $$parsedSource) {
+            $$parsedSource["scoreImpact"] = $$createField12_0($$parsedSource["scoreImpact"]);
+        }
+        if ("scoreUrgency" in $$parsedSource) {
+            $$parsedSource["scoreUrgency"] = $$createField13_0($$parsedSource["scoreUrgency"]);
+        }
+        return new UserMemoriesContext($$parsedSource as Partial<UserMemoriesContext>);
+    }
+}
+
+export class UserMemoriesExperience {
+    "id": string;
+    "userMemoryId": sql$0.NullString;
+    "labels": sql$0.NullString;
+    "extractedLabels": sql$0.NullString;
+    "type": sql$0.NullString;
+    "situation": sql$0.NullString;
+    "situationVector": string;
+    "reasoning": sql$0.NullString;
+    "possibleOutcome": sql$0.NullString;
+    "action": sql$0.NullString;
+    "actionVector": string;
+    "keyLearning": sql$0.NullString;
+    "keyLearningVector": string;
+    "metadata": sql$0.NullString;
+    "scoreConfidence": sql$0.NullFloat64;
+    "createdAt": number;
+    "updatedAt": number;
+
+    /** Creates a new UserMemoriesExperience instance. */
+    constructor($$source: Partial<UserMemoriesExperience> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("userMemoryId" in $$source)) {
+            this["userMemoryId"] = (new sql$0.NullString());
+        }
+        if (!("labels" in $$source)) {
+            this["labels"] = (new sql$0.NullString());
+        }
+        if (!("extractedLabels" in $$source)) {
+            this["extractedLabels"] = (new sql$0.NullString());
+        }
+        if (!("type" in $$source)) {
+            this["type"] = (new sql$0.NullString());
+        }
+        if (!("situation" in $$source)) {
+            this["situation"] = (new sql$0.NullString());
+        }
+        if (!("situationVector" in $$source)) {
+            this["situationVector"] = "";
+        }
+        if (!("reasoning" in $$source)) {
+            this["reasoning"] = (new sql$0.NullString());
+        }
+        if (!("possibleOutcome" in $$source)) {
+            this["possibleOutcome"] = (new sql$0.NullString());
+        }
+        if (!("action" in $$source)) {
+            this["action"] = (new sql$0.NullString());
+        }
+        if (!("actionVector" in $$source)) {
+            this["actionVector"] = "";
+        }
+        if (!("keyLearning" in $$source)) {
+            this["keyLearning"] = (new sql$0.NullString());
+        }
+        if (!("keyLearningVector" in $$source)) {
+            this["keyLearningVector"] = "";
+        }
+        if (!("metadata" in $$source)) {
+            this["metadata"] = (new sql$0.NullString());
+        }
+        if (!("scoreConfidence" in $$source)) {
+            this["scoreConfidence"] = (new sql$0.NullFloat64());
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UserMemoriesExperience instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UserMemoriesExperience {
+        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $$createType0;
+        const $$createField3_0 = $$createType0;
+        const $$createField4_0 = $$createType0;
+        const $$createField5_0 = $$createType0;
+        const $$createField6_0 = $Create.ByteSlice;
+        const $$createField7_0 = $$createType0;
+        const $$createField8_0 = $$createType0;
+        const $$createField9_0 = $$createType0;
+        const $$createField10_0 = $Create.ByteSlice;
+        const $$createField11_0 = $$createType0;
+        const $$createField12_0 = $Create.ByteSlice;
+        const $$createField13_0 = $$createType0;
+        const $$createField14_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("userMemoryId" in $$parsedSource) {
+            $$parsedSource["userMemoryId"] = $$createField1_0($$parsedSource["userMemoryId"]);
+        }
+        if ("labels" in $$parsedSource) {
+            $$parsedSource["labels"] = $$createField2_0($$parsedSource["labels"]);
+        }
+        if ("extractedLabels" in $$parsedSource) {
+            $$parsedSource["extractedLabels"] = $$createField3_0($$parsedSource["extractedLabels"]);
+        }
+        if ("type" in $$parsedSource) {
+            $$parsedSource["type"] = $$createField4_0($$parsedSource["type"]);
+        }
+        if ("situation" in $$parsedSource) {
+            $$parsedSource["situation"] = $$createField5_0($$parsedSource["situation"]);
+        }
+        if ("situationVector" in $$parsedSource) {
+            $$parsedSource["situationVector"] = $$createField6_0($$parsedSource["situationVector"]);
+        }
+        if ("reasoning" in $$parsedSource) {
+            $$parsedSource["reasoning"] = $$createField7_0($$parsedSource["reasoning"]);
+        }
+        if ("possibleOutcome" in $$parsedSource) {
+            $$parsedSource["possibleOutcome"] = $$createField8_0($$parsedSource["possibleOutcome"]);
+        }
+        if ("action" in $$parsedSource) {
+            $$parsedSource["action"] = $$createField9_0($$parsedSource["action"]);
+        }
+        if ("actionVector" in $$parsedSource) {
+            $$parsedSource["actionVector"] = $$createField10_0($$parsedSource["actionVector"]);
+        }
+        if ("keyLearning" in $$parsedSource) {
+            $$parsedSource["keyLearning"] = $$createField11_0($$parsedSource["keyLearning"]);
+        }
+        if ("keyLearningVector" in $$parsedSource) {
+            $$parsedSource["keyLearningVector"] = $$createField12_0($$parsedSource["keyLearningVector"]);
+        }
+        if ("metadata" in $$parsedSource) {
+            $$parsedSource["metadata"] = $$createField13_0($$parsedSource["metadata"]);
+        }
+        if ("scoreConfidence" in $$parsedSource) {
+            $$parsedSource["scoreConfidence"] = $$createField14_0($$parsedSource["scoreConfidence"]);
+        }
+        return new UserMemoriesExperience($$parsedSource as Partial<UserMemoriesExperience>);
+    }
+}
+
+export class UserMemoriesIdentity {
+    "id": string;
+    "userMemoryId": sql$0.NullString;
+    "currentFocuses": sql$0.NullString;
+    "description": sql$0.NullString;
+    "descriptionVector": string;
+    "experience": sql$0.NullString;
+    "extractedLabels": sql$0.NullString;
+    "labels": sql$0.NullString;
+    "relationship": sql$0.NullString;
+    "role": sql$0.NullString;
+    "type": sql$0.NullString;
+    "createdAt": number;
+    "updatedAt": number;
+
+    /** Creates a new UserMemoriesIdentity instance. */
+    constructor($$source: Partial<UserMemoriesIdentity> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("userMemoryId" in $$source)) {
+            this["userMemoryId"] = (new sql$0.NullString());
+        }
+        if (!("currentFocuses" in $$source)) {
+            this["currentFocuses"] = (new sql$0.NullString());
+        }
+        if (!("description" in $$source)) {
+            this["description"] = (new sql$0.NullString());
+        }
+        if (!("descriptionVector" in $$source)) {
+            this["descriptionVector"] = "";
+        }
+        if (!("experience" in $$source)) {
+            this["experience"] = (new sql$0.NullString());
+        }
+        if (!("extractedLabels" in $$source)) {
+            this["extractedLabels"] = (new sql$0.NullString());
+        }
+        if (!("labels" in $$source)) {
+            this["labels"] = (new sql$0.NullString());
+        }
+        if (!("relationship" in $$source)) {
+            this["relationship"] = (new sql$0.NullString());
+        }
+        if (!("role" in $$source)) {
+            this["role"] = (new sql$0.NullString());
+        }
+        if (!("type" in $$source)) {
+            this["type"] = (new sql$0.NullString());
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UserMemoriesIdentity instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UserMemoriesIdentity {
+        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $$createType0;
+        const $$createField3_0 = $$createType0;
+        const $$createField4_0 = $Create.ByteSlice;
+        const $$createField5_0 = $$createType0;
+        const $$createField6_0 = $$createType0;
+        const $$createField7_0 = $$createType0;
+        const $$createField8_0 = $$createType0;
+        const $$createField9_0 = $$createType0;
+        const $$createField10_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("userMemoryId" in $$parsedSource) {
+            $$parsedSource["userMemoryId"] = $$createField1_0($$parsedSource["userMemoryId"]);
+        }
+        if ("currentFocuses" in $$parsedSource) {
+            $$parsedSource["currentFocuses"] = $$createField2_0($$parsedSource["currentFocuses"]);
+        }
+        if ("description" in $$parsedSource) {
+            $$parsedSource["description"] = $$createField3_0($$parsedSource["description"]);
+        }
+        if ("descriptionVector" in $$parsedSource) {
+            $$parsedSource["descriptionVector"] = $$createField4_0($$parsedSource["descriptionVector"]);
+        }
+        if ("experience" in $$parsedSource) {
+            $$parsedSource["experience"] = $$createField5_0($$parsedSource["experience"]);
+        }
+        if ("extractedLabels" in $$parsedSource) {
+            $$parsedSource["extractedLabels"] = $$createField6_0($$parsedSource["extractedLabels"]);
+        }
+        if ("labels" in $$parsedSource) {
+            $$parsedSource["labels"] = $$createField7_0($$parsedSource["labels"]);
+        }
+        if ("relationship" in $$parsedSource) {
+            $$parsedSource["relationship"] = $$createField8_0($$parsedSource["relationship"]);
+        }
+        if ("role" in $$parsedSource) {
+            $$parsedSource["role"] = $$createField9_0($$parsedSource["role"]);
+        }
+        if ("type" in $$parsedSource) {
+            $$parsedSource["type"] = $$createField10_0($$parsedSource["type"]);
+        }
+        return new UserMemoriesIdentity($$parsedSource as Partial<UserMemoriesIdentity>);
+    }
+}
+
+export class UserMemoriesPreference {
+    "id": string;
+    "contextId": sql$0.NullString;
+    "userMemoryId": sql$0.NullString;
+    "labels": sql$0.NullString;
+    "extractedLabels": sql$0.NullString;
+    "extractedScopes": sql$0.NullString;
+    "conclusionDirectives": sql$0.NullString;
+    "conclusionDirectivesVector": string;
+    "type": sql$0.NullString;
+    "suggestions": sql$0.NullString;
+    "scorePriority": sql$0.NullFloat64;
+    "createdAt": number;
+    "updatedAt": number;
+
+    /** Creates a new UserMemoriesPreference instance. */
+    constructor($$source: Partial<UserMemoriesPreference> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("contextId" in $$source)) {
+            this["contextId"] = (new sql$0.NullString());
+        }
+        if (!("userMemoryId" in $$source)) {
+            this["userMemoryId"] = (new sql$0.NullString());
+        }
+        if (!("labels" in $$source)) {
+            this["labels"] = (new sql$0.NullString());
+        }
+        if (!("extractedLabels" in $$source)) {
+            this["extractedLabels"] = (new sql$0.NullString());
+        }
+        if (!("extractedScopes" in $$source)) {
+            this["extractedScopes"] = (new sql$0.NullString());
+        }
+        if (!("conclusionDirectives" in $$source)) {
+            this["conclusionDirectives"] = (new sql$0.NullString());
+        }
+        if (!("conclusionDirectivesVector" in $$source)) {
+            this["conclusionDirectivesVector"] = "";
+        }
+        if (!("type" in $$source)) {
+            this["type"] = (new sql$0.NullString());
+        }
+        if (!("suggestions" in $$source)) {
+            this["suggestions"] = (new sql$0.NullString());
+        }
+        if (!("scorePriority" in $$source)) {
+            this["scorePriority"] = (new sql$0.NullFloat64());
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UserMemoriesPreference instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UserMemoriesPreference {
+        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $$createType0;
+        const $$createField3_0 = $$createType0;
+        const $$createField4_0 = $$createType0;
+        const $$createField5_0 = $$createType0;
+        const $$createField6_0 = $$createType0;
+        const $$createField7_0 = $Create.ByteSlice;
+        const $$createField8_0 = $$createType0;
+        const $$createField9_0 = $$createType0;
+        const $$createField10_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("contextId" in $$parsedSource) {
+            $$parsedSource["contextId"] = $$createField1_0($$parsedSource["contextId"]);
+        }
+        if ("userMemoryId" in $$parsedSource) {
+            $$parsedSource["userMemoryId"] = $$createField2_0($$parsedSource["userMemoryId"]);
+        }
+        if ("labels" in $$parsedSource) {
+            $$parsedSource["labels"] = $$createField3_0($$parsedSource["labels"]);
+        }
+        if ("extractedLabels" in $$parsedSource) {
+            $$parsedSource["extractedLabels"] = $$createField4_0($$parsedSource["extractedLabels"]);
+        }
+        if ("extractedScopes" in $$parsedSource) {
+            $$parsedSource["extractedScopes"] = $$createField5_0($$parsedSource["extractedScopes"]);
+        }
+        if ("conclusionDirectives" in $$parsedSource) {
+            $$parsedSource["conclusionDirectives"] = $$createField6_0($$parsedSource["conclusionDirectives"]);
+        }
+        if ("conclusionDirectivesVector" in $$parsedSource) {
+            $$parsedSource["conclusionDirectivesVector"] = $$createField7_0($$parsedSource["conclusionDirectivesVector"]);
+        }
+        if ("type" in $$parsedSource) {
+            $$parsedSource["type"] = $$createField8_0($$parsedSource["type"]);
+        }
+        if ("suggestions" in $$parsedSource) {
+            $$parsedSource["suggestions"] = $$createField9_0($$parsedSource["suggestions"]);
+        }
+        if ("scorePriority" in $$parsedSource) {
+            $$parsedSource["scorePriority"] = $$createField10_0($$parsedSource["scorePriority"]);
+        }
+        return new UserMemoriesPreference($$parsedSource as Partial<UserMemoriesPreference>);
+    }
+}
+
+export class UserMemory {
+    "id": string;
+    "userId": sql$0.NullString;
+    "memoryCategory": sql$0.NullString;
+    "memoryLayer": sql$0.NullString;
+    "memoryType": sql$0.NullString;
+    "title": sql$0.NullString;
+    "summary": sql$0.NullString;
+    "summaryVector1024": string;
+    "details": sql$0.NullString;
+    "detailsVector1024": string;
+    "status": sql$0.NullString;
+    "accessedCount": sql$0.NullInt64;
+    "lastAccessedAt": number;
+    "createdAt": number;
+    "updatedAt": number;
+
+    /** Creates a new UserMemory instance. */
+    constructor($$source: Partial<UserMemory> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("userId" in $$source)) {
+            this["userId"] = (new sql$0.NullString());
+        }
+        if (!("memoryCategory" in $$source)) {
+            this["memoryCategory"] = (new sql$0.NullString());
+        }
+        if (!("memoryLayer" in $$source)) {
+            this["memoryLayer"] = (new sql$0.NullString());
+        }
+        if (!("memoryType" in $$source)) {
+            this["memoryType"] = (new sql$0.NullString());
+        }
+        if (!("title" in $$source)) {
+            this["title"] = (new sql$0.NullString());
+        }
+        if (!("summary" in $$source)) {
+            this["summary"] = (new sql$0.NullString());
+        }
+        if (!("summaryVector1024" in $$source)) {
+            this["summaryVector1024"] = "";
+        }
+        if (!("details" in $$source)) {
+            this["details"] = (new sql$0.NullString());
+        }
+        if (!("detailsVector1024" in $$source)) {
+            this["detailsVector1024"] = "";
+        }
+        if (!("status" in $$source)) {
+            this["status"] = (new sql$0.NullString());
+        }
+        if (!("accessedCount" in $$source)) {
+            this["accessedCount"] = (new sql$0.NullInt64());
+        }
+        if (!("lastAccessedAt" in $$source)) {
+            this["lastAccessedAt"] = 0;
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UserMemory instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UserMemory {
+        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $$createType0;
+        const $$createField3_0 = $$createType0;
+        const $$createField4_0 = $$createType0;
+        const $$createField5_0 = $$createType0;
+        const $$createField6_0 = $$createType0;
+        const $$createField7_0 = $Create.ByteSlice;
+        const $$createField8_0 = $$createType0;
+        const $$createField9_0 = $Create.ByteSlice;
+        const $$createField10_0 = $$createType0;
+        const $$createField11_0 = $$createType1;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("userId" in $$parsedSource) {
+            $$parsedSource["userId"] = $$createField1_0($$parsedSource["userId"]);
+        }
+        if ("memoryCategory" in $$parsedSource) {
+            $$parsedSource["memoryCategory"] = $$createField2_0($$parsedSource["memoryCategory"]);
+        }
+        if ("memoryLayer" in $$parsedSource) {
+            $$parsedSource["memoryLayer"] = $$createField3_0($$parsedSource["memoryLayer"]);
+        }
+        if ("memoryType" in $$parsedSource) {
+            $$parsedSource["memoryType"] = $$createField4_0($$parsedSource["memoryType"]);
+        }
+        if ("title" in $$parsedSource) {
+            $$parsedSource["title"] = $$createField5_0($$parsedSource["title"]);
+        }
+        if ("summary" in $$parsedSource) {
+            $$parsedSource["summary"] = $$createField6_0($$parsedSource["summary"]);
+        }
+        if ("summaryVector1024" in $$parsedSource) {
+            $$parsedSource["summaryVector1024"] = $$createField7_0($$parsedSource["summaryVector1024"]);
+        }
+        if ("details" in $$parsedSource) {
+            $$parsedSource["details"] = $$createField8_0($$parsedSource["details"]);
+        }
+        if ("detailsVector1024" in $$parsedSource) {
+            $$parsedSource["detailsVector1024"] = $$createField9_0($$parsedSource["detailsVector1024"]);
+        }
+        if ("status" in $$parsedSource) {
+            $$parsedSource["status"] = $$createField10_0($$parsedSource["status"]);
+        }
+        if ("accessedCount" in $$parsedSource) {
+            $$parsedSource["accessedCount"] = $$createField11_0($$parsedSource["accessedCount"]);
+        }
+        return new UserMemory($$parsedSource as Partial<UserMemory>);
+    }
+}
+
 export class UserSetting {
     "id": string;
     "tts": sql$0.NullString;
@@ -17231,4 +18996,5 @@ export class UserSetting {
 const $$createType0 = sql$0.NullString.createFrom;
 const $$createType1 = sql$0.NullInt64.createFrom;
 const $$createType2 = $Create.Array($Create.Any);
-const $$createType3 = $Create.Array($$createType0);
+const $$createType3 = sql$0.NullFloat64.createFrom;
+const $$createType4 = $Create.Array($$createType0);

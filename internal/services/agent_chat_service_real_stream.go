@@ -245,9 +245,16 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 
 		// Run agent with streaming callbacks
 		// fantasy.Agent.createPrompt will build: [system] + historyMessages + [user: userPrompt]
+		// Disable agent-level retry when using Chain (Chain has its own fallback mechanism)
+		var maxRetries *int
+		if _, isChain := model.(*fantasy.ChainLanguageModel); isChain {
+			zero := 0
+			maxRetries = &zero
+		}
 		result, runErr := agent.Stream(ctx, fantasy.AgentStreamCall{
-			Prompt:   userPrompt,
-			Messages: historyMessages,
+			Prompt:     userPrompt,
+			Messages:   historyMessages,
+			MaxRetries: maxRetries,
 
 			// Text streaming callbacks
 			OnTextDelta: func(id, text string) error {

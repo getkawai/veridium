@@ -10,10 +10,15 @@ import (
 )
 
 type Querier interface {
+	ArchiveOldMemories(ctx context.Context, arg ArchiveOldMemoriesParams) error
 	BatchDeleteChunks(ctx context.Context, arg BatchDeleteChunksParams) error
 	BatchDeleteMessages(ctx context.Context, arg BatchDeleteMessagesParams) error
 	BatchDeleteSessions(ctx context.Context, arg BatchDeleteSessionsParams) error
 	BatchDeleteTopics(ctx context.Context, arg BatchDeleteTopicsParams) error
+	// ============================================================================
+	// BATCH OPERATIONS
+	// ============================================================================
+	BatchDeleteUserMemories(ctx context.Context, arg BatchDeleteUserMemoriesParams) error
 	BatchInsertRagEvalEvaluationRecords(ctx context.Context) error
 	BatchLinkAgentToFiles(ctx context.Context, arg BatchLinkAgentToFilesParams) error
 	BatchLinkChatGroupToAgents(ctx context.Context, arg BatchLinkChatGroupToAgentsParams) error
@@ -35,6 +40,7 @@ type Querier interface {
 	CountTopics(ctx context.Context, userID string) (int64, error)
 	CountTopicsByDateRange(ctx context.Context, arg CountTopicsByDateRangeParams) (int64, error)
 	CountTopicsBySession(ctx context.Context, arg CountTopicsBySessionParams) (int64, error)
+	CountUserMemories(ctx context.Context, userID sql.NullString) (int64, error)
 	CreateAIModel(ctx context.Context, arg CreateAIModelParams) (AiModel, error)
 	CreateAIProvider(ctx context.Context, arg CreateAIProviderParams) (AiProvider, error)
 	CreateAPIKey(ctx context.Context, arg CreateAPIKeyParams) (ApiKey, error)
@@ -74,6 +80,28 @@ type Querier interface {
 	CreateTopic(ctx context.Context, arg CreateTopicParams) (Topic, error)
 	CreateUnstructuredChunk(ctx context.Context, arg CreateUnstructuredChunkParams) (UnstructuredChunk, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	// Memory Queries for Infinite Memory Architecture
+	// Supports MemGPT-style conversation memory with semantic search
+	// ============================================================================
+	// USER MEMORIES (Core Memory Facts)
+	// ============================================================================
+	CreateUserMemory(ctx context.Context, arg CreateUserMemoryParams) (UserMemory, error)
+	// ============================================================================
+	// USER MEMORIES CONTEXTS (Contextual Memory)
+	// ============================================================================
+	CreateUserMemoryContext(ctx context.Context, arg CreateUserMemoryContextParams) (UserMemoriesContext, error)
+	// ============================================================================
+	// USER MEMORIES EXPERIENCES (Situational Memory)
+	// ============================================================================
+	CreateUserMemoryExperience(ctx context.Context, arg CreateUserMemoryExperienceParams) (UserMemoriesExperience, error)
+	// ============================================================================
+	// USER MEMORIES IDENTITIES (User Profile Memory)
+	// ============================================================================
+	CreateUserMemoryIdentity(ctx context.Context, arg CreateUserMemoryIdentityParams) (UserMemoriesIdentity, error)
+	// ============================================================================
+	// USER MEMORIES PREFERENCES (User Preference Memory)
+	// ============================================================================
+	CreateUserMemoryPreference(ctx context.Context, arg CreateUserMemoryPreferenceParams) (UserMemoriesPreference, error)
 	DeleteAIModel(ctx context.Context, arg DeleteAIModelParams) error
 	DeleteAIModelsByProvider(ctx context.Context, arg DeleteAIModelsByProviderParams) error
 	DeleteAIModelsByProviderAndSource(ctx context.Context, arg DeleteAIModelsByProviderAndSourceParams) error
@@ -132,6 +160,11 @@ type Querier interface {
 	DeleteTopicsBySession(ctx context.Context, arg DeleteTopicsBySessionParams) error
 	DeleteUnstructuredChunk(ctx context.Context, arg DeleteUnstructuredChunkParams) error
 	DeleteUser(ctx context.Context, id string) error
+	DeleteUserMemory(ctx context.Context, arg DeleteUserMemoryParams) error
+	DeleteUserMemoryContext(ctx context.Context, id string) error
+	DeleteUserMemoryExperience(ctx context.Context, id string) error
+	DeleteUserMemoryIdentity(ctx context.Context, id string) error
+	DeleteUserMemoryPreference(ctx context.Context, id string) error
 	DeleteUserSettings(ctx context.Context, id string) error
 	// Duplicate an agent for a new session
 	// Parameters: new_agent_id, new_session_id, source_session_id, user_id, created_at, updated_at
@@ -201,6 +234,10 @@ type Querier interface {
 	// Knowledge Bases
 	GetKnowledgeBase(ctx context.Context, arg GetKnowledgeBaseParams) (KnowledgeBasis, error)
 	GetKnowledgeBaseFiles(ctx context.Context, arg GetKnowledgeBaseFilesParams) ([]File, error)
+	// ============================================================================
+	// CONVERSATION MEMORY LINKING (Link memories to messages/sessions)
+	// ============================================================================
+	GetMemoriesBySessionContext(ctx context.Context, arg GetMemoriesBySessionContextParams) ([]UserMemory, error)
 	GetMessage(ctx context.Context, arg GetMessageParams) (Message, error)
 	// Batch queries - Note: These will be wrapped with JSON parsing in Go
 	// For now, we'll create a simple version and handle batching in Go layer
@@ -222,6 +259,7 @@ type Querier interface {
 	GetMessagesByTopicId(ctx context.Context, arg GetMessagesByTopicIdParams) ([]Message, error)
 	GetMessagesWithRelations(ctx context.Context, arg GetMessagesWithRelationsParams) ([]GetMessagesWithRelationsRow, error)
 	GetMessagesWithRelationsBySession(ctx context.Context, arg GetMessagesWithRelationsBySessionParams) ([]GetMessagesWithRelationsBySessionRow, error)
+	GetMostAccessedMemories(ctx context.Context, arg GetMostAccessedMemoriesParams) ([]UserMemory, error)
 	// NextAuth Accounts
 	GetNextAuthAccount(ctx context.Context, arg GetNextAuthAccountParams) (NextauthAccount, error)
 	// NextAuth Authenticators
@@ -242,6 +280,7 @@ type Querier interface {
 	GetRagEvalDatasetRecord(ctx context.Context, arg GetRagEvalDatasetRecordParams) (RagEvalDatasetRecord, error)
 	GetRagEvalEvaluation(ctx context.Context, arg GetRagEvalEvaluationParams) (RagEvalEvaluation, error)
 	GetRagEvalEvaluationRecord(ctx context.Context, arg GetRagEvalEvaluationRecordParams) (RagEvalEvaluationRecord, error)
+	GetRecentMemories(ctx context.Context, arg GetRecentMemoriesParams) ([]UserMemory, error)
 	// Roles
 	GetRole(ctx context.Context, id int64) (RbacRole, error)
 	GetRoleByName(ctx context.Context, name string) (RbacRole, error)
@@ -264,6 +303,12 @@ type Querier interface {
 	GetUser(ctx context.Context, id string) (User, error)
 	GetUserByEmail(ctx context.Context, email sql.NullString) (User, error)
 	GetUserByUsername(ctx context.Context, username sql.NullString) (User, error)
+	GetUserMemoriesByIds(ctx context.Context, arg GetUserMemoriesByIdsParams) ([]UserMemory, error)
+	GetUserMemory(ctx context.Context, arg GetUserMemoryParams) (UserMemory, error)
+	GetUserMemoryContext(ctx context.Context, id string) (UserMemoriesContext, error)
+	GetUserMemoryExperience(ctx context.Context, id string) (UserMemoriesExperience, error)
+	GetUserMemoryIdentity(ctx context.Context, id string) (UserMemoriesIdentity, error)
+	GetUserMemoryPreference(ctx context.Context, id string) (UserMemoriesPreference, error)
 	GetUserPermissions(ctx context.Context, arg GetUserPermissionsParams) ([]RbacPermission, error)
 	GetUserPlugin(ctx context.Context, arg GetUserPluginParams) (UserInstalledPlugin, error)
 	GetUserRoles(ctx context.Context, arg GetUserRolesParams) ([]RbacRole, error)
@@ -318,12 +363,14 @@ type Querier interface {
 	ListDocuments(ctx context.Context, arg ListDocumentsParams) ([]Document, error)
 	ListEnabledAIModels(ctx context.Context, userID string) ([]AiModel, error)
 	ListEnabledAIProviders(ctx context.Context, userID string) ([]AiProvider, error)
+	ListExperiencesByMemoryId(ctx context.Context, userMemoryID sql.NullString) ([]UserMemoriesExperience, error)
 	ListFiles(ctx context.Context, arg ListFilesParams) ([]File, error)
 	ListGenerationBatches(ctx context.Context, arg ListGenerationBatchesParams) ([]GenerationBatch, error)
 	ListGenerationBatchesWithGenerations(ctx context.Context, arg ListGenerationBatchesWithGenerationsParams) ([]ListGenerationBatchesWithGenerationsRow, error)
 	ListGenerationTopics(ctx context.Context, userID string) ([]GenerationTopic, error)
 	ListGenerationTopicsWithCounts(ctx context.Context, userID string) ([]ListGenerationTopicsWithCountsRow, error)
 	ListGenerations(ctx context.Context, arg ListGenerationsParams) ([]Generation, error)
+	ListIdentitiesByMemoryId(ctx context.Context, userMemoryID sql.NullString) ([]UserMemoriesIdentity, error)
 	ListKnowledgeBaseFiles(ctx context.Context, arg ListKnowledgeBaseFilesParams) ([]KnowledgeBaseFile, error)
 	ListKnowledgeBases(ctx context.Context, userID string) ([]KnowledgeBasis, error)
 	ListMessageGroupsByTopic(ctx context.Context, arg ListMessageGroupsByTopicParams) ([]MessageGroup, error)
@@ -338,6 +385,7 @@ type Querier interface {
 	ListPermissions(ctx context.Context) ([]RbacPermission, error)
 	ListPermissionsByCategory(ctx context.Context, category string) ([]RbacPermission, error)
 	ListPlugins(ctx context.Context, userID string) ([]UserInstalledPlugin, error)
+	ListPreferencesByMemoryId(ctx context.Context, userMemoryID sql.NullString) ([]UserMemoriesPreference, error)
 	ListRagEvalDatasetRecords(ctx context.Context, arg ListRagEvalDatasetRecordsParams) ([]RagEvalDatasetRecord, error)
 	ListRagEvalDatasets(ctx context.Context, userID string) ([]RagEvalDataset, error)
 	ListRagEvalEvaluationRecordsByEvaluation(ctx context.Context, arg ListRagEvalEvaluationRecordsByEvaluationParams) ([]RagEvalEvaluationRecord, error)
@@ -349,6 +397,10 @@ type Querier interface {
 	ListThreadsByTopic(ctx context.Context, arg ListThreadsByTopicParams) ([]Thread, error)
 	ListTopics(ctx context.Context, arg ListTopicsParams) ([]Topic, error)
 	ListUnstructuredChunksByFile(ctx context.Context, arg ListUnstructuredChunksByFileParams) ([]UnstructuredChunk, error)
+	ListUserMemories(ctx context.Context, arg ListUserMemoriesParams) ([]UserMemory, error)
+	ListUserMemoriesByCategory(ctx context.Context, arg ListUserMemoriesByCategoryParams) ([]UserMemory, error)
+	ListUserMemoriesByType(ctx context.Context, arg ListUserMemoriesByTypeParams) ([]UserMemory, error)
+	ListUserMemoryContexts(ctx context.Context, arg ListUserMemoryContextsParams) ([]UserMemoriesContext, error)
 	// User Installed Plugins
 	ListUserPlugins(ctx context.Context, userID string) ([]UserInstalledPlugin, error)
 	MoveSessionToGroup(ctx context.Context, arg MoveSessionToGroupParams) error
@@ -359,6 +411,7 @@ type Querier interface {
 	RankModels(ctx context.Context, arg RankModelsParams) ([]RankModelsRow, error)
 	RankTopics(ctx context.Context, arg RankTopicsParams) ([]RankTopicsRow, error)
 	SearchAgents(ctx context.Context, arg SearchAgentsParams) ([]Agent, error)
+	SearchMemoriesByTitle(ctx context.Context, arg SearchMemoriesByTitleParams) ([]UserMemory, error)
 	SearchMessagesByKeyword(ctx context.Context, arg SearchMessagesByKeywordParams) ([]Message, error)
 	SearchSessions(ctx context.Context, arg SearchSessionsParams) ([]Session, error)
 	SearchSessionsByKeyword(ctx context.Context, arg SearchSessionsByKeywordParams) ([]Session, error)
@@ -399,6 +452,7 @@ type Querier interface {
 	UpdateGeneration(ctx context.Context, arg UpdateGenerationParams) (Generation, error)
 	UpdateGenerationTopic(ctx context.Context, arg UpdateGenerationTopicParams) (GenerationTopic, error)
 	UpdateKnowledgeBase(ctx context.Context, arg UpdateKnowledgeBaseParams) (KnowledgeBasis, error)
+	UpdateMemoryAccessCount(ctx context.Context, arg UpdateMemoryAccessCountParams) error
 	UpdateMessage(ctx context.Context, arg UpdateMessageParams) (Message, error)
 	UpdateMessagePlugin(ctx context.Context, arg UpdateMessagePluginParams) (MessagePlugin, error)
 	UpdateMessagesTopicId(ctx context.Context, arg UpdateMessagesTopicIdParams) error
@@ -419,6 +473,7 @@ type Querier interface {
 	UpdateTimeoutTasks(ctx context.Context, arg UpdateTimeoutTasksParams) error
 	UpdateTopic(ctx context.Context, arg UpdateTopicParams) (Topic, error)
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
+	UpdateUserMemory(ctx context.Context, arg UpdateUserMemoryParams) (UserMemory, error)
 	UpdateUserOnboarding(ctx context.Context, arg UpdateUserOnboardingParams) error
 	UpdateUserPlugin(ctx context.Context, arg UpdateUserPluginParams) (UserInstalledPlugin, error)
 	UpdateUserPreference(ctx context.Context, arg UpdateUserPreferenceParams) (User, error)

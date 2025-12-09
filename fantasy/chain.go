@@ -187,8 +187,8 @@ func (c *ChainLanguageModel) Generate(ctx context.Context, call Call) (*Response
 }
 
 // Stream tries each model in order until one succeeds.
-// Note: If streaming fails mid-stream, fallback is not attempted (too complex to handle partial data).
-// Fallback only happens if the initial stream setup fails.
+// Fallback is attempted if stream setup fails OR if the first chunk contains an error.
+// Mid-stream errors (after first successful chunk) do NOT trigger fallback.
 func (c *ChainLanguageModel) Stream(ctx context.Context, call Call) (StreamResponse, error) {
 	var lastErr error
 	var attemptedModels []string
@@ -208,26 +208,74 @@ func (c *ChainLanguageModel) Stream(ctx context.Context, call Call) (StreamRespo
 			c.name, i+1, len(c.models), modelName)
 
 		stream, err := model.Stream(ctx, call)
-		if err == nil {
-			c.recordSuccess(i)
-			if i > 0 {
-				log.Printf("✅ Chain[%s]: Fallback stream succeeded with model %s", c.name, modelName)
+		if err != nil {
+			c.recordFailure(i)
+			lastErr = err
+			log.Printf("⚠️  Chain[%s]: Stream model %s failed at setup: %v", c.name, modelName, err)
+			if ctx.Err() != nil {
+				return nil, fmt.Errorf("context cancelled: %w", ctx.Err())
 			}
-			return stream, nil
+			continue
 		}
 
-		c.recordFailure(i)
-		lastErr = err
-		log.Printf("⚠️  Chain[%s]: Stream model %s failed: %v", c.name, modelName, err)
-
-		// Check if context was cancelled
-		if ctx.Err() != nil {
-			return nil, fmt.Errorf("context cancelled: %w", ctx.Err())
+		// Peek at first chunk to detect early errors (e.g., rate limits)
+		// This allows fallback even when stream setup succeeds but first API call fails
+		firstChunk, hasError, streamErr := c.peekFirstChunk(stream)
+		if hasError || streamErr != nil {
+			c.recordFailure(i)
+			if streamErr != nil {
+				lastErr = streamErr
+			} else if firstChunk != nil && firstChunk.Error != nil {
+				lastErr = firstChunk.Error
+			}
+			log.Printf("⚠️  Chain[%s]: Stream model %s failed on first chunk: %v", c.name, modelName, lastErr)
+			if ctx.Err() != nil {
+				return nil, fmt.Errorf("context cancelled: %w", ctx.Err())
+			}
+			continue
 		}
+
+		c.recordSuccess(i)
+		if i > 0 {
+			log.Printf("✅ Chain[%s]: Fallback stream succeeded with model %s", c.name, modelName)
+		}
+
+		// Return wrapped stream that prepends the first chunk we already consumed
+		return c.wrapStreamWithFirstChunk(stream, firstChunk), nil
 	}
 
 	return nil, fmt.Errorf("all models failed to stream (tried: %s): %w",
 		strings.Join(attemptedModels, ", "), lastErr)
+}
+
+// peekFirstChunk reads the first chunk from stream to detect early errors
+func (c *ChainLanguageModel) peekFirstChunk(stream StreamResponse) (*StreamPart, bool, error) {
+	var firstChunk *StreamPart
+	var hasError bool
+
+	stream(func(part StreamPart) bool {
+		firstChunk = &part
+		if part.Type == StreamPartTypeError {
+			hasError = true
+		}
+		return false // Stop after first chunk
+	})
+
+	return firstChunk, hasError, nil
+}
+
+// wrapStreamWithFirstChunk returns a new StreamResponse that yields the first chunk then continues with the original stream
+func (c *ChainLanguageModel) wrapStreamWithFirstChunk(stream StreamResponse, firstChunk *StreamPart) StreamResponse {
+	return func(yield func(StreamPart) bool) {
+		// First, yield the chunk we already peeked
+		if firstChunk != nil {
+			if !yield(*firstChunk) {
+				return
+			}
+		}
+		// Then continue with the rest of the stream
+		stream(yield)
+	}
 }
 
 // GenerateObject tries each model in order until one succeeds.

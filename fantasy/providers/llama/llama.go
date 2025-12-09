@@ -6,6 +6,7 @@ package llama
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 
 	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/fantasy/llamalib"
@@ -106,8 +107,12 @@ func (p *provider) LanguageModel(ctx context.Context, modelID string) (fantasy.L
 		}
 	}
 
+	// Use only filename for modelID, not full path
+	loadedModel := p.options.service.GetLoadedChatModel()
+	modelName := filepath.Base(loadedModel)
+
 	return newLanguageModel(
-		p.options.service.GetLoadedChatModel(),
+		modelName,
 		p.options.name,
 		p.options.service,
 		p.options.toolRegistry,
