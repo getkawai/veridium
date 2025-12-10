@@ -1,10 +1,11 @@
 import { ChatCitationItem } from '@/types/message/common/base';
 import { ActionIcon, CopyButton, Icon, Markdown, ScrollShadow } from '@lobehub/ui';
+import { Browser } from '@wailsio/runtime';
 import { createStyles } from 'antd-style';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AtomIcon, ChevronDown, ChevronRight } from 'lucide-react';
 import { rgba } from 'polished';
-import { CSSProperties, RefObject, memo, useEffect, useRef, useState } from 'react';
+import { CSSProperties, RefObject, memo, useEffect, useRef, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 
@@ -92,6 +93,27 @@ const Thinking = memo<ThinkingProps>((props) => {
   useEffect(() => {
     setShowDetail(!!thinking);
   }, [thinking]);
+
+  // Custom components untuk desktop app link handling
+  const markdownComponents = useMemo(
+    () => ({
+      a: ({ href, children, ...props }: any) => (
+        <a
+          {...props}
+          href={href}
+          onClick={(e) => {
+            e.preventDefault();
+            if (href) Browser.OpenURL(href);
+          }}
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          {children}
+        </a>
+      ),
+    }),
+    []
+  );
 
   // 当内容变更且正在思考时，如果用户接近底部则自动滚动到底部
   useEffect(() => {
@@ -193,6 +215,7 @@ const Thinking = memo<ThinkingProps>((props) => {
                 <Markdown
                   animated={thinkingAnimated}
                   citations={citations}
+                  components={markdownComponents} // Custom components untuk desktop link handling
                   style={{
                     overflow: 'unset',
                   }}
