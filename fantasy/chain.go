@@ -150,6 +150,7 @@ func (c *ChainLanguageModel) recordSuccess(idx int) {
 }
 
 // Generate tries each model in order until one succeeds.
+// Timeout errors trigger fallback to next model with fresh context.
 func (c *ChainLanguageModel) Generate(ctx context.Context, call Call) (*Response, error) {
 	var lastErr error
 	var attemptedModels []string
@@ -168,7 +169,16 @@ func (c *ChainLanguageModel) Generate(ctx context.Context, call Call) (*Response
 		log.Printf("🔀 Chain[%s]: Trying model %d/%d (%s)",
 			c.name, i+1, len(c.models), modelName)
 
-		resp, err := model.Generate(ctx, call)
+		// Create fresh context for each model to allow fallback on timeout
+		modelCtx := ctx
+		if ctx.Err() != nil {
+			// Parent context already cancelled/expired, create fresh background context
+			// This allows fallback models to still attempt generation
+			log.Printf("🔄 Chain[%s]: Parent context expired, using fresh context for fallback", c.name)
+			modelCtx = context.Background()
+		}
+
+		resp, err := model.Generate(modelCtx, call)
 		if err == nil {
 			c.recordSuccess(i)
 			if i > 0 {
@@ -181,10 +191,12 @@ func (c *ChainLanguageModel) Generate(ctx context.Context, call Call) (*Response
 		lastErr = err
 		log.Printf("⚠️  Chain[%s]: Model %s failed: %v", c.name, modelName, err)
 
-		// Check if context was cancelled (don't try fallback)
-		if ctx.Err() != nil {
+		// Only stop if user explicitly cancelled (not timeout)
+		// Timeout should trigger fallback to local model
+		if ctx.Err() == context.Canceled {
 			return nil, fmt.Errorf("context cancelled: %w", ctx.Err())
 		}
+		// For DeadlineExceeded (timeout), continue to next model
 	}
 
 	return nil, fmt.Errorf("all models failed (tried: %s): %w",

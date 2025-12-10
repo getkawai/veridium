@@ -916,8 +916,9 @@ func (s *AgentChatService) updateTopicTitle(ctx context.Context, topicID, userID
 
 		log.Printf("🔄 Generating title in background for topic %s...", topicID)
 
-		// Create context with timeout
-		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+		// Create context with timeout - 3 minutes to allow fallback to local model
+		// (remote model may timeout at 60s, then local model needs time to generate)
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 		defer cancel()
 
 		// Generate title (default locale: en-US)

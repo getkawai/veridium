@@ -248,21 +248,21 @@ func (ctx *Context) buildModelChain(bgCtx context.Context, localModel fantasy.La
 	var chain []fantasy.LanguageModel
 
 	// 1. OpenRouter (free tier)
-	orKey := os.Getenv("OPENROUTER_API_KEY")
-	if orKey == "" {
-		orKey = "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"
-	}
-	if orKey != "" {
-		if provider, err := openrouter.New(openrouter.WithAPIKey(orKey), openrouter.WithModelSelection(criteria)); err == nil {
-			if remoteModel, err := provider.LanguageModel(bgCtx, ""); err == nil {
-				chain = append(chain, remoteModel)
-				catalog := openrouter.GetCatalog()
-				if selected := catalog.SelectFreeModel(criteria); selected != nil {
-					log.Printf("%s: OpenRouter (%s)", taskName, selected.ID)
-				}
-			}
-		}
-	}
+	// orKey := os.Getenv("OPENROUTER_API_KEY")
+	// if orKey == "" {
+	// 	orKey = "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"
+	// }
+	// if orKey != "" {
+	// 	if provider, err := openrouter.New(openrouter.WithAPIKey(orKey), openrouter.WithModelSelection(criteria)); err == nil {
+	// 		if remoteModel, err := provider.LanguageModel(bgCtx, ""); err == nil {
+	// 			chain = append(chain, remoteModel)
+	// 			catalog := openrouter.GetCatalog()
+	// 			if selected := catalog.SelectFreeModel(criteria); selected != nil {
+	// 				log.Printf("%s: OpenRouter (%s)", taskName, selected.ID)
+	// 			}
+	// 		}
+	// 	}
+	// }
 
 	// 2. ZAI GLM-4.6 (fallback before local)
 	zaiKey := os.Getenv("ZAI_API_KEY")
