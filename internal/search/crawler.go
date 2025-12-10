@@ -188,6 +188,7 @@ func (c *Crawler) crawlWithJina(urlStr string) (CrawlResult, error) {
 
 // crawlNaive performs naive HTTP crawling with better browser simulation
 // Returns content in Markdown format (same as Jina)
+// Uses charset.NewReader for robust encoding handling (same approach as rlama)
 func (c *Crawler) crawlNaive(urlStr string) (CrawlResult, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
@@ -198,11 +199,12 @@ func (c *Crawler) crawlNaive(urlStr string) (CrawlResult, error) {
 	}
 
 	// Better browser simulation headers
-	// Include brotli (br) in Accept-Encoding since we now handle it manually
+	// NOTE: Do NOT set Accept-Encoding manually - Go's http.Client handles gzip/deflate automatically
+	// Only set br (brotli) since we handle it manually below
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
-	req.Header.Set("Accept-Encoding", "gzip, deflate, br") // Include brotli
+	req.Header.Set("Accept-Encoding", "br") // Only brotli - gzip/deflate auto-handled by http.Client
 	req.Header.Set("Cache-Control", "no-cache")
 	req.Header.Set("Connection", "keep-alive")
 
@@ -212,37 +214,57 @@ func (c *Crawler) crawlNaive(urlStr string) (CrawlResult, error) {
 	}
 	defer resp.Body.Close()
 
+	// Log response headers for debugging
+	contentType := resp.Header.Get("Content-Type")
+	contentEncoding := resp.Header.Get("Content-Encoding")
+	log.Printf("🔍 [crawlNaive] URL: %s", urlStr)
+	log.Printf("🔍 [crawlNaive] Status: %d, Content-Type: %s, Content-Encoding: %s", resp.StatusCode, contentType, contentEncoding)
+
 	// Accept 2xx and 3xx status codes
 	if resp.StatusCode >= 400 {
 		return CrawlResult{}, fmt.Errorf("HTTP %d: %s", resp.StatusCode, resp.Status)
 	}
 
 	// Handle content encoding (brotli needs manual decompression)
-	var reader io.Reader = resp.Body
-	contentEncoding := resp.Header.Get("Content-Encoding")
+	var bodyReader io.Reader = resp.Body
 	if contentEncoding == "br" {
 		// Brotli decompression
-		reader = brotli.NewReader(resp.Body)
-		log.Printf("🔄 Decompressing brotli content from %s", urlStr)
+		bodyReader = brotli.NewReader(resp.Body)
+		log.Printf("🔄 [crawlNaive] Decompressing brotli content")
+	} else if contentEncoding != "" && contentEncoding != "identity" {
+		log.Printf("🔍 [crawlNaive] Content-Encoding '%s' - relying on http.Client auto-decompression", contentEncoding)
 	}
-	// Note: gzip and deflate are auto-handled by Go's http.Client
+
+	// Use charset.NewReader for robust encoding detection and conversion to UTF-8
+	// This is the same approach used by rlama which works very well
+	utf8Reader, err := charset.NewReader(bodyReader, contentType)
+	if err != nil {
+		// Fallback to raw reader if charset detection fails
+		log.Printf("⚠️ [crawlNaive] charset.NewReader failed: %v, using raw reader", err)
+		utf8Reader = bodyReader
+	} else {
+		log.Printf("✅ [crawlNaive] charset.NewReader created successfully for Content-Type: %s", contentType)
+	}
 
 	// Read body with limit to prevent memory issues
-	limitedReader := io.LimitReader(reader, 5*1024*1024) // 5MB max
+	limitedReader := io.LimitReader(utf8Reader, 5*1024*1024) // 5MB max
 	body, err := io.ReadAll(limitedReader)
 	if err != nil {
 		return CrawlResult{}, fmt.Errorf("read body failed: %w", err)
 	}
 
-	// Convert to UTF-8 if needed (handles various charsets like ISO-8859-1, Windows-1252, etc.)
-	body, err = convertToUTF8(body, resp.Header.Get("Content-Type"))
-	if err != nil {
-		log.Printf("⚠️ Charset conversion failed for %s: %v, trying raw content", urlStr, err)
-		// Continue with raw body - might still work for ASCII-compatible content
-	}
+	log.Printf("🔍 [crawlNaive] Read %d bytes", len(body))
 
-	// Check for binary/corrupted content (likely wrong encoding)
+	// Log first 200 bytes for debugging (to see if content is garbled)
+	preview := string(body)
+	if len(preview) > 200 {
+		preview = preview[:200]
+	}
+	log.Printf("🔍 [crawlNaive] Content preview: %s...", preview)
+
+	// Check for binary/corrupted content
 	if !isValidUTF8Content(body) {
+		log.Printf("❌ [crawlNaive] Content failed isValidUTF8Content check")
 		return CrawlResult{}, fmt.Errorf("response contains invalid/binary content")
 	}
 
@@ -254,6 +276,7 @@ func (c *Crawler) crawlNaive(urlStr string) (CrawlResult, error) {
 
 	title := extractHTMLTitle(doc)
 	website := extractWebsite(urlStr)
+	log.Printf("✅ [crawlNaive] Title: %s, Website: %s", title, website)
 
 	// Convert HTML to Markdown using html-to-markdown library
 	markdown, err := htmltomd.ConvertString(string(body), converter.WithDomain(website))
