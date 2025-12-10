@@ -558,13 +558,28 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	}
 
 	// 13. Generate topic title after first response (background)
-	if len(session.Messages) >= 2 && len(session.Messages) <= 4 {
+	// Count user messages to determine turn count (tool messages don't count as turns)
+	userMsgCount := 0
+	for _, msg := range session.Messages {
+		if types.GetMessageRole(msg) == "user" {
+			userMsgCount++
+		}
+	}
+	log.Printf("📌 [TITLE CHECK] session.Messages=%d, userMsgCount=%d, currentTopicID=%s", len(session.Messages), userMsgCount, currentTopicID)
+	
+	// Generate title on first turn (1 user message = first conversation)
+	if userMsgCount >= 1 && userMsgCount <= 2 {
 		if currentTopicID != "" {
+			log.Printf("📌 [TITLE CHECK] Conditions met (first turn), calling updateTopicTitle")
 			err := s.updateTopicTitle(ctx, currentTopicID, session.UserID, session.Messages)
 			if err != nil {
 				log.Printf("⚠️  Warning: Failed to trigger topic title update: %v", err)
 			}
+		} else {
+			log.Printf("📌 [TITLE CHECK] Skipped - no topicID")
 		}
+	} else {
+		log.Printf("📌 [TITLE CHECK] Skipped - not first turn (userMsgCount=%d, need 1-2)", userMsgCount)
 	}
 
 	// 14. Update session timestamp

@@ -907,6 +907,8 @@ func (s *AgentChatService) updateTopicTitle(ctx context.Context, topicID, userID
 	messagesCopy := make([]fantasy.Message, len(messages))
 	copy(messagesCopy, messages)
 
+	log.Printf("📌 [TITLE] updateTopicTitle called for topic %s with %d messages", topicID, len(messagesCopy))
+
 	// Run in background
 	go func() {
 		// Add a small delay to ensure main chat request finishes and releases model resources

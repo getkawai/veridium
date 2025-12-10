@@ -756,7 +756,7 @@ export const generateAIChat: StateCreator<
    * Called from App.tsx when a stream event is received
    * 
    * Event types:
-   * - start: Generation started, add to loading IDs
+   * - start: Generation started, add to loading IDs, handle new topic creation
    * - reasoning: Thinking content (update reasoning field)
    * - chunk: Content chunks (update content field)
    * - tool_call: Tool call initiated (update tools array)
@@ -765,10 +765,28 @@ export const generateAIChat: StateCreator<
    */
   internal_handleStreamEvent: (data: StreamEventPayload) => {
     const { activeId, activeTopicId } = get();
-    const mapKey = messageMapKey(activeId, activeTopicId);
+    const currentMapKey = messageMapKey(activeId, activeTopicId);
+
+    // Check if backend created a new topic (first message scenario)
+    const newTopicId = data.topic_id;
+    const isNewTopic = newTopicId && newTopicId !== activeTopicId;
 
     set(produce((state: ChatStore) => {
-      const messages = state.messagesMap[mapKey];
+      // Determine which mapKey to use for finding messages
+      // Messages might still be in the old mapKey if topic was just created
+      let mapKey = currentMapKey;
+      let messages = state.messagesMap[mapKey];
+
+      // If messages not found in current mapKey and we have a new topic,
+      // try the old mapKey (without topic)
+      if (!messages && isNewTopic) {
+        const oldMapKey = messageMapKey(activeId, undefined);
+        messages = state.messagesMap[oldMapKey];
+        if (messages) {
+          mapKey = oldMapKey;
+        }
+      }
+
       if (!messages) return;
 
       if (data.type === 'start') {
@@ -783,8 +801,42 @@ export const generateAIChat: StateCreator<
             state.chatLoadingIds.push(data.message_id);
           }
 
-          // Update topic_id if provided
-          if (data.topic_id) {
+          // Handle new topic creation - move messages to new mapKey
+          if (isNewTopic) {
+            console.log('[Stream] New topic created, moving messages:', { oldTopicId: activeTopicId, newTopicId });
+
+            // Update topicId on all messages in current conversation
+            messages.forEach(m => {
+              m.topicId = newTopicId;
+            });
+
+            // Move messages to new mapKey
+            const newMapKey = messageMapKey(activeId, newTopicId);
+            state.messagesMap[newMapKey] = messages;
+
+            // Clear old mapKey
+            delete state.messagesMap[mapKey];
+
+            // Update activeTopicId
+            state.activeTopicId = newTopicId;
+
+            // Add new topic to topicMaps (optimistic update)
+            if (!state.topicMaps[activeId]) {
+              state.topicMaps[activeId] = [];
+            }
+            const topicExists = state.topicMaps[activeId].some(t => t.id === newTopicId);
+            if (!topicExists) {
+              state.topicMaps[activeId].unshift({
+                id: newTopicId,
+                title: 'New Conversation', // Will be updated via chat:topic:updated event
+                sessionId: activeId,
+                favorite: false,
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+              });
+            }
+          } else if (data.topic_id) {
+            // Just update topic_id on the message
             messages[msgIndex].topicId = data.topic_id;
           }
         } else {
@@ -831,6 +883,9 @@ export const generateAIChat: StateCreator<
         // Tool execution result - add tool message to messagesMap
         console.log('[Stream] Tool result:', data.tool_call_id);
 
+        // Use the current activeTopicId from state (may have been updated by start event)
+        const currentTopicId = state.activeTopicId;
+
         // Create tool message
         const toolMessage: UIChatMessage = {
           id: data.tool_msg_id,
@@ -838,7 +893,7 @@ export const generateAIChat: StateCreator<
           content: typeof data.content === 'string' ? data.content : JSON.stringify(data.content || ''),
           tool_call_id: data.tool_call_id,
           sessionId: activeId,
-          topicId: activeTopicId,
+          topicId: currentTopicId || newTopicId || activeTopicId,
           pluginState: data.pluginState,
           plugin: data.plugin ? {
             apiName: data.plugin.apiName,
@@ -889,6 +944,15 @@ export const generateAIChat: StateCreator<
         console.log('[Stream] Complete - message finalized:', data.message_id);
       }
     }), false, n('streamEvent'));
+
+    // After complete event, schedule a topic refresh to get LLM-generated title
+    // This is a fallback in case chat:topic:updated event is not received
+    if (data.type === 'complete' && isNewTopic) {
+      console.log('[Stream] Scheduling topic refresh for new topic title...');
+      setTimeout(() => {
+        get().refreshTopic();
+      }, 5000); // Wait 5 seconds for backend to generate title
+    }
   },
 });
 
