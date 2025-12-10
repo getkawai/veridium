@@ -70,12 +70,22 @@ type ModelSelectionCriteria struct {
 	MinContextWindow   int
 }
 
+// Models to exclude from auto-selection (frequently rate limited on OpenRouter)
+var excludedModels = map[string]bool{
+	"google/gemini-2.0-flash-exp:free": true,
+	"google/gemini-flash-1.5-8b:free":  true,
+}
+
 // SelectFreeModel selects the best free model based on criteria
 // Priority: 1. Free only, 2. Filter by criteria, 3. Rank by context_window > attachments > max_tokens
 func (c *Catalog) SelectFreeModel(criteria ModelSelectionCriteria) *ModelInfo {
 	var candidates []*ModelInfo
 
 	for _, model := range c.freeModels {
+		// Skip frequently rate-limited models
+		if excludedModels[model.ID] {
+			continue
+		}
 		if criteria.RequireReasoning && !model.CanReason {
 			continue
 		}

@@ -223,65 +223,21 @@ func (c *ChainLanguageModel) Stream(ctx context.Context, call Call) (StreamRespo
 			continue
 		}
 
-		// Peek at first chunk to detect early errors (e.g., rate limits)
-		// This allows fallback even when stream setup succeeds but first API call fails
-		firstChunk, hasError, streamErr := c.peekFirstChunk(stream)
-		if hasError || streamErr != nil {
-			c.recordFailure(i)
-			if streamErr != nil {
-				lastErr = streamErr
-			} else if firstChunk != nil && firstChunk.Error != nil {
-				lastErr = firstChunk.Error
-			}
-			log.Printf("⚠️  Chain[%s]: Stream model %s failed on first chunk: %v", c.name, modelName, lastErr)
-			if ctx.Err() != nil {
-				return nil, fmt.Errorf("context cancelled: %w", ctx.Err())
-			}
-			continue
-		}
-
+		// Stream setup succeeded - return directly for true streaming UX
+		// Note: Mid-stream errors are rare; rate limits are caught at setup
 		c.recordSuccess(i)
 		if i > 0 {
 			log.Printf("✅ Chain[%s]: Fallback stream succeeded with model %s", c.name, modelName)
 		}
 
-		// Return wrapped stream that prepends the first chunk we already consumed
-		return c.wrapStreamWithFirstChunk(stream, firstChunk), nil
+		return stream, nil
 	}
 
 	return nil, fmt.Errorf("all models failed to stream (tried: %s): %w",
 		strings.Join(attemptedModels, ", "), lastErr)
 }
 
-// peekFirstChunk reads the first chunk from stream to detect early errors
-func (c *ChainLanguageModel) peekFirstChunk(stream StreamResponse) (*StreamPart, bool, error) {
-	var firstChunk *StreamPart
-	var hasError bool
 
-	stream(func(part StreamPart) bool {
-		firstChunk = &part
-		if part.Type == StreamPartTypeError {
-			hasError = true
-		}
-		return false // Stop after first chunk
-	})
-
-	return firstChunk, hasError, nil
-}
-
-// wrapStreamWithFirstChunk returns a new StreamResponse that yields the first chunk then continues with the original stream
-func (c *ChainLanguageModel) wrapStreamWithFirstChunk(stream StreamResponse, firstChunk *StreamPart) StreamResponse {
-	return func(yield func(StreamPart) bool) {
-		// First, yield the chunk we already peeked
-		if firstChunk != nil {
-			if !yield(*firstChunk) {
-				return
-			}
-		}
-		// Then continue with the rest of the stream
-		stream(yield)
-	}
-}
 
 // GenerateObject tries each model in order until one succeeds.
 func (c *ChainLanguageModel) GenerateObject(ctx context.Context, call ObjectCall) (*ObjectResponse, error) {
