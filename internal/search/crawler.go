@@ -1,19 +1,26 @@
 package search
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/andybalholm/brotli"
 	htmltomd "github.com/JohannesKaufmann/html-to-markdown/v2"
 	"github.com/JohannesKaufmann/html-to-markdown/v2/converter"
 	"golang.org/x/net/html"
+	"golang.org/x/net/html/charset"
+	"golang.org/x/text/encoding"
+	"golang.org/x/text/encoding/htmlindex"
+	"golang.org/x/text/transform"
 )
 
 // Crawler handles web page crawling
@@ -191,11 +198,11 @@ func (c *Crawler) crawlNaive(urlStr string) (CrawlResult, error) {
 	}
 
 	// Better browser simulation headers
-	// Note: Only gzip/deflate - Go auto-decompresses these. Avoid brotli (br) as it needs manual handling.
+	// Include brotli (br) in Accept-Encoding since we now handle it manually
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
-	req.Header.Set("Accept-Encoding", "gzip, deflate") // Go HTTP client auto-decompresses gzip/deflate
+	req.Header.Set("Accept-Encoding", "gzip, deflate, br") // Include brotli
 	req.Header.Set("Cache-Control", "no-cache")
 	req.Header.Set("Connection", "keep-alive")
 
@@ -210,11 +217,28 @@ func (c *Crawler) crawlNaive(urlStr string) (CrawlResult, error) {
 		return CrawlResult{}, fmt.Errorf("HTTP %d: %s", resp.StatusCode, resp.Status)
 	}
 
+	// Handle content encoding (brotli needs manual decompression)
+	var reader io.Reader = resp.Body
+	contentEncoding := resp.Header.Get("Content-Encoding")
+	if contentEncoding == "br" {
+		// Brotli decompression
+		reader = brotli.NewReader(resp.Body)
+		log.Printf("🔄 Decompressing brotli content from %s", urlStr)
+	}
+	// Note: gzip and deflate are auto-handled by Go's http.Client
+
 	// Read body with limit to prevent memory issues
-	limitedReader := io.LimitReader(resp.Body, 5*1024*1024) // 5MB max
+	limitedReader := io.LimitReader(reader, 5*1024*1024) // 5MB max
 	body, err := io.ReadAll(limitedReader)
 	if err != nil {
 		return CrawlResult{}, fmt.Errorf("read body failed: %w", err)
+	}
+
+	// Convert to UTF-8 if needed (handles various charsets like ISO-8859-1, Windows-1252, etc.)
+	body, err = convertToUTF8(body, resp.Header.Get("Content-Type"))
+	if err != nil {
+		log.Printf("⚠️ Charset conversion failed for %s: %v, trying raw content", urlStr, err)
+		// Continue with raw body - might still work for ASCII-compatible content
 	}
 
 	// Check for binary/corrupted content (likely wrong encoding)
@@ -432,4 +456,97 @@ func extractWebsite(urlStr string) string {
 		return urlStr
 	}
 	return hostname
+}
+
+// convertToUTF8 converts body content to UTF-8 based on Content-Type header and HTML meta charset
+func convertToUTF8(body []byte, contentType string) ([]byte, error) {
+	// Try to detect encoding from Content-Type header
+	var enc encoding.Encoding
+
+	// First, try Content-Type header charset
+	if contentType != "" {
+		_, params, _ := parseMediaType(contentType)
+		if cs, ok := params["charset"]; ok {
+			enc, _ = htmlindex.Get(cs)
+		}
+	}
+
+	// If not found in header, try HTML meta charset
+	if enc == nil {
+		enc = detectHTMLCharset(body)
+	}
+
+	// If still not found or already UTF-8, return as-is
+	if enc == nil {
+		return body, nil
+	}
+
+	// Check if it's UTF-8 (no conversion needed)
+	encName, _ := htmlindex.Name(enc)
+	if encName == "utf-8" || encName == "utf8" {
+		return body, nil
+	}
+
+	// Convert to UTF-8
+	reader := transform.NewReader(bytes.NewReader(body), enc.NewDecoder())
+	converted, err := io.ReadAll(reader)
+	if err != nil {
+		return body, fmt.Errorf("charset conversion failed: %w", err)
+	}
+
+	log.Printf("🔄 Converted charset from %s to UTF-8", encName)
+	return converted, nil
+}
+
+// parseMediaType parses Content-Type header to extract media type and params
+func parseMediaType(ct string) (string, map[string]string, error) {
+	params := make(map[string]string)
+	parts := strings.Split(ct, ";")
+	mediaType := strings.TrimSpace(parts[0])
+
+	for _, part := range parts[1:] {
+		part = strings.TrimSpace(part)
+		if idx := strings.Index(part, "="); idx > 0 {
+			key := strings.ToLower(strings.TrimSpace(part[:idx]))
+			value := strings.TrimSpace(part[idx+1:])
+			// Remove quotes if present
+			value = strings.Trim(value, `"'`)
+			params[key] = value
+		}
+	}
+
+	return mediaType, params, nil
+}
+
+// detectHTMLCharset detects charset from HTML meta tags
+func detectHTMLCharset(body []byte) encoding.Encoding {
+	// Look for <meta charset="..."> or <meta http-equiv="Content-Type" content="...; charset=...">
+	content := string(body[:min(len(body), 2048)]) // Check first 2KB
+
+	// Pattern 1: <meta charset="UTF-8">
+	metaCharsetRe := regexp.MustCompile(`(?i)<meta[^>]+charset\s*=\s*["']?([^"'\s>]+)`)
+	if matches := metaCharsetRe.FindStringSubmatch(content); len(matches) > 1 {
+		if enc, err := htmlindex.Get(matches[1]); err == nil {
+			return enc
+		}
+	}
+
+	// Pattern 2: <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+	metaContentRe := regexp.MustCompile(`(?i)<meta[^>]+content\s*=\s*["'][^"']*charset\s*=\s*([^"'\s;]+)`)
+	if matches := metaContentRe.FindStringSubmatch(content); len(matches) > 1 {
+		if enc, err := htmlindex.Get(matches[1]); err == nil {
+			return enc
+		}
+	}
+
+	// Use charset.DetermineEncoding as fallback (sniffs the content)
+	enc, _, _ := charset.DetermineEncoding(body, "")
+	return enc
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
