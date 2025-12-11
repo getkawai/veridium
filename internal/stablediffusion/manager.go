@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -18,6 +19,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/kawai-network/veridium/pkg/grab"
@@ -46,14 +48,16 @@ func isARM64() bool {
 
 // CommandExecutor interface for executing commands
 type CommandExecutor interface {
-	Run(name string, args ...string) error
+	Run(ctx context.Context, name string, args ...string) error
 }
 
 // DefaultCommandExecutor implements CommandExecutor using os/exec
-type DefaultCommandExecutor struct{}
+type DefaultCommandExecutor struct {
+	sd *StableDiffusion // Reference to parent for process tracking
+}
 
-func (e *DefaultCommandExecutor) Run(name string, args ...string) error {
-	cmd := exec.Command(name, args...)
+func (e *DefaultCommandExecutor) Run(ctx context.Context, name string, args ...string) error {
+	cmd := exec.CommandContext(ctx, name, args...)
 
 	// Create environment variables for dynamic libraries based on OS
 	// Reuse logic from previous GenerateImage implementation
@@ -73,6 +77,25 @@ func (e *DefaultCommandExecutor) Run(name string, args ...string) error {
 	// Check if we need to capture output (could be enhanced)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
+
+	// Track the process if we have a reference to StableDiffusion
+	if e.sd != nil {
+		e.sd.processMutex.Lock()
+		e.sd.activeProcesses = append(e.sd.activeProcesses, cmd)
+		e.sd.processMutex.Unlock()
+
+		// Remove from tracking when done
+		defer func() {
+			e.sd.processMutex.Lock()
+			for i, p := range e.sd.activeProcesses {
+				if p == cmd {
+					e.sd.activeProcesses = append(e.sd.activeProcesses[:i], e.sd.activeProcesses[i+1:]...)
+					break
+				}
+			}
+			e.sd.processMutex.Unlock()
+		}()
+	}
 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("command execution failed: %w, stderr: %s", err, stderr.String())
@@ -95,6 +118,12 @@ type StableDiffusion struct {
 
 	// Executor handles command execution, simpler for testing
 	Executor CommandExecutor
+
+	// Process tracking for cleanup
+	ctx             context.Context
+	cancel          context.CancelFunc
+	activeProcesses []*exec.Cmd
+	processMutex    sync.Mutex
 }
 
 // New creates a new Stable Diffusion release manager
@@ -104,14 +133,50 @@ func New() *StableDiffusion {
 	checksumsPath := filepath.Join(homeDir, ".stable-diffusion", "checksums")
 	metadataPath := filepath.Join(homeDir, ".stable-diffusion", "metadata")
 
-	return &StableDiffusion{
-		GitHubOwner:   "leejet",
-		GitHubRepo:    "stable-diffusion.cpp",
-		BinaryPath:    binaryPath,
-		ChecksumsPath: checksumsPath,
-		MetadataPath:  metadataPath,
-		Executor:      &DefaultCommandExecutor{},
+	ctx, cancel := context.WithCancel(context.Background())
+
+	sd := &StableDiffusion{
+		GitHubOwner:     "leejet",
+		GitHubRepo:      "stable-diffusion.cpp",
+		BinaryPath:      binaryPath,
+		ChecksumsPath:   checksumsPath,
+		MetadataPath:    metadataPath,
+		ctx:             ctx,
+		cancel:          cancel,
+		activeProcesses: make([]*exec.Cmd, 0),
 	}
+
+	// Set executor with reference to this instance for process tracking
+	sd.Executor = &DefaultCommandExecutor{sd: sd}
+
+	return sd
+}
+
+// Cleanup terminates all running Stable Diffusion processes
+func (sdrm *StableDiffusion) Cleanup() {
+	log.Printf("Cleaning up Stable Diffusion processes...")
+
+	// Cancel context to signal all running processes
+	if sdrm.cancel != nil {
+		sdrm.cancel()
+	}
+
+	sdrm.processMutex.Lock()
+	defer sdrm.processMutex.Unlock()
+
+	// Kill any remaining processes
+	for _, cmd := range sdrm.activeProcesses {
+		if cmd.Process != nil {
+			log.Printf("Killing Stable Diffusion process (PID: %d)", cmd.Process.Pid)
+			if err := cmd.Process.Kill(); err != nil {
+				log.Printf("Warning: failed to kill process %d: %v", cmd.Process.Pid, err)
+			}
+		}
+	}
+
+	// Clear the process list
+	sdrm.activeProcesses = nil
+	log.Printf("✅ Stable Diffusion cleanup complete")
 }
 
 // getLatestRelease fetches the latest release information from GitHub with retry logic and rate limiting
@@ -1269,5 +1334,101 @@ func (sdrm *StableDiffusion) cleanupModels() error {
 		}
 	}
 
+	return nil
+}
+
+// InitializeInBackground initializes Stable Diffusion in the background
+// This includes checking and installing the binary and downloading a recommended model
+func (sdrm *StableDiffusion) InitializeInBackground() {
+	go func() {
+		log.Printf("🚀 Initializing Stable Diffusion in background...")
+
+		// Step 1: Check and install binary if needed
+		if !sdrm.IsStableDiffusionInstalled() {
+			log.Println("🔧 Stable Diffusion binary not found, attempting auto-installation...")
+
+			// Get latest release info
+			release, err := sdrm.getLatestRelease()
+			if err != nil {
+				log.Printf("⚠️  Failed to get Stable Diffusion release info: %v", err)
+				log.Printf("   Stable Diffusion features will not be available")
+				return
+			}
+
+			// Download the binary
+			if err := sdrm.downloadRelease(release.Version, nil); err != nil {
+				log.Printf("⚠️  Failed to install Stable Diffusion binary: %v", err)
+				log.Printf("   Stable Diffusion features will not be available")
+				return
+			}
+
+			log.Println("✅ Stable Diffusion binary installed successfully")
+		} else {
+			log.Println("✅ Stable Diffusion binary is already installed")
+		}
+
+		// Step 2: Auto-download recommended model (in background)
+		log.Println("📦 Checking Stable Diffusion models...")
+		if err := sdrm.AutoDownloadRecommendedModel(); err != nil {
+			log.Printf("⚠️  Failed to auto-download Stable Diffusion model: %v", err)
+		} else {
+			log.Println("✅ Stable Diffusion model ready!")
+		}
+
+		log.Println("✅ Stable Diffusion initialization complete!")
+	}()
+}
+
+// AutoDownloadRecommendedModel automatically downloads a recommended Stable Diffusion model
+// if no models are currently installed
+func (sdrm *StableDiffusion) AutoDownloadRecommendedModel() error {
+	// Check if any models are already installed
+	installedModels, err := sdrm.CheckInstalledModels()
+	if err != nil {
+		return fmt.Errorf("failed to check installed models: %w", err)
+	}
+
+	if len(installedModels) > 0 {
+		log.Printf("Found %d installed model(s), skipping auto-download", len(installedModels))
+		return nil
+	}
+
+	// Get recommended model (SD-Turbo is fastest and smallest)
+	models := GetAvailableModels()
+	var recommendedModel *ModelSpec
+	for i, model := range models {
+		if model.Name == "sd-turbo-q8_0" {
+			recommendedModel = &models[i]
+			break
+		}
+	}
+
+	if recommendedModel == nil {
+		// Fallback to first model if SD-Turbo not found
+		recommendedModel = &models[0]
+	}
+
+	log.Printf("📥 Downloading recommended Stable Diffusion model: %s (%.2f GB)",
+		recommendedModel.Name, float64(recommendedModel.Size)/(1024))
+
+	// Convert ModelSpec to map for downloadModel
+	modelSpec := map[string]interface{}{
+		"name":     recommendedModel.Name,
+		"url":      recommendedModel.URL,
+		"filename": recommendedModel.Filename,
+	}
+
+	// Download with progress logging
+	progressCallback := func(progress float64) {
+		if int(progress)%10 == 0 { // Log every 10%
+			log.Printf("   Download progress: %.0f%%", progress)
+		}
+	}
+
+	if err := sdrm.downloadModel(modelSpec, progressCallback); err != nil {
+		return fmt.Errorf("failed to download model: %w", err)
+	}
+
+	log.Printf("✅ Successfully downloaded model: %s", recommendedModel.Name)
 	return nil
 }

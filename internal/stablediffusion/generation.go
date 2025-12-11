@@ -3,7 +3,9 @@ package stablediffusion
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 )
 
 // RuntimeImageGenParams matches frontend model-bank/standard-parameters RuntimeImageGenParams
@@ -124,10 +126,13 @@ func (sdrm *StableDiffusion) GetFirstAvailableModel() string {
 	for _, file := range files {
 		if !file.IsDir() {
 			name := file.Name()
-			if len(name) > 5 && (name[len(name)-5:] == ".ckpt" ||
-				name[len(name)-12:] == ".safetensors" ||
-				name[len(name)-3:] == ".pt") {
-				return modelsPath + "/" + name
+			// Check for all supported model formats including GGUF
+			if strings.HasSuffix(name, ".ckpt") ||
+				strings.HasSuffix(name, ".safetensors") ||
+				strings.HasSuffix(name, ".pt") ||
+				strings.HasSuffix(name, ".bin") ||
+				strings.HasSuffix(name, ".gguf") {
+				return filepath.Join(modelsPath, name)
 			}
 		}
 	}
@@ -210,7 +215,7 @@ func (sdrm *StableDiffusion) createImageInternal(opts GenerationOptions) error {
 	}
 
 	// Execute command via the injected executor
-	if err := sdrm.Executor.Run(binaryPath, args...); err != nil {
+	if err := sdrm.Executor.Run(sdrm.ctx, binaryPath, args...); err != nil {
 		return fmt.Errorf("generation failed: %w", err)
 	}
 

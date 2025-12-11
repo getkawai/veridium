@@ -82,111 +82,111 @@ const t = setNamespace('AgentSettings');
 export const store: StateCreator<Store, [['zustand/devtools', never]]> = (set, get) => ({
   ...initialState,
   autoPickEmoji: async () => {
-    const { config, meta, dispatchMeta } = get();
+    // const { config, meta, dispatchMeta } = get();
 
-    const systemRole = config.systemRole;
+    // const systemRole = config.systemRole;
 
-    chatService.fetchPresetTaskResult({
-      onFinish: async (emoji) => {
-        dispatchMeta({ type: 'update', value: { avatar: emoji } });
-      },
-      onLoadingChange: (loading) => {
-        get().updateLoadingState('avatar', loading);
-      },
-      params: merge(
-        get().internal_getSystemAgentForMeta(),
-        chainPickEmoji([meta.title, meta.description, systemRole].filter(Boolean).join(',')),
-      ),
-      trace: get().getCurrentTracePayload({ traceName: TraceNameMap.EmojiPicker }),
-    });
+    // chatService.fetchPresetTaskResult({
+    //   onFinish: async (emoji) => {
+    //     dispatchMeta({ type: 'update', value: { avatar: emoji } });
+    //   },
+    //   onLoadingChange: (loading) => {
+    //     get().updateLoadingState('avatar', loading);
+    //   },
+    //   params: merge(
+    //     get().internal_getSystemAgentForMeta(),
+    //     chainPickEmoji([meta.title, meta.description, systemRole].filter(Boolean).join(',')),
+    //   ),
+    //   trace: get().getCurrentTracePayload({ traceName: TraceNameMap.EmojiPicker }),
+    // });
   },
   autocompleteAgentDescription: async () => {
-    const { dispatchMeta, config, meta, updateLoadingState, streamUpdateMetaString } = get();
+    // const { dispatchMeta, config, meta, updateLoadingState, streamUpdateMetaString } = get();
 
-    const systemRole = config.systemRole;
+    // const systemRole = config.systemRole;
 
-    if (!systemRole) return;
+    // if (!systemRole) return;
 
-    const preValue = meta.description;
+    // const preValue = meta.description;
 
-    // 替换为 ...
-    dispatchMeta({ type: 'update', value: { description: '...' } });
+    // // 替换为 ...
+    // dispatchMeta({ type: 'update', value: { description: '...' } });
 
-    chatService.fetchPresetTaskResult({
-      onError: () => {
-        dispatchMeta({ type: 'update', value: { description: preValue } });
-      },
-      onLoadingChange: (loading) => {
-        updateLoadingState('description', loading);
-      },
-      onMessageHandle: streamUpdateMetaString('description'),
-      params: merge(
-        get().internal_getSystemAgentForMeta(),
-        chainSummaryDescription(systemRole, globalHelpers.getCurrentLanguage()),
-      ),
-      trace: get().getCurrentTracePayload({ traceName: TraceNameMap.SummaryAgentDescription }),
-    });
+    // chatService.fetchPresetTaskResult({
+    //   onError: () => {
+    //     dispatchMeta({ type: 'update', value: { description: preValue } });
+    //   },
+    //   onLoadingChange: (loading) => {
+    //     updateLoadingState('description', loading);
+    //   },
+    //   onMessageHandle: streamUpdateMetaString('description'),
+    //   params: merge(
+    //     get().internal_getSystemAgentForMeta(),
+    //     chainSummaryDescription(systemRole, globalHelpers.getCurrentLanguage()),
+    //   ),
+    //   trace: get().getCurrentTracePayload({ traceName: TraceNameMap.SummaryAgentDescription }),
+    // });
   },
   autocompleteAgentTags: async () => {
-    const { dispatchMeta, config, meta, updateLoadingState, streamUpdateMetaArray } = get();
+    // const { dispatchMeta, config, meta, updateLoadingState, streamUpdateMetaArray } = get();
 
-    const systemRole = config.systemRole;
+    // const systemRole = config.systemRole;
 
-    if (!systemRole) return;
+    // if (!systemRole) return;
 
-    const preValue = meta.tags;
+    // const preValue = meta.tags;
 
-    // 替换为 ...
-    dispatchMeta({ type: 'update', value: { tags: ['...'] } });
+    // // 替换为 ...
+    // dispatchMeta({ type: 'update', value: { tags: ['...'] } });
 
-    // Get current agent for agentMeta
-    chatService.fetchPresetTaskResult({
-      onError: () => {
-        dispatchMeta({ type: 'update', value: { tags: preValue } });
-      },
-      onLoadingChange: (loading) => {
-        updateLoadingState('tags', loading);
-      },
-      onMessageHandle: streamUpdateMetaArray('tags'),
-      params: merge(
-        get().internal_getSystemAgentForMeta(),
-        chainSummaryTags(
-          [meta.title, meta.description, systemRole].filter(Boolean).join(','),
-          globalHelpers.getCurrentLanguage(),
-        ),
-      ),
-      trace: get().getCurrentTracePayload({ traceName: TraceNameMap.SummaryAgentTags }),
-    });
+    // // Get current agent for agentMeta
+    // chatService.fetchPresetTaskResult({
+    //   onError: () => {
+    //     dispatchMeta({ type: 'update', value: { tags: preValue } });
+    //   },
+    //   onLoadingChange: (loading) => {
+    //     updateLoadingState('tags', loading);
+    //   },
+    //   onMessageHandle: streamUpdateMetaArray('tags'),
+    //   params: merge(
+    //     get().internal_getSystemAgentForMeta(),
+    //     chainSummaryTags(
+    //       [meta.title, meta.description, systemRole].filter(Boolean).join(','),
+    //       globalHelpers.getCurrentLanguage(),
+    //     ),
+    //   ),
+    //   trace: get().getCurrentTracePayload({ traceName: TraceNameMap.SummaryAgentTags }),
+    // });
   },
   autocompleteAgentTitle: async () => {
-    const { dispatchMeta, config, meta, updateLoadingState, streamUpdateMetaString } = get();
+    // const { dispatchMeta, config, meta, updateLoadingState, streamUpdateMetaString } = get();
 
-    const systemRole = config.systemRole;
+    // const systemRole = config.systemRole;
 
-    if (!systemRole) return;
+    // if (!systemRole) return;
 
-    const previousTitle = meta.title;
+    // const previousTitle = meta.title;
 
-    // 替换为 ...
-    dispatchMeta({ type: 'update', value: { title: '...' } });
+    // // 替换为 ...
+    // dispatchMeta({ type: 'update', value: { title: '...' } });
 
-    chatService.fetchPresetTaskResult({
-      onError: () => {
-        dispatchMeta({ type: 'update', value: { title: previousTitle } });
-      },
-      onLoadingChange: (loading) => {
-        updateLoadingState('title', loading);
-      },
-      onMessageHandle: streamUpdateMetaString('title'),
-      params: merge(
-        get().internal_getSystemAgentForMeta(),
-        chainSummaryAgentName(
-          [meta.description, systemRole].filter(Boolean).join(','),
-          globalHelpers.getCurrentLanguage(),
-        ),
-      ),
-      trace: get().getCurrentTracePayload({ traceName: TraceNameMap.SummaryAgentTitle }),
-    });
+    // chatService.fetchPresetTaskResult({
+    //   onError: () => {
+    //     dispatchMeta({ type: 'update', value: { title: previousTitle } });
+    //   },
+    //   onLoadingChange: (loading) => {
+    //     updateLoadingState('title', loading);
+    //   },
+    //   onMessageHandle: streamUpdateMetaString('title'),
+    //   params: merge(
+    //     get().internal_getSystemAgentForMeta(),
+    //     chainSummaryAgentName(
+    //       [meta.description, systemRole].filter(Boolean).join(','),
+    //       globalHelpers.getCurrentLanguage(),
+    //     ),
+    //   ),
+    //   trace: get().getCurrentTracePayload({ traceName: TraceNameMap.SummaryAgentTitle }),
+    // });
   },
   autocompleteAllMeta: (replace) => {
     const { meta } = get();

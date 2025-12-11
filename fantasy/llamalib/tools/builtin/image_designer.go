@@ -86,9 +86,12 @@ func (s *ImageDesignerService) GetFirstAvailableModel() string {
 	for _, file := range files {
 		if !file.IsDir() {
 			name := file.Name()
+			// Check for all supported model formats including GGUF
 			if strings.HasSuffix(name, ".ckpt") ||
 				strings.HasSuffix(name, ".safetensors") ||
-				strings.HasSuffix(name, ".pt") {
+				strings.HasSuffix(name, ".pt") ||
+				strings.HasSuffix(name, ".bin") ||
+				strings.HasSuffix(name, ".gguf") {
 				return filepath.Join(modelsPath, name)
 			}
 		}

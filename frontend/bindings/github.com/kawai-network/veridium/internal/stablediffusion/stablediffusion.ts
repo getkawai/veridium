@@ -15,6 +15,14 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
+ * AutoDownloadRecommendedModel automatically downloads a recommended Stable Diffusion model
+ * if no models are currently installed
+ */
+export function AutoDownloadRecommendedModel(): $CancellablePromise<void> {
+    return $Call.ByID(162946796);
+}
+
+/**
  * CheckInstalledModels checks what Stable Diffusion models are currently installed
  */
 export function CheckInstalledModels(): $CancellablePromise<string[]> {
@@ -64,6 +72,14 @@ export function GetModelsPath(): $CancellablePromise<string> {
  */
 export function GetOutputsPath(): $CancellablePromise<string> {
     return $Call.ByID(1891601522);
+}
+
+/**
+ * InitializeInBackground initializes Stable Diffusion in the background
+ * This includes checking and installing the binary and downloading a recommended model
+ */
+export function InitializeInBackground(): $CancellablePromise<void> {
+    return $Call.ByID(3740929110);
 }
 
 /**

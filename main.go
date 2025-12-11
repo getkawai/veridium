@@ -49,9 +49,13 @@ func main() {
 		app.FileBaseDir,
 	)
 
+	// Initialize Stable Diffusion in background
+	sdManager := stablediffusion.New()
+	sdManager.InitializeInBackground()
+
 	// Create Wails app
-	wailsApp := createWailsApp(ctx, fileProcessor)
-	registerAgentServices(wailsApp, ctx, fileProcessor)
+	wailsApp := createWailsApp(ctx, fileProcessor, sdManager)
+	registerAgentServices(wailsApp, ctx, fileProcessor, sdManager)
 	createMainWindow(wailsApp, ctx, fileProcessor)
 
 	if err := wailsApp.Run(); err != nil {
@@ -59,11 +63,11 @@ func main() {
 	}
 }
 
-func createWailsApp(ctx *app.Context, fileProcessor *FileProcessorService) *application.App {
+func createWailsApp(ctx *app.Context, fileProcessor *FileProcessorService, sdManager *stablediffusion.StableDiffusion) *application.App {
 	return application.New(application.Options{
 		Name:        "veridium",
 		Description: "Veridium AI Assistant",
-		Services:    buildServiceList(ctx, fileProcessor),
+		Services:    buildServiceList(ctx, fileProcessor, sdManager),
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
 		},
@@ -73,7 +77,7 @@ func createWailsApp(ctx *app.Context, fileProcessor *FileProcessorService) *appl
 	})
 }
 
-func buildServiceList(ctx *app.Context, fileProcessor *FileProcessorService) []application.Service {
+func buildServiceList(ctx *app.Context, fileProcessor *FileProcessorService, sdManager *stablediffusion.StableDiffusion) []application.Service {
 	return []application.Service{
 		// Database
 		application.NewService(ctx.Queries),
@@ -98,7 +102,7 @@ func buildServiceList(ctx *app.Context, fileProcessor *FileProcessorService) []a
 
 		// Utilities
 		application.NewService(&machineid.Service{}),
-		application.NewService(stablediffusion.New()),
+		application.NewService(sdManager), // Use the initialized sdManager
 
 		// Wails Native Services
 		application.NewService(notifications.New()),
@@ -114,7 +118,7 @@ func buildServiceList(ctx *app.Context, fileProcessor *FileProcessorService) []a
 	}
 }
 
-func registerAgentServices(wailsApp *application.App, ctx *app.Context, fileProcessor *FileProcessorService) {
+func registerAgentServices(wailsApp *application.App, ctx *app.Context, fileProcessor *FileProcessorService, sdManager *stablediffusion.StableDiffusion) {
 	ctx.AudioRecorder.SetApp(wailsApp)
 
 	threadService := services.NewThreadManagementService(wailsApp, ctx.DB)
@@ -156,6 +160,11 @@ func registerAgentServices(wailsApp *application.App, ctx *app.Context, fileProc
 			ctx.LibService.Cleanup()
 		})
 	}
+
+	// Cleanup Stable Diffusion processes on shutdown
+	wailsApp.OnShutdown(func() {
+		sdManager.Cleanup()
+	})
 }
 
 func createMainWindow(wailsApp *application.App, ctx *app.Context, fileProcessor *FileProcessorService) {
