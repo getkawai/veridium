@@ -1,6 +1,7 @@
 import { Icon, Markdown, Segmented } from '@lobehub/ui';
+import { Browser } from '@wailsio/runtime';
 import { BoltIcon, FileIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 
@@ -23,6 +24,27 @@ const FilePreview = () => {
 
   const [tab, setTab] = useState<FilePreviewTab>(FilePreviewTab.File);
   const { data, isLoading } = useFetchFileItem(previewFileId);
+
+  // Custom components untuk desktop app link handling
+  const markdownComponents = useMemo(
+    () => ({
+      a: ({ href, children, ...props }: any) => (
+        <a
+          {...props}
+          href={href}
+          onClick={(e) => {
+            e.preventDefault();
+            if (href) Browser.OpenURL(href);
+          }}
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          {children}
+        </a>
+      ),
+    }),
+    []
+  );
 
   if (isLoading) return <Loading />;
   if (!data) return;
@@ -57,7 +79,9 @@ const FilePreview = () => {
       )}
 
       {showChunk ? (
-        <Markdown style={{ overflow: 'scroll', paddingInline: 8 }}>{chunkText}</Markdown>
+        <Markdown components={markdownComponents} style={{ overflow: 'scroll', paddingInline: 8 }}>
+          {chunkText}
+        </Markdown>
       ) : (
         <Flexbox flex={1} paddingBlock={8} style={{ overflow: 'scroll' }}>
           <FileViewer {...data} />

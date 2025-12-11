@@ -1,5 +1,6 @@
 import { Markdown, Mermaid } from '@lobehub/ui';
-import { memo, lazy } from 'react';
+import { Browser } from '@wailsio/runtime';
+import { memo, lazy, useMemo } from 'react';
 
 import HTMLRenderer from './HTML';
 import SVGRender from './SVG';
@@ -7,6 +8,27 @@ import SVGRender from './SVG';
 const ReactRenderer = lazy(() => import('./React'));
 
 const Renderer = memo<{ content: string; type?: string }>(({ content, type }) => {
+  // Custom components untuk desktop app link handling
+  const markdownComponents = useMemo(
+    () => ({
+      a: ({ href, children, ...props }: any) => (
+        <a
+          {...props}
+          href={href}
+          onClick={(e) => {
+            e.preventDefault();
+            if (href) Browser.OpenURL(href);
+          }}
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          {children}
+        </a>
+      ),
+    }),
+    []
+  );
+
   switch (type) {
     case 'application/lobe.artifacts.react': {
       return <ReactRenderer code={content} />;
@@ -21,7 +43,11 @@ const Renderer = memo<{ content: string; type?: string }>(({ content, type }) =>
     }
 
     case 'text/markdown': {
-      return <Markdown style={{ overflow: 'auto' }}>{content}</Markdown>;
+      return (
+        <Markdown components={markdownComponents} style={{ overflow: 'auto' }}>
+          {content}
+        </Markdown>
+      );
     }
 
     default: {

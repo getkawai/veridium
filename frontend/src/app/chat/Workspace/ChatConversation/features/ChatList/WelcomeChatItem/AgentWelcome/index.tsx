@@ -1,5 +1,6 @@
 import { BRANDING_NAME } from '@/const/branding';
 import { FluentEmoji, Markdown } from '@lobehub/ui';
+import { Browser } from '@wailsio/runtime';
 import { createStyles } from 'antd-style';
 import isEqual from 'fast-deep-equal';
 import { memo, useMemo } from 'react';
@@ -66,6 +67,27 @@ const InboxWelcome = memo(() => {
     return agentSystemRoleMsg;
   }, [openingMessage, agentSystemRoleMsg, meta.description]);
 
+  // Custom components untuk desktop app link handling
+  const markdownComponents = useMemo(
+    () => ({
+      a: ({ href, children, ...props }: any) => (
+        <a
+          {...props}
+          href={href}
+          onClick={(e) => {
+            e.preventDefault();
+            if (href) Browser.OpenURL(href);
+          }}
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          {children}
+        </a>
+      ),
+    }),
+    []
+  );
+
   return (
     <Center gap={12} padding={16} width={'100%'}>
       <Flexbox className={styles.container} gap={16} style={{ maxWidth: 800 }} width={'100%'}>
@@ -75,6 +97,7 @@ const InboxWelcome = memo(() => {
         </Flexbox>
         <Markdown
           className={styles.desc}
+          components={markdownComponents}
           customRender={(dom, context) => {
             if (context.text.includes('<plus />')) {
               return (

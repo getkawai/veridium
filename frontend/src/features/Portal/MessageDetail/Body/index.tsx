@@ -1,7 +1,8 @@
 import { Markdown } from '@lobehub/ui';
+import { Browser } from '@wailsio/runtime';
 import { css, cx } from 'antd-style';
 import isEqual from 'fast-deep-equal';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Flexbox } from 'react-layout-kit';
 
 import { useChatStore } from '@/store/chat';
@@ -31,10 +32,31 @@ const MessageDetailBody = () => {
     }
   }, [message]);
 
+  // Custom components untuk desktop app link handling
+  const markdownComponents = useMemo(
+    () => ({
+      a: ({ href, children, ...props }: any) => (
+        <a
+          {...props}
+          href={href}
+          onClick={(e) => {
+            e.preventDefault();
+            if (href) Browser.OpenURL(href);
+          }}
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          {children}
+        </a>
+      ),
+    }),
+    []
+  );
+
   return (
     <Flexbox height={'100%'} paddingBlock={'0 12px'} paddingInline={8}>
       {!!content && (
-        <Markdown className={cx(md)} variant={'chat'}>
+        <Markdown className={cx(md)} components={markdownComponents} variant={'chat'}>
           {content}
         </Markdown>
       )}

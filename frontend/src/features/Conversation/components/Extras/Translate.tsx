@@ -1,9 +1,10 @@
 import { ChatTranslate } from '@/types';
 import { ActionIcon, Icon, Markdown, Tag, copyToClipboard } from '@lobehub/ui';
+import { Browser } from '@wailsio/runtime';
 import { App } from 'antd';
 import { useTheme } from 'antd-style';
 import { ChevronDown, ChevronUp, ChevronsRight, CopyIcon, TrashIcon } from 'lucide-react';
-import { memo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 
@@ -22,6 +23,28 @@ const Translate = memo<TranslateProps>(({ content = '', from, to, id, loading })
   const clearTranslate = useChatStore((s) => s.clearTranslate);
 
   const { message } = App.useApp();
+
+  // Custom components untuk desktop app link handling
+  const markdownComponents = useMemo(
+    () => ({
+      a: ({ href, children, ...props }: any) => (
+        <a
+          {...props}
+          href={href}
+          onClick={(e) => {
+            e.preventDefault();
+            if (href) Browser.OpenURL(href);
+          }}
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          {children}
+        </a>
+      ),
+    }),
+    []
+  );
+
   return (
     <Flexbox gap={8}>
       <Flexbox align={'center'} horizontal justify={'space-between'}>
@@ -66,7 +89,9 @@ const Translate = memo<TranslateProps>(({ content = '', from, to, id, loading })
       {!show ? null : loading && !content ? (
         <BubblesLoading />
       ) : (
-        <Markdown variant={'chat'}>{content}</Markdown>
+        <Markdown components={markdownComponents} variant={'chat'}>
+          {content}
+        </Markdown>
       )}
     </Flexbox>
   );

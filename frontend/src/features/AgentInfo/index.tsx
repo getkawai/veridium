@@ -1,8 +1,9 @@
 import { Avatar, Markdown, Tag } from '@lobehub/ui';
+import { Browser } from '@wailsio/runtime';
 import { Divider } from 'antd';
 import { createStyles } from 'antd-style';
 import { startCase } from 'lodash-es';
-import { CSSProperties, memo } from 'react';
+import { CSSProperties, memo, useMemo } from 'react';
 import { Center } from 'react-layout-kit';
 
 import { MetaData } from '@/types/meta';
@@ -32,6 +33,27 @@ export interface AgentInfoProps {
 const AgentInfo = memo<AgentInfoProps>(({ systemRole, style, meta, onAvatarClick }) => {
   const { styles, theme } = useStyles();
 
+  // Custom components untuk desktop app link handling
+  const markdownComponents = useMemo(
+    () => ({
+      a: ({ href, children, ...props }: any) => (
+        <a
+          {...props}
+          href={href}
+          onClick={(e) => {
+            e.preventDefault();
+            if (href) Browser.OpenURL(href);
+          }}
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          {children}
+        </a>
+      ),
+    }),
+    []
+  );
+
   if (!meta) return;
 
   return (
@@ -60,7 +82,9 @@ const AgentInfo = memo<AgentInfoProps>(({ systemRole, style, meta, onAvatarClick
       {systemRole && (
         <>
           <Divider style={{ margin: '8px 0' }} />
-          <Markdown variant={'chat'}>{systemRole}</Markdown>
+          <Markdown components={markdownComponents} variant={'chat'}>
+            {systemRole}
+          </Markdown>
         </>
       )}
     </Center>

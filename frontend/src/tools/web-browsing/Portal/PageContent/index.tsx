@@ -1,11 +1,12 @@
 import { CrawlResult } from '@/types';
 import { CrawlSuccessResult } from '@/web-crawler';
 import { Alert, CopyButton, Highlighter, Icon, Markdown, Segmented, Text } from '@lobehub/ui';
+import { Browser } from '@wailsio/runtime';
 import { Descriptions } from 'antd';
 import { createStyles } from 'antd-style';
 import { ExternalLink } from 'lucide-react';
 
-import { memo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 
@@ -95,6 +96,27 @@ const PageContent = memo<PageContentProps>(({ result }) => {
   const { t } = useTranslation('plugin');
   const { styles } = useStyles();
   const [display, setDisplay] = useState<DisplayType>(DisplayType.Render);
+
+  // Custom components untuk desktop app link handling
+  const markdownComponents = useMemo(
+    () => ({
+      a: ({ href, children, ...props }: any) => (
+        <a
+          {...props}
+          href={href}
+          onClick={(e) => {
+            e.preventDefault();
+            if (href) Browser.OpenURL(href);
+          }}
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          {children}
+        </a>
+      ),
+    }),
+    []
+  );
 
   if (!result || !result.data) return undefined;
 
@@ -211,7 +233,9 @@ const PageContent = memo<PageContentProps>(({ result }) => {
             />
           )}
           {display === DisplayType.Render ? (
-            <Markdown variant={'chat'}>{content}</Markdown>
+            <Markdown components={markdownComponents} variant={'chat'}>
+              {content}
+            </Markdown>
           ) : (
             <div style={{ paddingBlock: '0 12px' }}>
               {content.length < CRAWL_CONTENT_LIMITED_COUNT ? (

@@ -1,7 +1,8 @@
 import { ModelTag } from '@lobehub/icons';
 import { Avatar, Markdown } from '@lobehub/ui';
 import { ChatHeaderTitle } from '@lobehub/ui/chat';
-import { memo } from 'react';
+import { Browser } from '@wailsio/runtime';
+import { memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 
@@ -39,6 +40,27 @@ const Preview = memo<FieldType & { title?: string }>(
     const displayTitle = isInbox ? t('inbox.title') : title;
     const displayDesc = isInbox ? t('inbox.desc') : description;
 
+    // Custom components untuk desktop app link handling
+    const markdownComponents = useMemo(
+      () => ({
+        a: ({ href, children, ...props }: any) => (
+          <a
+            {...props}
+            href={href}
+            onClick={(e) => {
+              e.preventDefault();
+              if (href) Browser.OpenURL(href);
+            }}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            {children}
+          </a>
+        ),
+      }),
+      []
+    );
+
     return (
       <div className={containerStyles.preview}>
         <div className={withBackground ? styles.background : undefined} id={'preview'}>
@@ -60,7 +82,9 @@ const Preview = memo<FieldType & { title?: string }>(
               </Flexbox>
               {withSystemRole && systemRole && (
                 <div className={styles.role}>
-                  <Markdown variant={'chat'}>{systemRole}</Markdown>
+                  <Markdown components={markdownComponents} variant={'chat'}>
+                    {systemRole}
+                  </Markdown>
                 </div>
               )}
             </div>
