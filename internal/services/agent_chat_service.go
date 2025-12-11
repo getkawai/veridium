@@ -37,6 +37,7 @@ import (
 	"github.com/kawai-network/veridium/internal/database"
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/types"
+	"github.com/pemistahl/lingua-go"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -73,6 +74,9 @@ type AgentChatService struct {
 
 	// Memory integration for MemGPT-style memory
 	memoryIntegration *MemoryIntegration
+
+	// Language detector for detecting user message language
+	languageDetector lingua.LanguageDetector
 }
 
 // AgentSession represents an ongoing conversation with context
@@ -378,17 +382,47 @@ func NewAgentChatService(
 		log.Printf("✅ AgentChatService: Yzma builtin tools registered")
 	}
 
+	// Initialize language detector with common languages
+	// Using a subset of languages for faster detection while covering most use cases
+	languages := []lingua.Language{
+		lingua.English,
+		lingua.Indonesian,
+		lingua.Chinese,
+		lingua.Japanese,
+		lingua.Korean,
+		lingua.Spanish,
+		lingua.French,
+		lingua.German,
+		lingua.Italian,
+		lingua.Portuguese,
+		lingua.Russian,
+		lingua.Arabic,
+		lingua.Hindi,
+		lingua.Thai,
+		lingua.Vietnamese,
+		lingua.Dutch,
+		lingua.Turkish,
+		lingua.Polish,
+		lingua.Malay,
+	}
+	languageDetector := lingua.NewLanguageDetectorBuilder().
+		FromLanguages(languages...).
+		WithMinimumRelativeDistance(0.25). // Require 25% confidence difference between top languages
+		Build()
+	log.Printf("✅ AgentChatService: Language detector initialized with %d languages", len(languages))
+
 	service := &AgentChatService{
-		app:             app,
-		db:              db,
-		libService:      libService,
-		kbService:       kbService,
-		ragWorkflow:     ragWorkflow,
-		vectorSearch:    vectorSearch,
-		toolRegistry:    toolRegistry,
-		threadService:   threadService,
-		reasoningConfig: DefaultReasoningConfig(), // Default: disabled (non-reasoning)
-		sessions:        make(map[string]*AgentSession),
+		app:              app,
+		db:               db,
+		libService:       libService,
+		kbService:        kbService,
+		ragWorkflow:      ragWorkflow,
+		vectorSearch:     vectorSearch,
+		toolRegistry:     toolRegistry,
+		threadService:    threadService,
+		reasoningConfig:  DefaultReasoningConfig(), // Default: disabled (non-reasoning)
+		sessions:         make(map[string]*AgentSession),
+		languageDetector: languageDetector,
 	}
 
 	log.Printf("✅ AgentChatService: Initialized (models will be injected via SetChatModel/SetTitleModel/SetSummaryModel)")
@@ -614,18 +648,49 @@ func (s *AgentChatService) collectToolNames(ctx context.Context, req ChatRequest
 	return toolNames
 }
 
+// detectLanguage detects the language of the given text using lingua-go
+// Returns the detected language name in English (e.g., "Indonesian", "English", "Japanese")
+// Falls back to "English" if detection fails or confidence is too low
+func (s *AgentChatService) detectLanguage(text string) string {
+	if text == "" {
+		return "English"
+	}
+
+	// Detect language with confidence
+	detectedLang, exists := s.languageDetector.DetectLanguageOf(text)
+	if !exists {
+		log.Printf("🌐 Language detection: No confident match, defaulting to English")
+		return "English"
+	}
+
+	langName := detectedLang.String()
+	log.Printf("🌐 Language detected: %s", langName)
+	return langName
+}
+
 // buildSystemPrompt builds the system prompt string for fantasy.Agent
 // This is optimized for use with fantasy.WithSystemPrompt() which handles
 // system prompt injection internally. Returns just the prompt string.
-func (s *AgentChatService) buildSystemPrompt(session *AgentSession, memoryContext string) string {
+// The userMessage parameter is used to detect the user's language for response.
+func (s *AgentChatService) buildSystemPrompt(session *AgentSession, memoryContext string, userMessage string) string {
 	// Get current time for LLM awareness
 	now := time.Now()
 	currentTime := fmt.Sprintf("Current date and time: %s (%s)",
 		now.Format("Monday, January 2, 2006 15:04:05"),
 		now.Format("2006-01-02T15:04:05-07:00"))
 
-	// Build base instruction with current time
-	baseInstruction := fmt.Sprintf("You are kawai AI assistant with kawai model. %s\n\n", currentTime)
+	// Detect user message language
+	detectedLanguage := s.detectLanguage(userMessage)
+
+	// Build base instruction with current time and language instruction
+	baseInstruction := fmt.Sprintf(`You are kawai AI assistant with kawai model. %s
+
+<response_language>
+IMPORTANT: The user's message is detected to be in %s. You MUST respond in %s to match the user's language.
+If the user writes in a specific language, always respond in that same language.
+</response_language>
+
+`, currentTime, detectedLanguage, detectedLanguage)
 
 	// Inject summary if exists
 	if session.Context != nil {
@@ -663,6 +728,7 @@ func (s *AgentChatService) buildSystemPrompt(session *AgentSession, memoryContex
 	instruction := s.reasoningConfig.GetSystemPrompt(baseInstruction)
 
 	log.Printf("🧠 Building system prompt with reasoning mode: %s", s.reasoningConfig.Mode)
+	log.Printf("🌐 Response language set to: %s", detectedLanguage)
 	log.Printf("📝 System prompt length: %d chars", len(instruction))
 
 	return instruction

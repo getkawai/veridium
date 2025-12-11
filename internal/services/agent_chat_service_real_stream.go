@@ -202,7 +202,8 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	}
 
 	// 5. Build system prompt and get history messages (optimized for fantasy.Agent)
-	systemPrompt := s.buildSystemPrompt(session, memoryContext)
+	// Pass user message for language detection to respond in the same language
+	systemPrompt := s.buildSystemPrompt(session, memoryContext, req.Message)
 	historyMessages := s.getHistoryMessages(session)
 
 	// 4.5. Build file context if we have relevant chunks
