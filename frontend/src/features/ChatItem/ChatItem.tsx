@@ -40,7 +40,7 @@ const ChatItem = memo<ChatItemProps>(
     aboveMessage,
     belowMessage,
     markdownProps,
-    showAvatar = true,
+    showAvatar = false,
     titleAddon,
     disabled = false,
     id,
@@ -127,7 +127,11 @@ const ChatItem = memo<ChatItemProps>(
                   messageExtra={
                     <>
                       {error && (
-                        <ErrorContent error={error} message={errorMessage} placement={placement} />
+                        <ErrorContent
+                          error={error}
+                          message={errorMessage}
+                          placement={placement}
+                        />
                       )}
                       {messageExtra}
                     </>
