@@ -186,8 +186,23 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 		}
 	}
 
-	// 4. Build system prompt and get history messages (optimized for fantasy.Agent)
-	systemPrompt := s.buildSystemPrompt(session)
+	// 4. Build hybrid context from memory (if available)
+	var memoryContext string
+	if s.memoryIntegration != nil {
+		log.Printf("🧠 [REAL STREAM] Fetching hybrid context memories for query: %s", req.Message)
+		// We use nil for shortTermMessages here as they are already in the session history
+		// and handled by the agent. We only need the memory text to inject into system prompt.
+		memCtx, err := s.memoryIntegration.BuildHybridContext(ctx, req.UserID, req.Message, nil)
+		if err != nil {
+			log.Printf("⚠️  [REAL STREAM] Failed to build hybrid context: %v", err)
+		} else if memCtx != "" {
+			memoryContext = memCtx
+			log.Printf("🧠 [REAL STREAM] Hybrid context retrieved (%d chars)", len(memoryContext))
+		}
+	}
+
+	// 5. Build system prompt and get history messages (optimized for fantasy.Agent)
+	systemPrompt := s.buildSystemPrompt(session, memoryContext)
 	historyMessages := s.getHistoryMessages(session)
 
 	// 4.5. Build file context if we have relevant chunks
@@ -566,7 +581,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 		}
 	}
 	log.Printf("📌 [TITLE CHECK] session.Messages=%d, userMsgCount=%d, currentTopicID=%s", len(session.Messages), userMsgCount, currentTopicID)
-	
+
 	// Generate title on first turn (1 user message = first conversation)
 	if userMsgCount >= 1 && userMsgCount <= 2 {
 		if currentTopicID != "" {

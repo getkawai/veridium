@@ -617,7 +617,7 @@ func (s *AgentChatService) collectToolNames(ctx context.Context, req ChatRequest
 // buildSystemPrompt builds the system prompt string for fantasy.Agent
 // This is optimized for use with fantasy.WithSystemPrompt() which handles
 // system prompt injection internally. Returns just the prompt string.
-func (s *AgentChatService) buildSystemPrompt(session *AgentSession) string {
+func (s *AgentChatService) buildSystemPrompt(session *AgentSession, memoryContext string) string {
 	// Get current time for LLM awareness
 	now := time.Now()
 	currentTime := fmt.Sprintf("Current date and time: %s (%s)",
@@ -625,7 +625,7 @@ func (s *AgentChatService) buildSystemPrompt(session *AgentSession) string {
 		now.Format("2006-01-02T15:04:05-07:00"))
 
 	// Build base instruction with current time
-	baseInstruction := fmt.Sprintf("You are a helpful AI assistant. %s\n\n", currentTime)
+	baseInstruction := fmt.Sprintf("You are kawai AI assistant with kawai model. %s\n\n", currentTime)
 
 	// Inject summary if exists
 	if session.Context != nil {
@@ -640,6 +640,19 @@ func (s *AgentChatService) buildSystemPrompt(session *AgentSession) string {
 			baseInstruction += summaryContext
 			log.Printf("📋 Injected history summary into system prompt (%d chars)", len(historySummary))
 		}
+	}
+
+	// Inject memory context (Hybrid Context) if exists
+	if memoryContext != "" {
+		memorySection := fmt.Sprintf(`
+<relevant_memories>
+<docstring>Relevant information from past conversations (Hybrid Context):</docstring>
+%s
+</relevant_memories>
+
+`, memoryContext)
+		baseInstruction += memorySection
+		log.Printf("🧠 Injected hybrid memory context into system prompt (%d chars)", len(memoryContext))
 	}
 
 	if session.KnowledgeBaseID != "" {
