@@ -13,9 +13,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/andybalholm/brotli"
 	htmltomd "github.com/JohannesKaufmann/html-to-markdown/v2"
 	"github.com/JohannesKaufmann/html-to-markdown/v2/converter"
+	"github.com/andybalholm/brotli"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/charset"
 	"golang.org/x/text/encoding"
@@ -171,8 +171,15 @@ func (c *Crawler) crawlWithJina(urlStr string) (CrawlResult, error) {
 		return CrawlResult{}, err
 	}
 
+	// Check if content starts with error message
+	contentStr := string(content)
+	if strings.HasPrefix(contentStr, "Warning:") || strings.HasPrefix(contentStr, "Error:") {
+		firstLine := strings.Split(contentStr, "\n")[0]
+		return CrawlResult{}, fmt.Errorf("jina returned error: %s", firstLine)
+	}
+
 	// Extract title (Jina usually puts it at the top)
-	title := extractTitle(string(content), urlStr)
+	title := extractTitle(contentStr, urlStr)
 	website := extractWebsite(urlStr)
 
 	return CrawlResult{
@@ -407,6 +414,22 @@ func isValidUTF8Content(data []byte) bool {
 // extractTitle extracts title from content
 func extractTitle(content string, fallbackURL string) string {
 	lines := strings.Split(content, "\n")
+
+	// Check if content contains "Published Time" - if yes, use second # header
+	if strings.Contains(content, "Published Time") {
+		hashCount := 0
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if strings.HasPrefix(line, "# ") {
+				hashCount++
+				if hashCount == 2 {
+					return strings.TrimPrefix(line, "# ")
+				}
+			}
+		}
+	}
+
+	// Default behavior: find first title
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line != "" && !strings.HasPrefix(line, "#") {
