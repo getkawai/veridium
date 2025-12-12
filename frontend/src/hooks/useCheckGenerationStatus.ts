@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import { GetGenerationWithAsyncTask } from '@@/github.com/kawai-network/veridium/internal/database/generated/queries';
 import { AsyncTaskStatus } from '@/types/asyncTask';
 import { useImageStore } from '@/store/image';
+import { generationTopicSelectors } from '@/store/image/slices/generationTopic/selectors';
 
 export const useCheckGenerationStatus = (
   generationId: string,
@@ -78,9 +79,15 @@ export const useCheckGenerationStatus = (
 
             // Update topic cover if needed
             if (status === AsyncTaskStatus.Success && generationUpdate.asset?.thumbnailUrl) {
-              // Logic for updating cover
-              // store.updateGenerationTopicCover(...) 
-              // (Assuming this exists or just rely on refresh)
+              const currentTopic = generationTopicSelectors.getGenerationTopicById(topicId)(store);
+
+              // If current topic has no coverUrl, update it with this generation's thumbnail
+              if (currentTopic && !currentTopic.coverUrl) {
+                await store.updateGenerationTopicCover(
+                  topicId,
+                  generationUpdate.asset.thumbnailUrl,
+                );
+              }
             }
 
             // Refresh batches
