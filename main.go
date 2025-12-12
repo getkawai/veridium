@@ -7,9 +7,9 @@ import (
 
 	"github.com/kawai-network/veridium/fantasy/llamalib/tools/builtin"
 	"github.com/kawai-network/veridium/internal/app"
+	"github.com/kawai-network/veridium/internal/image"
 	"github.com/kawai-network/veridium/internal/machineid"
 	"github.com/kawai-network/veridium/internal/services"
-	"github.com/kawai-network/veridium/internal/stablediffusion"
 	"github.com/kawai-network/veridium/internal/tableviewer"
 	"github.com/kawai-network/veridium/internal/topic"
 	"github.com/kawai-network/veridium/pkg/localfs"
@@ -51,7 +51,7 @@ func main() {
 	)
 
 	// Initialize Stable Diffusion in background
-	sdManager := stablediffusion.New(ctx.DB)
+	sdManager := image.New(ctx.DB)
 	sdManager.InitializeInBackground()
 
 	// Create Wails app
@@ -64,7 +64,7 @@ func main() {
 	}
 }
 
-func createWailsApp(ctx *app.Context, fileProcessor *FileProcessorService, sdManager *stablediffusion.StableDiffusion) *application.App {
+func createWailsApp(ctx *app.Context, fileProcessor *FileProcessorService, sdManager *image.StableDiffusion) *application.App {
 	return application.New(application.Options{
 		Name:        "veridium",
 		Description: "Veridium AI Assistant",
@@ -78,7 +78,7 @@ func createWailsApp(ctx *app.Context, fileProcessor *FileProcessorService, sdMan
 	})
 }
 
-func buildServiceList(ctx *app.Context, fileProcessor *FileProcessorService, sdManager *stablediffusion.StableDiffusion) []application.Service {
+func buildServiceList(ctx *app.Context, fileProcessor *FileProcessorService, sdManager *image.StableDiffusion) []application.Service {
 	return []application.Service{
 		// Database
 		application.NewService(ctx.Queries),
@@ -119,7 +119,7 @@ func buildServiceList(ctx *app.Context, fileProcessor *FileProcessorService, sdM
 	}
 }
 
-func registerAgentServices(wailsApp *application.App, ctx *app.Context, fileProcessor *FileProcessorService, sdManager *stablediffusion.StableDiffusion) {
+func registerAgentServices(wailsApp *application.App, ctx *app.Context, fileProcessor *FileProcessorService, sdManager *image.StableDiffusion) {
 	ctx.AudioRecorder.SetApp(wailsApp)
 
 	threadService := services.NewThreadManagementService(wailsApp, ctx.DB)

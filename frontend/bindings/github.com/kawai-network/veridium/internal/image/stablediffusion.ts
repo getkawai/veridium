@@ -23,14 +23,14 @@ import * as $models from "./models.js";
  * if no models are currently installed
  */
 export function AutoDownloadRecommendedModel(): $CancellablePromise<void> {
-    return $Call.ByID(162946796);
+    return $Call.ByID(1819124077);
 }
 
 /**
  * CheckInstalledModels checks what Stable Diffusion models are currently installed
  */
 export function CheckInstalledModels(): $CancellablePromise<string[]> {
-    return $Call.ByID(299752267).then(($result: any) => {
+    return $Call.ByID(1547174186).then(($result: any) => {
         return $$createType0($result);
     });
 }
@@ -39,14 +39,14 @@ export function CheckInstalledModels(): $CancellablePromise<string[]> {
  * Cleanup terminates all running Stable Diffusion processes
  */
 export function Cleanup(): $CancellablePromise<void> {
-    return $Call.ByID(923801049);
+    return $Call.ByID(3060984274);
 }
 
 /**
  * CreateImage handles frontend CreateImageRequest and generates images asynchronously
  */
 export function CreateImage(req: $models.CreateImageRequest): $CancellablePromise<void> {
-    return $Call.ByID(3099831724, req);
+    return $Call.ByID(4001529299, req);
 }
 
 /**
@@ -54,28 +54,28 @@ export function CreateImage(req: $models.CreateImageRequest): $CancellablePromis
  * Used by internal services like image_designer
  */
 export function CreateImageWithOptions(opts: $models.GenerationOptions): $CancellablePromise<void> {
-    return $Call.ByID(1379676314, opts);
+    return $Call.ByID(1523359679, opts);
 }
 
 /**
  * GetFirstAvailableModel returns the first available SD model
  */
 export function GetFirstAvailableModel(): $CancellablePromise<string> {
-    return $Call.ByID(3045849309);
+    return $Call.ByID(3873438948);
 }
 
 /**
  * GetModelPath returns the full path to a specific model file
  */
 export function GetModelPath(filename: string): $CancellablePromise<string> {
-    return $Call.ByID(4139656469, filename);
+    return $Call.ByID(3189333044, filename);
 }
 
 /**
  * GetModelsPath returns the path where Stable Diffusion models are stored
  */
 export function GetModelsPath(): $CancellablePromise<string> {
-    return $Call.ByID(3531692384);
+    return $Call.ByID(2654437831);
 }
 
 /**
@@ -83,7 +83,7 @@ export function GetModelsPath(): $CancellablePromise<string> {
  * Note: This matches the default but we override it in CreateImage to use files/uploads
  */
 export function GetOutputsPath(): $CancellablePromise<string> {
-    return $Call.ByID(1891601522);
+    return $Call.ByID(772648227);
 }
 
 /**
@@ -91,28 +91,28 @@ export function GetOutputsPath(): $CancellablePromise<string> {
  * This includes checking and installing the binary and downloading a recommended model
  */
 export function InitializeInBackground(): $CancellablePromise<void> {
-    return $Call.ByID(3740929110);
+    return $Call.ByID(143055171);
 }
 
 /**
  * IsStableDiffusionInstalled checks if Stable Diffusion binary exists and is valid
  */
 export function IsStableDiffusionInstalled(): $CancellablePromise<boolean> {
-    return $Call.ByID(1014732463);
+    return $Call.ByID(537377218);
 }
 
 /**
  * SetTopicService sets the topic service
  */
 export function SetTopicService(ts: topic$0.TopicService | null): $CancellablePromise<void> {
-    return $Call.ByID(3778660071, ts);
+    return $Call.ByID(9153564, ts);
 }
 
 /**
  * VerifyChecksum verifies the downloaded file against the provided checksums
  */
 export function VerifyChecksum(filePath: string, checksumPath: string, binaryName: string): $CancellablePromise<void> {
-    return $Call.ByID(2336978029, filePath, checksumPath, binaryName);
+    return $Call.ByID(1924051496, filePath, checksumPath, binaryName);
 }
 
 // Private type creation functions

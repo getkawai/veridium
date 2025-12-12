@@ -1,4 +1,4 @@
-package stablediffusion
+package image
 
 import "log"
 

@@ -14,7 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/fantasy/llamalib/tools"
-	"github.com/kawai-network/veridium/internal/stablediffusion"
+	"github.com/kawai-network/veridium/internal/image"
 )
 
 // Text2ImageInput defines input for text2image tool
@@ -42,7 +42,7 @@ type DallEImageItem struct {
 
 // ImageDesignerService provides image generation capabilities using Stable Diffusion
 type ImageDesignerService struct {
-	sdManager   *stablediffusion.StableDiffusion
+	sdManager   *image.StableDiffusion
 	outputDir   string
 	initialized bool
 }
@@ -54,7 +54,7 @@ func NewImageDesignerService() *ImageDesignerService {
 	os.MkdirAll(outputDir, 0755)
 
 	return &ImageDesignerService{
-		sdManager:   stablediffusion.New(nil),
+		sdManager:   image.New(nil),
 		outputDir:   outputDir,
 		initialized: false,
 	}
@@ -158,7 +158,7 @@ func (s *ImageDesignerService) Text2Image(prompts []string, quality, size, style
 		}
 
 		// Prepare generation options
-		options := stablediffusion.GenerationOptions{
+		options := image.GenerationOptions{
 			Prompt:         prompt,
 			NegativePrompt: negativePrompt,
 			ModelPath:      modelPath,

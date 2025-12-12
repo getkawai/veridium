@@ -1,6 +1,6 @@
 //go:build darwin
 
-package stablediffusion
+package image
 
 import "log"
 
