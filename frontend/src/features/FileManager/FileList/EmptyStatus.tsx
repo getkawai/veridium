@@ -1,12 +1,16 @@
 import { FileTypeIcon, Icon, Text } from '@lobehub/ui';
-import { Upload } from 'antd';
+import { Dialogs } from '@wailsio/runtime';
 import { createStyles, useTheme } from 'antd-style';
+
+import { message } from '@/components/AntdStaticMethods';
 import { ArrowUpIcon, PlusIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Center, Flexbox } from 'react-layout-kit';
 
 import { useCreateNewModal } from '@/features/KnowledgeBaseModal';
 import { useFileStore } from '@/store/file';
+import { getUserId } from '@/store/user/helpers';
+import { ProcessFileFromPath } from '@@/github.com/kawai-network/veridium/fileprocessorservice';
 
 const ICON_SIZE = 80;
 
@@ -69,9 +73,108 @@ const EmptyStatus = ({ showKnowledgeBase, knowledgeBaseId }: EmptyStatusProps) =
   const theme = useTheme();
   const { styles } = useStyles();
 
-  const pushDockFileList = useFileStore((s) => s.pushDockFileList);
+
 
   const { open } = useCreateNewModal();
+  const refreshFileList = useFileStore((s) => s.refreshFileList);
+
+  // Helper from ServerMode.tsx
+  const getMimeType = (ext: string): string => {
+    const mimeTypes: Record<string, string> = {
+      png: 'image/png',
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      gif: 'image/gif',
+      webp: 'image/webp',
+      svg: 'image/svg+xml',
+      mp4: 'video/mp4',
+      webm: 'video/webm',
+      pdf: 'application/pdf',
+      txt: 'text/plain',
+      json: 'application/json',
+      xml: 'application/xml',
+    };
+    return mimeTypes[ext] || 'application/octet-stream';
+  };
+
+  const handleFileUpload = async () => {
+    try {
+      const result = await Dialogs.OpenFile({
+        CanChooseFiles: true,
+        CanChooseDirectories: false,
+        AllowsMultipleSelection: true,
+        Title: 'Select Files',
+      });
+
+      if (!result) return;
+
+      const filePaths = Array.isArray(result) ? result : [result];
+      const hideLoading = message.loading('Processing files...', 0);
+
+      try {
+        const processedFiles = await Promise.all(
+          filePaths.map(async (filePath) => {
+            const fileName = filePath.split('/').pop() || filePath.split('\\').pop() || 'file';
+            const ext = fileName.split('.').pop()?.toLowerCase() || '';
+            const mimeType = getMimeType(ext);
+
+            const userId = getUserId();
+            const result = await ProcessFileFromPath(filePath, userId);
+
+            if (!result) return null;
+
+            return {
+              fileId: result.fileId,
+              name: result.filename,
+              type: mimeType,
+              url: result.relativeUrl,
+            };
+          }),
+        );
+
+        const validFiles = processedFiles.filter(Boolean);
+
+        if (validFiles.length === 0) {
+          hideLoading();
+          message.warning('No valid files to upload');
+          return;
+        }
+
+        // TODO: ServerMode.tsx adds to chat list, here we want to refresh the file manager list
+        // Note: files are not linked to Knowledge Base yet because ProcessFileFromPath doesn't support it
+
+        await refreshFileList();
+
+        hideLoading();
+        message.success(`Successfully uploaded ${validFiles.length} file(s)`);
+      } catch (error) {
+        hideLoading();
+        throw error;
+      }
+    } catch (error) {
+      console.error('File upload error:', error);
+      message.error('Failed to upload files');
+    }
+  };
+
+  const handleFolderUpload = async () => {
+    try {
+      const result = await Dialogs.OpenFile({
+        CanChooseFiles: false,
+        CanChooseDirectories: true,
+        AllowsMultipleSelection: false,
+        Title: 'Select Folder',
+      });
+
+      if (!result) return;
+
+      message.info('Folder upload not yet implemented');
+      // TODO: Implement recursive folder scanning in backend
+    } catch (error) {
+      console.error('Folder upload error:', error);
+      message.error('Failed to upload folder');
+    }
+  };
 
   return (
     <Center gap={24} height={'100%'} style={{ paddingBottom: 100 }} width={'100%'}>
@@ -101,50 +204,38 @@ const EmptyStatus = ({ showKnowledgeBase, knowledgeBaseId }: EmptyStatusProps) =
             />
           </Flexbox>
         )}
-        <Upload
-          beforeUpload={async (file) => {
-            await pushDockFileList([file], knowledgeBaseId);
-
-            return false;
-          }}
-          multiple={true}
-          showUploadList={false}
+        <Flexbox
+          className={styles.card}
+          onClick={handleFileUpload}
+          padding={16}
         >
-          <Flexbox className={styles.card} padding={16}>
-            <span className={styles.actionTitle}>{t('FileManager.emptyStatus.actions.file')}</span>
-            <div className={styles.glow} style={{ background: theme.gold }} />
-            <FileTypeIcon
-              className={styles.icon}
-              color={theme.gold}
-              icon={<Icon color={'#fff'} icon={ArrowUpIcon} />}
-              size={ICON_SIZE}
-            />
-          </Flexbox>
-        </Upload>
-        <Upload
-          beforeUpload={async (file) => {
-            await pushDockFileList([file], knowledgeBaseId);
+          <span className={styles.actionTitle}>{t('FileManager.emptyStatus.actions.file')}</span>
+          <div className={styles.glow} style={{ background: theme.gold }} />
+          <FileTypeIcon
+            className={styles.icon}
+            color={theme.gold}
+            icon={<Icon color={'#fff'} icon={ArrowUpIcon} />}
+            size={ICON_SIZE}
+          />
+        </Flexbox>
 
-            return false;
-          }}
-          directory
-          multiple={true}
-          showUploadList={false}
+        <Flexbox
+          className={styles.card}
+          onClick={handleFolderUpload}
+          padding={16}
         >
-          <Flexbox className={styles.card} padding={16}>
-            <span className={styles.actionTitle}>
-              {t('FileManager.emptyStatus.actions.folder')}
-            </span>
-            <div className={styles.glow} style={{ background: theme.geekblue }} />
-            <FileTypeIcon
-              className={styles.icon}
-              color={theme.geekblue}
-              icon={<Icon color={'#fff'} icon={ArrowUpIcon} />}
-              size={ICON_SIZE}
-              type={'folder'}
-            />
-          </Flexbox>
-        </Upload>
+          <span className={styles.actionTitle}>
+            {t('FileManager.emptyStatus.actions.folder')}
+          </span>
+          <div className={styles.glow} style={{ background: theme.geekblue }} />
+          <FileTypeIcon
+            className={styles.icon}
+            color={theme.geekblue}
+            icon={<Icon color={'#fff'} icon={ArrowUpIcon} />}
+            size={ICON_SIZE}
+            type={'folder'}
+          />
+        </Flexbox>
       </Flexbox>
     </Center>
   );

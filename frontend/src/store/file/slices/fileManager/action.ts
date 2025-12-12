@@ -233,9 +233,9 @@ export const createFileManageSlice: StateCreator<
     get().toggleParsingIds([id], false);
   },
   refreshFileList: async () => {
-    const { queryListParams, internal_fetchFileManage } = get();
+    const { queryListParams, fetchFileList } = get();
     if (queryListParams) {
-      await internal_fetchFileManage(queryListParams);
+      await fetchFileList(queryListParams);
     }
   },
   removeAllFiles: async () => {
@@ -505,10 +505,10 @@ export const createFileManageSlice: StateCreator<
 
         return {
           id: item.id,
-          name: getNullableString(item.name as any) || 'Unknown',
-          fileType: getNullableString(item.fileType as any) || '',
+          name: item.name || 'Unknown',
+          fileType: item.fileType || '',
           size: item.size,
-          url: getNullableString(item.url as any) || '',
+          url: item.url || '',
           createdAt: new Date(item.createdAt),
           updatedAt: new Date(item.updatedAt),
           chunkCount: 0,
