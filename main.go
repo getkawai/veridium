@@ -11,6 +11,7 @@ import (
 	"github.com/kawai-network/veridium/internal/services"
 	"github.com/kawai-network/veridium/internal/stablediffusion"
 	"github.com/kawai-network/veridium/internal/tableviewer"
+	"github.com/kawai-network/veridium/internal/topic"
 	"github.com/kawai-network/veridium/pkg/localfs"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
@@ -124,16 +125,23 @@ func registerAgentServices(wailsApp *application.App, ctx *app.Context, fileProc
 	threadService := services.NewThreadManagementService(wailsApp, ctx.DB)
 	wailsApp.RegisterService(application.NewService(threadService))
 
+	// Initialize TopicService (for title generation)
+	topicService := topic.NewService(ctx.DB, wailsApp)
+	// Inject TopicService into StableDiffusion
+	sdManager.SetTopicService(topicService)
+	// Register TopicService
+	wailsApp.RegisterService(application.NewService(topicService))
+
 	if ctx.LibService != nil && ctx.KBService != nil {
 		agentService := services.NewAgentChatService(
-			wailsApp, ctx.DB, ctx.LibService, ctx.KBService, ctx.VectorSearch, threadService,
+			wailsApp, ctx.DB, ctx.LibService, ctx.KBService, ctx.VectorSearch, threadService, topicService,
 		)
 
 		if ctx.ChatModel != nil {
 			agentService.SetChatModel(ctx.ChatModel)
 		}
 		if ctx.TitleModel != nil {
-			agentService.SetTitleModel(ctx.TitleModel)
+			agentService.SetTitleModel(ctx.TitleModel) // This will also set it on topicService
 		}
 		if ctx.SummaryModel != nil {
 			agentService.SetSummaryModel(ctx.SummaryModel)

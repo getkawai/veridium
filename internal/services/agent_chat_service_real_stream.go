@@ -587,9 +587,13 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	if userMsgCount >= 1 && userMsgCount <= 2 {
 		if currentTopicID != "" {
 			log.Printf("📌 [TITLE CHECK] Conditions met (first turn), calling updateTopicTitle")
-			err := s.updateTopicTitle(ctx, currentTopicID, session.UserID, session.Messages)
-			if err != nil {
-				log.Printf("⚠️  Warning: Failed to trigger topic title update: %v", err)
+			if s.topicService != nil {
+				err := s.topicService.UpdateTopicTitle(ctx, currentTopicID, session.UserID, session.Messages)
+				if err != nil {
+					log.Printf("⚠️  Warning: Failed to trigger topic title update: %v", err)
+				}
+			} else {
+				log.Printf("⚠️  TopicService not initialized, skipping title update")
 			}
 		} else {
 			log.Printf("📌 [TITLE CHECK] Skipped - no topicID")

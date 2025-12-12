@@ -126,6 +126,7 @@ const TopicItem = memo<TopicItemProps>(({ topic, showMoreInfo, style }) => {
           size={48}
           style={{
             flex: 'none',
+            pointerEvents: 'none',
           }}
         />
         {showMoreInfo && tooltipContent}

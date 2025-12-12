@@ -57,6 +57,27 @@ func (sdrm *StableDiffusion) generateImagesInBackground(batchID, userID string, 
 		return
 	}
 
+	// Trigger topic title update if TopicService is available
+	if sdrm.TopicService != nil {
+		go func() {
+			batch, err := sdrm.DB.Queries().GetGenerationBatch(ctx, db.GetGenerationBatchParams{
+				ID:     batchID,
+				UserID: userID,
+			})
+			if err != nil {
+				log.Printf("[Background] Warning: Failed to fetch batch for title update: %v", err)
+				return
+			}
+
+			if batch.GenerationTopicID != "" {
+				log.Printf("[Background] Triggering topic title update for topic %s", batch.GenerationTopicID)
+				if err := sdrm.TopicService.UpdateGenerationTopicTitleFromPrompt(context.Background(), batch.GenerationTopicID, userID, opts.Prompt); err != nil {
+					log.Printf("[Background] Warning: Failed to update topic title: %v", err)
+				}
+			}
+		}()
+	}
+
 	if len(generations) != imageNum {
 		log.Printf("[Background] WARNING: Expected %d generations, got %d", imageNum, len(generations))
 	}
@@ -104,13 +125,25 @@ func (sdrm *StableDiffusion) generateImagesInBackground(batchID, userID string, 
 			localOpts := opts
 			localOpts.OutputPath = outputPath
 
-			// Rotate through models
-			modelIndex := index % len(availableModels)
-			localOpts.Model = availableModels[modelIndex]
-			log.Printf("[Background] Using model: %s for image %d", localOpts.Model, index)
+			// Rotate through models with retry strategy
+			startModelIndex := index % len(availableModels)
+			var remoteErr error
 
-			// Try remote generation
-			remoteErr := sdrm.generateImageRemote(localOpts)
+			// Try all available models until one succeeds
+			for attempt := 0; attempt < len(availableModels); attempt++ {
+				modelIndex := (startModelIndex + attempt) % len(availableModels)
+				localOpts.Model = availableModels[modelIndex]
+				log.Printf("[Background] Image %d: Attempt %d/%d using model: %s", index, attempt+1, len(availableModels), localOpts.Model)
+
+				// Try remote generation
+				remoteErr = sdrm.generateImageRemote(localOpts)
+				if remoteErr == nil {
+					log.Printf("[Background] Image %d: Success with model %s", index, localOpts.Model)
+					break
+				}
+
+				log.Printf("[Background] Image %d: Failed with model %s: %v", index, localOpts.Model, remoteErr)
+			}
 
 			mu.Lock()
 			if remoteErr != nil {

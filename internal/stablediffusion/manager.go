@@ -25,6 +25,7 @@ import (
 	"github.com/kawai-network/veridium/pkg/grab"
 
 	"github.com/kawai-network/veridium/internal/database"
+	"github.com/kawai-network/veridium/internal/topic"
 )
 
 // Release represents a GitHub release
@@ -123,6 +124,9 @@ type StableDiffusion struct {
 	// DB Service for persisting generation data
 	DB *database.Service
 
+	// TopicService for generating titles
+	TopicService *topic.TopicService
+
 	// Executor handles command execution, simpler for testing
 	Executor CommandExecutor
 
@@ -131,6 +135,13 @@ type StableDiffusion struct {
 	cancel          context.CancelFunc
 	activeProcesses []*exec.Cmd
 	processMutex    sync.Mutex
+}
+
+// ... (New function remains same)
+
+// SetTopicService sets the topic service
+func (sd *StableDiffusion) SetTopicService(ts *topic.TopicService) {
+	sd.TopicService = ts
 }
 
 // New creates a new Stable Diffusion release manager

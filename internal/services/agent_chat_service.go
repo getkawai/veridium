@@ -36,6 +36,7 @@ import (
 	yzmabuiltin "github.com/kawai-network/veridium/fantasy/llamalib/tools/builtin"
 	"github.com/kawai-network/veridium/internal/database"
 	db "github.com/kawai-network/veridium/internal/database/generated"
+	"github.com/kawai-network/veridium/internal/topic"
 	"github.com/kawai-network/veridium/types"
 	"github.com/pemistahl/lingua-go"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -64,6 +65,7 @@ type AgentChatService struct {
 
 	// Phase 4: Thread management
 	threadService *ThreadManagementService // Thread management service
+	topicService  *topic.TopicService      // Topic service for title generation
 
 	// Reasoning mode configuration
 	reasoningConfig ReasoningConfig // Controls reasoning behavior
@@ -370,6 +372,7 @@ func NewAgentChatService(
 	kbService *KnowledgeBaseService,
 	vectorSearch *VectorSearchService,
 	threadService *ThreadManagementService,
+	topicService *topic.TopicService,
 ) *AgentChatService {
 	ragWorkflow := NewRAGWorkflow(kbService)
 
@@ -420,6 +423,7 @@ func NewAgentChatService(
 		vectorSearch:     vectorSearch,
 		toolRegistry:     toolRegistry,
 		threadService:    threadService,
+		topicService:     topicService,
 		reasoningConfig:  DefaultReasoningConfig(), // Default: disabled (non-reasoning)
 		sessions:         make(map[string]*AgentSession),
 		languageDetector: languageDetector,
@@ -440,6 +444,10 @@ func (s *AgentChatService) SetChatModel(model fantasy.LanguageModel) {
 
 // SetTitleModel sets the title generation model
 func (s *AgentChatService) SetTitleModel(model fantasy.LanguageModel) {
+	if s.topicService != nil {
+		s.topicService.SetTitleModel(model)
+	}
+	// Keep s.titleModel for backward compatibility or direct usage if any
 	s.titleModel = model
 	if model != nil {
 		log.Printf("✅ AgentChatService: Title model set (%s/%s)", model.Provider(), model.Model())
@@ -816,108 +824,6 @@ func (s *AgentChatService) registerKBSearchTool(ctx context.Context, kbID, userI
 	return s.toolRegistry.Register(tool)
 }
 
-// generateTopicTitle generates a concise title for the conversation using titleModel
-// ChainLanguageModel handles fallback internally if configured
-func (s *AgentChatService) generateTopicTitle(ctx context.Context, messages []fantasy.Message, locale string) (string, error) {
-	if len(messages) == 0 {
-		return "New Conversation", nil
-	}
-
-	// Check if title model is configured
-	if s.titleModel == nil {
-		log.Printf("⚠️  Title model not configured, using default title")
-		return "New Conversation", nil
-	}
-
-	// Build summary prompt
-	systemPrompt := fmt.Sprintf(`You are a professional conversation summarizer. Generate a concise title that captures the essence of the conversation.
-
-Rules:
-- Maximum 10 words
-- Maximum 50 characters
-- No punctuation marks, quotes, or special characters
-- Use the language specified by the locale code: %s
-- Output ONLY the title text, nothing else
-
-Example: Sleep Functions for Body and Mind`, locale)
-
-	// Build conversation text (User messages only)
-	var conversationText string
-	for _, msg := range messages {
-		if types.GetMessageRole(msg) == "user" {
-			conversationText += fmt.Sprintf("user: %s\n", types.GetMessageText(msg))
-		}
-	}
-
-	// Fallback: if no user messages found (unlikely but possible), use all messages
-	if conversationText == "" {
-		for _, msg := range messages {
-			conversationText += fmt.Sprintf("%s: %s\n", types.GetMessageRole(msg), types.GetMessageText(msg))
-		}
-	}
-
-	log.Printf("📝 Generating title for conversation (%d messages, %d chars)", len(messages), len(conversationText))
-
-	// Create messages for title generation
-	titleMessages := fantasy.Prompt{
-		fantasy.NewSystemMessage(systemPrompt),
-		fantasy.NewUserMessage(conversationText),
-	}
-
-	// Use titleModel directly (ChainLanguageModel handles fallback)
-	resp, err := s.titleModel.Generate(ctx, fantasy.Call{Prompt: titleMessages})
-	if err != nil {
-		log.Printf("⚠️  Title generation failed: %v, using default", err)
-		return "New Conversation", nil
-	}
-
-	responseContent := resp.Content.Text()
-
-	// Strip <think> tags if present (for reasoning models)
-	if strings.Contains(responseContent, "<think>") {
-		log.Printf("⚠️  Model generated <think> tags in title, stripping...")
-		responseContent = stripThinkTags(responseContent)
-	}
-
-	log.Printf("📝 Raw title response: %q", responseContent)
-
-	// Clean up the title
-	title := strings.TrimSpace(responseContent)
-
-	// If title is empty, try to extract from the original response
-	if title == "" {
-		// Try to find text in quotes
-		quotePattern := regexp.MustCompile(`["']([^"']+)["']`)
-		matches := quotePattern.FindStringSubmatch(responseContent)
-		if len(matches) > 1 {
-			title = matches[1]
-		} else {
-			// Fallback: use first non-empty line
-			lines := strings.Split(responseContent, "\n")
-			for _, line := range lines {
-				line = strings.TrimSpace(line)
-				if line != "" {
-					title = line
-					break
-				}
-			}
-		}
-	}
-
-	// Final fallback if still empty
-	if title == "" {
-		log.Printf("⚠️  Title generation failed (empty result), using default")
-		title = "New Conversation"
-	}
-
-	// Truncate to 50 characters
-	if len(title) > 50 {
-		title = title[:50]
-	}
-
-	return title, nil
-}
-
 // stripThinkTags removes <think>...</think> blocks from the text using regex
 func stripThinkTags(text string) string {
 	// First, try to remove complete <think>...</think> blocks
@@ -977,74 +883,6 @@ func (s *AgentChatService) createTopicForSessionSync(ctx context.Context, sessio
 	}
 
 	return topicID, nil
-}
-
-// updateTopicTitle updates an existing topic with LLM-generated title
-// Phase 4 FIX: Used to update placeholder topic with meaningful title after first response
-func (s *AgentChatService) updateTopicTitle(ctx context.Context, topicID, userID string, messages []fantasy.Message) error {
-	// Create a copy of messages to avoid race conditions
-	messagesCopy := make([]fantasy.Message, len(messages))
-	copy(messagesCopy, messages)
-
-	log.Printf("📌 [TITLE] updateTopicTitle called for topic %s with %d messages", topicID, len(messagesCopy))
-
-	// Run in background
-	go func() {
-		// Add a small delay to ensure main chat request finishes and releases model resources
-		time.Sleep(2 * time.Second)
-
-		log.Printf("🔄 Generating title in background for topic %s...", topicID)
-
-		// Create context with timeout - 3 minutes to allow fallback to local model
-		// (remote model may timeout at 60s, then local model needs time to generate)
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
-		defer cancel()
-
-		// Generate title (default locale: en-US)
-		title, err := s.generateTopicTitle(ctx, messagesCopy, "en-US")
-		if err != nil {
-			log.Printf("⚠️  Warning: Failed to generate topic title: %v", err)
-			title = "New Conversation"
-		}
-
-		// Fetch existing topic first to preserve history_summary and metadata
-		existingTopic, err := s.db.Queries().GetTopic(ctx, db.GetTopicParams{
-			ID:     topicID,
-			UserID: userID,
-		})
-		if err != nil {
-			log.Printf("⚠️  Failed to fetch topic for update: %v", err)
-			return
-		}
-
-		// Update topic title in database
-		now := time.Now().UnixMilli()
-		_, err = s.db.Queries().UpdateTopic(ctx, db.UpdateTopicParams{
-			Title:          sql.NullString{String: title, Valid: true},
-			HistorySummary: existingTopic.HistorySummary, // Preserve existing
-			Metadata:       existingTopic.Metadata,       // Preserve existing
-			UpdatedAt:      now,
-			ID:             topicID,
-			UserID:         userID,
-		})
-
-		if err != nil {
-			log.Printf("⚠️  Failed to update topic title in DB: %v", err)
-		} else {
-			log.Printf("✅ Updated topic %s with title: %s", topicID, title)
-
-			// Emit event to notify UI
-			if s.app != nil {
-				s.app.Event.Emit("chat:topic:updated", map[string]interface{}{
-					"topic_id": topicID,
-					"title":    title,
-				})
-			}
-		}
-	}()
-
-	// Return immediately - title will be updated in background
-	return nil
 }
 
 // convertDBMessageToYzma converts a database message to native message

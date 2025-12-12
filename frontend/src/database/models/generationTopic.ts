@@ -1,4 +1,4 @@
-import { GenerationAsset, ImageGenerationTopic } from  '@/types';
+import { GenerationAsset, ImageGenerationTopic } from '@/types';
 import { nanoid } from 'nanoid';
 import {
   DB,
@@ -47,7 +47,7 @@ export class GenerationTopicModel {
         topics.map(async (topic): Promise<ImageGenerationTopic> => {
           const coverUrl = getNullableString(topic.coverUrl as any);
           const fullCoverUrl = coverUrl ? await GetFullFileUrl(coverUrl) : null;
-          
+
           return {
             id: topic.id,
             title: getNullableString(topic.title as any),
@@ -65,7 +65,7 @@ export class GenerationTopicModel {
 
   create = async (title: string): Promise<GenerationTopic> => {
     await this.logger.methodEntry('create', { title, userId: this.userId });
-    
+
     try {
       const id = nanoid();
       const now = currentTimestampMs();
@@ -96,13 +96,24 @@ export class GenerationTopicModel {
     data: Partial<ImageGenerationTopic>,
   ): Promise<GenerationTopicItem | undefined> => {
     await this.logger.methodEntry('update', { id, data, userId: this.userId });
-    
+
     try {
+      // 1. Fetch existing topic to preserve fields
+      const existing = await DB.GetGenerationTopic({ id, userId: this.userId });
+      if (!existing) {
+        throw new Error(`Topic with id ${id} not found`);
+      }
+
+      // 2. Prepare values (use existing if not provided in update)
+      // Note: check for undefined strictly to allow setting null/empty if intended
+      const titleToSave = data.title !== undefined ? data.title : getNullableString(existing.title as any);
+      const coverUrlToSave = data.coverUrl !== undefined ? data.coverUrl : getNullableString(existing.coverUrl as any);
+
       const updatedTopic: GenerationTopic = await DB.UpdateGenerationTopic({
         id,
         userId: this.userId,
-        title: toNullString(data.title),
-        coverUrl: toNullString(data.coverUrl as any),
+        title: toNullString(titleToSave),
+        coverUrl: toNullString(coverUrlToSave),
         updatedAt: currentTimestampMs(),
       });
 
@@ -138,7 +149,7 @@ export class GenerationTopicModel {
     id: string,
   ): Promise<{ deletedTopic: GenerationTopicItem; filesToDelete: string[] } | undefined> => {
     await this.logger.methodEntry('delete', { id, userId: this.userId });
-    
+
     try {
       // 1. Get topic to verify ownership
       const topic = await DB.GetGenerationTopic({

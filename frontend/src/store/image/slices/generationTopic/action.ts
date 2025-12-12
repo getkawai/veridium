@@ -1,16 +1,12 @@
-import { chainSummaryGenerationTitle } from '@/prompts';
+import { GenerateTitleFromPrompt } from '@@/github.com/kawai-network/veridium/internal/topic/topicservice';
 import isEqual from 'fast-deep-equal';
 import { StateCreator } from 'zustand/vanilla';
 
 import { LOADING_FLAT } from '@/const/message';
 import { UpdateTopicValue } from '@/types/generation-types';
-import { chatService } from '@/services/chat';
 import { generationTopicService } from '@/services/generationTopic';
 import { globalHelpers } from '@/store/global/helpers';
-import { useUserStore } from '@/store/user';
-import { systemAgentSelectors } from '@/store/user/selectors';
 import { ImageGenerationTopic } from '@/types/generation';
-import { merge } from '@/utils/merge';
 import { setNamespace } from '@/utils/storeDebug';
 
 import type { ImageStore } from '../../store';
@@ -19,7 +15,7 @@ import { generationTopicSelectors } from './selectors';
 import { GenerationTopicModel } from '@/database/models/generationTopic';
 import { getUserId } from '@/store/user/helpers';
 
-const FETCH_GENERATION_TOPICS_KEY = 'fetchGenerationTopics';
+
 
 const n = setNamespace('generationTopic');
 
@@ -101,8 +97,6 @@ export const createGenerationTopicSlice: StateCreator<
     internal_updateGenerationTopicLoading(topicId, true);
     internal_updateGenerationTopicTitleInSummary(topicId, LOADING_FLAT);
 
-    let output = '';
-
     // Helper function to generate fallback title from prompts
     const generateFallbackTitle = () => {
       // Extract title from the first prompt content
@@ -114,41 +108,32 @@ export const createGenerationTopicSlice: StateCreator<
         .join(' ')
         .slice(0, 10); // Limit to 10 characters
 
-      return title;
+      // If empty, return default
+      return title || 'New Topic';
     };
 
-    const generationTopicAgentConfig = systemAgentSelectors.generationTopic(
-      useUserStore.getState(),
-    );
-    // Auto generate topic title from prompt by AI
-    await chatService.fetchPresetTaskResult({
-      params: merge(
-        generationTopicAgentConfig,
-        chainSummaryGenerationTitle(prompts, 'image', globalHelpers.getCurrentLanguage()),
-      ),
-      onError: async () => {
-        const fallbackTitle = generateFallbackTitle();
-        internal_updateGenerationTopicTitleInSummary(topicId, fallbackTitle);
-        // Update the topic with fallback title
-        await get().internal_updateGenerationTopic(topicId, { title: fallbackTitle });
-      },
-      onFinish: async (text) => {
-        await get().internal_updateGenerationTopic(topicId, { title: text });
-      },
-      onLoadingChange: (loading) => {
-        internal_updateGenerationTopicLoading(topicId, loading);
-      },
-      onMessageHandle: (chunk) => {
-        switch (chunk.type) {
-          case 'text': {
-            output += chunk.text;
-            internal_updateGenerationTopicTitleInSummary(topicId, output);
-          }
-        }
-      },
-    });
+    let title = '';
+    try {
+      // Use the new TopicService to generate title
+      // Join prompts if there are multiple to give context
+      const contextPrompt = prompts.join('\n');
+      title = await GenerateTitleFromPrompt(contextPrompt, globalHelpers.getCurrentLanguage());
 
-    return output;
+      // If empty returned, use fallback
+      if (!title) {
+        title = generateFallbackTitle();
+      }
+    } catch (error) {
+      console.error('Failed to generate topic title:', error);
+      title = generateFallbackTitle();
+    }
+
+    // Update state and backend
+    internal_updateGenerationTopicTitleInSummary(topicId, title);
+    await get().internal_updateGenerationTopic(topicId, { title });
+    internal_updateGenerationTopicLoading(topicId, false);
+
+    return title;
   },
 
   internal_createGenerationTopic: async () => {
@@ -228,10 +213,10 @@ export const createGenerationTopicSlice: StateCreator<
 
     try {
       const data = await generationTopicService.getAllGenerationTopics();
-      
+
       // No need to update if data is the same
       if (isEqual(data, get().generationTopics)) return;
-      
+
       set({ generationTopics: data }, false, n('internal_fetchGenerationTopics'));
     } catch (error) {
       console.error('[internal_fetchGenerationTopics] Error:', error);

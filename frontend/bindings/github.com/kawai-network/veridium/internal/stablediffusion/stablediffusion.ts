@@ -12,6 +12,10 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as topic$0 from "../topic/models.js";
+
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
 /**
@@ -95,6 +99,13 @@ export function InitializeInBackground(): $CancellablePromise<void> {
  */
 export function IsStableDiffusionInstalled(): $CancellablePromise<boolean> {
     return $Call.ByID(1014732463);
+}
+
+/**
+ * SetTopicService sets the topic service
+ */
+export function SetTopicService(ts: topic$0.TopicService | null): $CancellablePromise<void> {
+    return $Call.ByID(3778660071, ts);
 }
 
 /**
