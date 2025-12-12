@@ -367,7 +367,7 @@ class ChatService {
       const tools = toolsEngine.generateTools({
         model: params.model!,
         provider: params.provider!,
-        toolIds: params.plugins,
+        toolIds: params.plugins || [],
       });
 
       // remove plugins

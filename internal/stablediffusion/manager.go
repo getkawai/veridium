@@ -23,6 +23,8 @@ import (
 	"time"
 
 	"github.com/kawai-network/veridium/pkg/grab"
+
+	"github.com/kawai-network/veridium/internal/database"
 )
 
 // Release represents a GitHub release
@@ -76,7 +78,9 @@ func (e *DefaultCommandExecutor) Run(ctx context.Context, name string, args ...s
 
 	// Check if we need to capture output (could be enhanced)
 	var stderr bytes.Buffer
+	var stdout bytes.Buffer
 	cmd.Stderr = &stderr
+	cmd.Stdout = &stdout // Capture stdout to prevent blocking
 
 	// Track the process if we have a reference to StableDiffusion
 	if e.sd != nil {
@@ -116,6 +120,9 @@ type StableDiffusion struct {
 	// MetadataPath is where version metadata is stored
 	MetadataPath string
 
+	// DB Service for persisting generation data
+	DB *database.Service
+
 	// Executor handles command execution, simpler for testing
 	Executor CommandExecutor
 
@@ -127,7 +134,7 @@ type StableDiffusion struct {
 }
 
 // New creates a new Stable Diffusion release manager
-func New() *StableDiffusion {
+func New(db *database.Service) *StableDiffusion {
 	homeDir, _ := os.UserHomeDir()
 	binaryPath := filepath.Join(homeDir, ".stable-diffusion", "bin")
 	checksumsPath := filepath.Join(homeDir, ".stable-diffusion", "checksums")
@@ -144,6 +151,7 @@ func New() *StableDiffusion {
 		ctx:             ctx,
 		cancel:          cancel,
 		activeProcesses: make([]*exec.Cmd, 0),
+		DB:              db,
 	}
 
 	// Set executor with reference to this instance for process tracking

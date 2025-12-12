@@ -54,7 +54,7 @@ func NewImageDesignerService() *ImageDesignerService {
 	os.MkdirAll(outputDir, 0755)
 
 	return &ImageDesignerService{
-		sdManager:   stablediffusion.New(),
+		sdManager:   stablediffusion.New(nil),
 		outputDir:   outputDir,
 		initialized: false,
 	}

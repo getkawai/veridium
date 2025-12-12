@@ -106,9 +106,6 @@ const PromptInput = ({ showTitle = false }: PromptInputProps) => {
   // Model AI yang sedang dipilih untuk generasi
   const currentModel = useImageStore(imageGenerationConfigSelectors.model);
 
-  // Status login user
-  const isLogin = useUserStore(authSelectors.isLogin);
-
   // Hook untuk menampilkan warning jika menggunakan bahasa Cina dengan Gemini
   const checkGeminiChineseWarning = useGeminiChineseWarning();
 
@@ -124,12 +121,6 @@ const PromptInput = ({ showTitle = false }: PromptInputProps) => {
    * Jika validasi lolos, panggil createImage()
    */
   const handleGenerate = async () => {
-    // Redirect ke login jika user belum login
-    if (!isLogin) {
-      loginRequired.redirect({ timeout: 2000 });
-      return;
-    }
-
     // Cek dan tampilkan warning jika menggunakan teks Cina dengan model Gemini
     const shouldContinue = await checkGeminiChineseWarning({
       model: currentModel,

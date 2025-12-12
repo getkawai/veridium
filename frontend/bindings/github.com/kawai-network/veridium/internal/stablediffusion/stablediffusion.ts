@@ -32,6 +32,13 @@ export function CheckInstalledModels(): $CancellablePromise<string[]> {
 }
 
 /**
+ * Cleanup terminates all running Stable Diffusion processes
+ */
+export function Cleanup(): $CancellablePromise<void> {
+    return $Call.ByID(923801049);
+}
+
+/**
  * CreateImage handles frontend CreateImageRequest and generates images
  */
 export function CreateImage(req: $models.CreateImageRequest): $CancellablePromise<void> {
@@ -69,6 +76,7 @@ export function GetModelsPath(): $CancellablePromise<string> {
 
 /**
  * GetOutputsPath returns the path for generated images
+ * Note: This matches the default but we override it in CreateImage to use files/uploads
  */
 export function GetOutputsPath(): $CancellablePromise<string> {
     return $Call.ByID(1891601522);

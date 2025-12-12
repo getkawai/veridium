@@ -72,6 +72,11 @@ export class GenerationOptions {
     "Scheduler": string;
     "OutputFormat": string;
 
+    /**
+     * Model name for remote API
+     */
+    "Model": string;
+
     /** Creates a new GenerationOptions instance. */
     constructor($$source: Partial<GenerationOptions> = {}) {
         if (!("Prompt" in $$source)) {
@@ -127,6 +132,9 @@ export class GenerationOptions {
         }
         if (!("OutputFormat" in $$source)) {
             this["OutputFormat"] = "";
+        }
+        if (!("Model" in $$source)) {
+            this["Model"] = "";
         }
 
         Object.assign(this, $$source);

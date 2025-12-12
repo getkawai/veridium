@@ -6,8 +6,10 @@ import { GetGenerationStatusResult } from '@/types/generation-types';
 // import { generationService } from '@/services/generation';
 // import { generationBatchService } from '@/services/generationBatch';
 import { AsyncTaskStatus } from '@/types/asyncTask';
-import { GenerationBatch } from '@/types/generation';
+import { ListGenerationBatchesWithGenerations } from '@@/github.com/kawai-network/veridium/internal/database/generated/queries';
+import { Generation, GenerationBatch } from '@/types/generation';
 import { setNamespace } from '@/utils/storeDebug';
+
 
 import { ImageStore } from '../../store';
 import { generationTopicSelectors } from '../generationTopic/selectors';
@@ -173,11 +175,50 @@ export const createGenerationBatchSlice: StateCreator<
     if (!topicId) return;
 
     try {
-      // const data = await generationBatchService.getGenerationBatches(topicId);
+      const rows = await ListGenerationBatchesWithGenerations({
+        generationTopicId: topicId,
+        userId: 'DEFAULT_LOBE_CHAT_USER',
+      });
+
+      const batchesMap = new Map<string, GenerationBatch>();
+
+      for (const row of rows) {
+        if (!batchesMap.has(row.batchId)) {
+          batchesMap.set(row.batchId, {
+            id: row.batchId,
+            generations: [],
+            createdAt: new Date(row.batchCreatedAt),
+            model: row.model,
+            provider: row.provider,
+            prompt: row.prompt,
+            config: row.config && row.config.Valid ? JSON.parse(row.config.String) : {},
+            width: row.width && row.width.Valid ? row.width.Int64 : undefined,
+            height: row.height && row.height.Valid ? row.height.Int64 : undefined,
+          });
+        }
+
+        if (row.genId && row.genId.Valid) {
+          const gen: Generation = {
+            id: row.genId.String,
+            asyncTaskId: row.asyncTaskId && row.asyncTaskId.Valid ? row.asyncTaskId.String : null,
+            createdAt: new Date((row.genCreatedAt && row.genCreatedAt.Valid ? row.genCreatedAt.Int64 : row.batchCreatedAt) || Date.now()),
+            seed: row.seed && row.seed.Valid ? row.seed.Int64 : null,
+            task: {
+              id: row.taskId && row.taskId.Valid ? row.taskId.String : '',
+              status: (row.taskState && row.taskState.Valid ? row.taskState.String : 'success') as any, // Default to success if no task
+              error: row.taskError && row.taskError.Valid ? JSON.parse(row.taskError.String) : undefined,
+            },
+            asset: row.asset && row.asset.Valid ? JSON.parse(row.asset.String) : null,
+          };
+          batchesMap.get(row.batchId)!.generations.push(gen);
+        }
+      }
+
+      const batches = Array.from(batchesMap.values());
 
       const nextMap = {
         ...get().generationBatchesMap,
-        [topicId]: [],
+        [topicId]: batches,
       };
 
       // no need to update map if the map is the same
@@ -306,7 +347,8 @@ export const createGenerationBatchSlice: StateCreator<
     */
   },
   useFetchGenerationBatches: async (topicId) => {
-    // return generationBatchService.getGenerationBatches(topicId);
-    return [];
+    if (!topicId) return [];
+    await get().internal_fetchGenerationBatches(topicId);
+    return get().generationBatchesMap[topicId] || [];
   },
 });

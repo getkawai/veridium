@@ -432,42 +432,42 @@ export const chatThreadMessage: StateCreator<
   },
 
   summaryThreadTitle: async (threadId, messages) => {
-    const { internal_updateThreadTitleInSummary, internal_updateThreadLoading } = get();
-    const portalThread = threadSelectors.currentPortalThread(get());
-    if (!portalThread) return;
+    // const { internal_updateThreadTitleInSummary, internal_updateThreadLoading } = get();
+    // const portalThread = threadSelectors.currentPortalThread(get());
+    // if (!portalThread) return;
 
-    internal_updateThreadTitleInSummary(threadId, LOADING_FLAT);
+    // internal_updateThreadTitleInSummary(threadId, LOADING_FLAT);
 
-    let output = '';
-    const threadConfig = systemAgentSelectors.thread(useUserStore.getState());
+    // let output = '';
+    // const threadConfig = systemAgentSelectors.thread(useUserStore.getState());
 
-    // Limit input messages to prevent AI confusion with long conversations
-    // For title generation, we only need recent context, not entire conversation
-    const limitedMessages = messages.slice(-1); // Last 6 messages max
+    // // Limit input messages to prevent AI confusion with long conversations
+    // // For title generation, we only need recent context, not entire conversation
+    // const limitedMessages = messages.slice(-1); // Last 6 messages max
 
-    await chatService.fetchPresetTaskResult({
-      onError: () => {
-        internal_updateThreadTitleInSummary(threadId, portalThread.title);
-      },
-      onFinish: async (text) => {
-        await get().internal_updateThread(threadId, { title: text });
-      },
-      onLoadingChange: (loading) => {
-        internal_updateThreadLoading(threadId, loading);
-      },
-      onMessageHandle: (chunk) => {
-        switch (chunk.type) {
-          case 'text': {
-            output += chunk.text;
-          }
-        }
+    // await chatService.fetchPresetTaskResult({
+    //   onError: () => {
+    //     internal_updateThreadTitleInSummary(threadId, portalThread.title);
+    //   },
+    //   onFinish: async (text) => {
+    //     await get().internal_updateThread(threadId, { title: text });
+    //   },
+    //   onLoadingChange: (loading) => {
+    //     internal_updateThreadLoading(threadId, loading);
+    //   },
+    //   onMessageHandle: (chunk) => {
+    //     switch (chunk.type) {
+    //       case 'text': {
+    //         output += chunk.text;
+    //       }
+    //     }
 
-        internal_updateThreadTitleInSummary(threadId, output);
-      },
-      params: merge(threadConfig, chainSummaryTitle(limitedMessages, globalHelpers.getCurrentLanguage()), {
-        stream: false, // Thread title generation doesn't need streaming
-      }),
-    });
+    //     internal_updateThreadTitleInSummary(threadId, output);
+    //   },
+    //   params: merge(threadConfig, chainSummaryTitle(limitedMessages, globalHelpers.getCurrentLanguage()), {
+    //     stream: false, // Thread title generation doesn't need streaming
+    //   }),
+    // });
   },
 
   // Internal process method of the topics

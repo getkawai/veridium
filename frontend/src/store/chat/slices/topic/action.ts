@@ -221,42 +221,42 @@ export const chatTopic: StateCreator<
   },
   // update
   summaryTopicTitle: async (topicId, messages) => {
-    const { internal_updateTopicTitleInSummary, internal_updateTopicLoading } = get();
-    const topic = topicSelectors.getTopicById(topicId)(get());
-    if (!topic) return;
+    // const { internal_updateTopicTitleInSummary, internal_updateTopicLoading } = get();
+    // const topic = topicSelectors.getTopicById(topicId)(get());
+    // if (!topic) return;
 
-    internal_updateTopicTitleInSummary(topicId, LOADING_FLAT);
+    // internal_updateTopicTitleInSummary(topicId, LOADING_FLAT);
 
-    let output = '';
+    // let output = '';
 
-    // Get current agent for topic
-    const topicConfig = systemAgentSelectors.topic(useUserStore.getState());
+    // // Get current agent for topic
+    // const topicConfig = systemAgentSelectors.topic(useUserStore.getState());
 
-    // Automatically summarize the topic title
-    await chatService.fetchPresetTaskResult({
-      onError: () => {
-        internal_updateTopicTitleInSummary(topicId, topic.title);
-      },
-      onFinish: async (text) => {
-        await get().internal_updateTopic(topicId, { title: text });
-      },
-      onLoadingChange: (loading) => {
-        internal_updateTopicLoading(topicId, loading);
-      },
-      onMessageHandle: (chunk) => {
-        switch (chunk.type) {
-          case 'text': {
-            output += chunk.text;
-          }
-        }
+    // // Automatically summarize the topic title
+    // await chatService.fetchPresetTaskResult({
+    //   onError: () => {
+    //     internal_updateTopicTitleInSummary(topicId, topic.title);
+    //   },
+    //   onFinish: async (text) => {
+    //     await get().internal_updateTopic(topicId, { title: text });
+    //   },
+    //   onLoadingChange: (loading) => {
+    //     internal_updateTopicLoading(topicId, loading);
+    //   },
+    //   onMessageHandle: (chunk) => {
+    //     switch (chunk.type) {
+    //       case 'text': {
+    //         output += chunk.text;
+    //       }
+    //     }
 
-        internal_updateTopicTitleInSummary(topicId, output);
-      },
-      params: merge(topicConfig, chainSummaryTitle(messages, globalHelpers.getCurrentLanguage()), {
-        stream: false, // Topic generation doesn't need streaming
-      }),
-      trace: get().getCurrentTracePayload({ traceName: TraceNameMap.SummaryTopicTitle, topicId }),
-    });
+    //     internal_updateTopicTitleInSummary(topicId, output);
+    //   },
+    //   params: merge(topicConfig, chainSummaryTitle(messages, globalHelpers.getCurrentLanguage()), {
+    //     stream: false, // Topic generation doesn't need streaming
+    //   }),
+    //   trace: get().getCurrentTracePayload({ traceName: TraceNameMap.SummaryTopicTitle, topicId }),
+    // });
   },
   favoriteTopic: async (id, favorite) => {
     await get().internal_updateTopic(id, { favorite });

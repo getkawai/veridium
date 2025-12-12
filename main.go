@@ -50,7 +50,7 @@ func main() {
 	)
 
 	// Initialize Stable Diffusion in background
-	sdManager := stablediffusion.New()
+	sdManager := stablediffusion.New(ctx.DB)
 	sdManager.InitializeInBackground()
 
 	// Create Wails app
