@@ -3,6 +3,7 @@ import type { StateCreator } from 'zustand/vanilla';
 
 import { INBOX_SESSION_ID } from '@/const/session';
 import type { GlobalStore } from '@/store/global';
+import { SidebarTabKey } from '@/store/global/initialState';
 import { useRouterStore } from '@/store/router';
 import { setNamespace } from '@/utils/storeDebug';
 
@@ -10,6 +11,7 @@ const n = setNamespace('w');
 
 export interface GlobalWorkspacePaneAction {
   switchBackToChat: (sessionId?: string) => void;
+  switchSideBar: (key: SidebarTabKey) => void;
   switchToImage: () => void;
   toggleAgentSystemRoleExpand: (agentId: string, expanded?: boolean) => void;
   toggleChatSideBar: (visible?: boolean) => void;
@@ -32,7 +34,7 @@ export const globalWorkspaceSlice: StateCreator<
     const isMobile = get().isMobile;
     const id = sessionId || INBOX_SESSION_ID;
 
-    set({ sidebarKey: 'chat' as any }, false, n('switchBackToChat'));
+    set({ sidebarKey: SidebarTabKey.Chat }, false, n('switchBackToChat'));
 
     // Use Zustand router to navigate
     useRouterStore.getState().push('/chat', {
@@ -40,8 +42,12 @@ export const globalWorkspaceSlice: StateCreator<
     });
   },
 
+  switchSideBar: (key) => {
+    set({ sidebarKey: key }, false, n('switchSideBar', key));
+  },
+
   switchToImage: () => {
-    set({ sidebarKey: 'image' as any }, false, n('switchToImage'));
+    set({ sidebarKey: SidebarTabKey.Image }, false, n('switchToImage'));
   },
 
   toggleAgentSystemRoleExpand: (agentId, expanded) => {

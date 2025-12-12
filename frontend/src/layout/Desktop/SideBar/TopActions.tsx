@@ -66,7 +66,13 @@ const TopActions = memo<TopActionProps>(({ tab, isPinned }) => {
         />
       </a>
       {enableKnowledgeBase && (
-        <a aria-label={t('tab.knowledgeBase')} href={'/knowledge'}>
+        <a
+          aria-label={t('tab.knowledgeBase')}
+          onClick={(e) => {
+            e.preventDefault();
+            useGlobalStore.getState().switchSideBar(SidebarTabKey.Files);
+          }}
+        >
           <ActionIcon
             active={isFilesActive}
             icon={FolderClosed}

@@ -1,14 +1,16 @@
-import { ProfileTabs, SettingsTabs, SidebarTabKey } from '@/store/global/initialState';
-
+import { ProfileTabs, SettingsTabs } from '@/store/global/initialState';
 import { usePathname, useSearchParams } from './useNavigation';
 
 /**
  * Returns the active tab key (chat/market/settings/...)
  */
-export const useActiveTabKey = () => {
-  const pathname = usePathname();
+import { useGlobalStore } from '@/store/global';
 
-  return pathname.split('/').find(Boolean)! as SidebarTabKey;
+/**
+ * Returns the active tab key (chat/market/settings/...)
+ */
+export const useActiveTabKey = () => {
+  return useGlobalStore((s) => s.sidebarKey);
 };
 
 /**

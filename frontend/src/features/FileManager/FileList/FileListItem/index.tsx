@@ -101,6 +101,7 @@ const FileRenderItem = memo<FileRenderItemProps>(
     knowledgeBaseId,
     index,
   }) => {
+    const { t } = useTranslation('components');
     const { styles, cx } = useStyles();
     const setActiveFileId = useFileStore((s) => s.setActiveFileId);
     const [isCreatingFileParseTask, parseFiles] = useFileStore((s) => [
