@@ -471,19 +471,30 @@ export const createFileManageSlice: StateCreator<
 
       // Filter by category
       if (category && category !== FilesTabs.All) {
-        let fileTypePrefix = '';
-        switch (category) {
-          case FilesTabs.Audios: fileTypePrefix = 'audio'; break;
-          case FilesTabs.Documents: fileTypePrefix = 'application'; break;
-          case FilesTabs.Images: fileTypePrefix = 'image'; break;
-          case FilesTabs.Videos: fileTypePrefix = 'video'; break;
-        }
+        const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'image'];
+        const videoExts = ['mp4', 'webm', 'mov', 'avi', 'mkv', 'video'];
+        const audioExts = ['mp3', 'wav', 'ogg', 'm4a', 'flac', 'audio'];
+        // Documents are anything not image/video/audio, or specific doc types
+        const docExts = ['pdf', 'txt', 'json', 'xml', 'doc', 'docx', 'csv', 'md', 'application', 'text'];
 
-        if (fileTypePrefix) {
-          filtered = filtered.filter((f) =>
-            getNullableString(f.fileType as any)?.startsWith(fileTypePrefix),
-          );
-        }
+        filtered = filtered.filter((f) => {
+          const type = (f.fileType || '').toLowerCase();
+
+          switch (category) {
+            case FilesTabs.Images:
+              return imageExts.some(ext => type.includes(ext));
+            case FilesTabs.Videos:
+              return videoExts.some(ext => type.includes(ext));
+            case FilesTabs.Audios:
+              return audioExts.some(ext => type.includes(ext));
+            case FilesTabs.Documents:
+              // For documents, we include specific types OR anything that implies text/app
+              // But strictly, we might just want to check if it matches doc types
+              return docExts.some(ext => type.includes(ext));
+            default:
+              return true;
+          }
+        });
       }
 
       // Sort
