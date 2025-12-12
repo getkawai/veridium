@@ -520,9 +520,10 @@ export const createFileManageSlice: StateCreator<
         };
       }));
 
-      set({ fileList: fileListItems, queryListParams: params });
+      set({ fileList: fileListItems, queryListParams: params, isFetchingFiles: false });
     } catch (error) {
       console.error('[internal_fetchFileManage] Error:', error);
+      set({ isFetchingFiles: false });
     }
   },
 });
