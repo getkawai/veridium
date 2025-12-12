@@ -39,7 +39,7 @@ export function Cleanup(): $CancellablePromise<void> {
 }
 
 /**
- * CreateImage handles frontend CreateImageRequest and generates images
+ * CreateImage handles frontend CreateImageRequest and generates images asynchronously
  */
 export function CreateImage(req: $models.CreateImageRequest): $CancellablePromise<void> {
     return $Call.ByID(3099831724, req);

@@ -1,27 +1,16 @@
 import { isEqual } from 'lodash-es';
-import { useRef } from 'react';
 import { StateCreator } from 'zustand';
 
-import { GetGenerationStatusResult } from '@/types/generation-types';
-// import { generationService } from '@/services/generation';
-// import { generationBatchService } from '@/services/generationBatch';
-import { AsyncTaskStatus } from '@/types/asyncTask';
 import { ListGenerationBatchesWithGenerations } from '@@/github.com/kawai-network/veridium/internal/database/generated/queries';
 import { Generation, GenerationBatch } from '@/types/generation';
 import { setNamespace } from '@/utils/storeDebug';
 
 
 import { ImageStore } from '../../store';
-import { generationTopicSelectors } from '../generationTopic/selectors';
 import { GenerationBatchDispatch, generationBatchReducer } from './reducer';
 
 const n = setNamespace('generationBatch');
 
-// ====== SWR key ====== //
-const SWR_USE_FETCH_GENERATION_BATCHES = 'SWR_USE_FETCH_GENERATION_BATCHES';
-const SWR_USE_CHECK_GENERATION_STATUS = 'SWR_USE_CHECK_GENERATION_STATUS';
-
-// ====== action interface ====== //
 
 export interface GenerationBatchAction {
   setTopicBatchLoaded: (topicId: string) => void;
@@ -35,12 +24,6 @@ export interface GenerationBatchAction {
   removeGenerationBatch: (batchId: string, topicId: string) => Promise<void>;
   internal_deleteGenerationBatch: (batchId: string, topicId: string) => Promise<void>;
   refreshGenerationBatches: () => Promise<void>;
-  useCheckGenerationStatus: (
-    generationId: string,
-    asyncTaskId: string,
-    topicId: string,
-    enable?: boolean,
-  ) => void;
   internal_fetchGenerationBatches: (topicId: string) => Promise<void>;
   useFetchGenerationBatches: (topicId?: string | null) => Promise<GenerationBatch[]>;
 }
@@ -236,116 +219,6 @@ export const createGenerationBatchSlice: StateCreator<
     }
   },
 
-  // TODO: This polling logic should be moved to a component-level hook
-  // Polling with useRef violates React Rules of Hooks when called from store
-  // For now, this is a no-op. Components should implement their own polling.
-  useCheckGenerationStatus: (generationId, asyncTaskId, topicId, enable = true) => {
-    console.warn('[checkGenerationStatus] This method needs to be refactored to component-level polling');
-    // DEPRECATED: Remove this entire implementation
-    /*
-    const requestCountRef = useRef(0);
-    const isErrorRef = useRef(false);
-
-    return useClientDataSWR<GetGenerationStatusResult>(
-      enable && generationId && !generationId.startsWith('temp-') && asyncTaskId
-        ? [SWR_USE_CHECK_GENERATION_STATUS, generationId, asyncTaskId]
-        : null,
-      async ([, generationId, asyncTaskId]: [string, string, string]) => {
-        // 增加请求计数
-        requestCountRef.current += 1;
-        return generationService.getGenerationStatus(generationId, asyncTaskId);
-      },
-      {
-        refreshWhenHidden: false,
-        refreshInterval: (data: GetGenerationStatusResult | undefined) => {
-          // 如果状态是 success 或 error，停止轮询
-          if (data?.status === AsyncTaskStatus.Success || data?.status === AsyncTaskStatus.Error) {
-            return 0; // 停止轮询
-          }
-
-          // 根据请求次数动态调整间隔：使用指数退避算法
-          // 基础间隔 1 秒，最大间隔 30 秒
-          const baseInterval = 1000;
-          const maxInterval = 30_000;
-          const currentCount = requestCountRef.current;
-
-          // 指数退避：每 5 次请求后间隔翻倍
-          const backoffMultiplier = Math.floor(currentCount / 5);
-          let dynamicInterval = Math.min(
-            baseInterval * Math.pow(2, backoffMultiplier),
-            maxInterval,
-          );
-
-          // 如果之前有错误，使用更长的间隔（乘以 2）
-          if (isErrorRef.current) {
-            dynamicInterval = Math.min(dynamicInterval * 2, maxInterval);
-          }
-
-          return dynamicInterval;
-        },
-        onError: (error) => {
-          // 发生错误时设置错误状态
-          isErrorRef.current = true;
-          console.error('Generation status check error:', error);
-        },
-        onSuccess: async (data: GetGenerationStatusResult) => {
-          if (!data) return;
-
-          // 成功时重置错误状态
-          isErrorRef.current = false;
-
-          // 找到对应的 batch，generation 数据库记录包含 generationBatchId
-          const currentBatches = get().generationBatchesMap[topicId] || [];
-          const targetBatch = currentBatches.find((batch) =>
-            batch.generations.some((gen) => gen.id === generationId),
-          );
-
-          // 如果状态为成功或错误，都要更新对应的 generation
-          if (
-            (data.status === AsyncTaskStatus.Success || data.status === AsyncTaskStatus.Error) &&
-            targetBatch
-          ) {
-            // 重置请求计数器，因为任务已完成
-            requestCountRef.current = 0;
-
-            if (data.generation) {
-              // 更新 generation 数据
-              get().internal_dispatchGenerationBatch(
-                topicId,
-                {
-                  type: 'updateGenerationInBatch',
-                  batchId: targetBatch.id,
-                  generationId,
-                  value: data.generation,
-                },
-                n(
-                  `useCheckGenerationStatus/${data.status === AsyncTaskStatus.Success ? 'success' : 'error'}`,
-                ),
-              );
-
-              // 如果生成成功且有缩略图，检查当前 topic 是否有 imageUrl
-              if (data.status === AsyncTaskStatus.Success && data.generation.asset?.thumbnailUrl) {
-                const currentTopic =
-                  generationTopicSelectors.getGenerationTopicById(topicId)(get());
-
-                // 如果当前 topic 没有 imageUrl，使用这个 generation 的 thumbnailUrl 更新
-                if (currentTopic && !currentTopic.coverUrl) {
-                  await get().updateGenerationTopicCover(
-                    topicId,
-                    data.generation.asset.thumbnailUrl,
-                  );
-                }
-              }
-            }
-
-            // 在成功或失败后都要 refreshGenerationBatches
-            await get().refreshGenerationBatches();
-          }
-        },
-      },
-    );
-    */
-  },
   useFetchGenerationBatches: async (topicId) => {
     if (!topicId) return [];
     await get().internal_fetchGenerationBatches(topicId);

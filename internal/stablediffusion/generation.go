@@ -2,9 +2,7 @@ package stablediffusion
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,7 +13,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -72,7 +69,7 @@ type GenerationOptions struct {
 	Model          string // Model name for remote API
 }
 
-// CreateImage handles frontend CreateImageRequest and generates images
+// CreateImage handles frontend CreateImageRequest and generates images asynchronously
 func (sdrm *StableDiffusion) CreateImage(req CreateImageRequest) error {
 	ctx := context.Background()
 
@@ -87,15 +84,12 @@ func (sdrm *StableDiffusion) CreateImage(req CreateImageRequest) error {
 	log.Printf("[CreateImage] Using model: %s", modelPath)
 
 	// 2. Resolve UserID and Topic
-	// We need the UserID from the topic to associate the generation
-	// Note: We use the Queries from the injected DB service
 	log.Printf("[CreateImage] Checking database service...")
 	if sdrm.DB == nil {
 		log.Printf("[CreateImage] ERROR: Database service not initialized")
 		return fmt.Errorf("database service not initialized")
 	}
 
-	// Use DefaultUserID since we operate in single-user mode for now
 	const DefaultUserID = "DEFAULT_LOBE_CHAT_USER"
 	userID := DefaultUserID
 	topic, err := sdrm.DB.Queries().GetGenerationTopic(ctx, db.GetGenerationTopicParams{
@@ -127,7 +121,6 @@ func (sdrm *StableDiffusion) CreateImage(req CreateImageRequest) error {
 		UpdatedAt:         now,
 	}
 
-	// Handle optional dimensions for batch record
 	if req.Params.Width != nil {
 		generationBatch.Width = sql.NullInt64{Int64: int64(*req.Params.Width), Valid: true}
 	}
@@ -145,14 +138,10 @@ func (sdrm *StableDiffusion) CreateImage(req CreateImageRequest) error {
 	}
 	log.Printf("[CreateImage] Batch created with ID: %s", batchID)
 
-	// 4. Prepare Output Directory
-	// Use "files/uploads" as requested, ensuring it exists
-	outputDir := "files/uploads"
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		return fmt.Errorf("failed to create output directory: %w", err)
-	}
+	// 4. Create placeholder async_task and generation records
+	log.Printf("[CreateImage] Creating placeholder records for %d images...", req.ImageNum)
 
-	// 5. Convert RuntimeImageGenParams to GenerationOptions
+	// Convert params to GenerationOptions for background worker
 	opts := GenerationOptions{
 		Prompt:      req.Params.Prompt,
 		ModelPath:   modelPath,
@@ -166,7 +155,6 @@ func (sdrm *StableDiffusion) CreateImage(req CreateImageRequest) error {
 		Seed:        req.Params.Seed,
 	}
 
-	// Handle optional numeric params
 	if req.Params.Width != nil {
 		opts.Width = *req.Params.Width
 	}
@@ -183,185 +171,50 @@ func (sdrm *StableDiffusion) CreateImage(req CreateImageRequest) error {
 		opts.Strength = *req.Params.Strength
 	}
 
-	// 6. Generate multiple images in parallel
-	log.Printf("[CreateImage] Generating %d image(s) in parallel...", req.ImageNum)
-
-	// Available models for variation
-	availableModels := []string{
-		"flux",
-		"stable-diffusion",
-		"kontext",
-		"turbo",
-		"nanobanana",
-		"seedream",
-		"nanobanana-pro",
-		"seedream-pro",
-		"gptimage",
-		"zimage",
-		"veo",
-		"seedance",
-		"seedance-pro",
-	}
-
-	// Track successful image paths for fallback
-	var successfulImagePath string
-	var failedIndices []int
-	var mu sync.Mutex // Mutex for thread-safe access to shared variables
-	var wg sync.WaitGroup
-
-	// Launch parallel generation
+	// Create placeholder records for each image
 	for i := 0; i < req.ImageNum; i++ {
-		wg.Add(1)
-		go func(index int) {
-			defer wg.Done()
-
-			log.Printf("[CreateImage] Generating image %d/%d", index+1, req.ImageNum)
-			// Generate ID for the file
-			fileName := fmt.Sprintf("gen_%s_%d.png", batchID, index)
-			outputPath := filepath.Join(outputDir, fileName)
-
-			// Create a copy of opts for this goroutine
-			localOpts := opts
-			localOpts.OutputPath = outputPath
-
-			// Rotate through available models for variation
-			modelIndex := index % len(availableModels)
-			localOpts.Model = availableModels[modelIndex]
-			log.Printf("[CreateImage] Using model: %s for image %d", localOpts.Model, index)
-
-			// Try remote generation
-			log.Printf("[CreateImage] Attempting remote generation for image %d...", index)
-			remoteErr := sdrm.generateImageRemote(localOpts)
-
-			// Thread-safe update of shared variables
-			mu.Lock()
-			if remoteErr != nil {
-				log.Printf("[CreateImage] Remote generation failed for image %d: %v", index, remoteErr)
-				failedIndices = append(failedIndices, index)
-			} else {
-				log.Printf("[CreateImage] Image %d generated successfully (remote)", index)
-				// Store the first successful image path for fallback
-				if successfulImagePath == "" {
-					successfulImagePath = outputPath
-				}
-			}
-			mu.Unlock()
-		}(i)
-	}
-
-	// Wait for all goroutines to complete
-	wg.Wait()
-	log.Printf("[CreateImage] All parallel generations completed")
-
-	// Handle failed images: copy from successful image if available
-	if len(failedIndices) > 0 {
-		if successfulImagePath != "" {
-			log.Printf("[CreateImage] Copying successful image to %d failed slot(s)", len(failedIndices))
-			for _, idx := range failedIndices {
-				failedFileName := fmt.Sprintf("gen_%s_%d.png", batchID, idx)
-				failedOutputPath := filepath.Join(outputDir, failedFileName)
-
-				// Copy successful image to failed slot
-				if err := copyFile(successfulImagePath, failedOutputPath); err != nil {
-					log.Printf("[CreateImage] ERROR: Failed to copy image to slot %d: %v", idx, err)
-					return fmt.Errorf("failed to copy image for slot %d: %w", idx, err)
-				}
-				log.Printf("[CreateImage] Copied successful image to slot %d", idx)
-			}
-		} else {
-			// All images failed, return error
-			return fmt.Errorf("all remote generations failed and no successful image available")
-		}
-	}
-
-	// 7. Post-Processing: Database Records for all images
-	for i := 0; i < req.ImageNum; i++ {
-		fileName := fmt.Sprintf("gen_%s_%d.png", batchID, i)
-		outputPath := filepath.Join(outputDir, fileName)
-
-		// 7a. Calculate File Info
-		fileInfo, err := os.Stat(outputPath)
-		if err != nil {
-			return fmt.Errorf("failed to stat generated file: %w", err)
-		}
-
-		// Calculate SHA256 Hash
-		f, err := os.Open(outputPath)
-		if err != nil {
-			return fmt.Errorf("failed to open generated file for hashing: %w", err)
-		}
-		hash := sha256.New()
-		if _, err := io.Copy(hash, f); err != nil {
-			f.Close()
-			return fmt.Errorf("failed to hash generated file: %w", err)
-		}
-		f.Close()
-		fileHash := hex.EncodeToString(hash.Sum(nil))
-
-		fileUrl := fmt.Sprintf("/files/uploads/%s", fileName)
-
-		// 7b. Create GlobalFile (if not exists)
-		// Try to get it first
-		_, err = sdrm.DB.Queries().GetGlobalFile(ctx, fileHash)
-		if err != nil && err == sql.ErrNoRows {
-			// Create GlobalFile
-			_, err = sdrm.DB.Queries().CreateGlobalFile(ctx, db.CreateGlobalFileParams{
-				HashID:   fileHash,
-				FileType: "image/png",
-				Size:     fileInfo.Size(),
-				Url:      fileUrl,
-				Creator:  topic.UserID, // Original creator
-			})
-			if err != nil {
-				// Ignore error if it's unique constraint (race condition)
-				// But log it? For now assume it's fine.
-				fmt.Printf("Warning: failed to create global file: %v\n", err)
-			}
-		}
-
-		// 7c. Create File Record
-		// Source: "ImageGeneration" (enum emulation)
-		savedFile, err := sdrm.DB.Queries().CreateFile(ctx, db.CreateFileParams{
-			UserID:   topic.UserID,
-			FileType: "image/png",
-			FileHash: sql.NullString{String: fileHash, Valid: true},
-			Name:     fileName,
-			Size:     fileInfo.Size(),
-			Url:      fileUrl,
-			Source:   sql.NullString{String: "ImageGeneration", Valid: true},
-			Metadata: sql.NullString{String: "{}", Valid: true}, // Empty metadata default
+		// Create async_task with pending status
+		taskID := uuid.New().String()
+		_, err := sdrm.DB.Queries().CreateAsyncTask(ctx, db.CreateAsyncTaskParams{
+			ID:        taskID,
+			Type:      sql.NullString{String: "image_generation", Valid: true},
+			Status:    sql.NullString{String: "pending", Valid: true},
+			Error:     sql.NullString{},
+			UserID:    topic.UserID,
+			Duration:  sql.NullInt64{},
+			CreatedAt: now,
+			UpdatedAt: now,
 		})
 		if err != nil {
-			return fmt.Errorf("failed to create file record: %w", err)
+			log.Printf("[CreateImage] ERROR: Failed to create async task: %v", err)
+			return fmt.Errorf("failed to create async task: %w", err)
 		}
 
-		// 7d. Create Generation Record
+		// Create generation record with pending task
 		genID := uuid.New().String()
 		_, err = sdrm.DB.Queries().CreateGeneration(ctx, db.CreateGenerationParams{
 			ID:                genID,
 			UserID:            topic.UserID,
 			GenerationBatchID: batchID,
-			FileID:            sql.NullString{String: savedFile.ID, Valid: true},
-			Seed:              sql.NullInt64{Int64: 0, Valid: false}, // Seed tracking could be improved
+			AsyncTaskID:       sql.NullString{String: taskID, Valid: true},
+			FileID:            sql.NullString{}, // Will be filled when image completes
+			Seed:              sql.NullInt64{Int64: 0, Valid: false},
+			Asset:             sql.NullString{}, // Will be filled when image completes
 			CreatedAt:         now,
 			UpdatedAt:         now,
-			Asset: func() sql.NullString {
-				assetMap := map[string]interface{}{
-					"type":         "image",
-					"url":          fileUrl,
-					"width":        opts.Width,
-					"height":       opts.Height,
-					"thumbnailUrl": fileUrl, // Use same URL for now
-					"originalUrl":  fileUrl,
-				}
-				bytes, _ := json.Marshal(assetMap)
-				return sql.NullString{String: string(bytes), Valid: true}
-			}(),
 		})
 		if err != nil {
+			log.Printf("[CreateImage] ERROR: Failed to create generation record: %v", err)
 			return fmt.Errorf("failed to create generation record: %w", err)
 		}
+
+		log.Printf("[CreateImage] Created placeholder for image %d/%d (task: %s, gen: %s)", i+1, req.ImageNum, taskID, genID)
 	}
+
+	log.Printf("[CreateImage] All placeholder records created, returning to frontend")
+
+	// 5. Launch background goroutine to generate images
+	go sdrm.generateImagesInBackground(batchID, topic.UserID, req.ImageNum, opts)
 
 	return nil
 }

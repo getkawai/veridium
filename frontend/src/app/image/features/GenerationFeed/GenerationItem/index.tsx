@@ -5,6 +5,7 @@ import dayjs from 'dayjs';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { useCheckGenerationStatus } from '@/hooks/useCheckGenerationStatus';
 import { useDownloadImage } from '@/hooks/useDownloadImage';
 import { useImageStore } from '@/store/image';
 import { imageGenerationConfigSelectors } from '@/store/image/selectors';
@@ -23,7 +24,7 @@ export const GenerationItem = memo<GenerationItemProps>(
   ({ generationBatch, generation, prompt }) => {
     const { message } = App.useApp();
     const { t } = useTranslation('image');
-    const useCheckGenerationStatus = useImageStore((s) => s.useCheckGenerationStatus);
+    // const useCheckGenerationStatus = useImageStore((s) => s.useCheckGenerationStatus); // Removed
     const deleteGeneration = useImageStore((s) => s.removeGeneration);
     const reuseSeed = useImageStore((s) => s.reuseSeed);
     const activeTopicId = useImageStore((s) => s.activeGenerationTopicId);
