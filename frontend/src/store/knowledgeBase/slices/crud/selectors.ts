@@ -8,7 +8,15 @@ const getKnowledgeBaseById = (id: string) => (s: KnowledgeBaseStoreState) =>
 const getKnowledgeBaseNameById = (id: string) => (s: KnowledgeBaseStoreState) =>
   getKnowledgeBaseById(id)(s)?.name;
 
+const isFetchingList = (s: KnowledgeBaseStoreState) => s.isFetchingList;
+const knowledgeBaseList = (s: KnowledgeBaseStoreState) => s.knowledgeBaseList;
+const isKnowledgeBaseLoading = (s: KnowledgeBaseStoreState) => s.isKnowledgeBaseLoading;
+
 export const knowledgeBaseSelectors = {
   activeKnowledgeBaseId,
-  getKnowledgeBaseNameById,
+  getKnowledgeBaseById,
+  isFetchingList,
+  isKnowledgeBaseLoading,
+  knowledgeBaseList,
 };
+```

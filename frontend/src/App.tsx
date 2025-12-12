@@ -7,6 +7,7 @@ import { useChatStore } from './store/chat';
 import DesktopImageLayout from './app/image';
 import { useGlobalStore } from './store/global';
 import { SidebarTabKey } from './store/global/initialState';
+import KnowledgeHomePage from './app/knowledge/routes/KnowledgeHome';
 
 function App() {
   const sidebarKey = useGlobalStore((s) => s.sidebarKey);
@@ -43,6 +44,7 @@ function App() {
       <DesktopMainLayout>
         {sidebarKey === SidebarTabKey.Chat && <DesktopChatLayout />}
         {sidebarKey === SidebarTabKey.Image && <DesktopImageLayout />}
+        {sidebarKey === SidebarTabKey.Files && <KnowledgeHomePage />}
       </DesktopMainLayout>
     </GlobalLayout>
   )

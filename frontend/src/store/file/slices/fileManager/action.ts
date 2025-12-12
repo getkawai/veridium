@@ -42,8 +42,13 @@ export interface FileManageAction {
   toggleEmbeddingIds: (ids: string[], loading?: boolean) => void;
   toggleParsingIds: (ids: string[], loading?: boolean) => void;
 
+  fetchFileList: (params: QueryFileListParams) => Promise<void>;
   internal_fetchFileItem: (id?: string) => Promise<void>;
-  internal_fetchFileManage: (params: QueryFileListParams) => Promise<void>;
+  setActiveFileId: (id: string | undefined) => void;
+  setCategory: (category: string) => void;
+  setSearchKeywords: (keywords: string) => void;
+  setSortType: (sortType: SortType) => void;
+  setSorter: (sorter: string) => void;
 }
 
 export const createFileManageSlice: StateCreator<
@@ -134,7 +139,6 @@ export const createFileManageSlice: StateCreator<
 
           // Create DB record
           const fileId = nanoid();
-          const now = currentTimestampMs();
 
           // Use backend transaction method for atomic operations
           await DBService.CreateFileWithLinks({
@@ -161,7 +165,6 @@ export const createFileManageSlice: StateCreator<
               url: toNullString(`s3://${fileHash}`) as any,
               metadata: toNullJSON({}) as any,
               creator: toNullString(userId) as any,
-              createdAt: now,
             } : null,
             KnowledgeBase: knowledgeBaseId || null,
           });
@@ -391,6 +394,22 @@ export const createFileManageSlice: StateCreator<
     });
   },
 
+  setActiveFileId: (id) => {
+    set({ activeFileId: id });
+  },
+  setCategory: (category) => {
+    set({ currentCategory: category });
+  },
+  setSearchKeywords: (keywords) => {
+    set({ searchKeywords: keywords });
+  },
+  setSortType: (sortType) => {
+    set({ sortType });
+  },
+  setSorter: (sorter) => {
+    set({ sorter });
+  },
+
   internal_fetchFileItem: async (id) => {
     if (!id) return;
 
@@ -420,11 +439,11 @@ export const createFileManageSlice: StateCreator<
     }
   },
 
-  internal_fetchFileManage: async (params) => {
+  fetchFileList: async (params) => {
     try {
+      set({ isFetchingFiles: true });
       const userId = getUserId();
       const { category, q, sortType, sorter, knowledgeBaseId } = params;
-
       let allFiles;
 
       // If filtering by knowledge base, use JOIN query

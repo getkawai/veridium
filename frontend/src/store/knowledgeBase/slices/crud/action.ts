@@ -13,7 +13,7 @@ export interface KnowledgeBaseCrudAction {
   updateKnowledgeBase: (id: string, value: CreateKnowledgeBaseParams) => Promise<void>;
 
   internal_fetchKnowledgeBaseItem: (id: string) => Promise<void>;
-  internal_fetchKnowledgeBaseList: (params: { suspense?: boolean }) => Promise<void>;
+  fetchKnowledgeBaseList: () => Promise<void>;
 }
 
 export const createCrudSlice: StateCreator<
@@ -41,7 +41,7 @@ export const createCrudSlice: StateCreator<
     );
   },
   refreshKnowledgeBaseList: async () => {
-    await get().internal_fetchKnowledgeBaseList();
+    await get().fetchKnowledgeBaseList();
   },
   removeKnowledgeBase: async (id) => {
     await knowledgeBaseService.deleteKnowledgeBase(id);
@@ -58,7 +58,7 @@ export const createCrudSlice: StateCreator<
   internal_fetchKnowledgeBaseItem: async (id) => {
     try {
       const item = await knowledgeBaseService.getKnowledgeBaseById(id);
-      
+
       if (item) {
         set({
           activeKnowledgeBaseId: id,
@@ -73,18 +73,19 @@ export const createCrudSlice: StateCreator<
     }
   },
 
-  internal_fetchKnowledgeBaseList: async (params = {}) => {
+  fetchKnowledgeBaseList: async () => {
     try {
+      set({ isFetchingList: true });
       const list = await knowledgeBaseService.getKnowledgeBaseList();
-      
+
       if (!get().initKnowledgeBaseList) {
-        set({ initKnowledgeBaseList: true, knowledgeBaseList: list }, false, 'internal_fetchKnowledgeBaseList/init');
+        set({ initKnowledgeBaseList: true, isFetchingList: false, knowledgeBaseList: list }, false, 'fetchKnowledgeBaseList/init');
       } else {
-        set({ knowledgeBaseList: list }, false, 'internal_fetchKnowledgeBaseList');
+        set({ isFetchingList: false, knowledgeBaseList: list }, false, 'fetchKnowledgeBaseList');
       }
     } catch (error) {
-      console.error('[internal_fetchKnowledgeBaseList] Error:', error);
-      set({ knowledgeBaseList: [] }, false, 'internal_fetchKnowledgeBaseList/error');
+      console.error('[fetchKnowledgeBaseList] Error:', error);
+      set({ isFetchingList: false, knowledgeBaseList: [] }, false, 'fetchKnowledgeBaseList/error');
     }
   },
 });

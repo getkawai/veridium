@@ -4,8 +4,17 @@ import { FileUploadStatus } from '@/types/files/upload';
 
 const uploadStatusArray = new Set(['uploading', 'pending', 'processing']);
 
-const dockFileList = (s: FilesStoreState) => s.dockUploadFileList;
-const dockRawFileList = (s: FilesStoreState) => s.dockUploadFileList.map((item) => item.file);
+const activeFileId = (s: FilesStoreState) => s.activeFileId;
+const currentCategory = (s: FilesStoreState) => s.currentCategory;
+const isFetchingFiles = (s: FilesStoreState) => s.isFetchingFiles;
+const searchKeywords = (s: FilesStoreState) => s.searchKeywords;
+const sorter = (s: FilesStoreState) => s.sorter;
+const sortType = (s: FilesStoreState) => s.sortType;
+
+const dockUploadFileList = (s: FilesStoreState) => s.dockUploadFileList;
+const dockRawFileList = (s: FilesStoreState) => s.dockUploadFileList.map((i) => i.file);
+
+const fileList = (s: FilesStoreState) => s.fileList;
 const getFileById = (id?: string | null) => (s: FilesStoreState) => {
   if (!id) return;
 
@@ -47,12 +56,19 @@ const isCreatingChunkEmbeddingTask = (id: string) => (s: FilesStoreState) =>
   s.creatingEmbeddingTaskIds.includes(id);
 
 export const fileManagerSelectors = {
-  dockFileList,
+  activeFileId,
+  currentCategory,
+  dockFileList: dockUploadFileList,
   dockRawFileList,
+  fileList,
   getFileById,
   isCreatingChunkEmbeddingTask,
   isCreatingFileParseTask,
+  isFetchingFiles,
   isUploadingFiles,
   overviewUploadingProgress,
   overviewUploadingStatus,
+  searchKeywords,
+  sortType,
+  sorter,
 };
