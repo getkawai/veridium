@@ -116,7 +116,7 @@ export function Queries(): $CancellablePromise<db$0.Queries | null> {
 }
 
 /**
- * SeedAvailableAgents fetches agents from remote and seeds them into the database
+ * SeedAvailableAgents loads pre-seeded agents from SQL dump
  */
 export function SeedAvailableAgents(): $CancellablePromise<void> {
     return $Call.ByID(3729929935);

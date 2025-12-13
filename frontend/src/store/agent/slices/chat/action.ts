@@ -41,6 +41,7 @@ export interface AgentChatAction {
     signal?: AbortSignal,
   ) => Promise<void>;
   internal_updateAgentConfigInitMap: (id: string, loaded: boolean) => void;
+  internal_updateActiveId: (id: string) => void;
   removeFileFromAgent: (fileId: string) => Promise<void>;
   removeKnowledgeBaseFromAgent: (knowledgeBaseId: string) => Promise<void>;
 
@@ -300,6 +301,10 @@ export const createChatSlice: StateCreator<
       false,
       'updateAgentConfigInitMap',
     );
+  },
+
+  internal_updateActiveId: (id) => {
+    set({ activeId: id }, false, 'updateActiveId');
   },
 
   internal_updateAgentConfig: async (id, data, signal) => {

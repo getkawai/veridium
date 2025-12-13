@@ -480,18 +480,13 @@ func (s *Service) ensureDefaultData(ctx context.Context) error {
 		fmt.Println("✅ Default inbox session already exists")
 	}
 
-	// 4. Seed available agents from remote index (Async)
-	go func() {
-		// Create a detached context for the async operation
-		seedCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-		defer cancel()
+	// 4. Seed available agents from SQL dump (fast, synchronous)
+	seedCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
 
-		if err := s.SeedAvailableAgents(seedCtx); err != nil {
-			fmt.Printf("⚠️ Failed to seed agents: %v\n", err)
-		} else {
-			fmt.Println("✅ Agents seeded successfully (async)")
-		}
-	}()
+	if err := s.SeedAvailableAgents(seedCtx); err != nil {
+		fmt.Printf("⚠️  Failed to seed agents: %v\n", err)
+	}
 
 	return nil
 }

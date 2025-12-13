@@ -36,7 +36,7 @@ export interface SessionAction {
   /**
    * switch the session
    */
-  switchSession: (sessionId: string) => void;
+  switchSession: (sessionId: string) => Promise<void>;
   /**
    * reset sessions to default
    */
@@ -297,10 +297,29 @@ export const createSessionSlice: StateCreator<
     }
   },
 
-  switchSession: (sessionId) => {
+  switchSession: async (sessionId) => {
     if (get().activeId === sessionId) return;
 
+    // Update active session ID
     set({ activeId: sessionId }, false, n(`activeSession/${sessionId}`));
+
+    // CRITICAL: Sync activeId to agent store so currentAgentConfig uses correct session
+    const agentStore = useAgentStore.getState();
+    agentStore.internal_updateActiveId(sessionId);
+
+    // Load agent config for the selected session if not already loaded
+    const isConfigLoaded = agentStore.agentConfigInitMap[sessionId];
+
+    if (!isConfigLoaded && sessionId !== INBOX_SESSION_ID) {
+      try {
+        const dbAgent = await DB.GetAgentBySessionId(sessionId);
+        const config = mapAgentConfigFromDB(dbAgent);
+        agentStore.internal_dispatchAgentMap(sessionId, config, 'switchSession');
+        agentStore.internal_updateAgentConfigInitMap(sessionId, true);
+      } catch (error) {
+        console.error('[switchSession] Failed to load agent config', { sessionId, error });
+      }
+    }
   },
 
   triggerSessionUpdate: async (id) => {

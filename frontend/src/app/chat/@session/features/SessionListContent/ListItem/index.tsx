@@ -75,7 +75,6 @@ const ListItem = memo<
       addon={addon}
       avatar={avatarRender}
       className={cx(styles.container, mobile && styles.mobile)}
-      date={date}
       draggable={draggable}
       loading={loading}
       onDoubleClick={onDoubleClick}
