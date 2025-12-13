@@ -64,6 +64,12 @@ export interface SessionAction {
    * re-fetch the data
    */
   refreshSessions: () => Promise<void>;
+
+  /**
+   * load more sessions
+   */
+  loadMoreSessions: () => Promise<void>;
+
   /**
    * remove session
    * @param id - sessionId
@@ -92,18 +98,47 @@ export const createSessionSlice: StateCreator<
   SessionAction
 > = (set, get) => ({
   clearSessions: async () => {
-    const userId = getUserId();
-    const sessions = await DB.ListAllSessions(userId);
+    const sessions = await DB.ListAllSessions();
 
     // Delete all sessions (except inbox)
     const sessionsToDelete = sessions.filter(s => s.slug !== 'inbox');
     await Promise.all(
-      sessionsToDelete.map((session) => DB.DeleteSession({ id: session.id, userId }))
+      sessionsToDelete.map((session) => DB.DeleteSession(session.id))
     );
 
     console.log('[Session] Cleared all sessions via direct DB', { count: sessionsToDelete.length });
 
     await get().refreshSessions();
+  },
+
+  loadMoreSessions: async () => {
+    const { sessionsPage, sessionsHasMore, internal_processSessions, sessions } = get();
+    if (!sessionsHasMore) return;
+
+    const nextPage = sessionsPage + 1;
+    const limit = 20;
+    const offset = nextPage * limit;
+
+    try {
+      // Use DB.ListSessions with limit and offset
+      const dbSessions = await DB.ListSessions({ limit, offset });
+      const newSessions = dbSessions.map(mapSessionFromDB);
+
+      // Append new sessions
+      const nextSessions = [...sessions, ...newSessions];
+
+      // Update state
+      set({
+        sessionsPage: nextPage,
+        sessionsHasMore: newSessions.length >= limit
+      }, false, n('loadMoreSessions'));
+
+      // Process for groups with all sessions (existing + new)
+      get().internal_processSessions(nextSessions as any, get().sessionGroups);
+
+    } catch (error) {
+      console.error('[loadMoreSessions] Error:', error);
+    }
   },
 
   createSession: async (agent, isSwitchSession = true) => {
@@ -117,7 +152,6 @@ export const createSessionSlice: StateCreator<
 
     const newSession: LobeAgentSession = merge(defaultAgent, agent);
 
-    const userId = getUserId();
     const sessionId = crypto.randomUUID();
     const agentId = crypto.randomUUID();
     const now = Date.now();
@@ -131,9 +165,7 @@ export const createSessionSlice: StateCreator<
       avatar: toNullString(newSession.meta?.avatar),
       backgroundColor: toNullString(newSession.meta?.backgroundColor),
       type: toNullString('agent'),
-      userId,
       groupId: toNullString(newSession.group === 'default' ? '' : newSession.group),
-      clientId: toNullString(''),
       pinned: newSession.pinned ? 1 : 0,
       createdAt: now,
       updatedAt: now,
@@ -149,8 +181,6 @@ export const createSessionSlice: StateCreator<
       avatar: toNullString(''),
       backgroundColor: toNullString(''),
       plugins: toNullString(JSON.stringify(newSession.config?.plugins || [])),
-      clientId: toNullString(''),
-      userId,
       chatConfig: toNullString(JSON.stringify(newSession.config?.chatConfig || {})),
       fewShots: toNullString(JSON.stringify(newSession.config?.fewShots || [])),
       model: toNullString(newSession.config?.model),
@@ -169,13 +199,12 @@ export const createSessionSlice: StateCreator<
     await DB.LinkAgentToSession({
       agentId,
       sessionId,
-      userId,
     });
 
     console.log('[Session] Created session via direct DB', { sessionId });
 
     // Immediately load agent config for new session
-    const dbAgent = await DB.GetAgentBySessionId({ sessionId, userId });
+    const dbAgent = await DB.GetAgentBySessionId(sessionId);
     const config = mapAgentConfigFromDB(dbAgent);
     const agentStore = useAgentStore.getState();
     agentStore.internal_dispatchAgentMap(sessionId, config, 'createSession');
@@ -209,7 +238,6 @@ export const createSessionSlice: StateCreator<
     });
 
     try {
-      const userId = getUserId();
       const newSessionId = crypto.randomUUID();
       const newAgentId = crypto.randomUUID();
       const now = Date.now();
@@ -221,7 +249,6 @@ export const createSessionSlice: StateCreator<
         createdAt: now,
         updatedAt: now,
         id2: id,
-        userId,
       });
 
       // 2. Duplicate agent
@@ -230,14 +257,12 @@ export const createSessionSlice: StateCreator<
         createdAt: now,
         updatedAt: now,
         sessionId: id,
-        userId,
       });
 
       // 3. Link agent to session
       await DB.LinkDuplicatedAgentToSession({
         agentId: newAgentId,
         sessionId: newSessionId,
-        userId,
       });
 
       console.log('[Session] Duplicated session via direct DB', {
@@ -260,8 +285,7 @@ export const createSessionSlice: StateCreator<
     await get().internal_updateSession(id, { pinned });
   },
   removeSession: async (sessionId) => {
-    const userId = getUserId();
-    await DB.DeleteSession({ id: sessionId, userId });
+    await DB.DeleteSession(sessionId);
 
     console.log('[Session] Deleted session via direct DB', { sessionId });
 
@@ -341,13 +365,18 @@ export const createSessionSlice: StateCreator<
     if (!enabled) return;
 
     try {
-      const userId = getUserId();
-
       // Fetch sessions and session groups in parallel
+      // Initial fetch: Limit 20, Offset 0
+      const limit = 10;
+      const offset = 0;
+
       const [dbSessions, dbSessionGroups] = await Promise.all([
-        DB.ListAllSessions(userId),
-        DB.ListSessionGroups(userId),
+        DB.ListSessions({ limit, offset }),
+        DB.ListSessionGroups(),
       ]);
+
+      // Reset pagination state
+      set({ sessionsPage: 0, sessionsHasMore: dbSessions.length >= limit }, false, n('internal_fetchSessions/resetPage'));
 
       // Map database results to frontend types
       const sessions = dbSessions.map(mapSessionFromDB);
@@ -416,11 +445,9 @@ export const createSessionSlice: StateCreator<
     if (!keyword) return;
 
     try {
-      const userId = getUserId();
       const dbResults = await DB.SearchSessionsByKeyword({
-        userId,
+        column1: toNullString(keyword),
         column2: toNullString(keyword),
-        column3: toNullString(keyword),
       });
       const results = dbResults.map(mapSessionFromDB);
 
@@ -485,12 +512,16 @@ export const createSessionSlice: StateCreator<
   },
   refreshSessions: async () => {
     try {
-      const userId = getUserId();
+      // When refreshing, we want to keep the current amount of data loaded
+      // So limit should be (page + 1) * 20
+      const { sessionsPage } = get();
+      const currentLimit = (sessionsPage + 1) * 20;
 
       // Fetch sessions and session groups in parallel
+      // We use ListSessions with larger limit to cover everything currently loaded
       const [dbSessions, dbSessionGroups] = await Promise.all([
-        DB.ListAllSessions(userId),
-        DB.ListSessionGroups(userId),
+        DB.ListSessions({ limit: currentLimit, offset: 0 }),
+        DB.ListSessionGroups(),
       ]);
 
       // Map database results to frontend types

@@ -39,6 +39,11 @@ const DefaultMode = memo(() => {
   const customSessionGroups = useSessionStore(sessionSelectors.customSessionGroups, isEqual);
   const pinnedSessions = useSessionStore(sessionSelectors.pinnedSessions, isEqual);
 
+  const [hasMoreSessions, loadMoreSessions] = useSessionStore((s) => [
+    sessionSelectors.hasMoreSessions(s),
+    s.loadMoreSessions,
+  ]);
+
   const shouldHideSession = (session: LobeSessions[0]) =>
     !isMobile &&
     session.type === LobeSessionType.Agent &&
@@ -70,12 +75,12 @@ const DefaultMode = memo(() => {
     () =>
       [
         filteredPinnedSessions &&
-          filteredPinnedSessions.length > 0 && {
-            children: <SessionList dataSource={filteredPinnedSessions} />,
-            extra: <Actions isPinned openConfigModal={() => setConfigGroupModalOpen(true)} />,
-            key: SessionDefaultGroup.Pinned,
-            label: t('pin'),
-          },
+        filteredPinnedSessions.length > 0 && {
+          children: <SessionList dataSource={filteredPinnedSessions} />,
+          extra: <Actions isPinned openConfigModal={() => setConfigGroupModalOpen(true)} />,
+          key: SessionDefaultGroup.Pinned,
+          label: t('pin'),
+        },
         ...(filteredCustomSessionGroups || []).map(({ id, name, children }) => ({
           children: <SessionList dataSource={children} groupId={id} />,
           extra: (
@@ -93,7 +98,13 @@ const DefaultMode = memo(() => {
           label: name,
         })),
         {
-          children: <SessionList dataSource={filteredDefaultSessions || []} />,
+          children: (
+            <SessionList
+              dataSource={filteredDefaultSessions || []}
+              hasMore={hasMoreSessions}
+              onLoadMore={loadMoreSessions}
+            />
+          ),
           extra: <Actions openConfigModal={() => setConfigGroupModalOpen(true)} />,
           key: SessionDefaultGroup.Default,
           label: t('defaultList'),

@@ -15,7 +15,9 @@ export interface SessionState {
   /**
    * it means defaultSessions
    */
-  sessions: LobeSessions;
+  sessions: [];
+  sessionsPage: number;
+  sessionsHasMore: boolean;
   signalSessionMeta?: AbortController;
 }
 
@@ -27,4 +29,6 @@ export const initialSessionState: SessionState = {
   pinnedSessions: [],
   searchKeywords: '',
   sessions: [],
+  sessionsHasMore: true,
+  sessionsPage: 0,
 };
