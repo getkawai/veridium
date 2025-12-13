@@ -11,6 +11,7 @@ import { useSessionStore } from '@/store/session';
 import { sessionMetaSelectors } from '@/store/session/selectors';
 
 export interface UseSendMessageParams {
+  message?: string;
   isWelcomeQuestion?: boolean;
   onlyAddAIMessage?: boolean;
   onlyAddUserMessage?: boolean;
@@ -52,31 +53,35 @@ export const useSend = () => {
     isInputEmpty || isUploadingFiles || isSendButtonDisabledByMessage;
 
   const handleSend = async (params: UseSendMessageParams = {}) => {
-    if (canNotSend) return;
-
     const store = useChatStore.getState();
+
+    // Use provided message or fall back to store's inputMessage
+    const messageToSend = params.message !== undefined ? params.message : store.inputMessage;
+    const fileList = fileChatSelectors.chatUploadFileList(useFileStore.getState());
+
+    // For welcome questions or when message is provided, skip canNotSend check
+    const isProvidedMessage = params.message !== undefined;
+    if (!isProvidedMessage && canNotSend) return;
+
     const mainInputEditor = store.mainInputEditor;
 
-    if (!mainInputEditor) {
+    // Only require mainInputEditor if not a provided message (welcome question)
+    if (!isProvidedMessage && !mainInputEditor) {
       console.warn('not found mainInputEditor instance');
       return;
     }
 
     if (chatSelectors.isAIGenerating(store)) return;
 
-    const inputMessage = store.inputMessage;
-    // 发送时再取一次最新的文件列表，防止闭包拿到旧值
-    const fileList = fileChatSelectors.chatUploadFileList(useFileStore.getState());
-
     // if there is no message and no image, then we should not send the message
-    if (!inputMessage && fileList.length === 0) return;
+    if (!messageToSend && fileList.length === 0) return;
 
     // Check for Chinese text warning with Gemini model
     const agentStore = getAgentStoreState();
     const currentModel = agentSelectors.currentAgentModel(agentStore);
     const shouldContinue = await checkGeminiChineseWarning({
       model: currentModel,
-      prompt: inputMessage,
+      prompt: messageToSend,
       scenario: 'chat',
     });
 
@@ -85,13 +90,15 @@ export const useSend = () => {
     if (params.onlyAddAIMessage) {
       addAIMessage();
     } else {
-      sendMessage({ files: fileList, message: inputMessage, ...params });
+      sendMessage({ files: fileList, message: messageToSend, ...params });
     }
 
     clearChatUploadFileList();
-    mainInputEditor.setExpand(false);
-    mainInputEditor.clearContent();
-    mainInputEditor.focus();
+    if (mainInputEditor) {
+      mainInputEditor.setExpand(false);
+      mainInputEditor.clearContent();
+      mainInputEditor.focus();
+    }
   };
 
   const stop = () => {
@@ -200,9 +207,9 @@ export const useSendGroupMessage = () => {
       const mentionText =
         mentioned.length > 0
           ? ` ${mentioned
-              .map((id) => sessionMetaSelectors.getAgentMetaByAgentId(id)(sessionState).title || id)
-              .map((name) => `@${name}`)
-              .join(' ')}`
+            .map((id) => sessionMetaSelectors.getAgentMetaByAgentId(id)(sessionState).title || id)
+            .map((name) => `@${name}`)
+            .join(' ')}`
           : '';
       const messageWithMentions = `${inputMessage}${mentionText}`.trim();
 

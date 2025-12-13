@@ -6,8 +6,6 @@ import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 
-import { useChatStore } from '@/store/chat';
-
 import { useSend } from '../../../ChatInput/useSend';
 
 const useStyles = createStyles(({ css, token, responsive }) => ({
@@ -40,7 +38,6 @@ interface OpeningQuestionsProps {
 
 const OpeningQuestions = memo<OpeningQuestionsProps>(({ mobile, questions }) => {
   const { t } = useTranslation('welcome');
-  const [updateInputMessage] = useChatStore((s) => [s.updateInputMessage]);
 
   const { styles } = useStyles();
   const { send: sendMessage } = useSend();
@@ -56,8 +53,9 @@ const OpeningQuestions = memo<OpeningQuestionsProps>(({ mobile, questions }) => 
               clickable
               key={question}
               onClick={() => {
-                updateInputMessage(question);
-                sendMessage({ isWelcomeQuestion: true });
+                // Pass the message directly to sendMessage instead of relying on updateInputMessage
+                // This avoids race condition where state hasn't updated yet
+                sendMessage({ message: question, isWelcomeQuestion: true });
               }}
               paddingBlock={8}
               paddingInline={12}
