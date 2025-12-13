@@ -677,6 +677,39 @@ func (s *AgentChatService) detectLanguage(text string) string {
 	return langName
 }
 
+// getAgentSystemRole fetches the agent's system role from database and builds base instruction
+// Returns default system prompt with agent's custom system_role appended if available
+func (s *AgentChatService) getAgentSystemRole(sessionID string, currentTime string, language string) string {
+	// 1. Construct standard base instruction (always included)
+	base := fmt.Sprintf(`You are kawai AI assistant with kawai model. %s
+
+<response_language>
+IMPORTANT: The user's message is detected to be in %s. You MUST respond in %s to match the user's language.
+If the user writes in a specific language, always respond in that same language.
+</response_language>
+
+`, currentTime, language, language)
+
+	// 2. Try to get agent for this session
+	ctx := context.Background()
+	agent, err := s.db.Queries().GetAgentBySessionId(ctx, sessionID)
+
+	// 3. Append agent's system role if available
+	if err == nil && agent.SystemRole.Valid && agent.SystemRole.String != "" {
+		log.Printf("🤖 Appending agent's custom system role (%d chars)", len(agent.SystemRole.String))
+		return base + fmt.Sprintf("\n%s\n\n", agent.SystemRole.String)
+	}
+
+	// Log fallback
+	if err != nil {
+		log.Printf("⚠️  Could not fetch agent for session %s: %v, using default system prompt", sessionID, err)
+	} else {
+		log.Printf("ℹ️  Agent has no custom system role, using default system prompt")
+	}
+
+	return base
+}
+
 // buildSystemPrompt builds the system prompt string for fantasy.Agent
 // This is optimized for use with fantasy.WithSystemPrompt() which handles
 // system prompt injection internally. Returns just the prompt string.
@@ -691,15 +724,8 @@ func (s *AgentChatService) buildSystemPrompt(session *AgentSession, memoryContex
 	// Detect user message language
 	detectedLanguage := s.detectLanguage(userMessage)
 
-	// Build base instruction with current time and language instruction
-	baseInstruction := fmt.Sprintf(`You are kawai AI assistant with kawai model. %s
-
-<response_language>
-IMPORTANT: The user's message is detected to be in %s. You MUST respond in %s to match the user's language.
-If the user writes in a specific language, always respond in that same language.
-</response_language>
-
-`, currentTime, detectedLanguage, detectedLanguage)
+	// Build base instruction using agent's system role or default
+	baseInstruction := s.getAgentSystemRole(session.SessionID, currentTime, detectedLanguage)
 
 	// Inject summary if exists
 	if session.Context != nil {
