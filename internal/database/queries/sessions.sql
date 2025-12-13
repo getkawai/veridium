@@ -2,17 +2,9 @@
 SELECT * FROM sessions
 WHERE id = ?;
 
--- name: GetSessionBySlug :one
-SELECT * FROM sessions
-WHERE slug = ?;
-
--- name: GetSessionByIdOrSlug :one
-SELECT * FROM sessions
-WHERE (id = ? OR slug = ?);
-
 -- name: ListSessions :many
 SELECT * FROM sessions
-WHERE slug != 'inbox'
+WHERE id != 'inbox'
 ORDER BY updated_at DESC
 LIMIT ? OFFSET ?;
 
@@ -22,20 +14,20 @@ ORDER BY updated_at DESC;
 
 -- name: CountSessions :one
 SELECT COUNT(*) FROM sessions
-WHERE slug != 'inbox';
+WHERE id != 'inbox';
 
 -- name: CountSessionsByDateRange :one
 SELECT COUNT(*) FROM sessions
-WHERE slug != 'inbox'
+WHERE id != 'inbox'
   AND created_at >= ?
   AND created_at <= ?;
 
 -- name: CreateSession :one
 INSERT INTO sessions (
-    id, slug, title, description, avatar, background_color,
+    id, title, description, avatar, background_color,
     type, group_id, pinned,
     created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpdateSession :one
@@ -106,7 +98,7 @@ FROM sessions s
 LEFT JOIN agents_to_sessions ats ON s.id = ats.session_id
 LEFT JOIN agents a ON ats.agent_id = a.id
 LEFT JOIN topics t ON s.id = t.session_id
-WHERE s.slug != 'inbox'
+WHERE s.id != 'inbox'
 GROUP BY s.id, a.title, a.avatar, a.background_color
 ORDER BY topic_count DESC, s.updated_at DESC
 LIMIT ?;
@@ -115,13 +107,12 @@ LIMIT ?;
 -- Duplicate a session by creating a new session with the same data but new IDs
 -- Parameters: new_session_id, new_title, created_at, updated_at, source_session_id
 INSERT INTO sessions (
-    id, slug, title, description, avatar, background_color,
+    id, title, description, avatar, background_color,
     type, group_id, pinned,
     created_at, updated_at
 )
 SELECT 
     ? as id,                -- new_session_id
-    NULL as slug,           -- no slug for duplicated sessions
     ? as title,             -- new_title
     s.description,
     s.avatar,

@@ -11,7 +11,6 @@ import * as sql$0 from "../../../../../../database/sql/models.js";
 
 export class Agent {
     "id": string;
-    "slug": sql$0.NullString;
     "title": sql$0.NullString;
     "description": sql$0.NullString;
     "tags": sql$0.NullString;
@@ -35,9 +34,6 @@ export class Agent {
     constructor($$source: Partial<Agent> = {}) {
         if (!("id" in $$source)) {
             this["id"] = "";
-        }
-        if (!("slug" in $$source)) {
-            this["slug"] = (new sql$0.NullString());
         }
         if (!("title" in $$source)) {
             this["title"] = (new sql$0.NullString());
@@ -114,57 +110,53 @@ export class Agent {
         const $$createField11_0 = $$createType0;
         const $$createField12_0 = $$createType0;
         const $$createField13_0 = $$createType0;
-        const $$createField14_0 = $$createType0;
+        const $$createField15_0 = $$createType0;
         const $$createField16_0 = $$createType0;
-        const $$createField17_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("slug" in $$parsedSource) {
-            $$parsedSource["slug"] = $$createField1_0($$parsedSource["slug"]);
-        }
         if ("title" in $$parsedSource) {
-            $$parsedSource["title"] = $$createField2_0($$parsedSource["title"]);
+            $$parsedSource["title"] = $$createField1_0($$parsedSource["title"]);
         }
         if ("description" in $$parsedSource) {
-            $$parsedSource["description"] = $$createField3_0($$parsedSource["description"]);
+            $$parsedSource["description"] = $$createField2_0($$parsedSource["description"]);
         }
         if ("tags" in $$parsedSource) {
-            $$parsedSource["tags"] = $$createField4_0($$parsedSource["tags"]);
+            $$parsedSource["tags"] = $$createField3_0($$parsedSource["tags"]);
         }
         if ("avatar" in $$parsedSource) {
-            $$parsedSource["avatar"] = $$createField5_0($$parsedSource["avatar"]);
+            $$parsedSource["avatar"] = $$createField4_0($$parsedSource["avatar"]);
         }
         if ("backgroundColor" in $$parsedSource) {
-            $$parsedSource["backgroundColor"] = $$createField6_0($$parsedSource["backgroundColor"]);
+            $$parsedSource["backgroundColor"] = $$createField5_0($$parsedSource["backgroundColor"]);
         }
         if ("plugins" in $$parsedSource) {
-            $$parsedSource["plugins"] = $$createField7_0($$parsedSource["plugins"]);
+            $$parsedSource["plugins"] = $$createField6_0($$parsedSource["plugins"]);
         }
         if ("chatConfig" in $$parsedSource) {
-            $$parsedSource["chatConfig"] = $$createField8_0($$parsedSource["chatConfig"]);
+            $$parsedSource["chatConfig"] = $$createField7_0($$parsedSource["chatConfig"]);
         }
         if ("fewShots" in $$parsedSource) {
-            $$parsedSource["fewShots"] = $$createField9_0($$parsedSource["fewShots"]);
+            $$parsedSource["fewShots"] = $$createField8_0($$parsedSource["fewShots"]);
         }
         if ("model" in $$parsedSource) {
-            $$parsedSource["model"] = $$createField10_0($$parsedSource["model"]);
+            $$parsedSource["model"] = $$createField9_0($$parsedSource["model"]);
         }
         if ("params" in $$parsedSource) {
-            $$parsedSource["params"] = $$createField11_0($$parsedSource["params"]);
+            $$parsedSource["params"] = $$createField10_0($$parsedSource["params"]);
         }
         if ("provider" in $$parsedSource) {
-            $$parsedSource["provider"] = $$createField12_0($$parsedSource["provider"]);
+            $$parsedSource["provider"] = $$createField11_0($$parsedSource["provider"]);
         }
         if ("systemRole" in $$parsedSource) {
-            $$parsedSource["systemRole"] = $$createField13_0($$parsedSource["systemRole"]);
+            $$parsedSource["systemRole"] = $$createField12_0($$parsedSource["systemRole"]);
         }
         if ("tts" in $$parsedSource) {
-            $$parsedSource["tts"] = $$createField14_0($$parsedSource["tts"]);
+            $$parsedSource["tts"] = $$createField13_0($$parsedSource["tts"]);
         }
         if ("openingMessage" in $$parsedSource) {
-            $$parsedSource["openingMessage"] = $$createField16_0($$parsedSource["openingMessage"]);
+            $$parsedSource["openingMessage"] = $$createField15_0($$parsedSource["openingMessage"]);
         }
         if ("openingQuestions" in $$parsedSource) {
-            $$parsedSource["openingQuestions"] = $$createField17_0($$parsedSource["openingQuestions"]);
+            $$parsedSource["openingQuestions"] = $$createField16_0($$parsedSource["openingQuestions"]);
         }
         return new Agent($$parsedSource as Partial<Agent>);
     }
@@ -1369,7 +1361,6 @@ export class CreateAPIKeyParams {
 
 export class CreateAgentParams {
     "id": string;
-    "slug": sql$0.NullString;
     "title": sql$0.NullString;
     "description": sql$0.NullString;
     "tags": sql$0.NullString;
@@ -1393,9 +1384,6 @@ export class CreateAgentParams {
     constructor($$source: Partial<CreateAgentParams> = {}) {
         if (!("id" in $$source)) {
             this["id"] = "";
-        }
-        if (!("slug" in $$source)) {
-            this["slug"] = (new sql$0.NullString());
         }
         if (!("title" in $$source)) {
             this["title"] = (new sql$0.NullString());
@@ -1472,57 +1460,53 @@ export class CreateAgentParams {
         const $$createField11_0 = $$createType0;
         const $$createField12_0 = $$createType0;
         const $$createField13_0 = $$createType0;
-        const $$createField14_0 = $$createType0;
+        const $$createField15_0 = $$createType0;
         const $$createField16_0 = $$createType0;
-        const $$createField17_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("slug" in $$parsedSource) {
-            $$parsedSource["slug"] = $$createField1_0($$parsedSource["slug"]);
-        }
         if ("title" in $$parsedSource) {
-            $$parsedSource["title"] = $$createField2_0($$parsedSource["title"]);
+            $$parsedSource["title"] = $$createField1_0($$parsedSource["title"]);
         }
         if ("description" in $$parsedSource) {
-            $$parsedSource["description"] = $$createField3_0($$parsedSource["description"]);
+            $$parsedSource["description"] = $$createField2_0($$parsedSource["description"]);
         }
         if ("tags" in $$parsedSource) {
-            $$parsedSource["tags"] = $$createField4_0($$parsedSource["tags"]);
+            $$parsedSource["tags"] = $$createField3_0($$parsedSource["tags"]);
         }
         if ("avatar" in $$parsedSource) {
-            $$parsedSource["avatar"] = $$createField5_0($$parsedSource["avatar"]);
+            $$parsedSource["avatar"] = $$createField4_0($$parsedSource["avatar"]);
         }
         if ("backgroundColor" in $$parsedSource) {
-            $$parsedSource["backgroundColor"] = $$createField6_0($$parsedSource["backgroundColor"]);
+            $$parsedSource["backgroundColor"] = $$createField5_0($$parsedSource["backgroundColor"]);
         }
         if ("plugins" in $$parsedSource) {
-            $$parsedSource["plugins"] = $$createField7_0($$parsedSource["plugins"]);
+            $$parsedSource["plugins"] = $$createField6_0($$parsedSource["plugins"]);
         }
         if ("chatConfig" in $$parsedSource) {
-            $$parsedSource["chatConfig"] = $$createField8_0($$parsedSource["chatConfig"]);
+            $$parsedSource["chatConfig"] = $$createField7_0($$parsedSource["chatConfig"]);
         }
         if ("fewShots" in $$parsedSource) {
-            $$parsedSource["fewShots"] = $$createField9_0($$parsedSource["fewShots"]);
+            $$parsedSource["fewShots"] = $$createField8_0($$parsedSource["fewShots"]);
         }
         if ("model" in $$parsedSource) {
-            $$parsedSource["model"] = $$createField10_0($$parsedSource["model"]);
+            $$parsedSource["model"] = $$createField9_0($$parsedSource["model"]);
         }
         if ("params" in $$parsedSource) {
-            $$parsedSource["params"] = $$createField11_0($$parsedSource["params"]);
+            $$parsedSource["params"] = $$createField10_0($$parsedSource["params"]);
         }
         if ("provider" in $$parsedSource) {
-            $$parsedSource["provider"] = $$createField12_0($$parsedSource["provider"]);
+            $$parsedSource["provider"] = $$createField11_0($$parsedSource["provider"]);
         }
         if ("systemRole" in $$parsedSource) {
-            $$parsedSource["systemRole"] = $$createField13_0($$parsedSource["systemRole"]);
+            $$parsedSource["systemRole"] = $$createField12_0($$parsedSource["systemRole"]);
         }
         if ("tts" in $$parsedSource) {
-            $$parsedSource["tts"] = $$createField14_0($$parsedSource["tts"]);
+            $$parsedSource["tts"] = $$createField13_0($$parsedSource["tts"]);
         }
         if ("openingMessage" in $$parsedSource) {
-            $$parsedSource["openingMessage"] = $$createField16_0($$parsedSource["openingMessage"]);
+            $$parsedSource["openingMessage"] = $$createField15_0($$parsedSource["openingMessage"]);
         }
         if ("openingQuestions" in $$parsedSource) {
-            $$parsedSource["openingQuestions"] = $$createField17_0($$parsedSource["openingQuestions"]);
+            $$parsedSource["openingQuestions"] = $$createField16_0($$parsedSource["openingQuestions"]);
         }
         return new CreateAgentParams($$parsedSource as Partial<CreateAgentParams>);
     }
@@ -2916,7 +2900,6 @@ export class CreateSessionGroupParams {
 
 export class CreateSessionParams {
     "id": string;
-    "slug": string;
     "title": sql$0.NullString;
     "description": sql$0.NullString;
     "avatar": sql$0.NullString;
@@ -2931,9 +2914,6 @@ export class CreateSessionParams {
     constructor($$source: Partial<CreateSessionParams> = {}) {
         if (!("id" in $$source)) {
             this["id"] = "";
-        }
-        if (!("slug" in $$source)) {
-            this["slug"] = "";
         }
         if (!("title" in $$source)) {
             this["title"] = (new sql$0.NullString());
@@ -2970,30 +2950,30 @@ export class CreateSessionParams {
      * Creates a new CreateSessionParams instance from a string or object.
      */
     static createFrom($$source: any = {}): CreateSessionParams {
+        const $$createField1_0 = $$createType0;
         const $$createField2_0 = $$createType0;
         const $$createField3_0 = $$createType0;
         const $$createField4_0 = $$createType0;
         const $$createField5_0 = $$createType0;
         const $$createField6_0 = $$createType0;
-        const $$createField7_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("title" in $$parsedSource) {
-            $$parsedSource["title"] = $$createField2_0($$parsedSource["title"]);
+            $$parsedSource["title"] = $$createField1_0($$parsedSource["title"]);
         }
         if ("description" in $$parsedSource) {
-            $$parsedSource["description"] = $$createField3_0($$parsedSource["description"]);
+            $$parsedSource["description"] = $$createField2_0($$parsedSource["description"]);
         }
         if ("avatar" in $$parsedSource) {
-            $$parsedSource["avatar"] = $$createField4_0($$parsedSource["avatar"]);
+            $$parsedSource["avatar"] = $$createField3_0($$parsedSource["avatar"]);
         }
         if ("backgroundColor" in $$parsedSource) {
-            $$parsedSource["backgroundColor"] = $$createField5_0($$parsedSource["backgroundColor"]);
+            $$parsedSource["backgroundColor"] = $$createField4_0($$parsedSource["backgroundColor"]);
         }
         if ("type" in $$parsedSource) {
-            $$parsedSource["type"] = $$createField6_0($$parsedSource["type"]);
+            $$parsedSource["type"] = $$createField5_0($$parsedSource["type"]);
         }
         if ("groupId" in $$parsedSource) {
-            $$parsedSource["groupId"] = $$createField7_0($$parsedSource["groupId"]);
+            $$parsedSource["groupId"] = $$createField6_0($$parsedSource["groupId"]);
         }
         return new CreateSessionParams($$parsedSource as Partial<CreateSessionParams>);
     }
@@ -6243,31 +6223,6 @@ export class GetMessagesWithRelationsRow {
     }
 }
 
-export class GetSessionByIdOrSlugParams {
-    "id": string;
-    "slug": string;
-
-    /** Creates a new GetSessionByIdOrSlugParams instance. */
-    constructor($$source: Partial<GetSessionByIdOrSlugParams> = {}) {
-        if (!("id" in $$source)) {
-            this["id"] = "";
-        }
-        if (!("slug" in $$source)) {
-            this["slug"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new GetSessionByIdOrSlugParams instance from a string or object.
-     */
-    static createFrom($$source: any = {}): GetSessionByIdOrSlugParams {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new GetSessionByIdOrSlugParams($$parsedSource as Partial<GetSessionByIdOrSlugParams>);
-    }
-}
-
 export class GetSessionGroupWithSessionsRow {
     "id": string;
     "name": string;
@@ -6364,7 +6319,6 @@ export class GetSessionRankRow {
 
 export class GetSessionWithGroupRow {
     "id": string;
-    "slug": string;
     "title": sql$0.NullString;
     "description": sql$0.NullString;
     "avatar": sql$0.NullString;
@@ -6384,9 +6338,6 @@ export class GetSessionWithGroupRow {
     constructor($$source: Partial<GetSessionWithGroupRow> = {}) {
         if (!("id" in $$source)) {
             this["id"] = "";
-        }
-        if (!("slug" in $$source)) {
-            this["slug"] = "";
         }
         if (!("title" in $$source)) {
             this["title"] = (new sql$0.NullString());
@@ -6438,50 +6389,50 @@ export class GetSessionWithGroupRow {
      * Creates a new GetSessionWithGroupRow instance from a string or object.
      */
     static createFrom($$source: any = {}): GetSessionWithGroupRow {
+        const $$createField1_0 = $$createType0;
         const $$createField2_0 = $$createType0;
         const $$createField3_0 = $$createType0;
         const $$createField4_0 = $$createType0;
         const $$createField5_0 = $$createType0;
         const $$createField6_0 = $$createType0;
-        const $$createField7_0 = $$createType0;
+        const $$createField8_0 = $$createType0;
         const $$createField9_0 = $$createType0;
-        const $$createField10_0 = $$createType0;
+        const $$createField12_0 = $$createType0;
         const $$createField13_0 = $$createType0;
-        const $$createField14_0 = $$createType0;
-        const $$createField15_0 = $$createType1;
+        const $$createField14_0 = $$createType1;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("title" in $$parsedSource) {
-            $$parsedSource["title"] = $$createField2_0($$parsedSource["title"]);
+            $$parsedSource["title"] = $$createField1_0($$parsedSource["title"]);
         }
         if ("description" in $$parsedSource) {
-            $$parsedSource["description"] = $$createField3_0($$parsedSource["description"]);
+            $$parsedSource["description"] = $$createField2_0($$parsedSource["description"]);
         }
         if ("avatar" in $$parsedSource) {
-            $$parsedSource["avatar"] = $$createField4_0($$parsedSource["avatar"]);
+            $$parsedSource["avatar"] = $$createField3_0($$parsedSource["avatar"]);
         }
         if ("backgroundColor" in $$parsedSource) {
-            $$parsedSource["backgroundColor"] = $$createField5_0($$parsedSource["backgroundColor"]);
+            $$parsedSource["backgroundColor"] = $$createField4_0($$parsedSource["backgroundColor"]);
         }
         if ("type" in $$parsedSource) {
-            $$parsedSource["type"] = $$createField6_0($$parsedSource["type"]);
+            $$parsedSource["type"] = $$createField5_0($$parsedSource["type"]);
         }
         if ("groupId" in $$parsedSource) {
-            $$parsedSource["groupId"] = $$createField7_0($$parsedSource["groupId"]);
+            $$parsedSource["groupId"] = $$createField6_0($$parsedSource["groupId"]);
         }
         if ("model" in $$parsedSource) {
-            $$parsedSource["model"] = $$createField9_0($$parsedSource["model"]);
+            $$parsedSource["model"] = $$createField8_0($$parsedSource["model"]);
         }
         if ("tags" in $$parsedSource) {
-            $$parsedSource["tags"] = $$createField10_0($$parsedSource["tags"]);
+            $$parsedSource["tags"] = $$createField9_0($$parsedSource["tags"]);
         }
         if ("groupId2" in $$parsedSource) {
-            $$parsedSource["groupId2"] = $$createField13_0($$parsedSource["groupId2"]);
+            $$parsedSource["groupId2"] = $$createField12_0($$parsedSource["groupId2"]);
         }
         if ("groupName" in $$parsedSource) {
-            $$parsedSource["groupName"] = $$createField14_0($$parsedSource["groupName"]);
+            $$parsedSource["groupName"] = $$createField13_0($$parsedSource["groupName"]);
         }
         if ("groupSort" in $$parsedSource) {
-            $$parsedSource["groupSort"] = $$createField15_0($$parsedSource["groupSort"]);
+            $$parsedSource["groupSort"] = $$createField14_0($$parsedSource["groupSort"]);
         }
         return new GetSessionWithGroupRow($$parsedSource as Partial<GetSessionWithGroupRow>);
     }
@@ -9104,7 +9055,6 @@ export class SearchTopicsByTitleParams {
 
 export class Session {
     "id": string;
-    "slug": string;
     "title": sql$0.NullString;
     "description": sql$0.NullString;
     "avatar": sql$0.NullString;
@@ -9121,9 +9071,6 @@ export class Session {
     constructor($$source: Partial<Session> = {}) {
         if (!("id" in $$source)) {
             this["id"] = "";
-        }
-        if (!("slug" in $$source)) {
-            this["slug"] = "";
         }
         if (!("title" in $$source)) {
             this["title"] = (new sql$0.NullString());
@@ -9166,38 +9113,38 @@ export class Session {
      * Creates a new Session instance from a string or object.
      */
     static createFrom($$source: any = {}): Session {
+        const $$createField1_0 = $$createType0;
         const $$createField2_0 = $$createType0;
         const $$createField3_0 = $$createType0;
         const $$createField4_0 = $$createType0;
         const $$createField5_0 = $$createType0;
         const $$createField6_0 = $$createType0;
-        const $$createField7_0 = $$createType0;
+        const $$createField8_0 = $$createType0;
         const $$createField9_0 = $$createType0;
-        const $$createField10_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("title" in $$parsedSource) {
-            $$parsedSource["title"] = $$createField2_0($$parsedSource["title"]);
+            $$parsedSource["title"] = $$createField1_0($$parsedSource["title"]);
         }
         if ("description" in $$parsedSource) {
-            $$parsedSource["description"] = $$createField3_0($$parsedSource["description"]);
+            $$parsedSource["description"] = $$createField2_0($$parsedSource["description"]);
         }
         if ("avatar" in $$parsedSource) {
-            $$parsedSource["avatar"] = $$createField4_0($$parsedSource["avatar"]);
+            $$parsedSource["avatar"] = $$createField3_0($$parsedSource["avatar"]);
         }
         if ("backgroundColor" in $$parsedSource) {
-            $$parsedSource["backgroundColor"] = $$createField5_0($$parsedSource["backgroundColor"]);
+            $$parsedSource["backgroundColor"] = $$createField4_0($$parsedSource["backgroundColor"]);
         }
         if ("type" in $$parsedSource) {
-            $$parsedSource["type"] = $$createField6_0($$parsedSource["type"]);
+            $$parsedSource["type"] = $$createField5_0($$parsedSource["type"]);
         }
         if ("groupId" in $$parsedSource) {
-            $$parsedSource["groupId"] = $$createField7_0($$parsedSource["groupId"]);
+            $$parsedSource["groupId"] = $$createField6_0($$parsedSource["groupId"]);
         }
         if ("model" in $$parsedSource) {
-            $$parsedSource["model"] = $$createField9_0($$parsedSource["model"]);
+            $$parsedSource["model"] = $$createField8_0($$parsedSource["model"]);
         }
         if ("tags" in $$parsedSource) {
-            $$parsedSource["tags"] = $$createField10_0($$parsedSource["tags"]);
+            $$parsedSource["tags"] = $$createField9_0($$parsedSource["tags"]);
         }
         return new Session($$parsedSource as Partial<Session>);
     }

@@ -75,8 +75,7 @@ CREATE TABLE IF NOT EXISTS knowledge_base_files (
 
 -- Agents table
 CREATE TABLE IF NOT EXISTS agents (
-  id TEXT PRIMARY KEY,
-  slug TEXT UNIQUE,
+	id TEXT PRIMARY KEY,
   title TEXT,
   description TEXT,
   tags TEXT DEFAULT '[]', -- JSON as text
@@ -108,8 +107,7 @@ CREATE TABLE IF NOT EXISTS session_groups (
 
 -- Sessions table
 CREATE TABLE IF NOT EXISTS sessions (
-  id TEXT PRIMARY KEY,
-  slug TEXT NOT NULL,
+	id TEXT PRIMARY KEY,
   title TEXT,
   description TEXT,
   avatar TEXT,
@@ -120,8 +118,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   model TEXT, -- added for direct access
   tags TEXT DEFAULT '[]', -- JSON as text
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
-  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
-  UNIQUE(slug)
+  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
 );
 
 -- Topics table

@@ -10,7 +10,6 @@ import (
 
 type Agent struct {
 	ID               string         `json:"id"`
-	Slug             sql.NullString `json:"slug"`
 	Title            sql.NullString `json:"title"`
 	Description      sql.NullString `json:"description"`
 	Tags             sql.NullString `json:"tags"`
@@ -389,7 +388,6 @@ type RagEvalEvaluationRecord struct {
 
 type Session struct {
 	ID              string         `json:"id"`
-	Slug            string         `json:"slug"`
 	Title           sql.NullString `json:"title"`
 	Description     sql.NullString `json:"description"`
 	Avatar          sql.NullString `json:"avatar"`

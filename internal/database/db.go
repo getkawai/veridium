@@ -449,6 +449,7 @@ func (s *Service) BatchInsertAIModels(ctx context.Context, models []db.CreateAIM
 // ============================================================================
 
 const defaultUserID = "DEFAULT_LOBE_CHAT_USER"
+const DefaultInboxAgentID = "inbox"
 
 // ensureDefaultData ensures the default settings and inbox session exist
 // This is called during database initialization for desktop single-user apps
@@ -464,8 +465,8 @@ func (s *Service) ensureDefaultData(ctx context.Context) error {
 	}
 
 	// 3. Check if inbox session already exists
-	// GetSessionBySlug no longer needs UserID
-	_, err := s.queries.GetSessionBySlug(ctx, "inbox")
+	// GetSession no longer needs UserID, and we use fixed ID "inbox"
+	_, err := s.queries.GetSession(ctx, "inbox")
 
 	if err == sql.ErrNoRows {
 		// Inbox doesn't exist, create it
@@ -495,13 +496,12 @@ func (s *Service) ensureDefaultData(ctx context.Context) error {
 func (s *Service) createDefaultInboxSession(ctx context.Context) error {
 	return s.WithTx(ctx, func(q *db.Queries) error {
 		now := int64(1000)
-		sessionID := "inbox"
-		agentID := "default-inbox-agent"
+		sessionID := DefaultInboxAgentID
+		agentID := DefaultInboxAgentID
 
 		// 1. Create session
 		_, err := q.CreateSession(ctx, db.CreateSessionParams{
 			ID:              sessionID,
-			Slug:            "inbox",
 			Title:           sql.NullString{Valid: false},
 			Description:     sql.NullString{Valid: false},
 			Avatar:          sql.NullString{Valid: false},
@@ -522,7 +522,6 @@ func (s *Service) createDefaultInboxSession(ctx context.Context) error {
 
 		_, err = q.CreateAgent(ctx, db.CreateAgentParams{
 			ID:               agentID,
-			Slug:             sql.NullString{Valid: false},
 			Title:            sql.NullString{Valid: false},
 			Description:      sql.NullString{Valid: false},
 			Tags:             sql.NullString{String: "[]", Valid: true},

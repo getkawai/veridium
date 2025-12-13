@@ -53,32 +53,3 @@ export interface LobeAgentConfig {
    */
   virtual?: boolean;
 }
-
-export type LobeAgentConfigKeys =
-  | keyof LobeAgentConfig
-  | ['params', keyof LobeAgentConfig['params']];
-
-// Agent database item type (independent from schema)
-export interface AgentItem {
-  avatar?: string | null;
-  backgroundColor?: string | null;
-  chatConfig?: LobeAgentChatConfig | null;
-  clientId?: string | null;
-  createdAt: Date;
-  description?: string | null;
-  fewShots?: any | null;
-  id: string;
-  model?: string | null;
-  openingMessage?: string | null;
-  openingQuestions?: string[];
-  params?: any;
-  plugins?: string[];
-  provider?: string | null;
-  slug?: string | null;
-  systemRole?: string | null;
-  tags?: string[];
-  title?: string | null;
-  updatedAt: Date;
-  userId: string;
-  virtual?: boolean | null;
-}

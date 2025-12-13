@@ -945,16 +945,11 @@ func convertDBMessageToYzma(dbMsg *db.Message) (fantasy.Message, bool) {
 
 // loadSessionFromDB loads a session from database
 func (s *AgentChatService) loadSessionFromDB(ctx context.Context, sessionID, userID string) (*db.Session, []db.Message, error) {
-	// Load session metadata (sessionID can be either ID or slug)
-	dbSession, err := s.db.Queries().GetSessionByIdOrSlug(ctx, db.GetSessionByIdOrSlugParams{
-		ID:   sessionID,
-		Slug: sessionID,
-	})
+	dbSession, err := s.db.Queries().GetSession(ctx, sessionID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("session not found in DB: %w", err)
 	}
 
-	// Load message history (use actual session ID from DB, not slug)
 	dbMessages, err := s.db.Queries().ListMessagesBySession(ctx, db.ListMessagesBySessionParams{
 		SessionID: sql.NullString{String: dbSession.ID, Valid: true},
 		Limit:     1000, // Load up to 1000 messages
@@ -973,17 +968,8 @@ func (s *AgentChatService) loadSessionFromDB(ctx context.Context, sessionID, use
 func (s *AgentChatService) createSessionInDB(ctx context.Context, sessionID, kbID string) (*db.Session, error) {
 	now := time.Now().UnixMilli()
 
-	// Generate unique slug from sessionID
-	// Use last 8 chars to ensure uniqueness (they contain timestamps/random)
-	slug := sessionID
-	if len(slug) > 8 {
-		// Take last 8 chars for better uniqueness with timestamps
-		slug = slug[len(slug)-8:]
-	}
-
 	params := db.CreateSessionParams{
 		ID:        sessionID,
-		Slug:      slug,
 		Type:      sql.NullString{String: "agent", Valid: true},
 		Pinned:    0,
 		CreatedAt: now,

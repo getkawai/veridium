@@ -11,8 +11,17 @@ import (
 	"sync"
 	"time"
 
+	db "github.com/kawai-network/veridium/internal/database/generated"
 	_ "modernc.org/sqlite"
 )
+
+// toNullString helper
+func toNullString(s string) sql.NullString {
+	if s == "" {
+		return sql.NullString{Valid: false}
+	}
+	return sql.NullString{String: s, Valid: true}
+}
 
 const (
 	RemoteAgentIndexURL          = "https://registry.npmmirror.com/@lobehub/agents-index/1.42.0/files/public/index.json"
@@ -167,11 +176,11 @@ func main() {
 	os.Remove(dbPath) // Clean start
 
 	log.Printf("💾 Creating database: %s\n", dbPath)
-	db, err := sql.Open("sqlite", dbPath)
+	conn, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		log.Fatalf("Failed to open database: %v", err)
 	}
-	defer db.Close()
+	defer conn.Close()
 
 	// Create schema from schema.sql file
 	log.Println("📋 Loading schema from schema.sql...")
@@ -180,9 +189,13 @@ func main() {
 		log.Fatalf("Failed to read schema file: %v", err)
 	}
 
-	if _, err := db.Exec(string(schemaBytes)); err != nil {
+	if _, err := conn.Exec(string(schemaBytes)); err != nil {
 		log.Fatalf("Failed to create schema: %v", err)
 	}
+
+	// Initialize queries
+	queries := db.New(conn)
+	ctx := context.Background()
 
 	// Insert agents
 	log.Println("📝 Inserting agents into database...")
@@ -212,10 +225,27 @@ func main() {
 		}
 
 		// Insert agent
-		_, err := db.Exec(`
-			INSERT INTO agents (id, slug, title, description, tags, avatar, background_color, plugins, chat_config, few_shots, model, params, provider, system_role, tts, virtual, opening_message, opening_questions, created_at, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, NULL, '[]', ?, NULL, 'kawai-auto', ?, 'kawai', ?, NULL, 0, ?, ?, ?, ?)
-		`, agent.Identifier, agent.Identifier, agent.Meta.Title, agent.Meta.Description, string(tagsJSON), agent.Meta.Avatar, defaultAgentConfig, defaultParams, systemRole, openingMessage, openingQuestions, now, now)
+		_, err := queries.CreateAgent(ctx, db.CreateAgentParams{
+			ID:               agent.Identifier,
+			Title:            toNullString(agent.Meta.Title),
+			Description:      toNullString(agent.Meta.Description),
+			Tags:             toNullString(string(tagsJSON)),
+			Avatar:           toNullString(agent.Meta.Avatar),
+			BackgroundColor:  sql.NullString{Valid: false}, // NULL
+			Plugins:          toNullString("[]"),
+			ChatConfig:       toNullString(defaultAgentConfig),
+			FewShots:         sql.NullString{Valid: false}, // NULL
+			Model:            toNullString("kawai-auto"),
+			Params:           toNullString(defaultParams),
+			Provider:         toNullString("kawai"),
+			SystemRole:       toNullString(systemRole),
+			Tts:              sql.NullString{Valid: false}, // NULL
+			Virtual:          0,
+			OpeningMessage:   toNullString(openingMessage),
+			OpeningQuestions: toNullString(openingQuestions),
+			CreatedAt:        now,
+			UpdatedAt:        now,
+		})
 
 		if err != nil {
 			log.Printf("⚠️  Failed to insert agent %s: %v", agent.Identifier, err)
@@ -223,10 +253,18 @@ func main() {
 		}
 
 		// Insert session
-		_, err = db.Exec(`
-			INSERT INTO sessions (id, slug, title, description, avatar, background_color, type, group_id, pinned, created_at, updated_at)
-			VALUES (?, ?, ?, ?, ?, NULL, 'agent', 'default', 0, ?, ?)
-		`, agent.Identifier, agent.Identifier, agent.Meta.Title, agent.Meta.Description, agent.Meta.Avatar, now, now)
+		_, err = queries.CreateSession(ctx, db.CreateSessionParams{
+			ID:              agent.Identifier,
+			Title:           toNullString(agent.Meta.Title),
+			Description:     toNullString(agent.Meta.Description),
+			Avatar:          toNullString(agent.Meta.Avatar),
+			BackgroundColor: sql.NullString{Valid: false}, // NULL
+			Type:            toNullString("agent"),
+			GroupID:         toNullString("default"),
+			Pinned:          0,
+			CreatedAt:       now,
+			UpdatedAt:       now,
+		})
 
 		if err != nil {
 			log.Printf("⚠️  Failed to insert session for %s: %v", agent.Identifier, err)
@@ -234,10 +272,10 @@ func main() {
 		}
 
 		// Link agent to session
-		_, err = db.Exec(`
-			INSERT INTO agents_to_sessions (agent_id, session_id)
-			VALUES (?, ?)
-		`, agent.Identifier, agent.Identifier)
+		err = queries.LinkAgentToSession(ctx, db.LinkAgentToSessionParams{
+			AgentID:   agent.Identifier,
+			SessionID: agent.Identifier,
+		})
 
 		if err != nil {
 			log.Printf("⚠️  Failed to link agent %s to session: %v", agent.Identifier, err)
@@ -266,51 +304,53 @@ func main() {
 	fmt.Fprintln(dumpFile, "BEGIN TRANSACTION;")
 
 	// Dump agents
-	rows, err := db.Query("SELECT id, slug, title, description, tags, avatar, background_color, plugins, chat_config, few_shots, model, params, provider, system_role, tts, virtual, opening_message, opening_questions, created_at, updated_at FROM agents")
+	// Dump agents
+	rows, err := conn.Query("SELECT id, title, description, tags, avatar, background_color, plugins, chat_config, few_shots, model, params, provider, system_role, tts, virtual, opening_message, opening_questions, created_at, updated_at FROM agents")
 	if err != nil {
 		log.Fatalf("Failed to query agents: %v", err)
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		var id, slug, title, description, tags, avatar, bgColor, plugins, chatConfig, fewShots, model, params, provider, systemRole, tts, openingMsg, openingQ sql.NullString
+		var id, title, description, tags, avatar, bgColor, plugins, chatConfig, fewShots, model, params, provider, systemRole, tts, openingMsg, openingQ sql.NullString
 		var virtual int
 		var createdAt, updatedAt int64
 
-		err := rows.Scan(&id, &slug, &title, &description, &tags, &avatar, &bgColor, &plugins, &chatConfig, &fewShots, &model, &params, &provider, &systemRole, &tts, &virtual, &openingMsg, &openingQ, &createdAt, &updatedAt)
+		err := rows.Scan(&id, &title, &description, &tags, &avatar, &bgColor, &plugins, &chatConfig, &fewShots, &model, &params, &provider, &systemRole, &tts, &virtual, &openingMsg, &openingQ, &createdAt, &updatedAt)
 		if err != nil {
 			log.Printf("Failed to scan row: %v", err)
 			continue
 		}
 
-		fmt.Fprintf(dumpFile, "INSERT INTO agents (id, slug, title, description, tags, avatar, background_color, plugins, chat_config, few_shots, model, params, provider, system_role, tts, virtual, opening_message, opening_questions, created_at, updated_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %d, %s, %s, %d, %d);\n",
-			sqlQuote(id), sqlQuote(slug), sqlQuote(title), sqlQuote(description), sqlQuote(tags), sqlQuote(avatar), sqlQuote(bgColor), sqlQuote(plugins), sqlQuote(chatConfig), sqlQuote(fewShots), sqlQuote(model), sqlQuote(params), sqlQuote(provider), sqlQuote(systemRole), sqlQuote(tts), virtual, sqlQuote(openingMsg), sqlQuote(openingQ), createdAt, updatedAt)
+		fmt.Fprintf(dumpFile, "INSERT INTO agents (id, title, description, tags, avatar, background_color, plugins, chat_config, few_shots, model, params, provider, system_role, tts, virtual, opening_message, opening_questions, created_at, updated_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %d, %s, %s, %d, %d);\n",
+			sqlQuote(id), sqlQuote(title), sqlQuote(description), sqlQuote(tags), sqlQuote(avatar), sqlQuote(bgColor), sqlQuote(plugins), sqlQuote(chatConfig), sqlQuote(fewShots), sqlQuote(model), sqlQuote(params), sqlQuote(provider), sqlQuote(systemRole), sqlQuote(tts), virtual, sqlQuote(openingMsg), sqlQuote(openingQ), createdAt, updatedAt)
+
 	}
 
 	// Dump sessions
-	sessionRows, err := db.Query("SELECT id, slug, title, description, avatar, background_color, type, group_id, pinned, created_at, updated_at FROM sessions")
+	sessionRows, err := conn.Query("SELECT id, title, description, avatar, background_color, type, group_id, pinned, created_at, updated_at FROM sessions")
 	if err != nil {
 		log.Fatalf("Failed to query sessions: %v", err)
 	}
 	defer sessionRows.Close()
 
 	for sessionRows.Next() {
-		var id, slug, title, description, avatar, bgColor, typ, groupID sql.NullString
+		var id, title, description, avatar, bgColor, typ, groupID sql.NullString
 		var pinned int
 		var createdAt, updatedAt int64
 
-		err := sessionRows.Scan(&id, &slug, &title, &description, &avatar, &bgColor, &typ, &groupID, &pinned, &createdAt, &updatedAt)
+		err := sessionRows.Scan(&id, &title, &description, &avatar, &bgColor, &typ, &groupID, &pinned, &createdAt, &updatedAt)
 		if err != nil {
 			log.Printf("Failed to scan session row: %v", err)
 			continue
 		}
 
-		fmt.Fprintf(dumpFile, "INSERT INTO sessions (id, slug, title, description, avatar, background_color, type, group_id, pinned, created_at, updated_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %d, %d, %d);\n",
-			sqlQuote(id), sqlQuote(slug), sqlQuote(title), sqlQuote(description), sqlQuote(avatar), sqlQuote(bgColor), sqlQuote(typ), sqlQuote(groupID), pinned, createdAt, updatedAt)
+		fmt.Fprintf(dumpFile, "INSERT INTO sessions (id, title, description, avatar, background_color, type, group_id, pinned, created_at, updated_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %d, %d, %d);\n",
+			sqlQuote(id), sqlQuote(title), sqlQuote(description), sqlQuote(avatar), sqlQuote(bgColor), sqlQuote(typ), sqlQuote(groupID), pinned, createdAt, updatedAt)
 	}
 
 	// Dump agents_to_sessions
-	linkRows, err := db.Query("SELECT agent_id, session_id FROM agents_to_sessions")
+	linkRows, err := conn.Query("SELECT agent_id, session_id FROM agents_to_sessions")
 	if err != nil {
 		log.Fatalf("Failed to query agents_to_sessions: %v", err)
 	}

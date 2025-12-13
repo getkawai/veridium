@@ -97,7 +97,6 @@ export {
     GetMessagesWithRelationsBySessionRow,
     GetMessagesWithRelationsParams,
     GetMessagesWithRelationsRow,
-    GetSessionByIdOrSlugParams,
     GetSessionGroupWithSessionsRow,
     GetSessionRankRow,
     GetSessionWithGroupRow,

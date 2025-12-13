@@ -213,7 +213,7 @@ func (q *Queries) GetChatGroupAgentLinks(ctx context.Context, chatGroupID string
 }
 
 const GetChatGroupAgents = `-- name: GetChatGroupAgents :many
-SELECT a.id, a.slug, a.title, a.description, a.tags, a.avatar, a.background_color, a.plugins, a.chat_config, a.few_shots, a.model, a.params, a.provider, a.system_role, a.tts, a."virtual", a.opening_message, a.opening_questions, a.created_at, a.updated_at FROM agents a
+SELECT a.id, a.title, a.description, a.tags, a.avatar, a.background_color, a.plugins, a.chat_config, a.few_shots, a.model, a.params, a.provider, a.system_role, a.tts, a."virtual", a.opening_message, a.opening_questions, a.created_at, a.updated_at FROM agents a
 INNER JOIN chat_groups_agents cga ON a.id = cga.agent_id
 WHERE cga.chat_group_id = ?
 ORDER BY cga.sort_order ASC
@@ -230,7 +230,6 @@ func (q *Queries) GetChatGroupAgents(ctx context.Context, chatGroupID string) ([
 		var i Agent
 		if err := rows.Scan(
 			&i.ID,
-			&i.Slug,
 			&i.Title,
 			&i.Description,
 			&i.Tags,

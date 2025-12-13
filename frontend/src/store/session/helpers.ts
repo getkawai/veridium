@@ -74,7 +74,6 @@ export const sessionToCreateParams = (type: LobeSessionType, data: any, userId: 
     session: {
       id: data.id || crypto.randomUUID(),
       type,
-      slug: toNullString(data.slug),
       title: toNullString(data.meta?.title || data.title),
       description: toNullString(data.meta?.description || data.description),
       avatar: toNullString(data.meta?.avatar || data.avatar),

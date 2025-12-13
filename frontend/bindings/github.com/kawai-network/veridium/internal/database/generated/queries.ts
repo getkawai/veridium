@@ -683,12 +683,6 @@ export function GetAgentBySessionId(sessionID: string): $CancellablePromise<$mod
     });
 }
 
-export function GetAgentBySlug(slug: sql$0.NullString): $CancellablePromise<$models.Agent> {
-    return $Call.ByID(3024383563, slug).then(($result: any) => {
-        return $$createType6($result);
-    });
-}
-
 export function GetAgentFileIds(arg: $models.GetAgentFileIdsParams): $CancellablePromise<string[]> {
     return $Call.ByID(3905208427, arg).then(($result: any) => {
         return $$createType43($result);
@@ -1128,18 +1122,6 @@ export function GetSession(id: string): $CancellablePromise<$models.Session> {
 export function GetSessionAgents(sessionID: string): $CancellablePromise<$models.Agent[]> {
     return $Call.ByID(3115199378, sessionID).then(($result: any) => {
         return $$createType53($result);
-    });
-}
-
-export function GetSessionByIdOrSlug(arg: $models.GetSessionByIdOrSlugParams): $CancellablePromise<$models.Session> {
-    return $Call.ByID(3489718450, arg).then(($result: any) => {
-        return $$createType28($result);
-    });
-}
-
-export function GetSessionBySlug(slug: string): $CancellablePromise<$models.Session> {
-    return $Call.ByID(1145697978, slug).then(($result: any) => {
-        return $$createType28($result);
     });
 }
 

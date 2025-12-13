@@ -1,8 +1,7 @@
 -- name: GetAgent :one
 SELECT * FROM agents WHERE id = ?;
 
--- name: GetAgentBySlug :one
-SELECT * FROM agents WHERE slug = ?;
+
 
 -- name: ListAgents :many
 SELECT * FROM agents
@@ -17,11 +16,11 @@ LIMIT ?;
 
 -- name: CreateAgent :one
 INSERT INTO agents (
-    id, slug, title, description, tags, avatar, background_color,
+    id, title, description, tags, avatar, background_color,
     plugins, chat_config, few_shots, model,
     params, provider, system_role, tts, virtual, opening_message,
     opening_questions, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpdateAgent :one
@@ -140,14 +139,13 @@ LIMIT 1;
 -- Duplicate an agent for a new session
 -- Parameters: new_agent_id, new_session_id, source_session_id, user_id, created_at, updated_at
 INSERT INTO agents (
-    id, slug, title, description, tags, avatar, background_color,
+    id, title, description, tags, avatar, background_color,
     plugins, chat_config, few_shots, model,
     params, provider, system_role, tts, virtual, opening_message,
     opening_questions, created_at, updated_at
 )
 SELECT 
     ? as id,           -- new_agent_id
-    NULL as slug,      -- no slug for duplicated agents
     title,
     description,
     tags,

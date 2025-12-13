@@ -11,7 +11,7 @@ import (
 func (s *Service) SeedAvailableAgents(ctx context.Context) error {
 	// 1. Check if we already have agents
 	var count int
-	err := s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM agents WHERE id != 'default-inbox-agent'").Scan(&count)
+	err := s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM agents WHERE id != ?", DefaultInboxAgentID).Scan(&count)
 	if err != nil {
 		log.Printf("Failed to check existing agents: %v", err)
 	}
@@ -40,7 +40,7 @@ func (s *Service) SeedAvailableAgents(ctx context.Context) error {
 	}
 
 	// 4. Count inserted agents
-	err = s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM agents WHERE id != 'default-inbox-agent'").Scan(&count)
+	err = s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM agents WHERE id != ?", DefaultInboxAgentID).Scan(&count)
 	if err == nil {
 		log.Printf("✅ Successfully loaded %d agents from seed data", count)
 	}

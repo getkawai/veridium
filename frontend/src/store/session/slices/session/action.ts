@@ -17,7 +17,6 @@ import type { SessionStore } from '../../store';
 import { settingsSelectors } from '@/store/user/selectors';
 import { MetaData } from '@/types/meta';
 import {
-  LobeSession,
   LobeSessionGroups,
   LobeSessions,
   UpdateSessionParams,
@@ -27,7 +26,6 @@ import { setNamespace } from '@/utils/storeDebug';
 
 import { SessionDispatch, sessionsReducer } from './reducers';
 import { sessionSelectors } from './selectors';
-import { sessionMetaSelectors } from './selectors/meta';
 
 const n = setNamespace('session');
 
@@ -101,7 +99,7 @@ export const createSessionSlice: StateCreator<
     const sessions = await DB.ListAllSessions();
 
     // Delete all sessions (except inbox)
-    const sessionsToDelete = sessions.filter(s => s.slug !== 'inbox');
+    const sessionsToDelete = sessions.filter(s => s.id !== 'inbox');
     await Promise.all(
       sessionsToDelete.map((session) => DB.DeleteSession(session.id))
     );
@@ -159,7 +157,6 @@ export const createSessionSlice: StateCreator<
     // Create session with agent
     await DB.CreateSession({
       id: sessionId,
-      slug: '',
       title: toNullString(newSession.meta?.title),
       description: toNullString(newSession.meta?.description),
       avatar: toNullString(newSession.meta?.avatar),
@@ -174,7 +171,6 @@ export const createSessionSlice: StateCreator<
     // Create agent config
     await DB.CreateAgent({
       id: agentId,
-      slug: toNullString(''),
       title: toNullString(''),
       description: toNullString(''),
       tags: toNullString(''),
@@ -445,7 +441,6 @@ export const createSessionSlice: StateCreator<
           groupId: getNullableString(session.groupId) || null,
           id: session.id,
           pinned: Boolean(session.pinned),
-          slug: null,
           title: getNullableString(session.title) || 'Untitled Group',
           updatedAt: session.updatedAt,
           userId: '',
@@ -585,7 +580,6 @@ export const createSessionSlice: StateCreator<
           groupId: getNullableString(session.groupId) || null,
           id: session.id,
           pinned: Boolean(session.pinned),
-          slug: null,
           title: getNullableString(session.title) || 'Untitled Group',
           updatedAt: session.updatedAt,
           userId: '',
