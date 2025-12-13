@@ -91,17 +91,13 @@ func (sdrm *StableDiffusion) CreateImage(req CreateImageRequest) error {
 	}
 
 	const DefaultUserID = "DEFAULT_LOBE_CHAT_USER"
-	userID := DefaultUserID
-	topic, err := sdrm.DB.Queries().GetGenerationTopic(ctx, db.GetGenerationTopicParams{
-		ID:     req.GenerationTopicId,
-		UserID: userID,
-	})
+	topic, err := sdrm.DB.Queries().GetGenerationTopic(ctx, req.GenerationTopicId)
 	log.Printf("[CreateImage] Fetching generation topic from DB...")
 	if err != nil {
 		log.Printf("[CreateImage] ERROR: Failed to find generation topic: %v", err)
 		return fmt.Errorf("failed to find generation topic: %w", err)
 	}
-	log.Printf("[CreateImage] Topic found for user: %s", topic.UserID)
+	log.Printf("[CreateImage] Topic found: %s", topic.ID)
 
 	// 3. Create Generation Batch
 	now := time.Now().UnixMilli()
@@ -111,7 +107,6 @@ func (sdrm *StableDiffusion) CreateImage(req CreateImageRequest) error {
 
 	generationBatch := db.CreateGenerationBatchParams{
 		ID:                batchID,
-		UserID:            topic.UserID,
 		GenerationTopicID: req.GenerationTopicId,
 		Provider:          req.Provider,
 		Model:             req.Model,
@@ -180,7 +175,6 @@ func (sdrm *StableDiffusion) CreateImage(req CreateImageRequest) error {
 			Type:      sql.NullString{String: "image_generation", Valid: true},
 			Status:    sql.NullString{String: "pending", Valid: true},
 			Error:     sql.NullString{},
-			UserID:    topic.UserID,
 			Duration:  sql.NullInt64{},
 			CreatedAt: now,
 			UpdatedAt: now,
@@ -194,7 +188,6 @@ func (sdrm *StableDiffusion) CreateImage(req CreateImageRequest) error {
 		genID := uuid.New().String()
 		_, err = sdrm.DB.Queries().CreateGeneration(ctx, db.CreateGenerationParams{
 			ID:                genID,
-			UserID:            topic.UserID,
 			GenerationBatchID: batchID,
 			AsyncTaskID:       sql.NullString{String: taskID, Valid: true},
 			FileID:            sql.NullString{}, // Will be filled when image completes
@@ -214,7 +207,7 @@ func (sdrm *StableDiffusion) CreateImage(req CreateImageRequest) error {
 	log.Printf("[CreateImage] All placeholder records created, returning to frontend")
 
 	// 5. Launch background goroutine to generate images
-	go sdrm.generateImagesInBackground(batchID, topic.UserID, req.ImageNum, opts)
+	go sdrm.generateImagesInBackground(batchID, req.ImageNum, opts)
 
 	return nil
 }

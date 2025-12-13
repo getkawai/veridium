@@ -13,23 +13,17 @@ import (
 
 const BatchDeleteMessages = `-- name: BatchDeleteMessages :exec
 DELETE FROM messages
-WHERE user_id = ? AND id IN (/*SLICE:ids*/?)
+WHERE id IN (/*SLICE:ids*/?)
 `
 
-type BatchDeleteMessagesParams struct {
-	UserID string   `json:"userId"`
-	Ids    []string `json:"ids"`
-}
-
-func (q *Queries) BatchDeleteMessages(ctx context.Context, arg BatchDeleteMessagesParams) error {
+func (q *Queries) BatchDeleteMessages(ctx context.Context, ids []string) error {
 	query := BatchDeleteMessages
 	var queryParams []interface{}
-	queryParams = append(queryParams, arg.UserID)
-	if len(arg.Ids) > 0 {
-		for _, v := range arg.Ids {
+	if len(ids) > 0 {
+		for _, v := range ids {
 			queryParams = append(queryParams, v)
 		}
-		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(arg.Ids))[1:], 1)
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(ids))[1:], 1)
 	} else {
 		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
 	}
@@ -40,11 +34,10 @@ func (q *Queries) BatchDeleteMessages(ctx context.Context, arg BatchDeleteMessag
 const CountMessageWords = `-- name: CountMessageWords :one
 SELECT SUM(LENGTH(content)) as total_length
 FROM messages
-WHERE user_id = ?
 `
 
-func (q *Queries) CountMessageWords(ctx context.Context, userID string) (sql.NullFloat64, error) {
-	row := q.db.QueryRowContext(ctx, CountMessageWords, userID)
+func (q *Queries) CountMessageWords(ctx context.Context) (sql.NullFloat64, error) {
+	row := q.db.QueryRowContext(ctx, CountMessageWords)
 	var total_length sql.NullFloat64
 	err := row.Scan(&total_length)
 	return total_length, err
@@ -53,30 +46,28 @@ func (q *Queries) CountMessageWords(ctx context.Context, userID string) (sql.Nul
 const CountMessageWordsByDateRange = `-- name: CountMessageWordsByDateRange :one
 SELECT SUM(LENGTH(content)) as total_length
 FROM messages
-WHERE user_id = ?
-  AND created_at >= ?
+WHERE created_at >= ?
   AND created_at <= ?
 `
 
 type CountMessageWordsByDateRangeParams struct {
-	UserID      string `json:"userId"`
-	CreatedAt   int64  `json:"createdAt"`
-	CreatedAt_2 int64  `json:"createdAt2"`
+	CreatedAt   int64 `json:"createdAt"`
+	CreatedAt_2 int64 `json:"createdAt2"`
 }
 
 func (q *Queries) CountMessageWordsByDateRange(ctx context.Context, arg CountMessageWordsByDateRangeParams) (sql.NullFloat64, error) {
-	row := q.db.QueryRowContext(ctx, CountMessageWordsByDateRange, arg.UserID, arg.CreatedAt, arg.CreatedAt_2)
+	row := q.db.QueryRowContext(ctx, CountMessageWordsByDateRange, arg.CreatedAt, arg.CreatedAt_2)
 	var total_length sql.NullFloat64
 	err := row.Scan(&total_length)
 	return total_length, err
 }
 
 const CountMessages = `-- name: CountMessages :one
-SELECT COUNT(*) FROM messages WHERE user_id = ?
+SELECT COUNT(*) FROM messages
 `
 
-func (q *Queries) CountMessages(ctx context.Context, userID string) (int64, error) {
-	row := q.db.QueryRowContext(ctx, CountMessages, userID)
+func (q *Queries) CountMessages(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, CountMessages)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -84,19 +75,17 @@ func (q *Queries) CountMessages(ctx context.Context, userID string) (int64, erro
 
 const CountMessagesByDateRange = `-- name: CountMessagesByDateRange :one
 SELECT COUNT(*) FROM messages
-WHERE user_id = ?
-  AND created_at >= ?
+WHERE created_at >= ?
   AND created_at <= ?
 `
 
 type CountMessagesByDateRangeParams struct {
-	UserID      string `json:"userId"`
-	CreatedAt   int64  `json:"createdAt"`
-	CreatedAt_2 int64  `json:"createdAt2"`
+	CreatedAt   int64 `json:"createdAt"`
+	CreatedAt_2 int64 `json:"createdAt2"`
 }
 
 func (q *Queries) CountMessagesByDateRange(ctx context.Context, arg CountMessagesByDateRangeParams) (int64, error) {
-	row := q.db.QueryRowContext(ctx, CountMessagesByDateRange, arg.UserID, arg.CreatedAt, arg.CreatedAt_2)
+	row := q.db.QueryRowContext(ctx, CountMessagesByDateRange, arg.CreatedAt, arg.CreatedAt_2)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -106,10 +95,10 @@ const CreateMessage = `-- name: CreateMessage :one
 INSERT INTO messages (
     id, role, content, reasoning, search, metadata, model, provider,
     favorite, error, tools, trace_id, observation_id,
-    user_id, session_id, topic_id, thread_id, parent_id, quota_id,
+    session_id, topic_id, thread_id, parent_id, quota_id,
     agent_id, group_id, target_id, message_group_id, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, user_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at
 `
 
 type CreateMessageParams struct {
@@ -126,7 +115,6 @@ type CreateMessageParams struct {
 	Tools          sql.NullString `json:"tools"`
 	TraceID        sql.NullString `json:"traceId"`
 	ObservationID  sql.NullString `json:"observationId"`
-	UserID         string         `json:"userId"`
 	SessionID      sql.NullString `json:"sessionId"`
 	TopicID        sql.NullString `json:"topicId"`
 	ThreadID       sql.NullString `json:"threadId"`
@@ -155,7 +143,6 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (M
 		arg.Tools,
 		arg.TraceID,
 		arg.ObservationID,
-		arg.UserID,
 		arg.SessionID,
 		arg.TopicID,
 		arg.ThreadID,
@@ -183,7 +170,6 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (M
 		&i.Tools,
 		&i.TraceID,
 		&i.ObservationID,
-		&i.UserID,
 		&i.SessionID,
 		&i.TopicID,
 		&i.ThreadID,
@@ -202,9 +188,9 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (M
 const CreateMessagePlugin = `-- name: CreateMessagePlugin :one
 INSERT INTO message_plugins (
     id, tool_call_id, type, api_name, arguments, identifier,
-    state, error, user_id
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, tool_call_id, type, api_name, arguments, identifier, state, error, user_id
+    state, error
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, tool_call_id, type, api_name, arguments, identifier, state, error, created_at, updated_at
 `
 
 type CreateMessagePluginParams struct {
@@ -216,7 +202,6 @@ type CreateMessagePluginParams struct {
 	Identifier sql.NullString `json:"identifier"`
 	State      sql.NullString `json:"state"`
 	Error      sql.NullString `json:"error"`
-	UserID     string         `json:"userId"`
 }
 
 func (q *Queries) CreateMessagePlugin(ctx context.Context, arg CreateMessagePluginParams) (MessagePlugin, error) {
@@ -229,7 +214,6 @@ func (q *Queries) CreateMessagePlugin(ctx context.Context, arg CreateMessagePlug
 		arg.Identifier,
 		arg.State,
 		arg.Error,
-		arg.UserID,
 	)
 	var i MessagePlugin
 	err := row.Scan(
@@ -241,16 +225,17 @@ func (q *Queries) CreateMessagePlugin(ctx context.Context, arg CreateMessagePlug
 		&i.Identifier,
 		&i.State,
 		&i.Error,
-		&i.UserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const CreateMessageQuery = `-- name: CreateMessageQuery :one
 INSERT INTO message_queries (
-    id, message_id, rewrite_query, user_query, user_id
-) VALUES (?, ?, ?, ?, ?)
-RETURNING id, message_id, rewrite_query, user_query, user_id
+    id, message_id, rewrite_query, user_query
+) VALUES (?, ?, ?, ?)
+RETURNING id, message_id, rewrite_query, user_query
 `
 
 type CreateMessageQueryParams struct {
@@ -258,7 +243,6 @@ type CreateMessageQueryParams struct {
 	MessageID    string         `json:"messageId"`
 	RewriteQuery sql.NullString `json:"rewriteQuery"`
 	UserQuery    sql.NullString `json:"userQuery"`
-	UserID       string         `json:"userId"`
 }
 
 func (q *Queries) CreateMessageQuery(ctx context.Context, arg CreateMessageQueryParams) (MessageQuery, error) {
@@ -267,7 +251,6 @@ func (q *Queries) CreateMessageQuery(ctx context.Context, arg CreateMessageQuery
 		arg.MessageID,
 		arg.RewriteQuery,
 		arg.UserQuery,
-		arg.UserID,
 	)
 	var i MessageQuery
 	err := row.Scan(
@@ -275,16 +258,15 @@ func (q *Queries) CreateMessageQuery(ctx context.Context, arg CreateMessageQuery
 		&i.MessageID,
 		&i.RewriteQuery,
 		&i.UserQuery,
-		&i.UserID,
 	)
 	return i, err
 }
 
 const CreateMessageTTS = `-- name: CreateMessageTTS :one
 INSERT INTO message_tts (
-    id, content_md5, file_id, voice, user_id
-) VALUES (?, ?, ?, ?, ?)
-RETURNING id, content_md5, file_id, voice, user_id
+    id, content_md5, file_id, voice
+) VALUES (?, ?, ?, ?)
+RETURNING id, content_md5, file_id, voice
 `
 
 type CreateMessageTTSParams struct {
@@ -292,7 +274,6 @@ type CreateMessageTTSParams struct {
 	ContentMd5 sql.NullString `json:"contentMd5"`
 	FileID     sql.NullString `json:"fileId"`
 	Voice      sql.NullString `json:"voice"`
-	UserID     string         `json:"userId"`
 }
 
 func (q *Queries) CreateMessageTTS(ctx context.Context, arg CreateMessageTTSParams) (MessageTt, error) {
@@ -301,7 +282,6 @@ func (q *Queries) CreateMessageTTS(ctx context.Context, arg CreateMessageTTSPara
 		arg.ContentMd5,
 		arg.FileID,
 		arg.Voice,
-		arg.UserID,
 	)
 	var i MessageTt
 	err := row.Scan(
@@ -309,16 +289,15 @@ func (q *Queries) CreateMessageTTS(ctx context.Context, arg CreateMessageTTSPara
 		&i.ContentMd5,
 		&i.FileID,
 		&i.Voice,
-		&i.UserID,
 	)
 	return i, err
 }
 
 const CreateMessageTranslate = `-- name: CreateMessageTranslate :one
 INSERT INTO message_translates (
-    id, content, "from", "to", user_id
-) VALUES (?, ?, ?, ?, ?)
-RETURNING id, content, "from", "to", user_id
+    id, content, "from", "to"
+) VALUES (?, ?, ?, ?)
+RETURNING id, content, "from", "to"
 `
 
 type CreateMessageTranslateParams struct {
@@ -326,7 +305,6 @@ type CreateMessageTranslateParams struct {
 	Content sql.NullString `json:"content"`
 	From    sql.NullString `json:"from"`
 	To      sql.NullString `json:"to"`
-	UserID  string         `json:"userId"`
 }
 
 func (q *Queries) CreateMessageTranslate(ctx context.Context, arg CreateMessageTranslateParams) (MessageTranslate, error) {
@@ -335,7 +313,6 @@ func (q *Queries) CreateMessageTranslate(ctx context.Context, arg CreateMessageT
 		arg.Content,
 		arg.From,
 		arg.To,
-		arg.UserID,
 	)
 	var i MessageTranslate
 	err := row.Scan(
@@ -343,152 +320,106 @@ func (q *Queries) CreateMessageTranslate(ctx context.Context, arg CreateMessageT
 		&i.Content,
 		&i.From,
 		&i.To,
-		&i.UserID,
 	)
 	return i, err
 }
 
 const DeleteAllMessages = `-- name: DeleteAllMessages :exec
-DELETE FROM messages WHERE user_id = ?
+DELETE FROM messages
 `
 
-func (q *Queries) DeleteAllMessages(ctx context.Context, userID string) error {
-	_, err := q.db.ExecContext(ctx, DeleteAllMessages, userID)
+func (q *Queries) DeleteAllMessages(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, DeleteAllMessages)
 	return err
 }
 
 const DeleteMessage = `-- name: DeleteMessage :exec
-DELETE FROM messages WHERE id = ? AND user_id = ?
+DELETE FROM messages WHERE id = ?
 `
 
-type DeleteMessageParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
-func (q *Queries) DeleteMessage(ctx context.Context, arg DeleteMessageParams) error {
-	_, err := q.db.ExecContext(ctx, DeleteMessage, arg.ID, arg.UserID)
+func (q *Queries) DeleteMessage(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, DeleteMessage, id)
 	return err
 }
 
 const DeleteMessageQuery = `-- name: DeleteMessageQuery :exec
-DELETE FROM message_queries WHERE id = ? AND user_id = ?
+DELETE FROM message_queries WHERE id = ?
 `
 
-type DeleteMessageQueryParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
-func (q *Queries) DeleteMessageQuery(ctx context.Context, arg DeleteMessageQueryParams) error {
-	_, err := q.db.ExecContext(ctx, DeleteMessageQuery, arg.ID, arg.UserID)
+func (q *Queries) DeleteMessageQuery(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, DeleteMessageQuery, id)
 	return err
 }
 
 const DeleteMessageTTS = `-- name: DeleteMessageTTS :exec
-DELETE FROM message_tts WHERE id = ? AND user_id = ?
+DELETE FROM message_tts WHERE id = ?
 `
 
-type DeleteMessageTTSParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
-func (q *Queries) DeleteMessageTTS(ctx context.Context, arg DeleteMessageTTSParams) error {
-	_, err := q.db.ExecContext(ctx, DeleteMessageTTS, arg.ID, arg.UserID)
+func (q *Queries) DeleteMessageTTS(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, DeleteMessageTTS, id)
 	return err
 }
 
 const DeleteMessageTranslate = `-- name: DeleteMessageTranslate :exec
-DELETE FROM message_translates WHERE id = ? AND user_id = ?
+DELETE FROM message_translates WHERE id = ?
 `
 
-type DeleteMessageTranslateParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
-func (q *Queries) DeleteMessageTranslate(ctx context.Context, arg DeleteMessageTranslateParams) error {
-	_, err := q.db.ExecContext(ctx, DeleteMessageTranslate, arg.ID, arg.UserID)
+func (q *Queries) DeleteMessageTranslate(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, DeleteMessageTranslate, id)
 	return err
 }
 
 const DeleteMessagesByGroup = `-- name: DeleteMessagesByGroup :exec
-DELETE FROM messages WHERE group_id = ? AND user_id = ?
+DELETE FROM messages WHERE group_id = ?
 `
 
-type DeleteMessagesByGroupParams struct {
-	GroupID sql.NullString `json:"groupId"`
-	UserID  string         `json:"userId"`
-}
-
-func (q *Queries) DeleteMessagesByGroup(ctx context.Context, arg DeleteMessagesByGroupParams) error {
-	_, err := q.db.ExecContext(ctx, DeleteMessagesByGroup, arg.GroupID, arg.UserID)
+func (q *Queries) DeleteMessagesByGroup(ctx context.Context, groupID sql.NullString) error {
+	_, err := q.db.ExecContext(ctx, DeleteMessagesByGroup, groupID)
 	return err
 }
 
 const DeleteMessagesBySession = `-- name: DeleteMessagesBySession :exec
-DELETE FROM messages WHERE session_id = ? AND user_id = ?
+DELETE FROM messages WHERE session_id = ?
 `
 
-type DeleteMessagesBySessionParams struct {
-	SessionID sql.NullString `json:"sessionId"`
-	UserID    string         `json:"userId"`
-}
-
-func (q *Queries) DeleteMessagesBySession(ctx context.Context, arg DeleteMessagesBySessionParams) error {
-	_, err := q.db.ExecContext(ctx, DeleteMessagesBySession, arg.SessionID, arg.UserID)
+func (q *Queries) DeleteMessagesBySession(ctx context.Context, sessionID sql.NullString) error {
+	_, err := q.db.ExecContext(ctx, DeleteMessagesBySession, sessionID)
 	return err
 }
 
 const DeleteMessagesByTopic = `-- name: DeleteMessagesByTopic :exec
-DELETE FROM messages WHERE topic_id = ? AND user_id = ?
+DELETE FROM messages WHERE topic_id = ?
 `
 
-type DeleteMessagesByTopicParams struct {
-	TopicID sql.NullString `json:"topicId"`
-	UserID  string         `json:"userId"`
-}
-
-func (q *Queries) DeleteMessagesByTopic(ctx context.Context, arg DeleteMessagesByTopicParams) error {
-	_, err := q.db.ExecContext(ctx, DeleteMessagesByTopic, arg.TopicID, arg.UserID)
+func (q *Queries) DeleteMessagesByTopic(ctx context.Context, topicID sql.NullString) error {
+	_, err := q.db.ExecContext(ctx, DeleteMessagesByTopic, topicID)
 	return err
 }
 
 const GetDocumentByFileId = `-- name: GetDocumentByFileId :one
 SELECT d.file_id, d.content
 FROM documents d
-WHERE d.file_id = ? AND d.user_id = ?
+WHERE d.file_id = ?
 `
-
-type GetDocumentByFileIdParams struct {
-	FileID sql.NullString `json:"fileId"`
-	UserID string         `json:"userId"`
-}
 
 type GetDocumentByFileIdRow struct {
 	FileID  sql.NullString `json:"fileId"`
 	Content sql.NullString `json:"content"`
 }
 
-func (q *Queries) GetDocumentByFileId(ctx context.Context, arg GetDocumentByFileIdParams) (GetDocumentByFileIdRow, error) {
-	row := q.db.QueryRowContext(ctx, GetDocumentByFileId, arg.FileID, arg.UserID)
+func (q *Queries) GetDocumentByFileId(ctx context.Context, fileID sql.NullString) (GetDocumentByFileIdRow, error) {
+	row := q.db.QueryRowContext(ctx, GetDocumentByFileId, fileID)
 	var i GetDocumentByFileIdRow
 	err := row.Scan(&i.FileID, &i.Content)
 	return i, err
 }
 
 const GetMessage = `-- name: GetMessage :one
-SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, user_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages WHERE id = ? AND user_id = ?
+SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages WHERE id = ?
 `
 
-type GetMessageParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
-func (q *Queries) GetMessage(ctx context.Context, arg GetMessageParams) (Message, error) {
-	row := q.db.QueryRowContext(ctx, GetMessage, arg.ID, arg.UserID)
+func (q *Queries) GetMessage(ctx context.Context, id string) (Message, error) {
+	row := q.db.QueryRowContext(ctx, GetMessage, id)
 	var i Message
 	err := row.Scan(
 		&i.ID,
@@ -504,7 +435,6 @@ func (q *Queries) GetMessage(ctx context.Context, arg GetMessageParams) (Message
 		&i.Tools,
 		&i.TraceID,
 		&i.ObservationID,
-		&i.UserID,
 		&i.SessionID,
 		&i.TopicID,
 		&i.ThreadID,
@@ -524,36 +454,26 @@ const GetMessageByToolCallId = `-- name: GetMessageByToolCallId :one
 
 SELECT mp.id 
 FROM message_plugins mp
-WHERE mp.tool_call_id = ? AND mp.user_id = ?
+WHERE mp.tool_call_id = ?
 `
-
-type GetMessageByToolCallIdParams struct {
-	ToolCallID sql.NullString `json:"toolCallId"`
-	UserID     string         `json:"userId"`
-}
 
 // Batch queries - Note: These will be wrapped with JSON parsing in Go
 // For now, we'll create a simple version and handle batching in Go layer
-func (q *Queries) GetMessageByToolCallId(ctx context.Context, arg GetMessageByToolCallIdParams) (string, error) {
-	row := q.db.QueryRowContext(ctx, GetMessageByToolCallId, arg.ToolCallID, arg.UserID)
+func (q *Queries) GetMessageByToolCallId(ctx context.Context, toolCallID sql.NullString) (string, error) {
+	row := q.db.QueryRowContext(ctx, GetMessageByToolCallId, toolCallID)
 	var id string
 	err := row.Scan(&id)
 	return id, err
 }
 
 const GetMessageChunks = `-- name: GetMessageChunks :many
-SELECT c.id, c.document_id, c.text, c.abstract, c.metadata, c.chunk_index, c.type, c.user_id, c.created_at, c.updated_at FROM chunks c
+SELECT c.id, c.document_id, c.text, c.abstract, c.metadata, c.chunk_index, c.type, c.created_at, c.updated_at FROM chunks c
 INNER JOIN message_chunks mc ON c.id = mc.chunk_id
-WHERE mc.message_id = ? AND mc.user_id = ?
+WHERE mc.message_id = ?
 `
 
-type GetMessageChunksParams struct {
-	MessageID sql.NullString `json:"messageId"`
-	UserID    string         `json:"userId"`
-}
-
-func (q *Queries) GetMessageChunks(ctx context.Context, arg GetMessageChunksParams) ([]Chunk, error) {
-	rows, err := q.db.QueryContext(ctx, GetMessageChunks, arg.MessageID, arg.UserID)
+func (q *Queries) GetMessageChunks(ctx context.Context, messageID sql.NullString) ([]Chunk, error) {
+	rows, err := q.db.QueryContext(ctx, GetMessageChunks, messageID)
 	if err != nil {
 		return nil, err
 	}
@@ -569,7 +489,6 @@ func (q *Queries) GetMessageChunks(ctx context.Context, arg GetMessageChunksPara
 			&i.Metadata,
 			&i.ChunkIndex,
 			&i.Type,
-			&i.UserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -587,18 +506,13 @@ func (q *Queries) GetMessageChunks(ctx context.Context, arg GetMessageChunksPara
 }
 
 const GetMessageFiles = `-- name: GetMessageFiles :many
-SELECT f.id, f.user_id, f.file_type, f.file_hash, f.name, f.size, f.url, f.source, f.metadata, f.created_at, f.updated_at FROM files f
+SELECT f.id, f.file_type, f.file_hash, f.name, f.size, f.url, f.source, f.metadata, f.created_at, f.updated_at FROM files f
 INNER JOIN messages_files mf ON f.id = mf.file_id
-WHERE mf.message_id = ? AND mf.user_id = ?
+WHERE mf.message_id = ?
 `
 
-type GetMessageFilesParams struct {
-	MessageID string `json:"messageId"`
-	UserID    string `json:"userId"`
-}
-
-func (q *Queries) GetMessageFiles(ctx context.Context, arg GetMessageFilesParams) ([]File, error) {
-	rows, err := q.db.QueryContext(ctx, GetMessageFiles, arg.MessageID, arg.UserID)
+func (q *Queries) GetMessageFiles(ctx context.Context, messageID string) ([]File, error) {
+	rows, err := q.db.QueryContext(ctx, GetMessageFiles, messageID)
 	if err != nil {
 		return nil, err
 	}
@@ -608,7 +522,6 @@ func (q *Queries) GetMessageFiles(ctx context.Context, arg GetMessageFilesParams
 		var i File
 		if err := rows.Scan(
 			&i.ID,
-			&i.UserID,
 			&i.FileType,
 			&i.FileHash,
 			&i.Name,
@@ -637,17 +550,15 @@ SELECT
     DATE(created_at / 1000, 'unixepoch') as date,
     COUNT(*) as count
 FROM messages
-WHERE user_id = ? 
-    AND created_at >= ? 
+WHERE created_at >= ? 
     AND created_at <= ?
 GROUP BY date
 ORDER BY date DESC
 `
 
 type GetMessageHeatmapsParams struct {
-	UserID      string `json:"userId"`
-	CreatedAt   int64  `json:"createdAt"`
-	CreatedAt_2 int64  `json:"createdAt2"`
+	CreatedAt   int64 `json:"createdAt"`
+	CreatedAt_2 int64 `json:"createdAt2"`
 }
 
 type GetMessageHeatmapsRow struct {
@@ -656,7 +567,7 @@ type GetMessageHeatmapsRow struct {
 }
 
 func (q *Queries) GetMessageHeatmaps(ctx context.Context, arg GetMessageHeatmapsParams) ([]GetMessageHeatmapsRow, error) {
-	rows, err := q.db.QueryContext(ctx, GetMessageHeatmaps, arg.UserID, arg.CreatedAt, arg.CreatedAt_2)
+	rows, err := q.db.QueryContext(ctx, GetMessageHeatmaps, arg.CreatedAt, arg.CreatedAt_2)
 	if err != nil {
 		return nil, err
 	}
@@ -680,17 +591,12 @@ func (q *Queries) GetMessageHeatmaps(ctx context.Context, arg GetMessageHeatmaps
 
 const GetMessagePlugin = `-- name: GetMessagePlugin :one
 
-SELECT id, tool_call_id, type, api_name, arguments, identifier, state, error, user_id FROM message_plugins WHERE id = ? AND user_id = ?
+SELECT id, tool_call_id, type, api_name, arguments, identifier, state, error, created_at, updated_at FROM message_plugins WHERE id = ?
 `
 
-type GetMessagePluginParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
 // Message Plugins
-func (q *Queries) GetMessagePlugin(ctx context.Context, arg GetMessagePluginParams) (MessagePlugin, error) {
-	row := q.db.QueryRowContext(ctx, GetMessagePlugin, arg.ID, arg.UserID)
+func (q *Queries) GetMessagePlugin(ctx context.Context, id string) (MessagePlugin, error) {
+	row := q.db.QueryRowContext(ctx, GetMessagePlugin, id)
 	var i MessagePlugin
 	err := row.Scan(
 		&i.ID,
@@ -701,31 +607,26 @@ func (q *Queries) GetMessagePlugin(ctx context.Context, arg GetMessagePluginPara
 		&i.Identifier,
 		&i.State,
 		&i.Error,
-		&i.UserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const GetMessageQuery = `-- name: GetMessageQuery :one
 
-SELECT id, message_id, rewrite_query, user_query, user_id FROM message_queries WHERE id = ? AND user_id = ?
+SELECT id, message_id, rewrite_query, user_query FROM message_queries WHERE id = ?
 `
 
-type GetMessageQueryParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
 // Message Queries (RAG)
-func (q *Queries) GetMessageQuery(ctx context.Context, arg GetMessageQueryParams) (MessageQuery, error) {
-	row := q.db.QueryRowContext(ctx, GetMessageQuery, arg.ID, arg.UserID)
+func (q *Queries) GetMessageQuery(ctx context.Context, id string) (MessageQuery, error) {
+	row := q.db.QueryRowContext(ctx, GetMessageQuery, id)
 	var i MessageQuery
 	err := row.Scan(
 		&i.ID,
 		&i.MessageID,
 		&i.RewriteQuery,
 		&i.UserQuery,
-		&i.UserID,
 	)
 	return i, err
 }
@@ -744,13 +645,8 @@ FROM message_query_chunks mqc
 LEFT JOIN chunks c ON mqc.chunk_id = c.id
 LEFT JOIN file_chunks fc ON c.id = fc.chunk_id
 LEFT JOIN files f ON fc.file_id = f.id
-WHERE mqc.message_id IN (/*SLICE:messageIds*/?) AND mqc.user_id = ?
+WHERE mqc.message_id IN (/*SLICE:messageIds*/?)
 `
-
-type GetMessageQueryChunksParams struct {
-	MessageIds []sql.NullString `json:"messageIds"`
-	UserID     string           `json:"userId"`
-}
 
 type GetMessageQueryChunksRow struct {
 	MessageID  sql.NullString `json:"messageId"`
@@ -763,18 +659,17 @@ type GetMessageQueryChunksRow struct {
 	FileUrl    sql.NullString `json:"fileUrl"`
 }
 
-func (q *Queries) GetMessageQueryChunks(ctx context.Context, arg GetMessageQueryChunksParams) ([]GetMessageQueryChunksRow, error) {
+func (q *Queries) GetMessageQueryChunks(ctx context.Context, messageids []sql.NullString) ([]GetMessageQueryChunksRow, error) {
 	query := GetMessageQueryChunks
 	var queryParams []interface{}
-	if len(arg.MessageIds) > 0 {
-		for _, v := range arg.MessageIds {
+	if len(messageids) > 0 {
+		for _, v := range messageids {
 			queryParams = append(queryParams, v)
 		}
-		query = strings.Replace(query, "/*SLICE:messageIds*/?", strings.Repeat(",?", len(arg.MessageIds))[1:], 1)
+		query = strings.Replace(query, "/*SLICE:messageIds*/?", strings.Repeat(",?", len(messageids))[1:], 1)
 	} else {
 		query = strings.Replace(query, "/*SLICE:messageIds*/?", "NULL", 1)
 	}
-	queryParams = append(queryParams, arg.UserID)
 	rows, err := q.db.QueryContext(ctx, query, queryParams...)
 	if err != nil {
 		return nil, err
@@ -808,48 +703,36 @@ func (q *Queries) GetMessageQueryChunks(ctx context.Context, arg GetMessageQuery
 
 const GetMessageTTS = `-- name: GetMessageTTS :one
 
-SELECT id, content_md5, file_id, voice, user_id FROM message_tts WHERE id = ? AND user_id = ?
+SELECT id, content_md5, file_id, voice FROM message_tts WHERE id = ?
 `
 
-type GetMessageTTSParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
 // Message TTS
-func (q *Queries) GetMessageTTS(ctx context.Context, arg GetMessageTTSParams) (MessageTt, error) {
-	row := q.db.QueryRowContext(ctx, GetMessageTTS, arg.ID, arg.UserID)
+func (q *Queries) GetMessageTTS(ctx context.Context, id string) (MessageTt, error) {
+	row := q.db.QueryRowContext(ctx, GetMessageTTS, id)
 	var i MessageTt
 	err := row.Scan(
 		&i.ID,
 		&i.ContentMd5,
 		&i.FileID,
 		&i.Voice,
-		&i.UserID,
 	)
 	return i, err
 }
 
 const GetMessageTranslate = `-- name: GetMessageTranslate :one
 
-SELECT id, content, "from", "to", user_id FROM message_translates WHERE id = ? AND user_id = ?
+SELECT id, content, "from", "to" FROM message_translates WHERE id = ?
 `
 
-type GetMessageTranslateParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
 // Message Translates
-func (q *Queries) GetMessageTranslate(ctx context.Context, arg GetMessageTranslateParams) (MessageTranslate, error) {
-	row := q.db.QueryRowContext(ctx, GetMessageTranslate, arg.ID, arg.UserID)
+func (q *Queries) GetMessageTranslate(ctx context.Context, id string) (MessageTranslate, error) {
+	row := q.db.QueryRowContext(ctx, GetMessageTranslate, id)
 	var i MessageTranslate
 	err := row.Scan(
 		&i.ID,
 		&i.Content,
 		&i.From,
 		&i.To,
-		&i.UserID,
 	)
 	return i, err
 }
@@ -893,15 +776,13 @@ FROM messages m
 LEFT JOIN message_plugins mp ON m.id = mp.id
 LEFT JOIN message_translates mt ON m.id = mt.id
 LEFT JOIN message_tts mts ON m.id = mts.id
-WHERE m.user_id = ?
 ORDER BY m.created_at ASC
 LIMIT ? OFFSET ?
 `
 
 type GetMessagesWithRelationsParams struct {
-	UserID string `json:"userId"`
-	Limit  int64  `json:"limit"`
-	Offset int64  `json:"offset"`
+	Limit  int64 `json:"limit"`
+	Offset int64 `json:"offset"`
 }
 
 type GetMessagesWithRelationsRow struct {
@@ -941,7 +822,7 @@ type GetMessagesWithRelationsRow struct {
 }
 
 func (q *Queries) GetMessagesWithRelations(ctx context.Context, arg GetMessagesWithRelationsParams) ([]GetMessagesWithRelationsRow, error) {
-	rows, err := q.db.QueryContext(ctx, GetMessagesWithRelations, arg.UserID, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, GetMessagesWithRelations, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -1036,13 +917,12 @@ FROM messages m
 LEFT JOIN message_plugins mp ON m.id = mp.id
 LEFT JOIN message_translates mt ON m.id = mt.id
 LEFT JOIN message_tts mts ON m.id = mts.id
-WHERE m.user_id = ? AND m.session_id = ?
+WHERE m.session_id = ?
 ORDER BY m.created_at ASC
 LIMIT ? OFFSET ?
 `
 
 type GetMessagesWithRelationsBySessionParams struct {
-	UserID    string         `json:"userId"`
 	SessionID sql.NullString `json:"sessionId"`
 	Limit     int64          `json:"limit"`
 	Offset    int64          `json:"offset"`
@@ -1085,12 +965,7 @@ type GetMessagesWithRelationsBySessionRow struct {
 }
 
 func (q *Queries) GetMessagesWithRelationsBySession(ctx context.Context, arg GetMessagesWithRelationsBySessionParams) ([]GetMessagesWithRelationsBySessionRow, error) {
-	rows, err := q.db.QueryContext(ctx, GetMessagesWithRelationsBySession,
-		arg.UserID,
-		arg.SessionID,
-		arg.Limit,
-		arg.Offset,
-	)
+	rows, err := q.db.QueryContext(ctx, GetMessagesWithRelationsBySession, arg.SessionID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -1148,8 +1023,8 @@ func (q *Queries) GetMessagesWithRelationsBySession(ctx context.Context, arg Get
 
 const LinkMessageQueryToChunk = `-- name: LinkMessageQueryToChunk :exec
 
-INSERT INTO message_query_chunks (message_id, query_id, chunk_id, similarity, user_id)
-VALUES (?, ?, ?, ?, ?)
+INSERT INTO message_query_chunks (message_id, query_id, chunk_id, similarity)
+VALUES (?, ?, ?, ?)
 `
 
 type LinkMessageQueryToChunkParams struct {
@@ -1157,7 +1032,6 @@ type LinkMessageQueryToChunkParams struct {
 	QueryID    sql.NullString `json:"queryId"`
 	ChunkID    sql.NullString `json:"chunkId"`
 	Similarity sql.NullInt64  `json:"similarity"`
-	UserID     string         `json:"userId"`
 }
 
 // Message Query Chunks
@@ -1167,59 +1041,51 @@ func (q *Queries) LinkMessageQueryToChunk(ctx context.Context, arg LinkMessageQu
 		arg.QueryID,
 		arg.ChunkID,
 		arg.Similarity,
-		arg.UserID,
 	)
 	return err
 }
 
 const LinkMessageToChunk = `-- name: LinkMessageToChunk :exec
 
-INSERT INTO message_chunks (message_id, chunk_id, user_id)
-VALUES (?, ?, ?)
+INSERT INTO message_chunks (message_id, chunk_id)
+VALUES (?, ?)
 `
 
 type LinkMessageToChunkParams struct {
 	MessageID sql.NullString `json:"messageId"`
 	ChunkID   sql.NullString `json:"chunkId"`
-	UserID    string         `json:"userId"`
 }
 
 // Message Chunks
 func (q *Queries) LinkMessageToChunk(ctx context.Context, arg LinkMessageToChunkParams) error {
-	_, err := q.db.ExecContext(ctx, LinkMessageToChunk, arg.MessageID, arg.ChunkID, arg.UserID)
+	_, err := q.db.ExecContext(ctx, LinkMessageToChunk, arg.MessageID, arg.ChunkID)
 	return err
 }
 
 const LinkMessageToFile = `-- name: LinkMessageToFile :exec
 
-INSERT INTO messages_files (file_id, message_id, user_id)
-VALUES (?, ?, ?)
+INSERT INTO messages_files (file_id, message_id)
+VALUES (?, ?)
 `
 
 type LinkMessageToFileParams struct {
 	FileID    string `json:"fileId"`
 	MessageID string `json:"messageId"`
-	UserID    string `json:"userId"`
 }
 
 // Message Files
 func (q *Queries) LinkMessageToFile(ctx context.Context, arg LinkMessageToFileParams) error {
-	_, err := q.db.ExecContext(ctx, LinkMessageToFile, arg.FileID, arg.MessageID, arg.UserID)
+	_, err := q.db.ExecContext(ctx, LinkMessageToFile, arg.FileID, arg.MessageID)
 	return err
 }
 
 const ListMessageQueriesByMessage = `-- name: ListMessageQueriesByMessage :many
-SELECT id, message_id, rewrite_query, user_query, user_id FROM message_queries
-WHERE message_id = ? AND user_id = ?
+SELECT id, message_id, rewrite_query, user_query FROM message_queries
+WHERE message_id = ?
 `
 
-type ListMessageQueriesByMessageParams struct {
-	MessageID string `json:"messageId"`
-	UserID    string `json:"userId"`
-}
-
-func (q *Queries) ListMessageQueriesByMessage(ctx context.Context, arg ListMessageQueriesByMessageParams) ([]MessageQuery, error) {
-	rows, err := q.db.QueryContext(ctx, ListMessageQueriesByMessage, arg.MessageID, arg.UserID)
+func (q *Queries) ListMessageQueriesByMessage(ctx context.Context, messageID string) ([]MessageQuery, error) {
+	rows, err := q.db.QueryContext(ctx, ListMessageQueriesByMessage, messageID)
 	if err != nil {
 		return nil, err
 	}
@@ -1232,7 +1098,6 @@ func (q *Queries) ListMessageQueriesByMessage(ctx context.Context, arg ListMessa
 			&i.MessageID,
 			&i.RewriteQuery,
 			&i.UserQuery,
-			&i.UserID,
 		); err != nil {
 			return nil, err
 		}
@@ -1248,20 +1113,18 @@ func (q *Queries) ListMessageQueriesByMessage(ctx context.Context, arg ListMessa
 }
 
 const ListMessages = `-- name: ListMessages :many
-SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, user_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages
-WHERE user_id = ?
+SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages
 ORDER BY created_at ASC
 LIMIT ? OFFSET ?
 `
 
 type ListMessagesParams struct {
-	UserID string `json:"userId"`
-	Limit  int64  `json:"limit"`
-	Offset int64  `json:"offset"`
+	Limit  int64 `json:"limit"`
+	Offset int64 `json:"offset"`
 }
 
 func (q *Queries) ListMessages(ctx context.Context, arg ListMessagesParams) ([]Message, error) {
-	rows, err := q.db.QueryContext(ctx, ListMessages, arg.UserID, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, ListMessages, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -1283,7 +1146,6 @@ func (q *Queries) ListMessages(ctx context.Context, arg ListMessagesParams) ([]M
 			&i.Tools,
 			&i.TraceID,
 			&i.ObservationID,
-			&i.UserID,
 			&i.SessionID,
 			&i.TopicID,
 			&i.ThreadID,
@@ -1310,26 +1172,20 @@ func (q *Queries) ListMessages(ctx context.Context, arg ListMessagesParams) ([]M
 }
 
 const ListMessagesByGroup = `-- name: ListMessagesByGroup :many
-SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, user_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages
-WHERE user_id = ? AND group_id = ?
+SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages
+WHERE group_id = ?
 ORDER BY created_at ASC
 LIMIT ? OFFSET ?
 `
 
 type ListMessagesByGroupParams struct {
-	UserID  string         `json:"userId"`
 	GroupID sql.NullString `json:"groupId"`
 	Limit   int64          `json:"limit"`
 	Offset  int64          `json:"offset"`
 }
 
 func (q *Queries) ListMessagesByGroup(ctx context.Context, arg ListMessagesByGroupParams) ([]Message, error) {
-	rows, err := q.db.QueryContext(ctx, ListMessagesByGroup,
-		arg.UserID,
-		arg.GroupID,
-		arg.Limit,
-		arg.Offset,
-	)
+	rows, err := q.db.QueryContext(ctx, ListMessagesByGroup, arg.GroupID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -1351,7 +1207,6 @@ func (q *Queries) ListMessagesByGroup(ctx context.Context, arg ListMessagesByGro
 			&i.Tools,
 			&i.TraceID,
 			&i.ObservationID,
-			&i.UserID,
 			&i.SessionID,
 			&i.TopicID,
 			&i.ThreadID,
@@ -1378,26 +1233,20 @@ func (q *Queries) ListMessagesByGroup(ctx context.Context, arg ListMessagesByGro
 }
 
 const ListMessagesBySession = `-- name: ListMessagesBySession :many
-SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, user_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages
-WHERE user_id = ? AND session_id = ?
+SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages
+WHERE session_id = ?
 ORDER BY created_at ASC
 LIMIT ? OFFSET ?
 `
 
 type ListMessagesBySessionParams struct {
-	UserID    string         `json:"userId"`
 	SessionID sql.NullString `json:"sessionId"`
 	Limit     int64          `json:"limit"`
 	Offset    int64          `json:"offset"`
 }
 
 func (q *Queries) ListMessagesBySession(ctx context.Context, arg ListMessagesBySessionParams) ([]Message, error) {
-	rows, err := q.db.QueryContext(ctx, ListMessagesBySession,
-		arg.UserID,
-		arg.SessionID,
-		arg.Limit,
-		arg.Offset,
-	)
+	rows, err := q.db.QueryContext(ctx, ListMessagesBySession, arg.SessionID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -1419,7 +1268,6 @@ func (q *Queries) ListMessagesBySession(ctx context.Context, arg ListMessagesByS
 			&i.Tools,
 			&i.TraceID,
 			&i.ObservationID,
-			&i.UserID,
 			&i.SessionID,
 			&i.TopicID,
 			&i.ThreadID,
@@ -1446,18 +1294,13 @@ func (q *Queries) ListMessagesBySession(ctx context.Context, arg ListMessagesByS
 }
 
 const ListMessagesByThread = `-- name: ListMessagesByThread :many
-SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, user_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages
-WHERE user_id = ? AND thread_id = ?
+SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages
+WHERE thread_id = ?
 ORDER BY created_at ASC
 `
 
-type ListMessagesByThreadParams struct {
-	UserID   string         `json:"userId"`
-	ThreadID sql.NullString `json:"threadId"`
-}
-
-func (q *Queries) ListMessagesByThread(ctx context.Context, arg ListMessagesByThreadParams) ([]Message, error) {
-	rows, err := q.db.QueryContext(ctx, ListMessagesByThread, arg.UserID, arg.ThreadID)
+func (q *Queries) ListMessagesByThread(ctx context.Context, threadID sql.NullString) ([]Message, error) {
+	rows, err := q.db.QueryContext(ctx, ListMessagesByThread, threadID)
 	if err != nil {
 		return nil, err
 	}
@@ -1479,7 +1322,6 @@ func (q *Queries) ListMessagesByThread(ctx context.Context, arg ListMessagesByTh
 			&i.Tools,
 			&i.TraceID,
 			&i.ObservationID,
-			&i.UserID,
 			&i.SessionID,
 			&i.TopicID,
 			&i.ThreadID,
@@ -1506,26 +1348,20 @@ func (q *Queries) ListMessagesByThread(ctx context.Context, arg ListMessagesByTh
 }
 
 const ListMessagesByTopic = `-- name: ListMessagesByTopic :many
-SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, user_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages
-WHERE user_id = ? AND topic_id = ?
+SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages
+WHERE topic_id = ?
 ORDER BY created_at ASC
 LIMIT ? OFFSET ?
 `
 
 type ListMessagesByTopicParams struct {
-	UserID  string         `json:"userId"`
 	TopicID sql.NullString `json:"topicId"`
 	Limit   int64          `json:"limit"`
 	Offset  int64          `json:"offset"`
 }
 
 func (q *Queries) ListMessagesByTopic(ctx context.Context, arg ListMessagesByTopicParams) ([]Message, error) {
-	rows, err := q.db.QueryContext(ctx, ListMessagesByTopic,
-		arg.UserID,
-		arg.TopicID,
-		arg.Limit,
-		arg.Offset,
-	)
+	rows, err := q.db.QueryContext(ctx, ListMessagesByTopic, arg.TopicID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -1547,7 +1383,6 @@ func (q *Queries) ListMessagesByTopic(ctx context.Context, arg ListMessagesByTop
 			&i.Tools,
 			&i.TraceID,
 			&i.ObservationID,
-			&i.UserID,
 			&i.SessionID,
 			&i.TopicID,
 			&i.ThreadID,
@@ -1576,25 +1411,20 @@ func (q *Queries) ListMessagesByTopic(ctx context.Context, arg ListMessagesByTop
 const RankModels = `-- name: RankModels :many
 SELECT model as id, COUNT(*) as count
 FROM messages
-WHERE user_id = ? AND model IS NOT NULL AND model != ''
+WHERE model IS NOT NULL AND model != ''
 GROUP BY model
 HAVING COUNT(*) > 0
 ORDER BY count DESC, model ASC
 LIMIT ?
 `
 
-type RankModelsParams struct {
-	UserID string `json:"userId"`
-	Limit  int64  `json:"limit"`
-}
-
 type RankModelsRow struct {
 	ID    sql.NullString `json:"id"`
 	Count int64          `json:"count"`
 }
 
-func (q *Queries) RankModels(ctx context.Context, arg RankModelsParams) ([]RankModelsRow, error) {
-	rows, err := q.db.QueryContext(ctx, RankModels, arg.UserID, arg.Limit)
+func (q *Queries) RankModels(ctx context.Context, limit int64) ([]RankModelsRow, error) {
+	rows, err := q.db.QueryContext(ctx, RankModels, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -1617,20 +1447,19 @@ func (q *Queries) RankModels(ctx context.Context, arg RankModelsParams) ([]RankM
 }
 
 const SearchMessagesByKeyword = `-- name: SearchMessagesByKeyword :many
-SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, user_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages
-WHERE user_id = ? AND content LIKE ?
+SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages
+WHERE content LIKE ?
 ORDER BY created_at DESC
 LIMIT ?
 `
 
 type SearchMessagesByKeywordParams struct {
-	UserID  string         `json:"userId"`
 	Content sql.NullString `json:"content"`
 	Limit   int64          `json:"limit"`
 }
 
 func (q *Queries) SearchMessagesByKeyword(ctx context.Context, arg SearchMessagesByKeywordParams) ([]Message, error) {
-	rows, err := q.db.QueryContext(ctx, SearchMessagesByKeyword, arg.UserID, arg.Content, arg.Limit)
+	rows, err := q.db.QueryContext(ctx, SearchMessagesByKeyword, arg.Content, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
@@ -1652,7 +1481,6 @@ func (q *Queries) SearchMessagesByKeyword(ctx context.Context, arg SearchMessage
 			&i.Tools,
 			&i.TraceID,
 			&i.ObservationID,
-			&i.UserID,
 			&i.SessionID,
 			&i.TopicID,
 			&i.ThreadID,
@@ -1680,39 +1508,32 @@ func (q *Queries) SearchMessagesByKeyword(ctx context.Context, arg SearchMessage
 
 const ToggleMessageFavorite = `-- name: ToggleMessageFavorite :exec
 UPDATE messages SET favorite = ?, updated_at = ?
-WHERE id = ? AND user_id = ?
+WHERE id = ?
 `
 
 type ToggleMessageFavoriteParams struct {
 	Favorite  int64  `json:"favorite"`
 	UpdatedAt int64  `json:"updatedAt"`
 	ID        string `json:"id"`
-	UserID    string `json:"userId"`
 }
 
 func (q *Queries) ToggleMessageFavorite(ctx context.Context, arg ToggleMessageFavoriteParams) error {
-	_, err := q.db.ExecContext(ctx, ToggleMessageFavorite,
-		arg.Favorite,
-		arg.UpdatedAt,
-		arg.ID,
-		arg.UserID,
-	)
+	_, err := q.db.ExecContext(ctx, ToggleMessageFavorite, arg.Favorite, arg.UpdatedAt, arg.ID)
 	return err
 }
 
 const UnlinkMessageFromFile = `-- name: UnlinkMessageFromFile :exec
 DELETE FROM messages_files
-WHERE file_id = ? AND message_id = ? AND user_id = ?
+WHERE file_id = ? AND message_id = ?
 `
 
 type UnlinkMessageFromFileParams struct {
 	FileID    string `json:"fileId"`
 	MessageID string `json:"messageId"`
-	UserID    string `json:"userId"`
 }
 
 func (q *Queries) UnlinkMessageFromFile(ctx context.Context, arg UnlinkMessageFromFileParams) error {
-	_, err := q.db.ExecContext(ctx, UnlinkMessageFromFile, arg.FileID, arg.MessageID, arg.UserID)
+	_, err := q.db.ExecContext(ctx, UnlinkMessageFromFile, arg.FileID, arg.MessageID)
 	return err
 }
 
@@ -1723,8 +1544,8 @@ SET content = ?,
     metadata = ?,
     favorite = ?,
     updated_at = ?
-WHERE id = ? AND user_id = ?
-RETURNING id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, user_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at
+WHERE id = ?
+RETURNING id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at
 `
 
 type UpdateMessageParams struct {
@@ -1734,7 +1555,6 @@ type UpdateMessageParams struct {
 	Favorite  int64          `json:"favorite"`
 	UpdatedAt int64          `json:"updatedAt"`
 	ID        string         `json:"id"`
-	UserID    string         `json:"userId"`
 }
 
 func (q *Queries) UpdateMessage(ctx context.Context, arg UpdateMessageParams) (Message, error) {
@@ -1745,7 +1565,6 @@ func (q *Queries) UpdateMessage(ctx context.Context, arg UpdateMessageParams) (M
 		arg.Favorite,
 		arg.UpdatedAt,
 		arg.ID,
-		arg.UserID,
 	)
 	var i Message
 	err := row.Scan(
@@ -1762,7 +1581,6 @@ func (q *Queries) UpdateMessage(ctx context.Context, arg UpdateMessageParams) (M
 		&i.Tools,
 		&i.TraceID,
 		&i.ObservationID,
-		&i.UserID,
 		&i.SessionID,
 		&i.TopicID,
 		&i.ThreadID,
@@ -1781,24 +1599,18 @@ func (q *Queries) UpdateMessage(ctx context.Context, arg UpdateMessageParams) (M
 const UpdateMessagePlugin = `-- name: UpdateMessagePlugin :one
 UPDATE message_plugins
 SET state = ?, error = ?
-WHERE id = ? AND user_id = ?
-RETURNING id, tool_call_id, type, api_name, arguments, identifier, state, error, user_id
+WHERE id = ?
+RETURNING id, tool_call_id, type, api_name, arguments, identifier, state, error, created_at, updated_at
 `
 
 type UpdateMessagePluginParams struct {
-	State  sql.NullString `json:"state"`
-	Error  sql.NullString `json:"error"`
-	ID     string         `json:"id"`
-	UserID string         `json:"userId"`
+	State sql.NullString `json:"state"`
+	Error sql.NullString `json:"error"`
+	ID    string         `json:"id"`
 }
 
 func (q *Queries) UpdateMessagePlugin(ctx context.Context, arg UpdateMessagePluginParams) (MessagePlugin, error) {
-	row := q.db.QueryRowContext(ctx, UpdateMessagePlugin,
-		arg.State,
-		arg.Error,
-		arg.ID,
-		arg.UserID,
-	)
+	row := q.db.QueryRowContext(ctx, UpdateMessagePlugin, arg.State, arg.Error, arg.ID)
 	var i MessagePlugin
 	err := row.Scan(
 		&i.ID,
@@ -1809,20 +1621,21 @@ func (q *Queries) UpdateMessagePlugin(ctx context.Context, arg UpdateMessagePlug
 		&i.Identifier,
 		&i.State,
 		&i.Error,
-		&i.UserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const UpsertMessageTTS = `-- name: UpsertMessageTTS :one
 INSERT INTO message_tts (
-    id, content_md5, file_id, voice, user_id
-) VALUES (?, ?, ?, ?, ?)
+    id, content_md5, file_id, voice
+) VALUES (?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
     content_md5 = excluded.content_md5,
     file_id = excluded.file_id,
     voice = excluded.voice
-RETURNING id, content_md5, file_id, voice, user_id
+RETURNING id, content_md5, file_id, voice
 `
 
 type UpsertMessageTTSParams struct {
@@ -1830,7 +1643,6 @@ type UpsertMessageTTSParams struct {
 	ContentMd5 sql.NullString `json:"contentMd5"`
 	FileID     sql.NullString `json:"fileId"`
 	Voice      sql.NullString `json:"voice"`
-	UserID     string         `json:"userId"`
 }
 
 func (q *Queries) UpsertMessageTTS(ctx context.Context, arg UpsertMessageTTSParams) (MessageTt, error) {
@@ -1839,7 +1651,6 @@ func (q *Queries) UpsertMessageTTS(ctx context.Context, arg UpsertMessageTTSPara
 		arg.ContentMd5,
 		arg.FileID,
 		arg.Voice,
-		arg.UserID,
 	)
 	var i MessageTt
 	err := row.Scan(
@@ -1847,20 +1658,19 @@ func (q *Queries) UpsertMessageTTS(ctx context.Context, arg UpsertMessageTTSPara
 		&i.ContentMd5,
 		&i.FileID,
 		&i.Voice,
-		&i.UserID,
 	)
 	return i, err
 }
 
 const UpsertMessageTranslate = `-- name: UpsertMessageTranslate :one
 INSERT INTO message_translates (
-    id, content, "from", "to", user_id
-) VALUES (?, ?, ?, ?, ?)
+    id, content, "from", "to"
+) VALUES (?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
     content = excluded.content,
     "from" = excluded."from",
     "to" = excluded."to"
-RETURNING id, content, "from", "to", user_id
+RETURNING id, content, "from", "to"
 `
 
 type UpsertMessageTranslateParams struct {
@@ -1868,7 +1678,6 @@ type UpsertMessageTranslateParams struct {
 	Content sql.NullString `json:"content"`
 	From    sql.NullString `json:"from"`
 	To      sql.NullString `json:"to"`
-	UserID  string         `json:"userId"`
 }
 
 func (q *Queries) UpsertMessageTranslate(ctx context.Context, arg UpsertMessageTranslateParams) (MessageTranslate, error) {
@@ -1877,7 +1686,6 @@ func (q *Queries) UpsertMessageTranslate(ctx context.Context, arg UpsertMessageT
 		arg.Content,
 		arg.From,
 		arg.To,
-		arg.UserID,
 	)
 	var i MessageTranslate
 	err := row.Scan(
@@ -1885,7 +1693,6 @@ func (q *Queries) UpsertMessageTranslate(ctx context.Context, arg UpsertMessageT
 		&i.Content,
 		&i.From,
 		&i.To,
-		&i.UserID,
 	)
 	return i, err
 }

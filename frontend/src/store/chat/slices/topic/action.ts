@@ -377,30 +377,12 @@ export const chatTopic: StateCreator<
   },
 
   switchTopic: async (id, skipRefreshMessage) => {
-    console.trace('[switchTopic] Called from:');
-    const previousActiveThreadId = get().activeThreadId;
-    console.debug('[chatTopic.switchTopic] Switching topic:', {
-      previousTopicId: get().activeTopicId,
-      newTopicId: id,
-      previousActiveThreadId,
-      clearingActiveThreadId: true,
-    });
     set(
       { activeTopicId: !id ? (null as any) : id, activeThreadId: undefined },
       false,
       n('toggleTopic'),
     );
-    console.debug('[chatTopic.switchTopic] After switch:', {
-      newTopicId: id,
-      activeThreadId: get().activeThreadId,
-      wasCleared: previousActiveThreadId !== undefined,
-    });
 
-    // URL sync removed for desktop app - not needed in Wails
-    // Desktop apps don't use URL-based state management
-    // State is initialized from database/messages in StoreInitialization.tsx
-
-    // Reset supervisor todos when switching topics in group chats
     try {
       const { activeId, activeSessionType, internal_cancelSupervisorDecision } = get();
       // Determine group session robustly (cached flag or from session store)
@@ -441,8 +423,6 @@ export const chatTopic: StateCreator<
       userId,
       sessionId: toNullString(dbSessionId),
     });
-
-    console.log('[Topic] Deleted session topics via direct DB', { sessionId: activeId });
 
     await refreshTopic();
 
@@ -506,11 +486,8 @@ export const chatTopic: StateCreator<
       topics.map((topic) => DB.DeleteTopic({ id: topic.id, userId }))
     );
 
-    console.log('[Topic] Deleted unstarred topics via direct DB', { count: topics.length });
-
     await refreshTopic();
 
-    // 切换到默认 topic
     switchTopic();
   },
 
@@ -583,14 +560,11 @@ export const chatTopic: StateCreator<
       updatedAt: now,
     } as any);
 
-    console.log('[Topic] Updated topic via direct DB', { id });
-
     await get().refreshTopic();
     get().internal_updateTopicLoading(id, false);
   },
   internal_createTopic: async (params) => {
     const tmpId = Date.now().toString();
-    console.debug('[internal_createTopic] Creating topic with tmpId:', tmpId, 'params:', params);
 
     get().internal_dispatchTopic(
       { type: 'addTopic', value: { ...params, id: tmpId } },

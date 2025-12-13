@@ -51,8 +51,8 @@ export function CreateFileWithLinks(params: $models.CreateFileWithLinksParams): 
 /**
  * CreateMessageWithRelations creates a message and all its related data in a single transaction
  */
-export function CreateMessageWithRelations(params: $models.CreateMessageWithRelationsParams, userId: string): $CancellablePromise<db$0.Message> {
-    return $Call.ByID(384784407, params, userId).then(($result: any) => {
+export function CreateMessageWithRelations(params: $models.CreateMessageWithRelationsParams): $CancellablePromise<db$0.Message> {
+    return $Call.ByID(384784407, params).then(($result: any) => {
         return $$createType4($result);
     });
 }
@@ -69,8 +69,8 @@ export function DB(): $CancellablePromise<sql$0.DB | null> {
 /**
  * DeleteAIProviderWithModels deletes an AI provider and all its models atomically
  */
-export function DeleteAIProviderWithModels(providerID: string, userID: string): $CancellablePromise<void> {
-    return $Call.ByID(2052033689, providerID, userID);
+export function DeleteAIProviderWithModels(providerID: string): $CancellablePromise<void> {
+    return $Call.ByID(2052033689, providerID);
 }
 
 /**
@@ -84,15 +84,15 @@ export function DeleteFileWithCascade(params: $models.DeleteFileWithCascadeParam
 /**
  * DeleteMessageWithRelated deletes a message and its related tool messages in a transaction
  */
-export function DeleteMessageWithRelated(toolCallIdsJson: string, messageIds: string[], userId: string): $CancellablePromise<void> {
-    return $Call.ByID(3641449290, toolCallIdsJson, messageIds, userId);
+export function DeleteMessageWithRelated(toolCallIdsJson: string, messageIds: string[]): $CancellablePromise<void> {
+    return $Call.ByID(3641449290, toolCallIdsJson, messageIds);
 }
 
 /**
  * GetDocumentsByFileIds fetches documents by file IDs (batch operation)
  */
-export function GetDocumentsByFileIds(fileIdsJson: string, userId: string): $CancellablePromise<db$0.GetDocumentByFileIdRow[]> {
-    return $Call.ByID(1781854764, fileIdsJson, userId).then(($result: any) => {
+export function GetDocumentsByFileIds(fileIdsJson: string): $CancellablePromise<db$0.GetDocumentByFileIdRow[]> {
+    return $Call.ByID(1781854764, fileIdsJson).then(($result: any) => {
         return $$createType8($result);
     });
 }
@@ -100,8 +100,8 @@ export function GetDocumentsByFileIds(fileIdsJson: string, userId: string): $Can
 /**
  * GetMessagesByToolCallIds fetches messages by tool call IDs (batch operation)
  */
-export function GetMessagesByToolCallIds(toolCallIdsJson: string, userId: string): $CancellablePromise<string[]> {
-    return $Call.ByID(2607655468, toolCallIdsJson, userId).then(($result: any) => {
+export function GetMessagesByToolCallIds(toolCallIdsJson: string): $CancellablePromise<string[]> {
+    return $Call.ByID(2607655468, toolCallIdsJson).then(($result: any) => {
         return $$createType9($result);
     });
 }
@@ -116,10 +116,17 @@ export function Queries(): $CancellablePromise<db$0.Queries | null> {
 }
 
 /**
+ * SeedAvailableAgents fetches agents from remote and seeds them into the database
+ */
+export function SeedAvailableAgents(): $CancellablePromise<void> {
+    return $Call.ByID(3729929935);
+}
+
+/**
  * UpdateMessageWithImages updates a message and links images in a single transaction
  */
-export function UpdateMessageWithImages(params: $models.UpdateMessageWithImagesParams, userId: string): $CancellablePromise<void> {
-    return $Call.ByID(2812440899, params, userId);
+export function UpdateMessageWithImages(params: $models.UpdateMessageWithImagesParams): $CancellablePromise<void> {
+    return $Call.ByID(2812440899, params);
 }
 
 /**

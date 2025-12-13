@@ -7,30 +7,29 @@
 
 -- name: CreateUserMemory :one
 INSERT INTO user_memories (
-    id, user_id, memory_category, memory_layer, memory_type,
+    id, memory_category, memory_layer, memory_type,
     title, summary, summary_vector_1024, details, details_vector_1024,
     status, accessed_count, last_accessed_at, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: GetUserMemory :one
-SELECT * FROM user_memories WHERE id = ? AND user_id = ?;
+SELECT * FROM user_memories WHERE id = ?;
 
 -- name: ListUserMemories :many
 SELECT * FROM user_memories
-WHERE user_id = ?
 ORDER BY last_accessed_at DESC
 LIMIT ? OFFSET ?;
 
 -- name: ListUserMemoriesByCategory :many
 SELECT * FROM user_memories
-WHERE user_id = ? AND memory_category = ?
+WHERE memory_category = ?
 ORDER BY last_accessed_at DESC
 LIMIT ? OFFSET ?;
 
 -- name: ListUserMemoriesByType :many
 SELECT * FROM user_memories
-WHERE user_id = ? AND memory_type = ?
+WHERE memory_type = ?
 ORDER BY last_accessed_at DESC
 LIMIT ? OFFSET ?;
 
@@ -43,7 +42,7 @@ SET title = COALESCE(?, title),
     details_vector_1024 = COALESCE(?, details_vector_1024),
     status = COALESCE(?, status),
     updated_at = ?
-WHERE id = ? AND user_id = ?
+WHERE id = ?
 RETURNING *;
 
 -- name: UpdateMemoryAccessCount :exec
@@ -51,29 +50,27 @@ UPDATE user_memories
 SET accessed_count = accessed_count + 1,
     last_accessed_at = ?,
     updated_at = ?
-WHERE id = ? AND user_id = ?;
+WHERE id = ?;
 
 -- name: DeleteUserMemory :exec
-DELETE FROM user_memories WHERE id = ? AND user_id = ?;
+DELETE FROM user_memories WHERE id = ?;
 
 -- name: CountUserMemories :one
-SELECT COUNT(*) as count FROM user_memories WHERE user_id = ?;
+SELECT COUNT(*) as count FROM user_memories;
 
 -- name: GetRecentMemories :many
 SELECT * FROM user_memories
-WHERE user_id = ?
 ORDER BY created_at DESC
 LIMIT ?;
 
 -- name: GetMostAccessedMemories :many
 SELECT * FROM user_memories
-WHERE user_id = ?
 ORDER BY accessed_count DESC, last_accessed_at DESC
 LIMIT ?;
 
 -- name: SearchMemoriesByTitle :many
 SELECT * FROM user_memories
-WHERE user_id = ? AND title LIKE '%' || ? || '%'
+WHERE title LIKE '%' || ? || '%'
 ORDER BY last_accessed_at DESC
 LIMIT ?;
 
@@ -176,11 +173,11 @@ DELETE FROM user_memories_contexts WHERE id = ?;
 
 -- name: BatchDeleteUserMemories :exec
 DELETE FROM user_memories
-WHERE id IN (sqlc.slice('ids')) AND user_id = ?;
+WHERE id IN (sqlc.slice('ids'));
 
 -- name: GetUserMemoriesByIds :many
 SELECT * FROM user_memories
-WHERE id IN (sqlc.slice('ids')) AND user_id = ?;
+WHERE id IN (sqlc.slice('ids'));
 
 -- ============================================================================
 -- CONVERSATION MEMORY LINKING (Link memories to messages/sessions)
@@ -188,8 +185,7 @@ WHERE id IN (sqlc.slice('ids')) AND user_id = ?;
 
 -- name: GetMemoriesBySessionContext :many
 SELECT um.* FROM user_memories um
-WHERE um.user_id = ?
-  AND um.memory_category IN ('conversation', 'context', 'fact')
+WHERE um.memory_category IN ('conversation', 'context', 'fact')
 ORDER BY um.last_accessed_at DESC
 LIMIT ?;
 
@@ -197,6 +193,5 @@ LIMIT ?;
 UPDATE user_memories
 SET status = 'archived',
     updated_at = ?
-WHERE user_id = ?
-  AND last_accessed_at < ?
+WHERE last_accessed_at < ?
   AND status != 'archived';

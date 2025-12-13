@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 
-	db "github.com/kawai-network/veridium/internal/database/generated"
 	llamaembed "github.com/kawai-network/veridium/fantasy/providers/llama-embed"
+	db "github.com/kawai-network/veridium/internal/database/generated"
 )
 
 // SearchResult represents a search result from vector database
@@ -46,7 +46,7 @@ func NewVectorSearchService(
 }
 
 // SemanticSearch performs semantic search on chunks using DuckDB + SQLite
-func (s *VectorSearchService) SemanticSearch(ctx context.Context, userID string, query string, fileIDs []string, limit int) ([]SearchResult, error) {
+func (s *VectorSearchService) SemanticSearch(ctx context.Context, query string, fileIDs []string, limit int) ([]SearchResult, error) {
 	if limit <= 0 {
 		limit = 30
 	}
@@ -87,10 +87,7 @@ func (s *VectorSearchService) SemanticSearch(ctx context.Context, userID string,
 	}
 
 	// 3. Fetch full content from SQLite
-	chunks, err := s.queries.GetChunksByIDs(ctx, db.GetChunksByIDsParams{
-		Ids:    ids,
-		UserID: sql.NullString{String: userID, Valid: true},
-	})
+	chunks, err := s.queries.GetChunksByIDs(ctx, ids)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch chunks from SQLite: %w", err)
 	}
@@ -129,10 +126,7 @@ func (s *VectorSearchService) SemanticSearch(ctx context.Context, userID string,
 		// Get filename from files table
 		fileName := ""
 		if chunk.FileID.Valid {
-			file, err := s.queries.GetFile(ctx, db.GetFileParams{
-				ID:     chunk.FileID.String,
-				UserID: userID,
-			})
+			file, err := s.queries.GetFile(ctx, chunk.FileID.String)
 			if err == nil {
 				fileName = file.Name
 			}
@@ -158,9 +152,9 @@ func (s *VectorSearchService) SemanticSearch(ctx context.Context, userID string,
 }
 
 // SemanticSearchMultipleFiles performs semantic search across multiple files
-func (s *VectorSearchService) SemanticSearchMultipleFiles(ctx context.Context, userID string, query string, fileIDs []string, limit int) ([]SearchResult, error) {
+func (s *VectorSearchService) SemanticSearchMultipleFiles(ctx context.Context, query string, fileIDs []string, limit int) ([]SearchResult, error) {
 	// Just call SemanticSearch with fileIDs filter
-	return s.SemanticSearch(ctx, userID, query, fileIDs, limit)
+	return s.SemanticSearch(ctx, query, fileIDs, limit)
 }
 
 // GetEmbedder returns the embedder

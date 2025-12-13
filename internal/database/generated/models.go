@@ -17,7 +17,6 @@ type Agent struct {
 	Avatar           sql.NullString `json:"avatar"`
 	BackgroundColor  sql.NullString `json:"backgroundColor"`
 	Plugins          sql.NullString `json:"plugins"`
-	UserID           string         `json:"userId"`
 	ChatConfig       sql.NullString `json:"chatConfig"`
 	FewShots         sql.NullString `json:"fewShots"`
 	Model            sql.NullString `json:"model"`
@@ -36,7 +35,6 @@ type AgentsFile struct {
 	FileID    string `json:"fileId"`
 	AgentID   string `json:"agentId"`
 	Enabled   int64  `json:"enabled"`
-	UserID    string `json:"userId"`
 	CreatedAt int64  `json:"createdAt"`
 	UpdatedAt int64  `json:"updatedAt"`
 }
@@ -44,7 +42,6 @@ type AgentsFile struct {
 type AgentsKnowledgeBasis struct {
 	AgentID         string `json:"agentId"`
 	KnowledgeBaseID string `json:"knowledgeBaseId"`
-	UserID          string `json:"userId"`
 	Enabled         int64  `json:"enabled"`
 	CreatedAt       int64  `json:"createdAt"`
 	UpdatedAt       int64  `json:"updatedAt"`
@@ -53,7 +50,6 @@ type AgentsKnowledgeBasis struct {
 type AgentsToSession struct {
 	AgentID   string `json:"agentId"`
 	SessionID string `json:"sessionId"`
-	UserID    string `json:"userId"`
 }
 
 type AiModel struct {
@@ -65,7 +61,6 @@ type AiModel struct {
 	ProviderID          string         `json:"providerId"`
 	Type                string         `json:"type"`
 	Sort                sql.NullInt64  `json:"sort"`
-	UserID              string         `json:"userId"`
 	Pricing             sql.NullString `json:"pricing"`
 	Parameters          sql.NullString `json:"parameters"`
 	Config              sql.NullString `json:"config"`
@@ -80,7 +75,6 @@ type AiModel struct {
 type AiProvider struct {
 	ID            string         `json:"id"`
 	Name          sql.NullString `json:"name"`
-	UserID        string         `json:"userId"`
 	Sort          sql.NullInt64  `json:"sort"`
 	Enabled       sql.NullInt64  `json:"enabled"`
 	FetchOnClient sql.NullInt64  `json:"fetchOnClient"`
@@ -102,7 +96,6 @@ type ApiKey struct {
 	Enabled    int64         `json:"enabled"`
 	ExpiresAt  sql.NullInt64 `json:"expiresAt"`
 	LastUsedAt sql.NullInt64 `json:"lastUsedAt"`
-	UserID     string        `json:"userId"`
 	CreatedAt  int64         `json:"createdAt"`
 	UpdatedAt  int64         `json:"updatedAt"`
 }
@@ -112,7 +105,6 @@ type AsyncTask struct {
 	Type      sql.NullString `json:"type"`
 	Status    sql.NullString `json:"status"`
 	Error     sql.NullString `json:"error"`
-	UserID    string         `json:"userId"`
 	Duration  sql.NullInt64  `json:"duration"`
 	CreatedAt int64          `json:"createdAt"`
 	UpdatedAt int64          `json:"updatedAt"`
@@ -123,7 +115,6 @@ type ChatGroup struct {
 	Title       sql.NullString `json:"title"`
 	Description sql.NullString `json:"description"`
 	Config      sql.NullString `json:"config"`
-	UserID      string         `json:"userId"`
 	GroupID     sql.NullString `json:"groupId"`
 	Pinned      int64          `json:"pinned"`
 	CreatedAt   int64          `json:"createdAt"`
@@ -133,7 +124,6 @@ type ChatGroup struct {
 type ChatGroupsAgent struct {
 	ChatGroupID string         `json:"chatGroupId"`
 	AgentID     string         `json:"agentId"`
-	UserID      string         `json:"userId"`
 	Enabled     int64          `json:"enabled"`
 	SortOrder   sql.NullInt64  `json:"sortOrder"`
 	Role        sql.NullString `json:"role"`
@@ -149,7 +139,6 @@ type Chunk struct {
 	Metadata   sql.NullString `json:"metadata"`
 	ChunkIndex sql.NullInt64  `json:"chunkIndex"`
 	Type       sql.NullString `json:"type"`
-	UserID     sql.NullString `json:"userId"`
 	CreatedAt  int64          `json:"createdAt"`
 	UpdatedAt  int64          `json:"updatedAt"`
 }
@@ -167,7 +156,6 @@ type Document struct {
 	SourceType     string         `json:"sourceType"`
 	Source         string         `json:"source"`
 	FileID         sql.NullString `json:"fileId"`
-	UserID         string         `json:"userId"`
 	EditorData     sql.NullString `json:"editorData"`
 	CreatedAt      int64          `json:"createdAt"`
 	UpdatedAt      int64          `json:"updatedAt"`
@@ -177,7 +165,6 @@ type DocumentChunk struct {
 	DocumentID string        `json:"documentId"`
 	ChunkID    string        `json:"chunkId"`
 	PageIndex  sql.NullInt64 `json:"pageIndex"`
-	UserID     string        `json:"userId"`
 }
 
 type DrizzleMigration struct {
@@ -188,7 +175,6 @@ type DrizzleMigration struct {
 
 type File struct {
 	ID        string         `json:"id"`
-	UserID    string         `json:"userId"`
 	FileType  string         `json:"fileType"`
 	FileHash  sql.NullString `json:"fileHash"`
 	Name      string         `json:"name"`
@@ -204,18 +190,15 @@ type FileChunk struct {
 	FileID    sql.NullString `json:"fileId"`
 	ChunkID   sql.NullString `json:"chunkId"`
 	CreatedAt int64          `json:"createdAt"`
-	UserID    string         `json:"userId"`
 }
 
 type FilesToSession struct {
 	FileID    string `json:"fileId"`
 	SessionID string `json:"sessionId"`
-	UserID    string `json:"userId"`
 }
 
 type Generation struct {
 	ID                string         `json:"id"`
-	UserID            string         `json:"userId"`
 	GenerationBatchID string         `json:"generationBatchId"`
 	AsyncTaskID       sql.NullString `json:"asyncTaskId"`
 	FileID            sql.NullString `json:"fileId"`
@@ -227,7 +210,6 @@ type Generation struct {
 
 type GenerationBatch struct {
 	ID                string         `json:"id"`
-	UserID            string         `json:"userId"`
 	GenerationTopicID string         `json:"generationTopicId"`
 	Provider          string         `json:"provider"`
 	Model             string         `json:"model"`
@@ -242,7 +224,6 @@ type GenerationBatch struct {
 
 type GenerationTopic struct {
 	ID        string         `json:"id"`
-	UserID    string         `json:"userId"`
 	Title     sql.NullString `json:"title"`
 	CoverUrl  sql.NullString `json:"coverUrl"`
 	CreatedAt int64          `json:"createdAt"`
@@ -255,14 +236,13 @@ type GlobalFile struct {
 	Size      int64          `json:"size"`
 	Url       string         `json:"url"`
 	Metadata  sql.NullString `json:"metadata"`
-	Creator   string         `json:"creator"`
+	Creator   sql.NullString `json:"creator"`
 	CreatedAt int64          `json:"createdAt"`
 }
 
 type KnowledgeBaseFile struct {
 	KnowledgeBaseID string `json:"knowledgeBaseId"`
 	FileID          string `json:"fileId"`
-	UserID          string `json:"userId"`
 	CreatedAt       int64  `json:"createdAt"`
 }
 
@@ -272,7 +252,6 @@ type KnowledgeBasis struct {
 	Description sql.NullString `json:"description"`
 	Avatar      sql.NullString `json:"avatar"`
 	Type        sql.NullString `json:"type"`
-	UserID      string         `json:"userId"`
 	IsPublic    int64          `json:"isPublic"`
 	Settings    sql.NullString `json:"settings"`
 	CreatedAt   int64          `json:"createdAt"`
@@ -293,7 +272,6 @@ type Message struct {
 	Tools          sql.NullString `json:"tools"`
 	TraceID        sql.NullString `json:"traceId"`
 	ObservationID  sql.NullString `json:"observationId"`
-	UserID         string         `json:"userId"`
 	SessionID      sql.NullString `json:"sessionId"`
 	TopicID        sql.NullString `json:"topicId"`
 	ThreadID       sql.NullString `json:"threadId"`
@@ -310,7 +288,6 @@ type Message struct {
 type MessageChunk struct {
 	MessageID sql.NullString `json:"messageId"`
 	ChunkID   sql.NullString `json:"chunkId"`
-	UserID    string         `json:"userId"`
 }
 
 type MessageGroup struct {
@@ -318,7 +295,6 @@ type MessageGroup struct {
 	Title           sql.NullString `json:"title"`
 	Description     sql.NullString `json:"description"`
 	TopicID         sql.NullString `json:"topicId"`
-	UserID          string         `json:"userId"`
 	ParentGroupID   sql.NullString `json:"parentGroupId"`
 	ParentMessageID sql.NullString `json:"parentMessageId"`
 	CreatedAt       int64          `json:"createdAt"`
@@ -334,7 +310,8 @@ type MessagePlugin struct {
 	Identifier sql.NullString `json:"identifier"`
 	State      sql.NullString `json:"state"`
 	Error      sql.NullString `json:"error"`
-	UserID     string         `json:"userId"`
+	CreatedAt  int64          `json:"createdAt"`
+	UpdatedAt  int64          `json:"updatedAt"`
 }
 
 type MessageQuery struct {
@@ -342,7 +319,6 @@ type MessageQuery struct {
 	MessageID    string         `json:"messageId"`
 	RewriteQuery sql.NullString `json:"rewriteQuery"`
 	UserQuery    sql.NullString `json:"userQuery"`
-	UserID       string         `json:"userId"`
 }
 
 type MessageQueryChunk struct {
@@ -350,7 +326,6 @@ type MessageQueryChunk struct {
 	QueryID    sql.NullString `json:"queryId"`
 	ChunkID    sql.NullString `json:"chunkId"`
 	Similarity sql.NullInt64  `json:"similarity"`
-	UserID     string         `json:"userId"`
 }
 
 type MessageTranslate struct {
@@ -358,7 +333,6 @@ type MessageTranslate struct {
 	Content sql.NullString `json:"content"`
 	From    sql.NullString `json:"from"`
 	To      sql.NullString `json:"to"`
-	UserID  string         `json:"userId"`
 }
 
 type MessageTt struct {
@@ -366,57 +340,17 @@ type MessageTt struct {
 	ContentMd5 sql.NullString `json:"contentMd5"`
 	FileID     sql.NullString `json:"fileId"`
 	Voice      sql.NullString `json:"voice"`
-	UserID     string         `json:"userId"`
 }
 
 type MessagesFile struct {
 	FileID    string `json:"fileId"`
 	MessageID string `json:"messageId"`
-	UserID    string `json:"userId"`
-}
-
-type NextauthAccount struct {
-	AccessToken       sql.NullString `json:"accessToken"`
-	ExpiresAt         sql.NullInt64  `json:"expiresAt"`
-	IDToken           sql.NullString `json:"idToken"`
-	Provider          string         `json:"provider"`
-	ProviderAccountID string         `json:"providerAccountId"`
-	RefreshToken      sql.NullString `json:"refreshToken"`
-	Scope             sql.NullString `json:"scope"`
-	SessionState      sql.NullString `json:"sessionState"`
-	TokenType         sql.NullString `json:"tokenType"`
-	Type              string         `json:"type"`
-	UserID            string         `json:"userId"`
-}
-
-type NextauthAuthenticator struct {
-	Counter              int64          `json:"counter"`
-	CredentialBackedUp   int64          `json:"credentialBackedUp"`
-	CredentialDeviceType string         `json:"credentialDeviceType"`
-	CredentialID         string         `json:"credentialId"`
-	CredentialPublicKey  string         `json:"credentialPublicKey"`
-	ProviderAccountID    string         `json:"providerAccountId"`
-	Transports           sql.NullString `json:"transports"`
-	UserID               string         `json:"userId"`
-}
-
-type NextauthSession struct {
-	Expires      int64  `json:"expires"`
-	SessionToken string `json:"sessionToken"`
-	UserID       string `json:"userId"`
-}
-
-type NextauthVerificationtoken struct {
-	Expires    int64  `json:"expires"`
-	Identifier string `json:"identifier"`
-	Token      string `json:"token"`
 }
 
 type RagEvalDataset struct {
 	ID          string         `json:"id"`
 	Name        string         `json:"name"`
 	Description sql.NullString `json:"description"`
-	UserID      string         `json:"userId"`
 	CreatedAt   int64          `json:"createdAt"`
 	UpdatedAt   int64          `json:"updatedAt"`
 }
@@ -428,7 +362,6 @@ type RagEvalDatasetRecord struct {
 	ReferenceAnswer   sql.NullString `json:"referenceAnswer"`
 	ReferenceContexts sql.NullString `json:"referenceContexts"`
 	Metadata          sql.NullString `json:"metadata"`
-	UserID            string         `json:"userId"`
 	CreatedAt         int64          `json:"createdAt"`
 	UpdatedAt         int64          `json:"updatedAt"`
 }
@@ -439,7 +372,6 @@ type RagEvalEvaluation struct {
 	DatasetID string         `json:"datasetId"`
 	Config    sql.NullString `json:"config"`
 	Status    string         `json:"status"`
-	UserID    string         `json:"userId"`
 	CreatedAt int64          `json:"createdAt"`
 	UpdatedAt int64          `json:"updatedAt"`
 }
@@ -451,45 +383,8 @@ type RagEvalEvaluationRecord struct {
 	RetrievedContexts sql.NullString `json:"retrievedContexts"`
 	GeneratedAnswer   sql.NullString `json:"generatedAnswer"`
 	Metrics           sql.NullString `json:"metrics"`
-	UserID            string         `json:"userId"`
 	CreatedAt         int64          `json:"createdAt"`
 	UpdatedAt         int64          `json:"updatedAt"`
-}
-
-type RbacPermission struct {
-	ID          int64          `json:"id"`
-	Code        string         `json:"code"`
-	Name        string         `json:"name"`
-	Description sql.NullString `json:"description"`
-	Category    string         `json:"category"`
-	IsActive    int64          `json:"isActive"`
-	CreatedAt   int64          `json:"createdAt"`
-	UpdatedAt   int64          `json:"updatedAt"`
-}
-
-type RbacRole struct {
-	ID          int64          `json:"id"`
-	Name        string         `json:"name"`
-	DisplayName string         `json:"displayName"`
-	Description sql.NullString `json:"description"`
-	IsSystem    int64          `json:"isSystem"`
-	IsActive    int64          `json:"isActive"`
-	Metadata    sql.NullString `json:"metadata"`
-	CreatedAt   int64          `json:"createdAt"`
-	UpdatedAt   int64          `json:"updatedAt"`
-}
-
-type RbacRolePermission struct {
-	RoleID       int64 `json:"roleId"`
-	PermissionID int64 `json:"permissionId"`
-	CreatedAt    int64 `json:"createdAt"`
-}
-
-type RbacUserRole struct {
-	UserID    string        `json:"userId"`
-	RoleID    int64         `json:"roleId"`
-	CreatedAt int64         `json:"createdAt"`
-	ExpiresAt sql.NullInt64 `json:"expiresAt"`
 }
 
 type Session struct {
@@ -500,7 +395,6 @@ type Session struct {
 	Avatar          sql.NullString `json:"avatar"`
 	BackgroundColor sql.NullString `json:"backgroundColor"`
 	Type            sql.NullString `json:"type"`
-	UserID          string         `json:"userId"`
 	GroupID         sql.NullString `json:"groupId"`
 	Pinned          int64          `json:"pinned"`
 	CreatedAt       int64          `json:"createdAt"`
@@ -511,7 +405,6 @@ type SessionGroup struct {
 	ID        string        `json:"id"`
 	Name      string        `json:"name"`
 	Sort      sql.NullInt64 `json:"sort"`
-	UserID    string        `json:"userId"`
 	CreatedAt int64         `json:"createdAt"`
 	UpdatedAt int64         `json:"updatedAt"`
 }
@@ -524,7 +417,6 @@ type Thread struct {
 	TopicID         string         `json:"topicId"`
 	SourceMessageID string         `json:"sourceMessageId"`
 	ParentThreadID  sql.NullString `json:"parentThreadId"`
-	UserID          string         `json:"userId"`
 	LastActiveAt    int64          `json:"lastActiveAt"`
 	CreatedAt       int64          `json:"createdAt"`
 	UpdatedAt       int64          `json:"updatedAt"`
@@ -536,7 +428,6 @@ type Topic struct {
 	Favorite       int64          `json:"favorite"`
 	SessionID      sql.NullString `json:"sessionId"`
 	GroupID        sql.NullString `json:"groupId"`
-	UserID         string         `json:"userId"`
 	HistorySummary sql.NullString `json:"historySummary"`
 	Metadata       sql.NullString `json:"metadata"`
 	CreatedAt      int64          `json:"createdAt"`
@@ -546,7 +437,6 @@ type Topic struct {
 type TopicDocument struct {
 	DocumentID string `json:"documentId"`
 	TopicID    string `json:"topicId"`
-	UserID     string `json:"userId"`
 	CreatedAt  int64  `json:"createdAt"`
 }
 
@@ -558,31 +448,13 @@ type UnstructuredChunk struct {
 	Type        sql.NullString `json:"type"`
 	ParentID    sql.NullString `json:"parentId"`
 	CompositeID sql.NullString `json:"compositeId"`
-	UserID      sql.NullString `json:"userId"`
 	FileID      sql.NullString `json:"fileId"`
 	CreatedAt   int64          `json:"createdAt"`
 	UpdatedAt   int64          `json:"updatedAt"`
 }
 
-type User struct {
-	ID              string         `json:"id"`
-	Username        sql.NullString `json:"username"`
-	Email           sql.NullString `json:"email"`
-	Avatar          sql.NullString `json:"avatar"`
-	Phone           sql.NullString `json:"phone"`
-	FirstName       sql.NullString `json:"firstName"`
-	LastName        sql.NullString `json:"lastName"`
-	IsOnboarded     int64          `json:"isOnboarded"`
-	ClerkCreatedAt  sql.NullInt64  `json:"clerkCreatedAt"`
-	EmailVerifiedAt sql.NullInt64  `json:"emailVerifiedAt"`
-	Preference      sql.NullString `json:"preference"`
-	CreatedAt       int64          `json:"createdAt"`
-	UpdatedAt       int64          `json:"updatedAt"`
-}
-
 type UserBudget struct {
 	ID         string  `json:"id"`
-	UserID     string  `json:"userId"`
 	BudgetType string  `json:"budgetType"`
 	Amount     float64 `json:"amount"`
 	Period     string  `json:"period"`
@@ -591,7 +463,6 @@ type UserBudget struct {
 }
 
 type UserInstalledPlugin struct {
-	UserID       string         `json:"userId"`
 	Identifier   string         `json:"identifier"`
 	Type         string         `json:"type"`
 	Manifest     sql.NullString `json:"manifest"`
@@ -674,7 +545,6 @@ type UserMemoriesPreference struct {
 
 type UserMemory struct {
 	ID                string         `json:"id"`
-	UserID            sql.NullString `json:"userId"`
 	MemoryCategory    sql.NullString `json:"memoryCategory"`
 	MemoryLayer       sql.NullString `json:"memoryLayer"`
 	MemoryType        sql.NullString `json:"memoryType"`
@@ -705,7 +575,6 @@ type UserSetting struct {
 
 type UserSubscription struct {
 	ID        string        `json:"id"`
-	UserID    string        `json:"userId"`
 	PlanID    string        `json:"planId"`
 	Status    string        `json:"status"`
 	StartedAt int64         `json:"startedAt"`

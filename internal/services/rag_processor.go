@@ -6,9 +6,9 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	llamaembed "github.com/kawai-network/veridium/fantasy/providers/llama-embed"
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/pkg/xlog"
-	llamaembed "github.com/kawai-network/veridium/fantasy/providers/llama-embed"
 	"github.com/kawai-network/veridium/types"
 )
 
@@ -39,7 +39,6 @@ type RAGProcessRequest struct {
 	FilePath   string
 	FileID     string
 	DocumentID string
-	UserID     string
 	Filename   string
 }
 
@@ -49,10 +48,7 @@ func (r *RAGProcessor) ProcessFile(ctx context.Context, req RAGProcessRequest) (
 	xlog.Info("Starting RAG processing", "file_id", req.FileID, "document_id", req.DocumentID)
 
 	// 1. Get already-parsed document content from database
-	doc, err := r.queries.GetDocument(ctx, db.GetDocumentParams{
-		ID:     req.DocumentID,
-		UserID: req.UserID,
-	})
+	doc, err := r.queries.GetDocument(ctx, req.DocumentID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get document: %w", err)
 	}
@@ -102,7 +98,6 @@ func (r *RAGProcessor) ProcessFile(ctx context.Context, req RAGProcessRequest) (
 			Metadata:   sql.NullString{String: fmt.Sprintf(`{"filename": "%s", "chunk_index": %d, "type": "%s"}`, req.Filename, i, chunk.Metadata["type"]), Valid: true},
 			ChunkIndex: sql.NullInt64{Int64: int64(i), Valid: true},
 			Type:       sql.NullString{String: "text", Valid: true},
-			UserID:     sql.NullString{String: req.UserID, Valid: true},
 		})
 		if err != nil {
 			xlog.Error("Failed to save chunk to SQLite", "error", err, "chunk_index", i)

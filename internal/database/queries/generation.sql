@@ -1,17 +1,16 @@
 -- Generation Topics
 
 -- name: GetGenerationTopic :one
-SELECT * FROM generation_topics WHERE id = ? AND user_id = ?;
+SELECT * FROM generation_topics WHERE id = ?;
 
 -- name: ListGenerationTopics :many
 SELECT * FROM generation_topics
-WHERE user_id = ?
 ORDER BY created_at DESC;
 
 -- name: CreateGenerationTopic :one
 INSERT INTO generation_topics (
-    id, user_id, title, cover_url, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?)
+    id, title, cover_url, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpdateGenerationTopic :one
@@ -19,47 +18,47 @@ UPDATE generation_topics
 SET title = ?,
     cover_url = ?,
     updated_at = ?
-WHERE id = ? AND user_id = ?
+WHERE id = ?
 RETURNING *;
 
 -- name: DeleteGenerationTopic :exec
-DELETE FROM generation_topics WHERE id = ? AND user_id = ?;
+DELETE FROM generation_topics WHERE id = ?;
 
 -- Generation Batches
 
 -- name: GetGenerationBatch :one
-SELECT * FROM generation_batches WHERE id = ? AND user_id = ?;
+SELECT * FROM generation_batches WHERE id = ?;
 
 -- name: ListGenerationBatches :many
 SELECT * FROM generation_batches
-WHERE generation_topic_id = ? AND user_id = ?
+WHERE generation_topic_id = ?
 ORDER BY created_at DESC;
 
 -- name: CreateGenerationBatch :one
 INSERT INTO generation_batches (
-    id, user_id, generation_topic_id, provider, model, prompt,
+    id, generation_topic_id, provider, model, prompt,
     width, height, ratio, config, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: DeleteGenerationBatch :exec
-DELETE FROM generation_batches WHERE id = ? AND user_id = ?;
+DELETE FROM generation_batches WHERE id = ?;
 
 -- Generations
 
 -- name: GetGeneration :one
-SELECT * FROM generations WHERE id = ? AND user_id = ?;
+SELECT * FROM generations WHERE id = ?;
 
 -- name: ListGenerations :many
 SELECT * FROM generations
-WHERE generation_batch_id = ? AND user_id = ?
+WHERE generation_batch_id = ?
 ORDER BY created_at ASC;
 
 -- name: CreateGeneration :one
 INSERT INTO generations (
-    id, user_id, generation_batch_id, async_task_id, file_id,
+    id, generation_batch_id, async_task_id, file_id,
     seed, asset, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpdateGeneration :one
@@ -68,11 +67,11 @@ SET async_task_id = ?,
     file_id = ?,
     asset = ?,
     updated_at = ?
-WHERE id = ? AND user_id = ?
+WHERE id = ?
 RETURNING *;
 
 -- name: DeleteGeneration :exec
-DELETE FROM generations WHERE id = ? AND user_id = ?;
+DELETE FROM generations WHERE id = ?;
 
 -- Complex queries with JOINs for optimization
 
@@ -82,7 +81,7 @@ SELECT
     GROUP_CONCAT(g.id) as generation_ids
 FROM generation_batches gb
 LEFT JOIN generations g ON gb.id = g.generation_batch_id
-WHERE gb.id = ? AND gb.user_id = ?
+WHERE gb.id = ?
 GROUP BY gb.id;
 
 -- name: ListGenerationBatchesWithGenerations :many
@@ -111,7 +110,7 @@ SELECT
 FROM generation_batches gb
 LEFT JOIN generations g ON gb.id = g.generation_batch_id
 LEFT JOIN async_tasks at ON g.async_task_id = at.id
-WHERE gb.generation_topic_id = ? AND gb.user_id = ?
+WHERE gb.generation_topic_id = ?
 ORDER BY gb.created_at ASC, g.created_at ASC, g.id ASC;
 
 -- name: GetGenerationTopicWithBatches :one
@@ -120,7 +119,7 @@ SELECT
     COUNT(DISTINCT gb.id) as batch_count
 FROM generation_topics gt
 LEFT JOIN generation_batches gb ON gt.id = gb.generation_topic_id
-WHERE gt.id = ? AND gt.user_id = ?
+WHERE gt.id = ?
 GROUP BY gt.id;
 
 -- name: ListGenerationTopicsWithCounts :many
@@ -131,7 +130,6 @@ SELECT
 FROM generation_topics gt
 LEFT JOIN generation_batches gb ON gt.id = gb.generation_topic_id
 LEFT JOIN generations g ON gb.id = g.generation_batch_id
-WHERE gt.user_id = ?
 GROUP BY gt.id
 ORDER BY gt.updated_at DESC;
 
@@ -140,14 +138,14 @@ ORDER BY gt.updated_at DESC;
 -- name: GetGenerationBatchAssets :many
 SELECT g.asset
 FROM generations g
-WHERE g.generation_batch_id = ? AND g.user_id = ?;
+WHERE g.generation_batch_id = ?;
 
 -- name: GetGenerationTopicAssets :many
 SELECT g.asset, gt.cover_url
 FROM generation_topics gt
 LEFT JOIN generation_batches gb ON gt.id = gb.generation_topic_id
 LEFT JOIN generations g ON gb.id = g.generation_batch_id
-WHERE gt.id = ? AND gt.user_id = ?;
+WHERE gt.id = ?;
 
 -- name: GetGenerationWithAsyncTask :one
 SELECT 
@@ -156,5 +154,4 @@ SELECT
     at.error as async_task_error
 FROM generations g
 LEFT JOIN async_tasks at ON g.async_task_id = at.id
-WHERE g.id = ? AND g.user_id = ?;
-
+WHERE g.id = ?;

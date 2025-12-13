@@ -28,13 +28,12 @@ type MemorySearchResult struct {
 
 // MemorySearcher interface for memory search operations
 type MemorySearcher interface {
-	SemanticSearch(ctx context.Context, userID, query string, limit int) ([]MemorySearchResult, error)
-	SemanticSearchByCategory(ctx context.Context, userID, query, category string, limit int) ([]MemorySearchResult, error)
+	SemanticSearch(ctx context.Context, query string, limit int) ([]MemorySearchResult, error)
+	SemanticSearchByCategory(ctx context.Context, query, category string, limit int) ([]MemorySearchResult, error)
 }
 
 // RegisterMemorySearch registers the memory search tool
-// The userID parameter is captured in the closure for the current session
-func RegisterMemorySearch(registry *tools.ToolRegistry, searcher MemorySearcher, userID string) error {
+func RegisterMemorySearch(registry *tools.ToolRegistry, searcher MemorySearcher) error {
 	tool := fantasy.NewParallelAgentTool("search_memory",
 		`Search past conversations and stored memories about the user. 
 Use this tool when you need to:
@@ -58,9 +57,9 @@ The search uses semantic similarity, so you can describe what you're looking for
 			var err error
 
 			if input.Category != "" {
-				results, err = searcher.SemanticSearchByCategory(ctx, userID, input.Query, input.Category, limit)
+				results, err = searcher.SemanticSearchByCategory(ctx, input.Query, input.Category, limit)
 			} else {
-				results, err = searcher.SemanticSearch(ctx, userID, input.Query, limit)
+				results, err = searcher.SemanticSearch(ctx, input.Query, limit)
 			}
 
 			if err != nil {
@@ -114,14 +113,14 @@ func formatMemorySearchResults(results []MemorySearchResult) string {
 
 // MemoryServiceAdapter adapts MemoryService to MemorySearcher interface
 type MemoryServiceAdapter struct {
-	searchFunc           func(ctx context.Context, userID, query string, limit int) ([]MemorySearchResult, error)
-	searchByCategoryFunc func(ctx context.Context, userID, query, category string, limit int) ([]MemorySearchResult, error)
+	searchFunc           func(ctx context.Context, query string, limit int) ([]MemorySearchResult, error)
+	searchByCategoryFunc func(ctx context.Context, query, category string, limit int) ([]MemorySearchResult, error)
 }
 
 // NewMemoryServiceAdapter creates a new adapter
 func NewMemoryServiceAdapter(
-	searchFunc func(ctx context.Context, userID, query string, limit int) ([]MemorySearchResult, error),
-	searchByCategoryFunc func(ctx context.Context, userID, query, category string, limit int) ([]MemorySearchResult, error),
+	searchFunc func(ctx context.Context, query string, limit int) ([]MemorySearchResult, error),
+	searchByCategoryFunc func(ctx context.Context, query, category string, limit int) ([]MemorySearchResult, error),
 ) *MemoryServiceAdapter {
 	return &MemoryServiceAdapter{
 		searchFunc:           searchFunc,
@@ -129,14 +128,14 @@ func NewMemoryServiceAdapter(
 	}
 }
 
-func (a *MemoryServiceAdapter) SemanticSearch(ctx context.Context, userID, query string, limit int) ([]MemorySearchResult, error) {
-	return a.searchFunc(ctx, userID, query, limit)
+func (a *MemoryServiceAdapter) SemanticSearch(ctx context.Context, query string, limit int) ([]MemorySearchResult, error) {
+	return a.searchFunc(ctx, query, limit)
 }
 
-func (a *MemoryServiceAdapter) SemanticSearchByCategory(ctx context.Context, userID, query, category string, limit int) ([]MemorySearchResult, error) {
+func (a *MemoryServiceAdapter) SemanticSearchByCategory(ctx context.Context, query, category string, limit int) ([]MemorySearchResult, error) {
 	if a.searchByCategoryFunc != nil {
-		return a.searchByCategoryFunc(ctx, userID, query, category, limit)
+		return a.searchByCategoryFunc(ctx, query, category, limit)
 	}
 	// Fallback to regular search
-	return a.searchFunc(ctx, userID, query, limit)
+	return a.searchFunc(ctx, query, limit)
 }

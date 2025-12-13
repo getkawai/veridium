@@ -190,7 +190,6 @@ func (s *AgentChatService) ChatMockStream(ctx context.Context, req ChatRequest) 
 		SessionID: req.SessionID,
 		TopicID:   currentTopicID,
 		ThreadID:  req.ThreadID,
-		UserID:    req.UserID,
 		Reasoning: reasoning,
 		Tools:     tools,
 		Search:    searchGrounding,
@@ -206,7 +205,6 @@ func (s *AgentChatService) ChatMockStream(ctx context.Context, req ChatRequest) 
 	_ = s.saveRAGData(ctx, SaveRAGDataParams{
 		MessageID: assistantMsgID,
 		UserQuery: req.Message,
-		UserID:    req.UserID,
 		Files: []db.CreateFileParams{
 			{Name: "document.pdf", FileType: "application/pdf", Url: "", Size: 1024000},
 			{Name: "guide.md", FileType: "text/markdown", Url: "", Size: 2048},
@@ -230,7 +228,6 @@ func (s *AgentChatService) ChatMockStream(ctx context.Context, req ChatRequest) 
 			SessionID:  req.SessionID,
 			TopicID:    currentTopicID,
 			ThreadID:   req.ThreadID,
-			UserID:     req.UserID,
 			TimeOffset: int64(i + 2),
 		})
 	}

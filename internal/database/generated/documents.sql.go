@@ -14,9 +14,9 @@ const CreateDocument = `-- name: CreateDocument :one
 INSERT INTO documents (
     title, content, file_type, filename, total_char_count,
     total_line_count, metadata, pages, source_type, source,
-    file_id, user_id, editor_data
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, title, content, file_type, filename, total_char_count, total_line_count, metadata, pages, source_type, source, file_id, user_id, editor_data, created_at, updated_at
+    file_id, editor_data
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, title, content, file_type, filename, total_char_count, total_line_count, metadata, pages, source_type, source, file_id, editor_data, created_at, updated_at
 `
 
 type CreateDocumentParams struct {
@@ -31,7 +31,6 @@ type CreateDocumentParams struct {
 	SourceType     string         `json:"sourceType"`
 	Source         string         `json:"source"`
 	FileID         sql.NullString `json:"fileId"`
-	UserID         string         `json:"userId"`
 	EditorData     sql.NullString `json:"editorData"`
 }
 
@@ -48,7 +47,6 @@ func (q *Queries) CreateDocument(ctx context.Context, arg CreateDocumentParams) 
 		arg.SourceType,
 		arg.Source,
 		arg.FileID,
-		arg.UserID,
 		arg.EditorData,
 	)
 	var i Document
@@ -65,7 +63,6 @@ func (q *Queries) CreateDocument(ctx context.Context, arg CreateDocumentParams) 
 		&i.SourceType,
 		&i.Source,
 		&i.FileID,
-		&i.UserID,
 		&i.EditorData,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -74,39 +71,29 @@ func (q *Queries) CreateDocument(ctx context.Context, arg CreateDocumentParams) 
 }
 
 const DeleteAllDocuments = `-- name: DeleteAllDocuments :exec
-DELETE FROM documents WHERE user_id = ?
+DELETE FROM documents
 `
 
-func (q *Queries) DeleteAllDocuments(ctx context.Context, userID string) error {
-	_, err := q.db.ExecContext(ctx, DeleteAllDocuments, userID)
+func (q *Queries) DeleteAllDocuments(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, DeleteAllDocuments)
 	return err
 }
 
 const DeleteDocument = `-- name: DeleteDocument :exec
-DELETE FROM documents WHERE id = ? AND user_id = ?
+DELETE FROM documents WHERE id = ?
 `
 
-type DeleteDocumentParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
-func (q *Queries) DeleteDocument(ctx context.Context, arg DeleteDocumentParams) error {
-	_, err := q.db.ExecContext(ctx, DeleteDocument, arg.ID, arg.UserID)
+func (q *Queries) DeleteDocument(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, DeleteDocument, id)
 	return err
 }
 
 const GetDocument = `-- name: GetDocument :one
-SELECT id, title, content, file_type, filename, total_char_count, total_line_count, metadata, pages, source_type, source, file_id, user_id, editor_data, created_at, updated_at FROM documents WHERE id = ? AND user_id = ?
+SELECT id, title, content, file_type, filename, total_char_count, total_line_count, metadata, pages, source_type, source, file_id, editor_data, created_at, updated_at FROM documents WHERE id = ?
 `
 
-type GetDocumentParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
-func (q *Queries) GetDocument(ctx context.Context, arg GetDocumentParams) (Document, error) {
-	row := q.db.QueryRowContext(ctx, GetDocument, arg.ID, arg.UserID)
+func (q *Queries) GetDocument(ctx context.Context, id string) (Document, error) {
+	row := q.db.QueryRowContext(ctx, GetDocument, id)
 	var i Document
 	err := row.Scan(
 		&i.ID,
@@ -121,7 +108,6 @@ func (q *Queries) GetDocument(ctx context.Context, arg GetDocumentParams) (Docum
 		&i.SourceType,
 		&i.Source,
 		&i.FileID,
-		&i.UserID,
 		&i.EditorData,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -130,7 +116,7 @@ func (q *Queries) GetDocument(ctx context.Context, arg GetDocumentParams) (Docum
 }
 
 const GetDocumentByFileID = `-- name: GetDocumentByFileID :one
-SELECT id, title, content, file_type, filename, total_char_count, total_line_count, metadata, pages, source_type, source, file_id, user_id, editor_data, created_at, updated_at FROM documents WHERE file_id = ? LIMIT 1
+SELECT id, title, content, file_type, filename, total_char_count, total_line_count, metadata, pages, source_type, source, file_id, editor_data, created_at, updated_at FROM documents WHERE file_id = ? LIMIT 1
 `
 
 func (q *Queries) GetDocumentByFileID(ctx context.Context, fileID sql.NullString) (Document, error) {
@@ -149,7 +135,6 @@ func (q *Queries) GetDocumentByFileID(ctx context.Context, fileID sql.NullString
 		&i.SourceType,
 		&i.Source,
 		&i.FileID,
-		&i.UserID,
 		&i.EditorData,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -158,19 +143,14 @@ func (q *Queries) GetDocumentByFileID(ctx context.Context, fileID sql.NullString
 }
 
 const GetDocumentChunks = `-- name: GetDocumentChunks :many
-SELECT c.id, c.document_id, c.text, c.abstract, c.metadata, c.chunk_index, c.type, c.user_id, c.created_at, c.updated_at FROM chunks c
+SELECT c.id, c.document_id, c.text, c.abstract, c.metadata, c.chunk_index, c.type, c.created_at, c.updated_at FROM chunks c
 INNER JOIN document_chunks dc ON c.id = dc.chunk_id
-WHERE dc.document_id = ? AND dc.user_id = ?
+WHERE dc.document_id = ?
 ORDER BY dc.page_index ASC, c.chunk_index ASC
 `
 
-type GetDocumentChunksParams struct {
-	DocumentID string `json:"documentId"`
-	UserID     string `json:"userId"`
-}
-
-func (q *Queries) GetDocumentChunks(ctx context.Context, arg GetDocumentChunksParams) ([]Chunk, error) {
-	rows, err := q.db.QueryContext(ctx, GetDocumentChunks, arg.DocumentID, arg.UserID)
+func (q *Queries) GetDocumentChunks(ctx context.Context, documentID string) ([]Chunk, error) {
+	rows, err := q.db.QueryContext(ctx, GetDocumentChunks, documentID)
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +166,6 @@ func (q *Queries) GetDocumentChunks(ctx context.Context, arg GetDocumentChunksPa
 			&i.Metadata,
 			&i.ChunkIndex,
 			&i.Type,
-			&i.UserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -204,18 +183,13 @@ func (q *Queries) GetDocumentChunks(ctx context.Context, arg GetDocumentChunksPa
 }
 
 const GetTopicDocuments = `-- name: GetTopicDocuments :many
-SELECT d.id, d.title, d.content, d.file_type, d.filename, d.total_char_count, d.total_line_count, d.metadata, d.pages, d.source_type, d.source, d.file_id, d.user_id, d.editor_data, d.created_at, d.updated_at FROM documents d
+SELECT d.id, d.title, d.content, d.file_type, d.filename, d.total_char_count, d.total_line_count, d.metadata, d.pages, d.source_type, d.source, d.file_id, d.editor_data, d.created_at, d.updated_at FROM documents d
 INNER JOIN topic_documents td ON d.id = td.document_id
-WHERE td.topic_id = ? AND td.user_id = ?
+WHERE td.topic_id = ?
 `
 
-type GetTopicDocumentsParams struct {
-	TopicID string `json:"topicId"`
-	UserID  string `json:"userId"`
-}
-
-func (q *Queries) GetTopicDocuments(ctx context.Context, arg GetTopicDocumentsParams) ([]Document, error) {
-	rows, err := q.db.QueryContext(ctx, GetTopicDocuments, arg.TopicID, arg.UserID)
+func (q *Queries) GetTopicDocuments(ctx context.Context, topicID string) ([]Document, error) {
+	rows, err := q.db.QueryContext(ctx, GetTopicDocuments, topicID)
 	if err != nil {
 		return nil, err
 	}
@@ -236,7 +210,6 @@ func (q *Queries) GetTopicDocuments(ctx context.Context, arg GetTopicDocumentsPa
 			&i.SourceType,
 			&i.Source,
 			&i.FileID,
-			&i.UserID,
 			&i.EditorData,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -256,67 +229,53 @@ func (q *Queries) GetTopicDocuments(ctx context.Context, arg GetTopicDocumentsPa
 
 const LinkDocumentToChunk = `-- name: LinkDocumentToChunk :exec
 
-INSERT INTO document_chunks (document_id, chunk_id, page_index, user_id)
-VALUES (?, ?, ?, ?)
+INSERT INTO document_chunks (document_id, chunk_id, page_index)
+VALUES (?, ?, ?)
 `
 
 type LinkDocumentToChunkParams struct {
 	DocumentID string        `json:"documentId"`
 	ChunkID    string        `json:"chunkId"`
 	PageIndex  sql.NullInt64 `json:"pageIndex"`
-	UserID     string        `json:"userId"`
 }
 
 // Document Chunks
 func (q *Queries) LinkDocumentToChunk(ctx context.Context, arg LinkDocumentToChunkParams) error {
-	_, err := q.db.ExecContext(ctx, LinkDocumentToChunk,
-		arg.DocumentID,
-		arg.ChunkID,
-		arg.PageIndex,
-		arg.UserID,
-	)
+	_, err := q.db.ExecContext(ctx, LinkDocumentToChunk, arg.DocumentID, arg.ChunkID, arg.PageIndex)
 	return err
 }
 
 const LinkTopicToDocument = `-- name: LinkTopicToDocument :exec
 
-INSERT INTO topic_documents (document_id, topic_id, user_id, created_at)
-VALUES (?, ?, ?, ?)
+INSERT INTO topic_documents (document_id, topic_id, created_at)
+VALUES (?, ?, ?)
 `
 
 type LinkTopicToDocumentParams struct {
 	DocumentID string `json:"documentId"`
 	TopicID    string `json:"topicId"`
-	UserID     string `json:"userId"`
 	CreatedAt  int64  `json:"createdAt"`
 }
 
 // Topic Documents
 func (q *Queries) LinkTopicToDocument(ctx context.Context, arg LinkTopicToDocumentParams) error {
-	_, err := q.db.ExecContext(ctx, LinkTopicToDocument,
-		arg.DocumentID,
-		arg.TopicID,
-		arg.UserID,
-		arg.CreatedAt,
-	)
+	_, err := q.db.ExecContext(ctx, LinkTopicToDocument, arg.DocumentID, arg.TopicID, arg.CreatedAt)
 	return err
 }
 
 const ListDocuments = `-- name: ListDocuments :many
-SELECT id, title, content, file_type, filename, total_char_count, total_line_count, metadata, pages, source_type, source, file_id, user_id, editor_data, created_at, updated_at FROM documents
-WHERE user_id = ?
+SELECT id, title, content, file_type, filename, total_char_count, total_line_count, metadata, pages, source_type, source, file_id, editor_data, created_at, updated_at FROM documents
 ORDER BY created_at DESC
 LIMIT ? OFFSET ?
 `
 
 type ListDocumentsParams struct {
-	UserID string `json:"userId"`
-	Limit  int64  `json:"limit"`
-	Offset int64  `json:"offset"`
+	Limit  int64 `json:"limit"`
+	Offset int64 `json:"offset"`
 }
 
 func (q *Queries) ListDocuments(ctx context.Context, arg ListDocumentsParams) ([]Document, error) {
-	rows, err := q.db.QueryContext(ctx, ListDocuments, arg.UserID, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, ListDocuments, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -337,7 +296,6 @@ func (q *Queries) ListDocuments(ctx context.Context, arg ListDocumentsParams) ([
 			&i.SourceType,
 			&i.Source,
 			&i.FileID,
-			&i.UserID,
 			&i.EditorData,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -357,33 +315,31 @@ func (q *Queries) ListDocuments(ctx context.Context, arg ListDocumentsParams) ([
 
 const UnlinkDocumentFromChunk = `-- name: UnlinkDocumentFromChunk :exec
 DELETE FROM document_chunks
-WHERE document_id = ? AND chunk_id = ? AND user_id = ?
+WHERE document_id = ? AND chunk_id = ?
 `
 
 type UnlinkDocumentFromChunkParams struct {
 	DocumentID string `json:"documentId"`
 	ChunkID    string `json:"chunkId"`
-	UserID     string `json:"userId"`
 }
 
 func (q *Queries) UnlinkDocumentFromChunk(ctx context.Context, arg UnlinkDocumentFromChunkParams) error {
-	_, err := q.db.ExecContext(ctx, UnlinkDocumentFromChunk, arg.DocumentID, arg.ChunkID, arg.UserID)
+	_, err := q.db.ExecContext(ctx, UnlinkDocumentFromChunk, arg.DocumentID, arg.ChunkID)
 	return err
 }
 
 const UnlinkTopicFromDocument = `-- name: UnlinkTopicFromDocument :exec
 DELETE FROM topic_documents
-WHERE document_id = ? AND topic_id = ? AND user_id = ?
+WHERE document_id = ? AND topic_id = ?
 `
 
 type UnlinkTopicFromDocumentParams struct {
 	DocumentID string `json:"documentId"`
 	TopicID    string `json:"topicId"`
-	UserID     string `json:"userId"`
 }
 
 func (q *Queries) UnlinkTopicFromDocument(ctx context.Context, arg UnlinkTopicFromDocumentParams) error {
-	_, err := q.db.ExecContext(ctx, UnlinkTopicFromDocument, arg.DocumentID, arg.TopicID, arg.UserID)
+	_, err := q.db.ExecContext(ctx, UnlinkTopicFromDocument, arg.DocumentID, arg.TopicID)
 	return err
 }
 
@@ -394,8 +350,8 @@ SET title = ?,
     metadata = ?,
     editor_data = ?,
     updated_at = ?
-WHERE id = ? AND user_id = ?
-RETURNING id, title, content, file_type, filename, total_char_count, total_line_count, metadata, pages, source_type, source, file_id, user_id, editor_data, created_at, updated_at
+WHERE id = ?
+RETURNING id, title, content, file_type, filename, total_char_count, total_line_count, metadata, pages, source_type, source, file_id, editor_data, created_at, updated_at
 `
 
 type UpdateDocumentParams struct {
@@ -405,7 +361,6 @@ type UpdateDocumentParams struct {
 	EditorData sql.NullString `json:"editorData"`
 	UpdatedAt  int64          `json:"updatedAt"`
 	ID         string         `json:"id"`
-	UserID     string         `json:"userId"`
 }
 
 func (q *Queries) UpdateDocument(ctx context.Context, arg UpdateDocumentParams) (Document, error) {
@@ -416,7 +371,6 @@ func (q *Queries) UpdateDocument(ctx context.Context, arg UpdateDocumentParams) 
 		arg.EditorData,
 		arg.UpdatedAt,
 		arg.ID,
-		arg.UserID,
 	)
 	var i Document
 	err := row.Scan(
@@ -432,7 +386,6 @@ func (q *Queries) UpdateDocument(ctx context.Context, arg UpdateDocumentParams) 
 		&i.SourceType,
 		&i.Source,
 		&i.FileID,
-		&i.UserID,
 		&i.EditorData,
 		&i.CreatedAt,
 		&i.UpdatedAt,

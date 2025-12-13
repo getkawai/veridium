@@ -74,10 +74,8 @@ const FileUpload = memo(() => {
       // Process files via backend (copy + parse + RAG in one call)
       const processedFiles = await Promise.all(
         filePaths.map(async (filePath) => {
-          const userId = getUserId();
-
           // Process file from absolute path (copies to local storage and processes)
-          const result = await ProcessFileFromPath(filePath, userId);
+          const result = await ProcessFileFromPath(filePath);
           if (!result) return null;
 
           const ext = result.filename.split('.').pop()?.toLowerCase() || '';
@@ -150,10 +148,8 @@ const FileUpload = memo(() => {
               return null;
             }
 
-            const userId = getUserId();
-
             // Process file from absolute path (copies to local storage and processes)
-            const result = await ProcessFileFromPath(filePath, userId);
+            const result = await ProcessFileFromPath(filePath);
             if (!result) return null;
 
             return {

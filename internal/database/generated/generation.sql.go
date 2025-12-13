@@ -12,15 +12,14 @@ import (
 
 const CreateGeneration = `-- name: CreateGeneration :one
 INSERT INTO generations (
-    id, user_id, generation_batch_id, async_task_id, file_id,
+    id, generation_batch_id, async_task_id, file_id,
     seed, asset, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, user_id, generation_batch_id, async_task_id, file_id, seed, asset, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, generation_batch_id, async_task_id, file_id, seed, asset, created_at, updated_at
 `
 
 type CreateGenerationParams struct {
 	ID                string         `json:"id"`
-	UserID            string         `json:"userId"`
 	GenerationBatchID string         `json:"generationBatchId"`
 	AsyncTaskID       sql.NullString `json:"asyncTaskId"`
 	FileID            sql.NullString `json:"fileId"`
@@ -33,7 +32,6 @@ type CreateGenerationParams struct {
 func (q *Queries) CreateGeneration(ctx context.Context, arg CreateGenerationParams) (Generation, error) {
 	row := q.db.QueryRowContext(ctx, CreateGeneration,
 		arg.ID,
-		arg.UserID,
 		arg.GenerationBatchID,
 		arg.AsyncTaskID,
 		arg.FileID,
@@ -45,7 +43,6 @@ func (q *Queries) CreateGeneration(ctx context.Context, arg CreateGenerationPara
 	var i Generation
 	err := row.Scan(
 		&i.ID,
-		&i.UserID,
 		&i.GenerationBatchID,
 		&i.AsyncTaskID,
 		&i.FileID,
@@ -59,15 +56,14 @@ func (q *Queries) CreateGeneration(ctx context.Context, arg CreateGenerationPara
 
 const CreateGenerationBatch = `-- name: CreateGenerationBatch :one
 INSERT INTO generation_batches (
-    id, user_id, generation_topic_id, provider, model, prompt,
+    id, generation_topic_id, provider, model, prompt,
     width, height, ratio, config, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, user_id, generation_topic_id, provider, model, prompt, width, height, ratio, config, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, generation_topic_id, provider, model, prompt, width, height, ratio, config, created_at, updated_at
 `
 
 type CreateGenerationBatchParams struct {
 	ID                string         `json:"id"`
-	UserID            string         `json:"userId"`
 	GenerationTopicID string         `json:"generationTopicId"`
 	Provider          string         `json:"provider"`
 	Model             string         `json:"model"`
@@ -83,7 +79,6 @@ type CreateGenerationBatchParams struct {
 func (q *Queries) CreateGenerationBatch(ctx context.Context, arg CreateGenerationBatchParams) (GenerationBatch, error) {
 	row := q.db.QueryRowContext(ctx, CreateGenerationBatch,
 		arg.ID,
-		arg.UserID,
 		arg.GenerationTopicID,
 		arg.Provider,
 		arg.Model,
@@ -98,7 +93,6 @@ func (q *Queries) CreateGenerationBatch(ctx context.Context, arg CreateGeneratio
 	var i GenerationBatch
 	err := row.Scan(
 		&i.ID,
-		&i.UserID,
 		&i.GenerationTopicID,
 		&i.Provider,
 		&i.Model,
@@ -115,14 +109,13 @@ func (q *Queries) CreateGenerationBatch(ctx context.Context, arg CreateGeneratio
 
 const CreateGenerationTopic = `-- name: CreateGenerationTopic :one
 INSERT INTO generation_topics (
-    id, user_id, title, cover_url, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?)
-RETURNING id, user_id, title, cover_url, created_at, updated_at
+    id, title, cover_url, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?)
+RETURNING id, title, cover_url, created_at, updated_at
 `
 
 type CreateGenerationTopicParams struct {
 	ID        string         `json:"id"`
-	UserID    string         `json:"userId"`
 	Title     sql.NullString `json:"title"`
 	CoverUrl  sql.NullString `json:"coverUrl"`
 	CreatedAt int64          `json:"createdAt"`
@@ -132,7 +125,6 @@ type CreateGenerationTopicParams struct {
 func (q *Queries) CreateGenerationTopic(ctx context.Context, arg CreateGenerationTopicParams) (GenerationTopic, error) {
 	row := q.db.QueryRowContext(ctx, CreateGenerationTopic,
 		arg.ID,
-		arg.UserID,
 		arg.Title,
 		arg.CoverUrl,
 		arg.CreatedAt,
@@ -141,7 +133,6 @@ func (q *Queries) CreateGenerationTopic(ctx context.Context, arg CreateGeneratio
 	var i GenerationTopic
 	err := row.Scan(
 		&i.ID,
-		&i.UserID,
 		&i.Title,
 		&i.CoverUrl,
 		&i.CreatedAt,
@@ -151,64 +142,43 @@ func (q *Queries) CreateGenerationTopic(ctx context.Context, arg CreateGeneratio
 }
 
 const DeleteGeneration = `-- name: DeleteGeneration :exec
-DELETE FROM generations WHERE id = ? AND user_id = ?
+DELETE FROM generations WHERE id = ?
 `
 
-type DeleteGenerationParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
-func (q *Queries) DeleteGeneration(ctx context.Context, arg DeleteGenerationParams) error {
-	_, err := q.db.ExecContext(ctx, DeleteGeneration, arg.ID, arg.UserID)
+func (q *Queries) DeleteGeneration(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, DeleteGeneration, id)
 	return err
 }
 
 const DeleteGenerationBatch = `-- name: DeleteGenerationBatch :exec
-DELETE FROM generation_batches WHERE id = ? AND user_id = ?
+DELETE FROM generation_batches WHERE id = ?
 `
 
-type DeleteGenerationBatchParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
-func (q *Queries) DeleteGenerationBatch(ctx context.Context, arg DeleteGenerationBatchParams) error {
-	_, err := q.db.ExecContext(ctx, DeleteGenerationBatch, arg.ID, arg.UserID)
+func (q *Queries) DeleteGenerationBatch(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, DeleteGenerationBatch, id)
 	return err
 }
 
 const DeleteGenerationTopic = `-- name: DeleteGenerationTopic :exec
-DELETE FROM generation_topics WHERE id = ? AND user_id = ?
+DELETE FROM generation_topics WHERE id = ?
 `
 
-type DeleteGenerationTopicParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
-func (q *Queries) DeleteGenerationTopic(ctx context.Context, arg DeleteGenerationTopicParams) error {
-	_, err := q.db.ExecContext(ctx, DeleteGenerationTopic, arg.ID, arg.UserID)
+func (q *Queries) DeleteGenerationTopic(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, DeleteGenerationTopic, id)
 	return err
 }
 
 const GetGeneration = `-- name: GetGeneration :one
 
-SELECT id, user_id, generation_batch_id, async_task_id, file_id, seed, asset, created_at, updated_at FROM generations WHERE id = ? AND user_id = ?
+SELECT id, generation_batch_id, async_task_id, file_id, seed, asset, created_at, updated_at FROM generations WHERE id = ?
 `
 
-type GetGenerationParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
 // Generations
-func (q *Queries) GetGeneration(ctx context.Context, arg GetGenerationParams) (Generation, error) {
-	row := q.db.QueryRowContext(ctx, GetGeneration, arg.ID, arg.UserID)
+func (q *Queries) GetGeneration(ctx context.Context, id string) (Generation, error) {
+	row := q.db.QueryRowContext(ctx, GetGeneration, id)
 	var i Generation
 	err := row.Scan(
 		&i.ID,
-		&i.UserID,
 		&i.GenerationBatchID,
 		&i.AsyncTaskID,
 		&i.FileID,
@@ -222,21 +192,15 @@ func (q *Queries) GetGeneration(ctx context.Context, arg GetGenerationParams) (G
 
 const GetGenerationBatch = `-- name: GetGenerationBatch :one
 
-SELECT id, user_id, generation_topic_id, provider, model, prompt, width, height, ratio, config, created_at, updated_at FROM generation_batches WHERE id = ? AND user_id = ?
+SELECT id, generation_topic_id, provider, model, prompt, width, height, ratio, config, created_at, updated_at FROM generation_batches WHERE id = ?
 `
 
-type GetGenerationBatchParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
 // Generation Batches
-func (q *Queries) GetGenerationBatch(ctx context.Context, arg GetGenerationBatchParams) (GenerationBatch, error) {
-	row := q.db.QueryRowContext(ctx, GetGenerationBatch, arg.ID, arg.UserID)
+func (q *Queries) GetGenerationBatch(ctx context.Context, id string) (GenerationBatch, error) {
+	row := q.db.QueryRowContext(ctx, GetGenerationBatch, id)
 	var i GenerationBatch
 	err := row.Scan(
 		&i.ID,
-		&i.UserID,
 		&i.GenerationTopicID,
 		&i.Provider,
 		&i.Model,
@@ -255,17 +219,12 @@ const GetGenerationBatchAssets = `-- name: GetGenerationBatchAssets :many
 
 SELECT g.asset
 FROM generations g
-WHERE g.generation_batch_id = ? AND g.user_id = ?
+WHERE g.generation_batch_id = ?
 `
 
-type GetGenerationBatchAssetsParams struct {
-	GenerationBatchID string `json:"generationBatchId"`
-	UserID            string `json:"userId"`
-}
-
 // Delete queries with cascade information
-func (q *Queries) GetGenerationBatchAssets(ctx context.Context, arg GetGenerationBatchAssetsParams) ([]sql.NullString, error) {
-	rows, err := q.db.QueryContext(ctx, GetGenerationBatchAssets, arg.GenerationBatchID, arg.UserID)
+func (q *Queries) GetGenerationBatchAssets(ctx context.Context, generationBatchID string) ([]sql.NullString, error) {
+	rows, err := q.db.QueryContext(ctx, GetGenerationBatchAssets, generationBatchID)
 	if err != nil {
 		return nil, err
 	}
@@ -290,22 +249,16 @@ func (q *Queries) GetGenerationBatchAssets(ctx context.Context, arg GetGeneratio
 const GetGenerationBatchWithGenerations = `-- name: GetGenerationBatchWithGenerations :one
 
 SELECT 
-    gb.id, gb.user_id, gb.generation_topic_id, gb.provider, gb.model, gb.prompt, gb.width, gb.height, gb.ratio, gb.config, gb.created_at, gb.updated_at,
+    gb.id, gb.generation_topic_id, gb.provider, gb.model, gb.prompt, gb.width, gb.height, gb.ratio, gb.config, gb.created_at, gb.updated_at,
     GROUP_CONCAT(g.id) as generation_ids
 FROM generation_batches gb
 LEFT JOIN generations g ON gb.id = g.generation_batch_id
-WHERE gb.id = ? AND gb.user_id = ?
+WHERE gb.id = ?
 GROUP BY gb.id
 `
 
-type GetGenerationBatchWithGenerationsParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
 type GetGenerationBatchWithGenerationsRow struct {
 	ID                string         `json:"id"`
-	UserID            string         `json:"userId"`
 	GenerationTopicID string         `json:"generationTopicId"`
 	Provider          string         `json:"provider"`
 	Model             string         `json:"model"`
@@ -320,12 +273,11 @@ type GetGenerationBatchWithGenerationsRow struct {
 }
 
 // Complex queries with JOINs for optimization
-func (q *Queries) GetGenerationBatchWithGenerations(ctx context.Context, arg GetGenerationBatchWithGenerationsParams) (GetGenerationBatchWithGenerationsRow, error) {
-	row := q.db.QueryRowContext(ctx, GetGenerationBatchWithGenerations, arg.ID, arg.UserID)
+func (q *Queries) GetGenerationBatchWithGenerations(ctx context.Context, id string) (GetGenerationBatchWithGenerationsRow, error) {
+	row := q.db.QueryRowContext(ctx, GetGenerationBatchWithGenerations, id)
 	var i GetGenerationBatchWithGenerationsRow
 	err := row.Scan(
 		&i.ID,
-		&i.UserID,
 		&i.GenerationTopicID,
 		&i.Provider,
 		&i.Model,
@@ -343,21 +295,15 @@ func (q *Queries) GetGenerationBatchWithGenerations(ctx context.Context, arg Get
 
 const GetGenerationTopic = `-- name: GetGenerationTopic :one
 
-SELECT id, user_id, title, cover_url, created_at, updated_at FROM generation_topics WHERE id = ? AND user_id = ?
+SELECT id, title, cover_url, created_at, updated_at FROM generation_topics WHERE id = ?
 `
 
-type GetGenerationTopicParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
 // Generation Topics
-func (q *Queries) GetGenerationTopic(ctx context.Context, arg GetGenerationTopicParams) (GenerationTopic, error) {
-	row := q.db.QueryRowContext(ctx, GetGenerationTopic, arg.ID, arg.UserID)
+func (q *Queries) GetGenerationTopic(ctx context.Context, id string) (GenerationTopic, error) {
+	row := q.db.QueryRowContext(ctx, GetGenerationTopic, id)
 	var i GenerationTopic
 	err := row.Scan(
 		&i.ID,
-		&i.UserID,
 		&i.Title,
 		&i.CoverUrl,
 		&i.CreatedAt,
@@ -371,21 +317,16 @@ SELECT g.asset, gt.cover_url
 FROM generation_topics gt
 LEFT JOIN generation_batches gb ON gt.id = gb.generation_topic_id
 LEFT JOIN generations g ON gb.id = g.generation_batch_id
-WHERE gt.id = ? AND gt.user_id = ?
+WHERE gt.id = ?
 `
-
-type GetGenerationTopicAssetsParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
 
 type GetGenerationTopicAssetsRow struct {
 	Asset    sql.NullString `json:"asset"`
 	CoverUrl sql.NullString `json:"coverUrl"`
 }
 
-func (q *Queries) GetGenerationTopicAssets(ctx context.Context, arg GetGenerationTopicAssetsParams) ([]GetGenerationTopicAssetsRow, error) {
-	rows, err := q.db.QueryContext(ctx, GetGenerationTopicAssets, arg.ID, arg.UserID)
+func (q *Queries) GetGenerationTopicAssets(ctx context.Context, id string) ([]GetGenerationTopicAssetsRow, error) {
+	rows, err := q.db.QueryContext(ctx, GetGenerationTopicAssets, id)
 	if err != nil {
 		return nil, err
 	}
@@ -409,22 +350,16 @@ func (q *Queries) GetGenerationTopicAssets(ctx context.Context, arg GetGeneratio
 
 const GetGenerationTopicWithBatches = `-- name: GetGenerationTopicWithBatches :one
 SELECT 
-    gt.id, gt.user_id, gt.title, gt.cover_url, gt.created_at, gt.updated_at,
+    gt.id, gt.title, gt.cover_url, gt.created_at, gt.updated_at,
     COUNT(DISTINCT gb.id) as batch_count
 FROM generation_topics gt
 LEFT JOIN generation_batches gb ON gt.id = gb.generation_topic_id
-WHERE gt.id = ? AND gt.user_id = ?
+WHERE gt.id = ?
 GROUP BY gt.id
 `
 
-type GetGenerationTopicWithBatchesParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
 type GetGenerationTopicWithBatchesRow struct {
 	ID         string         `json:"id"`
-	UserID     string         `json:"userId"`
 	Title      sql.NullString `json:"title"`
 	CoverUrl   sql.NullString `json:"coverUrl"`
 	CreatedAt  int64          `json:"createdAt"`
@@ -432,12 +367,11 @@ type GetGenerationTopicWithBatchesRow struct {
 	BatchCount int64          `json:"batchCount"`
 }
 
-func (q *Queries) GetGenerationTopicWithBatches(ctx context.Context, arg GetGenerationTopicWithBatchesParams) (GetGenerationTopicWithBatchesRow, error) {
-	row := q.db.QueryRowContext(ctx, GetGenerationTopicWithBatches, arg.ID, arg.UserID)
+func (q *Queries) GetGenerationTopicWithBatches(ctx context.Context, id string) (GetGenerationTopicWithBatchesRow, error) {
+	row := q.db.QueryRowContext(ctx, GetGenerationTopicWithBatches, id)
 	var i GetGenerationTopicWithBatchesRow
 	err := row.Scan(
 		&i.ID,
-		&i.UserID,
 		&i.Title,
 		&i.CoverUrl,
 		&i.CreatedAt,
@@ -449,22 +383,16 @@ func (q *Queries) GetGenerationTopicWithBatches(ctx context.Context, arg GetGene
 
 const GetGenerationWithAsyncTask = `-- name: GetGenerationWithAsyncTask :one
 SELECT 
-    g.id, g.user_id, g.generation_batch_id, g.async_task_id, g.file_id, g.seed, g.asset, g.created_at, g.updated_at,
+    g.id, g.generation_batch_id, g.async_task_id, g.file_id, g.seed, g.asset, g.created_at, g.updated_at,
     at.status as async_task_status,
     at.error as async_task_error
 FROM generations g
 LEFT JOIN async_tasks at ON g.async_task_id = at.id
-WHERE g.id = ? AND g.user_id = ?
+WHERE g.id = ?
 `
-
-type GetGenerationWithAsyncTaskParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
 
 type GetGenerationWithAsyncTaskRow struct {
 	ID                string         `json:"id"`
-	UserID            string         `json:"userId"`
 	GenerationBatchID string         `json:"generationBatchId"`
 	AsyncTaskID       sql.NullString `json:"asyncTaskId"`
 	FileID            sql.NullString `json:"fileId"`
@@ -476,12 +404,11 @@ type GetGenerationWithAsyncTaskRow struct {
 	AsyncTaskError    sql.NullString `json:"asyncTaskError"`
 }
 
-func (q *Queries) GetGenerationWithAsyncTask(ctx context.Context, arg GetGenerationWithAsyncTaskParams) (GetGenerationWithAsyncTaskRow, error) {
-	row := q.db.QueryRowContext(ctx, GetGenerationWithAsyncTask, arg.ID, arg.UserID)
+func (q *Queries) GetGenerationWithAsyncTask(ctx context.Context, id string) (GetGenerationWithAsyncTaskRow, error) {
+	row := q.db.QueryRowContext(ctx, GetGenerationWithAsyncTask, id)
 	var i GetGenerationWithAsyncTaskRow
 	err := row.Scan(
 		&i.ID,
-		&i.UserID,
 		&i.GenerationBatchID,
 		&i.AsyncTaskID,
 		&i.FileID,
@@ -496,18 +423,13 @@ func (q *Queries) GetGenerationWithAsyncTask(ctx context.Context, arg GetGenerat
 }
 
 const ListGenerationBatches = `-- name: ListGenerationBatches :many
-SELECT id, user_id, generation_topic_id, provider, model, prompt, width, height, ratio, config, created_at, updated_at FROM generation_batches
-WHERE generation_topic_id = ? AND user_id = ?
+SELECT id, generation_topic_id, provider, model, prompt, width, height, ratio, config, created_at, updated_at FROM generation_batches
+WHERE generation_topic_id = ?
 ORDER BY created_at DESC
 `
 
-type ListGenerationBatchesParams struct {
-	GenerationTopicID string `json:"generationTopicId"`
-	UserID            string `json:"userId"`
-}
-
-func (q *Queries) ListGenerationBatches(ctx context.Context, arg ListGenerationBatchesParams) ([]GenerationBatch, error) {
-	rows, err := q.db.QueryContext(ctx, ListGenerationBatches, arg.GenerationTopicID, arg.UserID)
+func (q *Queries) ListGenerationBatches(ctx context.Context, generationTopicID string) ([]GenerationBatch, error) {
+	rows, err := q.db.QueryContext(ctx, ListGenerationBatches, generationTopicID)
 	if err != nil {
 		return nil, err
 	}
@@ -517,7 +439,6 @@ func (q *Queries) ListGenerationBatches(ctx context.Context, arg ListGenerationB
 		var i GenerationBatch
 		if err := rows.Scan(
 			&i.ID,
-			&i.UserID,
 			&i.GenerationTopicID,
 			&i.Provider,
 			&i.Model,
@@ -568,14 +489,9 @@ SELECT
 FROM generation_batches gb
 LEFT JOIN generations g ON gb.id = g.generation_batch_id
 LEFT JOIN async_tasks at ON g.async_task_id = at.id
-WHERE gb.generation_topic_id = ? AND gb.user_id = ?
+WHERE gb.generation_topic_id = ?
 ORDER BY gb.created_at ASC, g.created_at ASC, g.id ASC
 `
-
-type ListGenerationBatchesWithGenerationsParams struct {
-	GenerationTopicID string `json:"generationTopicId"`
-	UserID            string `json:"userId"`
-}
 
 type ListGenerationBatchesWithGenerationsRow struct {
 	BatchID           string         `json:"batchId"`
@@ -601,8 +517,8 @@ type ListGenerationBatchesWithGenerationsRow struct {
 	TaskError         sql.NullString `json:"taskError"`
 }
 
-func (q *Queries) ListGenerationBatchesWithGenerations(ctx context.Context, arg ListGenerationBatchesWithGenerationsParams) ([]ListGenerationBatchesWithGenerationsRow, error) {
-	rows, err := q.db.QueryContext(ctx, ListGenerationBatchesWithGenerations, arg.GenerationTopicID, arg.UserID)
+func (q *Queries) ListGenerationBatchesWithGenerations(ctx context.Context, generationTopicID string) ([]ListGenerationBatchesWithGenerationsRow, error) {
+	rows, err := q.db.QueryContext(ctx, ListGenerationBatchesWithGenerations, generationTopicID)
 	if err != nil {
 		return nil, err
 	}
@@ -647,13 +563,12 @@ func (q *Queries) ListGenerationBatchesWithGenerations(ctx context.Context, arg 
 }
 
 const ListGenerationTopics = `-- name: ListGenerationTopics :many
-SELECT id, user_id, title, cover_url, created_at, updated_at FROM generation_topics
-WHERE user_id = ?
+SELECT id, title, cover_url, created_at, updated_at FROM generation_topics
 ORDER BY created_at DESC
 `
 
-func (q *Queries) ListGenerationTopics(ctx context.Context, userID string) ([]GenerationTopic, error) {
-	rows, err := q.db.QueryContext(ctx, ListGenerationTopics, userID)
+func (q *Queries) ListGenerationTopics(ctx context.Context) ([]GenerationTopic, error) {
+	rows, err := q.db.QueryContext(ctx, ListGenerationTopics)
 	if err != nil {
 		return nil, err
 	}
@@ -663,7 +578,6 @@ func (q *Queries) ListGenerationTopics(ctx context.Context, userID string) ([]Ge
 		var i GenerationTopic
 		if err := rows.Scan(
 			&i.ID,
-			&i.UserID,
 			&i.Title,
 			&i.CoverUrl,
 			&i.CreatedAt,
@@ -684,20 +598,18 @@ func (q *Queries) ListGenerationTopics(ctx context.Context, userID string) ([]Ge
 
 const ListGenerationTopicsWithCounts = `-- name: ListGenerationTopicsWithCounts :many
 SELECT 
-    gt.id, gt.user_id, gt.title, gt.cover_url, gt.created_at, gt.updated_at,
+    gt.id, gt.title, gt.cover_url, gt.created_at, gt.updated_at,
     COUNT(DISTINCT gb.id) as batch_count,
     COUNT(DISTINCT g.id) as generation_count
 FROM generation_topics gt
 LEFT JOIN generation_batches gb ON gt.id = gb.generation_topic_id
 LEFT JOIN generations g ON gb.id = g.generation_batch_id
-WHERE gt.user_id = ?
 GROUP BY gt.id
 ORDER BY gt.updated_at DESC
 `
 
 type ListGenerationTopicsWithCountsRow struct {
 	ID              string         `json:"id"`
-	UserID          string         `json:"userId"`
 	Title           sql.NullString `json:"title"`
 	CoverUrl        sql.NullString `json:"coverUrl"`
 	CreatedAt       int64          `json:"createdAt"`
@@ -706,8 +618,8 @@ type ListGenerationTopicsWithCountsRow struct {
 	GenerationCount int64          `json:"generationCount"`
 }
 
-func (q *Queries) ListGenerationTopicsWithCounts(ctx context.Context, userID string) ([]ListGenerationTopicsWithCountsRow, error) {
-	rows, err := q.db.QueryContext(ctx, ListGenerationTopicsWithCounts, userID)
+func (q *Queries) ListGenerationTopicsWithCounts(ctx context.Context) ([]ListGenerationTopicsWithCountsRow, error) {
+	rows, err := q.db.QueryContext(ctx, ListGenerationTopicsWithCounts)
 	if err != nil {
 		return nil, err
 	}
@@ -717,7 +629,6 @@ func (q *Queries) ListGenerationTopicsWithCounts(ctx context.Context, userID str
 		var i ListGenerationTopicsWithCountsRow
 		if err := rows.Scan(
 			&i.ID,
-			&i.UserID,
 			&i.Title,
 			&i.CoverUrl,
 			&i.CreatedAt,
@@ -739,18 +650,13 @@ func (q *Queries) ListGenerationTopicsWithCounts(ctx context.Context, userID str
 }
 
 const ListGenerations = `-- name: ListGenerations :many
-SELECT id, user_id, generation_batch_id, async_task_id, file_id, seed, asset, created_at, updated_at FROM generations
-WHERE generation_batch_id = ? AND user_id = ?
+SELECT id, generation_batch_id, async_task_id, file_id, seed, asset, created_at, updated_at FROM generations
+WHERE generation_batch_id = ?
 ORDER BY created_at ASC
 `
 
-type ListGenerationsParams struct {
-	GenerationBatchID string `json:"generationBatchId"`
-	UserID            string `json:"userId"`
-}
-
-func (q *Queries) ListGenerations(ctx context.Context, arg ListGenerationsParams) ([]Generation, error) {
-	rows, err := q.db.QueryContext(ctx, ListGenerations, arg.GenerationBatchID, arg.UserID)
+func (q *Queries) ListGenerations(ctx context.Context, generationBatchID string) ([]Generation, error) {
+	rows, err := q.db.QueryContext(ctx, ListGenerations, generationBatchID)
 	if err != nil {
 		return nil, err
 	}
@@ -760,7 +666,6 @@ func (q *Queries) ListGenerations(ctx context.Context, arg ListGenerationsParams
 		var i Generation
 		if err := rows.Scan(
 			&i.ID,
-			&i.UserID,
 			&i.GenerationBatchID,
 			&i.AsyncTaskID,
 			&i.FileID,
@@ -788,8 +693,8 @@ SET async_task_id = ?,
     file_id = ?,
     asset = ?,
     updated_at = ?
-WHERE id = ? AND user_id = ?
-RETURNING id, user_id, generation_batch_id, async_task_id, file_id, seed, asset, created_at, updated_at
+WHERE id = ?
+RETURNING id, generation_batch_id, async_task_id, file_id, seed, asset, created_at, updated_at
 `
 
 type UpdateGenerationParams struct {
@@ -798,7 +703,6 @@ type UpdateGenerationParams struct {
 	Asset       sql.NullString `json:"asset"`
 	UpdatedAt   int64          `json:"updatedAt"`
 	ID          string         `json:"id"`
-	UserID      string         `json:"userId"`
 }
 
 func (q *Queries) UpdateGeneration(ctx context.Context, arg UpdateGenerationParams) (Generation, error) {
@@ -808,12 +712,10 @@ func (q *Queries) UpdateGeneration(ctx context.Context, arg UpdateGenerationPara
 		arg.Asset,
 		arg.UpdatedAt,
 		arg.ID,
-		arg.UserID,
 	)
 	var i Generation
 	err := row.Scan(
 		&i.ID,
-		&i.UserID,
 		&i.GenerationBatchID,
 		&i.AsyncTaskID,
 		&i.FileID,
@@ -830,8 +732,8 @@ UPDATE generation_topics
 SET title = ?,
     cover_url = ?,
     updated_at = ?
-WHERE id = ? AND user_id = ?
-RETURNING id, user_id, title, cover_url, created_at, updated_at
+WHERE id = ?
+RETURNING id, title, cover_url, created_at, updated_at
 `
 
 type UpdateGenerationTopicParams struct {
@@ -839,7 +741,6 @@ type UpdateGenerationTopicParams struct {
 	CoverUrl  sql.NullString `json:"coverUrl"`
 	UpdatedAt int64          `json:"updatedAt"`
 	ID        string         `json:"id"`
-	UserID    string         `json:"userId"`
 }
 
 func (q *Queries) UpdateGenerationTopic(ctx context.Context, arg UpdateGenerationTopicParams) (GenerationTopic, error) {
@@ -848,12 +749,10 @@ func (q *Queries) UpdateGenerationTopic(ctx context.Context, arg UpdateGeneratio
 		arg.CoverUrl,
 		arg.UpdatedAt,
 		arg.ID,
-		arg.UserID,
 	)
 	var i GenerationTopic
 	err := row.Scan(
 		&i.ID,
-		&i.UserID,
 		&i.Title,
 		&i.CoverUrl,
 		&i.CreatedAt,

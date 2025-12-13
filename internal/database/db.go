@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	_ "modernc.org/sqlite"
 
@@ -60,9 +61,9 @@ func NewServiceWithPath(dbPath string) (*Service, error) {
 		return nil, err
 	}
 
-	// Initialize schema if needed (check if users table exists)
+	// Initialize schema if needed (check if sessions table exists - users table is gone)
 	var tableExists int
-	err = database.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='users'").Scan(&tableExists)
+	err = database.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='sessions'").Scan(&tableExists)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check schema: %w", err)
 	}
@@ -85,9 +86,9 @@ func NewServiceWithPath(dbPath string) (*Service, error) {
 		queries: queries,
 	}
 
-	// Ensure default user and inbox session exist (for desktop single-user app)
-	if err := service.ensureDefaultUserAndInbox(context.Background()); err != nil {
-		return nil, fmt.Errorf("failed to ensure default user and inbox: %w", err)
+	// Ensure default user settings and inbox session exist (for desktop single-user app)
+	if err := service.ensureDefaultData(context.Background()); err != nil {
+		return nil, fmt.Errorf("failed to ensure default data: %w", err)
 	}
 
 	return service, nil
@@ -140,7 +141,7 @@ type CreateMessageWithRelationsParams struct {
 }
 
 // CreateMessageWithRelations creates a message and all its related data in a single transaction
-func (s *Service) CreateMessageWithRelations(ctx context.Context, params CreateMessageWithRelationsParams, userId string) (db.Message, error) {
+func (s *Service) CreateMessageWithRelations(ctx context.Context, params CreateMessageWithRelationsParams) (db.Message, error) {
 	var result db.Message
 
 	err := s.WithTx(ctx, func(q *db.Queries) error {
@@ -163,7 +164,6 @@ func (s *Service) CreateMessageWithRelations(ctx context.Context, params CreateM
 			if err := q.LinkMessageToFile(ctx, db.LinkMessageToFileParams{
 				FileID:    fileId,
 				MessageID: msg.ID,
-				UserID:    userId,
 			}); err != nil {
 				return fmt.Errorf("failed to link file %s: %w", fileId, err)
 			}
@@ -176,7 +176,6 @@ func (s *Service) CreateMessageWithRelations(ctx context.Context, params CreateM
 				QueryID:    sql.NullString{String: chunk.QueryId, Valid: true},
 				ChunkID:    sql.NullString{String: chunk.ChunkId, Valid: true},
 				Similarity: chunk.Similarity,
-				UserID:     userId,
 			}); err != nil {
 				return fmt.Errorf("failed to link chunk %s: %w", chunk.ChunkId, err)
 			}
@@ -196,7 +195,7 @@ type UpdateMessageWithImagesParams struct {
 }
 
 // UpdateMessageWithImages updates a message and links images in a single transaction
-func (s *Service) UpdateMessageWithImages(ctx context.Context, params UpdateMessageWithImagesParams, userId string) error {
+func (s *Service) UpdateMessageWithImages(ctx context.Context, params UpdateMessageWithImagesParams) error {
 	return s.WithTx(ctx, func(q *db.Queries) error {
 		// 1. Update message
 		if _, err := q.UpdateMessage(ctx, params.Message); err != nil {
@@ -208,7 +207,6 @@ func (s *Service) UpdateMessageWithImages(ctx context.Context, params UpdateMess
 			if err := q.LinkMessageToFile(ctx, db.LinkMessageToFileParams{
 				FileID:    imageId,
 				MessageID: params.MessageId,
-				UserID:    userId,
 			}); err != nil {
 				return fmt.Errorf("failed to link image %s: %w", imageId, err)
 			}
@@ -221,11 +219,10 @@ func (s *Service) UpdateMessageWithImages(ctx context.Context, params UpdateMess
 // DeleteMessageWithRelatedParams contains IDs for batch deletion
 type DeleteMessageWithRelatedParams struct {
 	MessageIds []string
-	UserId     string
 }
 
 // DeleteMessageWithRelated deletes a message and its related tool messages in a transaction
-func (s *Service) DeleteMessageWithRelated(ctx context.Context, toolCallIdsJson string, messageIds []string, userId string) error {
+func (s *Service) DeleteMessageWithRelated(ctx context.Context, toolCallIdsJson string, messageIds []string) error {
 	return s.WithTx(ctx, func(q *db.Queries) error {
 		// Get related tool messages if tool call IDs provided
 		if toolCallIdsJson != "" && toolCallIdsJson != "[]" {
@@ -233,10 +230,8 @@ func (s *Service) DeleteMessageWithRelated(ctx context.Context, toolCallIdsJson 
 			if err := json.Unmarshal([]byte(toolCallIdsJson), &toolCallIds); err == nil {
 				// Fetch each tool message (batch operation in Go)
 				for _, toolCallId := range toolCallIds {
-					msgId, err := q.GetMessageByToolCallId(ctx, db.GetMessageByToolCallIdParams{
-						ToolCallID: sql.NullString{String: toolCallId, Valid: true},
-						UserID:     userId,
-					})
+					// GetMessageByToolCallId no longer needs UserID
+					msgId, err := q.GetMessageByToolCallId(ctx, sql.NullString{String: toolCallId, Valid: true})
 					if err == nil {
 						messageIds = append(messageIds, msgId)
 					}
@@ -246,10 +241,8 @@ func (s *Service) DeleteMessageWithRelated(ctx context.Context, toolCallIdsJson 
 		}
 
 		// Delete all messages
-		if err := q.BatchDeleteMessages(ctx, db.BatchDeleteMessagesParams{
-			UserID: userId,
-			Ids:    messageIds,
-		}); err != nil {
+		// BatchDeleteMessages no longer takes UserID, just the slice of IDs
+		if err := q.BatchDeleteMessages(ctx, messageIds); err != nil {
 			return fmt.Errorf("failed to delete messages: %w", err)
 		}
 
@@ -258,7 +251,7 @@ func (s *Service) DeleteMessageWithRelated(ctx context.Context, toolCallIdsJson 
 }
 
 // GetMessagesByToolCallIds fetches messages by tool call IDs (batch operation)
-func (s *Service) GetMessagesByToolCallIds(ctx context.Context, toolCallIdsJson string, userId string) ([]string, error) {
+func (s *Service) GetMessagesByToolCallIds(ctx context.Context, toolCallIdsJson string) ([]string, error) {
 	var toolCallIds []string
 	if err := json.Unmarshal([]byte(toolCallIdsJson), &toolCallIds); err != nil {
 		return nil, fmt.Errorf("failed to parse tool call IDs: %w", err)
@@ -266,10 +259,9 @@ func (s *Service) GetMessagesByToolCallIds(ctx context.Context, toolCallIdsJson 
 
 	results := make([]string, 0, len(toolCallIds))
 	for _, toolCallId := range toolCallIds {
-		msgId, err := s.queries.GetMessageByToolCallId(ctx, db.GetMessageByToolCallIdParams{
-			ToolCallID: sql.NullString{String: toolCallId, Valid: true},
-			UserID:     userId,
-		})
+		// GetMessageByToolCallId now expects just the toolCallID (or params if more complex, but we removed userID)
+		// Based on messages.sql, it takes `tool_call_id`.
+		msgId, err := s.queries.GetMessageByToolCallId(ctx, sql.NullString{String: toolCallId, Valid: true})
 		if err == nil {
 			results = append(results, msgId)
 		}
@@ -280,7 +272,7 @@ func (s *Service) GetMessagesByToolCallIds(ctx context.Context, toolCallIdsJson 
 }
 
 // GetDocumentsByFileIds fetches documents by file IDs (batch operation)
-func (s *Service) GetDocumentsByFileIds(ctx context.Context, fileIdsJson string, userId string) ([]db.GetDocumentByFileIdRow, error) {
+func (s *Service) GetDocumentsByFileIds(ctx context.Context, fileIdsJson string) ([]db.GetDocumentByFileIdRow, error) {
 	var fileIds []string
 	if err := json.Unmarshal([]byte(fileIdsJson), &fileIds); err != nil {
 		return nil, fmt.Errorf("failed to parse file IDs: %w", err)
@@ -288,10 +280,8 @@ func (s *Service) GetDocumentsByFileIds(ctx context.Context, fileIdsJson string,
 
 	results := make([]db.GetDocumentByFileIdRow, 0, len(fileIds))
 	for _, fileId := range fileIds {
-		doc, err := s.queries.GetDocumentByFileId(ctx, db.GetDocumentByFileIdParams{
-			FileID: sql.NullString{String: fileId, Valid: true},
-			UserID: userId,
-		})
+		// GetDocumentByFileID now takes just fileID
+		doc, err := s.queries.GetDocumentByFileId(ctx, sql.NullString{String: fileId, Valid: true})
 		if err == nil {
 			results = append(results, doc)
 		}
@@ -339,7 +329,6 @@ func (s *Service) CreateFileWithLinks(ctx context.Context, params CreateFileWith
 			err = q.LinkKnowledgeBaseToFile(ctx, db.LinkKnowledgeBaseToFileParams{
 				KnowledgeBaseID: *params.KnowledgeBase,
 				FileID:          file.ID,
-				UserID:          params.File.UserID,
 			})
 			if err != nil {
 				return fmt.Errorf("failed to link to knowledge base: %w", err)
@@ -356,7 +345,6 @@ func (s *Service) CreateFileWithLinks(ctx context.Context, params CreateFileWith
 // DeleteFileWithCascadeParams contains data needed to delete a file with all related data
 type DeleteFileWithCascadeParams struct {
 	FileID           string
-	UserID           string
 	RemoveGlobalFile bool
 	FileHash         string
 }
@@ -374,10 +362,8 @@ func (s *Service) DeleteFileWithCascade(ctx context.Context, params DeleteFileWi
 		// 2. Delete chunks (embeddings are stored in DuckDB, not SQLite)
 		for _, chunkId := range chunkIds {
 			if chunkId.Valid {
-				err := q.DeleteChunk(ctx, db.DeleteChunkParams{
-					ID:     chunkId.String,
-					UserID: sql.NullString{String: params.UserID, Valid: true},
-				})
+				// DeleteChunk now just takes ID
+				err := q.DeleteChunk(ctx, chunkId.String)
 				if err != nil && err != sql.ErrNoRows {
 					return fmt.Errorf("failed to delete chunk: %w", err)
 				}
@@ -385,10 +371,8 @@ func (s *Service) DeleteFileWithCascade(ctx context.Context, params DeleteFileWi
 		}
 
 		// 4. Delete file record
-		err = q.DeleteFile(ctx, db.DeleteFileParams{
-			ID:     params.FileID,
-			UserID: params.UserID,
-		})
+		// DeleteFile now just takes ID
+		err = q.DeleteFile(ctx, params.FileID)
 		if err != nil {
 			return fmt.Errorf("failed to delete file: %w", err)
 		}
@@ -415,22 +399,18 @@ func (s *Service) DeleteFileWithCascade(ctx context.Context, params DeleteFileWi
 // ============================================================================
 
 // DeleteAIProviderWithModels deletes an AI provider and all its models atomically
-func (s *Service) DeleteAIProviderWithModels(ctx context.Context, providerID string, userID string) error {
+func (s *Service) DeleteAIProviderWithModels(ctx context.Context, providerID string) error {
 	return s.WithTx(ctx, func(q *db.Queries) error {
 		// 1. Delete all models of the provider
-		err := q.DeleteModelsByProvider(ctx, db.DeleteModelsByProviderParams{
-			ProviderID: providerID,
-			UserID:     userID,
-		})
+		// DeleteModelsByProvider now just takes providerID
+		err := q.DeleteModelsByProvider(ctx, providerID)
 		if err != nil && err != sql.ErrNoRows {
 			return fmt.Errorf("failed to delete models: %w", err)
 		}
 
 		// 2. Delete the provider
-		err = q.DeleteAIProvider(ctx, db.DeleteAIProviderParams{
-			ID:     providerID,
-			UserID: userID,
-		})
+		// DeleteAIProvider now just takes providerID
+		err = q.DeleteAIProvider(ctx, providerID)
 		if err != nil {
 			return fmt.Errorf("failed to delete provider: %w", err)
 		}
@@ -465,41 +445,27 @@ func (s *Service) BatchInsertAIModels(ctx context.Context, models []db.CreateAIM
 }
 
 // ============================================================================
-// DEFAULT USER AND INBOX INITIALIZATION (Desktop Single-User App)
+// DEFAULT DATA INITIALIZATION (Desktop Single-User App)
 // ============================================================================
 
 const defaultUserID = "DEFAULT_LOBE_CHAT_USER"
 
-// ensureDefaultUserAndInbox ensures the default user and inbox session exist
+// ensureDefaultData ensures the default settings and inbox session exist
 // This is called during database initialization for desktop single-user apps
-func (s *Service) ensureDefaultUserAndInbox(ctx context.Context) error {
-	now := int64(1000) // Use a fixed timestamp for default user
-
-	// 1. Ensure default user exists
-	err := s.queries.EnsureUserExists(ctx, db.EnsureUserExistsParams{
-		ID:        defaultUserID,
-		CreatedAt: now,
-		UpdatedAt: now,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to ensure default user: %w", err)
-	}
-
-	// 2. Ensure default user settings exist
+func (s *Service) ensureDefaultData(ctx context.Context) error {
+	// 1. Ensure default user settings exist
 	if err := s.ensureDefaultUserSettings(ctx); err != nil {
 		return fmt.Errorf("failed to ensure default user settings: %w", err)
 	}
 
-	// 3. Ensure default AI provider (Kawai) exists
+	// 2. Ensure default AI provider (Kawai) exists
 	if err := s.ensureDefaultAIProvider(ctx); err != nil {
 		return fmt.Errorf("failed to ensure default AI provider: %w", err)
 	}
 
-	// 4. Check if inbox session already exists
-	_, err = s.queries.GetSessionBySlug(ctx, db.GetSessionBySlugParams{
-		Slug:   "inbox",
-		UserID: defaultUserID,
-	})
+	// 3. Check if inbox session already exists
+	// GetSessionBySlug no longer needs UserID
+	_, err := s.queries.GetSessionBySlug(ctx, "inbox")
 
 	if err == sql.ErrNoRows {
 		// Inbox doesn't exist, create it
@@ -514,6 +480,19 @@ func (s *Service) ensureDefaultUserAndInbox(ctx context.Context) error {
 		fmt.Println("✅ Default inbox session already exists")
 	}
 
+	// 4. Seed available agents from remote index (Async)
+	go func() {
+		// Create a detached context for the async operation
+		seedCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+
+		if err := s.SeedAvailableAgents(seedCtx); err != nil {
+			fmt.Printf("⚠️ Failed to seed agents: %v\n", err)
+		} else {
+			fmt.Println("✅ Agents seeded successfully (async)")
+		}
+	}()
+
 	return nil
 }
 
@@ -527,7 +506,6 @@ func (s *Service) createDefaultInboxSession(ctx context.Context) error {
 		// 1. Create session
 		_, err := q.CreateSession(ctx, db.CreateSessionParams{
 			ID:              sessionID,
-			UserID:          defaultUserID,
 			Slug:            "inbox",
 			Title:           sql.NullString{Valid: false},
 			Description:     sql.NullString{Valid: false},
@@ -549,7 +527,6 @@ func (s *Service) createDefaultInboxSession(ctx context.Context) error {
 
 		_, err = q.CreateAgent(ctx, db.CreateAgentParams{
 			ID:               agentID,
-			UserID:           defaultUserID,
 			Slug:             sql.NullString{Valid: false},
 			Title:            sql.NullString{Valid: false},
 			Description:      sql.NullString{Valid: false},
@@ -578,7 +555,6 @@ func (s *Service) createDefaultInboxSession(ctx context.Context) error {
 		err = q.LinkAgentToSession(ctx, db.LinkAgentToSessionParams{
 			AgentID:   agentID,
 			SessionID: sessionID,
-			UserID:    defaultUserID,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to link agent to session: %w", err)
@@ -633,10 +609,7 @@ func (s *Service) ensureDefaultAIProvider(ctx context.Context) error {
 	now := int64(1000) // Use a fixed timestamp for default entries
 
 	// Check if Kawai provider already exists
-	_, err := s.queries.GetAIProvider(ctx, db.GetAIProviderParams{
-		ID:     "kawai",
-		UserID: defaultUserID,
-	})
+	_, err := s.queries.GetAIProvider(ctx, "kawai")
 	if err == nil {
 		// Provider already exists, ensure model abilities are up to date
 		fmt.Println("✅ Default Kawai AI provider already exists")
@@ -656,7 +629,6 @@ func (s *Service) ensureDefaultAIProvider(ctx context.Context) error {
 	_, err = s.queries.CreateAIProvider(ctx, db.CreateAIProviderParams{
 		ID:            "kawai",
 		Name:          sql.NullString{String: "Kawai", Valid: true},
-		UserID:        defaultUserID,
 		Sort:          sql.NullInt64{Int64: 0, Valid: true},
 		Enabled:       sql.NullInt64{Int64: 1, Valid: true}, // enabled = true
 		FetchOnClient: sql.NullInt64{Int64: 0, Valid: true}, // fetchOnClient = false
@@ -688,7 +660,6 @@ func (s *Service) ensureDefaultAIProvider(ctx context.Context) error {
 		ProviderID:          "kawai",
 		Type:                "chat",
 		Sort:                sql.NullInt64{Int64: 0, Valid: true},
-		UserID:              defaultUserID,
 		Pricing:             sql.NullString{String: "", Valid: false},
 		Parameters:          sql.NullString{String: modelParams, Valid: true},
 		Config:              sql.NullString{String: modelConfig, Valid: true},
@@ -714,7 +685,6 @@ func (s *Service) updateKawaiAutoModelAbilities(ctx context.Context) error {
 	model, err := s.queries.GetAIModel(ctx, db.GetAIModelParams{
 		ID:         "kawai-auto",
 		ProviderID: "kawai",
-		UserID:     defaultUserID,
 	})
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -737,7 +707,6 @@ func (s *Service) updateKawaiAutoModelAbilities(ctx context.Context) error {
 	_, err = s.queries.UpdateAIModel(ctx, db.UpdateAIModelParams{
 		ID:         "kawai-auto",
 		ProviderID: "kawai",
-		UserID:     defaultUserID,
 		Abilities:  sql.NullString{String: expectedAbilities, Valid: true},
 		UpdatedAt:  int64(1000),
 	})

@@ -12,15 +12,14 @@ import (
 )
 
 const BatchLinkAgentToFiles = `-- name: BatchLinkAgentToFiles :exec
-INSERT INTO agents_files (agent_id, file_id, enabled, user_id, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?)
+INSERT INTO agents_files (agent_id, file_id, enabled, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?)
 `
 
 type BatchLinkAgentToFilesParams struct {
 	AgentID   string `json:"agentId"`
 	FileID    string `json:"fileId"`
 	Enabled   int64  `json:"enabled"`
-	UserID    string `json:"userId"`
 	CreatedAt int64  `json:"createdAt"`
 	UpdatedAt int64  `json:"updatedAt"`
 }
@@ -30,7 +29,6 @@ func (q *Queries) BatchLinkAgentToFiles(ctx context.Context, arg BatchLinkAgentT
 		arg.AgentID,
 		arg.FileID,
 		arg.Enabled,
-		arg.UserID,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
@@ -40,11 +38,11 @@ func (q *Queries) BatchLinkAgentToFiles(ctx context.Context, arg BatchLinkAgentT
 const CreateAgent = `-- name: CreateAgent :one
 INSERT INTO agents (
     id, slug, title, description, tags, avatar, background_color,
-    plugins, user_id, chat_config, few_shots, model,
+    plugins, chat_config, few_shots, model,
     params, provider, system_role, tts, virtual, opening_message,
     opening_questions, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, slug, title, description, tags, avatar, background_color, plugins, user_id, chat_config, few_shots, model, params, provider, system_role, tts, "virtual", opening_message, opening_questions, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, slug, title, description, tags, avatar, background_color, plugins, chat_config, few_shots, model, params, provider, system_role, tts, "virtual", opening_message, opening_questions, created_at, updated_at
 `
 
 type CreateAgentParams struct {
@@ -56,7 +54,6 @@ type CreateAgentParams struct {
 	Avatar           sql.NullString `json:"avatar"`
 	BackgroundColor  sql.NullString `json:"backgroundColor"`
 	Plugins          sql.NullString `json:"plugins"`
-	UserID           string         `json:"userId"`
 	ChatConfig       sql.NullString `json:"chatConfig"`
 	FewShots         sql.NullString `json:"fewShots"`
 	Model            sql.NullString `json:"model"`
@@ -81,7 +78,6 @@ func (q *Queries) CreateAgent(ctx context.Context, arg CreateAgentParams) (Agent
 		arg.Avatar,
 		arg.BackgroundColor,
 		arg.Plugins,
-		arg.UserID,
 		arg.ChatConfig,
 		arg.FewShots,
 		arg.Model,
@@ -105,7 +101,6 @@ func (q *Queries) CreateAgent(ctx context.Context, arg CreateAgentParams) (Agent
 		&i.Avatar,
 		&i.BackgroundColor,
 		&i.Plugins,
-		&i.UserID,
 		&i.ChatConfig,
 		&i.FewShots,
 		&i.Model,
@@ -123,23 +118,18 @@ func (q *Queries) CreateAgent(ctx context.Context, arg CreateAgentParams) (Agent
 }
 
 const DeleteAgent = `-- name: DeleteAgent :exec
-DELETE FROM agents WHERE id = ? AND user_id = ?
+DELETE FROM agents WHERE id = ?
 `
 
-type DeleteAgentParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
-func (q *Queries) DeleteAgent(ctx context.Context, arg DeleteAgentParams) error {
-	_, err := q.db.ExecContext(ctx, DeleteAgent, arg.ID, arg.UserID)
+func (q *Queries) DeleteAgent(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, DeleteAgent, id)
 	return err
 }
 
 const DuplicateAgentForSession = `-- name: DuplicateAgentForSession :one
 INSERT INTO agents (
     id, slug, title, description, tags, avatar, background_color,
-    plugins, user_id, chat_config, few_shots, model,
+    plugins, chat_config, few_shots, model,
     params, provider, system_role, tts, virtual, opening_message,
     opening_questions, created_at, updated_at
 )
@@ -152,7 +142,6 @@ SELECT
     avatar,
     background_color,
     plugins,
-    user_id,
     chat_config,
     few_shots,
     model,
@@ -167,9 +156,9 @@ SELECT
     ? as updated_at    -- new updated_at
 FROM agents a
 INNER JOIN agents_to_sessions ats ON a.id = ats.agent_id
-WHERE ats.session_id = ? AND ats.user_id = ?
+WHERE ats.session_id = ?
 LIMIT 1
-RETURNING id, slug, title, description, tags, avatar, background_color, plugins, user_id, chat_config, few_shots, model, params, provider, system_role, tts, "virtual", opening_message, opening_questions, created_at, updated_at
+RETURNING id, slug, title, description, tags, avatar, background_color, plugins, chat_config, few_shots, model, params, provider, system_role, tts, "virtual", opening_message, opening_questions, created_at, updated_at
 `
 
 type DuplicateAgentForSessionParams struct {
@@ -177,7 +166,6 @@ type DuplicateAgentForSessionParams struct {
 	CreatedAt int64  `json:"createdAt"`
 	UpdatedAt int64  `json:"updatedAt"`
 	SessionID string `json:"sessionId"`
-	UserID    string `json:"userId"`
 }
 
 // Duplicate an agent for a new session
@@ -188,7 +176,6 @@ func (q *Queries) DuplicateAgentForSession(ctx context.Context, arg DuplicateAge
 		arg.CreatedAt,
 		arg.UpdatedAt,
 		arg.SessionID,
-		arg.UserID,
 	)
 	var i Agent
 	err := row.Scan(
@@ -200,7 +187,6 @@ func (q *Queries) DuplicateAgentForSession(ctx context.Context, arg DuplicateAge
 		&i.Avatar,
 		&i.BackgroundColor,
 		&i.Plugins,
-		&i.UserID,
 		&i.ChatConfig,
 		&i.FewShots,
 		&i.Model,
@@ -218,16 +204,11 @@ func (q *Queries) DuplicateAgentForSession(ctx context.Context, arg DuplicateAge
 }
 
 const GetAgent = `-- name: GetAgent :one
-SELECT id, slug, title, description, tags, avatar, background_color, plugins, user_id, chat_config, few_shots, model, params, provider, system_role, tts, "virtual", opening_message, opening_questions, created_at, updated_at FROM agents WHERE id = ? AND user_id = ?
+SELECT id, slug, title, description, tags, avatar, background_color, plugins, chat_config, few_shots, model, params, provider, system_role, tts, "virtual", opening_message, opening_questions, created_at, updated_at FROM agents WHERE id = ?
 `
 
-type GetAgentParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
-func (q *Queries) GetAgent(ctx context.Context, arg GetAgentParams) (Agent, error) {
-	row := q.db.QueryRowContext(ctx, GetAgent, arg.ID, arg.UserID)
+func (q *Queries) GetAgent(ctx context.Context, id string) (Agent, error) {
+	row := q.db.QueryRowContext(ctx, GetAgent, id)
 	var i Agent
 	err := row.Scan(
 		&i.ID,
@@ -238,7 +219,6 @@ func (q *Queries) GetAgent(ctx context.Context, arg GetAgentParams) (Agent, erro
 		&i.Avatar,
 		&i.BackgroundColor,
 		&i.Plugins,
-		&i.UserID,
 		&i.ChatConfig,
 		&i.FewShots,
 		&i.Model,
@@ -256,19 +236,14 @@ func (q *Queries) GetAgent(ctx context.Context, arg GetAgentParams) (Agent, erro
 }
 
 const GetAgentBySessionId = `-- name: GetAgentBySessionId :one
-SELECT a.id, a.slug, a.title, a.description, a.tags, a.avatar, a.background_color, a.plugins, a.user_id, a.chat_config, a.few_shots, a.model, a.params, a.provider, a.system_role, a.tts, a."virtual", a.opening_message, a.opening_questions, a.created_at, a.updated_at FROM agents a
+SELECT a.id, a.slug, a.title, a.description, a.tags, a.avatar, a.background_color, a.plugins, a.chat_config, a.few_shots, a.model, a.params, a.provider, a.system_role, a.tts, a."virtual", a.opening_message, a.opening_questions, a.created_at, a.updated_at FROM agents a
 INNER JOIN agents_to_sessions ats ON a.id = ats.agent_id
-WHERE ats.session_id = ? AND ats.user_id = ?
+WHERE ats.session_id = ?
 LIMIT 1
 `
 
-type GetAgentBySessionIdParams struct {
-	SessionID string `json:"sessionId"`
-	UserID    string `json:"userId"`
-}
-
-func (q *Queries) GetAgentBySessionId(ctx context.Context, arg GetAgentBySessionIdParams) (Agent, error) {
-	row := q.db.QueryRowContext(ctx, GetAgentBySessionId, arg.SessionID, arg.UserID)
+func (q *Queries) GetAgentBySessionId(ctx context.Context, sessionID string) (Agent, error) {
+	row := q.db.QueryRowContext(ctx, GetAgentBySessionId, sessionID)
 	var i Agent
 	err := row.Scan(
 		&i.ID,
@@ -279,7 +254,6 @@ func (q *Queries) GetAgentBySessionId(ctx context.Context, arg GetAgentBySession
 		&i.Avatar,
 		&i.BackgroundColor,
 		&i.Plugins,
-		&i.UserID,
 		&i.ChatConfig,
 		&i.FewShots,
 		&i.Model,
@@ -297,16 +271,11 @@ func (q *Queries) GetAgentBySessionId(ctx context.Context, arg GetAgentBySession
 }
 
 const GetAgentBySlug = `-- name: GetAgentBySlug :one
-SELECT id, slug, title, description, tags, avatar, background_color, plugins, user_id, chat_config, few_shots, model, params, provider, system_role, tts, "virtual", opening_message, opening_questions, created_at, updated_at FROM agents WHERE slug = ? AND user_id = ?
+SELECT id, slug, title, description, tags, avatar, background_color, plugins, chat_config, few_shots, model, params, provider, system_role, tts, "virtual", opening_message, opening_questions, created_at, updated_at FROM agents WHERE slug = ?
 `
 
-type GetAgentBySlugParams struct {
-	Slug   sql.NullString `json:"slug"`
-	UserID string         `json:"userId"`
-}
-
-func (q *Queries) GetAgentBySlug(ctx context.Context, arg GetAgentBySlugParams) (Agent, error) {
-	row := q.db.QueryRowContext(ctx, GetAgentBySlug, arg.Slug, arg.UserID)
+func (q *Queries) GetAgentBySlug(ctx context.Context, slug sql.NullString) (Agent, error) {
+	row := q.db.QueryRowContext(ctx, GetAgentBySlug, slug)
 	var i Agent
 	err := row.Scan(
 		&i.ID,
@@ -317,7 +286,6 @@ func (q *Queries) GetAgentBySlug(ctx context.Context, arg GetAgentBySlugParams) 
 		&i.Avatar,
 		&i.BackgroundColor,
 		&i.Plugins,
-		&i.UserID,
 		&i.ChatConfig,
 		&i.FewShots,
 		&i.Model,
@@ -336,12 +304,11 @@ func (q *Queries) GetAgentBySlug(ctx context.Context, arg GetAgentBySlugParams) 
 
 const GetAgentFileIds = `-- name: GetAgentFileIds :many
 SELECT file_id FROM agents_files
-WHERE agent_id = ? AND user_id = ? AND file_id IN (/*SLICE:fileIds*/?)
+WHERE agent_id = ? AND file_id IN (/*SLICE:fileIds*/?)
 `
 
 type GetAgentFileIdsParams struct {
 	AgentID string   `json:"agentId"`
-	UserID  string   `json:"userId"`
 	FileIds []string `json:"fileIds"`
 }
 
@@ -349,7 +316,6 @@ func (q *Queries) GetAgentFileIds(ctx context.Context, arg GetAgentFileIdsParams
 	query := GetAgentFileIds
 	var queryParams []interface{}
 	queryParams = append(queryParams, arg.AgentID)
-	queryParams = append(queryParams, arg.UserID)
 	if len(arg.FileIds) > 0 {
 		for _, v := range arg.FileIds {
 			queryParams = append(queryParams, v)
@@ -381,18 +347,13 @@ func (q *Queries) GetAgentFileIds(ctx context.Context, arg GetAgentFileIdsParams
 }
 
 const GetAgentFiles = `-- name: GetAgentFiles :many
-SELECT f.id, f.user_id, f.file_type, f.file_hash, f.name, f.size, f.url, f.source, f.metadata, f.created_at, f.updated_at FROM files f
+SELECT f.id, f.file_type, f.file_hash, f.name, f.size, f.url, f.source, f.metadata, f.created_at, f.updated_at FROM files f
 INNER JOIN agents_files af ON f.id = af.file_id
-WHERE af.agent_id = ? AND af.user_id = ?
+WHERE af.agent_id = ?
 `
 
-type GetAgentFilesParams struct {
-	AgentID string `json:"agentId"`
-	UserID  string `json:"userId"`
-}
-
-func (q *Queries) GetAgentFiles(ctx context.Context, arg GetAgentFilesParams) ([]File, error) {
-	rows, err := q.db.QueryContext(ctx, GetAgentFiles, arg.AgentID, arg.UserID)
+func (q *Queries) GetAgentFiles(ctx context.Context, agentID string) ([]File, error) {
+	rows, err := q.db.QueryContext(ctx, GetAgentFiles, agentID)
 	if err != nil {
 		return nil, err
 	}
@@ -402,7 +363,6 @@ func (q *Queries) GetAgentFiles(ctx context.Context, arg GetAgentFilesParams) ([
 		var i File
 		if err := rows.Scan(
 			&i.ID,
-			&i.UserID,
 			&i.FileType,
 			&i.FileHash,
 			&i.Name,
@@ -427,21 +387,15 @@ func (q *Queries) GetAgentFiles(ctx context.Context, arg GetAgentFilesParams) ([
 }
 
 const GetAgentFilesWithEnabled = `-- name: GetAgentFilesWithEnabled :many
-SELECT f.id, f.user_id, f.file_type, f.file_hash, f.name, f.size, f.url, f.source, f.metadata, f.created_at, f.updated_at, af.enabled
+SELECT f.id, f.file_type, f.file_hash, f.name, f.size, f.url, f.source, f.metadata, f.created_at, f.updated_at, af.enabled
 FROM files f
 INNER JOIN agents_files af ON f.id = af.file_id
-WHERE af.agent_id = ? AND af.user_id = ?
+WHERE af.agent_id = ?
 ORDER BY af.created_at DESC
 `
 
-type GetAgentFilesWithEnabledParams struct {
-	AgentID string `json:"agentId"`
-	UserID  string `json:"userId"`
-}
-
 type GetAgentFilesWithEnabledRow struct {
 	ID        string         `json:"id"`
-	UserID    string         `json:"userId"`
 	FileType  string         `json:"fileType"`
 	FileHash  sql.NullString `json:"fileHash"`
 	Name      string         `json:"name"`
@@ -454,8 +408,8 @@ type GetAgentFilesWithEnabledRow struct {
 	Enabled   int64          `json:"enabled"`
 }
 
-func (q *Queries) GetAgentFilesWithEnabled(ctx context.Context, arg GetAgentFilesWithEnabledParams) ([]GetAgentFilesWithEnabledRow, error) {
-	rows, err := q.db.QueryContext(ctx, GetAgentFilesWithEnabled, arg.AgentID, arg.UserID)
+func (q *Queries) GetAgentFilesWithEnabled(ctx context.Context, agentID string) ([]GetAgentFilesWithEnabledRow, error) {
+	rows, err := q.db.QueryContext(ctx, GetAgentFilesWithEnabled, agentID)
 	if err != nil {
 		return nil, err
 	}
@@ -465,7 +419,6 @@ func (q *Queries) GetAgentFilesWithEnabled(ctx context.Context, arg GetAgentFile
 		var i GetAgentFilesWithEnabledRow
 		if err := rows.Scan(
 			&i.ID,
-			&i.UserID,
 			&i.FileType,
 			&i.FileHash,
 			&i.Name,
@@ -491,17 +444,12 @@ func (q *Queries) GetAgentFilesWithEnabled(ctx context.Context, arg GetAgentFile
 }
 
 const GetAgentKnowledgeBases = `-- name: GetAgentKnowledgeBases :many
-SELECT kb.id, kb.name, kb.description, kb.avatar, kb.type, kb.user_id, kb.is_public, kb.settings, kb.created_at, kb.updated_at, akb.enabled
+SELECT kb.id, kb.name, kb.description, kb.avatar, kb.type, kb.is_public, kb.settings, kb.created_at, kb.updated_at, akb.enabled
 FROM knowledge_bases kb
 INNER JOIN agents_knowledge_bases akb ON kb.id = akb.knowledge_base_id
-WHERE akb.agent_id = ? AND akb.user_id = ?
+WHERE akb.agent_id = ?
 ORDER BY akb.created_at DESC
 `
-
-type GetAgentKnowledgeBasesParams struct {
-	AgentID string `json:"agentId"`
-	UserID  string `json:"userId"`
-}
 
 type GetAgentKnowledgeBasesRow struct {
 	ID          string         `json:"id"`
@@ -509,7 +457,6 @@ type GetAgentKnowledgeBasesRow struct {
 	Description sql.NullString `json:"description"`
 	Avatar      sql.NullString `json:"avatar"`
 	Type        sql.NullString `json:"type"`
-	UserID      string         `json:"userId"`
 	IsPublic    int64          `json:"isPublic"`
 	Settings    sql.NullString `json:"settings"`
 	CreatedAt   int64          `json:"createdAt"`
@@ -517,8 +464,8 @@ type GetAgentKnowledgeBasesRow struct {
 	Enabled     int64          `json:"enabled"`
 }
 
-func (q *Queries) GetAgentKnowledgeBases(ctx context.Context, arg GetAgentKnowledgeBasesParams) ([]GetAgentKnowledgeBasesRow, error) {
-	rows, err := q.db.QueryContext(ctx, GetAgentKnowledgeBases, arg.AgentID, arg.UserID)
+func (q *Queries) GetAgentKnowledgeBases(ctx context.Context, agentID string) ([]GetAgentKnowledgeBasesRow, error) {
+	rows, err := q.db.QueryContext(ctx, GetAgentKnowledgeBases, agentID)
 	if err != nil {
 		return nil, err
 	}
@@ -532,7 +479,6 @@ func (q *Queries) GetAgentKnowledgeBases(ctx context.Context, arg GetAgentKnowle
 			&i.Description,
 			&i.Avatar,
 			&i.Type,
-			&i.UserID,
 			&i.IsPublic,
 			&i.Settings,
 			&i.CreatedAt,
@@ -553,18 +499,13 @@ func (q *Queries) GetAgentKnowledgeBases(ctx context.Context, arg GetAgentKnowle
 }
 
 const GetAgentSessions = `-- name: GetAgentSessions :many
-SELECT s.id, s.slug, s.title, s.description, s.avatar, s.background_color, s.type, s.user_id, s.group_id, s.pinned, s.created_at, s.updated_at FROM sessions s
+SELECT s.id, s.slug, s.title, s.description, s.avatar, s.background_color, s.type, s.group_id, s.pinned, s.created_at, s.updated_at FROM sessions s
 INNER JOIN agents_to_sessions ats ON s.id = ats.session_id
-WHERE ats.agent_id = ? AND ats.user_id = ?
+WHERE ats.agent_id = ?
 `
 
-type GetAgentSessionsParams struct {
-	AgentID string `json:"agentId"`
-	UserID  string `json:"userId"`
-}
-
-func (q *Queries) GetAgentSessions(ctx context.Context, arg GetAgentSessionsParams) ([]Session, error) {
-	rows, err := q.db.QueryContext(ctx, GetAgentSessions, arg.AgentID, arg.UserID)
+func (q *Queries) GetAgentSessions(ctx context.Context, agentID string) ([]Session, error) {
+	rows, err := q.db.QueryContext(ctx, GetAgentSessions, agentID)
 	if err != nil {
 		return nil, err
 	}
@@ -580,7 +521,6 @@ func (q *Queries) GetAgentSessions(ctx context.Context, arg GetAgentSessionsPara
 			&i.Avatar,
 			&i.BackgroundColor,
 			&i.Type,
-			&i.UserID,
 			&i.GroupID,
 			&i.Pinned,
 			&i.CreatedAt,
@@ -600,13 +540,13 @@ func (q *Queries) GetAgentSessions(ctx context.Context, arg GetAgentSessionsPara
 }
 
 const GetOrphanedAgents = `-- name: GetOrphanedAgents :many
-SELECT a.id, a.slug, a.title, a.description, a.tags, a.avatar, a.background_color, a.plugins, a.user_id, a.chat_config, a.few_shots, a.model, a.params, a.provider, a.system_role, a.tts, a."virtual", a.opening_message, a.opening_questions, a.created_at, a.updated_at FROM agents a
+SELECT a.id, a.slug, a.title, a.description, a.tags, a.avatar, a.background_color, a.plugins, a.chat_config, a.few_shots, a.model, a.params, a.provider, a.system_role, a.tts, a."virtual", a.opening_message, a.opening_questions, a.created_at, a.updated_at FROM agents a
 LEFT JOIN agents_to_sessions ats ON a.id = ats.agent_id
-WHERE a.user_id = ? AND ats.agent_id IS NULL
+WHERE ats.agent_id IS NULL
 `
 
-func (q *Queries) GetOrphanedAgents(ctx context.Context, userID string) ([]Agent, error) {
-	rows, err := q.db.QueryContext(ctx, GetOrphanedAgents, userID)
+func (q *Queries) GetOrphanedAgents(ctx context.Context) ([]Agent, error) {
+	rows, err := q.db.QueryContext(ctx, GetOrphanedAgents)
 	if err != nil {
 		return nil, err
 	}
@@ -623,7 +563,6 @@ func (q *Queries) GetOrphanedAgents(ctx context.Context, userID string) ([]Agent
 			&i.Avatar,
 			&i.BackgroundColor,
 			&i.Plugins,
-			&i.UserID,
 			&i.ChatConfig,
 			&i.FewShots,
 			&i.Model,
@@ -651,18 +590,13 @@ func (q *Queries) GetOrphanedAgents(ctx context.Context, userID string) ([]Agent
 }
 
 const GetSessionAgents = `-- name: GetSessionAgents :many
-SELECT a.id, a.slug, a.title, a.description, a.tags, a.avatar, a.background_color, a.plugins, a.user_id, a.chat_config, a.few_shots, a.model, a.params, a.provider, a.system_role, a.tts, a."virtual", a.opening_message, a.opening_questions, a.created_at, a.updated_at FROM agents a
+SELECT a.id, a.slug, a.title, a.description, a.tags, a.avatar, a.background_color, a.plugins, a.chat_config, a.few_shots, a.model, a.params, a.provider, a.system_role, a.tts, a."virtual", a.opening_message, a.opening_questions, a.created_at, a.updated_at FROM agents a
 INNER JOIN agents_to_sessions ats ON a.id = ats.agent_id
-WHERE ats.session_id = ? AND ats.user_id = ?
+WHERE ats.session_id = ?
 `
 
-type GetSessionAgentsParams struct {
-	SessionID string `json:"sessionId"`
-	UserID    string `json:"userId"`
-}
-
-func (q *Queries) GetSessionAgents(ctx context.Context, arg GetSessionAgentsParams) ([]Agent, error) {
-	rows, err := q.db.QueryContext(ctx, GetSessionAgents, arg.SessionID, arg.UserID)
+func (q *Queries) GetSessionAgents(ctx context.Context, sessionID string) ([]Agent, error) {
+	rows, err := q.db.QueryContext(ctx, GetSessionAgents, sessionID)
 	if err != nil {
 		return nil, err
 	}
@@ -679,7 +613,6 @@ func (q *Queries) GetSessionAgents(ctx context.Context, arg GetSessionAgentsPara
 			&i.Avatar,
 			&i.BackgroundColor,
 			&i.Plugins,
-			&i.UserID,
 			&i.ChatConfig,
 			&i.FewShots,
 			&i.Model,
@@ -708,15 +641,14 @@ func (q *Queries) GetSessionAgents(ctx context.Context, arg GetSessionAgentsPara
 
 const LinkAgentToFile = `-- name: LinkAgentToFile :exec
 
-INSERT INTO agents_files (file_id, agent_id, enabled, user_id, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?)
+INSERT INTO agents_files (file_id, agent_id, enabled, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?)
 `
 
 type LinkAgentToFileParams struct {
 	FileID    string `json:"fileId"`
 	AgentID   string `json:"agentId"`
 	Enabled   int64  `json:"enabled"`
-	UserID    string `json:"userId"`
 	CreatedAt int64  `json:"createdAt"`
 	UpdatedAt int64  `json:"updatedAt"`
 }
@@ -727,7 +659,6 @@ func (q *Queries) LinkAgentToFile(ctx context.Context, arg LinkAgentToFileParams
 		arg.FileID,
 		arg.AgentID,
 		arg.Enabled,
-		arg.UserID,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
@@ -736,14 +667,13 @@ func (q *Queries) LinkAgentToFile(ctx context.Context, arg LinkAgentToFileParams
 
 const LinkAgentToKnowledgeBase = `-- name: LinkAgentToKnowledgeBase :exec
 
-INSERT INTO agents_knowledge_bases (agent_id, knowledge_base_id, user_id, enabled, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?)
+INSERT INTO agents_knowledge_bases (agent_id, knowledge_base_id, enabled, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?)
 `
 
 type LinkAgentToKnowledgeBaseParams struct {
 	AgentID         string `json:"agentId"`
 	KnowledgeBaseID string `json:"knowledgeBaseId"`
-	UserID          string `json:"userId"`
 	Enabled         int64  `json:"enabled"`
 	CreatedAt       int64  `json:"createdAt"`
 	UpdatedAt       int64  `json:"updatedAt"`
@@ -754,7 +684,6 @@ func (q *Queries) LinkAgentToKnowledgeBase(ctx context.Context, arg LinkAgentToK
 	_, err := q.db.ExecContext(ctx, LinkAgentToKnowledgeBase,
 		arg.AgentID,
 		arg.KnowledgeBaseID,
-		arg.UserID,
 		arg.Enabled,
 		arg.CreatedAt,
 		arg.UpdatedAt,
@@ -764,54 +693,50 @@ func (q *Queries) LinkAgentToKnowledgeBase(ctx context.Context, arg LinkAgentToK
 
 const LinkAgentToSession = `-- name: LinkAgentToSession :exec
 
-INSERT INTO agents_to_sessions (agent_id, session_id, user_id)
-VALUES (?, ?, ?)
+INSERT INTO agents_to_sessions (agent_id, session_id)
+VALUES (?, ?)
 `
 
 type LinkAgentToSessionParams struct {
 	AgentID   string `json:"agentId"`
 	SessionID string `json:"sessionId"`
-	UserID    string `json:"userId"`
 }
 
 // Agent to Session relationships
 func (q *Queries) LinkAgentToSession(ctx context.Context, arg LinkAgentToSessionParams) error {
-	_, err := q.db.ExecContext(ctx, LinkAgentToSession, arg.AgentID, arg.SessionID, arg.UserID)
+	_, err := q.db.ExecContext(ctx, LinkAgentToSession, arg.AgentID, arg.SessionID)
 	return err
 }
 
 const LinkDuplicatedAgentToSession = `-- name: LinkDuplicatedAgentToSession :exec
-INSERT INTO agents_to_sessions (agent_id, session_id, user_id)
-VALUES (?, ?, ?)
+INSERT INTO agents_to_sessions (agent_id, session_id)
+VALUES (?, ?)
 `
 
 type LinkDuplicatedAgentToSessionParams struct {
 	AgentID   string `json:"agentId"`
 	SessionID string `json:"sessionId"`
-	UserID    string `json:"userId"`
 }
 
 // Link a duplicated agent to a new session
 func (q *Queries) LinkDuplicatedAgentToSession(ctx context.Context, arg LinkDuplicatedAgentToSessionParams) error {
-	_, err := q.db.ExecContext(ctx, LinkDuplicatedAgentToSession, arg.AgentID, arg.SessionID, arg.UserID)
+	_, err := q.db.ExecContext(ctx, LinkDuplicatedAgentToSession, arg.AgentID, arg.SessionID)
 	return err
 }
 
 const ListAgents = `-- name: ListAgents :many
-SELECT id, slug, title, description, tags, avatar, background_color, plugins, user_id, chat_config, few_shots, model, params, provider, system_role, tts, "virtual", opening_message, opening_questions, created_at, updated_at FROM agents
-WHERE user_id = ?
+SELECT id, slug, title, description, tags, avatar, background_color, plugins, chat_config, few_shots, model, params, provider, system_role, tts, "virtual", opening_message, opening_questions, created_at, updated_at FROM agents
 ORDER BY updated_at DESC
 LIMIT ? OFFSET ?
 `
 
 type ListAgentsParams struct {
-	UserID string `json:"userId"`
-	Limit  int64  `json:"limit"`
-	Offset int64  `json:"offset"`
+	Limit  int64 `json:"limit"`
+	Offset int64 `json:"offset"`
 }
 
 func (q *Queries) ListAgents(ctx context.Context, arg ListAgentsParams) ([]Agent, error) {
-	rows, err := q.db.QueryContext(ctx, ListAgents, arg.UserID, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, ListAgents, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -828,7 +753,6 @@ func (q *Queries) ListAgents(ctx context.Context, arg ListAgentsParams) ([]Agent
 			&i.Avatar,
 			&i.BackgroundColor,
 			&i.Plugins,
-			&i.UserID,
 			&i.ChatConfig,
 			&i.FewShots,
 			&i.Model,
@@ -856,26 +780,20 @@ func (q *Queries) ListAgents(ctx context.Context, arg ListAgentsParams) ([]Agent
 }
 
 const SearchAgents = `-- name: SearchAgents :many
-SELECT id, slug, title, description, tags, avatar, background_color, plugins, user_id, chat_config, few_shots, model, params, provider, system_role, tts, "virtual", opening_message, opening_questions, created_at, updated_at FROM agents
-WHERE user_id = ? AND (title LIKE ? OR description LIKE ?)
+SELECT id, slug, title, description, tags, avatar, background_color, plugins, chat_config, few_shots, model, params, provider, system_role, tts, "virtual", opening_message, opening_questions, created_at, updated_at FROM agents
+WHERE (title LIKE ? OR description LIKE ?)
 ORDER BY updated_at DESC
 LIMIT ?
 `
 
 type SearchAgentsParams struct {
-	UserID      string         `json:"userId"`
 	Title       sql.NullString `json:"title"`
 	Description sql.NullString `json:"description"`
 	Limit       int64          `json:"limit"`
 }
 
 func (q *Queries) SearchAgents(ctx context.Context, arg SearchAgentsParams) ([]Agent, error) {
-	rows, err := q.db.QueryContext(ctx, SearchAgents,
-		arg.UserID,
-		arg.Title,
-		arg.Description,
-		arg.Limit,
-	)
+	rows, err := q.db.QueryContext(ctx, SearchAgents, arg.Title, arg.Description, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
@@ -892,7 +810,6 @@ func (q *Queries) SearchAgents(ctx context.Context, arg SearchAgentsParams) ([]A
 			&i.Avatar,
 			&i.BackgroundColor,
 			&i.Plugins,
-			&i.UserID,
 			&i.ChatConfig,
 			&i.FewShots,
 			&i.Model,
@@ -922,94 +839,79 @@ func (q *Queries) SearchAgents(ctx context.Context, arg SearchAgentsParams) ([]A
 const ToggleAgentFile = `-- name: ToggleAgentFile :exec
 UPDATE agents_files
 SET enabled = ?
-WHERE agent_id = ? AND file_id = ? AND user_id = ?
+WHERE agent_id = ? AND file_id = ?
 `
 
 type ToggleAgentFileParams struct {
 	Enabled int64  `json:"enabled"`
 	AgentID string `json:"agentId"`
 	FileID  string `json:"fileId"`
-	UserID  string `json:"userId"`
 }
 
 func (q *Queries) ToggleAgentFile(ctx context.Context, arg ToggleAgentFileParams) error {
-	_, err := q.db.ExecContext(ctx, ToggleAgentFile,
-		arg.Enabled,
-		arg.AgentID,
-		arg.FileID,
-		arg.UserID,
-	)
+	_, err := q.db.ExecContext(ctx, ToggleAgentFile, arg.Enabled, arg.AgentID, arg.FileID)
 	return err
 }
 
 const ToggleAgentKnowledgeBase = `-- name: ToggleAgentKnowledgeBase :exec
 UPDATE agents_knowledge_bases
 SET enabled = ?
-WHERE agent_id = ? AND knowledge_base_id = ? AND user_id = ?
+WHERE agent_id = ? AND knowledge_base_id = ?
 `
 
 type ToggleAgentKnowledgeBaseParams struct {
 	Enabled         int64  `json:"enabled"`
 	AgentID         string `json:"agentId"`
 	KnowledgeBaseID string `json:"knowledgeBaseId"`
-	UserID          string `json:"userId"`
 }
 
 func (q *Queries) ToggleAgentKnowledgeBase(ctx context.Context, arg ToggleAgentKnowledgeBaseParams) error {
-	_, err := q.db.ExecContext(ctx, ToggleAgentKnowledgeBase,
-		arg.Enabled,
-		arg.AgentID,
-		arg.KnowledgeBaseID,
-		arg.UserID,
-	)
+	_, err := q.db.ExecContext(ctx, ToggleAgentKnowledgeBase, arg.Enabled, arg.AgentID, arg.KnowledgeBaseID)
 	return err
 }
 
 const UnlinkAgentFromFile = `-- name: UnlinkAgentFromFile :exec
 DELETE FROM agents_files
-WHERE file_id = ? AND agent_id = ? AND user_id = ?
+WHERE file_id = ? AND agent_id = ?
 `
 
 type UnlinkAgentFromFileParams struct {
 	FileID  string `json:"fileId"`
 	AgentID string `json:"agentId"`
-	UserID  string `json:"userId"`
 }
 
 func (q *Queries) UnlinkAgentFromFile(ctx context.Context, arg UnlinkAgentFromFileParams) error {
-	_, err := q.db.ExecContext(ctx, UnlinkAgentFromFile, arg.FileID, arg.AgentID, arg.UserID)
+	_, err := q.db.ExecContext(ctx, UnlinkAgentFromFile, arg.FileID, arg.AgentID)
 	return err
 }
 
 const UnlinkAgentFromKnowledgeBase = `-- name: UnlinkAgentFromKnowledgeBase :exec
 DELETE FROM agents_knowledge_bases
-WHERE agent_id = ? AND knowledge_base_id = ? AND user_id = ?
+WHERE agent_id = ? AND knowledge_base_id = ?
 `
 
 type UnlinkAgentFromKnowledgeBaseParams struct {
 	AgentID         string `json:"agentId"`
 	KnowledgeBaseID string `json:"knowledgeBaseId"`
-	UserID          string `json:"userId"`
 }
 
 func (q *Queries) UnlinkAgentFromKnowledgeBase(ctx context.Context, arg UnlinkAgentFromKnowledgeBaseParams) error {
-	_, err := q.db.ExecContext(ctx, UnlinkAgentFromKnowledgeBase, arg.AgentID, arg.KnowledgeBaseID, arg.UserID)
+	_, err := q.db.ExecContext(ctx, UnlinkAgentFromKnowledgeBase, arg.AgentID, arg.KnowledgeBaseID)
 	return err
 }
 
 const UnlinkAgentFromSession = `-- name: UnlinkAgentFromSession :exec
 DELETE FROM agents_to_sessions
-WHERE agent_id = ? AND session_id = ? AND user_id = ?
+WHERE agent_id = ? AND session_id = ?
 `
 
 type UnlinkAgentFromSessionParams struct {
 	AgentID   string `json:"agentId"`
 	SessionID string `json:"sessionId"`
-	UserID    string `json:"userId"`
 }
 
 func (q *Queries) UnlinkAgentFromSession(ctx context.Context, arg UnlinkAgentFromSessionParams) error {
-	_, err := q.db.ExecContext(ctx, UnlinkAgentFromSession, arg.AgentID, arg.SessionID, arg.UserID)
+	_, err := q.db.ExecContext(ctx, UnlinkAgentFromSession, arg.AgentID, arg.SessionID)
 	return err
 }
 
@@ -1031,8 +933,8 @@ SET title = ?,
     opening_message = ?,
     opening_questions = ?,
     updated_at = ?
-WHERE id = ? AND user_id = ?
-RETURNING id, slug, title, description, tags, avatar, background_color, plugins, user_id, chat_config, few_shots, model, params, provider, system_role, tts, "virtual", opening_message, opening_questions, created_at, updated_at
+WHERE id = ?
+RETURNING id, slug, title, description, tags, avatar, background_color, plugins, chat_config, few_shots, model, params, provider, system_role, tts, "virtual", opening_message, opening_questions, created_at, updated_at
 `
 
 type UpdateAgentParams struct {
@@ -1053,7 +955,6 @@ type UpdateAgentParams struct {
 	OpeningQuestions sql.NullString `json:"openingQuestions"`
 	UpdatedAt        int64          `json:"updatedAt"`
 	ID               string         `json:"id"`
-	UserID           string         `json:"userId"`
 }
 
 func (q *Queries) UpdateAgent(ctx context.Context, arg UpdateAgentParams) (Agent, error) {
@@ -1075,7 +976,6 @@ func (q *Queries) UpdateAgent(ctx context.Context, arg UpdateAgentParams) (Agent
 		arg.OpeningQuestions,
 		arg.UpdatedAt,
 		arg.ID,
-		arg.UserID,
 	)
 	var i Agent
 	err := row.Scan(
@@ -1087,7 +987,6 @@ func (q *Queries) UpdateAgent(ctx context.Context, arg UpdateAgentParams) (Agent
 		&i.Avatar,
 		&i.BackgroundColor,
 		&i.Plugins,
-		&i.UserID,
 		&i.ChatConfig,
 		&i.FewShots,
 		&i.Model,

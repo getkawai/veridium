@@ -35,8 +35,8 @@ export function GetEmbedder(): $CancellablePromise<llamaembed$0.Embedder> {
 /**
  * SemanticSearch performs semantic search on chunks using DuckDB + SQLite
  */
-export function SemanticSearch(userID: string, query: string, fileIDs: string[], limit: number): $CancellablePromise<$models.SearchResult[]> {
-    return $Call.ByID(3829428111, userID, query, fileIDs, limit).then(($result: any) => {
+export function SemanticSearch(query: string, fileIDs: string[], limit: number): $CancellablePromise<$models.SearchResult[]> {
+    return $Call.ByID(3829428111, query, fileIDs, limit).then(($result: any) => {
         return $$createType1($result);
     });
 }
@@ -44,8 +44,8 @@ export function SemanticSearch(userID: string, query: string, fileIDs: string[],
 /**
  * SemanticSearchMultipleFiles performs semantic search across multiple files
  */
-export function SemanticSearchMultipleFiles(userID: string, query: string, fileIDs: string[], limit: number): $CancellablePromise<$models.SearchResult[]> {
-    return $Call.ByID(3120119170, userID, query, fileIDs, limit).then(($result: any) => {
+export function SemanticSearchMultipleFiles(query: string, fileIDs: string[], limit: number): $CancellablePromise<$models.SearchResult[]> {
+    return $Call.ByID(3120119170, query, fileIDs, limit).then(($result: any) => {
         return $$createType1($result);
     });
 }

@@ -30,15 +30,15 @@ export function CreateThread(req: $models.CreateThreadRequest): $CancellableProm
 /**
  * DeleteThread deletes a thread
  */
-export function DeleteThread(threadID: string, userID: string): $CancellablePromise<void> {
-    return $Call.ByID(1748637968, threadID, userID);
+export function DeleteThread(threadID: string): $CancellablePromise<void> {
+    return $Call.ByID(1748637968, threadID);
 }
 
 /**
  * GetThread retrieves a single thread by ID
  */
-export function GetThread(threadID: string, userID: string): $CancellablePromise<$models.ThreadInfo | null> {
-    return $Call.ByID(1665891689, threadID, userID).then(($result: any) => {
+export function GetThread(threadID: string): $CancellablePromise<$models.ThreadInfo | null> {
+    return $Call.ByID(1665891689, threadID).then(($result: any) => {
         return $$createType3($result);
     });
 }
@@ -47,8 +47,8 @@ export function GetThread(threadID: string, userID: string): $CancellablePromise
  * GetThreadMessages retrieves all messages in a thread
  * This returns messages that have the thread_id set
  */
-export function GetThreadMessages(threadID: string, userID: string): $CancellablePromise<db$0.Message[]> {
-    return $Call.ByID(3110997449, threadID, userID).then(($result: any) => {
+export function GetThreadMessages(threadID: string): $CancellablePromise<db$0.Message[]> {
+    return $Call.ByID(3110997449, threadID).then(($result: any) => {
         return $$createType5($result);
     });
 }
@@ -65,15 +65,15 @@ export function ListThreadsByTopic(req: $models.ListThreadsRequest): $Cancellabl
 /**
  * UpdateThreadLastActive updates the last active time of a thread
  */
-export function UpdateThreadLastActive(threadID: string, userID: string): $CancellablePromise<void> {
-    return $Call.ByID(1073717100, threadID, userID);
+export function UpdateThreadLastActive(threadID: string): $CancellablePromise<void> {
+    return $Call.ByID(1073717100, threadID);
 }
 
 /**
  * UpdateThreadStatus updates the status of a thread
  */
-export function UpdateThreadStatus(threadID: string, userID: string, status: $models.ThreadStatus): $CancellablePromise<void> {
-    return $Call.ByID(1752417880, threadID, userID, status);
+export function UpdateThreadStatus(threadID: string, status: $models.ThreadStatus): $CancellablePromise<void> {
+    return $Call.ByID(1752417880, threadID, status);
 }
 
 // Private type creation functions

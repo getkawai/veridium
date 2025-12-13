@@ -469,12 +469,13 @@ func (s *AgentChatService) GetToolRegistry() *tools.ToolRegistry {
 
 // RegisterMemoryTool registers the search_memory tool for recalling stored memories
 // Also stores reference to memoryIntegration for auto-storing conversations
-func (s *AgentChatService) RegisterMemoryTool(memoryIntegration *MemoryIntegration, userID string) error {
+func (s *AgentChatService) RegisterMemoryTool(memoryIntegration *MemoryIntegration) error {
+
 	if memoryIntegration == nil {
 		return nil
 	}
 	s.memoryIntegration = memoryIntegration
-	if err := memoryIntegration.RegisterMemoryTool(s.toolRegistry, userID); err != nil {
+	if err := memoryIntegration.RegisterMemoryTool(s.toolRegistry); err != nil {
 		return err
 	}
 	log.Printf("✅ AgentChatService: Memory tool registered (search_memory)")
@@ -536,7 +537,7 @@ func (s *AgentChatService) getOrCreateSession(ctx context.Context, req ChatReque
 	log.Printf("🆕 Creating new session: %s", req.SessionID)
 
 	// Create session in DB (handle race condition with UNIQUE constraint)
-	dbSession, err = s.createSessionInDB(ctx, req.SessionID, req.UserID, req.KnowledgeBaseID)
+	dbSession, err = s.createSessionInDB(ctx, req.SessionID, req.KnowledgeBaseID)
 	if err != nil {
 		// Check if error is due to UNIQUE constraint (race condition)
 		// Must NOT be FOREIGN KEY constraint (which is a real error, not race condition)
@@ -634,10 +635,10 @@ func (s *AgentChatService) collectToolNames(ctx context.Context, req ChatRequest
 	// Add KB search tool if KB is specified
 	if req.KnowledgeBaseID != "" {
 		// Register KB tool to registry if not exists
-		if err := s.registerKBSearchTool(ctx, req.KnowledgeBaseID, req.UserID); err != nil {
+		if err := s.registerKBSearchTool(ctx, req.KnowledgeBaseID); err != nil {
 			log.Printf("⚠️  Warning: Failed to register KB tool: %v", err)
 		} else {
-			kb, err := s.kbService.GetKnowledgeBase(ctx, req.KnowledgeBaseID, req.UserID)
+			kb, err := s.kbService.GetKnowledgeBase(ctx, req.KnowledgeBaseID)
 			if err == nil {
 				toolNames = append(toolNames, fmt.Sprintf("search_%s", kb.Name))
 			}
@@ -760,8 +761,8 @@ func (s *AgentChatService) getHistoryMessages(session *AgentSession) []fantasy.M
 }
 
 // registerKBSearchTool registers a knowledge base search tool to the yzma registry
-func (s *AgentChatService) registerKBSearchTool(ctx context.Context, kbID, userID string) error {
-	kb, err := s.kbService.GetKnowledgeBase(ctx, kbID, userID)
+func (s *AgentChatService) registerKBSearchTool(ctx context.Context, kbID string) error {
+	kb, err := s.kbService.GetKnowledgeBase(ctx, kbID)
 	if err != nil {
 		return err
 	}
@@ -797,7 +798,7 @@ func (s *AgentChatService) registerKBSearchTool(ctx context.Context, kbID, userI
 				}
 			}
 
-			docs, err := kbService.QueryKnowledgeBase(execCtx, kbID, query, topK, userID)
+			docs, err := kbService.QueryKnowledgeBase(execCtx, kbID, query, topK)
 			if err != nil {
 				return "", fmt.Errorf("KB search failed: %w", err)
 			}
@@ -841,12 +842,10 @@ func stripThinkTags(text string) string {
 
 // createTopicForSessionSync creates a topic synchronously and returns the topicID
 // Phase 4: Used to create topic before first message so we have topicID for message saving
-func (s *AgentChatService) createTopicForSessionSync(ctx context.Context, sessionID, userID string) (string, error) {
+func (s *AgentChatService) createTopicForSessionSync(ctx context.Context, sessionID string) (string, error) {
 	// Check if topic already exists for this session
-	count, err := s.db.Queries().CountTopicsBySession(ctx, db.CountTopicsBySessionParams{
-		SessionID: sql.NullString{String: sessionID, Valid: true},
-		UserID:    userID,
-	})
+	// Check if topic already exists for this session
+	count, err := s.db.Queries().CountTopicsBySession(ctx, sql.NullString{String: sessionID, Valid: true})
 	if err != nil {
 		return "", fmt.Errorf("failed to check existing topics: %w", err)
 	}
@@ -871,7 +870,6 @@ func (s *AgentChatService) createTopicForSessionSync(ctx context.Context, sessio
 		Favorite:       0,
 		SessionID:      sessionIDForDB,
 		GroupID:        sql.NullString{},
-		UserID:         userID,
 		HistorySummary: sql.NullString{},
 		Metadata:       sql.NullString{},
 		CreatedAt:      now,
@@ -923,9 +921,8 @@ func convertDBMessageToYzma(dbMsg *db.Message) (fantasy.Message, bool) {
 func (s *AgentChatService) loadSessionFromDB(ctx context.Context, sessionID, userID string) (*db.Session, []db.Message, error) {
 	// Load session metadata (sessionID can be either ID or slug)
 	dbSession, err := s.db.Queries().GetSessionByIdOrSlug(ctx, db.GetSessionByIdOrSlugParams{
-		ID:     sessionID,
-		Slug:   sessionID,
-		UserID: userID,
+		ID:   sessionID,
+		Slug: sessionID,
 	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("session not found in DB: %w", err)
@@ -933,7 +930,6 @@ func (s *AgentChatService) loadSessionFromDB(ctx context.Context, sessionID, use
 
 	// Load message history (use actual session ID from DB, not slug)
 	dbMessages, err := s.db.Queries().ListMessagesBySession(ctx, db.ListMessagesBySessionParams{
-		UserID:    userID,
 		SessionID: sql.NullString{String: dbSession.ID, Valid: true},
 		Limit:     1000, // Load up to 1000 messages
 		Offset:    0,
@@ -948,7 +944,7 @@ func (s *AgentChatService) loadSessionFromDB(ctx context.Context, sessionID, use
 }
 
 // createSessionInDB creates a new session in database
-func (s *AgentChatService) createSessionInDB(ctx context.Context, sessionID, userID, kbID string) (*db.Session, error) {
+func (s *AgentChatService) createSessionInDB(ctx context.Context, sessionID, kbID string) (*db.Session, error) {
 	now := time.Now().UnixMilli()
 
 	// Generate unique slug from sessionID
@@ -962,7 +958,6 @@ func (s *AgentChatService) createSessionInDB(ctx context.Context, sessionID, use
 	params := db.CreateSessionParams{
 		ID:        sessionID,
 		Slug:      slug,
-		UserID:    userID,
 		Type:      sql.NullString{String: "agent", Valid: true},
 		Pinned:    0,
 		CreatedAt: now,
@@ -971,7 +966,7 @@ func (s *AgentChatService) createSessionInDB(ctx context.Context, sessionID, use
 
 	// Set title based on KB if available
 	if kbID != "" {
-		kb, err := s.kbService.GetKnowledgeBase(ctx, kbID, userID)
+		kb, err := s.kbService.GetKnowledgeBase(ctx, kbID)
 		if err == nil {
 			params.Title = sql.NullString{
 				String: fmt.Sprintf("Chat with %s", kb.Name),
@@ -993,14 +988,11 @@ func (s *AgentChatService) createSessionInDB(ctx context.Context, sessionID, use
 }
 
 // updateSessionTimestamp updates the session's updated_at timestamp
-func (s *AgentChatService) updateSessionTimestamp(ctx context.Context, sessionID, userID string) error {
+func (s *AgentChatService) updateSessionTimestamp(ctx context.Context, sessionID string) error {
 	now := time.Now().UnixMilli()
 
 	// Get current session
-	dbSession, err := s.db.Queries().GetSession(ctx, db.GetSessionParams{
-		ID:     sessionID,
-		UserID: userID,
-	})
+	dbSession, err := s.db.Queries().GetSession(ctx, sessionID)
 	if err != nil {
 		return fmt.Errorf("session not found: %w", err)
 	}
@@ -1015,7 +1007,6 @@ func (s *AgentChatService) updateSessionTimestamp(ctx context.Context, sessionID
 		Pinned:          dbSession.Pinned,
 		UpdatedAt:       now,
 		ID:              sessionID,
-		UserID:          userID,
 	})
 
 	return err
@@ -1061,7 +1052,7 @@ func (s *AgentChatService) switchToRecommendedModel() error {
 
 // autoSummarizeIfNeeded checks conditions and triggers summary automatically
 // Runs in background goroutine, does not block chat response
-func (s *AgentChatService) autoSummarizeIfNeeded(ctx context.Context, session *AgentSession, topicID, userID string) {
+func (s *AgentChatService) autoSummarizeIfNeeded(ctx context.Context, session *AgentSession, topicID string) {
 	if topicID == "" {
 		return // No topic, no summary
 	}
@@ -1079,10 +1070,7 @@ func (s *AgentChatService) autoSummarizeIfNeeded(ctx context.Context, session *A
 	}
 
 	// 3. Check if we already summarized recently
-	topic, err := s.db.Queries().GetTopic(ctx, db.GetTopicParams{
-		ID:     topicID,
-		UserID: userID,
-	})
+	topic, err := s.db.Queries().GetTopic(ctx, topicID)
 	if err != nil {
 		log.Printf("⚠️  autoSummarize: Failed to get topic: %v", err)
 		return
@@ -1094,10 +1082,7 @@ func (s *AgentChatService) autoSummarizeIfNeeded(ctx context.Context, session *A
 	}
 
 	// 4. Get messages from database (not from session, could be stale)
-	messages, err := s.db.Queries().GetMessagesByTopicId(ctx, db.GetMessagesByTopicIdParams{
-		TopicID: sql.NullString{String: topicID, Valid: true},
-		UserID:  userID,
-	})
+	messages, err := s.db.Queries().GetMessagesByTopicId(ctx, sql.NullString{String: topicID, Valid: true})
 	if err != nil || len(messages) < 4 {
 		log.Printf("⚠️  autoSummarize: Not enough messages to summarize: %d", len(messages))
 		return
@@ -1148,7 +1133,6 @@ func (s *AgentChatService) autoSummarizeIfNeeded(ctx context.Context, session *A
 		},
 		UpdatedAt: now,
 		ID:        topicID,
-		UserID:    userID,
 	})
 
 	if err != nil {
@@ -1251,7 +1235,7 @@ Please summarize the above conversation and retain key information. The summariz
 
 // incrementalSummarizeIfNeeded checks if existing summary needs update with new messages
 // Runs in background goroutine, does not block chat response
-func (s *AgentChatService) incrementalSummarizeIfNeeded(ctx context.Context, session *AgentSession, topicID, userID string) {
+func (s *AgentChatService) incrementalSummarizeIfNeeded(ctx context.Context, session *AgentSession, topicID string) {
 	if topicID == "" {
 		return // No topic, no summary
 	}
@@ -1263,10 +1247,7 @@ func (s *AgentChatService) incrementalSummarizeIfNeeded(ctx context.Context, ses
 	}
 
 	// 2. Get topic with existing summary
-	topic, err := s.db.Queries().GetTopic(ctx, db.GetTopicParams{
-		ID:     topicID,
-		UserID: userID,
-	})
+	topic, err := s.db.Queries().GetTopic(ctx, topicID)
 	if err != nil {
 		return // Topic not found
 	}
@@ -1291,10 +1272,7 @@ func (s *AgentChatService) incrementalSummarizeIfNeeded(ctx context.Context, ses
 	}
 
 	// 5. Get all messages from database
-	allMessages, err := s.db.Queries().GetMessagesByTopicId(ctx, db.GetMessagesByTopicIdParams{
-		TopicID: sql.NullString{String: topicID, Valid: true},
-		UserID:  userID,
-	})
+	allMessages, err := s.db.Queries().GetMessagesByTopicId(ctx, sql.NullString{String: topicID, Valid: true})
 	if err != nil {
 		log.Printf("⚠️  incrementalSummarize: Failed to get messages: %v", err)
 		return
@@ -1364,7 +1342,6 @@ func (s *AgentChatService) incrementalSummarizeIfNeeded(ctx context.Context, ses
 	// 12. Save updated summary to database
 	_, err = s.db.Queries().UpdateTopic(ctx, db.UpdateTopicParams{
 		ID:             topicID,
-		UserID:         userID,
 		Title:          topic.Title,
 		HistorySummary: sql.NullString{String: mergedSummary, Valid: true},
 		Metadata:       sql.NullString{String: string(metadataJSON), Valid: true},

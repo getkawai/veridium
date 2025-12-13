@@ -1,21 +1,20 @@
 -- name: GetAsyncTask :one
-SELECT * FROM async_tasks WHERE id = ? AND user_id = ?;
+SELECT * FROM async_tasks WHERE id = ?;
 
 -- name: ListAsyncTasks :many
 SELECT * FROM async_tasks
-WHERE user_id = ?
 ORDER BY created_at DESC
 LIMIT ? OFFSET ?;
 
 -- name: ListAsyncTasksByStatus :many
 SELECT * FROM async_tasks
-WHERE user_id = ? AND status = ?
+WHERE status = ?
 ORDER BY created_at DESC;
 
 -- name: CreateAsyncTask :one
 INSERT INTO async_tasks (
-    id, type, status, error, user_id, duration, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    id, type, status, error, duration, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpdateAsyncTask :one
@@ -24,11 +23,11 @@ SET status = ?,
     error = ?,
     duration = ?,
     updated_at = ?
-WHERE id = ? AND user_id = ?
+WHERE id = ?
 RETURNING *;
 
 -- name: DeleteAsyncTask :exec
-DELETE FROM async_tasks WHERE id = ? AND user_id = ?;
+DELETE FROM async_tasks WHERE id = ?;
 
 -- name: GetAsyncTasksByIds :many
 SELECT * FROM async_tasks
@@ -46,4 +45,3 @@ SET status = ?,
     error = ?,
     updated_at = ?
 WHERE id IN (sqlc.slice('ids'));
-

@@ -1,16 +1,15 @@
 -- name: GetFile :one
-SELECT * FROM files WHERE id = ? AND user_id = ?;
+SELECT * FROM files WHERE id = ?;
 
 -- name: ListFiles :many
 SELECT * FROM files
-WHERE user_id = ?
 ORDER BY created_at DESC
 LIMIT ? OFFSET ?;
 
 -- name: CreateFile :one
 INSERT INTO files (
-    user_id, file_type, file_hash, name, size, url, source, metadata
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    file_type, file_hash, name, size, url, source, metadata
+) VALUES (?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpdateFile :one
@@ -18,11 +17,11 @@ UPDATE files
 SET name = ?,
     metadata = ?,
     updated_at = ?
-WHERE id = ? AND user_id = ?
+WHERE id = ?
 RETURNING *;
 
 -- name: DeleteFile :exec
-DELETE FROM files WHERE id = ? AND user_id = ?;
+DELETE FROM files WHERE id = ?;
 
 -- Global Files
 
@@ -42,18 +41,17 @@ RETURNING *;
 -- Knowledge Bases
 
 -- name: GetKnowledgeBase :one
-SELECT * FROM knowledge_bases WHERE id = ? AND user_id = ?;
+SELECT * FROM knowledge_bases WHERE id = ?;
 
 -- name: ListKnowledgeBases :many
 SELECT * FROM knowledge_bases
-WHERE user_id = ?
 ORDER BY created_at DESC;
 
 -- name: CreateKnowledgeBase :one
 INSERT INTO knowledge_bases (
-    id, name, description, avatar, type, user_id,
+    id, name, description, avatar, type,
     is_public, settings
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpdateKnowledgeBase :one
@@ -63,32 +61,32 @@ SET name = ?,
     avatar = ?,
     settings = ?,
     updated_at = ?
-WHERE id = ? AND user_id = ?
+WHERE id = ?
 RETURNING *;
 
 -- name: DeleteKnowledgeBase :exec
-DELETE FROM knowledge_bases WHERE id = ? AND user_id = ?;
+DELETE FROM knowledge_bases WHERE id = ?;
 
 -- name: DeleteAllKnowledgeBases :exec
-DELETE FROM knowledge_bases WHERE user_id = ?;
+DELETE FROM knowledge_bases;
 
 -- name: BatchLinkKnowledgeBaseToFiles :exec
-INSERT INTO knowledge_base_files (knowledge_base_id, file_id, user_id)
-VALUES (?, ?, ?);
+INSERT INTO knowledge_base_files (knowledge_base_id, file_id)
+VALUES (?, ?);
 
 -- Knowledge Base Files
 
 -- name: LinkKnowledgeBaseToFile :exec
-INSERT INTO knowledge_base_files (knowledge_base_id, file_id, user_id)
-VALUES (?, ?, ?);
+INSERT INTO knowledge_base_files (knowledge_base_id, file_id)
+VALUES (?, ?);
 
 -- name: ListKnowledgeBaseFiles :many
 SELECT * FROM knowledge_base_files
-WHERE knowledge_base_id = ? AND user_id = ?;
+WHERE knowledge_base_id = ?;
 
 -- name: UnlinkKnowledgeBaseFromFile :exec
 DELETE FROM knowledge_base_files
-WHERE knowledge_base_id = ? AND file_id = ? AND user_id = ?;
+WHERE knowledge_base_id = ? AND file_id = ?;
 
 -- name: BatchUnlinkKnowledgeBaseFromFiles :exec
 DELETE FROM knowledge_base_files
@@ -97,22 +95,22 @@ WHERE knowledge_base_id = ? AND file_id = ?;
 -- name: GetKnowledgeBaseFiles :many
 SELECT f.* FROM files f
 INNER JOIN knowledge_base_files kbf ON f.id = kbf.file_id
-WHERE kbf.knowledge_base_id = ? AND kbf.user_id = ?;
+WHERE kbf.knowledge_base_id = ?;
 
 -- Files to Sessions
 
 -- name: LinkFileToSession :exec
-INSERT INTO files_to_sessions (file_id, session_id, user_id)
-VALUES (?, ?, ?);
+INSERT INTO files_to_sessions (file_id, session_id)
+VALUES (?, ?);
 
 -- name: UnlinkFileFromSession :exec
 DELETE FROM files_to_sessions
-WHERE file_id = ? AND session_id = ? AND user_id = ?;
+WHERE file_id = ? AND session_id = ?;
 
 -- name: GetSessionFiles :many
 SELECT f.* FROM files f
 INNER JOIN files_to_sessions fts ON f.id = fts.file_id
-WHERE fts.session_id = ? AND fts.user_id = ?;
+WHERE fts.session_id = ?;
 
 -- Complex file queries
 
@@ -123,24 +121,21 @@ WHERE file_hash = ?;
 
 -- name: GetFilesByHash :many
 SELECT * FROM files
-WHERE file_hash = ? AND user_id = ?;
+WHERE file_hash = ?;
 
 -- name: GetFilesByIds :many
-SELECT * FROM files
-WHERE user_id = ?;
+SELECT * FROM files;
 
 -- name: GetFilesByNames :many
 SELECT * FROM files
-WHERE user_id = ?
 ORDER BY created_at DESC;
 
 -- name: CountFilesUsage :one
 SELECT COALESCE(SUM(size), 0) as total_size
-FROM files
-WHERE user_id = ?;
+FROM files;
 
 -- name: DeleteAllFiles :exec
-DELETE FROM files WHERE user_id = ?;
+DELETE FROM files;
 
 -- name: DeleteGlobalFile :exec
 DELETE FROM global_files WHERE hash_id = ?;
@@ -160,7 +155,6 @@ SELECT
     f.created_at,
     f.updated_at
 FROM files f
-WHERE f.user_id = ?
 ORDER BY f.created_at DESC;
 
 -- name: QueryFilesByKnowledgeBase :many
@@ -174,6 +168,5 @@ SELECT
     f.updated_at
 FROM files f
 INNER JOIN knowledge_base_files kbf ON f.id = kbf.file_id
-WHERE kbf.knowledge_base_id = ? AND f.user_id = ?
+WHERE kbf.knowledge_base_id = ?
 ORDER BY f.created_at DESC;
-

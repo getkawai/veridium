@@ -12,9 +12,9 @@ import (
 
 const CreatePlugin = `-- name: CreatePlugin :one
 INSERT INTO user_installed_plugins (
-    identifier, type, manifest, custom_params, settings, user_id, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING user_id, identifier, type, manifest, settings, custom_params, created_at, updated_at
+    identifier, type, manifest, custom_params, settings, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?)
+RETURNING identifier, type, manifest, settings, custom_params, created_at, updated_at
 `
 
 type CreatePluginParams struct {
@@ -23,7 +23,6 @@ type CreatePluginParams struct {
 	Manifest     sql.NullString `json:"manifest"`
 	CustomParams sql.NullString `json:"customParams"`
 	Settings     sql.NullString `json:"settings"`
-	UserID       string         `json:"userId"`
 	CreatedAt    int64          `json:"createdAt"`
 	UpdatedAt    int64          `json:"updatedAt"`
 }
@@ -35,13 +34,11 @@ func (q *Queries) CreatePlugin(ctx context.Context, arg CreatePluginParams) (Use
 		arg.Manifest,
 		arg.CustomParams,
 		arg.Settings,
-		arg.UserID,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
 	var i UserInstalledPlugin
 	err := row.Scan(
-		&i.UserID,
 		&i.Identifier,
 		&i.Type,
 		&i.Manifest,
@@ -54,46 +51,35 @@ func (q *Queries) CreatePlugin(ctx context.Context, arg CreatePluginParams) (Use
 }
 
 const DeleteAllPlugins = `-- name: DeleteAllPlugins :exec
-DELETE FROM user_installed_plugins WHERE user_id = ?
+DELETE FROM user_installed_plugins
 `
 
-func (q *Queries) DeleteAllPlugins(ctx context.Context, userID string) error {
-	_, err := q.db.ExecContext(ctx, DeleteAllPlugins, userID)
+func (q *Queries) DeleteAllPlugins(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, DeleteAllPlugins)
 	return err
 }
 
 const DeletePlugin = `-- name: DeletePlugin :exec
 DELETE FROM user_installed_plugins
-WHERE identifier = ? AND user_id = ?
+WHERE identifier = ?
 `
 
-type DeletePluginParams struct {
-	Identifier string `json:"identifier"`
-	UserID     string `json:"userId"`
-}
-
-func (q *Queries) DeletePlugin(ctx context.Context, arg DeletePluginParams) error {
-	_, err := q.db.ExecContext(ctx, DeletePlugin, arg.Identifier, arg.UserID)
+func (q *Queries) DeletePlugin(ctx context.Context, identifier string) error {
+	_, err := q.db.ExecContext(ctx, DeletePlugin, identifier)
 	return err
 }
 
 const GetPlugin = `-- name: GetPlugin :one
 
-SELECT user_id, identifier, type, manifest, settings, custom_params, created_at, updated_at FROM user_installed_plugins
-WHERE identifier = ? AND user_id = ?
+SELECT identifier, type, manifest, settings, custom_params, created_at, updated_at FROM user_installed_plugins
+WHERE identifier = ?
 `
 
-type GetPluginParams struct {
-	Identifier string `json:"identifier"`
-	UserID     string `json:"userId"`
-}
-
 // Plugins
-func (q *Queries) GetPlugin(ctx context.Context, arg GetPluginParams) (UserInstalledPlugin, error) {
-	row := q.db.QueryRowContext(ctx, GetPlugin, arg.Identifier, arg.UserID)
+func (q *Queries) GetPlugin(ctx context.Context, identifier string) (UserInstalledPlugin, error) {
+	row := q.db.QueryRowContext(ctx, GetPlugin, identifier)
 	var i UserInstalledPlugin
 	err := row.Scan(
-		&i.UserID,
 		&i.Identifier,
 		&i.Type,
 		&i.Manifest,
@@ -106,13 +92,12 @@ func (q *Queries) GetPlugin(ctx context.Context, arg GetPluginParams) (UserInsta
 }
 
 const ListPlugins = `-- name: ListPlugins :many
-SELECT user_id, identifier, type, manifest, settings, custom_params, created_at, updated_at FROM user_installed_plugins
-WHERE user_id = ?
+SELECT identifier, type, manifest, settings, custom_params, created_at, updated_at FROM user_installed_plugins
 ORDER BY created_at DESC
 `
 
-func (q *Queries) ListPlugins(ctx context.Context, userID string) ([]UserInstalledPlugin, error) {
-	rows, err := q.db.QueryContext(ctx, ListPlugins, userID)
+func (q *Queries) ListPlugins(ctx context.Context) ([]UserInstalledPlugin, error) {
+	rows, err := q.db.QueryContext(ctx, ListPlugins)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +106,6 @@ func (q *Queries) ListPlugins(ctx context.Context, userID string) ([]UserInstall
 	for rows.Next() {
 		var i UserInstalledPlugin
 		if err := rows.Scan(
-			&i.UserID,
 			&i.Identifier,
 			&i.Type,
 			&i.Manifest,
@@ -150,7 +134,7 @@ SET type = ?,
     custom_params = ?,
     settings = ?,
     updated_at = ?
-WHERE identifier = ? AND user_id = ?
+WHERE identifier = ?
 `
 
 type UpdatePluginParams struct {
@@ -160,7 +144,6 @@ type UpdatePluginParams struct {
 	Settings     sql.NullString `json:"settings"`
 	UpdatedAt    int64          `json:"updatedAt"`
 	Identifier   string         `json:"identifier"`
-	UserID       string         `json:"userId"`
 }
 
 func (q *Queries) UpdatePlugin(ctx context.Context, arg UpdatePluginParams) error {
@@ -171,22 +154,21 @@ func (q *Queries) UpdatePlugin(ctx context.Context, arg UpdatePluginParams) erro
 		arg.Settings,
 		arg.UpdatedAt,
 		arg.Identifier,
-		arg.UserID,
 	)
 	return err
 }
 
 const UpsertPlugin = `-- name: UpsertPlugin :one
 INSERT INTO user_installed_plugins (
-    identifier, type, manifest, custom_params, settings, user_id, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(identifier, user_id) DO UPDATE SET
+    identifier, type, manifest, custom_params, settings, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(identifier) DO UPDATE SET
     type = excluded.type,
     manifest = excluded.manifest,
     custom_params = excluded.custom_params,
     settings = excluded.settings,
     updated_at = excluded.updated_at
-RETURNING user_id, identifier, type, manifest, settings, custom_params, created_at, updated_at
+RETURNING identifier, type, manifest, settings, custom_params, created_at, updated_at
 `
 
 type UpsertPluginParams struct {
@@ -195,7 +177,6 @@ type UpsertPluginParams struct {
 	Manifest     sql.NullString `json:"manifest"`
 	CustomParams sql.NullString `json:"customParams"`
 	Settings     sql.NullString `json:"settings"`
-	UserID       string         `json:"userId"`
 	CreatedAt    int64          `json:"createdAt"`
 	UpdatedAt    int64          `json:"updatedAt"`
 }
@@ -207,13 +188,11 @@ func (q *Queries) UpsertPlugin(ctx context.Context, arg UpsertPluginParams) (Use
 		arg.Manifest,
 		arg.CustomParams,
 		arg.Settings,
-		arg.UserID,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
 	var i UserInstalledPlugin
 	err := row.Scan(
-		&i.UserID,
 		&i.Identifier,
 		&i.Type,
 		&i.Manifest,

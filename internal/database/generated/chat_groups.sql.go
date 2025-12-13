@@ -12,15 +12,14 @@ import (
 
 const BatchLinkChatGroupToAgents = `-- name: BatchLinkChatGroupToAgents :exec
 INSERT INTO chat_groups_agents (
-    chat_group_id, agent_id, user_id, enabled, sort_order, role,
+    chat_group_id, agent_id, enabled, sort_order, role,
     created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?)
 `
 
 type BatchLinkChatGroupToAgentsParams struct {
 	ChatGroupID string         `json:"chatGroupId"`
 	AgentID     string         `json:"agentId"`
-	UserID      string         `json:"userId"`
 	Enabled     int64          `json:"enabled"`
 	SortOrder   sql.NullInt64  `json:"sortOrder"`
 	Role        sql.NullString `json:"role"`
@@ -32,7 +31,6 @@ func (q *Queries) BatchLinkChatGroupToAgents(ctx context.Context, arg BatchLinkC
 	_, err := q.db.ExecContext(ctx, BatchLinkChatGroupToAgents,
 		arg.ChatGroupID,
 		arg.AgentID,
-		arg.UserID,
 		arg.Enabled,
 		arg.SortOrder,
 		arg.Role,
@@ -44,10 +42,10 @@ func (q *Queries) BatchLinkChatGroupToAgents(ctx context.Context, arg BatchLinkC
 
 const CreateChatGroup = `-- name: CreateChatGroup :one
 INSERT INTO chat_groups (
-    id, title, description, config, user_id, group_id, pinned,
+    id, title, description, config, group_id, pinned,
     created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, title, description, config, user_id, group_id, pinned, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, title, description, config, group_id, pinned, created_at, updated_at
 `
 
 type CreateChatGroupParams struct {
@@ -55,7 +53,6 @@ type CreateChatGroupParams struct {
 	Title       sql.NullString `json:"title"`
 	Description sql.NullString `json:"description"`
 	Config      sql.NullString `json:"config"`
-	UserID      string         `json:"userId"`
 	GroupID     sql.NullString `json:"groupId"`
 	Pinned      int64          `json:"pinned"`
 	CreatedAt   int64          `json:"createdAt"`
@@ -68,7 +65,6 @@ func (q *Queries) CreateChatGroup(ctx context.Context, arg CreateChatGroupParams
 		arg.Title,
 		arg.Description,
 		arg.Config,
-		arg.UserID,
 		arg.GroupID,
 		arg.Pinned,
 		arg.CreatedAt,
@@ -80,7 +76,6 @@ func (q *Queries) CreateChatGroup(ctx context.Context, arg CreateChatGroupParams
 		&i.Title,
 		&i.Description,
 		&i.Config,
-		&i.UserID,
 		&i.GroupID,
 		&i.Pinned,
 		&i.CreatedAt,
@@ -91,10 +86,10 @@ func (q *Queries) CreateChatGroup(ctx context.Context, arg CreateChatGroupParams
 
 const CreateMessageGroup = `-- name: CreateMessageGroup :one
 INSERT INTO message_groups (
-    id, title, description, topic_id, user_id, parent_group_id,
+    id, title, description, topic_id, parent_group_id,
     parent_message_id, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, title, description, topic_id, user_id, parent_group_id, parent_message_id, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, title, description, topic_id, parent_group_id, parent_message_id, created_at, updated_at
 `
 
 type CreateMessageGroupParams struct {
@@ -102,7 +97,6 @@ type CreateMessageGroupParams struct {
 	Title           sql.NullString `json:"title"`
 	Description     sql.NullString `json:"description"`
 	TopicID         sql.NullString `json:"topicId"`
-	UserID          string         `json:"userId"`
 	ParentGroupID   sql.NullString `json:"parentGroupId"`
 	ParentMessageID sql.NullString `json:"parentMessageId"`
 	CreatedAt       int64          `json:"createdAt"`
@@ -115,7 +109,6 @@ func (q *Queries) CreateMessageGroup(ctx context.Context, arg CreateMessageGroup
 		arg.Title,
 		arg.Description,
 		arg.TopicID,
-		arg.UserID,
 		arg.ParentGroupID,
 		arg.ParentMessageID,
 		arg.CreatedAt,
@@ -127,7 +120,6 @@ func (q *Queries) CreateMessageGroup(ctx context.Context, arg CreateMessageGroup
 		&i.Title,
 		&i.Description,
 		&i.TopicID,
-		&i.UserID,
 		&i.ParentGroupID,
 		&i.ParentMessageID,
 		&i.CreatedAt,
@@ -137,60 +129,44 @@ func (q *Queries) CreateMessageGroup(ctx context.Context, arg CreateMessageGroup
 }
 
 const DeleteAllChatGroups = `-- name: DeleteAllChatGroups :exec
-DELETE FROM chat_groups WHERE user_id = ?
+DELETE FROM chat_groups
 `
 
-func (q *Queries) DeleteAllChatGroups(ctx context.Context, userID string) error {
-	_, err := q.db.ExecContext(ctx, DeleteAllChatGroups, userID)
+func (q *Queries) DeleteAllChatGroups(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, DeleteAllChatGroups)
 	return err
 }
 
 const DeleteChatGroup = `-- name: DeleteChatGroup :exec
-DELETE FROM chat_groups WHERE id = ? AND user_id = ?
+DELETE FROM chat_groups WHERE id = ?
 `
 
-type DeleteChatGroupParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
-func (q *Queries) DeleteChatGroup(ctx context.Context, arg DeleteChatGroupParams) error {
-	_, err := q.db.ExecContext(ctx, DeleteChatGroup, arg.ID, arg.UserID)
+func (q *Queries) DeleteChatGroup(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, DeleteChatGroup, id)
 	return err
 }
 
 const DeleteMessageGroup = `-- name: DeleteMessageGroup :exec
-DELETE FROM message_groups WHERE id = ? AND user_id = ?
+DELETE FROM message_groups WHERE id = ?
 `
 
-type DeleteMessageGroupParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
-func (q *Queries) DeleteMessageGroup(ctx context.Context, arg DeleteMessageGroupParams) error {
-	_, err := q.db.ExecContext(ctx, DeleteMessageGroup, arg.ID, arg.UserID)
+func (q *Queries) DeleteMessageGroup(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, DeleteMessageGroup, id)
 	return err
 }
 
 const GetChatGroup = `-- name: GetChatGroup :one
-SELECT id, title, description, config, user_id, group_id, pinned, created_at, updated_at FROM chat_groups WHERE id = ? AND user_id = ?
+SELECT id, title, description, config, group_id, pinned, created_at, updated_at FROM chat_groups WHERE id = ?
 `
 
-type GetChatGroupParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
-func (q *Queries) GetChatGroup(ctx context.Context, arg GetChatGroupParams) (ChatGroup, error) {
-	row := q.db.QueryRowContext(ctx, GetChatGroup, arg.ID, arg.UserID)
+func (q *Queries) GetChatGroup(ctx context.Context, id string) (ChatGroup, error) {
+	row := q.db.QueryRowContext(ctx, GetChatGroup, id)
 	var i ChatGroup
 	err := row.Scan(
 		&i.ID,
 		&i.Title,
 		&i.Description,
 		&i.Config,
-		&i.UserID,
 		&i.GroupID,
 		&i.Pinned,
 		&i.CreatedAt,
@@ -200,18 +176,13 @@ func (q *Queries) GetChatGroup(ctx context.Context, arg GetChatGroupParams) (Cha
 }
 
 const GetChatGroupAgentLinks = `-- name: GetChatGroupAgentLinks :many
-SELECT chat_group_id, agent_id, user_id, enabled, sort_order, role, created_at, updated_at FROM chat_groups_agents
-WHERE chat_group_id = ? AND user_id = ?
+SELECT chat_group_id, agent_id, enabled, sort_order, role, created_at, updated_at FROM chat_groups_agents
+WHERE chat_group_id = ?
 ORDER BY sort_order ASC
 `
 
-type GetChatGroupAgentLinksParams struct {
-	ChatGroupID string `json:"chatGroupId"`
-	UserID      string `json:"userId"`
-}
-
-func (q *Queries) GetChatGroupAgentLinks(ctx context.Context, arg GetChatGroupAgentLinksParams) ([]ChatGroupsAgent, error) {
-	rows, err := q.db.QueryContext(ctx, GetChatGroupAgentLinks, arg.ChatGroupID, arg.UserID)
+func (q *Queries) GetChatGroupAgentLinks(ctx context.Context, chatGroupID string) ([]ChatGroupsAgent, error) {
+	rows, err := q.db.QueryContext(ctx, GetChatGroupAgentLinks, chatGroupID)
 	if err != nil {
 		return nil, err
 	}
@@ -222,7 +193,6 @@ func (q *Queries) GetChatGroupAgentLinks(ctx context.Context, arg GetChatGroupAg
 		if err := rows.Scan(
 			&i.ChatGroupID,
 			&i.AgentID,
-			&i.UserID,
 			&i.Enabled,
 			&i.SortOrder,
 			&i.Role,
@@ -243,19 +213,14 @@ func (q *Queries) GetChatGroupAgentLinks(ctx context.Context, arg GetChatGroupAg
 }
 
 const GetChatGroupAgents = `-- name: GetChatGroupAgents :many
-SELECT a.id, a.slug, a.title, a.description, a.tags, a.avatar, a.background_color, a.plugins, a.user_id, a.chat_config, a.few_shots, a.model, a.params, a.provider, a.system_role, a.tts, a."virtual", a.opening_message, a.opening_questions, a.created_at, a.updated_at FROM agents a
+SELECT a.id, a.slug, a.title, a.description, a.tags, a.avatar, a.background_color, a.plugins, a.chat_config, a.few_shots, a.model, a.params, a.provider, a.system_role, a.tts, a."virtual", a.opening_message, a.opening_questions, a.created_at, a.updated_at FROM agents a
 INNER JOIN chat_groups_agents cga ON a.id = cga.agent_id
-WHERE cga.chat_group_id = ? AND cga.user_id = ?
+WHERE cga.chat_group_id = ?
 ORDER BY cga.sort_order ASC
 `
 
-type GetChatGroupAgentsParams struct {
-	ChatGroupID string `json:"chatGroupId"`
-	UserID      string `json:"userId"`
-}
-
-func (q *Queries) GetChatGroupAgents(ctx context.Context, arg GetChatGroupAgentsParams) ([]Agent, error) {
-	rows, err := q.db.QueryContext(ctx, GetChatGroupAgents, arg.ChatGroupID, arg.UserID)
+func (q *Queries) GetChatGroupAgents(ctx context.Context, chatGroupID string) ([]Agent, error) {
+	rows, err := q.db.QueryContext(ctx, GetChatGroupAgents, chatGroupID)
 	if err != nil {
 		return nil, err
 	}
@@ -272,7 +237,6 @@ func (q *Queries) GetChatGroupAgents(ctx context.Context, arg GetChatGroupAgents
 			&i.Avatar,
 			&i.BackgroundColor,
 			&i.Plugins,
-			&i.UserID,
 			&i.ChatConfig,
 			&i.FewShots,
 			&i.Model,
@@ -327,14 +291,9 @@ SELECT
 FROM chat_groups cg
 LEFT JOIN chat_groups_agents cga ON cg.id = cga.chat_group_id
 LEFT JOIN agents a ON cga.agent_id = a.id
-WHERE cg.id = ? AND cg.user_id = ?
+WHERE cg.id = ?
 ORDER BY cga.sort_order ASC
 `
-
-type GetChatGroupWithAgentsParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
 
 type GetChatGroupWithAgentsRow struct {
 	GroupID          string         `json:"groupId"`
@@ -362,8 +321,8 @@ type GetChatGroupWithAgentsRow struct {
 	AgentRole        sql.NullString `json:"agentRole"`
 }
 
-func (q *Queries) GetChatGroupWithAgents(ctx context.Context, arg GetChatGroupWithAgentsParams) ([]GetChatGroupWithAgentsRow, error) {
-	rows, err := q.db.QueryContext(ctx, GetChatGroupWithAgents, arg.ID, arg.UserID)
+func (q *Queries) GetChatGroupWithAgents(ctx context.Context, id string) ([]GetChatGroupWithAgentsRow, error) {
+	rows, err := q.db.QueryContext(ctx, GetChatGroupWithAgents, id)
 	if err != nil {
 		return nil, err
 	}
@@ -410,18 +369,13 @@ func (q *Queries) GetChatGroupWithAgents(ctx context.Context, arg GetChatGroupWi
 }
 
 const GetEnabledChatGroupAgentLinks = `-- name: GetEnabledChatGroupAgentLinks :many
-SELECT chat_group_id, agent_id, user_id, enabled, sort_order, role, created_at, updated_at FROM chat_groups_agents
-WHERE chat_group_id = ? AND user_id = ? AND enabled = 1
+SELECT chat_group_id, agent_id, enabled, sort_order, role, created_at, updated_at FROM chat_groups_agents
+WHERE chat_group_id = ? AND enabled = 1
 ORDER BY sort_order ASC
 `
 
-type GetEnabledChatGroupAgentLinksParams struct {
-	ChatGroupID string `json:"chatGroupId"`
-	UserID      string `json:"userId"`
-}
-
-func (q *Queries) GetEnabledChatGroupAgentLinks(ctx context.Context, arg GetEnabledChatGroupAgentLinksParams) ([]ChatGroupsAgent, error) {
-	rows, err := q.db.QueryContext(ctx, GetEnabledChatGroupAgentLinks, arg.ChatGroupID, arg.UserID)
+func (q *Queries) GetEnabledChatGroupAgentLinks(ctx context.Context, chatGroupID string) ([]ChatGroupsAgent, error) {
+	rows, err := q.db.QueryContext(ctx, GetEnabledChatGroupAgentLinks, chatGroupID)
 	if err != nil {
 		return nil, err
 	}
@@ -432,7 +386,6 @@ func (q *Queries) GetEnabledChatGroupAgentLinks(ctx context.Context, arg GetEnab
 		if err := rows.Scan(
 			&i.ChatGroupID,
 			&i.AgentID,
-			&i.UserID,
 			&i.Enabled,
 			&i.SortOrder,
 			&i.Role,
@@ -454,24 +407,18 @@ func (q *Queries) GetEnabledChatGroupAgentLinks(ctx context.Context, arg GetEnab
 
 const GetMessageGroup = `-- name: GetMessageGroup :one
 
-SELECT id, title, description, topic_id, user_id, parent_group_id, parent_message_id, created_at, updated_at FROM message_groups WHERE id = ? AND user_id = ?
+SELECT id, title, description, topic_id, parent_group_id, parent_message_id, created_at, updated_at FROM message_groups WHERE id = ?
 `
 
-type GetMessageGroupParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
 // Message Groups
-func (q *Queries) GetMessageGroup(ctx context.Context, arg GetMessageGroupParams) (MessageGroup, error) {
-	row := q.db.QueryRowContext(ctx, GetMessageGroup, arg.ID, arg.UserID)
+func (q *Queries) GetMessageGroup(ctx context.Context, id string) (MessageGroup, error) {
+	row := q.db.QueryRowContext(ctx, GetMessageGroup, id)
 	var i MessageGroup
 	err := row.Scan(
 		&i.ID,
 		&i.Title,
 		&i.Description,
 		&i.TopicID,
-		&i.UserID,
 		&i.ParentGroupID,
 		&i.ParentMessageID,
 		&i.CreatedAt,
@@ -483,15 +430,14 @@ func (q *Queries) GetMessageGroup(ctx context.Context, arg GetMessageGroupParams
 const LinkChatGroupToAgent = `-- name: LinkChatGroupToAgent :exec
 
 INSERT INTO chat_groups_agents (
-    chat_group_id, agent_id, user_id, enabled, sort_order, role,
+    chat_group_id, agent_id, enabled, sort_order, role,
     created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?)
 `
 
 type LinkChatGroupToAgentParams struct {
 	ChatGroupID string         `json:"chatGroupId"`
 	AgentID     string         `json:"agentId"`
-	UserID      string         `json:"userId"`
 	Enabled     int64          `json:"enabled"`
 	SortOrder   sql.NullInt64  `json:"sortOrder"`
 	Role        sql.NullString `json:"role"`
@@ -504,7 +450,6 @@ func (q *Queries) LinkChatGroupToAgent(ctx context.Context, arg LinkChatGroupToA
 	_, err := q.db.ExecContext(ctx, LinkChatGroupToAgent,
 		arg.ChatGroupID,
 		arg.AgentID,
-		arg.UserID,
 		arg.Enabled,
 		arg.SortOrder,
 		arg.Role,
@@ -515,13 +460,12 @@ func (q *Queries) LinkChatGroupToAgent(ctx context.Context, arg LinkChatGroupToA
 }
 
 const ListChatGroups = `-- name: ListChatGroups :many
-SELECT id, title, description, config, user_id, group_id, pinned, created_at, updated_at FROM chat_groups
-WHERE user_id = ?
+SELECT id, title, description, config, group_id, pinned, created_at, updated_at FROM chat_groups
 ORDER BY updated_at DESC
 `
 
-func (q *Queries) ListChatGroups(ctx context.Context, userID string) ([]ChatGroup, error) {
-	rows, err := q.db.QueryContext(ctx, ListChatGroups, userID)
+func (q *Queries) ListChatGroups(ctx context.Context) ([]ChatGroup, error) {
+	rows, err := q.db.QueryContext(ctx, ListChatGroups)
 	if err != nil {
 		return nil, err
 	}
@@ -534,7 +478,6 @@ func (q *Queries) ListChatGroups(ctx context.Context, userID string) ([]ChatGrou
 			&i.Title,
 			&i.Description,
 			&i.Config,
-			&i.UserID,
 			&i.GroupID,
 			&i.Pinned,
 			&i.CreatedAt,
@@ -582,7 +525,6 @@ SELECT
 FROM chat_groups cg
 LEFT JOIN chat_groups_agents cga ON cg.id = cga.chat_group_id
 LEFT JOIN agents a ON cga.agent_id = a.id
-WHERE cg.user_id = ?
 ORDER BY cg.updated_at DESC, cga.sort_order ASC
 `
 
@@ -613,8 +555,8 @@ type ListChatGroupsWithAgentsRow struct {
 }
 
 // Complex queries with JOINs
-func (q *Queries) ListChatGroupsWithAgents(ctx context.Context, userID string) ([]ListChatGroupsWithAgentsRow, error) {
-	rows, err := q.db.QueryContext(ctx, ListChatGroupsWithAgents, userID)
+func (q *Queries) ListChatGroupsWithAgents(ctx context.Context) ([]ListChatGroupsWithAgentsRow, error) {
+	rows, err := q.db.QueryContext(ctx, ListChatGroupsWithAgents)
 	if err != nil {
 		return nil, err
 	}
@@ -661,18 +603,13 @@ func (q *Queries) ListChatGroupsWithAgents(ctx context.Context, userID string) (
 }
 
 const ListMessageGroupsByTopic = `-- name: ListMessageGroupsByTopic :many
-SELECT id, title, description, topic_id, user_id, parent_group_id, parent_message_id, created_at, updated_at FROM message_groups
-WHERE topic_id = ? AND user_id = ?
+SELECT id, title, description, topic_id, parent_group_id, parent_message_id, created_at, updated_at FROM message_groups
+WHERE topic_id = ?
 ORDER BY created_at ASC
 `
 
-type ListMessageGroupsByTopicParams struct {
-	TopicID sql.NullString `json:"topicId"`
-	UserID  string         `json:"userId"`
-}
-
-func (q *Queries) ListMessageGroupsByTopic(ctx context.Context, arg ListMessageGroupsByTopicParams) ([]MessageGroup, error) {
-	rows, err := q.db.QueryContext(ctx, ListMessageGroupsByTopic, arg.TopicID, arg.UserID)
+func (q *Queries) ListMessageGroupsByTopic(ctx context.Context, topicID sql.NullString) ([]MessageGroup, error) {
+	rows, err := q.db.QueryContext(ctx, ListMessageGroupsByTopic, topicID)
 	if err != nil {
 		return nil, err
 	}
@@ -685,7 +622,6 @@ func (q *Queries) ListMessageGroupsByTopic(ctx context.Context, arg ListMessageG
 			&i.Title,
 			&i.Description,
 			&i.TopicID,
-			&i.UserID,
 			&i.ParentGroupID,
 			&i.ParentMessageID,
 			&i.CreatedAt,
@@ -706,17 +642,16 @@ func (q *Queries) ListMessageGroupsByTopic(ctx context.Context, arg ListMessageG
 
 const UnlinkChatGroupFromAgent = `-- name: UnlinkChatGroupFromAgent :exec
 DELETE FROM chat_groups_agents
-WHERE chat_group_id = ? AND agent_id = ? AND user_id = ?
+WHERE chat_group_id = ? AND agent_id = ?
 `
 
 type UnlinkChatGroupFromAgentParams struct {
 	ChatGroupID string `json:"chatGroupId"`
 	AgentID     string `json:"agentId"`
-	UserID      string `json:"userId"`
 }
 
 func (q *Queries) UnlinkChatGroupFromAgent(ctx context.Context, arg UnlinkChatGroupFromAgentParams) error {
-	_, err := q.db.ExecContext(ctx, UnlinkChatGroupFromAgent, arg.ChatGroupID, arg.AgentID, arg.UserID)
+	_, err := q.db.ExecContext(ctx, UnlinkChatGroupFromAgent, arg.ChatGroupID, arg.AgentID)
 	return err
 }
 
@@ -727,8 +662,8 @@ SET title = ?,
     config = ?,
     pinned = ?,
     updated_at = ?
-WHERE id = ? AND user_id = ?
-RETURNING id, title, description, config, user_id, group_id, pinned, created_at, updated_at
+WHERE id = ?
+RETURNING id, title, description, config, group_id, pinned, created_at, updated_at
 `
 
 type UpdateChatGroupParams struct {
@@ -738,7 +673,6 @@ type UpdateChatGroupParams struct {
 	Pinned      int64          `json:"pinned"`
 	UpdatedAt   int64          `json:"updatedAt"`
 	ID          string         `json:"id"`
-	UserID      string         `json:"userId"`
 }
 
 func (q *Queries) UpdateChatGroup(ctx context.Context, arg UpdateChatGroupParams) (ChatGroup, error) {
@@ -749,7 +683,6 @@ func (q *Queries) UpdateChatGroup(ctx context.Context, arg UpdateChatGroupParams
 		arg.Pinned,
 		arg.UpdatedAt,
 		arg.ID,
-		arg.UserID,
 	)
 	var i ChatGroup
 	err := row.Scan(
@@ -757,7 +690,6 @@ func (q *Queries) UpdateChatGroup(ctx context.Context, arg UpdateChatGroupParams
 		&i.Title,
 		&i.Description,
 		&i.Config,
-		&i.UserID,
 		&i.GroupID,
 		&i.Pinned,
 		&i.CreatedAt,
@@ -772,8 +704,8 @@ SET sort_order = ?,
     role = ?,
     enabled = ?,
     updated_at = ?
-WHERE chat_group_id = ? AND agent_id = ? AND user_id = ?
-RETURNING chat_group_id, agent_id, user_id, enabled, sort_order, role, created_at, updated_at
+WHERE chat_group_id = ? AND agent_id = ?
+RETURNING chat_group_id, agent_id, enabled, sort_order, role, created_at, updated_at
 `
 
 type UpdateChatGroupAgentLinkParams struct {
@@ -783,7 +715,6 @@ type UpdateChatGroupAgentLinkParams struct {
 	UpdatedAt   int64          `json:"updatedAt"`
 	ChatGroupID string         `json:"chatGroupId"`
 	AgentID     string         `json:"agentId"`
-	UserID      string         `json:"userId"`
 }
 
 func (q *Queries) UpdateChatGroupAgentLink(ctx context.Context, arg UpdateChatGroupAgentLinkParams) (ChatGroupsAgent, error) {
@@ -794,13 +725,11 @@ func (q *Queries) UpdateChatGroupAgentLink(ctx context.Context, arg UpdateChatGr
 		arg.UpdatedAt,
 		arg.ChatGroupID,
 		arg.AgentID,
-		arg.UserID,
 	)
 	var i ChatGroupsAgent
 	err := row.Scan(
 		&i.ChatGroupID,
 		&i.AgentID,
-		&i.UserID,
 		&i.Enabled,
 		&i.SortOrder,
 		&i.Role,
@@ -813,7 +742,7 @@ func (q *Queries) UpdateChatGroupAgentLink(ctx context.Context, arg UpdateChatGr
 const UpdateChatGroupAgentOrder = `-- name: UpdateChatGroupAgentOrder :exec
 UPDATE chat_groups_agents
 SET sort_order = ?, updated_at = ?
-WHERE chat_group_id = ? AND agent_id = ? AND user_id = ?
+WHERE chat_group_id = ? AND agent_id = ?
 `
 
 type UpdateChatGroupAgentOrderParams struct {
@@ -821,7 +750,6 @@ type UpdateChatGroupAgentOrderParams struct {
 	UpdatedAt   int64         `json:"updatedAt"`
 	ChatGroupID string        `json:"chatGroupId"`
 	AgentID     string        `json:"agentId"`
-	UserID      string        `json:"userId"`
 }
 
 func (q *Queries) UpdateChatGroupAgentOrder(ctx context.Context, arg UpdateChatGroupAgentOrderParams) error {
@@ -830,7 +758,6 @@ func (q *Queries) UpdateChatGroupAgentOrder(ctx context.Context, arg UpdateChatG
 		arg.UpdatedAt,
 		arg.ChatGroupID,
 		arg.AgentID,
-		arg.UserID,
 	)
 	return err
 }

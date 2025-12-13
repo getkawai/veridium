@@ -26,6 +26,7 @@ import (
 	"github.com/kawai-network/veridium/internal/app"
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/internal/services"
+	"github.com/kawai-network/veridium/internal/topic"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -109,8 +110,9 @@ func main() {
 
 	// Create AgentChatService
 	threadService := services.NewThreadManagementService(wailsApp, appCtx.DB)
+	topicService := topic.NewService(appCtx.DB, wailsApp)
 	agentService := services.NewAgentChatService(
-		wailsApp, appCtx.DB, appCtx.LibService, appCtx.KBService, appCtx.VectorSearch, threadService,
+		wailsApp, appCtx.DB, appCtx.LibService, appCtx.KBService, appCtx.VectorSearch, threadService, topicService,
 	)
 
 	// Inject models
@@ -126,7 +128,7 @@ func main() {
 
 	// Register memory tool
 	if appCtx.MemoryIntegration != nil {
-		if err := agentService.RegisterMemoryTool(appCtx.MemoryIntegration, app.DefaultUserID); err != nil {
+		if err := agentService.RegisterMemoryTool(appCtx.MemoryIntegration); err != nil {
 			fmt.Printf("%s⚠️  Failed to register memory tool: %v%s\n", colorYellow, err, colorReset)
 		}
 	}
@@ -248,7 +250,6 @@ func testBasicChatResponse(ctx context.Context, agent *services.AgentChatService
 
 	// Verify message was saved to DB
 	messages, err := appCtx.DB.Queries().ListMessagesBySession(ctx, db.ListMessagesBySessionParams{
-		UserID:    app.DefaultUserID,
 		SessionID: toNullString("test-session-basic"),
 		Limit:     10,
 		Offset:    0,
@@ -297,7 +298,7 @@ func testMemoryAutoStore(ctx context.Context, agent *services.AgentChatService, 
 	time.Sleep(3 * time.Second)
 
 	// Check if memories were stored
-	memories, err := appCtx.MemoryService.ListMemories(ctx, app.DefaultUserID, 10, 0)
+	memories, err := appCtx.MemoryService.ListMemories(ctx, 10, 0)
 	if err != nil {
 		return TestResult{Passed: false, Error: fmt.Errorf("failed to list memories: %w", err)}
 	}
@@ -362,7 +363,6 @@ func testMemoryRecall(ctx context.Context, agent *services.AgentChatService, app
 
 	// Check messages in DB
 	messages, err := appCtx.DB.Queries().ListMessagesBySession(ctx, db.ListMessagesBySessionParams{
-		UserID:    app.DefaultUserID,
 		SessionID: toNullString(sessionID),
 		Limit:     10,
 		Offset:    0,

@@ -12,10 +12,10 @@ import (
 
 const CreateAPIKey = `-- name: CreateAPIKey :one
 INSERT INTO api_keys (
-    name, key, enabled, expires_at, last_used_at, user_id,
+    name, key, enabled, expires_at, last_used_at,
     created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, name, "key", enabled, expires_at, last_used_at, user_id, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?)
+RETURNING id, name, "key", enabled, expires_at, last_used_at, created_at, updated_at
 `
 
 type CreateAPIKeyParams struct {
@@ -24,7 +24,6 @@ type CreateAPIKeyParams struct {
 	Enabled    int64         `json:"enabled"`
 	ExpiresAt  sql.NullInt64 `json:"expiresAt"`
 	LastUsedAt sql.NullInt64 `json:"lastUsedAt"`
-	UserID     string        `json:"userId"`
 	CreatedAt  int64         `json:"createdAt"`
 	UpdatedAt  int64         `json:"updatedAt"`
 }
@@ -36,7 +35,6 @@ func (q *Queries) CreateAPIKey(ctx context.Context, arg CreateAPIKeyParams) (Api
 		arg.Enabled,
 		arg.ExpiresAt,
 		arg.LastUsedAt,
-		arg.UserID,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
@@ -48,7 +46,6 @@ func (q *Queries) CreateAPIKey(ctx context.Context, arg CreateAPIKeyParams) (Api
 		&i.Enabled,
 		&i.ExpiresAt,
 		&i.LastUsedAt,
-		&i.UserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -56,39 +53,29 @@ func (q *Queries) CreateAPIKey(ctx context.Context, arg CreateAPIKeyParams) (Api
 }
 
 const DeleteAPIKey = `-- name: DeleteAPIKey :exec
-DELETE FROM api_keys WHERE id = ? AND user_id = ?
+DELETE FROM api_keys WHERE id = ?
 `
 
-type DeleteAPIKeyParams struct {
-	ID     int64  `json:"id"`
-	UserID string `json:"userId"`
-}
-
-func (q *Queries) DeleteAPIKey(ctx context.Context, arg DeleteAPIKeyParams) error {
-	_, err := q.db.ExecContext(ctx, DeleteAPIKey, arg.ID, arg.UserID)
+func (q *Queries) DeleteAPIKey(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, DeleteAPIKey, id)
 	return err
 }
 
 const DeleteAllAPIKeys = `-- name: DeleteAllAPIKeys :exec
-DELETE FROM api_keys WHERE user_id = ?
+DELETE FROM api_keys
 `
 
-func (q *Queries) DeleteAllAPIKeys(ctx context.Context, userID string) error {
-	_, err := q.db.ExecContext(ctx, DeleteAllAPIKeys, userID)
+func (q *Queries) DeleteAllAPIKeys(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, DeleteAllAPIKeys)
 	return err
 }
 
 const GetAPIKey = `-- name: GetAPIKey :one
-SELECT id, name, "key", enabled, expires_at, last_used_at, user_id, created_at, updated_at FROM api_keys WHERE id = ? AND user_id = ?
+SELECT id, name, "key", enabled, expires_at, last_used_at, created_at, updated_at FROM api_keys WHERE id = ?
 `
 
-type GetAPIKeyParams struct {
-	ID     int64  `json:"id"`
-	UserID string `json:"userId"`
-}
-
-func (q *Queries) GetAPIKey(ctx context.Context, arg GetAPIKeyParams) (ApiKey, error) {
-	row := q.db.QueryRowContext(ctx, GetAPIKey, arg.ID, arg.UserID)
+func (q *Queries) GetAPIKey(ctx context.Context, id int64) (ApiKey, error) {
+	row := q.db.QueryRowContext(ctx, GetAPIKey, id)
 	var i ApiKey
 	err := row.Scan(
 		&i.ID,
@@ -97,7 +84,6 @@ func (q *Queries) GetAPIKey(ctx context.Context, arg GetAPIKeyParams) (ApiKey, e
 		&i.Enabled,
 		&i.ExpiresAt,
 		&i.LastUsedAt,
-		&i.UserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -105,7 +91,7 @@ func (q *Queries) GetAPIKey(ctx context.Context, arg GetAPIKeyParams) (ApiKey, e
 }
 
 const GetAPIKeyByKey = `-- name: GetAPIKeyByKey :one
-SELECT id, name, "key", enabled, expires_at, last_used_at, user_id, created_at, updated_at FROM api_keys WHERE key = ?
+SELECT id, name, "key", enabled, expires_at, last_used_at, created_at, updated_at FROM api_keys WHERE key = ?
 `
 
 func (q *Queries) GetAPIKeyByKey(ctx context.Context, key string) (ApiKey, error) {
@@ -118,7 +104,6 @@ func (q *Queries) GetAPIKeyByKey(ctx context.Context, key string) (ApiKey, error
 		&i.Enabled,
 		&i.ExpiresAt,
 		&i.LastUsedAt,
-		&i.UserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -126,13 +111,12 @@ func (q *Queries) GetAPIKeyByKey(ctx context.Context, key string) (ApiKey, error
 }
 
 const ListAPIKeys = `-- name: ListAPIKeys :many
-SELECT id, name, "key", enabled, expires_at, last_used_at, user_id, created_at, updated_at FROM api_keys
-WHERE user_id = ?
+SELECT id, name, "key", enabled, expires_at, last_used_at, created_at, updated_at FROM api_keys
 ORDER BY created_at DESC
 `
 
-func (q *Queries) ListAPIKeys(ctx context.Context, userID string) ([]ApiKey, error) {
-	rows, err := q.db.QueryContext(ctx, ListAPIKeys, userID)
+func (q *Queries) ListAPIKeys(ctx context.Context) ([]ApiKey, error) {
+	rows, err := q.db.QueryContext(ctx, ListAPIKeys)
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +131,6 @@ func (q *Queries) ListAPIKeys(ctx context.Context, userID string) ([]ApiKey, err
 			&i.Enabled,
 			&i.ExpiresAt,
 			&i.LastUsedAt,
-			&i.UserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -170,8 +153,8 @@ SET name = ?,
     enabled = ?,
     expires_at = ?,
     updated_at = ?
-WHERE id = ? AND user_id = ?
-RETURNING id, name, "key", enabled, expires_at, last_used_at, user_id, created_at, updated_at
+WHERE id = ?
+RETURNING id, name, "key", enabled, expires_at, last_used_at, created_at, updated_at
 `
 
 type UpdateAPIKeyParams struct {
@@ -180,7 +163,6 @@ type UpdateAPIKeyParams struct {
 	ExpiresAt sql.NullInt64 `json:"expiresAt"`
 	UpdatedAt int64         `json:"updatedAt"`
 	ID        int64         `json:"id"`
-	UserID    string        `json:"userId"`
 }
 
 func (q *Queries) UpdateAPIKey(ctx context.Context, arg UpdateAPIKeyParams) (ApiKey, error) {
@@ -190,7 +172,6 @@ func (q *Queries) UpdateAPIKey(ctx context.Context, arg UpdateAPIKeyParams) (Api
 		arg.ExpiresAt,
 		arg.UpdatedAt,
 		arg.ID,
-		arg.UserID,
 	)
 	var i ApiKey
 	err := row.Scan(
@@ -200,7 +181,6 @@ func (q *Queries) UpdateAPIKey(ctx context.Context, arg UpdateAPIKeyParams) (Api
 		&i.Enabled,
 		&i.ExpiresAt,
 		&i.LastUsedAt,
-		&i.UserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

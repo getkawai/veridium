@@ -12,16 +12,11 @@ import (
 
 const CountSessionsInGroup = `-- name: CountSessionsInGroup :one
 SELECT COUNT(*) FROM sessions
-WHERE group_id = ? AND user_id = ?
+WHERE group_id = ?
 `
 
-type CountSessionsInGroupParams struct {
-	GroupID sql.NullString `json:"groupId"`
-	UserID  string         `json:"userId"`
-}
-
-func (q *Queries) CountSessionsInGroup(ctx context.Context, arg CountSessionsInGroupParams) (int64, error) {
-	row := q.db.QueryRowContext(ctx, CountSessionsInGroup, arg.GroupID, arg.UserID)
+func (q *Queries) CountSessionsInGroup(ctx context.Context, groupID sql.NullString) (int64, error) {
+	row := q.db.QueryRowContext(ctx, CountSessionsInGroup, groupID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -29,16 +24,15 @@ func (q *Queries) CountSessionsInGroup(ctx context.Context, arg CountSessionsInG
 
 const CreateSessionGroup = `-- name: CreateSessionGroup :one
 INSERT INTO session_groups (
-    id, name, sort, user_id, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?)
-RETURNING id, name, sort, user_id, created_at, updated_at
+    id, name, sort, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?)
+RETURNING id, name, sort, created_at, updated_at
 `
 
 type CreateSessionGroupParams struct {
 	ID        string        `json:"id"`
 	Name      string        `json:"name"`
 	Sort      sql.NullInt64 `json:"sort"`
-	UserID    string        `json:"userId"`
 	CreatedAt int64         `json:"createdAt"`
 	UpdatedAt int64         `json:"updatedAt"`
 }
@@ -48,7 +42,6 @@ func (q *Queries) CreateSessionGroup(ctx context.Context, arg CreateSessionGroup
 		arg.ID,
 		arg.Name,
 		arg.Sort,
-		arg.UserID,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
@@ -57,7 +50,6 @@ func (q *Queries) CreateSessionGroup(ctx context.Context, arg CreateSessionGroup
 		&i.ID,
 		&i.Name,
 		&i.Sort,
-		&i.UserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -65,47 +57,36 @@ func (q *Queries) CreateSessionGroup(ctx context.Context, arg CreateSessionGroup
 }
 
 const DeleteAllSessionGroups = `-- name: DeleteAllSessionGroups :exec
-DELETE FROM session_groups WHERE user_id = ?
+DELETE FROM session_groups
 `
 
-func (q *Queries) DeleteAllSessionGroups(ctx context.Context, userID string) error {
-	_, err := q.db.ExecContext(ctx, DeleteAllSessionGroups, userID)
+func (q *Queries) DeleteAllSessionGroups(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, DeleteAllSessionGroups)
 	return err
 }
 
 const DeleteSessionGroup = `-- name: DeleteSessionGroup :exec
 DELETE FROM session_groups
-WHERE id = ? AND user_id = ?
+WHERE id = ?
 `
 
-type DeleteSessionGroupParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
-func (q *Queries) DeleteSessionGroup(ctx context.Context, arg DeleteSessionGroupParams) error {
-	_, err := q.db.ExecContext(ctx, DeleteSessionGroup, arg.ID, arg.UserID)
+func (q *Queries) DeleteSessionGroup(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, DeleteSessionGroup, id)
 	return err
 }
 
 const GetSessionGroup = `-- name: GetSessionGroup :one
-SELECT id, name, sort, user_id, created_at, updated_at FROM session_groups
-WHERE id = ? AND user_id = ?
+SELECT id, name, sort, created_at, updated_at FROM session_groups
+WHERE id = ?
 `
 
-type GetSessionGroupParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
-func (q *Queries) GetSessionGroup(ctx context.Context, arg GetSessionGroupParams) (SessionGroup, error) {
-	row := q.db.QueryRowContext(ctx, GetSessionGroup, arg.ID, arg.UserID)
+func (q *Queries) GetSessionGroup(ctx context.Context, id string) (SessionGroup, error) {
+	row := q.db.QueryRowContext(ctx, GetSessionGroup, id)
 	var i SessionGroup
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
 		&i.Sort,
-		&i.UserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -114,37 +95,30 @@ func (q *Queries) GetSessionGroup(ctx context.Context, arg GetSessionGroupParams
 
 const GetSessionGroupWithSessions = `-- name: GetSessionGroupWithSessions :one
 SELECT 
-    sg.id, sg.name, sg.sort, sg.user_id, sg.created_at, sg.updated_at,
+    sg.id, sg.name, sg.sort, sg.created_at, sg.updated_at,
     COUNT(s.id) as session_count
 FROM session_groups sg
 LEFT JOIN sessions s ON sg.id = s.group_id
-WHERE sg.id = ? AND sg.user_id = ?
+WHERE sg.id = ?
 GROUP BY sg.id
 `
-
-type GetSessionGroupWithSessionsParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
 
 type GetSessionGroupWithSessionsRow struct {
 	ID           string        `json:"id"`
 	Name         string        `json:"name"`
 	Sort         sql.NullInt64 `json:"sort"`
-	UserID       string        `json:"userId"`
 	CreatedAt    int64         `json:"createdAt"`
 	UpdatedAt    int64         `json:"updatedAt"`
 	SessionCount int64         `json:"sessionCount"`
 }
 
-func (q *Queries) GetSessionGroupWithSessions(ctx context.Context, arg GetSessionGroupWithSessionsParams) (GetSessionGroupWithSessionsRow, error) {
-	row := q.db.QueryRowContext(ctx, GetSessionGroupWithSessions, arg.ID, arg.UserID)
+func (q *Queries) GetSessionGroupWithSessions(ctx context.Context, id string) (GetSessionGroupWithSessionsRow, error) {
+	row := q.db.QueryRowContext(ctx, GetSessionGroupWithSessions, id)
 	var i GetSessionGroupWithSessionsRow
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
 		&i.Sort,
-		&i.UserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.SessionCount,
@@ -153,13 +127,12 @@ func (q *Queries) GetSessionGroupWithSessions(ctx context.Context, arg GetSessio
 }
 
 const ListSessionGroups = `-- name: ListSessionGroups :many
-SELECT id, name, sort, user_id, created_at, updated_at FROM session_groups
-WHERE user_id = ?
+SELECT id, name, sort, created_at, updated_at FROM session_groups
 ORDER BY sort ASC, created_at DESC
 `
 
-func (q *Queries) ListSessionGroups(ctx context.Context, userID string) ([]SessionGroup, error) {
-	rows, err := q.db.QueryContext(ctx, ListSessionGroups, userID)
+func (q *Queries) ListSessionGroups(ctx context.Context) ([]SessionGroup, error) {
+	rows, err := q.db.QueryContext(ctx, ListSessionGroups)
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +144,6 @@ func (q *Queries) ListSessionGroups(ctx context.Context, userID string) ([]Sessi
 			&i.ID,
 			&i.Name,
 			&i.Sort,
-			&i.UserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -191,8 +163,8 @@ func (q *Queries) ListSessionGroups(ctx context.Context, userID string) ([]Sessi
 const UpdateSessionGroup = `-- name: UpdateSessionGroup :one
 UPDATE session_groups
 SET name = ?, sort = ?, updated_at = ?
-WHERE id = ? AND user_id = ?
-RETURNING id, name, sort, user_id, created_at, updated_at
+WHERE id = ?
+RETURNING id, name, sort, created_at, updated_at
 `
 
 type UpdateSessionGroupParams struct {
@@ -200,7 +172,6 @@ type UpdateSessionGroupParams struct {
 	Sort      sql.NullInt64 `json:"sort"`
 	UpdatedAt int64         `json:"updatedAt"`
 	ID        string        `json:"id"`
-	UserID    string        `json:"userId"`
 }
 
 func (q *Queries) UpdateSessionGroup(ctx context.Context, arg UpdateSessionGroupParams) (SessionGroup, error) {
@@ -209,14 +180,12 @@ func (q *Queries) UpdateSessionGroup(ctx context.Context, arg UpdateSessionGroup
 		arg.Sort,
 		arg.UpdatedAt,
 		arg.ID,
-		arg.UserID,
 	)
 	var i SessionGroup
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
 		&i.Sort,
-		&i.UserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -226,22 +195,16 @@ func (q *Queries) UpdateSessionGroup(ctx context.Context, arg UpdateSessionGroup
 const UpdateSessionGroupOrder = `-- name: UpdateSessionGroupOrder :exec
 UPDATE session_groups
 SET sort = ?, updated_at = ?
-WHERE id = ? AND user_id = ?
+WHERE id = ?
 `
 
 type UpdateSessionGroupOrderParams struct {
 	Sort      sql.NullInt64 `json:"sort"`
 	UpdatedAt int64         `json:"updatedAt"`
 	ID        string        `json:"id"`
-	UserID    string        `json:"userId"`
 }
 
 func (q *Queries) UpdateSessionGroupOrder(ctx context.Context, arg UpdateSessionGroupOrderParams) error {
-	_, err := q.db.ExecContext(ctx, UpdateSessionGroupOrder,
-		arg.Sort,
-		arg.UpdatedAt,
-		arg.ID,
-		arg.UserID,
-	)
+	_, err := q.db.ExecContext(ctx, UpdateSessionGroupOrder, arg.Sort, arg.UpdatedAt, arg.ID)
 	return err
 }

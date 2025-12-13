@@ -23,8 +23,8 @@ import * as $models from "./models.js";
  * It copies the file to local storage and processes it for RAG
  * Returns the processed file response with the relative URL for frontend display
  */
-export function ProcessFileFromPath(absolutePath: string, userID: string): $CancellablePromise<$models.ProcessFileFromPathResponse | null> {
-    return $Call.ByID(1128345069, absolutePath, userID).then(($result: any) => {
+export function ProcessFileFromPath(absolutePath: string): $CancellablePromise<$models.ProcessFileFromPathResponse | null> {
+    return $Call.ByID(1128345069, absolutePath).then(($result: any) => {
         return $$createType1($result);
     });
 }

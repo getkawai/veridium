@@ -14,14 +14,13 @@ import (
 const BatchUpdateAIModelEnabled = `-- name: BatchUpdateAIModelEnabled :exec
 UPDATE ai_models
 SET enabled = ?
-WHERE provider_id = ? AND id IN (/*SLICE:ids*/?) AND user_id = ?
+WHERE provider_id = ? AND id IN (/*SLICE:ids*/?)
 `
 
 type BatchUpdateAIModelEnabledParams struct {
 	Enabled    sql.NullInt64 `json:"enabled"`
 	ProviderID string        `json:"providerId"`
 	Ids        []string      `json:"ids"`
-	UserID     string        `json:"userId"`
 }
 
 func (q *Queries) BatchUpdateAIModelEnabled(ctx context.Context, arg BatchUpdateAIModelEnabledParams) error {
@@ -37,7 +36,6 @@ func (q *Queries) BatchUpdateAIModelEnabled(ctx context.Context, arg BatchUpdate
 	} else {
 		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
 	}
-	queryParams = append(queryParams, arg.UserID)
 	_, err := q.db.ExecContext(ctx, query, queryParams...)
 	return err
 }
@@ -45,10 +43,10 @@ func (q *Queries) BatchUpdateAIModelEnabled(ctx context.Context, arg BatchUpdate
 const CreateAIModel = `-- name: CreateAIModel :one
 INSERT INTO ai_models (
     id, display_name, description, organization, enabled, provider_id,
-    type, sort, user_id, pricing, parameters, config, abilities,
+    type, sort, pricing, parameters, config, abilities,
     context_window_tokens, source, released_at, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, display_name, description, organization, enabled, provider_id, type, sort, user_id, pricing, parameters, config, abilities, context_window_tokens, source, released_at, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, display_name, description, organization, enabled, provider_id, type, sort, pricing, parameters, config, abilities, context_window_tokens, source, released_at, created_at, updated_at
 `
 
 type CreateAIModelParams struct {
@@ -60,7 +58,6 @@ type CreateAIModelParams struct {
 	ProviderID          string         `json:"providerId"`
 	Type                string         `json:"type"`
 	Sort                sql.NullInt64  `json:"sort"`
-	UserID              string         `json:"userId"`
 	Pricing             sql.NullString `json:"pricing"`
 	Parameters          sql.NullString `json:"parameters"`
 	Config              sql.NullString `json:"config"`
@@ -82,7 +79,6 @@ func (q *Queries) CreateAIModel(ctx context.Context, arg CreateAIModelParams) (A
 		arg.ProviderID,
 		arg.Type,
 		arg.Sort,
-		arg.UserID,
 		arg.Pricing,
 		arg.Parameters,
 		arg.Config,
@@ -103,7 +99,6 @@ func (q *Queries) CreateAIModel(ctx context.Context, arg CreateAIModelParams) (A
 		&i.ProviderID,
 		&i.Type,
 		&i.Sort,
-		&i.UserID,
 		&i.Pricing,
 		&i.Parameters,
 		&i.Config,
@@ -119,17 +114,16 @@ func (q *Queries) CreateAIModel(ctx context.Context, arg CreateAIModelParams) (A
 
 const CreateAIProvider = `-- name: CreateAIProvider :one
 INSERT INTO ai_providers (
-    id, name, user_id, sort, enabled, fetch_on_client, check_model,
+    id, name, sort, enabled, fetch_on_client, check_model,
     logo, description, key_vaults, source, settings, config,
     created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, name, user_id, sort, enabled, fetch_on_client, check_model, logo, description, key_vaults, source, settings, config, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, name, sort, enabled, fetch_on_client, check_model, logo, description, key_vaults, source, settings, config, created_at, updated_at
 `
 
 type CreateAIProviderParams struct {
 	ID            string         `json:"id"`
 	Name          sql.NullString `json:"name"`
-	UserID        string         `json:"userId"`
 	Sort          sql.NullInt64  `json:"sort"`
 	Enabled       sql.NullInt64  `json:"enabled"`
 	FetchOnClient sql.NullInt64  `json:"fetchOnClient"`
@@ -148,7 +142,6 @@ func (q *Queries) CreateAIProvider(ctx context.Context, arg CreateAIProviderPara
 	row := q.db.QueryRowContext(ctx, CreateAIProvider,
 		arg.ID,
 		arg.Name,
-		arg.UserID,
 		arg.Sort,
 		arg.Enabled,
 		arg.FetchOnClient,
@@ -166,7 +159,6 @@ func (q *Queries) CreateAIProvider(ctx context.Context, arg CreateAIProviderPara
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
-		&i.UserID,
 		&i.Sort,
 		&i.Enabled,
 		&i.FetchOnClient,
@@ -185,113 +177,95 @@ func (q *Queries) CreateAIProvider(ctx context.Context, arg CreateAIProviderPara
 
 const DeleteAIModel = `-- name: DeleteAIModel :exec
 DELETE FROM ai_models
-WHERE id = ? AND provider_id = ? AND user_id = ?
+WHERE id = ? AND provider_id = ?
 `
 
 type DeleteAIModelParams struct {
 	ID         string `json:"id"`
 	ProviderID string `json:"providerId"`
-	UserID     string `json:"userId"`
 }
 
 func (q *Queries) DeleteAIModel(ctx context.Context, arg DeleteAIModelParams) error {
-	_, err := q.db.ExecContext(ctx, DeleteAIModel, arg.ID, arg.ProviderID, arg.UserID)
+	_, err := q.db.ExecContext(ctx, DeleteAIModel, arg.ID, arg.ProviderID)
 	return err
 }
 
 const DeleteAIModelsByProvider = `-- name: DeleteAIModelsByProvider :exec
 DELETE FROM ai_models
-WHERE provider_id = ? AND user_id = ?
+WHERE provider_id = ?
 `
 
-type DeleteAIModelsByProviderParams struct {
-	ProviderID string `json:"providerId"`
-	UserID     string `json:"userId"`
-}
-
-func (q *Queries) DeleteAIModelsByProvider(ctx context.Context, arg DeleteAIModelsByProviderParams) error {
-	_, err := q.db.ExecContext(ctx, DeleteAIModelsByProvider, arg.ProviderID, arg.UserID)
+func (q *Queries) DeleteAIModelsByProvider(ctx context.Context, providerID string) error {
+	_, err := q.db.ExecContext(ctx, DeleteAIModelsByProvider, providerID)
 	return err
 }
 
 const DeleteAIModelsByProviderAndSource = `-- name: DeleteAIModelsByProviderAndSource :exec
 DELETE FROM ai_models
-WHERE provider_id = ? AND source = ? AND user_id = ?
+WHERE provider_id = ? AND source = ?
 `
 
 type DeleteAIModelsByProviderAndSourceParams struct {
 	ProviderID string         `json:"providerId"`
 	Source     sql.NullString `json:"source"`
-	UserID     string         `json:"userId"`
 }
 
 func (q *Queries) DeleteAIModelsByProviderAndSource(ctx context.Context, arg DeleteAIModelsByProviderAndSourceParams) error {
-	_, err := q.db.ExecContext(ctx, DeleteAIModelsByProviderAndSource, arg.ProviderID, arg.Source, arg.UserID)
+	_, err := q.db.ExecContext(ctx, DeleteAIModelsByProviderAndSource, arg.ProviderID, arg.Source)
 	return err
 }
 
 const DeleteAIProvider = `-- name: DeleteAIProvider :exec
-DELETE FROM ai_providers WHERE id = ? AND user_id = ?
+DELETE FROM ai_providers WHERE id = ?
 `
 
-type DeleteAIProviderParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
-func (q *Queries) DeleteAIProvider(ctx context.Context, arg DeleteAIProviderParams) error {
-	_, err := q.db.ExecContext(ctx, DeleteAIProvider, arg.ID, arg.UserID)
+func (q *Queries) DeleteAIProvider(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, DeleteAIProvider, id)
 	return err
 }
 
 const DeleteAllAIModels = `-- name: DeleteAllAIModels :exec
-DELETE FROM ai_models WHERE user_id = ?
+DELETE FROM ai_models
 `
 
-func (q *Queries) DeleteAllAIModels(ctx context.Context, userID string) error {
-	_, err := q.db.ExecContext(ctx, DeleteAllAIModels, userID)
+func (q *Queries) DeleteAllAIModels(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, DeleteAllAIModels)
 	return err
 }
 
 const DeleteAllAIProviders = `-- name: DeleteAllAIProviders :exec
-DELETE FROM ai_providers WHERE user_id = ?
+DELETE FROM ai_providers
 `
 
-func (q *Queries) DeleteAllAIProviders(ctx context.Context, userID string) error {
-	_, err := q.db.ExecContext(ctx, DeleteAllAIProviders, userID)
+func (q *Queries) DeleteAllAIProviders(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, DeleteAllAIProviders)
 	return err
 }
 
 const DeleteModelsByProvider = `-- name: DeleteModelsByProvider :exec
 DELETE FROM ai_models
-WHERE provider_id = ? AND user_id = ?
+WHERE provider_id = ?
 `
 
-type DeleteModelsByProviderParams struct {
-	ProviderID string `json:"providerId"`
-	UserID     string `json:"userId"`
-}
-
-func (q *Queries) DeleteModelsByProvider(ctx context.Context, arg DeleteModelsByProviderParams) error {
-	_, err := q.db.ExecContext(ctx, DeleteModelsByProvider, arg.ProviderID, arg.UserID)
+func (q *Queries) DeleteModelsByProvider(ctx context.Context, providerID string) error {
+	_, err := q.db.ExecContext(ctx, DeleteModelsByProvider, providerID)
 	return err
 }
 
 const GetAIModel = `-- name: GetAIModel :one
 
-SELECT id, display_name, description, organization, enabled, provider_id, type, sort, user_id, pricing, parameters, config, abilities, context_window_tokens, source, released_at, created_at, updated_at FROM ai_models
-WHERE id = ? AND provider_id = ? AND user_id = ?
+SELECT id, display_name, description, organization, enabled, provider_id, type, sort, pricing, parameters, config, abilities, context_window_tokens, source, released_at, created_at, updated_at FROM ai_models
+WHERE id = ? AND provider_id = ?
 `
 
 type GetAIModelParams struct {
 	ID         string `json:"id"`
 	ProviderID string `json:"providerId"`
-	UserID     string `json:"userId"`
 }
 
 // AI Models
 func (q *Queries) GetAIModel(ctx context.Context, arg GetAIModelParams) (AiModel, error) {
-	row := q.db.QueryRowContext(ctx, GetAIModel, arg.ID, arg.ProviderID, arg.UserID)
+	row := q.db.QueryRowContext(ctx, GetAIModel, arg.ID, arg.ProviderID)
 	var i AiModel
 	err := row.Scan(
 		&i.ID,
@@ -302,7 +276,6 @@ func (q *Queries) GetAIModel(ctx context.Context, arg GetAIModelParams) (AiModel
 		&i.ProviderID,
 		&i.Type,
 		&i.Sort,
-		&i.UserID,
 		&i.Pricing,
 		&i.Parameters,
 		&i.Config,
@@ -318,22 +291,16 @@ func (q *Queries) GetAIModel(ctx context.Context, arg GetAIModelParams) (AiModel
 
 const GetAIProvider = `-- name: GetAIProvider :one
 
-SELECT id, name, user_id, sort, enabled, fetch_on_client, check_model, logo, description, key_vaults, source, settings, config, created_at, updated_at FROM ai_providers WHERE id = ? AND user_id = ?
+SELECT id, name, sort, enabled, fetch_on_client, check_model, logo, description, key_vaults, source, settings, config, created_at, updated_at FROM ai_providers WHERE id = ?
 `
 
-type GetAIProviderParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
 // AI Providers
-func (q *Queries) GetAIProvider(ctx context.Context, arg GetAIProviderParams) (AiProvider, error) {
-	row := q.db.QueryRowContext(ctx, GetAIProvider, arg.ID, arg.UserID)
+func (q *Queries) GetAIProvider(ctx context.Context, id string) (AiProvider, error) {
+	row := q.db.QueryRowContext(ctx, GetAIProvider, id)
 	var i AiProvider
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
-		&i.UserID,
 		&i.Sort,
 		&i.Enabled,
 		&i.FetchOnClient,
@@ -364,13 +331,8 @@ SELECT
     fetch_on_client,
     check_model
 FROM ai_providers
-WHERE id = ? AND user_id = ?
+WHERE id = ?
 `
-
-type GetAIProviderDetailParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
 
 type GetAIProviderDetailRow struct {
 	ID            string         `json:"id"`
@@ -386,8 +348,8 @@ type GetAIProviderDetailRow struct {
 	CheckModel    sql.NullString `json:"checkModel"`
 }
 
-func (q *Queries) GetAIProviderDetail(ctx context.Context, arg GetAIProviderDetailParams) (GetAIProviderDetailRow, error) {
-	row := q.db.QueryRowContext(ctx, GetAIProviderDetail, arg.ID, arg.UserID)
+func (q *Queries) GetAIProviderDetail(ctx context.Context, id string) (GetAIProviderDetailRow, error) {
+	row := q.db.QueryRowContext(ctx, GetAIProviderDetail, id)
 	var i GetAIProviderDetailRow
 	err := row.Scan(
 		&i.ID,
@@ -415,7 +377,6 @@ SELECT
     sort,
     source
 FROM ai_providers
-WHERE user_id = ?
 ORDER BY sort ASC, updated_at DESC
 `
 
@@ -429,8 +390,8 @@ type GetAIProviderListSimpleRow struct {
 	Source      sql.NullString `json:"source"`
 }
 
-func (q *Queries) GetAIProviderListSimple(ctx context.Context, userID string) ([]GetAIProviderListSimpleRow, error) {
-	rows, err := q.db.QueryContext(ctx, GetAIProviderListSimple, userID)
+func (q *Queries) GetAIProviderListSimple(ctx context.Context) ([]GetAIProviderListSimpleRow, error) {
+	rows, err := q.db.QueryContext(ctx, GetAIProviderListSimple)
 	if err != nil {
 		return nil, err
 	}
@@ -468,7 +429,6 @@ SELECT
     config,
     fetch_on_client
 FROM ai_providers
-WHERE user_id = ?
 `
 
 type GetAIProviderRuntimeConfigsRow struct {
@@ -479,8 +439,8 @@ type GetAIProviderRuntimeConfigsRow struct {
 	FetchOnClient sql.NullInt64  `json:"fetchOnClient"`
 }
 
-func (q *Queries) GetAIProviderRuntimeConfigs(ctx context.Context, userID string) ([]GetAIProviderRuntimeConfigsRow, error) {
-	rows, err := q.db.QueryContext(ctx, GetAIProviderRuntimeConfigs, userID)
+func (q *Queries) GetAIProviderRuntimeConfigs(ctx context.Context) ([]GetAIProviderRuntimeConfigsRow, error) {
+	rows, err := q.db.QueryContext(ctx, GetAIProviderRuntimeConfigs)
 	if err != nil {
 		return nil, err
 	}
@@ -509,13 +469,12 @@ func (q *Queries) GetAIProviderRuntimeConfigs(ctx context.Context, userID string
 }
 
 const ListAIModels = `-- name: ListAIModels :many
-SELECT id, display_name, description, organization, enabled, provider_id, type, sort, user_id, pricing, parameters, config, abilities, context_window_tokens, source, released_at, created_at, updated_at FROM ai_models
-WHERE user_id = ?
+SELECT id, display_name, description, organization, enabled, provider_id, type, sort, pricing, parameters, config, abilities, context_window_tokens, source, released_at, created_at, updated_at FROM ai_models
 ORDER BY sort ASC
 `
 
-func (q *Queries) ListAIModels(ctx context.Context, userID string) ([]AiModel, error) {
-	rows, err := q.db.QueryContext(ctx, ListAIModels, userID)
+func (q *Queries) ListAIModels(ctx context.Context) ([]AiModel, error) {
+	rows, err := q.db.QueryContext(ctx, ListAIModels)
 	if err != nil {
 		return nil, err
 	}
@@ -532,7 +491,6 @@ func (q *Queries) ListAIModels(ctx context.Context, userID string) ([]AiModel, e
 			&i.ProviderID,
 			&i.Type,
 			&i.Sort,
-			&i.UserID,
 			&i.Pricing,
 			&i.Parameters,
 			&i.Config,
@@ -557,18 +515,13 @@ func (q *Queries) ListAIModels(ctx context.Context, userID string) ([]AiModel, e
 }
 
 const ListAIModelsByProvider = `-- name: ListAIModelsByProvider :many
-SELECT id, display_name, description, organization, enabled, provider_id, type, sort, user_id, pricing, parameters, config, abilities, context_window_tokens, source, released_at, created_at, updated_at FROM ai_models
-WHERE provider_id = ? AND user_id = ?
+SELECT id, display_name, description, organization, enabled, provider_id, type, sort, pricing, parameters, config, abilities, context_window_tokens, source, released_at, created_at, updated_at FROM ai_models
+WHERE provider_id = ?
 ORDER BY sort ASC
 `
 
-type ListAIModelsByProviderParams struct {
-	ProviderID string `json:"providerId"`
-	UserID     string `json:"userId"`
-}
-
-func (q *Queries) ListAIModelsByProvider(ctx context.Context, arg ListAIModelsByProviderParams) ([]AiModel, error) {
-	rows, err := q.db.QueryContext(ctx, ListAIModelsByProvider, arg.ProviderID, arg.UserID)
+func (q *Queries) ListAIModelsByProvider(ctx context.Context, providerID string) ([]AiModel, error) {
+	rows, err := q.db.QueryContext(ctx, ListAIModelsByProvider, providerID)
 	if err != nil {
 		return nil, err
 	}
@@ -585,7 +538,6 @@ func (q *Queries) ListAIModelsByProvider(ctx context.Context, arg ListAIModelsBy
 			&i.ProviderID,
 			&i.Type,
 			&i.Sort,
-			&i.UserID,
 			&i.Pricing,
 			&i.Parameters,
 			&i.Config,
@@ -610,13 +562,12 @@ func (q *Queries) ListAIModelsByProvider(ctx context.Context, arg ListAIModelsBy
 }
 
 const ListAIProviders = `-- name: ListAIProviders :many
-SELECT id, name, user_id, sort, enabled, fetch_on_client, check_model, logo, description, key_vaults, source, settings, config, created_at, updated_at FROM ai_providers
-WHERE user_id = ?
+SELECT id, name, sort, enabled, fetch_on_client, check_model, logo, description, key_vaults, source, settings, config, created_at, updated_at FROM ai_providers
 ORDER BY sort ASC
 `
 
-func (q *Queries) ListAIProviders(ctx context.Context, userID string) ([]AiProvider, error) {
-	rows, err := q.db.QueryContext(ctx, ListAIProviders, userID)
+func (q *Queries) ListAIProviders(ctx context.Context) ([]AiProvider, error) {
+	rows, err := q.db.QueryContext(ctx, ListAIProviders)
 	if err != nil {
 		return nil, err
 	}
@@ -627,7 +578,6 @@ func (q *Queries) ListAIProviders(ctx context.Context, userID string) ([]AiProvi
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
-			&i.UserID,
 			&i.Sort,
 			&i.Enabled,
 			&i.FetchOnClient,
@@ -655,13 +605,13 @@ func (q *Queries) ListAIProviders(ctx context.Context, userID string) ([]AiProvi
 }
 
 const ListEnabledAIModels = `-- name: ListEnabledAIModels :many
-SELECT id, display_name, description, organization, enabled, provider_id, type, sort, user_id, pricing, parameters, config, abilities, context_window_tokens, source, released_at, created_at, updated_at FROM ai_models
-WHERE user_id = ? AND enabled = 1
+SELECT id, display_name, description, organization, enabled, provider_id, type, sort, pricing, parameters, config, abilities, context_window_tokens, source, released_at, created_at, updated_at FROM ai_models
+WHERE enabled = 1
 ORDER BY sort ASC
 `
 
-func (q *Queries) ListEnabledAIModels(ctx context.Context, userID string) ([]AiModel, error) {
-	rows, err := q.db.QueryContext(ctx, ListEnabledAIModels, userID)
+func (q *Queries) ListEnabledAIModels(ctx context.Context) ([]AiModel, error) {
+	rows, err := q.db.QueryContext(ctx, ListEnabledAIModels)
 	if err != nil {
 		return nil, err
 	}
@@ -678,7 +628,6 @@ func (q *Queries) ListEnabledAIModels(ctx context.Context, userID string) ([]AiM
 			&i.ProviderID,
 			&i.Type,
 			&i.Sort,
-			&i.UserID,
 			&i.Pricing,
 			&i.Parameters,
 			&i.Config,
@@ -703,13 +652,13 @@ func (q *Queries) ListEnabledAIModels(ctx context.Context, userID string) ([]AiM
 }
 
 const ListEnabledAIProviders = `-- name: ListEnabledAIProviders :many
-SELECT id, name, user_id, sort, enabled, fetch_on_client, check_model, logo, description, key_vaults, source, settings, config, created_at, updated_at FROM ai_providers
-WHERE user_id = ? AND enabled = 1
+SELECT id, name, sort, enabled, fetch_on_client, check_model, logo, description, key_vaults, source, settings, config, created_at, updated_at FROM ai_providers
+WHERE enabled = 1
 ORDER BY sort ASC
 `
 
-func (q *Queries) ListEnabledAIProviders(ctx context.Context, userID string) ([]AiProvider, error) {
-	rows, err := q.db.QueryContext(ctx, ListEnabledAIProviders, userID)
+func (q *Queries) ListEnabledAIProviders(ctx context.Context) ([]AiProvider, error) {
+	rows, err := q.db.QueryContext(ctx, ListEnabledAIProviders)
 	if err != nil {
 		return nil, err
 	}
@@ -720,7 +669,6 @@ func (q *Queries) ListEnabledAIProviders(ctx context.Context, userID string) ([]
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
-			&i.UserID,
 			&i.Sort,
 			&i.Enabled,
 			&i.FetchOnClient,
@@ -749,19 +697,18 @@ func (q *Queries) ListEnabledAIProviders(ctx context.Context, userID string) ([]
 
 const ToggleAIModelEnabled = `-- name: ToggleAIModelEnabled :one
 INSERT INTO ai_models (
-    id, provider_id, user_id, enabled, type, source, updated_at, created_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(id, provider_id, user_id) DO UPDATE SET
+    id, provider_id, enabled, type, source, updated_at, created_at
+) VALUES (?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id, provider_id) DO UPDATE SET
     enabled = excluded.enabled,
     type = COALESCE(excluded.type, ai_models.type),
     updated_at = excluded.updated_at
-RETURNING id, display_name, description, organization, enabled, provider_id, type, sort, user_id, pricing, parameters, config, abilities, context_window_tokens, source, released_at, created_at, updated_at
+RETURNING id, display_name, description, organization, enabled, provider_id, type, sort, pricing, parameters, config, abilities, context_window_tokens, source, released_at, created_at, updated_at
 `
 
 type ToggleAIModelEnabledParams struct {
 	ID         string         `json:"id"`
 	ProviderID string         `json:"providerId"`
-	UserID     string         `json:"userId"`
 	Enabled    sql.NullInt64  `json:"enabled"`
 	Type       string         `json:"type"`
 	Source     sql.NullString `json:"source"`
@@ -773,7 +720,6 @@ func (q *Queries) ToggleAIModelEnabled(ctx context.Context, arg ToggleAIModelEna
 	row := q.db.QueryRowContext(ctx, ToggleAIModelEnabled,
 		arg.ID,
 		arg.ProviderID,
-		arg.UserID,
 		arg.Enabled,
 		arg.Type,
 		arg.Source,
@@ -790,7 +736,6 @@ func (q *Queries) ToggleAIModelEnabled(ctx context.Context, arg ToggleAIModelEna
 		&i.ProviderID,
 		&i.Type,
 		&i.Sort,
-		&i.UserID,
 		&i.Pricing,
 		&i.Parameters,
 		&i.Config,
@@ -806,17 +751,16 @@ func (q *Queries) ToggleAIModelEnabled(ctx context.Context, arg ToggleAIModelEna
 
 const ToggleAIProviderEnabled = `-- name: ToggleAIProviderEnabled :one
 INSERT INTO ai_providers (
-    id, user_id, enabled, source, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?)
-ON CONFLICT(id, user_id) DO UPDATE SET
+    id, enabled, source, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET
     enabled = excluded.enabled,
     updated_at = excluded.updated_at
-RETURNING id, name, user_id, sort, enabled, fetch_on_client, check_model, logo, description, key_vaults, source, settings, config, created_at, updated_at
+RETURNING id, name, sort, enabled, fetch_on_client, check_model, logo, description, key_vaults, source, settings, config, created_at, updated_at
 `
 
 type ToggleAIProviderEnabledParams struct {
 	ID        string         `json:"id"`
-	UserID    string         `json:"userId"`
 	Enabled   sql.NullInt64  `json:"enabled"`
 	Source    sql.NullString `json:"source"`
 	CreatedAt int64          `json:"createdAt"`
@@ -826,7 +770,6 @@ type ToggleAIProviderEnabledParams struct {
 func (q *Queries) ToggleAIProviderEnabled(ctx context.Context, arg ToggleAIProviderEnabledParams) (AiProvider, error) {
 	row := q.db.QueryRowContext(ctx, ToggleAIProviderEnabled,
 		arg.ID,
-		arg.UserID,
 		arg.Enabled,
 		arg.Source,
 		arg.CreatedAt,
@@ -836,7 +779,6 @@ func (q *Queries) ToggleAIProviderEnabled(ctx context.Context, arg ToggleAIProvi
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
-		&i.UserID,
 		&i.Sort,
 		&i.Enabled,
 		&i.FetchOnClient,
@@ -864,8 +806,8 @@ SET display_name = ?,
     config = ?,
     abilities = ?,
     updated_at = ?
-WHERE id = ? AND provider_id = ? AND user_id = ?
-RETURNING id, display_name, description, organization, enabled, provider_id, type, sort, user_id, pricing, parameters, config, abilities, context_window_tokens, source, released_at, created_at, updated_at
+WHERE id = ? AND provider_id = ?
+RETURNING id, display_name, description, organization, enabled, provider_id, type, sort, pricing, parameters, config, abilities, context_window_tokens, source, released_at, created_at, updated_at
 `
 
 type UpdateAIModelParams struct {
@@ -880,7 +822,6 @@ type UpdateAIModelParams struct {
 	UpdatedAt   int64          `json:"updatedAt"`
 	ID          string         `json:"id"`
 	ProviderID  string         `json:"providerId"`
-	UserID      string         `json:"userId"`
 }
 
 func (q *Queries) UpdateAIModel(ctx context.Context, arg UpdateAIModelParams) (AiModel, error) {
@@ -896,7 +837,6 @@ func (q *Queries) UpdateAIModel(ctx context.Context, arg UpdateAIModelParams) (A
 		arg.UpdatedAt,
 		arg.ID,
 		arg.ProviderID,
-		arg.UserID,
 	)
 	var i AiModel
 	err := row.Scan(
@@ -908,7 +848,6 @@ func (q *Queries) UpdateAIModel(ctx context.Context, arg UpdateAIModelParams) (A
 		&i.ProviderID,
 		&i.Type,
 		&i.Sort,
-		&i.UserID,
 		&i.Pricing,
 		&i.Parameters,
 		&i.Config,
@@ -924,19 +863,18 @@ func (q *Queries) UpdateAIModel(ctx context.Context, arg UpdateAIModelParams) (A
 
 const UpdateAIModelSort = `-- name: UpdateAIModelSort :one
 INSERT INTO ai_models (
-    id, provider_id, user_id, sort, type, enabled, source, updated_at, created_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(id, provider_id, user_id) DO UPDATE SET
+    id, provider_id, sort, type, enabled, source, updated_at, created_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id, provider_id) DO UPDATE SET
     sort = excluded.sort,
     type = COALESCE(excluded.type, ai_models.type),
     updated_at = excluded.updated_at
-RETURNING id, display_name, description, organization, enabled, provider_id, type, sort, user_id, pricing, parameters, config, abilities, context_window_tokens, source, released_at, created_at, updated_at
+RETURNING id, display_name, description, organization, enabled, provider_id, type, sort, pricing, parameters, config, abilities, context_window_tokens, source, released_at, created_at, updated_at
 `
 
 type UpdateAIModelSortParams struct {
 	ID         string         `json:"id"`
 	ProviderID string         `json:"providerId"`
-	UserID     string         `json:"userId"`
 	Sort       sql.NullInt64  `json:"sort"`
 	Type       string         `json:"type"`
 	Enabled    sql.NullInt64  `json:"enabled"`
@@ -949,7 +887,6 @@ func (q *Queries) UpdateAIModelSort(ctx context.Context, arg UpdateAIModelSortPa
 	row := q.db.QueryRowContext(ctx, UpdateAIModelSort,
 		arg.ID,
 		arg.ProviderID,
-		arg.UserID,
 		arg.Sort,
 		arg.Type,
 		arg.Enabled,
@@ -967,7 +904,6 @@ func (q *Queries) UpdateAIModelSort(ctx context.Context, arg UpdateAIModelSortPa
 		&i.ProviderID,
 		&i.Type,
 		&i.Sort,
-		&i.UserID,
 		&i.Pricing,
 		&i.Parameters,
 		&i.Config,
@@ -994,8 +930,8 @@ SET name = ?,
     settings = ?,
     config = ?,
     updated_at = ?
-WHERE id = ? AND user_id = ?
-RETURNING id, name, user_id, sort, enabled, fetch_on_client, check_model, logo, description, key_vaults, source, settings, config, created_at, updated_at
+WHERE id = ?
+RETURNING id, name, sort, enabled, fetch_on_client, check_model, logo, description, key_vaults, source, settings, config, created_at, updated_at
 `
 
 type UpdateAIProviderParams struct {
@@ -1011,7 +947,6 @@ type UpdateAIProviderParams struct {
 	Config        sql.NullString `json:"config"`
 	UpdatedAt     int64          `json:"updatedAt"`
 	ID            string         `json:"id"`
-	UserID        string         `json:"userId"`
 }
 
 func (q *Queries) UpdateAIProvider(ctx context.Context, arg UpdateAIProviderParams) (AiProvider, error) {
@@ -1028,13 +963,11 @@ func (q *Queries) UpdateAIProvider(ctx context.Context, arg UpdateAIProviderPara
 		arg.Config,
 		arg.UpdatedAt,
 		arg.ID,
-		arg.UserID,
 	)
 	var i AiProvider
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
-		&i.UserID,
 		&i.Sort,
 		&i.Enabled,
 		&i.FetchOnClient,
@@ -1054,10 +987,10 @@ func (q *Queries) UpdateAIProvider(ctx context.Context, arg UpdateAIProviderPara
 const UpsertAIModel = `-- name: UpsertAIModel :one
 INSERT INTO ai_models (
     id, display_name, description, organization, enabled, provider_id,
-    type, sort, user_id, pricing, parameters, config, abilities,
+    type, sort, pricing, parameters, config, abilities,
     context_window_tokens, source, released_at, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(id, provider_id, user_id) DO UPDATE SET
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id, provider_id) DO UPDATE SET
     display_name = excluded.display_name,
     description = excluded.description,
     enabled = excluded.enabled,
@@ -1067,7 +1000,7 @@ ON CONFLICT(id, provider_id, user_id) DO UPDATE SET
     config = excluded.config,
     abilities = excluded.abilities,
     updated_at = excluded.updated_at
-RETURNING id, display_name, description, organization, enabled, provider_id, type, sort, user_id, pricing, parameters, config, abilities, context_window_tokens, source, released_at, created_at, updated_at
+RETURNING id, display_name, description, organization, enabled, provider_id, type, sort, pricing, parameters, config, abilities, context_window_tokens, source, released_at, created_at, updated_at
 `
 
 type UpsertAIModelParams struct {
@@ -1079,7 +1012,6 @@ type UpsertAIModelParams struct {
 	ProviderID          string         `json:"providerId"`
 	Type                string         `json:"type"`
 	Sort                sql.NullInt64  `json:"sort"`
-	UserID              string         `json:"userId"`
 	Pricing             sql.NullString `json:"pricing"`
 	Parameters          sql.NullString `json:"parameters"`
 	Config              sql.NullString `json:"config"`
@@ -1101,7 +1033,6 @@ func (q *Queries) UpsertAIModel(ctx context.Context, arg UpsertAIModelParams) (A
 		arg.ProviderID,
 		arg.Type,
 		arg.Sort,
-		arg.UserID,
 		arg.Pricing,
 		arg.Parameters,
 		arg.Config,
@@ -1122,7 +1053,6 @@ func (q *Queries) UpsertAIModel(ctx context.Context, arg UpsertAIModelParams) (A
 		&i.ProviderID,
 		&i.Type,
 		&i.Sort,
-		&i.UserID,
 		&i.Pricing,
 		&i.Parameters,
 		&i.Config,
@@ -1138,11 +1068,11 @@ func (q *Queries) UpsertAIModel(ctx context.Context, arg UpsertAIModelParams) (A
 
 const UpsertAIProvider = `-- name: UpsertAIProvider :one
 INSERT INTO ai_providers (
-    id, name, user_id, sort, enabled, fetch_on_client, check_model,
+    id, name, sort, enabled, fetch_on_client, check_model,
     logo, description, key_vaults, source, settings, config,
     created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(id, user_id) DO UPDATE SET
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET
     name = excluded.name,
     sort = excluded.sort,
     enabled = excluded.enabled,
@@ -1154,13 +1084,12 @@ ON CONFLICT(id, user_id) DO UPDATE SET
     settings = excluded.settings,
     config = excluded.config,
     updated_at = excluded.updated_at
-RETURNING id, name, user_id, sort, enabled, fetch_on_client, check_model, logo, description, key_vaults, source, settings, config, created_at, updated_at
+RETURNING id, name, sort, enabled, fetch_on_client, check_model, logo, description, key_vaults, source, settings, config, created_at, updated_at
 `
 
 type UpsertAIProviderParams struct {
 	ID            string         `json:"id"`
 	Name          sql.NullString `json:"name"`
-	UserID        string         `json:"userId"`
 	Sort          sql.NullInt64  `json:"sort"`
 	Enabled       sql.NullInt64  `json:"enabled"`
 	FetchOnClient sql.NullInt64  `json:"fetchOnClient"`
@@ -1179,7 +1108,6 @@ func (q *Queries) UpsertAIProvider(ctx context.Context, arg UpsertAIProviderPara
 	row := q.db.QueryRowContext(ctx, UpsertAIProvider,
 		arg.ID,
 		arg.Name,
-		arg.UserID,
 		arg.Sort,
 		arg.Enabled,
 		arg.FetchOnClient,
@@ -1197,7 +1125,6 @@ func (q *Queries) UpsertAIProvider(ctx context.Context, arg UpsertAIProviderPara
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
-		&i.UserID,
 		&i.Sort,
 		&i.Enabled,
 		&i.FetchOnClient,
@@ -1216,21 +1143,20 @@ func (q *Queries) UpsertAIProvider(ctx context.Context, arg UpsertAIProviderPara
 
 const UpsertAIProviderConfig = `-- name: UpsertAIProviderConfig :one
 INSERT INTO ai_providers (
-    id, user_id, key_vaults, config, fetch_on_client, check_model,
+    id, key_vaults, config, fetch_on_client, check_model,
     source, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(id, user_id) DO UPDATE SET
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET
     key_vaults = excluded.key_vaults,
     config = excluded.config,
     fetch_on_client = excluded.fetch_on_client,
     check_model = excluded.check_model,
     updated_at = excluded.updated_at
-RETURNING id, name, user_id, sort, enabled, fetch_on_client, check_model, logo, description, key_vaults, source, settings, config, created_at, updated_at
+RETURNING id, name, sort, enabled, fetch_on_client, check_model, logo, description, key_vaults, source, settings, config, created_at, updated_at
 `
 
 type UpsertAIProviderConfigParams struct {
 	ID            string         `json:"id"`
-	UserID        string         `json:"userId"`
 	KeyVaults     sql.NullString `json:"keyVaults"`
 	Config        sql.NullString `json:"config"`
 	FetchOnClient sql.NullInt64  `json:"fetchOnClient"`
@@ -1243,7 +1169,6 @@ type UpsertAIProviderConfigParams struct {
 func (q *Queries) UpsertAIProviderConfig(ctx context.Context, arg UpsertAIProviderConfigParams) (AiProvider, error) {
 	row := q.db.QueryRowContext(ctx, UpsertAIProviderConfig,
 		arg.ID,
-		arg.UserID,
 		arg.KeyVaults,
 		arg.Config,
 		arg.FetchOnClient,
@@ -1256,7 +1181,6 @@ func (q *Queries) UpsertAIProviderConfig(ctx context.Context, arg UpsertAIProvid
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
-		&i.UserID,
 		&i.Sort,
 		&i.Enabled,
 		&i.FetchOnClient,

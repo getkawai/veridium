@@ -46,22 +46,7 @@ export const createCommonSlice: StateCreator<
     console.debug('[refreshUserState] Skipped (handled by useEffect)');
   },
   updateAvatar: async (avatar) => {
-    const userId = getUserId();
-    const now = Date.now();
-    
-    await DB.UpdateUser({
-      id: userId,
-      username: toNullString(''),
-      email: toNullString(''),
-      avatar: toNullString(avatar),
-      phone: toNullString(''),
-      firstName: toNullString(''),
-      lastName: toNullString(''),
-      preference: toNullString(''),
-      updatedAt: now,
-    });
-    
-    console.log('[User] Updated avatar via direct DB');
+    console.warn('[User] no update avatar supported');
 
     await get().refreshUserState();
   },

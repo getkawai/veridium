@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -31,7 +32,7 @@ type FileProcessorService struct {
 	fileLoader     *FileLoader
 	ragProcessor   *RAGProcessor
 	libraryService *llamalib.Service
-	vlProvider     llamavl.Provider      // For VL (Vision-Language) processing
+	vlProvider     llamavl.Provider // For VL (Vision-Language) processing
 	whisperService *whisper.Service
 	languageModel  fantasy.LanguageModel // For OCR/transcript cleanup
 }
@@ -68,7 +69,6 @@ func (s *FileProcessorService) SetVLProvider(provider llamavl.Provider) {
 type ProcessFileRequest struct {
 	FilePath  string
 	Filename  string
-	UserID    string
 	Source    string
 	EnableRAG bool // Whether to process for RAG
 	IsShared  bool // Whether to store in global_files
@@ -87,7 +87,7 @@ type ProcessFileResponse struct {
 // It handles: files → global_files (optional) → documents → chunks (optional)
 // For images, VL model processing is done asynchronously to avoid blocking the UI
 func (s *FileProcessorService) ProcessFile(ctx context.Context, req ProcessFileRequest) (*ProcessFileResponse, error) {
-	xlog.Info("Processing file", "filename", req.Filename, "user_id", req.UserID)
+	xlog.Info("Processing file", "filename", req.Filename)
 
 	response := &ProcessFileResponse{}
 
@@ -123,19 +123,18 @@ func (s *FileProcessorService) ProcessFile(ctx context.Context, req ProcessFileR
 	if s.fileLoader.IsImageFile(detectedFileType) {
 		xlog.Info("Starting async image processing (hybrid OCR/VL)", "filename", req.Filename, "document_id", documentID)
 
-		go s.processImageDescriptionAsync(req.FilePath, req.Filename, documentID, fileID, req.UserID, req.EnableRAG)
+		go s.processImageDescriptionAsync(req.FilePath, req.Filename, documentID, fileID, req.EnableRAG)
 	} else if s.fileLoader.IsVideoFile(detectedFileType) {
 		// Step 4b: If video, generate description using OpenRouter VL model ASYNCHRONOUSLY
 		xlog.Info("Starting async video understanding generation", "filename", req.Filename, "document_id", documentID)
 
-		go s.processVideoDescriptionAsync(req.FilePath, req.Filename, documentID, fileID, req.UserID, req.EnableRAG)
+		go s.processVideoDescriptionAsync(req.FilePath, req.Filename, documentID, fileID, req.EnableRAG)
 	} else if req.EnableRAG && s.fileLoader.CanChunkForRAG(detectedFileType) {
 		// Step 5: Process for RAG (for non-image files, do it synchronously)
 		chunkIDs, err := s.ragProcessor.ProcessFile(ctx, RAGProcessRequest{
 			FilePath:   req.FilePath,
 			FileID:     fileID,
 			DocumentID: documentID,
-			UserID:     req.UserID,
 			Filename:   req.Filename,
 		})
 		if err != nil {
@@ -154,7 +153,7 @@ func (s *FileProcessorService) ProcessFile(ctx context.Context, req ProcessFileR
 // 1. First try Tesseract OCR (fast) for text extraction
 // 2. If significant text found, use that (fast path)
 // 3. If no/minimal text, fallback to VL model for image description (slow path)
-func (s *FileProcessorService) processImageDescriptionAsync(filePath, filename, documentID, fileID, userID string, enableRAG bool) {
+func (s *FileProcessorService) processImageDescriptionAsync(filePath, filename, documentID, fileID string, enableRAG bool) {
 	ctx := context.Background()
 
 	xlog.Info("Async: Starting hybrid image processing", "filename", filename)
@@ -276,7 +275,7 @@ func (s *FileProcessorService) processImageDescriptionAsync(filePath, filename, 
 	contentMarkdown := fmt.Sprintf("\n\n### %s\n\n%s", contentType, finalContent)
 
 	// Update document with content
-	err = s.appendContentToDocument(ctx, documentID, userID, contentMarkdown)
+	err = s.appendContentToDocument(ctx, fileID, contentMarkdown)
 	if err != nil {
 		xlog.Error("Async: Failed to update document", "error", err, "document_id", documentID)
 		return
@@ -290,7 +289,6 @@ func (s *FileProcessorService) processImageDescriptionAsync(filePath, filename, 
 			FilePath:   filePath,
 			FileID:     fileID,
 			DocumentID: documentID,
-			UserID:     userID,
 			Filename:   filename,
 		})
 		if err != nil {
@@ -470,7 +468,7 @@ Output ONLY the corrected text without explanations.`
 
 // processVideoDescriptionAsync extracts audio from video using ffmpeg and transcribes using whisper
 // Uses parallel chunked transcription for faster processing with progressive DB updates
-func (s *FileProcessorService) processVideoDescriptionAsync(filePath, filename, documentID, fileID, userID string, enableRAG bool) {
+func (s *FileProcessorService) processVideoDescriptionAsync(filePath, filename, documentID, fileID string, enableRAG bool) {
 	ctx := context.Background()
 
 	xlog.Info("Async: Starting video transcription (parallel)", "filename", filename)
@@ -510,7 +508,7 @@ func (s *FileProcessorService) processVideoDescriptionAsync(filePath, filename, 
 	xlog.Info("Async: Video info", "duration_sec", duration, "model", modelName, "filename", filename)
 
 	// Initialize transcription header in document
-	err = s.appendContentToDocument(ctx, documentID, userID, "\n\n### Video Transcription (AI Generated via Whisper)\n\n*Transcribing...*\n")
+	err = s.appendContentToDocument(ctx, fileID, "\n\n### Video Transcription (AI Generated via Whisper)\n\n*Transcribing...*\n")
 	if err != nil {
 		xlog.Error("Async: Failed to initialize transcription header", "error", err)
 	}
@@ -531,7 +529,7 @@ func (s *FileProcessorService) processVideoDescriptionAsync(filePath, filename, 
 
 		xlog.Info("Async: Using parallel transcription", "chunks", numChunks, "chunk_duration", chunkDuration)
 
-		fullTranscription, err = s.transcribeVideoParallel(ctx, filePath, modelName, numChunks, chunkDuration, documentID, userID)
+		fullTranscription, err = s.transcribeVideoParallel(ctx, filePath, modelName, numChunks, chunkDuration, documentID)
 		if err != nil {
 			xlog.Error("Async: Parallel transcription failed", "error", err, "filename", filename)
 			return
@@ -572,7 +570,7 @@ func (s *FileProcessorService) processVideoDescriptionAsync(filePath, filename, 
 
 	// Update document with final complete transcription
 	finalMarkdown := fmt.Sprintf("\n\n### Video Transcription (AI Generated via Whisper + LLM Cleanup)\n\n%s", fullTranscription)
-	err = s.replaceTranscriptionInDocument(ctx, documentID, userID, finalMarkdown)
+	err = s.replaceTranscriptionInDocument(ctx, documentID, finalMarkdown)
 	if err != nil {
 		xlog.Error("Async: Failed to update document with final transcription", "error", err)
 	}
@@ -585,7 +583,6 @@ func (s *FileProcessorService) processVideoDescriptionAsync(filePath, filename, 
 			FilePath:   filePath,
 			FileID:     fileID,
 			DocumentID: documentID,
-			UserID:     userID,
 			Filename:   filename,
 		})
 		if err != nil {
@@ -596,9 +593,9 @@ func (s *FileProcessorService) processVideoDescriptionAsync(filePath, filename, 
 	}
 }
 
-// transcribeVideoParallel transcribes video in parallel chunks with progressive updates
-func (s *FileProcessorService) transcribeVideoParallel(ctx context.Context, videoPath, modelName string, numChunks int, chunkDuration float64, documentID, userID string) (string, error) {
-	// Create temp directory for chunks
+// transcribeVideoParallel splits audio into chunks and transcribes them in parallel
+func (s *FileProcessorService) transcribeVideoParallel(ctx context.Context, videoPath, modelName string, numChunks int, chunkDuration float64, documentID string) (string, error) {
+	// Create temp dir for chunks
 	tempDir, err := os.MkdirTemp("", "whisper_chunks_*")
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp dir: %w", err)
@@ -673,12 +670,15 @@ func (s *FileProcessorService) transcribeVideoParallel(ctx context.Context, vide
 		transcriptions[result.index] = result.transcription
 		completedChunks++
 
-		// Progressive update: update DB with current progress
-		progress := fmt.Sprintf("*Transcribing... (%d/%d segments completed)*\n\n", completedChunks, numChunks)
-		partialTranscription := s.combineTranscriptions(transcriptions)
-		progressMarkdown := fmt.Sprintf("\n\n### Video Transcription (AI Generated via Whisper)\n\n%s%s", progress, partialTranscription)
+		// Progressive update:
+		// Update document slightly to show progress
+		progressMd := fmt.Sprintf("\n\n*Transcribing segment %d/%d...*\n", result.index+1, numChunks)
+		_ = s.appendContentToDocument(ctx, documentID, progressMd)
 
-		if err := s.replaceTranscriptionInDocument(ctx, documentID, userID, progressMarkdown); err != nil {
+		partialTranscription := s.combineTranscriptions(transcriptions)
+		progressMarkdown := fmt.Sprintf("\n\n### Video Transcription (AI Generated via Whisper)\n\n%s%s", progressMd, partialTranscription)
+
+		if err := s.replaceTranscriptionInDocument(ctx, documentID, progressMarkdown); err != nil {
 			xlog.Warn("Async: Failed to update progress", "error", err)
 		} else {
 			xlog.Info("Async: Progress updated", "completed", completedChunks, "total", numChunks)
@@ -884,39 +884,58 @@ func (s *FileProcessorService) extractAudioChunk(videoPath, outputPath string, s
 	return nil
 }
 
-// replaceTranscriptionInDocument replaces the transcription section in document
-func (s *FileProcessorService) replaceTranscriptionInDocument(ctx context.Context, documentID, userID, newContent string) error {
-	// Get current document by document ID (not file ID)
-	var docID string
-	var currentContent sql.NullString
+// replaceTranscriptionInDocument replaces the transcription placeholder with actual content
+func (s *FileProcessorService) replaceTranscriptionInDocument(ctx context.Context, documentID, content string) error {
+	// Get existing document
+	// Retry logic as in appendContentToDocument
+	deadline := time.Now().Add(10 * time.Second)
+	var doc db.Document
+	var err error
 
-	err := s.db.QueryRowContext(ctx,
-		"SELECT id, content FROM documents WHERE id = ?",
-		documentID,
-	).Scan(&docID, &currentContent)
+	for attempt := 1; time.Now().Before(deadline); attempt++ {
+		// Since we don't have fileID passed here easily, we get document by ID which is what we have
+		// NOTE: GetDocument now takes only ID
+		doc, err = s.queries.GetDocument(ctx, documentID)
+		if err == nil {
+			break
+		}
+		if !errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("failed to get document params on attempt %d: %w", attempt, err)
+		}
+		time.Sleep(time.Duration(attempt) * 100 * time.Millisecond)
+	}
+
 	if err != nil {
 		return fmt.Errorf("failed to get document: %w", err)
 	}
 
-	content := currentContent.String
-
-	// Find and replace transcription section
-	marker := "### Video Transcription (AI Generated via Whisper)"
-	idx := strings.Index(content, marker)
-	if idx >= 0 {
-		// Replace from marker to end
-		content = content[:idx] + strings.TrimPrefix(newContent, "\n\n")
+	// Logic to replace content...
+	// For simplicity, we just check if content has the placeholder and replace it, or append if not found
+	newContent := ""
+	if doc.Content.Valid {
+		if strings.Contains(doc.Content.String, "*Transcribing...*") {
+			newContent = strings.Replace(doc.Content.String, "*Transcribing...*", content, 1)
+		} else {
+			newContent = doc.Content.String + "\n\n" + content
+		}
 	} else {
-		// Append if not found
-		content += newContent
+		newContent = content
 	}
 
-	// Update document using raw SQL
-	_, err = s.db.ExecContext(ctx,
-		"UPDATE documents SET content = ?, updated_at = ? WHERE id = ?",
-		content, time.Now().Unix(), docID,
-	)
-	return err
+	// Update document
+	_, err = s.queries.UpdateDocument(ctx, db.UpdateDocumentParams{
+		ID:         doc.ID,
+		Title:      doc.Title,
+		Content:    sql.NullString{String: newContent, Valid: true},
+		Metadata:   doc.Metadata,
+		EditorData: doc.EditorData,
+		UpdatedAt:  time.Now().Unix(),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update document: %w", err)
+	}
+
+	return nil
 }
 
 // extractAudioFromVideo extracts audio from video file using ffmpeg
@@ -1034,7 +1053,6 @@ func (s *FileProcessorService) saveFileMetadata(ctx context.Context, req Process
 				Size:     fileInfo.Size,
 				Url:      req.FilePath,
 				Metadata: sql.NullString{Valid: false},
-				Creator:  req.UserID,
 			})
 			if err != nil {
 				return "", "", fmt.Errorf("failed to create global file: %w", err)
@@ -1049,7 +1067,6 @@ func (s *FileProcessorService) saveFileMetadata(ctx context.Context, req Process
 	}
 
 	file, err := s.queries.CreateFile(ctx, db.CreateFileParams{
-		UserID:   req.UserID,
 		FileType: fileType,
 		FileHash: sql.NullString{String: globalFileID, Valid: globalFileID != ""},
 		Name:     req.Filename,
@@ -1095,8 +1112,7 @@ func (s *FileProcessorService) saveDocument(ctx context.Context, fileDoc *types.
 		Pages:          sql.NullString{String: string(pagesJSON), Valid: true},
 		SourceType:     "file",
 		Source:         fileDoc.Source,
-		FileID:         sql.NullString{String: fileID, Valid: fileID != ""},
-		UserID:         req.UserID,
+		FileID:         sql.NullString{String: fileID, Valid: true},
 		EditorData:     sql.NullString{},
 	})
 	if err != nil {
@@ -1108,14 +1124,26 @@ func (s *FileProcessorService) saveDocument(ctx context.Context, fileDoc *types.
 
 // appendContentToDocument appends content to an existing document
 // Used for async operations like image description generation
-func (s *FileProcessorService) appendContentToDocument(ctx context.Context, documentID, userID, additionalContent string) error {
+func (s *FileProcessorService) appendContentToDocument(ctx context.Context, fileID, additionalContent string) error {
 	// Get existing document
-	doc, err := s.queries.GetDocument(ctx, db.GetDocumentParams{
-		ID:     documentID,
-		UserID: userID,
-	})
+	// Retry logic to ensure the document is available after file processing
+	deadline := time.Now().Add(10 * time.Second) // 10-second timeout
+	var doc db.Document
+	var err error
+
+	for attempt := 1; time.Now().Before(deadline); attempt++ {
+		doc, err = s.queries.GetDocumentByFileID(ctx, sql.NullString{String: fileID, Valid: true})
+		if err == nil {
+			break // Document found, exit retry loop
+		}
+		if !errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("failed to get document by file ID on attempt %d: %w", attempt, err)
+		}
+		time.Sleep(time.Duration(attempt) * 100 * time.Millisecond) // Exponential backoff
+	}
+
 	if err != nil {
-		return fmt.Errorf("failed to get document: %w", err)
+		return fmt.Errorf("failed to get document by file ID after multiple attempts: %w", err)
 	}
 
 	// Append new content
@@ -1124,8 +1152,7 @@ func (s *FileProcessorService) appendContentToDocument(ctx context.Context, docu
 
 	// Update document
 	_, err = s.queries.UpdateDocument(ctx, db.UpdateDocumentParams{
-		ID:         documentID,
-		UserID:     userID,
+		ID:         doc.ID,
 		Title:      doc.Title,
 		Content:    sql.NullString{String: newContent, Valid: true},
 		Metadata:   doc.Metadata,

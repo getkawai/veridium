@@ -1,24 +1,23 @@
 -- AI Providers
 
 -- name: GetAIProvider :one
-SELECT * FROM ai_providers WHERE id = ? AND user_id = ?;
+SELECT * FROM ai_providers WHERE id = ?;
 
 -- name: ListAIProviders :many
 SELECT * FROM ai_providers
-WHERE user_id = ?
 ORDER BY sort ASC;
 
 -- name: ListEnabledAIProviders :many
 SELECT * FROM ai_providers
-WHERE user_id = ? AND enabled = 1
+WHERE enabled = 1
 ORDER BY sort ASC;
 
 -- name: CreateAIProvider :one
 INSERT INTO ai_providers (
-    id, name, user_id, sort, enabled, fetch_on_client, check_model,
+    id, name, sort, enabled, fetch_on_client, check_model,
     logo, description, key_vaults, source, settings, config,
     created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpdateAIProvider :one
@@ -34,22 +33,22 @@ SET name = ?,
     settings = ?,
     config = ?,
     updated_at = ?
-WHERE id = ? AND user_id = ?
+WHERE id = ?
 RETURNING *;
 
 -- name: DeleteAIProvider :exec
-DELETE FROM ai_providers WHERE id = ? AND user_id = ?;
+DELETE FROM ai_providers WHERE id = ?;
 
 -- name: DeleteAllAIProviders :exec
-DELETE FROM ai_providers WHERE user_id = ?;
+DELETE FROM ai_providers;
 
 -- name: UpsertAIProvider :one
 INSERT INTO ai_providers (
-    id, name, user_id, sort, enabled, fetch_on_client, check_model,
+    id, name, sort, enabled, fetch_on_client, check_model,
     logo, description, key_vaults, source, settings, config,
     created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(id, user_id) DO UPDATE SET
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET
     name = excluded.name,
     sort = excluded.sort,
     enabled = excluded.enabled,
@@ -65,10 +64,10 @@ RETURNING *;
 
 -- name: UpsertAIProviderConfig :one
 INSERT INTO ai_providers (
-    id, user_id, key_vaults, config, fetch_on_client, check_model,
+    id, key_vaults, config, fetch_on_client, check_model,
     source, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(id, user_id) DO UPDATE SET
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET
     key_vaults = excluded.key_vaults,
     config = excluded.config,
     fetch_on_client = excluded.fetch_on_client,
@@ -78,9 +77,9 @@ RETURNING *;
 
 -- name: ToggleAIProviderEnabled :one
 INSERT INTO ai_providers (
-    id, user_id, enabled, source, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?)
-ON CONFLICT(id, user_id) DO UPDATE SET
+    id, enabled, source, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET
     enabled = excluded.enabled,
     updated_at = excluded.updated_at
 RETURNING *;
@@ -95,7 +94,6 @@ SELECT
     sort,
     source
 FROM ai_providers
-WHERE user_id = ?
 ORDER BY sort ASC, updated_at DESC;
 
 -- name: GetAIProviderDetail :one
@@ -112,7 +110,7 @@ SELECT
     fetch_on_client,
     check_model
 FROM ai_providers
-WHERE id = ? AND user_id = ?;
+WHERE id = ?;
 
 -- name: GetAIProviderRuntimeConfigs :many
 SELECT 
@@ -121,40 +119,38 @@ SELECT
     settings,
     config,
     fetch_on_client
-FROM ai_providers
-WHERE user_id = ?;
+FROM ai_providers;
 
 -- name: DeleteModelsByProvider :exec
 DELETE FROM ai_models
-WHERE provider_id = ? AND user_id = ?;
+WHERE provider_id = ?;
 
 -- AI Models
 
 -- name: GetAIModel :one
 SELECT * FROM ai_models
-WHERE id = ? AND provider_id = ? AND user_id = ?;
+WHERE id = ? AND provider_id = ?;
 
 -- name: ListAIModels :many
 SELECT * FROM ai_models
-WHERE user_id = ?
 ORDER BY sort ASC;
 
 -- name: ListAIModelsByProvider :many
 SELECT * FROM ai_models
-WHERE provider_id = ? AND user_id = ?
+WHERE provider_id = ?
 ORDER BY sort ASC;
 
 -- name: ListEnabledAIModels :many
 SELECT * FROM ai_models
-WHERE user_id = ? AND enabled = 1
+WHERE enabled = 1
 ORDER BY sort ASC;
 
 -- name: CreateAIModel :one
 INSERT INTO ai_models (
     id, display_name, description, organization, enabled, provider_id,
-    type, sort, user_id, pricing, parameters, config, abilities,
+    type, sort, pricing, parameters, config, abilities,
     context_window_tokens, source, released_at, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpdateAIModel :one
@@ -168,23 +164,23 @@ SET display_name = ?,
     config = ?,
     abilities = ?,
     updated_at = ?
-WHERE id = ? AND provider_id = ? AND user_id = ?
+WHERE id = ? AND provider_id = ?
 RETURNING *;
 
 -- name: DeleteAIModel :exec
 DELETE FROM ai_models
-WHERE id = ? AND provider_id = ? AND user_id = ?;
+WHERE id = ? AND provider_id = ?;
 
 -- name: DeleteAllAIModels :exec
-DELETE FROM ai_models WHERE user_id = ?;
+DELETE FROM ai_models;
 
 -- name: UpsertAIModel :one
 INSERT INTO ai_models (
     id, display_name, description, organization, enabled, provider_id,
-    type, sort, user_id, pricing, parameters, config, abilities,
+    type, sort, pricing, parameters, config, abilities,
     context_window_tokens, source, released_at, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(id, provider_id, user_id) DO UPDATE SET
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id, provider_id) DO UPDATE SET
     display_name = excluded.display_name,
     description = excluded.description,
     enabled = excluded.enabled,
@@ -198,9 +194,9 @@ RETURNING *;
 
 -- name: ToggleAIModelEnabled :one
 INSERT INTO ai_models (
-    id, provider_id, user_id, enabled, type, source, updated_at, created_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(id, provider_id, user_id) DO UPDATE SET
+    id, provider_id, enabled, type, source, updated_at, created_at
+) VALUES (?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id, provider_id) DO UPDATE SET
     enabled = excluded.enabled,
     type = COALESCE(excluded.type, ai_models.type),
     updated_at = excluded.updated_at
@@ -208,9 +204,9 @@ RETURNING *;
 
 -- name: UpdateAIModelSort :one
 INSERT INTO ai_models (
-    id, provider_id, user_id, sort, type, enabled, source, updated_at, created_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(id, provider_id, user_id) DO UPDATE SET
+    id, provider_id, sort, type, enabled, source, updated_at, created_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id, provider_id) DO UPDATE SET
     sort = excluded.sort,
     type = COALESCE(excluded.type, ai_models.type),
     updated_at = excluded.updated_at
@@ -219,13 +215,12 @@ RETURNING *;
 -- name: BatchUpdateAIModelEnabled :exec
 UPDATE ai_models
 SET enabled = ?
-WHERE provider_id = ? AND id IN (sqlc.slice('ids')) AND user_id = ?;
+WHERE provider_id = ? AND id IN (sqlc.slice('ids'));
 
 -- name: DeleteAIModelsByProviderAndSource :exec
 DELETE FROM ai_models
-WHERE provider_id = ? AND source = ? AND user_id = ?;
+WHERE provider_id = ? AND source = ?;
 
 -- name: DeleteAIModelsByProvider :exec
 DELETE FROM ai_models
-WHERE provider_id = ? AND user_id = ?;
-
+WHERE provider_id = ?;

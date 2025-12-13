@@ -1,17 +1,17 @@
 -- name: GetThread :one
-SELECT * FROM threads WHERE id = ? AND user_id = ?;
+SELECT * FROM threads WHERE id = ?;
 
 -- name: ListThreadsByTopic :many
 SELECT * FROM threads
-WHERE topic_id = ? AND user_id = ?
+WHERE topic_id = ?
 ORDER BY last_active_at DESC;
 
 -- name: CreateThread :one
 INSERT INTO threads (
     id, title, type, status, topic_id, source_message_id,
-    parent_thread_id, user_id, last_active_at,
+    parent_thread_id, last_active_at,
     created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO NOTHING
 RETURNING *;
 
@@ -21,17 +21,15 @@ SET title = ?,
     status = ?,
     last_active_at = ?,
     updated_at = ?
-WHERE id = ? AND user_id = ?
+WHERE id = ?
 RETURNING *;
 
 -- name: DeleteThread :exec
-DELETE FROM threads WHERE id = ? AND user_id = ?;
+DELETE FROM threads WHERE id = ?;
 
 -- name: ListAllThreads :many
 SELECT * FROM threads
-WHERE user_id = ?
 ORDER BY updated_at DESC;
 
 -- name: DeleteAllThreads :exec
-DELETE FROM threads WHERE user_id = ?;
-
+DELETE FROM threads;

@@ -179,7 +179,7 @@ func testSemanticSearch(ctx context.Context, appCtx *app.Context) TestResult {
 
 	createdIDs := make(map[string]string)
 	for _, m := range memories {
-		mem, err := appCtx.MemoryService.CreateMemory(ctx, app.DefaultUserID, &services.Memory{
+		mem, err := appCtx.MemoryService.CreateMemory(ctx, &services.Memory{
 			Category: services.MemoryCategoryFact,
 			Title:    m.title,
 			Summary:  m.summary,
@@ -201,7 +201,7 @@ func testSemanticSearch(ctx context.Context, appCtx *app.Context) TestResult {
 
 	passCount := 0
 	for _, tc := range testCases {
-		results, err := appCtx.MemoryService.SemanticSearch(ctx, app.DefaultUserID, tc.query, 10)
+		results, err := appCtx.MemoryService.SemanticSearch(ctx, tc.query, 10)
 		if err != nil {
 			details.WriteString(fmt.Sprintf("✗ '%s': error: %v\n", tc.query, err))
 			continue
@@ -239,14 +239,14 @@ func testMemoryEnrichment(ctx context.Context, appCtx *app.Context) TestResult {
 		{Role: fantasy.MessageRoleUser, Content: []fantasy.MessagePart{fantasy.TextPart{Text: "Warna favorit saya biru"}}},
 	}
 
-	result, err := appCtx.MemoryEnrichment.EnrichMessages(ctx, app.DefaultUserID, messages)
+	result, err := appCtx.MemoryEnrichment.EnrichMessages(ctx, messages)
 	if err != nil {
 		return TestResult{Error: fmt.Errorf("enrich: %w", err)}
 	}
 
 	details.WriteString(fmt.Sprintf("Extracted %d facts\n", result.FactCount))
 
-	memories, _ := appCtx.MemoryService.ListMemories(ctx, app.DefaultUserID, 100, 0)
+	memories, _ := appCtx.MemoryService.ListMemories(ctx, 100, 0)
 
 	patterns := []string{"budi", "jakarta", "programming", "biru"}
 	found := 0
@@ -281,7 +281,7 @@ func testAutoArchive(ctx context.Context, appCtx *app.Context) TestResult {
 	}
 
 	initial := len(messages)
-	remaining, err := appCtx.MemoryEnrichment.AutoArchive(ctx, app.DefaultUserID, messages, services.BufferConfig{
+	remaining, err := appCtx.MemoryEnrichment.AutoArchive(ctx, messages, services.BufferConfig{
 		MaxBufferSize:    15,
 		ArchiveBatchSize: 3,
 		ArchiveThreshold: 8,
@@ -300,7 +300,7 @@ func testAutoArchive(ctx context.Context, appCtx *app.Context) TestResult {
 func testToolExecution(ctx context.Context, appCtx *app.Context) TestResult {
 	var details strings.Builder
 
-	mem, _ := appCtx.MemoryService.CreateMemory(ctx, app.DefaultUserID, &services.Memory{
+	mem, _ := appCtx.MemoryService.CreateMemory(ctx, &services.Memory{
 		Category: services.MemoryCategoryFact,
 		Title:    "Test User",
 		Summary:  "User name is Alice, works as developer in Jakarta",
@@ -308,7 +308,7 @@ func testToolExecution(ctx context.Context, appCtx *app.Context) TestResult {
 	details.WriteString(fmt.Sprintf("Created: %s\n", mem.ID[:8]))
 
 	registry := tools.NewToolRegistry()
-	appCtx.MemoryIntegration.RegisterMemoryTool(registry, app.DefaultUserID)
+	appCtx.MemoryIntegration.RegisterMemoryTool(registry)
 
 	tool, _ := registry.Get("search_memory")
 	resp, err := tool.Run(ctx, fantasy.ToolCall{
@@ -346,7 +346,7 @@ func testEndToEnd(ctx context.Context, appCtx *app.Context) TestResult {
 		{Role: fantasy.MessageRoleUser, Content: []fantasy.MessagePart{fantasy.TextPart{Text: "Saya bekerja sebagai data scientist"}}},
 	}
 
-	result, _ := appCtx.MemoryEnrichment.EnrichMessages(ctx, app.DefaultUserID, chat)
+	result, _ := appCtx.MemoryEnrichment.EnrichMessages(ctx, chat)
 	details.WriteString(fmt.Sprintf("Enriched: %d facts\n", result.FactCount))
 
 	details.WriteString("\nPhase 2: Recall\n")
@@ -358,7 +358,7 @@ func testEndToEnd(ctx context.Context, appCtx *app.Context) TestResult {
 
 	success := 0
 	for _, q := range queries {
-		results, _ := appCtx.MemoryService.SemanticSearch(ctx, app.DefaultUserID, q.query, 5)
+		results, _ := appCtx.MemoryService.SemanticSearch(ctx, q.query, 5)
 		found := false
 		for _, r := range results {
 			if strings.Contains(strings.ToLower(r.Memory.Summary), q.expected) {
@@ -383,19 +383,19 @@ func testEndToEnd(ctx context.Context, appCtx *app.Context) TestResult {
 func testVectorSimilarityRanking(ctx context.Context, appCtx *app.Context) TestResult {
 	var details strings.Builder
 
-	mem1, _ := appCtx.MemoryService.CreateMemory(ctx, app.DefaultUserID, &services.Memory{
+	mem1, _ := appCtx.MemoryService.CreateMemory(ctx, &services.Memory{
 		Category: services.MemoryCategoryFact,
 		Title:    "Programming",
 		Summary:  "User loves coding with Go and Python",
 	})
-	mem2, _ := appCtx.MemoryService.CreateMemory(ctx, app.DefaultUserID, &services.Memory{
+	mem2, _ := appCtx.MemoryService.CreateMemory(ctx, &services.Memory{
 		Category: services.MemoryCategoryFact,
 		Title:    "Location",
 		Summary:  "User lives in Jakarta Indonesia",
 	})
 
 	// Query programming
-	results, _ := appCtx.MemoryService.SemanticSearch(ctx, app.DefaultUserID, "programming coding software", 10)
+	results, _ := appCtx.MemoryService.SemanticSearch(ctx, "programming coding software", 10)
 
 	var progSim, locSim float64
 	for _, r := range results {
@@ -410,7 +410,7 @@ func testVectorSimilarityRanking(ctx context.Context, appCtx *app.Context) TestR
 	progHigher := progSim > locSim
 
 	// Query location
-	results2, _ := appCtx.MemoryService.SemanticSearch(ctx, app.DefaultUserID, "dimana tinggal kota", 10)
+	results2, _ := appCtx.MemoryService.SemanticSearch(ctx, "dimana tinggal kota", 10)
 	for _, r := range results2 {
 		if r.Memory.ID == mem1.ID {
 			progSim = r.Similarity

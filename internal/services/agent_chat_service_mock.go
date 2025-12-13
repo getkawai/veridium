@@ -316,32 +316,10 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) ([]UIC
 		SessionID: req.SessionID,
 		TopicID:   currentTopicID,
 		ThreadID:  req.ThreadID,
-		UserID:    req.UserID,
 		Reasoning: reasoning,
 		Tools:     tools,
 		Search:    searchGrounding,
 		Metadata:  fullMetadata,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to save assistant message: %w", err)
-	}
-
-	// 3. Save RAG data using reusable helper
-	chunk1ID := uuid.New().String()
-	chunk2ID := uuid.New().String()
-
-	err = s.saveRAGData(ctx, SaveRAGDataParams{
-		MessageID: assistantMsgID,
-		UserQuery: req.Message,
-		UserID:    req.UserID,
-		Files: []db.CreateFileParams{
-			{Name: "document.pdf", FileType: "application/pdf", Url: "", Size: 1024000},
-			{Name: "guide.md", FileType: "text/markdown", Url: "", Size: 2048},
-		},
-		Chunks: []RAGChunkParams{
-			{ID: chunk1ID, FileIndex: 0, Text: "This is a sample chunk from the knowledge base. It contains relevant information about the topic.", ChunkIndex: 0, Type: "text", Similarity: 95},
-			{ID: chunk2ID, FileIndex: 1, Text: "Another chunk with more detailed information that was retrieved from the RAG system.", ChunkIndex: 0, Type: "text", Similarity: 87},
-		},
 	})
 	if err != nil {
 		log.Printf("⚠️  Failed to save RAG data: %v", err)
@@ -363,10 +341,32 @@ func (s *AgentChatService) ChatMock(ctx context.Context, req ChatRequest) ([]UIC
 			SessionID:  req.SessionID,
 			TopicID:    currentTopicID,
 			ThreadID:   req.ThreadID,
-			UserID:     req.UserID,
 			TimeOffset: timeOffset,
 		})
 		return err
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to save assistant message: %w", err)
+	}
+
+	// 3. Save RAG data using reusable helper
+	chunk1ID := uuid.New().String()
+	chunk2ID := uuid.New().String()
+
+	err = s.saveRAGData(ctx, SaveRAGDataParams{
+		MessageID: assistantMsgID,
+		UserQuery: req.Message,
+		Files: []db.CreateFileParams{
+			{Name: "document.pdf", FileType: "application/pdf", Url: "", Size: 1024000},
+			{Name: "guide.md", FileType: "text/markdown", Url: "", Size: 2048},
+		},
+		Chunks: []RAGChunkParams{
+			{ID: chunk1ID, FileIndex: 0, Text: "This is a sample chunk from the knowledge base. It contains relevant information about the topic.", ChunkIndex: 0, Type: "text", Similarity: 95},
+			{ID: chunk2ID, FileIndex: 1, Text: "Another chunk with more detailed information that was retrieved from the RAG system.", ChunkIndex: 0, Type: "text", Similarity: 87},
+		},
+	})
+	if err != nil {
+		log.Printf("⚠️  Failed to save RAG data: %v", err)
 	}
 
 	// Tool 1: Web Browsing - search

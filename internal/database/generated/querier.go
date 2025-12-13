@@ -11,36 +11,36 @@ import (
 
 type Querier interface {
 	ArchiveOldMemories(ctx context.Context, arg ArchiveOldMemoriesParams) error
-	BatchDeleteChunks(ctx context.Context, arg BatchDeleteChunksParams) error
-	BatchDeleteMessages(ctx context.Context, arg BatchDeleteMessagesParams) error
-	BatchDeleteSessions(ctx context.Context, arg BatchDeleteSessionsParams) error
-	BatchDeleteTopics(ctx context.Context, arg BatchDeleteTopicsParams) error
+	BatchDeleteChunks(ctx context.Context, ids []string) error
+	BatchDeleteMessages(ctx context.Context, ids []string) error
+	BatchDeleteSessions(ctx context.Context, ids []string) error
+	BatchDeleteTopics(ctx context.Context, ids []string) error
 	// ============================================================================
 	// BATCH OPERATIONS
 	// ============================================================================
-	BatchDeleteUserMemories(ctx context.Context, arg BatchDeleteUserMemoriesParams) error
+	BatchDeleteUserMemories(ctx context.Context, ids []string) error
 	BatchInsertRagEvalEvaluationRecords(ctx context.Context) error
 	BatchLinkAgentToFiles(ctx context.Context, arg BatchLinkAgentToFilesParams) error
 	BatchLinkChatGroupToAgents(ctx context.Context, arg BatchLinkChatGroupToAgentsParams) error
 	BatchLinkKnowledgeBaseToFiles(ctx context.Context, arg BatchLinkKnowledgeBaseToFilesParams) error
 	BatchUnlinkKnowledgeBaseFromFiles(ctx context.Context, arg BatchUnlinkKnowledgeBaseFromFilesParams) error
 	BatchUpdateAIModelEnabled(ctx context.Context, arg BatchUpdateAIModelEnabledParams) error
-	CountChunksByFileId(ctx context.Context, arg CountChunksByFileIdParams) (int64, error)
-	CountChunksByFileIds(ctx context.Context, userID string) ([]CountChunksByFileIdsRow, error)
+	CountChunksByFileId(ctx context.Context, fileID sql.NullString) (int64, error)
+	CountChunksByFileIds(ctx context.Context) ([]CountChunksByFileIdsRow, error)
 	// Complex file queries
 	CountFilesByHash(ctx context.Context, fileHash sql.NullString) (int64, error)
-	CountFilesUsage(ctx context.Context, userID string) (interface{}, error)
-	CountMessageWords(ctx context.Context, userID string) (sql.NullFloat64, error)
+	CountFilesUsage(ctx context.Context) (interface{}, error)
+	CountMessageWords(ctx context.Context) (sql.NullFloat64, error)
 	CountMessageWordsByDateRange(ctx context.Context, arg CountMessageWordsByDateRangeParams) (sql.NullFloat64, error)
-	CountMessages(ctx context.Context, userID string) (int64, error)
+	CountMessages(ctx context.Context) (int64, error)
 	CountMessagesByDateRange(ctx context.Context, arg CountMessagesByDateRangeParams) (int64, error)
-	CountSessions(ctx context.Context, userID string) (int64, error)
+	CountSessions(ctx context.Context) (int64, error)
 	CountSessionsByDateRange(ctx context.Context, arg CountSessionsByDateRangeParams) (int64, error)
-	CountSessionsInGroup(ctx context.Context, arg CountSessionsInGroupParams) (int64, error)
-	CountTopics(ctx context.Context, userID string) (int64, error)
+	CountSessionsInGroup(ctx context.Context, groupID sql.NullString) (int64, error)
+	CountTopics(ctx context.Context) (int64, error)
 	CountTopicsByDateRange(ctx context.Context, arg CountTopicsByDateRangeParams) (int64, error)
-	CountTopicsBySession(ctx context.Context, arg CountTopicsBySessionParams) (int64, error)
-	CountUserMemories(ctx context.Context, userID sql.NullString) (int64, error)
+	CountTopicsBySession(ctx context.Context, sessionID sql.NullString) (int64, error)
+	CountUserMemories(ctx context.Context) (int64, error)
 	CreateAIModel(ctx context.Context, arg CreateAIModelParams) (AiModel, error)
 	CreateAIProvider(ctx context.Context, arg CreateAIProviderParams) (AiProvider, error)
 	CreateAPIKey(ctx context.Context, arg CreateAPIKeyParams) (ApiKey, error)
@@ -61,11 +61,6 @@ type Querier interface {
 	CreateMessageQuery(ctx context.Context, arg CreateMessageQueryParams) (MessageQuery, error)
 	CreateMessageTTS(ctx context.Context, arg CreateMessageTTSParams) (MessageTt, error)
 	CreateMessageTranslate(ctx context.Context, arg CreateMessageTranslateParams) (MessageTranslate, error)
-	CreateNextAuthAccount(ctx context.Context, arg CreateNextAuthAccountParams) (NextauthAccount, error)
-	CreateNextAuthAuthenticator(ctx context.Context, arg CreateNextAuthAuthenticatorParams) (NextauthAuthenticator, error)
-	CreateNextAuthSession(ctx context.Context, arg CreateNextAuthSessionParams) (NextauthSession, error)
-	CreateNextAuthVerificationToken(ctx context.Context, arg CreateNextAuthVerificationTokenParams) (NextauthVerificationtoken, error)
-	CreatePermission(ctx context.Context, arg CreatePermissionParams) (RbacPermission, error)
 	CreatePlugin(ctx context.Context, arg CreatePluginParams) (UserInstalledPlugin, error)
 	CreateRagEvalDataset(ctx context.Context, arg CreateRagEvalDatasetParams) (RagEvalDataset, error)
 	CreateRagEvalDatasetRecord(ctx context.Context, arg CreateRagEvalDatasetRecordParams) (RagEvalDatasetRecord, error)
@@ -73,13 +68,11 @@ type Querier interface {
 	CreateRagEvalEvaluation(ctx context.Context, arg CreateRagEvalEvaluationParams) (RagEvalEvaluation, error)
 	// RAG Eval Evaluation Records
 	CreateRagEvalEvaluationRecord(ctx context.Context, arg CreateRagEvalEvaluationRecordParams) (RagEvalEvaluationRecord, error)
-	CreateRole(ctx context.Context, arg CreateRoleParams) (RbacRole, error)
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
 	CreateSessionGroup(ctx context.Context, arg CreateSessionGroupParams) (SessionGroup, error)
 	CreateThread(ctx context.Context, arg CreateThreadParams) (Thread, error)
 	CreateTopic(ctx context.Context, arg CreateTopicParams) (Topic, error)
 	CreateUnstructuredChunk(ctx context.Context, arg CreateUnstructuredChunkParams) (UnstructuredChunk, error)
-	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	// Memory Queries for Infinite Memory Architecture
 	// Supports MemGPT-style conversation memory with semantic search
 	// ============================================================================
@@ -103,219 +96,184 @@ type Querier interface {
 	// ============================================================================
 	CreateUserMemoryPreference(ctx context.Context, arg CreateUserMemoryPreferenceParams) (UserMemoriesPreference, error)
 	DeleteAIModel(ctx context.Context, arg DeleteAIModelParams) error
-	DeleteAIModelsByProvider(ctx context.Context, arg DeleteAIModelsByProviderParams) error
+	DeleteAIModelsByProvider(ctx context.Context, providerID string) error
 	DeleteAIModelsByProviderAndSource(ctx context.Context, arg DeleteAIModelsByProviderAndSourceParams) error
-	DeleteAIProvider(ctx context.Context, arg DeleteAIProviderParams) error
-	DeleteAPIKey(ctx context.Context, arg DeleteAPIKeyParams) error
-	DeleteAgent(ctx context.Context, arg DeleteAgentParams) error
-	DeleteAllAIModels(ctx context.Context, userID string) error
-	DeleteAllAIProviders(ctx context.Context, userID string) error
-	DeleteAllAPIKeys(ctx context.Context, userID string) error
-	DeleteAllChatGroups(ctx context.Context, userID string) error
-	DeleteAllDocuments(ctx context.Context, userID string) error
-	DeleteAllFiles(ctx context.Context, userID string) error
-	DeleteAllKnowledgeBases(ctx context.Context, userID string) error
-	DeleteAllMessages(ctx context.Context, userID string) error
-	DeleteAllPlugins(ctx context.Context, userID string) error
-	DeleteAllSessionGroups(ctx context.Context, userID string) error
-	DeleteAllThreads(ctx context.Context, userID string) error
-	DeleteAllTopics(ctx context.Context, userID string) error
-	DeleteAsyncTask(ctx context.Context, arg DeleteAsyncTaskParams) error
-	DeleteChatGroup(ctx context.Context, arg DeleteChatGroupParams) error
-	DeleteChunk(ctx context.Context, arg DeleteChunkParams) error
-	DeleteDocument(ctx context.Context, arg DeleteDocumentParams) error
-	DeleteExpiredNextAuthSessions(ctx context.Context, expires int64) error
-	DeleteExpiredNextAuthVerificationTokens(ctx context.Context, expires int64) error
-	DeleteFile(ctx context.Context, arg DeleteFileParams) error
-	DeleteGeneration(ctx context.Context, arg DeleteGenerationParams) error
-	DeleteGenerationBatch(ctx context.Context, arg DeleteGenerationBatchParams) error
-	DeleteGenerationTopic(ctx context.Context, arg DeleteGenerationTopicParams) error
+	DeleteAIProvider(ctx context.Context, id string) error
+	DeleteAPIKey(ctx context.Context, id int64) error
+	DeleteAgent(ctx context.Context, id string) error
+	DeleteAllAIModels(ctx context.Context) error
+	DeleteAllAIProviders(ctx context.Context) error
+	DeleteAllAPIKeys(ctx context.Context) error
+	DeleteAllChatGroups(ctx context.Context) error
+	DeleteAllDocuments(ctx context.Context) error
+	DeleteAllFiles(ctx context.Context) error
+	DeleteAllKnowledgeBases(ctx context.Context) error
+	DeleteAllMessages(ctx context.Context) error
+	DeleteAllPlugins(ctx context.Context) error
+	DeleteAllSessionGroups(ctx context.Context) error
+	DeleteAllThreads(ctx context.Context) error
+	DeleteAllTopics(ctx context.Context) error
+	DeleteAsyncTask(ctx context.Context, id string) error
+	DeleteChatGroup(ctx context.Context, id string) error
+	DeleteChunk(ctx context.Context, id string) error
+	DeleteDocument(ctx context.Context, id string) error
+	DeleteFile(ctx context.Context, id string) error
+	DeleteGeneration(ctx context.Context, id string) error
+	DeleteGenerationBatch(ctx context.Context, id string) error
+	DeleteGenerationTopic(ctx context.Context, id string) error
 	DeleteGlobalFile(ctx context.Context, hashID string) error
-	DeleteKnowledgeBase(ctx context.Context, arg DeleteKnowledgeBaseParams) error
-	DeleteMessage(ctx context.Context, arg DeleteMessageParams) error
-	DeleteMessageGroup(ctx context.Context, arg DeleteMessageGroupParams) error
-	DeleteMessageQuery(ctx context.Context, arg DeleteMessageQueryParams) error
-	DeleteMessageTTS(ctx context.Context, arg DeleteMessageTTSParams) error
-	DeleteMessageTranslate(ctx context.Context, arg DeleteMessageTranslateParams) error
-	DeleteMessagesByGroup(ctx context.Context, arg DeleteMessagesByGroupParams) error
-	DeleteMessagesBySession(ctx context.Context, arg DeleteMessagesBySessionParams) error
-	DeleteMessagesByTopic(ctx context.Context, arg DeleteMessagesByTopicParams) error
-	DeleteModelsByProvider(ctx context.Context, arg DeleteModelsByProviderParams) error
-	DeleteNextAuthAccount(ctx context.Context, arg DeleteNextAuthAccountParams) error
-	DeleteNextAuthAuthenticator(ctx context.Context, arg DeleteNextAuthAuthenticatorParams) error
-	DeleteNextAuthSession(ctx context.Context, sessionToken string) error
-	DeleteNextAuthVerificationToken(ctx context.Context, arg DeleteNextAuthVerificationTokenParams) error
-	DeletePermission(ctx context.Context, id int64) error
-	DeletePlugin(ctx context.Context, arg DeletePluginParams) error
-	DeleteRagEvalDataset(ctx context.Context, arg DeleteRagEvalDatasetParams) error
-	DeleteRagEvalDatasetRecord(ctx context.Context, arg DeleteRagEvalDatasetRecordParams) error
-	DeleteRagEvalEvaluation(ctx context.Context, arg DeleteRagEvalEvaluationParams) error
-	DeleteRagEvalEvaluationRecord(ctx context.Context, arg DeleteRagEvalEvaluationRecordParams) error
-	DeleteRole(ctx context.Context, id int64) error
-	DeleteSession(ctx context.Context, arg DeleteSessionParams) error
-	DeleteSessionGroup(ctx context.Context, arg DeleteSessionGroupParams) error
-	DeleteThread(ctx context.Context, arg DeleteThreadParams) error
-	DeleteTopic(ctx context.Context, arg DeleteTopicParams) error
-	DeleteTopicsByGroup(ctx context.Context, arg DeleteTopicsByGroupParams) error
-	DeleteTopicsBySession(ctx context.Context, arg DeleteTopicsBySessionParams) error
-	DeleteUnstructuredChunk(ctx context.Context, arg DeleteUnstructuredChunkParams) error
-	DeleteUser(ctx context.Context, id string) error
-	DeleteUserMemory(ctx context.Context, arg DeleteUserMemoryParams) error
+	DeleteKnowledgeBase(ctx context.Context, id string) error
+	DeleteMessage(ctx context.Context, id string) error
+	DeleteMessageGroup(ctx context.Context, id string) error
+	DeleteMessageQuery(ctx context.Context, id string) error
+	DeleteMessageTTS(ctx context.Context, id string) error
+	DeleteMessageTranslate(ctx context.Context, id string) error
+	DeleteMessagesByGroup(ctx context.Context, groupID sql.NullString) error
+	DeleteMessagesBySession(ctx context.Context, sessionID sql.NullString) error
+	DeleteMessagesByTopic(ctx context.Context, topicID sql.NullString) error
+	DeleteModelsByProvider(ctx context.Context, providerID string) error
+	DeletePlugin(ctx context.Context, identifier string) error
+	DeleteRagEvalDataset(ctx context.Context, id string) error
+	DeleteRagEvalDatasetRecord(ctx context.Context, id string) error
+	DeleteRagEvalEvaluation(ctx context.Context, id string) error
+	DeleteRagEvalEvaluationRecord(ctx context.Context, id string) error
+	DeleteSession(ctx context.Context, id string) error
+	DeleteSessionGroup(ctx context.Context, id string) error
+	DeleteThread(ctx context.Context, id string) error
+	DeleteTopic(ctx context.Context, id string) error
+	DeleteTopicsByGroup(ctx context.Context, groupID sql.NullString) error
+	DeleteTopicsBySession(ctx context.Context, sessionID sql.NullString) error
+	DeleteUnstructuredChunk(ctx context.Context, id string) error
+	DeleteUserMemory(ctx context.Context, id string) error
 	DeleteUserMemoryContext(ctx context.Context, id string) error
 	DeleteUserMemoryExperience(ctx context.Context, id string) error
 	DeleteUserMemoryIdentity(ctx context.Context, id string) error
 	DeleteUserMemoryPreference(ctx context.Context, id string) error
-	DeleteUserSettings(ctx context.Context, id string) error
 	// Duplicate an agent for a new session
 	// Parameters: new_agent_id, new_session_id, source_session_id, user_id, created_at, updated_at
 	DuplicateAgentForSession(ctx context.Context, arg DuplicateAgentForSessionParams) (Agent, error)
 	// Duplicate a session by creating a new session with the same data but new IDs
-	// Parameters: new_session_id, new_title, created_at, updated_at, source_session_id, user_id
+	// Parameters: new_session_id, new_title, created_at, updated_at, source_session_id
 	DuplicateSession(ctx context.Context, arg DuplicateSessionParams) (Session, error)
 	// Duplicate a topic with a new ID and title
 	DuplicateTopic(ctx context.Context, arg DuplicateTopicParams) (Topic, error)
-	EnsureUserExists(ctx context.Context, arg EnsureUserExistsParams) error
 	// AI Models
 	GetAIModel(ctx context.Context, arg GetAIModelParams) (AiModel, error)
 	// AI Providers
-	GetAIProvider(ctx context.Context, arg GetAIProviderParams) (AiProvider, error)
-	GetAIProviderDetail(ctx context.Context, arg GetAIProviderDetailParams) (GetAIProviderDetailRow, error)
-	GetAIProviderListSimple(ctx context.Context, userID string) ([]GetAIProviderListSimpleRow, error)
-	GetAIProviderRuntimeConfigs(ctx context.Context, userID string) ([]GetAIProviderRuntimeConfigsRow, error)
-	GetAPIKey(ctx context.Context, arg GetAPIKeyParams) (ApiKey, error)
+	GetAIProvider(ctx context.Context, id string) (AiProvider, error)
+	GetAIProviderDetail(ctx context.Context, id string) (GetAIProviderDetailRow, error)
+	GetAIProviderListSimple(ctx context.Context) ([]GetAIProviderListSimpleRow, error)
+	GetAIProviderRuntimeConfigs(ctx context.Context) ([]GetAIProviderRuntimeConfigsRow, error)
+	GetAPIKey(ctx context.Context, id int64) (ApiKey, error)
 	GetAPIKeyByKey(ctx context.Context, key string) (ApiKey, error)
-	GetAgent(ctx context.Context, arg GetAgentParams) (Agent, error)
-	GetAgentBySessionId(ctx context.Context, arg GetAgentBySessionIdParams) (Agent, error)
-	GetAgentBySlug(ctx context.Context, arg GetAgentBySlugParams) (Agent, error)
+	GetAgent(ctx context.Context, id string) (Agent, error)
+	GetAgentBySessionId(ctx context.Context, sessionID string) (Agent, error)
+	GetAgentBySlug(ctx context.Context, slug sql.NullString) (Agent, error)
 	GetAgentFileIds(ctx context.Context, arg GetAgentFileIdsParams) ([]string, error)
-	GetAgentFiles(ctx context.Context, arg GetAgentFilesParams) ([]File, error)
-	GetAgentFilesWithEnabled(ctx context.Context, arg GetAgentFilesWithEnabledParams) ([]GetAgentFilesWithEnabledRow, error)
-	GetAgentKnowledgeBases(ctx context.Context, arg GetAgentKnowledgeBasesParams) ([]GetAgentKnowledgeBasesRow, error)
-	GetAgentSessions(ctx context.Context, arg GetAgentSessionsParams) ([]Session, error)
-	GetAsyncTask(ctx context.Context, arg GetAsyncTaskParams) (AsyncTask, error)
+	GetAgentFiles(ctx context.Context, agentID string) ([]File, error)
+	GetAgentFilesWithEnabled(ctx context.Context, agentID string) ([]GetAgentFilesWithEnabledRow, error)
+	GetAgentKnowledgeBases(ctx context.Context, agentID string) ([]GetAgentKnowledgeBasesRow, error)
+	GetAgentSessions(ctx context.Context, agentID string) ([]Session, error)
+	GetAsyncTask(ctx context.Context, id string) (AsyncTask, error)
 	GetAsyncTasksByIds(ctx context.Context, arg GetAsyncTasksByIdsParams) ([]AsyncTask, error)
-	GetChatGroup(ctx context.Context, arg GetChatGroupParams) (ChatGroup, error)
-	GetChatGroupAgentLinks(ctx context.Context, arg GetChatGroupAgentLinksParams) ([]ChatGroupsAgent, error)
-	GetChatGroupAgents(ctx context.Context, arg GetChatGroupAgentsParams) ([]Agent, error)
-	GetChatGroupWithAgents(ctx context.Context, arg GetChatGroupWithAgentsParams) ([]GetChatGroupWithAgentsRow, error)
+	GetChatGroup(ctx context.Context, id string) (ChatGroup, error)
+	GetChatGroupAgentLinks(ctx context.Context, chatGroupID string) ([]ChatGroupsAgent, error)
+	GetChatGroupAgents(ctx context.Context, chatGroupID string) ([]Agent, error)
+	GetChatGroupWithAgents(ctx context.Context, id string) ([]GetChatGroupWithAgentsRow, error)
 	// Chunks
-	GetChunk(ctx context.Context, arg GetChunkParams) (Chunk, error)
-	GetChunksByDocumentID(ctx context.Context, arg GetChunksByDocumentIDParams) ([]Chunk, error)
-	GetChunksByIDs(ctx context.Context, arg GetChunksByIDsParams) ([]GetChunksByIDsRow, error)
+	GetChunk(ctx context.Context, id string) (Chunk, error)
+	GetChunksByDocumentID(ctx context.Context, documentID sql.NullString) ([]Chunk, error)
+	GetChunksByIDs(ctx context.Context, ids []string) ([]GetChunksByIDsRow, error)
 	GetChunksTextByFileId(ctx context.Context, fileID sql.NullString) ([]GetChunksTextByFileIdRow, error)
-	GetDocument(ctx context.Context, arg GetDocumentParams) (Document, error)
+	GetDocument(ctx context.Context, id string) (Document, error)
 	GetDocumentByFileID(ctx context.Context, fileID sql.NullString) (Document, error)
-	GetDocumentByFileId(ctx context.Context, arg GetDocumentByFileIdParams) (GetDocumentByFileIdRow, error)
-	GetDocumentChunks(ctx context.Context, arg GetDocumentChunksParams) ([]Chunk, error)
-	GetEnabledChatGroupAgentLinks(ctx context.Context, arg GetEnabledChatGroupAgentLinksParams) ([]ChatGroupsAgent, error)
-	GetFile(ctx context.Context, arg GetFileParams) (File, error)
+	GetDocumentByFileId(ctx context.Context, fileID sql.NullString) (GetDocumentByFileIdRow, error)
+	GetDocumentChunks(ctx context.Context, documentID string) ([]Chunk, error)
+	GetEnabledChatGroupAgentLinks(ctx context.Context, chatGroupID string) ([]ChatGroupsAgent, error)
+	GetFile(ctx context.Context, id string) (File, error)
 	GetFileChunkIds(ctx context.Context, fileID sql.NullString) ([]sql.NullString, error)
 	GetFileChunks(ctx context.Context, arg GetFileChunksParams) ([]Chunk, error)
 	GetFileChunksWithMetadata(ctx context.Context, arg GetFileChunksWithMetadataParams) ([]GetFileChunksWithMetadataRow, error)
-	GetFilesByHash(ctx context.Context, arg GetFilesByHashParams) ([]File, error)
-	GetFilesByIds(ctx context.Context, userID string) ([]File, error)
-	GetFilesByNames(ctx context.Context, userID string) ([]File, error)
+	GetFilesByHash(ctx context.Context, fileHash sql.NullString) ([]File, error)
+	GetFilesByIds(ctx context.Context) ([]File, error)
+	GetFilesByNames(ctx context.Context) ([]File, error)
 	// Generations
-	GetGeneration(ctx context.Context, arg GetGenerationParams) (Generation, error)
+	GetGeneration(ctx context.Context, id string) (Generation, error)
 	// Generation Batches
-	GetGenerationBatch(ctx context.Context, arg GetGenerationBatchParams) (GenerationBatch, error)
+	GetGenerationBatch(ctx context.Context, id string) (GenerationBatch, error)
 	// Delete queries with cascade information
-	GetGenerationBatchAssets(ctx context.Context, arg GetGenerationBatchAssetsParams) ([]sql.NullString, error)
+	GetGenerationBatchAssets(ctx context.Context, generationBatchID string) ([]sql.NullString, error)
 	// Complex queries with JOINs for optimization
-	GetGenerationBatchWithGenerations(ctx context.Context, arg GetGenerationBatchWithGenerationsParams) (GetGenerationBatchWithGenerationsRow, error)
+	GetGenerationBatchWithGenerations(ctx context.Context, id string) (GetGenerationBatchWithGenerationsRow, error)
 	// Generation Topics
-	GetGenerationTopic(ctx context.Context, arg GetGenerationTopicParams) (GenerationTopic, error)
-	GetGenerationTopicAssets(ctx context.Context, arg GetGenerationTopicAssetsParams) ([]GetGenerationTopicAssetsRow, error)
-	GetGenerationTopicWithBatches(ctx context.Context, arg GetGenerationTopicWithBatchesParams) (GetGenerationTopicWithBatchesRow, error)
-	GetGenerationWithAsyncTask(ctx context.Context, arg GetGenerationWithAsyncTaskParams) (GetGenerationWithAsyncTaskRow, error)
+	GetGenerationTopic(ctx context.Context, id string) (GenerationTopic, error)
+	GetGenerationTopicAssets(ctx context.Context, id string) ([]GetGenerationTopicAssetsRow, error)
+	GetGenerationTopicWithBatches(ctx context.Context, id string) (GetGenerationTopicWithBatchesRow, error)
+	GetGenerationWithAsyncTask(ctx context.Context, id string) (GetGenerationWithAsyncTaskRow, error)
 	// Global Files
 	GetGlobalFile(ctx context.Context, hashID string) (GlobalFile, error)
 	GetGlobalFileByHash(ctx context.Context, hashID string) (GlobalFile, error)
 	// Knowledge Bases
-	GetKnowledgeBase(ctx context.Context, arg GetKnowledgeBaseParams) (KnowledgeBasis, error)
-	GetKnowledgeBaseFiles(ctx context.Context, arg GetKnowledgeBaseFilesParams) ([]File, error)
+	GetKnowledgeBase(ctx context.Context, id string) (KnowledgeBasis, error)
+	GetKnowledgeBaseFiles(ctx context.Context, knowledgeBaseID string) ([]File, error)
 	// ============================================================================
 	// CONVERSATION MEMORY LINKING (Link memories to messages/sessions)
 	// ============================================================================
-	GetMemoriesBySessionContext(ctx context.Context, arg GetMemoriesBySessionContextParams) ([]UserMemory, error)
-	GetMessage(ctx context.Context, arg GetMessageParams) (Message, error)
+	GetMemoriesBySessionContext(ctx context.Context, limit int64) ([]UserMemory, error)
+	GetMessage(ctx context.Context, id string) (Message, error)
 	// Batch queries - Note: These will be wrapped with JSON parsing in Go
 	// For now, we'll create a simple version and handle batching in Go layer
-	GetMessageByToolCallId(ctx context.Context, arg GetMessageByToolCallIdParams) (string, error)
-	GetMessageChunks(ctx context.Context, arg GetMessageChunksParams) ([]Chunk, error)
-	GetMessageFiles(ctx context.Context, arg GetMessageFilesParams) ([]File, error)
+	GetMessageByToolCallId(ctx context.Context, toolCallID sql.NullString) (string, error)
+	GetMessageChunks(ctx context.Context, messageID sql.NullString) ([]Chunk, error)
+	GetMessageFiles(ctx context.Context, messageID string) ([]File, error)
 	// Message Groups
-	GetMessageGroup(ctx context.Context, arg GetMessageGroupParams) (MessageGroup, error)
+	GetMessageGroup(ctx context.Context, id string) (MessageGroup, error)
 	GetMessageHeatmaps(ctx context.Context, arg GetMessageHeatmapsParams) ([]GetMessageHeatmapsRow, error)
 	// Message Plugins
-	GetMessagePlugin(ctx context.Context, arg GetMessagePluginParams) (MessagePlugin, error)
+	GetMessagePlugin(ctx context.Context, id string) (MessagePlugin, error)
 	// Message Queries (RAG)
-	GetMessageQuery(ctx context.Context, arg GetMessageQueryParams) (MessageQuery, error)
-	GetMessageQueryChunks(ctx context.Context, arg GetMessageQueryChunksParams) ([]GetMessageQueryChunksRow, error)
+	GetMessageQuery(ctx context.Context, id string) (MessageQuery, error)
+	GetMessageQueryChunks(ctx context.Context, messageids []sql.NullString) ([]GetMessageQueryChunksRow, error)
 	// Message TTS
-	GetMessageTTS(ctx context.Context, arg GetMessageTTSParams) (MessageTt, error)
+	GetMessageTTS(ctx context.Context, id string) (MessageTt, error)
 	// Message Translates
-	GetMessageTranslate(ctx context.Context, arg GetMessageTranslateParams) (MessageTranslate, error)
-	GetMessagesByTopicId(ctx context.Context, arg GetMessagesByTopicIdParams) ([]Message, error)
+	GetMessageTranslate(ctx context.Context, id string) (MessageTranslate, error)
+	GetMessagesByTopicId(ctx context.Context, topicID sql.NullString) ([]Message, error)
 	GetMessagesWithRelations(ctx context.Context, arg GetMessagesWithRelationsParams) ([]GetMessagesWithRelationsRow, error)
 	GetMessagesWithRelationsBySession(ctx context.Context, arg GetMessagesWithRelationsBySessionParams) ([]GetMessagesWithRelationsBySessionRow, error)
-	GetMostAccessedMemories(ctx context.Context, arg GetMostAccessedMemoriesParams) ([]UserMemory, error)
-	// NextAuth Accounts
-	GetNextAuthAccount(ctx context.Context, arg GetNextAuthAccountParams) (NextauthAccount, error)
-	// NextAuth Authenticators
-	GetNextAuthAuthenticator(ctx context.Context, arg GetNextAuthAuthenticatorParams) (NextauthAuthenticator, error)
-	// NextAuth Sessions
-	GetNextAuthSession(ctx context.Context, sessionToken string) (NextauthSession, error)
-	// NextAuth Verification Tokens
-	GetNextAuthVerificationToken(ctx context.Context, arg GetNextAuthVerificationTokenParams) (NextauthVerificationtoken, error)
-	GetOrphanedAgents(ctx context.Context, userID string) ([]Agent, error)
+	GetMostAccessedMemories(ctx context.Context, limit int64) ([]UserMemory, error)
+	GetOrphanedAgents(ctx context.Context) ([]Agent, error)
 	GetOrphanedChunks(ctx context.Context) ([]string, error)
-	// Permissions
-	GetPermission(ctx context.Context, id int64) (RbacPermission, error)
-	GetPermissionByCode(ctx context.Context, code string) (RbacPermission, error)
 	// Plugins
-	GetPlugin(ctx context.Context, arg GetPluginParams) (UserInstalledPlugin, error)
+	GetPlugin(ctx context.Context, identifier string) (UserInstalledPlugin, error)
 	// RAG Evaluation
-	GetRagEvalDataset(ctx context.Context, arg GetRagEvalDatasetParams) (RagEvalDataset, error)
-	GetRagEvalDatasetRecord(ctx context.Context, arg GetRagEvalDatasetRecordParams) (RagEvalDatasetRecord, error)
-	GetRagEvalEvaluation(ctx context.Context, arg GetRagEvalEvaluationParams) (RagEvalEvaluation, error)
-	GetRagEvalEvaluationRecord(ctx context.Context, arg GetRagEvalEvaluationRecordParams) (RagEvalEvaluationRecord, error)
-	GetRecentMemories(ctx context.Context, arg GetRecentMemoriesParams) ([]UserMemory, error)
-	// Roles
-	GetRole(ctx context.Context, id int64) (RbacRole, error)
-	GetRoleByName(ctx context.Context, name string) (RbacRole, error)
-	GetRolePermissions(ctx context.Context, roleID int64) ([]RbacPermission, error)
-	GetSession(ctx context.Context, arg GetSessionParams) (Session, error)
-	GetSessionAgents(ctx context.Context, arg GetSessionAgentsParams) ([]Agent, error)
+	GetRagEvalDataset(ctx context.Context, id string) (RagEvalDataset, error)
+	GetRagEvalDatasetRecord(ctx context.Context, id string) (RagEvalDatasetRecord, error)
+	GetRagEvalEvaluation(ctx context.Context, id string) (RagEvalEvaluation, error)
+	GetRagEvalEvaluationRecord(ctx context.Context, id string) (RagEvalEvaluationRecord, error)
+	GetRecentMemories(ctx context.Context, limit int64) ([]UserMemory, error)
+	GetSession(ctx context.Context, id string) (Session, error)
+	GetSessionAgents(ctx context.Context, sessionID string) ([]Agent, error)
 	GetSessionByIdOrSlug(ctx context.Context, arg GetSessionByIdOrSlugParams) (Session, error)
-	GetSessionBySlug(ctx context.Context, arg GetSessionBySlugParams) (Session, error)
-	GetSessionFiles(ctx context.Context, arg GetSessionFilesParams) ([]File, error)
-	GetSessionGroup(ctx context.Context, arg GetSessionGroupParams) (SessionGroup, error)
-	GetSessionGroupWithSessions(ctx context.Context, arg GetSessionGroupWithSessionsParams) (GetSessionGroupWithSessionsRow, error)
-	GetSessionRank(ctx context.Context, arg GetSessionRankParams) ([]GetSessionRankRow, error)
-	GetSessionWithGroup(ctx context.Context, arg GetSessionWithGroupParams) (GetSessionWithGroupRow, error)
-	GetThread(ctx context.Context, arg GetThreadParams) (Thread, error)
+	GetSessionBySlug(ctx context.Context, slug string) (Session, error)
+	GetSessionFiles(ctx context.Context, sessionID string) ([]File, error)
+	GetSessionGroup(ctx context.Context, id string) (SessionGroup, error)
+	GetSessionGroupWithSessions(ctx context.Context, id string) (GetSessionGroupWithSessionsRow, error)
+	GetSessionRank(ctx context.Context, limit int64) ([]GetSessionRankRow, error)
+	GetSessionWithGroup(ctx context.Context, id string) (GetSessionWithGroupRow, error)
+	GetThread(ctx context.Context, id string) (Thread, error)
 	GetTimeoutTasks(ctx context.Context, arg GetTimeoutTasksParams) ([]string, error)
-	GetTopic(ctx context.Context, arg GetTopicParams) (Topic, error)
-	GetTopicDocuments(ctx context.Context, arg GetTopicDocumentsParams) ([]Document, error)
+	GetTopic(ctx context.Context, id string) (Topic, error)
+	GetTopicDocuments(ctx context.Context, topicID string) ([]Document, error)
 	// Unstructured Chunks
-	GetUnstructuredChunk(ctx context.Context, arg GetUnstructuredChunkParams) (UnstructuredChunk, error)
-	GetUser(ctx context.Context, id string) (User, error)
-	GetUserByEmail(ctx context.Context, email sql.NullString) (User, error)
-	GetUserByUsername(ctx context.Context, username sql.NullString) (User, error)
-	GetUserMemoriesByIds(ctx context.Context, arg GetUserMemoriesByIdsParams) ([]UserMemory, error)
-	GetUserMemory(ctx context.Context, arg GetUserMemoryParams) (UserMemory, error)
+	GetUnstructuredChunk(ctx context.Context, id string) (UnstructuredChunk, error)
+	GetUserMemoriesByIds(ctx context.Context, ids []string) ([]UserMemory, error)
+	GetUserMemory(ctx context.Context, id string) (UserMemory, error)
 	GetUserMemoryContext(ctx context.Context, id string) (UserMemoriesContext, error)
 	GetUserMemoryExperience(ctx context.Context, id string) (UserMemoriesExperience, error)
 	GetUserMemoryIdentity(ctx context.Context, id string) (UserMemoriesIdentity, error)
 	GetUserMemoryPreference(ctx context.Context, id string) (UserMemoriesPreference, error)
-	GetUserPermissions(ctx context.Context, arg GetUserPermissionsParams) ([]RbacPermission, error)
-	GetUserPlugin(ctx context.Context, arg GetUserPluginParams) (UserInstalledPlugin, error)
-	GetUserRoles(ctx context.Context, arg GetUserRolesParams) ([]RbacRole, error)
-	// User Settings
 	GetUserSettings(ctx context.Context, id string) (UserSetting, error)
-	GetUserWithSettings(ctx context.Context, id string) (GetUserWithSettingsRow, error)
-	InstallUserPlugin(ctx context.Context, arg InstallUserPluginParams) (UserInstalledPlugin, error)
 	// Agent Files
 	LinkAgentToFile(ctx context.Context, arg LinkAgentToFileParams) error
 	// Agent Knowledge Bases
@@ -340,76 +298,65 @@ type Querier interface {
 	LinkMessageToChunk(ctx context.Context, arg LinkMessageToChunkParams) error
 	// Message Files
 	LinkMessageToFile(ctx context.Context, arg LinkMessageToFileParams) error
-	// Role Permissions
-	LinkRoleToPermission(ctx context.Context, arg LinkRoleToPermissionParams) error
 	// Topic Documents
 	LinkTopicToDocument(ctx context.Context, arg LinkTopicToDocumentParams) error
-	// User Roles
-	LinkUserToRole(ctx context.Context, arg LinkUserToRoleParams) error
-	ListAIModels(ctx context.Context, userID string) ([]AiModel, error)
-	ListAIModelsByProvider(ctx context.Context, arg ListAIModelsByProviderParams) ([]AiModel, error)
-	ListAIProviders(ctx context.Context, userID string) ([]AiProvider, error)
-	ListAPIKeys(ctx context.Context, userID string) ([]ApiKey, error)
+	ListAIModels(ctx context.Context) ([]AiModel, error)
+	ListAIModelsByProvider(ctx context.Context, providerID string) ([]AiModel, error)
+	ListAIProviders(ctx context.Context) ([]AiProvider, error)
+	ListAPIKeys(ctx context.Context) ([]ApiKey, error)
 	ListAgents(ctx context.Context, arg ListAgentsParams) ([]Agent, error)
-	ListAllSessions(ctx context.Context, userID string) ([]Session, error)
-	ListAllThreads(ctx context.Context, userID string) ([]Thread, error)
-	ListAllTopics(ctx context.Context, userID string) ([]Topic, error)
+	ListAllSessions(ctx context.Context) ([]Session, error)
+	ListAllThreads(ctx context.Context) ([]Thread, error)
+	ListAllTopics(ctx context.Context) ([]Topic, error)
 	ListAsyncTasks(ctx context.Context, arg ListAsyncTasksParams) ([]AsyncTask, error)
-	ListAsyncTasksByStatus(ctx context.Context, arg ListAsyncTasksByStatusParams) ([]AsyncTask, error)
-	ListChatGroups(ctx context.Context, userID string) ([]ChatGroup, error)
+	ListAsyncTasksByStatus(ctx context.Context, status sql.NullString) ([]AsyncTask, error)
+	ListChatGroups(ctx context.Context) ([]ChatGroup, error)
 	// Complex queries with JOINs
-	ListChatGroupsWithAgents(ctx context.Context, userID string) ([]ListChatGroupsWithAgentsRow, error)
+	ListChatGroupsWithAgents(ctx context.Context) ([]ListChatGroupsWithAgentsRow, error)
 	ListChunks(ctx context.Context, arg ListChunksParams) ([]Chunk, error)
 	ListDocuments(ctx context.Context, arg ListDocumentsParams) ([]Document, error)
-	ListEnabledAIModels(ctx context.Context, userID string) ([]AiModel, error)
-	ListEnabledAIProviders(ctx context.Context, userID string) ([]AiProvider, error)
+	ListEnabledAIModels(ctx context.Context) ([]AiModel, error)
+	ListEnabledAIProviders(ctx context.Context) ([]AiProvider, error)
 	ListExperiencesByMemoryId(ctx context.Context, userMemoryID sql.NullString) ([]UserMemoriesExperience, error)
 	ListFiles(ctx context.Context, arg ListFilesParams) ([]File, error)
-	ListGenerationBatches(ctx context.Context, arg ListGenerationBatchesParams) ([]GenerationBatch, error)
-	ListGenerationBatchesWithGenerations(ctx context.Context, arg ListGenerationBatchesWithGenerationsParams) ([]ListGenerationBatchesWithGenerationsRow, error)
-	ListGenerationTopics(ctx context.Context, userID string) ([]GenerationTopic, error)
-	ListGenerationTopicsWithCounts(ctx context.Context, userID string) ([]ListGenerationTopicsWithCountsRow, error)
-	ListGenerations(ctx context.Context, arg ListGenerationsParams) ([]Generation, error)
+	ListGenerationBatches(ctx context.Context, generationTopicID string) ([]GenerationBatch, error)
+	ListGenerationBatchesWithGenerations(ctx context.Context, generationTopicID string) ([]ListGenerationBatchesWithGenerationsRow, error)
+	ListGenerationTopics(ctx context.Context) ([]GenerationTopic, error)
+	ListGenerationTopicsWithCounts(ctx context.Context) ([]ListGenerationTopicsWithCountsRow, error)
+	ListGenerations(ctx context.Context, generationBatchID string) ([]Generation, error)
 	ListIdentitiesByMemoryId(ctx context.Context, userMemoryID sql.NullString) ([]UserMemoriesIdentity, error)
-	ListKnowledgeBaseFiles(ctx context.Context, arg ListKnowledgeBaseFilesParams) ([]KnowledgeBaseFile, error)
-	ListKnowledgeBases(ctx context.Context, userID string) ([]KnowledgeBasis, error)
-	ListMessageGroupsByTopic(ctx context.Context, arg ListMessageGroupsByTopicParams) ([]MessageGroup, error)
-	ListMessageQueriesByMessage(ctx context.Context, arg ListMessageQueriesByMessageParams) ([]MessageQuery, error)
+	ListKnowledgeBaseFiles(ctx context.Context, knowledgeBaseID string) ([]KnowledgeBaseFile, error)
+	ListKnowledgeBases(ctx context.Context) ([]KnowledgeBasis, error)
+	ListMessageGroupsByTopic(ctx context.Context, topicID sql.NullString) ([]MessageGroup, error)
+	ListMessageQueriesByMessage(ctx context.Context, messageID string) ([]MessageQuery, error)
 	ListMessages(ctx context.Context, arg ListMessagesParams) ([]Message, error)
 	ListMessagesByGroup(ctx context.Context, arg ListMessagesByGroupParams) ([]Message, error)
 	ListMessagesBySession(ctx context.Context, arg ListMessagesBySessionParams) ([]Message, error)
-	ListMessagesByThread(ctx context.Context, arg ListMessagesByThreadParams) ([]Message, error)
+	ListMessagesByThread(ctx context.Context, threadID sql.NullString) ([]Message, error)
 	ListMessagesByTopic(ctx context.Context, arg ListMessagesByTopicParams) ([]Message, error)
-	ListNextAuthAccountsByUser(ctx context.Context, userID string) ([]NextauthAccount, error)
-	ListNextAuthAuthenticatorsByUser(ctx context.Context, userID string) ([]NextauthAuthenticator, error)
-	ListPermissions(ctx context.Context) ([]RbacPermission, error)
-	ListPermissionsByCategory(ctx context.Context, category string) ([]RbacPermission, error)
-	ListPlugins(ctx context.Context, userID string) ([]UserInstalledPlugin, error)
+	ListPlugins(ctx context.Context) ([]UserInstalledPlugin, error)
 	ListPreferencesByMemoryId(ctx context.Context, userMemoryID sql.NullString) ([]UserMemoriesPreference, error)
-	ListRagEvalDatasetRecords(ctx context.Context, arg ListRagEvalDatasetRecordsParams) ([]RagEvalDatasetRecord, error)
-	ListRagEvalDatasets(ctx context.Context, userID string) ([]RagEvalDataset, error)
-	ListRagEvalEvaluationRecordsByEvaluation(ctx context.Context, arg ListRagEvalEvaluationRecordsByEvaluationParams) ([]RagEvalEvaluationRecord, error)
-	ListRagEvalEvaluationsByDataset(ctx context.Context, arg ListRagEvalEvaluationsByDatasetParams) ([]RagEvalEvaluation, error)
-	ListRoles(ctx context.Context) ([]RbacRole, error)
-	ListSessionGroups(ctx context.Context, userID string) ([]SessionGroup, error)
+	ListRagEvalDatasetRecords(ctx context.Context, datasetID string) ([]RagEvalDatasetRecord, error)
+	ListRagEvalDatasets(ctx context.Context) ([]RagEvalDataset, error)
+	ListRagEvalEvaluationRecordsByEvaluation(ctx context.Context, evaluationID string) ([]RagEvalEvaluationRecord, error)
+	ListRagEvalEvaluationsByDataset(ctx context.Context, datasetID string) ([]RagEvalEvaluation, error)
+	ListSessionGroups(ctx context.Context) ([]SessionGroup, error)
 	ListSessions(ctx context.Context, arg ListSessionsParams) ([]Session, error)
-	ListSessionsByGroup(ctx context.Context, arg ListSessionsByGroupParams) ([]Session, error)
-	ListThreadsByTopic(ctx context.Context, arg ListThreadsByTopicParams) ([]Thread, error)
+	ListSessionsByGroup(ctx context.Context, groupID sql.NullString) ([]Session, error)
+	ListThreadsByTopic(ctx context.Context, topicID string) ([]Thread, error)
 	ListTopics(ctx context.Context, arg ListTopicsParams) ([]Topic, error)
-	ListUnstructuredChunksByFile(ctx context.Context, arg ListUnstructuredChunksByFileParams) ([]UnstructuredChunk, error)
+	ListUnstructuredChunksByFile(ctx context.Context, fileID sql.NullString) ([]UnstructuredChunk, error)
 	ListUserMemories(ctx context.Context, arg ListUserMemoriesParams) ([]UserMemory, error)
 	ListUserMemoriesByCategory(ctx context.Context, arg ListUserMemoriesByCategoryParams) ([]UserMemory, error)
 	ListUserMemoriesByType(ctx context.Context, arg ListUserMemoriesByTypeParams) ([]UserMemory, error)
 	ListUserMemoryContexts(ctx context.Context, arg ListUserMemoryContextsParams) ([]UserMemoriesContext, error)
-	// User Installed Plugins
-	ListUserPlugins(ctx context.Context, userID string) ([]UserInstalledPlugin, error)
 	MoveSessionToGroup(ctx context.Context, arg MoveSessionToGroupParams) error
 	PinSession(ctx context.Context, arg PinSessionParams) error
 	// File query with filters
-	QueryFiles(ctx context.Context, userID string) ([]QueryFilesRow, error)
-	QueryFilesByKnowledgeBase(ctx context.Context, arg QueryFilesByKnowledgeBaseParams) ([]QueryFilesByKnowledgeBaseRow, error)
-	RankModels(ctx context.Context, arg RankModelsParams) ([]RankModelsRow, error)
-	RankTopics(ctx context.Context, arg RankTopicsParams) ([]RankTopicsRow, error)
+	QueryFiles(ctx context.Context) ([]QueryFilesRow, error)
+	QueryFilesByKnowledgeBase(ctx context.Context, knowledgeBaseID string) ([]QueryFilesByKnowledgeBaseRow, error)
+	RankModels(ctx context.Context, limit int64) ([]RankModelsRow, error)
+	RankTopics(ctx context.Context, limit int64) ([]RankTopicsRow, error)
 	SearchAgents(ctx context.Context, arg SearchAgentsParams) ([]Agent, error)
 	SearchMemoriesByTitle(ctx context.Context, arg SearchMemoriesByTitleParams) ([]UserMemory, error)
 	SearchMessagesByKeyword(ctx context.Context, arg SearchMessagesByKeywordParams) ([]Message, error)
@@ -423,7 +370,6 @@ type Querier interface {
 	ToggleAgentKnowledgeBase(ctx context.Context, arg ToggleAgentKnowledgeBaseParams) error
 	ToggleMessageFavorite(ctx context.Context, arg ToggleMessageFavoriteParams) error
 	ToggleTopicFavorite(ctx context.Context, arg ToggleTopicFavoriteParams) error
-	UninstallUserPlugin(ctx context.Context, arg UninstallUserPluginParams) error
 	UnlinkAgentFromFile(ctx context.Context, arg UnlinkAgentFromFileParams) error
 	UnlinkAgentFromKnowledgeBase(ctx context.Context, arg UnlinkAgentFromKnowledgeBaseParams) error
 	UnlinkAgentFromSession(ctx context.Context, arg UnlinkAgentFromSessionParams) error
@@ -433,9 +379,7 @@ type Querier interface {
 	UnlinkFileFromSession(ctx context.Context, arg UnlinkFileFromSessionParams) error
 	UnlinkKnowledgeBaseFromFile(ctx context.Context, arg UnlinkKnowledgeBaseFromFileParams) error
 	UnlinkMessageFromFile(ctx context.Context, arg UnlinkMessageFromFileParams) error
-	UnlinkRoleFromPermission(ctx context.Context, arg UnlinkRoleFromPermissionParams) error
 	UnlinkTopicFromDocument(ctx context.Context, arg UnlinkTopicFromDocumentParams) error
-	UnlinkUserFromRole(ctx context.Context, arg UnlinkUserFromRoleParams) error
 	UpdateAIModel(ctx context.Context, arg UpdateAIModelParams) (AiModel, error)
 	UpdateAIModelSort(ctx context.Context, arg UpdateAIModelSortParams) (AiModel, error)
 	UpdateAIProvider(ctx context.Context, arg UpdateAIProviderParams) (AiProvider, error)
@@ -456,30 +400,19 @@ type Querier interface {
 	UpdateMessage(ctx context.Context, arg UpdateMessageParams) (Message, error)
 	UpdateMessagePlugin(ctx context.Context, arg UpdateMessagePluginParams) (MessagePlugin, error)
 	UpdateMessagesTopicId(ctx context.Context, arg UpdateMessagesTopicIdParams) error
-	UpdateNextAuthAccount(ctx context.Context, arg UpdateNextAuthAccountParams) (NextauthAccount, error)
-	UpdateNextAuthAuthenticator(ctx context.Context, arg UpdateNextAuthAuthenticatorParams) (NextauthAuthenticator, error)
-	UpdateNextAuthSession(ctx context.Context, arg UpdateNextAuthSessionParams) (NextauthSession, error)
-	UpdatePermission(ctx context.Context, arg UpdatePermissionParams) (RbacPermission, error)
 	UpdatePlugin(ctx context.Context, arg UpdatePluginParams) error
 	UpdateRagEvalDataset(ctx context.Context, arg UpdateRagEvalDatasetParams) error
 	UpdateRagEvalDatasetRecord(ctx context.Context, arg UpdateRagEvalDatasetRecordParams) error
 	UpdateRagEvalEvaluation(ctx context.Context, arg UpdateRagEvalEvaluationParams) error
 	UpdateRagEvalEvaluationRecord(ctx context.Context, arg UpdateRagEvalEvaluationRecordParams) error
-	UpdateRole(ctx context.Context, arg UpdateRoleParams) (RbacRole, error)
 	UpdateSession(ctx context.Context, arg UpdateSessionParams) (Session, error)
 	UpdateSessionGroup(ctx context.Context, arg UpdateSessionGroupParams) (SessionGroup, error)
 	UpdateSessionGroupOrder(ctx context.Context, arg UpdateSessionGroupOrderParams) error
 	UpdateThread(ctx context.Context, arg UpdateThreadParams) (Thread, error)
 	UpdateTimeoutTasks(ctx context.Context, arg UpdateTimeoutTasksParams) error
 	UpdateTopic(ctx context.Context, arg UpdateTopicParams) (Topic, error)
-	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
 	UpdateUserMemory(ctx context.Context, arg UpdateUserMemoryParams) (UserMemory, error)
-	UpdateUserOnboarding(ctx context.Context, arg UpdateUserOnboardingParams) error
-	UpdateUserPlugin(ctx context.Context, arg UpdateUserPluginParams) (UserInstalledPlugin, error)
-	UpdateUserPreference(ctx context.Context, arg UpdateUserPreferenceParams) (User, error)
-	UpdateUserSettingsGeneral(ctx context.Context, arg UpdateUserSettingsGeneralParams) error
-	UpdateUserSettingsHotkey(ctx context.Context, arg UpdateUserSettingsHotkeyParams) error
-	UpdateUserSettingsTTS(ctx context.Context, arg UpdateUserSettingsTTSParams) error
+	UpdateUserSettings(ctx context.Context, arg UpdateUserSettingsParams) (UserSetting, error)
 	UpsertAIModel(ctx context.Context, arg UpsertAIModelParams) (AiModel, error)
 	UpsertAIProvider(ctx context.Context, arg UpsertAIProviderParams) (AiProvider, error)
 	UpsertAIProviderConfig(ctx context.Context, arg UpsertAIProviderConfigParams) (AiProvider, error)

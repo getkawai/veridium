@@ -55,7 +55,7 @@ func NewRAGWorkflow(kbService *KnowledgeBaseService) *RAGWorkflow {
 // BuildContext retrieves relevant documents and builds context for LLM
 func (w *RAGWorkflow) BuildContext(ctx context.Context, req RAGRequest) (string, []*types.Document, error) {
 	// 1. Get retriever
-	retriever, err := w.kbService.GetRetriever(ctx, req.KnowledgeBaseID, req.UserID)
+	retriever, err := w.kbService.GetRetriever(ctx, req.KnowledgeBaseID)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to get retriever: %w", err)
 	}

@@ -2,24 +2,23 @@
 
 -- name: GetPlugin :one
 SELECT * FROM user_installed_plugins
-WHERE identifier = ? AND user_id = ?;
+WHERE identifier = ?;
 
 -- name: ListPlugins :many
 SELECT * FROM user_installed_plugins
-WHERE user_id = ?
 ORDER BY created_at DESC;
 
 -- name: CreatePlugin :one
 INSERT INTO user_installed_plugins (
-    identifier, type, manifest, custom_params, settings, user_id, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    identifier, type, manifest, custom_params, settings, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpsertPlugin :one
 INSERT INTO user_installed_plugins (
-    identifier, type, manifest, custom_params, settings, user_id, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(identifier, user_id) DO UPDATE SET
+    identifier, type, manifest, custom_params, settings, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(identifier) DO UPDATE SET
     type = excluded.type,
     manifest = excluded.manifest,
     custom_params = excluded.custom_params,
@@ -34,12 +33,11 @@ SET type = ?,
     custom_params = ?,
     settings = ?,
     updated_at = ?
-WHERE identifier = ? AND user_id = ?;
+WHERE identifier = ?;
 
 -- name: DeletePlugin :exec
 DELETE FROM user_installed_plugins
-WHERE identifier = ? AND user_id = ?;
+WHERE identifier = ?;
 
 -- name: DeleteAllPlugins :exec
-DELETE FROM user_installed_plugins WHERE user_id = ?;
-
+DELETE FROM user_installed_plugins;

@@ -157,7 +157,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	var fileChunks []ChatFileChunk
 	if len(req.FileIDs) > 0 && s.vectorSearch != nil {
 		log.Printf("📎 [REAL STREAM] Searching %d attached files for context", len(req.FileIDs))
-		searchResults, err := s.vectorSearch.SemanticSearch(ctx, req.UserID, req.Message, req.FileIDs, 10)
+		searchResults, err := s.vectorSearch.SemanticSearch(ctx, req.Message, req.FileIDs, 10)
 		if err != nil {
 			log.Printf("⚠️  [REAL STREAM] File search failed: %v", err)
 		} else if len(searchResults) > 0 {
@@ -192,7 +192,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 		log.Printf("🧠 [REAL STREAM] Fetching hybrid context memories for query: %s", req.Message)
 		// We use nil for shortTermMessages here as they are already in the session history
 		// and handled by the agent. We only need the memory text to inject into system prompt.
-		memCtx, err := s.memoryIntegration.BuildHybridContext(ctx, req.UserID, req.Message, nil)
+		memCtx, err := s.memoryIntegration.BuildHybridContext(ctx, req.Message, nil)
 		if err != nil {
 			log.Printf("⚠️  [REAL STREAM] Failed to build hybrid context: %v", err)
 		} else if memCtx != "" {
@@ -543,7 +543,6 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 		SessionID: req.SessionID,
 		TopicID:   currentTopicID,
 		ThreadID:  req.ThreadID,
-		UserID:    req.UserID,
 		Reasoning: reasoning,
 		Tools:     uiTools,
 		Metadata:  fullMetadata,
@@ -568,7 +567,6 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 			SessionID:  req.SessionID,
 			TopicID:    currentTopicID,
 			ThreadID:   req.ThreadID,
-			UserID:     req.UserID,
 			TimeOffset: int64(i + 2),
 		})
 	}
@@ -588,7 +586,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 		if currentTopicID != "" {
 			log.Printf("📌 [TITLE CHECK] Conditions met (first turn), calling updateTopicTitle")
 			if s.topicService != nil {
-				err := s.topicService.UpdateTopicTitle(ctx, currentTopicID, session.UserID, session.Messages)
+				err := s.topicService.UpdateTopicTitle(ctx, currentTopicID, session.Messages)
 				if err != nil {
 					log.Printf("⚠️  Warning: Failed to trigger topic title update: %v", err)
 				}
@@ -603,7 +601,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	}
 
 	// 14. Update session timestamp
-	if err := s.updateSessionTimestamp(ctx, session.SessionID, session.UserID); err != nil {
+	if err := s.updateSessionTimestamp(ctx, session.SessionID); err != nil {
 		log.Printf("⚠️  Warning: Failed to update session timestamp: %v", err)
 	}
 
@@ -611,8 +609,8 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	if currentTopicID != "" {
 		go func() {
 			bgCtx := context.Background()
-			s.autoSummarizeIfNeeded(bgCtx, session, currentTopicID, session.UserID)
-			s.incrementalSummarizeIfNeeded(bgCtx, session, currentTopicID, session.UserID)
+			s.autoSummarizeIfNeeded(bgCtx, session, currentTopicID)
+			s.incrementalSummarizeIfNeeded(bgCtx, session, currentTopicID)
 		}()
 	}
 
@@ -620,7 +618,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	if s.memoryIntegration != nil && finalContentStr != "" {
 		go func() {
 			bgCtx := context.Background()
-			if err := s.memoryIntegration.StoreConversationMemory(bgCtx, req.UserID, req.Message, finalContentStr); err != nil {
+			if err := s.memoryIntegration.StoreConversationMemory(bgCtx, req.Message, finalContentStr); err != nil {
 				log.Printf("⚠️  [Memory] Failed to store conversation: %v", err)
 			}
 		}()

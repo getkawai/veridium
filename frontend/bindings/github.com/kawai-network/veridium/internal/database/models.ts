@@ -113,7 +113,6 @@ export class CreateMessageWithRelationsParams {
  */
 export class DeleteFileWithCascadeParams {
     "FileID": string;
-    "UserID": string;
     "RemoveGlobalFile": boolean;
     "FileHash": string;
 
@@ -121,9 +120,6 @@ export class DeleteFileWithCascadeParams {
     constructor($$source: Partial<DeleteFileWithCascadeParams> = {}) {
         if (!("FileID" in $$source)) {
             this["FileID"] = "";
-        }
-        if (!("UserID" in $$source)) {
-            this["UserID"] = "";
         }
         if (!("RemoveGlobalFile" in $$source)) {
             this["RemoveGlobalFile"] = false;

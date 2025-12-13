@@ -1,43 +1,41 @@
 -- name: GetSession :one
 SELECT * FROM sessions
-WHERE id = ? AND user_id = ?;
+WHERE id = ?;
 
 -- name: GetSessionBySlug :one
 SELECT * FROM sessions
-WHERE slug = ? AND user_id = ?;
+WHERE slug = ?;
 
 -- name: GetSessionByIdOrSlug :one
 SELECT * FROM sessions
-WHERE (id = ? OR slug = ?) AND user_id = ?;
+WHERE (id = ? OR slug = ?);
 
 -- name: ListSessions :many
 SELECT * FROM sessions
-WHERE user_id = ? AND slug != 'inbox'
+WHERE slug != 'inbox'
 ORDER BY updated_at DESC
 LIMIT ? OFFSET ?;
 
 -- name: ListAllSessions :many
 SELECT * FROM sessions
-WHERE user_id = ?
 ORDER BY updated_at DESC;
 
 -- name: CountSessions :one
 SELECT COUNT(*) FROM sessions
-WHERE user_id = ? AND slug != 'inbox';
+WHERE slug != 'inbox';
 
 -- name: CountSessionsByDateRange :one
 SELECT COUNT(*) FROM sessions
-WHERE user_id = ? 
-  AND slug != 'inbox'
+WHERE slug != 'inbox'
   AND created_at >= ?
   AND created_at <= ?;
 
 -- name: CreateSession :one
 INSERT INTO sessions (
     id, slug, title, description, avatar, background_color,
-    type, user_id, group_id, pinned,
+    type, group_id, pinned,
     created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpdateSession :one
@@ -49,28 +47,26 @@ SET title = ?,
     group_id = ?,
     pinned = ?,
     updated_at = ?
-WHERE id = ? AND user_id = ?
+WHERE id = ?
 RETURNING *;
 
 -- name: DeleteSession :exec
 DELETE FROM sessions
-WHERE id = ? AND user_id = ?;
+WHERE id = ?;
 
 -- name: BatchDeleteSessions :exec
 DELETE FROM sessions
-WHERE user_id = ? AND id IN (sqlc.slice('ids'));
+WHERE id IN (sqlc.slice('ids'));
 
 -- name: SearchSessions :many
 SELECT * FROM sessions
-WHERE user_id = ? 
-  AND (title LIKE ? OR description LIKE ?)
+WHERE (title LIKE ? OR description LIKE ?)
 ORDER BY updated_at DESC
 LIMIT ?;
 
 -- name: SearchSessionsByKeyword :many
 SELECT * FROM sessions
-WHERE user_id = ? 
-  AND (title LIKE '%' || ? || '%' OR description LIKE '%' || ? || '%')
+WHERE (title LIKE '%' || ? || '%' OR description LIKE '%' || ? || '%')
 ORDER BY updated_at DESC
 LIMIT 100;
 
@@ -82,22 +78,22 @@ SELECT
     sg.sort as group_sort
 FROM sessions s
 LEFT JOIN session_groups sg ON s.group_id = sg.id
-WHERE s.id = ? AND s.user_id = ?;
+WHERE s.id = ?;
 
 -- name: ListSessionsByGroup :many
 SELECT * FROM sessions
-WHERE user_id = ? AND group_id = ?
+WHERE group_id = ?
 ORDER BY updated_at DESC;
 
 -- name: MoveSessionToGroup :exec
 UPDATE sessions
 SET group_id = ?, updated_at = ?
-WHERE id = ? AND user_id = ?;
+WHERE id = ?;
 
 -- name: PinSession :exec
 UPDATE sessions
 SET pinned = ?, updated_at = ?
-WHERE id = ? AND user_id = ?;
+WHERE id = ?;
 
 -- name: GetSessionRank :many
 SELECT 
@@ -110,17 +106,17 @@ FROM sessions s
 LEFT JOIN agents_to_sessions ats ON s.id = ats.session_id
 LEFT JOIN agents a ON ats.agent_id = a.id
 LEFT JOIN topics t ON s.id = t.session_id
-WHERE s.user_id = ? AND s.slug != 'inbox'
+WHERE s.slug != 'inbox'
 GROUP BY s.id, a.title, a.avatar, a.background_color
 ORDER BY topic_count DESC, s.updated_at DESC
 LIMIT ?;
 
 -- name: DuplicateSession :one
 -- Duplicate a session by creating a new session with the same data but new IDs
--- Parameters: new_session_id, new_title, created_at, updated_at, source_session_id, user_id
+-- Parameters: new_session_id, new_title, created_at, updated_at, source_session_id
 INSERT INTO sessions (
     id, slug, title, description, avatar, background_color,
-    type, user_id, group_id, pinned,
+    type, group_id, pinned,
     created_at, updated_at
 )
 SELECT 
@@ -131,12 +127,10 @@ SELECT
     s.avatar,
     s.background_color,
     s.type,
-    s.user_id,
     s.group_id,
     s.pinned,
     ? as created_at,        -- new created_at
     ? as updated_at         -- new updated_at
 FROM sessions s
-WHERE s.id = ? AND s.user_id = ?
+WHERE s.id = ?
 RETURNING *;
-

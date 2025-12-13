@@ -65,7 +65,6 @@ func (f *FileProcessorService) SetLanguageModel(model fantasy.LanguageModel) {
 // Returns the processed file response with the relative URL for frontend display
 func (f *FileProcessorService) ProcessFileFromPath(
 	absolutePath string,
-	userID string,
 ) (*ProcessFileFromPathResponse, error) {
 	// TODO: Replace with valid userid
 	ctx := context.Background()
@@ -122,7 +121,6 @@ func (f *FileProcessorService) ProcessFileFromPath(
 	req := services.ProcessFileRequest{
 		FilePath:  destPath,
 		Filename:  filename,
-		UserID:    userID,
 		Source:    destPath,
 		EnableRAG: true,
 		IsShared:  false,

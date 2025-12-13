@@ -27,9 +27,9 @@ import (
 
 // MemoryIntegration provides integration between memory services and chat
 type MemoryIntegration struct {
-	memoryService    *MemoryService
+	memoryService     *MemoryService
 	enrichmentService *MemoryEnrichmentService
-	bufferConfig     BufferConfig
+	bufferConfig      BufferConfig
 }
 
 // MemoryIntegrationConfig holds configuration for memory integration
@@ -54,7 +54,7 @@ func NewMemoryIntegration(config *MemoryIntegrationConfig) (*MemoryIntegration, 
 }
 
 // RegisterMemoryTool registers the search_memory tool with the given registry
-func (m *MemoryIntegration) RegisterMemoryTool(registry *tools.ToolRegistry, userID string) error {
+func (m *MemoryIntegration) RegisterMemoryTool(registry *tools.ToolRegistry) error {
 	if m.memoryService == nil {
 		log.Println("⚠️  Memory service not available, skipping memory tool registration")
 		return nil
@@ -63,12 +63,12 @@ func (m *MemoryIntegration) RegisterMemoryTool(registry *tools.ToolRegistry, use
 	// Create adapter that converts MemoryService to MemorySearcher interface
 	adapter := builtin.NewMemoryServiceAdapter(
 		// SemanticSearch adapter
-		func(ctx context.Context, userID, query string, limit int) ([]builtin.MemorySearchResult, error) {
-			results, err := m.memoryService.SemanticSearch(ctx, userID, query, limit)
+		func(ctx context.Context, query string, limit int) ([]builtin.MemorySearchResult, error) {
+			results, err := m.memoryService.SemanticSearch(ctx, query, limit)
 			if err != nil {
 				return nil, err
 			}
-			
+
 			searchResults := make([]builtin.MemorySearchResult, len(results))
 			for i, r := range results {
 				searchResults[i] = builtin.MemorySearchResult{
@@ -82,12 +82,12 @@ func (m *MemoryIntegration) RegisterMemoryTool(registry *tools.ToolRegistry, use
 			return searchResults, nil
 		},
 		// SemanticSearchByCategory adapter (uses same function for now)
-		func(ctx context.Context, userID, query, category string, limit int) ([]builtin.MemorySearchResult, error) {
-			results, err := m.memoryService.SemanticSearch(ctx, userID, query, limit)
+		func(ctx context.Context, query, category string, limit int) ([]builtin.MemorySearchResult, error) {
+			results, err := m.memoryService.SemanticSearch(ctx, query, limit)
 			if err != nil {
 				return nil, err
 			}
-			
+
 			// Filter by category
 			var filtered []*MemorySearchResult
 			for _, r := range results {
@@ -95,7 +95,7 @@ func (m *MemoryIntegration) RegisterMemoryTool(registry *tools.ToolRegistry, use
 					filtered = append(filtered, r)
 				}
 			}
-			
+
 			searchResults := make([]builtin.MemorySearchResult, len(filtered))
 			for i, r := range filtered {
 				searchResults[i] = builtin.MemorySearchResult{
@@ -110,35 +110,35 @@ func (m *MemoryIntegration) RegisterMemoryTool(registry *tools.ToolRegistry, use
 		},
 	)
 
-	return builtin.RegisterMemorySearch(registry, adapter, userID)
+	return builtin.RegisterMemorySearch(registry, adapter)
 }
 
 // ProcessSessionBuffer processes the session buffer for auto-archiving
 // Call this before processing new messages to ensure buffer doesn't overflow
-func (m *MemoryIntegration) ProcessSessionBuffer(ctx context.Context, userID string, messages []fantasy.Message) ([]fantasy.Message, error) {
+func (m *MemoryIntegration) ProcessSessionBuffer(ctx context.Context, messages []fantasy.Message) ([]fantasy.Message, error) {
 	if m.enrichmentService == nil {
 		return messages, nil
 	}
 
-	return m.enrichmentService.AutoArchive(ctx, userID, messages, m.bufferConfig)
+	return m.enrichmentService.AutoArchive(ctx, messages, m.bufferConfig)
 }
 
 // EnrichAndStoreMessages manually enriches messages and stores as memories
-func (m *MemoryIntegration) EnrichAndStoreMessages(ctx context.Context, userID string, messages []fantasy.Message) (*EnrichmentResult, error) {
+func (m *MemoryIntegration) EnrichAndStoreMessages(ctx context.Context, messages []fantasy.Message) (*EnrichmentResult, error) {
 	if m.enrichmentService == nil {
 		return &EnrichmentResult{}, nil
 	}
 
-	return m.enrichmentService.EnrichMessages(ctx, userID, messages)
+	return m.enrichmentService.EnrichMessages(ctx, messages)
 }
 
 // GetRelevantMemories retrieves memories relevant to a query
-func (m *MemoryIntegration) GetRelevantMemories(ctx context.Context, userID, query string, limit int) (string, error) {
+func (m *MemoryIntegration) GetRelevantMemories(ctx context.Context, query string, limit int) (string, error) {
 	if m.memoryService == nil {
 		return "", nil
 	}
 
-	results, err := m.memoryService.SemanticSearch(ctx, userID, query, limit)
+	results, err := m.memoryService.SemanticSearch(ctx, query, limit)
 	if err != nil {
 		return "", err
 	}
@@ -148,13 +148,13 @@ func (m *MemoryIntegration) GetRelevantMemories(ctx context.Context, userID, que
 
 // BuildHybridContext builds context combining short-term buffer and long-term memory
 // This implements the "RAM vs Hard Disk" analogy from MemGPT
-func (m *MemoryIntegration) BuildHybridContext(ctx context.Context, userID string, currentQuery string, shortTermMessages []fantasy.Message) (string, error) {
+func (m *MemoryIntegration) BuildHybridContext(ctx context.Context, currentQuery string, shortTermMessages []fantasy.Message) (string, error) {
 	if m.memoryService == nil {
 		return "", nil
 	}
 
 	// 1. Get relevant long-term memories based on current query
-	relevantMemories, err := m.GetRelevantMemories(ctx, userID, currentQuery, 5)
+	relevantMemories, err := m.GetRelevantMemories(ctx, currentQuery, 5)
 	if err != nil {
 		log.Printf("⚠️  Failed to retrieve memories: %v", err)
 		relevantMemories = ""
@@ -162,17 +162,17 @@ func (m *MemoryIntegration) BuildHybridContext(ctx context.Context, userID strin
 
 	// 2. Short-term buffer is already in messages, no need to add here
 	// The relevantMemories will be added to system context
-	
+
 	return relevantMemories, nil
 }
 
 // ArchiveOldMemories archives memories that haven't been accessed recently
-func (m *MemoryIntegration) ArchiveOldMemories(ctx context.Context, userID string, olderThanDays int) error {
+func (m *MemoryIntegration) ArchiveOldMemories(ctx context.Context, olderThanDays int) error {
 	if m.memoryService == nil {
 		return nil
 	}
 
-	return m.memoryService.ArchiveOldMemories(ctx, userID, olderThanDays)
+	return m.memoryService.ArchiveOldMemories(ctx, olderThanDays)
 }
 
 // GetMemoryService returns the underlying memory service
@@ -187,7 +187,7 @@ func (m *MemoryIntegration) GetEnrichmentService() *MemoryEnrichmentService {
 
 // StoreConversationMemory stores a conversation exchange as memory
 // This is called automatically after each chat response
-func (m *MemoryIntegration) StoreConversationMemory(ctx context.Context, userID, userMessage, assistantResponse string) error {
+func (m *MemoryIntegration) StoreConversationMemory(ctx context.Context, userMessage, assistantResponse string) error {
 	if m.enrichmentService == nil {
 		return nil
 	}
@@ -199,7 +199,7 @@ func (m *MemoryIntegration) StoreConversationMemory(ctx context.Context, userID,
 	}
 
 	// Enrich and store
-	result, err := m.enrichmentService.EnrichMessages(ctx, userID, messages)
+	result, err := m.enrichmentService.EnrichMessages(ctx, messages)
 	if err != nil {
 		return err
 	}

@@ -95,7 +95,6 @@ type SaveUserMessageParams struct {
 	SessionID string
 	TopicID   string
 	ThreadID  string
-	UserID    string
 }
 
 // SaveAssistantMessageParams contains parameters for saving an assistant message
@@ -105,7 +104,6 @@ type SaveAssistantMessageParams struct {
 	SessionID string
 	TopicID   string
 	ThreadID  string
-	UserID    string
 
 	// Optional fields for rich content
 	Reasoning interface{} // map[string]interface{} with content, status
@@ -126,7 +124,6 @@ type SaveToolMessageParams struct {
 	SessionID  string
 	TopicID    string
 	ThreadID   string
-	UserID     string
 	TimeOffset int64 // Offset from base timestamp (for ordering)
 }
 
@@ -134,7 +131,6 @@ type SaveToolMessageParams struct {
 type SaveRAGDataParams struct {
 	MessageID string
 	UserQuery string
-	UserID    string
 	Files     []db.CreateFileParams
 	Chunks    []RAGChunkParams
 }
@@ -181,10 +177,7 @@ func (s *AgentChatService) setupSessionAndTopic(ctx context.Context, req ChatReq
 
 	// 2. Load history summary from DB if topic exists
 	if req.TopicID != "" {
-		topic, err := s.db.Queries().GetTopic(ctx, db.GetTopicParams{
-			ID:     req.TopicID,
-			UserID: req.UserID,
-		})
+		topic, err := s.db.Queries().GetTopic(ctx, req.TopicID)
 		if err == nil && topic.HistorySummary.Valid && topic.HistorySummary.String != "" {
 			if session.Context == nil {
 				session.Context = make(map[string]any)
@@ -197,7 +190,7 @@ func (s *AgentChatService) setupSessionAndTopic(ctx context.Context, req ChatReq
 
 	// 3. Load thread messages if ThreadID provided
 	if req.ThreadID != "" && s.threadService != nil {
-		threadMessages, err := s.threadService.GetThreadMessages(ctx, req.ThreadID, req.UserID)
+		threadMessages, err := s.threadService.GetThreadMessages(ctx, req.ThreadID)
 		if err != nil {
 			log.Printf("⚠️  Warning: Failed to load thread messages: %v", err)
 		} else {
@@ -221,7 +214,7 @@ func (s *AgentChatService) setupSessionAndTopic(ctx context.Context, req ChatReq
 
 	// 5. Auto-create topic if needed (BEFORE saving user message so we have topicID)
 	if result.TopicID == "" && result.IsNew {
-		topicID, err := s.createTopicForSessionSync(ctx, session.SessionID, session.UserID)
+		topicID, err := s.createTopicForSessionSync(ctx, session.SessionID)
 		if err != nil {
 			log.Printf("⚠️  Warning: Failed to create topic: %v", err)
 		} else {
@@ -241,7 +234,6 @@ func (s *AgentChatService) setupSessionAndTopic(ctx context.Context, req ChatReq
 		SessionID: session.SessionID,
 		TopicID:   result.TopicID,
 		ThreadID:  req.ThreadID,
-		UserID:    req.UserID,
 	})
 	if err != nil {
 		log.Printf("⚠️  Warning: Failed to save user message to DB: %v", err)
@@ -267,7 +259,6 @@ func (s *AgentChatService) saveUserMessage(ctx context.Context, params SaveUserM
 		ID:        msgID,
 		Role:      "user",
 		Content:   sql.NullString{String: params.Content, Valid: true},
-		UserID:    params.UserID,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
@@ -305,7 +296,6 @@ func (s *AgentChatService) saveAssistantMessage(ctx context.Context, params Save
 		ID:        msgID,
 		Role:      "assistant",
 		Content:   sql.NullString{String: params.Content, Valid: true},
-		UserID:    params.UserID,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
@@ -375,7 +365,6 @@ func (s *AgentChatService) saveToolMessage(ctx context.Context, params SaveToolM
 		ID:        msgID,
 		Role:      "tool",
 		Content:   sql.NullString{String: contentStr, Valid: contentStr != ""},
-		UserID:    params.UserID,
 		CreatedAt: now + params.TimeOffset,
 		UpdatedAt: now + params.TimeOffset,
 	}
@@ -403,7 +392,6 @@ func (s *AgentChatService) saveToolMessage(ctx context.Context, params SaveToolM
 		ApiName:    sql.NullString{String: params.APIName, Valid: true},
 		Arguments:  sql.NullString{String: params.Arguments, Valid: params.Arguments != ""},
 		Identifier: sql.NullString{String: params.Identifier, Valid: true},
-		UserID:     params.UserID,
 	}
 
 	// Add state if provided (for pluginState in frontend)
@@ -427,7 +415,7 @@ func (s *AgentChatService) saveRAGData(ctx context.Context, params SaveRAGDataPa
 	// 1. Create files and collect their IDs
 	fileIDs := make([]string, len(params.Files))
 	for i, file := range params.Files {
-		file.UserID = params.UserID
+		// UserID removed from file params
 		createdFile, err := s.db.Queries().CreateFile(ctx, file)
 		if err != nil {
 			log.Printf("⚠️  Failed to create file: %v", err)
@@ -443,7 +431,6 @@ func (s *AgentChatService) saveRAGData(ctx context.Context, params SaveRAGDataPa
 			Text:       sql.NullString{String: chunk.Text, Valid: true},
 			ChunkIndex: sql.NullInt64{Int64: chunk.ChunkIndex, Valid: true},
 			Type:       sql.NullString{String: chunk.Type, Valid: true},
-			UserID:     sql.NullString{String: params.UserID, Valid: true},
 		}
 		_, err := s.db.Queries().CreateChunk(ctx, chunkParams)
 		if err != nil {
@@ -457,7 +444,6 @@ func (s *AgentChatService) saveRAGData(ctx context.Context, params SaveRAGDataPa
 			err = s.db.Queries().LinkFileToChunk(ctx, db.LinkFileToChunkParams{
 				FileID:  sql.NullString{String: fileID, Valid: true},
 				ChunkID: sql.NullString{String: chunk.ID, Valid: true},
-				UserID:  params.UserID,
 			})
 			if err != nil {
 				log.Printf("⚠️  Failed to link file to chunk %s: %v", chunk.ID, err)
@@ -473,7 +459,6 @@ func (s *AgentChatService) saveRAGData(ctx context.Context, params SaveRAGDataPa
 			MessageID:    params.MessageID,
 			UserQuery:    sql.NullString{String: params.UserQuery, Valid: true},
 			RewriteQuery: sql.NullString{String: params.UserQuery, Valid: true},
-			UserID:       params.UserID,
 		}
 		_, err := s.db.Queries().CreateMessageQuery(ctx, queryParams)
 		if err != nil {
@@ -486,7 +471,6 @@ func (s *AgentChatService) saveRAGData(ctx context.Context, params SaveRAGDataPa
 					QueryID:    sql.NullString{String: queryID, Valid: true},
 					ChunkID:    sql.NullString{String: chunk.ID, Valid: true},
 					Similarity: sql.NullInt64{Int64: chunk.Similarity, Valid: true},
-					UserID:     params.UserID,
 				})
 				if err != nil {
 					log.Printf("⚠️  Failed to link query to chunk %s: %v", chunk.ID, err)
@@ -501,7 +485,7 @@ func (s *AgentChatService) saveRAGData(ctx context.Context, params SaveRAGDataPa
 
 // linkMessageToChunks creates links between a message and chunks with similarity scores
 // This is a simpler version when files/chunks already exist
-func (s *AgentChatService) linkMessageToChunks(ctx context.Context, messageID, userQuery, userID string, chunks []RAGChunkParams) error {
+func (s *AgentChatService) linkMessageToChunks(ctx context.Context, messageID, userQuery string, chunks []RAGChunkParams) error {
 	if messageID == "" || len(chunks) == 0 {
 		return nil
 	}
@@ -512,7 +496,6 @@ func (s *AgentChatService) linkMessageToChunks(ctx context.Context, messageID, u
 		MessageID:    messageID,
 		UserQuery:    sql.NullString{String: userQuery, Valid: true},
 		RewriteQuery: sql.NullString{String: userQuery, Valid: true},
-		UserID:       userID,
 	}
 
 	_, err := s.db.Queries().CreateMessageQuery(ctx, queryParams)
@@ -526,7 +509,6 @@ func (s *AgentChatService) linkMessageToChunks(ctx context.Context, messageID, u
 			QueryID:    sql.NullString{String: queryID, Valid: true},
 			ChunkID:    sql.NullString{String: chunk.ID, Valid: true},
 			Similarity: sql.NullInt64{Int64: chunk.Similarity, Valid: true},
-			UserID:     userID,
 		})
 		if err != nil {
 			log.Printf("⚠️  Failed to link message to chunk %s: %v", chunk.ID, err)

@@ -11,18 +11,17 @@ import (
 )
 
 const BatchLinkKnowledgeBaseToFiles = `-- name: BatchLinkKnowledgeBaseToFiles :exec
-INSERT INTO knowledge_base_files (knowledge_base_id, file_id, user_id)
-VALUES (?, ?, ?)
+INSERT INTO knowledge_base_files (knowledge_base_id, file_id)
+VALUES (?, ?)
 `
 
 type BatchLinkKnowledgeBaseToFilesParams struct {
 	KnowledgeBaseID string `json:"knowledgeBaseId"`
 	FileID          string `json:"fileId"`
-	UserID          string `json:"userId"`
 }
 
 func (q *Queries) BatchLinkKnowledgeBaseToFiles(ctx context.Context, arg BatchLinkKnowledgeBaseToFilesParams) error {
-	_, err := q.db.ExecContext(ctx, BatchLinkKnowledgeBaseToFiles, arg.KnowledgeBaseID, arg.FileID, arg.UserID)
+	_, err := q.db.ExecContext(ctx, BatchLinkKnowledgeBaseToFiles, arg.KnowledgeBaseID, arg.FileID)
 	return err
 }
 
@@ -59,11 +58,10 @@ func (q *Queries) CountFilesByHash(ctx context.Context, fileHash sql.NullString)
 const CountFilesUsage = `-- name: CountFilesUsage :one
 SELECT COALESCE(SUM(size), 0) as total_size
 FROM files
-WHERE user_id = ?
 `
 
-func (q *Queries) CountFilesUsage(ctx context.Context, userID string) (interface{}, error) {
-	row := q.db.QueryRowContext(ctx, CountFilesUsage, userID)
+func (q *Queries) CountFilesUsage(ctx context.Context) (interface{}, error) {
+	row := q.db.QueryRowContext(ctx, CountFilesUsage)
 	var total_size interface{}
 	err := row.Scan(&total_size)
 	return total_size, err
@@ -71,13 +69,12 @@ func (q *Queries) CountFilesUsage(ctx context.Context, userID string) (interface
 
 const CreateFile = `-- name: CreateFile :one
 INSERT INTO files (
-    user_id, file_type, file_hash, name, size, url, source, metadata
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, user_id, file_type, file_hash, name, size, url, source, metadata, created_at, updated_at
+    file_type, file_hash, name, size, url, source, metadata
+) VALUES (?, ?, ?, ?, ?, ?, ?)
+RETURNING id, file_type, file_hash, name, size, url, source, metadata, created_at, updated_at
 `
 
 type CreateFileParams struct {
-	UserID   string         `json:"userId"`
 	FileType string         `json:"fileType"`
 	FileHash sql.NullString `json:"fileHash"`
 	Name     string         `json:"name"`
@@ -89,7 +86,6 @@ type CreateFileParams struct {
 
 func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (File, error) {
 	row := q.db.QueryRowContext(ctx, CreateFile,
-		arg.UserID,
 		arg.FileType,
 		arg.FileHash,
 		arg.Name,
@@ -101,7 +97,6 @@ func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (File, e
 	var i File
 	err := row.Scan(
 		&i.ID,
-		&i.UserID,
 		&i.FileType,
 		&i.FileHash,
 		&i.Name,
@@ -128,7 +123,7 @@ type CreateGlobalFileParams struct {
 	Size     int64          `json:"size"`
 	Url      string         `json:"url"`
 	Metadata sql.NullString `json:"metadata"`
-	Creator  string         `json:"creator"`
+	Creator  sql.NullString `json:"creator"`
 }
 
 func (q *Queries) CreateGlobalFile(ctx context.Context, arg CreateGlobalFileParams) (GlobalFile, error) {
@@ -155,10 +150,10 @@ func (q *Queries) CreateGlobalFile(ctx context.Context, arg CreateGlobalFilePara
 
 const CreateKnowledgeBase = `-- name: CreateKnowledgeBase :one
 INSERT INTO knowledge_bases (
-    id, name, description, avatar, type, user_id,
+    id, name, description, avatar, type,
     is_public, settings
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, name, description, avatar, type, user_id, is_public, settings, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?)
+RETURNING id, name, description, avatar, type, is_public, settings, created_at, updated_at
 `
 
 type CreateKnowledgeBaseParams struct {
@@ -167,7 +162,6 @@ type CreateKnowledgeBaseParams struct {
 	Description sql.NullString `json:"description"`
 	Avatar      sql.NullString `json:"avatar"`
 	Type        sql.NullString `json:"type"`
-	UserID      string         `json:"userId"`
 	IsPublic    int64          `json:"isPublic"`
 	Settings    sql.NullString `json:"settings"`
 }
@@ -179,7 +173,6 @@ func (q *Queries) CreateKnowledgeBase(ctx context.Context, arg CreateKnowledgeBa
 		arg.Description,
 		arg.Avatar,
 		arg.Type,
-		arg.UserID,
 		arg.IsPublic,
 		arg.Settings,
 	)
@@ -190,7 +183,6 @@ func (q *Queries) CreateKnowledgeBase(ctx context.Context, arg CreateKnowledgeBa
 		&i.Description,
 		&i.Avatar,
 		&i.Type,
-		&i.UserID,
 		&i.IsPublic,
 		&i.Settings,
 		&i.CreatedAt,
@@ -200,34 +192,29 @@ func (q *Queries) CreateKnowledgeBase(ctx context.Context, arg CreateKnowledgeBa
 }
 
 const DeleteAllFiles = `-- name: DeleteAllFiles :exec
-DELETE FROM files WHERE user_id = ?
+DELETE FROM files
 `
 
-func (q *Queries) DeleteAllFiles(ctx context.Context, userID string) error {
-	_, err := q.db.ExecContext(ctx, DeleteAllFiles, userID)
+func (q *Queries) DeleteAllFiles(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, DeleteAllFiles)
 	return err
 }
 
 const DeleteAllKnowledgeBases = `-- name: DeleteAllKnowledgeBases :exec
-DELETE FROM knowledge_bases WHERE user_id = ?
+DELETE FROM knowledge_bases
 `
 
-func (q *Queries) DeleteAllKnowledgeBases(ctx context.Context, userID string) error {
-	_, err := q.db.ExecContext(ctx, DeleteAllKnowledgeBases, userID)
+func (q *Queries) DeleteAllKnowledgeBases(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, DeleteAllKnowledgeBases)
 	return err
 }
 
 const DeleteFile = `-- name: DeleteFile :exec
-DELETE FROM files WHERE id = ? AND user_id = ?
+DELETE FROM files WHERE id = ?
 `
 
-type DeleteFileParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
-func (q *Queries) DeleteFile(ctx context.Context, arg DeleteFileParams) error {
-	_, err := q.db.ExecContext(ctx, DeleteFile, arg.ID, arg.UserID)
+func (q *Queries) DeleteFile(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, DeleteFile, id)
 	return err
 }
 
@@ -241,34 +228,23 @@ func (q *Queries) DeleteGlobalFile(ctx context.Context, hashID string) error {
 }
 
 const DeleteKnowledgeBase = `-- name: DeleteKnowledgeBase :exec
-DELETE FROM knowledge_bases WHERE id = ? AND user_id = ?
+DELETE FROM knowledge_bases WHERE id = ?
 `
 
-type DeleteKnowledgeBaseParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
-func (q *Queries) DeleteKnowledgeBase(ctx context.Context, arg DeleteKnowledgeBaseParams) error {
-	_, err := q.db.ExecContext(ctx, DeleteKnowledgeBase, arg.ID, arg.UserID)
+func (q *Queries) DeleteKnowledgeBase(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, DeleteKnowledgeBase, id)
 	return err
 }
 
 const GetFile = `-- name: GetFile :one
-SELECT id, user_id, file_type, file_hash, name, size, url, source, metadata, created_at, updated_at FROM files WHERE id = ? AND user_id = ?
+SELECT id, file_type, file_hash, name, size, url, source, metadata, created_at, updated_at FROM files WHERE id = ?
 `
 
-type GetFileParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
-func (q *Queries) GetFile(ctx context.Context, arg GetFileParams) (File, error) {
-	row := q.db.QueryRowContext(ctx, GetFile, arg.ID, arg.UserID)
+func (q *Queries) GetFile(ctx context.Context, id string) (File, error) {
+	row := q.db.QueryRowContext(ctx, GetFile, id)
 	var i File
 	err := row.Scan(
 		&i.ID,
-		&i.UserID,
 		&i.FileType,
 		&i.FileHash,
 		&i.Name,
@@ -311,17 +287,12 @@ func (q *Queries) GetFileChunkIds(ctx context.Context, fileID sql.NullString) ([
 }
 
 const GetFilesByHash = `-- name: GetFilesByHash :many
-SELECT id, user_id, file_type, file_hash, name, size, url, source, metadata, created_at, updated_at FROM files
-WHERE file_hash = ? AND user_id = ?
+SELECT id, file_type, file_hash, name, size, url, source, metadata, created_at, updated_at FROM files
+WHERE file_hash = ?
 `
 
-type GetFilesByHashParams struct {
-	FileHash sql.NullString `json:"fileHash"`
-	UserID   string         `json:"userId"`
-}
-
-func (q *Queries) GetFilesByHash(ctx context.Context, arg GetFilesByHashParams) ([]File, error) {
-	rows, err := q.db.QueryContext(ctx, GetFilesByHash, arg.FileHash, arg.UserID)
+func (q *Queries) GetFilesByHash(ctx context.Context, fileHash sql.NullString) ([]File, error) {
+	rows, err := q.db.QueryContext(ctx, GetFilesByHash, fileHash)
 	if err != nil {
 		return nil, err
 	}
@@ -331,7 +302,6 @@ func (q *Queries) GetFilesByHash(ctx context.Context, arg GetFilesByHashParams) 
 		var i File
 		if err := rows.Scan(
 			&i.ID,
-			&i.UserID,
 			&i.FileType,
 			&i.FileHash,
 			&i.Name,
@@ -356,12 +326,11 @@ func (q *Queries) GetFilesByHash(ctx context.Context, arg GetFilesByHashParams) 
 }
 
 const GetFilesByIds = `-- name: GetFilesByIds :many
-SELECT id, user_id, file_type, file_hash, name, size, url, source, metadata, created_at, updated_at FROM files
-WHERE user_id = ?
+SELECT id, file_type, file_hash, name, size, url, source, metadata, created_at, updated_at FROM files
 `
 
-func (q *Queries) GetFilesByIds(ctx context.Context, userID string) ([]File, error) {
-	rows, err := q.db.QueryContext(ctx, GetFilesByIds, userID)
+func (q *Queries) GetFilesByIds(ctx context.Context) ([]File, error) {
+	rows, err := q.db.QueryContext(ctx, GetFilesByIds)
 	if err != nil {
 		return nil, err
 	}
@@ -371,7 +340,6 @@ func (q *Queries) GetFilesByIds(ctx context.Context, userID string) ([]File, err
 		var i File
 		if err := rows.Scan(
 			&i.ID,
-			&i.UserID,
 			&i.FileType,
 			&i.FileHash,
 			&i.Name,
@@ -396,13 +364,12 @@ func (q *Queries) GetFilesByIds(ctx context.Context, userID string) ([]File, err
 }
 
 const GetFilesByNames = `-- name: GetFilesByNames :many
-SELECT id, user_id, file_type, file_hash, name, size, url, source, metadata, created_at, updated_at FROM files
-WHERE user_id = ?
+SELECT id, file_type, file_hash, name, size, url, source, metadata, created_at, updated_at FROM files
 ORDER BY created_at DESC
 `
 
-func (q *Queries) GetFilesByNames(ctx context.Context, userID string) ([]File, error) {
-	rows, err := q.db.QueryContext(ctx, GetFilesByNames, userID)
+func (q *Queries) GetFilesByNames(ctx context.Context) ([]File, error) {
+	rows, err := q.db.QueryContext(ctx, GetFilesByNames)
 	if err != nil {
 		return nil, err
 	}
@@ -412,7 +379,6 @@ func (q *Queries) GetFilesByNames(ctx context.Context, userID string) ([]File, e
 		var i File
 		if err := rows.Scan(
 			&i.ID,
-			&i.UserID,
 			&i.FileType,
 			&i.FileHash,
 			&i.Name,
@@ -478,17 +444,12 @@ func (q *Queries) GetGlobalFileByHash(ctx context.Context, hashID string) (Globa
 
 const GetKnowledgeBase = `-- name: GetKnowledgeBase :one
 
-SELECT id, name, description, avatar, type, user_id, is_public, settings, created_at, updated_at FROM knowledge_bases WHERE id = ? AND user_id = ?
+SELECT id, name, description, avatar, type, is_public, settings, created_at, updated_at FROM knowledge_bases WHERE id = ?
 `
 
-type GetKnowledgeBaseParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
 // Knowledge Bases
-func (q *Queries) GetKnowledgeBase(ctx context.Context, arg GetKnowledgeBaseParams) (KnowledgeBasis, error) {
-	row := q.db.QueryRowContext(ctx, GetKnowledgeBase, arg.ID, arg.UserID)
+func (q *Queries) GetKnowledgeBase(ctx context.Context, id string) (KnowledgeBasis, error) {
+	row := q.db.QueryRowContext(ctx, GetKnowledgeBase, id)
 	var i KnowledgeBasis
 	err := row.Scan(
 		&i.ID,
@@ -496,7 +457,6 @@ func (q *Queries) GetKnowledgeBase(ctx context.Context, arg GetKnowledgeBasePara
 		&i.Description,
 		&i.Avatar,
 		&i.Type,
-		&i.UserID,
 		&i.IsPublic,
 		&i.Settings,
 		&i.CreatedAt,
@@ -506,18 +466,13 @@ func (q *Queries) GetKnowledgeBase(ctx context.Context, arg GetKnowledgeBasePara
 }
 
 const GetKnowledgeBaseFiles = `-- name: GetKnowledgeBaseFiles :many
-SELECT f.id, f.user_id, f.file_type, f.file_hash, f.name, f.size, f.url, f.source, f.metadata, f.created_at, f.updated_at FROM files f
+SELECT f.id, f.file_type, f.file_hash, f.name, f.size, f.url, f.source, f.metadata, f.created_at, f.updated_at FROM files f
 INNER JOIN knowledge_base_files kbf ON f.id = kbf.file_id
-WHERE kbf.knowledge_base_id = ? AND kbf.user_id = ?
+WHERE kbf.knowledge_base_id = ?
 `
 
-type GetKnowledgeBaseFilesParams struct {
-	KnowledgeBaseID string `json:"knowledgeBaseId"`
-	UserID          string `json:"userId"`
-}
-
-func (q *Queries) GetKnowledgeBaseFiles(ctx context.Context, arg GetKnowledgeBaseFilesParams) ([]File, error) {
-	rows, err := q.db.QueryContext(ctx, GetKnowledgeBaseFiles, arg.KnowledgeBaseID, arg.UserID)
+func (q *Queries) GetKnowledgeBaseFiles(ctx context.Context, knowledgeBaseID string) ([]File, error) {
+	rows, err := q.db.QueryContext(ctx, GetKnowledgeBaseFiles, knowledgeBaseID)
 	if err != nil {
 		return nil, err
 	}
@@ -527,7 +482,6 @@ func (q *Queries) GetKnowledgeBaseFiles(ctx context.Context, arg GetKnowledgeBas
 		var i File
 		if err := rows.Scan(
 			&i.ID,
-			&i.UserID,
 			&i.FileType,
 			&i.FileHash,
 			&i.Name,
@@ -552,18 +506,13 @@ func (q *Queries) GetKnowledgeBaseFiles(ctx context.Context, arg GetKnowledgeBas
 }
 
 const GetSessionFiles = `-- name: GetSessionFiles :many
-SELECT f.id, f.user_id, f.file_type, f.file_hash, f.name, f.size, f.url, f.source, f.metadata, f.created_at, f.updated_at FROM files f
+SELECT f.id, f.file_type, f.file_hash, f.name, f.size, f.url, f.source, f.metadata, f.created_at, f.updated_at FROM files f
 INNER JOIN files_to_sessions fts ON f.id = fts.file_id
-WHERE fts.session_id = ? AND fts.user_id = ?
+WHERE fts.session_id = ?
 `
 
-type GetSessionFilesParams struct {
-	SessionID string `json:"sessionId"`
-	UserID    string `json:"userId"`
-}
-
-func (q *Queries) GetSessionFiles(ctx context.Context, arg GetSessionFilesParams) ([]File, error) {
-	rows, err := q.db.QueryContext(ctx, GetSessionFiles, arg.SessionID, arg.UserID)
+func (q *Queries) GetSessionFiles(ctx context.Context, sessionID string) ([]File, error) {
+	rows, err := q.db.QueryContext(ctx, GetSessionFiles, sessionID)
 	if err != nil {
 		return nil, err
 	}
@@ -573,7 +522,6 @@ func (q *Queries) GetSessionFiles(ctx context.Context, arg GetSessionFilesParams
 		var i File
 		if err := rows.Scan(
 			&i.ID,
-			&i.UserID,
 			&i.FileType,
 			&i.FileHash,
 			&i.Name,
@@ -599,55 +547,51 @@ func (q *Queries) GetSessionFiles(ctx context.Context, arg GetSessionFilesParams
 
 const LinkFileToSession = `-- name: LinkFileToSession :exec
 
-INSERT INTO files_to_sessions (file_id, session_id, user_id)
-VALUES (?, ?, ?)
+INSERT INTO files_to_sessions (file_id, session_id)
+VALUES (?, ?)
 `
 
 type LinkFileToSessionParams struct {
 	FileID    string `json:"fileId"`
 	SessionID string `json:"sessionId"`
-	UserID    string `json:"userId"`
 }
 
 // Files to Sessions
 func (q *Queries) LinkFileToSession(ctx context.Context, arg LinkFileToSessionParams) error {
-	_, err := q.db.ExecContext(ctx, LinkFileToSession, arg.FileID, arg.SessionID, arg.UserID)
+	_, err := q.db.ExecContext(ctx, LinkFileToSession, arg.FileID, arg.SessionID)
 	return err
 }
 
 const LinkKnowledgeBaseToFile = `-- name: LinkKnowledgeBaseToFile :exec
 
-INSERT INTO knowledge_base_files (knowledge_base_id, file_id, user_id)
-VALUES (?, ?, ?)
+INSERT INTO knowledge_base_files (knowledge_base_id, file_id)
+VALUES (?, ?)
 `
 
 type LinkKnowledgeBaseToFileParams struct {
 	KnowledgeBaseID string `json:"knowledgeBaseId"`
 	FileID          string `json:"fileId"`
-	UserID          string `json:"userId"`
 }
 
 // Knowledge Base Files
 func (q *Queries) LinkKnowledgeBaseToFile(ctx context.Context, arg LinkKnowledgeBaseToFileParams) error {
-	_, err := q.db.ExecContext(ctx, LinkKnowledgeBaseToFile, arg.KnowledgeBaseID, arg.FileID, arg.UserID)
+	_, err := q.db.ExecContext(ctx, LinkKnowledgeBaseToFile, arg.KnowledgeBaseID, arg.FileID)
 	return err
 }
 
 const ListFiles = `-- name: ListFiles :many
-SELECT id, user_id, file_type, file_hash, name, size, url, source, metadata, created_at, updated_at FROM files
-WHERE user_id = ?
+SELECT id, file_type, file_hash, name, size, url, source, metadata, created_at, updated_at FROM files
 ORDER BY created_at DESC
 LIMIT ? OFFSET ?
 `
 
 type ListFilesParams struct {
-	UserID string `json:"userId"`
-	Limit  int64  `json:"limit"`
-	Offset int64  `json:"offset"`
+	Limit  int64 `json:"limit"`
+	Offset int64 `json:"offset"`
 }
 
 func (q *Queries) ListFiles(ctx context.Context, arg ListFilesParams) ([]File, error) {
-	rows, err := q.db.QueryContext(ctx, ListFiles, arg.UserID, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, ListFiles, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -657,7 +601,6 @@ func (q *Queries) ListFiles(ctx context.Context, arg ListFilesParams) ([]File, e
 		var i File
 		if err := rows.Scan(
 			&i.ID,
-			&i.UserID,
 			&i.FileType,
 			&i.FileHash,
 			&i.Name,
@@ -682,17 +625,12 @@ func (q *Queries) ListFiles(ctx context.Context, arg ListFilesParams) ([]File, e
 }
 
 const ListKnowledgeBaseFiles = `-- name: ListKnowledgeBaseFiles :many
-SELECT knowledge_base_id, file_id, user_id, created_at FROM knowledge_base_files
-WHERE knowledge_base_id = ? AND user_id = ?
+SELECT knowledge_base_id, file_id, created_at FROM knowledge_base_files
+WHERE knowledge_base_id = ?
 `
 
-type ListKnowledgeBaseFilesParams struct {
-	KnowledgeBaseID string `json:"knowledgeBaseId"`
-	UserID          string `json:"userId"`
-}
-
-func (q *Queries) ListKnowledgeBaseFiles(ctx context.Context, arg ListKnowledgeBaseFilesParams) ([]KnowledgeBaseFile, error) {
-	rows, err := q.db.QueryContext(ctx, ListKnowledgeBaseFiles, arg.KnowledgeBaseID, arg.UserID)
+func (q *Queries) ListKnowledgeBaseFiles(ctx context.Context, knowledgeBaseID string) ([]KnowledgeBaseFile, error) {
+	rows, err := q.db.QueryContext(ctx, ListKnowledgeBaseFiles, knowledgeBaseID)
 	if err != nil {
 		return nil, err
 	}
@@ -700,12 +638,7 @@ func (q *Queries) ListKnowledgeBaseFiles(ctx context.Context, arg ListKnowledgeB
 	items := []KnowledgeBaseFile{}
 	for rows.Next() {
 		var i KnowledgeBaseFile
-		if err := rows.Scan(
-			&i.KnowledgeBaseID,
-			&i.FileID,
-			&i.UserID,
-			&i.CreatedAt,
-		); err != nil {
+		if err := rows.Scan(&i.KnowledgeBaseID, &i.FileID, &i.CreatedAt); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -720,13 +653,12 @@ func (q *Queries) ListKnowledgeBaseFiles(ctx context.Context, arg ListKnowledgeB
 }
 
 const ListKnowledgeBases = `-- name: ListKnowledgeBases :many
-SELECT id, name, description, avatar, type, user_id, is_public, settings, created_at, updated_at FROM knowledge_bases
-WHERE user_id = ?
+SELECT id, name, description, avatar, type, is_public, settings, created_at, updated_at FROM knowledge_bases
 ORDER BY created_at DESC
 `
 
-func (q *Queries) ListKnowledgeBases(ctx context.Context, userID string) ([]KnowledgeBasis, error) {
-	rows, err := q.db.QueryContext(ctx, ListKnowledgeBases, userID)
+func (q *Queries) ListKnowledgeBases(ctx context.Context) ([]KnowledgeBasis, error) {
+	rows, err := q.db.QueryContext(ctx, ListKnowledgeBases)
 	if err != nil {
 		return nil, err
 	}
@@ -740,7 +672,6 @@ func (q *Queries) ListKnowledgeBases(ctx context.Context, userID string) ([]Know
 			&i.Description,
 			&i.Avatar,
 			&i.Type,
-			&i.UserID,
 			&i.IsPublic,
 			&i.Settings,
 			&i.CreatedAt,
@@ -769,7 +700,6 @@ SELECT
     f.created_at,
     f.updated_at
 FROM files f
-WHERE f.user_id = ?
 ORDER BY f.created_at DESC
 `
 
@@ -784,8 +714,8 @@ type QueryFilesRow struct {
 }
 
 // File query with filters
-func (q *Queries) QueryFiles(ctx context.Context, userID string) ([]QueryFilesRow, error) {
-	rows, err := q.db.QueryContext(ctx, QueryFiles, userID)
+func (q *Queries) QueryFiles(ctx context.Context) ([]QueryFilesRow, error) {
+	rows, err := q.db.QueryContext(ctx, QueryFiles)
 	if err != nil {
 		return nil, err
 	}
@@ -826,14 +756,9 @@ SELECT
     f.updated_at
 FROM files f
 INNER JOIN knowledge_base_files kbf ON f.id = kbf.file_id
-WHERE kbf.knowledge_base_id = ? AND f.user_id = ?
+WHERE kbf.knowledge_base_id = ?
 ORDER BY f.created_at DESC
 `
-
-type QueryFilesByKnowledgeBaseParams struct {
-	KnowledgeBaseID string `json:"knowledgeBaseId"`
-	UserID          string `json:"userId"`
-}
 
 type QueryFilesByKnowledgeBaseRow struct {
 	ID        string `json:"id"`
@@ -845,8 +770,8 @@ type QueryFilesByKnowledgeBaseRow struct {
 	UpdatedAt int64  `json:"updatedAt"`
 }
 
-func (q *Queries) QueryFilesByKnowledgeBase(ctx context.Context, arg QueryFilesByKnowledgeBaseParams) ([]QueryFilesByKnowledgeBaseRow, error) {
-	rows, err := q.db.QueryContext(ctx, QueryFilesByKnowledgeBase, arg.KnowledgeBaseID, arg.UserID)
+func (q *Queries) QueryFilesByKnowledgeBase(ctx context.Context, knowledgeBaseID string) ([]QueryFilesByKnowledgeBaseRow, error) {
+	rows, err := q.db.QueryContext(ctx, QueryFilesByKnowledgeBase, knowledgeBaseID)
 	if err != nil {
 		return nil, err
 	}
@@ -878,33 +803,31 @@ func (q *Queries) QueryFilesByKnowledgeBase(ctx context.Context, arg QueryFilesB
 
 const UnlinkFileFromSession = `-- name: UnlinkFileFromSession :exec
 DELETE FROM files_to_sessions
-WHERE file_id = ? AND session_id = ? AND user_id = ?
+WHERE file_id = ? AND session_id = ?
 `
 
 type UnlinkFileFromSessionParams struct {
 	FileID    string `json:"fileId"`
 	SessionID string `json:"sessionId"`
-	UserID    string `json:"userId"`
 }
 
 func (q *Queries) UnlinkFileFromSession(ctx context.Context, arg UnlinkFileFromSessionParams) error {
-	_, err := q.db.ExecContext(ctx, UnlinkFileFromSession, arg.FileID, arg.SessionID, arg.UserID)
+	_, err := q.db.ExecContext(ctx, UnlinkFileFromSession, arg.FileID, arg.SessionID)
 	return err
 }
 
 const UnlinkKnowledgeBaseFromFile = `-- name: UnlinkKnowledgeBaseFromFile :exec
 DELETE FROM knowledge_base_files
-WHERE knowledge_base_id = ? AND file_id = ? AND user_id = ?
+WHERE knowledge_base_id = ? AND file_id = ?
 `
 
 type UnlinkKnowledgeBaseFromFileParams struct {
 	KnowledgeBaseID string `json:"knowledgeBaseId"`
 	FileID          string `json:"fileId"`
-	UserID          string `json:"userId"`
 }
 
 func (q *Queries) UnlinkKnowledgeBaseFromFile(ctx context.Context, arg UnlinkKnowledgeBaseFromFileParams) error {
-	_, err := q.db.ExecContext(ctx, UnlinkKnowledgeBaseFromFile, arg.KnowledgeBaseID, arg.FileID, arg.UserID)
+	_, err := q.db.ExecContext(ctx, UnlinkKnowledgeBaseFromFile, arg.KnowledgeBaseID, arg.FileID)
 	return err
 }
 
@@ -913,8 +836,8 @@ UPDATE files
 SET name = ?,
     metadata = ?,
     updated_at = ?
-WHERE id = ? AND user_id = ?
-RETURNING id, user_id, file_type, file_hash, name, size, url, source, metadata, created_at, updated_at
+WHERE id = ?
+RETURNING id, file_type, file_hash, name, size, url, source, metadata, created_at, updated_at
 `
 
 type UpdateFileParams struct {
@@ -922,7 +845,6 @@ type UpdateFileParams struct {
 	Metadata  sql.NullString `json:"metadata"`
 	UpdatedAt int64          `json:"updatedAt"`
 	ID        string         `json:"id"`
-	UserID    string         `json:"userId"`
 }
 
 func (q *Queries) UpdateFile(ctx context.Context, arg UpdateFileParams) (File, error) {
@@ -931,12 +853,10 @@ func (q *Queries) UpdateFile(ctx context.Context, arg UpdateFileParams) (File, e
 		arg.Metadata,
 		arg.UpdatedAt,
 		arg.ID,
-		arg.UserID,
 	)
 	var i File
 	err := row.Scan(
 		&i.ID,
-		&i.UserID,
 		&i.FileType,
 		&i.FileHash,
 		&i.Name,
@@ -957,8 +877,8 @@ SET name = ?,
     avatar = ?,
     settings = ?,
     updated_at = ?
-WHERE id = ? AND user_id = ?
-RETURNING id, name, description, avatar, type, user_id, is_public, settings, created_at, updated_at
+WHERE id = ?
+RETURNING id, name, description, avatar, type, is_public, settings, created_at, updated_at
 `
 
 type UpdateKnowledgeBaseParams struct {
@@ -968,7 +888,6 @@ type UpdateKnowledgeBaseParams struct {
 	Settings    sql.NullString `json:"settings"`
 	UpdatedAt   int64          `json:"updatedAt"`
 	ID          string         `json:"id"`
-	UserID      string         `json:"userId"`
 }
 
 func (q *Queries) UpdateKnowledgeBase(ctx context.Context, arg UpdateKnowledgeBaseParams) (KnowledgeBasis, error) {
@@ -979,7 +898,6 @@ func (q *Queries) UpdateKnowledgeBase(ctx context.Context, arg UpdateKnowledgeBa
 		arg.Settings,
 		arg.UpdatedAt,
 		arg.ID,
-		arg.UserID,
 	)
 	var i KnowledgeBasis
 	err := row.Scan(
@@ -988,7 +906,6 @@ func (q *Queries) UpdateKnowledgeBase(ctx context.Context, arg UpdateKnowledgeBa
 		&i.Description,
 		&i.Avatar,
 		&i.Type,
-		&i.UserID,
 		&i.IsPublic,
 		&i.Settings,
 		&i.CreatedAt,

@@ -13,11 +13,11 @@ import (
 const CreateThread = `-- name: CreateThread :one
 INSERT INTO threads (
     id, title, type, status, topic_id, source_message_id,
-    parent_thread_id, user_id, last_active_at,
+    parent_thread_id, last_active_at,
     created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO NOTHING
-RETURNING id, title, type, status, topic_id, source_message_id, parent_thread_id, user_id, last_active_at, created_at, updated_at
+RETURNING id, title, type, status, topic_id, source_message_id, parent_thread_id, last_active_at, created_at, updated_at
 `
 
 type CreateThreadParams struct {
@@ -28,7 +28,6 @@ type CreateThreadParams struct {
 	TopicID         string         `json:"topicId"`
 	SourceMessageID string         `json:"sourceMessageId"`
 	ParentThreadID  sql.NullString `json:"parentThreadId"`
-	UserID          string         `json:"userId"`
 	LastActiveAt    int64          `json:"lastActiveAt"`
 	CreatedAt       int64          `json:"createdAt"`
 	UpdatedAt       int64          `json:"updatedAt"`
@@ -43,7 +42,6 @@ func (q *Queries) CreateThread(ctx context.Context, arg CreateThreadParams) (Thr
 		arg.TopicID,
 		arg.SourceMessageID,
 		arg.ParentThreadID,
-		arg.UserID,
 		arg.LastActiveAt,
 		arg.CreatedAt,
 		arg.UpdatedAt,
@@ -57,7 +55,6 @@ func (q *Queries) CreateThread(ctx context.Context, arg CreateThreadParams) (Thr
 		&i.TopicID,
 		&i.SourceMessageID,
 		&i.ParentThreadID,
-		&i.UserID,
 		&i.LastActiveAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -66,39 +63,29 @@ func (q *Queries) CreateThread(ctx context.Context, arg CreateThreadParams) (Thr
 }
 
 const DeleteAllThreads = `-- name: DeleteAllThreads :exec
-DELETE FROM threads WHERE user_id = ?
+DELETE FROM threads
 `
 
-func (q *Queries) DeleteAllThreads(ctx context.Context, userID string) error {
-	_, err := q.db.ExecContext(ctx, DeleteAllThreads, userID)
+func (q *Queries) DeleteAllThreads(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, DeleteAllThreads)
 	return err
 }
 
 const DeleteThread = `-- name: DeleteThread :exec
-DELETE FROM threads WHERE id = ? AND user_id = ?
+DELETE FROM threads WHERE id = ?
 `
 
-type DeleteThreadParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
-func (q *Queries) DeleteThread(ctx context.Context, arg DeleteThreadParams) error {
-	_, err := q.db.ExecContext(ctx, DeleteThread, arg.ID, arg.UserID)
+func (q *Queries) DeleteThread(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, DeleteThread, id)
 	return err
 }
 
 const GetThread = `-- name: GetThread :one
-SELECT id, title, type, status, topic_id, source_message_id, parent_thread_id, user_id, last_active_at, created_at, updated_at FROM threads WHERE id = ? AND user_id = ?
+SELECT id, title, type, status, topic_id, source_message_id, parent_thread_id, last_active_at, created_at, updated_at FROM threads WHERE id = ?
 `
 
-type GetThreadParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
-func (q *Queries) GetThread(ctx context.Context, arg GetThreadParams) (Thread, error) {
-	row := q.db.QueryRowContext(ctx, GetThread, arg.ID, arg.UserID)
+func (q *Queries) GetThread(ctx context.Context, id string) (Thread, error) {
+	row := q.db.QueryRowContext(ctx, GetThread, id)
 	var i Thread
 	err := row.Scan(
 		&i.ID,
@@ -108,7 +95,6 @@ func (q *Queries) GetThread(ctx context.Context, arg GetThreadParams) (Thread, e
 		&i.TopicID,
 		&i.SourceMessageID,
 		&i.ParentThreadID,
-		&i.UserID,
 		&i.LastActiveAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -117,13 +103,12 @@ func (q *Queries) GetThread(ctx context.Context, arg GetThreadParams) (Thread, e
 }
 
 const ListAllThreads = `-- name: ListAllThreads :many
-SELECT id, title, type, status, topic_id, source_message_id, parent_thread_id, user_id, last_active_at, created_at, updated_at FROM threads
-WHERE user_id = ?
+SELECT id, title, type, status, topic_id, source_message_id, parent_thread_id, last_active_at, created_at, updated_at FROM threads
 ORDER BY updated_at DESC
 `
 
-func (q *Queries) ListAllThreads(ctx context.Context, userID string) ([]Thread, error) {
-	rows, err := q.db.QueryContext(ctx, ListAllThreads, userID)
+func (q *Queries) ListAllThreads(ctx context.Context) ([]Thread, error) {
+	rows, err := q.db.QueryContext(ctx, ListAllThreads)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +124,6 @@ func (q *Queries) ListAllThreads(ctx context.Context, userID string) ([]Thread, 
 			&i.TopicID,
 			&i.SourceMessageID,
 			&i.ParentThreadID,
-			&i.UserID,
 			&i.LastActiveAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -158,18 +142,13 @@ func (q *Queries) ListAllThreads(ctx context.Context, userID string) ([]Thread, 
 }
 
 const ListThreadsByTopic = `-- name: ListThreadsByTopic :many
-SELECT id, title, type, status, topic_id, source_message_id, parent_thread_id, user_id, last_active_at, created_at, updated_at FROM threads
-WHERE topic_id = ? AND user_id = ?
+SELECT id, title, type, status, topic_id, source_message_id, parent_thread_id, last_active_at, created_at, updated_at FROM threads
+WHERE topic_id = ?
 ORDER BY last_active_at DESC
 `
 
-type ListThreadsByTopicParams struct {
-	TopicID string `json:"topicId"`
-	UserID  string `json:"userId"`
-}
-
-func (q *Queries) ListThreadsByTopic(ctx context.Context, arg ListThreadsByTopicParams) ([]Thread, error) {
-	rows, err := q.db.QueryContext(ctx, ListThreadsByTopic, arg.TopicID, arg.UserID)
+func (q *Queries) ListThreadsByTopic(ctx context.Context, topicID string) ([]Thread, error) {
+	rows, err := q.db.QueryContext(ctx, ListThreadsByTopic, topicID)
 	if err != nil {
 		return nil, err
 	}
@@ -185,7 +164,6 @@ func (q *Queries) ListThreadsByTopic(ctx context.Context, arg ListThreadsByTopic
 			&i.TopicID,
 			&i.SourceMessageID,
 			&i.ParentThreadID,
-			&i.UserID,
 			&i.LastActiveAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -209,8 +187,8 @@ SET title = ?,
     status = ?,
     last_active_at = ?,
     updated_at = ?
-WHERE id = ? AND user_id = ?
-RETURNING id, title, type, status, topic_id, source_message_id, parent_thread_id, user_id, last_active_at, created_at, updated_at
+WHERE id = ?
+RETURNING id, title, type, status, topic_id, source_message_id, parent_thread_id, last_active_at, created_at, updated_at
 `
 
 type UpdateThreadParams struct {
@@ -219,7 +197,6 @@ type UpdateThreadParams struct {
 	LastActiveAt int64          `json:"lastActiveAt"`
 	UpdatedAt    int64          `json:"updatedAt"`
 	ID           string         `json:"id"`
-	UserID       string         `json:"userId"`
 }
 
 func (q *Queries) UpdateThread(ctx context.Context, arg UpdateThreadParams) (Thread, error) {
@@ -229,7 +206,6 @@ func (q *Queries) UpdateThread(ctx context.Context, arg UpdateThreadParams) (Thr
 		arg.LastActiveAt,
 		arg.UpdatedAt,
 		arg.ID,
-		arg.UserID,
 	)
 	var i Thread
 	err := row.Scan(
@@ -240,7 +216,6 @@ func (q *Queries) UpdateThread(ctx context.Context, arg UpdateThreadParams) (Thr
 		&i.TopicID,
 		&i.SourceMessageID,
 		&i.ParentThreadID,
-		&i.UserID,
 		&i.LastActiveAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,

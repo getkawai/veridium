@@ -148,17 +148,17 @@ func (s *TopicService) GenerateTitleFromPrompt(ctx context.Context, prompt strin
 }
 
 // UpdateTopicTitleFromPrompt updates an existing topic with LLM-generated title from a prompt
-func (s *TopicService) UpdateTopicTitleFromPrompt(ctx context.Context, topicID, userID string, prompt string) error {
+func (s *TopicService) UpdateTopicTitleFromPrompt(ctx context.Context, topicID string, prompt string) error {
 	// Wrap prompt in a user message
 	messages := []fantasy.Message{
 		fantasy.NewUserMessage(prompt),
 	}
-	return s.UpdateTopicTitle(ctx, topicID, userID, messages)
+	return s.UpdateTopicTitle(ctx, topicID, messages)
 }
 
 // UpdateTopicTitle updates an existing topic with LLM-generated title
 // It runs in the background
-func (s *TopicService) UpdateTopicTitle(ctx context.Context, topicID, userID string, messages []fantasy.Message) error {
+func (s *TopicService) UpdateTopicTitle(ctx context.Context, topicID string, messages []fantasy.Message) error {
 	// Create a copy of messages to avoid race conditions
 	messagesCopy := make([]fantasy.Message, len(messages))
 	copy(messagesCopy, messages)
@@ -184,10 +184,7 @@ func (s *TopicService) UpdateTopicTitle(ctx context.Context, topicID, userID str
 		}
 
 		// Fetch existing topic first to preserve summary/metadata
-		existingTopic, err := s.db.Queries().GetTopic(bgCtx, db.GetTopicParams{
-			ID:     topicID,
-			UserID: userID,
-		})
+		existingTopic, err := s.db.Queries().GetTopic(bgCtx, topicID)
 		if err != nil {
 			log.Printf("⚠️  Failed to fetch topic for update: %v", err)
 			return
@@ -201,7 +198,6 @@ func (s *TopicService) UpdateTopicTitle(ctx context.Context, topicID, userID str
 			Metadata:       existingTopic.Metadata,       // Preserve existing
 			UpdatedAt:      now,
 			ID:             topicID,
-			UserID:         userID,
 		})
 
 		if err != nil {
@@ -223,18 +219,18 @@ func (s *TopicService) UpdateTopicTitle(ctx context.Context, topicID, userID str
 }
 
 // UpdateGenerationTopicTitleFromPrompt updates an existing generation topic with LLM-generated title from a prompt
-func (s *TopicService) UpdateGenerationTopicTitleFromPrompt(ctx context.Context, topicID, userID string, prompt string) error {
+func (s *TopicService) UpdateGenerationTopicTitleFromPrompt(ctx context.Context, topicID string, prompt string) error {
 	// Wrap prompt in a user message
 	messages := []fantasy.Message{
 		fantasy.NewUserMessage(prompt),
 	}
 	// Use UpdateGenerationTopicTitle instead of UpdateTopicTitle
-	return s.UpdateGenerationTopicTitle(ctx, topicID, userID, messages)
+	return s.UpdateGenerationTopicTitle(ctx, topicID, messages)
 }
 
 // UpdateGenerationTopicTitle updates an existing generation topic with LLM-generated title
 // It runs in the background. It targets the 'generation_topics' table.
-func (s *TopicService) UpdateGenerationTopicTitle(ctx context.Context, topicID, userID string, messages []fantasy.Message) error {
+func (s *TopicService) UpdateGenerationTopicTitle(ctx context.Context, topicID string, messages []fantasy.Message) error {
 	// Create a copy of messages to avoid race conditions
 	messagesCopy := make([]fantasy.Message, len(messages))
 	copy(messagesCopy, messages)
@@ -260,10 +256,7 @@ func (s *TopicService) UpdateGenerationTopicTitle(ctx context.Context, topicID, 
 		}
 
 		// Fetch existing generation topic first to preserve cover_url
-		existingTopic, err := s.db.Queries().GetGenerationTopic(bgCtx, db.GetGenerationTopicParams{
-			ID:     topicID,
-			UserID: userID,
-		})
+		existingTopic, err := s.db.Queries().GetGenerationTopic(bgCtx, topicID)
 		if err != nil {
 			log.Printf("⚠️  Failed to fetch generation topic for update: %v", err)
 			return
@@ -277,7 +270,6 @@ func (s *TopicService) UpdateGenerationTopicTitle(ctx context.Context, topicID, 
 			CoverUrl:  existingTopic.CoverUrl, // Preserve existing cover URL
 			UpdatedAt: now,
 			ID:        topicID,
-			UserID:    userID,
 		})
 
 		if err != nil {

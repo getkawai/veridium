@@ -13,9 +13,9 @@ import (
 
 const CreateAsyncTask = `-- name: CreateAsyncTask :one
 INSERT INTO async_tasks (
-    id, type, status, error, user_id, duration, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, type, status, error, user_id, duration, created_at, updated_at
+    id, type, status, error, duration, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?)
+RETURNING id, type, status, error, duration, created_at, updated_at
 `
 
 type CreateAsyncTaskParams struct {
@@ -23,7 +23,6 @@ type CreateAsyncTaskParams struct {
 	Type      sql.NullString `json:"type"`
 	Status    sql.NullString `json:"status"`
 	Error     sql.NullString `json:"error"`
-	UserID    string         `json:"userId"`
 	Duration  sql.NullInt64  `json:"duration"`
 	CreatedAt int64          `json:"createdAt"`
 	UpdatedAt int64          `json:"updatedAt"`
@@ -35,7 +34,6 @@ func (q *Queries) CreateAsyncTask(ctx context.Context, arg CreateAsyncTaskParams
 		arg.Type,
 		arg.Status,
 		arg.Error,
-		arg.UserID,
 		arg.Duration,
 		arg.CreatedAt,
 		arg.UpdatedAt,
@@ -46,7 +44,6 @@ func (q *Queries) CreateAsyncTask(ctx context.Context, arg CreateAsyncTaskParams
 		&i.Type,
 		&i.Status,
 		&i.Error,
-		&i.UserID,
 		&i.Duration,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -55,37 +52,26 @@ func (q *Queries) CreateAsyncTask(ctx context.Context, arg CreateAsyncTaskParams
 }
 
 const DeleteAsyncTask = `-- name: DeleteAsyncTask :exec
-DELETE FROM async_tasks WHERE id = ? AND user_id = ?
+DELETE FROM async_tasks WHERE id = ?
 `
 
-type DeleteAsyncTaskParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
-func (q *Queries) DeleteAsyncTask(ctx context.Context, arg DeleteAsyncTaskParams) error {
-	_, err := q.db.ExecContext(ctx, DeleteAsyncTask, arg.ID, arg.UserID)
+func (q *Queries) DeleteAsyncTask(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, DeleteAsyncTask, id)
 	return err
 }
 
 const GetAsyncTask = `-- name: GetAsyncTask :one
-SELECT id, type, status, error, user_id, duration, created_at, updated_at FROM async_tasks WHERE id = ? AND user_id = ?
+SELECT id, type, status, error, duration, created_at, updated_at FROM async_tasks WHERE id = ?
 `
 
-type GetAsyncTaskParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
-func (q *Queries) GetAsyncTask(ctx context.Context, arg GetAsyncTaskParams) (AsyncTask, error) {
-	row := q.db.QueryRowContext(ctx, GetAsyncTask, arg.ID, arg.UserID)
+func (q *Queries) GetAsyncTask(ctx context.Context, id string) (AsyncTask, error) {
+	row := q.db.QueryRowContext(ctx, GetAsyncTask, id)
 	var i AsyncTask
 	err := row.Scan(
 		&i.ID,
 		&i.Type,
 		&i.Status,
 		&i.Error,
-		&i.UserID,
 		&i.Duration,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -94,7 +80,7 @@ func (q *Queries) GetAsyncTask(ctx context.Context, arg GetAsyncTaskParams) (Asy
 }
 
 const GetAsyncTasksByIds = `-- name: GetAsyncTasksByIds :many
-SELECT id, type, status, error, user_id, duration, created_at, updated_at FROM async_tasks
+SELECT id, type, status, error, duration, created_at, updated_at FROM async_tasks
 WHERE id IN (/*SLICE:ids*/?) AND type = ?
 `
 
@@ -128,7 +114,6 @@ func (q *Queries) GetAsyncTasksByIds(ctx context.Context, arg GetAsyncTasksByIds
 			&i.Type,
 			&i.Status,
 			&i.Error,
-			&i.UserID,
 			&i.Duration,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -195,20 +180,18 @@ func (q *Queries) GetTimeoutTasks(ctx context.Context, arg GetTimeoutTasksParams
 }
 
 const ListAsyncTasks = `-- name: ListAsyncTasks :many
-SELECT id, type, status, error, user_id, duration, created_at, updated_at FROM async_tasks
-WHERE user_id = ?
+SELECT id, type, status, error, duration, created_at, updated_at FROM async_tasks
 ORDER BY created_at DESC
 LIMIT ? OFFSET ?
 `
 
 type ListAsyncTasksParams struct {
-	UserID string `json:"userId"`
-	Limit  int64  `json:"limit"`
-	Offset int64  `json:"offset"`
+	Limit  int64 `json:"limit"`
+	Offset int64 `json:"offset"`
 }
 
 func (q *Queries) ListAsyncTasks(ctx context.Context, arg ListAsyncTasksParams) ([]AsyncTask, error) {
-	rows, err := q.db.QueryContext(ctx, ListAsyncTasks, arg.UserID, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, ListAsyncTasks, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -221,7 +204,6 @@ func (q *Queries) ListAsyncTasks(ctx context.Context, arg ListAsyncTasksParams) 
 			&i.Type,
 			&i.Status,
 			&i.Error,
-			&i.UserID,
 			&i.Duration,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -240,18 +222,13 @@ func (q *Queries) ListAsyncTasks(ctx context.Context, arg ListAsyncTasksParams) 
 }
 
 const ListAsyncTasksByStatus = `-- name: ListAsyncTasksByStatus :many
-SELECT id, type, status, error, user_id, duration, created_at, updated_at FROM async_tasks
-WHERE user_id = ? AND status = ?
+SELECT id, type, status, error, duration, created_at, updated_at FROM async_tasks
+WHERE status = ?
 ORDER BY created_at DESC
 `
 
-type ListAsyncTasksByStatusParams struct {
-	UserID string         `json:"userId"`
-	Status sql.NullString `json:"status"`
-}
-
-func (q *Queries) ListAsyncTasksByStatus(ctx context.Context, arg ListAsyncTasksByStatusParams) ([]AsyncTask, error) {
-	rows, err := q.db.QueryContext(ctx, ListAsyncTasksByStatus, arg.UserID, arg.Status)
+func (q *Queries) ListAsyncTasksByStatus(ctx context.Context, status sql.NullString) ([]AsyncTask, error) {
+	rows, err := q.db.QueryContext(ctx, ListAsyncTasksByStatus, status)
 	if err != nil {
 		return nil, err
 	}
@@ -264,7 +241,6 @@ func (q *Queries) ListAsyncTasksByStatus(ctx context.Context, arg ListAsyncTasks
 			&i.Type,
 			&i.Status,
 			&i.Error,
-			&i.UserID,
 			&i.Duration,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -288,8 +264,8 @@ SET status = ?,
     error = ?,
     duration = ?,
     updated_at = ?
-WHERE id = ? AND user_id = ?
-RETURNING id, type, status, error, user_id, duration, created_at, updated_at
+WHERE id = ?
+RETURNING id, type, status, error, duration, created_at, updated_at
 `
 
 type UpdateAsyncTaskParams struct {
@@ -298,7 +274,6 @@ type UpdateAsyncTaskParams struct {
 	Duration  sql.NullInt64  `json:"duration"`
 	UpdatedAt int64          `json:"updatedAt"`
 	ID        string         `json:"id"`
-	UserID    string         `json:"userId"`
 }
 
 func (q *Queries) UpdateAsyncTask(ctx context.Context, arg UpdateAsyncTaskParams) (AsyncTask, error) {
@@ -308,7 +283,6 @@ func (q *Queries) UpdateAsyncTask(ctx context.Context, arg UpdateAsyncTaskParams
 		arg.Duration,
 		arg.UpdatedAt,
 		arg.ID,
-		arg.UserID,
 	)
 	var i AsyncTask
 	err := row.Scan(
@@ -316,7 +290,6 @@ func (q *Queries) UpdateAsyncTask(ctx context.Context, arg UpdateAsyncTaskParams
 		&i.Type,
 		&i.Status,
 		&i.Error,
-		&i.UserID,
 		&i.Duration,
 		&i.CreatedAt,
 		&i.UpdatedAt,

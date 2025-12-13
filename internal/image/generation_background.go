@@ -18,7 +18,7 @@ import (
 )
 
 // generateImagesInBackground generates images in parallel and updates database records
-func (sdrm *StableDiffusion) generateImagesInBackground(batchID, userID string, imageNum int, opts GenerationOptions) {
+func (sdrm *StableDiffusion) generateImagesInBackground(batchID string, imageNum int, opts GenerationOptions) {
 	ctx := context.Background()
 	outputDir := "files/uploads"
 
@@ -48,10 +48,7 @@ func (sdrm *StableDiffusion) generateImagesInBackground(batchID, userID string, 
 	}
 
 	// Get all generations for this batch to update them
-	generations, err := sdrm.DB.Queries().ListGenerations(ctx, db.ListGenerationsParams{
-		GenerationBatchID: batchID,
-		UserID:            userID,
-	})
+	generations, err := sdrm.DB.Queries().ListGenerations(ctx, batchID)
 	if err != nil {
 		log.Printf("[Background] ERROR: Failed to list generations: %v", err)
 		return
@@ -60,10 +57,7 @@ func (sdrm *StableDiffusion) generateImagesInBackground(batchID, userID string, 
 	// Trigger topic title update if TopicService is available
 	if sdrm.TopicService != nil {
 		go func() {
-			batch, err := sdrm.DB.Queries().GetGenerationBatch(ctx, db.GetGenerationBatchParams{
-				ID:     batchID,
-				UserID: userID,
-			})
+			batch, err := sdrm.DB.Queries().GetGenerationBatch(ctx, batchID)
 			if err != nil {
 				log.Printf("[Background] Warning: Failed to fetch batch for title update: %v", err)
 				return
@@ -71,7 +65,7 @@ func (sdrm *StableDiffusion) generateImagesInBackground(batchID, userID string, 
 
 			if batch.GenerationTopicID != "" {
 				log.Printf("[Background] Triggering topic title update for topic %s", batch.GenerationTopicID)
-				if err := sdrm.TopicService.UpdateGenerationTopicTitleFromPrompt(context.Background(), batch.GenerationTopicID, userID, opts.Prompt); err != nil {
+				if err := sdrm.TopicService.UpdateGenerationTopicTitleFromPrompt(context.Background(), batch.GenerationTopicID, opts.Prompt); err != nil {
 					log.Printf("[Background] Warning: Failed to update topic title: %v", err)
 				}
 			}
@@ -106,7 +100,6 @@ func (sdrm *StableDiffusion) generateImagesInBackground(batchID, userID string, 
 			if generation.AsyncTaskID.Valid {
 				_, err := sdrm.DB.Queries().UpdateAsyncTask(ctx, db.UpdateAsyncTaskParams{
 					ID:        generation.AsyncTaskID.String,
-					UserID:    userID,
 					Status:    sql.NullString{String: "processing", Valid: true},
 					Error:     sql.NullString{},
 					Duration:  sql.NullInt64{},
@@ -163,7 +156,6 @@ func (sdrm *StableDiffusion) generateImagesInBackground(batchID, userID string, 
 				if generation.AsyncTaskID.Valid {
 					_, err := sdrm.DB.Queries().UpdateAsyncTask(ctx, db.UpdateAsyncTaskParams{
 						ID:        generation.AsyncTaskID.String,
-						UserID:    userID,
 						Status:    sql.NullString{String: "error", Valid: true},
 						Error:     sql.NullString{String: remoteErr.Error(), Valid: true},
 						Duration:  sql.NullInt64{Int64: time.Since(startTime).Milliseconds(), Valid: true},
@@ -175,7 +167,7 @@ func (sdrm *StableDiffusion) generateImagesInBackground(batchID, userID string, 
 				}
 			} else {
 				// Success - update with file data
-				sdrm.updateGenerationWithFile(ctx, generation.ID, userID, outputPath, fileName, opts, generation.AsyncTaskID.String, startTime)
+				sdrm.updateGenerationWithFile(ctx, generation.ID, outputPath, fileName, opts, generation.AsyncTaskID.String, startTime)
 			}
 		}(i)
 	}
@@ -203,13 +195,13 @@ func (sdrm *StableDiffusion) generateImagesInBackground(batchID, userID string, 
 			}
 
 			// Update generation with copied file
-			sdrm.updateGenerationWithFile(ctx, generation.ID, userID, failedOutputPath, failedFileName, opts, generation.AsyncTaskID.String, time.Now())
+			sdrm.updateGenerationWithFile(ctx, generation.ID, failedOutputPath, failedFileName, opts, generation.AsyncTaskID.String, time.Now())
 		}
 	}
 }
 
 // updateGenerationWithFile updates a generation record with file data after successful generation
-func (sdrm *StableDiffusion) updateGenerationWithFile(ctx context.Context, generationID, userID, outputPath, fileName string, opts GenerationOptions, taskID string, startTime time.Time) {
+func (sdrm *StableDiffusion) updateGenerationWithFile(ctx context.Context, generationID, outputPath, fileName string, opts GenerationOptions, taskID string, startTime time.Time) {
 	// Calculate file info
 	fileInfo, err := os.Stat(outputPath)
 	if err != nil {
@@ -241,7 +233,7 @@ func (sdrm *StableDiffusion) updateGenerationWithFile(ctx context.Context, gener
 			FileType: "image/png",
 			Size:     fileInfo.Size(),
 			Url:      fileUrl,
-			Creator:  userID,
+			Creator:  sql.NullString{String: "default", Valid: true},
 		})
 		if err != nil {
 			log.Printf("[Background] Warning: failed to create global file: %v", err)
@@ -250,7 +242,7 @@ func (sdrm *StableDiffusion) updateGenerationWithFile(ctx context.Context, gener
 
 	// Create File record
 	savedFile, err := sdrm.DB.Queries().CreateFile(ctx, db.CreateFileParams{
-		UserID:   userID,
+		// UserID removed
 		FileType: "image/png",
 		FileHash: sql.NullString{String: fileHash, Valid: true},
 		Name:     fileName,
@@ -278,7 +270,6 @@ func (sdrm *StableDiffusion) updateGenerationWithFile(ctx context.Context, gener
 	// Update generation record
 	_, err = sdrm.DB.Queries().UpdateGeneration(ctx, db.UpdateGenerationParams{
 		ID:          generationID,
-		UserID:      userID,
 		AsyncTaskID: sql.NullString{String: taskID, Valid: true},
 		FileID:      sql.NullString{String: savedFile.ID, Valid: true},
 		Asset:       sql.NullString{String: string(assetBytes), Valid: true},
@@ -292,7 +283,6 @@ func (sdrm *StableDiffusion) updateGenerationWithFile(ctx context.Context, gener
 	// Update async_task to success
 	_, err = sdrm.DB.Queries().UpdateAsyncTask(ctx, db.UpdateAsyncTaskParams{
 		ID:        taskID,
-		UserID:    userID,
 		Status:    sql.NullString{String: "success", Valid: true},
 		Error:     sql.NullString{},
 		Duration:  sql.NullInt64{Int64: time.Since(startTime).Milliseconds(), Valid: true},

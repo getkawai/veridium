@@ -600,7 +600,6 @@ export class CreateThreadRequest {
      * Topic this thread belongs to
      */
     "topic_id": string;
-    "user_id": string;
     "title"?: string;
 
     /**
@@ -616,9 +615,6 @@ export class CreateThreadRequest {
         }
         if (!("topic_id" in $$source)) {
             this["topic_id"] = "";
-        }
-        if (!("user_id" in $$source)) {
-            this["user_id"] = "";
         }
         if (!("type" in $$source)) {
             this["type"] = ThreadType.$zero;
@@ -712,15 +708,11 @@ export class GroundingSearch {
  */
 export class ListThreadsRequest {
     "topic_id": string;
-    "user_id": string;
 
     /** Creates a new ListThreadsRequest instance. */
     constructor($$source: Partial<ListThreadsRequest> = {}) {
         if (!("topic_id" in $$source)) {
             this["topic_id"] = "";
-        }
-        if (!("user_id" in $$source)) {
-            this["user_id"] = "";
         }
 
         Object.assign(this, $$source);

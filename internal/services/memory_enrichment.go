@@ -53,9 +53,9 @@ func NewMemoryEnrichmentService(config *MemoryEnrichmentConfig) (*MemoryEnrichme
 
 // BufferConfig defines the buffer configuration
 type BufferConfig struct {
-	MaxBufferSize     int // Max messages in context window (default: 20)
-	ArchiveBatchSize  int // Messages to archive at once (default: 5)
-	ArchiveThreshold  int // Trigger archive when buffer > threshold (default: 15)
+	MaxBufferSize    int // Max messages in context window (default: 20)
+	ArchiveBatchSize int // Messages to archive at once (default: 5)
+	ArchiveThreshold int // Trigger archive when buffer > threshold (default: 15)
 }
 
 // DefaultBufferConfig returns default buffer configuration
@@ -83,7 +83,7 @@ type ExtractedFact struct {
 }
 
 // EnrichMessages extracts facts from messages and stores as memories
-func (s *MemoryEnrichmentService) EnrichMessages(ctx context.Context, userID string, messages []fantasy.Message) (*EnrichmentResult, error) {
+func (s *MemoryEnrichmentService) EnrichMessages(ctx context.Context, messages []fantasy.Message) (*EnrichmentResult, error) {
 	if len(messages) == 0 {
 		return &EnrichmentResult{}, nil
 	}
@@ -111,7 +111,6 @@ func (s *MemoryEnrichmentService) EnrichMessages(ctx context.Context, userID str
 
 	for _, fact := range facts {
 		memory := &Memory{
-			UserID:   userID,
 			Category: s.factTypeToCategory(fact.Type),
 			Layer:    MemoryLayerArchived,
 			Type:     fact.Type,
@@ -121,7 +120,7 @@ func (s *MemoryEnrichmentService) EnrichMessages(ctx context.Context, userID str
 			Status:   "active",
 		}
 
-		created, err := s.memoryService.CreateMemory(ctx, userID, memory)
+		created, err := s.memoryService.CreateMemory(ctx, memory)
 		if err != nil {
 			log.Printf("⚠️  Failed to store memory: %v", err)
 			continue
@@ -137,7 +136,7 @@ func (s *MemoryEnrichmentService) EnrichMessages(ctx context.Context, userID str
 }
 
 // AutoArchive checks buffer size and archives old messages if needed
-func (s *MemoryEnrichmentService) AutoArchive(ctx context.Context, userID string, messages []fantasy.Message, config BufferConfig) ([]fantasy.Message, error) {
+func (s *MemoryEnrichmentService) AutoArchive(ctx context.Context, messages []fantasy.Message, config BufferConfig) ([]fantasy.Message, error) {
 	if len(messages) <= config.ArchiveThreshold {
 		return messages, nil
 	}
@@ -147,7 +146,7 @@ func (s *MemoryEnrichmentService) AutoArchive(ctx context.Context, userID string
 	remaining := messages[config.ArchiveBatchSize:]
 
 	// Enrich and store
-	result, err := s.EnrichMessages(ctx, userID, toArchive)
+	result, err := s.EnrichMessages(ctx, toArchive)
 	if err != nil {
 		return messages, fmt.Errorf("failed to archive messages: %w", err)
 	}

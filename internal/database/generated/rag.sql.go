@@ -13,26 +13,20 @@ import (
 
 const BatchDeleteChunks = `-- name: BatchDeleteChunks :exec
 DELETE FROM chunks
-WHERE id IN (/*SLICE:ids*/?) AND user_id = ?
+WHERE id IN (/*SLICE:ids*/?)
 `
 
-type BatchDeleteChunksParams struct {
-	Ids    []string       `json:"ids"`
-	UserID sql.NullString `json:"userId"`
-}
-
-func (q *Queries) BatchDeleteChunks(ctx context.Context, arg BatchDeleteChunksParams) error {
+func (q *Queries) BatchDeleteChunks(ctx context.Context, ids []string) error {
 	query := BatchDeleteChunks
 	var queryParams []interface{}
-	if len(arg.Ids) > 0 {
-		for _, v := range arg.Ids {
+	if len(ids) > 0 {
+		for _, v := range ids {
 			queryParams = append(queryParams, v)
 		}
-		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(arg.Ids))[1:], 1)
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(ids))[1:], 1)
 	} else {
 		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
 	}
-	queryParams = append(queryParams, arg.UserID)
 	_, err := q.db.ExecContext(ctx, query, queryParams...)
 	return err
 }
@@ -41,7 +35,7 @@ const BatchInsertRagEvalEvaluationRecords = `-- name: BatchInsertRagEvalEvaluati
 INSERT INTO rag_eval_evaluation_records (
     id, evaluation_id, dataset_record_id,
     retrieved_contexts, generated_answer, metrics,
-    user_id, created_at, updated_at
+    created_at, updated_at
 )
 SELECT 
     json_extract(value, '$.id'),
@@ -50,7 +44,6 @@ SELECT
     json_extract(value, '$.retrieved_contexts'),
     json_extract(value, '$.generated_answer'),
     json_extract(value, '$.metrics'),
-    json_extract(value, '$.user_id'),
     CAST(json_extract(value, '$.created_at') AS INTEGER),
     CAST(json_extract(value, '$.updated_at') AS INTEGER)
 FROM json_each(?)
@@ -64,16 +57,11 @@ func (q *Queries) BatchInsertRagEvalEvaluationRecords(ctx context.Context) error
 const CountChunksByFileId = `-- name: CountChunksByFileId :one
 SELECT COUNT(*) as count
 FROM file_chunks
-WHERE file_id = ? AND user_id = ?
+WHERE file_id = ?
 `
 
-type CountChunksByFileIdParams struct {
-	FileID sql.NullString `json:"fileId"`
-	UserID string         `json:"userId"`
-}
-
-func (q *Queries) CountChunksByFileId(ctx context.Context, arg CountChunksByFileIdParams) (int64, error) {
-	row := q.db.QueryRowContext(ctx, CountChunksByFileId, arg.FileID, arg.UserID)
+func (q *Queries) CountChunksByFileId(ctx context.Context, fileID sql.NullString) (int64, error) {
+	row := q.db.QueryRowContext(ctx, CountChunksByFileId, fileID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -82,7 +70,6 @@ func (q *Queries) CountChunksByFileId(ctx context.Context, arg CountChunksByFile
 const CountChunksByFileIds = `-- name: CountChunksByFileIds :many
 SELECT file_id, COUNT(*) as count
 FROM file_chunks
-WHERE user_id = ?
 GROUP BY file_id
 `
 
@@ -91,8 +78,8 @@ type CountChunksByFileIdsRow struct {
 	Count  int64          `json:"count"`
 }
 
-func (q *Queries) CountChunksByFileIds(ctx context.Context, userID string) ([]CountChunksByFileIdsRow, error) {
-	rows, err := q.db.QueryContext(ctx, CountChunksByFileIds, userID)
+func (q *Queries) CountChunksByFileIds(ctx context.Context) ([]CountChunksByFileIdsRow, error) {
+	rows, err := q.db.QueryContext(ctx, CountChunksByFileIds)
 	if err != nil {
 		return nil, err
 	}
@@ -116,9 +103,9 @@ func (q *Queries) CountChunksByFileIds(ctx context.Context, userID string) ([]Co
 
 const CreateChunk = `-- name: CreateChunk :one
 INSERT INTO chunks (
-    id, document_id, text, abstract, metadata, chunk_index, type, user_id
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, document_id, text, abstract, metadata, chunk_index, type, user_id, created_at, updated_at
+    id, document_id, text, abstract, metadata, chunk_index, type
+) VALUES (?, ?, ?, ?, ?, ?, ?)
+RETURNING id, document_id, text, abstract, metadata, chunk_index, type, created_at, updated_at
 `
 
 type CreateChunkParams struct {
@@ -129,7 +116,6 @@ type CreateChunkParams struct {
 	Metadata   sql.NullString `json:"metadata"`
 	ChunkIndex sql.NullInt64  `json:"chunkIndex"`
 	Type       sql.NullString `json:"type"`
-	UserID     sql.NullString `json:"userId"`
 }
 
 func (q *Queries) CreateChunk(ctx context.Context, arg CreateChunkParams) (Chunk, error) {
@@ -141,7 +127,6 @@ func (q *Queries) CreateChunk(ctx context.Context, arg CreateChunkParams) (Chunk
 		arg.Metadata,
 		arg.ChunkIndex,
 		arg.Type,
-		arg.UserID,
 	)
 	var i Chunk
 	err := row.Scan(
@@ -152,7 +137,6 @@ func (q *Queries) CreateChunk(ctx context.Context, arg CreateChunkParams) (Chunk
 		&i.Metadata,
 		&i.ChunkIndex,
 		&i.Type,
-		&i.UserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -161,31 +145,24 @@ func (q *Queries) CreateChunk(ctx context.Context, arg CreateChunkParams) (Chunk
 
 const CreateRagEvalDataset = `-- name: CreateRagEvalDataset :one
 INSERT INTO rag_eval_datasets (
-    id, name, description, user_id
-) VALUES (?, ?, ?, ?)
-RETURNING id, name, description, user_id, created_at, updated_at
+    id, name, description
+) VALUES (?, ?, ?)
+RETURNING id, name, description, created_at, updated_at
 `
 
 type CreateRagEvalDatasetParams struct {
 	ID          string         `json:"id"`
 	Name        string         `json:"name"`
 	Description sql.NullString `json:"description"`
-	UserID      string         `json:"userId"`
 }
 
 func (q *Queries) CreateRagEvalDataset(ctx context.Context, arg CreateRagEvalDatasetParams) (RagEvalDataset, error) {
-	row := q.db.QueryRowContext(ctx, CreateRagEvalDataset,
-		arg.ID,
-		arg.Name,
-		arg.Description,
-		arg.UserID,
-	)
+	row := q.db.QueryRowContext(ctx, CreateRagEvalDataset, arg.ID, arg.Name, arg.Description)
 	var i RagEvalDataset
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
 		&i.Description,
-		&i.UserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -195,9 +172,9 @@ func (q *Queries) CreateRagEvalDataset(ctx context.Context, arg CreateRagEvalDat
 const CreateRagEvalDatasetRecord = `-- name: CreateRagEvalDatasetRecord :one
 INSERT INTO rag_eval_dataset_records (
     id, dataset_id, query, reference_answer, reference_contexts,
-    metadata, user_id
-) VALUES (?, ?, ?, ?, ?, ?, ?)
-RETURNING id, dataset_id, "query", reference_answer, reference_contexts, metadata, user_id, created_at, updated_at
+    metadata
+) VALUES (?, ?, ?, ?, ?, ?)
+RETURNING id, dataset_id, "query", reference_answer, reference_contexts, metadata, created_at, updated_at
 `
 
 type CreateRagEvalDatasetRecordParams struct {
@@ -207,7 +184,6 @@ type CreateRagEvalDatasetRecordParams struct {
 	ReferenceAnswer   sql.NullString `json:"referenceAnswer"`
 	ReferenceContexts sql.NullString `json:"referenceContexts"`
 	Metadata          sql.NullString `json:"metadata"`
-	UserID            string         `json:"userId"`
 }
 
 func (q *Queries) CreateRagEvalDatasetRecord(ctx context.Context, arg CreateRagEvalDatasetRecordParams) (RagEvalDatasetRecord, error) {
@@ -218,7 +194,6 @@ func (q *Queries) CreateRagEvalDatasetRecord(ctx context.Context, arg CreateRagE
 		arg.ReferenceAnswer,
 		arg.ReferenceContexts,
 		arg.Metadata,
-		arg.UserID,
 	)
 	var i RagEvalDatasetRecord
 	err := row.Scan(
@@ -228,7 +203,6 @@ func (q *Queries) CreateRagEvalDatasetRecord(ctx context.Context, arg CreateRagE
 		&i.ReferenceAnswer,
 		&i.ReferenceContexts,
 		&i.Metadata,
-		&i.UserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -238,10 +212,9 @@ func (q *Queries) CreateRagEvalDatasetRecord(ctx context.Context, arg CreateRagE
 const CreateRagEvalEvaluation = `-- name: CreateRagEvalEvaluation :one
 
 INSERT INTO rag_eval_evaluations (
-    id, name, dataset_id, config, status,
-    user_id
-) VALUES (?, ?, ?, ?, ?, ?)
-RETURNING id, name, dataset_id, config, status, user_id, created_at, updated_at
+    id, name, dataset_id, config, status
+) VALUES (?, ?, ?, ?, ?)
+RETURNING id, name, dataset_id, config, status, created_at, updated_at
 `
 
 type CreateRagEvalEvaluationParams struct {
@@ -250,7 +223,6 @@ type CreateRagEvalEvaluationParams struct {
 	DatasetID string         `json:"datasetId"`
 	Config    sql.NullString `json:"config"`
 	Status    string         `json:"status"`
-	UserID    string         `json:"userId"`
 }
 
 // RAG Eval Evaluations
@@ -261,7 +233,6 @@ func (q *Queries) CreateRagEvalEvaluation(ctx context.Context, arg CreateRagEval
 		arg.DatasetID,
 		arg.Config,
 		arg.Status,
-		arg.UserID,
 	)
 	var i RagEvalEvaluation
 	err := row.Scan(
@@ -270,7 +241,6 @@ func (q *Queries) CreateRagEvalEvaluation(ctx context.Context, arg CreateRagEval
 		&i.DatasetID,
 		&i.Config,
 		&i.Status,
-		&i.UserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -281,10 +251,9 @@ const CreateRagEvalEvaluationRecord = `-- name: CreateRagEvalEvaluationRecord :o
 
 INSERT INTO rag_eval_evaluation_records (
     id, evaluation_id, dataset_record_id,
-    retrieved_contexts, generated_answer, metrics,
-    user_id
-) VALUES (?, ?, ?, ?, ?, ?, ?)
-RETURNING id, evaluation_id, dataset_record_id, retrieved_contexts, generated_answer, metrics, user_id, created_at, updated_at
+    retrieved_contexts, generated_answer, metrics
+) VALUES (?, ?, ?, ?, ?, ?)
+RETURNING id, evaluation_id, dataset_record_id, retrieved_contexts, generated_answer, metrics, created_at, updated_at
 `
 
 type CreateRagEvalEvaluationRecordParams struct {
@@ -294,7 +263,6 @@ type CreateRagEvalEvaluationRecordParams struct {
 	RetrievedContexts sql.NullString `json:"retrievedContexts"`
 	GeneratedAnswer   sql.NullString `json:"generatedAnswer"`
 	Metrics           sql.NullString `json:"metrics"`
-	UserID            string         `json:"userId"`
 }
 
 // RAG Eval Evaluation Records
@@ -306,7 +274,6 @@ func (q *Queries) CreateRagEvalEvaluationRecord(ctx context.Context, arg CreateR
 		arg.RetrievedContexts,
 		arg.GeneratedAnswer,
 		arg.Metrics,
-		arg.UserID,
 	)
 	var i RagEvalEvaluationRecord
 	err := row.Scan(
@@ -316,7 +283,6 @@ func (q *Queries) CreateRagEvalEvaluationRecord(ctx context.Context, arg CreateR
 		&i.RetrievedContexts,
 		&i.GeneratedAnswer,
 		&i.Metrics,
-		&i.UserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -326,9 +292,9 @@ func (q *Queries) CreateRagEvalEvaluationRecord(ctx context.Context, arg CreateR
 const CreateUnstructuredChunk = `-- name: CreateUnstructuredChunk :one
 INSERT INTO unstructured_chunks (
     id, text, metadata, chunk_index, type, parent_id, composite_id,
-    user_id, file_id
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, text, metadata, chunk_index, type, parent_id, composite_id, user_id, file_id, created_at, updated_at
+    file_id
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, text, metadata, chunk_index, type, parent_id, composite_id, file_id, created_at, updated_at
 `
 
 type CreateUnstructuredChunkParams struct {
@@ -339,7 +305,6 @@ type CreateUnstructuredChunkParams struct {
 	Type        sql.NullString `json:"type"`
 	ParentID    sql.NullString `json:"parentId"`
 	CompositeID sql.NullString `json:"compositeId"`
-	UserID      sql.NullString `json:"userId"`
 	FileID      sql.NullString `json:"fileId"`
 }
 
@@ -352,7 +317,6 @@ func (q *Queries) CreateUnstructuredChunk(ctx context.Context, arg CreateUnstruc
 		arg.Type,
 		arg.ParentID,
 		arg.CompositeID,
-		arg.UserID,
 		arg.FileID,
 	)
 	var i UnstructuredChunk
@@ -364,7 +328,6 @@ func (q *Queries) CreateUnstructuredChunk(ctx context.Context, arg CreateUnstruc
 		&i.Type,
 		&i.ParentID,
 		&i.CompositeID,
-		&i.UserID,
 		&i.FileID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -373,102 +336,67 @@ func (q *Queries) CreateUnstructuredChunk(ctx context.Context, arg CreateUnstruc
 }
 
 const DeleteChunk = `-- name: DeleteChunk :exec
-DELETE FROM chunks WHERE id = ? AND user_id = ?
+DELETE FROM chunks WHERE id = ?
 `
 
-type DeleteChunkParams struct {
-	ID     string         `json:"id"`
-	UserID sql.NullString `json:"userId"`
-}
-
-func (q *Queries) DeleteChunk(ctx context.Context, arg DeleteChunkParams) error {
-	_, err := q.db.ExecContext(ctx, DeleteChunk, arg.ID, arg.UserID)
+func (q *Queries) DeleteChunk(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, DeleteChunk, id)
 	return err
 }
 
 const DeleteRagEvalDataset = `-- name: DeleteRagEvalDataset :exec
-DELETE FROM rag_eval_datasets WHERE id = ? AND user_id = ?
+DELETE FROM rag_eval_datasets WHERE id = ?
 `
 
-type DeleteRagEvalDatasetParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
-func (q *Queries) DeleteRagEvalDataset(ctx context.Context, arg DeleteRagEvalDatasetParams) error {
-	_, err := q.db.ExecContext(ctx, DeleteRagEvalDataset, arg.ID, arg.UserID)
+func (q *Queries) DeleteRagEvalDataset(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, DeleteRagEvalDataset, id)
 	return err
 }
 
 const DeleteRagEvalDatasetRecord = `-- name: DeleteRagEvalDatasetRecord :exec
-DELETE FROM rag_eval_dataset_records WHERE id = ? AND user_id = ?
+DELETE FROM rag_eval_dataset_records WHERE id = ?
 `
 
-type DeleteRagEvalDatasetRecordParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
-func (q *Queries) DeleteRagEvalDatasetRecord(ctx context.Context, arg DeleteRagEvalDatasetRecordParams) error {
-	_, err := q.db.ExecContext(ctx, DeleteRagEvalDatasetRecord, arg.ID, arg.UserID)
+func (q *Queries) DeleteRagEvalDatasetRecord(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, DeleteRagEvalDatasetRecord, id)
 	return err
 }
 
 const DeleteRagEvalEvaluation = `-- name: DeleteRagEvalEvaluation :exec
-DELETE FROM rag_eval_evaluations WHERE id = ? AND user_id = ?
+DELETE FROM rag_eval_evaluations WHERE id = ?
 `
 
-type DeleteRagEvalEvaluationParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
-func (q *Queries) DeleteRagEvalEvaluation(ctx context.Context, arg DeleteRagEvalEvaluationParams) error {
-	_, err := q.db.ExecContext(ctx, DeleteRagEvalEvaluation, arg.ID, arg.UserID)
+func (q *Queries) DeleteRagEvalEvaluation(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, DeleteRagEvalEvaluation, id)
 	return err
 }
 
 const DeleteRagEvalEvaluationRecord = `-- name: DeleteRagEvalEvaluationRecord :exec
-DELETE FROM rag_eval_evaluation_records WHERE id = ? AND user_id = ?
+DELETE FROM rag_eval_evaluation_records WHERE id = ?
 `
 
-type DeleteRagEvalEvaluationRecordParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
-func (q *Queries) DeleteRagEvalEvaluationRecord(ctx context.Context, arg DeleteRagEvalEvaluationRecordParams) error {
-	_, err := q.db.ExecContext(ctx, DeleteRagEvalEvaluationRecord, arg.ID, arg.UserID)
+func (q *Queries) DeleteRagEvalEvaluationRecord(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, DeleteRagEvalEvaluationRecord, id)
 	return err
 }
 
 const DeleteUnstructuredChunk = `-- name: DeleteUnstructuredChunk :exec
-DELETE FROM unstructured_chunks WHERE id = ? AND user_id = ?
+DELETE FROM unstructured_chunks WHERE id = ?
 `
 
-type DeleteUnstructuredChunkParams struct {
-	ID     string         `json:"id"`
-	UserID sql.NullString `json:"userId"`
-}
-
-func (q *Queries) DeleteUnstructuredChunk(ctx context.Context, arg DeleteUnstructuredChunkParams) error {
-	_, err := q.db.ExecContext(ctx, DeleteUnstructuredChunk, arg.ID, arg.UserID)
+func (q *Queries) DeleteUnstructuredChunk(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, DeleteUnstructuredChunk, id)
 	return err
 }
 
 const GetChunk = `-- name: GetChunk :one
 
-SELECT id, document_id, text, abstract, metadata, chunk_index, type, user_id, created_at, updated_at FROM chunks WHERE id = ? AND user_id = ?
+SELECT id, document_id, text, abstract, metadata, chunk_index, type, created_at, updated_at FROM chunks WHERE id = ?
 `
 
-type GetChunkParams struct {
-	ID     string         `json:"id"`
-	UserID sql.NullString `json:"userId"`
-}
-
 // Chunks
-func (q *Queries) GetChunk(ctx context.Context, arg GetChunkParams) (Chunk, error) {
-	row := q.db.QueryRowContext(ctx, GetChunk, arg.ID, arg.UserID)
+func (q *Queries) GetChunk(ctx context.Context, id string) (Chunk, error) {
+	row := q.db.QueryRowContext(ctx, GetChunk, id)
 	var i Chunk
 	err := row.Scan(
 		&i.ID,
@@ -478,7 +406,6 @@ func (q *Queries) GetChunk(ctx context.Context, arg GetChunkParams) (Chunk, erro
 		&i.Metadata,
 		&i.ChunkIndex,
 		&i.Type,
-		&i.UserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -486,18 +413,13 @@ func (q *Queries) GetChunk(ctx context.Context, arg GetChunkParams) (Chunk, erro
 }
 
 const GetChunksByDocumentID = `-- name: GetChunksByDocumentID :many
-SELECT id, document_id, text, abstract, metadata, chunk_index, type, user_id, created_at, updated_at FROM chunks
-WHERE document_id = ? AND user_id = ?
+SELECT id, document_id, text, abstract, metadata, chunk_index, type, created_at, updated_at FROM chunks
+WHERE document_id = ?
 ORDER BY chunk_index ASC
 `
 
-type GetChunksByDocumentIDParams struct {
-	DocumentID sql.NullString `json:"documentId"`
-	UserID     sql.NullString `json:"userId"`
-}
-
-func (q *Queries) GetChunksByDocumentID(ctx context.Context, arg GetChunksByDocumentIDParams) ([]Chunk, error) {
-	rows, err := q.db.QueryContext(ctx, GetChunksByDocumentID, arg.DocumentID, arg.UserID)
+func (q *Queries) GetChunksByDocumentID(ctx context.Context, documentID sql.NullString) ([]Chunk, error) {
+	rows, err := q.db.QueryContext(ctx, GetChunksByDocumentID, documentID)
 	if err != nil {
 		return nil, err
 	}
@@ -513,7 +435,6 @@ func (q *Queries) GetChunksByDocumentID(ctx context.Context, arg GetChunksByDocu
 			&i.Metadata,
 			&i.ChunkIndex,
 			&i.Type,
-			&i.UserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -531,16 +452,11 @@ func (q *Queries) GetChunksByDocumentID(ctx context.Context, arg GetChunksByDocu
 }
 
 const GetChunksByIDs = `-- name: GetChunksByIDs :many
-SELECT c.id, c.document_id, c.text, c.abstract, c.metadata, c.chunk_index, c.type, c.user_id, c.created_at, c.updated_at, d.file_id
+SELECT c.id, c.document_id, c.text, c.abstract, c.metadata, c.chunk_index, c.type, c.created_at, c.updated_at, d.file_id
 FROM chunks c
 LEFT JOIN documents d ON c.document_id = d.id
-WHERE c.id IN (/*SLICE:ids*/?) AND c.user_id = ?
+WHERE c.id IN (/*SLICE:ids*/?)
 `
-
-type GetChunksByIDsParams struct {
-	Ids    []string       `json:"ids"`
-	UserID sql.NullString `json:"userId"`
-}
 
 type GetChunksByIDsRow struct {
 	ID         string         `json:"id"`
@@ -550,24 +466,22 @@ type GetChunksByIDsRow struct {
 	Metadata   sql.NullString `json:"metadata"`
 	ChunkIndex sql.NullInt64  `json:"chunkIndex"`
 	Type       sql.NullString `json:"type"`
-	UserID     sql.NullString `json:"userId"`
 	CreatedAt  int64          `json:"createdAt"`
 	UpdatedAt  int64          `json:"updatedAt"`
 	FileID     sql.NullString `json:"fileId"`
 }
 
-func (q *Queries) GetChunksByIDs(ctx context.Context, arg GetChunksByIDsParams) ([]GetChunksByIDsRow, error) {
+func (q *Queries) GetChunksByIDs(ctx context.Context, ids []string) ([]GetChunksByIDsRow, error) {
 	query := GetChunksByIDs
 	var queryParams []interface{}
-	if len(arg.Ids) > 0 {
-		for _, v := range arg.Ids {
+	if len(ids) > 0 {
+		for _, v := range ids {
 			queryParams = append(queryParams, v)
 		}
-		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(arg.Ids))[1:], 1)
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(ids))[1:], 1)
 	} else {
 		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
 	}
-	queryParams = append(queryParams, arg.UserID)
 	rows, err := q.db.QueryContext(ctx, query, queryParams...)
 	if err != nil {
 		return nil, err
@@ -584,7 +498,6 @@ func (q *Queries) GetChunksByIDs(ctx context.Context, arg GetChunksByIDsParams) 
 			&i.Metadata,
 			&i.ChunkIndex,
 			&i.Type,
-			&i.UserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.FileID,
@@ -645,27 +558,21 @@ func (q *Queries) GetChunksTextByFileId(ctx context.Context, fileID sql.NullStri
 }
 
 const GetFileChunks = `-- name: GetFileChunks :many
-SELECT c.id, c.document_id, c.text, c.abstract, c.metadata, c.chunk_index, c.type, c.user_id, c.created_at, c.updated_at FROM chunks c
+SELECT c.id, c.document_id, c.text, c.abstract, c.metadata, c.chunk_index, c.type, c.created_at, c.updated_at FROM chunks c
 INNER JOIN file_chunks fc ON c.id = fc.chunk_id
-WHERE fc.file_id = ? AND fc.user_id = ?
+WHERE fc.file_id = ?
 ORDER BY c.chunk_index ASC
 LIMIT ? OFFSET ?
 `
 
 type GetFileChunksParams struct {
 	FileID sql.NullString `json:"fileId"`
-	UserID string         `json:"userId"`
 	Limit  int64          `json:"limit"`
 	Offset int64          `json:"offset"`
 }
 
 func (q *Queries) GetFileChunks(ctx context.Context, arg GetFileChunksParams) ([]Chunk, error) {
-	rows, err := q.db.QueryContext(ctx, GetFileChunks,
-		arg.FileID,
-		arg.UserID,
-		arg.Limit,
-		arg.Offset,
-	)
+	rows, err := q.db.QueryContext(ctx, GetFileChunks, arg.FileID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -681,7 +588,6 @@ func (q *Queries) GetFileChunks(ctx context.Context, arg GetFileChunksParams) ([
 			&i.Metadata,
 			&i.ChunkIndex,
 			&i.Type,
-			&i.UserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -710,14 +616,13 @@ SELECT
     c.updated_at
 FROM chunks c
 INNER JOIN file_chunks fc ON c.id = fc.chunk_id
-WHERE fc.file_id = ? AND c.user_id = ?
+WHERE fc.file_id = ?
 ORDER BY c.chunk_index ASC
 LIMIT ? OFFSET ?
 `
 
 type GetFileChunksWithMetadataParams struct {
 	FileID sql.NullString `json:"fileId"`
-	UserID sql.NullString `json:"userId"`
 	Limit  int64          `json:"limit"`
 	Offset int64          `json:"offset"`
 }
@@ -734,12 +639,7 @@ type GetFileChunksWithMetadataRow struct {
 }
 
 func (q *Queries) GetFileChunksWithMetadata(ctx context.Context, arg GetFileChunksWithMetadataParams) ([]GetFileChunksWithMetadataRow, error) {
-	rows, err := q.db.QueryContext(ctx, GetFileChunksWithMetadata,
-		arg.FileID,
-		arg.UserID,
-		arg.Limit,
-		arg.Offset,
-	)
+	rows, err := q.db.QueryContext(ctx, GetFileChunksWithMetadata, arg.FileID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -802,23 +702,17 @@ func (q *Queries) GetOrphanedChunks(ctx context.Context) ([]string, error) {
 
 const GetRagEvalDataset = `-- name: GetRagEvalDataset :one
 
-SELECT id, name, description, user_id, created_at, updated_at FROM rag_eval_datasets WHERE id = ? AND user_id = ?
+SELECT id, name, description, created_at, updated_at FROM rag_eval_datasets WHERE id = ?
 `
 
-type GetRagEvalDatasetParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
 // RAG Evaluation
-func (q *Queries) GetRagEvalDataset(ctx context.Context, arg GetRagEvalDatasetParams) (RagEvalDataset, error) {
-	row := q.db.QueryRowContext(ctx, GetRagEvalDataset, arg.ID, arg.UserID)
+func (q *Queries) GetRagEvalDataset(ctx context.Context, id string) (RagEvalDataset, error) {
+	row := q.db.QueryRowContext(ctx, GetRagEvalDataset, id)
 	var i RagEvalDataset
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
 		&i.Description,
-		&i.UserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -826,16 +720,11 @@ func (q *Queries) GetRagEvalDataset(ctx context.Context, arg GetRagEvalDatasetPa
 }
 
 const GetRagEvalDatasetRecord = `-- name: GetRagEvalDatasetRecord :one
-SELECT id, dataset_id, "query", reference_answer, reference_contexts, metadata, user_id, created_at, updated_at FROM rag_eval_dataset_records WHERE id = ? AND user_id = ?
+SELECT id, dataset_id, "query", reference_answer, reference_contexts, metadata, created_at, updated_at FROM rag_eval_dataset_records WHERE id = ?
 `
 
-type GetRagEvalDatasetRecordParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
-func (q *Queries) GetRagEvalDatasetRecord(ctx context.Context, arg GetRagEvalDatasetRecordParams) (RagEvalDatasetRecord, error) {
-	row := q.db.QueryRowContext(ctx, GetRagEvalDatasetRecord, arg.ID, arg.UserID)
+func (q *Queries) GetRagEvalDatasetRecord(ctx context.Context, id string) (RagEvalDatasetRecord, error) {
+	row := q.db.QueryRowContext(ctx, GetRagEvalDatasetRecord, id)
 	var i RagEvalDatasetRecord
 	err := row.Scan(
 		&i.ID,
@@ -844,7 +733,6 @@ func (q *Queries) GetRagEvalDatasetRecord(ctx context.Context, arg GetRagEvalDat
 		&i.ReferenceAnswer,
 		&i.ReferenceContexts,
 		&i.Metadata,
-		&i.UserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -852,16 +740,11 @@ func (q *Queries) GetRagEvalDatasetRecord(ctx context.Context, arg GetRagEvalDat
 }
 
 const GetRagEvalEvaluation = `-- name: GetRagEvalEvaluation :one
-SELECT id, name, dataset_id, config, status, user_id, created_at, updated_at FROM rag_eval_evaluations WHERE id = ? AND user_id = ? LIMIT 1
+SELECT id, name, dataset_id, config, status, created_at, updated_at FROM rag_eval_evaluations WHERE id = ? LIMIT 1
 `
 
-type GetRagEvalEvaluationParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
-func (q *Queries) GetRagEvalEvaluation(ctx context.Context, arg GetRagEvalEvaluationParams) (RagEvalEvaluation, error) {
-	row := q.db.QueryRowContext(ctx, GetRagEvalEvaluation, arg.ID, arg.UserID)
+func (q *Queries) GetRagEvalEvaluation(ctx context.Context, id string) (RagEvalEvaluation, error) {
+	row := q.db.QueryRowContext(ctx, GetRagEvalEvaluation, id)
 	var i RagEvalEvaluation
 	err := row.Scan(
 		&i.ID,
@@ -869,7 +752,6 @@ func (q *Queries) GetRagEvalEvaluation(ctx context.Context, arg GetRagEvalEvalua
 		&i.DatasetID,
 		&i.Config,
 		&i.Status,
-		&i.UserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -877,16 +759,11 @@ func (q *Queries) GetRagEvalEvaluation(ctx context.Context, arg GetRagEvalEvalua
 }
 
 const GetRagEvalEvaluationRecord = `-- name: GetRagEvalEvaluationRecord :one
-SELECT id, evaluation_id, dataset_record_id, retrieved_contexts, generated_answer, metrics, user_id, created_at, updated_at FROM rag_eval_evaluation_records WHERE id = ? AND user_id = ? LIMIT 1
+SELECT id, evaluation_id, dataset_record_id, retrieved_contexts, generated_answer, metrics, created_at, updated_at FROM rag_eval_evaluation_records WHERE id = ? LIMIT 1
 `
 
-type GetRagEvalEvaluationRecordParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
-func (q *Queries) GetRagEvalEvaluationRecord(ctx context.Context, arg GetRagEvalEvaluationRecordParams) (RagEvalEvaluationRecord, error) {
-	row := q.db.QueryRowContext(ctx, GetRagEvalEvaluationRecord, arg.ID, arg.UserID)
+func (q *Queries) GetRagEvalEvaluationRecord(ctx context.Context, id string) (RagEvalEvaluationRecord, error) {
+	row := q.db.QueryRowContext(ctx, GetRagEvalEvaluationRecord, id)
 	var i RagEvalEvaluationRecord
 	err := row.Scan(
 		&i.ID,
@@ -895,7 +772,6 @@ func (q *Queries) GetRagEvalEvaluationRecord(ctx context.Context, arg GetRagEval
 		&i.RetrievedContexts,
 		&i.GeneratedAnswer,
 		&i.Metrics,
-		&i.UserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -904,17 +780,12 @@ func (q *Queries) GetRagEvalEvaluationRecord(ctx context.Context, arg GetRagEval
 
 const GetUnstructuredChunk = `-- name: GetUnstructuredChunk :one
 
-SELECT id, text, metadata, chunk_index, type, parent_id, composite_id, user_id, file_id, created_at, updated_at FROM unstructured_chunks WHERE id = ? AND user_id = ?
+SELECT id, text, metadata, chunk_index, type, parent_id, composite_id, file_id, created_at, updated_at FROM unstructured_chunks WHERE id = ?
 `
 
-type GetUnstructuredChunkParams struct {
-	ID     string         `json:"id"`
-	UserID sql.NullString `json:"userId"`
-}
-
 // Unstructured Chunks
-func (q *Queries) GetUnstructuredChunk(ctx context.Context, arg GetUnstructuredChunkParams) (UnstructuredChunk, error) {
-	row := q.db.QueryRowContext(ctx, GetUnstructuredChunk, arg.ID, arg.UserID)
+func (q *Queries) GetUnstructuredChunk(ctx context.Context, id string) (UnstructuredChunk, error) {
+	row := q.db.QueryRowContext(ctx, GetUnstructuredChunk, id)
 	var i UnstructuredChunk
 	err := row.Scan(
 		&i.ID,
@@ -924,7 +795,6 @@ func (q *Queries) GetUnstructuredChunk(ctx context.Context, arg GetUnstructuredC
 		&i.Type,
 		&i.ParentID,
 		&i.CompositeID,
-		&i.UserID,
 		&i.FileID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -934,37 +804,34 @@ func (q *Queries) GetUnstructuredChunk(ctx context.Context, arg GetUnstructuredC
 
 const LinkFileToChunk = `-- name: LinkFileToChunk :exec
 
-INSERT INTO file_chunks (file_id, chunk_id, user_id)
-VALUES (?, ?, ?)
+INSERT INTO file_chunks (file_id, chunk_id)
+VALUES (?, ?)
 `
 
 type LinkFileToChunkParams struct {
 	FileID  sql.NullString `json:"fileId"`
 	ChunkID sql.NullString `json:"chunkId"`
-	UserID  string         `json:"userId"`
 }
 
 // File Chunks
 func (q *Queries) LinkFileToChunk(ctx context.Context, arg LinkFileToChunkParams) error {
-	_, err := q.db.ExecContext(ctx, LinkFileToChunk, arg.FileID, arg.ChunkID, arg.UserID)
+	_, err := q.db.ExecContext(ctx, LinkFileToChunk, arg.FileID, arg.ChunkID)
 	return err
 }
 
 const ListChunks = `-- name: ListChunks :many
-SELECT id, document_id, text, abstract, metadata, chunk_index, type, user_id, created_at, updated_at FROM chunks
-WHERE user_id = ?
+SELECT id, document_id, text, abstract, metadata, chunk_index, type, created_at, updated_at FROM chunks
 ORDER BY created_at DESC
 LIMIT ? OFFSET ?
 `
 
 type ListChunksParams struct {
-	UserID sql.NullString `json:"userId"`
-	Limit  int64          `json:"limit"`
-	Offset int64          `json:"offset"`
+	Limit  int64 `json:"limit"`
+	Offset int64 `json:"offset"`
 }
 
 func (q *Queries) ListChunks(ctx context.Context, arg ListChunksParams) ([]Chunk, error) {
-	rows, err := q.db.QueryContext(ctx, ListChunks, arg.UserID, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, ListChunks, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -980,7 +847,6 @@ func (q *Queries) ListChunks(ctx context.Context, arg ListChunksParams) ([]Chunk
 			&i.Metadata,
 			&i.ChunkIndex,
 			&i.Type,
-			&i.UserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -998,18 +864,13 @@ func (q *Queries) ListChunks(ctx context.Context, arg ListChunksParams) ([]Chunk
 }
 
 const ListRagEvalDatasetRecords = `-- name: ListRagEvalDatasetRecords :many
-SELECT id, dataset_id, "query", reference_answer, reference_contexts, metadata, user_id, created_at, updated_at FROM rag_eval_dataset_records
-WHERE dataset_id = ? AND user_id = ?
+SELECT id, dataset_id, "query", reference_answer, reference_contexts, metadata, created_at, updated_at FROM rag_eval_dataset_records
+WHERE dataset_id = ?
 ORDER BY created_at ASC
 `
 
-type ListRagEvalDatasetRecordsParams struct {
-	DatasetID string `json:"datasetId"`
-	UserID    string `json:"userId"`
-}
-
-func (q *Queries) ListRagEvalDatasetRecords(ctx context.Context, arg ListRagEvalDatasetRecordsParams) ([]RagEvalDatasetRecord, error) {
-	rows, err := q.db.QueryContext(ctx, ListRagEvalDatasetRecords, arg.DatasetID, arg.UserID)
+func (q *Queries) ListRagEvalDatasetRecords(ctx context.Context, datasetID string) ([]RagEvalDatasetRecord, error) {
+	rows, err := q.db.QueryContext(ctx, ListRagEvalDatasetRecords, datasetID)
 	if err != nil {
 		return nil, err
 	}
@@ -1024,7 +885,6 @@ func (q *Queries) ListRagEvalDatasetRecords(ctx context.Context, arg ListRagEval
 			&i.ReferenceAnswer,
 			&i.ReferenceContexts,
 			&i.Metadata,
-			&i.UserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -1042,13 +902,12 @@ func (q *Queries) ListRagEvalDatasetRecords(ctx context.Context, arg ListRagEval
 }
 
 const ListRagEvalDatasets = `-- name: ListRagEvalDatasets :many
-SELECT id, name, description, user_id, created_at, updated_at FROM rag_eval_datasets
-WHERE user_id = ?
+SELECT id, name, description, created_at, updated_at FROM rag_eval_datasets
 ORDER BY created_at DESC
 `
 
-func (q *Queries) ListRagEvalDatasets(ctx context.Context, userID string) ([]RagEvalDataset, error) {
-	rows, err := q.db.QueryContext(ctx, ListRagEvalDatasets, userID)
+func (q *Queries) ListRagEvalDatasets(ctx context.Context) ([]RagEvalDataset, error) {
+	rows, err := q.db.QueryContext(ctx, ListRagEvalDatasets)
 	if err != nil {
 		return nil, err
 	}
@@ -1060,7 +919,6 @@ func (q *Queries) ListRagEvalDatasets(ctx context.Context, userID string) ([]Rag
 			&i.ID,
 			&i.Name,
 			&i.Description,
-			&i.UserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -1078,18 +936,13 @@ func (q *Queries) ListRagEvalDatasets(ctx context.Context, userID string) ([]Rag
 }
 
 const ListRagEvalEvaluationRecordsByEvaluation = `-- name: ListRagEvalEvaluationRecordsByEvaluation :many
-SELECT id, evaluation_id, dataset_record_id, retrieved_contexts, generated_answer, metrics, user_id, created_at, updated_at FROM rag_eval_evaluation_records
-WHERE evaluation_id = ? AND user_id = ?
+SELECT id, evaluation_id, dataset_record_id, retrieved_contexts, generated_answer, metrics, created_at, updated_at FROM rag_eval_evaluation_records
+WHERE evaluation_id = ?
 ORDER BY created_at DESC
 `
 
-type ListRagEvalEvaluationRecordsByEvaluationParams struct {
-	EvaluationID string `json:"evaluationId"`
-	UserID       string `json:"userId"`
-}
-
-func (q *Queries) ListRagEvalEvaluationRecordsByEvaluation(ctx context.Context, arg ListRagEvalEvaluationRecordsByEvaluationParams) ([]RagEvalEvaluationRecord, error) {
-	rows, err := q.db.QueryContext(ctx, ListRagEvalEvaluationRecordsByEvaluation, arg.EvaluationID, arg.UserID)
+func (q *Queries) ListRagEvalEvaluationRecordsByEvaluation(ctx context.Context, evaluationID string) ([]RagEvalEvaluationRecord, error) {
+	rows, err := q.db.QueryContext(ctx, ListRagEvalEvaluationRecordsByEvaluation, evaluationID)
 	if err != nil {
 		return nil, err
 	}
@@ -1104,7 +957,6 @@ func (q *Queries) ListRagEvalEvaluationRecordsByEvaluation(ctx context.Context, 
 			&i.RetrievedContexts,
 			&i.GeneratedAnswer,
 			&i.Metrics,
-			&i.UserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -1122,18 +974,13 @@ func (q *Queries) ListRagEvalEvaluationRecordsByEvaluation(ctx context.Context, 
 }
 
 const ListRagEvalEvaluationsByDataset = `-- name: ListRagEvalEvaluationsByDataset :many
-SELECT id, name, dataset_id, config, status, user_id, created_at, updated_at FROM rag_eval_evaluations
-WHERE dataset_id = ? AND user_id = ?
+SELECT id, name, dataset_id, config, status, created_at, updated_at FROM rag_eval_evaluations
+WHERE dataset_id = ?
 ORDER BY created_at DESC
 `
 
-type ListRagEvalEvaluationsByDatasetParams struct {
-	DatasetID string `json:"datasetId"`
-	UserID    string `json:"userId"`
-}
-
-func (q *Queries) ListRagEvalEvaluationsByDataset(ctx context.Context, arg ListRagEvalEvaluationsByDatasetParams) ([]RagEvalEvaluation, error) {
-	rows, err := q.db.QueryContext(ctx, ListRagEvalEvaluationsByDataset, arg.DatasetID, arg.UserID)
+func (q *Queries) ListRagEvalEvaluationsByDataset(ctx context.Context, datasetID string) ([]RagEvalEvaluation, error) {
+	rows, err := q.db.QueryContext(ctx, ListRagEvalEvaluationsByDataset, datasetID)
 	if err != nil {
 		return nil, err
 	}
@@ -1147,7 +994,6 @@ func (q *Queries) ListRagEvalEvaluationsByDataset(ctx context.Context, arg ListR
 			&i.DatasetID,
 			&i.Config,
 			&i.Status,
-			&i.UserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -1165,18 +1011,13 @@ func (q *Queries) ListRagEvalEvaluationsByDataset(ctx context.Context, arg ListR
 }
 
 const ListUnstructuredChunksByFile = `-- name: ListUnstructuredChunksByFile :many
-SELECT id, text, metadata, chunk_index, type, parent_id, composite_id, user_id, file_id, created_at, updated_at FROM unstructured_chunks
-WHERE file_id = ? AND user_id = ?
+SELECT id, text, metadata, chunk_index, type, parent_id, composite_id, file_id, created_at, updated_at FROM unstructured_chunks
+WHERE file_id = ?
 ORDER BY chunk_index ASC
 `
 
-type ListUnstructuredChunksByFileParams struct {
-	FileID sql.NullString `json:"fileId"`
-	UserID sql.NullString `json:"userId"`
-}
-
-func (q *Queries) ListUnstructuredChunksByFile(ctx context.Context, arg ListUnstructuredChunksByFileParams) ([]UnstructuredChunk, error) {
-	rows, err := q.db.QueryContext(ctx, ListUnstructuredChunksByFile, arg.FileID, arg.UserID)
+func (q *Queries) ListUnstructuredChunksByFile(ctx context.Context, fileID sql.NullString) ([]UnstructuredChunk, error) {
+	rows, err := q.db.QueryContext(ctx, ListUnstructuredChunksByFile, fileID)
 	if err != nil {
 		return nil, err
 	}
@@ -1192,7 +1033,6 @@ func (q *Queries) ListUnstructuredChunksByFile(ctx context.Context, arg ListUnst
 			&i.Type,
 			&i.ParentID,
 			&i.CompositeID,
-			&i.UserID,
 			&i.FileID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -1212,17 +1052,16 @@ func (q *Queries) ListUnstructuredChunksByFile(ctx context.Context, arg ListUnst
 
 const UnlinkFileFromChunk = `-- name: UnlinkFileFromChunk :exec
 DELETE FROM file_chunks
-WHERE file_id = ? AND chunk_id = ? AND user_id = ?
+WHERE file_id = ? AND chunk_id = ?
 `
 
 type UnlinkFileFromChunkParams struct {
 	FileID  sql.NullString `json:"fileId"`
 	ChunkID sql.NullString `json:"chunkId"`
-	UserID  string         `json:"userId"`
 }
 
 func (q *Queries) UnlinkFileFromChunk(ctx context.Context, arg UnlinkFileFromChunkParams) error {
-	_, err := q.db.ExecContext(ctx, UnlinkFileFromChunk, arg.FileID, arg.ChunkID, arg.UserID)
+	_, err := q.db.ExecContext(ctx, UnlinkFileFromChunk, arg.FileID, arg.ChunkID)
 	return err
 }
 
@@ -1232,8 +1071,8 @@ SET text = ?,
     abstract = ?,
     metadata = ?,
     updated_at = ?
-WHERE id = ? AND user_id = ?
-RETURNING id, document_id, text, abstract, metadata, chunk_index, type, user_id, created_at, updated_at
+WHERE id = ?
+RETURNING id, document_id, text, abstract, metadata, chunk_index, type, created_at, updated_at
 `
 
 type UpdateChunkParams struct {
@@ -1242,7 +1081,6 @@ type UpdateChunkParams struct {
 	Metadata  sql.NullString `json:"metadata"`
 	UpdatedAt int64          `json:"updatedAt"`
 	ID        string         `json:"id"`
-	UserID    sql.NullString `json:"userId"`
 }
 
 func (q *Queries) UpdateChunk(ctx context.Context, arg UpdateChunkParams) (Chunk, error) {
@@ -1252,7 +1090,6 @@ func (q *Queries) UpdateChunk(ctx context.Context, arg UpdateChunkParams) (Chunk
 		arg.Metadata,
 		arg.UpdatedAt,
 		arg.ID,
-		arg.UserID,
 	)
 	var i Chunk
 	err := row.Scan(
@@ -1263,7 +1100,6 @@ func (q *Queries) UpdateChunk(ctx context.Context, arg UpdateChunkParams) (Chunk
 		&i.Metadata,
 		&i.ChunkIndex,
 		&i.Type,
-		&i.UserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -1275,7 +1111,7 @@ UPDATE rag_eval_datasets
 SET name = COALESCE(?, name),
     description = COALESCE(?, description),
     updated_at = ?
-WHERE id = ? AND user_id = ?
+WHERE id = ?
 `
 
 type UpdateRagEvalDatasetParams struct {
@@ -1283,7 +1119,6 @@ type UpdateRagEvalDatasetParams struct {
 	Description sql.NullString `json:"description"`
 	UpdatedAt   int64          `json:"updatedAt"`
 	ID          string         `json:"id"`
-	UserID      string         `json:"userId"`
 }
 
 func (q *Queries) UpdateRagEvalDataset(ctx context.Context, arg UpdateRagEvalDatasetParams) error {
@@ -1292,7 +1127,6 @@ func (q *Queries) UpdateRagEvalDataset(ctx context.Context, arg UpdateRagEvalDat
 		arg.Description,
 		arg.UpdatedAt,
 		arg.ID,
-		arg.UserID,
 	)
 	return err
 }
@@ -1304,7 +1138,7 @@ SET "query" = COALESCE(?, "query"),
     reference_contexts = COALESCE(?, reference_contexts),
     metadata = COALESCE(?, metadata),
     updated_at = ?
-WHERE id = ? AND user_id = ?
+WHERE id = ?
 `
 
 type UpdateRagEvalDatasetRecordParams struct {
@@ -1314,7 +1148,6 @@ type UpdateRagEvalDatasetRecordParams struct {
 	Metadata          sql.NullString `json:"metadata"`
 	UpdatedAt         int64          `json:"updatedAt"`
 	ID                string         `json:"id"`
-	UserID            string         `json:"userId"`
 }
 
 func (q *Queries) UpdateRagEvalDatasetRecord(ctx context.Context, arg UpdateRagEvalDatasetRecordParams) error {
@@ -1325,7 +1158,6 @@ func (q *Queries) UpdateRagEvalDatasetRecord(ctx context.Context, arg UpdateRagE
 		arg.Metadata,
 		arg.UpdatedAt,
 		arg.ID,
-		arg.UserID,
 	)
 	return err
 }
@@ -1336,7 +1168,7 @@ SET name = COALESCE(?, name),
     config = COALESCE(?, config),
     status = COALESCE(?, status),
     updated_at = ?
-WHERE id = ? AND user_id = ?
+WHERE id = ?
 `
 
 type UpdateRagEvalEvaluationParams struct {
@@ -1345,7 +1177,6 @@ type UpdateRagEvalEvaluationParams struct {
 	Status    string         `json:"status"`
 	UpdatedAt int64          `json:"updatedAt"`
 	ID        string         `json:"id"`
-	UserID    string         `json:"userId"`
 }
 
 func (q *Queries) UpdateRagEvalEvaluation(ctx context.Context, arg UpdateRagEvalEvaluationParams) error {
@@ -1355,7 +1186,6 @@ func (q *Queries) UpdateRagEvalEvaluation(ctx context.Context, arg UpdateRagEval
 		arg.Status,
 		arg.UpdatedAt,
 		arg.ID,
-		arg.UserID,
 	)
 	return err
 }
@@ -1366,7 +1196,7 @@ SET retrieved_contexts = COALESCE(?, retrieved_contexts),
     generated_answer = COALESCE(?, generated_answer),
     metrics = COALESCE(?, metrics),
     updated_at = ?
-WHERE id = ? AND user_id = ?
+WHERE id = ?
 `
 
 type UpdateRagEvalEvaluationRecordParams struct {
@@ -1375,7 +1205,6 @@ type UpdateRagEvalEvaluationRecordParams struct {
 	Metrics           sql.NullString `json:"metrics"`
 	UpdatedAt         int64          `json:"updatedAt"`
 	ID                string         `json:"id"`
-	UserID            string         `json:"userId"`
 }
 
 func (q *Queries) UpdateRagEvalEvaluationRecord(ctx context.Context, arg UpdateRagEvalEvaluationRecordParams) error {
@@ -1385,7 +1214,6 @@ func (q *Queries) UpdateRagEvalEvaluationRecord(ctx context.Context, arg UpdateR
 		arg.Metrics,
 		arg.UpdatedAt,
 		arg.ID,
-		arg.UserID,
 	)
 	return err
 }

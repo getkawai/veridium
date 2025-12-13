@@ -25,9 +25,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	llamaembed "github.com/kawai-network/veridium/fantasy/providers/llama-embed"
 	"github.com/kawai-network/veridium/internal/database"
 	db "github.com/kawai-network/veridium/internal/database/generated"
-	llamaembed "github.com/kawai-network/veridium/fantasy/providers/llama-embed"
 )
 
 // MemoryCategory defines the type of memory
@@ -52,7 +52,6 @@ const (
 // Memory represents a single memory fact
 type Memory struct {
 	ID             string         `json:"id"`
-	UserID         string         `json:"user_id"`
 	Category       MemoryCategory `json:"category"`
 	Layer          MemoryLayer    `json:"layer"`
 	Type           string         `json:"type"` // More specific type within category
@@ -113,13 +112,12 @@ func NewMemoryService(dbService *database.Service, config *MemoryServiceConfig) 
 }
 
 // CreateMemory creates a new memory with embedding
-func (s *MemoryService) CreateMemory(ctx context.Context, userID string, memory *Memory) (*Memory, error) {
+func (s *MemoryService) CreateMemory(ctx context.Context, memory *Memory) (*Memory, error) {
 	if memory.ID == "" {
 		memory.ID = uuid.New().String()
 	}
 
 	now := time.Now().UnixMilli()
-	memory.UserID = userID
 	memory.CreatedAt = now
 	memory.UpdatedAt = now
 	memory.LastAccessedAt = now
@@ -153,7 +151,6 @@ func (s *MemoryService) CreateMemory(ctx context.Context, userID string, memory 
 	// Store in SQLite
 	result, err := s.dbService.Queries().CreateUserMemory(ctx, db.CreateUserMemoryParams{
 		ID:                memory.ID,
-		UserID:            sql.NullString{String: userID, Valid: true},
 		MemoryCategory:    sql.NullString{String: string(memory.Category), Valid: true},
 		MemoryLayer:       sql.NullString{String: string(memory.Layer), Valid: true},
 		MemoryType:        sql.NullString{String: memory.Type, Valid: memory.Type != ""},
@@ -185,12 +182,9 @@ func (s *MemoryService) CreateMemory(ctx context.Context, userID string, memory 
 	return dbMemoryToMemory(&result), nil
 }
 
-// GetMemory retrieves a memory by ID
-func (s *MemoryService) GetMemory(ctx context.Context, userID, memoryID string) (*Memory, error) {
-	result, err := s.dbService.Queries().GetUserMemory(ctx, db.GetUserMemoryParams{
-		ID:     memoryID,
-		UserID: sql.NullString{String: userID, Valid: true},
-	})
+// GetUserMemory retrieves a memory by ID
+func (s *MemoryService) GetUserMemory(ctx context.Context, memoryID string) (*Memory, error) {
+	result, err := s.dbService.Queries().GetUserMemory(ctx, memoryID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get memory: %w", err)
 	}
@@ -201,20 +195,18 @@ func (s *MemoryService) GetMemory(ctx context.Context, userID, memoryID string) 
 		LastAccessedAt: now,
 		UpdatedAt:      now,
 		ID:             memoryID,
-		UserID:         sql.NullString{String: userID, Valid: true},
 	})
 
 	return dbMemoryToMemory(&result), nil
 }
 
 // ListMemories lists memories with pagination
-func (s *MemoryService) ListMemories(ctx context.Context, userID string, limit, offset int) ([]*Memory, error) {
+func (s *MemoryService) ListMemories(ctx context.Context, limit, offset int) ([]*Memory, error) {
 	if limit <= 0 {
 		limit = 20
 	}
 
 	results, err := s.dbService.Queries().ListUserMemories(ctx, db.ListUserMemoriesParams{
-		UserID: sql.NullString{String: userID, Valid: true},
 		Limit:  int64(limit),
 		Offset: int64(offset),
 	})
@@ -230,8 +222,23 @@ func (s *MemoryService) ListMemories(ctx context.Context, userID string, limit, 
 	return memories, nil
 }
 
+// GetUserMemoriesByIds gets memories by IDs
+func (s *MemoryService) GetUserMemoriesByIds(ctx context.Context, ids []string) ([]*Memory, error) {
+	results, err := s.dbService.Queries().GetUserMemoriesByIds(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get memories by ids: %w", err)
+	}
+
+	memories := make([]*Memory, len(results))
+	for i, r := range results {
+		memories[i] = dbMemoryToMemory(&r)
+	}
+
+	return memories, nil
+}
+
 // SemanticSearch performs semantic search on memories using embeddings
-func (s *MemoryService) SemanticSearch(ctx context.Context, userID, query string, limit int) ([]*MemorySearchResult, error) {
+func (s *MemoryService) SemanticSearch(ctx context.Context, query string, limit int) ([]*MemorySearchResult, error) {
 	if limit <= 0 {
 		limit = 5
 	}
@@ -262,10 +269,7 @@ func (s *MemoryService) SemanticSearch(ctx context.Context, userID, query string
 				similarityMap[vr.ID] = vr.Similarity
 			}
 
-			memories, err := s.dbService.Queries().GetUserMemoriesByIds(ctx, db.GetUserMemoriesByIdsParams{
-				Ids:    ids,
-				UserID: sql.NullString{String: userID, Valid: true},
-			})
+			memories, err := s.dbService.Queries().GetUserMemoriesByIds(ctx, ids)
 			if err == nil {
 				results := make([]*MemorySearchResult, 0, len(memories))
 				for _, m := range memories {
@@ -281,14 +285,13 @@ func (s *MemoryService) SemanticSearch(ctx context.Context, userID, query string
 	}
 
 	// Fallback: text search
-	return s.textSearch(ctx, userID, query, limit)
+	return s.textSearch(ctx, query, limit)
 }
 
 // textSearch performs simple text-based search (fallback)
-func (s *MemoryService) textSearch(ctx context.Context, userID, query string, limit int) ([]*MemorySearchResult, error) {
+func (s *MemoryService) textSearch(ctx context.Context, query string, limit int) ([]*MemorySearchResult, error) {
 	results, err := s.dbService.Queries().SearchMemoriesByTitle(ctx, db.SearchMemoriesByTitleParams{
-		UserID:  sql.NullString{String: userID, Valid: true},
-		Column2: sql.NullString{String: query, Valid: true},
+		Column1: sql.NullString{String: query, Valid: true},
 		Limit:   int64(limit),
 	})
 	if err != nil {
@@ -306,12 +309,9 @@ func (s *MemoryService) textSearch(ctx context.Context, userID, query string, li
 	return searchResults, nil
 }
 
-// DeleteMemory deletes a memory
-func (s *MemoryService) DeleteMemory(ctx context.Context, userID, memoryID string) error {
-	err := s.dbService.Queries().DeleteUserMemory(ctx, db.DeleteUserMemoryParams{
-		ID:     memoryID,
-		UserID: sql.NullString{String: userID, Valid: true},
-	})
+// DeleteUserMemory deletes a memory
+func (s *MemoryService) DeleteUserMemory(ctx context.Context, memoryID string) error {
+	err := s.dbService.Queries().DeleteUserMemory(ctx, memoryID)
 	if err != nil {
 		return fmt.Errorf("failed to delete memory: %w", err)
 	}
@@ -326,15 +326,12 @@ func (s *MemoryService) DeleteMemory(ctx context.Context, userID, memoryID strin
 }
 
 // GetRecentMemories gets the most recent memories
-func (s *MemoryService) GetRecentMemories(ctx context.Context, userID string, limit int) ([]*Memory, error) {
+func (s *MemoryService) GetRecentMemories(ctx context.Context, limit int) ([]*Memory, error) {
 	if limit <= 0 {
 		limit = 10
 	}
 
-	results, err := s.dbService.Queries().GetRecentMemories(ctx, db.GetRecentMemoriesParams{
-		UserID: sql.NullString{String: userID, Valid: true},
-		Limit:  int64(limit),
-	})
+	results, err := s.dbService.Queries().GetRecentMemories(ctx, int64(limit))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get recent memories: %w", err)
 	}
@@ -348,20 +345,19 @@ func (s *MemoryService) GetRecentMemories(ctx context.Context, userID string, li
 }
 
 // ArchiveOldMemories archives memories that haven't been accessed recently
-func (s *MemoryService) ArchiveOldMemories(ctx context.Context, userID string, olderThanDays int) error {
+func (s *MemoryService) ArchiveOldMemories(ctx context.Context, olderThanDays int) error {
 	cutoff := time.Now().AddDate(0, 0, -olderThanDays).UnixMilli()
 	now := time.Now().UnixMilli()
 
 	err := s.dbService.Queries().ArchiveOldMemories(ctx, db.ArchiveOldMemoriesParams{
 		UpdatedAt:      now,
-		UserID:         sql.NullString{String: userID, Valid: true},
 		LastAccessedAt: cutoff,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to archive old memories: %w", err)
 	}
 
-	log.Printf("✅ Archived memories older than %d days for user %s", olderThanDays, userID)
+	log.Printf("✅ Archived memories older than %d days", olderThanDays)
 	return nil
 }
 
@@ -390,7 +386,6 @@ func (s *MemoryService) FormatForLLM(memories []*MemorySearchResult) string {
 func dbMemoryToMemory(m *db.UserMemory) *Memory {
 	return &Memory{
 		ID:             m.ID,
-		UserID:         m.UserID.String,
 		Category:       MemoryCategory(m.MemoryCategory.String),
 		Layer:          MemoryLayer(m.MemoryLayer.String),
 		Type:           m.MemoryType.String,

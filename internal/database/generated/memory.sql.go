@@ -15,58 +15,50 @@ const ArchiveOldMemories = `-- name: ArchiveOldMemories :exec
 UPDATE user_memories
 SET status = 'archived',
     updated_at = ?
-WHERE user_id = ?
-  AND last_accessed_at < ?
+WHERE last_accessed_at < ?
   AND status != 'archived'
 `
 
 type ArchiveOldMemoriesParams struct {
-	UpdatedAt      int64          `json:"updatedAt"`
-	UserID         sql.NullString `json:"userId"`
-	LastAccessedAt int64          `json:"lastAccessedAt"`
+	UpdatedAt      int64 `json:"updatedAt"`
+	LastAccessedAt int64 `json:"lastAccessedAt"`
 }
 
 func (q *Queries) ArchiveOldMemories(ctx context.Context, arg ArchiveOldMemoriesParams) error {
-	_, err := q.db.ExecContext(ctx, ArchiveOldMemories, arg.UpdatedAt, arg.UserID, arg.LastAccessedAt)
+	_, err := q.db.ExecContext(ctx, ArchiveOldMemories, arg.UpdatedAt, arg.LastAccessedAt)
 	return err
 }
 
 const BatchDeleteUserMemories = `-- name: BatchDeleteUserMemories :exec
 
 DELETE FROM user_memories
-WHERE id IN (/*SLICE:ids*/?) AND user_id = ?
+WHERE id IN (/*SLICE:ids*/?)
 `
-
-type BatchDeleteUserMemoriesParams struct {
-	Ids    []string       `json:"ids"`
-	UserID sql.NullString `json:"userId"`
-}
 
 // ============================================================================
 // BATCH OPERATIONS
 // ============================================================================
-func (q *Queries) BatchDeleteUserMemories(ctx context.Context, arg BatchDeleteUserMemoriesParams) error {
+func (q *Queries) BatchDeleteUserMemories(ctx context.Context, ids []string) error {
 	query := BatchDeleteUserMemories
 	var queryParams []interface{}
-	if len(arg.Ids) > 0 {
-		for _, v := range arg.Ids {
+	if len(ids) > 0 {
+		for _, v := range ids {
 			queryParams = append(queryParams, v)
 		}
-		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(arg.Ids))[1:], 1)
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(ids))[1:], 1)
 	} else {
 		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
 	}
-	queryParams = append(queryParams, arg.UserID)
 	_, err := q.db.ExecContext(ctx, query, queryParams...)
 	return err
 }
 
 const CountUserMemories = `-- name: CountUserMemories :one
-SELECT COUNT(*) as count FROM user_memories WHERE user_id = ?
+SELECT COUNT(*) as count FROM user_memories
 `
 
-func (q *Queries) CountUserMemories(ctx context.Context, userID sql.NullString) (int64, error) {
-	row := q.db.QueryRowContext(ctx, CountUserMemories, userID)
+func (q *Queries) CountUserMemories(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, CountUserMemories)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -76,16 +68,15 @@ const CreateUserMemory = `-- name: CreateUserMemory :one
 
 
 INSERT INTO user_memories (
-    id, user_id, memory_category, memory_layer, memory_type,
+    id, memory_category, memory_layer, memory_type,
     title, summary, summary_vector_1024, details, details_vector_1024,
     status, accessed_count, last_accessed_at, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, user_id, memory_category, memory_layer, memory_type, title, summary, summary_vector_1024, details, details_vector_1024, status, accessed_count, last_accessed_at, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, memory_category, memory_layer, memory_type, title, summary, summary_vector_1024, details, details_vector_1024, status, accessed_count, last_accessed_at, created_at, updated_at
 `
 
 type CreateUserMemoryParams struct {
 	ID                string         `json:"id"`
-	UserID            sql.NullString `json:"userId"`
 	MemoryCategory    sql.NullString `json:"memoryCategory"`
 	MemoryLayer       sql.NullString `json:"memoryLayer"`
 	MemoryType        sql.NullString `json:"memoryType"`
@@ -109,7 +100,6 @@ type CreateUserMemoryParams struct {
 func (q *Queries) CreateUserMemory(ctx context.Context, arg CreateUserMemoryParams) (UserMemory, error) {
 	row := q.db.QueryRowContext(ctx, CreateUserMemory,
 		arg.ID,
-		arg.UserID,
 		arg.MemoryCategory,
 		arg.MemoryLayer,
 		arg.MemoryType,
@@ -127,7 +117,6 @@ func (q *Queries) CreateUserMemory(ctx context.Context, arg CreateUserMemoryPara
 	var i UserMemory
 	err := row.Scan(
 		&i.ID,
-		&i.UserID,
 		&i.MemoryCategory,
 		&i.MemoryLayer,
 		&i.MemoryType,
@@ -424,16 +413,11 @@ func (q *Queries) CreateUserMemoryPreference(ctx context.Context, arg CreateUser
 }
 
 const DeleteUserMemory = `-- name: DeleteUserMemory :exec
-DELETE FROM user_memories WHERE id = ? AND user_id = ?
+DELETE FROM user_memories WHERE id = ?
 `
 
-type DeleteUserMemoryParams struct {
-	ID     string         `json:"id"`
-	UserID sql.NullString `json:"userId"`
-}
-
-func (q *Queries) DeleteUserMemory(ctx context.Context, arg DeleteUserMemoryParams) error {
-	_, err := q.db.ExecContext(ctx, DeleteUserMemory, arg.ID, arg.UserID)
+func (q *Queries) DeleteUserMemory(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, DeleteUserMemory, id)
 	return err
 }
 
@@ -475,23 +459,17 @@ func (q *Queries) DeleteUserMemoryPreference(ctx context.Context, id string) err
 
 const GetMemoriesBySessionContext = `-- name: GetMemoriesBySessionContext :many
 
-SELECT um.id, um.user_id, um.memory_category, um.memory_layer, um.memory_type, um.title, um.summary, um.summary_vector_1024, um.details, um.details_vector_1024, um.status, um.accessed_count, um.last_accessed_at, um.created_at, um.updated_at FROM user_memories um
-WHERE um.user_id = ?
-  AND um.memory_category IN ('conversation', 'context', 'fact')
+SELECT um.id, um.memory_category, um.memory_layer, um.memory_type, um.title, um.summary, um.summary_vector_1024, um.details, um.details_vector_1024, um.status, um.accessed_count, um.last_accessed_at, um.created_at, um.updated_at FROM user_memories um
+WHERE um.memory_category IN ('conversation', 'context', 'fact')
 ORDER BY um.last_accessed_at DESC
 LIMIT ?
 `
 
-type GetMemoriesBySessionContextParams struct {
-	UserID sql.NullString `json:"userId"`
-	Limit  int64          `json:"limit"`
-}
-
 // ============================================================================
 // CONVERSATION MEMORY LINKING (Link memories to messages/sessions)
 // ============================================================================
-func (q *Queries) GetMemoriesBySessionContext(ctx context.Context, arg GetMemoriesBySessionContextParams) ([]UserMemory, error) {
-	rows, err := q.db.QueryContext(ctx, GetMemoriesBySessionContext, arg.UserID, arg.Limit)
+func (q *Queries) GetMemoriesBySessionContext(ctx context.Context, limit int64) ([]UserMemory, error) {
+	rows, err := q.db.QueryContext(ctx, GetMemoriesBySessionContext, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -501,7 +479,6 @@ func (q *Queries) GetMemoriesBySessionContext(ctx context.Context, arg GetMemori
 		var i UserMemory
 		if err := rows.Scan(
 			&i.ID,
-			&i.UserID,
 			&i.MemoryCategory,
 			&i.MemoryLayer,
 			&i.MemoryType,
@@ -530,19 +507,13 @@ func (q *Queries) GetMemoriesBySessionContext(ctx context.Context, arg GetMemori
 }
 
 const GetMostAccessedMemories = `-- name: GetMostAccessedMemories :many
-SELECT id, user_id, memory_category, memory_layer, memory_type, title, summary, summary_vector_1024, details, details_vector_1024, status, accessed_count, last_accessed_at, created_at, updated_at FROM user_memories
-WHERE user_id = ?
+SELECT id, memory_category, memory_layer, memory_type, title, summary, summary_vector_1024, details, details_vector_1024, status, accessed_count, last_accessed_at, created_at, updated_at FROM user_memories
 ORDER BY accessed_count DESC, last_accessed_at DESC
 LIMIT ?
 `
 
-type GetMostAccessedMemoriesParams struct {
-	UserID sql.NullString `json:"userId"`
-	Limit  int64          `json:"limit"`
-}
-
-func (q *Queries) GetMostAccessedMemories(ctx context.Context, arg GetMostAccessedMemoriesParams) ([]UserMemory, error) {
-	rows, err := q.db.QueryContext(ctx, GetMostAccessedMemories, arg.UserID, arg.Limit)
+func (q *Queries) GetMostAccessedMemories(ctx context.Context, limit int64) ([]UserMemory, error) {
+	rows, err := q.db.QueryContext(ctx, GetMostAccessedMemories, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -552,7 +523,6 @@ func (q *Queries) GetMostAccessedMemories(ctx context.Context, arg GetMostAccess
 		var i UserMemory
 		if err := rows.Scan(
 			&i.ID,
-			&i.UserID,
 			&i.MemoryCategory,
 			&i.MemoryLayer,
 			&i.MemoryType,
@@ -581,19 +551,13 @@ func (q *Queries) GetMostAccessedMemories(ctx context.Context, arg GetMostAccess
 }
 
 const GetRecentMemories = `-- name: GetRecentMemories :many
-SELECT id, user_id, memory_category, memory_layer, memory_type, title, summary, summary_vector_1024, details, details_vector_1024, status, accessed_count, last_accessed_at, created_at, updated_at FROM user_memories
-WHERE user_id = ?
+SELECT id, memory_category, memory_layer, memory_type, title, summary, summary_vector_1024, details, details_vector_1024, status, accessed_count, last_accessed_at, created_at, updated_at FROM user_memories
 ORDER BY created_at DESC
 LIMIT ?
 `
 
-type GetRecentMemoriesParams struct {
-	UserID sql.NullString `json:"userId"`
-	Limit  int64          `json:"limit"`
-}
-
-func (q *Queries) GetRecentMemories(ctx context.Context, arg GetRecentMemoriesParams) ([]UserMemory, error) {
-	rows, err := q.db.QueryContext(ctx, GetRecentMemories, arg.UserID, arg.Limit)
+func (q *Queries) GetRecentMemories(ctx context.Context, limit int64) ([]UserMemory, error) {
+	rows, err := q.db.QueryContext(ctx, GetRecentMemories, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -603,7 +567,6 @@ func (q *Queries) GetRecentMemories(ctx context.Context, arg GetRecentMemoriesPa
 		var i UserMemory
 		if err := rows.Scan(
 			&i.ID,
-			&i.UserID,
 			&i.MemoryCategory,
 			&i.MemoryLayer,
 			&i.MemoryType,
@@ -632,27 +595,21 @@ func (q *Queries) GetRecentMemories(ctx context.Context, arg GetRecentMemoriesPa
 }
 
 const GetUserMemoriesByIds = `-- name: GetUserMemoriesByIds :many
-SELECT id, user_id, memory_category, memory_layer, memory_type, title, summary, summary_vector_1024, details, details_vector_1024, status, accessed_count, last_accessed_at, created_at, updated_at FROM user_memories
-WHERE id IN (/*SLICE:ids*/?) AND user_id = ?
+SELECT id, memory_category, memory_layer, memory_type, title, summary, summary_vector_1024, details, details_vector_1024, status, accessed_count, last_accessed_at, created_at, updated_at FROM user_memories
+WHERE id IN (/*SLICE:ids*/?)
 `
 
-type GetUserMemoriesByIdsParams struct {
-	Ids    []string       `json:"ids"`
-	UserID sql.NullString `json:"userId"`
-}
-
-func (q *Queries) GetUserMemoriesByIds(ctx context.Context, arg GetUserMemoriesByIdsParams) ([]UserMemory, error) {
+func (q *Queries) GetUserMemoriesByIds(ctx context.Context, ids []string) ([]UserMemory, error) {
 	query := GetUserMemoriesByIds
 	var queryParams []interface{}
-	if len(arg.Ids) > 0 {
-		for _, v := range arg.Ids {
+	if len(ids) > 0 {
+		for _, v := range ids {
 			queryParams = append(queryParams, v)
 		}
-		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(arg.Ids))[1:], 1)
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(ids))[1:], 1)
 	} else {
 		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
 	}
-	queryParams = append(queryParams, arg.UserID)
 	rows, err := q.db.QueryContext(ctx, query, queryParams...)
 	if err != nil {
 		return nil, err
@@ -663,7 +620,6 @@ func (q *Queries) GetUserMemoriesByIds(ctx context.Context, arg GetUserMemoriesB
 		var i UserMemory
 		if err := rows.Scan(
 			&i.ID,
-			&i.UserID,
 			&i.MemoryCategory,
 			&i.MemoryLayer,
 			&i.MemoryType,
@@ -692,20 +648,14 @@ func (q *Queries) GetUserMemoriesByIds(ctx context.Context, arg GetUserMemoriesB
 }
 
 const GetUserMemory = `-- name: GetUserMemory :one
-SELECT id, user_id, memory_category, memory_layer, memory_type, title, summary, summary_vector_1024, details, details_vector_1024, status, accessed_count, last_accessed_at, created_at, updated_at FROM user_memories WHERE id = ? AND user_id = ?
+SELECT id, memory_category, memory_layer, memory_type, title, summary, summary_vector_1024, details, details_vector_1024, status, accessed_count, last_accessed_at, created_at, updated_at FROM user_memories WHERE id = ?
 `
 
-type GetUserMemoryParams struct {
-	ID     string         `json:"id"`
-	UserID sql.NullString `json:"userId"`
-}
-
-func (q *Queries) GetUserMemory(ctx context.Context, arg GetUserMemoryParams) (UserMemory, error) {
-	row := q.db.QueryRowContext(ctx, GetUserMemory, arg.ID, arg.UserID)
+func (q *Queries) GetUserMemory(ctx context.Context, id string) (UserMemory, error) {
+	row := q.db.QueryRowContext(ctx, GetUserMemory, id)
 	var i UserMemory
 	err := row.Scan(
 		&i.ID,
-		&i.UserID,
 		&i.MemoryCategory,
 		&i.MemoryLayer,
 		&i.MemoryType,
@@ -964,20 +914,18 @@ func (q *Queries) ListPreferencesByMemoryId(ctx context.Context, userMemoryID sq
 }
 
 const ListUserMemories = `-- name: ListUserMemories :many
-SELECT id, user_id, memory_category, memory_layer, memory_type, title, summary, summary_vector_1024, details, details_vector_1024, status, accessed_count, last_accessed_at, created_at, updated_at FROM user_memories
-WHERE user_id = ?
+SELECT id, memory_category, memory_layer, memory_type, title, summary, summary_vector_1024, details, details_vector_1024, status, accessed_count, last_accessed_at, created_at, updated_at FROM user_memories
 ORDER BY last_accessed_at DESC
 LIMIT ? OFFSET ?
 `
 
 type ListUserMemoriesParams struct {
-	UserID sql.NullString `json:"userId"`
-	Limit  int64          `json:"limit"`
-	Offset int64          `json:"offset"`
+	Limit  int64 `json:"limit"`
+	Offset int64 `json:"offset"`
 }
 
 func (q *Queries) ListUserMemories(ctx context.Context, arg ListUserMemoriesParams) ([]UserMemory, error) {
-	rows, err := q.db.QueryContext(ctx, ListUserMemories, arg.UserID, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, ListUserMemories, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -987,7 +935,6 @@ func (q *Queries) ListUserMemories(ctx context.Context, arg ListUserMemoriesPara
 		var i UserMemory
 		if err := rows.Scan(
 			&i.ID,
-			&i.UserID,
 			&i.MemoryCategory,
 			&i.MemoryLayer,
 			&i.MemoryType,
@@ -1016,26 +963,20 @@ func (q *Queries) ListUserMemories(ctx context.Context, arg ListUserMemoriesPara
 }
 
 const ListUserMemoriesByCategory = `-- name: ListUserMemoriesByCategory :many
-SELECT id, user_id, memory_category, memory_layer, memory_type, title, summary, summary_vector_1024, details, details_vector_1024, status, accessed_count, last_accessed_at, created_at, updated_at FROM user_memories
-WHERE user_id = ? AND memory_category = ?
+SELECT id, memory_category, memory_layer, memory_type, title, summary, summary_vector_1024, details, details_vector_1024, status, accessed_count, last_accessed_at, created_at, updated_at FROM user_memories
+WHERE memory_category = ?
 ORDER BY last_accessed_at DESC
 LIMIT ? OFFSET ?
 `
 
 type ListUserMemoriesByCategoryParams struct {
-	UserID         sql.NullString `json:"userId"`
 	MemoryCategory sql.NullString `json:"memoryCategory"`
 	Limit          int64          `json:"limit"`
 	Offset         int64          `json:"offset"`
 }
 
 func (q *Queries) ListUserMemoriesByCategory(ctx context.Context, arg ListUserMemoriesByCategoryParams) ([]UserMemory, error) {
-	rows, err := q.db.QueryContext(ctx, ListUserMemoriesByCategory,
-		arg.UserID,
-		arg.MemoryCategory,
-		arg.Limit,
-		arg.Offset,
-	)
+	rows, err := q.db.QueryContext(ctx, ListUserMemoriesByCategory, arg.MemoryCategory, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -1045,7 +986,6 @@ func (q *Queries) ListUserMemoriesByCategory(ctx context.Context, arg ListUserMe
 		var i UserMemory
 		if err := rows.Scan(
 			&i.ID,
-			&i.UserID,
 			&i.MemoryCategory,
 			&i.MemoryLayer,
 			&i.MemoryType,
@@ -1074,26 +1014,20 @@ func (q *Queries) ListUserMemoriesByCategory(ctx context.Context, arg ListUserMe
 }
 
 const ListUserMemoriesByType = `-- name: ListUserMemoriesByType :many
-SELECT id, user_id, memory_category, memory_layer, memory_type, title, summary, summary_vector_1024, details, details_vector_1024, status, accessed_count, last_accessed_at, created_at, updated_at FROM user_memories
-WHERE user_id = ? AND memory_type = ?
+SELECT id, memory_category, memory_layer, memory_type, title, summary, summary_vector_1024, details, details_vector_1024, status, accessed_count, last_accessed_at, created_at, updated_at FROM user_memories
+WHERE memory_type = ?
 ORDER BY last_accessed_at DESC
 LIMIT ? OFFSET ?
 `
 
 type ListUserMemoriesByTypeParams struct {
-	UserID     sql.NullString `json:"userId"`
 	MemoryType sql.NullString `json:"memoryType"`
 	Limit      int64          `json:"limit"`
 	Offset     int64          `json:"offset"`
 }
 
 func (q *Queries) ListUserMemoriesByType(ctx context.Context, arg ListUserMemoriesByTypeParams) ([]UserMemory, error) {
-	rows, err := q.db.QueryContext(ctx, ListUserMemoriesByType,
-		arg.UserID,
-		arg.MemoryType,
-		arg.Limit,
-		arg.Offset,
-	)
+	rows, err := q.db.QueryContext(ctx, ListUserMemoriesByType, arg.MemoryType, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -1103,7 +1037,6 @@ func (q *Queries) ListUserMemoriesByType(ctx context.Context, arg ListUserMemori
 		var i UserMemory
 		if err := rows.Scan(
 			&i.ID,
-			&i.UserID,
 			&i.MemoryCategory,
 			&i.MemoryLayer,
 			&i.MemoryType,
@@ -1183,20 +1116,19 @@ func (q *Queries) ListUserMemoryContexts(ctx context.Context, arg ListUserMemory
 }
 
 const SearchMemoriesByTitle = `-- name: SearchMemoriesByTitle :many
-SELECT id, user_id, memory_category, memory_layer, memory_type, title, summary, summary_vector_1024, details, details_vector_1024, status, accessed_count, last_accessed_at, created_at, updated_at FROM user_memories
-WHERE user_id = ? AND title LIKE '%' || ? || '%'
+SELECT id, memory_category, memory_layer, memory_type, title, summary, summary_vector_1024, details, details_vector_1024, status, accessed_count, last_accessed_at, created_at, updated_at FROM user_memories
+WHERE title LIKE '%' || ? || '%'
 ORDER BY last_accessed_at DESC
 LIMIT ?
 `
 
 type SearchMemoriesByTitleParams struct {
-	UserID  sql.NullString `json:"userId"`
-	Column2 sql.NullString `json:"column2"`
+	Column1 sql.NullString `json:"column1"`
 	Limit   int64          `json:"limit"`
 }
 
 func (q *Queries) SearchMemoriesByTitle(ctx context.Context, arg SearchMemoriesByTitleParams) ([]UserMemory, error) {
-	rows, err := q.db.QueryContext(ctx, SearchMemoriesByTitle, arg.UserID, arg.Column2, arg.Limit)
+	rows, err := q.db.QueryContext(ctx, SearchMemoriesByTitle, arg.Column1, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
@@ -1206,7 +1138,6 @@ func (q *Queries) SearchMemoriesByTitle(ctx context.Context, arg SearchMemoriesB
 		var i UserMemory
 		if err := rows.Scan(
 			&i.ID,
-			&i.UserID,
 			&i.MemoryCategory,
 			&i.MemoryLayer,
 			&i.MemoryType,
@@ -1239,23 +1170,17 @@ UPDATE user_memories
 SET accessed_count = accessed_count + 1,
     last_accessed_at = ?,
     updated_at = ?
-WHERE id = ? AND user_id = ?
+WHERE id = ?
 `
 
 type UpdateMemoryAccessCountParams struct {
-	LastAccessedAt int64          `json:"lastAccessedAt"`
-	UpdatedAt      int64          `json:"updatedAt"`
-	ID             string         `json:"id"`
-	UserID         sql.NullString `json:"userId"`
+	LastAccessedAt int64  `json:"lastAccessedAt"`
+	UpdatedAt      int64  `json:"updatedAt"`
+	ID             string `json:"id"`
 }
 
 func (q *Queries) UpdateMemoryAccessCount(ctx context.Context, arg UpdateMemoryAccessCountParams) error {
-	_, err := q.db.ExecContext(ctx, UpdateMemoryAccessCount,
-		arg.LastAccessedAt,
-		arg.UpdatedAt,
-		arg.ID,
-		arg.UserID,
-	)
+	_, err := q.db.ExecContext(ctx, UpdateMemoryAccessCount, arg.LastAccessedAt, arg.UpdatedAt, arg.ID)
 	return err
 }
 
@@ -1268,8 +1193,8 @@ SET title = COALESCE(?, title),
     details_vector_1024 = COALESCE(?, details_vector_1024),
     status = COALESCE(?, status),
     updated_at = ?
-WHERE id = ? AND user_id = ?
-RETURNING id, user_id, memory_category, memory_layer, memory_type, title, summary, summary_vector_1024, details, details_vector_1024, status, accessed_count, last_accessed_at, created_at, updated_at
+WHERE id = ?
+RETURNING id, memory_category, memory_layer, memory_type, title, summary, summary_vector_1024, details, details_vector_1024, status, accessed_count, last_accessed_at, created_at, updated_at
 `
 
 type UpdateUserMemoryParams struct {
@@ -1281,7 +1206,6 @@ type UpdateUserMemoryParams struct {
 	Status            sql.NullString `json:"status"`
 	UpdatedAt         int64          `json:"updatedAt"`
 	ID                string         `json:"id"`
-	UserID            sql.NullString `json:"userId"`
 }
 
 func (q *Queries) UpdateUserMemory(ctx context.Context, arg UpdateUserMemoryParams) (UserMemory, error) {
@@ -1294,12 +1218,10 @@ func (q *Queries) UpdateUserMemory(ctx context.Context, arg UpdateUserMemoryPara
 		arg.Status,
 		arg.UpdatedAt,
 		arg.ID,
-		arg.UserID,
 	)
 	var i UserMemory
 	err := row.Scan(
 		&i.ID,
-		&i.UserID,
 		&i.MemoryCategory,
 		&i.MemoryLayer,
 		&i.MemoryType,

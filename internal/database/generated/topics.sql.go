@@ -13,23 +13,17 @@ import (
 
 const BatchDeleteTopics = `-- name: BatchDeleteTopics :exec
 DELETE FROM topics
-WHERE user_id = ? AND id IN (/*SLICE:ids*/?)
+WHERE id IN (/*SLICE:ids*/?)
 `
 
-type BatchDeleteTopicsParams struct {
-	UserID string   `json:"userId"`
-	Ids    []string `json:"ids"`
-}
-
-func (q *Queries) BatchDeleteTopics(ctx context.Context, arg BatchDeleteTopicsParams) error {
+func (q *Queries) BatchDeleteTopics(ctx context.Context, ids []string) error {
 	query := BatchDeleteTopics
 	var queryParams []interface{}
-	queryParams = append(queryParams, arg.UserID)
-	if len(arg.Ids) > 0 {
-		for _, v := range arg.Ids {
+	if len(ids) > 0 {
+		for _, v := range ids {
 			queryParams = append(queryParams, v)
 		}
-		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(arg.Ids))[1:], 1)
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(ids))[1:], 1)
 	} else {
 		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
 	}
@@ -38,11 +32,11 @@ func (q *Queries) BatchDeleteTopics(ctx context.Context, arg BatchDeleteTopicsPa
 }
 
 const CountTopics = `-- name: CountTopics :one
-SELECT COUNT(*) FROM topics WHERE user_id = ?
+SELECT COUNT(*) FROM topics
 `
 
-func (q *Queries) CountTopics(ctx context.Context, userID string) (int64, error) {
-	row := q.db.QueryRowContext(ctx, CountTopics, userID)
+func (q *Queries) CountTopics(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, CountTopics)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -50,19 +44,17 @@ func (q *Queries) CountTopics(ctx context.Context, userID string) (int64, error)
 
 const CountTopicsByDateRange = `-- name: CountTopicsByDateRange :one
 SELECT COUNT(*) FROM topics
-WHERE user_id = ?
-  AND created_at >= ?
+WHERE created_at >= ?
   AND created_at <= ?
 `
 
 type CountTopicsByDateRangeParams struct {
-	UserID      string `json:"userId"`
-	CreatedAt   int64  `json:"createdAt"`
-	CreatedAt_2 int64  `json:"createdAt2"`
+	CreatedAt   int64 `json:"createdAt"`
+	CreatedAt_2 int64 `json:"createdAt2"`
 }
 
 func (q *Queries) CountTopicsByDateRange(ctx context.Context, arg CountTopicsByDateRangeParams) (int64, error) {
-	row := q.db.QueryRowContext(ctx, CountTopicsByDateRange, arg.UserID, arg.CreatedAt, arg.CreatedAt_2)
+	row := q.db.QueryRowContext(ctx, CountTopicsByDateRange, arg.CreatedAt, arg.CreatedAt_2)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -70,16 +62,11 @@ func (q *Queries) CountTopicsByDateRange(ctx context.Context, arg CountTopicsByD
 
 const CountTopicsBySession = `-- name: CountTopicsBySession :one
 SELECT COUNT(*) FROM topics
-WHERE session_id = ? AND user_id = ?
+WHERE session_id = ?
 `
 
-type CountTopicsBySessionParams struct {
-	SessionID sql.NullString `json:"sessionId"`
-	UserID    string         `json:"userId"`
-}
-
-func (q *Queries) CountTopicsBySession(ctx context.Context, arg CountTopicsBySessionParams) (int64, error) {
-	row := q.db.QueryRowContext(ctx, CountTopicsBySession, arg.SessionID, arg.UserID)
+func (q *Queries) CountTopicsBySession(ctx context.Context, sessionID sql.NullString) (int64, error) {
+	row := q.db.QueryRowContext(ctx, CountTopicsBySession, sessionID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -87,10 +74,10 @@ func (q *Queries) CountTopicsBySession(ctx context.Context, arg CountTopicsBySes
 
 const CreateTopic = `-- name: CreateTopic :one
 INSERT INTO topics (
-    id, title, favorite, session_id, group_id, user_id,
+    id, title, favorite, session_id, group_id,
     history_summary, metadata, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, title, favorite, session_id, group_id, user_id, history_summary, metadata, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, title, favorite, session_id, group_id, history_summary, metadata, created_at, updated_at
 `
 
 type CreateTopicParams struct {
@@ -99,7 +86,6 @@ type CreateTopicParams struct {
 	Favorite       int64          `json:"favorite"`
 	SessionID      sql.NullString `json:"sessionId"`
 	GroupID        sql.NullString `json:"groupId"`
-	UserID         string         `json:"userId"`
 	HistorySummary sql.NullString `json:"historySummary"`
 	Metadata       sql.NullString `json:"metadata"`
 	CreatedAt      int64          `json:"createdAt"`
@@ -113,7 +99,6 @@ func (q *Queries) CreateTopic(ctx context.Context, arg CreateTopicParams) (Topic
 		arg.Favorite,
 		arg.SessionID,
 		arg.GroupID,
-		arg.UserID,
 		arg.HistorySummary,
 		arg.Metadata,
 		arg.CreatedAt,
@@ -126,7 +111,6 @@ func (q *Queries) CreateTopic(ctx context.Context, arg CreateTopicParams) (Topic
 		&i.Favorite,
 		&i.SessionID,
 		&i.GroupID,
-		&i.UserID,
 		&i.HistorySummary,
 		&i.Metadata,
 		&i.CreatedAt,
@@ -136,61 +120,46 @@ func (q *Queries) CreateTopic(ctx context.Context, arg CreateTopicParams) (Topic
 }
 
 const DeleteAllTopics = `-- name: DeleteAllTopics :exec
-DELETE FROM topics WHERE user_id = ?
+DELETE FROM topics
 `
 
-func (q *Queries) DeleteAllTopics(ctx context.Context, userID string) error {
-	_, err := q.db.ExecContext(ctx, DeleteAllTopics, userID)
+func (q *Queries) DeleteAllTopics(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, DeleteAllTopics)
 	return err
 }
 
 const DeleteTopic = `-- name: DeleteTopic :exec
-DELETE FROM topics WHERE id = ? AND user_id = ?
+DELETE FROM topics WHERE id = ?
 `
 
-type DeleteTopicParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
-func (q *Queries) DeleteTopic(ctx context.Context, arg DeleteTopicParams) error {
-	_, err := q.db.ExecContext(ctx, DeleteTopic, arg.ID, arg.UserID)
+func (q *Queries) DeleteTopic(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, DeleteTopic, id)
 	return err
 }
 
 const DeleteTopicsByGroup = `-- name: DeleteTopicsByGroup :exec
 DELETE FROM topics
-WHERE user_id = ? AND group_id = ?
+WHERE group_id = ?
 `
 
-type DeleteTopicsByGroupParams struct {
-	UserID  string         `json:"userId"`
-	GroupID sql.NullString `json:"groupId"`
-}
-
-func (q *Queries) DeleteTopicsByGroup(ctx context.Context, arg DeleteTopicsByGroupParams) error {
-	_, err := q.db.ExecContext(ctx, DeleteTopicsByGroup, arg.UserID, arg.GroupID)
+func (q *Queries) DeleteTopicsByGroup(ctx context.Context, groupID sql.NullString) error {
+	_, err := q.db.ExecContext(ctx, DeleteTopicsByGroup, groupID)
 	return err
 }
 
 const DeleteTopicsBySession = `-- name: DeleteTopicsBySession :exec
 DELETE FROM topics
-WHERE user_id = ? AND session_id = ?
+WHERE session_id = ?
 `
 
-type DeleteTopicsBySessionParams struct {
-	UserID    string         `json:"userId"`
-	SessionID sql.NullString `json:"sessionId"`
-}
-
-func (q *Queries) DeleteTopicsBySession(ctx context.Context, arg DeleteTopicsBySessionParams) error {
-	_, err := q.db.ExecContext(ctx, DeleteTopicsBySession, arg.UserID, arg.SessionID)
+func (q *Queries) DeleteTopicsBySession(ctx context.Context, sessionID sql.NullString) error {
+	_, err := q.db.ExecContext(ctx, DeleteTopicsBySession, sessionID)
 	return err
 }
 
 const DuplicateTopic = `-- name: DuplicateTopic :one
 INSERT INTO topics (
-    id, title, favorite, session_id, group_id, user_id,
+    id, title, favorite, session_id, group_id,
     history_summary, metadata, created_at, updated_at
 )
 SELECT 
@@ -199,14 +168,13 @@ SELECT
     t.favorite,
     t.session_id,
     t.group_id,
-    t.user_id,
     t.history_summary,
     t.metadata,
     ? as created_at,        -- new created_at
     ? as updated_at         -- new updated_at
 FROM topics t
-WHERE t.id = ? AND t.user_id = ?
-RETURNING id, title, favorite, session_id, group_id, user_id, history_summary, metadata, created_at, updated_at
+WHERE t.id = ?
+RETURNING id, title, favorite, session_id, group_id, history_summary, metadata, created_at, updated_at
 `
 
 type DuplicateTopicParams struct {
@@ -215,7 +183,6 @@ type DuplicateTopicParams struct {
 	CreatedAt int64          `json:"createdAt"`
 	UpdatedAt int64          `json:"updatedAt"`
 	ID_2      string         `json:"id2"`
-	UserID    string         `json:"userId"`
 }
 
 // Duplicate a topic with a new ID and title
@@ -226,7 +193,6 @@ func (q *Queries) DuplicateTopic(ctx context.Context, arg DuplicateTopicParams) 
 		arg.CreatedAt,
 		arg.UpdatedAt,
 		arg.ID_2,
-		arg.UserID,
 	)
 	var i Topic
 	err := row.Scan(
@@ -235,7 +201,6 @@ func (q *Queries) DuplicateTopic(ctx context.Context, arg DuplicateTopicParams) 
 		&i.Favorite,
 		&i.SessionID,
 		&i.GroupID,
-		&i.UserID,
 		&i.HistorySummary,
 		&i.Metadata,
 		&i.CreatedAt,
@@ -245,18 +210,13 @@ func (q *Queries) DuplicateTopic(ctx context.Context, arg DuplicateTopicParams) 
 }
 
 const GetMessagesByTopicId = `-- name: GetMessagesByTopicId :many
-SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, user_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages
-WHERE topic_id = ? AND user_id = ?
+SELECT id, role, content, reasoning, search, metadata, model, provider, favorite, error, tools, trace_id, observation_id, session_id, topic_id, thread_id, parent_id, quota_id, agent_id, group_id, target_id, message_group_id, created_at, updated_at FROM messages
+WHERE topic_id = ?
 ORDER BY created_at ASC
 `
 
-type GetMessagesByTopicIdParams struct {
-	TopicID sql.NullString `json:"topicId"`
-	UserID  string         `json:"userId"`
-}
-
-func (q *Queries) GetMessagesByTopicId(ctx context.Context, arg GetMessagesByTopicIdParams) ([]Message, error) {
-	rows, err := q.db.QueryContext(ctx, GetMessagesByTopicId, arg.TopicID, arg.UserID)
+func (q *Queries) GetMessagesByTopicId(ctx context.Context, topicID sql.NullString) ([]Message, error) {
+	rows, err := q.db.QueryContext(ctx, GetMessagesByTopicId, topicID)
 	if err != nil {
 		return nil, err
 	}
@@ -278,7 +238,6 @@ func (q *Queries) GetMessagesByTopicId(ctx context.Context, arg GetMessagesByTop
 			&i.Tools,
 			&i.TraceID,
 			&i.ObservationID,
-			&i.UserID,
 			&i.SessionID,
 			&i.TopicID,
 			&i.ThreadID,
@@ -305,16 +264,11 @@ func (q *Queries) GetMessagesByTopicId(ctx context.Context, arg GetMessagesByTop
 }
 
 const GetTopic = `-- name: GetTopic :one
-SELECT id, title, favorite, session_id, group_id, user_id, history_summary, metadata, created_at, updated_at FROM topics WHERE id = ? AND user_id = ?
+SELECT id, title, favorite, session_id, group_id, history_summary, metadata, created_at, updated_at FROM topics WHERE id = ?
 `
 
-type GetTopicParams struct {
-	ID     string `json:"id"`
-	UserID string `json:"userId"`
-}
-
-func (q *Queries) GetTopic(ctx context.Context, arg GetTopicParams) (Topic, error) {
-	row := q.db.QueryRowContext(ctx, GetTopic, arg.ID, arg.UserID)
+func (q *Queries) GetTopic(ctx context.Context, id string) (Topic, error) {
+	row := q.db.QueryRowContext(ctx, GetTopic, id)
 	var i Topic
 	err := row.Scan(
 		&i.ID,
@@ -322,7 +276,6 @@ func (q *Queries) GetTopic(ctx context.Context, arg GetTopicParams) (Topic, erro
 		&i.Favorite,
 		&i.SessionID,
 		&i.GroupID,
-		&i.UserID,
 		&i.HistorySummary,
 		&i.Metadata,
 		&i.CreatedAt,
@@ -332,13 +285,12 @@ func (q *Queries) GetTopic(ctx context.Context, arg GetTopicParams) (Topic, erro
 }
 
 const ListAllTopics = `-- name: ListAllTopics :many
-SELECT id, title, favorite, session_id, group_id, user_id, history_summary, metadata, created_at, updated_at FROM topics
-WHERE user_id = ?
+SELECT id, title, favorite, session_id, group_id, history_summary, metadata, created_at, updated_at FROM topics
 ORDER BY updated_at DESC
 `
 
-func (q *Queries) ListAllTopics(ctx context.Context, userID string) ([]Topic, error) {
-	rows, err := q.db.QueryContext(ctx, ListAllTopics, userID)
+func (q *Queries) ListAllTopics(ctx context.Context) ([]Topic, error) {
+	rows, err := q.db.QueryContext(ctx, ListAllTopics)
 	if err != nil {
 		return nil, err
 	}
@@ -352,7 +304,6 @@ func (q *Queries) ListAllTopics(ctx context.Context, userID string) ([]Topic, er
 			&i.Favorite,
 			&i.SessionID,
 			&i.GroupID,
-			&i.UserID,
 			&i.HistorySummary,
 			&i.Metadata,
 			&i.CreatedAt,
@@ -372,27 +323,20 @@ func (q *Queries) ListAllTopics(ctx context.Context, userID string) ([]Topic, er
 }
 
 const ListTopics = `-- name: ListTopics :many
-SELECT id, title, favorite, session_id, group_id, user_id, history_summary, metadata, created_at, updated_at FROM topics
-WHERE user_id = ? 
-  AND (COALESCE(session_id, '') = COALESCE(?, ''))
+SELECT id, title, favorite, session_id, group_id, history_summary, metadata, created_at, updated_at FROM topics
+WHERE (COALESCE(session_id, '') = COALESCE(?, ''))
 ORDER BY updated_at DESC
 LIMIT ? OFFSET ?
 `
 
 type ListTopicsParams struct {
-	UserID    string         `json:"userId"`
 	SessionID sql.NullString `json:"sessionId"`
 	Limit     int64          `json:"limit"`
 	Offset    int64          `json:"offset"`
 }
 
 func (q *Queries) ListTopics(ctx context.Context, arg ListTopicsParams) ([]Topic, error) {
-	rows, err := q.db.QueryContext(ctx, ListTopics,
-		arg.UserID,
-		arg.SessionID,
-		arg.Limit,
-		arg.Offset,
-	)
+	rows, err := q.db.QueryContext(ctx, ListTopics, arg.SessionID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -406,7 +350,6 @@ func (q *Queries) ListTopics(ctx context.Context, arg ListTopicsParams) ([]Topic
 			&i.Favorite,
 			&i.SessionID,
 			&i.GroupID,
-			&i.UserID,
 			&i.HistorySummary,
 			&i.Metadata,
 			&i.CreatedAt,
@@ -433,17 +376,11 @@ SELECT
     COUNT(m.id) as count
 FROM topics t
 LEFT JOIN messages m ON t.id = m.topic_id
-WHERE t.user_id = ?
 GROUP BY t.id, t.title, t.session_id
 HAVING COUNT(m.id) > 0
 ORDER BY count DESC, t.updated_at DESC
 LIMIT ?
 `
-
-type RankTopicsParams struct {
-	UserID string `json:"userId"`
-	Limit  int64  `json:"limit"`
-}
 
 type RankTopicsRow struct {
 	ID        string         `json:"id"`
@@ -452,8 +389,8 @@ type RankTopicsRow struct {
 	Count     int64          `json:"count"`
 }
 
-func (q *Queries) RankTopics(ctx context.Context, arg RankTopicsParams) ([]RankTopicsRow, error) {
-	rows, err := q.db.QueryContext(ctx, RankTopics, arg.UserID, arg.Limit)
+func (q *Queries) RankTopics(ctx context.Context, limit int64) ([]RankTopicsRow, error) {
+	rows, err := q.db.QueryContext(ctx, RankTopics, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -481,28 +418,25 @@ func (q *Queries) RankTopics(ctx context.Context, arg RankTopicsParams) ([]RankT
 }
 
 const SearchTopicsByMessageContent = `-- name: SearchTopicsByMessageContent :many
-SELECT DISTINCT t.id, t.title, t.favorite, t.session_id, t.group_id, t.user_id, t.history_summary, t.metadata, t.created_at, t.updated_at
+SELECT DISTINCT t.id, t.title, t.favorite, t.session_id, t.group_id, t.history_summary, t.metadata, t.created_at, t.updated_at
 FROM topics t
 INNER JOIN messages m ON t.id = m.topic_id
-WHERE t.user_id = ? 
-  AND m.content LIKE ?
+WHERE m.content LIKE ?
   AND (? = '' OR t.session_id = ? OR t.group_id = ?)
 ORDER BY t.updated_at DESC
 `
 
 type SearchTopicsByMessageContentParams struct {
-	UserID    string         `json:"userId"`
 	Content   sql.NullString `json:"content"`
-	Column3   interface{}    `json:"column3"`
+	Column2   interface{}    `json:"column2"`
 	SessionID sql.NullString `json:"sessionId"`
 	GroupID   sql.NullString `json:"groupId"`
 }
 
 func (q *Queries) SearchTopicsByMessageContent(ctx context.Context, arg SearchTopicsByMessageContentParams) ([]Topic, error) {
 	rows, err := q.db.QueryContext(ctx, SearchTopicsByMessageContent,
-		arg.UserID,
 		arg.Content,
-		arg.Column3,
+		arg.Column2,
 		arg.SessionID,
 		arg.GroupID,
 	)
@@ -519,7 +453,6 @@ func (q *Queries) SearchTopicsByMessageContent(ctx context.Context, arg SearchTo
 			&i.Favorite,
 			&i.SessionID,
 			&i.GroupID,
-			&i.UserID,
 			&i.HistorySummary,
 			&i.Metadata,
 			&i.CreatedAt,
@@ -539,26 +472,23 @@ func (q *Queries) SearchTopicsByMessageContent(ctx context.Context, arg SearchTo
 }
 
 const SearchTopicsByTitle = `-- name: SearchTopicsByTitle :many
-SELECT id, title, favorite, session_id, group_id, user_id, history_summary, metadata, created_at, updated_at FROM topics
-WHERE user_id = ? 
-  AND title LIKE ?
+SELECT id, title, favorite, session_id, group_id, history_summary, metadata, created_at, updated_at FROM topics
+WHERE title LIKE ?
   AND (? = '' OR session_id = ? OR group_id = ?)
 ORDER BY updated_at DESC
 `
 
 type SearchTopicsByTitleParams struct {
-	UserID    string         `json:"userId"`
 	Title     sql.NullString `json:"title"`
-	Column3   interface{}    `json:"column3"`
+	Column2   interface{}    `json:"column2"`
 	SessionID sql.NullString `json:"sessionId"`
 	GroupID   sql.NullString `json:"groupId"`
 }
 
 func (q *Queries) SearchTopicsByTitle(ctx context.Context, arg SearchTopicsByTitleParams) ([]Topic, error) {
 	rows, err := q.db.QueryContext(ctx, SearchTopicsByTitle,
-		arg.UserID,
 		arg.Title,
-		arg.Column3,
+		arg.Column2,
 		arg.SessionID,
 		arg.GroupID,
 	)
@@ -575,7 +505,6 @@ func (q *Queries) SearchTopicsByTitle(ctx context.Context, arg SearchTopicsByTit
 			&i.Favorite,
 			&i.SessionID,
 			&i.GroupID,
-			&i.UserID,
 			&i.HistorySummary,
 			&i.Metadata,
 			&i.CreatedAt,
@@ -596,35 +525,28 @@ func (q *Queries) SearchTopicsByTitle(ctx context.Context, arg SearchTopicsByTit
 
 const ToggleTopicFavorite = `-- name: ToggleTopicFavorite :exec
 UPDATE topics SET favorite = ?, updated_at = ?
-WHERE id = ? AND user_id = ?
+WHERE id = ?
 `
 
 type ToggleTopicFavoriteParams struct {
 	Favorite  int64  `json:"favorite"`
 	UpdatedAt int64  `json:"updatedAt"`
 	ID        string `json:"id"`
-	UserID    string `json:"userId"`
 }
 
 func (q *Queries) ToggleTopicFavorite(ctx context.Context, arg ToggleTopicFavoriteParams) error {
-	_, err := q.db.ExecContext(ctx, ToggleTopicFavorite,
-		arg.Favorite,
-		arg.UpdatedAt,
-		arg.ID,
-		arg.UserID,
-	)
+	_, err := q.db.ExecContext(ctx, ToggleTopicFavorite, arg.Favorite, arg.UpdatedAt, arg.ID)
 	return err
 }
 
 const UpdateMessagesTopicId = `-- name: UpdateMessagesTopicId :exec
 UPDATE messages
 SET topic_id = ?
-WHERE user_id = ? AND id IN (/*SLICE:ids*/?)
+WHERE id IN (/*SLICE:ids*/?)
 `
 
 type UpdateMessagesTopicIdParams struct {
 	TopicID sql.NullString `json:"topicId"`
-	UserID  string         `json:"userId"`
 	Ids     []string       `json:"ids"`
 }
 
@@ -632,7 +554,6 @@ func (q *Queries) UpdateMessagesTopicId(ctx context.Context, arg UpdateMessagesT
 	query := UpdateMessagesTopicId
 	var queryParams []interface{}
 	queryParams = append(queryParams, arg.TopicID)
-	queryParams = append(queryParams, arg.UserID)
 	if len(arg.Ids) > 0 {
 		for _, v := range arg.Ids {
 			queryParams = append(queryParams, v)
@@ -651,8 +572,8 @@ SET title = ?,
     history_summary = ?,
     metadata = ?,
     updated_at = ?
-WHERE id = ? AND user_id = ?
-RETURNING id, title, favorite, session_id, group_id, user_id, history_summary, metadata, created_at, updated_at
+WHERE id = ?
+RETURNING id, title, favorite, session_id, group_id, history_summary, metadata, created_at, updated_at
 `
 
 type UpdateTopicParams struct {
@@ -661,7 +582,6 @@ type UpdateTopicParams struct {
 	Metadata       sql.NullString `json:"metadata"`
 	UpdatedAt      int64          `json:"updatedAt"`
 	ID             string         `json:"id"`
-	UserID         string         `json:"userId"`
 }
 
 func (q *Queries) UpdateTopic(ctx context.Context, arg UpdateTopicParams) (Topic, error) {
@@ -671,7 +591,6 @@ func (q *Queries) UpdateTopic(ctx context.Context, arg UpdateTopicParams) (Topic
 		arg.Metadata,
 		arg.UpdatedAt,
 		arg.ID,
-		arg.UserID,
 	)
 	var i Topic
 	err := row.Scan(
@@ -680,7 +599,6 @@ func (q *Queries) UpdateTopic(ctx context.Context, arg UpdateTopicParams) (Topic
 		&i.Favorite,
 		&i.SessionID,
 		&i.GroupID,
-		&i.UserID,
 		&i.HistorySummary,
 		&i.Metadata,
 		&i.CreatedAt,

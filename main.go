@@ -149,7 +149,7 @@ func registerAgentServices(wailsApp *application.App, ctx *app.Context, fileProc
 
 		// Register memory tool for recalling stored memories
 		if ctx.MemoryIntegration != nil {
-			if err := agentService.RegisterMemoryTool(ctx.MemoryIntegration, app.DefaultUserID); err != nil {
+			if err := agentService.RegisterMemoryTool(ctx.MemoryIntegration); err != nil {
 				log.Printf("⚠️  Failed to register memory tool: %v", err)
 			}
 		}
@@ -198,7 +198,7 @@ func createMainWindow(wailsApp *application.App, ctx *app.Context, fileProcessor
 		for i, filePath := range droppedFiles {
 			log.Printf("[Drag&Drop] %d. %s", i+1, filePath)
 
-			result, err := fileProcessor.ProcessFileFromPath(filePath, app.DefaultUserID)
+			result, err := fileProcessor.ProcessFileFromPath(filePath)
 			if err != nil {
 				log.Printf("[Drag&Drop] Error: %v", err)
 				continue

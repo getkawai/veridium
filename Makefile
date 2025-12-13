@@ -1,4 +1,4 @@
-.PHONY: help db-generate bindings-generate dev build clean test update-llama
+.PHONY: help db-generate bindings-generate dev build clean test update-llama db-dump db-restore
 
 # Default target
 help:
@@ -6,6 +6,8 @@ help:
 	@echo ""
 	@echo "Database:"
 	@echo "  make db-generate          Generate Go code from SQL queries (sqlc)"
+	@echo "  make db-dump              Dump SQLite database to seed file"
+	@echo "  make db-restore           Restore database from seed file"
 	@echo "  make bindings-generate    Generate TypeScript bindings from Go (wails)"
 	@echo "  make generate             Run both db-generate and bindings-generate"
 	@echo ""
@@ -23,6 +25,25 @@ db-generate:
 	@echo "🔄 Generating Go code from SQL queries..."
 	sqlc generate
 	@echo "✅ Database code generated!"
+
+# Dump SQLite database to seed file
+db-dump:
+	@echo "💾 Dumping database to seed file..."
+	@mkdir -p internal/database/seed
+	@sqlite3 data/veridium.db ".dump" > internal/database/seed/veridium_dump.sql
+	@echo "✅ Database dumped to internal/database/seed/veridium_dump.sql"
+
+# Restore database from seed file
+db-restore:
+	@echo "📥 Restoring database from seed file..."
+	@if [ ! -f internal/database/seed/veridium_dump.sql ]; then \
+		echo "❌ Error: Seed file not found at internal/database/seed/veridium_dump.sql"; \
+		exit 1; \
+	fi
+	@mkdir -p data
+	@rm -f data/veridium.db data/veridium.db-shm data/veridium.db-wal
+	@sqlite3 data/veridium.db < internal/database/seed/veridium_dump.sql
+	@echo "✅ Database restored from seed file"
 
 # Generate TypeScript bindings from Go using Wails
 bindings-generate:

@@ -118,8 +118,7 @@ const EmptyStatus = ({ showKnowledgeBase, knowledgeBaseId }: EmptyStatusProps) =
             const ext = fileName.split('.').pop()?.toLowerCase() || '';
             const mimeType = getMimeType(ext);
 
-            const userId = getUserId();
-            const result = await ProcessFileFromPath(filePath, userId);
+            const result = await ProcessFileFromPath(filePath);
 
             if (!result) return null;
 

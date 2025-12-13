@@ -20,29 +20,29 @@ import * as types$0 from "../../types/models.js";
 /**
  * AddFileToKnowledgeBase adds a file to a knowledge base
  */
-export function AddFileToKnowledgeBase(kbID: string, filePath: string, metadata: { [_: string]: any }, userID: string): $CancellablePromise<void> {
-    return $Call.ByID(2844550582, kbID, filePath, metadata, userID);
+export function AddFileToKnowledgeBase(kbID: string, filePath: string, metadata: { [_: string]: any }): $CancellablePromise<void> {
+    return $Call.ByID(2844550582, kbID, filePath, metadata);
 }
 
 /**
  * CreateKnowledgeBase creates a new knowledge base
  */
-export function CreateKnowledgeBase(name: string, description: string, userID: string): $CancellablePromise<string> {
-    return $Call.ByID(3872143208, name, description, userID);
+export function CreateKnowledgeBase(name: string, description: string): $CancellablePromise<string> {
+    return $Call.ByID(3872143208, name, description);
 }
 
 /**
  * DeleteKnowledgeBase deletes a knowledge base
  */
-export function DeleteKnowledgeBase(kbID: string, userID: string): $CancellablePromise<void> {
-    return $Call.ByID(4015852381, kbID, userID);
+export function DeleteKnowledgeBase(kbID: string): $CancellablePromise<void> {
+    return $Call.ByID(4015852381, kbID);
 }
 
 /**
  * GetKnowledgeBase gets a knowledge base by ID
  */
-export function GetKnowledgeBase(kbID: string, userID: string): $CancellablePromise<db$0.KnowledgeBasis> {
-    return $Call.ByID(830733914, kbID, userID).then(($result: any) => {
+export function GetKnowledgeBase(kbID: string): $CancellablePromise<db$0.KnowledgeBasis> {
+    return $Call.ByID(830733914, kbID).then(($result: any) => {
         return $$createType0($result);
     });
 }
@@ -51,15 +51,15 @@ export function GetKnowledgeBase(kbID: string, userID: string): $CancellableProm
  * GetRetriever returns a simple retriever function for compatibility
  * This replaces the Eino chromem adapter
  */
-export function GetRetriever(kbID: string, userID: string): $CancellablePromise<any> {
-    return $Call.ByID(1834383765, kbID, userID);
+export function GetRetriever(kbID: string): $CancellablePromise<any> {
+    return $Call.ByID(1834383765, kbID);
 }
 
 /**
  * ListKnowledgeBases lists all knowledge bases for a user
  */
-export function ListKnowledgeBases(userID: string): $CancellablePromise<db$0.KnowledgeBasis[]> {
-    return $Call.ByID(4122219297, userID).then(($result: any) => {
+export function ListKnowledgeBases(): $CancellablePromise<db$0.KnowledgeBasis[]> {
+    return $Call.ByID(4122219297).then(($result: any) => {
         return $$createType1($result);
     });
 }
@@ -67,8 +67,8 @@ export function ListKnowledgeBases(userID: string): $CancellablePromise<db$0.Kno
 /**
  * QueryKnowledgeBase performs semantic search on a knowledge base
  */
-export function QueryKnowledgeBase(kbID: string, query: string, topK: number, userID: string): $CancellablePromise<(types$0.Document | null)[]> {
-    return $Call.ByID(3310437766, kbID, query, topK, userID).then(($result: any) => {
+export function QueryKnowledgeBase(kbID: string, query: string, topK: number): $CancellablePromise<(types$0.Document | null)[]> {
+    return $Call.ByID(3310437766, kbID, query, topK).then(($result: any) => {
         return $$createType4($result);
     });
 }
@@ -76,15 +76,15 @@ export function QueryKnowledgeBase(kbID: string, query: string, topK: number, us
 /**
  * RemoveFileFromKnowledgeBase removes a file from a knowledge base
  */
-export function RemoveFileFromKnowledgeBase(kbID: string, fileID: string, userID: string): $CancellablePromise<void> {
-    return $Call.ByID(3683533694, kbID, fileID, userID);
+export function RemoveFileFromKnowledgeBase(kbID: string, fileID: string): $CancellablePromise<void> {
+    return $Call.ByID(3683533694, kbID, fileID);
 }
 
 /**
  * UpdateKnowledgeBase updates a knowledge base
  */
-export function UpdateKnowledgeBase(kbID: string, name: string, description: string, userID: string): $CancellablePromise<void> {
-    return $Call.ByID(1928072071, kbID, name, description, userID);
+export function UpdateKnowledgeBase(kbID: string, name: string, description: string): $CancellablePromise<void> {
+    return $Call.ByID(1928072071, kbID, name, description);
 }
 
 // Private type creation functions

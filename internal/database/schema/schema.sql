@@ -1,26 +1,9 @@
 -- Initial SQLite migration generated from schemas
 -- This file contains the initial database setup for Wails SQLite
 
--- Users table
-CREATE TABLE IF NOT EXISTS users (
-  id TEXT PRIMARY KEY NOT NULL,
-  username TEXT UNIQUE,
-  email TEXT,
-  avatar TEXT,
-  phone TEXT,
-  first_name TEXT,
-  last_name TEXT,
-  is_onboarded INTEGER DEFAULT 0 NOT NULL, -- boolean as integer
-  clerk_created_at INTEGER, -- timestamp_ms
-  email_verified_at INTEGER, -- timestamp_ms
-  preference TEXT DEFAULT '{}', -- JSON as text
-  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000), -- timestamp_ms
-  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000) -- timestamp_ms
-);
-
 -- User settings
 CREATE TABLE IF NOT EXISTS user_settings (
-  id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  id TEXT PRIMARY KEY,
   tts TEXT, -- JSON as text
   hotkey TEXT, -- JSON as text
   key_vaults TEXT,
@@ -34,7 +17,6 @@ CREATE TABLE IF NOT EXISTS user_settings (
 
 -- User installed plugins
 CREATE TABLE IF NOT EXISTS user_installed_plugins (
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   identifier TEXT NOT NULL,
   type TEXT NOT NULL CHECK (type IN ('plugin', 'customPlugin')),
   manifest TEXT, -- JSON as text
@@ -42,7 +24,7 @@ CREATE TABLE IF NOT EXISTS user_installed_plugins (
   custom_params TEXT, -- JSON as text
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
-  PRIMARY KEY (user_id, identifier)
+  PRIMARY KEY (identifier)
 );
 
 -- Global files table
@@ -52,14 +34,13 @@ CREATE TABLE IF NOT EXISTS global_files (
   size INTEGER NOT NULL,
   url TEXT NOT NULL,
   metadata TEXT, -- JSON as text
-  creator TEXT NOT NULL REFERENCES users(id) ON DELETE SET NULL,
+  creator TEXT,
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
 );
 
 -- Files table
 CREATE TABLE IF NOT EXISTS files (
   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))),2) || '-' || substr('89ab',abs(random()) % 4 + 1, 1) || substr(lower(hex(randomblob(2))),2) || '-' || lower(hex(randomblob(6)))),
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   file_type TEXT NOT NULL,
   file_hash TEXT REFERENCES global_files(hash_id),
   name TEXT NOT NULL,
@@ -78,7 +59,6 @@ CREATE TABLE IF NOT EXISTS knowledge_bases (
   description TEXT,
   avatar TEXT,
   type TEXT,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   is_public INTEGER DEFAULT 0 NOT NULL, -- boolean as integer
   settings TEXT, -- JSON as text
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
@@ -89,7 +69,6 @@ CREATE TABLE IF NOT EXISTS knowledge_bases (
 CREATE TABLE IF NOT EXISTS knowledge_base_files (
   knowledge_base_id TEXT NOT NULL REFERENCES knowledge_bases(id) ON DELETE CASCADE,
   file_id TEXT NOT NULL REFERENCES files(id) ON DELETE CASCADE,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   PRIMARY KEY (knowledge_base_id, file_id)
 );
@@ -104,7 +83,6 @@ CREATE TABLE IF NOT EXISTS agents (
   avatar TEXT,
   background_color TEXT,
   plugins TEXT DEFAULT '[]', -- JSON as text
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   chat_config TEXT, -- JSON as text
   few_shots TEXT, -- JSON as text
   model TEXT,
@@ -124,7 +102,6 @@ CREATE TABLE IF NOT EXISTS session_groups (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   sort INTEGER,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
 );
@@ -138,12 +115,11 @@ CREATE TABLE IF NOT EXISTS sessions (
   avatar TEXT,
   background_color TEXT,
   type TEXT DEFAULT 'agent',
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   group_id TEXT REFERENCES session_groups(id) ON DELETE SET NULL,
   pinned INTEGER DEFAULT 0 NOT NULL, -- boolean as integer
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
-  UNIQUE(slug, user_id)
+  UNIQUE(slug)
 );
 
 -- Topics table
@@ -153,7 +129,6 @@ CREATE TABLE IF NOT EXISTS topics (
   favorite INTEGER DEFAULT 0 NOT NULL, -- boolean as integer
   session_id TEXT REFERENCES sessions(id) ON DELETE CASCADE,
   group_id TEXT REFERENCES chat_groups(id) ON DELETE CASCADE,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   history_summary TEXT, -- JSON as text
   metadata TEXT, -- JSON as text
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
@@ -169,7 +144,6 @@ CREATE TABLE IF NOT EXISTS threads (
   topic_id TEXT NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
   source_message_id TEXT NOT NULL,
   parent_thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   last_active_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
@@ -190,7 +164,6 @@ CREATE TABLE IF NOT EXISTS messages (
   tools TEXT, -- JSON as text
   trace_id TEXT,
   observation_id TEXT,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   session_id TEXT REFERENCES sessions(id) ON DELETE CASCADE,
   topic_id TEXT REFERENCES topics(id) ON DELETE CASCADE,
   thread_id TEXT REFERENCES threads(id) ON DELETE CASCADE,
@@ -214,7 +187,8 @@ CREATE TABLE IF NOT EXISTS message_plugins (
   identifier TEXT,
   state TEXT, -- JSON as text
   error TEXT, -- JSON as text
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE
+  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
+  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
 );
 
 -- Message TTS
@@ -222,8 +196,7 @@ CREATE TABLE IF NOT EXISTS message_tts (
   id TEXT PRIMARY KEY REFERENCES messages(id) ON DELETE CASCADE,
   content_md5 TEXT,
   file_id TEXT REFERENCES files(id) ON DELETE CASCADE,
-  voice TEXT,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE
+  voice TEXT
 );
 
 -- Message translates
@@ -231,8 +204,7 @@ CREATE TABLE IF NOT EXISTS message_translates (
   id TEXT PRIMARY KEY REFERENCES messages(id) ON DELETE CASCADE,
   content TEXT, -- JSON as text
   "from" TEXT,
-  "to" TEXT,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE
+  "to" TEXT
 );
 
 -- Message queries
@@ -240,8 +212,7 @@ CREATE TABLE IF NOT EXISTS message_queries (
   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))),2) || '-' || substr('89ab',abs(random()) % 4 + 1, 1) || substr(lower(hex(randomblob(2))),2) || '-' || lower(hex(randomblob(6)))),
   message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
   rewrite_query TEXT,
-  user_query TEXT,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE
+  user_query TEXT
 );
 
 -- Message query chunks
@@ -250,7 +221,6 @@ CREATE TABLE IF NOT EXISTS message_query_chunks (
   query_id TEXT REFERENCES message_queries(id) ON DELETE CASCADE,
   chunk_id TEXT REFERENCES chunks(id) ON DELETE CASCADE,
   similarity INTEGER, -- We'll store similarity as integer for now
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   PRIMARY KEY (chunk_id, message_id, query_id)
 );
 
@@ -258,7 +228,6 @@ CREATE TABLE IF NOT EXISTS message_query_chunks (
 CREATE TABLE IF NOT EXISTS message_chunks (
   message_id TEXT REFERENCES messages(id) ON DELETE CASCADE,
   chunk_id TEXT REFERENCES chunks(id) ON DELETE CASCADE,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   PRIMARY KEY (chunk_id, message_id)
 );
 
@@ -266,7 +235,6 @@ CREATE TABLE IF NOT EXISTS message_chunks (
 CREATE TABLE IF NOT EXISTS messages_files (
   file_id TEXT NOT NULL REFERENCES files(id) ON DELETE CASCADE,
   message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   PRIMARY KEY (file_id, message_id)
 );
 
@@ -279,7 +247,6 @@ CREATE TABLE IF NOT EXISTS chunks (
   metadata TEXT, -- JSON as text
   chunk_index INTEGER,
   type TEXT,
-  user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
 );
@@ -293,7 +260,6 @@ CREATE TABLE IF NOT EXISTS unstructured_chunks (
   type TEXT,
   parent_id TEXT,
   composite_id TEXT REFERENCES chunks(id) ON DELETE CASCADE,
-  user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
   file_id TEXT REFERENCES files(id) ON DELETE CASCADE,
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
@@ -304,7 +270,6 @@ CREATE TABLE IF NOT EXISTS file_chunks (
   file_id TEXT REFERENCES files(id) ON DELETE CASCADE,
   chunk_id TEXT REFERENCES chunks(id) ON DELETE CASCADE,
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   PRIMARY KEY (file_id, chunk_id)
 );
 
@@ -312,7 +277,6 @@ CREATE TABLE IF NOT EXISTS file_chunks (
 CREATE TABLE IF NOT EXISTS agents_to_sessions (
   agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
   session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   PRIMARY KEY (agent_id, session_id)
 );
 
@@ -320,7 +284,6 @@ CREATE TABLE IF NOT EXISTS agents_to_sessions (
 CREATE TABLE IF NOT EXISTS files_to_sessions (
   file_id TEXT NOT NULL REFERENCES files(id) ON DELETE CASCADE,
   session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   PRIMARY KEY (file_id, session_id)
 );
 
@@ -328,7 +291,6 @@ CREATE TABLE IF NOT EXISTS files_to_sessions (
 CREATE TABLE IF NOT EXISTS agents_knowledge_bases (
   agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
   knowledge_base_id TEXT NOT NULL REFERENCES knowledge_bases(id) ON DELETE CASCADE,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   enabled INTEGER DEFAULT 1 NOT NULL, -- boolean as integer
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
@@ -340,17 +302,15 @@ CREATE TABLE IF NOT EXISTS agents_files (
   file_id TEXT NOT NULL REFERENCES files(id) ON DELETE CASCADE,
   agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
   enabled INTEGER DEFAULT 1 NOT NULL, -- boolean as integer
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
-  PRIMARY KEY (file_id, agent_id, user_id)
+  PRIMARY KEY (file_id, agent_id)
 );
 
 -- Topic documents junction table
 CREATE TABLE IF NOT EXISTS topic_documents (
   document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
   topic_id TEXT NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   PRIMARY KEY (document_id, topic_id)
 );
@@ -360,7 +320,6 @@ CREATE TABLE IF NOT EXISTS document_chunks (
   document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
   chunk_id TEXT NOT NULL REFERENCES chunks(id) ON DELETE CASCADE,
   page_index INTEGER,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   PRIMARY KEY (document_id, chunk_id)
 );
 
@@ -370,7 +329,6 @@ CREATE TABLE IF NOT EXISTS chat_groups (
   title TEXT,
   description TEXT,
   config TEXT, -- JSON as text
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   group_id TEXT,
   pinned INTEGER DEFAULT 0 NOT NULL, -- boolean as integer
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
@@ -381,7 +339,6 @@ CREATE TABLE IF NOT EXISTS chat_groups (
 CREATE TABLE IF NOT EXISTS chat_groups_agents (
   chat_group_id TEXT NOT NULL REFERENCES chat_groups(id) ON DELETE CASCADE,
   agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   enabled INTEGER DEFAULT 1 NOT NULL, -- boolean as integer
   sort_order INTEGER DEFAULT 0,
   role TEXT DEFAULT 'participant',
@@ -396,7 +353,6 @@ CREATE TABLE IF NOT EXISTS message_groups (
   title TEXT,
   description TEXT,
   topic_id TEXT REFERENCES topics(id) ON DELETE CASCADE,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   parent_group_id TEXT REFERENCES message_groups(id) ON DELETE CASCADE,
   parent_message_id TEXT,
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
@@ -407,7 +363,6 @@ CREATE TABLE IF NOT EXISTS message_groups (
 CREATE TABLE IF NOT EXISTS ai_providers (
   id TEXT NOT NULL,
   name TEXT,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   sort INTEGER, -- boolean as integer (0/1)
   enabled INTEGER, -- boolean as integer (0/1)
   fetch_on_client INTEGER, -- boolean as integer (0/1)
@@ -420,7 +375,7 @@ CREATE TABLE IF NOT EXISTS ai_providers (
   config TEXT, -- JSON as text
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
-  PRIMARY KEY (id, user_id)
+  PRIMARY KEY (id)
 );
 
 -- AI models table
@@ -433,7 +388,6 @@ CREATE TABLE IF NOT EXISTS ai_models (
   provider_id TEXT NOT NULL,
   type TEXT DEFAULT 'chat' NOT NULL,
   sort INTEGER, -- boolean as integer (0/1)
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   pricing TEXT, -- JSON as text
   parameters TEXT DEFAULT '{}', -- JSON as text
   config TEXT, -- JSON as text
@@ -443,7 +397,7 @@ CREATE TABLE IF NOT EXISTS ai_models (
   released_at TEXT,
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
-  PRIMARY KEY (id, provider_id, user_id)
+  PRIMARY KEY (id, provider_id)
 );
 
 -- Async tasks table
@@ -452,7 +406,6 @@ CREATE TABLE IF NOT EXISTS async_tasks (
   type TEXT,
   status TEXT,
   error TEXT,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   duration INTEGER,
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
@@ -461,7 +414,6 @@ CREATE TABLE IF NOT EXISTS async_tasks (
 -- Generation topics table
 CREATE TABLE IF NOT EXISTS generation_topics (
   id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   title TEXT,
   cover_url TEXT,
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
@@ -471,7 +423,6 @@ CREATE TABLE IF NOT EXISTS generation_topics (
 -- Generation batches table
 CREATE TABLE IF NOT EXISTS generation_batches (
   id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   generation_topic_id TEXT NOT NULL REFERENCES generation_topics(id) ON DELETE CASCADE,
   provider TEXT NOT NULL,
   model TEXT NOT NULL,
@@ -487,7 +438,6 @@ CREATE TABLE IF NOT EXISTS generation_batches (
 -- Generations table
 CREATE TABLE IF NOT EXISTS generations (
   id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   generation_batch_id TEXT NOT NULL REFERENCES generation_batches(id) ON DELETE CASCADE,
   async_task_id TEXT REFERENCES async_tasks(id) ON DELETE SET NULL,
   file_id TEXT REFERENCES files(id) ON DELETE CASCADE,
@@ -511,7 +461,6 @@ CREATE TABLE IF NOT EXISTS documents (
   source_type TEXT NOT NULL CHECK (source_type IN ('file', 'web', 'api')),
   source TEXT NOT NULL,
   file_id TEXT REFERENCES files(id) ON DELETE SET NULL,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   editor_data TEXT, -- JSON as text
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
@@ -525,131 +474,28 @@ CREATE TABLE IF NOT EXISTS api_keys (
   enabled INTEGER DEFAULT 1 NOT NULL, -- boolean as integer
   expires_at INTEGER, -- timestamp_ms
   last_used_at INTEGER, -- timestamp_ms
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
 );
-
--- RBAC tables
-CREATE TABLE IF NOT EXISTS rbac_roles (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL UNIQUE,
-  display_name TEXT NOT NULL,
-  description TEXT,
-  is_system INTEGER DEFAULT 0 NOT NULL, -- boolean as integer
-  is_active INTEGER DEFAULT 1 NOT NULL, -- boolean as integer
-  metadata TEXT DEFAULT '{}', -- JSON as text
-  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
-  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
-);
-
-CREATE TABLE IF NOT EXISTS rbac_permissions (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  code TEXT NOT NULL UNIQUE,
-  name TEXT NOT NULL,
-  description TEXT,
-  category TEXT NOT NULL,
-  is_active INTEGER DEFAULT 1 NOT NULL, -- boolean as integer
-  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
-  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
-);
-
-CREATE TABLE IF NOT EXISTS rbac_role_permissions (
-  role_id INTEGER NOT NULL REFERENCES rbac_roles(id) ON DELETE CASCADE,
-  permission_id INTEGER NOT NULL REFERENCES rbac_permissions(id) ON DELETE CASCADE,
-  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
-  PRIMARY KEY (role_id, permission_id)
-);
-
-CREATE TABLE IF NOT EXISTS rbac_user_roles (
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  role_id INTEGER NOT NULL REFERENCES rbac_roles(id) ON DELETE CASCADE,
-  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
-  expires_at INTEGER, -- timestamp_ms
-  PRIMARY KEY (user_id, role_id)
-);
-
--- NextAuth tables
-CREATE TABLE IF NOT EXISTS nextauth_accounts (
-  access_token TEXT,
-  expires_at INTEGER,
-  id_token TEXT,
-  provider TEXT NOT NULL,
-  provider_account_id TEXT NOT NULL,
-  refresh_token TEXT,
-  scope TEXT,
-  session_state TEXT,
-  token_type TEXT,
-  type TEXT NOT NULL,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  PRIMARY KEY (provider, provider_account_id)
-);
-
-CREATE TABLE IF NOT EXISTS nextauth_sessions (
-  expires INTEGER NOT NULL,
-  session_token TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS nextauth_verificationtokens (
-  expires INTEGER NOT NULL,
-  identifier TEXT NOT NULL,
-  token TEXT NOT NULL,
-  PRIMARY KEY (identifier, token)
-);
-
-CREATE TABLE IF NOT EXISTS nextauth_authenticators (
-  counter INTEGER NOT NULL,
-  credential_backed_up INTEGER NOT NULL,
-  credential_device_type TEXT NOT NULL,
-  credential_id TEXT NOT NULL UNIQUE,
-  credential_public_key TEXT NOT NULL,
-  provider_account_id TEXT NOT NULL,
-  transports TEXT,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  PRIMARY KEY (user_id, credential_id)
-);
-
 
 -- Indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
-CREATE INDEX IF NOT EXISTS idx_messages_user_id ON messages(user_id);
 CREATE INDEX IF NOT EXISTS idx_messages_session_id ON messages(session_id);
 CREATE INDEX IF NOT EXISTS idx_messages_topic_id ON messages(topic_id);
 CREATE INDEX IF NOT EXISTS idx_messages_parent_id ON messages(parent_id);
 CREATE INDEX IF NOT EXISTS idx_messages_quota_id ON messages(quota_id);
 CREATE INDEX IF NOT EXISTS idx_messages_thread_id ON messages(thread_id);
 
-CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
-CREATE INDEX IF NOT EXISTS idx_sessions_id_user_id ON sessions(id, user_id);
-
-CREATE INDEX IF NOT EXISTS idx_topics_user_id ON topics(user_id);
-CREATE INDEX IF NOT EXISTS idx_topics_id_user_id ON topics(id, user_id);
-
-CREATE INDEX IF NOT EXISTS idx_chunks_user_id ON chunks(user_id);
 CREATE INDEX IF NOT EXISTS idx_chunks_document_id ON chunks(document_id);
 
 CREATE INDEX IF NOT EXISTS idx_files_file_hash ON files(file_hash);
-CREATE INDEX IF NOT EXISTS idx_files_user_id ON files(user_id);
 
-CREATE INDEX IF NOT EXISTS idx_agents_user_id ON agents(user_id);
 CREATE INDEX IF NOT EXISTS idx_agents_title ON agents(title);
 CREATE INDEX IF NOT EXISTS idx_agents_description ON agents(description);
-
-CREATE INDEX IF NOT EXISTS idx_knowledge_bases_user_id ON knowledge_bases(user_id);
 
 CREATE INDEX IF NOT EXISTS idx_documents_source ON documents(source);
 CREATE INDEX IF NOT EXISTS idx_documents_file_type ON documents(file_type);
 CREATE INDEX IF NOT EXISTS idx_documents_file_id ON documents(file_id);
-
-CREATE INDEX IF NOT EXISTS idx_generation_topics_user_id ON generation_topics(user_id);
-CREATE INDEX IF NOT EXISTS idx_generation_batches_user_id ON generation_batches(user_id);
-CREATE INDEX IF NOT EXISTS idx_generations_user_id ON generations(user_id);
-
-CREATE INDEX IF NOT EXISTS idx_rbac_role_permissions_role_id ON rbac_role_permissions(role_id);
-CREATE INDEX IF NOT EXISTS idx_rbac_role_permissions_permission_id ON rbac_role_permissions(permission_id);
-CREATE INDEX IF NOT EXISTS idx_rbac_user_roles_user_id ON rbac_user_roles(user_id);
-CREATE INDEX IF NOT EXISTS idx_rbac_user_roles_role_id ON rbac_user_roles(role_id);
 
 -- Drizzle migration tracking table
 CREATE TABLE IF NOT EXISTS __drizzle_migrations (
@@ -666,7 +512,6 @@ CREATE TABLE IF NOT EXISTS rag_eval_datasets (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   description TEXT,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
 );
@@ -678,7 +523,6 @@ CREATE TABLE IF NOT EXISTS rag_eval_dataset_records (
   reference_answer TEXT,
   reference_contexts TEXT,  -- JSON as text
   metadata TEXT,  -- JSON as text
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
 );
@@ -689,7 +533,6 @@ CREATE TABLE IF NOT EXISTS rag_eval_evaluations (
   dataset_id TEXT NOT NULL REFERENCES rag_eval_datasets(id) ON DELETE CASCADE,
   config TEXT,  -- JSON as text
   status TEXT NOT NULL CHECK (status IN ('pending', 'running', 'completed', 'failed')),
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
 );
@@ -701,7 +544,6 @@ CREATE TABLE IF NOT EXISTS rag_eval_evaluation_records (
   retrieved_contexts TEXT,  -- JSON as text
   generated_answer TEXT,
   metrics TEXT,  -- JSON as text
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
 );
@@ -709,7 +551,6 @@ CREATE TABLE IF NOT EXISTS rag_eval_evaluation_records (
 -- User Memory tables (from 0037_add_user_memory.sql, 0040_improve_user_memory_field.sql)
 CREATE TABLE IF NOT EXISTS user_memories (
   id TEXT PRIMARY KEY,
-  user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
   memory_category TEXT,
   memory_layer TEXT,
   memory_type TEXT,
@@ -799,7 +640,6 @@ CREATE TABLE IF NOT EXISTS user_memories_preferences (
 -- User budgets and subscriptions (from various migrations)
 CREATE TABLE IF NOT EXISTS user_budgets (
   id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   budget_type TEXT NOT NULL,
   amount REAL NOT NULL,
   period TEXT NOT NULL,
@@ -809,7 +649,6 @@ CREATE TABLE IF NOT EXISTS user_budgets (
 
 CREATE TABLE IF NOT EXISTS user_subscriptions (
   id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   plan_id TEXT NOT NULL,
   status TEXT NOT NULL,
   started_at INTEGER NOT NULL,
@@ -819,16 +658,10 @@ CREATE TABLE IF NOT EXISTS user_subscriptions (
 );
 
 -- Create indexes for performance
-CREATE INDEX IF NOT EXISTS idx_rag_eval_datasets_user_id ON rag_eval_datasets(user_id);
 CREATE INDEX IF NOT EXISTS idx_rag_eval_dataset_records_dataset_id ON rag_eval_dataset_records(dataset_id);
 CREATE INDEX IF NOT EXISTS idx_rag_eval_evaluations_dataset_id ON rag_eval_evaluations(dataset_id);
 CREATE INDEX IF NOT EXISTS idx_rag_eval_evaluation_records_evaluation_id ON rag_eval_evaluation_records(evaluation_id);
 
-CREATE INDEX IF NOT EXISTS idx_user_memories_user_id ON user_memories(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_memories_experiences_user_memory_id ON user_memories_experiences(user_memory_id);
 CREATE INDEX IF NOT EXISTS idx_user_memories_identities_user_memory_id ON user_memories_identities(user_memory_id);
 CREATE INDEX IF NOT EXISTS idx_user_memories_preferences_user_memory_id ON user_memories_preferences(user_memory_id);
-
-CREATE INDEX IF NOT EXISTS idx_user_budgets_user_id ON user_budgets(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_subscriptions_user_id ON user_subscriptions(user_id);
-

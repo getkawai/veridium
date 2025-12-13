@@ -56,7 +56,6 @@ const (
 type CreateThreadRequest struct {
 	SourceMessageID string     `json:"source_message_id"` // Message to branch from
 	TopicID         string     `json:"topic_id"`          // Topic this thread belongs to
-	UserID          string     `json:"user_id"`
 	Title           string     `json:"title,omitempty"`
 	Type            ThreadType `json:"type"` // continuation or standalone
 	ParentThreadID  string     `json:"parent_thread_id,omitempty"`
@@ -89,7 +88,6 @@ type ThreadInfo struct {
 // ListThreadsRequest represents a request to list threads
 type ListThreadsRequest struct {
 	TopicID string `json:"topic_id"`
-	UserID  string `json:"user_id"`
 }
 
 // NewThreadManagementService creates a new thread management service
@@ -112,12 +110,6 @@ func (s *ThreadManagementService) CreateThread(ctx context.Context, req CreateTh
 		return &CreateThreadResponse{
 			Error: "topic_id is required",
 		}, fmt.Errorf("topic_id is required")
-	}
-
-	if req.UserID == "" {
-		return &CreateThreadResponse{
-			Error: "user_id is required",
-		}, fmt.Errorf("user_id is required")
 	}
 
 	// Validate thread type
@@ -150,7 +142,6 @@ func (s *ThreadManagementService) CreateThread(ctx context.Context, req CreateTh
 		TopicID:         req.TopicID,
 		SourceMessageID: req.SourceMessageID,
 		ParentThreadID:  parentThreadID,
-		UserID:          req.UserID,
 		LastActiveAt:    now,
 		CreatedAt:       now,
 		UpdatedAt:       now,
@@ -180,14 +171,11 @@ func (s *ThreadManagementService) ListThreadsByTopic(ctx context.Context, req Li
 		return nil, fmt.Errorf("topic_id is required")
 	}
 
-	if req.UserID == "" {
-		return nil, fmt.Errorf("user_id is required")
+	if req.TopicID == "" {
+		return nil, fmt.Errorf("topic_id is required")
 	}
 
-	threads, err := s.db.Queries().ListThreadsByTopic(ctx, db.ListThreadsByTopicParams{
-		TopicID: req.TopicID,
-		UserID:  req.UserID,
-	})
+	threads, err := s.db.Queries().ListThreadsByTopic(ctx, req.TopicID)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to list threads: %w", err)
@@ -213,19 +201,12 @@ func (s *ThreadManagementService) ListThreadsByTopic(ctx context.Context, req Li
 }
 
 // GetThread retrieves a single thread by ID
-func (s *ThreadManagementService) GetThread(ctx context.Context, threadID, userID string) (*ThreadInfo, error) {
+func (s *ThreadManagementService) GetThread(ctx context.Context, threadID string) (*ThreadInfo, error) {
 	if threadID == "" {
 		return nil, fmt.Errorf("thread_id is required")
 	}
 
-	if userID == "" {
-		return nil, fmt.Errorf("user_id is required")
-	}
-
-	thread, err := s.db.Queries().GetThread(ctx, db.GetThreadParams{
-		ID:     threadID,
-		UserID: userID,
-	})
+	thread, err := s.db.Queries().GetThread(ctx, threadID)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get thread: %w", err)
@@ -246,20 +227,13 @@ func (s *ThreadManagementService) GetThread(ctx context.Context, threadID, userI
 }
 
 // UpdateThreadStatus updates the status of a thread
-func (s *ThreadManagementService) UpdateThreadStatus(ctx context.Context, threadID, userID string, status ThreadStatus) error {
+func (s *ThreadManagementService) UpdateThreadStatus(ctx context.Context, threadID string, status ThreadStatus) error {
 	if threadID == "" {
 		return fmt.Errorf("thread_id is required")
 	}
 
-	if userID == "" {
-		return fmt.Errorf("user_id is required")
-	}
-
 	// Get current thread
-	thread, err := s.db.Queries().GetThread(ctx, db.GetThreadParams{
-		ID:     threadID,
-		UserID: userID,
-	})
+	thread, err := s.db.Queries().GetThread(ctx, threadID)
 
 	if err != nil {
 		return fmt.Errorf("failed to get thread: %w", err)
@@ -274,7 +248,6 @@ func (s *ThreadManagementService) UpdateThreadStatus(ctx context.Context, thread
 		LastActiveAt: now,
 		UpdatedAt:    now,
 		ID:           threadID,
-		UserID:       userID,
 	})
 
 	if err != nil {
@@ -287,20 +260,13 @@ func (s *ThreadManagementService) UpdateThreadStatus(ctx context.Context, thread
 }
 
 // UpdateThreadLastActive updates the last active time of a thread
-func (s *ThreadManagementService) UpdateThreadLastActive(ctx context.Context, threadID, userID string) error {
+func (s *ThreadManagementService) UpdateThreadLastActive(ctx context.Context, threadID string) error {
 	if threadID == "" {
 		return fmt.Errorf("thread_id is required")
 	}
 
-	if userID == "" {
-		return fmt.Errorf("user_id is required")
-	}
-
 	// Get current thread
-	thread, err := s.db.Queries().GetThread(ctx, db.GetThreadParams{
-		ID:     threadID,
-		UserID: userID,
-	})
+	thread, err := s.db.Queries().GetThread(ctx, threadID)
 
 	if err != nil {
 		return fmt.Errorf("failed to get thread: %w", err)
@@ -315,7 +281,6 @@ func (s *ThreadManagementService) UpdateThreadLastActive(ctx context.Context, th
 		LastActiveAt: now,
 		UpdatedAt:    now,
 		ID:           threadID,
-		UserID:       userID,
 	})
 
 	if err != nil {
@@ -326,20 +291,12 @@ func (s *ThreadManagementService) UpdateThreadLastActive(ctx context.Context, th
 }
 
 // DeleteThread deletes a thread
-func (s *ThreadManagementService) DeleteThread(ctx context.Context, threadID, userID string) error {
+func (s *ThreadManagementService) DeleteThread(ctx context.Context, threadID string) error {
 	if threadID == "" {
 		return fmt.Errorf("thread_id is required")
 	}
 
-	if userID == "" {
-		return fmt.Errorf("user_id is required")
-	}
-
-	err := s.db.Queries().DeleteThread(ctx, db.DeleteThreadParams{
-		ID:     threadID,
-		UserID: userID,
-	})
-
+	err := s.db.Queries().DeleteThread(ctx, threadID)
 	if err != nil {
 		return fmt.Errorf("failed to delete thread: %w", err)
 	}
@@ -351,19 +308,12 @@ func (s *ThreadManagementService) DeleteThread(ctx context.Context, threadID, us
 
 // GetThreadMessages retrieves all messages in a thread
 // This returns messages that have the thread_id set
-func (s *ThreadManagementService) GetThreadMessages(ctx context.Context, threadID, userID string) ([]db.Message, error) {
+func (s *ThreadManagementService) GetThreadMessages(ctx context.Context, threadID string) ([]db.Message, error) {
 	if threadID == "" {
 		return nil, fmt.Errorf("thread_id is required")
 	}
 
-	if userID == "" {
-		return nil, fmt.Errorf("user_id is required")
-	}
-
-	messages, err := s.db.Queries().ListMessagesByThread(ctx, db.ListMessagesByThreadParams{
-		UserID:   userID,
-		ThreadID: sql.NullString{String: threadID, Valid: true},
-	})
+	messages, err := s.db.Queries().ListMessagesByThread(ctx, sql.NullString{String: threadID, Valid: true})
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get thread messages: %w", err)

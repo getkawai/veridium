@@ -39,28 +39,28 @@ export function SetTitleModel(model: fantasy$0.LanguageModel): $CancellablePromi
  * UpdateGenerationTopicTitle updates an existing generation topic with LLM-generated title
  * It runs in the background. It targets the 'generation_topics' table.
  */
-export function UpdateGenerationTopicTitle(topicID: string, userID: string, messages: fantasy$0.Message[]): $CancellablePromise<void> {
-    return $Call.ByID(946508128, topicID, userID, messages);
+export function UpdateGenerationTopicTitle(topicID: string, messages: fantasy$0.Message[]): $CancellablePromise<void> {
+    return $Call.ByID(946508128, topicID, messages);
 }
 
 /**
  * UpdateGenerationTopicTitleFromPrompt updates an existing generation topic with LLM-generated title from a prompt
  */
-export function UpdateGenerationTopicTitleFromPrompt(topicID: string, userID: string, prompt: string): $CancellablePromise<void> {
-    return $Call.ByID(1623111974, topicID, userID, prompt);
+export function UpdateGenerationTopicTitleFromPrompt(topicID: string, prompt: string): $CancellablePromise<void> {
+    return $Call.ByID(1623111974, topicID, prompt);
 }
 
 /**
  * UpdateTopicTitle updates an existing topic with LLM-generated title
  * It runs in the background
  */
-export function UpdateTopicTitle(topicID: string, userID: string, messages: fantasy$0.Message[]): $CancellablePromise<void> {
-    return $Call.ByID(1690130254, topicID, userID, messages);
+export function UpdateTopicTitle(topicID: string, messages: fantasy$0.Message[]): $CancellablePromise<void> {
+    return $Call.ByID(1690130254, topicID, messages);
 }
 
 /**
  * UpdateTopicTitleFromPrompt updates an existing topic with LLM-generated title from a prompt
  */
-export function UpdateTopicTitleFromPrompt(topicID: string, userID: string, prompt: string): $CancellablePromise<void> {
-    return $Call.ByID(737886040, topicID, userID, prompt);
+export function UpdateTopicTitleFromPrompt(topicID: string, prompt: string): $CancellablePromise<void> {
+    return $Call.ByID(737886040, topicID, prompt);
 }
