@@ -317,7 +317,7 @@ export const createSessionSlice: StateCreator<
   updateSessionGroupId: async (sessionId, groupId) => {
     const session = sessionSelectors.getSessionById(sessionId)(get());
 
-    if (session?.type === 'group') {
+    if (getNullableString(session?.type) === 'group') {
       // For group sessions (chat groups), use the chat group service
       // await chatGroupService.updateGroup(sessionId, {
       //   groupId: groupId === 'default' ? null : groupId,

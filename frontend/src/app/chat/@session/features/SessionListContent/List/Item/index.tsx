@@ -1,12 +1,8 @@
-import { ModelTag } from '@lobehub/icons';
 import React, { memo, useMemo, useState } from 'react';
-import { Flexbox } from 'react-layout-kit';
 import { shallow } from 'zustand/shallow';
 
 import { DEFAULT_AVATAR } from '@/const/meta';
 import { isDesktop } from '@/const/version';
-import { useAgentStore } from '@/store/agent';
-import { agentSelectors } from '@/store/agent/selectors';
 import { useChatStore } from '@/store/chat';
 import { chatSelectors } from '@/store/chat/selectors';
 import { useGlobalStore } from '@/store/global';
@@ -14,7 +10,7 @@ import { useSessionStore } from '@/store/session';
 import { sessionSelectors } from '@/store/session/selectors';
 import { useUserStore } from '@/store/user';
 import { userProfileSelectors } from '@/store/user/selectors';
-import { getNullableString } from '@/types/database';
+import { getNullableString, Session } from '@/types/database';
 import { LobeSessionType } from '@/types/session';
 
 import ListItem from '../../ListItem';
@@ -28,45 +24,37 @@ interface SessionItemProps {
 const SessionItem = memo<SessionItemProps>(({ id }) => {
   const [open, setOpen] = useState(false);
   const [createGroupModalOpen, setCreateGroupModalOpen] = useState(false);
-  const [defaultModel] = useAgentStore((s) => [agentSelectors.inboxAgentModel(s)]);
 
   const openSessionInNewWindow = useGlobalStore((s) => s.openSessionInNewWindow);
 
   const [active] = useSessionStore((s) => [s.activeId === id]);
   const [loading] = useChatStore((s) => [chatSelectors.isAIGenerating(s) && id === s.activeId]);
 
-  const [pin, title, avatar, avatarBackground, updateAt, members, model, sessionGroup, sessionType] =
+  const [pin, title, description, avatar, avatarBackground, updateAt, members, sessionGroup, sessionType] =
     useSessionStore((s) => {
-      const session = sessionSelectors.getSessionById(id)(s);
-      if (!session) return [false, '', DEFAULT_AVATAR, undefined, undefined, [], undefined, undefined, 'agent'];
+      const session: Session = sessionSelectors.getSessionById(id)(s);
+      if (!session) return [false, '', '', DEFAULT_AVATAR, undefined, undefined, [] as Array<{ avatar: string; backgroundColor?: string }>, undefined, 'agent'];
 
       // Get metadata from session directly (no nested meta object)
       const sessionTitle = getNullableString(session.title);
+      const sessionDescription = getNullableString(session.description);
       const sessionAvatar = getNullableString(session.avatar) || DEFAULT_AVATAR;
       const sessionBg = getNullableString(session.backgroundColor);
       const sessionGroupId = getNullableString(session.groupId);
       const sessionTypeStr = getNullableString(session.type) as LobeSessionType || 'agent';
 
-      // Get model if it's an agent session
-      let sessionModel: string | undefined;
-      if (sessionTypeStr === 'agent') {
-        sessionModel = getNullableString(session.model);
-      }
-
       return [
         Boolean(session.pinned),
         sessionTitle || '',
+        sessionDescription || '',
         sessionAvatar,
         sessionBg,
         session.updatedAt,
-        [], // members - would need to be fetched separately for group sessions
-        sessionModel,
+        [] as Array<{ avatar: string; backgroundColor?: string }>, // members - would need to be fetched separately for group sessions
         sessionGroupId,
         sessionTypeStr,
       ];
     });
-
-  const showModel = sessionType === 'agent' && model && model !== defaultModel;
 
   const handleDoubleClick = () => {
     if (isDesktop) {
@@ -100,13 +88,8 @@ const SessionItem = memo<SessionItemProps>(({ id }) => {
   );
 
   const addon = useMemo(
-    () =>
-      !showModel ? undefined : (
-        <Flexbox gap={4} horizontal style={{ flexWrap: 'wrap' }}>
-          {model && typeof model === 'string' && <ModelTag model={model} />}
-        </Flexbox>
-      ),
-    [showModel, model],
+    () => description || undefined,
+    [description],
   );
 
   const currentUser = useUserStore((s) => ({
