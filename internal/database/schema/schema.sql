@@ -117,6 +117,8 @@ CREATE TABLE IF NOT EXISTS sessions (
   type TEXT DEFAULT 'agent',
   group_id TEXT REFERENCES session_groups(id) ON DELETE SET NULL,
   pinned INTEGER DEFAULT 0 NOT NULL, -- boolean as integer
+  model TEXT, -- added for direct access
+  tags TEXT DEFAULT '[]', -- JSON as text
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   UNIQUE(slug)

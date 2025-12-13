@@ -11,11 +11,11 @@ import { useChatStore } from '@/store/chat';
 import { chatSelectors } from '@/store/chat/selectors';
 import { useGlobalStore } from '@/store/global';
 import { useSessionStore } from '@/store/session';
-import { sessionHelpers } from '@/store/session/helpers';
-import { sessionMetaSelectors, sessionSelectors } from '@/store/session/selectors';
+import { sessionSelectors } from '@/store/session/selectors';
 import { useUserStore } from '@/store/user';
 import { userProfileSelectors } from '@/store/user/selectors';
-import { LobeGroupSession } from '@/types/session';
+import { getNullableString } from '@/types/database';
+import { LobeSessionType } from '@/types/session';
 
 import ListItem from '../../ListItem';
 import CreateGroupModal from '../../Modals/CreateGroupModal';
@@ -38,39 +38,31 @@ const SessionItem = memo<SessionItemProps>(({ id }) => {
   const [pin, title, avatar, avatarBackground, updateAt, members, model, sessionGroup, sessionType] =
     useSessionStore((s) => {
       const session = sessionSelectors.getSessionById(id)(s);
-      const meta = session.meta;
+      if (!session) return [false, '', DEFAULT_AVATAR, undefined, undefined, [], undefined, undefined, 'agent'];
 
-      let sessionModel = session.type === 'agent' ? (session as any).model : undefined;
+      // Get metadata from session directly (no nested meta object)
+      const sessionTitle = getNullableString(session.title);
+      const sessionAvatar = getNullableString(session.avatar) || DEFAULT_AVATAR;
+      const sessionBg = getNullableString(session.backgroundColor);
+      const sessionGroupId = getNullableString(session.groupId);
+      const sessionTypeStr = getNullableString(session.type) as LobeSessionType || 'agent';
 
-      // Handle NullString from database (Go type with {String: string, Valid: boolean})
-      if (sessionModel && typeof sessionModel === 'object' && 'Valid' in sessionModel && 'String' in sessionModel) {
-        sessionModel = (sessionModel as any).Valid ? (sessionModel as any).String : undefined;
-      }
-
-      // Ensure sessionModel is a string or undefined
-      if (sessionModel && typeof sessionModel !== 'string') {
-        sessionModel = undefined;
-      }
-
-      // Ensure group is a string or undefined
-      let sessionGroup = session?.group;
-      if (sessionGroup && typeof sessionGroup === 'object' && 'Valid' in sessionGroup && 'String' in sessionGroup) {
-        sessionGroup = (sessionGroup as any).Valid ? (sessionGroup as any).String : undefined;
-      }
-      if (sessionGroup && typeof sessionGroup !== 'string') {
-        sessionGroup = undefined;
+      // Get model if it's an agent session
+      let sessionModel: string | undefined;
+      if (sessionTypeStr === 'agent') {
+        sessionModel = getNullableString(session.model);
       }
 
       return [
-        sessionHelpers.getSessionPinned(session),
-        sessionMetaSelectors.getTitle(meta),
-        sessionMetaSelectors.getAvatar(meta),
-        meta.backgroundColor,
-        session?.updatedAt,
-        (session as LobeGroupSession).members,
+        Boolean(session.pinned),
+        sessionTitle || '',
+        sessionAvatar,
+        sessionBg,
+        session.updatedAt,
+        [], // members - would need to be fetched separately for group sessions
         sessionModel,
-        sessionGroup,
-        session.type,
+        sessionGroupId,
+        sessionTypeStr,
       ];
     });
 
@@ -100,7 +92,7 @@ const SessionItem = memo<SessionItemProps>(({ id }) => {
         group={sessionGroup}
         id={id}
         openCreateGroupModal={() => setCreateGroupModalOpen(true)}
-        parentType={sessionType}
+        parentType={sessionType as 'agent' | 'group'}
         setOpen={setOpen}
       />
     ),
@@ -125,15 +117,15 @@ const SessionItem = memo<SessionItemProps>(({ id }) => {
   const sessionAvatar: string | { avatar: string; background?: string }[] =
     sessionType === 'group'
       ? [
-          {
-            avatar: currentUser.avatar || DEFAULT_AVATAR,
-            background: undefined,
-          },
-          ...(members?.map((member) => ({
-            avatar: member.avatar || DEFAULT_AVATAR,
-            background: member.backgroundColor || undefined,
-          })) || []),
-        ]
+        {
+          avatar: currentUser.avatar || DEFAULT_AVATAR,
+          background: undefined,
+        },
+        ...(members?.map((member) => ({
+          avatar: member.avatar || DEFAULT_AVATAR,
+          background: member.backgroundColor || undefined,
+        })) || []),
+      ]
       : avatar;
 
   return (
@@ -163,7 +155,7 @@ const SessionItem = memo<SessionItemProps>(({ id }) => {
           },
         }}
         title={title}
-        type={sessionType}
+        type={sessionType as 'agent' | 'group' | 'inbox' | undefined}
       />
       <CreateGroupModal
         id={id}

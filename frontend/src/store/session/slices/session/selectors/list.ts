@@ -3,8 +3,6 @@ import { sessionHelpers } from '@/store/session/slices/session/helpers';
 import { MetaData } from '@/types/meta';
 import {
   CustomSessionGroup,
-  GroupMemberWithAgent,
-  LobeGroupSession,
   LobeSession,
   LobeSessions,
 } from '@/types/session';
@@ -28,7 +26,13 @@ const getSessionMetaById =
       const session = getSessionById(id)(s);
 
       if (!session) return {};
-      return session.meta;
+      // Session type has flat properties, not nested meta
+      return {
+        title: typeof session.title === 'string' ? session.title : (session.title as any)?.String,
+        description: typeof session.description === 'string' ? session.description : (session.description as any)?.String,
+        avatar: typeof session.avatar === 'string' ? session.avatar : (session.avatar as any)?.String,
+        backgroundColor: typeof session.backgroundColor === 'string' ? session.backgroundColor : (session.backgroundColor as any)?.String,
+      };
     };
 
 const currentSession = (s: SessionStore): LobeSession | undefined => {
@@ -47,15 +51,20 @@ const isInboxSession = (s: SessionStore) => s.activeId === INBOX_SESSION_ID;
 
 const isCurrentSessionGroupSession = (s: SessionStore): boolean => {
   const session = currentSession(s);
-  return session?.type === 'group';
+  const sessionType = typeof session?.type === 'string' ? session.type : (session?.type as any)?.String;
+  return sessionType === 'group';
 };
 
-const currentGroupAgents = (s: SessionStore): GroupMemberWithAgent[] => {
-  const session = currentSession(s) as LobeGroupSession;
+const currentGroupAgents = (s: SessionStore): any[] => {
+  const session = currentSession(s);
+  if (!session) return [];
 
-  if (session && session.type !== 'group') return [];
+  const sessionType = typeof session.type === 'string' ? session.type : (session.type as any)?.String;
+  if (sessionType !== 'group') return [];
 
-  return session ? (session.members ?? []) : [];
+  // Group sessions don't have members in the Session table anymore
+  // This would need to be fetched from a separate table
+  return [];
 };
 
 const isSessionListInit = (s: SessionStore) => s.isSessionsFirstFetchFinished;

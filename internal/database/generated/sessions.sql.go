@@ -68,7 +68,7 @@ INSERT INTO sessions (
     type, group_id, pinned,
     created_at, updated_at
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, slug, title, description, avatar, background_color, type, group_id, pinned, created_at, updated_at
+RETURNING id, slug, title, description, avatar, background_color, type, group_id, pinned, model, tags, created_at, updated_at
 `
 
 type CreateSessionParams struct {
@@ -110,6 +110,8 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (S
 		&i.Type,
 		&i.GroupID,
 		&i.Pinned,
+		&i.Model,
+		&i.Tags,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -146,7 +148,7 @@ SELECT
     ? as updated_at         -- new updated_at
 FROM sessions s
 WHERE s.id = ?
-RETURNING id, slug, title, description, avatar, background_color, type, group_id, pinned, created_at, updated_at
+RETURNING id, slug, title, description, avatar, background_color, type, group_id, pinned, model, tags, created_at, updated_at
 `
 
 type DuplicateSessionParams struct {
@@ -178,6 +180,8 @@ func (q *Queries) DuplicateSession(ctx context.Context, arg DuplicateSessionPara
 		&i.Type,
 		&i.GroupID,
 		&i.Pinned,
+		&i.Model,
+		&i.Tags,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -185,7 +189,7 @@ func (q *Queries) DuplicateSession(ctx context.Context, arg DuplicateSessionPara
 }
 
 const GetSession = `-- name: GetSession :one
-SELECT id, slug, title, description, avatar, background_color, type, group_id, pinned, created_at, updated_at FROM sessions
+SELECT id, slug, title, description, avatar, background_color, type, group_id, pinned, model, tags, created_at, updated_at FROM sessions
 WHERE id = ?
 `
 
@@ -202,6 +206,8 @@ func (q *Queries) GetSession(ctx context.Context, id string) (Session, error) {
 		&i.Type,
 		&i.GroupID,
 		&i.Pinned,
+		&i.Model,
+		&i.Tags,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -209,7 +215,7 @@ func (q *Queries) GetSession(ctx context.Context, id string) (Session, error) {
 }
 
 const GetSessionByIdOrSlug = `-- name: GetSessionByIdOrSlug :one
-SELECT id, slug, title, description, avatar, background_color, type, group_id, pinned, created_at, updated_at FROM sessions
+SELECT id, slug, title, description, avatar, background_color, type, group_id, pinned, model, tags, created_at, updated_at FROM sessions
 WHERE (id = ? OR slug = ?)
 `
 
@@ -231,6 +237,8 @@ func (q *Queries) GetSessionByIdOrSlug(ctx context.Context, arg GetSessionByIdOr
 		&i.Type,
 		&i.GroupID,
 		&i.Pinned,
+		&i.Model,
+		&i.Tags,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -238,7 +246,7 @@ func (q *Queries) GetSessionByIdOrSlug(ctx context.Context, arg GetSessionByIdOr
 }
 
 const GetSessionBySlug = `-- name: GetSessionBySlug :one
-SELECT id, slug, title, description, avatar, background_color, type, group_id, pinned, created_at, updated_at FROM sessions
+SELECT id, slug, title, description, avatar, background_color, type, group_id, pinned, model, tags, created_at, updated_at FROM sessions
 WHERE slug = ?
 `
 
@@ -255,6 +263,8 @@ func (q *Queries) GetSessionBySlug(ctx context.Context, slug string) (Session, e
 		&i.Type,
 		&i.GroupID,
 		&i.Pinned,
+		&i.Model,
+		&i.Tags,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -317,7 +327,7 @@ func (q *Queries) GetSessionRank(ctx context.Context, limit int64) ([]GetSession
 
 const GetSessionWithGroup = `-- name: GetSessionWithGroup :one
 SELECT 
-    s.id, s.slug, s.title, s.description, s.avatar, s.background_color, s.type, s.group_id, s.pinned, s.created_at, s.updated_at,
+    s.id, s.slug, s.title, s.description, s.avatar, s.background_color, s.type, s.group_id, s.pinned, s.model, s.tags, s.created_at, s.updated_at,
     sg.id as group_id,
     sg.name as group_name,
     sg.sort as group_sort
@@ -336,6 +346,8 @@ type GetSessionWithGroupRow struct {
 	Type            sql.NullString `json:"type"`
 	GroupID         sql.NullString `json:"groupId"`
 	Pinned          int64          `json:"pinned"`
+	Model           sql.NullString `json:"model"`
+	Tags            sql.NullString `json:"tags"`
 	CreatedAt       int64          `json:"createdAt"`
 	UpdatedAt       int64          `json:"updatedAt"`
 	GroupID_2       sql.NullString `json:"groupId2"`
@@ -356,6 +368,8 @@ func (q *Queries) GetSessionWithGroup(ctx context.Context, id string) (GetSessio
 		&i.Type,
 		&i.GroupID,
 		&i.Pinned,
+		&i.Model,
+		&i.Tags,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.GroupID_2,
@@ -366,7 +380,7 @@ func (q *Queries) GetSessionWithGroup(ctx context.Context, id string) (GetSessio
 }
 
 const ListAllSessions = `-- name: ListAllSessions :many
-SELECT id, slug, title, description, avatar, background_color, type, group_id, pinned, created_at, updated_at FROM sessions
+SELECT id, slug, title, description, avatar, background_color, type, group_id, pinned, model, tags, created_at, updated_at FROM sessions
 ORDER BY updated_at DESC
 `
 
@@ -389,6 +403,8 @@ func (q *Queries) ListAllSessions(ctx context.Context) ([]Session, error) {
 			&i.Type,
 			&i.GroupID,
 			&i.Pinned,
+			&i.Model,
+			&i.Tags,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -406,7 +422,7 @@ func (q *Queries) ListAllSessions(ctx context.Context) ([]Session, error) {
 }
 
 const ListSessions = `-- name: ListSessions :many
-SELECT id, slug, title, description, avatar, background_color, type, group_id, pinned, created_at, updated_at FROM sessions
+SELECT id, slug, title, description, avatar, background_color, type, group_id, pinned, model, tags, created_at, updated_at FROM sessions
 WHERE slug != 'inbox'
 ORDER BY updated_at DESC
 LIMIT ? OFFSET ?
@@ -436,6 +452,8 @@ func (q *Queries) ListSessions(ctx context.Context, arg ListSessionsParams) ([]S
 			&i.Type,
 			&i.GroupID,
 			&i.Pinned,
+			&i.Model,
+			&i.Tags,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -453,7 +471,7 @@ func (q *Queries) ListSessions(ctx context.Context, arg ListSessionsParams) ([]S
 }
 
 const ListSessionsByGroup = `-- name: ListSessionsByGroup :many
-SELECT id, slug, title, description, avatar, background_color, type, group_id, pinned, created_at, updated_at FROM sessions
+SELECT id, slug, title, description, avatar, background_color, type, group_id, pinned, model, tags, created_at, updated_at FROM sessions
 WHERE group_id = ?
 ORDER BY updated_at DESC
 `
@@ -477,6 +495,8 @@ func (q *Queries) ListSessionsByGroup(ctx context.Context, groupID sql.NullStrin
 			&i.Type,
 			&i.GroupID,
 			&i.Pinned,
+			&i.Model,
+			&i.Tags,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -528,7 +548,7 @@ func (q *Queries) PinSession(ctx context.Context, arg PinSessionParams) error {
 }
 
 const SearchSessions = `-- name: SearchSessions :many
-SELECT id, slug, title, description, avatar, background_color, type, group_id, pinned, created_at, updated_at FROM sessions
+SELECT id, slug, title, description, avatar, background_color, type, group_id, pinned, model, tags, created_at, updated_at FROM sessions
 WHERE (title LIKE ? OR description LIKE ?)
 ORDER BY updated_at DESC
 LIMIT ?
@@ -559,6 +579,8 @@ func (q *Queries) SearchSessions(ctx context.Context, arg SearchSessionsParams) 
 			&i.Type,
 			&i.GroupID,
 			&i.Pinned,
+			&i.Model,
+			&i.Tags,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -576,7 +598,7 @@ func (q *Queries) SearchSessions(ctx context.Context, arg SearchSessionsParams) 
 }
 
 const SearchSessionsByKeyword = `-- name: SearchSessionsByKeyword :many
-SELECT id, slug, title, description, avatar, background_color, type, group_id, pinned, created_at, updated_at FROM sessions
+SELECT id, slug, title, description, avatar, background_color, type, group_id, pinned, model, tags, created_at, updated_at FROM sessions
 WHERE (title LIKE '%' || ? || '%' OR description LIKE '%' || ? || '%')
 ORDER BY updated_at DESC
 LIMIT 100
@@ -606,6 +628,8 @@ func (q *Queries) SearchSessionsByKeyword(ctx context.Context, arg SearchSession
 			&i.Type,
 			&i.GroupID,
 			&i.Pinned,
+			&i.Model,
+			&i.Tags,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -632,7 +656,7 @@ SET title = ?,
     pinned = ?,
     updated_at = ?
 WHERE id = ?
-RETURNING id, slug, title, description, avatar, background_color, type, group_id, pinned, created_at, updated_at
+RETURNING id, slug, title, description, avatar, background_color, type, group_id, pinned, model, tags, created_at, updated_at
 `
 
 type UpdateSessionParams struct {
@@ -668,6 +692,8 @@ func (q *Queries) UpdateSession(ctx context.Context, arg UpdateSessionParams) (S
 		&i.Type,
 		&i.GroupID,
 		&i.Pinned,
+		&i.Model,
+		&i.Tags,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

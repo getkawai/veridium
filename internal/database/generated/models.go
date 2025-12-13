@@ -397,6 +397,8 @@ type Session struct {
 	Type            sql.NullString `json:"type"`
 	GroupID         sql.NullString `json:"groupId"`
 	Pinned          int64          `json:"pinned"`
+	Model           sql.NullString `json:"model"`
+	Tags            sql.NullString `json:"tags"`
 	CreatedAt       int64          `json:"createdAt"`
 	UpdatedAt       int64          `json:"updatedAt"`
 }

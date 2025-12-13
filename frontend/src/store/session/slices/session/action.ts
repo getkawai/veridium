@@ -10,14 +10,14 @@ import { DEFAULT_CHAT_GROUP_CHAT_CONFIG } from '@/const/settings';
 import { useAgentStore } from '@/store/agent';
 import { getChatGroupStoreState } from '@/store/chatGroup';
 import { useUserStore } from '@/store/user';
-import { DB, toNullString, toNullInt, boolToInt } from '@/types/database';
-import { getUserId, mapSessionFromDB, mapAgentConfigFromDB } from '../../helpers';
+import { DB, toNullString, toNullInt, boolToInt, Session, getNullableString } from '@/types/database';
+import { getUserId, mapAgentConfigFromDB } from '../../helpers';
 
 import type { SessionStore } from '../../store';
 import { settingsSelectors } from '@/store/user/selectors';
 import { MetaData } from '@/types/meta';
 import {
-  LobeAgentSession,
+  LobeSession,
   LobeSessionGroups,
   LobeSessions,
   UpdateSessionParams,
@@ -47,7 +47,7 @@ export interface SessionAction {
    * @returns sessionId
    */
   createSession: (
-    session?: PartialDeep<LobeAgentSession>,
+    session?: any,
     isSwitchSession?: boolean,
   ) => Promise<string>;
 
@@ -116,13 +116,13 @@ export const createSessionSlice: StateCreator<
     if (!sessionsHasMore) return;
 
     const nextPage = sessionsPage + 1;
-    const limit = 20;
+    const limit = 10;
     const offset = nextPage * limit;
 
     try {
       // Use DB.ListSessions with limit and offset
-      const dbSessions = await DB.ListSessions({ limit, offset });
-      const newSessions = dbSessions.map(mapSessionFromDB);
+      const dbSessions: Session[] = await DB.ListSessions({ limit, offset });
+      const newSessions: Session[] = dbSessions;
 
       // Append new sessions
       const nextSessions = [...sessions, ...newSessions];
@@ -150,7 +150,7 @@ export const createSessionSlice: StateCreator<
       settingsSelectors.defaultAgent(useUserStore.getState()),
     );
 
-    const newSession: LobeAgentSession = merge(defaultAgent, agent);
+    const newSession: any = merge(defaultAgent, agent);
 
     const sessionId = crypto.randomUUID();
     const agentId = crypto.randomUUID();
@@ -225,7 +225,7 @@ export const createSessionSlice: StateCreator<
     const session = sessionSelectors.getSessionById(id)(get());
 
     if (!session) return;
-    const title = sessionMetaSelectors.getTitle(session.meta);
+    const title = getNullableString(session.title);
 
     const newTitle = t('duplicateSession.title', { ns: 'chat', title: title });
 
@@ -379,7 +379,7 @@ export const createSessionSlice: StateCreator<
       set({ sessionsPage: 0, sessionsHasMore: dbSessions.length >= limit }, false, n('internal_fetchSessions/resetPage'));
 
       // Map database results to frontend types
-      const sessions = dbSessions.map(mapSessionFromDB);
+      const sessions = dbSessions;
       const sessionGroups = dbSessionGroups.map((g: any) => ({
         id: g.id,
         name: g.name || '',
@@ -404,11 +404,11 @@ export const createSessionSlice: StateCreator<
       );
 
       // Sync chat groups from group sessions to chat store
-      const groupSessions = sessions.filter((session) => session.type === 'group');
+      const groupSessions = sessions.filter((session) => getNullableString(session.type) === 'group');
       if (groupSessions.length > 0) {
         const chatGroupStore = getChatGroupStoreState();
         const chatGroups = groupSessions.map((session) => ({
-          accessedAt: session.updatedAt.getTime(),
+          accessedAt: session.updatedAt,
           clientId: null,
           config: {
             maxResponseInRow: 3,
@@ -421,14 +421,14 @@ export const createSessionSlice: StateCreator<
             enableSupervisor: DEFAULT_CHAT_GROUP_CHAT_CONFIG.enableSupervisor,
             revealDM: DEFAULT_CHAT_GROUP_CHAT_CONFIG.revealDM,
           },
-          createdAt: session.createdAt.getTime(),
-          description: session.meta?.description || '',
-          groupId: session.group || null,
+          createdAt: session.createdAt,
+          description: getNullableString(session.description) || '',
+          groupId: getNullableString(session.groupId) || null,
           id: session.id,
-          pinned: session.pinned || false,
+          pinned: Boolean(session.pinned),
           slug: null,
-          title: session.meta?.title || 'Untitled Group',
-          updatedAt: session.updatedAt.getTime(),
+          title: getNullableString(session.title) || 'Untitled Group',
+          updatedAt: session.updatedAt,
           userId: '',
         }));
 
@@ -449,7 +449,7 @@ export const createSessionSlice: StateCreator<
         column1: toNullString(keyword),
         column2: toNullString(keyword),
       });
-      const results = dbResults.map(mapSessionFromDB);
+      const results = dbResults;
 
       console.log('[Session] Searched sessions via direct DB', { keyword, count: results.length });
     } catch (error) {
@@ -463,7 +463,12 @@ export const createSessionSlice: StateCreator<
     get().internal_processSessions(nextSessions, get().sessionGroups);
   },
   internal_updateSession: async (id, data) => {
-    get().internal_dispatchSessions({ type: 'updateSession', id, value: data });
+    // Convert boolean pinned to number for internal store update (Session expects number)
+    const value: any = { ...data };
+    if (data.pinned !== undefined) {
+      value.pinned = data.pinned ? 1 : 0;
+    }
+    get().internal_dispatchSessions({ type: 'updateSession', id, value });
 
     const userId = getUserId();
     const now = Date.now();
@@ -490,11 +495,11 @@ export const createSessionSlice: StateCreator<
   internal_processSessions: (sessions, sessionGroups) => {
     const customGroups = sessionGroups.map((item) => ({
       ...item,
-      children: sessions.filter((i) => i.group === item.id && !i.pinned),
+      children: sessions.filter((i) => getNullableString(i.groupId) === item.id && !i.pinned),
     }));
 
     const defaultGroup = sessions.filter(
-      (item) => (!item.group || item.group === 'default') && !item.pinned,
+      (item) => (!getNullableString(item.groupId) || getNullableString(item.groupId) === 'default') && !item.pinned,
     );
     const pinnedGroup = sessions.filter((item) => item.pinned);
 
@@ -525,7 +530,7 @@ export const createSessionSlice: StateCreator<
       ]);
 
       // Map database results to frontend types
-      const sessions = dbSessions.map(mapSessionFromDB);
+      const sessions = dbSessions;
       const sessionGroups = dbSessionGroups.map((g: any) => ({
         id: g.id,
         name: g.name || '',
@@ -539,11 +544,11 @@ export const createSessionSlice: StateCreator<
       get().internal_processSessions(sessions as any, sessionGroups);
 
       // Sync chat groups
-      const groupSessions = sessions.filter((session) => session.type === 'group');
+      const groupSessions = sessions.filter((session) => getNullableString(session.type) === 'group');
       if (groupSessions.length > 0) {
         const chatGroupStore = getChatGroupStoreState();
         const chatGroups = groupSessions.map((session) => ({
-          accessedAt: session.updatedAt.getTime(),
+          accessedAt: session.updatedAt,
           clientId: null,
           config: {
             maxResponseInRow: 3,
@@ -556,14 +561,14 @@ export const createSessionSlice: StateCreator<
             enableSupervisor: DEFAULT_CHAT_GROUP_CHAT_CONFIG.enableSupervisor,
             revealDM: DEFAULT_CHAT_GROUP_CHAT_CONFIG.revealDM,
           },
-          createdAt: session.createdAt.getTime(),
-          description: session.meta?.description || '',
-          groupId: session.group || null,
+          createdAt: session.createdAt,
+          description: getNullableString(session.description) || '',
+          groupId: getNullableString(session.groupId) || null,
           id: session.id,
-          pinned: session.pinned || false,
+          pinned: Boolean(session.pinned),
           slug: null,
-          title: session.meta?.title || 'Untitled Group',
-          updatedAt: session.updatedAt.getTime(),
+          title: getNullableString(session.title) || 'Untitled Group',
+          updatedAt: session.updatedAt,
           userId: '',
         }));
 

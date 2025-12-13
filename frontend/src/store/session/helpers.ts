@@ -1,3 +1,4 @@
+
 /**
  * Session Store Helper Utilities
  * 
@@ -27,24 +28,8 @@ export const getUserId = () => DEFAULT_USER_ID;
 /**
  * Map Session from database to frontend type
  */
-export const mapSessionFromDB = (dbSession: any) => {
-  return {
-    id: dbSession.id,
-    type: dbSession.type as LobeSessionType,
-    slug: getNullableString(dbSession.slug) || '',
-    group: getNullableString(dbSession.groupId) || 'default',
-    pinned: Boolean(dbSession.pinned),
-    createdAt: new Date(dbSession.createdAt),
-    updatedAt: new Date(dbSession.updatedAt),
-    userId: dbSession.userId,
-    meta: {
-      title: getNullableString(dbSession.title) || undefined,
-      description: getNullableString(dbSession.description) || undefined,
-      avatar: getNullableString(dbSession.avatar) || undefined,
-      backgroundColor: getNullableString(dbSession.backgroundColor) || undefined,
-    },
-  };
-};
+// Map function removed as we use Session type directly
+// export const mapSessionFromDB = ...
 
 /**
  * Map Agent config from database to LobeAgentConfig

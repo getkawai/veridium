@@ -63,6 +63,13 @@ dev:
 	rm -f backend-dev.log
 	VERIDIUM_DEV=true wails3 dev 2>&1 | tee backend-dev.log
 
+# Start development server without removing database
+devd:
+	@echo "🚀 Starting development server..."
+	killport 9245
+	rm -f backend-dev.log
+	VERIDIUM_DEV=true wails3 dev 2>&1 | tee backend-dev.log
+
 # Build production binary
 build:
 	@echo "🔨 Building production binary..."

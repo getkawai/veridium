@@ -499,7 +499,7 @@ func (q *Queries) GetAgentKnowledgeBases(ctx context.Context, agentID string) ([
 }
 
 const GetAgentSessions = `-- name: GetAgentSessions :many
-SELECT s.id, s.slug, s.title, s.description, s.avatar, s.background_color, s.type, s.group_id, s.pinned, s.created_at, s.updated_at FROM sessions s
+SELECT s.id, s.slug, s.title, s.description, s.avatar, s.background_color, s.type, s.group_id, s.pinned, s.model, s.tags, s.created_at, s.updated_at FROM sessions s
 INNER JOIN agents_to_sessions ats ON s.id = ats.session_id
 WHERE ats.agent_id = ?
 `
@@ -523,6 +523,8 @@ func (q *Queries) GetAgentSessions(ctx context.Context, agentID string) ([]Sessi
 			&i.Type,
 			&i.GroupID,
 			&i.Pinned,
+			&i.Model,
+			&i.Tags,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {

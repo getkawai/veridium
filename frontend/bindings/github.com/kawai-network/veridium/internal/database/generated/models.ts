@@ -6372,6 +6372,8 @@ export class GetSessionWithGroupRow {
     "type": sql$0.NullString;
     "groupId": sql$0.NullString;
     "pinned": number;
+    "model": sql$0.NullString;
+    "tags": sql$0.NullString;
     "createdAt": number;
     "updatedAt": number;
     "groupId2": sql$0.NullString;
@@ -6407,6 +6409,12 @@ export class GetSessionWithGroupRow {
         if (!("pinned" in $$source)) {
             this["pinned"] = 0;
         }
+        if (!("model" in $$source)) {
+            this["model"] = (new sql$0.NullString());
+        }
+        if (!("tags" in $$source)) {
+            this["tags"] = (new sql$0.NullString());
+        }
         if (!("createdAt" in $$source)) {
             this["createdAt"] = 0;
         }
@@ -6436,9 +6444,11 @@ export class GetSessionWithGroupRow {
         const $$createField5_0 = $$createType0;
         const $$createField6_0 = $$createType0;
         const $$createField7_0 = $$createType0;
-        const $$createField11_0 = $$createType0;
-        const $$createField12_0 = $$createType0;
-        const $$createField13_0 = $$createType1;
+        const $$createField9_0 = $$createType0;
+        const $$createField10_0 = $$createType0;
+        const $$createField13_0 = $$createType0;
+        const $$createField14_0 = $$createType0;
+        const $$createField15_0 = $$createType1;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("title" in $$parsedSource) {
             $$parsedSource["title"] = $$createField2_0($$parsedSource["title"]);
@@ -6458,14 +6468,20 @@ export class GetSessionWithGroupRow {
         if ("groupId" in $$parsedSource) {
             $$parsedSource["groupId"] = $$createField7_0($$parsedSource["groupId"]);
         }
+        if ("model" in $$parsedSource) {
+            $$parsedSource["model"] = $$createField9_0($$parsedSource["model"]);
+        }
+        if ("tags" in $$parsedSource) {
+            $$parsedSource["tags"] = $$createField10_0($$parsedSource["tags"]);
+        }
         if ("groupId2" in $$parsedSource) {
-            $$parsedSource["groupId2"] = $$createField11_0($$parsedSource["groupId2"]);
+            $$parsedSource["groupId2"] = $$createField13_0($$parsedSource["groupId2"]);
         }
         if ("groupName" in $$parsedSource) {
-            $$parsedSource["groupName"] = $$createField12_0($$parsedSource["groupName"]);
+            $$parsedSource["groupName"] = $$createField14_0($$parsedSource["groupName"]);
         }
         if ("groupSort" in $$parsedSource) {
-            $$parsedSource["groupSort"] = $$createField13_0($$parsedSource["groupSort"]);
+            $$parsedSource["groupSort"] = $$createField15_0($$parsedSource["groupSort"]);
         }
         return new GetSessionWithGroupRow($$parsedSource as Partial<GetSessionWithGroupRow>);
     }
@@ -9096,6 +9112,8 @@ export class Session {
     "type": sql$0.NullString;
     "groupId": sql$0.NullString;
     "pinned": number;
+    "model": sql$0.NullString;
+    "tags": sql$0.NullString;
     "createdAt": number;
     "updatedAt": number;
 
@@ -9128,6 +9146,12 @@ export class Session {
         if (!("pinned" in $$source)) {
             this["pinned"] = 0;
         }
+        if (!("model" in $$source)) {
+            this["model"] = (new sql$0.NullString());
+        }
+        if (!("tags" in $$source)) {
+            this["tags"] = (new sql$0.NullString());
+        }
         if (!("createdAt" in $$source)) {
             this["createdAt"] = 0;
         }
@@ -9148,6 +9172,8 @@ export class Session {
         const $$createField5_0 = $$createType0;
         const $$createField6_0 = $$createType0;
         const $$createField7_0 = $$createType0;
+        const $$createField9_0 = $$createType0;
+        const $$createField10_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("title" in $$parsedSource) {
             $$parsedSource["title"] = $$createField2_0($$parsedSource["title"]);
@@ -9166,6 +9192,12 @@ export class Session {
         }
         if ("groupId" in $$parsedSource) {
             $$parsedSource["groupId"] = $$createField7_0($$parsedSource["groupId"]);
+        }
+        if ("model" in $$parsedSource) {
+            $$parsedSource["model"] = $$createField9_0($$parsedSource["model"]);
+        }
+        if ("tags" in $$parsedSource) {
+            $$parsedSource["tags"] = $$createField10_0($$parsedSource["tags"]);
         }
         return new Session($$parsedSource as Partial<Session>);
     }
