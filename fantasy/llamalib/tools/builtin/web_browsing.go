@@ -123,17 +123,9 @@ func (s *WebBrowsingService) CrawlMultiPages(urls []string) (*CrawlPluginState, 
 		}
 
 		if r.Error != nil {
-			// Include error in data
-			results = append(results, CrawlResult{
-				OriginalUrl: originalUrl,
-				Crawler:     "kawai", // Error case defaults to kawai
-				Data: CrawlData{
-					Content:     fmt.Sprintf("Error: %s", r.Error.ErrorMessage),
-					URL:         r.Error.URL,
-					Title:       "Crawl Failed",
-					Description: r.Error.ErrorType,
-				},
-			})
+			// Skip error results - don't include them in tool result
+			log.Printf("⚠️ Skipping failed crawl result for URL: %s (Error: %s)", originalUrl, r.Error.ErrorMessage)
+			continue
 		} else if r.Success != nil {
 			// Use crawler label from result: "jina" for Jina, "kawai" for naive
 			crawlerLabel := r.Success.Crawler
