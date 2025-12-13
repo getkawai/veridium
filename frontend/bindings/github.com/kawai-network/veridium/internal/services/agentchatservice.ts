@@ -23,54 +23,6 @@ import * as tools$0 from "../../fantasy/llamalib/tools/models.js";
 import * as $models from "./models.js";
 
 /**
- * ChatMock handles mock chat responses for testing UI flow without real AI backend
- * This method saves complete mock messages to DB with all UI components:
- * - Reasoning (step-by-step thinking)
- * - RAG Chunks (file chunks with similarity scores)
- * - Tool Calls (web browsing, local file system)
- * - Tool Messages (separate role='tool' messages with results)
- * - Search Grounding (citations from web search)
- * - Images (placeholder images)
- * - Usage & Performance metrics
- * 
- * Returns array of all messages created: [user, assistant, tool1, tool2, ...]
- * This matches the real flow where frontend fetches all messages from DB.
- * 
- * Usage from frontend:
- * 
- * 	const messages = await AgentChatService.ChatMock(request);
- * 	// messages is array: [userMsg, assistantMsg, toolMsg1, toolMsg2, ...]
- */
-export function ChatMock(req: $models.ChatRequest): $CancellablePromise<$models.UIChatMessage[]> {
-    return $Call.ByID(944716749, req).then(($result: any) => {
-        return $$createType1($result);
-    });
-}
-
-/**
- * ChatMockStream handles mock chat with event streaming for realistic UI testing
- * Instead of returning all messages at once, it emits events progressively:
- * 1. start - Generation begins
- * 2. reasoning - Thinking content (streamed)
- * 3. chunk - Content chunks (streamed word by word)
- * 4. tool_call - Tool call initiated
- * 5. tool_result - Tool execution result (with pluginState)
- * 6. complete - Generation finished
- * 
- * Frontend listens to 'chat:stream' events via Events.On()
- * Data is saved to DB at the end (same as ChatMock)
- * 
- * Usage from frontend:
- * 
- * 	await AgentChatService.ChatMockStream(request);
- * 	// No return value - data comes via events
- * 	// Events.On('chat:stream', handler) receives all updates
- */
-export function ChatMockStream(req: $models.ChatRequest): $CancellablePromise<void> {
-    return $Call.ByID(3416642717, req);
-}
-
-/**
  * ChatRealStream handles chat with REAL LLM calls using event streaming.
  * This combines:
  * - Real LLM logic from Chat() in agent_chat_service.go
@@ -104,7 +56,7 @@ export function ChatRealStream(req: $models.ChatRequest): $CancellablePromise<vo
  */
 export function GetStreamEventPayloadType(): $CancellablePromise<$models.StreamEventPayload> {
     return $Call.ByID(1681290149).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType0($result);
     });
 }
 
@@ -113,7 +65,7 @@ export function GetStreamEventPayloadType(): $CancellablePromise<$models.StreamE
  */
 export function GetToolRegistry(): $CancellablePromise<tools$0.ToolRegistry | null> {
     return $Call.ByID(306369018).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType2($result);
     });
 }
 
@@ -147,8 +99,6 @@ export function SetTitleModel(model: fantasy$0.LanguageModel): $CancellablePromi
 }
 
 // Private type creation functions
-const $$createType0 = $models.UIChatMessage.createFrom;
-const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = $models.StreamEventPayload.createFrom;
-const $$createType3 = tools$0.ToolRegistry.createFrom;
-const $$createType4 = $Create.Nullable($$createType3);
+const $$createType0 = $models.StreamEventPayload.createFrom;
+const $$createType1 = tools$0.ToolRegistry.createFrom;
+const $$createType2 = $Create.Nullable($$createType1);

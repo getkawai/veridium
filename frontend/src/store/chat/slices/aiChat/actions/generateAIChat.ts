@@ -30,7 +30,6 @@ import {
 import { produce } from 'immer';
 import { StateCreator } from 'zustand/vanilla';
 
-import { backendAgentChat } from '@/services/backendAgentChat';
 import { ChatStore } from '@/store/chat/store';
 import { messageMapKey } from '@/store/chat/utils/messageMapKey';
 import { setNamespace } from '@/utils/storeDebug';
@@ -38,8 +37,9 @@ import { chatSelectors } from '../../../selectors';
 import { idGenerator } from '@/database/utils/idGenerator';
 import {
   StreamEventPayload,
-  UIChatMessage as BackendUIChatMessage,
-} from '@@/github.com/kawai-network/veridium/internal/services/models';
+  ChatRequest,
+} from '@@/github.com/kawai-network/veridium/internal/services';
+import { ChatRealStream } from '@@/github.com/kawai-network/veridium/internal/services/agentchatservice';
 
 // Re-export StreamEventPayload for consumers
 export type { StreamEventPayload };
@@ -50,289 +50,8 @@ const FALLBACK_CLIENT_DB_USER_ID = 'DEFAULT_LOBE_CHAT_USER';
 // ================================================================
 // API MODE CONFIGURATION
 // ================================================================
-/**
- * API_MODE controls which backend to use:
- * 
- * - 'REAL': Production mode - calls real backend API with LLM (non-streaming)
- * - 'BACKEND_MOCK': Development mode - calls backend mock API (saves to DB, no LLM)
- * - 'BACKEND_MOCK_STREAM': Streaming mock - emits events with delays for realistic UI testing
- * - 'BACKEND_REAL_STREAM': Production streaming - real LLM with event streaming
- * - 'FRONTEND_MOCK': UI testing mode - frontend-only mock (no backend, no DB)
- */
-type ApiMode = 'BACKEND_MOCK' | 'BACKEND_MOCK_STREAM' | 'BACKEND_REAL_STREAM' | 'FRONTEND_MOCK';
-
-const API_MODE: ApiMode = 'BACKEND_REAL_STREAM' as ApiMode;
-
-// ================================================================
-// MODE DESCRIPTIONS
-// ================================================================
-// REAL: 
-//   - Uses real LLM (OpenAI, Claude, etc)
-//   - Saves to database
-//   - Full tool execution
-//   - Production-ready
-//
-// BACKEND_MOCK:
-//   - No LLM calls (saves costs)
-//   - Saves to database (realistic data flow)
-//   - Mock tool results
-//   - Returns all messages at once
-//   - Good for backend integration testing
-//
-// BACKEND_MOCK_STREAM:
-//   - No LLM calls (saves costs)
-//   - Saves to database (realistic data flow)
-//   - Mock tool results
-//   - Emits events progressively with delays (simulates real streaming)
-//   - Events: start, reasoning, chunk, tool_call, tool_result, complete
-//   - Good for testing streaming UI
-//
-// BACKEND_REAL_STREAM:
-//   - Uses REAL local LLM (Llama, Qwen, etc.)
-//   - Real tool execution
-//   - Saves to database
-//   - Emits events progressively (real streaming from LLM)
-//   - Events: start, reasoning, chunk, tool_call, tool_result, complete
-//   - Production-ready with streaming UI
-//
-// FRONTEND_MOCK:
-//   - No backend calls
-//   - No database
-//   - Instant responses
-//   - Good for UI/UX development
-// ================================================================
 
 const n = setNamespace('ai');
-
-// ================================================================
-// HELPER FUNCTIONS
-// ================================================================
-
-// ================================================================
-// API MODE HANDLERS
-// ================================================================
-
-/**
- * Handle FRONTEND_MOCK mode - Frontend-only mock for UI testing
- */
-async function handleFrontendMock(
-  set: any,
-  context: {
-    activeId: string;
-    activeTopicId: string | undefined;
-    threadId: string | undefined;
-    message: string;
-    mapKey: string;
-    messageAssistantId: string;
-  }
-) {
-  const { activeId, activeTopicId, threadId, message, mapKey, messageAssistantId } = context;
-
-  console.log('[Frontend Mock] Simulating AI response (no backend)...');
-
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 500));
-
-  const mockResponse = `This is a mock response to: "${message}"\n\nI'm simulating the AI response to test the UI flow without calling the backend.`;
-
-  set(produce((state: ChatStore) => {
-    const messages = state.messagesMap[mapKey];
-    if (!messages) {
-      console.error('[Frontend Mock] Messages not found for key:', mapKey);
-      return;
-    }
-
-    const assistantMsgIndex = messages.findIndex(m => m.id === messageAssistantId);
-    if (assistantMsgIndex === -1) {
-      console.error('[Frontend Mock] Assistant message not found');
-      return;
-    }
-
-    const msg = messages[assistantMsgIndex];
-
-    // Update content
-    msg.content = mockResponse;
-    msg.updatedAt = Date.now();
-    (msg as any).loading = false;
-
-    // Mock reasoning data
-    (msg as any).reasoning = {
-      content: 'Let me think about this step by step:\n1. First, I need to understand the question\n2. Then, I will formulate a response\n3. Finally, I will provide a clear answer',
-      status: 'complete',
-    };
-
-    // Mock RAG chunks data
-    (msg as any).chunksList = [
-      {
-        id: 'chunk_1',
-        fileId: 'file_1',
-        filename: 'document.pdf',
-        fileType: 'application/pdf',
-        fileUrl: '/files/document.pdf',
-        text: 'This is a sample chunk from the knowledge base. It contains relevant information about the topic.',
-        similarity: 0.95,
-      },
-      {
-        id: 'chunk_2',
-        fileId: 'file_2',
-        filename: 'guide.md',
-        fileType: 'text/markdown',
-        fileUrl: '/files/guide.md',
-        text: 'Another chunk with more detailed information that was retrieved from the RAG system.',
-        similarity: 0.87,
-      },
-    ];
-
-    // Mock tool calls
-    (msg as any).tools = [
-      {
-        id: 'tool_1',
-        identifier: 'lobe-web-browsing',
-        apiName: 'search',
-        arguments: JSON.stringify({
-          query: 'What is the weather today?',
-          searchEngines: ['google']
-        }),
-        type: 'builtin',
-        result: {
-          id: 'tool_result_1',
-          content: JSON.stringify({
-            results: [
-              {
-                title: 'Mock Search Result 1',
-                url: 'https://example.com/result1',
-                description: 'This is a mock search result for testing purposes.',
-              },
-              {
-                title: 'Mock Search Result 2',
-                url: 'https://example.com/result2',
-                description: 'Another mock search result with relevant information.',
-              },
-            ],
-          }),
-          state: null,
-        },
-      },
-      {
-        id: 'tool_2',
-        identifier: 'lobe-local-system',
-        apiName: 'listLocalFiles',
-        arguments: JSON.stringify({
-          path: '/home/user/documents'
-        }),
-        type: 'builtin',
-        result: {
-          id: 'tool_result_2',
-          content: JSON.stringify({
-            files: [
-              { name: 'document.pdf', size: 1024000, type: 'file' },
-              { name: 'images', size: 0, type: 'directory' },
-              { name: 'notes.txt', size: 2048, type: 'file' },
-            ],
-          }),
-          state: null,
-        },
-      },
-    ];
-
-    // Mock search grounding
-    (msg as any).search = {
-      citations: [
-        {
-          id: 'citation_1',
-          title: 'Wikipedia - Example Article',
-          url: 'https://en.wikipedia.org/wiki/Example',
-        },
-        {
-          id: 'citation_2',
-          title: 'GitHub Documentation',
-          url: 'https://docs.github.com/en',
-        },
-      ],
-      searchQueries: ['test query', 'related query'],
-    };
-
-    // Mock image list
-    (msg as any).imageList = [
-      {
-        id: 'img_1',
-        url: 'https://via.placeholder.com/300x200',
-        alt: 'Sample image 1',
-      },
-    ];
-
-    // Mock usage
-    (msg as any).usage = {
-      prompt_tokens: 150,
-      completion_tokens: 80,
-      total_tokens: 230,
-    };
-
-    // Mock performance
-    (msg as any).performance = {
-      total_tokens: 230,
-      duration: 1500,
-    };
-
-    // Mock metadata
-    (msg as any).metadata = {
-      model: 'mock-model',
-      temperature: 0.7,
-    };
-
-    // Add tool messages (role='tool') for each tool call
-    state.messagesMap[mapKey].push({
-      id: `tool-msg-${Date.now()}-1`,
-      role: 'tool',
-      content: JSON.stringify({
-        results: [
-          {
-            title: 'Mock Search Result 1',
-            url: 'https://example.com/result1',
-            description: 'This is a mock search result for testing purposes.',
-          },
-          {
-            title: 'Mock Search Result 2',
-            url: 'https://example.com/result2',
-            description: 'Another mock search result with relevant information.',
-          },
-        ],
-      }),
-      tool_call_id: 'tool_1',
-      sessionId: activeId,
-      topicId: activeTopicId,
-      threadId,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      meta: {},
-    } as UIChatMessage);
-
-    state.messagesMap[mapKey].push({
-      id: `tool-msg-${Date.now()}-2`,
-      role: 'tool',
-      content: JSON.stringify({
-        files: [
-          { name: 'document.pdf', size: 1024000, type: 'file' },
-          { name: 'images', size: 0, type: 'directory' },
-          { name: 'notes.txt', size: 2048, type: 'file' },
-        ],
-      }),
-      tool_call_id: 'tool_2',
-      sessionId: activeId,
-      topicId: activeTopicId,
-      threadId,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      meta: {},
-    } as UIChatMessage);
-  }), false, n('frontendMock/response'));
-
-  console.log('[Frontend Mock] Response complete with full mock data');
-}
-
-// ================================================================
-// MAIN STORE ACTIONS
-// ================================================================
 
 export interface AIGenerateAction {
   sendMessage: (params: SendMessageParams) => Promise<void>;
@@ -388,13 +107,6 @@ export const generateAIChat: StateCreator<
     // Extract file IDs from uploaded files (already processed by FileProcessorService)
     const fileIds = files?.map(f => f.id).filter(Boolean) || [];
 
-    console.log(`[SendMessage] Mode: ${API_MODE}`, {
-      activeId,
-      activeTopicId,
-      threadId,
-      fileIds,
-    });
-
     // ================================================================
     // STEP 2: CREATE OPTIMISTIC UI
     // ================================================================
@@ -447,118 +159,27 @@ export const generateAIChat: StateCreator<
     // STEP 3: CALL API BASED ON MODE
     // ================================================================
     try {
-      switch (API_MODE) {
-        case 'BACKEND_MOCK': {
-          console.log('[Backend Mock] Calling backend mock (saves to DB)...');
+      console.log('[Backend Real Stream] Starting real LLM streaming...');
 
-          // Backend returns array: [userMsg, assistantMsg, toolMsg1, toolMsg2, ...]
-          const mockMessages = await backendAgentChat.sendMessageMock({
-            session_id: activeId,
-            user_id: FALLBACK_CLIENT_DB_USER_ID,
-            message: message,
-            topic_id: activeTopicId || undefined,
-            thread_id: threadId || undefined,
-            message_user_id: messageUserId,
-            message_assistant_id: messageAssistantId,
-            file_ids: fileIds.length > 0 ? fileIds : undefined,
-          });
+      // Call real streaming - uses real LLM with streaming events
+      // Events are handled by internal_handleStreamEvent (called from App.tsx)
+      const request = new ChatRequest({
+        session_id: activeId,
+        user_id: FALLBACK_CLIENT_DB_USER_ID,
+        message: message,
+        topic_id: activeTopicId || undefined,
+        thread_id: threadId || undefined,
+        message_user_id: messageUserId,
+        message_assistant_id: messageAssistantId,
+        file_ids: fileIds.length > 0 ? fileIds : undefined,
+      });
+      
+      await ChatRealStream(request);
 
-          console.log('[Backend Mock] Received', mockMessages.length, 'messages');
+      // Note: User message is also created via streaming events
+      // Real LLM response comes token by token via events
 
-          // Find assistant message to get topicId
-          const assistantMsg = mockMessages.find(m => m.role === 'assistant');
-          const mockFinalTopicId = assistantMsg?.topicId || activeTopicId;
-
-          // Replace optimistic messages with backend messages
-          set(produce((state: ChatStore) => {
-            const messages = state.messagesMap[mapKey];
-            if (!messages) return;
-
-            // Remove optimistic user and assistant messages
-            const filteredMessages = messages.filter(
-              m => m.id !== messageUserId && m.id !== messageAssistantId
-            );
-
-            // Add all messages from backend (user, assistant, tools)
-            for (const msg of mockMessages) {
-              filteredMessages.push(msg as unknown as UIChatMessage);
-            }
-
-            state.messagesMap[mapKey] = filteredMessages;
-            console.log('[Backend Mock] Replaced optimistic messages with', mockMessages.length, 'backend messages');
-          }), false, n('backendMock/replaceMessages'));
-
-          // If a new topic was created, switch to it
-          if (mockFinalTopicId && mockFinalTopicId !== activeTopicId) {
-            console.log('[Backend Mock] New topic created, switching to:', mockFinalTopicId);
-            await get().refreshTopic();
-            await get().switchTopic(mockFinalTopicId);
-          }
-
-          console.log('[Backend Mock] Complete');
-          break;
-        }
-
-        case 'BACKEND_MOCK_STREAM': {
-          console.log('[Backend Mock Stream] Starting streaming mock...');
-
-          // Call streaming mock - all updates come via events
-          // Events are handled by internal_handleStreamEvent (called from App.tsx)
-          await backendAgentChat.sendMessageMockStream({
-            session_id: activeId,
-            user_id: FALLBACK_CLIENT_DB_USER_ID,
-            message: message,
-            topic_id: activeTopicId || undefined,
-            thread_id: threadId || undefined,
-            message_user_id: messageUserId,
-            message_assistant_id: messageAssistantId,
-            file_ids: fileIds.length > 0 ? fileIds : undefined,
-          });
-
-          // Note: User message is also created via streaming events
-          // The optimistic user message will be updated with real data
-
-          console.log('[Backend Mock Stream] Streaming complete, data came via events');
-          break;
-        }
-
-        case 'BACKEND_REAL_STREAM': {
-          console.log('[Backend Real Stream] Starting real LLM streaming...');
-
-          // Call real streaming - uses real LLM with streaming events
-          // Events are handled by internal_handleStreamEvent (called from App.tsx)
-          await backendAgentChat.sendMessageRealStream({
-            session_id: activeId,
-            user_id: FALLBACK_CLIENT_DB_USER_ID,
-            message: message,
-            topic_id: activeTopicId || undefined,
-            thread_id: threadId || undefined,
-            message_user_id: messageUserId,
-            message_assistant_id: messageAssistantId,
-            file_ids: fileIds.length > 0 ? fileIds : undefined,
-          });
-
-          // Note: User message is also created via streaming events
-          // Real LLM response comes token by token via events
-
-          console.log('[Backend Real Stream] Streaming complete, data came via events');
-          break;
-        }
-
-        case 'FRONTEND_MOCK':
-          await handleFrontendMock(set, {
-            activeId,
-            activeTopicId,
-            threadId,
-            message,
-            mapKey,
-            messageAssistantId,
-          });
-          break;
-
-        default:
-          throw new Error(`Unknown API_MODE: ${API_MODE}`);
-      }
+      console.log('[Backend Real Stream] Streaming complete, data came via events');
 
     } catch (error) {
       console.error('[SendMessage] Failed:', error);

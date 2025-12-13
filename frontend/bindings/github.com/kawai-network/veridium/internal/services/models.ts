@@ -10,59 +10,6 @@ import { Create as $Create } from "@wailsio/runtime";
 import * as types$0 from "../../types/models.js";
 
 /**
- * AssistantContentBlock represents content block in grouped messages
- */
-export class AssistantContentBlock {
-    "content": string;
-    "fileList"?: ChatFileItem[];
-    "id": string;
-    "imageList"?: ChatImageItem[];
-    "performance"?: ModelPerformance | null;
-    "tools"?: ChatToolPayloadWithResult[];
-    "usage"?: ModelUsage | null;
-
-    /** Creates a new AssistantContentBlock instance. */
-    constructor($$source: Partial<AssistantContentBlock> = {}) {
-        if (!("content" in $$source)) {
-            this["content"] = "";
-        }
-        if (!("id" in $$source)) {
-            this["id"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new AssistantContentBlock instance from a string or object.
-     */
-    static createFrom($$source: any = {}): AssistantContentBlock {
-        const $$createField1_0 = $$createType1;
-        const $$createField3_0 = $$createType3;
-        const $$createField4_0 = $$createType5;
-        const $$createField5_0 = $$createType7;
-        const $$createField6_0 = $$createType9;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("fileList" in $$parsedSource) {
-            $$parsedSource["fileList"] = $$createField1_0($$parsedSource["fileList"]);
-        }
-        if ("imageList" in $$parsedSource) {
-            $$parsedSource["imageList"] = $$createField3_0($$parsedSource["imageList"]);
-        }
-        if ("performance" in $$parsedSource) {
-            $$parsedSource["performance"] = $$createField4_0($$parsedSource["performance"]);
-        }
-        if ("tools" in $$parsedSource) {
-            $$parsedSource["tools"] = $$createField5_0($$parsedSource["tools"]);
-        }
-        if ("usage" in $$parsedSource) {
-            $$parsedSource["usage"] = $$createField6_0($$parsedSource["usage"]);
-        }
-        return new AssistantContentBlock($$parsedSource as Partial<AssistantContentBlock>);
-    }
-}
-
-/**
  * ChatFileChunk represents a file chunk from RAG system
  */
 export class ChatFileChunk {
@@ -104,47 +51,6 @@ export class ChatFileChunk {
     static createFrom($$source: any = {}): ChatFileChunk {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new ChatFileChunk($$parsedSource as Partial<ChatFileChunk>);
-    }
-}
-
-/**
- * ChatFileItem represents a file attachment
- */
-export class ChatFileItem {
-    "content"?: string;
-    "fileType": string;
-    "id": string;
-    "name": string;
-    "size": number;
-    "url": string;
-
-    /** Creates a new ChatFileItem instance. */
-    constructor($$source: Partial<ChatFileItem> = {}) {
-        if (!("fileType" in $$source)) {
-            this["fileType"] = "";
-        }
-        if (!("id" in $$source)) {
-            this["id"] = "";
-        }
-        if (!("name" in $$source)) {
-            this["name"] = "";
-        }
-        if (!("size" in $$source)) {
-            this["size"] = 0;
-        }
-        if (!("url" in $$source)) {
-            this["url"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new ChatFileItem instance from a string or object.
-     */
-    static createFrom($$source: any = {}): ChatFileItem {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new ChatFileItem($$parsedSource as Partial<ChatFileItem>);
     }
 }
 
@@ -203,38 +109,6 @@ export class ChatMessageError {
     static createFrom($$source: any = {}): ChatMessageError {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new ChatMessageError($$parsedSource as Partial<ChatMessageError>);
-    }
-}
-
-/**
- * ChatMessageExtra represents extra message fields
- */
-export class ChatMessageExtra {
-    "fromModel"?: string;
-    "fromProvider"?: string;
-    "translate"?: ChatTranslate | null;
-    "tts"?: ChatTTS | null;
-
-    /** Creates a new ChatMessageExtra instance. */
-    constructor($$source: Partial<ChatMessageExtra> = {}) {
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new ChatMessageExtra instance from a string or object.
-     */
-    static createFrom($$source: any = {}): ChatMessageExtra {
-        const $$createField2_0 = $$createType11;
-        const $$createField3_0 = $$createType13;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("translate" in $$parsedSource) {
-            $$parsedSource["translate"] = $$createField2_0($$parsedSource["translate"]);
-        }
-        if ("tts" in $$parsedSource) {
-            $$parsedSource["tts"] = $$createField3_0($$parsedSource["tts"]);
-        }
-        return new ChatMessageExtra($$parsedSource as Partial<ChatMessageExtra>);
     }
 }
 
@@ -351,9 +225,9 @@ export class ChatRequest {
      * Creates a new ChatRequest instance from a string or object.
      */
     static createFrom($$source: any = {}): ChatRequest {
-        const $$createField8_0 = $$createType14;
-        const $$createField10_0 = $$createType14;
-        const $$createField11_0 = $$createType15;
+        const $$createField8_0 = $$createType0;
+        const $$createField10_0 = $$createType0;
+        const $$createField11_0 = $$createType1;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("file_ids" in $$parsedSource) {
             $$parsedSource["file_ids"] = $$createField8_0($$parsedSource["file_ids"]);
@@ -365,29 +239,6 @@ export class ChatRequest {
             $$parsedSource["context"] = $$createField11_0($$parsedSource["context"]);
         }
         return new ChatRequest($$parsedSource as Partial<ChatRequest>);
-    }
-}
-
-/**
- * ChatTTS represents text-to-speech data
- */
-export class ChatTTS {
-    "contentMd5"?: string;
-    "file"?: string;
-    "voice"?: string;
-
-    /** Creates a new ChatTTS instance. */
-    constructor($$source: Partial<ChatTTS> = {}) {
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new ChatTTS instance from a string or object.
-     */
-    static createFrom($$source: any = {}): ChatTTS {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new ChatTTS($$parsedSource as Partial<ChatTTS>);
     }
 }
 
@@ -428,135 +279,6 @@ export class ChatToolPayload {
     static createFrom($$source: any = {}): ChatToolPayload {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new ChatToolPayload($$parsedSource as Partial<ChatToolPayload>);
-    }
-}
-
-/**
- * ChatToolPayloadWithResult combines tool payload with result
- */
-export class ChatToolPayloadWithResult {
-    "apiName": string;
-    "arguments": string;
-    "id": string;
-    "identifier": string;
-    "type": string;
-    "result"?: ChatToolResult | null;
-
-    /** Creates a new ChatToolPayloadWithResult instance. */
-    constructor($$source: Partial<ChatToolPayloadWithResult> = {}) {
-        if (!("apiName" in $$source)) {
-            this["apiName"] = "";
-        }
-        if (!("arguments" in $$source)) {
-            this["arguments"] = "";
-        }
-        if (!("id" in $$source)) {
-            this["id"] = "";
-        }
-        if (!("identifier" in $$source)) {
-            this["identifier"] = "";
-        }
-        if (!("type" in $$source)) {
-            this["type"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new ChatToolPayloadWithResult instance from a string or object.
-     */
-    static createFrom($$source: any = {}): ChatToolPayloadWithResult {
-        const $$createField5_0 = $$createType17;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("result" in $$parsedSource) {
-            $$parsedSource["result"] = $$createField5_0($$parsedSource["result"]);
-        }
-        return new ChatToolPayloadWithResult($$parsedSource as Partial<ChatToolPayloadWithResult>);
-    }
-}
-
-/**
- * ChatToolResult represents tool execution result
- */
-export class ChatToolResult {
-    "content": string;
-    "error"?: any;
-    "id": string;
-    "state"?: any;
-
-    /** Creates a new ChatToolResult instance. */
-    constructor($$source: Partial<ChatToolResult> = {}) {
-        if (!("content" in $$source)) {
-            this["content"] = "";
-        }
-        if (!("id" in $$source)) {
-            this["id"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new ChatToolResult instance from a string or object.
-     */
-    static createFrom($$source: any = {}): ChatToolResult {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new ChatToolResult($$parsedSource as Partial<ChatToolResult>);
-    }
-}
-
-/**
- * ChatTranslate represents translation data
- */
-export class ChatTranslate {
-    "content"?: string;
-    "from"?: string;
-    "to"?: string;
-
-    /** Creates a new ChatTranslate instance. */
-    constructor($$source: Partial<ChatTranslate> = {}) {
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new ChatTranslate instance from a string or object.
-     */
-    static createFrom($$source: any = {}): ChatTranslate {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new ChatTranslate($$parsedSource as Partial<ChatTranslate>);
-    }
-}
-
-/**
- * ChatVideoItem represents a video attachment
- */
-export class ChatVideoItem {
-    "cover"?: string;
-    "id": string;
-    "name"?: string;
-    "size"?: number;
-    "url": string;
-
-    /** Creates a new ChatVideoItem instance. */
-    constructor($$source: Partial<ChatVideoItem> = {}) {
-        if (!("id" in $$source)) {
-            this["id"] = "";
-        }
-        if (!("url" in $$source)) {
-            this["url"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new ChatVideoItem instance from a string or object.
-     */
-    static createFrom($$source: any = {}): ChatVideoItem {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new ChatVideoItem($$parsedSource as Partial<ChatVideoItem>);
     }
 }
 
@@ -690,8 +412,8 @@ export class GroundingSearch {
      * Creates a new GroundingSearch instance from a string or object.
      */
     static createFrom($$source: any = {}): GroundingSearch {
-        const $$createField0_0 = $$createType19;
-        const $$createField1_0 = $$createType14;
+        const $$createField0_0 = $$createType3;
+        const $$createField1_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("citations" in $$parsedSource) {
             $$parsedSource["citations"] = $$createField0_0($$parsedSource["citations"]);
@@ -744,76 +466,6 @@ export class MemoryIntegration {
     static createFrom($$source: any = {}): MemoryIntegration {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new MemoryIntegration($$parsedSource as Partial<MemoryIntegration>);
-    }
-}
-
-/**
- * MessageMetadata combines usage and performance metrics
- */
-export class MessageMetadata {
-    "inputCachedTokens"?: number;
-    "inputCacheMissTokens"?: number;
-    "inputWriteCacheTokens"?: number;
-    "inputTextTokens"?: number;
-    "inputImageTokens"?: number;
-    "inputAudioTokens"?: number;
-    "inputCitationTokens"?: number;
-    "outputTextTokens"?: number;
-    "outputImageTokens"?: number;
-    "outputAudioTokens"?: number;
-    "outputReasoningTokens"?: number;
-    "acceptedPredictionTokens"?: number;
-    "rejectedPredictionTokens"?: number;
-    "totalInputTokens"?: number;
-    "totalOutputTokens"?: number;
-    "totalTokens"?: number;
-    "cost"?: number;
-    "tps"?: number;
-    "ttft"?: number;
-    "duration"?: number;
-    "latency"?: number;
-
-    /** Creates a new MessageMetadata instance. */
-    constructor($$source: Partial<MessageMetadata> = {}) {
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new MessageMetadata instance from a string or object.
-     */
-    static createFrom($$source: any = {}): MessageMetadata {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new MessageMetadata($$parsedSource as Partial<MessageMetadata>);
-    }
-}
-
-/**
- * MetaData represents metadata for messages/agents
- */
-export class MetaData {
-    "avatar"?: string;
-    "backgroundColor"?: string;
-    "description"?: string;
-    "tags"?: string[];
-    "title"?: string;
-
-    /** Creates a new MetaData instance. */
-    constructor($$source: Partial<MetaData> = {}) {
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new MetaData instance from a string or object.
-     */
-    static createFrom($$source: any = {}): MetaData {
-        const $$createField3_0 = $$createType14;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("tags" in $$parsedSource) {
-            $$parsedSource["tags"] = $$createField3_0($$parsedSource["tags"]);
-        }
-        return new MetaData($$parsedSource as Partial<MetaData>);
     }
 }
 
@@ -948,7 +600,7 @@ export class SearchResult {
      * Creates a new SearchResult instance from a string or object.
      */
     static createFrom($$source: any = {}): SearchResult {
-        const $$createField7_0 = $$createType20;
+        const $$createField7_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("metadata" in $$parsedSource) {
             $$parsedSource["metadata"] = $$createField7_0($$parsedSource["metadata"]);
@@ -1031,16 +683,16 @@ export class StreamEventPayload {
      * Creates a new StreamEventPayload instance from a string or object.
      */
     static createFrom($$source: any = {}): StreamEventPayload {
-        const $$createField6_0 = $$createType22;
-        const $$createField7_0 = $$createType24;
-        const $$createField8_0 = $$createType25;
-        const $$createField11_0 = $$createType27;
-        const $$createField13_0 = $$createType29;
-        const $$createField14_0 = $$createType31;
-        const $$createField15_0 = $$createType3;
-        const $$createField16_0 = $$createType9;
-        const $$createField17_0 = $$createType33;
-        const $$createField18_0 = $$createType5;
+        const $$createField6_0 = $$createType6;
+        const $$createField7_0 = $$createType8;
+        const $$createField8_0 = $$createType9;
+        const $$createField11_0 = $$createType11;
+        const $$createField13_0 = $$createType13;
+        const $$createField14_0 = $$createType15;
+        const $$createField15_0 = $$createType17;
+        const $$createField16_0 = $$createType19;
+        const $$createField17_0 = $$createType21;
+        const $$createField18_0 = $$createType23;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reasoning" in $$parsedSource) {
             $$parsedSource["reasoning"] = $$createField6_0($$parsedSource["reasoning"]);
@@ -1167,209 +819,28 @@ export enum ThreadType {
     ThreadTypeStandalone = "standalone",
 };
 
-/**
- * UIChatMessage represents the response from agent (matches frontend/src/types/message/ui/chat.ts)
- * This type is used for ALL message roles: user, assistant, tool, system, etc.
- * For tool messages (role='tool'), use ToolCallID to link back to the tool call in assistant message.
- */
-export class UIChatMessage {
-    "agentId"?: string;
-    "children"?: AssistantContentBlock[];
-    "chunksList"?: ChatFileChunk[];
-    "content": string;
-    "createdAt": number;
-    "error"?: ChatMessageError | null;
-    "extra"?: ChatMessageExtra | null;
-    "fileList"?: ChatFileItem[];
-
-    /**
-     * deprecated
-     */
-    "files"?: string[];
-    "groupId"?: string;
-    "id": string;
-    "imageList"?: ChatImageItem[];
-    "meta": MetaData;
-    "metadata"?: MessageMetadata | null;
-    "observationId"?: string;
-    "parentId"?: string;
-    "performance"?: ModelPerformance | null;
-    "plugin"?: ChatPluginPayload | null;
-    "pluginError"?: any;
-    "pluginState"?: any;
-    "quotaId"?: string;
-    "ragQuery"?: string;
-    "ragQueryId"?: string;
-    "ragRawQuery"?: string;
-    "reasoning"?: ModelReasoning | null;
-    "role": UIMessageRoleType;
-    "search"?: GroundingSearch | null;
-    "sessionId"?: string;
-    "targetId"?: string;
-    "threadId"?: string;
-    "tool_call_id"?: string;
-    "tools"?: ChatToolPayload[];
-    "topicId"?: string;
-    "traceId"?: string;
-    "updatedAt": number;
-    "usage"?: ModelUsage | null;
-    "videoList"?: ChatVideoItem[];
-
-    /** Creates a new UIChatMessage instance. */
-    constructor($$source: Partial<UIChatMessage> = {}) {
-        if (!("content" in $$source)) {
-            this["content"] = "";
-        }
-        if (!("createdAt" in $$source)) {
-            this["createdAt"] = 0;
-        }
-        if (!("id" in $$source)) {
-            this["id"] = "";
-        }
-        if (!("meta" in $$source)) {
-            this["meta"] = (new MetaData());
-        }
-        if (!("role" in $$source)) {
-            this["role"] = UIMessageRoleType.$zero;
-        }
-        if (!("updatedAt" in $$source)) {
-            this["updatedAt"] = 0;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new UIChatMessage instance from a string or object.
-     */
-    static createFrom($$source: any = {}): UIChatMessage {
-        const $$createField1_0 = $$createType35;
-        const $$createField2_0 = $$createType31;
-        const $$createField5_0 = $$createType33;
-        const $$createField6_0 = $$createType37;
-        const $$createField7_0 = $$createType1;
-        const $$createField8_0 = $$createType14;
-        const $$createField11_0 = $$createType3;
-        const $$createField12_0 = $$createType38;
-        const $$createField13_0 = $$createType40;
-        const $$createField16_0 = $$createType5;
-        const $$createField17_0 = $$createType27;
-        const $$createField24_0 = $$createType22;
-        const $$createField26_0 = $$createType29;
-        const $$createField31_0 = $$createType25;
-        const $$createField35_0 = $$createType9;
-        const $$createField36_0 = $$createType42;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("children" in $$parsedSource) {
-            $$parsedSource["children"] = $$createField1_0($$parsedSource["children"]);
-        }
-        if ("chunksList" in $$parsedSource) {
-            $$parsedSource["chunksList"] = $$createField2_0($$parsedSource["chunksList"]);
-        }
-        if ("error" in $$parsedSource) {
-            $$parsedSource["error"] = $$createField5_0($$parsedSource["error"]);
-        }
-        if ("extra" in $$parsedSource) {
-            $$parsedSource["extra"] = $$createField6_0($$parsedSource["extra"]);
-        }
-        if ("fileList" in $$parsedSource) {
-            $$parsedSource["fileList"] = $$createField7_0($$parsedSource["fileList"]);
-        }
-        if ("files" in $$parsedSource) {
-            $$parsedSource["files"] = $$createField8_0($$parsedSource["files"]);
-        }
-        if ("imageList" in $$parsedSource) {
-            $$parsedSource["imageList"] = $$createField11_0($$parsedSource["imageList"]);
-        }
-        if ("meta" in $$parsedSource) {
-            $$parsedSource["meta"] = $$createField12_0($$parsedSource["meta"]);
-        }
-        if ("metadata" in $$parsedSource) {
-            $$parsedSource["metadata"] = $$createField13_0($$parsedSource["metadata"]);
-        }
-        if ("performance" in $$parsedSource) {
-            $$parsedSource["performance"] = $$createField16_0($$parsedSource["performance"]);
-        }
-        if ("plugin" in $$parsedSource) {
-            $$parsedSource["plugin"] = $$createField17_0($$parsedSource["plugin"]);
-        }
-        if ("reasoning" in $$parsedSource) {
-            $$parsedSource["reasoning"] = $$createField24_0($$parsedSource["reasoning"]);
-        }
-        if ("search" in $$parsedSource) {
-            $$parsedSource["search"] = $$createField26_0($$parsedSource["search"]);
-        }
-        if ("tools" in $$parsedSource) {
-            $$parsedSource["tools"] = $$createField31_0($$parsedSource["tools"]);
-        }
-        if ("usage" in $$parsedSource) {
-            $$parsedSource["usage"] = $$createField35_0($$parsedSource["usage"]);
-        }
-        if ("videoList" in $$parsedSource) {
-            $$parsedSource["videoList"] = $$createField36_0($$parsedSource["videoList"]);
-        }
-        return new UIChatMessage($$parsedSource as Partial<UIChatMessage>);
-    }
-}
-
-/**
- * UIMessageRoleType represents the role of a message
- */
-export enum UIMessageRoleType {
-    /**
-     * The Go zero value for the underlying type of the enum.
-     */
-    $zero = "",
-
-    UIMessageRoleUser = "user",
-    UIMessageRoleSystem = "system",
-    UIMessageRoleAssistant = "assistant",
-    UIMessageRoleTool = "tool",
-    UIMessageRoleSupervisor = "supervisor",
-    UIMessageRoleGroup = "group",
-};
-
 // Private type creation functions
-const $$createType0 = ChatFileItem.createFrom;
-const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = ChatImageItem.createFrom;
+const $$createType0 = $Create.Array($Create.Any);
+const $$createType1 = $Create.Map($Create.Any, $Create.Any);
+const $$createType2 = CitationItem.createFrom;
 const $$createType3 = $Create.Array($$createType2);
-const $$createType4 = ModelPerformance.createFrom;
-const $$createType5 = $Create.Nullable($$createType4);
-const $$createType6 = ChatToolPayloadWithResult.createFrom;
-const $$createType7 = $Create.Array($$createType6);
-const $$createType8 = ModelUsage.createFrom;
-const $$createType9 = $Create.Nullable($$createType8);
-const $$createType10 = ChatTranslate.createFrom;
+const $$createType4 = $Create.Map($Create.Any, $Create.Any);
+const $$createType5 = ModelReasoning.createFrom;
+const $$createType6 = $Create.Nullable($$createType5);
+const $$createType7 = ChatToolPayload.createFrom;
+const $$createType8 = $Create.Nullable($$createType7);
+const $$createType9 = $Create.Array($$createType7);
+const $$createType10 = ChatPluginPayload.createFrom;
 const $$createType11 = $Create.Nullable($$createType10);
-const $$createType12 = ChatTTS.createFrom;
+const $$createType12 = GroundingSearch.createFrom;
 const $$createType13 = $Create.Nullable($$createType12);
-const $$createType14 = $Create.Array($Create.Any);
-const $$createType15 = $Create.Map($Create.Any, $Create.Any);
-const $$createType16 = ChatToolResult.createFrom;
-const $$createType17 = $Create.Nullable($$createType16);
-const $$createType18 = CitationItem.createFrom;
-const $$createType19 = $Create.Array($$createType18);
-const $$createType20 = $Create.Map($Create.Any, $Create.Any);
-const $$createType21 = ModelReasoning.createFrom;
-const $$createType22 = $Create.Nullable($$createType21);
-const $$createType23 = ChatToolPayload.createFrom;
-const $$createType24 = $Create.Nullable($$createType23);
-const $$createType25 = $Create.Array($$createType23);
-const $$createType26 = ChatPluginPayload.createFrom;
-const $$createType27 = $Create.Nullable($$createType26);
-const $$createType28 = GroundingSearch.createFrom;
-const $$createType29 = $Create.Nullable($$createType28);
-const $$createType30 = ChatFileChunk.createFrom;
-const $$createType31 = $Create.Array($$createType30);
-const $$createType32 = ChatMessageError.createFrom;
-const $$createType33 = $Create.Nullable($$createType32);
-const $$createType34 = AssistantContentBlock.createFrom;
-const $$createType35 = $Create.Array($$createType34);
-const $$createType36 = ChatMessageExtra.createFrom;
-const $$createType37 = $Create.Nullable($$createType36);
-const $$createType38 = MetaData.createFrom;
-const $$createType39 = MessageMetadata.createFrom;
-const $$createType40 = $Create.Nullable($$createType39);
-const $$createType41 = ChatVideoItem.createFrom;
-const $$createType42 = $Create.Array($$createType41);
+const $$createType14 = ChatFileChunk.createFrom;
+const $$createType15 = $Create.Array($$createType14);
+const $$createType16 = ChatImageItem.createFrom;
+const $$createType17 = $Create.Array($$createType16);
+const $$createType18 = ModelUsage.createFrom;
+const $$createType19 = $Create.Nullable($$createType18);
+const $$createType20 = ChatMessageError.createFrom;
+const $$createType21 = $Create.Nullable($$createType20);
+const $$createType22 = ModelPerformance.createFrom;
+const $$createType23 = $Create.Nullable($$createType22);

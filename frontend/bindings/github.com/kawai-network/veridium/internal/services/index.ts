@@ -15,28 +15,18 @@ export {
 };
 
 export {
-    AssistantContentBlock,
     ChatFileChunk,
-    ChatFileItem,
     ChatImageItem,
     ChatMessageError,
-    ChatMessageExtra,
     ChatPluginPayload,
     ChatRequest,
-    ChatTTS,
     ChatToolPayload,
-    ChatToolPayloadWithResult,
-    ChatToolResult,
-    ChatTranslate,
-    ChatVideoItem,
     CitationItem,
     CreateThreadRequest,
     CreateThreadResponse,
     GroundingSearch,
     ListThreadsRequest,
     MemoryIntegration,
-    MessageMetadata,
-    MetaData,
     ModelPerformance,
     ModelReasoning,
     ModelUsage,
@@ -44,7 +34,5 @@ export {
     StreamEventPayload,
     ThreadInfo,
     ThreadStatus,
-    ThreadType,
-    UIChatMessage,
-    UIMessageRoleType
+    ThreadType
 } from "./models.js";
