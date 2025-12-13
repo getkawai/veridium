@@ -1,7 +1,6 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix, typescript-sort-keys/interface */
 // Disable the auto sort key eslint rule to make the code more logic and readable
-import { LOADING_FLAT, isDeprecatedEdition } from '@/const';
-import { chainSummaryTitle } from '@/prompts';
+import { isDeprecatedEdition } from '@/const';
 import {
   CreateMessageParams,
   SendThreadMessageParams,
@@ -14,16 +13,10 @@ import isEqual from 'fast-deep-equal';
 import { StateCreator } from 'zustand/vanilla';
 import { nanoid } from 'nanoid';
 
-import { chatService } from '@/services/chat';
 import { threadSelectors } from './selectors';
 import { ChatStore } from '@/store/chat/store';
-import { globalHelpers } from '@/store/global/helpers';
-import { useUserStore } from '@/store/user';
-import { systemAgentSelectors } from '@/store/user/selectors';
-import { merge } from '@/utils/merge';
 import { setNamespace } from '@/utils/storeDebug';
 import { DB, toNullString, getNullableString, currentTimestampMs, Thread } from '@/types/database';
-import { getUserId } from '@/store/session/helpers';
 
 import { ThreadDispatch, threadReducer } from './reducer';
 
@@ -40,7 +33,6 @@ const mapThread = (thread: Thread): ThreadItem => {
     topicId: thread.topicId,
     sourceMessageId: thread.sourceMessageId,
     parentThreadId: getNullableString(thread.parentThreadId as any),
-    userId: thread.userId,
     lastActiveAt: new Date(thread.lastActiveAt),
     createdAt: new Date(thread.createdAt),
     updatedAt: new Date(thread.updatedAt),
@@ -341,11 +333,7 @@ export const chatThreadMessage: StateCreator<
     if (!topicId || isDeprecatedEdition) return;
 
     try {
-      const userId = getUserId();
-      const dbThreads = await DB.ListThreadsByTopic({
-        topicId: topicId,  // Plain string, not NullString
-        userId,
-      });
+      const dbThreads = await DB.ListThreadsByTopic(topicId);
       const threads = dbThreads.map(mapThread);
       const nextMap = { ...get().threadMaps, [topicId]: threads };
 
@@ -373,11 +361,7 @@ export const chatThreadMessage: StateCreator<
     if (!topicId) return;
 
     try {
-      const userId = getUserId();
-      const dbThreads = await DB.ListThreadsByTopic({
-        topicId: topicId,
-        userId,
-      });
+      const dbThreads = await DB.ListThreadsByTopic(topicId);
       const threads = dbThreads.map(mapThread);
       const nextMap = { ...get().threadMaps, [topicId]: threads };
 
@@ -400,11 +384,7 @@ export const chatThreadMessage: StateCreator<
       willClearActiveThreadId: currentActiveThreadId === id,
     });
 
-    const userId = getUserId();
-    await DB.DeleteThread({
-      id,
-      userId,
-    });
+    await DB.DeleteThread(id);
 
     console.log('[Thread] Deleted thread via direct DB', { threadId: id });
 

@@ -203,8 +203,7 @@ export const createChatSlice: StateCreator<
 
       const initInboxAgent = async () => {
         try {
-          const userId = getUserId();
-          const dbAgent = await DB.GetAgentBySessionId({ sessionId: INBOX_SESSION_ID, userId });
+          const dbAgent = await DB.GetAgentBySessionId(INBOX_SESSION_ID);
           const data = mapAgentConfigFromDB(dbAgent);
 
           set(

@@ -22,7 +22,6 @@ export interface ThreadItem {
   topicId: string;
   type: ThreadType;
   updatedAt: Date;
-  userId: string;
 }
 
 export interface CreateThreadParams {
