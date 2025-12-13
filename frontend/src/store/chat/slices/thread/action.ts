@@ -202,17 +202,17 @@ export const chatThreadMessage: StateCreator<
 
     // Use backend agent chat to generate AI response
     try {
-      const userId = getUserId();
-      const backendAgentChat = await import('@/services/backendAgentChat').then(m => m.backendAgentChat);
+      // TODO: implement this
+      // const backendAgentChat = await import('@/services/backendAgentChat').then(m => m.backendAgentChat);
 
-      await backendAgentChat.sendMessage({
-        session_id: activeId,
-        user_id: userId,
-        message: message,
-        topic_id: activeTopicId,
-        thread_id: finalThreadId,
-        stream: true, // Enable streaming
-      });
+      // await backendAgentChat.sendMessage({
+      //   session_id: activeId,
+      //   user_id: userId,
+      //   message: message,
+      //   topic_id: activeTopicId,
+      //   thread_id: finalThreadId,
+      //   stream: true, // Enable streaming
+      // });
       // Just refresh to get them from DB (this will replace temp messages)
       await get().refreshMessages();
 
@@ -252,7 +252,6 @@ export const chatThreadMessage: StateCreator<
   createThread: async ({ message, sourceMessageId, topicId, type }) => {
     set({ isCreatingThread: true }, false, n('creatingThread/start'));
 
-    const userId = getUserId();
     const now = currentTimestampMs();
     let thread;
 
@@ -266,8 +265,6 @@ export const chatThreadMessage: StateCreator<
         topicId: topicId,
         sourceMessageId: sourceMessageId,
         parentThreadId: toNullString(''),
-        clientId: toNullString(''),
-        userId: userId,
         lastActiveAt: now,
         createdAt: now,
         updatedAt: now,
@@ -475,7 +472,6 @@ export const chatThreadMessage: StateCreator<
 
     get().internal_updateThreadLoading(id, true);
 
-    const userId = getUserId();
     const now = currentTimestampMs();
 
     // Extract string values from potential NullString objects
@@ -485,7 +481,6 @@ export const chatThreadMessage: StateCreator<
 
     await DB.UpdateThread({
       id,
-      userId,
       title: titleValue,
       status: data.status ? toNullString(data.status) : undefined,
       lastActiveAt: data.lastActiveAt ? new Date(data.lastActiveAt).getTime() : now,

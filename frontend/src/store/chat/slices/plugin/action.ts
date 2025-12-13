@@ -194,29 +194,30 @@ export const chatPlugin: StateCreator<
   },
 
   triggerAIMessage: async ({ parentId, traceId, threadId, inPortalThread, inSearchWorkflow }) => {
-    const { activeId, activeTopicId } = get();
+    // TODO: implement this
+    // const { activeId, activeTopicId } = get();
 
-    // Use backendAgentChat to trigger AI response
-    // We send an empty message or just the context to trigger the agent
-    // In the new backend architecture, sending a request with the current session/thread context
-    // should be enough for the agent to pick up the conversation (including recent tool outputs).
+    // // Use backendAgentChat to trigger AI response
+    // // We send an empty message or just the context to trigger the agent
+    // // In the new backend architecture, sending a request with the current session/thread context
+    // // should be enough for the agent to pick up the conversation (including recent tool outputs).
 
-    try {
-      await backendAgentChat.sendMessage({
-        session_id: activeId,
-        topic_id: activeTopicId,
-        thread_id: threadId,
-        // We don't send a user message here, just triggering the agent
-        // The backend should handle "continue" or "reply to tool output" logic
-        message: undefined,
-      });
+    // try {
+    //   await backendAgentChat.sendMessage({
+    //     session_id: activeId,
+    //     topic_id: activeTopicId,
+    //     thread_id: threadId,
+    //     // We don't send a user message here, just triggering the agent
+    //     // The backend should handle "continue" or "reply to tool output" logic
+    //     message: undefined,
+    //   });
 
-      // Refresh messages to show the new AI response
-      await get().refreshMessages();
+    //   // Refresh messages to show the new AI response
+    //   await get().refreshMessages();
 
-    } catch (error) {
-      console.error('[Plugin] triggerAIMessage failed:', error);
-    }
+    // } catch (error) {
+    //   console.error('[Plugin] triggerAIMessage failed:', error);
+    // }
   },
 
   summaryPluginContent: async (id) => {

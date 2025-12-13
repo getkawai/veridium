@@ -59,7 +59,7 @@ const FALLBACK_CLIENT_DB_USER_ID = 'DEFAULT_LOBE_CHAT_USER';
  * - 'BACKEND_REAL_STREAM': Production streaming - real LLM with event streaming
  * - 'FRONTEND_MOCK': UI testing mode - frontend-only mock (no backend, no DB)
  */
-type ApiMode = 'REAL' | 'BACKEND_MOCK' | 'BACKEND_MOCK_STREAM' | 'BACKEND_REAL_STREAM' | 'FRONTEND_MOCK';
+type ApiMode = 'BACKEND_MOCK' | 'BACKEND_MOCK_STREAM' | 'BACKEND_REAL_STREAM' | 'FRONTEND_MOCK';
 
 const API_MODE: ApiMode = 'BACKEND_REAL_STREAM' as ApiMode;
 
@@ -108,110 +108,9 @@ const n = setNamespace('ai');
 // HELPER FUNCTIONS
 // ================================================================
 
-/**
- * Map backend UIChatMessage to frontend UIChatMessage
- * Backend uses camelCase consistently now after the refactor
- */
-function mapBackendToFrontendMessage(
-  backendMsg: BackendUIChatMessage,
-  existingMsg: UIChatMessage,
-  defaults: { activeId: string; activeTopicId?: string; threadId?: string }
-): void {
-  const { activeId, activeTopicId, threadId } = defaults;
-
-  // Map core fields
-  existingMsg.id = backendMsg.id || existingMsg.id;
-  existingMsg.content = backendMsg.content || existingMsg.content;
-  existingMsg.sessionId = backendMsg.sessionId || activeId;
-  existingMsg.topicId = backendMsg.topicId || activeTopicId;
-  existingMsg.threadId = backendMsg.threadId || threadId;
-  existingMsg.createdAt = backendMsg.createdAt || Date.now();
-  existingMsg.updatedAt = backendMsg.updatedAt || Date.now();
-  (existingMsg as any).loading = false;
-
-  // Map optional fields directly (backend now uses same structure as frontend)
-  if (backendMsg.tools?.length) (existingMsg as any).tools = backendMsg.tools;
-  if (backendMsg.children?.length) (existingMsg as any).children = backendMsg.children;
-  if (backendMsg.chunksList?.length) (existingMsg as any).chunksList = backendMsg.chunksList;
-  if (backendMsg.imageList?.length) (existingMsg as any).imageList = backendMsg.imageList;
-  if (backendMsg.fileList?.length) (existingMsg as any).fileList = backendMsg.fileList;
-  if (backendMsg.videoList?.length) (existingMsg as any).videoList = backendMsg.videoList;
-  if (backendMsg.reasoning) (existingMsg as any).reasoning = backendMsg.reasoning;
-  if (backendMsg.search) (existingMsg as any).search = backendMsg.search;
-  if (backendMsg.usage) (existingMsg as any).usage = backendMsg.usage;
-  if (backendMsg.performance) (existingMsg as any).performance = backendMsg.performance;
-  if (backendMsg.metadata) (existingMsg as any).metadata = backendMsg.metadata;
-  if (backendMsg.extra) (existingMsg as any).extra = backendMsg.extra;
-  if (backendMsg.plugin) (existingMsg as any).plugin = backendMsg.plugin;
-  if (backendMsg.meta) existingMsg.meta = backendMsg.meta as any;
-}
-
 // ================================================================
 // API MODE HANDLERS
 // ================================================================
-
-/**
- * Handle REAL API mode - Production with real LLM
- */
-async function handleRealAPI(
-  get: any,
-  set: any,
-  context: {
-    activeId: string;
-    activeTopicId: string | undefined;
-    threadId: string | undefined;
-    message: string;
-    messageUserId: string;
-    messageAssistantId: string;
-    mapKey: string;
-    fileIds?: string[];
-  }
-) {
-  const { activeId, activeTopicId, threadId, message, messageUserId, messageAssistantId, mapKey, fileIds } = context;
-
-  console.log('[Real API] Calling real backend with LLM...');
-
-  const response = await backendAgentChat.sendMessage({
-    session_id: activeId,
-    user_id: FALLBACK_CLIENT_DB_USER_ID,
-    message: message,
-    topic_id: activeTopicId || undefined,
-    thread_id: threadId || undefined,
-    message_user_id: messageUserId,
-    message_assistant_id: messageAssistantId,
-    file_ids: fileIds && fileIds.length > 0 ? fileIds : undefined,
-  });
-
-  console.log('[Real API] Response received:', response);
-
-  const finalTopicId = response.topicId || activeTopicId;
-
-  // Update the assistant message with backend response
-  set(produce((state: ChatStore) => {
-    const messages = state.messagesMap[mapKey];
-    if (!messages) return;
-
-    const assistantMsgIndex = messages.findIndex((m: UIChatMessage) => m.id === messageAssistantId);
-    if (assistantMsgIndex === -1) {
-      console.error('[Real API] Assistant message not found');
-      return;
-    }
-
-    mapBackendToFrontendMessage(response, messages[assistantMsgIndex], { activeId, activeTopicId, threadId });
-    console.log('[Real API] Updated assistant message with backend data');
-  }), false, n('realAPI/updateAssistantMessage'));
-
-  // If a new topic was created, switch to it
-  if (finalTopicId && finalTopicId !== activeTopicId) {
-    console.log('[Real API] New topic created, switching to:', finalTopicId);
-    await get().refreshTopic();
-    await get().switchTopic(finalTopicId);
-  } else {
-    console.log('[Real API] Staying on same topic');
-  }
-
-  console.log('[Real API] Complete');
-}
 
 /**
  * Handle FRONTEND_MOCK mode - Frontend-only mock for UI testing
@@ -549,19 +448,6 @@ export const generateAIChat: StateCreator<
     // ================================================================
     try {
       switch (API_MODE) {
-        case 'REAL':
-          await handleRealAPI(get, set, {
-            activeId,
-            activeTopicId,
-            threadId,
-            message,
-            messageUserId,
-            messageAssistantId,
-            mapKey,
-            fileIds,
-          });
-          break;
-
         case 'BACKEND_MOCK': {
           console.log('[Backend Mock] Calling backend mock (saves to DB)...');
 
