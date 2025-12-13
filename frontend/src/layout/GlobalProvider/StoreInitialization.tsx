@@ -6,7 +6,6 @@ import { createStoreUpdater } from 'zustand-utils';
 
 import { enableNextAuth } from '@/const/auth';
 import { useFetchAiProviderRuntimeState } from '@/hooks/useFetchAiProviderRuntimeState';
-import { useIsMobile } from '@/hooks/useIsMobile';
 import { useAgentStore } from '@/store/agent';
 import { useGlobalStore } from '@/store/global';
 import { useRouterStore } from '@/store/router';
@@ -68,16 +67,14 @@ const StoreInitialization = memo(() => {
   useInitUserState(isLoginOnInit, serverConfig, {
     onSuccess: (state) => {
       if (state.isOnboard === false) {
-        routerPush('/onboard');
+        // routerPush('/onboard');
       }
     },
   });
 
   const useStoreUpdater = createStoreUpdater(useGlobalStore);
 
-  const mobile = useIsMobile();
-
-  useStoreUpdater('isMobile', mobile);
+  useStoreUpdater('isMobile', false);
 
   return null;
 });

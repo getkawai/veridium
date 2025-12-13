@@ -9,7 +9,6 @@ import { Center, Flexbox } from 'react-layout-kit';
 
 import { useCreateNewModal } from '@/features/KnowledgeBaseModal';
 import { useFileStore } from '@/store/file';
-import { getUserId } from '@/store/user/helpers';
 import { ProcessFileFromPath } from '@@/github.com/kawai-network/veridium/fileprocessorservice';
 
 const ICON_SIZE = 80;

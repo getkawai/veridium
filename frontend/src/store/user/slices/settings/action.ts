@@ -74,11 +74,9 @@ export const createSettingsSlice: StateCreator<
   },
 
   resetSettings: async () => {
-    const userId = getUserId();
-    await DB.DeleteUserSettings(userId);
-    
-    console.log('[User] Reset user settings via direct DB');
-    
+    // TODO: reset settings via direct DB
+    console.warn('[User] TODO: reset settings via direct DB');
+
     await get().refreshUserState();
   },
   setSettings: async (settings) => {
@@ -92,10 +90,10 @@ export const createSettingsSlice: StateCreator<
     set({ settings: diffs }, false, 'optimistic_updateSettings');
 
     const abortController = get().internal_createSignal();
-    
+
     const userId = getUserId();
     const { keyVaults, ...res } = diffs;
-    
+
     await DB.UpsertUserSettings({
       id: userId,
       tts: toNullString(JSON.stringify(res.tts || {})),
@@ -108,9 +106,9 @@ export const createSettingsSlice: StateCreator<
       tool: toNullString(JSON.stringify(res.tool || {})),
       image: toNullString(JSON.stringify(res.image || {})),
     });
-    
+
     console.log('[User] Updated user settings via direct DB');
-    
+
     await get().refreshUserState();
   },
   updateDefaultAgent: async (defaultAgent) => {

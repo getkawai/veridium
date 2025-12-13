@@ -44,22 +44,16 @@ export class KnowledgeBaseModel {
 
   create = async (params: Omit<NewKnowledgeBase, 'userId'>) => {
     await this.logger.methodEntry('create', { name: params.name, userId: this.userId });
-    
-    try {
-      const now = currentTimestampMs();
 
+    try {
       const result = await DB.CreateKnowledgeBase({
         id: nanoid(),
         name: params.name,
         description: toNullString(params.description as any),
         avatar: toNullString(params.avatar as any),
         type: toNullString(params.type as any),
-        userId: this.userId,
-        clientId: toNullString(params.clientId as any),
         isPublic: boolToInt(params.isPublic || false),
         settings: toNullJSON(params.settings) as any,
-        createdAt: now,
-        updatedAt: now,
       });
 
       await this.logger.methodExit('create', { id: result.id });
@@ -76,21 +70,17 @@ export class KnowledgeBaseModel {
 
   addFilesToKnowledgeBase = async (id: string, fileIds: string[]) => {
     await this.logger.methodEntry('addFilesToKnowledgeBase', { id, count: fileIds.length });
-    
-    try {
-      const now = currentTimestampMs();
 
+    try {
       await Promise.all(
         fileIds.map((fileId) =>
           DB.BatchLinkKnowledgeBaseToFiles({
             knowledgeBaseId: id,
             fileId,
-            userId: this.userId,
-            createdAt: now,
           }),
         ),
       );
-      
+
       await this.logger.methodExit('addFilesToKnowledgeBase', { id, count: fileIds.length });
     } catch (error) {
       await this.logger.error('Failed to add files to knowledge base', { error, id, fileIds });
@@ -104,14 +94,11 @@ export class KnowledgeBaseModel {
 
   // delete
   delete = async (id: string) => {
-    await this.logger.methodEntry('delete', { id, userId: this.userId });
-    
+    await this.logger.methodEntry('delete', { id });
+
     try {
-      await DB.DeleteKnowledgeBase({
-        id,
-        userId: this.userId,
-      });
-      
+      await DB.DeleteKnowledgeBase(id);
+
       await this.logger.methodExit('delete', { id });
     } catch (error) {
       await this.logger.error('Failed to delete knowledge base', { error, id });
@@ -125,7 +112,7 @@ export class KnowledgeBaseModel {
 
   deleteAll = async () => {
     try {
-      await DB.DeleteAllKnowledgeBases(this.userId);
+      await DB.DeleteAllKnowledgeBases();
     } catch (error) {
       await this.logger.error('Failed to delete all knowledge bases', { error });
       await this.showErrorNotification(
@@ -138,7 +125,7 @@ export class KnowledgeBaseModel {
 
   removeFilesFromKnowledgeBase = async (knowledgeBaseId: string, ids: string[]) => {
     await this.logger.methodEntry('removeFilesFromKnowledgeBase', { knowledgeBaseId, count: ids.length });
-    
+
     try {
       await Promise.all(
         ids.map((fileId) =>
@@ -148,7 +135,7 @@ export class KnowledgeBaseModel {
           }),
         ),
       );
-      
+
       await this.logger.methodExit('removeFilesFromKnowledgeBase', { knowledgeBaseId, count: ids.length });
     } catch (error) {
       await this.logger.error('Failed to remove files from knowledge base', { error, knowledgeBaseId, ids });
@@ -163,7 +150,7 @@ export class KnowledgeBaseModel {
   // query
   query = async () => {
     try {
-      const results = await DB.ListKnowledgeBases(this.userId);
+      const results = await DB.ListKnowledgeBases();
       return results.map((r) => this.mapKnowledgeBase(r)) as KnowledgeBaseItem[];
     } catch (error) {
       await this.logger.error('Failed to query knowledge bases', { error });
@@ -173,10 +160,7 @@ export class KnowledgeBaseModel {
 
   findById = async (id: string) => {
     try {
-      const result = await DB.GetKnowledgeBase({
-        id,
-        userId: this.userId,
-      });
+      const result = await DB.GetKnowledgeBase(id);
       return this.mapKnowledgeBase(result);
     } catch (error) {
       await this.logger.warn('Knowledge base not found', { id, error });
@@ -187,20 +171,19 @@ export class KnowledgeBaseModel {
   // update
   update = async (id: string, value: Partial<KnowledgeBaseItem>) => {
     await this.logger.methodEntry('update', { id, value, userId: this.userId });
-    
+
     try {
       const now = currentTimestampMs();
 
       await DB.UpdateKnowledgeBase({
         id,
-        userId: this.userId,
         name: value.name || '',
         description: toNullString(value.description as any),
         avatar: toNullString(value.avatar as any),
         settings: toNullJSON(value.settings) as any,
         updatedAt: now,
       });
-      
+
       await this.logger.methodExit('update', { id });
     } catch (error) {
       await this.logger.error('Failed to update knowledge base', { error, id, value });
@@ -214,18 +197,13 @@ export class KnowledgeBaseModel {
 
   static findById = async (_db: any, id: string) => {
     try {
-      const result = await DB.GetKnowledgeBase({
-        id,
-        userId: '', // Static method doesn't have userId context
-      });
+      const result = await DB.GetKnowledgeBase(id);
       return {
         id: result.id,
         name: result.name,
         description: getNullableString(result.description as any),
         avatar: getNullableString(result.avatar as any),
         type: getNullableString(result.type as any),
-        userId: result.userId,
-        clientId: getNullableString(result.clientId as any),
         isPublic: intToBool(result.isPublic),
         settings: parseNullableJSON(result.settings as any),
         createdAt: new Date(result.createdAt),
@@ -245,8 +223,6 @@ export class KnowledgeBaseModel {
       description: getNullableString(kb.description as any),
       avatar: getNullableString(kb.avatar as any),
       type: getNullableString(kb.type as any),
-      userId: kb.userId,
-      clientId: getNullableString(kb.clientId as any),
       isPublic: intToBool(kb.isPublic),
       settings: parseNullableJSON(kb.settings as any),
       createdAt: new Date(kb.createdAt),

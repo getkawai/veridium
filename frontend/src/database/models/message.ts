@@ -73,7 +73,6 @@ export class MessageModel {
     if (sessionId !== undefined && sessionId !== null) {
       await this.logger.debug(`Querying messages by session: ${sessionId}`);
       messages = await DB.ListMessagesBySession({
-        userId: this.userId,
         sessionId: toNullString(sessionId) as any,
         limit: pageSize,
         offset,
@@ -81,7 +80,6 @@ export class MessageModel {
     } else if (topicId !== undefined && topicId !== null) {
       await this.logger.debug(`Querying messages by topic: ${topicId}`);
       messages = await DB.ListMessagesByTopic({
-        userId: this.userId,
         topicId: toNullString(topicId) as any,
         limit: pageSize,
         offset,
@@ -89,7 +87,6 @@ export class MessageModel {
     } else if (groupId !== undefined && groupId !== null) {
       await this.logger.debug(`Querying messages by group: ${groupId}`);
       messages = await DB.ListMessagesByGroup({
-        userId: this.userId,
         groupId: toNullString(groupId) as any,
         limit: pageSize,
         offset,
@@ -97,7 +94,6 @@ export class MessageModel {
     } else {
       await this.logger.debug('Querying all messages');
       messages = await DB.ListMessages({
-        userId: this.userId,
         limit: pageSize,
         offset,
       });
@@ -115,10 +111,7 @@ export class MessageModel {
     // 2. Get relative files (N+1 query)
     const relatedFileList = await Promise.all(
       messageIds.map(async (messageId) => {
-        const files = await DB.GetMessageFiles({
-          messageId,
-          userId: this.userId,
-        });
+        const files = await DB.GetMessageFiles(messageId);
 
         return files.map((file) => ({
           id: file.id,
@@ -153,10 +146,7 @@ export class MessageModel {
       await Promise.all(
         fileIds.map(async (fileId) => {
           try {
-            const doc = await DB.GetDocumentByFileId({
-              fileId: toNullString(fileId),
-              userId: this.userId,
-            });
+            const doc = await DB.GetDocumentByFileId(fileId);
             if (doc && doc.fileId) {
               const fileIdStr = getNullableString(doc.fileId as any);
               if (fileIdStr) {
@@ -182,10 +172,7 @@ export class MessageModel {
     await Promise.all(
       messageIds.map(async (msgId) => {
         try {
-          const chunks = await DB.GetMessageQueryChunks({
-            messageIds: [toNullString(msgId)],
-            userId: this.userId,
-          });
+          const chunks = await DB.GetMessageQueryChunks(msgId);
           chunksList.push(...chunks.map((c: any) => ({ ...c, messageId: msgId })));
         } catch {
           // Chunks query might fail
@@ -197,10 +184,7 @@ export class MessageModel {
     const messageQueriesList = await Promise.all(
       messageIds.map(async (messageId) => {
         try {
-          const queries = await DB.ListMessageQueriesByMessage({
-            messageId,
-            userId: this.userId,
-          });
+          const queries = await DB.ListMessageQueriesByMessage(messageId);
           return queries.map((q) => ({
             id: q.id,
             messageId: q.messageId,
@@ -223,26 +207,17 @@ export class MessageModel {
     await Promise.all(
       messageIds.map(async (messageId) => {
         try {
-          const plugin = await DB.GetMessagePlugin({
-            id: messageId,
-            userId: this.userId,
-          });
+          const plugin = await DB.GetMessagePlugin(messageId);
           if (plugin) pluginsMap.set(messageId, plugin);
         } catch { }
 
         try {
-          const translate = await DB.GetMessageTranslate({
-            id: messageId,
-            userId: this.userId,
-          });
+          const translate = await DB.GetMessageTranslate(messageId);
           if (translate) translatesMap.set(messageId, translate);
         } catch { }
 
         try {
-          const tts = await DB.GetMessageTTS({
-            id: messageId,
-            userId: this.userId,
-          });
+          const tts = await DB.GetMessageTTS(messageId);
           if (tts) ttsMap.set(messageId, tts);
         } catch { }
       }),
@@ -317,8 +292,8 @@ export class MessageModel {
             fileType: getNullableString(c.fileType as any) || getNullableString(c.FileType as any) || c.fileType,
             fileUrl: getNullableString(c.fileUrl as any) || getNullableString(c.FileUrl as any) || c.fileUrl,
             text: getNullableString(c.text as any) || c.text,
-            similarity: typeof c.similarity === 'number' 
-              ? c.similarity 
+            similarity: typeof c.similarity === 'number'
+              ? c.similarity
               : (c.similarity?.Int64 ?? c.similarity?.Valid ? Number(c.similarity.Int64) : undefined),
           })),
         fileList: fileList
@@ -349,13 +324,10 @@ export class MessageModel {
   };
 
   findById = async (id: string) => {
-    await this.logger.methodEntry('findById', { id, userId: this.userId });
+    await this.logger.methodEntry('findById', { id });
 
     try {
-      const message = await DB.GetMessage({
-        id,
-        userId: this.userId,
-      });
+      const message = await DB.GetMessage(id);
       await this.logger.methodExit('findById', { found: !!message });
       return message;
     } catch (error) {
@@ -366,10 +338,7 @@ export class MessageModel {
 
   findMessageQueriesById = async (messageId: string) => {
     try {
-      const queries = await DB.ListMessageQueriesByMessage({
-        messageId,
-        userId: this.userId,
-      });
+      const queries = await DB.ListMessageQueriesByMessage(messageId);
 
       if (queries.length === 0) return undefined;
 
@@ -406,7 +375,6 @@ export class MessageModel {
 
   queryAll = async () => {
     const messages = await DB.ListMessages({
-      userId: this.userId,
       limit: 10000,
       offset: 0,
     });
@@ -416,7 +384,6 @@ export class MessageModel {
 
   queryBySessionId = async (sessionId?: string | null) => {
     const allMessages = await DB.ListMessages({
-      userId: this.userId,
       limit: 10000,
       offset: 0,
     });
@@ -436,7 +403,6 @@ export class MessageModel {
     if (!keyword) return [];
 
     const messages = await DB.SearchMessagesByKeyword({
-      userId: this.userId,
       content: toNullString(`%${keyword}%`),
       limit: 1000,
     });
@@ -449,10 +415,10 @@ export class MessageModel {
     range?: [string, string];
     startDate?: string;
   }): Promise<number> => {
-    await this.logger.methodEntry('count', { params, userId: this.userId });
+    await this.logger.methodEntry('count', { params });
 
     if (!params) {
-      const result = await DB.CountMessages(this.userId);
+      const result = await DB.CountMessages();
       const count = Number(result) || 0;
       await this.logger.methodExit('count', { count });
       return count;
@@ -473,7 +439,6 @@ export class MessageModel {
     await this.logger.debug(`Counting messages in date range: ${new Date(startTime).toISOString()} to ${new Date(endTime).toISOString()}`);
 
     const result = await DB.CountMessagesByDateRange({
-      userId: this.userId,
       createdAt: startTime,
       createdAt2: endTime,
     });
@@ -488,7 +453,7 @@ export class MessageModel {
     startDate?: string;
   }): Promise<number> => {
     if (!params) {
-      const result = await DB.CountMessageWords(this.userId);
+      const result = await DB.CountMessageWords();
       return Number(result) || 0;
     }
 
@@ -505,7 +470,6 @@ export class MessageModel {
     }
 
     const result = await DB.CountMessageWordsByDateRange({
-      userId: this.userId,
       createdAt: startTime,
       createdAt2: endTime,
     });
@@ -513,10 +477,7 @@ export class MessageModel {
   };
 
   rankModels = async (limit: number = 10): Promise<ModelRankItem[]> => {
-    const result = await DB.RankModels({
-      userId: this.userId,
-      limit,
-    });
+    const result = await DB.RankModels(limit);
 
     return result.map((r) => ({
       id: getNullableString(r.id as any) || '',
@@ -530,7 +491,6 @@ export class MessageModel {
 
     // Use optimized query with GROUP BY date
     const result = await DB.GetMessageHeatmaps({
-      userId: this.userId,
       createdAt: startDate.valueOf(),
       createdAt2: endDate.valueOf(),
     });
@@ -568,7 +528,6 @@ export class MessageModel {
 
   hasMoreThanN = async (n: number): Promise<boolean> => {
     const messages = await DB.ListMessages({
-      userId: this.userId,
       limit: n + 1,
       offset: 0,
     });
@@ -628,8 +587,6 @@ export class MessageModel {
         tools: toNullJSON((normalizedMessage as any).tools),
         traceId: toNullString(normalizedMessage.traceId as any),
         observationId: toNullString((normalizedMessage as any).observationId as any),
-        clientId: toNullString((normalizedMessage as any).clientId as any),
-        userId: this.userId,
         sessionId: toNullString(normalizedMessage.sessionId as any),
         topicId: toNullString(normalizedMessage.topicId as any),
         threadId: toNullString(normalizedMessage.threadId as any),
@@ -651,8 +608,6 @@ export class MessageModel {
         identifier: toNullString(plugin?.identifier as any),
         state: toNullJSON(pluginState),
         error: toNullJSON(null),
-        clientId: toNullString(null),
-        userId: this.userId,
       } : null,
       FileIds: files || [],
       FileChunks: (fileChunks && ragQueryId) ? fileChunks.map((chunk) => ({
@@ -660,7 +615,7 @@ export class MessageModel {
         QueryId: ragQueryId,
         Similarity: { Int64: chunk.similarity || 0, Valid: !!chunk.similarity } as any,
       })) : [],
-    }, this.userId);
+    });
 
     await this.logger.methodExit('create', { messageId: item.id });
     return item as unknown as DBMessageItem;
@@ -713,9 +668,6 @@ export class MessageModel {
       messageId: params.messageId,
       rewriteQuery: toNullString(params.rewriteQuery as any),
       userQuery: toNullString(params.userQuery as any),
-      clientId: toNullString(''),
-      userId: this.userId,
-      embeddingsId: toNullString(params.embeddingsId as any),
     });
   };
 
@@ -749,7 +701,7 @@ export class MessageModel {
         MessageId: id,
         Message: updateParams,
         ImageIds: imageList.map((file) => file.id),
-      }, this.userId);
+      });
       await this.logger.methodExit('update', { id, withImages: true });
       return result;
     }
@@ -785,7 +737,6 @@ export class MessageModel {
 
     const result = await DB.UpdateMessage({
       id,
-      userId: this.userId,
       content: toNullString(item.content as any),
       reasoning: toNullJSON(item.reasoning),  // reasoning is object, use toNullJSON
       metadata: toNullJSON(mergedMetadata),
@@ -801,13 +752,9 @@ export class MessageModel {
     await this.logger.methodEntry('updatePluginState', {
       id,
       stateKeys: Object.keys(state),
-      userId: this.userId
     });
 
-    const item = await DB.GetMessagePlugin({
-      id,
-      userId: this.userId,
-    });
+    const item = await DB.GetMessagePlugin(id);
 
     if (!item) {
       await this.logger.error('Plugin not found', null, { id });
@@ -825,7 +772,6 @@ export class MessageModel {
 
     const result = await DB.UpdateMessagePlugin({
       id,
-      userId: this.userId,
       state: toNullJSON(mergedState),
       error: item.error,
     });
@@ -835,16 +781,12 @@ export class MessageModel {
   };
 
   updateMessagePlugin = async (id: string, value: { state?: any; error?: any }) => {
-    const item = await DB.GetMessagePlugin({
-      id,
-      userId: this.userId,
-    });
+    const item = await DB.GetMessagePlugin(id);
 
     if (!item) throw new Error('Plugin not found');
 
     return await DB.UpdateMessagePlugin({
       id,
-      userId: this.userId,
       state: value.state !== undefined ? toNullJSON(value.state) : item.state,
       error: value.error !== undefined ? toNullJSON(value.error) : item.error,
     });
@@ -865,7 +807,6 @@ export class MessageModel {
           queryId: toNullString(ragQueryId),
           chunkId: toNullString(chunk.id),
           similarity: { Int64: chunk.similarity || 0, Valid: !!chunk.similarity } as any,
-          userId: this.userId,
         }),
       ),
     );
@@ -878,7 +819,7 @@ export class MessageModel {
    * Deletes message and all related tool messages atomically
    */
   deleteMessage = async (id: string) => {
-    await this.logger.methodEntry('deleteMessage', { id, userId: this.userId });
+    await this.logger.methodEntry('deleteMessage', { id });
 
     const message = await this.findById(id);
     if (!message) {
@@ -896,7 +837,6 @@ export class MessageModel {
     await DBService.DeleteMessageWithRelated(
       JSON.stringify(toolCallIds),
       [id],
-      this.userId
     );
 
     await this.logger.methodExit('deleteMessage', { id, deletedToolCalls: toolCallIds.length });
@@ -905,69 +845,36 @@ export class MessageModel {
   deleteMessages = async (ids: string[]) => {
     await this.logger.methodEntry('deleteMessages', {
       count: ids.length,
-      userId: this.userId
     });
 
-    await DB.BatchDeleteMessages({
-      userId: this.userId,
-      ids,
-    });
+    await DB.BatchDeleteMessages(ids);
 
     await this.logger.methodExit('deleteMessages', { deletedCount: ids.length });
   };
 
   deleteMessageTranslate = async (id: string) => {
-    await DB.DeleteMessageTranslate({
-      id,
-      userId: this.userId,
-    });
+    await DB.DeleteMessageTranslate(id);
   };
 
   deleteMessageTTS = async (id: string) => {
-    await DB.DeleteMessageTTS({
-      id,
-      userId: this.userId,
-    });
+    await DB.DeleteMessageTTS(id);
   };
-
 
   deleteMessagesBySession = async (
     sessionId?: string | null,
     topicId?: string | null,
     groupId?: string | null,
   ) => {
-    await this.logger.methodEntry('deleteMessagesBySession', {
-      sessionId,
-      topicId,
-      groupId,
-      userId: this.userId
-    });
-
     if (sessionId) {
-      await this.logger.debug(`Deleting messages by session: ${sessionId}`);
-      await DB.DeleteMessagesBySession({
-        sessionId: toNullString(sessionId),
-        userId: this.userId,
-      });
+      await DB.DeleteMessagesBySession(toNullString(sessionId));
     } else if (topicId) {
-      await this.logger.debug(`Deleting messages by topic: ${topicId}`);
-      await DB.DeleteMessagesByTopic({
-        topicId: toNullString(topicId),
-        userId: this.userId,
-      });
+      await DB.DeleteMessagesByTopic(toNullString(topicId));
     } else if (groupId) {
-      await this.logger.debug(`Deleting messages by group: ${groupId}`);
-      await DB.DeleteMessagesByGroup({
-        groupId: toNullString(groupId),
-        userId: this.userId,
-      });
+      await DB.DeleteMessagesByGroup(toNullString(groupId));
     }
-
-    await this.logger.methodExit('deleteMessagesBySession', { sessionId, topicId, groupId });
   };
 
   deleteAllMessages = async () => {
-    return await DB.DeleteAllMessages(this.userId);
+    return await DB.DeleteAllMessages();
   };
-}
-
+};

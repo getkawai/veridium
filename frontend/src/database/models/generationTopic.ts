@@ -9,7 +9,6 @@ import {
   GenerationTopic,
 } from '@/types/database';
 import { createModelLogger } from '@/utils/logger';
-import { GenerationTopicItem } from '@/types/database-legacy';
 import { NotificationService, NotificationOptions } from '@@/github.com/wailsapp/wails/v3/pkg/services/notifications';
 import { GetFullFileUrl } from '@@/github.com/kawai-network/veridium/internal/services/fileservice';
 
@@ -41,7 +40,7 @@ export class GenerationTopicModel {
 
   queryAll = async (): Promise<ImageGenerationTopic[]> => {
     try {
-      const topics: GenerationTopic[] = await DB.ListGenerationTopics(this.userId);
+      const topics: GenerationTopic[] = await DB.ListGenerationTopics();
 
       return Promise.all(
         topics.map(async (topic): Promise<ImageGenerationTopic> => {
@@ -72,7 +71,6 @@ export class GenerationTopicModel {
 
       const newGenerationTopic = await DB.CreateGenerationTopic({
         id,
-        userId: this.userId,
         title: toNullString(title),
         coverUrl: toNullString(null),
         createdAt: now,
@@ -94,12 +92,12 @@ export class GenerationTopicModel {
   update = async (
     id: string,
     data: Partial<ImageGenerationTopic>,
-  ): Promise<GenerationTopicItem | undefined> => {
+  ): Promise<GenerationTopic | undefined> => {
     await this.logger.methodEntry('update', { id, data, userId: this.userId });
 
     try {
       // 1. Fetch existing topic to preserve fields
-      const existing = await DB.GetGenerationTopic({ id, userId: this.userId });
+      const existing = await DB.GetGenerationTopic(id);
       if (!existing) {
         throw new Error(`Topic with id ${id} not found`);
       }
@@ -111,21 +109,13 @@ export class GenerationTopicModel {
 
       const updatedTopic: GenerationTopic = await DB.UpdateGenerationTopic({
         id,
-        userId: this.userId,
         title: toNullString(titleToSave),
         coverUrl: toNullString(coverUrlToSave),
         updatedAt: currentTimestampMs(),
       });
 
       await this.logger.methodExit('update', { id });
-      return {
-        id: updatedTopic.id,
-        userId: updatedTopic.userId,
-        title: getNullableString(updatedTopic.title as any) ?? null,
-        coverUrl: getNullableString(updatedTopic.coverUrl as any) ?? null,
-        createdAt: updatedTopic.createdAt,
-        updatedAt: updatedTopic.updatedAt,
-      };
+      return updatedTopic;
     } catch (error) {
       await this.logger.error('Failed to update generation topic', { error, id, data });
       await this.showErrorNotification(
@@ -147,15 +137,12 @@ export class GenerationTopicModel {
    */
   delete = async (
     id: string,
-  ): Promise<{ deletedTopic: GenerationTopicItem; filesToDelete: string[] } | undefined> => {
+  ): Promise<{ deletedTopic: GenerationTopic; filesToDelete: string[] } | undefined> => {
     await this.logger.methodEntry('delete', { id, userId: this.userId });
 
     try {
       // 1. Get topic to verify ownership
-      const topic = await DB.GetGenerationTopic({
-        id,
-        userId: this.userId,
-      });
+      const topic = await DB.GetGenerationTopic(id);
 
       if (!topic) {
         await this.logger.warn('Generation topic not found', { id });
@@ -163,10 +150,7 @@ export class GenerationTopicModel {
       }
 
       // 2. Get all assets from generations under this topic
-      const assets = await DB.GetGenerationTopicAssets({
-        id: toNullString(id) as any,
-        userId: this.userId,
-      });
+      const assets = await DB.GetGenerationTopicAssets(id);
 
       // 3. Collect all file URLs
       const filesToDelete: string[] = [];
@@ -186,21 +170,11 @@ export class GenerationTopicModel {
       }
 
       // 4. Delete the topic record (cascade will handle batches and generations)
-      await DB.DeleteGenerationTopic({
-        id,
-        userId: this.userId,
-      });
+      await DB.DeleteGenerationTopic(id);
 
       await this.logger.methodExit('delete', { id, filesCount: filesToDelete.length });
       return {
-        deletedTopic: {
-          id: topic.id,
-          userId: topic.userId,
-          title: getNullableString(topic.title as any) ?? null,
-          coverUrl: getNullableString(topic.coverUrl as any) ?? null,
-          createdAt: topic.createdAt,
-          updatedAt: topic.updatedAt,
-        },
+        deletedTopic: topic,
         filesToDelete,
       };
     } catch (error) {

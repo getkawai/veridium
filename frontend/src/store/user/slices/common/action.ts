@@ -4,7 +4,7 @@ import type { StateCreator } from 'zustand/vanilla';
 
 import { DEFAULT_PREFERENCE } from '@/const/user';
 import type { UserStore } from '@/store/user';
-import { DB, toNullString, parseNullableJSON, getNullableString } from '@/types/database';
+import { DB, toNullString, parseNullableJSON } from '@/types/database';
 import { getUserId } from '../../helpers';
 import { AsyncLocalStorage } from '@/utils/localStorage';
 
@@ -69,57 +69,50 @@ export const createCommonSlice: StateCreator<
       const initUserState = async () => {
         try {
           const userId = getUserId();
-          
-          // Ensure user exists
-          await DB.EnsureUserExists({
-            id: userId,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-          });
-          
-          // Get user with settings
-          const dbUser = await DB.GetUserWithSettings(userId);
-          
+
+          // Get user settings
+          // Backend ensures default settings exist on startup
+          const dbSettings = await DB.GetUserSettings(userId);
+
           // Count messages and sessions
           const [messageCount, sessionCount] = await Promise.all([
-            DB.CountMessages(userId),
-            DB.CountSessions(userId),
+            DB.CountMessages(),
+            DB.CountSessions(),
           ]);
-          
+
           // Get preference from LocalStorage
           const preference = await preferenceStorage.getFromLocalStorage();
-          
+
           // Map to UserInitializationState
           const data: UserInitializationState = {
-            userId: dbUser.id,
-            username: getNullableString(dbUser.username) || undefined,
-            email: getNullableString(dbUser.email) || undefined,
-            avatar: getNullableString(dbUser.avatar) || '',
-            firstName: getNullableString(dbUser.firstName) || undefined,
-            lastName: getNullableString(dbUser.lastName) || undefined,
-            fullName: [getNullableString(dbUser.firstName), getNullableString(dbUser.lastName)]
-              .filter(Boolean)
-              .join(' ') || undefined,
-            isOnboard: Boolean(dbUser.isOnboarded),
+            userId: userId,
+            // User profile data is no longer stored in DB, use defaults
+            username: 'User',
+            email: undefined,
+            avatar: '',
+            firstName: undefined,
+            lastName: undefined,
+            fullName: undefined,
+            isOnboard: true,
             canEnablePWAGuide: messageCount >= 4,
             canEnableTrace: messageCount >= 4,
             hasConversation: messageCount > 0 || sessionCount > 0,
             preference: (preference || { telemetry: { enabled: false } }) as any,
             settings: {
-              tts: parseNullableJSON(dbUser.settingsTts),
-              hotkey: parseNullableJSON(dbUser.settingsHotkey),
-              keyVaults: parseNullableJSON(dbUser.settingsKeyVaults),
-              general: parseNullableJSON(dbUser.settingsGeneral),
-              languageModel: parseNullableJSON(dbUser.settingsLanguageModel),
-              systemAgent: parseNullableJSON(dbUser.settingsSystemAgent),
-              defaultAgent: parseNullableJSON(dbUser.settingsDefaultAgent),
-              tool: parseNullableJSON(dbUser.settingsTool),
-              image: parseNullableJSON(dbUser.settingsImage),
+              tts: parseNullableJSON(dbSettings.tts),
+              hotkey: parseNullableJSON(dbSettings.hotkey),
+              keyVaults: parseNullableJSON(dbSettings.keyVaults),
+              general: parseNullableJSON(dbSettings.general),
+              languageModel: parseNullableJSON(dbSettings.languageModel),
+              systemAgent: parseNullableJSON(dbSettings.systemAgent),
+              defaultAgent: parseNullableJSON(dbSettings.defaultAgent),
+              tool: parseNullableJSON(dbSettings.tool),
+              image: parseNullableJSON(dbSettings.image),
             } as any,
           };
-          
+
           console.log('[User] Fetched user state via direct DB');
-          
+
           options?.onSuccess?.(data);
 
           if (data) {
@@ -141,14 +134,14 @@ export const createCommonSlice: StateCreator<
             const user =
               data.avatar || data.userId
                 ? merge(get().user, {
-                    avatar: data.avatar,
-                    email: data.email,
-                    firstName: data.firstName,
-                    fullName: data.fullName,
-                    id: data.userId,
-                    latestName: data.lastName,
-                    username: data.username,
-                  } as LobeUser)
+                  avatar: data.avatar,
+                  email: data.email,
+                  firstName: data.firstName,
+                  fullName: data.fullName,
+                  id: data.userId,
+                  latestName: data.lastName,
+                  username: data.username,
+                } as LobeUser)
                 : get().user;
 
             set(
