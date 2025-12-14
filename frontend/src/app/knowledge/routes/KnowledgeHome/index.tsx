@@ -51,8 +51,13 @@ const FilesListPage = memo(() => {
 
 FilesListPage.displayName = 'FilesListPage';
 
+import { useKnowledgeBaseStore } from '@/store/knowledgeBase';
+import KnowledgeBaseDetailPage from '../KnowledgeBaseDetail';
+
 // Main Knowledge Home Page
 const KnowledgeHomePage = memo(() => {
+  const activeKnowledgeBaseId = useKnowledgeBaseStore((s) => s.activeKnowledgeBaseId);
+
   return (
     <>
       <NProgress />
@@ -66,7 +71,11 @@ const KnowledgeHomePage = memo(() => {
           <MenuContent />
         </FilePanel>
         <Container>
-          <FilesListPage />
+          {activeKnowledgeBaseId ? (
+            <KnowledgeBaseDetailPage id={activeKnowledgeBaseId} />
+          ) : (
+            <FilesListPage />
+          )}
         </Container>
       </Flexbox>
       <RegisterHotkeys />

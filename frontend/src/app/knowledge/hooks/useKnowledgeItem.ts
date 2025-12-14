@@ -1,7 +1,13 @@
+import { useEffect } from 'react';
+
 import { useKnowledgeBaseStore } from '@/store/knowledgeBase';
 
 export const useKnowledgeBaseItem = (id: string) => {
-  const useFetchKnowledgeBaseItem = useKnowledgeBaseStore((s) => s.useFetchKnowledgeBaseItem);
+  const fetchKnowledgeBaseItem = useKnowledgeBaseStore((s) => s.internal_fetchKnowledgeBaseItem);
 
-  return useFetchKnowledgeBaseItem(id);
+  useEffect(() => {
+    if (id) {
+      fetchKnowledgeBaseItem(id);
+    }
+  }, [fetchKnowledgeBaseItem, id]);
 };

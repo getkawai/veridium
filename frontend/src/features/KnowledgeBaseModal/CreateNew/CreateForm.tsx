@@ -27,7 +27,7 @@ const CreateForm = memo<CreateFormProps>(({ onClose, onSuccess }) => {
       if (onSuccess) {
         onSuccess(id);
       } else {
-        window.location.href = `/knowledge/bases/${id}`;
+        useKnowledgeBaseStore.getState().activateKnowledgeBase(id);
       }
     } catch (e) {
       console.error(e);

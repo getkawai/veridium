@@ -4,23 +4,16 @@ import { ArrowLeft } from 'lucide-react';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
-import { useNavigate } from 'react-router-dom';
+import { useKnowledgeBaseStore } from '@/store/knowledgeBase';
 
 const useStyles = createStyles(({ css, token }) => {
   return {
     container: css`
       cursor: pointer;
-
-      width: fit-content;
-      height: 24px;
-      padding-inline: 8px;
-      border-radius: 6px;
-
-      color: ${token.colorTextTertiary};
+      color: ${token.colorTextDescription};
 
       &:hover {
-        color: ${token.colorTextSecondary};
-        background: ${token.colorFillTertiary};
+        color: ${token.colorText};
       }
     `,
   };
@@ -31,20 +24,20 @@ interface GoBackProps {
    * The path to navigate to (relative to MemoryRouter)
    * e.g., "/" for /knowledge, "/bases" for /knowledge/bases
    */
-  to: string;
+  to?: string;
 }
 
 /**
  * GoBack component for react-router-dom
  * Uses useNavigate instead of Next.js Link
  */
-const GoBack = memo<GoBackProps>(({ to }) => {
+const GoBack = memo<GoBackProps>(() => {
   const { t } = useTranslation('components');
   const { styles } = useStyles();
-  const navigate = useNavigate();
+  const deactivateKnowledgeBase = useKnowledgeBaseStore((s) => s.deactivateKnowledgeBase);
 
   const handleClick = () => {
-    navigate(to);
+    deactivateKnowledgeBase();
   };
 
   return (

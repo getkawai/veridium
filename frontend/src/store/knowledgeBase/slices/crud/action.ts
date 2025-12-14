@@ -17,6 +17,8 @@ export interface KnowledgeBaseCrudAction {
 
   internal_fetchKnowledgeBaseItem: (id: string) => Promise<void>;
   fetchKnowledgeBaseList: () => Promise<void>;
+  activateKnowledgeBase: (id: string) => void;
+  deactivateKnowledgeBase: () => void;
 }
 
 export const createCrudSlice: StateCreator<
@@ -106,5 +108,11 @@ export const createCrudSlice: StateCreator<
       console.error('[fetchKnowledgeBaseList] Error:', error);
       set({ isFetchingList: false, knowledgeBaseList: [] }, false, 'fetchKnowledgeBaseList/error');
     }
+  },
+  activateKnowledgeBase: (id) => {
+    set({ activeKnowledgeBaseId: id }, false, 'activateKnowledgeBase');
+  },
+  deactivateKnowledgeBase: () => {
+    set({ activeKnowledgeBaseId: null }, false, 'deactivateKnowledgeBase');
   },
 });

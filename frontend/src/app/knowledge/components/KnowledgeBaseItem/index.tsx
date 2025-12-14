@@ -34,6 +34,8 @@ const useStyles = createStyles(({ css, token, isDarkMode }) => ({
   `,
 }));
 
+import { useKnowledgeBaseStore } from '@/store/knowledgeBase';
+
 export interface KnowledgeBaseItemProps {
   active?: boolean;
   id: string;
@@ -43,9 +45,10 @@ export interface KnowledgeBaseItemProps {
 const KnowledgeBaseItem = memo<KnowledgeBaseItemProps>(({ name, active, id }) => {
   const { styles, cx } = useStyles();
   const [isHover, setHovering] = useState(false);
+  const activateKnowledgeBase = useKnowledgeBaseStore((s) => s.activateKnowledgeBase);
 
   const handleClick = () => {
-    // navigate(`/bases/${id}`);
+    activateKnowledgeBase(id);
   };
 
   return (
