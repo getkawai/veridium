@@ -264,6 +264,17 @@ func (ctx *Context) buildModelChain(bgCtx context.Context, localModel fantasy.La
 	// 	}
 	// }
 
+	if provider, err := openaicompat.New(
+		openaicompat.WithName("pollinations"),
+		openaicompat.WithBaseURL("https://text.pollinations.ai/openai"),
+		openaicompat.WithAPIKey("dummy"), // Pollinations doesn't require API key, but SDK needs one
+	); err == nil {
+		if pollinationsModel, err := provider.LanguageModel(bgCtx, "openai"); err == nil {
+			chain = append(chain, pollinationsModel)
+			log.Printf("%s: Pollinations AI (openai)", taskName)
+		}
+	}
+
 	// 2. ZAI GLM-4.6 (fallback before local)
 	zaiKey := os.Getenv("ZAI_API_KEY")
 	if zaiKey == "" {
