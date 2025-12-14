@@ -88,7 +88,18 @@ const SessionItem = memo<SessionItemProps>(({ id }) => {
   );
 
   const addon = useMemo(
-    () => description || undefined,
+    () =>
+      description ? (
+        <div
+          style={{
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {description}
+        </div>
+      ) : undefined,
     [description],
   );
 

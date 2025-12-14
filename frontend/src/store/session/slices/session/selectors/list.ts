@@ -18,7 +18,9 @@ const allSessions = (s: SessionStore): LobeSessions => s.sessions;
 const getSessionById =
   (id: string) =>
     (s: SessionStore): LobeSession =>
-      sessionHelpers.getSessionById(id, allSessions(s));
+      allSessions(s).find((i) => i.id === id) ||
+      (s.searchResults || []).find((i) => i.id === id) ||
+      sessionHelpers.getSessionById(id, []); // Return default if not found anywhere
 
 const getSessionMetaById =
   (id: string) =>

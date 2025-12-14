@@ -16,7 +16,7 @@ export interface SessionState {
   /**
    * it means defaultSessions
    */
-  sessions: [];
+  sessions: LobeSessions;
   sessionsPage: number;
   sessionsHasMore: boolean;
   signalSessionMeta?: AbortController;

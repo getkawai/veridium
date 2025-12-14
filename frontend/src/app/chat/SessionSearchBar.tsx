@@ -1,9 +1,8 @@
 'use client';
 
 import { SearchBar } from '@lobehub/ui';
-import { memo, useCallback } from 'react';
+import { type ChangeEvent, memo, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { type ChangeEvent } from 'react';
 
 import { useUserStore } from '@/store/user';
 import { useSessionStore } from '@/store/session';
@@ -12,21 +11,36 @@ const HotkeyEnum = {
   Search: 'search',
 } as const;
 
+import { useDebounce } from '@/hooks/useDebounce';
+
 const SessionSearchBar = memo<{ mobile?: boolean }>(({ mobile }) => {
   const { t } = useTranslation('chat');
   const isUserStateInit = useUserStore((s) => s.isUserStateInit);
   const hotkey = useUserStore(settingsSelectors.getHotkeyById(HotkeyEnum.Search));
 
-  const [keywords, updateSearchKeywords] = useSessionStore((s) => [
+  const [sessionSearchKeywords, updateSearchKeywords] = useSessionStore((s) => [
     s.sessionSearchKeywords,
     s.updateSearchKeywords,
   ]);
 
+  const [value, setValue] = useState(sessionSearchKeywords || '');
+  const debouncedValue = useDebounce(value, 500);
+
+  useEffect(() => {
+    setValue(sessionSearchKeywords || '');
+  }, [sessionSearchKeywords]);
+
+  useEffect(() => {
+    if (debouncedValue !== sessionSearchKeywords) {
+      updateSearchKeywords(debouncedValue);
+    }
+  }, [debouncedValue, sessionSearchKeywords, updateSearchKeywords]);
+
   const handleChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
-      updateSearchKeywords(e.target.value);
+      setValue(e.target.value);
     },
-    [updateSearchKeywords],
+    [],
   );
 
   return (
@@ -38,7 +52,7 @@ const SessionSearchBar = memo<{ mobile?: boolean }>(({ mobile }) => {
       placeholder={t('searchAgentPlaceholder')}
       shortKey={hotkey}
       spotlight={!mobile}
-      value={keywords}
+      value={value}
       variant={'filled'}
     />
   );
