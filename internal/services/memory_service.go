@@ -21,8 +21,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
 	"time"
+
+	"github.com/kawai-network/veridium/pkg/xlog"
 
 	"github.com/google/uuid"
 	llamaembed "github.com/kawai-network/veridium/fantasy/providers/llama-embed"
@@ -107,7 +108,7 @@ func NewMemoryService(dbService *database.Service, config *MemoryServiceConfig) 
 		embeddingDim: embeddingDim,
 	}
 
-	log.Println("✅ Memory service initialized")
+	xlog.Info("✅ Memory service initialized")
 	return service, nil
 }
 
@@ -133,7 +134,7 @@ func (s *MemoryService) CreateMemory(ctx context.Context, memory *Memory) (*Memo
 	if memory.Summary != "" {
 		embeddings, err := s.embedder.Embed(ctx, []string{memory.Summary})
 		if err != nil {
-			log.Printf("⚠️  Failed to generate summary embedding: %v", err)
+			xlog.Warn("⚠️  Failed to generate summary embedding", "error", err)
 		} else if len(embeddings) > 0 {
 			summaryVector = float32SliceToBytes(embeddings[0])
 		}
@@ -142,7 +143,7 @@ func (s *MemoryService) CreateMemory(ctx context.Context, memory *Memory) (*Memo
 	if memory.Details != "" {
 		embeddings, err := s.embedder.Embed(ctx, []string{memory.Details})
 		if err != nil {
-			log.Printf("⚠️  Failed to generate details embedding: %v", err)
+			xlog.Warn("⚠️  Failed to generate details embedding", "error", err)
 		} else if len(embeddings) > 0 {
 			detailsVector = float32SliceToBytes(embeddings[0])
 		}
@@ -177,7 +178,7 @@ func (s *MemoryService) CreateMemory(ctx context.Context, memory *Memory) (*Memo
 		}
 	}
 
-	log.Printf("✅ Memory created: %s [%s/%s]", memory.ID, memory.Category, memory.Type)
+	xlog.Info("✅ Memory created", "id", memory.ID, "category", memory.Category, "type", memory.Type)
 
 	return dbMemoryToMemory(&result), nil
 }
@@ -259,7 +260,7 @@ func (s *MemoryService) SemanticSearch(ctx context.Context, query string, limit 
 	if s.duckDB != nil {
 		vectorResults, err := s.duckDB.SearchVectors(ctx, queryEmbedding, limit*2)
 		if err != nil {
-			log.Printf("⚠️  DuckDB search failed, falling back to SQLite: %v", err)
+			xlog.Warn("⚠️  DuckDB search failed, falling back to SQLite", "error", err)
 		} else if len(vectorResults) > 0 {
 			// Get memory IDs and fetch from SQLite
 			ids := make([]string, len(vectorResults))
@@ -321,7 +322,7 @@ func (s *MemoryService) DeleteUserMemory(ctx context.Context, memoryID string) e
 		_ = s.duckDB.DeleteVector(ctx, memoryID)
 	}
 
-	log.Printf("✅ Memory deleted: %s", memoryID)
+	xlog.Info("✅ Memory deleted", "id", memoryID)
 	return nil
 }
 
@@ -357,7 +358,7 @@ func (s *MemoryService) ArchiveOldMemories(ctx context.Context, olderThanDays in
 		return fmt.Errorf("failed to archive old memories: %w", err)
 	}
 
-	log.Printf("✅ Archived memories older than %d days", olderThanDays)
+	xlog.Info("✅ Archived memories", "older_than_days", olderThanDays)
 	return nil
 }
 

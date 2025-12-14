@@ -4,7 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+
+	"github.com/kawai-network/veridium/pkg/xlog"
 
 	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/fantasy/llamalib/tools"
@@ -400,7 +401,7 @@ func RegisterLocalSystem(registry *tools.ToolRegistry) error {
 				return fantasy.NewTextErrorResponse(err.Error()), nil
 			}
 			resultJSON, _ := json.Marshal(result)
-			log.Printf("📁 Listed %d items in: %s", len(result.ListResults), input.Path)
+			xlog.Info("📁 Listed folder items", "folder", input.Path, "count", len(result.ListResults))
 			return fantasy.NewTextResponse(string(resultJSON)), nil
 		},
 	)
@@ -424,7 +425,7 @@ func RegisterLocalSystem(registry *tools.ToolRegistry) error {
 				return fantasy.NewTextErrorResponse(err.Error()), nil
 			}
 			resultJSON, _ := json.Marshal(result)
-			log.Printf("📄 Read file: %s (lines %d-%d)", input.Path, loc[0], loc[1])
+			xlog.Info("📄 Read file", "file", input.Path, "start_line", loc[0], "end_line", loc[1])
 			return fantasy.NewTextResponse(string(resultJSON)), nil
 		},
 	)
@@ -444,7 +445,7 @@ func RegisterLocalSystem(registry *tools.ToolRegistry) error {
 				return fantasy.NewTextErrorResponse(err.Error()), nil
 			}
 			resultJSON, _ := json.Marshal(result)
-			log.Printf("🔍 Found %d files matching: %s", len(result.SearchResults), input.Keywords)
+			xlog.Info("🔍 Local file search completed", "keywords", input.Keywords, "found", len(result.SearchResults))
 			return fantasy.NewTextResponse(string(resultJSON)), nil
 		},
 	)
@@ -464,7 +465,7 @@ func RegisterLocalSystem(registry *tools.ToolRegistry) error {
 				return fantasy.NewTextErrorResponse(err.Error()), nil
 			}
 			resultJSON, _ := json.Marshal(result)
-			log.Printf("✏️  Wrote file: %s", input.Path)
+			xlog.Info("✏️  Wrote file", "file", input.Path)
 			return fantasy.NewTextResponse(string(resultJSON)), nil
 		},
 	)
@@ -484,7 +485,7 @@ func RegisterLocalSystem(registry *tools.ToolRegistry) error {
 				return fantasy.NewTextErrorResponse(err.Error()), nil
 			}
 			resultJSON, _ := json.Marshal(result)
-			log.Printf("📝 Renamed: %s -> %s", input.Path, result.NewPath)
+			xlog.Info("📝 Renamed file", "from", input.Path, "to", result.NewPath)
 			return fantasy.NewTextResponse(string(resultJSON)), nil
 		},
 	)
@@ -504,7 +505,7 @@ func RegisterLocalSystem(registry *tools.ToolRegistry) error {
 				return fantasy.NewTextErrorResponse(err.Error()), nil
 			}
 			resultJSON, _ := json.Marshal(result)
-			log.Printf("📦 Moved %d/%d files", result.SuccessCount, result.TotalCount)
+			xlog.Info("📦 Moved files", "success", result.SuccessCount, "total", result.TotalCount)
 			return fantasy.NewTextResponse(string(resultJSON)), nil
 		},
 	)

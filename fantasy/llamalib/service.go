@@ -3,7 +3,6 @@ package llamalib
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -13,6 +12,7 @@ import (
 	"github.com/kawai-network/veridium/fantasy/llamalib/llama"
 	"github.com/kawai-network/veridium/fantasy/llamalib/mtmd"
 	"github.com/kawai-network/veridium/pkg/hardware"
+	"github.com/kawai-network/veridium/pkg/xlog"
 )
 
 // Service provides LLM inference using llama.cpp as a library (via yzma)
@@ -61,7 +61,7 @@ func NewService() *Service {
 		initChan:  make(chan struct{}),
 	}
 
-	log.Printf("📍 [NewService] Created library-based service instance: %p", service)
+	xlog.Debug("📍 [NewService] Created library-based service instance", "service", fmt.Sprintf("%p", service))
 
 	// Start background initialization
 	go service.initializeInBackground()
@@ -71,77 +71,77 @@ func NewService() *Service {
 
 // initializeInBackground handles llama.cpp installation and library loading
 func (s *Service) initializeInBackground() {
-	log.Printf("🚀 Initializing llama.cpp library in background...")
+	xlog.Info("🚀 Initializing llama.cpp library in background...")
 
 	// Step 1: Check and install llama.cpp if needed
 	if !s.installer.IsLlamaCppInstalled() {
-		log.Println("🔧 llama.cpp not found, attempting auto-installation...")
+		xlog.Info("🔧 llama.cpp not found, attempting auto-installation...")
 
 		// Use InstallLlamaCpp which now uses download.InstallLibraries
 		// This handles version management, auto-upgrade, and fallback automatically
 		if err := s.installer.InstallLlamaCpp(); err != nil {
-			log.Printf("⚠️  Failed to install llama.cpp: %v", err)
-			log.Printf("   llama.cpp features will not be available")
+			xlog.Warn("⚠️  Failed to install llama.cpp", "error", err)
+			xlog.Info("   llama.cpp features will not be available")
 			return
 		}
 
-		log.Println("✅ llama.cpp installed successfully")
+		xlog.Info("✅ llama.cpp installed successfully")
 	} else {
-		log.Println("✅ llama.cpp is already installed")
+		xlog.Info("✅ llama.cpp is already installed")
 	}
 
 	// Step 2: Initialize the library
 	if err := s.InitializeLibrary(); err != nil {
-		log.Printf("⚠️  Failed to initialize llama.cpp library: %v", err)
+		xlog.Error("⚠️  Failed to initialize llama.cpp library", "error", err)
 		return
 	}
 
-	log.Println("✅ llama.cpp library initialized successfully!")
+	xlog.Info("✅ llama.cpp library initialized successfully!")
 
 	// Step 3: Auto-download embedding model (in background)
 	go func() {
-		log.Println("📦 Checking embedding models...")
+		xlog.Info("📦 Checking embedding models...")
 		if err := s.installer.AutoDownloadRecommendedEmbeddingModel(); err != nil {
-			log.Printf("⚠️  Failed to auto-download embedding model: %v", err)
+			xlog.Warn("⚠️  Failed to auto-download embedding model", "error", err)
 		} else {
-			log.Println("✅ Embedding model ready!")
+			xlog.Info("✅ Embedding model ready!")
 		}
 	}()
 
 	// Step 4: Auto-download text model if not available (in BACKGROUND to avoid blocking UI)
 	// Note: This specifically checks for text-only models (not VL models)
 	go func() {
-		log.Println("📦 Checking text models...")
+		xlog.Info("📦 Checking text models...")
 		if err := s.installer.AutoDownloadRecommendedTextModel(); err != nil {
-			log.Printf("⚠️  Failed to auto-download text model: %v", err)
+			xlog.Warn("⚠️  Failed to auto-download text model", "error", err)
 		} else {
-			log.Println("✅ Text model ready!")
+			xlog.Info("✅ Text model ready!")
 		}
 
 		// After ensuring text model exists, load the best chat model
 		models, err := s.GetAvailableModels()
 		if err != nil {
-			log.Printf("⚠️  Failed to check available models: %v", err)
+			xlog.Warn("⚠️  Failed to check available models", "error", err)
 			return
 		}
 
 		if len(models) > 0 {
-			log.Printf("✅ Found %d model(s), auto-loading first model...", len(models))
+			xlog.Info("✅ Found model(s), auto-loading first model...", "count", len(models))
 			if err := s.LoadChatModel(""); err != nil {
-				log.Printf("⚠️  Failed to auto-load chat model: %v", err)
+				xlog.Warn("⚠️  Failed to auto-load chat model", "error", err)
 			} else {
-				log.Println("✅ Chat model loaded and ready!")
+				xlog.Info("✅ Chat model loaded and ready!")
 			}
 		}
 	}()
 
 	// Step 5: Auto-download VL model (in background)
 	go func() {
-		log.Println("📦 Checking VL models...")
+		xlog.Info("📦 Checking VL models...")
 		if err := s.AutoDownloadRecommendedVLModel(); err != nil {
-			log.Printf("⚠️  Failed to auto-download VL model: %v", err)
+			xlog.Warn("⚠️  Failed to auto-download VL model", "error", err)
 		} else {
-			log.Println("✅ VL model ready!")
+			xlog.Info("✅ VL model ready!")
 		}
 	}()
 }
@@ -164,12 +164,12 @@ func (s *Service) InitializeLibrary() error {
 	}
 
 	s.libPath = libPath
-	log.Printf("📚 Loading llama.cpp library from directory: %s", libPath)
+	xlog.Info("📚 Loading llama.cpp library", "path", libPath)
 
 	// Log which libraries were found
 	requiredPaths := s.installer.GetRequiredLibraryPaths()
 	for _, path := range requiredPaths {
-		log.Printf("  ✓ Found: %s", filepath.Base(path))
+		xlog.Debug("  ✓ Found library", "filename", filepath.Base(path))
 	}
 
 	// Load the library (llama.Load expects a directory path)
@@ -179,10 +179,10 @@ func (s *Service) InitializeLibrary() error {
 
 	// Load the mtmd library for multimodal/VL support
 	if err := mtmd.Load(libPath); err != nil {
-		log.Printf("⚠️  Failed to load mtmd library (VL features may not work): %v", err)
+		xlog.Warn("⚠️  Failed to load mtmd library (VL features may not work)", "error", err)
 		// Don't fail completely - VL is optional
 	} else {
-		log.Println("✅ mtmd library loaded (VL support enabled)")
+		xlog.Info("✅ mtmd library loaded (VL support enabled)")
 	}
 
 	// Initialize llama.cpp backend
@@ -197,7 +197,7 @@ func (s *Service) InitializeLibrary() error {
 		close(s.initChan)
 	}
 
-	log.Println("✅ llama.cpp library loaded and backend initialized successfully")
+	xlog.Info("✅ llama.cpp library loaded and backend initialized successfully")
 
 	return nil
 }
@@ -232,7 +232,7 @@ func (s *Service) LoadChatModel(modelPath string) error {
 			return fmt.Errorf("failed to auto-select model: %w", err)
 		}
 		modelPath = autoModel
-		log.Printf("🤖 Auto-selected chat model: %s", modelPath)
+		xlog.Info("🤖 Auto-selected chat model", "model", modelPath)
 	}
 
 	// Verify model file exists
@@ -242,7 +242,7 @@ func (s *Service) LoadChatModel(modelPath string) error {
 
 	// Unload previous model if exists
 	if s.chatModel != 0 {
-		log.Println("♻️  Unloading previous chat model...")
+		xlog.Info("♻️  Unloading previous chat model...")
 		if s.chatContext != 0 {
 			llama.Free(s.chatContext)
 			s.chatContext = 0
@@ -253,7 +253,7 @@ func (s *Service) LoadChatModel(modelPath string) error {
 		}
 	}
 
-	log.Printf("📥 Loading chat model: %s", filepath.Base(modelPath))
+	xlog.Info("📥 Loading chat model", "model", filepath.Base(modelPath))
 
 	// Load model with default parameters
 	mParams := llama.ModelDefaultParams()
@@ -290,7 +290,7 @@ func (s *Service) LoadChatModel(modelPath string) error {
 	llama.SamplerChainAdd(s.chatSampler, llama.SamplerInitDist(llama.DefaultSeed))
 
 	s.chatModelPath = modelPath
-	log.Printf("✅ Chat model loaded successfully: %s", filepath.Base(modelPath))
+	xlog.Info("✅ Chat model loaded successfully", "model", filepath.Base(modelPath))
 
 	return nil
 }
@@ -314,7 +314,7 @@ func (s *Service) LoadEmbeddingModel(modelPath string) error {
 			return fmt.Errorf("no embedding models available")
 		}
 		modelPath = filepath.Join(s.installer.ModelsDir, downloaded[0].Filename)
-		log.Printf("🤖 Auto-selected embedding model: %s", downloaded[0].Name)
+		xlog.Info("🤖 Auto-selected embedding model", "model", downloaded[0].Name)
 	}
 
 	// Verify model file exists
@@ -324,7 +324,7 @@ func (s *Service) LoadEmbeddingModel(modelPath string) error {
 
 	// Unload previous embedding model if exists
 	if s.embModel != 0 {
-		log.Println("♻️  Unloading previous embedding model...")
+		xlog.Info("♻️  Unloading previous embedding model...")
 		if s.embContext != 0 {
 			llama.Free(s.embContext)
 			s.embContext = 0
@@ -335,7 +335,7 @@ func (s *Service) LoadEmbeddingModel(modelPath string) error {
 		}
 	}
 
-	log.Printf("📥 Loading embedding model: %s", filepath.Base(modelPath))
+	xlog.Info("📥 Loading embedding model", "model", filepath.Base(modelPath))
 
 	// Load model
 	mParams := llama.ModelDefaultParams()
@@ -363,7 +363,7 @@ func (s *Service) LoadEmbeddingModel(modelPath string) error {
 	}
 
 	s.embModelPath = modelPath
-	log.Printf("✅ Embedding model loaded successfully: %s", filepath.Base(modelPath))
+	xlog.Info("✅ Embedding model loaded successfully", "model", filepath.Base(modelPath))
 
 	return nil
 }
@@ -456,7 +456,7 @@ func (s *Service) LoadVLModel(modelPath string) error {
 			return fmt.Errorf("failed to auto-select VL model: %w", err)
 		}
 		modelPath = autoModel
-		log.Printf("🤖 Auto-selected VL model: %s", modelPath)
+		xlog.Info("🤖 Auto-selected VL model", "model", modelPath)
 	}
 
 	// Verify model file exists
@@ -466,7 +466,7 @@ func (s *Service) LoadVLModel(modelPath string) error {
 
 	// Unload previous VL model if exists
 	if s.vlMTMDCtx != 0 {
-		log.Println("♻️  Unloading previous VL multimodal context...")
+		xlog.Info("♻️  Unloading previous VL multimodal context...")
 		mtmd.Free(s.vlMTMDCtx)
 		s.vlMTMDCtx = 0
 	}
@@ -479,7 +479,7 @@ func (s *Service) LoadVLModel(modelPath string) error {
 		s.vlModel = 0
 	}
 
-	log.Printf("📥 Loading VL model: %s", filepath.Base(modelPath))
+	xlog.Info("📥 Loading VL model", "model", filepath.Base(modelPath))
 
 	// Load VL model
 	mParams := llama.ModelDefaultParams()
@@ -501,7 +501,7 @@ func (s *Service) LoadVLModel(modelPath string) error {
 		return fmt.Errorf("failed to find projector file: %w", err)
 	}
 
-	log.Printf("📱 Found projector: %s", filepath.Base(projectorPath))
+	xlog.Info("📱 Found projector", "projector", filepath.Base(projectorPath))
 
 	// Initialize MTMD multimodal context
 	mtmdParams := mtmd.ContextParamsDefault()
@@ -549,7 +549,7 @@ func (s *Service) LoadVLModel(modelPath string) error {
 	llama.SamplerChainAdd(s.vlSampler, llama.SamplerInitDist(llama.DefaultSeed))
 
 	s.vlModelPath = modelPath
-	log.Printf("✅ VL model loaded successfully: %s", filepath.Base(modelPath))
+	xlog.Info("✅ VL model loaded successfully", "model", filepath.Base(modelPath))
 
 	return nil
 }
@@ -568,8 +568,8 @@ func (s *Service) ProcessImageWithText(imagePath, prompt string, maxTokens int32
 		return "", fmt.Errorf("image file not found: %s", imagePath)
 	}
 
-	log.Printf("🖼️  Processing image: %s", filepath.Base(imagePath))
-	log.Printf("💬 Prompt: %s", prompt)
+	xlog.Info("🖼️  Processing image", "image", filepath.Base(imagePath))
+	xlog.Debug("💬 Prompt", "prompt", prompt)
 
 	// Load image using MTMD
 	bitmap := mtmd.BitmapInitFromFile(s.vlMTMDCtx, imagePath)
@@ -632,7 +632,7 @@ func (s *Service) ProcessImageWithText(imagePath, prompt string, maxTokens int32
 	}
 
 	result := response.String()
-	log.Printf("✅ Image processed successfully")
+	xlog.Info("✅ Image processed successfully")
 
 	return result, nil
 }
@@ -707,7 +707,7 @@ func (s *Service) GetLoadedVLModel() string {
 // AutoDownloadRecommendedVLModel downloads the recommended VL model with hardware detection
 // Delegates to installer methods
 func (s *Service) AutoDownloadRecommendedVLModel() error {
-	log.Println("📦 Auto-downloading VL model...")
+	xlog.Info("📦 Auto-downloading VL model...")
 	if err := s.installer.AutoDownloadRecommendedVLModel(); err != nil {
 		return fmt.Errorf("failed to download VL model: %w", err)
 	}
@@ -721,7 +721,7 @@ func (s *Service) AutoDownloadRecommendedVLProjector() error {
 	// VL models typically come with their own projector files, so this is usually handled
 	// by the model download. This method can be extended if separate projector downloads
 	// are needed in the future.
-	log.Println("✅ VL projector files should be available with the model")
+	xlog.Info("✅ VL projector files should be available with the model")
 	return nil
 }
 
@@ -999,7 +999,7 @@ func (s *Service) Cleanup() {
 		s.isInitialized = false
 	}
 
-	log.Println("✅ Service cleaned up")
+	xlog.Info("✅ Service cleaned up")
 }
 
 // AutoDownloadRecommendedModel downloads the recommended model based on hardware

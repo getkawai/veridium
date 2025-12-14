@@ -5,9 +5,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
 	"strings"
 	"time"
+
+	"github.com/kawai-network/veridium/pkg/xlog"
 
 	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/fantasy/llamalib/tools"
@@ -41,7 +42,7 @@ func (s *VideoDescribeService) GetVideoTranscription(ctx context.Context, fileID
 		doc, err := s.queries.GetDocumentByFileID(ctx, sql.NullString{String: fileID, Valid: true})
 		if err != nil {
 			if err == sql.ErrNoRows {
-				log.Printf("⏳ [VideoDescribe] Document not found for file %s, waiting... (attempt %d)", fileID, attempt)
+				xlog.Debug("⏳ [VideoDescribe] Document not found, waiting...", "file_id", fileID, "attempt", attempt)
 			} else {
 				return "", fmt.Errorf("failed to query document: %w", err)
 			}
@@ -52,7 +53,7 @@ func (s *VideoDescribeService) GetVideoTranscription(ctx context.Context, fileID
 				hasTranscription := strings.Contains(content, "Video Transcription (AI Generated via Whisper)")
 
 				if hasTranscription {
-					log.Printf("✅ [VideoDescribe] Found transcription for file %s (%d chars, attempt %d)", fileID, len(content), attempt)
+					xlog.Info("✅ [VideoDescribe] Found transcription", "file_id", fileID, "chars", len(content), "attempt", attempt)
 					return content, nil
 				}
 			}
@@ -63,7 +64,7 @@ func (s *VideoDescribeService) GetVideoTranscription(ctx context.Context, fileID
 			break
 		}
 
-		log.Printf("⏳ [VideoDescribe] Waiting for transcription for file %s (attempt %d)", fileID, attempt)
+		xlog.Debug("⏳ [VideoDescribe] Waiting for transcription...", "file_id", fileID, "attempt", attempt)
 		select {
 		case <-ctx.Done():
 			return "", ctx.Err()
@@ -89,7 +90,7 @@ func RegisterVideoDescribe(registry *tools.ToolRegistry, sqlDB *sql.DB) error {
 			// Wait up to 3 minutes for transcription (video processing takes longer)
 			transcription, err := service.GetVideoTranscription(ctx, input.FileID, 3*time.Minute)
 			if err != nil {
-				log.Printf("⚠️  [VideoDescribe] Failed to get transcription: %v", err)
+				xlog.Warn("⚠️  [VideoDescribe] Failed to get transcription", "error", err)
 				return fantasy.NewTextErrorResponse(err.Error()), nil
 			}
 

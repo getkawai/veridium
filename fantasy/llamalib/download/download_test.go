@@ -1,6 +1,7 @@
 package download
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -76,8 +77,8 @@ func TestGetInvalidVersion(t *testing.T) {
 	dest := t.TempDir()
 
 	err := Get(osVer, processor, version, dest)
-	if err != ErrInvalidVersion {
-		t.Fatalf("Get() should have failed: %v", err)
+	if !errors.Is(err, ErrInvalidVersion) {
+		t.Fatalf("Get() should have failed with ErrInvalidVersion, got: %v", err)
 	}
 }
 

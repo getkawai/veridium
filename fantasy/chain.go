@@ -3,10 +3,11 @@ package fantasy
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/kawai-network/veridium/pkg/xlog"
 )
 
 // ChainLanguageModel wraps multiple LanguageModels and tries them in order.
@@ -126,8 +127,8 @@ func (c *ChainLanguageModel) recordFailure(idx int) {
 
 	if c.failures[idx] >= c.failureThreshold {
 		c.circuitOpen[idx] = true
-		log.Printf("⚡ Chain[%s]: Circuit opened for model %d (%s/%s) after %d failures",
-			c.name, idx, c.models[idx].Provider(), c.models[idx].Model(), c.failures[idx])
+		xlog.Warn(fmt.Sprintf("⚡ Chain[%s]: Circuit opened for model %d (%s/%s) after %d failures",
+			c.name, idx, c.models[idx].Provider(), c.models[idx].Model(), c.failures[idx]))
 	}
 }
 
@@ -141,8 +142,8 @@ func (c *ChainLanguageModel) recordSuccess(idx int) {
 	defer c.mu.Unlock()
 
 	if c.circuitOpen[idx] {
-		log.Printf("⚡ Chain[%s]: Circuit closed for model %d (%s/%s)",
-			c.name, idx, c.models[idx].Provider(), c.models[idx].Model())
+		xlog.Info(fmt.Sprintf("⚡ Chain[%s]: Circuit closed for model %d (%s/%s)",
+			c.name, idx, c.models[idx].Provider(), c.models[idx].Model()))
 	}
 
 	c.failures[idx] = 0
@@ -158,23 +159,23 @@ func (c *ChainLanguageModel) Generate(ctx context.Context, call Call) (*Response
 	for i, model := range c.models {
 		// Check circuit breaker
 		if c.isCircuitOpen(i) {
-			log.Printf("🔀 Chain[%s]: Skipping model %d (%s/%s) - circuit open",
-				c.name, i, model.Provider(), model.Model())
+			xlog.Info(fmt.Sprintf("🔀 Chain[%s]: Skipping model %d (%s/%s) - circuit open",
+				c.name, i, model.Provider(), model.Model()))
 			continue
 		}
 
 		modelName := fmt.Sprintf("%s/%s", model.Provider(), model.Model())
 		attemptedModels = append(attemptedModels, modelName)
 
-		log.Printf("🔀 Chain[%s]: Trying model %d/%d (%s)",
-			c.name, i+1, len(c.models), modelName)
+		xlog.Info(fmt.Sprintf("🔀 Chain[%s]: Trying model %d/%d (%s)",
+			c.name, i+1, len(c.models), modelName))
 
 		// Create fresh context for each model to allow fallback on timeout
 		modelCtx := ctx
 		if ctx.Err() != nil {
 			// Parent context already cancelled/expired, create fresh background context
 			// This allows fallback models to still attempt generation
-			log.Printf("🔄 Chain[%s]: Parent context expired, using fresh context for fallback", c.name)
+			xlog.Info(fmt.Sprintf("🔄 Chain[%s]: Parent context expired, using fresh context for fallback", c.name))
 			modelCtx = context.Background()
 		}
 
@@ -182,14 +183,14 @@ func (c *ChainLanguageModel) Generate(ctx context.Context, call Call) (*Response
 		if err == nil {
 			c.recordSuccess(i)
 			if i > 0 {
-				log.Printf("✅ Chain[%s]: Fallback succeeded with model %s", c.name, modelName)
+				xlog.Info(fmt.Sprintf("✅ Chain[%s]: Fallback succeeded with model %s", c.name, modelName))
 			}
 			return resp, nil
 		}
 
 		c.recordFailure(i)
 		lastErr = err
-		log.Printf("⚠️  Chain[%s]: Model %s failed: %v", c.name, modelName, err)
+		xlog.Warn(fmt.Sprintf("⚠️  Chain[%s]: Model %s failed: %v", c.name, modelName, err))
 
 		// Only stop if user explicitly cancelled (not timeout)
 		// Timeout should trigger fallback to local model
@@ -225,14 +226,14 @@ func (c *ChainLanguageModel) Stream(ctx context.Context, call Call) (StreamRespo
 			modelName := fmt.Sprintf("%s/%s", model.Provider(), model.Model())
 			attemptedModels = append(attemptedModels, modelName)
 
-			log.Printf("🔀 Chain[%s]: Trying stream with model %d/%d (%s)", c.name, i+1, len(c.models), modelName)
+			xlog.Info(fmt.Sprintf("🔀 Chain[%s]: Trying stream with model %d/%d (%s)", c.name, i+1, len(c.models), modelName))
 
 			// Attempt to start streaming
 			stream, err := model.Stream(ctx, call)
 			if err != nil {
 				c.recordFailure(i)
 				lastErr = err
-				log.Printf("⚠️  Chain[%s]: Setup failed for %s: %v", c.name, modelName, err)
+				xlog.Warn(fmt.Sprintf("⚠️  Chain[%s]: Setup failed for %s: %v", c.name, modelName, err))
 				continue // Try next model
 			}
 
@@ -249,7 +250,7 @@ func (c *ChainLanguageModel) Stream(ctx context.Context, call Call) (StreamRespo
 					if lastErr == nil {
 						lastErr = fmt.Errorf("unknown stream error")
 					}
-					log.Printf("⚠️  Chain[%s]: Mid-stream error from %s: %v. Switching to next model...", c.name, modelName, lastErr)
+					xlog.Warn(fmt.Sprintf("⚠️  Chain[%s]: Mid-stream error from %s: %v. Switching to next model...", c.name, modelName, lastErr))
 
 					streamFailed = true
 					break // Stop consuming this stream, move to next model

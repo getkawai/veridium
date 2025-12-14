@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"math"
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/kawai-network/veridium/pkg/xlog"
 
 	"github.com/kawai-network/veridium/fantasy/llamalib/llama"
 )
@@ -65,7 +66,7 @@ func NewLlamaEmbedder(config *LlamaConfig) (*LlamaEmbedder, error) {
 
 	// Get embedding dimensions
 	dimensions := llama.ModelNEmbd(model)
-	log.Printf("Embedding model loaded: %s (dimensions: %d)", filepath.Base(modelPath), dimensions)
+	xlog.Info("Embedding model loaded", "model", filepath.Base(modelPath), "dimensions", dimensions)
 
 	// Create context for embeddings
 	ctxParams := llama.ContextDefaultParams()
@@ -129,13 +130,13 @@ func (e *LlamaEmbedder) Close() error {
 	if e.context != 0 {
 		llama.Free(e.context)
 		e.context = 0
-		log.Println("Embedding context freed")
+		xlog.Info("Embedding context freed")
 	}
 
 	if e.model != 0 {
 		llama.ModelFree(e.model)
 		e.model = 0
-		log.Println("Embedding model freed")
+		xlog.Info("Embedding model freed")
 	}
 
 	return nil
@@ -159,7 +160,7 @@ func (e *LlamaEmbedder) generateEmbedding(text string) ([]float32, error) {
 	// Truncate tokens if they exceed context size
 	maxTokens := e.config.ContextSize
 	if len(tokens) > maxTokens {
-		log.Printf("Text has %d tokens, truncating to %d tokens", len(tokens), maxTokens)
+		xlog.Debug("Text tokens truncated to context size", "original_count", len(tokens), "max_tokens", maxTokens)
 		tokens = tokens[:maxTokens]
 	}
 
@@ -171,7 +172,7 @@ func (e *LlamaEmbedder) generateEmbedding(text string) ([]float32, error) {
 
 	// Strict truncation to context size
 	if len(tokens) > nCtxTrain {
-		log.Printf("Input text too long (%d tokens), truncating to model context size (%d)", len(tokens), nCtxTrain)
+		xlog.Debug("Input text truncated to model context limit", "original_count", len(tokens), "limit", nCtxTrain)
 		tokens = tokens[:nCtxTrain]
 	}
 

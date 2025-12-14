@@ -4,6 +4,7 @@ package main
 import (
 	"embed"
 	"log"
+	"os"
 
 	"github.com/kawai-network/veridium/fantasy/llamalib/tools/builtin"
 	"github.com/kawai-network/veridium/internal/app"
@@ -13,6 +14,7 @@ import (
 	"github.com/kawai-network/veridium/internal/tableviewer"
 	"github.com/kawai-network/veridium/internal/topic"
 	"github.com/kawai-network/veridium/pkg/localfs"
+	"github.com/kawai-network/veridium/pkg/xlog"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 	"github.com/wailsapp/wails/v3/pkg/services/fileserver"
@@ -28,7 +30,7 @@ var assets embed.FS
 // main is the application entry point
 func main() {
 	if app.DevMode {
-		log.Printf("Development mode enabled")
+		xlog.Info("Development mode enabled")
 	}
 
 	// Initialize core services using internal/app (SINGLE SOURCE OF TRUTH)
@@ -36,7 +38,8 @@ func main() {
 	defer ctx.Cleanup()
 
 	if err := ctx.InitAll(); err != nil {
-		log.Fatalf("Failed to initialize: %v", err)
+		xlog.Error("Failed to initialize", "error", err)
+		os.Exit(1)
 	}
 
 	// Create FileProcessor (Wails-specific wrapper)
@@ -60,7 +63,8 @@ func main() {
 	createMainWindow(wailsApp, ctx, fileProcessor)
 
 	if err := wailsApp.Run(); err != nil {
-		log.Fatal(err)
+		xlog.Error("Application error", "error", err)
+		os.Exit(1)
 	}
 }
 

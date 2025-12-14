@@ -4,8 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"time"
+
+	"github.com/kawai-network/veridium/pkg/xlog"
 
 	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/fantasy/llamalib/tools"
@@ -124,7 +125,7 @@ func (s *WebBrowsingService) CrawlMultiPages(urls []string) (*CrawlPluginState, 
 
 		if r.Error != nil {
 			// Skip error results - don't include them in tool result
-			log.Printf("⚠️ Skipping failed crawl result for URL: %s (Error: %s)", originalUrl, r.Error.ErrorMessage)
+			xlog.Warn("⚠️ Skipping failed crawl result", "url", originalUrl, "error", r.Error.ErrorMessage)
 			continue
 		} else if r.Success != nil {
 			// Use crawler label from result: "jina" for Jina, "kawai" for naive
@@ -181,7 +182,7 @@ func RegisterWebBrowsing(registry *tools.ToolRegistry) error {
 				return fantasy.NewTextErrorResponse(fmt.Sprintf("failed to marshal response: %v", err)), nil
 			}
 
-			log.Printf("🔍 Web search completed: query=%s, results=%d", input.Query, len(response.Results))
+			xlog.Info("🔍 Web search completed", "query", input.Query, "results_count", len(response.Results))
 			return fantasy.NewTextResponse(string(resultJSON)), nil
 		},
 	)
@@ -208,7 +209,7 @@ func RegisterWebBrowsing(registry *tools.ToolRegistry) error {
 				return fantasy.NewTextErrorResponse(fmt.Sprintf("failed to marshal response: %v", err)), nil
 			}
 
-			log.Printf("🌐 Crawled single page: url=%s", input.URL)
+			xlog.Info("🌐 Crawled single page", "url", input.URL)
 			return fantasy.NewTextResponse(string(resultJSON)), nil
 		},
 	)
@@ -235,7 +236,7 @@ func RegisterWebBrowsing(registry *tools.ToolRegistry) error {
 				return fantasy.NewTextErrorResponse(fmt.Sprintf("failed to marshal response: %v", err)), nil
 			}
 
-			log.Printf("🌐 Crawled %d pages", len(input.URLs))
+			xlog.Info("🌐 Crawled pages", "count", len(input.URLs))
 			return fantasy.NewTextResponse(string(resultJSON)), nil
 		},
 	)

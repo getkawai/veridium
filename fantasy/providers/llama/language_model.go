@@ -3,9 +3,10 @@ package llama
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
 	"time"
+
+	"github.com/kawai-network/veridium/pkg/xlog"
 
 	"github.com/google/uuid"
 	"github.com/kawai-network/veridium/fantasy"
@@ -318,7 +319,7 @@ func (l *languageModel) getChatTemplate() string {
 
 	// Check if this is a Llama 3.2 model - use custom template
 	if strings.Contains(modelPathLower, "llama-3.2") || strings.Contains(modelPathLower, "llama_3.2") || strings.Contains(modelPathLower, "llama3.2") {
-		log.Printf("🔧 Using custom Llama 3.2 tool template")
+		xlog.Info("🔧 Using custom Llama 3.2 tool template")
 		return llamalib.Llama32ToolTemplate
 	}
 
@@ -374,7 +375,7 @@ func (l *languageModel) generateStreaming(ctx context.Context, prompt string, ma
 		llama.SamplerReset(chatSampler)
 
 		// Process prompt tokens in batches
-		log.Printf("🔢 Processing %d prompt tokens in batches of %d", len(tokens), defaultBatchSize)
+		xlog.Debug("🔢 Processing prompt tokens in batches", "count", len(tokens), "batch_size", defaultBatchSize)
 
 		for i := 0; i < len(tokens); i += defaultBatchSize {
 			end := i + defaultBatchSize

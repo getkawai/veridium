@@ -1,8 +1,9 @@
 package hardware
 
 import (
-	"log"
 	"runtime"
+
+	"github.com/kawai-network/veridium/pkg/xlog"
 )
 
 // HardwareSpecs represents system hardware specifications
@@ -23,8 +24,7 @@ func DetectHardwareSpecs() *HardwareSpecs {
 	// Platform-specific detection is implemented in platform files
 	specs.detectPlatformSpecs()
 
-	log.Printf("Detected hardware: RAM=%dGB (available=%dGB), CPU cores=%d, GPU=%s (VRAM=%dGB)",
-		specs.TotalRAM, specs.AvailableRAM, specs.CPUCores, specs.GPUModel, specs.GPUMemory)
+	xlog.Info("Detected hardware", "ram_gb", specs.TotalRAM, "available_gb", specs.AvailableRAM, "cpu_cores", specs.CPUCores, "gpu", specs.GPUModel, "vram_gb", specs.GPUMemory)
 
 	return specs
 }

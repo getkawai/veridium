@@ -18,7 +18,8 @@ package services
 
 import (
 	"context"
-	"log"
+
+	"github.com/kawai-network/veridium/pkg/xlog"
 
 	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/fantasy/llamalib/tools"
@@ -56,7 +57,7 @@ func NewMemoryIntegration(config *MemoryIntegrationConfig) (*MemoryIntegration, 
 // RegisterMemoryTool registers the search_memory tool with the given registry
 func (m *MemoryIntegration) RegisterMemoryTool(registry *tools.ToolRegistry) error {
 	if m.memoryService == nil {
-		log.Println("⚠️  Memory service not available, skipping memory tool registration")
+		xlog.Warn("⚠️  Memory service not available, skipping memory tool registration")
 		return nil
 	}
 
@@ -156,7 +157,7 @@ func (m *MemoryIntegration) BuildHybridContext(ctx context.Context, currentQuery
 	// 1. Get relevant long-term memories based on current query
 	relevantMemories, err := m.GetRelevantMemories(ctx, currentQuery, 5)
 	if err != nil {
-		log.Printf("⚠️  Failed to retrieve memories: %v", err)
+		xlog.Warn("⚠️  Failed to retrieve memories", "error", err)
 		relevantMemories = ""
 	}
 
@@ -205,7 +206,7 @@ func (m *MemoryIntegration) StoreConversationMemory(ctx context.Context, userMes
 	}
 
 	if result.FactCount > 0 {
-		log.Printf("🧠 [Memory] Stored %d facts from conversation", result.FactCount)
+		xlog.Info("🧠 [Memory] Stored facts from conversation", "count", result.FactCount)
 	}
 
 	return nil

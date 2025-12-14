@@ -10,6 +10,7 @@ import (
 
 	"github.com/kawai-network/veridium/fantasy/llamalib/download"
 	"github.com/kawai-network/veridium/pkg/hardware"
+	"github.com/kawai-network/veridium/pkg/xlog"
 )
 
 // Release represents a GitHub release
@@ -59,7 +60,7 @@ func NewLlamaCppInstaller() *LlamaCppInstaller {
 	// Clean up any stale temp files from previous sessions
 	// This handles the case where app was closed during download
 	if err := installer.CleanupStaleTempFiles(); err != nil {
-		log.Printf("⚠️  Failed to cleanup stale temp files on startup: %v", err)
+		xlog.Warn("⚠️  Failed to cleanup stale temp files on startup", "error", err)
 	}
 
 	return installer
@@ -71,7 +72,7 @@ func NewLlamaCppInstaller() *LlamaCppInstaller {
 func (lcm *LlamaCppInstaller) InstallLlamaCpp() error {
 	// Detect processor type
 	processor := lcm.detectProcessor()
-	log.Printf("Auto-installing llama.cpp for %s/%s", runtime.GOOS, processor)
+	xlog.Info("Auto-installing llama.cpp", "os", runtime.GOOS, "processor", processor)
 
 	// Convert string processor to download.Processor type
 	var proc download.Processor
@@ -97,7 +98,7 @@ func (lcm *LlamaCppInstaller) InstallLlamaCpp() error {
 		return fmt.Errorf("failed to install llama.cpp: %w", err)
 	}
 
-	log.Println("✅ llama.cpp installed successfully")
+	xlog.Info("✅ llama.cpp installed successfully")
 	return nil
 }
 
@@ -229,18 +230,18 @@ func (lcm *LlamaCppInstaller) DownloadChatModel(modelSpec QwenModelSpec) error {
 
 	// Clean up any stale temporary files
 	if err := lcm.cleanupTempFile(tempModelPath); err != nil {
-		log.Printf("⚠️  Failed to cleanup stale temp file: %v", err)
+		xlog.Warn("⚠️  Failed to cleanup stale temp file", "error", err)
 	}
 
 	// Check if model already exists
 	if _, err := os.Stat(destModelPath); err == nil {
-		log.Printf("✅ Model already exists: %s", modelFileName)
+		xlog.Info("✅ Model already exists", "filename", modelFileName)
 		// Verify existing model integrity if checksum is provided
 		if modelSpec.SHA256 != "" {
 			if err := verifyModelChecksum(destModelPath, modelSpec.SHA256); err != nil {
-				log.Printf("⚠️  Existing model checksum invalid, re-downloading...")
+				xlog.Warn("⚠️  Existing model checksum invalid, re-downloading...")
 				if removeErr := os.Remove(destModelPath); removeErr != nil {
-					log.Printf("⚠️  Failed to remove invalid model: %v", removeErr)
+					xlog.Warn("⚠️  Failed to remove invalid model", "error", removeErr)
 				}
 			} else {
 				return nil // Model exists and is valid
@@ -250,10 +251,8 @@ func (lcm *LlamaCppInstaller) DownloadChatModel(modelSpec QwenModelSpec) error {
 		}
 	}
 
-	log.Printf("📥 Downloading chat model: %s", modelSpec.Name)
-	log.Printf("   URL: %s", modelSpec.URL)
-	log.Printf("   Expected size: %.1f MB", float64(modelSpec.Size)/(1024*1024))
-	log.Printf("   This may take several minutes depending on network speed...")
+	xlog.Info("📥 Downloading chat model", "name", modelSpec.Name, "url", modelSpec.URL, "expected_size_mb", float64(modelSpec.Size)/(1024*1024))
+	xlog.Info("   This may take several minutes depending on network speed...")
 
 	// Download using grab with automatic retry, resume, and progress tracking
 	opts := download.DefaultDownloadOptions()
@@ -276,7 +275,7 @@ func (lcm *LlamaCppInstaller) DownloadChatModel(modelSpec QwenModelSpec) error {
 
 	fileInfo, _ := os.Stat(destModelPath)
 	sizeMB := float64(fileInfo.Size()) / (1024 * 1024)
-	log.Printf("✅ Model downloaded successfully: %s (%.1f MB)", modelFileName, sizeMB)
+	xlog.Info("✅ Model downloaded successfully", "filename", modelFileName, "size_mb", sizeMB)
 
 	// Download projector file if specified (for VL models)
 	if modelSpec.ProjectorURL != "" {
@@ -286,21 +285,19 @@ func (lcm *LlamaCppInstaller) DownloadChatModel(modelSpec QwenModelSpec) error {
 
 		// Clean up any stale temporary files
 		if err := lcm.cleanupTempFile(tempProjectorPath); err != nil {
-			log.Printf("⚠️  Failed to cleanup stale projector temp file: %v", err)
+			xlog.Warn("⚠️  Failed to cleanup stale projector temp file", "error", err)
 		}
 
 		// Check if projector already exists
 		if _, err := os.Stat(destProjectorPath); err == nil {
-			log.Printf("✅ Projector already exists: %s", projectorFileName)
+			xlog.Info("✅ Projector already exists", "filename", projectorFileName)
 		} else {
-			log.Printf("📥 Downloading projector file: %s", projectorFileName)
-			log.Printf("   URL: %s", modelSpec.ProjectorURL)
-			log.Printf("   Expected size: %.1f MB", float64(modelSpec.ProjectorSize)/(1024*1024))
+			xlog.Info("📥 Downloading projector file", "filename", projectorFileName, "url", modelSpec.ProjectorURL, "expected_size_mb", float64(modelSpec.ProjectorSize)/(1024*1024))
 
 			if err := download.GetWithProgress(modelSpec.ProjectorURL, tempProjectorPath, opts); err != nil {
 				lcm.cleanupTempFile(tempProjectorPath)
 				// Don't fail the whole process if projector fails, but warn
-				log.Printf("⚠️  Failed to download projector: %v", err)
+				xlog.Warn("⚠️  Failed to download projector", "error", err)
 			} else {
 				// Move temporary file to final destination
 				if err := os.Rename(tempProjectorPath, destProjectorPath); err != nil {
@@ -335,13 +332,11 @@ func (lcm *LlamaCppInstaller) DownloadEmbeddingModel(model *EmbeddingModel) erro
 
 	// Check if already downloaded
 	if _, err := os.Stat(finalPath); err == nil {
-		log.Printf("✅ Embedding model already exists: %s", model.Name)
+		xlog.Info("✅ Embedding model already exists", "name", model.Name)
 		return nil
 	}
 
-	log.Printf("📥 Downloading embedding model: %s", model.Name)
-	log.Printf("   URL: %s", model.URL)
-	log.Printf("   Size: %.2f MB", float64(model.Size)/1024/1024)
+	xlog.Info("📥 Downloading embedding model", "name", model.Name, "url", model.URL, "size_mb", float64(model.Size)/1024/1024)
 
 	// Download using grab with automatic retry, resume, and progress tracking
 	tempPath := finalPath + ".tmp"
@@ -365,7 +360,7 @@ func (lcm *LlamaCppInstaller) DownloadEmbeddingModel(model *EmbeddingModel) erro
 		return fmt.Errorf("downloaded file failed GGUF validation: %w", err)
 	}
 
-	log.Printf("✅ Embedding model downloaded successfully: %s", model.Name)
+	xlog.Info("✅ Embedding model downloaded successfully", "name", model.Name)
 	return nil
 }
 
@@ -373,7 +368,7 @@ func (lcm *LlamaCppInstaller) DownloadEmbeddingModel(model *EmbeddingModel) erro
 func (lcm *LlamaCppInstaller) AutoDownloadRecommendedChatModel() error {
 	// Clean up any stale temp files
 	if err := lcm.CleanupStaleTempFiles(); err != nil {
-		log.Printf("⚠️  Failed to cleanup stale temp files: %v", err)
+		xlog.Warn("⚠️  Failed to cleanup stale temp files", "error", err)
 	}
 
 	// Check if any models already exist
@@ -383,11 +378,11 @@ func (lcm *LlamaCppInstaller) AutoDownloadRecommendedChatModel() error {
 	}
 
 	if len(models) > 0 {
-		log.Printf("✅ Chat models already available (%d found), skipping auto-download", len(models))
+		xlog.Info("✅ Chat models already available, skipping auto-download", "count", len(models))
 		return nil
 	}
 
-	log.Println("📦 No chat models found, starting auto-download...")
+	xlog.Info("📦 No chat models found, starting auto-download...")
 
 	// Select optimal model based on available RAM
 	modelSpec := SelectOptimalQwenModel(lcm.HardwareSpecs.AvailableRAM)
@@ -397,7 +392,7 @@ func (lcm *LlamaCppInstaller) AutoDownloadRecommendedChatModel() error {
 		return fmt.Errorf("failed to download model: %w", err)
 	}
 
-	log.Println("🎉 Chat model download completed successfully!")
+	xlog.Info("🎉 Chat model download completed successfully!")
 	return nil
 }
 
@@ -405,7 +400,7 @@ func (lcm *LlamaCppInstaller) AutoDownloadRecommendedChatModel() error {
 func (lcm *LlamaCppInstaller) AutoDownloadRecommendedVLModel() error {
 	// Clean up any stale temp files
 	if err := lcm.CleanupStaleTempFiles(); err != nil {
-		log.Printf("⚠️  Failed to cleanup stale temp files: %v", err)
+		xlog.Warn("⚠️  Failed to cleanup stale temp files", "error", err)
 	}
 
 	// Check if any VL models already exist
@@ -416,7 +411,7 @@ func (lcm *LlamaCppInstaller) AutoDownloadRecommendedVLModel() error {
 
 	var modelSpec QwenModelSpec
 	if len(models) > 0 {
-		log.Printf("✅ VL models already available (%d found), skipping auto-download", len(models))
+		xlog.Info("✅ VL models already available, skipping auto-download", "count", len(models))
 
 		// Model exists, but check if projector exists
 		// Get the model spec for the existing model
@@ -429,9 +424,7 @@ func (lcm *LlamaCppInstaller) AutoDownloadRecommendedVLModel() error {
 
 			if _, err := os.Stat(destProjectorPath); os.IsNotExist(err) {
 				// Projector doesn't exist, download it
-				log.Printf("📥 VL model exists but projector missing, downloading projector...")
-				log.Printf("   Projector: %s", projectorFileName)
-				log.Printf("   URL: %s", modelSpec.ProjectorURL)
+				xlog.Info("📥 VL model exists but projector missing, downloading projector...", "projector", projectorFileName, "url", modelSpec.ProjectorURL)
 
 				tempProjectorPath := destProjectorPath + ".tmp"
 				lcm.cleanupTempFile(tempProjectorPath)
@@ -439,24 +432,24 @@ func (lcm *LlamaCppInstaller) AutoDownloadRecommendedVLModel() error {
 				opts := download.DefaultDownloadOptions()
 				if err := download.GetWithProgress(modelSpec.ProjectorURL, tempProjectorPath, opts); err != nil {
 					lcm.cleanupTempFile(tempProjectorPath)
-					log.Printf("⚠️  Failed to download projector: %v", err)
+					xlog.Warn("⚠️  Failed to download projector", "error", err)
 				} else {
 					if err := os.Rename(tempProjectorPath, destProjectorPath); err != nil {
 						lcm.cleanupTempFile(tempProjectorPath)
-						log.Printf("⚠️  Failed to move downloaded projector: %v", err)
+						xlog.Warn("⚠️  Failed to move downloaded projector", "error", err)
 					} else {
-						log.Printf("✅ Projector downloaded successfully: %s", projectorFileName)
+						xlog.Info("✅ Projector downloaded successfully", "filename", projectorFileName)
 					}
 				}
 			} else {
-				log.Printf("✅ Projector file already exists: %s", projectorFileName)
+				xlog.Info("✅ Projector file already exists", "filename", projectorFileName)
 			}
 		}
 
 		return nil
 	}
 
-	log.Println("📦 No VL models found, starting auto-download...")
+	xlog.Info("📦 No VL models found, starting auto-download...")
 
 	// Select optimal model based on available RAM
 	modelSpec = SelectOptimalQwenModel(lcm.HardwareSpecs.AvailableRAM)
@@ -466,7 +459,7 @@ func (lcm *LlamaCppInstaller) AutoDownloadRecommendedVLModel() error {
 		return fmt.Errorf("failed to download model: %w", err)
 	}
 
-	log.Println("🎉 VL model download completed successfully!")
+	xlog.Info("🎉 VL model download completed successfully!")
 	return nil
 }
 
@@ -475,7 +468,7 @@ func (lcm *LlamaCppInstaller) AutoDownloadRecommendedVLModel() error {
 func (lcm *LlamaCppInstaller) AutoDownloadRecommendedTextModel() error {
 	// Clean up any stale temp files
 	if err := lcm.CleanupStaleTempFiles(); err != nil {
-		log.Printf("⚠️  Failed to cleanup stale temp files: %v", err)
+		xlog.Warn("⚠️  Failed to cleanup stale temp files", "error", err)
 	}
 
 	// Select optimal model based on available RAM
@@ -486,16 +479,16 @@ func (lcm *LlamaCppInstaller) AutoDownloadRecommendedTextModel() error {
 	expectedPath := filepath.Join(lcm.ModelsDir, expectedFileName)
 
 	if _, err := os.Stat(expectedPath); err == nil {
-		log.Printf("✅ Preferred text model already available: %s", modelSpec.Name)
+		xlog.Info("✅ Preferred text model already available", "name", modelSpec.Name)
 		return nil
 	}
 
 	// Check if any text models exist (for logging purposes)
 	models, _ := lcm.GetAvailableTextModels()
 	if len(models) > 0 {
-		log.Printf("📦 Found %d other text model(s), but downloading preferred model: %s", len(models), modelSpec.Name)
+		xlog.Info("📦 Found other text model(s), but downloading preferred model", "count", len(models), "preferred", modelSpec.Name)
 	} else {
-		log.Printf("📦 No text models found, downloading: %s", modelSpec.Name)
+		xlog.Info("📦 No text models found, downloading", "name", modelSpec.Name)
 	}
 
 	// Download the preferred model
@@ -503,7 +496,7 @@ func (lcm *LlamaCppInstaller) AutoDownloadRecommendedTextModel() error {
 		return fmt.Errorf("failed to download model: %w", err)
 	}
 
-	log.Println("🎉 Text model download completed successfully!")
+	xlog.Info("🎉 Text model download completed successfully!")
 	return nil
 }
 
@@ -511,11 +504,11 @@ func (lcm *LlamaCppInstaller) AutoDownloadRecommendedTextModel() error {
 func (lcm *LlamaCppInstaller) AutoDownloadRecommendedEmbeddingModel() error {
 	downloaded := lcm.GetDownloadedEmbeddingModels()
 	if len(downloaded) > 0 {
-		log.Printf("✅ Embedding models already available (%d found), skipping auto-download", len(downloaded))
+		xlog.Info("✅ Embedding models already available, skipping auto-download", "count", len(downloaded))
 		return nil
 	}
 
-	log.Println("📦 No embedding models found, starting auto-download...")
+	xlog.Info("📦 No embedding models found, starting auto-download...")
 
 	// Get recommended embedding model
 	recommendedName := GetRecommendedEmbeddingModel()
@@ -524,14 +517,13 @@ func (lcm *LlamaCppInstaller) AutoDownloadRecommendedEmbeddingModel() error {
 		return fmt.Errorf("recommended embedding model not found in catalog: %s", recommendedName)
 	}
 
-	log.Printf("📦 Selected recommended embedding model: %s (%s, %d dims, %.1f MB)",
-		model.Name, model.Quantization, model.Dimensions, float64(model.Size)/(1024*1024))
+	xlog.Info("📦 Selected recommended embedding model", "name", model.Name, "quantization", model.Quantization, "dimensions", model.Dimensions, "size_mb", float64(model.Size)/(1024*1024))
 
 	if err := lcm.DownloadEmbeddingModel(model); err != nil {
 		return fmt.Errorf("failed to download embedding model: %w", err)
 	}
 
-	log.Println("🎉 Embedding model download completed successfully!")
+	xlog.Info("🎉 Embedding model download completed successfully!")
 	return nil
 }
 
@@ -544,7 +536,7 @@ func (lcm *LlamaCppInstaller) AutoDownloadRecommendedEmbeddingModel() error {
 func (lcm *LlamaCppInstaller) AutoDownloadRecommendedUtilityModel() error {
 	// Clean up any stale temp files
 	if err := lcm.CleanupStaleTempFiles(); err != nil {
-		log.Printf("⚠️  Failed to cleanup stale temp files: %v", err)
+		xlog.Warn("⚠️  Failed to cleanup stale temp files", "error", err)
 	}
 
 	// Check if any utility models (Llama 1B/3B, Mistral) already exist
@@ -554,16 +546,12 @@ func (lcm *LlamaCppInstaller) AutoDownloadRecommendedUtilityModel() error {
 	}
 
 	if len(utilityModels) > 0 {
-		log.Printf("✅ Utility models already available (%d found), skipping auto-download", len(utilityModels))
-		log.Printf("   Available: %v", utilityModels)
+		xlog.Info("✅ Utility models already available, skipping auto-download", "count", len(utilityModels), "available", utilityModels)
 		return nil
 	}
 
-	log.Println("📦 No utility models found, starting auto-download...")
-	log.Println("💡 Utility models enable fast background tasks:")
-	log.Println("   - Summary generation (compress old messages)")
-	log.Println("   - Title generation (auto-create conversation titles)")
-	log.Println("   - Quick text processing")
+	xlog.Info("📦 No utility models found, starting auto-download...")
+	xlog.Info("💡 Utility models enable fast background tasks: Summary generation, Title generation, Quick text processing")
 
 	// Select optimal utility model based on available RAM
 	modelSpec := SelectOptimalUtilityModel(lcm.HardwareSpecs.AvailableRAM)
@@ -576,17 +564,15 @@ func (lcm *LlamaCppInstaller) AutoDownloadRecommendedUtilityModel() error {
 		return fmt.Errorf("failed to download utility model: %w", err)
 	}
 
-	log.Println("🎉 Utility model download completed successfully!")
-	log.Printf("   Model: %s", modelSpec.Name)
-	log.Printf("   Size: %.1f MB", float64(modelSpec.Size)/(1024*1024))
-	log.Printf("   Use case: Summary & title generation (3-5x faster than main model)")
+	xlog.Info("🎉 Utility model download completed successfully!", "model", modelSpec.Name, "size_mb", float64(modelSpec.Size)/(1024*1024))
+	xlog.Info("   Use case: Summary & title generation (3-5x faster than main model)")
 	return nil
 }
 
 // AutoDownloadAllRecommendedModels automatically downloads all recommended model types for the system
 // Downloads text, VL, embedding, and utility models based on hardware detection
 func (lcm *LlamaCppInstaller) AutoDownloadAllRecommendedModels() error {
-	log.Println("🚀 Starting automatic download of all recommended models...")
+	xlog.Info("🚀 Starting automatic download of all recommended models...")
 
 	// Download text model
 	if err := lcm.AutoDownloadRecommendedTextModel(); err != nil {
@@ -605,17 +591,17 @@ func (lcm *LlamaCppInstaller) AutoDownloadAllRecommendedModels() error {
 
 	// Download utility model (for summary/title generation)
 	if err := lcm.AutoDownloadRecommendedUtilityModel(); err != nil {
-		log.Printf("⚠️  Warning: Failed to download utility model (optional): %v", err)
-		log.Printf("💡 Main model will be used for summaries/titles (slower but functional)")
+		xlog.Warn("⚠️  Warning: Failed to download utility model (optional)", "error", err)
+		xlog.Info("💡 Main model will be used for summaries/titles (slower but functional)")
 		// Don't fail the entire download if utility model fails
 	}
 
-	log.Println("🎉 All recommended models downloaded successfully!")
-	log.Println("📊 Model download summary:")
-	log.Println("   ✅ Text model: Ready for text generation and reasoning")
-	log.Println("   ✅ VL model: Ready for vision-language tasks")
-	log.Println("   ✅ Embedding model: Ready for text embedding and similarity tasks")
-	log.Println("   ✅ Utility model: Ready for fast summaries and title generation")
+	xlog.Info("🎉 All recommended models downloaded successfully!")
+	xlog.Info("📊 Model download summary:")
+	xlog.Info("   ✅ Text model: Ready for text generation and reasoning")
+	xlog.Info("   ✅ VL model: Ready for vision-language tasks")
+	xlog.Info("   ✅ Embedding model: Ready for text embedding and similarity tasks")
+	xlog.Info("   ✅ Utility model: Ready for fast summaries and title generation")
 
 	return nil
 }
@@ -820,15 +806,14 @@ func (lcm *LlamaCppInstaller) CleanupStaleTempFiles() error {
 
 			info, err := entry.Info()
 			if err != nil {
-				log.Printf("⚠️  Failed to get info for %s: %v", entry.Name(), err)
+				xlog.Warn("⚠️  Failed to get info for file", "file", entry.Name(), "error", err)
 				continue
 			}
 
-			log.Printf("🧹 Removing stale temporary file: %s (size: %.1f MB)",
-				entry.Name(), float64(info.Size())/(1024*1024))
+			xlog.Info("🧹 Removing stale temporary file", "file", entry.Name(), "size_mb", float64(info.Size())/(1024*1024))
 
 			if err := os.Remove(tmpPath); err != nil {
-				log.Printf("⚠️  Failed to remove stale temp file %s: %v", entry.Name(), err)
+				xlog.Warn("⚠️  Failed to remove stale temp file", "file", entry.Name(), "error", err)
 			} else {
 				cleaned++
 			}
@@ -836,7 +821,7 @@ func (lcm *LlamaCppInstaller) CleanupStaleTempFiles() error {
 	}
 
 	if cleaned > 0 {
-		log.Printf("✅ Cleaned up %d stale temporary file(s)", cleaned)
+		xlog.Info("✅ Cleaned up stale temporary files", "count", cleaned)
 	}
 
 	return nil
