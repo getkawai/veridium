@@ -11,6 +11,7 @@ export interface SessionState {
   isSessionsFirstFetchFinished: boolean;
   pinnedSessions: LobeSessions;
   searchKeywords: string;
+  searchResults?: LobeSessions;
   sessionSearchKeywords?: string;
   /**
    * it means defaultSessions

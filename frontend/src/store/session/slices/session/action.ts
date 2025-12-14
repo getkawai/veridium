@@ -328,6 +328,7 @@ export const createSessionSlice: StateCreator<
       false,
       n('updateSearchKeywords'),
     );
+    get().internal_searchSessions(keywords);
   },
   updateSessionGroupId: async (sessionId, groupId) => {
     const session = sessionSelectors.getSessionById(sessionId)(get());
@@ -456,18 +457,25 @@ export const createSessionSlice: StateCreator<
   },
 
   internal_searchSessions: async (keyword) => {
-    if (!keyword) return;
+    if (!keyword) {
+      set({ searchResults: [] }, false, n('internal_searchSessions/clear'));
+      return;
+    }
 
     try {
       const dbResults = await DB.SearchSessionsByKeyword({
         column1: toNullString(keyword),
         column2: toNullString(keyword),
       });
-      const results = dbResults;
+      // Map DB results to LobeSession type if needed, or cast if they match enough
+      const results = dbResults as any;
+
+      set({ searchResults: results }, false, n('internal_searchSessions/success'));
 
       console.log('[Session] Searched sessions via direct DB', { keyword, count: results.length });
     } catch (error) {
       console.error('[internal_searchSessions] Error searching sessions:', error);
+      set({ searchResults: [] }, false, n('internal_searchSessions/error'));
     }
   },
 

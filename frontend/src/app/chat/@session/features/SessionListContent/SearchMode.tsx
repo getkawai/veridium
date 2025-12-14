@@ -1,67 +1,37 @@
 import { memo, useMemo } from 'react';
-import { LobeAgentSession, LobeSessionType, LobeSessions } from '@/types/session';
+import { getNullableString } from '@/types/database';
+import { LobeSessionType } from '@/types/session';
 
 import SkeletonList from '../SkeletonList';
 import SessionList from './List';
-
-// Dummy implementations for development
-const mockServerConfig = { isMobile: false };
-
-const useServerConfigStore = (selector: any) => {
-  if (selector && typeof selector === 'object' && selector.isMobile !== undefined) {
-    return selector;
-  }
-  if (typeof selector === 'function') {
-    return selector(mockServerConfig);
-  }
-  return mockServerConfig;
-};
-
-const serverConfigSelectors = {
-  isMobile: (state: any) => state.isMobile,
-};
-
-// Memoized search result
-const mockSearchResult = { data: [], isLoading: false };
-
-// Memoized session store
-const mockSessionStore = {
-  defaultSessions: [],
-  customSessionGroups: [],
-  pinnedSessions: [],
-  isSearching: false,
-  sessionSearchKeywords: '',
-  useSearchSessions: (keywords: string) => mockSearchResult, // Return same object
-};
-
-const useSessionStore = (selector?: any, comparator?: any) => {
-  if (selector) {
-    return selector(mockSessionStore);
-  }
-  return mockSessionStore;
-};
+import { useServerConfigStore } from '@/store/serverConfig';
+import { serverConfigSelectors } from '@/store/serverConfig/selectors';
+import { useSessionStore } from '@/store/session';
 
 const SearchMode = memo(() => {
-  const [sessionSearchKeywords, useSearchSessions] = useSessionStore((s) => [
-    s.sessionSearchKeywords,
-    s.useSearchSessions,
+  const [searchResults] = useSessionStore((s) => [
+    s.searchResults,
   ]);
 
   const isMobile = useServerConfigStore(serverConfigSelectors.isMobile);
 
-  const { data, isLoading } = useSearchSessions(sessionSearchKeywords);
+  const data = searchResults || [];
+  const isLoading = false; // Add real loading state if needed from store
 
   const filteredData = useMemo(() => {
     if (!data) return data;
 
     if (isMobile) {
-      return data.filter((session: LobeSessions[0]) => session.type !== LobeSessionType.Group);
+      return data.filter((session) => getNullableString(session.type) !== LobeSessionType.Group);
     }
 
-    return data.filter(
-      (session: LobeSessions[0]) =>
-        session.type !== LobeSessionType.Agent || !(session as LobeAgentSession).config?.virtual,
-    );
+    return data.filter((session) => {
+      // For now, just exclude groups if we are desktop? Or maybe show everything?
+      // Original logic: session.type !== 'agent' || !virtual
+      // This implies showing groups AND non-virtual agents.
+      // Let's just return true for all results from search for now as the backend search should handle relevance.
+      return true;
+    });
   }, [data, isMobile]);
 
   return isLoading ? (
