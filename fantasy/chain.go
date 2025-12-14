@@ -17,12 +17,12 @@ type ChainLanguageModel struct {
 	name   string
 
 	// Circuit breaker state per model
-	mu             sync.RWMutex
-	failures       map[int]int       // failure count per model index
-	lastFailure    map[int]time.Time // last failure time per model index
-	circuitOpen    map[int]bool      // whether circuit is open (skip model)
-	failureThreshold int             // failures before opening circuit
-	resetTimeout     time.Duration   // time before trying again
+	mu               sync.RWMutex
+	failures         map[int]int       // failure count per model index
+	lastFailure      map[int]time.Time // last failure time per model index
+	circuitOpen      map[int]bool      // whether circuit is open (skip model)
+	failureThreshold int               // failures before opening circuit
+	resetTimeout     time.Duration     // time before trying again
 }
 
 // ChainOption configures a ChainLanguageModel.
@@ -203,53 +203,82 @@ func (c *ChainLanguageModel) Generate(ctx context.Context, call Call) (*Response
 		strings.Join(attemptedModels, ", "), lastErr)
 }
 
-// Stream tries each model in order until one succeeds.
-// Fallback is attempted if stream setup fails OR if the first chunk contains an error.
-// Mid-stream errors (after first successful chunk) do NOT trigger fallback.
+// Stream tries each model in order.
+// If a model fails during setup or *during* streaming, it seamlessly falls back to the next model.
 func (c *ChainLanguageModel) Stream(ctx context.Context, call Call) (StreamResponse, error) {
-	var lastErr error
-	var attemptedModels []string
+	// We return a single stream iterator that internally manages switching between models
+	return func(yield func(StreamPart) bool) {
+		var lastErr error
+		var attemptedModels []string
 
-	for i, model := range c.models {
-		// Check circuit breaker
-		if c.isCircuitOpen(i) {
-			log.Printf("🔀 Chain[%s]: Skipping model %d (%s/%s) - circuit open",
-				c.name, i, model.Provider(), model.Model())
-			continue
-		}
+		// Setup context for the chain - we might need to recreate context if one model fails/timeouts
+		// to give the next model a fresh start, but usually we respect the parent context.
+		// If dealing with timeouts per model, complex context handling is needed.
+		// For now, we assume the parent context is sufficient or the models handle their own timeouts.
 
-		modelName := fmt.Sprintf("%s/%s", model.Provider(), model.Model())
-		attemptedModels = append(attemptedModels, modelName)
-
-		log.Printf("🔀 Chain[%s]: Trying stream with model %d/%d (%s)",
-			c.name, i+1, len(c.models), modelName)
-
-		stream, err := model.Stream(ctx, call)
-		if err != nil {
-			c.recordFailure(i)
-			lastErr = err
-			log.Printf("⚠️  Chain[%s]: Stream model %s failed at setup: %v", c.name, modelName, err)
-			if ctx.Err() != nil {
-				return nil, fmt.Errorf("context cancelled: %w", ctx.Err())
+		for i, model := range c.models {
+			// Check circuit breaker
+			if c.isCircuitOpen(i) {
+				continue
 			}
-			continue
+
+			modelName := fmt.Sprintf("%s/%s", model.Provider(), model.Model())
+			attemptedModels = append(attemptedModels, modelName)
+
+			log.Printf("🔀 Chain[%s]: Trying stream with model %d/%d (%s)", c.name, i+1, len(c.models), modelName)
+
+			// Attempt to start streaming
+			stream, err := model.Stream(ctx, call)
+			if err != nil {
+				c.recordFailure(i)
+				lastErr = err
+				log.Printf("⚠️  Chain[%s]: Setup failed for %s: %v", c.name, modelName, err)
+				continue // Try next model
+			}
+
+			// Stream started successfully. Now we consume it.
+			// Ideally we want to pass through success parts, but catch error parts.
+
+			streamFailed := false
+			for part := range stream {
+				// Check for errors in the stream
+				if part.Type == StreamPartTypeError || part.Error != nil {
+					// Mid-stream failure detected!
+					c.recordFailure(i)
+					lastErr = part.Error
+					if lastErr == nil {
+						lastErr = fmt.Errorf("unknown stream error")
+					}
+					log.Printf("⚠️  Chain[%s]: Mid-stream error from %s: %v. Switching to next model...", c.name, modelName, lastErr)
+
+					streamFailed = true
+					break // Stop consuming this stream, move to next model
+				}
+
+				// Yield successful part
+				if !yield(part) {
+					return // Consumer stopped
+				}
+			}
+
+			if !streamFailed {
+				// Model finished successfully
+				c.recordSuccess(i)
+				return // We are done
+			}
+
+			// If we are here, streamFailed was true.
+			// We loop back to try the next model.
 		}
 
-		// Stream setup succeeded - return directly for true streaming UX
-		// Note: Mid-stream errors are rare; rate limits are caught at setup
-		c.recordSuccess(i)
-		if i > 0 {
-			log.Printf("✅ Chain[%s]: Fallback stream succeeded with model %s", c.name, modelName)
-		}
-
-		return stream, nil
-	}
-
-	return nil, fmt.Errorf("all models failed to stream (tried: %s): %w",
-		strings.Join(attemptedModels, ", "), lastErr)
+		// If we exhausted all models, yield the final error
+		finalErr := fmt.Errorf("all chain models failed (tried: %s): %w", strings.Join(attemptedModels, ", "), lastErr)
+		yield(StreamPart{
+			Type:  StreamPartTypeError,
+			Error: finalErr,
+		})
+	}, nil
 }
-
-
 
 // GenerateObject tries each model in order until one succeeds.
 func (c *ChainLanguageModel) GenerateObject(ctx context.Context, call ObjectCall) (*ObjectResponse, error) {
