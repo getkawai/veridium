@@ -10,6 +10,71 @@ import { Create as $Create } from "@wailsio/runtime";
 import * as types$0 from "../../types/models.js";
 
 /**
+ * ChatCompletionMessage represents a message in the completion request
+ */
+export class ChatCompletionMessage {
+    "role": string;
+    "content": string;
+
+    /** Creates a new ChatCompletionMessage instance. */
+    constructor($$source: Partial<ChatCompletionMessage> = {}) {
+        if (!("role" in $$source)) {
+            this["role"] = "";
+        }
+        if (!("content" in $$source)) {
+            this["content"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ChatCompletionMessage instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ChatCompletionMessage {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ChatCompletionMessage($$parsedSource as Partial<ChatCompletionMessage>);
+    }
+}
+
+/**
+ * ChatCompletionRequest represents a stateless chat completion request
+ * This is used for tasks like translation, summarization, etc.
+ */
+export class ChatCompletionRequest {
+    "model": string;
+    "provider": string;
+    "messages": ChatCompletionMessage[];
+
+    /** Creates a new ChatCompletionRequest instance. */
+    constructor($$source: Partial<ChatCompletionRequest> = {}) {
+        if (!("model" in $$source)) {
+            this["model"] = "";
+        }
+        if (!("provider" in $$source)) {
+            this["provider"] = "";
+        }
+        if (!("messages" in $$source)) {
+            this["messages"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ChatCompletionRequest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ChatCompletionRequest {
+        const $$createField2_0 = $$createType1;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("messages" in $$parsedSource) {
+            $$parsedSource["messages"] = $$createField2_0($$parsedSource["messages"]);
+        }
+        return new ChatCompletionRequest($$parsedSource as Partial<ChatCompletionRequest>);
+    }
+}
+
+/**
  * ChatFileChunk represents a file chunk from RAG system
  */
 export class ChatFileChunk {
@@ -225,9 +290,9 @@ export class ChatRequest {
      * Creates a new ChatRequest instance from a string or object.
      */
     static createFrom($$source: any = {}): ChatRequest {
-        const $$createField8_0 = $$createType0;
-        const $$createField10_0 = $$createType0;
-        const $$createField11_0 = $$createType1;
+        const $$createField8_0 = $$createType2;
+        const $$createField10_0 = $$createType2;
+        const $$createField11_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("file_ids" in $$parsedSource) {
             $$parsedSource["file_ids"] = $$createField8_0($$parsedSource["file_ids"]);
@@ -412,8 +477,8 @@ export class GroundingSearch {
      * Creates a new GroundingSearch instance from a string or object.
      */
     static createFrom($$source: any = {}): GroundingSearch {
-        const $$createField0_0 = $$createType3;
-        const $$createField1_0 = $$createType0;
+        const $$createField0_0 = $$createType5;
+        const $$createField1_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("citations" in $$parsedSource) {
             $$parsedSource["citations"] = $$createField0_0($$parsedSource["citations"]);
@@ -600,7 +665,7 @@ export class SearchResult {
      * Creates a new SearchResult instance from a string or object.
      */
     static createFrom($$source: any = {}): SearchResult {
-        const $$createField7_0 = $$createType4;
+        const $$createField7_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("metadata" in $$parsedSource) {
             $$parsedSource["metadata"] = $$createField7_0($$parsedSource["metadata"]);
@@ -683,16 +748,16 @@ export class StreamEventPayload {
      * Creates a new StreamEventPayload instance from a string or object.
      */
     static createFrom($$source: any = {}): StreamEventPayload {
-        const $$createField6_0 = $$createType6;
-        const $$createField7_0 = $$createType8;
-        const $$createField8_0 = $$createType9;
-        const $$createField11_0 = $$createType11;
-        const $$createField13_0 = $$createType13;
-        const $$createField14_0 = $$createType15;
-        const $$createField15_0 = $$createType17;
-        const $$createField16_0 = $$createType19;
-        const $$createField17_0 = $$createType21;
-        const $$createField18_0 = $$createType23;
+        const $$createField6_0 = $$createType8;
+        const $$createField7_0 = $$createType10;
+        const $$createField8_0 = $$createType11;
+        const $$createField11_0 = $$createType13;
+        const $$createField13_0 = $$createType15;
+        const $$createField14_0 = $$createType17;
+        const $$createField15_0 = $$createType19;
+        const $$createField16_0 = $$createType21;
+        const $$createField17_0 = $$createType23;
+        const $$createField18_0 = $$createType25;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reasoning" in $$parsedSource) {
             $$parsedSource["reasoning"] = $$createField6_0($$parsedSource["reasoning"]);
@@ -820,27 +885,29 @@ export enum ThreadType {
 };
 
 // Private type creation functions
-const $$createType0 = $Create.Array($Create.Any);
-const $$createType1 = $Create.Map($Create.Any, $Create.Any);
-const $$createType2 = CitationItem.createFrom;
-const $$createType3 = $Create.Array($$createType2);
-const $$createType4 = $Create.Map($Create.Any, $Create.Any);
-const $$createType5 = ModelReasoning.createFrom;
-const $$createType6 = $Create.Nullable($$createType5);
-const $$createType7 = ChatToolPayload.createFrom;
+const $$createType0 = ChatCompletionMessage.createFrom;
+const $$createType1 = $Create.Array($$createType0);
+const $$createType2 = $Create.Array($Create.Any);
+const $$createType3 = $Create.Map($Create.Any, $Create.Any);
+const $$createType4 = CitationItem.createFrom;
+const $$createType5 = $Create.Array($$createType4);
+const $$createType6 = $Create.Map($Create.Any, $Create.Any);
+const $$createType7 = ModelReasoning.createFrom;
 const $$createType8 = $Create.Nullable($$createType7);
-const $$createType9 = $Create.Array($$createType7);
-const $$createType10 = ChatPluginPayload.createFrom;
-const $$createType11 = $Create.Nullable($$createType10);
-const $$createType12 = GroundingSearch.createFrom;
+const $$createType9 = ChatToolPayload.createFrom;
+const $$createType10 = $Create.Nullable($$createType9);
+const $$createType11 = $Create.Array($$createType9);
+const $$createType12 = ChatPluginPayload.createFrom;
 const $$createType13 = $Create.Nullable($$createType12);
-const $$createType14 = ChatFileChunk.createFrom;
-const $$createType15 = $Create.Array($$createType14);
-const $$createType16 = ChatImageItem.createFrom;
+const $$createType14 = GroundingSearch.createFrom;
+const $$createType15 = $Create.Nullable($$createType14);
+const $$createType16 = ChatFileChunk.createFrom;
 const $$createType17 = $Create.Array($$createType16);
-const $$createType18 = ModelUsage.createFrom;
-const $$createType19 = $Create.Nullable($$createType18);
-const $$createType20 = ChatMessageError.createFrom;
+const $$createType18 = ChatImageItem.createFrom;
+const $$createType19 = $Create.Array($$createType18);
+const $$createType20 = ModelUsage.createFrom;
 const $$createType21 = $Create.Nullable($$createType20);
-const $$createType22 = ModelPerformance.createFrom;
+const $$createType22 = ChatMessageError.createFrom;
 const $$createType23 = $Create.Nullable($$createType22);
+const $$createType24 = ModelPerformance.createFrom;
+const $$createType25 = $Create.Nullable($$createType24);

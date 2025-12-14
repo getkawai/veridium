@@ -110,14 +110,9 @@ export const chatTranslate: StateCreator<
   },
 
   updateMessageTranslate: async (id, data) => {
-    const userId = getUserId();
-
     if (data === false) {
       // If translate is false, delete the translation
-      await DB.DeleteMessageTranslate({
-        id,
-        userId,
-      });
+      await DB.DeleteMessageTranslate(id);
     } else {
       // Otherwise, upsert the translation
       await DB.UpsertMessageTranslate({
@@ -125,8 +120,6 @@ export const chatTranslate: StateCreator<
         content: toNullString(data.content as any),
         from: toNullString(data.from as any),
         to: toNullString(data.to as any),
-        clientId: toNullString(null),
-        userId,
       });
     }
 

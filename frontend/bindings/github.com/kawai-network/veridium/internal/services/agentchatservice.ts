@@ -23,6 +23,14 @@ import * as tools$0 from "../../fantasy/llamalib/tools/models.js";
 import * as $models from "./models.js";
 
 /**
+ * ChatCompletion executes a stateless chat completion
+ * It does not use session history or agents tools, just simple LLM generation
+ */
+export function ChatCompletion(req: $models.ChatCompletionRequest): $CancellablePromise<string> {
+    return $Call.ByID(963976557, req);
+}
+
+/**
  * ChatRealStream handles chat with REAL LLM calls using event streaming.
  * This combines:
  * - Real LLM logic from Chat() in agent_chat_service.go

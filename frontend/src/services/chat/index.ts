@@ -28,6 +28,7 @@ import { API_ENDPOINTS } from '../_url';
 // import { initializeWithClientStore } from './clientModelRuntime';
 import { contextEngineeringBackend } from './contextEngineeringBackend';
 import { findDeploymentName, resolveRuntimeProvider } from './helper';
+import { AgentChatService } from '@@/github.com/kawai-network/veridium/internal/services';
 
 // Feature flag: Use backend context engineering instead of frontend
 // Set to true to use Go backend, false to use TypeScript frontend
@@ -298,7 +299,7 @@ class ChatService {
 
     //   return createErrorResponse(errorType, { error, ...res, provider });
     // }
-    
+
     // TODO: Implement new chat completion logic without model-runtime
     console.warn('getChatCompletion: model-runtime removed, needs new implementation');
     return new Response(JSON.stringify({ error: 'Not implemented' }), { status: 501 });
@@ -359,41 +360,21 @@ class ChatService {
     onLoadingChange?.(true);
 
     try {
-      // NOTE: Context engineering now handled by AgentChatService backend
-      // This legacy code path is deprecated
-      const oaiMessages = params.messages as OpenAIChatMessage[];
-      // Use simple tools engine without complex search logic
-      const toolsEngine = createToolsEngine();
-      const tools = toolsEngine.generateTools({
-        model: params.model!,
-        provider: params.provider!,
-        toolIds: params.plugins || [],
+      const messages = params.messages?.map((m: any) => ({
+        role: m.role || 'user',
+        content: m.content || ''
+      })) || [];
+
+      // Use generated binding
+      const result = await AgentChatService.ChatCompletion({
+        model: params.model || '',
+        provider: params.provider || '',
+        messages: messages
       });
 
-      // remove plugins
-      delete params.plugins;
-      
-      // Force non-streaming for preset tasks (topic/thread generation)
-      // These tasks don't need streaming as they generate short titles
-      const taskParams: Partial<ChatStreamPayload> = { 
-        ...params, 
-        messages: oaiMessages as OpenAIChatMessage[], 
-        tools, 
-        stream: false 
-      };
-      
-      await this.getChatCompletion(
-        taskParams,
-        {
-          onErrorHandle: (error) => {
-            errorHandle(new Error(error.message), error);
-          },
-          onFinish,
-          onMessageHandle,
-          signal: abortController?.signal,
-          trace: this.mapTrace(trace, TraceTagMap.SystemChain),
-        },
-      );
+      // Simulate streaming for compatibility (or just call onFinish)
+      onMessageHandle?.({ text: result, type: 'text' });
+      onFinish?.(result, { usage: {}, speed: undefined, toolCalls: [] });
 
       onLoadingChange?.(false);
     } catch (e) {
@@ -487,12 +468,12 @@ class ChatService {
   //   if (response.body && callbacks) {
   //     const reader = response.body.getReader();
   //     const decoder = new TextDecoder();
-      
+
   //     try {
   //       while (true) {
   //         const { done, value } = await reader.read();
   //         if (done) break;
-          
+
   //         // The actual processing is done by OpenAIStream pipeline
   //         // We just need to read the stream to trigger the callbacks
   //         if (value) {
