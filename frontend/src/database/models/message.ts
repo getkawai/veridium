@@ -31,6 +31,8 @@ import {
   getNullableString,
   currentTimestampMs,
   boolToInt,
+  NullString,
+  MessageQuery,
 } from '@/types/database';
 
 // Import transaction methods (Optimization 4A)
@@ -166,25 +168,28 @@ export class MessageModel {
       (i) => !(i.fileType || '').startsWith('image') && !(i.fileType || '').startsWith('video'),
     );
 
-    // 3. Get relative file chunks
+    // 3. Get relative file chunks (Batch)
     // Note: GetMessageQueryChunks expects messageIds as NullString[]
     let chunksList: any[] = [];
-    await Promise.all(
-      messageIds.map(async (msgId) => {
-        try {
-          const chunks = await DB.GetMessageQueryChunks(msgId);
-          chunksList.push(...chunks.map((c: any) => ({ ...c, messageId: msgId })));
-        } catch {
-          // Chunks query might fail
-        }
-      }),
-    );
+    const nullStringMessageIds: NullString[] = messageIds.map(id => toNullString(id));
+
+    if (nullStringMessageIds.length > 0) {
+      try {
+        const chunks = await DB.GetMessageQueryChunks(nullStringMessageIds);
+        chunksList.push(...chunks.map(c => ({
+          ...c,
+          messageId: getNullableString(c.messageId as any)
+        })));
+      } catch (e) {
+        console.error("Failed to fetch message chunks", e);
+      }
+    }
 
     // 4. Get relative message queries
     const messageQueriesList = await Promise.all(
       messageIds.map(async (messageId) => {
         try {
-          const queries = await DB.ListMessageQueriesByMessage(messageId);
+          const queries: MessageQuery[] = await DB.ListMessageQueriesByMessage(messageId);
           return queries.map((q) => ({
             id: q.id,
             messageId: q.messageId,
