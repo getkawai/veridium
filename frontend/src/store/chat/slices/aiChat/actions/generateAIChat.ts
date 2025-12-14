@@ -31,6 +31,7 @@ import { produce } from 'immer';
 import { StateCreator } from 'zustand/vanilla';
 
 import { ChatStore } from '@/store/chat/store';
+import { useSessionStore } from '@/store/session/store';
 import { messageMapKey } from '@/store/chat/utils/messageMapKey';
 import { setNamespace } from '@/utils/storeDebug';
 import { chatSelectors } from '../../../selectors';
@@ -173,7 +174,7 @@ export const generateAIChat: StateCreator<
         message_assistant_id: messageAssistantId,
         file_ids: fileIds.length > 0 ? fileIds : undefined,
       });
-      
+
       await ChatRealStream(request);
 
       // Note: User message is also created via streaming events
@@ -449,6 +450,10 @@ export const generateAIChat: StateCreator<
         // Remove from loading IDs
         state.chatLoadingIds = state.chatLoadingIds.filter(id => id !== data.message_id);
         console.log('[Stream] Complete - message finalized:', data.message_id);
+
+        // Refresh session list to update sort order (Last Active)
+        // This moves the current session to the top
+        useSessionStore.getState().refreshSessions();
       }
     }), false, n('streamEvent'));
 
