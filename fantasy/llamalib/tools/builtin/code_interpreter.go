@@ -5,11 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os/exec"
 	"strings"
 	"time"
-
-	"github.com/kawai-network/veridium/pkg/xlog"
 
 	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/fantasy/llamalib/tools"
@@ -67,10 +66,11 @@ func (s *CodeInterpreterService) ExecutePython(code string, packages []string) (
 				continue
 			}
 
-			xlog.Info("📦 Installing python package", "package", pkg)
+			log.Printf("📦 Installing package: %s", pkg)
+
 			installCmd := exec.Command("pip", "install", "-q", pkg)
 			if err := installCmd.Run(); err != nil {
-				xlog.Warn("⚠️  Failed to install package", "package", pkg, "error", err)
+				log.Printf("⚠️  Failed to install %s: %v (continuing anyway)", pkg, err)
 			}
 		}
 	}
@@ -225,7 +225,7 @@ func RegisterCodeInterpreter(registry *tools.ToolRegistry) error {
 				return fantasy.NewTextErrorResponse("code is required"), nil
 			}
 
-			xlog.Info("🐍 Executing Python code", "code_len", len(input.Code), "packages", len(input.Packages))
+			log.Printf("🐍 Executing Python code (%d chars, %d packages)", len(input.Code), len(input.Packages))
 
 			response, err := service.ExecutePython(input.Code, input.Packages)
 			if err != nil {
@@ -233,7 +233,8 @@ func RegisterCodeInterpreter(registry *tools.ToolRegistry) error {
 			}
 
 			resultJSON, _ := json.Marshal(response)
-			xlog.Info("✅ Python execution complete", "has_result", response.Result != "", "outputs", len(response.Output), "files", len(response.Files))
+			log.Printf("✅ Python execution complete (result: %v, outputs: %d, files: %d)",
+				response.Result != "", len(response.Output), len(response.Files))
 
 			return fantasy.NewTextResponse(string(resultJSON)), nil
 		},

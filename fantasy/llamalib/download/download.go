@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -13,7 +14,6 @@ import (
 	"time"
 
 	"github.com/kawai-network/veridium/pkg/grab"
-	"github.com/kawai-network/veridium/pkg/xlog"
 	"golang.org/x/time/rate"
 )
 
@@ -47,8 +47,8 @@ func LlamaLatestVersion() (string, error) {
 	}
 
 	// If all retries failed, use fallback version
-	xlog.Warn("⚠️  Failed to fetch version from GitHub API", "error", err)
-	xlog.Warn("📦 Using fallback version", "version", FallbackVersion)
+	log.Printf("⚠️  Failed to fetch version from GitHub API: %v", err)
+	log.Printf("📦 Using fallback version: %s", FallbackVersion)
 	return FallbackVersion, nil
 }
 
@@ -77,7 +77,7 @@ func getLatestVersion() (string, error) {
 		return "", fmt.Errorf("empty version tag from GitHub API")
 	}
 
-	xlog.Info("📦 Latest llama.cpp version from GitHub", "version", result.TagName)
+	log.Printf("📦 Latest llama.cpp version from GitHub: %s", result.TagName)
 	return result.TagName, nil
 }
 
@@ -193,7 +193,7 @@ func get(url, filename, dest string) error {
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		if attempt > 0 {
 			backoff := initialBackoff * time.Duration(1<<uint(attempt-1)) // 2s, 4s, 8s
-			xlog.Info("⏳ Retry download (GitHub CDN may be propagating)...", "attempt", attempt+1, "max_retries", maxRetries, "backoff", backoff)
+			log.Printf("   ⏳ Retry %d/%d after %v (GitHub CDN may be propagating)...", attempt+1, maxRetries, backoff)
 			time.Sleep(backoff)
 		}
 
@@ -208,7 +208,7 @@ func get(url, filename, dest string) error {
 		if strings.Contains(err.Error(), "404") {
 			// For 404, retry might help if it's CDN propagation delay
 			if attempt < maxRetries-1 {
-				xlog.Warn("⚠️  404 error, retrying (may be CDN delay)...")
+				log.Printf("   ⚠️  404 error, retrying (may be CDN delay)...")
 				continue
 			}
 			// After all retries, return specific 404 message
@@ -481,7 +481,7 @@ func GetWithProgress(url, destPath string, opts DownloadOptions) error {
 	for attempt := 1; attempt <= opts.MaxRetries; attempt++ {
 		if attempt > 1 {
 			backoff := time.Duration(attempt) * 2 * time.Second
-			xlog.Info("🔄 Retry attempt (download)", "attempt", attempt, "max", opts.MaxRetries, "backoff", backoff)
+			log.Printf("🔄 Retry attempt %d/%d (waiting %v)...", attempt, opts.MaxRetries, backoff)
 			time.Sleep(backoff)
 		}
 
@@ -489,7 +489,7 @@ func GetWithProgress(url, destPath string, opts DownloadOptions) error {
 		req, err := grab.NewRequest(destPath, url)
 		if err != nil {
 			lastErr = fmt.Errorf("failed to create download request: %w", err)
-			xlog.Warn("⚠️  Download attempt failed", "attempt", attempt, "error", lastErr)
+			log.Printf("⚠️  Attempt %d failed: %v", attempt, lastErr)
 			continue
 		}
 
@@ -500,7 +500,7 @@ func GetWithProgress(url, destPath string, opts DownloadOptions) error {
 		if opts.RateLimitMBps > 0 {
 			bytesPerSecond := opts.RateLimitMBps * 1024 * 1024
 			req.RateLimiter = rate.NewLimiter(rate.Limit(bytesPerSecond), bytesPerSecond)
-			xlog.Debug("🔧 Download rate limit set", "limit_mbps", opts.RateLimitMBps)
+			log.Printf("🔧 Rate limit: %d MB/s", opts.RateLimitMBps)
 		}
 
 		// Start download
@@ -510,7 +510,7 @@ func GetWithProgress(url, destPath string, opts DownloadOptions) error {
 		if opts.ShowProgress {
 			if err := trackProgress(resp, opts.ProgressInterval); err != nil {
 				lastErr = err
-				xlog.Warn("⚠️  Download attempt failed", "attempt", attempt, "error", lastErr)
+				log.Printf("⚠️  Attempt %d failed: %v", attempt, lastErr)
 				continue
 			}
 		} else {
@@ -518,17 +518,17 @@ func GetWithProgress(url, destPath string, opts DownloadOptions) error {
 			<-resp.Done
 			if err := resp.Err(); err != nil {
 				lastErr = err
-				xlog.Warn("⚠️  Download attempt failed", "attempt", attempt, "error", lastErr)
+				log.Printf("⚠️  Attempt %d failed: %v", attempt, lastErr)
 				continue
 			}
 		}
 
 		// Success!
 		sizeMB := float64(resp.Size()) / (1024 * 1024)
-		xlog.Info("✅ Download complete", "filename", resp.Filename, "size_mb", sizeMB)
+		log.Printf("✅ Download complete: %s (%.1f MB)", resp.Filename, sizeMB)
 
 		if resp.DidResume {
-			xlog.Info("📦 Download resumed successfully")
+			log.Printf("   📦 Download resumed successfully")
 		}
 
 		return nil
@@ -565,9 +565,9 @@ func trackProgress(resp *grab.Response, interval time.Duration) error {
 			lastProgress = progress
 
 			if speed > 0 {
-				xlog.Info("📥 Download progress", "file", filepath.Base(resp.Filename), "progress_percent", fmt.Sprintf("%.1f", progress), "speed_mbps", fmt.Sprintf("%.2f", speed), "eta", eta)
+				log.Printf("📥 Progress: %.1f%% (%.2f MB/s, ETA: %v)", progress, speed, eta)
 			} else {
-				xlog.Info("📥 Download progress (starting...)", "file", filepath.Base(resp.Filename), "progress_percent", fmt.Sprintf("%.1f", progress))
+				log.Printf("📥 Progress: %.1f%% (starting...)", progress)
 			}
 
 		case <-resp.Done:

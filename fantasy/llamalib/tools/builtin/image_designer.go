@@ -5,13 +5,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
-
 	"strings"
 	"time"
-
-	"github.com/kawai-network/veridium/pkg/xlog"
 
 	"github.com/google/uuid"
 	"github.com/kawai-network/veridium/fantasy"
@@ -116,7 +114,7 @@ func (s *ImageDesignerService) Text2Image(prompts []string, quality, size, style
 
 	// Check if SD is available
 	if !s.IsAvailable() {
-		xlog.Warn("⚠️  Stable Diffusion not available, using placeholder images")
+		log.Printf("⚠️  Stable Diffusion not available, using placeholder images")
 		return s.generatePlaceholders(prompts, quality, size, style, seeds)
 	}
 
@@ -125,11 +123,11 @@ func (s *ImageDesignerService) Text2Image(prompts []string, quality, size, style
 	modelPath := s.GetFirstAvailableModel()
 
 	if modelPath == "" {
-		xlog.Warn("⚠️  No SD model found, using placeholder images")
+		log.Printf("⚠️  No SD model found, using placeholder images")
 		return s.generatePlaceholders(prompts, quality, size, style, seeds)
 	}
 
-	xlog.Info("🎨 Using Stable Diffusion", "model", filepath.Base(modelPath))
+	log.Printf("🎨 Using Stable Diffusion: %s", filepath.Base(modelPath))
 
 	results := make([]DallEImageItem, 0, len(prompts))
 
@@ -171,11 +169,11 @@ func (s *ImageDesignerService) Text2Image(prompts []string, quality, size, style
 			Seed:           &seed,
 		}
 
-		xlog.Info("🖼️  Generating image", "index", i+1, "total", len(prompts), "prompt", truncateString(prompt, 50))
+		log.Printf("🖼️  Generating image %d/%d: %s", i+1, len(prompts), truncateString(prompt, 50))
 
 		// Execute SD via the manager
 		if err := s.sdManager.CreateImageWithOptions(options); err != nil {
-			xlog.Warn("⚠️  SD generation failed", "error", err)
+			log.Printf("⚠️  SD generation failed: %v", err)
 			// Fallback to placeholder
 			result := s.generateSinglePlaceholder(prompt, quality, size, style, i)
 			results = append(results, result)
@@ -184,7 +182,7 @@ func (s *ImageDesignerService) Text2Image(prompts []string, quality, size, style
 
 		// Check if output was created
 		if _, err := os.Stat(outputPath); err != nil {
-			xlog.Warn("⚠️  Output image not found", "path", outputPath)
+			log.Printf("⚠️  Output image not found: %s", outputPath)
 			result := s.generateSinglePlaceholder(prompt, quality, size, style, i)
 			results = append(results, result)
 			continue
@@ -193,7 +191,7 @@ func (s *ImageDesignerService) Text2Image(prompts []string, quality, size, style
 		// Read image and convert to data URL for preview
 		imageData, err := os.ReadFile(outputPath)
 		if err != nil {
-			xlog.Warn("⚠️  Failed to read output image", "error", err)
+			log.Printf("⚠️  Failed to read output image: %v", err)
 			result := s.generateSinglePlaceholder(prompt, quality, size, style, i)
 			results = append(results, result)
 			continue
@@ -211,7 +209,7 @@ func (s *ImageDesignerService) Text2Image(prompts []string, quality, size, style
 			Style:      style,
 		})
 
-		xlog.Info("✅ Generated image", "id", imageId)
+		log.Printf("✅ Generated image: %s", imageId)
 	}
 
 	return results, nil
@@ -239,7 +237,7 @@ func (s *ImageDesignerService) generateSinglePlaceholder(prompt, quality, size, 
 	width, height := parseDallESize(size)
 	placeholderUrl := fmt.Sprintf("https://picsum.photos/seed/%d/%d/%d", index, width, height)
 
-	xlog.Info("🎨 Generated placeholder", "prompt", truncateString(prompt, 50))
+	log.Printf("🎨 Generated placeholder for: %s", truncateString(prompt, 50))
 
 	return DallEImageItem{
 		Prompt:     prompt,
@@ -296,7 +294,7 @@ func RegisterImageDesigner(registry *tools.ToolRegistry) error {
 			}
 
 			resultJSON, _ := json.Marshal(results)
-			xlog.Info("🖼️  Generated images", "count", len(results))
+			log.Printf("🖼️  Generated %d images", len(results))
 			return fantasy.NewTextResponse(string(resultJSON)), nil
 		},
 	)

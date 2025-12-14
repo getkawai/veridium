@@ -3,9 +3,9 @@ package services
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/kawai-network/veridium/fantasy"
-	"github.com/kawai-network/veridium/pkg/xlog"
 )
 
 // ChatCompletionRequest represents a stateless chat completion request
@@ -63,7 +63,7 @@ func (s *AgentChatService) ChatCompletion(ctx context.Context, req ChatCompletio
 		Prompt: msgs,
 	})
 	if err != nil {
-		xlog.Error("❌ [ChatCompletion] Generation failed", "error", err)
+		log.Printf("❌ [ChatCompletion] Generation failed: %v", err)
 		return "", err
 	}
 

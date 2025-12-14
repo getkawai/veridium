@@ -5,10 +5,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 	"time"
-
-	"github.com/kawai-network/veridium/pkg/xlog"
 
 	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/fantasy/llamalib/tools"
@@ -43,7 +42,7 @@ func (s *ImageDescribeService) GetImageDescription(ctx context.Context, fileID s
 		doc, err := s.queries.GetDocumentByFileID(ctx, sql.NullString{String: fileID, Valid: true})
 		if err != nil {
 			if err == sql.ErrNoRows {
-				xlog.Debug("⏳ [ImageDescribe] Document not found, waiting...", "file_id", fileID, "attempt", attempt)
+				log.Printf("⏳ [ImageDescribe] Document not found for file %s, waiting... (attempt %d)", fileID, attempt)
 			} else {
 				return "", fmt.Errorf("failed to query document: %w", err)
 			}
@@ -59,7 +58,7 @@ func (s *ImageDescribeService) GetImageDescription(ctx context.Context, fileID s
 					strings.Contains(content, "Video Description (AI Generated)")
 
 				if hasContent {
-					xlog.Info("✅ [ImageDescribe] Found content", "file_id", fileID, "chars", len(content), "attempt", attempt)
+					log.Printf("✅ [ImageDescribe] Found content for file %s (%d chars, attempt %d)", fileID, len(content), attempt)
 					return content, nil
 				}
 			}
@@ -70,7 +69,7 @@ func (s *ImageDescribeService) GetImageDescription(ctx context.Context, fileID s
 			break
 		}
 
-		xlog.Debug("⏳ [ImageDescribe] Waiting for image content...", "file_id", fileID, "attempt", attempt)
+		log.Printf("⏳ [ImageDescribe] Waiting for image content for file %s (attempt %d)", fileID, attempt)
 		select {
 		case <-ctx.Done():
 			return "", ctx.Err()
@@ -96,7 +95,7 @@ func RegisterImageDescribe(registry *tools.ToolRegistry, sqlDB *sql.DB) error {
 			// Wait up to 2 minutes for VL description
 			description, err := service.GetImageDescription(ctx, input.FileID, 2*time.Minute)
 			if err != nil {
-				xlog.Warn("⚠️  [ImageDescribe] Failed to get description", "error", err)
+				log.Printf("⚠️  [ImageDescribe] Failed to get description: %v", err)
 				return fantasy.NewTextErrorResponse(err.Error()), nil
 			}
 

@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 
 	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/fantasy/llamalib/tools"
 	"github.com/kawai-network/veridium/internal/search"
-	"github.com/kawai-network/veridium/pkg/xlog"
 )
 
 // WebSearchInput defines input for web search tool
@@ -43,7 +43,7 @@ func RegisterWebSearch(registry *tools.ToolRegistry) error {
 
 			response, err := searchService.WebSearch(searchQuery)
 			if err != nil {
-				xlog.Warn("⚠️  Web search failed", "error", err)
+				log.Printf("⚠️  Web search failed: %v", err)
 				return fantasy.NewTextErrorResponse(fmt.Sprintf("search failed: %v", err)), nil
 			}
 

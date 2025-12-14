@@ -20,10 +20,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/kawai-network/veridium/fantasy"
-	"github.com/kawai-network/veridium/pkg/xlog"
 )
 
 // MemoryEnrichmentService converts raw chat messages into enriched facts
@@ -98,7 +98,7 @@ func (s *MemoryEnrichmentService) EnrichMessages(ctx context.Context, messages [
 	if s.llm != nil {
 		facts, err = s.extractFactsWithLLM(ctx, formattedMessages)
 		if err != nil {
-			xlog.Warn("⚠️  LLM extraction failed, using rule-based", "error", err)
+			log.Printf("⚠️  LLM extraction failed, using rule-based: %v", err)
 			facts = s.extractFactsRuleBased(messages)
 		}
 	} else {
@@ -122,7 +122,7 @@ func (s *MemoryEnrichmentService) EnrichMessages(ctx context.Context, messages [
 
 		created, err := s.memoryService.CreateMemory(ctx, memory)
 		if err != nil {
-			xlog.Warn("⚠️  Failed to store memory", "error", err)
+			log.Printf("⚠️  Failed to store memory: %v", err)
 			continue
 		}
 		memories = append(memories, created)
@@ -151,7 +151,7 @@ func (s *MemoryEnrichmentService) AutoArchive(ctx context.Context, messages []fa
 		return messages, fmt.Errorf("failed to archive messages: %w", err)
 	}
 
-	xlog.Info("✅ Auto-archived messages", "message_count", len(toArchive), "fact_count", result.FactCount)
+	log.Printf("✅ Auto-archived %d messages into %d memory facts", len(toArchive), result.FactCount)
 
 	return remaining, nil
 }

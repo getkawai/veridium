@@ -21,6 +21,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -36,7 +37,6 @@ import (
 	"github.com/kawai-network/veridium/internal/database"
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/internal/topic"
-	"github.com/kawai-network/veridium/pkg/xlog"
 	"github.com/kawai-network/veridium/types"
 	"github.com/pemistahl/lingua-go"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -380,9 +380,9 @@ func NewAgentChatService(
 	// Pass SQL DB for tools that need database access (e.g., image describe)
 	toolRegistry := tools.NewToolRegistry()
 	if err := yzmabuiltin.RegisterAllWithDB(toolRegistry, db.DB()); err != nil {
-		xlog.Warn("⚠️  Warning: Failed to register yzma builtin tools", "error", err)
+		log.Printf("⚠️  Warning: Failed to register yzma builtin tools: %v", err)
 	} else {
-		xlog.Info("✅ AgentChatService: Yzma builtin tools registered")
+		log.Printf("✅ AgentChatService: Yzma builtin tools registered")
 	}
 
 	// Initialize language detector with common languages
@@ -412,7 +412,7 @@ func NewAgentChatService(
 		FromLanguages(languages...).
 		WithMinimumRelativeDistance(0.25). // Require 25% confidence difference between top languages
 		Build()
-	xlog.Info("✅ AgentChatService: Language detector initialized", "languages", len(languages))
+	log.Printf("✅ AgentChatService: Language detector initialized with %d languages", len(languages))
 
 	service := &AgentChatService{
 		app:              app,
@@ -429,7 +429,7 @@ func NewAgentChatService(
 		languageDetector: languageDetector,
 	}
 
-	xlog.Info("✅ AgentChatService: Initialized (models will be injected via SetChatModel/SetTitleModel/SetSummaryModel)")
+	log.Printf("✅ AgentChatService: Initialized (models will be injected via SetChatModel/SetTitleModel/SetSummaryModel)")
 
 	return service
 }
@@ -438,7 +438,7 @@ func NewAgentChatService(
 func (s *AgentChatService) SetChatModel(model fantasy.LanguageModel) {
 	s.chatModel = model
 	if model != nil {
-		xlog.Info("✅ AgentChatService: Chat model set", "provider", model.Provider(), "model", model.Model())
+		log.Printf("✅ AgentChatService: Chat model set (%s/%s)", model.Provider(), model.Model())
 	}
 }
 
@@ -450,7 +450,7 @@ func (s *AgentChatService) SetTitleModel(model fantasy.LanguageModel) {
 	// Keep s.titleModel for backward compatibility or direct usage if any
 	s.titleModel = model
 	if model != nil {
-		xlog.Info("✅ AgentChatService: Title model set", "provider", model.Provider(), "model", model.Model())
+		log.Printf("✅ AgentChatService: Title model set (%s/%s)", model.Provider(), model.Model())
 	}
 }
 
@@ -458,7 +458,7 @@ func (s *AgentChatService) SetTitleModel(model fantasy.LanguageModel) {
 func (s *AgentChatService) SetSummaryModel(model fantasy.LanguageModel) {
 	s.summaryModel = model
 	if model != nil {
-		xlog.Info("✅ AgentChatService: Summary model set", "provider", model.Provider(), "model", model.Model())
+		log.Printf("✅ AgentChatService: Summary model set (%s/%s)", model.Provider(), model.Model())
 	}
 }
 
@@ -478,7 +478,7 @@ func (s *AgentChatService) RegisterMemoryTool(memoryIntegration *MemoryIntegrati
 	if err := memoryIntegration.RegisterMemoryTool(s.toolRegistry); err != nil {
 		return err
 	}
-	xlog.Info("✅ AgentChatService: Memory tool registered (search_memory)")
+	log.Printf("✅ AgentChatService: Memory tool registered (search_memory)")
 	return nil
 }
 
@@ -496,11 +496,11 @@ func (s *AgentChatService) getOrCreateSession(ctx context.Context, req ChatReque
 		// If cached session has a different topic than requested, we need to reload messages
 		// unless active topic is empty (Default Topic) where we want empty messages anyway
 		if session.TopicID != topicID {
-			xlog.Info("♻️  Cached session topic mismatch, reloading messages", 
-				"session_id", req.SessionID, "cached_topic", session.TopicID, "req_topic", topicID)
+			log.Printf("♻️  Cached session %s topic mismatch (cached=%s, req=%s), reloading messages...",
+				req.SessionID, session.TopicID, topicID)
 			// Fall through to DB load to refresh messages for the new topic
 		} else {
-			xlog.Info("♻️  Reusing cached session", "session_id", req.SessionID, "topic", topicID)
+			log.Printf("♻️  Reusing cached session: %s (Topic: %s)", req.SessionID, topicID)
 			// Update tool names if changed
 			session.ToolNames = s.collectToolNames(ctx, req)
 			return session, nil
@@ -511,7 +511,8 @@ func (s *AgentChatService) getOrCreateSession(ctx context.Context, req ChatReque
 	dbSession, dbMessages, err := s.loadSessionFromDB(ctx, req.SessionID, req.UserID, topicID)
 	if err == nil {
 		// Session exists in DB - reconstruct from history
-		xlog.Info("📂 Loading session from DB", "session_id", req.SessionID, "topic", topicID, "messages", len(dbMessages))
+		log.Printf("📂 Loading session from DB: %s (Topic: %s, %d messages)",
+			req.SessionID, topicID, len(dbMessages))
 
 		// Convert DB messages to message format
 		yzmaMessages := make([]fantasy.Message, 0, len(dbMessages))
@@ -540,15 +541,14 @@ func (s *AgentChatService) getOrCreateSession(ctx context.Context, req ChatReque
 
 		s.sessions[req.SessionID] = session
 
-		xlog.Info("✅ Reconstructed session from DB", 
-			"session_id", req.SessionID, "kb", req.KnowledgeBaseID, "topic", topicID, 
-			"history", len(yzmaMessages), "tools", toolNames)
+		log.Printf("✅ Reconstructed session from DB: %s (KB: %s, Topic: %s, History: %d msgs, Tools: %v)",
+			req.SessionID, req.KnowledgeBaseID, topicID, len(yzmaMessages), toolNames)
 
 		return session, nil
 	}
 
 	// 3. Session doesn't exist - create new one
-	xlog.Info("🆕 Creating new session", "session_id", req.SessionID)
+	log.Printf("🆕 Creating new session: %s", req.SessionID)
 
 	// Create session in DB (handle race condition with UNIQUE constraint)
 	dbSession, err = s.createSessionInDB(ctx, req.SessionID, req.KnowledgeBaseID)
@@ -560,7 +560,7 @@ func (s *AgentChatService) getOrCreateSession(ctx context.Context, req ChatReque
 		isForeignKey := strings.Contains(errStr, "FOREIGN KEY")
 		if isUniqueConstraint && !isForeignKey {
 			// Another process created the session - retry loading with exponential backoff
-			xlog.Warn("⚠️  Race condition detected, retrying load from DB")
+			log.Printf("⚠️  Race condition detected, retrying load from DB...")
 
 			var dbMessages []db.Message
 			maxRetries := 3
@@ -570,12 +570,12 @@ func (s *AgentChatService) getOrCreateSession(ctx context.Context, req ChatReque
 
 				dbSession, dbMessages, err = s.loadSessionFromDB(ctx, req.SessionID, req.UserID, topicID)
 				if err == nil {
-					xlog.Info("✅ Successfully loaded session after retries", "retries", i+1)
+					log.Printf("✅ Successfully loaded session after %d retries", i+1)
 					break
 				}
 
 				if i < maxRetries-1 {
-					xlog.Info("⏳ Retry: session not yet available, waiting", "retry", i+1, "max_retries", maxRetries)
+					log.Printf("⏳ Retry %d/%d: session not yet available, waiting...", i+1, maxRetries)
 				}
 			}
 
@@ -610,7 +610,7 @@ func (s *AgentChatService) getOrCreateSession(ctx context.Context, req ChatReque
 
 			s.sessions[req.SessionID] = session
 
-			xlog.Info("✅ Recovered from race condition", "session_id", req.SessionID)
+			log.Printf("✅ Recovered from race condition: %s", req.SessionID)
 			return session, nil
 		}
 
@@ -637,8 +637,8 @@ func (s *AgentChatService) getOrCreateSession(ctx context.Context, req ChatReque
 
 	s.sessions[req.SessionID] = session
 
-	xlog.Info("✅ Created new session", 
-		"session_id", req.SessionID, "kb", req.KnowledgeBaseID, "tools", toolNames)
+	log.Printf("✅ Created new session: %s (KB: %s, Tools: %v)",
+		req.SessionID, req.KnowledgeBaseID, toolNames)
 
 	return session, nil
 }
@@ -652,7 +652,7 @@ func (s *AgentChatService) collectToolNames(ctx context.Context, req ChatRequest
 	if req.KnowledgeBaseID != "" {
 		// Register KB tool to registry if not exists
 		if err := s.registerKBSearchTool(ctx, req.KnowledgeBaseID); err != nil {
-			xlog.Warn("⚠️  Warning: Failed to register KB tool", "error", err)
+			log.Printf("⚠️  Warning: Failed to register KB tool: %v", err)
 		} else {
 			kb, err := s.kbService.GetKnowledgeBase(ctx, req.KnowledgeBaseID)
 			if err == nil {
@@ -684,12 +684,12 @@ func (s *AgentChatService) detectLanguage(text string) string {
 	// Detect language with confidence
 	detectedLang, exists := s.languageDetector.DetectLanguageOf(text)
 	if !exists {
-		xlog.Info("🌐 Language detection: No confident match, defaulting to English")
+		log.Printf("🌐 Language detection: No confident match, defaulting to English")
 		return "English"
 	}
 
 	langName := detectedLang.String()
-	xlog.Info("🌐 Language detected", "language", langName)
+	log.Printf("🌐 Language detected: %s", langName)
 	return langName
 }
 
@@ -712,15 +712,15 @@ If the user writes in a specific language, always respond in that same language.
 
 	// 3. Append agent's system role if available
 	if err == nil && agent.SystemRole.Valid && agent.SystemRole.String != "" {
-		xlog.Info("🤖 Appending agent's custom system role", "chars", len(agent.SystemRole.String))
+		log.Printf("🤖 Appending agent's custom system role (%d chars)", len(agent.SystemRole.String))
 		return base + fmt.Sprintf("\n%s\n\n", agent.SystemRole.String)
 	}
 
 	// Log fallback
 	if err != nil {
-		xlog.Warn("⚠️  Could not fetch agent for session, using default system prompt", "session_id", sessionID, "error", err)
+		log.Printf("⚠️  Could not fetch agent for session %s: %v, using default system prompt", sessionID, err)
 	} else {
-		xlog.Info("ℹ️  Agent has no custom system role, using default system prompt")
+		log.Printf("ℹ️  Agent has no custom system role, using default system prompt")
 	}
 
 	return base
@@ -754,7 +754,7 @@ func (s *AgentChatService) buildSystemPrompt(session *AgentSession, memoryContex
 
 `, historySummary)
 			baseInstruction += summaryContext
-			xlog.Info("📋 Injected history summary into system prompt", "chars", len(historySummary))
+			log.Printf("📋 Injected history summary into system prompt (%d chars)", len(historySummary))
 		}
 	}
 
@@ -768,7 +768,7 @@ func (s *AgentChatService) buildSystemPrompt(session *AgentSession, memoryContex
 
 `, memoryContext)
 		baseInstruction += memorySection
-		xlog.Info("🧠 Injected hybrid memory context into system prompt", "chars", len(memoryContext))
+		log.Printf("🧠 Injected hybrid memory context into system prompt (%d chars)", len(memoryContext))
 	}
 
 	if session.KnowledgeBaseID != "" {
@@ -778,9 +778,9 @@ func (s *AgentChatService) buildSystemPrompt(session *AgentSession, memoryContex
 	// Apply reasoning mode to instruction
 	instruction := s.reasoningConfig.GetSystemPrompt(baseInstruction)
 
-	xlog.Info("🧠 Building system prompt", "reasoning_mode", s.reasoningConfig.Mode)
-	xlog.Info("🌐 Response language set", "language", detectedLanguage)
-	xlog.Info("📝 System prompt length", "chars", len(instruction))
+	log.Printf("🧠 Building system prompt with reasoning mode: %s", s.reasoningConfig.Mode)
+	log.Printf("🌐 Response language set to: %s", detectedLanguage)
+	log.Printf("📝 System prompt length: %d chars", len(instruction))
 
 	return instruction
 }
@@ -979,14 +979,14 @@ func (s *AgentChatService) loadSessionFromDB(ctx context.Context, sessionID, use
 	} else {
 		// No topic ID (Default Topic) -> Load empty message list
 		// This forces a fresh start
-		xlog.Info("∅ Default Topic (empty ID) requested, loading empty context", "session_id", sessionID)
+		log.Printf("∅ Default Topic (empty ID) requested for session %s, loading empty context", sessionID)
 		dbMessages = []db.Message{}
 		err = nil
 	}
 
 	if err != nil {
 		// If messages query fails, still return session but with empty messages
-		xlog.Warn("Warning: Failed to load messages for topic", "topic_id", topicID, "error", err)
+		log.Printf("Warning: Failed to load messages for topic %s: %v", topicID, err)
 		return &dbSession, nil, nil
 	}
 
@@ -1075,7 +1075,7 @@ func (s *AgentChatService) switchToRecommendedModel() error {
 	modelsDir := filepath.Join(homeDir, ".llama-cpp", "models")
 	modelPath := filepath.Join(modelsDir, recommendedModel)
 
-	xlog.Info("🔄 Switching to recommended model", "mode", s.reasoningConfig.Mode, "model", recommendedModel)
+	log.Printf("🔄 Switching to recommended model for %s mode: %s", s.reasoningConfig.Mode, recommendedModel)
 
 	if err := s.libService.LoadChatModel(modelPath); err != nil {
 		return fmt.Errorf("failed to load recommended model: %w", err)
@@ -1083,7 +1083,7 @@ func (s *AgentChatService) switchToRecommendedModel() error {
 
 	// Note: llamaLM from provider uses libService internally, so no need to recreate
 
-	xlog.Info("✅ Successfully switched to model", "model", recommendedModel)
+	log.Printf("✅ Successfully switched to %s", recommendedModel)
 	return nil
 }
 
@@ -1113,7 +1113,7 @@ func (s *AgentChatService) autoSummarizeIfNeeded(ctx context.Context, session *A
 	// 3. Check if we already summarized recently
 	topic, err := s.db.Queries().GetTopic(ctx, topicID)
 	if err != nil {
-		xlog.Warn("⚠️  autoSummarize: Failed to get topic", "error", err)
+		log.Printf("⚠️  autoSummarize: Failed to get topic: %v", err)
 		return
 	}
 
@@ -1125,7 +1125,7 @@ func (s *AgentChatService) autoSummarizeIfNeeded(ctx context.Context, session *A
 	// 4. Get messages from database (not from session, could be stale)
 	messages, err := s.db.Queries().GetMessagesByTopicId(ctx, sql.NullString{String: topicID, Valid: true})
 	if err != nil || len(messages) < 4 {
-		xlog.Warn("⚠️  autoSummarize: Not enough messages to summarize", "messages", len(messages))
+		log.Printf("⚠️  autoSummarize: Not enough messages to summarize: %d", len(messages))
 		return
 	}
 
@@ -1151,12 +1151,12 @@ func (s *AgentChatService) autoSummarizeIfNeeded(ctx context.Context, session *A
 	}
 
 	// 7. Generate summary (this is already in background goroutine)
-	xlog.Info("🔄 Auto-generating summary for topic", 
-		"topic_id", topicID, "old_messages", len(yzmaMessages), "keeping_recent", keepCount)
+	log.Printf("🔄 Auto-generating summary for topic %s (%d old messages, keeping %d recent)",
+		topicID, len(yzmaMessages), keepCount)
 
 	summary, err := s.generateHistorySummary(ctx, yzmaMessages)
 	if err != nil {
-		xlog.Error("❌ Auto-summary failed", "error", err)
+		log.Printf("❌ Auto-summary failed: %v", err)
 		return
 	}
 
@@ -1177,10 +1177,10 @@ func (s *AgentChatService) autoSummarizeIfNeeded(ctx context.Context, session *A
 	})
 
 	if err != nil {
-		xlog.Error("❌ Failed to save auto-summary", "error", err)
+		log.Printf("❌ Failed to save auto-summary: %v", err)
 	} else {
-		xlog.Info("✅ Auto-summary completed", 
-			"topic_id", topicID, "messages_compressed", len(yzmaMessages), "summary_chars", len(summary))
+		log.Printf("✅ Auto-summary completed for topic %s (compressed %d messages into %d chars)",
+			topicID, len(yzmaMessages), len(summary))
 
 		// Emit subtle event to frontend (optional: show small toast or indicator)
 		if s.app != nil {
@@ -1262,7 +1262,7 @@ Please summarize the above conversation and retain key information. The summariz
 
 	// Strip <think> tags if present (for reasoning models)
 	if strings.Contains(summary, "<think>") {
-		xlog.Warn("⚠️  WARNING: Summary contains <think> tags, stripping")
+		log.Printf("⚠️  WARNING: Summary contains <think> tags, stripping...")
 		summary = stripThinkTags(summary)
 	}
 
@@ -1270,7 +1270,7 @@ Please summarize the above conversation and retain key information. The summariz
 		return "", fmt.Errorf("empty summary generated")
 	}
 
-	xlog.Info("✅ Summary generated", "chars", len(summary))
+	log.Printf("✅ Summary generated (%d chars)", len(summary))
 	return summary, nil
 }
 
@@ -1307,7 +1307,7 @@ func (s *AgentChatService) incrementalSummarizeIfNeeded(ctx context.Context, ses
 
 	if topic.Metadata.Valid && topic.Metadata.String != "" {
 		if err := json.Unmarshal([]byte(topic.Metadata.String), &metadata); err != nil {
-			xlog.Warn("⚠️  incrementalSummarize: Failed to parse metadata", "error", err)
+			log.Printf("⚠️  incrementalSummarize: Failed to parse metadata: %v", err)
 			return
 		}
 	}
@@ -1315,7 +1315,7 @@ func (s *AgentChatService) incrementalSummarizeIfNeeded(ctx context.Context, ses
 	// 5. Get all messages from database
 	allMessages, err := s.db.Queries().GetMessagesByTopicId(ctx, sql.NullString{String: topicID, Valid: true})
 	if err != nil {
-		xlog.Warn("⚠️  incrementalSummarize: Failed to get messages", "error", err)
+		log.Printf("⚠️  incrementalSummarize: Failed to get messages: %v", err)
 		return
 	}
 
@@ -1325,9 +1325,8 @@ func (s *AgentChatService) incrementalSummarizeIfNeeded(ctx context.Context, ses
 		return // Not enough new messages yet
 	}
 
-	xlog.Info("🔄 Re-summarizing topic", 
-		"topic_id", topicID, "old_version", metadata.SummaryVersion, 
-		"new_version", metadata.SummaryVersion+1, "new_messages", newMessageCount)
+	log.Printf("🔄 Re-summarizing topic %s (v%d → v%d, %d new messages)",
+		topicID, metadata.SummaryVersion, metadata.SummaryVersion+1, newMessageCount)
 
 	// 7. Load existing summary
 	existingSummary := topic.HistorySummary.String
@@ -1358,7 +1357,7 @@ func (s *AgentChatService) incrementalSummarizeIfNeeded(ctx context.Context, ses
 	// 10. Generate merged summary
 	mergedSummary, err := s.generateIncrementalSummary(ctx, existingSummary, yzmaMessages)
 	if err != nil {
-		xlog.Error("❌ Incremental summary failed", "error", err)
+		log.Printf("❌ Incremental summary failed: %v", err)
 		return
 	}
 
@@ -1377,7 +1376,7 @@ func (s *AgentChatService) incrementalSummarizeIfNeeded(ctx context.Context, ses
 
 	metadataJSON, err := json.Marshal(newMetadata)
 	if err != nil {
-		xlog.Warn("⚠️  Failed to marshal metadata", "error", err)
+		log.Printf("⚠️  Failed to marshal metadata: %v", err)
 		metadataJSON = []byte("{}")
 	}
 
@@ -1391,13 +1390,12 @@ func (s *AgentChatService) incrementalSummarizeIfNeeded(ctx context.Context, ses
 	})
 
 	if err != nil {
-		xlog.Error("❌ Failed to save incremental summary", "error", err)
+		log.Printf("❌ Failed to save incremental summary: %v", err)
 		return
 	}
 
-	xlog.Info("✅ Incremental summary completed", 
-		"version", newMetadata["summary_version"], 
-		"messages_compressed", newMetadata["summarized_message_count"])
+	log.Printf("✅ Incremental summary v%d completed (%d total messages compressed)",
+		newMetadata["summary_version"], newMetadata["summarized_message_count"])
 }
 
 // generateIncrementalSummary creates updated summary by merging existing summary with new messages
@@ -1463,7 +1461,7 @@ UPDATED SUMMARY:`, existingSummary, messagesText.String())
 
 	// Strip <think> tags if present
 	if strings.Contains(summary, "<think>") {
-		xlog.Warn("⚠️  WARNING: Incremental summary contains <think> tags, stripping")
+		log.Printf("⚠️  WARNING: Incremental summary contains <think> tags, stripping...")
 		summary = stripThinkTags(summary)
 	}
 
@@ -1471,6 +1469,6 @@ UPDATED SUMMARY:`, existingSummary, messagesText.String())
 		return "", fmt.Errorf("empty incremental summary generated")
 	}
 
-	xlog.Info("✅ Incremental summary generated", "chars", len(summary))
+	log.Printf("✅ Incremental summary generated (%d chars)", len(summary))
 	return summary, nil
 }

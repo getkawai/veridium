@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"regexp"
 	"strings"
 	"sync"
@@ -12,7 +13,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/kawai-network/veridium/fantasy"
-	"github.com/kawai-network/veridium/pkg/xlog"
 	"github.com/kawai-network/veridium/types"
 )
 
@@ -113,7 +113,7 @@ func stripToolCallTags(text string) string {
 //	// No return value - data comes via events
 //	// Events.On('chat:stream', handler) receives all updates
 func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) error {
-	xlog.Info("🚀 [REAL STREAM] Starting real LLM streaming", "session_id", req.SessionID)
+	log.Printf("🚀 [REAL STREAM] Starting real LLM streaming for session: %s", req.SessionID)
 	startTime := time.Now()
 
 	// Helper to emit events with type safety using StreamEventPayload
@@ -137,13 +137,13 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 
 	// 2. Validate model for current reasoning mode and auto-switch if needed
 	if err := s.validateModelForReasoningMode(); err != nil {
-		xlog.Warn("⚠️  Model mismatch detected", "error", err)
-		xlog.Info("🔄 Auto-switching to recommended model")
+		log.Printf("⚠️  Model mismatch detected: %v", err)
+		log.Printf("🔄 Auto-switching to recommended model...")
 		if switchErr := s.switchToRecommendedModel(); switchErr != nil {
-			xlog.Error("❌ Failed to switch model", "error", switchErr)
-			xlog.Warn("⚠️  Continuing with current model, but expect suboptimal performance")
+			log.Printf("❌ Failed to switch model: %v", switchErr)
+			log.Printf("⚠️  Continuing with current model, but expect suboptimal performance")
 		} else {
-			xlog.Info("✅ Successfully switched to recommended model")
+			log.Printf("✅ Successfully switched to recommended model")
 		}
 	}
 
@@ -156,12 +156,12 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	// 3.5. Perform semantic search on attached files (if any)
 	var fileChunks []ChatFileChunk
 	if len(req.FileIDs) > 0 && s.vectorSearch != nil {
-		xlog.Info("📎 [REAL STREAM] Searching attached files for context", "files", len(req.FileIDs))
+		log.Printf("📎 [REAL STREAM] Searching %d attached files for context", len(req.FileIDs))
 		searchResults, err := s.vectorSearch.SemanticSearch(ctx, req.Message, req.FileIDs, 10)
 		if err != nil {
-			xlog.Warn("⚠️  [REAL STREAM] File search failed", "error", err)
+			log.Printf("⚠️  [REAL STREAM] File search failed: %v", err)
 		} else if len(searchResults) > 0 {
-			xlog.Info("📚 [REAL STREAM] Found relevant chunks from attached files", "chunks", len(searchResults))
+			log.Printf("📚 [REAL STREAM] Found %d relevant chunks from attached files", len(searchResults))
 			for _, result := range searchResults {
 				fileChunks = append(fileChunks, ChatFileChunk{
 					ID:         result.ID,
@@ -176,7 +176,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 		// Fallback: If RAG returned no results but we have file IDs, try to get document content directly
 		// For images/videos, VL description may still be processing async - poll with timeout
 		if len(fileChunks) == 0 {
-			xlog.Warn("⚠️  [REAL STREAM] No RAG results, falling back to direct document fetch with polling")
+			log.Printf("⚠️  [REAL STREAM] No RAG results, falling back to direct document fetch with polling")
 			for _, fileID := range req.FileIDs {
 				chunk := s.waitForDocumentContent(ctx, fileID, 60*time.Second)
 				if chunk != nil {
@@ -189,15 +189,15 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	// 4. Build hybrid context from memory (if available)
 	var memoryContext string
 	if s.memoryIntegration != nil {
-		xlog.Info("🧠 [REAL STREAM] Fetching hybrid context memories", "query", req.Message)
+		log.Printf("🧠 [REAL STREAM] Fetching hybrid context memories for query: %s", req.Message)
 		// We use nil for shortTermMessages here as they are already in the session history
 		// and handled by the agent. We only need the memory text to inject into system prompt.
 		memCtx, err := s.memoryIntegration.BuildHybridContext(ctx, req.Message, nil)
 		if err != nil {
-			xlog.Warn("⚠️  [REAL STREAM] Failed to build hybrid context", "error", err)
+			log.Printf("⚠️  [REAL STREAM] Failed to build hybrid context: %v", err)
 		} else if memCtx != "" {
 			memoryContext = memCtx
-			xlog.Info("🧠 [REAL STREAM] Hybrid context retrieved", "chars", len(memoryContext))
+			log.Printf("🧠 [REAL STREAM] Hybrid context retrieved (%d chars)", len(memoryContext))
 		}
 	}
 
@@ -214,7 +214,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 			fileContext += fmt.Sprintf("\n### [%d] From: %s (file_id: %s, similarity: %.2f)\n%s\n", i+1, chunk.Filename, chunk.FileID, chunk.Similarity, chunk.Text)
 		}
 		fileContext += "\n---\nUse the above context to help answer the user's question. When using tools like getImageDescription, use the file_id provided above.\n"
-		xlog.Info("📝 [REAL STREAM] Prepared file chunks for context", "chunks", len(fileChunks))
+		log.Printf("📝 [REAL STREAM] Prepared %d file chunks for context", len(fileChunks))
 	}
 
 	// Build user prompt with file context if available
@@ -359,7 +359,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 
 				identifier, apiName, toolType := mapToolName(tc.ToolName)
 				toolCallID := fmt.Sprintf("%s_tool_%d", assistantMsgID, toolCallIndex)
-				xlog.Info("🔧 [REAL STREAM] Tool call (loading)", "tool", tc.ToolName, "identifier", identifier, "api_name", apiName)
+				log.Printf("🔧 [REAL STREAM] Tool call (loading): %s -> identifier=%s, apiName=%s", tc.ToolName, identifier, apiName)
 
 				tool := ChatToolPayload{
 					ID:         toolCallID,
@@ -398,9 +398,9 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 				}
 
 				if len(resultContent) > 50 {
-					xlog.Info("🔧 [REAL STREAM] Tool result", "tool", tr.ToolName, "result", resultContent[:50]+"...")
+					log.Printf("🔧 [REAL STREAM] Tool result: %s -> %s...", tr.ToolName, resultContent[:50])
 				} else {
-					xlog.Info("🔧 [REAL STREAM] Tool result", "tool", tr.ToolName, "result", resultContent)
+					log.Printf("🔧 [REAL STREAM] Tool result: %s -> %s", tr.ToolName, resultContent)
 				}
 
 				// Parse result as JSON for state
@@ -450,12 +450,12 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 			},
 
 			OnError: func(err error) {
-				xlog.Error("❌ [REAL STREAM] Agent stream error", "error", err)
+				log.Printf("❌ [REAL STREAM] Agent stream error: %v", err)
 			},
 		})
 
 		if runErr != nil {
-			xlog.Error("❌ [REAL STREAM] Agent execution failed", "error", runErr)
+			log.Printf("❌ [REAL STREAM] Agent execution failed: %v", runErr)
 			emit(StreamEventPayload{
 				Type:    types.ChatEventComplete,
 				Content: fmt.Sprintf("Error: %v", runErr),
@@ -481,7 +481,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 		}
 	} else {
 		// No language model available
-		xlog.Error("❌ [REAL STREAM] No language model available")
+		log.Printf("❌ [REAL STREAM] No language model available")
 		emit(StreamEventPayload{
 			Type:    types.ChatEventComplete,
 			Content: "Error: No language model available",
@@ -548,10 +548,10 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 		Metadata:  fullMetadata,
 	})
 	if err != nil {
-		xlog.Warn("⚠️  Warning: Failed to save assistant message to DB", "error", err)
+		log.Printf("⚠️  Warning: Failed to save assistant message to DB: %v", err)
 		savedMsgID = assistantMsgID
 	} else {
-		xlog.Info("💾 Saved assistant message", "id", savedMsgID, "topic", currentTopicID, "thread", req.ThreadID)
+		log.Printf("💾 Saved assistant message: %s (topic: %s, thread: %s)", savedMsgID, currentTopicID, req.ThreadID)
 	}
 
 	// 12. Save tool messages to DB
@@ -579,30 +579,30 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 			userMsgCount++
 		}
 	}
-	xlog.Debug("📌 [TITLE CHECK]", "message_count", len(session.Messages), "user_msg_count", userMsgCount, "topic_id", currentTopicID)
+	log.Printf("📌 [TITLE CHECK] session.Messages=%d, userMsgCount=%d, currentTopicID=%s", len(session.Messages), userMsgCount, currentTopicID)
 
 	// Generate title on first turn (1 user message = first conversation)
 	if userMsgCount >= 1 && userMsgCount <= 2 {
 		if currentTopicID != "" {
-			xlog.Info("📌 [TITLE CHECK] Conditions met (first turn), calling updateTopicTitle")
+			log.Printf("📌 [TITLE CHECK] Conditions met (first turn), calling updateTopicTitle")
 			if s.topicService != nil {
 				err := s.topicService.UpdateTopicTitle(ctx, currentTopicID, session.Messages)
 				if err != nil {
-					xlog.Warn("⚠️  Warning: Failed to trigger topic title update", "error", err)
+					log.Printf("⚠️  Warning: Failed to trigger topic title update: %v", err)
 				}
 			} else {
-				xlog.Warn("⚠️  TopicService not initialized, skipping title update")
+				log.Printf("⚠️  TopicService not initialized, skipping title update")
 			}
 		} else {
-			xlog.Debug("📌 [TITLE CHECK] Skipped - no topicID")
+			log.Printf("📌 [TITLE CHECK] Skipped - no topicID")
 		}
 	} else {
-		xlog.Debug("📌 [TITLE CHECK] Skipped - not first turn", "userMsgCount", userMsgCount)
+		log.Printf("📌 [TITLE CHECK] Skipped - not first turn (userMsgCount=%d, need 1-2)", userMsgCount)
 	}
 
 	// 14. Update session timestamp
 	if err := s.updateSessionTimestamp(ctx, session.SessionID); err != nil {
-		xlog.Warn("⚠️  Warning: Failed to update session timestamp", "error", err)
+		log.Printf("⚠️  Warning: Failed to update session timestamp: %v", err)
 	}
 
 	// 15. Auto-summarize if needed (background)
@@ -619,7 +619,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 		go func() {
 			bgCtx := context.Background()
 			if err := s.memoryIntegration.StoreConversationMemory(bgCtx, req.Message, finalContentStr); err != nil {
-				xlog.Warn("⚠️  [Memory] Failed to store conversation", "error", err)
+				log.Printf("⚠️  [Memory] Failed to store conversation: %v", err)
 			}
 		}()
 	}
@@ -640,7 +640,8 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	if usage != nil {
 		totalTokens = usage.TotalTokens
 	}
-	xlog.Info("✅ [REAL STREAM] Complete", "session", req.SessionID, "duration_ms", duration, "tokens", totalTokens)
+	log.Printf("✅ [REAL STREAM] Complete - session: %s, duration: %dms, tokens: %d",
+		req.SessionID, duration, totalTokens)
 
 	return nil
 }
@@ -656,7 +657,7 @@ func (s *AgentChatService) waitForDocumentContent(ctx context.Context, fileID st
 	for attempt := 1; time.Now().Before(deadline); attempt++ {
 		doc, err := s.db.Queries().GetDocumentByFileID(ctx, sql.NullString{String: fileID, Valid: true})
 		if err != nil {
-			xlog.Warn("⚠️  [REAL STREAM] Failed to get document for file", "file_id", fileID, "error", err)
+			log.Printf("⚠️  [REAL STREAM] Failed to get document for file %s: %v", fileID, err)
 			return nil
 		}
 
@@ -672,7 +673,7 @@ func (s *AgentChatService) waitForDocumentContent(ctx context.Context, fileID st
 				if doc.Filename.Valid && doc.Filename.String != "" {
 					filename = doc.Filename.String
 				}
-				xlog.Info("📄 [REAL STREAM] Got document content", "file", filename, "chars", len(content), "attempt", attempt)
+				log.Printf("📄 [REAL STREAM] Got document content for file %s (%d chars, attempt %d)", filename, len(content), attempt)
 				return &ChatFileChunk{
 					ID:         doc.ID,
 					FileID:     fileID,
@@ -688,16 +689,16 @@ func (s *AgentChatService) waitForDocumentContent(ctx context.Context, fileID st
 			break
 		}
 
-		xlog.Debug("⏳ [REAL STREAM] Waiting for VL description", "file_id", fileID, "attempt", attempt)
+		log.Printf("⏳ [REAL STREAM] Waiting for VL description for file %s (attempt %d)", fileID, attempt)
 		select {
 		case <-ctx.Done():
-			xlog.Warn("⚠️  [REAL STREAM] Context cancelled while waiting for file", "file_id", fileID)
+			log.Printf("⚠️  [REAL STREAM] Context cancelled while waiting for file %s", fileID)
 			return nil
 		case <-time.After(pollInterval):
 			// Continue polling
 		}
 	}
 
-	xlog.Warn("⏰ [REAL STREAM] Timeout waiting for VL description", "file_id", fileID)
+	log.Printf("⏰ [REAL STREAM] Timeout waiting for VL description for file %s", fileID)
 	return nil
 }

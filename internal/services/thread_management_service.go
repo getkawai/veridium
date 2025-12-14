@@ -20,9 +20,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"time"
-
-	"github.com/kawai-network/veridium/pkg/xlog"
 
 	"github.com/google/uuid"
 	"github.com/kawai-network/veridium/internal/database"
@@ -149,13 +148,13 @@ func (s *ThreadManagementService) CreateThread(ctx context.Context, req CreateTh
 	})
 
 	if err != nil {
-		xlog.Warn("❌ Failed to create thread", "error", err)
+		log.Printf("❌ Failed to create thread: %v", err)
 		return &CreateThreadResponse{
 			Error: fmt.Sprintf("Failed to create thread: %v", err),
 		}, err
 	}
 
-	xlog.Info("🔀 Created thread", "id", threadID, "type", req.Type, "from_message", req.SourceMessageID)
+	log.Printf("🔀 Created thread: %s (type: %s, from message: %s)", threadID, req.Type, req.SourceMessageID)
 
 	return &CreateThreadResponse{
 		ThreadID:  thread.ID,
@@ -255,7 +254,7 @@ func (s *ThreadManagementService) UpdateThreadStatus(ctx context.Context, thread
 		return fmt.Errorf("failed to update thread status: %w", err)
 	}
 
-	xlog.Info("🔄 Updated thread status", "id", threadID, "status", status)
+	log.Printf("🔄 Updated thread %s status to: %s", threadID, status)
 
 	return nil
 }
@@ -302,7 +301,7 @@ func (s *ThreadManagementService) DeleteThread(ctx context.Context, threadID str
 		return fmt.Errorf("failed to delete thread: %w", err)
 	}
 
-	xlog.Info("🗑️  Deleted thread", "id", threadID)
+	log.Printf("🗑️  Deleted thread: %s", threadID)
 
 	return nil
 }

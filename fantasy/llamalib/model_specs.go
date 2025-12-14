@@ -6,10 +6,9 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"strings"
-
-	"github.com/kawai-network/veridium/pkg/xlog"
 )
 
 // Constants for GGUF file validation
@@ -237,11 +236,12 @@ func SelectOptimalQwenModel(availableRAM int64) QwenModelSpec {
 	// If no model fits, use the smallest one as fallback
 	if selectedModel.Name == "" {
 		selectedModel = models[0]
-		xlog.Warn("⚠️  System has low RAM, using smallest model", "available_gb", availableRAM)
+		log.Printf("⚠️  System has low RAM (%dGB), using smallest model", availableRAM)
 	}
 
-	xlog.Info("📦 Selected VL model", "model", selectedModel.Name, "params", selectedModel.Parameters,
-		"quant", selectedModel.Quantization, "min_ram_gb", selectedModel.MinRAM, "system_ram_gb", availableRAM)
+	log.Printf("📦 Selected VL model: %s (%s, %s) - requires %dGB RAM (system has %dGB)",
+		selectedModel.Name, selectedModel.Parameters, selectedModel.Quantization,
+		selectedModel.MinRAM, availableRAM)
 
 	return selectedModel
 }
@@ -265,11 +265,12 @@ func SelectOptimalQwenTextModel(availableRAM int64) QwenModelSpec {
 	// If no model fits, use the smallest one as fallback
 	if selectedModel.Name == "" {
 		selectedModel = models[0]
-		xlog.Warn("⚠️  System has low RAM, using smallest model", "available_gb", availableRAM)
+		log.Printf("⚠️  System has low RAM (%dGB), using smallest model", availableRAM)
 	}
 
-	xlog.Info("📦 Selected text model", "model", selectedModel.Name, "params", selectedModel.Parameters,
-		"quant", selectedModel.Quantization, "min_ram_gb", selectedModel.MinRAM, "system_ram_gb", availableRAM)
+	log.Printf("📦 Selected text model: %s (%s, %s) - requires %dGB RAM (system has %dGB)",
+		selectedModel.Name, selectedModel.Parameters, selectedModel.Quantization,
+		selectedModel.MinRAM, availableRAM)
 
 	return selectedModel
 }
@@ -285,11 +286,11 @@ func SelectOptimalQwenTextModel(availableRAM int64) QwenModelSpec {
 func validateDownloadedFile(filePath string, modelSpec QwenModelSpec) error {
 	// Verify checksum if provided
 	if modelSpec.SHA256 != "" {
-		xlog.Info("🔒 Verifying model integrity...")
+		log.Printf("🔒 Verifying model integrity...")
 		if err := verifyModelChecksum(filePath, modelSpec.SHA256); err != nil {
 			return fmt.Errorf("model integrity check failed: %w", err)
 		}
-		xlog.Info("✅ Model integrity verified")
+		log.Printf("✅ Model integrity verified")
 	}
 
 	// Verify it's a valid GGUF file
@@ -405,13 +406,16 @@ func SelectOptimalUtilityModel(availableRAM int64) *QwenModelSpec {
 	// Priority: 1B > 3B > 7B
 	for _, model := range models {
 		if model.MinRAM <= availableRAM {
-			xlog.Info("📦 Selected utility model", "name", model.Name, "params", model.Parameters, "quant", model.Quantization, "min_ram", model.MinRAM, "system_ram", availableRAM)
+			log.Printf("📦 Selected utility model: %s (%s, %s) - requires %dGB RAM (system has %dGB)",
+				model.Name, model.Parameters, model.Quantization,
+				model.MinRAM, availableRAM)
 			return &model
 		}
 	}
 
 	// If even smallest model doesn't fit, return nil
-	xlog.Warn("⚠️  No utility model fits in RAM", "system_ram", availableRAM, "min_required", models[0].MinRAM)
+	log.Printf("⚠️  No utility model fits in %dGB RAM (minimum required: %dGB)",
+		availableRAM, models[0].MinRAM)
 	return nil
 }
 
@@ -573,6 +577,7 @@ func validateEmbeddingGGUFFile(filePath string) error {
 		return fmt.Errorf("invalid GGUF file: unreasonable metadata count %d (max %d)", metadataCount, maxMetadataCount)
 	}
 
-	xlog.Debug("GGUF file validation passed", "version", version, "tensors", tensorCount, "metadata_entries", metadataCount)
+	log.Printf("GGUF file validation passed: version=%d, tensors=%d, metadata_entries=%d",
+		version, tensorCount, metadataCount)
 	return nil
 }

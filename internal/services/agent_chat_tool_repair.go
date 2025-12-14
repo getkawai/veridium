@@ -20,11 +20,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/kawai-network/veridium/fantasy"
 	"github.com/kawai-network/veridium/fantasy/schema"
-	"github.com/kawai-network/veridium/pkg/xlog"
 )
 
 // RepairToolCall attempts to repair a malformed tool call.
@@ -35,7 +35,7 @@ import (
 //
 // Returns the repaired tool call or an error if repair is not possible.
 func RepairToolCall(ctx context.Context, opts fantasy.ToolCallRepairOptions) (*fantasy.ToolCallContent, error) {
-	xlog.Warn("🔧 [REPAIR] Attempting to repair tool call", "tool", opts.OriginalToolCall.ToolName, "error", opts.ValidationError)
+	log.Printf("🔧 [REPAIR] Attempting to repair tool call: %s (error: %v)", opts.OriginalToolCall.ToolName, opts.ValidationError)
 
 	repaired := opts.OriginalToolCall
 	errorStr := opts.ValidationError.Error()
@@ -44,9 +44,9 @@ func RepairToolCall(ctx context.Context, opts fantasy.ToolCallRepairOptions) (*f
 	if strings.Contains(errorStr, "invalid JSON") || strings.Contains(errorStr, "unexpected") {
 		fixedInput, err := repairJSON(opts.OriginalToolCall.Input)
 		if err != nil {
-			xlog.Warn("🔧 [REPAIR] JSON repair failed", "error", err)
+			log.Printf("🔧 [REPAIR] JSON repair failed: %v", err)
 		} else {
-			xlog.Info("🔧 [REPAIR] JSON repaired successfully")
+			log.Printf("🔧 [REPAIR] JSON repaired successfully")
 			repaired.Input = fixedInput
 
 			// Validate the repaired JSON
@@ -61,7 +61,7 @@ func RepairToolCall(ctx context.Context, opts fantasy.ToolCallRepairOptions) (*f
 	if strings.Contains(errorStr, "tool not found") {
 		matchedTool := fuzzyMatchTool(opts.OriginalToolCall.ToolName, opts.AvailableTools)
 		if matchedTool != "" {
-			xlog.Info("🔧 [REPAIR] Tool name corrected", "original", opts.OriginalToolCall.ToolName, "corrected", matchedTool)
+			log.Printf("🔧 [REPAIR] Tool name corrected: %s -> %s", opts.OriginalToolCall.ToolName, matchedTool)
 			repaired.ToolName = matchedTool
 			return &repaired, nil
 		}
@@ -71,9 +71,9 @@ func RepairToolCall(ctx context.Context, opts fantasy.ToolCallRepairOptions) (*f
 	if strings.Contains(errorStr, "missing required parameter") {
 		fixedInput, err := fillMissingFields(opts.OriginalToolCall, opts.AvailableTools, opts.Messages)
 		if err != nil {
-			xlog.Warn("🔧 [REPAIR] Could not fill missing fields", "error", err)
+			log.Printf("🔧 [REPAIR] Could not fill missing fields: %v", err)
 		} else {
-			xlog.Info("🔧 [REPAIR] Missing fields filled")
+			log.Printf("🔧 [REPAIR] Missing fields filled")
 			repaired.Input = fixedInput
 			return &repaired, nil
 		}
@@ -88,7 +88,7 @@ func RepairToolCall(ctx context.Context, opts fantasy.ToolCallRepairOptions) (*f
 		filledInput, fillErr := fillMissingFields(repaired, opts.AvailableTools, opts.Messages)
 		if fillErr == nil {
 			repaired.Input = filledInput
-			xlog.Info("🔧 [REPAIR] Combined repair successful")
+			log.Printf("🔧 [REPAIR] Combined repair successful")
 			return &repaired, nil
 		}
 
@@ -96,7 +96,7 @@ func RepairToolCall(ctx context.Context, opts fantasy.ToolCallRepairOptions) (*f
 		return &repaired, nil
 	}
 
-	xlog.Warn("🔧 [REPAIR] All repair strategies failed")
+	log.Printf("🔧 [REPAIR] All repair strategies failed")
 	return nil, fmt.Errorf("unable to repair tool call: %w", opts.ValidationError)
 }
 
@@ -215,14 +215,14 @@ func fillMissingFields(toolCall fantasy.ToolCallContent, availableTools []fantas
 			inferredValue := inferFieldValue(required, toolInfo.Parameters, messages)
 			if inferredValue != nil {
 				input[required] = inferredValue
-				xlog.Info("🔧 [REPAIR] Inferred value", "field", required, "value", inferredValue)
+				log.Printf("🔧 [REPAIR] Inferred value for %s: %v", required, inferredValue)
 			} else {
 				// Use default based on type
 				if paramSchema, ok := toolInfo.Parameters[required].(map[string]any); ok {
 					defaultValue := getDefaultForType(paramSchema)
 					if defaultValue != nil {
 						input[required] = defaultValue
-						xlog.Info("🔧 [REPAIR] Using default value", "field", required, "value", defaultValue)
+						log.Printf("🔧 [REPAIR] Using default for %s: %v", required, defaultValue)
 					}
 				}
 			}
