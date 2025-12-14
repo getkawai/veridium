@@ -6,7 +6,6 @@ help:
 	@echo ""
 	@echo "Database:"
 	@echo "  make db-generate          Generate Go code from SQL queries (sqlc)"
-	@echo "  make db-seed              Fetch and seed agents data (runs cmd/seed-agents)"
 	@echo "  make db-dump              Dump SQLite database to seed file"
 	@echo "  make db-restore           Restore database from seed file"
 	@echo "  make bindings-generate    Generate TypeScript bindings from Go (wails)"
@@ -26,13 +25,6 @@ db-generate:
 	@echo "🔄 Generating Go code from SQL queries..."
 	sqlc generate
 	@echo "✅ Database code generated!"
-
-# Fetch and seed agents data detailed
-db-seed:
-	@echo "🌱 Seeding agents..."
-	@rm -f data/seed_agents.db
-	@go run cmd/seed-agents/main.go
-	@echo "✅ Agents seeded!"
 
 # Dump SQLite database to seed file
 db-dump:
