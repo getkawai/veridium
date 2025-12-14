@@ -1,16 +1,13 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix, typescript-sort-keys/interface */
 // Note: To make the code more logic and readable, we just disable the auto sort key eslint rule
 // DON'T REMOVE THE FIRST LINE
-import { chainSummaryTitle } from '@/prompts';
-import { ChatFileItem, TraceNameMap, UIChatMessage } from '@/types';
+import { ChatFileItem, UIChatMessage } from '@/types';
 import isEqual from 'fast-deep-equal';
 import { t } from 'i18next';
 import { produce } from 'immer';
 import { StateCreator } from 'zustand/vanilla';
 
 import { message } from '@/components/AntdStaticMethods';
-import { LOADING_FLAT } from '@/const/message';
-import { chatService } from '@/services/chat';
 import { messageService } from '@/services/message';
 import type { ChatStore } from '@/store/chat';
 
@@ -27,13 +24,9 @@ interface CreateTopicParams {
 }
 import type { ChatStoreState } from '@/store/chat/initialState';
 import { messageMapKey } from '@/store/chat/utils/messageMapKey';
-import { globalHelpers } from '@/store/global/helpers';
 import { useSessionStore } from '@/store/session';
 import { sessionSelectors } from '@/store/session/selectors';
-import { useUserStore } from '@/store/user';
-import { systemAgentSelectors } from '@/store/user/selectors';
 import { ChatTopic } from '@/types/topic';
-import { merge } from '@/utils/merge';
 import { setNamespace } from '@/utils/storeDebug';
 import { getUserId, mapTopicFromDB, toDbSessionId } from '@/store/topic/helpers';
 import { toNullString } from '@/types/database';
@@ -198,7 +191,6 @@ export const chatTopic: StateCreator<
       duration: 0,
     });
 
-    const userId = getUserId();
     const newTopicId = crypto.randomUUID();
     const now = Date.now();
 
@@ -208,7 +200,6 @@ export const chatTopic: StateCreator<
       createdAt: now,
       updatedAt: now,
       id2: id,
-      userId,
     });
 
     console.log('[Topic] Duplicated topic via direct DB', { sourceId: id, newId: newTopicId });
@@ -304,11 +295,9 @@ export const chatTopic: StateCreator<
     if (!containerId) return;
 
     try {
-      const userId = getUserId();
       const dbSessionId = toDbSessionId(containerId);
 
       const dbTopics = await DB.ListTopics({
-        userId,
         sessionId: toNullString(dbSessionId),
         limit: 1000,
         offset: 0,
@@ -349,14 +338,12 @@ export const chatTopic: StateCreator<
     try {
       set({ isSearchingTopic: true }, false, n('internal_searchTopics/start'));
 
-      const userId = getUserId();
       const searchPattern = `%${keywords}%`;
       const containerId = sessionId || groupId || '';
 
       const dbTopics = await DB.SearchTopicsByTitle({
-        userId,
         title: toNullString(searchPattern),
-        column3: containerId,
+        column2: containerId,
         sessionId: toNullString(toDbSessionId(sessionId)),
         groupId: toNullString(groupId),
       });
@@ -416,13 +403,9 @@ export const chatTopic: StateCreator<
   removeSessionTopics: async () => {
     const { switchTopic, activeId, refreshTopic } = get();
 
-    const userId = getUserId();
     const dbSessionId = toDbSessionId(activeId);
 
-    await DB.DeleteTopicsBySession({
-      userId,
-      sessionId: toNullString(dbSessionId),
-    });
+    await DB.DeleteTopicsBySession(toNullString(dbSessionId));
 
     await refreshTopic();
 
@@ -435,10 +418,7 @@ export const chatTopic: StateCreator<
 
     const userId = getUserId();
 
-    await DB.DeleteTopicsByGroup({
-      userId,
-      groupId: toNullString(groupId),
-    });
+    await DB.DeleteTopicsByGroup(toNullString(groupId));
 
     console.log('[Topic] Deleted group topics via direct DB', { groupId });
 
@@ -450,9 +430,7 @@ export const chatTopic: StateCreator<
   removeAllTopics: async () => {
     const { refreshTopic } = get();
 
-    const userId = getUserId();
-
-    await DB.DeleteAllTopics(userId);
+    await DB.DeleteAllTopics();
 
     console.log('[Topic] Deleted all topics via direct DB');
 
@@ -465,9 +443,7 @@ export const chatTopic: StateCreator<
     // TODO: Need to remove because server service don't need to call it
     await messageService.removeMessagesByAssistant(activeId, id);
 
-    const userId = getUserId();
-
-    await DB.DeleteTopic({ id, userId });
+    await DB.DeleteTopic(id);
 
     console.log('[Topic] Deleted topic via direct DB', { id });
     await refreshTopic();
@@ -479,11 +455,9 @@ export const chatTopic: StateCreator<
     const { refreshTopic, switchTopic } = get();
     const topics = topicSelectors.currentUnFavTopics(get());
 
-    const userId = getUserId();
-
     // Delete all unstarred topics
     await Promise.all(
-      topics.map((topic) => DB.DeleteTopic({ id: topic.id, userId }))
+      topics.map((topic) => DB.DeleteTopic(topic.id))
     );
 
     await refreshTopic();
@@ -509,9 +483,7 @@ export const chatTopic: StateCreator<
     try {
       console.debug('[refreshTopic] Fetching topics for activeId:', activeId);
 
-      const userId = getUserId();
       const dbTopics = await DB.ListTopics({
-        userId,
         sessionId: toNullString(activeId),
         limit: 1000,
         offset: 0,
@@ -548,12 +520,10 @@ export const chatTopic: StateCreator<
 
     get().internal_updateTopicLoading(id, true);
 
-    const userId = getUserId();
     const now = Date.now();
 
     await DB.UpdateTopic({
       id,
-      userId,
       title: data.title ? toNullString(data.title) : undefined,
       historySummary: data.historySummary !== undefined ? toNullString(data.historySummary) : undefined,
       metadata: data.metadata ? toNullString(JSON.stringify(data.metadata)) : undefined,
@@ -573,7 +543,6 @@ export const chatTopic: StateCreator<
 
     get().internal_updateTopicLoading(tmpId, true);
 
-    const userId = getUserId();
     const topicId = crypto.randomUUID();
     const now = Date.now();
 
@@ -583,8 +552,6 @@ export const chatTopic: StateCreator<
       favorite: 0,
       sessionId: toNullString(toDbSessionId(params.sessionId)),
       groupId: toNullString(params.groupId),
-      userId,
-      clientId: toNullString(''),
       historySummary: toNullString(''),
       metadata: toNullString(JSON.stringify({})),
       createdAt: now,
@@ -595,7 +562,6 @@ export const chatTopic: StateCreator<
     if (params.messages && params.messages.length > 0) {
       await DB.UpdateMessagesTopicId({
         topicId: toNullString(topicId),
-        userId,
         ids: params.messages,
       });
     }

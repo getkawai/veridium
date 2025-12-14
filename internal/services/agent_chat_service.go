@@ -483,23 +483,36 @@ func (s *AgentChatService) RegisterMemoryTool(memoryIntegration *MemoryIntegrati
 }
 
 // getOrCreateSession gets an existing session or creates a new one with DB persistence
-func (s *AgentChatService) getOrCreateSession(ctx context.Context, req ChatRequest) (*AgentSession, error) {
+func (s *AgentChatService) getOrCreateSession(ctx context.Context, req ChatRequest, topicID string) (*AgentSession, error) {
 	s.sessionsMutex.Lock()
 	defer s.sessionsMutex.Unlock()
 
 	// 1. Check in-memory cache first
+	// Note: We might need to invalidate cache if topicID changes, but for now we assume
+	// the session object holds the master list which we might need to swap out.
+	// Actually, with topic-scoped memory, the "Session" object in memory acts more like a "Thread Context".
+	// If we reuse the session object for a different topic, we must replace its messages.
 	if session, exists := s.sessions[req.SessionID]; exists {
-		log.Printf("♻️  Reusing cached session: %s", req.SessionID)
-		// Update tool names if changed
-		session.ToolNames = s.collectToolNames(ctx, req)
-		return session, nil
+		// If cached session has a different topic than requested, we need to reload messages
+		// unless active topic is empty (Default Topic) where we want empty messages anyway
+		if session.TopicID != topicID {
+			log.Printf("♻️  Cached session %s topic mismatch (cached=%s, req=%s), reloading messages...",
+				req.SessionID, session.TopicID, topicID)
+			// Fall through to DB load to refresh messages for the new topic
+		} else {
+			log.Printf("♻️  Reusing cached session: %s (Topic: %s)", req.SessionID, topicID)
+			// Update tool names if changed
+			session.ToolNames = s.collectToolNames(ctx, req)
+			return session, nil
+		}
 	}
 
 	// 2. Try to load from database
-	dbSession, dbMessages, err := s.loadSessionFromDB(ctx, req.SessionID, req.UserID)
+	dbSession, dbMessages, err := s.loadSessionFromDB(ctx, req.SessionID, req.UserID, topicID)
 	if err == nil {
 		// Session exists in DB - reconstruct from history
-		log.Printf("📂 Loading session from DB: %s (%d messages)", req.SessionID, len(dbMessages))
+		log.Printf("📂 Loading session from DB: %s (Topic: %s, %d messages)",
+			req.SessionID, topicID, len(dbMessages))
 
 		// Convert DB messages to message format
 		yzmaMessages := make([]fantasy.Message, 0, len(dbMessages))
@@ -523,12 +536,13 @@ func (s *AgentChatService) getOrCreateSession(ctx context.Context, req ChatReque
 			CreatedAt:       dbSession.CreatedAt,
 			UpdatedAt:       dbSession.UpdatedAt,
 			DBSession:       dbSession,
+			TopicID:         topicID, // Set the active topic ID
 		}
 
 		s.sessions[req.SessionID] = session
 
-		log.Printf("✅ Reconstructed session from DB: %s (KB: %s, History: %d msgs, Tools: %v)",
-			req.SessionID, req.KnowledgeBaseID, len(yzmaMessages), toolNames)
+		log.Printf("✅ Reconstructed session from DB: %s (KB: %s, Topic: %s, History: %d msgs, Tools: %v)",
+			req.SessionID, req.KnowledgeBaseID, topicID, len(yzmaMessages), toolNames)
 
 		return session, nil
 	}
@@ -554,7 +568,7 @@ func (s *AgentChatService) getOrCreateSession(ctx context.Context, req ChatReque
 				// Wait a bit for the other process to commit
 				time.Sleep(time.Duration(10*(i+1)) * time.Millisecond)
 
-				dbSession, dbMessages, err = s.loadSessionFromDB(ctx, req.SessionID, req.UserID)
+				dbSession, dbMessages, err = s.loadSessionFromDB(ctx, req.SessionID, req.UserID, topicID)
 				if err == nil {
 					log.Printf("✅ Successfully loaded session after %d retries", i+1)
 					break
@@ -591,6 +605,7 @@ func (s *AgentChatService) getOrCreateSession(ctx context.Context, req ChatReque
 				CreatedAt:       dbSession.CreatedAt,
 				UpdatedAt:       dbSession.UpdatedAt,
 				DBSession:       dbSession,
+				TopicID:         topicID,
 			}
 
 			s.sessions[req.SessionID] = session
@@ -617,6 +632,7 @@ func (s *AgentChatService) getOrCreateSession(ctx context.Context, req ChatReque
 		CreatedAt:       dbSession.CreatedAt,
 		UpdatedAt:       dbSession.UpdatedAt,
 		DBSession:       dbSession,
+		TopicID:         topicID,
 	}
 
 	s.sessions[req.SessionID] = session
@@ -871,17 +887,17 @@ func stripThinkTags(text string) string {
 func (s *AgentChatService) createTopicForSessionSync(ctx context.Context, sessionID string) (string, error) {
 	// Check if topic already exists for this session
 	// Check if topic already exists for this session
-	count, err := s.db.Queries().CountTopicsBySession(ctx, sql.NullString{String: sessionID, Valid: true})
-	if err != nil {
-		return "", fmt.Errorf("failed to check existing topics: %w", err)
-	}
+	// count, err := s.db.Queries().CountTopicsBySession(ctx, sql.NullString{String: sessionID, Valid: true})
+	// if err != nil {
+	// 	return "", fmt.Errorf("failed to check existing topics: %w", err)
+	// }
 
-	if count > 0 {
-		// Topic already exists - find and return it
-		// TODO: Add GetTopicBySession query to SQLC if needed
-		// For now, return empty string and let it be created with title later
-		return "", fmt.Errorf("topic already exists for session")
-	}
+	// if count > 0 {
+	// 	// Topic already exists - find and return it
+	// 	// TODO: Add GetTopicBySession query to SQLC if needed
+	// 	// For now, return empty string and let it be created with title later
+	// 	// return "", fmt.Errorf("topic already exists for session")
+	// }
 
 	// Create topic with placeholder title
 	topicID := uuid.New().String()
@@ -890,7 +906,7 @@ func (s *AgentChatService) createTopicForSessionSync(ctx context.Context, sessio
 	// Use sessionID as is (don't convert "inbox" to NULL)
 	sessionIDForDB := sql.NullString{String: sessionID, Valid: true}
 
-	_, err = s.db.Queries().CreateTopic(ctx, db.CreateTopicParams{
+	_, err := s.db.Queries().CreateTopic(ctx, db.CreateTopicParams{
 		ID:             topicID,
 		Title:          sql.NullString{String: "New Conversation", Valid: true},
 		Favorite:       0,
@@ -943,21 +959,34 @@ func convertDBMessageToYzma(dbMsg *db.Message) (fantasy.Message, bool) {
 	}, true
 }
 
-// loadSessionFromDB loads a session from database
-func (s *AgentChatService) loadSessionFromDB(ctx context.Context, sessionID, userID string) (*db.Session, []db.Message, error) {
+// loadSessionFromDB loads a session from database with topic-scoped messages
+func (s *AgentChatService) loadSessionFromDB(ctx context.Context, sessionID, userID, topicID string) (*db.Session, []db.Message, error) {
 	dbSession, err := s.db.Queries().GetSession(ctx, sessionID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("session not found in DB: %w", err)
 	}
 
-	dbMessages, err := s.db.Queries().ListMessagesBySession(ctx, db.ListMessagesBySessionParams{
-		SessionID: sql.NullString{String: dbSession.ID, Valid: true},
-		Limit:     1000, // Load up to 1000 messages
-		Offset:    0,
-	})
+	// Load messages scoped to the topic
+	var dbMessages []db.Message
+
+	if topicID != "" {
+		// Load messages for specific topic
+		dbMessages, err = s.db.Queries().ListMessagesByTopic(ctx, db.ListMessagesByTopicParams{
+			TopicID: sql.NullString{String: topicID, Valid: true},
+			Limit:   1000,
+			Offset:  0,
+		})
+	} else {
+		// No topic ID (Default Topic) -> Load empty message list
+		// This forces a fresh start
+		log.Printf("∅ Default Topic (empty ID) requested for session %s, loading empty context", sessionID)
+		dbMessages = []db.Message{}
+		err = nil
+	}
+
 	if err != nil {
-		// If messages query fails, still return session
-		log.Printf("Warning: Failed to load messages for session %s: %v", sessionID, err)
+		// If messages query fails, still return session but with empty messages
+		log.Printf("Warning: Failed to load messages for topic %s: %v", topicID, err)
 		return &dbSession, nil, nil
 	}
 

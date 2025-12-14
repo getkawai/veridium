@@ -163,7 +163,7 @@ func (s *AgentChatService) setupSessionAndTopic(ctx context.Context, req ChatReq
 	log.Printf("🔧 SetupSessionAndTopic: session=%s, topic=%s, thread=%s", req.SessionID, req.TopicID, req.ThreadID)
 
 	// 1. Get or create session
-	session, err := s.getOrCreateSession(ctx, req)
+	session, err := s.getOrCreateSession(ctx, req, req.TopicID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get/create session: %w", err)
 	}
@@ -213,7 +213,7 @@ func (s *AgentChatService) setupSessionAndTopic(ctx context.Context, req ChatReq
 	}
 
 	// 5. Auto-create topic if needed (BEFORE saving user message so we have topicID)
-	if result.TopicID == "" && result.IsNew {
+	if result.TopicID == "" {
 		topicID, err := s.createTopicForSessionSync(ctx, session.SessionID)
 		if err != nil {
 			log.Printf("⚠️  Warning: Failed to create topic: %v", err)
