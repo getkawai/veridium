@@ -3,6 +3,9 @@ import { StateCreator } from 'zustand/vanilla';
 import { knowledgeBaseService } from '@/services/knowledgeBase';
 import { KnowledgeBaseStore } from '@/store/knowledgeBase/store';
 import { CreateKnowledgeBaseParams, KnowledgeBaseItem } from '@/types/knowledgeBase';
+import { boolToInt, currentTimestampMs, DB, KnowledgeBasis, toNullJSON, toNullString } from '@/database';
+import { nanoid } from 'nanoid';
+
 
 export interface KnowledgeBaseCrudAction {
   createNewKnowledgeBase: (params: CreateKnowledgeBaseParams) => Promise<string>;
@@ -22,12 +25,20 @@ export const createCrudSlice: StateCreator<
   [],
   KnowledgeBaseCrudAction
 > = (set, get) => ({
-  createNewKnowledgeBase: async (params) => {
-    const id = await knowledgeBaseService.createKnowledgeBase(params);
+  createNewKnowledgeBase: async (params: CreateKnowledgeBaseParams) => {
+    const item: KnowledgeBasis = await DB.CreateKnowledgeBase({
+      id: nanoid(),
+      name: params.name,
+      description: toNullString(params.description),
+      avatar: toNullString(params.avatar),
+      type: toNullString(null),
+      isPublic: boolToInt(false),
+      settings: toNullJSON(null),
+    });
 
     await get().refreshKnowledgeBaseList();
 
-    return id;
+    return item.id;
   },
   internal_toggleKnowledgeBaseLoading: (id, loading) => {
     set(
@@ -44,12 +55,20 @@ export const createCrudSlice: StateCreator<
     await get().fetchKnowledgeBaseList();
   },
   removeKnowledgeBase: async (id) => {
-    await knowledgeBaseService.deleteKnowledgeBase(id);
+    await DB.DeleteKnowledgeBase(id);
     await get().refreshKnowledgeBaseList();
   },
-  updateKnowledgeBase: async (id, value) => {
+  updateKnowledgeBase: async (id: string, value: Partial<KnowledgeBaseItem>) => {
     get().internal_toggleKnowledgeBaseLoading(id, true);
-    await knowledgeBaseService.updateKnowledgeBaseList(id, value);
+
+    await DB.UpdateKnowledgeBase({
+      id,
+      name: value.name || '',
+      description: toNullString(value.description as any),
+      avatar: toNullString(value.avatar as any),
+      settings: toNullJSON(value.settings) as any,
+      updatedAt: currentTimestampMs(),
+    });
     await get().refreshKnowledgeBaseList();
 
     get().internal_toggleKnowledgeBaseLoading(id, false);

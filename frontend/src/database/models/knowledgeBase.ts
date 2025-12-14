@@ -40,34 +40,6 @@ export class KnowledgeBaseModel {
     }
   }
 
-  // create
-
-  create = async (params: Omit<NewKnowledgeBase, 'userId'>) => {
-    await this.logger.methodEntry('create', { name: params.name, userId: this.userId });
-
-    try {
-      const result = await DB.CreateKnowledgeBase({
-        id: nanoid(),
-        name: params.name,
-        description: toNullString(params.description as any),
-        avatar: toNullString(params.avatar as any),
-        type: toNullString(params.type as any),
-        isPublic: boolToInt(params.isPublic || false),
-        settings: toNullJSON(params.settings) as any,
-      });
-
-      await this.logger.methodExit('create', { id: result.id });
-      return this.mapKnowledgeBase(result);
-    } catch (error) {
-      await this.logger.error('Failed to create knowledge base', { error, params });
-      await this.showErrorNotification(
-        'Create Failed',
-        `Failed to create knowledge base "${params.name}". Please try again.`
-      );
-      throw error;
-    }
-  };
-
   addFilesToKnowledgeBase = async (id: string, fileIds: string[]) => {
     await this.logger.methodEntry('addFilesToKnowledgeBase', { id, count: fileIds.length });
 
@@ -87,24 +59,6 @@ export class KnowledgeBaseModel {
       await this.showErrorNotification(
         'Add Files Failed',
         `Failed to add ${fileIds.length} files to knowledge base. Please try again.`
-      );
-      throw error;
-    }
-  };
-
-  // delete
-  delete = async (id: string) => {
-    await this.logger.methodEntry('delete', { id });
-
-    try {
-      await DB.DeleteKnowledgeBase(id);
-
-      await this.logger.methodExit('delete', { id });
-    } catch (error) {
-      await this.logger.error('Failed to delete knowledge base', { error, id });
-      await this.showErrorNotification(
-        'Delete Failed',
-        `Failed to delete knowledge base. Please try again.`
       );
       throw error;
     }

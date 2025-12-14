@@ -252,39 +252,39 @@ export const createPluginStoreSlice: StateCreator<
     }
   },
   useFetchPluginList: async (params) => {
-    try {
-      const data = await toolService.getOldPluginList(params);
-      
-      set(
-        produce((draft: PluginStoreState) => {
-          draft.pluginSearchLoading = false;
+    // try {
+    //   const data = await toolService.getOldPluginList(params);
 
-          // 设置基础信息
-          if (!draft.isPluginListInit) {
-            draft.activePluginIdentifier = data.items?.[0]?.identifier;
-            draft.isPluginListInit = true;
-            draft.pluginTotalCount = data.totalCount;
-          }
+    //   set(
+    //     produce((draft: PluginStoreState) => {
+    //       draft.pluginSearchLoading = false;
 
-          // 累积数据逻辑
-          if (params.page === 1) {
-            // 第一页，直接设置
-            draft.oldPluginItems = uniqBy(data.items, 'identifier');
-          } else {
-            // 后续页面，累积数据
-            draft.oldPluginItems = uniqBy(
-              [...draft.oldPluginItems, ...data.items],
-              'identifier',
-            );
-          }
-        }),
-        false,
-        n('useFetchPluginList/onSuccess'),
-      );
-    } catch (error) {
-      console.error('[useFetchPluginList] Error:', error);
-      set({ pluginSearchLoading: false }, false, n('useFetchPluginList/error'));
-    }
+    //       // 设置基础信息
+    //       if (!draft.isPluginListInit) {
+    //         draft.activePluginIdentifier = data.items?.[0]?.identifier;
+    //         draft.isPluginListInit = true;
+    //         draft.pluginTotalCount = data.totalCount;
+    //       }
+
+    //       // 累积数据逻辑
+    //       if (params.page === 1) {
+    //         // 第一页，直接设置
+    //         draft.oldPluginItems = uniqBy(data.items, 'identifier');
+    //       } else {
+    //         // 后续页面，累积数据
+    //         draft.oldPluginItems = uniqBy(
+    //           [...draft.oldPluginItems, ...data.items],
+    //           'identifier',
+    //         );
+    //       }
+    //     }),
+    //     false,
+    //     n('useFetchPluginList/onSuccess'),
+    //   );
+    // } catch (error) {
+    //   console.error('[useFetchPluginList] Error:', error);
+    //   set({ pluginSearchLoading: false }, false, n('useFetchPluginList/error'));
+    // }
   },
   useFetchPluginStore: async () => {
     try {
