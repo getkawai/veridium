@@ -201,6 +201,22 @@ func (s *KnowledgeBaseService) AddFileToKnowledgeBase(ctx context.Context, kbID,
 	return nil
 }
 
+// LinkFileToKnowledgeBase links an existing file to a knowledge base
+func (s *KnowledgeBaseService) LinkFileToKnowledgeBase(ctx context.Context, kbID, fileID string) error {
+	// Link file to knowledge base
+	if err := s.dbService.Queries().LinkKnowledgeBaseToFile(ctx, db.LinkKnowledgeBaseToFileParams{
+		KnowledgeBaseID: kbID,
+		FileID:          fileID,
+	}); err != nil {
+		// Check if error is due to duplicate linking (which is fine)
+		// Simple way: just log and continue, or check error type
+		return fmt.Errorf("failed to link file to KB: %w", err)
+	}
+
+	log.Printf("🔗 File linked to KB: %s -> %s", fileID, kbID)
+	return nil
+}
+
 // RemoveFileFromKnowledgeBase removes a file from a knowledge base
 func (s *KnowledgeBaseService) RemoveFileFromKnowledgeBase(ctx context.Context, kbID, fileID string) error {
 	// Unlink from KB

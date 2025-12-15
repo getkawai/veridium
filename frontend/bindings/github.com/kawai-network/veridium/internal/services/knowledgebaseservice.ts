@@ -56,6 +56,13 @@ export function GetRetriever(kbID: string): $CancellablePromise<any> {
 }
 
 /**
+ * LinkFileToKnowledgeBase links an existing file to a knowledge base
+ */
+export function LinkFileToKnowledgeBase(kbID: string, fileID: string): $CancellablePromise<void> {
+    return $Call.ByID(1100517117, kbID, fileID);
+}
+
+/**
  * ListKnowledgeBases lists all knowledge bases for a user
  */
 export function ListKnowledgeBases(): $CancellablePromise<db$0.KnowledgeBasis[]> {
