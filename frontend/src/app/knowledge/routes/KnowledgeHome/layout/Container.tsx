@@ -15,6 +15,7 @@ const Container = memo<PropsWithChildren>(({ children }) => {
         overflow: 'hidden',
         position: 'relative',
       }}
+      {...{ 'data-wails-dropzone': 'true' }}
     >
       {children}
     </Flexbox>

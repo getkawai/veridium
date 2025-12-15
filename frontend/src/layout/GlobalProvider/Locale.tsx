@@ -19,7 +19,7 @@ const updateDayjs = async (lang: string) => {
     // refs: https://github.com/lobehub/lobe-chat/issues/3396
     const locale = lang!.toLowerCase() === 'en-us' ? 'en' : lang!.toLowerCase();
 
-    dayJSLocale = await import(`dayjs/locale/${locale}.js`);
+    dayJSLocale = await import(/* @vite-ignore */ `dayjs/locale/${locale}.js`);
   } catch {
     console.warn(`dayjs locale for ${lang} not found, fallback to en`);
     dayJSLocale = await import(`dayjs/locale/en.js`);

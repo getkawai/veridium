@@ -1,18 +1,31 @@
 'use client';
 
 import { Button, Dropdown, Icon, MenuProps } from '@lobehub/ui';
+import { Events } from '@wailsio/runtime';
 import { css, cx } from 'antd-style';
 import { FileUp, FolderUp, UploadIcon } from 'lucide-react';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Dialogs } from '@wailsio/runtime';
 
 import { message } from '@/components/AntdStaticMethods';
-import { AddFileToKnowledgeBase } from '@@/github.com/kawai-network/veridium/internal/services/knowledgebaseservice';
+import { AddFileToKnowledgeBase, LinkFileToKnowledgeBase } from '@@/github.com/kawai-network/veridium/internal/services/knowledgebaseservice';
 import { ProcessFileFromPath } from '@@/github.com/kawai-network/veridium/fileprocessorservice';
 
 import DragUpload from '@/components/DragUpload';
 import { useFileStore } from '@/store/file';
+
+interface WailsDropEvent {
+  files: Array<{
+    name: string;
+    fileId?: string;
+    url: string;
+    processing: boolean;
+  }>;
+  elementId?: string;
+  x?: number;
+  y?: number;
+}
 
 const hotArea = css`
   &::before {
@@ -28,6 +41,53 @@ const UploadFileButton = ({ knowledgeBaseId }: { knowledgeBaseId?: string }) => 
 
   const pushDockFileList = useFileStore((s) => s.pushDockFileList);
   const refreshFileList = useFileStore((s) => s.refreshFileList);
+
+  // Handle native Wails Drag & Drop events
+  useEffect(() => {
+    // Listen for files:dropped event from main.go
+    const unsubscribe = Events.On('files:dropped', async (event: any) => {
+      // Extract data from Wails event
+      const data: WailsDropEvent = event.data || event;
+      const processedFiles = data.files;
+
+      console.log('[Native DnD] Files dropped:', processedFiles);
+
+      if (!processedFiles || processedFiles.length === 0) return;
+
+      // If we are in a specific Knowledge Base context (knowledgeBaseId exists)
+      if (knowledgeBaseId) {
+        const fileIdsToLink = processedFiles
+          .map((f) => f.fileId)
+          .filter((id): id is string => !!id);
+
+        if (fileIdsToLink.length > 0) {
+          try {
+            message.loading(`Linking ${fileIdsToLink.length} file(s) to Knowledge Base...`, 1);
+
+            // Link each file to the KB (files are already processed by main.go)
+            await Promise.all(
+              fileIdsToLink.map((fileId) => LinkFileToKnowledgeBase(knowledgeBaseId, fileId))
+            );
+
+            await refreshFileList();
+            message.success(`Linked ${fileIdsToLink.length} file(s) to Knowledge Base`);
+          } catch (error) {
+            console.error('Failed to link files to KB:', error);
+            message.error('Failed to link files to Knowledge Base');
+          }
+        }
+      } else {
+        // If global context (no KB ID), just refresh list to show new files
+        // main.go already processed them into Global/Generic files
+        await refreshFileList();
+        message.success(`Uploaded ${processedFiles.length} file(s)`);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [knowledgeBaseId, refreshFileList]);
 
   const handleFileUpload = async () => {
     try {
