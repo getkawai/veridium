@@ -8,6 +8,9 @@ import {
 } from '@/store/file/reducers/uploadFileList';
 import { FileListItem, QueryFileListParams, FilesTabs, SortType } from '@/types/files';
 import { AsyncTaskStatus } from '@/types/asyncTask';
+import { createServiceLogger } from '@/utils/logger';
+
+const logger = createServiceLogger('FileManager', 'FileManagerActions', 'store/file/slices/fileManager/action');
 import { isChunkingUnsupported } from '@/utils/isChunkingUnsupported';
 import { clientS3Storage } from '@/services/file/ClientS3';
 
@@ -20,7 +23,6 @@ import {
   toNullString,
   toNullJSON,
   getNullableString,
-  currentTimestampMs,
   File as DBFile,
 } from '@/types/database';
 import { Service as DBService } from '@@/github.com/kawai-network/veridium/internal/database';
@@ -65,7 +67,7 @@ export const createFileManageSlice: StateCreator<
   },
   embeddingChunks: async (fileIds: string[]) => {
     // Dummy implementation for UI focus
-    console.log('Embedding chunks for files:', fileIds);
+    await logger.debug('Embedding chunks for files', { fileIds });
 
     // toggle file ids
     get().toggleEmbeddingIds(fileIds);
@@ -78,7 +80,7 @@ export const createFileManageSlice: StateCreator<
   },
   parseFilesToChunks: async (ids: string[], params) => {
     // Dummy implementation for UI focus
-    console.log('Parsing files to chunks:', ids, params);
+    await logger.debug('Parsing files to chunks', { ids, params });
 
     // toggle file ids
     get().toggleParsingIds(ids);
@@ -98,7 +100,7 @@ export const createFileManageSlice: StateCreator<
     for (const file of rawFiles) {
       if (file.type === 'application/zip' || file.name.endsWith('.zip')) {
         // TODO: Implement real ZIP extraction if needed
-        console.log('ZIP file extraction not fully implemented yet:', file.name);
+        await logger.warn('ZIP file extraction not fully implemented yet', { fileName: file.name });
         filesToUpload.push(file);
       } else {
         filesToUpload.push(file);
@@ -140,7 +142,7 @@ export const createFileManageSlice: StateCreator<
           // Create DB record
           const fileId = nanoid();
 
-          console.log('[FILE UPLOAD] Creating file with KB link:', {
+          await logger.debug('Creating file with KB link', {
             fileName: file.name,
             fileId,
             knowledgeBaseId: knowledgeBaseId || 'null',
@@ -169,7 +171,7 @@ export const createFileManageSlice: StateCreator<
             KnowledgeBase: knowledgeBaseId || null,
           });
 
-          console.log('[FILE UPLOAD] File created successfully with KB:', knowledgeBaseId || 'none');
+          await logger.info('File created successfully with KB', { knowledgeBaseId: knowledgeBaseId || 'none' });
 
           dispatchDockFileList({
             id: file.name,
@@ -182,7 +184,7 @@ export const createFileManageSlice: StateCreator<
 
           return { file, fileId, fileType: file.type };
         } catch (error) {
-          console.error('Failed to upload file:', file.name, error);
+          await logger.error('Failed to upload file', { fileName: file.name, error });
           dispatchDockFileList({
             id: file.name,
             type: 'updateFile',
@@ -210,7 +212,7 @@ export const createFileManageSlice: StateCreator<
     if (fileManagerSelectors.isCreatingChunkEmbeddingTask(id)(get())) return;
 
     // Dummy implementation for UI focus
-    console.log('Re-embedding chunks for file:', id);
+    await logger.debug('Re-embedding chunks for file', { fileId: id });
 
     // toggle file ids
     get().toggleEmbeddingIds([id]);
@@ -223,7 +225,7 @@ export const createFileManageSlice: StateCreator<
   },
   reParseFile: async (id) => {
     // Dummy implementation for UI focus
-    console.log('Re-parsing file:', id);
+    await logger.debug('Re-parsing file', { fileId: id });
 
     // toggle file ids
     get().toggleParsingIds([id]);
@@ -245,7 +247,7 @@ export const createFileManageSlice: StateCreator<
       await DB.DeleteAllFiles();
       await get().refreshFileList();
     } catch (error) {
-      console.error('Failed to remove all files:', error);
+      await logger.error('Failed to remove all files', error);
     }
   },
   removeFileItem: async (id) => {
@@ -264,7 +266,7 @@ export const createFileManageSlice: StateCreator<
         await get().refreshFileList();
       }
     } catch (error) {
-      console.error('Failed to remove file item:', id, error);
+      await logger.error('Failed to remove file item', { fileId: id, error });
     }
   },
 
@@ -340,7 +342,7 @@ export const createFileManageSlice: StateCreator<
 
       await get().refreshFileList();
     } catch (error) {
-      console.error('Failed to remove files:', ids, error);
+      await logger.error('Failed to remove files', { fileIds: ids, error });
     }
   },
   toggleEmbeddingIds: (ids, loading) => {
@@ -411,35 +413,32 @@ export const createFileManageSlice: StateCreator<
             // url = URL.createObjectURL(fileItem);
           }
         } catch (e) {
-          console.error('Failed to get file from S3:', e);
+          await logger.error('Failed to get file from S3', e);
         }
       }
 
       // Store the file item if needed - currently no state for single item in this slice
       // set({ fileItemMap: { ...get().fileItemMap, [id]: fileItem } });
     } catch (error) {
-      console.error('[internal_fetchFileItem] Error:', error);
+      await logger.error('Failed to fetch file item', error);
     }
   },
 
   fetchFileList: async (params) => {
     try {
-      console.log('[FETCH FILES] Starting fetch with params:', params);
       set({ isFetchingFiles: true });
+      await logger.debug('Starting fetch with params', params);
       const { category, q, sortType, sorter, knowledgeBaseId } = params;
       let allFiles;
 
       // If filtering by knowledge base, use JOIN query
       if (knowledgeBaseId) {
-        console.log('[FETCH FILES] Fetching files for KB:', knowledgeBaseId);
         allFiles = await DB.QueryFilesByKnowledgeBase(knowledgeBaseId);
-        console.log('[FETCH FILES] KB query returned:', allFiles.length, 'files');
-        console.log('[FETCH FILES] Files from KB:', allFiles);
+        await logger.debug('KB files received', { count: allFiles.length, firstFile: allFiles[0] });
       } else {
         // Otherwise, get all files
-        console.log('[FETCH FILES] Fetching all files');
         allFiles = await DB.QueryFiles();
-        console.log('[FETCH FILES] All files query returned:', allFiles.length, 'files');
+        await logger.debug('All files received', { count: allFiles.length, firstFile: allFiles[0] });
       }
 
       // Apply filters client-side
@@ -447,20 +446,15 @@ export const createFileManageSlice: StateCreator<
 
       // Filter by search query
       if (q) {
-        console.log('[FETCH FILES] Applying search filter:', q);
         filtered = filtered.filter((f) =>
           getNullableString(f.name as any)
             ?.toLowerCase()
             .includes(q.toLowerCase()),
         );
-        console.log('[FETCH FILES] After search filter:', filtered.length, 'files');
       }
 
       // Filter by category
       if (category && category !== FilesTabs.All) {
-        console.log('[FILE FILTER] Filtering by category:', category);
-        console.log('[FILE FILTER] Total files before filter:', filtered.length);
-
         const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'image'];
         const videoExts = ['mp4', 'webm', 'mov', 'avi', 'mkv', 'video'];
         const audioExts = ['mp3', 'wav', 'ogg', 'm4a', 'flac', 'audio'];
@@ -471,12 +465,6 @@ export const createFileManageSlice: StateCreator<
           // f is already a FileListItem with plain string values (not NullString)
           const type = (f.fileType || '').toLowerCase();
           const fileName = f.name || '';
-
-          console.log('[FILE FILTER] Checking file:', {
-            name: fileName,
-            fileType: type,
-            category: category,
-          });
 
           let matches = false;
           switch (category) {
@@ -492,22 +480,13 @@ export const createFileManageSlice: StateCreator<
             case FilesTabs.Documents:
               // For documents, we include specific types OR anything that implies text/app
               matches = docExts.some(ext => type.includes(ext));
-              console.log('[FILE FILTER] Document check:', {
-                type,
-                docExts,
-                matches,
-                matchedExt: docExts.find(ext => type.includes(ext))
-              });
               break;
             default:
               matches = true;
           }
 
-          console.log('[FILE FILTER] Result:', matches ? 'INCLUDED' : 'EXCLUDED');
           return matches;
         });
-
-        console.log('[FILE FILTER] Total files after filter:', filtered.length);
       }
 
       // Sort
@@ -523,12 +502,10 @@ export const createFileManageSlice: StateCreator<
       }
 
       // Map to FileListItem
-      console.log('[FETCH FILES] Mapping', filtered.length, 'files to FileListItem');
       const fileListItems: FileListItem[] = await Promise.all(filtered.map(async (item) => {
         // Note: Generating object URLs for all files might be expensive/memory intensive
         // Consider doing this only on demand or using a different approach
-
-        return {
+        const fileItem = {
           id: item.id,
           name: item.name || 'Unknown',
           fileType: item.fileType || '',
@@ -536,20 +513,45 @@ export const createFileManageSlice: StateCreator<
           url: item.url || '',
           createdAt: new Date(item.createdAt),
           updatedAt: new Date(item.updatedAt),
-          chunkCount: 0,
+          // Use real chunk count and status from database
+          // Note: Wails generated NullInt64 uses Int64 property, NullString uses String property
+          chunkCount: (item.chunkCount?.Valid ? item.chunkCount?.Int64 : 0) || 0,
           chunkingError: null,
-          chunkingStatus: AsyncTaskStatus.Success,
+          chunkingStatus: item.chunkingStatus?.String === 'success'
+            ? AsyncTaskStatus.Success
+            : item.chunkingStatus?.String === 'empty'
+              ? AsyncTaskStatus.Success
+              : AsyncTaskStatus.Pending,
           embeddingError: null,
-          embeddingStatus: AsyncTaskStatus.Success,
-          finishEmbedding: true,
+          embeddingStatus: item.embeddingStatus?.String === 'success'
+            ? AsyncTaskStatus.Success
+            : item.embeddingStatus?.String === 'empty'
+              ? AsyncTaskStatus.Success
+              : AsyncTaskStatus.Pending,
+          finishEmbedding: item.embeddingStatus?.String === 'success',
         };
+
+        return fileItem;
       }));
 
-      console.log('[FETCH FILES] Final file list:', fileListItems.length, 'files');
-      console.log('[FETCH FILES] Setting state with files:', fileListItems);
+      // Debug: Log chunk count for verification
+      const filesWithChunks = fileListItems.filter(f => f.chunkCount > 0);
+      if (filesWithChunks.length > 0) {
+        await logger.info('Files with chunks found', {
+          count: filesWithChunks.length,
+          files: filesWithChunks.map(f => ({
+            name: f.name,
+            chunkCount: f.chunkCount,
+            embeddingStatus: f.embeddingStatus
+          }))
+        });
+      } else {
+        await logger.warn('No files with chunks found', { totalFiles: fileListItems.length });
+      }
+
       set({ fileList: fileListItems, queryListParams: params, isFetchingFiles: false });
     } catch (error) {
-      console.error('[FETCH FILES] Error:', error);
+      await logger.error('Failed to fetch files', error);
       set({ isFetchingFiles: false });
     }
   },

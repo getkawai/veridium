@@ -17,7 +17,13 @@ func (l *FileLoader) ChunkDocument(doc *types.FileDocument, config types.Chunkin
 	// Choose chunking strategy based on file type
 	switch types.SupportedFileType(doc.FileType) {
 	case types.FileTypePDF:
-		return l.chunkPDFByPages(doc.Pages, config)
+		// If pages available, use page-based chunking (preserves page structure)
+		if len(doc.Pages) > 0 {
+			return l.chunkPDFByPages(doc.Pages, config)
+		}
+		// Fallback to markdown chunking if pages not available
+		// Content already has page markers from PDF parsing (## Page N)
+		return l.chunkMarkdownWithEino(doc.Content, config)
 	case types.FileTypeDOCX, types.FileTypePPTX, types.FileTypeXLSX, types.FileTypeTXT, types.FileTypeMarkdown:
 		return l.chunkMarkdownWithEino(doc.Content, config)
 	default:

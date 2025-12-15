@@ -173,16 +173,19 @@ type DrizzleMigration struct {
 }
 
 type File struct {
-	ID        string         `json:"id"`
-	FileType  string         `json:"fileType"`
-	FileHash  sql.NullString `json:"fileHash"`
-	Name      string         `json:"name"`
-	Size      int64          `json:"size"`
-	Url       string         `json:"url"`
-	Source    sql.NullString `json:"source"`
-	Metadata  sql.NullString `json:"metadata"`
-	CreatedAt int64          `json:"createdAt"`
-	UpdatedAt int64          `json:"updatedAt"`
+	ID              string         `json:"id"`
+	FileType        string         `json:"fileType"`
+	FileHash        sql.NullString `json:"fileHash"`
+	Name            string         `json:"name"`
+	Size            int64          `json:"size"`
+	Url             string         `json:"url"`
+	Source          sql.NullString `json:"source"`
+	Metadata        sql.NullString `json:"metadata"`
+	ChunkCount      sql.NullInt64  `json:"chunkCount"`
+	ChunkingStatus  sql.NullString `json:"chunkingStatus"`
+	EmbeddingStatus sql.NullString `json:"embeddingStatus"`
+	CreatedAt       int64          `json:"createdAt"`
+	UpdatedAt       int64          `json:"updatedAt"`
 }
 
 type FileChunk struct {

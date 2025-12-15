@@ -48,6 +48,9 @@ CREATE TABLE IF NOT EXISTS files (
   url TEXT NOT NULL,
   source TEXT, -- JSON as text
   metadata TEXT, -- JSON as text
+  chunk_count INTEGER DEFAULT 0,
+  chunking_status TEXT DEFAULT 'pending',
+  embedding_status TEXT DEFAULT 'pending',
   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
 );

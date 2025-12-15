@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { AsyncTaskStatus } from '@/types/asyncTask';
 
 export interface FileListItem {
-  chunkCount: number | null;
+  chunkCount: number;
   chunkingError: any | null;
   chunkingStatus?: AsyncTaskStatus | null;
   createdAt: Date;

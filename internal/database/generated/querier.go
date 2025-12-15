@@ -390,6 +390,7 @@ type Querier interface {
 	UpdateChunk(ctx context.Context, arg UpdateChunkParams) (Chunk, error)
 	UpdateDocument(ctx context.Context, arg UpdateDocumentParams) (Document, error)
 	UpdateFile(ctx context.Context, arg UpdateFileParams) (File, error)
+	UpdateFileChunkStats(ctx context.Context, arg UpdateFileChunkStatsParams) error
 	UpdateGeneration(ctx context.Context, arg UpdateGenerationParams) (Generation, error)
 	UpdateGenerationTopic(ctx context.Context, arg UpdateGenerationTopicParams) (GenerationTopic, error)
 	UpdateKnowledgeBase(ctx context.Context, arg UpdateKnowledgeBaseParams) (KnowledgeBasis, error)

@@ -20,6 +20,14 @@ SET name = ?,
 WHERE id = ?
 RETURNING *;
 
+-- name: UpdateFileChunkStats :exec
+UPDATE files
+SET chunk_count = ?,
+    chunking_status = ?,
+    embedding_status = ?,
+    updated_at = ?
+WHERE id = ?;
+
 -- name: DeleteFile :exec
 DELETE FROM files WHERE id = ?;
 
@@ -152,6 +160,9 @@ SELECT
     f.file_type,
     f.size,
     f.url,
+    f.chunk_count,
+    f.chunking_status,
+    f.embedding_status,
     f.created_at,
     f.updated_at
 FROM files f
@@ -164,6 +175,9 @@ SELECT
     f.file_type,
     f.size,
     f.url,
+    f.chunk_count,
+    f.chunking_status,
+    f.embedding_status,
     f.created_at,
     f.updated_at
 FROM files f

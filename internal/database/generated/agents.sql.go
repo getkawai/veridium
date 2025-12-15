@@ -308,7 +308,7 @@ func (q *Queries) GetAgentFileIds(ctx context.Context, arg GetAgentFileIdsParams
 }
 
 const GetAgentFiles = `-- name: GetAgentFiles :many
-SELECT f.id, f.file_type, f.file_hash, f.name, f.size, f.url, f.source, f.metadata, f.created_at, f.updated_at FROM files f
+SELECT f.id, f.file_type, f.file_hash, f.name, f.size, f.url, f.source, f.metadata, f.chunk_count, f.chunking_status, f.embedding_status, f.created_at, f.updated_at FROM files f
 INNER JOIN agents_files af ON f.id = af.file_id
 WHERE af.agent_id = ?
 `
@@ -331,6 +331,9 @@ func (q *Queries) GetAgentFiles(ctx context.Context, agentID string) ([]File, er
 			&i.Url,
 			&i.Source,
 			&i.Metadata,
+			&i.ChunkCount,
+			&i.ChunkingStatus,
+			&i.EmbeddingStatus,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -348,7 +351,7 @@ func (q *Queries) GetAgentFiles(ctx context.Context, agentID string) ([]File, er
 }
 
 const GetAgentFilesWithEnabled = `-- name: GetAgentFilesWithEnabled :many
-SELECT f.id, f.file_type, f.file_hash, f.name, f.size, f.url, f.source, f.metadata, f.created_at, f.updated_at, af.enabled
+SELECT f.id, f.file_type, f.file_hash, f.name, f.size, f.url, f.source, f.metadata, f.chunk_count, f.chunking_status, f.embedding_status, f.created_at, f.updated_at, af.enabled
 FROM files f
 INNER JOIN agents_files af ON f.id = af.file_id
 WHERE af.agent_id = ?
@@ -356,17 +359,20 @@ ORDER BY af.created_at DESC
 `
 
 type GetAgentFilesWithEnabledRow struct {
-	ID        string         `json:"id"`
-	FileType  string         `json:"fileType"`
-	FileHash  sql.NullString `json:"fileHash"`
-	Name      string         `json:"name"`
-	Size      int64          `json:"size"`
-	Url       string         `json:"url"`
-	Source    sql.NullString `json:"source"`
-	Metadata  sql.NullString `json:"metadata"`
-	CreatedAt int64          `json:"createdAt"`
-	UpdatedAt int64          `json:"updatedAt"`
-	Enabled   int64          `json:"enabled"`
+	ID              string         `json:"id"`
+	FileType        string         `json:"fileType"`
+	FileHash        sql.NullString `json:"fileHash"`
+	Name            string         `json:"name"`
+	Size            int64          `json:"size"`
+	Url             string         `json:"url"`
+	Source          sql.NullString `json:"source"`
+	Metadata        sql.NullString `json:"metadata"`
+	ChunkCount      sql.NullInt64  `json:"chunkCount"`
+	ChunkingStatus  sql.NullString `json:"chunkingStatus"`
+	EmbeddingStatus sql.NullString `json:"embeddingStatus"`
+	CreatedAt       int64          `json:"createdAt"`
+	UpdatedAt       int64          `json:"updatedAt"`
+	Enabled         int64          `json:"enabled"`
 }
 
 func (q *Queries) GetAgentFilesWithEnabled(ctx context.Context, agentID string) ([]GetAgentFilesWithEnabledRow, error) {
@@ -387,6 +393,9 @@ func (q *Queries) GetAgentFilesWithEnabled(ctx context.Context, agentID string) 
 			&i.Url,
 			&i.Source,
 			&i.Metadata,
+			&i.ChunkCount,
+			&i.ChunkingStatus,
+			&i.EmbeddingStatus,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Enabled,

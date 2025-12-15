@@ -4082,6 +4082,9 @@ export class File {
     "url": string;
     "source": sql$0.NullString;
     "metadata": sql$0.NullString;
+    "chunkCount": sql$0.NullInt64;
+    "chunkingStatus": sql$0.NullString;
+    "embeddingStatus": sql$0.NullString;
     "createdAt": number;
     "updatedAt": number;
 
@@ -4111,6 +4114,15 @@ export class File {
         if (!("metadata" in $$source)) {
             this["metadata"] = (new sql$0.NullString());
         }
+        if (!("chunkCount" in $$source)) {
+            this["chunkCount"] = (new sql$0.NullInt64());
+        }
+        if (!("chunkingStatus" in $$source)) {
+            this["chunkingStatus"] = (new sql$0.NullString());
+        }
+        if (!("embeddingStatus" in $$source)) {
+            this["embeddingStatus"] = (new sql$0.NullString());
+        }
         if (!("createdAt" in $$source)) {
             this["createdAt"] = 0;
         }
@@ -4128,6 +4140,9 @@ export class File {
         const $$createField2_0 = $$createType0;
         const $$createField6_0 = $$createType0;
         const $$createField7_0 = $$createType0;
+        const $$createField8_0 = $$createType1;
+        const $$createField9_0 = $$createType0;
+        const $$createField10_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("fileHash" in $$parsedSource) {
             $$parsedSource["fileHash"] = $$createField2_0($$parsedSource["fileHash"]);
@@ -4137,6 +4152,15 @@ export class File {
         }
         if ("metadata" in $$parsedSource) {
             $$parsedSource["metadata"] = $$createField7_0($$parsedSource["metadata"]);
+        }
+        if ("chunkCount" in $$parsedSource) {
+            $$parsedSource["chunkCount"] = $$createField8_0($$parsedSource["chunkCount"]);
+        }
+        if ("chunkingStatus" in $$parsedSource) {
+            $$parsedSource["chunkingStatus"] = $$createField9_0($$parsedSource["chunkingStatus"]);
+        }
+        if ("embeddingStatus" in $$parsedSource) {
+            $$parsedSource["embeddingStatus"] = $$createField10_0($$parsedSource["embeddingStatus"]);
         }
         return new File($$parsedSource as Partial<File>);
     }
@@ -4615,6 +4639,9 @@ export class GetAgentFilesWithEnabledRow {
     "url": string;
     "source": sql$0.NullString;
     "metadata": sql$0.NullString;
+    "chunkCount": sql$0.NullInt64;
+    "chunkingStatus": sql$0.NullString;
+    "embeddingStatus": sql$0.NullString;
     "createdAt": number;
     "updatedAt": number;
     "enabled": number;
@@ -4645,6 +4672,15 @@ export class GetAgentFilesWithEnabledRow {
         if (!("metadata" in $$source)) {
             this["metadata"] = (new sql$0.NullString());
         }
+        if (!("chunkCount" in $$source)) {
+            this["chunkCount"] = (new sql$0.NullInt64());
+        }
+        if (!("chunkingStatus" in $$source)) {
+            this["chunkingStatus"] = (new sql$0.NullString());
+        }
+        if (!("embeddingStatus" in $$source)) {
+            this["embeddingStatus"] = (new sql$0.NullString());
+        }
         if (!("createdAt" in $$source)) {
             this["createdAt"] = 0;
         }
@@ -4665,6 +4701,9 @@ export class GetAgentFilesWithEnabledRow {
         const $$createField2_0 = $$createType0;
         const $$createField6_0 = $$createType0;
         const $$createField7_0 = $$createType0;
+        const $$createField8_0 = $$createType1;
+        const $$createField9_0 = $$createType0;
+        const $$createField10_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("fileHash" in $$parsedSource) {
             $$parsedSource["fileHash"] = $$createField2_0($$parsedSource["fileHash"]);
@@ -4674,6 +4713,15 @@ export class GetAgentFilesWithEnabledRow {
         }
         if ("metadata" in $$parsedSource) {
             $$parsedSource["metadata"] = $$createField7_0($$parsedSource["metadata"]);
+        }
+        if ("chunkCount" in $$parsedSource) {
+            $$parsedSource["chunkCount"] = $$createField8_0($$parsedSource["chunkCount"]);
+        }
+        if ("chunkingStatus" in $$parsedSource) {
+            $$parsedSource["chunkingStatus"] = $$createField9_0($$parsedSource["chunkingStatus"]);
+        }
+        if ("embeddingStatus" in $$parsedSource) {
+            $$parsedSource["embeddingStatus"] = $$createField10_0($$parsedSource["embeddingStatus"]);
         }
         return new GetAgentFilesWithEnabledRow($$parsedSource as Partial<GetAgentFilesWithEnabledRow>);
     }
@@ -8432,6 +8480,9 @@ export class QueryFilesByKnowledgeBaseRow {
     "fileType": string;
     "size": number;
     "url": string;
+    "chunkCount": sql$0.NullInt64;
+    "chunkingStatus": sql$0.NullString;
+    "embeddingStatus": sql$0.NullString;
     "createdAt": number;
     "updatedAt": number;
 
@@ -8452,6 +8503,15 @@ export class QueryFilesByKnowledgeBaseRow {
         if (!("url" in $$source)) {
             this["url"] = "";
         }
+        if (!("chunkCount" in $$source)) {
+            this["chunkCount"] = (new sql$0.NullInt64());
+        }
+        if (!("chunkingStatus" in $$source)) {
+            this["chunkingStatus"] = (new sql$0.NullString());
+        }
+        if (!("embeddingStatus" in $$source)) {
+            this["embeddingStatus"] = (new sql$0.NullString());
+        }
         if (!("createdAt" in $$source)) {
             this["createdAt"] = 0;
         }
@@ -8466,7 +8526,19 @@ export class QueryFilesByKnowledgeBaseRow {
      * Creates a new QueryFilesByKnowledgeBaseRow instance from a string or object.
      */
     static createFrom($$source: any = {}): QueryFilesByKnowledgeBaseRow {
+        const $$createField5_0 = $$createType1;
+        const $$createField6_0 = $$createType0;
+        const $$createField7_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("chunkCount" in $$parsedSource) {
+            $$parsedSource["chunkCount"] = $$createField5_0($$parsedSource["chunkCount"]);
+        }
+        if ("chunkingStatus" in $$parsedSource) {
+            $$parsedSource["chunkingStatus"] = $$createField6_0($$parsedSource["chunkingStatus"]);
+        }
+        if ("embeddingStatus" in $$parsedSource) {
+            $$parsedSource["embeddingStatus"] = $$createField7_0($$parsedSource["embeddingStatus"]);
+        }
         return new QueryFilesByKnowledgeBaseRow($$parsedSource as Partial<QueryFilesByKnowledgeBaseRow>);
     }
 }
@@ -8477,6 +8549,9 @@ export class QueryFilesRow {
     "fileType": string;
     "size": number;
     "url": string;
+    "chunkCount": sql$0.NullInt64;
+    "chunkingStatus": sql$0.NullString;
+    "embeddingStatus": sql$0.NullString;
     "createdAt": number;
     "updatedAt": number;
 
@@ -8497,6 +8572,15 @@ export class QueryFilesRow {
         if (!("url" in $$source)) {
             this["url"] = "";
         }
+        if (!("chunkCount" in $$source)) {
+            this["chunkCount"] = (new sql$0.NullInt64());
+        }
+        if (!("chunkingStatus" in $$source)) {
+            this["chunkingStatus"] = (new sql$0.NullString());
+        }
+        if (!("embeddingStatus" in $$source)) {
+            this["embeddingStatus"] = (new sql$0.NullString());
+        }
         if (!("createdAt" in $$source)) {
             this["createdAt"] = 0;
         }
@@ -8511,7 +8595,19 @@ export class QueryFilesRow {
      * Creates a new QueryFilesRow instance from a string or object.
      */
     static createFrom($$source: any = {}): QueryFilesRow {
+        const $$createField5_0 = $$createType1;
+        const $$createField6_0 = $$createType0;
+        const $$createField7_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("chunkCount" in $$parsedSource) {
+            $$parsedSource["chunkCount"] = $$createField5_0($$parsedSource["chunkCount"]);
+        }
+        if ("chunkingStatus" in $$parsedSource) {
+            $$parsedSource["chunkingStatus"] = $$createField6_0($$parsedSource["chunkingStatus"]);
+        }
+        if ("embeddingStatus" in $$parsedSource) {
+            $$parsedSource["embeddingStatus"] = $$createField7_0($$parsedSource["embeddingStatus"]);
+        }
         return new QueryFilesRow($$parsedSource as Partial<QueryFilesRow>);
     }
 }
@@ -10651,6 +10747,55 @@ export class UpdateDocumentParams {
             $$parsedSource["editorData"] = $$createField3_0($$parsedSource["editorData"]);
         }
         return new UpdateDocumentParams($$parsedSource as Partial<UpdateDocumentParams>);
+    }
+}
+
+export class UpdateFileChunkStatsParams {
+    "chunkCount": sql$0.NullInt64;
+    "chunkingStatus": sql$0.NullString;
+    "embeddingStatus": sql$0.NullString;
+    "updatedAt": number;
+    "id": string;
+
+    /** Creates a new UpdateFileChunkStatsParams instance. */
+    constructor($$source: Partial<UpdateFileChunkStatsParams> = {}) {
+        if (!("chunkCount" in $$source)) {
+            this["chunkCount"] = (new sql$0.NullInt64());
+        }
+        if (!("chunkingStatus" in $$source)) {
+            this["chunkingStatus"] = (new sql$0.NullString());
+        }
+        if (!("embeddingStatus" in $$source)) {
+            this["embeddingStatus"] = (new sql$0.NullString());
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpdateFileChunkStatsParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UpdateFileChunkStatsParams {
+        const $$createField0_0 = $$createType1;
+        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("chunkCount" in $$parsedSource) {
+            $$parsedSource["chunkCount"] = $$createField0_0($$parsedSource["chunkCount"]);
+        }
+        if ("chunkingStatus" in $$parsedSource) {
+            $$parsedSource["chunkingStatus"] = $$createField1_0($$parsedSource["chunkingStatus"]);
+        }
+        if ("embeddingStatus" in $$parsedSource) {
+            $$parsedSource["embeddingStatus"] = $$createField2_0($$parsedSource["embeddingStatus"]);
+        }
+        return new UpdateFileChunkStatsParams($$parsedSource as Partial<UpdateFileChunkStatsParams>);
     }
 }
 

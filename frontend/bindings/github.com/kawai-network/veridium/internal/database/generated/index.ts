@@ -192,6 +192,7 @@ export {
     UpdateChatGroupParams,
     UpdateChunkParams,
     UpdateDocumentParams,
+    UpdateFileChunkStatsParams,
     UpdateFileParams,
     UpdateGenerationParams,
     UpdateGenerationTopicParams,

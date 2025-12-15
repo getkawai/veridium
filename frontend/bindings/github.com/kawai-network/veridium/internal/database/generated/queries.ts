@@ -1837,6 +1837,10 @@ export function UpdateFile(arg: $models.UpdateFileParams): $CancellablePromise<$
     });
 }
 
+export function UpdateFileChunkStats(arg: $models.UpdateFileChunkStatsParams): $CancellablePromise<void> {
+    return $Call.ByID(2465754227, arg);
+}
+
 export function UpdateGeneration(arg: $models.UpdateGenerationParams): $CancellablePromise<$models.Generation> {
     return $Call.ByID(445534663, arg).then(($result: any) => {
         return $$createType12($result);

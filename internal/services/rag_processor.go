@@ -3,7 +3,9 @@ package services
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	llamaembed "github.com/kawai-network/veridium/fantasy/providers/llama-embed"
@@ -60,15 +62,23 @@ func (r *RAGProcessor) ProcessFile(ctx context.Context, req RAGProcessRequest) (
 	}
 
 	// 2. Reconstruct FileDocument for chunking
-	// We need to unmarshal pages if available (for PDF chunking)
-	// TODO: Unmarshal pages from doc.Pages (JSON) if needed for PDF
-	// For now, we'll rely on content-based chunking for non-PDFs or if pages missing
+	// Unmarshal pages from JSON if available (needed for PDF chunking)
+	var pages []types.DocumentPage
+	if doc.Pages.Valid && doc.Pages.String != "" {
+		if err := json.Unmarshal([]byte(doc.Pages.String), &pages); err != nil {
+			xlog.Warn("Failed to unmarshal pages from database", "error", err, "document_id", req.DocumentID)
+			// Continue without pages - will fallback to content-based chunking
+			pages = nil
+		} else {
+			xlog.Info("Unmarshaled pages from database", "count", len(pages), "document_id", req.DocumentID)
+		}
+	}
 
 	fileDoc := &types.FileDocument{
 		Content:  doc.Content.String,
-		FileType: doc.FileType, // FileType is string, not sql.NullString
+		FileType: doc.FileType,
 		Filename: req.Filename,
-		// Pages: pages, // Populate if we implement JSON unmarshal
+		Pages:    pages, // Now properly populated for PDF chunking
 	}
 
 	// Use FileLoader's superior chunking logic (Eino, etc.)
@@ -133,6 +143,29 @@ func (r *RAGProcessor) ProcessFile(ctx context.Context, req RAGProcessRequest) (
 		"file_id", req.FileID,
 		"document_id", req.DocumentID,
 		"chunks_stored", len(chunkIDs))
+
+	// Update file stats with chunk count and status
+	chunkCount := int64(len(chunkIDs))
+	chunkingStatus := "success"
+	embeddingStatus := "success"
+	if chunkCount == 0 {
+		chunkingStatus = "empty"
+		embeddingStatus = "empty"
+	}
+
+	err = r.queries.UpdateFileChunkStats(ctx, db.UpdateFileChunkStatsParams{
+		ChunkCount:      sql.NullInt64{Int64: chunkCount, Valid: true},
+		ChunkingStatus:  sql.NullString{String: chunkingStatus, Valid: true},
+		EmbeddingStatus: sql.NullString{String: embeddingStatus, Valid: true},
+		UpdatedAt:       time.Now().UnixMilli(),
+		ID:              req.FileID,
+	})
+	if err != nil {
+		xlog.Error("Failed to update file chunk stats", "error", err, "file_id", req.FileID)
+		// Don't fail the whole process if stats update fails
+	} else {
+		xlog.Info("Updated file chunk stats", "file_id", req.FileID, "chunk_count", chunkCount)
+	}
 
 	return chunkIDs, nil
 }
