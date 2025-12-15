@@ -12,7 +12,6 @@ import { message } from '@/components/AntdStaticMethods';
 import { AddFileToKnowledgeBase, LinkFileToKnowledgeBase } from '@@/github.com/kawai-network/veridium/internal/services/knowledgebaseservice';
 import { ProcessFileFromPath } from '@@/github.com/kawai-network/veridium/fileprocessorservice';
 
-import DragUpload from '@/components/DragUpload';
 import { useFileStore } from '@/store/file';
 
 interface WailsDropEvent {
@@ -39,7 +38,6 @@ const hotArea = css`
 const UploadFileButton = ({ knowledgeBaseId }: { knowledgeBaseId?: string }) => {
   const { t } = useTranslation('file');
 
-  const pushDockFileList = useFileStore((s) => s.pushDockFileList);
   const refreshFileList = useFileStore((s) => s.refreshFileList);
 
   // Handle native Wails Drag & Drop events
@@ -173,15 +171,9 @@ const UploadFileButton = ({ knowledgeBaseId }: { knowledgeBaseId?: string }) => 
   );
 
   return (
-    <>
-      <Dropdown menu={{ items }} placement="bottomRight">
-        <Button icon={UploadIcon}>{t('header.uploadButton')}</Button>
-      </Dropdown>
-      <DragUpload
-        enabledFiles
-        onUploadFiles={(files) => pushDockFileList(files, knowledgeBaseId)}
-      />
-    </>
+    <Dropdown menu={{ items }} placement="bottomRight">
+      <Button icon={UploadIcon}>{t('header.uploadButton')}</Button>
+    </Dropdown>
   );
 };
 
