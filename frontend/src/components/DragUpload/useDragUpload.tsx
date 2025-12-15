@@ -181,44 +181,5 @@ export const useDragUpload = (onUploadFiles: (files: File[]) => Promise<void>) =
     };
   }, [handleDragEnter, handleDragOver, handleDragLeave, handleDrop, handlePaste]);
 
-  // Wails Dropzone Observer
-  useEffect(() => {
-    let debounceTimer: NodeJS.Timeout;
-
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-          const target = mutation.target as HTMLElement;
-
-          if (target.classList.contains('wails-dropzone-hover')) {
-            // Class added: Show immediately and clear any hide timer
-            clearTimeout(debounceTimer);
-            setIsDragging(true);
-          } else {
-            // Class removed: Wait a bit before hiding to prevent flickering
-            // caused by rapid transitions between elements
-            debounceTimer = setTimeout(() => {
-              setIsDragging(false);
-            }, 50); // 50ms buffer
-          }
-        }
-      });
-    });
-
-    // Find the dropzone element
-    const dropzone = document.querySelector('[data-wails-dropzone]');
-    if (dropzone) {
-      observer.observe(dropzone, {
-        attributes: true,
-        attributeFilter: ['class'],
-      });
-    }
-
-    return () => {
-      observer.disconnect();
-      clearTimeout(debounceTimer);
-    };
-  });
-
   return isDragging;
 };

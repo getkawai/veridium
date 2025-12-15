@@ -59,7 +59,6 @@ const useStyles = createStyles(({ css, token }) => {
       background: ${token.colorBgMask};
 
       transition: all 0.3s ease-in-out;
-      pointer-events: none;
     `,
   };
 });
