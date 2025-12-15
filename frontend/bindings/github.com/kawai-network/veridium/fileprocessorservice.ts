@@ -30,6 +30,14 @@ export function ProcessFileFromPath(absolutePath: string): $CancellablePromise<$
 }
 
 /**
+ * RemoveFiles deletes multiple files and their associated data
+ * This replaces the complex frontend logic with a robust backend implementation
+ */
+export function RemoveFiles(ids: string[]): $CancellablePromise<void> {
+    return $Call.ByID(395327522, ids);
+}
+
+/**
  * SetLanguageModel sets the language model for OCR/transcript cleanup
  */
 export function SetLanguageModel(model: fantasy$0.LanguageModel): $CancellablePromise<void> {

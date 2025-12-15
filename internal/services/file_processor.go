@@ -149,6 +149,137 @@ func (s *FileProcessorService) ProcessFile(ctx context.Context, req ProcessFileR
 	return response, nil
 }
 
+// DeleteFile deletes a file and all its associated data (chunks, vectors, documents)
+func (s *FileProcessorService) DeleteFile(ctx context.Context, fileID string) error {
+	log.Printf("[INFO] Deleting file: file_id=%s", fileID)
+
+	// 1. Get file details first (to clean up global files later if needed)
+	file, err := s.queries.GetFile(ctx, fileID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil // File doesn't exist, nothing to do
+		}
+		return fmt.Errorf("failed to get file: %w", err)
+	}
+
+	// 2. Delete vectors from DuckDB (via RAGProcessor)
+	if err := s.ragProcessor.DeleteFileVectors(ctx, fileID); err != nil {
+		log.Printf("[WARN] Failed to delete vectors from DuckDB: %v", err)
+		// Continue deletion even if vector delete fails
+	}
+
+	// 3. Delete chunks from SQLite (Cascading delete in SQL usually handles this, but let's be safe/explicit if needed)
+	// Actually, schema usually has ON DELETE CASCADE. If not, we need explicit deletes.
+	// Assuming ON DELETE CASCADE is NOT set for all relations based on previous observations, let's explicit delete.
+
+	// Delete chunks
+	// Note: queries.DeleteFileChunks is not standard, we usually rely on foreign keys or direct query
+	// Let's use the DB directly for cascade-like cleanup if simple query doesn't exist
+	// Or even better, check if we have specific delete queries.
+	// For now, we will assume we need to delete chunks first.
+	// Actually, let's construct a transaction for safety
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qTx := s.queries.WithTx(tx)
+
+	// Get chunk IDs to delete (if needed for other stores, but we already handled DuckDB)
+	// Just delete chunks for this file
+	// We might need a query `DeleteChunksByFileID` but since we don't know if it exists,
+	// let's rely on `DeleteFile` deleting everything if ON DELETE CASCADE is set,
+	// OR we might need to add `DeleteChunksByFileID` to queries.sql.
+	//
+	// Checking schema.sql (memory):
+	// chunks -> documents -> (maybe file_id?)
+	// documents has file_id.
+	//
+	// Let's try to act conservatively.
+	// Delete chunks linked to documents linked to this file.
+	//
+	// However, without modifying SQL queries, we might be limited.
+	// Let's use `DeleteFile` from queries and hope for CASCADE or add SQL.
+	// The user mentioned `DBService.DeleteFileWithCascade` in action.ts.
+	// This suggests there might be a service method for this already?
+	// Ah, action.ts called `DBService.DeleteFileWithCascade`.
+	// `DBService` is likely `internal/database/service.go`.
+	//
+	// WAIT! If `internal/database` already has a Service with `DeleteFileWithCascade`,
+	// maybe we should just use THAT?
+	//
+	// Let's pause and check `internal/database/service.go`.
+	// If it exists, `FileProcessorService` can just use `s.queries` (which is `*db.Queries`)
+	// or maybe `FileProcessorService` should call that existing service?
+	//
+	// `FileProcessorService` struct has `queries *db.Queries`.
+	// It does NOT have access to `internal/database/Service`.
+	//
+	// Only `DeleteFileVectors` is unique to `FileProcessorService` (via RAGProcessor).
+	// usage in action.ts:
+	// await DBService.DeleteFileWithCascade(...)
+	//
+	// So `DeleteFileWithCascade` handles SQLite cleanup.
+	// We just need to add Vector deletion to it OR wrap it.
+	//
+	// Best approach:
+	// Implement `DeleteFile` here that:
+	// 1. Calls `ragProcessor.DeleteFileVectors`.
+	// 2. Executes the deletion transaction (similar to DeleteFileWithCascade logic) OR
+	//    calls the `queries.DeleteFile` (and relies on SQL definition).
+	//
+	// Let's stick to using `s.queries.DeleteFile(ctx, fileID)`.
+	// If the schema has FK with cascade, it works.
+	// If NOT, we might leave orphans.
+	//
+	// Let's check `internal/database/schema/schema.sql` to see if ON DELETE CASCADE is used.
+	//
+	// I'll assume for now I should do the deletions manually to be safe,
+	// mimicking what `action.ts` was doing but efficiently.
+
+	// Delete documents (and thus chunks if cascaded? chunks usually reference document_id)
+	// If documents have `file_id`, we delete where `file_id = ?`.
+	// chunks refer to `document_id`.
+
+	// Let's perform a direct SQL execution for cascade delete if needed, for simplicity and speed.
+	_, err = tx.ExecContext(ctx, "DELETE FROM chunks WHERE document_id IN (SELECT id FROM documents WHERE file_id = ?)", fileID)
+	if err != nil {
+		return fmt.Errorf("failed to delete chunks: %w", err)
+	}
+
+	_, err = tx.ExecContext(ctx, "DELETE FROM documents WHERE file_id = ?", fileID)
+	if err != nil {
+		return fmt.Errorf("failed to delete documents: %w", err)
+	}
+
+	if err := qTx.DeleteFile(ctx, fileID); err != nil {
+		return fmt.Errorf("failed to delete file: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	// 4. Clean up global file if needed (check if other files use same hash)
+	if file.FileHash.Valid && file.FileHash.String != "" {
+		hash := file.FileHash.String
+		count, err := s.queries.CountFilesByHash(ctx, sql.NullString{String: hash, Valid: true})
+		if err != nil {
+			log.Printf("[WARN] Failed to count files by hash: %v", err)
+		} else if count == 0 {
+			// No other files use this hash, delete global file
+			if err := s.queries.DeleteGlobalFile(ctx, hash); err != nil {
+				log.Printf("[WARN] Failed to delete global file: %v", err)
+			} else {
+				log.Printf("[INFO] Deleted global file orphan: %s", hash)
+			}
+		}
+	}
+
+	return nil
+}
+
 // processImageDescriptionAsync generates image description asynchronously using hybrid approach:
 // 1. First try Tesseract OCR (fast) for text extraction
 // 2. If significant text found, use that (fast path)

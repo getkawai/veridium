@@ -23,9 +23,9 @@ import {
   toNullString,
   toNullJSON,
   getNullableString,
-  File as DBFile,
 } from '@/types/database';
 import { Service as DBService } from '@@/github.com/kawai-network/veridium/internal/database';
+import { RemoveFiles } from '@@/github.com/kawai-network/veridium/fileprocessorservice';
 import { getUserId } from '@/store/session/helpers';
 
 export interface FileManageAction {
@@ -273,72 +273,15 @@ export const createFileManageSlice: StateCreator<
   removeFiles: async (ids) => {
     try {
       if (ids.length === 0) return;
-      // 1. Get file list first
-      // No batch query available, fetch one by one
-      const fileList: DBFile[] = [];
-      for (const id of ids) {
-        try {
-          const file = await DB.GetFile(id);
-          if (file) fileList.push(file);
-        } catch (e) {
-          // ignore missing files
-        }
-      }
 
-      if (fileList.length === 0) return;
+      await logger.info('Removing files via backend service', { count: ids.length, ids });
 
-      // 2. Extract hashes
-      const hashList = fileList
-        .map((f) => getNullableString(f.fileHash as any))
-        .filter(Boolean) as string[];
-
-      // 3. Delete chunks (manual implementation of deleteFileChunks)
-      // Get all chunk IDs for these files
-      const allChunkIds: string[] = [];
-      for (const fileId of ids) {
-        const chunks = await DB.GetFileChunkIds(toNullString(fileId) as any);
-        allChunkIds.push(...chunks.map((c) => getNullableString(c as any) || '').filter(Boolean));
-      }
-
-      if (allChunkIds.length > 0) {
-        // Batch delete in chunks of 500
-        const BATCH_SIZE = 500;
-        for (let i = 0; i < allChunkIds.length; i += BATCH_SIZE) {
-          const batchIds = allChunkIds.slice(i, i + BATCH_SIZE);
-
-          // Delete embeddings
-          await Promise.all(
-            batchIds.map((chunkId) =>
-              DB.DeleteEmbedding(chunkId).catch(() => { }),
-            ),
-          );
-
-          // Delete chunks
-          await Promise.all(
-            batchIds.map((chunkId) =>
-              DB.DeleteChunk(chunkId).catch(() => { }),
-            ),
-          );
-        }
-      }
-
-      // 4. Delete files
-      await Promise.all(
-        ids.map((id) =>
-          DB.DeleteFile(id),
-        ),
-      );
-
-      // 5. Delete global files if needed
-      if (hashList.length > 0) {
-        // Check which hashes are still in use
-        await DB.GetFilesByHash(toNullString(hashList[0]) as any);
-
-        // This part is tricky without a proper batch check. 
-        // For now, let's skip complex global file cleanup in batch delete 
-        // or implement it one by one if critical.
-        // Given the complexity, we'll rely on the fact that global files are less critical to clean up immediately.
-      }
+      // Use the robust backend service for deletion
+      // This handles:
+      // 1. DuckDB vector deletion
+      // 2. SQLite chunks/documents/files deletion
+      // 3. Global file cleanup (if orphaned)
+      await RemoveFiles(ids);
 
       await get().refreshFileList();
     } catch (error) {

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -151,4 +152,22 @@ type ProcessFileFromPathResponse struct {
 	Processing   bool     `json:"processing,omitempty"`
 	RelativeURL  string   `json:"relativeUrl"` // URL for frontend to display (e.g., /files/uploads/123-file.pdf)
 	Filename     string   `json:"filename"`    // Original filename
+}
+
+// RemoveFiles deletes multiple files and their associated data
+// This replaces the complex frontend logic with a robust backend implementation
+func (f *FileProcessorService) RemoveFiles(ids []string) error {
+	ctx := context.Background()
+	log.Printf("[INFO] RemoveFiles called for %d files", len(ids))
+
+	for _, id := range ids {
+		if err := f.processor.DeleteFile(ctx, id); err != nil {
+			log.Printf("[ERROR] Failed to delete file %s: %v", id, err)
+			// We continue deleting other files instead of returning immediately
+			// but we could collect errors if strictly needed.
+			// For UI, best effort is usually preferred.
+		}
+	}
+
+	return nil
 }

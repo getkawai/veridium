@@ -169,3 +169,11 @@ func (r *RAGProcessor) ProcessFile(ctx context.Context, req RAGProcessRequest) (
 
 	return chunkIDs, nil
 }
+
+// DeleteFileVectors deletes all vectors associated with a file from DuckDB
+func (r *RAGProcessor) DeleteFileVectors(ctx context.Context, fileID string) error {
+	if r.duckDB == nil {
+		return nil
+	}
+	return r.duckDB.DeleteVectorsByFileID(ctx, fileID)
+}
