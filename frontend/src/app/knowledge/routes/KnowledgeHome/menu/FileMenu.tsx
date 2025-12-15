@@ -11,10 +11,15 @@ import type { MenuProps } from '@/components/Menu';
 import { FilesTabs } from '@/types/files';
 
 import { useFileCategory } from '../../../hooks/useFileCategory';
+import { useKnowledgeBaseStore } from '@/store/knowledgeBase';
 
 const FileMenu = memo(() => {
   const { t } = useTranslation('file');
   const [activeKey, setActiveKey] = useFileCategory();
+  const [activeKnowledgeBaseId, deactivateKnowledgeBase] = useKnowledgeBaseStore((s) => [
+    s.activeKnowledgeBaseId,
+    s.deactivateKnowledgeBase,
+  ]);
 
   const items: MenuProps['items'] = useMemo(
     () =>
@@ -62,9 +67,13 @@ const FileMenu = memo(() => {
         items={items}
         onClick={({ key }) => {
           setActiveKey(key);
+          // Deactivate KB when file category is clicked
+          if (activeKnowledgeBaseId) {
+            deactivateKnowledgeBase();
+          }
         }}
         selectable
-        selectedKeys={[activeKey]}
+        selectedKeys={activeKnowledgeBaseId ? [] : [activeKey]}
       />
     </Flexbox>
   );

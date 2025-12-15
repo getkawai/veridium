@@ -1,6 +1,6 @@
 import { Block, Button, Form, MaterialFileTypeIcon, Select } from '@lobehub/ui';
 import { App } from 'antd';
-import { memo, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 
@@ -18,11 +18,19 @@ const SelectForm = memo<CreateFormProps>(({ onClose, knowledgeBaseId, fileIds })
   const [loading, setLoading] = useState(false);
 
   const { message } = App.useApp();
-  const [useFetchKnowledgeBaseList, addFilesToKnowledgeBase] = useKnowledgeBaseStore((s) => [
-    s.useFetchKnowledgeBaseList,
-    s.addFilesToKnowledgeBase,
-  ]);
-  const { data, isLoading } = useFetchKnowledgeBaseList();
+  const [fetchKnowledgeBaseList, addFilesToKnowledgeBase, knowledgeBaseList, isFetchingList] =
+    useKnowledgeBaseStore((s) => [
+      s.fetchKnowledgeBaseList,
+      s.addFilesToKnowledgeBase,
+      s.knowledgeBaseList,
+      s.isFetchingList,
+    ]);
+
+  // Fetch KB list on mount
+  useEffect(() => {
+    fetchKnowledgeBaseList();
+  }, [fetchKnowledgeBaseList]);
+
   const onFinish = async (values: { id: string }) => {
     setLoading(true);
 
@@ -66,8 +74,8 @@ const SelectForm = memo<CreateFormProps>(({ onClose, knowledgeBaseId, fileIds })
           children: (
             <Select
               autoFocus
-              loading={isLoading}
-              options={(data || [])
+              loading={isFetchingList}
+              options={(knowledgeBaseList || [])
                 .filter((item) => item.id !== knowledgeBaseId)
                 .map((item) => ({
                   label: (
