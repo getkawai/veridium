@@ -140,23 +140,23 @@ export const createFileManageSlice: StateCreator<
           // Create DB record
           const fileId = nanoid();
 
+          console.log('[FILE UPLOAD] Creating file with KB link:', {
+            fileName: file.name,
+            fileId,
+            knowledgeBaseId: knowledgeBaseId || 'null',
+            hasKBId: !!knowledgeBaseId
+          });
+
           // Use backend transaction method for atomic operations
           await DBService.CreateFileWithLinks({
             File: {
-              id: fileId,
-              userId: userId,
               fileType: toNullString(file.type) as any,
               fileHash: toNullString(fileHash) as any,
               name: toNullString(file.name) as any,
               size: file.size || 0,
               url: toNullString(`s3://${fileHash}`) as any, // Placeholder URL
               source: toNullString('upload') as any,
-              clientId: toNullString(userId) as any,
               metadata: toNullJSON({}) as any,
-              chunkTaskId: toNullString('') as any,
-              embeddingTaskId: toNullString('') as any,
-              createdAt: now,
-              updatedAt: now,
             },
             GlobalFile: !isExist ? {
               hashId: toNullString(fileHash) as any,
@@ -168,6 +168,8 @@ export const createFileManageSlice: StateCreator<
             } : null,
             KnowledgeBase: knowledgeBaseId || null,
           });
+
+          console.log('[FILE UPLOAD] File created successfully with KB:', knowledgeBaseId || 'none');
 
           dispatchDockFileList({
             id: file.name,
@@ -240,8 +242,7 @@ export const createFileManageSlice: StateCreator<
   },
   removeAllFiles: async () => {
     try {
-      const userId = getUserId();
-      await DB.DeleteAllFiles(userId);
+      await DB.DeleteAllFiles();
       await get().refreshFileList();
     } catch (error) {
       console.error('Failed to remove all files:', error);
@@ -249,15 +250,13 @@ export const createFileManageSlice: StateCreator<
   },
   removeFileItem: async (id) => {
     try {
-      const userId = getUserId();
-      const file = await DB.GetFile({ id, userId });
+      const file = await DB.GetFile(id);
 
       if (file) {
         const fileHash = getNullableString(file.fileHash as any);
 
         await DBService.DeleteFileWithCascade({
           FileID: id,
-          UserID: userId,
           RemoveGlobalFile: true, // Default to true
           FileHash: fileHash || '',
         });
@@ -272,14 +271,12 @@ export const createFileManageSlice: StateCreator<
   removeFiles: async (ids) => {
     try {
       if (ids.length === 0) return;
-      const userId = getUserId();
-
       // 1. Get file list first
       // No batch query available, fetch one by one
       const fileList: DBFile[] = [];
       for (const id of ids) {
         try {
-          const file = await DB.GetFile({ id, userId });
+          const file = await DB.GetFile(id);
           if (file) fileList.push(file);
         } catch (e) {
           // ignore missing files
@@ -310,20 +307,14 @@ export const createFileManageSlice: StateCreator<
           // Delete embeddings
           await Promise.all(
             batchIds.map((chunkId) =>
-              DB.DeleteEmbedding({
-                id: chunkId,
-                userId: toNullString(userId) as any,
-              }).catch(() => { }),
+              DB.DeleteEmbedding(chunkId).catch(() => { }),
             ),
           );
 
           // Delete chunks
           await Promise.all(
             batchIds.map((chunkId) =>
-              DB.DeleteChunk({
-                id: chunkId,
-                userId: toNullString(userId) as any,
-              }).catch(() => { }),
+              DB.DeleteChunk(chunkId).catch(() => { }),
             ),
           );
         }
@@ -332,21 +323,14 @@ export const createFileManageSlice: StateCreator<
       // 4. Delete files
       await Promise.all(
         ids.map((id) =>
-          DB.DeleteFile({
-            id,
-            userId,
-          }),
+          DB.DeleteFile(id),
         ),
       );
 
       // 5. Delete global files if needed
       if (hashList.length > 0) {
         // Check which hashes are still in use
-        await DB.GetFilesByHash({
-          fileHash: toNullString(hashList[0]), // Check first hash as approximation or iterate all?
-          // Ideally we should check each hash, but for now let's simplify
-          userId,
-        });
+        await DB.GetFilesByHash(toNullString(hashList[0]) as any);
 
         // This part is tricky without a proper batch check. 
         // For now, let's skip complex global file cleanup in batch delete 
@@ -414,8 +398,7 @@ export const createFileManageSlice: StateCreator<
     if (!id) return;
 
     try {
-      const userId = getUserId();
-      const item = await DB.GetFile({ id, userId });
+      const item = await DB.GetFile(id);
 
       if (!item) return;
 
@@ -441,20 +424,22 @@ export const createFileManageSlice: StateCreator<
 
   fetchFileList: async (params) => {
     try {
+      console.log('[FETCH FILES] Starting fetch with params:', params);
       set({ isFetchingFiles: true });
-      const userId = getUserId();
       const { category, q, sortType, sorter, knowledgeBaseId } = params;
       let allFiles;
 
       // If filtering by knowledge base, use JOIN query
       if (knowledgeBaseId) {
-        allFiles = await DB.QueryFilesByKnowledgeBase({
-          knowledgeBaseId: toNullString(knowledgeBaseId) as any,
-          userId,
-        });
+        console.log('[FETCH FILES] Fetching files for KB:', knowledgeBaseId);
+        allFiles = await DB.QueryFilesByKnowledgeBase(knowledgeBaseId);
+        console.log('[FETCH FILES] KB query returned:', allFiles.length, 'files');
+        console.log('[FETCH FILES] Files from KB:', allFiles);
       } else {
         // Otherwise, get all files
-        allFiles = await DB.QueryFiles(userId);
+        console.log('[FETCH FILES] Fetching all files');
+        allFiles = await DB.QueryFiles();
+        console.log('[FETCH FILES] All files query returned:', allFiles.length, 'files');
       }
 
       // Apply filters client-side
@@ -462,15 +447,20 @@ export const createFileManageSlice: StateCreator<
 
       // Filter by search query
       if (q) {
+        console.log('[FETCH FILES] Applying search filter:', q);
         filtered = filtered.filter((f) =>
           getNullableString(f.name as any)
             ?.toLowerCase()
             .includes(q.toLowerCase()),
         );
+        console.log('[FETCH FILES] After search filter:', filtered.length, 'files');
       }
 
       // Filter by category
       if (category && category !== FilesTabs.All) {
+        console.log('[FILE FILTER] Filtering by category:', category);
+        console.log('[FILE FILTER] Total files before filter:', filtered.length);
+
         const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'image'];
         const videoExts = ['mp4', 'webm', 'mov', 'avi', 'mkv', 'video'];
         const audioExts = ['mp3', 'wav', 'ogg', 'm4a', 'flac', 'audio'];
@@ -478,23 +468,46 @@ export const createFileManageSlice: StateCreator<
         const docExts = ['pdf', 'txt', 'json', 'xml', 'doc', 'docx', 'csv', 'md', 'application', 'text'];
 
         filtered = filtered.filter((f) => {
+          // f is already a FileListItem with plain string values (not NullString)
           const type = (f.fileType || '').toLowerCase();
+          const fileName = f.name || '';
 
+          console.log('[FILE FILTER] Checking file:', {
+            name: fileName,
+            fileType: type,
+            category: category,
+          });
+
+          let matches = false;
           switch (category) {
             case FilesTabs.Images:
-              return imageExts.some(ext => type.includes(ext));
+              matches = imageExts.some(ext => type.includes(ext));
+              break;
             case FilesTabs.Videos:
-              return videoExts.some(ext => type.includes(ext));
+              matches = videoExts.some(ext => type.includes(ext));
+              break;
             case FilesTabs.Audios:
-              return audioExts.some(ext => type.includes(ext));
+              matches = audioExts.some(ext => type.includes(ext));
+              break;
             case FilesTabs.Documents:
               // For documents, we include specific types OR anything that implies text/app
-              // But strictly, we might just want to check if it matches doc types
-              return docExts.some(ext => type.includes(ext));
+              matches = docExts.some(ext => type.includes(ext));
+              console.log('[FILE FILTER] Document check:', {
+                type,
+                docExts,
+                matches,
+                matchedExt: docExts.find(ext => type.includes(ext))
+              });
+              break;
             default:
-              return true;
+              matches = true;
           }
+
+          console.log('[FILE FILTER] Result:', matches ? 'INCLUDED' : 'EXCLUDED');
+          return matches;
         });
+
+        console.log('[FILE FILTER] Total files after filter:', filtered.length);
       }
 
       // Sort
@@ -510,6 +523,7 @@ export const createFileManageSlice: StateCreator<
       }
 
       // Map to FileListItem
+      console.log('[FETCH FILES] Mapping', filtered.length, 'files to FileListItem');
       const fileListItems: FileListItem[] = await Promise.all(filtered.map(async (item) => {
         // Note: Generating object URLs for all files might be expensive/memory intensive
         // Consider doing this only on demand or using a different approach
@@ -531,9 +545,11 @@ export const createFileManageSlice: StateCreator<
         };
       }));
 
+      console.log('[FETCH FILES] Final file list:', fileListItems.length, 'files');
+      console.log('[FETCH FILES] Setting state with files:', fileListItems);
       set({ fileList: fileListItems, queryListParams: params, isFetchingFiles: false });
     } catch (error) {
-      console.error('[internal_fetchFileManage] Error:', error);
+      console.error('[FETCH FILES] Error:', error);
       set({ isFetchingFiles: false });
     }
   },

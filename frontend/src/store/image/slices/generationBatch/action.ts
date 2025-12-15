@@ -158,10 +158,7 @@ export const createGenerationBatchSlice: StateCreator<
     if (!topicId) return;
 
     try {
-      const rows = await ListGenerationBatchesWithGenerations({
-        generationTopicId: topicId,
-        userId: 'DEFAULT_LOBE_CHAT_USER',
-      });
+      const rows = await ListGenerationBatchesWithGenerations(topicId);
 
       const batchesMap = new Map<string, GenerationBatch>();
 

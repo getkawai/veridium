@@ -4,6 +4,7 @@ import { GetGenerationWithAsyncTask } from '@@/github.com/kawai-network/veridium
 import { AsyncTaskStatus } from '@/types/asyncTask';
 import { useImageStore } from '@/store/image';
 import { generationTopicSelectors } from '@/store/image/slices/generationTopic/selectors';
+import { GetGenerationWithAsyncTaskRow } from '@/types/database';
 
 export const useCheckGenerationStatus = (
   generationId: string,
@@ -30,10 +31,7 @@ export const useCheckGenerationStatus = (
         requestCountRef.current += 1;
 
         // Fetch status
-        const result = await GetGenerationWithAsyncTask({
-          id: generationId,
-          userId: 'DEFAULT_LOBE_CHAT_USER',
-        });
+        const result: GetGenerationWithAsyncTaskRow = await GetGenerationWithAsyncTask(generationId);
 
         if (!result) return;
 
