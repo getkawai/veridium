@@ -35,6 +35,7 @@ type FileProcessorService struct {
 	vlProvider     llamavl.Provider // For VL (Vision-Language) processing
 	whisperService *whisper.Service
 	languageModel  fantasy.LanguageModel // For OCR/transcript cleanup
+	FileBaseDir    string                // Base directory for file storage (injected)
 }
 
 // NewFileProcessorService creates a new file processor service
@@ -44,6 +45,7 @@ func NewFileProcessorService(
 	ragProcessor *RAGProcessor,
 	libraryService *llamalib.Service,
 	whisperService *whisper.Service,
+	fileBaseDir string,
 ) *FileProcessorService {
 	return &FileProcessorService{
 		db:             database,
@@ -52,6 +54,7 @@ func NewFileProcessorService(
 		ragProcessor:   ragProcessor,
 		libraryService: libraryService,
 		whisperService: whisperService,
+		FileBaseDir:    fileBaseDir,
 	}
 }
 
@@ -160,6 +163,43 @@ func (s *FileProcessorService) DeleteFile(ctx context.Context, fileID string) er
 			return nil // File doesn't exist, nothing to do
 		}
 		return fmt.Errorf("failed to get file: %w", err)
+	}
+
+	// 1.5. Delete physical file from disk
+	// The Url field often contains the relative path (e.g., "files/uploads/...") or a serving URL
+	if file.Url != "" {
+		log.Printf("[DEBUG] Checking physical file deletion. DbUrl=%s", file.Url)
+
+		// Optimize for Cross-Platform (Windows/Linux/Mac)
+		// 1. Unify separators to "/" (Standard URL format)
+		normalizedPath := filepath.ToSlash(file.Url)
+
+		// 2. Remove leading "/" if present (e.g. "/files/..." -> "files/...")
+		normalizedPath = strings.TrimPrefix(normalizedPath, "/")
+
+		// 3. Convert back to OS-specific separators (e.g. "\" on Windows)
+		filePath := filepath.Clean(filepath.FromSlash(normalizedPath))
+
+		// SAFETY CHECK: Ensure we ONLY delete files inside the allowed directory.
+		// We use the injected FileBaseDir (e.g. "files").
+		expectedPrefix := s.FileBaseDir + string(filepath.Separator)
+
+		// Only delete if it looks like a local file in our expected directory structure
+		// This strictly prevents deleting files outside of 'files/' (e.g. system files).
+		if !strings.HasPrefix(filePath, "http") && !filepath.IsAbs(filePath) && strings.HasPrefix(filePath, expectedPrefix) {
+			info, err := os.Stat(filePath)
+			if err == nil && !info.IsDir() {
+				if err := os.Remove(filePath); err != nil {
+					log.Printf("[WARN] Failed to delete physical file: %v path=%s", err, filePath)
+				} else {
+					log.Printf("[INFO] Deleted physical file: %s", filePath)
+				}
+			} else {
+				log.Printf("[DEBUG] File not found or is directory, skipping delete: %s (err: %v)", filePath, err)
+			}
+		} else {
+			log.Printf("[WARN] Safety check failed for path: %s (Expected prefix: %s)", filePath, expectedPrefix)
+		}
 	}
 
 	// 2. Delete vectors from DuckDB (via RAGProcessor)

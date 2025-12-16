@@ -75,6 +75,7 @@ dev:
 	@echo "🚀 Starting development server..."
 	killport 9245
 	rm -rf data
+	rm -rf files
 	rm -f backend-dev.log
 	VERIDIUM_DEV=true wails3 dev 2>&1 | tee backend-dev.log
 

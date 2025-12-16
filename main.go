@@ -40,6 +40,7 @@ func main() {
 	}
 
 	// Create FileProcessor (Wails-specific wrapper)
+	// Create FileProcessor (Wails-specific wrapper)
 	fileProcessor := NewFileProcessorService(
 		ctx.DB.DB(),
 		ctx.FileLoader,

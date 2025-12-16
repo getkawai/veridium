@@ -59,6 +59,7 @@ type Context struct {
 	AudioRecorder  *audio_recorder.AudioRecorderService
 	VectorSearch   *services.VectorSearchService
 	KBService      *services.KnowledgeBaseService
+	RAGProcessor   *services.RAGProcessor
 
 	// Language Models
 	ChatModel    fantasy.LanguageModel
@@ -193,6 +194,7 @@ func (ctx *Context) InitKnowledgeBase() {
 	}
 	embedder := ctx.VectorSearch.GetEmbedder()
 	ragProcessor := services.NewRAGProcessor(ctx.DB.DB(), ctx.DuckDBStore, ctx.FileLoader, embedder)
+	ctx.RAGProcessor = ragProcessor
 
 	kbService, err := services.NewKnowledgeBaseService(ctx.DB, &services.KnowledgeBaseConfig{
 		RAGProcessor: ragProcessor,

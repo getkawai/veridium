@@ -167,7 +167,10 @@ func (sdrm *StableDiffusion) generateImagesInBackground(batchID string, imageNum
 				}
 			} else {
 				// Success - update with file data
-				sdrm.updateGenerationWithFile(ctx, generation.ID, outputPath, fileName, opts, generation.AsyncTaskID.String, startTime)
+				if err := sdrm.updateGenerationWithFile(ctx, generation.ID, outputPath, fileName, opts, generation.AsyncTaskID.String, startTime); err != nil {
+					log.Printf("[Background] ERROR: Failed to update generation with file: %v", err)
+					remoteErr = err
+				}
 			}
 		}(i)
 	}
@@ -201,25 +204,25 @@ func (sdrm *StableDiffusion) generateImagesInBackground(batchID string, imageNum
 }
 
 // updateGenerationWithFile updates a generation record with file data after successful generation
-func (sdrm *StableDiffusion) updateGenerationWithFile(ctx context.Context, generationID, outputPath, fileName string, opts GenerationOptions, taskID string, startTime time.Time) {
+func (sdrm *StableDiffusion) updateGenerationWithFile(ctx context.Context, generationID, outputPath, fileName string, opts GenerationOptions, taskID string, startTime time.Time) error {
 	// Calculate file info
 	fileInfo, err := os.Stat(outputPath)
 	if err != nil {
 		log.Printf("[Background] ERROR: Failed to stat file: %v", err)
-		return
+		return fmt.Errorf("failed to stat file: %w", err)
 	}
 
 	// Calculate hash
 	f, err := os.Open(outputPath)
 	if err != nil {
 		log.Printf("[Background] ERROR: Failed to open file for hashing: %v", err)
-		return
+		return fmt.Errorf("failed to open file for hashing: %w", err)
 	}
 	hash := sha256.New()
 	if _, err := io.Copy(hash, f); err != nil {
 		f.Close()
 		log.Printf("[Background] ERROR: Failed to hash file: %v", err)
-		return
+		return fmt.Errorf("failed to hash file: %w", err)
 	}
 	f.Close()
 	fileHash := hex.EncodeToString(hash.Sum(nil))
@@ -253,7 +256,7 @@ func (sdrm *StableDiffusion) updateGenerationWithFile(ctx context.Context, gener
 	})
 	if err != nil {
 		log.Printf("[Background] ERROR: Failed to create file record: %v", err)
-		return
+		return fmt.Errorf("failed to create file record: %w", err)
 	}
 
 	// Create asset JSON
@@ -277,7 +280,7 @@ func (sdrm *StableDiffusion) updateGenerationWithFile(ctx context.Context, gener
 	})
 	if err != nil {
 		log.Printf("[Background] ERROR: Failed to update generation: %v", err)
-		return
+		return fmt.Errorf("failed to update generation: %w", err)
 	}
 
 	// Update async_task to success
@@ -293,4 +296,5 @@ func (sdrm *StableDiffusion) updateGenerationWithFile(ctx context.Context, gener
 	}
 
 	log.Printf("[Background] Successfully updated generation %s with file %s", generationID, fileName)
+	return nil
 }

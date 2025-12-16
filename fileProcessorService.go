@@ -47,6 +47,7 @@ func NewFileProcessorService(
 		ragProcessor,
 		libraryService,
 		whisperService,
+		fileBaseDir,
 	)
 
 	return &FileProcessorService{
