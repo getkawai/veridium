@@ -3,8 +3,6 @@
 
 import { PluginSchema } from '../types';
 
-export const OPENAPI_REQUEST_BODY_KEY = '_requestBody';
-
 export class OpenAPIConvertor {
   // private readonly openapi: object;
   constructor(_openapi: object) {
