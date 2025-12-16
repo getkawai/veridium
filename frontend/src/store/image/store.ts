@@ -1,3 +1,4 @@
+import { persist } from 'zustand/middleware';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { shallow } from 'zustand/shallow';
 import { createWithEqualityFn } from 'zustand/traditional';
@@ -35,7 +36,15 @@ const createStore: StateCreator<ImageStore, [['zustand/devtools', never]]> = (..
 const devtools = createDevtools('image');
 
 export const useImageStore = createWithEqualityFn<ImageStore>()(
-  subscribeWithSelector(devtools(createStore)),
+  persist(
+    subscribeWithSelector(devtools(createStore)),
+    {
+      name: 'LOBE_IMAGE_STORE',
+      partialize: (state) => ({
+        activeGenerationTopicId: state.activeGenerationTopicId,
+      }),
+    }
+  ),
   shallow,
 );
 

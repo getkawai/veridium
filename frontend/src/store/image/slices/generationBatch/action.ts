@@ -25,7 +25,7 @@ export interface GenerationBatchAction {
   internal_deleteGenerationBatch: (batchId: string, topicId: string) => Promise<void>;
   refreshGenerationBatches: () => Promise<void>;
   internal_fetchGenerationBatches: (topicId: string) => Promise<void>;
-  useFetchGenerationBatches: (topicId?: string | null) => Promise<GenerationBatch[]>;
+  fetchGenerationBatches: (topicId?: string | null) => Promise<GenerationBatch[]>;
 }
 
 // ====== action implementation ====== //
@@ -216,7 +216,7 @@ export const createGenerationBatchSlice: StateCreator<
     }
   },
 
-  useFetchGenerationBatches: async (topicId) => {
+  fetchGenerationBatches: async (topicId) => {
     if (!topicId) return [];
     await get().internal_fetchGenerationBatches(topicId);
     return get().generationBatchesMap[topicId] || [];

@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { Center } from 'react-layout-kit';
 
 import { useImageStore } from '@/store/image';
@@ -12,11 +13,15 @@ import SkeletonList from './SkeletonList';
 
 const ImageWorkspaceContent = () => {
   const activeTopicId = useImageStore(generationTopicSelectors.activeGenerationTopicId);
-  const useFetchGenerationBatches = useImageStore((s) => s.useFetchGenerationBatches);
+  const fetchGenerationBatches = useImageStore((s) => s.fetchGenerationBatches);
   const isCurrentGenerationTopicLoaded = useImageStore(
     generationBatchSelectors.isCurrentGenerationTopicLoaded,
   );
-  useFetchGenerationBatches(activeTopicId);
+  useEffect(() => {
+    if (activeTopicId) {
+      fetchGenerationBatches(activeTopicId);
+    }
+  }, [activeTopicId, fetchGenerationBatches]);
   const currentBatches = useImageStore(generationBatchSelectors.currentGenerationBatches);
   const hasGenerations = currentBatches && currentBatches.length > 0;
 

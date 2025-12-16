@@ -22,7 +22,7 @@ const n = setNamespace('generationTopic');
 export interface GenerationTopicAction {
   createGenerationTopic: (prompts: string[]) => Promise<string>;
   removeGenerationTopic: (id: string) => Promise<void>;
-  internal_fetchGenerationTopics: (enabled?: boolean) => Promise<void>;
+  fetchGenerationTopics: (enabled?: boolean) => Promise<void>;
   useFetchGenerationTopics: (enabled: boolean) => Promise<ImageGenerationTopic[]>;
   summaryGenerationTopicTitle: (topicId: string, prompts: string[]) => Promise<string>;
   refreshGenerationTopics: () => Promise<void>;
@@ -208,7 +208,7 @@ export const createGenerationTopicSlice: StateCreator<
     );
   },
 
-  internal_fetchGenerationTopics: async (enabled) => {
+  fetchGenerationTopics: async (enabled) => {
     if (!enabled) return;
 
     try {
@@ -224,7 +224,7 @@ export const createGenerationTopicSlice: StateCreator<
   },
 
   refreshGenerationTopics: async () => {
-    await get().internal_fetchGenerationTopics(true);
+    await get().fetchGenerationTopics(true);
   },
 
   removeGenerationTopic: async (id: string) => {

@@ -2,7 +2,7 @@
 
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { useSize } from 'ahooks';
-import { memo, useRef } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import { Flexbox } from 'react-layout-kit';
 
 import { useImageStore } from '@/store/image';
@@ -16,9 +16,11 @@ import TopicItem from './TopicItem';
 // Lists existing generation topics and the “new topic” entry.
 const TopicsList = memo(() => {
   const isLogin = useUserStore(authSelectors.isLogin);
-  const useFetchGenerationTopics = useImageStore((s) => s.useFetchGenerationTopics);
+  const fetchGenerationTopics = useImageStore((s) => s.fetchGenerationTopics);
   // Only fetch topics after the user logs in.
-  useFetchGenerationTopics(!!isLogin);
+  useEffect(() => {
+    fetchGenerationTopics(!!isLogin);
+  }, [isLogin, fetchGenerationTopics]);
   const ref = useRef(null);
   const { width = 80 } = useSize(ref) || {};
   const [parent] = useAutoAnimate();
@@ -26,6 +28,16 @@ const TopicsList = memo(() => {
   const openNewGenerationTopic = useImageStore((s) => s.openNewGenerationTopic);
 
   const showMoreInfo = Boolean(width > 120);
+
+  const switchGenerationTopic = useImageStore((s) => s.switchGenerationTopic);
+  const activeTopicId = useImageStore(generationTopicSelectors.activeGenerationTopicId);
+
+  // Auto-select first topic if none is active (fallback for empty persistence)
+  useEffect(() => {
+    if (generationTopics && generationTopics.length > 0 && !activeTopicId) {
+      switchGenerationTopic(generationTopics[0].id);
+    }
+  }, [generationTopics, activeTopicId, switchGenerationTopic]);
 
   const isEmpty = !generationTopics || generationTopics.length === 0;
   if (isEmpty) {
