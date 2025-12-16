@@ -30,3 +30,4 @@ class DesktopFileAPI {
 }
 
 export const desktopFileAPI = new DesktopFileAPI();
+
