@@ -32,12 +32,34 @@ const TopicsList = memo(() => {
   const switchGenerationTopic = useImageStore((s) => s.switchGenerationTopic);
   const activeTopicId = useImageStore(generationTopicSelectors.activeGenerationTopicId);
 
-  // Auto-select first topic if none is active (fallback for empty persistence)
+  // Ref to track if we have performed the initial auto-selection/validation
+  const hasInitialized = useRef(false);
+
+  // Auto-select first topic logic:
+  // 1. If no topic is active (empty persistence or first load) -> select first.
+  // 2. If active topic exists in store but NOT in the fetched list (stale persistence) -> select first (or null if list empty).
+  // 3. IMPORTANT: Only do this ONCE on mount/load. If user manually clicks "New Topic" (setting ID to null), do NOT auto-select again.
   useEffect(() => {
-    if (generationTopics && generationTopics.length > 0 && !activeTopicId) {
-      switchGenerationTopic(generationTopics[0].id);
+    if (!generationTopics) return;
+
+    // 1. Handle Stale/Invalid ID (Always check this to avoid ghost states)
+    if (activeTopicId && !generationTopics.some(t => t.id === activeTopicId)) {
+      if (generationTopics.length > 0) {
+        switchGenerationTopic(generationTopics[0].id);
+      } else {
+        openNewGenerationTopic();
+      }
+      return;
     }
-  }, [generationTopics, activeTopicId, switchGenerationTopic]);
+
+    // 2. Initial Auto-Select (Only run if we haven't initialized yet)
+    if (!hasInitialized.current) {
+      if (!activeTopicId && generationTopics.length > 0) {
+        switchGenerationTopic(generationTopics[0].id);
+      }
+      hasInitialized.current = true;
+    }
+  }, [generationTopics, activeTopicId, switchGenerationTopic, openNewGenerationTopic]);
 
   const isEmpty = !generationTopics || generationTopics.length === 0;
   if (isEmpty) {
