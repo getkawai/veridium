@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { StateCreator } from 'zustand/vanilla';
 
 import { globalService } from '@/services/global';
-import { GlobalRuntimeConfig } from '@/types/serverConfig';
 
 import type { ServerConfigStore } from './store';
 

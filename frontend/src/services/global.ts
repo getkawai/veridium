@@ -1,6 +1,3 @@
-import type { PartialDeep } from 'type-fest';
-
-import { LobeAgentConfig } from '@/types/agent';
 import { GlobalRuntimeConfig } from '@/types/serverConfig';
 
 const VERSION_URL = 'https://registry.npmmirror.com/@lobehub/chat/latest';
@@ -59,42 +56,9 @@ class GlobalService {
         enableSTT: true,
         hideGitHub: false,
         hideDocs: false,
-        enableGroupChat: true,
+        enableGroupChat: false,
         showCreateSession: true,
         isAgentEditable: true,
-      },
-    };
-  };
-
-  getDefaultAgentConfig = async (): Promise<PartialDeep<LobeAgentConfig>> => {
-    // Mock default agent config data
-    return {
-      model: 'gpt-4o-mini',
-      provider: 'openai',
-      systemRole: 'You are a helpful AI assistant.',
-      chatConfig: {
-        autoCreateTopicThreshold: 2,
-        enableAutoCreateTopic: true,
-        enableCompressHistory: true,
-        enableHistoryCount: true,
-        historyCount: 20,
-        inputTemplate: '',
-        searchMode: 'auto',
-      },
-      params: {
-        frequency_penalty: 0,
-        max_tokens: 4000,
-        presence_penalty: 0,
-        temperature: 0.7,
-        top_p: 1,
-      },
-      tts: {
-        showAllLocaleVoice: false,
-        sttLocale: 'auto',
-        ttsService: 'openai',
-        voice: {
-          openai: 'alloy',
-        },
       },
     };
   };
