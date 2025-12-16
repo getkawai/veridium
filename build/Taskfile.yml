@@ -42,6 +42,16 @@ tasks:
     vars:
       BUILD_COMMAND: '{{if eq .PRODUCTION "true"}}build{{else}}build:dev{{end}}'
 
+  build:frontend:skip:
+    label: build:frontend (SKIPPED - using existing dist)
+    summary: Skip frontend build, use existing dist
+    dir: frontend
+    preconditions:
+      - sh: test -d dist
+        msg: "Frontend dist/ not found. Run 'make dev' first to build frontend."
+    cmds:
+      - echo "✅ Using existing frontend dist/"
+
 
   generate:bindings:
     label: generate:bindings (BUILD_FLAGS={{.BUILD_FLAGS}})

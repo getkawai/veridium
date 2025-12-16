@@ -12,7 +12,22 @@ help:
 	@echo "  make generate             Run both db-generate and bindings-generate"
 	@echo ""
 	@echo "Development:"
-	@echo "  make dev                  Start development server"
+	@echo "  make dev                  Start development server (full build)"
+	@echo "  make devd                 Start dev server (keep existing DB)"
+	@echo ""
+	@echo "Quick Development (skip frontend build if possible):"
+	@echo "  make dev-quick            Skip build if dist exists"
+	@echo "  make devd-quick           Skip build if dist exists + keep DB"
+	@echo "  make dev-smart            Reuse Vite OR skip build (smartest)"
+	@echo "  make devd-smart           Reuse Vite OR skip build + keep DB"
+	@echo ""
+	@echo "Manual Control:"
+	@echo "  make dev-skip-build       Skip 'bun run build:dev' (use dist)"
+	@echo "  make devd-skip-build      Skip build + keep DB"
+	@echo "  make dev-skip-frontend    Skip Vite dev server (manual start)"
+	@echo "  make devd-skip-frontend   Skip Vite + keep DB"
+	@echo ""
+	@echo "Build:"
 	@echo "  make build                Build production binary"
 	@echo ""
 	@echo "Maintenance:"
@@ -69,6 +84,108 @@ devd:
 	killport 9245
 	rm -f backend-dev.log
 	VERIDIUM_DEV=true wails3 dev 2>&1 | tee backend-dev.log
+
+# Start development server (skip frontend dev server, assume it's already running)
+dev-skip-frontend:
+	@echo "🚀 Starting development server (skipping frontend dev server)..."
+	@echo "⚠️  Make sure Vite is already running on port 9245!"
+	@echo "    Run in another terminal: cd frontend && bun run dev -- --port 9245"
+	killport 9245 || true
+	rm -rf data
+	rm -f backend-dev.log
+	VERIDIUM_DEV=true wails3 dev -config ./build/config-skip-frontend.yml 2>&1 | tee backend-dev.log
+
+# Start development server without removing database (skip frontend dev server)
+devd-skip-frontend:
+	@echo "🚀 Starting development server (skipping frontend dev server, keeping DB)..."
+	@echo "⚠️  Make sure Vite is already running on port 9245!"
+	@echo "    Run in another terminal: cd frontend && bun run dev -- --port 9245"
+	rm -f backend-dev.log
+	VERIDIUM_DEV=true wails3 dev -config ./build/config-skip-frontend.yml 2>&1 | tee backend-dev.log
+
+# Start development server (skip 'bun run build:dev', use existing dist)
+dev-skip-build:
+	@echo "🚀 Starting development server (skipping frontend build)..."
+	@echo "⚠️  Requires existing frontend/dist from previous build!"
+	@if [ ! -d frontend/dist ]; then \
+		echo "❌ Error: frontend/dist not found!"; \
+		echo "   Run 'make dev' first to build frontend."; \
+		exit 1; \
+	fi
+	killport 9245
+	rm -rf data
+	rm -f backend-dev.log
+	VERIDIUM_DEV=true wails3 dev -config ./build/config-skip-frontend-build.yml 2>&1 | tee backend-dev.log
+
+# Start development server without removing database (skip 'bun run build:dev')
+devd-skip-build:
+	@echo "🚀 Starting development server (skipping frontend build, keeping DB)..."
+	@echo "⚠️  Requires existing frontend/dist from previous build!"
+	@if [ ! -d frontend/dist ]; then \
+		echo "❌ Error: frontend/dist not found!"; \
+		echo "   Run 'make devd' first to build frontend."; \
+		exit 1; \
+	fi
+	killport 9245
+	rm -f backend-dev.log
+	VERIDIUM_DEV=true wails3 dev -config ./build/config-skip-frontend-build.yml 2>&1 | tee backend-dev.log
+
+# Quick dev: skip 'bun run build:dev' if frontend/dist exists
+dev-quick:
+	@echo "⚡ Quick development mode..."
+	@if [ -d frontend/dist ]; then \
+		echo "✅ Found existing frontend/dist, skipping build..."; \
+		$(MAKE) dev-skip-build; \
+	else \
+		echo "⚠️  No frontend/dist found, running full build..."; \
+		$(MAKE) dev; \
+	fi
+
+# Quick dev without removing database
+devd-quick:
+	@echo "⚡ Quick development mode (keeping DB)..."
+	@if [ -d frontend/dist ]; then \
+		echo "✅ Found existing frontend/dist, skipping build..."; \
+		$(MAKE) devd-skip-build; \
+	else \
+		echo "⚠️  No frontend/dist found, running full build..."; \
+		$(MAKE) devd; \
+	fi
+
+# Smart dev: reuse Vite dev server if running, otherwise skip build if dist exists
+dev-smart:
+	@echo "🧠 Smart development mode..."
+	@if lsof -Pi :9245 -sTCP:LISTEN -t >/dev/null 2>&1 ; then \
+		echo "✅ Vite dev server already running on port 9245"; \
+		echo "🚀 Reusing existing dev server..."; \
+		rm -rf data; \
+		rm -f backend-dev.log; \
+		VERIDIUM_DEV=true wails3 dev -config ./build/config-skip-frontend.yml 2>&1 | tee backend-dev.log; \
+	elif [ -d frontend/dist ]; then \
+		echo "✅ Found existing frontend/dist"; \
+		echo "🚀 Skipping build, using existing dist..."; \
+		$(MAKE) dev-skip-build; \
+	else \
+		echo "⚠️  No Vite server or dist found, running full build..."; \
+		$(MAKE) dev; \
+	fi
+
+# Smart dev without removing database
+devd-smart:
+	@echo "🧠 Smart development mode (keeping DB)..."
+	@if lsof -Pi :9245 -sTCP:LISTEN -t >/dev/null 2>&1 ; then \
+		echo "✅ Vite dev server already running on port 9245"; \
+		echo "🚀 Reusing existing dev server..."; \
+		rm -f backend-dev.log; \
+		VERIDIUM_DEV=true wails3 dev -config ./build/config-skip-frontend.yml 2>&1 | tee backend-dev.log; \
+	elif [ -d frontend/dist ]; then \
+		echo "✅ Found existing frontend/dist"; \
+		echo "🚀 Skipping build, using existing dist..."; \
+		$(MAKE) devd-skip-build; \
+	else \
+		echo "⚠️  No Vite server or dist found, running full build..."; \
+		$(MAKE) devd; \
+	fi
 
 # Build production binary
 build:

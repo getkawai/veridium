@@ -17,6 +17,11 @@ tasks:
     cmds:
       - task: "{{OS}}:build"
 
+  build:skip:
+    summary: Builds the application (skip frontend build, use existing dist)
+    cmds:
+      - task: "{{OS}}:build:skip"
+
   package:
     summary: Packages a production build of the application
     cmds:

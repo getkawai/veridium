@@ -30,6 +30,32 @@ tasks:
       GOARCH: '{{.ARCH | default ARCH}}'
       PRODUCTION: '{{.PRODUCTION | default "false"}}'
 
+  build:skip:
+    summary: Builds the application for Windows (skip frontend build)
+    deps:
+      - task: common:go:mod:tidy
+      - task: common:build:frontend:skip
+        vars:
+          BUILD_FLAGS:
+            ref: .BUILD_FLAGS
+          PRODUCTION:
+            ref: .PRODUCTION
+      - task: common:generate:icons
+    cmds:
+      - task: generate:syso
+      - go build {{.BUILD_FLAGS}} -o {{.BIN_DIR}}/{{.APP_NAME}}.exe
+      - cmd: powershell Remove-item *.syso
+        platforms: [windows]
+      - cmd: rm -f *.syso
+        platforms: [linux, darwin]
+    vars:
+      BUILD_FLAGS: '{{if eq .PRODUCTION "true"}}-tags production -trimpath -buildvcs=false -ldflags="-w -s -H windowsgui"{{else}}-buildvcs=false -gcflags=all="-l"{{end}}'
+    env:
+      GOOS: windows
+      CGO_ENABLED: 0
+      GOARCH: '{{.ARCH | default ARCH}}'
+      PRODUCTION: '{{.PRODUCTION | default "false"}}'
+
   package:
     summary: Packages a production build of the application
     cmds:

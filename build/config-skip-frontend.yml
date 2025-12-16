@@ -1,0 +1,49 @@
+# This config is for dev mode when frontend is already running separately
+# Usage: make dev-skip-frontend or make devd-skip-frontend
+version: '3'
+
+# This information is used to generate the build assets.
+info:
+  companyName: "My Company"
+  productName: "My Product"
+  productIdentifier: "com.mycompany.myproduct"
+  description: "A program that does X"
+  copyright: "(c) 2025, My Company"
+  comments: "Some Product Comments"
+  version: "0.0.1"
+
+# Dev mode configuration - SKIP frontend dev server
+dev_mode:
+  root_path: .
+  log_level: warn
+  debounce: 1000
+  ignore:
+    dir:
+      - .git
+      - node_modules
+      - frontend
+      - bin
+    file:
+      - .DS_Store
+      - .gitignore
+      - .gitkeep
+    watched_extension:
+      - "*.go"
+    git_ignore: true
+  executes:
+    # Skip: wails3 task common:install:frontend:deps
+    # Skip: wails3 task common:dev:frontend
+    - cmd: go mod tidy
+      type: blocking
+    - cmd: wails3 task build
+      type: blocking
+    - cmd: wails3 task run
+      type: primary
+
+# File Associations
+fileAssociations: []
+
+# Other data
+other:
+  - name: My Other Data
+

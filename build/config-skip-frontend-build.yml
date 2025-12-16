@@ -1,0 +1,55 @@
+# This config is for dev mode when you want to skip frontend build
+# Assumes frontend/dist already exists from previous build
+# Usage: make dev-skip-build or make devd-skip-build
+version: '3'
+
+# This information is used to generate the build assets.
+info:
+  companyName: "My Company"
+  productName: "My Product"
+  productIdentifier: "com.mycompany.myproduct"
+  description: "A program that does X"
+  copyright: "(c) 2025, My Company"
+  comments: "Some Product Comments"
+  version: "0.0.1"
+
+# Dev mode configuration - SKIP frontend build (use existing dist)
+dev_mode:
+  root_path: .
+  log_level: warn
+  debounce: 1000
+  ignore:
+    dir:
+      - .git
+      - node_modules
+      - frontend
+      - bin
+    file:
+      - .DS_Store
+      - .gitignore
+      - .gitkeep
+    watched_extension:
+      - "*.go"
+    git_ignore: true
+  executes:
+    # Install deps (needed for Vite)
+    - cmd: wails3 task common:install:frontend:deps
+      type: once
+    # Start Vite dev server (needed for hot reload)
+    - cmd: wails3 task common:dev:frontend
+      type: background
+    # Skip: bun run build:dev (this is the optimization!)
+    - cmd: go mod tidy
+      type: blocking
+    - cmd: wails3 task build:skip
+      type: blocking
+    - cmd: wails3 task run
+      type: primary
+
+# File Associations
+fileAssociations: []
+
+# Other data
+other:
+  - name: My Other Data
+
