@@ -13,7 +13,6 @@ import { useFileStore } from '@/store/file';
 import { ProcessFileFromPath } from '@@/github.com/kawai-network/veridium/fileprocessorservice';
 
 import Action from '../components/Action';
-import { getUserId } from '@/store/user/helpers';
 
 const hotArea = css`
   &::before {

@@ -13,12 +13,7 @@ import { NotificationService, NotificationOptions } from '@@/github.com/wailsapp
 import { GetFullFileUrl } from '@@/github.com/kawai-network/veridium/internal/services/fileservice';
 
 export class GenerationTopicModel {
-  private userId: string;
   private logger = createModelLogger('GenerationTopic', 'GenerationTopicModel', 'database/models/generationTopic');
-
-  constructor(userId: string) {
-    this.userId = userId;
-  }
 
   /**
    * Show error notification to user
@@ -63,7 +58,7 @@ export class GenerationTopicModel {
   };
 
   create = async (title: string): Promise<GenerationTopic> => {
-    await this.logger.methodEntry('create', { title, userId: this.userId });
+    await this.logger.methodEntry('create', { title });
 
     try {
       const id = nanoid();
@@ -93,7 +88,7 @@ export class GenerationTopicModel {
     id: string,
     data: Partial<ImageGenerationTopic>,
   ): Promise<GenerationTopic | undefined> => {
-    await this.logger.methodEntry('update', { id, data, userId: this.userId });
+    await this.logger.methodEntry('update', { id, data });
 
     try {
       // 1. Fetch existing topic to preserve fields
@@ -138,7 +133,7 @@ export class GenerationTopicModel {
   delete = async (
     id: string,
   ): Promise<{ deletedTopic: GenerationTopic; filesToDelete: string[] } | undefined> => {
-    await this.logger.methodEntry('delete', { id, userId: this.userId });
+    await this.logger.methodEntry('delete', { id });
 
     try {
       // 1. Get topic to verify ownership

@@ -13,8 +13,6 @@ import type { ImageStore } from '../../store';
 import { GenerationTopicDispatch, generationTopicReducer } from './reducer';
 import { generationTopicSelectors } from './selectors';
 import { GenerationTopicModel } from '@/database/models/generationTopic';
-import { getUserId } from '@/store/user/helpers';
-
 
 
 const n = setNamespace('generationTopic');
@@ -47,7 +45,7 @@ export const createGenerationTopicSlice: StateCreator<
 > = (set, get) => ({
   useFetchGenerationTopics: async (enabled) => {
     if (!enabled) return [];
-    const generationTopicModel = new GenerationTopicModel(getUserId());
+    const generationTopicModel = new GenerationTopicModel();
     return generationTopicModel.queryAll();
   },
   createGenerationTopic: async (prompts: string[]) => {
