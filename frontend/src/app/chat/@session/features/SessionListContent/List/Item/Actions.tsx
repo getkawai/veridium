@@ -26,6 +26,7 @@ import { useSessionStore } from '@/store/session';
 import { sessionHelpers } from '@/store/session/helpers';
 import { sessionGroupSelectors, sessionSelectors } from '@/store/session/selectors';
 import { SessionDefaultGroup } from '@/types/session';
+import { getNullableString } from '@/types/database';
 
 const useStyles = createStyles(({ css }) => ({
   modalRoot: css`
@@ -55,7 +56,7 @@ const Actions = memo<ActionProps>(({ group, id, openCreateGroupModal, parentType
         sessionHelpers.getSessionPinned(session),
         s.removeSession,
         s.pinSession,
-        session.type,
+        getNullableString(session.type),
         s.duplicateSession,
         s.updateSessionGroupId,
       ];
@@ -96,16 +97,16 @@ const Actions = memo<ActionProps>(({ group, id, openCreateGroupModal, parentType
           },
           ...(isDesktop
             ? [
-                {
-                  icon: <Icon icon={ExternalLink} />,
-                  key: 'openInNewWindow',
-                  label: '单独打开页面',
-                  onClick: ({ domEvent }: { domEvent: Event }) => {
-                    domEvent.stopPropagation();
-                    openSessionInNewWindow(id);
-                  },
+              {
+                icon: <Icon icon={ExternalLink} />,
+                key: 'openInNewWindow',
+                label: '单独打开页面',
+                onClick: ({ domEvent }: { domEvent: Event }) => {
+                  domEvent.stopPropagation();
+                  openSessionInNewWindow(id);
                 },
-              ]
+              },
+            ]
             : []),
           {
             type: 'divider',
@@ -151,26 +152,26 @@ const Actions = memo<ActionProps>(({ group, id, openCreateGroupModal, parentType
           isServerMode
             ? undefined
             : {
-                children: [
-                  {
-                    key: 'agent',
-                    label: t('exportType.agent', { ns: 'common' }),
-                    onClick: () => {
-                      configService.exportSingleAgent(id);
-                    },
+              children: [
+                {
+                  key: 'agent',
+                  label: t('exportType.agent', { ns: 'common' }),
+                  onClick: () => {
+                    configService.exportSingleAgent(id);
                   },
-                  {
-                    key: 'agentWithMessage',
-                    label: t('exportType.agentWithMessage', { ns: 'common' }),
-                    onClick: () => {
-                      configService.exportSingleSession(id);
-                    },
+                },
+                {
+                  key: 'agentWithMessage',
+                  label: t('exportType.agentWithMessage', { ns: 'common' }),
+                  onClick: () => {
+                    configService.exportSingleSession(id);
                   },
-                ],
-                icon: <Icon icon={HardDriveDownload} />,
-                key: 'export',
-                label: t('export', { ns: 'common' }),
-              },
+                },
+              ],
+              icon: <Icon icon={HardDriveDownload} />,
+              key: 'export',
+              label: t('export', { ns: 'common' }),
+            },
           {
             danger: true,
             icon: <Icon icon={Trash} />,

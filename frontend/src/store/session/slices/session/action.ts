@@ -1,6 +1,5 @@
 import isEqual from 'fast-deep-equal';
 import { t } from 'i18next';
-import type { PartialDeep } from 'type-fest';
 import { StateCreator } from 'zustand/vanilla';
 
 import { message } from '@/components/AntdStaticMethods';
@@ -10,7 +9,7 @@ import { DEFAULT_CHAT_GROUP_CHAT_CONFIG } from '@/const/settings';
 import { useAgentStore } from '@/store/agent';
 import { getChatGroupStoreState } from '@/store/chatGroup';
 import { useUserStore } from '@/store/user';
-import { DB, toNullString, toNullInt, boolToInt, Session, getNullableString } from '@/types/database';
+import { DB, toNullString, UpdateSessionParams, boolToInt, Session, getNullableString } from '@/types/database';
 import { getUserId, mapAgentConfigFromDB } from '../../helpers';
 
 import type { SessionStore } from '../../store';
@@ -19,7 +18,6 @@ import { MetaData } from '@/types/meta';
 import {
   LobeSessionGroups,
   LobeSessions,
-  UpdateSessionParams,
 } from '@/types/session';
 import { merge } from '@/utils/merge';
 import { setNamespace } from '@/utils/storeDebug';
@@ -80,7 +78,15 @@ export interface SessionAction {
   internal_searchSessions: (keyword?: string) => Promise<void>;
 
   internal_dispatchSessions: (payload: SessionDispatch) => void;
-  internal_updateSession: (id: string, data: Partial<UpdateSessionParams>) => Promise<void>;
+  internal_updateSession: (id: string, data: {
+    title?: string;
+    description?: string;
+    avatar?: string;
+    backgroundColor?: string;
+    groupId?: string;
+    pinned?: number;
+    updatedAt?: number;
+  }) => Promise<void>;
   internal_processSessions: (
     sessions: LobeSessions,
     customGroups: LobeSessionGroups,
@@ -110,7 +116,7 @@ export const createSessionSlice: StateCreator<
   },
 
   loadMoreSessions: async () => {
-    const { sessionsPage, sessionsHasMore, internal_processSessions, sessions } = get();
+    const { sessionsPage, sessionsHasMore, sessions } = get();
     if (!sessionsHasMore) return;
 
     const nextPage = sessionsPage + 1;
@@ -278,7 +284,7 @@ export const createSessionSlice: StateCreator<
     }
   },
   pinSession: async (id, pinned) => {
-    await get().internal_updateSession(id, { pinned });
+    await get().internal_updateSession(id, { pinned: pinned ? 1 : 0 });
   },
   removeSession: async (sessionId) => {
     await DB.DeleteSession(sessionId);
@@ -319,7 +325,7 @@ export const createSessionSlice: StateCreator<
   },
 
   triggerSessionUpdate: async (id) => {
-    await get().internal_updateSession(id, { updatedAt: new Date() });
+    await get().internal_updateSession(id, { updatedAt: Date.now() });
   },
 
   updateSearchKeywords: (keywords) => {
@@ -341,7 +347,7 @@ export const createSessionSlice: StateCreator<
       // await get().refreshSessions();
     } else {
       // For regular agent sessions, use the existing session service
-      await get().internal_updateSession(sessionId, { group: groupId });
+      await get().internal_updateSession(sessionId, { groupId });
     }
   },
 
@@ -485,6 +491,13 @@ export const createSessionSlice: StateCreator<
     get().internal_processSessions(nextSessions, get().sessionGroups);
   },
   internal_updateSession: async (id, data) => {
+    // 1. Get current session to merge with
+    const session = sessionSelectors.getSessionById(id)(get());
+    if (!session) {
+      console.warn('[internal_updateSession] Session not found by id', id);
+      return;
+    }
+
     // Convert boolean pinned to number for internal store update (Session expects number)
     const value: any = { ...data };
     if (data.pinned !== undefined) {
@@ -492,23 +505,48 @@ export const createSessionSlice: StateCreator<
     }
     get().internal_dispatchSessions({ type: 'updateSession', id, value });
 
-    const userId = getUserId();
     const now = Date.now();
 
-    // Map UpdateSessionParams to DB params
-    const meta = data as any; // Cast to access meta properties
+    const meta = data as any;
 
-    await DB.UpdateSession({
+    // Helper to resolve value: new value -> current value -> undefined (which toNullString handles as null)
+
+    // Resolve Title
+    const newTitle = meta.title !== undefined ? meta.title : getNullableString(session.title);
+    // Resolve Description
+    const newDescription = meta.description !== undefined ? meta.description : getNullableString(session.description);
+    // Resolve Avatar
+    const newAvatar = meta.avatar !== undefined ? meta.avatar : getNullableString(session.avatar);
+    // Resolve BackgroundColor
+    const newBackgroundColor = meta.backgroundColor !== undefined ? meta.backgroundColor : getNullableString(session.backgroundColor);
+
+    // Resolve Group
+    let newGroupIdStr: string | undefined | null = getNullableString(session.groupId);
+    if (data.groupId !== undefined) {
+      newGroupIdStr = data.groupId === 'default' ? '' : data.groupId;
+    }
+
+    // Resolve Pinned
+    let newPinnedBool = Boolean(session.pinned);
+    if (data.pinned !== undefined) {
+      newPinnedBool = typeof data.pinned === 'boolean' ? data.pinned : Boolean(data.pinned);
+    }
+
+    // Resolve UpdatedAt
+    const newUpdatedAt = typeof data.updatedAt === 'number' ? data.updatedAt : (data.updatedAt ? new Date(data.updatedAt).getTime() : now);
+
+    const params = new UpdateSessionParams({
       id,
-      userId,
-      title: meta.title ? toNullString(meta.title) : undefined,
-      description: meta.description ? toNullString(meta.description) : undefined,
-      avatar: meta.avatar ? toNullString(meta.avatar) : undefined,
-      backgroundColor: meta.backgroundColor ? toNullString(meta.backgroundColor) : undefined,
-      groupId: data.group !== undefined ? toNullString(data.group === 'default' ? '' : data.group) : undefined,
-      pinned: data.pinned !== undefined ? toNullInt(boolToInt(data.pinned)) : undefined,
-      updatedAt: data.updatedAt ? data.updatedAt.getTime() : now,
-    } as any);
+      title: toNullString(newTitle),
+      description: toNullString(newDescription),
+      avatar: toNullString(newAvatar),
+      backgroundColor: toNullString(newBackgroundColor),
+      groupId: toNullString(newGroupIdStr),
+      pinned: boolToInt(newPinnedBool),
+      updatedAt: newUpdatedAt,
+    });
+
+    await DB.UpdateSession(params);
 
     console.log('[Session] Updated session via direct DB', { id });
 
