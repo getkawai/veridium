@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/kawai-network/veridium/fantasy"
-	"github.com/kawai-network/veridium/fantasy/llamalib/tools"
+	"github.com/kawai-network/veridium/fantasy/tools"
 )
 
 // PythonCodeInput defines input for code interpreter tool

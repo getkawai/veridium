@@ -5,7 +5,7 @@ import (
 	"embed"
 	"log"
 
-	"github.com/kawai-network/veridium/fantasy/llamalib/tools/builtin"
+	"github.com/kawai-network/veridium/fantasy/tools/builtin"
 	"github.com/kawai-network/veridium/internal/app"
 	"github.com/kawai-network/veridium/internal/image"
 	"github.com/kawai-network/veridium/internal/machineid"

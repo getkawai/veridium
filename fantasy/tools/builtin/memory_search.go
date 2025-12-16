@@ -7,7 +7,7 @@ import (
 	"log"
 
 	"github.com/kawai-network/veridium/fantasy"
-	"github.com/kawai-network/veridium/fantasy/llamalib/tools"
+	"github.com/kawai-network/veridium/fantasy/tools"
 )
 
 // MemorySearchInput defines input for memory search tool

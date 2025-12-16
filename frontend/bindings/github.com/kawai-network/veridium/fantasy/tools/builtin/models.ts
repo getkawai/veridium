@@ -7,7 +7,7 @@ import { Create as $Create } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as localfs$0 from "../../../../pkg/localfs/models.js";
+import * as localfs$0 from "../../../pkg/localfs/models.js";
 
 /**
  * EditLocalFileState matches frontend EditLocalFileState interface

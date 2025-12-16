@@ -6,7 +6,7 @@ import (
 
 	"github.com/Knetic/govaluate"
 	"github.com/kawai-network/veridium/fantasy"
-	"github.com/kawai-network/veridium/fantasy/llamalib/tools"
+	"github.com/kawai-network/veridium/fantasy/tools"
 )
 
 // CalculatorInput defines input for calculator tool

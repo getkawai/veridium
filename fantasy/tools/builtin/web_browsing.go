@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/kawai-network/veridium/fantasy"
-	"github.com/kawai-network/veridium/fantasy/llamalib/tools"
+	"github.com/kawai-network/veridium/fantasy/tools"
 	"github.com/kawai-network/veridium/internal/search"
 )
 

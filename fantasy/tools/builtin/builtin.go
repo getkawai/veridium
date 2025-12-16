@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"log"
 
-	"github.com/kawai-network/veridium/fantasy/llamalib/tools"
+	"github.com/kawai-network/veridium/fantasy/tools"
 )
 
 // RegisterAll registers all builtin tools

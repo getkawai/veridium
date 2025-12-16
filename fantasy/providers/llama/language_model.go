@@ -12,7 +12,7 @@ import (
 	"github.com/kawai-network/veridium/fantasy/llamalib"
 	"github.com/kawai-network/veridium/fantasy/llamalib/llama"
 	"github.com/kawai-network/veridium/fantasy/llamalib/template"
-	"github.com/kawai-network/veridium/fantasy/llamalib/tools"
+	"github.com/kawai-network/veridium/fantasy/tools"
 )
 
 // Default batch size for token processing
