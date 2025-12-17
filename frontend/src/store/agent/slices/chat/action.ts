@@ -97,6 +97,7 @@ export const createChatSlice: StateCreator<
     }
 
     await get().internal_refreshAgentKnowledge();
+    await get().internal_refreshAgentConfig(get().activeId);
   },
   addKnowledgeBaseToAgent: async (knowledgeBaseId) => {
     const agentConfig = agentSelectors.currentAgentConfig(get());
@@ -121,6 +122,7 @@ export const createChatSlice: StateCreator<
     }
 
     await get().internal_refreshAgentKnowledge();
+    await get().internal_refreshAgentConfig(get().activeId);
   },
   removeFileFromAgent: async (fileId) => {
     const agentConfig = agentSelectors.currentAgentConfig(get());
@@ -129,6 +131,7 @@ export const createChatSlice: StateCreator<
 
     await DB.UnlinkAgentFromFile({ agentId, fileId });
     await get().internal_refreshAgentKnowledge();
+    await get().internal_refreshAgentConfig(get().activeId);
   },
   removeKnowledgeBaseFromAgent: async (knowledgeBaseId) => {
     const agentConfig = agentSelectors.currentAgentConfig(get());
@@ -137,26 +140,39 @@ export const createChatSlice: StateCreator<
 
     await DB.UnlinkAgentFromKnowledgeBase({ agentId, knowledgeBaseId });
     await get().internal_refreshAgentKnowledge();
+    await get().internal_refreshAgentConfig(get().activeId);
   },
 
   removePlugin: async (id) => {
     await get().togglePlugin(id, false);
   },
   toggleFile: async (id, open) => {
-    const { activeAgentId, internal_refreshAgentConfig } = get();
-    if (!activeAgentId) return;
+    const agentConfig = agentSelectors.currentAgentConfig(get());
+    const agentId = agentConfig?.id;
+    if (!agentId) return;
 
-    // await agentService.toggleFile(activeAgentId, id, open);
+    await DB.ToggleAgentFile({
+      agentId,
+      fileId: id,
+      enabled: open ? 1 : 0,
+    });
 
-    await internal_refreshAgentConfig(get().activeId);
+    await get().internal_refreshAgentConfig(get().activeId);
+    await get().internal_refreshAgentKnowledge();
   },
   toggleKnowledgeBase: async (id, open) => {
-    const { activeAgentId, internal_refreshAgentConfig } = get();
-    if (!activeAgentId) return;
+    const agentConfig = agentSelectors.currentAgentConfig(get());
+    const agentId = agentConfig?.id;
+    if (!agentId) return;
 
-    // await agentService.toggleKnowledgeBase(activeAgentId, id, open);
+    await DB.ToggleAgentKnowledgeBase({
+      agentId,
+      knowledgeBaseId: id,
+      enabled: open ? 1 : 0,
+    });
 
-    await internal_refreshAgentConfig(get().activeId);
+    await get().internal_refreshAgentConfig(get().activeId);
+    await get().internal_refreshAgentKnowledge();
   },
   togglePlugin: async (id, open) => {
     const originConfig = agentSelectors.currentAgentConfig(get());
@@ -205,7 +221,37 @@ export const createChatSlice: StateCreator<
       const dbAgent = await DB.GetAgentBySessionId(sessionId);
       const data = mapAgentConfigFromDB(dbAgent);
 
-      console.log('[Agent] Fetched agent config via direct DB', { sessionId });
+      // Fetch knowledge bases
+      const knowledgeBases = await DB.GetAgentKnowledgeBases(data.id || '');
+
+      data.knowledgeBases = knowledgeBases.map(kb => ({
+        id: kb.id,
+        name: kb.name,
+        type: 'knowledgeBase',
+        enabled: intToBool(kb.enabled),
+        description: getNullableString(kb.description),
+        avatar: getNullableString(kb.avatar) || null,
+        createdAt: new Date(kb.createdAt),
+        updatedAt: new Date(kb.updatedAt),
+        isPublic: false,
+        settings: {},
+        userId: getUserId(),
+      }));
+
+      const filesWithEnabled = await DB.GetAgentFilesWithEnabled(data.id || '');
+      data.files = filesWithEnabled.map(f => ({
+        id: f.id,
+        name: f.name,
+        type: f.fileType || 'file',
+        enabled: intToBool(f.enabled),
+        fileType: f.fileType,
+        size: f.size,
+        createdAt: new Date(f.createdAt),
+        updatedAt: new Date(f.updatedAt),
+        url: '',
+      }));
+
+      logger.info('[Agent] Fetched agent config via direct DB', { sessionId, fileCount: data.files.length });
 
       get().internal_dispatchAgentMap(sessionId, data, 'fetch');
 
@@ -362,12 +408,46 @@ export const createChatSlice: StateCreator<
           const configPromises = sessions
             .filter((s) => getNullableString(s.type) === 'agent')
             .filter((s) => s.id !== INBOX_SESSION_ID)
-            .map((session) =>
-              DB.GetAgentBySessionId(session.id)
-                .then((dbAgent) => mapAgentConfigFromDB(dbAgent))
-                .then((config) => ({ sessionId: session.id, config }))
-                .catch(() => null),
-            );
+            .map(async (session) => {
+              try {
+                const dbAgent = await DB.GetAgentBySessionId(session.id);
+                const config = mapAgentConfigFromDB(dbAgent);
+
+                // Fetch knowledge bases
+                const knowledgeBases = await DB.GetAgentKnowledgeBases(config.id || '');
+                config.knowledgeBases = knowledgeBases.map(kb => ({
+                  id: kb.id,
+                  name: kb.name,
+                  type: 'knowledgeBase',
+                  enabled: intToBool(kb.enabled),
+                  description: getNullableString(kb.description),
+                  avatar: getNullableString(kb.avatar) || null,
+                  createdAt: new Date(kb.createdAt),
+                  updatedAt: new Date(kb.updatedAt),
+                  isPublic: false,
+                  settings: {},
+                  userId: getUserId(),
+                }));
+
+                const filesWithEnabled = await DB.GetAgentFilesWithEnabled(config.id || '');
+                config.files = filesWithEnabled.map(f => ({
+                  id: f.id,
+                  name: f.name,
+                  type: f.fileType || 'file',
+                  enabled: intToBool(f.enabled),
+                  fileType: f.fileType,
+                  size: f.size,
+                  createdAt: new Date(f.createdAt),
+                  updatedAt: new Date(f.updatedAt),
+                  url: '',
+                }));
+
+                return { sessionId: session.id, config };
+              } catch (e) {
+                console.error('[AgentStore] Error loading config for session:', session.id, e);
+                return null;
+              }
+            });
 
           const results = await Promise.all(configPromises);
 
@@ -459,7 +539,54 @@ export const createChatSlice: StateCreator<
       const dbAgent = await DB.GetAgentBySessionId(id);
       const data = mapAgentConfigFromDB(dbAgent);
 
-      console.log('[Agent] Refreshed agent config via direct DB', { sessionId: id });
+
+
+      // NOTE: GetAgentFiles returns ONLY enabled files if it's an inner join?
+      // Let's check queries.sql: 
+      // SELECT f.* FROM files f INNER JOIN agents_files af ON f.id = af.file_id WHERE af.agent_id = ?;
+      // Yes, so all returned files are enabled for this agent.
+
+      // Fetch knowledge bases
+      const knowledgeBases = await DB.GetAgentKnowledgeBases(data.id || '');
+
+      data.knowledgeBases = knowledgeBases.map(kb => ({
+        id: kb.id,
+        name: kb.name,
+        type: 'knowledgeBase',
+        enabled: intToBool(kb.enabled), // GetAgentKnowledgeBases calls LEFT JOIN and returns enabled status
+        description: getNullableString(kb.description),
+        avatar: getNullableString(kb.avatar) || null,
+        createdAt: new Date(kb.createdAt),
+        updatedAt: new Date(kb.updatedAt),
+        isPublic: false, // Default
+        settings: {}, // Default
+        userId: getUserId(),
+      }));
+
+      // For GetAgentFiles, we might need GetAgentFilesWithEnabled to know enabled status if we want to show all?
+      // But useControls likely wants to show active ones? No, useControls shows checkbox list.
+      // useControls iterates over `files`. Ideally it should show ALL files available to be toggled?
+      // OR just the assigned ones?
+
+      // The screenshot/code for useControls shows a map over `files`.
+      // If `files` only contains assigned files, then we can only "remove" them.
+      // But the checkbox suggests toggling.
+      // If we want to show ALL files, we should use GetAgentFilesWithEnabled.
+
+      const filesWithEnabled = await DB.GetAgentFilesWithEnabled(data.id || '');
+      data.files = filesWithEnabled.map(f => ({
+        id: f.id,
+        name: f.name,
+        type: f.fileType || 'file',
+        enabled: intToBool(f.enabled),
+        fileType: f.fileType,
+        size: f.size,
+        createdAt: new Date(f.createdAt),
+        updatedAt: new Date(f.updatedAt),
+        url: '',
+      }));
+
+      logger.info('[Agent] Refreshed agent config via direct DB', { sessionId: id, fileCount: data.files?.length, kbCount: data.knowledgeBases?.length, files: data.files });
 
       get().internal_dispatchAgentMap(id, data, 'refresh');
     } catch (error) {

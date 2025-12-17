@@ -1,26 +1,43 @@
 import { Icon, ItemType } from '@lobehub/ui';
 import isEqual from 'fast-deep-equal';
 import { ArrowRight, LibraryBig } from 'lucide-react';
+import { memo, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import FileIcon from '@/components/FileIcon';
 import RepoIcon from '@/components/RepoIcon';
 import { useAgentStore } from '@/store/agent';
 import { agentSelectors } from '@/store/agent/selectors';
+import { createServiceLogger } from '@/utils/logger';
+
+const logger = createServiceLogger('ChatInput', 'useControls', 'features/ChatInput/ActionBar/Knowledge/useControls.tsx');
 
 import CheckboxItem from '../components/CheckbokWithLoading';
 
 export const useControls = ({
   setModalOpen,
-  setUpdating,
 }: {
   setModalOpen: (open: boolean) => void;
-  setUpdating: (updating: boolean) => void;
 }) => {
+  /* eslint-disable sort-keys-fix/sort-keys-fix */
+  const { internal_refreshAgentConfig, activeId } = useAgentStore();
+  const agentConfig = useAgentStore(agentSelectors.currentAgentConfig, isEqual);
+  const [updating, setUpdating] = useState(false);
   const { t } = useTranslation('chat');
 
   const files = useAgentStore(agentSelectors.currentAgentFiles, isEqual);
   const knowledgeBases = useAgentStore(agentSelectors.currentAgentKnowledgeBases, isEqual);
+  logger.info('[useControls] Files from store:', files);
+
+  // Self-healing: if we have an agent but no files loaded (and we expect files might exist, or just to be safe),
+  // trigger a refresh once on mount/agent change.
+  // Ideally we check if "loaded" status is true, but we can just trigger a refresh to be safe if list is empty.
+  useEffect(() => {
+    if (activeId && agentConfig?.id && files.length === 0 && knowledgeBases.length === 0) {
+      logger.info('[useControls] Empty files/KBs detected, triggering refresh for', activeId);
+      internal_refreshAgentConfig(activeId);
+    }
+  }, [activeId, agentConfig?.id, files.length, knowledgeBases.length]);
 
   const [toggleFile, toggleKnowledgeBase] = useAgentStore((s) => [
     s.toggleFile,

@@ -154,6 +154,30 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	})
 
 	// 3.5. Perform semantic search on attached files (if any)
+	// First, fetch agent's assigned files and add them to the scope
+	agent, err := s.db.Queries().GetAgentBySessionId(ctx, req.SessionID)
+	if err == nil {
+		agentFiles, err := s.db.Queries().GetAgentFilesWithEnabled(ctx, agent.ID)
+		if err == nil {
+			for _, f := range agentFiles {
+				if f.Enabled == 1 { // Only include enabled files
+					// Check for duplicates
+					isNew := true
+					for _, existingID := range req.FileIDs {
+						if existingID == f.ID {
+							isNew = false
+							break
+						}
+					}
+					if isNew {
+						req.FileIDs = append(req.FileIDs, f.ID)
+						log.Printf("📎 [REAL STREAM] Added agent assigned file to context: %s (%s)", f.Name, f.ID)
+					}
+				}
+			}
+		}
+	}
+
 	var fileChunks []ChatFileChunk
 	if len(req.FileIDs) > 0 && s.vectorSearch != nil {
 		log.Printf("📎 [REAL STREAM] Searching %d attached files for context", len(req.FileIDs))
@@ -583,6 +607,27 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 			ThreadID:   req.ThreadID,
 			TimeOffset: int64(i + 2),
 		})
+	}
+
+	// 12.5 Persist RAG chunks if any
+	if len(fileChunks) > 0 {
+		var ragChunks []RAGChunkParams
+		for _, chunk := range fileChunks {
+			ragChunks = append(ragChunks, RAGChunkParams{
+				ID:         chunk.ID,
+				FileIndex:  -1, // Not used here as files already exist
+				Text:       chunk.Text,
+				ChunkIndex: 0, // Not critical for display
+				Type:       chunk.FileType,
+				Similarity: int64(chunk.Similarity * 100), // Convert 0-1 to 0-100 for DB
+			})
+		}
+
+		if err := s.linkMessageToChunks(ctx, savedMsgID, req.Message, ragChunks); err != nil {
+			log.Printf("⚠️  Warning: Failed to link message to RAG chunks: %v", err)
+		} else {
+			log.Printf("💾 Linked %d RAG chunks to message %s", len(ragChunks), savedMsgID)
+		}
 	}
 
 	// 13. Generate topic title after first response (background)

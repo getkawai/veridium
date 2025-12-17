@@ -1,5 +1,6 @@
 import { StateCreator } from 'zustand/vanilla';
 import { nanoid } from 'nanoid';
+import { useState, useEffect } from 'react';
 
 import { FILE_UPLOAD_BLACKLIST } from '@/const/file';
 import {
@@ -46,6 +47,7 @@ export interface FileManageAction {
 
   fetchFileList: (params: QueryFileListParams) => Promise<void>;
   internal_fetchFileItem: (id?: string) => Promise<void>;
+  useFetchFileItem: (id?: string) => { data: FileListItem | null; isLoading: boolean; error: Error | null };
   setActiveFileId: (id: string | undefined) => void;
   setCategory: (category: string) => void;
   setSearchKeywords: (keywords: string) => void;
@@ -337,6 +339,67 @@ export const createFileManageSlice: StateCreator<
   },
   setSorter: (sorter) => {
     set({ sorter });
+  },
+
+  useFetchFileItem: (id) => {
+    const [data, setData] = useState<FileListItem | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<Error | null>(null);
+
+    useEffect(() => {
+      if (!id) {
+        setData(null);
+        return;
+      }
+
+      let isMounted = true;
+      setIsLoading(true);
+
+      const fetchFile = async () => {
+        try {
+          const item = await DB.GetFile(id);
+
+          if (isMounted) {
+            if (item) {
+              const fileItem: FileListItem = {
+                id: item.id,
+                name: item.name || 'Unknown',
+                fileType: item.fileType || '',
+                size: item.size,
+                url: item.url || '',
+                // Convert DB dates to JS Date objects
+                createdAt: new Date(item.createdAt),
+                updatedAt: new Date(item.updatedAt),
+                chunkCount: 0,
+                chunkingError: null,
+                chunkingStatus: AsyncTaskStatus.Success,
+                embeddingError: null,
+                embeddingStatus: AsyncTaskStatus.Success,
+                finishEmbedding: true,
+              };
+              setData(fileItem);
+            } else {
+              setData(null);
+            }
+            setIsLoading(false);
+          }
+        } catch (err) {
+          if (isMounted) {
+            logger.error('Failed to fetch file item', { id, error: err });
+            setError(err as Error);
+            setIsLoading(false);
+          }
+        }
+      };
+
+      fetchFile();
+
+      return () => {
+        isMounted = false;
+      };
+    }, [id]);
+
+    return { data, isLoading, error };
   },
 
   internal_fetchFileItem: async (id) => {
