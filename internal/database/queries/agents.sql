@@ -98,18 +98,16 @@ DELETE FROM agents_knowledge_bases
 WHERE agent_id = ? AND knowledge_base_id = ?;
 
 -- name: GetAgentKnowledgeBases :many
-SELECT kb.*, akb.enabled
+SELECT kb.*, COALESCE(akb.enabled, 0) as enabled
 FROM knowledge_bases kb
-INNER JOIN agents_knowledge_bases akb ON kb.id = akb.knowledge_base_id
-WHERE akb.agent_id = ?
-ORDER BY akb.created_at DESC;
+LEFT JOIN agents_knowledge_bases akb ON kb.id = akb.knowledge_base_id AND akb.agent_id = ?
+ORDER BY kb.created_at DESC;
 
 -- name: GetAgentFilesWithEnabled :many
-SELECT f.*, af.enabled
+SELECT f.*, COALESCE(af.enabled, 0) as enabled
 FROM files f
-INNER JOIN agents_files af ON f.id = af.file_id
-WHERE af.agent_id = ?
-ORDER BY af.created_at DESC;
+LEFT JOIN agents_files af ON f.id = af.file_id AND af.agent_id = ?
+ORDER BY f.created_at DESC;
 
 -- name: ToggleAgentKnowledgeBase :exec
 UPDATE agents_knowledge_bases

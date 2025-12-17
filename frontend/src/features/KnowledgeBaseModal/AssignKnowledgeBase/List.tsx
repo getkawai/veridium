@@ -7,6 +7,7 @@ import { Center } from 'react-layout-kit';
 import { Virtuoso } from 'react-virtuoso';
 
 import { useAgentStore } from '@/store/agent';
+import { agentSelectors } from '@/store/agent/selectors';
 
 import Item from './Item';
 import Loading from './Loading';
@@ -14,9 +15,11 @@ import Loading from './Loading';
 export const List = memo(() => {
   const { t } = useTranslation('file');
 
-  const useFetchFilesAndKnowledgeBases = useAgentStore((s) => s.useFetchFilesAndKnowledgeBases);
+  const agentConfig = useAgentStore(agentSelectors.currentAgentConfig);
+  const agentId = agentConfig?.id;
 
-  const { isLoading, error, data } = useFetchFilesAndKnowledgeBases();
+  const useFetchFilesAndKnowledgeBases = useAgentStore((s) => s.useFetchFilesAndKnowledgeBases);
+  const { isLoading, error, data } = useFetchFilesAndKnowledgeBases(agentId);
 
   const isEmpty = data && data.length === 0;
 

@@ -15,10 +15,15 @@ import { merge } from '@/utils/merge';
 import { DB } from '@/types/database';
 import { getUserId } from '@/store/session/helpers';
 import { mapAgentConfigFromDB } from '@/store/session/helpers';
-import { toNullString, toNullJSON, toNullInt } from '@/types/database';
+import { toNullString, toNullJSON, toNullInt, intToBool, getNullableString } from '@/types/database';
+import { useState } from 'react';
 
 import type { AgentStore } from '../../store';
 import { agentSelectors } from './selectors';
+import { KnowledgeItem, KnowledgeType } from '@/types';
+import { createServiceLogger } from '@/utils/logger';
+
+const logger = createServiceLogger('AgentChat', 'AgentChatAction', 'store/agent/slices/chat/action.ts');
 
 /**
  * 助手接口
@@ -53,7 +58,7 @@ export interface AgentChatAction {
   updateAgentChatConfig: (config: Partial<LobeAgentChatConfig>) => Promise<void>;
   updateAgentConfig: (config: PartialDeep<LobeAgentConfig>) => Promise<void>;
   internal_fetchAgentConfig: (isLogin: boolean | undefined, sessionId: string) => Promise<void>;
-  internal_fetchFilesAndKnowledgeBases: () => Promise<void>;
+  useFetchFilesAndKnowledgeBases: (agentId?: string) => { data: KnowledgeItem[]; error: Error | null; isLoading: boolean };
   useInitInboxAgentStore: (
     isLogin: boolean | undefined,
     defaultAgentConfig?: PartialDeep<LobeAgentConfig>,
@@ -184,16 +189,92 @@ export const createChatSlice: StateCreator<
     }
   },
 
-  internal_fetchFilesAndKnowledgeBases: async () => {
+  useFetchFilesAndKnowledgeBases: (agentId?: string) => {
+    const [data, setData] = useState<KnowledgeItem[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<Error | null>(null);
     const activeAgentId = get().activeAgentId;
-    if (!activeAgentId) return;
+    const targetId = agentId || activeAgentId;
+    // We need to listen to agentConfigInitMap to trigger re-fetch when config changes or reloads
+    // deeper integration might be needed but for now we rely on mount and targetId change
 
-    try {
-      // TODO: Implement when agentService is available
-      // const data = await agentService.getFilesAndKnowledgeBases(activeAgentId);
-    } catch (error) {
-      console.error('[internal_fetchFilesAndKnowledgeBases] Error:', error);
-    }
+    // Also we might need to listen to global refresh events if we want this to update after assignment
+    // The store has `internal_refreshAgentKnowledge` but that's an action, not a state.
+    // However, `internal_refreshAgentKnowledge` just logs for now. 
+    // If we want reactive updates, we might need a version signal in the store. 
+    // For now, let's implement the fetching logic first.
+
+    useEffect(() => {
+      logger.debug('[useFetchFilesAndKnowledgeBases] Hook triggered', { agentId, activeAgentId, targetId });
+
+      if (!targetId) {
+        logger.debug('[useFetchFilesAndKnowledgeBases] No targetId, clearing data');
+        setData([]);
+        return;
+      }
+
+      let isMounted = true;
+      setIsLoading(true);
+      setError(null);
+
+      const fetchData = async () => {
+        try {
+          logger.info('[useFetchFilesAndKnowledgeBases] Fetching data for', { targetId });
+          const [files, knowledgeBases] = await Promise.all([
+            DB.GetAgentFilesWithEnabled(targetId),
+            DB.GetAgentKnowledgeBases(targetId)
+          ]);
+
+          logger.info('[useFetchFilesAndKnowledgeBases] Raw response', { filesLength: files.length, kbLength: knowledgeBases.length, files, knowledgeBases });
+
+          if (!isMounted) return;
+
+          const items: KnowledgeItem[] = [
+            ...files.map(f => ({
+              id: f.id,
+              name: f.name,
+              type: KnowledgeType.File,
+              enabled: intToBool(f.enabled),
+              fileType: f.fileType,
+              // Add other fields if needed
+            })),
+            ...knowledgeBases.map(kb => ({
+              id: kb.id,
+              name: kb.name,
+              type: KnowledgeType.KnowledgeBase,
+              enabled: intToBool(kb.enabled),
+              description: getNullableString(kb.description),
+              avatar: getNullableString(kb.avatar),
+            }))
+          ];
+
+          setData(items);
+        } catch (err) {
+          if (isMounted) {
+            logger.error('[useFetchFilesAndKnowledgeBases] Error:', err);
+            setError(err as Error);
+          }
+        } finally {
+          if (isMounted) {
+            setIsLoading(false);
+          }
+        }
+      };
+
+      fetchData();
+
+      return () => {
+        isMounted = false;
+      };
+    }, [targetId]);
+
+    // Expose a refetch function effectively by just returning the data which changes
+    // But if we want to manually trigger, we'd need to trust the store actions 
+    // `internal_refreshAgentKnowledge` logic, which currently does nothing.
+    // We should probably subscribe to a refresh signal if we want perfect sync, 
+    // but the provided "SWR" style interface implies just data returning.
+
+    return { data, error, isLoading };
   },
 
   useInitInboxAgentStore: (isLogin, defaultAgentConfig) => {
@@ -244,7 +325,7 @@ export const createChatSlice: StateCreator<
           // Skip inbox session as it's already handled by useInitInboxAgentStore
           // This prevents race condition and redundant API calls
           const configPromises = sessions
-            .filter((s) => s.type === 'agent')
+            .filter((s) => getNullableString(s.type) === 'agent')
             .filter((s) => s.id !== INBOX_SESSION_ID)
             .map((session) =>
               DB.GetAgentBySessionId(session.id)

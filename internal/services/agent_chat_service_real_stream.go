@@ -302,7 +302,21 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 				cleanContent = strings.TrimPrefix(cleanContent, "</think>")
 				cleanContent = strings.TrimSpace(cleanContent)
 
-				if cleanContent != "" {
+				// Helper to check if we are inside an unclosed tag block
+				isUnclosed := func(text, openTag, closeTag string) bool {
+					lastOpen := strings.LastIndex(text, openTag)
+					lastClose := strings.LastIndex(text, closeTag)
+					// If we have an open tag that appears AFTER the last close tag (or no close tag)
+					return lastOpen != -1 && (lastClose == -1 || lastOpen > lastClose)
+				}
+
+				// Check if we are currently buffering an artifact or thinking block
+				// We do NOT emit while the block is incomplete to prevent frontend hydration errors
+				// caused by partial rendering of these complex components.
+				inArtifact := isUnclosed(cleanContent, "<lobeArtifact", "</lobeArtifact>")
+				// inThinking := isUnclosed(cleanContent, "<lobeThinking", "</lobeThinking>")
+
+				if cleanContent != "" && !inArtifact {
 					emit(StreamEventPayload{
 						Type:    types.ChatEventChunk,
 						Content: cleanContent,

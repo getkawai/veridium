@@ -351,11 +351,10 @@ func (q *Queries) GetAgentFiles(ctx context.Context, agentID string) ([]File, er
 }
 
 const GetAgentFilesWithEnabled = `-- name: GetAgentFilesWithEnabled :many
-SELECT f.id, f.file_type, f.file_hash, f.name, f.size, f.url, f.source, f.metadata, f.chunk_count, f.chunking_status, f.embedding_status, f.created_at, f.updated_at, af.enabled
+SELECT f.id, f.file_type, f.file_hash, f.name, f.size, f.url, f.source, f.metadata, f.chunk_count, f.chunking_status, f.embedding_status, f.created_at, f.updated_at, COALESCE(af.enabled, 0) as enabled
 FROM files f
-INNER JOIN agents_files af ON f.id = af.file_id
-WHERE af.agent_id = ?
-ORDER BY af.created_at DESC
+LEFT JOIN agents_files af ON f.id = af.file_id AND af.agent_id = ?
+ORDER BY f.created_at DESC
 `
 
 type GetAgentFilesWithEnabledRow struct {
@@ -414,11 +413,10 @@ func (q *Queries) GetAgentFilesWithEnabled(ctx context.Context, agentID string) 
 }
 
 const GetAgentKnowledgeBases = `-- name: GetAgentKnowledgeBases :many
-SELECT kb.id, kb.name, kb.description, kb.avatar, kb.type, kb.is_public, kb.settings, kb.created_at, kb.updated_at, akb.enabled
+SELECT kb.id, kb.name, kb.description, kb.avatar, kb.type, kb.is_public, kb.settings, kb.created_at, kb.updated_at, COALESCE(akb.enabled, 0) as enabled
 FROM knowledge_bases kb
-INNER JOIN agents_knowledge_bases akb ON kb.id = akb.knowledge_base_id
-WHERE akb.agent_id = ?
-ORDER BY akb.created_at DESC
+LEFT JOIN agents_knowledge_bases akb ON kb.id = akb.knowledge_base_id AND akb.agent_id = ?
+ORDER BY kb.created_at DESC
 `
 
 type GetAgentKnowledgeBasesRow struct {
