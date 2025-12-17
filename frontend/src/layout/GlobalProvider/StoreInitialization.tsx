@@ -1,6 +1,6 @@
 'use client';
 
-import { memo } from 'react';
+import { memo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createStoreUpdater } from 'zustand-utils';
 
@@ -13,8 +13,18 @@ import { useServerConfigStore } from '@/store/serverConfig';
 import { serverConfigSelectors } from '@/store/serverConfig/selectors';
 import { useUserStore } from '@/store/user';
 import { authSelectors } from '@/store/user/selectors';
+import { waitForWailsRuntime } from '@/utils/wailsRuntime';
 
 const StoreInitialization = memo(() => {
+  const [isRuntimeReady, setIsRuntimeReady] = useState(false);
+
+  // Wait for Wails runtime to be ready before initializing stores
+  useEffect(() => {
+    waitForWailsRuntime().then(() => {
+      setIsRuntimeReady(true);
+    });
+  }, []);
+
   // prefetch error ns to avoid don't show error content correctly
   useTranslation('error');
 
@@ -51,8 +61,11 @@ const StoreInitialization = memo(() => {
    *
    * IMPORTANT: Explicitly convert to boolean to avoid passing null/undefined downstream,
    * which would cause unnecessary API requests with invalid login state.
+   *
+   * Also ensure runtime is ready before making any DB calls to avoid
+   * "Unable to parse request body as JSON" errors during initialization.
    */
-  const isLoginOnInit = Boolean(enableNextAuth ? isSignedIn : isLogin);
+  const isLoginOnInit = Boolean(enableNextAuth ? isSignedIn : isLogin) && isRuntimeReady;
 
   // init inbox agent and default agent config
   useInitInboxAgentStore(isLoginOnInit, serverConfig.defaultAgent?.config);

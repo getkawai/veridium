@@ -18,6 +18,8 @@ export * from '@@/database/sql/models';
  * Type utilities for working with nullable fields
  */
 
+// Import the actual classes (not just types) for constructing instances
+import { NullString as NullStringClass, NullInt64 as NullInt64Class } from '@@/database/sql/models';
 import type { NullString, NullInt64 } from '@@/database/sql/models';
 
 /**
@@ -49,7 +51,7 @@ export function getNullableBool(nb: { Bool: boolean; Valid: boolean } | undefine
 
 /**
  * Create a NullString from a string value
- * If the value is already a NullString, return it as-is to prevent double-wrapping
+ * Uses proper class instance for Wails serialization
  */
 export function toNullString(value: string | undefined | null | NullString): NullString {
   // Check if already a NullString to prevent double-wrapping
@@ -57,14 +59,14 @@ export function toNullString(value: string | undefined | null | NullString): Nul
     return value as NullString;
   }
   if (value === undefined || value === null || value === '') {
-    return { String: '', Valid: false };
+    return new NullStringClass({ String: '', Valid: false });
   }
-  return { String: value as string, Valid: true };
+  return new NullStringClass({ String: value as string, Valid: true });
 }
 
 /**
  * Create a NullInt64 from a number value
- * If the value is already a NullInt64, return it as-is to prevent double-wrapping
+ * Uses proper class instance for Wails serialization
  */
 export function toNullInt(value: number | undefined | null | NullInt64): NullInt64 {
   // Check if already a NullInt64 to prevent double-wrapping
@@ -72,10 +74,11 @@ export function toNullInt(value: number | undefined | null | NullInt64): NullInt
     return value as NullInt64;
   }
   if (value === undefined || value === null) {
-    return { Int64: 0, Valid: false };
+    return new NullInt64Class({ Int64: 0, Valid: false });
   }
-  return { Int64: value as number, Valid: true };
+  return new NullInt64Class({ Int64: value as number, Valid: true });
 }
+
 
 /**
  * Create a nullable boolean from a boolean value
@@ -92,11 +95,11 @@ export function toNullBool(value: boolean | undefined | null): { Bool: boolean; 
  */
 export function parseJSON(value: NullString | string | undefined | null): any {
   if (!value) return undefined;
-  
+
   const jsonStr = typeof value === 'string' ? value : getNullableString(value);
-  
+
   if (!jsonStr) return undefined;
-  
+
   try {
     return JSON.parse(jsonStr);
   } catch (e) {

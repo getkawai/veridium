@@ -29,8 +29,11 @@ import { sessionSelectors } from '@/store/session/selectors';
 import { ChatTopic } from '@/types/topic';
 import { setNamespace } from '@/utils/storeDebug';
 import { getUserId, mapTopicFromDB, toDbSessionId } from '@/store/topic/helpers';
-import { toNullString } from '@/types/database';
-import { DB } from '@/types/database';
+import {
+  DB,
+  toNullString,
+  ListTopicsParams,
+} from '@/types/database';
 import { chatSelectors } from '../message/selectors';
 import { ChatTopicDispatch, topicReducer } from './reducer';
 import { topicSelectors } from './selectors';
@@ -297,11 +300,11 @@ export const chatTopic: StateCreator<
     try {
       const dbSessionId = toDbSessionId(containerId);
 
-      const dbTopics = await DB.ListTopics({
+      const dbTopics = await DB.ListTopics(new ListTopicsParams({
         sessionId: toNullString(dbSessionId),
         limit: 1000,
         offset: 0,
-      });
+      }));
 
       const topics = dbTopics.map(mapTopicFromDB);
 
@@ -416,7 +419,7 @@ export const chatTopic: StateCreator<
   removeGroupTopics: async (groupId: string) => {
     const { switchTopic, refreshTopic } = get();
 
-    const userId = getUserId();
+    // const userId = getUserId();
 
     await DB.DeleteTopicsByGroup(toNullString(groupId));
 

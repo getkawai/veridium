@@ -1,4 +1,4 @@
-import { isDeprecatedEdition, isDesktop, isUsePgliteDB } from '@/const';
+import { isDeprecatedEdition } from '@/const';
 // import { getModelPropertyWithFallback } from '@/model-runtime';
 import { uniqBy } from 'lodash-es';
 import {
@@ -15,7 +15,6 @@ import type { AiModelAction } from '../aiModel/action';
 import { useUserStore } from '@/store/user';
 import { authSelectors } from '@/store/user/selectors';
 import {
-  AiProviderDetailItem,
   AiProviderListItem,
   AiProviderRuntimeState,
   AiProviderSortMap,
@@ -28,7 +27,6 @@ import {
 } from '@/types/aiProvider';
 import { DB } from '@/types/database';
 import {
-  getUserId,
   mapProviderFromDB,
   mapModelFromDB,
   mapRuntimeConfigFromDB,
@@ -122,7 +120,6 @@ export const createAiProviderSlice: StateCreator<
   AiProviderAction
 > = (set, get) => ({
   createNewAiProvider: async (params) => {
-    const userId = getUserId();
     const now = Date.now();
 
     // Validation
@@ -132,7 +129,7 @@ export const createAiProviderSlice: StateCreator<
 
     // Check if already exists
     try {
-      const existing = await DB.GetAIProvider({ id: params.id, userId });
+      const existing = await DB.GetAIProvider(params.id);
       if (existing) {
         throw new Error(`Provider ${params.id} already exists`);
       }
@@ -147,7 +144,6 @@ export const createAiProviderSlice: StateCreator<
     await DB.CreateAIProvider({
       id: params.id,
       name: toNullString(params.name),
-      userId,
       sort: toNullInt64(0), // Default sort
       enabled: toNullInt64(1), // New providers enabled by default
       fetchOnClient: toNullInt64(0), // Default false
@@ -167,13 +163,8 @@ export const createAiProviderSlice: StateCreator<
     await get().refreshAiProviderList();
   },
   deleteAiProvider: async (id: string) => {
-    const userId = getUserId();
-
     // Delete provider (backend handles cascade delete of models)
-    await DB.DeleteAIProvider({
-      id,
-      userId,
-    });
+    await DB.DeleteAIProvider(id);
 
     console.log(`[AI Provider] Deleted provider ${id} via direct DB`);
 
@@ -209,11 +200,7 @@ export const createAiProviderSlice: StateCreator<
       const activeProvider = get().activeAiProvider;
       if (!activeProvider) return;
 
-      const userId = getUserId();
-      const dbProvider = await DB.GetAIProviderDetail({
-        id: activeProvider,
-        userId,
-      });
+      const dbProvider = await DB.GetAIProviderDetail(activeProvider);
 
       if (dbProvider) {
         const data = mapProviderFromDB(dbProvider);
@@ -247,12 +234,10 @@ export const createAiProviderSlice: StateCreator<
     get().internal_toggleAiProviderLoading(id, true);
 
     try {
-      const userId = getUserId();
       const now = Date.now();
 
       await DB.ToggleAIProviderEnabled({
         id,
-        userId,
         enabled: toNullInt64(boolToInt(enabled)),
         source: toNullString('custom'),
         createdAt: now,
@@ -271,11 +256,10 @@ export const createAiProviderSlice: StateCreator<
     get().internal_toggleAiProviderLoading(id, true);
 
     try {
-      const userId = getUserId();
       const now = Date.now();
 
       // Get current provider to merge with updates
-      const current = await DB.GetAIProvider({ id, userId });
+      const current = await DB.GetAIProvider(id);
       if (!current) {
         throw new Error(`Provider ${id} not found`);
       }
@@ -283,7 +267,6 @@ export const createAiProviderSlice: StateCreator<
       // Merge updates with current values
       await DB.UpdateAIProvider({
         id,
-        userId,
         name: value.name ? toNullString(value.name) : current.name,
         sort: current.sort, // Keep current sort (use updateAiProviderSort for sort changes)
         enabled: current.enabled, // Keep current enabled (use toggleProviderEnabled for enable changes)
@@ -310,11 +293,10 @@ export const createAiProviderSlice: StateCreator<
     get().internal_toggleAiProviderConfigUpdating(id, true);
 
     try {
-      const userId = getUserId();
       const now = Date.now();
 
       // Get current provider
-      const current = await DB.GetAIProvider({ id, userId });
+      const current = await DB.GetAIProvider(id);
       if (!current) {
         throw new Error(`Provider ${id} not found`);
       }
@@ -333,7 +315,6 @@ export const createAiProviderSlice: StateCreator<
       // Update only config-related fields
       await DB.UpdateAIProvider({
         id,
-        userId,
         config: toNullString(JSON.stringify(mergedConfig)),
         settings: toNullString(JSON.stringify(mergedSettings)),
         keyVaults: toNullString(JSON.stringify(mergedKeyVaults)),
@@ -357,7 +338,6 @@ export const createAiProviderSlice: StateCreator<
   },
 
   updateAiProviderSort: async (items) => {
-    const userId = getUserId();
     const now = Date.now();
 
     // Batch update all sorts in parallel
@@ -365,7 +345,6 @@ export const createAiProviderSlice: StateCreator<
       items.map(({ id, sort }) =>
         DB.UpdateAIProvider({
           id,
-          userId,
           sort: toNullInt64(sort),
           updatedAt: now,
           // Required fields (empty = no change)
@@ -390,11 +369,7 @@ export const createAiProviderSlice: StateCreator<
     if (!id) return;
 
     try {
-      const userId = getUserId();
-      const dbProvider = await DB.GetAIProviderDetail({
-        id,
-        userId,
-      });
+      const dbProvider = await DB.GetAIProviderDetail(id);
 
       if (!dbProvider) return;
 
@@ -409,10 +384,9 @@ export const createAiProviderSlice: StateCreator<
     if (opts?.enabled === false) return;
 
     try {
-      const userId = getUserId();
       const dbProviders = opts?.enabled
-        ? await DB.ListEnabledAIProviders(userId)
-        : await DB.ListAIProviders(userId);
+        ? await DB.ListEnabledAIProviders()
+        : await DB.ListAIProviders();
 
       const data: AiProviderListItem[] = dbProviders.map((p) => {
         const mapped = mapProviderFromDB(p);
@@ -457,13 +431,12 @@ export const createAiProviderSlice: StateCreator<
 
       if (isLogin) {
         const startTime = performance.now();
-        const userId = getUserId();
 
         // Parallel fetch from database
         const [dbProviders, dbModels, dbConfigs] = await Promise.all([
-          DB.ListEnabledAIProviders(userId),
-          DB.ListEnabledAIModels(userId),
-          DB.GetAIProviderRuntimeConfigs(userId),
+          DB.ListEnabledAIProviders(),
+          DB.ListEnabledAIModels(),
+          DB.GetAIProviderRuntimeConfigs(),
         ]);
 
         const loadTime = performance.now() - startTime;

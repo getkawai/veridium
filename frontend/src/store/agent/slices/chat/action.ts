@@ -10,7 +10,7 @@ import { INBOX_SESSION_ID } from '@/const/session';
 import { AgentState } from '@/store/agent/slices/chat/initialState';
 import { getSessionStoreState, useSessionStore } from '@/store/session';
 import { LobeAgentChatConfig, LobeAgentConfig } from '@/types/agent';
-import { KnowledgeItem } from '@/types/knowledgeBase';
+
 import { merge } from '@/utils/merge';
 import { DB } from '@/types/database';
 import { getUserId } from '@/store/session/helpers';
@@ -164,8 +164,7 @@ export const createChatSlice: StateCreator<
     if (isLogin !== true || sessionId.startsWith('cg_')) return;
 
     try {
-      const userId = getUserId();
-      const dbAgent = await DB.GetAgentBySessionId({ sessionId, userId });
+      const dbAgent = await DB.GetAgentBySessionId(sessionId);
       const data = mapAgentConfigFromDB(dbAgent);
 
       console.log('[Agent] Fetched agent config via direct DB', { sessionId });
@@ -248,8 +247,8 @@ export const createChatSlice: StateCreator<
             .filter((s) => s.type === 'agent')
             .filter((s) => s.id !== INBOX_SESSION_ID)
             .map((session) =>
-              sessionService
-                .getSessionConfig(session.id)
+              DB.GetAgentBySessionId(session.id)
+                .then((dbAgent) => mapAgentConfigFromDB(dbAgent))
                 .then((config) => ({ sessionId: session.id, config }))
                 .catch(() => null),
             );
@@ -341,8 +340,7 @@ export const createChatSlice: StateCreator<
 
   internal_refreshAgentConfig: async (id) => {
     try {
-      const userId = getUserId();
-      const dbAgent = await DB.GetAgentBySessionId({ sessionId: id, userId });
+      const dbAgent = await DB.GetAgentBySessionId(id);
       const data = mapAgentConfigFromDB(dbAgent);
 
       console.log('[Agent] Refreshed agent config via direct DB', { sessionId: id });

@@ -9,7 +9,7 @@ import { DEFAULT_CHAT_GROUP_CHAT_CONFIG } from '@/const/settings';
 import { useAgentStore } from '@/store/agent';
 import { getChatGroupStoreState } from '@/store/chatGroup';
 import { useUserStore } from '@/store/user';
-import { DB, toNullString, UpdateSessionParams, boolToInt, Session, getNullableString } from '@/types/database';
+import { DB, toNullString, UpdateSessionParams, boolToInt, Session, getNullableString, ListSessionsParams } from '@/types/database';
 import { getUserId, mapAgentConfigFromDB } from '../../helpers';
 
 import type { SessionStore } from '../../store';
@@ -393,7 +393,7 @@ export const createSessionSlice: StateCreator<
       const offset = 0;
 
       const [dbSessions, dbSessionGroups] = await Promise.all([
-        DB.ListSessions({ limit, offset }),
+        DB.ListSessions(new ListSessionsParams({ limit, offset })),
         DB.ListSessionGroups(),
       ]);
 

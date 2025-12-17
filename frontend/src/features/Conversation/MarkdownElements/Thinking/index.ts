@@ -1,11 +1,13 @@
 import { THINKING_TAG } from '@/const/plugin';
 
+import { createRehypePlugin } from '../rehypePlugin';
 import { createRemarkCustomTagPlugin } from '../remarkPlugins/createRemarkCustomTagPlugin';
 import { MarkdownElement } from '../type';
 import Component from './Render';
 
 const ThinkingElement: MarkdownElement = {
   Component,
+  rehypePlugin: createRehypePlugin(THINKING_TAG),
   remarkPlugin: createRemarkCustomTagPlugin(THINKING_TAG),
   scope: 'assistant',
   tag: THINKING_TAG,

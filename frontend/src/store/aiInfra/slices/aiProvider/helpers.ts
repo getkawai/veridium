@@ -3,6 +3,8 @@
  * Used to simplify direct DB calls and reduce duplication
  */
 
+import { NullString as NullStringClass, NullInt64 as NullInt64Class } from '@@/database/sql/models';
+
 const DEFAULT_USER_ID = 'DEFAULT_LOBE_CHAT_USER';
 
 /**
@@ -40,25 +42,32 @@ export const parseNullInt64 = (value: any): number => {
 
 /**
  * Create NullString for Wails binding
+ * Uses proper class instance for Wails serialization
  */
 export const toNullString = (value: string | null | undefined) => {
-  return value ? { String: value, Valid: true } : { String: '', Valid: false };
+  return value
+    ? new NullStringClass({ String: value, Valid: true })
+    : new NullStringClass({ String: '', Valid: false });
 };
 
 /**
  * Create NullJSON for Wails binding
+ * Uses proper class instance for Wails serialization
  */
 export const toNullJSON = (value: any) => {
-  return value ? { String: JSON.stringify(value), Valid: true } : { String: '', Valid: false };
+  return value
+    ? new NullStringClass({ String: JSON.stringify(value), Valid: true })
+    : new NullStringClass({ String: '', Valid: false });
 };
 
 /**
  * Create NullInt64 for Wails binding
+ * Uses proper class instance for Wails serialization
  */
 export const toNullInt64 = (value: number | null | undefined) => {
   return value !== null && value !== undefined
-    ? { Int64: value, Valid: true }
-    : { Int64: 0, Valid: false };
+    ? new NullInt64Class({ Int64: value, Valid: true })
+    : new NullInt64Class({ Int64: 0, Valid: false });
 };
 
 /**

@@ -9,6 +9,16 @@ import { CSSProperties, RefObject, memo, useEffect, useRef, useState, useMemo } 
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 
+import { ARTIFACT_TAG, ARTIFACT_THINKING_TAG, THINKING_TAG } from '@/const/plugin';
+import { createRehypePlugin } from '@/features/Conversation/MarkdownElements/rehypePlugin';
+
+// Create rehypePlugins to prevent div-in-p hydration errors (avoiding circular import from markdownElements)
+const rehypePlugins = [
+  createRehypePlugin(ARTIFACT_TAG),
+  createRehypePlugin(ARTIFACT_THINKING_TAG),
+  createRehypePlugin(THINKING_TAG),
+];
+
 const useStyles = createStyles(({ css, token }) => ({
   container: css`
     overflow: hidden;
@@ -216,6 +226,7 @@ const Thinking = memo<ThinkingProps>((props) => {
                   animated={thinkingAnimated}
                   citations={citations}
                   components={markdownComponents} // Custom components untuk desktop link handling
+                  rehypePlugins={rehypePlugins} // Prevent div-in-p hydration errors
                   style={{
                     overflow: 'unset',
                   }}
