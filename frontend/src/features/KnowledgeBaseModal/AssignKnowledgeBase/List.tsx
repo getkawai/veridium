@@ -18,8 +18,9 @@ export const List = memo(() => {
   const agentConfig = useAgentStore(agentSelectors.currentAgentConfig);
   const agentId = agentConfig?.id;
 
+  const version = useAgentStore((s) => s.knowledgeRefreshVersion);
   const useFetchFilesAndKnowledgeBases = useAgentStore((s) => s.useFetchFilesAndKnowledgeBases);
-  const { isLoading, error, data } = useFetchFilesAndKnowledgeBases(agentId);
+  const { isLoading, error, data } = useFetchFilesAndKnowledgeBases(agentId, version);
 
   const isEmpty = data && data.length === 0;
 

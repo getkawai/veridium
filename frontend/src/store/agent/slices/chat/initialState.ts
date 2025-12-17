@@ -16,6 +16,7 @@ export interface AgentState {
   showAgentSetting: boolean;
   updateAgentChatConfigSignal?: AbortController;
   updateAgentConfigSignal?: AbortController;
+  knowledgeRefreshVersion: number;
 }
 
 export const initialAgentChatState: AgentState = {
@@ -26,4 +27,5 @@ export const initialAgentChatState: AgentState = {
   isAllAgentConfigsLoaded: false,
   isInboxAgentConfigInit: false,
   showAgentSetting: false,
+  knowledgeRefreshVersion: 0,
 };

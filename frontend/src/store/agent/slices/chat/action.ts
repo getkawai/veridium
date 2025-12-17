@@ -58,7 +58,7 @@ export interface AgentChatAction {
   updateAgentChatConfig: (config: Partial<LobeAgentChatConfig>) => Promise<void>;
   updateAgentConfig: (config: PartialDeep<LobeAgentConfig>) => Promise<void>;
   internal_fetchAgentConfig: (isLogin: boolean | undefined, sessionId: string) => Promise<void>;
-  useFetchFilesAndKnowledgeBases: (agentId?: string) => { data: KnowledgeItem[]; error: Error | null; isLoading: boolean };
+  useFetchFilesAndKnowledgeBases: (agentId?: string, version?: number) => { data: KnowledgeItem[]; error: Error | null; isLoading: boolean };
   useInitInboxAgentStore: (
     isLogin: boolean | undefined,
     defaultAgentConfig?: PartialDeep<LobeAgentConfig>,
@@ -73,37 +73,70 @@ export const createChatSlice: StateCreator<
   AgentChatAction
 > = (set, get) => ({
   addFilesToAgent: async (fileIds, enabled) => {
-    const { activeAgentId, internal_refreshAgentConfig, internal_refreshAgentKnowledge } = get();
-    if (!activeAgentId) return;
-    if (fileIds.length === 0) return;
+    const agentConfig = agentSelectors.currentAgentConfig(get());
+    const agentId = agentConfig?.id;
+    if (!agentId || fileIds.length === 0) return;
 
-    // await agentService.createAgentFiles(activeAgentId, fileIds, enabled);
-    await internal_refreshAgentConfig(get().activeId);
-    await internal_refreshAgentKnowledge();
+    const now = Date.now();
+    for (const fileId of fileIds) {
+      try {
+        await DB.LinkAgentToFile({
+          agentId,
+          fileId,
+          enabled: enabled ? 1 : 0,
+          createdAt: now,
+          updatedAt: now,
+        });
+      } catch {
+        await DB.ToggleAgentFile({
+          agentId,
+          fileId,
+          enabled: enabled ? 1 : 0,
+        });
+      }
+    }
+
+    await get().internal_refreshAgentKnowledge();
   },
   addKnowledgeBaseToAgent: async (knowledgeBaseId) => {
-    const { activeAgentId, internal_refreshAgentConfig, internal_refreshAgentKnowledge } = get();
-    if (!activeAgentId) return;
+    const agentConfig = agentSelectors.currentAgentConfig(get());
+    const agentId = agentConfig?.id;
+    if (!agentId) return;
 
-    // await agentService.createAgentKnowledgeBase(activeAgentId, knowledgeBaseId, true);
-    await internal_refreshAgentConfig(get().activeId);
-    await internal_refreshAgentKnowledge();
+    const now = Date.now();
+    try {
+      await DB.LinkAgentToKnowledgeBase({
+        agentId,
+        knowledgeBaseId,
+        enabled: 1,
+        createdAt: now,
+        updatedAt: now,
+      });
+    } catch {
+      await DB.ToggleAgentKnowledgeBase({
+        agentId,
+        knowledgeBaseId,
+        enabled: 1,
+      });
+    }
+
+    await get().internal_refreshAgentKnowledge();
   },
   removeFileFromAgent: async (fileId) => {
-    const { activeAgentId, internal_refreshAgentConfig, internal_refreshAgentKnowledge } = get();
-    if (!activeAgentId) return;
+    const agentConfig = agentSelectors.currentAgentConfig(get());
+    const agentId = agentConfig?.id;
+    if (!agentId) return;
 
-    // await agentService.deleteAgentFile(activeAgentId, fileId);
-    await internal_refreshAgentConfig(get().activeId);
-    await internal_refreshAgentKnowledge();
+    await DB.UnlinkAgentFromFile({ agentId, fileId });
+    await get().internal_refreshAgentKnowledge();
   },
   removeKnowledgeBaseFromAgent: async (knowledgeBaseId) => {
-    const { activeAgentId, internal_refreshAgentConfig, internal_refreshAgentKnowledge } = get();
-    if (!activeAgentId) return;
+    const agentConfig = agentSelectors.currentAgentConfig(get());
+    const agentId = agentConfig?.id;
+    if (!agentId) return;
 
-    // await agentService.deleteAgentKnowledgeBase(activeAgentId, knowledgeBaseId);
-    await internal_refreshAgentConfig(get().activeId);
-    await internal_refreshAgentKnowledge();
+    await DB.UnlinkAgentFromKnowledgeBase({ agentId, knowledgeBaseId });
+    await get().internal_refreshAgentKnowledge();
   },
 
   removePlugin: async (id) => {
@@ -189,14 +222,13 @@ export const createChatSlice: StateCreator<
     }
   },
 
-  useFetchFilesAndKnowledgeBases: (agentId?: string) => {
+  useFetchFilesAndKnowledgeBases: (agentId?: string, version?: number) => {
     const [data, setData] = useState<KnowledgeItem[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<Error | null>(null);
     const activeAgentId = get().activeAgentId;
     const targetId = agentId || activeAgentId;
-    // We need to listen to agentConfigInitMap to trigger re-fetch when config changes or reloads
-    // deeper integration might be needed but for now we rely on mount and targetId change
+    // We need to listen to agentConfigInitMap to trigger re-fetch when config changes or reloadsy on mount and targetId change
 
     // Also we might need to listen to global refresh events if we want this to update after assignment
     // The store has `internal_refreshAgentKnowledge` but that's an action, not a state.
@@ -266,7 +298,10 @@ export const createChatSlice: StateCreator<
       return () => {
         isMounted = false;
       };
-    }, [targetId]);
+      return () => {
+        isMounted = false;
+      };
+    }, [targetId, version]);
 
     // Expose a refetch function effectively by just returning the data which changes
     // But if we want to manually trigger, we'd need to trust the store actions 
@@ -434,8 +469,7 @@ export const createChatSlice: StateCreator<
 
   internal_refreshAgentKnowledge: async () => {
     try {
-      // TODO: Implement when agentService is available
-      // const data = await agentService.getFilesAndKnowledgeBases(get().activeAgentId);
+      set({ knowledgeRefreshVersion: get().knowledgeRefreshVersion + 1 }, false, 'internal_refreshAgentKnowledge');
       console.debug('[internal_refreshAgentKnowledge] Refreshed');
     } catch (error) {
       console.error('[internal_refreshAgentKnowledge] Error:', error);
