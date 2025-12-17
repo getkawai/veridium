@@ -2,9 +2,6 @@ import { Modal } from '@lobehub/ui';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
-
-import { useServerConfigStore } from '@/store/serverConfig';
-
 import List from './List';
 
 interface AssignKnowledgeBaseProps {
@@ -13,7 +10,6 @@ interface AssignKnowledgeBaseProps {
 }
 export const AssignKnowledgeBaseModal = memo<AssignKnowledgeBaseProps>(({ setOpen, open }) => {
   const { t } = useTranslation('chat');
-  const mobile = useServerConfigStore((s) => s.isMobile);
 
   return (
     <Modal
@@ -28,8 +24,8 @@ export const AssignKnowledgeBaseModal = memo<AssignKnowledgeBaseProps>(({ setOpe
       width={600}
     >
       <Flexbox
-        gap={mobile ? 8 : 16}
-        style={{ maxHeight: mobile ? '-webkit-fill-available' : 'inherit' }}
+        gap={16}
+        style={{ maxHeight: 'inherit' }}
         width={'100%'}
       >
         <List />
