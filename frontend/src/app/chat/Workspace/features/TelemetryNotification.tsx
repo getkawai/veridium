@@ -58,7 +58,7 @@ const TelemetryNotification = memo<{ mobile?: boolean }>(({ mobile }) => {
           <div className={styles.desc}>
             {t('telemetry.desc', { appName: BRANDING_NAME })}
             <span>
-              <a data-wml-openurl={PRIVACY_URL} target={'_blank'}>
+              <a data-wml-openURL={PRIVACY_URL} target={'_blank'}>
                 {t('telemetry.learnMore')}
                 <Icon icon={LucideArrowUpRightFromSquare} style={{ marginInlineStart: 4 }} />
               </a>

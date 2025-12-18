@@ -38,7 +38,7 @@ const BrandWatermark = memo<Omit<FlexboxProps, 'children'>>(({ style, ...rest })
       ) : (
         <a
           className={styles.logoLink}
-          data-wml-openurl={`https://lobehub.com?utm_source=${UTM_SOURCE}&utm_content=brand_watermark`}
+          data-wml-openURL={`https://lobehub.com?utm_source=${UTM_SOURCE}&utm_content=brand_watermark`}
           target={'_blank'}
         >
           <LobeHub size={20} type={'text'} />
