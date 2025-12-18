@@ -7,7 +7,6 @@ import {
   isInStandaloneMode,
   isSonomaOrLaterSafari,
 } from '@/utils/platform';
-import { System } from '@wailsio/runtime';
 
 export const usePlatform = () => {
   const platform = useRef(getPlatform());
@@ -23,7 +22,7 @@ export const usePlatform = () => {
     isEdge: browser.current?.toLowerCase() === 'edge',
     isFirefox: browser.current?.toLowerCase() === 'firefox',
     isIOS: platform.current?.toLowerCase() === 'ios',
-    isMacOS: System.IsMac(),
+    isMacOS: platform.current?.toLowerCase() === 'mac os',
     isPWA: isInStandaloneMode(),
     isSafari: browser.current?.toLowerCase() === 'safari',
     isSonomaOrLaterSafari: isSonomaOrLaterSafari(),
