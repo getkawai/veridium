@@ -9,7 +9,6 @@ import Locale from './Locale';
 interface GlobalLayoutProps {
   appearance: string;
   children: ReactNode;
-  isMobile: boolean;
   locale: string;
   neutralColor?: string;
   primaryColor?: string;
@@ -22,7 +21,6 @@ const GlobalLayout = ({
   primaryColor,
   locale: userLocale,
   appearance,
-  isMobile,
   variants,
 }: GlobalLayoutProps) => {
 
@@ -36,7 +34,7 @@ const GlobalLayout = ({
           defaultNeutralColor={neutralColor as any}
           defaultPrimaryColor={primaryColor as any}
           globalCDN={false}>
-          <ServerConfigStoreProvider isMobile={isMobile} segmentVariants={variants}>
+          <ServerConfigStoreProvider segmentVariants={variants}>
             <StoreInitialization />
             {children}
           </ServerConfigStoreProvider>

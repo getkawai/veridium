@@ -6,21 +6,17 @@ import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 
-import HeaderContent from '@/app/chat/settings/features/HeaderContent';
 import BrandWatermark from '@/components/BrandWatermark';
 import PanelTitle from '@/components/PanelTitle';
 import { INBOX_SESSION_ID } from '@/const/session';
-import { isDesktop } from '@/const/version';
-import { AgentCategory, AgentSettings as Settings } from '@/features/AgentSetting';
+import { AgentCategory, AgentSettings as Settings, HeaderContent } from '@/features/AgentSetting';
 import { AgentSettingsProvider } from '@/features/AgentSetting/AgentSettingsProvider';
-import { TITLE_BAR_HEIGHT } from '@/features/ElectronTitlebar';
 import Footer from '@/features/Setting/Footer';
 import { useAgentStore } from '@/store/agent';
 import { agentSelectors } from '@/store/agent/slices/chat';
 import { ChatSettingsTabs } from '@/store/global/initialState';
 import { useSessionStore } from '@/store/session';
 import { sessionMetaSelectors } from '@/store/session/selectors';
-import { LobeSessionType } from '@/types/session';
 
 export interface AgentSettingsProps {
   agentId?: string;
@@ -28,48 +24,34 @@ export interface AgentSettingsProps {
   open?: boolean;
 }
 
-/**
- * Support both agent ID and session ID
- * Consider choose agent id first, since
- * session ID will soon be deprecated
- */
 const AgentSettings = memo<AgentSettingsProps>(({ agentId, onClose, open }) => {
   const { t } = useTranslation('setting');
 
-  // Use provided agentId or fall back to current active session
   const activeId = useSessionStore((s) => s.activeId);
   const id = agentId || activeId;
 
-  // Get agent config and meta based on the provided or active agent ID
   const config = useAgentStore((s) => {
     if (agentId) {
-      // Use the new selector that works with agent IDs
       return agentSelectors.getAgentConfigByAgentId(agentId)(s);
     } else if (id) {
-      // Use the existing selector for session IDs
       return agentSelectors.getAgentConfigById(id)(s);
     } else {
-      // Use current agent config
       return agentSelectors.currentAgentConfig(s);
     }
   }, isEqual);
   const meta = useSessionStore((s) => {
     if (agentId) {
-      // Use the selector that works with agent IDs
       return sessionMetaSelectors.getAgentMetaByAgentId(agentId)(s);
     } else {
-      // Use current agent meta for session-based access
       return sessionMetaSelectors.currentAgentMeta(s);
     }
   }, isEqual);
 
-  // Check if config is loaded from agentConfigInitMap
   const isConfigLoaded = useAgentStore((s) =>
     agentId ? !!s.agentConfigInitMap[agentId] : !!s.agentConfigInitMap[id],
   );
   const isLoading = !isConfigLoaded;
 
-  // Handle global store state or use props
   const [showAgentSetting, globalUpdateAgentConfig] = useAgentStore((s) => [
     s.showAgentSetting,
     s.updateAgentConfig,
@@ -79,57 +61,33 @@ const AgentSettings = memo<AgentSettingsProps>(({ agentId, onClose, open }) => {
     sessionMetaSelectors.currentAgentTitle(s),
   ]);
 
-  // Create custom update functions that can target specific sessions
   const updateAgentConfig = async (config: any) => {
     if (agentId) {
-      // Find the agent session ID from the agent ID
-      const sessions = useSessionStore.getState().sessions || [];
-      const agentSession = sessions.find(
-        (session) => session.type === LobeSessionType.Agent && session.config?.id === agentId,
-      );
-
-      if (agentSession) {
-        // Use the internal agent store function with the specific session ID
-        await useAgentStore.getState().internal_updateAgentConfig(agentSession.id, config);
-      }
+      // If agentId is provided, we assume it refers to the session ID for now
+      // as that's how the store handles it in this context
+      await useAgentStore.getState().internal_updateAgentConfig(agentId, config);
     } else {
-      // Use the global update function for current session
       await globalUpdateAgentConfig(config);
     }
   };
 
   const updateAgentMeta = async (meta: any) => {
     if (agentId) {
-      // Find the agent session ID from the agent ID
-      const sessions = useSessionStore.getState().sessions || [];
-      const agentSession = sessions.find(
-        (session) => session.type === LobeSessionType.Agent && session.config?.id === agentId,
-      );
-
-      if (agentSession) {
-        // Switch to the agent session temporarily to update its meta
-        const currentActiveId = useSessionStore.getState().activeId;
-        useSessionStore.getState().switchSession(agentSession.id);
-        await useSessionStore.getState().updateSessionMeta(meta);
-        // Switch back to original session
-        if (currentActiveId !== agentSession.id) {
-          useSessionStore.getState().switchSession(currentActiveId);
-        }
+      const currentActiveId = useSessionStore.getState().activeId;
+      useSessionStore.getState().switchSession(agentId);
+      await useSessionStore.getState().updateSessionMeta(meta);
+      if (currentActiveId !== agentId) {
+        useSessionStore.getState().switchSession(currentActiveId);
       }
     } else {
-      // Use the global update function for current session
       await globalUpdateAgentMeta(meta);
     }
   };
 
-  // Determine visibility - use prop if provided, otherwise use global state
   const isOpen = open !== undefined ? open : showAgentSetting;
-
-  // Handle close - use prop if provided, otherwise use global state setter
   const handleClose = onClose || (() => useAgentStore.setState({ showAgentSetting: false }));
 
   const isInbox = id === INBOX_SESSION_ID;
-
   const [tab, setTab] = useState(isInbox ? ChatSettingsTabs.Prompt : ChatSettingsTabs.Meta);
 
   return (
@@ -143,7 +101,7 @@ const AgentSettings = memo<AgentSettingsProps>(({ agentId, onClose, open }) => {
     >
       <Drawer
         containerMaxWidth={1280}
-        height={isDesktop ? `calc(100vh - ${TITLE_BAR_HEIGHT}px)` : '100vh'}
+        height={'100vh'}
         noHeader
         onClose={handleClose}
         open={isOpen}
@@ -170,7 +128,7 @@ const AgentSettings = memo<AgentSettingsProps>(({ agentId, onClose, open }) => {
           sidebarContent: {
             gap: 48,
             justifyContent: 'space-between',
-            minHeight: isDesktop ? `calc(100% - ${TITLE_BAR_HEIGHT}px)` : '100%',
+            minHeight: '100%',
             paddingBlock: 24,
             paddingInline: 48,
           },

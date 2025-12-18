@@ -40,7 +40,7 @@ function App() {
   }, []);
 
   return (
-    <GlobalLayout appearance={'dark'} isMobile={false} locale={''} neutralColor={undefined} primaryColor={undefined} variants={undefined}>
+    <GlobalLayout appearance={'dark'} locale={''} neutralColor={undefined} primaryColor={undefined} variants={undefined}>
       <DesktopMainLayout>
         {sidebarKey === SidebarTabKey.Chat && <DesktopChatLayout />}
         {sidebarKey === SidebarTabKey.Image && <DesktopImageLayout />}
