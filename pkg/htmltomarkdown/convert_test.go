@@ -21,7 +21,7 @@ func ExampleConvertString() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(markdown)
+	fmt.Println(markdown.Content)
 	// Output: **Bold Text**
 }
 
@@ -36,7 +36,7 @@ func ExampleWithDomain() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(markdown)
+	fmt.Println(markdown.Content)
 	// Output: ![](https://example.com/assets/image.png)
 }
 
@@ -52,7 +52,7 @@ func ExampleConvertNode() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(string(markdown))
+	fmt.Println(markdown.Content)
 	// Output: **Bold Text**
 }
 
@@ -94,8 +94,8 @@ func TestConvertString_WindowsCarriageReturn(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if output != tC.expected {
-				t.Errorf("expected %q but got %q", tC.expected, output)
+			if output.Content != tC.expected {
+				t.Errorf("expected %q but got %q", tC.expected, output.Content)
 			}
 		})
 	}

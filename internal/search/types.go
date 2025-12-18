@@ -1,5 +1,9 @@
 package search
 
+import (
+	"github.com/kawai-network/veridium/pkg/htmltomarkdown"
+)
+
 // SearchParams represents optional search parameters
 type SearchParams struct {
 	SearchCategories []string `json:"searchCategories,omitempty"`
@@ -42,19 +46,12 @@ type SearchQuery struct {
 type CrawlImplType string
 
 const (
-	CrawlImplJina        CrawlImplType = "jina"
 	CrawlImplNaive       CrawlImplType = "naive"
 	CrawlImplBrowserless CrawlImplType = "browserless"
 )
 
-// CrawlSuccessResult represents a successful crawl result
-type CrawlSuccessResult struct {
-	Title   string `json:"title"`
-	Content string `json:"content"`
-	URL     string `json:"url"`
-	Website string `json:"website"`
-	Crawler string `json:"crawler"` // "jina" or "kawai" (naive)
-}
+// CrawlSuccessResult is now imported from pkg/htmltomarkdown
+type CrawlSuccessResult = htmltomarkdown.CrawlSuccessResult
 
 // CrawlErrorResult represents a failed crawl result
 type CrawlErrorResult struct {

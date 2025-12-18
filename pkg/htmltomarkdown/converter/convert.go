@@ -11,15 +11,18 @@ import (
 	"golang.org/x/net/html"
 )
 
-type convertOption struct {
-	domain  string
-	context context.Context
+type ConvertOption struct {
+	Domain          string
+	URL             string
+	Crawler         string
+	MainContentOnly bool
+	Context         context.Context
 }
-type ConvertOptionFunc func(o *convertOption)
+type ConvertOptionFunc func(o *ConvertOption)
 
 func WithContext(ctx context.Context) ConvertOptionFunc {
-	return func(o *convertOption) {
-		o.context = ctx
+	return func(o *ConvertOption) {
+		o.Context = ctx
 	}
 }
 
@@ -29,9 +32,37 @@ func WithContext(ctx context.Context) ConvertOptionFunc {
 // If a *relative* url is encountered (in an image or link) then the `domain` is used
 // to convert it to a *absolute* url.
 func WithDomain(domain string) ConvertOptionFunc {
-	return func(o *convertOption) {
-		o.domain = domain
+	return func(o *ConvertOption) {
+		o.Domain = domain
 	}
+}
+
+func WithURL(url string) ConvertOptionFunc {
+	return func(o *ConvertOption) {
+		o.URL = url
+	}
+}
+
+func WithCrawler(crawler string) ConvertOptionFunc {
+	return func(o *ConvertOption) {
+		o.Crawler = crawler
+	}
+}
+
+// WithMainContentOnly instructs the converter to remove navigation,
+// footer, header, and other non-content elements before conversion.
+func WithMainContentOnly() ConvertOptionFunc {
+	return func(o *ConvertOption) {
+		o.MainContentOnly = true
+	}
+}
+
+func GetOptions(opts ...ConvertOptionFunc) *ConvertOption {
+	option := &ConvertOption{}
+	for _, fn := range opts {
+		fn(option)
+	}
+	return option
 }
 
 func (conv *Converter) setError(err error) {
@@ -64,7 +95,7 @@ func (conv *Converter) ConvertNode(doc *html.Node, opts ...ConvertOptionFunc) ([
 	}
 
 	conv.m.Lock()
-	option := &convertOption{}
+	option := &ConvertOption{}
 	for _, fn := range opts {
 		fn(option)
 	}
@@ -86,11 +117,11 @@ func (conv *Converter) ConvertNode(doc *html.Node, opts ...ConvertOptionFunc) ([
 
 	state := newGlobalState()
 
-	if option.context == nil {
-		option.context = context.Background()
+	if option.Context == nil {
+		option.Context = context.Background()
 	}
-	ctx := option.context
-	ctx = provideDomain(ctx, option.domain)
+	ctx := option.Context
+	ctx = provideDomain(ctx, option.Domain)
 	ctx = provideAssembleAbsoluteURL(ctx, defaultAssembleAbsoluteURL)
 	ctx = state.provideGlobalState(ctx)
 

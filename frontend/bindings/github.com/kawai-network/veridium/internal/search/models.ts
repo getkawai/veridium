@@ -5,6 +5,10 @@
 // @ts-ignore: Unused imports
 import { Create as $Create } from "@wailsio/runtime";
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as htmltomarkdown$0 from "../../pkg/htmltomarkdown/models.js";
+
 /**
  * CrawlErrorResult represents a failed crawl result
  */
@@ -46,7 +50,6 @@ export enum CrawlImplType {
      */
     $zero = "",
 
-    CrawlImplJina = "jina",
     CrawlImplNaive = "naive",
     CrawlImplBrowserless = "browserless",
 };
@@ -143,48 +146,14 @@ export class CrawlResult {
 }
 
 /**
- * CrawlSuccessResult represents a successful crawl result
+ * CrawlSuccessResult is now imported from pkg/htmltomarkdown
  */
-export class CrawlSuccessResult {
-    "title": string;
-    "content": string;
-    "url": string;
-    "website": string;
+export const CrawlSuccessResult = htmltomarkdown$0.CrawlSuccessResult;
 
-    /**
-     * "jina" or "kawai" (naive)
-     */
-    "crawler": string;
-
-    /** Creates a new CrawlSuccessResult instance. */
-    constructor($$source: Partial<CrawlSuccessResult> = {}) {
-        if (!("title" in $$source)) {
-            this["title"] = "";
-        }
-        if (!("content" in $$source)) {
-            this["content"] = "";
-        }
-        if (!("url" in $$source)) {
-            this["url"] = "";
-        }
-        if (!("website" in $$source)) {
-            this["website"] = "";
-        }
-        if (!("crawler" in $$source)) {
-            this["crawler"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new CrawlSuccessResult instance from a string or object.
-     */
-    static createFrom($$source: any = {}): CrawlSuccessResult {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new CrawlSuccessResult($$parsedSource as Partial<CrawlSuccessResult>);
-    }
-}
+/**
+ * CrawlSuccessResult is now imported from pkg/htmltomarkdown
+ */
+export type CrawlSuccessResult = htmltomarkdown$0.CrawlSuccessResult;
 
 /**
  * SearchParams represents optional search parameters
@@ -353,7 +322,7 @@ const $$createType0 = $Create.Array($Create.Any);
 const $$createType1 = $Create.Array($Create.Any);
 const $$createType2 = CrawlResult.createFrom;
 const $$createType3 = $Create.Array($$createType2);
-const $$createType4 = CrawlSuccessResult.createFrom;
+const $$createType4 = htmltomarkdown$0.CrawlSuccessResult.createFrom;
 const $$createType5 = $Create.Nullable($$createType4);
 const $$createType6 = CrawlErrorResult.createFrom;
 const $$createType7 = $Create.Nullable($$createType6);

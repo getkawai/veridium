@@ -15,7 +15,7 @@ var percentEncodingReplacer = strings.NewReplacer(
 	">", "%3E",
 )
 
-func parseBaseDomain(rawDomain string) *url.URL {
+func ParseBaseDomain(rawDomain string) *url.URL {
 	if rawDomain == "" {
 		return nil
 	}
@@ -67,7 +67,7 @@ func defaultAssembleAbsoluteURL(tagName string, rawURL string, domain string) st
 	// e.g. the email reading "Hi+Johannes" instead of "Hi Johannes"
 	u.RawQuery = strings.ReplaceAll(u.RawQuery, "+", "%20")
 
-	if base := parseBaseDomain(domain); base != nil {
+	if base := ParseBaseDomain(domain); base != nil {
 		// If a "domain" is provided, we use that to convert relative links
 		// to absolute links.
 		u = base.ResolveReference(u)

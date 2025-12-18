@@ -778,7 +778,7 @@ func (s *AgentChatService) buildSystemPrompt(session *AgentSession, memoryContex
 	// Inject artifacts system prompt (enabled by default)
 	// The tool itself is client-side only (no API), but we need the system prompt
 	// to teach the LLM how to generate the <lobeArtifact> tags.
-	baseInstruction += "\n\n" + yzmabuiltin.GetArtifactsSystemPrompt()
+	// baseInstruction += "\n\n" + yzmabuiltin.GetArtifactsSystemPrompt()
 	// log.Printf("🎨 Injected artifacts system prompt")
 
 	// Apply reasoning mode to instruction

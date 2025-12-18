@@ -30,7 +30,6 @@ require (
 	github.com/yuin/goldmark v1.7.8
 	golang.org/x/net v0.47.0
 	golang.org/x/sys v0.38.0
-	golang.org/x/text v0.31.0
 	golang.org/x/time v0.14.0
 	modernc.org/sqlite v1.36.0
 )
@@ -111,6 +110,7 @@ require (
 	golang.org/x/mod v0.29.0 // indirect
 	golang.org/x/sync v0.18.0 // indirect
 	golang.org/x/telemetry v0.0.0-20251008203120-078029d740a8 // indirect
+	golang.org/x/text v0.31.0 // indirect
 	golang.org/x/tools v0.38.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
 	google.golang.org/protobuf v1.36.10 // indirect

@@ -35,7 +35,7 @@ func TestGoldenFiles(t *testing.T) {
 
 		md, err := htmltomarkdown.ConvertString(string(html))
 
-		return []byte(md), err
+		return []byte(md.Content), err
 	}
 
 	tester.GoldenFiles(t, goldenFileConvert, roundTripConvert)
