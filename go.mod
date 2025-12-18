@@ -3,10 +3,13 @@ module github.com/kawai-network/veridium
 go 1.25.0
 
 require (
-	github.com/JohannesKaufmann/html-to-markdown/v2 v2.5.0
+	github.com/JohannesKaufmann/dom v0.2.0
 	github.com/Knetic/govaluate v3.0.0+incompatible
 	github.com/RealAlexandreAI/json-repair v0.0.14
+	github.com/agnivade/levenshtein v1.2.1
 	github.com/andybalholm/brotli v1.2.0
+	github.com/andybalholm/cascadia v1.3.3
+	github.com/bmatcuk/doublestar/v4 v4.9.1
 	github.com/charmbracelet/x/exp/slice v0.0.0-20251201173703-9f73bfd934ff
 	github.com/charmbracelet/x/json v0.2.0
 	github.com/dslipak/pdf v0.0.2
@@ -16,12 +19,15 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jupiterrider/ffi v0.5.1
 	github.com/kaptinlin/jsonschema v0.6.2
+	github.com/muesli/termenv v0.16.0
 	github.com/nikolalohinski/gonja/v2 v2.5.0
 	github.com/openai/openai-go/v2 v2.7.1
 	github.com/pemistahl/lingua-go v1.4.0
+	github.com/sebdah/goldie/v2 v2.8.0
 	github.com/ssor/bom v0.0.0-20170718123548-6386211fdfcf
 	github.com/stretchr/testify v1.11.1
 	github.com/wailsapp/wails/v3 v3.0.0-dev
+	github.com/yuin/goldmark v1.7.8
 	golang.org/x/net v0.47.0
 	golang.org/x/sys v0.38.0
 	golang.org/x/text v0.31.0
@@ -32,11 +38,11 @@ require (
 require (
 	dario.cat/mergo v1.0.1 // indirect
 	git.sr.ht/~jackmordaunt/go-toast/v2 v2.0.3 // indirect
-	github.com/JohannesKaufmann/dom v0.2.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/ProtonMail/go-crypto v1.1.6 // indirect
 	github.com/adrg/xdg v0.5.3 // indirect
 	github.com/apache/arrow-go/v18 v18.4.1 // indirect
+	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/bep/debounce v1.2.1 // indirect
 	github.com/cloudflare/circl v1.6.0 // indirect
 	github.com/cyphar/filepath-securejoin v0.4.1 // indirect
@@ -73,6 +79,7 @@ require (
 	github.com/leaanthony/go-ansi-parser v1.6.1 // indirect
 	github.com/leaanthony/u v1.1.1 // indirect
 	github.com/lmittmann/tint v1.0.7 // indirect
+	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect

@@ -13,8 +13,8 @@ import (
 	"sync"
 	"time"
 
-	htmltomd "github.com/JohannesKaufmann/html-to-markdown/v2"
-	"github.com/JohannesKaufmann/html-to-markdown/v2/converter"
+	htmltomd "github.com/kawai-network/veridium/pkg/htmltomarkdown"
+	"github.com/kawai-network/veridium/pkg/htmltomarkdown/converter"
 	"github.com/andybalholm/brotli"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/charset"
