@@ -1,12 +1,13 @@
 import { Avatar, Icon, ItemType } from '@lobehub/ui';
 import isEqual from 'fast-deep-equal';
 import { ArrowRight, Store, ToyBrick } from 'lucide-react';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 
 import PluginAvatar from '@/components/Plugins/PluginAvatar';
 import { useCheckPluginsIsInstalled } from '@/hooks/useCheckPluginsIsInstalled';
-import { useFetchInstalledPlugins } from '@/hooks/useFetchInstalledPlugins';
+
 import { useAgentStore } from '@/store/agent';
 import { agentSelectors } from '@/store/agent/selectors';
 import { featureFlagsSelectors, useServerConfigStore } from '@/store/serverConfig';
@@ -38,10 +39,16 @@ export const useControls = ({
   );
   const plugins = useAgentStore((s) => agentSelectors.currentAgentPlugins(s));
 
-  const [useFetchPluginStore] = useToolStore((s) => [s.useFetchPluginStore]);
+  const [isFetchPluginStoreAction, fetchInstalledPlugins] = useToolStore((s) => [
+    s.useFetchPluginStore,
+    s.useFetchInstalledPlugins,
+  ]);
 
-  useFetchPluginStore();
-  useFetchInstalledPlugins();
+  useEffect(() => {
+    isFetchPluginStoreAction();
+    fetchInstalledPlugins(true);
+  }, []);
+
   useCheckPluginsIsInstalled(plugins);
 
   const items: ItemType[] = [
