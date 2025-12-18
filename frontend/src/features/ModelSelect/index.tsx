@@ -5,6 +5,7 @@ import { memo, useMemo } from 'react';
 import { ModelItemRender, ProviderItemRender, TAG_CLASSNAME } from '@/components/ModelSelect';
 // import { useEnabledChatModels } from '@/hooks/useEnabledChatModels';
 import { EnabledProviderWithModels } from '@/types/aiProvider';
+import { ModelAbilities } from '@/model-bank';
 
 const useStyles = createStyles(({ css, prefixCls }) => ({
   popup: css`
@@ -42,31 +43,21 @@ const ModelSelect = memo<ModelSelectProps>(
       {
         id: 'kawai',
         name: 'Kawai',
-        logo: 'https://example.com/kawai-logo.png',
+        logo: 'https://getkawai.com/static/kawai-outline-red.png',
         source: 'builtin' as const,
         children: [
           {
             id: 'kawai-auto',
             displayName: 'Kawai Auto',
-            abilities: { functionCall: true, vision: true }
-          }
-        ]
-      },
-      {
-        id: 'openai',
-        name: 'OpenAI',
-        logo: 'https://example.com/openai-logo.png',
-        source: 'builtin' as const,
-        children: [
-          {
-            id: 'gpt-4',
-            displayName: 'GPT-4',
-            abilities: { functionCall: true, vision: true }
-          },
-          {
-            id: 'gpt-3.5-turbo',
-            displayName: 'GPT-3.5 Turbo',
-            abilities: { functionCall: true, vision: false }
+            abilities: {
+              functionCall: true,
+              vision: true,
+              files: true,
+              reasoning: true,
+              search: true,
+              structuredOutput: true,
+              video: true
+            } as ModelAbilities
           }
         ]
       }
@@ -80,12 +71,12 @@ const ModelSelect = memo<ModelSelectProps>(
         if (!provider.children || !Array.isArray(provider.children)) {
           return [];
         }
-        
+
         const models =
           requiredAbilities && requiredAbilities.length > 0
             ? provider.children.filter((model) =>
-                requiredAbilities.every((ability) => Boolean(model.abilities?.[ability])),
-              )
+              requiredAbilities.every((ability) => Boolean(model.abilities?.[ability])),
+            )
             : provider.children;
 
         return models.map((model) => ({
@@ -120,9 +111,6 @@ const ModelSelect = memo<ModelSelectProps>(
         })
         .filter(Boolean) as SelectProps['options'];
     }, [enabledList, requiredAbilities, showAbility]);
-
-    console.log('options', options);
-    console.log('enabledList', enabledList);
 
     return (
       <Select

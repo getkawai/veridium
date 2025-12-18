@@ -1,12 +1,10 @@
-import { ActionIcon, Icon, Select, type SelectProps } from '@lobehub/ui';
+import { Select, type SelectProps } from '@lobehub/ui';
 import { createStyles, useTheme } from 'antd-style';
-import { LucideArrowRight, LucideBolt } from 'lucide-react';
 import { memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 
 import { ModelItemRender, ProviderItemRender } from '@/components/ModelSelect';
-import { isDeprecatedEdition } from '@/const/version';
 import { useAiInfraStore } from '@/store/aiInfra';
 import { aiProviderSelectors } from '@/store/aiInfra/slices/aiProvider/selectors';
 import { useImageStore } from '@/store/image';
@@ -58,53 +56,8 @@ const ModelSelect = memo(() => {
         value: `${provider.id}/${model.id}`,
       }));
 
-      // if there are no models, add a placeholder guide
-      if (modelOptions.length === 0) {
-        return [
-          {
-            disabled: true,
-            label: (
-              <Flexbox gap={8} horizontal style={{ color: theme.colorTextTertiary }}>
-                {t('ModelSwitchPanel.emptyModel')}
-                <Icon icon={LucideArrowRight} />
-              </Flexbox>
-            ),
-            onClick: () => {
-              window.location.href = isDeprecatedEdition
-                ? '/settings?active=llm'
-                : `/settings?active=provider&provider=${provider.id}`;
-            },
-            value: `${provider.id}/empty`,
-          },
-        ];
-      }
-
       return modelOptions;
     };
-
-    // if there are no providers at all
-    if (enabledImageModelList.length === 0) {
-      return [
-        {
-          disabled: true,
-          label: (
-            <Flexbox gap={8} horizontal style={{ color: theme.colorTextTertiary }}>
-              {t('ModelSwitchPanel.emptyProvider')}
-              <Icon icon={LucideArrowRight} />
-            </Flexbox>
-          ),
-          onClick: () => {
-            window.location.href = isDeprecatedEdition ? '/settings?active=llm' : '/settings?active=provider';
-          },
-          value: 'no-provider',
-        },
-      ];
-    }
-
-    if (enabledImageModelList.length === 1) {
-      const provider = enabledImageModelList[0];
-      return getImageModels(provider);
-    }
 
     return enabledImageModelList.map((provider) => ({
       label: (
@@ -115,21 +68,6 @@ const ModelSelect = memo(() => {
             provider={provider.id}
             source={provider.source}
           />
-          {showLLM && (
-            <a
-              href={
-                isDeprecatedEdition
-                  ? '/settings?active=llm'
-                  : `/settings?active=provider&provider=${provider.id}`
-              }
-            >
-              <ActionIcon
-                icon={LucideBolt}
-                size={'small'}
-                title={t('ModelSwitchPanel.goToSettings')}
-              />
-            </a>
-          )}
         </Flexbox>
       ),
       options: getImageModels(provider),

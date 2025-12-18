@@ -1,9 +1,8 @@
 'use client';
 
-import { Avatar, Button, Form, type FormGroupItemType, Tag, Tooltip } from '@lobehub/ui';
-import { Empty, Space, Switch } from 'antd';
+import { Form, type FormGroupItemType } from '@lobehub/ui';
+import { Empty } from 'antd';
 import isEqual from 'fast-deep-equal';
-import { LucideTrash2, Store } from 'lucide-react';
 
 import { memo, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
@@ -12,14 +11,12 @@ import { Center, Flexbox } from 'react-layout-kit';
 import PluginAvatar from '@/components/Plugins/PluginAvatar';
 import PluginTag from '@/components/Plugins/PluginTag';
 import { FORM_STYLE } from '@/const/layoutTokens';
-// import PluginStore from '@/features/PluginStore';
 import { useFetchInstalledPlugins } from '@/hooks/useFetchInstalledPlugins';
 import { featureFlagsSelectors, useServerConfigStore } from '@/store/serverConfig';
 import { pluginHelpers, useToolStore } from '@/store/tool';
 import { toolSelectors } from '@/store/tool/selectors';
 
 import { useStore } from '../store';
-import AddPluginButton from './AddPluginButton';
 import LoadingList from './LoadingList';
 import LocalPluginItem from './LocalPluginItem';
 import PluginAction from './PluginAction';
@@ -65,65 +62,7 @@ const AgentPlugin = memo(() => {
     };
   });
 
-  //  =========== Deprecated Plugin List =========== //
-
-  // 检查出不在 installedPlugins 中的插件
-  const deprecatedList = userEnabledPlugins
-    .filter((pluginId) => !installedPlugins.some((p) => p.identifier === pluginId))
-    .map((id) => ({
-      avatar: <Avatar avatar={'♻️'} size={40} />,
-      children: (
-        <Switch
-          checked={true}
-          onChange={() => {
-            toggleAgentPlugin(id);
-          }}
-        />
-      ),
-      label: (
-        <Flexbox align={'center'} gap={8} horizontal>
-          {id}
-          <Tag color={'red'}>{t('plugin.installStatus.deprecated')}</Tag>
-        </Flexbox>
-      ),
-      layout: 'horizontal',
-      minWidth: undefined,
-      tag: id,
-    }));
-
-  const hasDeprecated = deprecatedList.length > 0;
-
   const loadingSkeleton = LoadingList();
-
-  const extra = (
-    <Space.Compact style={{ width: 'auto' }}>
-      <AddPluginButton />
-      {hasDeprecated ? (
-        <Tooltip title={t('plugin.clearDeprecated')}>
-          <Button
-            icon={LucideTrash2}
-            onClick={(e) => {
-              e.stopPropagation();
-              for (const i of deprecatedList) {
-                toggleAgentPlugin(i.tag as string);
-              }
-            }}
-            size={'small'}
-          />
-        </Tooltip>
-      ) : null}
-      <Tooltip title={t('plugin.store')}>
-        <Button
-          icon={Store}
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowStore(true);
-          }}
-          size={'small'}
-        />
-      </Tooltip>
-    </Space.Compact>
-  );
 
   const empty = (
     <Center padding={40}>
@@ -146,17 +85,11 @@ const AgentPlugin = memo(() => {
   );
 
   const plugin: FormGroupItemType = {
-    children: isLoading ? loadingSkeleton : isEmpty ? empty : [...deprecatedList, ...list],
-    extra,
+    children: isLoading ? loadingSkeleton : isEmpty ? empty : [...list],
     title: t('settingPlugin.title'),
   };
 
-  return (
-    <>
-      {/* <PluginStore open={showStore} setOpen={setShowStore} /> */}
-      <Form items={[plugin]} itemsType={'group'} variant={'borderless'} {...FORM_STYLE} />
-    </>
-  );
+  return <Form items={[plugin]} itemsType={'group'} variant={'borderless'} {...FORM_STYLE} />;
 });
 
 export default AgentPlugin;

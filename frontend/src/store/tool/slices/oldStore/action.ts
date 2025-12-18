@@ -202,11 +202,7 @@ export const createPluginStoreSlice: StateCreator<
     );
   },
   uninstallPlugin: async (identifier) => {
-    const userId = getUserId();
-    await DB.DeletePlugin({
-      identifier,
-      userId,
-    });
+    await DB.DeletePlugin(identifier);
 
     console.log('[Plugin] Uninstalled plugin via direct DB', { identifier });
 
@@ -235,11 +231,10 @@ export const createPluginStoreSlice: StateCreator<
     if (!enabled) return;
 
     try {
-      const userId = getUserId();
-      const dbPlugins = await DB.ListPlugins(userId);
+      const dbPlugins = await DB.ListPlugins();
       const data = mapPluginsFromDB(dbPlugins);
 
-      console.log('[Plugin] Fetched installed plugins via direct DB', { userId, count: data.length });
+      console.log('[Plugin] Fetched installed plugins via direct DB', { count: data.length });
 
       set(
         { installedPlugins: data, loadingInstallPlugins: false },
