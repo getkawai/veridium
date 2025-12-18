@@ -1,6 +1,5 @@
-import { useSearchParams } from './useNavigation';
+import { useGlobalStore } from '@/store/global';
 
 export const useShowMobileWorkspace = () => {
-  const searchParams = useSearchParams();
-  return searchParams.get('showMobileWorkspace') === 'true';
+  return useGlobalStore((s) => !!s.status.mobileShowTopic);
 };

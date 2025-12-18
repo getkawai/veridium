@@ -99,17 +99,6 @@ const TopActions = memo<TopActionProps>(({ tab, isPinned }) => {
           />
         </a>
       )}
-      {showMarket && (
-        <a aria-label={t('tab.discover')} href={'/discover'}>
-          <ActionIcon
-            active={isDiscoverActive}
-            icon={Compass}
-            size={ICON_SIZE}
-            title={t('tab.discover')}
-            tooltipProps={{ placement: 'right' }}
-          />
-        </a>
-      )}
     </Flexbox>
   );
 });

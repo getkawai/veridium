@@ -16,7 +16,7 @@ import ErrorContent from '@/features/ChatItem/components/ErrorContent';
 import MessageContent from '@/features/ChatItem/components/MessageContent';
 import Title from '@/features/ChatItem/components/Title';
 import { useStyles } from '@/features/ChatItem/style';
-import { useOpenChatSettings } from '@/hooks/useInterceptingRoutes';
+import { useOpenChatSettings } from '@/hooks/useOpenChatSettings';
 import { useAgentStore } from '@/store/agent';
 import { agentChatConfigSelectors } from '@/store/agent/selectors';
 import { useChatStore } from '@/store/chat';

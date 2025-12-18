@@ -4,7 +4,7 @@ import { useHotkeysContext } from 'react-hotkeys-hook';
 
 import { useSend } from '@/app/chat/Workspace/ChatConversation/features/ChatInput/useSend';
 import { useClearCurrentMessages } from '@/features/ChatInput/ActionBar/Clear';
-import { useOpenChatSettings } from '@/hooks/useInterceptingRoutes';
+import { useOpenChatSettings } from '@/hooks/useOpenChatSettings';
 import { useAsyncAction } from '@/hooks/useAsyncAction';
 import { useChatStore } from '@/store/chat';
 import { chatSelectors } from '@/store/chat/selectors';

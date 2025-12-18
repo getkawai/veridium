@@ -1,10 +1,8 @@
 import { produce } from 'immer';
 import type { StateCreator } from 'zustand/vanilla';
 
-import { INBOX_SESSION_ID } from '@/const/session';
 import type { GlobalStore } from '@/store/global';
-import { SidebarTabKey } from '@/store/global/initialState';
-import { useRouterStore } from '@/store/router';
+import { ProfileTabs, SettingsTabs, SidebarTabKey } from '@/store/global/initialState';
 import { setNamespace } from '@/utils/storeDebug';
 
 const n = setNamespace('w');
@@ -18,8 +16,10 @@ export interface GlobalWorkspacePaneAction {
   toggleExpandInputActionbar: (expand?: boolean) => void;
   toggleExpandSessionGroup: (id: string, expand: boolean) => void;
   toggleMobilePortal: (visible?: boolean) => void;
-  toggleMobileTopic: (visible?: boolean) => void;
+  toggleChangelog: (visible?: boolean) => void;
+  toggleSettings: (visible?: boolean, tab?: SettingsTabs) => void;
   toggleSystemRole: (visible?: boolean) => void;
+  toggleUserProfile: (visible?: boolean, tab?: ProfileTabs) => void;
   toggleWideScreen: (enable?: boolean) => void;
   toggleZenMode: () => void;
 }
@@ -32,14 +32,11 @@ export const globalWorkspaceSlice: StateCreator<
 > = (set, get) => ({
   switchBackToChat: (sessionId) => {
     const isMobile = get().isMobile;
-    const id = sessionId || INBOX_SESSION_ID;
-
     set({ sidebarKey: SidebarTabKey.Chat }, false, n('switchBackToChat'));
 
-    // Use Zustand router to navigate
-    useRouterStore.getState().push('/chat', {
-      query: isMobile ? { session: id, showMobileWorkspace: 'true' } : { session: id },
-    });
+    if (isMobile) {
+      get().updateSystemStatus({ mobileShowTopic: true });
+    }
   },
 
   switchSideBar: (key) => {
@@ -102,10 +99,32 @@ export const globalWorkspaceSlice: StateCreator<
 
     get().updateSystemStatus({ mobileShowTopic }, n('toggleMobileTopic', newValue));
   },
+  toggleChangelog: (newValue) => {
+    const isShowChangelog = typeof newValue === 'boolean' ? newValue : !get().status.isShowChangelog;
+
+    get().updateSystemStatus({ isShowChangelog }, n('toggleChangelog', newValue));
+  },
+  toggleSettings: (newValue, tab) => {
+    const isShowSettings = typeof newValue === 'boolean' ? newValue : !get().status.isShowSettings;
+
+    get().updateSystemStatus(
+      { isShowSettings, settingsTab: tab || get().status.settingsTab },
+      n('toggleSettings', newValue),
+    );
+  },
   toggleSystemRole: (newValue) => {
     const showSystemRole = typeof newValue === 'boolean' ? newValue : !get().status.mobileShowTopic;
 
     get().updateSystemStatus({ showSystemRole }, n('toggleMobileTopic', newValue));
+  },
+  toggleUserProfile: (newValue, tab) => {
+    const isShowUserProfile =
+      typeof newValue === 'boolean' ? newValue : !get().status.isShowUserProfile;
+
+    get().updateSystemStatus(
+      { isShowUserProfile, profileTab: tab || get().status.profileTab },
+      n('toggleUserProfile', newValue),
+    );
   },
   toggleWideScreen: (newValue) => {
     const wideScreen = typeof newValue === 'boolean' ? newValue : !get().status.noWideScreen;

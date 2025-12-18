@@ -1,8 +1,7 @@
 import { useCallback } from 'react';
 
-import { useQueryRoute } from '@/hooks/useQueryRoute';
 import { useChatStore } from '@/store/chat';
-import { routerSelectors, useRouterStore } from '@/store/router';
+import { useGlobalStore } from '@/store/global';
 import { useServerConfigStore } from '@/store/serverConfig';
 import { useSessionStore } from '@/store/session';
 
@@ -10,23 +9,17 @@ export const useSwitchSession = () => {
   const switchSession = useSessionStore((s) => s.switchSession);
   const togglePortal = useChatStore((s) => s.togglePortal);
   const mobile = useServerConfigStore((s) => s.isMobile);
-  const router = useQueryRoute();
-  const pathname = useRouterStore(routerSelectors.pathname);
+  const updateSystemStatus = useGlobalStore((s) => s.updateSystemStatus);
 
   return useCallback(
     (id: string) => {
       switchSession(id);
       togglePortal(false);
 
-      const chatPath = '/chat';
-      if (mobile || pathname !== chatPath) {
-        setTimeout(() => {
-          router.push(chatPath, {
-            query: { session: id, showMobileWorkspace: 'true' },
-          });
-        }, 50);
+      if (mobile) {
+        updateSystemStatus({ mobileShowTopic: true });
       }
     },
-    [mobile, pathname, router, switchSession, togglePortal],
+    [mobile, switchSession, togglePortal, updateSystemStatus],
   );
 };

@@ -8,7 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 
 import AgentInfo from '@/features/AgentInfo';
-import { useOpenChatSettings } from '@/hooks/useInterceptingRoutes';
+import { useOpenChatSettings } from '@/hooks/useOpenChatSettings';
 import { useAgentStore } from '@/store/agent';
 import { agentSelectors } from '@/store/agent/selectors';
 import { ChatSettingsTabs } from '@/store/global/initialState';

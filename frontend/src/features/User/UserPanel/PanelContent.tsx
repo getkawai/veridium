@@ -14,6 +14,9 @@ import UserInfo from '../UserInfo';
 import UserLoginOrSignup from '../UserLoginOrSignup';
 import LangButton from './LangButton';
 import ThemeButton from './ThemeButton';
+import { ProfileTabs } from '@/store/global/initialState';
+import { useGlobalStore } from '@/store/global';
+
 import { useMenu } from './useMenu';
 
 const PanelContent = memo<{ closePopover: () => void }>(({ closePopover }) => {
@@ -21,8 +24,8 @@ const PanelContent = memo<{ closePopover: () => void }>(({ closePopover }) => {
   // const isLoginWithAuth = useUserStore(authSelectors.isLoginWithAuth);
   const isLoginWithAuth = false;
   // const [openSignIn, signOut] = useUserStore((s) => [s.openLogin, s.logout]);
-  const openSignIn = () => {};
-  const signOut = () => {};
+  const openSignIn = () => { };
+  const signOut = () => { };
   const { mainItems, logoutItems } = useMenu();
 
   const handleSignIn = () => {
@@ -44,9 +47,12 @@ const PanelContent = memo<{ closePopover: () => void }>(({ closePopover }) => {
         <>
           <UserInfo avatarProps={{ clickable: false }} />
           {!isDeprecatedEdition && (
-            <a href={'/profile/stats'} style={{ color: 'inherit' }}>
+            <div
+              onClick={() => useGlobalStore.getState().toggleUserProfile(true, ProfileTabs.Stats)}
+              style={{ color: 'inherit', cursor: 'pointer' }}
+            >
               <DataStatistics />
-            </a>
+            </div>
           )}
         </>
       ) : (

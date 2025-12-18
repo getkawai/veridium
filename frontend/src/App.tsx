@@ -8,6 +8,9 @@ import DesktopImageLayout from './app/image';
 import { useGlobalStore } from './store/global';
 import { SidebarTabKey } from './store/global/initialState';
 import KnowledgeHomePage from './app/knowledge/routes/KnowledgeHome';
+import SettingsModal from './features/SettingsModal';
+import UserProfileModal from './features/UserProfileModal';
+import ChangelogModal from './features/ChangelogModal';
 
 function App() {
   const sidebarKey = useGlobalStore((s) => s.sidebarKey);
@@ -46,6 +49,9 @@ function App() {
         {sidebarKey === SidebarTabKey.Image && <DesktopImageLayout />}
         {sidebarKey === SidebarTabKey.Files && <KnowledgeHomePage />}
       </DesktopMainLayout>
+      <SettingsModal />
+      <UserProfileModal />
+      <ChangelogModal />
     </GlobalLayout>
   )
 }

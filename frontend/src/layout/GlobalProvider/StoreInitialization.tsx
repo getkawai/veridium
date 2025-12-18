@@ -8,7 +8,6 @@ import { enableNextAuth } from '@/const/auth';
 import { useFetchAiProviderRuntimeState } from '@/hooks/useFetchAiProviderRuntimeState';
 import { useAgentStore } from '@/store/agent';
 import { useGlobalStore } from '@/store/global';
-import { useRouterStore } from '@/store/router';
 import { useServerConfigStore } from '@/store/serverConfig';
 import { serverConfigSelectors } from '@/store/serverConfig/selectors';
 import { useUserStore } from '@/store/user';
@@ -28,7 +27,6 @@ const StoreInitialization = memo(() => {
   // prefetch error ns to avoid don't show error content correctly
   useTranslation('error');
 
-  const routerPush = useRouterStore((s) => s.push);
   const [isLogin, isSignedIn, useInitUserState] = useUserStore((s) => [
     authSelectors.isLogin(s),
     s.isSignedIn,

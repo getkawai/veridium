@@ -56,11 +56,18 @@ export interface SystemStatus {
   expandSessionGroupKeys: string[];
   fileManagerViewMode?: 'list' | 'masonry';
   filePanelWidth: number;
+  isPinnedAgent?: boolean;
   hideGemini2_5FlashImagePreviewChineseWarning?: boolean;
   hidePWAInstaller?: boolean;
   hideThreadLimitAlert?: boolean;
   imagePanelWidth: number;
   imageTopicPanelWidth?: number;
+  isShowChangelog?: boolean;
+  isShowSettings?: boolean;
+  settingsTab?: SettingsTabs;
+  isShowUserProfile?: boolean;
+  profileTab?: ProfileTabs;
+  isSingleMode?: boolean;
   /**
    * 应用初始化时不启用 PGLite，只有当用户手动开启时才启用
    */
@@ -124,11 +131,18 @@ export const INITIAL_STATUS = {
   expandSessionGroupKeys: [SessionDefaultGroup.Pinned, SessionDefaultGroup.Default],
   fileManagerViewMode: 'list' as const,
   filePanelWidth: 320,
+  isPinnedAgent: false,
   hideGemini2_5FlashImagePreviewChineseWarning: false,
   hidePWAInstaller: false,
   hideThreadLimitAlert: false,
   imagePanelWidth: 320,
   imageTopicPanelWidth: 80,
+  isShowChangelog: false,
+  isShowSettings: false,
+  settingsTab: SettingsTabs.Common,
+  isShowUserProfile: false,
+  profileTab: ProfileTabs.Profile,
+  isSingleMode: false,
   mobileShowTopic: false,
   noWideScreen: true,
   portalWidth: 400,

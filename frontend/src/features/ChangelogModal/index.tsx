@@ -1,28 +1,26 @@
-'use client';
-
-import { useTimeout } from 'ahooks';
-// import { useRouter } from 'next/navigation';
+import { Modal } from '@lobehub/ui';
 import { memo } from 'react';
+import { useTranslation } from 'react-i18next';
 
-// import { useGlobalStore } from '@/store/global';
+import { useGlobalStore } from '@/store/global';
 
-const ChangelogModal = memo<{ currentId?: string }>(({ currentId }) => {
-  // const [latestChangelogId, updateSystemStatus] = useGlobalStore((s) => [
-  //   s.status.latestChangelogId,
-  //   s.updateSystemStatus,
-  // ]);
-  // const router = useRouter();
+const ChangelogModal = memo(() => {
+  const { t } = useTranslation('common');
+  const [open, toggleChangelog] = useGlobalStore((s) => [
+    s.status.isShowChangelog,
+    s.toggleChangelog,
+  ]);
 
-  useTimeout(() => {
-    if (!currentId) return;
-    // if (!latestChangelogId) {
-    //   updateSystemStatus({ latestChangelogId: currentId });
-    // } else if (latestChangelogId !== currentId) {
-    //   router.push('/changelog/modal');
-    // }
-  }, 1000);
-
-  return null;
+  return (
+    <Modal
+      footer={null}
+      onCancel={() => toggleChangelog(false)}
+      open={open}
+      title={t('changelog')}
+    >
+      <div style={{ padding: 24 }}>Changelog Content Placeholder</div>
+    </Modal>
+  );
 });
 
 export default ChangelogModal;

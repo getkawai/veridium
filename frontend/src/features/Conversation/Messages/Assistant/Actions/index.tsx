@@ -4,7 +4,6 @@ import { App } from 'antd';
 import { memo, use, useCallback, useContext, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useSearchParams } from '@/hooks/useNavigation';
 import { useNativeTTS } from '@/hooks/useNativeTTS';
 
 import ShareMessageModal from '@/features/Conversation/components/ShareMessageModal';
@@ -25,12 +24,12 @@ interface AssistantActionsProps {
 }
 export const AssistantActionsBar = memo<AssistantActionsProps>(({ id, data, index }) => {
   const { error, tools } = data;
-  
+
   const hasThreadSelector = useMemo(
     () => threadSelectors.hasThreadBySourceMsgId(id),
     [id],
   );
-  
+
   const [isThreadMode, hasThread] = useChatStore((s) => [
     !!s.activeThreadId,
     hasThreadSelector(s),
@@ -82,8 +81,6 @@ export const AssistantActionsBar = memo<AssistantActionsProps>(({ id, data, inde
   }, [inThread, hasTools, isGroupSession, isTTSLoading]);
 
   const { t } = useTranslation('common');
-  const searchParams = useSearchParams();
-  const urlTopic = searchParams.get('topic');
   const [
     activeTopicId,
     deleteMessage,
@@ -108,7 +105,7 @@ export const AssistantActionsBar = memo<AssistantActionsProps>(({ id, data, inde
     s.toggleMessageEditing,
   ]);
 
-  const topic = urlTopic || activeTopicId;
+  const topic = activeTopicId;
   const { message } = App.useApp();
   const virtuosoRef = use(VirtuosoContext);
 

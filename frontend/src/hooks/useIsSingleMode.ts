@@ -1,4 +1,4 @@
-import { useSearchParams } from './useNavigation';
+import { useGlobalStore } from '@/store/global';
 
 /**
  * Hook to check if the current page is in single mode
@@ -6,6 +6,5 @@ import { useSearchParams } from './useNavigation';
  * @returns boolean indicating if the current page is in single mode
  */
 export const useIsSingleMode = (): boolean => {
-  const searchParams = useSearchParams();
-  return searchParams.get('mode') === 'single';
+  return useGlobalStore((s) => !!s.status.isSingleMode);
 };

@@ -2,9 +2,9 @@ import { useMemo } from 'react';
 
 import { useAgentStore } from '@/store/agent';
 
-export const useOpenChatSettings = () => {
+export const useOpenChatSettings = (defaultTab?: any) => {
   return useMemo(() => {
-    return () => {
+    return (tab?: any) => {
       useAgentStore.setState({ showAgentSetting: true });
     };
   }, []);

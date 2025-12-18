@@ -10,10 +10,9 @@ import { Flexbox } from 'react-layout-kit';
 import { ModelItemRender, ProviderItemRender } from '@/components/ModelSelect';
 import { isDeprecatedEdition } from '@/const/version';
 import ActionDropdown from '@/features/ChatInput/ActionBar/components/ActionDropdown';
+import { useGlobalStore } from '@/store/global';
+import { SettingsTabs } from '@/store/global/initialState';
 // import { useEnabledChatModels } from '@/hooks/useEnabledChatModels';
-// import { useAgentStore } from '@/store/agent';
-// import { agentSelectors } from '@/store/agent/slices/chat';
-// import { featureFlagsSelectors, useServerConfigStore } from '@/store/serverConfig';
 import { EnabledProviderWithModels } from '@/types/aiProvider';
 import { ModelAbilities } from '@/model-bank';
 
@@ -77,13 +76,6 @@ const useServerConfigStore = (selector?: any) => {
 
 const featureFlagsSelectors = (s: any) => s.featureFlags || { showLLM: true };
 
-const useRouter = () => {
-  return {
-    push: (path: string) => {
-      console.log('Mock router.push called with:', path);
-    }
-  };
-};
 
 const useStyles = createStyles(({ css, prefixCls }) => ({
   menu: css`
@@ -124,7 +116,7 @@ const ModelSwitchPanel = memo<IProps>(({ children, onOpenChange, open }) => {
     s.updateAgentConfig,
   ]);
   const { showLLM } = useServerConfigStore(featureFlagsSelectors);
-  const router = useRouter();
+  const toggleSettings = useGlobalStore((s) => s.toggleSettings);
   const enabledList = useEnabledChatModels();
 
   const items = useMemo<ItemType[]>(() => {
@@ -154,10 +146,9 @@ const ModelSwitchPanel = memo<IProps>(({ children, onOpenChange, open }) => {
               </Flexbox>
             ),
             onClick: () => {
-              router.push(
-                isDeprecatedEdition
-                  ? '/settings?active=llm'
-                  : `/settings?active=provider&provider=${provider.id}`,
+              toggleSettings(
+                true,
+                isDeprecatedEdition ? SettingsTabs.LLM : SettingsTabs.Provider,
               );
             },
           },
@@ -177,7 +168,7 @@ const ModelSwitchPanel = memo<IProps>(({ children, onOpenChange, open }) => {
             </Flexbox>
           ),
           onClick: () => {
-            router.push(isDeprecatedEdition ? '/settings?active=llm' : `/settings?active=provider`);
+            toggleSettings(true, isDeprecatedEdition ? SettingsTabs.LLM : SettingsTabs.Provider);
           },
         },
       ];
@@ -195,19 +186,14 @@ const ModelSwitchPanel = memo<IProps>(({ children, onOpenChange, open }) => {
             source={provider.source}
           />
           {showLLM && (
-            <a
-              href={
-                isDeprecatedEdition
-                  ? '/settings?active=llm'
-                  : `/settings?active=provider&provider=${provider.id}`
+            <ActionIcon
+              icon={LucideBolt}
+              onClick={() =>
+                toggleSettings(true, isDeprecatedEdition ? SettingsTabs.LLM : SettingsTabs.Provider)
               }
-            >
-              <ActionIcon
-                icon={LucideBolt}
-                size={'small'}
-                title={t('ModelSwitchPanel.goToSettings')}
-              />
-            </a>
+              size={'small'}
+              title={t('ModelSwitchPanel.goToSettings')}
+            />
           )}
         </Flexbox>
       ),

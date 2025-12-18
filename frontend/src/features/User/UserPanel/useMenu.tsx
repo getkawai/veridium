@@ -25,7 +25,6 @@ import { enableAuth } from '@/const/auth';
 import { BRANDING_EMAIL, LOBE_CHAT_CLOUD, SOCIAL_URL } from '@/const/branding';
 import { DEFAULT_DESKTOP_HOTKEY_CONFIG } from '@/const/desktop';
 import {
-  CHANGELOG,
   DOCUMENTS_REFER_URL,
   GITHUB_ISSUES,
   OFFICIAL_URL,
@@ -36,6 +35,7 @@ import { isDesktop } from '@/const/version';
 import DataImporter from '@/features/DataImporter';
 // import { usePWAInstall } from '@/hooks/usePWAInstall';
 // import { featureFlagsSelectors, useServerConfigStore } from '@/store/serverConfig';
+import { useGlobalStore } from '@/store/global';
 // import { useUserStore } from '@/store/user';
 // import { authSelectors } from '@/store/user/selectors';
 
@@ -66,7 +66,7 @@ const NewVersionBadge = memo(
 export const useMenu = () => {
   // const { canInstall, install } = usePWAInstall();
   const canInstall = false;
-  const install = () => {};
+  const install = () => { };
   const hasNewVersion = useNewVersion();
   const { t } = useTranslation(['common', 'setting', 'auth']);
   // const { showCloudPromotion, hideDocs } = useServerConfigStore(featureFlagsSelectors);
@@ -79,11 +79,18 @@ export const useMenu = () => {
   const isLogin = true;
   const isLoginWithAuth = false;
 
+  const [toggleSettings, toggleUserProfile, toggleChangelog] = useGlobalStore((s) => [
+    s.toggleSettings,
+    s.toggleUserProfile,
+    s.toggleChangelog,
+  ]);
+
   const profile: MenuProps['items'] = [
     {
       icon: <Icon icon={CircleUserRound} />,
       key: 'profile',
-      label: <a href={'/profile'}>{t('userPanel.profile')}</a>,
+      label: t('userPanel.profile'),
+      onClick: () => toggleUserProfile(true),
     },
   ];
 
@@ -96,11 +103,8 @@ export const useMenu = () => {
       ) : undefined,
       icon: <Icon icon={Settings2} />,
       key: 'setting',
-      label: (
-        <a href={'/settings'}>
-          <NewVersionBadge showBadge={hasNewVersion}>{t('userPanel.setting')}</NewVersionBadge>
-        </a>
-      ),
+      label: <NewVersionBadge showBadge={hasNewVersion}>{t('userPanel.setting')}</NewVersionBadge>,
+      onClick: () => toggleSettings(true),
     },
     {
       type: 'divider',
@@ -126,15 +130,15 @@ export const useMenu = () => {
   const data = !isLogin
     ? []
     : ([
-        {
-          icon: <Icon icon={HardDriveDownload} />,
-          key: 'import',
-          label: <DataImporter>{t('importData')}</DataImporter>,
-        },
-        {
-          type: 'divider',
-        },
-      ].filter(Boolean) as ItemType[]);
+      {
+        icon: <Icon icon={HardDriveDownload} />,
+        key: 'import',
+        label: <DataImporter>{t('importData')}</DataImporter>,
+      },
+      {
+        type: 'divider',
+      },
+    ].filter(Boolean) as ItemType[]);
 
   const helps: MenuProps['items'] = [
     showCloudPromotion && {
@@ -156,7 +160,8 @@ export const useMenu = () => {
     {
       icon: <Icon icon={FileClockIcon} />,
       key: 'changelog',
-      label: <a href={isDesktop ? CHANGELOG : '/changelog/modal'}>{t('changelog')}</a>,
+      label: t('changelog'),
+      onClick: () => toggleChangelog(true),
     },
     {
       children: [
@@ -250,12 +255,12 @@ export const useMenu = () => {
 
   const logoutItems: MenuProps['items'] = isLoginWithAuth
     ? [
-        {
-          icon: <Icon icon={LogOut} />,
-          key: 'logout',
-          label: <span>{t('signout', { ns: 'auth' })}</span>,
-        },
-      ]
+      {
+        icon: <Icon icon={LogOut} />,
+        key: 'logout',
+        label: <span>{t('signout', { ns: 'auth' })}</span>,
+      },
+    ]
     : [];
 
   return { logoutItems, mainItems };
