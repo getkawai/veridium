@@ -9,7 +9,7 @@ const A: FC<{ href: string } & React.HTMLAttributes<HTMLAnchorElement>> = ({ hre
   const isOfficial = String(href).includes('lobechat') || String(href).includes('lobehub');
   return (
     <a
-      data-wml-openURL={href}
+      data-wml-openurl={href}
       rel={isOutbound && !isOfficial ? 'nofollow' : undefined}
       target={isOutbound ? '_blank' : undefined}
       {...props}

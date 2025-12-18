@@ -45,9 +45,9 @@
     "global": "Global Settings",
     "group": "Team Settings",
     "groupDesc": "Manage Agent teams and chat preferences",
-    "session": "Session Settings",
+    "session": "Assistant Settings",
     "sessionDesc": "Role settings and session preferences.",
-    "sessionWithName": "Session Settings · {{name}}",
+    "sessionWithName": "Assistant Settings · {{name}}",
     "title": "Settings"
   },
   "hotkey": {
