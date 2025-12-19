@@ -24,7 +24,7 @@ export function CrawlPages(req: $models.CrawlPagesRequest): $CancellablePromise<
 }
 
 /**
- * Query performs a search query using Brave
+ * Query performs a search query using Brave with DuckDuckGo fallback
  */
 export function Query(query: string, params: $models.SearchParams | null): $CancellablePromise<$models.UniformSearchResponse | null> {
     return $Call.ByID(2892717164, query, params).then(($result: any) => {

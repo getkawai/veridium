@@ -2,35 +2,59 @@ package search
 
 import (
 	"context"
+	"log"
 	"os"
 	"strings"
 )
 
 // Service provides search and crawl functionality
 type Service struct {
-	braveProvider *BraveProvider
-	crawler       *Crawler
+	braveProvider      *BraveProvider
+	duckduckgoProvider *DuckDuckGoProvider
+	crawler            *Crawler
 }
 
 // NewService creates a new search service
 func NewService() *Service {
-	// Create Brave provider
+	// Create search providers
 	braveProvider := NewBraveProvider()
+	duckduckgoProvider := NewDuckDuckGoProvider()
 
 	// Get crawler implementations from environment
 	crawlerImpls := getCrawlerImplsFromEnv()
 	crawler := NewCrawler(crawlerImpls)
 
 	return &Service{
-		braveProvider: braveProvider,
-		crawler:       crawler,
+		braveProvider:      braveProvider,
+		duckduckgoProvider: duckduckgoProvider,
+		crawler:            crawler,
 	}
 }
 
-// Query performs a search query using Brave
+// Query performs a search query using Brave with DuckDuckGo fallback
 func (s *Service) Query(query string, params *SearchParams) (*UniformSearchResponse, error) {
 	ctx := context.Background()
-	return s.braveProvider.Query(ctx, query, params)
+
+	// Try Brave first
+	response, err := s.braveProvider.Query(ctx, query, params)
+	if err == nil {
+		log.Printf("🔍 Search provider: Brave (query=%s, results=%d)", query, len(response.Results))
+		return response, nil
+	}
+
+	// Log Brave failure and fallback
+	log.Printf("⚠️  Brave search failed: %v. Falling back to DuckDuckGo...", err)
+
+	// If Brave fails, fallback to DuckDuckGo
+	response, err = s.duckduckgoProvider.Query(ctx, query, params)
+	if err == nil {
+		log.Printf("🔍 Search provider: DuckDuckGo (query=%s, results=%d)", query, len(response.Results))
+		return response, nil
+	}
+
+	// Both providers failed
+	log.Printf("❌ All search providers failed for query: %s", query)
+	return nil, err
 }
 
 // WebSearch performs a web search with retry logic
