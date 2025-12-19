@@ -126,6 +126,9 @@ type ChatRequest struct {
 	Temperature     float32        `json:"temperature,omitempty"`
 	MaxTokens       int            `json:"max_tokens,omitempty"`
 	Stream          bool           `json:"stream,omitempty"`
+
+	// Reasoning mode control (user-controlled via frontend)
+	EnableReasoning bool `json:"enable_reasoning,omitempty"`
 }
 
 // UIMessageRoleType represents the role of a message
@@ -644,7 +647,8 @@ func (s *AgentChatService) getOrCreateSession(ctx context.Context, req ChatReque
 }
 
 // collectToolNames collects tool names for the session based on request
-// If no tools specified, returns nil which means "use all registered tools"
+// If tools are explicitly specified in request, use only those tools.
+// If no tools specified (empty slice), returns nil which means "use all registered tools".
 func (s *AgentChatService) collectToolNames(ctx context.Context, req ChatRequest) []string {
 	var toolNames []string
 
@@ -661,12 +665,18 @@ func (s *AgentChatService) collectToolNames(ctx context.Context, req ChatRequest
 		}
 	}
 
-	// Add requested tools
-	toolNames = append(toolNames, req.Tools...)
+	// If tools explicitly specified in request, use only those tools
+	// This enables user-controlled tool selection from frontend
+	if len(req.Tools) > 0 {
+		toolNames = append(toolNames, req.Tools...)
+		log.Printf("🔧 Using user-specified tools: %v", toolNames)
+		return toolNames
+	}
 
-	// If no tools specified, return nil to use all registered tools
-	// This allows LLM to use any available tool including lobe-image-describe
+	// Default: return nil to use all registered tools
+	// (backward compatibility for requests without explicit tool list)
 	if len(toolNames) == 0 {
+		log.Printf("🔧 No tools specified, using all registered tools")
 		return nil
 	}
 

@@ -15,7 +15,7 @@ import { merge } from '@/utils/merge';
 import { DB } from '@/types/database';
 import { getUserId } from '@/store/session/helpers';
 import { mapAgentConfigFromDB } from '@/store/session/helpers';
-import { toNullString, toNullJSON, toNullInt, intToBool, getNullableString } from '@/types/database';
+import { toNullString, toNullJSON, intToBool, getNullableString } from '@/types/database';
 import { useState } from 'react';
 
 import type { AgentStore } from '../../store';
@@ -507,26 +507,33 @@ export const createChatSlice: StateCreator<
     // optimistic update at frontend
     get().internal_dispatchAgentMap(id, data, 'optimistic_updateAgentConfig');
 
-    const userId = getUserId();
     const now = Date.now();
 
-    await DB.UpdateAgent({
-      sessionId: id,
-      userId,
-      model: data.model ? toNullString(data.model) : undefined,
-      systemRole: data.systemRole ? toNullString(data.systemRole) : undefined,
-      plugins: data.plugins ? toNullJSON(data.plugins) : undefined,
-      chatConfig: data.chatConfig ? toNullJSON(data.chatConfig) : undefined,
-      params: data.params ? toNullJSON(data.params) : undefined,
-      openingMessage: data.openingMessage ? toNullString(data.openingMessage) : undefined,
-      openingQuestions: data.openingQuestions ? toNullJSON(data.openingQuestions) : undefined,
-      fewShots: data.fewShots ? toNullJSON(data.fewShots) : undefined,
-      virtual: data.virtual !== undefined ? toNullInt(data.virtual ? 1 : 0) : undefined,
-      provider: data.provider ? toNullString(data.provider) : undefined,
-      updatedAt: now,
-    } as any);
+    // Get agent ID from session ID first (UpdateAgent expects agent.id, not session.id)
+    const dbAgent = await DB.GetAgentBySessionId(id);
+    const agentId = dbAgent.id;
 
-    console.log('[Agent] Updated agent config via direct DB', { sessionId: id });
+    await DB.UpdateAgent({
+      id: agentId, // Use agent ID, not session ID!
+      title: dbAgent.title,
+      description: dbAgent.description,
+      tags: dbAgent.tags,
+      avatar: dbAgent.avatar,
+      backgroundColor: dbAgent.backgroundColor,
+      plugins: data.plugins ? toNullJSON(data.plugins) : dbAgent.plugins,
+      chatConfig: data.chatConfig ? toNullJSON(data.chatConfig) : dbAgent.chatConfig,
+      fewShots: data.fewShots ? toNullJSON(data.fewShots) : dbAgent.fewShots,
+      model: data.model ? toNullString(data.model) : dbAgent.model,
+      params: data.params ? toNullJSON(data.params) : dbAgent.params,
+      provider: data.provider ? toNullString(data.provider) : dbAgent.provider,
+      systemRole: data.systemRole ? toNullString(data.systemRole) : dbAgent.systemRole,
+      tts: dbAgent.tts,
+      openingMessage: data.openingMessage ? toNullString(data.openingMessage) : dbAgent.openingMessage,
+      openingQuestions: data.openingQuestions ? toNullJSON(data.openingQuestions) : dbAgent.openingQuestions,
+      updatedAt: now,
+    });
+
+    console.log('[Agent] Updated agent config via direct DB', { sessionId: id, agentId });
 
     await get().internal_refreshAgentConfig(id);
 

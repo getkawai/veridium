@@ -116,6 +116,20 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	log.Printf("🚀 [REAL STREAM] Starting real LLM streaming for session: %s", req.SessionID)
 	startTime := time.Now()
 
+	// Set reasoning mode based on request (user-controlled via frontend)
+	if req.EnableReasoning {
+		s.reasoningConfig = ReasoningConfig{
+			Mode:                  ReasoningEnabled,
+			PreferredNonReasoning: "llama",
+			PreferredReasoning:    "qwen",
+			StripThinkTags:        false,
+		}
+		log.Printf("🧠 [REAL STREAM] Reasoning mode: enabled (user request)")
+	} else {
+		s.reasoningConfig = DefaultReasoningConfig()
+		log.Printf("🧠 [REAL STREAM] Reasoning mode: disabled (default)")
+	}
+
 	// Helper to emit events with type safety using StreamEventPayload
 	emit := func(payload StreamEventPayload) {
 		if s.app == nil {

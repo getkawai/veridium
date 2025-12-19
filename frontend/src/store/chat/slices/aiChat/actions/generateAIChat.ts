@@ -42,6 +42,9 @@ import {
 } from '@@/github.com/kawai-network/veridium/internal/services';
 import { ChatRealStream } from '@@/github.com/kawai-network/veridium/internal/services/agentchatservice';
 
+import { useAgentStore } from '@/store/agent';
+import { agentSelectors, agentChatConfigSelectors } from '@/store/agent/slices/chat';
+
 // Re-export StreamEventPayload for consumers
 export type { StreamEventPayload };
 
@@ -162,6 +165,14 @@ export const generateAIChat: StateCreator<
     try {
       console.log('[Backend Real Stream] Starting real LLM streaming...');
 
+      // Get enabled tools and reasoning config from agent store
+      const agentState = useAgentStore.getState();
+      const enabledPlugins = agentSelectors.currentAgentPlugins(agentState);
+      const chatConfig = agentChatConfigSelectors.currentChatConfig(agentState);
+      const enableReasoning = chatConfig.enableReasoning ?? false;
+
+      console.log('[Backend Real Stream] Tools:', enabledPlugins, 'Reasoning:', enableReasoning);
+
       // Call real streaming - uses real LLM with streaming events
       // Events are handled by internal_handleStreamEvent (called from App.tsx)
       const request = new ChatRequest({
@@ -173,6 +184,9 @@ export const generateAIChat: StateCreator<
         message_user_id: messageUserId,
         message_assistant_id: messageAssistantId,
         file_ids: fileIds.length > 0 ? fileIds : undefined,
+        // User-controlled tools and reasoning
+        tools: enabledPlugins.length > 0 ? enabledPlugins : undefined,
+        enable_reasoning: enableReasoning,
       });
 
       await ChatRealStream(request);

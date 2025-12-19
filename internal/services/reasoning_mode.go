@@ -5,6 +5,7 @@ import (
 	"log"
 	"strings"
 
+	"github.com/kawai-network/veridium/fantasy/llamalib"
 	"github.com/kawai-network/veridium/pkg/hardware"
 )
 
@@ -94,16 +95,13 @@ func (rc ReasoningConfig) GetPreferredModelPattern() string {
 }
 
 // IsReasoningModel checks if a model name indicates a reasoning model
+// These models support <think> tags and native reasoning capabilities.
+// Model patterns are dynamically loaded from llamalib.GetReasoningModelPatterns()
 func IsReasoningModel(modelName string) bool {
 	nameLower := strings.ToLower(modelName)
 
-	// Known reasoning models
-	reasoningModels := []string{
-		"qwen",     // Qwen3 series
-		"gpt-oss",  // OpenAI GPT-OSS series
-		"deepseek", // DeepSeek R1 series
-		"o1",       // OpenAI O1 series
-	}
+	// Get reasoning model patterns from model specs (no hardcoding)
+	reasoningModels := llamalib.GetReasoningModelPatterns()
 
 	for _, pattern := range reasoningModels {
 		if strings.Contains(nameLower, pattern) {
@@ -115,16 +113,13 @@ func IsReasoningModel(modelName string) bool {
 }
 
 // IsNonReasoningModel checks if a model name indicates a non-reasoning model
+// These models do NOT support <think> tags and provide direct responses.
+// Model patterns are dynamically loaded from llamalib.GetNonReasoningModelPatterns()
 func IsNonReasoningModel(modelName string) bool {
 	nameLower := strings.ToLower(modelName)
 
-	// Known non-reasoning models
-	nonReasoningModels := []string{
-		"llama",   // Llama 3.x series
-		"mistral", // Mistral series
-		"gemma",   // Google Gemma series
-		"phi",     // Microsoft Phi series
-	}
+	// Get non-reasoning model patterns from model specs (no hardcoding)
+	nonReasoningModels := llamalib.GetNonReasoningModelPatterns()
 
 	for _, pattern := range nonReasoningModels {
 		if strings.Contains(nameLower, pattern) {

@@ -1,6 +1,6 @@
 import { KnowledgeBaseModel } from '@/database/models/knowledgeBase';
 import { BaseClientService } from '@/services/baseClientService';
-import { CreateKnowledgeBaseParams, KnowledgeBaseItem } from '@/types';
+import { KnowledgeBaseItem } from '@/types';
 
 import { IKnowledgeBaseService } from './type';
 import { DB } from '@/types/database';

@@ -210,6 +210,90 @@ func GetRecommendedReasoningModels() []QwenModelSpec {
 	}
 }
 
+// GetReasoningModelPatterns extracts unique model name patterns from reasoning models
+// Returns lowercase patterns that can be used for model classification
+// Example: ["qwen", "openthinker"]
+func GetReasoningModelPatterns() []string {
+	patterns := make(map[string]bool)
+
+	// Extract from reasoning models
+	for _, model := range GetRecommendedReasoningModels() {
+		// Extract base model name (before version/size/quantization)
+		name := strings.ToLower(model.Name)
+
+		// Extract pattern: "qwen3-4b-..." -> "qwen"
+		if strings.Contains(name, "qwen") {
+			patterns["qwen"] = true
+		}
+	}
+
+	// Also check VL models (Qwen3-VL supports reasoning)
+	for _, model := range GetRecommendedVLModels() {
+		name := strings.ToLower(model.Name)
+		if strings.Contains(name, "qwen") {
+			patterns["qwen"] = true
+		}
+	}
+
+	// Add models from GetRecommendedModels that support reasoning
+	for _, model := range GetRecommendedModels() {
+		name := strings.ToLower(model.Name)
+		// OpenThinker is based on Qwen3-8B and supports reasoning
+		if strings.Contains(name, "openthinker") {
+			patterns["openthinker"] = true
+		}
+	}
+
+	// Convert map to sorted slice for consistency
+	result := make([]string, 0, len(patterns))
+	for pattern := range patterns {
+		result = append(result, pattern)
+	}
+	return result
+}
+
+// GetNonReasoningModelPatterns extracts unique model name patterns from non-reasoning models
+// Returns lowercase patterns that can be used for model classification
+// Example: ["llama", "mistral", "nemotron"]
+func GetNonReasoningModelPatterns() []string {
+	patterns := make(map[string]bool)
+
+	// Extract from recommended chat models
+	for _, model := range GetRecommendedModels() {
+		name := strings.ToLower(model.Name)
+
+		// Skip reasoning models
+		if strings.Contains(name, "openthinker") {
+			continue
+		}
+
+		// Extract patterns
+		if strings.Contains(name, "llama") {
+			patterns["llama"] = true
+		} else if strings.Contains(name, "nemotron") {
+			patterns["nemotron"] = true
+		}
+	}
+
+	// Extract from utility models
+	for _, model := range GetRecommendedUtilityModels() {
+		name := strings.ToLower(model.Name)
+
+		if strings.Contains(name, "llama") {
+			patterns["llama"] = true
+		} else if strings.Contains(name, "mistral") {
+			patterns["mistral"] = true
+		}
+	}
+
+	// Convert map to sorted slice for consistency
+	result := make([]string, 0, len(patterns))
+	for pattern := range patterns {
+		result = append(result, pattern)
+	}
+	return result
+}
+
 // SelectOptimalQwenModel selects the best VL model based on available RAM.
 // It returns the largest model that fits within the available RAM.
 // If no model fits, it returns the smallest model as a fallback.

@@ -675,7 +675,7 @@ func (s *FileProcessorService) processVideoDescriptionAsync(filePath, filename, 
 		duration = 0
 	}
 
-	log.Printf("[INFO] Async: Video info: duration_sec=%d model=%s filename=%s", duration, modelName, filename)
+	log.Printf("[INFO] Async: Video info: duration_sec=%.0f model=%s filename=%s", duration, modelName, filename)
 
 	// Initialize transcription header in document
 	err = s.appendContentToDocument(ctx, fileID, "\n\n### Video Transcription (AI Generated via Whisper)\n\n*Transcribing...*\n")
