@@ -2,7 +2,6 @@ import Clear from './Clear';
 import History from './History';
 import Knowledge from './Knowledge';
 import Mention from './Mention';
-import Model from './Model';
 import Params from './Params';
 import SaveTopic from './SaveTopic';
 import Search from './Search';
@@ -20,7 +19,6 @@ export const actionMap = {
   knowledgeBase: Knowledge,
   mainToken: MainToken,
   mention: Mention,
-  model: Model,
   params: Params,
   portalToken: PortalToken,
   saveTopic: SaveTopic,
