@@ -13,8 +13,9 @@ import (
 	"github.com/kawai-network/veridium/fantasy/llamalib"
 	llamaprovider "github.com/kawai-network/veridium/fantasy/providers/llama"
 	llamaembed "github.com/kawai-network/veridium/fantasy/providers/llama-embed"
-	"github.com/kawai-network/veridium/fantasy/providers/openaicompat"
 	"github.com/kawai-network/veridium/fantasy/providers/openrouter"
+	"github.com/kawai-network/veridium/fantasy/tools"
+	yzmabuiltin "github.com/kawai-network/veridium/fantasy/tools/builtin"
 	"github.com/kawai-network/veridium/internal/audio_recorder"
 	"github.com/kawai-network/veridium/internal/database"
 	db "github.com/kawai-network/veridium/internal/database/generated"
@@ -60,6 +61,7 @@ type Context struct {
 	VectorSearch   *services.VectorSearchService
 	KBService      *services.KnowledgeBaseService
 	RAGProcessor   *services.RAGProcessor
+	ToolRegistry   *tools.ToolRegistry
 
 	// Language Models
 	ChatModel    fantasy.LanguageModel
@@ -121,6 +123,14 @@ func (ctx *Context) InitBasicServices() {
 	}
 
 	ctx.AudioRecorder = audio_recorder.NewAudioRecorderService(nil)
+
+	// Initialize Tool Registry
+	ctx.ToolRegistry = tools.NewToolRegistry()
+	if err := yzmabuiltin.RegisterAllWithDB(ctx.ToolRegistry, ctx.DB.DB()); err != nil {
+		log.Printf("Warning: Failed to register builtin tools: %v", err)
+	} else {
+		log.Printf("Tool Registry initialized with builtin tools")
+	}
 }
 
 func (ctx *Context) InitLlamaService() {
@@ -216,7 +226,10 @@ func (ctx *Context) InitLanguageModels() {
 	}
 
 	bgCtx := context.Background()
-	llamaProvider, err := llamaprovider.New(llamaprovider.WithService(ctx.LibService))
+	llamaProvider, err := llamaprovider.New(
+		llamaprovider.WithService(ctx.LibService),
+		llamaprovider.WithToolRegistry(ctx.ToolRegistry),
+	)
 	if err != nil {
 		log.Printf("Warning: Llama provider failed: %v", err)
 		return
@@ -266,34 +279,34 @@ func (ctx *Context) buildModelChain(bgCtx context.Context, localModel fantasy.La
 	// 	}
 	// }
 
-	if provider, err := openaicompat.New(
-		openaicompat.WithName("pollinations"),
-		openaicompat.WithBaseURL("https://text.pollinations.ai/openai"),
-		openaicompat.WithAPIKey("dummy"), // Pollinations doesn't require API key, but SDK needs one
-	); err == nil {
-		if pollinationsModel, err := provider.LanguageModel(bgCtx, "openai"); err == nil {
-			chain = append(chain, pollinationsModel)
-			log.Printf("%s: Pollinations AI (openai)", taskName)
-		}
-	}
+	// if provider, err := openaicompat.New(
+	// 	openaicompat.WithName("pollinations"),
+	// 	openaicompat.WithBaseURL("https://text.pollinations.ai/openai"),
+	// 	openaicompat.WithAPIKey("dummy"), // Pollinations doesn't require API key, but SDK needs one
+	// ); err == nil {
+	// 	if pollinationsModel, err := provider.LanguageModel(bgCtx, "openai"); err == nil {
+	// 		chain = append(chain, pollinationsModel)
+	// 		log.Printf("%s: Pollinations AI (openai)", taskName)
+	// 	}
+	// }
 
-	// 2. ZAI GLM-4.6 (fallback before local)
-	zaiKey := os.Getenv("ZAI_API_KEY")
-	if zaiKey == "" {
-		zaiKey = "a10854167085448cac33753523919ac9.D41CLq6KxXTY7g4u" // dev key
-	}
-	if zaiKey != "" {
-		if provider, err := openaicompat.New(
-			openaicompat.WithName("zai"),
-			openaicompat.WithBaseURL("https://api.z.ai/api/coding/paas/v4"),
-			openaicompat.WithAPIKey(zaiKey),
-		); err == nil {
-			if zaiModel, err := provider.LanguageModel(bgCtx, "glm-4.6"); err == nil {
-				chain = append(chain, zaiModel)
-				log.Printf("%s: ZAI (glm-4.6)", taskName)
-			}
-		}
-	}
+	// // 2. ZAI GLM-4.6 (fallback before local)
+	// zaiKey := os.Getenv("ZAI_API_KEY")
+	// if zaiKey == "" {
+	// 	zaiKey = "a10854167085448cac33753523919ac9.D41CLq6KxXTY7g4u" // dev key
+	// }
+	// if zaiKey != "" {
+	// 	if provider, err := openaicompat.New(
+	// 		openaicompat.WithName("zai"),
+	// 		openaicompat.WithBaseURL("https://api.z.ai/api/coding/paas/v4"),
+	// 		openaicompat.WithAPIKey(zaiKey),
+	// 	); err == nil {
+	// 		if zaiModel, err := provider.LanguageModel(bgCtx, "glm-4.6"); err == nil {
+	// 			chain = append(chain, zaiModel)
+	// 			log.Printf("%s: ZAI (glm-4.6)", taskName)
+	// 		}
+	// 	}
+	// }
 
 	// 3. Local model (final fallback)
 	chain = append(chain, localModel)

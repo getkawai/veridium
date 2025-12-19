@@ -373,12 +373,12 @@ func NewAgentChatService(
 	vectorSearch *VectorSearchService,
 	threadService *ThreadManagementService,
 	topicService *topic.TopicService,
+	toolRegistry *tools.ToolRegistry,
 ) *AgentChatService {
 	ragWorkflow := NewRAGWorkflow(kbService)
 
-	// Initialize Yzma Tool Registry & Register Builtin Tools
+	// Register Builtin Tools to the provided registry
 	// Pass SQL DB for tools that need database access (e.g., image describe)
-	toolRegistry := tools.NewToolRegistry()
 	if err := yzmabuiltin.RegisterAllWithDB(toolRegistry, db.DB()); err != nil {
 		log.Printf("⚠️  Warning: Failed to register yzma builtin tools: %v", err)
 	} else {

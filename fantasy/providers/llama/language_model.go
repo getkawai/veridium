@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/kawai-network/veridium/fantasy"
@@ -70,8 +69,14 @@ func (l *languageModel) Generate(ctx context.Context, call fantasy.Call) (*fanta
 	// Build response content
 	content := make([]fantasy.Content, 0)
 
-	// Clean tool call tags from response text
+	// Clean tool call tags and extract reasoning from response text
+	reasoning := l.extractReasoning(&response)
 	cleanedResponse := l.cleanToolCallTags(response)
+
+	if reasoning != "" {
+		content = append(content, fantasy.ReasoningContent{Text: reasoning})
+	}
+
 	if cleanedResponse != "" {
 		content = append(content, fantasy.TextContent{Text: cleanedResponse})
 	}
@@ -115,30 +120,16 @@ func (l *languageModel) Stream(ctx context.Context, call fantasy.Call) (fantasy.
 	}
 
 	return func(yield func(fantasy.StreamPart) bool) {
-		var responseBuilder strings.Builder
-		textStarted := false
 		promptTokens := len(prompt) / 4 // Approximate
 
-		// Start text stream
-		if !yield(fantasy.StreamPart{
-			Type: fantasy.StreamPartTypeTextStart,
-			ID:   "0",
-		}) {
-			return
-		}
-		textStarted = true
+		processor := newStreamProcessor(yield)
 
 		// Generate with streaming
 		completionTokens, err := l.generateStreaming(ctx, prompt, maxTokens, func(token string, done bool) {
 			if done {
 				return
 			}
-			responseBuilder.WriteString(token)
-			yield(fantasy.StreamPart{
-				Type:  fantasy.StreamPartTypeTextDelta,
-				ID:    "0",
-				Delta: token,
-			})
+			processor.Process(token)
 		})
 
 		if err != nil {
@@ -149,54 +140,10 @@ func (l *languageModel) Stream(ctx context.Context, call fantasy.Call) (fantasy.
 			return
 		}
 
-		// End text stream
-		if textStarted {
-			if !yield(fantasy.StreamPart{
-				Type: fantasy.StreamPartTypeTextEnd,
-				ID:   "0",
-			}) {
-				return
-			}
-		}
-
-		// Parse tool calls from complete response
-		response := responseBuilder.String()
-		toolCalls := tools.ParseToolCalls(response)
-
-		// Emit tool calls
-		for _, tc := range toolCalls {
-			if !yield(fantasy.StreamPart{
-				Type:         fantasy.StreamPartTypeToolInputStart,
-				ID:           tc.ID,
-				ToolCallName: tc.Name,
-			}) {
-				return
-			}
-			if !yield(fantasy.StreamPart{
-				Type:  fantasy.StreamPartTypeToolInputDelta,
-				ID:    tc.ID,
-				Delta: tc.Input,
-			}) {
-				return
-			}
-			if !yield(fantasy.StreamPart{
-				Type: fantasy.StreamPartTypeToolInputEnd,
-				ID:   tc.ID,
-			}) {
-				return
-			}
-			if !yield(fantasy.StreamPart{
-				Type:          fantasy.StreamPartTypeToolCall,
-				ID:            tc.ID,
-				ToolCallName:  tc.Name,
-				ToolCallInput: tc.Input,
-			}) {
-				return
-			}
-		}
+		processor.Flush()
 
 		finishReason := fantasy.FinishReasonStop
-		if len(toolCalls) > 0 {
+		if processor.HasToolCalls() {
 			finishReason = fantasy.FinishReasonToolCalls
 		}
 
@@ -245,7 +192,12 @@ func (l *languageModel) preparePrompt(call fantasy.Call) (string, error) {
 	// Apply chat template
 	prompt, err := template.Apply(chatTemplate, messages, true)
 	if err != nil {
-		return "", fmt.Errorf("failed to apply template: %w", err)
+		log.Printf("⚠️  Failed to apply model template: %v. Falling back to universal ChatML template.", err)
+		// Fallback to universal ChatML template which is gonja-compatible
+		prompt, err = template.Apply(llamalib.ChatMLToolTemplate, messages, true)
+		if err != nil {
+			return "", fmt.Errorf("failed to apply both model and fallback templates: %w", err)
+		}
 	}
 
 	return prompt, nil
@@ -316,14 +268,26 @@ func (l *languageModel) getChatTemplate() string {
 	modelPath := l.service.GetLoadedChatModel()
 	modelPathLower := strings.ToLower(modelPath)
 
-	// Check if this is a Llama 3.2 model - use custom template
+	// 1. Check for specific known models that need custom templates
 	if strings.Contains(modelPathLower, "llama-3.2") || strings.Contains(modelPathLower, "llama_3.2") || strings.Contains(modelPathLower, "llama3.2") {
 		log.Printf("🔧 Using custom Llama 3.2 tool template")
 		return llamalib.Llama32ToolTemplate
 	}
 
-	// Use embedded template from model for other models
-	return llama.ModelChatTemplate(l.service.GetChatModel(), "")
+	// 2. Models using ChatML format (Nemotron, Qwen, OpenThinker)
+	if strings.Contains(modelPathLower, "nemotron") || strings.Contains(modelPathLower, "openthinker") || strings.Contains(modelPathLower, "qwen") {
+		log.Printf("🔧 Using universal ChatML tool template for %s", modelPathLower)
+		return llamalib.ChatMLToolTemplate
+	}
+
+	// 3. Fallback: Use embedded template from model metadata
+	tmpl := llama.ModelChatTemplate(l.service.GetChatModel(), "")
+	if tmpl == "" {
+		log.Printf("⚠️  Model has no embedded chat template, using universal ChatML fallback")
+		return llamalib.ChatMLToolTemplate
+	}
+
+	return tmpl
 }
 
 // generateWithTokenCounts generates response and returns token counts
@@ -393,6 +357,7 @@ func (l *languageModel) generateStreaming(ctx context.Context, prompt string, ma
 		}
 
 		// Generate tokens and stream
+		buf := make([]byte, 256)
 		for nGenerated := int32(0); nGenerated < maxTokens; nGenerated++ {
 			// Check context cancellation
 			select {
@@ -413,7 +378,6 @@ func (l *languageModel) generateStreaming(ctx context.Context, prompt string, ma
 			}
 
 			// Convert token to text
-			buf := make([]byte, 256)
 			length := llama.TokenToPiece(chatVocab, token, buf, 0, false)
 			content := string(buf[:length])
 
@@ -430,28 +394,56 @@ func (l *languageModel) generateStreaming(ctx context.Context, prompt string, ma
 				genErr = fmt.Errorf("failed to decode token: %w", err)
 				return
 			}
-
-			// Small delay to prevent overwhelming
-			time.Sleep(5 * time.Millisecond)
 		}
 	})
 
 	return completionTokens, genErr
 }
 
-// cleanToolCallTags removes tool call XML tags from response
+// cleanToolCallTags removes tool call and reasoning XML tags from response
 func (l *languageModel) cleanToolCallTags(response string) string {
 	cleanResponse := response
-	for strings.Contains(cleanResponse, "<tool_call>") {
-		start := strings.Index(cleanResponse, "<tool_call>")
-		end := strings.Index(cleanResponse, "</tool_call>")
-		if start != -1 && end != -1 {
-			cleanResponse = cleanResponse[:start] + cleanResponse[end+len("</tool_call>"):]
-		} else {
-			break
+	tags := [][]string{
+		{"<tool_call>", "</tool_call>"},
+		{"<think>", "</think>"},
+		{"<thought>", "</thought>"},
+	}
+
+	for _, tagPair := range tags {
+		for strings.Contains(cleanResponse, tagPair[0]) {
+			start := strings.Index(cleanResponse, tagPair[0])
+			end := strings.Index(cleanResponse, tagPair[1])
+			if start != -1 && end != -1 && start < end {
+				cleanResponse = cleanResponse[:start] + cleanResponse[end+len(tagPair[1]):]
+			} else {
+				break
+			}
 		}
 	}
 	return strings.TrimSpace(cleanResponse)
+}
+
+// extractReasoning extracts text from reasoning tags and removes them from input
+func (l *languageModel) extractReasoning(response *string) string {
+	var reasoning strings.Builder
+	tags := [][]string{
+		{"<think>", "</think>"},
+		{"<thought>", "</thought>"},
+	}
+
+	for _, tagPair := range tags {
+		for {
+			start := strings.Index(*response, tagPair[0])
+			end := strings.Index(*response, tagPair[1])
+			if start != -1 && end != -1 && start < end {
+				reasoning.WriteString((*response)[start+len(tagPair[0]) : end])
+				*response = (*response)[:start] + (*response)[end+len(tagPair[1]):]
+			} else {
+				break
+			}
+		}
+	}
+	return strings.TrimSpace(reasoning.String())
 }
 
 // generateToolCallID generates a unique ID for a tool call

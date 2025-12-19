@@ -112,7 +112,7 @@ func main() {
 	threadService := services.NewThreadManagementService(wailsApp, appCtx.DB)
 	topicService := topic.NewService(appCtx.DB, wailsApp)
 	agentService := services.NewAgentChatService(
-		wailsApp, appCtx.DB, appCtx.LibService, appCtx.KBService, appCtx.VectorSearch, threadService, topicService,
+		wailsApp, appCtx.DB, appCtx.LibService, appCtx.KBService, appCtx.VectorSearch, threadService, topicService, appCtx.ToolRegistry,
 	)
 
 	// Inject models

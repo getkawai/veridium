@@ -135,7 +135,7 @@ func registerAgentServices(wailsApp *application.App, ctx *app.Context, fileProc
 
 	if ctx.LibService != nil && ctx.KBService != nil {
 		agentService := services.NewAgentChatService(
-			wailsApp, ctx.DB, ctx.LibService, ctx.KBService, ctx.VectorSearch, threadService, topicService,
+			wailsApp, ctx.DB, ctx.LibService, ctx.KBService, ctx.VectorSearch, threadService, topicService, ctx.ToolRegistry,
 		)
 
 		if ctx.ChatModel != nil {
