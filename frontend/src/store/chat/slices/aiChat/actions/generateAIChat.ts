@@ -62,6 +62,7 @@ export interface AIGenerateAction {
   regenerateMessage: (id: string) => Promise<void>;
   delAndRegenerateMessage: (id: string) => Promise<void>;
   stopGenerateMessage: () => void;
+  clearSendMessageError: () => void;
 
   // Internal action to handle stream events from App.tsx
   internal_handleStreamEvent: (data: any) => void;
@@ -271,6 +272,22 @@ export const generateAIChat: StateCreator<
    */
   stopGenerateMessage: () => {
     set({ isCreatingMessage: false }, false, n('generating/stop'));
+  },
+
+  /**
+   * Clear send message error
+   * 
+   * Clear the error message for the current session/topic
+   */
+  clearSendMessageError: () => {
+    const { activeId, activeTopicId } = get();
+    const mapKey = messageMapKey(activeId, activeTopicId);
+    
+    set(produce((state: ChatStore) => {
+      if (state.mainSendMessageOperations[mapKey]) {
+        delete state.mainSendMessageOperations[mapKey].inputSendErrorMsg;
+      }
+    }), false, n('error/clear'));
   },
 
   /**
