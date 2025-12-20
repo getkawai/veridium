@@ -101,7 +101,13 @@ func (c *Crawler) crawlNaive(urlStr string) (CrawlResult, error) {
 		return CrawlResult{}, err
 	}
 
-	log.Printf("✅ [crawlNaive] Title: %s, Website: %s", result.Title, result.Website)
+	if result.Title == "" {
+		log.Printf("⚠️  [crawlNaive] Empty title for %s, using URL as fallback", urlStr)
+		// Use URL as title if empty
+		result.Title = urlStr
+	}
+
+	log.Printf("✅ [crawlNaive] Title: %s, Website: %s, Content: %d chars", result.Title, result.Website, len(result.Content))
 	return CrawlResult{
 		Success: result,
 	}, nil
