@@ -61,14 +61,16 @@ export const processWithArtifact = (input: string = '') => {
 
 // 预处理函数：确保 think 标签前后有两个换行符
 export const normalizeThinkTags = (input: string) => {
+  if (!input) return input;
+  
   return (
     input
       // 确保 <think> 标签前后有两个换行符
-      .replaceAll(/([^\n])\s*<think>/g, '$1\n\n<think>')
-      .replaceAll(/<think>\s*([^\n])/g, '<think>\n\n$1')
+      .replaceAll(/([^\n])\s*<think>/gi, '$1\n\n<think>')
+      .replaceAll(/<think>\s*([^\n])/gi, '<think>\n\n$1')
       // 确保 </think> 标签前后有两个换行符
-      .replaceAll(/([^\n])\s*<\/think>/g, '$1\n\n</think>')
-      .replaceAll(/<\/think>\s*([^\n])/g, '</think>\n\n$1')
+      .replaceAll(/([^\n])\s*<\/think>/gi, '$1\n\n</think>')
+      .replaceAll(/<\/think>\s*([^\n])/gi, '</think>\n\n$1')
       // 处理可能产生的多余换行符
       .replaceAll(/\n{3,}/g, '\n\n')
   );

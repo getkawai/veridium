@@ -27,7 +27,7 @@ const Render = memo<MarkdownElementProps>(({ children, id }) => {
 
   const transitionMode = useUserStore(userGeneralSettingsSelectors.transitionMode);
 
-  if (!isGenerating && !children) return;
+  if (!isGenerating && !children) return null;
 
   return (
     <Thinking
