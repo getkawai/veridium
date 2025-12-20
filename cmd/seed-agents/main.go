@@ -200,7 +200,7 @@ func main() {
 	// Insert agents
 	log.Println("📝 Inserting agents into database...")
 	now := time.Now().UnixMilli()
-	defaultAgentConfig := `{"autoCreateTopicThreshold":2,"displayMode":"chat","enableAutoCreateTopic":true,"enableCompressHistory":true,"enableHistoryCount":true,"enableReasoning":false,"enableStreaming":true,"historyCount":20,"reasoningBudgetToken":1024,"searchFCModel":{"model":"kawai-auto","provider":"kawai"},"searchMode":"off"}`
+	defaultAgentConfig := `{"autoCreateTopicThreshold":2,"displayMode":"chat","enableAutoCreateTopic":true,"enableCompressHistory":true,"enableHistoryCount":true,"enableStreaming":true,"historyCount":20,"searchFCModel":{"model":"kawai-auto","provider":"kawai"},"searchMode":"off"}`
 	defaultParams := `{"frequency_penalty":0,"presence_penalty":0,"temperature":0.6,"top_p":1}`
 
 	inserted := 0

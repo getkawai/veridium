@@ -60,11 +60,7 @@ export const chatRag: StateCreator<ChatStore, [['zustand/devtools', never]], [],
     });
 
     // 🔄 MIGRATED: Direct DB call instead of ragService.deleteMessageRagQuery()
-    const userId = getUserId();
-    await DB.DeleteMessageQuery({
-      id: message.ragQueryId,
-      userId,
-    });
+    await DB.DeleteMessageQuery(message.ragQueryId);
 
     console.log('[RAG] Deleted message RAG query via direct DB', { queryId: message.ragQueryId });
     await get().refreshMessages();
@@ -93,15 +89,11 @@ export const chatRag: StateCreator<ChatStore, [['zustand/devtools', never]], [],
       );
 
       // Create message query to get queryId
-      const userId = getUserId();
       const messageQuery = await DB.CreateMessageQuery({
         id: nanoid(),
         messageId: id,
         rewriteQuery: toNullString(rewriteQuery || userQuery),
         userQuery: toNullString(userQuery),
-        clientId: toNullString(''),
-        userId,
-        embeddingsId: toNullString(null),
       });
 
       const queryId = messageQuery.id;

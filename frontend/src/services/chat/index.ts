@@ -1,14 +1,12 @@
-import { ChatErrorType, TracePayload, TraceTagMap, UIChatMessage } from '@/types';
+import { TracePayload, TraceTagMap, UIChatMessage } from '@/types';
 import { PluginRequestPayload, createHeadersWithPluginSettings } from '@/chat-plugin-sdk';
 import { merge } from 'lodash-es';
 import { ModelProvider } from '@/model-bank';
 import { getNullableString } from '@/types/database';
 
-import { isProviderDisableBrowserRequest } from '@/config/modelProviders';
-import { enableAuth } from '@/const/auth';
 import { DEFAULT_AGENT_CONFIG } from '@/const/settings';
 import { getSearchConfig } from '@/helpers/getSearchConfig';
-import { createChatToolsEngine, createToolsEngine } from '@/helpers/toolEngineering';
+import { createChatToolsEngine } from '@/helpers/toolEngineering';
 import { getAgentStoreState } from '@/store/agent';
 import { agentChatConfigSelectors, agentSelectors } from '@/store/agent/selectors';
 import { aiModelSelectors, aiProviderSelectors, getAiInfraStoreState } from '@/store/aiInfra';
@@ -19,7 +17,6 @@ import { pluginSelectors } from '@/store/tool/selectors';
 import { getUserStoreState, useUserStore } from '@/store/user';
 import { preferenceSelectors, userProfileSelectors } from '@/store/user/selectors';
 import type { ChatStreamPayload, OpenAIChatMessage } from '@/types/openai/chat';
-import { createErrorResponse } from '@/utils/errorResponse';
 import { FetchSSEOptions, getMessageError } from '@/utils/fetch';
 import { createTraceHeader, getTraceId } from '@/utils/trace';
 
@@ -27,7 +24,7 @@ import { createHeaderWithAuth } from '../_auth';
 import { API_ENDPOINTS } from '../_url';
 // import { initializeWithClientStore } from './clientModelRuntime';
 import { contextEngineeringBackend } from './contextEngineeringBackend';
-import { findDeploymentName, resolveRuntimeProvider } from './helper';
+import { findDeploymentName } from './helper';
 import { AgentChatService } from '@@/github.com/kawai-network/veridium/internal/services';
 
 // Feature flag: Use backend context engineering instead of frontend
@@ -142,26 +139,12 @@ class ChatService {
         payload.model,
         payload.provider!,
       )(aiInfraStoreState);
-      // if model has extended params, then we need to check if the model can use reasoning
 
-      if (modelExtendParams!.includes('enableReasoning')) {
-        if (chatConfig.enableReasoning) {
-          extendParams.thinking = {
-            budget_tokens: chatConfig.reasoningBudgetToken || 1024,
-            type: 'enabled',
-          };
-        } else {
-          extendParams.thinking = {
-            budget_tokens: 0,
-            type: 'disabled',
-          };
-        }
-      } else if (modelExtendParams!.includes('reasoningBudgetToken')) {
-        // For models that only have reasoningBudgetToken without enableReasoning
-        extendParams.thinking = {
-          budget_tokens: chatConfig.reasoningBudgetToken || 1024,
-          type: 'enabled',
-        };
+      if (
+        modelExtendParams!.includes('disableContextCaching') &&
+        chatConfig.disableContextCaching
+      ) {
+        extendParams.enabledContextCaching = false;
       }
 
       if (
@@ -235,8 +218,6 @@ class ChatService {
   };
 
   getChatCompletion = async (params: Partial<ChatStreamPayload>, options?: FetchOptions) => {
-    const { signal } = options ?? {};
-
     const { provider = ModelProvider.OpenAI, ...res } = params;
 
     // =================== process model =================== //
@@ -261,13 +242,10 @@ class ChatService {
       ? 'responses'
       : undefined;
 
-    // Get the chat config to check streaming preference
-    const chatConfig = agentChatConfigSelectors.currentChatConfig(getAgentStoreState());
-
     const payload = merge(
       {
         model: DEFAULT_AGENT_CONFIG.model,
-        stream: chatConfig.enableStreaming !== false, // Default to true if not set
+        stream: true, // Default to true if not set
         ...DEFAULT_AGENT_CONFIG.params,
       },
       { ...res, apiMode, model },
@@ -279,12 +257,6 @@ class ChatService {
     if (payload.presence_penalty === null) payload.presence_penalty = undefined;
     if (payload.frequency_penalty === null) payload.frequency_penalty = undefined;
 
-    const sdkType = resolveRuntimeProvider(provider);
-
-    // /**
-    //  * Always use client-side browser runtime to call model providers directly.
-    //  * This eliminates server-side routing overhead and keeps API keys in browser memory.
-    //  */
     // try {
     //   return await this.fetchOnClient({ payload, provider, runtimeProvider: sdkType, signal, options });
     // } catch (e) {

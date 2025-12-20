@@ -17,7 +17,6 @@ import labs from './labs';
 import metadata from './metadata';
 import migration from './migration';
 import modelProvider from './modelProvider';
-import models from './models';
 import oauth from './oauth';
 import plugin from './plugin';
 import portal from './portal';
@@ -50,7 +49,6 @@ const resources = {
   metadata,
   migration,
   modelProvider,
-  models,
   oauth,
   plugin,
   portal,

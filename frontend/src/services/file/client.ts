@@ -28,7 +28,6 @@ export class ClientService extends BaseClientService implements IFileService {
     await DBService.CreateFileWithLinks({
       File: {
         id: fileId,
-        userId: this.userId,
         fileType: toNullString(file.fileType) as any,
         fileHash: toNullString(file.hash) as any,
         name: toNullString(file.name) as any,
@@ -69,7 +68,7 @@ export class ClientService extends BaseClientService implements IFileService {
   };
 
   getFile: IFileService['getFile'] = async (id) => {
-    const item = await DB.GetFile({ id, userId: this.userId });
+    const item = await DB.GetFile(id);
     if (!item) {
       throw new Error('file not found');
     }
@@ -95,14 +94,13 @@ export class ClientService extends BaseClientService implements IFileService {
   };
 
   removeFile: IFileService['removeFile'] = async (id) => {
-    const item = await DB.GetFile({ id, userId: this.userId });
+    const item = await DB.GetFile(id);
     if (!item) return;
 
     const fileHash = getNullableString(item.fileHash as any);
 
     await DBService.DeleteFileWithCascade({
       FileID: id,
-      UserID: this.userId,
       RemoveGlobalFile: false, // Original was false
       FileHash: fileHash || '',
     });
@@ -115,7 +113,7 @@ export class ClientService extends BaseClientService implements IFileService {
     const fileList: DBFile[] = [];
     for (const id of ids) {
       try {
-        const file = await DB.GetFile({ id, userId: this.userId });
+        const file = await DB.GetFile(id);
         if (file) fileList.push(file);
       } catch (e) {
         // ignore
@@ -129,7 +127,6 @@ export class ClientService extends BaseClientService implements IFileService {
       const fileHash = getNullableString(file.fileHash as any);
       await DBService.DeleteFileWithCascade({
         FileID: file.id,
-        UserID: this.userId,
         RemoveGlobalFile: false,
         FileHash: fileHash || '',
       });
@@ -137,7 +134,7 @@ export class ClientService extends BaseClientService implements IFileService {
   };
 
   removeAllFiles: IFileService['removeAllFiles'] = async () => {
-    return DB.DeleteAllFiles(this.userId);
+    return DB.DeleteAllFiles();
   };
 
   checkFileHash: IFileService['checkFileHash'] = async (hash) => {

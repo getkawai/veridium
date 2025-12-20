@@ -39,10 +39,6 @@ export interface ModelAbilities {
    */
   imageOutput?: boolean;
   /**
-   * whether model supports reasoning
-   */
-  reasoning?: boolean;
-  /**
    * whether model supports search web
    */
   search?: boolean;
@@ -64,7 +60,6 @@ const AiModelAbilitiesSchema = z.object({
   // files: z.boolean().optional(),
   functionCall: z.boolean().optional(),
   imageOutput: z.boolean().optional(),
-  reasoning: z.boolean().optional(),
   search: z.boolean().optional(),
   video: z.boolean().optional(),
   vision: z.boolean().optional(),
@@ -230,14 +225,11 @@ export type ModelSearchImplementType = 'tool' | 'params' | 'internal';
 
 export type ExtendParamsType =
   | 'reasoningBudgetToken'
-  | 'enableReasoning'
-  | 'disableContextCaching'
-  | 'reasoningEffort'
-  | 'gpt5ReasoningEffort'
-  | 'textVerbosity'
   | 'thinking'
   | 'thinkingBudget'
-  | 'urlContext';
+  | 'gpt5ReasoningEffort'
+  | 'urlContext'
+  | 'disableContextCaching';
 
 export interface AiModelSettings {
   extendParams?: ExtendParamsType[];

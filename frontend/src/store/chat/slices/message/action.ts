@@ -291,11 +291,7 @@ export const chatMessage: StateCreator<
 
     get().internal_dispatchMessage({ type: 'deleteMessages', ids });
 
-    const userId = getUserId();
-    await DB.BatchDeleteMessages({
-      ids,
-      userId,
-    });
+    await DB.BatchDeleteMessages(ids);
 
     console.log('[Message] Deleted messages via direct DB', { ids, count: ids.length });
 
@@ -336,28 +332,17 @@ export const chatMessage: StateCreator<
       isGroupSession = sessionSelectors.isCurrentSessionGroupSession(sessionStore);
     }
 
-    const userId = getUserId();
-
     if (activeTopicId) {
       // If topic exists, delete messages by topic
-      await DB.DeleteMessagesByTopic({
-        topicId: toNullString(activeTopicId),
-        userId,
-      });
+      await DB.DeleteMessagesByTopic(toNullString(activeTopicId));
       console.log('[Message] Cleared topic messages via direct DB', { topicId: activeTopicId });
     } else if (isGroupSession) {
       // For group chat without topic, delete by group
-      await DB.DeleteMessagesByGroup({
-        groupId: toNullString(activeId),
-        userId,
-      });
+      await DB.DeleteMessagesByGroup(toNullString(activeId));
       console.log('[Message] Cleared group messages via direct DB', { groupId: activeId });
     } else {
       // For regular session without topic, delete by session
-      await DB.DeleteMessagesBySession({
-        sessionId: toNullString(activeId),
-        userId,
-      });
+      await DB.DeleteMessagesBySession(toNullString(activeId));
       console.log('[Message] Cleared session messages via direct DB', { sessionId: activeId });
     }
 
@@ -600,11 +585,11 @@ export const chatMessage: StateCreator<
   internal_updateMessageError: async (id, error) => {
     get().internal_dispatchMessage({ id, type: 'updateMessage', value: { error } });
 
-    const userId = getUserId();
+    // Note: UpdateMessage doesn't support error field directly
+    // Error is stored in the message metadata or handled separately
     await DB.UpdateMessage({
       id,
-      userId,
-      error: error ? JSON.stringify(error) : undefined,
+      metadata: toNullString(JSON.stringify({ error: error ? JSON.stringify(error) : undefined })),
       updatedAt: currentTimestampMs(),
     } as any);
 
@@ -614,13 +599,8 @@ export const chatMessage: StateCreator<
   },
 
   internal_updateMessagePluginError: async (id, error) => {
-    const userId = getUserId();
-
     // Get current plugin item first
-    const item = await DB.GetMessagePlugin({
-      id,
-      userId,
-    });
+    const item = await DB.GetMessagePlugin(id);
 
     if (!item) {
       console.error('[Message] Plugin not found for error update', { id });
@@ -630,7 +610,6 @@ export const chatMessage: StateCreator<
     // Update plugin error
     await DB.UpdateMessagePlugin({
       id,
-      userId,
       state: item.state, // Keep existing state
       error: error !== undefined ? toNullJSON(error) : item.error,
     });
@@ -660,10 +639,8 @@ export const chatMessage: StateCreator<
       });
     }
 
-    const userId = getUserId();
     const updateData: any = {
       id,
-      userId,
       updatedAt: currentTimestampMs(),
     };
 
@@ -748,11 +725,7 @@ export const chatMessage: StateCreator<
   internal_deleteMessage: async (id: string) => {
     get().internal_dispatchMessage({ type: 'deleteMessage', id });
 
-    const userId = getUserId();
-    await DB.DeleteMessage({
-      id,
-      userId,
-    });
+    await DB.DeleteMessage(id);
 
     console.log('[Message] Deleted message via direct DB', { id });
 

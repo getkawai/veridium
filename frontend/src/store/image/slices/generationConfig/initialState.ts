@@ -4,8 +4,16 @@ import {
   ModelProvider,
   RuntimeImageGenParams,
   extractDefaultValues,
-  gptImage1ParamsSchema,
 } from '@/model-bank';
+
+export const gptImage1ParamsSchema: ModelParamsSchema = {
+  imageUrls: { default: [] },
+  prompt: { default: '' },
+  size: {
+    default: 'auto',
+    enum: ['auto', '1024x1024', '1536x1024', '1024x1536'],
+  },
+};
 
 import { DEFAULT_IMAGE_CONFIG } from '@/const/settings';
 

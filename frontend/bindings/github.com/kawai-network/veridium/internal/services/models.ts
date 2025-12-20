@@ -271,11 +271,6 @@ export class ChatRequest {
     "max_tokens"?: number;
     "stream"?: boolean;
 
-    /**
-     * Reasoning mode control (user-controlled via frontend)
-     */
-    "enable_reasoning"?: boolean;
-
     /** Creates a new ChatRequest instance. */
     constructor($$source: Partial<ChatRequest> = {}) {
         if (!("session_id" in $$source)) {

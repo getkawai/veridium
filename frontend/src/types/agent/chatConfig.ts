@@ -22,10 +22,6 @@ export interface LobeAgentChatConfig {
   enableStreaming?: boolean;
 
   /**
-   * 是否开启推理
-   */
-  enableReasoning?: boolean;
-  /**
    * 自定义推理强度
    */
   enableReasoningEffort?: boolean;
@@ -71,7 +67,6 @@ export const AgentChatConfigSchema = z.object({
   enableCompressHistory: z.boolean().optional(),
   enableHistoryCount: z.boolean().optional(),
   enableMaxTokens: z.boolean().optional(),
-  enableReasoning: z.boolean().optional(),
   enableReasoningEffort: z.boolean().optional(),
   enableStreaming: z.boolean().optional(),
   historyCount: z.number().optional(),

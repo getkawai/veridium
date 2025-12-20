@@ -82,7 +82,6 @@ export class GenerationModel {
     const now = currentTimestampMs();
     const result = await DB.CreateGeneration({
       id: nanoid(),
-      userId: this.userId,
       generationBatchId: value.generationBatchId,
       asyncTaskId: toNullString(value.asyncTaskId as any),
       fileId: toNullString(value.fileId as any),
@@ -100,10 +99,7 @@ export class GenerationModel {
     log('Finding generation by ID: %s for user: %s', id, this.userId);
 
     try {
-      const result = await DB.GetGeneration({
-        id,
-        userId: this.userId,
-      });
+      const result = await DB.GetGeneration(id);
 
       log('Generation %s: found', id);
       return this.mapGeneration(result);
@@ -117,10 +113,7 @@ export class GenerationModel {
     log('Finding generation with async task by ID: %s for user: %s', id, this.userId);
 
     try {
-      const result = await DB.GetGenerationWithAsyncTask({
-        id,
-        userId: this.userId,
-      });
+      const result = await DB.GetGenerationWithAsyncTask(id);
 
       log('Generation %s: found', id);
 
@@ -151,7 +144,6 @@ export class GenerationModel {
     const now = currentTimestampMs();
     const result = await DB.UpdateGeneration({
       id,
-      userId: this.userId,
       asyncTaskId: toNullString(value.asyncTaskId as any),
       fileId: toNullString(value.fileId as any),
       asset: toNullJSON(value.asset),
@@ -237,10 +229,7 @@ export class GenerationModel {
     // Note: No transaction support in Wails!
     // The trx parameter is ignored
 
-    await DB.DeleteGeneration({
-      id,
-      userId: this.userId,
-    });
+    await DB.DeleteGeneration(id);
 
     log('Generation %s deleted successfully', id);
 

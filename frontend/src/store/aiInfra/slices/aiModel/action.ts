@@ -54,7 +54,6 @@ export const createAiModelSlice: StateCreator<
         DB.ToggleAIModelEnabled({
           id,
           providerId: activeAiProvider,
-          userId,
           enabled: toNullInt64(boolToInt(enabled)),
           type: 'chat',
           source: toNullString('custom'),
@@ -79,7 +78,7 @@ export const createAiModelSlice: StateCreator<
     await Promise.all(
       models.map(async (model) => {
         // Get current model to merge
-        const current = await DB.GetAIModel({ id: model.id, providerId: id, userId });
+        const current = await DB.GetAIModel({ id: model.id, providerId: id });
         if (!current) {
           console.warn(`[AI Model] Model ${model.id} not found, skipping update`);
           return;
@@ -89,7 +88,6 @@ export const createAiModelSlice: StateCreator<
         await DB.UpdateAIModel({
           id: model.id,
           providerId: id,
-          userId,
           displayName: model.displayName ? toNullString(model.displayName) : current.displayName,
           description: current.description,
           enabled: model.enabled !== undefined ? toNullInt64(boolToInt(model.enabled)) : current.enabled,
@@ -108,25 +106,18 @@ export const createAiModelSlice: StateCreator<
     await get().refreshAiModelList();
   },
   clearModelsByProvider: async (provider) => {
-    const userId = getUserId();
-
     // Delete all models for this provider
-    await DB.DeleteAIModelsByProvider({
-      providerId: provider,
-      userId,
-    });
+    await DB.DeleteAIModelsByProvider(provider);
 
     console.log(`[AI Model] Cleared all models for provider ${provider} via direct DB`);
 
     await get().refreshAiModelList();
   },
   clearRemoteModels: async (provider) => {
-    const userId = getUserId();
-
     // Delete all remote models for this provider
     // Note: We use DeleteAIModelsByProvider and filter by source in the future
     // For now, get all models and delete remote ones
-    const models = await DB.ListAIModelsByProvider({ providerId: provider, userId });
+    const models = await DB.ListAIModelsByProvider(provider);
     const remoteModels = models.filter((m: any) => m.source?.String === 'remote');
     
     await Promise.all(
@@ -134,7 +125,6 @@ export const createAiModelSlice: StateCreator<
         DB.DeleteAIModel({
           id: m.id,
           providerId: provider,
-          userId,
         }),
       ),
     );
@@ -154,7 +144,7 @@ export const createAiModelSlice: StateCreator<
 
     // Check if already exists
     try {
-      const existing = await DB.GetAIModel({ id: data.id, providerId: data.providerId, userId });
+      const existing = await DB.GetAIModel({ id: data.id, providerId: data.providerId });
       if (existing) {
         throw new Error(`Model ${data.id} already exists`);
       }
@@ -175,7 +165,6 @@ export const createAiModelSlice: StateCreator<
       providerId: data.providerId,
       type: data.type || 'chat',
       sort: toNullInt64(0),
-      userId,
       pricing: toNullString('{}'),
       parameters: toNullString('{}'),
       config: toNullString('{}'),
@@ -233,11 +222,7 @@ export const createAiModelSlice: StateCreator<
       const activeProvider = get().activeAiProvider;
       if (!activeProvider) return;
 
-      const userId = getUserId();
-      const dbModels = await DB.ListAIModelsByProvider({
-        providerId: activeProvider,
-        userId,
-      });
+      const dbModels = await DB.ListAIModelsByProvider(activeProvider);
 
       const data = dbModels.map(mapModelFromDB) as any;
       
@@ -252,12 +237,9 @@ export const createAiModelSlice: StateCreator<
     }
   },
   removeAiModel: async (id, providerId) => {
-    const userId = getUserId();
-
     await DB.DeleteAIModel({
       id,
       providerId,
-      userId,
     });
 
     console.log(`[AI Model] Deleted model ${id} via direct DB`);
@@ -271,13 +253,11 @@ export const createAiModelSlice: StateCreator<
     get().internal_toggleAiModelLoading(params.id, true);
 
     try {
-      const userId = getUserId();
       const now = Date.now();
 
       await DB.ToggleAIModelEnabled({
         id: params.id,
         providerId: activeAiProvider,
-        userId,
         enabled: toNullInt64(boolToInt(params.enabled)),
         type: 'chat', // Required field
         source: toNullString('custom'), // Required field
@@ -294,11 +274,10 @@ export const createAiModelSlice: StateCreator<
   },
 
   updateAiModelsConfig: async (id, providerId, data) => {
-    const userId = getUserId();
     const now = Date.now();
 
     // Get current model to merge
-    const current = await DB.GetAIModel({ id, providerId, userId });
+    const current = await DB.GetAIModel({ id, providerId });
     if (!current) {
       throw new Error(`Model ${id} not found`);
     }
@@ -307,7 +286,6 @@ export const createAiModelSlice: StateCreator<
     await DB.UpdateAIModel({
       id,
       providerId,
-      userId,
       displayName: data.displayName ? toNullString(data.displayName) : current.displayName,
       description: current.description,
       enabled: data.enabled !== undefined ? toNullInt64(boolToInt(data.enabled)) : current.enabled,
@@ -324,7 +302,6 @@ export const createAiModelSlice: StateCreator<
     await get().refreshAiModelList();
   },
   updateAiModelsSort: async (id, items) => {
-    const userId = getUserId();
     const now = Date.now();
 
     // Batch update all model sorts in parallel
@@ -333,7 +310,6 @@ export const createAiModelSlice: StateCreator<
         DB.UpdateAIModelSort({
           id: modelId,
           providerId: id,
-          userId,
           sort: toNullInt64(sort),
           type: 'chat', // Required field
           enabled: toNullInt64(1), // Required field
@@ -353,11 +329,7 @@ export const createAiModelSlice: StateCreator<
     if (!id) return;
 
     try {
-      const userId = getUserId();
-      const dbModels = await DB.ListAIModelsByProvider({
-        providerId: id,
-        userId,
-      });
+      const dbModels = await DB.ListAIModelsByProvider(id);
 
       const data = dbModels.map(mapModelFromDB) as any;
 

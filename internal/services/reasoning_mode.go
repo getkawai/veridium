@@ -130,6 +130,25 @@ func IsNonReasoningModel(modelName string) bool {
 	return false
 }
 
+// AutoDetectReasoningConfig automatically detects reasoning mode from loaded model name
+// This eliminates the need for user configuration - reasoning mode is determined by model capability
+func AutoDetectReasoningConfig(modelName string) ReasoningConfig {
+	if IsReasoningModel(modelName) {
+		// Reasoning model loaded (Qwen, OpenThinker)
+		// Use ReasoningEnabled mode with /no_think for balanced performance
+		return ReasoningConfig{
+			Mode:                  ReasoningEnabled,
+			PreferredNonReasoning: "llama",
+			PreferredReasoning:    "qwen",
+			StripThinkTags:        false,
+		}
+	}
+
+	// Non-reasoning model loaded (Llama, Nemotron, Mistral)
+	// Use ReasoningDisabled mode
+	return DefaultReasoningConfig()
+}
+
 // ValidateModelForMode checks if the loaded model is appropriate for the reasoning mode
 func (rc ReasoningConfig) ValidateModelForMode(modelName string) error {
 	isReasoning := IsReasoningModel(modelName)

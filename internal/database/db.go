@@ -517,7 +517,7 @@ func (s *Service) createDefaultInboxSession(ctx context.Context) error {
 		}
 
 		// 2. Create default agent with kawai-auto model
-		defaultAgentConfig := `{"autoCreateTopicThreshold":2,"displayMode":"chat","enableAutoCreateTopic":true,"enableCompressHistory":true,"enableHistoryCount":true,"enableReasoning":false,"enableStreaming":true,"historyCount":20,"reasoningBudgetToken":1024,"searchFCModel":{"model":"kawai-auto","provider":"kawai"},"searchMode":"off"}`
+		defaultAgentConfig := `{"autoCreateTopicThreshold":2,"displayMode":"chat","enableAutoCreateTopic":true,"enableCompressHistory":true,"enableHistoryCount":true,"enableStreaming":true,"historyCount":20,"searchFCModel":{"model":"kawai-auto","provider":"kawai"},"searchMode":"off"}`
 		defaultParams := `{"frequency_penalty":0,"presence_penalty":0,"temperature":1,"top_p":1}`
 
 		_, err = q.CreateAgent(ctx, db.CreateAgentParams{

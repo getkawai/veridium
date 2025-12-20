@@ -43,7 +43,7 @@ import {
 import { ChatRealStream } from '@@/github.com/kawai-network/veridium/internal/services/agentchatservice';
 
 import { useAgentStore } from '@/store/agent';
-import { agentSelectors, agentChatConfigSelectors } from '@/store/agent/slices/chat';
+import { agentSelectors } from '@/store/agent/slices/chat';
 
 // Re-export StreamEventPayload for consumers
 export type { StreamEventPayload };
@@ -166,13 +166,12 @@ export const generateAIChat: StateCreator<
     try {
       console.log('[Backend Real Stream] Starting real LLM streaming...');
 
-      // Get enabled tools and reasoning config from agent store
+      // Get enabled tools from agent store
+      // Reasoning mode is now auto-detected by backend based on loaded model
       const agentState = useAgentStore.getState();
       const enabledPlugins = agentSelectors.currentAgentPlugins(agentState);
-      const chatConfig = agentChatConfigSelectors.currentChatConfig(agentState);
-      const enableReasoning = chatConfig.enableReasoning ?? false;
 
-      console.log('[Backend Real Stream] Tools:', enabledPlugins, 'Reasoning:', enableReasoning);
+      console.log('[Backend Real Stream] Tools:', enabledPlugins);
 
       // Call real streaming - uses real LLM with streaming events
       // Events are handled by internal_handleStreamEvent (called from App.tsx)
@@ -185,9 +184,8 @@ export const generateAIChat: StateCreator<
         message_user_id: messageUserId,
         message_assistant_id: messageAssistantId,
         file_ids: fileIds.length > 0 ? fileIds : undefined,
-        // User-controlled tools and reasoning
+        // User-controlled tools (reasoning auto-detected by backend)
         tools: enabledPlugins.length > 0 ? enabledPlugins : undefined,
-        enable_reasoning: enableReasoning,
       });
 
       await ChatRealStream(request);
@@ -282,7 +280,7 @@ export const generateAIChat: StateCreator<
   clearSendMessageError: () => {
     const { activeId, activeTopicId } = get();
     const mapKey = messageMapKey(activeId, activeTopicId);
-    
+
     set(produce((state: ChatStore) => {
       if (state.mainSendMessageOperations[mapKey]) {
         delete state.mainSendMessageOperations[mapKey].inputSendErrorMsg;

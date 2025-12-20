@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -102,13 +104,59 @@ func (c *Crawler) crawlNaive(urlStr string) (CrawlResult, error) {
 	}
 
 	if result.Title == "" {
-		log.Printf("⚠️  [crawlNaive] Empty title for %s, using URL as fallback", urlStr)
-		// Use URL as title if empty
-		result.Title = urlStr
+		log.Printf("⚠️  [crawlNaive] Empty title for %s, generating from URL", urlStr)
+		result.Title = generateTitleFromURL(urlStr)
 	}
 
 	log.Printf("✅ [crawlNaive] Title: %s, Website: %s, Content: %d chars", result.Title, result.Website, len(result.Content))
 	return CrawlResult{
 		Success: result,
 	}, nil
+}
+
+// generateTitleFromURL creates a human-readable title from URL
+func generateTitleFromURL(urlStr string) string {
+	parsedURL, err := url.Parse(urlStr)
+	if err != nil {
+		return urlStr
+	}
+
+	// Get the path without leading/trailing slashes
+	path := strings.Trim(parsedURL.Path, "/")
+
+	// If path is empty, use domain
+	if path == "" {
+		return parsedURL.Hostname()
+	}
+
+	// Split path into segments
+	segments := strings.Split(path, "/")
+
+	// Use the last segment as title base
+	lastSegment := segments[len(segments)-1]
+
+	// Remove file extensions
+	lastSegment = strings.TrimSuffix(lastSegment, ".html")
+	lastSegment = strings.TrimSuffix(lastSegment, ".htm")
+	lastSegment = strings.TrimSuffix(lastSegment, ".php")
+
+	// Replace hyphens and underscores with spaces
+	title := strings.ReplaceAll(lastSegment, "-", " ")
+	title = strings.ReplaceAll(title, "_", " ")
+
+	// Capitalize first letter of each word
+	words := strings.Fields(title)
+	for i, word := range words {
+		if len(word) > 0 {
+			words[i] = strings.ToUpper(word[:1]) + word[1:]
+		}
+	}
+	title = strings.Join(words, " ")
+
+	// If title is too long, truncate it
+	if len(title) > 80 {
+		title = title[:77] + "..."
+	}
+
+	return title
 }

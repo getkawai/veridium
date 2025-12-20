@@ -53,7 +53,6 @@ export class PluginModel {
         manifest: toNullJSON(params.manifest),
         customParams: toNullJSON(params.customParams),
         settings: toNullJSON(params.settings),
-        userId: this.userId,
         createdAt: now,
         updatedAt: now,
       });
@@ -74,10 +73,7 @@ export class PluginModel {
     await this.logger.methodEntry('delete', { identifier: id, userId: this.userId });
     
     try {
-      await DB.DeletePlugin({
-        identifier: id,
-        userId: this.userId,
-      });
+      await DB.DeletePlugin(id);
       
       await this.logger.methodExit('delete', { identifier: id });
     } catch (error) {
@@ -92,7 +88,7 @@ export class PluginModel {
 
   deleteAll = async () => {
     try {
-      await DB.DeleteAllPlugins(this.userId);
+      await DB.DeleteAllPlugins();
     } catch (error) {
       await this.logger.error('Failed to delete all plugins', { error });
       await this.showErrorNotification(
@@ -105,7 +101,7 @@ export class PluginModel {
 
   query = async () => {
     try {
-      const data = await DB.ListPlugins(this.userId);
+      const data = await DB.ListPlugins();
 
       return data.map<LobeTool>((item) => {
         const manifest = parseNullableJSON(item.manifest as any);
@@ -127,10 +123,7 @@ export class PluginModel {
 
   findById = async (id: string) => {
     try {
-      const plugin = await DB.GetPlugin({
-        identifier: id,
-        userId: this.userId,
-      });
+      const plugin = await DB.GetPlugin(id);
       return this.mapPlugin(plugin);
     } catch (error) {
       await this.logger.warn('Plugin not found', { id, error });
@@ -146,7 +139,6 @@ export class PluginModel {
 
       await DB.UpdatePlugin({
         identifier: id,
-        userId: this.userId,
         type: value.type || '',
         manifest: toNullJSON(value.manifest),
         customParams: toNullJSON(value.customParams),

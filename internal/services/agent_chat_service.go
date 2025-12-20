@@ -127,8 +127,7 @@ type ChatRequest struct {
 	MaxTokens       int            `json:"max_tokens,omitempty"`
 	Stream          bool           `json:"stream,omitempty"`
 
-	// Reasoning mode control (user-controlled via frontend)
-	EnableReasoning bool `json:"enable_reasoning,omitempty"`
+	// Reasoning mode is now auto-detected from loaded model (no user input needed)
 }
 
 // UIMessageRoleType represents the role of a message
