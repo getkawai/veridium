@@ -39,5 +39,6 @@ export {
     ThreadInfo,
     ThreadStatus,
     ThreadType,
+    WalletInfo,
     WalletStatus
 } from "./models.js";

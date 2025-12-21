@@ -885,12 +885,45 @@ export enum ThreadType {
 };
 
 /**
+ * WalletInfo represents a wallet in the list
+ */
+export class WalletInfo {
+    "address": string;
+    "description": string;
+    "isActive": boolean;
+
+    /** Creates a new WalletInfo instance. */
+    constructor($$source: Partial<WalletInfo> = {}) {
+        if (!("address" in $$source)) {
+            this["address"] = "";
+        }
+        if (!("description" in $$source)) {
+            this["description"] = "";
+        }
+        if (!("isActive" in $$source)) {
+            this["isActive"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new WalletInfo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): WalletInfo {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new WalletInfo($$parsedSource as Partial<WalletInfo>);
+    }
+}
+
+/**
  * WalletStatus represents the current state of the wallet
  */
 export class WalletStatus {
     "hasWallet": boolean;
     "isLocked": boolean;
     "address": string;
+    "wallets": WalletInfo[];
 
     /** Creates a new WalletStatus instance. */
     constructor($$source: Partial<WalletStatus> = {}) {
@@ -903,6 +936,9 @@ export class WalletStatus {
         if (!("address" in $$source)) {
             this["address"] = "";
         }
+        if (!("wallets" in $$source)) {
+            this["wallets"] = [];
+        }
 
         Object.assign(this, $$source);
     }
@@ -911,7 +947,11 @@ export class WalletStatus {
      * Creates a new WalletStatus instance from a string or object.
      */
     static createFrom($$source: any = {}): WalletStatus {
+        const $$createField3_0 = $$createType27;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("wallets" in $$parsedSource) {
+            $$parsedSource["wallets"] = $$createField3_0($$parsedSource["wallets"]);
+        }
         return new WalletStatus($$parsedSource as Partial<WalletStatus>);
     }
 }
@@ -943,3 +983,5 @@ const $$createType22 = ChatMessageError.createFrom;
 const $$createType23 = $Create.Nullable($$createType22);
 const $$createType24 = ModelPerformance.createFrom;
 const $$createType25 = $Create.Nullable($$createType24);
+const $$createType26 = WalletInfo.createFrom;
+const $$createType27 = $Create.Array($$createType26);
