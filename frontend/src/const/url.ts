@@ -7,13 +7,13 @@ const isDev = false;
 
 export const UTM_SOURCE = 'chat_preview';
 
-export const OFFICIAL_URL = 'https://lobechat.com';
-export const OFFICIAL_PREVIEW_URL = 'https://chat-preview.lobehub.com';
-export const OFFICIAL_SITE = 'https://lobehub.com';
+export const OFFICIAL_URL = 'https://getkawai.com';
+export const OFFICIAL_PREVIEW_URL = 'https://getkawai.com';
+export const OFFICIAL_SITE = 'https://getkawai.com';
 
 export const OG_URL = '/og/cover.png?v=1';
 
-export const GITHUB = 'https://github.com/lobehub/lobe-chat';
+export const GITHUB = 'https://github.com/kawai-network/veridium';
 export const GITHUB_ISSUES = urlJoin(GITHUB, 'issues/new/choose');
 export const CHANGELOG = 'https://lobehub.com/changelog';
 export const DOCKER_IMAGE = 'https://hub.docker.com/r/lobehub/lobe-chat';

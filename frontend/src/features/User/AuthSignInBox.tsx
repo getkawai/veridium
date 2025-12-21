@@ -3,12 +3,14 @@
 import { DOCUMENTS_REFER_URL, PRIVACY_URL, TERMS_URL } from '@/const';
 import { Button, Text, Icon, CopyButton } from '@lobehub/ui';
 import { LobeHub } from '@lobehub/ui/brand';
-import { Col, Flex, Row, Input, Space, Divider, message, Modal, Upload, Select } from 'antd';
+import { Col, Flex, Row, Input, Space, Divider, message, Modal, Select } from 'antd';
 import { createStyles } from 'antd-style';
-import { Key, PlusCircle, Unlock, HardDrive, ArrowRight, Download, Upload as UploadIcon, Trash2, Wallet, AlertTriangle } from 'lucide-react';
+import { Key, PlusCircle, Unlock, HardDrive, ArrowRight, Download, FileUp, Trash2, Wallet, AlertTriangle } from 'lucide-react';
 import { memo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { WalletInfo } from '@@/github.com/kawai-network/veridium/internal/services/models';
+import { Service as LocalFsService } from '@@/github.com/kawai-network/veridium/pkg/localfs';
+import { Dialogs, Browser } from '@wailsio/runtime';
 
 import BrandWatermark from '@/components/BrandWatermark';
 import { useUserStore } from '@/store/user';
@@ -79,7 +81,7 @@ type Step = 'welcome' | 'setup' | 'mnemonic' | 'import' | 'unlock' | 'manage' | 
 
 export default memo(() => {
   const { styles } = useStyles();
-  const { t } = useTranslation('auth');
+  const { t } = useTranslation('clerk');
 
   const [step, setStep] = useState<Step>('welcome');
   const [password, setPassword] = useState('');
@@ -399,19 +401,42 @@ export default memo(() => {
               <Text className={styles.title}>Import Keystore</Text>
               <Text as="p" type="secondary">Paste your keystore JSON or upload file</Text>
             </div>
-            <Upload.Dragger
-              accept=".json"
-              showUploadList={false}
-              beforeUpload={(file) => {
-                const reader = new FileReader();
-                reader.onload = (e) => setKeystoreJSON(e.target?.result as string || '');
-                reader.readAsText(file);
-                return false;
+            <Button
+              block
+              size="large"
+              icon={<FileUp size={18} />}
+              onClick={async () => {
+                try {
+                  const result = await Dialogs.OpenFile({
+                    CanChooseFiles: true,
+                    CanChooseDirectories: false,
+                    AllowsMultipleSelection: false,
+                    Filters: [
+                      {
+                        DisplayName: 'Keystore JSON',
+                        Pattern: '*.json',
+                      },
+                    ],
+                    Title: 'Select Keystore File',
+                  });
+
+                  if (!result) return;
+
+                  const filePath = Array.isArray(result) ? result[0] : result;
+                  const fileResult = await LocalFsService.ReadFile({ path: filePath });
+                  if (!fileResult || !fileResult.content) {
+                    throw new Error('Failed to read file');
+                  }
+                  setKeystoreJSON(fileResult.content);
+                  message.success('Keystore file loaded');
+                } catch (error) {
+                  console.error('Failed to load keystore:', error);
+                  message.error('Failed to load keystore file');
+                }
               }}
             >
-              <p><Icon icon={UploadIcon} size={32} /></p>
-              <p>Click or drag keystore file to upload</p>
-            </Upload.Dragger>
+              Select Keystore File
+            </Button>
             <Input.TextArea
               rows={4}
               placeholder="Or paste keystore JSON here..."
@@ -549,7 +574,7 @@ export default memo(() => {
             <Col span={12}>
               <Flex justify="end" gap="small">
                 {footerBtns.map(btn => (
-                  <Button key={btn.id} type="text" size="small" style={{ color: 'inherit' }}>
+                  <Button onClick={() => Browser.OpenURL(btn.href)} key={btn.id} type="text" size="small" style={{ color: 'inherit' }}>
                     {btn.label}
                   </Button>
                 ))}
