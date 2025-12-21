@@ -589,6 +589,18 @@ func IsContract(addr string, network networks.Network) (bool, error) {
 }
 
 func GetABIString(addr string, network networks.Network) (string, error) {
+	// Try to find if this address is one of our project contracts
+	_, name, err := GetAddressFromString(addr)
+	if err == nil {
+		// remove common noise from name if necessary, or just check direct match
+		// The keys in ProjectABIs are generated from filenames (e.g., "KawaiToken")
+		if abiStr, ok := jarviscommon.ProjectABIs[name]; ok {
+			return abiStr, nil
+		}
+		// Also try case-insensitive match or cleaned up name if needed?
+		// For now, strict match or maybe simple cleaning
+	}
+
 	cacheKey := fmt.Sprintf("%s_abi", strings.ToLower(addr))
 	cached, found := cache.GetCache(cacheKey)
 	if found {

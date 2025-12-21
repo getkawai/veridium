@@ -244,7 +244,12 @@ contracts-compile:
 	@echo "Compiling smart contracts..."
 	cd $(CONTRACTS_DIR) && npx hardhat compile
 
-contracts-bindings: abi-token abi-escrow abi-vault
+contracts-bindings: abi-token abi-escrow abi-vault generate-project-abis
+
+generate-project-abis:
+	@echo "Injecting project ABIs into Jarvis..."
+	@go run ./cmd/generate-abis pkg/jarvis/common/project_abis.go $(ABIS_DIR)
+	@echo "Project ABIs injected."
 
 abi-token:
 	@echo "Generating bindings for KawaiToken..."

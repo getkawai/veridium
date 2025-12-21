@@ -29,6 +29,10 @@ type EthReader struct {
 	be    jarvisnetworks.BlockExplorer
 }
 
+func (er *EthReader) GetNodes() map[string]EthereumNode {
+	return er.nodes
+}
+
 func NewEthReaderGeneric(nodes map[string]string, be jarvisnetworks.BlockExplorer) *EthReader {
 	ns := map[string]EthereumNode{}
 	for name, c := range nodes {

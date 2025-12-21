@@ -6,6 +6,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	ethereum "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/ethclient/gethclient"
 
 	"github.com/kawai-network/veridium/pkg/jarvis/common"
@@ -14,6 +15,7 @@ import (
 type EthereumNode interface {
 	NodeName() string
 	NodeURL() string
+	EthClient() (*ethclient.Client, error)
 	EstimateGas(
 		from, to string,
 		priceGwei float64,
