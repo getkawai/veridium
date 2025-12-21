@@ -10,6 +10,7 @@ import { type CommonAction, createCommonSlice } from './slices/common/action';
 import { type ModelListAction, createModelListSlice } from './slices/modelList/action';
 import { type PreferenceAction, createPreferenceSlice } from './slices/preference/action';
 import { type UserSettingsAction, createSettingsSlice } from './slices/settings/action';
+import { type WalletAction, createWalletSlice } from './slices/wallet/action';
 
 //  ===============  聚合 createStoreFn ============ //
 
@@ -18,7 +19,8 @@ export type UserStore = UserState &
   PreferenceAction &
   ModelListAction &
   UserAuthAction &
-  CommonAction;
+  CommonAction &
+  WalletAction;
 
 const createStore: StateCreator<UserStore, [['zustand/devtools', never]]> = (...parameters) => ({
   ...initialState,
@@ -27,6 +29,7 @@ const createStore: StateCreator<UserStore, [['zustand/devtools', never]]> = (...
   ...createAuthSlice(...parameters),
   ...createCommonSlice(...parameters),
   ...createModelListSlice(...parameters),
+  ...createWalletSlice(...parameters),
 });
 
 //  ===============  实装 useStore ============ //

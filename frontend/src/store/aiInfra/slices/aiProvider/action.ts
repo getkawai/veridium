@@ -1,5 +1,3 @@
-import { isDeprecatedEdition } from '@/const';
-// import { getModelPropertyWithFallback } from '@/model-runtime';
 import { uniqBy } from 'lodash-es';
 import {
   AIImageModelCard,
@@ -55,9 +53,7 @@ export const getModelListByType = async (
       displayName: model.displayName ?? '',
       id: model.id,
       ...(model.type === 'image' && {
-        parameters:
-          (model as AIImageModelCard).parameters ||
-          (await getModelPropertyWithFallback(model.id, 'parameters')),
+        parameters: (model as AIImageModelCard).parameters || {},
       }),
     })),
   );
@@ -82,17 +78,17 @@ const buildProviderModelLists = async (
   );
 };
 
-enum AiProviderSwrKey {
-  fetchAiProviderItem = 'FETCH_AI_PROVIDER_ITEM',
-  fetchAiProviderList = 'FETCH_AI_PROVIDER',
-  fetchAiProviderRuntimeState = 'FETCH_AI_PROVIDER_RUNTIME_STATE',
-}
+// enum AiProviderSwrKey {
+//   fetchAiProviderItem = 'FETCH_AI_PROVIDER_ITEM',
+//   fetchAiProviderList = 'FETCH_AI_PROVIDER',
+//   fetchAiProviderRuntimeState = 'FETCH_AI_PROVIDER_RUNTIME_STATE',
+// }
 
-type AiProviderRuntimeStateWithBuiltinModels = AiProviderRuntimeState & {
-  builtinAiModelList: LobeDefaultAiModelListItem[];
-  enabledChatModelList?: EnabledProviderWithModels[];
-  enabledImageModelList?: EnabledProviderWithModels[];
-};
+// type AiProviderRuntimeStateWithBuiltinModels = AiProviderRuntimeState & {
+//   builtinAiModelList: LobeDefaultAiModelListItem[];
+//   enabledChatModelList?: EnabledProviderWithModels[];
+//   enabledImageModelList?: EnabledProviderWithModels[];
+// };
 
 export interface AiProviderAction {
   createNewAiProvider: (params: CreateAiProviderParams) => Promise<void>;
@@ -419,14 +415,13 @@ export const createAiProviderSlice: StateCreator<
   internal_fetchAiProviderRuntimeState: async (isLogin) => {
     const isAuthLoaded = authSelectors.isLoaded(useUserStore.getState());
     // For desktop app, allow fetch even if auth is not fully loaded
-    const shouldFetch =
-      !isDeprecatedEdition && isLogin !== null && isLogin !== undefined && (isAuthLoaded !== false);
+    const shouldFetch = isLogin !== null && isLogin !== undefined && (isAuthLoaded !== false);
 
     if (!shouldFetch) return;
 
     try {
       const [{ LOBE_DEFAULT_MODEL_LIST: builtinAiModelList }] = await Promise.all([
-        import('@/model-bank'),
+        import('@/config/modelProviders'),
       ]);
 
       if (isLogin) {

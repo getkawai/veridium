@@ -6,12 +6,14 @@ import * as FileService from "./fileservice.js";
 import * as KnowledgeBaseService from "./knowledgebaseservice.js";
 import * as ThreadManagementService from "./threadmanagementservice.js";
 import * as VectorSearchService from "./vectorsearchservice.js";
+import * as WalletService from "./walletservice.js";
 export {
     AgentChatService,
     FileService,
     KnowledgeBaseService,
     ThreadManagementService,
-    VectorSearchService
+    VectorSearchService,
+    WalletService
 };
 
 export {
@@ -36,5 +38,6 @@ export {
     StreamEventPayload,
     ThreadInfo,
     ThreadStatus,
-    ThreadType
+    ThreadType,
+    WalletStatus
 } from "./models.js";

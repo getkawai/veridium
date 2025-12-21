@@ -11,11 +11,21 @@ import KnowledgeHomePage from './app/knowledge/routes/KnowledgeHome';
 import SettingsModal from './features/SettingsModal';
 import UserProfileModal from './features/UserProfileModal';
 import ChangelogModal from './features/ChangelogModal';
+import { useUserStore } from './store/user';
+import AuthSignInBox from './features/User/AuthSignInBox';
+import { Flex, Spin } from 'antd';
 
 function App() {
   const sidebarKey = useGlobalStore((s) => s.sidebarKey);
+  const { isWalletLocked, isWalletLoaded, refreshWalletStatus } = useUserStore((s) => ({
+    isWalletLocked: s.isWalletLocked,
+    isWalletLoaded: s.isWalletLoaded,
+    refreshWalletStatus: s.refreshWalletStatus,
+  }));
 
   useEffect(() => {
+    refreshWalletStatus();
+
     Events.On('chat:topic:updated', (ev: any) => {
       const data = ev.data;
       if (data && data.topic_id && data.title) {
@@ -42,16 +52,32 @@ function App() {
     WML.Reload();
   }, []);
 
+  if (!isWalletLoaded) {
+    return (
+      <Flex align="center" justify="center" style={{ height: '100vh', width: '100vw' }}>
+        <Spin size="large" />
+      </Flex>
+    );
+  }
+
   return (
     <GlobalLayout appearance={'dark'} locale={''} neutralColor={undefined} primaryColor={undefined} variants={undefined}>
-      <DesktopMainLayout>
-        {sidebarKey === SidebarTabKey.Chat && <DesktopChatLayout />}
-        {sidebarKey === SidebarTabKey.Image && <DesktopImageLayout />}
-        {sidebarKey === SidebarTabKey.Files && <KnowledgeHomePage />}
-      </DesktopMainLayout>
-      <SettingsModal />
-      <UserProfileModal />
-      <ChangelogModal />
+      {isWalletLocked ? (
+        <Flex align="center" justify="center" style={{ height: '100vh', width: '100vw', background: 'var(--color-bg-layout)' }}>
+          <AuthSignInBox />
+        </Flex>
+      ) : (
+        <>
+          <DesktopMainLayout>
+            {sidebarKey === SidebarTabKey.Chat && <DesktopChatLayout />}
+            {sidebarKey === SidebarTabKey.Image && <DesktopImageLayout />}
+            {sidebarKey === SidebarTabKey.Files && <KnowledgeHomePage />}
+          </DesktopMainLayout>
+          <SettingsModal />
+          <UserProfileModal />
+          <ChangelogModal />
+        </>
+      )}
     </GlobalLayout>
   )
 }

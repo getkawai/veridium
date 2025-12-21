@@ -111,6 +111,7 @@ func buildServiceList(ctx *app.Context, fileProcessor *FileProcessorService, sdM
 		application.NewService(wailslog.New()),
 		application.NewService(sqlite.New()),
 		application.NewService(kvstore.New()),
+		application.NewService(ctx.WalletService),
 
 		// File Server
 		application.NewServiceWithOptions(

@@ -884,6 +884,38 @@ export enum ThreadType {
     ThreadTypeStandalone = "standalone",
 };
 
+/**
+ * WalletStatus represents the current state of the wallet
+ */
+export class WalletStatus {
+    "hasWallet": boolean;
+    "isLocked": boolean;
+    "address": string;
+
+    /** Creates a new WalletStatus instance. */
+    constructor($$source: Partial<WalletStatus> = {}) {
+        if (!("hasWallet" in $$source)) {
+            this["hasWallet"] = false;
+        }
+        if (!("isLocked" in $$source)) {
+            this["isLocked"] = false;
+        }
+        if (!("address" in $$source)) {
+            this["address"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new WalletStatus instance from a string or object.
+     */
+    static createFrom($$source: any = {}): WalletStatus {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new WalletStatus($$parsedSource as Partial<WalletStatus>);
+    }
+}
+
 // Private type creation functions
 const $$createType0 = ChatCompletionMessage.createFrom;
 const $$createType1 = $Create.Array($$createType0);

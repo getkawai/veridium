@@ -63,6 +63,7 @@ type Context struct {
 	KBService      *services.KnowledgeBaseService
 	RAGProcessor   *services.RAGProcessor
 	ToolRegistry   *tools.ToolRegistry
+	WalletService  *services.WalletService
 
 	// Language Models
 	ChatModel    fantasy.LanguageModel
@@ -221,6 +222,11 @@ func (ctx *Context) InitKnowledgeBase() {
 	log.Printf("KnowledgeBase initialized")
 }
 
+func (ctx *Context) InitWalletService() {
+	ctx.WalletService = services.NewWalletService("data")
+	log.Printf("WalletService initialized (path: data/keystore)")
+}
+
 func (ctx *Context) InitLanguageModels() {
 	if ctx.LibService == nil {
 		return
@@ -372,6 +378,7 @@ func (ctx *Context) InitAll() error {
 	ctx.InitVectorSearch()
 	ctx.InitFileLoader()
 	ctx.InitKnowledgeBase()
+	ctx.InitWalletService()
 	ctx.InitLanguageModels()
 	ctx.InitMemoryServices()
 	return nil
