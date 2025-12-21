@@ -1,0 +1,8 @@
+{
+  "alreadyPaid": "تم الدفع بالفعل",
+  "address": "عنوان {{symbol}}",
+  "return": "رجوع",
+  "selectNetwork": "اختر الشبكة",
+  "sendOnNetwork": "إرسال {{symbol}} على شبكة {{network}}",
+  "tips": "يرجى مسح رمز الاستجابة السريعة للدفع"
+}

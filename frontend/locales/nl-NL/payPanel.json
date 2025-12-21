@@ -1,0 +1,8 @@
+{
+  "alreadyPaid": "Al betaald",
+  "address": "{{symbol}} Adres",
+  "return": "Terug",
+  "selectNetwork": "Selecteer netwerk",
+  "sendOnNetwork": "Verstuur {{symbol}} op {{network}} netwerk",
+  "tips": "Scan de QR-code om te betalen"
+}

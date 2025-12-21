@@ -1,0 +1,8 @@
+{
+  "alreadyPaid": "既に支払い済み",
+  "address": "{{symbol}}アドレス",
+  "return": "戻る",
+  "selectNetwork": "ネットワークを選択",
+  "sendOnNetwork": "{{network}}ネットワークで{{symbol}}を送信",
+  "tips": "QRコードをスキャンして支払いを行ってください"
+}

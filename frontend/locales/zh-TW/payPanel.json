@@ -1,0 +1,8 @@
+{
+  "alreadyPaid": "已支付",
+  "address": "{{symbol}} 地址",
+  "return": "返回",
+  "selectNetwork": "選擇網路",
+  "sendOnNetwork": "在 {{network}} 網路上發送 {{symbol}}",
+  "tips": "請掃描二維碼支付"
+}

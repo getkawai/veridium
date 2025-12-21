@@ -1,0 +1,8 @@
+{
+  "alreadyPaid": "Đã thanh toán",
+  "address": "Địa chỉ {{symbol}}",
+  "return": "Quay lại",
+  "selectNetwork": "Chọn mạng",
+  "sendOnNetwork": "Gửi {{symbol}} trên mạng {{network}}",
+  "tips": "Vui lòng quét mã QR để thanh toán"
+}

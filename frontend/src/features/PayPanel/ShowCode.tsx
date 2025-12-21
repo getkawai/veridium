@@ -12,7 +12,7 @@ interface ShowCodeProps {
   onReturn: () => void;
 }
 export const ShowCode: React.FC<ShowCodeProps> = ({ selectedChainId, onReturn }) => {
-  const { messages } = useIntl('PayPanel');
+  const { messages, t } = useIntl('payPanel');
   const { getPrefixCls } = useContext(ConfigProvider.ConfigContext);
   const prefixCls = getPrefixCls('web3-pay-panel');
   const { token, amount, target, supportedChains, wallets, onFinish } = useContext(PayPanelContext);
@@ -79,7 +79,7 @@ export const ShowCode: React.FC<ShowCodeProps> = ({ selectedChainId, onReturn })
   return (
     <>
       <div className={`${prefixCls}-code-title`}>
-        Send {token.symbol} on {selectedChain?.name} network
+        {t('sendOnNetwork', { symbol: token.symbol, network: selectedChain?.name })}
       </div>
 
       <Statistic
@@ -96,13 +96,13 @@ export const ShowCode: React.FC<ShowCodeProps> = ({ selectedChainId, onReturn })
 
         {paymentLink && <QRCode value={paymentLink} />}
         <div className={`${prefixCls}-code-desc`}>
-          <span>USDT Address</span>
+          <span>{t('address', { symbol: token.symbol })}</span>
           <Paragraph copyable>{toAddress}</Paragraph>
         </div>
         <Flex gap={20}>
-          <Button onClick={onReturn}>Return</Button>
+          <Button onClick={onReturn}>{messages.return}</Button>
           <Button onClick={onFinish} type="primary">
-            Already paid
+            {messages.alreadyPaid}
           </Button>
         </Flex>
       </div>

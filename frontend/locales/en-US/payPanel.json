@@ -1,0 +1,8 @@
+{
+  "alreadyPaid": "Already paid",
+  "address": "{{symbol}} Address",
+  "return": "Return",
+  "selectNetwork": "Select network",
+  "sendOnNetwork": "Send {{symbol}} on {{network}} network",
+  "tips": "Please scan the QR code to pay"
+}

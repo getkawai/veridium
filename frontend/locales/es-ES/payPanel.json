@@ -1,0 +1,8 @@
+{
+  "alreadyPaid": "Ya pagado",
+  "address": "Dirección de {{symbol}}",
+  "return": "Volver",
+  "selectNetwork": "Seleccionar red",
+  "sendOnNetwork": "Enviar {{symbol}} en la red {{network}}",
+  "tips": "Por favor escanee el código QR para pagar"
+}

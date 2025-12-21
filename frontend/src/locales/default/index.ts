@@ -19,6 +19,7 @@ import migration from './migration';
 import modelProvider from './modelProvider';
 import oauth from './oauth';
 import plugin from './plugin';
+import payPanel from './payPanel';
 import portal from './portal';
 import providers from './providers';
 import ragEval from './ragEval';
@@ -50,6 +51,7 @@ const resources = {
   migration,
   modelProvider,
   oauth,
+  payPanel,
   plugin,
   portal,
   providers,

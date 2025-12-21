@@ -1,0 +1,8 @@
+{
+  "alreadyPaid": "Zaten ödendi",
+  "address": "{{symbol}} Adresi",
+  "return": "Geri",
+  "selectNetwork": "Ağ seçin",
+  "sendOnNetwork": "{{network}} ağında {{symbol}} gönderin",
+  "tips": "Lütfen ödeme yapmak için QR kodunu tarayın"
+}

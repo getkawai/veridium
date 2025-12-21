@@ -1,0 +1,8 @@
+{
+  "alreadyPaid": "Вече платено",
+  "address": "{{symbol}} Адрес",
+  "return": "Назад",
+  "selectNetwork": "Изберете мрежа",
+  "sendOnNetwork": "Изпратете {{symbol}} в мрежата {{network}}",
+  "tips": "Моля, сканирайте QR кода за плащане"
+}

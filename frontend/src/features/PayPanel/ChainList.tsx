@@ -1,6 +1,7 @@
 import React, { useContext } from 'react';
 import { ConfigProvider } from 'antd';
 
+import useIntl from '../hooks/useIntl';
 import { ChainInfo } from './ChainInfo';
 import { PayPanelContext } from './PayPanelContext';
 
@@ -9,6 +10,7 @@ interface ChainListProps {
 }
 
 export const ChainList: React.FC<ChainListProps> = ({ onChainSelected }) => {
+  const { messages } = useIntl('payPanel');
   const { getPrefixCls } = useContext(ConfigProvider.ConfigContext);
   const prefixCls = getPrefixCls('web3-pay-panel');
 
@@ -16,7 +18,7 @@ export const ChainList: React.FC<ChainListProps> = ({ onChainSelected }) => {
 
   return (
     <>
-      <div className={`${prefixCls}-title`}>Select network</div>
+      <div className={`${prefixCls}-title`}>{messages.selectNetwork}</div>
       {Object.entries(target).map(([chainId]) => {
         return (
           // biome-ignore lint/a11y/useKeyWithClickEvents: by design
