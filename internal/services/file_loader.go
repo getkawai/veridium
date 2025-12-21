@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/dslipak/pdf"
-	"github.com/kawai-network/veridium/gooxml/document"
-	"github.com/kawai-network/veridium/gooxml/presentation"
-	"github.com/kawai-network/veridium/gooxml/spreadsheet"
+	"github.com/kawai-network/veridium/pkg/gooxml/document"
+	"github.com/kawai-network/veridium/pkg/gooxml/presentation"
+	"github.com/kawai-network/veridium/pkg/gooxml/spreadsheet"
 	"github.com/kawai-network/veridium/types"
 )
 
