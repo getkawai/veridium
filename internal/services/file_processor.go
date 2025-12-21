@@ -16,9 +16,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kawai-network/veridium/fantasy"
-	"github.com/kawai-network/veridium/fantasy/llamalib"
-	llamavl "github.com/kawai-network/veridium/fantasy/providers/llama-vl"
+	"github.com/kawai-network/veridium/pkg/fantasy"
+	"github.com/kawai-network/veridium/pkg/fantasy/llamalib"
+	llamavl "github.com/kawai-network/veridium/pkg/fantasy/providers/llama-vl"
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/internal/whisper"
 	"github.com/kawai-network/veridium/pkg/hardware"

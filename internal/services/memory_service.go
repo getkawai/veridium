@@ -25,7 +25,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	llamaembed "github.com/kawai-network/veridium/fantasy/providers/llama-embed"
+	llamaembed "github.com/kawai-network/veridium/pkg/fantasy/providers/llama-embed"
 	"github.com/kawai-network/veridium/internal/database"
 	db "github.com/kawai-network/veridium/internal/database/generated"
 )

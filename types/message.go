@@ -22,7 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/kawai-network/veridium/fantasy"
+	"github.com/kawai-network/veridium/pkg/fantasy"
 )
 
 // ============================================================================

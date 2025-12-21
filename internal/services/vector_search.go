@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	llamaembed "github.com/kawai-network/veridium/fantasy/providers/llama-embed"
+	llamaembed "github.com/kawai-network/veridium/pkg/fantasy/providers/llama-embed"
 	db "github.com/kawai-network/veridium/internal/database/generated"
 )
 

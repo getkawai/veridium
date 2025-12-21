@@ -36,7 +36,7 @@ package cache
 
 import (
 	"github.com/kawai-network/veridium/pkg/xlog"
-	llamaembed "github.com/kawai-network/veridium/fantasy/providers/llama-embed"
+	llamaembed "github.com/kawai-network/veridium/pkg/fantasy/providers/llama-embed"
 )
 
 // CacheManager manages all cache instances

@@ -23,8 +23,8 @@ import (
 	"log"
 	"strings"
 
-	"github.com/kawai-network/veridium/fantasy"
-	"github.com/kawai-network/veridium/fantasy/schema"
+	"github.com/kawai-network/veridium/pkg/fantasy"
+	"github.com/kawai-network/veridium/pkg/fantasy/schema"
 )
 
 // RepairToolCall attempts to repair a malformed tool call.

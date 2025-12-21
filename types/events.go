@@ -20,7 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/kawai-network/veridium/fantasy"
+	"github.com/kawai-network/veridium/pkg/fantasy"
 )
 
 // GetToolCallArguments parses Input JSON string to map[string]string

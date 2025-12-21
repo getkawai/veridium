@@ -20,9 +20,9 @@ import (
 	"context"
 	"log"
 
-	"github.com/kawai-network/veridium/fantasy"
-	"github.com/kawai-network/veridium/fantasy/tools"
-	"github.com/kawai-network/veridium/fantasy/tools/builtin"
+	"github.com/kawai-network/veridium/pkg/fantasy"
+	"github.com/kawai-network/veridium/pkg/fantasy/tools"
+	"github.com/kawai-network/veridium/pkg/fantasy/tools/builtin"
 )
 
 // MemoryIntegration provides integration between memory services and chat

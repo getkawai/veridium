@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	llamaembed "github.com/kawai-network/veridium/fantasy/providers/llama-embed"
+	llamaembed "github.com/kawai-network/veridium/pkg/fantasy/providers/llama-embed"
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/pkg/xlog"
 	"github.com/kawai-network/veridium/types"

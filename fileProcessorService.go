@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/kawai-network/veridium/fantasy"
-	"github.com/kawai-network/veridium/fantasy/llamalib"
+	"github.com/kawai-network/veridium/pkg/fantasy"
+	"github.com/kawai-network/veridium/pkg/fantasy/llamalib"
 	"github.com/kawai-network/veridium/internal/services"
 	"github.com/kawai-network/veridium/internal/whisper"
 	"github.com/kawai-network/veridium/pkg/xlog"

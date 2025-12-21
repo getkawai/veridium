@@ -5,7 +5,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/kawai-network/veridium/fantasy/llamalib"
+	"github.com/kawai-network/veridium/pkg/fantasy/llamalib"
 	"github.com/kawai-network/veridium/pkg/hardware"
 )
 

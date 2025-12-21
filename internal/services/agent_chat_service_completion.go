@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/kawai-network/veridium/fantasy"
+	"github.com/kawai-network/veridium/pkg/fantasy"
 )
 
 // ChatCompletionRequest represents a stateless chat completion request
