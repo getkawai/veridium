@@ -83,10 +83,9 @@ export const ShowCode: React.FC<ShowCodeProps> = ({ selectedChainId, onReturn })
       </div>
 
       <Statistic
-        className={`${prefixCls}-amount`}
+        className={`${prefixCls}-code-amount`}
         value={Number(amount) / 10 ** token.decimal}
         precision={4}
-        valueStyle={{ fontSize: 38 }}
       />
       <Tabs items={walletItems} onChange={onWalletSelect} />
       <div className={`${prefixCls}-code-content`}>

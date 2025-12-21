@@ -5,17 +5,17 @@ import classNames from 'classnames';
 import { ChainList } from './ChainList';
 import { PayPanelContext, type PayPanelProps } from './PayPanelContext';
 import { ShowCode } from './ShowCode';
-import { useStyle } from './style';
+import { useStyles } from './style';
 
 export const PayPanel: React.FC<React.PropsWithChildren<PayPanelProps>> = (props) => {
   const { getPrefixCls } = useContext(ConfigProvider.ConfigContext);
   const prefixCls = getPrefixCls('web3-pay-panel');
-  const { wrapSSR, hashId } = useStyle(prefixCls);
+  const { styles } = useStyles();
   const [selectedChainId, setSelectedChainId] = useState<number | string>();
 
   const { amount, target, supportedChains, token, wallets, onFinish } = props;
 
-  return wrapSSR(
+  return (
     <PayPanelContext.Provider
       value={{
         amount,
@@ -26,7 +26,7 @@ export const PayPanel: React.FC<React.PropsWithChildren<PayPanelProps>> = (props
         onFinish,
       }}
     >
-      <div className={classNames(prefixCls, hashId)}>
+      <div className={classNames(prefixCls, styles.container)}>
         <div className={`${prefixCls}-content`}>
           {!selectedChainId && (
             <ChainList
@@ -45,6 +45,6 @@ export const PayPanel: React.FC<React.PropsWithChildren<PayPanelProps>> = (props
           )}
         </div>
       </div>
-    </PayPanelContext.Provider>,
+    </PayPanelContext.Provider>
   );
 };
