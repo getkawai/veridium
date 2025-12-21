@@ -9,14 +9,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/kawai-network/veridium/pkg/fantasy"
-	"github.com/kawai-network/veridium/pkg/fantasy/llamalib"
-	llamaprovider "github.com/kawai-network/veridium/pkg/fantasy/providers/llama"
-	llamaembed "github.com/kawai-network/veridium/pkg/fantasy/providers/llama-embed"
-	"github.com/kawai-network/veridium/pkg/fantasy/providers/openaicompat"
-	"github.com/kawai-network/veridium/pkg/fantasy/providers/openrouter"
-	"github.com/kawai-network/veridium/pkg/fantasy/tools"
-	yzmabuiltin "github.com/kawai-network/veridium/pkg/fantasy/tools/builtin"
 	"github.com/kawai-network/veridium/internal/audio_recorder"
 	"github.com/kawai-network/veridium/internal/database"
 	db "github.com/kawai-network/veridium/internal/database/generated"
@@ -25,6 +17,14 @@ import (
 	"github.com/kawai-network/veridium/internal/services/cache"
 	"github.com/kawai-network/veridium/internal/tts"
 	"github.com/kawai-network/veridium/internal/whisper"
+	"github.com/kawai-network/veridium/pkg/fantasy"
+	"github.com/kawai-network/veridium/pkg/fantasy/llamalib"
+	llamaprovider "github.com/kawai-network/veridium/pkg/fantasy/providers/llama"
+	llamaembed "github.com/kawai-network/veridium/pkg/fantasy/providers/llama-embed"
+	"github.com/kawai-network/veridium/pkg/fantasy/providers/openaicompat"
+	"github.com/kawai-network/veridium/pkg/fantasy/providers/openrouter"
+	"github.com/kawai-network/veridium/pkg/fantasy/tools"
+	yzmabuiltin "github.com/kawai-network/veridium/pkg/fantasy/tools/builtin"
 )
 
 // Configuration constants
@@ -224,7 +224,7 @@ func (ctx *Context) InitKnowledgeBase() {
 
 func (ctx *Context) InitWalletService() {
 	ctx.WalletService = services.NewWalletService("data")
-	log.Printf("WalletService initialized (path: data/keystore)")
+	log.Printf("WalletService initialized (using jarvis/accounts at ~/.jarvis/)")
 }
 
 func (ctx *Context) InitLanguageModels() {

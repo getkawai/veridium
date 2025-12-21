@@ -54,3 +54,21 @@ func (self *Account) SignTx(
 	}
 	return addr, signedTx, nil
 }
+
+// SignMessage signs a message with the private key
+func (self *Account) SignMessage(message string) (string, error) {
+	// Get the private key from the signer
+	keySigner, ok := self.signer.(*KeySigner)
+	if !ok {
+		return "", fmt.Errorf("signer is not a KeySigner")
+	}
+
+	// Hash the message
+	hash := crypto.Keccak256Hash([]byte(message))
+	sig, err := crypto.Sign(hash.Bytes(), keySigner.key)
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("0x%x", sig), nil
+}

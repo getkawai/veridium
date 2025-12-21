@@ -1,21 +1,15 @@
 package services
 
 import (
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"os"
-	"path/filepath"
 
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/tyler-smith/go-bip39"
+
+	"github.com/kawai-network/veridium/pkg/jarvis/accounts"
+	"github.com/kawai-network/veridium/pkg/jarvis/accounts/types"
+	"github.com/kawai-network/veridium/pkg/jarvis/util/account"
 )
 
 // WalletStatus represents the current state of the wallet
@@ -25,27 +19,22 @@ type WalletStatus struct {
 	Address   string `json:"address"`
 }
 
-// WalletService handles local wallet management
+// WalletService handles local wallet management using jarvis/accounts
 type WalletService struct {
-	keystoreDir  string
-	keystorePath string
-	privateKey   []byte
-	address      string
+	currentAccount *account.Account
+	address        string
 }
 
 // NewWalletService creates a new wallet service
 func NewWalletService(dataDir string) *WalletService {
-	keystoreDir := filepath.Join(dataDir, "keystore")
-	return &WalletService{
-		keystoreDir:  keystoreDir,
-		keystorePath: filepath.Join(keystoreDir, "wallet.json"),
-	}
+	// dataDir is not used anymore, jarvis/accounts manages its own directory
+	return &WalletService{}
 }
 
 // HasWallet checks if a wallet already exists
 func (s *WalletService) HasWallet() bool {
-	_, err := os.Stat(s.keystorePath)
-	return err == nil
+	accs := accounts.GetAccounts()
+	return len(accs) > 0
 }
 
 // GenerateMnemonic creates a new 12-word bip39 mnemonic
@@ -71,15 +60,40 @@ func (s *WalletService) SetupWallet(password string, mnemonic string) (string, e
 	}
 
 	privBytes := crypto.FromECDSA(masterKey)
+	privHex := fmt.Sprintf("%x", privBytes)
 	address := crypto.PubkeyToAddress(masterKey.PublicKey).Hex()
 
-	// 2. Encrypt and save
-	if err := s.saveKeystore(password, privBytes, address); err != nil {
-		return "", err
+	// 2. Store keystore using jarvis/accounts
+	keystorePath, err := accounts.StorePrivateKeyWithKeystore(privHex, password)
+	if err != nil {
+		return "", fmt.Errorf("failed to store keystore: %v", err)
 	}
 
-	// 3. Set state
-	s.privateKey = privBytes
+	// 3. Verify keystore
+	verifiedAddr, err := accounts.VerifyKeystore(keystorePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to verify keystore: %v", err)
+	}
+
+	// 4. Store account metadata
+	accDesc := types.AccDesc{
+		Address: verifiedAddr,
+		Kind:    "keystore",
+		Keypath: keystorePath,
+		Desc:    "Veridium Wallet",
+	}
+	if err := accounts.StoreAccountRecord(accDesc); err != nil {
+		return "", fmt.Errorf("failed to store account record: %v", err)
+	}
+
+	// 5. Unlock the account
+	acc, err := accounts.UnlockKeystoreAccountWithPassword(accDesc, password)
+	if err != nil {
+		return "", fmt.Errorf("failed to unlock account: %v", err)
+	}
+
+	// 6. Set state
+	s.currentAccount = acc
 	s.address = address
 
 	return address, nil
@@ -87,137 +101,52 @@ func (s *WalletService) SetupWallet(password string, mnemonic string) (string, e
 
 // UnlockWallet decrypts the keystore and loads it into memory
 func (s *WalletService) UnlockWallet(password string) (string, error) {
-	data, err := os.ReadFile(s.keystorePath)
-	if err != nil {
-		return "", err
+	// Get all accounts
+	accs := accounts.GetAccounts()
+	if len(accs) == 0 {
+		return "", errors.New("no wallet found")
 	}
 
-	var keystore struct {
-		EncryptedKey string `json:"encryptedKey"`
-		Address      string `json:"address"`
-		Salt         string `json:"salt"`
-		Nonce        string `json:"nonce"`
+	// Get the first account (assuming single wallet for now)
+	var accDesc types.AccDesc
+	for _, acc := range accs {
+		accDesc = acc
+		break
 	}
 
-	if err := json.Unmarshal(data, &keystore); err != nil {
-		return "", err
-	}
-
-	// Derive key from password
-	salt, _ := hex.DecodeString(keystore.Salt)
-	key := deriveKey(password, salt)
-
-	// Decrypt
-	encrypted, _ := hex.DecodeString(keystore.EncryptedKey)
-	nonce, _ := hex.DecodeString(keystore.Nonce)
-
-	privBytes, err := decrypt(encrypted, key, nonce)
+	// Unlock the account
+	acc, err := accounts.UnlockKeystoreAccountWithPassword(accDesc, password)
 	if err != nil {
 		return "", errors.New("invalid password")
 	}
 
-	s.privateKey = privBytes
-	s.address = keystore.Address
+	// Set state
+	s.currentAccount = acc
+	s.address = acc.AddressHex()
 
 	return s.address, nil
+}
+
+// LockWallet clears the private key from memory
+func (s *WalletService) LockWallet() {
+	s.currentAccount = nil
+	s.address = ""
 }
 
 // GetStatus returns the current wallet status
 func (s *WalletService) GetStatus() WalletStatus {
 	return WalletStatus{
 		HasWallet: s.HasWallet(),
-		IsLocked:  s.privateKey == nil,
+		IsLocked:  s.currentAccount == nil,
 		Address:   s.address,
 	}
 }
 
 // SignMessage signs a message with the private key
 func (s *WalletService) SignMessage(message string) (string, error) {
-	if s.privateKey == nil {
+	if s.currentAccount == nil {
 		return "", errors.New("wallet is locked")
 	}
 
-	privKey, err := crypto.ToECDSA(s.privateKey)
-	if err != nil {
-		return "", err
-	}
-
-	// Hash the message
-	hash := crypto.Keccak256Hash([]byte(message))
-	sig, err := crypto.Sign(hash.Bytes(), privKey)
-	if err != nil {
-		return "", err
-	}
-
-	return hexutil.Encode(sig), nil
-}
-
-// Helper: Save keystore to file
-func (s *WalletService) saveKeystore(password string, privKey []byte, address string) error {
-	salt := make([]byte, 16)
-	rand.Read(salt)
-
-	key := deriveKey(password, salt)
-	encrypted, nonce, err := encrypt(privKey, key)
-	if err != nil {
-		return err
-	}
-
-	keystore := struct {
-		EncryptedKey string `json:"encryptedKey"`
-		Address      string `json:"address"`
-		Salt         string `json:"salt"`
-		Nonce        string `json:"nonce"`
-	}{
-		EncryptedKey: hex.EncodeToString(encrypted),
-		Address:      address,
-		Salt:         hex.EncodeToString(salt),
-		Nonce:        hex.EncodeToString(nonce),
-	}
-
-	os.MkdirAll(s.keystoreDir, 0700)
-	data, _ := json.MarshalIndent(keystore, "", "  ")
-	return os.WriteFile(s.keystorePath, data, 0600)
-}
-
-// Simple key derivation (for production, use scrypt or PBKDF2)
-func deriveKey(password string, salt []byte) []byte {
-	h := sha256.New()
-	h.Write(salt)
-	h.Write([]byte(password))
-	return h.Sum(nil)
-}
-
-func encrypt(data, key []byte) ([]byte, []byte, error) {
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	nonce := make([]byte, gcm.NonceSize())
-	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
-		return nil, nil, err
-	}
-
-	ciphertext := gcm.Seal(nil, nonce, data, nil)
-	return ciphertext, nonce, nil
-}
-
-func decrypt(data, key, nonce []byte) ([]byte, error) {
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		return nil, err
-	}
-
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return nil, err
-	}
-
-	return gcm.Open(nil, nonce, data, nil)
+	return s.currentAccount.SignMessage(message)
 }
