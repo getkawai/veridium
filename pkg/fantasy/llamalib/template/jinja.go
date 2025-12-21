@@ -1,16 +1,61 @@
 package template
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 
 	"github.com/kawai-network/veridium/pkg/fantasy"
-	"github.com/kawai-network/veridium/types"
 	"github.com/nikolalohinski/gonja/v2"
 	"github.com/nikolalohinski/gonja/v2/exec"
 	"github.com/nikolalohinski/gonja/v2/loaders"
 )
+
+// getMessageContent returns the content as a map for template rendering.
+// This maintains compatibility with jinja templates that expect map access.
+func getMessageContent(m fantasy.Message) map[string]interface{} {
+	result := make(map[string]interface{})
+
+	var textContent string
+	var toolCalls []map[string]interface{}
+
+	for _, part := range m.Content {
+		switch p := part.(type) {
+		case fantasy.TextPart:
+			textContent += p.Text
+		case fantasy.ToolCallPart:
+			// Parse Input JSON string to arguments map for template compatibility
+			var arguments interface{}
+			if p.Input != "" {
+				var parsed map[string]interface{}
+				if err := json.Unmarshal([]byte(p.Input), &parsed); err == nil {
+					arguments = parsed
+				}
+			}
+			toolCalls = append(toolCalls, map[string]interface{}{
+				"id":        p.ToolCallID,
+				"name":      p.ToolName,
+				"input":     p.Input,
+				"arguments": arguments,
+			})
+		case fantasy.ToolResultPart:
+			result["tool_call_id"] = p.ToolCallID
+			if textOutput, ok := p.Output.(fantasy.ToolResultOutputContentText); ok {
+				result["content"] = textOutput.Text
+			}
+		}
+	}
+
+	if textContent != "" {
+		result["content"] = textContent
+	}
+	if len(toolCalls) > 0 {
+		result["tool_calls"] = toolCalls
+	}
+
+	return result
+}
 
 // raiseExceptionFunc implements the raise_exception Jinja function
 // Some model templates (like Llama 3.2) use this to validate constraints
@@ -36,9 +81,9 @@ func Apply(tmpl string, messages []fantasy.Message, addAssistantPrompt bool) (st
 	msgs := make([]map[string]interface{}, len(messages))
 	for i, m := range messages {
 		msgs[i] = map[string]interface{}{
-			"role": types.GetMessageRole(m),
+			"role": m.Role,
 		}
-		for k, v := range types.GetMessageContent(m) {
+		for k, v := range getMessageContent(m) {
 			msgs[i][k] = v
 		}
 	}

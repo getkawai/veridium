@@ -143,6 +143,16 @@ type Message struct {
 	ProviderOptions ProviderOptions `json:"provider_options"`
 }
 
+func GetMessageText(m Message) string {
+	var text string
+	for _, part := range m.Content {
+		if p, ok := AsMessagePart[TextPart](part); ok {
+			text += p.Text
+		}
+	}
+	return text
+}
+
 // AsContentType converts a Content interface to a specific content type.
 func AsContentType[T Content](content Content) (T, bool) {
 	var zero T
@@ -436,6 +446,22 @@ type ToolCallContent struct {
 	Invalid bool `json:"invalid,omitempty"`
 	// Error that occurred during validation/parsing (only set if Invalid is true)
 	ValidationError error `json:"validation_error,omitempty"`
+}
+
+// NewToolCallMessageFromContent creates an assistant message with tool calls from ToolCallContent
+func NewToolCallMessageFromContent(toolCalls []ToolCallContent) Message {
+	content := make([]MessagePart, 0, len(toolCalls))
+	for _, tc := range toolCalls {
+		content = append(content, ToolCallPart{
+			ToolCallID: tc.ToolCallID,
+			ToolName:   tc.ToolName,
+			Input:      tc.Input,
+		})
+	}
+	return Message{
+		Role:    MessageRoleAssistant,
+		Content: content,
+	}
 }
 
 // GetType returns the type of the tool call content.

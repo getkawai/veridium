@@ -547,7 +547,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	// 8. Add messages to session history
 	session.Messages = append(session.Messages, toolMessages...)
 	if len(toolCalls) > 0 {
-		session.Messages = append(session.Messages, types.NewToolCallMessageFromContent(toolCalls))
+		session.Messages = append(session.Messages, fantasy.NewToolCallMessageFromContent(toolCalls))
 	} else {
 		session.Messages = append(session.Messages, fantasy.Message{
 			Role:    fantasy.MessageRoleAssistant,
@@ -641,7 +641,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	// Count user messages to determine turn count (tool messages don't count as turns)
 	userMsgCount := 0
 	for _, msg := range session.Messages {
-		if types.GetMessageRole(msg) == "user" {
+		if msg.Role == fantasy.MessageRoleUser {
 			userMsgCount++
 		}
 	}

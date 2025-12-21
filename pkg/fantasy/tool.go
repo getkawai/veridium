@@ -36,6 +36,34 @@ type ToolResponse struct {
 	IsError  bool   `json:"is_error"`
 }
 
+func NewToolCallMessage(toolCalls []ToolCall) Message {
+	content := make([]MessagePart, len(toolCalls))
+	for i, tc := range toolCalls {
+		content[i] = ToolCallPart{
+			ToolCallID: tc.ID,
+			ToolName:   tc.Name,
+			Input:      tc.Input,
+		}
+	}
+	return Message{
+		Role:    MessageRoleAssistant,
+		Content: content,
+	}
+}
+
+// NewToolResultMessage creates a new tool result message.
+func NewToolResultMessage(toolCallID, toolName, result string) Message {
+	return Message{
+		Role: MessageRoleTool,
+		Content: []MessagePart{
+			ToolResultPart{
+				ToolCallID: toolCallID,
+				Output:     ToolResultOutputContentText{Text: result},
+			},
+		},
+	}
+}
+
 // NewTextResponse creates a text response.
 func NewTextResponse(content string) ToolResponse {
 	return ToolResponse{

@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/kawai-network/veridium/pkg/fantasy"
-	"github.com/kawai-network/veridium/types"
 )
 
 func TestChatMLTemplate(t *testing.T) {
@@ -54,14 +53,14 @@ func TestQwen25InstructTemplateWithToolCall(t *testing.T) {
 	// Prepare messages with a tool call
 	messages := fantasy.Prompt{
 		fantasy.NewUserMessage("What is 2 + 3?"),
-		types.NewToolCallMessage([]fantasy.ToolCall{
+		fantasy.NewToolCallMessage([]fantasy.ToolCall{
 			{
 				ID:    "call_1",
 				Name:  "add",
 				Input: `{"a": "2", "b": "3"}`,
 			},
 		}),
-		types.NewToolResultMessage("call_1", "add", "5"),
+		fantasy.NewToolResultMessage("call_1", "add", "5"),
 	}
 
 	result, err := Apply(tmpl, messages, true)
@@ -104,7 +103,7 @@ func TestApplyJinjaTemplateWithToolMessage(t *testing.T) {
 	// Prepare messages with ToolCallMessage
 	messages := fantasy.Prompt{
 		fantasy.NewUserMessage("Call the calculator function"),
-		types.NewToolCallMessage([]fantasy.ToolCall{
+		fantasy.NewToolCallMessage([]fantasy.ToolCall{
 			{
 				ID:    "call_1",
 				Name:  "calculator",
@@ -150,14 +149,14 @@ func TestApplyJinjaTemplateWithToolResponseMessage(t *testing.T) {
 	// Prepare messages with ToolResultMessage
 	messages := fantasy.Prompt{
 		fantasy.NewUserMessage("What is the result?"),
-		types.NewToolCallMessage([]fantasy.ToolCall{
+		fantasy.NewToolCallMessage([]fantasy.ToolCall{
 			{
 				ID:    "call_1",
 				Name:  "calculator",
 				Input: `{"x": "10", "y": "20"}`,
 			},
 		}),
-		types.NewToolResultMessage("call_1", "calculator", "30"),
+		fantasy.NewToolResultMessage("call_1", "calculator", "30"),
 	}
 
 	result, err := Apply(tmpl, messages, true)
@@ -194,7 +193,7 @@ func TestApplyJinjaTemplateWithMultipleToolCalls(t *testing.T) {
 	// Prepare messages with multiple tool calls
 	messages := fantasy.Prompt{
 		fantasy.NewUserMessage("Calculate 2+3 and 5*7"),
-		types.NewToolCallMessage([]fantasy.ToolCall{
+		fantasy.NewToolCallMessage([]fantasy.ToolCall{
 			{
 				ID:    "call_1",
 				Name:  "add",
@@ -206,8 +205,8 @@ func TestApplyJinjaTemplateWithMultipleToolCalls(t *testing.T) {
 				Input: `{"a": "5", "b": "7"}`,
 			},
 		}),
-		types.NewToolResultMessage("call_1", "add", "5"),
-		types.NewToolResultMessage("call_2", "multiply", "35"),
+		fantasy.NewToolResultMessage("call_1", "add", "5"),
+		fantasy.NewToolResultMessage("call_2", "multiply", "35"),
 	}
 
 	result, err := Apply(tmpl, messages, true)

@@ -30,14 +30,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/kawai-network/veridium/internal/database"
+	db "github.com/kawai-network/veridium/internal/database/generated"
+	"github.com/kawai-network/veridium/internal/topic"
 	"github.com/kawai-network/veridium/pkg/fantasy"
 	"github.com/kawai-network/veridium/pkg/fantasy/llamalib"
 	"github.com/kawai-network/veridium/pkg/fantasy/tools"
 	yzmabuiltin "github.com/kawai-network/veridium/pkg/fantasy/tools/builtin"
-	"github.com/kawai-network/veridium/internal/database"
-	db "github.com/kawai-network/veridium/internal/database/generated"
-	"github.com/kawai-network/veridium/internal/topic"
-	"github.com/kawai-network/veridium/types"
 	"github.com/pemistahl/lingua-go"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -810,7 +809,7 @@ func (s *AgentChatService) getHistoryMessages(session *AgentSession) []fantasy.M
 	// Filter out system messages - fantasy.Agent handles system prompt via WithSystemPrompt()
 	history := make([]fantasy.Message, 0, len(session.Messages))
 	for _, msg := range session.Messages {
-		if types.GetMessageRole(msg) != "system" {
+		if msg.Role != fantasy.MessageRoleSystem {
 			history = append(history, msg)
 		}
 	}
@@ -953,13 +952,13 @@ func convertDBMessageToYzma(dbMsg *db.Message) (fantasy.Message, bool) {
 	if dbMsg.Tools.Valid && dbMsg.Tools.String != "" {
 		var toolCalls []fantasy.ToolCall
 		if err := json.Unmarshal([]byte(dbMsg.Tools.String), &toolCalls); err == nil && len(toolCalls) > 0 {
-			return types.NewToolCallMessage(toolCalls), true
+			return fantasy.NewToolCallMessage(toolCalls), true
 		}
 	}
 
 	// Check for tool response
 	if role == "tool" && content != "" {
-		return types.NewToolResultMessage("", "", content), true
+		return fantasy.NewToolResultMessage("", "", content), true
 	}
 
 	// Skip empty messages
@@ -1247,8 +1246,8 @@ Rules:
 	// Build conversation text
 	var conversationText string
 	for _, msg := range messages {
-		role := types.GetMessageRole(msg)
-		text := types.GetMessageText(msg)
+		role := msg.Role
+		text := fantasy.GetMessageText(msg)
 		if text != "" {
 			conversationText += fmt.Sprintf("%s: %s\n\n", role, text)
 		}
@@ -1425,10 +1424,10 @@ func (s *AgentChatService) generateIncrementalSummary(ctx context.Context, exist
 	var messagesText strings.Builder
 	for i, msg := range newMessages {
 		role := "User"
-		if types.GetMessageRole(msg) == "assistant" {
+		if msg.Role == fantasy.MessageRoleAssistant {
 			role = "Assistant"
 		}
-		text := types.GetMessageText(msg)
+		text := fantasy.GetMessageText(msg)
 		if text != "" {
 			messagesText.WriteString(fmt.Sprintf("%s: %s\n", role, text))
 		}

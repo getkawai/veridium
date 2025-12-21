@@ -9,10 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kawai-network/veridium/pkg/fantasy"
 	"github.com/kawai-network/veridium/internal/database"
 	db "github.com/kawai-network/veridium/internal/database/generated"
-	"github.com/kawai-network/veridium/types"
+	"github.com/kawai-network/veridium/pkg/fantasy"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -66,15 +65,15 @@ Example: Sleep Functions for Body and Mind`, locale)
 	// Build conversation text (User messages only)
 	var conversationText string
 	for _, msg := range messages {
-		if types.GetMessageRole(msg) == "user" {
-			conversationText += fmt.Sprintf("user: %s\n", types.GetMessageText(msg))
+		if msg.Role == "user" {
+			conversationText += fmt.Sprintf("user: %s\n", fantasy.GetMessageText(msg))
 		}
 	}
 
 	// Fallback: if no user messages found (unlikely but possible), use all messages
 	if conversationText == "" {
 		for _, msg := range messages {
-			conversationText += fmt.Sprintf("%s: %s\n", types.GetMessageRole(msg), types.GetMessageText(msg))
+			conversationText += fmt.Sprintf("%s: %s\n", msg.Role, fantasy.GetMessageText(msg))
 		}
 	}
 
