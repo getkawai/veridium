@@ -12,7 +12,7 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as llamaembed$0 from "../../fantasy/providers/llama-embed/models.js";
+import * as llamaembed$0 from "../../pkg/fantasy/providers/llama-embed/models.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
