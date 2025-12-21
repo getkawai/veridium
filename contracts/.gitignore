@@ -1,0 +1,12 @@
+node_modules
+.env
+cache
+artifacts
+typechain
+typechain-types
+.docusaurus
+.DS_Store
+coverage
+coverage.json
+lib
+out
