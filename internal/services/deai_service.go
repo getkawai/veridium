@@ -82,7 +82,7 @@ func (s *DeAIService) DepositToVault(amountStr string) (string, error) {
 	if allowanceBig.Cmp(amount) < 0 {
 		fmt.Println("Allowance insufficient, approving...")
 		chainId := big.NewInt(97)
-		opts, err := s.wallet.GetTransactOpts(chainId)
+		opts, err := s.wallet.getTransactOpts(chainId)
 		if err != nil {
 			return "", fmt.Errorf("failed to get opts: %w", err)
 		}
@@ -112,7 +112,7 @@ func (s *DeAIService) DepositToVault(amountStr string) (string, error) {
 
 	// 5. Deposit
 	chainId := big.NewInt(97)
-	opts, err := s.wallet.GetTransactOpts(chainId)
+	opts, err := s.wallet.getTransactOpts(chainId)
 	if err != nil {
 		return "", fmt.Errorf("failed to get transaction opts: %w", err)
 	}
@@ -171,7 +171,7 @@ func (s *DeAIService) ApproveUSDT(spenderStr string, amountStr string) (string, 
 
 	// 2. Get Opts
 	chainId := big.NewInt(97)
-	opts, err := s.wallet.GetTransactOpts(chainId)
+	opts, err := s.wallet.getTransactOpts(chainId)
 	if err != nil {
 		return "", fmt.Errorf("failed to get opts: %w", err)
 	}
@@ -217,7 +217,7 @@ func (s *DeAIService) ApproveToken(tokenName string, spenderStr string, amountSt
 
 	// 3. Get Opts
 	chainId := big.NewInt(97)
-	opts, err := s.wallet.GetTransactOpts(chainId)
+	opts, err := s.wallet.getTransactOpts(chainId)
 	if err != nil {
 		return "", fmt.Errorf("failed to get opts: %w", err)
 	}
@@ -251,7 +251,7 @@ func (s *DeAIService) CreateSellOrder(tokenAmountStr string, priceStr string) (s
 	}
 
 	chainId := big.NewInt(97)
-	opts, err := s.wallet.GetTransactOpts(chainId)
+	opts, err := s.wallet.getTransactOpts(chainId)
 	if err != nil {
 		return "", fmt.Errorf("failed to get opts: %w", err)
 	}
@@ -283,7 +283,7 @@ func (s *DeAIService) BuyOrder(orderIdStr string) (string, error) {
 	}
 
 	chainId := big.NewInt(97)
-	opts, err := s.wallet.GetTransactOpts(chainId)
+	opts, err := s.wallet.getTransactOpts(chainId)
 	if err != nil {
 		return "", fmt.Errorf("failed to get opts: %w", err)
 	}
@@ -309,7 +309,7 @@ func (s *DeAIService) BuyOrder(orderIdStr string) (string, error) {
 // MintTestTokens mints MockUSDT and KawaiTokens to the caller (for testing only)
 func (s *DeAIService) MintTestTokens() (string, error) {
 	chainId := big.NewInt(97)
-	opts, err := s.wallet.GetTransactOpts(chainId)
+	opts, err := s.wallet.getTransactOpts(chainId)
 	if err != nil {
 		return "", fmt.Errorf("failed to get opts: %w", err)
 	}

@@ -10,6 +10,7 @@ export enum SidebarTabKey {
   Discover = 'discover',
   Files = 'files',
   Image = 'image',
+  Wallet = 'wallet',
   Me = 'me',
   Setting = 'settings',
 }

@@ -12,13 +12,6 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as bind$0 from "../../../../ethereum/go-ethereum/accounts/abi/bind/models.js";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore: Unused imports
-import * as big$0 from "../../../../../math/big/models.js";
-
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
 /**
@@ -50,6 +43,13 @@ export function GenerateMnemonic(): $CancellablePromise<string> {
 }
 
 /**
+ * GetCurrentAddress returns the current active wallet address
+ */
+export function GetCurrentAddress(): $CancellablePromise<string> {
+    return $Call.ByID(1124137400);
+}
+
+/**
  * GetStatus returns the current wallet status
  */
 export function GetStatus(): $CancellablePromise<$models.WalletStatus> {
@@ -59,20 +59,11 @@ export function GetStatus(): $CancellablePromise<$models.WalletStatus> {
 }
 
 /**
- * GetTransactOpts creates a bind.TransactOpts for the current account
- */
-export function GetTransactOpts(chainId: big$0.Int | null): $CancellablePromise<bind$0.TransactOpts | null> {
-    return $Call.ByID(3294882943, chainId).then(($result: any) => {
-        return $$createType2($result);
-    });
-}
-
-/**
  * GetWallets returns a list of all stored wallets
  */
 export function GetWallets(): $CancellablePromise<$models.WalletInfo[]> {
     return $Call.ByID(3479245187).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType2($result);
     });
 }
 
@@ -134,7 +125,5 @@ export function UpdateWalletDescription(address: string, description: string): $
 
 // Private type creation functions
 const $$createType0 = $models.WalletStatus.createFrom;
-const $$createType1 = $0.TransactOpts.createFrom;
-const $$createType2 = $Create.Nullable($$createType1);
-const $$createType3 = $models.WalletInfo.createFrom;
-const $$createType4 = $Create.Array($$createType3);
+const $$createType1 = $models.WalletInfo.createFrom;
+const $$createType2 = $Create.Array($$createType1);

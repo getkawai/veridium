@@ -324,6 +324,11 @@ func (s *WalletService) GetStatus() WalletStatus {
 	}
 }
 
+// GetCurrentAddress returns the current active wallet address
+func (s *WalletService) GetCurrentAddress() string {
+	return s.address
+}
+
 // SignMessage signs a message with the private key
 func (s *WalletService) SignMessage(message string) (string, error) {
 	if s.currentAccount == nil {
@@ -333,8 +338,8 @@ func (s *WalletService) SignMessage(message string) (string, error) {
 	return s.currentAccount.SignMessage(message)
 }
 
-// GetTransactOpts creates a bind.TransactOpts for the current account
-func (s *WalletService) GetTransactOpts(chainId *big.Int) (*bind.TransactOpts, error) {
+// getTransactOpts creates a bind.TransactOpts for the current account
+func (s *WalletService) getTransactOpts(chainId *big.Int) (*bind.TransactOpts, error) {
 	if s.currentAccount == nil {
 		return nil, errors.New("wallet is locked")
 	}

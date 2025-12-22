@@ -3,6 +3,7 @@ import { Events, WML } from "@wailsio/runtime";
 import GlobalLayout from './layout/GlobalProvider';
 import DesktopMainLayout from './layout/Desktop';
 import DesktopChatLayout from './app/chat';
+import DesktopWalletLayout from './app/wallet';
 import { useChatStore } from './store/chat';
 import DesktopImageLayout from './app/image';
 import { useGlobalStore } from './store/global';
@@ -70,6 +71,7 @@ function App() {
         <>
           <DesktopMainLayout>
             {sidebarKey === SidebarTabKey.Chat && <DesktopChatLayout />}
+            {sidebarKey === SidebarTabKey.Wallet && <DesktopWalletLayout />}
             {sidebarKey === SidebarTabKey.Image && <DesktopImageLayout />}
             {sidebarKey === SidebarTabKey.Files && <KnowledgeHomePage />}
           </DesktopMainLayout>

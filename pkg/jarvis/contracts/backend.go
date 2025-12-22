@@ -86,8 +86,11 @@ func (jb *JarvisBackend) HeaderByNumber(ctx context.Context, number *big.Int) (*
 }
 
 func (jb *JarvisBackend) SendTransaction(ctx context.Context, tx *types.Transaction) error {
-	// Jarvis usually handles broadcasting separately via Broadcaster
-	return fmt.Errorf("SendTransaction not supported via JarvisBackend, use Broadcaster")
+	// Use the underlying client from EthReader to send the transaction
+	if client := jb.Reader.Client(); client != nil {
+		return client.SendTransaction(ctx, tx)
+	}
+	return fmt.Errorf("no ethclient available in EthReader to send transaction")
 }
 
 func (jb *JarvisBackend) FilterLogs(ctx context.Context, query ethereum.FilterQuery) ([]types.Log, error) {

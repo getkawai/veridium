@@ -1,5 +1,5 @@
 import { ActionIcon, ActionIconProps, Hotkey } from '@lobehub/ui';
-import { Compass, FolderClosed, MessageSquare, Palette } from 'lucide-react';
+import { Compass, FolderClosed, MessageSquare, Palette, Wallet } from 'lucide-react';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
@@ -99,6 +99,21 @@ const TopActions = memo<TopActionProps>(({ tab, isPinned }) => {
           />
         </a>
       )}
+      <a
+        aria-label={'Wallet'}
+        onClick={(e) => {
+          e.preventDefault();
+          useGlobalStore.getState().switchSideBar(SidebarTabKey.Wallet);
+        }}
+      >
+        <ActionIcon
+          active={tab === SidebarTabKey.Wallet}
+          icon={Wallet}
+          size={ICON_SIZE}
+          title={'Wallet'}
+          tooltipProps={{ placement: 'right' }}
+        />
+      </a>
     </Flexbox>
   );
 });

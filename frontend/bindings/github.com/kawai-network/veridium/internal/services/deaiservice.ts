@@ -46,6 +46,13 @@ export function DepositToVault(amountStr: string): $CancellablePromise<string> {
 }
 
 /**
+ * GetUSDTAllowance returns the current allowance of owner to spender
+ */
+export function GetUSDTAllowance(ownerStr: string, spenderStr: string): $CancellablePromise<string> {
+    return $Call.ByID(3908918835, ownerStr, spenderStr);
+}
+
+/**
  * GetVaultBalance returns the balance of the payment vault contract in USDT
  * This is just a placeholder example, real logic depends on what we want to read
  */
