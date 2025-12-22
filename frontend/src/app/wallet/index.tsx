@@ -1,50 +1,79 @@
-
-import { Flex, App, Tabs, QRCode } from 'antd';
+import { Card, Modal, QRCode, App, List, Avatar } from 'antd';
 import { memo, useEffect, useState } from 'react';
-import styled from 'styled-components';
-import { DeAIService, WalletService } from '../../../bindings/github.com/kawai-network/veridium/internal/services';
+import { DeAIService, WalletService } from '@@/github.com/kawai-network/veridium/internal/services';
+import * as HistoryService from '@@/github.com/kawai-network/veridium/internal/services/historyservice';
 import { useUserStore } from '@/store/user';
 import { QrCode, ArrowDownToLine, Copy, Send } from 'lucide-react';
+import type { TransactionRecord } from '@@/github.com/kawai-network/veridium/internal/services/models';
+import { ActionIcon } from '@lobehub/ui';
+import { Flexbox } from 'react-layout-kit';
+import { createStyles } from 'antd-style';
 
-
-const Container = styled(Flex)`
-  height: 100%;
-  width: 100%;
-  position: relative;
-  background: ${({ theme }) => theme.colorBgLayout};
-  padding: 24px;
-`;
-
-const ContentWrapper = styled.div`
-  max-width: 800px;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-`;
+const useStyles = createStyles(({ css, token }) => ({
+  container: css`
+    height: 100%;
+    width: 100%;
+    background: ${token.colorBgLayout};
+    padding: 24px;
+    overflow-y: auto;
+  `,
+  balanceCard: css`
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 16px;
+    color: white;
+    
+    .ant-card-body {
+      padding: 32px;
+    }
+  `,
+  actionButton: css`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 16px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    
+    &:hover {
+      transform: translateY(-2px);
+    }
+  `,
+}));
 
 const DesktopWalletLayout = memo(() => {
   const [address, setAddress] = useState<string>('');
   const [balance, setBalance] = useState<string>('0');
   const [loading, setLoading] = useState(false);
+  const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
+  const [modalType, setModalType] = useState<'deposit' | 'send' | 'receive' | null>(null);
   const { message } = App.useApp();
   const { isWalletLoaded } = useUserStore();
+  const { styles } = useStyles();
 
-  // Fetch initial data
   useEffect(() => {
     WalletService.GetCurrentAddress().then(setAddress).catch(console.error);
     loadBalance();
+    loadHistory();
   }, [isWalletLoaded]);
 
   const loadBalance = async () => {
     try {
-      const bal = await DeAIService.GetVaultBalance(); // This fetches Credits balance actually? Or Vault? Assuming Credits for now based on context.
-      // If GetVaultBalance returns the user's credit balance in the vault.
-      // Or maybe we want to show the Wallet's USDT balance?
-      // For now let's display what we fetched.
+      const bal = await DeAIService.GetVaultBalance();
       setBalance(bal);
     } catch (e) {
       console.error("Failed to load balance", e);
+    }
+  };
+
+  const loadHistory = async () => {
+    try {
+      const history = await HistoryService.GetTransactions();
+      setTransactions(history);
+    } catch (e) {
+      console.error("Failed to load history", e);
     }
   };
 
@@ -62,6 +91,8 @@ const DesktopWalletLayout = memo(() => {
       const txHash = await DeAIService.DepositToVault(rawAmount);
       message.success(`Deposit Successful! TX: ${txHash.substring(0, 10)}...`);
       loadBalance();
+      loadHistory();
+      setModalType(null);
     } catch (e: any) {
       console.error(e);
       let msg = e.message || e;
@@ -75,168 +106,203 @@ const DesktopWalletLayout = memo(() => {
     }
   };
 
-  const items = [
-    {
-      key: 'smart-deposit',
-      label: (
-        <Flex gap={8} align="center">
-          <ArrowDownToLine size={16} />
-          Topup Credits (Smart Deposit)
-        </Flex>
-      ),
-      children: (
-        <div style={{ background: '#1e1e1e', padding: 32, borderRadius: 12 }}>
-          <Flex justify="space-between" align="center" style={{ marginBottom: 24 }}>
-            <h2>Smart Deposit</h2>
-            <div style={{ textAlign: 'right' }}>
-              <p style={{ color: '#aaa', fontSize: 12, margin: 0 }}>Available Balance</p>
-              <p style={{ fontSize: 20, fontWeight: 'bold', margin: 0 }}>{balance} USDT</p>
-            </div>
-          </Flex>
-
-          <p style={{ color: '#aaa', marginBottom: 24, lineHeight: '1.6' }}>
-            <b>One-Click Deposit</b> allows you to instantly convert your internal wallet's USDT balance into Service Credits.
-            <br />
-            <br />
-            ℹ️ <b>Note:</b> You must have a small amount of <b>BNB</b> in your wallet to pay for gas fees.
-          </p>
-          <SmartDepositForm onDeposit={handleDeposit} loading={loading} />
-        </div>
-      ),
-    },
-    {
-      key: 'receive',
-      label: (
-        <Flex gap={8} align="center">
-          <QrCode size={16} />
-          Receive / External Deposit
-        </Flex>
-      ),
-      children: (
-        <div style={{ background: '#1e1e1e', padding: 32, borderRadius: 12, textAlign: 'center' }}>
-          <h2>Receive USDT</h2>
-          <p style={{ color: '#aaa', marginBottom: 32 }}>
-            Scan this QR code to deposit USDT (BEP20) or BNB to your wallet.
-          </p>
-
-          <Flex justify="center" style={{ marginBottom: 24 }}>
-            <div style={{ background: '#fff', padding: 16, borderRadius: 12 }}>
-              <QRCode value={address || "0x"} size={200} color="#000000" style={{ margin: 'auto' }} />
-            </div>
-          </Flex>
-
-          <div style={{ background: '#2c2c2c', padding: '16px', borderRadius: 8, display: 'inline-block', maxWidth: '100%', wordBreak: 'break-all' }}>
-            <p style={{ color: '#888', fontSize: 12, marginBottom: 4 }}>Your Wallet Address (BSC Testnet)</p>
-            <Flex gap={10} align="center" justify="center">
-              <span style={{ fontFamily: 'monospace', fontSize: 16, color: '#fff' }}>{address}</span>
-              <CopyButton text={address} />
-            </Flex>
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: 'send',
-      label: (
-        <Flex gap={8} align="center">
-          <Send size={16} />
-          Send
-        </Flex>
-      ),
-      children: (
-        <div style={{ background: '#1e1e1e', padding: 32, borderRadius: 12 }}>
-          <h2>Send USDT</h2>
-          <p style={{ color: '#aaa', marginBottom: 24 }}>
-            Transfer USDT to another wallet on BSC Testnet.
-          </p>
-          <SendForm onSend={async (to, amount) => {
-            setLoading(true);
-            const hide = message.loading("Sending USDT...", 0);
-            try {
-              const rawAmount = Math.floor(amount * 1_000_000).toString();
-              const tx = await DeAIService.TransferUSDT(to, rawAmount);
-              message.success(`Transfer Successful! TX: ${tx.substring(0, 10)}...`);
-              loadBalance();
-            } catch (e: any) {
-              console.error(e);
-              message.error(`Transfer Failed: ${e.message || e}`);
-            } finally {
-              hide();
-              setLoading(false);
-            }
-          }} loading={loading} />
-        </div>
-      ),
-    },
-  ];
+  const handleSend = async (to: string, amount: number) => {
+    setLoading(true);
+    const hide = message.loading("Sending USDT...", 0);
+    try {
+      const rawAmount = Math.floor(amount * 1_000_000).toString();
+      const tx = await DeAIService.TransferUSDT(to, rawAmount);
+      message.success(`Transfer Successful! TX: ${tx.substring(0, 10)}...`);
+      loadBalance();
+      loadHistory();
+      setModalType(null);
+    } catch (e: any) {
+      console.error(e);
+      message.error(`Transfer Failed: ${e.message || e}`);
+    } finally {
+      hide();
+      setLoading(false);
+    }
+  };
 
   return (
-    <Container justify={'center'} align={'center'}>
-      <ContentWrapper>
-        <h1>My Wallet</h1>
-        <Tabs defaultActiveKey="smart-deposit" items={items} />
-      </ContentWrapper>
-    </Container>
+    <Flexbox className={styles.container} align="center" justify="flex-start">
+      <Flexbox style={{ maxWidth: 1200, width: '100%', flexDirection: 'column' }} gap={24}>
+        <h1 style={{ margin: 0 }}>My Wallet</h1>
+
+        {/* Balance Card */}
+        <Card className={styles.balanceCard}>
+          <Flexbox style={{ flexDirection: 'column' }} gap={8}>
+            <div style={{ fontSize: 14, opacity: 0.9 }}>Total Balance</div>
+            <div style={{ fontSize: 48, fontWeight: 'bold' }}>{balance} USDT</div>
+            <div style={{ fontSize: 12, opacity: 0.8 }}>{address}</div>
+          </Flexbox>
+        </Card>
+
+        {/* Action Grid */}
+        <Flexbox gap={16} justify="space-around">
+          <Flexbox className={styles.actionButton} onClick={() => setModalType('deposit')}>
+            <ActionIcon
+              icon={ArrowDownToLine}
+              size={{ blockSize: 64, size: 32 }}
+              style={{ background: '#1677ff', color: 'white' }}
+            />
+            <span style={{ fontWeight: 600, fontSize: 14 }}>Deposit</span>
+          </Flexbox>
+
+          <Flexbox className={styles.actionButton} onClick={() => setModalType('send')}>
+            <ActionIcon
+              icon={Send}
+              size={{ blockSize: 64, size: 32 }}
+              style={{ background: '#52c41a', color: 'white' }}
+            />
+            <span style={{ fontWeight: 600, fontSize: 14 }}>Send</span>
+          </Flexbox>
+
+          <Flexbox className={styles.actionButton} onClick={() => setModalType('receive')}>
+            <ActionIcon
+              icon={QrCode}
+              size={{ blockSize: 64, size: 32 }}
+              style={{ background: '#722ed1', color: 'white' }}
+            />
+            <span style={{ fontWeight: 600, fontSize: 14 }}>Receive</span>
+          </Flexbox>
+        </Flexbox>
+
+        {/* Transaction History */}
+        <div>
+          <h2>Recent Transactions</h2>
+          <List
+            dataSource={transactions}
+            locale={{ emptyText: 'No transactions yet' }}
+            renderItem={(tx) => (
+              <List.Item
+                extra={
+                  <Flexbox style={{ flexDirection: 'column' }} align="flex-end" gap={4}>
+                    <div style={{ fontWeight: 600 }}>{tx.amount}</div>
+                    <div style={{ fontSize: 12, color: '#888' }}>
+                      {tx.hash.substring(0, 10)}...
+                    </div>
+                  </Flexbox>
+                }
+              >
+                <List.Item.Meta
+                  avatar={
+                    <Avatar
+                      style={{
+                        background: tx.type === 'DEPOSIT' ? '#1677ff' : '#52c41a'
+                      }}
+                      icon={tx.type === 'DEPOSIT' ? <ArrowDownToLine size={20} /> : <Send size={20} />}
+                    />
+                  }
+                  title={tx.description}
+                  description={new Date(tx.timestamp * 1000).toLocaleString()}
+                />
+              </List.Item>
+            )}
+          />
+        </div>
+      </Flexbox>
+
+      {/* Modals */}
+      <Modal
+        title="Smart Deposit"
+        open={modalType === 'deposit'}
+        onCancel={() => setModalType(null)}
+        footer={null}
+      >
+        <SmartDepositForm onDeposit={handleDeposit} loading={loading} />
+      </Modal>
+
+      <Modal
+        title="Send USDT"
+        open={modalType === 'send'}
+        onCancel={() => setModalType(null)}
+        footer={null}
+      >
+        <SendForm onSend={handleSend} loading={loading} />
+      </Modal>
+
+      <Modal
+        title="Receive USDT"
+        open={modalType === 'receive'}
+        onCancel={() => setModalType(null)}
+        footer={null}
+      >
+        <Flexbox style={{ flexDirection: 'column' }} align="center" gap={24}>
+          <p style={{ color: '#aaa', textAlign: 'center' }}>
+            Scan this QR code to deposit USDT (BEP20) or BNB to your wallet.
+          </p>
+          <div style={{ background: '#fff', padding: 16, borderRadius: 12 }}>
+            <QRCode value={address || "0x"} size={200} color="#000000" />
+          </div>
+          <div style={{ background: '#2c2c2c', padding: 16, borderRadius: 8, width: '100%' }}>
+            <p style={{ color: '#888', fontSize: 12, marginBottom: 4, textAlign: 'center' }}>Your Wallet Address</p>
+            <Flexbox gap={10} align="center" justify="center">
+              <span style={{ fontFamily: 'monospace', fontSize: 14 }}>{address}</span>
+              <CopyButton text={address} />
+            </Flexbox>
+          </div>
+        </Flexbox>
+      </Modal>
+    </Flexbox>
   );
 });
 
 const CopyButton = ({ text }: { text: string }) => {
   const { message } = App.useApp();
   return (
-    <div
-      style={{ cursor: 'pointer', color: '#1677ff' }}
+    <ActionIcon
+      icon={Copy}
+      size={{ blockSize: 24, size: 16 }}
       onClick={() => {
         navigator.clipboard.writeText(text);
-        message.success("Address copied to clipboard!");
+        message.success("Address copied!");
       }}
-    >
-      <Copy size={16} />
-    </div>
-  )
-}
+      title="Copy address"
+    />
+  );
+};
 
-// Helper component for Smart Deposit input
 const SmartDepositForm = ({ onDeposit, loading }: { onDeposit: (val: number) => void, loading: boolean }) => {
   const [val, setVal] = useState(10);
   return (
-    <Flex gap={10} align='center'>
-      <input
-        type="number"
-        value={val}
-        onChange={e => setVal(Number(e.target.value))}
-        style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #444', background: '#333', color: '#fff', fontSize: 16, width: 120 }}
-      />
-      <span style={{ fontSize: 16, fontWeight: 500 }}>USDT</span>
+    <Flexbox style={{ flexDirection: 'column' }} gap={16}>
+      <div>
+        <p style={{ marginBottom: 8, color: '#aaa' }}>Amount (USDT)</p>
+        <input
+          type="number"
+          value={val}
+          onChange={e => setVal(Number(e.target.value))}
+          style={{ width: '100%', padding: '12px', borderRadius: 6, border: '1px solid #444', background: '#333', color: '#fff' }}
+        />
+      </div>
       <button
         disabled={loading}
         onClick={() => onDeposit(val)}
         style={{
-          padding: '8px 24px',
+          padding: '12px',
           borderRadius: 6,
           background: '#1677ff',
           color: '#fff',
           border: 'none',
           cursor: loading ? 'not-allowed' : 'pointer',
           opacity: loading ? 0.7 : 1,
-          fontSize: 16,
-          fontWeight: 500,
-          marginLeft: 16
+          fontWeight: 600
         }}
       >
-        {loading ? 'Processing...' : 'One-Click Deposit'}
+        {loading ? 'Processing...' : 'Deposit'}
       </button>
-    </Flex>
-  )
-}
-
-export default DesktopWalletLayout;
+    </Flexbox>
+  );
+};
 
 const SendForm = ({ onSend, loading }: { onSend: (to: string, val: number) => void, loading: boolean }) => {
   const [to, setTo] = useState('');
   const [val, setVal] = useState(0);
 
   return (
-    <Flex vertical gap={16}>
+    <Flexbox style={{ flexDirection: 'column' }} gap={16}>
       <div>
         <p style={{ marginBottom: 8, color: '#aaa' }}>Recipient Address</p>
         <input
@@ -259,10 +325,9 @@ const SendForm = ({ onSend, loading }: { onSend: (to: string, val: number) => vo
         disabled={loading || !to || val <= 0}
         onClick={() => onSend(to, val)}
         style={{
-          marginTop: 8,
           padding: '12px',
           borderRadius: 6,
-          background: '#1677ff',
+          background: '#52c41a',
           color: '#fff',
           border: 'none',
           cursor: (loading || !to || val <= 0) ? 'not-allowed' : 'pointer',
@@ -272,6 +337,8 @@ const SendForm = ({ onSend, loading }: { onSend: (to: string, val: number) => vo
       >
         {loading ? 'Sending...' : 'Send USDT'}
       </button>
-    </Flex>
-  )
-}
+    </Flexbox>
+  );
+};
+
+export default DesktopWalletLayout;
