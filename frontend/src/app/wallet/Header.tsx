@@ -1,6 +1,6 @@
-'use client';
-
 import { ChatHeader } from '@lobehub/ui/chat';
+import { Tag } from '@lobehub/ui';
+import { Badge } from 'antd';
 import { memo } from 'react';
 
 import { ProductLogo } from '@/components/Branding';
@@ -11,7 +11,11 @@ const Header = memo(() => {
   return (
     <ChatHeader
       left={<ProductLogo extra={'Wallet'} size={36} type={'text'} />}
-      right={<ProductLogo extra={'Veridium'} size={36} type={'text'} />}
+      right={
+        <Tag color={'blue'} icon={<Badge status={'success'} />}>
+          BSC Testnet
+        </Tag>
+      }
       style={{
         position: 'relative',
         zIndex: 10,
