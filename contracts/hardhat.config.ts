@@ -8,9 +8,10 @@ const config: HardhatUserConfig = {
   solidity: "0.8.20",
   networks: {
     bsctestnet: {
-      url: "https://data-seed-prebsc-1-s1.binance.org:8545",
+      url: "https://bsc-testnet-rpc.publicnode.com",
       chainId: 97,
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      timeout: 60000,
     },
     bscmainnet: {
       url: "https://bsc-dataseed.binance.org/",
