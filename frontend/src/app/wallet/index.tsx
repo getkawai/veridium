@@ -1,12 +1,13 @@
 import { Card, Modal, QRCode, App, List, Avatar } from 'antd';
 import { memo, useEffect, useState } from 'react';
-import { DeAIService, WalletService, HistoryService } from '@@/github.com/kawai-network/veridium/internal/services';
+import { DeAIService, WalletService } from '@@/github.com/kawai-network/veridium/internal/services';
+import {ListWalletTransactions} from '@@/github.com/kawai-network/veridium/internal/database/generated/queries';
+import type { WalletTransaction } from '@@/github.com/kawai-network/veridium/internal/database/generated/models';
 import { useUserStore } from '@/store/user';
 import { QrCode, ArrowDownToLine, Copy, Send } from 'lucide-react';
 import { ActionIcon } from '@lobehub/ui';
 import { Flexbox } from 'react-layout-kit';
 import { createStyles } from 'antd-style';
-import type { TransactionRecord } from '@@/github.com/kawai-network/veridium/internal/services/models';
 
 const useStyles = createStyles(({ css, token }) => ({
   container: css`
@@ -46,7 +47,7 @@ const DesktopWalletLayout = memo(() => {
   const [address, setAddress] = useState<string>('');
   const [balance, setBalance] = useState<string>('0');
   const [loading, setLoading] = useState(false);
-  const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
+  const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [modalType, setModalType] = useState<'deposit' | 'send' | 'receive' | null>(null);
   const { message } = App.useApp();
   const { isWalletLoaded } = useUserStore();
@@ -69,7 +70,7 @@ const DesktopWalletLayout = memo(() => {
 
   const loadHistory = async () => {
     try {
-      const history = await HistoryService.GetTransactions();
+      const history = await ListWalletTransactions({ limit: 100, offset: 0 });
       setTransactions(history);
     } catch (e) {
       console.error("Failed to load history", e);
@@ -180,7 +181,7 @@ const DesktopWalletLayout = memo(() => {
                   <Flexbox style={{ flexDirection: 'column' }} align="flex-end" gap={4}>
                     <div style={{ fontWeight: 600 }}>{tx.amount}</div>
                     <div style={{ fontSize: 12, color: '#888' }}>
-                      {tx.hash.substring(0, 10)}...
+                      {tx.txHash.substring(0, 10)}...
                     </div>
                   </Flexbox>
                 }
@@ -189,13 +190,13 @@ const DesktopWalletLayout = memo(() => {
                   avatar={
                     <Avatar
                       style={{
-                        background: tx.type === 'DEPOSIT' ? '#1677ff' : '#52c41a'
+                        background: tx.txType === 'DEPOSIT' ? '#1677ff' : '#52c41a'
                       }}
-                      icon={tx.type === 'DEPOSIT' ? <ArrowDownToLine size={20} /> : <Send size={20} />}
+                      icon={tx.txType === 'DEPOSIT' ? <ArrowDownToLine size={20} /> : <Send size={20} />}
                     />
                   }
-                  title={tx.description}
-                  description={new Date(tx.timestamp * 1000).toLocaleString()}
+                  title={(tx.description && typeof tx.description === 'object' ? tx.description.String : tx.description) || tx.txType}
+                  description={new Date(tx.createdAt).toLocaleString()}
                 />
               </List.Item>
             )}

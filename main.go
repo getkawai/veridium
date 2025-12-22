@@ -113,7 +113,6 @@ func buildServiceList(ctx *app.Context, fileProcessor *FileProcessorService, sdM
 		application.NewService(kvstore.New()),
 		application.NewService(ctx.WalletService),
 		application.NewService(ctx.DeAIService),
-		application.NewService(ctx.HistoryService),
 
 		// File Server
 		application.NewServiceWithOptions(

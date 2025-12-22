@@ -13,13 +13,12 @@ import (
 
 // DeAIService handles interactions with the Veridium smart contracts
 type DeAIService struct {
-	reader  *reader.EthReader
-	wallet  *WalletService
-	history *HistoryService
+	reader *reader.EthReader
+	wallet *WalletService
 }
 
 // NewDeAIService creates a new instance of DeAIService
-func NewDeAIService(wallet *WalletService, history *HistoryService) *DeAIService {
+func NewDeAIService(wallet *WalletService) *DeAIService {
 	// Initialize EthReader with default public nodes for BSC Testnet
 	nodes := map[string]string{
 		"bsctestnet":  "https://bsc-testnet-rpc.publicnode.com",
@@ -28,9 +27,8 @@ func NewDeAIService(wallet *WalletService, history *HistoryService) *DeAIService
 	ethReader := reader.NewEthReaderGeneric(nodes, nil)
 
 	return &DeAIService{
-		reader:  ethReader,
-		wallet:  wallet,
-		history: history,
+		reader: ethReader,
+		wallet: wallet,
 	}
 }
 

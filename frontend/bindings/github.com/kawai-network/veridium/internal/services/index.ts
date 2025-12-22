@@ -4,7 +4,6 @@
 import * as AgentChatService from "./agentchatservice.js";
 import * as DeAIService from "./deaiservice.js";
 import * as FileService from "./fileservice.js";
-import * as HistoryService from "./historyservice.js";
 import * as KnowledgeBaseService from "./knowledgebaseservice.js";
 import * as ThreadManagementService from "./threadmanagementservice.js";
 import * as VectorSearchService from "./vectorsearchservice.js";
@@ -13,7 +12,6 @@ export {
     AgentChatService,
     DeAIService,
     FileService,
-    HistoryService,
     KnowledgeBaseService,
     ThreadManagementService,
     VectorSearchService,
@@ -43,8 +41,6 @@ export {
     ThreadInfo,
     ThreadStatus,
     ThreadType,
-    TransactionRecord,
-    TransactionType,
     WalletInfo,
     WalletStatus
 } from "./models.js";
