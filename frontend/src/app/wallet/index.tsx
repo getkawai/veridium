@@ -1,17 +1,15 @@
-import { PropsWithChildren } from 'react';
-
 import NProgress from '@/components/NProgress';
-
 import Container from './Container';
 import Header from './Header';
+import DesktopWalletLayout from './wallet';
 
-const WalletLayout = ({ children }: PropsWithChildren) => {
+const WalletLayout = () => {
   return (
     <>
       <NProgress />
       <Container>
         <Header />
-        {children}
+        <DesktopWalletLayout />
       </Container>
     </>
   );

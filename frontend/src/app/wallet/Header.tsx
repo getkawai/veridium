@@ -10,7 +10,7 @@ import StoreSearchBar from './Search';
 const Header = memo(() => {
   return (
     <ChatHeader
-      left={<ProductLogo extra={'Veridium'} size={36} type={'text'} />}
+      left={<ProductLogo extra={'Wallet'} size={36} type={'text'} />}
       right={<ProductLogo extra={'Veridium'} size={36} type={'text'} />}
       style={{
         position: 'relative',
