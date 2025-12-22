@@ -1,5 +1,5 @@
 
-import { Flex, App, message, Tabs, QRCode } from 'antd';
+import { Flex, App, Tabs, QRCode } from 'antd';
 import { memo, useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { DeAIService, WalletService } from '../../../bindings/github.com/kawai-network/veridium/internal/services';
@@ -23,31 +23,6 @@ const ContentWrapper = styled.div`
   gap: 24px;
 `;
 
-const BSC_CHAIN: Chain = {
-  id: 97,
-  name: 'BSC Testnet',
-  type: ChainType.EVM,
-};
-
-const SUPPORTED_CHAINS = [
-  {
-    chain: BSC_CHAIN,
-  }
-]
-
-const MOCK_USDT_TOKEN = {
-  decimal: 6,
-  symbol: "USDT",
-  name: "Tether USD",
-  icon: "https://cryptologos.cc/logos/tether-usdt-logo.svg?v=032",
-  availableChains: [
-    {
-      chain: BSC_CHAIN,
-      contract: "0x312C4fC3598AC9B54375eD12BbF55af83f86f862"
-    }
-  ]
-}
-
 const DesktopWalletLayout = memo(() => {
   const [address, setAddress] = useState<string>('');
   const [balance, setBalance] = useState<string>('0');
@@ -63,7 +38,10 @@ const DesktopWalletLayout = memo(() => {
 
   const loadBalance = async () => {
     try {
-      const bal = await DeAIService.GetVaultBalance();
+      const bal = await DeAIService.GetVaultBalance(); // This fetches Credits balance actually? Or Vault? Assuming Credits for now based on context.
+      // If GetVaultBalance returns the user's credit balance in the vault.
+      // Or maybe we want to show the Wallet's USDT balance?
+      // For now let's display what we fetched.
       setBalance(bal);
     } catch (e) {
       console.error("Failed to load balance", e);
@@ -108,7 +86,14 @@ const DesktopWalletLayout = memo(() => {
       ),
       children: (
         <div style={{ background: '#1e1e1e', padding: 32, borderRadius: 12 }}>
-          <h2>Smart Deposit</h2>
+          <Flex justify="space-between" align="center" style={{ marginBottom: 24 }}>
+            <h2>Smart Deposit</h2>
+            <div style={{ textAlign: 'right' }}>
+              <p style={{ color: '#aaa', fontSize: 12, margin: 0 }}>Available Credits</p>
+              <p style={{ fontSize: 20, fontWeight: 'bold', margin: 0 }}>{balance} Credits</p>
+            </div>
+          </Flex>
+
           <p style={{ color: '#aaa', marginBottom: 24, lineHeight: '1.6' }}>
             <b>One-Click Deposit</b> allows you to instantly convert your internal wallet's USDT balance into Service Credits.
             <br />
@@ -128,39 +113,38 @@ const DesktopWalletLayout = memo(() => {
         </Flex>
       ),
       children: (
-        children: (
-          <div style = {{ background: '#1e1e1e', padding: 32, borderRadius: 12, textAlign: 'center' }} >
-            <h2>Receive USDT</h2>
-            <p style={{ color: '#aaa', marginBottom: 32 }}>
-                Scan this QR code to deposit USDT (BEP20) or BNB to your wallet.
-            </p>
-            
-            <Flex justify="center" style={{ marginBottom: 24 }}>
-                <div style={{ background: '#fff', padding: 16, borderRadius: 12 }}>
-                    <QRCode value={address || "0x"} size={200} />
-                </div>
-            </Flex>
+        <div style={{ background: '#1e1e1e', padding: 32, borderRadius: 12, textAlign: 'center' }}>
+          <h2>Receive USDT</h2>
+          <p style={{ color: '#aaa', marginBottom: 32 }}>
+            Scan this QR code to deposit USDT (BEP20) or BNB to your wallet.
+          </p>
 
-            <div style={{ background: '#2c2c2c', padding: '16px', borderRadius: 8, display: 'inline-block', maxWidth: '100%', wordBreak: 'break-all' }}>
-                <p style={{ color: '#888', fontSize: 12, marginBottom: 4 }}>Your Wallet Address (BSC Testnet)</p>
-                <Flex gap={10} align="center" justify="center">
-                    <span style={{ fontFamily: 'monospace', fontSize: 16, color: '#fff' }}>{address}</span>
-                    <CopyButton text={address} />
-                </Flex>
+          <Flex justify="center" style={{ marginBottom: 24 }}>
+            <div style={{ background: '#fff', padding: 16, borderRadius: 12 }}>
+              <QRCode value={address || "0x"} size={200} />
             </div>
-        </div >
+          </Flex>
+
+          <div style={{ background: '#2c2c2c', padding: '16px', borderRadius: 8, display: 'inline-block', maxWidth: '100%', wordBreak: 'break-all' }}>
+            <p style={{ color: '#888', fontSize: 12, marginBottom: 4 }}>Your Wallet Address (BSC Testnet)</p>
+            <Flex gap={10} align="center" justify="center">
+              <span style={{ fontFamily: 'monospace', fontSize: 16, color: '#fff' }}>{address}</span>
+              <CopyButton text={address} />
+            </Flex>
+          </div>
+        </div>
       ),
     },
   ];
 
-return (
-  <Container justify={'center'} align={'center'}>
-    <ContentWrapper>
-      <h1>My Wallet</h1>
-      <Tabs defaultActiveKey="smart-deposit" items={items} />
-    </ContentWrapper>
-  </Container>
-);
+  return (
+    <Container justify={'center'} align={'center'}>
+      <ContentWrapper>
+        <h1>My Wallet</h1>
+        <Tabs defaultActiveKey="smart-deposit" items={items} />
+      </ContentWrapper>
+    </Container>
+  );
 });
 
 const CopyButton = ({ text }: { text: string }) => {
