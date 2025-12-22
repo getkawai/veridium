@@ -4,8 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 	"os"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/tyler-smith/go-bip39"
 
@@ -327,4 +331,19 @@ func (s *WalletService) SignMessage(message string) (string, error) {
 	}
 
 	return s.currentAccount.SignMessage(message)
+}
+
+// GetTransactOpts creates a bind.TransactOpts for the current account
+func (s *WalletService) GetTransactOpts(chainId *big.Int) (*bind.TransactOpts, error) {
+	if s.currentAccount == nil {
+		return nil, errors.New("wallet is locked")
+	}
+
+	return &bind.TransactOpts{
+		From: s.currentAccount.Address(),
+		Signer: func(addr common.Address, tx *ethtypes.Transaction) (*ethtypes.Transaction, error) {
+			_, signedTx, err := s.currentAccount.SignTx(tx, chainId)
+			return signedTx, err
+		},
+	}, nil
 }

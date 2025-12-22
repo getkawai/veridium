@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/ethclient/gethclient"
 
 	jarviscommon "github.com/kawai-network/veridium/pkg/jarvis/common"
@@ -31,6 +32,17 @@ type EthReader struct {
 
 func (er *EthReader) GetNodes() map[string]EthereumNode {
 	return er.nodes
+}
+
+// Client returns the underlying ethclient.Client from the first available node
+func (er *EthReader) Client() *ethclient.Client {
+	for _, n := range er.nodes {
+		c, err := n.EthClient()
+		if err == nil {
+			return c
+		}
+	}
+	return nil
 }
 
 func NewEthReaderGeneric(nodes map[string]string, be jarvisnetworks.BlockExplorer) *EthReader {

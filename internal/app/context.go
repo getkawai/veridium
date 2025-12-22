@@ -64,6 +64,7 @@ type Context struct {
 	RAGProcessor   *services.RAGProcessor
 	ToolRegistry   *tools.ToolRegistry
 	WalletService  *services.WalletService
+	DeAIService    *services.DeAIService
 
 	// Language Models
 	ChatModel    fantasy.LanguageModel
@@ -227,6 +228,15 @@ func (ctx *Context) InitWalletService() {
 	log.Printf("WalletService initialized (using jarvis/accounts at ~/.jarvis/)")
 }
 
+func (ctx *Context) InitDeAIService() {
+	if ctx.WalletService == nil {
+		log.Printf("Warning: WalletService not initialized, cannot init DeAIService")
+		return
+	}
+	ctx.DeAIService = services.NewDeAIService(ctx.WalletService)
+	log.Printf("DeAIService initialized (BSC Testnet)")
+}
+
 func (ctx *Context) InitLanguageModels() {
 	if ctx.LibService == nil {
 		return
@@ -379,6 +389,7 @@ func (ctx *Context) InitAll() error {
 	ctx.InitFileLoader()
 	ctx.InitKnowledgeBase()
 	ctx.InitWalletService()
+	ctx.InitDeAIService()
 	ctx.InitLanguageModels()
 	ctx.InitMemoryServices()
 	return nil

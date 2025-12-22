@@ -5,13 +5,13 @@ import (
 	"embed"
 	"log"
 
-	"github.com/kawai-network/veridium/pkg/fantasy/tools/builtin"
 	"github.com/kawai-network/veridium/internal/app"
 	"github.com/kawai-network/veridium/internal/image"
 	"github.com/kawai-network/veridium/internal/machineid"
 	"github.com/kawai-network/veridium/internal/services"
 	"github.com/kawai-network/veridium/internal/tableviewer"
 	"github.com/kawai-network/veridium/internal/topic"
+	"github.com/kawai-network/veridium/pkg/fantasy/tools/builtin"
 	"github.com/kawai-network/veridium/pkg/localfs"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
@@ -112,6 +112,7 @@ func buildServiceList(ctx *app.Context, fileProcessor *FileProcessorService, sdM
 		application.NewService(sqlite.New()),
 		application.NewService(kvstore.New()),
 		application.NewService(ctx.WalletService),
+		application.NewService(ctx.DeAIService),
 
 		// File Server
 		application.NewServiceWithOptions(
