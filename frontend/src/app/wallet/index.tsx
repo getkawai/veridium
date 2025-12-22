@@ -4,7 +4,7 @@ import { memo, useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { DeAIService, WalletService } from '../../../bindings/github.com/kawai-network/veridium/internal/services';
 import { useUserStore } from '@/store/user';
-import { QrCode, ArrowDownToLine, Copy } from 'lucide-react';
+import { QrCode, ArrowDownToLine, Copy, Send } from 'lucide-react';
 
 
 const Container = styled(Flex)`
@@ -89,8 +89,8 @@ const DesktopWalletLayout = memo(() => {
           <Flex justify="space-between" align="center" style={{ marginBottom: 24 }}>
             <h2>Smart Deposit</h2>
             <div style={{ textAlign: 'right' }}>
-              <p style={{ color: '#aaa', fontSize: 12, margin: 0 }}>Available Credits</p>
-              <p style={{ fontSize: 20, fontWeight: 'bold', margin: 0 }}>{balance} Credits</p>
+              <p style={{ color: '#aaa', fontSize: 12, margin: 0 }}>Available Balance</p>
+              <p style={{ fontSize: 20, fontWeight: 'bold', margin: 0 }}>{balance} USDT</p>
             </div>
           </Flex>
 
@@ -121,7 +121,7 @@ const DesktopWalletLayout = memo(() => {
 
           <Flex justify="center" style={{ marginBottom: 24 }}>
             <div style={{ background: '#fff', padding: 16, borderRadius: 12 }}>
-              <QRCode value={address || "0x"} size={200} />
+              <QRCode value={address || "0x"} size={200} color="#000000" style={{ margin: 'auto' }} />
             </div>
           </Flex>
 
@@ -132,6 +132,39 @@ const DesktopWalletLayout = memo(() => {
               <CopyButton text={address} />
             </Flex>
           </div>
+        </div>
+      ),
+    },
+    {
+      key: 'send',
+      label: (
+        <Flex gap={8} align="center">
+          <Send size={16} />
+          Send
+        </Flex>
+      ),
+      children: (
+        <div style={{ background: '#1e1e1e', padding: 32, borderRadius: 12 }}>
+          <h2>Send USDT</h2>
+          <p style={{ color: '#aaa', marginBottom: 24 }}>
+            Transfer USDT to another wallet on BSC Testnet.
+          </p>
+          <SendForm onSend={async (to, amount) => {
+            setLoading(true);
+            const hide = message.loading("Sending USDT...", 0);
+            try {
+              const rawAmount = Math.floor(amount * 1_000_000).toString();
+              const tx = await DeAIService.TransferUSDT(to, rawAmount);
+              message.success(`Transfer Successful! TX: ${tx.substring(0, 10)}...`);
+              loadBalance();
+            } catch (e: any) {
+              console.error(e);
+              message.error(`Transfer Failed: ${e.message || e}`);
+            } finally {
+              hide();
+              setLoading(false);
+            }
+          }} loading={loading} />
         </div>
       ),
     },
@@ -197,3 +230,48 @@ const SmartDepositForm = ({ onDeposit, loading }: { onDeposit: (val: number) => 
 }
 
 export default DesktopWalletLayout;
+
+const SendForm = ({ onSend, loading }: { onSend: (to: string, val: number) => void, loading: boolean }) => {
+  const [to, setTo] = useState('');
+  const [val, setVal] = useState(0);
+
+  return (
+    <Flex vertical gap={16}>
+      <div>
+        <p style={{ marginBottom: 8, color: '#aaa' }}>Recipient Address</p>
+        <input
+          value={to}
+          onChange={e => setTo(e.target.value)}
+          placeholder="0x..."
+          style={{ width: '100%', padding: '12px', borderRadius: 6, border: '1px solid #444', background: '#333', color: '#fff' }}
+        />
+      </div>
+      <div>
+        <p style={{ marginBottom: 8, color: '#aaa' }}>Amount (USDT)</p>
+        <input
+          type="number"
+          value={val}
+          onChange={e => setVal(Number(e.target.value))}
+          style={{ width: '100%', padding: '12px', borderRadius: 6, border: '1px solid #444', background: '#333', color: '#fff' }}
+        />
+      </div>
+      <button
+        disabled={loading || !to || val <= 0}
+        onClick={() => onSend(to, val)}
+        style={{
+          marginTop: 8,
+          padding: '12px',
+          borderRadius: 6,
+          background: '#1677ff',
+          color: '#fff',
+          border: 'none',
+          cursor: (loading || !to || val <= 0) ? 'not-allowed' : 'pointer',
+          opacity: (loading || !to || val <= 0) ? 0.7 : 1,
+          fontWeight: 600
+        }}
+      >
+        {loading ? 'Sending...' : 'Send USDT'}
+      </button>
+    </Flex>
+  )
+}

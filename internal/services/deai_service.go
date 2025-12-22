@@ -32,21 +32,32 @@ func NewDeAIService(wallet *WalletService) *DeAIService {
 	}
 }
 
-// GetVaultBalance returns the balance of the payment vault contract in USDT
-// This is just a placeholder example, real logic depends on what we want to read
+// GetVaultBalance returns the USDT balance of the current wallet
 func (s *DeAIService) GetVaultBalance() (string, error) {
-	vault, err := contracts.Vault("PaymentVault", s.reader)
+	// 1. Get User Address
+	userAddr := s.wallet.currentAccount.Address()
+
+	// 2. Load USDT
+	usdtAddr, err := contracts.ResolveAddress("MockUSDT")
 	if err != nil {
-		return "", fmt.Errorf("failed to load vault: %w", err)
+		return "", fmt.Errorf("USDT address not found: %w", err)
+	}
+	usdt, err := contracts.KawaiToken(usdtAddr.Hex(), s.reader)
+	if err != nil {
+		return "", fmt.Errorf("failed to load USDT: %w", err)
 	}
 
-	// For now, let's just return the owner address as a test
-	owner, err := vault.Owner(nil)
+	// 3. Get Balance
+	bal, err := usdt.BalanceOf(nil, userAddr)
 	if err != nil {
-		return "", fmt.Errorf("failed to get owner: %w", err)
+		return "", fmt.Errorf("failed to get balance: %w", err)
 	}
 
-	return owner.Hex(), nil
+	// 4. Format (assuming 6 decimals)
+	fBalance := new(big.Float).SetInt(bal)
+	fBalance.Quo(fBalance, big.NewFloat(1000000))
+
+	return fBalance.Text('f', 2), nil
 }
 
 // DepositToVault deposits USDT into the vault for service credits
@@ -329,4 +340,42 @@ func (s *DeAIService) MintTestTokens() (string, error) {
 	}
 
 	return tx1.Hash().Hex(), nil
+}
+
+// TransferUSDT sends USDT from the current wallet to a recipient
+func (s *DeAIService) TransferUSDT(to string, amountStr string) (string, error) {
+	// 1. Resolve Addresses
+	usdtAddr, err := contracts.ResolveAddress("MockUSDT")
+	if err != nil {
+		return "", fmt.Errorf("USDT address not found: %w", err)
+	}
+	recipient := common.HexToAddress(to)
+
+	// 2. Parse Amount
+	amount := new(big.Int)
+	amount, ok := amount.SetString(amountStr, 10)
+	if !ok {
+		return "", fmt.Errorf("invalid amount format")
+	}
+
+	// 3. Get Opts
+	chainId := big.NewInt(97)
+	opts, err := s.wallet.getTransactOpts(chainId)
+	if err != nil {
+		return "", fmt.Errorf("failed to get opts: %w", err)
+	}
+
+	// 4. Load Contract
+	usdt, err := contracts.KawaiToken(usdtAddr.Hex(), s.reader)
+	if err != nil {
+		return "", fmt.Errorf("failed to load USDT: %w", err)
+	}
+
+	// 5. Transfer
+	tx, err := usdt.Transfer(opts, recipient, amount)
+	if err != nil {
+		return "", fmt.Errorf("transfer failed: %w", err)
+	}
+
+	return tx.Hash().Hex(), nil
 }

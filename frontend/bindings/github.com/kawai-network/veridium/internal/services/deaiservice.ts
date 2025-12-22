@@ -53,8 +53,7 @@ export function GetUSDTAllowance(ownerStr: string, spenderStr: string): $Cancell
 }
 
 /**
- * GetVaultBalance returns the balance of the payment vault contract in USDT
- * This is just a placeholder example, real logic depends on what we want to read
+ * GetVaultBalance returns the USDT balance of the current wallet
  */
 export function GetVaultBalance(): $CancellablePromise<string> {
     return $Call.ByID(4000684215);
@@ -65,4 +64,11 @@ export function GetVaultBalance(): $CancellablePromise<string> {
  */
 export function MintTestTokens(): $CancellablePromise<string> {
     return $Call.ByID(1596408719);
+}
+
+/**
+ * TransferUSDT sends USDT from the current wallet to a recipient
+ */
+export function TransferUSDT(to: string, amountStr: string): $CancellablePromise<string> {
+    return $Call.ByID(1311324606, to, amountStr);
 }
