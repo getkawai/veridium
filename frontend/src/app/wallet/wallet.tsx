@@ -1,10 +1,10 @@
 import { Card, Modal, QRCode, App, List, Avatar } from 'antd';
 import { memo, useEffect, useState } from 'react';
 import { DeAIService, WalletService } from '@@/github.com/kawai-network/veridium/internal/services';
-import {ListWalletTransactions} from '@@/github.com/kawai-network/veridium/internal/database/generated/queries';
+import { ListWalletTransactions } from '@@/github.com/kawai-network/veridium/internal/database/generated/queries';
 import type { WalletTransaction } from '@@/github.com/kawai-network/veridium/internal/database/generated/models';
 import { useUserStore } from '@/store/user';
-import { QrCode, ArrowDownToLine, Copy, Send } from 'lucide-react';
+import { ArrowDownToLine, Copy, Send, Eye, EyeOff, ArrowUp, Repeat2, ScanLine } from 'lucide-react';
 import { ActionIcon } from '@lobehub/ui';
 import { Flexbox } from 'react-layout-kit';
 import { createStyles } from 'antd-style';
@@ -18,10 +18,11 @@ const useStyles = createStyles(({ css, token }) => ({
     overflow-y: auto;
   `,
   balanceCard: css`
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #1a2332 0%, #0f1419 100%);
     border: none;
     border-radius: 16px;
     color: white;
+    position: relative;
     
     .ant-card-body {
       padding: 32px;
@@ -31,15 +32,40 @@ const useStyles = createStyles(({ css, token }) => ({
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
-    padding: 16px;
-    border-radius: 12px;
+    gap: 12px;
     cursor: pointer;
     transition: all 0.3s ease;
     
     &:hover {
-      transform: translateY(-2px);
+      transform: translateY(-4px);
     }
+  `,
+  actionCircle: css`
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+  `,
+  eyeButton: css`
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.3s ease;
+    
+    &:hover {
+      opacity: 1;
+    }
+  `,
+  changePositive: css`
+    color: #10b981;
+    display: flex;
+    align-items: center;
+    gap: 4px;
   `,
 }));
 
@@ -48,10 +74,15 @@ const DesktopWalletLayout = memo(() => {
   const [balance, setBalance] = useState<string>('0');
   const [loading, setLoading] = useState(false);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
-  const [modalType, setModalType] = useState<'deposit' | 'send' | 'receive' | null>(null);
+  const [modalType, setModalType] = useState<'deposit' | 'send' | 'receive' | 'swap' | null>(null);
+  const [balanceVisible, setBalanceVisible] = useState(true);
   const { message } = App.useApp();
   const { isWalletLoaded } = useUserStore();
   const { styles } = useStyles();
+
+  // Mock price change data (can be replaced with real API later)
+  const priceChangePercent = 2.27;
+  const priceChange24h = 1245.32;
 
   useEffect(() => {
     WalletService.GetCurrentAddress().then(setAddress).catch(console.error);
@@ -130,42 +161,58 @@ const DesktopWalletLayout = memo(() => {
       <Flexbox style={{ maxWidth: 1200, width: '100%', flexDirection: 'column' }} gap={24}>
         <h1 style={{ margin: 0 }}>My Wallet</h1>
 
-        {/* Balance Card */}
+        {/* Portfolio Value Card */}
         <Card className={styles.balanceCard}>
-          <Flexbox style={{ flexDirection: 'column' }} gap={8}>
-            <div style={{ fontSize: 14, opacity: 0.9 }}>Total Balance</div>
-            <div style={{ fontSize: 48, fontWeight: 'bold' }}>{balance} USDT</div>
-            <div style={{ fontSize: 12, opacity: 0.8 }}>{address}</div>
+          {/* Eye toggle button */}
+          <div className={styles.eyeButton} onClick={() => setBalanceVisible(!balanceVisible)}>
+            {balanceVisible ? <Eye size={20} /> : <EyeOff size={20} />}
+          </div>
+
+          <Flexbox style={{ flexDirection: 'column' }} gap={12}>
+            <div style={{ fontSize: 14, opacity: 0.7 }}>Total Portfolio Value</div>
+            <div style={{ fontSize: 48, fontWeight: 'bold', letterSpacing: '-0.02em' }}>
+              {balanceVisible ? `$${balance}` : '••••••'}
+            </div>
+
+            {/* Percentage change indicator */}
+            <Flexbox className={styles.changePositive} gap={4}>
+              <ArrowUp size={16} />
+              <span style={{ fontWeight: 600 }}>{priceChangePercent}%</span>
+              <span style={{ opacity: 0.8, fontSize: 14 }}>
+                +${priceChange24h.toFixed(2)} (24h)
+              </span>
+            </Flexbox>
           </Flexbox>
         </Card>
 
-        {/* Action Grid */}
-        <Flexbox gap={16} justify="space-around">
-          <Flexbox className={styles.actionButton} onClick={() => setModalType('deposit')}>
-            <ActionIcon
-              icon={ArrowDownToLine}
-              size={{ blockSize: 64, size: 32 }}
-              style={{ background: '#1677ff', color: 'white' }}
-            />
-            <span style={{ fontWeight: 600, fontSize: 14 }}>Deposit</span>
-          </Flexbox>
-
+        {/* Action Buttons */}
+        <Flexbox gap={32} justify="space-around" style={{ marginTop: 8, flexDirection: 'row' }}>
           <Flexbox className={styles.actionButton} onClick={() => setModalType('send')}>
-            <ActionIcon
-              icon={Send}
-              size={{ blockSize: 64, size: 32 }}
-              style={{ background: '#52c41a', color: 'white' }}
-            />
-            <span style={{ fontWeight: 600, fontSize: 14 }}>Send</span>
+            <div className={styles.actionCircle} style={{ background: 'rgba(6, 182, 212, 0.15)' }}>
+              <Send size={24} color="#06b6d4" />
+            </div>
+            <span style={{ fontWeight: 500, fontSize: 14 }}>Send</span>
           </Flexbox>
 
           <Flexbox className={styles.actionButton} onClick={() => setModalType('receive')}>
-            <ActionIcon
-              icon={QrCode}
-              size={{ blockSize: 64, size: 32 }}
-              style={{ background: '#722ed1', color: 'white' }}
-            />
-            <span style={{ fontWeight: 600, fontSize: 14 }}>Receive</span>
+            <div className={styles.actionCircle} style={{ background: 'rgba(34, 197, 94, 0.15)' }}>
+              <ArrowDownToLine size={24} color="#22c55e" />
+            </div>
+            <span style={{ fontWeight: 500, fontSize: 14 }}>Receive</span>
+          </Flexbox>
+
+          <Flexbox className={styles.actionButton} onClick={() => setModalType('swap')}>
+            <div className={styles.actionCircle} style={{ background: 'rgba(234, 179, 8, 0.15)' }}>
+              <Repeat2 size={24} color="#eab308" />
+            </div>
+            <span style={{ fontWeight: 500, fontSize: 14 }}>Swap</span>
+          </Flexbox>
+
+          <Flexbox className={styles.actionButton} onClick={() => setModalType('receive')}>
+            <div className={styles.actionCircle} style={{ background: 'rgba(148, 163, 184, 0.15)' }}>
+              <ScanLine size={24} color="#94a3b8" />
+            </div>
+            <span style={{ fontWeight: 500, fontSize: 14 }}>Scan</span>
           </Flexbox>
         </Flexbox>
 
@@ -221,6 +268,19 @@ const DesktopWalletLayout = memo(() => {
         footer={null}
       >
         <SendForm onSend={handleSend} loading={loading} />
+      </Modal>
+
+      <Modal
+        title="Swap Tokens"
+        open={modalType === 'swap'}
+        onCancel={() => setModalType(null)}
+        footer={null}
+      >
+        <Flexbox style={{ flexDirection: 'column' }} align="center" gap={24}>
+          <p style={{ color: '#aaa', textAlign: 'center' }}>
+            Swap functionality coming soon! This feature will allow you to exchange tokens directly within the wallet.
+          </p>
+        </Flexbox>
       </Modal>
 
       <Modal
