@@ -4,7 +4,7 @@
 
 export const LOBE_CHAT_CLOUD = 'LobeHub Cloud';
 
-export const BRANDING_NAME = 'LobeHub';
+export const BRANDING_NAME = 'Kawai';
 export const BRANDING_LOGO_URL = '';
 
 export const ORG_NAME = 'LobeHub';
