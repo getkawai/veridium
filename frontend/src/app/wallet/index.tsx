@@ -1,13 +1,12 @@
 import { Card, Modal, QRCode, App, List, Avatar } from 'antd';
 import { memo, useEffect, useState } from 'react';
-import { DeAIService, WalletService } from '@@/github.com/kawai-network/veridium/internal/services';
-import * as HistoryService from '@@/github.com/kawai-network/veridium/internal/services/historyservice';
+import { DeAIService, WalletService, HistoryService } from '@@/github.com/kawai-network/veridium/internal/services';
 import { useUserStore } from '@/store/user';
 import { QrCode, ArrowDownToLine, Copy, Send } from 'lucide-react';
-import type { TransactionRecord } from '@@/github.com/kawai-network/veridium/internal/services/models';
 import { ActionIcon } from '@lobehub/ui';
 import { Flexbox } from 'react-layout-kit';
 import { createStyles } from 'antd-style';
+import type { TransactionRecord } from '@@/github.com/kawai-network/veridium/internal/services/models';
 
 const useStyles = createStyles(({ css, token }) => ({
   container: css`

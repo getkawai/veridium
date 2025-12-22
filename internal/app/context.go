@@ -65,6 +65,7 @@ type Context struct {
 	ToolRegistry   *tools.ToolRegistry
 	WalletService  *services.WalletService
 	DeAIService    *services.DeAIService
+	HistoryService *services.HistoryService
 
 	// Language Models
 	ChatModel    fantasy.LanguageModel
@@ -233,8 +234,17 @@ func (ctx *Context) InitDeAIService() {
 		log.Printf("Warning: WalletService not initialized, cannot init DeAIService")
 		return
 	}
-	ctx.DeAIService = services.NewDeAIService(ctx.WalletService)
+	ctx.DeAIService = services.NewDeAIService(ctx.WalletService, ctx.HistoryService)
 	log.Printf("DeAIService initialized (BSC Testnet)")
+}
+
+func (ctx *Context) InitHistoryService() {
+	if ctx.DB == nil {
+		log.Printf("Warning: Database not initialized, cannot init HistoryService")
+		return
+	}
+	ctx.HistoryService = services.NewHistoryService(ctx.DB)
+	log.Printf("HistoryService initialized (using SQLite database)")
 }
 
 func (ctx *Context) InitLanguageModels() {
@@ -389,6 +399,7 @@ func (ctx *Context) InitAll() error {
 	ctx.InitFileLoader()
 	ctx.InitKnowledgeBase()
 	ctx.InitWalletService()
+	ctx.InitHistoryService()
 	ctx.InitDeAIService()
 	ctx.InitLanguageModels()
 	ctx.InitMemoryServices()

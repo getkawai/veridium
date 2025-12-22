@@ -41,6 +41,10 @@ type Querier interface {
 	CountTopicsByDateRange(ctx context.Context, arg CountTopicsByDateRangeParams) (int64, error)
 	CountTopicsBySession(ctx context.Context, sessionID sql.NullString) (int64, error)
 	CountUserMemories(ctx context.Context) (int64, error)
+	CountWalletTransactions(ctx context.Context) (int64, error)
+	CountWalletTransactionsByAddress(ctx context.Context, arg CountWalletTransactionsByAddressParams) (int64, error)
+	CountWalletTransactionsByStatus(ctx context.Context, status string) (int64, error)
+	CountWalletTransactionsByType(ctx context.Context, txType string) (int64, error)
 	CreateAIModel(ctx context.Context, arg CreateAIModelParams) (AiModel, error)
 	CreateAIProvider(ctx context.Context, arg CreateAIProviderParams) (AiProvider, error)
 	CreateAPIKey(ctx context.Context, arg CreateAPIKeyParams) (ApiKey, error)
@@ -95,6 +99,7 @@ type Querier interface {
 	// USER MEMORIES PREFERENCES (User Preference Memory)
 	// ============================================================================
 	CreateUserMemoryPreference(ctx context.Context, arg CreateUserMemoryPreferenceParams) (UserMemoriesPreference, error)
+	CreateWalletTransaction(ctx context.Context, arg CreateWalletTransactionParams) (WalletTransaction, error)
 	DeleteAIModel(ctx context.Context, arg DeleteAIModelParams) error
 	DeleteAIModelsByProvider(ctx context.Context, providerID string) error
 	DeleteAIModelsByProviderAndSource(ctx context.Context, arg DeleteAIModelsByProviderAndSourceParams) error
@@ -149,6 +154,8 @@ type Querier interface {
 	DeleteUserMemoryExperience(ctx context.Context, id string) error
 	DeleteUserMemoryIdentity(ctx context.Context, id string) error
 	DeleteUserMemoryPreference(ctx context.Context, id string) error
+	DeleteWalletTransaction(ctx context.Context, id string) error
+	DeleteWalletTransactionByHash(ctx context.Context, txHash string) error
 	// Duplicate an agent for a new session
 	// Parameters: new_agent_id, new_session_id, source_session_id, user_id, created_at, updated_at
 	DuplicateAgentForSession(ctx context.Context, arg DuplicateAgentForSessionParams) (Agent, error)
@@ -189,6 +196,7 @@ type Querier interface {
 	GetDocumentByFileId(ctx context.Context, fileID sql.NullString) (GetDocumentByFileIdRow, error)
 	GetDocumentChunks(ctx context.Context, documentID string) ([]Chunk, error)
 	GetEnabledChatGroupAgentLinks(ctx context.Context, chatGroupID string) ([]ChatGroupsAgent, error)
+	GetFailedWalletTransactions(ctx context.Context, arg GetFailedWalletTransactionsParams) ([]WalletTransaction, error)
 	GetFile(ctx context.Context, id string) (File, error)
 	GetFileChunkIds(ctx context.Context, fileID sql.NullString) ([]sql.NullString, error)
 	GetFileChunks(ctx context.Context, arg GetFileChunksParams) ([]Chunk, error)
@@ -215,6 +223,7 @@ type Querier interface {
 	// Knowledge Bases
 	GetKnowledgeBase(ctx context.Context, id string) (KnowledgeBasis, error)
 	GetKnowledgeBaseFiles(ctx context.Context, knowledgeBaseID string) ([]File, error)
+	GetLatestWalletTransactionsByAddress(ctx context.Context, arg GetLatestWalletTransactionsByAddressParams) ([]WalletTransaction, error)
 	// ============================================================================
 	// CONVERSATION MEMORY LINKING (Link memories to messages/sessions)
 	// ============================================================================
@@ -243,6 +252,7 @@ type Querier interface {
 	GetMostAccessedMemories(ctx context.Context, limit int64) ([]UserMemory, error)
 	GetOrphanedAgents(ctx context.Context) ([]Agent, error)
 	GetOrphanedChunks(ctx context.Context) ([]string, error)
+	GetPendingWalletTransactions(ctx context.Context) ([]WalletTransaction, error)
 	// Plugins
 	GetPlugin(ctx context.Context, identifier string) (UserInstalledPlugin, error)
 	// RAG Evaluation
@@ -271,6 +281,10 @@ type Querier interface {
 	GetUserMemoryIdentity(ctx context.Context, id string) (UserMemoriesIdentity, error)
 	GetUserMemoryPreference(ctx context.Context, id string) (UserMemoriesPreference, error)
 	GetUserSettings(ctx context.Context, id string) (UserSetting, error)
+	GetWalletTransaction(ctx context.Context, id string) (WalletTransaction, error)
+	GetWalletTransactionByHash(ctx context.Context, txHash string) (WalletTransaction, error)
+	GetWalletTransactionsByTokenSymbol(ctx context.Context, arg GetWalletTransactionsByTokenSymbolParams) ([]WalletTransaction, error)
+	GetWalletTransactionsSummaryByAddress(ctx context.Context, arg GetWalletTransactionsSummaryByAddressParams) (GetWalletTransactionsSummaryByAddressRow, error)
 	// Agent Files
 	LinkAgentToFile(ctx context.Context, arg LinkAgentToFileParams) error
 	// Agent Knowledge Bases
@@ -347,6 +361,15 @@ type Querier interface {
 	ListUserMemoriesByCategory(ctx context.Context, arg ListUserMemoriesByCategoryParams) ([]UserMemory, error)
 	ListUserMemoriesByType(ctx context.Context, arg ListUserMemoriesByTypeParams) ([]UserMemory, error)
 	ListUserMemoryContexts(ctx context.Context, arg ListUserMemoryContextsParams) ([]UserMemoriesContext, error)
+	ListWalletTransactions(ctx context.Context, arg ListWalletTransactionsParams) ([]WalletTransaction, error)
+	ListWalletTransactionsByAddress(ctx context.Context, arg ListWalletTransactionsByAddressParams) ([]WalletTransaction, error)
+	ListWalletTransactionsByAddressAndType(ctx context.Context, arg ListWalletTransactionsByAddressAndTypeParams) ([]WalletTransaction, error)
+	ListWalletTransactionsByDateRange(ctx context.Context, arg ListWalletTransactionsByDateRangeParams) ([]WalletTransaction, error)
+	ListWalletTransactionsByFromAddress(ctx context.Context, arg ListWalletTransactionsByFromAddressParams) ([]WalletTransaction, error)
+	ListWalletTransactionsByNetwork(ctx context.Context, arg ListWalletTransactionsByNetworkParams) ([]WalletTransaction, error)
+	ListWalletTransactionsByStatus(ctx context.Context, arg ListWalletTransactionsByStatusParams) ([]WalletTransaction, error)
+	ListWalletTransactionsByToAddress(ctx context.Context, arg ListWalletTransactionsByToAddressParams) ([]WalletTransaction, error)
+	ListWalletTransactionsByType(ctx context.Context, arg ListWalletTransactionsByTypeParams) ([]WalletTransaction, error)
 	MoveSessionToGroup(ctx context.Context, arg MoveSessionToGroupParams) error
 	PinSession(ctx context.Context, arg PinSessionParams) error
 	// File query with filters
@@ -411,6 +434,8 @@ type Querier interface {
 	UpdateTopic(ctx context.Context, arg UpdateTopicParams) (Topic, error)
 	UpdateUserMemory(ctx context.Context, arg UpdateUserMemoryParams) (UserMemory, error)
 	UpdateUserSettings(ctx context.Context, arg UpdateUserSettingsParams) (UserSetting, error)
+	UpdateWalletTransaction(ctx context.Context, arg UpdateWalletTransactionParams) (WalletTransaction, error)
+	UpdateWalletTransactionStatus(ctx context.Context, arg UpdateWalletTransactionStatusParams) (WalletTransaction, error)
 	UpsertAIModel(ctx context.Context, arg UpsertAIModelParams) (AiModel, error)
 	UpsertAIProvider(ctx context.Context, arg UpsertAIProviderParams) (AiProvider, error)
 	UpsertAIProviderConfig(ctx context.Context, arg UpsertAIProviderConfigParams) (AiProvider, error)

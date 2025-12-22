@@ -585,3 +585,26 @@ type UserSubscription struct {
 	CreatedAt int64         `json:"createdAt"`
 	UpdatedAt int64         `json:"updatedAt"`
 }
+
+type WalletTransaction struct {
+	ID            string         `json:"id"`
+	TxHash        string         `json:"txHash"`
+	TxType        string         `json:"txType"`
+	FromAddress   string         `json:"fromAddress"`
+	ToAddress     string         `json:"toAddress"`
+	Amount        string         `json:"amount"`
+	TokenAddress  sql.NullString `json:"tokenAddress"`
+	TokenSymbol   sql.NullString `json:"tokenSymbol"`
+	TokenDecimals sql.NullInt64  `json:"tokenDecimals"`
+	Status        string         `json:"status"`
+	Description   sql.NullString `json:"description"`
+	BlockNumber   sql.NullInt64  `json:"blockNumber"`
+	Network       string         `json:"network"`
+	ChainID       sql.NullInt64  `json:"chainId"`
+	GasUsed       sql.NullString `json:"gasUsed"`
+	GasPrice      sql.NullString `json:"gasPrice"`
+	Nonce         sql.NullInt64  `json:"nonce"`
+	Metadata      sql.NullString `json:"metadata"`
+	CreatedAt     int64          `json:"createdAt"`
+	UpdatedAt     int64          `json:"updatedAt"`
+}

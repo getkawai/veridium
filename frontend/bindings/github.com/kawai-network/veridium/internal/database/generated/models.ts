@@ -1056,6 +1056,31 @@ export class CountTopicsByDateRangeParams {
     }
 }
 
+export class CountWalletTransactionsByAddressParams {
+    "fromAddress": string;
+    "toAddress": string;
+
+    /** Creates a new CountWalletTransactionsByAddressParams instance. */
+    constructor($$source: Partial<CountWalletTransactionsByAddressParams> = {}) {
+        if (!("fromAddress" in $$source)) {
+            this["fromAddress"] = "";
+        }
+        if (!("toAddress" in $$source)) {
+            this["toAddress"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CountWalletTransactionsByAddressParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CountWalletTransactionsByAddressParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new CountWalletTransactionsByAddressParams($$parsedSource as Partial<CountWalletTransactionsByAddressParams>);
+    }
+}
+
 export class CreateAIModelParams {
     "id": string;
     "displayName": sql$0.NullString;
@@ -3799,6 +3824,139 @@ export class CreateUserMemoryPreferenceParams {
     }
 }
 
+export class CreateWalletTransactionParams {
+    "txHash": string;
+    "txType": string;
+    "fromAddress": string;
+    "toAddress": string;
+    "amount": string;
+    "tokenAddress": sql$0.NullString;
+    "tokenSymbol": sql$0.NullString;
+    "tokenDecimals": sql$0.NullInt64;
+    "status": string;
+    "description": sql$0.NullString;
+    "blockNumber": sql$0.NullInt64;
+    "network": string;
+    "chainId": sql$0.NullInt64;
+    "gasUsed": sql$0.NullString;
+    "gasPrice": sql$0.NullString;
+    "nonce": sql$0.NullInt64;
+    "metadata": sql$0.NullString;
+    "createdAt": number;
+    "updatedAt": number;
+
+    /** Creates a new CreateWalletTransactionParams instance. */
+    constructor($$source: Partial<CreateWalletTransactionParams> = {}) {
+        if (!("txHash" in $$source)) {
+            this["txHash"] = "";
+        }
+        if (!("txType" in $$source)) {
+            this["txType"] = "";
+        }
+        if (!("fromAddress" in $$source)) {
+            this["fromAddress"] = "";
+        }
+        if (!("toAddress" in $$source)) {
+            this["toAddress"] = "";
+        }
+        if (!("amount" in $$source)) {
+            this["amount"] = "";
+        }
+        if (!("tokenAddress" in $$source)) {
+            this["tokenAddress"] = (new sql$0.NullString());
+        }
+        if (!("tokenSymbol" in $$source)) {
+            this["tokenSymbol"] = (new sql$0.NullString());
+        }
+        if (!("tokenDecimals" in $$source)) {
+            this["tokenDecimals"] = (new sql$0.NullInt64());
+        }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+        if (!("description" in $$source)) {
+            this["description"] = (new sql$0.NullString());
+        }
+        if (!("blockNumber" in $$source)) {
+            this["blockNumber"] = (new sql$0.NullInt64());
+        }
+        if (!("network" in $$source)) {
+            this["network"] = "";
+        }
+        if (!("chainId" in $$source)) {
+            this["chainId"] = (new sql$0.NullInt64());
+        }
+        if (!("gasUsed" in $$source)) {
+            this["gasUsed"] = (new sql$0.NullString());
+        }
+        if (!("gasPrice" in $$source)) {
+            this["gasPrice"] = (new sql$0.NullString());
+        }
+        if (!("nonce" in $$source)) {
+            this["nonce"] = (new sql$0.NullInt64());
+        }
+        if (!("metadata" in $$source)) {
+            this["metadata"] = (new sql$0.NullString());
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CreateWalletTransactionParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CreateWalletTransactionParams {
+        const $$createField5_0 = $$createType0;
+        const $$createField6_0 = $$createType0;
+        const $$createField7_0 = $$createType1;
+        const $$createField9_0 = $$createType0;
+        const $$createField10_0 = $$createType1;
+        const $$createField12_0 = $$createType1;
+        const $$createField13_0 = $$createType0;
+        const $$createField14_0 = $$createType0;
+        const $$createField15_0 = $$createType1;
+        const $$createField16_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("tokenAddress" in $$parsedSource) {
+            $$parsedSource["tokenAddress"] = $$createField5_0($$parsedSource["tokenAddress"]);
+        }
+        if ("tokenSymbol" in $$parsedSource) {
+            $$parsedSource["tokenSymbol"] = $$createField6_0($$parsedSource["tokenSymbol"]);
+        }
+        if ("tokenDecimals" in $$parsedSource) {
+            $$parsedSource["tokenDecimals"] = $$createField7_0($$parsedSource["tokenDecimals"]);
+        }
+        if ("description" in $$parsedSource) {
+            $$parsedSource["description"] = $$createField9_0($$parsedSource["description"]);
+        }
+        if ("blockNumber" in $$parsedSource) {
+            $$parsedSource["blockNumber"] = $$createField10_0($$parsedSource["blockNumber"]);
+        }
+        if ("chainId" in $$parsedSource) {
+            $$parsedSource["chainId"] = $$createField12_0($$parsedSource["chainId"]);
+        }
+        if ("gasUsed" in $$parsedSource) {
+            $$parsedSource["gasUsed"] = $$createField13_0($$parsedSource["gasUsed"]);
+        }
+        if ("gasPrice" in $$parsedSource) {
+            $$parsedSource["gasPrice"] = $$createField14_0($$parsedSource["gasPrice"]);
+        }
+        if ("nonce" in $$parsedSource) {
+            $$parsedSource["nonce"] = $$createField15_0($$parsedSource["nonce"]);
+        }
+        if ("metadata" in $$parsedSource) {
+            $$parsedSource["metadata"] = $$createField16_0($$parsedSource["metadata"]);
+        }
+        return new CreateWalletTransactionParams($$parsedSource as Partial<CreateWalletTransactionParams>);
+    }
+}
+
 export class DeleteAIModelParams {
     "id": string;
     "providerId": string;
@@ -5181,6 +5339,31 @@ export class GetDocumentByFileIdRow {
     }
 }
 
+export class GetFailedWalletTransactionsParams {
+    "limit": number;
+    "offset": number;
+
+    /** Creates a new GetFailedWalletTransactionsParams instance. */
+    constructor($$source: Partial<GetFailedWalletTransactionsParams> = {}) {
+        if (!("limit" in $$source)) {
+            this["limit"] = 0;
+        }
+        if (!("offset" in $$source)) {
+            this["offset"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetFailedWalletTransactionsParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetFailedWalletTransactionsParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new GetFailedWalletTransactionsParams($$parsedSource as Partial<GetFailedWalletTransactionsParams>);
+    }
+}
+
 export class GetFileChunksParams {
     "fileId": sql$0.NullString;
     "limit": number;
@@ -5557,6 +5740,35 @@ export class GetGenerationWithAsyncTaskRow {
             $$parsedSource["asyncTaskError"] = $$createField9_0($$parsedSource["asyncTaskError"]);
         }
         return new GetGenerationWithAsyncTaskRow($$parsedSource as Partial<GetGenerationWithAsyncTaskRow>);
+    }
+}
+
+export class GetLatestWalletTransactionsByAddressParams {
+    "fromAddress": string;
+    "toAddress": string;
+    "limit": number;
+
+    /** Creates a new GetLatestWalletTransactionsByAddressParams instance. */
+    constructor($$source: Partial<GetLatestWalletTransactionsByAddressParams> = {}) {
+        if (!("fromAddress" in $$source)) {
+            this["fromAddress"] = "";
+        }
+        if (!("toAddress" in $$source)) {
+            this["toAddress"] = "";
+        }
+        if (!("limit" in $$source)) {
+            this["limit"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetLatestWalletTransactionsByAddressParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetLatestWalletTransactionsByAddressParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new GetLatestWalletTransactionsByAddressParams($$parsedSource as Partial<GetLatestWalletTransactionsByAddressParams>);
     }
 }
 
@@ -6520,6 +6732,117 @@ export class GetTimeoutTasksParams {
             $$parsedSource["status"] = $$createField1_0($$parsedSource["status"]);
         }
         return new GetTimeoutTasksParams($$parsedSource as Partial<GetTimeoutTasksParams>);
+    }
+}
+
+export class GetWalletTransactionsByTokenSymbolParams {
+    "tokenSymbol": sql$0.NullString;
+    "fromAddress": string;
+    "toAddress": string;
+    "limit": number;
+    "offset": number;
+
+    /** Creates a new GetWalletTransactionsByTokenSymbolParams instance. */
+    constructor($$source: Partial<GetWalletTransactionsByTokenSymbolParams> = {}) {
+        if (!("tokenSymbol" in $$source)) {
+            this["tokenSymbol"] = (new sql$0.NullString());
+        }
+        if (!("fromAddress" in $$source)) {
+            this["fromAddress"] = "";
+        }
+        if (!("toAddress" in $$source)) {
+            this["toAddress"] = "";
+        }
+        if (!("limit" in $$source)) {
+            this["limit"] = 0;
+        }
+        if (!("offset" in $$source)) {
+            this["offset"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetWalletTransactionsByTokenSymbolParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetWalletTransactionsByTokenSymbolParams {
+        const $$createField0_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("tokenSymbol" in $$parsedSource) {
+            $$parsedSource["tokenSymbol"] = $$createField0_0($$parsedSource["tokenSymbol"]);
+        }
+        return new GetWalletTransactionsByTokenSymbolParams($$parsedSource as Partial<GetWalletTransactionsByTokenSymbolParams>);
+    }
+}
+
+export class GetWalletTransactionsSummaryByAddressParams {
+    "fromAddress": string;
+    "toAddress": string;
+
+    /** Creates a new GetWalletTransactionsSummaryByAddressParams instance. */
+    constructor($$source: Partial<GetWalletTransactionsSummaryByAddressParams> = {}) {
+        if (!("fromAddress" in $$source)) {
+            this["fromAddress"] = "";
+        }
+        if (!("toAddress" in $$source)) {
+            this["toAddress"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetWalletTransactionsSummaryByAddressParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetWalletTransactionsSummaryByAddressParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new GetWalletTransactionsSummaryByAddressParams($$parsedSource as Partial<GetWalletTransactionsSummaryByAddressParams>);
+    }
+}
+
+export class GetWalletTransactionsSummaryByAddressRow {
+    "totalTransactions": number;
+    "successfulTransactions": sql$0.NullFloat64;
+    "failedTransactions": sql$0.NullFloat64;
+    "pendingTransactions": sql$0.NullFloat64;
+
+    /** Creates a new GetWalletTransactionsSummaryByAddressRow instance. */
+    constructor($$source: Partial<GetWalletTransactionsSummaryByAddressRow> = {}) {
+        if (!("totalTransactions" in $$source)) {
+            this["totalTransactions"] = 0;
+        }
+        if (!("successfulTransactions" in $$source)) {
+            this["successfulTransactions"] = (new sql$0.NullFloat64());
+        }
+        if (!("failedTransactions" in $$source)) {
+            this["failedTransactions"] = (new sql$0.NullFloat64());
+        }
+        if (!("pendingTransactions" in $$source)) {
+            this["pendingTransactions"] = (new sql$0.NullFloat64());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GetWalletTransactionsSummaryByAddressRow instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GetWalletTransactionsSummaryByAddressRow {
+        const $$createField1_0 = $$createType3;
+        const $$createField2_0 = $$createType3;
+        const $$createField3_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("successfulTransactions" in $$parsedSource) {
+            $$parsedSource["successfulTransactions"] = $$createField1_0($$parsedSource["successfulTransactions"]);
+        }
+        if ("failedTransactions" in $$parsedSource) {
+            $$parsedSource["failedTransactions"] = $$createField2_0($$parsedSource["failedTransactions"]);
+        }
+        if ("pendingTransactions" in $$parsedSource) {
+            $$parsedSource["pendingTransactions"] = $$createField3_0($$parsedSource["pendingTransactions"]);
+        }
+        return new GetWalletTransactionsSummaryByAddressRow($$parsedSource as Partial<GetWalletTransactionsSummaryByAddressRow>);
     }
 }
 
@@ -7918,6 +8241,279 @@ export class ListUserMemoryContextsParams {
     static createFrom($$source: any = {}): ListUserMemoryContextsParams {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new ListUserMemoryContextsParams($$parsedSource as Partial<ListUserMemoryContextsParams>);
+    }
+}
+
+export class ListWalletTransactionsByAddressAndTypeParams {
+    "fromAddress": string;
+    "toAddress": string;
+    "txType": string;
+    "limit": number;
+    "offset": number;
+
+    /** Creates a new ListWalletTransactionsByAddressAndTypeParams instance. */
+    constructor($$source: Partial<ListWalletTransactionsByAddressAndTypeParams> = {}) {
+        if (!("fromAddress" in $$source)) {
+            this["fromAddress"] = "";
+        }
+        if (!("toAddress" in $$source)) {
+            this["toAddress"] = "";
+        }
+        if (!("txType" in $$source)) {
+            this["txType"] = "";
+        }
+        if (!("limit" in $$source)) {
+            this["limit"] = 0;
+        }
+        if (!("offset" in $$source)) {
+            this["offset"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ListWalletTransactionsByAddressAndTypeParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ListWalletTransactionsByAddressAndTypeParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ListWalletTransactionsByAddressAndTypeParams($$parsedSource as Partial<ListWalletTransactionsByAddressAndTypeParams>);
+    }
+}
+
+export class ListWalletTransactionsByAddressParams {
+    "fromAddress": string;
+    "toAddress": string;
+    "limit": number;
+    "offset": number;
+
+    /** Creates a new ListWalletTransactionsByAddressParams instance. */
+    constructor($$source: Partial<ListWalletTransactionsByAddressParams> = {}) {
+        if (!("fromAddress" in $$source)) {
+            this["fromAddress"] = "";
+        }
+        if (!("toAddress" in $$source)) {
+            this["toAddress"] = "";
+        }
+        if (!("limit" in $$source)) {
+            this["limit"] = 0;
+        }
+        if (!("offset" in $$source)) {
+            this["offset"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ListWalletTransactionsByAddressParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ListWalletTransactionsByAddressParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ListWalletTransactionsByAddressParams($$parsedSource as Partial<ListWalletTransactionsByAddressParams>);
+    }
+}
+
+export class ListWalletTransactionsByDateRangeParams {
+    "createdAt": number;
+    "createdAt2": number;
+    "limit": number;
+    "offset": number;
+
+    /** Creates a new ListWalletTransactionsByDateRangeParams instance. */
+    constructor($$source: Partial<ListWalletTransactionsByDateRangeParams> = {}) {
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+        if (!("createdAt2" in $$source)) {
+            this["createdAt2"] = 0;
+        }
+        if (!("limit" in $$source)) {
+            this["limit"] = 0;
+        }
+        if (!("offset" in $$source)) {
+            this["offset"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ListWalletTransactionsByDateRangeParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ListWalletTransactionsByDateRangeParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ListWalletTransactionsByDateRangeParams($$parsedSource as Partial<ListWalletTransactionsByDateRangeParams>);
+    }
+}
+
+export class ListWalletTransactionsByFromAddressParams {
+    "fromAddress": string;
+    "limit": number;
+    "offset": number;
+
+    /** Creates a new ListWalletTransactionsByFromAddressParams instance. */
+    constructor($$source: Partial<ListWalletTransactionsByFromAddressParams> = {}) {
+        if (!("fromAddress" in $$source)) {
+            this["fromAddress"] = "";
+        }
+        if (!("limit" in $$source)) {
+            this["limit"] = 0;
+        }
+        if (!("offset" in $$source)) {
+            this["offset"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ListWalletTransactionsByFromAddressParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ListWalletTransactionsByFromAddressParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ListWalletTransactionsByFromAddressParams($$parsedSource as Partial<ListWalletTransactionsByFromAddressParams>);
+    }
+}
+
+export class ListWalletTransactionsByNetworkParams {
+    "network": string;
+    "limit": number;
+    "offset": number;
+
+    /** Creates a new ListWalletTransactionsByNetworkParams instance. */
+    constructor($$source: Partial<ListWalletTransactionsByNetworkParams> = {}) {
+        if (!("network" in $$source)) {
+            this["network"] = "";
+        }
+        if (!("limit" in $$source)) {
+            this["limit"] = 0;
+        }
+        if (!("offset" in $$source)) {
+            this["offset"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ListWalletTransactionsByNetworkParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ListWalletTransactionsByNetworkParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ListWalletTransactionsByNetworkParams($$parsedSource as Partial<ListWalletTransactionsByNetworkParams>);
+    }
+}
+
+export class ListWalletTransactionsByStatusParams {
+    "status": string;
+    "limit": number;
+    "offset": number;
+
+    /** Creates a new ListWalletTransactionsByStatusParams instance. */
+    constructor($$source: Partial<ListWalletTransactionsByStatusParams> = {}) {
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+        if (!("limit" in $$source)) {
+            this["limit"] = 0;
+        }
+        if (!("offset" in $$source)) {
+            this["offset"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ListWalletTransactionsByStatusParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ListWalletTransactionsByStatusParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ListWalletTransactionsByStatusParams($$parsedSource as Partial<ListWalletTransactionsByStatusParams>);
+    }
+}
+
+export class ListWalletTransactionsByToAddressParams {
+    "toAddress": string;
+    "limit": number;
+    "offset": number;
+
+    /** Creates a new ListWalletTransactionsByToAddressParams instance. */
+    constructor($$source: Partial<ListWalletTransactionsByToAddressParams> = {}) {
+        if (!("toAddress" in $$source)) {
+            this["toAddress"] = "";
+        }
+        if (!("limit" in $$source)) {
+            this["limit"] = 0;
+        }
+        if (!("offset" in $$source)) {
+            this["offset"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ListWalletTransactionsByToAddressParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ListWalletTransactionsByToAddressParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ListWalletTransactionsByToAddressParams($$parsedSource as Partial<ListWalletTransactionsByToAddressParams>);
+    }
+}
+
+export class ListWalletTransactionsByTypeParams {
+    "txType": string;
+    "limit": number;
+    "offset": number;
+
+    /** Creates a new ListWalletTransactionsByTypeParams instance. */
+    constructor($$source: Partial<ListWalletTransactionsByTypeParams> = {}) {
+        if (!("txType" in $$source)) {
+            this["txType"] = "";
+        }
+        if (!("limit" in $$source)) {
+            this["limit"] = 0;
+        }
+        if (!("offset" in $$source)) {
+            this["offset"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ListWalletTransactionsByTypeParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ListWalletTransactionsByTypeParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ListWalletTransactionsByTypeParams($$parsedSource as Partial<ListWalletTransactionsByTypeParams>);
+    }
+}
+
+export class ListWalletTransactionsParams {
+    "limit": number;
+    "offset": number;
+
+    /** Creates a new ListWalletTransactionsParams instance. */
+    constructor($$source: Partial<ListWalletTransactionsParams> = {}) {
+        if (!("limit" in $$source)) {
+            this["limit"] = 0;
+        }
+        if (!("offset" in $$source)) {
+            this["offset"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ListWalletTransactionsParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ListWalletTransactionsParams {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ListWalletTransactionsParams($$parsedSource as Partial<ListWalletTransactionsParams>);
     }
 }
 
@@ -11804,6 +12400,172 @@ export class UpdateUserSettingsParams {
     }
 }
 
+export class UpdateWalletTransactionParams {
+    "txType": string;
+    "fromAddress": string;
+    "toAddress": string;
+    "amount": string;
+    "tokenAddress": sql$0.NullString;
+    "tokenSymbol": sql$0.NullString;
+    "tokenDecimals": sql$0.NullInt64;
+    "status": string;
+    "description": sql$0.NullString;
+    "blockNumber": sql$0.NullInt64;
+    "network": string;
+    "chainId": sql$0.NullInt64;
+    "gasUsed": sql$0.NullString;
+    "gasPrice": sql$0.NullString;
+    "nonce": sql$0.NullInt64;
+    "metadata": sql$0.NullString;
+    "updatedAt": number;
+    "id": string;
+
+    /** Creates a new UpdateWalletTransactionParams instance. */
+    constructor($$source: Partial<UpdateWalletTransactionParams> = {}) {
+        if (!("txType" in $$source)) {
+            this["txType"] = "";
+        }
+        if (!("fromAddress" in $$source)) {
+            this["fromAddress"] = "";
+        }
+        if (!("toAddress" in $$source)) {
+            this["toAddress"] = "";
+        }
+        if (!("amount" in $$source)) {
+            this["amount"] = "";
+        }
+        if (!("tokenAddress" in $$source)) {
+            this["tokenAddress"] = (new sql$0.NullString());
+        }
+        if (!("tokenSymbol" in $$source)) {
+            this["tokenSymbol"] = (new sql$0.NullString());
+        }
+        if (!("tokenDecimals" in $$source)) {
+            this["tokenDecimals"] = (new sql$0.NullInt64());
+        }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+        if (!("description" in $$source)) {
+            this["description"] = (new sql$0.NullString());
+        }
+        if (!("blockNumber" in $$source)) {
+            this["blockNumber"] = (new sql$0.NullInt64());
+        }
+        if (!("network" in $$source)) {
+            this["network"] = "";
+        }
+        if (!("chainId" in $$source)) {
+            this["chainId"] = (new sql$0.NullInt64());
+        }
+        if (!("gasUsed" in $$source)) {
+            this["gasUsed"] = (new sql$0.NullString());
+        }
+        if (!("gasPrice" in $$source)) {
+            this["gasPrice"] = (new sql$0.NullString());
+        }
+        if (!("nonce" in $$source)) {
+            this["nonce"] = (new sql$0.NullInt64());
+        }
+        if (!("metadata" in $$source)) {
+            this["metadata"] = (new sql$0.NullString());
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpdateWalletTransactionParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UpdateWalletTransactionParams {
+        const $$createField4_0 = $$createType0;
+        const $$createField5_0 = $$createType0;
+        const $$createField6_0 = $$createType1;
+        const $$createField8_0 = $$createType0;
+        const $$createField9_0 = $$createType1;
+        const $$createField11_0 = $$createType1;
+        const $$createField12_0 = $$createType0;
+        const $$createField13_0 = $$createType0;
+        const $$createField14_0 = $$createType1;
+        const $$createField15_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("tokenAddress" in $$parsedSource) {
+            $$parsedSource["tokenAddress"] = $$createField4_0($$parsedSource["tokenAddress"]);
+        }
+        if ("tokenSymbol" in $$parsedSource) {
+            $$parsedSource["tokenSymbol"] = $$createField5_0($$parsedSource["tokenSymbol"]);
+        }
+        if ("tokenDecimals" in $$parsedSource) {
+            $$parsedSource["tokenDecimals"] = $$createField6_0($$parsedSource["tokenDecimals"]);
+        }
+        if ("description" in $$parsedSource) {
+            $$parsedSource["description"] = $$createField8_0($$parsedSource["description"]);
+        }
+        if ("blockNumber" in $$parsedSource) {
+            $$parsedSource["blockNumber"] = $$createField9_0($$parsedSource["blockNumber"]);
+        }
+        if ("chainId" in $$parsedSource) {
+            $$parsedSource["chainId"] = $$createField11_0($$parsedSource["chainId"]);
+        }
+        if ("gasUsed" in $$parsedSource) {
+            $$parsedSource["gasUsed"] = $$createField12_0($$parsedSource["gasUsed"]);
+        }
+        if ("gasPrice" in $$parsedSource) {
+            $$parsedSource["gasPrice"] = $$createField13_0($$parsedSource["gasPrice"]);
+        }
+        if ("nonce" in $$parsedSource) {
+            $$parsedSource["nonce"] = $$createField14_0($$parsedSource["nonce"]);
+        }
+        if ("metadata" in $$parsedSource) {
+            $$parsedSource["metadata"] = $$createField15_0($$parsedSource["metadata"]);
+        }
+        return new UpdateWalletTransactionParams($$parsedSource as Partial<UpdateWalletTransactionParams>);
+    }
+}
+
+export class UpdateWalletTransactionStatusParams {
+    "status": string;
+    "blockNumber": sql$0.NullInt64;
+    "updatedAt": number;
+    "txHash": string;
+
+    /** Creates a new UpdateWalletTransactionStatusParams instance. */
+    constructor($$source: Partial<UpdateWalletTransactionStatusParams> = {}) {
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+        if (!("blockNumber" in $$source)) {
+            this["blockNumber"] = (new sql$0.NullInt64());
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+        if (!("txHash" in $$source)) {
+            this["txHash"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpdateWalletTransactionStatusParams instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UpdateWalletTransactionStatusParams {
+        const $$createField1_0 = $$createType1;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("blockNumber" in $$parsedSource) {
+            $$parsedSource["blockNumber"] = $$createField1_0($$parsedSource["blockNumber"]);
+        }
+        return new UpdateWalletTransactionStatusParams($$parsedSource as Partial<UpdateWalletTransactionStatusParams>);
+    }
+}
+
 export class UpsertAIModelParams {
     "id": string;
     "displayName": sql$0.NullString;
@@ -13115,6 +13877,143 @@ export class UserSetting {
             $$parsedSource["image"] = $$createField9_0($$parsedSource["image"]);
         }
         return new UserSetting($$parsedSource as Partial<UserSetting>);
+    }
+}
+
+export class WalletTransaction {
+    "id": string;
+    "txHash": string;
+    "txType": string;
+    "fromAddress": string;
+    "toAddress": string;
+    "amount": string;
+    "tokenAddress": sql$0.NullString;
+    "tokenSymbol": sql$0.NullString;
+    "tokenDecimals": sql$0.NullInt64;
+    "status": string;
+    "description": sql$0.NullString;
+    "blockNumber": sql$0.NullInt64;
+    "network": string;
+    "chainId": sql$0.NullInt64;
+    "gasUsed": sql$0.NullString;
+    "gasPrice": sql$0.NullString;
+    "nonce": sql$0.NullInt64;
+    "metadata": sql$0.NullString;
+    "createdAt": number;
+    "updatedAt": number;
+
+    /** Creates a new WalletTransaction instance. */
+    constructor($$source: Partial<WalletTransaction> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("txHash" in $$source)) {
+            this["txHash"] = "";
+        }
+        if (!("txType" in $$source)) {
+            this["txType"] = "";
+        }
+        if (!("fromAddress" in $$source)) {
+            this["fromAddress"] = "";
+        }
+        if (!("toAddress" in $$source)) {
+            this["toAddress"] = "";
+        }
+        if (!("amount" in $$source)) {
+            this["amount"] = "";
+        }
+        if (!("tokenAddress" in $$source)) {
+            this["tokenAddress"] = (new sql$0.NullString());
+        }
+        if (!("tokenSymbol" in $$source)) {
+            this["tokenSymbol"] = (new sql$0.NullString());
+        }
+        if (!("tokenDecimals" in $$source)) {
+            this["tokenDecimals"] = (new sql$0.NullInt64());
+        }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+        if (!("description" in $$source)) {
+            this["description"] = (new sql$0.NullString());
+        }
+        if (!("blockNumber" in $$source)) {
+            this["blockNumber"] = (new sql$0.NullInt64());
+        }
+        if (!("network" in $$source)) {
+            this["network"] = "";
+        }
+        if (!("chainId" in $$source)) {
+            this["chainId"] = (new sql$0.NullInt64());
+        }
+        if (!("gasUsed" in $$source)) {
+            this["gasUsed"] = (new sql$0.NullString());
+        }
+        if (!("gasPrice" in $$source)) {
+            this["gasPrice"] = (new sql$0.NullString());
+        }
+        if (!("nonce" in $$source)) {
+            this["nonce"] = (new sql$0.NullInt64());
+        }
+        if (!("metadata" in $$source)) {
+            this["metadata"] = (new sql$0.NullString());
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = 0;
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new WalletTransaction instance from a string or object.
+     */
+    static createFrom($$source: any = {}): WalletTransaction {
+        const $$createField6_0 = $$createType0;
+        const $$createField7_0 = $$createType0;
+        const $$createField8_0 = $$createType1;
+        const $$createField10_0 = $$createType0;
+        const $$createField11_0 = $$createType1;
+        const $$createField13_0 = $$createType1;
+        const $$createField14_0 = $$createType0;
+        const $$createField15_0 = $$createType0;
+        const $$createField16_0 = $$createType1;
+        const $$createField17_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("tokenAddress" in $$parsedSource) {
+            $$parsedSource["tokenAddress"] = $$createField6_0($$parsedSource["tokenAddress"]);
+        }
+        if ("tokenSymbol" in $$parsedSource) {
+            $$parsedSource["tokenSymbol"] = $$createField7_0($$parsedSource["tokenSymbol"]);
+        }
+        if ("tokenDecimals" in $$parsedSource) {
+            $$parsedSource["tokenDecimals"] = $$createField8_0($$parsedSource["tokenDecimals"]);
+        }
+        if ("description" in $$parsedSource) {
+            $$parsedSource["description"] = $$createField10_0($$parsedSource["description"]);
+        }
+        if ("blockNumber" in $$parsedSource) {
+            $$parsedSource["blockNumber"] = $$createField11_0($$parsedSource["blockNumber"]);
+        }
+        if ("chainId" in $$parsedSource) {
+            $$parsedSource["chainId"] = $$createField13_0($$parsedSource["chainId"]);
+        }
+        if ("gasUsed" in $$parsedSource) {
+            $$parsedSource["gasUsed"] = $$createField14_0($$parsedSource["gasUsed"]);
+        }
+        if ("gasPrice" in $$parsedSource) {
+            $$parsedSource["gasPrice"] = $$createField15_0($$parsedSource["gasPrice"]);
+        }
+        if ("nonce" in $$parsedSource) {
+            $$parsedSource["nonce"] = $$createField16_0($$parsedSource["nonce"]);
+        }
+        if ("metadata" in $$parsedSource) {
+            $$parsedSource["metadata"] = $$createField17_0($$parsedSource["metadata"]);
+        }
+        return new WalletTransaction($$parsedSource as Partial<WalletTransaction>);
     }
 }
 

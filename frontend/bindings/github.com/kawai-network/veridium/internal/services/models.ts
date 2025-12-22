@@ -885,6 +885,94 @@ export enum ThreadType {
 };
 
 /**
+ * TransactionRecord represents a single transaction history entry (for API compatibility)
+ */
+export class TransactionRecord {
+    "hash": string;
+    "type": TransactionType;
+
+    /**
+     * Display string e.g. "100 USDT"
+     */
+    "amount": string;
+    "to": string;
+    "from": string;
+    "timestamp": number;
+
+    /**
+     * "Pending", "Success", "Failed"
+     */
+    "status": string;
+    "description": string;
+
+    /**
+     * Extended fields from database
+     */
+    "tokenSymbol"?: string;
+    "tokenAddress"?: string;
+    "blockNumber"?: number;
+    "network"?: string;
+    "gasUsed"?: string;
+    "gasPrice"?: string;
+
+    /** Creates a new TransactionRecord instance. */
+    constructor($$source: Partial<TransactionRecord> = {}) {
+        if (!("hash" in $$source)) {
+            this["hash"] = "";
+        }
+        if (!("type" in $$source)) {
+            this["type"] = TransactionType.$zero;
+        }
+        if (!("amount" in $$source)) {
+            this["amount"] = "";
+        }
+        if (!("to" in $$source)) {
+            this["to"] = "";
+        }
+        if (!("from" in $$source)) {
+            this["from"] = "";
+        }
+        if (!("timestamp" in $$source)) {
+            this["timestamp"] = 0;
+        }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+        if (!("description" in $$source)) {
+            this["description"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TransactionRecord instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TransactionRecord {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new TransactionRecord($$parsedSource as Partial<TransactionRecord>);
+    }
+}
+
+/**
+ * TransactionType definitions
+ */
+export enum TransactionType {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    TxTypeDeposit = "DEPOSIT",
+    TxTypeSend = "SEND",
+    TxTypeReceive = "RECEIVE",
+    TxTypeApprove = "APPROVE",
+    TxTypeBuy = "BUY",
+    TxTypeSell = "SELL",
+    TxTypeSwap = "SWAP",
+};
+
+/**
  * WalletInfo represents a wallet in the list
  */
 export class WalletInfo {

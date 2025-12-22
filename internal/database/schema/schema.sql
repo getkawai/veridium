@@ -667,3 +667,37 @@ CREATE INDEX IF NOT EXISTS idx_rag_eval_evaluation_records_evaluation_id ON rag_
 CREATE INDEX IF NOT EXISTS idx_user_memories_experiences_user_memory_id ON user_memories_experiences(user_memory_id);
 CREATE INDEX IF NOT EXISTS idx_user_memories_identities_user_memory_id ON user_memories_identities(user_memory_id);
 CREATE INDEX IF NOT EXISTS idx_user_memories_preferences_user_memory_id ON user_memories_preferences(user_memory_id);
+
+-- Wallet Transactions table
+CREATE TABLE IF NOT EXISTS wallet_transactions (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))),2) || '-' || substr('89ab',abs(random()) % 4 + 1, 1) || substr(lower(hex(randomblob(2))),2) || '-' || lower(hex(randomblob(6)))),
+  tx_hash TEXT NOT NULL UNIQUE,
+  tx_type TEXT NOT NULL CHECK (tx_type IN ('DEPOSIT', 'SEND', 'RECEIVE', 'APPROVE', 'BUY', 'SELL', 'SWAP')),
+  from_address TEXT NOT NULL,
+  to_address TEXT NOT NULL,
+  amount TEXT NOT NULL,
+  token_address TEXT,
+  token_symbol TEXT,
+  token_decimals INTEGER DEFAULT 18,
+  status TEXT NOT NULL CHECK (status IN ('Pending', 'Success', 'Failed', 'Cancelled')),
+  description TEXT,
+  block_number INTEGER,
+  network TEXT NOT NULL DEFAULT 'BSC', -- BSC, ETH, Polygon, etc
+  chain_id INTEGER,
+  gas_used TEXT,
+  gas_price TEXT,
+  nonce INTEGER,
+  metadata TEXT, -- JSON as text (for additional data like contract interaction, DEX info, etc)
+  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
+  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
+);
+
+-- Indexes for wallet transactions
+CREATE INDEX IF NOT EXISTS idx_wallet_tx_hash ON wallet_transactions(tx_hash);
+CREATE INDEX IF NOT EXISTS idx_wallet_tx_from_address ON wallet_transactions(from_address);
+CREATE INDEX IF NOT EXISTS idx_wallet_tx_to_address ON wallet_transactions(to_address);
+CREATE INDEX IF NOT EXISTS idx_wallet_tx_type ON wallet_transactions(tx_type);
+CREATE INDEX IF NOT EXISTS idx_wallet_tx_status ON wallet_transactions(status);
+CREATE INDEX IF NOT EXISTS idx_wallet_tx_network ON wallet_transactions(network);
+CREATE INDEX IF NOT EXISTS idx_wallet_tx_created_at ON wallet_transactions(created_at);
+CREATE INDEX IF NOT EXISTS idx_wallet_tx_block_number ON wallet_transactions(block_number);
