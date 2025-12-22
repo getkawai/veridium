@@ -245,6 +245,10 @@ contracts-compile:
 	cd $(CONTRACTS_DIR) && npx hardhat compile
 
 contracts-bindings: abi-token abi-escrow abi-vault generate-project-abis
+	@echo "✅ Bindings generated."
+
+contracts-update: contracts-compile contracts-bindings
+	@echo "🚀 Contracts updated successfully (Compiled + Bindings Generated)"
 
 generate-project-abis:
 	@echo "Injecting project ABIs into Jarvis..."

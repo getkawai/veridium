@@ -50,6 +50,9 @@ func AllTokenAddresses() map[string]string {
 	for addr, desc := range TOKENS {
 		result[strings.ToLower(addr)] = desc
 	}
+	for addr, desc := range PROJECT_TOKENS {
+		result[strings.ToLower(addr)] = desc
+	}
 	return result
 }
 
