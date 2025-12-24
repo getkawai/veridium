@@ -1,53 +1,82 @@
-# Veridium Startup Process
+# KawaiBSC DeAI Network
 
-When `main.go` executes, the application follows a structured initialization sequence to set up the backend services, the AI engine, and the Wails frontend runtime.
+**Decentralized AI Compute Network on BNB Smart Chain.**
+A "Lean Startup" approach to DePIN, leveraging consumer-grade GPUs for `llama.cpp` inference with a sustainable tokenomic model.
 
-## 1. Context & Core Service Initialization
-- **Dev Mode Check**: Checks for development mode flags.
-- **Context Creation**: `app.NewContext()` creates a centralized context aimed at being the "Single Source of Truth" for the application state.
-- **Service Init**: `ctx.InitAll()` initializes all core backend services, including:
-  - **SQLite**: The primary relational database used for storing application metadata, chat history, agent configurations, and session information.
-  - **DuckDB**: An embedded analytical database utilized as the high-performance vector store for semantic retrieval and long-term memory.
-  - **Vector Search Engine**: Provides semantic similarity lookup capabilities using high-dimensional embeddings (defaulting to 384 dimensions) to power RAG and memory features.
-  - **Whisper Service**: A local implementation of the Whisper model for high-accuracy, privacy-preserving speech-to-text transcription.
-  - **Knowledge Base (KB) Service**: Specifically manages the ingestion, chunking, and indexing of knowledge base documents (PDFs, text, etc.), coordinating with the RAG processor.
-  - **Local LLM Library Service**: A centralized manager for running Large Language Models locally using a highly optimized `llama.cpp` wrapper, handling model lifecycle and inference.
+---
 
-## 2. Specialized Service Setup
-- **File Processor**: A `FileProcessorService` is instantiated to bridge Wails with the file processing logic (PDFs, images, etc.), utilizing the database and vector search.
-- **Stable Diffusion**: The image generation manager (`image.New`) is initialized and starts its background initialization process immediately.
+## 🚀 Core Concept
 
-## 3. Wails Application Configuration
-- A Wails application (`application.App`) is created with specific configurations for Mac (lifecycle management) and assets.
-- **Service Injection**: A comprehensive list of services is bound to the Wails application, making them callable from the frontend. This includes:
-  - **Database Services**: Queries, DB access, Table Viewer.
-  - **Core Features**: Search, TTS, Audio Recorder.
-  - **AI/ML**: Vector Search, File Processor, KB Service.
-  - **System Utilities**: File Service, Local File System, System Service, Machine ID.
-  - **Native Wails Services**: Notifications, Logger, clean SQLite/KVStore access.
+-   **Service:** Low-cost LLM Inference API (compatible with OpenAI format).
+-   **Workers:** Gamers & Devs running `llama.cpp` nodes.
+-   **Rewards:** Hybrid model (Native Token for "Proof of Availability" + USDT for "Operational Subsidy").
+-   **Liquidity:** No Initial LP. Uses **Weekly USDT Dividends** and an **Internal P2P Market** to bootstrap value.
+-   **Details:** See [Concept Document](current_concept.md) for full analysis.
 
-## 4. Agent & Logic wiring (`registerAgentServices`)
-After the base app is created, complex dependencies are wired up:
-- **Audio Recorder**: Connected to the Wails app instance.
-- **Thread & Topic Management**: Services for handling chat threads and topics are initialized and registered.
-- **Cascading Model Chain**: The AI utilizes a prioritized chain of providers for robustness: `OpenRouter (Free)` → `Pollinations AI` → `ZAI (GLM-4.6)` → `Local Llama`.
-  - **Chat Model**: High-reasoning configuration with 100k context window and tool-calling/attachment support.
-  - **Summary Model**: Specialized for long-context analysis with a 50k context window.
-  - **Title Model**: Dedicated to semantic summarization for session naming.
-- **MemGPT-style Memory Integration**: A persistent memory system that uses LLM enrichment to extract and store user facts and preferences in the vector store, enabling cross-session recall via specialized memory tools.
-- **Thread & Topic Management**:
-  - **Thread Service**: Handles the complete lifecycle and database persistence of chat sessions and messages.
-  - **Topic Service**: Automates the generation and organization of session titles based on the Title Model's analysis of the interaction.
-- **Cleanup Handlers**: Shutdown hooks are registered to properly close the LLM library and Stable Diffusion processes.
+---
 
-## 5. UI Initialization
-- **Main Window**: The main application window is created with:
-  - Custom macOS styling (hidden title bar, translucent backdrop).
-  - Specific dimensions and background colors.
-- **Drag & Drop**: A native drag-and-drop handler is registered to:
-  - Intercept file drops.
-  - Process files immediately via `FileProcessorService`.
-  - Emit real-time events (`files:dropped`) to the frontend with file details.
+## 🗺️ Implementation Plan (Roadmap)
 
-## 6. Execution
-- Finally, `wailsApp.Run()` is called to start the application event loop, serving the frontend and listening for backend calls.
+This roadmap outlines the path from "Zero" to a fully functional decentralized network.
+
+### Phase 1: Foundation (Current Status)
+**Focus:** Infrastructure Setup & Smart Contract Development.
+- [x] **Project Initialization:**
+    - [x] Go Backend Structure (Middleware).
+    - [x] Hardhat Environment (Contracts).
+- [x] **Auto-Binding Setup:**
+    - [x] Makefile for `abigen` (Solidity -> Go).
+- [x] **Smart Contracts (MVP):**
+    - [x] `KawaiToken.sol`: Standard ERC20 with AccessControl (Mint/Burn).
+    - [x] `Escrow.sol`: Simple P2P OTC Market (Orders, Buy, Cancel).
+    - [x] `PaymentVault.sol`: Prepaid USDT Deposit system for Consumers.
+- [x] **Middleware (Go):**
+    - [x] `pkg/blockchain`: Service to interact with BSC (Listen events, Send TXs).
+    - [x] `pkg/store`: Persistent storage using Cloudflare Workers KV.
+
+### Phase 2: The "Lean" Launch (Internal Market)
+**Focus:** Economic bootstrapping without initial LP.
+- [ ] **Worker Client (Go):** 
+    - [x] **Wallet Setup:** Generate/Load Worker Identity (Private Key).
+    - [x] Wrapper for `llama.cpp` server (Process Management).
+    - [x] Heartbeat system (Proof of Availability).
+- [ ] **Verification System (Middleware):**
+    - [ ] "Gold Standard" verification (random trap questions) to prevent cheat nodes.
+- [ ] **Consumer API (User Client):**
+    - [ ] Web3 Dashboard: Login via Wallet to manage API Keys.
+    - [x] OpenAI-compatible `/v1/chat/completions` proxy (Base foundation).
+    - [ ] Real-time credit deduction system.
+- [ ] **Internal P2P Marketplace (Web):**
+    - [ ] UI for Workers to list their Token rewards.
+    - [ ] UI for Investors to buy Tokens with USDT.
+- [x] **Administration Scripts (Go):**
+    - [x] Weekly Snapshot & Dividend Calculator.
+    - [x] Worker Audit & Ban system.
+- [ ] **Dividend System:**
+    - [x] Weekly Snapshot script.
+    - [ ] Batch Transfer (Disperse) implementation.
+
+### Phase 3: Community Liquidity (Growth)
+**Focus:** Transition to decentralized liquidity.
+- [ ] **Liquidity Incentives:**
+    - [ ] Launch "LP Mining" program.
+    - [ ] Encourage stakeholders to provide LP on PancakeSwap using their Dividends.
+- [ ] **Consumer API (User Client):**
+    - [ ] Web3 Dashboard: Login via Wallet to manage API Keys.
+    - [x] OpenAI-compatible `/v1/chat/completions` proxy (Base).
+    - [ ] Real-time credit deduction system.
+- [ ] **Frontend (Web Dashboard):**
+    - [x] Initialize Vite + React project.
+    - [x] Integrate Ant Design Web3 for Wallet connection.
+    - [ ] Implement USDT Deposit UI (PaymentVault integration).
+
+---
+
+## 🛠️ Tech Stack
+
+-   **Smart Contracts:** Solidity, Hardhat, OpenZeppelin.
+-   **Backend (Middleware):** Go (Golang), `net/http`, `go-ethereum`, `cloudflare-go`.
+-   **Database:** Cloudflare Workers KV.
+-   **Frontend:** React, Vite, Ant Design Web3.
+-   **Worker Node:** Go (Golang), `llama.cpp`.
+-   **Blockchain:** BNB Smart Chain (BSC).
