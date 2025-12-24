@@ -198,6 +198,8 @@ clean:
 	@echo "🧹 Cleaning generated files..."
 	rm -rf frontend/bindings/
 	rm -rf build/
+	rm -rf $(ABIS_DIR)
+	cd $(CONTRACTS_DIR) && ~/.foundry/bin/forge clean
 	@echo "✅ Clean complete!"
 
 # Run tests
@@ -235,14 +237,14 @@ llama-versions:
 CONTRACTS_DIR := contracts
 ABIS_DIR := ./internal/generate/abi
 
-# Artifacts
-TOKEN_ARTIFACT := $(CONTRACTS_DIR)/artifacts/contracts/KawaiToken.sol/KawaiToken.json
-ESCROW_ARTIFACT := $(CONTRACTS_DIR)/artifacts/contracts/Escrow.sol/OTCMarket.json
-VAULT_ARTIFACT := $(CONTRACTS_DIR)/artifacts/contracts/PaymentVault.sol/PaymentVault.json
+# Artifacts (Foundry out directory)
+TOKEN_ARTIFACT := $(CONTRACTS_DIR)/out/KawaiToken.sol/KawaiToken.json
+ESCROW_ARTIFACT := $(CONTRACTS_DIR)/out/Escrow.sol/OTCMarket.json
+VAULT_ARTIFACT := $(CONTRACTS_DIR)/out/PaymentVault.sol/PaymentVault.json
 
 contracts-compile:
-	@echo "Compiling smart contracts..."
-	cd $(CONTRACTS_DIR) && npx hardhat compile
+	@echo "Compiling smart contracts with Foundry..."
+	cd $(CONTRACTS_DIR) && ~/.foundry/bin/forge build
 
 contracts-bindings: abi-token abi-escrow abi-vault generate-project-abis
 	@echo "✅ Bindings generated."
@@ -259,7 +261,7 @@ abi-token:
 	@echo "Generating bindings for KawaiToken..."
 	@mkdir -p $(ABIS_DIR)/kawaitoken
 	@jq -r .abi $(TOKEN_ARTIFACT) > $(ABIS_DIR)/kawaitoken/KawaiToken.abi
-	@jq -r .bytecode $(TOKEN_ARTIFACT) > $(ABIS_DIR)/kawaitoken/KawaiToken.bin
+	@jq -r .bytecode.object $(TOKEN_ARTIFACT) > $(ABIS_DIR)/kawaitoken/KawaiToken.bin
 	@abigen --abi $(ABIS_DIR)/kawaitoken/KawaiToken.abi --bin $(ABIS_DIR)/kawaitoken/KawaiToken.bin --pkg kawaitoken --type KawaiToken --out $(ABIS_DIR)/kawaitoken/kawaitoken.go
 	@echo "KawaiToken abi generated."
 
@@ -267,7 +269,7 @@ abi-escrow:
 	@echo "Generating bindings for OTC Market (Escrow)..."
 	@mkdir -p $(ABIS_DIR)/escrow
 	@jq -r .abi $(ESCROW_ARTIFACT) > $(ABIS_DIR)/escrow/Escrow.abi
-	@jq -r .bytecode $(ESCROW_ARTIFACT) > $(ABIS_DIR)/escrow/Escrow.bin
+	@jq -r .bytecode.object $(ESCROW_ARTIFACT) > $(ABIS_DIR)/escrow/Escrow.bin
 	@abigen --abi $(ABIS_DIR)/escrow/Escrow.abi --bin $(ABIS_DIR)/escrow/Escrow.bin --pkg escrow --type OTCMarket --out $(ABIS_DIR)/escrow/escrow.go
 	@echo "OTC Market abi generated."
 
@@ -275,10 +277,6 @@ abi-vault:
 	@echo "Generating bindings for PaymentVault..."
 	@mkdir -p $(ABIS_DIR)/vault
 	@jq -r .abi $(VAULT_ARTIFACT) > $(ABIS_DIR)/vault/PaymentVault.abi
-	@jq -r .bytecode $(VAULT_ARTIFACT) > $(ABIS_DIR)/vault/PaymentVault.bin
+	@jq -r .bytecode.object $(VAULT_ARTIFACT) > $(ABIS_DIR)/vault/PaymentVault.bin
 	@abigen --abi $(ABIS_DIR)/vault/PaymentVault.abi --bin $(ABIS_DIR)/vault/PaymentVault.bin --pkg vault --type PaymentVault --out $(ABIS_DIR)/vault/vault.go
 	@echo "PaymentVault abi generated."
-
-clean:
-	rm -rf $(ABIS_DIR)
-	cd $(CONTRACTS_DIR) && npx hardhat clean
