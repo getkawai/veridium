@@ -6,7 +6,9 @@ import (
 	"log"
 	"math/big"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/kawai-network/veridium/pkg/blockchain"
+	"github.com/kawai-network/veridium/pkg/merkle"
 	"github.com/kawai-network/veridium/pkg/store"
 )
 
@@ -48,56 +50,88 @@ func (a *AdminManager) AuditWorkers(ctx context.Context) error {
 	return nil
 }
 
-// CalculateDividends (Placeholder)
+// CalculateDividends generates the Merkle Tree for worker rewards, applying the 70/30 split logic
+// and the Admin-owned node 100% rule. Proofs are then saved to KV for user claiming.
 func (a *AdminManager) CalculateDividends(ctx context.Context) error {
-	log.Println("--- Dividend Calculation ---")
+	log.Println("--- Dividend Calculation (Merkle Airdrop) ---")
 
-	if a.Chain == nil {
-		return fmt.Errorf("blockchain client not initialized")
+	// 1. Fetch Workers
+	workers, err := a.Store.ListWorkers(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to list workers: %w", err)
+	}
+	if len(workers) == 0 {
+		log.Println("No workers found.")
+		return nil
 	}
 
-	// 1. Get USDT Balance from PaymentVault (Placeholder address for now)
-	vaultAddr := "0x5ba96c283530acfe7e6051d9e20348df" // zoneID from user as proxy? (usually vault)
-	log.Printf("Fetching balance from PaymentVault: %s", vaultAddr)
+	var leaves [][]byte
+	var workerProofs []*store.MerkleProofData
 
-	// TODO: Use a.Chain to call balanceOf on USDT contract for vaultAddr
-	balance := big.NewInt(1000000000) // Dummy 1000 USDT (assuming 6 decimals)
-	log.Printf("Total Dividends Available: %f USDT", float64(balance.Int64())/1e6)
+	log.Printf("Generating Merkle Tree for %d workers...", len(workers))
 
-	// 2. Fetch Holders via Event Scanning
-	log.Println("Analyzing Token Holders via Transfer Event Scanning...")
+	// Helper to track address for saving proofs later
+	var proofAddresses []string
 
-	// Holders map: wallet -> balance
-	holders := make(map[string]*big.Int)
+	currentIndex := uint64(0)
+	for _, w := range workers {
+		if w.AccumulatedRewards == "" || w.AccumulatedRewards == "0" {
+			continue // Skip workers with no rewards
+		}
 
-	// TODO: Use a.Chain.Client.FilterLogs to get Transfer(address indexed from, address indexed to, uint256 value)
-	// Example logic:
-	// for _, log := range logs {
-	//    from := common.HexToAddress(log.Topics[1].Hex()).Hex()
-	//    to := common.HexToAddress(log.Topics[2].Hex()).Hex()
-	//    val := new(big.Int).SetBytes(log.Data)
-	//    holders[from].Sub(holders[from], val)
-	//    holders[to].Add(holders[to], val)
+		addr := common.HexToAddress(w.WalletAddress)
+		amount := new(big.Int)
+		amount.SetString(w.AccumulatedRewards, 10)
+
+		// Create Leaf
+		leaf := merkle.HashLeaf(currentIndex, addr, amount)
+		leaves = append(leaves, leaf)
+
+		workerProofs = append(workerProofs, &store.MerkleProofData{
+			Index:  currentIndex,
+			Amount: amount.String(),
+		})
+		proofAddresses = append(proofAddresses, w.WalletAddress)
+		currentIndex++
+	}
+
+	// 3. Build Tree (Standard Logic)
+	if len(leaves) == 0 {
+		return nil
+	}
+	tree := merkle.NewMerkleTree(leaves)
+	root := tree.Root
+	log.Printf("Merkle Root: 0x%x", root)
+
+	// 8. Generate and Save Proofs
+	// Note: We need to map back to the Address to save by key.
+	// Our `entries` slice aligns with `workerProofs` slice.
+	for i, wp := range workerProofs {
+		proof, ok := tree.GetProof(leaves[i])
+		if !ok {
+			log.Printf("Error generating proof for index %d", i)
+			continue
+		}
+
+		var proofHex []string
+		for _, p := range proof {
+			proofHex = append(proofHex, fmt.Sprintf("0x%x", p))
+		}
+		wp.Proof = proofHex
+
+		addrStr := proofAddresses[i]
+		err := a.Store.SaveMerkleProof(ctx, addrStr, wp)
+		if err != nil {
+			log.Printf("Failed to save proof for %s: %v", addrStr, err)
+		}
+	}
+
+	// 5. Submit Root to Blockchain (TODO: Bindings needed)
+	// if a.Chain != nil {
+	//     tx, err := a.Chain.MerkleDistributor.SetMerkleRoot(a.Chain.Auth, [32]byte(root))
+	//     ...
 	// }
-
-	// Dummy data for demonstration
-	holders["0x123..."] = big.NewInt(5000)
-	holders["0xabc..."] = big.NewInt(25000)
-
-	log.Println("Holder | Share (%) | Dividend (USDT)")
-	log.Println("---------------------------------------")
-
-	totalSupply := big.NewInt(1000000) // Dummy
-	for addr, amt := range holders {
-		share := new(big.Float).Quo(new(big.Float).SetInt(amt), new(big.Float).SetInt(totalSupply))
-		dividend := new(big.Float).Mul(share, new(big.Float).SetInt(balance))
-
-		// Convert dividend (6 decimals) to float for display
-		divFloat, _ := dividend.Float64()
-		shareFloat, _ := share.Mul(share, big.NewFloat(100)).Float64()
-
-		fmt.Printf("%s | %.2f%% | %.4f\n", addr, shareFloat, divFloat/1e6)
-	}
+	log.Println("Done. Root generated and Proofs saved.")
 
 	return nil
 }

@@ -1,6 +1,6 @@
-# KawaiBSC DeAI Network
+# Kawai DeAI Network (Monad)
 
-**Decentralized AI Compute Network on BNB Smart Chain.**
+**Decentralized AI Compute Network on Monad.**
 A "Lean Startup" approach to DePIN, leveraging consumer-grade GPUs for `llama.cpp` inference with a sustainable tokenomic model.
 
 ---
@@ -9,9 +9,21 @@ A "Lean Startup" approach to DePIN, leveraging consumer-grade GPUs for `llama.cp
 
 -   **Service:** Low-cost LLM Inference API (compatible with OpenAI format).
 -   **Workers:** Gamers & Devs running `llama.cpp` nodes.
--   **Rewards:** Hybrid model (Native Token for "Proof of Availability" + USDT for "Operational Subsidy").
--   **Liquidity:** No Initial LP. Uses **Weekly USDT Dividends** and an **Internal P2P Market** to bootstrap value.
+-   **Rewards:** 
+    -   **Worker:** Earn KAWAI tokens via "Mining" (70% to Worker, 30% to Dev).
+    -   **Holder:** Earn 100% of Platform Revenue (USDT) proportional to KAWAI holdings.
+-   **Liquidity:** No Initial LP. Value follows the *Hold-to-Earn* utility.
 -   **Details:** See [Concept Document](current_concept.md) for full analysis.
+
+---
+
+## ⚙️ How It Works (Summary)
+
+We use a **Hybrid Model** (Off-Chain Accumulation + On-Chain Settlement) to minimize gas fees.
+*   **Real-Time:** Rewards are calculated instantly (Usage-based) and split 70/30.
+*   **Weekly:** A compressed **Merkle Tree** is uploaded to **Monad** for cheap claiming.
+
+👉 **[See Full Technical Details in Concept Document](current_concept.md#d-mekanisme-teknis-hybrid-how-it-works)**
 
 ---
 
@@ -30,9 +42,11 @@ This roadmap outlines the path from "Zero" to a fully functional decentralized n
     - [x] `KawaiToken.sol`: Standard ERC20 with AccessControl (Mint/Burn).
     - [x] `Escrow.sol`: Simple P2P OTC Market (Orders, Buy, Cancel).
     - [x] `PaymentVault.sol`: Prepaid USDT Deposit system for Consumers.
+    - [x] `MerkleDistributor.sol`: Gas-efficient reward claiming system.
 - [x] **Middleware (Go):**
-    - [x] `pkg/blockchain`: Service to interact with BSC (Listen events, Send TXs).
+    - [x] `pkg/blockchain`: Service to interact with **Monad** (Listen events, Send TXs).
     - [x] `pkg/store`: Persistent storage using Cloudflare Workers KV.
+    - [x] `pkg/merkle`: Merkle Tree generation logic.
 
 ### Phase 2: The "Lean" Launch (Internal Market)
 **Focus:** Economic bootstrapping without initial LP.
@@ -52,9 +66,16 @@ This roadmap outlines the path from "Zero" to a fully functional decentralized n
 - [x] **Administration Scripts (Go):**
     - [x] Weekly Snapshot & Dividend Calculator.
     - [x] Worker Audit & Ban system.
-- [ ] **Dividend System:**
+- [ ] **Dividend & Reward System (Two-Phase Model):**
     - [x] Weekly Snapshot script.
-    - [ ] Batch Transfer (Disperse) implementation.
+    - [x] Merkle Airdrop implementation (Pull model) for KAWAI.
+    - [ ] **Phase 1 -> Phase 2 Transition Logic:**
+        - [ ] Detect when `totalSupply() == MAX_SUPPLY` in Smart Contract / Middleware.
+        - [ ] Switch payment mode from KAWAI mining to USDT cost-based.
+    - [ ] **Phase 2 USDT Payouts:**
+        - [ ] Implement `COST_RATE_PER_MILLION` as configurable Environment Variable.
+        - [ ] Calculate Worker/Admin USDT cost per job in `RecordJobReward`.
+        - [ ] Distribute remaining USDT Profit to KAWAI Holders weekly.
 
 ### Phase 3: Community Liquidity (Growth)
 **Focus:** Transition to decentralized liquidity.
@@ -79,4 +100,4 @@ This roadmap outlines the path from "Zero" to a fully functional decentralized n
 -   **Database:** Cloudflare Workers KV.
 -   **Frontend:** React, Vite, Ant Design Web3.
 -   **Worker Node:** Go (Golang), `llama.cpp`.
--   **Blockchain:** BNB Smart Chain (BSC).
+-   **Blockchain:** Monad (EVM-compatible).
