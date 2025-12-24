@@ -24,7 +24,8 @@ func NewOptimismMainnet() *optimismMainnet {
 			},
 			BlockExplorerAPIKeyVariableName: "ETHERSCAN_API_KEY",
 			BlockExplorerAPIURL:             "https://api.etherscan.io/v2",
-			MultiCallContractAddress:        common.HexToAddress("0xD9bfE9979e9CA4b2fe84bA5d4Cf963bBcB376974"),
+			MultiCallContractAddress:        common.HexToAddress("0xcA11bde05977b3631167028862bE2a173976CA11"),
+			CoinGeckoPlatformID:             "optimistic-ethereum",
 		}),
 	}
 }

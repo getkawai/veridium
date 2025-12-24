@@ -24,7 +24,8 @@ func NewRinkeby() *rinkeby {
 			},
 			BlockExplorerAPIKeyVariableName: "ETHERSCAN_API_KEY",
 			BlockExplorerAPIURL:             "https://api.etherscan.io/v2",
-			MultiCallContractAddress:        common.HexToAddress("0x42ad527de7d4e9d9d011ac45b31d8551f8fe9821"),
+			MultiCallContractAddress:        common.HexToAddress("0x42ad527deec96444444444444444444444444441"),
+			CoinGeckoPlatformID:             "ethereum",
 		}),
 	}
 }

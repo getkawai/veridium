@@ -32,6 +32,8 @@ var supportedNetworks = []Network{
 	// Mumbai,
 	LineaMainnet,
 	BitfiTestnet,
+	MonadMainnet,
+	MonadTestnet,
 }
 
 var globalSupportedNetworks = newSupportedNetworks()

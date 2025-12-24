@@ -25,7 +25,8 @@ func NewMumbai() *mumbai {
 			},
 			BlockExplorerAPIKeyVariableName: "ETHERSCAN_API_KEY",
 			BlockExplorerAPIURL:             "https://api.etherscan.io/v2",
-			MultiCallContractAddress:        common.HexToAddress("0x08411ADd0b5AA8ee47563b146743C13b3556c9Cc"),
+			MultiCallContractAddress:        common.HexToAddress("0xcA11bde05977b3631167028862bE2a173976CA11"),
+			CoinGeckoPlatformID:             "polygon-pos",
 		}),
 	}
 }

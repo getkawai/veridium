@@ -25,7 +25,8 @@ func NewRopsten() *ropsten {
 			},
 			BlockExplorerAPIKeyVariableName: "ETHERSCAN_API_KEY",
 			BlockExplorerAPIURL:             "https://api.etherscan.io/v2",
-			MultiCallContractAddress:        common.HexToAddress("0x53c43764255c17bd724f74c4ef150724ac50a3ed"),
+			MultiCallContractAddress:        common.HexToAddress("0x5381ce5b50ef1d7acba5a8513c70307c1ce441"),
+			CoinGeckoPlatformID:             "ethereum",
 		}),
 	}
 }

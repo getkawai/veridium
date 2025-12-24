@@ -25,7 +25,8 @@ func NewKovan() *kovan {
 			},
 			BlockExplorerAPIKeyVariableName: "ETHERSCAN_API_KEY",
 			BlockExplorerAPIURL:             "https://api.etherscan.io/v2",
-			MultiCallContractAddress:        common.HexToAddress("0x2cc8688c5f75e365aaeeb4ea8d6a480405a48d2a"),
+			MultiCallContractAddress:        common.HexToAddress("0x2cc86884962363ada3ad01c0cde370307c1ce441"),
+			CoinGeckoPlatformID:             "ethereum",
 		}),
 	}
 }

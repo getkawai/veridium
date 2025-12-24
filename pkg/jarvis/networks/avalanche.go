@@ -24,8 +24,9 @@ func NewAvalanche() *avalanche {
 				"avalanche": "https://api.avax.network/ext/bc/C/rpc",
 			},
 			BlockExplorerAPIKeyVariableName: "ETHERSCAN_API_KEY",
-			BlockExplorerAPIURL:             "https://api.routescan.io/v2/network/mainnet/evm/43114/etherscan/",
-			MultiCallContractAddress:        common.HexToAddress("0xa00FB557AA68d2e98A830642DBbFA534E8512E5f"),
+			BlockExplorerAPIURL:             "https://api.etherscan.io/v2",
+			MultiCallContractAddress:        common.HexToAddress("0xca11bde05977b3631167028862be2a173976ca11"),
+			CoinGeckoPlatformID:             "avalanche",
 		}),
 	}
 }

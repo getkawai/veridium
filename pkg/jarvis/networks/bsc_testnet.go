@@ -29,7 +29,8 @@ func NewBSCTestnet() *bscTestnet {
 			},
 			BlockExplorerAPIKeyVariableName: "ETHERSCAN_API_KEY",
 			BlockExplorerAPIURL:             "https://api.etherscan.io/v2",
-			MultiCallContractAddress:        common.HexToAddress("0xae11C5B5f29A6a25e955F0CB8ddCc416f522AF5C"),
+			MultiCallContractAddress:        common.HexToAddress("0xcA11bde05977b3631167028862bE2a173976CA11"),
+			CoinGeckoPlatformID:             "binance-smart-chain",
 		}),
 	}
 }

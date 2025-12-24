@@ -42,6 +42,8 @@ const (
 	ETHEREUM_RINKEBY_NODE_VAR string = "ETHEREUM_RINKEBY_NODE"
 	BSC_MAINNET_NODE_VAR      string = "BSC_MAINNET_NODE"
 	BSC_TESTNET_NODE_VAR      string = "BSC_TESTNET_NODE"
+	MONAD_MAINNET_NODE_VAR    string = "MONAD_MAINNET_NODE"
+	MONAD_TESTNET_NODE_VAR    string = "MONAD_TESTNET_NODE"
 	ETHERSCAN_API_KEY_VAR     string = "ETHERSCAN_API_KEY"
 	BSCSCAN_API_KEY_VAR       string = "BSCSCAN_API_KEY"
 )
@@ -474,13 +476,21 @@ func GetETHPriceInUSD() (float64, error) {
 	return priceres["ethereum"]["usd"], nil
 }
 
-func GetCoinGeckoRateInUSD(token string) (float64, error) {
+func GetCoinGeckoRateInUSD(network networks.Network, token string) (float64, error) {
+	return GetCoinGeckoRateInUSDOnPlatform(network.GetCoinGeckoPlatformID(), token)
+}
+
+func GetCoinGeckoRateInUSDOnPlatform(platform string, token string) (float64, error) {
 	if strings.ToLower(token) == "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" {
+		if platform == "monad" {
+			return GetMonadPriceInUSD()
+		}
 		return GetETHPriceInUSD()
 	}
 	resp, err := http.Get(
 		fmt.Sprintf(
-			"https://api.coingecko.com/api/v3/simple/token_price/ethereum?contract_addresses=%s&vs_currencies=USD&include_market_cap=false&include_24hr_vol=false&include_24hr_change=false&include_last_updated_at=false",
+			"https://api.coingecko.com/api/v3/simple/token_price/%s?contract_addresses=%s&vs_currencies=USD&include_market_cap=false&include_24hr_vol=false&include_24hr_change=false&include_last_updated_at=false",
+			platform,
 			token,
 		),
 	)
@@ -498,6 +508,31 @@ func GetCoinGeckoRateInUSD(token string) (float64, error) {
 		return 0, err
 	}
 	return priceres[strings.ToLower(token)]["usd"], nil
+}
+
+func GetMonadPriceInUSD() (float64, error) {
+	resp, err := http.Get(
+		"https://api.coingecko.com/api/v3/simple/price?ids=monad&vs_currencies=usd&include_market_cap=false&include_24hr_vol=false&include_24hr_change=false&include_last_updated_at=false",
+	)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return 0, err
+	}
+	priceres := coingeckopriceresponse{}
+	err = json.Unmarshal(body, &priceres)
+	if err != nil {
+		return 0, err
+	}
+
+	res, ok := priceres["monad"]["usd"]
+	if !ok {
+		return 0, fmt.Errorf("monad price not found in coingecko response")
+	}
+	return res, nil
 }
 
 func ReadCustomABI(addr string, pathOrAddress string, network networks.Network) (a *abi.ABI, err error) {

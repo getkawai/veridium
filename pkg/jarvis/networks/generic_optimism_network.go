@@ -24,6 +24,7 @@ type GenericOptimismNetworkConfig struct {
 	BlockExplorerAPIURL             string            `json:"block_explorer_api_url"`
 	MultiCallContractAddress        common.Address    `json:"multi_call_contract_address"`
 	SyncTxSupported                 bool              `json:"sync_tx_supported"`
+	CoinGeckoPlatformID             string            `json:"coingecko_platform_id"`
 }
 
 // GenericOptimismNetwork is a generic implementation of a network that uses Etherscan as their official explorer
@@ -85,6 +86,10 @@ func (gn *GenericOptimismNetwork) GetBlockExplorerAPIURL() string {
 
 func (gn *GenericOptimismNetwork) MultiCallContract() string {
 	return gn.config.MultiCallContractAddress.Hex()
+}
+
+func (gn *GenericOptimismNetwork) GetCoinGeckoPlatformID() string {
+	return gn.config.CoinGeckoPlatformID
 }
 
 func (gn *GenericOptimismNetwork) MarshalJSON() ([]byte, error) {

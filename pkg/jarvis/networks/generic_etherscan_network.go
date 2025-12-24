@@ -26,6 +26,7 @@ type GenericEtherscanNetworkConfig struct {
 	BlockExplorerAPIURL             string            `json:"block_explorer_api_url"`
 	MultiCallContractAddress        common.Address    `json:"multi_call_contract_address"`
 	SyncedTxSupported               bool              `json:"synced_tx_supported"`
+	CoinGeckoPlatformID             string            `json:"coingecko_platform_id"`
 }
 
 // GenericEtherscanNetwork is a generic implementation of a network that uses Etherscan as their official explorer
@@ -88,6 +89,10 @@ func (gn *GenericEtherscanNetwork) GetBlockExplorerAPIURL() string {
 
 func (gn *GenericEtherscanNetwork) MultiCallContract() string {
 	return gn.Config.MultiCallContractAddress.Hex()
+}
+
+func (gn *GenericEtherscanNetwork) GetCoinGeckoPlatformID() string {
+	return gn.Config.CoinGeckoPlatformID
 }
 
 func (gn *GenericEtherscanNetwork) MarshalJSON() ([]byte, error) {

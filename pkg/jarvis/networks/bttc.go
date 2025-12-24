@@ -25,7 +25,8 @@ func NewBttcMainnet() *bttcMainnet {
 			},
 			BlockExplorerAPIKeyVariableName: "ETHERSCAN_API_KEY",
 			BlockExplorerAPIURL:             "https://api.etherscan.io/v2",
-			MultiCallContractAddress:        common.HexToAddress("0xBF69a56D35B8d6f5A8e0e96B245a72F735751e54"),
+			MultiCallContractAddress:        common.HexToAddress("0xcA11bde05977b3631167028862bE2a173976CA11"),
+			CoinGeckoPlatformID:             "bittorrent",
 		}),
 	}
 }

@@ -25,7 +25,8 @@ func NewFantom() *fantom {
 			},
 			BlockExplorerAPIKeyVariableName: "ETHERSCAN_API_KEY",
 			BlockExplorerAPIURL:             "https://api.etherscan.io/v2",
-			MultiCallContractAddress:        common.HexToAddress("0xcf591ce5574258aC4550D96c545e4F3fd49A74ec"),
+			MultiCallContractAddress:        common.HexToAddress("0xcA11bde05977b3631167028862bE2a173976CA11"),
+			CoinGeckoPlatformID:             "fantom",
 		}),
 	}
 }

@@ -11,6 +11,7 @@ type Network interface {
 	GetNativeTokenSymbol() string
 	GetNativeTokenDecimal() uint64
 	GetBlockTime() time.Duration // in second
+	GetCoinGeckoPlatformID() string
 
 	GetNodeVariableName() string
 	GetDefaultNodes() map[string]string
