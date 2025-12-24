@@ -310,6 +310,19 @@ var ProjectABIs = map[string]string{
   },
   {
     "type": "function",
+    "name": "MAX_SUPPLY",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "MINTER_ROLE",
     "inputs": [],
     "outputs": [
