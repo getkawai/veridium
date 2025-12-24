@@ -135,3 +135,106 @@ func (a *AdminManager) CalculateDividends(ctx context.Context) error {
 
 	return nil
 }
+
+// CalculateUSDTDividends generates the Merkle Tree for USDT profit distribution in Phase 2.
+// This distributes the remaining USDT Profit (after Worker/Admin costs) to KAWAI Holders.
+func (a *AdminManager) CalculateUSDTDividends(ctx context.Context, totalProfit *big.Int) error {
+	log.Println("--- USDT Profit Distribution (Phase 2) ---")
+
+	// 1. Get all KAWAI holders and their balances from blockchain
+	// For now, we'll use the accumulated USDT from workers as a proxy
+	// In production, this should scan KAWAI token holders
+	workers, err := a.Store.ListWorkers(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to list workers: %w", err)
+	}
+	if len(workers) == 0 {
+		log.Println("No workers/holders found.")
+		return nil
+	}
+
+	// 2. Calculate total KAWAI holdings (simplified: use AccumulatedRewards as proxy)
+	totalKawai := new(big.Int)
+	holderBalances := make(map[string]*big.Int)
+
+	for _, w := range workers {
+		if w.AccumulatedRewards == "" || w.AccumulatedRewards == "0" {
+			continue
+		}
+		balance := new(big.Int)
+		balance.SetString(w.AccumulatedRewards, 10)
+		holderBalances[w.WalletAddress] = balance
+		totalKawai.Add(totalKawai, balance)
+	}
+
+	if totalKawai.Cmp(big.NewInt(0)) == 0 {
+		log.Println("No KAWAI holdings found.")
+		return nil
+	}
+
+	log.Printf("Total KAWAI Holdings: %s", totalKawai.String())
+	log.Printf("Total USDT Profit to Distribute: %s", totalProfit.String())
+
+	// 3. Generate Merkle Tree for USDT distribution
+	var leaves [][]byte
+	var proofData []*store.MerkleProofData
+	var proofAddresses []string
+
+	currentIndex := uint64(0)
+	for addr, balance := range holderBalances {
+		// Calculate proportional share: (balance / totalKawai) * totalProfit
+		share := new(big.Int).Mul(balance, totalProfit)
+		share.Div(share, totalKawai)
+
+		if share.Cmp(big.NewInt(0)) == 0 {
+			continue
+		}
+
+		ethAddr := common.HexToAddress(addr)
+		leaf := merkle.HashLeaf(currentIndex, ethAddr, share)
+		leaves = append(leaves, leaf)
+
+		proofData = append(proofData, &store.MerkleProofData{
+			Index:  currentIndex,
+			Amount: share.String(),
+		})
+		proofAddresses = append(proofAddresses, addr)
+		currentIndex++
+
+		log.Printf("Holder %s: %s KAWAI -> %s USDT share", addr, balance.String(), share.String())
+	}
+
+	if len(leaves) == 0 {
+		return nil
+	}
+
+	// 4. Build Tree
+	tree := merkle.NewMerkleTree(leaves)
+	root := tree.Root
+	log.Printf("USDT Merkle Root: 0x%x", root)
+
+	// 5. Save Proofs (with different prefix to distinguish from KAWAI proofs)
+	for i, pd := range proofData {
+		proof, ok := tree.GetProof(leaves[i])
+		if !ok {
+			log.Printf("Error generating USDT proof for index %d", i)
+			continue
+		}
+
+		var proofHex []string
+		for _, p := range proof {
+			proofHex = append(proofHex, fmt.Sprintf("0x%x", p))
+		}
+		pd.Proof = proofHex
+
+		// Save with "usdt:" prefix to distinguish from KAWAI proofs
+		addrKey := "usdt:" + proofAddresses[i]
+		err := a.Store.SaveMerkleProof(ctx, addrKey, pd)
+		if err != nil {
+			log.Printf("Failed to save USDT proof for %s: %v", proofAddresses[i], err)
+		}
+	}
+
+	log.Println("Done. USDT Merkle Root generated and Proofs saved.")
+	return nil
+}

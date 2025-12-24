@@ -66,16 +66,16 @@ This roadmap outlines the path from "Zero" to a fully functional decentralized n
 - [x] **Administration Scripts (Go):**
     - [x] Weekly Snapshot & Dividend Calculator.
     - [x] Worker Audit & Ban system.
-- [ ] **Dividend & Reward System (Two-Phase Model):**
+- [x] **Dividend & Reward System (Two-Phase Model):**
     - [x] Weekly Snapshot script.
     - [x] Merkle Airdrop implementation (Pull model) for KAWAI.
-    - [ ] **Phase 1 -> Phase 2 Transition Logic:**
-        - [ ] Detect when `totalSupply() == MAX_SUPPLY` in Smart Contract / Middleware.
-        - [ ] Switch payment mode from KAWAI mining to USDT cost-based.
-    - [ ] **Phase 2 USDT Payouts:**
-        - [ ] Implement `COST_RATE_PER_MILLION` as configurable Environment Variable.
-        - [ ] Calculate Worker/Admin USDT cost per job in `RecordJobReward`.
-        - [ ] Distribute remaining USDT Profit to KAWAI Holders weekly.
+    - [x] **Phase 1 -> Phase 2 Transition Logic:**
+        - [x] Detect when `totalSupply() == MAX_SUPPLY` in Smart Contract / Middleware.
+        - [x] Switch payment mode from KAWAI mining to USDT cost-based.
+    - [x] **Phase 2 USDT Payouts:**
+        - [x] Implement `COST_RATE_PER_MILLION` as configurable Environment Variable.
+        - [x] Calculate Worker/Admin USDT cost per job in `RecordJobReward`.
+        - [x] Distribute remaining USDT Profit to KAWAI Holders weekly.
 
 ### Phase 3: Community Liquidity (Growth)
 **Focus:** Transition to decentralized liquidity.
