@@ -107,27 +107,8 @@ func GetOrCreateTunnelWithDNS(cfg Config) (*TunnelInfo, error) {
 		tunnelToken = tunnelResult.Token
 	}
 
-	// Create or update DNS route
-	route := cfapi.NewDNSRoute(cfg.Hostname, true)
-	_, err = client.RouteTunnel(tunnelID, route)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create DNS route: %w", err)
-	}
-
-	// Update tunnel configuration with ingress rules
-	err = updateTunnelConfig(cfg.APIToken, cfg.AccountID, tunnelID, cfg.Hostname, cfg.LocalURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to update tunnel config: %w", err)
-	}
-
-	info := &TunnelInfo{
-		TunnelID:    tunnelID.String(),
-		TunnelToken: tunnelToken,
-		Hostname:    cfg.Hostname,
-		PublicURL:   fmt.Sprintf("https://%s", cfg.Hostname),
-	}
-
-	return info, nil
+	// Configure tunnel routing and DNS
+	return configureTunnelRouting(client, cfg, tunnelID, tunnelToken)
 }
 
 // CreateTunnelWithDNS creates a new Cloudflare Tunnel and sets up DNS routing
@@ -164,27 +145,8 @@ func CreateTunnelWithDNS(cfg Config) (*TunnelInfo, error) {
 		return nil, fmt.Errorf("failed to create tunnel: %w", err)
 	}
 
-	// Create DNS route
-	route := cfapi.NewDNSRoute(cfg.Hostname, true)
-	_, err = client.RouteTunnel(tunnelResult.Tunnel.ID, route)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create DNS route: %w", err)
-	}
-
-	// Update tunnel configuration with ingress rules
-	err = updateTunnelConfig(cfg.APIToken, cfg.AccountID, tunnelResult.Tunnel.ID, cfg.Hostname, cfg.LocalURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to update tunnel config: %w", err)
-	}
-
-	info := &TunnelInfo{
-		TunnelID:    tunnelResult.Tunnel.ID.String(),
-		TunnelToken: tunnelResult.Token,
-		Hostname:    cfg.Hostname,
-		PublicURL:   fmt.Sprintf("https://%s", cfg.Hostname),
-	}
-
-	return info, nil
+	// Configure tunnel routing and DNS
+	return configureTunnelRouting(client, cfg, tunnelResult.Tunnel.ID, tunnelResult.Token)
 }
 
 // GetTunnelByName retrieves an existing tunnel by name
@@ -373,6 +335,27 @@ func RunTunnelWithShutdown(tunnelToken string) error {
 	case err := <-errChan:
 		return err
 	}
+}
+
+// configureTunnelRouting sets up DNS routing and updates the tunnel configuration
+func configureTunnelRouting(client *cfapi.RESTClient, cfg Config, tunnelID uuid.UUID, tunnelToken string) (*TunnelInfo, error) {
+	// Create or update DNS route
+	route := cfapi.NewDNSRoute(cfg.Hostname, true)
+	if _, err := client.RouteTunnel(tunnelID, route); err != nil {
+		return nil, fmt.Errorf("failed to create DNS route: %w", err)
+	}
+
+	// Update tunnel configuration with ingress rules
+	if err := updateTunnelConfig(cfg.APIToken, cfg.AccountID, tunnelID, cfg.Hostname, cfg.LocalURL); err != nil {
+		return nil, fmt.Errorf("failed to update tunnel config: %w", err)
+	}
+
+	return &TunnelInfo{
+		TunnelID:    tunnelID.String(),
+		TunnelToken: tunnelToken,
+		Hostname:    cfg.Hostname,
+		PublicURL:   fmt.Sprintf("https://%s", cfg.Hostname),
+	}, nil
 }
 
 // Helper functions
