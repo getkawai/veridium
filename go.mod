@@ -27,7 +27,6 @@ require (
 	github.com/openai/openai-go/v2 v2.7.1
 	github.com/pemistahl/lingua-go v1.4.0
 	github.com/sahilm/fuzzy v0.1.1
-	github.com/sebdah/goldie/v2 v2.8.0
 	github.com/ssor/bom v0.0.0-20170718123548-6386211fdfcf
 	github.com/stretchr/testify v1.11.1
 	github.com/tyler-smith/go-bip39 v1.1.0
