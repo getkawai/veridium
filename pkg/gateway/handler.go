@@ -21,16 +21,47 @@ type LLMExecutor interface {
 
 // Handler handles OpenAI-compatible API requests.
 type Handler struct {
-	executor  LLMExecutor
-	modelName string
+	executor        LLMExecutor
+	whisperExecutor *WhisperExecutor
+	modelName       string
 }
 
-// NewHandler creates a new Handler with the given LLM executor.
-func NewHandler(executor LLMExecutor, modelName string) *Handler {
+// NewHandler creates a new Handler with the given LLM and Whisper executors.
+func NewHandler(executor LLMExecutor, whisperExecutor *WhisperExecutor, modelName string) *Handler {
 	return &Handler{
-		executor:  executor,
-		modelName: modelName,
+		executor:        executor,
+		whisperExecutor: whisperExecutor,
+		modelName:       modelName,
 	}
+}
+
+// AudioTranscriptions handles POST /v1/audio/transcriptions
+func (h *Handler) AudioTranscriptions(c *gin.Context) {
+	if h.whisperExecutor == nil {
+		h.sendError(c, http.StatusNotImplemented, "not_implemented", "Whisper service not available")
+		return
+	}
+
+	// 1. Parse Multipart Form
+	file, err := c.FormFile("file")
+	if err != nil {
+		h.sendError(c, http.StatusBadRequest, "invalid_request_error", "file is required")
+		return
+	}
+
+	model := c.PostForm("model")
+
+	// 2. Transcribe
+	text, err := h.whisperExecutor.Transcribe(c.Request.Context(), file, model)
+	if err != nil {
+		h.sendError(c, http.StatusInternalServerError, "server_error", err.Error())
+		return
+	}
+
+	// 3. Return JSON Response
+	c.JSON(http.StatusOK, TranscriptionResponse{
+		Text: text,
+	})
 }
 
 // ChatCompletions handles POST /v1/chat/completions

@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/kawai-network/veridium/internal/whisper"
 	"github.com/kawai-network/veridium/pkg/gateway"
 )
 
@@ -17,19 +18,35 @@ func main() {
 	// CLI flags
 	host := flag.String("host", "0.0.0.0", "Host to bind the server")
 	port := flag.Int("port", 8080, "Port to bind the server")
-	model := flag.String("model", "llama-3.2-8b", "Model name to advertise")
+	modelPath := flag.String("model", "", "Path to model file (optional, auto-select if empty)")
+	maxTokens := flag.Int("max-tokens", 2048, "Max tokens to generate")
 	flag.Parse()
 
-	// Create executor (using MockExecutor for now, replace with llama.cpp integration)
-	executor := &gateway.MockExecutor{}
+	// Initialize LlamaExecutor
+	ctx := context.Background()
+	log.Printf("Initializing llama.cpp executor (model: %s)...", *modelPath)
+
+	executor, err := gateway.NewLlamaExecutor(ctx, *modelPath, int32(*maxTokens))
+	if err != nil {
+		log.Fatalf("Failed to initialize executor: %v", err)
+	}
+
+	// Initialize WhisperExecutor
+	log.Printf("Initializing whisper.cpp service...")
+	whisperService, err := whisper.NewService()
+	if err != nil {
+		log.Printf("Warning: Failed to initialize whisper service: %v", err)
+		// Continue without whisper
+	}
+	whisperExecutor := gateway.NewWhisperExecutor(whisperService)
 
 	// Create gateway server
 	cfg := gateway.ServerConfig{
 		Host:      *host,
 		Port:      *port,
-		ModelName: *model,
+		ModelName: "llama.cpp", // TODO: Get actual model name from executor
 	}
-	server := gateway.NewServer(cfg, executor)
+	server := gateway.NewServer(cfg, executor, whisperExecutor)
 
 	// Graceful shutdown
 	quit := make(chan os.Signal, 1)
@@ -52,10 +69,10 @@ func main() {
 	}
 
 	// Graceful shutdown with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	if err := server.Stop(ctx); err != nil {
+	if err := server.Stop(shutdownCtx); err != nil {
 		log.Printf("Server shutdown error: %v", err)
 	}
 
