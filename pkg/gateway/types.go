@@ -1,4 +1,4 @@
-// Package gateway provides OpenAI-compatible API server for worker nodes.
+// Package gateway provides OpenAI-compatible API server for contributor nodes.
 package gateway
 
 import "encoding/json"

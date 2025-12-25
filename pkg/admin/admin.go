@@ -24,74 +24,74 @@ func NewAdminManager(chain *blockchain.Client, kv store.Store) *AdminManager {
 	}
 }
 
-// AuditWorkers prints the status of all registered workers
+// AuditContributors prints the status of all registered contributors
 // Note: This requires the KV store to support listing keys,
 // but for now, we'll implement a simple version that logs status.
-func (a *AdminManager) AuditWorkers(ctx context.Context) error {
-	log.Println("--- Worker Audit Report ---")
+func (a *AdminManager) AuditContributors(ctx context.Context) error {
+	log.Println("--- Contributor Audit Report ---")
 
-	workers, err := a.Store.ListWorkers(ctx)
+	contributors, err := a.Store.ListContributors(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to list workers: %w", err)
+		return fmt.Errorf("failed to list contributors: %w", err)
 	}
 
-	if len(workers) == 0 {
-		log.Println("No workers registered.")
+	if len(contributors) == 0 {
+		log.Println("No contributors registered.")
 		return nil
 	}
 
 	fmt.Printf("%-42s | %-15s | %-10s | %s\n", "Wallet Address", "Last Seen", "Status", "Specs")
 	fmt.Println("------------------------------------------------------------------------------------------------")
-	for _, w := range workers {
-		lastSeen := w.LastSeen.Format("2006-01-02 15:04")
-		fmt.Printf("%-42s | %-15s | %-10s | %s\n", w.WalletAddress, lastSeen, w.Status, w.HardwareSpecs)
+	for _, c := range contributors {
+		lastSeen := c.LastSeen.Format("2006-01-02 15:04")
+		fmt.Printf("%-42s | %-15s | %-10s | %s\n", c.WalletAddress, lastSeen, c.Status, c.HardwareSpecs)
 	}
 
 	return nil
 }
 
-// CalculateDividends generates the Merkle Tree for worker rewards, applying the 70/30 split logic
+// CalculateDividends generates the Merkle Tree for contributor rewards, applying the 70/30 split logic
 // and the Admin-owned node 100% rule. Proofs are then saved to KV for user claiming.
 func (a *AdminManager) CalculateDividends(ctx context.Context) error {
 	log.Println("--- Dividend Calculation (Merkle Airdrop) ---")
 
-	// 1. Fetch Workers
-	workers, err := a.Store.ListWorkers(ctx)
+	// 1. Fetch Contributors
+	contributors, err := a.Store.ListContributors(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to list workers: %w", err)
+		return fmt.Errorf("failed to list contributors: %w", err)
 	}
-	if len(workers) == 0 {
-		log.Println("No workers found.")
+	if len(contributors) == 0 {
+		log.Println("No contributors found.")
 		return nil
 	}
 
 	var leaves [][]byte
-	var workerProofs []*store.MerkleProofData
+	var contributorProofs []*store.MerkleProofData
 
-	log.Printf("Generating Merkle Tree for %d workers...", len(workers))
+	log.Printf("Generating Merkle Tree for %d contributors...", len(contributors))
 
 	// Helper to track address for saving proofs later
 	var proofAddresses []string
 
 	currentIndex := uint64(0)
-	for _, w := range workers {
-		if w.AccumulatedRewards == "" || w.AccumulatedRewards == "0" {
-			continue // Skip workers with no rewards
+	for _, c := range contributors {
+		if c.AccumulatedRewards == "" || c.AccumulatedRewards == "0" {
+			continue // Skip contributors with no rewards
 		}
 
-		addr := common.HexToAddress(w.WalletAddress)
+		addr := common.HexToAddress(c.WalletAddress)
 		amount := new(big.Int)
-		amount.SetString(w.AccumulatedRewards, 10)
+		amount.SetString(c.AccumulatedRewards, 10)
 
 		// Create Leaf
 		leaf := merkle.HashLeaf(currentIndex, addr, amount)
 		leaves = append(leaves, leaf)
 
-		workerProofs = append(workerProofs, &store.MerkleProofData{
+		contributorProofs = append(contributorProofs, &store.MerkleProofData{
 			Index:  currentIndex,
 			Amount: amount.String(),
 		})
-		proofAddresses = append(proofAddresses, w.WalletAddress)
+		proofAddresses = append(proofAddresses, c.WalletAddress)
 		currentIndex++
 	}
 
@@ -105,8 +105,8 @@ func (a *AdminManager) CalculateDividends(ctx context.Context) error {
 
 	// 8. Generate and Save Proofs
 	// Note: We need to map back to the Address to save by key.
-	// Our `entries` slice aligns with `workerProofs` slice.
-	for i, wp := range workerProofs {
+	// Our `entries` slice aligns with `contributorProofs` slice.
+	for i, cp := range contributorProofs {
 		proof, ok := tree.GetProof(leaves[i])
 		if !ok {
 			log.Printf("Error generating proof for index %d", i)
@@ -117,10 +117,10 @@ func (a *AdminManager) CalculateDividends(ctx context.Context) error {
 		for _, p := range proof {
 			proofHex = append(proofHex, fmt.Sprintf("0x%x", p))
 		}
-		wp.Proof = proofHex
+		cp.Proof = proofHex
 
 		addrStr := proofAddresses[i]
-		err := a.Store.SaveMerkleProof(ctx, addrStr, wp)
+		err := a.Store.SaveMerkleProof(ctx, addrStr, cp)
 		if err != nil {
 			log.Printf("Failed to save proof for %s: %v", addrStr, err)
 		}
@@ -137,19 +137,19 @@ func (a *AdminManager) CalculateDividends(ctx context.Context) error {
 }
 
 // CalculateUSDTDividends generates the Merkle Tree for USDT profit distribution in Phase 2.
-// This distributes the remaining USDT Profit (after Worker/Admin costs) to KAWAI Holders.
+// This distributes the remaining USDT Profit (after Contributor/Admin costs) to KAWAI Holders.
 func (a *AdminManager) CalculateUSDTDividends(ctx context.Context, totalProfit *big.Int) error {
 	log.Println("--- USDT Profit Distribution (Phase 2) ---")
 
 	// 1. Get all KAWAI holders and their balances from blockchain
-	// For now, we'll use the accumulated USDT from workers as a proxy
+	// For now, we'll use the accumulated USDT from contributors as a proxy
 	// In production, this should scan KAWAI token holders
-	workers, err := a.Store.ListWorkers(ctx)
+	contributors, err := a.Store.ListContributors(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to list workers: %w", err)
+		return fmt.Errorf("failed to list contributors: %w", err)
 	}
-	if len(workers) == 0 {
-		log.Println("No workers/holders found.")
+	if len(contributors) == 0 {
+		log.Println("No contributors/holders found.")
 		return nil
 	}
 
@@ -157,13 +157,13 @@ func (a *AdminManager) CalculateUSDTDividends(ctx context.Context, totalProfit *
 	totalKawai := new(big.Int)
 	holderBalances := make(map[string]*big.Int)
 
-	for _, w := range workers {
-		if w.AccumulatedRewards == "" || w.AccumulatedRewards == "0" {
+	for _, c := range contributors {
+		if c.AccumulatedRewards == "" || c.AccumulatedRewards == "0" {
 			continue
 		}
 		balance := new(big.Int)
-		balance.SetString(w.AccumulatedRewards, 10)
-		holderBalances[w.WalletAddress] = balance
+		balance.SetString(c.AccumulatedRewards, 10)
+		holderBalances[c.WalletAddress] = balance
 		totalKawai.Add(totalKawai, balance)
 	}
 

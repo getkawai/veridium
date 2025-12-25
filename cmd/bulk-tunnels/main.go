@@ -64,7 +64,7 @@ func main() {
 			APIToken:   *apiToken,
 			TunnelName: tunnelName,
 			Hostname:   hostname,
-			LocalURL:   constant.LocalWorkerURL,
+			LocalURL:   constant.LocalContributorURL,
 		}
 
 		// Use the refactored function

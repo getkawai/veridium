@@ -12,8 +12,8 @@ import (
 	"github.com/kawai-network/veridium/pkg/config"
 )
 
-// WorkerData represents the data stored for a worker in KV
-type WorkerData struct {
+// ContributorData represents the data stored for a contributor in KV
+type ContributorData struct {
 	WalletAddress      string    `json:"wallet_address"`
 	EndpointURL        string    `json:"endpoint_url"`
 	HardwareSpecs      string    `json:"hardware_specs"`
@@ -25,10 +25,10 @@ type WorkerData struct {
 }
 
 type Store interface {
-	SaveWorker(ctx context.Context, data *WorkerData) error
-	GetWorker(ctx context.Context, address string) (*WorkerData, error)
-	ListWorkers(ctx context.Context) ([]*WorkerData, error)
-	GetOnlineWorkers(ctx context.Context) ([]*WorkerData, error)
+	SaveContributor(ctx context.Context, data *ContributorData) error
+	GetContributor(ctx context.Context, address string) (*ContributorData, error)
+	ListContributors(ctx context.Context) ([]*ContributorData, error)
+	GetOnlineContributors(ctx context.Context) ([]*ContributorData, error)
 	UpdateHeartbeat(ctx context.Context, address string) error
 	SaveMerkleProof(ctx context.Context, address string, data *MerkleProofData) error
 	GetMerkleProof(ctx context.Context, address string) (*MerkleProofData, error)
@@ -53,13 +53,13 @@ func NewKVStore(apiToken, accountID, namespaceID string) (*KVStore, error) {
 	}, nil
 }
 
-// SaveWorker stores worker metadata and mining progress in Cloudflare KV.
+// SaveContributor stores contributor metadata and mining progress in Cloudflare KV.
 // This data (mining results) is used weekly to calculate the 70/30 reward split.
-func (s *KVStore) SaveWorker(ctx context.Context, data *WorkerData) error {
+func (s *KVStore) SaveContributor(ctx context.Context, data *ContributorData) error {
 	key := data.WalletAddress
 	value, err := json.Marshal(data)
 	if err != nil {
-		return fmt.Errorf("failed to marshal worker data: %w", err)
+		return fmt.Errorf("failed to marshal contributor data: %w", err)
 	}
 
 	_, err = s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
@@ -71,11 +71,11 @@ func (s *KVStore) SaveWorker(ctx context.Context, data *WorkerData) error {
 		return fmt.Errorf("failed to write to KV: %w", err)
 	}
 
-	log.Printf("[Store] Saved worker: %s", data.WalletAddress)
+	log.Printf("[Store] Saved contributor: %s", data.WalletAddress)
 	return nil
 }
 
-func (s *KVStore) GetWorker(ctx context.Context, address string) (*WorkerData, error) {
+func (s *KVStore) GetContributor(ctx context.Context, address string) (*ContributorData, error) {
 	key := address
 
 	value, err := s.client.GetWorkersKV(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{
@@ -86,16 +86,16 @@ func (s *KVStore) GetWorker(ctx context.Context, address string) (*WorkerData, e
 		return nil, fmt.Errorf("failed to get from KV: %w", err)
 	}
 
-	var data WorkerData
+	var data ContributorData
 	if err := json.Unmarshal(value, &data); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal worker data: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal contributor data: %w", err)
 	}
 
 	return &data, nil
 }
 
-func (s *KVStore) ListWorkers(ctx context.Context) ([]*WorkerData, error) {
-	// List all keys in the worker namespace
+func (s *KVStore) ListContributors(ctx context.Context) ([]*ContributorData, error) {
+	// List all keys in the contributor namespace
 	resp, err := s.client.ListWorkersKVKeys(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.ListWorkersKVsParams{
 		NamespaceID: s.namespaceID,
 	})
@@ -103,56 +103,56 @@ func (s *KVStore) ListWorkers(ctx context.Context) ([]*WorkerData, error) {
 		return nil, fmt.Errorf("failed to list keys: %w", err)
 	}
 
-	var workers []*WorkerData
+	var contributors []*ContributorData
 	for _, key := range resp.Result {
-		data, err := s.GetWorker(ctx, key.Name)
+		data, err := s.GetContributor(ctx, key.Name)
 		if err != nil {
-			log.Printf("[Warning] Failed to get worker data for %s: %v", key.Name, err)
+			log.Printf("[Warning] Failed to get contributor data for %s: %v", key.Name, err)
 			continue
 		}
-		workers = append(workers, data)
+		contributors = append(contributors, data)
 	}
 
-	return workers, nil
+	return contributors, nil
 }
 
-func (s *KVStore) GetOnlineWorkers(ctx context.Context) ([]*WorkerData, error) {
-	workers, err := s.ListWorkers(ctx)
+func (s *KVStore) GetOnlineContributors(ctx context.Context) ([]*ContributorData, error) {
+	contributors, err := s.ListContributors(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var online []*WorkerData
+	var online []*ContributorData
 	expiration := time.Now().Add(-2 * time.Minute)
 
-	for _, w := range workers {
-		if w.LastSeen.After(expiration) {
-			online = append(online, w)
+	for _, c := range contributors {
+		if c.LastSeen.After(expiration) {
+			online = append(online, c)
 		}
 	}
 
 	return online, nil
 }
 
-// UpdateHeartbeat updates the timestamp and online status for a worker.
+// UpdateHeartbeat updates the timestamp and online status for a contributor.
 // Regular heartbeats are used for real-time monitoring of node availability.
 func (s *KVStore) UpdateHeartbeat(ctx context.Context, address string) error {
-	worker, err := s.GetWorker(ctx, address)
+	contributor, err := s.GetContributor(ctx, address)
 	if err != nil {
 		return err
 	}
 
-	worker.LastSeen = time.Now()
-	worker.Status = "online"
+	contributor.LastSeen = time.Now()
+	contributor.Status = "online"
 
-	return s.SaveWorker(ctx, worker)
+	return s.SaveContributor(ctx, contributor)
 }
 
 // RecordJobReward distributes rewards based on the 70/30 Rule.
 // Supports two phases:
-// - Phase 1 (Mining): Workers earn KAWAI tokens
-// - Phase 2 (USDT): Workers earn USDT (when MAX_SUPPLY reached)
-func (s *KVStore) RecordJobReward(ctx context.Context, workerAddress string, tokenUsage int64, adminAddress string, mode config.RewardMode) error {
+// - Phase 1 (Mining): Contributors earn KAWAI tokens
+// - Phase 2 (USDT): Contributors earn USDT (when MAX_SUPPLY reached)
+func (s *KVStore) RecordJobReward(ctx context.Context, contributorAddress string, tokenUsage int64, adminAddress string, mode config.RewardMode) error {
 
 	// Helper to update balance field
 	updateBalance := func(addr string, amount *big.Int, field string) error {
@@ -160,7 +160,7 @@ func (s *KVStore) RecordJobReward(ctx context.Context, workerAddress string, tok
 			return nil
 		}
 
-		w, err := s.GetWorker(ctx, addr)
+		c, err := s.GetContributor(ctx, addr)
 		if err != nil {
 			return fmt.Errorf("failed to get account %s: %w", addr, err)
 		}
@@ -168,9 +168,9 @@ func (s *KVStore) RecordJobReward(ctx context.Context, workerAddress string, tok
 		// Select correct balance field
 		var currentBalStr string
 		if field == "kawai" {
-			currentBalStr = w.AccumulatedRewards
+			currentBalStr = c.AccumulatedRewards
 		} else {
-			currentBalStr = w.AccumulatedUSDT
+			currentBalStr = c.AccumulatedUSDT
 		}
 
 		currentBal := new(big.Int)
@@ -181,15 +181,15 @@ func (s *KVStore) RecordJobReward(ctx context.Context, workerAddress string, tok
 		currentBal.Add(currentBal, amount)
 
 		if field == "kawai" {
-			w.AccumulatedRewards = currentBal.String()
+			c.AccumulatedRewards = currentBal.String()
 		} else {
-			w.AccumulatedUSDT = currentBal.String()
+			c.AccumulatedUSDT = currentBal.String()
 		}
 
-		return s.SaveWorker(ctx, w)
+		return s.SaveContributor(ctx, c)
 	}
 
-	var workerShare, adminShare *big.Int
+	var contributorShare, adminShare *big.Int
 	var balanceField string
 
 	if mode == config.ModeMining {
@@ -201,12 +201,12 @@ func (s *KVStore) RecordJobReward(ctx context.Context, workerAddress string, tok
 		rewardAmount := new(big.Int).Mul(big.NewInt(tokenUsage), baseRate)
 		rewardAmount.Div(rewardAmount, big.NewInt(1000000))
 
-		workerShare = new(big.Int).Mul(rewardAmount, big.NewInt(70))
-		workerShare.Div(workerShare, big.NewInt(100))
-		adminShare = new(big.Int).Sub(rewardAmount, workerShare)
+		contributorShare = new(big.Int).Mul(rewardAmount, big.NewInt(70))
+		contributorShare.Div(contributorShare, big.NewInt(100))
+		adminShare = new(big.Int).Sub(rewardAmount, contributorShare)
 		balanceField = "kawai"
 
-		log.Printf("[Phase 1 Mining] Job: %d Tokens -> %s KAWAI. Worker: %s | Admin: %s", tokenUsage, rewardAmount.String(), workerShare.String(), adminShare.String())
+		log.Printf("[Phase 1 Mining] Job: %d Tokens -> %s KAWAI. Contributor: %s | Admin: %s", tokenUsage, rewardAmount.String(), contributorShare.String(), adminShare.String())
 	} else {
 		// Phase 2: USDT Payment
 		// Formula: (TokenUsage / 1,000,000) * COST_RATE_PER_MILLION
@@ -219,17 +219,17 @@ func (s *KVStore) RecordJobReward(ctx context.Context, workerAddress string, tok
 		rewardAmount.Div(rewardAmount, big.NewInt(1000000))
 		// rewardAmount is now in USDT micro-units
 
-		workerShare = new(big.Int).Mul(rewardAmount, big.NewInt(70))
-		workerShare.Div(workerShare, big.NewInt(100))
-		adminShare = new(big.Int).Sub(rewardAmount, workerShare)
+		contributorShare = new(big.Int).Mul(rewardAmount, big.NewInt(70))
+		contributorShare.Div(contributorShare, big.NewInt(100))
+		adminShare = new(big.Int).Sub(rewardAmount, contributorShare)
 		balanceField = "usdt"
 
-		log.Printf("[Phase 2 USDT] Job: %d Tokens -> %s USDT (micro). Worker: %s | Admin: %s", tokenUsage, rewardAmount.String(), workerShare.String(), adminShare.String())
+		log.Printf("[Phase 2 USDT] Job: %d Tokens -> %s USDT (micro). Contributor: %s | Admin: %s", tokenUsage, rewardAmount.String(), contributorShare.String(), adminShare.String())
 		_ = usdtDecimals // silence unused var warning
 	}
 
-	// Update Worker Balance
-	if err := updateBalance(workerAddress, workerShare, balanceField); err != nil {
+	// Update Contributor Balance
+	if err := updateBalance(contributorAddress, contributorShare, balanceField); err != nil {
 		return err
 	}
 

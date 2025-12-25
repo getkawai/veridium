@@ -8,7 +8,7 @@ Membangun jaringan komputasi AI terdesentralisasi (**DePIN**) di mana kontributo
 
 *   **Network:** **Monad** — dipilih karena throughput tinggi, biaya gas sangat murah & EVM-compatible.
 *   **Target User:** Pengguna yang membutuhkan API LLM murah/gratis.
-*   **Target Worker:** Gamer/Developer dengan GPU menganggur (Consumer Grade).
+*   **Target Contributor:** Gamer/Developer dengan GPU menganggur (Consumer Grade).
 
 ## 2. Business & Economic Model (Tokenomics)
 
@@ -22,9 +22,9 @@ Strategi utama adalah **"No Initial Liquidity Pool"** untuk menghemat modal awal
     *   **Rate:** 100 KAWAI per 1 Juta Token (1M Tokens).
     *   *Rumus:* `Reward = (Total_Token / 1,000,000) * 100`
 *   **Split Ratio (Pembagian):**
-    *   **70%** -> Masuk ke Wallet **Contributor/Worker** (Pemilik Hardware).
+    *   **70%** -> Masuk ke Wallet **Contributor** (Pemilik Hardware).
     *   **30%** -> Masuk ke Wallet **Admin/Dev** (Biaya Pengembangan Platform).
-*   **Mekanisme Klaim:** Worker mengklaim porsi 70% mereka menggunakan sistem **Merkle Airdrop** mingguan.
+*   **Mekanisme Klaim:** Contributor mengklaim porsi 70% mereka menggunakan sistem **Merkle Airdrop** mingguan.
 
 ### B. Profit Sharing & Two-Phase Economic Model
 
@@ -33,32 +33,32 @@ User membayar layanan menggunakan **USDT**. Pendapatan ini diklasifikasikan menj
 #### Fase 1: Mining Era (Supply < 1 Miliar KAWAI)
 | Pihak | Pendapatan |
 |---|---|
-| Worker | **70% KAWAI** (Mining) |
+| Contributor | **70% KAWAI** (Mining) |
 | Admin/Dev | **30% KAWAI** (Mining) |
 | KAWAI Holder | **100% Revenue USDT** |
 
-*Worker dibayar dengan Token baru (Inflasi). Holder mendapatkan seluruh Revenue USDT.*
+*Contributor dibayar dengan Token baru (Inflasi). Holder mendapatkan seluruh Revenue USDT.*
 
 #### Fase 2: Post-Mining Era (Supply = 1 Miliar / Max Cap)
 
-Mining berhenti. Worker dibayar **USDT** berdasarkan volume pekerjaan, bukan persentase Revenue.
+Mining berhenti. Contributor dibayar **USDT** berdasarkan volume pekerjaan, bukan persentase Revenue.
 
 **Rumus Biaya (Cost):**
 *   **Cost Rate:** `COST_RATE_PER_MILLION` (Default: $1 USDT per 1 Juta Token). *Dapat disesuaikan via Environment Variable.*
-*   **Worker Cost:** `(Total_Token / 1,000,000) * $1 * 70%`
+*   **Contributor Cost:** `(Total_Token / 1,000,000) * $1 * 70%`
 *   **Admin Cost:** `(Total_Token / 1,000,000) * $1 * 30%`
-*   **Profit:** `Revenue - Worker Cost - Admin Cost`
+*   **Profit:** `Revenue - Contributor Cost - Admin Cost`
 
 **Contoh Perhitungan:**
 *   User membayar: **$100 USDT** untuk job yang memproses 500.000 Token.
 *   Cost Rate: 500.000 / 1.000.000 * $1 = **$0.50**
-*   Worker: $0.50 * 70% = **$0.35**
+*   Contributor: $0.50 * 70% = **$0.35**
 *   Admin: $0.50 * 30% = **$0.15**
 *   **Holder Profit:** $100 - $0.35 - $0.15 = **$99.50**
 
 | Pihak | Pendapatan |
 |---|---|
-| Worker | Cost-based (USDT) |
+| Contributor | Cost-based (USDT) |
 | Admin/Dev | Cost-based (USDT) |
 | KAWAI Holder | **Profit USDT** (Revenue - Total Cost) |
 
@@ -87,7 +87,7 @@ if totalSupply >= maxSupply {
 
 **Contoh Skenario Transisi:**
 1.  Total Supply saat ini: **999,999,500 KAWAI**.
-2.  Worker menyelesaikan job yang menghasilkan **600 KAWAI** reward.
+2.  Contributor menyelesaikan job yang menghasilkan **600 KAWAI** reward.
 3.  Middleware memanggil `GetRewardMode()` -> `ModeMining`.
 4.  Sistem mint **500 KAWAI** (sampai Max Supply), sisanya **TIDAK** di-mint.
 5.  Setelah ini, semua job berikutnya akan menggunakan `ModeUSDT`.
@@ -120,26 +120,26 @@ Sistem menggunakan pendekatan **Hybrid (On-Chain Settlement + Off-Chain Verifica
     *   Fitur: Create Order, Cancel Order, Buy Order.
 
 ### B. Off-Chain Layer (Middleware & Nodes)
-1.  **AI Nodes (Workers):**
+1.  **AI Nodes (Contributors):**
     *   Menjalankan skrip Python yang membungkus `llama.cpp`.
     *   Fungsi: `Pull Job` -> `Inference` -> `Push Result`.
 2.  **Central Authority (Middleware Server):**
     *   **Job Dispatcher:** Menerima request user (API) -> Kirim ke Node.
     *   **Proof of Availability:** Melakukan "Ping" berkala ke Node untuk memastikan uptime.
     *   **Verifikasi (Anti-Cheat):** Menggunakan metode "Gold Standard" (menyisipkan pertanyaan jebakan yang jawabannya sudah diketahui) untuk memvalidasi kejujuran Node.
-    *   **Accounting & Merkle Generator:** Mencatat poin -> Generate Merkle Tree -> Upload Root ke Blockchain -> Simpan Proof di KV Store untuk diklaim Worker.
+    *   **Accounting & Merkle Generator:** Mencatat poin -> Generate Merkle Tree -> Upload Root ke Blockchain -> Simpan Proof di KV Store untuk diklaim Contributor.
 
 ### C. Logic Implementasi Pembagian (Reward Algorithm)
-*Lokasi Code:* `pkg/store/worker.go` -> `RecordJobReward()`
+*Lokasi Code:* `pkg/store/contributor.go` -> `RecordJobReward()`
 
 Logika pembagian 70/30 dieksekusi secara **Real-Time (Per Job)** oleh Middleware saat job selesai:
 
-1.  **Pemicu:** Worker menyelesaikan request LLM -> Server memanggil fungsi `RecordJobReward`.
+1.  **Pemicu:** Contributor menyelesaikan request LLM -> Server memanggil fungsi `RecordJobReward`.
 2.  **Cek Pemilik (Admin Check):**
-    *   `IF Worker_Address == Admin_Address`: 
-        *   Worker (Admin) mendapatkan **100%** Reward langsung ke saldo database-nya.
-    *   `ELSE` (Public Worker):
-        *   Worker mendapatkan **70%** Reward (masuk saldo worker).
+    *   `IF Contributor_Address == Admin_Address`: 
+        *   Contributor (Admin) mendapatkan **100%** Reward langsung ke saldo database-nya.
+    *   `ELSE` (Public Contributor):
+        *   Contributor mendapatkan **70%** Reward (masuk saldo contributor).
         *   Admin mendapatkan **30%** Fee (masuk saldo admin).
 3.  **Akumulasi:** Saldo diupdate seketika di Database (KV Store).
 4.  **Mingguan (Weekly):**
@@ -151,20 +151,20 @@ Logika pembagian 70/30 dieksekusi secara **Real-Time (Per Job)** oleh Middleware
 Agar jaringan tetap "Lean" (hemat biaya), kami menggunakan model **Off-Chain Accumulation + On-Chain Settlement**.
 
 #### 1. Senin - Sabtu: Akumulasi (Off-Chain)
-*   **Aksi:** Worker memproses job AI (LLM Inference).
+*   **Aksi:** Contributor memproses job AI (LLM Inference).
 *   **Pencatatan:** Poin kinerja dicatat di **Database Terpusat** (KV Store).
-    *   *Code Ref:* `pkg/store/worker.go` -> `SaveWorker()` & `UpdateHeartbeat()`
+    *   *Code Ref:* `pkg/store/contributor.go` -> `SaveContributor()` & `UpdateHeartbeat()`
 *   **Biaya:** $0 Gas Fees. Kecepatan instan.
 
 #### 2. Minggu: Settlement (Weekly Batch)
 *   **Kalkulasi:** Aturan **70/30 Split** diterapkan secara **Real-Time** oleh middleware setiap kali job selesai.
-    *   *Code Ref:* `pkg/store/worker.go` -> `RecordJobReward()`
+    *   *Code Ref:* `pkg/store/contributor.go` -> `RecordJobReward()`
 *   **Kompresi:** Ribuan transaksi dikompres menjadi satu **Merkle Tree**.
 *   **Blockchain:** Admin hanya mengirim **Merkle Root** (hash kecil) ke Smart Contract.
 *   **Biaya:** 1 Transaksi murah per minggu.
 
 #### 3. Klaim (User Action)
-*   **Interface:** Worker menghubungkan Wallet ke Dashboard Web.
+*   **Interface:** Contributor menghubungkan Wallet ke Dashboard Web.
 *   **Bukti:** Website mengambil "Bukti Kriptografis" (Proof) dari database.
 *   **Withdraw:** Smart Contract memverifikasi Proof terhadap Root dan merilis token.
 
