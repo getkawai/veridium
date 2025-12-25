@@ -14,6 +14,7 @@ type ServerConfig struct {
 	Host      string
 	Port      int
 	ModelName string
+	StaticDir string // Path to serve static files from
 }
 
 // Server represents the OpenAI-compatible gateway HTTP server.
@@ -46,6 +47,12 @@ func NewServer(cfg ServerConfig, executor LLMExecutor, whisperExecutor *WhisperE
 func (s *Server) setupRoutes() {
 	// Health check
 	s.engine.GET("/health", s.handler.HealthCheck)
+
+	// Serve static files if directory is provided
+	if s.config.StaticDir != "" {
+		s.engine.Static("/files", s.config.StaticDir)
+		fmt.Printf("File server: serving %s at /files\n", s.config.StaticDir)
+	}
 
 	// OpenAI-compatible endpoints
 	v1 := s.engine.Group("/v1")

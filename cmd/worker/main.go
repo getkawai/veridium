@@ -51,6 +51,7 @@ func main() {
 		Host:      *host,
 		Port:      *port,
 		ModelName: "llama.cpp", // TODO: Get actual model name from executor
+		StaticDir: sdEngine.GetOutputsPath(),
 	}
 	server := gateway.NewServer(cfg, executor, whisperExecutor, imageExecutor)
 

@@ -106,11 +106,8 @@ func (e *SDLocalExecutor) GenerateImage(ctx context.Context, req ImageGeneration
 			// OpenAI usually keeps it ephemeral, but we keep it in outputs for now or clean up.
 			// Let's keep it in outputs for cache/debugging.
 		} else {
-			// URL format - for local worker, we need a way to serve this file.
-			// Currently, we'll return the absolute path or a relative path if we have a file server.
-			// Since this is a raw worker, we might expect the caller to handle file access,
-			// or we can return a file:// URL.
-			imageData.URL = fmt.Sprintf("file://%s", outputPath)
+			// URL format - using the file server route
+			imageData.URL = fmt.Sprintf("/files/%s", fileName)
 		}
 
 		imageData.RevisedPrompt = req.Prompt // We mimic revised prompt
