@@ -14,11 +14,177 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/kawai-network/veridium/internal/database"
 	db "github.com/kawai-network/veridium/internal/database/generated"
+	"github.com/kawai-network/veridium/internal/topic"
 )
 
+// Service handles high-level image generation operations with database persistence
+type Service struct {
+	*StableDiffusion // Embedded Engine
+	DB               *database.Service
+	TopicService     *topic.TopicService
+}
+
+// NewService creates a new image generation service
+func NewService(db *database.Service, engine *StableDiffusion) *Service {
+	return &Service{
+		StableDiffusion: engine,
+		DB:              db,
+	}
+}
+
+// SetTopicService sets the topic service
+func (s *Service) SetTopicService(ts *topic.TopicService) {
+	s.TopicService = ts
+}
+
+// CreateImage handles frontend CreateImageRequest and generates images asynchronously
+func (s *Service) CreateImage(req CreateImageRequest) error {
+	ctx := context.Background()
+
+	log.Printf("[CreateImage] Starting image generation for topic: %s", req.GenerationTopicId)
+
+	// 1. Get first available model if not specified
+	modelPath := s.GetFirstAvailableModel()
+	if modelPath == "" {
+		log.Printf("[CreateImage] ERROR: No SD model found")
+		return fmt.Errorf("no SD model found")
+	}
+	log.Printf("[CreateImage] Using model: %s", modelPath)
+
+	// 2. Resolve UserID and Topic
+	log.Printf("[CreateImage] Checking database service...")
+	if s.DB == nil {
+		log.Printf("[CreateImage] ERROR: Database service not initialized")
+		return fmt.Errorf("database service not initialized")
+	}
+
+	const DefaultUserID = "DEFAULT_LOBE_CHAT_USER"
+	topic, err := s.DB.Queries().GetGenerationTopic(ctx, req.GenerationTopicId)
+	log.Printf("[CreateImage] Fetching generation topic from DB...")
+	if err != nil {
+		log.Printf("[CreateImage] ERROR: Failed to find generation topic: %v", err)
+		return fmt.Errorf("failed to find generation topic: %w", err)
+	}
+	log.Printf("[CreateImage] Topic found: %s", topic.ID)
+
+	// 3. Create Generation Batch
+	now := time.Now().UnixMilli()
+	batchID := uuid.New().String()
+
+	configBytes, _ := json.Marshal(req.Params)
+
+	generationBatch := db.CreateGenerationBatchParams{
+		ID:                batchID,
+		GenerationTopicID: req.GenerationTopicId,
+		Provider:          req.Provider,
+		Model:             req.Model,
+		Prompt:            req.Params.Prompt,
+		Config:            sql.NullString{String: string(configBytes), Valid: true},
+		CreatedAt:         now,
+		UpdatedAt:         now,
+	}
+
+	if req.Params.Width != nil {
+		generationBatch.Width = sql.NullInt64{Int64: int64(*req.Params.Width), Valid: true}
+	}
+	if req.Params.Height != nil {
+		generationBatch.Height = sql.NullInt64{Int64: int64(*req.Params.Height), Valid: true}
+	}
+	if req.Params.AspectRatio != "" {
+		generationBatch.Ratio = sql.NullString{String: req.Params.AspectRatio, Valid: true}
+	}
+
+	log.Printf("[CreateImage] Creating generation batch in DB...")
+	if _, err := s.DB.Queries().CreateGenerationBatch(ctx, generationBatch); err != nil {
+		log.Printf("[CreateImage] ERROR: Failed to create generation batch: %v", err)
+		return fmt.Errorf("failed to create generation batch: %w", err)
+	}
+	log.Printf("[CreateImage] Batch created with ID: %s", batchID)
+
+	// 4. Create placeholder async_task and generation records
+	log.Printf("[CreateImage] Creating placeholder records for %d images...", req.ImageNum)
+
+	// Convert params to GenerationOptions for background worker
+	opts := GenerationOptions{
+		Prompt:      req.Params.Prompt,
+		ModelPath:   modelPath,
+		ImageUrl:    req.Params.ImageUrl,
+		ImageUrls:   req.Params.ImageUrls,
+		Size:        req.Params.Size,
+		AspectRatio: req.Params.AspectRatio,
+		Quality:     req.Params.Quality,
+		SamplerName: req.Params.SamplerName,
+		Scheduler:   req.Params.Scheduler,
+		Seed:        req.Params.Seed,
+	}
+
+	if req.Params.Width != nil {
+		opts.Width = *req.Params.Width
+	}
+	if req.Params.Height != nil {
+		opts.Height = *req.Params.Height
+	}
+	if req.Params.Steps != nil {
+		opts.Steps = *req.Params.Steps
+	}
+	if req.Params.Cfg != nil {
+		opts.Cfg = *req.Params.Cfg
+	}
+	if req.Params.Strength != nil {
+		opts.Strength = *req.Params.Strength
+	}
+
+	// Create placeholder records for each image
+	for i := 0; i < req.ImageNum; i++ {
+		// Create async_task with pending status
+		taskID := uuid.New().String()
+		_, err := s.DB.Queries().CreateAsyncTask(ctx, db.CreateAsyncTaskParams{
+			ID:        taskID,
+			Type:      sql.NullString{String: "image_generation", Valid: true},
+			Status:    sql.NullString{String: "pending", Valid: true},
+			Error:     sql.NullString{},
+			Duration:  sql.NullInt64{},
+			CreatedAt: now,
+			UpdatedAt: now,
+		})
+		if err != nil {
+			log.Printf("[CreateImage] ERROR: Failed to create async task: %v", err)
+			return fmt.Errorf("failed to create async task: %w", err)
+		}
+
+		// Create generation record with pending task
+		genID := uuid.New().String()
+		_, err = s.DB.Queries().CreateGeneration(ctx, db.CreateGenerationParams{
+			ID:                genID,
+			GenerationBatchID: batchID,
+			AsyncTaskID:       sql.NullString{String: taskID, Valid: true},
+			FileID:            sql.NullString{}, // Will be filled when image completes
+			Seed:              sql.NullInt64{Int64: 0, Valid: false},
+			Asset:             sql.NullString{}, // Will be filled when image completes
+			CreatedAt:         now,
+			UpdatedAt:         now,
+		})
+		if err != nil {
+			log.Printf("[CreateImage] ERROR: Failed to create generation record: %v", err)
+			return fmt.Errorf("failed to create generation record: %w", err)
+		}
+
+		log.Printf("[CreateImage] Created placeholder for image %d/%d (task: %s, gen: %s)", i+1, req.ImageNum, taskID, genID)
+	}
+
+	log.Printf("[CreateImage] All placeholder records created, returning to frontend")
+
+	// 5. Launch background goroutine to generate images
+	go s.generateImagesInBackground(batchID, req.ImageNum, opts)
+
+	return nil
+}
+
 // generateImagesInBackground generates images in parallel and updates database records
-func (sdrm *StableDiffusion) generateImagesInBackground(batchID string, imageNum int, opts GenerationOptions) {
+func (s *Service) generateImagesInBackground(batchID string, imageNum int, opts GenerationOptions) {
 	ctx := context.Background()
 	outputDir := "files/uploads"
 
@@ -48,16 +214,16 @@ func (sdrm *StableDiffusion) generateImagesInBackground(batchID string, imageNum
 	}
 
 	// Get all generations for this batch to update them
-	generations, err := sdrm.DB.Queries().ListGenerations(ctx, batchID)
+	generations, err := s.DB.Queries().ListGenerations(ctx, batchID)
 	if err != nil {
 		log.Printf("[Background] ERROR: Failed to list generations: %v", err)
 		return
 	}
 
 	// Trigger topic title update if TopicService is available
-	if sdrm.TopicService != nil {
+	if s.TopicService != nil {
 		go func() {
-			batch, err := sdrm.DB.Queries().GetGenerationBatch(ctx, batchID)
+			batch, err := s.DB.Queries().GetGenerationBatch(ctx, batchID)
 			if err != nil {
 				log.Printf("[Background] Warning: Failed to fetch batch for title update: %v", err)
 				return
@@ -65,7 +231,7 @@ func (sdrm *StableDiffusion) generateImagesInBackground(batchID string, imageNum
 
 			if batch.GenerationTopicID != "" {
 				log.Printf("[Background] Triggering topic title update for topic %s", batch.GenerationTopicID)
-				if err := sdrm.TopicService.UpdateGenerationTopicTitleFromPrompt(context.Background(), batch.GenerationTopicID, opts.Prompt); err != nil {
+				if err := s.TopicService.UpdateGenerationTopicTitleFromPrompt(context.Background(), batch.GenerationTopicID, opts.Prompt); err != nil {
 					log.Printf("[Background] Warning: Failed to update topic title: %v", err)
 				}
 			}
@@ -98,7 +264,7 @@ func (sdrm *StableDiffusion) generateImagesInBackground(batchID string, imageNum
 
 			// Update task status to "processing"
 			if generation.AsyncTaskID.Valid {
-				_, err := sdrm.DB.Queries().UpdateAsyncTask(ctx, db.UpdateAsyncTaskParams{
+				_, err := s.DB.Queries().UpdateAsyncTask(ctx, db.UpdateAsyncTaskParams{
 					ID:        generation.AsyncTaskID.String,
 					Status:    sql.NullString{String: "processing", Valid: true},
 					Error:     sql.NullString{},
@@ -129,7 +295,7 @@ func (sdrm *StableDiffusion) generateImagesInBackground(batchID string, imageNum
 				log.Printf("[Background] Image %d: Attempt %d/%d using model: %s", index, attempt+1, len(availableModels), localOpts.Model)
 
 				// Try remote generation
-				remoteErr = sdrm.generateImageRemote(localOpts)
+				remoteErr = s.generateImageRemote(localOpts)
 				if remoteErr == nil {
 					log.Printf("[Background] Image %d: Success with model %s", index, localOpts.Model)
 					break
@@ -154,7 +320,7 @@ func (sdrm *StableDiffusion) generateImagesInBackground(batchID string, imageNum
 			if remoteErr != nil {
 				// Update task with error
 				if generation.AsyncTaskID.Valid {
-					_, err := sdrm.DB.Queries().UpdateAsyncTask(ctx, db.UpdateAsyncTaskParams{
+					_, err := s.DB.Queries().UpdateAsyncTask(ctx, db.UpdateAsyncTaskParams{
 						ID:        generation.AsyncTaskID.String,
 						Status:    sql.NullString{String: "error", Valid: true},
 						Error:     sql.NullString{String: remoteErr.Error(), Valid: true},
@@ -167,7 +333,7 @@ func (sdrm *StableDiffusion) generateImagesInBackground(batchID string, imageNum
 				}
 			} else {
 				// Success - update with file data
-				if err := sdrm.updateGenerationWithFile(ctx, generation.ID, outputPath, fileName, opts, generation.AsyncTaskID.String, startTime); err != nil {
+				if err := s.updateGenerationWithFile(ctx, generation.ID, outputPath, fileName, opts, generation.AsyncTaskID.String, startTime); err != nil {
 					log.Printf("[Background] ERROR: Failed to update generation with file: %v", err)
 					remoteErr = err
 				}
@@ -198,13 +364,13 @@ func (sdrm *StableDiffusion) generateImagesInBackground(batchID string, imageNum
 			}
 
 			// Update generation with copied file
-			sdrm.updateGenerationWithFile(ctx, generation.ID, failedOutputPath, failedFileName, opts, generation.AsyncTaskID.String, time.Now())
+			s.updateGenerationWithFile(ctx, generation.ID, failedOutputPath, failedFileName, opts, generation.AsyncTaskID.String, time.Now())
 		}
 	}
 }
 
 // updateGenerationWithFile updates a generation record with file data after successful generation
-func (sdrm *StableDiffusion) updateGenerationWithFile(ctx context.Context, generationID, outputPath, fileName string, opts GenerationOptions, taskID string, startTime time.Time) error {
+func (s *Service) updateGenerationWithFile(ctx context.Context, generationID, outputPath, fileName string, opts GenerationOptions, taskID string, startTime time.Time) error {
 	// Calculate file info
 	fileInfo, err := os.Stat(outputPath)
 	if err != nil {
@@ -229,9 +395,9 @@ func (sdrm *StableDiffusion) updateGenerationWithFile(ctx context.Context, gener
 	fileUrl := fmt.Sprintf("/files/uploads/%s", fileName)
 
 	// Create GlobalFile if not exists
-	_, err = sdrm.DB.Queries().GetGlobalFile(ctx, fileHash)
+	_, err = s.DB.Queries().GetGlobalFile(ctx, fileHash)
 	if err != nil && err == sql.ErrNoRows {
-		_, err = sdrm.DB.Queries().CreateGlobalFile(ctx, db.CreateGlobalFileParams{
+		_, err = s.DB.Queries().CreateGlobalFile(ctx, db.CreateGlobalFileParams{
 			HashID:   fileHash,
 			FileType: "image/png",
 			Size:     fileInfo.Size(),
@@ -244,7 +410,7 @@ func (sdrm *StableDiffusion) updateGenerationWithFile(ctx context.Context, gener
 	}
 
 	// Create File record
-	savedFile, err := sdrm.DB.Queries().CreateFile(ctx, db.CreateFileParams{
+	savedFile, err := s.DB.Queries().CreateFile(ctx, db.CreateFileParams{
 		// UserID removed
 		FileType: "image/png",
 		FileHash: sql.NullString{String: fileHash, Valid: true},
@@ -271,7 +437,7 @@ func (sdrm *StableDiffusion) updateGenerationWithFile(ctx context.Context, gener
 	assetBytes, _ := json.Marshal(assetMap)
 
 	// Update generation record
-	_, err = sdrm.DB.Queries().UpdateGeneration(ctx, db.UpdateGenerationParams{
+	_, err = s.DB.Queries().UpdateGeneration(ctx, db.UpdateGenerationParams{
 		ID:          generationID,
 		AsyncTaskID: sql.NullString{String: taskID, Valid: true},
 		FileID:      sql.NullString{String: savedFile.ID, Valid: true},
@@ -284,7 +450,7 @@ func (sdrm *StableDiffusion) updateGenerationWithFile(ctx context.Context, gener
 	}
 
 	// Update async_task to success
-	_, err = sdrm.DB.Queries().UpdateAsyncTask(ctx, db.UpdateAsyncTaskParams{
+	_, err = s.DB.Queries().UpdateAsyncTask(ctx, db.UpdateAsyncTaskParams{
 		ID:        taskID,
 		Status:    sql.NullString{String: "success", Valid: true},
 		Error:     sql.NullString{},

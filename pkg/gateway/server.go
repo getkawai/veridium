@@ -25,12 +25,12 @@ type Server struct {
 }
 
 // NewServer creates a new gateway server with the given configuration.
-func NewServer(cfg ServerConfig, executor LLMExecutor, whisperExecutor *WhisperExecutor) *Server {
+func NewServer(cfg ServerConfig, executor LLMExecutor, whisperExecutor *WhisperExecutor, imageExecutor ImageExecutor) *Server {
 	gin.SetMode(gin.ReleaseMode)
 	engine := gin.New()
 	engine.Use(gin.Recovery())
 
-	handler := NewHandler(executor, whisperExecutor, cfg.ModelName)
+	handler := NewHandler(executor, whisperExecutor, imageExecutor, cfg.ModelName)
 
 	s := &Server{
 		engine:  engine,
@@ -52,6 +52,7 @@ func (s *Server) setupRoutes() {
 	{
 		v1.POST("/chat/completions", s.handler.ChatCompletions)
 		v1.POST("/audio/transcriptions", s.handler.AudioTranscriptions)
+		v1.POST("/images/generations", s.handler.ImageGenerations)
 	}
 }
 

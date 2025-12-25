@@ -23,9 +23,6 @@ import (
 	"time"
 
 	"github.com/kawai-network/veridium/pkg/grab"
-
-	"github.com/kawai-network/veridium/internal/database"
-	"github.com/kawai-network/veridium/internal/topic"
 )
 
 // Release represents a GitHub release
@@ -121,12 +118,6 @@ type StableDiffusion struct {
 	// MetadataPath is where version metadata is stored
 	MetadataPath string
 
-	// DB Service for persisting generation data
-	DB *database.Service
-
-	// TopicService for generating titles
-	TopicService *topic.TopicService
-
 	// Executor handles command execution, simpler for testing
 	Executor CommandExecutor
 
@@ -139,30 +130,22 @@ type StableDiffusion struct {
 
 // ... (New function remains same)
 
-// SetTopicService sets the topic service
-func (sd *StableDiffusion) SetTopicService(ts *topic.TopicService) {
-	sd.TopicService = ts
-}
-
-// New creates a new Stable Diffusion release manager
-func New(db *database.Service) *StableDiffusion {
+// NewEngine creates a new Stable Diffusion release manager (Engine)
+func NewEngine() *StableDiffusion {
 	homeDir, _ := os.UserHomeDir()
 	binaryPath := filepath.Join(homeDir, ".stable-diffusion", "bin")
 	checksumsPath := filepath.Join(homeDir, ".stable-diffusion", "checksums")
 	metadataPath := filepath.Join(homeDir, ".stable-diffusion", "metadata")
 
-	ctx, cancel := context.WithCancel(context.Background())
+	_, cancel := context.WithCancel(context.Background())
 
 	sd := &StableDiffusion{
-		GitHubOwner:     "leejet",
 		GitHubRepo:      "stable-diffusion.cpp",
 		BinaryPath:      binaryPath,
 		ChecksumsPath:   checksumsPath,
 		MetadataPath:    metadataPath,
-		ctx:             ctx,
 		cancel:          cancel,
 		activeProcesses: make([]*exec.Cmd, 0),
-		DB:              db,
 	}
 
 	// Set executor with reference to this instance for process tracking

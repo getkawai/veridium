@@ -23,14 +23,16 @@ type LLMExecutor interface {
 type Handler struct {
 	executor        LLMExecutor
 	whisperExecutor *WhisperExecutor
+	imageExecutor   ImageExecutor
 	modelName       string
 }
 
 // NewHandler creates a new Handler with the given LLM and Whisper executors.
-func NewHandler(executor LLMExecutor, whisperExecutor *WhisperExecutor, modelName string) *Handler {
+func NewHandler(executor LLMExecutor, whisperExecutor *WhisperExecutor, imageExecutor ImageExecutor, modelName string) *Handler {
 	return &Handler{
 		executor:        executor,
 		whisperExecutor: whisperExecutor,
+		imageExecutor:   imageExecutor,
 		modelName:       modelName,
 	}
 }
@@ -61,6 +63,38 @@ func (h *Handler) AudioTranscriptions(c *gin.Context) {
 	// 3. Return JSON Response
 	c.JSON(http.StatusOK, TranscriptionResponse{
 		Text: text,
+	})
+}
+
+// ImageGenerations handles POST /v1/images/generations
+func (h *Handler) ImageGenerations(c *gin.Context) {
+	if h.imageExecutor == nil {
+		h.sendError(c, http.StatusNotImplemented, "not_implemented", "Image generation service not available")
+		return
+	}
+
+	var req ImageGenerationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.sendError(c, http.StatusBadRequest, "invalid_request_error", err.Error())
+		return
+	}
+
+	// OpenAI spec: n defaults to 1 if not provided
+	if req.N == 0 {
+		req.N = 1
+	}
+
+	// 2. Generate
+	data, err := h.imageExecutor.GenerateImage(c.Request.Context(), req)
+	if err != nil {
+		h.sendError(c, http.StatusInternalServerError, "server_error", err.Error())
+		return
+	}
+
+	// 3. Return JSON Response
+	c.JSON(http.StatusOK, ImageGenerationResponse{
+		Created: time.Now().Unix(),
+		Data:    data,
 	})
 }
 

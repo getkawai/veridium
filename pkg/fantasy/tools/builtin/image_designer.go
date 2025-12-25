@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/kawai-network/veridium/internal/image"
 	"github.com/kawai-network/veridium/pkg/fantasy"
 	"github.com/kawai-network/veridium/pkg/fantasy/tools"
-	"github.com/kawai-network/veridium/internal/image"
 )
 
 // Text2ImageInput defines input for text2image tool
@@ -54,7 +54,7 @@ func NewImageDesignerService() *ImageDesignerService {
 	os.MkdirAll(outputDir, 0755)
 
 	return &ImageDesignerService{
-		sdManager:   image.New(nil),
+		sdManager:   image.NewEngine(),
 		outputDir:   outputDir,
 		initialized: false,
 	}

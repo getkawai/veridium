@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/kawai-network/veridium/internal/image"
 	"github.com/kawai-network/veridium/internal/whisper"
 	"github.com/kawai-network/veridium/pkg/gateway"
 )
@@ -40,13 +41,18 @@ func main() {
 	}
 	whisperExecutor := gateway.NewWhisperExecutor(whisperService)
 
+	// Initialize ImageExecutor
+	log.Printf("Initializing stable-diffusion.cpp engine...")
+	sdEngine := image.NewEngine()
+	imageExecutor := gateway.NewSDLocalExecutor(sdEngine)
+
 	// Create gateway server
 	cfg := gateway.ServerConfig{
 		Host:      *host,
 		Port:      *port,
 		ModelName: "llama.cpp", // TODO: Get actual model name from executor
 	}
-	server := gateway.NewServer(cfg, executor, whisperExecutor)
+	server := gateway.NewServer(cfg, executor, whisperExecutor, imageExecutor)
 
 	// Graceful shutdown
 	quit := make(chan os.Signal, 1)
