@@ -6,11 +6,8 @@ require (
 	github.com/JohannesKaufmann/dom v0.2.0
 	github.com/Knetic/govaluate v3.0.0+incompatible
 	github.com/RealAlexandreAI/json-repair v0.0.14
-	github.com/agnivade/levenshtein v1.2.1
 	github.com/andybalholm/brotli v1.2.0
-	github.com/andybalholm/cascadia v1.3.3
 	github.com/blevesearch/bleve v1.0.14
-	github.com/bmatcuk/doublestar/v4 v4.9.1
 	github.com/charmbracelet/x/exp/slice v0.0.0-20251201173703-9f73bfd934ff
 	github.com/charmbracelet/x/json v0.2.0
 	github.com/cloudflare/cloudflare-go v0.114.0
@@ -22,7 +19,6 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jupiterrider/ffi v0.5.1
 	github.com/kaptinlin/jsonschema v0.6.2
-	github.com/muesli/termenv v0.16.0
 	github.com/nikolalohinski/gonja/v2 v2.5.0
 	github.com/openai/openai-go/v2 v2.7.1
 	github.com/pemistahl/lingua-go v1.4.0
@@ -51,7 +47,6 @@ require (
 	github.com/VictoriaMetrics/fastcache v1.13.0 // indirect
 	github.com/adrg/xdg v0.5.3 // indirect
 	github.com/apache/arrow-go/v18 v18.4.1 // indirect
-	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/bep/debounce v1.2.1 // indirect
 	github.com/bits-and-blooms/bitset v1.20.0 // indirect
 	github.com/blevesearch/go-porterstemmer v1.0.3 // indirect
@@ -121,7 +116,6 @@ require (
 	github.com/leaanthony/go-ansi-parser v1.6.1 // indirect
 	github.com/leaanthony/u v1.1.1 // indirect
 	github.com/lmittmann/tint v1.0.7 // indirect
-	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
