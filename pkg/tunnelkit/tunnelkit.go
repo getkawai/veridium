@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/signal"
@@ -425,19 +426,25 @@ func updateTunnelConfig(apiToken, accountID string, tunnelID uuid.UUID, hostname
 		Ingress []IngressRule `json:"ingress"`
 	}
 
-	config := TunnelConfig{
-		Ingress: []IngressRule{
-			{
-				Hostname: hostname,
-				Service:  localURL,
-			},
-			{
-				Service: "http_status:404",
+	type ConfigPayload struct {
+		Config TunnelConfig `json:"config"`
+	}
+
+	payload := ConfigPayload{
+		Config: TunnelConfig{
+			Ingress: []IngressRule{
+				{
+					Hostname: hostname,
+					Service:  localURL,
+				},
+				{
+					Service: "http_status:404",
+				},
 			},
 		},
 	}
 
-	configBytes, err := json.Marshal(config)
+	configBytes, err := json.Marshal(payload)
 	if err != nil {
 		return err
 	}
@@ -461,7 +468,8 @@ func updateTunnelConfig(apiToken, accountID string, tunnelID uuid.UUID, hostname
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return fmt.Errorf("failed to update config: status %d", resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("failed to update config: status %d, body: %s", resp.StatusCode, string(body))
 	}
 
 	return nil

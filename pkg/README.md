@@ -4,6 +4,41 @@ This directory contains reusable Go packages for the Veridium project, including
 
 ## Packages
 
+### `obfuscator` - String Obfuscation
+
+A custom string encoder/decoder that provides obfuscation without using secret keys. Ideal for hiding data from casual inspection.
+
+```go
+import "github.com/kawai-network/veridium/pkg/obfuscator"
+
+// Quick usage
+encoded := obfuscator.EncodeString("Hello, World!")
+decoded, err := obfuscator.DecodeString(encoded)
+
+// Reusable instance
+o := obfuscator.New()
+encoded := o.Encode("sensitive data")
+decoded, err := o.Decode(encoded)
+```
+
+**Features:**
+- No secret key required - deterministic obfuscation
+- Multiple layers of transformation (XOR, substitution, bit shuffling, transposition)
+- Base64 output with character rotation
+- Unicode support including emojis
+- Fast and efficient (sub-microsecond for typical strings)
+- Fully reversible
+
+**Use Cases:**
+- URL/token obfuscation
+- Hiding data from casual inspection
+- Anti-tampering for non-sensitive data
+- Creating non-obvious identifiers
+
+**⚠️ Warning:** This is obfuscation, NOT encryption. Do not use for sensitive data like passwords or personal information.
+
+See [obfuscator/README.md](obfuscator/README.md) for detailed documentation.
+
 ### `localfs` - Local File System Service
 
 A comprehensive service for local file system operations, providing a modern, service-oriented interface.

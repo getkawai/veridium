@@ -13,3 +13,5 @@ files/uploads
 videoplayback.mp4
 videoplayback.txt
 wails
+.env
+tunnels.json
