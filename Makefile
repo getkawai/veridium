@@ -199,7 +199,7 @@ clean:
 	rm -rf frontend/bindings/
 	rm -rf build/
 	rm -rf $(ABIS_DIR)
-	cd $(CONTRACTS_DIR) && forge clean
+	cd $(CONTRACTS_DIR) && ~/.foundry/bin/forge clean
 	@echo "✅ Clean complete!"
 
 # Run tests
@@ -244,7 +244,7 @@ VAULT_ARTIFACT := $(CONTRACTS_DIR)/out/PaymentVault.sol/PaymentVault.json
 
 contracts-compile:
 	@echo "Compiling smart contracts with Foundry..."
-	cd $(CONTRACTS_DIR) && forge build
+	cd $(CONTRACTS_DIR) && ~/.foundry/bin/forge build
 
 contracts-bindings: abi-token abi-escrow abi-vault generate-project-abis
 	@echo "✅ Bindings generated."
