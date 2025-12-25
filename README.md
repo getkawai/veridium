@@ -93,11 +93,60 @@ This roadmap outlines the path from "Zero" to a fully functional decentralized n
 
 ---
 
+## 🌐 Monad Testnet Deployment
+
+> **Status:** Pending Gas (Faucet Cooldown)
+
+After deployment, contract addresses will be listed here:
+
+| Contract | Address | Description |
+|---|---|---|
+| MockUSDT | `TBD` | Test USDT for simulating revenue |
+| KawaiToken | `TBD` | Native token (1B Max Supply, Fair Launch) |
+| KAWAI_Distributor | `TBD` | Merkle distributor for mining rewards |
+| USDT_Distributor | `TBD` | Merkle distributor for profit sharing |
+| PaymentVault | `TBD` | User USDT deposit vault |
+| OTCMarket | `TBD` | P2P trading escrow |
+
+**Network Info:**
+- **Chain ID:** 10143
+- **RPC:** `https://testnet-rpc.monad.xyz`
+- **Explorer:** `https://testnet.monad.xyz` (if available)
+
+---
+
+## 🔧 Environment Variables
+
+Create a `.env` file in the project root with the following:
+
+```bash
+# Blockchain Configuration
+MONAD_RPC_URL=https://testnet-rpc.monad.xyz
+TOKEN_ADDRESS=0x...  # KawaiToken address after deployment
+ESCROW_ADDRESS=0x... # OTCMarket address after deployment
+
+# Economic Configuration (Phase 1 & 2)
+KAWAI_RATE_PER_MILLION=100      # KAWAI minted per 1M tokens processed
+COST_RATE_PER_MILLION=1.0       # USDT cost per 1M tokens (Phase 2)
+
+# Admin Configuration
+ADMIN_ADDRESS=0x...             # Admin wallet for fee collection
+ADMIN_PRIVATE_KEY=0x...         # For signing Merkle Root updates
+
+# Cloudflare KV (Worker Data Storage)
+CF_ACCOUNT_ID=...
+CF_API_TOKEN=...
+CF_KV_NAMESPACE_ID=...
+```
+
+---
+
 ## 🛠️ Tech Stack
 
--   **Smart Contracts:** Solidity, Hardhat, OpenZeppelin.
+-   **Smart Contracts:** Solidity, Foundry, OpenZeppelin.
 -   **Backend (Middleware):** Go (Golang), `net/http`, `go-ethereum`, `cloudflare-go`.
 -   **Database:** Cloudflare Workers KV.
 -   **Frontend:** React, Vite, Ant Design Web3.
 -   **Worker Node:** Go (Golang), `llama.cpp`.
 -   **Blockchain:** Monad (EVM-compatible).
+-   **Network Toolkit:** `pkg/jarvis` (Multi-chain support incl. Monad).

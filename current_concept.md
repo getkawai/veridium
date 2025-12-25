@@ -67,6 +67,32 @@ Mining berhenti. Worker dibayar **USDT** berdasarkan volume pekerjaan, bukan per
 *   Sistem melakukan Snapshot kepemilikan token KAWAI.
 *   Sisa USDT (Revenue di F1, Profit di F2) dibagikan proporsional ke Holder.
 
+#### Phase Transition Detection (Deteksi Transisi Fase)
+
+Sistem secara otomatis mendeteksi kapan harus beralih dari Fase 1 ke Fase 2:
+
+*Lokasi Code:* `pkg/blockchain/client.go` -> `GetRewardMode()`
+
+```go
+// Pseudo-code:
+totalSupply := token.TotalSupply()
+maxSupply   := 1_000_000_000 * 1e18  // 1 Billion dengan 18 decimals
+
+if totalSupply >= maxSupply {
+    return ModeUSDT  // Fase 2: Bayar USDT
+} else {
+    return ModeMining  // Fase 1: Mining KAWAI
+}
+```
+
+**Contoh Skenario Transisi:**
+1.  Total Supply saat ini: **999,999,500 KAWAI**.
+2.  Worker menyelesaikan job yang menghasilkan **600 KAWAI** reward.
+3.  Middleware memanggil `GetRewardMode()` -> `ModeMining`.
+4.  Sistem mint **500 KAWAI** (sampai Max Supply), sisanya **TIDAK** di-mint.
+5.  Setelah ini, semua job berikutnya akan menggunakan `ModeUSDT`.
+
+
 ### C. Liquidity Strategy (Strategi Likuiditas)
 Karena tidak ada Modal Tim untuk membuat LP di PancakeSwap pada Hari-1:
 *   **Fase 1 (Bootstrap): Internal P2P Market (OTC).**
