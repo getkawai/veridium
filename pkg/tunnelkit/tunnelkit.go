@@ -257,6 +257,45 @@ func ListTunnels(accountID, apiToken string) ([]*TunnelInfo, error) {
 	return result, nil
 }
 
+// HasActiveConnections checks if a tunnel has active connections
+// Returns true if tunnel has active connections, false otherwise
+func HasActiveConnections(tunnelID string) (bool, error) {
+	// Parse tunnel ID
+	id, err := uuid.Parse(tunnelID)
+	if err != nil {
+		return false, fmt.Errorf("invalid tunnel ID: %w", err)
+	}
+
+	// Get credentials from generated tunnels
+	// We need accountID and apiToken to check active connections
+	// For now, we'll use hardcoded credentials from bulk-tunnels
+	// TODO: Make this configurable or read from environment
+	accountID := "ceab218751d33cd804878196ad7bef74"
+	apiToken := "OP8BZQhyeJxrovCPKt15eUOSC6i5LXTVECGRSMc1"
+
+	// Create REST client
+	logger := zerolog.Nop()
+	client, err := cfapi.NewRESTClient(
+		"https://api.cloudflare.com/client/v4",
+		accountID,
+		"", // zoneID not required
+		apiToken,
+		"tunnelkit",
+		&logger,
+	)
+	if err != nil {
+		return false, fmt.Errorf("failed to create API client: %w", err)
+	}
+
+	// Check active connections
+	activeClients, err := client.ListActiveClients(id)
+	if err != nil {
+		return false, fmt.Errorf("failed to list active clients: %w", err)
+	}
+
+	return len(activeClients) > 0, nil
+}
+
 // RunTunnel runs a Cloudflare Tunnel using the provided token
 func RunTunnel(ctx context.Context, tunnelToken string) error {
 	// Decode tunnel token
