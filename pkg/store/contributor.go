@@ -95,6 +95,7 @@ type KVStore struct {
 	contributorsNamespaceID string
 	proofsNamespaceID       string
 	settlementsNamespaceID  string
+	authzNamespaceID        string // Reverse index: address -> apikey
 }
 
 // NewMultiNamespaceKVStore creates a new KVStore with separate namespaces
@@ -110,6 +111,7 @@ func NewMultiNamespaceKVStore() (*KVStore, error) {
 		contributorsNamespaceID: constant.GetCfKvContributorsNamespaceId(),
 		proofsNamespaceID:       constant.GetCfKvProofsNamespaceId(),
 		settlementsNamespaceID:  constant.GetCfKvSettlementsNamespaceId(),
+		authzNamespaceID:        constant.GetCfKvAuthzNamespaceId(),
 	}, nil
 }
 

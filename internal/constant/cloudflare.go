@@ -12,11 +12,13 @@ const (
 	// - Contributors: User data, balances, heartbeat
 	// - Proofs: Merkle proofs for each settlement period
 	// - Settlements: Settlement period metadata
-	// - Apikey: API key management
+	// - Apikey: API key management (apikey -> address)
+	// - Authz: Authorization reverse index (address -> apikey)
 	obfuscatedCfKvContributorsNamespaceId = "kxnCnJhjcrVRKM9nU4wNxvaa1DnMal6hkkYkBd6qkIG="
 	obfuscatedCfKvProofsNamespaceId = "TndwnPlkkOjejJJLUa5VGegaPOp0LzYHweLXIj8EjT8="
 	obfuscatedCfKvSettlementsNamespaceId = "Qna/Pi4l4GLeQCJLU1S8A0i+Leov3824U/mZpN4Ma+8="
 	obfuscatedCfKvApikeyNamespaceId = "00nCO0uoa1ze1slnU2O8B3caSDyFLI6mU/pdIoUya9Q="
+	obfuscatedCfKvAuthzNamespaceId = "TbCDIs2Se4LdZCjKU1VQVPPMSDSF3eGZw79L1aNAxXe="
 )
 
 // GetCfAccountId returns the decoded value of CF_ACCOUNT_ID
@@ -58,6 +60,13 @@ func GetCfKvSettlementsNamespaceId() string {
 // Namespace for API key management
 func GetCfKvApikeyNamespaceId() string {
 	val, _ := obfuscator.DecodeString(obfuscatedCfKvApikeyNamespaceId)
+	return val
+}
+
+// GetCfKvAuthzNamespaceId returns the decoded value of CF_KV_AUTHZ_NAMESPACE_ID
+// Namespace for authorization reverse index (address -> apikey)
+func GetCfKvAuthzNamespaceId() string {
+	val, _ := obfuscator.DecodeString(obfuscatedCfKvAuthzNamespaceId)
 	return val
 }
 

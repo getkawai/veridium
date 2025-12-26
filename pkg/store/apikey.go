@@ -27,7 +27,8 @@ func (s *KVStore) CreateAPIKey(ctx context.Context, address string) (*APIKey, er
 	// Format as "vk-" prefix + hex string (similar to OpenAI's "sk-" format)
 	apiKey := "vk-" + hex.EncodeToString(keyBytes)
 
-	// Store in KV: key=apikey, value=address
+	// Store in both namespaces:
+	// 1. Apikey namespace: apikey -> address
 	_, err := s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
 		NamespaceID: constant.GetCfKvApikeyNamespaceId(),
 		Key:         apiKey,
@@ -35,6 +36,21 @@ func (s *KVStore) CreateAPIKey(ctx context.Context, address string) (*APIKey, er
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to store API key: %w", err)
+	}
+
+	// 2. Authz namespace: address -> apikey (reverse index)
+	_, err = s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
+		NamespaceID: s.authzNamespaceID,
+		Key:         address,
+		Value:       []byte(apiKey),
+	})
+	if err != nil {
+		// Rollback: delete from apikey namespace if authz write fails
+		s.client.DeleteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.DeleteWorkersKVEntryParams{
+			NamespaceID: constant.GetCfKvApikeyNamespaceId(),
+			Key:         apiKey,
+		})
+		return nil, fmt.Errorf("failed to store reverse index: %w", err)
 	}
 
 	return &APIKey{
@@ -77,7 +93,15 @@ func (s *KVStore) ValidateAPIKey(ctx context.Context, apiKey string) (string, er
 
 // RevokeAPIKey removes an API key from the system
 func (s *KVStore) RevokeAPIKey(ctx context.Context, apiKey string) error {
-	_, err := s.client.DeleteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.DeleteWorkersKVEntryParams{
+	// First, get the address associated with this API key
+	address, err := s.GetAPIKey(ctx, apiKey)
+	if err != nil {
+		return fmt.Errorf("failed to get address for API key: %w", err)
+	}
+
+	// Delete from both namespaces:
+	// 1. Delete from apikey namespace
+	_, err = s.client.DeleteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.DeleteWorkersKVEntryParams{
 		NamespaceID: constant.GetCfKvApikeyNamespaceId(),
 		Key:         apiKey,
 	})
@@ -85,20 +109,48 @@ func (s *KVStore) RevokeAPIKey(ctx context.Context, apiKey string) error {
 		return fmt.Errorf("failed to revoke API key: %w", err)
 	}
 
+	// 2. Delete from authz namespace (reverse index)
+	_, err = s.client.DeleteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.DeleteWorkersKVEntryParams{
+		NamespaceID: s.authzNamespaceID,
+		Key:         address,
+	})
+	if err != nil {
+		// Note: We don't rollback here since the main apikey is already deleted
+		// This is acceptable for the reverse index
+		return fmt.Errorf("failed to remove reverse index: %w", err)
+	}
+
 	return nil
+}
+
+// GetAPIKeyByAddress retrieves the API key associated with a wallet address (using reverse index)
+func (s *KVStore) GetAPIKeyByAddress(ctx context.Context, address string) (string, error) {
+	value, err := s.client.GetWorkersKV(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{
+		NamespaceID: s.authzNamespaceID,
+		Key:         address,
+	})
+	if err != nil {
+		return "", fmt.Errorf("API key not found for address: %w", err)
+	}
+
+	apiKey := string(value)
+	if apiKey == "" {
+		return "", fmt.Errorf("no API key found for address")
+	}
+
+	return apiKey, nil
 }
 
 // ListAPIKeys returns all API keys for a given wallet address (for dashboard)
 func (s *KVStore) ListAPIKeys(ctx context.Context, address string) ([]string, error) {
-	// Note: This is inefficient with KV (would need to scan all keys)
-	// For now, we'll implement a simple version that requires scanning
-	// In production, you might want to maintain a reverse index
+	// With the reverse index, we can now efficiently get the API key for an address
+	apiKey, err := s.GetAPIKeyByAddress(ctx, address)
+	if err != nil {
+		// No API key found for this address
+		return []string{}, nil
+	}
 
-	// This is a placeholder - KV doesn't support efficient reverse lookups
-	// You'd need to either:
-	// 1. Maintain a separate index (address -> []apikeys)
-	// 2. Use a different storage pattern
-	// 3. Accept the limitation for MVP
-
-	return []string{}, fmt.Errorf("ListAPIKeys not implemented - use dashboard to track keys")
+	// Currently, we only support one API key per address
+	// In the future, this could be extended to support multiple keys
+	return []string{apiKey}, nil
 }
