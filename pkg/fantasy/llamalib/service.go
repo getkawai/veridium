@@ -10,8 +10,10 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/kawai-network/veridium/pkg/fantasy"
 	"github.com/kawai-network/veridium/pkg/fantasy/llamalib/llama"
 	"github.com/kawai-network/veridium/pkg/fantasy/llamalib/mtmd"
+	"github.com/kawai-network/veridium/pkg/fantasy/llamalib/template"
 	"github.com/kawai-network/veridium/pkg/hardware"
 )
 
@@ -519,6 +521,290 @@ func (s *Service) GenerateStream(ctx context.Context, prompt string, maxTokens i
 	return nil
 }
 
+// GenerateResult represents the result of text generation, including potential tool calls.
+type GenerateResult struct {
+	Text      string           // Generated text content
+	ToolCalls []ToolCallResult // Tool calls if any were generated
+	HasTools  bool             // Whether the response contains tool calls
+}
+
+// GenerateWithTools generates text from messages with tool calling support.
+// If tools are provided, they are formatted into the prompt and the output is parsed for tool calls.
+func (s *Service) GenerateWithTools(ctx context.Context, messages []Message, tools []Tool, maxTokens int32) (*GenerateResult, error) {
+	s.chatMutex.Lock()
+	defer s.chatMutex.Unlock()
+
+	if s.chatModel == 0 || s.chatContext == 0 {
+		return nil, fmt.Errorf("chat model not loaded")
+	}
+
+	// Get chat template
+	templateStr := llama.ModelChatTemplate(s.chatModel, "")
+	if templateStr == "" {
+		templateStr = ChatMLToolTemplate // Use our tool-enabled template
+	}
+
+	// Convert to fantasy types for template
+	fantasyMessages := messagesToFantasy(messages)
+	fantasyTools := toolsToFantasy(tools)
+
+	// Apply template with tools
+	var formattedPrompt string
+	var err error
+
+	if len(tools) > 0 {
+		// Use tool template
+		formattedPrompt, err = template.ApplyWithTools(ChatMLToolTemplate, fantasyMessages, fantasyTools, true)
+	} else {
+		formattedPrompt, err = template.Apply(templateStr, fantasyMessages, true)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to apply template: %w", err)
+	}
+
+	// Tokenize formatted prompt
+	tokens := llama.Tokenize(s.chatVocab, formattedPrompt, true, true)
+	if len(tokens) == 0 {
+		return nil, fmt.Errorf("failed to tokenize prompt")
+	}
+
+	// Create batch from tokens
+	batch := llama.BatchGetOne(tokens)
+
+	// Handle encoder models
+	if llama.ModelHasEncoder(s.chatModel) {
+		llama.Encode(s.chatContext, batch)
+		start := llama.ModelDecoderStartToken(s.chatModel)
+		if start == llama.TokenNull {
+			start = llama.VocabBOS(s.chatVocab)
+		}
+		batch = llama.BatchGetOne([]llama.Token{start})
+	}
+
+	// Generate tokens
+	var response strings.Builder
+	for pos := int32(0); pos < maxTokens; pos += batch.NTokens {
+		// Check for context cancellation
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
+		llama.Decode(s.chatContext, batch)
+		token := llama.SamplerSample(s.chatSampler, s.chatContext, -1)
+
+		// Check for end of generation
+		if llama.VocabIsEOG(s.chatVocab, token) {
+			break
+		}
+
+		// Convert token to text
+		tokenBuf := make([]byte, 256)
+		tokenLength := llama.TokenToPiece(s.chatVocab, token, tokenBuf, 0, false)
+		response.Write(tokenBuf[:tokenLength])
+
+		// Prepare next batch
+		batch = llama.BatchGetOne([]llama.Token{token})
+	}
+
+	output := response.String()
+
+	// Parse for tool calls if tools were provided
+	if len(tools) > 0 {
+		parsed := ParseToolCalls(output)
+		return &GenerateResult{
+			Text:      parsed.Text,
+			ToolCalls: parsed.ToolCalls,
+			HasTools:  parsed.HasTools,
+		}, nil
+	}
+
+	return &GenerateResult{
+		Text:     strings.TrimSpace(output),
+		HasTools: false,
+	}, nil
+}
+
+// GenerateStreamWithTools generates text with streaming and tool calling support.
+func (s *Service) GenerateStreamWithTools(ctx context.Context, messages []Message, tools []Tool, maxTokens int32, callback TokenCallback) (*GenerateResult, error) {
+	s.chatMutex.Lock()
+	defer s.chatMutex.Unlock()
+
+	if s.chatModel == 0 || s.chatContext == 0 {
+		return nil, fmt.Errorf("chat model not loaded")
+	}
+
+	// Get chat template
+	templateStr := llama.ModelChatTemplate(s.chatModel, "")
+	if templateStr == "" {
+		templateStr = ChatMLToolTemplate
+	}
+
+	// Convert to fantasy types for template
+	fantasyMessages := messagesToFantasy(messages)
+	fantasyTools := toolsToFantasy(tools)
+
+	// Apply template with tools
+	var formattedPrompt string
+	var err error
+
+	if len(tools) > 0 {
+		formattedPrompt, err = template.ApplyWithTools(ChatMLToolTemplate, fantasyMessages, fantasyTools, true)
+	} else {
+		formattedPrompt, err = template.Apply(templateStr, fantasyMessages, true)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to apply template: %w", err)
+	}
+
+	// Tokenize formatted prompt
+	tokens := llama.Tokenize(s.chatVocab, formattedPrompt, true, true)
+	if len(tokens) == 0 {
+		return nil, fmt.Errorf("failed to tokenize prompt")
+	}
+
+	// Create batch from tokens
+	batch := llama.BatchGetOne(tokens)
+
+	// Handle encoder models
+	if llama.ModelHasEncoder(s.chatModel) {
+		llama.Encode(s.chatContext, batch)
+		start := llama.ModelDecoderStartToken(s.chatModel)
+		if start == llama.TokenNull {
+			start = llama.VocabBOS(s.chatVocab)
+		}
+		batch = llama.BatchGetOne([]llama.Token{start})
+	}
+
+	// Generate tokens with streaming
+	var response strings.Builder
+	for pos := int32(0); pos < maxTokens; pos += batch.NTokens {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
+		llama.Decode(s.chatContext, batch)
+		token := llama.SamplerSample(s.chatSampler, s.chatContext, -1)
+
+		if llama.VocabIsEOG(s.chatVocab, token) {
+			break
+		}
+
+		tokenBuf := make([]byte, 256)
+		tokenLength := llama.TokenToPiece(s.chatVocab, token, tokenBuf, 0, false)
+		tokenText := string(tokenBuf[:tokenLength])
+
+		response.WriteString(tokenText)
+
+		// Stream token to callback
+		if !callback(tokenText) {
+			break
+		}
+
+		batch = llama.BatchGetOne([]llama.Token{token})
+	}
+
+	output := response.String()
+
+	// Parse for tool calls
+	if len(tools) > 0 {
+		parsed := ParseToolCalls(output)
+		return &GenerateResult{
+			Text:      parsed.Text,
+			ToolCalls: parsed.ToolCalls,
+			HasTools:  parsed.HasTools,
+		}, nil
+	}
+
+	return &GenerateResult{
+		Text:     strings.TrimSpace(output),
+		HasTools: false,
+	}, nil
+}
+
+// Message represents a chat message for tool calling.
+type Message struct {
+	Role       string
+	Content    string
+	ToolCalls  []ToolCallResult
+	ToolCallID string
+}
+
+// Tool represents a tool definition.
+type Tool struct {
+	Name        string
+	Description string
+	Parameters  map[string]interface{}
+}
+
+// messagesToFantasy converts llamalib Messages to fantasy.Message slice.
+func messagesToFantasy(messages []Message) []fantasy.Message {
+	result := make([]fantasy.Message, len(messages))
+	for i, m := range messages {
+		var role fantasy.MessageRole
+		switch m.Role {
+		case "system":
+			role = fantasy.MessageRoleSystem
+		case "user":
+			role = fantasy.MessageRoleUser
+		case "assistant":
+			role = fantasy.MessageRoleAssistant
+		case "tool":
+			role = fantasy.MessageRoleTool
+		default:
+			role = fantasy.MessageRoleUser
+		}
+
+		var content []fantasy.MessagePart
+
+		// Add text content
+		if m.Content != "" {
+			content = append(content, fantasy.TextPart{Text: m.Content})
+		}
+
+		// Add tool calls for assistant messages
+		for _, tc := range m.ToolCalls {
+			content = append(content, fantasy.ToolCallPart{
+				ToolCallID: tc.ID,
+				ToolName:   tc.Name,
+				Input:      tc.Arguments,
+			})
+		}
+
+		// Add tool result for tool messages
+		if role == fantasy.MessageRoleTool && m.ToolCallID != "" {
+			content = append(content, fantasy.ToolResultPart{
+				ToolCallID: m.ToolCallID,
+				Output:     fantasy.ToolResultOutputContentText{Text: m.Content},
+			})
+		}
+
+		result[i] = fantasy.Message{
+			Role:    role,
+			Content: content,
+		}
+	}
+	return result
+}
+
+// toolsToFantasy converts llamalib Tools to fantasy.Tool slice.
+func toolsToFantasy(tools []Tool) []fantasy.Tool {
+	result := make([]fantasy.Tool, len(tools))
+	for i, t := range tools {
+		result[i] = fantasy.FunctionTool{
+			Name:        t.Name,
+			Description: t.Description,
+			InputSchema: t.Parameters,
+		}
+	}
+	return result
+}
+
 // LoadVLModel loads a Vision-Language (VL) model
 // If modelPath is empty, automatically selects the best available VL model
 func (s *Service) LoadVLModel(modelPath string) error {
@@ -720,6 +1006,185 @@ func (s *Service) ProcessImageWithText(imagePath, prompt string, maxTokens int32
 	return result, nil
 }
 
+// ProcessImageBytesWithText processes image bytes with accompanying text using VL model.
+// This is useful for processing base64-encoded images from API requests.
+func (s *Service) ProcessImageBytesWithText(ctx context.Context, imageData []byte, prompt string, maxTokens int32) (string, error) {
+	s.vlMutex.Lock()
+	defer s.vlMutex.Unlock()
+
+	if s.vlModel == 0 || s.vlContext == 0 || s.vlMTMDCtx == 0 {
+		return "", fmt.Errorf("VL model not loaded")
+	}
+
+	if len(imageData) == 0 {
+		return "", fmt.Errorf("empty image data")
+	}
+
+	log.Printf("🖼️  Processing image bytes (%d bytes)", len(imageData))
+	log.Printf("💬 Prompt: %s", prompt)
+
+	// Load image from buffer using MTMD
+	bitmap := mtmd.BitmapInitFromBuf(s.vlMTMDCtx, &imageData[0], uint64(len(imageData)))
+	if bitmap == 0 {
+		return "", fmt.Errorf("failed to load image from bytes")
+	}
+	defer mtmd.BitmapFree(bitmap)
+
+	// Create input text with image placeholder
+	imagePlaceholder := mtmd.DefaultMarker() // Usually "<__media__>"
+	fullPrompt := "Here is an image: " + imagePlaceholder + "\n\n" + prompt
+
+	inputText := mtmd.NewInputText(fullPrompt, true, true)
+
+	// Initialize output chunks container
+	outputChunks := mtmd.InputChunksInit()
+	defer mtmd.InputChunksFree(outputChunks)
+
+	// Tokenize input (text + image)
+	bitmaps := []mtmd.Bitmap{bitmap}
+	if mtmd.Tokenize(s.vlMTMDCtx, outputChunks, inputText, bitmaps) != 0 {
+		return "", fmt.Errorf("failed to tokenize input with image")
+	}
+
+	// Get new n_past after processing chunks
+	var newNPast llama.Pos
+	nPast := llama.Pos(0)
+	seqID := llama.SeqId(0)
+
+	// Process multimodal input
+	nBatch := int32(512)
+	logitsLast := true
+	if mtmd.HelperEvalChunks(s.vlMTMDCtx, s.vlContext, outputChunks, nPast, seqID, nBatch, logitsLast, &newNPast) != 0 {
+		return "", fmt.Errorf("failed to process multimodal input")
+	}
+
+	// Generate response
+	var response strings.Builder
+	pos := int32(0)
+	for pos < maxTokens {
+		// Check for context cancellation
+		select {
+		case <-ctx.Done():
+			return response.String(), ctx.Err()
+		default:
+		}
+
+		token := llama.SamplerSample(s.vlSampler, s.vlContext, -1)
+
+		// Check for end of generation
+		if llama.VocabIsEOG(s.vlVocab, token) {
+			break
+		}
+
+		// Convert token to text
+		tokenBuf := make([]byte, 256)
+		tokenLength := llama.TokenToPiece(s.vlVocab, token, tokenBuf, 0, false)
+		response.Write(tokenBuf[:tokenLength])
+
+		// Prepare next batch
+		batch := llama.BatchGetOne([]llama.Token{token})
+
+		// Decode next token
+		llama.Decode(s.vlContext, batch)
+		pos += batch.NTokens
+	}
+
+	result := response.String()
+	log.Printf("✅ Image bytes processed successfully")
+
+	return result, nil
+}
+
+// ProcessImageBytesWithTextStream processes image bytes with streaming callback.
+func (s *Service) ProcessImageBytesWithTextStream(ctx context.Context, imageData []byte, prompt string, maxTokens int32, callback TokenCallback) error {
+	s.vlMutex.Lock()
+	defer s.vlMutex.Unlock()
+
+	if s.vlModel == 0 || s.vlContext == 0 || s.vlMTMDCtx == 0 {
+		return fmt.Errorf("VL model not loaded")
+	}
+
+	if len(imageData) == 0 {
+		return fmt.Errorf("empty image data")
+	}
+
+	log.Printf("🖼️  Processing image bytes with streaming (%d bytes)", len(imageData))
+	log.Printf("💬 Prompt: %s", prompt)
+
+	// Load image from buffer using MTMD
+	bitmap := mtmd.BitmapInitFromBuf(s.vlMTMDCtx, &imageData[0], uint64(len(imageData)))
+	if bitmap == 0 {
+		return fmt.Errorf("failed to load image from bytes")
+	}
+	defer mtmd.BitmapFree(bitmap)
+
+	// Create input text with image placeholder
+	imagePlaceholder := mtmd.DefaultMarker()
+	fullPrompt := "Here is an image: " + imagePlaceholder + "\n\n" + prompt
+
+	inputText := mtmd.NewInputText(fullPrompt, true, true)
+
+	// Initialize output chunks container
+	outputChunks := mtmd.InputChunksInit()
+	defer mtmd.InputChunksFree(outputChunks)
+
+	// Tokenize input (text + image)
+	bitmaps := []mtmd.Bitmap{bitmap}
+	if mtmd.Tokenize(s.vlMTMDCtx, outputChunks, inputText, bitmaps) != 0 {
+		return fmt.Errorf("failed to tokenize input with image")
+	}
+
+	// Process multimodal input
+	var newNPast llama.Pos
+	nPast := llama.Pos(0)
+	seqID := llama.SeqId(0)
+	nBatch := int32(512)
+	logitsLast := true
+
+	if mtmd.HelperEvalChunks(s.vlMTMDCtx, s.vlContext, outputChunks, nPast, seqID, nBatch, logitsLast, &newNPast) != 0 {
+		return fmt.Errorf("failed to process multimodal input")
+	}
+
+	// Generate response with streaming
+	pos := int32(0)
+	for pos < maxTokens {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		token := llama.SamplerSample(s.vlSampler, s.vlContext, -1)
+
+		if llama.VocabIsEOG(s.vlVocab, token) {
+			break
+		}
+
+		tokenBuf := make([]byte, 256)
+		tokenLength := llama.TokenToPiece(s.vlVocab, token, tokenBuf, 0, false)
+		tokenText := string(tokenBuf[:tokenLength])
+
+		// Stream token to callback
+		if !callback(tokenText) {
+			break
+		}
+
+		batch := llama.BatchGetOne([]llama.Token{token})
+		llama.Decode(s.vlContext, batch)
+		pos += batch.NTokens
+	}
+
+	log.Printf("✅ Image bytes streaming completed")
+	return nil
+}
+
+// IsVLModelLoaded returns true if a Vision-Language model is loaded.
+func (s *Service) IsVLModelLoaded() bool {
+	s.vlMutex.Lock()
+	defer s.vlMutex.Unlock()
+	return s.vlModel != 0 && s.vlContext != 0 && s.vlMTMDCtx != 0
+}
+
 // findProjectorForModel finds the corresponding MMTRoj projector file for a VL model
 func (s *Service) findProjectorForModel(modelPath, modelsDir string) (string, error) {
 	modelName := strings.TrimSuffix(filepath.Base(modelPath), ".gguf")
@@ -771,13 +1236,6 @@ func (s *Service) selectBestVLModel() (string, error) {
 	// For now, just return the first (largest) model
 	// TODO: Implement scoring based on RAM and quality like selectBestModel
 	return VLModels[0], nil
-}
-
-// IsVLModelLoaded returns true if a VL model is loaded
-func (s *Service) IsVLModelLoaded() bool {
-	s.vlMutex.Lock()
-	defer s.vlMutex.Unlock()
-	return s.vlModel != 0 && s.vlContext != 0 && s.vlMTMDCtx != 0
 }
 
 // GetLoadedVLModel returns the path of the currently loaded VL model

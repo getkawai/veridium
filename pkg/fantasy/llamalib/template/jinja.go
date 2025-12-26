@@ -70,6 +70,12 @@ func raiseExceptionFunc(msg string) string {
 // Apply applies a jinja chat template to a slice of [fantasy.Message], Set addAssistantPrompt to true to generate the
 // assistant prompt, for example on the first message.
 func Apply(tmpl string, messages []fantasy.Message, addAssistantPrompt bool) (string, error) {
+	return ApplyWithTools(tmpl, messages, nil, addAssistantPrompt)
+}
+
+// ApplyWithTools applies a jinja chat template with tool definitions.
+// Tools are formatted according to the template's tool calling convention.
+func ApplyWithTools(tmpl string, messages []fantasy.Message, tools []fantasy.Tool, addAssistantPrompt bool) (string, error) {
 	// prevent filesystem access
 	gonja.DefaultLoader = &NoFSLoader{}
 
@@ -88,8 +94,28 @@ func Apply(tmpl string, messages []fantasy.Message, addAssistantPrompt bool) (st
 		}
 	}
 
+	// Convert tools to template format
+	var toolDefs []map[string]interface{}
+	if len(tools) > 0 {
+		toolDefs = make([]map[string]interface{}, 0, len(tools))
+		for _, tool := range tools {
+			if ft, ok := tool.(fantasy.FunctionTool); ok {
+				toolDef := map[string]interface{}{
+					"type": "function",
+					"function": map[string]interface{}{
+						"name":        ft.Name,
+						"description": ft.Description,
+						"parameters":  ft.InputSchema,
+					},
+				}
+				toolDefs = append(toolDefs, toolDef)
+			}
+		}
+	}
+
 	data := exec.NewContext(map[string]interface{}{
 		"messages":              msgs,
+		"tools":                 toolDefs,
 		"add_generation_prompt": addAssistantPrompt,
 		// Add raise_exception function to prevent template errors
 		// Llama 3.2 template uses this to validate single tool call constraint

@@ -296,3 +296,69 @@ func PromptToText(prompt fantasy.Prompt) string {
 	return sb.String()
 }
 
+// RequestToLlamaMessages converts OpenAI request messages to llamalib Message format.
+func RequestToLlamaMessages(messages []ChatMessage) []LlamaMessage {
+	result := make([]LlamaMessage, len(messages))
+	for i, msg := range messages {
+		lm := LlamaMessage{
+			Role:       msg.Role,
+			Content:    msg.Content.GetText(),
+			ToolCallID: msg.ToolCallID,
+		}
+
+		// Convert tool calls
+		for _, tc := range msg.ToolCalls {
+			lm.ToolCalls = append(lm.ToolCalls, LlamaToolCall{
+				ID:        tc.ID,
+				Name:      tc.Function.Name,
+				Arguments: tc.Function.Arguments,
+			})
+		}
+
+		result[i] = lm
+	}
+	return result
+}
+
+// RequestToLlamaTools converts OpenAI tools to llamalib Tool format.
+func RequestToLlamaTools(tools []Tool) []LlamaTool {
+	if len(tools) == 0 {
+		return nil
+	}
+
+	result := make([]LlamaTool, 0, len(tools))
+	for _, t := range tools {
+		if t.Type != "function" {
+			continue
+		}
+		result = append(result, LlamaTool{
+			Name:        t.Function.Name,
+			Description: t.Function.Description,
+			Parameters:  t.Function.Parameters,
+		})
+	}
+	return result
+}
+
+// LlamaMessage represents a message for llamalib.
+type LlamaMessage struct {
+	Role       string
+	Content    string
+	ToolCalls  []LlamaToolCall
+	ToolCallID string
+}
+
+// LlamaToolCall represents a tool call result.
+type LlamaToolCall struct {
+	ID        string
+	Name      string
+	Arguments string
+}
+
+// LlamaTool represents a tool definition for llamalib.
+type LlamaTool struct {
+	Name        string
+	Description string
+	Parameters  map[string]any
+}
+
