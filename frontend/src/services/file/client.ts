@@ -10,7 +10,6 @@ import {
   toNullJSON,
   getNullableString,
   parseNullableJSON,
-  currentTimestampMs,
   File as DBFile,
 } from '@/types/database';
 import { Service as DBService } from '@@/github.com/kawai-network/veridium/internal/database';
@@ -23,23 +22,16 @@ export class ClientService extends BaseClientService implements IFileService {
     // we may want to save to a remote server later
 
     const fileId = nanoid();
-    const now = currentTimestampMs();
 
     await DBService.CreateFileWithLinks({
       File: {
-        id: fileId,
         fileType: toNullString(file.fileType) as any,
         fileHash: toNullString(file.hash) as any,
         name: toNullString(file.name) as any,
         size: file.size || 0,
         url: toNullString(file.url) as any,
         source: toNullString('upload') as any, // Default source
-        clientId: toNullString(this.userId) as any,
         metadata: toNullJSON(file.metadata) as any,
-        chunkTaskId: toNullString('') as any,
-        embeddingTaskId: toNullString('') as any,
-        createdAt: now,
-        updatedAt: now,
       },
       GlobalFile: !isExist ? {
         hashId: toNullString(file.hash) as any,
@@ -48,7 +40,6 @@ export class ClientService extends BaseClientService implements IFileService {
         url: toNullString(file.url) as any,
         metadata: toNullJSON(file.metadata) as any,
         creator: toNullString(this.userId) as any,
-        createdAt: now,
       } : null,
       KnowledgeBase: file.knowledgeBaseId || null,
     });
