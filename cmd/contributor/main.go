@@ -162,7 +162,7 @@ func main() {
 		Host:      "0.0.0.0",
 		Port:      constant.LocalContributorPort,
 		StaticDir: sdEngine.GetOutputsPath(),
-	}, llm, whisperExecutor, imageExecutor)
+	}, llm, whisperExecutor, imageExecutor, kv)
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)

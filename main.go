@@ -116,6 +116,7 @@ func buildServiceList(ctx *app.Context, fileProcessor *FileProcessorService, sdS
 		application.NewService(kvstore.New()),
 		application.NewService(ctx.WalletService),
 		application.NewService(ctx.DeAIService),
+		application.NewService(ctx.APIKeyService),
 
 		// File Server
 		application.NewServiceWithOptions(

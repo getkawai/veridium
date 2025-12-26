@@ -1,6 +1,6 @@
 import { StateCreator } from 'zustand';
 
-import { CreateImage } from '@@/github.com/kawai-network/veridium/internal/image/stablediffusion';
+import { CreateImage } from '@@/github.com/kawai-network/veridium/internal/image/service';
 
 import { ImageStore } from '../../store';
 import { generationBatchSelectors } from '../generationBatch/selectors';

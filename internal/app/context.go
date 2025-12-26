@@ -25,6 +25,7 @@ import (
 	"github.com/kawai-network/veridium/pkg/fantasy/providers/openrouter"
 	"github.com/kawai-network/veridium/pkg/fantasy/tools"
 	yzmabuiltin "github.com/kawai-network/veridium/pkg/fantasy/tools/builtin"
+	"github.com/kawai-network/veridium/pkg/store"
 )
 
 // Configuration constants
@@ -53,6 +54,7 @@ type Context struct {
 	// Storage Services
 	DuckDBStore *services.DuckDBStore
 	FileLoader  *services.FileLoader
+	KVStore     *store.KVStore
 
 	// Feature Services
 	SearchService  *search.Service
@@ -62,9 +64,10 @@ type Context struct {
 	VectorSearch   *services.VectorSearchService
 	KBService      *services.KnowledgeBaseService
 	RAGProcessor   *services.RAGProcessor
-	ToolRegistry  *tools.ToolRegistry
-	WalletService *services.WalletService
-	DeAIService   *services.DeAIService
+	ToolRegistry   *tools.ToolRegistry
+	WalletService  *services.WalletService
+	DeAIService    *services.DeAIService
+	APIKeyService  *services.APIKeyService
 
 	// Language Models
 	ChatModel    fantasy.LanguageModel
@@ -237,6 +240,25 @@ func (ctx *Context) InitDeAIService() {
 	log.Printf("DeAIService initialized (BSC Testnet)")
 }
 
+func (ctx *Context) InitKVStore() {
+	kvStore, err := store.NewMultiNamespaceKVStore()
+	if err != nil {
+		log.Printf("Warning: Failed to initialize KVStore: %v", err)
+		return
+	}
+	ctx.KVStore = kvStore
+	log.Printf("KVStore initialized with Cloudflare KV")
+}
+
+func (ctx *Context) InitAPIKeyService() {
+	if ctx.KVStore == nil {
+		log.Printf("Warning: KVStore not initialized, cannot init APIKeyService")
+		return
+	}
+	ctx.APIKeyService = services.NewAPIKeyService(ctx.KVStore)
+	log.Printf("APIKeyService initialized")
+}
+
 func (ctx *Context) InitLanguageModels() {
 	if ctx.LibService == nil {
 		return
@@ -390,6 +412,8 @@ func (ctx *Context) InitAll() error {
 	ctx.InitKnowledgeBase()
 	ctx.InitWalletService()
 	ctx.InitDeAIService()
+	ctx.InitKVStore()
+	ctx.InitAPIKeyService()
 	ctx.InitLanguageModels()
 	ctx.InitMemoryServices()
 	return nil
