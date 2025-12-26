@@ -33,6 +33,7 @@ var supportedVars = []ConfigVar{
 	{EnvKey: "CF_KV_CONTRIBUTORS_NAMESPACE_ID", GoName: "CfKvContributorsNamespaceId", Comment: "Namespace for contributor data", IsNamespace: true, Order: 20},
 	{EnvKey: "CF_KV_PROOFS_NAMESPACE_ID", GoName: "CfKvProofsNamespaceId", Comment: "Namespace for Merkle proofs", IsNamespace: true, Order: 21},
 	{EnvKey: "CF_KV_SETTLEMENTS_NAMESPACE_ID", GoName: "CfKvSettlementsNamespaceId", Comment: "Namespace for settlement metadata", IsNamespace: true, Order: 22},
+	{EnvKey: "CF_KV_APIKEY_NAMESPACE_ID", GoName: "CfKvApikeyNamespaceId", Comment: "Namespace for API key management", IsNamespace: true, Order: 23},
 }
 
 func main() {
@@ -175,6 +176,7 @@ func generateGoFile(vars []ConfigVar, configs map[string]string) string {
 		sb.WriteString("\t// - Contributors: User data, balances, heartbeat\n")
 		sb.WriteString("\t// - Proofs: Merkle proofs for each settlement period\n")
 		sb.WriteString("\t// - Settlements: Settlement period metadata\n")
+		sb.WriteString("\t// - Apikey: API key management\n")
 
 		for _, v := range vars {
 			if v.IsNamespace {
