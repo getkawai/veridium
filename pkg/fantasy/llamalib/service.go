@@ -436,6 +436,89 @@ func (s *Service) Generate(prompt string, maxTokens int32) (string, error) {
 	return response.String(), nil
 }
 
+// TokenCallback is called for each generated token during streaming.
+// Return true to continue generation, false to stop.
+type TokenCallback func(token string) bool
+
+// GenerateStream generates text from a prompt with streaming callback.
+// The callback is called for each token as it's generated, enabling real-time streaming.
+func (s *Service) GenerateStream(ctx context.Context, prompt string, maxTokens int32, callback TokenCallback) error {
+	s.chatMutex.Lock()
+	defer s.chatMutex.Unlock()
+
+	if s.chatModel == 0 || s.chatContext == 0 {
+		return fmt.Errorf("chat model not loaded")
+	}
+
+	// Format prompt with chat template if available
+	template := llama.ModelChatTemplate(s.chatModel, "")
+	if template == "" {
+		template = "chatml" // Default template
+	}
+
+	// Create a simple chat message
+	messages := []llama.ChatMessage{
+		llama.NewChatMessage("user", prompt),
+	}
+
+	// Apply chat template
+	buf := make([]byte, 65536) // 64KB buffer for long conversations
+	length := llama.ChatApplyTemplate(template, messages, true, buf)
+	formattedPrompt := string(buf[:length])
+
+	// Tokenize formatted prompt
+	tokens := llama.Tokenize(s.chatVocab, formattedPrompt, true, true)
+	if len(tokens) == 0 {
+		return fmt.Errorf("failed to tokenize prompt")
+	}
+
+	// Create batch from tokens
+	batch := llama.BatchGetOne(tokens)
+
+	// Handle encoder models
+	if llama.ModelHasEncoder(s.chatModel) {
+		llama.Encode(s.chatContext, batch)
+		start := llama.ModelDecoderStartToken(s.chatModel)
+		if start == llama.TokenNull {
+			start = llama.VocabBOS(s.chatVocab)
+		}
+		batch = llama.BatchGetOne([]llama.Token{start})
+	}
+
+	// Generate tokens with streaming
+	for pos := int32(0); pos < maxTokens; pos += batch.NTokens {
+		// Check for context cancellation
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		llama.Decode(s.chatContext, batch)
+		token := llama.SamplerSample(s.chatSampler, s.chatContext, -1)
+
+		// Check for end of generation
+		if llama.VocabIsEOG(s.chatVocab, token) {
+			break
+		}
+
+		// Convert token to text
+		tokenBuf := make([]byte, 256)
+		tokenLength := llama.TokenToPiece(s.chatVocab, token, tokenBuf, 0, false)
+		tokenText := string(tokenBuf[:tokenLength])
+
+		// Call the streaming callback
+		if !callback(tokenText) {
+			break // Callback requested stop
+		}
+
+		// Prepare next batch
+		batch = llama.BatchGetOne([]llama.Token{token})
+	}
+
+	return nil
+}
+
 // LoadVLModel loads a Vision-Language (VL) model
 // If modelPath is empty, automatically selects the best available VL model
 func (s *Service) LoadVLModel(modelPath string) error {

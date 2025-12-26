@@ -212,135 +212,115 @@ func (h *Handler) handleStream(c *gin.Context, req ChatCompletionRequest) {
 	fmt.Fprintf(c.Writer, "data: %s\n\n", data)
 	flusher.Flush()
 
-	streamChan := make(chan string, 100)
-	errChan := make(chan error, 1)
-	doneChan := make(chan struct{})
+	// Convert OpenAI messages to fantasy Prompt
+	prompt, err := RequestToPrompt(&req)
+	if err != nil {
+		h.sendStreamError(c, flusher, err)
+		return
+	}
 
-	go func() {
-		defer close(streamChan)
-		defer close(doneChan)
-
-		maxTokens := req.GetMaxTokens()
-
-		// Convert OpenAI messages to fantasy Prompt
-		prompt, err := RequestToPrompt(&req)
-		if err != nil {
-			errChan <- err
-			return
-		}
-
-		// Convert prompt to text for LLM
-		promptText := PromptToText(prompt)
-
-		result, err := h.llm.Generate(promptText, int32(maxTokens))
-		if err != nil {
-			errChan <- err
-			return
-		}
-
-		// Stream word by word (simulated streaming)
-		// TODO: Implement real token-by-token streaming when llamalib supports it
-		words := strings.Fields(strings.TrimSpace(result))
-		for i, word := range words {
-			select {
-			case <-c.Request.Context().Done():
-				return
-			default:
-				if i > 0 {
-					streamChan <- " "
-				}
-				streamChan <- word
-			}
-		}
-	}()
+	// Convert prompt to text for LLM
+	promptText := PromptToText(prompt)
+	maxTokens := req.GetMaxTokens()
 
 	promptTokens := estimateTokens(req.Messages)
 	completionTokens := 0
 
-	for {
+	// Use real streaming with callback
+	streamErr := h.llm.GenerateStream(c.Request.Context(), promptText, int32(maxTokens), func(token string) bool {
+		// Check if client disconnected
 		select {
-		case content, ok := <-streamChan:
-			if !ok {
-				// Send finish reason
-				finishChunk := ChatCompletionChunk{
-					ID:      id,
-					Object:  "chat.completion.chunk",
-					Created: created,
-					Model:   model,
-					Choices: []StreamChoice{
-						{
-							Index:        0,
-							Delta:        &DeltaMessage{},
-							FinishReason: "stop",
-						},
-					},
-				}
-				data, _ := json.Marshal(finishChunk)
-				fmt.Fprintf(c.Writer, "data: %s\n\n", data)
-				flusher.Flush()
-
-				// Send usage if requested
-				if req.StreamOptions != nil && req.StreamOptions.IncludeUsage {
-					usageChunk := ChatCompletionChunk{
-						ID:      id,
-						Object:  "chat.completion.chunk",
-						Created: created,
-						Model:   model,
-						Choices: []StreamChoice{},
-						Usage: &Usage{
-							PromptTokens:     promptTokens,
-							CompletionTokens: completionTokens,
-							TotalTokens:      promptTokens + completionTokens,
-						},
-					}
-					data, _ := json.Marshal(usageChunk)
-					fmt.Fprintf(c.Writer, "data: %s\n\n", data)
-					flusher.Flush()
-				}
-
-				// Send [DONE]
-				fmt.Fprintf(c.Writer, "data: [DONE]\n\n")
-				flusher.Flush()
-				return
-			}
-
-			completionTokens += len(content) / 4
-
-			chunk := ChatCompletionChunk{
-				ID:      id,
-				Object:  "chat.completion.chunk",
-				Created: created,
-				Model:   model,
-				Choices: []StreamChoice{
-					{
-						Index: 0,
-						Delta: &DeltaMessage{
-							Content: content,
-						},
-					},
-				},
-			}
-
-			data, _ := json.Marshal(chunk)
-			fmt.Fprintf(c.Writer, "data: %s\n\n", data)
-			flusher.Flush()
-
-		case err := <-errChan:
-			errResp := ErrorResponse{
-				Error: ErrorDetail{
-					Message: err.Error(),
-					Type:    "internal_error",
-				},
-			}
-			data, _ := json.Marshal(errResp)
-			fmt.Fprintf(c.Writer, "data: %s\n\n", data)
-			flusher.Flush()
-			return
-
 		case <-c.Request.Context().Done():
-			return
+			return false
+		default:
 		}
+
+		completionTokens += len(token) / 4
+
+		// Send token chunk
+		chunk := ChatCompletionChunk{
+			ID:      id,
+			Object:  "chat.completion.chunk",
+			Created: created,
+			Model:   model,
+			Choices: []StreamChoice{
+				{
+					Index: 0,
+					Delta: &DeltaMessage{
+						Content: token,
+					},
+				},
+			},
+		}
+
+		data, _ := json.Marshal(chunk)
+		fmt.Fprintf(c.Writer, "data: %s\n\n", data)
+		flusher.Flush()
+
+		return true // Continue generation
+	})
+
+	if streamErr != nil {
+		// Only send error if it's not a context cancellation
+		if streamErr != c.Request.Context().Err() {
+			h.sendStreamError(c, flusher, streamErr)
+		}
+		return
 	}
+
+	// Send finish reason
+	finishChunk := ChatCompletionChunk{
+		ID:      id,
+		Object:  "chat.completion.chunk",
+		Created: created,
+		Model:   model,
+		Choices: []StreamChoice{
+			{
+				Index:        0,
+				Delta:        &DeltaMessage{},
+				FinishReason: "stop",
+			},
+		},
+	}
+	data, _ = json.Marshal(finishChunk)
+	fmt.Fprintf(c.Writer, "data: %s\n\n", data)
+	flusher.Flush()
+
+	// Send usage if requested
+	if req.StreamOptions != nil && req.StreamOptions.IncludeUsage {
+		usageChunk := ChatCompletionChunk{
+			ID:      id,
+			Object:  "chat.completion.chunk",
+			Created: created,
+			Model:   model,
+			Choices: []StreamChoice{},
+			Usage: &Usage{
+				PromptTokens:     promptTokens,
+				CompletionTokens: completionTokens,
+				TotalTokens:      promptTokens + completionTokens,
+			},
+		}
+		data, _ = json.Marshal(usageChunk)
+		fmt.Fprintf(c.Writer, "data: %s\n\n", data)
+		flusher.Flush()
+	}
+
+	// Send [DONE]
+	fmt.Fprintf(c.Writer, "data: [DONE]\n\n")
+	flusher.Flush()
+}
+
+// sendStreamError sends an error response during streaming.
+func (h *Handler) sendStreamError(c *gin.Context, flusher http.Flusher, err error) {
+	errResp := ErrorResponse{
+		Error: ErrorDetail{
+			Message: err.Error(),
+			Type:    "internal_error",
+		},
+	}
+	data, _ := json.Marshal(errResp)
+	fmt.Fprintf(c.Writer, "data: %s\n\n", data)
+	flusher.Flush()
 }
 
 // sendError sends an OpenAI-compatible error response.
