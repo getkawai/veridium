@@ -47,6 +47,18 @@ func RegisterAllWithDB(registry *tools.ToolRegistry, sqlDB *sql.DB) error {
 	}
 	log.Println("✅ Registered: calculator")
 
+	// Register office tools (word, excel, powerpoint)
+	if err := RegisterOfficeWord(registry); err != nil {
+		return err
+	}
+	if err := RegisterOfficeExcel(registry); err != nil {
+		return err
+	}
+	if err := RegisterOfficePowerPoint(registry); err != nil {
+		return err
+	}
+	log.Println("✅ Registered: office-word, office-excel, office-powerpoint (create, update, read)")
+
 	// Register lobe-image-describe (requires DB for querying VL descriptions)
 	if sqlDB != nil {
 		if err := RegisterImageDescribe(registry, sqlDB); err != nil {
