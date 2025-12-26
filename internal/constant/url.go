@@ -1,3 +1,6 @@
 package constant
 
-const LocalContributorURL = "http://localhost:42139"
+const (
+	LocalContributorPort = 42139
+	LocalContributorURL  = "http://localhost:42139"
+)

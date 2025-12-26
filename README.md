@@ -45,7 +45,7 @@ This roadmap outlines the path from "Zero" to a fully functional decentralized n
     - [x] `MerkleDistributor.sol`: Gas-efficient reward claiming system.
 - [x] **Middleware (Go):**
     - [x] `pkg/blockchain`: Service to interact with **Monad** (Listen events, Send TXs).
-    - [x] `pkg/store`: Persistent storage using Cloudflare Workers KV.
+    - [x] `pkg/store`: Persistent storage using Cloudflare Workers KV (Multi-namespace).
     - [x] `pkg/merkle`: Merkle Tree generation logic.
 
 ### Phase 2: The "Lean" Launch (Internal Market)
@@ -76,6 +76,11 @@ This roadmap outlines the path from "Zero" to a fully functional decentralized n
         - [x] Implement `COST_RATE_PER_MILLION` as configurable Environment Variable.
         - [x] Calculate Contributor/Admin USDT cost per job in `RecordJobReward`.
         - [x] Distribute remaining USDT Profit to KAWAI Holders weekly.
+- [x] **Settlement System (pkg/store):**
+    - [x] Multi-namespace KV architecture (Contributors, Proofs, Settlements).
+    - [x] Period-specific Merkle proofs with claim status tracking.
+    - [x] Atomic settlement with rollback support.
+    - [x] Soft delete for contributor lifecycle management.
 
 ### Phase 3: Community Liquidity (Growth)
 **Focus:** Transition to decentralized liquidity.
@@ -133,10 +138,12 @@ COST_RATE_PER_MILLION=1.0       # USDT cost per 1M tokens (Phase 2)
 ADMIN_ADDRESS=0x...             # Admin wallet for fee collection
 ADMIN_PRIVATE_KEY=0x...         # For signing Merkle Root updates
 
-# Cloudflare KV (Worker Data Storage)
+# Cloudflare KV (Multi-Namespace Architecture)
 CF_ACCOUNT_ID=...
 CF_API_TOKEN=...
-CF_KV_NAMESPACE_ID=...
+CF_KV_CONTRIBUTORS_NAMESPACE_ID=...  # Contributor data
+CF_KV_PROOFS_NAMESPACE_ID=...        # Merkle proofs
+CF_KV_SETTLEMENTS_NAMESPACE_ID=...   # Settlement metadata
 ```
 
 ---
@@ -145,8 +152,19 @@ CF_KV_NAMESPACE_ID=...
 
 -   **Smart Contracts:** Solidity, Foundry, OpenZeppelin.
 -   **Backend (Middleware):** Go (Golang), `net/http`, `go-ethereum`, `cloudflare-go`.
--   **Database:** Cloudflare Workers KV.
+-   **Database:** Cloudflare Workers KV (Multi-namespace).
 -   **Frontend:** React, Vite, Ant Design Web3.
 -   **Contributor Node:** Go (Golang), `llama.cpp`.
 -   **Blockchain:** Monad (EVM-compatible).
 -   **Network Toolkit:** `pkg/jarvis` (Multi-chain support incl. Monad).
+
+---
+
+## 📦 Package Documentation
+
+| Package | Description |
+|---------|-------------|
+| [`pkg/store`](pkg/store/README.md) | Off-chain KV storage (Contributors, Proofs, Settlements) |
+| `pkg/merkle` | Merkle tree generation |
+| `pkg/blockchain` | Monad blockchain interaction |
+| `pkg/config` | Configuration management |

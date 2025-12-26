@@ -5,32 +5,26 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/kawai-network/veridium/pkg/fantasy/llamalib"
 )
-
-// LLMExecutor defines the interface for executing LLM inference.
-type LLMExecutor interface {
-	// Execute runs inference and returns the response content.
-	Execute(messages []ChatMessage) (string, error)
-	// ExecuteStream runs inference with streaming response.
-	ExecuteStream(messages []ChatMessage, stream chan<- string) error
-}
 
 // Handler handles OpenAI-compatible API requests.
 type Handler struct {
-	executor        LLMExecutor
+	llm             *llamalib.Service
 	whisperExecutor *WhisperExecutor
 	imageExecutor   ImageExecutor
 	modelName       string
 }
 
-// NewHandler creates a new Handler with the given LLM and Whisper executors.
-func NewHandler(executor LLMExecutor, whisperExecutor *WhisperExecutor, imageExecutor ImageExecutor, modelName string) *Handler {
+// NewHandler creates a new Handler with the given services.
+func NewHandler(llm *llamalib.Service, whisperExecutor *WhisperExecutor, imageExecutor ImageExecutor, modelName string) *Handler {
 	return &Handler{
-		executor:        executor,
+		llm:             llm,
 		whisperExecutor: whisperExecutor,
 		imageExecutor:   imageExecutor,
 		modelName:       modelName,
@@ -120,11 +114,18 @@ func (h *Handler) ChatCompletions(c *gin.Context) {
 
 // handleNonStream handles non-streaming chat completion requests.
 func (h *Handler) handleNonStream(c *gin.Context, req ChatCompletionRequest) {
-	content, err := h.executor.Execute(req.Messages)
+	maxTokens := req.MaxTokens
+	if maxTokens == 0 {
+		maxTokens = 2048 // Default
+	}
+
+	prompt := formatMessagesToPrompt(req.Messages)
+	content, err := h.llm.Generate(prompt, int32(maxTokens))
 	if err != nil {
 		h.sendError(c, http.StatusInternalServerError, "internal_error", err.Error())
 		return
 	}
+	content = strings.TrimSpace(content)
 
 	response := ChatCompletionResponse{
 		ID:      "chatcmpl-" + uuid.New().String()[:8],
@@ -172,8 +173,25 @@ func (h *Handler) handleStream(c *gin.Context, req ChatCompletionRequest) {
 
 	go func() {
 		defer close(streamChan)
-		if err := h.executor.ExecuteStream(req.Messages, streamChan); err != nil {
+		maxTokens := req.MaxTokens
+		if maxTokens == 0 {
+			maxTokens = 2048 // Default
+		}
+
+		prompt := formatMessagesToPrompt(req.Messages)
+		result, err := h.llm.Generate(prompt, int32(maxTokens))
+		if err != nil {
 			errChan <- err
+			return
+		}
+
+		// Simulate streaming by sending word by word
+		words := strings.Fields(strings.TrimSpace(result))
+		for i, word := range words {
+			if i > 0 {
+				streamChan <- " "
+			}
+			streamChan <- word
 		}
 	}()
 
@@ -243,6 +261,25 @@ func estimateTokens(messages []ChatMessage) int {
 	return total
 }
 
+// formatMessagesToPrompt converts chat messages to a single prompt string.
+func formatMessagesToPrompt(messages []ChatMessage) string {
+	var sb strings.Builder
+	for _, msg := range messages {
+		switch msg.Role {
+		case "system":
+			sb.WriteString(fmt.Sprintf("System: %s\n", msg.Content))
+		case "user":
+			sb.WriteString(fmt.Sprintf("User: %s\n", msg.Content))
+		case "assistant":
+			sb.WriteString(fmt.Sprintf("Assistant: %s\n", msg.Content))
+		default:
+			sb.WriteString(fmt.Sprintf("%s: %s\n", msg.Role, msg.Content))
+		}
+	}
+	sb.WriteString("Assistant:")
+	return sb.String()
+}
+
 // HealthCheck handles GET /health
 func (h *Handler) HealthCheck(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
@@ -251,28 +288,10 @@ func (h *Handler) HealthCheck(c *gin.Context) {
 	})
 }
 
-// MockExecutor is a simple mock executor for testing.
-type MockExecutor struct{}
-
-func (m *MockExecutor) Execute(messages []ChatMessage) (string, error) {
-	if len(messages) == 0 {
+// MockGenerate is a simple mock for testing without llamalib.
+func MockGenerate(prompt string, maxTokens int32) (string, error) {
+	if prompt == "" {
 		return "", io.EOF
 	}
-	last := messages[len(messages)-1]
-	return fmt.Sprintf("Mock response to: %s", last.Content), nil
-}
-
-func (m *MockExecutor) ExecuteStream(messages []ChatMessage, stream chan<- string) error {
-	content, err := m.Execute(messages)
-	if err != nil {
-		return err
-	}
-	// Simulate streaming by sending word by word
-	for i, r := range content {
-		stream <- string(r)
-		if i%10 == 0 {
-			time.Sleep(10 * time.Millisecond)
-		}
-	}
-	return nil
+	return fmt.Sprintf("Mock response to: %s", prompt), nil
 }

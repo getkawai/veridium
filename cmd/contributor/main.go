@@ -10,223 +10,195 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/internal/image"
+	"github.com/kawai-network/veridium/internal/services"
 	"github.com/kawai-network/veridium/internal/whisper"
+	"github.com/kawai-network/veridium/pkg/fantasy/llamalib"
 	"github.com/kawai-network/veridium/pkg/gateway"
+	"github.com/kawai-network/veridium/pkg/hardware"
+	"github.com/kawai-network/veridium/pkg/store"
 	"github.com/kawai-network/veridium/pkg/tunnelkit"
 )
 
 func main() {
 	// CLI flags
-	host := flag.String("host", "0.0.0.0", "Host to bind the server")
-	port := flag.Int("port", 8080, "Port to bind the server")
-	modelPath := flag.String("model", "", "Path to model file (optional, auto-select if empty)")
-	maxTokens := flag.Int("max-tokens", 2048, "Max tokens to generate")
-	enableTunnel := flag.Bool("tunnel", true, "Enable Cloudflare Tunnel (default: true)")
-	tunnelIndex := flag.Int("tunnel-index", 0, "Tunnel index to use from generated tunnels (default: 0)")
+
+	walletPassword := flag.String("password", "", "Wallet password")
+	walletAddress := flag.String("wallet", "", "Wallet address to use")
+	importMnemonic := flag.String("import-mnemonic", "", "Import wallet from mnemonic")
 	flag.Parse()
 
-	// Initialize LlamaExecutor
+	// ============================================
+	// Step 1: Setup Wallet
+	// ============================================
+	wallet := services.NewWalletService("")
+
+	if !wallet.HasWallet() && *walletPassword == "" {
+		log.Fatal("No wallet found. Use --password to create one.")
+	}
+
+	if wallet.HasWallet() && *walletPassword == "" {
+		for _, w := range wallet.GetWallets() {
+			log.Printf("  - %s (%s)", w.Address, w.Description)
+		}
+		log.Fatal("Use --password to unlock.")
+	}
+
+	var address string
+	var err error
+
+	if *importMnemonic != "" {
+		address, err = wallet.CreateWallet(*walletPassword, *importMnemonic, "Kawai Contributor")
+	} else if !wallet.HasWallet() {
+		mnemonic, _ := wallet.GenerateMnemonic()
+		fmt.Println("\n⚠️  SAVE YOUR MNEMONIC:")
+		fmt.Printf("\n  %s\n\n", mnemonic)
+		address, err = wallet.CreateWallet(*walletPassword, mnemonic, "Kawai Contributor")
+	} else if *walletAddress != "" {
+		address, err = wallet.SwitchWallet(*walletAddress, *walletPassword)
+	} else {
+		address, err = wallet.UnlockWallet(*walletPassword)
+	}
+
+	if err != nil {
+		log.Fatalf("Wallet error: %v", err)
+	}
+	log.Printf("✓ Wallet: %s", address)
+
+	// ============================================
+	// Step 2: Detect Hardware
+	// ============================================
+	log.Println("Detecting hardware...")
+	hwSpecs := hardware.DetectHardwareSpecs()
+	hardwareInfo := fmt.Sprintf("%s, %d cores, %dGB RAM, GPU: %s (%dGB VRAM)",
+		hwSpecs.CPU, hwSpecs.CPUCores, hwSpecs.TotalRAM, hwSpecs.GPUModel, hwSpecs.GPUMemory)
+	log.Printf("✓ Hardware: %s", hardwareInfo)
+
+	// ============================================
+	// Step 3: Initialize KV Store & Register
+	// ============================================
 	ctx := context.Background()
-	log.Printf("Initializing llama.cpp executor (model: %s)...", *modelPath)
 
-	executor, err := gateway.NewLlamaExecutor(ctx, *modelPath, int32(*maxTokens))
+	kv, err := store.NewMultiNamespaceKVStore()
 	if err != nil {
-		log.Fatalf("Failed to initialize executor: %v", err)
+		log.Fatalf("Failed to connect to KV: %v", err)
 	}
+	log.Println("✓ Connected to Cloudflare KV")
 
-	// Initialize WhisperExecutor
-	log.Printf("Initializing whisper.cpp service...")
-	whisperService, err := whisper.NewService()
-	if err != nil {
-		log.Printf("Warning: Failed to initialize whisper service: %v", err)
-		// Continue without whisper
-	}
-	whisperExecutor := gateway.NewWhisperExecutor(whisperService)
-
-	// Initialize ImageExecutor
-	log.Printf("Initializing stable-diffusion.cpp engine...")
-	sdEngine := image.NewEngine()
-	imageExecutor := gateway.NewSDLocalExecutor(sdEngine)
-
-	// Create gateway server
-	cfg := gateway.ServerConfig{
-		Host:      *host,
-		Port:      *port,
-		ModelName: "llama.cpp", // TODO: Get actual model name from executor
-		StaticDir: sdEngine.GetOutputsPath(),
-	}
-	server := gateway.NewServer(cfg, executor, whisperExecutor, imageExecutor)
-
-	// Start Cloudflare Tunnel if enabled
+	// ============================================
+	// Step 4: Start Tunnel (get public URL first)
+	// ============================================
 	tunnelCtx, tunnelCancel := context.WithCancel(context.Background())
 	defer tunnelCancel()
 
-	if *enableTunnel {
-		go startTunnel(tunnelCtx, *tunnelIndex)
+	tunnelURL := startTunnel(tunnelCtx)
+	if tunnelURL != "" {
+		log.Printf("✓ Tunnel: %s", tunnelURL)
 	}
 
-	// Graceful shutdown
+	endpointURL := tunnelURL
+
+	// ============================================
+	// Step 5: Register Contributor to KV
+	// ============================================
+	contributor, err := kv.RegisterContributor(ctx, address, endpointURL, hardwareInfo)
+	if err != nil {
+		log.Fatalf("Failed to register: %v", err)
+	}
+	log.Printf("✓ Registered: %s (since %s)", contributor.WalletAddress, contributor.RegisteredAt.Format("2006-01-02"))
+
+	// ============================================
+	// Step 6: Start Heartbeat (direct to KV)
+	// ============================================
+	heartbeatCtx, heartbeatCancel := context.WithCancel(context.Background())
+	defer heartbeatCancel()
+
+	go func() {
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-heartbeatCtx.Done():
+				return
+			case <-ticker.C:
+				if err := kv.UpdateHeartbeat(ctx, address); err != nil {
+					log.Printf("⚠️ Heartbeat failed: %v", err)
+				}
+			}
+		}
+	}()
+	log.Println("✓ Heartbeat started (30s)")
+
+	// ============================================
+	// Step 7: Initialize AI Services
+	// ============================================
+	llm := llamalib.NewService()
+
+	// Wait for LLM initialization
+	initCtx, initCancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer initCancel()
+	if err := llm.WaitForInitialization(initCtx); err != nil {
+		log.Fatalf("Failed to initialize LLM: %v", err)
+	}
+
+	// Load chat model (auto-select best)
+	if err := llm.LoadChatModel(""); err != nil {
+		log.Fatalf("Failed to load model: %v", err)
+	}
+	log.Println("✓ LLM ready")
+
+	whisperService, _ := whisper.NewService()
+	whisperExecutor := gateway.NewWhisperExecutor(whisperService)
+
+	sdEngine := image.NewEngine()
+	imageExecutor := gateway.NewSDLocalExecutor(sdEngine)
+
+	// ============================================
+	// Step 8: Start Server
+	// ============================================
+	server := gateway.NewServer(gateway.ServerConfig{
+		Host:      "0.0.0.0",
+		Port:      constant.LocalContributorPort,
+		ModelName: "llama.cpp",
+		StaticDir: sdEngine.GetOutputsPath(),
+	}, llm, whisperExecutor, imageExecutor)
+
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
-	// Start server in goroutine
-	errChan := make(chan error, 1)
 	go func() {
 		if err := server.Start(); err != nil {
-			errChan <- err
+			log.Fatalf("Server error: %v", err)
 		}
 	}()
 
-	// Wait for signal or error
-	select {
-	case <-quit:
-		fmt.Println("\nShutting down server...")
-	case err := <-errChan:
-		log.Fatalf("Server error: %v", err)
+	fmt.Printf("\n  Wallet: %s\n  Local:  %s\n", address, constant.LocalContributorURL)
+	if tunnelURL != "" {
+		fmt.Printf("  Public: %s\n", tunnelURL)
+	}
+	fmt.Println()
+
+	<-quit
+
+	// Cleanup: mark offline
+	if err := kv.UpdateHeartbeat(ctx, address); err == nil {
+		// Could set status to offline here if needed
 	}
 
-	// Graceful shutdown with timeout
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-
-	if err := server.Stop(shutdownCtx); err != nil {
-		log.Printf("Server shutdown error: %v", err)
-	}
-
-	fmt.Println("Server stopped")
+	server.Stop(shutdownCtx)
 }
 
-// startTunnel starts a Cloudflare Tunnel for the contributor service
-func startTunnel(ctx context.Context, preferredIndex int) {
-	log.Println("Starting Cloudflare Tunnel...")
-
-	// Get available tunnels
+func startTunnel(ctx context.Context) string {
 	tunnels := tunnelkit.GetTunnels()
-	if len(tunnels) == 0 {
-		log.Println("⚠️  No tunnels configured. Run: go run cmd/bulk-tunnels/main.go")
-		log.Println("⚠️  Contributor will only be accessible locally")
-		return
-	}
-
-	// Try preferred tunnel first
-	tunnel, tunnelIndex := selectAvailableTunnel(tunnels, preferredIndex)
-	if tunnel == nil {
-		log.Println("❌ All tunnels are in use. Please generate more tunnels or wait.")
-		return
-	}
-
-	log.Printf("✓ Using tunnel [%d]: %s", tunnelIndex, tunnel.Hostname)
-	log.Printf("✓ Public URL: %s", tunnel.PublicURL)
-
-	// Run tunnel with retry logic
-	maxRetries := len(tunnels)
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		err := tunnelkit.RunTunnel(ctx, tunnel.TunnelToken)
-
-		if ctx.Err() != nil {
-			// Context cancelled, normal shutdown
-			log.Println("Tunnel stopped")
-			return
-		}
-
-		if err == nil {
-			// Tunnel stopped normally
-			return
-		}
-
-		// Check if error is due to tunnel already in use
-		errMsg := err.Error()
-		if containsAny(errMsg, []string{"already in use", "duplicate connection", "connection exists"}) {
-			log.Printf("⚠️  Tunnel [%d] is in use by another contributor", tunnelIndex)
-
-			// Try next available tunnel
-			remainingTunnels := make([]*tunnelkit.TunnelInfo, 0)
-			for i, t := range tunnels {
-				if i != tunnelIndex {
-					remainingTunnels = append(remainingTunnels, t)
-				}
-			}
-
-			if len(remainingTunnels) == 0 {
-				log.Println("❌ No more tunnels available")
-				return
-			}
-
-			// Select next tunnel
-			tunnel, tunnelIndex = selectAvailableTunnel(tunnels, (tunnelIndex+1)%len(tunnels))
-			if tunnel == nil {
-				log.Println("❌ All tunnels are in use")
-				return
-			}
-
-			log.Printf("🔄 Retrying with tunnel [%d]: %s", tunnelIndex, tunnel.Hostname)
-			continue
-		}
-
-		// Other error, log and exit
-		log.Printf("❌ Tunnel error: %v", err)
-		return
-	}
-
-	log.Println("❌ Failed to connect to any tunnel after all retries")
-}
-
-// containsAny checks if string contains any of the substrings
-func containsAny(s string, substrs []string) bool {
-	for _, substr := range substrs {
-		if len(s) >= len(substr) {
-			for i := 0; i <= len(s)-len(substr); i++ {
-				if s[i:i+len(substr)] == substr {
-					return true
-				}
-			}
+	for _, tunnel := range tunnels {
+		if ok, _ := tunnelkit.HasActiveConnections(tunnel.TunnelID); !ok {
+			go tunnelkit.RunTunnel(ctx, tunnel.TunnelToken)
+			return tunnel.PublicURL
 		}
 	}
-	return false
-}
-
-// selectAvailableTunnel tries to find an available tunnel
-// Returns the tunnel and its index, or nil if all are in use
-func selectAvailableTunnel(tunnels []*tunnelkit.TunnelInfo, preferredIndex int) (*tunnelkit.TunnelInfo, int) {
-	// Validate preferred index
-	if preferredIndex >= len(tunnels) {
-		log.Printf("⚠️  Tunnel index %d out of range (available: %d tunnels)", preferredIndex, len(tunnels))
-		preferredIndex = 0
-	}
-
-	// Try preferred tunnel first
-	if isTunnelAvailable(tunnels[preferredIndex]) {
-		log.Printf("✓ Preferred tunnel [%d] is available", preferredIndex)
-		return tunnels[preferredIndex], preferredIndex
-	}
-	log.Printf("⚠️  Preferred tunnel [%d] is in use, searching for alternatives...", preferredIndex)
-
-	// Try other tunnels
-	for i, tunnel := range tunnels {
-		if i == preferredIndex {
-			continue // Already tried
-		}
-		if isTunnelAvailable(tunnel) {
-			log.Printf("✓ Found available tunnel [%d]", i)
-			return tunnel, i
-		}
-	}
-
-	// All tunnels are in use
-	return nil, -1
-}
-
-// isTunnelAvailable checks if a tunnel is currently available (not in use)
-func isTunnelAvailable(tunnel *tunnelkit.TunnelInfo) bool {
-	// Check via Cloudflare API if tunnel has active connections
-	hasActiveConnections, err := tunnelkit.HasActiveConnections(tunnel.TunnelID)
-	if err != nil {
-		// If error checking, assume available (optimistic)
-		// Will fail fast if actually in use
-		log.Printf("⚠️  Could not check tunnel status: %v", err)
-		return true
-	}
-
-	return !hasActiveConnections
+	return ""
 }

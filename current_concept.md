@@ -129,7 +129,19 @@ Sistem menggunakan pendekatan **Hybrid (On-Chain Settlement + Off-Chain Verifica
     *   **Verifikasi (Anti-Cheat):** Menggunakan metode "Gold Standard" (menyisipkan pertanyaan jebakan yang jawabannya sudah diketahui) untuk memvalidasi kejujuran Node.
     *   **Accounting & Merkle Generator:** Mencatat poin -> Generate Merkle Tree -> Upload Root ke Blockchain -> Simpan Proof di KV Store untuk diklaim Contributor.
 
-### C. Logic Implementasi Pembagian (Reward Algorithm)
+### C. Off-Chain Storage Architecture (Cloudflare KV)
+
+Data off-chain disimpan di **Cloudflare Workers KV** dengan arsitektur **Multi-Namespace**:
+
+| Namespace | Deskripsi | Key Format |
+|-----------|-----------|------------|
+| `contributors` | Data profil & saldo contributor | `{wallet_address}` |
+| `proofs` | Bukti Merkle per periode | `{address}:{period_id}` |
+| `settlements` | Metadata settlement | `{period_id}` |
+
+👉 **Detail lengkap:** [`pkg/store/README.md`](pkg/store/README.md)
+
+### D. Logic Implementasi Pembagian (Reward Algorithm)
 *Lokasi Code:* `pkg/store/contributor.go` -> `RecordJobReward()`
 
 Logika pembagian 70/30 dieksekusi secara **Real-Time (Per Job)** oleh Middleware saat job selesai:
@@ -146,7 +158,7 @@ Logika pembagian 70/30 dieksekusi secara **Real-Time (Per Job)** oleh Middleware
     *   Admin menjalankan script `snapshot`.
     *   Script hanya membaca total saldo akhir (tanpa rumus lagi) -> Generate Merkle Root -> Upload ke Blockchain.
 
-### D. Mekanisme Teknis Hybrid (How It Works)
+### E. Mekanisme Teknis Hybrid (How It Works)
 
 Agar jaringan tetap "Lean" (hemat biaya), kami menggunakan model **Off-Chain Accumulation + On-Chain Settlement**.
 
@@ -161,12 +173,20 @@ Agar jaringan tetap "Lean" (hemat biaya), kami menggunakan model **Off-Chain Acc
     *   *Code Ref:* `pkg/store/contributor.go` -> `RecordJobReward()`
 *   **Kompresi:** Ribuan transaksi dikompres menjadi satu **Merkle Tree**.
 *   **Blockchain:** Admin hanya mengirim **Merkle Root** (hash kecil) ke Smart Contract.
-*   **Biaya:** 1 Transaksi murah per minggu.
+*   **Biaya:** 1 Transaksi murah per minggu (~$0.01 di Monad).
 
-#### 3. Klaim (User Action)
+#### 3. Settlement Process (Atomic)
+*   **Flow:** Snapshot → Generate Merkle Tree → Save Proofs → Reset Balances
+*   **Safety:** Rollback otomatis jika ada kegagalan di tengah proses
+*   **Resumable:** Settlement yang terganggu bisa dilanjutkan
+    *   *Code Ref:* `pkg/store/settlement.go` -> `PerformSettlement()`
+
+#### 4. Klaim (User Action)
 *   **Interface:** Contributor menghubungkan Wallet ke Dashboard Web.
 *   **Bukti:** Website mengambil "Bukti Kriptografis" (Proof) dari database.
 *   **Withdraw:** Smart Contract memverifikasi Proof terhadap Root dan merilis token.
+*   **Tracking:** Status klaim dilacak: `unclaimed` → `pending` → `confirmed`/`failed`
+    *   *Code Ref:* `pkg/store/merkle.go` -> `MarkClaimPending()`, `ConfirmClaim()`
 
 ## 4. Roadmap Tahap Awal (Immediate Action Plan)
 

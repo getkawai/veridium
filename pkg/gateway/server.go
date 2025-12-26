@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/kawai-network/veridium/pkg/fantasy/llamalib"
 )
 
 // ServerConfig holds configuration for the gateway server.
@@ -26,12 +27,12 @@ type Server struct {
 }
 
 // NewServer creates a new gateway server with the given configuration.
-func NewServer(cfg ServerConfig, executor LLMExecutor, whisperExecutor *WhisperExecutor, imageExecutor ImageExecutor) *Server {
+func NewServer(cfg ServerConfig, llm *llamalib.Service, whisperExecutor *WhisperExecutor, imageExecutor ImageExecutor) *Server {
 	gin.SetMode(gin.ReleaseMode)
 	engine := gin.New()
 	engine.Use(gin.Recovery())
 
-	handler := NewHandler(executor, whisperExecutor, imageExecutor, cfg.ModelName)
+	handler := NewHandler(llm, whisperExecutor, imageExecutor, cfg.ModelName)
 
 	s := &Server{
 		engine:  engine,
