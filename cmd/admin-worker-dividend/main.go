@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/pkg/admin"
 	"github.com/kawai-network/veridium/pkg/blockchain"
 	"github.com/kawai-network/veridium/pkg/store"
@@ -21,13 +22,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Shared Config (In prod, use env vars)
-	accountID := "ceab218751d33cd804878196ad7bef74"
-	apiToken := "OP8BZQhyeJxrovCPKt15eUOSC6i5LXTVECGRSMc1"
-	namespaceID := "55bd9f26233940dabb65f2a1992bfae9"
-
-	// Initialize Store
-	kv, err := store.NewKVStore(apiToken, accountID, namespaceID)
+	// Initialize Store with multi-namespace configuration
+	kv, err := store.NewMultiNamespaceKVStore(store.MultiNamespaceConfig{
+		APIToken:                constant.GetCfApiToken(),
+		AccountID:               constant.GetCfAccountId(),
+		ContributorsNamespaceID: constant.GetCfKvContributorsNamespaceId(),
+		ProofsNamespaceID:       constant.GetCfKvProofsNamespaceId(),
+		SettlementsNamespaceID:  constant.GetCfKvSettlementsNamespaceId(),
+	})
 	if err != nil {
 		log.Fatalf("Failed to initialize KV store: %v", err)
 	}

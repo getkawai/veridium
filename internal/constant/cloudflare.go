@@ -4,26 +4,51 @@ package constant
 import "github.com/kawai-network/veridium/pkg/obfuscator"
 
 const (
+	// Core Cloudflare credentials
 	obfuscatedCfAccountId = "QeTJPqsVakk9jCIrS+7txvwIf7YQaD6hWRbEIyOExX6="
 	obfuscatedCfApiToken = "mjfZu/zSIWvlA/5HqsFBOH9pCc1T2kHr+uq5RUlGs+YelOxD828NlP=="
-	obfuscatedCfKvNamespaceId = "4+2IA+dMRiNTYD2="
+
+	// KV Namespaces - Multiple namespaces for data isolation
+	// - Contributors: User data, balances, heartbeat
+	// - Proofs: Merkle proofs for each settlement period
+	// - Settlements: Settlement period metadata
+	obfuscatedCfKvContributorsNamespaceId = "kxnCnJhjcrVRKM9nU4wNxvaa1DnMal6hkkYkBd6qkIG="
+	obfuscatedCfKvProofsNamespaceId = "TndwnPlkkOjejJJLUa5VGegaPOp0LzYHweLXIj8EjT8="
+	obfuscatedCfKvSettlementsNamespaceId = "Qna/Pi4l4GLeQCJLU1S8A0i+Leov3824U/mZpN4Ma+8="
 )
 
 // GetCfAccountId returns the decoded value of CF_ACCOUNT_ID
+// Cloudflare Account ID
 func GetCfAccountId() string {
 	val, _ := obfuscator.DecodeString(obfuscatedCfAccountId)
 	return val
 }
 
 // GetCfApiToken returns the decoded value of CF_API_TOKEN
+// Cloudflare API Token
 func GetCfApiToken() string {
 	val, _ := obfuscator.DecodeString(obfuscatedCfApiToken)
 	return val
 }
 
-// GetCfKvNamespaceId returns the decoded value of CF_KV_NAMESPACE_ID
-func GetCfKvNamespaceId() string {
-	val, _ := obfuscator.DecodeString(obfuscatedCfKvNamespaceId)
+// GetCfKvContributorsNamespaceId returns the decoded value of CF_KV_CONTRIBUTORS_NAMESPACE_ID
+// Namespace for contributor data
+func GetCfKvContributorsNamespaceId() string {
+	val, _ := obfuscator.DecodeString(obfuscatedCfKvContributorsNamespaceId)
+	return val
+}
+
+// GetCfKvProofsNamespaceId returns the decoded value of CF_KV_PROOFS_NAMESPACE_ID
+// Namespace for Merkle proofs
+func GetCfKvProofsNamespaceId() string {
+	val, _ := obfuscator.DecodeString(obfuscatedCfKvProofsNamespaceId)
+	return val
+}
+
+// GetCfKvSettlementsNamespaceId returns the decoded value of CF_KV_SETTLEMENTS_NAMESPACE_ID
+// Namespace for settlement metadata
+func GetCfKvSettlementsNamespaceId() string {
+	val, _ := obfuscator.DecodeString(obfuscatedCfKvSettlementsNamespaceId)
 	return val
 }
 

@@ -22,24 +22,81 @@ type ContributorData struct {
 	Status             string    `json:"status"`
 	AccumulatedRewards string    `json:"accumulated_rewards"`        // KAWAI (Phase 1)
 	AccumulatedUSDT    string    `json:"accumulated_usdt,omitempty"` // USDT (Phase 2)
+	IsActive           bool      `json:"is_active"`                  // Soft delete flag
+	DeletedAt          time.Time `json:"deleted_at,omitempty"`       // When soft deleted
+	IsAdmin            bool      `json:"is_admin,omitempty"`         // Admin flag
 }
 
 type Store interface {
+	// Contributor operations
 	SaveContributor(ctx context.Context, data *ContributorData) error
 	GetContributor(ctx context.Context, address string) (*ContributorData, error)
 	ListContributors(ctx context.Context) ([]*ContributorData, error)
+	ListActiveContributors(ctx context.Context) ([]*ContributorData, error)
+	ListContributorsWithBalance(ctx context.Context, rewardType string) ([]*ContributorData, error)
 	GetOnlineContributors(ctx context.Context) ([]*ContributorData, error)
 	UpdateHeartbeat(ctx context.Context, address string) error
+	ResetAccumulatedRewards(ctx context.Context, address string, rewardType string) error
+	RegisterContributor(ctx context.Context, address, endpointURL, hardwareSpecs string) (*ContributorData, error)
+	SoftDeleteContributor(ctx context.Context, address string) error
+	RestoreContributor(ctx context.Context, address string) error
+
+	// Merkle proof operations (deprecated - use period-specific methods)
 	SaveMerkleProof(ctx context.Context, address string, data *MerkleProofData) error
 	GetMerkleProof(ctx context.Context, address string) (*MerkleProofData, error)
+
+	// Period-specific Merkle proof operations
+	SaveMerkleProofForPeriod(ctx context.Context, address string, periodID int64, data *MerkleProofData) error
+	GetMerkleProofForPeriod(ctx context.Context, address string, periodID int64) (*MerkleProofData, error)
+	ListMerkleProofs(ctx context.Context, address string) ([]*MerkleProofData, error)
+	DeleteMerkleProof(ctx context.Context, address string, periodID int64) error
+
+	// Claim status operations
+	MarkClaimPending(ctx context.Context, address string, periodID int64, txHash string) error
+	ConfirmClaim(ctx context.Context, address string, periodID int64) error
+	MarkClaimFailed(ctx context.Context, address string, periodID int64, reason string) error
+	RetryFailedClaim(ctx context.Context, address string, periodID int64) error
+	GetPendingClaims(ctx context.Context) ([]*MerkleProofData, error)
+
+	// Settlement operations
+	GetSettlementSnapshots(ctx context.Context, rewardType string) ([]*SettlementSnapshot, error)
+	PerformSettlement(ctx context.Context, periodID int64, merkleRoot string, rewardType string, proofs map[string]*MerkleProofData) (*SettlementPeriod, error)
+	PerformSettlementWithConfig(ctx context.Context, periodID int64, merkleRoot string, rewardType string, proofs map[string]*MerkleProofData, config *SettlementConfig) (*SettlementPeriod, error)
+	PerformSettlementParallel(ctx context.Context, periodID int64, merkleRoot string, rewardType string, proofs map[string]*MerkleProofData, workers int) (*SettlementPeriod, error)
+	ResumeSettlement(ctx context.Context, periodID int64, proofs map[string]*MerkleProofData, config *SettlementConfig) (*SettlementPeriod, error)
+	GetClaimableRewards(ctx context.Context, address string) (map[string]interface{}, error)
+
+	// Settlement period operations
+	SaveSettlementPeriod(ctx context.Context, period *SettlementPeriod) error
+	GetSettlementPeriod(ctx context.Context, periodID int64) (*SettlementPeriod, error)
+	ListSettlementPeriods(ctx context.Context) ([]*SettlementPeriod, error)
+
+	// Admin operations
+	EnsureAdminExists(ctx context.Context, adminAddress string) error
 }
 
+// MultiNamespaceConfig holds the configuration for multiple KV namespaces
+type MultiNamespaceConfig struct {
+	APIToken                string
+	AccountID               string
+	ContributorsNamespaceID string // For contributor data
+	ProofsNamespaceID       string // For Merkle proofs
+	SettlementsNamespaceID  string // For settlement metadata
+}
+
+// KVStore implements Store interface with multiple namespaces
 type KVStore struct {
-	client      *cloudflare.API
-	accountID   string
-	namespaceID string
+	client    *cloudflare.API
+	accountID string
+
+	// Separate namespace IDs for different data types
+	contributorsNamespaceID string
+	proofsNamespaceID       string
+	settlementsNamespaceID  string
 }
 
+// NewKVStore creates a new KVStore with a single namespace (legacy mode)
+// Deprecated: Use NewMultiNamespaceKVStore for better isolation
 func NewKVStore(apiToken, accountID, namespaceID string) (*KVStore, error) {
 	api, err := cloudflare.NewWithAPIToken(apiToken)
 	if err != nil {
@@ -47,23 +104,45 @@ func NewKVStore(apiToken, accountID, namespaceID string) (*KVStore, error) {
 	}
 
 	return &KVStore{
-		client:      api,
-		accountID:   accountID,
-		namespaceID: namespaceID,
+		client:                  api,
+		accountID:               accountID,
+		contributorsNamespaceID: namespaceID,
+		proofsNamespaceID:       namespaceID,
+		settlementsNamespaceID:  namespaceID,
 	}, nil
 }
 
+// NewMultiNamespaceKVStore creates a new KVStore with separate namespaces
+func NewMultiNamespaceKVStore(cfg MultiNamespaceConfig) (*KVStore, error) {
+	api, err := cloudflare.NewWithAPIToken(cfg.APIToken)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create cloudflare client: %w", err)
+	}
+
+	return &KVStore{
+		client:                  api,
+		accountID:               cfg.AccountID,
+		contributorsNamespaceID: cfg.ContributorsNamespaceID,
+		proofsNamespaceID:       cfg.ProofsNamespaceID,
+		settlementsNamespaceID:  cfg.SettlementsNamespaceID,
+	}, nil
+}
+
+// =============================================================================
+// CONTRIBUTOR OPERATIONS (Contributors Namespace)
+// =============================================================================
+
 // SaveContributor stores contributor metadata and mining progress in Cloudflare KV.
-// This data (mining results) is used weekly to calculate the 70/30 reward split.
+// Key format: {address} (lowercase)
 func (s *KVStore) SaveContributor(ctx context.Context, data *ContributorData) error {
-	key := data.WalletAddress
+	key := ContributorKey(data.WalletAddress)
 	value, err := json.Marshal(data)
 	if err != nil {
 		return fmt.Errorf("failed to marshal contributor data: %w", err)
 	}
 
 	_, err = s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
-		NamespaceID: s.namespaceID,
+		NamespaceID: s.contributorsNamespaceID,
 		Key:         key,
 		Value:       value,
 	})
@@ -75,11 +154,13 @@ func (s *KVStore) SaveContributor(ctx context.Context, data *ContributorData) er
 	return nil
 }
 
+// GetContributor retrieves contributor data from KV
+// Key format: {address} (lowercase)
 func (s *KVStore) GetContributor(ctx context.Context, address string) (*ContributorData, error) {
-	key := address
+	key := ContributorKey(address)
 
 	value, err := s.client.GetWorkersKV(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{
-		NamespaceID: s.namespaceID,
+		NamespaceID: s.contributorsNamespaceID,
 		Key:         key,
 	})
 	if err != nil {
@@ -94,10 +175,10 @@ func (s *KVStore) GetContributor(ctx context.Context, address string) (*Contribu
 	return &data, nil
 }
 
+// ListContributors returns all contributors (no prefix needed - entire namespace is contributors)
 func (s *KVStore) ListContributors(ctx context.Context) ([]*ContributorData, error) {
-	// List all keys in the contributor namespace
 	resp, err := s.client.ListWorkersKVKeys(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.ListWorkersKVsParams{
-		NamespaceID: s.namespaceID,
+		NamespaceID: s.contributorsNamespaceID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list keys: %w", err)
@@ -116,6 +197,7 @@ func (s *KVStore) ListContributors(ctx context.Context) ([]*ContributorData, err
 	return contributors, nil
 }
 
+// GetOnlineContributors returns contributors with recent heartbeat
 func (s *KVStore) GetOnlineContributors(ctx context.Context) ([]*ContributorData, error) {
 	contributors, err := s.ListContributors(ctx)
 	if err != nil {
@@ -135,7 +217,6 @@ func (s *KVStore) GetOnlineContributors(ctx context.Context) ([]*ContributorData
 }
 
 // UpdateHeartbeat updates the timestamp and online status for a contributor.
-// Regular heartbeats are used for real-time monitoring of node availability.
 func (s *KVStore) UpdateHeartbeat(ctx context.Context, address string) error {
 	contributor, err := s.GetContributor(ctx, address)
 	if err != nil {
@@ -148,10 +229,156 @@ func (s *KVStore) UpdateHeartbeat(ctx context.Context, address string) error {
 	return s.SaveContributor(ctx, contributor)
 }
 
+// ResetAccumulatedRewards resets the accumulated rewards for a contributor after settlement.
+// rewardType can be "kawai" or "usdt"
+func (s *KVStore) ResetAccumulatedRewards(ctx context.Context, address string, rewardType string) error {
+	contributor, err := s.GetContributor(ctx, address)
+	if err != nil {
+		return fmt.Errorf("failed to get contributor: %w", err)
+	}
+
+	switch rewardType {
+	case "kawai":
+		oldBalance := contributor.AccumulatedRewards
+		contributor.AccumulatedRewards = "0"
+		log.Printf("[Store] Reset KAWAI rewards for %s: %s -> 0", address, oldBalance)
+	case "usdt":
+		oldBalance := contributor.AccumulatedUSDT
+		contributor.AccumulatedUSDT = "0"
+		log.Printf("[Store] Reset USDT rewards for %s: %s -> 0", address, oldBalance)
+	default:
+		return fmt.Errorf("invalid reward type: %s (must be 'kawai' or 'usdt')", rewardType)
+	}
+
+	return s.SaveContributor(ctx, contributor)
+}
+
+// SoftDeleteContributor marks a contributor as inactive (soft delete)
+func (s *KVStore) SoftDeleteContributor(ctx context.Context, address string) error {
+	contributor, err := s.GetContributor(ctx, address)
+	if err != nil {
+		return fmt.Errorf("failed to get contributor: %w", err)
+	}
+
+	contributor.IsActive = false
+	contributor.DeletedAt = time.Now()
+	contributor.Status = "deleted"
+
+	if err := s.SaveContributor(ctx, contributor); err != nil {
+		return fmt.Errorf("failed to soft delete contributor: %w", err)
+	}
+
+	log.Printf("[Store] Soft deleted contributor: %s", address)
+	return nil
+}
+
+// RestoreContributor restores a soft-deleted contributor
+func (s *KVStore) RestoreContributor(ctx context.Context, address string) error {
+	contributor, err := s.GetContributor(ctx, address)
+	if err != nil {
+		return fmt.Errorf("failed to get contributor: %w", err)
+	}
+
+	contributor.IsActive = true
+	contributor.DeletedAt = time.Time{}
+	contributor.Status = "offline"
+
+	if err := s.SaveContributor(ctx, contributor); err != nil {
+		return fmt.Errorf("failed to restore contributor: %w", err)
+	}
+
+	log.Printf("[Store] Restored contributor: %s", address)
+	return nil
+}
+
+// ListActiveContributors returns only active (non-deleted) contributors
+func (s *KVStore) ListActiveContributors(ctx context.Context) ([]*ContributorData, error) {
+	contributors, err := s.ListContributors(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	active := make([]*ContributorData, 0)
+	for _, c := range contributors {
+		if c.IsActive {
+			active = append(active, c)
+		}
+	}
+
+	return active, nil
+}
+
+// ListContributorsWithBalance returns contributors with non-zero balance (for settlement)
+func (s *KVStore) ListContributorsWithBalance(ctx context.Context, rewardType string) ([]*ContributorData, error) {
+	contributors, err := s.ListContributors(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	withBalance := make([]*ContributorData, 0)
+	for _, c := range contributors {
+		var balance string
+		if rewardType == "kawai" {
+			balance = c.AccumulatedRewards
+		} else {
+			balance = c.AccumulatedUSDT
+		}
+
+		if balance != "" && balance != "0" {
+			withBalance = append(withBalance, c)
+		}
+	}
+
+	return withBalance, nil
+}
+
+// RegisterContributor registers a new contributor with proper initialization
+func (s *KVStore) RegisterContributor(ctx context.Context, address, endpointURL, hardwareSpecs string) (*ContributorData, error) {
+	// Check if already exists
+	existing, err := s.GetContributor(ctx, address)
+	if err == nil && existing != nil {
+		// If soft deleted, restore
+		if !existing.IsActive {
+			existing.IsActive = true
+			existing.DeletedAt = time.Time{}
+			existing.EndpointURL = endpointURL
+			existing.HardwareSpecs = hardwareSpecs
+			existing.Status = "online"
+			existing.LastSeen = time.Now()
+
+			if err := s.SaveContributor(ctx, existing); err != nil {
+				return nil, fmt.Errorf("failed to restore contributor: %w", err)
+			}
+			log.Printf("[Store] Restored and updated contributor: %s", address)
+			return existing, nil
+		}
+
+		// Already active
+		return existing, nil
+	}
+
+	// Create new contributor
+	contributor := &ContributorData{
+		WalletAddress:      address,
+		EndpointURL:        endpointURL,
+		HardwareSpecs:      hardwareSpecs,
+		RegisteredAt:       time.Now(),
+		LastSeen:           time.Now(),
+		Status:             "online",
+		IsActive:           true,
+		AccumulatedRewards: "0",
+		AccumulatedUSDT:    "0",
+	}
+
+	if err := s.SaveContributor(ctx, contributor); err != nil {
+		return nil, fmt.Errorf("failed to register contributor: %w", err)
+	}
+
+	log.Printf("[Store] Registered new contributor: %s", address)
+	return contributor, nil
+}
+
 // RecordJobReward distributes rewards based on the 70/30 Rule.
-// Supports two phases:
-// - Phase 1 (Mining): Contributors earn KAWAI tokens
-// - Phase 2 (USDT): Contributors earn USDT (when MAX_SUPPLY reached)
 func (s *KVStore) RecordJobReward(ctx context.Context, contributorAddress string, tokenUsage int64, adminAddress string, mode config.RewardMode) error {
 
 	// Helper to update balance field
@@ -194,7 +421,6 @@ func (s *KVStore) RecordJobReward(ctx context.Context, contributorAddress string
 
 	if mode == config.ModeMining {
 		// Phase 1: KAWAI Mining
-		// Formula: (TokenUsage / 1,000,000) * KAWAI_RATE_PER_MILLION
 		kawaiRate := config.GetKawaiRatePerMillion()
 		baseRate := new(big.Int).Mul(big.NewInt(kawaiRate), new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil))
 
@@ -209,15 +435,11 @@ func (s *KVStore) RecordJobReward(ctx context.Context, contributorAddress string
 		log.Printf("[Phase 1 Mining] Job: %d Tokens -> %s KAWAI. Contributor: %s | Admin: %s", tokenUsage, rewardAmount.String(), contributorShare.String(), adminShare.String())
 	} else {
 		// Phase 2: USDT Payment
-		// Formula: (TokenUsage / 1,000,000) * COST_RATE_PER_MILLION
 		usdtRate := config.GetCostRatePerMillion()
-		// Store USDT in smallest unit (6 decimals for USDT)
 		usdtDecimals := new(big.Int).Exp(big.NewInt(10), big.NewInt(6), nil)
 
-		// Calculate: (tokenUsage * usdtRate * 1e6) / 1,000,000
 		rewardAmount := new(big.Int).Mul(big.NewInt(tokenUsage), big.NewInt(int64(usdtRate*1000000)))
 		rewardAmount.Div(rewardAmount, big.NewInt(1000000))
-		// rewardAmount is now in USDT micro-units
 
 		contributorShare = new(big.Int).Mul(rewardAmount, big.NewInt(70))
 		contributorShare.Div(contributorShare, big.NewInt(100))
