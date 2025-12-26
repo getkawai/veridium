@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/kawai-network/veridium/pkg/fantasy/llamalib"
+	"github.com/kawai-network/veridium/pkg/store"
 )
 
 // ServerConfig holds configuration for the gateway server.
@@ -23,20 +24,22 @@ type Server struct {
 	server  *http.Server
 	handler *Handler
 	config  ServerConfig
+	kvStore *store.KVStore
 }
 
 // NewServer creates a new gateway server with the given configuration.
-func NewServer(cfg ServerConfig, llm *llamalib.Service, whisperExecutor *WhisperExecutor, imageExecutor ImageExecutor) *Server {
+func NewServer(cfg ServerConfig, llm *llamalib.Service, whisperExecutor *WhisperExecutor, imageExecutor ImageExecutor, kvStore *store.KVStore) *Server {
 	gin.SetMode(gin.ReleaseMode)
 	engine := gin.New()
 	engine.Use(gin.Recovery())
 
-	handler := NewHandler(llm, whisperExecutor, imageExecutor)
+	handler := NewHandler(llm, whisperExecutor, imageExecutor, kvStore)
 
 	s := &Server{
 		engine:  engine,
 		handler: handler,
 		config:  cfg,
+		kvStore: kvStore,
 	}
 
 	s.setupRoutes()
@@ -56,6 +59,7 @@ func (s *Server) setupRoutes() {
 
 	// OpenAI-compatible endpoints
 	v1 := s.engine.Group("/v1")
+	v1.Use(AuthMiddleware(s.kvStore)) // Add auth middleware to all v1 endpoints
 	{
 		// Models
 		v1.GET("/models", s.handler.Models)

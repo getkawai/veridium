@@ -1,9 +1,11 @@
 package gateway
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -12,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/pkg/fantasy/llamalib"
+	"github.com/kawai-network/veridium/pkg/store"
 )
 
 // Handler handles OpenAI-compatible API requests.
@@ -19,14 +22,16 @@ type Handler struct {
 	llm             *llamalib.Service
 	whisperExecutor *WhisperExecutor
 	imageExecutor   ImageExecutor
+	kvStore         *store.KVStore
 }
 
 // NewHandler creates a new Handler with the given services.
-func NewHandler(llm *llamalib.Service, whisperExecutor *WhisperExecutor, imageExecutor ImageExecutor) *Handler {
+func NewHandler(llm *llamalib.Service, whisperExecutor *WhisperExecutor, imageExecutor ImageExecutor, kvStore *store.KVStore) *Handler {
 	return &Handler{
 		llm:             llm,
 		whisperExecutor: whisperExecutor,
 		imageExecutor:   imageExecutor,
+		kvStore:         kvStore,
 	}
 }
 
@@ -104,50 +109,124 @@ func (h *Handler) ChatCompletions(c *gin.Context) {
 		return
 	}
 
+	// Get user address from auth middleware
+	userAddress, ok := GetUserAddress(c)
+	if !ok {
+		h.sendError(c, http.StatusUnauthorized, "unauthorized", "user not authenticated")
+		return
+	}
+
 	if req.Stream {
-		h.handleStream(c, req)
+		h.handleStream(c, req, userAddress)
 	} else {
-		h.handleNonStream(c, req)
+		h.handleNonStream(c, req, userAddress)
 	}
 }
 
 // handleNonStream handles non-streaming chat completion requests.
-func (h *Handler) handleNonStream(c *gin.Context, req ChatCompletionRequest) {
+func (h *Handler) handleNonStream(c *gin.Context, req ChatCompletionRequest, userAddress string) {
 	maxTokens := req.GetMaxTokens()
 
-	// Convert OpenAI messages to fantasy Prompt
-	prompt, err := RequestToPrompt(&req)
+	// Get user address for billing
+	ctx := context.Background()
+
+	// Estimate input tokens for pre-check
+	inputTokens := estimateTokens(req.Messages)
+	estimatedTotalTokens := int64(inputTokens + maxTokens) // Worst case estimate
+
+	// Pre-check: Ensure user has sufficient balance for estimated usage
+	err := h.kvStore.CheckSufficientBalance(ctx, userAddress, estimatedTotalTokens)
 	if err != nil {
-		h.sendError(c, http.StatusBadRequest, "invalid_request_error", err.Error())
+		h.sendError(c, http.StatusPaymentRequired, "insufficient_balance", err.Error())
 		return
 	}
 
-	// Convert prompt to text for LLM
-	promptText := PromptToText(prompt)
+	// Check if tools are provided
+	hasTools := len(req.Tools) > 0
 
-	// Check if request has images (for future VL model support)
-	hasImages := false
-	for _, msg := range req.Messages {
-		if msg.Content.HasImages() {
-			hasImages = true
-			break
+	// Check if images are present in the request
+	imageData, textPrompt := extractImageAndText(req.Messages)
+	hasImages := len(imageData) > 0
+
+	var responseMsg *ResponseMessage
+	var finishReason string
+	var genErr error
+
+	if hasImages && h.llm.IsVLModelLoaded() {
+		// Use Vision-Language model for image processing
+		log.Printf("Processing request with VL model (image size: %d bytes)", len(imageData))
+
+		content, vlErr := h.llm.ProcessImageBytesWithText(c.Request.Context(), imageData, textPrompt, int32(maxTokens))
+		if vlErr != nil {
+			h.sendError(c, http.StatusInternalServerError, "internal_error", vlErr.Error())
+			return
 		}
-	}
 
-	var content string
-	if hasImages {
-		// TODO: Use VL model when images are present
-		// For now, just process text
-		content, err = h.llm.Generate(promptText, int32(maxTokens))
+		responseMsg = &ResponseMessage{
+			Role:    "assistant",
+			Content: strings.TrimSpace(content),
+		}
+		finishReason = "stop"
+	} else if hasTools {
+		// Use tool-aware generation
+		messages := convertToLlamaMessages(req.Messages)
+		tools := convertToLlamaTools(req.Tools)
+
+		result, toolErr := h.llm.GenerateWithTools(c.Request.Context(), messages, tools, int32(maxTokens))
+		if toolErr != nil {
+			h.sendError(c, http.StatusInternalServerError, "internal_error", toolErr.Error())
+			return
+		}
+
+		responseMsg = &ResponseMessage{
+			Role:    "assistant",
+			Content: result.Text,
+		}
+
+		if result.HasTools && len(result.ToolCalls) > 0 {
+			finishReason = "tool_calls"
+			responseMsg.ToolCalls = convertToolCallResults(result.ToolCalls)
+		} else {
+			finishReason = "stop"
+		}
 	} else {
-		content, err = h.llm.Generate(promptText, int32(maxTokens))
+		// Standard generation without tools
+		prompt, convErr := RequestToPrompt(&req)
+		if convErr != nil {
+			h.sendError(c, http.StatusBadRequest, "invalid_request_error", convErr.Error())
+			return
+		}
+
+		promptText := PromptToText(prompt)
+
+		content, textErr := h.llm.Generate(promptText, int32(maxTokens))
+		if textErr != nil {
+			h.sendError(c, http.StatusInternalServerError, "internal_error", textErr.Error())
+			return
+		}
+
+		responseMsg = &ResponseMessage{
+			Role:    "assistant",
+			Content: strings.TrimSpace(content),
+		}
+		finishReason = "stop"
 	}
 
+	// Calculate actual token usage and deduct from balance
+	promptTokens := estimateTokens(req.Messages)
+	completionTokens := len(responseMsg.Content) / 4
+	totalTokens := int64(promptTokens + completionTokens)
+
+	// Deduct actual usage from user balance
+	cost := store.CalculateUsageCost(totalTokens)
+	err = h.kvStore.DeductBalance(ctx, userAddress, cost)
 	if err != nil {
-		h.sendError(c, http.StatusInternalServerError, "internal_error", err.Error())
+		log.Printf("Failed to deduct balance for user %s: %v", userAddress, err)
+		h.sendError(c, http.StatusInternalServerError, "billing_error", "Failed to process payment")
 		return
 	}
-	content = strings.TrimSpace(content)
+
+	log.Printf("User %s used %d tokens, charged %s micro USDT", userAddress, totalTokens, cost.String())
 
 	// Build response
 	response := ChatCompletionResponse{
@@ -157,26 +236,80 @@ func (h *Handler) handleNonStream(c *gin.Context, req ChatCompletionRequest) {
 		Model:   getModelName(req.Model),
 		Choices: []ResponseChoice{
 			{
-				Index: 0,
-				Message: &ResponseMessage{
-					Role:    "assistant",
-					Content: content,
-				},
-				FinishReason: "stop",
+				Index:        0,
+				Message:      responseMsg,
+				FinishReason: finishReason,
 			},
 		},
 		Usage: &Usage{
-			PromptTokens:     estimateTokens(req.Messages),
-			CompletionTokens: len(content) / 4,
-			TotalTokens:      estimateTokens(req.Messages) + len(content)/4,
+			PromptTokens:     promptTokens,
+			CompletionTokens: completionTokens,
+			TotalTokens:      promptTokens + completionTokens,
 		},
 	}
 
+	_ = genErr // Suppress unused variable warning
 	c.JSON(http.StatusOK, response)
 }
 
+// convertToLlamaMessages converts gateway messages to llamalib format.
+func convertToLlamaMessages(messages []ChatMessage) []llamalib.Message {
+	result := make([]llamalib.Message, len(messages))
+	for i, msg := range messages {
+		lm := llamalib.Message{
+			Role:       msg.Role,
+			Content:    msg.Content.GetText(),
+			ToolCallID: msg.ToolCallID,
+		}
+
+		// Convert tool calls
+		for _, tc := range msg.ToolCalls {
+			lm.ToolCalls = append(lm.ToolCalls, llamalib.ToolCallResult{
+				ID:        tc.ID,
+				Name:      tc.Function.Name,
+				Arguments: tc.Function.Arguments,
+			})
+		}
+
+		result[i] = lm
+	}
+	return result
+}
+
+// convertToLlamaTools converts gateway tools to llamalib format.
+func convertToLlamaTools(tools []Tool) []llamalib.Tool {
+	result := make([]llamalib.Tool, 0, len(tools))
+	for _, t := range tools {
+		if t.Type != "function" {
+			continue
+		}
+		result = append(result, llamalib.Tool{
+			Name:        t.Function.Name,
+			Description: t.Function.Description,
+			Parameters:  t.Function.Parameters,
+		})
+	}
+	return result
+}
+
+// convertToolCallResults converts llamalib tool calls to gateway format.
+func convertToolCallResults(toolCalls []llamalib.ToolCallResult) []ToolCall {
+	result := make([]ToolCall, len(toolCalls))
+	for i, tc := range toolCalls {
+		result[i] = ToolCall{
+			ID:   tc.ID,
+			Type: "function",
+			Function: ToolCallFunction{
+				Name:      tc.Name,
+				Arguments: tc.Arguments,
+			},
+		}
+	}
+	return result
+}
+
 // handleStream handles streaming chat completion requests using SSE.
-func (h *Handler) handleStream(c *gin.Context, req ChatCompletionRequest) {
+func (h *Handler) handleStream(c *gin.Context, req ChatCompletionRequest, userAddress string) {
 	c.Header("Content-Type", "text/event-stream")
 	c.Header("Cache-Control", "no-cache")
 	c.Header("Connection", "keep-alive")
@@ -393,4 +526,36 @@ func MockGenerate(prompt string, maxTokens int32) (string, error) {
 		return "", io.EOF
 	}
 	return fmt.Sprintf("Mock response to: %s", prompt), nil
+}
+
+// extractImageAndText extracts the first image and combined text from messages.
+// Returns image data (decoded from base64) and the text prompt.
+func extractImageAndText(messages []ChatMessage) ([]byte, string) {
+	var imageData []byte
+	var textParts []string
+
+	for _, msg := range messages {
+		// Skip non-user messages for image extraction
+		if msg.Role != "user" {
+			continue
+		}
+
+		// Check for images in content parts
+		images := msg.Content.GetImages()
+		if len(images) > 0 && len(imageData) == 0 {
+			// Take the first image
+			img := images[0]
+			if len(img.Data) > 0 {
+				imageData = img.Data
+			}
+		}
+
+		// Collect text
+		text := msg.Content.GetText()
+		if text != "" {
+			textParts = append(textParts, text)
+		}
+	}
+
+	return imageData, strings.Join(textParts, "\n")
 }

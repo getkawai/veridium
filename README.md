@@ -57,12 +57,12 @@ This roadmap outlines the path from "Zero" to a fully functional decentralized n
 - [ ] **Consumer API (User Client):**
     - [ ] Web3 Dashboard: Login via Wallet to manage API Keys.
     - [x] OpenAI-compatible `/v1/chat/completions` proxy (Base foundation).
-    - [ ] Real-time credit deduction system.
-        - [ ] API key validation & user identification per request.
-        - [ ] Track token usage per user per request.
-        - [ ] Deduct USDT credits from user's PaymentVault balance in real-time.
-        - [ ] Reject requests if insufficient balance.
-        - [ ] Log all transactions for billing/audit.
+    - [x] Real-time credit deduction system.
+        - [x] API key validation & user identification per request.
+        - [x] Track token usage per user per request.
+        - [x] Deduct USDT credits from user's balance in real-time.
+        - [x] Reject requests if insufficient balance.
+        - [x] Log all transactions for billing/audit.
 - [ ] **Internal P2P Marketplace (Web):**
     - [ ] UI for Contributors to list their Token rewards.
     - [ ] UI for Investors to buy Tokens with USDT.
