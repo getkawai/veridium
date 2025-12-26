@@ -113,28 +113,52 @@ func (h *Handler) ChatCompletions(c *gin.Context) {
 
 // handleNonStream handles non-streaming chat completion requests.
 func (h *Handler) handleNonStream(c *gin.Context, req ChatCompletionRequest) {
-	maxTokens := req.MaxTokens
-	if maxTokens == 0 {
-		maxTokens = 2048 // Default
+	maxTokens := req.GetMaxTokens()
+
+	// Convert OpenAI messages to fantasy Prompt
+	prompt, err := RequestToPrompt(&req)
+	if err != nil {
+		h.sendError(c, http.StatusBadRequest, "invalid_request_error", err.Error())
+		return
 	}
 
-	prompt := formatMessagesToPrompt(req.Messages)
-	content, err := h.llm.Generate(prompt, int32(maxTokens))
+	// Convert prompt to text for LLM
+	promptText := PromptToText(prompt)
+
+	// Check if request has images (for future VL model support)
+	hasImages := false
+	for _, msg := range req.Messages {
+		if msg.Content.HasImages() {
+			hasImages = true
+			break
+		}
+	}
+
+	var content string
+	if hasImages {
+		// TODO: Use VL model when images are present
+		// For now, just process text
+		content, err = h.llm.Generate(promptText, int32(maxTokens))
+	} else {
+		content, err = h.llm.Generate(promptText, int32(maxTokens))
+	}
+
 	if err != nil {
 		h.sendError(c, http.StatusInternalServerError, "internal_error", err.Error())
 		return
 	}
 	content = strings.TrimSpace(content)
 
+	// Build response
 	response := ChatCompletionResponse{
 		ID:      "chatcmpl-" + uuid.New().String()[:8],
 		Object:  "chat.completion",
 		Created: time.Now().Unix(),
-		Model:   constant.KawaiAutoModel,
-		Choices: []Choice{
+		Model:   getModelName(req.Model),
+		Choices: []ResponseChoice{
 			{
 				Index: 0,
-				Message: &ChatMessage{
+				Message: &ResponseMessage{
 					Role:    "assistant",
 					Content: content,
 				},
@@ -157,6 +181,7 @@ func (h *Handler) handleStream(c *gin.Context, req ChatCompletionRequest) {
 	c.Header("Cache-Control", "no-cache")
 	c.Header("Connection", "keep-alive")
 	c.Header("Transfer-Encoding", "chunked")
+	c.Header("X-Accel-Buffering", "no") // Disable nginx buffering
 
 	flusher, ok := c.Writer.(http.Flusher)
 	if !ok {
@@ -166,53 +191,130 @@ func (h *Handler) handleStream(c *gin.Context, req ChatCompletionRequest) {
 
 	id := "chatcmpl-" + uuid.New().String()[:8]
 	created := time.Now().Unix()
+	model := getModelName(req.Model)
+
+	// Send initial chunk with role
+	initialChunk := ChatCompletionChunk{
+		ID:      id,
+		Object:  "chat.completion.chunk",
+		Created: created,
+		Model:   model,
+		Choices: []StreamChoice{
+			{
+				Index: 0,
+				Delta: &DeltaMessage{
+					Role: "assistant",
+				},
+			},
+		},
+	}
+	data, _ := json.Marshal(initialChunk)
+	fmt.Fprintf(c.Writer, "data: %s\n\n", data)
+	flusher.Flush()
 
 	streamChan := make(chan string, 100)
 	errChan := make(chan error, 1)
+	doneChan := make(chan struct{})
 
 	go func() {
 		defer close(streamChan)
-		maxTokens := req.MaxTokens
-		if maxTokens == 0 {
-			maxTokens = 2048 // Default
-		}
+		defer close(doneChan)
 
-		prompt := formatMessagesToPrompt(req.Messages)
-		result, err := h.llm.Generate(prompt, int32(maxTokens))
+		maxTokens := req.GetMaxTokens()
+
+		// Convert OpenAI messages to fantasy Prompt
+		prompt, err := RequestToPrompt(&req)
 		if err != nil {
 			errChan <- err
 			return
 		}
 
-		// Simulate streaming by sending word by word
+		// Convert prompt to text for LLM
+		promptText := PromptToText(prompt)
+
+		result, err := h.llm.Generate(promptText, int32(maxTokens))
+		if err != nil {
+			errChan <- err
+			return
+		}
+
+		// Stream word by word (simulated streaming)
+		// TODO: Implement real token-by-token streaming when llamalib supports it
 		words := strings.Fields(strings.TrimSpace(result))
 		for i, word := range words {
-			if i > 0 {
-				streamChan <- " "
+			select {
+			case <-c.Request.Context().Done():
+				return
+			default:
+				if i > 0 {
+					streamChan <- " "
+				}
+				streamChan <- word
 			}
-			streamChan <- word
 		}
 	}()
+
+	promptTokens := estimateTokens(req.Messages)
+	completionTokens := 0
 
 	for {
 		select {
 		case content, ok := <-streamChan:
 			if !ok {
-				// Stream finished, send [DONE]
+				// Send finish reason
+				finishChunk := ChatCompletionChunk{
+					ID:      id,
+					Object:  "chat.completion.chunk",
+					Created: created,
+					Model:   model,
+					Choices: []StreamChoice{
+						{
+							Index:        0,
+							Delta:        &DeltaMessage{},
+							FinishReason: "stop",
+						},
+					},
+				}
+				data, _ := json.Marshal(finishChunk)
+				fmt.Fprintf(c.Writer, "data: %s\n\n", data)
+				flusher.Flush()
+
+				// Send usage if requested
+				if req.StreamOptions != nil && req.StreamOptions.IncludeUsage {
+					usageChunk := ChatCompletionChunk{
+						ID:      id,
+						Object:  "chat.completion.chunk",
+						Created: created,
+						Model:   model,
+						Choices: []StreamChoice{},
+						Usage: &Usage{
+							PromptTokens:     promptTokens,
+							CompletionTokens: completionTokens,
+							TotalTokens:      promptTokens + completionTokens,
+						},
+					}
+					data, _ := json.Marshal(usageChunk)
+					fmt.Fprintf(c.Writer, "data: %s\n\n", data)
+					flusher.Flush()
+				}
+
+				// Send [DONE]
 				fmt.Fprintf(c.Writer, "data: [DONE]\n\n")
 				flusher.Flush()
 				return
 			}
 
+			completionTokens += len(content) / 4
+
 			chunk := ChatCompletionChunk{
 				ID:      id,
 				Object:  "chat.completion.chunk",
 				Created: created,
-				Model:   constant.KawaiAutoModel,
-				Choices: []Choice{
+				Model:   model,
+				Choices: []StreamChoice{
 					{
 						Index: 0,
-						Delta: &ChatMessage{
+						Delta: &DeltaMessage{
 							Content: content,
 						},
 					},
@@ -255,28 +357,29 @@ func (h *Handler) sendError(c *gin.Context, status int, errType, message string)
 func estimateTokens(messages []ChatMessage) int {
 	total := 0
 	for _, m := range messages {
-		total += len(m.Content) / 4
+		// Get text from MessageContent (handles both string and array formats)
+		text := m.Content.GetText()
+		total += len(text) / 4
+
+		// Account for tool calls
+		for _, tc := range m.ToolCalls {
+			total += len(tc.Function.Name)/4 + len(tc.Function.Arguments)/4
+		}
+
+		// Account for reasoning content
+		if m.ReasoningContent != "" {
+			total += len(m.ReasoningContent) / 4
+		}
 	}
 	return total
 }
 
-// formatMessagesToPrompt converts chat messages to a single prompt string.
-func formatMessagesToPrompt(messages []ChatMessage) string {
-	var sb strings.Builder
-	for _, msg := range messages {
-		switch msg.Role {
-		case "system":
-			sb.WriteString(fmt.Sprintf("System: %s\n", msg.Content))
-		case "user":
-			sb.WriteString(fmt.Sprintf("User: %s\n", msg.Content))
-		case "assistant":
-			sb.WriteString(fmt.Sprintf("Assistant: %s\n", msg.Content))
-		default:
-			sb.WriteString(fmt.Sprintf("%s: %s\n", msg.Role, msg.Content))
-		}
+// getModelName returns the model name to use in responses.
+func getModelName(requestedModel string) string {
+	if requestedModel == "" {
+		return constant.KawaiAutoModel
 	}
-	sb.WriteString("Assistant:")
-	return sb.String()
+	return requestedModel
 }
 
 // HealthCheck handles GET /health
@@ -284,6 +387,23 @@ func (h *Handler) HealthCheck(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"status": "ok",
 		"model":  constant.KawaiAutoModel,
+	})
+}
+
+// Models handles GET /v1/models - returns available models
+func (h *Handler) Models(c *gin.Context) {
+	models := []map[string]any{
+		{
+			"id":       constant.KawaiAutoModel,
+			"object":   "model",
+			"created":  time.Now().Unix(),
+			"owned_by": "kawai-network",
+		},
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"object": "list",
+		"data":   models,
 	})
 }
 

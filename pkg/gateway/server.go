@@ -57,8 +57,16 @@ func (s *Server) setupRoutes() {
 	// OpenAI-compatible endpoints
 	v1 := s.engine.Group("/v1")
 	{
+		// Models
+		v1.GET("/models", s.handler.Models)
+
+		// Chat completions
 		v1.POST("/chat/completions", s.handler.ChatCompletions)
+
+		// Audio
 		v1.POST("/audio/transcriptions", s.handler.AudioTranscriptions)
+
+		// Images
 		v1.POST("/images/generations", s.handler.ImageGenerations)
 	}
 }

@@ -54,12 +54,15 @@ This roadmap outlines the path from "Zero" to a fully functional decentralized n
     - [x] **Wallet Setup:** Generate/Load Contributor Identity (Private Key).
     - [x] Wrapper for `llama.cpp` server (Process Management).
     - [x] Heartbeat system (Proof of Availability).
-- [ ] **Verification System (Middleware):**
-    - [ ] "Gold Standard" verification (random trap questions) to prevent cheat nodes.
 - [ ] **Consumer API (User Client):**
     - [ ] Web3 Dashboard: Login via Wallet to manage API Keys.
     - [x] OpenAI-compatible `/v1/chat/completions` proxy (Base foundation).
     - [ ] Real-time credit deduction system.
+        - [ ] API key validation & user identification per request.
+        - [ ] Track token usage per user per request.
+        - [ ] Deduct USDT credits from user's PaymentVault balance in real-time.
+        - [ ] Reject requests if insufficient balance.
+        - [ ] Log all transactions for billing/audit.
 - [ ] **Internal P2P Marketplace (Web):**
     - [ ] UI for Contributors to list their Token rewards.
     - [ ] UI for Investors to buy Tokens with USDT.
