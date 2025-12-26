@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/pkg/fantasy/llamalib"
 )
 
@@ -18,16 +19,14 @@ type Handler struct {
 	llm             *llamalib.Service
 	whisperExecutor *WhisperExecutor
 	imageExecutor   ImageExecutor
-	modelName       string
 }
 
 // NewHandler creates a new Handler with the given services.
-func NewHandler(llm *llamalib.Service, whisperExecutor *WhisperExecutor, imageExecutor ImageExecutor, modelName string) *Handler {
+func NewHandler(llm *llamalib.Service, whisperExecutor *WhisperExecutor, imageExecutor ImageExecutor) *Handler {
 	return &Handler{
 		llm:             llm,
 		whisperExecutor: whisperExecutor,
 		imageExecutor:   imageExecutor,
-		modelName:       modelName,
 	}
 }
 
@@ -131,7 +130,7 @@ func (h *Handler) handleNonStream(c *gin.Context, req ChatCompletionRequest) {
 		ID:      "chatcmpl-" + uuid.New().String()[:8],
 		Object:  "chat.completion",
 		Created: time.Now().Unix(),
-		Model:   h.modelName,
+		Model:   constant.KawaiAutoModel,
 		Choices: []Choice{
 			{
 				Index: 0,
@@ -209,7 +208,7 @@ func (h *Handler) handleStream(c *gin.Context, req ChatCompletionRequest) {
 				ID:      id,
 				Object:  "chat.completion.chunk",
 				Created: created,
-				Model:   h.modelName,
+				Model:   constant.KawaiAutoModel,
 				Choices: []Choice{
 					{
 						Index: 0,
@@ -284,7 +283,7 @@ func formatMessagesToPrompt(messages []ChatMessage) string {
 func (h *Handler) HealthCheck(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"status": "ok",
-		"model":  h.modelName,
+		"model":  constant.KawaiAutoModel,
 	})
 }
 

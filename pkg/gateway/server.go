@@ -14,7 +14,6 @@ import (
 type ServerConfig struct {
 	Host      string
 	Port      int
-	ModelName string
 	StaticDir string // Path to serve static files from
 }
 
@@ -32,7 +31,7 @@ func NewServer(cfg ServerConfig, llm *llamalib.Service, whisperExecutor *Whisper
 	engine := gin.New()
 	engine.Use(gin.Recovery())
 
-	handler := NewHandler(llm, whisperExecutor, imageExecutor, cfg.ModelName)
+	handler := NewHandler(llm, whisperExecutor, imageExecutor)
 
 	s := &Server{
 		engine:  engine,
@@ -76,7 +75,6 @@ func (s *Server) Start() error {
 	}
 
 	fmt.Printf("Gateway server starting on %s\n", addr)
-	fmt.Printf("Model: %s\n", s.config.ModelName)
 	fmt.Printf("Endpoint: POST %s/v1/chat/completions\n", addr)
 
 	return s.server.ListenAndServe()

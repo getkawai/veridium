@@ -161,7 +161,6 @@ func main() {
 	server := gateway.NewServer(gateway.ServerConfig{
 		Host:      "0.0.0.0",
 		Port:      constant.LocalContributorPort,
-		ModelName: "llama.cpp",
 		StaticDir: sdEngine.GetOutputsPath(),
 	}, llm, whisperExecutor, imageExecutor)
 
