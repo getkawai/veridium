@@ -631,7 +631,7 @@ func (s *KVStore) EnsureAdminExists(ctx context.Context, adminAddress string) er
 		WalletAddress: adminAddress,
 		RegisteredAt:  time.Now(),
 		LastSeen:      time.Now(),
-		Status:        "admin",
+		Status:        ContributorStatusAdmin,
 		IsActive:      true,
 		IsAdmin:       true,
 	}

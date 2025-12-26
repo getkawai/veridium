@@ -9,22 +9,33 @@ import (
 	"time"
 
 	"github.com/cloudflare/cloudflare-go"
+	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/pkg/config"
+)
+
+// ContributorStatus represents the status of a contributor
+type ContributorStatus string
+
+const (
+	ContributorStatusOnline  ContributorStatus = "online"
+	ContributorStatusOffline ContributorStatus = "offline"
+	ContributorStatusDeleted ContributorStatus = "deleted"
+	ContributorStatusAdmin   ContributorStatus = "admin"
 )
 
 // ContributorData represents the data stored for a contributor in KV
 type ContributorData struct {
-	WalletAddress      string    `json:"wallet_address"`
-	EndpointURL        string    `json:"endpoint_url"`
-	HardwareSpecs      string    `json:"hardware_specs"`
-	RegisteredAt       time.Time `json:"registered_at"`
-	LastSeen           time.Time `json:"last_seen"`
-	Status             string    `json:"status"`
-	AccumulatedRewards string    `json:"accumulated_rewards"`        // KAWAI (Phase 1)
-	AccumulatedUSDT    string    `json:"accumulated_usdt,omitempty"` // USDT (Phase 2)
-	IsActive           bool      `json:"is_active"`                  // Soft delete flag
-	DeletedAt          time.Time `json:"deleted_at,omitempty"`       // When soft deleted
-	IsAdmin            bool      `json:"is_admin,omitempty"`         // Admin flag
+	WalletAddress      string            `json:"wallet_address"`
+	EndpointURL        string            `json:"endpoint_url"`
+	HardwareSpecs      string            `json:"hardware_specs"`
+	RegisteredAt       time.Time         `json:"registered_at"`
+	LastSeen           time.Time         `json:"last_seen"`
+	Status             ContributorStatus `json:"status"`
+	AccumulatedRewards string            `json:"accumulated_rewards"`        // KAWAI (Phase 1)
+	AccumulatedUSDT    string            `json:"accumulated_usdt,omitempty"` // USDT (Phase 2)
+	IsActive           bool              `json:"is_active"`                  // Soft delete flag
+	DeletedAt          time.Time         `json:"deleted_at,omitempty"`       // When soft deleted
+	IsAdmin            bool              `json:"is_admin,omitempty"`         // Admin flag
 }
 
 type Store interface {
@@ -75,15 +86,6 @@ type Store interface {
 	EnsureAdminExists(ctx context.Context, adminAddress string) error
 }
 
-// MultiNamespaceConfig holds the configuration for multiple KV namespaces
-type MultiNamespaceConfig struct {
-	APIToken                string
-	AccountID               string
-	ContributorsNamespaceID string // For contributor data
-	ProofsNamespaceID       string // For Merkle proofs
-	SettlementsNamespaceID  string // For settlement metadata
-}
-
 // KVStore implements Store interface with multiple namespaces
 type KVStore struct {
 	client    *cloudflare.API
@@ -95,36 +97,19 @@ type KVStore struct {
 	settlementsNamespaceID  string
 }
 
-// NewKVStore creates a new KVStore with a single namespace (legacy mode)
-// Deprecated: Use NewMultiNamespaceKVStore for better isolation
-func NewKVStore(apiToken, accountID, namespaceID string) (*KVStore, error) {
-	api, err := cloudflare.NewWithAPIToken(apiToken)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create cloudflare client: %w", err)
-	}
-
-	return &KVStore{
-		client:                  api,
-		accountID:               accountID,
-		contributorsNamespaceID: namespaceID,
-		proofsNamespaceID:       namespaceID,
-		settlementsNamespaceID:  namespaceID,
-	}, nil
-}
-
 // NewMultiNamespaceKVStore creates a new KVStore with separate namespaces
-func NewMultiNamespaceKVStore(cfg MultiNamespaceConfig) (*KVStore, error) {
-	api, err := cloudflare.NewWithAPIToken(cfg.APIToken)
+func NewMultiNamespaceKVStore() (*KVStore, error) {
+	api, err := cloudflare.NewWithAPIToken(constant.GetCfApiToken())
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cloudflare client: %w", err)
 	}
 
 	return &KVStore{
 		client:                  api,
-		accountID:               cfg.AccountID,
-		contributorsNamespaceID: cfg.ContributorsNamespaceID,
-		proofsNamespaceID:       cfg.ProofsNamespaceID,
-		settlementsNamespaceID:  cfg.SettlementsNamespaceID,
+		accountID:               constant.GetCfAccountId(),
+		contributorsNamespaceID: constant.GetCfKvContributorsNamespaceId(),
+		proofsNamespaceID:       constant.GetCfKvProofsNamespaceId(),
+		settlementsNamespaceID:  constant.GetCfKvSettlementsNamespaceId(),
 	}, nil
 }
 
@@ -224,7 +209,7 @@ func (s *KVStore) UpdateHeartbeat(ctx context.Context, address string) error {
 	}
 
 	contributor.LastSeen = time.Now()
-	contributor.Status = "online"
+	contributor.Status = ContributorStatusOnline
 
 	return s.SaveContributor(ctx, contributor)
 }
@@ -262,7 +247,7 @@ func (s *KVStore) SoftDeleteContributor(ctx context.Context, address string) err
 
 	contributor.IsActive = false
 	contributor.DeletedAt = time.Now()
-	contributor.Status = "deleted"
+	contributor.Status = ContributorStatusDeleted
 
 	if err := s.SaveContributor(ctx, contributor); err != nil {
 		return fmt.Errorf("failed to soft delete contributor: %w", err)
@@ -281,7 +266,7 @@ func (s *KVStore) RestoreContributor(ctx context.Context, address string) error 
 
 	contributor.IsActive = true
 	contributor.DeletedAt = time.Time{}
-	contributor.Status = "offline"
+	contributor.Status = ContributorStatusOffline
 
 	if err := s.SaveContributor(ctx, contributor); err != nil {
 		return fmt.Errorf("failed to restore contributor: %w", err)
@@ -343,7 +328,7 @@ func (s *KVStore) RegisterContributor(ctx context.Context, address, endpointURL,
 			existing.DeletedAt = time.Time{}
 			existing.EndpointURL = endpointURL
 			existing.HardwareSpecs = hardwareSpecs
-			existing.Status = "online"
+			existing.Status = ContributorStatusOnline
 			existing.LastSeen = time.Now()
 
 			if err := s.SaveContributor(ctx, existing); err != nil {
@@ -364,7 +349,7 @@ func (s *KVStore) RegisterContributor(ctx context.Context, address, endpointURL,
 		HardwareSpecs:      hardwareSpecs,
 		RegisteredAt:       time.Now(),
 		LastSeen:           time.Now(),
-		Status:             "online",
+		Status:             ContributorStatusOnline,
 		IsActive:           true,
 		AccumulatedRewards: "0",
 		AccumulatedUSDT:    "0",
