@@ -1,17 +1,19 @@
-import { Card, Modal, QRCode, App, Table, Tag, Button, InputNumber, Form, Input, Empty } from 'antd';
+import { Card, Modal, QRCode, App, Table, Tag, Button, InputNumber, Form, Input, Empty, Popover } from 'antd';
 import { memo, useEffect, useState } from 'react';
 import { DeAIService, WalletService } from '@@/github.com/kawai-network/veridium/internal/services';
 import { ListWalletTransactions } from '@@/github.com/kawai-network/veridium/internal/database/generated/queries';
 import type { WalletTransaction } from '@@/github.com/kawai-network/veridium/internal/database/generated/models';
 import { useUserStore } from '@/store/user';
-import { ArrowDownToLine, Copy, Send, Eye, EyeOff, Repeat2, Wallet as WalletIcon, History, Home, ShoppingCart, Gift, Settings, Coins, ExternalLink } from 'lucide-react';
+import { ArrowDownToLine, Copy, Send, Eye, EyeOff, Repeat2, History, Home, ShoppingCart, Gift, Settings, Coins, ExternalLink, Globe } from 'lucide-react';
 import { ActionIcon, Icon } from '@lobehub/ui';
 import { Flexbox } from 'react-layout-kit';
-import { createStyles } from 'antd-style';
+import { createStyles, useTheme } from 'antd-style';
 
 import Menu from '@/components/Menu';
 import PanelTitle from '@/components/PanelTitle';
 import WalletSidePanel from './WalletSidePanel';
+import WalletAccountPanel from './WalletAccountPanel';
+import AccountList from './AccountList';
 
 type MenuKey = 'home' | 'otc' | 'rewards' | 'settings';
 
@@ -167,7 +169,79 @@ const MenuContent = memo<{
         />
       </Flexbox>
       <div style={{ flex: 1 }} />
+      <Flexbox padding={12}>
+        <NetworkSwitcher />
+      </Flexbox>
     </Flexbox>
+  );
+});
+
+const NetworkSwitcher = memo(() => {
+  const theme = useTheme();
+  const networkOptions = [
+    { label: 'Monad Testnet', value: 'monad-testnet', icon: '🟣' },
+    { label: 'Ethereum Mainnet', value: 'eth-mainnet', icon: '🔹', disabled: true },
+  ];
+
+  return (
+    <Popover
+      arrow={false}
+      content={
+        <div style={{ width: 180 }}>
+          <div style={{ padding: '4px 8px', fontSize: 11, color: theme.colorTextTertiary, textTransform: 'uppercase' }}>
+            Switch Network
+          </div>
+          {networkOptions.map((opt) => (
+            <Flexbox
+              key={opt.value}
+              horizontal
+              align="center"
+              gap={12}
+              style={{
+                padding: '8px 12px',
+                cursor: opt.disabled ? 'not-allowed' : 'pointer',
+                opacity: opt.disabled ? 0.5 : 1,
+                borderRadius: 8,
+                background: opt.value === 'monad-testnet' ? theme.colorFillSecondary : 'transparent'
+              }}
+            >
+              <span>{opt.icon}</span>
+              <span style={{ fontSize: 13, fontWeight: opt.value === 'monad-testnet' ? 600 : 400 }}>{opt.label}</span>
+            </Flexbox>
+          ))}
+        </div>
+      }
+      placement="rightBottom"
+      trigger="click"
+    >
+      <div style={{
+        padding: '8px 12px',
+        background: theme.colorFillSecondary,
+        borderRadius: 12,
+        cursor: 'pointer',
+        border: `1px solid ${theme.colorBorderSecondary}`,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        transition: 'all 0.2s ease'
+      }}
+        onMouseEnter={(e) => e.currentTarget.style.borderColor = theme.colorPrimary}
+        onMouseLeave={(e) => e.currentTarget.style.borderColor = theme.colorBorderSecondary}
+      >
+        <div style={{
+          width: 8,
+          height: 8,
+          borderRadius: '50%',
+          background: '#22c55e',
+          boxShadow: '0 0 8px rgba(34, 197, 94, 0.5)'
+        }} />
+        <Flexbox flex={1}>
+          <div style={{ fontSize: 10, color: theme.colorTextTertiary, lineHeight: 1 }}>Network</div>
+          <div style={{ fontSize: 12, fontWeight: 600 }}>Monad Testnet</div>
+        </Flexbox>
+        <Globe size={14} style={{ opacity: 0.5 }} />
+      </div>
+    </Popover>
   );
 });
 
@@ -178,10 +252,11 @@ const DesktopWalletLayout = memo(() => {
   const [balance, setBalance] = useState('0.00');
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [modalType, setModalType] = useState<'send' | 'receive' | 'swap' | 'deposit' | null>(null);
+  const [modalType, setModalType] = useState<'send' | 'receive' | 'swap' | 'deposit' | 'addAccount' | 'createWallet' | 'importWallet' | null>(null);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
+  const [pendingSwitch, setPendingSwitch] = useState<string | null>(null);
   const { message } = App.useApp();
-  const { isWalletLoaded } = useUserStore();
+  const { isWalletLoaded, refreshWalletStatus } = useUserStore();
 
 
   useEffect(() => {
@@ -251,6 +326,25 @@ const DesktopWalletLayout = memo(() => {
     }
   };
 
+  const handleSwitchAccount = async (password: string) => {
+    if (!pendingSwitch) return;
+    setLoading(true);
+    try {
+      await WalletService.SwitchWallet(pendingSwitch, password);
+      const newAddr = await WalletService.GetCurrentAddress();
+      setAddress(newAddr);
+      message.success("Switched account successfully");
+      setPendingSwitch(null);
+      await refreshWalletStatus();
+      loadBalance();
+      loadHistory();
+    } catch (e: any) {
+      message.error(e.message || "Failed to switch account");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const renderContent = () => {
     switch (activeMenu) {
       case 'home':
@@ -287,7 +381,55 @@ const DesktopWalletLayout = memo(() => {
         {renderContent()}
       </div>
 
+      {/* Right Sidebar: Account Management */}
+      <WalletAccountPanel>
+        <AccountList
+          activeAddress={address}
+          onAccountSwitch={(addr) => setPendingSwitch(addr)}
+          onAddAccount={() => setModalType('addAccount')}
+        />
+      </WalletAccountPanel>
+
       {/* Modals */}
+      <Modal
+        title="Confirm Switch Account"
+        open={!!pendingSwitch}
+        onCancel={() => setPendingSwitch(null)}
+        footer={null}
+      >
+        <Form layout="vertical" onFinish={(v) => handleSwitchAccount(v.password)}>
+          <p style={{ color: theme.colorTextSecondary, marginBottom: 16 }}>
+            Please enter your wallet password to unlock: <br />
+            <code style={{ fontSize: 11 }}>{pendingSwitch}</code>
+          </p>
+          <Form.Item label="Password" name="password" rules={[{ required: true }]}>
+            <Input.Password placeholder="Enter password" size="large" />
+          </Form.Item>
+          <Button type="primary" htmlType="submit" block size="large" loading={loading}>
+            Unlock & Switch
+          </Button>
+        </Form>
+      </Modal>
+
+      <Modal
+        title="Add New Account"
+        open={modalType === 'addAccount'}
+        onCancel={() => setModalType(null)}
+        footer={null}
+      >
+        <Flexbox gap={12}>
+          <Button block size="large" onClick={() => { setModalType('createWallet'); }}>Create New Wallet</Button>
+          <Button block size="large" onClick={() => { setModalType('importWallet'); }}>Import Existing Wallet (Keystore)</Button>
+        </Flexbox>
+      </Modal>
+
+      <Modal title="Create Wallet" open={modalType === 'createWallet'} onCancel={() => setModalType(null)} footer={null}>
+        <SetupForm type="create" onSuccess={() => { setModalType(null); WalletService.GetCurrentAddress().then(setAddress); refreshWalletStatus(); }} />
+      </Modal>
+
+      <Modal title="Import Wallet" open={modalType === 'importWallet'} onCancel={() => setModalType(null)} footer={null}>
+        <SetupForm type="import" onSuccess={() => { setModalType(null); WalletService.GetCurrentAddress().then(setAddress); refreshWalletStatus(); }} />
+      </Modal>
       <Modal title="Smart Deposit" open={modalType === 'deposit'} onCancel={() => setModalType(null)} footer={null} destroyOnClose>
         <SmartDepositForm onDeposit={handleDeposit} loading={loading} />
       </Modal>
@@ -332,27 +474,6 @@ const DesktopWalletLayout = memo(() => {
 const HomeContent = ({ address, balance, balanceVisible, setBalanceVisible, setModalType, transactions, styles, theme }: any) => {
   return (
     <Flexbox style={{ maxWidth: 900, width: '100%' }} gap={20}>
-      {/* Header */}
-      <Flexbox justify="space-between" align="center">
-        <Flexbox horizontal align="center" gap={12}>
-          <div style={{
-            width: 40,
-            height: 40,
-            borderRadius: 12,
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 20
-          }}>🐱</div>
-          <div>
-            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Main Wallet</h2>
-            <span style={{ color: theme.colorTextTertiary, fontSize: 12 }}>Kawai Network</span>
-          </div>
-        </Flexbox>
-        <AddressPill address={address} />
-      </Flexbox>
-
       {/* Balance Card */}
       <Card className={styles.balanceCard}>
         <div className={styles.eyeButton} onClick={() => setBalanceVisible(!balanceVisible)}>
@@ -551,12 +672,21 @@ const SettingsContent = ({ address, styles, theme }: any) => {
         <span style={{ color: theme.colorTextSecondary, fontSize: 13 }}>Network and wallet configuration</span>
       </div>
 
-      <Card title="Network Info" size="small">
+      <Card title="Active Session" size="small">
         <Flexbox gap={12}>
           <Flexbox horizontal justify="space-between">
             <span style={{ color: theme.colorTextSecondary }}>Network</span>
             <Tag color="green">Monad Testnet</Tag>
           </Flexbox>
+          <Flexbox horizontal justify="space-between">
+            <span style={{ color: theme.colorTextSecondary }}>Status</span>
+            <span style={{ color: theme.colorSuccess, fontWeight: 600, fontSize: 12 }}>Connected</span>
+          </Flexbox>
+        </Flexbox>
+      </Card>
+
+      <Card title="Technical Details" size="small">
+        <Flexbox gap={12}>
           <Flexbox horizontal justify="space-between">
             <span style={{ color: theme.colorTextSecondary }}>Chain ID</span>
             <span style={{ fontFamily: 'monospace' }}>10143</span>
@@ -592,47 +722,6 @@ const SettingsContent = ({ address, styles, theme }: any) => {
 };
 
 // ============ HELPER COMPONENTS ============
-const AddressPill = ({ address }: { address: string }) => {
-  const { message } = App.useApp();
-
-  const handleCopy = () => {
-    if (address) {
-      navigator.clipboard.writeText(address);
-      message.success("Address copied!");
-    }
-  };
-
-  return (
-    <div
-      onClick={handleCopy}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 6,
-        padding: '6px 12px',
-        background: 'rgba(255, 255, 255, 0.06)',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-        borderRadius: 20,
-        cursor: 'pointer',
-        transition: 'all 0.2s ease',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-        e.currentTarget.style.borderColor = 'rgba(102, 126, 234, 0.3)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
-        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-      }}
-    >
-      <WalletIcon size={12} style={{ opacity: 0.7 }} />
-      <span style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 500 }}>
-        {address ? `${address.substring(0, 6)}...${address.substring(address.length - 4)}` : 'Loading...'}
-      </span>
-      <Copy size={11} style={{ opacity: 0.5 }} />
-    </div>
-  );
-};
 
 const CopyButton = ({ text }: { text: string }) => {
   const { message } = App.useApp();
@@ -681,3 +770,76 @@ const SendForm = ({ onSend, loading }: { onSend: (to: string, val: number) => vo
 };
 
 export default DesktopWalletLayout;
+const SetupForm = memo<{ type: 'create' | 'import'; onSuccess: () => void }>(({ type, onSuccess }) => {
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [mnemonic, setMnemonic] = useState('');
+  const [description, setDescription] = useState('');
+  const [step, setStep] = useState<'form' | 'mnemonic'>(type === 'create' ? 'mnemonic' : 'form');
+  const [loading, setLoading] = useState(false);
+  const { message } = App.useApp();
+
+  const { generateMnemonic, createWallet } = useUserStore();
+
+  useEffect(() => {
+    if (type === 'create' && step === 'mnemonic') {
+      generateMnemonic().then(setMnemonic);
+    }
+  }, [type, step]);
+
+  const handleFinish = async () => {
+    if (password !== confirmPassword) {
+      return message.error("Passwords do not match");
+    }
+    if (password.length < 8) {
+      return message.error("Password too short");
+    }
+    setLoading(true);
+    try {
+      await createWallet(password, mnemonic, description);
+      message.success("Wallet created successfully");
+      onSuccess();
+    } catch (e: any) {
+      message.error(e.message || "Failed to create wallet");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (type === 'create' && step === 'mnemonic') {
+    return (
+      <Flexbox gap={12}>
+        <p>Save these 12 words securely:</p>
+        <div style={{ background: 'rgba(0,0,0,0.05)', padding: 16, borderRadius: 8, textAlign: 'center' }}>
+          <code style={{ fontSize: 16, fontWeight: 700 }}>{mnemonic}</code>
+          <div style={{ marginTop: 8 }}>
+            <CopyButton text={mnemonic} />
+          </div>
+        </div>
+        <Button type="primary" block onClick={() => setStep('form')}>I have written it down</Button>
+      </Flexbox>
+    );
+  }
+
+  return (
+    <Form layout="vertical" onFinish={handleFinish}>
+      {type === 'import' && (
+        <Form.Item label="Mnemonic Phrase" required>
+          <Input.TextArea rows={3} value={mnemonic} onChange={e => setMnemonic(e.target.value)} placeholder="word1 word2 ..." />
+        </Form.Item>
+      )}
+      <Form.Item label="Account Description" name="description">
+        <Input placeholder="Main account, Savings, etc." value={description} onChange={e => setDescription(e.target.value)} />
+      </Form.Item>
+      <Form.Item label="Lock Password" required>
+        <Input.Password value={password} onChange={e => setPassword(e.target.value)} placeholder="At least 8 characters" />
+      </Form.Item>
+      <Form.Item label="Confirm Password" required>
+        <Input.Password value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Repeat password" />
+      </Form.Item>
+      <Button type="primary" htmlType="submit" block size="large" loading={loading}>
+        {type === 'create' ? 'Create Account' : 'Import Account'}
+      </Button>
+    </Form>
+  );
+});

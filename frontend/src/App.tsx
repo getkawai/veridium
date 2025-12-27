@@ -3,7 +3,6 @@ import { Events, WML } from "@wailsio/runtime";
 import GlobalLayout from './layout/GlobalProvider';
 import DesktopMainLayout from './layout/Desktop';
 import DesktopChatLayout from './app/chat';
-import WalletLayout from './app/wallet';
 import { useChatStore } from './store/chat';
 import DesktopImageLayout from './app/image';
 import { useGlobalStore } from './store/global';
@@ -15,6 +14,7 @@ import ChangelogModal from './features/ChangelogModal';
 import { useUserStore } from './store/user';
 import AuthSignInBox from './features/User/AuthSignInBox';
 import { Flex, Spin } from 'antd';
+import DesktopWalletLayout from './app/wallet/wallet';
 
 function App() {
   const sidebarKey = useGlobalStore((s) => s.sidebarKey);
@@ -71,7 +71,7 @@ function App() {
         <>
           <DesktopMainLayout>
             {sidebarKey === SidebarTabKey.Chat && <DesktopChatLayout />}
-            {sidebarKey === SidebarTabKey.Wallet && <WalletLayout />}
+            {sidebarKey === SidebarTabKey.Wallet && <DesktopWalletLayout />}
             {sidebarKey === SidebarTabKey.Image && <DesktopImageLayout />}
             {sidebarKey === SidebarTabKey.Files && <KnowledgeHomePage />}
           </DesktopMainLayout>
