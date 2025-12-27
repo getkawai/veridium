@@ -28,8 +28,10 @@ contract DeployKawai is Script {
         console.log("KawaiToken deployed at:", address(token));
 
         // 3. Deploy KAWAI MerkleDistributor (Mining Rewards)
+        // mintOnClaim=true: mints new KAWAI tokens when contributor claims (contributor pays gas)
         MerkleDistributor kawaiDistributor = new MerkleDistributor(
-            address(token)
+            address(token),
+            true // mintOnClaim: mint tokens on claim
         );
         console.log(
             "KAWAI MerkleDistributor (Mining) deployed at:",
@@ -37,8 +39,10 @@ contract DeployKawai is Script {
         );
 
         // 4. Deploy USDT MerkleDistributor (Profit Sharing)
+        // mintOnClaim=false: transfers USDT from pre-funded balance
         MerkleDistributor usdtDistributor = new MerkleDistributor(
-            address(usdt)
+            address(usdt),
+            false // mintOnClaim: transfer from balance
         );
         console.log(
             "USDT MerkleDistributor (Dividends) deployed at:",

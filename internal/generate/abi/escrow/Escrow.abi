@@ -92,7 +92,7 @@
   },
   {
     "type": "function",
-    "name": "getDocumentsCount",
+    "name": "getOrdersCount",
     "inputs": [],
     "outputs": [
       {

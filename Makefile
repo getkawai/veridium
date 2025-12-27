@@ -241,12 +241,14 @@ ABIS_DIR := ./internal/generate/abi
 TOKEN_ARTIFACT := $(CONTRACTS_DIR)/out/KawaiToken.sol/KawaiToken.json
 ESCROW_ARTIFACT := $(CONTRACTS_DIR)/out/Escrow.sol/OTCMarket.json
 VAULT_ARTIFACT := $(CONTRACTS_DIR)/out/PaymentVault.sol/PaymentVault.json
+DISTRIBUTOR_ARTIFACT := $(CONTRACTS_DIR)/out/MerkleDistributor.sol/MerkleDistributor.json
+USDT_ARTIFACT := $(CONTRACTS_DIR)/out/MockUSDT.sol/MockUSDT.json
 
 contracts-compile:
 	@echo "Compiling smart contracts with Foundry..."
 	cd $(CONTRACTS_DIR) && ~/.foundry/bin/forge build
 
-contracts-bindings: abi-token abi-escrow abi-vault generate-project-abis
+contracts-bindings: abi-token abi-escrow abi-vault abi-distributor abi-usdt generate-project-abis
 	@echo "✅ Bindings generated."
 
 contracts-update: contracts-compile contracts-bindings
@@ -280,3 +282,19 @@ abi-vault:
 	@jq -r .bytecode.object $(VAULT_ARTIFACT) > $(ABIS_DIR)/vault/PaymentVault.bin
 	@abigen --abi $(ABIS_DIR)/vault/PaymentVault.abi --bin $(ABIS_DIR)/vault/PaymentVault.bin --pkg vault --type PaymentVault --out $(ABIS_DIR)/vault/vault.go
 	@echo "PaymentVault abi generated."
+
+abi-distributor:
+	@echo "Generating bindings for MerkleDistributor..."
+	@mkdir -p $(ABIS_DIR)/distributor
+	@jq -r .abi $(DISTRIBUTOR_ARTIFACT) > $(ABIS_DIR)/distributor/MerkleDistributor.abi
+	@jq -r .bytecode.object $(DISTRIBUTOR_ARTIFACT) > $(ABIS_DIR)/distributor/MerkleDistributor.bin
+	@abigen --abi $(ABIS_DIR)/distributor/MerkleDistributor.abi --bin $(ABIS_DIR)/distributor/MerkleDistributor.bin --pkg distributor --type MerkleDistributor --out $(ABIS_DIR)/distributor/distributor.go
+	@echo "MerkleDistributor abi generated."
+
+abi-usdt:
+	@echo "Generating bindings for MockUSDT..."
+	@mkdir -p $(ABIS_DIR)/usdt
+	@jq -r .abi $(USDT_ARTIFACT) > $(ABIS_DIR)/usdt/MockUSDT.abi
+	@jq -r .bytecode.object $(USDT_ARTIFACT) > $(ABIS_DIR)/usdt/MockUSDT.bin
+	@abigen --abi $(ABIS_DIR)/usdt/MockUSDT.abi --bin $(ABIS_DIR)/usdt/MockUSDT.bin --pkg usdt --type MockUSDT --out $(ABIS_DIR)/usdt/usdt.go
+	@echo "MockUSDT abi generated."

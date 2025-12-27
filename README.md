@@ -103,23 +103,22 @@ This roadmap outlines the path from "Zero" to a fully functional decentralized n
 
 ## 🌐 Monad Testnet Deployment
 
-> **Status:** Pending Gas (Faucet Cooldown)
-
-After deployment, contract addresses will be listed here:
+> **Status:** ✅ Deployed (2025-12-27)
 
 | Contract | Address | Description |
 |---|---|---|
-| MockUSDT | `TBD` | Test USDT for simulating revenue |
-| KawaiToken | `TBD` | Native token (1B Max Supply, Fair Launch) |
-| KAWAI_Distributor | `TBD` | Merkle distributor for mining rewards |
-| USDT_Distributor | `TBD` | Merkle distributor for profit sharing |
-| PaymentVault | `TBD` | User USDT deposit vault |
-| OTCMarket | `TBD` | P2P trading escrow |
+| MockUSDT | `0xa6Fc4FaF4CD7a4E3f300D164a37CB45d35bf28eD` | Test USDT for simulating revenue |
+| KawaiToken | `0x3EC7A3b85f9658120490d5a76705d4d304f4068D` | Native token (1B Max Supply, Fair Launch) |
+| KAWAI_Distributor | `0x988Cbef1F6b9057Cfa7325a7E364543E615f9191` | Merkle distributor for mining rewards (mint-on-claim) |
+| USDT_Distributor | `0x2A1ebd03Ce88CED9731c77C63EDE2451f9c08F94` | Merkle distributor for profit sharing |
+| PaymentVault | `0xa3004DFc316998bD02DFd92e4f13c7FACFFdF70F` | User USDT deposit vault |
+| OTCMarket | `0x134244eDd4349b0B408c5293Ffb4263984F2808C` | P2P trading escrow |
 
 **Network Info:**
 - **Chain ID:** 10143
 - **RPC:** `https://testnet-rpc.monad.xyz`
-- **Explorer:** `https://testnet.monad.xyz` (if available)
+- **Explorer:** `https://testnet.monad.xyz`
+- **Deployer:** `0x94D5C06229811c4816107005ff05259f229Eb07b`
 
 ---
 

@@ -133,7 +133,7 @@ contract OTCMarket is ReentrancyGuard {
         emit OrderCancelled(_orderId, msg.sender);
     }
 
-    function getDocumentsCount() external view returns (uint256) {
+    function getOrdersCount() external view returns (uint256) {
         return orders.length;
     }
 }
