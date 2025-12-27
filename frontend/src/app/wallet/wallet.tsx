@@ -1,104 +1,104 @@
-import { Card, Modal, QRCode, App, Table, Tag, Tabs, Button, InputNumber, Form, Input, Menu, Empty } from 'antd';
+import { Card, Modal, QRCode, App, Table, Tag, Button, InputNumber, Form, Input, Empty } from 'antd';
 import { memo, useEffect, useState } from 'react';
 import { DeAIService, WalletService } from '@@/github.com/kawai-network/veridium/internal/services';
 import { ListWalletTransactions } from '@@/github.com/kawai-network/veridium/internal/database/generated/queries';
 import type { WalletTransaction } from '@@/github.com/kawai-network/veridium/internal/database/generated/models';
 import { useUserStore } from '@/store/user';
-import { ArrowDownToLine, Copy, Send, Eye, EyeOff, ArrowUp, Repeat2, Wallet as WalletIcon, History, Home, ShoppingCart, Gift, Settings, Coins, ExternalLink } from 'lucide-react';
-import { ActionIcon } from '@lobehub/ui';
+import { ArrowDownToLine, Copy, Send, Eye, EyeOff, Repeat2, Wallet as WalletIcon, History, Home, ShoppingCart, Gift, Settings, Coins, ExternalLink } from 'lucide-react';
+import { ActionIcon, Icon } from '@lobehub/ui';
 import { Flexbox } from 'react-layout-kit';
 import { createStyles } from 'antd-style';
+
+import Menu from '@/components/Menu';
+import PanelTitle from '@/components/PanelTitle';
+import WalletSidePanel from './WalletSidePanel';
 
 type MenuKey = 'home' | 'otc' | 'rewards' | 'settings';
 
 const useStyles = createStyles(({ css, token }) => ({
   container: css`
-    height: 100%;
-    width: 100%;
-    background: ${token.colorBgLayout};
+    flex: 1;
     display: flex;
-  `,
-  sidebar: css`
-    width: 200px;
-    min-width: 200px;
-    background: ${token.colorBgContainer};
-    border-right: 1px solid ${token.colorBorderSecondary};
-    padding: 16px 0;
-    display: flex;
-    flex-direction: column;
-  `,
-  sidebarMenu: css`
-    border: none !important;
-    background: transparent !important;
-    
-    .ant-menu-item {
-      margin: 4px 8px !important;
-      border-radius: 8px !important;
-      height: 44px !important;
-      line-height: 44px !important;
-      
-      &:hover {
-        background: ${token.colorFillTertiary} !important;
-      }
-    }
-    
-    .ant-menu-item-selected {
-      background: ${token.colorPrimaryBg} !important;
-      color: ${token.colorPrimary} !important;
-    }
+    flex-direction: row;
+    overflow: hidden;
   `,
   content: css`
     flex: 1;
     padding: 24px;
     overflow-y: auto;
+    background: ${token.colorBgLayout};
   `,
   balanceCard: css`
-    background: linear-gradient(135deg, ${token.colorBgContainer} 0%, ${token.colorBgElevated} 100%);
-    border: 1px solid ${token.colorBorderSecondary};
-    border-radius: 16px;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    border: 1px solid rgba(102, 126, 234, 0.3);
+    border-radius: 20px;
     position: relative;
     overflow: hidden;
+    
+    /* Subtle grid pattern */
+    background-image: 
+      linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%),
+      repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 20px,
+        rgba(255,255,255,0.01) 20px,
+        rgba(255,255,255,0.01) 40px
+      );
     
     &::before {
       content: '';
       position: absolute;
-      top: 0;
-      right: 0;
+      top: -50%;
+      right: -20%;
+      width: 300px;
+      height: 300px;
+      background: radial-gradient(circle, rgba(102, 126, 234, 0.4) 0%, transparent 60%);
+      border-radius: 50%;
+    }
+    
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -30%;
+      left: -10%;
       width: 200px;
       height: 200px;
-      background: radial-gradient(circle, ${token.colorPrimary} 0%, transparent 70%);
-      opacity: 0.1;
+      background: radial-gradient(circle, rgba(118, 75, 162, 0.25) 0%, transparent 60%);
       border-radius: 50%;
-      transform: translate(30%, -30%);
     }
 
     .ant-card-body {
-      padding: 24px;
+      padding: 28px;
+      position: relative;
+      z-index: 1;
     }
   `,
   actionButton: css`
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     cursor: pointer;
     transition: all 0.3s ease;
-    padding: 12px 16px;
-    border-radius: 12px;
+    padding: 16px 24px;
+    border-radius: 16px;
+    min-width: 80px;
     
     &:hover {
       background: ${token.colorFillTertiary};
-      transform: translateY(-2px);
+      transform: translateY(-3px);
     }
   `,
   actionCircle: css`
-    width: 48px;
-    height: 48px;
-    border-radius: 16px;
+    width: 56px;
+    height: 56px;
+    border-radius: 18px;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
   `,
   eyeButton: css`
     position: absolute;
@@ -142,17 +142,47 @@ const useStyles = createStyles(({ css, token }) => ({
   `,
 }));
 
+const MenuContent = memo<{
+  activeMenu: MenuKey;
+  setActiveMenu: (key: MenuKey) => void;
+  styles: any;
+}>(({ activeMenu, setActiveMenu, styles }) => {
+  const menuItems = [
+    { key: 'home', icon: <Icon icon={Home} />, label: 'Home' },
+    { key: 'otc', icon: <Icon icon={ShoppingCart} />, label: 'OTC Market' },
+    { key: 'rewards', icon: <Icon icon={Gift} />, label: 'Rewards' },
+    { key: 'settings', icon: <Icon icon={Settings} />, label: 'Settings' },
+  ];
+
+  return (
+    <Flexbox gap={16} height={'100%'}>
+      <Flexbox paddingInline={8}>
+        <PanelTitle desc="Manage your digital assets and transactions" title="Wallet" />
+        <Menu
+          compact
+          selectable
+          items={menuItems}
+          selectedKeys={[activeMenu]}
+          onClick={({ key }) => setActiveMenu(key as MenuKey)}
+        />
+      </Flexbox>
+      <div style={{ flex: 1 }} />
+    </Flexbox>
+  );
+});
+
 const DesktopWalletLayout = memo(() => {
+  const { styles, theme } = useStyles();
   const [activeMenu, setActiveMenu] = useState<MenuKey>('home');
   const [address, setAddress] = useState<string>('');
-  const [balance, setBalance] = useState<string>('0');
-  const [loading, setLoading] = useState(false);
-  const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
-  const [modalType, setModalType] = useState<'deposit' | 'send' | 'receive' | 'swap' | null>(null);
+  const [balance, setBalance] = useState('0.00');
   const [balanceVisible, setBalanceVisible] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [modalType, setModalType] = useState<'send' | 'receive' | 'swap' | 'deposit' | null>(null);
+  const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const { message } = App.useApp();
   const { isWalletLoaded } = useUserStore();
-  const { styles, theme } = useStyles();
+
 
   useEffect(() => {
     WalletService.GetCurrentAddress().then(setAddress).catch(console.error);
@@ -221,13 +251,6 @@ const DesktopWalletLayout = memo(() => {
     }
   };
 
-  const menuItems = [
-    { key: 'home', icon: <Home size={18} />, label: 'Home' },
-    { key: 'otc', icon: <ShoppingCart size={18} />, label: 'OTC Market' },
-    { key: 'rewards', icon: <Gift size={18} />, label: 'Rewards' },
-    { key: 'settings', icon: <Settings size={18} />, label: 'Settings' },
-  ];
-
   const renderContent = () => {
     switch (activeMenu) {
       case 'home':
@@ -253,29 +276,11 @@ const DesktopWalletLayout = memo(() => {
   };
 
   return (
-    <Flexbox className={styles.container}>
+    <div className={styles.container}>
       {/* Sidebar */}
-      <div className={styles.sidebar}>
-        <Flexbox align="center" gap={8} style={{ padding: '0 16px 16px' }}>
-          <WalletIcon size={20} />
-          <span style={{ fontWeight: 600 }}>Kawai Wallet</span>
-        </Flexbox>
-
-        <Menu
-          className={styles.sidebarMenu}
-          mode="inline"
-          selectedKeys={[activeMenu]}
-          items={menuItems}
-          onClick={({ key }) => setActiveMenu(key as MenuKey)}
-        />
-
-        <div style={{ flex: 1 }} />
-
-        <Flexbox style={{ padding: '16px' }} gap={4}>
-          <Tag color="green" style={{ margin: 0 }}>Monad Testnet</Tag>
-          <span style={{ fontSize: 11, color: theme.colorTextTertiary }}>Chain ID: 10143</span>
-        </Flexbox>
-      </div>
+      <WalletSidePanel>
+        <MenuContent activeMenu={activeMenu} setActiveMenu={setActiveMenu} styles={styles} />
+      </WalletSidePanel>
 
       {/* Content */}
       <div className={styles.content}>
@@ -319,23 +324,33 @@ const DesktopWalletLayout = memo(() => {
           </p>
         </Flexbox>
       </Modal>
-    </Flexbox>
+    </div>
   );
 });
 
 // ============ HOME CONTENT ============
 const HomeContent = ({ address, balance, balanceVisible, setBalanceVisible, setModalType, transactions, styles, theme }: any) => {
   return (
-    <Flexbox style={{ maxWidth: 700 }} gap={20}>
+    <Flexbox style={{ maxWidth: 900, width: '100%' }} gap={20}>
       {/* Header */}
       <Flexbox justify="space-between" align="center">
-        <div>
-          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>Overview</h2>
-          <span style={{ color: theme.colorTextSecondary, fontSize: 13 }}>Manage your assets</span>
-        </div>
-        <Tag icon={<WalletIcon size={12} />} style={{ padding: '4px 10px', cursor: 'pointer' }}>
-          {address ? `${address.substring(0, 6)}...${address.substring(address.length - 4)}` : 'Loading...'}
-        </Tag>
+        <Flexbox horizontal align="center" gap={12}>
+          <div style={{
+            width: 40,
+            height: 40,
+            borderRadius: 12,
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 20
+          }}>🐱</div>
+          <div>
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Main Wallet</h2>
+            <span style={{ color: theme.colorTextTertiary, fontSize: 12 }}>Kawai Network</span>
+          </div>
+        </Flexbox>
+        <AddressPill address={address} />
       </Flexbox>
 
       {/* Balance Card */}
@@ -355,7 +370,7 @@ const HomeContent = ({ address, balance, balanceVisible, setBalanceVisible, setM
       </Card>
 
       {/* Quick Actions */}
-      <Flexbox horizontal gap={8}>
+      <Flexbox horizontal gap={12} style={{ marginTop: 4 }}>
         {[
           { label: 'Send', icon: Send, color: '#06b6d4', action: () => setModalType('send') },
           { label: 'Receive', icon: ArrowDownToLine, color: '#22c55e', action: () => setModalType('receive') },
@@ -363,9 +378,9 @@ const HomeContent = ({ address, balance, balanceVisible, setBalanceVisible, setM
         ].map((item) => (
           <div key={item.label} className={styles.actionButton} onClick={item.action}>
             <div className={styles.actionCircle} style={{ background: `${item.color}20`, color: item.color }}>
-              <item.icon size={20} />
+              <item.icon size={24} />
             </div>
-            <span style={{ fontWeight: 500, fontSize: 12 }}>{item.label}</span>
+            <span style={{ fontWeight: 600, fontSize: 13 }}>{item.label}</span>
           </div>
         ))}
       </Flexbox>
@@ -374,31 +389,81 @@ const HomeContent = ({ address, balance, balanceVisible, setBalanceVisible, setM
       <Card title={<Flexbox horizontal align="center" gap={8}><Coins size={16} /> Tokens</Flexbox>} size="small">
         <Flexbox gap={8}>
           <div className={styles.tokenRow}>
-            <Flexbox horizontal align="center" gap={12}>
-              <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#26a17b', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 12 }}>U</div>
+            <Flexbox horizontal align="center" gap={12} style={{ flex: 1 }}>
+              {/* USDT Logo - Tether style */}
+              <div style={{
+                width: 36,
+                height: 36,
+                borderRadius: '50%',
+                background: '#26a17b',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                fontWeight: 800,
+                fontSize: 16,
+                fontFamily: 'Arial, sans-serif',
+                textShadow: '0 1px 2px rgba(0,0,0,0.2)'
+              }}>₮</div>
               <div>
                 <div style={{ fontWeight: 600 }}>USDT</div>
                 <div style={{ fontSize: 12, color: theme.colorTextSecondary }}>Tether USD</div>
               </div>
             </Flexbox>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontWeight: 600 }}>{balanceVisible ? balance : '••••'}</div>
-              <div style={{ fontSize: 12, color: theme.colorTextSecondary }}>${balanceVisible ? balance : '••••'}</div>
-            </div>
+            <Flexbox horizontal align="center" gap={16}>
+              <span style={{ fontSize: 12, color: theme.colorTextSecondary }}>$1.00</span>
+              <span style={{
+                padding: '2px 8px',
+                borderRadius: 4,
+                background: 'rgba(128, 128, 128, 0.2)',
+                color: theme.colorTextSecondary,
+                fontSize: 11,
+                fontWeight: 500
+              }}>0.00%</span>
+              <div style={{ textAlign: 'right', minWidth: 70 }}>
+                <div style={{ fontWeight: 700, fontSize: 14, color: '#fff' }}>{balanceVisible ? balance : '••••'}</div>
+                <div style={{ fontSize: 11, color: theme.colorTextTertiary }}>${balanceVisible ? balance : '••••'}</div>
+              </div>
+            </Flexbox>
           </div>
 
           <div className={styles.tokenRow}>
-            <Flexbox horizontal align="center" gap={12}>
-              <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 12 }}>K</div>
+            <Flexbox horizontal align="center" gap={12} style={{ flex: 1 }}>
+              {/* KAWAI Logo - Custom style */}
+              <div style={{
+                width: 36,
+                height: 36,
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                fontWeight: 800,
+                fontSize: 14,
+                fontFamily: 'Arial, sans-serif',
+                boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)'
+              }}>🐱</div>
               <div>
                 <div style={{ fontWeight: 600 }}>KAWAI</div>
                 <div style={{ fontSize: 12, color: theme.colorTextSecondary }}>Kawai Token</div>
               </div>
             </Flexbox>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontWeight: 600 }}>0</div>
-              <div style={{ fontSize: 12, color: theme.colorTextSecondary }}>$0.00</div>
-            </div>
+            <Flexbox horizontal align="center" gap={16}>
+              <span style={{ fontSize: 12, color: theme.colorTextSecondary }}>$0.001</span>
+              <span style={{
+                padding: '2px 8px',
+                borderRadius: 4,
+                background: 'rgba(34, 197, 94, 0.15)',
+                color: '#4ade80',
+                fontSize: 11,
+                fontWeight: 600
+              }}>+12.5%</span>
+              <div style={{ textAlign: 'right', minWidth: 70 }}>
+                <div style={{ fontWeight: 700, fontSize: 14, color: '#fff' }}>0</div>
+                <div style={{ fontSize: 11, color: theme.colorTextTertiary }}>$0.00</div>
+              </div>
+            </Flexbox>
           </div>
         </Flexbox>
       </Card>
@@ -418,7 +483,17 @@ const HomeContent = ({ address, balance, balanceVisible, setBalanceVisible, setM
             ]}
           />
         ) : (
-          <Empty description="No transactions yet" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          <Flexbox align="center" gap={16} style={{ padding: '24px 0' }}>
+            <Empty description={false} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+            <span style={{ color: theme.colorTextSecondary }}>No transactions yet</span>
+            <Button
+              type="primary"
+              size="small"
+              onClick={() => window.open('https://testnet.monad.xyz/faucet', '_blank')}
+            >
+              Get Test Tokens (Faucet)
+            </Button>
+          </Flexbox>
         )}
       </Card>
     </Flexbox>
@@ -517,6 +592,48 @@ const SettingsContent = ({ address, styles, theme }: any) => {
 };
 
 // ============ HELPER COMPONENTS ============
+const AddressPill = ({ address }: { address: string }) => {
+  const { message } = App.useApp();
+
+  const handleCopy = () => {
+    if (address) {
+      navigator.clipboard.writeText(address);
+      message.success("Address copied!");
+    }
+  };
+
+  return (
+    <div
+      onClick={handleCopy}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        padding: '6px 12px',
+        background: 'rgba(255, 255, 255, 0.06)',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        borderRadius: 20,
+        cursor: 'pointer',
+        transition: 'all 0.2s ease',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+        e.currentTarget.style.borderColor = 'rgba(102, 126, 234, 0.3)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
+        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+      }}
+    >
+      <WalletIcon size={12} style={{ opacity: 0.7 }} />
+      <span style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 500 }}>
+        {address ? `${address.substring(0, 6)}...${address.substring(address.length - 4)}` : 'Loading...'}
+      </span>
+      <Copy size={11} style={{ opacity: 0.5 }} />
+    </div>
+  );
+};
+
 const CopyButton = ({ text }: { text: string }) => {
   const { message } = App.useApp();
   return (
