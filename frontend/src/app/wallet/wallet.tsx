@@ -1,8 +1,6 @@
 import { Card, Modal, QRCode, App, Table, Tag, Tabs, Button, InputNumber, Form, Input } from 'antd';
 import { memo, useEffect, useState } from 'react';
 import { DeAIService, WalletService } from '@@/github.com/kawai-network/veridium/internal/services';
-import { ListKeys, CreateKey, RevokeKey } from '@@/github.com/kawai-network/veridium/internal/services/apikeyservice';
-import { ApiKey } from '@@/github.com/kawai-network/veridium/internal/database/generated/models';
 import { ListWalletTransactions } from '@@/github.com/kawai-network/veridium/internal/database/generated/queries';
 import type { WalletTransaction } from '@@/github.com/kawai-network/veridium/internal/database/generated/models';
 import { useUserStore } from '@/store/user';
@@ -95,7 +93,7 @@ const DesktopWalletLayout = memo(() => {
   const [balance, setBalance] = useState<string>('0');
   const [loading, setLoading] = useState(false);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
-  const [modalType, setModalType] = useState<'deposit' | 'send' | 'receive' | 'swap' | 'createKey' | null>(null);
+  const [modalType, setModalType] = useState<'deposit' | 'send' | 'receive' | 'swap' | null>(null);
   const [balanceVisible, setBalanceVisible] = useState(true);
   const { message } = App.useApp();
   const { isWalletLoaded } = useUserStore();
@@ -171,23 +169,6 @@ const DesktopWalletLayout = memo(() => {
       setLoading(false);
     }
   };
-
-  const handleCreateKey = async (name: string) => {
-    setLoading(true);
-    try {
-      await CreateKey(name);
-      message.success("API Key Generated!");
-      setModalType(null);
-      // Trigger refresh in KeyManager (via simple event or passed prop, here simplified to page refresh via store or context if we had one)
-      // For now, we will just close modal, and KeyManager will refresh on its own polling or we pass a signal.
-      // Better: lift state up or use a ref.
-      window.dispatchEvent(new Event('refresh-api-keys'));
-    } catch (e) {
-      message.error("Failed to create key");
-    } finally {
-      setLoading(false);
-    }
-  }
 
   const TransactionTable = () => (
     <Table
@@ -277,7 +258,6 @@ const DesktopWalletLayout = memo(() => {
             { label: 'Send', icon: Send, color: '#06b6d4', action: () => setModalType('send') },
             { label: 'Receive', icon: ArrowDownToLine, color: '#22c55e', action: () => setModalType('receive') },
             { label: 'Swap', icon: Repeat2, color: '#eab308', action: () => setModalType('swap') },
-            { label: 'Create Key', icon: Key, color: '#8b5cf6', action: () => setModalType('createKey') },
           ].map((item) => (
             <div key={item.label} className={styles.actionButton} onClick={item.action} style={{ flex: 1 }}>
               <div className={styles.actionCircle} style={{ background: `${item.color}15`, color: item.color }}>
@@ -303,16 +283,6 @@ const DesktopWalletLayout = memo(() => {
                 ),
                 children: <div style={{ padding: 16 }}><TransactionTable /></div>,
               },
-              {
-                key: 'keys',
-                label: (
-                  <Flexbox gap={8} align="center" style={{ padding: '0 16px' }}>
-                    <Key size={16} />
-                    API Keys
-                  </Flexbox>
-                ),
-                children: <APIKeyManager />,
-              },
             ]}
           />
         </Card>
@@ -337,16 +307,6 @@ const DesktopWalletLayout = memo(() => {
         destroyOnClose
       >
         <SendForm onSend={handleSend} loading={loading} />
-      </Modal>
-
-      <Modal
-        title="Create API Key"
-        open={modalType === 'createKey'}
-        onCancel={() => setModalType(null)}
-        footer={null}
-        destroyOnClose
-      >
-        <CreateKeyForm onCreate={handleCreateKey} loading={loading} />
       </Modal>
 
       <Modal
@@ -464,97 +424,6 @@ const SendForm = ({ onSend, loading }: { onSend: (to: string, val: number) => vo
         Send USDT
       </Button>
     </Form>
-  );
-};
-
-const CreateKeyForm = ({ onCreate, loading }: { onCreate: (name: string) => void, loading: boolean }) => {
-  const [form] = Form.useForm();
-
-  return (
-    <Form
-      form={form}
-      layout="vertical"
-      onFinish={(v) => onCreate(v.name)}
-    >
-      <Form.Item
-        label="Key Name"
-        name="name"
-        rules={[{ required: true, message: 'Please give your key a name' }]}
-      >
-        <Input placeholder="e.g. My MacBook Air" size="large" />
-      </Form.Item>
-
-      <Button type="primary" htmlType="submit" block size="large" loading={loading} style={{ marginTop: 16 }}>
-        Generate Key
-      </Button>
-    </Form>
-  );
-};
-
-const APIKeyManager = () => {
-  const [keys, setKeys] = useState<ApiKey[]>([]);
-  const { message } = App.useApp();
-
-  const loadKeys = async () => {
-    try {
-      const list = await ListKeys();
-      setKeys(list);
-    } catch (e) {
-      console.error("Failed to load keys", e);
-    }
-  };
-
-  useEffect(() => {
-    loadKeys();
-    const handler = () => loadKeys();
-    window.addEventListener('refresh-api-keys', handler);
-    return () => window.removeEventListener('refresh-api-keys', handler);
-  }, []);
-
-  const handleRevoke = async (id: number) => {
-    try {
-      await RevokeKey(id);
-      message.success("Key revoked");
-      loadKeys();
-    } catch (e) {
-      message.error("Failed to revoke key");
-    }
-  };
-
-  return (
-    <Flexbox style={{ flexDirection: 'column' }} gap={16}>
-      <Flexbox justify="space-between" align="center" style={{ padding: 16 }}>
-        <span style={{ fontWeight: 600 }}>Your API Keys</span>
-        {/* The create button is in Quick Actions, but we can also have one here logic wise, 
-            but for cleaner UI we rely on the main "Create Key" quick action or add one here too if user wants.
-            Let's keep it clean for now as requested by user ("Quick Actions" section).
-        */}
-      </Flexbox>
-
-      <Table
-        dataSource={keys}
-        rowKey="id"
-        pagination={false}
-        columns={[
-          { title: 'Name', dataIndex: 'name', key: 'name', render: (t) => <b>{t}</b> },
-          { title: 'Key', dataIndex: 'key', key: 'key', render: (t) => <code style={{ fontSize: 12 }}>{t}</code> },
-          { title: 'Created', dataIndex: 'createdAt', key: 'createdAt', render: (t) => new Date(t).toLocaleDateString() },
-          {
-            title: 'Status',
-            dataIndex: 'enabled',
-            key: 'enabled',
-            render: (s) => <Tag color={s === 1 ? 'success' : 'error'}>{s === 1 ? 'Active' : 'Revoked'}</Tag>
-          },
-          {
-            title: 'Action',
-            key: 'action',
-            render: (_, r) => r.enabled === 1 && (
-              <Button size="small" danger type="dashed" onClick={() => handleRevoke(r.id)}>Revoke</Button>
-            )
-          }
-        ]}
-      />
-    </Flexbox>
   );
 };
 
