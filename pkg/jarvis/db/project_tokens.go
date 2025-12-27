@@ -1,9 +1,13 @@
 package db
 
-// PROJECT_TOKENS contains project-specific contract addresses
+// PROJECT_TOKENS contains project-specific contract addresses (Monad Testnet)
+// Deployed: 2025-12-27
 var PROJECT_TOKENS map[string]string = map[string]string{
-	"0x312C4fC3598AC9B54375eD12BbF55af83f86f862": "MockUSDT",
-	"0xD85758a0BC00a22a95E9201551ADC1b1E59A7A83": "KawaiToken",
-	"0x0F0E32877f8eC14d12E500D7642b2109A02Dd466": "Escrow",
-	"0xa6Fc4FaF4CD7a4E3f300D164a37CB45d35bf28eD": "PaymentVault",
+	// Monad Testnet Contracts
+	"0xa6Fc4FaF4CD7a4E3f300D164a37CB45d35bf28eD": "MockUSDT",
+	"0x3EC7A3b85f9658120490d5a76705d4d304f4068D": "KawaiToken",
+	"0x134244eDd4349b0B408c5293Ffb4263984F2808C": "Escrow",
+	"0xa3004DFc316998bD02DFd92e4f13c7FACFFdF70F": "PaymentVault",
+	"0x988Cbef1F6b9057Cfa7325a7E364543E615f9191": "KAWAI_Distributor",
+	"0x2A1ebd03Ce88CED9731c77C63EDE2451f9c08F94": "USDT_Distributor",
 }

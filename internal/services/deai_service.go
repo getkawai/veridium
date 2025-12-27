@@ -6,10 +6,14 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common" // Added this import
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/kawai-network/veridium/pkg/jarvis/contracts"
+	"github.com/kawai-network/veridium/pkg/jarvis/networks"
 	"github.com/kawai-network/veridium/pkg/jarvis/util/reader"
 )
+
+// monadChainID is the chain ID for Monad Testnet
+var monadChainID = big.NewInt(int64(networks.MonadTestnet.GetChainID()))
 
 // DeAIService handles interactions with the Veridium smart contracts
 type DeAIService struct {
@@ -19,12 +23,8 @@ type DeAIService struct {
 
 // NewDeAIService creates a new instance of DeAIService
 func NewDeAIService(wallet *WalletService) *DeAIService {
-	// Initialize EthReader with default public nodes for BSC Testnet
-	nodes := map[string]string{
-		"bsctestnet":  "https://bsc-testnet-rpc.publicnode.com",
-		"bsctestnet2": "https://data-seed-prebsc-1-s1.binance.org:8545",
-	}
-	ethReader := reader.NewEthReaderGeneric(nodes, nil)
+	// Initialize EthReader with Monad Testnet nodes from jarvis network config
+	ethReader := reader.NewEthReaderGeneric(networks.MonadTestnet.GetDefaultNodes(), nil)
 
 	return &DeAIService{
 		reader: ethReader,
@@ -92,7 +92,7 @@ func (s *DeAIService) DepositToVault(amountStr string) (string, error) {
 	// 4. Approve if allowance < amount
 	if allowanceBig.Cmp(amount) < 0 {
 		fmt.Println("Allowance insufficient, approving...")
-		chainId := big.NewInt(97)
+		chainId := monadChainID
 		opts, err := s.wallet.getTransactOpts(chainId)
 		if err != nil {
 			return "", fmt.Errorf("failed to get opts: %w", err)
@@ -122,7 +122,7 @@ func (s *DeAIService) DepositToVault(amountStr string) (string, error) {
 	}
 
 	// 5. Deposit
-	chainId := big.NewInt(97)
+	chainId := monadChainID
 	opts, err := s.wallet.getTransactOpts(chainId)
 	if err != nil {
 		return "", fmt.Errorf("failed to get transaction opts: %w", err)
@@ -181,7 +181,7 @@ func (s *DeAIService) ApproveUSDT(spenderStr string, amountStr string) (string, 
 	}
 
 	// 2. Get Opts
-	chainId := big.NewInt(97)
+	chainId := monadChainID
 	opts, err := s.wallet.getTransactOpts(chainId)
 	if err != nil {
 		return "", fmt.Errorf("failed to get opts: %w", err)
@@ -227,7 +227,7 @@ func (s *DeAIService) ApproveToken(tokenName string, spenderStr string, amountSt
 	}
 
 	// 3. Get Opts
-	chainId := big.NewInt(97)
+	chainId := monadChainID
 	opts, err := s.wallet.getTransactOpts(chainId)
 	if err != nil {
 		return "", fmt.Errorf("failed to get opts: %w", err)
@@ -261,7 +261,7 @@ func (s *DeAIService) CreateSellOrder(tokenAmountStr string, priceStr string) (s
 		return "", fmt.Errorf("invalid price format")
 	}
 
-	chainId := big.NewInt(97)
+	chainId := monadChainID
 	opts, err := s.wallet.getTransactOpts(chainId)
 	if err != nil {
 		return "", fmt.Errorf("failed to get opts: %w", err)
@@ -293,7 +293,7 @@ func (s *DeAIService) BuyOrder(orderIdStr string) (string, error) {
 		return "", fmt.Errorf("invalid order id")
 	}
 
-	chainId := big.NewInt(97)
+	chainId := monadChainID
 	opts, err := s.wallet.getTransactOpts(chainId)
 	if err != nil {
 		return "", fmt.Errorf("failed to get opts: %w", err)
@@ -319,7 +319,7 @@ func (s *DeAIService) BuyOrder(orderIdStr string) (string, error) {
 
 // MintTestTokens mints MockUSDT and KawaiTokens to the caller (for testing only)
 func (s *DeAIService) MintTestTokens() (string, error) {
-	chainId := big.NewInt(97)
+	chainId := monadChainID
 	opts, err := s.wallet.getTransactOpts(chainId)
 	if err != nil {
 		return "", fmt.Errorf("failed to get opts: %w", err)
@@ -359,7 +359,7 @@ func (s *DeAIService) TransferUSDT(to string, amountStr string) (string, error) 
 	}
 
 	// 3. Get Opts
-	chainId := big.NewInt(97)
+	chainId := monadChainID
 	opts, err := s.wallet.getTransactOpts(chainId)
 	if err != nil {
 		return "", fmt.Errorf("failed to get opts: %w", err)
