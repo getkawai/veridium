@@ -488,6 +488,7 @@ export default memo(() => {
               size="large"
               onPressEnter={selectedWallet ? handleSwitchWallet : handleUnlock}
               style={{ width: '100%' }}
+              autoFocus
             />
             <Button
               type="primary"
