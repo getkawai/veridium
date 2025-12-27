@@ -43,6 +43,13 @@ export function GenerateMnemonic(): $CancellablePromise<string> {
 }
 
 /**
+ * GetAPIKey returns the API key for the current wallet (generating one if needed)
+ */
+export function GetAPIKey(): $CancellablePromise<string> {
+    return $Call.ByID(1840933700);
+}
+
+/**
  * GetCurrentAddress returns the current active wallet address
  */
 export function GetCurrentAddress(): $CancellablePromise<string> {

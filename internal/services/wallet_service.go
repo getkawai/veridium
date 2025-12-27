@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 	"github.com/kawai-network/veridium/pkg/jarvis/accounts"
 	"github.com/kawai-network/veridium/pkg/jarvis/accounts/types"
 	"github.com/kawai-network/veridium/pkg/jarvis/util/account"
+	"github.com/kawai-network/veridium/pkg/store"
 )
 
 // WalletInfo represents a wallet in the list
@@ -37,11 +39,14 @@ type WalletStatus struct {
 type WalletService struct {
 	currentAccount *account.Account
 	address        string
+	kvStore        *store.KVStore
 }
 
 // NewWalletService creates a new wallet service
-func NewWalletService(dataDir string) *WalletService {
-	return &WalletService{}
+func NewWalletService(dataDir string, kvStore *store.KVStore) *WalletService {
+	return &WalletService{
+		kvStore: kvStore,
+	}
 }
 
 // HasWallet checks if a wallet already exists
@@ -62,6 +67,31 @@ func (s *WalletService) GetWallets() []WalletInfo {
 		})
 	}
 	return result
+}
+
+// GetAPIKey returns the API key for the current wallet (generating one if needed)
+func (s *WalletService) GetAPIKey() (string, error) {
+	if s.address == "" {
+		return "", nil // No active wallet
+	}
+	if s.kvStore == nil {
+		return "", errors.New("kvstore not available")
+	}
+
+	ctx := context.Background()
+	// 1. Try reverse lookup
+	apiKey, err := s.kvStore.GetAPIKeyByAddress(ctx, s.address)
+	if err == nil && apiKey != "" {
+		return apiKey, nil
+	}
+
+	// 2. Generate new key
+	newKey, err := s.kvStore.CreateAPIKey(ctx, s.address)
+	if err != nil {
+		return "", fmt.Errorf("failed to create api key: %w", err)
+	}
+
+	return newKey.Key, nil
 }
 
 // GenerateMnemonic creates a new 12-word bip39 mnemonic

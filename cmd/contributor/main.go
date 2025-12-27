@@ -30,9 +30,20 @@ func main() {
 	flag.Parse()
 
 	// ============================================
+	// Step 0: Initialize KV Store (Required for Wallet)
+	// ============================================
+	ctx := context.Background()
+
+	kv, err := store.NewMultiNamespaceKVStore()
+	if err != nil {
+		log.Fatalf("Failed to connect to KV: %v", err)
+	}
+	log.Println("✓ Connected to Cloudflare KV")
+
+	// ============================================
 	// Step 1: Setup Wallet
 	// ============================================
-	wallet := services.NewWalletService("")
+	wallet := services.NewWalletService("", kv)
 
 	if !wallet.HasWallet() && *walletPassword == "" {
 		log.Fatal("No wallet found. Use --password to create one.")
@@ -46,7 +57,6 @@ func main() {
 	}
 
 	var address string
-	var err error
 
 	if *importMnemonic != "" {
 		address, err = wallet.CreateWallet(*walletPassword, *importMnemonic, "Kawai Contributor")
@@ -76,15 +86,9 @@ func main() {
 	log.Printf("✓ Hardware: %s", hardwareInfo)
 
 	// ============================================
-	// Step 3: Initialize KV Store & Register
+	// Step 3: Register Contributor (KV already init)
 	// ============================================
-	ctx := context.Background()
-
-	kv, err := store.NewMultiNamespaceKVStore()
-	if err != nil {
-		log.Fatalf("Failed to connect to KV: %v", err)
-	}
-	log.Println("✓ Connected to Cloudflare KV")
+	// ctx is already created above
 
 	// ============================================
 	// Step 4: Start Tunnel (get public URL first)

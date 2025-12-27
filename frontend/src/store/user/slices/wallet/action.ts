@@ -17,6 +17,7 @@ export interface WalletAction {
   importKeystore: (keystoreJSON: string, password: string, description?: string) => Promise<string>;
   updateWalletDescription: (address: string, description: string) => Promise<boolean>;
   getWallets: () => Promise<WalletInfo[]>;
+  getAPIKey: () => Promise<string>;
 }
 
 export const createWalletSlice: StateCreator<
@@ -148,6 +149,15 @@ export const createWalletSlice: StateCreator<
     } catch (error) {
       console.error('Failed to get wallets:', error);
       return [];
+    }
+  },
+
+  getAPIKey: async () => {
+    try {
+      return await WalletService.GetAPIKey();
+    } catch (error) {
+      console.error('Failed to get API key:', error);
+      return '';
     }
   },
 });

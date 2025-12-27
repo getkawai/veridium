@@ -67,7 +67,6 @@ type Context struct {
 	ToolRegistry   *tools.ToolRegistry
 	WalletService  *services.WalletService
 	DeAIService    *services.DeAIService
-	APIKeyService  *services.APIKeyService
 
 	// Language Models
 	ChatModel    fantasy.LanguageModel
@@ -227,8 +226,15 @@ func (ctx *Context) InitKnowledgeBase() {
 }
 
 func (ctx *Context) InitWalletService() {
-	ctx.WalletService = services.NewWalletService("data")
-	log.Printf("WalletService initialized (using jarvis/accounts at ~/.jarvis/)")
+	// Dependent on KVStore for API Key generation
+	if ctx.KVStore == nil {
+		// Try init KVStore first if nil?
+		// Actually InitAll order matters.
+		// For now assuming KVStore is ready or we pass nil and handle it?
+		// Better to reorder InitAll.
+	}
+	ctx.WalletService = services.NewWalletService(FileBaseDir, ctx.KVStore)
+	log.Printf("WalletService initialized")
 }
 
 func (ctx *Context) InitDeAIService() {
@@ -248,15 +254,6 @@ func (ctx *Context) InitKVStore() {
 	}
 	ctx.KVStore = kvStore
 	log.Printf("KVStore initialized with Cloudflare KV")
-}
-
-func (ctx *Context) InitAPIKeyService() {
-	if ctx.KVStore == nil {
-		log.Printf("Warning: KVStore not initialized, cannot init APIKeyService")
-		return
-	}
-	ctx.APIKeyService = services.NewAPIKeyService(ctx.KVStore)
-	log.Printf("APIKeyService initialized")
 }
 
 func (ctx *Context) InitLanguageModels() {
@@ -410,10 +407,13 @@ func (ctx *Context) InitAll() error {
 	ctx.InitVectorSearch()
 	ctx.InitFileLoader()
 	ctx.InitKnowledgeBase()
-	ctx.InitWalletService()
+	ctx.InitFileLoader()
+	ctx.InitKnowledgeBase()
+	ctx.InitKVStore()       // MOVED UP
+	ctx.InitWalletService() // Depends on KVStore
 	ctx.InitDeAIService()
-	ctx.InitKVStore()
-	ctx.InitAPIKeyService()
+	// ctx.InitAPIKeyService() // Removed
+	// ctx.InitAuthService() // Removed
 	ctx.InitLanguageModels()
 	ctx.InitMemoryServices()
 	return nil
