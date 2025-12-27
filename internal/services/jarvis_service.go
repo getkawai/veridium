@@ -22,6 +22,7 @@ type NetworkInfo struct {
 	NativeTokenDecimal uint64 `json:"nativeTokenDecimal"`
 	ExplorerURL        string `json:"explorerURL"`
 	IsTestnet          bool   `json:"isTestnet"`
+	Icon               string `json:"icon"`
 }
 
 // TokenInfo represents ERC20 token information
@@ -108,12 +109,136 @@ func (s *JarvisService) getReader(networkID uint64) (*reader.EthReader, networks
 	return r, network, nil
 }
 
+// getWeb3IconSlugByChainID maps chain IDs to Web3Icons slugs for accurate matching
+func getWeb3IconSlugByChainID(chainID uint64, name string) string {
+	// Map known chain IDs to icon slugs
+	switch chainID {
+	// Ethereum networks
+	case 1: // Ethereum Mainnet
+		return "ethereum"
+	case 3, 4, 42: // Ropsten, Rinkeby, Kovan (deprecated testnets)
+		return "ethereum"
+	case 10001: // Ethereum PoW
+		return "ethereum"
+
+	// BSC
+	case 56: // BSC Mainnet
+		return "binance-smart-chain"
+	case 97: // BSC Testnet
+		return "binance-smart-chain"
+
+	// Polygon
+	case 137: // Polygon (Matic) Mainnet
+		return "polygon"
+	case 80001: // Mumbai Testnet
+		return "polygon"
+	case 1101: // Polygon zkEVM
+		return "polygon-zkevm"
+
+	// Avalanche
+	case 43114: // Avalanche C-Chain
+		return "avalanche"
+	case 43113: // Avalanche Fuji Testnet
+		return "avalanche"
+
+	// Fantom
+	case 250: // Fantom Opera
+		return "fantom"
+	case 4002: // Fantom Testnet
+		return "fantom"
+
+	// Optimism
+	case 10: // Optimism Mainnet
+		return "optimism"
+	case 420: // Optimism Goerli
+		return "optimism"
+
+	// Arbitrum
+	case 42161: // Arbitrum One
+		return "arbitrum"
+	case 421613: // Arbitrum Goerli
+		return "arbitrum"
+
+	// Base
+	case 8453: // Base Mainnet
+		return "base"
+	case 84531: // Base Goerli
+		return "base"
+
+	// Scroll
+	case 534352: // Scroll Mainnet
+		return "scroll"
+
+	// Linea
+	case 59144: // Linea Mainnet
+		return "linea"
+
+	// Monad
+	case 143, 10143: // Monad Mainnet/Testnet
+		return "monad"
+
+	// BTTC - no icon available, fallback to ethereum
+	case 199:
+		return "ethereum"
+
+	// Bitfi - no icon available, fallback to ethereum
+	case 891891:
+		return "ethereum"
+	}
+
+	// Fallback: try to match by name
+	return getWeb3IconSlugByName(name)
+}
+
+// getWeb3IconSlugByName maps network names to Web3Icons slugs (fallback)
+func getWeb3IconSlugByName(name string) string {
+	lower := strings.ToLower(name)
+	if strings.Contains(lower, "ethereum") || strings.Contains(lower, "mainnet") {
+		return "ethereum"
+	} else if strings.Contains(lower, "bnb") || strings.Contains(lower, "bsc") || strings.Contains(lower, "binance") {
+		return "binance-smart-chain"
+	} else if strings.Contains(lower, "zkevm") {
+		return "polygon-zkevm"
+	} else if strings.Contains(lower, "matic") || strings.Contains(lower, "polygon") {
+		return "polygon"
+	} else if strings.Contains(lower, "avalanche") || strings.Contains(lower, "avax") || strings.Contains(lower, "snowtrace") {
+		return "avalanche"
+	} else if strings.Contains(lower, "fantom") || strings.Contains(lower, "ftm") {
+		return "fantom"
+	} else if strings.Contains(lower, "arbitrum") {
+		return "arbitrum"
+	} else if strings.Contains(lower, "optimism") {
+		return "optimism"
+	} else if strings.Contains(lower, "base") {
+		return "base"
+	} else if strings.Contains(lower, "scroll") {
+		return "scroll"
+	} else if strings.Contains(lower, "linea") {
+		return "linea"
+	} else if strings.Contains(lower, "monad") {
+		return "monad"
+	}
+	// Default fallback to ethereum icon
+	return "ethereum"
+}
+
 // GetSupportedNetworks returns all supported blockchain networks
 func (s *JarvisService) GetSupportedNetworks() []NetworkInfo {
 	allNetworks := networks.GetSupportedNetworks()
+
+	// Use map to deduplicate by chain ID (since alternative names cause duplicates)
+	seen := make(map[uint64]bool)
 	result := make([]NetworkInfo, 0, len(allNetworks))
 
 	for _, n := range allNetworks {
+		chainID := n.GetChainID()
+
+		// Skip if we've already added this network (by chain ID)
+		if seen[chainID] {
+			continue
+		}
+		seen[chainID] = true
+
 		name := n.GetName()
 		isTestnet := strings.Contains(strings.ToLower(name), "testnet") ||
 			strings.Contains(strings.ToLower(name), "ropsten") ||
@@ -121,13 +246,17 @@ func (s *JarvisService) GetSupportedNetworks() []NetworkInfo {
 			strings.Contains(strings.ToLower(name), "rinkeby") ||
 			strings.Contains(strings.ToLower(name), "mumbai")
 
+		// Use chain ID to determine icon for more accurate matching
+		icon := getWeb3IconSlugByChainID(chainID, name)
+
 		result = append(result, NetworkInfo{
-			ID:                 n.GetChainID(),
+			ID:                 chainID,
 			Name:               name,
 			NativeTokenSymbol:  n.GetNativeTokenSymbol(),
 			NativeTokenDecimal: n.GetNativeTokenDecimal(),
 			ExplorerURL:        n.GetBlockExplorerAPIURL(),
 			IsTestnet:          isTestnet,
+			Icon:               icon,
 		})
 	}
 
@@ -149,12 +278,13 @@ func (s *JarvisService) GetNetworkByID(chainID uint64) (*NetworkInfo, error) {
 		strings.Contains(strings.ToLower(name), "mumbai")
 
 	return &NetworkInfo{
-		ID:                 network.GetChainID(),
+		ID:                 chainID,
 		Name:               name,
 		NativeTokenSymbol:  network.GetNativeTokenSymbol(),
 		NativeTokenDecimal: network.GetNativeTokenDecimal(),
 		ExplorerURL:        network.GetBlockExplorerAPIURL(),
 		IsTestnet:          isTestnet,
+		Icon:               getWeb3IconSlugByChainID(chainID, name),
 	}, nil
 }
 

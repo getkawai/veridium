@@ -732,6 +732,7 @@ export class NetworkInfo {
     "nativeTokenDecimal": number;
     "explorerURL": string;
     "isTestnet": boolean;
+    "icon": string;
 
     /** Creates a new NetworkInfo instance. */
     constructor($$source: Partial<NetworkInfo> = {}) {
@@ -752,6 +753,9 @@ export class NetworkInfo {
         }
         if (!("isTestnet" in $$source)) {
             this["isTestnet"] = false;
+        }
+        if (!("icon" in $$source)) {
+            this["icon"] = "";
         }
 
         Object.assign(this, $$source);

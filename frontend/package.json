@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build:dev": "bash -c 'vite build --minify false --mode development > /dev/null 2>&1 || { echo \"Build failed with errors:\"; vite build --minify false --mode development 2>&1 | grep -E \"(Error|error|ERROR|Build failed|failed|Failed|✗|×)\"; exit 1; }'",
+    "build:dev": "vite build --minify false --mode development",
     "build": "tsc && vite build --mode production",
     "preview": "vite preview"
   },
@@ -20,6 +20,8 @@
     "@lobehub/ui": "^2.13.5",
     "@virtuoso.dev/masonry": "^1.3.5",
     "@wailsio/runtime": "latest",
+    "@web3icons/core": "^4.0.42",
+    "@web3icons/react": "^4.1.8",
     "antd-style": "^3.7.1",
     "gpt-tokenizer": "^3.4.0",
     "i18next-browser-languagedetector": "^8.2.0",

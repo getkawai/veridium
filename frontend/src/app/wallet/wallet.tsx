@@ -9,19 +9,8 @@ import { ArrowDownToLine, Copy, Send, Eye, EyeOff, Repeat2, History, Home, Shopp
 import { ActionIcon, Icon } from '@lobehub/ui';
 import { Flexbox } from 'react-layout-kit';
 import { createStyles, useTheme } from 'antd-style';
-import {
-  EthereumCircleColorful,
-  BSCCircleColorful,
-  PolygonCircleColorful,
-  AvaxCircleColorful,
-  FantomCircleColorful,
-  ArbitrumCircleColorful,
-  OptimismCircleColorful,
-  BaseCircleColorful,
-  ScrollCircleColorful,
-  UsdtCircleColorful,
-  WalletColorful
-} from '@ant-design/web3-icons';
+import { NetworkIcon } from './NetworkIcons';
+import { TokenUSDT } from '@web3icons/react';
 
 import Menu from '@/components/Menu';
 import PanelTitle from '@/components/PanelTitle';
@@ -193,29 +182,9 @@ const MenuContent = memo<{
 });
 
 // Network icons mapping
-const NETWORK_ICONS: Record<string, any> = {
-  'ethereum': EthereumCircleColorful,
-  'bsc': BSCCircleColorful,
-  'matic': PolygonCircleColorful,
-  'polygon': PolygonCircleColorful,
-  'avalanche': AvaxCircleColorful,
-  'fantom': FantomCircleColorful,
-  'arbitrum': ArbitrumCircleColorful,
-  'optimism': OptimismCircleColorful,
-  'base': BaseCircleColorful,
-  'scroll': ScrollCircleColorful,
-  // Fallbacks using WalletColorful or standard icons if specific chain missing
-  'monad': WalletColorful,
-  'linea': WalletColorful,
-};
+// Network icons mapping removed in favor of dynamic NetworkIcon
 
-const getNetworkIconComponent = (name: string) => {
-  const lowerName = name.toLowerCase();
-  for (const [key, IconComponent] of Object.entries(NETWORK_ICONS)) {
-    if (lowerName.includes(key)) return IconComponent;
-  }
-  return WalletColorful;
-};
+// getNetworkIconComponent removed
 
 interface NetworkSwitcherProps {
   currentNetwork: NetworkInfo | null;
@@ -248,7 +217,6 @@ const NetworkSwitcher = memo<NetworkSwitcherProps>(({ currentNetwork, onNetworkC
   };
 
   const displayName = currentNetwork?.name || 'Select Network';
-  const IconComponent = currentNetwork ? getNetworkIconComponent(currentNetwork.name) : WalletColorful;
 
   return (
     <Popover
@@ -281,10 +249,9 @@ const NetworkSwitcher = memo<NetworkSwitcherProps>(({ currentNetwork, onNetworkC
                     transition: 'background 0.2s'
                   }}
                 >
-                  <span>{(() => {
-                    const Icon = getNetworkIconComponent(network.name);
-                    return <Icon style={{ fontSize: 24 }} />;
-                  })()}</span>
+                  <span>
+                    <NetworkIcon name={network.icon || 'ethereum'} size={24} variant="branded" />
+                  </span>
                   <Flexbox flex={1}>
                     <span style={{ fontSize: 13, fontWeight: currentNetwork?.id === network.id ? 600 : 400 }}>{network.name}</span>
                     <span style={{ fontSize: 10, color: theme.colorTextTertiary }}>{network.nativeTokenSymbol}</span>
@@ -310,10 +277,9 @@ const NetworkSwitcher = memo<NetworkSwitcherProps>(({ currentNetwork, onNetworkC
                     transition: 'background 0.2s'
                   }}
                 >
-                  <span>{(() => {
-                    const Icon = getNetworkIconComponent(network.name);
-                    return <Icon style={{ fontSize: 24 }} />;
-                  })()}</span>
+                  <span>
+                    <NetworkIcon name={network.icon || 'ethereum'} size={24} variant="branded" />
+                  </span>
                   <Flexbox flex={1}>
                     <span style={{ fontSize: 13, fontWeight: currentNetwork?.id === network.id ? 600 : 400 }}>{network.name}</span>
                     <span style={{ fontSize: 10, color: theme.colorTextTertiary }}>{network.nativeTokenSymbol}</span>
@@ -352,7 +318,11 @@ const NetworkSwitcher = memo<NetworkSwitcherProps>(({ currentNetwork, onNetworkC
         <Flexbox flex={1}>
           <div style={{ fontSize: 10, color: theme.colorTextTertiary, lineHeight: 1 }}>Network</div>
           <div style={{ fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-            <IconComponent style={{ fontSize: 20 }} /> {displayName}
+            {currentNetwork ? (
+              <NetworkIcon name={currentNetwork.icon || 'ethereum'} size={20} variant="branded" />
+            ) : (
+              <NetworkIcon name="wallet-connect" size={20} />
+            )} {displayName}
           </div>
         </Flexbox>
         <Globe size={14} style={{ opacity: 0.5 }} />
@@ -845,10 +815,14 @@ const HomeContent = ({ address, balance, nativeBalance, balanceVisible, setBalan
                   fontWeight: 800,
                   fontSize: 14,
                 }}>
-                  {(() => {
-                    const Icon = getNetworkIconComponent(currentNetwork.name);
-                    return <Icon style={{ fontSize: 24 }} />;
-                  })()}
+                  {currentNetwork && (
+                    <NetworkIcon
+                      name={currentNetwork.icon || 'ethereum'}
+                      size={24}
+                      variant="mono"
+                      color="#fff"
+                    />
+                  )}
                 </div>
                 <div>
                   <div style={{ fontWeight: 600 }}>{currentNetwork.nativeTokenSymbol}</div>
@@ -878,7 +852,7 @@ const HomeContent = ({ address, balance, nativeBalance, balanceVisible, setBalan
                 fontFamily: 'Arial, sans-serif',
                 textShadow: '0 1px 2px rgba(0,0,0,0.2)'
               }}>
-                <UsdtCircleColorful style={{ fontSize: 36 }} />
+                <TokenUSDT size={36} variant="branded" />
               </div>
               <div>
                 <div style={{ fontWeight: 600 }}>USDT</div>
