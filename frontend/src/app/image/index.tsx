@@ -6,8 +6,8 @@ import ImageTopicPanel from '@/features/ImageTopicPanel';
 import Container from './_layout/Desktop/Container';
 import RegisterHotkeys from './_layout/Desktop/RegisterHotkeys';
 import ImageWorkspace from './features/ImageWorkspace';
-import Topics from './@topic/features/Topics';
 import ConfigPanel from './@menu/features/ConfigPanel';
+import TopicList from './@topic/features/Topics/TopicList';
 
 const DesktopImageLayout = () => {
   return (
@@ -25,7 +25,7 @@ const DesktopImageLayout = () => {
           <ImageWorkspace />
         </Container>
         <ImageTopicPanel>
-          <Topics />
+          <TopicList />
         </ImageTopicPanel>
       </Flexbox>
       <RegisterHotkeys />

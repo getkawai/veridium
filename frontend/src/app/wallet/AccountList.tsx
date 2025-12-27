@@ -3,11 +3,13 @@
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { useSize } from 'ahooks';
 import { ActionIcon, Avatar, Text } from '@lobehub/ui';
-import { Popover } from 'antd';
+import { Popover, App } from 'antd';
 import { createStyles, useTheme } from 'antd-style';
-import { Plus, UserCircle, CheckCircle2 } from 'lucide-react';
+import { Plus, CheckCircle2, Copy } from 'lucide-react';
 import { memo, useEffect, useRef, useState } from 'react';
 import { Flexbox } from 'react-layout-kit';
+
+import { genAvatar } from '@/utils/avatar';
 
 import { WalletService } from '@@/github.com/kawai-network/veridium/internal/services';
 import type { WalletInfo } from '@@/github.com/kawai-network/veridium/internal/services';
@@ -46,6 +48,7 @@ interface AccountListProps {
 const AccountList = memo<AccountListProps>(({ activeAddress, onAccountSwitch, onAddAccount }) => {
   const { styles, cx } = useStyles();
   const theme = useTheme();
+  const { message } = App.useApp();
   const [parent] = useAutoAnimate();
   const [wallets, setWallets] = useState<WalletInfo[]>([]);
 
@@ -53,6 +56,12 @@ const AccountList = memo<AccountListProps>(({ activeAddress, onAccountSwitch, on
   const size = useSize(ref);
   const width = size?.width || 80;
   const showMoreInfo = Boolean(width > 120);
+
+  const handleCopy = (e: React.MouseEvent, address: string) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(address);
+    message.success('Address copied!');
+  };
 
   const fetchWallets = async () => {
     try {
@@ -109,6 +118,8 @@ const AccountList = memo<AccountListProps>(({ activeAddress, onAccountSwitch, on
         {wallets.map((wallet, index) => {
           const isActive = wallet.address === activeAddress;
 
+          const avatarInfo = genAvatar(wallet.address);
+
           const tooltipContent = (
             <Flexbox align={'center'} flex={1} gap={16} horizontal justify={'space-between'} style={{ overflow: 'hidden' }}>
               <Flexbox flex={1} style={{ overflow: 'hidden' }}>
@@ -119,7 +130,15 @@ const AccountList = memo<AccountListProps>(({ activeAddress, onAccountSwitch, on
                   {wallet.address.substring(0, 6)}...{wallet.address.substring(wallet.address.length - 4)}
                 </Text>
               </Flexbox>
-              {isActive && <CheckCircle2 size={14} color={theme.colorSuccess} />}
+              <Flexbox horizontal gap={4} align="center">
+                <ActionIcon
+                  icon={Copy}
+                  onClick={(e) => handleCopy(e, wallet.address)}
+                  size="small"
+                  title="Copy Address"
+                />
+                {isActive && <CheckCircle2 size={14} color={theme.colorSuccess} />}
+              </Flexbox>
             </Flexbox>
           );
 
@@ -139,12 +158,13 @@ const AccountList = memo<AccountListProps>(({ activeAddress, onAccountSwitch, on
               width={'100%'}
             >
               <Avatar
-                avatar={<UserCircle size={isActive ? 28 : 24} color={isActive ? theme.colorPrimary : theme.colorTextSecondary} />}
-                background={theme.colorFillSecondary}
+                avatar={avatarInfo.emoji}
+                background={isActive ? theme.colorFillSecondary : undefined}
                 bordered={isActive}
                 shape="square"
                 size={48}
                 className={styles.avatar}
+                style={{ fontSize: 24, background: !isActive ? avatarInfo.background : undefined }}
               />
               {showMoreInfo && tooltipContent}
             </Flexbox>
