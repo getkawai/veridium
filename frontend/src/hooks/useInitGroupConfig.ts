@@ -1,5 +1,5 @@
 import { useChatGroupStore } from '@/store/chatGroup';
-import { useSessionStore } from '@/store/session';
+import { useSessionStore } from '@/store/session/store';
 import { useUserStore } from '@/store/user';
 import { authSelectors } from '@/store/user/selectors';
 

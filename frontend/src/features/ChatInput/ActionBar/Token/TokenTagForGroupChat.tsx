@@ -18,7 +18,7 @@ import { chatSelectors } from '@/store/chat/slices/message/selectors';
 import { messageMapKey } from '@/store/chat/utils/messageMapKey';
 import { chatGroupSelectors } from '@/store/chatGroup/selectors';
 import { useChatGroupStore } from '@/store/chatGroup/store';
-import { useSessionStore } from '@/store/session';
+import { useSessionStore } from '@/store/session/store';
 import { sessionSelectors } from '@/store/session/selectors';
 import { useToolStore } from '@/store/tool';
 import { toolSelectors } from '@/store/tool/selectors';

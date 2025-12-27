@@ -7,7 +7,7 @@ import { Center } from 'react-layout-kit';
 
 import { useChatStore } from '@/store/chat';
 import { chatSelectors } from '@/store/chat/slices/message/selectors';
-import { useSessionStore } from '@/store/session';
+import { useSessionStore } from '@/store/session/store';
 import { shinyTextStylish } from '@/styles/loading';
 
 const useStyles = createStyles(({ token, css }) => ({

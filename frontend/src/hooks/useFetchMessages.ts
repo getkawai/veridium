@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 import { useChatStore } from '@/store/chat';
-import { useSessionStore } from '@/store/session';
+import { useSessionStore } from '@/store/session/store';
 import { sessionSelectors } from '@/store/session/selectors';
 import { topicSelectors } from '@/store/chat/slices/topic/selectors';
 

@@ -10,7 +10,7 @@ import { Flexbox } from 'react-layout-kit';
 import { DEFAULT_AVATAR } from '@/const/meta';
 import { useChatGroupStore } from '@/store/chatGroup';
 import { chatGroupSelectors } from '@/store/chatGroup/selectors';
-import { useSessionStore } from '@/store/session';
+import { useSessionStore } from '@/store/session/store';
 import { sessionSelectors } from '@/store/session/selectors';
 import { LobeAgentSession, LobeGroupSession, LobeSessionType } from '@/types/session';
 

@@ -2,7 +2,7 @@ import { Button } from '@lobehub/ui';
 import { memo } from 'react';
 
 import { useAsyncAction } from '@/hooks/useAsyncAction';
-import { useSessionStore } from '@/store/session';
+import { useSessionStore } from '@/store/session/store';
 
 const AddButton = memo(() => {
   const createSession = useSessionStore((s) => s.createSession);

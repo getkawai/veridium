@@ -20,7 +20,7 @@ import { useInitGroupConfig } from '@/hooks/useInitGroupConfig';
 import { useChatGroupStore } from '@/store/chatGroup';
 import { chatGroupSelectors } from '@/store/chatGroup/selectors';
 import { GroupSettingsTabs } from '@/store/global/initialState';
-import { useSessionStore } from '@/store/session';
+import { useSessionStore } from '@/store/session/store';
 
 const AgentTeamSettingsWrapper = memo(() => {
   const { t } = useTranslation('setting');

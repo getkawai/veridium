@@ -2,7 +2,6 @@ import {
   ChatFileItem,
   ChatImageItem,
   ChatToolPayload,
-  ChatTranslate,
   ChatTTS,
   ChatVideoItem,
   CreateMessageParams,
@@ -15,12 +14,8 @@ import {
   UpdateMessageParams,
   UpdateMessageRAGParams,
 } from '@/types';
-import type { HeatmapsProps } from '@lobehub/charts';
-import dayjs from 'dayjs';
 import { nanoid } from 'nanoid';
-
 import { merge } from '@/utils/merge';
-import { today } from '@/utils/time';
 import { createModelLogger } from '@/utils/logger';
 
 import {
@@ -342,40 +337,7 @@ export class MessageModel {
   };
 
   findMessageQueriesById = async (messageId: string) => {
-    try {
-      const queries = await DB.ListMessageQueriesByMessage(messageId);
-
-      if (queries.length === 0) return undefined;
-
-      const query = queries[0];
-      let embeddings: any = null;
-
-      // Get embeddings if embeddingsId exists
-      const embeddingsIdStr = getNullableString(query.embeddingsId as any);
-      if (embeddingsIdStr) {
-        try {
-          const emb = await DB.GetEmbeddingsItem({
-            id: embeddingsIdStr,
-            userId: toNullString(this.userId),
-          });
-          if (emb && emb.embeddings) {
-            embeddings = emb.embeddings;
-          }
-        } catch {
-          // Embeddings not found
-        }
-      }
-
-      return {
-        id: query.id,
-        query: getNullableString(query.rewriteQuery as any),
-        rewriteQuery: getNullableString(query.rewriteQuery as any),
-        userQuery: getNullableString(query.userQuery as any),
-        embeddings,
-      };
-    } catch {
-      return undefined;
-    }
+    // todo
   };
 
   queryAll = async () => {
@@ -488,47 +450,6 @@ export class MessageModel {
       id: getNullableString(r.id as any) || '',
       count: Number(r.count) || 0,
     }));
-  };
-
-  getHeatmaps = async (): Promise<HeatmapsProps['data']> => {
-    const startDate = today().subtract(1, 'year').startOf('day');
-    const endDate = today().endOf('day');
-
-    // Use optimized query with GROUP BY date
-    const result = await DB.GetMessageHeatmaps({
-      createdAt: startDate.valueOf(),
-      createdAt2: endDate.valueOf(),
-    });
-
-    const dateCountMap = new Map<string, number>();
-
-    for (const item of result) {
-      if (item.date) {
-        const dateStr = dayjs(item.date as any).format('YYYY-MM-DD');
-        dateCountMap.set(dateStr, Number(item.count) || 0);
-      }
-    }
-
-    const heatmapData: HeatmapsProps['data'] = [];
-    let currentDate = startDate.clone();
-
-    while (currentDate.isBefore(endDate) || currentDate.isSame(endDate, 'day')) {
-      const formattedDate = currentDate.format('YYYY-MM-DD');
-      const count = dateCountMap.get(formattedDate) || 0;
-
-      const levelCount = count > 0 ? Math.ceil(count / 5) : 0;
-      const level = levelCount > 4 ? 4 : levelCount;
-
-      heatmapData.push({
-        count,
-        date: formattedDate,
-        level,
-      });
-
-      currentDate = currentDate.add(1, 'day');
-    }
-
-    return heatmapData;
   };
 
   hasMoreThanN = async (n: number): Promise<boolean> => {

@@ -14,7 +14,7 @@ import { agentSelectors } from '@/store/agent/selectors';
 import { useChatStore } from '@/store/chat';
 import { chatSelectors } from '@/store/chat/slices/message/selectors';
 import { featureFlagsSelectors, useServerConfigStore } from '@/store/serverConfig';
-import { useSessionStore } from '@/store/session';
+import { useSessionStore } from '@/store/session/store';
 import { sessionMetaSelectors } from '@/store/session/selectors';
 import AddButton from './AddButton';
 import OpeningQuestions from './OpeningQuestions';

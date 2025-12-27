@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useGroupTemplates } from '@/components/ChatGroupWizard/templates';
-import { useSessionStore } from '@/store/session';
+import { useSessionStore } from '@/store/session/store';
 import { sessionSelectors } from '@/store/session/selectors';
 import { LobeGroupSession } from '@/types/session';
 
