@@ -1,4 +1,4 @@
-.PHONY: help db-generate bindings-generate dev build clean test update-llama db-dump db-restore
+.PHONY: help db-generate bindings-generate dev devd devd-full build clean test update-llama db-dump db-restore
 
 # Default target
 help:
@@ -12,8 +12,9 @@ help:
 	@echo "  make generate             Run both db-generate and bindings-generate"
 	@echo ""
 	@echo "Development:"
-	@echo "  make dev                  Start development server (full build)"
-	@echo "  make devd                 Start dev server (keep existing DB)"
+	@echo "  make dev                  Start development server (full build, reset DB)"
+	@echo "  make devd                 Start dev server (skip frontend build, keep DB)"
+	@echo "  make devd-full            Start dev server (full build, keep DB)"
 	@echo ""
 	@echo "Quick Development (skip frontend build if possible):"
 	@echo "  make dev-quick            Skip build if dist exists"
@@ -79,9 +80,16 @@ dev:
 	rm -f backend-dev.log
 	VERIDIUM_DEV=true wails3 dev 2>&1 | tee backend-dev.log
 
-# Start development server without removing database
+# Start development server without removing database (skip frontend build)
 devd:
-	@echo "🚀 Starting development server..."
+	@echo "⚡ Starting development server (skip frontend build, keeping DB)..."
+	killport 9245
+	rm -f backend-dev.log
+	VERIDIUM_DEV=true wails3 dev -config ./build/config-skip-frontend-build.yml 2>&1 | tee backend-dev.log
+
+# Start development server with full frontend build (keeping DB)
+devd-full:
+	@echo "🚀 Starting development server (full build, keeping DB)..."
 	killport 9245
 	rm -f backend-dev.log
 	VERIDIUM_DEV=true wails3 dev 2>&1 | tee backend-dev.log

@@ -262,7 +262,7 @@ const NetworkSwitcher = memo<NetworkSwitcherProps>(({ currentNetwork, onNetworkC
 
               {/* Mainnets Section */}
               <div style={{ padding: '4px 8px', fontSize: 10, color: theme.colorTextQuaternary, marginTop: 8 }}>MAINNETS</div>
-              {networks.filter(n => !n.isTestnet).slice(0, 10).map((network) => (
+              {networks.filter(n => !n.isTestnet).map((network) => (
                 <Flexbox
                   key={network.id}
                   horizontal
