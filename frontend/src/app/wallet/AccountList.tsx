@@ -6,13 +6,12 @@ import { ActionIcon, Avatar, Text } from '@lobehub/ui';
 import { Popover, App } from 'antd';
 import { createStyles, useTheme } from 'antd-style';
 import { Plus, CheckCircle2, Copy } from 'lucide-react';
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useRef } from 'react';
 import { Flexbox } from 'react-layout-kit';
 
 import { genAvatar } from '@/utils/avatar';
 
-import { WalletService } from '@@/github.com/kawai-network/veridium/internal/services';
-import type { WalletInfo } from '@@/github.com/kawai-network/veridium/internal/services';
+import { useUserStore } from '@/store/user';
 
 const useStyles = createStyles(({ css, token }) => ({
   accountItem: css`
@@ -50,7 +49,8 @@ const AccountList = memo<AccountListProps>(({ activeAddress, onAccountSwitch, on
   const theme = useTheme();
   const { message } = App.useApp();
   const [parent] = useAutoAnimate();
-  const [wallets, setWallets] = useState<WalletInfo[]>([]);
+  // Use global wallets state
+  const wallets = useUserStore((s) => s.wallets);
 
   const ref = useRef(null);
   const size = useSize(ref);
@@ -62,19 +62,6 @@ const AccountList = memo<AccountListProps>(({ activeAddress, onAccountSwitch, on
     navigator.clipboard.writeText(address);
     message.success('Address copied!');
   };
-
-  const fetchWallets = async () => {
-    try {
-      const status = await WalletService.GetStatus();
-      setWallets(status.wallets || []);
-    } catch (e) {
-      console.error('Failed to fetch wallets', e);
-    }
-  };
-
-  useEffect(() => {
-    fetchWallets();
-  }, [activeAddress]);
 
   return (
     <Flexbox

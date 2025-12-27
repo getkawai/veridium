@@ -248,7 +248,8 @@ const NetworkSwitcher = memo(() => {
 const DesktopWalletLayout = memo(() => {
   const { styles, theme } = useStyles();
   const [activeMenu, setActiveMenu] = useState<MenuKey>('home');
-  const [address, setAddress] = useState<string>('');
+  // Use global wallet address from store
+  const address = useUserStore((s) => s.walletAddress);
   const [balance, setBalance] = useState('0.00');
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -260,10 +261,12 @@ const DesktopWalletLayout = memo(() => {
 
 
   useEffect(() => {
-    WalletService.GetCurrentAddress().then(setAddress).catch(console.error);
-    loadBalance();
-    loadHistory();
-  }, [isWalletLoaded]);
+    // Only load data if address is available
+    if (address) {
+      loadBalance();
+      loadHistory();
+    }
+  }, [address, isWalletLoaded]);
 
   const loadBalance = async () => {
     try {
@@ -331,8 +334,6 @@ const DesktopWalletLayout = memo(() => {
     setLoading(true);
     try {
       await WalletService.SwitchWallet(pendingSwitch, password);
-      const newAddr = await WalletService.GetCurrentAddress();
-      setAddress(newAddr);
       message.success("Switched account successfully");
       setPendingSwitch(null);
       await refreshWalletStatus();
@@ -424,11 +425,11 @@ const DesktopWalletLayout = memo(() => {
       </Modal>
 
       <Modal title="Create Wallet" open={modalType === 'createWallet'} onCancel={() => setModalType(null)} footer={null}>
-        <SetupForm type="create" onSuccess={() => { setModalType(null); WalletService.GetCurrentAddress().then(setAddress); refreshWalletStatus(); }} />
+        <SetupForm type="create" onSuccess={() => { setModalType(null); refreshWalletStatus(); }} />
       </Modal>
 
       <Modal title="Import Wallet" open={modalType === 'importWallet'} onCancel={() => setModalType(null)} footer={null}>
-        <SetupForm type="import" onSuccess={() => { setModalType(null); WalletService.GetCurrentAddress().then(setAddress); refreshWalletStatus(); }} />
+        <SetupForm type="import" onSuccess={() => { setModalType(null); refreshWalletStatus(); }} />
       </Modal>
       <Modal title="Smart Deposit" open={modalType === 'deposit'} onCancel={() => setModalType(null)} footer={null} destroyOnClose>
         <SmartDepositForm onDeposit={handleDeposit} loading={loading} />
