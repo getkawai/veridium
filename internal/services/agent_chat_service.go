@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -66,8 +65,10 @@ type AgentChatService struct {
 	threadService *ThreadManagementService // Thread management service
 	topicService  *topic.TopicService      // Topic service for title generation
 
-	// Reasoning mode configuration
-	reasoningConfig ReasoningConfig // Controls reasoning behavior
+	// Model capability flag (detected from loaded model name)
+	// true = Nemotron/Qwen (supports <think> tags)
+	// false = FunctionGemma (function calling only)
+	isReasoningModel bool
 
 	// Session management (hybrid: DB + in-memory cache)
 	sessions      map[string]*AgentSession // In-memory cache for active sessions
@@ -425,7 +426,7 @@ func NewAgentChatService(
 		toolRegistry:     toolRegistry,
 		threadService:    threadService,
 		topicService:     topicService,
-		reasoningConfig:  DefaultReasoningConfig(), // Default: disabled (non-reasoning)
+		isReasoningModel: false, // Default: non-reasoning (FunctionGemma)
 		sessions:         make(map[string]*AgentSession),
 		languageDetector: languageDetector,
 	}
@@ -789,10 +790,17 @@ func (s *AgentChatService) buildSystemPrompt(session *AgentSession, memoryContex
 	// baseInstruction += "\n\n" + yzmabuiltin.GetArtifactsSystemPrompt()
 	// log.Printf("🎨 Injected artifacts system prompt")
 
-	// Apply reasoning mode to instruction
-	instruction := s.reasoningConfig.GetSystemPrompt(baseInstruction)
+	// Apply model-specific instruction
+	var instruction string
+	if s.isReasoningModel {
+		// Nemotron/Qwen: supports <think> tags, minimize reasoning overhead
+		instruction = baseInstruction + "\n\n/no_think\n\nIMPORTANT: Provide concise answers. Use minimal internal reasoning."
+	} else {
+		// FunctionGemma: direct response, no reasoning
+		instruction = baseInstruction + "\n\nBe concise and direct in your responses."
+	}
 
-	log.Printf("🧠 Building system prompt with reasoning mode: %s", s.reasoningConfig.Mode)
+	log.Printf("🧠 Building system prompt (reasoning=%v)", s.isReasoningModel)
 	log.Printf("🌐 Response language set to: %s", detectedLanguage)
 	log.Printf("📝 System prompt length: %d chars", len(instruction))
 
@@ -1067,38 +1075,19 @@ func (s *AgentChatService) updateSessionTimestamp(ctx context.Context, sessionID
 	return err
 }
 
-// validateModelForReasoningMode checks if the currently loaded model is appropriate
-func (s *AgentChatService) validateModelForReasoningMode() error {
+// detectReasoningCapability detects if the loaded model supports reasoning
+// Updates s.isReasoningModel based on model name
+func (s *AgentChatService) detectReasoningCapability() {
 	modelPath := s.libService.GetLoadedChatModel()
 	if modelPath == "" {
-		return fmt.Errorf("no model loaded")
+		s.isReasoningModel = false
+		return
 	}
 
-	return s.reasoningConfig.ValidateModelForMode(modelPath)
-}
-
-// switchToRecommendedModel loads the recommended model for current reasoning mode
-func (s *AgentChatService) switchToRecommendedModel() error {
-	recommendedModel := s.reasoningConfig.GetRecommendedModel()
-
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("failed to get home directory: %w", err)
-	}
-
-	modelsDir := filepath.Join(homeDir, ".llama-cpp", "models")
-	modelPath := filepath.Join(modelsDir, recommendedModel)
-
-	log.Printf("🔄 Switching to recommended model for %s mode: %s", s.reasoningConfig.Mode, recommendedModel)
-
-	if err := s.libService.LoadChatModel(modelPath); err != nil {
-		return fmt.Errorf("failed to load recommended model: %w", err)
-	}
-
-	// Note: llamaLM from provider uses libService internally, so no need to recreate
-
-	log.Printf("✅ Successfully switched to %s", recommendedModel)
-	return nil
+	modelName := strings.ToLower(filepath.Base(modelPath))
+	// Nemotron and Qwen models support <think> tags
+	s.isReasoningModel = strings.Contains(modelName, "nemotron") || strings.Contains(modelName, "qwen")
+	log.Printf("🧠 Detected model capability: reasoning=%v (model: %s)", s.isReasoningModel, filepath.Base(modelPath))
 }
 
 // ============================================================================
@@ -1112,10 +1101,11 @@ func (s *AgentChatService) autoSummarizeIfNeeded(ctx context.Context, session *A
 		return // No topic, no summary
 	}
 
-	// 1. Check if reasoning mode supports summarization
-	threshold := s.reasoningConfig.GetSummaryThreshold()
-	if threshold == 0 {
-		return // Verbose mode doesn't need summary (3-5 turns only)
+	// 1. Get summary threshold based on model capability
+	// Reasoning models (Nemotron): 5 turns, Non-reasoning (FunctionGemma): 10 turns
+	threshold := 10
+	if s.isReasoningModel {
+		threshold = 5
 	}
 
 	// 2. Check turn count
@@ -1176,8 +1166,12 @@ func (s *AgentChatService) autoSummarizeIfNeeded(ctx context.Context, session *A
 
 	// 8. Save summary to database
 	now := time.Now().UnixMilli()
+	reasoningMode := "disabled"
+	if s.isReasoningModel {
+		reasoningMode = "enabled"
+	}
 	metadata := fmt.Sprintf(`{"summarized_at":%d,"message_count":%d,"reasoning_mode":"%s"}`,
-		now, len(yzmaMessages), s.reasoningConfig.Mode)
+		now, len(yzmaMessages), reasoningMode)
 
 	_, err = s.db.Queries().UpdateTopic(ctx, db.UpdateTopicParams{
 		Title:          topic.Title,
@@ -1209,16 +1203,10 @@ func (s *AgentChatService) autoSummarizeIfNeeded(ctx context.Context, session *A
 
 // getKeepMessageCount returns how many recent messages to keep (not summarize)
 func (s *AgentChatService) getKeepMessageCount() int {
-	switch s.reasoningConfig.Mode {
-	case ReasoningDisabled:
-		return 20 // Keep last 20 messages (10 turns)
-	case ReasoningEnabled:
-		return 12 // Keep last 12 messages (6 turns)
-	case ReasoningVerbose:
-		return 6 // Keep last 6 messages (3 turns) - but won't reach here
-	default:
-		return 16
+	if s.isReasoningModel {
+		return 12 // Reasoning models (Nemotron): keep last 12 messages (6 turns)
 	}
+	return 20 // Non-reasoning (FunctionGemma): keep last 20 messages (10 turns)
 }
 
 // generateHistorySummary generates summary using summaryModel
@@ -1295,10 +1283,11 @@ func (s *AgentChatService) incrementalSummarizeIfNeeded(ctx context.Context, ses
 		return // No topic, no summary
 	}
 
-	// 1. Check if reasoning mode supports incremental summarization
-	threshold := s.reasoningConfig.GetIncrementalSummaryThreshold()
-	if threshold == 0 {
-		return // Verbose mode doesn't use incremental summary
+	// 1. Get incremental summary threshold based on model capability
+	// Reasoning models (Nemotron): 5 turns, Non-reasoning (FunctionGemma): 10 turns
+	threshold := 10
+	if s.isReasoningModel {
+		threshold = 5
 	}
 
 	// 2. Get topic with existing summary
@@ -1380,12 +1369,16 @@ func (s *AgentChatService) incrementalSummarizeIfNeeded(ctx context.Context, ses
 		metadata.InitialSummaryAt = time.Now().UnixMilli()
 	}
 
+	reasoningModeStr := "disabled"
+	if s.isReasoningModel {
+		reasoningModeStr = "enabled"
+	}
 	newMetadata := map[string]interface{}{
 		"summary_version":          metadata.SummaryVersion + 1,
 		"last_summarized_at":       time.Now().UnixMilli(),
 		"summarized_message_count": len(allMessages) - keepCount,
 		"initial_summary_at":       metadata.InitialSummaryAt,
-		"reasoning_mode":           string(s.reasoningConfig.Mode),
+		"reasoning_mode":           reasoningModeStr,
 	}
 
 	metadataJSON, err := json.Marshal(newMetadata)

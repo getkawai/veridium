@@ -12,8 +12,8 @@ const Header = memo(() => {
     <ChatHeader
       left={<ProductLogo extra={'Wallet'} size={36} type={'text'} />}
       right={
-        <Tag color={'blue'} icon={<Badge status={'success'} />}>
-          BSC Testnet
+        <Tag color={'purple'} icon={<Badge status={'success'} />}>
+          Monad Testnet
         </Tag>
       }
       style={{

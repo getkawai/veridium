@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -117,11 +116,8 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	log.Printf("🚀 [REAL STREAM] Starting real LLM streaming for session: %s", req.SessionID)
 	startTime := time.Now()
 
-	// Auto-detect reasoning mode from loaded model (no user input needed)
-	modelName := s.libService.GetLoadedChatModel()
-	s.reasoningConfig = AutoDetectReasoningConfig(modelName)
-	log.Printf("🧠 [REAL STREAM] Auto-detected reasoning mode: %v (model: %s)",
-		s.reasoningConfig.Mode, filepath.Base(modelName))
+	// Auto-detect reasoning capability from loaded model
+	s.detectReasoningCapability()
 
 	// Helper to emit events with type safety using StreamEventPayload
 	emit := func(payload StreamEventPayload) {
@@ -142,17 +138,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	session := setup.Session
 	currentTopicID := setup.TopicID
 
-	// 2. Validate model for current reasoning mode and auto-switch if needed
-	if err := s.validateModelForReasoningMode(); err != nil {
-		log.Printf("⚠️  Model mismatch detected: %v", err)
-		log.Printf("🔄 Auto-switching to recommended model...")
-		if switchErr := s.switchToRecommendedModel(); switchErr != nil {
-			log.Printf("❌ Failed to switch model: %v", switchErr)
-			log.Printf("⚠️  Continuing with current model, but expect suboptimal performance")
-		} else {
-			log.Printf("✅ Successfully switched to recommended model")
-		}
-	}
+	// 2. Model is auto-selected based on RAM, no validation needed
 
 	// 3. Emit START event
 	emit(StreamEventPayload{

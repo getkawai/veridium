@@ -80,218 +80,116 @@ func GetRecommendedVLModels() []QwenModelSpec {
 	}
 }
 
-// GetRecommendedModels returns recommended text models for direct download
+// ============================================================================
+// Function Calling Models (FunctionGemma & Nemotron-3-Nano)
+// ============================================================================
+
+// GetRecommendedFunctionCallingModels returns recommended models for function/tool calling
 // Models are ordered from smallest to largest by MinRAM requirement
-// Primary models:
-//   - Nemotron-Orchestrator-8B: Best for orchestration/coordination (outperforms GPT-5 on HLE)
-//   - OpenThinker-Agent-v1: Best for agentic tasks (tool calling, coding)
+// Selection logic:
+//   - RAM >= 24GB: Use Nemotron-3-Nano-30B (MoE, 30B params, 3B active) - Best overall
+//   - RAM < 24GB: Use FunctionGemma 270M - Tiny but specialized for function calling
 //
-// Fallback models: Qwen3-4B for medium RAM, Llama 3.2 for very low RAM
-func GetRecommendedModels() []QwenModelSpec {
+// References:
+//   - FunctionGemma: https://docs.unsloth.ai/models/functiongemma
+//   - Nemotron-3-Nano: https://docs.unsloth.ai/models/nemotron-3
+func GetRecommendedFunctionCallingModels() []QwenModelSpec {
 	return []QwenModelSpec{
-		// Llama 3.2 1B - Smallest, fastest (for very low RAM systems <4GB)
+		// FunctionGemma 270M - Ultra-small model specialized for function calling
+		// Based on Gemma 3 270M, trained specifically for tool/function calling
+		// Can run on ~550MB RAM, perfect for low-end systems
+		// Recommended settings: top_k=64, top_p=0.95, temperature=1.0, ctx=32768
 		{
-			Name:         "llama-3.2-1b-instruct-q4_k_m",
-			URL:          "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf",
-			Quantization: "Q4_K_M",
-			Parameters:   "1b",
-			MinRAM:       2,
-			Size:         697000000, // ~697 MB
-			Description:  "Llama 3.2 1B - Ultra fast, for very low RAM systems",
+			Name:         "functiongemma-270m-it-bf16",
+			URL:          "https://huggingface.co/unsloth/functiongemma-270m-it-GGUF/resolve/main/functiongemma-270m-it-BF16.gguf",
+			Quantization: "BF16",
+			Parameters:   "270m",
+			MinRAM:       1,         // ~550MB, runs on almost any system
+			Size:         543000000, // ~543 MB
+			Description:  "FunctionGemma 270M - Ultra-small model specialized for function/tool calling",
 		},
-		// Qwen3-4B Q4_K_M - Good balance for low-medium RAM (4-8GB)
-		// Supports thinking/non-thinking modes, good for agentic tasks
+		// FunctionGemma 270M Q8_0 - Slightly smaller quantized version
 		{
-			Name:         "Qwen3-4B-Q4_K_M",
-			URL:          "https://huggingface.co/unsloth/Qwen3-4B-GGUF/resolve/main/Qwen3-4B-Q4_K_M.gguf",
-			Quantization: "Q4_K_M",
-			Parameters:   "4b",
-			MinRAM:       4,
-			Size:         2500000000, // ~2.5 GB
-			Description:  "Qwen3 4B - Good for low RAM, supports thinking mode",
+			Name:         "functiongemma-270m-it-q8_0",
+			URL:          "https://huggingface.co/unsloth/functiongemma-270m-it-GGUF/resolve/main/functiongemma-270m-it-Q8_0.gguf",
+			Quantization: "Q8_0",
+			Parameters:   "270m",
+			MinRAM:       1,         // ~300MB
+			Size:         300000000, // ~300 MB (estimated)
+			Description:  "FunctionGemma 270M Q8 - Quantized version for even lower RAM",
 		},
-		// Qwen3-4B Q6_K - Higher quality for medium RAM
+		// Nemotron-3-Nano-30B-A3B - NVIDIA's flagship small model
+		// 30B total parameters, 3B active (MoE architecture)
+		// Trained from scratch by NVIDIA, designed for both reasoning and non-reasoning
+		// Supports <think> tags for hybrid reasoning mode
+		// Recommended settings: temp=0.6, top_p=0.95, ctx=32768
 		{
-			Name:         "Qwen3-4B-Q6_K",
-			URL:          "https://huggingface.co/unsloth/Qwen3-4B-GGUF/resolve/main/Qwen3-4B-Q6_K.gguf",
+			Name:         "Nemotron-3-Nano-30B-A3B-Q4_K_M",
+			URL:          "https://huggingface.co/unsloth/Nemotron-3-Nano-30B-A3B-GGUF/resolve/main/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf",
+			Quantization: "Q4_K_M",
+			Parameters:   "30b-a3b",
+			MinRAM:       24,          // ~24.6 GB file
+			Size:         24600000000, // ~24.6 GB
+			Description:  "Nemotron-3-Nano 30B (3B active) - NVIDIA's best small model for reasoning & tools",
+		},
+		// Nemotron-3-Nano-30B-A3B UD-Q4_K_XL - Unsloth Dynamic quantization (recommended)
+		{
+			Name:         "Nemotron-3-Nano-30B-A3B-UD-Q4_K_XL",
+			URL:          "https://huggingface.co/unsloth/Nemotron-3-Nano-30B-A3B-GGUF/resolve/main/Nemotron-3-Nano-30B-A3B-UD-Q4_K_XL.gguf",
+			Quantization: "UD-Q4_K_XL",
+			Parameters:   "30b-a3b",
+			MinRAM:       24,          // ~22.8 GB file
+			Size:         22800000000, // ~22.8 GB
+			Description:  "Nemotron-3-Nano 30B UD-Q4 - Dynamic quantized, slightly smaller",
+		},
+		// Nemotron-3-Nano-30B-A3B Q6_K - Higher quality for systems with more RAM
+		{
+			Name:         "Nemotron-3-Nano-30B-A3B-Q6_K",
+			URL:          "https://huggingface.co/unsloth/Nemotron-3-Nano-30B-A3B-GGUF/resolve/main/Nemotron-3-Nano-30B-A3B-Q6_K.gguf",
 			Quantization: "Q6_K",
-			Parameters:   "4b",
-			MinRAM:       6,
-			Size:         3310000000, // ~3.31 GB
-			Description:  "Qwen3 4B Q6 - Better quality for medium RAM",
-		},
-		// Nemotron-Orchestrator-8B Q4_K_M - NVIDIA's orchestration model
-		// Outperforms GPT-5 on Humanity's Last Exam (37.1% vs 35.1%)
-		// Optimized for coordinating multiple models and tools
-		{
-			Name:         "Nemotron-Orchestrator-8B-Q4_K_M",
-			URL:          "https://huggingface.co/bartowski/nvidia_Orchestrator-8B-GGUF/resolve/main/nvidia_Orchestrator-8B-Q4_K_M.gguf",
-			Quantization: "Q4_K_M",
-			Parameters:   "8b",
-			MinRAM:       8,
-			Size:         5030000000, // ~5.03 GB
-			Description:  "Nemotron-Orchestrator 8B - Best for orchestration, outperforms GPT-5",
-		},
-		// OpenThinker-Agent-v1 Q4_K_M - Best for agentic tasks (8B, based on Qwen3-8B)
-		// State-of-the-art on Terminal-Bench 2.0 and SWE-Bench
-		// Optimized for tool calling, software engineering, and agent tasks
-		{
-			Name:         "OpenThinker-Agent-v1-Q4_K_M",
-			URL:          "https://huggingface.co/bartowski/open-thoughts_OpenThinker-Agent-v1-GGUF/resolve/main/open-thoughts_OpenThinker-Agent-v1-Q4_K_M.gguf",
-			Quantization: "Q4_K_M",
-			Parameters:   "8b",
-			MinRAM:       10,
-			Size:         5030000000, // ~5.03 GB
-			Description:  "OpenThinker-Agent-v1 8B - Best for agentic tasks, tool calling, coding",
-		},
-		// Nemotron-Orchestrator-8B Q6_K - Higher quality orchestration
-		{
-			Name:         "Nemotron-Orchestrator-8B-Q6_K",
-			URL:          "https://huggingface.co/bartowski/nvidia_Orchestrator-8B-GGUF/resolve/main/nvidia_Orchestrator-8B-Q6_K.gguf",
-			Quantization: "Q6_K",
-			Parameters:   "8b",
-			MinRAM:       12,
-			Size:         6730000000, // ~6.73 GB
-			Description:  "Nemotron-Orchestrator 8B Q6 - Higher quality orchestration",
-		},
-		// OpenThinker-Agent-v1 Q6_K - Higher quality for systems with more RAM
-		{
-			Name:         "OpenThinker-Agent-v1-Q6_K",
-			URL:          "https://huggingface.co/bartowski/open-thoughts_OpenThinker-Agent-v1-GGUF/resolve/main/open-thoughts_OpenThinker-Agent-v1-Q6_K.gguf",
-			Quantization: "Q6_K",
-			Parameters:   "8b",
-			MinRAM:       14,
-			Size:         6730000000, // ~6.73 GB
-			Description:  "OpenThinker-Agent-v1 8B Q6 - Higher quality for agentic tasks",
+			Parameters:   "30b-a3b",
+			MinRAM:       32,          // ~32 GB file
+			Size:         32000000000, // ~32 GB (estimated)
+			Description:  "Nemotron-3-Nano 30B Q6 - Higher quality for high-RAM systems",
 		},
 	}
 }
 
-// GetRecommendedReasoningModels returns Qwen3 models that support reasoning (<think> tags)
-// Use these only when reasoning mode is explicitly enabled
-func GetRecommendedReasoningModels() []QwenModelSpec {
-	return []QwenModelSpec{
-		{
-			Name:         "qwen3-4b-instruct-q4_k_m",
-			URL:          "https://huggingface.co/bartowski/Qwen_Qwen3-4B-GGUF/resolve/main/Qwen_Qwen3-4B-Q4_K_M.gguf",
-			Quantization: "Q4_K_M",
-			Parameters:   "4b",
-			MinRAM:       6,
-			Size:         2497280960, // ~2.5 GB
-			Description:  "Qwen3 4B - Reasoning model with <think> tags",
-		},
-		{
-			Name:         "qwen3-8b-instruct-q4_k_m",
-			URL:          "https://huggingface.co/bartowski/Qwen_Qwen3-8B-GGUF/resolve/main/Qwen_Qwen3-8B-Q4_K_M.gguf",
-			Quantization: "Q4_K_M",
-			Parameters:   "8b",
-			MinRAM:       12,
-			Size:         5027784224, // ~5.0 GB
-			Description:  "Qwen3 8B - Reasoning model with <think> tags",
-		},
-		{
-			Name:         "qwen3-14b-instruct-q4_k_m",
-			URL:          "https://huggingface.co/bartowski/Qwen_Qwen3-14B-GGUF/resolve/main/Qwen_Qwen3-14B-Q4_K_M.gguf",
-			Quantization: "Q4_K_M",
-			Parameters:   "14b",
-			MinRAM:       16,
-			Size:         9001753632, // ~9.0 GB
-			Description:  "Qwen3 14B - Reasoning model with <think> tags",
-		},
-		{
-			Name:         "qwen3-32b-instruct-q4_k_m",
-			URL:          "https://huggingface.co/bartowski/Qwen_Qwen3-32B-GGUF/resolve/main/Qwen_Qwen3-32B-Q4_K_M.gguf",
-			Quantization: "Q4_K_M",
-			Parameters:   "32b",
-			MinRAM:       24,
-			Size:         19762149696, // ~19.8 GB
-			Description:  "Qwen3 32B - Reasoning model with <think> tags",
-		},
-	}
-}
+// SelectOptimalFunctionCallingModel selects the best function calling model based on available RAM
+// Logic:
+//   - RAM >= 24GB: Use Nemotron-3-Nano-30B (best quality, MoE architecture)
+//   - RAM < 24GB: Use FunctionGemma 270M (tiny but specialized)
+func SelectOptimalFunctionCallingModel(availableRAM int64) QwenModelSpec {
+	models := GetRecommendedFunctionCallingModels()
 
-// GetReasoningModelPatterns extracts unique model name patterns from reasoning models
-// Returns lowercase patterns that can be used for model classification
-// Example: ["qwen", "openthinker"]
-func GetReasoningModelPatterns() []string {
-	patterns := make(map[string]bool)
+	// Threshold for Nemotron-3-Nano
+	const nemotronMinRAM int64 = 24
 
-	// Extract from reasoning models
-	for _, model := range GetRecommendedReasoningModels() {
-		// Extract base model name (before version/size/quantization)
-		name := strings.ToLower(model.Name)
-
-		// Extract pattern: "qwen3-4b-..." -> "qwen"
-		if strings.Contains(name, "qwen") {
-			patterns["qwen"] = true
+	if availableRAM >= nemotronMinRAM {
+		// Select Nemotron-3-Nano (first one that fits)
+		for _, model := range models {
+			if strings.Contains(strings.ToLower(model.Name), "nemotron") && model.MinRAM <= availableRAM {
+				log.Printf("📦 Selected function calling model: %s (%s, %s) - requires %dGB RAM (system has %dGB)",
+					model.Name, model.Parameters, model.Quantization,
+					model.MinRAM, availableRAM)
+				return model
+			}
 		}
 	}
 
-	// Also check VL models (Qwen3-VL supports reasoning)
-	for _, model := range GetRecommendedVLModels() {
-		name := strings.ToLower(model.Name)
-		if strings.Contains(name, "qwen") {
-			patterns["qwen"] = true
+	// Fallback to FunctionGemma (RAM < 24GB or no Nemotron fits)
+	for _, model := range models {
+		if strings.Contains(strings.ToLower(model.Name), "functiongemma") {
+			log.Printf("📦 Selected function calling model: %s (%s, %s) - requires %dGB RAM (system has %dGB)",
+				model.Name, model.Parameters, model.Quantization,
+				model.MinRAM, availableRAM)
+			return model
 		}
 	}
 
-	// Add models from GetRecommendedModels that support reasoning
-	for _, model := range GetRecommendedModels() {
-		name := strings.ToLower(model.Name)
-		// OpenThinker is based on Qwen3-8B and supports reasoning
-		if strings.Contains(name, "openthinker") {
-			patterns["openthinker"] = true
-		}
-	}
-
-	// Convert map to sorted slice for consistency
-	result := make([]string, 0, len(patterns))
-	for pattern := range patterns {
-		result = append(result, pattern)
-	}
-	return result
-}
-
-// GetNonReasoningModelPatterns extracts unique model name patterns from non-reasoning models
-// Returns lowercase patterns that can be used for model classification
-// Example: ["llama", "mistral", "nemotron"]
-func GetNonReasoningModelPatterns() []string {
-	patterns := make(map[string]bool)
-
-	// Extract from recommended chat models
-	for _, model := range GetRecommendedModels() {
-		name := strings.ToLower(model.Name)
-
-		// Skip reasoning models
-		if strings.Contains(name, "openthinker") {
-			continue
-		}
-
-		// Extract patterns
-		if strings.Contains(name, "llama") {
-			patterns["llama"] = true
-		} else if strings.Contains(name, "nemotron") {
-			patterns["nemotron"] = true
-		}
-	}
-
-	// Extract from utility models
-	for _, model := range GetRecommendedUtilityModels() {
-		name := strings.ToLower(model.Name)
-
-		if strings.Contains(name, "llama") {
-			patterns["llama"] = true
-		} else if strings.Contains(name, "mistral") {
-			patterns["mistral"] = true
-		}
-	}
-
-	// Convert map to sorted slice for consistency
-	result := make([]string, 0, len(patterns))
-	for pattern := range patterns {
-		result = append(result, pattern)
-	}
-	return result
+	// Ultimate fallback - return first model (FunctionGemma BF16)
+	log.Printf("⚠️  No optimal function calling model found, using default: %s", models[0].Name)
+	return models[0]
 }
 
 // SelectOptimalQwenModel selects the best VL model based on available RAM.
@@ -331,32 +229,21 @@ func SelectOptimalQwenModel(availableRAM int64) QwenModelSpec {
 }
 
 // SelectOptimalQwenTextModel selects the best text model based on available RAM.
-// It returns the largest model that fits within the available RAM.
-// If no model fits, it returns the smallest model as a fallback.
+// NEW LOGIC (per user request):
+//   - RAM >= 24GB: Use Nemotron-3-Nano-30B (MoE, 30B params, 3B active) - Best for high-end systems
+//   - RAM < 24GB: Use FunctionGemma 270M - Tiny but specialized for function calling
+//
+// This uses function calling models (FunctionGemma or Nemotron-3-Nano) based on RAM.
+//
+// References:
+//   - Nemotron-3-Nano: https://docs.unsloth.ai/models/nemotron-3
+//   - FunctionGemma: https://docs.unsloth.ai/models/functiongemma
 func SelectOptimalQwenTextModel(availableRAM int64) QwenModelSpec {
-	models := GetRecommendedModels()
-
-	// Select the largest model that fits in available RAM
-	var selectedModel QwenModelSpec
-	for _, model := range models {
-		if model.MinRAM <= availableRAM {
-			selectedModel = model
-		} else {
-			break // Models are ordered, so we can stop here
-		}
-	}
-
-	// If no model fits, use the smallest one as fallback
-	if selectedModel.Name == "" {
-		selectedModel = models[0]
-		log.Printf("⚠️  System has low RAM (%dGB), using smallest model", availableRAM)
-	}
-
-	log.Printf("📦 Selected text model: %s (%s, %s) - requires %dGB RAM (system has %dGB)",
-		selectedModel.Name, selectedModel.Parameters, selectedModel.Quantization,
-		selectedModel.MinRAM, availableRAM)
-
-	return selectedModel
+	// Use the new function calling model selection logic
+	// This implements the user's requirement:
+	// - RAM >= 24GB → Nemotron-3-Nano-30B
+	// - RAM < 24GB → FunctionGemma 270M
+	return SelectOptimalFunctionCallingModel(availableRAM)
 }
 
 // Note: DownloadModel, CleanupStaleTempFiles, and GetAvailableModels have been moved to installer.go
@@ -426,80 +313,6 @@ func validateGGUFFile(filePath string) error {
 		return fmt.Errorf("invalid GGUF magic number: got %q, expected %q", string(magic), ggufMagicNumber)
 	}
 
-	return nil
-}
-
-// ============================================================================
-// Utility/Lightweight Model Functions (for Summary, Title, etc.)
-// ============================================================================
-
-// GetRecommendedUtilityModels returns recommended small models for utility tasks
-// These are optimized for:
-// - Summary generation (compress old messages)
-// - Title generation (create conversation titles)
-// - Quick text processing tasks
-// All models are non-reasoning (no <think> tags) and lightweight (<1GB)
-func GetRecommendedUtilityModels() []QwenModelSpec {
-	return []QwenModelSpec{
-		{
-			Name:         "llama-3.2-1b-instruct-q4_k_m",
-			URL:          "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf",
-			Quantization: "Q4_K_M",
-			Parameters:   "1b",
-			MinRAM:       2,
-			Size:         697000000, // ~697 MB
-			Description:  "Llama 3.2 1B - BEST for summary/title (fast, no <think> tags, good quality)",
-		},
-		{
-			Name:         "llama-3.2-1b-instruct-q5_k_m",
-			URL:          "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q5_K_M.gguf",
-			Quantization: "Q5_K_M",
-			Parameters:   "1b",
-			MinRAM:       2,
-			Size:         810000000, // ~810 MB
-			Description:  "Llama 3.2 1B Q5 - Better quality than Q4, slightly slower",
-		},
-		{
-			Name:         "llama-3.2-3b-instruct-q4_k_m",
-			URL:          "https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-Q4_K_M.gguf",
-			Quantization: "Q4_K_M",
-			Parameters:   "3b",
-			MinRAM:       4,
-			Size:         1900000000, // ~1.9 GB
-			Description:  "Llama 3.2 3B - Higher quality, good for systems with more RAM",
-		},
-		{
-			Name:         "mistral-7b-instruct-q4_k_m",
-			URL:          "https://huggingface.co/bartowski/Mistral-7B-Instruct-v0.3-GGUF/resolve/main/Mistral-7B-Instruct-v0.3-Q4_K_M.gguf",
-			Quantization: "Q4_K_M",
-			Parameters:   "7b",
-			MinRAM:       8,
-			Size:         4370000000, // ~4.37 GB
-			Description:  "Mistral 7B - Alternative, excellent quality (but larger)",
-		},
-	}
-}
-
-// SelectOptimalUtilityModel selects the best small model for utility tasks
-// Prefers: Llama 3.2 1B (fastest, no reasoning overhead) > Llama 3B > Mistral
-// Returns the smallest model that fits in RAM, or nil if none available
-func SelectOptimalUtilityModel(availableRAM int64) *QwenModelSpec {
-	models := GetRecommendedUtilityModels()
-
-	// Select the smallest model that fits (utility tasks don't need large models)
-	// Priority: 1B > 3B > 7B
-	for _, model := range models {
-		if model.MinRAM <= availableRAM {
-			log.Printf("📦 Selected utility model: %s (%s, %s) - requires %dGB RAM (system has %dGB)",
-				model.Name, model.Parameters, model.Quantization,
-				model.MinRAM, availableRAM)
-			return &model
-		}
-	}
-
-	// If even smallest model doesn't fit, return nil
-	log.Printf("⚠️  No utility model fits in %dGB RAM (minimum required: %dGB)",
-		availableRAM, models[0].MinRAM)
 	return nil
 }
 
