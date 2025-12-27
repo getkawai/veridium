@@ -4,6 +4,7 @@
 import * as AgentChatService from "./agentchatservice.js";
 import * as DeAIService from "./deaiservice.js";
 import * as FileService from "./fileservice.js";
+import * as JarvisService from "./jarvisservice.js";
 import * as KnowledgeBaseService from "./knowledgebaseservice.js";
 import * as ThreadManagementService from "./threadmanagementservice.js";
 import * as VectorSearchService from "./vectorsearchservice.js";
@@ -12,6 +13,7 @@ export {
     AgentChatService,
     DeAIService,
     FileService,
+    JarvisService,
     KnowledgeBaseService,
     ThreadManagementService,
     VectorSearchService,
@@ -19,6 +21,7 @@ export {
 };
 
 export {
+    BalanceInfo,
     ChatCompletionMessage,
     ChatCompletionRequest,
     ChatFileChunk,
@@ -30,17 +33,23 @@ export {
     CitationItem,
     CreateThreadRequest,
     CreateThreadResponse,
+    GasEstimate,
     GroundingSearch,
     ListThreadsRequest,
+    LogInfo,
     MemoryIntegration,
     ModelPerformance,
     ModelReasoning,
     ModelUsage,
+    NetworkInfo,
+    ParamInfo,
     SearchResult,
     StreamEventPayload,
     ThreadInfo,
     ThreadStatus,
     ThreadType,
+    TokenInfo,
+    TxAnalysis,
     WalletInfo,
     WalletStatus
 } from "./models.js";

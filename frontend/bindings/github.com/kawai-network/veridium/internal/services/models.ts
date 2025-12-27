@@ -10,6 +10,38 @@ import { Create as $Create } from "@wailsio/runtime";
 import * as types$0 from "../../types/models.js";
 
 /**
+ * BalanceInfo represents a balance result
+ */
+export class BalanceInfo {
+    "raw": string;
+    "formatted": string;
+    "decimals": number;
+
+    /** Creates a new BalanceInfo instance. */
+    constructor($$source: Partial<BalanceInfo> = {}) {
+        if (!("raw" in $$source)) {
+            this["raw"] = "";
+        }
+        if (!("formatted" in $$source)) {
+            this["formatted"] = "";
+        }
+        if (!("decimals" in $$source)) {
+            this["decimals"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BalanceInfo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): BalanceInfo {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new BalanceInfo($$parsedSource as Partial<BalanceInfo>);
+    }
+}
+
+/**
  * ChatCompletionMessage represents a message in the completion request
  */
 export class ChatCompletionMessage {
@@ -461,6 +493,38 @@ export class CreateThreadResponse {
 }
 
 /**
+ * GasEstimate represents gas estimation for a network
+ */
+export class GasEstimate {
+    "maxGasPriceGwei": number;
+    "maxTipGwei": number;
+    "isDynamicFee": boolean;
+
+    /** Creates a new GasEstimate instance. */
+    constructor($$source: Partial<GasEstimate> = {}) {
+        if (!("maxGasPriceGwei" in $$source)) {
+            this["maxGasPriceGwei"] = 0;
+        }
+        if (!("maxTipGwei" in $$source)) {
+            this["maxTipGwei"] = 0;
+        }
+        if (!("isDynamicFee" in $$source)) {
+            this["isDynamicFee"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GasEstimate instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GasEstimate {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new GasEstimate($$parsedSource as Partial<GasEstimate>);
+    }
+}
+
+/**
  * GroundingSearch represents search grounding data for messages
  */
 export class GroundingSearch {
@@ -511,6 +575,46 @@ export class ListThreadsRequest {
     static createFrom($$source: any = {}): ListThreadsRequest {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new ListThreadsRequest($$parsedSource as Partial<ListThreadsRequest>);
+    }
+}
+
+/**
+ * LogInfo represents a decoded event log
+ */
+export class LogInfo {
+    "name": string;
+    "topics": string[];
+    "data": ParamInfo[];
+
+    /** Creates a new LogInfo instance. */
+    constructor($$source: Partial<LogInfo> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("topics" in $$source)) {
+            this["topics"] = [];
+        }
+        if (!("data" in $$source)) {
+            this["data"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new LogInfo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): LogInfo {
+        const $$createField1_0 = $$createType2;
+        const $$createField2_0 = $$createType7;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("topics" in $$parsedSource) {
+            $$parsedSource["topics"] = $$createField1_0($$parsedSource["topics"]);
+        }
+        if ("data" in $$parsedSource) {
+            $$parsedSource["data"] = $$createField2_0($$parsedSource["data"]);
+        }
+        return new LogInfo($$parsedSource as Partial<LogInfo>);
     }
 }
 
@@ -619,6 +723,82 @@ export class ModelUsage {
 }
 
 /**
+ * NetworkInfo represents a blockchain network for the frontend
+ */
+export class NetworkInfo {
+    "id": number;
+    "name": string;
+    "nativeTokenSymbol": string;
+    "nativeTokenDecimal": number;
+    "explorerURL": string;
+    "isTestnet": boolean;
+
+    /** Creates a new NetworkInfo instance. */
+    constructor($$source: Partial<NetworkInfo> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = 0;
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("nativeTokenSymbol" in $$source)) {
+            this["nativeTokenSymbol"] = "";
+        }
+        if (!("nativeTokenDecimal" in $$source)) {
+            this["nativeTokenDecimal"] = 0;
+        }
+        if (!("explorerURL" in $$source)) {
+            this["explorerURL"] = "";
+        }
+        if (!("isTestnet" in $$source)) {
+            this["isTestnet"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new NetworkInfo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): NetworkInfo {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new NetworkInfo($$parsedSource as Partial<NetworkInfo>);
+    }
+}
+
+/**
+ * ParamInfo represents a decoded parameter
+ */
+export class ParamInfo {
+    "name": string;
+    "type": string;
+    "value": string;
+
+    /** Creates a new ParamInfo instance. */
+    constructor($$source: Partial<ParamInfo> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("type" in $$source)) {
+            this["type"] = "";
+        }
+        if (!("value" in $$source)) {
+            this["value"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ParamInfo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ParamInfo {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ParamInfo($$parsedSource as Partial<ParamInfo>);
+    }
+}
+
+/**
  * SearchResult represents a search result from vector database
  */
 export class SearchResult {
@@ -665,7 +845,7 @@ export class SearchResult {
      * Creates a new SearchResult instance from a string or object.
      */
     static createFrom($$source: any = {}): SearchResult {
-        const $$createField7_0 = $$createType6;
+        const $$createField7_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("metadata" in $$parsedSource) {
             $$parsedSource["metadata"] = $$createField7_0($$parsedSource["metadata"]);
@@ -748,16 +928,16 @@ export class StreamEventPayload {
      * Creates a new StreamEventPayload instance from a string or object.
      */
     static createFrom($$source: any = {}): StreamEventPayload {
-        const $$createField6_0 = $$createType8;
-        const $$createField7_0 = $$createType10;
-        const $$createField8_0 = $$createType11;
-        const $$createField11_0 = $$createType13;
-        const $$createField13_0 = $$createType15;
-        const $$createField14_0 = $$createType17;
-        const $$createField15_0 = $$createType19;
-        const $$createField16_0 = $$createType21;
-        const $$createField17_0 = $$createType23;
-        const $$createField18_0 = $$createType25;
+        const $$createField6_0 = $$createType10;
+        const $$createField7_0 = $$createType12;
+        const $$createField8_0 = $$createType13;
+        const $$createField11_0 = $$createType15;
+        const $$createField13_0 = $$createType17;
+        const $$createField14_0 = $$createType19;
+        const $$createField15_0 = $$createType21;
+        const $$createField16_0 = $$createType23;
+        const $$createField17_0 = $$createType25;
+        const $$createField18_0 = $$createType27;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reasoning" in $$parsedSource) {
             $$parsedSource["reasoning"] = $$createField6_0($$parsedSource["reasoning"]);
@@ -885,6 +1065,123 @@ export enum ThreadType {
 };
 
 /**
+ * TokenInfo represents ERC20 token information
+ */
+export class TokenInfo {
+    "address": string;
+    "name": string;
+    "symbol": string;
+    "decimals": number;
+    "isKnown": boolean;
+
+    /** Creates a new TokenInfo instance. */
+    constructor($$source: Partial<TokenInfo> = {}) {
+        if (!("address" in $$source)) {
+            this["address"] = "";
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("symbol" in $$source)) {
+            this["symbol"] = "";
+        }
+        if (!("decimals" in $$source)) {
+            this["decimals"] = 0;
+        }
+        if (!("isKnown" in $$source)) {
+            this["isKnown"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TokenInfo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TokenInfo {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new TokenInfo($$parsedSource as Partial<TokenInfo>);
+    }
+}
+
+/**
+ * TxAnalysis represents a decoded transaction
+ */
+export class TxAnalysis {
+    "hash": string;
+    "status": string;
+    "from": string;
+    "to": string;
+    "value": string;
+    "gasUsed": string;
+    "gasCost": string;
+    "method": string;
+    "txType": string;
+    "params": ParamInfo[];
+    "logs": LogInfo[];
+    "blockNumber": number;
+    "error"?: string;
+
+    /** Creates a new TxAnalysis instance. */
+    constructor($$source: Partial<TxAnalysis> = {}) {
+        if (!("hash" in $$source)) {
+            this["hash"] = "";
+        }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+        if (!("from" in $$source)) {
+            this["from"] = "";
+        }
+        if (!("to" in $$source)) {
+            this["to"] = "";
+        }
+        if (!("value" in $$source)) {
+            this["value"] = "";
+        }
+        if (!("gasUsed" in $$source)) {
+            this["gasUsed"] = "";
+        }
+        if (!("gasCost" in $$source)) {
+            this["gasCost"] = "";
+        }
+        if (!("method" in $$source)) {
+            this["method"] = "";
+        }
+        if (!("txType" in $$source)) {
+            this["txType"] = "";
+        }
+        if (!("params" in $$source)) {
+            this["params"] = [];
+        }
+        if (!("logs" in $$source)) {
+            this["logs"] = [];
+        }
+        if (!("blockNumber" in $$source)) {
+            this["blockNumber"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TxAnalysis instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TxAnalysis {
+        const $$createField9_0 = $$createType7;
+        const $$createField10_0 = $$createType29;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("params" in $$parsedSource) {
+            $$parsedSource["params"] = $$createField9_0($$parsedSource["params"]);
+        }
+        if ("logs" in $$parsedSource) {
+            $$parsedSource["logs"] = $$createField10_0($$parsedSource["logs"]);
+        }
+        return new TxAnalysis($$parsedSource as Partial<TxAnalysis>);
+    }
+}
+
+/**
  * WalletInfo represents a wallet in the list
  */
 export class WalletInfo {
@@ -947,7 +1244,7 @@ export class WalletStatus {
      * Creates a new WalletStatus instance from a string or object.
      */
     static createFrom($$source: any = {}): WalletStatus {
-        const $$createField3_0 = $$createType27;
+        const $$createField3_0 = $$createType31;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("wallets" in $$parsedSource) {
             $$parsedSource["wallets"] = $$createField3_0($$parsedSource["wallets"]);
@@ -963,25 +1260,29 @@ const $$createType2 = $Create.Array($Create.Any);
 const $$createType3 = $Create.Map($Create.Any, $Create.Any);
 const $$createType4 = CitationItem.createFrom;
 const $$createType5 = $Create.Array($$createType4);
-const $$createType6 = $Create.Map($Create.Any, $Create.Any);
-const $$createType7 = ModelReasoning.createFrom;
-const $$createType8 = $Create.Nullable($$createType7);
-const $$createType9 = ChatToolPayload.createFrom;
+const $$createType6 = ParamInfo.createFrom;
+const $$createType7 = $Create.Array($$createType6);
+const $$createType8 = $Create.Map($Create.Any, $Create.Any);
+const $$createType9 = ModelReasoning.createFrom;
 const $$createType10 = $Create.Nullable($$createType9);
-const $$createType11 = $Create.Array($$createType9);
-const $$createType12 = ChatPluginPayload.createFrom;
-const $$createType13 = $Create.Nullable($$createType12);
-const $$createType14 = GroundingSearch.createFrom;
+const $$createType11 = ChatToolPayload.createFrom;
+const $$createType12 = $Create.Nullable($$createType11);
+const $$createType13 = $Create.Array($$createType11);
+const $$createType14 = ChatPluginPayload.createFrom;
 const $$createType15 = $Create.Nullable($$createType14);
-const $$createType16 = ChatFileChunk.createFrom;
-const $$createType17 = $Create.Array($$createType16);
-const $$createType18 = ChatImageItem.createFrom;
+const $$createType16 = GroundingSearch.createFrom;
+const $$createType17 = $Create.Nullable($$createType16);
+const $$createType18 = ChatFileChunk.createFrom;
 const $$createType19 = $Create.Array($$createType18);
-const $$createType20 = ModelUsage.createFrom;
-const $$createType21 = $Create.Nullable($$createType20);
-const $$createType22 = ChatMessageError.createFrom;
+const $$createType20 = ChatImageItem.createFrom;
+const $$createType21 = $Create.Array($$createType20);
+const $$createType22 = ModelUsage.createFrom;
 const $$createType23 = $Create.Nullable($$createType22);
-const $$createType24 = ModelPerformance.createFrom;
+const $$createType24 = ChatMessageError.createFrom;
 const $$createType25 = $Create.Nullable($$createType24);
-const $$createType26 = WalletInfo.createFrom;
-const $$createType27 = $Create.Array($$createType26);
+const $$createType26 = ModelPerformance.createFrom;
+const $$createType27 = $Create.Nullable($$createType26);
+const $$createType28 = LogInfo.createFrom;
+const $$createType29 = $Create.Array($$createType28);
+const $$createType30 = WalletInfo.createFrom;
+const $$createType31 = $Create.Array($$createType30);

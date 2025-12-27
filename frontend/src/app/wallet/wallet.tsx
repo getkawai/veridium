@@ -1,13 +1,27 @@
-import { Card, Modal, QRCode, App, Table, Tag, Button, InputNumber, Form, Input, Empty, Popover } from 'antd';
-import { memo, useEffect, useState } from 'react';
-import { DeAIService, WalletService } from '@@/github.com/kawai-network/veridium/internal/services';
+import { Card, Modal, QRCode, App, Table, Tag, Button, InputNumber, Form, Input, Empty, Popover, Spin, Tooltip } from 'antd';
+import { memo, useEffect, useState, useCallback } from 'react';
+import { DeAIService, WalletService, JarvisService } from '@@/github.com/kawai-network/veridium/internal/services';
+import type { NetworkInfo, TokenInfo, BalanceInfo } from '@@/github.com/kawai-network/veridium/internal/services/models';
 import { ListWalletTransactions } from '@@/github.com/kawai-network/veridium/internal/database/generated/queries';
 import type { WalletTransaction } from '@@/github.com/kawai-network/veridium/internal/database/generated/models';
 import { useUserStore } from '@/store/user';
-import { ArrowDownToLine, Copy, Send, Eye, EyeOff, Repeat2, History, Home, ShoppingCart, Gift, Settings, Coins, ExternalLink, Globe } from 'lucide-react';
+import { ArrowDownToLine, Copy, Send, Eye, EyeOff, Repeat2, History, Home, ShoppingCart, Gift, Settings, Coins, ExternalLink, Globe, Plus, Check, X, Loader2, Fuel } from 'lucide-react';
 import { ActionIcon, Icon } from '@lobehub/ui';
 import { Flexbox } from 'react-layout-kit';
 import { createStyles, useTheme } from 'antd-style';
+import {
+  EthereumCircleColorful,
+  BSCCircleColorful,
+  PolygonCircleColorful,
+  AvaxCircleColorful,
+  FantomCircleColorful,
+  ArbitrumCircleColorful,
+  OptimismCircleColorful,
+  BaseCircleColorful,
+  ScrollCircleColorful,
+  UsdtCircleColorful,
+  WalletColorful
+} from '@ant-design/web3-icons';
 
 import Menu from '@/components/Menu';
 import PanelTitle from '@/components/PanelTitle';
@@ -148,7 +162,9 @@ const MenuContent = memo<{
   activeMenu: MenuKey;
   setActiveMenu: (key: MenuKey) => void;
   styles: any;
-}>(({ activeMenu, setActiveMenu, styles }) => {
+  currentNetwork: NetworkInfo | null;
+  onNetworkChange: (network: NetworkInfo) => void;
+}>(({ activeMenu, setActiveMenu, styles, currentNetwork, onNetworkChange }) => {
   const menuItems = [
     { key: 'home', icon: <Icon icon={Home} />, label: 'Home' },
     { key: 'otc', icon: <Icon icon={ShoppingCart} />, label: 'OTC Market' },
@@ -170,45 +186,143 @@ const MenuContent = memo<{
       </Flexbox>
       <div style={{ flex: 1 }} />
       <Flexbox padding={12}>
-        <NetworkSwitcher />
+        <NetworkSwitcher currentNetwork={currentNetwork} onNetworkChange={onNetworkChange} />
       </Flexbox>
     </Flexbox>
   );
 });
 
-const NetworkSwitcher = memo(() => {
+// Network icons mapping
+const NETWORK_ICONS: Record<string, any> = {
+  'ethereum': EthereumCircleColorful,
+  'bsc': BSCCircleColorful,
+  'matic': PolygonCircleColorful,
+  'polygon': PolygonCircleColorful,
+  'avalanche': AvaxCircleColorful,
+  'fantom': FantomCircleColorful,
+  'arbitrum': ArbitrumCircleColorful,
+  'optimism': OptimismCircleColorful,
+  'base': BaseCircleColorful,
+  'scroll': ScrollCircleColorful,
+  // Fallbacks using WalletColorful or standard icons if specific chain missing
+  'monad': WalletColorful,
+  'linea': WalletColorful,
+};
+
+const getNetworkIconComponent = (name: string) => {
+  const lowerName = name.toLowerCase();
+  for (const [key, IconComponent] of Object.entries(NETWORK_ICONS)) {
+    if (lowerName.includes(key)) return IconComponent;
+  }
+  return WalletColorful;
+};
+
+interface NetworkSwitcherProps {
+  currentNetwork: NetworkInfo | null;
+  onNetworkChange: (network: NetworkInfo) => void;
+}
+
+const NetworkSwitcher = memo<NetworkSwitcherProps>(({ currentNetwork, onNetworkChange }) => {
   const theme = useTheme();
-  const networkOptions = [
-    { label: 'Monad Testnet', value: 'monad-testnet', icon: '🟣' },
-    { label: 'Ethereum Mainnet', value: 'eth-mainnet', icon: '🔹', disabled: true },
-  ];
+  const [networks, setNetworks] = useState<NetworkInfo[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadNetworks();
+  }, []);
+
+  const loadNetworks = async () => {
+    try {
+      const supportedNetworks = await JarvisService.GetSupportedNetworks();
+      // Sort: testnets first (for development), then mainnets
+      const sorted = supportedNetworks.sort((a, b) => {
+        if (a.isTestnet !== b.isTestnet) return a.isTestnet ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      });
+      setNetworks(sorted);
+    } catch (e) {
+      console.error('Failed to load networks', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const displayName = currentNetwork?.name || 'Select Network';
+  const IconComponent = currentNetwork ? getNetworkIconComponent(currentNetwork.name) : WalletColorful;
 
   return (
     <Popover
       arrow={false}
       content={
-        <div style={{ width: 180 }}>
-          <div style={{ padding: '4px 8px', fontSize: 11, color: theme.colorTextTertiary, textTransform: 'uppercase' }}>
+        <div style={{ width: 220, maxHeight: 300, overflowY: 'auto' }}>
+          <div style={{ padding: '4px 8px', fontSize: 11, color: theme.colorTextTertiary, textTransform: 'uppercase', position: 'sticky', top: 0, background: theme.colorBgElevated }}>
             Switch Network
           </div>
-          {networkOptions.map((opt) => (
-            <Flexbox
-              key={opt.value}
-              horizontal
-              align="center"
-              gap={12}
-              style={{
-                padding: '8px 12px',
-                cursor: opt.disabled ? 'not-allowed' : 'pointer',
-                opacity: opt.disabled ? 0.5 : 1,
-                borderRadius: 8,
-                background: opt.value === 'monad-testnet' ? theme.colorFillSecondary : 'transparent'
-              }}
-            >
-              <span>{opt.icon}</span>
-              <span style={{ fontSize: 13, fontWeight: opt.value === 'monad-testnet' ? 600 : 400 }}>{opt.label}</span>
+          {loading ? (
+            <Flexbox align="center" justify="center" style={{ padding: 20 }}>
+              <Spin size="small" />
             </Flexbox>
-          ))}
+          ) : (
+            <>
+              {/* Testnets Section */}
+              <div style={{ padding: '4px 8px', fontSize: 10, color: theme.colorTextQuaternary, marginTop: 8 }}>TESTNETS</div>
+              {networks.filter(n => n.isTestnet).map((network) => (
+                <Flexbox
+                  key={network.id}
+                  horizontal
+                  align="center"
+                  gap={12}
+                  onClick={() => onNetworkChange(network)}
+                  style={{
+                    padding: '8px 12px',
+                    cursor: 'pointer',
+                    borderRadius: 8,
+                    background: currentNetwork?.id === network.id ? theme.colorFillSecondary : 'transparent',
+                    transition: 'background 0.2s'
+                  }}
+                >
+                  <span>{(() => {
+                    const Icon = getNetworkIconComponent(network.name);
+                    return <Icon style={{ fontSize: 24 }} />;
+                  })()}</span>
+                  <Flexbox flex={1}>
+                    <span style={{ fontSize: 13, fontWeight: currentNetwork?.id === network.id ? 600 : 400 }}>{network.name}</span>
+                    <span style={{ fontSize: 10, color: theme.colorTextTertiary }}>{network.nativeTokenSymbol}</span>
+                  </Flexbox>
+                  {currentNetwork?.id === network.id && <Check size={14} color={theme.colorSuccess} />}
+                </Flexbox>
+              ))}
+
+              {/* Mainnets Section */}
+              <div style={{ padding: '4px 8px', fontSize: 10, color: theme.colorTextQuaternary, marginTop: 8 }}>MAINNETS</div>
+              {networks.filter(n => !n.isTestnet).slice(0, 10).map((network) => (
+                <Flexbox
+                  key={network.id}
+                  horizontal
+                  align="center"
+                  gap={12}
+                  onClick={() => onNetworkChange(network)}
+                  style={{
+                    padding: '8px 12px',
+                    cursor: 'pointer',
+                    borderRadius: 8,
+                    background: currentNetwork?.id === network.id ? theme.colorFillSecondary : 'transparent',
+                    transition: 'background 0.2s'
+                  }}
+                >
+                  <span>{(() => {
+                    const Icon = getNetworkIconComponent(network.name);
+                    return <Icon style={{ fontSize: 24 }} />;
+                  })()}</span>
+                  <Flexbox flex={1}>
+                    <span style={{ fontSize: 13, fontWeight: currentNetwork?.id === network.id ? 600 : 400 }}>{network.name}</span>
+                    <span style={{ fontSize: 10, color: theme.colorTextTertiary }}>{network.nativeTokenSymbol}</span>
+                  </Flexbox>
+                  {currentNetwork?.id === network.id && <Check size={14} color={theme.colorSuccess} />}
+                </Flexbox>
+              ))}
+            </>
+          )}
         </div>
       }
       placement="rightBottom"
@@ -237,7 +351,9 @@ const NetworkSwitcher = memo(() => {
         }} />
         <Flexbox flex={1}>
           <div style={{ fontSize: 10, color: theme.colorTextTertiary, lineHeight: 1 }}>Network</div>
-          <div style={{ fontSize: 12, fontWeight: 600 }}>Monad Testnet</div>
+          <div style={{ fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <IconComponent style={{ fontSize: 20 }} /> {displayName}
+          </div>
         </Flexbox>
         <Globe size={14} style={{ opacity: 0.5 }} />
       </div>
@@ -245,28 +361,176 @@ const NetworkSwitcher = memo(() => {
   );
 });
 
+// Custom token interface
+interface CustomToken {
+  address: string;
+  symbol: string;
+  name: string;
+  decimals: number;
+  balance: string;
+  isCustom: boolean;
+}
+
+// Default Monad Testnet chain ID
+const DEFAULT_CHAIN_ID = 10143;
+
 const DesktopWalletLayout = memo(() => {
   const { styles, theme } = useStyles();
   const [activeMenu, setActiveMenu] = useState<MenuKey>('home');
   // Use global wallet address from store
   const address = useUserStore((s) => s.walletAddress);
   const [balance, setBalance] = useState('0.00');
+  const [nativeBalance, setNativeBalance] = useState('0.00');
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [modalType, setModalType] = useState<'send' | 'receive' | 'swap' | 'deposit' | 'addAccount' | 'createWallet' | 'importWallet' | null>(null);
+  const [modalType, setModalType] = useState<'send' | 'receive' | 'swap' | 'deposit' | 'addAccount' | 'createWallet' | 'importWallet' | 'addToken' | null>(null);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [pendingSwitch, setPendingSwitch] = useState<string | null>(null);
   const { message } = App.useApp();
   const { isWalletLoaded, refreshWalletStatus } = useUserStore();
 
+  // Network state
+  const [currentNetwork, setCurrentNetwork] = useState<NetworkInfo | null>(null);
+  const [gasEstimate, setGasEstimate] = useState<{ maxGasPriceGwei: number; maxTipGwei: number } | null>(null);
+  const [currentBlock, setCurrentBlock] = useState<number>(0);
+
+  // Custom tokens state
+  const [customTokens, setCustomTokens] = useState<CustomToken[]>([]);
+
+  // Initialize default network
+  useEffect(() => {
+    initializeNetwork();
+  }, []);
+
+  const initializeNetwork = async () => {
+    try {
+      const network = await JarvisService.GetNetworkByID(DEFAULT_CHAIN_ID);
+      if (network) {
+        setCurrentNetwork(network);
+      }
+    } catch (e) {
+      console.error('Failed to initialize network', e);
+    }
+  };
+
+  const handleNetworkChange = useCallback(async (network: NetworkInfo) => {
+    setCurrentNetwork(network);
+    message.info(`Switched to ${network.name}`);
+    // Reload balances for new network
+    if (address) {
+      loadNativeBalance(network.id);
+      loadGasEstimate(network.id);
+      loadCurrentBlock(network.id);
+      // Reload custom token balances
+      loadCustomTokenBalances(network.id);
+    }
+  }, [address, message]);
 
   useEffect(() => {
     // Only load data if address is available
-    if (address) {
+    if (address && currentNetwork) {
       loadBalance();
       loadHistory();
+      loadNativeBalance(currentNetwork.id);
+      loadGasEstimate(currentNetwork.id);
+      loadCurrentBlock(currentNetwork.id);
     }
-  }, [address, isWalletLoaded]);
+  }, [address, isWalletLoaded, currentNetwork]);
+
+  const loadNativeBalance = async (networkId: number) => {
+    if (!address) return;
+    try {
+      const result = await JarvisService.GetNativeBalance(address, networkId);
+      if (result) {
+        setNativeBalance(result.formatted);
+      }
+    } catch (e) {
+      console.error('Failed to load native balance', e);
+    }
+  };
+
+  const loadGasEstimate = async (networkId: number) => {
+    try {
+      const result = await JarvisService.EstimateGas(networkId);
+      if (result) {
+        setGasEstimate(result);
+      }
+    } catch (e) {
+      console.error('Failed to load gas estimate', e);
+    }
+  };
+
+  const loadCurrentBlock = async (networkId: number) => {
+    try {
+      const block = await JarvisService.GetCurrentBlock(networkId);
+      setCurrentBlock(block);
+    } catch (e) {
+      console.error('Failed to load current block', e);
+    }
+  };
+
+  const loadCustomTokenBalances = async (networkId: number) => {
+    if (!address || customTokens.length === 0) return;
+
+    const updatedTokens = await Promise.all(
+      customTokens.map(async (token) => {
+        try {
+          const result = await JarvisService.GetTokenBalance(token.address, address, networkId);
+          return { ...token, balance: result?.formatted || '0' };
+        } catch {
+          return { ...token, balance: '0' };
+        }
+      })
+    );
+    setCustomTokens(updatedTokens);
+  };
+
+  const handleAddToken = async (tokenAddress: string) => {
+    if (!currentNetwork) {
+      message.error('No network selected');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Fetch token info from blockchain
+      const tokenInfo = await JarvisService.GetTokenInfo(tokenAddress, currentNetwork.id);
+      if (!tokenInfo) {
+        message.error('Could not fetch token info. Is this a valid ERC20 token?');
+        return;
+      }
+
+      // Check if already added
+      if (customTokens.some(t => t.address.toLowerCase() === tokenAddress.toLowerCase())) {
+        message.warning('Token already added');
+        return;
+      }
+
+      // Get balance
+      let tokenBalance = '0';
+      if (address) {
+        const balanceResult = await JarvisService.GetTokenBalance(tokenAddress, address, currentNetwork.id);
+        tokenBalance = balanceResult?.formatted || '0';
+      }
+
+      const newToken: CustomToken = {
+        address: tokenAddress,
+        symbol: tokenInfo.symbol,
+        name: tokenInfo.name,
+        decimals: Number(tokenInfo.decimals),
+        balance: tokenBalance,
+        isCustom: true,
+      };
+
+      setCustomTokens(prev => [...prev, newToken]);
+      message.success(`Added ${tokenInfo.symbol} to your wallet`);
+      setModalType(null);
+    } catch (e: any) {
+      message.error(`Failed to add token: ${e.message || e}`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const loadBalance = async () => {
     try {
@@ -352,19 +616,24 @@ const DesktopWalletLayout = memo(() => {
         return <HomeContent
           address={address}
           balance={balance}
+          nativeBalance={nativeBalance}
           balanceVisible={balanceVisible}
           setBalanceVisible={setBalanceVisible}
           setModalType={setModalType}
           transactions={transactions}
           styles={styles}
           theme={theme}
+          currentNetwork={currentNetwork}
+          gasEstimate={gasEstimate}
+          currentBlock={currentBlock}
+          customTokens={customTokens}
         />;
       case 'otc':
         return <OTCContent styles={styles} theme={theme} />;
       case 'rewards':
         return <RewardsContent styles={styles} theme={theme} />;
       case 'settings':
-        return <SettingsContent address={address} styles={styles} theme={theme} />;
+        return <SettingsContent address={address} styles={styles} theme={theme} currentNetwork={currentNetwork} />;
       default:
         return null;
     }
@@ -374,7 +643,13 @@ const DesktopWalletLayout = memo(() => {
     <div className={styles.container}>
       {/* Sidebar */}
       <WalletSidePanel>
-        <MenuContent activeMenu={activeMenu} setActiveMenu={setActiveMenu} styles={styles} />
+        <MenuContent
+          activeMenu={activeMenu}
+          setActiveMenu={setActiveMenu}
+          styles={styles}
+          currentNetwork={currentNetwork}
+          onNetworkChange={handleNetworkChange}
+        />
       </WalletSidePanel>
 
       {/* Content */}
@@ -467,12 +742,16 @@ const DesktopWalletLayout = memo(() => {
           </p>
         </Flexbox>
       </Modal>
+
+      <Modal title="Add Custom Token" open={modalType === 'addToken'} onCancel={() => setModalType(null)} footer={null} destroyOnClose>
+        <AddTokenForm onAddToken={handleAddToken} loading={loading} currentNetwork={currentNetwork} />
+      </Modal>
     </div>
   );
 });
 
 // ============ HOME CONTENT ============
-const HomeContent = ({ address, balance, balanceVisible, setBalanceVisible, setModalType, transactions, styles, theme }: any) => {
+const HomeContent = ({ address, balance, nativeBalance, balanceVisible, setBalanceVisible, setModalType, transactions, styles, theme, currentNetwork, gasEstimate, currentBlock, customTokens }: any) => {
   return (
     <Flexbox style={{ maxWidth: 900, width: '100%' }} gap={20}>
       {/* Balance Card */}
@@ -487,6 +766,33 @@ const HomeContent = ({ address, balance, balanceVisible, setBalanceVisible, setM
               {balanceVisible ? `$${balance}` : '••••••'}
               <span style={{ fontSize: 16, color: theme.colorTextTertiary, marginLeft: 6, fontWeight: 500 }}>USDT</span>
             </div>
+            {/* Native token balance */}
+            {currentNetwork && (
+              <div style={{ fontSize: 13, color: theme.colorTextSecondary, marginTop: 4 }}>
+                {balanceVisible ? nativeBalance : '••••'} {currentNetwork.nativeTokenSymbol}
+              </div>
+            )}
+          </Flexbox>
+          {/* Network & Gas Info */}
+          <Flexbox gap={8} align="flex-end">
+            {gasEstimate && (
+              <Tooltip title={`Max Tip: ${gasEstimate.maxTipGwei.toFixed(2)} Gwei`}>
+                <Flexbox horizontal align="center" gap={4} style={{
+                  padding: '4px 8px',
+                  background: 'rgba(255,255,255,0.1)',
+                  borderRadius: 8,
+                  fontSize: 11
+                }}>
+                  <Fuel size={12} />
+                  <span>{gasEstimate.maxGasPriceGwei.toFixed(1)} Gwei</span>
+                </Flexbox>
+              </Tooltip>
+            )}
+            {currentBlock > 0 && (
+              <div style={{ fontSize: 10, color: theme.colorTextTertiary }}>
+                Block #{currentBlock.toLocaleString()}
+              </div>
+            )}
           </Flexbox>
         </Flexbox>
       </Card>
@@ -508,11 +814,56 @@ const HomeContent = ({ address, balance, balanceVisible, setBalanceVisible, setM
       </Flexbox>
 
       {/* Token List */}
-      <Card title={<Flexbox horizontal align="center" gap={8}><Coins size={16} /> Tokens</Flexbox>} size="small">
+      <Card
+        title={<Flexbox horizontal align="center" gap={8}><Coins size={16} /> Tokens</Flexbox>}
+        size="small"
+        extra={
+          <Button
+            type="text"
+            icon={<Plus size={14} />}
+            size="small"
+            onClick={() => setModalType('addToken')}
+          >
+            Add Token
+          </Button>
+        }
+      >
         <Flexbox gap={8}>
+          {/* Native Token */}
+          {currentNetwork && (
+            <div className={styles.tokenRow}>
+              <Flexbox horizontal align="center" gap={12} style={{ flex: 1 }}>
+                <div style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#fff',
+                  fontWeight: 800,
+                  fontSize: 14,
+                }}>
+                  {(() => {
+                    const Icon = getNetworkIconComponent(currentNetwork.name);
+                    return <Icon style={{ fontSize: 24 }} />;
+                  })()}
+                </div>
+                <div>
+                  <div style={{ fontWeight: 600 }}>{currentNetwork.nativeTokenSymbol}</div>
+                  <div style={{ fontSize: 12, color: theme.colorTextSecondary }}>Native Token</div>
+                </div>
+              </Flexbox>
+              <div style={{ textAlign: 'right', minWidth: 70 }}>
+                <div style={{ fontWeight: 700, fontSize: 14, color: '#fff' }}>{balanceVisible ? nativeBalance : '••••'}</div>
+              </div>
+            </div>
+          )}
+
+          {/* USDT */}
           <div className={styles.tokenRow}>
             <Flexbox horizontal align="center" gap={12} style={{ flex: 1 }}>
-              {/* USDT Logo - Tether style */}
               <div style={{
                 width: 36,
                 height: 36,
@@ -526,7 +877,9 @@ const HomeContent = ({ address, balance, balanceVisible, setBalanceVisible, setM
                 fontSize: 16,
                 fontFamily: 'Arial, sans-serif',
                 textShadow: '0 1px 2px rgba(0,0,0,0.2)'
-              }}>₮</div>
+              }}>
+                <UsdtCircleColorful style={{ fontSize: 36 }} />
+              </div>
               <div>
                 <div style={{ fontWeight: 600 }}>USDT</div>
                 <div style={{ fontSize: 12, color: theme.colorTextSecondary }}>Tether USD</div>
@@ -534,14 +887,6 @@ const HomeContent = ({ address, balance, balanceVisible, setBalanceVisible, setM
             </Flexbox>
             <Flexbox horizontal align="center" gap={16}>
               <span style={{ fontSize: 12, color: theme.colorTextSecondary }}>$1.00</span>
-              <span style={{
-                padding: '2px 8px',
-                borderRadius: 4,
-                background: 'rgba(128, 128, 128, 0.2)',
-                color: theme.colorTextSecondary,
-                fontSize: 11,
-                fontWeight: 500
-              }}>0.00%</span>
               <div style={{ textAlign: 'right', minWidth: 70 }}>
                 <div style={{ fontWeight: 700, fontSize: 14, color: '#fff' }}>{balanceVisible ? balance : '••••'}</div>
                 <div style={{ fontSize: 11, color: theme.colorTextTertiary }}>${balanceVisible ? balance : '••••'}</div>
@@ -549,9 +894,9 @@ const HomeContent = ({ address, balance, balanceVisible, setBalanceVisible, setM
             </Flexbox>
           </div>
 
+          {/* KAWAI */}
           <div className={styles.tokenRow}>
             <Flexbox horizontal align="center" gap={12} style={{ flex: 1 }}>
-              {/* KAWAI Logo - Custom style */}
               <div style={{
                 width: 36,
                 height: 36,
@@ -573,20 +918,42 @@ const HomeContent = ({ address, balance, balanceVisible, setBalanceVisible, setM
             </Flexbox>
             <Flexbox horizontal align="center" gap={16}>
               <span style={{ fontSize: 12, color: theme.colorTextSecondary }}>$0.001</span>
-              <span style={{
-                padding: '2px 8px',
-                borderRadius: 4,
-                background: 'rgba(34, 197, 94, 0.15)',
-                color: '#4ade80',
-                fontSize: 11,
-                fontWeight: 600
-              }}>+12.5%</span>
               <div style={{ textAlign: 'right', minWidth: 70 }}>
                 <div style={{ fontWeight: 700, fontSize: 14, color: '#fff' }}>0</div>
                 <div style={{ fontSize: 11, color: theme.colorTextTertiary }}>$0.00</div>
               </div>
             </Flexbox>
           </div>
+
+          {/* Custom Tokens */}
+          {customTokens && customTokens.map((token: CustomToken) => (
+            <div key={token.address} className={styles.tokenRow}>
+              <Flexbox horizontal align="center" gap={12} style={{ flex: 1 }}>
+                <div style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#fff',
+                  fontWeight: 700,
+                  fontSize: 12,
+                }}>{token.symbol.substring(0, 2).toUpperCase()}</div>
+                <div>
+                  <div style={{ fontWeight: 600 }}>{token.symbol}</div>
+                  <div style={{ fontSize: 12, color: theme.colorTextSecondary }}>{token.name}</div>
+                </div>
+              </Flexbox>
+              <Flexbox horizontal align="center" gap={8}>
+                <Tag color="blue" style={{ margin: 0, fontSize: 10 }}>Custom</Tag>
+                <div style={{ textAlign: 'right', minWidth: 70 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: '#fff' }}>{balanceVisible ? token.balance : '••••'}</div>
+                </div>
+              </Flexbox>
+            </div>
+          ))}
         </Flexbox>
       </Card>
 
@@ -602,6 +969,14 @@ const HomeContent = ({ address, balance, balanceVisible, setBalanceVisible, setM
               { title: 'Type', dataIndex: 'txType', key: 'txType', render: (type) => <Tag color={type === 'DEPOSIT' ? 'green' : 'blue'}>{type}</Tag> },
               { title: 'Amount', dataIndex: 'amount', key: 'amount', render: (amount, record: any) => <span style={{ color: record.txType === 'DEPOSIT' ? theme.colorSuccess : theme.colorText, fontWeight: 600 }}>{record.txType === 'DEPOSIT' ? '+' : '-'}{amount} USDT</span> },
               { title: 'Date', dataIndex: 'createdAt', key: 'createdAt', render: (date) => new Date(date).toLocaleDateString() },
+              {
+                title: 'TX',
+                dataIndex: 'txHash',
+                key: 'txHash',
+                render: (txHash) => txHash ? (
+                  <TransactionLink txHash={txHash} networkId={currentNetwork?.id} />
+                ) : '-'
+              },
             ]}
           />
         ) : (
@@ -621,6 +996,160 @@ const HomeContent = ({ address, balance, balanceVisible, setBalanceVisible, setM
     </Flexbox>
   );
 };
+
+// Transaction Link with analysis popup
+const TransactionLink = memo<{ txHash: string; networkId?: number }>(({ txHash, networkId }) => {
+  const theme = useTheme();
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysis, setAnalysis] = useState<any>(null);
+
+  const handleAnalyze = async () => {
+    if (!networkId || analyzing) return;
+    setAnalyzing(true);
+    try {
+      const result = await JarvisService.AnalyzeTransaction(txHash, networkId);
+      setAnalysis(result);
+    } catch (e) {
+      console.error('Failed to analyze transaction', e);
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const shortHash = `${txHash.substring(0, 6)}...${txHash.substring(txHash.length - 4)}`;
+
+  return (
+    <Popover
+      trigger="click"
+      onOpenChange={(open) => open && handleAnalyze()}
+      content={
+        <div style={{ width: 300, maxHeight: 400, overflowY: 'auto' }}>
+          {analyzing ? (
+            <Flexbox align="center" justify="center" style={{ padding: 20 }}>
+              <Spin size="small" />
+              <span style={{ marginLeft: 8 }}>Analyzing...</span>
+            </Flexbox>
+          ) : analysis ? (
+            <Flexbox gap={12}>
+              <div style={{ fontSize: 11, color: theme.colorTextTertiary }}>TRANSACTION ANALYSIS</div>
+
+              <Flexbox gap={8}>
+                <Flexbox horizontal justify="space-between">
+                  <span style={{ color: theme.colorTextSecondary, fontSize: 12 }}>Status</span>
+                  <Tag color={analysis.status === 'done' ? 'green' : analysis.status === 'reverted' ? 'red' : 'orange'}>
+                    {analysis.status}
+                  </Tag>
+                </Flexbox>
+
+                <Flexbox horizontal justify="space-between">
+                  <span style={{ color: theme.colorTextSecondary, fontSize: 12 }}>Type</span>
+                  <span style={{ fontSize: 12, fontWeight: 600 }}>{analysis.txType || 'Unknown'}</span>
+                </Flexbox>
+
+                {analysis.method && (
+                  <Flexbox horizontal justify="space-between">
+                    <span style={{ color: theme.colorTextSecondary, fontSize: 12 }}>Method</span>
+                    <Tag color="blue" style={{ fontFamily: 'monospace' }}>{analysis.method}</Tag>
+                  </Flexbox>
+                )}
+
+                {analysis.value && analysis.value !== '0' && (
+                  <Flexbox horizontal justify="space-between">
+                    <span style={{ color: theme.colorTextSecondary, fontSize: 12 }}>Value</span>
+                    <span style={{ fontSize: 12 }}>{analysis.value}</span>
+                  </Flexbox>
+                )}
+
+                {analysis.gasUsed && (
+                  <Flexbox horizontal justify="space-between">
+                    <span style={{ color: theme.colorTextSecondary, fontSize: 12 }}>Gas Used</span>
+                    <span style={{ fontSize: 12 }}>{parseInt(analysis.gasUsed).toLocaleString()}</span>
+                  </Flexbox>
+                )}
+
+                {analysis.gasCost && (
+                  <Flexbox horizontal justify="space-between">
+                    <span style={{ color: theme.colorTextSecondary, fontSize: 12 }}>Gas Cost</span>
+                    <span style={{ fontSize: 12 }}>{analysis.gasCost}</span>
+                  </Flexbox>
+                )}
+
+                {analysis.blockNumber > 0 && (
+                  <Flexbox horizontal justify="space-between">
+                    <span style={{ color: theme.colorTextSecondary, fontSize: 12 }}>Block</span>
+                    <span style={{ fontSize: 12, fontFamily: 'monospace' }}>#{analysis.blockNumber.toLocaleString()}</span>
+                  </Flexbox>
+                )}
+              </Flexbox>
+
+              {/* Decoded Parameters */}
+              {analysis.params && analysis.params.length > 0 && (
+                <>
+                  <div style={{ fontSize: 11, color: theme.colorTextTertiary, marginTop: 8 }}>PARAMETERS</div>
+                  <Flexbox gap={4}>
+                    {analysis.params.map((param: any, i: number) => (
+                      <div key={i} style={{
+                        padding: '4px 8px',
+                        background: theme.colorFillTertiary,
+                        borderRadius: 4,
+                        fontSize: 11
+                      }}>
+                        <span style={{ color: theme.colorTextSecondary }}>{param.name}</span>
+                        <span style={{ color: theme.colorTextTertiary }}> ({param.type})</span>
+                        <div style={{ fontFamily: 'monospace', wordBreak: 'break-all', marginTop: 2 }}>
+                          {param.value?.substring(0, 50)}{param.value?.length > 50 ? '...' : ''}
+                        </div>
+                      </div>
+                    ))}
+                  </Flexbox>
+                </>
+              )}
+
+              {/* Event Logs */}
+              {analysis.logs && analysis.logs.length > 0 && (
+                <>
+                  <div style={{ fontSize: 11, color: theme.colorTextTertiary, marginTop: 8 }}>EVENTS ({analysis.logs.length})</div>
+                  <Flexbox gap={4}>
+                    {analysis.logs.slice(0, 3).map((log: any, i: number) => (
+                      <Tag key={i} color="purple">{log.name || 'Unknown Event'}</Tag>
+                    ))}
+                    {analysis.logs.length > 3 && (
+                      <span style={{ fontSize: 11, color: theme.colorTextTertiary }}>
+                        +{analysis.logs.length - 3} more
+                      </span>
+                    )}
+                  </Flexbox>
+                </>
+              )}
+
+              {analysis.error && (
+                <div style={{ color: theme.colorError, fontSize: 12, marginTop: 8 }}>
+                  Error: {analysis.error}
+                </div>
+              )}
+            </Flexbox>
+          ) : (
+            <div style={{ padding: 16, textAlign: 'center', color: theme.colorTextSecondary }}>
+              Click to analyze transaction
+            </div>
+          )}
+        </div>
+      }
+    >
+      <span
+        style={{
+          fontFamily: 'monospace',
+          fontSize: 11,
+          cursor: 'pointer',
+          color: theme.colorPrimary,
+          textDecoration: 'underline'
+        }}
+      >
+        {shortHash}
+      </span>
+    </Popover>
+  );
+});
 
 // ============ OTC MARKET CONTENT ============
 const OTCContent = ({ styles, theme }: any) => {
@@ -665,7 +1194,7 @@ const RewardsContent = ({ styles, theme }: any) => {
 };
 
 // ============ SETTINGS CONTENT ============
-const SettingsContent = ({ address, styles, theme }: any) => {
+const SettingsContent = ({ address, styles, theme, currentNetwork }: any) => {
   return (
     <Flexbox style={{ maxWidth: 700 }} gap={20}>
       <div>
@@ -677,11 +1206,17 @@ const SettingsContent = ({ address, styles, theme }: any) => {
         <Flexbox gap={12}>
           <Flexbox horizontal justify="space-between">
             <span style={{ color: theme.colorTextSecondary }}>Network</span>
-            <Tag color="green">Monad Testnet</Tag>
+            <Tag color={currentNetwork?.isTestnet ? 'orange' : 'green'}>
+              {currentNetwork?.name || 'Not Connected'}
+            </Tag>
           </Flexbox>
           <Flexbox horizontal justify="space-between">
             <span style={{ color: theme.colorTextSecondary }}>Status</span>
             <span style={{ color: theme.colorSuccess, fontWeight: 600, fontSize: 12 }}>Connected</span>
+          </Flexbox>
+          <Flexbox horizontal justify="space-between">
+            <span style={{ color: theme.colorTextSecondary }}>Native Token</span>
+            <span style={{ fontWeight: 600 }}>{currentNetwork?.nativeTokenSymbol || '-'}</span>
           </Flexbox>
         </Flexbox>
       </Card>
@@ -690,18 +1225,20 @@ const SettingsContent = ({ address, styles, theme }: any) => {
         <Flexbox gap={12}>
           <Flexbox horizontal justify="space-between">
             <span style={{ color: theme.colorTextSecondary }}>Chain ID</span>
-            <span style={{ fontFamily: 'monospace' }}>10143</span>
+            <span style={{ fontFamily: 'monospace' }}>{currentNetwork?.id || '-'}</span>
           </Flexbox>
           <Flexbox horizontal justify="space-between">
-            <span style={{ color: theme.colorTextSecondary }}>RPC</span>
-            <span style={{ fontFamily: 'monospace', fontSize: 12 }}>testnet-rpc.monad.xyz</span>
+            <span style={{ color: theme.colorTextSecondary }}>Native Token Decimals</span>
+            <span style={{ fontFamily: 'monospace' }}>{currentNetwork?.nativeTokenDecimal || '-'}</span>
           </Flexbox>
-          <Flexbox horizontal justify="space-between">
-            <span style={{ color: theme.colorTextSecondary }}>Explorer</span>
-            <a href="https://testnet.monad.xyz" target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              testnet.monad.xyz <ExternalLink size={12} />
-            </a>
-          </Flexbox>
+          {currentNetwork?.explorerURL && (
+            <Flexbox horizontal justify="space-between">
+              <span style={{ color: theme.colorTextSecondary }}>Explorer API</span>
+              <a href={currentNetwork.explorerURL} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
+                View <ExternalLink size={12} />
+              </a>
+            </Flexbox>
+          )}
         </Flexbox>
       </Card>
 
@@ -765,6 +1302,116 @@ const SendForm = ({ onSend, loading }: { onSend: (to: string, val: number) => vo
       </Form.Item>
       <Button type="primary" htmlType="submit" block size="large" loading={loading} style={{ marginTop: 16 }}>
         Send USDT
+      </Button>
+    </Form>
+  );
+};
+
+const AddTokenForm = ({ onAddToken, loading, currentNetwork }: { onAddToken: (address: string) => void, loading: boolean, currentNetwork: NetworkInfo | null }) => {
+  const [form] = Form.useForm();
+  const [tokenPreview, setTokenPreview] = useState<TokenInfo | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const theme = useTheme();
+
+  const handleAddressChange = async (address: string) => {
+    if (!address || address.length !== 42 || !address.startsWith('0x') || !currentNetwork) {
+      setTokenPreview(null);
+      return;
+    }
+
+    setPreviewLoading(true);
+    try {
+      const isValid = await JarvisService.ValidateAddress(address);
+      if (!isValid) {
+        setTokenPreview(null);
+        return;
+      }
+
+      const info = await JarvisService.GetTokenInfo(address, currentNetwork.id);
+      setTokenPreview(info);
+    } catch {
+      setTokenPreview(null);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  return (
+    <Form form={form} layout="vertical" onFinish={(v) => onAddToken(v.address)}>
+      <Form.Item
+        label="Token Contract Address"
+        name="address"
+        rules={[
+          { required: true, message: 'Token address is required' },
+          { pattern: /^0x[a-fA-F0-9]{40}$/, message: 'Invalid contract address' }
+        ]}
+      >
+        <Input
+          placeholder="0x..."
+          size="large"
+          onChange={(e) => handleAddressChange(e.target.value)}
+        />
+      </Form.Item>
+
+      {/* Token Preview */}
+      {previewLoading && (
+        <Flexbox align="center" justify="center" style={{ padding: 16 }}>
+          <Loader2 size={20} className="animate-spin" />
+          <span style={{ marginLeft: 8, color: theme.colorTextSecondary }}>Fetching token info...</span>
+        </Flexbox>
+      )}
+
+      {tokenPreview && !previewLoading && (
+        <div style={{
+          padding: 16,
+          background: theme.colorFillTertiary,
+          borderRadius: 12,
+          marginBottom: 16
+        }}>
+          <Flexbox horizontal align="center" gap={12}>
+            <div style={{
+              width: 40,
+              height: 40,
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#fff',
+              fontWeight: 700,
+              fontSize: 14,
+            }}>
+              {tokenPreview.symbol.substring(0, 2).toUpperCase()}
+            </div>
+            <Flexbox flex={1}>
+              <div style={{ fontWeight: 600, fontSize: 16 }}>{tokenPreview.symbol}</div>
+              <div style={{ fontSize: 12, color: theme.colorTextSecondary }}>{tokenPreview.name}</div>
+            </Flexbox>
+            <Flexbox align="flex-end">
+              <div style={{ fontSize: 11, color: theme.colorTextTertiary }}>Decimals: {tokenPreview.decimals}</div>
+              {tokenPreview.isKnown && (
+                <Tag color="green" style={{ margin: 0, marginTop: 4 }}>
+                  <Check size={10} /> Verified
+                </Tag>
+              )}
+            </Flexbox>
+          </Flexbox>
+        </div>
+      )}
+
+      <div style={{ fontSize: 12, color: theme.colorTextSecondary, marginBottom: 16 }}>
+        Adding token on: <strong>{currentNetwork?.name || 'Unknown Network'}</strong>
+      </div>
+
+      <Button
+        type="primary"
+        htmlType="submit"
+        block
+        size="large"
+        loading={loading}
+        disabled={!tokenPreview || previewLoading}
+      >
+        {tokenPreview ? `Add ${tokenPreview.symbol}` : 'Add Token'}
       </Button>
     </Form>
   );

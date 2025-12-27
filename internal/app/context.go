@@ -67,6 +67,7 @@ type Context struct {
 	ToolRegistry   *tools.ToolRegistry
 	WalletService  *services.WalletService
 	DeAIService    *services.DeAIService
+	JarvisService  *services.JarvisService
 
 	// Language Models
 	ChatModel    fantasy.LanguageModel
@@ -246,6 +247,15 @@ func (ctx *Context) InitDeAIService() {
 	log.Printf("DeAIService initialized (BSC Testnet)")
 }
 
+func (ctx *Context) InitJarvisService() {
+	if ctx.WalletService == nil {
+		log.Printf("Warning: WalletService not initialized, cannot init JarvisService")
+		return
+	}
+	ctx.JarvisService = services.NewJarvisService(ctx.WalletService)
+	log.Printf("JarvisService initialized (multi-chain support)")
+}
+
 func (ctx *Context) InitKVStore() {
 	kvStore, err := store.NewMultiNamespaceKVStore()
 	if err != nil {
@@ -412,6 +422,7 @@ func (ctx *Context) InitAll() error {
 	ctx.InitKVStore()       // MOVED UP
 	ctx.InitWalletService() // Depends on KVStore
 	ctx.InitDeAIService()
+	ctx.InitJarvisService()
 	// ctx.InitAPIKeyService() // Removed
 	// ctx.InitAuthService() // Removed
 	ctx.InitLanguageModels()
