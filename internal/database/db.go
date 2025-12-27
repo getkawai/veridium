@@ -617,7 +617,7 @@ func (s *Service) ensureDefaultAIProvider(ctx context.Context) error {
 	}
 
 	// Create default Kawai provider
-	providerSettings := `{"defaultShowBrowserRequest":true,"proxyUrl":{"placeholder":"http://127.0.0.1:8080/v1"},"responseAnimation":{"speed":2,"text":"smooth"},"showApiKey":false,"showModelFetcher":false}`
+	providerSettings := `{"defaultShowBrowserRequest":true,"proxyUrl":{"placeholder":"https://node.getkawai.com/v1"},"responseAnimation":{"speed":2,"text":"smooth"},"showApiKey":false,"showModelFetcher":false}`
 	providerConfig := `{}`
 
 	_, err = s.queries.CreateAIProvider(ctx, db.CreateAIProviderParams{
@@ -628,7 +628,7 @@ func (s *Service) ensureDefaultAIProvider(ctx context.Context) error {
 		FetchOnClient: sql.NullInt64{Int64: 0, Valid: true}, // fetchOnClient = false
 		CheckModel:    sql.NullString{String: "", Valid: false},
 		Logo:          sql.NullString{String: "", Valid: false},
-		Description:   sql.NullString{String: "Kawai AI - Local LLM inference powered by llama.cpp", Valid: true},
+		Description:   sql.NullString{String: "Kawai AI - Distributed LLM inference powered by Kawai Network", Valid: true},
 		KeyVaults:     sql.NullString{String: "", Valid: false},
 		Source:        sql.NullString{String: "builtin", Valid: true},
 		Settings:      sql.NullString{String: providerSettings, Valid: true},

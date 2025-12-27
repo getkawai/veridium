@@ -2,37 +2,70 @@ import { uniqBy } from 'lodash-es';
 import {
   AIImageModelCard,
   EnabledAiModel,
-  LobeDefaultAiModelListItem,
   ModelAbilities,
 } from '@/model-bank';
 import { StateCreator } from 'zustand/vanilla';
 // ✅ MIGRATION COMPLETE: All operations now use direct DB calls
-import { DEFAULT_MODEL_PROVIDER_LIST } from '@/config/modelProviders';
+import { DEFAULT_MODEL_PROVIDER_LIST, LOBE_DEFAULT_MODEL_LIST } from '@/config/modelProviders';
 import { AIProviderStoreState } from '../../initialState';
 import type { AiModelAction } from '../aiModel/action';
 import { useUserStore } from '@/store/user';
 import { authSelectors } from '@/store/user/selectors';
 import {
   AiProviderListItem,
-  AiProviderRuntimeState,
   AiProviderSortMap,
   AiProviderSourceEnum,
   CreateAiProviderParams,
   EnabledProvider,
-  EnabledProviderWithModels,
   UpdateAiProviderConfigParams,
   UpdateAiProviderParams,
 } from '@/types/aiProvider';
 import { DB } from '@/types/database';
 import {
   mapProviderFromDB,
-  mapModelFromDB,
-  mapRuntimeConfigFromDB,
   toNullString,
   toNullInt64,
   boolToInt,
   parseNullJSON,
 } from './helpers';
+import type { AiProviderRuntimeConfig, ResponseAnimationStyle } from '@/types/aiProvider';
+
+/**
+ * Static Kawai AI Provider & Model Configuration
+ * These are hardcoded because:
+ * 1. Model is handled internally by backend (llama.cpp)
+ * 2. User cannot configure or add models
+ * 3. Data never changes - always "kawai" provider with "kawai-auto" model
+ */
+const STATIC_KAWAI_PROVIDER: EnabledProvider = {
+  id: 'kawai',
+  name: 'Kawai',
+  source: AiProviderSourceEnum.Builtin,
+};
+
+const STATIC_KAWAI_MODEL: EnabledAiModel = {
+  id: 'kawai-auto',
+  displayName: 'Kawai Auto',
+  providerId: 'kawai',
+  type: 'chat',
+  abilities: { functionCall: true, vision: true, files: true },
+  contextWindowTokens: 128000,
+};
+
+const STATIC_KAWAI_RUNTIME_CONFIG: Record<string, AiProviderRuntimeConfig> = {
+  kawai: {
+    keyVaults: {},
+    settings: {
+      defaultShowBrowserRequest: true,
+      proxyUrl: { placeholder: 'https://node.getkawai.com/v1' },
+      responseAnimation: { speed: 2, text: 'smooth' as ResponseAnimationStyle },
+      showApiKey: false,
+      showModelFetcher: false,
+    },
+    config: {},
+    fetchOnClient: false,
+  },
+};
 
 /**
  * Get models by provider ID and type, with proper formatting and deduplication
@@ -420,52 +453,20 @@ export const createAiProviderSlice: StateCreator<
     if (!shouldFetch) return;
 
     try {
-      const [{ LOBE_DEFAULT_MODEL_LIST: builtinAiModelList }] = await Promise.all([
-        import('@/config/modelProviders'),
-      ]);
+      const builtinAiModelList = LOBE_DEFAULT_MODEL_LIST;
 
       if (isLogin) {
-        const startTime = performance.now();
+        // Use static Kawai provider & model - no DB calls needed
+        // Model is handled internally by backend (llama.cpp), user cannot configure
+        console.log('[AI Provider] Using static Kawai configuration (no DB call)');
 
-        // Parallel fetch from database
-        const [dbProviders, dbModels, dbConfigs] = await Promise.all([
-          DB.ListEnabledAIProviders(),
-          DB.ListEnabledAIModels(),
-          DB.GetAIProviderRuntimeConfigs(),
-        ]);
+        const enabledAiProviders: EnabledProvider[] = [STATIC_KAWAI_PROVIDER];
+        const enabledAiModels: EnabledAiModel[] = [STATIC_KAWAI_MODEL];
+        const aiProviderRuntimeConfig = STATIC_KAWAI_RUNTIME_CONFIG;
 
-        const loadTime = performance.now() - startTime;
-        console.log(`[AI Provider] Direct DB load completed in ${loadTime.toFixed(2)}ms`);
-
-        // Transform DB results
-        const enabledAiProviders: EnabledProvider[] = dbProviders.map((p) => ({
-          id: p.id,
-          name: mapProviderFromDB(p).name,
-          source: mapProviderFromDB(p).source as any,
-        }));
-
-        const enabledAiModels: EnabledAiModel[] = dbModels.map(mapModelFromDB) as any;
-
-        // Build runtime config
-        const aiProviderRuntimeConfig: Record<string, any> = {};
-        dbConfigs.forEach((c) => {
-          const mapped = mapRuntimeConfigFromDB(c);
-          aiProviderRuntimeConfig[mapped.id] = {
-            keyVaults: mapped.keyVaults,
-            settings: mapped.settings,
-            config: mapped.config,
-            fetchOnClient: mapped.fetchOnClient,
-          };
-        });
-
-        // Filter providers by model type
-        const enabledChatAiProviders = enabledAiProviders.filter((provider) =>
-          enabledAiModels.some((m) => m.providerId === provider.id && m.type === 'chat'),
-        );
-
-        const enabledImageAiProviders = enabledAiProviders.filter((provider) =>
-          enabledAiModels.some((m) => m.providerId === provider.id && m.type === 'image'),
-        );
+        // Kawai only has chat models, no image models
+        const enabledChatAiProviders = [STATIC_KAWAI_PROVIDER];
+        const enabledImageAiProviders: EnabledProvider[] = [];
 
         // Build model lists
         const [enabledChatModelList, enabledImageModelList] = await Promise.all([
@@ -484,7 +485,7 @@ export const createAiProviderSlice: StateCreator<
             isInitAiProviderRuntimeState: true,
           },
           false,
-          'internal_fetchAiProviderRuntimeState/login/directDB',
+          'internal_fetchAiProviderRuntimeState/login/static',
         );
       } else {
         // No login: Use builtin models only
