@@ -1,27 +1,30 @@
 package localfs
 
 import (
-	"context"
-	"fmt"
-	"io"
-	"os"
-	"os/exec"
-	"path/filepath"
-	"strings"
-	"time"
+    "context"
+    "fmt"
+    "io"
+    "os"
+    "os/exec"
+    "path/filepath"
+    "runtime"
+    "strings"
+    "sync"
+    "time"
 )
 
 // Service provides local file system operations
 type Service struct {
-	// shellCommands stores running background commands
-	shellCommands map[string]*exec.Cmd
+    // shellCommands stores running background commands
+    shellCommands map[string]*exec.Cmd
+    shellMu       sync.RWMutex
 }
 
 // NewService creates a new local file service
 func NewService() *Service {
-	return &Service{
-		shellCommands: make(map[string]*exec.Cmd),
-	}
+    return &Service{
+        shellCommands: make(map[string]*exec.Cmd),
+    }
 }
 
 // ============================================================================
@@ -343,12 +346,14 @@ func (s *Service) OpenFolder(ctx context.Context, params OpenLocalFolderParams) 
 
 // RunCommand runs a shell command
 func (s *Service) RunCommand(ctx context.Context, params RunCommandParams) (*RunCommandResult, error) {
-	cmd := exec.CommandContext(ctx, "sh", "-c", params.Command)
+    cmd := makeShellCmd(ctx, params.Command)
 
 	if params.RunInBackground {
 		// Start command in background
-		shellID := generateShellID()
-		s.shellCommands[shellID] = cmd
+        shellID := generateShellID()
+        s.shellMu.Lock()
+        s.shellCommands[shellID] = cmd
+        s.shellMu.Unlock()
 
 		if err := cmd.Start(); err != nil {
 			return &RunCommandResult{
@@ -383,7 +388,9 @@ func (s *Service) RunCommand(ctx context.Context, params RunCommandParams) (*Run
 
 // GetCommandOutput gets output from a running command
 func (s *Service) GetCommandOutput(ctx context.Context, params GetCommandOutputParams) (*GetCommandOutputResult, error) {
-	cmd, exists := s.shellCommands[params.ShellID]
+    s.shellMu.RLock()
+    cmd, exists := s.shellCommands[params.ShellID]
+    s.shellMu.RUnlock()
 	if !exists {
 		return &GetCommandOutputResult{
 			Success: false,
@@ -407,7 +414,9 @@ func (s *Service) GetCommandOutput(ctx context.Context, params GetCommandOutputP
 
 // KillCommand kills a running command
 func (s *Service) KillCommand(ctx context.Context, params KillCommandParams) (*KillCommandResult, error) {
-	cmd, exists := s.shellCommands[params.ShellID]
+    s.shellMu.RLock()
+    cmd, exists := s.shellCommands[params.ShellID]
+    s.shellMu.RUnlock()
 	if !exists {
 		return &KillCommandResult{
 			Success: false,
@@ -424,7 +433,9 @@ func (s *Service) KillCommand(ctx context.Context, params KillCommandParams) (*K
 		}
 	}
 
-	delete(s.shellCommands, params.ShellID)
+    s.shellMu.Lock()
+    delete(s.shellCommands, params.ShellID)
+    s.shellMu.Unlock()
 
 	return &KillCommandResult{
 		Success: true,
@@ -622,5 +633,16 @@ func formatError(err error) string {
 }
 
 func generateShellID() string {
-	return fmt.Sprintf("shell_%d", time.Now().UnixNano())
+    return fmt.Sprintf("shell_%d", time.Now().UnixNano())
+}
+
+// makeShellCmd builds a cross-platform shell command
+func makeShellCmd(ctx context.Context, command string) *exec.Cmd {
+    // Use OS-appropriate shell for portability
+    switch runtime.GOOS {
+    case "windows":
+        return exec.CommandContext(ctx, "cmd", "/C", command)
+    default:
+        return exec.CommandContext(ctx, "sh", "-c", command)
+    }
 }
