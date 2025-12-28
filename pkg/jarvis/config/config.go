@@ -16,20 +16,27 @@ var (
 
 var (
 	cachedNetwork networks.Network
-	mu            sync.Mutex
+	mu            sync.RWMutex
 )
 
 func Network() networks.Network {
+	mu.RLock()
 	if cachedNetwork != nil {
-		return cachedNetwork
+		cn := cachedNetwork
+		mu.RUnlock()
+		return cn
 	}
+	mu.RUnlock()
 
 	err := SetNetwork(NetworkString)
 	if err != nil {
 		panic(err)
 	}
 
-	return cachedNetwork
+	mu.RLock()
+	cn := cachedNetwork
+	mu.RUnlock()
+	return cn
 }
 
 func SetNetwork(networkStr string) error {

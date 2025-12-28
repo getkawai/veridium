@@ -12,7 +12,7 @@ import SettingsModal from './features/SettingsModal';
 import UserProfileModal from './features/UserProfileModal';
 import ChangelogModal from './features/ChangelogModal';
 import { useUserStore } from './store/user';
-import AuthSignInBox from './features/User/AuthSignInBox';
+import AuthSignInBox from './app/wallet/AuthSignInBox';
 import { Flex, Spin } from 'antd';
 import DesktopWalletLayout from './app/wallet/wallet';
 
