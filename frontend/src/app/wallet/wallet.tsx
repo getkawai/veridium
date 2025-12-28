@@ -344,6 +344,7 @@ interface CustomToken {
 // Default Monad Testnet chain ID
 const DEFAULT_CHAIN_ID = 10143;
 const KAWAI_TOKEN_ADDRESS = "0x3EC7A3b85f9658120490d5a76705d4d304f4068D";
+const CUSTOM_TOKENS_STORAGE_KEY = 'wallet_custom_tokens';
 
 const DesktopWalletLayout = memo(() => {
   const { styles, theme } = useStyles();
@@ -369,9 +370,10 @@ const DesktopWalletLayout = memo(() => {
   // Custom tokens state
   const [customTokens, setCustomTokens] = useState<CustomToken[]>([]);
 
-  // Initialize default network
+  // Initialize default network and load custom tokens
   useEffect(() => {
     initializeNetwork();
+    loadCustomTokensFromStorage();
   }, []);
 
   const initializeNetwork = async () => {
@@ -382,6 +384,26 @@ const DesktopWalletLayout = memo(() => {
       }
     } catch (e) {
       console.error('Failed to initialize network', e);
+    }
+  };
+
+  const loadCustomTokensFromStorage = () => {
+    try {
+      const stored = localStorage.getItem(CUSTOM_TOKENS_STORAGE_KEY);
+      if (stored) {
+        const tokens = JSON.parse(stored) as CustomToken[];
+        setCustomTokens(tokens);
+      }
+    } catch (e) {
+      console.error('Failed to load custom tokens from storage', e);
+    }
+  };
+
+  const saveCustomTokensToStorage = (tokens: CustomToken[]) => {
+    try {
+      localStorage.setItem(CUSTOM_TOKENS_STORAGE_KEY, JSON.stringify(tokens));
+    } catch (e) {
+      console.error('Failed to save custom tokens to storage', e);
     }
   };
 
@@ -509,7 +531,9 @@ const DesktopWalletLayout = memo(() => {
         isCustom: true,
       };
 
-      setCustomTokens(prev => [...prev, newToken]);
+      const updatedTokens = [...customTokens, newToken];
+      setCustomTokens(updatedTokens);
+      saveCustomTokensToStorage(updatedTokens);
       message.success(`Added ${tokenInfo.symbol} to your wallet`);
       setModalType(null);
     } catch (e: any) {

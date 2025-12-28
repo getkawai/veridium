@@ -174,14 +174,28 @@ export default memo(() => {
   };
 
   const handleFinishSetup = async () => {
+    // Validate mnemonic
+    const words = mnemonic.trim().split(/\s+/);
+    if (words.length !== 12 && words.length !== 24) {
+      message.error(t('invalidMnemonic', { defaultValue: 'Mnemonic must be 12 or 24 words' }));
+      return;
+    }
+
+    // Basic word validation (lowercase letters only)
+    const invalidWords = words.filter(word => !/^[a-z]+$/.test(word));
+    if (invalidWords.length > 0) {
+      message.error(t('invalidMnemonicWords', { defaultValue: 'Mnemonic contains invalid words' }));
+      return;
+    }
+
     setIsLoading(true);
     try {
       if (hasWallet) {
         // Adding new wallet
-        await createWallet(password, mnemonic, description || `Wallet ${wallets.length + 1}`);
+        await createWallet(password, mnemonic.trim(), description || `Wallet ${wallets.length + 1}`);
       } else {
         // First wallet
-        await setupWallet(password, mnemonic);
+        await setupWallet(password, mnemonic.trim());
       }
       message.success(t('setupSuccess', { defaultValue: 'Wallet setup complete!' }));
       setShowBackupReminder(true);
