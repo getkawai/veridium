@@ -6,6 +6,7 @@ import * as DeAIService from "./deaiservice.js";
 import * as FileService from "./fileservice.js";
 import * as JarvisService from "./jarvisservice.js";
 import * as KnowledgeBaseService from "./knowledgebaseservice.js";
+import * as MarketplaceService from "./marketplaceservice.js";
 import * as ThreadManagementService from "./threadmanagementservice.js";
 import * as VectorSearchService from "./vectorsearchservice.js";
 import * as WalletService from "./walletservice.js";
@@ -15,6 +16,7 @@ export {
     FileService,
     JarvisService,
     KnowledgeBaseService,
+    MarketplaceService,
     ThreadManagementService,
     VectorSearchService,
     WalletService
@@ -31,24 +33,38 @@ export {
     ChatRequest,
     ChatToolPayload,
     CitationItem,
+    ClaimResult,
+    ClaimableReward,
+    ClaimableRewardsResponse,
     CreateThreadRequest,
     CreateThreadResponse,
     GasEstimate,
     GroundingSearch,
     ListThreadsRequest,
     LogInfo,
+    MarketStats,
     MemoryIntegration,
     ModelPerformance,
     ModelReasoning,
     ModelUsage,
     NetworkInfo,
+    Order,
+    OrderHistory,
+    OrderHistoryEntry,
+    OrderResult,
+    OrderStatusChange,
+    OrderSummary,
     ParamInfo,
+    ProjectToken,
     SearchResult,
     StreamEventPayload,
     ThreadInfo,
     ThreadStatus,
     ThreadType,
     TokenInfo,
+    Trade,
+    TradeHistoryEntry,
+    TradeResult,
     TxAnalysis,
     WalletInfo,
     WalletStatus

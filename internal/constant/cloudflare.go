@@ -14,11 +14,13 @@ const (
 	// - Settlements: Settlement period metadata
 	// - Apikey: API key management (apikey -> address)
 	// - Authz: Authorization reverse index (address -> apikey)
+	// - P2pMarketplace: P2P marketplace data
 	obfuscatedCfKvContributorsNamespaceId = "kxnCnJhjcrVRKM9nU4wNxvaa1DnMal6hkkYkBd6qkIG="
 	obfuscatedCfKvProofsNamespaceId = "TndwnPlkkOjejJJLUa5VGegaPOp0LzYHweLXIj8EjT8="
 	obfuscatedCfKvSettlementsNamespaceId = "Qna/Pi4l4GLeQCJLU1S8A0i+Leov3824U/mZpN4Ma+8="
 	obfuscatedCfKvApikeyNamespaceId = "00nCO0uoa1ze1slnU2O8B3caSDyFLI6mU/pdIoUya9Q="
 	obfuscatedCfKvAuthzNamespaceId = "TbCDIs2Se4LdZCjKU1VQVPPMSDSF3eGZw79L1aNAxXe="
+	obfuscatedCfKvP2pMarketplaceNamespaceId = "8kITHUq44oreKDNLU1XtwFZz178jyJYMOeSZIk4E3VK="
 )
 
 // GetCfAccountId returns the decoded value of CF_ACCOUNT_ID
@@ -67,6 +69,13 @@ func GetCfKvApikeyNamespaceId() string {
 // Namespace for authorization reverse index (address -> apikey)
 func GetCfKvAuthzNamespaceId() string {
 	val, _ := obfuscator.DecodeString(obfuscatedCfKvAuthzNamespaceId)
+	return val
+}
+
+// GetCfKvP2pMarketplaceNamespaceId returns the decoded value of CF_KV_P2PMARKETPLACE_NAMESPACE_ID
+// Namespace for P2P marketplace data
+func GetCfKvP2pMarketplaceNamespaceId() string {
+	val, _ := obfuscator.DecodeString(obfuscatedCfKvP2pMarketplaceNamespaceId)
 	return val
 }
 

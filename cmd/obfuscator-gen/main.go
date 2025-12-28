@@ -35,6 +35,7 @@ var supportedVars = []ConfigVar{
 	{EnvKey: "CF_KV_SETTLEMENTS_NAMESPACE_ID", GoName: "CfKvSettlementsNamespaceId", Comment: "Namespace for settlement metadata", IsNamespace: true, Order: 22},
 	{EnvKey: "CF_KV_APIKEY_NAMESPACE_ID", GoName: "CfKvApikeyNamespaceId", Comment: "Namespace for API key management", IsNamespace: true, Order: 23},
 	{EnvKey: "CF_KV_AUTHZ_NAMESPACE_ID", GoName: "CfKvAuthzNamespaceId", Comment: "Namespace for authorization reverse index (address -> apikey)", IsNamespace: true, Order: 24},
+	{EnvKey: "CF_KV_P2PMARKETPLACE_NAMESPACE_ID", GoName: "CfKvP2pMarketplaceNamespaceId", Comment: "Namespace for P2P marketplace data", IsNamespace: true, Order: 25},
 }
 
 func main() {
@@ -179,6 +180,7 @@ func generateGoFile(vars []ConfigVar, configs map[string]string) string {
 		sb.WriteString("\t// - Settlements: Settlement period metadata\n")
 		sb.WriteString("\t// - Apikey: API key management (apikey -> address)\n")
 		sb.WriteString("\t// - Authz: Authorization reverse index (address -> apikey)\n")
+		sb.WriteString("\t// - P2pMarketplace: P2P marketplace data\n")
 
 		for _, v := range vars {
 			if v.IsNamespace {

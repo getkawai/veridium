@@ -8,6 +8,9 @@ import { Create as $Create } from "@wailsio/runtime";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as types$0 from "../../types/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as time$0 from "../../../../../time/models.js";
 
 /**
  * BalanceInfo represents a balance result
@@ -407,6 +410,230 @@ export class CitationItem {
 }
 
 /**
+ * ClaimResult represents the result of a claim transaction
+ */
+export class ClaimResult {
+    "tx_hash": string;
+    "period_id": number;
+    "reward_type": string;
+    "amount": string;
+
+    /**
+     * "submitted", "pending", "confirmed", "failed"
+     */
+    "status": string;
+
+    /** Creates a new ClaimResult instance. */
+    constructor($$source: Partial<ClaimResult> = {}) {
+        if (!("tx_hash" in $$source)) {
+            this["tx_hash"] = "";
+        }
+        if (!("period_id" in $$source)) {
+            this["period_id"] = 0;
+        }
+        if (!("reward_type" in $$source)) {
+            this["reward_type"] = "";
+        }
+        if (!("amount" in $$source)) {
+            this["amount"] = "";
+        }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ClaimResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ClaimResult {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ClaimResult($$parsedSource as Partial<ClaimResult>);
+    }
+}
+
+/**
+ * ClaimableReward represents a single claimable reward proof
+ */
+export class ClaimableReward {
+    "index": number;
+
+    /**
+     * BigInt as string (raw, no decimals)
+     */
+    "amount": string;
+
+    /**
+     * Merkle proof (hex strings)
+     */
+    "proof": string[];
+
+    /**
+     * Root hash for verification
+     */
+    "merkle_root": string;
+
+    /**
+     * Settlement period identifier
+     */
+    "period_id": number;
+
+    /**
+     * "kawai" or "usdt"
+     */
+    "reward_type": string;
+
+    /**
+     * "unclaimed", "pending", "confirmed", "failed"
+     */
+    "claim_status": string;
+
+    /**
+     * Transaction hash if claimed
+     */
+    "claim_tx_hash": string;
+
+    /**
+     * When proof was generated
+     */
+    "created_at": string;
+
+    /**
+     * When claimed (if confirmed)
+     */
+    "claimed_at": string;
+
+    /**
+     * Human-readable amount
+     */
+    "formatted": string;
+
+    /**
+     * Token decimals (18 for KAWAI, 6 for USDT)
+     */
+    "decimals": number;
+
+    /** Creates a new ClaimableReward instance. */
+    constructor($$source: Partial<ClaimableReward> = {}) {
+        if (!("index" in $$source)) {
+            this["index"] = 0;
+        }
+        if (!("amount" in $$source)) {
+            this["amount"] = "";
+        }
+        if (!("proof" in $$source)) {
+            this["proof"] = [];
+        }
+        if (!("merkle_root" in $$source)) {
+            this["merkle_root"] = "";
+        }
+        if (!("period_id" in $$source)) {
+            this["period_id"] = 0;
+        }
+        if (!("reward_type" in $$source)) {
+            this["reward_type"] = "";
+        }
+        if (!("claim_status" in $$source)) {
+            this["claim_status"] = "";
+        }
+        if (!("claim_tx_hash" in $$source)) {
+            this["claim_tx_hash"] = "";
+        }
+        if (!("created_at" in $$source)) {
+            this["created_at"] = "";
+        }
+        if (!("claimed_at" in $$source)) {
+            this["claimed_at"] = "";
+        }
+        if (!("formatted" in $$source)) {
+            this["formatted"] = "";
+        }
+        if (!("decimals" in $$source)) {
+            this["decimals"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ClaimableReward instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ClaimableReward {
+        const $$createField2_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("proof" in $$parsedSource) {
+            $$parsedSource["proof"] = $$createField2_0($$parsedSource["proof"]);
+        }
+        return new ClaimableReward($$parsedSource as Partial<ClaimableReward>);
+    }
+}
+
+/**
+ * ClaimableRewardsResponse represents the response from GetClaimableRewards
+ */
+export class ClaimableRewardsResponse {
+    "address": string;
+    "unclaimed_proofs": (ClaimableReward | null)[];
+    "pending_proofs": (ClaimableReward | null)[];
+    "total_kawai_claimable": string;
+    "total_kawai_claimable_formatted": string;
+    "total_usdt_claimable": string;
+    "total_usdt_claimable_formatted": string;
+    "current_kawai_accumulating": string;
+    "current_usdt_accumulating": string;
+
+    /** Creates a new ClaimableRewardsResponse instance. */
+    constructor($$source: Partial<ClaimableRewardsResponse> = {}) {
+        if (!("address" in $$source)) {
+            this["address"] = "";
+        }
+        if (!("unclaimed_proofs" in $$source)) {
+            this["unclaimed_proofs"] = [];
+        }
+        if (!("pending_proofs" in $$source)) {
+            this["pending_proofs"] = [];
+        }
+        if (!("total_kawai_claimable" in $$source)) {
+            this["total_kawai_claimable"] = "";
+        }
+        if (!("total_kawai_claimable_formatted" in $$source)) {
+            this["total_kawai_claimable_formatted"] = "";
+        }
+        if (!("total_usdt_claimable" in $$source)) {
+            this["total_usdt_claimable"] = "";
+        }
+        if (!("total_usdt_claimable_formatted" in $$source)) {
+            this["total_usdt_claimable_formatted"] = "";
+        }
+        if (!("current_kawai_accumulating" in $$source)) {
+            this["current_kawai_accumulating"] = "";
+        }
+        if (!("current_usdt_accumulating" in $$source)) {
+            this["current_usdt_accumulating"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ClaimableRewardsResponse instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ClaimableRewardsResponse {
+        const $$createField1_0 = $$createType6;
+        const $$createField2_0 = $$createType6;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("unclaimed_proofs" in $$parsedSource) {
+            $$parsedSource["unclaimed_proofs"] = $$createField1_0($$parsedSource["unclaimed_proofs"]);
+        }
+        if ("pending_proofs" in $$parsedSource) {
+            $$parsedSource["pending_proofs"] = $$createField2_0($$parsedSource["pending_proofs"]);
+        }
+        return new ClaimableRewardsResponse($$parsedSource as Partial<ClaimableRewardsResponse>);
+    }
+}
+
+/**
  * CreateThreadRequest represents a request to create a new thread
  */
 export class CreateThreadRequest {
@@ -541,7 +768,7 @@ export class GroundingSearch {
      * Creates a new GroundingSearch instance from a string or object.
      */
     static createFrom($$source: any = {}): GroundingSearch {
-        const $$createField0_0 = $$createType5;
+        const $$createField0_0 = $$createType8;
         const $$createField1_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("citations" in $$parsedSource) {
@@ -606,7 +833,7 @@ export class LogInfo {
      */
     static createFrom($$source: any = {}): LogInfo {
         const $$createField1_0 = $$createType2;
-        const $$createField2_0 = $$createType7;
+        const $$createField2_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("topics" in $$parsedSource) {
             $$parsedSource["topics"] = $$createField1_0($$parsedSource["topics"]);
@@ -615,6 +842,77 @@ export class LogInfo {
             $$parsedSource["data"] = $$createField2_0($$parsedSource["data"]);
         }
         return new LogInfo($$parsedSource as Partial<LogInfo>);
+    }
+}
+
+/**
+ * MarketStats represents current marketplace statistics
+ */
+export class MarketStats {
+    /**
+     * Lowest ask price in USDT per token
+     */
+    "lowestAskPrice": string;
+
+    /**
+     * Highest recent trade price
+     */
+    "highestBidPrice": string;
+
+    /**
+     * 24-hour trading volume in USDT
+     */
+    "volume24h": string;
+
+    /**
+     * 24-hour price change percentage
+     */
+    "priceChange24h": string;
+
+    /**
+     * Number of active orders
+     */
+    "activeOrdersCount": number;
+
+    /**
+     * Recent completed trades
+     */
+    "recentTrades": Trade[];
+
+    /** Creates a new MarketStats instance. */
+    constructor($$source: Partial<MarketStats> = {}) {
+        if (!("lowestAskPrice" in $$source)) {
+            this["lowestAskPrice"] = "";
+        }
+        if (!("highestBidPrice" in $$source)) {
+            this["highestBidPrice"] = "";
+        }
+        if (!("volume24h" in $$source)) {
+            this["volume24h"] = "";
+        }
+        if (!("priceChange24h" in $$source)) {
+            this["priceChange24h"] = "";
+        }
+        if (!("activeOrdersCount" in $$source)) {
+            this["activeOrdersCount"] = 0;
+        }
+        if (!("recentTrades" in $$source)) {
+            this["recentTrades"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MarketStats instance from a string or object.
+     */
+    static createFrom($$source: any = {}): MarketStats {
+        const $$createField5_0 = $$createType12;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("recentTrades" in $$parsedSource) {
+            $$parsedSource["recentTrades"] = $$createField5_0($$parsedSource["recentTrades"]);
+        }
+        return new MarketStats($$parsedSource as Partial<MarketStats>);
     }
 }
 
@@ -771,6 +1069,337 @@ export class NetworkInfo {
 }
 
 /**
+ * Order represents a sell order in the marketplace
+ */
+export class Order {
+    "id": string;
+    "seller": string;
+
+    /**
+     * KAWAI token amount (in wei)
+     */
+    "tokenAmount": string;
+
+    /**
+     * Total USDT price (in wei)
+     */
+    "usdtPrice": string;
+
+    /**
+     * USDT price per KAWAI token
+     */
+    "pricePerToken": string;
+
+    /**
+     * active, filled, cancelled
+     */
+    "status": string;
+    "createdAt": time$0.Time;
+    "updatedAt": time$0.Time;
+
+    /**
+     * Transaction hash for order creation
+     */
+    "txHash": string;
+
+    /**
+     * Remaining tokens for partial fills
+     */
+    "remainingAmount": string;
+
+    /** Creates a new Order instance. */
+    constructor($$source: Partial<Order> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("seller" in $$source)) {
+            this["seller"] = "";
+        }
+        if (!("tokenAmount" in $$source)) {
+            this["tokenAmount"] = "";
+        }
+        if (!("usdtPrice" in $$source)) {
+            this["usdtPrice"] = "";
+        }
+        if (!("pricePerToken" in $$source)) {
+            this["pricePerToken"] = "";
+        }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = null;
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = null;
+        }
+        if (!("txHash" in $$source)) {
+            this["txHash"] = "";
+        }
+        if (!("remainingAmount" in $$source)) {
+            this["remainingAmount"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Order instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Order {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Order($$parsedSource as Partial<Order>);
+    }
+}
+
+/**
+ * OrderHistory represents a user's order history with execution details
+ * Requirements: 4.1, 4.2 - Order history with status and timestamps
+ */
+export class OrderHistory {
+    "orders": OrderHistoryEntry[];
+    "trades": TradeHistoryEntry[];
+    "total": number;
+
+    /** Creates a new OrderHistory instance. */
+    constructor($$source: Partial<OrderHistory> = {}) {
+        if (!("orders" in $$source)) {
+            this["orders"] = [];
+        }
+        if (!("trades" in $$source)) {
+            this["trades"] = [];
+        }
+        if (!("total" in $$source)) {
+            this["total"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new OrderHistory instance from a string or object.
+     */
+    static createFrom($$source: any = {}): OrderHistory {
+        const $$createField0_0 = $$createType14;
+        const $$createField1_0 = $$createType16;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("orders" in $$parsedSource) {
+            $$parsedSource["orders"] = $$createField0_0($$parsedSource["orders"]);
+        }
+        if ("trades" in $$parsedSource) {
+            $$parsedSource["trades"] = $$createField1_0($$parsedSource["trades"]);
+        }
+        return new OrderHistory($$parsedSource as Partial<OrderHistory>);
+    }
+}
+
+/**
+ * OrderHistoryEntry represents an order in the user's history
+ * Requirements: 4.1, 4.4, 4.5 - Order details with status and timestamps
+ */
+export class OrderHistoryEntry {
+    "id": string;
+    "seller": string;
+
+    /**
+     * KAWAI token amount (in wei)
+     */
+    "tokenAmount": string;
+
+    /**
+     * Total USDT price (in wei)
+     */
+    "usdtPrice": string;
+
+    /**
+     * USDT price per KAWAI token
+     */
+    "pricePerToken": string;
+
+    /**
+     * active, filled, cancelled
+     */
+    "status": string;
+    "createdAt": time$0.Time;
+    "updatedAt": time$0.Time;
+
+    /**
+     * Transaction hash for order creation
+     */
+    "txHash": string;
+
+    /**
+     * Remaining tokens for partial fills
+     */
+    "remainingAmount": string;
+    "statusHistory": OrderStatusChange[];
+
+    /**
+     * Number of trades for this order
+     */
+    "tradeCount": number;
+
+    /**
+     * Total amount filled across all trades
+     */
+    "filledAmount": string;
+
+    /** Creates a new OrderHistoryEntry instance. */
+    constructor($$source: Partial<OrderHistoryEntry> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("seller" in $$source)) {
+            this["seller"] = "";
+        }
+        if (!("tokenAmount" in $$source)) {
+            this["tokenAmount"] = "";
+        }
+        if (!("usdtPrice" in $$source)) {
+            this["usdtPrice"] = "";
+        }
+        if (!("pricePerToken" in $$source)) {
+            this["pricePerToken"] = "";
+        }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+        if (!("createdAt" in $$source)) {
+            this["createdAt"] = null;
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = null;
+        }
+        if (!("txHash" in $$source)) {
+            this["txHash"] = "";
+        }
+        if (!("remainingAmount" in $$source)) {
+            this["remainingAmount"] = "";
+        }
+        if (!("statusHistory" in $$source)) {
+            this["statusHistory"] = [];
+        }
+        if (!("tradeCount" in $$source)) {
+            this["tradeCount"] = 0;
+        }
+        if (!("filledAmount" in $$source)) {
+            this["filledAmount"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new OrderHistoryEntry instance from a string or object.
+     */
+    static createFrom($$source: any = {}): OrderHistoryEntry {
+        const $$createField10_0 = $$createType18;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("statusHistory" in $$parsedSource) {
+            $$parsedSource["statusHistory"] = $$createField10_0($$parsedSource["statusHistory"]);
+        }
+        return new OrderHistoryEntry($$parsedSource as Partial<OrderHistoryEntry>);
+    }
+}
+
+/**
+ * OrderResult represents the result of order creation
+ */
+export class OrderResult {
+    "success": boolean;
+    "orderID"?: string;
+    "txHash"?: string;
+    "error"?: string;
+
+    /** Creates a new OrderResult instance. */
+    constructor($$source: Partial<OrderResult> = {}) {
+        if (!("success" in $$source)) {
+            this["success"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new OrderResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): OrderResult {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new OrderResult($$parsedSource as Partial<OrderResult>);
+    }
+}
+
+/**
+ * OrderStatusChange represents a status change event for an order
+ * Requirements: 4.5 - Order status tracking with timestamps
+ */
+export class OrderStatusChange {
+    "status": string;
+    "timestamp": time$0.Time;
+
+    /**
+     * Transaction hash if status change was on-chain
+     */
+    "txHash"?: string;
+
+    /** Creates a new OrderStatusChange instance. */
+    constructor($$source: Partial<OrderStatusChange> = {}) {
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+        if (!("timestamp" in $$source)) {
+            this["timestamp"] = null;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new OrderStatusChange instance from a string or object.
+     */
+    static createFrom($$source: any = {}): OrderStatusChange {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new OrderStatusChange($$parsedSource as Partial<OrderStatusChange>);
+    }
+}
+
+/**
+ * OrderSummary represents a summary of an order for trade history
+ */
+export class OrderSummary {
+    "id": string;
+    "tokenAmount": string;
+    "usdtPrice": string;
+    "pricePerToken": string;
+
+    /** Creates a new OrderSummary instance. */
+    constructor($$source: Partial<OrderSummary> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("tokenAmount" in $$source)) {
+            this["tokenAmount"] = "";
+        }
+        if (!("usdtPrice" in $$source)) {
+            this["usdtPrice"] = "";
+        }
+        if (!("pricePerToken" in $$source)) {
+            this["pricePerToken"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new OrderSummary instance from a string or object.
+     */
+    static createFrom($$source: any = {}): OrderSummary {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new OrderSummary($$parsedSource as Partial<OrderSummary>);
+    }
+}
+
+/**
  * ParamInfo represents a decoded parameter
  */
 export class ParamInfo {
@@ -799,6 +1428,38 @@ export class ParamInfo {
     static createFrom($$source: any = {}): ParamInfo {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new ParamInfo($$parsedSource as Partial<ParamInfo>);
+    }
+}
+
+/**
+ * ProjectToken represents a project-specific token
+ */
+export class ProjectToken {
+    "address": string;
+    "name": string;
+    "symbol": string;
+
+    /** Creates a new ProjectToken instance. */
+    constructor($$source: Partial<ProjectToken> = {}) {
+        if (!("address" in $$source)) {
+            this["address"] = "";
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("symbol" in $$source)) {
+            this["symbol"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ProjectToken instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ProjectToken {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ProjectToken($$parsedSource as Partial<ProjectToken>);
     }
 }
 
@@ -849,7 +1510,7 @@ export class SearchResult {
      * Creates a new SearchResult instance from a string or object.
      */
     static createFrom($$source: any = {}): SearchResult {
-        const $$createField7_0 = $$createType8;
+        const $$createField7_0 = $$createType19;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("metadata" in $$parsedSource) {
             $$parsedSource["metadata"] = $$createField7_0($$parsedSource["metadata"]);
@@ -932,16 +1593,16 @@ export class StreamEventPayload {
      * Creates a new StreamEventPayload instance from a string or object.
      */
     static createFrom($$source: any = {}): StreamEventPayload {
-        const $$createField6_0 = $$createType10;
-        const $$createField7_0 = $$createType12;
-        const $$createField8_0 = $$createType13;
-        const $$createField11_0 = $$createType15;
-        const $$createField13_0 = $$createType17;
-        const $$createField14_0 = $$createType19;
-        const $$createField15_0 = $$createType21;
-        const $$createField16_0 = $$createType23;
-        const $$createField17_0 = $$createType25;
-        const $$createField18_0 = $$createType27;
+        const $$createField6_0 = $$createType21;
+        const $$createField7_0 = $$createType23;
+        const $$createField8_0 = $$createType24;
+        const $$createField11_0 = $$createType26;
+        const $$createField13_0 = $$createType28;
+        const $$createField14_0 = $$createType30;
+        const $$createField15_0 = $$createType32;
+        const $$createField16_0 = $$createType34;
+        const $$createField17_0 = $$createType36;
+        const $$createField18_0 = $$createType38;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reasoning" in $$parsedSource) {
             $$parsedSource["reasoning"] = $$createField6_0($$parsedSource["reasoning"]);
@@ -1109,6 +1770,204 @@ export class TokenInfo {
 }
 
 /**
+ * Trade represents a completed trade transaction
+ */
+export class Trade {
+    "id": string;
+    "orderID": string;
+    "buyer": string;
+    "seller": string;
+    "tokenAmount": string;
+    "usdtAmount": string;
+
+    /**
+     * Price per token
+     */
+    "price": string;
+    "timestamp": time$0.Time;
+    "txHash": string;
+
+    /** Creates a new Trade instance. */
+    constructor($$source: Partial<Trade> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("orderID" in $$source)) {
+            this["orderID"] = "";
+        }
+        if (!("buyer" in $$source)) {
+            this["buyer"] = "";
+        }
+        if (!("seller" in $$source)) {
+            this["seller"] = "";
+        }
+        if (!("tokenAmount" in $$source)) {
+            this["tokenAmount"] = "";
+        }
+        if (!("usdtAmount" in $$source)) {
+            this["usdtAmount"] = "";
+        }
+        if (!("price" in $$source)) {
+            this["price"] = "";
+        }
+        if (!("timestamp" in $$source)) {
+            this["timestamp"] = null;
+        }
+        if (!("txHash" in $$source)) {
+            this["txHash"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Trade instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Trade {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Trade($$parsedSource as Partial<Trade>);
+    }
+}
+
+/**
+ * TradeHistoryEntry represents a trade in the user's history
+ * Requirements: 4.2 - Trade history with execution details
+ */
+export class TradeHistoryEntry {
+    "id": string;
+    "orderID": string;
+    "buyer": string;
+    "seller": string;
+    "tokenAmount": string;
+    "usdtAmount": string;
+
+    /**
+     * Price per token
+     */
+    "price": string;
+    "timestamp": time$0.Time;
+    "txHash": string;
+
+    /**
+     * Summary of the original order
+     */
+    "orderDetails": OrderSummary;
+
+    /** Creates a new TradeHistoryEntry instance. */
+    constructor($$source: Partial<TradeHistoryEntry> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("orderID" in $$source)) {
+            this["orderID"] = "";
+        }
+        if (!("buyer" in $$source)) {
+            this["buyer"] = "";
+        }
+        if (!("seller" in $$source)) {
+            this["seller"] = "";
+        }
+        if (!("tokenAmount" in $$source)) {
+            this["tokenAmount"] = "";
+        }
+        if (!("usdtAmount" in $$source)) {
+            this["usdtAmount"] = "";
+        }
+        if (!("price" in $$source)) {
+            this["price"] = "";
+        }
+        if (!("timestamp" in $$source)) {
+            this["timestamp"] = null;
+        }
+        if (!("txHash" in $$source)) {
+            this["txHash"] = "";
+        }
+        if (!("orderDetails" in $$source)) {
+            this["orderDetails"] = (new OrderSummary());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TradeHistoryEntry instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TradeHistoryEntry {
+        const $$createField9_0 = $$createType39;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("orderDetails" in $$parsedSource) {
+            $$parsedSource["orderDetails"] = $$createField9_0($$parsedSource["orderDetails"]);
+        }
+        return new TradeHistoryEntry($$parsedSource as Partial<TradeHistoryEntry>);
+    }
+}
+
+/**
+ * TradeResult represents the result of a trade execution
+ */
+export class TradeResult {
+    "success": boolean;
+    "txHash": string;
+    "orderID": string;
+
+    /**
+     * Amount of KAWAI tokens traded
+     */
+    "tokenAmount": string;
+
+    /**
+     * Amount of USDT paid
+     */
+    "usdtAmount": string;
+
+    /**
+     * Buyer's wallet address
+     */
+    "buyer": string;
+
+    /**
+     * Seller's wallet address
+     */
+    "seller": string;
+    "error"?: string;
+
+    /** Creates a new TradeResult instance. */
+    constructor($$source: Partial<TradeResult> = {}) {
+        if (!("success" in $$source)) {
+            this["success"] = false;
+        }
+        if (!("txHash" in $$source)) {
+            this["txHash"] = "";
+        }
+        if (!("orderID" in $$source)) {
+            this["orderID"] = "";
+        }
+        if (!("tokenAmount" in $$source)) {
+            this["tokenAmount"] = "";
+        }
+        if (!("usdtAmount" in $$source)) {
+            this["usdtAmount"] = "";
+        }
+        if (!("buyer" in $$source)) {
+            this["buyer"] = "";
+        }
+        if (!("seller" in $$source)) {
+            this["seller"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TradeResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TradeResult {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new TradeResult($$parsedSource as Partial<TradeResult>);
+    }
+}
+
+/**
  * TxAnalysis represents a decoded transaction
  */
 export class TxAnalysis {
@@ -1172,8 +2031,8 @@ export class TxAnalysis {
      * Creates a new TxAnalysis instance from a string or object.
      */
     static createFrom($$source: any = {}): TxAnalysis {
-        const $$createField9_0 = $$createType7;
-        const $$createField10_0 = $$createType29;
+        const $$createField9_0 = $$createType10;
+        const $$createField10_0 = $$createType41;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("params" in $$parsedSource) {
             $$parsedSource["params"] = $$createField9_0($$parsedSource["params"]);
@@ -1248,7 +2107,7 @@ export class WalletStatus {
      * Creates a new WalletStatus instance from a string or object.
      */
     static createFrom($$source: any = {}): WalletStatus {
-        const $$createField3_0 = $$createType31;
+        const $$createField3_0 = $$createType43;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("wallets" in $$parsedSource) {
             $$parsedSource["wallets"] = $$createField3_0($$parsedSource["wallets"]);
@@ -1262,31 +2121,43 @@ const $$createType0 = ChatCompletionMessage.createFrom;
 const $$createType1 = $Create.Array($$createType0);
 const $$createType2 = $Create.Array($Create.Any);
 const $$createType3 = $Create.Map($Create.Any, $Create.Any);
-const $$createType4 = CitationItem.createFrom;
-const $$createType5 = $Create.Array($$createType4);
-const $$createType6 = ParamInfo.createFrom;
-const $$createType7 = $Create.Array($$createType6);
-const $$createType8 = $Create.Map($Create.Any, $Create.Any);
-const $$createType9 = ModelReasoning.createFrom;
-const $$createType10 = $Create.Nullable($$createType9);
-const $$createType11 = ChatToolPayload.createFrom;
-const $$createType12 = $Create.Nullable($$createType11);
-const $$createType13 = $Create.Array($$createType11);
-const $$createType14 = ChatPluginPayload.createFrom;
-const $$createType15 = $Create.Nullable($$createType14);
-const $$createType16 = GroundingSearch.createFrom;
-const $$createType17 = $Create.Nullable($$createType16);
-const $$createType18 = ChatFileChunk.createFrom;
-const $$createType19 = $Create.Array($$createType18);
-const $$createType20 = ChatImageItem.createFrom;
-const $$createType21 = $Create.Array($$createType20);
-const $$createType22 = ModelUsage.createFrom;
+const $$createType4 = ClaimableReward.createFrom;
+const $$createType5 = $Create.Nullable($$createType4);
+const $$createType6 = $Create.Array($$createType5);
+const $$createType7 = CitationItem.createFrom;
+const $$createType8 = $Create.Array($$createType7);
+const $$createType9 = ParamInfo.createFrom;
+const $$createType10 = $Create.Array($$createType9);
+const $$createType11 = Trade.createFrom;
+const $$createType12 = $Create.Array($$createType11);
+const $$createType13 = OrderHistoryEntry.createFrom;
+const $$createType14 = $Create.Array($$createType13);
+const $$createType15 = TradeHistoryEntry.createFrom;
+const $$createType16 = $Create.Array($$createType15);
+const $$createType17 = OrderStatusChange.createFrom;
+const $$createType18 = $Create.Array($$createType17);
+const $$createType19 = $Create.Map($Create.Any, $Create.Any);
+const $$createType20 = ModelReasoning.createFrom;
+const $$createType21 = $Create.Nullable($$createType20);
+const $$createType22 = ChatToolPayload.createFrom;
 const $$createType23 = $Create.Nullable($$createType22);
-const $$createType24 = ChatMessageError.createFrom;
-const $$createType25 = $Create.Nullable($$createType24);
-const $$createType26 = ModelPerformance.createFrom;
-const $$createType27 = $Create.Nullable($$createType26);
-const $$createType28 = LogInfo.createFrom;
-const $$createType29 = $Create.Array($$createType28);
-const $$createType30 = WalletInfo.createFrom;
-const $$createType31 = $Create.Array($$createType30);
+const $$createType24 = $Create.Array($$createType22);
+const $$createType25 = ChatPluginPayload.createFrom;
+const $$createType26 = $Create.Nullable($$createType25);
+const $$createType27 = GroundingSearch.createFrom;
+const $$createType28 = $Create.Nullable($$createType27);
+const $$createType29 = ChatFileChunk.createFrom;
+const $$createType30 = $Create.Array($$createType29);
+const $$createType31 = ChatImageItem.createFrom;
+const $$createType32 = $Create.Array($$createType31);
+const $$createType33 = ModelUsage.createFrom;
+const $$createType34 = $Create.Nullable($$createType33);
+const $$createType35 = ChatMessageError.createFrom;
+const $$createType36 = $Create.Nullable($$createType35);
+const $$createType37 = ModelPerformance.createFrom;
+const $$createType38 = $Create.Nullable($$createType37);
+const $$createType39 = OrderSummary.createFrom;
+const $$createType40 = LogInfo.createFrom;
+const $$createType41 = $Create.Array($$createType40);
+const $$createType42 = WalletInfo.createFrom;
+const $$createType43 = $Create.Array($$createType42);

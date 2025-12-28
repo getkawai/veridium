@@ -31,11 +31,11 @@ We use a **Hybrid Model** (Off-Chain Accumulation + On-Chain Settlement) to mini
 
 This roadmap outlines the path from "Zero" to a fully functional decentralized network.
 
-### Phase 1: Foundation (Current Status)
+### Phase 1: Foundation ✅
 **Focus:** Infrastructure Setup & Smart Contract Development.
 - [x] **Project Initialization:**
     - [x] Go Backend Structure (Middleware).
-    - [x] Hardhat Environment (Contracts).
+    - [x] Foundry Environment (Contracts).
 - [x] **Auto-Binding Setup:**
     - [x] Makefile for `abigen` (Solidity -> Go).
 - [x] **Smart Contracts (MVP):**
@@ -48,15 +48,14 @@ This roadmap outlines the path from "Zero" to a fully functional decentralized n
     - [x] `pkg/store`: Persistent storage using Cloudflare Workers KV (Multi-namespace).
     - [x] `pkg/merkle`: Merkle Tree generation logic.
 
-### Phase 2: The "Lean" Launch (Internal Market)
+### Phase 2: The "Lean" Launch (Internal Market) 🚧
 **Focus:** Economic bootstrapping without initial LP.
-- [ ] **Contributor Client (Go):** 
+- [x] **Contributor Client (Go):** 
     - [x] **Wallet Setup:** Generate/Load Contributor Identity (Private Key).
     - [x] Wrapper for `llama.cpp` server (Process Management).
     - [x] Heartbeat system (Proof of Availability).
-- [ ] **Consumer API (User Client):**
-    - [ ] Web3 Dashboard: Login via Wallet to manage API Keys.
-    - [x] OpenAI-compatible `/v1/chat/completions` proxy (Base foundation).
+- [x] **Consumer API (User Client):**
+    - [x] OpenAI-compatible `/v1/chat/completions` proxy.
     - [x] Real-time credit deduction system.
         - [x] API key validation & user identification per request.
         - [x] Track token usage per user per request.
@@ -66,6 +65,9 @@ This roadmap outlines the path from "Zero" to a fully functional decentralized n
 - [ ] **Internal P2P Marketplace (Web):**
     - [ ] UI for Contributors to list their Token rewards.
     - [ ] UI for Investors to buy Tokens with USDT.
+- [ ] **Web3 Dashboard:**
+    - [ ] Login via Wallet to manage API Keys.
+    - [ ] USDT Deposit UI (PaymentVault integration).
 - [x] **Administration Scripts (Go):**
     - [x] Weekly Snapshot & Dividend Calculator.
     - [x] Contributor Audit & Ban system.
@@ -90,14 +92,9 @@ This roadmap outlines the path from "Zero" to a fully functional decentralized n
 - [ ] **Liquidity Incentives:**
     - [ ] Launch "LP Mining" program.
     - [ ] Encourage stakeholders to provide LP on PancakeSwap using their Dividends.
-- [ ] **Consumer API (User Client):**
-    - [ ] Web3 Dashboard: Login via Wallet to manage API Keys.
-    - [x] OpenAI-compatible `/v1/chat/completions` proxy (Base).
-    - [ ] Real-time credit deduction system.
-- [ ] **Frontend (Web Dashboard):**
+- [x] **Frontend (Web Dashboard):**
     - [x] Initialize Vite + React project.
-    - [x] Integrate Ant Design Web3 for Wallet connection.
-    - [ ] Implement USDT Deposit UI (PaymentVault integration).
+    - [x] Integrate @lobehub/ui for UI components.
 
 ---
 
@@ -153,10 +150,10 @@ CF_KV_SETTLEMENTS_NAMESPACE_ID=...   # Settlement metadata
 ## 🛠️ Tech Stack
 
 -   **Smart Contracts:** Solidity, Foundry, OpenZeppelin.
--   **Backend (Middleware):** Go (Golang), `net/http`, `go-ethereum`, `cloudflare-go`.
+-   **Backend (Middleware):** Go (Golang), Gin, `go-ethereum`, `cloudflare-go`.
 -   **Database:** Cloudflare Workers KV (Multi-namespace).
--   **Frontend:** React, Vite, Ant Design Web3.
--   **Contributor Node:** Go (Golang), `llama.cpp`.
+-   **Frontend:** React 19, Vite, @lobehub/ui, Zustand.
+-   **Contributor Node:** Go (Golang), `llama.cpp` (via llamalib).
 -   **Blockchain:** Monad (EVM-compatible).
 -   **Network Toolkit:** `pkg/jarvis` (Multi-chain support incl. Monad).
 
@@ -170,3 +167,7 @@ CF_KV_SETTLEMENTS_NAMESPACE_ID=...   # Settlement metadata
 | `pkg/merkle` | Merkle tree generation |
 | `pkg/blockchain` | Monad blockchain interaction |
 | `pkg/config` | Configuration management |
+
+---
+
+sentryDSN_1 = "https://709dabacc882a777ef059392d056e3da@o4510568649654272.ingest.us.sentry.io/4510568655290368"

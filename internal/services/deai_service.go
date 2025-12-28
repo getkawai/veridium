@@ -11,25 +11,66 @@ import (
 	"github.com/kawai-network/veridium/pkg/jarvis/contracts"
 	"github.com/kawai-network/veridium/pkg/jarvis/networks"
 	"github.com/kawai-network/veridium/pkg/jarvis/util/reader"
+	"github.com/kawai-network/veridium/pkg/store"
 )
 
 // monadChainID is the chain ID for Monad Testnet
 var monadChainID = big.NewInt(int64(networks.MonadTestnet.GetChainID()))
 
+// ClaimableReward represents a single claimable reward proof
+type ClaimableReward struct {
+	Index       uint64   `json:"index"`
+	Amount      string   `json:"amount"`        // BigInt as string (raw, no decimals)
+	Proof       []string `json:"proof"`         // Merkle proof (hex strings)
+	MerkleRoot  string   `json:"merkle_root"`   // Root hash for verification
+	PeriodID    int64    `json:"period_id"`     // Settlement period identifier
+	RewardType  string   `json:"reward_type"`   // "kawai" or "usdt"
+	ClaimStatus string   `json:"claim_status"`  // "unclaimed", "pending", "confirmed", "failed"
+	ClaimTxHash string   `json:"claim_tx_hash"` // Transaction hash if claimed
+	CreatedAt   string   `json:"created_at"`    // When proof was generated
+	ClaimedAt   string   `json:"claimed_at"`    // When claimed (if confirmed)
+	Formatted   string   `json:"formatted"`     // Human-readable amount
+	Decimals    int      `json:"decimals"`      // Token decimals (18 for KAWAI, 6 for USDT)
+}
+
+// ClaimableRewardsResponse represents the response from GetClaimableRewards
+type ClaimableRewardsResponse struct {
+	Address                      string             `json:"address"`
+	UnclaimedProofs              []*ClaimableReward `json:"unclaimed_proofs"`
+	PendingProofs                []*ClaimableReward `json:"pending_proofs"`
+	TotalKawaiClaimable          string             `json:"total_kawai_claimable"`
+	TotalKawaiClaimableFormatted string             `json:"total_kawai_claimable_formatted"`
+	TotalUSDTClaimable           string             `json:"total_usdt_claimable"`
+	TotalUSDTClaimableFormatted  string             `json:"total_usdt_claimable_formatted"`
+	CurrentKawaiAccumulating     string             `json:"current_kawai_accumulating"`
+	CurrentUSDTAccumulating      string             `json:"current_usdt_accumulating"`
+}
+
+// ClaimResult represents the result of a claim transaction
+type ClaimResult struct {
+	TxHash     string `json:"tx_hash"`
+	PeriodID   int64  `json:"period_id"`
+	RewardType string `json:"reward_type"`
+	Amount     string `json:"amount"`
+	Status     string `json:"status"` // "submitted", "pending", "confirmed", "failed"
+}
+
 // DeAIService handles interactions with the Veridium smart contracts
 type DeAIService struct {
 	reader *reader.EthReader
 	wallet *WalletService
+	kv     store.Store // Cloudflare KV store for off-chain data
 }
 
 // NewDeAIService creates a new instance of DeAIService
-func NewDeAIService(wallet *WalletService) *DeAIService {
+func NewDeAIService(wallet *WalletService, kv store.Store) *DeAIService {
 	// Initialize EthReader with Monad Testnet nodes from jarvis network config
 	ethReader := reader.NewEthReaderGeneric(networks.MonadTestnet.GetDefaultNodes(), nil)
 
 	return &DeAIService{
 		reader: ethReader,
 		wallet: wallet,
+		kv:     kv,
 	}
 }
 
@@ -477,4 +518,319 @@ func (s *DeAIService) TransferToken(tokenAddress string, to string, amountStr st
 	}
 
 	return tx.Hash().Hex(), nil
+}
+
+// =============================================================================
+// REWARDS CLAIM METHODS
+// =============================================================================
+
+// GetClaimableRewards fetches all claimable rewards for the current wallet
+// Uses Cloudflare KV store directly for off-chain Merkle proof data
+func (s *DeAIService) GetClaimableRewards() (*ClaimableRewardsResponse, error) {
+	if s.wallet.currentAccount == nil {
+		return nil, fmt.Errorf("no wallet connected")
+	}
+
+	if s.kv == nil {
+		return nil, fmt.Errorf("KV store not initialized")
+	}
+
+	userAddr := s.wallet.currentAccount.AddressHex()
+	ctx := context.Background()
+
+	// Get claimable rewards from KV store
+	claimableData, err := s.kv.GetClaimableRewards(ctx, userAddr)
+	if err != nil {
+		// Return empty response if no data found
+		return &ClaimableRewardsResponse{
+			Address:                      userAddr,
+			UnclaimedProofs:              []*ClaimableReward{},
+			PendingProofs:                []*ClaimableReward{},
+			TotalKawaiClaimable:          "0",
+			TotalKawaiClaimableFormatted: "0.0000",
+			TotalUSDTClaimable:           "0",
+			TotalUSDTClaimableFormatted:  "0.00",
+			CurrentKawaiAccumulating:     "0",
+			CurrentUSDTAccumulating:      "0",
+		}, nil
+	}
+
+	// Convert from map[string]interface{} to ClaimableRewardsResponse
+	result := &ClaimableRewardsResponse{
+		Address:                  userAddr,
+		UnclaimedProofs:          []*ClaimableReward{},
+		PendingProofs:            []*ClaimableReward{},
+		TotalKawaiClaimable:      getStringFromMap(claimableData, "total_kawai_claimable", "0"),
+		TotalUSDTClaimable:       getStringFromMap(claimableData, "total_usdt_claimable", "0"),
+		CurrentKawaiAccumulating: getStringFromMap(claimableData, "current_kawai_accumulating", "0"),
+		CurrentUSDTAccumulating:  getStringFromMap(claimableData, "current_usdt_accumulating", "0"),
+	}
+
+	// Convert unclaimed proofs
+	if unclaimedRaw, ok := claimableData["unclaimed_proofs"]; ok {
+		if unclaimedList, ok := unclaimedRaw.([]*store.MerkleProofData); ok {
+			for _, proof := range unclaimedList {
+				claimable := s.convertMerkleProofToClaimable(proof)
+				result.UnclaimedProofs = append(result.UnclaimedProofs, claimable)
+			}
+		}
+	}
+
+	// Convert pending proofs
+	if pendingRaw, ok := claimableData["pending_proofs"]; ok {
+		if pendingList, ok := pendingRaw.([]*store.MerkleProofData); ok {
+			for _, proof := range pendingList {
+				claimable := s.convertMerkleProofToClaimable(proof)
+				result.PendingProofs = append(result.PendingProofs, claimable)
+			}
+		}
+	}
+
+	// Format total amounts
+	result.TotalKawaiClaimableFormatted = s.formatRewardAmount(result.TotalKawaiClaimable, "kawai")
+	result.TotalUSDTClaimableFormatted = s.formatRewardAmount(result.TotalUSDTClaimable, "usdt")
+
+	return result, nil
+}
+
+// convertMerkleProofToClaimable converts store.MerkleProofData to ClaimableReward
+func (s *DeAIService) convertMerkleProofToClaimable(proof *store.MerkleProofData) *ClaimableReward {
+	decimals := 18
+	if proof.RewardType == "usdt" {
+		decimals = 6
+	}
+
+	return &ClaimableReward{
+		Index:       proof.Index,
+		Amount:      proof.Amount,
+		Proof:       proof.Proof,
+		MerkleRoot:  proof.MerkleRoot,
+		PeriodID:    proof.PeriodID,
+		RewardType:  proof.RewardType,
+		ClaimStatus: string(proof.ClaimStatus),
+		ClaimTxHash: proof.ClaimTxHash,
+		CreatedAt:   proof.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		ClaimedAt:   proof.ClaimedAt.Format("2006-01-02T15:04:05Z"),
+		Formatted:   s.formatRewardAmount(proof.Amount, proof.RewardType),
+		Decimals:    decimals,
+	}
+}
+
+// getStringFromMap safely extracts a string from map[string]interface{}
+func getStringFromMap(m map[string]interface{}, key string, defaultVal string) string {
+	if val, ok := m[key]; ok {
+		if str, ok := val.(string); ok {
+			return str
+		}
+	}
+	return defaultVal
+}
+
+// ClaimKawaiReward claims KAWAI rewards using a Merkle proof
+func (s *DeAIService) ClaimKawaiReward(periodID int64, index uint64, amount string, proof []string) (*ClaimResult, error) {
+	return s.claimReward("kawai", periodID, index, amount, proof)
+}
+
+// ClaimUSDTReward claims USDT rewards using a Merkle proof
+func (s *DeAIService) ClaimUSDTReward(periodID int64, index uint64, amount string, proof []string) (*ClaimResult, error) {
+	return s.claimReward("usdt", periodID, index, amount, proof)
+}
+
+// claimReward is the internal implementation for claiming rewards
+func (s *DeAIService) claimReward(rewardType string, periodID int64, index uint64, amountStr string, proofStrings []string) (*ClaimResult, error) {
+	if s.wallet.currentAccount == nil {
+		return nil, fmt.Errorf("no wallet connected")
+	}
+
+	// 1. Resolve distributor address
+	var distributorName string
+	if rewardType == "kawai" {
+		distributorName = "KAWAI_Distributor"
+	} else {
+		distributorName = "USDT_Distributor"
+	}
+
+	// 2. Load MerkleDistributor contract
+	distributor, err := contracts.MerkleDistributor(distributorName, s.reader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load distributor: %w", err)
+	}
+
+	// 3. Parse amount
+	amount := new(big.Int)
+	amount, ok := amount.SetString(amountStr, 10)
+	if !ok {
+		return nil, fmt.Errorf("invalid amount format")
+	}
+
+	// 4. Convert proof strings to [32]byte array
+	merkleProof := make([][32]byte, len(proofStrings))
+	for i, p := range proofStrings {
+		// Remove 0x prefix if present
+		if len(p) >= 2 && p[:2] == "0x" {
+			p = p[2:]
+		}
+		proofBytes := common.Hex2Bytes(p)
+		if len(proofBytes) != 32 {
+			return nil, fmt.Errorf("invalid proof element at index %d: expected 32 bytes, got %d", i, len(proofBytes))
+		}
+		copy(merkleProof[i][:], proofBytes)
+	}
+
+	// 5. Get transaction options
+	chainId := monadChainID
+	opts, err := s.wallet.getTransactOpts(chainId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get transaction opts: %w", err)
+	}
+
+	// 6. Submit claim transaction
+	tx, err := distributor.Claim(opts, big.NewInt(int64(index)), opts.From, amount, merkleProof)
+	if err != nil {
+		return nil, fmt.Errorf("claim transaction failed: %w", err)
+	}
+
+	txHash := tx.Hash().Hex()
+
+	// 7. Mark claim as pending in KV store (for tracking)
+	if s.kv != nil {
+		ctx := context.Background()
+		if err := s.kv.MarkClaimPending(ctx, s.wallet.currentAccount.AddressHex(), periodID, txHash); err != nil {
+			// Log warning but don't fail - the TX was already submitted
+			fmt.Printf("Warning: failed to mark claim pending in KV: %v\n", err)
+		}
+	}
+
+	return &ClaimResult{
+		TxHash:     txHash,
+		PeriodID:   periodID,
+		RewardType: rewardType,
+		Amount:     amountStr,
+		Status:     "submitted",
+	}, nil
+}
+
+// IsRewardClaimed checks if a specific reward has already been claimed on-chain
+func (s *DeAIService) IsRewardClaimed(rewardType string, index uint64) (bool, error) {
+	// 1. Resolve distributor address
+	var distributorName string
+	if rewardType == "kawai" {
+		distributorName = "KAWAI_Distributor"
+	} else {
+		distributorName = "USDT_Distributor"
+	}
+
+	// 2. Load MerkleDistributor contract
+	distributor, err := contracts.MerkleDistributor(distributorName, s.reader)
+	if err != nil {
+		return false, fmt.Errorf("failed to load distributor: %w", err)
+	}
+
+	// 3. Check if claimed
+	claimed, err := distributor.IsClaimed(nil, big.NewInt(int64(index)))
+	if err != nil {
+		return false, fmt.Errorf("failed to check claim status: %w", err)
+	}
+
+	return claimed, nil
+}
+
+// GetDistributorMerkleRoot returns the current Merkle root from a distributor contract
+func (s *DeAIService) GetDistributorMerkleRoot(rewardType string) (string, error) {
+	var distributorName string
+	if rewardType == "kawai" {
+		distributorName = "KAWAI_Distributor"
+	} else {
+		distributorName = "USDT_Distributor"
+	}
+
+	distributor, err := contracts.MerkleDistributor(distributorName, s.reader)
+	if err != nil {
+		return "", fmt.Errorf("failed to load distributor: %w", err)
+	}
+
+	root, err := distributor.MerkleRoot(nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to get merkle root: %w", err)
+	}
+
+	return fmt.Sprintf("0x%x", root), nil
+}
+
+// WaitForClaimConfirmation waits for a claim transaction to be mined
+func (s *DeAIService) WaitForClaimConfirmation(txHash string) (bool, error) {
+	ctx := context.Background()
+
+	// Parse transaction hash
+	hash := common.HexToHash(txHash)
+
+	// Wait for receipt (with timeout handled by context)
+	receipt, err := bind.WaitMined(ctx, s.reader.Client(), ethtypes.NewTx(&ethtypes.LegacyTx{}))
+	if err != nil {
+		// Try alternative: query receipt directly
+		receipt, err = s.reader.Client().TransactionReceipt(ctx, hash)
+		if err != nil {
+			return false, fmt.Errorf("failed to get transaction receipt: %w", err)
+		}
+	}
+
+	// Check status (1 = success, 0 = failed)
+	return receipt.Status == 1, nil
+}
+
+// ConfirmRewardClaim confirms a reward claim after the transaction is confirmed on-chain
+func (s *DeAIService) ConfirmRewardClaim(periodID int64) error {
+	if s.wallet.currentAccount == nil {
+		return fmt.Errorf("no wallet connected")
+	}
+
+	if s.kv == nil {
+		return fmt.Errorf("KV store not initialized")
+	}
+
+	ctx := context.Background()
+	userAddr := s.wallet.currentAccount.AddressHex()
+
+	return s.kv.ConfirmClaim(ctx, userAddr, periodID)
+}
+
+// MarkClaimFailed marks a claim as failed after the transaction reverts
+func (s *DeAIService) MarkClaimFailed(periodID int64, reason string) error {
+	if s.wallet.currentAccount == nil {
+		return fmt.Errorf("no wallet connected")
+	}
+
+	if s.kv == nil {
+		return fmt.Errorf("KV store not initialized")
+	}
+
+	ctx := context.Background()
+	userAddr := s.wallet.currentAccount.AddressHex()
+
+	return s.kv.MarkClaimFailed(ctx, userAddr, periodID, reason)
+}
+
+// formatRewardAmount formats raw token amount to human-readable format
+func (s *DeAIService) formatRewardAmount(rawAmount string, rewardType string) string {
+	amount := new(big.Int)
+	amount, ok := amount.SetString(rawAmount, 10)
+	if !ok {
+		return "0.00"
+	}
+
+	var decimals int64
+	if rewardType == "usdt" {
+		decimals = 6
+	} else {
+		decimals = 18
+	}
+
+	divisor := new(big.Float).SetInt(new(big.Int).Exp(big.NewInt(10), big.NewInt(decimals), nil))
+	formatted := new(big.Float).Quo(new(big.Float).SetInt(amount), divisor)
+
+	// Format with appropriate precision
+	if rewardType == "usdt" {
+		return formatted.Text('f', 2)
+	}
+	return formatted.Text('f', 4)
 }

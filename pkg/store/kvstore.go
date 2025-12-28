@@ -54,6 +54,11 @@ type Store interface {
 
 	// Admin operations
 	EnsureAdminExists(ctx context.Context, adminAddress string) error
+
+	// Marketplace operations
+	StoreMarketplaceData(ctx context.Context, key string, data []byte) error
+	GetMarketplaceData(ctx context.Context, key string) ([]byte, error)
+	DeleteMarketplaceData(ctx context.Context, key string) error
 }
 
 // KVStore implements Store interface with multiple namespaces
@@ -62,10 +67,11 @@ type KVStore struct {
 	accountID string
 
 	// Separate namespace IDs for different data types
-	contributorsNamespaceID string
-	proofsNamespaceID       string
-	settlementsNamespaceID  string
-	authzNamespaceID        string // Reverse index: address -> apikey
+	contributorsNamespaceID   string
+	proofsNamespaceID         string
+	settlementsNamespaceID    string
+	authzNamespaceID          string // Reverse index: address -> apikey
+	p2pMarketplaceNamespaceID string
 }
 
 // NewMultiNamespaceKVStore creates a new KVStore with separate namespaces
@@ -76,11 +82,51 @@ func NewMultiNamespaceKVStore() (*KVStore, error) {
 	}
 
 	return &KVStore{
-		client:                  api,
-		accountID:               constant.GetCfAccountId(),
-		contributorsNamespaceID: constant.GetCfKvContributorsNamespaceId(),
-		proofsNamespaceID:       constant.GetCfKvProofsNamespaceId(),
-		settlementsNamespaceID:  constant.GetCfKvSettlementsNamespaceId(),
-		authzNamespaceID:        constant.GetCfKvAuthzNamespaceId(),
+		client:                    api,
+		accountID:                 constant.GetCfAccountId(),
+		contributorsNamespaceID:   constant.GetCfKvContributorsNamespaceId(),
+		proofsNamespaceID:         constant.GetCfKvProofsNamespaceId(),
+		settlementsNamespaceID:    constant.GetCfKvSettlementsNamespaceId(),
+		authzNamespaceID:          constant.GetCfKvAuthzNamespaceId(),
+		p2pMarketplaceNamespaceID: constant.GetCfKvP2pMarketplaceNamespaceId(),
 	}, nil
+}
+
+// Marketplace operations - using dedicated p2p marketplace namespace
+
+// StoreMarketplaceData stores marketplace data in the p2p marketplace namespace
+func (s *KVStore) StoreMarketplaceData(ctx context.Context, key string, data []byte) error {
+	_, err := s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
+		NamespaceID: s.p2pMarketplaceNamespaceID,
+		Key:         key,
+		Value:       data,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to write marketplace data to KV: %w", err)
+	}
+	return nil
+}
+
+// GetMarketplaceData retrieves marketplace data from the p2p marketplace namespace
+func (s *KVStore) GetMarketplaceData(ctx context.Context, key string) ([]byte, error) {
+	value, err := s.client.GetWorkersKV(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{
+		NamespaceID: s.p2pMarketplaceNamespaceID,
+		Key:         key,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get marketplace data from KV: %w", err)
+	}
+	return value, nil
+}
+
+// DeleteMarketplaceData deletes marketplace data from the p2p marketplace namespace
+func (s *KVStore) DeleteMarketplaceData(ctx context.Context, key string) error {
+	_, err := s.client.DeleteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.DeleteWorkersKVEntryParams{
+		NamespaceID: s.p2pMarketplaceNamespaceID,
+		Key:         key,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to delete marketplace data from KV: %w", err)
+	}
+	return nil
 }

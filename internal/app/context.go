@@ -17,6 +17,7 @@ import (
 	"github.com/kawai-network/veridium/internal/services/cache"
 	"github.com/kawai-network/veridium/internal/tts"
 	"github.com/kawai-network/veridium/internal/whisper"
+	"github.com/kawai-network/veridium/pkg/blockchain"
 	"github.com/kawai-network/veridium/pkg/fantasy"
 	"github.com/kawai-network/veridium/pkg/fantasy/llamalib"
 	llamaprovider "github.com/kawai-network/veridium/pkg/fantasy/providers/llama"
@@ -68,6 +69,9 @@ type Context struct {
 	WalletService  *services.WalletService
 	DeAIService    *services.DeAIService
 	JarvisService  *services.JarvisService
+
+	// Blockchain Services
+	BlockchainClient *blockchain.Client
 
 	// Language Models
 	ChatModel    fantasy.LanguageModel
@@ -243,8 +247,8 @@ func (ctx *Context) InitDeAIService() {
 		log.Printf("Warning: WalletService not initialized, cannot init DeAIService")
 		return
 	}
-	ctx.DeAIService = services.NewDeAIService(ctx.WalletService)
-	log.Printf("DeAIService initialized (BSC Testnet)")
+	ctx.DeAIService = services.NewDeAIService(ctx.WalletService, ctx.KVStore)
+	log.Printf("DeAIService initialized (Monad Testnet)")
 }
 
 func (ctx *Context) InitJarvisService() {
@@ -254,6 +258,55 @@ func (ctx *Context) InitJarvisService() {
 	}
 	ctx.JarvisService = services.NewJarvisService(ctx.WalletService)
 	log.Printf("JarvisService initialized (multi-chain support)")
+}
+
+func (ctx *Context) InitBlockchainClient() {
+	// Get blockchain configuration from environment
+	rpcURL := os.Getenv("MONAD_RPC_URL")
+	if rpcURL == "" {
+		rpcURL = os.Getenv("MONAD_TESTNET_NODE")
+		if rpcURL == "" {
+			rpcURL = "https://testnet-rpc.monad.xyz" // Default Monad testnet RPC
+		}
+	}
+
+	tokenAddress := os.Getenv("TOKEN_ADDRESS")
+	escrowAddress := os.Getenv("ESCROW_ADDRESS")
+	usdtAddress := os.Getenv("MOCK_USDT_ADDRESS")
+
+	// Check if all required addresses are configured
+	if tokenAddress == "" || escrowAddress == "" || usdtAddress == "" {
+		log.Printf("Warning: Blockchain client not initialized - missing contract addresses")
+		log.Printf("  TOKEN_ADDRESS: %s", tokenAddress)
+		log.Printf("  ESCROW_ADDRESS: %s", escrowAddress)
+		log.Printf("  MOCK_USDT_ADDRESS: %s", usdtAddress)
+		log.Printf("  Set these in .env file to enable blockchain integration")
+		return
+	}
+
+	// Initialize blockchain client
+	config := blockchain.Config{
+		RPCUrl:        rpcURL,
+		TokenAddress:  tokenAddress,
+		EscrowAddress: escrowAddress,
+		USDTAddress:   usdtAddress,
+	}
+
+	client, err := blockchain.NewClient(config)
+	if err != nil {
+		log.Printf("Warning: Failed to initialize blockchain client: %v", err)
+		log.Printf("  RPC URL: %s", rpcURL)
+		log.Printf("  Marketplace will work in local-only mode")
+		return
+	}
+
+	ctx.BlockchainClient = client
+	log.Printf("✅ Blockchain client initialized")
+	log.Printf("  RPC URL: %s", rpcURL)
+	log.Printf("  Chain ID: %s", client.ChainID.String())
+	log.Printf("  Token Address: %s", tokenAddress)
+	log.Printf("  Escrow Address: %s", escrowAddress)
+	log.Printf("  USDT Address: %s", usdtAddress)
 }
 
 func (ctx *Context) InitKVStore() {
@@ -419,8 +472,9 @@ func (ctx *Context) InitAll() error {
 	ctx.InitKnowledgeBase()
 	ctx.InitFileLoader()
 	ctx.InitKnowledgeBase()
-	ctx.InitKVStore()       // MOVED UP
-	ctx.InitWalletService() // Depends on KVStore
+	ctx.InitKVStore()          // MOVED UP
+	ctx.InitWalletService()    // Depends on KVStore
+	ctx.InitBlockchainClient() // Initialize blockchain client after wallet service
 	ctx.InitDeAIService()
 	ctx.InitJarvisService()
 	// ctx.InitAPIKeyService() // Removed

@@ -369,6 +369,9 @@ func (s *WalletService) SignMessage(message string) (string, error) {
 }
 
 // getTransactOpts creates a bind.TransactOpts for the current account
+// This is for internal Go use only, not exposed to frontend
+//
+//wails:ignore
 func (s *WalletService) getTransactOpts(chainId *big.Int) (*bind.TransactOpts, error) {
 	if s.currentAccount == nil {
 		return nil, errors.New("wallet is locked")

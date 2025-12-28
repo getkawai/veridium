@@ -118,6 +118,9 @@ func buildServiceList(ctx *app.Context, fileProcessor *FileProcessorService, sdS
 		application.NewService(ctx.DeAIService),
 		application.NewService(ctx.JarvisService),
 
+		// Marketplace
+		application.NewService(services.NewMarketplaceService(ctx.KVStore, ctx.BlockchainClient, ctx.WalletService)),
+
 		// File Server
 		application.NewServiceWithOptions(
 			fileserver.NewWithConfig(&fileserver.Config{RootPath: app.FileBaseDir}),

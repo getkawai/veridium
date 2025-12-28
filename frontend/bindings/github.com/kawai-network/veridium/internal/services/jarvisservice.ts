@@ -58,11 +58,20 @@ export function GetNetworkByID(chainID: number): $CancellablePromise<$models.Net
 }
 
 /**
+ * GetProjectTokens returns all project-specific tokens (deployed contracts)
+ */
+export function GetProjectTokens(): $CancellablePromise<$models.ProjectToken[]> {
+    return $Call.ByID(1738954458).then(($result: any) => {
+        return $$createType9($result);
+    });
+}
+
+/**
  * GetSupportedNetworks returns all supported blockchain networks
  */
 export function GetSupportedNetworks(): $CancellablePromise<$models.NetworkInfo[]> {
     return $Call.ByID(792631060).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType10($result);
     });
 }
 
@@ -89,7 +98,7 @@ export function GetTokenBalance(tokenAddress: string, walletAddress: string, net
  */
 export function GetTokenInfo(tokenAddress: string, networkID: number): $CancellablePromise<$models.TokenInfo | null> {
     return $Call.ByID(2532907732, tokenAddress, networkID).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType12($result);
     });
 }
 
@@ -130,6 +139,8 @@ const $$createType4 = $models.BalanceInfo.createFrom;
 const $$createType5 = $Create.Nullable($$createType4);
 const $$createType6 = $models.NetworkInfo.createFrom;
 const $$createType7 = $Create.Nullable($$createType6);
-const $$createType8 = $Create.Array($$createType6);
-const $$createType9 = $models.TokenInfo.createFrom;
-const $$createType10 = $Create.Nullable($$createType9);
+const $$createType8 = $models.ProjectToken.createFrom;
+const $$createType9 = $Create.Array($$createType8);
+const $$createType10 = $Create.Array($$createType6);
+const $$createType11 = $models.TokenInfo.createFrom;
+const $$createType12 = $Create.Nullable($$createType11);

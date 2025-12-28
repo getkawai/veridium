@@ -10,6 +10,10 @@
 // @ts-ignore: Unused imports
 import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Create } from "@wailsio/runtime";
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as $models from "./models.js";
+
 /**
  * ApproveToken approves a spender to spend a specific token
  */
@@ -32,6 +36,31 @@ export function BuyOrder(orderIdStr: string): $CancellablePromise<string> {
 }
 
 /**
+ * ClaimKawaiReward claims KAWAI rewards using a Merkle proof
+ */
+export function ClaimKawaiReward(periodID: number, index: number, amount: string, proof: string[]): $CancellablePromise<$models.ClaimResult | null> {
+    return $Call.ByID(1586412849, periodID, index, amount, proof).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
+/**
+ * ClaimUSDTReward claims USDT rewards using a Merkle proof
+ */
+export function ClaimUSDTReward(periodID: number, index: number, amount: string, proof: string[]): $CancellablePromise<$models.ClaimResult | null> {
+    return $Call.ByID(1243120848, periodID, index, amount, proof).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
+/**
+ * ConfirmRewardClaim confirms a reward claim after the transaction is confirmed on-chain
+ */
+export function ConfirmRewardClaim(periodID: number): $CancellablePromise<void> {
+    return $Call.ByID(2988904612, periodID);
+}
+
+/**
  * CreateSellOrder creates a sell order in the OTC Market
  */
 export function CreateSellOrder(tokenAmountStr: string, priceStr: string): $CancellablePromise<string> {
@@ -46,6 +75,23 @@ export function DepositToVault(amountStr: string): $CancellablePromise<string> {
 }
 
 /**
+ * GetClaimableRewards fetches all claimable rewards for the current wallet
+ * Uses Cloudflare KV store directly for off-chain Merkle proof data
+ */
+export function GetClaimableRewards(): $CancellablePromise<$models.ClaimableRewardsResponse | null> {
+    return $Call.ByID(1243461775).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
+/**
+ * GetDistributorMerkleRoot returns the current Merkle root from a distributor contract
+ */
+export function GetDistributorMerkleRoot(rewardType: string): $CancellablePromise<string> {
+    return $Call.ByID(3557111590, rewardType);
+}
+
+/**
  * GetUSDTAllowance returns the current allowance of owner to spender
  */
 export function GetUSDTAllowance(ownerStr: string, spenderStr: string): $CancellablePromise<string> {
@@ -57,6 +103,20 @@ export function GetUSDTAllowance(ownerStr: string, spenderStr: string): $Cancell
  */
 export function GetVaultBalance(): $CancellablePromise<string> {
     return $Call.ByID(4000684215);
+}
+
+/**
+ * IsRewardClaimed checks if a specific reward has already been claimed on-chain
+ */
+export function IsRewardClaimed(rewardType: string, index: number): $CancellablePromise<boolean> {
+    return $Call.ByID(2715141111, rewardType, index);
+}
+
+/**
+ * MarkClaimFailed marks a claim as failed after the transaction reverts
+ */
+export function MarkClaimFailed(periodID: number, reason: string): $CancellablePromise<void> {
+    return $Call.ByID(2017968369, periodID, reason);
 }
 
 /**
@@ -86,3 +146,16 @@ export function TransferToken(tokenAddress: string, to: string, amountStr: strin
 export function TransferUSDT(to: string, amountStr: string): $CancellablePromise<string> {
     return $Call.ByID(1311324606, to, amountStr);
 }
+
+/**
+ * WaitForClaimConfirmation waits for a claim transaction to be mined
+ */
+export function WaitForClaimConfirmation(txHash: string): $CancellablePromise<boolean> {
+    return $Call.ByID(3856604776, txHash);
+}
+
+// Private type creation functions
+const $$createType0 = $models.ClaimResult.createFrom;
+const $$createType1 = $Create.Nullable($$createType0);
+const $$createType2 = $models.ClaimableRewardsResponse.createFrom;
+const $$createType3 = $Create.Nullable($$createType2);
