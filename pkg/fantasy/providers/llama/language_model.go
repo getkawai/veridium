@@ -402,25 +402,52 @@ func (l *languageModel) generateStreaming(ctx context.Context, prompt string, ma
 
 // cleanToolCallTags removes tool call and reasoning XML tags from response
 func (l *languageModel) cleanToolCallTags(response string) string {
-	cleanResponse := response
-	tags := [][]string{
-		{"<tool_call>", "</tool_call>"},
-		{"<think>", "</think>"},
-		{"<thought>", "</thought>"},
-	}
+	// Use robust tool call stripping that handles nested JSON and edge cases
+	cleanResponse := tools.StripToolCallTags(response)
 
-	for _, tagPair := range tags {
-		for strings.Contains(cleanResponse, tagPair[0]) {
-			start := strings.Index(cleanResponse, tagPair[0])
-			end := strings.Index(cleanResponse, tagPair[1])
-			if start != -1 && end != -1 && start < end {
-				cleanResponse = cleanResponse[:start] + cleanResponse[end+len(tagPair[1]):]
-			} else {
+	// Also strip reasoning tags using robust extraction
+	cleanResponse = stripReasoningTags(cleanResponse)
+
+	return strings.TrimSpace(cleanResponse)
+}
+
+// stripReasoningTags removes <think> and <thought> tags using brace-aware extraction
+func stripReasoningTags(text string) string {
+	result := text
+
+	// Process each type of reasoning tag
+	for _, tagPair := range [][]string{{"<think>", "</think>"}, {"<thought>", "</thought>"}} {
+		openTag, closeTag := tagPair[0], tagPair[1]
+		var output strings.Builder
+		remaining := result
+
+		for {
+			openIdx := strings.Index(remaining, openTag)
+			if openIdx == -1 {
+				output.WriteString(remaining)
 				break
 			}
+
+			// Add text before the tag
+			output.WriteString(remaining[:openIdx])
+
+			// Find the matching close tag
+			afterOpen := remaining[openIdx+len(openTag):]
+			closeIdx := strings.Index(afterOpen, closeTag)
+			if closeIdx == -1 {
+				// No closing tag found, keep the rest as-is
+				output.WriteString(remaining[openIdx:])
+				break
+			}
+
+			// Skip the content and closing tag
+			remaining = afterOpen[closeIdx+len(closeTag):]
 		}
+
+		result = output.String()
 	}
-	return strings.TrimSpace(cleanResponse)
+
+	return result
 }
 
 // extractReasoning extracts text from reasoning tags and removes them from input

@@ -202,33 +202,52 @@ func parseInlineJSONToolFormat(response string) []fantasy.ToolCall {
 	return calls
 }
 
-// parseToolCallFormat parses <tool_call> tags
+// parseToolCallFormat parses <tool_call> tags using robust brace-counting extraction.
+// This correctly handles:
+// - Multiple tool calls in one response
+// - Nested JSON objects like {"a": {"b": 1}}
+// - Edge cases where </tool_call> appears inside JSON strings
 func parseToolCallFormat(response string) []fantasy.ToolCall {
 	var calls []fantasy.ToolCall
 
-	start := strings.Index(response, "<tool_call>")
-	end := strings.Index(response, "</tool_call>")
+	// Use the robust extraction that handles nested JSON and edge cases
+	blocks := ExtractToolCallBlocks(response)
 
-	for start != -1 && end != -1 && start < end {
-		content := response[start+len("<tool_call>") : end]
-		content = strings.TrimSpace(content)
-
+	for _, block := range blocks {
 		var parsed struct {
-			Name      string            `json:"name"`
-			Arguments map[string]string `json:"arguments"`
+			Name      string                 `json:"name"`
+			Arguments map[string]interface{} `json:"arguments"`
 		}
 
-		if err := json.Unmarshal([]byte(content), &parsed); err == nil {
+		if err := json.Unmarshal([]byte(block.JSONContent), &parsed); err == nil && parsed.Name != "" {
+			// Convert arguments to map[string]string for compatibility
+			args := make(map[string]string)
+			for k, v := range parsed.Arguments {
+				switch val := v.(type) {
+				case string:
+					args[k] = val
+				case float64:
+					args[k] = fmt.Sprintf("%v", val)
+				case int:
+					args[k] = fmt.Sprintf("%d", val)
+				case bool:
+					args[k] = fmt.Sprintf("%v", val)
+				default:
+					// For complex types (nested objects/arrays), marshal back to JSON
+					if b, err := json.Marshal(val); err == nil {
+						args[k] = string(b)
+					} else {
+						args[k] = fmt.Sprintf("%v", val)
+					}
+				}
+			}
+
 			calls = append(calls, fantasy.ToolCall{
 				ID:    uuid.New().String(),
 				Name:  parsed.Name,
-				Input: argsToJSON(parsed.Arguments),
+				Input: argsToJSON(args),
 			})
 		}
-
-		response = response[end+len("</tool_call>"):]
-		start = strings.Index(response, "<tool_call>")
-		end = strings.Index(response, "</tool_call>")
 	}
 
 	return calls

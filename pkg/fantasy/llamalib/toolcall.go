@@ -2,10 +2,10 @@ package llamalib
 
 import (
 	"encoding/json"
-	"regexp"
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/kawai-network/veridium/pkg/fantasy/tools"
 )
 
 // ToolCallResult represents a parsed tool call from LLM output.
@@ -22,20 +22,20 @@ type ParseResult struct {
 	HasTools  bool             // Whether tool calls were found
 }
 
-var (
-	// toolCallRegex matches <tool_call>...</tool_call> blocks
-	toolCallRegex = regexp.MustCompile(`(?s)<tool_call>\s*(\{.*?\})\s*</tool_call>`)
-)
-
 // ParseToolCalls extracts tool calls from LLM output.
 // It handles the <tool_call>{"name": "...", "arguments": {...}}</tool_call> format
 // used by ChatML and Llama tool templates.
+//
+// This implementation uses robust brace-counting extraction that correctly handles:
+// - Multiple tool calls in one response
+// - Nested JSON objects like {"a": {"b": 1}}
+// - Edge cases where </tool_call> appears inside JSON strings
 func ParseToolCalls(output string) ParseResult {
 	result := ParseResult{}
 
-	// Find all tool call matches
-	matches := toolCallRegex.FindAllStringSubmatch(output, -1)
-	if len(matches) == 0 {
+	// Use the robust extraction from tools package
+	blocks := tools.ExtractToolCallBlocks(output)
+	if len(blocks) == 0 {
 		// No tool calls found, return entire output as text
 		result.Text = strings.TrimSpace(output)
 		return result
@@ -44,19 +44,11 @@ func ParseToolCalls(output string) ParseResult {
 	result.HasTools = true
 
 	// Extract text before the first tool call
-	firstMatch := toolCallRegex.FindStringIndex(output)
-	if firstMatch != nil && firstMatch[0] > 0 {
-		result.Text = strings.TrimSpace(output[:firstMatch[0]])
-	}
+	result.Text = tools.ExtractTextBeforeToolCalls(output, blocks)
 
 	// Parse each tool call
-	for _, match := range matches {
-		if len(match) < 2 {
-			continue
-		}
-
-		jsonStr := match[1]
-		tc, err := parseToolCallJSON(jsonStr)
+	for _, block := range blocks {
+		tc, err := parseToolCallJSON(block.JSONContent)
 		if err != nil {
 			continue // Skip invalid tool calls
 		}
@@ -114,10 +106,6 @@ func parseToolCallJSON(jsonStr string) (ToolCallResult, error) {
 
 // StripToolCalls removes tool call tags from the output, leaving only text content.
 func StripToolCalls(output string) string {
-	// Remove all tool call blocks
-	result := toolCallRegex.ReplaceAllString(output, "")
-	// Clean up extra whitespace
-	result = strings.TrimSpace(result)
-	return result
+	// Use the robust extraction and stripping from tools package
+	return tools.StripToolCallTags(output)
 }
-
