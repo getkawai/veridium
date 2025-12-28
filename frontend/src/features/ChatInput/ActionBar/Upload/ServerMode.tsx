@@ -92,7 +92,7 @@ const FileUpload = memo(() => {
       const validFiles = processedFiles.filter(Boolean);
 
       if (validFiles.length === 0) {
-        message.warning('No valid files to upload');
+        message?.warning('No valid files to upload');
         return;
       }
 
@@ -110,10 +110,10 @@ const FileUpload = memo(() => {
         type: 'addFiles',
       });
 
-      message.success(`Successfully uploaded ${uploadItems.length} image(s)`);
+      message?.success(`Successfully uploaded ${uploadItems.length} image(s)`);
     } catch (error) {
       console.error('Image upload error:', error);
-      message.error('Failed to upload images');
+      message?.error('Failed to upload images');
     }
   }, [canUploadImage]);
 
@@ -132,7 +132,7 @@ const FileUpload = memo(() => {
       const filePaths = Array.isArray(result) ? result : [result];
 
       // Show loading message
-      const hideLoading = message.loading('Processing files...', 0);
+      const hideLoading = message?.loading('Processing files...', 0);
 
       try {
         // Process files via backend (copy + parse + RAG in one call)
@@ -163,8 +163,8 @@ const FileUpload = memo(() => {
         const validFiles = processedFiles.filter(Boolean);
 
         if (validFiles.length === 0) {
-          hideLoading();
-          message.warning('No valid files to upload');
+          hideLoading?.();
+          message?.warning('No valid files to upload');
           return;
         }
 
@@ -182,15 +182,15 @@ const FileUpload = memo(() => {
           type: 'addFiles',
         });
 
-        hideLoading();
-        message.success(`Successfully uploaded ${uploadItems.length} file(s)`);
+        hideLoading?.();
+        message?.success(`Successfully uploaded ${uploadItems.length} file(s)`);
       } catch (error) {
-        hideLoading();
+        hideLoading?.();
         throw error;
       }
     } catch (error) {
       console.error('File upload error:', error);
-      message.error('Failed to upload files');
+      message?.error('Failed to upload files');
     }
   }, [canUploadImage]);
 
@@ -206,11 +206,11 @@ const FileUpload = memo(() => {
 
       if (!result) return;
 
-      message.info('Folder upload not yet implemented');
+      message?.info('Folder upload not yet implemented');
       // TODO: Implement recursive folder scanning in backend
     } catch (error) {
       console.error('Folder upload error:', error);
-      message.error('Failed to upload folder');
+      message?.error('Failed to upload folder');
     }
   }, []);
 
