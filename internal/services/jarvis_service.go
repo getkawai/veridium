@@ -560,6 +560,41 @@ func (s *JarvisService) LookupKnownToken(address string) (string, bool) {
 	return name, exists
 }
 
+// ProjectToken represents a project-specific token
+type ProjectToken struct {
+	Address string `json:"address"`
+	Name    string `json:"name"`
+	Symbol  string `json:"symbol"`
+}
+
+// GetProjectTokens returns all project-specific tokens (deployed contracts)
+func (s *JarvisService) GetProjectTokens() []ProjectToken {
+	tokens := make([]ProjectToken, 0, len(db.PROJECT_TOKENS))
+	for addr, name := range db.PROJECT_TOKENS {
+		// Only include actual tokens (not contracts like Escrow, PaymentVault, Distributors)
+		if name == "MockUSDT" || name == "KawaiToken" {
+			tokens = append(tokens, ProjectToken{
+				Address: addr,
+				Name:    name,
+				Symbol:  getSymbolFromName(name),
+			})
+		}
+	}
+	return tokens
+}
+
+// getSymbolFromName extracts symbol from token name
+func getSymbolFromName(name string) string {
+	switch name {
+	case "MockUSDT":
+		return "USDT"
+	case "KawaiToken":
+		return "KAWAI"
+	default:
+		return name
+	}
+}
+
 // GetTokenAllowance returns the allowance of a token
 func (s *JarvisService) GetTokenAllowance(tokenAddress string, owner string, spender string, networkID uint64) (*BalanceInfo, error) {
 	r, network, err := s.getReader(networkID)

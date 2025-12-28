@@ -364,7 +364,7 @@ const DesktopWalletLayout = memo(() => {
   const [kawaiBalance, setKawaiBalance] = useState('0.00');
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [modalType, setModalType] = useState<'send' | 'receive' | 'swap' | 'deposit' | 'addAccount' | 'createWallet' | 'importWallet' | null>(null);
+  const [modalType, setModalType] = useState<'send' | 'receive' | 'swap' | 'deposit' | 'addAccount' | 'createWallet' | 'importWallet' | 'addToken' | null>(null);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [pendingSwitch, setPendingSwitch] = useState<string | null>(null);
   const { message } = App.useApp();
@@ -692,6 +692,19 @@ const DesktopWalletLayout = memo(() => {
           </p>
         </Flexbox>
       </Modal>
+
+      <Modal 
+        title="Add Token" 
+        open={modalType === 'addToken'} 
+        onCancel={() => setModalType(null)} 
+        footer={null}
+        width={450}
+      >
+        <AddTokenModal 
+          currentNetwork={currentNetwork} 
+          onClose={() => setModalType(null)} 
+        />
+      </Modal>
     </div>
   );
 });
@@ -754,6 +767,7 @@ const HomeContent = ({ address, balance, nativeBalance, kawaiBalance, balanceVis
       {/* Quick Actions */}
       <Flexbox horizontal gap={12} style={{ marginTop: 4 }}>
         {[
+          { label: 'Deposit', icon: Plus, color: '#10b981', action: () => setModalType('deposit') },
           { label: 'Send', icon: Send, color: '#06b6d4', action: () => setModalType('send') },
           { label: 'Receive', icon: ArrowDownToLine, color: '#22c55e', action: () => setModalType('receive') },
           { label: 'Swap', icon: Repeat2, color: '#eab308', action: () => setModalType('swap') },
@@ -1360,6 +1374,132 @@ const SendForm = ({ onSend, loading, currentNetwork }: { onSend: (to: string, va
     </Form>
   );
 };
+
+// ============ ADD TOKEN MODAL ============
+const AddTokenModal = memo<{ currentNetwork: NetworkInfo | null; onClose: () => void }>(({ currentNetwork, onClose }) => {
+  const theme = useTheme();
+  const { message } = App.useApp();
+  const [loading, setLoading] = useState(true);
+  const [projectTokens, setProjectTokens] = useState<Array<{ address: string; name: string; symbol: string }>>([]);
+
+  useEffect(() => {
+    loadProjectTokens();
+  }, []);
+
+  const loadProjectTokens = async () => {
+    try {
+      // Check if method exists (bindings may need regeneration after Go update)
+      if (typeof (JarvisService as any).GetProjectTokens === 'function') {
+        const tokens = await (JarvisService as any).GetProjectTokens();
+        setProjectTokens(tokens);
+      } else {
+        // Fallback: hardcoded project tokens (Monad Testnet)
+        setProjectTokens([
+          { address: '0xa6Fc4FaF4CD7a4E3f300D164a37CB45d35bf28eD', name: 'MockUSDT', symbol: 'USDT' },
+          { address: '0x3EC7A3b85f9658120490d5a76705d4d304f4068D', name: 'KawaiToken', symbol: 'KAWAI' },
+        ]);
+      }
+    } catch (e) {
+      console.error('Failed to load project tokens', e);
+      // Fallback on error
+      setProjectTokens([
+        { address: '0xa6Fc4FaF4CD7a4E3f300D164a37CB45d35bf28eD', name: 'MockUSDT', symbol: 'USDT' },
+        { address: '0x3EC7A3b85f9658120490d5a76705d4d304f4068D', name: 'KawaiToken', symbol: 'KAWAI' },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCopyAddress = (address: string) => {
+    navigator.clipboard.writeText(address);
+    message.success('Address copied!');
+  };
+
+  if (loading) {
+    return (
+      <Flexbox align="center" justify="center" style={{ padding: 40 }}>
+        <Spin />
+      </Flexbox>
+    );
+  }
+
+  return (
+    <Flexbox gap={16}>
+      <div style={{ color: theme.colorTextSecondary, fontSize: 13 }}>
+        Supported tokens on {currentNetwork?.name || 'current network'}:
+      </div>
+      
+      {projectTokens.length === 0 ? (
+        <Empty description="No project tokens found" />
+      ) : (
+        <Flexbox gap={8}>
+          {projectTokens.map((token) => (
+            <div
+              key={token.address}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px 16px',
+                background: theme.colorFillTertiary,
+                borderRadius: 12,
+                border: `1px solid ${theme.colorBorderSecondary}`,
+              }}
+            >
+              <Flexbox horizontal align="center" gap={12}>
+                <div style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  background: token.symbol === 'USDT' ? '#26a17b' : 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#fff',
+                  fontWeight: 700,
+                  fontSize: 12,
+                }}>
+                  {token.symbol === 'USDT' ? <TokenUSDT size={24} variant="branded" /> : token.symbol.substring(0, 2)}
+                </div>
+                <div>
+                  <div style={{ fontWeight: 600 }}>{token.symbol}</div>
+                  <div style={{ fontSize: 11, color: theme.colorTextSecondary }}>{token.name}</div>
+                </div>
+              </Flexbox>
+              <Flexbox horizontal align="center" gap={8}>
+                <Tooltip title={token.address}>
+                  <span style={{ fontSize: 11, fontFamily: 'monospace', color: theme.colorTextTertiary }}>
+                    {token.address.substring(0, 6)}...{token.address.substring(token.address.length - 4)}
+                  </span>
+                </Tooltip>
+                <ActionIcon
+                  icon={Copy}
+                  size="small"
+                  onClick={() => handleCopyAddress(token.address)}
+                  title="Copy address"
+                />
+              </Flexbox>
+            </div>
+          ))}
+        </Flexbox>
+      )}
+
+      <div style={{ 
+        padding: 12, 
+        background: theme.colorInfoBg, 
+        borderRadius: 8, 
+        fontSize: 12,
+        color: theme.colorTextSecondary 
+      }}>
+        <strong>Note:</strong> These are the official project tokens deployed on Monad Testnet.
+        Custom token import is not supported yet.
+      </div>
+
+      <Button block onClick={onClose}>Close</Button>
+    </Flexbox>
+  );
+});
 
 export default DesktopWalletLayout;
 const SetupForm = memo<{ type: 'create' | 'import'; onSuccess: () => void }>(({ type, onSuccess }) => {
