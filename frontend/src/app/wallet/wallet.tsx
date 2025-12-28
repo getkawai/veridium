@@ -1,11 +1,11 @@
-import { Card, Modal, QRCode, App, Table, Tag, Button, InputNumber, Form, Input, Empty, Popover, Spin, Tooltip } from 'antd';
+import { Card, Modal, QRCode, App, Table, Tag, Button, InputNumber, Form, Input, Empty, Popover, Spin, Tooltip, Select } from 'antd';
 import { memo, useEffect, useState, useCallback } from 'react';
 import { DeAIService, WalletService, JarvisService } from '@@/github.com/kawai-network/veridium/internal/services';
-import type { NetworkInfo, TokenInfo, BalanceInfo } from '@@/github.com/kawai-network/veridium/internal/services/models';
+import type { NetworkInfo, TokenInfo } from '@@/github.com/kawai-network/veridium/internal/services/models';
 import { ListWalletTransactions } from '@@/github.com/kawai-network/veridium/internal/database/generated/queries';
 import type { WalletTransaction } from '@@/github.com/kawai-network/veridium/internal/database/generated/models';
 import { useUserStore } from '@/store/user';
-import { ArrowDownToLine, Copy, Send, Eye, EyeOff, Repeat2, History, Home, ShoppingCart, Gift, Settings, Coins, ExternalLink, Globe, Plus, Check, X, Loader2, Fuel } from 'lucide-react';
+import { ArrowDownToLine, Copy, Send, Eye, EyeOff, Repeat2, History, Home, ShoppingCart, Gift, Settings, Coins, ExternalLink, Globe, Plus, Check, Loader2, Fuel } from 'lucide-react';
 import { ActionIcon, Icon } from '@lobehub/ui';
 import { Flexbox } from 'react-layout-kit';
 import { createStyles, useTheme } from 'antd-style';
@@ -343,14 +343,16 @@ interface CustomToken {
 
 // Default Monad Testnet chain ID
 const DEFAULT_CHAIN_ID = 10143;
+const KAWAI_TOKEN_ADDRESS = "0x3EC7A3b85f9658120490d5a76705d4d304f4068D";
 
 const DesktopWalletLayout = memo(() => {
   const { styles, theme } = useStyles();
   const [activeMenu, setActiveMenu] = useState<MenuKey>('home');
   // Use global wallet address from store
   const address = useUserStore((s) => s.walletAddress);
-  const [balance, setBalance] = useState('0.00');
+  const [balance, setBalance] = useState('0.00'); // USDT Balance (Vault)
   const [nativeBalance, setNativeBalance] = useState('0.00');
+  const [kawaiBalance, setKawaiBalance] = useState('0.00');
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [loading, setLoading] = useState(false);
   const [modalType, setModalType] = useState<'send' | 'receive' | 'swap' | 'deposit' | 'addAccount' | 'createWallet' | 'importWallet' | 'addToken' | null>(null);
@@ -389,6 +391,7 @@ const DesktopWalletLayout = memo(() => {
     // Reload balances for new network
     if (address) {
       loadNativeBalance(network.id);
+      loadKawaiBalance(network.id);
       loadGasEstimate(network.id);
       loadCurrentBlock(network.id);
       // Reload custom token balances
@@ -402,6 +405,7 @@ const DesktopWalletLayout = memo(() => {
       loadBalance();
       loadHistory();
       loadNativeBalance(currentNetwork.id);
+      loadKawaiBalance(currentNetwork.id);
       loadGasEstimate(currentNetwork.id);
       loadCurrentBlock(currentNetwork.id);
     }
@@ -416,6 +420,19 @@ const DesktopWalletLayout = memo(() => {
       }
     } catch (e) {
       console.error('Failed to load native balance', e);
+    }
+  };
+
+  const loadKawaiBalance = async (networkId: number) => {
+    if (!address) return;
+    try {
+      const result = await JarvisService.GetTokenBalance(KAWAI_TOKEN_ADDRESS, address, networkId);
+      if (result) {
+        setKawaiBalance(result.formatted);
+      }
+    } catch (e) {
+      console.error('Failed to load KAWAI balance', e);
+      setKawaiBalance('0.00');
     }
   };
 
@@ -544,14 +561,35 @@ const DesktopWalletLayout = memo(() => {
     }
   };
 
-  const handleSend = async (to: string, amount: number) => {
+  const handleSend = async (to: string, amount: number, assetType: string, customTokenAddress?: string) => {
     setLoading(true);
-    const hide = message.loading("Sending USDT...", 0);
+    const hide = message.loading(`Sending ${assetType.toUpperCase()}...`, 0);
     try {
-      const rawAmount = Math.floor(amount * 1_000_000).toString();
-      const tx = await DeAIService.TransferUSDT(to, rawAmount);
+      let tx = '';
+      if (assetType === 'native') {
+        tx = await DeAIService.TransferNative(to, amount.toString());
+      } else if (assetType === 'usdt') {
+        const rawAmount = Math.floor(amount * 1_000_000).toString();
+        tx = await DeAIService.TransferUSDT(to, rawAmount);
+      } else if (assetType === 'kawai') {
+        const rawAmount = BigInt(Math.floor(amount * 1_000_000_000_000_000_000)).toString();
+        tx = await DeAIService.TransferToken(KAWAI_TOKEN_ADDRESS, to, rawAmount);
+      } else if (assetType === 'custom' && customTokenAddress) {
+        const token = customTokens.find(t => t.address.toLowerCase() === customTokenAddress.toLowerCase());
+        const decimals = token ? token.decimals : 18;
+        const rawAmount = BigInt(Math.floor(amount * Math.pow(10, decimals))).toString();
+        tx = await DeAIService.TransferToken(customTokenAddress, to, rawAmount);
+      } else {
+        throw new Error("Unknown asset type");
+      }
+
       message.success(`Transfer Successful! TX: ${tx.substring(0, 10)}...`);
       loadBalance();
+      if (currentNetwork) {
+        loadNativeBalance(currentNetwork.id);
+        loadKawaiBalance(currentNetwork.id);
+        loadCustomTokenBalances(currentNetwork.id);
+      }
       loadHistory();
       setModalType(null);
     } catch (e: any) {
@@ -587,6 +625,7 @@ const DesktopWalletLayout = memo(() => {
           address={address}
           balance={balance}
           nativeBalance={nativeBalance}
+          kawaiBalance={kawaiBalance}
           balanceVisible={balanceVisible}
           setBalanceVisible={setBalanceVisible}
           setModalType={setModalType}
@@ -680,8 +719,8 @@ const DesktopWalletLayout = memo(() => {
         <SmartDepositForm onDeposit={handleDeposit} loading={loading} />
       </Modal>
 
-      <Modal title="Send USDT" open={modalType === 'send'} onCancel={() => setModalType(null)} footer={null} destroyOnClose>
-        <SendForm onSend={handleSend} loading={loading} />
+      <Modal title="Send Assets" open={modalType === 'send'} onCancel={() => setModalType(null)} footer={null} destroyOnClose>
+        <SendForm onSend={handleSend} loading={loading} customTokens={customTokens} currentNetwork={currentNetwork} />
       </Modal>
 
       <Modal title="Receive" open={modalType === 'receive'} onCancel={() => setModalType(null)} footer={null} width={400}>
@@ -721,7 +760,7 @@ const DesktopWalletLayout = memo(() => {
 });
 
 // ============ HOME CONTENT ============
-const HomeContent = ({ address, balance, nativeBalance, balanceVisible, setBalanceVisible, setModalType, transactions, styles, theme, currentNetwork, gasEstimate, currentBlock, customTokens }: any) => {
+const HomeContent = ({ address, balance, nativeBalance, kawaiBalance, balanceVisible, setBalanceVisible, setModalType, transactions, styles, theme, currentNetwork, gasEstimate, currentBlock, customTokens }: any) => {
   return (
     <Flexbox style={{ maxWidth: 900, width: '100%' }} gap={20}>
       {/* Balance Card */}
@@ -875,7 +914,7 @@ const HomeContent = ({ address, balance, nativeBalance, balanceVisible, setBalan
                 width: 36,
                 height: 36,
                 borderRadius: '50%',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                background: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -883,18 +922,22 @@ const HomeContent = ({ address, balance, nativeBalance, balanceVisible, setBalan
                 fontWeight: 800,
                 fontSize: 14,
                 fontFamily: 'Arial, sans-serif',
-                boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)'
-              }}>🐱</div>
+                boxShadow: '0 2px 8px rgba(255, 154, 158, 0.3)'
+              }}>
+                <Icon icon={Gift} size={20} color="#fff" />
+              </div>
               <div>
                 <div style={{ fontWeight: 600 }}>KAWAI</div>
                 <div style={{ fontSize: 12, color: theme.colorTextSecondary }}>Kawai Token</div>
               </div>
             </Flexbox>
             <Flexbox horizontal align="center" gap={16}>
-              <span style={{ fontSize: 12, color: theme.colorTextSecondary }}>$0.001</span>
+              <span style={{ fontSize: 12, color: theme.colorTextSecondary }}>-</span>
               <div style={{ textAlign: 'right', minWidth: 70 }}>
-                <div style={{ fontWeight: 700, fontSize: 14, color: '#fff' }}>0</div>
-                <div style={{ fontSize: 11, color: theme.colorTextTertiary }}>$0.00</div>
+                <div style={{ fontWeight: 700, fontSize: 14, color: '#fff' }}>{balanceVisible ? kawaiBalance : '••••'}</div>
+                <div style={{ fontSize: 11, color: theme.colorTextTertiary }}>
+                  {balanceVisible ? `${kawaiBalance} KAWAI` : '••••'}
+                </div>
               </div>
             </Flexbox>
           </div>
@@ -1264,18 +1307,47 @@ const SmartDepositForm = ({ onDeposit, loading }: { onDeposit: (val: number) => 
   );
 };
 
-const SendForm = ({ onSend, loading }: { onSend: (to: string, val: number) => void, loading: boolean }) => {
+const SendForm = ({ onSend, loading, customTokens, currentNetwork }: { onSend: (to: string, val: number, asset: string, customAddr?: string) => void, loading: boolean, customTokens?: CustomToken[], currentNetwork?: NetworkInfo | null }) => {
   const [form] = Form.useForm();
+  const [selectedAsset, setSelectedAsset] = useState('usdt'); // native, usdt, kawai, custom
+
+  const assetOptions = [
+    { label: `Native Token (${currentNetwork?.nativeTokenSymbol || 'ETH'})`, value: 'native' },
+    { label: 'USDT (Tether)', value: 'usdt' },
+    { label: 'KAWAI (Kawai Token)', value: 'kawai' },
+    ...(customTokens || []).map(t => ({ label: `${t.symbol} (Custom)`, value: `custom_${t.address}` }))
+  ];
+
+  const handleFinish = (values: any) => {
+    let assetType = selectedAsset;
+    let customAddr: string | undefined = undefined;
+
+    if (selectedAsset.startsWith('custom_')) {
+      assetType = 'custom';
+      customAddr = selectedAsset.replace('custom_', '');
+    }
+
+    onSend(values.to, values.amount, assetType, customAddr);
+  };
+
   return (
-    <Form form={form} layout="vertical" onFinish={(v) => onSend(v.to, v.amount)}>
+    <Form form={form} layout="vertical" onFinish={handleFinish} initialValues={{ asset: 'usdt' }}>
+      <Form.Item label="Asset" name="asset">
+        <Select
+          options={assetOptions}
+          value={selectedAsset}
+          onChange={setSelectedAsset}
+          size="large"
+        />
+      </Form.Item>
       <Form.Item label="Recipient Address" name="to" rules={[{ required: true, message: 'Address is required' }, { pattern: /^0x[a-fA-F0-9]{40}$/, message: 'Invalid EVM address' }]}>
         <Input placeholder="0x..." size="large" />
       </Form.Item>
-      <Form.Item label="Amount" name="amount" rules={[{ required: true, type: 'number', min: 0.1 }]}>
-        <InputNumber style={{ width: '100%' }} size="large" addonAfter="USDT" min={0.1} />
+      <Form.Item label="Amount" name="amount" rules={[{ required: true, type: 'number', min: 0.000001 }]}>
+        <InputNumber style={{ width: '100%' }} size="large" min={0.000001} />
       </Form.Item>
       <Button type="primary" htmlType="submit" block size="large" loading={loading} style={{ marginTop: 16 }}>
-        Send USDT
+        Send Asset
       </Button>
     </Form>
   );

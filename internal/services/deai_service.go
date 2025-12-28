@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/kawai-network/veridium/pkg/jarvis/contracts"
 	"github.com/kawai-network/veridium/pkg/jarvis/networks"
 	"github.com/kawai-network/veridium/pkg/jarvis/util/reader"
@@ -373,6 +374,104 @@ func (s *DeAIService) TransferUSDT(to string, amountStr string) (string, error) 
 
 	// 5. Transfer
 	tx, err := usdt.Transfer(opts, recipient, amount)
+	if err != nil {
+		return "", fmt.Errorf("transfer failed: %w", err)
+	}
+
+	return tx.Hash().Hex(), nil
+}
+
+// TransferNative sends native coin (MON, ETH) from the current wallet to a recipient
+func (s *DeAIService) TransferNative(to string, amountStr string) (string, error) {
+	// 1. Parse address
+	recipient := common.HexToAddress(to)
+
+	// 2. Parse Amount (input is in ETH string, e.g., "0.1")
+	// Convert to Wei (10^18)
+	val, ok := new(big.Float).SetString(amountStr)
+	if !ok {
+		return "", fmt.Errorf("invalid amount format")
+	}
+	wei := new(big.Float).Mul(val, big.NewFloat(1e18))
+	amount := new(big.Int)
+	wei.Int(amount) // Convert float to int
+
+	// 3. Get Opts (Wait for signing)
+	chainId := monadChainID
+	opts, err := s.wallet.getTransactOpts(chainId)
+	if err != nil {
+		return "", fmt.Errorf("failed to get opts: %w", err)
+	}
+
+	// 4. Create Transaction
+	// Native transfer is just a transaction with value
+	nonce, err := s.reader.Client().PendingNonceAt(context.Background(), opts.From)
+	if err != nil {
+		return "", fmt.Errorf("failed to get nonce: %w", err)
+	}
+
+	gasPrice, err := s.reader.Client().SuggestGasPrice(context.Background())
+	if err != nil {
+		return "", fmt.Errorf("failed to get gas price: %w", err)
+	}
+
+	gasLimit := uint64(21000) // Standard transfer gas limit
+
+	// Create transaction
+	tx := ethtypes.NewTransaction(nonce, recipient, amount, gasLimit, gasPrice, nil)
+
+	// 5. Sign Transaction
+	signedTx, err := opts.Signer(opts.From, tx)
+	if err != nil {
+		return "", fmt.Errorf("failed to sign tx: %w", err)
+	}
+
+	// 6. Send Transaction
+	err = s.reader.Client().SendTransaction(context.Background(), signedTx)
+	if err != nil {
+		return "", fmt.Errorf("failed to send tx: %w", err)
+	}
+
+	return signedTx.Hash().Hex(), nil
+}
+
+// TransferToken sends any ERC20 token from the current wallet to a recipient
+func (s *DeAIService) TransferToken(tokenAddress string, to string, amountStr string) (string, error) {
+	// 1. Validate inputs
+	if !common.IsHexAddress(tokenAddress) {
+		return "", fmt.Errorf("invalid token address")
+	}
+	if !common.IsHexAddress(to) {
+		return "", fmt.Errorf("invalid recipient address")
+	}
+
+	// 2. Parse Amount (Raw integer string, handled by caller or assumed raw)
+	// For this generic function, let's assume raw amount for now to overlap with other implementations,
+	// OR better, let the frontend pass the raw string.
+	amount := new(big.Int)
+	amount, ok := amount.SetString(amountStr, 10)
+	if !ok {
+		return "", fmt.Errorf("invalid amount format")
+	}
+
+	recipient := common.HexToAddress(to)
+
+	// 3. Get Opts
+	chainId := monadChainID
+	opts, err := s.wallet.getTransactOpts(chainId)
+	if err != nil {
+		return "", fmt.Errorf("failed to get opts: %w", err)
+	}
+
+	// 4. Load Contract Generic
+	// We use KawaiToken wrapper because it satisfies standard ERC20 interface
+	token, err := contracts.KawaiToken(tokenAddress, s.reader)
+	if err != nil {
+		return "", fmt.Errorf("failed to load token contract: %w", err)
+	}
+
+	// 5. Transfer
+	tx, err := token.Transfer(opts, recipient, amount)
 	if err != nil {
 		return "", fmt.Errorf("transfer failed: %w", err)
 	}

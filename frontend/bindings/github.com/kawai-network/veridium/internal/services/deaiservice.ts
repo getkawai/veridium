@@ -67,6 +67,20 @@ export function MintTestTokens(): $CancellablePromise<string> {
 }
 
 /**
+ * TransferNative sends native coin (MON, ETH) from the current wallet to a recipient
+ */
+export function TransferNative(to: string, amountStr: string): $CancellablePromise<string> {
+    return $Call.ByID(3297709697, to, amountStr);
+}
+
+/**
+ * TransferToken sends any ERC20 token from the current wallet to a recipient
+ */
+export function TransferToken(tokenAddress: string, to: string, amountStr: string): $CancellablePromise<string> {
+    return $Call.ByID(1059336147, tokenAddress, to, amountStr);
+}
+
+/**
  * TransferUSDT sends USDT from the current wallet to a recipient
  */
 export function TransferUSDT(to: string, amountStr: string): $CancellablePromise<string> {
