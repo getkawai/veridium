@@ -3,7 +3,7 @@
 import { DOCUMENTS_REFER_URL, PRIVACY_URL, TERMS_URL } from '@/const';
 import { Button, Text, Icon, CopyButton } from '@lobehub/ui';
 import { LobeHub } from '@lobehub/ui/brand';
-import { Col, Flex, Row, Input, Space, Divider, message, Modal, Select } from 'antd';
+import { Col, Flex, Row, Input, Space, Divider, message, Modal, Select, Progress } from 'antd';
 import { createStyles } from 'antd-style';
 import { Key, PlusCircle, Unlock, HardDrive, ArrowRight, Download, FileUp, Trash2, Wallet, AlertTriangle } from 'lucide-react';
 import { memo, useState, useEffect } from 'react';
@@ -308,6 +308,51 @@ export default memo(() => {
               onChange={e => setPassword(e.target.value)}
               size="large"
             />
+            {password && (
+              <div style={{ marginTop: -8, marginBottom: 8 }}>
+                <Progress
+                  percent={(() => {
+                    let score = 0;
+                    if (password.length >= 8) score += 25;
+                    if (password.length >= 12) score += 15;
+                    if (/[A-Z]/.test(password)) score += 20;
+                    if (/[0-9]/.test(password)) score += 20;
+                    if (/[^A-Za-z0-9]/.test(password)) score += 20;
+                    return Math.min(100, score);
+                  })()}
+                  strokeColor={(() => {
+                    let score = 0;
+                    if (password.length >= 8) score += 25;
+                    if (password.length >= 12) score += 15;
+                    if (/[A-Z]/.test(password)) score += 20;
+                    if (/[0-9]/.test(password)) score += 20;
+                    if (/[^A-Za-z0-9]/.test(password)) score += 20;
+                    const s = Math.min(100, score);
+                    if (s < 40) return '#ff4d4f';
+                    if (s < 60) return '#faad14';
+                    if (s < 80) return '#52c41a';
+                    return '#1890ff';
+                  })()}
+                  showInfo={false}
+                  size="small"
+                />
+                <Text type="secondary" style={{ fontSize: 11 }}>
+                  {(() => {
+                    let score = 0;
+                    if (password.length >= 8) score += 25;
+                    if (password.length >= 12) score += 15;
+                    if (/[A-Z]/.test(password)) score += 20;
+                    if (/[0-9]/.test(password)) score += 20;
+                    if (/[^A-Za-z0-9]/.test(password)) score += 20;
+                    const s = Math.min(100, score);
+                    if (s < 40) return 'Weak - Add more characters';
+                    if (s < 60) return 'Fair - Add uppercase or numbers';
+                    if (s < 80) return 'Good - Add special characters';
+                    return 'Strong password';
+                  })()}
+                </Text>
+              </div>
+            )}
             <Input.Password
               placeholder="Confirm password"
               value={confirmPassword}

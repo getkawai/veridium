@@ -800,6 +800,8 @@ const DesktopWalletLayout = memo(() => {
 
 // ============ HOME CONTENT ============
 const HomeContent = ({ address, balance, nativeBalance, kawaiBalance, balanceVisible, setBalanceVisible, setModalType, transactions, styles, theme, currentNetwork, gasEstimate, currentBlock, customTokens, balancesLoading, onRemoveToken }: any) => {
+  const [showAllTx, setShowAllTx] = useState(false);
+
   return (
     <Flexbox style={{ maxWidth: 900, width: '100%' }} gap={20}>
       {/* Balance Card */}
@@ -1030,7 +1032,15 @@ const HomeContent = ({ address, balance, nativeBalance, kawaiBalance, balanceVis
       </Card>
 
       {/* Activity */}
-      <Card title={<Flexbox horizontal align="center" gap={8}><History size={16} /> Recent Activity</Flexbox>} size="small">
+      <Card
+        title={<Flexbox horizontal align="center" gap={8}><History size={16} /> Recent Activity</Flexbox>}
+        size="small"
+        extra={transactions.length > 5 && (
+          <Button type="link" size="small" onClick={() => setShowAllTx(true)}>
+            View All ({transactions.length})
+          </Button>
+        )}
+      >
         {transactions.length > 0 ? (
           <Table
             dataSource={transactions.slice(0, 5)}
@@ -1065,6 +1075,35 @@ const HomeContent = ({ address, balance, nativeBalance, kawaiBalance, balanceVis
           </Flexbox>
         )}
       </Card>
+
+      {/* Full Transaction History Modal */}
+      <Modal
+        title={<Flexbox horizontal align="center" gap={8}><History size={18} /> Transaction History</Flexbox>}
+        open={showAllTx}
+        onCancel={() => setShowAllTx(false)}
+        footer={null}
+        width={700}
+      >
+        <Table
+          dataSource={transactions}
+          rowKey="id"
+          pagination={{ pageSize: 10, showSizeChanger: false, showTotal: (total) => `${total} transactions` }}
+          size="small"
+          columns={[
+            { title: 'Type', dataIndex: 'txType', key: 'txType', width: 100, render: (type) => <Tag color={type === 'DEPOSIT' ? 'green' : 'blue'}>{type}</Tag> },
+            { title: 'Amount', dataIndex: 'amount', key: 'amount', render: (amount, record: any) => <span style={{ color: record.txType === 'DEPOSIT' ? theme.colorSuccess : theme.colorText, fontWeight: 600 }}>{record.txType === 'DEPOSIT' ? '+' : '-'}{amount} USDT</span> },
+            { title: 'Date', dataIndex: 'createdAt', key: 'createdAt', render: (date) => new Date(date).toLocaleString() },
+            {
+              title: 'TX Hash',
+              dataIndex: 'txHash',
+              key: 'txHash',
+              render: (txHash) => txHash ? (
+                <TransactionLink txHash={txHash} networkId={currentNetwork?.id} />
+              ) : '-'
+            },
+          ]}
+        />
+      </Modal>
     </Flexbox>
   );
 };
@@ -1364,7 +1403,10 @@ const SmartDepositForm = ({ onDeposit, loading }: { onDeposit: (val: number) => 
 
 const SendForm = ({ onSend, loading, customTokens, currentNetwork }: { onSend: (to: string, val: number, asset: string, customAddr?: string) => void, loading: boolean, customTokens?: CustomToken[], currentNetwork?: NetworkInfo | null }) => {
   const [form] = Form.useForm();
-  const [selectedAsset, setSelectedAsset] = useState('usdt'); // native, usdt, kawai, custom
+  const [selectedAsset, setSelectedAsset] = useState('usdt');
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [pendingTx, setPendingTx] = useState<{ to: string; amount: number; assetType: string; customAddr?: string } | null>(null);
+  const theme = useTheme();
 
   const assetOptions = [
     { label: `Native Token (${currentNetwork?.nativeTokenSymbol || 'ETH'})`, value: 'native' },
@@ -1372,6 +1414,18 @@ const SendForm = ({ onSend, loading, customTokens, currentNetwork }: { onSend: (
     { label: 'KAWAI (Kawai Token)', value: 'kawai' },
     ...(customTokens || []).map(t => ({ label: `${t.symbol} (Custom)`, value: `custom_${t.address}` }))
   ];
+
+  const getAssetLabel = (assetType: string) => {
+    if (assetType === 'native') return currentNetwork?.nativeTokenSymbol || 'ETH';
+    if (assetType === 'usdt') return 'USDT';
+    if (assetType === 'kawai') return 'KAWAI';
+    if (assetType.startsWith('custom_')) {
+      const addr = assetType.replace('custom_', '');
+      const token = customTokens?.find(t => t.address.toLowerCase() === addr.toLowerCase());
+      return token?.symbol || 'Custom Token';
+    }
+    return assetType.toUpperCase();
+  };
 
   const handleFinish = (values: any) => {
     let assetType = selectedAsset;
@@ -1382,8 +1436,59 @@ const SendForm = ({ onSend, loading, customTokens, currentNetwork }: { onSend: (
       customAddr = selectedAsset.replace('custom_', '');
     }
 
-    onSend(values.to, values.amount, assetType, customAddr);
+    setPendingTx({ to: values.to, amount: values.amount, assetType, customAddr });
+    setShowConfirmation(true);
   };
+
+  const handleConfirm = () => {
+    if (pendingTx) {
+      onSend(pendingTx.to, pendingTx.amount, pendingTx.assetType, pendingTx.customAddr);
+      setShowConfirmation(false);
+    }
+  };
+
+  if (showConfirmation && pendingTx) {
+    return (
+      <Flexbox gap={16}>
+        <div style={{ textAlign: 'center', marginBottom: 16 }}>
+          <Icon icon={Send} size={48} style={{ color: theme.colorPrimary, marginBottom: 8 }} />
+          <div style={{ fontSize: 18, fontWeight: 600 }}>Confirm Transaction</div>
+        </div>
+
+        <div style={{ background: theme.colorFillTertiary, borderRadius: 12, padding: 16 }}>
+          <Flexbox gap={12}>
+            <Flexbox horizontal justify="space-between">
+              <span style={{ color: theme.colorTextSecondary }}>To</span>
+              <span style={{ fontFamily: 'monospace', fontSize: 12 }}>
+                {pendingTx.to.substring(0, 10)}...{pendingTx.to.substring(pendingTx.to.length - 8)}
+              </span>
+            </Flexbox>
+            <Flexbox horizontal justify="space-between">
+              <span style={{ color: theme.colorTextSecondary }}>Amount</span>
+              <span style={{ fontWeight: 600 }}>{pendingTx.amount} {getAssetLabel(selectedAsset)}</span>
+            </Flexbox>
+            <Flexbox horizontal justify="space-between">
+              <span style={{ color: theme.colorTextSecondary }}>Network</span>
+              <span>{currentNetwork?.name || 'Unknown'}</span>
+            </Flexbox>
+          </Flexbox>
+        </div>
+
+        <div style={{ fontSize: 12, color: theme.colorTextTertiary, textAlign: 'center' }}>
+          Please review the transaction details before confirming.
+        </div>
+
+        <Flexbox horizontal gap={8}>
+          <Button block size="large" onClick={() => setShowConfirmation(false)}>
+            Cancel
+          </Button>
+          <Button type="primary" block size="large" loading={loading} onClick={handleConfirm}>
+            Confirm & Send
+          </Button>
+        </Flexbox>
+      </Flexbox>
+    );
+  }
 
   return (
     <Form form={form} layout="vertical" onFinish={handleFinish} initialValues={{ asset: 'usdt' }}>
@@ -1401,8 +1506,8 @@ const SendForm = ({ onSend, loading, customTokens, currentNetwork }: { onSend: (
       <Form.Item label="Amount" name="amount" rules={[{ required: true, type: 'number', min: 0.000001 }]}>
         <InputNumber style={{ width: '100%' }} size="large" min={0.000001} />
       </Form.Item>
-      <Button type="primary" htmlType="submit" block size="large" loading={loading} style={{ marginTop: 16 }}>
-        Send Asset
+      <Button type="primary" htmlType="submit" block size="large" style={{ marginTop: 16 }}>
+        Review Transaction
       </Button>
     </Form>
   );
