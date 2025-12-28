@@ -1,11 +1,29 @@
 import { Card, Modal, QRCode, App, Table, Tag, Button, InputNumber, Form, Input, Empty, Popover, Spin, Tooltip, Select } from 'antd';
 import { memo, useEffect, useState, useCallback } from 'react';
 import { DeAIService, WalletService, JarvisService } from '@@/github.com/kawai-network/veridium/internal/services';
-import type { NetworkInfo, TokenInfo } from '@@/github.com/kawai-network/veridium/internal/services/models';
+import type { NetworkInfo } from '@@/github.com/kawai-network/veridium/internal/services/models';
 import { ListWalletTransactions } from '@@/github.com/kawai-network/veridium/internal/database/generated/queries';
 import type { WalletTransaction } from '@@/github.com/kawai-network/veridium/internal/database/generated/models';
 import { useUserStore } from '@/store/user';
-import { ArrowDownToLine, Copy, Send, Eye, EyeOff, Repeat2, History, Home, ShoppingCart, Gift, Settings, Coins, ExternalLink, Globe, Plus, Check, Loader2, Fuel, Trash2 } from 'lucide-react';
+import {
+  History,
+  Copy,
+  Plus,
+  Send,
+  Settings,
+  Eye,
+  EyeOff,
+  Check,
+  Gift,
+  ExternalLink,
+  Home,
+  ShoppingCart,
+  Globe,
+  Repeat2,
+  Fuel,
+  ArrowDownToLine,
+  Coins,
+} from 'lucide-react';
 import { ActionIcon, Icon } from '@lobehub/ui';
 import { Flexbox } from 'react-layout-kit';
 import { createStyles, useTheme } from 'antd-style';
@@ -331,20 +349,10 @@ const NetworkSwitcher = memo<NetworkSwitcherProps>(({ currentNetwork, onNetworkC
   );
 });
 
-// Custom token interface
-interface CustomToken {
-  address: string;
-  symbol: string;
-  name: string;
-  decimals: number;
-  balance: string;
-  isCustom: boolean;
-}
-
 // Default Monad Testnet chain ID
+
 const DEFAULT_CHAIN_ID = 10143;
 const KAWAI_TOKEN_ADDRESS = "0x3EC7A3b85f9658120490d5a76705d4d304f4068D";
-const CUSTOM_TOKENS_STORAGE_KEY = 'wallet_custom_tokens';
 
 const DesktopWalletLayout = memo(() => {
   const { styles, theme } = useStyles();
@@ -356,7 +364,7 @@ const DesktopWalletLayout = memo(() => {
   const [kawaiBalance, setKawaiBalance] = useState('0.00');
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [modalType, setModalType] = useState<'send' | 'receive' | 'swap' | 'deposit' | 'addAccount' | 'createWallet' | 'importWallet' | 'addToken' | null>(null);
+  const [modalType, setModalType] = useState<'send' | 'receive' | 'swap' | 'deposit' | 'addAccount' | 'createWallet' | 'importWallet' | null>(null);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [pendingSwitch, setPendingSwitch] = useState<string | null>(null);
   const { message } = App.useApp();
@@ -367,16 +375,12 @@ const DesktopWalletLayout = memo(() => {
   const [gasEstimate, setGasEstimate] = useState<{ maxGasPriceGwei: number; maxTipGwei: number } | null>(null);
   const [currentBlock, setCurrentBlock] = useState<number>(0);
 
-  // Custom tokens state
-  const [customTokens, setCustomTokens] = useState<CustomToken[]>([]);
-
   // Loading states
   const [balancesLoading, setBalancesLoading] = useState(false);
 
-  // Initialize default network and load custom tokens
+  // Initialize default network
   useEffect(() => {
     initializeNetwork();
-    loadCustomTokensFromStorage();
   }, []);
 
   const initializeNetwork = async () => {
@@ -390,26 +394,6 @@ const DesktopWalletLayout = memo(() => {
     }
   };
 
-  const loadCustomTokensFromStorage = () => {
-    try {
-      const stored = localStorage.getItem(CUSTOM_TOKENS_STORAGE_KEY);
-      if (stored) {
-        const tokens = JSON.parse(stored) as CustomToken[];
-        setCustomTokens(tokens);
-      }
-    } catch (e) {
-      console.error('Failed to load custom tokens from storage', e);
-    }
-  };
-
-  const saveCustomTokensToStorage = (tokens: CustomToken[]) => {
-    try {
-      localStorage.setItem(CUSTOM_TOKENS_STORAGE_KEY, JSON.stringify(tokens));
-    } catch (e) {
-      console.error('Failed to save custom tokens to storage', e);
-    }
-  };
-
   const handleNetworkChange = useCallback(async (network: NetworkInfo) => {
     setCurrentNetwork(network);
     message.info(`Switched to ${network.name}`);
@@ -419,8 +403,6 @@ const DesktopWalletLayout = memo(() => {
       loadKawaiBalance(network.id);
       loadGasEstimate(network.id);
       loadCurrentBlock(network.id);
-      // Reload custom token balances
-      loadCustomTokenBalances(network.id);
     }
   }, [address, message]);
 
@@ -484,78 +466,6 @@ const DesktopWalletLayout = memo(() => {
     }
   };
 
-  const loadCustomTokenBalances = async (networkId: number) => {
-    if (!address || customTokens.length === 0) return;
-
-    const updatedTokens = await Promise.all(
-      customTokens.map(async (token) => {
-        try {
-          const result = await JarvisService.GetTokenBalance(token.address, address, networkId);
-          return { ...token, balance: result?.formatted || '0' };
-        } catch {
-          return { ...token, balance: '0' };
-        }
-      })
-    );
-    setCustomTokens(updatedTokens);
-  };
-
-  const handleAddToken = async (tokenAddress: string) => {
-    if (!currentNetwork) {
-      message.error('No network selected');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      // Fetch token info from blockchain
-      const tokenInfo = await JarvisService.GetTokenInfo(tokenAddress, currentNetwork.id);
-      if (!tokenInfo) {
-        message.error('Could not fetch token info. Is this a valid ERC20 token?');
-        return;
-      }
-
-      // Check if already added
-      if (customTokens.some(t => t.address.toLowerCase() === tokenAddress.toLowerCase())) {
-        message.warning('Token already added');
-        return;
-      }
-
-      // Get balance
-      let tokenBalance = '0';
-      if (address) {
-        const balanceResult = await JarvisService.GetTokenBalance(tokenAddress, address, currentNetwork.id);
-        tokenBalance = balanceResult?.formatted || '0';
-      }
-
-      const newToken: CustomToken = {
-        address: tokenAddress,
-        symbol: tokenInfo.symbol,
-        name: tokenInfo.name,
-        decimals: Number(tokenInfo.decimals),
-        balance: tokenBalance,
-        isCustom: true,
-      };
-
-      const updatedTokens = [...customTokens, newToken];
-      setCustomTokens(updatedTokens);
-      saveCustomTokensToStorage(updatedTokens);
-      message.success(`Added ${tokenInfo.symbol} to your wallet`);
-      setModalType(null);
-    } catch (e: any) {
-      message.error(`Failed to add token: ${e.message || e}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRemoveToken = (tokenAddress: string) => {
-    const updatedTokens = customTokens.filter(t => t.address.toLowerCase() !== tokenAddress.toLowerCase());
-    setCustomTokens(updatedTokens);
-    saveCustomTokensToStorage(updatedTokens);
-    message.success('Token removed');
-  };
-
   const loadBalance = async () => {
     try {
       const bal = await DeAIService.GetVaultBalance();
@@ -611,11 +521,6 @@ const DesktopWalletLayout = memo(() => {
       } else if (assetType === 'kawai') {
         const rawAmount = BigInt(Math.floor(amount * 1_000_000_000_000_000_000)).toString();
         tx = await DeAIService.TransferToken(KAWAI_TOKEN_ADDRESS, to, rawAmount);
-      } else if (assetType === 'custom' && customTokenAddress) {
-        const token = customTokens.find(t => t.address.toLowerCase() === customTokenAddress.toLowerCase());
-        const decimals = token ? token.decimals : 18;
-        const rawAmount = BigInt(Math.floor(amount * Math.pow(10, decimals))).toString();
-        tx = await DeAIService.TransferToken(customTokenAddress, to, rawAmount);
       } else {
         throw new Error("Unknown asset type");
       }
@@ -625,7 +530,6 @@ const DesktopWalletLayout = memo(() => {
       if (currentNetwork) {
         loadNativeBalance(currentNetwork.id);
         loadKawaiBalance(currentNetwork.id);
-        loadCustomTokenBalances(currentNetwork.id);
       }
       loadHistory();
       setModalType(null);
@@ -672,9 +576,7 @@ const DesktopWalletLayout = memo(() => {
           currentNetwork={currentNetwork}
           gasEstimate={gasEstimate}
           currentBlock={currentBlock}
-          customTokens={customTokens}
           balancesLoading={balancesLoading}
-          onRemoveToken={handleRemoveToken}
         />;
       case 'otc':
         return <OTCContent styles={styles} theme={theme} />;
@@ -759,7 +661,7 @@ const DesktopWalletLayout = memo(() => {
       </Modal>
 
       <Modal title="Send Assets" open={modalType === 'send'} onCancel={() => setModalType(null)} footer={null} destroyOnClose>
-        <SendForm onSend={handleSend} loading={loading} customTokens={customTokens} currentNetwork={currentNetwork} />
+        <SendForm onSend={handleSend} loading={loading} currentNetwork={currentNetwork} />
       </Modal>
 
       <Modal title="Receive" open={modalType === 'receive'} onCancel={() => setModalType(null)} footer={null} width={400}>
@@ -790,16 +692,12 @@ const DesktopWalletLayout = memo(() => {
           </p>
         </Flexbox>
       </Modal>
-
-      <Modal title="Add Custom Token" open={modalType === 'addToken'} onCancel={() => setModalType(null)} footer={null} destroyOnClose>
-        <AddTokenForm onAddToken={handleAddToken} loading={loading} currentNetwork={currentNetwork} />
-      </Modal>
     </div>
   );
 });
 
 // ============ HOME CONTENT ============
-const HomeContent = ({ address, balance, nativeBalance, kawaiBalance, balanceVisible, setBalanceVisible, setModalType, transactions, styles, theme, currentNetwork, gasEstimate, currentBlock, customTokens, balancesLoading, onRemoveToken }: any) => {
+const HomeContent = ({ address, balance, nativeBalance, kawaiBalance, balanceVisible, setBalanceVisible, setModalType, transactions, styles, theme, currentNetwork, gasEstimate, currentBlock, balancesLoading }: any) => {
   const [showAllTx, setShowAllTx] = useState(false);
 
   return (
@@ -989,45 +887,6 @@ const HomeContent = ({ address, balance, nativeBalance, kawaiBalance, balanceVis
             </Flexbox>
           </div>
 
-          {/* Custom Tokens */}
-          {customTokens && customTokens.map((token: CustomToken) => (
-            <div key={token.address} className={styles.tokenRow}>
-              <Flexbox horizontal align="center" gap={12} style={{ flex: 1 }}>
-                <div style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#fff',
-                  fontWeight: 700,
-                  fontSize: 12,
-                }}>{token.symbol.substring(0, 2).toUpperCase()}</div>
-                <div>
-                  <div style={{ fontWeight: 600 }}>{token.symbol}</div>
-                  <div style={{ fontSize: 12, color: theme.colorTextSecondary }}>{token.name}</div>
-                </div>
-              </Flexbox>
-              <Flexbox horizontal align="center" gap={8}>
-                <Tag color="blue" style={{ margin: 0, fontSize: 10 }}>Custom</Tag>
-                <div style={{ textAlign: 'right', minWidth: 70 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: '#fff' }}>{balanceVisible ? token.balance : '••••'}</div>
-                </div>
-                <ActionIcon
-                  icon={Trash2}
-                  size="small"
-                  onClick={(e: React.MouseEvent) => {
-                    e.stopPropagation();
-                    onRemoveToken(token.address);
-                  }}
-                  title="Remove Token"
-                  style={{ opacity: 0.6 }}
-                />
-              </Flexbox>
-            </div>
-          ))}
         </Flexbox>
       </Card>
 
@@ -1401,7 +1260,7 @@ const SmartDepositForm = ({ onDeposit, loading }: { onDeposit: (val: number) => 
   );
 };
 
-const SendForm = ({ onSend, loading, customTokens, currentNetwork }: { onSend: (to: string, val: number, asset: string, customAddr?: string) => void, loading: boolean, customTokens?: CustomToken[], currentNetwork?: NetworkInfo | null }) => {
+const SendForm = ({ onSend, loading, currentNetwork }: { onSend: (to: string, val: number, asset: string, customAddr?: string) => void, loading: boolean, currentNetwork?: NetworkInfo | null }) => {
   const [form] = Form.useForm();
   const [selectedAsset, setSelectedAsset] = useState('usdt');
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -1412,29 +1271,18 @@ const SendForm = ({ onSend, loading, customTokens, currentNetwork }: { onSend: (
     { label: `Native Token (${currentNetwork?.nativeTokenSymbol || 'ETH'})`, value: 'native' },
     { label: 'USDT (Tether)', value: 'usdt' },
     { label: 'KAWAI (Kawai Token)', value: 'kawai' },
-    ...(customTokens || []).map(t => ({ label: `${t.symbol} (Custom)`, value: `custom_${t.address}` }))
   ];
 
   const getAssetLabel = (assetType: string) => {
     if (assetType === 'native') return currentNetwork?.nativeTokenSymbol || 'ETH';
     if (assetType === 'usdt') return 'USDT';
     if (assetType === 'kawai') return 'KAWAI';
-    if (assetType.startsWith('custom_')) {
-      const addr = assetType.replace('custom_', '');
-      const token = customTokens?.find(t => t.address.toLowerCase() === addr.toLowerCase());
-      return token?.symbol || 'Custom Token';
-    }
     return assetType.toUpperCase();
   };
 
   const handleFinish = (values: any) => {
     let assetType = selectedAsset;
     let customAddr: string | undefined = undefined;
-
-    if (selectedAsset.startsWith('custom_')) {
-      assetType = 'custom';
-      customAddr = selectedAsset.replace('custom_', '');
-    }
 
     setPendingTx({ to: values.to, amount: values.amount, assetType, customAddr });
     setShowConfirmation(true);
@@ -1508,116 +1356,6 @@ const SendForm = ({ onSend, loading, customTokens, currentNetwork }: { onSend: (
       </Form.Item>
       <Button type="primary" htmlType="submit" block size="large" style={{ marginTop: 16 }}>
         Review Transaction
-      </Button>
-    </Form>
-  );
-};
-
-const AddTokenForm = ({ onAddToken, loading, currentNetwork }: { onAddToken: (address: string) => void, loading: boolean, currentNetwork: NetworkInfo | null }) => {
-  const [form] = Form.useForm();
-  const [tokenPreview, setTokenPreview] = useState<TokenInfo | null>(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const theme = useTheme();
-
-  const handleAddressChange = async (address: string) => {
-    if (!address || address.length !== 42 || !address.startsWith('0x') || !currentNetwork) {
-      setTokenPreview(null);
-      return;
-    }
-
-    setPreviewLoading(true);
-    try {
-      const isValid = await JarvisService.ValidateAddress(address);
-      if (!isValid) {
-        setTokenPreview(null);
-        return;
-      }
-
-      const info = await JarvisService.GetTokenInfo(address, currentNetwork.id);
-      setTokenPreview(info);
-    } catch {
-      setTokenPreview(null);
-    } finally {
-      setPreviewLoading(false);
-    }
-  };
-
-  return (
-    <Form form={form} layout="vertical" onFinish={(v) => onAddToken(v.address)}>
-      <Form.Item
-        label="Token Contract Address"
-        name="address"
-        rules={[
-          { required: true, message: 'Token address is required' },
-          { pattern: /^0x[a-fA-F0-9]{40}$/, message: 'Invalid contract address' }
-        ]}
-      >
-        <Input
-          placeholder="0x..."
-          size="large"
-          onChange={(e) => handleAddressChange(e.target.value)}
-        />
-      </Form.Item>
-
-      {/* Token Preview */}
-      {previewLoading && (
-        <Flexbox align="center" justify="center" style={{ padding: 16 }}>
-          <Loader2 size={20} className="animate-spin" />
-          <span style={{ marginLeft: 8, color: theme.colorTextSecondary }}>Fetching token info...</span>
-        </Flexbox>
-      )}
-
-      {tokenPreview && !previewLoading && (
-        <div style={{
-          padding: 16,
-          background: theme.colorFillTertiary,
-          borderRadius: 12,
-          marginBottom: 16
-        }}>
-          <Flexbox horizontal align="center" gap={12}>
-            <div style={{
-              width: 40,
-              height: 40,
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#fff',
-              fontWeight: 700,
-              fontSize: 14,
-            }}>
-              {tokenPreview.symbol.substring(0, 2).toUpperCase()}
-            </div>
-            <Flexbox flex={1}>
-              <div style={{ fontWeight: 600, fontSize: 16 }}>{tokenPreview.symbol}</div>
-              <div style={{ fontSize: 12, color: theme.colorTextSecondary }}>{tokenPreview.name}</div>
-            </Flexbox>
-            <Flexbox align="flex-end">
-              <div style={{ fontSize: 11, color: theme.colorTextTertiary }}>Decimals: {tokenPreview.decimals}</div>
-              {tokenPreview.isKnown && (
-                <Tag color="green" style={{ margin: 0, marginTop: 4 }}>
-                  <Check size={10} /> Verified
-                </Tag>
-              )}
-            </Flexbox>
-          </Flexbox>
-        </div>
-      )}
-
-      <div style={{ fontSize: 12, color: theme.colorTextSecondary, marginBottom: 16 }}>
-        Adding token on: <strong>{currentNetwork?.name || 'Unknown Network'}</strong>
-      </div>
-
-      <Button
-        type="primary"
-        htmlType="submit"
-        block
-        size="large"
-        loading={loading}
-        disabled={!tokenPreview || previewLoading}
-      >
-        {tokenPreview ? `Add ${tokenPreview.symbol}` : 'Add Token'}
       </Button>
     </Form>
   );
