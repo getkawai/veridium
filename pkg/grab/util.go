@@ -22,7 +22,7 @@ func setLastModified(resp *http.Response, filename string) error {
 	}
 	lastmod, err := time.Parse(http.TimeFormat, header)
 	if err != nil {
-		return nil
+		return fmt.Errorf("failed to parse Last-Modified header '%s': %w", header, err)
 	}
 	return os.Chtimes(filename, lastmod, lastmod)
 }
@@ -38,7 +38,7 @@ func mkdirp(path string) error {
 			return fmt.Errorf("error creating destination directory: %v", err)
 		}
 	} else if !fi.IsDir() {
-		panic("grab: developer error: destination path is not directory")
+		return fmt.Errorf("destination path exists and is not a directory: %s", dir)
 	}
 	return nil
 }

@@ -119,7 +119,11 @@ func ParamToBigInt(param string) (*big.Int, error) {
 	var result *big.Int
 	param = strings.Trim(param, " ")
 	if len(param) > 2 && param[0:2] == "0x" {
-		result = jarviscommon.HexToBig(param)
+		var err error
+		result, err = jarviscommon.HexToBig(param)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse hex parameter '%s': %w", param, err)
+		}
 	} else {
 		idInt, err := strconv.Atoi(param)
 		if err != nil {

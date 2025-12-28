@@ -1,6 +1,7 @@
 package common
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -30,10 +31,17 @@ func BuildExactTx(
 	tipCapGwei float64,
 	data []byte,
 	chainID uint64,
-) (tx *types.Transaction) {
+) (*types.Transaction, error) {
 	toAddress := common.HexToAddress(to)
-	gasPrice := GweiToWei(priceGwei)
-	tipInt := GweiToWei(tipCapGwei)
+	gasPrice, err := GweiToWei(priceGwei)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert gas price: %w", err)
+	}
+	tipInt, err := GweiToWei(tipCapGwei)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert tip cap: %w", err)
+	}
+
 	if txType == types.DynamicFeeTxType {
 		return types.NewTx(&types.DynamicFeeTx{
 			ChainID:   big.NewInt(int64(chainID)),
@@ -44,7 +52,7 @@ func BuildExactTx(
 			To:        &toAddress,
 			Value:     ethAmount,
 			Data:      data,
-		})
+		}), nil
 	} else if txType == types.LegacyTxType {
 		return types.NewTx(&types.LegacyTx{
 			Nonce:    nonce,
@@ -53,9 +61,9 @@ func BuildExactTx(
 			To:       &toAddress,
 			Value:    ethAmount,
 			Data:     data,
-		})
+		}), nil
 	} else {
-		panic("can't build tx for this tx type")
+		return nil, fmt.Errorf("unsupported transaction type: %d", txType)
 	}
 }
 
@@ -69,8 +77,11 @@ func BuildTx(
 	tipCapGwei float64,
 	data []byte,
 	chainID uint64,
-) (tx *types.Transaction) {
-	amount := FloatToBigInt(ethAmount, 18)
+) (*types.Transaction, error) {
+	amount, err := FloatToBigInt(ethAmount, 18)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert eth amount: %w", err)
+	}
 	return BuildExactTx(txType, nonce, to, amount, gasLimit, priceGwei, tipCapGwei, data, chainID)
 }
 
@@ -83,7 +94,7 @@ func BuildExactSendETHTx(
 	priceGwei float64,
 	tipCapGwei float64,
 	chainID uint64,
-) (tx *types.Transaction) {
+) (*types.Transaction, error) {
 	return BuildExactTx(
 		txType,
 		nonce,
@@ -106,9 +117,16 @@ func BuildContractCreationTx(
 	tipCapGwei float64,
 	data []byte,
 	chainID uint64,
-) (tx *types.Transaction) {
-	gasPrice := GweiToWei(priceGwei)
-	tipInt := GweiToWei(tipCapGwei)
+) (*types.Transaction, error) {
+	gasPrice, err := GweiToWei(priceGwei)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert gas price: %w", err)
+	}
+	tipInt, err := GweiToWei(tipCapGwei)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert tip cap: %w", err)
+	}
+
 	if txType == types.DynamicFeeTxType {
 		return types.NewTx(&types.DynamicFeeTx{
 			ChainID:   big.NewInt(int64(chainID)),
@@ -118,7 +136,7 @@ func BuildContractCreationTx(
 			Gas:       gasLimit,
 			Value:     ethAmount,
 			Data:      data,
-		})
+		}), nil
 	} else if txType == types.LegacyTxType {
 		return types.NewTx(&types.LegacyTx{
 			Nonce:    nonce,
@@ -126,8 +144,8 @@ func BuildContractCreationTx(
 			Gas:      gasLimit,
 			Value:    ethAmount,
 			Data:     data,
-		})
+		}), nil
 	} else {
-		panic("can't build tx for this tx type")
+		return nil, fmt.Errorf("unsupported transaction type: %d", txType)
 	}
 }

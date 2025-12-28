@@ -73,11 +73,17 @@ func (r *Response) UnmarshalJSON(data []byte) error {
 	r.Usage = aux.Usage
 	r.Warnings = aux.Warnings
 
-	// Unmarshal ResponseContent (need to know the type definition)
-	// If ResponseContent is []Content:
+	// Unmarshal ResponseContent - handle both array and single object
 	var rawContent []json.RawMessage
+
+	// First try to unmarshal as array
 	if err := json.Unmarshal(aux.Content, &rawContent); err != nil {
-		return err
+		// If that fails, try to unmarshal as single object and wrap in array
+		var singleContent json.RawMessage
+		if err := json.Unmarshal(aux.Content, &singleContent); err != nil {
+			return fmt.Errorf("failed to unmarshal content as array or single object: %w", err)
+		}
+		rawContent = []json.RawMessage{singleContent}
 	}
 
 	content := make([]Content, len(rawContent))

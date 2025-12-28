@@ -264,9 +264,14 @@ func (self *TxAnalyzer) AnalyzeFunctionCallRecursively(
 		destinations, valueStrs, dataStrs := GetTxDatasFromFunctionCallParams(fc.Params)
 		for i := 0; i < len(dataStrs); i++ {
 			data, _ := hexutil.Decode(dataStrs[i])
+			valueBig, err := StringToBig(valueStrs[i])
+			if err != nil {
+				// If we can't parse the value, use zero and continue
+				valueBig = big.NewInt(0)
+			}
 			nextFc := self.AnalyzeFunctionCallRecursively(
 				lookupABI,
-				StringToBig(valueStrs[i]),
+				valueBig,
 				destinations[i],
 				data,
 				customABIs,

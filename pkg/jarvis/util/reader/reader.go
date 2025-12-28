@@ -102,7 +102,11 @@ func (er *EthReader) EstimateGas(
 	priceGwei, value float64,
 	data []byte,
 ) (uint64, error) {
-	return er.EstimateExactGas(from, to, priceGwei, jarviscommon.FloatToBigInt(value, 18), data)
+	valueBig, err := jarviscommon.FloatToBigInt(value, 18)
+	if err != nil {
+		return 0, fmt.Errorf("failed to convert value to big int: %w", err)
+	}
+	return er.EstimateExactGas(from, to, priceGwei, valueBig, data)
 }
 
 type getCodeResponse struct {

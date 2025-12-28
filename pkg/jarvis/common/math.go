@@ -10,35 +10,43 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
-func HexToBig(hex string) *big.Int {
+func HexToBig(hex string) (*big.Int, error) {
 	result, err := hexutil.DecodeBig(hex)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to decode hex to big int: %w", err)
 	}
-	return result
+	return result, nil
 }
 
-func FloatToInt(amount float64) int64 {
+func FloatToInt(amount float64) (int64, error) {
 	s := fmt.Sprintf("%.0f", amount)
-	if i, err := strconv.Atoi(s); err == nil {
-		return int64(i)
-	} else {
-		panic(err)
+	i, err := strconv.Atoi(s)
+	if err != nil {
+		return 0, fmt.Errorf("failed to convert float %f to int: %w", amount, err)
 	}
+	return int64(i), nil
 }
 
 // FloatToBigInt converts a float to a big int with specific decimal
 // Example:
 // - FloatToBigInt(1, 4) = 10000
 // - FloatToBigInt(1.234, 4) = 12340
-func FloatToBigInt(amount float64, decimal uint64) *big.Int {
+func FloatToBigInt(amount float64, decimal uint64) (*big.Int, error) {
 	// 9 is our smallest precision, if amount is < 0.000000001 there will be
-  // precision loss, the return value will be less than amount * 10^decimal
+	// precision loss, the return value will be less than amount * 10^decimal
 	if decimal < 9 {
-		return big.NewInt(FloatToInt(amount * math.Pow10(int(decimal))))
+		intVal, err := FloatToInt(amount * math.Pow10(int(decimal)))
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert float to big int: %w", err)
+		}
+		return big.NewInt(intVal), nil
 	}
-	result := big.NewInt(FloatToInt(amount * math.Pow10(9)))
-	return result.Mul(result, big.NewInt(0).Exp(big.NewInt(10), big.NewInt(int64(decimal-9)), nil))
+	intVal, err := FloatToInt(amount * math.Pow10(9))
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert float to big int: %w", err)
+	}
+	result := big.NewInt(intVal)
+	return result.Mul(result, big.NewInt(0).Exp(big.NewInt(10), big.NewInt(int64(decimal-9)), nil)), nil
 }
 
 // BigToFloat converts a big int to float according to its number of decimal digits
@@ -56,29 +64,29 @@ func BigToFloat(b *big.Int, decimal uint64) float64 {
 	return result
 }
 
-func StringToBig(input string) *big.Int {
+func StringToBig(input string) (*big.Int, error) {
 	resultBig, ok := big.NewInt(0).SetString(input, 10)
 	if !ok {
-		return big.NewInt(0)
+		return nil, fmt.Errorf("failed to parse string '%s' to big int", input)
 	}
-	return resultBig
+	return resultBig, nil
 }
 
-func StringToFloat(input string, decimal uint64) float64 {
+func StringToFloat(input string, decimal uint64) (float64, error) {
 	resultBig, ok := big.NewInt(0).SetString(input, 10)
 	if !ok {
-		return 0.0
+		return 0.0, fmt.Errorf("failed to parse string '%s' to big int", input)
 	}
-	return BigToFloat(resultBig, decimal)
+	return BigToFloat(resultBig, decimal), nil
 }
 
 // GweiToWei converts Gwei as a float to Wei as a big int
-func GweiToWei(n float64) *big.Int {
+func GweiToWei(n float64) (*big.Int, error) {
 	return FloatToBigInt(n, 9)
 }
 
-// EthToWei converts Gwei as a float to Wei as a big int
-func EthToWei(n float64) *big.Int {
+// EthToWei converts Eth as a float to Wei as a big int
+func EthToWei(n float64) (*big.Int, error) {
 	return FloatToBigInt(n, 18)
 }
 

@@ -92,7 +92,10 @@ func (onr *OneNodeReader) EstimateGas(from, to string, priceGwei float64, value 
 		toAddr := common.HexToAddress(to)
 		toAddrPtr = &toAddr
 	}
-	price := jarviscommon.FloatToBigInt(priceGwei, 9)
+	price, err := jarviscommon.FloatToBigInt(priceGwei, 9)
+	if err != nil {
+		return 0, fmt.Errorf("failed to convert gas price: %w", err)
+	}
 	ethcli, err := onr.EthClient()
 	if err != nil {
 		return 0, err

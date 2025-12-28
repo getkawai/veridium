@@ -76,6 +76,12 @@ func (c *sma) BPS() float64 {
 
 	newest := (c.index + c.maxSamples - 1) % c.maxSamples
 	seconds := c.timestamps[newest].Sub(c.timestamps[oldest]).Seconds()
+
+	// Handle divide-by-zero and negative time differences
+	if seconds <= 0 {
+		return 0
+	}
+
 	bytes := float64(c.samples[newest] - c.samples[oldest])
 	return bytes / seconds
 }
