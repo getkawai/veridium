@@ -5,7 +5,7 @@ import type { NetworkInfo, TokenInfo } from '@@/github.com/kawai-network/veridiu
 import { ListWalletTransactions } from '@@/github.com/kawai-network/veridium/internal/database/generated/queries';
 import type { WalletTransaction } from '@@/github.com/kawai-network/veridium/internal/database/generated/models';
 import { useUserStore } from '@/store/user';
-import { ArrowDownToLine, Copy, Send, Eye, EyeOff, Repeat2, History, Home, ShoppingCart, Gift, Settings, Coins, ExternalLink, Globe, Plus, Check, Loader2, Fuel } from 'lucide-react';
+import { ArrowDownToLine, Copy, Send, Eye, EyeOff, Repeat2, History, Home, ShoppingCart, Gift, Settings, Coins, ExternalLink, Globe, Plus, Check, Loader2, Fuel, Trash2 } from 'lucide-react';
 import { ActionIcon, Icon } from '@lobehub/ui';
 import { Flexbox } from 'react-layout-kit';
 import { createStyles, useTheme } from 'antd-style';
@@ -370,6 +370,9 @@ const DesktopWalletLayout = memo(() => {
   // Custom tokens state
   const [customTokens, setCustomTokens] = useState<CustomToken[]>([]);
 
+  // Loading states
+  const [balancesLoading, setBalancesLoading] = useState(false);
+
   // Initialize default network and load custom tokens
   useEffect(() => {
     initializeNetwork();
@@ -424,12 +427,15 @@ const DesktopWalletLayout = memo(() => {
   useEffect(() => {
     // Only load data if address is available
     if (address && currentNetwork) {
-      loadBalance();
-      loadHistory();
-      loadNativeBalance(currentNetwork.id);
-      loadKawaiBalance(currentNetwork.id);
-      loadGasEstimate(currentNetwork.id);
-      loadCurrentBlock(currentNetwork.id);
+      setBalancesLoading(true);
+      Promise.all([
+        loadBalance(),
+        loadHistory(),
+        loadNativeBalance(currentNetwork.id),
+        loadKawaiBalance(currentNetwork.id),
+        loadGasEstimate(currentNetwork.id),
+        loadCurrentBlock(currentNetwork.id),
+      ]).finally(() => setBalancesLoading(false));
     }
   }, [address, isWalletLoaded, currentNetwork]);
 
@@ -541,6 +547,13 @@ const DesktopWalletLayout = memo(() => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRemoveToken = (tokenAddress: string) => {
+    const updatedTokens = customTokens.filter(t => t.address.toLowerCase() !== tokenAddress.toLowerCase());
+    setCustomTokens(updatedTokens);
+    saveCustomTokensToStorage(updatedTokens);
+    message.success('Token removed');
   };
 
   const loadBalance = async () => {
@@ -660,6 +673,8 @@ const DesktopWalletLayout = memo(() => {
           gasEstimate={gasEstimate}
           currentBlock={currentBlock}
           customTokens={customTokens}
+          balancesLoading={balancesLoading}
+          onRemoveToken={handleRemoveToken}
         />;
       case 'otc':
         return <OTCContent styles={styles} theme={theme} />;
@@ -784,7 +799,7 @@ const DesktopWalletLayout = memo(() => {
 });
 
 // ============ HOME CONTENT ============
-const HomeContent = ({ address, balance, nativeBalance, kawaiBalance, balanceVisible, setBalanceVisible, setModalType, transactions, styles, theme, currentNetwork, gasEstimate, currentBlock, customTokens }: any) => {
+const HomeContent = ({ address, balance, nativeBalance, kawaiBalance, balanceVisible, setBalanceVisible, setModalType, transactions, styles, theme, currentNetwork, gasEstimate, currentBlock, customTokens, balancesLoading, onRemoveToken }: any) => {
   return (
     <Flexbox style={{ maxWidth: 900, width: '100%' }} gap={20}>
       {/* Balance Card */}
@@ -796,8 +811,14 @@ const HomeContent = ({ address, balance, nativeBalance, kawaiBalance, balanceVis
           <Flexbox style={{ flexDirection: 'column' }} gap={4}>
             <span style={{ fontSize: 11, color: theme.colorTextSecondary, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Balance</span>
             <div className={styles.statValue}>
-              {balanceVisible ? `$${balance}` : '••••••'}
-              <span style={{ fontSize: 16, color: theme.colorTextTertiary, marginLeft: 6, fontWeight: 500 }}>USDT</span>
+              {balancesLoading ? (
+                <Spin size="small" />
+              ) : (
+                <>
+                  {balanceVisible ? `$${balance}` : '••••••'}
+                  <span style={{ fontSize: 16, color: theme.colorTextTertiary, marginLeft: 6, fontWeight: 500 }}>USDT</span>
+                </>
+              )}
             </div>
             {/* Native token balance */}
             {currentNetwork && (
@@ -992,6 +1013,16 @@ const HomeContent = ({ address, balance, nativeBalance, kawaiBalance, balanceVis
                 <div style={{ textAlign: 'right', minWidth: 70 }}>
                   <div style={{ fontWeight: 700, fontSize: 14, color: '#fff' }}>{balanceVisible ? token.balance : '••••'}</div>
                 </div>
+                <ActionIcon
+                  icon={Trash2}
+                  size="small"
+                  onClick={(e: React.MouseEvent) => {
+                    e.stopPropagation();
+                    onRemoveToken(token.address);
+                  }}
+                  title="Remove Token"
+                  style={{ opacity: 0.6 }}
+                />
               </Flexbox>
             </div>
           ))}
