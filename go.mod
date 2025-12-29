@@ -16,7 +16,7 @@ require (
 	github.com/duckdb/duckdb-go/v2 v2.5.3
 	github.com/ebitengine/purego v0.9.1
 	github.com/ethereum/go-ethereum v1.16.7
-	github.com/getsentry/sentry-go v0.27.0
+	github.com/getsentry/sentry-go v0.40.0
 	github.com/gin-gonic/gin v1.11.0
 	github.com/go-viper/mapstructure/v2 v2.4.0
 	github.com/google/uuid v1.6.0

@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"math/big"
 	"time"
 
@@ -59,7 +59,7 @@ func (s *KVStore) SaveContributor(ctx context.Context, data *ContributorData) er
 		return fmt.Errorf("failed to write to KV: %w", err)
 	}
 
-	log.Printf("[Store] Saved contributor: %s", data.WalletAddress)
+	slog.Info("Saved contributor", "address", data.WalletAddress)
 	return nil
 }
 
@@ -97,7 +97,7 @@ func (s *KVStore) ListContributors(ctx context.Context) ([]*ContributorData, err
 	for _, key := range resp.Result {
 		data, err := s.GetContributor(ctx, key.Name)
 		if err != nil {
-			log.Printf("[Warning] Failed to get contributor data for %s: %v", key.Name, err)
+			slog.Warn("Failed to get contributor data", "key", key.Name, "error", err)
 			continue
 		}
 		contributors = append(contributors, data)
@@ -150,11 +150,11 @@ func (s *KVStore) ResetAccumulatedRewards(ctx context.Context, address string, r
 	case "kawai":
 		oldBalance := contributor.AccumulatedRewards
 		contributor.AccumulatedRewards = "0"
-		log.Printf("[Store] Reset KAWAI rewards for %s: %s -> 0", address, oldBalance)
+		slog.Info("Reset KAWAI rewards", "address", address, "old_balance", oldBalance)
 	case "usdt":
 		oldBalance := contributor.AccumulatedUSDT
 		contributor.AccumulatedUSDT = "0"
-		log.Printf("[Store] Reset USDT rewards for %s: %s -> 0", address, oldBalance)
+		slog.Info("Reset USDT rewards", "address", address, "old_balance", oldBalance)
 	default:
 		return fmt.Errorf("invalid reward type: %s (must be 'kawai' or 'usdt')", rewardType)
 	}
@@ -177,7 +177,7 @@ func (s *KVStore) SoftDeleteContributor(ctx context.Context, address string) err
 		return fmt.Errorf("failed to soft delete contributor: %w", err)
 	}
 
-	log.Printf("[Store] Soft deleted contributor: %s", address)
+	slog.Info("Soft deleted contributor", "address", address)
 	return nil
 }
 
@@ -196,7 +196,7 @@ func (s *KVStore) RestoreContributor(ctx context.Context, address string) error 
 		return fmt.Errorf("failed to restore contributor: %w", err)
 	}
 
-	log.Printf("[Store] Restored contributor: %s", address)
+	slog.Info("Restored contributor", "address", address)
 	return nil
 }
 
@@ -258,7 +258,7 @@ func (s *KVStore) RegisterContributor(ctx context.Context, address, endpointURL,
 			if err := s.SaveContributor(ctx, existing); err != nil {
 				return nil, fmt.Errorf("failed to restore contributor: %w", err)
 			}
-			log.Printf("[Store] Restored and updated contributor: %s", address)
+			slog.Info("Restored and updated contributor", "address", address)
 			return existing, nil
 		}
 
@@ -283,7 +283,7 @@ func (s *KVStore) RegisterContributor(ctx context.Context, address, endpointURL,
 		return nil, fmt.Errorf("failed to register contributor: %w", err)
 	}
 
-	log.Printf("[Store] Registered new contributor: %s", address)
+	slog.Info("Registered new contributor", "address", address)
 	return contributor, nil
 }
 
@@ -341,7 +341,7 @@ func (s *KVStore) RecordJobReward(ctx context.Context, contributorAddress string
 		adminShare = new(big.Int).Sub(rewardAmount, contributorShare)
 		balanceField = "kawai"
 
-		log.Printf("[Phase 1 Mining] Job: %d Tokens -> %s KAWAI. Contributor: %s | Admin: %s", tokenUsage, rewardAmount.String(), contributorShare.String(), adminShare.String())
+		slog.Info("Mining reward distributed", "tokens", tokenUsage, "kawai_amount", rewardAmount.String(), "contributor_share", contributorShare.String(), "admin_share", adminShare.String())
 	} else {
 		// Phase 2: USDT Payment
 		usdtRate := config.GetCostRatePerMillion()
@@ -355,7 +355,7 @@ func (s *KVStore) RecordJobReward(ctx context.Context, contributorAddress string
 		adminShare = new(big.Int).Sub(rewardAmount, contributorShare)
 		balanceField = "usdt"
 
-		log.Printf("[Phase 2 USDT] Job: %d Tokens -> %s USDT (micro). Contributor: %s | Admin: %s", tokenUsage, rewardAmount.String(), contributorShare.String(), adminShare.String())
+		slog.Info("USDT reward distributed", "tokens", tokenUsage, "usdt_amount", rewardAmount.String(), "contributor_share", contributorShare.String(), "admin_share", adminShare.String())
 		_ = usdtDecimals // silence unused var warning
 	}
 

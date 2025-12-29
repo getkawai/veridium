@@ -20,7 +20,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -148,13 +148,13 @@ func (s *ThreadManagementService) CreateThread(ctx context.Context, req CreateTh
 	})
 
 	if err != nil {
-		log.Printf("❌ Failed to create thread: %v", err)
+		slog.Error("Failed to create thread", "error", err)
 		return &CreateThreadResponse{
 			Error: fmt.Sprintf("Failed to create thread: %v", err),
 		}, err
 	}
 
-	log.Printf("🔀 Created thread: %s (type: %s, from message: %s)", threadID, req.Type, req.SourceMessageID)
+	slog.Info("Created thread", "thread_id", threadID, "type", req.Type, "from_message", req.SourceMessageID)
 
 	return &CreateThreadResponse{
 		ThreadID:  thread.ID,
@@ -254,7 +254,7 @@ func (s *ThreadManagementService) UpdateThreadStatus(ctx context.Context, thread
 		return fmt.Errorf("failed to update thread status: %w", err)
 	}
 
-	log.Printf("🔄 Updated thread %s status to: %s", threadID, status)
+	slog.Info("Updated thread status", "thread_id", threadID, "status", status)
 
 	return nil
 }
@@ -301,7 +301,7 @@ func (s *ThreadManagementService) DeleteThread(ctx context.Context, threadID str
 		return fmt.Errorf("failed to delete thread: %w", err)
 	}
 
-	log.Printf("🗑️  Deleted thread: %s", threadID)
+	slog.Info("Deleted thread", "thread_id", threadID)
 
 	return nil
 }

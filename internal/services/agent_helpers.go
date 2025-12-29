@@ -21,12 +21,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/kawai-network/veridium/pkg/fantasy"
 	db "github.com/kawai-network/veridium/internal/database/generated"
+	"github.com/kawai-network/veridium/pkg/fantasy"
 	"github.com/kawai-network/veridium/types"
 )
 
@@ -160,7 +160,7 @@ type RAGChunkParams struct {
 //
 // Note: Model validation is NOT included here - caller should handle it if needed.
 func (s *AgentChatService) setupSessionAndTopic(ctx context.Context, req ChatRequest) (*SessionSetupResult, error) {
-	log.Printf("🔧 SetupSessionAndTopic: session=%s, topic=%s, thread=%s", req.SessionID, req.TopicID, req.ThreadID)
+	slog.Info("SetupSessionAndTopic", "session", req.SessionID, "topic", req.TopicID, "thread", req.ThreadID)
 
 	// 1. Get or create session
 	session, err := s.getOrCreateSession(ctx, req, req.TopicID)
@@ -183,8 +183,7 @@ func (s *AgentChatService) setupSessionAndTopic(ctx context.Context, req ChatReq
 				session.Context = make(map[string]any)
 			}
 			session.Context["history_summary"] = topic.HistorySummary.String
-			log.Printf("📋 Loaded history summary for topic %s (%d chars)",
-				req.TopicID, len(topic.HistorySummary.String))
+			slog.Info("Loaded history summary", "topic", req.TopicID, "length", len(topic.HistorySummary.String))
 		}
 	}
 
@@ -192,7 +191,7 @@ func (s *AgentChatService) setupSessionAndTopic(ctx context.Context, req ChatReq
 	if req.ThreadID != "" && s.threadService != nil {
 		threadMessages, err := s.threadService.GetThreadMessages(ctx, req.ThreadID)
 		if err != nil {
-			log.Printf("⚠️  Warning: Failed to load thread messages: %v", err)
+			slog.Warn("Failed to load thread messages", "error", err)
 		} else {
 			// Convert thread messages to message format
 			yzmaMessages := make([]fantasy.Message, 0, len(threadMessages))
@@ -203,7 +202,7 @@ func (s *AgentChatService) setupSessionAndTopic(ctx context.Context, req ChatReq
 			}
 			session.Messages = yzmaMessages
 			session.ThreadID = req.ThreadID
-			log.Printf("📋 Loaded %d messages from thread %s", len(yzmaMessages), req.ThreadID)
+			slog.Info("Loaded thread messages", "count", len(yzmaMessages), "thread", req.ThreadID)
 		}
 	}
 
@@ -216,11 +215,11 @@ func (s *AgentChatService) setupSessionAndTopic(ctx context.Context, req ChatReq
 	if result.TopicID == "" {
 		topicID, err := s.createTopicForSessionSync(ctx, session.SessionID)
 		if err != nil {
-			log.Printf("⚠️  Warning: Failed to create topic: %v", err)
+			slog.Warn("Failed to create topic", "error", err)
 		} else {
 			result.TopicID = topicID
 			session.TopicID = topicID
-			log.Printf("📝 Auto-created topic: %s", topicID)
+			slog.Info("Auto-created topic", "topic_id", topicID)
 		}
 	}
 
@@ -236,10 +235,10 @@ func (s *AgentChatService) setupSessionAndTopic(ctx context.Context, req ChatReq
 		ThreadID:  req.ThreadID,
 	})
 	if err != nil {
-		log.Printf("⚠️  Warning: Failed to save user message to DB: %v", err)
+		slog.Warn("Failed to save user message to DB", "error", err)
 	} else {
 		result.UserMessageID = userMsgID
-		log.Printf("💾 Saved user message: %s (topic: %s, thread: %s)", userMsgID, result.TopicID, req.ThreadID)
+		slog.Info("Saved user message", "msg_id", userMsgID, "topic", result.TopicID, "thread", req.ThreadID)
 	}
 
 	return result, nil
@@ -278,7 +277,7 @@ func (s *AgentChatService) saveUserMessage(ctx context.Context, params SaveUserM
 		return "", fmt.Errorf("failed to save user message: %w", err)
 	}
 
-	log.Printf("💾 Saved user message: %s", msgID)
+	slog.Info("Saved user message", "msg_id", msgID)
 	return msgID, nil
 }
 
@@ -342,7 +341,7 @@ func (s *AgentChatService) saveAssistantMessage(ctx context.Context, params Save
 		return "", fmt.Errorf("failed to save assistant message: %w", err)
 	}
 
-	log.Printf("💾 Saved assistant message: %s", msgID)
+	slog.Info("Saved assistant message", "msg_id", msgID)
 	return msgID, nil
 }
 
@@ -406,7 +405,7 @@ func (s *AgentChatService) saveToolMessage(ctx context.Context, params SaveToolM
 		return "", fmt.Errorf("failed to save tool plugin %s: %w", params.ToolCallID, err)
 	}
 
-	log.Printf("💾 Saved tool message: %s (%s.%s)", params.ToolCallID, params.Identifier, params.APIName)
+	slog.Info("Saved tool message", "tool_call_id", params.ToolCallID, "identifier", params.Identifier, "api", params.APIName)
 	return msgID, nil
 }
 
@@ -418,7 +417,7 @@ func (s *AgentChatService) saveRAGData(ctx context.Context, params SaveRAGDataPa
 		// UserID removed from file params
 		createdFile, err := s.db.Queries().CreateFile(ctx, file)
 		if err != nil {
-			log.Printf("⚠️  Failed to create file: %v", err)
+			slog.Warn("Failed to create file", "error", err)
 			continue
 		}
 		fileIDs[i] = createdFile.ID
@@ -434,7 +433,7 @@ func (s *AgentChatService) saveRAGData(ctx context.Context, params SaveRAGDataPa
 		}
 		_, err := s.db.Queries().CreateChunk(ctx, chunkParams)
 		if err != nil {
-			log.Printf("⚠️  Failed to create chunk %s: %v", chunk.ID, err)
+			slog.Warn("Failed to create chunk", "chunk_id", chunk.ID, "error", err)
 			continue
 		}
 
@@ -446,7 +445,7 @@ func (s *AgentChatService) saveRAGData(ctx context.Context, params SaveRAGDataPa
 				ChunkID: sql.NullString{String: chunk.ID, Valid: true},
 			})
 			if err != nil {
-				log.Printf("⚠️  Failed to link file to chunk %s: %v", chunk.ID, err)
+				slog.Warn("Failed to link file to chunk", "chunk_id", chunk.ID, "error", err)
 			}
 		}
 	}
@@ -462,7 +461,7 @@ func (s *AgentChatService) saveRAGData(ctx context.Context, params SaveRAGDataPa
 		}
 		_, err := s.db.Queries().CreateMessageQuery(ctx, queryParams)
 		if err != nil {
-			log.Printf("⚠️  Failed to create message query: %v", err)
+			slog.Warn("Failed to create message query", "error", err)
 		} else {
 			// Link chunks to message query
 			for _, chunk := range params.Chunks {
@@ -473,13 +472,13 @@ func (s *AgentChatService) saveRAGData(ctx context.Context, params SaveRAGDataPa
 					Similarity: sql.NullInt64{Int64: chunk.Similarity, Valid: true},
 				})
 				if err != nil {
-					log.Printf("⚠️  Failed to link query to chunk %s: %v", chunk.ID, err)
+					slog.Warn("Failed to link query to chunk", "chunk_id", chunk.ID, "error", err)
 				}
 			}
 		}
 	}
 
-	log.Printf("💾 Saved RAG data: %d files, %d chunks", len(params.Files), len(params.Chunks))
+	slog.Info("Saved RAG data", "files", len(params.Files), "chunks", len(params.Chunks))
 	return nil
 }
 
@@ -511,11 +510,11 @@ func (s *AgentChatService) linkMessageToChunks(ctx context.Context, messageID, u
 			Similarity: sql.NullInt64{Int64: chunk.Similarity, Valid: true},
 		})
 		if err != nil {
-			log.Printf("⚠️  Failed to link message to chunk %s: %v", chunk.ID, err)
+			slog.Warn("Failed to link message to chunk", "chunk_id", chunk.ID, "error", err)
 		}
 	}
 
-	log.Printf("💾 Linked message %s to %d chunks", messageID, len(chunks))
+	slog.Info("Linked message to chunks", "msg_id", messageID, "count", len(chunks))
 	return nil
 }
 

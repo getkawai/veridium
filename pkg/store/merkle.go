@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/cloudflare/cloudflare-go"
@@ -72,7 +72,7 @@ type SettlementPeriod struct {
 
 // SaveMerkleProof stores proof for a specific settlement period (DEPRECATED)
 func (s *KVStore) SaveMerkleProof(ctx context.Context, address string, data *MerkleProofData) error {
-	log.Printf("[Warning] SaveMerkleProof is deprecated, use SaveMerkleProofForPeriod instead")
+	slog.Warn("SaveMerkleProof is deprecated, use SaveMerkleProofForPeriod instead")
 	if data.PeriodID == 0 {
 		data.PeriodID = time.Now().Unix()
 	}
@@ -81,7 +81,7 @@ func (s *KVStore) SaveMerkleProof(ctx context.Context, address string, data *Mer
 
 // GetMerkleProof retrieves the latest proof for an address (DEPRECATED)
 func (s *KVStore) GetMerkleProof(ctx context.Context, address string) (*MerkleProofData, error) {
-	log.Printf("[Warning] GetMerkleProof is deprecated, use GetMerkleProofForPeriod or ListMerkleProofs instead")
+	slog.Warn("GetMerkleProof is deprecated, use GetMerkleProofForPeriod or ListMerkleProofs instead")
 
 	proofs, err := s.ListMerkleProofs(ctx, address)
 	if err != nil {
@@ -121,7 +121,7 @@ func (s *KVStore) SaveMerkleProofForPeriod(ctx context.Context, address string, 
 		return fmt.Errorf("failed to write proof to KV: %w", err)
 	}
 
-	log.Printf("[Store] Saved Merkle proof for %s, period %d, amount %s", address, periodID, data.Amount)
+	slog.Info("Saved Merkle proof", "address", address, "period", periodID, "amount", data.Amount)
 	return nil
 }
 
@@ -166,13 +166,13 @@ func (s *KVStore) ListMerkleProofs(ctx context.Context, address string) ([]*Merk
 			Key:         key.Name,
 		})
 		if err != nil {
-			log.Printf("[Warning] Failed to get proof for key %s: %v", key.Name, err)
+			slog.Warn("Failed to get proof for key", "key", key.Name, "error", err)
 			continue
 		}
 
 		var data MerkleProofData
 		if err := json.Unmarshal(value, &data); err != nil {
-			log.Printf("[Warning] Failed to unmarshal proof for key %s: %v", key.Name, err)
+			slog.Warn("Failed to unmarshal proof for key", "key", key.Name, "error", err)
 			continue
 		}
 
@@ -204,7 +204,7 @@ func (s *KVStore) DeleteMerkleProof(ctx context.Context, address string, periodI
 		return fmt.Errorf("failed to delete proof from KV: %w", err)
 	}
 
-	log.Printf("[Store] Deleted Merkle proof for %s, period %d", address, periodID)
+	slog.Info("Deleted Merkle proof", "address", address, "period", periodID)
 	return nil
 }
 
@@ -235,14 +235,14 @@ func (s *KVStore) CleanupOldProofs(ctx context.Context, olderThan time.Duration)
 				Key:         key.Name,
 			})
 			if err != nil {
-				log.Printf("[Warning] Failed to delete old proof %s: %v", key.Name, err)
+				slog.Warn("Failed to delete old proof", "key", key.Name, "error", err)
 				continue
 			}
 			deletedCount++
 		}
 	}
 
-	log.Printf("[Store] Cleaned up %d old proofs (older than %v)", deletedCount, olderThan)
+	slog.Info("Cleaned up old proofs", "count", deletedCount, "older_than", olderThan)
 	return deletedCount, nil
 }
 
@@ -271,7 +271,7 @@ func (s *KVStore) SaveSettlementPeriod(ctx context.Context, period *SettlementPe
 		return fmt.Errorf("failed to write settlement period to KV: %w", err)
 	}
 
-	log.Printf("[Store] Saved settlement period %d, root %s, total %s", period.PeriodID, period.MerkleRoot, period.TotalAmount)
+	slog.Info("Saved settlement period", "period", period.PeriodID, "root", period.MerkleRoot, "total", period.TotalAmount)
 	return nil
 }
 
@@ -313,13 +313,13 @@ func (s *KVStore) ListSettlementPeriods(ctx context.Context) ([]*SettlementPerio
 			Key:         key.Name,
 		})
 		if err != nil {
-			log.Printf("[Warning] Failed to get settlement for key %s: %v", key.Name, err)
+			slog.Warn("Failed to get settlement for key", "key", key.Name, "error", err)
 			continue
 		}
 
 		var period SettlementPeriod
 		if err := json.Unmarshal(value, &period); err != nil {
-			log.Printf("[Warning] Failed to unmarshal settlement for key %s: %v", key.Name, err)
+			slog.Warn("Failed to unmarshal settlement for key", "key", key.Name, "error", err)
 			continue
 		}
 

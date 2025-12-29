@@ -5,7 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"math/big"
 	"sort"
 	"strings"
@@ -84,7 +84,7 @@ func (s *KVStore) GetSettlementSnapshots(ctx context.Context, rewardType string)
 		return strings.ToLower(snapshots[i].Address) < strings.ToLower(snapshots[j].Address)
 	})
 
-	log.Printf("[Settlement] Generated %d snapshots for %s rewards (sorted)", len(snapshots), rewardType)
+	slog.Info("Generated snapshots for settlement", "count", len(snapshots), "type", rewardType, "sorted", true)
 	return snapshots, nil
 }
 
@@ -95,7 +95,7 @@ func (s *KVStore) PerformSettlement(ctx context.Context, periodID int64, merkleR
 
 // PerformSettlementWithConfig executes settlement with custom configuration
 func (s *KVStore) PerformSettlementWithConfig(ctx context.Context, periodID int64, merkleRoot string, rewardType string, proofs map[string]*MerkleProofData, config *SettlementConfig) (*SettlementPeriod, error) {
-	log.Printf("[Settlement] Starting settlement for period %d, type: %s, contributors: %d", periodID, rewardType, len(proofs))
+	slog.Info("Starting settlement", "period", periodID, "type", rewardType, "contributors", len(proofs))
 
 	// Check if period already exists (prevent collision)
 	existing, err := s.GetSettlementPeriod(ctx, periodID)
@@ -142,7 +142,7 @@ func (s *KVStore) PerformSettlementWithConfig(ctx context.Context, periodID int6
 	savedProofs := make([]string, 0)
 
 	// Step 1: Save all proofs first (before resetting any balances)
-	log.Printf("[Settlement] Saving %d proofs in batches of %d", len(proofs), config.BatchSize)
+	slog.Info("Saving proofs in batches", "total_proofs", len(proofs), "batch_size", config.BatchSize)
 
 	addresses := make([]string, 0, len(proofs))
 	for addr := range proofs {
@@ -182,11 +182,11 @@ func (s *KVStore) PerformSettlementWithConfig(ctx context.Context, periodID int6
 			}
 
 			if lastErr != nil {
-				log.Printf("[Settlement] Failed to save proof for %s after %d retries: %v", addr, config.MaxRetries, lastErr)
+				slog.Warn("Failed to save proof", "address", addr, "retries", config.MaxRetries, "error", lastErr)
 
 				// Rollback if enabled
 				if config.EnableRollback {
-					log.Printf("[Settlement] Rolling back %d saved proofs", len(savedProofs))
+					slog.Warn("Rolling back saved proofs", "count", len(savedProofs))
 					for _, savedAddr := range savedProofs {
 						s.DeleteMerkleProof(ctx, savedAddr, periodID)
 					}
@@ -209,10 +209,10 @@ func (s *KVStore) PerformSettlementWithConfig(ctx context.Context, periodID int6
 	period.Status = SettlementStatusProofsSaved
 	s.SaveSettlementPeriod(ctx, period)
 
-	log.Printf("[Settlement] Saved %d proofs successfully", len(savedProofs))
+	slog.Info("Saved proofs successfully", "count", len(savedProofs))
 
 	// Step 2: Reset all balances (only after ALL proofs are saved)
-	log.Printf("[Settlement] Resetting %d balances", len(snapshots))
+	slog.Info("Resetting balances", "count", len(snapshots))
 
 	resetCount := 0
 	for i := 0; i < len(snapshots); i += config.BatchSize {
@@ -237,7 +237,7 @@ func (s *KVStore) PerformSettlementWithConfig(ctx context.Context, periodID int6
 			}
 
 			if lastErr != nil {
-				log.Printf("[Warning] Failed to reset balance for %s: %v (proof already saved, manual reset needed)", snapshot.Address, lastErr)
+				slog.Warn("Failed to reset balance (manual reset needed)", "address", snapshot.Address, "error", lastErr)
 			}
 		}
 
@@ -250,7 +250,7 @@ func (s *KVStore) PerformSettlementWithConfig(ctx context.Context, periodID int6
 	period.Status = SettlementStatusBalancesReset
 	s.SaveSettlementPeriod(ctx, period)
 
-	log.Printf("[Settlement] Reset %d balances", resetCount)
+	slog.Info("Reset balances", "count", resetCount)
 
 	// Step 3: Mark as completed
 	period.Status = SettlementStatusCompleted
@@ -260,8 +260,7 @@ func (s *KVStore) PerformSettlementWithConfig(ctx context.Context, periodID int6
 		return nil, fmt.Errorf("failed to save final settlement status: %w", err)
 	}
 
-	log.Printf("[Settlement] Completed settlement for period %d: %d proofs, %d resets, total %s",
-		periodID, period.ProofsSaved, period.BalancesReset, period.TotalAmount)
+	slog.Info("Completed settlement", "period", periodID, "proofs", period.ProofsSaved, "resets", period.BalancesReset, "total", period.TotalAmount)
 
 	return period, nil
 }
@@ -273,7 +272,7 @@ func (s *KVStore) ResumeSettlement(ctx context.Context, periodID int64, proofs m
 		return nil, fmt.Errorf("failed to get settlement period: %w", err)
 	}
 
-	log.Printf("[Settlement] Resuming settlement %d from status: %s", periodID, period.Status)
+	slog.Info("Resuming settlement", "period", periodID, "status", period.Status)
 
 	switch period.Status {
 	case SettlementStatusCompleted:
@@ -293,7 +292,7 @@ func (s *KVStore) ResumeSettlement(ctx context.Context, periodID int64, proofs m
 		resetCount := 0
 		for _, snapshot := range snapshots {
 			if err := s.ResetAccumulatedRewards(ctx, snapshot.Address, period.RewardType); err != nil {
-				log.Printf("[Warning] Failed to reset balance for %s: %v", snapshot.Address, err)
+				slog.Warn("Failed to reset balance", "address", snapshot.Address, "error", err)
 				continue
 			}
 			resetCount++
@@ -318,7 +317,7 @@ func (s *KVStore) ResumeSettlement(ctx context.Context, periodID int64, proofs m
 
 // PerformSettlementParallel executes settlement with parallel processing
 func (s *KVStore) PerformSettlementParallel(ctx context.Context, periodID int64, merkleRoot string, rewardType string, proofs map[string]*MerkleProofData, workers int) (*SettlementPeriod, error) {
-	log.Printf("[Settlement] Starting parallel settlement with %d workers", workers)
+	slog.Info("Starting parallel settlement", "workers", workers)
 
 	if workers <= 0 {
 		workers = 5
@@ -417,7 +416,7 @@ func (s *KVStore) PerformSettlementParallel(ctx context.Context, periodID int64,
 	}
 
 	if len(errors) > 0 {
-		log.Printf("[Settlement] %d errors during parallel proof saving", len(errors))
+		slog.Error("Errors during parallel proof saving", "count", len(errors))
 		// Rollback
 		for _, addr := range savedProofs {
 			s.DeleteMerkleProof(ctx, addr, periodID)
@@ -436,7 +435,7 @@ func (s *KVStore) PerformSettlementParallel(ctx context.Context, periodID int64,
 	resetCount := 0
 	for _, snapshot := range snapshots {
 		if err := s.ResetAccumulatedRewards(ctx, snapshot.Address, rewardType); err != nil {
-			log.Printf("[Warning] Failed to reset balance for %s: %v", snapshot.Address, err)
+			slog.Warn("Failed to reset balance", "address", snapshot.Address, "error", err)
 			continue
 		}
 		resetCount++
@@ -518,7 +517,7 @@ func (s *KVStore) MarkClaimPending(ctx context.Context, address string, periodID
 		return fmt.Errorf("failed to update proof: %w", err)
 	}
 
-	log.Printf("[Claim] Marked proof as pending for %s, period %d, tx %s", address, periodID, txHash)
+	slog.Info("Marked proof as pending", "address", address, "period", periodID, "tx", txHash)
 	return nil
 }
 
@@ -536,7 +535,7 @@ func (s *KVStore) ConfirmClaim(ctx context.Context, address string, periodID int
 		return fmt.Errorf("failed to update proof: %w", err)
 	}
 
-	log.Printf("[Claim] Confirmed claim for %s, period %d", address, periodID)
+	slog.Info("Confirmed claim", "address", address, "period", periodID)
 	return nil
 }
 
@@ -554,7 +553,7 @@ func (s *KVStore) MarkClaimFailed(ctx context.Context, address string, periodID 
 		return fmt.Errorf("failed to update proof: %w", err)
 	}
 
-	log.Printf("[Claim] Marked claim as failed for %s, period %d: %s", address, periodID, reason)
+	slog.Warn("Marked claim as failed", "address", address, "period", periodID, "reason", reason)
 	return nil
 }
 
@@ -576,7 +575,7 @@ func (s *KVStore) RetryFailedClaim(ctx context.Context, address string, periodID
 		return fmt.Errorf("failed to update proof: %w", err)
 	}
 
-	log.Printf("[Claim] Reset failed claim for retry: %s, period %d", address, periodID)
+	slog.Info("Reset failed claim for retry", "address", address, "period", periodID)
 	return nil
 }
 
@@ -640,6 +639,6 @@ func (s *KVStore) EnsureAdminExists(ctx context.Context, adminAddress string) er
 		return fmt.Errorf("failed to register admin: %w", err)
 	}
 
-	log.Printf("[Store] Auto-registered admin account: %s", adminAddress)
+	slog.Info("Auto-registered admin account", "address", adminAddress)
 	return nil
 }

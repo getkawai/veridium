@@ -4,6 +4,8 @@ package main
 import (
 	"embed"
 	"log"
+	"log/slog"
+	"os"
 
 	"github.com/getsentry/sentry-go"
 	"github.com/kawai-network/veridium/internal/app"
@@ -65,8 +67,9 @@ func main() {
 	createMainWindow(wailsApp, ctx, fileProcessor)
 
 	if err := wailsApp.Run(); err != nil {
-		sentry.CaptureException(err)
-		log.Fatal(err)
+		// Use slog.Error which will be captured by SentryHandler
+		slog.Error("Application crashed", "error", err)
+		os.Exit(1)
 	}
 }
 

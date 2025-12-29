@@ -6,9 +6,12 @@ package app
 import (
 	"context"
 	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
+	"time"
 
+	"github.com/getsentry/sentry-go"
 	"github.com/kawai-network/veridium/internal/audio_recorder"
 	"github.com/kawai-network/veridium/internal/database"
 	db "github.com/kawai-network/veridium/internal/database/generated"
@@ -27,6 +30,7 @@ import (
 	"github.com/kawai-network/veridium/pkg/fantasy/providers/openrouter"
 	"github.com/kawai-network/veridium/pkg/fantasy/tools"
 	yzmabuiltin "github.com/kawai-network/veridium/pkg/fantasy/tools/builtin"
+	"github.com/kawai-network/veridium/pkg/logger"
 	"github.com/kawai-network/veridium/pkg/store"
 )
 
@@ -139,6 +143,47 @@ func (ctx *Context) InitBasicServices() {
 	} else {
 		log.Printf("Tool Registry initialized with builtin tools")
 	}
+}
+
+func (ctx *Context) InitSentry() {
+	if DevMode {
+		log.Printf("Development mode: Sentry initialized (errors will be reported)")
+	}
+
+	err := sentry.Init(sentry.ClientOptions{
+		Dsn:              "https://b66f862d7567c075a44c697757bb8130@o4510618985758720.ingest.us.sentry.io/4510618990804992",
+		EnableTracing:    true,
+		TracesSampleRate: 1.0,
+		EnableLogs:       true, // Enable Logger API as requested
+		BeforeSendLog: func(log *sentry.Log) *sentry.Log {
+			// filter all logs below warning
+			if log.Severity <= sentry.LogSeverityWarning {
+				return nil
+			}
+			return log
+		},
+	})
+	if err != nil {
+		log.Printf("Sentry initialization failed: %v\n", err)
+		return
+	}
+
+	// Flush buffered events before the program terminates.
+	// Set the timeout to the maximum duration the program can afford to wait.
+	ctx.AddCleanup(func() {
+		sentry.Flush(2 * time.Second)
+	})
+
+	// properties of the logger
+	handler := slog.NewTextHandler(os.Stderr, nil)
+	// wrap the handler with SentryHandler
+	sentryHandler := logger.NewSentryHandler(handler)
+	// create a new logger with the SentryHandler
+	logger := slog.New(sentryHandler)
+	// set the default logger to the new logger
+	slog.SetDefault(logger)
+
+	log.Printf("Sentry initialized with EnableLogs: true (using slog handler)")
 }
 
 func (ctx *Context) InitLlamaService() {
@@ -458,6 +503,8 @@ func (ctx *Context) InitMemoryServices() {
 
 // InitAll initializes all services in the correct order
 func (ctx *Context) InitAll() error {
+	ctx.InitSentry() // Initialize Sentry first to capture any startup errors
+
 	if err := ctx.InitDatabase(); err != nil {
 		return err
 	}
