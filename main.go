@@ -77,6 +77,7 @@ func createWailsApp(ctx *app.Context, fileProcessor *FileProcessorService, sdSer
 	return application.New(application.Options{
 		Name:        "veridium",
 		Description: "Veridium AI Assistant",
+		Logger:      slog.Default(),
 		Services:    buildServiceList(ctx, fileProcessor, sdService),
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
