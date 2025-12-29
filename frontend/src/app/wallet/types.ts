@@ -1,0 +1,51 @@
+import type { NetworkInfo } from '@@/github.com/kawai-network/veridium/internal/services/models';
+import type { WalletTransaction } from '@@/github.com/kawai-network/veridium/internal/database/generated/models';
+
+export type MenuKey = 'home' | 'otc' | 'rewards' | 'settings';
+
+export interface ContentStyles {
+  container: string;
+  content: string;
+  balanceCard: string;
+  actionButton: string;
+  actionCircle: string;
+  eyeButton: string;
+  statValue: string;
+  tokenRow: string;
+  placeholderCard: string;
+}
+
+export interface HomeContentProps {
+  address: string;
+  balance: string;
+  nativeBalance: string;
+  kawaiBalance: string;
+  balanceVisible: boolean;
+  setBalanceVisible: (visible: boolean) => void;
+  setModalType: (type: 'send' | 'receive' | 'swap' | 'deposit' | 'addAccount' | 'createWallet' | 'importWallet' | 'addToken' | null) => void;
+  transactions: WalletTransaction[];
+  styles: ContentStyles;
+  theme: any;
+  currentNetwork: NetworkInfo | null;
+  gasEstimate: { maxGasPriceGwei: number; maxTipGwei: number } | null;
+  currentBlock: number;
+  balancesLoading: boolean;
+}
+
+export interface OTCContentProps {
+  styles: ContentStyles;
+  theme: any;
+}
+
+export interface RewardsContentProps {
+  styles: ContentStyles;
+  theme: any;
+}
+
+export interface SettingsContentProps {
+  address: string;
+  styles: ContentStyles;
+  theme: any;
+  currentNetwork: NetworkInfo | null;
+}
+
