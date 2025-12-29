@@ -1121,11 +1121,11 @@ func (s *TradeService) addTradeToUserHistory(walletAddress, role, tradeID string
 
 // Key generation methods for trade history
 func (s *TradeService) getOrderTradesKey(orderID string) string {
-	return fmt.Sprintf("marketplace:order:%s:trades", orderID)
+	return fmt.Sprintf("order:%s:trades", orderID)
 }
 
 func (s *TradeService) getUserTradesKey(walletAddress, role string) string {
-	return fmt.Sprintf("marketplace:user:%s:trades:%s", walletAddress, role)
+	return fmt.Sprintf("user:%s:trades:%s", walletAddress, role)
 }
 
 // generateTradeID generates a unique trade ID
@@ -1140,7 +1140,7 @@ func (s *TradeService) generateTradeID() (string, error) {
 
 // getTradeKey generates a KV store key for a trade record
 func (s *TradeService) getTradeKey(tradeID string) string {
-	return fmt.Sprintf("marketplace:trade:%s", tradeID)
+	return fmt.Sprintf("trade:%s", tradeID)
 }
 
 // OrderService handles order lifecycle management and validation
@@ -1475,7 +1475,7 @@ func (s *OrderService) addOrderStatusChange(orderID, status, txHash string) erro
 
 // getOrderStatusHistoryKey generates a KV store key for order status history
 func (s *OrderService) getOrderStatusHistoryKey(orderID string) string {
-	return fmt.Sprintf("marketplace:order:%s:status_history", orderID)
+	return fmt.Sprintf("order:%s:status_history", orderID)
 }
 
 // GetOrdersByStatus returns all orders with a specific status
@@ -1746,15 +1746,15 @@ func (s *OrderService) removeFromUserOrdersIndex(userAddress, orderID string) er
 
 // Key generation methods
 func (s *OrderService) getOrderKey(orderID string) string {
-	return fmt.Sprintf("marketplace:order:%s", orderID)
+	return fmt.Sprintf("order:%s", orderID)
 }
 
 func (s *OrderService) getActiveOrdersKey() string {
-	return "marketplace:orders:active"
+	return "orders:active"
 }
 
 func (s *OrderService) getUserOrdersKey(walletAddress string) string {
-	return fmt.Sprintf("marketplace:orders:user:%s", walletAddress)
+	return fmt.Sprintf("orders:user:%s", walletAddress)
 }
 
 // NewMarketplaceService creates a new marketplace service instance
@@ -1848,10 +1848,10 @@ func (s *MarketplaceService) emitOrderStatusUpdate(orderID, oldStatus, newStatus
 
 	// Emit to all connected clients
 	// TODO: Update to use correct Wails v3 event emission method
-	// s.app.EmitEvent("marketplace:order_status_changed", event)
+	// s.app.EmitEvent("order_status_changed", event)
 
 	// Emit targeted event to order owner
-	// s.app.EmitEvent(fmt.Sprintf("marketplace:user:%s:order_status_changed", order.Seller), event)
+	// s.app.EmitEvent(fmt.Sprintf("user:%s:order_status_changed", order.Seller), event)
 
 	log.Printf("📡 Emitted order status update: %s %s -> %s", orderID, oldStatus, newStatus)
 }
@@ -1876,10 +1876,10 @@ func (s *MarketplaceService) emitOrderCreated(order *Order) {
 
 	// Emit to all connected clients (for order book updates)
 	// TODO: Update to use correct Wails v3 event emission method
-	// s.app.EmitEvent("marketplace:order_created", event)
+	// s.app.EmitEvent("order_created", event)
 
 	// Emit targeted event to order creator
-	// s.app.EmitEvent(fmt.Sprintf("marketplace:user:%s:order_created", order.Seller), event)
+	// s.app.EmitEvent(fmt.Sprintf("user:%s:order_created", order.Seller), event)
 
 	log.Printf("📡 Emitted order created: %s", order.ID)
 }
@@ -1904,13 +1904,13 @@ func (s *MarketplaceService) emitTradeCompleted(trade *Trade, order *Order) {
 
 	// Emit to all connected clients (for market data updates)
 	// TODO: Update to use correct Wails v3 event emission method
-	// s.app.EmitEvent("marketplace:trade_completed", event)
+	// s.app.EmitEvent("trade_completed", event)
 
 	// Emit targeted events to both buyer and seller
 	// if trade.Buyer != "" {
-	//	s.app.EmitEvent(fmt.Sprintf("marketplace:user:%s:trade_completed", trade.Buyer), event)
+	//	s.app.EmitEvent(fmt.Sprintf("user:%s:trade_completed", trade.Buyer), event)
 	// }
-	// s.app.EmitEvent(fmt.Sprintf("marketplace:user:%s:trade_completed", trade.Seller), event)
+	// s.app.EmitEvent(fmt.Sprintf("user:%s:trade_completed", trade.Seller), event)
 
 	log.Printf("📡 Emitted trade completed: %s", trade.ID)
 }
@@ -1938,7 +1938,7 @@ func (s *MarketplaceService) emitMarketDataUpdate() {
 
 	// Emit to all connected clients
 	// TODO: Update to use correct Wails v3 event emission method
-	// s.app.EmitEvent("marketplace:market_data_updated", event)
+	// s.app.EmitEvent("market_data_updated", event)
 
 	log.Printf("📡 Emitted market data update")
 }
@@ -2720,8 +2720,8 @@ func (s *MarketplaceService) ensureRealTimeOrderUpdates(orderID string) error {
 		}
 
 		// TODO: Update to use correct Wails v3 event emission method when available
-		// s.app.EmitEvent("marketplace:order_updated", updateEvent)
-		// s.app.EmitEvent(fmt.Sprintf("marketplace:user:%s:order_updated", order.Seller), updateEvent)
+		// s.app.EmitEvent("order_updated", updateEvent)
+		// s.app.EmitEvent(fmt.Sprintf("user:%s:order_updated", order.Seller), updateEvent)
 
 		logMarketplaceInfo("ensureRealTimeOrderUpdates", fmt.Sprintf("Emitted real-time update for order %s", orderID))
 	}
