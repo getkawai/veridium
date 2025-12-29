@@ -35,13 +35,13 @@ const NETWORK_COMPONENT_MAP: Record<string, React.ElementType> = {
   'monad': NetworkMonad,
 };
 
-export const NetworkIcon = ({ name, size = 24, variant = 'branded', color }: NetworkIconProps) => {
+export const NetworkIcon = ({ name, size = 24, variant = 'branded' }: NetworkIconProps) => {
   const IconComponent = NETWORK_COMPONENT_MAP[name];
 
   // Fallback to Ethereum icon for unknown networks
   if (!IconComponent) {
-    return <NetworkEthereum size={size} variant={variant} color={color} />;
+    return <NetworkEthereum size={size} variant={variant} />;
   }
 
-  return <IconComponent size={size} variant={variant} color={color} />;
+  return <IconComponent size={size} variant={variant} />;
 };

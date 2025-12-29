@@ -1,4 +1,4 @@
-import { Card, Button, Empty, Tag, Spin, App } from 'antd';
+import { Card, Button, Empty, Tag, Spin, App, Skeleton } from 'antd';
 import { useState, useEffect, useCallback } from 'react';
 import { DeAIService } from '@@/github.com/kawai-network/veridium/internal/services';
 import {
@@ -9,6 +9,7 @@ import {
   Coins,
 } from 'lucide-react';
 import { ActionIcon } from '@lobehub/ui';
+import { Browser } from '@wailsio/runtime';
 import { Flexbox } from 'react-layout-kit';
 import { TokenUSDT } from '@web3icons/react';
 import type { RewardsContentProps } from './types';
@@ -64,10 +65,8 @@ const RewardsContent = ({ styles, theme }: RewardsContentProps) => {
           <span>
             Claim submitted! Tx: {result.tx_hash.substring(0, 10)}...
             <a
-              href={`https://testnet.monadexplorer.com/tx/${result.tx_hash}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ marginLeft: 8 }}
+              onClick={() => Browser.OpenURL(`https://testnet.monadexplorer.com/tx/${result.tx_hash}`)}
+              style={{ marginLeft: 8, cursor: 'pointer' }}
             >
               View <ExternalLink size={12} style={{ verticalAlign: 'middle' }} />
             </a>
@@ -111,15 +110,6 @@ const RewardsContent = ({ styles, theme }: RewardsContentProps) => {
         return 'default';
     }
   };
-
-  if (loading) {
-    return (
-      <Flexbox style={{ maxWidth: 800 }} gap={20} align="center" justify="center" height={300}>
-        <Spin size="large" />
-        <span style={{ color: theme.colorTextSecondary }}>Loading rewards...</span>
-      </Flexbox>
-    );
-  }
 
   if (error) {
     return (
@@ -166,16 +156,22 @@ const RewardsContent = ({ styles, theme }: RewardsContentProps) => {
           }}
         >
           <Flexbox gap={8}>
-            <Flexbox horizontal align="center" gap={8}>
-              <Coins size={20} color="#667eea" />
-              <span style={{ fontSize: 12, color: theme.colorTextSecondary }}>KAWAI Claimable</span>
-            </Flexbox>
-            <span style={{ fontSize: 24, fontWeight: 700 }}>
-              {rewards?.total_kawai_claimable_formatted || '0.0000'}
-            </span>
-            <span style={{ fontSize: 11, color: theme.colorTextTertiary }}>
-              Accumulating: {rewards?.current_kawai_accumulating || '0'}
-            </span>
+            {loading ? (
+              <Skeleton active paragraph={{ rows: 1, width: ['100%'] }} title={false} />
+            ) : (
+              <>
+                <Flexbox horizontal align="center" gap={8}>
+                  <Coins size={20} color="#667eea" />
+                  <span style={{ fontSize: 12, color: theme.colorTextSecondary }}>KAWAI Claimable</span>
+                </Flexbox>
+                <span style={{ fontSize: 24, fontWeight: 700 }}>
+                  {rewards?.total_kawai_claimable_formatted || '0.0000'}
+                </span>
+                <span style={{ fontSize: 11, color: theme.colorTextTertiary }}>
+                  Accumulating: {rewards?.current_kawai_accumulating || '0'}
+                </span>
+              </>
+            )}
           </Flexbox>
         </Card>
 
@@ -189,16 +185,22 @@ const RewardsContent = ({ styles, theme }: RewardsContentProps) => {
           }}
         >
           <Flexbox gap={8}>
-            <Flexbox horizontal align="center" gap={8}>
-              <TokenUSDT size={20} variant="branded" />
-              <span style={{ fontSize: 12, color: theme.colorTextSecondary }}>USDT Claimable</span>
-            </Flexbox>
-            <span style={{ fontSize: 24, fontWeight: 700 }}>
-              ${rewards?.total_usdt_claimable_formatted || '0.00'}
-            </span>
-            <span style={{ fontSize: 11, color: theme.colorTextTertiary }}>
-              Accumulating: ${rewards?.current_usdt_accumulating || '0'}
-            </span>
+            {loading ? (
+              <Skeleton active paragraph={{ rows: 1, width: ['100%'] }} title={false} />
+            ) : (
+              <>
+                <Flexbox horizontal align="center" gap={8}>
+                  <TokenUSDT size={20} variant="branded" />
+                  <span style={{ fontSize: 12, color: theme.colorTextSecondary }}>USDT Claimable</span>
+                </Flexbox>
+                <span style={{ fontSize: 24, fontWeight: 700 }}>
+                  ${rewards?.total_usdt_claimable_formatted || '0.00'}
+                </span>
+                <span style={{ fontSize: 11, color: theme.colorTextTertiary }}>
+                  Accumulating: ${rewards?.current_usdt_accumulating || '0'}
+                </span>
+              </>
+            )}
           </Flexbox>
         </Card>
       </Flexbox>
@@ -218,7 +220,9 @@ const RewardsContent = ({ styles, theme }: RewardsContentProps) => {
         }
         size="small"
       >
-        {!hasUnclaimedRewards ? (
+        {loading ? (
+          <Skeleton active paragraph={{ rows: 3 }} />
+        ) : !hasUnclaimedRewards ? (
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
             description={
@@ -333,9 +337,8 @@ const RewardsContent = ({ styles, theme }: RewardsContentProps) => {
                     </span>
                     {proof.claim_tx_hash && (
                       <a
-                        href={`https://testnet.monadexplorer.com/tx/${proof.claim_tx_hash}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                        onClick={() => Browser.OpenURL(`https://testnet.monadexplorer.com/tx/${proof.claim_tx_hash}`)}
+                        style={{ cursor: 'pointer' }}
                       >
                         <ExternalLink size={14} />
                       </a>

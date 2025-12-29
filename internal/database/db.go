@@ -56,6 +56,10 @@ func NewServiceWithPath(dbPath string) (*Service, error) {
 		return nil, err
 	}
 
+	// Fix for "modernc.org/sqlite.interruptOnDone" panic:
+	// Enforce serial access to the database to prevent locking issues with modernc.org/sqlite
+	database.SetMaxOpenConns(1)
+
 	// Initialize schema if needed (check if sessions table exists - users table is gone)
 	var tableExists int
 	err = database.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='sessions'").Scan(&tableExists)

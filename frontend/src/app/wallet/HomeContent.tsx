@@ -280,27 +280,13 @@ const HomeContent = ({
           {currentNetwork && (
             <div className={styles.tokenRow}>
               <Flexbox horizontal align="center" gap={12} style={{ flex: 1 }}>
-                <div style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#fff',
-                  fontWeight: 800,
-                  fontSize: 14,
-                }}>
-                  {currentNetwork && (
-                    <NetworkIcon
-                      name={currentNetwork.icon || 'ethereum'}
-                      size={24}
-                      variant="mono"
-                      color="#fff"
-                    />
-                  )}
-                </div>
+                {currentNetwork && (
+                  <NetworkIcon
+                    name={currentNetwork.icon || 'ethereum'}
+                    size={24}
+                    variant="mono"
+                  />
+                )}
                 <div>
                   <div style={{ fontWeight: 600 }}>{currentNetwork.nativeTokenSymbol}</div>
                   <div style={{ fontSize: 12, color: theme.colorTextSecondary }}>Native Token</div>
@@ -315,22 +301,7 @@ const HomeContent = ({
           {/* USDT */}
           <div className={styles.tokenRow}>
             <Flexbox horizontal align="center" gap={12} style={{ flex: 1 }}>
-              <div style={{
-                width: 36,
-                height: 36,
-                borderRadius: '50%',
-                background: '#26a17b',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#fff',
-                fontWeight: 800,
-                fontSize: 16,
-                fontFamily: 'Arial, sans-serif',
-                textShadow: '0 1px 2px rgba(0,0,0,0.2)'
-              }}>
-                <TokenUSDT size={36} variant="branded" />
-              </div>
+            <TokenUSDT size={36} variant="branded" />
               <div>
                 <div style={{ fontWeight: 600 }}>USDT</div>
                 <div style={{ fontSize: 12, color: theme.colorTextSecondary }}>Tether USD</div>
