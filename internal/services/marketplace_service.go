@@ -1831,8 +1831,8 @@ func (s *MarketplaceService) emitOrderStatusUpdate(orderID, oldStatus, newStatus
 		return
 	}
 
-	// Create event for future use when Wails v3 event emission is implemented
-	_ = MarketplaceRealtimeEvent{
+	// Create event data
+	event := MarketplaceRealtimeEvent{
 		Type:      "order_status_changed",
 		Timestamp: time.Now(),
 		UserID:    order.Seller, // Target the order owner
@@ -1846,12 +1846,11 @@ func (s *MarketplaceService) emitOrderStatusUpdate(orderID, oldStatus, newStatus
 		},
 	}
 
-	// Emit to all connected clients
-	// TODO: Update to use correct Wails v3 event emission method
-	// s.app.EmitEvent("order_status_changed", event)
+	// Emit to all connected clients for order book updates
+	s.app.Event.Emit("marketplace:order_status_changed", event)
 
 	// Emit targeted event to order owner
-	// s.app.EmitEvent(fmt.Sprintf("user:%s:order_status_changed", order.Seller), event)
+	s.app.Event.Emit(fmt.Sprintf("marketplace:user:%s:order_status_changed", order.Seller), event)
 
 	log.Printf("📡 Emitted order status update: %s %s -> %s", orderID, oldStatus, newStatus)
 }
@@ -1863,8 +1862,8 @@ func (s *MarketplaceService) emitOrderCreated(order *Order) {
 		return
 	}
 
-	// Create event for future use when Wails v3 event emission is implemented
-	_ = MarketplaceRealtimeEvent{
+	// Create event data
+	event := MarketplaceRealtimeEvent{
 		Type:      "order_created",
 		Timestamp: time.Now(),
 		UserID:    order.Seller,
@@ -1875,11 +1874,10 @@ func (s *MarketplaceService) emitOrderCreated(order *Order) {
 	}
 
 	// Emit to all connected clients (for order book updates)
-	// TODO: Update to use correct Wails v3 event emission method
-	// s.app.EmitEvent("order_created", event)
+	s.app.Event.Emit("marketplace:order_created", event)
 
 	// Emit targeted event to order creator
-	// s.app.EmitEvent(fmt.Sprintf("user:%s:order_created", order.Seller), event)
+	s.app.Event.Emit(fmt.Sprintf("marketplace:user:%s:order_created", order.Seller), event)
 
 	log.Printf("📡 Emitted order created: %s", order.ID)
 }
@@ -1891,8 +1889,8 @@ func (s *MarketplaceService) emitTradeCompleted(trade *Trade, order *Order) {
 		return
 	}
 
-	// Create event for future use when Wails v3 event emission is implemented
-	_ = MarketplaceRealtimeEvent{
+	// Create event data
+	event := MarketplaceRealtimeEvent{
 		Type:      "trade_completed",
 		Timestamp: time.Now(),
 		Data: TradeCompletedEvent{
@@ -1903,14 +1901,13 @@ func (s *MarketplaceService) emitTradeCompleted(trade *Trade, order *Order) {
 	}
 
 	// Emit to all connected clients (for market data updates)
-	// TODO: Update to use correct Wails v3 event emission method
-	// s.app.EmitEvent("trade_completed", event)
+	s.app.Event.Emit("marketplace:trade_completed", event)
 
 	// Emit targeted events to both buyer and seller
-	// if trade.Buyer != "" {
-	//	s.app.EmitEvent(fmt.Sprintf("user:%s:trade_completed", trade.Buyer), event)
-	// }
-	// s.app.EmitEvent(fmt.Sprintf("user:%s:trade_completed", trade.Seller), event)
+	if trade.Buyer != "" {
+		s.app.Event.Emit(fmt.Sprintf("marketplace:user:%s:trade_completed", trade.Buyer), event)
+	}
+	s.app.Event.Emit(fmt.Sprintf("marketplace:user:%s:trade_completed", trade.Seller), event)
 
 	log.Printf("📡 Emitted trade completed: %s", trade.ID)
 }
@@ -1929,16 +1926,15 @@ func (s *MarketplaceService) emitMarketDataUpdate() {
 		return
 	}
 
-	// Create event for future use when Wails v3 event emission is implemented
-	_ = MarketplaceRealtimeEvent{
+	// Create event data
+	event := MarketplaceRealtimeEvent{
 		Type:      "market_data_updated",
 		Timestamp: time.Now(),
 		Data:      stats,
 	}
 
 	// Emit to all connected clients
-	// TODO: Update to use correct Wails v3 event emission method
-	// s.app.EmitEvent("market_data_updated", event)
+	s.app.Event.Emit("marketplace:market_data_updated", event)
 
 	log.Printf("📡 Emitted market data update")
 }
@@ -2702,7 +2698,7 @@ func (s *MarketplaceService) ensureRealTimeOrderUpdates(orderID string) error {
 	// Requirements: 4.3 - Event-driven status updates for active orders
 	if s.app != nil {
 		// Create a real-time update event for the order
-		_ = MarketplaceRealtimeEvent{
+		event := MarketplaceRealtimeEvent{
 			Type:      "order_updated",
 			Timestamp: time.Now(),
 			UserID:    order.Seller,
@@ -2719,9 +2715,11 @@ func (s *MarketplaceService) ensureRealTimeOrderUpdates(orderID string) error {
 			},
 		}
 
-		// TODO: Update to use correct Wails v3 event emission method when available
-		// s.app.EmitEvent("order_updated", updateEvent)
-		// s.app.EmitEvent(fmt.Sprintf("user:%s:order_updated", order.Seller), updateEvent)
+		// Emit to all connected clients for order book updates
+		s.app.Event.Emit("marketplace:order_updated", event)
+
+		// Emit targeted event to order owner
+		s.app.Event.Emit(fmt.Sprintf("marketplace:user:%s:order_updated", order.Seller), event)
 
 		logMarketplaceInfo("ensureRealTimeOrderUpdates", fmt.Sprintf("Emitted real-time update for order %s", orderID))
 	}
