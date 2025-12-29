@@ -48,7 +48,7 @@ This roadmap outlines the path from "Zero" to a fully functional decentralized n
     - [x] `pkg/store`: Persistent storage using Cloudflare Workers KV (Multi-namespace).
     - [x] `pkg/merkle`: Merkle Tree generation logic.
 
-### Phase 2: The "Lean" Launch (Internal Market) 🚧
+### Phase 2: The "Lean" Launch (Internal Market) ✅
 **Focus:** Economic bootstrapping without initial LP.
 - [x] **Contributor Client (Go):** 
     - [x] **Wallet Setup:** Generate/Load Contributor Identity (Private Key).
@@ -62,12 +62,16 @@ This roadmap outlines the path from "Zero" to a fully functional decentralized n
         - [x] Deduct USDT credits from user's balance in real-time.
         - [x] Reject requests if insufficient balance.
         - [x] Log all transactions for billing/audit.
-- [ ] **Internal P2P Marketplace (Web):**
-    - [ ] UI for Contributors to list their Token rewards.
-    - [ ] UI for Investors to buy Tokens with USDT.
-- [ ] **Web3 Dashboard:**
-    - [ ] Login via Wallet to manage API Keys.
-    - [ ] USDT Deposit UI (PaymentVault integration).
+- [x] **Internal P2P Marketplace (Web):**
+    - [x] Complete marketplace UI with order book, trading interface, and real-time updates.
+    - [x] Order creation, cancellation, and execution functionality.
+    - [x] Market statistics dashboard with price tracking and volume data.
+    - [x] User order history and trade history with detailed tracking.
+    - [x] Real-time event integration using Wails Events API.
+    - [x] Granular loading states with progressive data loading.
+- [x] **Web3 Dashboard:**
+    - [x] Login via Wallet to manage API Keys.
+    - [x] USDT Deposit UI (PaymentVault integration).
 - [x] **Administration Scripts (Go):**
     - [x] Weekly Snapshot & Dividend Calculator.
     - [x] Contributor Audit & Ban system.
@@ -95,6 +99,10 @@ This roadmap outlines the path from "Zero" to a fully functional decentralized n
 - [x] **Frontend (Web Dashboard):**
     - [x] Initialize Vite + React project.
     - [x] Integrate @lobehub/ui for UI components.
+    - [x] Complete P2P marketplace interface with real-time trading capabilities.
+    - [x] Wallet integration with multi-wallet support and secure authentication.
+    - [x] Market data visualization with statistics and price tracking.
+    - [x] Order management system with creation, cancellation, and history tracking.
 
 ---
 

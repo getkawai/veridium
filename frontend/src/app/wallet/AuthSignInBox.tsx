@@ -92,7 +92,6 @@ export default memo(() => {
   const [isLoading, setIsLoading] = useState(false);
   const [showBackupReminder, setShowBackupReminder] = useState(false);
   const [selectedWallet, setSelectedWallet] = useState<string>('');
-  const [switchPassword, setSwitchPassword] = useState('');
 
   const {
     hasWallet,
@@ -142,7 +141,6 @@ export default memo(() => {
     setMnemonic('');
     setDescription('');
     setKeystoreJSON('');
-    setSwitchPassword('');
   };
 
   const handleUnlock = async () => {
@@ -262,16 +260,16 @@ export default memo(() => {
   };
 
   const handleSwitchWallet = async () => {
-    if (!selectedWallet || !switchPassword) {
+    if (!selectedWallet || !password) {
       message.error('Please select a wallet and enter password');
       return;
     }
     setIsLoading(true);
-    const success = await switchWallet(selectedWallet, switchPassword);
+    const success = await switchWallet(selectedWallet, password);
     setIsLoading(false);
     if (success) {
       message.success('Wallet switched');
-      setSwitchPassword('');
+      setPassword('');
       setSelectedWallet('');
     } else {
       message.error('Invalid password');
@@ -310,6 +308,7 @@ export default memo(() => {
               value={password}
               onChange={e => setPassword(e.target.value)}
               size="large"
+              autoFocus
             />
             {password && (
               <div style={{ marginTop: -8, marginBottom: 8 }}>
