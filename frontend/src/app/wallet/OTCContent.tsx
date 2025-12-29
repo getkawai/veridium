@@ -1,4 +1,4 @@
-import { Card, Table, Button, Modal, Form, Input, Tag, Statistic, Row, Col, Tabs, Empty, message, Spin } from 'antd';
+import { Card, Table, Button, Modal, Form, Input, Tag, Statistic, Row, Col, Tabs, Empty, message, Skeleton } from 'antd';
 import { ShoppingCart, TrendingUp, TrendingDown, Plus, History, Eye, RefreshCw } from 'lucide-react';
 import { Flexbox } from 'react-layout-kit';
 import { useState, useEffect } from 'react';
@@ -140,14 +140,6 @@ const OTCContent = ({ styles, theme }: OTCContentProps) => {
     }
   };
 
-  if (loading) {
-    return (
-      <Flexbox align="center" justify="center" style={{ height: 400 }}>
-        <Spin size="large" />
-      </Flexbox>
-    );
-  }
-
   const orderBookColumns = [
     {
       title: 'Price (USDT)',
@@ -270,8 +262,23 @@ const OTCContent = ({ styles, theme }: OTCContentProps) => {
       </Flexbox>
 
       {/* Market Stats */}
-      {marketStats && (
-        <Card size="small">
+      <Card size="small">
+        {loading.marketStats ? (
+          <Row gutter={24}>
+            <Col span={6}>
+              <Skeleton active paragraph={{ rows: 2, width: ['60%', '80%'] }} />
+            </Col>
+            <Col span={6}>
+              <Skeleton active paragraph={{ rows: 2, width: ['60%', '80%'] }} />
+            </Col>
+            <Col span={6}>
+              <Skeleton active paragraph={{ rows: 2, width: ['60%', '80%'] }} />
+            </Col>
+            <Col span={6}>
+              <Skeleton active paragraph={{ rows: 2, width: ['60%', '80%'] }} />
+            </Col>
+          </Row>
+        ) : marketStats ? (
           <Row gutter={24}>
             <Col span={6}>
               <Statistic
@@ -314,8 +321,10 @@ const OTCContent = ({ styles, theme }: OTCContentProps) => {
               />
             </Col>
           </Row>
-        </Card>
-      )}
+        ) : (
+          <Empty description="No market data available" />
+        )}
+      </Card>
 
       {/* Main Content */}
       <Row gutter={24}>
@@ -330,7 +339,9 @@ const OTCContent = ({ styles, theme }: OTCContentProps) => {
             }
             size="small"
           >
-            {activeOrders.length > 0 ? (
+            {loading.activeOrders ? (
+              <Skeleton active paragraph={{ rows: 8 }} />
+            ) : activeOrders.length > 0 ? (
               <Table
                 dataSource={activeOrders}
                 columns={orderBookColumns}
@@ -355,7 +366,9 @@ const OTCContent = ({ styles, theme }: OTCContentProps) => {
             }
             size="small"
           >
-            {marketStats?.recentTrades && marketStats.recentTrades.length > 0 ? (
+            {loading.marketStats ? (
+              <Skeleton active paragraph={{ rows: 6 }} />
+            ) : marketStats?.recentTrades && marketStats.recentTrades.length > 0 ? (
               <div style={{ maxHeight: 300, overflowY: 'auto' }}>
                 {marketStats.recentTrades.map((trade, index) => (
                   <div
@@ -390,7 +403,9 @@ const OTCContent = ({ styles, theme }: OTCContentProps) => {
             {
               key: 'orders',
               label: `My Orders (${userOrders.length})`,
-              children: userOrders.length > 0 ? (
+              children: loading.userOrders ? (
+                <Skeleton active paragraph={{ rows: 5 }} />
+              ) : userOrders.length > 0 ? (
                 <Table
                   dataSource={userOrders}
                   columns={userOrderColumns}
@@ -405,7 +420,9 @@ const OTCContent = ({ styles, theme }: OTCContentProps) => {
             {
               key: 'history',
               label: `Order History (${orderHistory.length})`,
-              children: orderHistory.length > 0 ? (
+              children: loading.orderHistory ? (
+                <Skeleton active paragraph={{ rows: 5 }} />
+              ) : orderHistory.length > 0 ? (
                 <Table
                   dataSource={orderHistory}
                   columns={[
@@ -460,7 +477,9 @@ const OTCContent = ({ styles, theme }: OTCContentProps) => {
             {
               key: 'trades',
               label: `Trade History (${tradeHistory.length})`,
-              children: tradeHistory.length > 0 ? (
+              children: loading.tradeHistory ? (
+                <Skeleton active paragraph={{ rows: 5 }} />
+              ) : tradeHistory.length > 0 ? (
                 <Table
                   dataSource={tradeHistory}
                   columns={[

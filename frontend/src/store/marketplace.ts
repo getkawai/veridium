@@ -11,8 +11,14 @@ interface MarketplaceState {
   orderHistory: OrderHistoryEntry[];
   tradeHistory: TradeHistoryEntry[];
   
-  // UI State
-  loading: boolean;
+  // UI State - granular loading states
+  loading: {
+    activeOrders: boolean;
+    marketStats: boolean;
+    userOrders: boolean;
+    orderHistory: boolean;
+    tradeHistory: boolean;
+  };
   refreshing: boolean;
   error: string | null;
   
@@ -40,7 +46,13 @@ const initialState = {
   userOrders: [],
   orderHistory: [],
   tradeHistory: [],
-  loading: false,
+  loading: {
+    activeOrders: false,
+    marketStats: false,
+    userOrders: false,
+    orderHistory: false,
+    tradeHistory: false,
+  },
   refreshing: false,
   error: null,
 };
@@ -52,30 +64,80 @@ export const useMarketplaceStore = create<MarketplaceState>()(
     loadMarketplaceData: async (address: string) => {
       if (!address) return;
       
-      set({ loading: true, error: null });
+      set({ 
+        loading: { 
+          activeOrders: true, 
+          marketStats: true, 
+          userOrders: true, 
+          orderHistory: true, 
+          tradeHistory: true,
+        }, 
+        error: null 
+      });
       
       try {
-        const [activeOrders, marketStats, userOrders, orderHistory, tradeHistory] = await Promise.all([
-          MarketplaceService.GetActiveOrders('price_asc', {}),
-          MarketplaceService.GetMarketStats(),
-          MarketplaceService.GetUserOrders(address),
-          MarketplaceService.GetOrderHistory(address).then(result => result?.orders || []),
-          MarketplaceService.GetTradeHistory(address),
+        // Load data sequentially to show progressive loading
+        const activeOrdersPromise = MarketplaceService.GetActiveOrders('price_asc', {}).then(data => {
+          set(state => ({ 
+            activeOrders: data || [], 
+            loading: { ...state.loading, activeOrders: false } 
+          }));
+          return data;
+        });
+
+        const marketStatsPromise = MarketplaceService.GetMarketStats().then(data => {
+          set(state => ({ 
+            marketStats: data || null, 
+            loading: { ...state.loading, marketStats: false } 
+          }));
+          return data;
+        });
+
+        const userOrdersPromise = MarketplaceService.GetUserOrders(address).then(data => {
+          set(state => ({ 
+            userOrders: data || [], 
+            loading: { ...state.loading, userOrders: false } 
+          }));
+          return data;
+        });
+
+        const orderHistoryPromise = MarketplaceService.GetOrderHistory(address).then(result => {
+          const data = result?.orders || [];
+          set(state => ({ 
+            orderHistory: data, 
+            loading: { ...state.loading, orderHistory: false } 
+          }));
+          return data;
+        });
+
+        const tradeHistoryPromise = MarketplaceService.GetTradeHistory(address).then(data => {
+          set(state => ({ 
+            tradeHistory: data || [], 
+            loading: { ...state.loading, tradeHistory: false } 
+          }));
+          return data;
+        });
+
+        // Wait for all to complete
+        await Promise.all([
+          activeOrdersPromise,
+          marketStatsPromise,
+          userOrdersPromise,
+          orderHistoryPromise,
+          tradeHistoryPromise,
         ]);
 
-        set({
-          activeOrders: activeOrders || [],
-          marketStats: marketStats || null,
-          userOrders: userOrders || [],
-          orderHistory: orderHistory || [],
-          tradeHistory: tradeHistory || [],
-          loading: false,
-          error: null,
-        });
+        set({ error: null });
       } catch (error) {
         console.error('Failed to load marketplace data:', error);
         set({ 
-          loading: false, 
+          loading: {
+            activeOrders: false,
+            marketStats: false,
+            userOrders: false,
+            orderHistory: false,
+            tradeHistory: false,
+          }, 
           error: error instanceof Error ? error.message : 'Failed to load marketplace data' 
         });
       }
