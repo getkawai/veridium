@@ -4,12 +4,13 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/getsentry/sentry-go"
 	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/internal/image"
 	"github.com/kawai-network/veridium/internal/services"
@@ -17,6 +18,7 @@ import (
 	"github.com/kawai-network/veridium/pkg/fantasy/llamalib"
 	"github.com/kawai-network/veridium/pkg/gateway"
 	"github.com/kawai-network/veridium/pkg/hardware"
+	"github.com/kawai-network/veridium/pkg/logger"
 	"github.com/kawai-network/veridium/pkg/store"
 	"github.com/kawai-network/veridium/pkg/tunnelkit"
 )
@@ -30,30 +32,66 @@ func main() {
 	flag.Parse()
 
 	// ============================================
-	// Step 0: Initialize KV Store (Required for Wallet)
+	// Step 0: Initialize Sentry
+	// ============================================
+	err := sentry.Init(sentry.ClientOptions{
+		Dsn:              "https://6d138acbdde2516e32e24f016b472031@o4510620614983680.ingest.us.sentry.io/4510620618850304",
+		EnableTracing:    true,
+		TracesSampleRate: 1.0,
+		EnableLogs:       true, // Enable Logger API as requested
+		BeforeSendLog: func(log *sentry.Log) *sentry.Log {
+			// filter all logs below warning
+			if log.Severity <= sentry.LogSeverityWarning {
+				return nil
+			}
+			return log
+		},
+	})
+	if err != nil {
+		slog.Error("Sentry initialization failed", "error", err)
+	} else {
+		// Flush buffered events before the program terminates.
+		// Set the timeout to the maximum duration the program can afford to wait.
+		defer sentry.Flush(2 * time.Second)
+
+		// properties of the logger
+		handler := slog.NewTextHandler(os.Stderr, nil)
+		// wrap the handler with SentryHandler
+		sentryHandler := logger.NewSentryHandler(handler)
+		// create a new logger with the SentryHandler
+		logger := slog.New(sentryHandler)
+		// set the default logger to the new logger
+		slog.SetDefault(logger)
+	}
+
+	// ============================================
+	// Step 1: Initialize KV Store (Required for Wallet)
 	// ============================================
 	ctx := context.Background()
 
 	kv, err := store.NewMultiNamespaceKVStore()
 	if err != nil {
-		log.Fatalf("Failed to connect to KV: %v", err)
+		slog.Error("Failed to connect to KV", "error", err)
+		os.Exit(1)
 	}
-	log.Println("✓ Connected to Cloudflare KV")
+	slog.Info("✓ Connected to Cloudflare KV")
 
 	// ============================================
-	// Step 1: Setup Wallet
+	// Step 2: Setup Wallet
 	// ============================================
 	wallet := services.NewWalletService("", kv)
 
 	if !wallet.HasWallet() && *walletPassword == "" {
-		log.Fatal("No wallet found. Use --password to create one.")
+		slog.Error("No wallet found. Use --password to create one.")
+		os.Exit(1)
 	}
 
 	if wallet.HasWallet() && *walletPassword == "" {
 		for _, w := range wallet.GetWallets() {
-			log.Printf("  - %s (%s)", w.Address, w.Description)
+			slog.Info("Available wallet", "address", w.Address, "description", w.Description)
 		}
-		log.Fatal("Use --password to unlock.")
+		slog.Error("Use --password to unlock.")
+		os.Exit(1)
 	}
 
 	var address string
@@ -72,48 +110,50 @@ func main() {
 	}
 
 	if err != nil {
-		log.Fatalf("Wallet error: %v", err)
+		slog.Error("Wallet error", "error", err)
+		os.Exit(1)
 	}
-	log.Printf("✓ Wallet: %s", address)
+	slog.Info("✓ Wallet", "address", address)
 
 	// ============================================
-	// Step 2: Detect Hardware
+	// Step 3: Detect Hardware
 	// ============================================
-	log.Println("Detecting hardware...")
+	slog.Info("Detecting hardware...")
 	hwSpecs := hardware.DetectHardwareSpecs()
 	hardwareInfo := fmt.Sprintf("%s, %d cores, %dGB RAM, GPU: %s (%dGB VRAM)",
 		hwSpecs.CPU, hwSpecs.CPUCores, hwSpecs.TotalRAM, hwSpecs.GPUModel, hwSpecs.GPUMemory)
-	log.Printf("✓ Hardware: %s", hardwareInfo)
+	slog.Info("✓ Hardware", "info", hardwareInfo)
 
 	// ============================================
-	// Step 3: Register Contributor (KV already init)
+	// Step 4: Register Contributor (KV already init)
 	// ============================================
 	// ctx is already created above
 
 	// ============================================
-	// Step 4: Start Tunnel (get public URL first)
+	// Step 5: Start Tunnel (get public URL first)
 	// ============================================
 	tunnelCtx, tunnelCancel := context.WithCancel(context.Background())
 	defer tunnelCancel()
 
 	tunnelURL := startTunnel(tunnelCtx)
 	if tunnelURL != "" {
-		log.Printf("✓ Tunnel: %s", tunnelURL)
+		slog.Info("✓ Tunnel", "url", tunnelURL)
 	}
 
 	endpointURL := tunnelURL
 
 	// ============================================
-	// Step 5: Register Contributor to KV
+	// Step 6: Register Contributor to KV
 	// ============================================
 	contributor, err := kv.RegisterContributor(ctx, address, endpointURL, hardwareInfo)
 	if err != nil {
-		log.Fatalf("Failed to register: %v", err)
+		slog.Error("Failed to register", "error", err)
+		os.Exit(1)
 	}
-	log.Printf("✓ Registered: %s (since %s)", contributor.WalletAddress, contributor.RegisteredAt.Format("2006-01-02"))
+	slog.Info("✓ Registered", "wallet", contributor.WalletAddress, "since", contributor.RegisteredAt.Format("2006-01-02"))
 
 	// ============================================
-	// Step 6: Start Heartbeat (direct to KV)
+	// Step 7: Start Heartbeat (direct to KV)
 	// ============================================
 	heartbeatCtx, heartbeatCancel := context.WithCancel(context.Background())
 	defer heartbeatCancel()
@@ -128,15 +168,15 @@ func main() {
 				return
 			case <-ticker.C:
 				if err := kv.UpdateHeartbeat(ctx, address); err != nil {
-					log.Printf("⚠️ Heartbeat failed: %v", err)
+					slog.Warn("⚠️ Heartbeat failed", "error", err)
 				}
 			}
 		}
 	}()
-	log.Println("✓ Heartbeat started (30s)")
+	slog.Info("✓ Heartbeat started (30s)")
 
 	// ============================================
-	// Step 7: Initialize AI Services
+	// Step 8: Initialize AI Services
 	// ============================================
 	llm := llamalib.NewService()
 
@@ -144,14 +184,16 @@ func main() {
 	initCtx, initCancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer initCancel()
 	if err := llm.WaitForInitialization(initCtx); err != nil {
-		log.Fatalf("Failed to initialize LLM: %v", err)
+		slog.Error("Failed to initialize LLM", "error", err)
+		os.Exit(1)
 	}
 
 	// Load chat model (auto-select best)
 	if err := llm.LoadChatModel(""); err != nil {
-		log.Fatalf("Failed to load model: %v", err)
+		slog.Error("Failed to load model", "error", err)
+		os.Exit(1)
 	}
-	log.Println("✓ LLM ready")
+	slog.Info("✓ LLM ready")
 
 	whisperService, _ := whisper.NewService()
 	whisperExecutor := gateway.NewWhisperExecutor(whisperService)
@@ -160,7 +202,7 @@ func main() {
 	imageExecutor := gateway.NewSDLocalExecutor(sdEngine)
 
 	// ============================================
-	// Step 8: Start Server
+	// Step 9: Start Server
 	// ============================================
 	server := gateway.NewServer(gateway.ServerConfig{
 		Host:      "0.0.0.0",
@@ -173,7 +215,8 @@ func main() {
 
 	go func() {
 		if err := server.Start(); err != nil {
-			log.Fatalf("Server error: %v", err)
+			slog.Error("Server error", "error", err)
+			os.Exit(1)
 		}
 	}()
 

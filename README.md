@@ -179,6 +179,7 @@ CF_KV_SETTLEMENTS_NAMESPACE_ID=...   # Settlement metadata
 ---
 
 sentryDSN_golang = "https://709dabacc882a777ef059392d056e3da@o4510568649654272.ingest.us.sentry.io/4510568655290368"
+sentryDSN_golang_contributor = "https://6d138acbdde2516e32e24f016b472031@o4510620614983680.ingest.us.sentry.io/4510620618850304" // dielzzz89
 sentryDSN_react = "https://b66f862d7567c075a44c697757bb8130@o4510618985758720.ingest.us.sentry.io/4510618990804992" // yudapramad
 
 
