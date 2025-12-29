@@ -19,17 +19,37 @@ const useStyles = createStyles(({ css, token }) => ({
     transition: all 0.2s ease;
     border-radius: 8px;
     width: 100%;
+    position: relative;
+    opacity: 0.4;
+    transform: scale(0.88);
     
     &:hover {
       background: ${token.colorFillTertiary};
+      opacity: 0.7;
+      transform: scale(0.94);
     }
   `,
   activeItem: css`
     background: ${token.colorFillSecondary};
+    opacity: 1;
+    transform: scale(1);
+    
+    &:hover {
+      background: ${token.colorFillSecondary};
+      transform: scale(1);
+    }
   `,
   avatar: css`
     flex: none;
     pointer-events: none;
+    transition: all 0.2s ease;
+    filter: grayscale(40%) brightness(0.8);
+    border-radius: 8px;
+  `,
+  activeAvatar: css`
+    filter: grayscale(0%) brightness(1);
+    outline: 3px solid ${token.colorPrimary};
+    outline-offset: 2px;
   `,
   header: css`
     margin-bottom: 12px;
@@ -73,6 +93,7 @@ const AccountList = memo<AccountListProps>(({ activeAddress, onAccountSwitch, on
         maxHeight: '100%',
         overflowY: 'auto',
         paddingTop: 16,
+        paddingBottom: 8,
       }}
       width={'100%'}
     >
@@ -103,7 +124,7 @@ const AccountList = memo<AccountListProps>(({ activeAddress, onAccountSwitch, on
       {/* List */}
       <Flexbox align="center" gap={12} ref={parent} width={'100%'}>
         {wallets.map((wallet, index) => {
-          const isActive = wallet.address === activeAddress;
+          const isActive = wallet.address.toLowerCase() === activeAddress.toLowerCase();
 
           const avatarInfo = genAvatar(wallet.address);
 
@@ -139,19 +160,21 @@ const AccountList = memo<AccountListProps>(({ activeAddress, onAccountSwitch, on
               className={cx(styles.accountItem, isActive && styles.activeItem)}
               style={{
                 cursor: 'pointer',
-                padding: showMoreInfo ? '8px' : '0',
-                paddingBottom: index === wallets.length - 1 ? 4 : 0,
+                padding: showMoreInfo ? '8px' : '6px 0',
+                paddingBottom: index === wallets.length - 1 ? 6 : 0,
               }}
               width={'100%'}
             >
               <Avatar
                 avatar={avatarInfo.emoji}
-                background={isActive ? theme.colorFillSecondary : undefined}
                 bordered={isActive}
                 shape="square"
                 size={48}
-                className={styles.avatar}
-                style={{ fontSize: 24, background: !isActive ? avatarInfo.background : undefined }}
+                className={cx(styles.avatar, isActive && styles.activeAvatar)}
+                style={{
+                  fontSize: 24,
+                  background: avatarInfo.background
+                }}
               />
               {showMoreInfo && tooltipContent}
             </Flexbox>

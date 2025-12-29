@@ -622,7 +622,7 @@ const DesktopWalletLayout = memo(() => {
             <code style={{ fontSize: 11 }}>{pendingSwitch}</code>
           </p>
           <Form.Item label="Password" name="password" rules={[{ required: true }]}>
-            <Input.Password placeholder="Enter password" size="large" />
+            <Input.Password autoFocus placeholder="Enter password" size="large" />
           </Form.Item>
           <Button type="primary" htmlType="submit" block size="large" loading={loading}>
             Unlock & Switch
