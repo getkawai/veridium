@@ -13,6 +13,7 @@ import (
 	_ "modernc.org/sqlite"
 
 	db "github.com/kawai-network/veridium/internal/database/generated"
+	"github.com/kawai-network/veridium/internal/paths"
 )
 
 //go:embed schema/schema.sql
@@ -30,20 +31,14 @@ func NewService() (*Service, error) {
 }
 
 // NewServiceWithPath creates a new database service with custom database path
-// If dbPath is empty, uses default path (./data/veridium.db)
+// If dbPath is empty, uses default path from paths.Database()
 func NewServiceWithPath(dbPath string) (*Service, error) {
 	if dbPath == "" {
-		// Use project directory for database storage
-		appDataDir := "./data"
-		if err := os.MkdirAll(appDataDir, 0o755); err != nil {
-			return nil, err
-		}
-		dbPath = filepath.Join(appDataDir, "veridium.db")
-	} else {
-		// Ensure parent directory exists for custom path
-		if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
-			return nil, err
-		}
+		dbPath = paths.Database()
+	}
+	// Ensure parent directory exists
+	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
+		return nil, err
 	}
 
 	database, err := sql.Open("sqlite", dbPath)

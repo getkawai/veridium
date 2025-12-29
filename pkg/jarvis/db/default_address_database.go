@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/user"
 	"path"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/kawai-network/veridium/internal/paths"
 )
 
 type DefaultAddressDatabase struct {
@@ -42,8 +42,7 @@ func registerTokens(db *DefaultAddressDatabase) error {
 }
 
 func getDataFromDefaultFile() map[string]string {
-	usr, _ := user.Current()
-	dir := usr.HomeDir
+	dir := paths.Jarvis()
 	file := path.Join(dir, "addresses.json")
 	fi, err := os.Lstat(file)
 	if err != nil {

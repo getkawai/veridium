@@ -188,14 +188,17 @@ export default memo(() => {
       return;
     }
 
+    if (!description.trim()) {
+      message.error('Please enter a wallet name');
+      return;
+    }
+
     setIsLoading(true);
     try {
       if (hasWallet) {
-        // Adding new wallet
-        await createWallet(password, mnemonic.trim(), description || `Wallet ${wallets.length + 1}`);
+        await createWallet(password, mnemonic.trim(), description);
       } else {
-        // First wallet
-        await setupWallet(password, mnemonic.trim());
+        await setupWallet(password, mnemonic.trim(), description);
       }
       message.success(t('setupSuccess', { defaultValue: 'Wallet setup complete!' }));
       setShowBackupReminder(true);
@@ -412,13 +415,11 @@ export default memo(() => {
                 style={{ position: 'absolute', top: 4, right: 4 }}
               />
             </div>
-            {hasWallet && (
-              <Input
-                placeholder="Wallet description (optional)"
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-              />
-            )}
+            <Input
+              placeholder="Wallet name (e.g. My Main Wallet)"
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+            />
             <Button type="primary" block size="large" onClick={handleFinishSetup} loading={isLoading}>
               I have written it down
             </Button>
@@ -439,13 +440,11 @@ export default memo(() => {
               value={mnemonic}
               onChange={e => setMnemonic(e.target.value)}
             />
-            {hasWallet && (
-              <Input
-                placeholder="Wallet description (optional)"
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-              />
-            )}
+            <Input
+              placeholder="Wallet name (e.g. My Main Wallet)"
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+            />
             <Button type="primary" block size="large" onClick={handleFinishSetup} loading={isLoading}>
               Import Wallet
             </Button>

@@ -12,6 +12,7 @@ import (
 	"github.com/kawai-network/veridium/internal/audio_recorder"
 	"github.com/kawai-network/veridium/internal/database"
 	db "github.com/kawai-network/veridium/internal/database/generated"
+	"github.com/kawai-network/veridium/internal/paths"
 	"github.com/kawai-network/veridium/internal/search"
 	"github.com/kawai-network/veridium/internal/services"
 	"github.com/kawai-network/veridium/internal/services/cache"
@@ -31,9 +32,6 @@ import (
 
 // Configuration constants
 const (
-	FileBaseDir   = "files"
-	DuckDBPath    = "data/duckdb.db"
-	KBAssetPath   = "data/kb-assets"
 	EmbeddingDims = 384
 	DefaultUserID = "DEFAULT_LOBE_CHAT_USER"
 )
@@ -148,15 +146,15 @@ func (ctx *Context) InitLlamaService() {
 }
 
 func (ctx *Context) InitVectorStore() {
-	os.MkdirAll(FileBaseDir, 0755)
-	duckDBStore, err := services.NewDuckDBStore(DuckDBPath, EmbeddingDims)
+	os.MkdirAll(paths.FileBase(), 0755)
+	duckDBStore, err := services.NewDuckDBStore(paths.DuckDB(), EmbeddingDims)
 	if err != nil {
 		log.Printf("Warning: DuckDB init failed: %v", err)
 		return
 	}
 	ctx.DuckDBStore = duckDBStore
 	ctx.AddCleanup(func() { duckDBStore.Close() })
-	log.Printf("DuckDB initialized (path: %s)", DuckDBPath)
+	log.Printf("DuckDB initialized (path: %s)", paths.DuckDB())
 }
 
 func (ctx *Context) InitEmbedder() {
@@ -220,7 +218,7 @@ func (ctx *Context) InitKnowledgeBase() {
 		RAGProcessor: ragProcessor,
 		VectorSearch: ctx.VectorSearch,
 		FileLoader:   ctx.FileLoader,
-		AssetDir:     KBAssetPath,
+		AssetDir:     paths.KBAssets(),
 	})
 	if err != nil {
 		log.Printf("Warning: KnowledgeBase init failed: %v", err)
@@ -238,7 +236,7 @@ func (ctx *Context) InitWalletService() {
 		// For now assuming KVStore is ready or we pass nil and handle it?
 		// Better to reorder InitAll.
 	}
-	ctx.WalletService = services.NewWalletService(FileBaseDir, ctx.KVStore)
+	ctx.WalletService = services.NewWalletService(paths.FileBase(), ctx.KVStore)
 	log.Printf("WalletService initialized")
 }
 

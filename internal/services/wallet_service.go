@@ -167,12 +167,15 @@ func (s *WalletService) CreateWallet(password string, mnemonic string, descripti
 	return address, nil
 }
 
-// SetupWallet creates a new keystore from a password and mnemonic (legacy, wraps CreateWallet)
-func (s *WalletService) SetupWallet(password string, mnemonic string) (string, error) {
+// SetupWallet creates a new keystore from a password and mnemonic (first wallet only)
+func (s *WalletService) SetupWallet(password string, mnemonic string, name string) (string, error) {
 	if s.HasWallet() {
 		return "", errors.New("wallet already exists")
 	}
-	return s.CreateWallet(password, mnemonic, "Veridium Wallet")
+	if name == "" {
+		name = "My Wallet"
+	}
+	return s.CreateWallet(password, mnemonic, name)
 }
 
 // SwitchWallet switches to a different wallet by address

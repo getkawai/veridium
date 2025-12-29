@@ -8,6 +8,7 @@ import (
 	"github.com/kawai-network/veridium/internal/app"
 	"github.com/kawai-network/veridium/internal/image"
 	"github.com/kawai-network/veridium/internal/machineid"
+	"github.com/kawai-network/veridium/internal/paths"
 	"github.com/kawai-network/veridium/internal/services"
 	"github.com/kawai-network/veridium/internal/tableviewer"
 	"github.com/kawai-network/veridium/internal/topic"
@@ -48,7 +49,7 @@ func main() {
 		ctx.DuckDBStore,
 		ctx.LibService,
 		ctx.WhisperService,
-		app.FileBaseDir,
+		paths.FileBase(),
 	)
 
 	// Initialize Stable Diffusion in background
@@ -101,7 +102,7 @@ func buildServiceList(ctx *app.Context, fileProcessor *FileProcessorService, sdS
 		application.NewService(ctx.KBService),
 
 		// File & Storage
-		application.NewService(services.NewFileService(app.FileBaseDir)),
+		application.NewService(services.NewFileService(paths.FileBase())),
 		application.NewService(localfs.NewService()),
 		application.NewService(builtin.NewLocalSystemService()),
 
@@ -123,7 +124,7 @@ func buildServiceList(ctx *app.Context, fileProcessor *FileProcessorService, sdS
 
 		// File Server
 		application.NewServiceWithOptions(
-			fileserver.NewWithConfig(&fileserver.Config{RootPath: app.FileBaseDir}),
+			fileserver.NewWithConfig(&fileserver.Config{RootPath: paths.FileBase()}),
 			application.ServiceOptions{Route: "/files"},
 		),
 	}

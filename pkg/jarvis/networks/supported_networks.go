@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/user"
 	"path/filepath"
 	"strings"
+
+	"github.com/kawai-network/veridium/internal/paths"
 )
 
 // Insert more Network implementation here to support
@@ -125,12 +126,7 @@ func newSupportedNetworks() *networks {
 }
 
 func loadCustomNetworks() ([]Network, error) {
-	usr, err := user.Current()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get current user: %w", err)
-	}
-
-	customNetworksDir := filepath.Join(usr.HomeDir, ".jarvis", "networks")
+	customNetworksDir := paths.JarvisNetworks()
 	files, err := filepath.Glob(filepath.Join(customNetworksDir, "*.json"))
 	if err != nil {
 		return nil, fmt.Errorf("failed to glob between json files in ./jarvis/networks: %w", err)
@@ -199,13 +195,8 @@ func AddNetwork(network Network) error {
 		globalSupportedNetworks.networks[an] = network
 	}
 
-	// store the new network to ~/.jarvis/networks/
-	usr, err := user.Current()
-	if err != nil {
-		return fmt.Errorf("failed to get current user: %w", err)
-	}
-
-	customNetworksDir := filepath.Join(usr.HomeDir, ".jarvis", "networks")
+	// store the new network to data/jarvis/networks/
+	customNetworksDir := paths.JarvisNetworks()
 	os.MkdirAll(customNetworksDir, 0755)
 
 	content, err := network.MarshalJSON()

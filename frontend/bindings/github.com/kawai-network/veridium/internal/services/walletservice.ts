@@ -96,10 +96,10 @@ export function LockWallet(): $CancellablePromise<void> {
 }
 
 /**
- * SetupWallet creates a new keystore from a password and mnemonic (legacy, wraps CreateWallet)
+ * SetupWallet creates a new keystore from a password and mnemonic (first wallet only)
  */
-export function SetupWallet(password: string, mnemonic: string): $CancellablePromise<string> {
-    return $Call.ByID(4273098007, password, mnemonic);
+export function SetupWallet(password: string, mnemonic: string, name: string): $CancellablePromise<string> {
+    return $Call.ByID(4273098007, password, mnemonic, name);
 }
 
 /**

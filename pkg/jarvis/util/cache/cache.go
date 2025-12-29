@@ -4,26 +4,22 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
-	"os/user"
-	"path/filepath"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/kawai-network/veridium/internal/paths"
 )
 
 var (
-	CACHE_PATH string = filepath.Join(getHomeDir(), ".jarvis", "cache.json")
-	cache      *simpleCache
-	mu         sync.Mutex
+	cache *simpleCache
+	mu    sync.Mutex
 )
 
-func getHomeDir() string {
-	usr, err := user.Current()
-	if err != nil {
-		log.Fatal(err)
-	}
-	return usr.HomeDir
+func getCachePath() string {
+	os.MkdirAll(paths.Jarvis(), 0755)
+	return paths.JarvisCache()
 }
 
 type simpleCache struct {
@@ -35,7 +31,7 @@ func (self *simpleCache) Persist() error {
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(CACHE_PATH, jsonData, 0644)
+	return ioutil.WriteFile(getCachePath(), jsonData, 0644)
 }
 
 func loadSimpleCache() *simpleCache {
@@ -45,7 +41,7 @@ func loadSimpleCache() *simpleCache {
 	cache = &simpleCache{
 		Data: map[string]string{},
 	}
-	content, err := ioutil.ReadFile(CACHE_PATH)
+	content, err := ioutil.ReadFile(getCachePath())
 	if err != nil {
 		// WARNING: swallow error here
 		return cache

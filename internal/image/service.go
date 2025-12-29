@@ -17,6 +17,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/kawai-network/veridium/internal/database"
 	db "github.com/kawai-network/veridium/internal/database/generated"
+	"github.com/kawai-network/veridium/internal/paths"
 	"github.com/kawai-network/veridium/internal/topic"
 )
 
@@ -186,7 +187,7 @@ func (s *Service) CreateImage(req CreateImageRequest) error {
 // generateImagesInBackground generates images in parallel and updates database records
 func (s *Service) generateImagesInBackground(batchID string, imageNum int, opts GenerationOptions) {
 	ctx := context.Background()
-	outputDir := "files/uploads"
+	outputDir := filepath.Join(paths.FileBase(), "uploads")
 
 	// Ensure output directory exists
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
@@ -392,7 +393,7 @@ func (s *Service) updateGenerationWithFile(ctx context.Context, generationID, ou
 	}
 	f.Close()
 	fileHash := hex.EncodeToString(hash.Sum(nil))
-	fileUrl := fmt.Sprintf("/files/uploads/%s", fileName)
+	fileUrl := "/files/uploads/" + fileName
 
 	// Create GlobalFile if not exists
 	_, err = s.DB.Queries().GetGlobalFile(ctx, fileHash)

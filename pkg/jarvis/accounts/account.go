@@ -3,9 +3,7 @@ package accounts
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
-	"os/user"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -16,17 +14,14 @@ import (
 	"github.com/sahilm/fuzzy"
 	"golang.org/x/term"
 
+	"github.com/kawai-network/veridium/internal/paths"
 	"github.com/kawai-network/veridium/pkg/jarvis/accounts/types"
 	"github.com/kawai-network/veridium/pkg/jarvis/util"
 	"github.com/kawai-network/veridium/pkg/jarvis/util/account"
 )
 
-func getHomeDir() string {
-	usr, err := user.Current()
-	if err != nil {
-		log.Fatal(err)
-	}
-	return usr.HomeDir
+func getJarvisDir() string {
+	return paths.Jarvis()
 }
 
 func getPassword(prompt string) string {
@@ -64,7 +59,7 @@ func StorePrivateKeyWithKeystore(privateKey string, passphrase string) (string, 
 		return "", nil
 	}
 
-	dir := filepath.Join(getHomeDir(), ".jarvis", "keystores")
+	dir := filepath.Join(getJarvisDir(), "keystores")
 	os.MkdirAll(dir, os.ModePerm)
 	path := filepath.Join(dir, fmt.Sprintf("%s.json", key.Address))
 	return path, os.WriteFile(path, keystoreJson, 0644)
@@ -84,7 +79,7 @@ func VerifyKeystore(path string) (string, error) {
 }
 
 func StoreAccountRecord(accDesc types.AccDesc) error {
-	dir := filepath.Join(getHomeDir(), ".jarvis")
+	dir := getJarvisDir()
 	os.MkdirAll(dir, os.ModePerm)
 	path := filepath.Join(dir, fmt.Sprintf("%s.json", accDesc.Address))
 	content, _ := json.Marshal(accDesc)
@@ -137,7 +132,7 @@ func GetAccount(input string) (types.AccDesc, error) {
 // the address and content is the description.
 // All files are kept in ~/.jarvis/
 func GetAccounts() map[string]types.AccDesc {
-	paths, err := filepath.Glob(filepath.Join(getHomeDir(), ".jarvis", "*.json"))
+	paths, err := filepath.Glob(filepath.Join(getJarvisDir(), "*.json"))
 	if err != nil {
 		fmt.Printf("Getting accounts failed: %s.\n", err)
 		return map[string]types.AccDesc{}

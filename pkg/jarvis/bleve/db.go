@@ -18,17 +18,28 @@ import (
 	"github.com/blevesearch/bleve/analysis/lang/en"
 	"github.com/blevesearch/bleve/mapping"
 
+	"github.com/kawai-network/veridium/internal/paths"
 	"github.com/kawai-network/veridium/pkg/jarvis/db"
 )
 
 var (
-	BLEVE_PATH                   string = filepath.Join(getHomeDir(), ".jarvis", "db.bleve")
-	BLEVE_DATA_PATH              string = filepath.Join(getHomeDir(), ".jarvis", "bleve.data")
+	// BLEVE_PATH                   string = filepath.Join(getHomeDir(), ".jarvis", "db.bleve")
+	// BLEVE_DATA_PATH              string = filepath.Join(getHomeDir(), ".jarvis", "bleve.data")
 	THIS_SESSION_BLEVE_DATA_PATH string
 	bleveDB                      *BleveDB
 	bleveDBSession               string
 	once                         sync.Once
 )
+
+func getBlevePath() string {
+	os.MkdirAll(paths.Jarvis(), 0755)
+	return paths.JarvisBleveIndex()
+}
+
+func getBleveDataPath() string {
+	os.MkdirAll(paths.Jarvis(), 0755)
+	return paths.JarvisBleveData()
+}
 
 func getRandomSessionBleveDataPath() string {
 	if bleveDBSession == "" {
@@ -37,8 +48,8 @@ func getRandomSessionBleveDataPath() string {
 		rand.Read(b)
 		bleveDBSession = fmt.Sprintf("%x", b)
 	}
-
-	return filepath.Join(getHomeDir(), ".jarvis", fmt.Sprintf("bleve_%s.data", bleveDBSession))
+	os.MkdirAll(paths.Jarvis(), 0755)
+	return filepath.Join(paths.Jarvis(), fmt.Sprintf("bleve_%s.data", bleveDBSession))
 }
 
 func getHomeDir() string {
@@ -50,8 +61,7 @@ func getHomeDir() string {
 }
 
 func getDataFromDefaultFile() (result map[string]string, hash string) {
-	usr, _ := user.Current()
-	dir := usr.HomeDir
+	dir := paths.Jarvis()
 	file := path.Join(dir, "addresses.json")
 	var timestamp int64
 	fi, err := os.Lstat(file)
@@ -166,7 +176,7 @@ func loadIndex(db *BleveDB, path string) error {
 
 func loadBleveDB() (*BleveDB, error) {
 	result := &BleveDB{}
-	content, err := ioutil.ReadFile(BLEVE_PATH)
+	content, err := ioutil.ReadFile(getBlevePath())
 	if err != nil {
 		return result, nil
 	}
@@ -179,7 +189,7 @@ func loadBleveDB() (*BleveDB, error) {
 }
 
 func CopyBleveDataFileToSession() error {
-	return exec.Command("cp", "-R", BLEVE_DATA_PATH, THIS_SESSION_BLEVE_DATA_PATH).Run()
+	return exec.Command("cp", "-R", getBleveDataPath(), THIS_SESSION_BLEVE_DATA_PATH).Run()
 }
 
 func NewBleveDB() (*BleveDB, error) {
@@ -196,7 +206,7 @@ func NewBleveDB() (*BleveDB, error) {
 		// 	return
 		// }
 
-		resError = loadIndex(bleveDB, BLEVE_DATA_PATH)
+		resError = loadIndex(bleveDB, getBleveDataPath())
 	})
 	return bleveDB, resError
 }
@@ -206,7 +216,7 @@ func (bleveDB *BleveDB) Persist() error {
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(BLEVE_PATH, jsonData, 0644)
+	return ioutil.WriteFile(getBlevePath(), jsonData, 0644)
 }
 
 func (bleveDB *BleveDB) Search(input string) ([]AddressDesc, []int) {

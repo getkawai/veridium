@@ -6,7 +6,7 @@ import type { UserStore } from '../../store';
 export interface WalletAction {
   refreshWalletStatus: () => Promise<void>;
   unlockWallet: (password: string) => Promise<boolean>;
-  setupWallet: (password: string, mnemonic: string) => Promise<string>;
+  setupWallet: (password: string, mnemonic: string, name?: string) => Promise<string>;
   generateMnemonic: () => Promise<string>;
   lockWallet: () => Promise<void>;
   // Multi-wallet actions
@@ -52,9 +52,9 @@ export const createWalletSlice: StateCreator<
     }
   },
 
-  setupWallet: async (password: string, mnemonic: string) => {
+  setupWallet: async (password: string, mnemonic: string, name?: string) => {
     try {
-      const address = await WalletService.SetupWallet(password, mnemonic);
+      const address = await WalletService.SetupWallet(password, mnemonic, name || 'My Wallet');
       await get().refreshWalletStatus();
       return address;
     } catch (error) {
