@@ -16,6 +16,7 @@ require (
 	github.com/duckdb/duckdb-go/v2 v2.5.3
 	github.com/ebitengine/purego v0.9.1
 	github.com/ethereum/go-ethereum v1.16.7
+	github.com/getsentry/sentry-go v0.27.0
 	github.com/gin-gonic/gin v1.11.0
 	github.com/go-viper/mapstructure/v2 v2.4.0
 	github.com/google/uuid v1.6.0
@@ -102,7 +103,6 @@ require (
 	github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.9 // indirect
-	github.com/getsentry/sentry-go v0.27.0 // indirect
 	github.com/gin-contrib/sse v1.1.0 // indirect
 	github.com/glycerine/go-unsnap-stream v0.0.0-20181221182339-f9677308dec2 // indirect
 	github.com/go-chi/chi/v5 v5.2.2 // indirect

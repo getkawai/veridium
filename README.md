@@ -178,4 +178,11 @@ CF_KV_SETTLEMENTS_NAMESPACE_ID=...   # Settlement metadata
 
 ---
 
-sentryDSN_1 = "https://709dabacc882a777ef059392d056e3da@o4510568649654272.ingest.us.sentry.io/4510568655290368"
+sentryDSN_golang = "https://709dabacc882a777ef059392d056e3da@o4510568649654272.ingest.us.sentry.io/4510568655290368"
+sentryDSN_react = "https://b66f862d7567c075a44c697757bb8130@o4510618985758720.ingest.us.sentry.io/4510618990804992" // yudapramad
+
+
+ETHERSCAN_API_KEY
+sendspokespersonneat
+ariesta88@gmail.com
+MKB28KJN1TJKRPA4EYVXXBWYUYDX6P5ESF

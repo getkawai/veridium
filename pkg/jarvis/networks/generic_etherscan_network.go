@@ -8,10 +8,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 
+	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/pkg/jarvis/util/explorers"
 )
-
-const defaultAPIKey = "UBB257TI824FC7HUSPT66KZUMGBPRN3IWV"
 
 type GenericEtherscanNetworkConfig struct {
 	Name                            string            `json:"name"`
@@ -38,7 +37,7 @@ type GenericEtherscanNetwork struct {
 func NewGenericEtherscanNetwork(config GenericEtherscanNetworkConfig) *GenericEtherscanNetwork {
 	apiKey := strings.Trim(os.Getenv(config.BlockExplorerAPIKeyVariableName), " ")
 	if apiKey == "" {
-		apiKey = defaultAPIKey
+		apiKey = constant.GetRandomEtherscanApiKey()
 	}
 	result := &GenericEtherscanNetwork{
 		EtherscanLikeExplorer: explorers.NewEtherscanLikeExplorer(config.BlockExplorerAPIURL, apiKey, config.ChainID),

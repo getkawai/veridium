@@ -5,6 +5,7 @@ import (
 	"embed"
 	"log"
 
+	"github.com/getsentry/sentry-go"
 	"github.com/kawai-network/veridium/internal/app"
 	"github.com/kawai-network/veridium/internal/image"
 	"github.com/kawai-network/veridium/internal/machineid"
@@ -37,11 +38,10 @@ func main() {
 	defer ctx.Cleanup()
 
 	if err := ctx.InitAll(); err != nil {
+		sentry.CaptureException(err)
 		log.Fatalf("Failed to initialize: %v", err)
 	}
 
-	// Create FileProcessor (Wails-specific wrapper)
-	// Create FileProcessor (Wails-specific wrapper)
 	fileProcessor := NewFileProcessorService(
 		ctx.DB.DB(),
 		ctx.FileLoader,
@@ -65,6 +65,7 @@ func main() {
 	createMainWindow(wailsApp, ctx, fileProcessor)
 
 	if err := wailsApp.Run(); err != nil {
+		sentry.CaptureException(err)
 		log.Fatal(err)
 	}
 }

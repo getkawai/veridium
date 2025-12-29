@@ -18,6 +18,7 @@
     "@lobehub/editor": "^1.21.1",
     "@lobehub/market-sdk": "^0.22.7",
     "@lobehub/ui": "^2.13.5",
+    "@sentry/react": "^10.32.1",
     "@virtuoso.dev/masonry": "^1.3.5",
     "@wailsio/runtime": "latest",
     "@web3icons/core": "^4.0.42",
