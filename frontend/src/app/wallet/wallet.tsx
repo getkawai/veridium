@@ -649,11 +649,11 @@ const DesktopWalletLayout = memo(() => {
       <Modal title="Import Wallet" open={modalType === 'importWallet'} onCancel={() => setModalType(null)} footer={null}>
         <SetupForm type="import" onSuccess={() => { setModalType(null); refreshWalletStatus(); }} />
       </Modal>
-      <Modal title="Smart Deposit" open={modalType === 'deposit'} onCancel={() => setModalType(null)} footer={null} destroyOnClose>
+      <Modal title="Smart Deposit" open={modalType === 'deposit'} onCancel={() => setModalType(null)} footer={null} destroyOnHidden>
         <SmartDepositForm onDeposit={handleDeposit} loading={loading} />
       </Modal>
 
-      <Modal title="Send Assets" open={modalType === 'send'} onCancel={() => setModalType(null)} footer={null} destroyOnClose>
+      <Modal title="Send Assets" open={modalType === 'send'} onCancel={() => setModalType(null)} footer={null} destroyOnHidden>
         <SendForm onSend={handleSend} loading={loading} currentNetwork={currentNetwork} />
       </Modal>
 
@@ -686,16 +686,16 @@ const DesktopWalletLayout = memo(() => {
         </Flexbox>
       </Modal>
 
-      <Modal 
-        title="Add Token" 
-        open={modalType === 'addToken'} 
-        onCancel={() => setModalType(null)} 
+      <Modal
+        title="Add Token"
+        open={modalType === 'addToken'}
+        onCancel={() => setModalType(null)}
         footer={null}
         width={450}
       >
-        <AddTokenModal 
-          currentNetwork={currentNetwork} 
-          onClose={() => setModalType(null)} 
+        <AddTokenModal
+          currentNetwork={currentNetwork}
+          onClose={() => setModalType(null)}
         />
       </Modal>
     </div>
@@ -888,7 +888,7 @@ const AddTokenModal = memo<{ currentNetwork: NetworkInfo | null; onClose: () => 
       <div style={{ color: theme.colorTextSecondary, fontSize: 13 }}>
         Supported tokens on {currentNetwork?.name || 'current network'}:
       </div>
-      
+
       {projectTokens.length === 0 ? (
         <Empty description="No project tokens found" />
       ) : (
@@ -944,12 +944,12 @@ const AddTokenModal = memo<{ currentNetwork: NetworkInfo | null; onClose: () => 
         </Flexbox>
       )}
 
-      <div style={{ 
-        padding: 12, 
-        background: theme.colorInfoBg, 
-        borderRadius: 8, 
+      <div style={{
+        padding: 12,
+        background: theme.colorInfoBg,
+        borderRadius: 8,
         fontSize: 12,
-        color: theme.colorTextSecondary 
+        color: theme.colorTextSecondary
       }}>
         <strong>Note:</strong> These are the official project tokens deployed on Monad Testnet.
         Custom token import is not supported yet.

@@ -6,6 +6,9 @@ import * as Sentry from "@sentry/react";
 Sentry.init({
   dsn: "https://b66f862d7567c075a44c697757bb8130@o4510618985758720.ingest.us.sentry.io/4510618990804992",
   sendDefaultPii: true,
+  integrations: [
+    Sentry.captureConsoleIntegration({ levels: ['error'] }),
+  ],
 });
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
