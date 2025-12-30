@@ -331,32 +331,37 @@ func (s *KVStore) RecordJobReward(ctx context.Context, contributorAddress string
 	if mode == config.ModeMining {
 		// Phase 1: KAWAI Mining
 		kawaiRate := config.GetKawaiRatePerMillion()
+		// baseRate = rate * 10^18 (KAWAI decimals)
 		baseRate := new(big.Int).Mul(big.NewInt(kawaiRate), new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil))
 
-		rewardAmount := new(big.Int).Mul(big.NewInt(tokenUsage), baseRate)
-		rewardAmount.Div(rewardAmount, big.NewInt(1000000))
+		// High-precision calculation: (tokens * baseRate * share) / (1,000,000 * 100)
+		totalScaled := new(big.Int).Mul(big.NewInt(tokenUsage), baseRate)
 
-		contributorShare = new(big.Int).Mul(rewardAmount, big.NewInt(70))
-		contributorShare.Div(contributorShare, big.NewInt(100))
-		adminShare = new(big.Int).Sub(rewardAmount, contributorShare)
+		contributorShare = new(big.Int).Mul(totalScaled, big.NewInt(70))
+		contributorShare.Div(contributorShare, big.NewInt(100000000)) // 1,000,000 * 100
+
+		totalReward := new(big.Int).Div(totalScaled, big.NewInt(1000000))
+		adminShare = new(big.Int).Sub(totalReward, contributorShare)
+
 		balanceField = "kawai"
-
-		slog.Info("Mining reward distributed", "tokens", tokenUsage, "kawai_amount", rewardAmount.String(), "contributor_share", contributorShare.String(), "admin_share", adminShare.String())
+		slog.Info("Mining reward distributed", "tokens", tokenUsage, "kawai_total", totalReward.String(), "contributor_share", contributorShare.String(), "admin_share", adminShare.String())
 	} else {
 		// Phase 2: USDT Payment
 		usdtRate := config.GetCostRatePerMillion()
-		usdtDecimals := new(big.Int).Exp(big.NewInt(10), big.NewInt(6), nil)
+		// usdtRateUnits = rate * 10^6 (USDT decimals)
+		usdtRateUnits := big.NewInt(int64(usdtRate * 1000000))
 
-		rewardAmount := new(big.Int).Mul(big.NewInt(tokenUsage), big.NewInt(int64(usdtRate*1000000)))
-		rewardAmount.Div(rewardAmount, big.NewInt(1000000))
+		// High-precision calculation: (tokens * rateUnits * share) / (1,000,000 * 100)
+		totalScaled := new(big.Int).Mul(big.NewInt(tokenUsage), usdtRateUnits)
 
-		contributorShare = new(big.Int).Mul(rewardAmount, big.NewInt(70))
-		contributorShare.Div(contributorShare, big.NewInt(100))
-		adminShare = new(big.Int).Sub(rewardAmount, contributorShare)
+		contributorShare = new(big.Int).Mul(totalScaled, big.NewInt(70))
+		contributorShare.Div(contributorShare, big.NewInt(100000000)) // 1,000,000 * 100
+
+		totalReward := new(big.Int).Div(totalScaled, big.NewInt(1000000))
+		adminShare = new(big.Int).Sub(totalReward, contributorShare)
+
 		balanceField = "usdt"
-
-		slog.Info("USDT reward distributed", "tokens", tokenUsage, "usdt_amount", rewardAmount.String(), "contributor_share", contributorShare.String(), "admin_share", adminShare.String())
-		_ = usdtDecimals // silence unused var warning
+		slog.Info("USDT reward distributed", "tokens", tokenUsage, "usdt_total", totalReward.String(), "contributor_share", contributorShare.String(), "admin_share", adminShare.String())
 	}
 
 	// Update Contributor Balance
