@@ -13,6 +13,7 @@ import (
 
 	"github.com/getsentry/sentry-go"
 	"github.com/kawai-network/veridium/internal/audio_recorder"
+	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/internal/database"
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/internal/paths"
@@ -405,18 +406,12 @@ func (ctx *Context) buildModelChain(bgCtx context.Context, localModel fantasy.La
 	var chain []fantasy.LanguageModel
 
 	// 1. OpenRouter (free tier)
-	orKey := os.Getenv("OPENROUTER_API_KEY")
-	if orKey == "" {
-		orKey = "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"
-	}
-	if orKey != "" {
-		if provider, err := openrouter.New(openrouter.WithAPIKey(orKey), openrouter.WithModelSelection(criteria)); err == nil {
-			if remoteModel, err := provider.LanguageModel(bgCtx, ""); err == nil {
-				chain = append(chain, remoteModel)
-				catalog := openrouter.GetCatalog()
-				if selected := catalog.SelectFreeModel(criteria); selected != nil {
-					log.Printf("%s: OpenRouter (%s)", taskName, selected.ID)
-				}
+	if provider, err := openrouter.New(openrouter.WithAPIKey(constant.GetRandomOpenRouterApiKey()), openrouter.WithModelSelection(criteria)); err == nil {
+		if remoteModel, err := provider.LanguageModel(bgCtx, ""); err == nil {
+			chain = append(chain, remoteModel)
+			catalog := openrouter.GetCatalog()
+			if selected := catalog.SelectFreeModel(criteria); selected != nil {
+				log.Printf("%s: OpenRouter (%s)", taskName, selected.ID)
 			}
 		}
 	}
@@ -434,20 +429,14 @@ func (ctx *Context) buildModelChain(bgCtx context.Context, localModel fantasy.La
 	}
 
 	// 2. ZAI GLM-4.6 (fallback before local)
-	zaiKey := os.Getenv("ZAI_API_KEY")
-	if zaiKey == "" {
-		zaiKey = "a10854167085448cac33753523919ac9.D41CLq6KxXTY7g4u" // dev key
-	}
-	if zaiKey != "" {
-		if provider, err := openaicompat.New(
-			openaicompat.WithName("zai"),
-			openaicompat.WithBaseURL("https://api.z.ai/api/coding/paas/v4"),
-			openaicompat.WithAPIKey(zaiKey),
-		); err == nil {
-			if zaiModel, err := provider.LanguageModel(bgCtx, "glm-4.6"); err == nil {
-				chain = append(chain, zaiModel)
-				log.Printf("%s: ZAI (glm-4.6)", taskName)
-			}
+	if provider, err := openaicompat.New(
+		openaicompat.WithName("zai"),
+		openaicompat.WithBaseURL("https://api.z.ai/api/coding/paas/v4"),
+		openaicompat.WithAPIKey(constant.GetRandomZaiApiKey()),
+	); err == nil {
+		if zaiModel, err := provider.LanguageModel(bgCtx, "glm-4.7"); err == nil {
+			chain = append(chain, zaiModel)
+			log.Printf("%s: ZAI (glm-4.7)", taskName)
 		}
 	}
 
