@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"sync"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -37,6 +38,7 @@ type WalletStatus struct {
 
 // WalletService handles local wallet management using jarvis/accounts
 type WalletService struct {
+	mu             sync.RWMutex
 	currentAccount *account.Account
 	address        string
 	kvStore        *store.KVStore
@@ -57,13 +59,17 @@ func (s *WalletService) HasWallet() bool {
 
 // GetWallets returns a list of all stored wallets
 func (s *WalletService) GetWallets() []WalletInfo {
+	s.mu.RLock()
+	currentAddr := s.address
+	s.mu.RUnlock()
+
 	accs := accounts.GetAccounts()
 	result := make([]WalletInfo, 0, len(accs))
 	for addr, acc := range accs {
 		result = append(result, WalletInfo{
 			Address:     addr,
 			Description: acc.Desc,
-			IsActive:    s.address == addr,
+			IsActive:    currentAddr == addr,
 		})
 	}
 	return result
@@ -161,8 +167,10 @@ func (s *WalletService) CreateWallet(password string, mnemonic string, descripti
 		return "", fmt.Errorf("failed to unlock account: %v", err)
 	}
 
+	s.mu.Lock()
 	s.currentAccount = acc
 	s.address = address
+	s.mu.Unlock()
 
 	return address, nil
 }
@@ -191,8 +199,10 @@ func (s *WalletService) SwitchWallet(address string, password string) (string, e
 		return "", errors.New("invalid password")
 	}
 
+	s.mu.Lock()
 	s.currentAccount = acc
 	s.address = acc.AddressHex()
+	s.mu.Unlock()
 
 	return s.address, nil
 }
@@ -216,16 +226,20 @@ func (s *WalletService) UnlockWallet(password string) (string, error) {
 		return "", errors.New("invalid password")
 	}
 
+	s.mu.Lock()
 	s.currentAccount = acc
 	s.address = acc.AddressHex()
+	s.mu.Unlock()
 
 	return s.address, nil
 }
 
 // LockWallet clears the private key from memory
 func (s *WalletService) LockWallet() {
+	s.mu.Lock()
 	s.currentAccount = nil
 	s.address = ""
+	s.mu.Unlock()
 }
 
 // DeleteWallet removes a wallet from storage
@@ -330,8 +344,10 @@ func (s *WalletService) ImportKeystore(keystoreJSON string, password string, des
 		return "", errors.New("invalid password for keystore")
 	}
 
+	s.mu.Lock()
 	s.currentAccount = acc
 	s.address = address
+	s.mu.Unlock()
 
 	return address, nil
 }
@@ -350,26 +366,37 @@ func (s *WalletService) UpdateWalletDescription(address string, description stri
 
 // GetStatus returns the current wallet status
 func (s *WalletService) GetStatus() WalletStatus {
+	s.mu.RLock()
+	isLocked := s.currentAccount == nil
+	address := s.address
+	s.mu.RUnlock()
+
 	return WalletStatus{
 		HasWallet: s.HasWallet(),
-		IsLocked:  s.currentAccount == nil,
-		Address:   s.address,
+		IsLocked:  isLocked,
+		Address:   address,
 		Wallets:   s.GetWallets(),
 	}
 }
 
 // GetCurrentAddress returns the current active wallet address
 func (s *WalletService) GetCurrentAddress() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	return s.address
 }
 
 // SignMessage signs a message with the private key
 func (s *WalletService) SignMessage(message string) (string, error) {
-	if s.currentAccount == nil {
+	s.mu.RLock()
+	acc := s.currentAccount
+	s.mu.RUnlock()
+
+	if acc == nil {
 		return "", errors.New("wallet is locked")
 	}
 
-	return s.currentAccount.SignMessage(message)
+	return acc.SignMessage(message)
 }
 
 // getTransactOpts creates a bind.TransactOpts for the current account
@@ -377,14 +404,18 @@ func (s *WalletService) SignMessage(message string) (string, error) {
 //
 //wails:ignore
 func (s *WalletService) getTransactOpts(chainId *big.Int) (*bind.TransactOpts, error) {
-	if s.currentAccount == nil {
+	s.mu.RLock()
+	acc := s.currentAccount
+	s.mu.RUnlock()
+
+	if acc == nil {
 		return nil, errors.New("wallet is locked")
 	}
 
 	return &bind.TransactOpts{
-		From: s.currentAccount.Address(),
+		From: acc.Address(),
 		Signer: func(addr common.Address, tx *ethtypes.Transaction) (*ethtypes.Transaction, error) {
-			_, signedTx, err := s.currentAccount.SignTx(tx, chainId)
+			_, signedTx, err := acc.SignTx(tx, chainId)
 			return signedTx, err
 		},
 	}, nil
