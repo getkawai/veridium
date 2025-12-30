@@ -1,5 +1,5 @@
 import { ActionIcon, ActionIconProps, Hotkey } from '@lobehub/ui';
-import { Compass, FolderClosed, MessageSquare, Palette, Wallet } from 'lucide-react';
+import { Compass, FolderClosed, MessageSquare, Palette, Wallet, Database } from 'lucide-react';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
@@ -36,6 +36,7 @@ const TopActions = memo<TopActionProps>(({ tab, isPinned }) => {
   const isFilesActive = tab === SidebarTabKey.Files;
   const isDiscoverActive = tab === SidebarTabKey.Discover;
   const isImageActive = tab === SidebarTabKey.Image;
+  const isSQLiteActive = tab === SidebarTabKey.SQLite;
 
   return (
     <Flexbox gap={8}>
@@ -111,6 +112,21 @@ const TopActions = memo<TopActionProps>(({ tab, isPinned }) => {
           icon={Wallet}
           size={ICON_SIZE}
           title={'Wallet'}
+          tooltipProps={{ placement: 'right' }}
+        />
+      </a>
+      <a
+        aria-label={'SQLite Viewer'}
+        onClick={(e) => {
+          e.preventDefault();
+          useGlobalStore.getState().switchSideBar(SidebarTabKey.SQLite);
+        }}
+      >
+        <ActionIcon
+          active={isSQLiteActive}
+          icon={Database}
+          size={ICON_SIZE}
+          title={'SQLite Viewer'}
           tooltipProps={{ placement: 'right' }}
         />
       </a>

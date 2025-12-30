@@ -309,12 +309,32 @@ func (s *Service) BatchDelete(tableName string, ids []string, primaryKeyColumn s
 
 // getTableCount gets the total row count for a table
 func (s *Service) getTableCount(tableName string) (int64, error) {
-	query := fmt.Sprintf("SELECT COUNT(*) as total FROM %s", tableName)
+	// Use parameterized query to prevent SQL injection
+	// Note: Table names cannot be parameterized in standard SQL, so we validate the name
+	if !isValidTableName(tableName) {
+		return 0, fmt.Errorf("invalid table name: %s", tableName)
+	}
+
+	query := fmt.Sprintf("SELECT COUNT(*) FROM `%s`", tableName)
 	var count int64
 	if err := s.db.QueryRow(query).Scan(&count); err != nil {
 		return 0, fmt.Errorf("failed to get table count: %w", err)
 	}
 	return count, nil
+}
+
+// isValidTableName validates table name to prevent SQL injection
+func isValidTableName(name string) bool {
+	// Allow alphanumeric, underscore, and hyphen
+	for _, char := range name {
+		if !((char >= 'a' && char <= 'z') ||
+			(char >= 'A' && char <= 'Z') ||
+			(char >= '0' && char <= '9') ||
+			char == '_' || char == '-') {
+			return false
+		}
+	}
+	return len(name) > 0 && len(name) <= 64
 }
 
 // getRowByPrimaryKey gets a single row by its primary key

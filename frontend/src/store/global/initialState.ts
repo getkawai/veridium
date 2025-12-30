@@ -11,6 +11,7 @@ export enum SidebarTabKey {
   Files = 'files',
   Image = 'image',
   Wallet = 'wallet',
+  SQLite = 'sqlite',
   Me = 'me',
   Setting = 'settings',
 }
