@@ -129,19 +129,19 @@ func TestMarketplaceServiceCompilation(t *testing.T) {
 		orderService := &OrderService{}
 
 		orderKey := orderService.getOrderKey("test123")
-		expectedOrderKey := "marketplace:order:test123"
+		expectedOrderKey := "order:test123"
 		if orderKey != expectedOrderKey {
 			t.Errorf("Expected order key %s, got %s", expectedOrderKey, orderKey)
 		}
 
 		activeKey := orderService.getActiveOrdersKey()
-		expectedActiveKey := "marketplace:orders:active"
+		expectedActiveKey := "orders:active"
 		if activeKey != expectedActiveKey {
 			t.Errorf("Expected active orders key %s, got %s", expectedActiveKey, activeKey)
 		}
 
 		userKey := orderService.getUserOrdersKey("0x123")
-		expectedUserKey := "marketplace:orders:user:0x123"
+		expectedUserKey := "orders:user:0x123"
 		if userKey != expectedUserKey {
 			t.Errorf("Expected user orders key %s, got %s", expectedUserKey, userKey)
 		}

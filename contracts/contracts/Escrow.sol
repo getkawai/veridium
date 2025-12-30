@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title OTCMarket
- * @dev Simple OTC Market for P2P trading of DeAI Tokens vs USDT.
+ * @dev P2P OTC Market for trading DeAI Tokens vs USDT with partial fill support.
  */
 contract OTCMarket is ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -15,9 +15,10 @@ contract OTCMarket is ReentrancyGuard {
     struct Order {
         uint256 id;
         address seller;
-        uint256 tokenAmount;
-        uint256 priceInUSDT;
-        bool isActive;
+        uint256 tokenAmount;      // Original token amount
+        uint256 priceInUSDT;      // Original total price in USDT
+        uint256 remainingAmount;  // ✅ NEW: Remaining tokens available
+        bool isActive;            // true if remainingAmount > 0
     }
 
     IERC20 public immutable tokenDeAI;
@@ -35,13 +36,28 @@ contract OTCMarket is ReentrancyGuard {
         uint256 amount,
         uint256 price
     );
-    event OrderCancelled(uint256 indexed orderId, address indexed seller);
+    
+    event OrderCancelled(
+        uint256 indexed orderId, 
+        address indexed seller
+    );
+    
     event OrderFulfilled(
         uint256 indexed orderId,
         address indexed buyer,
         address indexed seller,
         uint256 amount,
         uint256 price
+    );
+    
+    // ✅ NEW: Event for partial fills
+    event OrderPartiallyFilled(
+        uint256 indexed orderId,
+        address indexed buyer,
+        address indexed seller,
+        uint256 amountFilled,
+        uint256 remainingAmount,
+        uint256 pricePaid
     );
 
     constructor(address _tokenDeAI, address _usdt, address _feeRecipient) {
@@ -74,6 +90,7 @@ contract OTCMarket is ReentrancyGuard {
                 seller: msg.sender,
                 tokenAmount: _amount,
                 priceInUSDT: _priceInUSDT,
+                remainingAmount: _amount,  // ✅ NEW: Initialize remaining amount
                 isActive: true
             })
         );
@@ -82,7 +99,7 @@ contract OTCMarket is ReentrancyGuard {
     }
 
     /**
-     * @notice Buy a specific order.
+     * @notice Buy a specific order (full amount).
      * @param _orderId ID of the order to buy.
      */
     function buyOrder(uint256 _orderId) external nonReentrant {
@@ -90,29 +107,81 @@ contract OTCMarket is ReentrancyGuard {
         Order storage order = orders[_orderId];
         require(order.isActive, "Order not active");
 
-        // Mark as inactive immediately to prevent re-entrancy
-        order.isActive = false;
+        // Buy the full remaining amount
+        _executeTrade(_orderId, order.remainingAmount);
+    }
+
+    /**
+     * @notice Buy a partial amount from an order.
+     * @param _orderId ID of the order to buy from.
+     * @param _amount Amount of tokens to buy (must be <= remainingAmount).
+     */
+    function buyOrderPartial(
+        uint256 _orderId, 
+        uint256 _amount
+    ) external nonReentrant {
+        require(_orderId < orders.length, "Invalid Order ID");
+        Order storage order = orders[_orderId];
+        require(order.isActive, "Order not active");
+        require(_amount > 0, "Amount must be > 0");
+        require(_amount <= order.remainingAmount, "Amount exceeds remaining");
+
+        _executeTrade(_orderId, _amount);
+    }
+
+    /**
+     * @notice Internal function to execute a trade (full or partial).
+     * @param _orderId ID of the order.
+     * @param _amount Amount of tokens to trade.
+     */
+    function _executeTrade(uint256 _orderId, uint256 _amount) internal {
+        Order storage order = orders[_orderId];
+
+        // Calculate proportional USDT price
+        uint256 proportionalPrice = (order.priceInUSDT * _amount) / order.tokenAmount;
+
+        // Update remaining amount
+        order.remainingAmount -= _amount;
+
+        // Mark as inactive if fully filled
+        if (order.remainingAmount == 0) {
+            order.isActive = false;
+        }
 
         // Calculate fee (if any)
-        uint256 feeAmount = (order.priceInUSDT * FEE_BPS) / 10000;
-        uint256 sellerAmount = order.priceInUSDT - feeAmount;
+        uint256 feeAmount = (proportionalPrice * FEE_BPS) / 10000;
+        uint256 sellerAmount = proportionalPrice - feeAmount;
 
-        // Transfer USDT from Buyer -> Selller (+ Fee)
+        // Transfer USDT from Buyer -> Seller (+ Fee)
         if (feeAmount > 0 && feeRecipient != address(0)) {
             usdt.safeTransferFrom(msg.sender, feeRecipient, feeAmount);
         }
         usdt.safeTransferFrom(msg.sender, order.seller, sellerAmount);
 
         // Transfer DeAI Token from Escrow -> Buyer
-        tokenDeAI.safeTransfer(msg.sender, order.tokenAmount);
+        tokenDeAI.safeTransfer(msg.sender, _amount);
 
-        emit OrderFulfilled(
-            _orderId,
-            msg.sender,
-            order.seller,
-            order.tokenAmount,
-            order.priceInUSDT
-        );
+        // Emit appropriate event
+        if (order.remainingAmount == 0) {
+            // Fully filled
+            emit OrderFulfilled(
+                _orderId,
+                msg.sender,
+                order.seller,
+                _amount,
+                proportionalPrice
+            );
+        } else {
+            // Partially filled
+            emit OrderPartiallyFilled(
+                _orderId,
+                msg.sender,
+                order.seller,
+                _amount,
+                order.remainingAmount,
+                proportionalPrice
+            );
+        }
     }
 
     /**
@@ -125,15 +194,145 @@ contract OTCMarket is ReentrancyGuard {
         require(order.seller == msg.sender, "Not your order");
         require(order.isActive, "Order already sold/cancelled");
 
+        uint256 refundAmount = order.remainingAmount;
         order.isActive = false;
+        order.remainingAmount = 0;
 
-        // Return tokens to seller
-        tokenDeAI.safeTransfer(msg.sender, order.tokenAmount);
+        // Return remaining tokens to seller
+        tokenDeAI.safeTransfer(msg.sender, refundAmount);
 
         emit OrderCancelled(_orderId, msg.sender);
     }
 
+    /**
+     * @notice Get the total number of orders.
+     */
     function getOrdersCount() external view returns (uint256) {
         return orders.length;
+    }
+
+    /**
+     * @notice Get order details by ID.
+     * @param _orderId ID of the order.
+     */
+    function getOrder(uint256 _orderId) external view returns (
+        uint256 id,
+        address seller,
+        uint256 tokenAmount,
+        uint256 priceInUSDT,
+        uint256 remainingAmount,
+        bool isActive
+    ) {
+        require(_orderId < orders.length, "Invalid Order ID");
+        Order storage order = orders[_orderId];
+        return (
+            order.id,
+            order.seller,
+            order.tokenAmount,
+            order.priceInUSDT,
+            order.remainingAmount,
+            order.isActive
+        );
+    }
+
+    /**
+     * @notice Get multiple orders at once (for efficient querying).
+     * @param _orderIds Array of order IDs to fetch.
+     */
+    function getOrders(uint256[] calldata _orderIds) external view returns (Order[] memory) {
+        Order[] memory result = new Order[](_orderIds.length);
+        for (uint256 i = 0; i < _orderIds.length; i++) {
+            require(_orderIds[i] < orders.length, "Invalid Order ID");
+            result[i] = orders[_orderIds[i]];
+        }
+        return result;
+    }
+
+    /**
+     * @notice Get all active orders (paginated to avoid gas limit).
+     * @param _offset Starting index.
+     * @param _limit Maximum number of orders to return.
+     */
+    function getActiveOrders(
+        uint256 _offset, 
+        uint256 _limit
+    ) external view returns (Order[] memory) {
+        require(_limit <= 100, "Limit too high");
+        
+        // Count active orders
+        uint256 activeCount = 0;
+        for (uint256 i = 0; i < orders.length; i++) {
+            if (orders[i].isActive) {
+                activeCount++;
+            }
+        }
+        
+        // Calculate result size
+        uint256 resultSize = activeCount > _offset ? activeCount - _offset : 0;
+        if (resultSize > _limit) {
+            resultSize = _limit;
+        }
+        
+        // Fill result array
+        Order[] memory result = new Order[](resultSize);
+        uint256 resultIndex = 0;
+        uint256 currentOffset = 0;
+        
+        for (uint256 i = 0; i < orders.length && resultIndex < resultSize; i++) {
+            if (orders[i].isActive) {
+                if (currentOffset >= _offset) {
+                    result[resultIndex] = orders[i];
+                    resultIndex++;
+                }
+                currentOffset++;
+            }
+        }
+        
+        return result;
+    }
+
+    /**
+     * @notice Get orders by seller (for user's order history).
+     * @param _seller Address of the seller.
+     * @param _offset Starting index.
+     * @param _limit Maximum number of orders to return.
+     */
+    function getOrdersBySeller(
+        address _seller,
+        uint256 _offset,
+        uint256 _limit
+    ) external view returns (Order[] memory) {
+        require(_limit <= 100, "Limit too high");
+        
+        // Count seller's orders
+        uint256 sellerOrderCount = 0;
+        for (uint256 i = 0; i < orders.length; i++) {
+            if (orders[i].seller == _seller) {
+                sellerOrderCount++;
+            }
+        }
+        
+        // Calculate result size
+        uint256 resultSize = sellerOrderCount > _offset ? sellerOrderCount - _offset : 0;
+        if (resultSize > _limit) {
+            resultSize = _limit;
+        }
+        
+        // Fill result array
+        Order[] memory result = new Order[](resultSize);
+        uint256 resultIndex = 0;
+        uint256 currentOffset = 0;
+        
+        for (uint256 i = 0; i < orders.length && resultIndex < resultSize; i++) {
+            if (orders[i].seller == _seller) {
+                if (currentOffset >= _offset) {
+                    result[resultIndex] = orders[i];
+                    resultIndex++;
+                }
+                currentOffset++;
+            }
+        }
+        
+        return result;
     }
 }

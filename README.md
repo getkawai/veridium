@@ -108,16 +108,38 @@ This roadmap outlines the path from "Zero" to a fully functional decentralized n
 
 ## 🌐 Monad Testnet Deployment
 
-> **Status:** ✅ Deployed (2025-12-27)
+> **Status:** ✅ **UPGRADED v2.0** (2025-12-31) - Partial Fill Support
+
+### **Latest Contracts (v2.0 - Partial Fill)**
 
 | Contract | Address | Description |
 |---|---|---|
-| MockUSDT | `0xa6Fc4FaF4CD7a4E3f300D164a37CB45d35bf28eD` | Test USDT for simulating revenue |
-| KawaiToken | `0x3EC7A3b85f9658120490d5a76705d4d304f4068D` | Native token (1B Max Supply, Fair Launch) |
-| KAWAI_Distributor | `0x988Cbef1F6b9057Cfa7325a7E364543E615f9191` | Merkle distributor for mining rewards (mint-on-claim) |
-| USDT_Distributor | `0x2A1ebd03Ce88CED9731c77C63EDE2451f9c08F94` | Merkle distributor for profit sharing |
-| PaymentVault | `0xa3004DFc316998bD02DFd92e4f13c7FACFFdF70F` | User USDT deposit vault |
-| OTCMarket | `0x134244eDd4349b0B408c5293Ffb4263984F2808C` | P2P trading escrow |
+| **KawaiToken** | `0xF27c5c43a746B329B1c767CE1b319c9EBfE8012E` | Native token (1B Max Supply, Fair Launch) |
+| **OTCMarket v2** ⭐ | `0x5b1235038B2F05aC88b791A23814130710eFaaEa` | **NEW:** P2P trading with Partial Fill Support |
+| **MockUSDT** | `0xb8cD3f468E9299Fa58B2f4210Fe06fe678d1A1B7` | Test USDT for simulating revenue |
+| **PaymentVault** | `0x714238F32A7aE70C0D208D58Cc041D8Dda28e813` | User USDT deposit vault |
+| **KAWAI_Distributor** | `0xf4CCb09208cA77153e1681d256247dae0ff119ba` | Merkle distributor for mining rewards |
+| **USDT_Distributor** | `0xE964B52D496F37749bd0caF287A356afdC10836C` | Merkle distributor for profit sharing |
+
+### **What's New in v2.0:**
+- ✅ **Partial Fill Support** - Buy/sell any amount from orders
+- ✅ **Remaining Amount Tracking** - Real-time order status
+- ✅ **Efficient View Functions** - Batch queries, pagination
+- ✅ **Enhanced Events** - Detailed partial fill events
+- ✅ **19 Comprehensive Tests** - Full test coverage
+- ✅ **Reconciliation Service** - Auto-sync blockchain ↔ KV store
+- ✅ **Rate Limiting** - RPC (10/sec) + KV (100/sec)
+
+### **Old Contracts (v1.0 - Deprecated)**
+<details>
+<summary>Click to view legacy contracts</summary>
+
+| Contract | Address | Status |
+|---|---|---|
+| KawaiToken (old) | `0x3EC7A3b85f9658120490d5a76705d4d304f4068D` | ⚠️ Deprecated |
+| OTCMarket (old) | `0x134244eDd4349b0B408c5293Ffb4263984F2808C` | ⚠️ Deprecated |
+
+</details>
 
 **Network Info:**
 - **Chain ID:** 10143
@@ -175,6 +197,16 @@ CF_KV_SETTLEMENTS_NAMESPACE_ID=...   # Settlement metadata
 | `pkg/merkle` | Merkle tree generation |
 | `pkg/blockchain` | Monad blockchain interaction |
 | `pkg/config` | Configuration management |
+| [`internal/services`](internal/services/) | Marketplace, Reconciliation, Event Listener services |
+
+## 📚 Additional Documentation
+
+| Document | Description |
+|----------|-------------|
+| [`DEPLOYMENT_SUMMARY.md`](DEPLOYMENT_SUMMARY.md) | Full deployment details & contract addresses |
+| [`MARKETPLACE_UPGRADE_SUMMARY.md`](MARKETPLACE_UPGRADE_SUMMARY.md) | Architecture & partial fill implementation |
+| [`CONTRACTS_WORKFLOW.md`](CONTRACTS_WORKFLOW.md) | Smart contract development workflow |
+| [`current_concept.md`](current_concept.md) | Complete project concept & tokenomics |
 
 ---
 

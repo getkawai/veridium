@@ -95,14 +95,18 @@ if totalSupply >= maxSupply {
 
 ### C. Liquidity Strategy (Strategi Likuiditas)
 Karena tidak ada Modal Tim untuk membuat LP di PancakeSwap pada Hari-1:
-*   **Fase 1 (Bootstrap): Internal P2P Market (OTC) ✅ IMPLEMENTED**
+*   **Fase 1 (Bootstrap): Internal P2P Market (OTC) ✅ UPGRADED v2.0**
+    *   ✅ **Partial Fill Support** - Users dapat buy/sell sebagian order (flexibility maksimal).
+    *   ✅ **Remaining Amount Tracking** - Real-time tracking sisa order yang belum terisi.
     *   ✅ Platform "Bulletin Board" lengkap dengan order book real-time dan trading interface.
     *   ✅ Kontributor dapat membuat sell order untuk menjual token KAWAI mereka.
-    *   ✅ Investor dapat membeli token langsung dari order book dengan eksekusi instan.
-    *   ✅ **Teknologi:** Smart Contract Escrow Aman (Atomic Swap) terintegrasi penuh.
+    *   ✅ Investor dapat membeli token langsung dari order book dengan eksekusi instan atau partial.
+    *   ✅ **Teknologi:** Smart Contract Escrow v2 dengan Atomic Swap + Partial Fill.
     *   ✅ **Harga:** Terbentuk alami oleh Supply & Demand (Market Forces) dengan order book.
     *   ✅ **UI Features:** Market statistics, price tracking, order history, trade history.
     *   ✅ **Real-time Updates:** Event-driven updates menggunakan Wails Events API.
+    *   ✅ **Reconciliation Service:** Auto-sync blockchain ↔ KV store setiap 5 menit.
+    *   ✅ **Offline Resilience:** Chunked event replay untuk catch-up setelah offline.
 *   **Fase 2 (Growth): Community-Owned Liquidity.**
     *   Setelah profit stabil, stakeholder didorong untuk membuat LP sendiri di PancakeSwap.
     *   Insentif: LP Provider mendapatkan bonus Token tambahan + Trading Fees.
@@ -118,12 +122,18 @@ Sistem menggunakan pendekatan **Hybrid (On-Chain Settlement + Off-Chain Verifica
 2.  **Merkle Distributor Contract:**
     *   Kontrak untuk distribusi reward massal dengan biaya gas murah.
     *   Admin hanya meng-upload "Root" (Hash) mingguan. Worker melakukan klaim dengan bukti kriptografi.
-3.  **OTC/Escrow Contract ✅ IMPLEMENTED:**
+3.  **OTC/Escrow Contract ✅ UPGRADED v2.0 (Deployed 2025-12-31):**
     *   Kontrak lengkap untuk memfasilitasi jual-beli P2P (Token <-> USDT) tanpa Slippage AMM.
-    *   ✅ Fitur: Create Order, Cancel Order, Buy Order, Partial Buy.
+    *   ✅ **NEW:** Partial Fill Support - Buy/sell sebagian order dengan `buyOrderPartial()`.
+    *   ✅ **NEW:** Remaining Amount Tracking - Field `remainingAmount` untuk tracking real-time.
+    *   ✅ **NEW:** Efficient View Functions - Batch queries, pagination, filter by seller.
+    *   ✅ **NEW:** Enhanced Events - `OrderPartiallyFilled` event untuk partial fills.
+    *   ✅ Fitur: Create Order, Cancel Order, Buy Order (Full/Partial).
     *   ✅ Real-time market data dan order book management.
     *   ✅ Event emission untuk real-time UI updates.
     *   ✅ Comprehensive order and trade history tracking.
+    *   ✅ 19 comprehensive tests passing.
+    *   📍 **Address:** `0x5b1235038B2F05aC88b791A23814130710eFaaEa`
 
 ### B. Off-Chain Layer (Middleware & Nodes)
 1.  **AI Nodes (Contributors):**
@@ -201,10 +211,13 @@ Agar jaringan tetap "Lean" (hemat biaya), kami menggunakan model **Off-Chain Acc
     *   ✅ Buat Client Script `llama.cpp` sederhana.
     *   ✅ Buat Server Middleware (Golang) untuk manajemen job.
     *   ✅ **P2P Marketplace:** Complete trading interface dengan real-time updates.
-2.  **Deployment ✅ COMPLETED:**
+2.  **Deployment ✅ UPGRADED (2025-12-31):**
     *   ✅ Deploy kontrak ke Monad Testnet/Mainnet.
+    *   ✅ **NEW Contracts v2.0:** OTCMarket dengan Partial Fill Support deployed & verified.
     *   ✅ Rilis website lengkap untuk Dashboard Worker & P2P Market.
     *   ✅ **Live Contracts:** All contracts deployed dan terintegrasi dengan UI.
+    *   ✅ **Backend Services:** Reconciliation, Event Replay, Rate Limiting implemented.
+    *   📚 **Documentation:** DEPLOYMENT_SUMMARY.md, MARKETPLACE_UPGRADE_SUMMARY.md, CONTRACTS_WORKFLOW.md
 3.  **Launch (READY):**
     *   Undang kontributor awal (Alpha Testers).
     *   Mulai siklus: Kerja -> Poin -> Mingguan Token Dist + USDT Dividen.

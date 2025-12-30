@@ -4,7 +4,11 @@
 
 .PHONY: help dev dev-fast dev-hot dev-rebuild build clean test generate \
         db-generate bindings-generate db-dump db-restore \
-        contracts-compile contracts-bindings contracts-update
+        contracts-compile contracts-bindings contracts-update \
+        contracts-test contracts-test-gas contracts-coverage \
+        contracts-deploy-local contracts-deploy-testnet contracts-verify \
+        contracts-upgrade contracts-clean contracts-validate \
+        contracts-gas-snapshot contracts-gas-compare
 
 # ------------------------------------------------------------------------------
 # Configuration
@@ -19,6 +23,17 @@ ESCROW_ARTIFACT      := $(CONTRACTS_DIR)/out/Escrow.sol/OTCMarket.json
 VAULT_ARTIFACT       := $(CONTRACTS_DIR)/out/PaymentVault.sol/PaymentVault.json
 DISTRIBUTOR_ARTIFACT := $(CONTRACTS_DIR)/out/MerkleDistributor.sol/MerkleDistributor.json
 USDT_ARTIFACT        := $(CONTRACTS_DIR)/out/MockUSDT.sol/MockUSDT.json
+
+# Load environment variables from contracts/.env if exists
+-include $(CONTRACTS_DIR)/.env
+export
+
+# Deployment configuration (can be overridden via env vars or contracts/.env)
+PRIVATE_KEY ?= 
+RPC_URL ?= https://testnet-rpc.monad.xyz
+CONTRACT_ADDRESS ?=
+ETHERSCAN_API_KEY ?= MKB28KJN1TJKRPA4EYVXXBWYUYDX6P5ESF
+CHAIN_ID ?= 10143
 
 # ==============================================================================
 # Help
@@ -43,9 +58,20 @@ help:
 	@echo "  make db-restore       Restore database from seed file"
 	@echo ""
 	@echo "Smart Contracts:"
-	@echo "  make contracts-update Compile + generate bindings"
-	@echo "  make contracts-compile Compile with Foundry"
-	@echo "  make contracts-bindings Generate Go bindings"
+	@echo "  make contracts-update       Compile + generate bindings"
+	@echo "  make contracts-upgrade      Full upgrade workflow (test + compile + bindings)"
+	@echo "  make contracts-compile      Compile with Foundry"
+	@echo "  make contracts-bindings     Generate Go bindings"
+	@echo "  make contracts-test         Run contract tests"
+	@echo "  make contracts-test-gas     Run tests with gas report"
+	@echo "  make contracts-coverage     Generate test coverage report"
+	@echo "  make contracts-validate     Validate contracts before deployment"
+	@echo "  make contracts-gas-snapshot Create gas usage baseline"
+	@echo "  make contracts-gas-compare  Compare gas usage vs baseline"
+	@echo "  make contracts-deploy-local Deploy to local Anvil"
+	@echo "  make contracts-deploy-testnet Deploy to Monad Testnet"
+	@echo "  make contracts-verify       Verify contract on explorer"
+	@echo "  make contracts-clean        Clean contract artifacts"
 	@echo ""
 	@echo "Maintenance:"
 	@echo "  make clean            Clean generated files"
@@ -130,6 +156,104 @@ contracts-bindings: abi-token abi-escrow abi-vault abi-distributor abi-usdt gene
 
 contracts-update: contracts-compile contracts-bindings
 	@echo "🚀 Contracts updated!"
+
+# ✅ NEW: Full upgrade workflow with validation
+contracts-upgrade:
+	@echo "🔄 Full contract upgrade workflow..."
+	@echo ""
+	@echo "Step 1: Running tests..."
+	@$(MAKE) contracts-test
+	@echo ""
+	@echo "Step 2: Compiling contracts..."
+	@$(MAKE) contracts-compile
+	@echo ""
+	@echo "Step 3: Generating bindings..."
+	@$(MAKE) contracts-bindings
+	@echo ""
+	@echo "✅ Contract upgrade complete!"
+	@echo ""
+	@echo "⚠️  Next steps:"
+	@echo "  1. Review changes in internal/generate/abi/"
+	@echo "  2. Update backend code if needed"
+	@echo "  3. Test locally: make dev-hot"
+	@echo "  4. Deploy to testnet: make contracts-deploy-testnet"
+
+# ✅ NEW: Contract testing
+contracts-test:
+	@echo "🧪 Running contract tests..."
+	cd $(CONTRACTS_DIR) && ~/.foundry/bin/forge test -vv
+
+contracts-test-gas:
+	@echo "⛽ Running contract tests with gas report..."
+	cd $(CONTRACTS_DIR) && ~/.foundry/bin/forge test --gas-report
+
+contracts-coverage:
+	@echo "📊 Running contract coverage..."
+	cd $(CONTRACTS_DIR) && ~/.foundry/bin/forge coverage
+
+# ✅ NEW: Contract validation
+contracts-validate:
+	@echo "🔍 Validating contract changes..."
+	@echo "Checking if contracts compiled..."
+	@test -f $(ESCROW_ARTIFACT) || (echo "❌ Escrow artifact not found! Run: make contracts-compile" && exit 1)
+	@test -f $(TOKEN_ARTIFACT) || (echo "❌ Token artifact not found! Run: make contracts-compile" && exit 1)
+	@echo "✅ Contract artifacts found"
+	@echo ""
+	@echo "Checking if bindings generated..."
+	@test -f $(ABIS_DIR)/escrow/escrow.go || (echo "❌ Escrow bindings not found! Run: make contracts-bindings" && exit 1)
+	@test -f $(ABIS_DIR)/kawaitoken/kawaitoken.go || (echo "❌ Token bindings not found! Run: make contracts-bindings" && exit 1)
+	@echo "✅ Contract bindings found"
+	@echo ""
+	@echo "Running contract tests..."
+	@$(MAKE) contracts-test
+	@echo ""
+	@echo "✅ All validations passed!"
+
+# ✅ NEW: Gas optimization
+contracts-gas-snapshot:
+	@echo "📸 Creating gas snapshot..."
+	cd $(CONTRACTS_DIR) && ~/.foundry/bin/forge snapshot
+	@echo "✅ Gas snapshot saved to contracts/.gas-snapshot"
+
+contracts-gas-compare:
+	@echo "📊 Comparing gas usage..."
+	@test -f $(CONTRACTS_DIR)/.gas-snapshot || (echo "❌ No baseline snapshot! Run: make contracts-gas-snapshot" && exit 1)
+	cd $(CONTRACTS_DIR) && ~/.foundry/bin/forge snapshot --diff .gas-snapshot
+
+# ✅ NEW: Deployment commands
+contracts-deploy-local:
+	@echo "🚀 Deploying to local Anvil..."
+	cd $(CONTRACTS_DIR) && ~/.foundry/bin/forge script script/DeployKawai.s.sol:DeployKawai \
+		--rpc-url http://localhost:8545 \
+		--private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
+		--broadcast
+
+contracts-deploy-testnet:
+	@echo "🚀 Deploying to Monad Testnet..."
+	@test -n "$(PRIVATE_KEY)" || (echo "❌ PRIVATE_KEY not set!" && exit 1)
+	@test -n "$(RPC_URL)" || (echo "❌ RPC_URL not set!" && exit 1)
+	cd $(CONTRACTS_DIR) && ~/.foundry/bin/forge script script/DeployKawai.s.sol:DeployKawai \
+		--rpc-url $(RPC_URL) \
+		--private-key $(PRIVATE_KEY) \
+		--broadcast \
+		--verify
+
+contracts-verify:
+	@echo "✅ Verifying contracts on explorer..."
+	@test -n "$(CONTRACT_ADDRESS)" || (echo "❌ CONTRACT_ADDRESS not set!" && exit 1)
+	@test -n "$(ETHERSCAN_API_KEY)" || (echo "❌ ETHERSCAN_API_KEY not set!" && exit 1)
+	cd $(CONTRACTS_DIR) && ~/.foundry/bin/forge verify-contract \
+		$(CONTRACT_ADDRESS) \
+		contracts/Escrow.sol:OTCMarket \
+		--chain-id $(CHAIN_ID) \
+		--etherscan-api-key $(ETHERSCAN_API_KEY)
+
+# ✅ NEW: Clean contract artifacts
+contracts-clean:
+	@echo "🧹 Cleaning contract artifacts..."
+	cd $(CONTRACTS_DIR) && ~/.foundry/bin/forge clean
+	rm -rf $(ABIS_DIR)
+	@echo "✅ Contract artifacts cleaned!"
 
 generate-project-abis:
 	@echo "📦 Injecting project ABIs into Jarvis..."

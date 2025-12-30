@@ -841,7 +841,7 @@ func (s *TradeService) ExecutePartialTrade(orderID string, buyer string, request
 	}
 
 	// Process trade completion with partial amount handling
-	if err := s.ProcessPartialTradeCompletion(orderID, txHash, tradeTokenAmount, tradeUSDTAmount); err != nil {
+	if err := s.ProcessPartialTradeCompletion(orderID, txHash, tradeTokenAmount, tradeUSDTAmount, buyer); err != nil {
 		return &TradeResult{
 			Success: false,
 			OrderID: orderID,
@@ -863,7 +863,7 @@ func (s *TradeService) ExecutePartialTrade(orderID string, buyer string, request
 
 // ProcessTradeCompletion processes the completion of a trade and updates order status
 // Requirements: 3.4, 3.5
-func (s *TradeService) ProcessTradeCompletion(orderID, txHash string) error {
+func (s *TradeService) ProcessTradeCompletion(orderID, txHash string, buyerAddress string) error {
 	// Get the order
 	order, err := s.orderService.GetOrder(orderID)
 	if err != nil {
@@ -876,12 +876,12 @@ func (s *TradeService) ProcessTradeCompletion(orderID, txHash string) error {
 		return fmt.Errorf("invalid remaining amount format in order")
 	}
 
-	return s.ProcessPartialTradeCompletion(orderID, txHash, remainingAmount, nil)
+	return s.ProcessPartialTradeCompletion(orderID, txHash, remainingAmount, nil, buyerAddress)
 }
 
 // ProcessPartialTradeCompletion processes the completion of a partial trade
 // Requirements: 2.4, 3.5 - Partial order handling and status management
-func (s *TradeService) ProcessPartialTradeCompletion(orderID, txHash string, tradeTokenAmount, tradeUSDTAmount *big.Int) error {
+func (s *TradeService) ProcessPartialTradeCompletion(orderID, txHash string, tradeTokenAmount, tradeUSDTAmount *big.Int, buyerAddress string) error {
 	// Get the order
 	order, err := s.orderService.GetOrder(orderID)
 	if err != nil {
@@ -918,7 +918,7 @@ func (s *TradeService) ProcessPartialTradeCompletion(orderID, txHash string, tra
 	}
 
 	// Store trade record
-	if err := s.storePartialTradeRecord(order, txHash, tradeTokenAmount, tradeUSDTAmount); err != nil {
+	if err := s.storePartialTradeRecord(order, txHash, tradeTokenAmount, tradeUSDTAmount, buyerAddress); err != nil {
 		log.Printf("⚠️  Failed to store trade record: %v", err)
 		// Don't fail the trade completion for this
 	} else {
@@ -930,7 +930,7 @@ func (s *TradeService) ProcessPartialTradeCompletion(orderID, txHash string, tra
 			trade := &Trade{
 				ID:          fmt.Sprintf("temp_%s_%d", orderID, time.Now().Unix()),
 				OrderID:     orderID,
-				Buyer:       "", // Will be filled by event listener
+				Buyer:       buyerAddress, // Now filled synchronously
 				Seller:      order.Seller,
 				TokenAmount: tradeTokenAmount.String(),
 				USDTAmount:  tradeUSDTAmount.String(),
@@ -975,7 +975,7 @@ func (s *TradeService) updateOrderRemainingAmount(orderID string, newRemainingAm
 }
 
 // storeTradeRecord stores a completed trade record in KV store (backward compatibility)
-func (s *TradeService) storeTradeRecord(order *Order, txHash string) error {
+func (s *TradeService) storeTradeRecord(order *Order, txHash string, buyerAddress string) error {
 	// For backward compatibility, assume full order execution
 	tokenAmount, ok := new(big.Int).SetString(order.RemainingAmount, 10)
 	if !ok {
@@ -987,11 +987,11 @@ func (s *TradeService) storeTradeRecord(order *Order, txHash string) error {
 		return fmt.Errorf("invalid USDT price format")
 	}
 
-	return s.storePartialTradeRecord(order, txHash, tokenAmount, usdtAmount)
+	return s.storePartialTradeRecord(order, txHash, tokenAmount, usdtAmount, buyerAddress)
 }
 
 // storePartialTradeRecord stores a completed trade record with specific amounts
-func (s *TradeService) storePartialTradeRecord(order *Order, txHash string, tradeTokenAmount, tradeUSDTAmount *big.Int) error {
+func (s *TradeService) storePartialTradeRecord(order *Order, txHash string, tradeTokenAmount, tradeUSDTAmount *big.Int, buyerAddress string) error {
 	ctx := context.Background()
 
 	// Generate trade ID
@@ -1017,11 +1017,11 @@ func (s *TradeService) storePartialTradeRecord(order *Order, txHash string, trad
 		tradeUSDTAmount = tradeUSDTAmount.Div(tradeUSDTAmount, originalTokenAmount)
 	}
 
-	// Create trade record
+	// Create trade record with buyer information
 	trade := Trade{
 		ID:          tradeID,
 		OrderID:     order.ID,
-		Buyer:       "", // Will be filled by event listener when we have buyer info
+		Buyer:       buyerAddress, // Now filled synchronously at trade execution
 		Seller:      order.Seller,
 		TokenAmount: tradeTokenAmount.String(),
 		USDTAmount:  tradeUSDTAmount.String(),
@@ -1052,10 +1052,12 @@ func (s *TradeService) storePartialTradeRecord(order *Order, txHash string, trad
 		log.Printf("⚠️  Failed to add trade to seller history: %v", err)
 	}
 
-	// Note: Buyer will be added to trade record and history by event listener
-	// when we receive the OrderFulfilled event with buyer information
+	// Add trade to buyer's trade history (synchronously)
+	if err := s.addTradeToUserHistory(buyerAddress, "buyer", tradeID); err != nil {
+		log.Printf("⚠️  Failed to add trade to buyer history: %v", err)
+	}
 
-	log.Printf("✅ Stored trade record %s for order %s", tradeID, order.ID)
+	log.Printf("✅ Stored trade record %s for order %s (Buyer: %s, Seller: %s)", tradeID, order.ID, buyerAddress, order.Seller)
 	return nil
 }
 
@@ -1100,6 +1102,13 @@ func (s *TradeService) addTradeToUserHistory(walletAddress, role, tradeID string
 	if err == nil {
 		if err := json.Unmarshal(value, &tradeIDs); err != nil {
 			return fmt.Errorf("failed to unmarshal existing trade IDs: %w", err)
+		}
+	}
+
+	// Check if trade ID already exists (Idempotency)
+	for _, id := range tradeIDs {
+		if id == tradeID {
+			return nil // Already recorded
 		}
 	}
 
@@ -1363,7 +1372,51 @@ func (s *OrderService) StoreOrder(order *Order) error {
 	// Store in KV using marketplace methods
 	key := s.getOrderKey(order.ID)
 	if err := s.kvStore.StoreMarketplaceData(ctx, key, orderJSON); err != nil {
+		log.Printf("❌ [Marketplace:KV] Failed to store order %s: %v", order.ID, err)
 		return fmt.Errorf("failed to store order: %w", err)
+	}
+
+	// Update user's order index
+	if err := s.addOrderToUserIndex(order.ID, order.Seller); err != nil {
+		log.Printf("⚠️  Failed to update user index for order %s: %v", order.ID, err)
+		// Don't fail the whole operation if index update fails
+	}
+
+	return nil
+}
+
+// addOrderToUserIndex adds an order ID to the user's order index
+func (s *OrderService) addOrderToUserIndex(orderID, userAddr string) error {
+	ctx := context.Background()
+	userOrdersKey := fmt.Sprintf("user:%s:orders", strings.ToLower(userAddr))
+
+	// Get existing order IDs
+	var orderIDs []string
+	value, err := s.kvStore.GetMarketplaceData(ctx, userOrdersKey)
+	if err == nil {
+		if err := json.Unmarshal(value, &orderIDs); err != nil {
+			return fmt.Errorf("failed to unmarshal user orders index: %w", err)
+		}
+	}
+
+	// Check if order already exists (idempotency)
+	for _, id := range orderIDs {
+		if id == orderID {
+			return nil // Already indexed
+		}
+	}
+
+	// Add new order ID
+	orderIDs = append(orderIDs, orderID)
+
+	// Save updated index
+	data, err := json.Marshal(orderIDs)
+	if err != nil {
+		return fmt.Errorf("failed to marshal user orders index: %w", err)
+	}
+
+	if err := s.kvStore.StoreMarketplaceData(ctx, userOrdersKey, data); err != nil {
+		return fmt.Errorf("failed to store user orders index: %w", err)
 	}
 
 	return nil
@@ -1521,6 +1574,38 @@ func (s *OrderService) GetActiveOrders() ([]Order, error) {
 	return orders, nil
 }
 
+// GetUserOrders returns all orders (active and inactive) for a specific user
+func (s *OrderService) GetUserOrders(userAddr string) ([]Order, error) {
+	ctx := context.Background()
+
+	// Get user's order IDs from user index
+	userOrdersKey := fmt.Sprintf("user:%s:orders", strings.ToLower(userAddr))
+	value, err := s.kvStore.GetMarketplaceData(ctx, userOrdersKey)
+	if err != nil {
+		// If index doesn't exist, return empty list
+		return []Order{}, nil
+	}
+
+	// Parse order IDs from index
+	var orderIDs []string
+	if err := json.Unmarshal(value, &orderIDs); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal user orders index: %w", err)
+	}
+
+	// Fetch each order
+	orders := make([]Order, 0, len(orderIDs))
+	for _, orderID := range orderIDs {
+		order, err := s.GetOrder(orderID)
+		if err != nil {
+			log.Printf("⚠️  Failed to get order %s from user index: %v", orderID, err)
+			continue
+		}
+		orders = append(orders, *order)
+	}
+
+	return orders, nil
+}
+
 // DeleteOrder removes an order from KV store
 func (s *OrderService) DeleteOrder(orderID string) error {
 	ctx := context.Background()
@@ -1627,6 +1712,7 @@ func (s *OrderService) addToActiveOrdersIndex(orderID string) error {
 	}
 
 	if err := s.kvStore.StoreMarketplaceData(ctx, activeOrdersKey, indexJSON); err != nil {
+		log.Printf("❌ [Marketplace:KV] Failed to write active orders index for order %s: %v", orderID, err)
 		return fmt.Errorf("failed to write active orders index: %w", err)
 	}
 
@@ -1666,6 +1752,7 @@ func (s *OrderService) removeFromActiveOrdersIndex(orderID string) error {
 	}
 
 	if err := s.kvStore.StoreMarketplaceData(ctx, activeOrdersKey, indexJSON); err != nil {
+		log.Printf("❌ [Marketplace:KV] Failed to remove order %s from active orders index: %v", orderID, err)
 		return fmt.Errorf("failed to write active orders index: %w", err)
 	}
 
@@ -1699,6 +1786,7 @@ func (s *OrderService) addToUserOrdersIndex(userAddress, orderID string) error {
 	}
 
 	if err := s.kvStore.StoreMarketplaceData(ctx, userOrdersKey, indexJSON); err != nil {
+		log.Printf("❌ [Marketplace:KV] Failed to write user orders index for user %s, order %s: %v", userAddress, orderID, err)
 		return fmt.Errorf("failed to write user orders index: %w", err)
 	}
 
@@ -1738,6 +1826,7 @@ func (s *OrderService) removeFromUserOrdersIndex(userAddress, orderID string) er
 	}
 
 	if err := s.kvStore.StoreMarketplaceData(ctx, userOrdersKey, indexJSON); err != nil {
+		log.Printf("❌ [Marketplace:KV] Failed to remove order %s from user %s index: %v", orderID, userAddress, err)
 		return fmt.Errorf("failed to write user orders index: %w", err)
 	}
 
@@ -1771,7 +1860,7 @@ func NewMarketplaceService(kvStore *store.KVStore, blockchainClient *blockchain.
 	// Create event listener
 	var eventListener *MarketplaceEventListener
 	if blockchainClient != nil {
-		eventListener = NewMarketplaceEventListener(blockchainClient, orderService)
+		eventListener = NewMarketplaceEventListener(blockchainClient, orderService, walletService, kvStore)
 	}
 
 	service := &MarketplaceService{

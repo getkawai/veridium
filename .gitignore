@@ -14,3 +14,8 @@ videoplayback.mp4
 videoplayback.txt
 wails
 .env
+# Backup and temp env files
+.env.backup
+.env.new
+.env.contracts
+.env.temp

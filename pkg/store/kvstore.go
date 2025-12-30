@@ -6,6 +6,7 @@ import (
 
 	"github.com/cloudflare/cloudflare-go"
 	"github.com/kawai-network/veridium/internal/constant"
+	"golang.org/x/time/rate"
 )
 
 type Store interface {
@@ -72,6 +73,9 @@ type KVStore struct {
 	settlementsNamespaceID    string
 	authzNamespaceID          string // Reverse index: address -> apikey
 	p2pMarketplaceNamespaceID string
+	
+	// ✅ Rate limiter for KV operations
+	rateLimiter *rate.Limiter
 }
 
 // NewMultiNamespaceKVStore creates a new KVStore with separate namespaces
@@ -89,5 +93,6 @@ func NewMultiNamespaceKVStore() (*KVStore, error) {
 		settlementsNamespaceID:    constant.GetCfKvSettlementsNamespaceId(),
 		authzNamespaceID:          constant.GetCfKvAuthzNamespaceId(),
 		p2pMarketplaceNamespaceID: constant.GetCfKvP2pMarketplaceNamespaceId(),
+		rateLimiter:               rate.NewLimiter(rate.Limit(100), 200), // ✅ 100 ops/sec, burst 200
 	}, nil
 }

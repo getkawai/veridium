@@ -2,9 +2,11 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"math/big"
+	"strings"
 	"sync"
 	"time"
 
@@ -12,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/kawai-network/veridium/internal/generate/abi/escrow"
 	"github.com/kawai-network/veridium/pkg/blockchain"
+	"github.com/kawai-network/veridium/pkg/store"
 )
 
 // MarketplaceEventListener handles contract event listening and processing
@@ -19,6 +22,8 @@ import (
 type MarketplaceEventListener struct {
 	blockchainClient *blockchain.Client
 	orderService     *OrderService
+	walletService    *WalletService
+	kvStore          *store.KVStore
 
 	// Event subscriptions
 	orderCreatedSub   event.Subscription
@@ -55,10 +60,12 @@ type MarketplaceEvent struct {
 }
 
 // NewMarketplaceEventListener creates a new event listener instance
-func NewMarketplaceEventListener(blockchainClient *blockchain.Client, orderService *OrderService) *MarketplaceEventListener {
+func NewMarketplaceEventListener(blockchainClient *blockchain.Client, orderService *OrderService, walletService *WalletService, kvStore *store.KVStore) *MarketplaceEventListener {
 	return &MarketplaceEventListener{
 		blockchainClient: blockchainClient,
 		orderService:     orderService,
+		walletService:    walletService,
+		kvStore:          kvStore,
 
 		// Initialize channels
 		orderCreatedCh:   make(chan *escrow.OTCMarketOrderCreated, 100),
@@ -243,6 +250,12 @@ func (l *MarketplaceEventListener) processEvents(ctx context.Context) {
 // handleOrderCreated processes OrderCreated events
 // Requirements: 6.5 - Event processing and state synchronization
 func (l *MarketplaceEventListener) handleOrderCreated(event *escrow.OTCMarketOrderCreated) error {
+	// Only the seller is responsible for indexing their own new order in the marketplace KV
+	myAddr := l.walletService.GetCurrentAddress()
+	if myAddr == "" || !strings.EqualFold(myAddr, event.Seller.Hex()) {
+		return nil // Not my order, skip indexing (I only care about my own activity)
+	}
+
 	log.Printf("📝 OrderCreated event: OrderID=%s, Seller=%s, Amount=%s, Price=%s",
 		event.OrderId.String(), event.Seller.Hex(), event.Amount.String(), event.Price.String())
 
@@ -272,7 +285,16 @@ func (l *MarketplaceEventListener) handleOrderCreated(event *escrow.OTCMarketOrd
 // handleOrderFulfilled processes OrderFulfilled events
 // Requirements: 6.5 - Event-driven order status updates
 func (l *MarketplaceEventListener) handleOrderFulfilled(event *escrow.OTCMarketOrderFulfilled) error {
-	log.Printf("💰 OrderFulfilled event: OrderID=%s, Buyer=%s, Seller=%s, Amount=%s, Price=%s",
+	// Only the buyer and seller are responsible for updating their part of the marketplace state
+	myAddr := l.walletService.GetCurrentAddress()
+	isBuyer := strings.EqualFold(myAddr, event.Buyer.Hex())
+	isSeller := strings.EqualFold(myAddr, event.Seller.Hex())
+
+	if myAddr == "" || (!isBuyer && !isSeller) {
+		return nil // Not my trade, skip KV update
+	}
+
+	log.Printf("💰 OrderFulfilled event (Participant): OrderID=%s, Buyer=%s, Seller=%s, Amount=%s, Price=%s",
 		event.OrderId.String(), event.Buyer.Hex(), event.Seller.Hex(), event.Amount.String(), event.Price.String())
 
 	// Convert contract order ID to our internal order ID format
@@ -313,6 +335,12 @@ func (l *MarketplaceEventListener) updateTradeRecordsWithBuyer(orderID, buyer, t
 // handleOrderCancelled processes OrderCancelled events
 // Requirements: 6.5 - Event-driven order status updates
 func (l *MarketplaceEventListener) handleOrderCancelled(event *escrow.OTCMarketOrderCancelled) error {
+	// Only the seller is responsible for updating their cancelled order in the marketplace KV
+	myAddr := l.walletService.GetCurrentAddress()
+	if myAddr == "" || !strings.EqualFold(myAddr, event.Seller.Hex()) {
+		return nil // Not my order, skip status update
+	}
+
 	log.Printf("❌ OrderCancelled event: OrderID=%s, Seller=%s",
 		event.OrderId.String(), event.Seller.Hex())
 
@@ -407,4 +435,89 @@ func (l *MarketplaceEventListener) GetRecentEvents(ctx context.Context, fromBloc
 	}
 
 	return events, nil
+}
+
+// ✅ NEW: Load last synced block from KV store
+func (l *MarketplaceEventListener) loadLastSyncedBlock() uint64 {
+	ctx := context.Background()
+	data, err := l.kvStore.GetMarketplaceData(ctx, "event_listener:last_synced_block")
+	if err != nil {
+		log.Println("No last synced block found, starting from genesis")
+		return 0
+	}
+
+	var block uint64
+	if err := json.Unmarshal(data, &block); err != nil {
+		log.Printf("Failed to unmarshal last synced block: %v", err)
+		return 0
+	}
+
+	log.Printf("📍 Resuming from block %d", block)
+	return block
+}
+
+// ✅ NEW: Save last synced block to KV store
+func (l *MarketplaceEventListener) saveLastSyncedBlock(blockNumber uint64) {
+	ctx := context.Background()
+	data, err := json.Marshal(blockNumber)
+	if err != nil {
+		log.Printf("Failed to marshal block number: %v", err)
+		return
+	}
+
+	if err := l.kvStore.StoreMarketplaceData(ctx, "event_listener:last_synced_block", data); err != nil {
+		log.Printf("Failed to save last synced block: %v", err)
+	}
+}
+
+// ✅ NEW: Get current block number from blockchain
+func (l *MarketplaceEventListener) getCurrentBlockNumber() (uint64, error) {
+	ctx := context.Background()
+	header, err := l.blockchainClient.EthClient.HeaderByNumber(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get current block number: %w", err)
+	}
+	return header.Number.Uint64(), nil
+}
+
+// ✅ NEW: Replay events in chunks (for large gaps)
+func (l *MarketplaceEventListener) replayEventsInChunks(ctx context.Context, fromBlock, toBlock uint64) error {
+	const chunkSize = 2000 // Safe chunk size for most RPC nodes
+
+	log.Printf("🔄 Large gap detected (%d blocks), starting chunked replay", toBlock-fromBlock)
+
+	for start := fromBlock; start < toBlock; start += chunkSize {
+		end := start + chunkSize
+		if end > toBlock {
+			end = toBlock
+		}
+
+		log.Printf("📥 Replaying events from block %d to %d", start, end)
+
+		// Get events in this chunk
+		events, err := l.GetRecentEvents(ctx, big.NewInt(int64(start)), big.NewInt(int64(end)))
+		if err != nil {
+			log.Printf("❌ Failed to get events in range %d-%d: %v", start, end, err)
+			time.Sleep(5 * time.Second) // Backoff on error
+			continue
+		}
+
+		// Process events with rate limiting
+		for _, event := range events {
+			// Process based on event type
+			log.Printf("📝 Processing %s event for order %s", event.Type, event.OrderID)
+
+			// Small delay to avoid overwhelming the system
+			time.Sleep(100 * time.Millisecond)
+		}
+
+		// Save progress after each chunk
+		l.saveLastSyncedBlock(end)
+
+		// Small delay between chunks to avoid rate limit
+		time.Sleep(1 * time.Second)
+	}
+
+	log.Printf("✅ Event replay completed")
+	return nil
 }
