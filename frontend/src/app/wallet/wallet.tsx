@@ -509,11 +509,25 @@ const DesktopWalletLayout = memo(() => {
       if (assetType === 'native') {
         tx = await DeAIService.TransferNative(to, amount.toString());
       } else if (assetType === 'usdt') {
+        // USDT has 6 decimals
         const rawAmount = Math.floor(amount * 1_000_000).toString();
         tx = await DeAIService.TransferUSDT(to, rawAmount);
       } else if (assetType === 'kawai') {
-        const rawAmount = BigInt(Math.floor(amount * 1_000_000_000_000_000_000)).toString();
+        // Bug Fix #4: Use high-precision arithmetic for 18 decimals
+        // Convert amount to string with full precision, then to BigInt
+        // This avoids JavaScript Number precision limits (53 bits)
+        const amountStr = amount.toFixed(18); // Ensure 18 decimal places
+        const [intPart, decPart = '0'] = amountStr.split('.');
+        const paddedDec = decPart.padEnd(18, '0').substring(0, 18);
+        const rawAmount = (BigInt(intPart) * BigInt(10 ** 18) + BigInt(paddedDec)).toString();
         tx = await DeAIService.TransferToken(KAWAI_TOKEN_ADDRESS, to, rawAmount);
+      } else if (customTokenAddress) {
+        // Custom token transfer (assume 18 decimals)
+        const amountStr = amount.toFixed(18);
+        const [intPart, decPart = '0'] = amountStr.split('.');
+        const paddedDec = decPart.padEnd(18, '0').substring(0, 18);
+        const rawAmount = (BigInt(intPart) * BigInt(10 ** 18) + BigInt(paddedDec)).toString();
+        tx = await DeAIService.TransferToken(customTokenAddress, to, rawAmount);
       } else {
         throw new Error("Unknown asset type");
       }
@@ -527,8 +541,38 @@ const DesktopWalletLayout = memo(() => {
       loadHistory();
       setModalType(null);
     } catch (e: any) {
-      console.error(e);
-      message.error(`Transfer Failed: ${e.message || e}`);
+      // Bug Fix #5: Enhanced error handling with specific error types
+      console.error('Transfer error:', e);
+      
+      let errorMessage = 'Transfer Failed';
+      
+      // Check for specific error types
+      if (e.message) {
+        const msg = e.message.toLowerCase();
+        
+        if (msg.includes('insufficient funds') || msg.includes('insufficient balance')) {
+          errorMessage = 'Insufficient balance for this transfer';
+        } else if (msg.includes('invalid address') || msg.includes('invalid recipient')) {
+          errorMessage = 'Invalid recipient address';
+        } else if (msg.includes('gas') && msg.includes('required exceeds allowance')) {
+          errorMessage = 'Insufficient gas. Please add more native tokens';
+        } else if (msg.includes('user rejected') || msg.includes('user denied')) {
+          errorMessage = 'Transaction cancelled by user';
+        } else if (msg.includes('nonce')) {
+          errorMessage = 'Transaction nonce error. Please try again';
+        } else if (msg.includes('timeout') || msg.includes('deadline')) {
+          errorMessage = 'Transaction timeout. Please try again';
+        } else if (msg.includes('network') || msg.includes('connection')) {
+          errorMessage = 'Network error. Please check your connection';
+        } else {
+          // Use the original error message if it's descriptive
+          errorMessage = `Transfer Failed: ${e.message}`;
+        }
+      } else {
+        errorMessage = `Transfer Failed: ${e.toString()}`;
+      }
+      
+      message.error(errorMessage, 5); // Show for 5 seconds
     } finally {
       hide();
       setLoading(false);
