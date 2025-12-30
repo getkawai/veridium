@@ -76,6 +76,11 @@ func NewDeAIService(wallet *WalletService, kv store.Store) *DeAIService {
 
 // GetVaultBalance returns the USDT balance of the current wallet
 func (s *DeAIService) GetVaultBalance() (string, error) {
+	// Check if wallet is unlocked
+	if s.wallet.currentAccount == nil {
+		return "", fmt.Errorf("wallet is locked")
+	}
+
 	// 1. Get User Address
 	userAddr := s.wallet.currentAccount.Address()
 
@@ -104,6 +109,11 @@ func (s *DeAIService) GetVaultBalance() (string, error) {
 
 // DepositToVault deposits USDT into the vault for service credits
 func (s *DeAIService) DepositToVault(amountStr string) (string, error) {
+	// Check if wallet is unlocked
+	if s.wallet.currentAccount == nil {
+		return "", fmt.Errorf("wallet is locked")
+	}
+
 	// 1. Convert amount to big.Int
 	amount := new(big.Int)
 	amount, ok := amount.SetString(amountStr, 10)
