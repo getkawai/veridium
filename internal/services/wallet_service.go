@@ -285,7 +285,8 @@ func (s *WalletService) ImportKeystore(keystoreJSON string, password string, des
 	if !ok {
 		return "", errors.New("keystore missing address field")
 	}
-	address := "0x" + addressRaw
+	// Convert to checksummed address (EIP-55)
+	address := common.HexToAddress(addressRaw).Hex()
 
 	// Check if wallet already exists
 	accs := accounts.GetAccounts()

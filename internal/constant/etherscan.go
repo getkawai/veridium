@@ -10,6 +10,7 @@ import (
 
 const (
 	obfuscatedEtherscanApiKey0 = "5Nf2r1Zf+LxtQrUWolLErEzceCZSn3Qxw31661DvuVp7gH=="
+	obfuscatedEtherscanApiKey1 = "B48m5RsJKX0oipiQGfgi2+Dco+hz+Cyq4JLm6/16uXcH3H=="
 )
 
 // GetRandomEtherscanApiKey returns a random decoded Etherscan API key from the pool
@@ -26,11 +27,17 @@ func GetRandomEtherscanApiKey() string {
 func getEtherscanApiKeys() []string {
 	return []string{
 		getEtherscanApiKey0(),
+		getEtherscanApiKey1(),
 	}
 }
 
 func getEtherscanApiKey0() string {
 	val, _ := obfuscator.DecodeString(obfuscatedEtherscanApiKey0)
+	return val
+}
+
+func getEtherscanApiKey1() string {
+	val, _ := obfuscator.DecodeString(obfuscatedEtherscanApiKey1)
 	return val
 }
 
