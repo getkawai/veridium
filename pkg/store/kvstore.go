@@ -73,7 +73,7 @@ type KVStore struct {
 	settlementsNamespaceID    string
 	authzNamespaceID          string // Reverse index: address -> apikey
 	p2pMarketplaceNamespaceID string
-	
+
 	// ✅ Rate limiter for KV operations
 	rateLimiter *rate.Limiter
 }
