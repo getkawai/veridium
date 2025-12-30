@@ -2027,7 +2027,7 @@ func (s *MarketplaceService) emitOrderPartiallyFilled(order *Order, amountFilled
 	}
 	s.app.Event.Emit(fmt.Sprintf("marketplace:user:%s:order_partially_filled", order.Seller), event)
 
-	log.Printf("📡 Emitted order partially filled: %s (%s filled, %s remaining)", 
+	log.Printf("📡 Emitted order partially filled: %s (%s filled, %s remaining)",
 		order.ID, amountFilled, order.RemainingAmount)
 }
 
