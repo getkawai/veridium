@@ -26,14 +26,16 @@ type MarketplaceEventListener struct {
 	kvStore          *store.KVStore
 
 	// Event subscriptions
-	orderCreatedSub   event.Subscription
-	orderFilledSub    event.Subscription
-	orderCancelledSub event.Subscription
+	orderCreatedSub         event.Subscription
+	orderFilledSub          event.Subscription
+	orderPartiallyFilledSub event.Subscription
+	orderCancelledSub       event.Subscription
 
 	// Channels for event processing
-	orderCreatedCh   chan *escrow.OTCMarketOrderCreated
-	orderFilledCh    chan *escrow.OTCMarketOrderFulfilled
-	orderCancelledCh chan *escrow.OTCMarketOrderCancelled
+	orderCreatedCh         chan *escrow.OTCMarketOrderCreated
+	orderFilledCh          chan *escrow.OTCMarketOrderFulfilled
+	orderPartiallyFilledCh chan *escrow.OTCMarketOrderPartiallyFilled
+	orderCancelledCh       chan *escrow.OTCMarketOrderCancelled
 
 	// Control channels
 	stopCh chan struct{}
@@ -68,9 +70,10 @@ func NewMarketplaceEventListener(blockchainClient *blockchain.Client, orderServi
 		kvStore:          kvStore,
 
 		// Initialize channels
-		orderCreatedCh:   make(chan *escrow.OTCMarketOrderCreated, 100),
-		orderFilledCh:    make(chan *escrow.OTCMarketOrderFulfilled, 100),
-		orderCancelledCh: make(chan *escrow.OTCMarketOrderCancelled, 100),
+		orderCreatedCh:         make(chan *escrow.OTCMarketOrderCreated, 100),
+		orderFilledCh:          make(chan *escrow.OTCMarketOrderFulfilled, 100),
+		orderPartiallyFilledCh: make(chan *escrow.OTCMarketOrderPartiallyFilled, 100),
+		orderCancelledCh:       make(chan *escrow.OTCMarketOrderCancelled, 100),
 
 		stopCh: make(chan struct{}),
 		doneCh: make(chan struct{}),
@@ -101,6 +104,11 @@ func (l *MarketplaceEventListener) Start(ctx context.Context) error {
 	// Subscribe to OrderFulfilled events
 	if err := l.subscribeToOrderFulfilled(ctx); err != nil {
 		return fmt.Errorf("failed to subscribe to OrderFulfilled events: %w", err)
+	}
+
+	// Subscribe to OrderPartiallyFilled events
+	if err := l.subscribeToOrderPartiallyFilled(ctx); err != nil {
+		return fmt.Errorf("failed to subscribe to OrderPartiallyFilled events: %w", err)
 	}
 
 	// Subscribe to OrderCancelled events
@@ -137,6 +145,9 @@ func (l *MarketplaceEventListener) Stop() {
 	}
 	if l.orderFilledSub != nil {
 		l.orderFilledSub.Unsubscribe()
+	}
+	if l.orderPartiallyFilledSub != nil {
+		l.orderPartiallyFilledSub.Unsubscribe()
 	}
 	if l.orderCancelledSub != nil {
 		l.orderCancelledSub.Unsubscribe()
@@ -194,6 +205,25 @@ func (l *MarketplaceEventListener) subscribeToOrderFulfilled(ctx context.Context
 	return nil
 }
 
+// subscribeToOrderPartiallyFilled subscribes to OrderPartiallyFilled events
+func (l *MarketplaceEventListener) subscribeToOrderPartiallyFilled(ctx context.Context) error {
+	// Create filter options for OrderPartiallyFilled events
+	filterOpts := &bind.WatchOpts{
+		Context: ctx,
+		Start:   nil, // Start from latest block
+	}
+
+	// Subscribe to OrderPartiallyFilled events
+	sub, err := l.blockchainClient.Escrow.WatchOrderPartiallyFilled(filterOpts, l.orderPartiallyFilledCh, nil, nil, nil)
+	if err != nil {
+		return fmt.Errorf("failed to watch OrderPartiallyFilled events: %w", err)
+	}
+
+	l.orderPartiallyFilledSub = sub
+	log.Println("📡 Subscribed to OrderPartiallyFilled events")
+	return nil
+}
+
 // subscribeToOrderCancelled subscribes to OrderCancelled events
 func (l *MarketplaceEventListener) subscribeToOrderCancelled(ctx context.Context) error {
 	// Create filter options for OrderCancelled events
@@ -237,6 +267,11 @@ func (l *MarketplaceEventListener) processEvents(ctx context.Context) {
 		case event := <-l.orderFilledCh:
 			if err := l.handleOrderFulfilled(event); err != nil {
 				log.Printf("❌ Error handling OrderFulfilled event: %v", err)
+			}
+
+		case event := <-l.orderPartiallyFilledCh:
+			if err := l.handleOrderPartiallyFilled(event); err != nil {
+				log.Printf("❌ Error handling OrderPartiallyFilled event: %v", err)
 			}
 
 		case event := <-l.orderCancelledCh:
@@ -329,6 +364,51 @@ func (l *MarketplaceEventListener) updateTradeRecordsWithBuyer(orderID, buyer, t
 	// The trade record was already created in TradeService.storePartialTradeRecord
 	// but without buyer information - this would be where we'd update it
 
+	return nil
+}
+
+// handleOrderPartiallyFilled processes OrderPartiallyFilled events
+// Requirements: 6.5 - Event-driven order status updates for partial fills
+func (l *MarketplaceEventListener) handleOrderPartiallyFilled(event *escrow.OTCMarketOrderPartiallyFilled) error {
+	// Only the buyer and seller are responsible for updating their part of the marketplace state
+	myAddr := l.walletService.GetCurrentAddress()
+	isBuyer := strings.EqualFold(myAddr, event.Buyer.Hex())
+	isSeller := strings.EqualFold(myAddr, event.Seller.Hex())
+
+	if myAddr == "" || (!isBuyer && !isSeller) {
+		return nil // Not my trade, skip KV update
+	}
+
+	log.Printf("📊 OrderPartiallyFilled event (Participant): OrderID=%s, Buyer=%s, Seller=%s, AmountFilled=%s, RemainingAmount=%s, PricePaid=%s",
+		event.OrderId.String(), event.Buyer.Hex(), event.Seller.Hex(), event.AmountFilled.String(), event.RemainingAmount.String(), event.PricePaid.String())
+
+	// Convert contract order ID to our internal order ID format
+	orderID := event.OrderId.String()
+
+	// Get the order from KV store
+	order, err := l.orderService.GetOrder(orderID)
+	if err != nil {
+		log.Printf("⚠️  Order %s not found in local storage: %v", orderID, err)
+		return nil
+	}
+
+	// Update order with new remaining amount
+	order.RemainingAmount = event.RemainingAmount.String()
+	order.Status = "active" // Keep active if partially filled
+	order.UpdatedAt = time.Now()
+
+	// Store updated order
+	if err := l.orderService.StoreOrder(order); err != nil {
+		return fmt.Errorf("failed to update order with partial fill: %w", err)
+	}
+
+	// Emit event to frontend via marketplaceService
+	if l.orderService.marketplaceService != nil {
+		l.orderService.marketplaceService.emitOrderPartiallyFilled(order, event.AmountFilled.String(), event.Buyer.Hex())
+	}
+
+	log.Printf("✅ Order %s partially filled: %s KAWAI filled, %s KAWAI remaining", 
+		orderID, event.AmountFilled.String(), event.RemainingAmount.String())
 	return nil
 }
 

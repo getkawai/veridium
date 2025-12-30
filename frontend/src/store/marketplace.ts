@@ -34,6 +34,7 @@ interface MarketplaceState {
   updateMarketStats: (stats: MarketStats) => void;
   addOrder: (order: Order) => void;
   updateOrderStatus: (orderID: string, status: string) => void;
+  updateOrderPartialFill: (orderID: string, remainingAmount: string) => void;
   handleTradeCompleted: (trade: any, userAddress: string) => void;
   
   // Reset
@@ -243,6 +244,17 @@ export const useMarketplaceStore = create<MarketplaceState>()(
         ),
         userOrders: state.userOrders.map(order => 
           order.id === orderID ? { ...order, status } : order
+        ),
+      }));
+    },
+
+    updateOrderPartialFill: (orderID: string, remainingAmount: string) => {
+      set(state => ({
+        activeOrders: state.activeOrders.map(order => 
+          order.id === orderID ? { ...order, remainingAmount, status: 'active' } : order
+        ),
+        userOrders: state.userOrders.map(order => 
+          order.id === orderID ? { ...order, remainingAmount, status: 'active' } : order
         ),
       }));
     },

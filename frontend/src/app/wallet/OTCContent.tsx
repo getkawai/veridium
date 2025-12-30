@@ -1,5 +1,5 @@
-import { Card, Table, Button, Modal, Form, Input, Tag, Statistic, Row, Col, Tabs, Empty, message, Skeleton } from 'antd';
-import { ShoppingCart, TrendingUp, TrendingDown, Plus, History, Eye, RefreshCw } from 'lucide-react';
+import { Card, Table, Button, Modal, Form, Input, Tag, Statistic, Row, Col, Tabs, Empty, message, Skeleton, Progress, InputNumber, Space } from 'antd';
+import { ShoppingCart, TrendingUp, TrendingDown, Plus, History, Eye, RefreshCw, Percent } from 'lucide-react';
 import { Flexbox } from 'react-layout-kit';
 import { useState, useEffect } from 'react';
 import { Events } from '@wailsio/runtime';
@@ -28,11 +28,15 @@ const OTCContent = ({ styles, theme }: OTCContentProps) => {
     updateMarketStats,
     addOrder,
     updateOrderStatus,
+    updateOrderPartialFill,
     handleTradeCompleted,
   } = useMarketplaceStore();
 
   const [createOrderModal, setCreateOrderModal] = useState(false);
+  const [partialBuyModal, setPartialBuyModal] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [form] = Form.useForm();
+  const [partialBuyForm] = Form.useForm();
 
   // Real-time event handlers
   useEffect(() => {
@@ -59,6 +63,18 @@ const OTCContent = ({ styles, theme }: OTCContentProps) => {
       }
     };
 
+    const handleOrderPartiallyFilled = (ev: any) => {
+      const data = ev.data;
+      if (data) {
+        // Update order with new remaining amount
+        updateOrderPartialFill(data.orderID, data.remainingAmount);
+        // Show notification
+        if (data.seller === walletAddress) {
+          message.info(`Your order was partially filled! ${data.amountFilled} KAWAI sold.`);
+        }
+      }
+    };
+
     const handleTradeCompletedEvent = (ev: any) => {
       const data = ev.data;
       if (data && (data.buyer === walletAddress || data.seller === walletAddress)) {
@@ -72,21 +88,25 @@ const OTCContent = ({ styles, theme }: OTCContentProps) => {
     const unsubscribeMarketData = Events.On('marketplace:market_data_update', handleMarketDataUpdate);
     const unsubscribeOrderCreated = Events.On('marketplace:order_created', handleOrderCreated);
     const unsubscribeOrderStatus = Events.On('marketplace:order_status_update', handleOrderStatusUpdate);
+    const unsubscribeOrderPartiallyFilled = Events.On('marketplace:order_partially_filled', handleOrderPartiallyFilled);
     const unsubscribeTradeCompleted = Events.On('marketplace:trade_completed', handleTradeCompletedEvent);
     const unsubscribeUserOrderCreated = Events.On(`marketplace:user:${walletAddress}:order_created`, handleOrderCreated);
     const unsubscribeUserOrderStatus = Events.On(`marketplace:user:${walletAddress}:order_status_update`, handleOrderStatusUpdate);
+    const unsubscribeUserOrderPartiallyFilled = Events.On(`marketplace:user:${walletAddress}:order_partially_filled`, handleOrderPartiallyFilled);
     const unsubscribeUserTradeCompleted = Events.On(`marketplace:user:${walletAddress}:trade_completed`, handleTradeCompletedEvent);
 
     return () => {
       unsubscribeMarketData();
       unsubscribeOrderCreated();
       unsubscribeOrderStatus();
+      unsubscribeOrderPartiallyFilled();
       unsubscribeTradeCompleted();
       unsubscribeUserOrderCreated();
       unsubscribeUserOrderStatus();
+      unsubscribeUserOrderPartiallyFilled();
       unsubscribeUserTradeCompleted();
     };
-  }, [walletAddress, updateMarketStats, addOrder, updateOrderStatus, handleTradeCompleted, refreshData]);
+  }, [walletAddress, updateMarketStats, addOrder, updateOrderStatus, updateOrderPartialFill, handleTradeCompleted, refreshData]);
 
   // Initial data load
   useEffect(() => {
@@ -115,14 +135,38 @@ const OTCContent = ({ styles, theme }: OTCContentProps) => {
     }
   };
 
-  // Buy order
-  const handleBuyOrderClick = async (orderID: string, partial?: boolean, amount?: string) => {
-    const success = partial && amount 
-      ? await buyPartialOrder(orderID, amount)
-      : await buyOrder(orderID);
+  // Buy order (full)
+  const handleBuyOrderClick = async (orderID: string) => {
+    const success = await buyOrder(orderID);
       
     if (success) {
       message.success('Trade executed successfully!');
+      if (walletAddress) {
+        refreshData(walletAddress);
+      }
+    }
+  };
+
+  // Open partial buy modal
+  const handlePartialBuyClick = (order: Order) => {
+    setSelectedOrder(order);
+    setPartialBuyModal(true);
+    partialBuyForm.setFieldsValue({
+      amount: parseFloat(order.remainingAmount) / 2, // Default to 50%
+    });
+  };
+
+  // Execute partial buy
+  const handlePartialBuySubmit = async (values: { amount: number }) => {
+    if (!selectedOrder) return;
+    
+    const success = await buyPartialOrder(selectedOrder.id, values.amount.toString());
+    
+    if (success) {
+      message.success(`Partial buy executed! Bought ${values.amount} KAWAI`);
+      setPartialBuyModal(false);
+      setSelectedOrder(null);
+      partialBuyForm.resetFields();
       if (walletAddress) {
         refreshData(walletAddress);
       }
@@ -152,10 +196,30 @@ const OTCContent = ({ styles, theme }: OTCContentProps) => {
       ),
     },
     {
-      title: 'Amount (KAWAI)',
-      dataIndex: 'remainingAmount',
-      key: 'remainingAmount',
-      render: (amount: string) => parseFloat(amount).toFixed(2),
+      title: 'Available / Total',
+      key: 'amount',
+      render: (record: Order) => {
+        const remaining = parseFloat(record.remainingAmount);
+        const total = parseFloat(record.tokenAmount);
+        const filledPercent = ((total - remaining) / total) * 100;
+        
+        return (
+          <Flexbox gap={4}>
+            <div style={{ fontSize: 13 }}>
+              <span style={{ fontWeight: 600 }}>{remaining.toFixed(2)}</span>
+              <span style={{ color: theme.colorTextSecondary }}> / {total.toFixed(2)} KAWAI</span>
+            </div>
+            {filledPercent > 0 && (
+              <Progress 
+                percent={filledPercent} 
+                size="small" 
+                showInfo={false}
+                strokeColor={theme.colorWarning}
+              />
+            )}
+          </Flexbox>
+        );
+      },
     },
     {
       title: 'Total (USDT)',
@@ -169,14 +233,25 @@ const OTCContent = ({ styles, theme }: OTCContentProps) => {
       title: 'Action',
       key: 'action',
       render: (record: Order) => (
-        <Button
-          type="primary"
-          size="small"
-          onClick={() => handleBuyOrderClick(record.id)}
-          disabled={record.seller === walletAddress}
-        >
-          {record.seller === walletAddress ? 'Your Order' : 'Buy'}
-        </Button>
+        <Space size="small">
+          <Button
+            type="primary"
+            size="small"
+            onClick={() => handleBuyOrderClick(record.id)}
+            disabled={record.seller === walletAddress}
+          >
+            {record.seller === walletAddress ? 'Your Order' : 'Buy All'}
+          </Button>
+          {record.seller !== walletAddress && (
+            <Button
+              size="small"
+              onClick={() => handlePartialBuyClick(record)}
+              icon={<Percent size={14} />}
+            >
+              Partial
+            </Button>
+          )}
+        </Space>
       ),
     },
   ];
@@ -189,16 +264,33 @@ const OTCContent = ({ styles, theme }: OTCContentProps) => {
       render: (price: string) => `$${parseFloat(price).toFixed(4)}`,
     },
     {
-      title: 'Amount (KAWAI)',
-      dataIndex: 'tokenAmount',
-      key: 'tokenAmount',
-      render: (amount: string) => parseFloat(amount).toFixed(2),
-    },
-    {
-      title: 'Remaining',
-      dataIndex: 'remainingAmount',
-      key: 'remainingAmount',
-      render: (amount: string) => parseFloat(amount).toFixed(2),
+      title: 'Order Progress',
+      key: 'progress',
+      render: (record: Order) => {
+        const remaining = parseFloat(record.remainingAmount);
+        const total = parseFloat(record.tokenAmount);
+        const filled = total - remaining;
+        const filledPercent = (filled / total) * 100;
+        
+        return (
+          <Flexbox gap={4}>
+            <div style={{ fontSize: 12 }}>
+              <span style={{ color: theme.colorTextSecondary }}>Filled: </span>
+              <span style={{ fontWeight: 600 }}>{filled.toFixed(2)}</span>
+              <span style={{ color: theme.colorTextSecondary }}> / {total.toFixed(2)} KAWAI</span>
+            </div>
+            <Progress 
+              percent={filledPercent} 
+              size="small"
+              status={record.status === 'filled' ? 'success' : 'active'}
+              strokeColor={record.status === 'filled' ? theme.colorSuccess : theme.colorPrimary}
+            />
+            <div style={{ fontSize: 11, color: theme.colorTextTertiary }}>
+              Remaining: {remaining.toFixed(2)} KAWAI
+            </div>
+          </Flexbox>
+        );
+      },
     },
     {
       title: 'Status',
@@ -572,6 +664,185 @@ const OTCContent = ({ styles, theme }: OTCContentProps) => {
             </Button>
           </Flexbox>
         </Form>
+      </Modal>
+
+      {/* Partial Buy Modal */}
+      <Modal
+        title="Partial Buy Order"
+        open={partialBuyModal}
+        onCancel={() => {
+          setPartialBuyModal(false);
+          setSelectedOrder(null);
+          partialBuyForm.resetFields();
+        }}
+        footer={null}
+        width={500}
+      >
+        {selectedOrder && (
+          <Flexbox gap={16}>
+            {/* Order Info */}
+            <Card size="small" style={{ backgroundColor: theme.colorBgLayout }}>
+              <Flexbox gap={8}>
+                <Flexbox horizontal justify="space-between">
+                  <span style={{ color: theme.colorTextSecondary }}>Price per Token:</span>
+                  <span style={{ fontWeight: 600, color: theme.colorSuccess }}>
+                    ${parseFloat(selectedOrder.pricePerToken).toFixed(4)}
+                  </span>
+                </Flexbox>
+                <Flexbox horizontal justify="space-between">
+                  <span style={{ color: theme.colorTextSecondary }}>Available:</span>
+                  <span style={{ fontWeight: 600 }}>
+                    {parseFloat(selectedOrder.remainingAmount).toFixed(2)} KAWAI
+                  </span>
+                </Flexbox>
+                <Flexbox horizontal justify="space-between">
+                  <span style={{ color: theme.colorTextSecondary }}>Total Available:</span>
+                  <span style={{ fontWeight: 600 }}>
+                    ${(parseFloat(selectedOrder.remainingAmount) * parseFloat(selectedOrder.pricePerToken)).toFixed(2)}
+                  </span>
+                </Flexbox>
+              </Flexbox>
+            </Card>
+
+            {/* Partial Buy Form */}
+            <Form
+              form={partialBuyForm}
+              layout="vertical"
+              onFinish={handlePartialBuySubmit}
+            >
+              <Form.Item
+                label="Amount to Buy (KAWAI)"
+                name="amount"
+                rules={[
+                  { required: true, message: 'Please enter amount' },
+                  {
+                    validator: (_, value) => {
+                      const remaining = parseFloat(selectedOrder.remainingAmount);
+                      if (value <= 0) {
+                        return Promise.reject('Amount must be greater than 0');
+                      }
+                      if (value > remaining) {
+                        return Promise.reject(`Amount cannot exceed ${remaining.toFixed(2)} KAWAI`);
+                      }
+                      return Promise.resolve();
+                    },
+                  },
+                ]}
+              >
+                <InputNumber
+                  style={{ width: '100%' }}
+                  placeholder="Enter amount"
+                  min={0}
+                  max={parseFloat(selectedOrder.remainingAmount)}
+                  step={0.01}
+                  precision={2}
+                  onChange={(value) => {
+                    if (value) {
+                      const total = value * parseFloat(selectedOrder.pricePerToken);
+                      const percent = (value / parseFloat(selectedOrder.remainingAmount)) * 100;
+                      partialBuyForm.setFieldsValue({ 
+                        calculatedTotal: total.toFixed(2),
+                        calculatedPercent: percent.toFixed(1)
+                      });
+                    }
+                  }}
+                />
+              </Form.Item>
+
+              {/* Quick Select Buttons */}
+              <Flexbox horizontal gap={8} style={{ marginBottom: 16 }}>
+                <Button
+                  size="small"
+                  onClick={() => {
+                    const amount = parseFloat(selectedOrder.remainingAmount) * 0.25;
+                    partialBuyForm.setFieldsValue({ amount });
+                    partialBuyForm.validateFields(['amount']);
+                  }}
+                >
+                  25%
+                </Button>
+                <Button
+                  size="small"
+                  onClick={() => {
+                    const amount = parseFloat(selectedOrder.remainingAmount) * 0.5;
+                    partialBuyForm.setFieldsValue({ amount });
+                    partialBuyForm.validateFields(['amount']);
+                  }}
+                >
+                  50%
+                </Button>
+                <Button
+                  size="small"
+                  onClick={() => {
+                    const amount = parseFloat(selectedOrder.remainingAmount) * 0.75;
+                    partialBuyForm.setFieldsValue({ amount });
+                    partialBuyForm.validateFields(['amount']);
+                  }}
+                >
+                  75%
+                </Button>
+                <Button
+                  size="small"
+                  onClick={() => {
+                    const amount = parseFloat(selectedOrder.remainingAmount);
+                    partialBuyForm.setFieldsValue({ amount });
+                    partialBuyForm.validateFields(['amount']);
+                  }}
+                >
+                  100%
+                </Button>
+              </Flexbox>
+
+              {/* Calculated Total */}
+              <Form.Item dependencies={['amount']}>
+                {() => {
+                  const amount = partialBuyForm.getFieldValue('amount');
+                  if (amount && amount > 0) {
+                    const total = amount * parseFloat(selectedOrder.pricePerToken);
+                    const percent = (amount / parseFloat(selectedOrder.remainingAmount)) * 100;
+                    return (
+                      <Card size="small" style={{ backgroundColor: theme.colorInfoBg }}>
+                        <Flexbox gap={8}>
+                          <Flexbox horizontal justify="space-between">
+                            <span style={{ color: theme.colorTextSecondary }}>You will pay:</span>
+                            <span style={{ fontWeight: 600, fontSize: 16, color: theme.colorPrimary }}>
+                              ${total.toFixed(2)} USDT
+                            </span>
+                          </Flexbox>
+                          <Flexbox horizontal justify="space-between">
+                            <span style={{ color: theme.colorTextSecondary }}>You will receive:</span>
+                            <span style={{ fontWeight: 600 }}>
+                              {amount.toFixed(2)} KAWAI
+                            </span>
+                          </Flexbox>
+                          <Progress 
+                            percent={percent} 
+                            size="small"
+                            format={(percent) => `${percent?.toFixed(1)}% of order`}
+                          />
+                        </Flexbox>
+                      </Card>
+                    );
+                  }
+                  return null;
+                }}
+              </Form.Item>
+
+              <Flexbox horizontal justify="flex-end" gap={12}>
+                <Button onClick={() => {
+                  setPartialBuyModal(false);
+                  setSelectedOrder(null);
+                  partialBuyForm.resetFields();
+                }}>
+                  Cancel
+                </Button>
+                <Button type="primary" htmlType="submit">
+                  Buy Partial
+                </Button>
+              </Flexbox>
+            </Form>
+          </Flexbox>
+        )}
       </Modal>
     </Flexbox>
   );

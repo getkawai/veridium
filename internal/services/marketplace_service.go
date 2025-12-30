@@ -2001,6 +2001,36 @@ func (s *MarketplaceService) emitTradeCompleted(trade *Trade, order *Order) {
 	log.Printf("📡 Emitted trade completed: %s", trade.ID)
 }
 
+// emitOrderPartiallyFilled emits an order partially filled event
+func (s *MarketplaceService) emitOrderPartiallyFilled(order *Order, amountFilled, buyer string) {
+	if s.app == nil {
+		log.Printf("⚠️  Cannot emit order partially filled: Wails application not set")
+		return
+	}
+
+	// Create event data
+	event := map[string]interface{}{
+		"orderID":         order.ID,
+		"amountFilled":    amountFilled,
+		"remainingAmount": order.RemainingAmount,
+		"buyer":           buyer,
+		"seller":          order.Seller,
+		"timestamp":       time.Now(),
+	}
+
+	// Emit to all connected clients (for order book updates)
+	s.app.Event.Emit("marketplace:order_partially_filled", event)
+
+	// Emit targeted events to both buyer and seller
+	if buyer != "" {
+		s.app.Event.Emit(fmt.Sprintf("marketplace:user:%s:order_partially_filled", buyer), event)
+	}
+	s.app.Event.Emit(fmt.Sprintf("marketplace:user:%s:order_partially_filled", order.Seller), event)
+
+	log.Printf("📡 Emitted order partially filled: %s (%s filled, %s remaining)", 
+		order.ID, amountFilled, order.RemainingAmount)
+}
+
 // emitMarketDataUpdate emits a market data update event
 func (s *MarketplaceService) emitMarketDataUpdate() {
 	if s.app == nil {
