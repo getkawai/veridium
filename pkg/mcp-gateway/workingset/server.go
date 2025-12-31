@@ -11,7 +11,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/docker/mcp-gateway/cmd/docker-mcp/secret-management/formatting"
+	"github.com/kawai-network/veridium/cmd/docker-mcp/secret-management/formatting"
 	"github.com/kawai-network/veridium/pkg/mcp-gateway/db"
 	"github.com/kawai-network/veridium/pkg/mcp-gateway/oci"
 	"github.com/kawai-network/veridium/pkg/mcp-gateway/registryapi"

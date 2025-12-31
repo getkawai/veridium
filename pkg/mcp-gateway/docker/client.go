@@ -14,7 +14,7 @@ import (
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
 
-	"github.com/docker/mcp-gateway/cmd/docker-mcp/version"
+	"github.com/kawai-network/veridium/cmd/docker-mcp/version"
 )
 
 type Client interface {

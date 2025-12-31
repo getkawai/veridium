@@ -17,7 +17,7 @@ import (
 	"github.com/sigstore/sigstore/pkg/signature"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/docker/mcp-gateway/cmd/docker-mcp/version"
+	"github.com/kawai-network/veridium/cmd/docker-mcp/version"
 )
 
 // https://raw.githubusercontent.com/docker/keyring/refs/heads/main/public/mcp/latest.pub
