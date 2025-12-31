@@ -1,47 +1,124 @@
-import { Card, Button, Empty, Tag, Spin, App, Skeleton } from 'antd';
-import { useState, useEffect, useCallback } from 'react';
-import { DeAIService } from '@@/github.com/kawai-network/veridium/internal/services';
+import { Card, Button, Empty, Tag, Spin, App, Skeleton, Modal, Pagination, Table } from 'antd';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { DeAIService, JarvisService } from '@@/github.com/kawai-network/veridium/internal/services';
 import {
   History,
   Gift,
   ExternalLink,
   Repeat2,
   Coins,
+  CheckCircle,
+  Clock,
+  Info
 } from 'lucide-react';
 import { ActionIcon } from '@lobehub/ui';
 import { Browser } from '@wailsio/runtime';
 import { Flexbox } from 'react-layout-kit';
 import { TokenUSDT } from '@web3icons/react';
-import type { RewardsContentProps } from './types';
+import type { RewardsContentProps, ClaimableReward, ClaimableRewardsResponse } from './types';
 
-const RewardsContent = ({ styles, theme }: RewardsContentProps) => {
+const RewardsContent = ({ styles, theme, currentNetwork, transactions }: RewardsContentProps) => {
   const { message } = App.useApp();
   const [loading, setLoading] = useState(true);
-  const [claimLoading, setClaimLoading] = useState<string | null>(null);
-  const [rewards, setRewards] = useState<any>(null);
+  const [claimLoading, setClaimLoading] = useState<Set<string>>(new Set());
+  const [rewards, setRewards] = useState<ClaimableRewardsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const loadRewards = useCallback(async () => {
+  // Pagination & Modals
+  const [page, setPage] = useState(1);
+  const pageSize = 5;
+  const [confirmModal, setConfirmModal] = useState<ClaimableReward | null>(null);
+  const [gasEstimate, setGasEstimate] = useState<string | null>(null);
+  const [estimateLoading, setEstimateLoading] = useState(false);
+  const [isClaimAll, setIsClaimAll] = useState(false);
+
+  const loadRewards = useCallback(async (showMessage = false) => {
     setLoading(true);
     setError(null);
     try {
       const result = await DeAIService.GetClaimableRewards();
+
+      // Fix Bug #1: Missing Nil Check
+      if (!result) {
+        // If wallet is locked or service fails silently returning nil
+        setError('No wallet connected or failed to load rewards. Please unlock your wallet.');
+        setRewards(null);
+        return;
+      }
+
       setRewards(result);
+      
+      // Show success message on manual refresh
+      if (showMessage) {
+        message.success('Rewards refreshed successfully');
+      }
     } catch (e: any) {
       console.error('Failed to load rewards:', e);
       setError(e.message || 'Failed to load rewards');
+      
+      // Show error message on manual refresh
+      if (showMessage) {
+        message.error('Failed to refresh rewards');
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [message]);
 
   useEffect(() => {
     loadRewards();
   }, [loadRewards]);
 
-  const handleClaim = async (proof: any) => {
+  // Derived state
+  const validUnclaimed = useMemo(() => {
+    return (rewards?.unclaimed_proofs || []).filter((p): p is ClaimableReward => p !== null);
+  }, [rewards]);
+
+  const validPending = useMemo(() => {
+    return (rewards?.pending_proofs || []).filter((p): p is ClaimableReward => p !== null);
+  }, [rewards]);
+
+  const paginatedUnclaimed = useMemo(() => {
+    return validUnclaimed.slice((page - 1) * pageSize, page * pageSize);
+  }, [validUnclaimed, page]);
+
+  const estimateGas = async (proof: ClaimableReward) => {
+    setEstimateLoading(true);
+    try {
+      // Use generic network gas estimate since specific claim estimate is not available
+      if (currentNetwork) {
+        const est = await JarvisService.EstimateGas(currentNetwork.id);
+        if (est) {
+          // Estimate: 300,000 gas * gasPrice (in Gwei)
+          const totalGwei = est.maxGasPriceGwei * 300000;
+          const totalEth = totalGwei / 1e9;
+          setGasEstimate(`${totalEth.toFixed(6)} ${currentNetwork.nativeTokenSymbol}`);
+        } else {
+          setGasEstimate('Unknown');
+        }
+      } else {
+        setGasEstimate('Unknown');
+      }
+    } catch (e) {
+      console.error('Gas estimation failed:', e);
+      setGasEstimate('Unknown');
+    } finally {
+      setEstimateLoading(false);
+    }
+  };
+
+  const openConfirmModal = (proof: ClaimableReward) => {
+    setConfirmModal(proof);
+    setGasEstimate(null); // Reset
+    estimateGas(proof);
+  };
+
+  const handleClaim = async (proof: ClaimableReward) => {
     const proofKey = `${proof.period_id}-${proof.reward_type}`;
-    setClaimLoading(proofKey);
+    if (claimLoading.has(proofKey)) return;
+
+    setClaimLoading(prev => new Set(prev).add(proofKey));
+
     try {
       let result;
       if (proof.reward_type === 'kawai') {
@@ -61,26 +138,51 @@ const RewardsContent = ({ styles, theme }: RewardsContentProps) => {
       }
 
       if (result?.tx_hash) {
+        const explorerUrl = currentNetwork?.explorerURL || 'https://testnet.monadexplorer.com'; // Fix explorerURL typo
+
         message.success(
           <span>
             Claim submitted! Tx: {result.tx_hash.substring(0, 10)}...
             <a
-              onClick={() => Browser.OpenURL(`https://testnet.monadexplorer.com/tx/${result.tx_hash}`)}
+              onClick={() => Browser.OpenURL(`${explorerUrl}/tx/${result.tx_hash}`)}
               style={{ marginLeft: 8, cursor: 'pointer' }}
             >
               View <ExternalLink size={12} style={{ verticalAlign: 'middle' }} />
             </a>
           </span>
         );
-        // Refresh rewards after claim
         setTimeout(() => loadRewards(), 3000);
       }
     } catch (e: any) {
       console.error('Claim failed:', e);
       message.error(e.message || 'Claim failed');
+      setTimeout(() => loadRewards(), 1000);
     } finally {
-      setClaimLoading(null);
+      setClaimLoading(prev => {
+        const next = new Set(prev);
+        next.delete(proofKey);
+        return next;
+      });
+      setConfirmModal(null); // Close modal if open
     }
+  };
+
+  const handleClaimAll = async () => {
+    if (validUnclaimed.length === 0) return;
+    setIsClaimAll(true);
+
+    // Process sequentially to avoid nonce issues
+    for (const proof of validUnclaimed) {
+      // Skip if already claiming
+      const proofKey = `${proof.period_id}-${proof.reward_type}`;
+      if (claimLoading.has(proofKey)) continue;
+
+      await handleClaim(proof);
+      // Small delay between claims
+      await new Promise(r => setTimeout(r, 2000));
+    }
+
+    setIsClaimAll(false);
   };
 
   const formatDate = (dateStr: string) => {
@@ -122,14 +224,14 @@ const RewardsContent = ({ styles, theme }: RewardsContentProps) => {
           <Gift size={48} color={theme.colorTextQuaternary} style={{ marginBottom: 16 }} />
           <h3 style={{ margin: '0 0 8px', color: theme.colorError }}>Error Loading Rewards</h3>
           <p style={{ color: theme.colorTextSecondary, margin: '0 0 16px' }}>{error}</p>
-          <Button onClick={loadRewards} icon={<Repeat2 size={16} />}>Retry</Button>
+          <Button onClick={() => loadRewards(true)} icon={<Repeat2 size={16} />}>Retry</Button>
         </div>
       </Flexbox>
     );
   }
 
-  const hasUnclaimedRewards = rewards?.unclaimed_proofs?.length > 0;
-  const hasPendingRewards = rewards?.pending_proofs?.length > 0;
+  const hasUnclaimedRewards = validUnclaimed.length > 0;
+  const hasPendingRewards = validPending.length > 0;
 
   return (
     <Flexbox style={{ maxWidth: 800 }} gap={20}>
@@ -141,7 +243,12 @@ const RewardsContent = ({ styles, theme }: RewardsContentProps) => {
             Claim your KAWAI & USDT rewards from AI compute contributions
           </span>
         </div>
-        <ActionIcon icon={Repeat2} onClick={loadRewards} title="Refresh" loading={loading} />
+        <ActionIcon 
+          icon={Repeat2} 
+          onClick={() => loadRewards(true)} 
+          title="Refresh rewards" 
+          loading={loading}
+        />
       </Flexbox>
 
       {/* Summary Cards */}
@@ -208,13 +315,26 @@ const RewardsContent = ({ styles, theme }: RewardsContentProps) => {
       {/* Unclaimed Rewards */}
       <Card
         title={
-          <Flexbox horizontal align="center" gap={8}>
-            <Gift size={16} />
-            <span>Unclaimed Rewards</span>
+          <Flexbox horizontal align="center" gap={8} justify="space-between" width="100%">
+            <Flexbox horizontal align="center" gap={8}>
+              <Gift size={16} />
+              <span>Unclaimed Rewards</span>
+              {hasUnclaimedRewards && (
+                <Tag color="green" style={{ marginLeft: 8 }}>
+                  {validUnclaimed.length} available
+                </Tag>
+              )}
+            </Flexbox>
             {hasUnclaimedRewards && (
-              <Tag color="green" style={{ marginLeft: 8 }}>
-                {rewards.unclaimed_proofs.length} available
-              </Tag>
+              <Button
+                size="small"
+                type="primary"
+                ghost
+                onClick={handleClaimAll}
+                loading={isClaimAll}
+              >
+                Claim All
+              </Button>
             )}
           </Flexbox>
         }
@@ -235,9 +355,9 @@ const RewardsContent = ({ styles, theme }: RewardsContentProps) => {
           />
         ) : (
           <Flexbox gap={12}>
-            {rewards.unclaimed_proofs.map((proof: any, idx: number) => {
+            {paginatedUnclaimed.map((proof: ClaimableReward, idx: number) => {
               const proofKey = `${proof.period_id}-${proof.reward_type}`;
-              const isLoading = claimLoading === proofKey;
+              const isLoading = claimLoading.has(proofKey);
               const isKawai = proof.reward_type === 'kawai';
 
               return (
@@ -271,7 +391,7 @@ const RewardsContent = ({ styles, theme }: RewardsContentProps) => {
                     </Flexbox>
                     <Button
                       type="primary"
-                      onClick={() => handleClaim(proof)}
+                      onClick={() => openConfirmModal(proof)}
                       loading={isLoading}
                       icon={<Gift size={14} />}
                       style={{
@@ -287,6 +407,16 @@ const RewardsContent = ({ styles, theme }: RewardsContentProps) => {
                 </div>
               );
             })}
+            <Flexbox justify="center" style={{ marginTop: 16 }}>
+              <Pagination
+                current={page}
+                total={validUnclaimed.length}
+                pageSize={pageSize}
+                onChange={setPage}
+                size="small"
+                hideOnSinglePage
+              />
+            </Flexbox>
           </Flexbox>
         )}
       </Card>
@@ -298,13 +428,13 @@ const RewardsContent = ({ styles, theme }: RewardsContentProps) => {
             <Flexbox horizontal align="center" gap={8}>
               <History size={16} />
               <span>Pending Claims</span>
-              <Tag color="orange">{rewards.pending_proofs.length} pending</Tag>
+              <Tag color="orange">{validPending.length} pending</Tag>
             </Flexbox>
           }
           size="small"
         >
           <Flexbox gap={8}>
-            {rewards.pending_proofs.map((proof: any) => {
+            {validPending.map((proof: ClaimableReward) => {
               const proofKey = `${proof.period_id}-${proof.reward_type}`;
               const isKawai = proof.reward_type === 'kawai';
 
@@ -337,7 +467,10 @@ const RewardsContent = ({ styles, theme }: RewardsContentProps) => {
                     </span>
                     {proof.claim_tx_hash && (
                       <a
-                        onClick={() => Browser.OpenURL(`https://testnet.monadexplorer.com/tx/${proof.claim_tx_hash}`)}
+                        onClick={() => {
+                          const explorerUrl = currentNetwork?.explorerURL || 'https://testnet.monadexplorer.com';
+                          Browser.OpenURL(`${explorerUrl}/tx/${proof.claim_tx_hash}`);
+                        }}
                         style={{ cursor: 'pointer' }}
                       >
                         <ExternalLink size={14} />
@@ -350,6 +483,91 @@ const RewardsContent = ({ styles, theme }: RewardsContentProps) => {
           </Flexbox>
         </Card>
       )}
+
+      {/* Recent Activity / History */}
+      <Card title="Recent Activity" size="small">
+        <Table
+          dataSource={transactions.slice(0, 5)}
+          rowKey="txHash"
+          pagination={false}
+          size="small"
+          columns={[
+            {
+              title: 'Type',
+              dataIndex: 'txType',
+              key: 'type',
+              render: (t: string) => <Tag>{t || 'TX'}</Tag>
+            },
+            {
+              title: 'Hash',
+              dataIndex: 'txHash',
+              render: (h: string) => <span style={{ fontFamily: 'monospace' }}>{h.substring(0, 10)}...</span>
+            },
+            {
+              title: 'Date',
+              dataIndex: 'createdAt',
+              render: (d: number | string) => <span style={{ fontSize: 12 }}>{formatDate(d.toString())}</span>
+            },
+            {
+              title: 'Status',
+              dataIndex: 'status',
+              key: 'status',
+              render: (s: string) => (
+                <Flexbox horizontal align="center" gap={4}>
+                  {s === 'confirmed' ? <CheckCircle size={14} color="#22c55e" /> : <Clock size={14} color="#f59e0b" />}
+                  <span style={{ fontSize: 12, textTransform: 'capitalize' }}>{s}</span>
+                </Flexbox>
+              )
+            }
+          ]}
+        />
+      </Card>
+
+      {/* Confirmation Modal */}
+      <Modal
+        title={
+          <Flexbox horizontal align="center" gap={8}>
+            <Info size={18} />
+            <span>Confirm Claim</span>
+          </Flexbox>
+        }
+        open={!!confirmModal}
+        onOk={() => confirmModal && handleClaim(confirmModal)}
+        onCancel={() => setConfirmModal(null)}
+        okText="Confirm & Claim"
+        confirmLoading={confirmModal ? claimLoading.has(`${confirmModal.period_id}-${confirmModal.reward_type}`) : false}
+      >
+        {confirmModal && (
+          <Flexbox gap={16} padding={8}>
+            <div style={{ padding: 16, background: theme.colorFillSecondary, borderRadius: 8 }}>
+              <Flexbox horizontal justify="space-between" align="center">
+                <span>Reward Amount:</span>
+                <span style={{ fontWeight: 700, fontSize: 18 }}>
+                  {confirmModal.formatted} {confirmModal.reward_type === 'kawai' ? 'KAWAI' : 'USDT'}
+                </span>
+              </Flexbox>
+              <Flexbox horizontal justify="space-between" style={{ marginTop: 8 }}>
+                <span style={{ color: theme.colorTextSecondary }}>Period:</span>
+                <span>#{confirmModal.period_id}</span>
+              </Flexbox>
+            </div>
+
+            <Flexbox gap={4}>
+              <span style={{ fontWeight: 600 }}>Estimated Gas Fee:</span>
+              {estimateLoading ? (
+                <Spin size="small" />
+              ) : (
+                <span style={{ fontFamily: 'monospace' }}>
+                  {gasEstimate || 'Calculating...'}
+                </span>
+              )}
+              <span style={{ fontSize: 12, color: theme.colorTextSecondary }}>
+                Network: {currentNetwork?.name}
+              </span>
+            </Flexbox>
+          </Flexbox>
+        )}
+      </Modal>
 
       {/* Info Card */}
       <Card size="small" style={{ background: theme.colorFillTertiary, border: 'none' }}>

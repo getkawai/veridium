@@ -543,13 +543,13 @@ const DesktopWalletLayout = memo(() => {
     } catch (e: any) {
       // Bug Fix #5: Enhanced error handling with specific error types
       console.error('Transfer error:', e);
-      
+
       let errorMessage = 'Transfer Failed';
-      
+
       // Check for specific error types
       if (e.message) {
         const msg = e.message.toLowerCase();
-        
+
         if (msg.includes('insufficient funds') || msg.includes('insufficient balance')) {
           errorMessage = 'Insufficient balance for this transfer';
         } else if (msg.includes('invalid address') || msg.includes('invalid recipient')) {
@@ -571,7 +571,7 @@ const DesktopWalletLayout = memo(() => {
       } else {
         errorMessage = `Transfer Failed: ${e.toString()}`;
       }
-      
+
       message.error(errorMessage, 5); // Show for 5 seconds
     } finally {
       hide();
@@ -618,7 +618,7 @@ const DesktopWalletLayout = memo(() => {
       case 'otc':
         return <OTCContent styles={styles} theme={theme} />;
       case 'rewards':
-        return <RewardsContent styles={styles} theme={theme} />;
+        return <RewardsContent styles={styles} theme={theme} currentNetwork={currentNetwork} transactions={transactions} />;
       case 'settings':
         return <SettingsContent address={address} styles={styles} theme={theme} currentNetwork={currentNetwork} />;
       default:

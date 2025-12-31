@@ -1,5 +1,7 @@
-import type { NetworkInfo } from '@@/github.com/kawai-network/veridium/internal/services/models';
+import type { NetworkInfo, ClaimableRewardsResponse, ClaimableReward } from '@@/github.com/kawai-network/veridium/internal/services/models';
 import type { WalletTransaction } from '@@/github.com/kawai-network/veridium/internal/database/generated/models';
+
+export type { ClaimableRewardsResponse, ClaimableReward };
 
 export type MenuKey = 'home' | 'otc' | 'rewards' | 'settings';
 
@@ -40,6 +42,8 @@ export interface OTCContentProps {
 export interface RewardsContentProps {
   styles: ContentStyles;
   theme: any;
+  currentNetwork: NetworkInfo | null;
+  transactions: WalletTransaction[];
 }
 
 export interface SettingsContentProps {
