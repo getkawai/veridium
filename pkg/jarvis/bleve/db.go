@@ -1,66 +1,42 @@
 package bleve
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"log"
-	"math/rand"
 	"os"
-	"os/exec"
-	"os/user"
 	"path"
 	"path/filepath"
 	"sync"
-	"time"
 
-	"github.com/blevesearch/bleve"
-	"github.com/blevesearch/bleve/analysis/lang/en"
-	"github.com/blevesearch/bleve/mapping"
-
+	_ "github.com/duckdb/duckdb-go/v2"
 	"github.com/kawai-network/veridium/internal/paths"
 	"github.com/kawai-network/veridium/pkg/jarvis/db"
 )
 
+// BleveDB actually uses DuckDB now, but we keep the name for compatibility
+type BleveDB struct {
+	db      *sql.DB
+	Hash    string
+	Session string
+}
+
 var (
-	// BLEVE_PATH                   string = filepath.Join(getHomeDir(), ".jarvis", "db.bleve")
-	// BLEVE_DATA_PATH              string = filepath.Join(getHomeDir(), ".jarvis", "bleve.data")
-	THIS_SESSION_BLEVE_DATA_PATH string
-	bleveDB                      *BleveDB
-	bleveDBSession               string
-	once                         sync.Once
+	bleveDB *BleveDB
+	once    sync.Once
 )
 
-func getBlevePath() string {
+func getDBPath() string {
 	os.MkdirAll(paths.Jarvis(), 0755)
-	return paths.JarvisBleveIndex()
+	return filepath.Join(paths.Jarvis(), "addressbook.duckdb")
 }
 
-func getBleveDataPath() string {
-	os.MkdirAll(paths.Jarvis(), 0755)
-	return paths.JarvisBleveData()
-}
-
-func getRandomSessionBleveDataPath() string {
-	if bleveDBSession == "" {
-		rand.Seed(time.Now().UnixNano())
-		b := make([]byte, 8)
-		rand.Read(b)
-		bleveDBSession = fmt.Sprintf("%x", b)
-	}
-	os.MkdirAll(paths.Jarvis(), 0755)
-	return filepath.Join(paths.Jarvis(), fmt.Sprintf("bleve_%s.data", bleveDBSession))
-}
-
-func getHomeDir() string {
-	usr, err := user.Current()
-	if err != nil {
-		log.Fatal(err)
-	}
-	return usr.HomeDir
+func getHashPath() string {
+	return filepath.Join(paths.Jarvis(), "addressbook.hash")
 }
 
 func getDataFromDefaultFile() (result map[string]string, hash string) {
+	result = make(map[string]string)
 	dir := paths.Jarvis()
 	file := path.Join(dir, "addresses.json")
 	var timestamp int64
@@ -77,7 +53,7 @@ func getDataFromDefaultFile() (result map[string]string, hash string) {
 			return map[string]string{}, fmt.Sprintf("%d", timestamp)
 		}
 	}
-	content, err := ioutil.ReadFile(file)
+	content, err := os.ReadFile(file)
 	if err != nil {
 		fmt.Printf("reading addresses from ~/addresses.json failed: %s. Ignored.\n", err)
 		return map[string]string{}, fmt.Sprintf("%d", timestamp)
@@ -96,7 +72,7 @@ func getDataFromDefaultFile() (result map[string]string, hash string) {
 		return map[string]string{}, fmt.Sprintf("%d", timestamp)
 	}
 
-	content, err = ioutil.ReadFile(path.Join(dir, "secrets.json"))
+	content, err = os.ReadFile(path.Join(dir, "secrets.json"))
 	if err == nil {
 		secret := map[string]string{}
 		err = json.Unmarshal(content, &secret)
@@ -117,162 +93,160 @@ func getDataFromDefaultFile() (result map[string]string, hash string) {
 	return result, fmt.Sprintf("%d", timestamp)
 }
 
-type BleveDB struct {
-	index   bleve.Index
-	Hash    string
-	Session string
-}
-
-func buildIndexMapping() mapping.IndexMapping {
-	textFieldMapping := bleve.NewTextFieldMapping()
-	textFieldMapping.Analyzer = en.AnalyzerName
-
-	defaultMapping := bleve.NewDocumentMapping()
-	defaultMapping.AddFieldMappingsAt("desc",
-		textFieldMapping)
-
-	indexMapping := bleve.NewIndexMapping()
-	indexMapping.AddDocumentMapping("_default", defaultMapping)
-
-	indexMapping.TypeField = "type"
-	indexMapping.DefaultAnalyzer = "en"
-
-	return indexMapping
-}
-
-func loadIndex(db *BleveDB, path string) error {
-	index, err := bleve.Open(path)
-	if err != nil && err != bleve.ErrorIndexPathDoesNotExist {
-		return err
-	}
-
-	if err == nil {
-		db.index = index
-	}
-
-	addrs, h := getDataFromDefaultFile()
-
-	if err == bleve.ErrorIndexPathDoesNotExist {
-		// here index file doesn't exist, create one
-		indexMapping := buildIndexMapping()
-		index, err = bleve.New(path, indexMapping)
-		if err != nil {
-			return err
-		}
-		db.index = index
-		db.Hash = ""
-	}
-
-	if db.Hash != h {
-		err = indexAddresses(bleveDB.index, addrs)
-		if err != nil {
-			return err
-		}
-		db.Hash = h
-		return db.Persist()
-	}
-	return nil
-}
-
-func loadBleveDB() (*BleveDB, error) {
-	result := &BleveDB{}
-	content, err := ioutil.ReadFile(getBlevePath())
-	if err != nil {
-		return result, nil
-	}
-	err = json.Unmarshal(content, result)
-	if err != nil {
-		return result, nil
-	}
-
-	return result, nil
-}
-
-func CopyBleveDataFileToSession() error {
-	return exec.Command("cp", "-R", getBleveDataPath(), THIS_SESSION_BLEVE_DATA_PATH).Run()
-}
-
 func NewBleveDB() (*BleveDB, error) {
 	var resError error
 	once.Do(func() {
-		bleveDB, resError = loadBleveDB()
-		if resError != nil {
+		bleveDB = &BleveDB{}
+		// Open DuckDB
+		d, err := sql.Open("duckdb", getDBPath())
+		if err != nil {
+			resError = fmt.Errorf("failed to open duckdb: %w", err)
 			return
 		}
+		bleveDB.db = d
 
-		// THIS_SESSION_BLEVE_DATA_PATH = getRandomSessionBleveDataPath()
-		// resError = CopyBleveDataFileToSession()
-		// if resError != nil {
-		// 	return
-		// }
+		// Load extensions
+		if _, err := d.Exec("INSTALL fts; LOAD fts;"); err != nil {
+			// Just log, might be already installed/loaded or not needed for basic usage,
+			// but critical for FTS. Fails if offline and not cached.
+			fmt.Printf("Warning: Failed to install/load FTS extension: %v\n", err)
+		}
 
-		resError = loadIndex(bleveDB, getBleveDataPath())
+		resError = loadData(bleveDB)
 	})
 	return bleveDB, resError
 }
 
-func (bleveDB *BleveDB) Persist() error {
-	jsonData, err := json.MarshalIndent(bleveDB, "", "  ")
+func loadData(bdb *BleveDB) error {
+	addresses, newHash := getDataFromDefaultFile()
+
+	// Check hash to avoid rebuilding if data hasn't changed
+	hashBytes, _ := os.ReadFile(getHashPath())
+	if string(hashBytes) == newHash {
+		// Verify table exists
+		var count int
+		if err := bdb.db.QueryRow("SELECT count(*) FROM information_schema.tables WHERE table_name = 'addresses'").Scan(&count); err == nil && count > 0 {
+			bdb.Hash = newHash
+			return nil
+		}
+	}
+
+	// Rebuild Table
+	if _, err := bdb.db.Exec("DROP TABLE IF EXISTS addresses"); err != nil {
+		return err
+	}
+	// We use address as ID for FTS index
+	if _, err := bdb.db.Exec("CREATE TABLE addresses (address TEXT PRIMARY KEY, description TEXT)"); err != nil {
+		return err
+	}
+
+	// Batch Insert
+	// Since DuckDB local is fast, single tx is usually enough
+	tx, err := bdb.db.Begin()
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(getBlevePath(), jsonData, 0644)
+	stmt, err := tx.Prepare("INSERT INTO addresses (address, description) VALUES (?, ?)")
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	defer stmt.Close()
+
+	for addr, desc := range addresses {
+		if _, err := stmt.Exec(addr, desc); err != nil {
+			// Continue or fail? addresses map key is unique, but let's be safe
+			fmt.Printf("Failed to insert %s: %v\n", addr, err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	// Create FTS Index
+	// Indexing 'address' and 'description'. 'address' is the key column.
+	if _, err := bdb.db.Exec("PRAGMA create_fts_index('addresses', 'address', 'address', 'description')"); err != nil {
+		return fmt.Errorf("failed to create fts index: %w", err)
+	}
+
+	// Save Hash
+	if err := os.WriteFile(getHashPath(), []byte(newHash), 0644); err != nil {
+		fmt.Printf("Warning: failed to write hash file: %v\n", err)
+	}
+	bdb.Hash = newHash
+	return nil
+}
+
+func (bleveDB *BleveDB) Persist() error {
+	// No-op for DuckDB as it persists to file automatically
+	// But we might want to force checkpoint?
+	return nil
 }
 
 func (bleveDB *BleveDB) Search(input string) ([]AddressDesc, []int) {
-	matchQuery := bleve.NewMatchPhraseQuery(input)
-	fuzzyQuery := bleve.NewFuzzyQuery(input)
-	fuzzyQuery.Fuzziness = 1
-	query := bleve.NewDisjunctionQuery(matchQuery, fuzzyQuery)
-	request := bleve.NewSearchRequest(query)
-	searchResults, err := bleveDB.index.Search(request)
+	if bleveDB.db == nil {
+		return []AddressDesc{}, []int{}
+	}
+
+	// Hybrid Search:
+	// 1. Full Text Search (BM25) on Address & Description
+	// 2. Levenshtein Distance on Description (for fuzzy name match)
+	// Score calculation attempts to mimic Bleve's score scale roughly
+
+	query := `
+	WITH results AS (
+		SELECT 
+			address, 
+			description, 
+			fts_main_addresses.match_bm25(address, ?) * 10 AS score_ft 
+		FROM addresses 
+		WHERE score_ft IS NOT NULL
+		
+		UNION ALL
+		
+		SELECT 
+			address, 
+			description,
+			(1.0 / (levenshtein(description, ?) + 0.1)) * 5 AS score_fuzzy
+		FROM addresses
+		WHERE levenshtein(description, ?) <= 2
+	)
+	SELECT address, description, SUM(score_ft) as total_score
+	FROM results
+	GROUP BY address, description
+	ORDER BY total_score DESC
+	LIMIT 20
+	`
+
+	rows, err := bleveDB.db.Query(query, input, input, input)
 	if err != nil {
 		fmt.Printf("Address db search failed: %s\n", err)
 		return []AddressDesc{}, []int{}
 	}
+	defer rows.Close()
 
 	results := []AddressDesc{}
 	resultScores := []int{}
-	for _, searchResult := range searchResults.Hits {
-		doc, err := bleveDB.index.Document(searchResult.ID)
-		if err != nil {
-			fmt.Printf("getting address data for %s failed: %s. Ignored.", searchResult.ID, err)
+
+	for rows.Next() {
+		var addr, desc string
+		var score float64
+		if err := rows.Scan(&addr, &desc, &score); err != nil {
 			continue
 		}
-		resultScores = append(resultScores, int(searchResult.Score*1000000))
-		results = append(results, AddressDesc{
-			Address: string(doc.Fields[0].Value()),
-			Desc:    string(doc.Fields[1].Value()),
-		})
-	}
-	return results, resultScores
-}
 
-func indexAddresses(i bleve.Index, addrs map[string]string) error {
-	batch := i.NewBatch()
-	batchCount := 0
-	for addr, desc := range addrs {
-		batch.Index(addr, AddressDesc{
+		// Normalize score to int as expected by caller (Bleve used quite large ints)
+		intScore := int(score * 100000)
+
+		results = append(results, AddressDesc{
 			Address: addr,
 			Desc:    desc,
 		})
-		batchCount++
+		resultScores = append(resultScores, intScore)
+	}
 
-		if batchCount >= 1000 {
-			err := i.Batch(batch)
-			if err != nil {
-				return err
-			}
-			batch = i.NewBatch()
-			batchCount = 0
-		}
-	}
-	// flush the last batch
-	if batchCount > 0 {
-		err := i.Batch(batch)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return results, resultScores
 }
+
+// remove unused functions to avoid linter warnings if any
+// indexAddresses was removed
