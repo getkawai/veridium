@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,11 +16,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/cloudflare/cloudflared/cfapi"
 	"github.com/cloudflare/cloudflared/cmd/cloudflared/cliutil"
 	"github.com/cloudflare/cloudflared/cmd/cloudflared/tunnel"
 	"github.com/cloudflare/cloudflared/connection"
 	"github.com/google/uuid"
+	"github.com/kawai-network/veridium/pkg/cfapi"
 	"github.com/rs/zerolog"
 	"github.com/urfave/cli/v2"
 )
@@ -50,14 +51,14 @@ func GetOrCreateTunnelWithDNS(cfg Config) (*TunnelInfo, error) {
 	}
 
 	// Create REST client
-	logger := zerolog.Nop()
+	logger := slog.Default()
 	client, err := cfapi.NewRESTClient(
 		"https://api.cloudflare.com/client/v4",
 		cfg.AccountID,
 		zoneID,
 		cfg.APIToken,
 		"tunnelkit",
-		&logger,
+		logger,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create API client: %w", err)
@@ -127,14 +128,14 @@ func CreateTunnelWithDNS(cfg Config) (*TunnelInfo, error) {
 	}
 
 	// Create REST client
-	logger := zerolog.Nop()
+	logger := slog.Default()
 	client, err := cfapi.NewRESTClient(
 		"https://api.cloudflare.com/client/v4",
 		cfg.AccountID,
 		zoneID,
 		cfg.APIToken,
 		"tunnelkit",
-		&logger,
+		logger,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create API client: %w", err)
@@ -153,14 +154,14 @@ func CreateTunnelWithDNS(cfg Config) (*TunnelInfo, error) {
 // GetTunnelByName retrieves an existing tunnel by name
 func GetTunnelByName(accountID, apiToken, tunnelName string) (*TunnelInfo, error) {
 	// Create REST client (zoneID not needed for listing tunnels)
-	logger := zerolog.Nop()
+	logger := slog.Default()
 	client, err := cfapi.NewRESTClient(
 		"https://api.cloudflare.com/client/v4",
 		accountID,
 		"", // zoneID not required for tunnel operations
 		apiToken,
 		"tunnelkit",
-		&logger,
+		logger,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create API client: %w", err)
@@ -210,14 +211,14 @@ func GetTunnelByName(accountID, apiToken, tunnelName string) (*TunnelInfo, error
 // ListTunnels lists all tunnels in the account
 func ListTunnels(accountID, apiToken string) ([]*TunnelInfo, error) {
 	// Create REST client
-	logger := zerolog.Nop()
+	logger := slog.Default()
 	client, err := cfapi.NewRESTClient(
 		"https://api.cloudflare.com/client/v4",
 		accountID,
 		"",
 		apiToken,
 		"tunnelkit",
-		&logger,
+		logger,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create API client: %w", err)
@@ -274,14 +275,14 @@ func HasActiveConnections(tunnelID string) (bool, error) {
 	apiToken := "OP8BZQhyeJxrovCPKt15eUOSC6i5LXTVECGRSMc1"
 
 	// Create REST client
-	logger := zerolog.Nop()
+	logger := slog.Default()
 	client, err := cfapi.NewRESTClient(
 		"https://api.cloudflare.com/client/v4",
 		accountID,
 		"", // zoneID not required
 		apiToken,
 		"tunnelkit",
-		&logger,
+		logger,
 	)
 	if err != nil {
 		return false, fmt.Errorf("failed to create API client: %w", err)
@@ -314,11 +315,8 @@ func RunTunnel(ctx context.Context, tunnelToken string) error {
 		Credentials: credentials,
 	}
 
-	// Setup logger
-	logger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}).
-		With().
-		Timestamp().
-		Logger()
+	// Setup logger for cloudflared (requires zerolog)
+	zerologLogger := zerolog.Nop()
 
 	// Create build info
 	buildInfo := &cliutil.BuildInfo{
@@ -346,7 +344,7 @@ func RunTunnel(ctx context.Context, tunnelToken string) error {
 	cliCtx := cli.NewContext(nil, set, nil)
 
 	// Start tunnel server
-	return tunnel.StartServer(cliCtx, buildInfo, tunnelProps, &logger)
+	return tunnel.StartServer(cliCtx, buildInfo, tunnelProps, &zerologLogger)
 }
 
 // RunTunnelWithShutdown runs a tunnel with graceful shutdown handling
