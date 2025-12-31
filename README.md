@@ -203,9 +203,9 @@ CF_KV_SETTLEMENTS_NAMESPACE_ID=...   # Settlement metadata
 
 | Document | Description |
 |----------|-------------|
-| [`DEPLOYMENT_SUMMARY.md`](DEPLOYMENT_SUMMARY.md) | Full deployment details & contract addresses |
-| [`MARKETPLACE_UPGRADE_SUMMARY.md`](MARKETPLACE_UPGRADE_SUMMARY.md) | Architecture & partial fill implementation |
-| [`CONTRACTS_WORKFLOW.md`](CONTRACTS_WORKFLOW.md) | Smart contract development workflow |
+| [`DEPLOYMENT_SUMMARY.md`](docs/DEPLOYMENT_SUMMARY.md) | Full deployment details & contract addresses |
+| [`MARKETPLACE_UPGRADE_SUMMARY.md`](docs/MARKETPLACE_UPGRADE_SUMMARY.md) | Architecture & partial fill implementation |
+| [`CONTRACTS_WORKFLOW.md`](docs/CONTRACTS_WORKFLOW.md) | Smart contract development workflow |
 | [`current_concept.md`](current_concept.md) | Complete project concept & tokenomics |
 
 ---
