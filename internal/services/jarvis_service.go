@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
 	jarviscommon "github.com/kawai-network/veridium/pkg/jarvis/common"
@@ -81,8 +82,9 @@ type LogInfo struct {
 
 // JarvisService provides blockchain utilities from the jarvis package
 type JarvisService struct {
-	readers map[uint64]*reader.EthReader
-	wallet  *WalletService
+	readers   map[uint64]*reader.EthReader
+	readersMu sync.RWMutex // Protect concurrent map access
+	wallet    *WalletService
 }
 
 // NewJarvisService creates a new JarvisService instance
@@ -100,11 +102,25 @@ func (s *JarvisService) getReader(networkID uint64) (*reader.EthReader, networks
 		return nil, nil, fmt.Errorf("network not supported: %w", err)
 	}
 
-	if r, exists := s.readers[networkID]; exists {
+	// Check if reader exists (read lock)
+	s.readersMu.RLock()
+	r, exists := s.readers[networkID]
+	s.readersMu.RUnlock()
+	
+	if exists {
 		return r, network, nil
 	}
 
-	r := reader.NewEthReaderGeneric(network.GetDefaultNodes(), nil)
+	// Create new reader (write lock)
+	s.readersMu.Lock()
+	defer s.readersMu.Unlock()
+	
+	// Double-check after acquiring write lock (another goroutine might have created it)
+	if r, exists := s.readers[networkID]; exists {
+		return r, network, nil
+	}
+	
+	r = reader.NewEthReaderGeneric(network.GetDefaultNodes(), nil)
 	s.readers[networkID] = r
 	return r, network, nil
 }

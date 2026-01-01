@@ -198,6 +198,27 @@ const RewardsContent = ({ styles, theme, currentNetwork, transactions }: Rewards
     }
   };
 
+  const formatAccumulating = (rawAmount: string, decimals: number) => {
+    if (!rawAmount || rawAmount === '0') return '0';
+    try {
+      // Convert raw amount (wei/smallest unit) to human-readable format
+      const amount = BigInt(rawAmount);
+      const divisor = BigInt(10 ** decimals);
+      const wholePart = amount / divisor;
+      const fractionalPart = amount % divisor;
+      
+      // Format fractional part with leading zeros
+      const fractionalStr = fractionalPart.toString().padStart(decimals, '0');
+      const precision = decimals === 18 ? 4 : 2; // 4 decimals for KAWAI, 2 for USDT
+      const trimmedFractional = fractionalStr.slice(0, precision);
+      
+      return `${wholePart}.${trimmedFractional}`;
+    } catch (e) {
+      console.error('Failed to format accumulating amount:', e);
+      return '0';
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'unclaimed':
@@ -215,7 +236,7 @@ const RewardsContent = ({ styles, theme, currentNetwork, transactions }: Rewards
 
   if (error) {
     return (
-      <Flexbox style={{ maxWidth: 800 }} gap={20}>
+      <Flexbox style={{ width: '100%' }} gap={20}>
         <div>
           <h2 style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>Rewards</h2>
           <span style={{ color: theme.colorTextSecondary, fontSize: 13 }}>Claim your KAWAI & USDT rewards</span>
@@ -234,7 +255,7 @@ const RewardsContent = ({ styles, theme, currentNetwork, transactions }: Rewards
   const hasPendingRewards = validPending.length > 0;
 
   return (
-    <Flexbox style={{ maxWidth: 800 }} gap={20}>
+    <Flexbox style={{ width: '100%' }} gap={20}>
       {/* Header */}
       <Flexbox horizontal justify="space-between" align="center">
         <div>
@@ -275,7 +296,7 @@ const RewardsContent = ({ styles, theme, currentNetwork, transactions }: Rewards
                   {rewards?.total_kawai_claimable_formatted || '0.0000'}
                 </span>
                 <span style={{ fontSize: 11, color: theme.colorTextTertiary }}>
-                  Accumulating: {rewards?.current_kawai_accumulating || '0'}
+                  Accumulating: {formatAccumulating(rewards?.current_kawai_accumulating || '0', 18)} KAWAI
                 </span>
               </>
             )}
@@ -304,7 +325,7 @@ const RewardsContent = ({ styles, theme, currentNetwork, transactions }: Rewards
                   ${rewards?.total_usdt_claimable_formatted || '0.00'}
                 </span>
                 <span style={{ fontSize: 11, color: theme.colorTextTertiary }}>
-                  Accumulating: ${rewards?.current_usdt_accumulating || '0'}
+                  Accumulating: ${formatAccumulating(rewards?.current_usdt_accumulating || '0', 6)} USDT
                 </span>
               </>
             )}
