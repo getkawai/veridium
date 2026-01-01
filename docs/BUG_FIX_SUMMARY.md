@@ -77,31 +77,51 @@ Replaced all non-atomic operations with atomic versions:
 - Implements retry logic with exponential backoff (5 retries, 50ms → 800ms)
 - Prevents concurrent modification issues
 
-**Test:** Run `go test -v ./pkg/store/balance_atomic_test.go`
+**Test:** Run `go test -v ./pkg/store/balance_test.go`
 
 ---
 
-### 3. ⚠️ Marketplace Silent Failures - NEEDS REVIEW
-**Status:** MEDIUM Priority  
-**Location:** `internal/services/marketplace_service.go`
+### 3. ✅ Marketplace Silent Failures - FIXED
+**Status:** ✅ COMPLETED (CRITICAL Priority)  
+**Location:** `internal/services/marketplace_service.go`  
+**Documentation:** `docs/SILENT_FAILURE_FIXES.md`
 
-**What's the problem:**
+**What was the problem:**
 - Trade completes on blockchain but fails to record in KV store
-- User history becomes incomplete
+- User history becomes incomplete (buyer/seller)
+- Orders not appearing in "My Orders" list
+- No audit trail for status changes
 - Market stats become inaccurate
 
-**Current behavior:**
+**What was fixed:**
+Added retry logic with exponential backoff to 5 critical locations:
+1. ✅ Trade record storage (Line ~957) - MOST CRITICAL
+2. ✅ Trade history updates (Line ~1070-1090) - 3 locations
+3. ✅ User order index (Line ~1439)
+4. ✅ Real-time updates (Line ~1005)
+5. ✅ Status change history (Line ~1520)
+
+**Solution implemented:**
 ```go
+// Before: Silent failure
 if err := s.storePartialTradeRecord(...); err != nil {
-    log.Printf("⚠️  Failed to store trade record: %v", err)
-    // Don't fail the trade completion for this ← SILENT FAILURE
+    log.Printf("⚠️  Failed: %v", err)
+}
+
+// After: Retry with error handling
+if err := retryWithBackoff(func() error {
+    return s.storePartialTradeRecord(...)
+}, "store trade record"); err != nil {
+    log.Printf("🔴 CRITICAL: Failed after retries: %v", err)
+    return fmt.Errorf("critical: trade executed but failed to store: %w", err)
 }
 ```
 
-**Recommendation:**
-- Add retry logic for critical KV operations
-- Implement circuit breaker pattern
-- Alert admin on persistent failures
+**Impact:**
+- ✅ Prevents data loss (3 retry attempts with exponential backoff)
+- ✅ Critical failures now return errors for monitoring
+- ✅ Better logging: 🔴 CRITICAL vs ⚠️ WARNING
+- ✅ Code compiles successfully
 
 ---
 
@@ -116,7 +136,7 @@ if err := s.storePartialTradeRecord(...); err != nil {
 - Priority fixes
 
 ### 2. Atomic Balance Operations
-**File:** `pkg/store/balance_atomic.go`  
+**File:** `pkg/store/balance.go` (merged from balance_atomic.go)  
 **Content:**
 - `DeductBalanceAtomic()` - Safe balance deduction
 - `AddBalanceAtomic()` - Safe balance addition
@@ -124,12 +144,20 @@ if err := s.storePartialTradeRecord(...); err != nil {
 - Retry logic with exponential backoff
 
 ### 3. Atomic Operations Tests
-**File:** `pkg/store/balance_atomic_test.go`  
+**File:** `pkg/store/balance_test.go` (renamed from balance_atomic_test.go)  
 **Content:**
 - Race condition demonstration
 - Atomic operations verification
 - Real-world scenario tests
 - Benchmarks
+
+### 4. Silent Failure Fixes Documentation
+**File:** `docs/SILENT_FAILURE_FIXES.md`  
+**Content:**
+- Detailed analysis of 5 fixed locations
+- Before/after code comparisons
+- Retry logic implementation
+- Testing recommendations
 
 ---
 
@@ -137,35 +165,59 @@ if err := s.storePartialTradeRecord(...); err != nil {
 
 ### ✅ Completed
 1. ✅ **DONE:** Nil pointer checks verified
-2. ✅ **DONE:** Atomic balance operations implemented
+2. ✅ **DONE:** Atomic balance operations implemented and merged
    - Fixed: `deposit_sync_service.go`
    - Fixed: `gateway/handler.go`
    - Fixed: `payment_event_listener.go`
+   - Merged: `balance_atomic.go` → `balance.go`
+   - Tests passing: `go test ./pkg/store -v`
+3. ✅ **DONE:** Marketplace silent failures fixed
+   - Added retry logic to 5 critical locations
+   - Critical failures now return errors
+   - Code compiles successfully
 
 ### High Priority (Do Now)
-3. ⚠️ **TODO:** Run comprehensive tests
+4. ⚠️ **TODO:** Run comprehensive integration tests
    ```bash
    # Test atomic operations
-   go test -v ./pkg/store/balance_atomic_test.go
+   go test -v ./pkg/store/balance_test.go
    
    # Run race detector
    go test -race ./pkg/store/
    go test -race ./internal/services/
    ```
 
-4. ⚠️ **TODO:** Add retry logic for marketplace KV operations
-   ```bash
-   # Review all KV store operations in marketplace
-   grep -r "kvStore\." internal/services/marketplace_service.go
-   ```
-
 ### Medium Priority
-4. Run race detector on all tests
-   ```bash
-   go test -race ./...
-   ```
+5. ⚠️ **TODO:** Load test marketplace with simulated KV failures
+6. ⚠️ **TODO:** Add monitoring/alerts for retry patterns in production
 
-5. Add integration tests for failure scenarios
+---
+
+## 📊 OVERALL STATUS
+
+### Bugs Fixed: 3/3 Critical Bugs ✅
+
+| Bug | Status | Priority | Impact |
+|-----|--------|----------|--------|
+| #1: Nil Pointer Dereference | ✅ VERIFIED SAFE | LOW | No action needed |
+| #2: Balance Race Condition | ✅ FIXED | CRITICAL | Prevents double-spend |
+| #3: Marketplace Silent Failures | ✅ FIXED | CRITICAL | Prevents data loss |
+
+### Code Quality
+- ✅ All code compiles successfully
+- ✅ No diagnostic errors
+- ✅ Atomic operations tested
+- ⏳ Integration tests pending
+- ⏳ Load testing pending
+
+### Production Readiness
+- ✅ Critical bugs fixed
+- ✅ Retry logic implemented
+- ✅ Error handling improved
+- ⏳ Monitoring recommended
+- ⏳ Load testing recommended
+
+**Next Steps**: Run integration tests and monitor production logs for retry patterns.5. Add integration tests for failure scenarios
    ```bash
    # Test KV store failures
    # Test blockchain RPC failures

@@ -17,6 +17,43 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
+// Retry configuration for critical KV operations
+const (
+	maxRetries     = 3
+	initialBackoff = 100 * time.Millisecond
+	maxBackoff     = 2 * time.Second
+)
+
+// retryWithBackoff executes a function with exponential backoff retry logic
+func retryWithBackoff(operation func() error, operationName string) error {
+	var lastErr error
+	backoff := initialBackoff
+
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		if attempt > 0 {
+			log.Printf("🔄 Retry attempt %d/%d for %s after %v", attempt, maxRetries, operationName, backoff)
+			time.Sleep(backoff)
+			backoff *= 2
+			if backoff > maxBackoff {
+				backoff = maxBackoff
+			}
+		}
+
+		err := operation()
+		if err == nil {
+			if attempt > 0 {
+				log.Printf("✅ %s succeeded after %d retries", operationName, attempt)
+			}
+			return nil
+		}
+
+		lastErr = err
+		log.Printf("⚠️  %s failed (attempt %d/%d): %v", operationName, attempt+1, maxRetries+1, err)
+	}
+
+	return fmt.Errorf("%s failed after %d attempts: %w", operationName, maxRetries+1, lastErr)
+}
+
 // MarketplaceError represents different types of marketplace errors
 // Requirements: 7.5 - Comprehensive error types and messages
 type MarketplaceError struct {
@@ -917,29 +954,31 @@ func (s *TradeService) ProcessPartialTradeCompletion(orderID, txHash string, tra
 		log.Printf("✅ Order %s partially filled: %s tokens remaining", orderID, newRemainingAmount.String())
 	}
 
-	// Store trade record
-	if err := s.storePartialTradeRecord(order, txHash, tradeTokenAmount, tradeUSDTAmount, buyerAddress); err != nil {
-		log.Printf("⚠️  Failed to store trade record: %v", err)
-		// Don't fail the trade completion for this
-	} else {
-		// Emit real-time trade completion event if trade was stored successfully
-		// Requirements: 4.3 - Event-driven status updates for active orders
-		if s.marketplaceService != nil {
-			// Get the stored trade record to emit with complete information
-			// For now, we'll create a temporary trade object for the event
-			trade := &Trade{
-				ID:          fmt.Sprintf("temp_%s_%d", orderID, time.Now().Unix()),
-				OrderID:     orderID,
-				Buyer:       buyerAddress, // Now filled synchronously
-				Seller:      order.Seller,
-				TokenAmount: tradeTokenAmount.String(),
-				USDTAmount:  tradeUSDTAmount.String(),
-				Price:       order.PricePerToken,
-				Timestamp:   time.Now(),
-				TxHash:      txHash,
-			}
-			s.marketplaceService.emitTradeCompleted(trade, order)
+	// Store trade record with retry logic (CRITICAL - Priority 1)
+	if err := retryWithBackoff(func() error {
+		return s.storePartialTradeRecord(order, txHash, tradeTokenAmount, tradeUSDTAmount, buyerAddress)
+	}, fmt.Sprintf("store trade record for order %s", orderID)); err != nil {
+		// This is critical - trade happened on blockchain but not recorded
+		log.Printf("🔴 CRITICAL: Failed to store trade record after retries: %v", err)
+		// Return error to trigger alert/monitoring
+		return fmt.Errorf("critical: trade executed on blockchain but failed to store record: %w", err)
+	}
+
+	// Emit real-time trade completion event
+	// Requirements: 4.3 - Event-driven status updates for active orders
+	if s.marketplaceService != nil {
+		trade := &Trade{
+			ID:          fmt.Sprintf("temp_%s_%d", orderID, time.Now().Unix()),
+			OrderID:     orderID,
+			Buyer:       buyerAddress,
+			Seller:      order.Seller,
+			TokenAmount: tradeTokenAmount.String(),
+			USDTAmount:  tradeUSDTAmount.String(),
+			Price:       order.PricePerToken,
+			Timestamp:   time.Now(),
+			TxHash:      txHash,
 		}
+		s.marketplaceService.emitTradeCompleted(trade, order)
 	}
 
 	log.Printf("✅ Processed partial trade completion for order %s", orderID)
@@ -963,11 +1002,15 @@ func (s *TradeService) updateOrderRemainingAmount(orderID string, newRemainingAm
 		return fmt.Errorf("failed to store updated order: %w", err)
 	}
 
-	// Ensure real-time updates for partial fill amount changes
+	// Ensure real-time updates for partial fill amount changes with retry (Priority 4)
 	// Requirements: 2.4 - Real-time remaining amount updates for partial fills
 	if s.marketplaceService != nil {
-		if err := s.marketplaceService.ensureRealTimeOrderUpdates(orderID); err != nil {
-			log.Printf("⚠️  Failed to ensure real-time updates for order %s: %v", orderID, err)
+		err := retryWithBackoff(func() error {
+			return s.marketplaceService.ensureRealTimeOrderUpdates(orderID)
+		}, fmt.Sprintf("ensure real-time updates for order %s", orderID))
+		if err != nil {
+			log.Printf("⚠️  Failed to ensure real-time updates after retries: %v", err)
+			// Non-critical - UI will update on next refresh
 		}
 	}
 
@@ -1036,25 +1079,40 @@ func (s *TradeService) storePartialTradeRecord(order *Order, txHash string, trad
 		return fmt.Errorf("failed to marshal trade: %w", err)
 	}
 
-	// Store trade record
+	// Store trade record with retry
 	key := s.getTradeKey(tradeID)
-	if err := s.kvStore.StoreMarketplaceData(ctx, key, tradeJSON); err != nil {
+	err = retryWithBackoff(func() error {
+		return s.kvStore.StoreMarketplaceData(ctx, key, tradeJSON)
+	}, fmt.Sprintf("store trade %s", tradeID))
+	if err != nil {
 		return fmt.Errorf("failed to store trade record: %w", err)
 	}
 
-	// Add trade to order's trade history
-	if err := s.addTradeToOrderHistory(order.ID, tradeID); err != nil {
-		log.Printf("⚠️  Failed to add trade to order history: %v", err)
+	// Add trade to order's trade history with retry (Priority 2)
+	err = retryWithBackoff(func() error {
+		return s.addTradeToOrderHistory(order.ID, tradeID)
+	}, fmt.Sprintf("add trade to order history %s", order.ID))
+	if err != nil {
+		log.Printf("🔴 CRITICAL: Failed to add trade to order history after retries: %v", err)
+		// Continue - trade is stored, history update is secondary
 	}
 
-	// Add trade to seller's trade history
-	if err := s.addTradeToUserHistory(order.Seller, "seller", tradeID); err != nil {
-		log.Printf("⚠️  Failed to add trade to seller history: %v", err)
+	// Add trade to seller's trade history with retry (Priority 2)
+	err = retryWithBackoff(func() error {
+		return s.addTradeToUserHistory(order.Seller, "seller", tradeID)
+	}, fmt.Sprintf("add trade to seller history %s", order.Seller))
+	if err != nil {
+		log.Printf("🔴 CRITICAL: Failed to add trade to seller history after retries: %v", err)
+		// Continue - trade is stored, history update is secondary
 	}
 
-	// Add trade to buyer's trade history (synchronously)
-	if err := s.addTradeToUserHistory(buyerAddress, "buyer", tradeID); err != nil {
-		log.Printf("⚠️  Failed to add trade to buyer history: %v", err)
+	// Add trade to buyer's trade history with retry (Priority 2)
+	err = retryWithBackoff(func() error {
+		return s.addTradeToUserHistory(buyerAddress, "buyer", tradeID)
+	}, fmt.Sprintf("add trade to buyer history %s", buyerAddress))
+	if err != nil {
+		log.Printf("🔴 CRITICAL: Failed to add trade to buyer history after retries: %v", err)
+		// Continue - trade is stored, history update is secondary
 	}
 
 	log.Printf("✅ Stored trade record %s for order %s (Buyer: %s, Seller: %s)", tradeID, order.ID, buyerAddress, order.Seller)
@@ -1376,10 +1434,12 @@ func (s *OrderService) StoreOrder(order *Order) error {
 		return fmt.Errorf("failed to store order: %w", err)
 	}
 
-	// Update user's order index
-	if err := s.addOrderToUserIndex(order.ID, order.Seller); err != nil {
-		log.Printf("⚠️  Failed to update user index for order %s: %v", order.ID, err)
-		// Don't fail the whole operation if index update fails
+	// Update user's order index with retry (Priority 3)
+	if err := retryWithBackoff(func() error {
+		return s.addOrderToUserIndex(order.ID, order.Seller)
+	}, fmt.Sprintf("update user index for order %s", order.ID)); err != nil {
+		log.Printf("🔴 CRITICAL: Failed to update user index after retries: %v", err)
+		// Continue - order is created but won't show in user's list
 	}
 
 	return nil
@@ -1460,8 +1520,13 @@ func (s *OrderService) UpdateOrderStatus(orderID, status string) error {
 
 	// Add status change to history if status actually changed
 	if oldStatus != status {
-		if err := s.addOrderStatusChange(orderID, status, ""); err != nil {
-			log.Printf("⚠️  Failed to add status change to history for order %s: %v", orderID, err)
+		// Add status change to history with retry (Priority 4)
+		err := retryWithBackoff(func() error {
+			return s.addOrderStatusChange(orderID, status, "")
+		}, fmt.Sprintf("add status change history for order %s", orderID))
+		if err != nil {
+			log.Printf("⚠️  Failed to add status change to history after retries: %v", err)
+			// Non-critical - audit trail incomplete but order status is updated
 		}
 
 		// Emit real-time status update event
