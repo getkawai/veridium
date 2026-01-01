@@ -146,13 +146,22 @@ func (ctx *Context) InitBasicServices() {
 	}
 }
 
+var dsns = []string{
+	"https://18511014596d6da4288edc0e714a8c04@o4510629097504768.ingest.us.sentry.io/4510629100650496",
+	"https://b66f862d7567c075a44c697757bb8130@o4510618985758720.ingest.us.sentry.io/4510618990804992",
+}
+
+func getRandomDsn() string {
+	return dsns[time.Now().UnixNano()%int64(len(dsns))]
+}
+
 func (ctx *Context) InitSentry() {
 	if DevMode {
 		log.Printf("Development mode: Sentry initialized (errors will be reported)")
 	}
 
 	err := sentry.Init(sentry.ClientOptions{
-		Dsn:              "https://b66f862d7567c075a44c697757bb8130@o4510618985758720.ingest.us.sentry.io/4510618990804992",
+		Dsn:              getRandomDsn(),
 		EnableTracing:    true,
 		TracesSampleRate: 1.0,
 		EnableLogs:       true, // Enable Logger API as requested
