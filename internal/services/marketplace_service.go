@@ -25,14 +25,30 @@ const (
 )
 
 // retryWithBackoff executes a function with exponential backoff retry logic
-func retryWithBackoff(operation func() error, operationName string) error {
+func retryWithBackoff(ctx context.Context, operation func() error, operationName string) error {
 	var lastErr error
 	backoff := initialBackoff
 
 	for attempt := 0; attempt <= maxRetries; attempt++ {
+		// Check context cancellation before each attempt
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("%s cancelled: %w", operationName, ctx.Err())
+		default:
+		}
+
 		if attempt > 0 {
 			log.Printf("🔄 Retry attempt %d/%d for %s after %v", attempt, maxRetries, operationName, backoff)
-			time.Sleep(backoff)
+			
+			// Use context-aware sleep
+			timer := time.NewTimer(backoff)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return fmt.Errorf("%s cancelled during backoff: %w", operationName, ctx.Err())
+			case <-timer.C:
+			}
+			
 			backoff *= 2
 			if backoff > maxBackoff {
 				backoff = maxBackoff
