@@ -1116,13 +1116,10 @@ func (s *TradeService) storePartialTradeRecord(order *Order, txHash string, trad
 		return fmt.Errorf("failed to add trade to seller history: %w", err)
 	}
 
-	// Add trade to buyer's trade history with retry (Priority 2)
-	err = retryWithBackoff(func() error {
-		return s.addTradeToUserHistory(buyerAddress, "buyer", tradeID)
-	}, fmt.Sprintf("add trade to buyer history %s", buyerAddress))
+	// Add trade to buyer's trade history (Priority 2)
+	err = s.addTradeToUserHistory(buyerAddress, "buyer", tradeID)
 	if err != nil {
-		log.Printf("🔴 CRITICAL: Failed to add trade to buyer history after retries: %v", err)
-		// Continue - trade is stored, history update is secondary
+		return fmt.Errorf("failed to add trade to buyer history: %w", err)
 	}
 
 	log.Printf("✅ Stored trade record %s for order %s (Buyer: %s, Seller: %s)", tradeID, order.ID, buyerAddress, order.Seller)
