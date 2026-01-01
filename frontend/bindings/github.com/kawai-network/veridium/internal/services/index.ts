@@ -3,6 +3,7 @@
 
 import * as AgentChatService from "./agentchatservice.js";
 import * as DeAIService from "./deaiservice.js";
+import * as DepositSyncService from "./depositsyncservice.js";
 import * as FileService from "./fileservice.js";
 import * as JarvisService from "./jarvisservice.js";
 import * as KnowledgeBaseService from "./knowledgebaseservice.js";
@@ -13,6 +14,7 @@ import * as WalletService from "./walletservice.js";
 export {
     AgentChatService,
     DeAIService,
+    DepositSyncService,
     FileService,
     JarvisService,
     KnowledgeBaseService,
@@ -58,6 +60,8 @@ export {
     ProjectToken,
     SearchResult,
     StreamEventPayload,
+    SyncDepositRequest,
+    SyncDepositResponse,
     ThreadInfo,
     ThreadStatus,
     ThreadType,

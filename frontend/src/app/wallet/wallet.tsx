@@ -1,6 +1,6 @@
 import { Modal, QRCode, App, Button, InputNumber, Form, Input, Empty, Popover, Spin, Tooltip, Select } from 'antd';
 import { memo, useEffect, useState, useCallback } from 'react';
-import { DeAIService, WalletService, JarvisService } from '@@/github.com/kawai-network/veridium/internal/services';
+import { DeAIService, WalletService, JarvisService, DepositSyncService } from '@@/github.com/kawai-network/veridium/internal/services';
 import type { NetworkInfo } from '@@/github.com/kawai-network/veridium/internal/services/models';
 import { ListWalletTransactions } from '@@/github.com/kawai-network/veridium/internal/database/generated/queries';
 import type { WalletTransaction } from '@@/github.com/kawai-network/veridium/internal/database/generated/models';
@@ -483,8 +483,31 @@ const DesktopWalletLayout = memo(() => {
 
     try {
       const rawAmount = Math.floor(amount * 1_000_000).toString();
+      
+      // Step 1: Deposit to PaymentVault (on-chain)
       const txHash = await DeAIService.DepositToVault(rawAmount);
       message.success(`Deposit Successful! TX: ${txHash.substring(0, 10)}...`);
+      
+      // Step 2: Wait for confirmation (2 seconds)
+      hide();
+      const syncHide = message.loading("Syncing balance...", 0);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Step 3: Sync to off-chain balance (Cloudflare KV)
+      const userAddress = await WalletService.GetCurrentAddress();
+      const syncResult = await DepositSyncService.SyncDeposit({
+        txHash: txHash,
+        userAddress: userAddress
+      });
+      
+      syncHide();
+      
+      if (syncResult?.success) {
+        message.success(`Balance synced! New balance: ${(parseFloat(syncResult.newBalance) / 1_000_000).toFixed(2)} USDT`);
+      } else {
+        message.warning(`Deposit successful but sync failed: ${syncResult?.message}. Please try manual sync.`);
+      }
+      
       loadBalance();
       loadHistory();
       setModalType(null);

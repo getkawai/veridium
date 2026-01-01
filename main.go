@@ -124,6 +124,9 @@ func buildServiceList(ctx *app.Context, fileProcessor *FileProcessorService, sdS
 		application.NewService(ctx.DeAIService),
 		application.NewService(ctx.JarvisService),
 
+		// Blockchain Services
+		application.NewService(ctx.DepositSyncService),
+
 		// Marketplace
 		application.NewService(services.NewMarketplaceService(ctx.KVStore, ctx.BlockchainClient, ctx.WalletService)),
 

@@ -217,9 +217,9 @@ func (h *Handler) handleNonStream(c *gin.Context, req ChatCompletionRequest, use
 	completionTokens := len(responseMsg.Content) / 4
 	totalTokens := int64(promptTokens + completionTokens)
 
-	// Deduct actual usage from user balance
+	// Deduct actual usage from user balance (atomic operation to prevent race conditions)
 	cost := store.CalculateUsageCost(totalTokens)
-	err = h.kvStore.DeductBalance(ctx, userAddress, cost)
+	err = h.kvStore.DeductBalanceAtomic(ctx, userAddress, cost)
 	if err != nil {
 		log.Printf("Failed to deduct balance for user %s: %v", userAddress, err)
 		h.sendError(c, http.StatusInternalServerError, "billing_error", "Failed to process payment")

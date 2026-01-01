@@ -105,6 +105,12 @@ This roadmap outlines the path from "Zero" to a fully functional decentralized n
         - [x] Phase detection (Mining vs USDT mode).
         - [x] Halving logic (100→50→25→12 KAWAI per 1M tokens).
         - [x] Async execution (no user latency impact).
+    - [x] **Deposit Sync Service:**
+        - [x] User client syncs deposits via `SyncDeposit(txHash)` after wallet confirmation.
+        - [x] Backend verifies transaction onchain before updating balance.
+        - [x] Duplicate prevention (transaction can only be synced once).
+        - [x] Security: validates transaction status, event data, and user address.
+        - [x] Automatic sync after deposit (triggered by user client).
 - [x] **Internal P2P Marketplace (Web):**
     - [x] Complete marketplace UI with order book, trading interface, and real-time updates.
     - [x] Order creation, cancellation, and execution functionality.
@@ -249,6 +255,7 @@ CF_KV_SETTLEMENTS_NAMESPACE_ID=...   # Settlement metadata
 | [`DEPLOYMENT_SUMMARY.md`](docs/DEPLOYMENT_SUMMARY.md) | Full deployment details & contract addresses |
 | [`MARKETPLACE_UPGRADE_SUMMARY.md`](docs/MARKETPLACE_UPGRADE_SUMMARY.md) | Architecture & partial fill implementation |
 | [`CONTRACTS_WORKFLOW.md`](docs/CONTRACTS_WORKFLOW.md) | Smart contract development workflow |
+| [`DEPOSIT_SYNC.md`](docs/DEPOSIT_SYNC.md) | Deposit synchronization system & implementation guide |
 | [`current_concept.md`](current_concept.md) | Complete project concept & tokenomics |
 
 ---

@@ -1639,6 +1639,66 @@ export class StreamEventPayload {
 }
 
 /**
+ * SyncDepositRequest represents a sync request from user client
+ */
+export class SyncDepositRequest {
+    "txHash": string;
+    "userAddress": string;
+
+    /** Creates a new SyncDepositRequest instance. */
+    constructor($$source: Partial<SyncDepositRequest> = {}) {
+        if (!("txHash" in $$source)) {
+            this["txHash"] = "";
+        }
+        if (!("userAddress" in $$source)) {
+            this["userAddress"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SyncDepositRequest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SyncDepositRequest {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SyncDepositRequest($$parsedSource as Partial<SyncDepositRequest>);
+    }
+}
+
+/**
+ * SyncDepositResponse represents the sync response
+ */
+export class SyncDepositResponse {
+    "success": boolean;
+    "message": string;
+    "amount"?: string;
+    "newBalance"?: string;
+    "blockNumber"?: number;
+    "alreadySync"?: boolean;
+
+    /** Creates a new SyncDepositResponse instance. */
+    constructor($$source: Partial<SyncDepositResponse> = {}) {
+        if (!("success" in $$source)) {
+            this["success"] = false;
+        }
+        if (!("message" in $$source)) {
+            this["message"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SyncDepositResponse instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SyncDepositResponse {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SyncDepositResponse($$parsedSource as Partial<SyncDepositResponse>);
+    }
+}
+
+/**
  * ThreadInfo represents thread information
  */
 export class ThreadInfo {

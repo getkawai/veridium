@@ -74,7 +74,8 @@ type Context struct {
 	JarvisService  *services.JarvisService
 
 	// Blockchain Services
-	BlockchainClient *blockchain.Client
+	BlockchainClient   *blockchain.Client
+	DepositSyncService *services.DepositSyncService
 
 	// Language Models
 	ChatModel    fantasy.LanguageModel
@@ -350,6 +351,18 @@ func (ctx *Context) InitBlockchainClient() {
 	log.Printf("  Token Address: %s", tokenAddress)
 	log.Printf("  Escrow Address: %s", escrowAddress)
 	log.Printf("  USDT Address: %s", usdtAddress)
+
+	// Initialize DepositSyncService for manual deposit sync
+	if ctx.KVStore != nil {
+		syncService, err := services.NewDepositSyncService(ctx.KVStore)
+		if err != nil {
+			log.Printf("Warning: Failed to initialize DepositSyncService: %v", err)
+		} else {
+			ctx.DepositSyncService = syncService
+			ctx.AddCleanup(func() { syncService.Close() })
+			log.Printf("✅ DepositSyncService initialized")
+		}
+	}
 }
 
 func (ctx *Context) InitKVStore() {
