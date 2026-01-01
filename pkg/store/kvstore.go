@@ -3,9 +3,11 @@ package store
 import (
 	"context"
 	"fmt"
+	"math/big"
 
 	"github.com/cloudflare/cloudflare-go"
 	"github.com/kawai-network/veridium/internal/constant"
+	"github.com/kawai-network/veridium/pkg/config"
 	"golang.org/x/time/rate"
 )
 
@@ -22,6 +24,7 @@ type Store interface {
 	RegisterContributor(ctx context.Context, address, endpointURL, hardwareSpecs string) (*ContributorData, error)
 	SoftDeleteContributor(ctx context.Context, address string) error
 	RestoreContributor(ctx context.Context, address string) error
+	RecordJobReward(ctx context.Context, contributorAddress string, tokenUsage int64, adminAddress string, mode config.RewardMode) error
 
 	// Merkle proof operations (deprecated - use period-specific methods)
 	SaveMerkleProof(ctx context.Context, address string, data *MerkleProofData) error
@@ -62,6 +65,11 @@ type Store interface {
 	DeleteMarketplaceData(ctx context.Context, key string) error
 }
 
+// SupplyQuerier defines interface for fetching token supply
+type SupplyQuerier interface {
+	GetTotalSupply(ctx context.Context) (*big.Int, error)
+}
+
 // KVStore implements Store interface with multiple namespaces
 type KVStore struct {
 	client    *cloudflare.API
@@ -76,6 +84,9 @@ type KVStore struct {
 
 	// ✅ Rate limiter for KV operations
 	rateLimiter *rate.Limiter
+
+	// Optional: Querier for Halving Logic
+	supplyQuerier SupplyQuerier
 }
 
 // NewMultiNamespaceKVStore creates a new KVStore with separate namespaces
@@ -95,4 +106,9 @@ func NewMultiNamespaceKVStore() (*KVStore, error) {
 		p2pMarketplaceNamespaceID: constant.GetCfKvP2pMarketplaceNamespaceId(),
 		rateLimiter:               rate.NewLimiter(rate.Limit(100), 200), // ✅ 100 ops/sec, burst 200
 	}, nil
+}
+
+// SetSupplyQuerier injects the supply querier dependency
+func (s *KVStore) SetSupplyQuerier(sq SupplyQuerier) {
+	s.supplyQuerier = sq
 }

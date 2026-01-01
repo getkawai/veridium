@@ -329,10 +329,42 @@ func (s *KVStore) RecordJobReward(ctx context.Context, contributorAddress string
 	var balanceField string
 
 	if mode == config.ModeMining {
-		// Phase 1: KAWAI Mining
-		kawaiRate := config.GetKawaiRatePerMillion()
+		// Phase 1: KAWAI Mining with Dynamic Difficulty (Halving)
+
+		// Default Rate: 100 KAWAI per Million Tokens
+		rateVal := int64(100)
+
+		var currentSupply *big.Int
+		if s.supplyQuerier != nil {
+			var err error
+			currentSupply, err = s.supplyQuerier.GetTotalSupply(ctx)
+			if err != nil {
+				slog.Warn("Failed to fetch total supply for halving logic, using default rate", "error", err)
+			}
+		}
+
+		if currentSupply != nil {
+			// Define Halving Thresholds (Tokens with 18 decimals)
+			// Threshold 1: 50% Mined (500M)
+			// Threshold 2: 75% Mined (750M)
+			// Threshold 3: 87.5% Mined (875M)
+
+			exp18 := new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
+			supply500M := new(big.Int).Mul(big.NewInt(500000000), exp18)
+			supply750M := new(big.Int).Mul(big.NewInt(750000000), exp18)
+			supply875M := new(big.Int).Mul(big.NewInt(875000000), exp18)
+
+			if currentSupply.Cmp(supply875M) >= 0 {
+				rateVal = 12 // Halving 3
+			} else if currentSupply.Cmp(supply750M) >= 0 {
+				rateVal = 25 // Halving 2
+			} else if currentSupply.Cmp(supply500M) >= 0 {
+				rateVal = 50 // Halving 1
+			}
+		}
+
 		// baseRate = rate * 10^18 (KAWAI decimals)
-		baseRate := new(big.Int).Mul(big.NewInt(kawaiRate), new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil))
+		baseRate := new(big.Int).Mul(big.NewInt(rateVal), new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil))
 
 		// High-precision calculation: (tokens * baseRate * share) / (1,000,000 * 100)
 		totalScaled := new(big.Int).Mul(big.NewInt(tokenUsage), baseRate)
@@ -344,7 +376,7 @@ func (s *KVStore) RecordJobReward(ctx context.Context, contributorAddress string
 		adminShare = new(big.Int).Sub(totalReward, contributorShare)
 
 		balanceField = "kawai"
-		slog.Info("Mining reward distributed", "tokens", tokenUsage, "kawai_total", totalReward.String(), "contributor_share", contributorShare.String(), "admin_share", adminShare.String())
+		slog.Info("Mining reward distributed", "tokens", tokenUsage, "rate", rateVal, "kawai_total", totalReward.String(), "contributor_share", contributorShare.String(), "admin_share", adminShare.String())
 	} else {
 		// Phase 2: USDT Payment
 		usdtRate := config.GetCostRatePerMillion()

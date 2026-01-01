@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"math/big"
 	"strings"
 
 	jarvisnetworks "github.com/kawai-network/veridium/pkg/jarvis/networks"
@@ -110,5 +111,34 @@ func GetERC20Decimal(addr string, network jarvisnetworks.Network) (uint64, error
 		int64(result),
 	)
 
+	return result, nil
+}
+
+func GetERC20TotalSupply(addr string, network jarvisnetworks.Network) (*big.Int, error) {
+	reader, err := EthReader(network)
+	if err != nil {
+		return nil, err
+	}
+
+	// Use generic ReadContract with ERC20 ABI
+	result := big.NewInt(0)
+	// We use "decimals" ABI as template but call "totalSupply" as they both have no args
+	// A better way is to use ReadContractWithABI if we have generic ABI
+	// But reader exposes convenient methods. Let's look at how reader.ERC20Decimal works.
+	// It uses reader.ReadContractWithABI(..., "decimals").
+	// We can do the same for totalSupply.
+
+	// Retrieve ERC20 ABI from common (assuming jarviscommon is imported as seen in other files)
+	// However, this file imports "github.com/kawai-network/veridium/pkg/jarvis/networks" and "cache".
+	// It does NOT import jarviscommon.
+	// We need to check if we can add the import or if reader handles it.
+	// usage in this file: reader, err := EthReader(network) -> returns *reader.EthReader
+	// reader package has ReadContract.
+	// Let's use reader.ReadContract which internally gets ABI.
+
+	err = reader.ReadContract(&result, addr, "totalSupply")
+	if err != nil {
+		return nil, err
+	}
 	return result, nil
 }

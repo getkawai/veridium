@@ -10,7 +10,7 @@ A "Lean Startup" approach to DePIN, leveraging consumer-grade GPUs for `llama.cp
 -   **Service:** Low-cost LLM Inference API (compatible with OpenAI format).
 -   **Contributors:** Gamers & Devs running `llama.cpp` nodes.
 -   **Rewards:** 
-    -   **Contributor:** Earn KAWAI tokens via "Mining" (70% to Contributor, 30% to Dev).
+    -   **Contributor:** Earn KAWAI tokens via "Mining" (70% split). Rewards follow a **Halving Schedule** based on total supply (100 -> 50 -> 25 -> 12 per 1M tokens).
     -   **Holder:** Earn 100% of Platform Revenue (USDT) proportional to KAWAI holdings.
 -   **Liquidity:** No Initial LP. Value follows the *Hold-to-Earn* utility.
 -   **Details:** See [Concept Document](current_concept.md) for full analysis.
@@ -24,6 +24,34 @@ We use a **Hybrid Model** (Off-Chain Accumulation + On-Chain Settlement) to mini
 *   **Weekly:** A compressed **Merkle Tree** is uploaded to **Monad** for cheap claiming.
 
 👉 **[See Full Technical Details in Concept Document](current_concept.md#d-mekanisme-teknis-hybrid-how-it-works)**
+
+---
+
+## 📂 Project Structure & Usage
+
+Veridium consists of two primary components designed for different user roles:
+
+### 1. User Client (Desktop App)
+- **Location:** `main.go` (Root)
+- **Tech:** [Wails v3](https://wails.io/) + React.
+- **Description:** The main interface for AI consumers. It provides a premium desktop experience for chat, knowledge base management, and a Web3 dashboard for USDT deposits and token management.
+- **How to Run:**
+  Refer to the `Makefile` for various development and build commands:
+  ```bash
+  make dev      # Start fresh (reset DB + full build)
+  make build    # Build production binary
+  ```
+
+### 2. Contributor Client (CLI)
+- **Location:** `cmd/contributor/main.go`
+- **Tech:** Go CLI.
+- **Description:** The "Miner" application. It wraps `llama.cpp` to provide compute power to the network and earn KAWAI tokens.
+- **How to Run:**
+  ```bash
+  go run cmd/contributor/main.go --password YOUR_PASSWORD
+  ```
+
+> **Note:** `cmd/server` is currently **deprecated**/not used in the production flow.
 
 ---
 

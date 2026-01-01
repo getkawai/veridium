@@ -314,28 +314,11 @@ func (ctx *Context) InitJarvisService() {
 }
 
 func (ctx *Context) InitBlockchainClient() {
-	// Get blockchain configuration from environment
-	rpcURL := os.Getenv("MONAD_RPC_URL")
-	if rpcURL == "" {
-		rpcURL = os.Getenv("MONAD_TESTNET_NODE")
-		if rpcURL == "" {
-			rpcURL = "https://testnet-rpc.monad.xyz" // Default Monad testnet RPC
-		}
-	}
-
-	tokenAddress := os.Getenv("TOKEN_ADDRESS")
-	escrowAddress := os.Getenv("ESCROW_ADDRESS")
-	usdtAddress := os.Getenv("MOCK_USDT_ADDRESS")
-
-	// Check if all required addresses are configured
-	if tokenAddress == "" || escrowAddress == "" || usdtAddress == "" {
-		log.Printf("Warning: Blockchain client not initialized - missing contract addresses")
-		log.Printf("  TOKEN_ADDRESS: %s", tokenAddress)
-		log.Printf("  ESCROW_ADDRESS: %s", escrowAddress)
-		log.Printf("  MOCK_USDT_ADDRESS: %s", usdtAddress)
-		log.Printf("  Set these in .env file to enable blockchain integration")
-		return
-	}
+	// Monad configuration from constants for desktop app
+	rpcURL := constant.MonadRpcUrl
+	tokenAddress := constant.KawaiTokenAddress
+	escrowAddress := constant.KawaiEscrowAddress
+	usdtAddress := constant.MockUsdtAddress
 
 	// Initialize blockchain client
 	config := blockchain.Config{
@@ -355,6 +338,13 @@ func (ctx *Context) InitBlockchainClient() {
 
 	ctx.BlockchainClient = client
 	log.Printf("✅ Blockchain client initialized")
+
+	// Inject as supply querier for KVStore halving logic if KVStore is ready
+	if ctx.KVStore != nil {
+		ctx.KVStore.SetSupplyQuerier(client)
+		log.Printf("Blockchain client injected into KVStore for halving logic")
+	}
+
 	log.Printf("  RPC URL: %s", rpcURL)
 	log.Printf("  Chain ID: %s", client.ChainID.String())
 	log.Printf("  Token Address: %s", tokenAddress)

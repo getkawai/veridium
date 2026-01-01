@@ -15,6 +15,7 @@ import (
 	"github.com/kawai-network/veridium/internal/image"
 	"github.com/kawai-network/veridium/internal/services"
 	"github.com/kawai-network/veridium/internal/whisper"
+	"github.com/kawai-network/veridium/pkg/blockchain"
 	"github.com/kawai-network/veridium/pkg/fantasy/llamalib"
 	"github.com/kawai-network/veridium/pkg/gateway"
 	"github.com/kawai-network/veridium/pkg/hardware"
@@ -75,6 +76,22 @@ func main() {
 		os.Exit(1)
 	}
 	slog.Info("✓ Connected to Cloudflare KV")
+
+	// ============================================
+	// Step 1.5: Initialize Blockchain Client (For Halving Logic)
+	// ============================================
+	blockchainBC, err := blockchain.NewClient(blockchain.Config{
+		RPCUrl:        constant.MonadRpcUrl,
+		TokenAddress:  constant.KawaiTokenAddress,
+		EscrowAddress: constant.KawaiEscrowAddress,
+		USDTAddress:   constant.MockUsdtAddress,
+	})
+	if err != nil {
+		slog.Warn("⚠️ Failed to initialize blockchain client, halving logic will use default rates", "error", err)
+	} else {
+		kv.SetSupplyQuerier(blockchainBC)
+		slog.Info("✓ Blockchain client initialized and injected for halving logic", "rpc", constant.MonadRpcUrl)
+	}
 
 	// ============================================
 	// Step 2: Setup Wallet

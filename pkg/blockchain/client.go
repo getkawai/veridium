@@ -101,6 +101,11 @@ func (c *Client) GetRewardMode(ctx context.Context) (config.RewardMode, error) {
 	return config.ModeMining, nil
 }
 
+// GetTotalSupply retrieves the current total supply of KAWAI tokens from the smart contract.
+func (c *Client) GetTotalSupply(ctx context.Context) (*big.Int, error) {
+	return c.Token.TotalSupply(nil)
+}
+
 // Marketplace Operations
 // Requirements: 6.2, 6.3, 6.4
 

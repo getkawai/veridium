@@ -18,9 +18,12 @@ Strategi utama adalah **"No Initial Liquidity Pool"** untuk menghemat modal awal
 *   **Fair Launch Policy:** Tidak ada Pre-Mint, tidak ada alokasi Investor/VC. Supply awal = **0**.
 *   **Max Supply (Hard Cap):** **1 Miliar (1,000,000,000) KAWAI**. Setelah angka ini tercapai, mining berhenti.
 *   **Mining Only:** Satu-satunya cara token baru tercipta (Minting) adalah melalui **Proof of Computation** (Menyelesaikan unit pekerjaan LLM).
-*   **Total Mining Reward:** Dihitung berdasarkan **Total Token Processed** (Volume-based: Input + Output Tokens).
-    *   **Rate:** 100 KAWAI per 1 Juta Token (1M Tokens).
-    *   *Rumus:* `Reward = (Total_Token / 1,000,000) * 100`
+*   **Dynamic Mining Difficulty (Halving):** Reward KAWAI berkurang secara berkala berdasarkan total supply yang sudah di-mint untuk menjaga kelangkaan:
+    *   **Phase 1A (< 500M KAWAI):** 100 KAWAI per 1M Token.
+    *   **Phase 1B (500M - 750M KAWAI):** 50 KAWAI per 1M Token (Halving 1).
+    *   **Phase 1C (750M - 875M KAWAI):** 25 KAWAI per 1M Token (Halving 2).
+    *   **Phase 1D (> 875M KAWAI):** 12 KAWAI per 1M Token (Halving 3).
+*   **Implementation Note:** Logika ini dieksekusi secara otomatis di fungsi `RecordJobReward` (`pkg/store/contributor.go`) yang mengambil `totalSupply` terkini dari blockchain melalui `SupplyQuerier`.
 *   **Split Ratio (Pembagian):**
     *   **70%** -> Masuk ke Wallet **Contributor** (Pemilik Hardware).
     *   **30%** -> Masuk ke Wallet **Admin/Dev** (Biaya Pengembangan Platform).
