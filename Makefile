@@ -8,7 +8,8 @@
         contracts-test contracts-test-gas contracts-coverage \
         contracts-deploy-local contracts-deploy-testnet contracts-verify \
         contracts-upgrade contracts-clean contracts-validate \
-        contracts-gas-snapshot contracts-gas-compare
+        contracts-gas-snapshot contracts-gas-compare \
+        admin-register admin-register-dry
 
 # ------------------------------------------------------------------------------
 # Configuration
@@ -72,6 +73,10 @@ help:
 	@echo "  make contracts-deploy-testnet Deploy to Monad Testnet"
 	@echo "  make contracts-verify       Verify contract on explorer"
 	@echo "  make contracts-clean        Clean contract artifacts"
+	@echo ""
+	@echo "Admin Operations:"
+	@echo "  make admin-register       Register all treasury addresses as admin"
+	@echo "  make admin-register-dry   Preview admin registration (dry-run)"
 	@echo ""
 	@echo "Maintenance:"
 	@echo "  make clean            Clean generated files"
@@ -326,3 +331,15 @@ llama-versions:
 watch:
 	@echo "👀 Watching for changes in queries..."
 	find internal/database/queries -name "*.sql" | entr -r make generate
+
+# ==============================================================================
+# Admin Operations
+# ==============================================================================
+admin-register:
+	@echo "🔐 Registering admin addresses..."
+	@go run cmd/register-admin/main.go
+	@echo "✅ Admin registration complete!"
+
+admin-register-dry:
+	@echo "🔍 Preview admin registration (dry-run)..."
+	@go run cmd/register-admin/main.go --dry-run

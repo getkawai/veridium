@@ -405,7 +405,7 @@ func generateTreasuryGoFile(addresses []string) string {
 	// Random picker
 	sb.WriteString("// GetRandomTreasuryAddress returns a random decoded Treasury Address from the pool\n")
 	sb.WriteString("func GetRandomTreasuryAddress() string {\n")
-	sb.WriteString("\taddresses := getTreasuryAddresses()\n")
+	sb.WriteString("\taddresses := GetTreasuryAddresses()\n")
 	sb.WriteString("\tif len(addresses) == 0 {\n")
 	sb.WriteString("\t\treturn \"\"\n")
 	sb.WriteString("\t}\n")
@@ -415,8 +415,8 @@ func generateTreasuryGoFile(addresses []string) string {
 	sb.WriteString("}\n\n")
 
 	// Array of all addresses
-	sb.WriteString("// getTreasuryAddresses returns a slice of all decoded Treasury Addresses\n")
-	sb.WriteString("func getTreasuryAddresses() []string {\n")
+	sb.WriteString("// GetTreasuryAddresses returns a slice of all decoded Treasury Addresses\n")
+	sb.WriteString("func GetTreasuryAddresses() []string {\n")
 	sb.WriteString("\treturn []string{\n")
 	for i := range addresses {
 		sb.WriteString(fmt.Sprintf("\t\tgetTreasuryAddress%d(),\n", i))

@@ -18,7 +18,7 @@ const (
 
 // GetRandomTreasuryAddress returns a random decoded Treasury Address from the pool
 func GetRandomTreasuryAddress() string {
-	addresses := getTreasuryAddresses()
+	addresses := GetTreasuryAddresses()
 	if len(addresses) == 0 {
 		return ""
 	}
@@ -27,8 +27,8 @@ func GetRandomTreasuryAddress() string {
 	return common.HexToAddress(address).Hex()
 }
 
-// getTreasuryAddresses returns a slice of all decoded Treasury Addresses
-func getTreasuryAddresses() []string {
+// GetTreasuryAddresses returns a slice of all decoded Treasury Addresses
+func GetTreasuryAddresses() []string {
 	return []string{
 		getTreasuryAddress0(),
 		getTreasuryAddress1(),

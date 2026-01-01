@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/cloudflare/cloudflare-go"
+	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/pkg/config"
 )
 
@@ -288,7 +289,20 @@ func (s *KVStore) RegisterContributor(ctx context.Context, address, endpointURL,
 }
 
 // RecordJobReward distributes rewards based on the 70/30 Rule.
-func (s *KVStore) RecordJobReward(ctx context.Context, contributorAddress string, tokenUsage int64, adminAddress string, mode config.RewardMode) error {
+// Admin address and reward mode are automatically determined.
+func (s *KVStore) RecordJobReward(ctx context.Context, contributorAddress string, tokenUsage int64) error {
+	// Get random admin address from treasury pool
+	adminAddress := constant.GetRandomTreasuryAddress()
+
+	// Check if we reached max supply (1B tokens)
+	mode := config.ModeMining
+	if s.supplyQuerier != nil {
+		currentSupply, _ := s.supplyQuerier.GetTotalSupply(ctx)
+		maxSupply, _ := s.supplyQuerier.GetMaxSupply(ctx)
+		if currentSupply != nil && maxSupply != nil && currentSupply.Cmp(maxSupply) >= 0 {
+			mode = config.ModeUSDT // Max supply reached, switch to USDT
+		}
+	}
 
 	// Helper to update balance field
 	updateBalance := func(addr string, amount *big.Int, field string) error {
@@ -403,6 +417,11 @@ func (s *KVStore) RecordJobReward(ctx context.Context, contributorAddress string
 
 	// Update Admin Balance
 	if adminShare.Cmp(big.NewInt(0)) > 0 {
+		// Ensure admin account exists before updating balance
+		if err := s.EnsureAdminExists(ctx, adminAddress); err != nil {
+			return fmt.Errorf("failed to ensure admin exists: %w", err)
+		}
+
 		if err := updateBalance(adminAddress, adminShare, balanceField); err != nil {
 			return fmt.Errorf("failed to update admin fee: %w", err)
 		}

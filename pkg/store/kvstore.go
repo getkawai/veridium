@@ -7,7 +7,6 @@ import (
 
 	"github.com/cloudflare/cloudflare-go"
 	"github.com/kawai-network/veridium/internal/constant"
-	"github.com/kawai-network/veridium/pkg/config"
 	"golang.org/x/time/rate"
 )
 
@@ -24,7 +23,7 @@ type Store interface {
 	RegisterContributor(ctx context.Context, address, endpointURL, hardwareSpecs string) (*ContributorData, error)
 	SoftDeleteContributor(ctx context.Context, address string) error
 	RestoreContributor(ctx context.Context, address string) error
-	RecordJobReward(ctx context.Context, contributorAddress string, tokenUsage int64, adminAddress string, mode config.RewardMode) error
+	RecordJobReward(ctx context.Context, contributorAddress string, tokenUsage int64) error
 
 	// Merkle proof operations (deprecated - use period-specific methods)
 	SaveMerkleProof(ctx context.Context, address string, data *MerkleProofData) error
@@ -65,9 +64,10 @@ type Store interface {
 	DeleteMarketplaceData(ctx context.Context, key string) error
 }
 
-// SupplyQuerier defines interface for fetching token supply
+// SupplyQuerier defines interface for fetching token supply and max supply
 type SupplyQuerier interface {
 	GetTotalSupply(ctx context.Context) (*big.Int, error)
+	GetMaxSupply(ctx context.Context) (*big.Int, error)
 }
 
 // KVStore implements Store interface with multiple namespaces

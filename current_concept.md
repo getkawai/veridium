@@ -1,5 +1,5 @@
 # State of Idea: Lean DeAI Network on Monad
-**Status:** Active | **Base:** `analisa.md` | **Date:** 2025-12-20
+**Status:** Active | **Base:** `analisa.md` | **Date:** 2026-01-01
 
 Dokumen ini merangkum status terakhir dari brainstorming project DePIN AI (Decentralized AI) yang berjalan di jaringan **Monad** dengan pendekatan *Lean Startup* (Minim Modal).
 
@@ -27,6 +27,8 @@ Strategi utama adalah **"No Initial Liquidity Pool"** untuk menghemat modal awal
 *   **Split Ratio (Pembagian):**
     *   **70%** -> Masuk ke Wallet **Contributor** (Pemilik Hardware).
     *   **30%** -> Masuk ke Wallet **Admin/Dev** (Biaya Pengembangan Platform).
+    *   **Admin Selection:** Admin address dipilih secara random dari treasury pool (`internal/constant/treasury.go`) setiap job.
+    *   **Auto-Registration:** Admin accounts otomatis dibuat/diupdate jika belum terdaftar sebagai contributor.
 *   **Mekanisme Klaim:** Contributor mengklaim porsi 70% mereka menggunakan sistem **Merkle Airdrop** mingguan.
 
 ### B. Profit Sharing & Two-Phase Economic Model
@@ -74,26 +76,31 @@ Mining berhenti. Contributor dibayar **USDT** berdasarkan volume pekerjaan, buka
 
 Sistem secara otomatis mendeteksi kapan harus beralih dari Fase 1 ke Fase 2:
 
-*Lokasi Code:* `pkg/blockchain/client.go` -> `GetRewardMode()`
+*Lokasi Code:* `pkg/store/contributor.go` -> `RecordJobReward()` (inline detection)
 
 ```go
-// Pseudo-code:
-totalSupply := token.TotalSupply()
-maxSupply   := 1_000_000_000 * 1e18  // 1 Billion dengan 18 decimals
-
-if totalSupply >= maxSupply {
-    return ModeUSDT  // Fase 2: Bayar USDT
-} else {
-    return ModeMining  // Fase 1: Mining KAWAI
+// Simplified inline check:
+mode := config.ModeMining
+if s.supplyQuerier != nil {
+    currentSupply, _ := s.supplyQuerier.GetTotalSupply(ctx)
+    maxSupply, _ := s.supplyQuerier.GetMaxSupply(ctx)
+    if currentSupply != nil && maxSupply != nil && currentSupply.Cmp(maxSupply) >= 0 {
+        mode = config.ModeUSDT  // Max supply reached, switch to USDT
+    }
 }
 ```
+
+**Key Features:**
+*   **Simple & Direct:** Langsung cek `totalSupply >= maxSupply` tanpa wrapper functions.
+*   **Blockchain Source:** `maxSupply` diambil langsung dari smart contract ABI (`KawaiToken.MAX_SUPPLY()`).
+*   **Defensive:** Safe nil checks dengan fallback ke `ModeMining` jika blockchain unavailable.
 
 **Contoh Skenario Transisi:**
 1.  Total Supply saat ini: **999,999,500 KAWAI**.
 2.  Contributor menyelesaikan job yang menghasilkan **600 KAWAI** reward.
-3.  Middleware memanggil `GetRewardMode()` -> `ModeMining`.
-4.  Sistem mint **500 KAWAI** (sampai Max Supply), sisanya **TIDAK** di-mint.
-5.  Setelah ini, semua job berikutnya akan menggunakan `ModeUSDT`.
+3.  `RecordJobReward()` cek supply -> `ModeMining` (masih < 1B).
+4.  Sistem mint **600 KAWAI** -> Total supply sekarang **1,000,000,100 KAWAI**.
+5.  Job berikutnya akan otomatis detect `ModeUSDT` karena supply >= maxSupply.
 
 
 ### C. Liquidity Strategy (Strategi Likuiditas)
@@ -165,17 +172,23 @@ Data off-chain disimpan di **Cloudflare Workers KV** dengan arsitektur **Multi-N
 
 Logika pembagian 70/30 dieksekusi secara **Real-Time (Per Job)** oleh Middleware saat job selesai:
 
-1.  **Pemicu:** Contributor menyelesaikan request LLM -> Server memanggil fungsi `RecordJobReward`.
-2.  **Cek Pemilik (Admin Check):**
-    *   `IF Contributor_Address == Admin_Address`: 
-        *   Contributor (Admin) mendapatkan **100%** Reward langsung ke saldo database-nya.
-    *   `ELSE` (Public Contributor):
-        *   Contributor mendapatkan **70%** Reward (masuk saldo contributor).
-        *   Admin mendapatkan **30%** Fee (masuk saldo admin).
-3.  **Akumulasi:** Saldo diupdate seketika di Database (KV Store).
-4.  **Mingguan (Weekly):**
+1.  **Pemicu:** Contributor menyelesaikan request LLM -> Server memanggil fungsi `RecordJobReward(contributorAddress, tokenUsage)`.
+2.  **Auto-Detection:**
+    *   **Admin Selection:** Random admin address dipilih dari treasury pool (`constant.GetRandomTreasuryAddress()`).
+    *   **Reward Mode:** Otomatis detect `ModeMining` vs `ModeUSDT` berdasarkan `totalSupply >= maxSupply`.
+    *   **Halving Rate:** Otomatis adjust rate (100/50/25/12) berdasarkan supply thresholds.
+3.  **Pembagian Reward:**
+    *   Contributor mendapatkan **70%** Reward (KAWAI atau USDT tergantung mode).
+    *   Admin mendapatkan **30%** Fee (masuk saldo admin).
+    *   **Auto-Registration:** Jika admin belum terdaftar, otomatis dibuat via `EnsureAdminExists()`.
+4.  **Akumulasi:** Saldo diupdate seketika di Database (KV Store).
+5.  **Mingguan (Weekly):**
     *   Admin menjalankan script `snapshot`.
     *   Script hanya membaca total saldo akhir (tanpa rumus lagi) -> Generate Merkle Root -> Upload ke Blockchain.
+
+**CLI Tools:**
+*   `make admin-register` - Bulk register semua treasury addresses sebagai admin contributors.
+*   `make admin-register-dry` - Dry-run untuk preview tanpa eksekusi.
 
 ### E. Mekanisme Teknis Hybrid (How It Works)
 
@@ -214,12 +227,14 @@ Agar jaringan tetap "Lean" (hemat biaya), kami menggunakan model **Off-Chain Acc
     *   ✅ Buat Client Script `llama.cpp` sederhana.
     *   ✅ Buat Server Middleware (Golang) untuk manajemen job.
     *   ✅ **P2P Marketplace:** Complete trading interface dengan real-time updates.
-2.  **Deployment ✅ UPGRADED (2025-12-31):**
+2.  **Deployment ✅ UPGRADED (2026-01-01):**
     *   ✅ Deploy kontrak ke Monad Testnet/Mainnet.
     *   ✅ **NEW Contracts v2.0:** OTCMarket dengan Partial Fill Support deployed & verified.
     *   ✅ Rilis website lengkap untuk Dashboard Worker & P2P Market.
     *   ✅ **Live Contracts:** All contracts deployed dan terintegrasi dengan UI.
     *   ✅ **Backend Services:** Reconciliation, Event Replay, Rate Limiting implemented.
+    *   ✅ **Reward System:** Auto-detection untuk admin selection, reward mode, dan halving rates.
+    *   ✅ **Admin Management:** CLI tools untuk bulk admin registration dari treasury pool.
     *   📚 **Documentation:** DEPLOYMENT_SUMMARY.md, MARKETPLACE_UPGRADE_SUMMARY.md, CONTRACTS_WORKFLOW.md
 3.  **Launch (READY):**
     *   Undang kontributor awal (Alpha Testers).

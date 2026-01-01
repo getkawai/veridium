@@ -618,27 +618,43 @@ func (s *KVStore) GetPendingClaims(ctx context.Context) ([]*MerkleProofData, err
 	return pendingProofs, nil
 }
 
-// EnsureAdminExists ensures admin account exists (auto-register if needed)
+// EnsureAdminExists ensures an admin address exists in the contributor list.
+// If the address doesn't exist, it creates a new admin account.
+// If it exists but is not marked as admin, it updates the account to admin status.
 func (s *KVStore) EnsureAdminExists(ctx context.Context, adminAddress string) error {
-	_, err := s.GetContributor(ctx, adminAddress)
-	if err == nil {
-		return nil // Already exists
+	c, err := s.GetContributor(ctx, adminAddress)
+	if err != nil {
+		// Admin doesn't exist, create new admin account
+		adminData := &ContributorData{
+			WalletAddress:      adminAddress,
+			EndpointURL:        "", // Admin doesn't need endpoint
+			HardwareSpecs:      "Admin Account",
+			RegisteredAt:       time.Now(),
+			LastSeen:           time.Now(),
+			Status:             ContributorStatusAdmin,
+			AccumulatedRewards: "0",
+			AccumulatedUSDT:    "0",
+			IsActive:           true,
+			IsAdmin:            true,
+		}
+
+		if err := s.SaveContributor(ctx, adminData); err != nil {
+			return fmt.Errorf("failed to create admin account: %w", err)
+		}
+
+		slog.Info("Created admin account", "address", adminAddress)
+		return nil
 	}
 
-	// Auto-register admin
-	admin := &ContributorData{
-		WalletAddress: adminAddress,
-		RegisteredAt:  time.Now(),
-		LastSeen:      time.Now(),
-		Status:        ContributorStatusAdmin,
-		IsActive:      true,
-		IsAdmin:       true,
+	// Admin exists, ensure it's marked as admin
+	if !c.IsAdmin {
+		c.IsAdmin = true
+		c.Status = ContributorStatusAdmin
+		if err := s.SaveContributor(ctx, c); err != nil {
+			return fmt.Errorf("failed to update admin status: %w", err)
+		}
+		slog.Info("Updated account to admin", "address", adminAddress)
 	}
 
-	if err := s.SaveContributor(ctx, admin); err != nil {
-		return fmt.Errorf("failed to register admin: %w", err)
-	}
-
-	slog.Info("Auto-registered admin account", "address", adminAddress)
 	return nil
 }

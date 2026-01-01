@@ -247,7 +247,7 @@ const (
 | Method | Description |
 |--------|-------------|
 | `EnsureAdminExists(ctx, adminAddress)` | Auto-register admin |
-| `RecordJobReward(ctx, contributor, tokens, admin, mode)` | Record reward (70/30 split) |
+| `RecordJobReward(ctx, contributor, tokens)` | Record reward (70/30 split, auto-detects mode & admin) |
 
 ---
 
