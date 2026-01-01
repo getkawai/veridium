@@ -23,6 +23,12 @@ We use a **Hybrid Model** (Off-Chain Accumulation + On-Chain Settlement) to mini
 *   **Real-Time:** Rewards are calculated instantly (Usage-based) and split 70/30.
 *   **Weekly:** A compressed **Merkle Tree** is uploaded to **Monad** for cheap claiming.
 
+### Bootstrap Phase (Current)
+*   **User Client:** Runs local LLM inference (no external contributors yet).
+*   **Rewards:** Distributed to treasury pool addresses as "virtual contributors".
+*   **Purpose:** Start token economy and accumulate treasury for future liquidity.
+*   **Transition:** Ready to switch to distributed network when contributors join.
+
 👉 **[See Full Technical Details in Concept Document](current_concept.md#d-mekanisme-teknis-hybrid-how-it-works)**
 
 ---
@@ -35,6 +41,7 @@ Veridium consists of two primary components designed for different user roles:
 - **Location:** `main.go` (Root)
 - **Tech:** [Wails v3](https://wails.io/) + React.
 - **Description:** The main interface for AI consumers. It provides a premium desktop experience for chat, knowledge base management, and a Web3 dashboard for USDT deposits and token management.
+- **Current Mode:** Local LLM inference with automatic reward recording to treasury pool.
 - **How to Run:**
   Refer to the `Makefile` for various development and build commands:
   ```bash
@@ -46,6 +53,7 @@ Veridium consists of two primary components designed for different user roles:
 - **Location:** `cmd/contributor/main.go`
 - **Tech:** Go CLI.
 - **Description:** The "Miner" application. It wraps `llama.cpp` to provide compute power to the network and earn KAWAI tokens.
+- **Status:** Ready for distributed network phase (future).
 - **How to Run:**
   ```bash
   go run cmd/contributor/main.go --password YOUR_PASSWORD
@@ -90,6 +98,13 @@ This roadmap outlines the path from "Zero" to a fully functional decentralized n
         - [x] Deduct USDT credits from user's balance in real-time.
         - [x] Reject requests if insufficient balance.
         - [x] Log all transactions for billing/audit.
+    - [x] **Job Reward Recording (Bootstrap Phase):**
+        - [x] Record rewards for local LLM inference to treasury pool.
+        - [x] Random treasury address selection for fair distribution.
+        - [x] Automatic 70/30 split (Treasury/Admin).
+        - [x] Phase detection (Mining vs USDT mode).
+        - [x] Halving logic (100→50→25→12 KAWAI per 1M tokens).
+        - [x] Async execution (no user latency impact).
 - [x] **Internal P2P Marketplace (Web):**
     - [x] Complete marketplace UI with order book, trading interface, and real-time updates.
     - [x] Order creation, cancellation, and execution functionality.

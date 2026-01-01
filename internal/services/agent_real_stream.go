@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/pkg/fantasy"
 	"github.com/kawai-network/veridium/types"
 )
@@ -694,6 +695,24 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	}
 	log.Printf("✅ [REAL STREAM] Complete - session: %s, duration: %dms, tokens: %d",
 		req.SessionID, duration, totalTokens)
+
+	// 17. Record job reward to treasury (contributor reward for local inference)
+	// This runs in background after user receives response to avoid blocking
+	if usage != nil && usage.TotalTokens > 0 && s.kvStore != nil {
+		// Get random treasury address to act as "virtual contributor"
+		contributorAddress := constant.GetRandomTreasuryAddress()
+		if contributorAddress != "" {
+			go func() {
+				bgCtx := context.Background()
+				if err := s.kvStore.RecordJobReward(bgCtx, contributorAddress, int64(usage.TotalTokens)); err != nil {
+					log.Printf("⚠️  [REAL STREAM] Failed to record job reward for %s: %v", contributorAddress, err)
+				} else {
+					log.Printf("💰 [REAL STREAM] Recorded reward: %d tokens → %s (70/30 split applied)",
+						usage.TotalTokens, contributorAddress)
+				}
+			}()
+		}
+	}
 
 	return nil
 }

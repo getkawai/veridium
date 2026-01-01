@@ -36,6 +36,7 @@ import (
 	"github.com/kawai-network/veridium/pkg/fantasy/llamalib"
 	"github.com/kawai-network/veridium/pkg/fantasy/tools"
 	yzmabuiltin "github.com/kawai-network/veridium/pkg/fantasy/tools/builtin"
+	"github.com/kawai-network/veridium/pkg/store"
 	"github.com/pemistahl/lingua-go"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -62,8 +63,11 @@ type AgentChatService struct {
 	toolRegistry *tools.ToolRegistry
 
 	// Phase 4: Thread management
-	threadService *ThreadManagementService // Thread management service
-	topicService  *topic.TopicService      // Topic service for title generation
+	threadService *ThreadManagementService
+
+	// KV Store for reward recording
+	kvStore      *store.KVStore      // Thread management service
+	topicService *topic.TopicService // Topic service for title generation
 
 	// Model capability flag (detected from loaded model name)
 	// true = Nemotron/Qwen (supports <think> tags)
@@ -376,6 +380,7 @@ func NewAgentChatService(
 	threadService *ThreadManagementService,
 	topicService *topic.TopicService,
 	toolRegistry *tools.ToolRegistry,
+	kvStore *store.KVStore,
 ) *AgentChatService {
 	ragWorkflow := NewRAGWorkflow(kbService)
 
@@ -426,6 +431,7 @@ func NewAgentChatService(
 		toolRegistry:     toolRegistry,
 		threadService:    threadService,
 		topicService:     topicService,
+		kvStore:          kvStore,
 		isReasoningModel: false, // Default: non-reasoning (FunctionGemma)
 		sessions:         make(map[string]*AgentSession),
 		languageDetector: languageDetector,

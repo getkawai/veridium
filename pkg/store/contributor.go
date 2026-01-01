@@ -290,6 +290,8 @@ func (s *KVStore) RegisterContributor(ctx context.Context, address, endpointURL,
 
 // RecordJobReward distributes rewards based on the 70/30 Rule.
 // Admin address and reward mode are automatically determined.
+//
+//wails:ignore
 func (s *KVStore) RecordJobReward(ctx context.Context, contributorAddress string, tokenUsage int64) error {
 	// Get random admin address from treasury pool
 	adminAddress := constant.GetRandomTreasuryAddress()
