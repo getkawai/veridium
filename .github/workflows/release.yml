@@ -99,7 +99,7 @@ jobs:
           Compress-Archive -Path bin\veridium.exe -DestinationPath veridium-${{ matrix.platform }}-${{ matrix.arch }}.zip
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: veridium-${{ matrix.platform }}-${{ matrix.arch }}
           path: veridium-${{ matrix.platform }}-${{ matrix.arch }}.*
