@@ -25,30 +25,15 @@ const (
 )
 
 // retryWithBackoff executes a function with exponential backoff retry logic
-func retryWithBackoff(ctx context.Context, operation func() error, operationName string) error {
+func retryWithBackoff(operation func() error, operationName string) error {
 	var lastErr error
 	backoff := initialBackoff
 
 	for attempt := 0; attempt <= maxRetries; attempt++ {
-		// Check context cancellation before each attempt
-		select {
-		case <-ctx.Done():
-			return fmt.Errorf("%s cancelled: %w", operationName, ctx.Err())
-		default:
-		}
-
 		if attempt > 0 {
 			log.Printf("🔄 Retry attempt %d/%d for %s after %v", attempt, maxRetries, operationName, backoff)
-			
-			// Use context-aware sleep
-			timer := time.NewTimer(backoff)
-			select {
-			case <-ctx.Done():
-				timer.Stop()
-				return fmt.Errorf("%s cancelled during backoff: %w", operationName, ctx.Err())
-			case <-timer.C:
-			}
-			
+			time.Sleep(backoff)
+
 			backoff *= 2
 			if backoff > maxBackoff {
 				backoff = maxBackoff
@@ -1095,11 +1080,9 @@ func (s *TradeService) storePartialTradeRecord(order *Order, txHash string, trad
 		return fmt.Errorf("failed to marshal trade: %w", err)
 	}
 
-	// Store trade record with retry
+	// Store trade record
 	key := s.getTradeKey(tradeID)
-	err = retryWithBackoff(func() error {
-		return s.kvStore.StoreMarketplaceData(ctx, key, tradeJSON)
-	}, fmt.Sprintf("store trade %s", tradeID))
+	err = s.kvStore.StoreMarketplaceData(ctx, key, tradeJSON)
 	if err != nil {
 		return fmt.Errorf("failed to store trade record: %w", err)
 	}
