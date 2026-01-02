@@ -29,6 +29,7 @@ import (
 	llamaembed "github.com/kawai-network/veridium/pkg/fantasy/providers/llama-embed"
 	"github.com/kawai-network/veridium/pkg/fantasy/providers/openaicompat"
 	"github.com/kawai-network/veridium/pkg/fantasy/providers/openrouter"
+	"github.com/kawai-network/veridium/pkg/fantasy/providers/pooled"
 	"github.com/kawai-network/veridium/pkg/fantasy/tools"
 	yzmabuiltin "github.com/kawai-network/veridium/pkg/fantasy/tools/builtin"
 	"github.com/kawai-network/veridium/pkg/logger"
@@ -399,32 +400,43 @@ func (ctx *Context) InitLanguageModels() {
 	// Circuit breaker: skip rate-limited models until app restart (rate limit is daily, cache is in-memory)
 	circuitBreaker := fantasy.WithCircuitBreaker(1, 0)
 
-	var err error
-	ctx.ChatModel, err = fantasy.NewChain(ctx.buildModelChain(bgCtx, localModel, openrouter.ModelSelectionCriteria{
+	// AUTO-DETECT: Use pooled providers if multiple keys available
+	usePooled := len(constant.GetOpenRouterApiKeys()) > 1 || len(constant.GetZaiApiKeys()) > 1
+
+	var buildChain func(context.Context, fantasy.LanguageModel, openrouter.ModelSelectionCriteria, string) []fantasy.LanguageModel
+	if usePooled {
+		buildChain = ctx.buildModelChainV2
+		log.Printf("✅ Using POOLED providers (multiple API keys detected)")
+	} else {
+		buildChain = ctx.buildModelChain
+		log.Printf("ℹ️  Using SIMPLE providers (single API key)")
+	}
+
+	ctx.ChatModel, err = fantasy.NewChain(buildChain(bgCtx, localModel, openrouter.ModelSelectionCriteria{
 		RequireReasoning: true, RequireAttachments: true, MinContextWindow: 100000,
 	}, "ChatModel"), circuitBreaker)
 	if err != nil {
 		log.Printf("Warning: ChatModel chain creation failed: %v", err)
 	}
 
-	ctx.TitleModel, err = fantasy.NewChain(ctx.buildModelChain(bgCtx, localModel, openrouter.ModelSelectionCriteria{}, "TitleModel"), circuitBreaker)
+	ctx.TitleModel, err = fantasy.NewChain(buildChain(bgCtx, localModel, openrouter.ModelSelectionCriteria{}, "TitleModel"), circuitBreaker)
 	if err != nil {
 		log.Printf("Warning: TitleModel chain creation failed: %v", err)
 	}
 
-	ctx.SummaryModel, err = fantasy.NewChain(ctx.buildModelChain(bgCtx, localModel, openrouter.ModelSelectionCriteria{
+	ctx.SummaryModel, err = fantasy.NewChain(buildChain(bgCtx, localModel, openrouter.ModelSelectionCriteria{
 		MinContextWindow: 50000,
 	}, "SummaryModel"), circuitBreaker)
 	if err != nil {
 		log.Printf("Warning: SummaryModel chain creation failed: %v", err)
 	}
 
-	ctx.CleanupModel, err = fantasy.NewChain(ctx.buildModelChain(bgCtx, localModel, openrouter.ModelSelectionCriteria{}, "CleanupModel"), circuitBreaker)
+	ctx.CleanupModel, err = fantasy.NewChain(buildChain(bgCtx, localModel, openrouter.ModelSelectionCriteria{}, "CleanupModel"), circuitBreaker)
 	if err != nil {
 		log.Printf("Warning: CleanupModel chain creation failed: %v", err)
 	}
 
-	log.Printf("Language models initialized")
+	log.Printf("Language models initialized with %s", map[bool]string{true: "POOLED providers", false: "SIMPLE providers"}[usePooled])
 }
 
 func (ctx *Context) buildModelChain(bgCtx context.Context, localModel fantasy.LanguageModel, criteria openrouter.ModelSelectionCriteria, taskName string) []fantasy.LanguageModel {
@@ -466,6 +478,99 @@ func (ctx *Context) buildModelChain(bgCtx context.Context, localModel fantasy.La
 	}
 
 	// 3. Local model (final fallback)
+	chain = append(chain, localModel)
+	log.Printf("%s: Chain created with %d models (fallback: %s/%s)", taskName, len(chain), localModel.Provider(), localModel.Model())
+	return chain
+}
+
+// buildModelChainV2 creates a model chain with pooled providers and automatic rotation.
+// This version uses account pooling and smart error handling with metrics.
+func (ctx *Context) buildModelChainV2(bgCtx context.Context, localModel fantasy.LanguageModel, criteria openrouter.ModelSelectionCriteria, taskName string) []fantasy.LanguageModel {
+	var chain []fantasy.LanguageModel
+
+	// 1. OpenRouter with multiple API keys (pooled with metrics & rotation)
+	openRouterKeys := constant.GetOpenRouterApiKeys()
+	if len(openRouterKeys) > 0 {
+		pooledProvider, err := pooled.New(pooled.Config{
+			ProviderName:   "openrouter",
+			BaseURL:        "https://openrouter.ai/api/v1",
+			ModelName:      "auto", // Will be selected by criteria
+			APIKeys:        openRouterKeys,
+			EnableMetrics:  true, // Enable metrics tracking
+			EnableRotation: true, // Enable auto rotation
+			RotationStrategy: &pooled.HealthBasedStrategy{
+				MaxConsecutiveFailures: 3,
+			},
+			CreateClient: func(apiKey string) (fantasy.LanguageModel, error) {
+				provider, err := openrouter.New(
+					openrouter.WithAPIKey(apiKey),
+					openrouter.WithModelSelection(criteria),
+				)
+				if err != nil {
+					return nil, err
+				}
+				return provider.LanguageModel(bgCtx, "")
+			},
+		})
+
+		if err == nil {
+			chain = append(chain, pooledProvider)
+			catalog := openrouter.GetCatalog()
+			if selected := catalog.SelectFreeModel(criteria); selected != nil {
+				log.Printf("%s: OpenRouter Pooled (%s) with %d keys [Metrics: ON, Rotation: ON]", taskName, selected.ID, len(openRouterKeys))
+			}
+		} else {
+			log.Printf("Warning: Failed to create pooled OpenRouter: %v", err)
+		}
+	}
+
+	// 2. Pollinations AI (no pooling needed, free service)
+	if provider, err := openaicompat.New(
+		openaicompat.WithName("pollinations"),
+		openaicompat.WithBaseURL("https://text.pollinations.ai/openai"),
+		openaicompat.WithAPIKey("dummy"),
+	); err == nil {
+		if pollinationsModel, err := provider.LanguageModel(bgCtx, "openai"); err == nil {
+			chain = append(chain, pollinationsModel)
+			log.Printf("%s: Pollinations AI (openai)", taskName)
+		}
+	}
+
+	// 3. ZAI with multiple API keys (pooled with metrics & rotation)
+	zaiKeys := constant.GetZaiApiKeys()
+	if len(zaiKeys) > 0 {
+		pooledProvider, err := pooled.New(pooled.Config{
+			ProviderName:   "zai",
+			BaseURL:        "https://api.z.ai/api/coding/paas/v4",
+			ModelName:      "glm-4.7",
+			APIKeys:        zaiKeys,
+			EnableMetrics:  true,
+			EnableRotation: true,
+			RotationStrategy: &pooled.RoundRobinStrategy{
+				RotateAfterRequests: 100, // Rotate after 100 requests
+			},
+			CreateClient: func(apiKey string) (fantasy.LanguageModel, error) {
+				provider, err := openaicompat.New(
+					openaicompat.WithName("zai"),
+					openaicompat.WithBaseURL("https://api.z.ai/api/coding/paas/v4"),
+					openaicompat.WithAPIKey(apiKey),
+				)
+				if err != nil {
+					return nil, err
+				}
+				return provider.LanguageModel(bgCtx, "glm-4.7")
+			},
+		})
+
+		if err == nil {
+			chain = append(chain, pooledProvider)
+			log.Printf("%s: ZAI Pooled (glm-4.7) with %d keys [Metrics: ON, Rotation: ON]", taskName, len(zaiKeys))
+		} else {
+			log.Printf("Warning: Failed to create pooled ZAI: %v", err)
+		}
+	}
+
+	// 4. Local model (final fallback)
 	chain = append(chain, localModel)
 	log.Printf("%s: Chain created with %d models (fallback: %s/%s)", taskName, len(chain), localModel.Provider(), localModel.Model())
 	return chain
@@ -527,8 +632,6 @@ func (ctx *Context) InitAll() error {
 	ctx.InitVectorStore()
 	ctx.InitEmbedder()
 	ctx.InitVectorSearch()
-	ctx.InitFileLoader()
-	ctx.InitKnowledgeBase()
 	ctx.InitFileLoader()
 	ctx.InitKnowledgeBase()
 	ctx.InitKVStore()          // MOVED UP

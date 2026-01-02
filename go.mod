@@ -1,6 +1,6 @@
 module github.com/kawai-network/veridium
 
-go 1.25.0
+go 1.23
 
 require (
 	github.com/JohannesKaufmann/dom v0.2.0

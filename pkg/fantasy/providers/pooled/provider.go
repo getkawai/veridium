@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -16,11 +17,17 @@ import (
 
 // PooledProvider wraps a fantasy provider with CLIProxyAPI's fallback mechanism.
 type PooledProvider struct {
-	providerName string
-	baseURL      string
-	modelName    string
-	manager      *auth.Manager
-	executor     *PooledExecutor
+	providerName      string
+	baseURL           string
+	modelName         string
+	manager           *auth.Manager
+	executor          *PooledExecutor
+	metrics           *PoolMetrics           // NEW: Metrics tracking
+	rotationManager   *AutoRotationManager   // NEW: Auto rotation
+	currentKeyIndex   int                    // NEW: Current active key
+	indexMu           sync.RWMutex           // FIXED: Protect currentKeyIndex from race conditions
+	apiKeys           []string               // NEW: Store keys for rotation
+	cancelFunc        context.CancelFunc     // FIXED: For proper goroutine cleanup
 }
 
 // PooledExecutor implements auth.ProviderExecutor for fantasy providers.
@@ -33,11 +40,14 @@ type PooledExecutor struct {
 
 // Config holds configuration for creating a pooled provider.
 type Config struct {
-	ProviderName string
-	BaseURL      string
-	ModelName    string
-	APIKeys      []string
-	CreateClient func(apiKey string) (fantasy.LanguageModel, error)
+	ProviderName     string
+	BaseURL          string
+	ModelName        string
+	APIKeys          []string
+	CreateClient     func(apiKey string) (fantasy.LanguageModel, error)
+	EnableMetrics    bool              // NEW: Enable metrics tracking (default: true)
+	EnableRotation   bool              // NEW: Enable auto rotation (default: true)
+	RotationStrategy RotationStrategy  // NEW: Custom rotation strategy (optional)
 }
 
 // New creates a new PooledProvider with multiple API keys.
@@ -95,13 +105,50 @@ func New(cfg Config) (*PooledProvider, error) {
 
 	log.Printf("PooledProvider[%s]: Registered %d API keys", cfg.ProviderName, len(cfg.APIKeys))
 
-	return &PooledProvider{
-		providerName: cfg.ProviderName,
-		baseURL:      cfg.BaseURL,
-		modelName:    cfg.ModelName,
-		manager:      manager,
-		executor:     executor,
-	}, nil
+	// Create provider instance
+	provider := &PooledProvider{
+		providerName:    cfg.ProviderName,
+		baseURL:         cfg.BaseURL,
+		modelName:       cfg.ModelName,
+		manager:         manager,
+		executor:        executor,
+		currentKeyIndex: 0,
+		apiKeys:         cfg.APIKeys,
+	}
+
+	// Initialize metrics if enabled (default: true)
+	if cfg.EnableMetrics || (!cfg.EnableMetrics && cfg.EnableRotation) {
+		provider.metrics = NewPoolMetrics(cfg.ProviderName, len(cfg.APIKeys))
+		log.Printf("PooledProvider[%s]: Metrics enabled", cfg.ProviderName)
+	}
+
+	// Initialize auto rotation if enabled (default: true)
+	if cfg.EnableRotation {
+		if provider.metrics == nil {
+			provider.metrics = NewPoolMetrics(cfg.ProviderName, len(cfg.APIKeys))
+		}
+
+		// Use custom strategy or default to health-based
+		strategy := cfg.RotationStrategy
+		if strategy == nil {
+			strategy = &HealthBasedStrategy{
+				MaxConsecutiveFailures: 3,
+			}
+		}
+
+		provider.rotationManager = NewAutoRotationManager(strategy, provider.metrics, provider)
+		
+		// FIXED: Create cancellable context for proper cleanup
+		rotationCtx, cancel := context.WithCancel(context.Background())
+		provider.cancelFunc = cancel
+		
+		// Start rotation in background with cancellable context
+		go provider.rotationManager.Start(rotationCtx)
+		
+		log.Printf("PooledProvider[%s]: Auto-rotation enabled", cfg.ProviderName)
+	}
+
+	return provider, nil
 }
 
 // Provider returns the provider name.
@@ -121,6 +168,13 @@ func (p *PooledProvider) Generate(ctx context.Context, call fantasy.Call) (*fant
 
 	// Execute with fallback
 	resp, err := p.manager.Execute(ctx, []string{p.providerName}, req, executor.Options{})
+	
+	// Record metrics
+	if p.metrics != nil {
+		keyID := p.getCurrentKeyID()
+		p.metrics.RecordRequest(keyID, err == nil, err)
+	}
+	
 	if err != nil {
 		return nil, err
 	}
@@ -157,4 +211,56 @@ func (p *PooledProvider) StreamObject(ctx context.Context, call fantasy.ObjectCa
 // GetManager returns the underlying auth.Manager for advanced usage.
 func (p *PooledProvider) GetManager() *auth.Manager {
 	return p.manager
+}
+
+// GetMetrics returns current metrics snapshot
+func (p *PooledProvider) GetMetrics() *PoolMetricsSnapshot {
+	if p.metrics == nil {
+		return nil
+	}
+	snapshot := p.metrics.GetSnapshot()
+	return &snapshot
+}
+
+// RotateToKey manually rotates to a specific key index
+// FIXED: Added mutex protection to prevent race conditions
+func (p *PooledProvider) RotateToKey(index int) {
+	if index < 0 || index >= len(p.apiKeys) {
+		log.Printf("⚠️  [PooledProvider] Invalid key index: %d", index)
+		return
+	}
+	
+	p.indexMu.Lock()
+	p.currentKeyIndex = index
+	p.indexMu.Unlock()
+	
+	log.Printf("🔄 [PooledProvider] Rotated to key index: %d", index)
+}
+
+// getCurrentKeyID returns the current API key ID for metrics
+// FIXED: Added mutex protection to prevent race conditions
+func (p *PooledProvider) getCurrentKeyID() string {
+	p.indexMu.RLock()
+	defer p.indexMu.RUnlock()
+	
+	if p.currentKeyIndex >= 0 && p.currentKeyIndex < len(p.apiKeys) {
+		return p.apiKeys[p.currentKeyIndex]
+	}
+	return "unknown"
+}
+
+// Cleanup stops background services
+// FIXED: Added context cancellation to prevent goroutine leaks
+func (p *PooledProvider) Cleanup() {
+	// Cancel rotation context first
+	if p.cancelFunc != nil {
+		p.cancelFunc()
+		log.Printf("🛑 [PooledProvider] Rotation context cancelled")
+	}
+	
+	// Then stop rotation manager
+	if p.rotationManager != nil {
+		p.rotationManager.Stop()
+		log.Printf("🛑 [PooledProvider] Rotation manager stopped")
+	}
 }
