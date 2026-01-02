@@ -159,9 +159,33 @@ func (s *DepositSyncService) SyncDeposit(ctx context.Context, req SyncDepositReq
 		}, nil
 	}
 
+	// 6.b LOCK CHECK: Check if currently processing (Pending Lock)
+	pendingKey := fmt.Sprintf("pending_sync:%s", req.TxHash)
+	pending, err := s.kvStore.GetMarketplaceData(ctx, pendingKey)
+	if err == nil && len(pending) > 0 {
+		log.Printf("⚠️  [DepositSync] Transaction is currently being processed: %s", req.TxHash)
+		return &SyncDepositResponse{
+			Success: false,
+			Message: "Transaction is being processed, please wait...",
+		}, nil
+	}
+
+	// 6.c ACQUIRE LOCK: Set pending flag with TTL (60s)
+	// This reduces the race window significantly
+	if err := s.kvStore.StoreMarketplaceDataWithTTL(ctx, pendingKey, []byte("processing"), 60); err != nil {
+		log.Printf("❌ [DepositSync] Failed to acquire lock: %v", err)
+		return &SyncDepositResponse{
+			Success: false,
+			Message: "System busy, please try again",
+		}, nil
+	}
+
 	// 7. Update KV Store balance (atomic operation)
 	// Note: AddBalanceAtomic has retry logic to handle concurrent updates
 	if err := s.kvStore.AddBalanceAtomic(ctx, req.UserAddress, depositAmount); err != nil {
+		// Release lock on failure
+		s.kvStore.DeleteMarketplaceData(ctx, pendingKey)
+
 		log.Printf("❌ [DepositSync] Failed to update balance: %v", err)
 		return &SyncDepositResponse{
 			Success: false,
@@ -175,6 +199,9 @@ func (s *DepositSyncService) SyncDeposit(ctx context.Context, req SyncDepositReq
 		log.Printf("⚠️  [DepositSync] Failed to mark transaction as processed: %v", err)
 		// Don't fail - balance already updated, user can retry if needed
 	}
+
+	// 9. RELEASE LOCK
+	s.kvStore.DeleteMarketplaceData(ctx, pendingKey)
 
 	// 9. Get new balance
 	balance, _ := s.kvStore.GetUserBalance(ctx, req.UserAddress)

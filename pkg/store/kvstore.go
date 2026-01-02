@@ -60,6 +60,7 @@ type Store interface {
 
 	// Marketplace operations
 	StoreMarketplaceData(ctx context.Context, key string, data []byte) error
+	StoreMarketplaceDataWithTTL(ctx context.Context, key string, data []byte, ttl int) error
 	GetMarketplaceData(ctx context.Context, key string) ([]byte, error)
 	DeleteMarketplaceData(ctx context.Context, key string) error
 }
