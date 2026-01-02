@@ -19,7 +19,7 @@ type Store interface {
 	ListContributorsWithBalance(ctx context.Context, rewardType string) ([]*ContributorData, error)
 	GetOnlineContributors(ctx context.Context) ([]*ContributorData, error)
 	UpdateHeartbeat(ctx context.Context, address string) error
-	ResetAccumulatedRewards(ctx context.Context, address string, rewardType string) error
+	DeductSettledRewards(ctx context.Context, address string, rewardType string, amountToDeduct string) error
 	RegisterContributor(ctx context.Context, address, endpointURL, hardwareSpecs string) (*ContributorData, error)
 	SoftDeleteContributor(ctx context.Context, address string) error
 	RestoreContributor(ctx context.Context, address string) error

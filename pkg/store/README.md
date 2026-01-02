@@ -205,7 +205,7 @@ const (
 | `UpdateHeartbeat(ctx, address)` | Update LastSeen |
 | `SoftDeleteContributor(ctx, address)` | Soft delete (preserve data) |
 | `RestoreContributor(ctx, address)` | Restore deleted |
-| `ResetAccumulatedRewards(ctx, address, type)` | Reset balance to 0 |
+| `DeductSettledRewards(ctx, address, type, amount)` | Deduct settled amount from balance |
 
 ### Settlement Operations
 
