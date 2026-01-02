@@ -16,8 +16,31 @@ func (s *KVStore) StoreMarketplaceData(ctx context.Context, key string, data []b
 		Key:         key,
 		Value:       data,
 	})
+	// ... existing StoreMarketplaceData ...
 	if err != nil {
 		return fmt.Errorf("failed to write marketplace data to KV: %w", err)
+	}
+	return nil
+}
+
+// StoreMarketplaceDataWithTTL stores marketplace data with an expiration time (seconds)
+func (s *KVStore) StoreMarketplaceDataWithTTL(ctx context.Context, key string, data []byte, ttl int) error {
+	// Use Bulk Write API because Single Write API in this SDK version doesn't support TTL params
+	// Value must be string
+	payload := []*cloudflare.WorkersKVPair{
+		{
+			Key:           key,
+			Value:         string(data),
+			ExpirationTTL: ttl,
+		},
+	}
+
+	_, err := s.client.WriteWorkersKVEntries(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntriesParams{
+		NamespaceID: s.p2pMarketplaceNamespaceID,
+		KVs:         payload,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to write marketplace data with TTL to KV: %w", err)
 	}
 	return nil
 }
