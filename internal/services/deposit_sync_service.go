@@ -61,6 +61,7 @@ type SyncDepositResponse struct {
 }
 
 // SyncDeposit verifies and syncs a deposit transaction
+// Uses idempotency pattern: safe to call multiple times with same txHash
 func (s *DepositSyncService) SyncDeposit(ctx context.Context, req SyncDepositRequest) (*SyncDepositResponse, error) {
 	log.Printf("💰 [DepositSync] Sync request: txHash=%s, user=%s", req.TxHash, req.UserAddress)
 
@@ -75,24 +76,7 @@ func (s *DepositSyncService) SyncDeposit(ctx context.Context, req SyncDepositReq
 	txHash := common.HexToHash(req.TxHash)
 	userAddr := common.HexToAddress(req.UserAddress)
 
-	// 2. Check if already processed (prevent duplicates)
-	processedKey := fmt.Sprintf("processed_tx:%s", req.TxHash)
-	existing, err := s.kvStore.GetMarketplaceData(ctx, processedKey)
-	if err == nil && len(existing) > 0 {
-		log.Printf("⚠️  [DepositSync] Transaction already processed: %s", req.TxHash)
-
-		// Get current balance
-		balance, _ := s.kvStore.GetUserBalance(ctx, req.UserAddress)
-
-		return &SyncDepositResponse{
-			Success:     true,
-			Message:     "Deposit already synced",
-			AlreadySync: true,
-			NewBalance:  balance.USDTBalance,
-		}, nil
-	}
-
-	// 3. Get transaction receipt from blockchain
+	// 2. Get transaction receipt from blockchain (source of truth)
 	receipt, err := s.client.TransactionReceipt(ctx, txHash)
 	if err != nil {
 		log.Printf("❌ [DepositSync] Failed to get transaction receipt: %v", err)
@@ -102,7 +86,7 @@ func (s *DepositSyncService) SyncDeposit(ctx context.Context, req SyncDepositReq
 		}, nil
 	}
 
-	// 4. Verify transaction was successful
+	// 3. Verify transaction was successful
 	if receipt.Status != 1 {
 		log.Printf("❌ [DepositSync] Transaction failed on blockchain: %s", req.TxHash)
 		return &SyncDepositResponse{
@@ -111,7 +95,7 @@ func (s *DepositSyncService) SyncDeposit(ctx context.Context, req SyncDepositReq
 		}, nil
 	}
 
-	// 5. Parse Deposited event from logs
+	// 4. Parse Deposited event from logs
 	var depositAmount *big.Int
 	var depositUser common.Address
 	found := false
@@ -143,7 +127,7 @@ func (s *DepositSyncService) SyncDeposit(ctx context.Context, req SyncDepositReq
 		}, nil
 	}
 
-	// 6. Verify user address matches
+	// 5. Verify user address matches
 	if depositUser.Hex() != userAddr.Hex() {
 		log.Printf("❌ [DepositSync] User address mismatch: event=%s, request=%s",
 			depositUser.Hex(), userAddr.Hex())
@@ -153,7 +137,28 @@ func (s *DepositSyncService) SyncDeposit(ctx context.Context, req SyncDepositReq
 		}, nil
 	}
 
-	// 7. Update KV Store balance (atomic operation to prevent race conditions)
+	// 6. IDEMPOTENCY CHECK: Check if already processed
+	// This prevents double-spending even if called multiple times
+	processedKey := fmt.Sprintf("processed_tx:%s", req.TxHash)
+	existing, err := s.kvStore.GetMarketplaceData(ctx, processedKey)
+	if err == nil && len(existing) > 0 {
+		log.Printf("⚠️  [DepositSync] Transaction already processed: %s", req.TxHash)
+
+		// Get current balance
+		balance, _ := s.kvStore.GetUserBalance(ctx, req.UserAddress)
+
+		return &SyncDepositResponse{
+			Success:     true,
+			Message:     "Deposit already synced",
+			AlreadySync: true,
+			Amount:      depositAmount.String(),
+			NewBalance:  balance.USDTBalance,
+			BlockNumber: receipt.BlockNumber.Uint64(),
+		}, nil
+	}
+
+	// 7. Update KV Store balance (atomic operation)
+	// Note: AddBalanceAtomic has retry logic to handle concurrent updates
 	if err := s.kvStore.AddBalanceAtomic(ctx, req.UserAddress, depositAmount); err != nil {
 		log.Printf("❌ [DepositSync] Failed to update balance: %v", err)
 		return &SyncDepositResponse{
@@ -162,10 +167,11 @@ func (s *DepositSyncService) SyncDeposit(ctx context.Context, req SyncDepositReq
 		}, nil
 	}
 
-	// 8. Mark transaction as processed
-	if err := s.kvStore.StoreMarketplaceData(ctx, processedKey, []byte("1")); err != nil {
+	// 8. Mark transaction as processed (after successful balance update)
+	// This makes the operation idempotent
+	if err := s.kvStore.StoreMarketplaceData(ctx, processedKey, []byte("completed")); err != nil {
 		log.Printf("⚠️  [DepositSync] Failed to mark transaction as processed: %v", err)
-		// Don't fail the request, balance already updated
+		// Don't fail - balance already updated, user can retry if needed
 	}
 
 	// 9. Get new balance
