@@ -179,13 +179,12 @@ func (s *DepositSyncService) SyncDeposit(ctx context.Context, req SyncDepositReq
 			Message: "System busy, please try again",
 		}, nil
 	}
+	// Always release lock when function exits
+	defer s.kvStore.DeleteMarketplaceData(ctx, pendingKey)
 
 	// 7. Update KV Store balance (atomic operation)
 	// Note: AddBalanceAtomic has retry logic to handle concurrent updates
 	if err := s.kvStore.AddBalanceAtomic(ctx, req.UserAddress, depositAmount); err != nil {
-		// Release lock on failure
-		s.kvStore.DeleteMarketplaceData(ctx, pendingKey)
-
 		log.Printf("❌ [DepositSync] Failed to update balance: %v", err)
 		return &SyncDepositResponse{
 			Success: false,
@@ -199,9 +198,6 @@ func (s *DepositSyncService) SyncDeposit(ctx context.Context, req SyncDepositReq
 		log.Printf("⚠️  [DepositSync] Failed to mark transaction as processed: %v", err)
 		// Don't fail - balance already updated, user can retry if needed
 	}
-
-	// 9. RELEASE LOCK
-	s.kvStore.DeleteMarketplaceData(ctx, pendingKey)
 
 	// 9. Get new balance
 	balance, _ := s.kvStore.GetUserBalance(ctx, req.UserAddress)
