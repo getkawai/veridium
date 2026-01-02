@@ -28,7 +28,8 @@ function App() {
   useEffect(() => {
     refreshWalletStatus();
 
-    Events.On('chat:topic:updated', (ev: any) => {
+    // Register event listeners
+    const topicUpdateUnsubscribe = Events.On('chat:topic:updated', (ev: any) => {
       const data = ev.data;
       if (data && data.topic_id && data.title) {
         useChatStore.getState().internal_dispatchTopic({
@@ -40,7 +41,7 @@ function App() {
     });
 
     // Global subscription to chat stream events
-    Events.On('chat:stream', (ev: any) => {
+    const streamUnsubscribe = Events.On('chat:stream', (ev: any) => {
       const data = ev.data;
       const activeId = useChatStore.getState().activeId;
 
@@ -52,6 +53,12 @@ function App() {
 
     // Reload WML so it picks up the wml tags
     WML.Reload();
+
+    // Cleanup function to remove event listeners
+    return () => {
+      if (topicUpdateUnsubscribe) topicUpdateUnsubscribe();
+      if (streamUnsubscribe) streamUnsubscribe();
+    };
   }, []);
 
   if (!isWalletLoaded) {
