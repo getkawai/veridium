@@ -401,7 +401,8 @@ func (ctx *Context) InitLanguageModels() {
 	circuitBreaker := fantasy.WithCircuitBreaker(1, 0)
 
 	// AUTO-DETECT: Use pooled providers if multiple keys available
-	usePooled := len(constant.GetOpenRouterApiKeys()) > 1 || len(constant.GetZaiApiKeys()) > 1
+	// usePooled := len(constant.GetOpenRouterApiKeys()) > 1 || len(constant.GetZaiApiKeys()) > 1
+	usePooled := false
 
 	var buildChain func(context.Context, fantasy.LanguageModel, openrouter.ModelSelectionCriteria, string) []fantasy.LanguageModel
 	if usePooled {
@@ -443,15 +444,15 @@ func (ctx *Context) buildModelChain(bgCtx context.Context, localModel fantasy.La
 	var chain []fantasy.LanguageModel
 
 	// 1. OpenRouter (free tier)
-	if provider, err := openrouter.New(openrouter.WithAPIKey(constant.GetRandomOpenRouterApiKey()), openrouter.WithModelSelection(criteria)); err == nil {
-		if remoteModel, err := provider.LanguageModel(bgCtx, ""); err == nil {
-			chain = append(chain, remoteModel)
-			catalog := openrouter.GetCatalog()
-			if selected := catalog.SelectFreeModel(criteria); selected != nil {
-				log.Printf("%s: OpenRouter (%s)", taskName, selected.ID)
-			}
-		}
-	}
+	// if provider, err := openrouter.New(openrouter.WithAPIKey(constant.GetRandomOpenRouterApiKey()), openrouter.WithModelSelection(criteria)); err == nil {
+	// 	if remoteModel, err := provider.LanguageModel(bgCtx, ""); err == nil {
+	// 		chain = append(chain, remoteModel)
+	// 		catalog := openrouter.GetCatalog()
+	// 		if selected := catalog.SelectFreeModel(criteria); selected != nil {
+	// 			log.Printf("%s: OpenRouter (%s)", taskName, selected.ID)
+	// 		}
+	// 	}
+	// }
 
 	// 2. Pollinations AI (fallback before local)
 	if provider, err := openaicompat.New(
