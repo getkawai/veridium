@@ -9,10 +9,10 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"time"
 
 	_ "modernc.org/sqlite"
 
+	"github.com/kawai-network/veridium/internal/constant"
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/internal/paths"
 )
@@ -484,7 +484,7 @@ func (s *Service) ensureDefaultData(ctx context.Context) error {
 	}
 
 	// 4. Seed available agents from SQL dump (fast, synchronous)
-	seedCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	seedCtx, cancel := context.WithTimeout(ctx, constant.DatabaseSeedTimeout)
 	defer cancel()
 
 	if err := s.SeedAvailableAgents(seedCtx); err != nil {

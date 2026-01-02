@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/internal/database"
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/pkg/fantasy"
@@ -171,8 +172,8 @@ func (s *TopicService) UpdateTopicTitle(ctx context.Context, topicID string, mes
 
 		log.Printf("🔄 Generating title in background for topic %s...", topicID)
 
-		// Create context with timeout
-		bgCtx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+		// Create context with timeout for title generation
+		bgCtx, cancel := context.WithTimeout(context.Background(), constant.LLMTitleGenerationTimeout)
 		defer cancel()
 
 		// Generate title (default locale: en-US)
@@ -243,8 +244,8 @@ func (s *TopicService) UpdateGenerationTopicTitle(ctx context.Context, topicID s
 
 		log.Printf("🔄 Generating title in background for generation topic %s...", topicID)
 
-		// Create context with timeout
-		bgCtx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+		// Create context with timeout for title generation
+		bgCtx, cancel := context.WithTimeout(context.Background(), constant.LLMTitleGenerationTimeout)
 		defer cancel()
 
 		// Generate title (default locale: en-US)

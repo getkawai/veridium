@@ -15,7 +15,7 @@ const (
 	// LLM operation timeouts
 	LLMGenerateTimeout        = 120 * time.Second
 	LLMCleanupTimeout         = 60 * time.Second
-	LLMTitleGenerationTimeout = 30 * time.Second
+	LLMTitleGenerationTimeout = 3 * time.Minute // Background operation, can be longer
 
 	// Database operation timeouts
 	DatabaseQueryTimeout     = 5 * time.Second

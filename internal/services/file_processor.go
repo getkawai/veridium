@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kawai-network/veridium/internal/constant"
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/internal/whisper"
 	"github.com/kawai-network/veridium/pkg/fantasy"
@@ -543,8 +544,8 @@ Cleaned markdown:`, docHint, rawText)
 
 	log.Printf("[INFO] Async: Calling LLM for OCR cleanup: prompt_len=%d", len(userPrompt))
 
-	// Use timeout context - 60s should be enough for OCR cleanup
-	timeoutCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	// Use timeout context for OCR cleanup
+	timeoutCtx, cancel := context.WithTimeout(ctx, constant.LLMCleanupTimeout)
 	defer cancel()
 
 	resp, err := s.languageModel.Generate(timeoutCtx, fantasy.Call{
@@ -608,8 +609,8 @@ Output ONLY the corrected text without explanations.`
 
 	log.Printf("[INFO] Async: Calling LLM for transcript cleanup: prompt_len=%d", len(userPrompt))
 
-	// Use timeout context - LLM calls for long transcripts can take a while
-	timeoutCtx, cancel := context.WithTimeout(ctx, 120*time.Second)
+	// Use timeout context for LLM generation
+	timeoutCtx, cancel := context.WithTimeout(ctx, constant.LLMGenerateTimeout)
 	defer cancel()
 
 	resp, err := s.languageModel.Generate(timeoutCtx, fantasy.Call{
