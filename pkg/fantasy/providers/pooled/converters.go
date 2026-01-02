@@ -15,11 +15,24 @@ func convertCallToRequest(call fantasy.Call) executor.Request {
 		Content string `json:"content"`
 	}
 	
+	type ToolFunction struct {
+		Name        string         `json:"name"`
+		Description string         `json:"description,omitempty"`
+		Parameters  map[string]any `json:"parameters,omitempty"`
+	}
+	
+	type Tool struct {
+		Type     string       `json:"type"`
+		Function ToolFunction `json:"function"`
+	}
+	
 	type Payload struct {
-		Messages    []Message `json:"messages"`
-		MaxTokens   *int64    `json:"max_tokens,omitempty"`
-		Temperature *float64  `json:"temperature,omitempty"`
-		TopP        *float64  `json:"top_p,omitempty"`
+		Messages    []Message  `json:"messages"`
+		MaxTokens   *int64     `json:"max_tokens,omitempty"`
+		Temperature *float64   `json:"temperature,omitempty"`
+		TopP        *float64   `json:"top_p,omitempty"`
+		Tools       []Tool     `json:"tools,omitempty"`
+		ToolChoice  any        `json:"tool_choice,omitempty"`
 	}
 
 	// Convert fantasy.Prompt ([]Message) to payload messages
@@ -41,11 +54,50 @@ func convertCallToRequest(call fantasy.Call) executor.Request {
 		})
 	}
 
+	// Convert tools to OpenAI format
+	var tools []Tool
+	if len(call.Tools) > 0 {
+		tools = make([]Tool, 0, len(call.Tools))
+		for _, tool := range call.Tools {
+			if tool.GetType() == fantasy.ToolTypeFunction {
+				if ft, ok := tool.(fantasy.FunctionTool); ok {
+					tools = append(tools, Tool{
+						Type: "function",
+						Function: ToolFunction{
+							Name:        ft.Name,
+							Description: ft.Description,
+							Parameters:  ft.InputSchema,
+						},
+					})
+				}
+			}
+		}
+	}
+
 	payload := Payload{
 		Messages:    messages,
 		MaxTokens:   call.MaxOutputTokens,
 		Temperature: call.Temperature,
 		TopP:        call.TopP,
+		Tools:       tools,
+	}
+	
+	// Add tool choice if specified
+	if call.ToolChoice != nil {
+		switch *call.ToolChoice {
+		case fantasy.ToolChoiceAuto:
+			payload.ToolChoice = "auto"
+		case fantasy.ToolChoiceNone:
+			payload.ToolChoice = "none"
+		default:
+			// Specific tool choice
+			payload.ToolChoice = map[string]any{
+				"type": "function",
+				"function": map[string]string{
+					"name": string(*call.ToolChoice),
+				},
+			}
+		}
 	}
 
 	// Serialize to JSON
@@ -107,16 +159,59 @@ func convertRequestToCall(req executor.Request) fantasy.Call {
 
 // convertResponseToFantasy converts executor.Response to fantasy.Response.
 func convertResponseToFantasy(resp executor.Response) (*fantasy.Response, error) {
-	// Extract response data from metadata
-	contentStr, ok := resp.Metadata["content"].(string)
-	if !ok {
-		return &fantasy.Response{}, nil
+	content := make(fantasy.ResponseContent, 0)
+	
+	// Extract text content
+	if contentStr, ok := resp.Metadata["content"].(string); ok && contentStr != "" {
+		content = append(content, fantasy.TextContent{Text: contentStr})
 	}
-
-	// Parse the content as a simple text response
-	// ResponseContent is []Content, so we create a slice with one TextContent
-	content := fantasy.ResponseContent{
-		fantasy.TextContent{Text: contentStr},
+	
+	// Extract tool calls
+	if toolCallsRaw, ok := resp.Metadata["tool_calls"]; ok {
+		// First, marshal and unmarshal to normalize the type
+		toolCallsJSON, err := json.Marshal(toolCallsRaw)
+		if err == nil {
+			var toolCalls []struct {
+				ID       string `json:"id"`
+				Type     string `json:"type"`
+				Function struct {
+					Name      string `json:"name"`
+					Arguments any    `json:"arguments"` // Can be string or object
+				} `json:"function"`
+			}
+			
+			if err := json.Unmarshal(toolCallsJSON, &toolCalls); err == nil {
+				for _, tc := range toolCalls {
+					if tc.ID != "" && tc.Function.Name != "" {
+						// Convert arguments to string if needed
+						argsStr := ""
+						switch args := tc.Function.Arguments.(type) {
+						case string:
+							argsStr = args
+						default:
+							// Marshal back to JSON string
+							if argsJSON, err := json.Marshal(args); err == nil {
+								argsStr = string(argsJSON)
+							}
+						}
+						
+						content = append(content, fantasy.ToolCallContent{
+							ProviderExecuted: false,
+							ToolCallID:       tc.ID,
+							ToolName:         tc.Function.Name,
+							Input:            argsStr,
+						})
+					}
+				}
+			}
+		}
+	}
+	
+	// If no content at all, return empty response
+	if len(content) == 0 {
+		content = fantasy.ResponseContent{
+			fantasy.TextContent{Text: ""},
+		}
 	}
 
 	finishReasonStr := ""
@@ -140,6 +235,7 @@ func convertFantasyToResponse(resp *fantasy.Response) executor.Response {
 	// Extract text from ResponseContent
 	// Handle both text content and reasoning content
 	contentText := ""
+	var toolCalls []map[string]any
 	
 	for _, content := range resp.Content {
 		switch c := content.(type) {
@@ -148,22 +244,39 @@ func convertFantasyToResponse(resp *fantasy.Response) executor.Response {
 		case fantasy.ReasoningContent:
 			// For reasoning content, include it as well
 			contentText += c.Text
+		case fantasy.ToolCallContent:
+			// Extract tool call
+			toolCalls = append(toolCalls, map[string]any{
+				"id":   c.ToolCallID,
+				"type": "function",
+				"function": map[string]any{
+					"name":      c.ToolName,
+					"arguments": c.Input,
+				},
+			})
 		}
 	}
 	
 	// Fallback: use the Text() method if nothing extracted
-	if contentText == "" {
+	if contentText == "" && len(toolCalls) == 0 {
 		contentText = resp.Content.Text()
 	}
 
+	metadata := map[string]any{
+		"content":           contentText,
+		"finish_reason":     string(resp.FinishReason),
+		"prompt_tokens":     resp.Usage.InputTokens,
+		"completion_tokens": resp.Usage.OutputTokens,
+		"total_tokens":      resp.Usage.TotalTokens,
+	}
+	
+	// Add tool calls if present
+	if len(toolCalls) > 0 {
+		metadata["tool_calls"] = toolCalls
+	}
+
 	return executor.Response{
-		Metadata: map[string]any{
-			"content":           contentText,
-			"finish_reason":     string(resp.FinishReason),
-			"prompt_tokens":     resp.Usage.InputTokens,
-			"completion_tokens": resp.Usage.OutputTokens,
-			"total_tokens":      resp.Usage.TotalTokens,
-		},
+		Metadata: metadata,
 	}
 }
 

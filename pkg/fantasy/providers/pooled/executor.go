@@ -7,6 +7,7 @@ import (
 
 	"github.com/kawai-network/veridium/pkg/cliproxy/sdk/cliproxy/auth"
 	"github.com/kawai-network/veridium/pkg/cliproxy/sdk/cliproxy/executor"
+	"github.com/kawai-network/veridium/pkg/fantasy"
 )
 
 // Identifier implements auth.ProviderExecutor.
@@ -39,11 +40,15 @@ func (e *PooledExecutor) Execute(ctx context.Context, authEntry *auth.Auth, req 
 
 	// Debug: log raw fantasy response with content types
 	contentTypes := make([]string, len(resp.Content))
+	toolCallCount := 0
 	for i, c := range resp.Content {
 		contentTypes[i] = string(c.GetType())
+		if c.GetType() == fantasy.ContentTypeToolCall {
+			toolCallCount++
+		}
 	}
-	log.Printf("[PooledExecutor:%s] Raw fantasy.Response: Content=%d parts %v, Text=%q, Usage=%+v",
-		e.providerName, len(resp.Content), contentTypes, resp.Content.Text(), resp.Usage)
+	log.Printf("[PooledExecutor:%s] Raw fantasy.Response: Content=%d parts %v (tool_calls=%d), Text=%q, Usage=%+v",
+		e.providerName, len(resp.Content), contentTypes, toolCallCount, resp.Content.Text(), resp.Usage)
 
 	// Convert fantasy.Response to executor.Response
 	execResp := convertFantasyToResponse(resp)
@@ -55,6 +60,13 @@ func (e *PooledExecutor) Execute(ctx context.Context, authEntry *auth.Auth, req 
 		if content == "" {
 			log.Printf("⚠️  Warning: Empty response from provider %s", e.providerName)
 		}
+	}
+
+	// Debug: log tool calls
+	if toolCalls, ok := execResp.Metadata["tool_calls"]; ok {
+		log.Printf("[PooledExecutor:%s] Tool calls detected: %+v", e.providerName, toolCalls)
+	} else {
+		log.Printf("[PooledExecutor:%s] No tool calls in metadata", e.providerName)
 	}
 
 	return execResp, nil
