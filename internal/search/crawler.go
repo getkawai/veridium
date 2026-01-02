@@ -58,7 +58,16 @@ func (c *Crawler) CrawlPages(urls []string, impls []CrawlImplType) []CrawlResult
 	for i, urlStr := range urls {
 		wg.Add(1)
 		go func(idx int, u string) {
-			defer wg.Done()
+			defer wg.Done() // ✅ MUST be first defer to ensure it always executes
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("❌ [PANIC] Crawler panic recovered for URL %s: %v", u, r)
+					results[idx] = CrawlResult{
+						URL:   u,
+						Error: fmt.Sprintf("panic: %v", r),
+					}
+				}
+			}()
 
 			semaphore <- struct{}{}        // acquire
 			defer func() { <-semaphore }() // release

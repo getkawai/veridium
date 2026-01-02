@@ -152,6 +152,12 @@ func (s *AudioRecorderService) StopRecording() (string, error) {
 		// Use a channel with timeout to avoid blocking forever
 		done := make(chan error, 1)
 		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("❌ [PANIC] Recording process wait panic recovered: %v", r)
+					done <- fmt.Errorf("panic: %v", r)
+				}
+			}()
 			done <- s.recordingProc.Wait()
 		}()
 

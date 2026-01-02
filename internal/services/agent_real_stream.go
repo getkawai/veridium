@@ -661,7 +661,16 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	// 15. Auto-summarize if needed (background)
 	if currentTopicID != "" {
 		go func() {
-			bgCtx := context.Background()
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("❌ [PANIC] Auto-summarize panic recovered: %v", r)
+				}
+			}()
+
+			// Use Background context with timeout - must outlive HTTP request
+			bgCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+			defer cancel()
+
 			s.autoSummarizeIfNeeded(bgCtx, session, currentTopicID)
 			s.incrementalSummarizeIfNeeded(bgCtx, session, currentTopicID)
 		}()
@@ -670,7 +679,16 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	// 15.5. Store conversation to memory (background) - MemGPT-style
 	if s.memoryIntegration != nil && finalContentStr != "" {
 		go func() {
-			bgCtx := context.Background()
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("❌ [PANIC] Memory storage panic recovered: %v", r)
+				}
+			}()
+
+			// Use Background context with timeout - must outlive HTTP request
+			bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+
 			if err := s.memoryIntegration.StoreConversationMemory(bgCtx, req.Message, finalContentStr); err != nil {
 				log.Printf("⚠️  [Memory] Failed to store conversation: %v", err)
 			}
@@ -703,7 +721,16 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 		contributorAddress := constant.GetRandomTreasuryAddress()
 		if contributorAddress != "" {
 			go func() {
-				bgCtx := context.Background()
+				defer func() {
+					if r := recover(); r != nil {
+						log.Printf("❌ [PANIC] Job reward recording panic recovered: %v", r)
+					}
+				}()
+
+				// Use Background context with timeout - must outlive HTTP request
+				bgCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cancel()
+
 				if err := s.kvStore.RecordJobReward(bgCtx, contributorAddress, int64(usage.TotalTokens)); err != nil {
 					log.Printf("⚠️  [REAL STREAM] Failed to record job reward for %s: %v", contributorAddress, err)
 				} else {

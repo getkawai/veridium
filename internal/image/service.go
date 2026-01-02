@@ -224,6 +224,12 @@ func (s *Service) generateImagesInBackground(batchID string, imageNum int, opts 
 	// Trigger topic title update if TopicService is available
 	if s.TopicService != nil {
 		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("❌ [PANIC] Topic title update panic recovered: %v", r)
+				}
+			}()
+
 			batch, err := s.DB.Queries().GetGenerationBatch(ctx, batchID)
 			if err != nil {
 				log.Printf("[Background] Warning: Failed to fetch batch for title update: %v", err)
@@ -232,7 +238,11 @@ func (s *Service) generateImagesInBackground(batchID string, imageNum int, opts 
 
 			if batch.GenerationTopicID != "" {
 				log.Printf("[Background] Triggering topic title update for topic %s", batch.GenerationTopicID)
-				if err := s.TopicService.UpdateGenerationTopicTitleFromPrompt(context.Background(), batch.GenerationTopicID, opts.Prompt); err != nil {
+				// Use Background context with timeout - must outlive HTTP request
+				bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				defer cancel()
+
+				if err := s.TopicService.UpdateGenerationTopicTitleFromPrompt(bgCtx, batch.GenerationTopicID, opts.Prompt); err != nil {
 					log.Printf("[Background] Warning: Failed to update topic title: %v", err)
 				}
 			}
@@ -253,7 +263,15 @@ func (s *Service) generateImagesInBackground(batchID string, imageNum int, opts 
 	for i := 0; i < imageNum; i++ {
 		wg.Add(1)
 		go func(index int) {
-			defer wg.Done()
+			defer wg.Done() // ✅ MUST be first defer to ensure it always executes
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("❌ [PANIC] Image generation panic recovered for index %d: %v", index, r)
+					mu.Lock()
+					failedIndices = append(failedIndices, index)
+					mu.Unlock()
+				}
+			}()
 
 			if index >= len(generations) {
 				log.Printf("[Background] ERROR: No generation record for index %d", index)

@@ -787,6 +787,13 @@ func (s *FileProcessorService) transcribeVideoParallel(ctx context.Context, vide
 
 	for i := 0; i < numChunks; i++ {
 		go func(idx int) {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("❌ [PANIC] Audio chunk extraction panic recovered for index %d: %v", idx, r)
+					extractChan <- chunkResult{index: idx, path: "", err: fmt.Errorf("panic: %v", r)}
+				}
+			}()
+
 			startTime := float64(idx) * chunkDuration
 			chunkPath := filepath.Join(tempDir, fmt.Sprintf("chunk_%d.wav", idx))
 
@@ -826,6 +833,13 @@ func (s *FileProcessorService) transcribeVideoParallel(ctx context.Context, vide
 		}
 
 		go func(idx int, audioPath string) {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("❌ [PANIC] Transcription panic recovered for index %d: %v", idx, r)
+					transcribeChan <- transcribeResult{index: idx, transcription: "", err: fmt.Errorf("panic: %v", r)}
+				}
+			}()
+
 			text, err := s.whisperService.Transcribe(ctx, modelName, audioPath)
 			transcribeChan <- transcribeResult{index: idx, transcription: text, err: err}
 		}(i, chunkPaths[i])

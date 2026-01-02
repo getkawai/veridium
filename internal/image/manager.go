@@ -1343,6 +1343,12 @@ func (sdrm *StableDiffusion) cleanupModels() error {
 // This includes checking and installing the binary and downloading a recommended model
 func (sdrm *StableDiffusion) InitializeInBackground() {
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("❌ [PANIC] Stable Diffusion initialization panic recovered: %v", r)
+			}
+		}()
+
 		log.Printf("🚀 Initializing Stable Diffusion in background...")
 
 		// Step 1: Check and install binary if needed

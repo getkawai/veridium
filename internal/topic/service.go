@@ -165,8 +165,14 @@ func (s *TopicService) UpdateTopicTitle(ctx context.Context, topicID string, mes
 
 	log.Printf("📌 [TITLE] UpdateTopicTitle called for topic %s with %d messages", topicID, len(messagesCopy))
 
-	// Run in background
+	// Run in background with panic recovery
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("❌ [PANIC] Topic title generation panic recovered: %v", r)
+			}
+		}()
+
 		// Add a small delay
 		time.Sleep(2 * time.Second)
 
@@ -237,8 +243,14 @@ func (s *TopicService) UpdateGenerationTopicTitle(ctx context.Context, topicID s
 
 	log.Printf("📌 [TITLE] UpdateGenerationTopicTitle called for topic %s with %d messages", topicID, len(messagesCopy))
 
-	// Run in background
+	// Run in background with panic recovery
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("❌ [PANIC] Generation topic title panic recovered: %v", r)
+			}
+		}()
+
 		// Add a small delay
 		time.Sleep(2 * time.Second)
 
