@@ -6,12 +6,17 @@ import (
 	"fmt"
 	"log/slog"
 	"math/big"
+	"sync"
 	"time"
 
 	"github.com/cloudflare/cloudflare-go"
 	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/pkg/config"
 )
+
+// contributorLocks provides per-address mutex for serializing balance updates
+// This prevents race conditions when multiple goroutines update the same contributor
+var contributorLocks sync.Map
 
 // ContributorStatus represents the status of a contributor
 type ContributorStatus string
@@ -36,6 +41,7 @@ type ContributorData struct {
 	IsActive           bool              `json:"is_active"`                  // Soft delete flag
 	DeletedAt          time.Time         `json:"deleted_at,omitempty"`       // When soft deleted
 	IsAdmin            bool              `json:"is_admin,omitempty"`         // Admin flag
+	Version            int64             `json:"version"`                    // Optimistic locking version
 }
 
 // =============================================================================
@@ -290,6 +296,7 @@ func (s *KVStore) RegisterContributor(ctx context.Context, address, endpointURL,
 
 // RecordJobReward distributes rewards based on the 70/30 Rule.
 // Admin address and reward mode are automatically determined.
+// This method is thread-safe using per-address mutex to prevent race conditions.
 //
 //wails:ignore
 func (s *KVStore) RecordJobReward(ctx context.Context, contributorAddress string, tokenUsage int64) error {
@@ -306,18 +313,31 @@ func (s *KVStore) RecordJobReward(ctx context.Context, contributorAddress string
 		}
 	}
 
-	// Helper to update balance field
+	// Helper to update balance field with per-address locking
+	// This ensures only ONE goroutine can update a specific address at a time
 	updateBalance := func(addr string, amount *big.Int, field string) error {
 		if amount.Cmp(big.NewInt(0)) == 0 {
 			return nil
 		}
 
+		// Get or create mutex for this specific address
+		lockInterface, _ := contributorLocks.LoadOrStore(addr, &sync.Mutex{})
+		lock := lockInterface.(*sync.Mutex)
+
+		// Acquire lock - blocks if another goroutine is updating this address
+		lock.Lock()
+		defer lock.Unlock()
+
+		// Now we have exclusive access to this address's balance
+		// Safe to do read-modify-write without race conditions
+
+		// 1. READ - Get current contributor data
 		c, err := s.GetContributor(ctx, addr)
 		if err != nil {
 			return fmt.Errorf("failed to get account %s: %w", addr, err)
 		}
 
-		// Select correct balance field
+		// 2. MODIFY - Calculate new balance
 		var currentBalStr string
 		if field == "kawai" {
 			currentBalStr = c.AccumulatedRewards
@@ -330,15 +350,28 @@ func (s *KVStore) RecordJobReward(ctx context.Context, contributorAddress string
 			currentBal.SetString(currentBalStr, 10)
 		}
 
-		currentBal.Add(currentBal, amount)
+		newBal := new(big.Int).Add(currentBal, amount)
 
 		if field == "kawai" {
-			c.AccumulatedRewards = currentBal.String()
+			c.AccumulatedRewards = newBal.String()
 		} else {
-			c.AccumulatedUSDT = currentBal.String()
+			c.AccumulatedUSDT = newBal.String()
 		}
 
-		return s.SaveContributor(ctx, c)
+		// 3. WRITE - Save updated balance
+		// No retry needed - mutex ensures no concurrent modification
+		err = s.SaveContributor(ctx, c)
+		if err != nil {
+			return fmt.Errorf("failed to save contributor %s: %w", addr, err)
+		}
+
+		slog.Info("Balance updated",
+			"address", addr,
+			"field", field,
+			"amount", amount.String(),
+			"new_balance", newBal.String())
+
+		return nil
 	}
 
 	var contributorShare, adminShare *big.Int
