@@ -145,23 +145,56 @@ func (s *KVStore) UpdateHeartbeat(ctx context.Context, address string) error {
 	return s.SaveContributor(ctx, contributor)
 }
 
-// ResetAccumulatedRewards resets the accumulated rewards for a contributor after settlement.
-// rewardType can be "kawai" or "usdt"
-func (s *KVStore) ResetAccumulatedRewards(ctx context.Context, address string, rewardType string) error {
+// DeductSettledRewards deducts the settled amount from contributor's balance.
+// This prevents race conditions where new rewards arrived during settlement.
+func (s *KVStore) DeductSettledRewards(ctx context.Context, address string, rewardType string, amountToDeduct string) error {
+	// 1. Acquire lock for this address to ensure atomic update with RecordJobReward
+	lockInterface, _ := contributorLocks.LoadOrStore(address, &sync.Mutex{})
+	lock := lockInterface.(*sync.Mutex)
+	lock.Lock()
+	defer lock.Unlock()
+
+	// 2. Refresh data from KV
 	contributor, err := s.GetContributor(ctx, address)
 	if err != nil {
 		return fmt.Errorf("failed to get contributor: %w", err)
 	}
 
+	deductVal := new(big.Int)
+	deductVal.SetString(amountToDeduct, 10)
+
+	// 3. Update specific balance field
 	switch rewardType {
 	case "kawai":
-		oldBalance := contributor.AccumulatedRewards
-		contributor.AccumulatedRewards = "0"
-		slog.Info("Reset KAWAI rewards", "address", address, "old_balance", oldBalance)
+		currentVal := new(big.Int)
+		currentVal.SetString(contributor.AccumulatedRewards, 10)
+
+		// Subtract settled amount
+		newVal := new(big.Int).Sub(currentVal, deductVal)
+
+		// Safety check: don't go below zero (should technically not happen if snapshots are correct)
+		if newVal.Sign() < 0 {
+			newVal = big.NewInt(0)
+			slog.Warn("Balance became negative after deduction, resetting to 0", "address", address, "current", currentVal, "deduct", deductVal)
+		}
+
+		contributor.AccumulatedRewards = newVal.String()
+		slog.Info("Deducted settled KAWAI rewards", "address", address, "deducted", amountToDeduct, "remaining", newVal.String())
+
 	case "usdt":
-		oldBalance := contributor.AccumulatedUSDT
-		contributor.AccumulatedUSDT = "0"
-		slog.Info("Reset USDT rewards", "address", address, "old_balance", oldBalance)
+		currentVal := new(big.Int)
+		currentVal.SetString(contributor.AccumulatedUSDT, 10)
+
+		newVal := new(big.Int).Sub(currentVal, deductVal)
+
+		if newVal.Sign() < 0 {
+			newVal = big.NewInt(0)
+			slog.Warn("Balance became negative after deduction, resetting to 0", "address", address, "current", currentVal, "deduct", deductVal)
+		}
+
+		contributor.AccumulatedUSDT = newVal.String()
+		slog.Info("Deducted settled USDT rewards", "address", address, "deducted", amountToDeduct, "remaining", newVal.String())
+
 	default:
 		return fmt.Errorf("invalid reward type: %s (must be 'kawai' or 'usdt')", rewardType)
 	}

@@ -226,7 +226,9 @@ func (s *KVStore) PerformSettlementWithConfig(ctx context.Context, periodID int6
 		for _, snapshot := range batch {
 			var lastErr error
 			for retry := 0; retry < config.MaxRetries; retry++ {
-				if err := s.ResetAccumulatedRewards(ctx, snapshot.Address, rewardType); err != nil {
+				// FIX: Deduct only the snapshot amount instead of resetting to zero
+				// This prevents wiping out new rewards earned during settlement
+				if err := s.DeductSettledRewards(ctx, snapshot.Address, rewardType, snapshot.Amount); err != nil {
 					lastErr = err
 					time.Sleep(50 * time.Millisecond)
 					continue
@@ -291,8 +293,10 @@ func (s *KVStore) ResumeSettlement(ctx context.Context, periodID int64, proofs m
 
 		resetCount := 0
 		for _, snapshot := range snapshots {
-			if err := s.ResetAccumulatedRewards(ctx, snapshot.Address, period.RewardType); err != nil {
-				slog.Warn("Failed to reset balance", "address", snapshot.Address, "error", err)
+			// Need to fetch snapshot amount again or use logic to deduce it
+			// For resume, it's safer to rely on Deduct logic if we have the snapshot
+			if err := s.DeductSettledRewards(ctx, snapshot.Address, period.RewardType, snapshot.Amount); err != nil {
+				slog.Warn("Failed to deduct balance", "address", snapshot.Address, "error", err)
 				continue
 			}
 			resetCount++
@@ -434,8 +438,8 @@ func (s *KVStore) PerformSettlementParallel(ctx context.Context, periodID int64,
 	// Reset balances (sequential to avoid race conditions)
 	resetCount := 0
 	for _, snapshot := range snapshots {
-		if err := s.ResetAccumulatedRewards(ctx, snapshot.Address, rewardType); err != nil {
-			slog.Warn("Failed to reset balance", "address", snapshot.Address, "error", err)
+		if err := s.DeductSettledRewards(ctx, snapshot.Address, rewardType, snapshot.Amount); err != nil {
+			slog.Warn("Failed to deduct balance", "address", snapshot.Address, "error", err)
 			continue
 		}
 		resetCount++
