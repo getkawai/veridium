@@ -120,17 +120,30 @@ func (ctx *Context) InitLanguageModelsV2() {
 	// Circuit breaker: skip rate-limited models until app restart
 	circuitBreaker := fantasy.WithCircuitBreaker(1, 0)
 
-	ctx.ChatModel, _ = fantasy.NewChain(ctx.buildModelChainV2(bgCtx, localModel, openrouter.ModelSelectionCriteria{
+	var err error
+	ctx.ChatModel, err = fantasy.NewChain(ctx.buildModelChainV2(bgCtx, localModel, openrouter.ModelSelectionCriteria{
 		RequireReasoning: true, RequireAttachments: true, MinContextWindow: 100000,
 	}, "ChatModel"), circuitBreaker)
+	if err != nil {
+		log.Printf("Warning: ChatModel chain creation failed: %v", err)
+	}
 
-	ctx.TitleModel, _ = fantasy.NewChain(ctx.buildModelChainV2(bgCtx, localModel, openrouter.ModelSelectionCriteria{}, "TitleModel"), circuitBreaker)
+	ctx.TitleModel, err = fantasy.NewChain(ctx.buildModelChainV2(bgCtx, localModel, openrouter.ModelSelectionCriteria{}, "TitleModel"), circuitBreaker)
+	if err != nil {
+		log.Printf("Warning: TitleModel chain creation failed: %v", err)
+	}
 
-	ctx.SummaryModel, _ = fantasy.NewChain(ctx.buildModelChainV2(bgCtx, localModel, openrouter.ModelSelectionCriteria{
+	ctx.SummaryModel, err = fantasy.NewChain(ctx.buildModelChainV2(bgCtx, localModel, openrouter.ModelSelectionCriteria{
 		MinContextWindow: 50000,
 	}, "SummaryModel"), circuitBreaker)
+	if err != nil {
+		log.Printf("Warning: SummaryModel chain creation failed: %v", err)
+	}
 
-	ctx.CleanupModel, _ = fantasy.NewChain(ctx.buildModelChainV2(bgCtx, localModel, openrouter.ModelSelectionCriteria{}, "CleanupModel"), circuitBreaker)
+	ctx.CleanupModel, err = fantasy.NewChain(ctx.buildModelChainV2(bgCtx, localModel, openrouter.ModelSelectionCriteria{}, "CleanupModel"), circuitBreaker)
+	if err != nil {
+		log.Printf("Warning: CleanupModel chain creation failed: %v", err)
+	}
 
 	log.Printf("Language models initialized with pooled providers")
 }

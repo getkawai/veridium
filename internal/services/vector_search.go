@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 
-	llamaembed "github.com/kawai-network/veridium/pkg/fantasy/providers/llama-embed"
 	db "github.com/kawai-network/veridium/internal/database/generated"
+	llamaembed "github.com/kawai-network/veridium/pkg/fantasy/providers/llama-embed"
 )
 
 // SearchResult represents a search result from vector database
@@ -47,6 +47,10 @@ func NewVectorSearchService(
 
 // SemanticSearch performs semantic search on chunks using DuckDB + SQLite
 func (s *VectorSearchService) SemanticSearch(ctx context.Context, query string, fileIDs []string, limit int) ([]SearchResult, error) {
+	if query == "" {
+		return nil, fmt.Errorf("search query cannot be empty")
+	}
+
 	if limit <= 0 {
 		limit = 30
 	}

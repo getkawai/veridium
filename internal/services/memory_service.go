@@ -171,9 +171,13 @@ func (s *MemoryService) CreateMemory(ctx context.Context, memory *Memory) (*Memo
 
 	// Also store in DuckDB for vector search if available
 	if s.duckDB != nil && summaryVector != nil {
-		embeddings, _ := s.embedder.Embed(ctx, []string{memory.Summary})
-		if len(embeddings) > 0 {
-			_ = s.duckDB.UpsertVector(ctx, memory.ID, "", embeddings[0])
+		embeddings, err := s.embedder.Embed(ctx, []string{memory.Summary})
+		if err != nil {
+			slog.Warn("Failed to embed memory summary for vector storage", "memory_id", memory.ID, "error", err)
+		} else if len(embeddings) > 0 {
+			if err := s.duckDB.UpsertVector(ctx, memory.ID, "", embeddings[0]); err != nil {
+				slog.Warn("Failed to upsert memory vector to DuckDB", "memory_id", memory.ID, "error", err)
+			}
 		}
 	}
 
@@ -184,6 +188,10 @@ func (s *MemoryService) CreateMemory(ctx context.Context, memory *Memory) (*Memo
 
 // GetUserMemory retrieves a memory by ID
 func (s *MemoryService) GetUserMemory(ctx context.Context, memoryID string) (*Memory, error) {
+	if memoryID == "" {
+		return nil, fmt.Errorf("memory_id cannot be empty")
+	}
+
 	result, err := s.dbService.Queries().GetUserMemory(ctx, memoryID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get memory: %w", err)
@@ -191,11 +199,13 @@ func (s *MemoryService) GetUserMemory(ctx context.Context, memoryID string) (*Me
 
 	// Update access count
 	now := time.Now().UnixMilli()
-	_ = s.dbService.Queries().UpdateMemoryAccessCount(ctx, db.UpdateMemoryAccessCountParams{
+	if err := s.dbService.Queries().UpdateMemoryAccessCount(ctx, db.UpdateMemoryAccessCountParams{
 		LastAccessedAt: now,
 		UpdatedAt:      now,
 		ID:             memoryID,
-	})
+	}); err != nil {
+		slog.Warn("Failed to update memory access count", "memory_id", memoryID, "error", err)
+	}
 
 	return dbMemoryToMemory(&result), nil
 }
@@ -239,6 +249,10 @@ func (s *MemoryService) GetUserMemoriesByIds(ctx context.Context, ids []string) 
 
 // SemanticSearch performs semantic search on memories using embeddings
 func (s *MemoryService) SemanticSearch(ctx context.Context, query string, limit int) ([]*MemorySearchResult, error) {
+	if query == "" {
+		return nil, fmt.Errorf("search query cannot be empty")
+	}
+
 	if limit <= 0 {
 		limit = 5
 	}
@@ -311,6 +325,10 @@ func (s *MemoryService) textSearch(ctx context.Context, query string, limit int)
 
 // DeleteUserMemory deletes a memory
 func (s *MemoryService) DeleteUserMemory(ctx context.Context, memoryID string) error {
+	if memoryID == "" {
+		return fmt.Errorf("memory_id cannot be empty")
+	}
+
 	err := s.dbService.Queries().DeleteUserMemory(ctx, memoryID)
 	if err != nil {
 		return fmt.Errorf("failed to delete memory: %w", err)
@@ -318,7 +336,9 @@ func (s *MemoryService) DeleteUserMemory(ctx context.Context, memoryID string) e
 
 	// Also delete from DuckDB if available
 	if s.duckDB != nil {
-		_ = s.duckDB.DeleteVector(ctx, memoryID)
+		if err := s.duckDB.DeleteVector(ctx, memoryID); err != nil {
+			slog.Warn("Failed to delete memory vector from DuckDB", "memory_id", memoryID, "error", err)
+		}
 	}
 
 	slog.Info("Memory deleted", "memory_id", memoryID)

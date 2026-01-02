@@ -6,6 +6,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
@@ -385,7 +386,9 @@ func (s *Service) DeleteFileWithCascade(ctx context.Context, params DeleteFileWi
 
 			// Delete global file if no other files use it
 			if countResult == 0 {
-				_ = q.DeleteGlobalFile(ctx, params.FileHash)
+				if err := q.DeleteGlobalFile(ctx, params.FileHash); err != nil {
+					slog.Warn("Failed to delete global file", "file_hash", params.FileHash, "error", err)
+				}
 			}
 		}
 

@@ -10,17 +10,18 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
+	db "github.com/kawai-network/veridium/internal/database/generated"
+	"github.com/kawai-network/veridium/internal/whisper"
 	"github.com/kawai-network/veridium/pkg/fantasy"
 	"github.com/kawai-network/veridium/pkg/fantasy/llamalib"
 	llamavl "github.com/kawai-network/veridium/pkg/fantasy/providers/llama-vl"
-	db "github.com/kawai-network/veridium/internal/database/generated"
-	"github.com/kawai-network/veridium/internal/whisper"
 	"github.com/kawai-network/veridium/pkg/hardware"
 	"github.com/kawai-network/veridium/types"
 )
@@ -843,7 +844,9 @@ func (s *FileProcessorService) transcribeVideoParallel(ctx context.Context, vide
 		// Progressive update:
 		// Update document slightly to show progress
 		progressMd := fmt.Sprintf("\n\n*Transcribing segment %d/%d...*\n", result.index+1, numChunks)
-		_ = s.appendContentToDocument(ctx, documentID, progressMd)
+		if err := s.appendContentToDocument(ctx, documentID, progressMd); err != nil {
+			slog.Warn("Failed to append progress to document", "document_id", documentID, "error", err)
+		}
 
 		partialTranscription := s.combineTranscriptions(transcriptions)
 		progressMarkdown := fmt.Sprintf("\n\n### Video Transcription (AI Generated via Whisper)\n\n%s%s", progressMd, partialTranscription)
