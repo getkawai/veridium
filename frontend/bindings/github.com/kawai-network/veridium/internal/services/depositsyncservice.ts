@@ -23,6 +23,7 @@ export function Close(): $CancellablePromise<void> {
 
 /**
  * SyncDeposit verifies and syncs a deposit transaction
+ * Uses idempotency pattern: safe to call multiple times with same txHash
  */
 export function SyncDeposit(req: $models.SyncDepositRequest): $CancellablePromise<$models.SyncDepositResponse | null> {
     return $Call.ByID(3304706730, req).then(($result: any) => {
