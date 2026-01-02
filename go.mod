@@ -1,6 +1,6 @@
 module github.com/kawai-network/veridium
 
-go 1.23
+go 1.25.0
 
 require (
 	github.com/JohannesKaufmann/dom v0.2.0
@@ -54,15 +54,20 @@ require (
 	github.com/sahilm/fuzzy v0.1.1
 	github.com/sigstore/cosign/v2 v2.5.0
 	github.com/sigstore/sigstore v1.9.5
+	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.6
 	github.com/ssor/bom v0.0.0-20170718123548-6386211fdfcf
 	github.com/stretchr/testify v1.11.1
 	github.com/tailscale/hujson v0.0.0-20250605163823-992244df8c5a
+	github.com/tidwall/gjson v1.14.4
+	github.com/tidwall/sjson v1.2.5
+	github.com/tiktoken-go/tokenizer v0.7.0
 	github.com/tyler-smith/go-bip39 v1.1.0
 	github.com/urfave/cli/v2 v2.27.5
 	github.com/wailsapp/wails/v3 v3.0.0-dev
 	github.com/yuin/goldmark v1.7.8
+	golang.org/x/crypto v0.44.0
 	golang.org/x/net v0.47.0
 	golang.org/x/oauth2 v0.32.0
 	golang.org/x/sync v0.18.0
@@ -271,7 +276,6 @@ require (
 	github.com/sigstore/rekor v1.3.10 // indirect
 	github.com/sigstore/sigstore-go v1.0.0 // indirect
 	github.com/sigstore/timestamp-authority v1.2.8 // indirect
-	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/skeema/knownhosts v1.3.1 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.14.0 // indirect
@@ -284,10 +288,8 @@ require (
 	github.com/theupdateframework/go-tuf v0.7.0 // indirect
 	github.com/theupdateframework/go-tuf/v2 v2.1.1 // indirect
 	github.com/theupdateframework/notary v0.7.0 // indirect
-	github.com/tidwall/gjson v1.14.4 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
-	github.com/tidwall/sjson v1.2.5 // indirect
 	github.com/titanous/rocacheck v0.0.0-20171023193734-afe73141d399 // indirect
 	github.com/tklauser/go-sysconf v0.3.14 // indirect
 	github.com/tklauser/numcpus v0.8.0 // indirect
@@ -321,7 +323,6 @@ require (
 	go.uber.org/zap v1.27.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	golang.org/x/arch v0.20.0 // indirect
-	golang.org/x/crypto v0.44.0 // indirect
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
 	golang.org/x/mod v0.29.0 // indirect
 	golang.org/x/telemetry v0.0.0-20251008203120-078029d740a8 // indirect
