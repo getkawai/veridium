@@ -63,8 +63,15 @@ func (c *Crawler) CrawlPages(urls []string, impls []CrawlImplType) []CrawlResult
 				if r := recover(); r != nil {
 					log.Printf("❌ [PANIC] Crawler panic recovered for URL %s: %v", u, r)
 					results[idx] = CrawlResult{
-						URL:   u,
-						Error: fmt.Sprintf("panic: %v", r),
+						Success: &htmltomarkdown.CrawlSuccessResult{
+							URL:     u,
+							Content: fmt.Sprintf("panic: %v", r),
+						},
+						Error: &CrawlErrorResult{
+							ErrorMessage: fmt.Sprintf("panic: %v", r),
+							ErrorType:    "PANIC",
+							URL:          u,
+						},
 					}
 				}
 			}()
