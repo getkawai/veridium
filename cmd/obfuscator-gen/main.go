@@ -511,7 +511,7 @@ func generateLLMGoFile(openrouterKeys, zaiKeys []string) string {
 		// Random picker
 		sb.WriteString("// GetRandomOpenRouterApiKey returns a random decoded OpenRouter API key from the pool\n")
 		sb.WriteString("func GetRandomOpenRouterApiKey() string {\n")
-		sb.WriteString("\tkeys := getOpenRouterApiKeys()\n")
+		sb.WriteString("\tkeys := GetOpenRouterApiKeys()\n")
 		sb.WriteString("\tif len(keys) == 0 {\n")
 		sb.WriteString("\t\treturn \"\"\n")
 		sb.WriteString("\t}\n")
@@ -519,9 +519,9 @@ func generateLLMGoFile(openrouterKeys, zaiKeys []string) string {
 		sb.WriteString("\treturn keys[r.Intn(len(keys))]\n")
 		sb.WriteString("}\n\n")
 
-		// Array of all keys
-		sb.WriteString("// getOpenRouterApiKeys returns a slice of all decoded OpenRouter API keys\n")
-		sb.WriteString("func getOpenRouterApiKeys() []string {\n")
+		// Array of all keys (exported)
+		sb.WriteString("// GetOpenRouterApiKeys returns a slice of all decoded OpenRouter API keys\n")
+		sb.WriteString("func GetOpenRouterApiKeys() []string {\n")
 		sb.WriteString("\treturn []string{\n")
 		for i := range openrouterKeys {
 			sb.WriteString(fmt.Sprintf("\t\tgetOpenRouterApiKey%d(),\n", i))
@@ -543,7 +543,7 @@ func generateLLMGoFile(openrouterKeys, zaiKeys []string) string {
 		// Random picker
 		sb.WriteString("// GetRandomZaiApiKey returns a random decoded ZAI API key from the pool\n")
 		sb.WriteString("func GetRandomZaiApiKey() string {\n")
-		sb.WriteString("\tkeys := getZaiApiKeys()\n")
+		sb.WriteString("\tkeys := GetZaiApiKeys()\n")
 		sb.WriteString("\tif len(keys) == 0 {\n")
 		sb.WriteString("\t\treturn \"\"\n")
 		sb.WriteString("\t}\n")
@@ -551,9 +551,9 @@ func generateLLMGoFile(openrouterKeys, zaiKeys []string) string {
 		sb.WriteString("\treturn keys[r.Intn(len(keys))]\n")
 		sb.WriteString("}\n\n")
 
-		// Array of all keys
-		sb.WriteString("// getZaiApiKeys returns a slice of all decoded ZAI API keys\n")
-		sb.WriteString("func getZaiApiKeys() []string {\n")
+		// Array of all keys (exported)
+		sb.WriteString("// GetZaiApiKeys returns a slice of all decoded ZAI API keys\n")
+		sb.WriteString("func GetZaiApiKeys() []string {\n")
 		sb.WriteString("\treturn []string{\n")
 		for i := range zaiKeys {
 			sb.WriteString(fmt.Sprintf("\t\tgetZaiApiKey%d(),\n", i))

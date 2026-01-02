@@ -19,7 +19,7 @@ const (
 
 // GetRandomOpenRouterApiKey returns a random decoded OpenRouter API key from the pool
 func GetRandomOpenRouterApiKey() string {
-	keys := getOpenRouterApiKeys()
+	keys := GetOpenRouterApiKeys()
 	if len(keys) == 0 {
 		return ""
 	}
@@ -27,8 +27,8 @@ func GetRandomOpenRouterApiKey() string {
 	return keys[r.Intn(len(keys))]
 }
 
-// getOpenRouterApiKeys returns a slice of all decoded OpenRouter API keys
-func getOpenRouterApiKeys() []string {
+// GetOpenRouterApiKeys returns a slice of all decoded OpenRouter API keys
+func GetOpenRouterApiKeys() []string {
 	return []string{
 		getOpenRouterApiKey0(),
 		getOpenRouterApiKey1(),
@@ -47,7 +47,7 @@ func getOpenRouterApiKey1() string {
 
 // GetRandomZaiApiKey returns a random decoded ZAI API key from the pool
 func GetRandomZaiApiKey() string {
-	keys := getZaiApiKeys()
+	keys := GetZaiApiKeys()
 	if len(keys) == 0 {
 		return ""
 	}
@@ -55,8 +55,8 @@ func GetRandomZaiApiKey() string {
 	return keys[r.Intn(len(keys))]
 }
 
-// getZaiApiKeys returns a slice of all decoded ZAI API keys
-func getZaiApiKeys() []string {
+// GetZaiApiKeys returns a slice of all decoded ZAI API keys
+func GetZaiApiKeys() []string {
 	return []string{
 		getZaiApiKey0(),
 	}
@@ -66,4 +66,3 @@ func getZaiApiKey0() string {
 	val, _ := obfuscator.DecodeString(obfuscatedZaiApiKey0)
 	return val
 }
-
