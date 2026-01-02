@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/internal/generate/abi/vault"
@@ -76,8 +78,8 @@ func (s *DepositSyncService) SyncDeposit(ctx context.Context, req SyncDepositReq
 	txHash := common.HexToHash(req.TxHash)
 	userAddr := common.HexToAddress(req.UserAddress)
 
-	// 2. Get transaction receipt from blockchain (source of truth)
-	receipt, err := s.client.TransactionReceipt(ctx, txHash)
+	// 2. Get transaction receipt from blockchain (source of truth) with retry and timeout
+	receipt, err := s.getTransactionReceiptWithRetry(ctx, txHash)
 	if err != nil {
 		log.Printf("❌ [DepositSync] Failed to get transaction receipt: %v", err)
 		return &SyncDepositResponse{
@@ -194,4 +196,40 @@ func (s *DepositSyncService) Close() {
 	if s.client != nil {
 		s.client.Close()
 	}
+}
+
+// getTransactionReceiptWithRetry retrieves transaction receipt with retry logic and timeout
+// Retries up to 3 times with exponential backoff for transient network errors
+func (s *DepositSyncService) getTransactionReceiptWithRetry(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
+	// Create context with timeout
+	timeoutCtx, cancel := context.WithTimeout(ctx, constant.BlockchainReceiptTimeout)
+	defer cancel()
+
+	var lastErr error
+	backoff := constant.BlockchainInitialBackoff
+
+	for attempt := 0; attempt < constant.BlockchainMaxRetries; attempt++ {
+		if attempt > 0 {
+			// Wait before retry with exponential backoff
+			select {
+			case <-time.After(backoff):
+				backoff *= 2 // Exponential backoff
+				if backoff > constant.BlockchainMaxBackoff {
+					backoff = constant.BlockchainMaxBackoff
+				}
+			case <-timeoutCtx.Done():
+				return nil, fmt.Errorf("timeout while retrying: %w", timeoutCtx.Err())
+			}
+		}
+
+		receipt, err := s.client.TransactionReceipt(timeoutCtx, txHash)
+		if err == nil {
+			return receipt, nil
+		}
+
+		lastErr = err
+		log.Printf("⚠️  [DepositSync] Attempt %d/%d failed: %v", attempt+1, constant.BlockchainMaxRetries, err)
+	}
+
+	return nil, fmt.Errorf("failed after %d attempts: %w", constant.BlockchainMaxRetries, lastErr)
 }
