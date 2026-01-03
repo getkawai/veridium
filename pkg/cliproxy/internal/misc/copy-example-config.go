@@ -2,10 +2,9 @@ package misc
 
 import (
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
-
-	log "github.com/sirupsen/logrus"
 )
 
 func CopyConfigTemplate(src, dst string) error {
@@ -15,7 +14,7 @@ func CopyConfigTemplate(src, dst string) error {
 	}
 	defer func() {
 		if errClose := in.Close(); errClose != nil {
-			log.WithError(errClose).Warn("failed to close source config file")
+			slog.Warn("failed to close source config file", "error", errClose)
 		}
 	}()
 
@@ -29,7 +28,7 @@ func CopyConfigTemplate(src, dst string) error {
 	}
 	defer func() {
 		if errClose := out.Close(); errClose != nil {
-			log.WithError(errClose).Warn("failed to close destination config file")
+			slog.Warn("failed to close destination config file", "error", errClose)
 		}
 	}()
 

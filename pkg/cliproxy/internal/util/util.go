@@ -6,13 +6,13 @@ package util
 import (
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 
 	"github.com/kawai-network/veridium/pkg/cliproxy/internal/config"
-	log "github.com/sirupsen/logrus"
 )
 
 var functionNameSanitizer = regexp.MustCompile(`[^a-zA-Z0-9_.:-]`)
@@ -54,21 +54,22 @@ func SanitizeFunctionName(name string) string {
 	return sanitized
 }
 
-// SetLogLevel configures the logrus log level based on the configuration.
+// SetLogLevel configures the slog log level based on the configuration.
 // It sets the log level to DebugLevel if debug mode is enabled, otherwise to InfoLevel.
 func SetLogLevel(cfg *config.Config) {
-	currentLevel := log.GetLevel()
-	var newLevel log.Level
+	var level slog.Level
 	if cfg.Debug {
-		newLevel = log.DebugLevel
+		level = slog.LevelDebug
 	} else {
-		newLevel = log.InfoLevel
+		level = slog.LevelInfo
 	}
 
-	if currentLevel != newLevel {
-		log.SetLevel(newLevel)
-		log.Infof("log level changed from %s to %s (debug=%t)", currentLevel, newLevel, cfg.Debug)
-	}
+	// Create a new handler with the desired level
+	handler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level: level,
+	})
+	slog.SetDefault(slog.New(handler))
+	slog.Info("log level changed", "debug", cfg.Debug)
 }
 
 // ResolveAuthDir normalizes the auth directory path for consistent reuse throughout the app.
@@ -99,7 +100,7 @@ func ResolveAuthDir(authDir string) (string, error) {
 func CountAuthFiles(authDir string) int {
 	dir, err := ResolveAuthDir(authDir)
 	if err != nil {
-		log.Debugf("countAuthFiles: failed to resolve auth directory: %v", err)
+		slog.Debug("countAuthFiles: failed to resolve auth directory", "error", err)
 		return 0
 	}
 	if dir == "" {
@@ -108,7 +109,7 @@ func CountAuthFiles(authDir string) int {
 	count := 0
 	walkErr := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			log.Debugf("countAuthFiles: error accessing %s: %v", path, err)
+			slog.Debug("countAuthFiles: error accessing path", "path", path, "error", err)
 			return nil
 		}
 		if d.IsDir() {
@@ -120,7 +121,7 @@ func CountAuthFiles(authDir string) int {
 		return nil
 	})
 	if walkErr != nil {
-		log.Debugf("countAuthFiles: walk error: %v", walkErr)
+		slog.Debug("countAuthFiles: walk error", "error", walkErr)
 	}
 	return count
 }

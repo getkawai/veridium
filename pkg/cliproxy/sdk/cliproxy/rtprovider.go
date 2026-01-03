@@ -2,6 +2,7 @@ package cliproxy
 
 import (
 	"context"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -9,7 +10,6 @@ import (
 	"sync"
 
 	coreauth "github.com/kawai-network/veridium/pkg/cliproxy/sdk/cliproxy/auth"
-	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/proxy"
 )
 
@@ -42,7 +42,7 @@ func (p *defaultRoundTripperProvider) RoundTripperFor(auth *coreauth.Auth) http.
 	// Parse the proxy URL to determine the scheme.
 	proxyURL, errParse := url.Parse(proxyStr)
 	if errParse != nil {
-		log.Errorf("parse proxy URL failed: %v", errParse)
+		slog.Error("parse proxy URL failed", "error", errParse)
 		return nil
 	}
 	var transport *http.Transport
@@ -54,7 +54,7 @@ func (p *defaultRoundTripperProvider) RoundTripperFor(auth *coreauth.Auth) http.
 		proxyAuth := &proxy.Auth{User: username, Password: password}
 		dialer, errSOCKS5 := proxy.SOCKS5("tcp", proxyURL.Host, proxyAuth, proxy.Direct)
 		if errSOCKS5 != nil {
-			log.Errorf("create SOCKS5 dialer failed: %v", errSOCKS5)
+			slog.Error("create SOCKS5 dialer failed", "error", errSOCKS5)
 			return nil
 		}
 		// Set up a custom transport using the SOCKS5 dialer.
@@ -67,7 +67,7 @@ func (p *defaultRoundTripperProvider) RoundTripperFor(auth *coreauth.Auth) http.
 		// Configure HTTP or HTTPS proxy.
 		transport = &http.Transport{Proxy: http.ProxyURL(proxyURL)}
 	} else {
-		log.Errorf("unsupported proxy scheme: %s", proxyURL.Scheme)
+		slog.Error("unsupported proxy scheme", "scheme", proxyURL.Scheme)
 		return nil
 	}
 	p.mu.Lock()

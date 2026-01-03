@@ -5,13 +5,13 @@ package registry
 
 import (
 	"fmt"
+	"log/slog"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
 	misc "github.com/kawai-network/veridium/pkg/cliproxy/internal/misc"
-	log "github.com/sirupsen/logrus"
 )
 
 // ModelInfo represents information about an available model
@@ -177,7 +177,7 @@ func (r *ModelRegistry) RegisterClient(clientID, clientProvider string, models [
 		} else {
 			delete(r.clientProviders, clientID)
 		}
-		log.Debugf("Registered client %s from provider %s with %d models", clientID, clientProvider, len(rawModelIDs))
+		slog.Debug("Registered client", "id", clientID, "provider", clientProvider, "models", len(rawModelIDs))
 		misc.LogCredentialSeparator()
 		return
 	}
@@ -315,7 +315,7 @@ func (r *ModelRegistry) RegisterClient(clientID, clientProvider string, models [
 		return
 	}
 
-	log.Debugf("Reconciled client %s (provider %s) models: +%d, -%d", clientID, provider, len(added), len(removed))
+	slog.Debug("Reconciled client models", "id", clientID, "provider", provider, "added", len(added), "removed", len(removed))
 	misc.LogCredentialSeparator()
 }
 
@@ -336,7 +336,7 @@ func (r *ModelRegistry) addModelRegistration(modelID, provider string, model *Mo
 			}
 			existing.Providers[provider]++
 		}
-		log.Debugf("Incremented count for model %s, now %d clients", modelID, existing.Count)
+		slog.Debug("Incremented count for model", "model", modelID, "clients", existing.Count)
 		return
 	}
 
@@ -351,7 +351,7 @@ func (r *ModelRegistry) addModelRegistration(modelID, provider string, model *Mo
 		registration.Providers = map[string]int{provider: 1}
 	}
 	r.models[modelID] = registration
-	log.Debugf("Registered new model %s from provider %s", modelID, provider)
+	slog.Debug("Registered new model", "model", modelID, "provider", provider)
 }
 
 func (r *ModelRegistry) removeModelRegistration(clientID, modelID, provider string, now time.Time) {
@@ -379,10 +379,10 @@ func (r *ModelRegistry) removeModelRegistration(clientID, modelID, provider stri
 			}
 		}
 	}
-	log.Debugf("Decremented count for model %s, now %d clients", modelID, registration.Count)
+	slog.Debug("Decremented count for model", "model", modelID, "clients", registration.Count)
 	if registration.Count <= 0 {
 		delete(r.models, modelID)
-		log.Debugf("Removed model %s as no clients remain", modelID)
+		slog.Debug("Removed model as no clients remain", "model", modelID)
 	}
 }
 
@@ -442,12 +442,12 @@ func (r *ModelRegistry) unregisterClientInternal(clientID string) {
 				}
 			}
 
-			log.Debugf("Decremented count for model %s, now %d clients", modelID, registration.Count)
+			slog.Debug("Decremented count for model", "model", modelID, "clients", registration.Count)
 
 			// Remove model if no clients remain
 			if registration.Count <= 0 {
 				delete(r.models, modelID)
-				log.Debugf("Removed model %s as no clients remain", modelID)
+				slog.Debug("Removed model as no clients remain", "model", modelID)
 			}
 		}
 	}
@@ -457,7 +457,7 @@ func (r *ModelRegistry) unregisterClientInternal(clientID string) {
 	if hasProvider {
 		delete(r.clientProviders, clientID)
 	}
-	log.Debugf("Unregistered client %s", clientID)
+	slog.Debug("Unregistered client", "id", clientID)
 	// Separator line after completing client unregistration (after the summary line)
 	misc.LogCredentialSeparator()
 }
@@ -473,7 +473,7 @@ func (r *ModelRegistry) SetModelQuotaExceeded(clientID, modelID string) {
 	if registration, exists := r.models[modelID]; exists {
 		now := time.Now()
 		registration.QuotaExceededClients[clientID] = &now
-		log.Debugf("Marked model %s as quota exceeded for client %s", modelID, clientID)
+		slog.Debug("Marked model as quota exceeded for client", "model", modelID, "client", clientID)
 	}
 }
 
@@ -516,9 +516,9 @@ func (r *ModelRegistry) SuspendClientModel(clientID, modelID, reason string) {
 	registration.SuspendedClients[clientID] = reason
 	registration.LastUpdated = time.Now()
 	if reason != "" {
-		log.Debugf("Suspended client %s for model %s: %s", clientID, modelID, reason)
+		slog.Debug("Suspended client for model", "client", clientID, "model", modelID, "reason", reason)
 	} else {
-		log.Debugf("Suspended client %s for model %s", clientID, modelID)
+		slog.Debug("Suspended client for model", "client", clientID, "model", modelID)
 	}
 }
 
@@ -542,7 +542,7 @@ func (r *ModelRegistry) ResumeClientModel(clientID, modelID string) {
 	}
 	delete(registration.SuspendedClients, clientID)
 	registration.LastUpdated = time.Now()
-	log.Debugf("Resumed client %s for model %s", clientID, modelID)
+	slog.Debug("Resumed client for model", "client", clientID, "model", modelID)
 }
 
 // ClientSupportsModel reports whether the client registered support for modelID.
@@ -966,7 +966,7 @@ func (r *ModelRegistry) CleanupExpiredQuotas() {
 		for clientID, quotaTime := range registration.QuotaExceededClients {
 			if quotaTime != nil && now.Sub(*quotaTime) >= quotaExpiredDuration {
 				delete(registration.QuotaExceededClients, clientID)
-				log.Debugf("Cleaned up expired quota tracking for model %s, client %s", modelID, clientID)
+				slog.Debug("Cleaned up expired quota tracking", "model", modelID, "client", clientID)
 			}
 		}
 	}

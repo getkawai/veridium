@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -10,7 +11,6 @@ import (
 
 	"github.com/kawai-network/veridium/pkg/cliproxy/internal/config"
 	cliproxyauth "github.com/kawai-network/veridium/pkg/cliproxy/sdk/cliproxy/auth"
-	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/proxy"
 )
 
@@ -52,7 +52,7 @@ func newProxyAwareHTTPClient(ctx context.Context, cfg *config.Config, auth *clip
 			return httpClient
 		}
 		// If proxy setup failed, log and fall through to context RoundTripper
-		log.Debugf("failed to setup proxy from URL: %s, falling back to context transport", proxyURL)
+		slog.Debug("failed to setup proxy from URL, falling back to context transport", "url", proxyURL)
 	}
 
 	// Priority 3: Use RoundTripper from context (typically from RoundTripperFor)
@@ -78,7 +78,7 @@ func buildProxyTransport(proxyURL string) *http.Transport {
 
 	parsedURL, errParse := url.Parse(proxyURL)
 	if errParse != nil {
-		log.Errorf("parse proxy URL failed: %v", errParse)
+		slog.Error("parse proxy URL failed", "error", errParse)
 		return nil
 	}
 
@@ -95,7 +95,7 @@ func buildProxyTransport(proxyURL string) *http.Transport {
 		}
 		dialer, errSOCKS5 := proxy.SOCKS5("tcp", parsedURL.Host, proxyAuth, proxy.Direct)
 		if errSOCKS5 != nil {
-			log.Errorf("create SOCKS5 dialer failed: %v", errSOCKS5)
+			slog.Error("create SOCKS5 dialer failed", "error", errSOCKS5)
 			return nil
 		}
 		// Set up a custom transport using the SOCKS5 dialer
@@ -108,7 +108,7 @@ func buildProxyTransport(proxyURL string) *http.Transport {
 		// Configure HTTP or HTTPS proxy
 		transport = &http.Transport{Proxy: http.ProxyURL(parsedURL)}
 	} else {
-		log.Errorf("unsupported proxy scheme: %s", parsedURL.Scheme)
+		slog.Error("unsupported proxy scheme", "scheme", parsedURL.Scheme)
 		return nil
 	}
 

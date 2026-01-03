@@ -2,10 +2,9 @@ package misc
 
 import (
 	"fmt"
+	"log/slog"
 	"path/filepath"
 	"strings"
-
-	log "github.com/sirupsen/logrus"
 )
 
 // Separator used to visually group related log lines.
@@ -22,5 +21,5 @@ func LogSavingCredentials(path string) {
 
 // LogCredentialSeparator adds a visual separator to group auth/key processing logs.
 func LogCredentialSeparator() {
-	log.Debug(credentialSeparator)
+	slog.Debug(credentialSeparator)
 }

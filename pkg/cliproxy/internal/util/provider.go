@@ -4,12 +4,12 @@
 package util
 
 import (
+	"log/slog"
 	"net/url"
 	"strings"
 
 	"github.com/kawai-network/veridium/pkg/cliproxy/internal/config"
 	"github.com/kawai-network/veridium/pkg/cliproxy/internal/registry"
-	log "github.com/sirupsen/logrus"
 )
 
 // GetProviderName determines all AI service providers capable of serving a registered model.
@@ -76,11 +76,11 @@ func ResolveAutoModel(modelName string) string {
 	// Use empty string as handler type to get any available model
 	firstModel, err := registry.GetGlobalRegistry().GetFirstAvailableModel("")
 	if err != nil {
-		log.Warnf("Failed to resolve 'auto' model: %v, falling back to original model name", err)
+		slog.Warn("Failed to resolve 'auto' model, falling back to original model name", "error", err)
 		return modelName
 	}
 
-	log.Infof("Resolved 'auto' model to: %s", firstModel)
+	slog.Info("Resolved 'auto' model", "model", firstModel)
 	return firstModel
 }
 

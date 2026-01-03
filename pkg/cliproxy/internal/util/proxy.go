@@ -5,12 +5,12 @@ package util
 
 import (
 	"context"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
 
 	"github.com/kawai-network/veridium/pkg/cliproxy/sdk/config"
-	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/proxy"
 )
 
@@ -33,7 +33,7 @@ func SetProxy(cfg *config.SDKConfig, httpClient *http.Client) *http.Client {
 			}
 			dialer, errSOCKS5 := proxy.SOCKS5("tcp", proxyURL.Host, proxyAuth, proxy.Direct)
 			if errSOCKS5 != nil {
-				log.Errorf("create SOCKS5 dialer failed: %v", errSOCKS5)
+				slog.Error("create SOCKS5 dialer failed", "error", errSOCKS5)
 				return httpClient
 			}
 			// Set up a custom transport using the SOCKS5 dialer.

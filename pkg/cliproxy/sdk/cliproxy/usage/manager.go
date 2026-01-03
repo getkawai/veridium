@@ -2,10 +2,9 @@ package usage
 
 import (
 	"context"
+	"log/slog"
 	"sync"
 	"time"
-
-	log "github.com/sirupsen/logrus"
 )
 
 // Record contains the usage statistics captured for a single provider request.
@@ -157,7 +156,7 @@ func (m *Manager) dispatch(item queueItem) {
 func safeInvoke(plugin Plugin, ctx context.Context, record Record) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Errorf("usage: plugin panic recovered: %v", r)
+			slog.Error("usage: plugin panic recovered", "error", r)
 		}
 	}()
 	plugin.HandleUsage(ctx, record)

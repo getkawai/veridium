@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 	"sync"
@@ -19,7 +20,6 @@ import (
 	coreauth "github.com/kawai-network/veridium/pkg/cliproxy/sdk/cliproxy/auth"
 	"github.com/kawai-network/veridium/pkg/cliproxy/sdk/cliproxy/usage"
 	"github.com/kawai-network/veridium/pkg/cliproxy/sdk/config"
-	log "github.com/sirupsen/logrus"
 )
 
 // Service wraps the proxy server lifecycle so external programs can embed the CLI proxy.
@@ -95,12 +95,12 @@ func (s *Service) wsOnDisconnected(channelID string, reason error) {
 	}
 	if reason != nil {
 		if strings.Contains(reason.Error(), "replaced by new connection") {
-			log.Infof("websocket provider replaced: %s", channelID)
+			slog.Info("websocket provider replaced", "channel", channelID)
 			return
 		}
-		log.Warnf("websocket provider disconnected: %s (%v)", channelID, reason)
+		slog.Warn("websocket provider disconnected", "channel", channelID, "error", reason)
 	} else {
-		log.Infof("websocket provider disconnected: %s", channelID)
+		slog.Info("websocket provider disconnected", "channel", channelID)
 	}
 }
 
@@ -119,12 +119,12 @@ func (s *Service) applyCoreAuthAddOrUpdate(ctx context.Context, auth *coreauth.A
 		auth.LastRefreshedAt = existing.LastRefreshedAt
 		auth.NextRefreshAfter = existing.NextRefreshAfter
 		if _, err := s.coreManager.Update(ctx, auth); err != nil {
-			log.Errorf("failed to update auth %s: %v", auth.ID, err)
+			slog.Error("failed to update auth", "id", auth.ID, "error", err)
 		}
 		return
 	}
 	if _, err := s.coreManager.Register(ctx, auth); err != nil {
-		log.Errorf("failed to register auth %s: %v", auth.ID, err)
+		slog.Error("failed to register auth", "id", auth.ID, "error", err)
 	}
 }
 
@@ -140,7 +140,7 @@ func (s *Service) applyCoreAuthRemoval(ctx context.Context, id string) {
 		existing.Disabled = true
 		existing.Status = coreauth.StatusDisabled
 		if _, err := s.coreManager.Update(ctx, existing); err != nil {
-			log.Errorf("failed to disable auth %s: %v", id, err)
+			slog.Error("failed to disable auth", "id", id, "error", err)
 		}
 	}
 }
@@ -237,7 +237,7 @@ func (s *Service) Run(ctx context.Context) error {
 	defer shutdownCancel()
 	defer func() {
 		if err := s.Shutdown(shutdownCtx); err != nil {
-			log.Errorf("service shutdown returned error: %v", err)
+			slog.Error("service shutdown returned error", "error", err)
 		}
 	}()
 
@@ -249,7 +249,7 @@ func (s *Service) Run(ctx context.Context) error {
 
 	if s.coreManager != nil {
 		if errLoad := s.coreManager.Load(ctx); errLoad != nil {
-			log.Warnf("failed to load auth store: %v", errLoad)
+			slog.Warn("failed to load auth store", "error", errLoad)
 		}
 	}
 
@@ -284,12 +284,12 @@ func (s *Service) Run(ctx context.Context) error {
 	if s.coreManager != nil {
 		interval := 15 * time.Minute
 		s.coreManager.StartAutoRefresh(context.Background(), interval)
-		log.Infof("core auth auto-refresh started (interval=%s)", interval)
+		slog.Info("core auth auto-refresh started", "interval", interval)
 	}
 
 	select {
 	case <-ctx.Done():
-		log.Debug("service context cancelled, shutting down...")
+		slog.Debug("service context cancelled, shutting down...")
 		return ctx.Err()
 	}
 }
@@ -334,7 +334,7 @@ func (s *Service) ensureAuthDir() error {
 			if mkErr := os.MkdirAll(s.cfg.AuthDir, 0o755); mkErr != nil {
 				return fmt.Errorf("cliproxy: failed to create auth directory %s: %w", s.cfg.AuthDir, mkErr)
 			}
-			log.Infof("created missing auth directory: %s", s.cfg.AuthDir)
+			slog.Info("created missing auth directory", "path", s.cfg.AuthDir)
 			return nil
 		}
 		return fmt.Errorf("cliproxy: error checking auth directory %s: %w", s.cfg.AuthDir, err)
