@@ -14,6 +14,10 @@ const (
 	// COST_RATE_PER_MILLION is the USDT cost per 1 Million Tokens (Phase 2: Post-Mining Era)
 	// Default: $1 USDT per 1M Tokens
 	DefaultCostRatePerMillion = 1.0
+
+	// FREE_TRIAL_AMOUNT_USDT is the default free credits for new users
+	// Default: 5.0 USDT
+	DefaultFreeTrialAmountUSDT = 5.0
 )
 
 // GetKawaiRatePerMillion returns the KAWAI mining rate per 1M tokens.
@@ -36,6 +40,16 @@ func GetCostRatePerMillion() float64 {
 		}
 	}
 	return DefaultCostRatePerMillion
+}
+
+// GetFreeTrialAmountUSDT returns the free trial amount in USDT
+func GetFreeTrialAmountUSDT() float64 {
+	if val := os.Getenv("FREE_TRIAL_AMOUNT_USDT"); val != "" {
+		if amount, err := strconv.ParseFloat(val, 64); err == nil {
+			return amount
+		}
+	}
+	return DefaultFreeTrialAmountUSDT
 }
 
 // RewardMode represents the current economic phase

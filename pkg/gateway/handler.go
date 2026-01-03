@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/kawai-network/veridium/internal/constant"
+	"github.com/kawai-network/veridium/pkg/config"
 	"github.com/kawai-network/veridium/pkg/fantasy/llamalib"
 	"github.com/kawai-network/veridium/pkg/store"
 )
@@ -558,4 +559,32 @@ func extractImageAndText(messages []ChatMessage) ([]byte, string) {
 	}
 
 	return imageData, strings.Join(textParts, "\n")
+}
+
+// ClaimTrial handles POST /v1/user/claim-trial
+func (h *Handler) ClaimTrial(c *gin.Context) {
+	// Get user address from auth middleware
+	userAddress, ok := GetUserAddress(c)
+	if !ok {
+		h.sendError(c, http.StatusUnauthorized, "unauthorized", "user not authenticated")
+		return
+	}
+
+	// Claim trial
+	ctx := c.Request.Context()
+	err := h.kvStore.ClaimFreeTrial(ctx, userAddress)
+	if err != nil {
+		if strings.Contains(err.Error(), "already claimed") {
+			h.sendError(c, http.StatusConflict, "already_claimed", "Free trial already claimed")
+			return
+		}
+		h.sendError(c, http.StatusInternalServerError, "server_error", err.Error())
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status":             "success",
+		"message":            "Free trial claimed successfully",
+		"balance_added_usdt": config.GetFreeTrialAmountUSDT(),
+	})
 }
