@@ -561,6 +561,11 @@ func extractImageAndText(messages []ChatMessage) ([]byte, string) {
 	return imageData, strings.Join(textParts, "\n")
 }
 
+// ClaimTrialRequest defines the request body for claiming a trial
+type ClaimTrialRequest struct {
+	MachineID string `json:"machine_id" binding:"required"`
+}
+
 // ClaimTrial handles POST /v1/user/claim-trial
 func (h *Handler) ClaimTrial(c *gin.Context) {
 	// Get user address from auth middleware
@@ -570,12 +575,25 @@ func (h *Handler) ClaimTrial(c *gin.Context) {
 		return
 	}
 
+	// Parse request body
+	var req ClaimTrialRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.sendError(c, http.StatusBadRequest, "invalid_request", "machine_id is required")
+		return
+	}
+
+	// Validate Machine ID length (basic sanity check)
+	if len(req.MachineID) < 10 {
+		h.sendError(c, http.StatusBadRequest, "invalid_request", "invalid machine_id")
+		return
+	}
+
 	// Claim trial
 	ctx := c.Request.Context()
-	err := h.kvStore.ClaimFreeTrial(ctx, userAddress)
+	err := h.kvStore.ClaimFreeTrial(ctx, userAddress, req.MachineID)
 	if err != nil {
 		if strings.Contains(err.Error(), "already claimed") {
-			h.sendError(c, http.StatusConflict, "already_claimed", "Free trial already claimed")
+			h.sendError(c, http.StatusConflict, "already_claimed", "Free trial already claimed (by address or device)")
 			return
 		}
 		h.sendError(c, http.StatusInternalServerError, "server_error", err.Error())
