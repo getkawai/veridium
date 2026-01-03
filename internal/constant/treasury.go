@@ -10,13 +10,13 @@ import (
 )
 
 const (
-	obfuscatedTreasuryAddress0 = "u+B5orNhPxXoaYxrUln1AR2uIyP/gsiVEbIRMTdvmQTkO9pq0B76ZWqW"
-	obfuscatedTreasuryAddress1 = "u97wL//hA0aGIvvirTEfE4VlIPkT4nwVR8sSMfzV58Tyi4mHiL5rZatq"
-	obfuscatedTreasuryAddress2 = "u9insKBhqrjtCF7MDnrYE9ULbzgCFYccRgrvuLH/C3A/h3bVF8uVQ7lq"
-	obfuscatedTreasuryAddress3 = "u8601BNhw5XkP75ejk5mE/pRMasT4BucEqkSZBl1C76izrDnSiNiRGqm"
-	obfuscatedTreasuryAddress4 = "u755odNhn87iVLDdSg7YEipX3qw34GMUdSWmaGtBVLYGuG/VSL9kQOJR"
-	obfuscatedTreasuryAddress5 = "ueLTepphqK+xmG8sSg6zEr+sWXwCVpMcRxcrHGt3kbYdzwLeIPY/37xm"
-	obfuscatedTreasuryAddress6 = "udm0LhNhPtPkP8ivTbvYcZhRUIRrUeI1EyKv9mq7WpRxd0TLSCOV+8ru"
+	obfuscatedTreasuryAddress0 = "u97wL//hA0aGIvvirTEfE4VlIPkT4nwVR8sSMfzV58Tyi4mHiL5rZatq"
+	obfuscatedTreasuryAddress1 = "u9insKBhqrjtCF7MDnrYE9ULbzgCFYccRgrvuLH/C3A/h3bVF8uVQ7lq"
+	obfuscatedTreasuryAddress2 = "u8601BNhw5XkP75ejk5mE/pRMasT4BucEqkSZBl1C76izrDnSiNiRGqm"
+	obfuscatedTreasuryAddress3 = "u9jTTpvhqxZrFWcvLkX16s75/nO37JxfdkOvdrH/mQsdQyNQ6H4/33Km"
+	obfuscatedTreasuryAddress4 = "ueLTepphqK+xmG8sSg6zEr+sWXwCVpMcRxcrHGt3kbYdzwLeIPY/37xm"
+	obfuscatedTreasuryAddress5 = "u+B5orNhPxXoaYxrUln1AR2uIyP/gsiVEbIRMTdvmQTkO9pq0B76ZWqW"
+	obfuscatedTreasuryAddress6 = "u755odNhn87iVLDdSg7YEipX3qw34GMUdSWmaGtBVLYGuG/VSL9kQOJR"
 )
 
 // GetRandomTreasuryAddress returns a random decoded Treasury Address from the pool

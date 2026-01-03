@@ -444,15 +444,26 @@ func (ctx *Context) buildModelChain(bgCtx context.Context, localModel fantasy.La
 	var chain []fantasy.LanguageModel
 
 	// 1. OpenRouter (free tier)
-	// if provider, err := openrouter.New(openrouter.WithAPIKey(constant.GetRandomOpenRouterApiKey()), openrouter.WithModelSelection(criteria)); err == nil {
-	// 	if remoteModel, err := provider.LanguageModel(bgCtx, ""); err == nil {
-	// 		chain = append(chain, remoteModel)
-	// 		catalog := openrouter.GetCatalog()
-	// 		if selected := catalog.SelectFreeModel(criteria); selected != nil {
-	// 			log.Printf("%s: OpenRouter (%s)", taskName, selected.ID)
-	// 		}
-	// 	}
-	// }
+	if apiKey := constant.GetRandomOpenRouterApiKey(); apiKey != "" {
+		log.Printf("🔍 %s: Initializing OpenRouter...", taskName)
+		if provider, err := openrouter.New(openrouter.WithAPIKey(apiKey), openrouter.WithModelSelection(criteria)); err == nil {
+			if remoteModel, err := provider.LanguageModel(bgCtx, ""); err == nil {
+				chain = append(chain, remoteModel)
+				catalog := openrouter.GetCatalog()
+				if selected := catalog.SelectFreeModel(criteria); selected != nil {
+					log.Printf("✅ %s: Added OpenRouter (%s) to chain", taskName, selected.ID)
+				} else {
+					log.Printf("⚠️  %s: OpenRouter initialized but no free model matched criteria", taskName)
+				}
+			} else {
+				log.Printf("❌ %s: OpenRouter provider initialized but failed to get model: %v", taskName, err)
+			}
+		} else {
+			log.Printf("❌ %s: Failed to initialize OpenRouter provider: %v", taskName, err)
+		}
+	} else {
+		log.Printf("ℹ️  %s: Skipping OpenRouter (no API key)", taskName)
+	}
 
 	// 2. Pollinations AI (fallback before local)
 	if provider, err := openaicompat.New(
