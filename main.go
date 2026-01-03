@@ -130,6 +130,9 @@ func buildServiceList(ctx *app.Context, fileProcessor *FileProcessorService, sdS
 		// Marketplace
 		application.NewService(services.NewMarketplaceService(ctx.KVStore, ctx.BlockchainClient, ctx.WalletService)),
 
+		// Referral System
+		application.NewService(services.NewReferralService(ctx.KVStore)),
+
 		// File Server
 		application.NewServiceWithOptions(
 			fileserver.NewWithConfig(&fileserver.Config{RootPath: paths.FileBase()}),

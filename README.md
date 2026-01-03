@@ -100,8 +100,16 @@ This roadmap outlines the path from "Zero" to a fully functional decentralized n
         - [x] **JSON Storage**: Atomic balance updates using JSON in dedicated User Namespace.
     - [x] **Free Trial System:**
         - [x] **5 USDT Bonus**: Automatic virtual credits for new users.
+        - [x] **10 USDT with Referral**: Enhanced bonus for referred users (+100%).
         - [x] **Anti-Abuse**: Dual-layer protection (Wallet Address + Machine ID).
         - [x] **Atomic Claims**: Prevents race conditions during trial claiming.
+    - [x] **Referral System:**
+        - [x] **Viral Growth**: Users earn 5 USDT per successful referral.
+        - [x] **Unique Codes**: 6-character alphanumeric referral codes.
+        - [x] **URL Detection**: Auto-apply referral from `?ref=CODE` parameter.
+        - [x] **Dashboard**: Track referrals, earnings, and share links.
+        - [x] **Self-Referral Prevention**: Anti-abuse mechanism.
+        - [x] **Unlimited Referrals**: No cap on earnings.
     - [x] **Job Reward Recording (Bootstrap Phase):**
         - [x] Record rewards for local LLM inference to treasury pool.
         - [x] Random treasury address selection for fair distribution.
@@ -310,6 +318,7 @@ CF_KV_USERS_NAMESPACE_ID=...         # User Profiles & Balance (JSON)
 | [`MARKETPLACE_UPGRADE_SUMMARY.md`](docs/MARKETPLACE_UPGRADE_SUMMARY.md) | Architecture & partial fill implementation |
 | [`CONTRACTS_WORKFLOW.md`](docs/CONTRACTS_WORKFLOW.md) | Smart contract development workflow |
 | [`DEPOSIT_SYNC.md`](docs/DEPOSIT_SYNC.md) | Deposit synchronization system & implementation guide |
+| [`REFERRAL_SYSTEM.md`](REFERRAL_SYSTEM.md) | Referral system implementation & viral growth strategy |
 | [`current_concept.md`](current_concept.md) | Complete project concept & tokenomics |
 
 ---

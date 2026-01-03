@@ -11,10 +11,11 @@ import (
 	"github.com/kawai-network/veridium/pkg/config"
 )
 
-// UserBalance represents a user's USDT balance and trial status
+// UserBalance represents a user's USDT + KAWAI balance and trial status
 type UserBalance struct {
 	Address      string `json:"address"`
 	USDTBalance  string `json:"usdt_balance"`  // In micro USDT (6 decimals)
+	KawaiBalance string `json:"kawai_balance"` // In wei (18 decimals)
 	TrialClaimed bool   `json:"trial_claimed"` // Whether free trial has been claimed
 }
 
@@ -32,6 +33,7 @@ func (s *KVStore) GetUserBalance(ctx context.Context, address string) (*UserBala
 		return &UserBalance{
 			Address:      address,
 			USDTBalance:  "0",
+			KawaiBalance: "0",
 			TrialClaimed: false,
 		}, nil
 	}
@@ -48,6 +50,7 @@ func (s *KVStore) GetUserBalance(ctx context.Context, address string) (*UserBala
 			return &UserBalance{
 				Address:      address,
 				USDTBalance:  "0", // Reset if format is invalid
+				KawaiBalance: "0",
 				TrialClaimed: false,
 			}, nil
 		}
@@ -57,6 +60,9 @@ func (s *KVStore) GetUserBalance(ctx context.Context, address string) (*UserBala
 	balance.Address = address
 	if balance.USDTBalance == "" {
 		balance.USDTBalance = "0"
+	}
+	if balance.KawaiBalance == "" {
+		balance.KawaiBalance = "0"
 	}
 
 	return &balance, nil

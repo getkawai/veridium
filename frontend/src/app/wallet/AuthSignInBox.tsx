@@ -14,6 +14,7 @@ import { Dialogs, Browser } from '@wailsio/runtime';
 
 import BrandWatermark from '@/components/BrandWatermark';
 import { useUserStore } from '@/store/user';
+import { ReferralBanner } from '@/features/Referral/ReferralBanner';
 
 const useStyles = createStyles(({ css, token }) => ({
   container: css`
@@ -92,6 +93,8 @@ export default memo(() => {
   const [isLoading, setIsLoading] = useState(false);
   const [showBackupReminder, setShowBackupReminder] = useState(false);
   const [selectedWallet, setSelectedWallet] = useState<string>('');
+  const [referralCode, setReferralCode] = useState<string>('');
+  const [hasReferral, setHasReferral] = useState(false);
 
   const {
     hasWallet,
@@ -123,6 +126,14 @@ export default memo(() => {
 
   useEffect(() => {
     refreshWalletStatus();
+    
+    // Check for referral code in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const refCode = urlParams.get('ref');
+    if (refCode) {
+      setReferralCode(refCode.toUpperCase());
+      setHasReferral(true);
+    }
   }, []);
 
   useEffect(() => {
@@ -288,10 +299,17 @@ export default memo(() => {
         return (
           <Flex vertical align="center">
             <LobeHub size={80} />
-            <Text className={styles.title} style={{ marginTop: 24 }}>Welcome To OnChain Wallet</Text>
-            <Text className={styles.description}>Your Gateway to Decentralized World</Text>
+            <Text className={styles.title} style={{ marginTop: 24 }}>Welcome To Kawai DeAI Network</Text>
+            <Text className={styles.description}>
+              {hasReferral 
+                ? '🎉 Get 10 USDT + 200 KAWAI FREE!' 
+                : 'Get 5 USDT + 100 KAWAI FREE'}
+            </Text>
+            <Text type="secondary" style={{ fontSize: 12, marginBottom: 16, textAlign: 'center' }}>
+              No credit card • No email • Instant access
+            </Text>
             <Button type="primary" size="large" onClick={() => setStep('setup')} block>
-              Setup wallet
+              Setup wallet & Claim Bonus
             </Button>
           </Flex>
         );
@@ -299,9 +317,36 @@ export default memo(() => {
       case 'setup':
         return (
           <Flex vertical gap="large">
+            {/* Referral Banner */}
+            {!hasReferral && (
+              <ReferralBanner 
+                onReferralApplied={(code) => {
+                  setReferralCode(code);
+                  setHasReferral(true);
+                }}
+              />
+            )}
+            
+            {/* Bonus Display */}
+            {hasReferral && (
+              <div style={{ 
+                padding: '12px 16px', 
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                borderRadius: 8,
+                textAlign: 'center'
+              }}>
+                <Text strong style={{ color: 'white', display: 'block', fontSize: 14 }}>
+                  🎉 Referral Applied: {referralCode}
+                </Text>
+                <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 12 }}>
+                  You'll receive 10 USDT + 200 KAWAI (instead of 5 USDT + 100 KAWAI)
+                </Text>
+              </div>
+            )}
+
             <div style={{ textAlign: 'center' }}>
               <Text className={styles.title}>Setup password</Text>
-              <Text as="p" type="secondary">Input your wallet password</Text>
+              <Text as="p" type="secondary">Create a secure password for your wallet</Text>
             </div>
             <Input.Password
               placeholder="Enter password"

@@ -8,6 +8,7 @@ import * as FileService from "./fileservice.js";
 import * as JarvisService from "./jarvisservice.js";
 import * as KnowledgeBaseService from "./knowledgebaseservice.js";
 import * as MarketplaceService from "./marketplaceservice.js";
+import * as ReferralService from "./referralservice.js";
 import * as ThreadManagementService from "./threadmanagementservice.js";
 import * as VectorSearchService from "./vectorsearchservice.js";
 import * as WalletService from "./walletservice.js";
@@ -19,6 +20,7 @@ export {
     JarvisService,
     KnowledgeBaseService,
     MarketplaceService,
+    ReferralService,
     ThreadManagementService,
     VectorSearchService,
     WalletService
@@ -58,6 +60,7 @@ export {
     OrderSummary,
     ParamInfo,
     ProjectToken,
+    ReferralStats,
     SearchResult,
     StreamEventPayload,
     SyncDepositRequest,
@@ -69,6 +72,7 @@ export {
     Trade,
     TradeHistoryEntry,
     TradeResult,
+    TrialClaim,
     TxAnalysis,
     WalletInfo,
     WalletStatus

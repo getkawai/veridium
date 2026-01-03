@@ -1464,6 +1464,42 @@ export class ProjectToken {
 }
 
 /**
+ * ReferralStats represents referral statistics
+ */
+export class ReferralStats {
+    "code": string;
+    "total_referrals": number;
+    "total_earnings_usdt": number;
+    "total_earnings_kawai": string;
+
+    /** Creates a new ReferralStats instance. */
+    constructor($$source: Partial<ReferralStats> = {}) {
+        if (!("code" in $$source)) {
+            this["code"] = "";
+        }
+        if (!("total_referrals" in $$source)) {
+            this["total_referrals"] = 0;
+        }
+        if (!("total_earnings_usdt" in $$source)) {
+            this["total_earnings_usdt"] = 0;
+        }
+        if (!("total_earnings_kawai" in $$source)) {
+            this["total_earnings_kawai"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ReferralStats instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ReferralStats {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ReferralStats($$parsedSource as Partial<ReferralStats>);
+    }
+}
+
+/**
  * SearchResult represents a search result from vector database
  */
 export class SearchResult {
@@ -2024,6 +2060,40 @@ export class TradeResult {
     static createFrom($$source: any = {}): TradeResult {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new TradeResult($$parsedSource as Partial<TradeResult>);
+    }
+}
+
+/**
+ * TrialClaim represents the result of claiming trial
+ */
+export class TrialClaim {
+    "balance_added_usdt": number;
+    "balance_added_kawai": string;
+    "has_referral": boolean;
+    "referral_bonus_usdt"?: number;
+    "referral_bonus_kawai"?: string;
+
+    /** Creates a new TrialClaim instance. */
+    constructor($$source: Partial<TrialClaim> = {}) {
+        if (!("balance_added_usdt" in $$source)) {
+            this["balance_added_usdt"] = 0;
+        }
+        if (!("balance_added_kawai" in $$source)) {
+            this["balance_added_kawai"] = "";
+        }
+        if (!("has_referral" in $$source)) {
+            this["has_referral"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TrialClaim instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TrialClaim {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new TrialClaim($$parsedSource as Partial<TrialClaim>);
     }
 }
 

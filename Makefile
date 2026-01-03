@@ -23,6 +23,7 @@ TOKEN_ARTIFACT       := $(CONTRACTS_DIR)/out/KawaiToken.sol/KawaiToken.json
 ESCROW_ARTIFACT      := $(CONTRACTS_DIR)/out/Escrow.sol/OTCMarket.json
 VAULT_ARTIFACT       := $(CONTRACTS_DIR)/out/PaymentVault.sol/PaymentVault.json
 DISTRIBUTOR_ARTIFACT := $(CONTRACTS_DIR)/out/MerkleDistributor.sol/MerkleDistributor.json
+REFERRAL_ARTIFACT    := $(CONTRACTS_DIR)/out/ReferralRewardDistributor.sol/ReferralRewardDistributor.json
 USDT_ARTIFACT        := $(CONTRACTS_DIR)/out/MockUSDT.sol/MockUSDT.json
 
 # Load environment variables from contracts/.env if exists
@@ -71,6 +72,8 @@ help:
 	@echo "  make contracts-gas-compare  Compare gas usage vs baseline"
 	@echo "  make contracts-deploy-local Deploy to local Anvil"
 	@echo "  make contracts-deploy-testnet Deploy to Monad Testnet"
+	@echo "  make contracts-deploy-referral-testnet Deploy ReferralRewardDistributor"
+	@echo "  make contracts-grant-minter-referral Grant MINTER_ROLE to referral contract"
 	@echo "  make contracts-verify       Verify contract on explorer"
 	@echo "  make contracts-clean        Clean contract artifacts"
 	@echo ""
@@ -156,7 +159,7 @@ contracts-compile:
 	@echo "🔨 Compiling smart contracts..."
 	cd $(CONTRACTS_DIR) && ~/.foundry/bin/forge build
 
-contracts-bindings: abi-token abi-escrow abi-vault abi-distributor abi-usdt generate-project-abis
+contracts-bindings: abi-token abi-escrow abi-vault abi-distributor abi-referral abi-usdt generate-project-abis
 	@echo "✅ Contract bindings generated!"
 
 contracts-update: contracts-compile contracts-bindings
@@ -243,6 +246,32 @@ contracts-deploy-testnet:
 		--broadcast \
 		--verify
 
+contracts-deploy-referral-testnet:
+	@echo "🚀 Deploying ReferralRewardDistributor to Monad Testnet..."
+	@test -n "$(PRIVATE_KEY)" || (echo "❌ PRIVATE_KEY not set!" && exit 1)
+	@test -n "$(RPC_URL)" || (echo "❌ RPC_URL not set!" && exit 1)
+	@test -n "$(KAWAI_TOKEN_ADDRESS)" || (echo "❌ KAWAI_TOKEN_ADDRESS not set! Set it in contracts/.env" && exit 1)
+	cd $(CONTRACTS_DIR) && ~/.foundry/bin/forge script script/DeployReferralDistributor.s.sol:DeployReferralDistributor \
+		--rpc-url $(RPC_URL) \
+		--private-key $(PRIVATE_KEY) \
+		--broadcast \
+		--verify
+
+contracts-grant-minter-referral:
+	@echo "🔐 Granting MINTER_ROLE to ReferralRewardDistributor..."
+	@test -n "$(PRIVATE_KEY)" || (echo "❌ PRIVATE_KEY not set!" && exit 1)
+	@test -n "$(RPC_URL)" || (echo "❌ RPC_URL not set!" && exit 1)
+	@test -n "$(KAWAI_TOKEN_ADDRESS)" || (echo "❌ KAWAI_TOKEN_ADDRESS not set!" && exit 1)
+	@test -n "$(REFERRAL_DISTRIBUTOR_ADDRESS)" || (echo "❌ REFERRAL_DISTRIBUTOR_ADDRESS not set!" && exit 1)
+	@echo "Granting MINTER_ROLE to $(REFERRAL_DISTRIBUTOR_ADDRESS)..."
+	cd $(CONTRACTS_DIR) && cast send $(KAWAI_TOKEN_ADDRESS) \
+		"grantRole(bytes32,address)" \
+		$$(cast keccak "MINTER_ROLE") \
+		$(REFERRAL_DISTRIBUTOR_ADDRESS) \
+		--rpc-url $(RPC_URL) \
+		--private-key $(PRIVATE_KEY)
+	@echo "✅ MINTER_ROLE granted!"
+
 contracts-verify:
 	@echo "✅ Verifying contracts on explorer..."
 	@test -n "$(CONTRACT_ADDRESS)" || (echo "❌ CONTRACT_ADDRESS not set!" && exit 1)
@@ -291,6 +320,13 @@ abi-distributor:
 	@jq -r .bytecode.object $(DISTRIBUTOR_ARTIFACT) > $(ABIS_DIR)/distributor/MerkleDistributor.bin
 	@abigen --abi $(ABIS_DIR)/distributor/MerkleDistributor.abi --bin $(ABIS_DIR)/distributor/MerkleDistributor.bin \
 		--pkg distributor --type MerkleDistributor --out $(ABIS_DIR)/distributor/distributor.go
+
+abi-referral:
+	@mkdir -p $(ABIS_DIR)/referraldistributor
+	@jq -r .abi $(REFERRAL_ARTIFACT) > $(ABIS_DIR)/referraldistributor/ReferralRewardDistributor.abi
+	@jq -r .bytecode.object $(REFERRAL_ARTIFACT) > $(ABIS_DIR)/referraldistributor/ReferralRewardDistributor.bin
+	@abigen --abi $(ABIS_DIR)/referraldistributor/ReferralRewardDistributor.abi --bin $(ABIS_DIR)/referraldistributor/ReferralRewardDistributor.bin \
+		--pkg referraldistributor --type ReferralRewardDistributor --out $(ABIS_DIR)/referraldistributor/referraldistributor.go
 
 abi-usdt:
 	@mkdir -p $(ABIS_DIR)/usdt
