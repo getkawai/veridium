@@ -10,8 +10,8 @@ import (
 
 const (
 	// OpenRouter API Keys
-	obfuscatedOpenRouterApiKey0 = "TDl/o2/F9clGJivj+5yTpwe05sW0/zVufPeh0eGl+JLhvliZSEk87F7VKVselrCezHoRquqVDqRQAQgvm53q9w4RsG+wAk18mt=="
-	obfuscatedOpenRouterApiKey1 = "TDl/o2/F9clGOo7OPoqvlwe0yKmXMn6hKJgdbQn6kDkFTfr3SDB+8oZ2wtJMLFJVBa1azOPuGGu5PCQfmcEG9WKpsG+bkO9irD=="
+	obfuscatedOpenRouterApiKey0 = "TDl/o2/F9clGOo7OPoqvlwe0yKmXMn6hKJgdbQn6kDkFTfr3SDB+8oZ2wtJMLFJVBa1azOPuGGu5PCQfmcEG9WKpsG+bkO9irD=="
+	obfuscatedOpenRouterApiKey1 = "TDl/o2/F9clGJivj+5yTpwe05sW0/zVufPeh0eGl+JLhvliZSEk87F7VKVselrCezHoRquqVDqRQAQgvm53q9w4RsG+wAk18mt=="
 	obfuscatedOpenRouterApiKey2 = "TDl/o2/F9clGOwDOJhcOtEfQyGF8/wMh1a6h0WljmJnAVmvYWjZTMhzGx/kYNrFUduYEO9G5ot459j1Dya6+JfGFQt7nkAfMNt=="
 
 	// ZAI API Keys

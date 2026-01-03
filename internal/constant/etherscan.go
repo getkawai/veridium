@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	obfuscatedEtherscanApiKey0 = "5Nf2r1Zf+LxtQrUWolLErEzceCZSn3Qxw31661DvuVp7gH=="
-	obfuscatedEtherscanApiKey1 = "B48m5RsJKX0oipiQGfgi2+Dco+hz+Cyq4JLm6/16uXcH3H=="
+	obfuscatedEtherscanApiKey0 = "B48m5RsJKX0oipiQGfgi2+Dco+hz+Cyq4JLm6/16uXcH3H=="
+	obfuscatedEtherscanApiKey1 = "5Nf2r1Zf+LxtQrUWolLErEzceCZSn3Qxw31661DvuVp7gH=="
 )
 
 // GetRandomEtherscanApiKey returns a random decoded Etherscan API key from the pool
