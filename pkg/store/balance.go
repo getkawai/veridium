@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"time"
@@ -10,49 +11,62 @@ import (
 	"github.com/kawai-network/veridium/pkg/config"
 )
 
-// UserBalance represents a user's USDT balance for API usage
+// UserBalance represents a user's USDT balance and trial status
 type UserBalance struct {
-	Address     string `json:"address"`
-	USDTBalance string `json:"usdt_balance"` // In micro USDT (6 decimals)
+	Address      string `json:"address"`
+	USDTBalance  string `json:"usdt_balance"`  // In micro USDT (6 decimals)
+	TrialClaimed bool   `json:"trial_claimed"` // Whether free trial has been claimed
 }
 
-// GetUserBalance retrieves the USDT balance for API usage (separate from contributor rewards)
+// GetUserBalance retrieves the user data (balance + trial status)
 func (s *KVStore) GetUserBalance(ctx context.Context, address string) (*UserBalance, error) {
-	// For API usage, we store balance separately from contributor rewards
 	// Key format: "balance:{address}"
 	key := fmt.Sprintf("balance:%s", address)
 
 	value, err := s.client.GetWorkersKV(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{
-		NamespaceID: s.contributorsNamespaceID,
+		NamespaceID: s.usersNamespaceID,
 		Key:         key,
 	})
 	if err != nil {
-		// If balance doesn't exist, default to 0
+		// If balance doesn't exist, default to 0 and not claimed
 		return &UserBalance{
-			Address:     address,
-			USDTBalance: "0",
+			Address:      address,
+			USDTBalance:  "0",
+			TrialClaimed: false,
 		}, nil
 	}
 
-	balanceStr := string(value)
-	if balanceStr == "" {
-		balanceStr = "0"
+	var balance UserBalance
+	if len(value) > 0 {
+		// Try parsing as JSON
+		if err := json.Unmarshal(value, &balance); err != nil {
+			// Fallback for legacy raw string format (if any migration happens)
+			// But since we are on a new namespace, we should be fine assuming JSON or empty.
+			// Treating raw string as just balance for robustness if needed,
+			// but for this specific "users" namespace, we can assume clean slate.
+			// Let's just default to 0 if JSON fails to be safe.
+			return &UserBalance{
+				Address:      address,
+				USDTBalance:  "0", // Reset if format is invalid
+				TrialClaimed: false,
+			}, nil
+		}
 	}
 
-	return &UserBalance{
-		Address:     address,
-		USDTBalance: balanceStr,
-	}, nil
+	// Ensure address is set
+	balance.Address = address
+	if balance.USDTBalance == "" {
+		balance.USDTBalance = "0"
+	}
+
+	return &balance, nil
 }
 
 // =============================================================================
 // ATOMIC BALANCE OPERATIONS (Thread-Safe)
 // =============================================================================
-// These methods prevent race conditions and ensure financial integrity
-// Always use these methods instead of direct KV operations
 
 // DeductBalanceAtomic atomically deducts USDT from user's balance with retry logic
-// This prevents race conditions where multiple goroutines try to deduct simultaneously
 func (s *KVStore) DeductBalanceAtomic(ctx context.Context, address string, amount *big.Int) error {
 	if amount.Cmp(big.NewInt(0)) <= 0 {
 		return fmt.Errorf("deduction amount must be positive")
@@ -62,24 +76,15 @@ func (s *KVStore) DeductBalanceAtomic(ctx context.Context, address string, amoun
 	backoff := 50 * time.Millisecond
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
-		// 1. Get current balance
-		key := fmt.Sprintf("balance:%s", address)
-
-		value, err := s.client.GetWorkersKV(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{
-			NamespaceID: s.contributorsNamespaceID,
-			Key:         key,
-		})
-
-		var currentBalance *big.Int
+		// 1. Get current balance object
+		currentData, err := s.GetUserBalance(ctx, address)
 		if err != nil {
-			// Balance doesn't exist, treat as 0
-			currentBalance = big.NewInt(0)
-		} else {
-			currentBalance = new(big.Int)
-			if string(value) != "" && string(value) != "0" {
-				currentBalance.SetString(string(value), 10)
-			}
+			// Should not happen as GetUserBalance handles missing keys
+			return err
 		}
+
+		currentBalance := new(big.Int)
+		currentBalance.SetString(currentData.USDTBalance, 10)
 
 		// 2. Check if sufficient balance
 		if currentBalance.Cmp(amount) < 0 {
@@ -89,26 +94,35 @@ func (s *KVStore) DeductBalanceAtomic(ctx context.Context, address string, amoun
 		// 3. Calculate new balance
 		newBalance := new(big.Int).Sub(currentBalance, amount)
 
-		// 4. Attempt atomic update
+		// Update struct
+		currentData.USDTBalance = newBalance.String()
+
+		// 4. Marshal to JSON
+		data, err := json.Marshal(currentData)
+		if err != nil {
+			return fmt.Errorf("failed to marshal balance data: %w", err)
+		}
+
+		// 5. Attempt atomic update
+		key := fmt.Sprintf("balance:%s", address)
 		_, err = s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
-			NamespaceID: s.contributorsNamespaceID,
+			NamespaceID: s.usersNamespaceID,
 			Key:         key,
-			Value:       []byte(newBalance.String()),
+			Value:       data,
 		})
 
 		if err == nil {
-			// Success!
 			return nil
 		}
 
 		// Retry with exponential backoff
 		if attempt < maxRetries-1 {
 			time.Sleep(backoff)
-			backoff *= 2 // Exponential backoff
+			backoff *= 2
 		}
 	}
 
-	return fmt.Errorf("failed to deduct balance after %d retries (possible concurrent modification)", maxRetries)
+	return fmt.Errorf("failed to deduct balance after %d retries", maxRetries)
 }
 
 // AddBalanceAtomic atomically adds USDT to user's balance with retry logic
@@ -121,32 +135,31 @@ func (s *KVStore) AddBalanceAtomic(ctx context.Context, address string, amount *
 	backoff := 50 * time.Millisecond
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
-		// 1. Get current balance
-		key := fmt.Sprintf("balance:%s", address)
-
-		value, err := s.client.GetWorkersKV(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{
-			NamespaceID: s.contributorsNamespaceID,
-			Key:         key,
-		})
-
-		var currentBalance *big.Int
+		// 1. Get current balance object
+		currentData, err := s.GetUserBalance(ctx, address)
 		if err != nil {
-			currentBalance = big.NewInt(0)
-		} else {
-			currentBalance = new(big.Int)
-			if string(value) != "" && string(value) != "0" {
-				currentBalance.SetString(string(value), 10)
-			}
+			return err
 		}
+
+		currentBalance := new(big.Int)
+		currentBalance.SetString(currentData.USDTBalance, 10)
 
 		// 2. Calculate new balance
 		newBalance := new(big.Int).Add(currentBalance, amount)
+		currentData.USDTBalance = newBalance.String()
 
-		// 3. Attempt atomic update
+		// 3. Marshal to JSON
+		data, err := json.Marshal(currentData)
+		if err != nil {
+			return fmt.Errorf("failed to marshal balance data: %w", err)
+		}
+
+		// 4. Attempt atomic update
+		key := fmt.Sprintf("balance:%s", address)
 		_, err = s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
-			NamespaceID: s.contributorsNamespaceID,
+			NamespaceID: s.usersNamespaceID,
 			Key:         key,
-			Value:       []byte(newBalance.String()),
+			Value:       data,
 		})
 
 		if err == nil {
@@ -164,7 +177,6 @@ func (s *KVStore) AddBalanceAtomic(ctx context.Context, address string, amount *
 }
 
 // TransferBalanceAtomic atomically transfers balance from one address to another
-// This ensures both deduction and addition succeed or both fail
 func (s *KVStore) TransferBalanceAtomic(ctx context.Context, from, to string, amount *big.Int) error {
 	if amount.Cmp(big.NewInt(0)) <= 0 {
 		return fmt.Errorf("transfer amount must be positive")
@@ -179,42 +191,42 @@ func (s *KVStore) TransferBalanceAtomic(ctx context.Context, from, to string, am
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		// 1. Get both balances
-		fromBalance, err := s.GetUserBalance(ctx, from)
+		fromData, err := s.GetUserBalance(ctx, from)
 		if err != nil {
 			return fmt.Errorf("failed to get sender balance: %w", err)
 		}
 
 		fromBalanceBig := new(big.Int)
-		if fromBalance.USDTBalance != "" && fromBalance.USDTBalance != "0" {
-			fromBalanceBig.SetString(fromBalance.USDTBalance, 10)
-		}
+		fromBalanceBig.SetString(fromData.USDTBalance, 10)
 
 		// 2. Check sufficient balance
 		if fromBalanceBig.Cmp(amount) < 0 {
 			return fmt.Errorf("insufficient balance: have %s, need %s", fromBalanceBig.String(), amount.String())
 		}
 
-		toBalance, err := s.GetUserBalance(ctx, to)
+		toData, err := s.GetUserBalance(ctx, to)
 		if err != nil {
 			return fmt.Errorf("failed to get recipient balance: %w", err)
 		}
 
 		toBalanceBig := new(big.Int)
-		if toBalance.USDTBalance != "" && toBalance.USDTBalance != "0" {
-			toBalanceBig.SetString(toBalance.USDTBalance, 10)
-		}
+		toBalanceBig.SetString(toData.USDTBalance, 10)
 
 		// 3. Calculate new balances
 		newFromBalance := new(big.Int).Sub(fromBalanceBig, amount)
 		newToBalance := new(big.Int).Add(toBalanceBig, amount)
 
-		// 4. Attempt atomic update of both balances
-		// Update sender
+		fromData.USDTBalance = newFromBalance.String()
+		toData.USDTBalance = newToBalance.String()
+
+		// 4. Update Sender First
+		fromJson, _ := json.Marshal(fromData)
 		fromKey := fmt.Sprintf("balance:%s", from)
+
 		_, err = s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
-			NamespaceID: s.contributorsNamespaceID,
+			NamespaceID: s.usersNamespaceID,
 			Key:         fromKey,
-			Value:       []byte(newFromBalance.String()),
+			Value:       fromJson,
 		})
 		if err != nil {
 			if attempt < maxRetries-1 {
@@ -225,20 +237,27 @@ func (s *KVStore) TransferBalanceAtomic(ctx context.Context, from, to string, am
 			return fmt.Errorf("failed to update sender balance: %w", err)
 		}
 
-		// Update recipient
+		// 5. Update Recipient
+		toJson, _ := json.Marshal(toData)
 		toKey := fmt.Sprintf("balance:%s", to)
+
 		_, err = s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
-			NamespaceID: s.contributorsNamespaceID,
+			NamespaceID: s.usersNamespaceID,
 			Key:         toKey,
-			Value:       []byte(newToBalance.String()),
+			Value:       toJson,
 		})
 		if err != nil {
-			// Rollback sender balance
+			// Rollback sender
+			// Note: This is a best-effort rollback manual logic
+			fromData.USDTBalance = fromBalanceBig.String() // revert
+			rollbackJson, _ := json.Marshal(fromData)
+
 			_, rollbackErr := s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
-				NamespaceID: s.contributorsNamespaceID,
+				NamespaceID: s.usersNamespaceID,
 				Key:         fromKey,
-				Value:       []byte(fromBalanceBig.String()),
+				Value:       rollbackJson,
 			})
+
 			if rollbackErr != nil {
 				return fmt.Errorf("CRITICAL: failed to update recipient and rollback sender: %w (rollback error: %v)", err, rollbackErr)
 			}
@@ -251,7 +270,6 @@ func (s *KVStore) TransferBalanceAtomic(ctx context.Context, from, to string, am
 			return fmt.Errorf("failed to update recipient balance: %w", err)
 		}
 
-		// Success!
 		return nil
 	}
 
@@ -259,7 +277,6 @@ func (s *KVStore) TransferBalanceAtomic(ctx context.Context, from, to string, am
 }
 
 // CheckAndDeductBalance atomically checks and deducts balance in one operation
-// This is the recommended method for API usage deduction
 func (s *KVStore) CheckAndDeductBalance(ctx context.Context, address string, tokenUsage int64) error {
 	cost := CalculateUsageCost(tokenUsage)
 	return s.DeductBalanceAtomic(ctx, address, cost)
@@ -294,7 +311,7 @@ func (s *KVStore) CheckSufficientBalance(ctx context.Context, address string, to
 	}
 
 	currentBalance := new(big.Int)
-	if balance.USDTBalance != "" && balance.USDTBalance != "0" {
+	if balance.USDTBalance != "" {
 		currentBalance.SetString(balance.USDTBalance, 10)
 	}
 

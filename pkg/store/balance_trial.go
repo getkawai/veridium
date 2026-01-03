@@ -2,8 +2,10 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/cloudflare/cloudflare-go"
 	"github.com/kawai-network/veridium/pkg/config"
@@ -15,21 +17,21 @@ import (
 
 // HasClaimedTrial checks if the user or machine has already claimed the free trial
 func (s *KVStore) HasClaimedTrial(ctx context.Context, address string, machineID string) (bool, error) {
-	// 1. Check Address
-	keyAddr := fmt.Sprintf("trial_claimed:%s", address)
-	valAddr, err := s.client.GetWorkersKV(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{
-		NamespaceID: s.contributorsNamespaceID,
-		Key:         keyAddr,
-	})
-	if err == nil && string(valAddr) == "true" {
+	// 1. Check Address (via UserBalance struct)
+	// We read the full balance object because status is embedded there now
+	balance, err := s.GetUserBalance(ctx, address)
+	if err != nil {
+		return false, err
+	}
+	if balance.TrialClaimed {
 		return true, nil
 	}
 
-	// 2. Check Machine ID
+	// 2. Check Machine ID (Global check)
 	if machineID != "" {
 		keyMachine := fmt.Sprintf("trial_machine:%s", machineID)
 		valMachine, err := s.client.GetWorkersKV(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{
-			NamespaceID: s.contributorsNamespaceID,
+			NamespaceID: s.usersNamespaceID, // Using users namespace
 			Key:         keyMachine,
 		})
 		if err == nil && string(valMachine) == "true" {
@@ -40,51 +42,84 @@ func (s *KVStore) HasClaimedTrial(ctx context.Context, address string, machineID
 	return false, nil
 }
 
-// ClaimFreeTrial claims the free trial for a user (adds USDT credits)
+// ClaimFreeTrial claims the free trial for a user atomically
 func (s *KVStore) ClaimFreeTrial(ctx context.Context, address string, machineID string) error {
-	// 1. Check if already claimed (by address or machine)
-	claimed, err := s.HasClaimedTrial(ctx, address, machineID)
-	if err != nil {
-		return fmt.Errorf("failed to check trial status: %w", err)
-	}
-	if claimed {
-		return fmt.Errorf("free trial already claimed (by address or device)")
+	// 0. Pre-check Machine ID (Global)
+	// We do this first to fail fast. Race condition here is possible but acceptable for machine ID (not balance).
+	if machineID != "" {
+		keyMachine := fmt.Sprintf("trial_machine:%s", machineID)
+		valMachine, err := s.client.GetWorkersKV(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{
+			NamespaceID: s.usersNamespaceID,
+			Key:         keyMachine,
+		})
+		if err == nil && string(valMachine) == "true" {
+			return fmt.Errorf("free trial already claimed by this device")
+		}
 	}
 
-	// 2. Calculate amount
+	// 1. Calculate amount
 	amountFloat := config.GetFreeTrialAmountUSDT()
 	amountMicro := int64(amountFloat * 1_000_000)
 	amountBig := big.NewInt(amountMicro)
 
-	// 3. Add balance atomically
-	if err := s.AddBalanceAtomic(ctx, address, amountBig); err != nil {
-		return fmt.Errorf("failed to add trial balance: %w", err)
-	}
+	// 2. Atomic Read-Modify-Write Loop for User Balance
+	maxRetries := 5
+	backoff := 50 * time.Millisecond
 
-	// 4. Mark Address as claimed
-	keyAddr := fmt.Sprintf("trial_claimed:%s", address)
-	_, err = s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
-		NamespaceID: s.contributorsNamespaceID,
-		Key:         keyAddr,
-		Value:       []byte("true"),
-	})
-	if err != nil {
-		return fmt.Errorf("failed to mark address as claimed: %w", err)
-	}
-
-	// 5. Mark Machine ID as claimed
-	if machineID != "" {
-		keyMachine := fmt.Sprintf("trial_machine:%s", machineID)
-		_, err = s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
-			NamespaceID: s.contributorsNamespaceID,
-			Key:         keyMachine,
-			Value:       []byte("true"),
-		})
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		// A. Get current state
+		currentData, err := s.GetUserBalance(ctx, address)
 		if err != nil {
-			// Log error but don't fail, address is already marked
-			fmt.Printf("Warning: failed to mark machine ID %s as claimed: %v\n", machineID, err)
+			return err
+		}
+
+		// B. Check if already claimed
+		if currentData.TrialClaimed {
+			return fmt.Errorf("free trial already claimed by this address")
+		}
+
+		// C. Update State (Balance + Claimed Flag)
+		currentBalance := new(big.Int)
+		currentBalance.SetString(currentData.USDTBalance, 10)
+
+		newBalance := new(big.Int).Add(currentBalance, amountBig)
+
+		currentData.USDTBalance = newBalance.String()
+		currentData.TrialClaimed = true
+
+		// D. Marshal
+		data, err := json.Marshal(currentData)
+		if err != nil {
+			return fmt.Errorf("failed to marshal balance data: %w", err)
+		}
+
+		// E. Write
+		key := fmt.Sprintf("balance:%s", address)
+		_, err = s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
+			NamespaceID: s.usersNamespaceID,
+			Key:         key,
+			Value:       data,
+		})
+
+		if err == nil {
+			// Success! Now mark Machine ID (Best effort)
+			if machineID != "" {
+				keyMachine := fmt.Sprintf("trial_machine:%s", machineID)
+				_, _ = s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
+					NamespaceID: s.usersNamespaceID,
+					Key:         keyMachine,
+					Value:       []byte("true"),
+				})
+			}
+			return nil
+		}
+
+		// Retry
+		if attempt < maxRetries-1 {
+			time.Sleep(backoff)
+			backoff *= 2
 		}
 	}
 
-	return nil
+	return fmt.Errorf("failed to claim trial after %d retries", maxRetries)
 }

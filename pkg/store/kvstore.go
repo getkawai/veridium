@@ -82,6 +82,7 @@ type KVStore struct {
 	settlementsNamespaceID    string
 	authzNamespaceID          string // Reverse index: address -> apikey
 	p2pMarketplaceNamespaceID string
+	usersNamespaceID          string // Namespace for user data (balance, trial, etc)
 
 	// ✅ Rate limiter for KV operations
 	rateLimiter *rate.Limiter
@@ -105,6 +106,7 @@ func NewMultiNamespaceKVStore() (*KVStore, error) {
 		settlementsNamespaceID:    constant.GetCfKvSettlementsNamespaceId(),
 		authzNamespaceID:          constant.GetCfKvAuthzNamespaceId(),
 		p2pMarketplaceNamespaceID: constant.GetCfKvP2pMarketplaceNamespaceId(),
+		usersNamespaceID:          constant.GetCfKvUsersNamespaceId(),
 		rateLimiter:               rate.NewLimiter(rate.Limit(100), 200), // ✅ 100 ops/sec, burst 200
 	}, nil
 }
