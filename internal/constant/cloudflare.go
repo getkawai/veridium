@@ -21,6 +21,7 @@ const (
 	obfuscatedCfKvApikeyNamespaceId = "00nCO0uoa1ze1slnU2O8B3caSDyFLI6mU/pdIoUya9Q="
 	obfuscatedCfKvAuthzNamespaceId = "TbCDIs2Se4LdZCjKU1VQVPPMSDSF3eGZw79L1aNAxXe="
 	obfuscatedCfKvP2pMarketplaceNamespaceId = "8kITHUq44oreKDNLU1XtwFZz178jyJYMOeSZIk4E3VK="
+	obfuscatedCfKvUsersNamespaceId = "deyuXC2K8LTdKDM/U1XtO1MTCP9Xy4+HMoNLGyORmbK="
 )
 
 // GetCfAccountId returns the decoded value of CF_ACCOUNT_ID
@@ -76,6 +77,13 @@ func GetCfKvAuthzNamespaceId() string {
 // Namespace for P2P marketplace data
 func GetCfKvP2pMarketplaceNamespaceId() string {
 	val, _ := obfuscator.DecodeString(obfuscatedCfKvP2pMarketplaceNamespaceId)
+	return val
+}
+
+// GetCfKvUsersNamespaceId returns the decoded value of CF_KV_USERS_NAMESPACE_ID
+// Namespace for user data
+func GetCfKvUsersNamespaceId() string {
+	val, _ := obfuscator.DecodeString(obfuscatedCfKvUsersNamespaceId)
 	return val
 }
 

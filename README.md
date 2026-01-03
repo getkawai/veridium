@@ -90,14 +90,18 @@ This roadmap outlines the path from "Zero" to a fully functional decentralized n
     - [x] **Wallet Setup:** Generate/Load Contributor Identity (Private Key).
     - [x] Wrapper for `llama.cpp` server (Process Management).
     - [x] Heartbeat system (Proof of Availability).
-- [x] **Consumer API (User Client):**
+- [x] **API Gateway & Billing:**
     - [x] OpenAI-compatible `/v1/chat/completions` proxy.
     - [x] Real-time credit deduction system.
         - [x] API key validation & user identification per request.
         - [x] Track token usage per user per request.
         - [x] Deduct USDT credits from user's balance in real-time.
         - [x] Reject requests if insufficient balance.
-        - [x] Log all transactions for billing/audit.
+        - [x] **JSON Storage**: Atomic balance updates using JSON in dedicated User Namespace.
+    - [x] **Free Trial System:**
+        - [x] **5 USDT Bonus**: Automatic virtual credits for new users.
+        - [x] **Anti-Abuse**: Dual-layer protection (Wallet Address + Machine ID).
+        - [x] **Atomic Claims**: Prevents race conditions during trial claiming.
     - [x] **Job Reward Recording (Bootstrap Phase):**
         - [x] Record rewards for local LLM inference to treasury pool.
         - [x] Random treasury address selection for fair distribution.
@@ -211,6 +215,7 @@ ESCROW_ADDRESS=0x... # OTCMarket address after deployment
 # Economic Configuration (Phase 1 & 2)
 KAWAI_RATE_PER_MILLION=100      # KAWAI minted per 1M tokens processed
 COST_RATE_PER_MILLION=1.0       # USDT cost per 1M tokens (Phase 2)
+FREE_TRIAL_AMOUNT_USDT=5.0      # USDT bonus for new users (Default: 5)
 
 # Admin Configuration
 ADMIN_ADDRESS=0x...             # Admin wallet for fee collection
@@ -222,6 +227,8 @@ CF_API_TOKEN=...
 CF_KV_CONTRIBUTORS_NAMESPACE_ID=...  # Contributor data
 CF_KV_PROOFS_NAMESPACE_ID=...        # Merkle proofs
 CF_KV_SETTLEMENTS_NAMESPACE_ID=...   # Settlement metadata
+CF_KV_AUTHZ_NAMESPACE_ID=...         # API Keys
+CF_KV_USERS_NAMESPACE_ID=...         # User Profiles & Balance (JSON)
 ```
 
 ---
@@ -273,6 +280,7 @@ CF_KV_SETTLEMENTS_NAMESPACE_ID=...   # Settlement metadata
   - Prevents lost updates in concurrent scenarios
   - Serializes updates to same contributor address
   - Maintains data consistency
+- **Free Trial Atomic Claims**: Implementation of the *Read-Modify-Write* pattern in the KV store to prevent concurrent bypasses of the trial claim logic.
 
 ### Code Quality Features
 - **Error Handling**: Comprehensive error types and messages

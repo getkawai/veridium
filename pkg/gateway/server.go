@@ -72,6 +72,9 @@ func (s *Server) setupRoutes() {
 
 		// Images
 		v1.POST("/images/generations", s.handler.ImageGenerations)
+
+		// User
+		v1.POST("/user/claim-trial", s.handler.ClaimTrial)
 	}
 }
 
