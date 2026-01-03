@@ -164,14 +164,14 @@ export const generateAIChat: StateCreator<
     // STEP 3: CALL API BASED ON MODE
     // ================================================================
     try {
-      console.log('[Backend Real Stream] Starting real LLM streaming...');
+      // console.log('[Backend Real Stream] Starting real LLM streaming...');
 
       // Get enabled tools from agent store
       // Reasoning mode is now auto-detected by backend based on loaded model
       const agentState = useAgentStore.getState();
       const enabledPlugins = agentSelectors.currentAgentPlugins(agentState);
 
-      console.log('[Backend Real Stream] Tools:', enabledPlugins);
+      // console.log('[Backend Real Stream] Tools:', enabledPlugins);
 
       // Call real streaming - uses real LLM with streaming events
       // Events are handled by internal_handleStreamEvent (called from App.tsx)
@@ -193,7 +193,7 @@ export const generateAIChat: StateCreator<
       // Note: User message is also created via streaming events
       // Real LLM response comes token by token via events
 
-      console.log('[Backend Real Stream] Streaming complete, data came via events');
+      // console.log('[Backend Real Stream] Streaming complete, data came via events');
 
     } catch (error) {
       console.error('[SendMessage] Failed:', error);
@@ -289,49 +289,54 @@ export const generateAIChat: StateCreator<
   },
 
   /**
-   * Handle stream events globally
-   * Called from App.tsx when a stream event is received
-   * 
-   * Event types:
-   * - start: Generation started, add to loading IDs, handle new topic creation
-   * - reasoning: Thinking content (update reasoning field)
-   * - chunk: Content chunks (update content field)
-   * - tool_call: Tool call initiated (update tools array)
-   * - tool_result: Tool execution result (add tool message to messagesMap)
-   * - complete: Generation finished (finalize message, remove from loading)
+   * Handle stream events with smart batching
+   * - Batches rapid events using RAF for smooth streaming
+   * - Processes complete events immediately to prevent infinite loading
    */
-  internal_handleStreamEvent: (data: StreamEventPayload) => {
-    const { activeId, activeTopicId } = get();
-    const currentMapKey = messageMapKey(activeId, activeTopicId);
+  internal_handleStreamEvent: (() => {
+    let rafId: number | null = null;
+    const pendingEvents: StreamEventPayload[] = [];
+    
+    const processStreamEvent = (data: StreamEventPayload) => {
+      const { activeId, activeTopicId } = get();
+      const currentMapKey = messageMapKey(activeId, activeTopicId);
 
-    // Check if backend created a new topic (first message scenario)
-    const newTopicId = data.topic_id;
-    const isNewTopic = newTopicId && newTopicId !== activeTopicId;
+      // Check if backend created a new topic (first message scenario)
+      const newTopicId = data.topic_id;
+      const isNewTopic = newTopicId && newTopicId !== activeTopicId;
 
-    set(produce((state: ChatStore) => {
-      // Determine which mapKey to use for finding messages
-      // Messages might still be in the old mapKey if topic was just created
-      let mapKey = currentMapKey;
-      let messages = state.messagesMap[mapKey];
+      // Track if we need to update activeTopicId after set() completes
+      let shouldUpdateActiveTopicId = false;
+      let shouldRefreshSessions = false;
+      let shouldScheduleTopicRefresh = false;
 
-      // If messages not found in current mapKey and we have a new topic,
-      // try the old mapKey (without topic)
-      if (!messages && isNewTopic) {
-        const oldMapKey = messageMapKey(activeId, undefined);
-        messages = state.messagesMap[oldMapKey];
-        if (messages) {
-          mapKey = oldMapKey;
+      set(produce((state: ChatStore) => {
+        // Determine which mapKey to use for finding messages
+        // Messages might still be in the old mapKey if topic was just created
+        let mapKey = currentMapKey;
+        let messages = state.messagesMap[mapKey];
+
+        // If messages not found in current mapKey and we have a new topic,
+        // try the old mapKey (without topic)
+        if (!messages && isNewTopic) {
+          const oldMapKey = messageMapKey(activeId, undefined);
+          messages = state.messagesMap[oldMapKey];
+          if (messages) {
+            mapKey = oldMapKey;
+          }
         }
-      }
 
-      if (!messages) return;
+      if (!messages) {
+        console.warn('[Stream] No messages found for mapKey:', mapKey);
+        return;
+      }
 
       if (data.type === 'start') {
         // Find the loading assistant message by ID
         const msgIndex = messages.findIndex(m => m.id === data.message_id);
 
         if (msgIndex !== -1) {
-          console.log('[Stream] Start - found assistant message:', data.message_id);
+          // console.log('[Stream] Start - found assistant message:', data.message_id);
 
           // Add to loading IDs for animation
           if (!state.chatLoadingIds.includes(data.message_id)) {
@@ -340,7 +345,7 @@ export const generateAIChat: StateCreator<
 
           // Handle new topic creation - move messages to new mapKey
           if (isNewTopic) {
-            console.log('[Stream] New topic created, moving messages:', { oldTopicId: activeTopicId, newTopicId });
+            // console.log('[Stream] New topic created, moving messages:', { oldTopicId: activeTopicId, newTopicId });
 
             // Update topicId on all messages in current conversation
             messages.forEach(m => {
@@ -354,8 +359,8 @@ export const generateAIChat: StateCreator<
             // Clear old mapKey
             delete state.messagesMap[mapKey];
 
-            // Update activeTopicId
-            state.activeTopicId = newTopicId;
+            // Mark that we need to update activeTopicId AFTER set() completes
+            shouldUpdateActiveTopicId = true;
 
             // Add new topic to topicMaps (optimistic update)
             if (!state.topicMaps[activeId]) {
@@ -402,7 +407,7 @@ export const generateAIChat: StateCreator<
         }
       } else if (data.type === 'tool_call') {
         // Tool call initiated - update tools array on assistant message
-        console.log('[Stream] Tool call:', data.tool?.apiName || 'unknown');
+        // console.log('[Stream] Tool call:', data.tool?.apiName || 'unknown');
 
         const msg = messages.find(m => m.id === data.message_id);
         if (msg) {
@@ -418,7 +423,7 @@ export const generateAIChat: StateCreator<
         }
       } else if (data.type === 'tool_result') {
         // Tool execution result - add tool message to messagesMap
-        console.log('[Stream] Tool result:', data.tool_call_id);
+        // console.log('[Stream] Tool result:', data.tool_call_id);
 
         // Use the current activeTopicId from state (may have been updated by start event)
         const currentTopicId = state.activeTopicId;
@@ -447,53 +452,119 @@ export const generateAIChat: StateCreator<
         if (!messages.find(m => m.id === toolMessage.id)) {
           messages.push(toolMessage);
         }
-      } else if (data.type === 'complete') {
-        // Generation finished
-        const msg = messages.find(m => m.id === data.message_id);
-        if (msg) {
-          msg.content = data.content || msg.content;
-          msg.updatedAt = Date.now();
-          (msg as any).loading = false;
+        } else if (data.type === 'complete') {
+          // Generation finished
+          // console.log('[Stream] Complete event - before processing, chatLoadingIds:', state.chatLoadingIds);
+          const msg = messages.find(m => m.id === data.message_id);
+          if (msg) {
+            msg.content = data.content || msg.content;
+            msg.updatedAt = Date.now();
+            (msg as any).loading = false;
 
-          // Update additional fields if provided
-          if (data.reasoning) {
-            (msg as any).reasoning = data.reasoning;
+            // Update additional fields if provided
+            if (data.reasoning) {
+              (msg as any).reasoning = data.reasoning;
+            }
+            if (data.search) {
+              (msg as any).search = data.search;
+            }
+            if (data.chunksList) {
+              (msg as any).chunksList = data.chunksList;
+            }
+            if (data.imageList) {
+              (msg as any).imageList = data.imageList;
+            }
+            if (data.usage) {
+              (msg as any).usage = data.usage;
+            }
+            if (data.performance) {
+              (msg as any).performance = data.performance;
+            }
           }
-          if (data.search) {
-            (msg as any).search = data.search;
-          }
-          if (data.chunksList) {
-            (msg as any).chunksList = data.chunksList;
-          }
-          if (data.imageList) {
-            (msg as any).imageList = data.imageList;
-          }
-          if (data.usage) {
-            (msg as any).usage = data.usage;
-          }
-          if (data.performance) {
-            (msg as any).performance = data.performance;
+
+          // Remove from loading IDs
+          // const beforeLength = state.chatLoadingIds.length;
+          state.chatLoadingIds = state.chatLoadingIds.filter(id => id !== data.message_id);
+          // const afterLength = state.chatLoadingIds.length;
+          // console.log('[Stream] Complete - removed from loading:', data.message_id, 'before:', beforeLength, 'after:', afterLength);
+          // console.log('[Stream] Complete - chatLoadingIds now:', state.chatLoadingIds);
+
+          // Mark that we need to refresh sessions AFTER set() completes
+          shouldRefreshSessions = true;
+          
+          // Mark if we need to schedule topic refresh
+          if (isNewTopic) {
+            shouldScheduleTopicRefresh = true;
           }
         }
-
-        // Remove from loading IDs
-        state.chatLoadingIds = state.chatLoadingIds.filter(id => id !== data.message_id);
-        console.log('[Stream] Complete - message finalized:', data.message_id);
-
-        // Refresh session list to update sort order (Last Active)
-        // This moves the current session to the top
-        useSessionStore.getState().refreshSessions();
-      }
     }), false, n('streamEvent'));
 
-    // After complete event, schedule a topic refresh to get LLM-generated title
-    // This is a fallback in case chat:topic:updated event is not received
-    if (data.type === 'complete' && isNewTopic) {
-      console.log('[Stream] Scheduling topic refresh for new topic title...');
+    // Execute side effects AFTER state update completes to avoid infinite loops
+    if (shouldUpdateActiveTopicId && newTopicId) {
+      // Update activeTopicId in a separate set() call
+      set({ activeTopicId: newTopicId }, false, n('updateActiveTopicId'));
+    }
+
+    if (shouldRefreshSessions) {
+      // Refresh session list to update sort order (Last Active)
+      // Use setTimeout to ensure this happens after current event loop
+      setTimeout(() => {
+        useSessionStore.getState().refreshSessions();
+      }, 0);
+    }
+
+    if (shouldScheduleTopicRefresh) {
+      // After complete event, schedule a topic refresh to get LLM-generated title
+      // This is a fallback in case chat:topic:updated event is not received
+      // console.log('[Stream] Scheduling topic refresh for new topic title...');
       setTimeout(() => {
         get().refreshTopic();
       }, 5000); // Wait 5 seconds for backend to generate title
     }
-  },
+      
+      // console.log('[Stream] Event processing completed for:', data.type, data.message_id);
+    };
+    
+    const flushPendingEvents = () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+      
+      if (pendingEvents.length === 0) return;
+      
+      const eventsToProcess = [...pendingEvents];
+      pendingEvents.length = 0;
+      
+      // console.log('[Stream] Processing batch of', eventsToProcess.length, 'events');
+      for (const event of eventsToProcess) {
+        processStreamEvent(event);
+      }
+    };
+    
+    return (data: StreamEventPayload) => {
+      // console.log('[Stream] Event received:', data.type, data.message_id);
+      
+      // Add to pending queue
+      pendingEvents.push(data);
+      
+      // If it's a complete event, process immediately to prevent infinite loading
+      if (data.type === 'complete') {
+        // console.log('[Stream] Complete event detected, flushing immediately');
+        flushPendingEvents();
+        return;
+      }
+      
+      // For other events, batch with RAF
+      if (rafId !== null) {
+        return; // Already scheduled
+      }
+      
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        flushPendingEvents();
+      });
+    };
+  })(),
 });
 
