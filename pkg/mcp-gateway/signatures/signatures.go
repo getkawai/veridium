@@ -9,15 +9,15 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
-	"github.com/sigstore/cosign/v2/pkg/cosign"
-	"github.com/sigstore/cosign/v2/pkg/oci"
-	ociremote "github.com/sigstore/cosign/v2/pkg/oci/remote"
-	"github.com/sigstore/cosign/v2/pkg/oci/static"
+	"github.com/sigstore/cosign/v3/pkg/oci"
+	ociremote "github.com/sigstore/cosign/v3/pkg/oci/remote"
+	"github.com/sigstore/cosign/v3/pkg/oci/static"
 	"github.com/sigstore/sigstore/pkg/cryptoutils"
 	"github.com/sigstore/sigstore/pkg/signature"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/kawai-network/veridium/cmd/docker-mcp/version"
+	internalcosign "github.com/kawai-network/veridium/internal/cosign"
 )
 
 // https://raw.githubusercontent.com/docker/keyring/refs/heads/main/public/mcp/latest.pub
@@ -42,7 +42,7 @@ func Verify(ctx context.Context, images []string) error {
 		return err
 	}
 
-	rekor, err := cosign.GetRekorPubs(ctx)
+	rekor, err := internalcosign.GetRekorPubs(ctx)
 	if err != nil {
 		return fmt.Errorf("getting Rekor public keys: %w", err)
 	}
@@ -56,7 +56,7 @@ func Verify(ctx context.Context, images []string) error {
 				return fmt.Errorf("parsing reference: %w", err)
 			}
 
-			bundleVerified, err := verifyImageSignatures(ctx, ref, &cosign.CheckOpts{
+			bundleVerified, err := verifyImageSignatures(ctx, ref, &internalcosign.CheckOpts{
 				RegistryClientOpts: []ociremote.Option{
 					ociremote.WithTargetRepository(signatures),
 					ociremote.WithRemoteOptions(
@@ -84,7 +84,7 @@ func Verify(ctx context.Context, images []string) error {
 }
 
 // verifyImageSignatures is copied from cosign in order to not depend on a bunch of transitivie dependencies.
-func verifyImageSignatures(ctx context.Context, digest name.Digest, co *cosign.CheckOpts) (bundleVerified bool, err error) {
+func verifyImageSignatures(ctx context.Context, digest name.Digest, co *internalcosign.CheckOpts) (bundleVerified bool, err error) {
 	h, err := v1.NewHash(digest.Identifier())
 	if err != nil {
 		return false, err
@@ -113,7 +113,7 @@ func verifyImageSignatures(ctx context.Context, digest name.Digest, co *cosign.C
 			return false, err
 		}
 
-		verified, err := cosign.VerifyImageSignature(ctx, sig, h, co)
+		verified, err := internalcosign.VerifyImageSignature(ctx, sig, h, co)
 		if err != nil {
 			return false, err
 		}

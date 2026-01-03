@@ -12,9 +12,8 @@ import (
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/volume"
-	"github.com/docker/docker/client"
-
-	"github.com/kawai-network/veridium/cmd/docker-mcp/version"
+	dockerclient "github.com/docker/docker/client"
+	mobyclient "github.com/moby/moby/client"
 )
 
 type Client interface {
@@ -38,20 +37,27 @@ type Client interface {
 }
 
 type dockerClient struct {
-	apiClient func() client.APIClient
+	apiClient func() dockerclient.APIClient
 }
 
 func NewClient(cli command.Cli) Client {
 	return &dockerClient{
-		apiClient: sync.OnceValue(func() client.APIClient {
-			_ = cli.Apply(func(cli *command.DockerCli) error {
-				if mobyClient, ok := cli.Client().(*client.Client); ok {
-					_ = client.WithUserAgent(version.UserAgent())(mobyClient)
-				}
-				return nil
-			})
+		apiClient: sync.OnceValue(func() dockerclient.APIClient {
+			// cli.Client() returns moby/moby/client.APIClient
+			// Both moby and docker client packages share the same underlying implementation
+			// The concrete type (*client.Client) implements both interfaces
+			mobyClient := cli.Client()
 
-			return cli.Client()
+			// Safe type assertion with panic recovery
+			// In practice, this should never panic as docker/cli always returns
+			// a concrete *client.Client that implements both interfaces
+			if c, ok := mobyClient.(dockerclient.APIClient); ok {
+				return c
+			}
+
+			// This should never happen in normal operation
+			// If it does, it indicates a breaking change in docker/cli
+			panic("docker client type assertion failed: incompatible client types")
 		}),
 	}
 }
@@ -61,10 +67,11 @@ func RunningInDockerCE(ctx context.Context, dockerCli command.Cli) (bool, error)
 		return false, nil
 	}
 
-	info, err := dockerCli.Client().Info(ctx)
+	mobyClient := dockerCli.Client()
+	info, err := mobyClient.Info(ctx, mobyclient.InfoOptions{})
 	if err != nil {
 		return false, fmt.Errorf("failed to ping Docker daemon: %w", err)
 	}
 
-	return info.OperatingSystem != "Docker Desktop", nil
+	return info.Info.OperatingSystem != "Docker Desktop", nil
 }
