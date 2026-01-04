@@ -25,6 +25,7 @@ import (
 	"github.com/kawai-network/veridium/pkg/blockchain"
 	"github.com/kawai-network/veridium/pkg/fantasy"
 	"github.com/kawai-network/veridium/pkg/fantasy/llamalib"
+	googleprovider "github.com/kawai-network/veridium/pkg/fantasy/providers/google"
 	llamaprovider "github.com/kawai-network/veridium/pkg/fantasy/providers/llama"
 	llamaembed "github.com/kawai-network/veridium/pkg/fantasy/providers/llama-embed"
 	"github.com/kawai-network/veridium/pkg/fantasy/providers/openaicompat"
@@ -443,7 +444,24 @@ func (ctx *Context) InitLanguageModels() {
 func (ctx *Context) buildModelChain(bgCtx context.Context, localModel fantasy.LanguageModel, criteria openrouter.ModelSelectionCriteria, taskName string) []fantasy.LanguageModel {
 	var chain []fantasy.LanguageModel
 
-	// 1. OpenRouter (free tier)
+	// 1. Google Gemini (free tier with API key)
+	if apiKey := constant.GetRandomGeminiApiKey(); apiKey != "" {
+		log.Printf("🔍 %s: Initializing Google Gemini...", taskName)
+		if provider, err := googleprovider.New(googleprovider.WithGeminiAPIKey(apiKey)); err == nil {
+			if geminiModel, err := provider.LanguageModel(bgCtx, "gemini-1.5-flash"); err == nil {
+				chain = append(chain, geminiModel)
+				log.Printf("✅ %s: Added Google Gemini (gemini-1.5-flash) to chain", taskName)
+			} else {
+				log.Printf("❌ %s: Google Gemini provider initialized but failed to get model: %v", taskName, err)
+			}
+		} else {
+			log.Printf("❌ %s: Failed to initialize Google Gemini provider: %v", taskName, err)
+		}
+	} else {
+		log.Printf("ℹ️  %s: Skipping Google Gemini (no API key)", taskName)
+	}
+
+	// 2. OpenRouter (free tier)
 	if apiKey := constant.GetRandomOpenRouterApiKey(); apiKey != "" {
 		log.Printf("🔍 %s: Initializing OpenRouter...", taskName)
 		if provider, err := openrouter.New(openrouter.WithAPIKey(apiKey), openrouter.WithModelSelection(criteria)); err == nil {
@@ -465,7 +483,7 @@ func (ctx *Context) buildModelChain(bgCtx context.Context, localModel fantasy.La
 		log.Printf("ℹ️  %s: Skipping OpenRouter (no API key)", taskName)
 	}
 
-	// 2. Pollinations AI (fallback before local)
+	// 3. Pollinations AI (fallback before local)
 	if provider, err := openaicompat.New(
 		openaicompat.WithName("pollinations"),
 		openaicompat.WithBaseURL("https://text.pollinations.ai/openai"),
@@ -477,7 +495,7 @@ func (ctx *Context) buildModelChain(bgCtx context.Context, localModel fantasy.La
 		}
 	}
 
-	// 2. ZAI GLM-4.6 (fallback before local)
+	// 4. ZAI GLM-4.6 (fallback before local)
 	if provider, err := openaicompat.New(
 		openaicompat.WithName("zai"),
 		openaicompat.WithBaseURL("https://api.z.ai/api/coding/paas/v4"),
@@ -489,7 +507,7 @@ func (ctx *Context) buildModelChain(bgCtx context.Context, localModel fantasy.La
 		}
 	}
 
-	// 3. Local model (final fallback)
+	// 5. Local model (final fallback)
 	chain = append(chain, localModel)
 	log.Printf("%s: Chain created with %d models (fallback: %s/%s)", taskName, len(chain), localModel.Provider(), localModel.Model())
 	return chain
