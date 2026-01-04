@@ -187,10 +187,22 @@ export const MiningRewardsSection = ({ currentNetwork, transactions, theme, styl
       
       // Always show error dialog (better visibility than toast)
       const errorMsg = e.message || 'Claim failed';
-      await Dialogs.Error({
-        Title: 'Claim Transaction Failed',
-        Message: errorMsg
-      });
+      const isInsufficientFunds = errorMsg.toLowerCase().includes('insufficient funds');
+      
+      if (isInsufficientFunds) {
+        await Dialogs.Error({
+          Title: 'Insufficient Funds for Gas',
+          Message: 'You need MON tokens to pay for gas fees.\n\n' +
+                   'Please get MON from the Monad Testnet Faucet:\n' +
+                   'https://faucet.monad.xyz/\n\n' +
+                   'After receiving MON, try claiming again.'
+        });
+      } else {
+        await Dialogs.Error({
+          Title: 'Claim Transaction Failed',
+          Message: errorMsg
+        });
+      }
       
       setTimeout(() => loadRewards(), 1000);
     } finally {
