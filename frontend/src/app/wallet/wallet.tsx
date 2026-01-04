@@ -15,6 +15,7 @@ import {
   ShoppingCart,
   Globe,
   Repeat2,
+  Award,
 } from 'lucide-react';
 import { ActionIcon, Icon } from '@lobehub/ui';
 import { Flexbox } from 'react-layout-kit';
@@ -641,7 +642,7 @@ const DesktopWalletLayout = memo(() => {
       case 'otc':
         return <OTCContent styles={styles} theme={theme} />;
       case 'rewards':
-        return <RewardsContent styles={styles} theme={theme} currentNetwork={currentNetwork} transactions={transactions} />;
+        return <RewardsContent styles={styles} theme={theme} currentNetwork={currentNetwork} transactions={transactions} setModalType={setModalType} />;
       case 'settings':
         return <SettingsContent address={address} styles={styles} theme={theme} currentNetwork={currentNetwork} />;
       default:

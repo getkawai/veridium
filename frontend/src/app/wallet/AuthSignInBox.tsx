@@ -126,14 +126,6 @@ export default memo(() => {
 
   useEffect(() => {
     refreshWalletStatus();
-    
-    // Check for referral code in URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const refCode = urlParams.get('ref');
-    if (refCode) {
-      setReferralCode(refCode.toUpperCase());
-      setHasReferral(true);
-    }
   }, []);
 
   useEffect(() => {

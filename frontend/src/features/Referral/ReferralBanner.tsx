@@ -128,4 +128,3 @@ export const ReferralBanner = memo<ReferralBannerProps>(({ onReferralApplied }) 
 });
 
 ReferralBanner.displayName = 'ReferralBanner';
-

@@ -44,6 +44,7 @@ export interface RewardsContentProps {
   theme: any;
   currentNetwork: NetworkInfo | null;
   transactions: WalletTransaction[];
+  setModalType?: (type: 'send' | 'receive' | 'swap' | 'deposit' | 'addAccount' | 'createWallet' | 'importWallet' | 'addToken' | null) => void;
 }
 
 export interface SettingsContentProps {

@@ -25,24 +25,24 @@ The Kawai DeAI Network referral system incentivizes viral growth by rewarding bo
 
 ### For New Users
 
-1. **Receive Referral Link**
-   ```
-   https://kawai.network?ref=ABC123
-   ```
+1. **Receive Referral Code**
+   - Friend shares their 6-digit code: `ABC123`
+   - Via social media, messaging, or word of mouth
 
-2. **Open App**
-   - App detects `?ref=ABC123` in URL
-   - Shows enhanced bonus message: "🎉 Get 10 USDT FREE with referral code!"
+2. **Open App & Setup Wallet**
+   - Click "Have a Referral Code?" banner
+   - Manually enter the 6-digit code
+   - Code is validated (format: 6 alphanumeric characters)
 
-3. **Setup Wallet**
-   - Referral code auto-applied
-   - Banner shows: "Referral Applied: ABC123"
-   - Bonus upgraded: 5 USDT → 10 USDT
+3. **Code Applied**
+   - Banner shows: "🎉 Bonus Upgraded!"
+   - Bonus upgraded: 5 USDT + 100 KAWAI → 10 USDT + 200 KAWAI
+   - Success message confirms application
 
 4. **Claim Bonus**
    - Automatically claimed on first wallet unlock
-   - Receives 10 USDT instead of 5 USDT
-   - Referrer receives 5 USDT
+   - Receives 10 USDT + 200 KAWAI (instead of 5 USDT + 100 KAWAI)
+   - Referrer receives 5 USDT + 100 KAWAI
 
 ### For Referrers
 
@@ -56,9 +56,10 @@ The Kawai DeAI Network referral system incentivizes viral growth by rewarding bo
    ```
 
 2. **Share Code**
-   - Via social media
-   - Direct link: `kawai://app?ref=ABC123`
-   - In-app share button
+   - Copy code button in Rewards > Referral tab
+   - Share via social media (native share API)
+   - Direct message to friends
+   - Users manually enter the code
 
 3. **Track Earnings**
    ```typescript
@@ -157,38 +158,48 @@ func (s *ReferralService) GetReferralBonusAmounts() map[string]interface{}
 - Success animation
 - Bonus comparison (5 vs 8 USDT)
 
-#### 2. Referral Dashboard
+#### 2. Referral Rewards Section
 
 ```typescript
-// frontend/src/features/Referral/ReferralDashboard.tsx
+// frontend/src/app/wallet/components/rewards/ReferralRewardsSection.tsx
+// Integrated in unified Rewards Dashboard
 
-<ReferralDashboard 
-  stats={referralStats}
-  onShare={handleShare}
+<ReferralRewardsSection
+  currentNetwork={currentNetwork}
+  theme={theme}
+  styles={styles}
+  onRefresh={(refreshFn) => { /* callback */ }}
 />
 ```
 
 **Features:**
 - Display referral code (large, copyable)
-- Statistics cards (referrals, earnings, pending)
-- Recent referrals list
+- Statistics cards (referrals, USDT earned, KAWAI earned)
+- Copy code button with success feedback
 - Native share API integration
-- How-it-works guide
+- Benefits breakdown (friend gets / you get)
+- Step-by-step "How It Works" guide
+- High-precision KAWAI formatting (18 decimals)
 
-#### 3. URL Parameter Detection
+**Location:**
+- Accessible via: Wallet → Rewards → Referral Rewards tab
+- Part of unified rewards dashboard (Mining | Cashback | Referral)
+
+#### 3. Manual Code Entry Only
 
 ```typescript
 // In AuthSignInBox.tsx
+// Users manually enter referral code via ReferralBanner
 
-useEffect(() => {
-  const urlParams = new URLSearchParams(window.location.search);
-  const refCode = urlParams.get('ref');
-  if (refCode) {
-    setReferralCode(refCode.toUpperCase());
+<ReferralBanner 
+  onReferralApplied={(code) => {
+    setReferralCode(code);
     setHasReferral(true);
-  }
-}, []);
+  }}
+/>
 ```
+
+**Note:** URL parameter detection (`?ref=CODE`) has been removed for simplicity. Users now manually enter the 6-digit code during wallet setup.
 
 ---
 
