@@ -16,14 +16,12 @@ import (
 // for testing without manual UI interaction
 
 func main() {
-	// Load .env
-	if err := godotenv.Load(); err != nil {
-		log.Println("Warning: .env file not found")
-	}
+	// Load .env (optional - we have obfuscated credentials in constant package)
+	_ = godotenv.Load()
 
 	ctx := context.Background()
 
-	// Initialize KV store
+	// Initialize KV store (uses obfuscated credentials from constant package)
 	kv, err := store.NewMultiNamespaceKVStore()
 	if err != nil {
 		log.Fatal("Failed to initialize KV store:", err)
