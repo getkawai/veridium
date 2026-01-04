@@ -19,6 +19,36 @@ contract OTCMarketTest is Test {
     uint256 constant KAWAI_AMOUNT = 1000 ether;
     uint256 constant USDT_PRICE = 500 ether;
 
+    // Events (must be declared in test contract for expectEmit)
+    event OrderCreated(
+        uint256 indexed orderId,
+        address indexed seller,
+        uint256 amount,
+        uint256 price
+    );
+    
+    event OrderCancelled(
+        uint256 indexed orderId, 
+        address indexed seller
+    );
+    
+    event OrderFulfilled(
+        uint256 indexed orderId,
+        address indexed buyer,
+        address indexed seller,
+        uint256 amount,
+        uint256 price
+    );
+    
+    event OrderPartiallyFilled(
+        uint256 indexed orderId,
+        address indexed buyer,
+        address indexed seller,
+        uint256 amountFilled,
+        uint256 remainingAmount,
+        uint256 pricePaid
+    );
+
     function setUp() public {
         // Deploy contracts
         vm.startPrank(admin);
@@ -363,7 +393,7 @@ contract OTCMarketTest is Test {
 
     function testOrderCreatedEvent() public {
         vm.expectEmit(true, true, false, true);
-        emit OTCMarket.OrderCreated(0, seller, KAWAI_AMOUNT, USDT_PRICE);
+        emit OrderCreated(0, seller, KAWAI_AMOUNT, USDT_PRICE);
         
         vm.prank(seller);
         market.createOrder(KAWAI_AMOUNT, USDT_PRICE);
@@ -378,7 +408,7 @@ contract OTCMarketTest is Test {
         uint256 remaining = KAWAI_AMOUNT - partialAmount;
 
         vm.expectEmit(true, true, true, true);
-        emit OTCMarket.OrderPartiallyFilled(
+        emit OrderPartiallyFilled(
             0,
             buyer,
             seller,
@@ -396,7 +426,7 @@ contract OTCMarketTest is Test {
         market.createOrder(KAWAI_AMOUNT, USDT_PRICE);
 
         vm.expectEmit(true, true, true, true);
-        emit OTCMarket.OrderFulfilled(
+        emit OrderFulfilled(
             0,
             buyer,
             seller,
@@ -413,7 +443,7 @@ contract OTCMarketTest is Test {
         market.createOrder(KAWAI_AMOUNT, USDT_PRICE);
 
         vm.expectEmit(true, true, false, true);
-        emit OTCMarket.OrderCancelled(0, seller);
+        emit OrderCancelled(0, seller);
         
         vm.prank(seller);
         market.cancelOrder(0);
