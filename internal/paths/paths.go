@@ -71,11 +71,11 @@ func JarvisKeystores() string { return filepath.Join(Jarvis(), "keystores") }
 // JarvisNetworks returns path to custom networks directory
 func JarvisNetworks() string { return filepath.Join(Jarvis(), "networks") }
 
-// JarvisBleveIndex returns path to Bleve index file
-func JarvisBleveIndex() string { return filepath.Join(Jarvis(), "db.bleve") }
+// JarvisAddressBookDB returns path to DuckDB addressbook database
+func JarvisAddressBookDB() string { return filepath.Join(Jarvis(), "addressbook.duckdb") }
 
-// JarvisBleveData returns path to Bleve data file
-func JarvisBleveData() string { return filepath.Join(Jarvis(), "bleve.data") }
+// JarvisAddressBookHash returns path to addressbook hash file
+func JarvisAddressBookHash() string { return filepath.Join(Jarvis(), "addressbook.hash") }
 
 // JarvisCache returns path to cache file
 func JarvisCache() string { return filepath.Join(Jarvis(), "cache.json") }

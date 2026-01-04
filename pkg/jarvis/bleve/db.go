@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"path/filepath"
 	"sync"
 
 	_ "github.com/duckdb/duckdb-go/v2"
@@ -28,11 +27,11 @@ var (
 
 func getDBPath() string {
 	os.MkdirAll(paths.Jarvis(), 0755)
-	return filepath.Join(paths.Jarvis(), "addressbook.duckdb")
+	return paths.JarvisAddressBookDB()
 }
 
 func getHashPath() string {
-	return filepath.Join(paths.Jarvis(), "addressbook.hash")
+	return paths.JarvisAddressBookHash()
 }
 
 func getDataFromDefaultFile() (result map[string]string, hash string) {
