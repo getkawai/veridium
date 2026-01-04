@@ -87,6 +87,18 @@ help:
 	@echo "  make admin-register       Register all treasury addresses as admin"
 	@echo "  make admin-register-dry   Preview admin registration (dry-run)"
 	@echo ""
+	@echo "Mining Rewards Testing:"
+	@echo "  make test-mining-rewards      Run all mining rewards tests"
+	@echo "  make test-inject-mining-data  Inject test data to KV store"
+	@echo "  make test-mining-settlement   Test full settlement flow"
+	@echo ""
+	@echo "KV Store Cleanup:"
+	@echo "  make cleanup-kv-preview       Preview what will be deleted"
+	@echo "  make cleanup-kv-jobs          Delete job reward records"
+	@echo "  make cleanup-kv-proofs        Delete Merkle proofs"
+	@echo "  make cleanup-kv-settlements   Delete settlement periods"
+	@echo "  make cleanup-kv-all           Delete ALL mining data (⚠️  DANGEROUS)"
+	@echo ""
 	@echo "Maintenance:"
 	@echo "  make clean            Clean generated files"
 	@echo "  make test             Run tests"
@@ -452,3 +464,45 @@ admin-register:
 admin-register-dry:
 	@echo "🔍 Preview admin registration (dry-run)..."
 	@go run cmd/register-admin/main.go --dry-run
+
+# ==============================================================================
+# Mining Rewards Testing
+# ==============================================================================
+test-mining-rewards:
+	@echo "🧪 Running mining rewards tests..."
+	@bash scripts/test-mining-rewards.sh
+
+test-inject-mining-data:
+	@echo "💉 Injecting test mining reward data..."
+	@go run cmd/test-inject-mining-data/main.go
+
+test-mining-settlement:
+	@echo "🌳 Testing full settlement flow..."
+	@make test-inject-mining-data
+	@echo ""
+	@echo "📊 Generating settlement..."
+	@go run cmd/mining-settlement/main.go generate --reward-type kawai
+
+# ==============================================================================
+# KV Store Cleanup
+# ==============================================================================
+cleanup-kv-preview:
+	@echo "🔍 Preview KV cleanup (dry-run)..."
+	@go run cmd/cleanup-kv-mining-data/main.go --all --dry-run
+
+cleanup-kv-jobs:
+	@echo "🧹 Cleaning up job reward records..."
+	@go run cmd/cleanup-kv-mining-data/main.go --jobs --confirm DELETE
+
+cleanup-kv-proofs:
+	@echo "🧹 Cleaning up Merkle proofs..."
+	@go run cmd/cleanup-kv-mining-data/main.go --proofs --confirm DELETE
+
+cleanup-kv-settlements:
+	@echo "🧹 Cleaning up settlement periods..."
+	@go run cmd/cleanup-kv-mining-data/main.go --settlements --confirm DELETE
+
+cleanup-kv-all:
+	@echo "🧹 Cleaning up ALL mining data from KV..."
+	@echo "⚠️  This will delete all job records, proofs, and settlements!"
+	@go run cmd/cleanup-kv-mining-data/main.go --all --confirm DELETE
