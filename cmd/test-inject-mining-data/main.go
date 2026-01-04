@@ -66,7 +66,7 @@ func main() {
 }
 
 func injectReferralUserReward(ctx context.Context, kv *store.KVStore) error {
-	contributorAddr := "0xTestContributor1111111111111111111111111111"
+	contributorAddr := "0x9f152652004F133f64522ECE18D3Dc0eD531d2d7" // Valid test wallet #1
 	
 	// First, create contributor record so they show up in ListContributorsWithBalance
 	contributorData := &store.ContributorData{
@@ -128,7 +128,7 @@ func injectReferralUserReward(ctx context.Context, kv *store.KVStore) error {
 }
 
 func injectNonReferralUserReward(ctx context.Context, kv *store.KVStore) error {
-	contributorAddr := "0xTestContributor2222222222222222222222222222"
+	contributorAddr := "0xefd96492CE8A2c8B3874c9cdB1D7A02df1326764" // Valid test wallet #2
 	
 	// First, create contributor record
 	contributorData := &store.ContributorData{
@@ -186,7 +186,7 @@ func injectNonReferralUserReward(ctx context.Context, kv *store.KVStore) error {
 
 func injectMultipleJobs(ctx context.Context, kv *store.KVStore) error {
 	// Inject 3 jobs from same contributor to test aggregation
-	contributorAddr := "0xTestContributor3333333333333333333333333333"
+	contributorAddr := "0x0f3e75B9Bb3efcD87B1Ed15a30C8a7FBaABD204E" // Valid test wallet #3
 	userAddr := "0xTestUser33333333333333333333333333333333"
 	referrerAddr := "0xTestReferrer333333333333333333333333333"
 

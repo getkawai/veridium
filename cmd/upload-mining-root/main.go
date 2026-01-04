@@ -20,10 +20,10 @@ import (
 )
 
 var (
-	periodID   = flag.Int64("period", 0, "Period ID to upload (required)")
-	rpcURL     = flag.String("rpc", "https://testnet-rpc.monad.xyz", "RPC URL")
+	periodID     = flag.Int64("period", 0, "Period ID to upload (required)")
+	rpcURL       = flag.String("rpc", "https://testnet-rpc.monad.xyz", "RPC URL")
 	contractAddr = flag.String("contract", "0xa0dDC59DAcBA9201CC9Ef613707d287b77b2723F", "MiningRewardDistributor contract address")
-	dryRun     = flag.Bool("dry-run", false, "Preview without uploading")
+	dryRun       = flag.Bool("dry-run", false, "Preview without uploading")
 )
 
 func main() {
@@ -180,7 +180,7 @@ func main() {
 	merkleRootHash := common.HexToHash(settlement.MerkleRoot)
 	var merkleRoot [32]byte
 	copy(merkleRoot[:], merkleRootHash[:])
-	
+
 	// 7. Send transaction
 	fmt.Println("📤 Step 6: Sending transaction...")
 	fmt.Printf("  setMerkleRoot(%s)\n", settlement.MerkleRoot)
@@ -244,4 +244,3 @@ func formatAmount(amountStr string) string {
 
 	return result.String()
 }
-
