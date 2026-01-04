@@ -1,6 +1,6 @@
 import { Card, Button, Empty, Tag, Spin, App, Skeleton, Modal, Pagination, Table } from 'antd';
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { DeAIService, JarvisService } from '@@/github.com/kawai-network/veridium/internal/services';
+import { DeAIService, JarvisService, WalletService } from '@@/github.com/kawai-network/veridium/internal/services';
 import {
   History,
   Gift,
@@ -191,28 +191,28 @@ export const MiningRewardsSection = ({ currentNetwork, transactions, theme, styl
       
       // Show dialog for better visibility
       if (isInsufficientFunds) {
-        await Dialogs.Error({
+        const userAddress = await WalletService.GetCurrentAddress();
+        const result = await Dialogs.Question({
           Title: 'Insufficient Funds for Gas',
           Message: `You need MON tokens to pay for gas fees on Monad Testnet.\n\n` +
                    `How to get MON:\n` +
                    `1. Visit Monad Testnet Faucet\n` +
-                   `2. Enter your address: ${await JarvisService.GetCurrentAddress()}\n` +
+                   `2. Enter your address: ${userAddress}\n` +
                    `3. Request testnet MON tokens\n\n` +
                    `After receiving MON, try claiming again.`,
           Buttons: [
-            { Label: 'Open Faucet', IsDefault: true, Value: 'faucet' },
-            { Label: 'Close', Value: 'close' }
+            { Label: 'Open Faucet', IsDefault: true },
+            { Label: 'Close' }
           ]
-        }).then((result) => {
-          if (result === 'faucet') {
-            Browser.OpenURL('https://faucet.monad.xyz/');
-          }
         });
+        
+        if (result === 'Open Faucet') {
+          Browser.OpenURL('https://faucet.monad.xyz/');
+        }
       } else {
         await Dialogs.Error({
           Title: 'Claim Transaction Failed',
-          Message: errorMsg,
-          Buttons: [{ Label: 'OK', IsDefault: true }]
+          Message: errorMsg
         });
       }
       
