@@ -91,6 +91,8 @@ help:
 	@echo "  make test-mining-rewards      Run all mining rewards tests"
 	@echo "  make test-inject-mining-data  Inject test data to KV store"
 	@echo "  make test-mining-settlement   Test full settlement flow"
+	@echo "  make upload-mining-root PERIOD=<id>  Upload Merkle root to contract"
+	@echo "  make upload-mining-root-preview PERIOD=<id>  Preview upload (dry-run)"
 	@echo ""
 	@echo "KV Store Cleanup:"
 	@echo "  make cleanup-kv-preview       Preview what will be deleted"
@@ -482,6 +484,16 @@ test-mining-settlement:
 	@echo ""
 	@echo "📊 Generating settlement..."
 	@go run cmd/mining-settlement/main.go generate --reward-type kawai
+
+upload-mining-root:
+	@echo "🚀 Uploading Merkle root to contract..."
+	@test -n "$(PERIOD)" || (echo "❌ PERIOD not set! Usage: make upload-mining-root PERIOD=<period_id>" && exit 1)
+	@go run cmd/upload-mining-root/main.go --period $(PERIOD)
+
+upload-mining-root-preview:
+	@echo "🔍 Preview Merkle root upload (dry-run)..."
+	@test -n "$(PERIOD)" || (echo "❌ PERIOD not set! Usage: make upload-mining-root-preview PERIOD=<period_id>" && exit 1)
+	@go run cmd/upload-mining-root/main.go --period $(PERIOD) --dry-run
 
 # ==============================================================================
 # KV Store Cleanup
