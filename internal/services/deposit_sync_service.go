@@ -170,9 +170,14 @@ func (s *DepositSyncService) SyncDeposit(ctx context.Context, req SyncDepositReq
 		}, nil
 	}
 
-	// 6.c ACQUIRE LOCK: Set pending flag with TTL (60s)
-	// This reduces the race window significantly
-	if err := s.kvStore.StoreMarketplaceDataWithTTL(ctx, pendingKey, []byte("processing"), 60); err != nil {
+	// 6.c ACQUIRE LOCK: Set pending flag with TTL (300s = 5 minutes)
+	// TTL is set to 5 minutes to handle:
+	// - Network delays (blockchain RPC calls)
+	// - KV store latency (multiple read/write operations)
+	// - Cashback calculation and tracking
+	// Lock is released via defer when function completes successfully
+	// TTL ensures lock doesn't persist indefinitely if process crashes
+	if err := s.kvStore.StoreMarketplaceDataWithTTL(ctx, pendingKey, []byte("processing"), 300); err != nil {
 		log.Printf("❌ [DepositSync] Failed to acquire lock: %v", err)
 		return &SyncDepositResponse{
 			Success: false,
@@ -192,14 +197,21 @@ func (s *DepositSyncService) SyncDeposit(ctx context.Context, req SyncDepositReq
 		}, nil
 	}
 
-	// 8. Mark transaction as processed (after successful balance update)
+	// 8. Track cashback for this deposit
+	period := s.kvStore.GetCurrentPeriod()
+	if err := s.kvStore.TrackCashback(ctx, req.UserAddress, req.TxHash, depositAmount, period); err != nil {
+		log.Printf("⚠️  [DepositSync] Failed to track cashback: %v", err)
+		// Don't fail - balance already updated, cashback can be manually added if needed
+	}
+
+	// 9. Mark transaction as processed (after successful balance update)
 	// This makes the operation idempotent
 	if err := s.kvStore.StoreMarketplaceData(ctx, processedKey, []byte("completed")); err != nil {
 		log.Printf("⚠️  [DepositSync] Failed to mark transaction as processed: %v", err)
 		// Don't fail - balance already updated, user can retry if needed
 	}
 
-	// 9. Get new balance
+	// 10. Get new balance
 	balance, _ := s.kvStore.GetUserBalance(ctx, req.UserAddress)
 
 	log.Printf("✅ [DepositSync] Deposit synced: user=%s, amount=%s USDT, block=%d",

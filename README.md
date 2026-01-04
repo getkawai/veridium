@@ -109,6 +109,13 @@ This roadmap outlines the path from "Zero" to a fully functional decentralized n
         - [x] **URL Detection**: Auto-apply referral from `?ref=CODE` parameter.
         - [x] **Dashboard**: Track referrals, earnings, and share links.
         - [x] **Self-Referral Prevention**: Anti-abuse mechanism.
+    - [x] **Deposit Cashback System:**
+        - [x] **Tiered Rewards**: 1%-5% KAWAI cashback based on deposit amount.
+        - [x] **First-Time Bonus**: 5% cashback for first deposit (overrides base rate).
+        - [x] **Tier Caps**: 5K-20K KAWAI per deposit to prevent abuse.
+        - [x] **Weekly Claims**: Off-chain accumulation, weekly Merkle settlement.
+        - [x] **Batch Claims**: Claim multiple periods in one transaction.
+        - [x] **200M Allocation**: 20% of max supply (~3 year runway).
         - [x] **Unlimited Referrals**: No cap on earnings.
     - [x] **Job Reward Recording (Bootstrap Phase):**
         - [x] Record rewards for local LLM inference to treasury pool.
@@ -319,6 +326,8 @@ CF_KV_USERS_NAMESPACE_ID=...         # User Profiles & Balance (JSON)
 | [`CONTRACTS_WORKFLOW.md`](docs/CONTRACTS_WORKFLOW.md) | Smart contract development workflow |
 | [`DEPOSIT_SYNC.md`](docs/DEPOSIT_SYNC.md) | Deposit synchronization system & implementation guide |
 | [`REFERRAL_SYSTEM.md`](REFERRAL_SYSTEM.md) | Referral system implementation & viral growth strategy |
+| [`CASHBACK_SYSTEM.md`](CASHBACK_SYSTEM.md) | Deposit cashback system implementation & tokenomics |
+| [`DEPOSIT_CASHBACK_TOKENOMICS.md`](DEPOSIT_CASHBACK_TOKENOMICS.md) | Deep tokenomics analysis for cashback program |
 | [`current_concept.md`](current_concept.md) | Complete project concept & tokenomics |
 
 ---

@@ -133,6 +133,9 @@ func buildServiceList(ctx *app.Context, fileProcessor *FileProcessorService, sdS
 		// Referral System
 		application.NewService(services.NewReferralService(ctx.KVStore)),
 
+		// Cashback System
+		application.NewService(services.NewCashbackService(ctx.KVStore)),
+
 		// File Server
 		application.NewServiceWithOptions(
 			fileserver.NewWithConfig(&fileserver.Config{RootPath: paths.FileBase()}),
