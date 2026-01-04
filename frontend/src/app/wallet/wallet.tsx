@@ -15,7 +15,6 @@ import {
   ShoppingCart,
   Globe,
   Repeat2,
-  Award,
 } from 'lucide-react';
 import { ActionIcon, Icon } from '@lobehub/ui';
 import { Flexbox } from 'react-layout-kit';
@@ -504,9 +503,9 @@ const DesktopWalletLayout = memo(() => {
       syncHide();
       
       if (syncResult?.success) {
-        message.success(`Balance synced! New balance: ${(parseFloat(syncResult.newBalance) / 1_000_000).toFixed(2)} USDT`);
+        message.success(`Balance synced! New balance: ${(parseFloat(syncResult.newBalance || '0') / 1_000_000).toFixed(2)} USDT`);
       } else {
-        message.warning(`Deposit successful but sync failed: ${syncResult?.message}. Please try manual sync.`);
+        message.warning(`Deposit successful but sync failed: ${syncResult?.message || 'Unknown error'}. Please try manual sync.`);
       }
       
       loadBalance();
