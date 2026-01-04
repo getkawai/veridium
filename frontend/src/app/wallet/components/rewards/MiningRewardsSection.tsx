@@ -11,7 +11,7 @@ import {
   Clock,
   Info
 } from 'lucide-react';
-import { Browser } from '@wailsio/runtime';
+import { Browser, Dialogs } from '@wailsio/runtime';
 import { Flexbox } from 'react-layout-kit';
 import { TokenUSDT } from '@web3icons/react';
 import type { NetworkInfo } from '@@/github.com/kawai-network/veridium/internal/services/models';
@@ -184,7 +184,38 @@ export const MiningRewardsSection = ({ currentNetwork, transactions, theme, styl
       }
     } catch (e: any) {
       console.error('Claim failed:', e);
-      message.error(e.message || 'Claim failed');
+      
+      // Parse error message for better UX
+      const errorMsg = e.message || 'Claim failed';
+      const isInsufficientFunds = errorMsg.toLowerCase().includes('insufficient funds');
+      
+      // Show dialog for better visibility
+      if (isInsufficientFunds) {
+        await Dialogs.Error({
+          Title: 'Insufficient Funds for Gas',
+          Message: `You need MON tokens to pay for gas fees on Monad Testnet.\n\n` +
+                   `How to get MON:\n` +
+                   `1. Visit Monad Testnet Faucet\n` +
+                   `2. Enter your address: ${await JarvisService.GetCurrentAddress()}\n` +
+                   `3. Request testnet MON tokens\n\n` +
+                   `After receiving MON, try claiming again.`,
+          Buttons: [
+            { Label: 'Open Faucet', IsDefault: true, Value: 'faucet' },
+            { Label: 'Close', Value: 'close' }
+          ]
+        }).then((result) => {
+          if (result === 'faucet') {
+            Browser.OpenURL('https://faucet.monad.xyz/');
+          }
+        });
+      } else {
+        await Dialogs.Error({
+          Title: 'Claim Transaction Failed',
+          Message: errorMsg,
+          Buttons: [{ Label: 'OK', IsDefault: true }]
+        });
+      }
+      
       setTimeout(() => loadRewards(), 1000);
     } finally {
       setClaimLoading(prev => {
