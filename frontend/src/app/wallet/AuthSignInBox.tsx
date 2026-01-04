@@ -110,6 +110,7 @@ export default memo(() => {
     deleteWallet,
     exportKeystore,
     importKeystore,
+    importPrivateKey,
   } = useUserStore(s => ({
     hasWallet: s.hasWallet,
     wallets: s.wallets,
@@ -123,6 +124,7 @@ export default memo(() => {
     deleteWallet: s.deleteWallet,
     exportKeystore: s.exportKeystore,
     importKeystore: s.importKeystore,
+    importPrivateKey: s.importPrivateKey,
   }));
 
   useEffect(() => {
@@ -250,13 +252,14 @@ export default memo(() => {
 
     setIsLoading(true);
     try {
-      // Import via keystore (backend will handle private key conversion)
-      // For now, show error that this needs backend support
-      message.error('Private key import requires backend support. Please use mnemonic or keystore import for now.');
-      
-      // TODO: Add backend method to import private key directly
-      // await importPrivateKey(cleanKey, password, description);
-      
+      const address = await importPrivateKey(cleanKey, password, description);
+      if (address) {
+        message.success('Private key imported successfully!');
+        resetForm();
+        setStep('unlock');
+      } else {
+        message.error('Failed to import private key');
+      }
     } catch (err: any) {
       message.error(err?.message || 'Failed to import private key');
     } finally {

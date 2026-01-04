@@ -15,6 +15,7 @@ export interface WalletAction {
   deleteWallet: (address: string) => Promise<boolean>;
   exportKeystore: (address: string) => Promise<string>;
   importKeystore: (keystoreJSON: string, password: string, description?: string) => Promise<string>;
+  importPrivateKey: (privateKey: string, password: string, description?: string) => Promise<string>;
   updateWalletDescription: (address: string, description: string) => Promise<boolean>;
   getWallets: () => Promise<WalletInfo[]>;
   getAPIKey: () => Promise<string>;
@@ -126,6 +127,17 @@ export const createWalletSlice: StateCreator<
       return address;
     } catch (error) {
       console.error('Failed to import keystore:', error);
+      throw error;
+    }
+  },
+
+  importPrivateKey: async (privateKey: string, password: string, description?: string) => {
+    try {
+      const address = await WalletService.ImportPrivateKey(privateKey, password, description || '');
+      await get().refreshWalletStatus();
+      return address;
+    } catch (error) {
+      console.error('Failed to import private key:', error);
       throw error;
     }
   },

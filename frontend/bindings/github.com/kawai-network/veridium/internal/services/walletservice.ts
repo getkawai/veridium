@@ -89,6 +89,13 @@ export function ImportKeystore(keystoreJSON: string, password: string, descripti
 }
 
 /**
+ * ImportPrivateKey imports a wallet from a private key
+ */
+export function ImportPrivateKey(privateKeyHex: string, password: string, description: string): $CancellablePromise<string> {
+    return $Call.ByID(1034386550, privateKeyHex, password, description);
+}
+
+/**
  * LockWallet clears the private key from memory
  */
 export function LockWallet(): $CancellablePromise<void> {

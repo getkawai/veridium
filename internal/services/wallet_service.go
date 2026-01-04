@@ -2,19 +2,23 @@ package services
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/tyler-smith/go-bip39"
 
+	"github.com/kawai-network/veridium/internal/paths"
 	"github.com/kawai-network/veridium/pkg/jarvis/accounts"
 	"github.com/kawai-network/veridium/pkg/jarvis/accounts/types"
 	"github.com/kawai-network/veridium/pkg/jarvis/util/account"
@@ -261,8 +265,7 @@ func (s *WalletService) DeleteWallet(address string) error {
 	}
 
 	// Delete account record (metadata file)
-	homeDir, _ := os.UserHomeDir()
-	metadataPath := fmt.Sprintf("%s/.jarvis/%s.json", homeDir, address)
+	metadataPath := filepath.Join(paths.Jarvis(), fmt.Sprintf("%s.json", address))
 	if err := os.Remove(metadataPath); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("failed to delete metadata: %v", err)
 	}
@@ -309,10 +312,9 @@ func (s *WalletService) ImportKeystore(keystoreJSON string, password string, des
 	}
 
 	// Save keystore to file
-	homeDir, _ := os.UserHomeDir()
-	keystoreDir := fmt.Sprintf("%s/.jarvis/keystores", homeDir)
+	keystoreDir := paths.JarvisKeystores()
 	os.MkdirAll(keystoreDir, 0755)
-	keystorePath := fmt.Sprintf("%s/%s.json", keystoreDir, address)
+	keystorePath := filepath.Join(keystoreDir, fmt.Sprintf("%s.json", address))
 
 	if err := os.WriteFile(keystorePath, []byte(keystoreJSON), 0600); err != nil {
 		return "", fmt.Errorf("failed to save keystore: %v", err)
@@ -337,11 +339,87 @@ func (s *WalletService) ImportKeystore(keystoreJSON string, password string, des
 	// Verify by unlocking
 	acc, err := accounts.UnlockKeystoreAccountWithPassword(accDesc, password)
 	if err != nil {
+		// Rollback: delete the keystore file and metadata
+		os.Remove(keystorePath)
+		os.Remove(filepath.Join(paths.Jarvis(), fmt.Sprintf("%s.json", address)))
+		return "", errors.New("invalid password for keystore")
+	}
+
+	s.mu.Lock()
+	s.currentAccount = acc
+	s.address = address
+	s.mu.Unlock()
+
+	return address, nil
+}
+
+// ImportPrivateKey imports a wallet from a private key
+func (s *WalletService) ImportPrivateKey(privateKeyHex string, password string, description string) (string, error) {
+	// Remove 0x prefix if present
+	if len(privateKeyHex) >= 2 && privateKeyHex[:2] == "0x" {
+		privateKeyHex = privateKeyHex[2:]
+	}
+
+	// Validate private key length
+	if len(privateKeyHex) != 64 {
+		return "", errors.New("invalid private key: must be 64 hex characters")
+	}
+
+	// Parse private key
+	privateKey, err := crypto.HexToECDSA(privateKeyHex)
+	if err != nil {
+		return "", fmt.Errorf("invalid private key: %v", err)
+	}
+
+	// Derive address from private key
+	publicKey := privateKey.Public()
+	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	if !ok {
+		return "", errors.New("failed to derive public key")
+	}
+	address := crypto.PubkeyToAddress(*publicKeyECDSA).Hex()
+
+	// Check if wallet already exists
+	accs := accounts.GetAccounts()
+	if _, exists := accs[address]; exists {
+		return "", errors.New("wallet with this address already exists")
+	}
+
+	// Create encrypted keystore
+	ks := keystore.NewKeyStore(paths.JarvisKeystores(), keystore.StandardScryptN, keystore.StandardScryptP)
+	account, err := ks.ImportECDSA(privateKey, password)
+	if err != nil {
+		return "", fmt.Errorf("failed to create keystore: %v", err)
+	}
+
+	// Get keystore file path
+	keystorePath := account.URL.Path
+
+	// Use default description if empty
+	if description == "" {
+		description = fmt.Sprintf("Imported Wallet %d", len(accs)+1)
+	}
+
+	// Store account metadata
+	accDesc := types.AccDesc{
+		Address: address,
+		Kind:    "keystore",
+		Keypath: keystorePath,
+		Desc:    description,
+	}
+	if err := accounts.StoreAccountRecord(accDesc); err != nil {
 		// Rollback: delete the keystore file
 		os.Remove(keystorePath)
-		homeDir, _ := os.UserHomeDir()
-		os.Remove(fmt.Sprintf("%s/.jarvis/%s.json", homeDir, address))
-		return "", errors.New("invalid password for keystore")
+		return "", fmt.Errorf("failed to store account record: %v", err)
+	}
+
+	// Unlock and set as current account
+	acc, err := accounts.UnlockKeystoreAccountWithPassword(accDesc, password)
+	if err != nil {
+		// Rollback
+		os.Remove(keystorePath)
+		os.Remove(filepath.Join(paths.Jarvis(), fmt.Sprintf("%s.json", address)))
+		return "", fmt.Errorf("failed to unlock imported wallet: %v", err)
 	}
 
 	s.mu.Lock()
