@@ -18,12 +18,12 @@ import (
 // Use with caution - this will delete data!
 
 var (
-	dryRun      = flag.Bool("dry-run", false, "Preview what will be deleted without actually deleting")
-	deleteJobs  = flag.Bool("jobs", false, "Delete job reward records")
-	deleteProofs = flag.Bool("proofs", false, "Delete Merkle proofs")
+	dryRun            = flag.Bool("dry-run", false, "Preview what will be deleted without actually deleting")
+	deleteJobs        = flag.Bool("jobs", false, "Delete job reward records")
+	deleteProofs      = flag.Bool("proofs", false, "Delete Merkle proofs")
 	deleteSettlements = flag.Bool("settlements", false, "Delete settlement periods")
-	deleteAll   = flag.Bool("all", false, "Delete everything (jobs + proofs + settlements)")
-	confirm     = flag.String("confirm", "", "Type 'DELETE' to confirm deletion")
+	deleteAll         = flag.Bool("all", false, "Delete everything (jobs + proofs + settlements)")
+	confirm           = flag.String("confirm", "", "Type 'DELETE' to confirm deletion")
 )
 
 func main() {
@@ -122,7 +122,7 @@ func main() {
 
 func cleanupJobRewards(ctx context.Context, kv *store.KVStore, dryRun bool) error {
 	fmt.Println("📝 Cleaning up job reward records...")
-	
+
 	// List all contributors
 	contributors, err := kv.ListContributorsWithBalance(ctx, "kawai")
 	if err != nil {
@@ -219,7 +219,7 @@ func cleanupSettlements(ctx context.Context, kv *store.KVStore, dryRun bool) err
 
 	for _, period := range miningPeriods {
 		status := string(period.Status)
-		fmt.Printf("  Period %d: %s (%d contributors, %s KAWAI)\n", 
+		fmt.Printf("  Period %d: %s (%d contributors, %s KAWAI)\n",
 			period.PeriodID, status, period.ContributorCount, formatAmount(period.TotalAmount))
 
 		if !dryRun {
@@ -259,4 +259,3 @@ func formatAmount(amountStr string) string {
 
 	return amountStr
 }
-

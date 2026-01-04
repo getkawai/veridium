@@ -66,6 +66,24 @@ func main() {
 }
 
 func injectReferralUserReward(ctx context.Context, kv *store.KVStore) error {
+	contributorAddr := "0xTestContributor1111111111111111111111111111"
+	
+	// First, create contributor record so they show up in ListContributorsWithBalance
+	contributorData := &store.ContributorData{
+		WalletAddress:      contributorAddr,
+		EndpointURL:        "http://test-contributor-1.local",
+		HardwareSpecs:      "Test Hardware",
+		IsActive:           true,
+		AccumulatedRewards: "85000000000000000000", // 85 KAWAI
+		AccumulatedUSDT:    "0",
+		LastSeen:           time.Now(),
+		RegisteredAt:       time.Now(),
+		Status:             store.ContributorStatusOnline,
+	}
+	if err := kv.SaveContributor(ctx, contributorData); err != nil {
+		return fmt.Errorf("failed to save contributor: %w", err)
+	}
+	
 	// Calculate 85/5/5/5 split for 1M tokens (100 KAWAI base)
 	baseReward := big.NewInt(100) // 100 KAWAI
 
@@ -87,7 +105,7 @@ func injectReferralUserReward(ctx context.Context, kv *store.KVStore) error {
 
 	record := &store.JobRewardRecord{
 		Timestamp:          time.Now(),
-		ContributorAddress: "0xTestContributor1111111111111111111111111111",
+		ContributorAddress: contributorAddr,
 		UserAddress:        "0xTestUser11111111111111111111111111111111",
 		ReferrerAddress:    "0xTestReferrer111111111111111111111111111",
 		DeveloperAddress:   constant.GetRandomTreasuryAddress(),
@@ -110,6 +128,24 @@ func injectReferralUserReward(ctx context.Context, kv *store.KVStore) error {
 }
 
 func injectNonReferralUserReward(ctx context.Context, kv *store.KVStore) error {
+	contributorAddr := "0xTestContributor2222222222222222222222222222"
+	
+	// First, create contributor record
+	contributorData := &store.ContributorData{
+		WalletAddress:      contributorAddr,
+		EndpointURL:        "http://test-contributor-2.local",
+		HardwareSpecs:      "Test Hardware",
+		IsActive:           true,
+		AccumulatedRewards: "90000000000000000000", // 90 KAWAI
+		AccumulatedUSDT:    "0",
+		LastSeen:           time.Now(),
+		RegisteredAt:       time.Now(),
+		Status:             store.ContributorStatusOnline,
+	}
+	if err := kv.SaveContributor(ctx, contributorData); err != nil {
+		return fmt.Errorf("failed to save contributor: %w", err)
+	}
+	
 	// Calculate 90/5/5 split for 1M tokens (100 KAWAI base)
 	baseReward := big.NewInt(100)
 
@@ -127,7 +163,7 @@ func injectNonReferralUserReward(ctx context.Context, kv *store.KVStore) error {
 
 	record := &store.JobRewardRecord{
 		Timestamp:          time.Now(),
-		ContributorAddress: "0xTestContributor2222222222222222222222222222",
+		ContributorAddress: contributorAddr,
 		UserAddress:        "0xTestUser22222222222222222222222222222222",
 		ReferrerAddress:    "", // No referrer
 		DeveloperAddress:   constant.GetRandomTreasuryAddress(),
@@ -153,6 +189,22 @@ func injectMultipleJobs(ctx context.Context, kv *store.KVStore) error {
 	contributorAddr := "0xTestContributor3333333333333333333333333333"
 	userAddr := "0xTestUser33333333333333333333333333333333"
 	referrerAddr := "0xTestReferrer333333333333333333333333333"
+
+	// First, create contributor record
+	contributorData := &store.ContributorData{
+		WalletAddress:      contributorAddr,
+		EndpointURL:        "http://test-contributor-3.local",
+		HardwareSpecs:      "Test Hardware",
+		IsActive:           true,
+		AccumulatedRewards: "127500000000000000000", // 127.5 KAWAI (3 jobs * 42.5)
+		AccumulatedUSDT:    "0",
+		LastSeen:           time.Now(),
+		RegisteredAt:       time.Now(),
+		Status:             store.ContributorStatusOnline,
+	}
+	if err := kv.SaveContributor(ctx, contributorData); err != nil {
+		return fmt.Errorf("failed to save contributor: %w", err)
+	}
 
 	for i := 0; i < 3; i++ {
 		baseReward := big.NewInt(50) // 50 KAWAI per job
