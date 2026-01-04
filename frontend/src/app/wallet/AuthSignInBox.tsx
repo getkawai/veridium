@@ -78,7 +78,7 @@ const useStyles = createStyles(({ css, token }) => ({
   `,
 }));
 
-type Step = 'welcome' | 'setup' | 'mnemonic' | 'import' | 'unlock' | 'manage' | 'importKeystore' | 'addWallet';
+type Step = 'welcome' | 'setup' | 'mnemonic' | 'import' | 'unlock' | 'manage' | 'importKeystore' | 'importPrivateKey' | 'addWallet';
 
 export default memo(() => {
   const { styles } = useStyles();
@@ -90,6 +90,7 @@ export default memo(() => {
   const [mnemonic, setMnemonic] = useState('');
   const [description, setDescription] = useState('');
   const [keystoreJSON, setKeystoreJSON] = useState('');
+  const [privateKey, setPrivateKey] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showBackupReminder, setShowBackupReminder] = useState(false);
   const [selectedWallet, setSelectedWallet] = useState<string>('');
@@ -144,6 +145,7 @@ export default memo(() => {
     setMnemonic('');
     setDescription('');
     setKeystoreJSON('');
+    setPrivateKey('');
   };
 
   const handleUnlock = async () => {
@@ -224,6 +226,39 @@ export default memo(() => {
       setStep('unlock');
     } catch (err: any) {
       message.error(err?.message || 'Failed to import keystore');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleImportPrivateKey = async () => {
+    if (!privateKey || !password) {
+      message.error('Please provide private key and password');
+      return;
+    }
+    
+    // Validate private key format
+    let cleanKey = privateKey.trim();
+    if (cleanKey.startsWith('0x')) {
+      cleanKey = cleanKey.slice(2);
+    }
+    
+    if (!/^[0-9a-fA-F]{64}$/.test(cleanKey)) {
+      message.error('Invalid private key format. Must be 64 hex characters.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Import via keystore (backend will handle private key conversion)
+      // For now, show error that this needs backend support
+      message.error('Private key import requires backend support. Please use mnemonic or keystore import for now.');
+      
+      // TODO: Add backend method to import private key directly
+      // await importPrivateKey(cleanKey, password, description);
+      
+    } catch (err: any) {
+      message.error(err?.message || 'Failed to import private key');
     } finally {
       setIsLoading(false);
     }
@@ -424,6 +459,14 @@ export default memo(() => {
                 </div>
                 <Icon icon={ArrowRight} />
               </Flex>
+              <Flex align="center" gap="small" className={styles.methodItem} onClick={() => setStep('importPrivateKey')}>
+                <Icon icon={Key} size={24} />
+                <div style={{ flex: 1 }}>
+                  <Text strong style={{ display: 'block' }}>Import Private Key</Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Import using a 64-character hex private key</Text>
+                </div>
+                <Icon icon={ArrowRight} />
+              </Flex>
             </Space>
           </Flex>
         );
@@ -550,6 +593,51 @@ export default memo(() => {
             />
             <Button type="primary" block size="large" onClick={handleImportKeystore} loading={isLoading}>
               Import Keystore
+            </Button>
+            <Button type="link" onClick={() => setStep('setup')}>Back</Button>
+          </Flex>
+        );
+
+      case 'importPrivateKey':
+        return (
+          <Flex vertical gap="large">
+            <div style={{ textAlign: 'center' }}>
+              <Text className={styles.title}>Import Private Key</Text>
+              <Text as="p" type="secondary">Enter your 64-character hex private key</Text>
+            </div>
+            <div className={styles.backupWarning}>
+              <Flex gap="small" align="start">
+                <Icon icon={AlertTriangle} size={20} style={{ color: '#faad14', flexShrink: 0 }} />
+                <Text type="warning" style={{ fontSize: 13 }}>
+                  Never share your private key! Anyone with this key can access your funds.
+                </Text>
+              </Flex>
+            </div>
+            <Input.Password
+              placeholder="0x... or 64 hex characters"
+              value={privateKey}
+              onChange={e => setPrivateKey(e.target.value)}
+              size="large"
+              autoFocus
+            />
+            {privateKey && (
+              <Text type={privateKey.replace('0x', '').length === 64 ? 'success' : 'danger'} style={{ fontSize: 12, marginTop: -8 }}>
+                {privateKey.replace('0x', '').length === 64 ? '✓ Valid format' : `${privateKey.replace('0x', '').length}/64 characters`}
+              </Text>
+            )}
+            <Input.Password
+              placeholder="Create password for this wallet"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              size="large"
+            />
+            <Input
+              placeholder="Wallet name (e.g. Test Wallet)"
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+            />
+            <Button type="primary" block size="large" onClick={handleImportPrivateKey} loading={isLoading}>
+              Import Private Key
             </Button>
             <Button type="link" onClick={() => setStep('setup')}>Back</Button>
           </Flex>
