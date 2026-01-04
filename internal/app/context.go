@@ -444,13 +444,13 @@ func (ctx *Context) InitLanguageModels() {
 func (ctx *Context) buildModelChain(bgCtx context.Context, localModel fantasy.LanguageModel, criteria openrouter.ModelSelectionCriteria, taskName string) []fantasy.LanguageModel {
 	var chain []fantasy.LanguageModel
 
-	// 1. Google Gemini (free tier with API key)
+	// 1. Google Gemini 2.5 Flash-Lite (free tier with highest limits: 15 RPM, 1000 RPD)
 	if apiKey := constant.GetRandomGeminiApiKey(); apiKey != "" {
-		log.Printf("🔍 %s: Initializing Google Gemini...", taskName)
+		log.Printf("🔍 %s: Initializing Google Gemini 2.5 Flash-Lite...", taskName)
 		if provider, err := googleprovider.New(googleprovider.WithGeminiAPIKey(apiKey)); err == nil {
-			if geminiModel, err := provider.LanguageModel(bgCtx, "gemini-1.5-flash"); err == nil {
+			if geminiModel, err := provider.LanguageModel(bgCtx, "gemini-2.5-flash-lite"); err == nil {
 				chain = append(chain, geminiModel)
-				log.Printf("✅ %s: Added Google Gemini (gemini-1.5-flash) to chain", taskName)
+				log.Printf("✅ %s: Added Google Gemini (gemini-2.5-flash-lite) to chain [15 RPM, 1000 RPD]", taskName)
 			} else {
 				log.Printf("❌ %s: Google Gemini provider initialized but failed to get model: %v", taskName, err)
 			}

@@ -45,6 +45,73 @@ export class BalanceInfo {
 }
 
 /**
+ * CashbackStatsResponse represents cashback statistics for the frontend
+ */
+export class CashbackStatsResponse {
+    /**
+     * Total KAWAI earned (wei)
+     */
+    "total_cashback": string;
+
+    /**
+     * Pending (unclaimed) (wei)
+     */
+    "pending_cashback": string;
+
+    /**
+     * Already claimed (wei)
+     */
+    "claimed_cashback": string;
+
+    /**
+     * Number of deposits
+     */
+    "total_deposits": number;
+
+    /**
+     * ISO timestamp
+     */
+    "first_deposit_at": string;
+
+    /**
+     * ISO timestamp
+     */
+    "last_deposit_at": string;
+
+    /** Creates a new CashbackStatsResponse instance. */
+    constructor($$source: Partial<CashbackStatsResponse> = {}) {
+        if (!("total_cashback" in $$source)) {
+            this["total_cashback"] = "";
+        }
+        if (!("pending_cashback" in $$source)) {
+            this["pending_cashback"] = "";
+        }
+        if (!("claimed_cashback" in $$source)) {
+            this["claimed_cashback"] = "";
+        }
+        if (!("total_deposits" in $$source)) {
+            this["total_deposits"] = 0;
+        }
+        if (!("first_deposit_at" in $$source)) {
+            this["first_deposit_at"] = "";
+        }
+        if (!("last_deposit_at" in $$source)) {
+            this["last_deposit_at"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CashbackStatsResponse instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CashbackStatsResponse {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new CashbackStatsResponse($$parsedSource as Partial<CashbackStatsResponse>);
+    }
+}
+
+/**
  * ChatCompletionMessage represents a message in the completion request
  */
 export class ChatCompletionMessage {
