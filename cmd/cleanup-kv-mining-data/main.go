@@ -12,6 +12,8 @@ import (
 	"github.com/kawai-network/veridium/pkg/store"
 )
 
+// Keep os import for os.Exit
+
 // This tool cleans up old mining reward data from KV store
 // Use with caution - this will delete data!
 
@@ -35,15 +37,7 @@ func main() {
 	ctx := context.Background()
 
 	// Initialize KV store
-	kv, err := store.NewKVStore(
-		os.Getenv("CF_ACCOUNT_ID"),
-		os.Getenv("CF_API_TOKEN"),
-		os.Getenv("CF_KV_CONTRIBUTORS_NAMESPACE_ID"),
-		os.Getenv("CF_KV_PROOFS_NAMESPACE_ID"),
-		os.Getenv("CF_KV_SETTLEMENTS_NAMESPACE_ID"),
-		os.Getenv("CF_KV_AUTHZ_NAMESPACE_ID"),
-		os.Getenv("CF_KV_USERS_NAMESPACE_ID"),
-	)
+	kv, err := store.NewMultiNamespaceKVStore()
 	if err != nil {
 		log.Fatal("Failed to initialize KV store:", err)
 	}
@@ -179,7 +173,7 @@ func cleanupMerkleProofs(ctx context.Context, kv *store.KVStore, dryRun bool) er
 	}
 
 	// Filter for mining rewards (kawai type)
-	miningPeriods := []store.SettlementPeriod{}
+	miningPeriods := []*store.SettlementPeriod{}
 	for _, period := range periods {
 		if period.RewardType == "kawai" {
 			miningPeriods = append(miningPeriods, period)
@@ -218,7 +212,7 @@ func cleanupSettlements(ctx context.Context, kv *store.KVStore, dryRun bool) err
 	}
 
 	// Filter for mining rewards (kawai type)
-	miningPeriods := []store.SettlementPeriod{}
+	miningPeriods := []*store.SettlementPeriod{}
 	for _, period := range periods {
 		if period.RewardType == "kawai" {
 			miningPeriods = append(miningPeriods, period)

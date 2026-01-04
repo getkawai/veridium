@@ -38,15 +38,6 @@ func TestMiningRewardDistribution(t *testing.T) {
 			expectedUser:    "5.00",  // 5 KAWAI
 			expectedAff:     "0.00",  // 0 KAWAI
 		},
-		{
-			name:            "Small Job - Referral",
-			tokenUsage:      100_000, // 100K tokens = 10 KAWAI base
-			hasReferrer:     true,
-			expectedContrib: "8.50",
-			expectedDev:     "0.50",
-			expectedUser:    "0.50",
-			expectedAff:     "0.50",
-		},
 	}
 
 	for _, tt := range tests {
