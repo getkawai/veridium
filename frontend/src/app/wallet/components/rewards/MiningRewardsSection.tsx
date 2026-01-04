@@ -193,7 +193,7 @@ export const MiningRewardsSection = ({ currentNetwork, transactions, theme, styl
         await Dialogs.Error({
           Title: 'Insufficient Funds for Gas',
           Message: 'You need MON tokens to pay for gas fees.\n\n' +
-                   'Please get MON from the Monad Testnet Faucet:\n' +
+                   'Please get MON:\n' +
                    'https://faucet.monad.xyz/\n\n' +
                    'After receiving MON, try claiming again.'
         });
