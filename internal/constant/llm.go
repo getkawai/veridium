@@ -16,6 +16,9 @@ const (
 
 	// ZAI API Keys
 	obfuscatedZaiApiKey0 = "0gTbgkb9uV+C97WJR/s9cwJvzxKq1uKb/dod9XwkqVjNMIRsh5L6/0PTRJL79Xl0iX=="
+
+	// Gemini API Keys
+	obfuscatedGeminiApiKey0 = "jurKk47h4Ql57hi8fPan0+HK/Eg69I0jQX3y4Gr895xZlDpi2VGT"
 )
 
 // GetRandomOpenRouterApiKey returns a random decoded OpenRouter API key from the pool
@@ -71,6 +74,28 @@ func GetZaiApiKeys() []string {
 
 func getZaiApiKey0() string {
 	val, _ := obfuscator.DecodeString(obfuscatedZaiApiKey0)
+	return val
+}
+
+// GetRandomGeminiApiKey returns a random decoded Gemini API key from the pool
+func GetRandomGeminiApiKey() string {
+	keys := GetGeminiApiKeys()
+	if len(keys) == 0 {
+		return ""
+	}
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	return keys[r.Intn(len(keys))]
+}
+
+// GetGeminiApiKeys returns a slice of all decoded Gemini API keys
+func GetGeminiApiKeys() []string {
+	return []string{
+		getGeminiApiKey0(),
+	}
+}
+
+func getGeminiApiKey0() string {
+	val, _ := obfuscator.DecodeString(obfuscatedGeminiApiKey0)
 	return val
 }
 

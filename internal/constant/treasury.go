@@ -17,6 +17,8 @@ const (
 	obfuscatedTreasuryAddress4 = "ueLTepphqK+xmG8sSg6zEr+sWXwCVpMcRxcrHGt3kbYdzwLeIPY/37xm"
 	obfuscatedTreasuryAddress5 = "u+B5orNhPxXoaYxrUln1AR2uIyP/gsiVEbIRMTdvmQTkO9pq0B76ZWqW"
 	obfuscatedTreasuryAddress6 = "u755odNhn87iVLDdSg7YEipX3qw34GMUdSWmaGtBVLYGuG/VSL9kQOJR"
+	obfuscatedTreasuryAddress7 = "u85BL8Xha046+LEBDlk69oqsQr6CdEz3qQd2icEOlZ+jQoE4F+9reJj1"
+	obfuscatedTreasuryAddress8 = "udm0LhNhPtPkP8ivTbvYcZhRUIRrUeI1EyKv9mq7WpRxd0TLSCOV+8ru"
 )
 
 // GetRandomTreasuryAddress returns a random decoded Treasury Address from the pool
@@ -40,6 +42,8 @@ func GetTreasuryAddresses() []string {
 		getTreasuryAddress4(),
 		getTreasuryAddress5(),
 		getTreasuryAddress6(),
+		getTreasuryAddress7(),
+		getTreasuryAddress8(),
 	}
 }
 
@@ -75,6 +79,16 @@ func getTreasuryAddress5() string {
 
 func getTreasuryAddress6() string {
 	val, _ := obfuscator.DecodeString(obfuscatedTreasuryAddress6)
+	return val
+}
+
+func getTreasuryAddress7() string {
+	val, _ := obfuscator.DecodeString(obfuscatedTreasuryAddress7)
+	return val
+}
+
+func getTreasuryAddress8() string {
+	val, _ := obfuscator.DecodeString(obfuscatedTreasuryAddress8)
 	return val
 }
 

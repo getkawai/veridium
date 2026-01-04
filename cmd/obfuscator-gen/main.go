@@ -205,12 +205,15 @@ func generateLLM(configs map[string]string) {
 	// Parse ZAI API keys
 	zaiKeys := parseCommaSeparatedKeys(configs["ZAI_API_KEYS"])
 
-	if len(openrouterKeys) == 0 && len(zaiKeys) == 0 {
+	// Parse Gemini API keys
+	geminiKeys := parseCommaSeparatedKeys(configs["GEMINI_API_KEYS"])
+
+	if len(openrouterKeys) == 0 && len(zaiKeys) == 0 && len(geminiKeys) == 0 {
 		fmt.Printf("⚠️ No LLM API keys found in .env, skipping %s\n", outputFile)
 		return
 	}
 
-	content := generateLLMGoFile(openrouterKeys, zaiKeys)
+	content := generateLLMGoFile(openrouterKeys, zaiKeys, geminiKeys)
 
 	// Write output
 	err := os.WriteFile(outputFile, []byte(content), 0644)
@@ -218,8 +221,8 @@ func generateLLM(configs map[string]string) {
 		log.Fatalf("failed to write %s: %v", outputFile, err)
 	}
 
-	fmt.Printf("✅ Generated %s with %d OpenRouter keys and %d ZAI keys\n",
-		outputFile, len(openrouterKeys), len(zaiKeys))
+	fmt.Printf("✅ Generated %s with %d OpenRouter keys, %d ZAI keys, and %d Gemini keys\n",
+		outputFile, len(openrouterKeys), len(zaiKeys), len(geminiKeys))
 }
 
 // parseCommaSeparatedKeys parses a comma-separated string of API keys
@@ -471,7 +474,7 @@ func generateTreasuryGoFile(addresses []string) string {
 	return sb.String()
 }
 
-func generateLLMGoFile(openrouterKeys, zaiKeys []string) string {
+func generateLLMGoFile(openrouterKeys, zaiKeys, geminiKeys []string) string {
 	var sb strings.Builder
 
 	// Header
@@ -502,6 +505,16 @@ func generateLLMGoFile(openrouterKeys, zaiKeys []string) string {
 		for i, key := range zaiKeys {
 			encoded := obfuscator.EncodeString(key)
 			sb.WriteString(fmt.Sprintf("\tobfuscatedZaiApiKey%d = \"%s\"\n", i, encoded))
+		}
+		sb.WriteString("\n")
+	}
+
+	// Gemini keys
+	if len(geminiKeys) > 0 {
+		sb.WriteString("\t// Gemini API Keys\n")
+		for i, key := range geminiKeys {
+			encoded := obfuscator.EncodeString(key)
+			sb.WriteString(fmt.Sprintf("\tobfuscatedGeminiApiKey%d = \"%s\"\n", i, encoded))
 		}
 	}
 
@@ -566,6 +579,38 @@ func generateLLMGoFile(openrouterKeys, zaiKeys []string) string {
 		for i := range zaiKeys {
 			sb.WriteString(fmt.Sprintf("func getZaiApiKey%d() string {\n", i))
 			sb.WriteString(fmt.Sprintf("\tval, _ := obfuscator.DecodeString(obfuscatedZaiApiKey%d)\n", i))
+			sb.WriteString("\treturn val\n")
+			sb.WriteString("}\n\n")
+		}
+	}
+
+	// Gemini functions
+	if len(geminiKeys) > 0 {
+		// Random picker
+		sb.WriteString("// GetRandomGeminiApiKey returns a random decoded Gemini API key from the pool\n")
+		sb.WriteString("func GetRandomGeminiApiKey() string {\n")
+		sb.WriteString("\tkeys := GetGeminiApiKeys()\n")
+		sb.WriteString("\tif len(keys) == 0 {\n")
+		sb.WriteString("\t\treturn \"\"\n")
+		sb.WriteString("\t}\n")
+		sb.WriteString("\tr := rand.New(rand.NewSource(time.Now().UnixNano()))\n")
+		sb.WriteString("\treturn keys[r.Intn(len(keys))]\n")
+		sb.WriteString("}\n\n")
+
+		// Array of all keys (exported)
+		sb.WriteString("// GetGeminiApiKeys returns a slice of all decoded Gemini API keys\n")
+		sb.WriteString("func GetGeminiApiKeys() []string {\n")
+		sb.WriteString("\treturn []string{\n")
+		for i := range geminiKeys {
+			sb.WriteString(fmt.Sprintf("\t\tgetGeminiApiKey%d(),\n", i))
+		}
+		sb.WriteString("\t}\n")
+		sb.WriteString("}\n\n")
+
+		// Individual getters (private)
+		for i := range geminiKeys {
+			sb.WriteString(fmt.Sprintf("func getGeminiApiKey%d() string {\n", i))
+			sb.WriteString(fmt.Sprintf("\tval, _ := obfuscator.DecodeString(obfuscatedGeminiApiKey%d)\n", i))
 			sb.WriteString("\treturn val\n")
 			sb.WriteString("}\n\n")
 		}
