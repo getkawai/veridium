@@ -731,11 +731,27 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 				bgCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 				defer cancel()
 
-				if err := s.kvStore.RecordJobReward(bgCtx, contributorAddress, int64(usage.TotalTokens)); err != nil {
+				// Get user's referrer address (if any)
+				// Note: ReferrerAddress is set during free trial claim with referral code.
+				// Users who skip trial or were in system before referral feature will have empty referrer.
+				// This is intentional: referral commission only applies to users who signed up via referral.
+				userBalance, err := s.kvStore.GetUserBalance(bgCtx, req.UserID)
+				referrerAddress := ""
+				if err == nil && userBalance != nil {
+					referrerAddress = userBalance.ReferrerAddress
+				}
+
+				// Record job reward with referral-based splits
+				if err := s.kvStore.RecordJobReward(bgCtx, contributorAddress, req.UserID, int64(usage.TotalTokens), referrerAddress); err != nil {
 					log.Printf("⚠️  [REAL STREAM] Failed to record job reward for %s: %v", contributorAddress, err)
 				} else {
-					log.Printf("💰 [REAL STREAM] Recorded reward: %d tokens → %s (70/30 split applied)",
-						usage.TotalTokens, contributorAddress)
+					if referrerAddress != "" && referrerAddress != "0x0000000000000000000000000000000000000000" {
+						log.Printf("💰 [REAL STREAM] Recorded reward: %d tokens → contributor: %s, user: %s, affiliator: %s (85/5/5/5 split)",
+							usage.TotalTokens, contributorAddress, req.UserID, referrerAddress)
+					} else {
+						log.Printf("💰 [REAL STREAM] Recorded reward: %d tokens → contributor: %s, user: %s (90/5/5 split)",
+							usage.TotalTokens, contributorAddress, req.UserID)
+					}
 				}
 			}()
 		}

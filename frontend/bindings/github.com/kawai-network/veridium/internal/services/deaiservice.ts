@@ -45,6 +45,16 @@ export function ClaimKawaiReward(periodID: number, index: number, amount: string
 }
 
 /**
+ * ClaimMiningReward claims mining rewards with referral-based splits
+ * Uses the new MiningRewardDistributor contract with 9-field Merkle leaves
+ */
+export function ClaimMiningReward(period: number, contributorAmount: string, developerAmount: string, userAmount: string, affiliatorAmount: string, developerAddress: string, userAddress: string, affiliatorAddress: string, proof: string[]): $CancellablePromise<$models.ClaimResult | null> {
+    return $Call.ByID(3916078352, period, contributorAmount, developerAmount, userAmount, affiliatorAmount, developerAddress, userAddress, affiliatorAddress, proof).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
+/**
  * ClaimUSDTReward claims USDT rewards using a Merkle proof
  */
 export function ClaimUSDTReward(periodID: number, index: number, amount: string, proof: string[]): $CancellablePromise<$models.ClaimResult | null> {

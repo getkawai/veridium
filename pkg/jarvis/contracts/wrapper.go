@@ -7,6 +7,7 @@ import (
 	"github.com/kawai-network/veridium/internal/generate/abi/distributor"
 	"github.com/kawai-network/veridium/internal/generate/abi/escrow"
 	"github.com/kawai-network/veridium/internal/generate/abi/kawaitoken"
+	"github.com/kawai-network/veridium/internal/generate/abi/miningdistributor"
 	"github.com/kawai-network/veridium/internal/generate/abi/vault"
 	"github.com/kawai-network/veridium/pkg/jarvis/util"
 	"github.com/kawai-network/veridium/pkg/jarvis/util/reader"
@@ -59,4 +60,15 @@ func MerkleDistributor(addrStr string, r *reader.EthReader) (*distributor.Merkle
 	}
 	backend := NewJarvisBackend(r)
 	return distributor.NewMerkleDistributor(addr, backend)
+}
+
+// MiningRewardDistributor wraps the generated MiningRewardDistributor binding
+// This contract supports referral-based mining rewards with flexible developer addresses
+func MiningRewardDistributor(addrStr string, r *reader.EthReader) (*miningdistributor.MiningRewardDistributor, error) {
+	addr, err := ResolveAddress(addrStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve address %s: %w", addrStr, err)
+	}
+	backend := NewJarvisBackend(r)
+	return miningdistributor.NewMiningRewardDistributor(addr, backend)
 }

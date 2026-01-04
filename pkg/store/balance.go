@@ -13,10 +13,11 @@ import (
 
 // UserBalance represents a user's USDT + KAWAI balance and trial status
 type UserBalance struct {
-	Address      string `json:"address"`
-	USDTBalance  string `json:"usdt_balance"`  // In micro USDT (6 decimals)
-	KawaiBalance string `json:"kawai_balance"` // In wei (18 decimals)
-	TrialClaimed bool   `json:"trial_claimed"` // Whether free trial has been claimed
+	Address         string `json:"address"`
+	USDTBalance     string `json:"usdt_balance"`     // In micro USDT (6 decimals)
+	KawaiBalance    string `json:"kawai_balance"`    // In wei (18 decimals)
+	TrialClaimed    bool   `json:"trial_claimed"`    // Whether free trial has been claimed
+	ReferrerAddress string `json:"referrer_address"` // Address of the user who referred this user (empty if no referral)
 }
 
 // GetUserBalance retrieves the user data (balance + trial status)

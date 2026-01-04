@@ -34,6 +34,15 @@ type MerkleProofData struct {
 	ClaimAttempts int         `json:"claim_attempts,omitempty"` // Number of claim attempts
 	ClaimedAt     time.Time   `json:"claimed_at,omitempty"`     // When claimed successfully
 	Address       string      `json:"address,omitempty"`        // Contributor address (for listing all proofs)
+	
+	// Mining-specific fields (for MiningRewardDistributor with referral support)
+	ContributorAmount  string `json:"contributor_amount,omitempty"`  // 85% or 90%
+	DeveloperAmount    string `json:"developer_amount,omitempty"`    // 5%
+	UserAmount         string `json:"user_amount,omitempty"`         // 5%
+	AffiliatorAmount   string `json:"affiliator_amount,omitempty"`   // 5% or 0%
+	DeveloperAddress   string `json:"developer_address,omitempty"`   // Flexible developer address
+	UserAddress        string `json:"user_address,omitempty"`        // User/requester address
+	AffiliatorAddress  string `json:"affiliator_address,omitempty"`  // Referrer address (empty if non-referral)
 }
 
 // SettlementStatus represents the status of a settlement

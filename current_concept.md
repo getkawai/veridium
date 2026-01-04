@@ -25,24 +25,48 @@ Strategi utama adalah **"No Initial Liquidity Pool"** untuk menghemat modal awal
     *   **Phase 1D (> 875M KAWAI):** 12 KAWAI per 1M Token (Halving 3).
 *   **Implementation Note:** Logika ini dieksekusi secara otomatis di fungsi `RecordJobReward` (`pkg/store/contributor.go`) yang mengambil `totalSupply` terkini dari blockchain melalui `SupplyQuerier`.
 *   **Split Ratio (Pembagian):**
-    *   **70%** -> Masuk ke Wallet **Contributor** (Pemilik Hardware).
-    *   **30%** -> Masuk ke Wallet **Admin/Dev** (Biaya Pengembangan Platform).
+    
+    **Untuk User dengan Referral (Total: 100%):**
+    *   **85%** -> Masuk ke Wallet **Contributor** (Pemilik Hardware/Miner).
+    *   **5%** -> Masuk ke Wallet **Developer** (Biaya Pengembangan Platform).
+    *   **5%** -> Masuk ke Wallet **User** (Cashback untuk requester).
+    *   **5%** -> Masuk ke Wallet **Affiliator** (Referrer yang mengajak user tersebut).
+    
+    **Untuk User tanpa Referral (Total: 100%):**
+    *   **90%** -> Masuk ke Wallet **Contributor** (Pemilik Hardware/Miner).
+    *   **5%** -> Masuk ke Wallet **Developer** (Biaya Pengembangan Platform).
+    *   **5%** -> Masuk ke Wallet **User** (Cashback untuk requester).
+    
     *   **Admin Selection:** Admin address dipilih secara random dari treasury pool (`internal/constant/treasury.go`) setiap job.
     *   **Auto-Registration:** Admin accounts otomatis dibuat/diupdate jika belum terdaftar sebagai contributor.
-*   **Mekanisme Klaim:** Contributor mengklaim porsi 70% mereka menggunakan sistem **Merkle Airdrop** mingguan.
+    *   **Use-to-Earn:** User mendapat 5% cashback dari setiap request mereka, mendorong usage.
+    *   **Lifetime Commission:** Affiliator mendapat 5% dari mining reward referral mereka (contributor mengorbankan 5% untuk growth).
+*   **Mekanisme Klaim:** Contributor mengklaim porsi 85-90% mereka, User mengklaim 5% cashback, dan Affiliator mengklaim 5% komisi menggunakan sistem **Merkle Airdrop** mingguan.
 
 ### B. Profit Sharing & Two-Phase Economic Model
 
 User membayar layanan menggunakan **USDT**. Pendapatan ini diklasifikasikan menjadi 2 fase:
 
 #### Fase 1: Mining Era (Supply < 1 Miliar KAWAI)
+
+**User dengan Referral (Total: 100%):**
 | Pihak | Pendapatan |
 |---|---|
-| Contributor | **70% KAWAI** (Mining) |
-| Admin/Dev | **30% KAWAI** (Mining) |
+| Contributor | **85% KAWAI** (Mining) |
+| Developer | **5% KAWAI** (Mining) |
+| User | **5% KAWAI** (Cashback) |
+| Affiliator | **5% KAWAI** (Commission) |
 | KAWAI Holder | **100% Revenue USDT** |
 
-*Contributor dibayar dengan Token baru (Inflasi). Holder mendapatkan seluruh Revenue USDT.*
+**User tanpa Referral (Total: 100%):**
+| Pihak | Pendapatan |
+|---|---|
+| Contributor | **90% KAWAI** (Mining) |
+| Developer | **5% KAWAI** (Mining) |
+| User | **5% KAWAI** (Cashback) |
+| KAWAI Holder | **100% Revenue USDT** |
+
+*Contributor dibayar dengan Token baru (Inflasi). User mendapat 5% cashback untuk mendorong usage. Affiliator mendapat komisi lifetime dari mining referral mereka (contributor mengorbankan 5%). Holder mendapatkan seluruh Revenue USDT.*
 
 #### Fase 2: Post-Mining Era (Supply = 1 Miliar / Max Cap)
 
@@ -50,21 +74,33 @@ Mining berhenti. Contributor dibayar **USDT** berdasarkan volume pekerjaan, buka
 
 **Rumus Biaya (Cost):**
 *   **Cost Rate:** `COST_RATE_PER_MILLION` (Default: $1 USDT per 1 Juta Token). *Dapat disesuaikan via Environment Variable.*
-*   **Contributor Cost:** `(Total_Token / 1,000,000) * $1 * 70%`
-*   **Admin Cost:** `(Total_Token / 1,000,000) * $1 * 30%`
-*   **Profit:** `Revenue - Contributor Cost - Admin Cost`
 
-**Contoh Perhitungan:**
+**User dengan Referral (Total Cost: 100%):**
+*   **Contributor Cost:** `(Total_Token / 1,000,000) * $1 * 85%`
+*   **Developer Cost:** `(Total_Token / 1,000,000) * $1 * 5%`
+*   **User Cashback:** `(Total_Token / 1,000,000) * $1 * 5%`
+*   **Affiliator Cost:** `(Total_Token / 1,000,000) * $1 * 5%`
+*   **Profit:** `Revenue - Contributor Cost - Developer Cost - User Cashback - Affiliator Cost`
+
+**User tanpa Referral (Total Cost: 100%):**
+*   **Contributor Cost:** `(Total_Token / 1,000,000) * $1 * 90%`
+*   **Developer Cost:** `(Total_Token / 1,000,000) * $1 * 5%`
+*   **User Cashback:** `(Total_Token / 1,000,000) * $1 * 5%`
+*   **Profit:** `Revenue - Contributor Cost - Developer Cost - User Cashback`
+
+**Contoh Perhitungan (User dengan Referral):**
 *   User membayar: **$100 USDT** untuk job yang memproses 500.000 Token.
 *   Cost Rate: 500.000 / 1.000.000 * $1 = **$0.50**
-*   Contributor: $0.50 * 70% = **$0.35**
-*   Admin: $0.50 * 30% = **$0.15**
-*   **Holder Profit:** $100 - $0.35 - $0.15 = **$99.50**
+*   Contributor: $0.50 * 85% = **$0.425**
+*   Developer: $0.50 * 5% = **$0.025**
+*   User Cashback: $0.50 * 5% = **$0.025**
+*   Affiliator: $0.50 * 5% = **$0.025**
+*   **Holder Profit:** $100 - $0.425 - $0.025 - $0.025 - $0.025 = **$99.50**
 
 | Pihak | Pendapatan |
 |---|---|
 | Contributor | Cost-based (USDT) |
-| Admin/Dev | Cost-based (USDT) |
+| Developer | Cost-based (USDT) |
 | KAWAI Holder | **Profit USDT** (Revenue - Total Cost) |
 
 **Dividen Mingguan (Kedua Fase):**
@@ -178,8 +214,11 @@ Logika pembagian 70/30 dieksekusi secara **Real-Time (Per Job)** oleh Middleware
     *   **Reward Mode:** Otomatis detect `ModeMining` vs `ModeUSDT` berdasarkan `totalSupply >= maxSupply`.
     *   **Halving Rate:** Otomatis adjust rate (100/50/25/12) berdasarkan supply thresholds.
 3.  **Pembagian Reward:**
-    *   Contributor mendapatkan **70%** Reward (KAWAI atau USDT tergantung mode).
-    *   Admin mendapatkan **30%** Fee (masuk saldo admin).
+    *   Contributor mendapatkan **85% (referral) atau 90% (non-referral)** Reward (KAWAI atau USDT tergantung mode).
+    *   Developer mendapatkan **5%** Fee.
+    *   User mendapatkan **5%** Cashback (use-to-earn incentive).
+    *   Affiliator mendapatkan **5%** Commission (jika user punya referrer, diambil dari porsi contributor).
+    *   **Total:** Selalu 100%.
     *   **Auto-Registration:** Jika admin belum terdaftar, otomatis dibuat via `EnsureAdminExists()`.
 4.  **Akumulasi:** Saldo diupdate seketika di Database (KV Store).
 5.  **Mingguan (Weekly):**

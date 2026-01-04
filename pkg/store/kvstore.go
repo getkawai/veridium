@@ -23,7 +23,16 @@ type Store interface {
 	RegisterContributor(ctx context.Context, address, endpointURL, hardwareSpecs string) (*ContributorData, error)
 	SoftDeleteContributor(ctx context.Context, address string) error
 	RestoreContributor(ctx context.Context, address string) error
-	RecordJobReward(ctx context.Context, contributorAddress string, tokenUsage int64) error
+	RecordJobReward(ctx context.Context, contributorAddress string, userAddress string, tokenUsage int64, referrerAddress string) error
+
+	// Job reward tracking (for mining settlement)
+	SaveJobReward(ctx context.Context, record *JobRewardRecord) error
+	GetJobRewardsSinceLastSettlement(ctx context.Context, contributorAddress string, rewardType string) ([]*JobRewardRecord, error)
+	GetAllUnsettledJobRewards(ctx context.Context, rewardType string) (map[string][]*JobRewardRecord, error)
+	MarkJobRewardsAsSettled(ctx context.Context, contributorAddress string, periodID int64) error
+
+	// Mining settlement (9-field Merkle tree)
+	GenerateMiningSettlement(ctx context.Context, rewardType string) (*SettlementPeriod, error)
 
 	// Merkle proof operations (deprecated - use period-specific methods)
 	SaveMerkleProof(ctx context.Context, address string, data *MerkleProofData) error

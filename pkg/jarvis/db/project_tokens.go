@@ -10,4 +10,5 @@ var PROJECT_TOKENS map[string]string = map[string]string{
 	"0xa3004DFc316998bD02DFd92e4f13c7FACFFdF70F": "PaymentVault",
 	"0x988Cbef1F6b9057Cfa7325a7E364543E615f9191": "KAWAI_Distributor",
 	"0x2A1ebd03Ce88CED9731c77C63EDE2451f9c08F94": "USDT_Distributor",
+	"0xa0dDC59DAcBA9201CC9Ef613707d287b77b2723F": "MiningRewardDistributor",
 }

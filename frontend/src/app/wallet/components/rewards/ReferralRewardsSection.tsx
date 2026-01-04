@@ -1,8 +1,8 @@
-import { Card, Button, Statistic, Row, Col, App, Skeleton } from 'antd';
+import { Card, Button, Statistic, Row, Col, App, Skeleton, Divider } from 'antd';
 import { useState, useEffect, useCallback } from 'react';
 import { ReferralService } from '@@/github.com/kawai-network/veridium/internal/services';
 import { Flexbox } from 'react-layout-kit';
-import { Users, DollarSign, Gift, Share2, Copy, CheckCircle, Info } from 'lucide-react';
+import { Users, DollarSign, Gift, Share2, Copy, CheckCircle, Info, Zap, TrendingUp } from 'lucide-react';
 import { useUserStore } from '@/store/user';
 import type { NetworkInfo } from '@@/github.com/kawai-network/veridium/internal/services/models';
 
@@ -263,11 +263,87 @@ export const ReferralRewardsSection = ({ currentNetwork, theme, styles, onRefres
               }}
             >
               <span style={{ fontSize: 12, color: theme.colorTextSecondary }}>
-                Share this code with friends. They get <strong>10 USDT + 200 KAWAI</strong>, you get <strong>5 USDT + 100 KAWAI</strong> per referral!
+                Share this code with friends. They get <strong>10 USDT + 200 KAWAI</strong>, you get <strong>5 USDT + 100 KAWAI</strong> per referral + <strong>5% lifetime mining commission</strong>!
               </span>
             </div>
           </Flexbox>
         )}
+      </Card>
+
+      {/* Mining Commission Explainer */}
+      <Card
+        title={
+          <Flexbox horizontal align="center" gap={8}>
+            <Zap size={16} />
+            <span>Lifetime Mining Commission</span>
+          </Flexbox>
+        }
+        size="small"
+        style={{ 
+          background: 'linear-gradient(135deg, #f59e0b10, #d9770610)',
+          border: '1px solid #f59e0b40'
+        }}
+      >
+        <Flexbox gap={16}>
+          <Flexbox horizontal gap={12} align="center">
+            <div
+              style={{
+                padding: 12,
+                borderRadius: 8,
+                background: 'linear-gradient(135deg, #f59e0b20, #d9770620)',
+                border: '1px solid #f59e0b60',
+              }}
+            >
+              <TrendingUp size={24} color="#f59e0b" />
+            </div>
+            <Flexbox gap={4} flex={1}>
+              <span style={{ fontWeight: 600, fontSize: 15 }}>
+                Earn 5% of all mining rewards from your referrals — forever!
+              </span>
+              <span style={{ fontSize: 13, color: theme.colorTextSecondary }}>
+                Every time someone you referred uses AI, you automatically earn 5% of the mining rewards in KAWAI tokens.
+              </span>
+            </Flexbox>
+          </Flexbox>
+
+          <Divider style={{ margin: 0 }} />
+
+          <Flexbox gap={12}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: theme.colorText }}>
+              How it works:
+            </span>
+            <ul style={{ margin: 0, paddingLeft: 20, fontSize: 13, color: theme.colorTextSecondary }}>
+              <li style={{ marginBottom: 8 }}>
+                Your referral uses AI (e.g., generates 1000 tokens)
+              </li>
+              <li style={{ marginBottom: 8 }}>
+                Mining reward is distributed: <strong>85% contributor</strong>, <strong>5% developer</strong>, <strong>5% user</strong>, <strong>5% you (affiliator)</strong>
+              </li>
+              <li style={{ marginBottom: 8 }}>
+                You receive 5% of the mining rewards automatically — no action needed
+              </li>
+              <li>
+                This continues <strong>for the lifetime of your referral's usage</strong> — passive income!
+              </li>
+            </ul>
+          </Flexbox>
+
+          <div
+            style={{
+              padding: 12,
+              borderRadius: 8,
+              background: theme.colorInfoBg,
+              border: `1px solid ${theme.colorInfoBorder}`,
+            }}
+          >
+            <Flexbox horizontal gap={8} align="center">
+              <Info size={16} color={theme.colorInfo} />
+              <span style={{ fontSize: 12, color: theme.colorTextSecondary }}>
+                <strong>Note:</strong> Mining commission is tracked on-chain and will be claimable weekly via Merkle proof (same as mining rewards). This feature is coming soon!
+              </span>
+            </Flexbox>
+          </div>
+        </Flexbox>
       </Card>
 
       {/* Referral Benefits */}
@@ -456,6 +532,29 @@ export const ReferralRewardsSection = ({ currentNetwork, theme, styles, onRefres
               }}
             >
               5
+            </div>
+            <span style={{ fontSize: 13, color: theme.colorTextSecondary }}>
+              <strong>Bonus:</strong> Earn 5% of all mining rewards every time your referral uses AI — forever!
+            </span>
+          </Flexbox>
+
+          <Flexbox horizontal gap={12} align="flex-start">
+            <div
+              style={{
+                width: 24,
+                height: 24,
+                borderRadius: '50%',
+                background: theme.colorPrimary,
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 600,
+                fontSize: 12,
+                flexShrink: 0,
+              }}
+            >
+              6
             </div>
             <span style={{ fontSize: 13, color: theme.colorTextSecondary }}>
               <strong>Unlimited referrals = Unlimited earnings!</strong> No caps, no limits.

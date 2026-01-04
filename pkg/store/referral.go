@@ -179,6 +179,7 @@ func (s *KVStore) ClaimFreeTrialWithReferral(ctx context.Context, address string
 	usdtBonus := int64(BaseTrialAmount)
 	kawaiBonus := "100000000000000000000" // 100 KAWAI (as string to avoid overflow)
 	hasReferral := referralCode != ""
+	var referrerAddress string
 
 	if hasReferral {
 		// Validate referral code
@@ -192,12 +193,13 @@ func (s *KVStore) ClaimFreeTrialWithReferral(ctx context.Context, address string
 			return 0, "0", fmt.Errorf("cannot use your own referral code")
 		}
 
+		referrerAddress = referralData.OwnerAddress
 		usdtBonus = ReferralTrialAmount
 		kawaiBonus = "200000000000000000000" // 200 KAWAI
 	}
 
-	// Claim trial (USDT + KAWAI)
-	err := s.claimTrialWithDualReward(ctx, address, machineID, usdtBonus, kawaiBonus)
+	// Claim trial (USDT + KAWAI) with referrer address
+	err := s.claimTrialWithDualReward(ctx, address, machineID, usdtBonus, kawaiBonus, referrerAddress)
 	if err != nil {
 		return 0, "0", err
 	}
@@ -215,7 +217,7 @@ func (s *KVStore) ClaimFreeTrialWithReferral(ctx context.Context, address string
 }
 
 // claimTrialWithDualReward is internal method to claim trial with USDT + KAWAI
-func (s *KVStore) claimTrialWithDualReward(ctx context.Context, address string, machineID string, usdtAmount int64, kawaiAmount string) error {
+func (s *KVStore) claimTrialWithDualReward(ctx context.Context, address string, machineID string, usdtAmount int64, kawaiAmount string, referrerAddress string) error {
 	// Pre-check Machine ID
 	if machineID != "" {
 		keyMachine := fmt.Sprintf("trial_machine:%s", machineID)
@@ -259,6 +261,7 @@ func (s *KVStore) claimTrialWithDualReward(ctx context.Context, address string, 
 		currentData.KawaiBalance = newKawaiBalance.String()
 
 		currentData.TrialClaimed = true
+		currentData.ReferrerAddress = referrerAddress // Store referrer address
 
 		data, err := json.Marshal(currentData)
 		if err != nil {

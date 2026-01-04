@@ -25,6 +25,7 @@ VAULT_ARTIFACT       := $(CONTRACTS_DIR)/out/PaymentVault.sol/PaymentVault.json
 DISTRIBUTOR_ARTIFACT := $(CONTRACTS_DIR)/out/MerkleDistributor.sol/MerkleDistributor.json
 REFERRAL_ARTIFACT    := $(CONTRACTS_DIR)/out/ReferralRewardDistributor.sol/ReferralRewardDistributor.json
 CASHBACK_ARTIFACT    := $(CONTRACTS_DIR)/out/DepositCashbackDistributor.sol/DepositCashbackDistributor.json
+MINING_ARTIFACT      := $(CONTRACTS_DIR)/out/MiningRewardDistributor.sol/MiningRewardDistributor.json
 USDT_ARTIFACT        := $(CONTRACTS_DIR)/out/MockUSDT.sol/MockUSDT.json
 
 # Load environment variables from contracts/.env if exists
@@ -77,6 +78,8 @@ help:
 	@echo "  make contracts-grant-minter-referral Grant MINTER_ROLE to referral contract"
 	@echo "  make contracts-deploy-cashback-testnet Deploy DepositCashbackDistributor"
 	@echo "  make contracts-grant-minter-cashback Grant MINTER_ROLE to cashback contract"
+	@echo "  make contracts-deploy-mining-testnet Deploy MiningRewardDistributor"
+	@echo "  make contracts-grant-minter-mining Grant MINTER_ROLE to mining contract"
 	@echo "  make contracts-verify       Verify contract on explorer"
 	@echo "  make contracts-clean        Clean contract artifacts"
 	@echo ""
@@ -162,7 +165,7 @@ contracts-compile:
 	@echo "🔨 Compiling smart contracts..."
 	cd $(CONTRACTS_DIR) && ~/.foundry/bin/forge build
 
-contracts-bindings: abi-token abi-escrow abi-vault abi-distributor abi-referral abi-cashback abi-usdt generate-project-abis
+contracts-bindings: abi-token abi-escrow abi-vault abi-distributor abi-referral abi-cashback abi-mining abi-usdt generate-project-abis
 	@echo "✅ Contract bindings generated!"
 
 contracts-update: contracts-compile contracts-bindings
@@ -301,6 +304,33 @@ contracts-grant-minter-cashback:
 		--private-key $(PRIVATE_KEY)
 	@echo "✅ MINTER_ROLE granted!"
 
+contracts-deploy-mining-testnet:
+	@echo "🚀 Deploying MiningRewardDistributor to Monad Testnet..."
+	@test -n "$(PRIVATE_KEY)" || (echo "❌ PRIVATE_KEY not set!" && exit 1)
+	@test -n "$(RPC_URL)" || (echo "❌ RPC_URL not set!" && exit 1)
+	@test -n "$(KAWAI_TOKEN_ADDRESS)" || (echo "❌ KAWAI_TOKEN_ADDRESS not set! Set it in contracts/.env" && exit 1)
+	@echo "ℹ️  Note: Developer addresses are specified per claim (flexible distribution)"
+	cd $(CONTRACTS_DIR) && ~/.foundry/bin/forge script script/DeployMiningDistributor.s.sol:DeployMiningDistributor \
+		--rpc-url $(RPC_URL) \
+		--private-key $(PRIVATE_KEY) \
+		--broadcast \
+		--verify
+
+contracts-grant-minter-mining:
+	@echo "🔐 Granting MINTER_ROLE to MiningRewardDistributor..."
+	@test -n "$(PRIVATE_KEY)" || (echo "❌ PRIVATE_KEY not set!" && exit 1)
+	@test -n "$(RPC_URL)" || (echo "❌ RPC_URL not set!" && exit 1)
+	@test -n "$(KAWAI_TOKEN_ADDRESS)" || (echo "❌ KAWAI_TOKEN_ADDRESS not set!" && exit 1)
+	@test -n "$(MINING_DISTRIBUTOR_ADDRESS)" || (echo "❌ MINING_DISTRIBUTOR_ADDRESS not set!" && exit 1)
+	@echo "Granting MINTER_ROLE to $(MINING_DISTRIBUTOR_ADDRESS)..."
+	cd $(CONTRACTS_DIR) && cast send $(KAWAI_TOKEN_ADDRESS) \
+		"grantRole(bytes32,address)" \
+		$$(cast keccak "MINTER_ROLE") \
+		$(MINING_DISTRIBUTOR_ADDRESS) \
+		--rpc-url $(RPC_URL) \
+		--private-key $(PRIVATE_KEY)
+	@echo "✅ MINTER_ROLE granted!"
+
 contracts-verify:
 	@echo "✅ Verifying contracts on explorer..."
 	@test -n "$(CONTRACT_ADDRESS)" || (echo "❌ CONTRACT_ADDRESS not set!" && exit 1)
@@ -363,6 +393,13 @@ abi-cashback:
 	@jq -r .bytecode.object $(CASHBACK_ARTIFACT) > $(ABIS_DIR)/cashbackdistributor/DepositCashbackDistributor.bin
 	@abigen --abi $(ABIS_DIR)/cashbackdistributor/DepositCashbackDistributor.abi --bin $(ABIS_DIR)/cashbackdistributor/DepositCashbackDistributor.bin \
 		--pkg cashbackdistributor --type DepositCashbackDistributor --out $(ABIS_DIR)/cashbackdistributor/cashbackdistributor.go
+
+abi-mining:
+	@mkdir -p $(ABIS_DIR)/miningdistributor
+	@jq -r .abi $(MINING_ARTIFACT) > $(ABIS_DIR)/miningdistributor/MiningRewardDistributor.abi
+	@jq -r .bytecode.object $(MINING_ARTIFACT) > $(ABIS_DIR)/miningdistributor/MiningRewardDistributor.bin
+	@abigen --abi $(ABIS_DIR)/miningdistributor/MiningRewardDistributor.abi --bin $(ABIS_DIR)/miningdistributor/MiningRewardDistributor.bin \
+		--pkg miningdistributor --type MiningRewardDistributor --out $(ABIS_DIR)/miningdistributor/miningdistributor.go
 
 abi-usdt:
 	@mkdir -p $(ABIS_DIR)/usdt

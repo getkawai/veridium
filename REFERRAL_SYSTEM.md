@@ -6,18 +6,34 @@ The Kawai DeAI Network referral system incentivizes viral growth by rewarding bo
 
 ## Incentive Structure
 
+### One-Time Bonuses
+
 | User Type | Bonus Amount | Description |
 |-----------|--------------|-------------|
 | **New User (No Referral)** | 5 USDT | Base trial bonus |
 | **New User (With Referral)** | 10 USDT | Enhanced trial bonus (+100%) |
-| **Referrer** | 5 USDT | Reward per successful referral |
+| **Referrer** | 5 USDT | One-time reward per successful referral |
+
+### Lifetime Mining Commission (NEW) 🌟
+
+| User Type | Commission Rate | Description |
+|-----------|----------------|-------------|
+| **Affiliator (Referrer)** | **5%** | Lifetime commission from referral's mining rewards |
+
+**Example:**
+- Your referral mines 1000 KAWAI
+- You automatically earn **50 KAWAI** (5% commission)
+- This continues **forever** as long as they keep mining
+- The more they mine, the more you earn!
 
 ### Why This Works
 
 - **Win-Win:** Both parties benefit
-- **Strong Incentive:** 5 USDT = 100% of base bonus
+- **Strong Incentive:** 5 USDT one-time + 5% lifetime commission
+- **Passive Income:** Earn while your referrals mine
 - **Viral Potential:** Coefficient of 2.0-3.0x
 - **No Limit:** Unlimited referrals = unlimited earnings
+- **Long-term Value:** Affiliators have incentive to support their referrals
 
 ---
 
@@ -114,9 +130,9 @@ func (s *KVStore) ClaimFreeTrialWithReferral(
 **Logic:**
 1. Validate referral code (if provided)
 2. Check for self-referral
-3. Determine bonus amount (5 or 8 USDT)
+3. Determine bonus amount (5 or 10 USDT)
 4. Claim trial with atomic operation
-5. Reward referrer (3 USDT)
+5. Reward referrer (5 USDT)
 6. Update referral stats
 
 #### 3. Wails Service (Desktop App)
@@ -358,9 +374,9 @@ analytics.track('referrer_rewarded', { code, amount: 3 });
 - [ ] Prevent duplicate codes
 - [ ] Validate code format
 - [ ] Prevent self-referral
-- [ ] Claim trial with referral (8 USDT)
+- [ ] Claim trial with referral (10 USDT)
 - [ ] Claim trial without referral (5 USDT)
-- [ ] Reward referrer (3 USDT)
+- [ ] Reward referrer (5 USDT)
 - [ ] Update referral stats
 - [ ] Handle invalid referral code
 - [ ] Prevent double-claiming
@@ -482,19 +498,151 @@ bun run build
 
 ### Q: Is there a limit to referrals?
 
-**A:** No! Refer unlimited friends and earn 3 USDT per referral.
+**A:** No! Refer unlimited friends and earn 5 USDT per referral.
 
 ### Q: When do I receive my referral reward?
 
-**A:** Instantly! As soon as your friend claims their trial, you get 3 USDT.
+**A:** Instantly! As soon as your friend claims their trial, you get 5 USDT.
 
 ### Q: What if my friend doesn't use my code?
 
-**A:** They'll still get 5 USDT, but they miss out on the extra 3 USDT bonus. Remind them to use your code!
+**A:** They'll still get 5 USDT, but they miss out on the extra 5 USDT bonus (total 10 USDT). Remind them to use your code!
 
 ### Q: Can I change my referral code?
 
 **A:** No, referral codes are permanent. But you can share it as many times as you want.
+
+### Q: How does the 5% mining commission work?
+
+**A:** When your referral mines KAWAI tokens, you automatically earn 5% of their mining rewards as commission. This is lifetime passive income - as long as they keep mining, you keep earning!
+
+### Q: Is there a limit to mining commission?
+
+**A:** No limit! You earn 5% from all mining activity of all your referrals, forever.
+
+### Q: How is the mining reward split?
+
+**A:** For users with referrals:
+- **90%** goes to the miner (contributor)
+- **5%** goes to the developer (protocol)
+- **5%** goes to you (affiliator)
+
+For users without referrals:
+- **90%** goes to the miner
+- **10%** goes to the developer
+
+### Q: When can I claim my mining commission?
+
+**A:** Mining commissions are accumulated off-chain and settled weekly via Merkle tree distribution. You can claim them from the "Mining Commission" tab in the Rewards Dashboard.
+
+### Q: Can I see how much my referrals are mining?
+
+**A:** Yes! The "Mining Commission" tab shows detailed statistics including:
+- Total commission earned
+- Number of active mining referrals
+- Commission history per referral
+- Claimable vs claimed amounts
+
+---
+
+## 💰 Mining Commission Deep Dive
+
+### Overview
+
+The mining commission system creates a **win-win-win** scenario:
+1. **Miners** still get 90% of rewards (majority)
+2. **Affiliators** earn 5% lifetime passive income
+3. **Protocol** gets sustainable user acquisition
+
+### How It Works
+
+```
+User mines → Generate reward → Check referral status
+
+IF user has referrer:
+  ├─ 90% → Miner (contributor)
+  ├─ 5%  → Developer (protocol)
+  └─ 5%  → Affiliator (referrer) ✨
+
+ELSE (no referrer):
+  ├─ 90% → Miner
+  └─ 10% → Developer
+```
+
+### Example Scenario
+
+**Month 1:**
+- You refer Alice
+- Alice mines 1,000 KAWAI
+- You earn **50 KAWAI** (5% commission)
+
+**Month 2:**
+- Alice mines 2,000 KAWAI
+- You earn **100 KAWAI** (5% commission)
+
+**Month 3:**
+- Alice mines 1,500 KAWAI
+- You earn **75 KAWAI** (5% commission)
+
+**Total: 225 KAWAI passive income** from just one referral!
+
+### Maximizing Your Commission
+
+**1. Quality Over Quantity**
+- Focus on referring active users who will mine regularly
+- Engaged miners = consistent commission
+
+**2. Support Your Referrals**
+- Help them set up mining
+- Share tips and best practices
+- Active referrals mine more = you earn more
+
+**3. Build a Community**
+- Create a Discord/Telegram group for your referrals
+- Share mining strategies
+- Foster engagement and retention
+
+**4. Track Performance**
+- Monitor your commission dashboard
+- Identify top-performing referrals
+- Learn what makes them successful
+
+### Commission Claiming
+
+**Weekly Settlement:**
+1. Every Sunday, mining rewards are settled
+2. Merkle tree is generated with all commissions
+3. Merkle root is uploaded to blockchain
+
+**Claiming Process:**
+1. Go to Wallet → Rewards → Mining Commission tab
+2. View your claimable commission
+3. Click "Claim" button
+4. Sign transaction with your wallet
+5. Receive KAWAI tokens instantly
+
+**Batch Claiming:**
+- Claim multiple weeks at once
+- Saves on gas fees
+- More efficient for large commissions
+
+### Economics
+
+**Why 5%?**
+- Sustainable for protocol (developer only sacrifices 5%)
+- Attractive for affiliators (lifetime passive income)
+- Fair for miners (still get 90%)
+
+**Lifetime Value:**
+- Average miner: ~500 KAWAI/month
+- Your commission: 25 KAWAI/month per referral
+- 10 active referrals = 250 KAWAI/month passive income
+- 100 active referrals = 2,500 KAWAI/month passive income
+
+**ROI for Protocol:**
+- Cost: 5% of mining rewards
+- Benefit: Referred users have 2x higher retention
+- Net result: Positive ROI on user acquisition
 
 ---
 

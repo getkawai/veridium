@@ -327,12 +327,14 @@ func (s *KVStore) RegisterContributor(ctx context.Context, address, endpointURL,
 	return contributor, nil
 }
 
-// RecordJobReward distributes rewards based on the 70/30 Rule.
-// Admin address and reward mode are automatically determined.
+// RecordJobReward distributes rewards with referral-based splits:
+// - Referral users: 85% contributor, 5% developer, 5% user, 5% affiliator
+// - Non-referral users: 90% contributor, 5% developer, 5% user
+// Developer rewards go to treasury pool (via GetRandomTreasuryAddress).
 // This method is thread-safe using per-address mutex to prevent race conditions.
 //
 //wails:ignore
-func (s *KVStore) RecordJobReward(ctx context.Context, contributorAddress string, tokenUsage int64) error {
+func (s *KVStore) RecordJobReward(ctx context.Context, contributorAddress string, userAddress string, tokenUsage int64, referrerAddress string) error {
 	// Get random admin address from treasury pool
 	adminAddress := constant.GetRandomTreasuryAddress()
 
@@ -407,7 +409,10 @@ func (s *KVStore) RecordJobReward(ctx context.Context, contributorAddress string
 		return nil
 	}
 
-	var contributorShare, adminShare *big.Int
+	// Determine if this is a referral user
+	hasReferrer := referrerAddress != "" && referrerAddress != "0x0000000000000000000000000000000000000000"
+
+	var contributorShare, developerShare, userShare, affiliatorShare *big.Int
 	var balanceField string
 
 	if mode == config.ModeMining {
@@ -448,34 +453,86 @@ func (s *KVStore) RecordJobReward(ctx context.Context, contributorAddress string
 		// baseRate = rate * 10^18 (KAWAI decimals)
 		baseRate := new(big.Int).Mul(big.NewInt(rateVal), new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil))
 
-		// High-precision calculation: (tokens * baseRate * share) / (1,000,000 * 100)
+		// Calculate total reward for this job
 		totalScaled := new(big.Int).Mul(big.NewInt(tokenUsage), baseRate)
-
-		contributorShare = new(big.Int).Mul(totalScaled, big.NewInt(70))
-		contributorShare.Div(contributorShare, big.NewInt(100000000)) // 1,000,000 * 100
-
 		totalReward := new(big.Int).Div(totalScaled, big.NewInt(1000000))
-		adminShare = new(big.Int).Sub(totalReward, contributorShare)
+
+		// New reward split model:
+		// - Developer: always 5%
+		// - User: always 5%
+		// - Contributor: 85% (referral) or 90% (non-referral)
+		// - Affiliator: 5% (referral) or 0% (non-referral)
+
+		developerShare = new(big.Int).Mul(totalReward, big.NewInt(5))
+		developerShare.Div(developerShare, big.NewInt(100))
+
+		userShare = new(big.Int).Mul(totalReward, big.NewInt(5))
+		userShare.Div(userShare, big.NewInt(100))
+
+		if hasReferrer {
+			// Referral user: 85/5/5/5 split
+			contributorShare = new(big.Int).Mul(totalReward, big.NewInt(85))
+			contributorShare.Div(contributorShare, big.NewInt(100))
+
+			affiliatorShare = new(big.Int).Mul(totalReward, big.NewInt(5))
+			affiliatorShare.Div(affiliatorShare, big.NewInt(100))
+		} else {
+			// Non-referral user: 90/5/5 split
+			contributorShare = new(big.Int).Mul(totalReward, big.NewInt(90))
+			contributorShare.Div(contributorShare, big.NewInt(100))
+
+			affiliatorShare = big.NewInt(0)
+		}
 
 		balanceField = "kawai"
-		slog.Info("Mining reward distributed", "tokens", tokenUsage, "rate", rateVal, "kawai_total", totalReward.String(), "contributor_share", contributorShare.String(), "admin_share", adminShare.String())
+		slog.Info("Mining reward distributed",
+			"tokens", tokenUsage,
+			"rate", rateVal,
+			"kawai_total", totalReward.String(),
+			"contributor_share", contributorShare.String(),
+			"developer_share", developerShare.String(),
+			"user_share", userShare.String(),
+			"affiliator_share", affiliatorShare.String(),
+			"has_referrer", hasReferrer)
 	} else {
 		// Phase 2: USDT Payment
 		usdtRate := config.GetCostRatePerMillion()
 		// usdtRateUnits = rate * 10^6 (USDT decimals)
 		usdtRateUnits := big.NewInt(int64(usdtRate * 1000000))
 
-		// High-precision calculation: (tokens * rateUnits * share) / (1,000,000 * 100)
+		// Calculate total cost for this job
 		totalScaled := new(big.Int).Mul(big.NewInt(tokenUsage), usdtRateUnits)
-
-		contributorShare = new(big.Int).Mul(totalScaled, big.NewInt(70))
-		contributorShare.Div(contributorShare, big.NewInt(100000000)) // 1,000,000 * 100
-
 		totalReward := new(big.Int).Div(totalScaled, big.NewInt(1000000))
-		adminShare = new(big.Int).Sub(totalReward, contributorShare)
+
+		// Same split model for Phase 2
+		developerShare = new(big.Int).Mul(totalReward, big.NewInt(5))
+		developerShare.Div(developerShare, big.NewInt(100))
+
+		userShare = new(big.Int).Mul(totalReward, big.NewInt(5))
+		userShare.Div(userShare, big.NewInt(100))
+
+		if hasReferrer {
+			contributorShare = new(big.Int).Mul(totalReward, big.NewInt(85))
+			contributorShare.Div(contributorShare, big.NewInt(100))
+
+			affiliatorShare = new(big.Int).Mul(totalReward, big.NewInt(5))
+			affiliatorShare.Div(affiliatorShare, big.NewInt(100))
+		} else {
+			contributorShare = new(big.Int).Mul(totalReward, big.NewInt(90))
+			contributorShare.Div(contributorShare, big.NewInt(100))
+
+			affiliatorShare = big.NewInt(0)
+		}
 
 		balanceField = "usdt"
-		slog.Info("USDT reward distributed", "tokens", tokenUsage, "usdt_total", totalReward.String(), "contributor_share", contributorShare.String(), "admin_share", adminShare.String())
+		slog.Info("USDT reward distributed",
+			"tokens", tokenUsage,
+			"usdt_total", totalReward.String(),
+			"contributor_share", contributorShare.String(),
+			"developer_share", developerShare.String(),
+			"user_share", userShare.String(),
+			"affiliator_share", affiliatorShare.String(),
+			"has_referrer", hasReferrer)
 	}
 
 	// Update Contributor Balance
@@ -483,16 +540,48 @@ func (s *KVStore) RecordJobReward(ctx context.Context, contributorAddress string
 		return err
 	}
 
-	// Update Admin Balance
-	if adminShare.Cmp(big.NewInt(0)) > 0 {
-		// Ensure admin account exists before updating balance
-		if err := s.EnsureAdminExists(ctx, adminAddress); err != nil {
-			return fmt.Errorf("failed to ensure admin exists: %w", err)
-		}
+	// Update Developer Balance
+	if err := updateBalance(adminAddress, developerShare, balanceField); err != nil {
+		return err
+	}
 
-		if err := updateBalance(adminAddress, adminShare, balanceField); err != nil {
-			return fmt.Errorf("failed to update admin fee: %w", err)
+	// Update User Balance (cashback)
+	if err := updateBalance(userAddress, userShare, balanceField); err != nil {
+		return err
+	}
+
+	// Update Affiliator Balance (if referral)
+	if hasReferrer && affiliatorShare.Cmp(big.NewInt(0)) > 0 {
+		if err := updateBalance(referrerAddress, affiliatorShare, balanceField); err != nil {
+			return err
 		}
+	}
+
+	// Note: Developer share is already handled above (goes to treasury via GetRandomTreasuryAddress())
+	// No separate admin balance update needed in the new model
+
+	// NEW: Save detailed job reward record for Merkle tree generation
+	// This enables 9-field Merkle leaves for MiningRewardDistributor
+	jobRecord := &JobRewardRecord{
+		Timestamp:          time.Now(),
+		ContributorAddress: contributorAddress,
+		UserAddress:        userAddress,
+		ReferrerAddress:    referrerAddress,
+		DeveloperAddress:   adminAddress, // From GetRandomTreasuryAddress()
+		ContributorAmount:  contributorShare.String(),
+		DeveloperAmount:    developerShare.String(),
+		UserAmount:         userShare.String(),
+		AffiliatorAmount:   affiliatorShare.String(),
+		TokenUsage:         tokenUsage,
+		RewardType:         balanceField,
+		HasReferrer:        hasReferrer,
+		IsSettled:          false,
+	}
+
+	if err := s.SaveJobReward(ctx, jobRecord); err != nil {
+		// Log warning but don't fail - balance updates already succeeded
+		slog.Warn("Failed to save job reward record", "error", err, 
+			"contributor", contributorAddress, "amount", contributorShare.String())
 	}
 
 	return nil

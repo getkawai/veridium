@@ -646,6 +646,120 @@ func (s *DeAIService) ClaimUSDTReward(periodID int64, index uint64, amount strin
 	return s.claimReward("usdt", periodID, index, amount, proof)
 }
 
+// ClaimMiningReward claims mining rewards with referral-based splits
+// Uses the new MiningRewardDistributor contract with 9-field Merkle leaves
+func (s *DeAIService) ClaimMiningReward(
+	period int64,
+	contributorAmount string,
+	developerAmount string,
+	userAmount string,
+	affiliatorAmount string,
+	developerAddress string,
+	userAddress string,
+	affiliatorAddress string,
+	proof []string,
+) (*ClaimResult, error) {
+	if s.wallet.currentAccount == nil {
+		return nil, fmt.Errorf("no wallet connected")
+	}
+
+	// 1. Load MiningRewardDistributor contract
+	distributor, err := contracts.MiningRewardDistributor("MiningRewardDistributor", s.reader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load mining distributor: %w", err)
+	}
+
+	// 2. Parse amounts
+	contribAmt := new(big.Int)
+	contribAmt, ok := contribAmt.SetString(contributorAmount, 10)
+	if !ok {
+		return nil, fmt.Errorf("invalid contributor amount format")
+	}
+
+	devAmt := new(big.Int)
+	devAmt, ok = devAmt.SetString(developerAmount, 10)
+	if !ok {
+		return nil, fmt.Errorf("invalid developer amount format")
+	}
+
+	userAmt := new(big.Int)
+	userAmt, ok = userAmt.SetString(userAmount, 10)
+	if !ok {
+		return nil, fmt.Errorf("invalid user amount format")
+	}
+
+	affAmt := new(big.Int)
+	affAmt, ok = affAmt.SetString(affiliatorAmount, 10)
+	if !ok {
+		return nil, fmt.Errorf("invalid affiliator amount format")
+	}
+
+	// 3. Convert proof strings to [32]byte array
+	merkleProof := make([][32]byte, len(proof))
+	for i, p := range proof {
+		// Remove 0x prefix if present
+		if len(p) >= 2 && p[:2] == "0x" {
+			p = p[2:]
+		}
+		proofBytes := common.Hex2Bytes(p)
+		if len(proofBytes) != 32 {
+			return nil, fmt.Errorf("invalid proof element at index %d: expected 32 bytes, got %d", i, len(proofBytes))
+		}
+		copy(merkleProof[i][:], proofBytes)
+	}
+
+	// 4. Parse addresses
+	devAddr := common.HexToAddress(developerAddress)
+	usrAddr := common.HexToAddress(userAddress)
+	affAddr := common.HexToAddress(affiliatorAddress)
+
+	// 5. Get transaction options
+	chainId := monadChainID
+	opts, err := s.wallet.getTransactOpts(chainId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get transaction opts: %w", err)
+	}
+
+	// 6. Submit claim transaction
+	// claimReward(uint256 period, uint256 contributorAmount, uint256 developerAmount,
+	//             uint256 userAmount, uint256 affiliatorAmount, address developer,
+	//             address user, address affiliator, bytes32[] calldata merkleProof)
+	tx, err := distributor.ClaimReward(
+		opts,
+		big.NewInt(period),
+		contribAmt,
+		devAmt,
+		userAmt,
+		affAmt,
+		devAddr,
+		usrAddr,
+		affAddr,
+		merkleProof,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("mining claim transaction failed: %w", err)
+	}
+
+	txHash := tx.Hash().Hex()
+
+	// 7. Mark claim as pending in KV store (for tracking)
+	if s.kv != nil {
+		ctx := context.Background()
+		if err := s.kv.MarkClaimPending(ctx, s.wallet.currentAccount.AddressHex(), period, txHash); err != nil {
+			// Log warning but don't fail - the TX was already submitted
+			fmt.Printf("Warning: failed to mark mining claim pending in KV: %v\n", err)
+		}
+	}
+
+	return &ClaimResult{
+		TxHash:     txHash,
+		PeriodID:   period,
+		RewardType: "mining", // New reward type for mining rewards
+		Amount:     contributorAmount,
+		Status:     "submitted",
+	}, nil
+}
+
 // claimReward is the internal implementation for claiming rewards
 func (s *DeAIService) claimReward(rewardType string, periodID int64, index uint64, amountStr string, proofStrings []string) (*ClaimResult, error) {
 	if s.wallet.currentAccount == nil {

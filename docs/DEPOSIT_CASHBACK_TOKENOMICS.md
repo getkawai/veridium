@@ -27,11 +27,20 @@ Minting Mechanism: Proof of Computation only
 
 ### **Current Distribution (Mining Era):**
 ```
-┌─────────────────────────────────────────┐
-│  CONTRIBUTOR: 70% of mined KAWAI        │
-│  ADMIN/DEV:   30% of mined KAWAI        │
-│  HOLDER:      100% of USDT revenue      │
-└─────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────┐
+│  REFERRAL USERS (85/5/5/5 split):                   │
+│    • CONTRIBUTOR: 85% of mined KAWAI                 │
+│    • DEVELOPER:    5% of mined KAWAI (treasury)      │
+│    • USER:         5% of mined KAWAI (cashback)      │
+│    • AFFILIATOR:   5% of mined KAWAI (referrer)      │
+│                                                       │
+│  NON-REFERRAL USERS (90/5/5 split):                  │
+│    • CONTRIBUTOR: 90% of mined KAWAI                 │
+│    • DEVELOPER:    5% of mined KAWAI (treasury)      │
+│    • USER:         5% of mined KAWAI (cashback)      │
+│                                                       │
+│  HOLDER: 100% of USDT revenue                        │
+└──────────────────────────────────────────────────────┘
 ```
 
 ### **Mining Halving Schedule:**
@@ -52,7 +61,7 @@ Minting Mechanism: Proof of Computation only
 ```
 ┌─────────────────────────────────────────────────────┐
 │  MINING (Contributor Rewards):  60% of max supply   │
-│  ADMIN/DEV (Platform):          20% of max supply   │
+│  DEVELOPER (Platform):          20% of max supply   │
 │  CASHBACK (User Deposits):      15% of max supply   │
 │  REFERRAL (Growth):              5% of max supply    │
 └─────────────────────────────────────────────────────┘
@@ -62,7 +71,7 @@ Minting Mechanism: Proof of Computation only
 | Program | Allocation | Amount (KAWAI) | Purpose |
 |---------|-----------|----------------|---------|
 | **Mining** | 60% | 600,000,000 | Contributor rewards (compute) |
-| **Admin/Dev** | 20% | 200,000,000 | Platform development |
+| **Developer** | 20% | 200,000,000 | Platform development |
 | **Cashback** | 15% | 150,000,000 | User deposit incentive |
 | **Referral** | 5% | 50,000,000 | Viral growth (existing) |
 | **Total** | 100% | **1,000,000,000** | Max supply |
@@ -214,7 +223,7 @@ Assuming growth pattern with **realistic tier distribution**:
 ```
 ┌─────────────────────────────────────────────────────┐
 │  MINING (Contributor):   55% = 550,000,000 KAWAI    │
-│  ADMIN/DEV (Platform):   20% = 200,000,000 KAWAI    │
+│  DEVELOPER (Platform):   20% = 200,000,000 KAWAI    │
 │  CASHBACK (Deposits):    20% = 200,000,000 KAWAI    │
 │  REFERRAL (Growth):      5%  =  50,000,000 KAWAI    │
 └─────────────────────────────────────────────────────┘

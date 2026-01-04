@@ -10,7 +10,10 @@ A "Lean Startup" approach to DePIN, leveraging consumer-grade GPUs for `llama.cp
 -   **Service:** Low-cost LLM Inference API (compatible with OpenAI format).
 -   **Contributors:** Gamers & Devs running `llama.cpp` nodes.
 -   **Rewards:** 
-    -   **Contributor:** Earn KAWAI tokens via "Mining" (70% split). Rewards follow a **Halving Schedule** based on total supply (100 -> 50 -> 25 -> 12 per 1M tokens).
+    -   **Contributor:** Earn KAWAI tokens via "Mining" (85-90% split). Rewards follow a **Halving Schedule** based on total supply (100 -> 50 -> 25 -> 12 per 1M tokens).
+    -   **User:** Earn 5% cashback on every AI request (use-to-earn) + 1-5% deposit cashback (tiered).
+    -   **Affiliator:** Earn 5% commission from referrals' mining rewards (lifetime passive income).
+    -   **Developer:** Earn 5% from mining rewards (distributed to treasury pool).
     -   **Holder:** Earn 100% of Platform Revenue (USDT) proportional to KAWAI holdings.
 -   **Liquidity:** No Initial LP. Value follows the *Hold-to-Earn* utility.
 -   **Details:** See [Concept Document](current_concept.md) for full analysis.
@@ -117,10 +120,14 @@ This roadmap outlines the path from "Zero" to a fully functional decentralized n
         - [x] **Batch Claims**: Claim multiple periods in one transaction.
         - [x] **200M Allocation**: 20% of max supply (~3 year runway).
         - [x] **Unlimited Referrals**: No cap on earnings.
-    - [x] **Job Reward Recording (Bootstrap Phase):**
-        - [x] Record rewards for local LLM inference to treasury pool.
+    - [x] **Mining Reward Distribution System:**
+        - [x] **Referral-Based Splits:** 85/5/5/5 (Contributor/Developer/User/Affiliator) for referral users, 90/5/5 for non-referral.
+        - [x] **Job Tracking:** Per-job reward recording with full split details.
+        - [x] **9-Field Merkle Trees:** Gas-efficient weekly settlement with flexible developer addresses.
+        - [x] **Smart Contract:** `MiningRewardDistributor.sol` deployed to testnet.
+        - [x] **Settlement Command:** `mining-settlement` CLI for weekly Merkle generation and upload.
+        - [x] **Claim Integration:** Frontend bindings for `ClaimMiningReward()`.
         - [x] Random treasury address selection for fair distribution.
-        - [x] Automatic 70/30 split (Treasury/Admin).
         - [x] Phase detection (Mining vs USDT mode).
         - [x] Halving logic (100→50→25→12 KAWAI per 1M tokens).
         - [x] Async execution (no user latency impact).
@@ -186,8 +193,9 @@ This roadmap outlines the path from "Zero" to a fully functional decentralized n
 | **OTCMarket v2** ⭐ | `0x5b1235038B2F05aC88b791A23814130710eFaaEa` | **NEW:** P2P trading with Partial Fill Support |
 | **MockUSDT** | `0xb8cD3f468E9299Fa58B2f4210Fe06fe678d1A1B7` | Test USDT for simulating revenue |
 | **PaymentVault** | `0x714238F32A7aE70C0D208D58Cc041D8Dda28e813` | User USDT deposit vault |
-| **KAWAI_Distributor** | `0xf4CCb09208cA77153e1681d256247dae0ff119ba` | Merkle distributor for mining rewards |
+| **KAWAI_Distributor** | `0xf4CCb09208cA77153e1681d256247dae0ff119ba` | Merkle distributor for mining rewards (legacy) |
 | **USDT_Distributor** | `0xE964B52D496F37749bd0caF287A356afdC10836C` | Merkle distributor for profit sharing |
+| **MiningRewardDistributor** ⭐ | `0xa0dDC59DAcBA9201CC9Ef613707d287b77b2723F` | **NEW:** Mining rewards with referral splits (85/5/5/5) |
 
 ### **What's New in v2.0:**
 - ✅ **Partial Fill Support** - Buy/sell any amount from orders
@@ -321,14 +329,19 @@ CF_KV_USERS_NAMESPACE_ID=...         # User Profiles & Balance (JSON)
 
 | Document | Description |
 |----------|-------------|
+| **Core Documentation** | |
+| [`current_concept.md`](current_concept.md) | Complete project concept & tokenomics |
 | [`DEPLOYMENT_SUMMARY.md`](docs/DEPLOYMENT_SUMMARY.md) | Full deployment details & contract addresses |
 | [`MARKETPLACE_UPGRADE_SUMMARY.md`](docs/MARKETPLACE_UPGRADE_SUMMARY.md) | Architecture & partial fill implementation |
 | [`CONTRACTS_WORKFLOW.md`](docs/CONTRACTS_WORKFLOW.md) | Smart contract development workflow |
 | [`DEPOSIT_SYNC.md`](docs/DEPOSIT_SYNC.md) | Deposit synchronization system & implementation guide |
-| [`REFERRAL_SYSTEM.md`](REFERRAL_SYSTEM.md) | Referral system implementation & viral growth strategy |
-| [`CASHBACK_SYSTEM.md`](CASHBACK_SYSTEM.md) | Deposit cashback system implementation & tokenomics |
-| [`DEPOSIT_CASHBACK_TOKENOMICS.md`](DEPOSIT_CASHBACK_TOKENOMICS.md) | Deep tokenomics analysis for cashback program |
-| [`current_concept.md`](current_concept.md) | Complete project concept & tokenomics |
+| **Rewards Systems** | |
+| [`MINING_REWARDS_COMPLETE.md`](MINING_REWARDS_COMPLETE.md) | ⭐ Complete mining rewards implementation (85/5/5/5 split) |
+| [`CASHBACK_SYSTEM.md`](CASHBACK_SYSTEM.md) | Deposit cashback system (1-5% tiered rewards) |
+| [`REFERRAL_SYSTEM.md`](REFERRAL_SYSTEM.md) | Referral system & viral growth strategy |
+| **Deep Dive** | |
+| [`DEPOSIT_CASHBACK_TOKENOMICS.md`](docs/DEPOSIT_CASHBACK_TOKENOMICS.md) | Deep tokenomics analysis for cashback program |
+| [`REFERRAL_MINING_REWARDS_PLAN.md`](docs/archive/REFERRAL_MINING_REWARDS_PLAN.md) | Original mining rewards plan (archived) |
 
 ---
 
