@@ -490,7 +490,15 @@ func GetCoinGeckoRateInUSDOnPlatform(platform string, token string) (float64, er
 	if err != nil {
 		return 0, err
 	}
-	return priceres[strings.ToLower(token)]["usd"], nil
+	tokenPrice, ok := priceres[strings.ToLower(token)]
+	if !ok {
+		return 0, fmt.Errorf("token %s not found in coingecko response", token)
+	}
+	usdPrice, ok := tokenPrice["usd"]
+	if !ok {
+		return 0, fmt.Errorf("usd price not found for token %s", token)
+	}
+	return usdPrice, nil
 }
 
 // getCoinGeckoNativeCoinID maps the platform ID (used for token lookups)
