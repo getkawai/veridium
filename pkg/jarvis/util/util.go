@@ -460,44 +460,23 @@ func ReadCustomABIString(
 
 type coingeckopriceresponse map[string]map[string]float64
 
-func GetETHPriceInUSD() (float64, error) {
-	resp, err := http.Get(
-		"https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd&include_market_cap=false&include_24hr_vol=false&include_24hr_change=false&include_last_updated_at=false",
-	)
-	if err != nil {
-		return 0, err
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return 0, err
-	}
-	priceres := coingeckopriceresponse{}
-	err = json.Unmarshal(body, &priceres)
-	if err != nil {
-		return 0, err
-	}
-	return priceres["ethereum"]["usd"], nil
-}
-
 func GetCoinGeckoRateInUSD(network networks.Network, token string) (float64, error) {
 	return GetCoinGeckoRateInUSDOnPlatform(network.GetCoinGeckoPlatformID(), token)
 }
 
 func GetCoinGeckoRateInUSDOnPlatform(platform string, token string) (float64, error) {
 	if strings.ToLower(token) == "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" {
-		if platform == "monad" {
-			return GetMonadPriceInUSD()
-		}
-		return GetETHPriceInUSD()
+		nativeCoinID := getCoinGeckoNativeCoinID(platform)
+		return GetCoinGeckoSimplePrice(nativeCoinID)
 	}
-	resp, err := http.Get(
-		fmt.Sprintf(
-			"https://api.coingecko.com/api/v3/simple/token_price/%s?contract_addresses=%s&vs_currencies=USD&include_market_cap=false&include_24hr_vol=false&include_24hr_change=false&include_last_updated_at=false",
-			platform,
-			token,
-		),
+
+	url := fmt.Sprintf(
+		"https://api.coingecko.com/api/v3/simple/token_price/%s?contract_addresses=%s&vs_currencies=USD&include_market_cap=false&include_24hr_vol=false&include_24hr_change=false&include_last_updated_at=false",
+		platform,
+		token,
 	)
+
+	resp, err := http.Get(url)
 	if err != nil {
 		return 0, err
 	}
@@ -511,32 +490,74 @@ func GetCoinGeckoRateInUSDOnPlatform(platform string, token string) (float64, er
 	if err != nil {
 		return 0, err
 	}
-	return priceres[strings.ToLower(token)]["usd"], nil
+	tokenPrice, ok := priceres[strings.ToLower(token)]
+	if !ok {
+		return 0, fmt.Errorf("token %s not found in coingecko response", token)
+	}
+	usdPrice, ok := tokenPrice["usd"]
+	if !ok {
+		return 0, fmt.Errorf("usd price not found for token %s", token)
+	}
+	return usdPrice, nil
+}
+
+// getCoinGeckoNativeCoinID maps the platform ID (used for token lookups)
+// to the native coin ID (used for simple/price lookups)
+func getCoinGeckoNativeCoinID(platformID string) string {
+	switch platformID {
+	case "ethereum":
+		return "ethereum"
+	case "binance-smart-chain":
+		return "binancecoin"
+	case "polygon-pos":
+		return "matic-network"
+	case "fantom":
+		return "fantom"
+	case "avalanche":
+		return "avalanche-2"
+	case "optimistic-ethereum", "arbitrum-one", "base", "scroll", "linea", "zksync":
+		return "ethereum" // Layer 2s usually use ETH
+	case "monad":
+		return "monad"
+	default:
+		// Fallback: assume the platform ID might be the coin ID (works for solana, etc.)
+		return platformID
+	}
+}
+
+func GetCoinGeckoSimplePrice(coinID string) (float64, error) {
+	url := fmt.Sprintf(
+		"https://api.coingecko.com/api/v3/simple/price?ids=%s&vs_currencies=usd&include_market_cap=false&include_24hr_vol=false&include_24hr_change=false&include_last_updated_at=false",
+		coinID,
+	)
+	resp, err := http.Get(url)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return 0, err
+	}
+	priceres := coingeckopriceresponse{}
+	err = json.Unmarshal(body, &priceres)
+	if err != nil {
+		return 0, err
+	}
+
+	price, ok := priceres[coinID]["usd"]
+	if !ok {
+		return 0, fmt.Errorf("price for %s not found in coingecko response", coinID)
+	}
+	return price, nil
+}
+
+func GetETHPriceInUSD() (float64, error) {
+	return GetCoinGeckoSimplePrice("ethereum")
 }
 
 func GetMonadPriceInUSD() (float64, error) {
-	resp, err := http.Get(
-		"https://api.coingecko.com/api/v3/simple/price?ids=monad&vs_currencies=usd&include_market_cap=false&include_24hr_vol=false&include_24hr_change=false&include_last_updated_at=false",
-	)
-	if err != nil {
-		return 0, err
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return 0, err
-	}
-	priceres := coingeckopriceresponse{}
-	err = json.Unmarshal(body, &priceres)
-	if err != nil {
-		return 0, err
-	}
-
-	res, ok := priceres["monad"]["usd"]
-	if !ok {
-		return 0, fmt.Errorf("monad price not found in coingecko response")
-	}
-	return res, nil
+	return GetCoinGeckoSimplePrice("monad")
 }
 
 func ReadCustomABI(addr string, pathOrAddress string, network networks.Network) (a *abi.ABI, err error) {
