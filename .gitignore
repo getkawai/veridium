@@ -13,7 +13,8 @@ files/uploads
 videoplayback.mp4
 videoplayback.txt
 wails
-# .env
+internal/constant/temp.go
+.env
 # Backup and temp env files
 # .env.backup
 # .env.new
