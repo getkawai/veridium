@@ -371,6 +371,10 @@ const DesktopWalletLayout = memo(() => {
   // Loading states
   const [balancesLoading, setBalancesLoading] = useState(false);
 
+  // Price state
+  const [nativePrice, setNativePrice] = useState(0);
+  const [kawaiPrice, setKawaiPrice] = useState(0);
+
   // Initialize default network
   useEffect(() => {
     initializeNetwork();
@@ -396,6 +400,7 @@ const DesktopWalletLayout = memo(() => {
       loadKawaiBalance(network.id);
       loadGasEstimate(network.id);
       loadCurrentBlock(network.id);
+      loadPrices(network.id);
     }
   }, [address, message]);
 
@@ -410,9 +415,22 @@ const DesktopWalletLayout = memo(() => {
         loadKawaiBalance(currentNetwork.id),
         loadGasEstimate(currentNetwork.id),
         loadCurrentBlock(currentNetwork.id),
+        loadPrices(currentNetwork.id),
       ]).finally(() => setBalancesLoading(false));
     }
   }, [address, isWalletLoaded, currentNetwork]);
+
+  const loadPrices = async (networkId: number) => {
+    try {
+      const nPrice = await JarvisService.GetTokenPrice("0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", networkId);
+      setNativePrice(nPrice);
+
+      const kPrice = await JarvisService.GetTokenPrice(KAWAI_TOKEN_ADDRESS, networkId);
+      setKawaiPrice(kPrice);
+    } catch (e) {
+      console.error('Failed to load prices', e);
+    }
+  };
 
   const loadNativeBalance = async (networkId: number) => {
     if (!address) return;
@@ -483,31 +501,31 @@ const DesktopWalletLayout = memo(() => {
 
     try {
       const rawAmount = Math.floor(amount * 1_000_000).toString();
-      
+
       // Step 1: Deposit to PaymentVault (on-chain)
       const txHash = await DeAIService.DepositToVault(rawAmount);
       message.success(`Deposit Successful! TX: ${txHash.substring(0, 10)}...`);
-      
+
       // Step 2: Wait for confirmation (2 seconds)
       hide();
       const syncHide = message.loading("Syncing balance...", 0);
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
+
       // Step 3: Sync to off-chain balance (Cloudflare KV)
       const userAddress = await WalletService.GetCurrentAddress();
       const syncResult = await DepositSyncService.SyncDeposit({
         txHash: txHash,
         userAddress: userAddress
       });
-      
+
       syncHide();
-      
+
       if (syncResult?.success) {
         message.success(`Balance synced! New balance: ${(parseFloat(syncResult.newBalance || '0') / 1_000_000).toFixed(2)} USDT`);
       } else {
         message.warning(`Deposit successful but sync failed: ${syncResult?.message || 'Unknown error'}. Please try manual sync.`);
       }
-      
+
       loadBalance();
       loadHistory();
       setModalType(null);
@@ -627,6 +645,8 @@ const DesktopWalletLayout = memo(() => {
           balance={balance}
           nativeBalance={nativeBalance}
           kawaiBalance={kawaiBalance}
+          nativePrice={nativePrice}
+          kawaiPrice={kawaiPrice}
           balanceVisible={balanceVisible}
           setBalanceVisible={setBalanceVisible}
           setModalType={setModalType}

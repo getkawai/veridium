@@ -22,6 +22,8 @@ export interface HomeContentProps {
   balance: string;
   nativeBalance: string;
   kawaiBalance: string;
+  nativePrice: number;
+  kawaiPrice: number;
   balanceVisible: boolean;
   setBalanceVisible: (visible: boolean) => void;
   setModalType: (type: 'send' | 'receive' | 'swap' | 'deposit' | 'addAccount' | 'createWallet' | 'importWallet' | 'addToken' | null) => void;

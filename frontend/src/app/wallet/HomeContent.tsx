@@ -179,6 +179,8 @@ const HomeContent = ({
   balance,
   nativeBalance,
   kawaiBalance,
+  nativePrice,
+  kawaiPrice,
   balanceVisible,
   setBalanceVisible,
   setModalType,
@@ -192,6 +194,12 @@ const HomeContent = ({
 }: HomeContentProps) => {
   const [showAllTx, setShowAllTx] = useState(false);
 
+  // Calculate total portfolio value
+  const usdtValue = parseFloat(balance) || 0;
+  const nativeValue = (parseFloat(nativeBalance) || 0) * nativePrice;
+  const kawaiValue = (parseFloat(kawaiBalance) || 0) * kawaiPrice;
+  const totalPortfolioValue = usdtValue + nativeValue + kawaiValue;
+
   return (
     <Flexbox style={{ maxWidth: 900, width: '100%' }} gap={20}>
       {/* Balance Card */}
@@ -201,21 +209,21 @@ const HomeContent = ({
         </div>
         <Flexbox horizontal justify="space-between" align="center">
           <Flexbox style={{ flexDirection: 'column' }} gap={4}>
-            <span style={{ fontSize: 11, color: theme.colorTextSecondary, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Balance</span>
+            <span style={{ fontSize: 11, color: theme.colorTextSecondary, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Portfolio Value</span>
             <div className={styles.statValue}>
               {balancesLoading ? (
                 <Spin size="small" />
               ) : (
                 <>
-                  {balanceVisible ? `$${balance}` : '••••••'}
-                  <span style={{ fontSize: 16, color: theme.colorTextTertiary, marginLeft: 6, fontWeight: 500 }}>USDT</span>
+                  {balanceVisible ? `$${totalPortfolioValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '••••••'}
+                  <span style={{ fontSize: 16, color: theme.colorTextTertiary, marginLeft: 6, fontWeight: 500 }}>USD</span>
                 </>
               )}
             </div>
             {/* Native token balance */}
             {currentNetwork && (
               <div style={{ fontSize: 13, color: theme.colorTextSecondary, marginTop: 4 }}>
-                {balanceVisible ? nativeBalance : '••••'} {currentNetwork.nativeTokenSymbol}
+                {balanceVisible ? nativeBalance : '••••'} {currentNetwork.nativeTokenSymbol} ({nativePrice > 0 ? `$${nativePrice.toFixed(2)}` : '-'})
               </div>
             )}
           </Flexbox>
@@ -292,16 +300,24 @@ const HomeContent = ({
                   <div style={{ fontSize: 12, color: theme.colorTextSecondary }}>Native Token</div>
                 </div>
               </Flexbox>
-              <div style={{ textAlign: 'right', minWidth: 70 }}>
-                <div style={{ fontWeight: 700, fontSize: 14, color: '#fff' }}>{balanceVisible ? nativeBalance : '••••'}</div>
-              </div>
+              <Flexbox horizontal align="center" gap={16}>
+                <span style={{ fontSize: 12, color: theme.colorTextSecondary }}>
+                  {nativePrice > 0 ? `$${nativePrice.toFixed(2)}` : '-'}
+                </span>
+                <div style={{ textAlign: 'right', minWidth: 70 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: '#fff' }}>{balanceVisible ? nativeBalance : '••••'}</div>
+                  <div style={{ fontSize: 11, color: theme.colorTextTertiary }}>
+                    {balanceVisible && nativeValue > 0 ? `$${nativeValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '$0.00'}
+                  </div>
+                </div>
+              </Flexbox>
             </div>
           )}
 
           {/* USDT */}
           <div className={styles.tokenRow}>
             <Flexbox horizontal align="center" gap={12} style={{ flex: 1 }}>
-            <TokenUSDT size={36} variant="branded" />
+              <TokenUSDT size={36} variant="branded" />
               <div>
                 <div style={{ fontWeight: 600 }}>USDT</div>
                 <div style={{ fontSize: 12, color: theme.colorTextSecondary }}>Tether USD</div>
@@ -341,16 +357,17 @@ const HomeContent = ({
               </div>
             </Flexbox>
             <Flexbox horizontal align="center" gap={16}>
-              <span style={{ fontSize: 12, color: theme.colorTextSecondary }}>-</span>
+              <span style={{ fontSize: 12, color: theme.colorTextSecondary }}>
+                {kawaiPrice > 0 ? `$${kawaiPrice.toFixed(4)}` : '-'}
+              </span>
               <div style={{ textAlign: 'right', minWidth: 70 }}>
                 <div style={{ fontWeight: 700, fontSize: 14, color: '#fff' }}>{balanceVisible ? kawaiBalance : '••••'}</div>
                 <div style={{ fontSize: 11, color: theme.colorTextTertiary }}>
-                  {balanceVisible ? `${kawaiBalance} KAWAI` : '••••'}
+                  {balanceVisible && kawaiValue > 0 ? `$${kawaiValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '$0.00'}
                 </div>
               </div>
             </Flexbox>
           </div>
-
         </Flexbox>
       </Card>
 
