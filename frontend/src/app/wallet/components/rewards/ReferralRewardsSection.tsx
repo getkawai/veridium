@@ -94,25 +94,15 @@ export const ReferralRewardsSection = ({ currentNetwork, theme, styles, onRefres
 
     const shareText = `Join Kawai DeAI Network and get 10 USDT + 200 KAWAI FREE! Use my code: ${stats.code}\n\nDecentralized AI • No credit card • Instant access\n\n`;
     const shareUrl = `https://getkawai.com?ref=${stats.code}`;
+    const fullShareText = shareText + shareUrl;
 
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: 'Join Kawai DeAI Network',
-          text: shareText,
-          url: shareUrl,
-        });
-      } catch (err) {
-        // User cancelled share
-      }
-    } else {
-      // Fallback: copy to clipboard
-      try {
-        await navigator.clipboard.writeText(shareText + shareUrl);
-        message.success('Referral link copied to clipboard!');
-      } catch (clipboardErr) {
-        message.error('Failed to copy referral link');
-      }
+    // Wails uses native webview, navigator.share() not available
+    // Always copy to clipboard instead
+    try {
+      await navigator.clipboard.writeText(fullShareText);
+      message.success('Referral link copied to clipboard!');
+    } catch (err) {
+      message.error('Failed to copy referral link');
     }
   };
 
@@ -293,7 +283,7 @@ export const ReferralRewardsSection = ({ currentNetwork, theme, styles, onRefres
                   type="primary"
                   ghost
                 >
-                  Share Link
+                  Copy Share Link
                 </Button>
               </Flexbox>
             </div>
