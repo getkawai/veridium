@@ -371,7 +371,7 @@ export const ReferralRewardsSection = ({ currentNetwork, theme, styles, onRefres
             <Flexbox horizontal gap={8} align="center">
               <Info size={16} color={theme.colorInfo} />
               <span style={{ fontSize: 12, color: theme.colorTextSecondary }}>
-                <strong>Note:</strong> Mining commission is tracked on-chain and will be claimable weekly via Merkle proof (same as mining rewards). This feature is coming soon!
+                <strong>Note:</strong> Mining commission is tracked on-chain and will be claimable weekly via Merkle proof (same as mining rewards).
               </span>
             </Flexbox>
           </div>
