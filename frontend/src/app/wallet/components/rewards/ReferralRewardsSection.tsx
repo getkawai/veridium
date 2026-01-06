@@ -279,8 +279,7 @@ export const ReferralRewardsSection = ({ currentNetwork, theme, styles, onRefres
                 <Button
                   icon={<Share2 size={16} />}
                   onClick={handleShare}
-                  type="primary"
-                  ghost
+                  type="default"
                 >
                   Copy Share Link
                 </Button>
