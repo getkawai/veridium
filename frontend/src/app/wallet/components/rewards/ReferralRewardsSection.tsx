@@ -4,6 +4,7 @@ import { ReferralService } from '@@/github.com/kawai-network/veridium/internal/s
 import { Flexbox } from 'react-layout-kit';
 import { Users, DollarSign, Gift, Share2, Copy, CheckCircle, Info, Zap, TrendingUp } from 'lucide-react';
 import { useUserStore } from '@/store/user';
+import { copyText } from '@/utils/clipboard';
 import type { NetworkInfo } from '@@/github.com/kawai-network/veridium/internal/services/models';
 
 interface ReferralRewardsSectionProps {
@@ -80,7 +81,7 @@ export const ReferralRewardsSection = ({ currentNetwork, theme, styles, onRefres
     if (!stats?.code) return;
     
     try {
-      await navigator.clipboard.writeText(stats.code);
+      await copyText(stats.code);
       setCopied(true);
       message.success('Referral code copied!');
       setTimeout(() => setCopied(false), 2000);
@@ -96,10 +97,8 @@ export const ReferralRewardsSection = ({ currentNetwork, theme, styles, onRefres
     const shareUrl = `https://getkawai.com?ref=${stats.code}`;
     const fullShareText = shareText + shareUrl;
 
-    // Wails uses native webview, navigator.share() not available
-    // Always copy to clipboard instead
     try {
-      await navigator.clipboard.writeText(fullShareText);
+      await copyText(fullShareText);
       message.success('Referral link copied to clipboard!');
     } catch (err) {
       message.error('Failed to copy referral link');

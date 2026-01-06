@@ -336,24 +336,3 @@ See [`pkg/README.md`](pkg/README.md) for complete list including: `localfs`, `ob
 **Root Cause:** Sequential Cloudflare KV API calls in cashback loading (up to 104 calls)
 
 **See:** [`docs/PERFORMANCE_ANALYSIS.md`](docs/PERFORMANCE_ANALYSIS.md) for detailed analysis
-
-**TODOs:**
-1. **Phase 1 (Quick Win):** Implement parallel KV queries for cashback loading
-   - **Impact:** 10x faster (20s → 2-3s)
-   - **Effort:** ~2 hours
-   - **Priority:** 🔴 High
-
-2. **Phase 2 (Best Long-Term):** Add settled periods index
-   - **Impact:** 20x faster (20s → <1s)
-   - **Effort:** ~4 hours
-   - **Priority:** 🟡 Medium
-
-3. **Phase 3 (Nice to Have):** Add in-memory cache layer
-   - **Impact:** Instant subsequent loads
-   - **Effort:** ~1 hour
-   - **Priority:** 🟢 Low
-
-4. **UX Improvement:** Better error handling for new users without referral codes
-   - **Impact:** Clearer onboarding experience
-   - **Effort:** ~30 minutes
-   - **Priority:** 🟡 Medium
