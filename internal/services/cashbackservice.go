@@ -63,3 +63,38 @@ func (s *CashbackService) GetCurrentPeriod() uint64 {
 	return s.kvStore.GetCurrentPeriod()
 }
 
+// ClaimableCashbackRecord represents a claimable cashback record for the frontend
+type ClaimableCashbackRecord struct {
+	Period         uint64   `json:"period"`
+	Amount         string   `json:"amount"`          // KAWAI amount (wei)
+	Proof          []string `json:"proof"`           // Merkle proof
+	MerkleRoot     string   `json:"merkle_root"`     // Merkle root for verification
+	Claimed        bool     `json:"claimed"`         // Whether already claimed
+	DepositTxHash  string   `json:"deposit_tx_hash"` // Original deposit tx (if available)
+}
+
+// GetClaimableCashback retrieves all claimable cashback records for a user
+func (s *CashbackService) GetClaimableCashback(userAddress string) ([]ClaimableCashbackRecord, error) {
+	ctx := context.Background()
+	
+	records, err := s.kvStore.GetClaimableCashbackRecords(ctx, userAddress)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Convert to frontend format
+	var result []ClaimableCashbackRecord
+	for _, record := range records {
+		result = append(result, ClaimableCashbackRecord{
+			Period:         record.Period,
+			Amount:         record.CashbackAmount,
+			Proof:          record.Proof,
+			MerkleRoot:     record.MerkleRoot,
+			Claimed:        record.Claimed,
+			DepositTxHash:  record.DepositTxHash,
+		})
+	}
+	
+	return result, nil
+}
+

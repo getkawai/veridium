@@ -16,7 +16,7 @@ A "Lean Startup" approach to DePIN, leveraging consumer-grade GPUs for `llama.cp
     -   **Developer:** Earn 5% from mining rewards (distributed to treasury pool).
     -   **Holder:** Earn 100% of Platform Revenue (USDT) proportional to KAWAI holdings.
 -   **Liquidity:** No Initial LP. Value follows the *Hold-to-Earn* utility.
--   **Details:** See [Concept Document](current_concept.md) for full analysis.
+-   **Details:** See tokenomics section below for full analysis.
 
 ---
 
@@ -32,7 +32,7 @@ We use a **Hybrid Model** (Off-Chain Accumulation + On-Chain Settlement) to mini
 *   **Purpose:** Start token economy and accumulate treasury for future liquidity.
 *   **Transition:** Ready to switch to distributed network when contributors join.
 
-👉 **[See Full Technical Details in Concept Document](current_concept.md#d-mekanisme-teknis-hybrid-how-it-works)**
+👉 **See Full Technical Details in the sections below**
 
 ---
 
@@ -46,23 +46,13 @@ Veridium consists of two primary components designed for different user roles:
 - **Description:** The main interface for AI consumers. It provides a premium desktop experience for chat, knowledge base management, and a Web3 dashboard for USDT deposits and token management.
 - **Current Mode:** Local LLM inference with automatic reward recording to treasury pool.
 - **How to Run:**
-  Refer to the `Makefile` for various development and build commands:
-  ```bash
-  make dev      # Start fresh (reset DB + full build)
-  make build    # Build production binary
-  ```
+  Refer to the `Makefile` for various development and build commands.
 
 ### 2. Contributor Client (CLI)
 - **Location:** `cmd/contributor/main.go`
 - **Tech:** Go CLI.
 - **Description:** The "Miner" application. It wraps `llama.cpp` to provide compute power to the network and earn KAWAI tokens.
 - **Status:** Ready for distributed network phase (future).
-- **How to Run:**
-  ```bash
-  go run cmd/contributor/main.go --password YOUR_PASSWORD
-  ```
-
-> **Note:** `cmd/server` is currently **deprecated**/not used in the production flow.
 
 ---
 
@@ -183,39 +173,16 @@ This roadmap outlines the path from "Zero" to a fully functional decentralized n
 
 ## 🌐 Monad Testnet Deployment
 
-> **Status:** ✅ **UPGRADED v2.0** (2025-12-31) - Partial Fill Support
+All smart contracts are deployed on **Monad Blockchain** (Testnet).
 
-### **Latest Contracts (v2.0 - Partial Fill)**
+**See:** [`docs/CONTRACTS_OVERVIEW.md`](docs/CONTRACTS_OVERVIEW.md) for complete contract details, addresses, and deployment information.
 
-| Contract | Address | Description |
-|---|---|---|
-| **KawaiToken** | `0xF27c5c43a746B329B1c767CE1b319c9EBfE8012E` | Native token (1B Max Supply, Fair Launch) |
-| **OTCMarket v2** ⭐ | `0x5b1235038B2F05aC88b791A23814130710eFaaEa` | **NEW:** P2P trading with Partial Fill Support |
-| **MockUSDT** | `0xb8cD3f468E9299Fa58B2f4210Fe06fe678d1A1B7` | Test USDT for simulating revenue |
-| **PaymentVault** | `0x714238F32A7aE70C0D208D58Cc041D8Dda28e813` | User USDT deposit vault |
-| **KAWAI_Distributor** | `0xf4CCb09208cA77153e1681d256247dae0ff119ba` | Merkle distributor for mining rewards (legacy) |
-| **USDT_Distributor** | `0xE964B52D496F37749bd0caF287A356afdC10836C` | Merkle distributor for profit sharing |
-| **MiningRewardDistributor** ⭐ | `0xa0dDC59DAcBA9201CC9Ef613707d287b77b2723F` | **NEW:** Mining rewards with referral splits (85/5/5/5) |
-
-### **What's New in v2.0:**
-- ✅ **Partial Fill Support** - Buy/sell any amount from orders
-- ✅ **Remaining Amount Tracking** - Real-time order status
-- ✅ **Efficient View Functions** - Batch queries, pagination
-- ✅ **Enhanced Events** - Detailed partial fill events
-- ✅ **19 Comprehensive Tests** - Full test coverage
-- ✅ **Reconciliation Service** - Auto-sync blockchain ↔ KV store
-- ✅ **Rate Limiting** - RPC (10/sec) + KV (100/sec)
-
-### **Old Contracts (v1.0 - Deprecated)**
-<details>
-<summary>Click to view legacy contracts</summary>
-
-| Contract | Address | Status |
-|---|---|---|
-| KawaiToken (old) | `0x3EC7A3b85f9658120490d5a76705d4d304f4068D` | ⚠️ Deprecated |
-| OTCMarket (old) | `0x134244eDd4349b0B408c5293Ffb4263984F2808C` | ⚠️ Deprecated |
-
-</details>
+### **Key Contracts:**
+- **KawaiToken** - Native utility token (1B max supply, fair launch)
+- **Escrow (OTC Market)** - P2P KAWAI ↔ USDT trading with partial fill support
+- **PaymentVault** - User USDT deposit management
+- **Reward Distributors** - Mining (85/5/5/5), Cashback (1-5% tiered), Referral rewards
+- **MerkleDistributor** - Generic Merkle-based distribution (USDT profit sharing)
 
 **Network Info:**
 - **Chain ID:** 10143
@@ -317,34 +284,42 @@ CF_KV_USERS_NAMESPACE_ID=...         # User Profiles & Balance (JSON)
 
 ## 📦 Package Documentation
 
+**For Go developers working on backend/blockchain code:**
+
+### Core Veridium Packages
+| Package | Description | Key Features |
+|---------|-------------|--------------|
+| [`pkg/store`](pkg/store/README.md) | Off-chain KV storage (Cloudflare Workers) | Contributors, Merkle Proofs, Settlement automation |
+| `pkg/merkle` | Merkle tree generation | Gas-efficient reward distribution |
+| `pkg/blockchain` | Monad blockchain interaction | Contract calls, event listening, transaction management |
+| `pkg/config` | Configuration management | Environment variables, network settings |
+| `pkg/jarvis/contracts` | Smart contract Go bindings | Auto-generated from Solidity contracts |
+
+### Services
 | Package | Description |
 |---------|-------------|
-| [`pkg/store`](pkg/store/README.md) | Off-chain KV storage (Contributors, Proofs, Settlements) |
-| `pkg/merkle` | Merkle tree generation |
-| `pkg/blockchain` | Monad blockchain interaction |
-| `pkg/config` | Configuration management |
-| [`internal/services`](internal/services/) | Marketplace, Reconciliation, Event Listener services |
+| [`internal/services`](internal/services/) | Core services: Marketplace, Reconciliation, Event Listener, Rewards |
 
-## 📚 Additional Documentation
+### Utility Packages
+See [`pkg/README.md`](pkg/README.md) for complete list including: `localfs`, `obfuscator`, `nodefs`, `nodepath`, etc.
 
-| Document | Description |
-|----------|-------------|
-| **Core Documentation** | |
-| [`current_concept.md`](current_concept.md) | Complete project concept & tokenomics |
-| [`DEPLOYMENT_SUMMARY.md`](docs/DEPLOYMENT_SUMMARY.md) | Full deployment details & contract addresses |
-| [`MARKETPLACE_UPGRADE_SUMMARY.md`](docs/MARKETPLACE_UPGRADE_SUMMARY.md) | Architecture & partial fill implementation |
-| [`CONTRACTS_WORKFLOW.md`](docs/CONTRACTS_WORKFLOW.md) | Smart contract development workflow |
-| [`DEPOSIT_SYNC.md`](docs/DEPOSIT_SYNC.md) | Deposit synchronization system & implementation guide |
-| **Rewards Systems** | |
-| [`MINING_REWARDS_COMPLETE.md`](MINING_REWARDS_COMPLETE.md) | ⭐ Complete mining rewards implementation (85/5/5/5 split) |
-| [`CASHBACK_SYSTEM.md`](CASHBACK_SYSTEM.md) | Deposit cashback system (1-5% tiered rewards) |
-| [`REFERRAL_SYSTEM.md`](REFERRAL_SYSTEM.md) | Referral system & viral growth strategy |
-| **Deep Dive** | |
-| [`DEPOSIT_CASHBACK_TOKENOMICS.md`](docs/DEPOSIT_CASHBACK_TOKENOMICS.md) | Deep tokenomics analysis for cashback program |
-| [`REFERRAL_MINING_REWARDS_PLAN.md`](docs/archive/REFERRAL_MINING_REWARDS_PLAN.md) | Original mining rewards plan (archived) |
+## 📚 Documentation Guide
 
----
+**Start here:** This README contains the complete overview of the project.
 
-sentryDSN_golang = "https://709dabacc882a777ef059392d056e3da@o4510568649654272.ingest.us.sentry.io/4510568655290368"
-sentryDSN_golang_contributor = "https://6d138acbdde2516e32e24f016b472031@o4510620614983680.ingest.us.sentry.io/4510620618850304" // dielzzz89
-sentryDSN_react = "https://b66f862d7567c075a44c697757bb8130@o4510618985758720.ingest.us.sentry.io/4510618990804992" // yudapramad
+### System Documentation (Root)
+| Document | Purpose | When to Read |
+|----------|---------|--------------|
+| [`REWARD_SYSTEMS.md`](REWARD_SYSTEMS.md) | Overview & comparison of all reward systems | Understanding reward architecture & current status |
+| [`MINING_SYSTEM.md`](MINING_SYSTEM.md) | Complete mining rewards implementation (85/5/5/5 split) | Working on mining/contributor rewards |
+| [`CASHBACK_SYSTEM.md`](CASHBACK_SYSTEM.md) | Complete cashback implementation status & guide | Working on deposit cashback features |
+| [`REFERRAL_SYSTEM.md`](REFERRAL_SYSTEM.md) | Referral system implementation & status | Working on referral features |
+| [`MINTER_ROLE_REQUIREMENTS.md`](MINTER_ROLE_REQUIREMENTS.md) | Why MINTER_ROLE is needed for reward distributors | Deploying or debugging reward contracts |
+
+### Technical Deep Dive (docs/)
+| Document | Purpose | When to Read |
+|----------|---------|--------------|
+| [`docs/CONTRACTS_OVERVIEW.md`](docs/CONTRACTS_OVERVIEW.md) | Complete smart contracts overview & architecture | Understanding contract system |
+| [`docs/CONTRACTS_WORKFLOW.md`](docs/CONTRACTS_WORKFLOW.md) | Smart contract development & deployment workflow | Developing or deploying contracts |
+| [`docs/REFERRAL_CONTRACT_GUIDE.md`](docs/REFERRAL_CONTRACT_GUIDE.md) | Detailed referral contract implementation | Working on referral features |
+| [`docs/DEPOSIT_CASHBACK_TOKENOMICS.md`](docs/DEPOSIT_CASHBACK_TOKENOMICS.md) | Economic analysis of cashback tiers | Adjusting cashback parameters |

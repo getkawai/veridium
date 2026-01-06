@@ -521,6 +521,74 @@ export class ClaimResult {
 }
 
 /**
+ * ClaimableCashbackRecord represents a claimable cashback record for the frontend
+ */
+export class ClaimableCashbackRecord {
+    "period": number;
+
+    /**
+     * KAWAI amount (wei)
+     */
+    "amount": string;
+
+    /**
+     * Merkle proof
+     */
+    "proof": string[];
+
+    /**
+     * Merkle root for verification
+     */
+    "merkle_root": string;
+
+    /**
+     * Whether already claimed
+     */
+    "claimed": boolean;
+
+    /**
+     * Original deposit tx (if available)
+     */
+    "deposit_tx_hash": string;
+
+    /** Creates a new ClaimableCashbackRecord instance. */
+    constructor($$source: Partial<ClaimableCashbackRecord> = {}) {
+        if (!("period" in $$source)) {
+            this["period"] = 0;
+        }
+        if (!("amount" in $$source)) {
+            this["amount"] = "";
+        }
+        if (!("proof" in $$source)) {
+            this["proof"] = [];
+        }
+        if (!("merkle_root" in $$source)) {
+            this["merkle_root"] = "";
+        }
+        if (!("claimed" in $$source)) {
+            this["claimed"] = false;
+        }
+        if (!("deposit_tx_hash" in $$source)) {
+            this["deposit_tx_hash"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ClaimableCashbackRecord instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ClaimableCashbackRecord {
+        const $$createField2_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("proof" in $$parsedSource) {
+            $$parsedSource["proof"] = $$createField2_0($$parsedSource["proof"]);
+        }
+        return new ClaimableCashbackRecord($$parsedSource as Partial<ClaimableCashbackRecord>);
+    }
+}
+
+/**
  * ClaimableReward represents a single claimable reward proof
  */
 export class ClaimableReward {

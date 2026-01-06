@@ -1,8 +1,118 @@
 # Veridium Go Packages
 
-This directory contains reusable Go packages for the Veridium project, including Node.js equivalents and local file system operations.
+This directory contains reusable Go packages for the Veridium project.
 
-## Packages
+## Core Veridium Packages
+
+These packages are specific to the Veridium DePIN network:
+
+### `store` - Off-chain Storage Layer
+
+**Purpose:** Cloudflare Workers KV storage for contributors, rewards, and Merkle proofs.
+
+```go
+import "github.com/kawai-network/veridium/pkg/store"
+
+// Initialize store
+s := store.NewStore(accountID, namespaceID, apiToken)
+
+// Contributor management
+contributor, err := s.GetContributor(ctx, address)
+s.UpdateContributor(ctx, address, contributor)
+
+// Merkle proofs for reward claims
+proof, err := s.GetProof(ctx, address, periodID)
+s.SaveProof(ctx, address, periodID, proof)
+
+// Settlement automation
+settlement, err := s.GetSettlement(ctx, periodID)
+s.SaveSettlement(ctx, periodID, settlement)
+```
+
+**Features:**
+- Multi-namespace design (contributors, proofs, settlements)
+- Period-based Merkle proof storage
+- Settlement automation with rollback support
+- Claim tracking to prevent token loss
+- Rate limiting and retry logic
+
+See [store/README.md](store/README.md) for detailed documentation.
+
+### `merkle` - Merkle Tree Generation
+
+**Purpose:** Generate Merkle trees for gas-efficient reward distribution.
+
+```go
+import "github.com/kawai-network/veridium/pkg/merkle"
+
+// Create Merkle tree from rewards
+leaves := []merkle.Leaf{
+    {Address: "0x123...", Amount: big.NewInt(1000)},
+    {Address: "0x456...", Amount: big.NewInt(2000)},
+}
+
+tree := merkle.NewTree(leaves)
+root := tree.Root()
+proof := tree.GetProof("0x123...")
+```
+
+**Features:**
+- Efficient tree construction
+- Proof generation for individual claims
+- Compatible with OpenZeppelin MerkleProof.sol
+- Used by all reward distributors (Mining, Cashback, Referral)
+
+### `blockchain` - Monad Blockchain Interaction
+
+**Purpose:** Interact with Monad blockchain and smart contracts.
+
+```go
+import "github.com/kawai-network/veridium/pkg/blockchain"
+
+// Connect to Monad
+client, err := blockchain.NewClient(rpcURL)
+
+// Contract interaction
+contract, err := blockchain.NewContract(address, abi, client)
+tx, err := contract.Call("claimReward", proof, amount)
+
+// Event listening
+events, err := contract.FilterLogs(fromBlock, toBlock, "Claimed")
+```
+
+**Features:**
+- Monad RPC client wrapper
+- Contract call management
+- Event filtering and parsing
+- Transaction monitoring
+- Gas estimation
+
+### `config` - Configuration Management
+
+**Purpose:** Centralized configuration for all services.
+
+```go
+import "github.com/kawai-network/veridium/pkg/config"
+
+// Load configuration
+cfg := config.Load()
+
+// Access settings
+rpcURL := cfg.Blockchain.RPC
+kvToken := cfg.Store.APIToken
+```
+
+**Features:**
+- Environment variable loading
+- Network-specific settings
+- Contract addresses
+- API keys and secrets
+
+---
+
+## Utility Packages
+
+These packages provide general-purpose utilities:
 
 ### `obfuscator` - String Obfuscation
 

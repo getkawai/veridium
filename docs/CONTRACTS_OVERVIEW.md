@@ -1,10 +1,13 @@
-# Veridium Smart Contracts
+# Veridium Smart Contracts - Complete Overview
+
+**Status:** Current Implementation (Jan 2026)  
+**Network:** Monad Blockchain (Testnet)
 
 ## Overview
 
-This directory contains all smart contracts for the Veridium DePIN network, deployed on **Monad Blockchain** (high-throughput, low-cost, EVM-compatible).
+All smart contracts for the Veridium DePIN network, deployed on **Monad Blockchain** (high-throughput, low-cost, EVM-compatible).
 
-## Contracts
+## Current Contracts (8 Total)
 
 ### 1. **KawaiToken.sol** (ERC20 + AccessControl + Burnable)
 - **Purpose**: Native utility token for the Veridium ecosystem
@@ -42,21 +45,50 @@ This directory contains all smart contracts for the Veridium DePIN network, depl
   3. User consumes credits → backend deducts from KV
   4. Admin withdraws USDT → distributes to contributors + treasury
 
-### 4. **MerkleDistributor.sol**
-- **Purpose**: Gas-efficient reward distribution using Merkle proofs
+### 4. **MerkleDistributor.sol** (Generic Base)
+- **Purpose**: Generic Merkle-based reward distribution
 - **Modes**:
-  - **Mint Mode**: For KAWAI mining rewards (mints new tokens on claim)
+  - **Mint Mode**: For KAWAI rewards (mints new tokens on claim)
   - **Transfer Mode**: For USDT dividends (transfers from pre-funded balance)
 - **Features**:
   - Bitmap-based claim tracking (gas-optimized)
   - Trustless verification with Merkle proofs
   - Scalable to millions of users
 - **Use Cases**:
-  - Weekly KAWAI mining rewards for contributors
+  - Base contract for specialized distributors
   - Monthly USDT profit sharing for KAWAI holders
 
-### 5. **ReferralRewardDistributor.sol** ✨ NEW
-- **Purpose**: Specialized contract for referral rewards distribution
+### 5. **MiningRewardDistributor.sol** ⛏️
+- **Purpose**: Specialized contract for mining rewards (85/5/5/5 split)
+- **Features**:
+  - **Multi-recipient Distribution**: Contributor, Developer, User (cashback), Affiliator
+  - **Period-based Settlement**: Weekly batches
+  - **Merkle Proof Verification**: Gas-efficient (~150k gas per claim)
+  - **Mint-on-demand**: Requires MINTER_ROLE on KawaiToken
+- **Rewards Split**:
+  - Contributor: 85% (or 90% non-referral)
+  - Developer: 5%
+  - User: 5% (use-to-earn cashback)
+  - Affiliator: 5% (if referral exists)
+- **See**: Root `README.md` for mining tokenomics
+
+### 6. **DepositCashbackDistributor.sol** 💰
+- **Purpose**: Tiered KAWAI cashback on USDT deposits
+- **Features**:
+  - **5 Tiers**: 1% to 5% cashback based on total deposits
+  - **Period-based Settlement**: Weekly batches
+  - **Merkle Proof Verification**: Gas-efficient claiming
+  - **Mint-on-demand**: Requires MINTER_ROLE on KawaiToken
+- **Tier Structure**:
+  - Tier 1: $100+ → 1% cashback
+  - Tier 2: $500+ → 2% cashback
+  - Tier 3: $2,000+ → 3% cashback
+  - Tier 4: $10,000+ → 4% cashback
+  - Tier 5: $50,000+ → 5% cashback
+- **See**: `CASHBACK_SYSTEM.md` for complete implementation
+
+### 7. **ReferralRewardDistributor.sol** 🎁
+- **Purpose**: Dual rewards for referral program
 - **Features**:
   - **Dual Rewards**: KAWAI tokens (minted) + USDT (transferred)
   - **Period-based Settlement**: Weekly/monthly batches
@@ -66,7 +98,11 @@ This directory contains all smart contracts for the Veridium DePIN network, depl
 - **Rewards Structure**:
   - New User with Referral: 10 USDT + 100 KAWAI
   - Referrer: 5 USDT + 50 KAWAI per successful referral
-- **See**: [REFERRAL_CONTRACT_GUIDE.md](./REFERRAL_CONTRACT_GUIDE.md) for detailed documentation
+- **See**: `REFERRAL_SYSTEM.md` and `docs/REFERRAL_CONTRACT_GUIDE.md`
+
+### 8. **MockUSDT.sol** (Testnet Only)
+- **Purpose**: ERC20 mock for testing on Monad testnet
+- **Features**: Standard ERC20 with public mint function
 
 ## Architecture
 
@@ -83,19 +119,12 @@ This directory contains all smart contracts for the Veridium DePIN network, depl
 │         │ MINTER_ROLE                                       │
 │         │                                                    │
 │  ┌──────▼──────────────────────────────────────────┐       │
-│  │         MerkleDistributor                        │       │
-│  │  ┌─────────────────┬─────────────────────────┐  │       │
-│  │  │  Mint Mode      │  Transfer Mode          │  │       │
-│  │  │  (KAWAI mining) │  (USDT dividends)       │  │       │
-│  │  └─────────────────┴─────────────────────────┘  │       │
-│  └──────────────────────────────────────────────────┘       │
-│                                                              │
-│  ┌──────────────────────────────────────────────────┐       │
-│  │      ReferralRewardDistributor (NEW)             │       │
-│  │  ┌─────────────────┬─────────────────────────┐  │       │
-│  │  │  KAWAI Rewards  │  USDT Rewards           │  │       │
-│  │  │  (minted)       │  (transferred)          │  │       │
-│  │  └─────────────────┴─────────────────────────┘  │       │
+│  │      Reward Distributors (Merkle-based)          │       │
+│  │                                                   │       │
+│  │  • MiningRewardDistributor (85/5/5/5 split)     │       │
+│  │  • DepositCashbackDistributor (1-5% tiers)      │       │
+│  │  • ReferralRewardDistributor (KAWAI+USDT)       │       │
+│  │  • MerkleDistributor (USDT profit sharing)      │       │
 │  └──────────────────────────────────────────────────┘       │
 │                                                              │
 │  ┌──────────────┐                                           │

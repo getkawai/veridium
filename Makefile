@@ -87,12 +87,20 @@ help:
 	@echo "  make admin-register       Register all treasury addresses as admin"
 	@echo "  make admin-register-dry   Preview admin registration (dry-run)"
 	@echo ""
+	@echo "Reward Settlement (Unified):"
+	@echo "  make reward-settlement-generate TYPE=<type>  Generate settlement (mining|cashback|referral)"
+	@echo "  make reward-settlement-upload TYPE=<type>    Upload Merkle root to contract"
+	@echo "  make reward-settlement-status                Show status for all reward types"
+	@echo "  make reward-settlement-all                   Settle all reward types at once"
+	@echo "  make settle-mining                           Shortcut for mining settlement"
+	@echo "  make settle-cashback                         Shortcut for cashback settlement"
+	@echo "  make settle-referral                         Shortcut for referral settlement"
+	@echo "  make settle-all                              Shortcut for all settlements"
+	@echo ""
 	@echo "Mining Rewards Testing:"
 	@echo "  make test-mining-rewards      Run all mining rewards tests"
 	@echo "  make test-inject-mining-data  Inject test data to KV store"
 	@echo "  make test-mining-settlement   Test full settlement flow"
-	@echo "  make upload-mining-root PERIOD=<id>  Upload Merkle root to contract"
-	@echo "  make upload-mining-root-preview PERIOD=<id>  Preview upload (dry-run)"
 	@echo ""
 	@echo "KV Store Cleanup:"
 	@echo "  make cleanup-kv-preview       Preview what will be deleted"
@@ -468,7 +476,41 @@ admin-register-dry:
 	@go run cmd/register-admin/main.go --dry-run
 
 # ==============================================================================
-# Mining Rewards Testing
+# Unified Reward Settlement
+# ==============================================================================
+reward-settlement-generate:
+	@echo "🌳 Generating reward settlement..."
+	@test -n "$(TYPE)" || (echo "❌ TYPE not set! Usage: make reward-settlement-generate TYPE=mining|cashback|referral" && exit 1)
+	@go run cmd/reward-settlement/main.go generate --type $(TYPE)
+
+reward-settlement-upload:
+	@echo "🚀 Uploading Merkle root to contract..."
+	@test -n "$(TYPE)" || (echo "❌ TYPE not set! Usage: make reward-settlement-upload TYPE=mining|cashback|referral" && exit 1)
+	@go run cmd/reward-settlement/main.go upload --type $(TYPE)
+
+reward-settlement-status:
+	@echo "📊 Checking settlement status..."
+	@go run cmd/reward-settlement/main.go status
+
+reward-settlement-all:
+	@echo "🚀 Settling all reward types..."
+	@go run cmd/reward-settlement/main.go all
+
+# Convenience shortcuts
+settle-mining:
+	@make reward-settlement-generate TYPE=mining
+
+settle-cashback:
+	@make reward-settlement-generate TYPE=cashback
+
+settle-referral:
+	@make reward-settlement-generate TYPE=referral
+
+settle-all:
+	@make reward-settlement-all
+
+# ==============================================================================
+# Mining Rewards Testing (Legacy - use reward-settlement instead)
 # ==============================================================================
 test-mining-rewards:
 	@echo "🧪 Running mining rewards tests..."
@@ -476,24 +518,43 @@ test-mining-rewards:
 
 test-inject-mining-data:
 	@echo "💉 Injecting test mining reward data..."
-	@go run cmd/test-inject-mining-data/main.go
+	@go run cmd/dev/test-inject-mining-data/main.go
 
 test-mining-settlement:
 	@echo "🌳 Testing full settlement flow..."
 	@make test-inject-mining-data
 	@echo ""
 	@echo "📊 Generating settlement..."
-	@go run cmd/mining-settlement/main.go generate --reward-type kawai
+	@go run cmd/mining-settlement/main.go generate --type kawai
 
-upload-mining-root:
-	@echo "🚀 Uploading Merkle root to contract..."
-	@test -n "$(PERIOD)" || (echo "❌ PERIOD not set! Usage: make upload-mining-root PERIOD=<period_id>" && exit 1)
-	@go run cmd/upload-mining-root/main.go --period $(PERIOD)
+# ==============================================================================
+# Testing Helpers
+# ==============================================================================
+cleanup-test-data:
+	@echo "🧹 Cleaning up test data from Cloudflare KV..."
+	@go run cmd/dev/cleanup-test-data/main.go --confirm
 
-upload-mining-root-preview:
-	@echo "🔍 Preview Merkle root upload (dry-run)..."
-	@test -n "$(PERIOD)" || (echo "❌ PERIOD not set! Usage: make upload-mining-root-preview PERIOD=<period_id>" && exit 1)
-	@go run cmd/upload-mining-root/main.go --period $(PERIOD) --dry-run
+check-minter-role:
+	@echo "🔐 Checking MINTER_ROLE status..."
+	@go run cmd/dev/check-minter-role/main.go
+
+check-balance:
+	@echo "💰 Checking KAWAI balance..."
+	@test -n "$(ADDR)" || (echo "❌ ADDR not set! Usage: make check-balance ADDR=0x..." && exit 1)
+	@go run cmd/dev/check-balance/main.go $(ADDR)
+
+check-claim-status:
+	@echo "🔍 Checking claim status..."
+	@test -n "$(TYPE)" || (echo "❌ TYPE not set! Usage: make check-claim-status TYPE=mining|cashback|referral PERIOD=123 ADDR=0x..." && exit 1)
+	@test -n "$(PERIOD)" || (echo "❌ PERIOD not set! Usage: make check-claim-status TYPE=mining|cashback|referral PERIOD=123 ADDR=0x..." && exit 1)
+	@test -n "$(ADDR)" || (echo "❌ ADDR not set! Usage: make check-claim-status TYPE=mining|cashback|referral PERIOD=123 ADDR=0x..." && exit 1)
+	@go run cmd/dev/check-claim-status/main.go $(TYPE) $(PERIOD) $(ADDR)
+
+upload-merkle-root:
+	@echo "🚀 Uploading Merkle root..."
+	@test -n "$(TYPE)" || (echo "❌ TYPE not set! Usage: make upload-merkle-root TYPE=mining|cashback|referral ROOT=0x..." && exit 1)
+	@test -n "$(ROOT)" || (echo "❌ ROOT not set! Usage: make upload-merkle-root TYPE=mining|cashback|referral ROOT=0x..." && exit 1)
+	@go run cmd/dev/upload-merkle-root/main.go $(TYPE) $(ROOT)
 
 # ==============================================================================
 # KV Store Cleanup

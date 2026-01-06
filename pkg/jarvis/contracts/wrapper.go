@@ -4,10 +4,12 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/kawai-network/veridium/internal/generate/abi/cashbackdistributor"
 	"github.com/kawai-network/veridium/internal/generate/abi/distributor"
 	"github.com/kawai-network/veridium/internal/generate/abi/escrow"
 	"github.com/kawai-network/veridium/internal/generate/abi/kawaitoken"
 	"github.com/kawai-network/veridium/internal/generate/abi/miningdistributor"
+	"github.com/kawai-network/veridium/internal/generate/abi/referraldistributor"
 	"github.com/kawai-network/veridium/internal/generate/abi/vault"
 	"github.com/kawai-network/veridium/pkg/jarvis/util"
 	"github.com/kawai-network/veridium/pkg/jarvis/util/reader"
@@ -71,4 +73,26 @@ func MiningRewardDistributor(addrStr string, r *reader.EthReader) (*miningdistri
 	}
 	backend := NewJarvisBackend(r)
 	return miningdistributor.NewMiningRewardDistributor(addr, backend)
+}
+
+// CashbackDistributor wraps the generated DepositCashbackDistributor binding
+// This contract distributes KAWAI cashback rewards for USDT deposits
+func CashbackDistributor(addrStr string, r *reader.EthReader) (*cashbackdistributor.DepositCashbackDistributor, error) {
+	addr, err := ResolveAddress(addrStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve address %s: %w", addrStr, err)
+	}
+	backend := NewJarvisBackend(r)
+	return cashbackdistributor.NewDepositCashbackDistributor(addr, backend)
+}
+
+// ReferralRewardDistributor wraps the generated ReferralRewardDistributor binding
+// This contract distributes KAWAI referral commission rewards
+func ReferralRewardDistributor(addrStr string, r *reader.EthReader) (*referraldistributor.ReferralRewardDistributor, error) {
+	addr, err := ResolveAddress(addrStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve address %s: %w", addrStr, err)
+	}
+	backend := NewJarvisBackend(r)
+	return referraldistributor.NewReferralRewardDistributor(addr, backend)
 }

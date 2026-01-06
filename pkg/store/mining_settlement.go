@@ -34,7 +34,7 @@ func (s *KVStore) GenerateMiningSettlement(ctx context.Context, rewardType strin
 	var leaves [][]byte
 	proofs := make(map[string]*MerkleProofData)
 	period := uint64(time.Now().Unix())
-	
+
 	totalAmount := big.NewInt(0)
 	currentIndex := uint64(0)
 
@@ -87,19 +87,19 @@ func (s *KVStore) GenerateMiningSettlement(ctx context.Context, rewardType strin
 
 		// Store proof data with mining-specific fields
 		proofs[contributorAddr] = &MerkleProofData{
-			Index:              currentIndex,
-			Amount:             totalContrib.String(), // For backward compatibility
-			PeriodID:           int64(period),
-			RewardType:         rewardType,
-			ContributorAmount:  totalContrib.String(),
-			DeveloperAmount:    totalDev.String(),
-			UserAmount:         totalUser.String(),
-			AffiliatorAmount:   totalAff.String(),
-			DeveloperAddress:   developerAddr,
-			UserAddress:        userAddr,
-			AffiliatorAddress:  affiliatorAddr,
-			ClaimStatus:        ClaimStatusUnclaimed,
-			CreatedAt:          time.Now(),
+			Index:             currentIndex,
+			Amount:            totalContrib.String(), // For backward compatibility
+			PeriodID:          int64(period),
+			RewardType:        rewardType,
+			ContributorAmount: totalContrib.String(),
+			DeveloperAmount:   totalDev.String(),
+			UserAmount:        totalUser.String(),
+			AffiliatorAmount:  totalAff.String(),
+			DeveloperAddress:  developerAddr,
+			UserAddress:       userAddr,
+			AffiliatorAddress: affiliatorAddr,
+			ClaimStatus:       ClaimStatusUnclaimed,
+			CreatedAt:         time.Now(),
 		}
 
 		// Add to total
@@ -159,12 +159,12 @@ func (s *KVStore) GenerateMiningSettlement(ctx context.Context, rewardType strin
 	// 6. Mark all job rewards as settled
 	for contributorAddr := range jobRewardsByContributor {
 		if err := s.MarkJobRewardsAsSettled(ctx, contributorAddr, int64(period)); err != nil {
-			slog.Warn("Failed to mark job rewards as settled", 
+			slog.Warn("Failed to mark job rewards as settled",
 				"contributor", contributorAddr, "error", err)
 		}
 	}
 
-	slog.Info("Mining settlement completed", 
+	slog.Info("Mining settlement completed",
 		"period", period,
 		"contributors", len(proofs),
 		"total_amount", totalAmount.String())
@@ -183,15 +183,15 @@ func generateMiningMerkleLeaf(
 	// Solidity abi.encodePacked packs values tightly without padding
 	// For uint256, it uses 32 bytes; for address, it uses 20 bytes
 	return crypto.Keccak256(
-		common.LeftPadBytes(big.NewInt(int64(period)).Bytes(), 32),  // uint256
-		contributor.Bytes(),                                          // address (20 bytes)
-		common.LeftPadBytes(contributorAmt.Bytes(), 32),             // uint256
-		common.LeftPadBytes(developerAmt.Bytes(), 32),               // uint256
-		common.LeftPadBytes(userAmt.Bytes(), 32),                    // uint256
-		common.LeftPadBytes(affiliatorAmt.Bytes(), 32),              // uint256
-		developer.Bytes(),                                            // address (20 bytes)
-		user.Bytes(),                                                 // address (20 bytes)
-		affiliator.Bytes(),                                           // address (20 bytes)
+		common.LeftPadBytes(big.NewInt(int64(period)).Bytes(), 32), // uint256
+		contributor.Bytes(),                             // address (20 bytes)
+		common.LeftPadBytes(contributorAmt.Bytes(), 32), // uint256
+		common.LeftPadBytes(developerAmt.Bytes(), 32),   // uint256
+		common.LeftPadBytes(userAmt.Bytes(), 32),        // uint256
+		common.LeftPadBytes(affiliatorAmt.Bytes(), 32),  // uint256
+		developer.Bytes(),                               // address (20 bytes)
+		user.Bytes(),                                    // address (20 bytes)
+		affiliator.Bytes(),                              // address (20 bytes)
 	)
 }
 

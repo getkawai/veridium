@@ -24,6 +24,15 @@ export function GetCashbackStats(userAddress: string): $CancellablePromise<$mode
 }
 
 /**
+ * GetClaimableCashback retrieves all claimable cashback records for a user
+ */
+export function GetClaimableCashback(userAddress: string): $CancellablePromise<$models.ClaimableCashbackRecord[]> {
+    return $Call.ByID(2588744944, userAddress).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
+/**
  * GetCurrentPeriod returns the current settlement period
  */
 export function GetCurrentPeriod(): $CancellablePromise<number> {
@@ -33,3 +42,5 @@ export function GetCurrentPeriod(): $CancellablePromise<number> {
 // Private type creation functions
 const $$createType0 = $models.CashbackStatsResponse.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
+const $$createType2 = $models.ClaimableCashbackRecord.createFrom;
+const $$createType3 = $Create.Array($$createType2);

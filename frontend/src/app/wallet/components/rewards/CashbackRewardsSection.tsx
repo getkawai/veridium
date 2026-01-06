@@ -1,12 +1,13 @@
-import { Card, Table, Progress, Tag, Statistic, Row, Col, Button, Empty, Skeleton, Tooltip, App } from 'antd';
-import { Gift, Clock, Award, Info, DollarSign, Coins } from 'lucide-react';
+import { Card, Progress, Tag, Statistic, Row, Col, Button, Empty, Skeleton, Tooltip, App, Table } from 'antd';
+import { Gift, Clock, Award, Info, DollarSign, Coins, ExternalLink } from 'lucide-react';
 import { Flexbox } from 'react-layout-kit';
 import { useState, useEffect, useCallback } from 'react';
 import { createStyles } from 'antd-style';
-import { CashbackService } from '@@/github.com/kawai-network/veridium/internal/services';
+import { CashbackService, DeAIService } from '@@/github.com/kawai-network/veridium/internal/services';
 import { useUserStore } from '@/store/user';
-import type { CashbackStatsResponse } from '@@/github.com/kawai-network/veridium/internal/services/models';
+import type { CashbackStatsResponse, ClaimableCashbackRecord } from '@@/github.com/kawai-network/veridium/internal/services/models';
 import type { NetworkInfo } from '@@/github.com/kawai-network/veridium/internal/services/models';
+import { Browser } from '@wailsio/runtime';
 
 const useStyles = createStyles(({ css, token }) => ({
   tierCard: css`
@@ -77,6 +78,8 @@ export const CashbackRewardsSection = ({ currentNetwork, theme, styles: propStyl
   const [stats, setStats] = useState<CashbackStatsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [currentPeriod, setCurrentPeriod] = useState<number>(0);
+  const [claimableRecords, setClaimableRecords] = useState<ClaimableCashbackRecord[]>([]);
+  const [claimLoading, setClaimLoading] = useState<Set<number>>(new Set());
 
   const loadCashbackStats = useCallback(async (address: string, showMessage = false) => {
     if (!address) {
@@ -89,9 +92,10 @@ export const CashbackRewardsSection = ({ currentNetwork, theme, styles: propStyl
     setError(null);
     
     try {
-      const [statsResult, periodResult] = await Promise.all([
+      const [statsResult, periodResult, recordsResult] = await Promise.all([
         CashbackService.GetCashbackStats(address),
         CashbackService.GetCurrentPeriod(),
+        CashbackService.GetClaimableCashback(address),
       ]);
 
       if (!statsResult) {
@@ -101,6 +105,7 @@ export const CashbackRewardsSection = ({ currentNetwork, theme, styles: propStyl
 
       setStats(statsResult);
       setCurrentPeriod(periodResult);
+      setClaimableRecords(recordsResult || []);
 
       if (showMessage) {
         message.success('Cashback data refreshed');
@@ -130,12 +135,23 @@ export const CashbackRewardsSection = ({ currentNetwork, theme, styles: propStyl
     }
   }, [onRefresh, userAddress, loadCashbackStats]);
 
+  const getCurrentTierLevel = (totalDeposits: number): number => {
+    // Determine tier based on total deposits
+    for (let i = CASHBACK_TIERS.length - 1; i >= 0; i--) {
+      if (totalDeposits >= CASHBACK_TIERS[i].min) {
+        return CASHBACK_TIERS[i].level;
+      }
+    }
+    return 0; // Default to Bronze
+  };
+
   const calculateTierProgress = () => {
     if (!stats) return { percent: 0, current: 0, next: 0 };
     
-    const currentTier = CASHBACK_TIERS[stats.currentTier || 0];
-    const nextTier = CASHBACK_TIERS[Math.min((stats.currentTier || 0) + 1, 4)];
-    const totalDeposits = parseFloat(stats.totalDeposits || '0');
+    const totalDeposits = stats.total_deposits || 0;
+    const currentTierLevel = getCurrentTierLevel(totalDeposits);
+    const currentTier = CASHBACK_TIERS[currentTierLevel];
+    const nextTier = CASHBACK_TIERS[Math.min(currentTierLevel + 1, 4)];
     
     if (currentTier.level === 4) {
       return { percent: 100, current: totalDeposits, next: totalDeposits };
@@ -165,29 +181,35 @@ export const CashbackRewardsSection = ({ currentNetwork, theme, styles: propStyl
   }
 
   const tierProgress = calculateTierProgress();
-  const currentTier = CASHBACK_TIERS[stats?.currentTier || 0];
-  const nextTier = CASHBACK_TIERS[Math.min((stats?.currentTier || 0) + 1, 4)];
+  const totalDeposits = stats?.total_deposits || 0;
+  const currentTierLevel = getCurrentTierLevel(totalDeposits);
+  const currentTier = CASHBACK_TIERS[currentTierLevel];
+  const nextTier = CASHBACK_TIERS[Math.min(currentTierLevel + 1, 4)];
+
+  const handleClaimCashback = async (record: ClaimableCashbackRecord) => {
+    if (claimLoading.has(record.period)) return;
+    setClaimLoading(prev => new Set(prev).add(record.period));
+    try {
+      if (!record.proof || record.proof.length === 0) {
+        message.error('Merkle proof not available yet. Please wait for weekly settlement.');
+        return;
+      }
+      const result = await DeAIService.ClaimCashbackReward(record.period, record.amount, record.proof);
+      if (result?.tx_hash) {
+        const explorerUrl = currentNetwork?.explorerURL || 'https://testnet.monadexplorer.com';
+        message.success(<span>Claim confirmed! Tx: {result.tx_hash.substring(0, 10)}...<a onClick={() => Browser.OpenURL(`${explorerUrl}/tx/${result.tx_hash}`)} style={{ marginLeft: 8, cursor: 'pointer' }}>View <ExternalLink size={12} style={{ verticalAlign: 'middle' }} /></a></span>);
+        setTimeout(() => userAddress && loadCashbackStats(userAddress, true), 3000);
+      }
+    } catch (e: any) {
+      console.error('Cashback claim failed:', e);
+      message.error(e.message || 'Claim failed');
+    } finally {
+      setClaimLoading(prev => { const next = new Set(prev); next.delete(record.period); return next; });
+    }
+  };
 
   return (
     <Flexbox style={{ width: '100%' }} gap={20}>
-      {/* Coming Soon Banner */}
-      <div
-        style={{
-          padding: '12px 16px',
-          background: theme.colorInfoBg,
-          borderRadius: 8,
-          border: `1px solid ${theme.colorInfoBorder}`,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-        }}
-      >
-        <Info size={16} color={theme.colorInfo} />
-        <span style={{ fontSize: 13, color: theme.colorTextSecondary }}>
-          🚧 <strong>Cashback claiming coming soon!</strong> Backend Merkle proof generation is in progress. You can view your stats and tier progress now.
-        </span>
-      </div>
-
       {/* Summary Cards */}
       <Row gutter={16}>
         <Col xs={24} sm={8}>
@@ -197,7 +219,7 @@ export const CashbackRewardsSection = ({ currentNetwork, theme, styles: propStyl
             ) : (
               <Statistic
                 title="Total Cashback Earned"
-                value={stats?.totalCashbackEarned || '0'}
+                value={stats?.total_cashback || '0'}
                 suffix="KAWAI"
                 prefix={<Coins size={20} color="#667eea" />}
                 valueStyle={{ color: '#667eea', fontWeight: 700 }}
@@ -212,7 +234,7 @@ export const CashbackRewardsSection = ({ currentNetwork, theme, styles: propStyl
             ) : (
               <Statistic
                 title="Claimable Now"
-                value={stats?.claimableAmount || '0'}
+                value={stats?.pending_cashback || '0'}
                 suffix="KAWAI"
                 prefix={<Gift size={20} color="#22c55e" />}
                 valueStyle={{ color: '#22c55e', fontWeight: 700 }}
@@ -226,8 +248,8 @@ export const CashbackRewardsSection = ({ currentNetwork, theme, styles: propStyl
               <Skeleton active paragraph={{ rows: 1 }} />
             ) : (
               <Statistic
-                title="Pending (This Period)"
-                value={stats?.pendingAmount || '0'}
+                title="Claimed"
+                value={stats?.claimed_cashback || '0'}
                 suffix="KAWAI"
                 prefix={<Clock size={20} color="#f59e0b" />}
                 valueStyle={{ color: '#f59e0b', fontWeight: 700 }}
@@ -300,7 +322,7 @@ export const CashbackRewardsSection = ({ currentNetwork, theme, styles: propStyl
                   <span style={{ fontSize: 11, fontWeight: 600 }}>{tier.label}</span>
                   <span style={{ fontSize: 10, color: theme.colorTextSecondary }}>{tier.rate}%</span>
                   {tier.level === currentTier.level && (
-                    <Tag color="blue" size="small">Current</Tag>
+                    <Tag color="blue">Current</Tag>
                   )}
                 </div>
               ))}
@@ -309,104 +331,82 @@ export const CashbackRewardsSection = ({ currentNetwork, theme, styles: propStyl
         )}
       </Card>
 
-      {/* Deposit History */}
-      <Card title="Deposit History" size="small">
+      {/* Claimable Cashback History */}
+      <Card title="Claimable Cashback" size="small">
         {loading ? (
           <Skeleton active paragraph={{ rows: 5 }} />
-        ) : !stats?.depositHistory || stats.depositHistory.length === 0 ? (
+        ) : claimableRecords.length === 0 ? (
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
             description={
               <Flexbox gap={8} align="center">
                 <span style={{ color: theme.colorTextSecondary }}>
-                  No deposits yet. Make your first deposit to start earning cashback!
+                  No claimable cashback yet. Make your first deposit to start earning!
                 </span>
                 <span style={{ fontSize: 16, fontWeight: 600, color: theme.colorSuccess }}>
                   🎁 First deposit gets 5% bonus!
                 </span>
+                <Button 
+                  type="primary" 
+                  icon={<DollarSign size={16} />}
+                  onClick={onOpenDepositModal}
+                  style={{ marginTop: 12 }}
+                >
+                  Make First Deposit
+                </Button>
               </Flexbox>
             }
-          >
-            <Button 
-              type="primary" 
-              icon={<DollarSign size={16} />}
-              onClick={onOpenDepositModal}
-            >
-              Make First Deposit
-            </Button>
-          </Empty>
+          />
         ) : (
           <Table
-            dataSource={stats.depositHistory}
-            rowKey="txHash"
-            pagination={{ pageSize: 10, showSizeChanger: false }}
+            dataSource={claimableRecords}
+            rowKey="period"
             size="small"
+            pagination={false}
             columns={[
               {
-                title: 'Date',
-                dataIndex: 'timestamp',
-                key: 'date',
-                render: (timestamp: string) => new Date(timestamp).toLocaleDateString(),
+                title: 'Period',
+                dataIndex: 'period',
+                key: 'period',
+                render: (period: number) => <Tag color="blue">#{period}</Tag>,
               },
               {
-                title: 'Deposit Amount',
+                title: 'Amount',
                 dataIndex: 'amount',
                 key: 'amount',
-                render: (amount: string) => (
-                  <span style={{ fontWeight: 600 }}>
-                    ${parseFloat(amount).toFixed(2)} USDT
-                  </span>
-                ),
-              },
-              {
-                title: 'Rate',
-                dataIndex: 'cashbackRate',
-                key: 'rate',
-                render: (rate: number, record: any) => (
-                  <Flexbox horizontal align="center" gap={4}>
-                    <span>{rate}%</span>
-                    {rate === 5 && (
-                      <Tooltip title="First deposit bonus">
-                        <Tag color="gold" size="small">First Deposit</Tag>
-                      </Tooltip>
-                    )}
-                  </Flexbox>
-                ),
-              },
-              {
-                title: 'Cashback Earned',
-                dataIndex: 'cashbackAmount',
-                key: 'cashback',
-                render: (amount: string) => (
-                  <span style={{ color: '#667eea', fontWeight: 600 }}>
-                    {parseFloat(amount).toFixed(2)} KAWAI
-                  </span>
-                ),
+                render: (amount: string) => {
+                  const kawai = (BigInt(amount) / BigInt(10 ** 18)).toString();
+                  return <span style={{ fontWeight: 600, color: theme.colorSuccess }}>{kawai} KAWAI</span>;
+                },
               },
               {
                 title: 'Status',
                 dataIndex: 'claimed',
-                key: 'status',
+                key: 'claimed',
                 render: (claimed: boolean) => (
-                  <Tag color={claimed ? 'success' : 'warning'}>
-                    {claimed ? 'Claimed' : 'Pending'}
-                  </Tag>
+                  claimed ? (
+                    <Tag color="default">Claimed</Tag>
+                  ) : (
+                    <Tag color="green">Ready to Claim</Tag>
+                  )
                 ),
               },
               {
                 title: 'Action',
                 key: 'action',
-                render: (record: any) => (
+                render: (_: any, record: ClaimableCashbackRecord) => (
                   record.claimed ? (
-                    <Button size="small" type="text" disabled>
-                      Claimed
-                    </Button>
+                    <span style={{ color: theme.colorTextTertiary, fontSize: 12 }}>Already claimed</span>
                   ) : (
-                    <Tooltip title="Claiming coming soon! Backend integration in progress.">
-                      <Button size="small" type="primary" icon={<Gift size={14} />} disabled>
-                        Claim
-                      </Button>
-                    </Tooltip>
+                    <Button
+                      type="primary"
+                      size="small"
+                      icon={<Gift size={14} />}
+                      loading={claimLoading.has(record.period)}
+                      onClick={() => handleClaimCashback(record)}
+                    >
+                      Claim
+                    </Button>
                   )
                 ),
               },

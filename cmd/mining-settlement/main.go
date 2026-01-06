@@ -140,7 +140,7 @@ func uploadMerkleRoot(ctx context.Context, kv store.Store) error {
 	log.Println("📋 Manual upload command:")
 	log.Printf("   cast send 0xa0dDC59DAcBA9201CC9Ef613707d287b77b2723F \\")
 	log.Printf("     'setMerkleRoot(bytes32)' %s \\", latest.MerkleRoot)
-	log.Printf("     --rpc-url $RPC_URL --private-key $PRIVATE_KEY")
+	log.Printf("     --rpc-url $RPC_URL --private-key <ADMIN_PRIVATE_KEY>")
 	log.Println("")
 	log.Println("   Or use 'advancePeriod(bytes32)' for new period")
 

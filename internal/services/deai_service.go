@@ -646,6 +646,98 @@ func (s *DeAIService) ClaimUSDTReward(periodID int64, index uint64, amount strin
 	return s.claimReward("usdt", periodID, index, amount, proof)
 }
 
+// ClaimCashbackReward claims deposit cashback rewards using a Merkle proof
+// Uses the DepositCashbackDistributor contract with period-based claims
+func (s *DeAIService) ClaimCashbackReward(period uint64, kawaiAmount string, proof []string) (*ClaimResult, error) {
+	if s.wallet.currentAccount == nil {
+		return nil, fmt.Errorf("no wallet connected")
+	}
+
+	// 1. Input validation
+	if len(proof) == 0 {
+		return nil, fmt.Errorf("proof cannot be empty")
+	}
+	if kawaiAmount == "" || kawaiAmount == "0" {
+		return nil, fmt.Errorf("amount must be greater than zero")
+	}
+
+	// 2. Load DepositCashbackDistributor contract
+	distributor, err := contracts.CashbackDistributor("CashbackDistributor", s.reader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load cashback distributor: %w", err)
+	}
+
+	// 3. Parse amount
+	amount := new(big.Int)
+	amount, ok := amount.SetString(kawaiAmount, 10)
+	if !ok {
+		return nil, fmt.Errorf("invalid amount format")
+	}
+	if amount.Cmp(big.NewInt(0)) <= 0 {
+		return nil, fmt.Errorf("amount must be positive")
+	}
+
+	// 3. Convert proof strings to [32]byte array
+	merkleProof := make([][32]byte, len(proof))
+	for i, p := range proof {
+		// Remove 0x prefix if present
+		if len(p) >= 2 && p[:2] == "0x" {
+			p = p[2:]
+		}
+		proofBytes := common.Hex2Bytes(p)
+		if len(proofBytes) != 32 {
+			return nil, fmt.Errorf("invalid proof element at index %d: expected 32 bytes, got %d", i, len(proofBytes))
+		}
+		copy(merkleProof[i][:], proofBytes)
+	}
+
+	// 4. Get transaction options
+	chainId := monadChainID
+	opts, err := s.wallet.getTransactOpts(chainId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get transaction opts: %w", err)
+	}
+
+	// 5. Submit claim transaction
+	tx, err := distributor.ClaimCashback(opts, big.NewInt(int64(period)), amount, merkleProof)
+	if err != nil {
+		return nil, fmt.Errorf("claim transaction failed: %w", err)
+	}
+
+	txHash := tx.Hash().Hex()
+
+	// 6. Wait for transaction confirmation
+	ctx := context.Background()
+	receipt, err := bind.WaitMined(ctx, s.reader.Client(), tx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to wait for transaction confirmation: %w", err)
+	}
+
+	// 7. Check transaction status
+	if receipt.Status != 1 {
+		return nil, fmt.Errorf("transaction reverted (status: %d)", receipt.Status)
+	}
+
+	// 8. Mark claim as completed in KV store (for tracking)
+	if s.kv != nil {
+		kvStore, ok := s.kv.(*store.KVStore)
+		if ok {
+			if err := kvStore.MarkCashbackClaimed(ctx, s.wallet.currentAccount.AddressHex(), period); err != nil {
+				// Log warning but don't fail - the TX was successful
+				fmt.Printf("Warning: failed to mark cashback claim in KV: %v\n", err)
+			}
+		}
+	}
+
+	return &ClaimResult{
+		TxHash:     txHash,
+		PeriodID:   int64(period),
+		RewardType: "cashback",
+		Amount:     kawaiAmount,
+		Status:     "confirmed",
+	}, nil
+}
+
 // ClaimMiningReward claims mining rewards with referral-based splits
 // Uses the new MiningRewardDistributor contract with 9-field Merkle leaves
 func (s *DeAIService) ClaimMiningReward(
@@ -742,21 +834,32 @@ func (s *DeAIService) ClaimMiningReward(
 
 	txHash := tx.Hash().Hex()
 
-	// 7. Mark claim as pending in KV store (for tracking)
+	// 7. Wait for transaction confirmation
+	ctx := context.Background()
+	receipt, err := bind.WaitMined(ctx, s.reader.Client(), tx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to wait for transaction confirmation: %w", err)
+	}
+
+	// 8. Check transaction status
+	if receipt.Status != 1 {
+		return nil, fmt.Errorf("transaction reverted (status: %d)", receipt.Status)
+	}
+
+	// 9. Mark claim as completed in KV store (for tracking)
 	if s.kv != nil {
-		ctx := context.Background()
 		if err := s.kv.MarkClaimPending(ctx, s.wallet.currentAccount.AddressHex(), period, txHash); err != nil {
-			// Log warning but don't fail - the TX was already submitted
-			fmt.Printf("Warning: failed to mark mining claim pending in KV: %v\n", err)
+			// Log warning but don't fail - the TX was successful
+			fmt.Printf("Warning: failed to mark mining claim in KV: %v\n", err)
 		}
 	}
 
 	return &ClaimResult{
 		TxHash:     txHash,
 		PeriodID:   period,
-		RewardType: "mining", // New reward type for mining rewards
+		RewardType: "mining",
 		Amount:     contributorAmount,
-		Status:     "submitted",
+		Status:     "confirmed",
 	}, nil
 }
 
@@ -816,12 +919,23 @@ func (s *DeAIService) claimReward(rewardType string, periodID int64, index uint6
 
 	txHash := tx.Hash().Hex()
 
-	// 7. Mark claim as pending in KV store (for tracking)
+	// 7. Wait for transaction confirmation
+	ctx := context.Background()
+	receipt, err := bind.WaitMined(ctx, s.reader.Client(), tx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to wait for transaction confirmation: %w", err)
+	}
+
+	// 8. Check transaction status
+	if receipt.Status != 1 {
+		return nil, fmt.Errorf("transaction reverted (status: %d)", receipt.Status)
+	}
+
+	// 9. Mark claim as completed in KV store (for tracking)
 	if s.kv != nil {
-		ctx := context.Background()
 		if err := s.kv.MarkClaimPending(ctx, s.wallet.currentAccount.AddressHex(), periodID, txHash); err != nil {
-			// Log warning but don't fail - the TX was already submitted
-			fmt.Printf("Warning: failed to mark claim pending in KV: %v\n", err)
+			// Log warning but don't fail - the TX was successful
+			fmt.Printf("Warning: failed to mark claim in KV: %v\n", err)
 		}
 	}
 
@@ -830,7 +944,7 @@ func (s *DeAIService) claimReward(rewardType string, periodID int64, index uint6
 		PeriodID:   periodID,
 		RewardType: rewardType,
 		Amount:     amountStr,
-		Status:     "submitted",
+		Status:     "confirmed",
 	}, nil
 }
 

@@ -41,6 +41,7 @@ export {
     ChatToolPayload,
     CitationItem,
     ClaimResult,
+    ClaimableCashbackRecord,
     ClaimableReward,
     ClaimableRewardsResponse,
     CreateThreadRequest,

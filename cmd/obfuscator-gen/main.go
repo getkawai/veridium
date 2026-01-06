@@ -37,6 +37,7 @@ var supportedVars = []ConfigVar{
 	{EnvKey: "CF_KV_AUTHZ_NAMESPACE_ID", GoName: "CfKvAuthzNamespaceId", Comment: "Namespace for authorization reverse index (address -> apikey)", IsNamespace: true, Order: 24},
 	{EnvKey: "CF_KV_P2PMARKETPLACE_NAMESPACE_ID", GoName: "CfKvP2pMarketplaceNamespaceId", Comment: "Namespace for P2P marketplace data", IsNamespace: true, Order: 25},
 	{EnvKey: "CF_KV_USERS_NAMESPACE_ID", GoName: "CfKvUsersNamespaceId", Comment: "Namespace for user data", IsNamespace: true, Order: 26},
+	{EnvKey: "CF_KV_CASHBACK_NAMESPACE_ID", GoName: "CfKvCashbackNamespaceId", Comment: "Namespace for cashback data", IsNamespace: true, Order: 27},
 }
 
 // Define all supported Telegram variables

@@ -610,21 +610,79 @@ ELSE (no referrer):
 ### Commission Claiming
 
 **Weekly Settlement:**
-1. Every Sunday, mining rewards are settled
+1. Every Sunday, referral rewards are settled
 2. Merkle tree is generated with all commissions
 3. Merkle root is uploaded to blockchain
 
+**Current Status:** ✅ Settlement code is **COMPLETE** (implemented in `pkg/blockchain/referral_settlement.go`)
+
+**Settlement Implementation:**
+```go
+// docs/REFERRAL_CONTRACT_GUIDE.md (lines 98-126)
+// Pseudo-code - needs full implementation
+
+func GenerateMerkleTree() ([]byte, error) {
+    // 1. Get all referrers with pending rewards
+    referrers := GetAllReferrersWithPendingRewards()
+    
+    // 2. Create leaves (3-field: period, account, amount)
+    var leaves [][]byte
+    for _, ref := range referrers {
+        leaf := keccak256(period, ref.Address, ref.PendingKawai)
+        leaves = append(leaves, leaf)
+    }
+    
+    // 3. Build Merkle tree
+    tree := merkletree.New(leaves)
+    
+    // 4. Store proofs in KV
+    for i, ref := range referrers {
+        proof := tree.GetProof(i)
+        StoreProof(ref.Address, period, proof)
+    }
+    
+    return tree.Root(), nil
+}
+```
+
+**✅ Settlement Tool Available**
+
+The unified settlement tool supports referral commissions:
+
+```bash
+# Generate referral settlement
+make settle-referral
+
+# Or settle all reward types at once
+make settle-all
+
+# Check status
+make reward-settlement-status
+
+# Advanced usage
+go run cmd/reward-settlement/main.go generate --type referral
+go run cmd/reward-settlement/main.go upload --type referral
+go run cmd/reward-settlement/main.go all  # Settle all 3 types at once
+```
+
+**Implementation:** `cmd/reward-settlement/main.go` (unified tool for all 3 reward types)
+
 **Claiming Process:**
-1. Go to Wallet → Rewards → Mining Commission tab
+1. Go to Wallet → Rewards → Referral Commission tab
 2. View your claimable commission
 3. Click "Claim" button
 4. Sign transaction with your wallet
 5. Receive KAWAI tokens instantly
 
 **Batch Claiming:**
-- Claim multiple weeks at once
+- Claim multiple weeks at once (supported by contract)
 - Saves on gas fees
 - More efficient for large commissions
+
+**See Also:**
+- Mining settlement: `cmd/mining-settlement/` (reference implementation)
+- Cashback settlement: `pkg/blockchain/cashback_settlement.go` (reference code)
+- Related: [`REWARD_SYSTEMS.md`](REWARD_SYSTEMS.md) for unified settlement discussion
 
 ### Economics
 
@@ -643,6 +701,17 @@ ELSE (no referrer):
 - Cost: 5% of mining rewards
 - Benefit: Referred users have 2x higher retention
 - Net result: Positive ROI on user acquisition
+
+---
+
+## 📚 Related Documentation
+
+- **Overview:** [`REWARD_SYSTEMS.md`](REWARD_SYSTEMS.md) - Overview & comparison of all reward systems
+- **Contract Details:** [`docs/CONTRACTS_OVERVIEW.md`](docs/CONTRACTS_OVERVIEW.md) - All contracts overview
+- **Contract Guide:** [`docs/REFERRAL_CONTRACT_GUIDE.md`](docs/REFERRAL_CONTRACT_GUIDE.md) - Detailed referral contract implementation
+- **Contract Development:** [`docs/CONTRACTS_WORKFLOW.md`](docs/CONTRACTS_WORKFLOW.md) - How to develop & deploy contracts
+- **MINTER_ROLE:** [`MINTER_ROLE_REQUIREMENTS.md`](MINTER_ROLE_REQUIREMENTS.md) - Why MINTER_ROLE is needed
+- **Backend Store:** [`pkg/store/README.md`](pkg/store/README.md) - KV storage implementation
 
 ---
 

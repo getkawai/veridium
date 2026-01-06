@@ -36,6 +36,16 @@ export function BuyOrder(orderIdStr: string): $CancellablePromise<string> {
 }
 
 /**
+ * ClaimCashbackReward claims deposit cashback rewards using a Merkle proof
+ * Uses the DepositCashbackDistributor contract with period-based claims
+ */
+export function ClaimCashbackReward(period: number, kawaiAmount: string, proof: string[]): $CancellablePromise<$models.ClaimResult | null> {
+    return $Call.ByID(139037128, period, kawaiAmount, proof).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
+/**
  * ClaimKawaiReward claims KAWAI rewards using a Merkle proof
  */
 export function ClaimKawaiReward(periodID: number, index: number, amount: string, proof: string[]): $CancellablePromise<$models.ClaimResult | null> {
