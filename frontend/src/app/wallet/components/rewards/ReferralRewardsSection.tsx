@@ -134,7 +134,11 @@ export const ReferralRewardsSection = ({ currentNetwork, theme, styles, onRefres
     }
   };
 
-  if (error) {
+  // Check if error is "no referral code" (expected for new users)
+  const isNewUser = error?.includes('no referral code') || error?.includes('key not found');
+
+  if (error && !isNewUser) {
+    // Only show error UI for unexpected errors
     return (
       <Flexbox style={{ width: '100%' }} gap={20}>
         <div className={styles.placeholderCard}>
@@ -143,6 +147,46 @@ export const ReferralRewardsSection = ({ currentNetwork, theme, styles, onRefres
           <p style={{ color: theme.colorTextSecondary, margin: '0 0 16px' }}>{error}</p>
           <Button onClick={() => userAddress && loadReferralStats(userAddress, true)} icon={<Info size={16} />}>
             Retry
+          </Button>
+        </div>
+      </Flexbox>
+    );
+  }
+
+  // For new users without referral code, show welcome/create UI
+  if (isNewUser) {
+    return (
+      <Flexbox style={{ width: '100%' }} gap={20}>
+        <div className={styles.placeholderCard}>
+          <Users size={48} color={theme.colorPrimary} style={{ marginBottom: 16 }} />
+          <h3 style={{ margin: '0 0 8px', color: theme.colorText }}>Create Your Referral Code</h3>
+          <p style={{ color: theme.colorTextSecondary, margin: '0 0 16px', maxWidth: 400, textAlign: 'center' }}>
+            Start earning rewards by referring friends! Generate your unique referral code and earn 5 USDT + 100 KAWAI for each successful referral.
+          </p>
+          <Button 
+            type="primary" 
+            size="large"
+            icon={<Gift size={16} />}
+            onClick={async () => {
+              try {
+                setLoading(true);
+                setError(null);
+                // Call CreateReferralCode service
+                const code = await ReferralService.CreateReferralCode(userAddress!);
+                message.success(`Referral code created: ${code}`);
+                // Reload stats to show the new code
+                await loadReferralStats(userAddress!, false);
+              } catch (e: any) {
+                console.error('Failed to create referral code:', e);
+                message.error(e.message || 'Failed to create referral code');
+                setError(e.message || 'Failed to create referral code');
+              } finally {
+                setLoading(false);
+              }
+            }}
+            loading={loading}
+          >
+            Generate Referral Code
           </Button>
         </div>
       </Flexbox>
