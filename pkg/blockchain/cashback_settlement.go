@@ -335,6 +335,13 @@ func (cs *CashbackSettlement) setMerkleRoot(ctx context.Context, period uint64, 
 	}
 
 	log.Printf("✅ [CashbackSettlement] Merkle root set on-chain (block %d)", receipt.BlockNumber.Uint64())
+
+	// Add period to settled periods index for optimized queries
+	if err := cs.kvStore.AddSettledCashbackPeriod(ctx, period); err != nil {
+		log.Printf("⚠️  [CashbackSettlement] Failed to add period to settled index: %v", err)
+		// Don't fail the whole settlement if index update fails
+	}
+
 	return nil
 }
 

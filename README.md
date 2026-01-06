@@ -324,15 +324,3 @@ See [`pkg/README.md`](pkg/README.md) for complete list including: `localfs`, `ob
 | [`docs/REFERRAL_CONTRACT_GUIDE.md`](docs/REFERRAL_CONTRACT_GUIDE.md) | Detailed referral contract implementation | Working on referral features |
 | [`docs/DEPOSIT_CASHBACK_TOKENOMICS.md`](docs/DEPOSIT_CASHBACK_TOKENOMICS.md) | Economic analysis of cashback tiers | Adjusting cashback parameters |
 | [`docs/PERFORMANCE_ANALYSIS.md`](docs/PERFORMANCE_ANALYSIS.md) | Performance bottleneck analysis & optimization plan | Improving Rewards tab loading speed |
-
----
-
-## 📋 Known Issues & TODOs
-
-### Performance Optimization (High Priority)
-
-**Issue:** Rewards tab loading is slow (~20 seconds on first load)
-
-**Root Cause:** Sequential Cloudflare KV API calls in cashback loading (up to 104 calls)
-
-**See:** [`docs/PERFORMANCE_ANALYSIS.md`](docs/PERFORMANCE_ANALYSIS.md) for detailed analysis
