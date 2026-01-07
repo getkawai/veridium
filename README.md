@@ -7,7 +7,7 @@ A "Lean Startup" approach to DePIN, leveraging consumer-grade GPUs for `llama.cp
 
 ## 🚀 Core Concept
 
--   **Service:** Low-cost LLM Inference API (compatible with OpenAI format).
+-   **Service:** Low-cost LLM Inference API (compatible with OpenAI format) + **AI Image Generation** (Gemini API).
 -   **Contributors:** Gamers & Devs running `llama.cpp` nodes.
 -   **Rewards:** 
     -   **Contributor:** Earn KAWAI tokens via "Mining" (85-90% split). Rewards follow a **Halving Schedule** based on total supply (100 -> 50 -> 25 -> 12 per 1M tokens).
@@ -168,6 +168,16 @@ This roadmap outlines the path from "Zero" to a fully functional decentralized n
     - [x] Wallet integration with multi-wallet support and secure authentication.
     - [x] Market data visualization with statistics and price tracking.
     - [x] Order management system with creation, cancellation, and history tracking.
+- [x] **AI Image Generation (Gemini API):** ✨ **NEW**
+    - [x] Migration from Pollinations AI to Google Gemini API.
+    - [x] Support for 2 models: `gemini-2.5-flash-image` (fast, 1K) & `gemini-3-pro-image-preview` (HD/4K).
+    - [x] 10 aspect ratios: 1:1, 2:3, 3:2, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9.
+    - [x] Quality tiers: Standard (1K), HD (2K), Ultra (4K).
+    - [x] API key pool management with automatic rotation (5 keys).
+    - [x] Thread-safe concurrent image generation.
+    - [x] Context timeout protection (120s).
+    - [x] Priority-based model selection (respects user intent).
+    - [x] Comprehensive documentation and quick start guide.
 
 ---
 
@@ -232,6 +242,45 @@ CF_KV_USERS_NAMESPACE_ID=...         # User Profiles & Balance (JSON)
 -   **Contributor Node:** Go (Golang), `llama.cpp` (via llamalib).
 -   **Blockchain:** Monad (EVM-compatible).
 -   **Network Toolkit:** `pkg/jarvis` (Multi-chain support incl. Monad).
+
+---
+
+## 🎨 AI Image Generation (NEW)
+
+**Gemini API Integration** - Production-ready image generation with Google's latest models.
+
+### Features
+- **Two Models Available:**
+  - `gemini-2.5-flash-image` (Nano Banana) - Fast generation, 1024px resolution
+  - `gemini-3-pro-image-preview` (Nano Banana Pro) - High quality, up to 4K resolution
+  
+- **Flexible Configuration:**
+  - 10 aspect ratios supported (1:1, 16:9, 9:16, 4:3, 3:4, etc.)
+  - Quality tiers: Standard (1K), HD (2K), Ultra (4K)
+  - Priority-based model selection (explicit model > quality > default)
+  
+- **Production Features:**
+  - Thread-safe concurrent generation
+  - API key pool with automatic rotation (5 keys)
+  - Context timeout protection (120 seconds)
+  - Comprehensive error handling
+  - Enhanced logging with `[Gemini]` prefix
+
+### Documentation
+- 📖 [Full Implementation Guide](GEMINI_IMAGE_GENERATION.md)
+- 📖 [Migration Documentation](MIGRATION_POLLINATIONS_TO_GEMINI.md)
+- 📖 [Quick Start Guide](docs/IMAGE_GENERATION_QUICK_START.md)
+- 📖 [Code Review & Fixes](CODE_REVIEW_FIXES.md)
+
+### Usage Example
+```go
+opts := image.GenerationOptions{
+    Prompt:      "A futuristic city at sunset",
+    AspectRatio: "16:9",
+    Quality:     "hd",
+    Model:       "gemini-3-pro",
+}
+```
 
 ---
 
@@ -333,3 +382,11 @@ See [`pkg/README.md`](pkg/README.md) for complete list including: `localfs`, `ob
 | [`docs/CONTRACTS_WORKFLOW.md`](docs/CONTRACTS_WORKFLOW.md) | Smart contract development & deployment workflow | Developing or deploying contracts |
 | [`docs/REFERRAL_CONTRACT_GUIDE.md`](docs/REFERRAL_CONTRACT_GUIDE.md) | Detailed referral contract implementation | Working on referral features |
 | [`docs/DEPOSIT_CASHBACK_TOKENOMICS.md`](docs/DEPOSIT_CASHBACK_TOKENOMICS.md) | Economic analysis of cashback tiers | Adjusting cashback parameters |
+| [`docs/IMAGE_GENERATION_QUICK_START.md`](docs/IMAGE_GENERATION_QUICK_START.md) | Quick start guide for Gemini image generation | Using image generation API |
+
+### AI Features Documentation
+| Document | Purpose | When to Read |
+|----------|---------|--------------|
+| [`GEMINI_IMAGE_GENERATION.md`](GEMINI_IMAGE_GENERATION.md) | Complete Gemini API implementation guide | Understanding image generation |
+| [`MIGRATION_POLLINATIONS_TO_GEMINI.md`](MIGRATION_POLLINATIONS_TO_GEMINI.md) | Migration from Pollinations to Gemini | Understanding the migration |
+| [`CODE_REVIEW_FIXES.md`](CODE_REVIEW_FIXES.md) | Code review feedback & fixes | Understanding implementation decisions |
