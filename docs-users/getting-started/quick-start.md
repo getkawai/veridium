@@ -129,7 +129,7 @@ Once your trial runs out:
 ### Common Issues
 
 ??? question "Wallet won't connect"
-    1. Make sure you have MetaMask installed
+    1. Make sure you have backed up your mnemonic
     2. Add Monad Testnet network manually
     3. Refresh the app and try again
     4. Check our [wallet setup guide](../user-guide/wallet-setup.md)

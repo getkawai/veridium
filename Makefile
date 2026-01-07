@@ -9,7 +9,8 @@
         contracts-deploy-local contracts-deploy-testnet contracts-verify \
         contracts-upgrade contracts-clean contracts-validate \
         contracts-gas-snapshot contracts-gas-compare \
-        admin-register admin-register-dry
+        admin-register admin-register-dry \
+        docs-install docs-serve docs-build docs-clean docs-deploy
 
 # ------------------------------------------------------------------------------
 # Configuration
@@ -108,6 +109,14 @@ help:
 	@echo "  make cleanup-kv-proofs        Delete Merkle proofs"
 	@echo "  make cleanup-kv-settlements   Delete settlement periods"
 	@echo "  make cleanup-kv-all           Delete ALL mining data (⚠️  DANGEROUS)"
+	@echo ""
+	@echo "Documentation (MkDocs):"
+	@echo "  make docs-install     Install MkDocs in Python venv"
+	@echo "  make docs-serve       Start local docs server (http://localhost:8000)"
+	@echo "  make docs-build       Build static documentation site"
+	@echo "  make docs-clean       Clean documentation build artifacts"
+	@echo "  make docs-deploy      Deploy documentation to GitHub Pages"
+	@echo "  make docs-venv-clean  Remove Python virtual environment"
 	@echo ""
 	@echo "Maintenance:"
 	@echo "  make clean            Clean generated files"
@@ -579,3 +588,65 @@ cleanup-kv-all:
 	@echo "🧹 Cleaning up ALL mining data from KV..."
 	@echo "⚠️  This will delete all job records, proofs, and settlements!"
 	@go run cmd/cleanup-kv-mining-data/main.go --all --confirm DELETE
+
+# ==============================================================================
+# Documentation (MkDocs)
+# ==============================================================================
+
+# Python virtual environment for docs
+VENV_DIR := venv
+PYTHON := python3
+PIP := $(VENV_DIR)/bin/pip
+MKDOCS := $(VENV_DIR)/bin/mkdocs
+
+docs-install:
+	@echo "📚 Setting up documentation environment..."
+	@if [ ! -d "$(VENV_DIR)" ]; then \
+		echo "Creating Python virtual environment..."; \
+		$(PYTHON) -m venv $(VENV_DIR); \
+	fi
+	@echo "Installing MkDocs and dependencies..."
+	@$(PIP) install --upgrade pip
+	@$(PIP) install mkdocs-material pymdown-extensions
+	@echo "✅ MkDocs installed successfully!"
+	@echo "💡 Use 'make docs-serve' to start the documentation server"
+
+docs-serve:
+	@if [ ! -f "$(MKDOCS)" ]; then \
+		echo "❌ MkDocs not installed. Run 'make docs-install' first."; \
+		exit 1; \
+	fi
+	@echo "🔍 Checking for processes on port 8000..."
+	@lsof -ti:8000 | xargs kill -9 2>/dev/null || true
+	@echo "📖 Starting MkDocs development server..."
+	@echo "🌐 Open http://localhost:8000 in your browser"
+	@echo "⏹️  Press Ctrl+C to stop"
+	@$(MKDOCS) serve
+
+docs-build:
+	@if [ ! -f "$(MKDOCS)" ]; then \
+		echo "❌ MkDocs not installed. Run 'make docs-install' first."; \
+		exit 1; \
+	fi
+	@echo "🔨 Building static documentation site..."
+	@$(MKDOCS) build
+	@echo "✅ Documentation built to ./site/"
+
+docs-clean:
+	@echo "🧹 Cleaning documentation build artifacts..."
+	@rm -rf site/
+	@echo "✅ Documentation cleaned!"
+
+docs-deploy:
+	@if [ ! -f "$(MKDOCS)" ]; then \
+		echo "❌ MkDocs not installed. Run 'make docs-install' first."; \
+		exit 1; \
+	fi
+	@echo "🚀 Deploying documentation to GitHub Pages..."
+	@$(MKDOCS) gh-deploy --force
+	@echo "✅ Documentation deployed!"
+
+docs-venv-clean:
+	@echo "🧹 Removing Python virtual environment..."
+	@rm -rf $(VENV_DIR)
+	@echo "✅ Virtual environment removed!"
