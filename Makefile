@@ -111,12 +111,13 @@ help:
 	@echo "  make cleanup-kv-all           Delete ALL mining data (⚠️  DANGEROUS)"
 	@echo ""
 	@echo "Documentation (MkDocs):"
-	@echo "  make docs-install     Install MkDocs in Python venv"
-	@echo "  make docs-serve       Start local docs server (http://localhost:8000)"
-	@echo "  make docs-build       Build static documentation site"
-	@echo "  make docs-clean       Clean documentation build artifacts"
-	@echo "  make docs-deploy      Deploy documentation to GitHub Pages"
-	@echo "  make docs-venv-clean  Remove Python virtual environment"
+	@echo "  make docs-install        Install MkDocs in Python venv"
+	@echo "  make docs-serve          Start local docs server (http://localhost:8000)"
+	@echo "  make docs-build          Build static documentation site (./site/)"
+	@echo "  make docs-build-website  Build docs to kawai-website/docs/"
+	@echo "  make docs-clean          Clean documentation build artifacts"
+	@echo "  make docs-deploy         Deploy documentation to GitHub Pages"
+	@echo "  make docs-venv-clean     Remove Python virtual environment"
 	@echo ""
 	@echo "Website (kawai-website):"
 	@echo "  make website-install  Install website dependencies (npm)"
@@ -637,6 +638,22 @@ docs-build:
 	@echo "🔨 Building static documentation site..."
 	@$(MKDOCS) build
 	@echo "✅ Documentation built to ./site/"
+
+docs-build-website:
+	@if [ ! -f "$(MKDOCS)" ]; then \
+		echo "❌ MkDocs not installed. Run 'make docs-install' first."; \
+		exit 1; \
+	fi
+	@if [ ! -d "$(WEBSITE_DIR)" ]; then \
+		echo "❌ kawai-website directory not found!"; \
+		exit 1; \
+	fi
+	@echo "🗑️  Removing old docs..."
+	@rm -rf $(WEBSITE_DIR)/docs
+	@echo "🔨 Building documentation to kawai-website/docs/..."
+	@$(MKDOCS) build -d $(WEBSITE_DIR)/docs
+	@echo "✅ Documentation built to $(WEBSITE_DIR)/docs/"
+	@echo "💡 Next: cd $(WEBSITE_DIR) && git add docs && git commit && git push"
 
 docs-clean:
 	@echo "🧹 Cleaning documentation build artifacts..."
