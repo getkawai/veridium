@@ -36,7 +36,7 @@ Kawai DeAI Network combines the power of decentralized computing with AI service
 Ready to join the Kawai DeAI Network? Here's how to get started:
 
 1. **[Download the App](getting-started/installation.md)** - Get the desktop application
-2. **[Set Up Your Wallet](user-guide/wallet-setup.md)** - Connect your Web3 wallet
+2. **[Set Up Your Wallet](user-guide/wallet-setup.md)** - Create your built-in wallet
 3. **[Claim Free Trial](user-guide/free-trial.md)** - Get 5 USDT to try AI services
 4. **[Start Earning](rewards/overview.md)** - Learn about all reward systems
 
@@ -76,7 +76,7 @@ Ready to join the Kawai DeAI Network? Here's how to get started:
 
     ---
 
-    Connect your Web3 wallet securely
+    Set up your secure built-in wallet
 
     [:octicons-arrow-right-24: Setup Guide](user-guide/wallet-setup.md)
 

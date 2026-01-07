@@ -26,8 +26,8 @@ Before installing Kawai DeAI Network, make sure your system meets these requirem
 ## 🌐 Web3 Requirements
 
 ### Supported Wallets
-- **MetaMask** (recommended)
-- **WalletConnect** compatible wallets
+- **Built-in wallet** (no external wallet needed)
+- **Strong password** (8+ characters recommended)
 - **Coinbase Wallet**
 - **Trust Wallet**
 - **Rainbow Wallet**
@@ -77,7 +77,7 @@ For web-based features:
 - **Edge** 90+
 
 ### Required Extensions
-- **MetaMask** or compatible Web3 wallet extension
+- **Built-in wallet** (included in app, no installation needed)
 - **JavaScript** enabled
 - **Cookies** enabled for session management
 

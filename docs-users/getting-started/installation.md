@@ -85,7 +85,7 @@ The app will automatically:
 - Prepare reward systems
 
 ### 3. Wallet Connection
-Follow the [Wallet Setup Guide](../user-guide/wallet-setup.md) to connect your Web3 wallet.
+Follow the [Wallet Setup Guide](../user-guide/wallet-setup.md) to create your built-in wallet.
 
 ## 🔄 Updates & Maintenance
 
@@ -179,7 +179,7 @@ For security-conscious users:
     - Browser compatibility
     
     **Solutions:**
-    - Install MetaMask extension
+    - Create wallet in app
     - Add Monad Testnet manually
     - Try different browser
 

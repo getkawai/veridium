@@ -42,10 +42,10 @@ When you sign up with a friend's referral code:
 !!! info "First Time Setup"
     The free trial is claimed during your first wallet connection.
 
-1. Click **"Connect Wallet"**
-2. Choose your wallet (MetaMask recommended)
-3. If needed: [Set up wallet first](wallet-setup.md)
-4. Approve connection
+1. Click **"Setup wallet & Claim Bonus"**
+2. Create strong password
+3. Choose wallet method (generate new or import existing)
+4. Backup your mnemonic phrase
 
 ### Step 3: Apply Referral Code (Optional)
 
@@ -69,7 +69,7 @@ If you have a referral code:
 
 ### Step 4: Claim Trial
 
-After connecting wallet (with or without referral):
+After creating your wallet (with or without referral):
 
 1. **Trial auto-claims** on first wallet unlock
 2. **Notification appears**: "✅ Free trial claimed!"
@@ -321,7 +321,7 @@ Trade your earned KAWAI:
 
 **Solutions:**
 1. **Refresh the page**
-2. **Disconnect and reconnect wallet**
+2. **Restart the app**
 3. **Check network** (should be Monad)
 4. **Wait 30 seconds** (blockchain confirmation)
 

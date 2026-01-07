@@ -89,7 +89,7 @@ Actual cashback: 5,000 KAWAI tokens! 🎉
     You only need to approve once. After that, you can deposit anytime without approving again.
 
 1. Click **"Approve USDT"**
-2. MetaMask opens → Review approval
+2. Enter your password → Review approval
 3. Click **"Approve"**
 4. Wait for confirmation (~10 seconds)
 
@@ -101,7 +101,7 @@ Actual cashback: 5,000 KAWAI tokens! 🎉
 ### Step 4: Confirm Deposit
 
 1. Click **"Deposit"** button
-2. MetaMask opens → Review transaction
+2. Enter password → Review transaction
    - **From:** Your address
    - **To:** PaymentVault contract
    - **Amount:** Your deposit amount
@@ -115,8 +115,8 @@ Actual cashback: 5,000 KAWAI tokens! 🎉
 !!! warning "Important"
     After depositing, you must sync the deposit in the app to update your balance.
 
-1. **Wait for transaction confirmation** (green checkmark in MetaMask)
-2. **Copy transaction hash** from MetaMask
+1. **Wait for transaction confirmation** (green checkmark in app)
+2. **Copy transaction hash** from transaction details
 3. **In Kawai app:** Click "Sync Deposit"
 4. **Paste transaction hash**
 5. Click **"Sync"**

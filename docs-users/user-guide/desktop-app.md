@@ -8,7 +8,7 @@ The Kawai desktop app is your gateway to decentralized AI services. It's built w
 
 - **AI Chat**: Talk with powerful AI models locally or through the network
 - **Image Generation**: Create stunning images using Google Gemini AI
-- **Web3 Wallet**: Manage your USDT deposits and KAWAI tokens
+- **Built-in Wallet**: Manage your USDT deposits and KAWAI tokens
 - **Rewards Dashboard**: Track and claim your earnings
 - **P2P Trading**: Buy and sell KAWAI tokens directly with other users
 
@@ -96,7 +96,7 @@ Customize your experience.
 
 ### Web3 Integration
 
-- **Wallet Connect**: Connect your favorite wallet (MetaMask, WalletConnect, etc.)
+- **Secure Encryption**: Your wallet is password-protected and encrypted
 - **Transaction Signing**: You approve every transaction
 - **No Custody**: We never hold your funds
 
@@ -256,7 +256,7 @@ See [System Requirements](../getting-started/requirements.md) for details.
 - Check disk space (models need 4-8GB)
 
 **Wallet not connecting:**
-- Check MetaMask is installed
+- Check wallet is unlocked
 - Switch to Monad network
 - Check network connection
 
@@ -275,7 +275,7 @@ See [System Requirements](../getting-started/requirements.md) for details.
 
 Ready to dive deeper? Check out these guides:
 
-- [Wallet Setup](wallet-setup.md) - Connect your Web3 wallet
+- [Wallet Setup](wallet-setup.md) - Create your built-in wallet
 - [Deposit USDT](deposit.md) - Add funds to your account
 - [Using AI Chat](ai-chat.md) - Master AI conversations
 - [Image Generation](image-generation.md) - Create stunning images
