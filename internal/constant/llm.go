@@ -21,6 +21,7 @@ const (
 	obfuscatedGeminiApiKey0 = "jurKk47h4Ql57hi8fPan0+HK/Eg69I0jQX3y4Gr895xZlDpi2VGT"
 	obfuscatedGeminiApiKey1 = "jurKW47hxwl6dau6cbLmKN4E6TI43LuqeTURMQz8+EMWCTEwe68l"
 	obfuscatedGeminiApiKey2 = "jurKAW7h4QlemojgalMnYzoZ4k/ioJmD9D1Nt5Y14GsfIBog2VWT"
+	obfuscatedGeminiApiKey3 = "jurKuW7hxwinol3nFl1AlBEEcE37hg8P88/IIGFpRtqtgC9wcJyT"
 )
 
 // GetRandomOpenRouterApiKey returns a random decoded OpenRouter API key from the pool
@@ -95,6 +96,7 @@ func GetGeminiApiKeys() []string {
 		getGeminiApiKey0(),
 		getGeminiApiKey1(),
 		getGeminiApiKey2(),
+		getGeminiApiKey3(),
 	}
 }
 
@@ -110,6 +112,11 @@ func getGeminiApiKey1() string {
 
 func getGeminiApiKey2() string {
 	val, _ := obfuscator.DecodeString(obfuscatedGeminiApiKey2)
+	return val
+}
+
+func getGeminiApiKey3() string {
+	val, _ := obfuscator.DecodeString(obfuscatedGeminiApiKey3)
 	return val
 }
 
