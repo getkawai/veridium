@@ -111,11 +111,12 @@ help:
 	@echo "  make cleanup-kv-all           Delete ALL mining data (⚠️  DANGEROUS)"
 	@echo ""
 	@echo "Documentation (MkDocs):"
-	@echo "  make docs-install     Install MkDocs and dependencies"
-	@echo "  make docs-serve       Start local documentation server (http://localhost:8000)"
+	@echo "  make docs-install     Install MkDocs in Python venv"
+	@echo "  make docs-serve       Start local docs server (http://localhost:8000)"
 	@echo "  make docs-build       Build static documentation site"
 	@echo "  make docs-clean       Clean documentation build artifacts"
 	@echo "  make docs-deploy      Deploy documentation to GitHub Pages"
+	@echo "  make docs-venv-clean  Remove Python virtual environment"
 	@echo ""
 	@echo "Maintenance:"
 	@echo "  make clean            Clean generated files"
@@ -592,20 +593,41 @@ cleanup-kv-all:
 # Documentation (MkDocs)
 # ==============================================================================
 
+# Python virtual environment for docs
+VENV_DIR := venv
+PYTHON := python3
+PIP := $(VENV_DIR)/bin/pip
+MKDOCS := $(VENV_DIR)/bin/mkdocs
+
 docs-install:
-	@echo "📚 Installing MkDocs and dependencies..."
-	@pip install mkdocs-material
-	@pip install pymdown-extensions
+	@echo "📚 Setting up documentation environment..."
+	@if [ ! -d "$(VENV_DIR)" ]; then \
+		echo "Creating Python virtual environment..."; \
+		$(PYTHON) -m venv $(VENV_DIR); \
+	fi
+	@echo "Installing MkDocs and dependencies..."
+	@$(PIP) install --upgrade pip
+	@$(PIP) install mkdocs-material pymdown-extensions
 	@echo "✅ MkDocs installed successfully!"
+	@echo "💡 Use 'make docs-serve' to start the documentation server"
 
 docs-serve:
+	@if [ ! -f "$(MKDOCS)" ]; then \
+		echo "❌ MkDocs not installed. Run 'make docs-install' first."; \
+		exit 1; \
+	fi
 	@echo "📖 Starting MkDocs development server..."
 	@echo "🌐 Open http://localhost:8000 in your browser"
-	@mkdocs serve
+	@echo "⏹️  Press Ctrl+C to stop"
+	@$(MKDOCS) serve
 
 docs-build:
+	@if [ ! -f "$(MKDOCS)" ]; then \
+		echo "❌ MkDocs not installed. Run 'make docs-install' first."; \
+		exit 1; \
+	fi
 	@echo "🔨 Building static documentation site..."
-	@mkdocs build
+	@$(MKDOCS) build
 	@echo "✅ Documentation built to ./site/"
 
 docs-clean:
@@ -614,6 +636,15 @@ docs-clean:
 	@echo "✅ Documentation cleaned!"
 
 docs-deploy:
+	@if [ ! -f "$(MKDOCS)" ]; then \
+		echo "❌ MkDocs not installed. Run 'make docs-install' first."; \
+		exit 1; \
+	fi
 	@echo "🚀 Deploying documentation to GitHub Pages..."
-	@mkdocs gh-deploy --force
+	@$(MKDOCS) gh-deploy --force
 	@echo "✅ Documentation deployed!"
+
+docs-venv-clean:
+	@echo "🧹 Removing Python virtual environment..."
+	@rm -rf $(VENV_DIR)
+	@echo "✅ Virtual environment removed!"
