@@ -9,7 +9,8 @@
         contracts-deploy-local contracts-deploy-testnet contracts-verify \
         contracts-upgrade contracts-clean contracts-validate \
         contracts-gas-snapshot contracts-gas-compare \
-        admin-register admin-register-dry
+        admin-register admin-register-dry \
+        docs-install docs-serve docs-build docs-clean docs-deploy
 
 # ------------------------------------------------------------------------------
 # Configuration
@@ -108,6 +109,13 @@ help:
 	@echo "  make cleanup-kv-proofs        Delete Merkle proofs"
 	@echo "  make cleanup-kv-settlements   Delete settlement periods"
 	@echo "  make cleanup-kv-all           Delete ALL mining data (⚠️  DANGEROUS)"
+	@echo ""
+	@echo "Documentation (MkDocs):"
+	@echo "  make docs-install     Install MkDocs and dependencies"
+	@echo "  make docs-serve       Start local documentation server (http://localhost:8000)"
+	@echo "  make docs-build       Build static documentation site"
+	@echo "  make docs-clean       Clean documentation build artifacts"
+	@echo "  make docs-deploy      Deploy documentation to GitHub Pages"
 	@echo ""
 	@echo "Maintenance:"
 	@echo "  make clean            Clean generated files"
@@ -579,3 +587,33 @@ cleanup-kv-all:
 	@echo "🧹 Cleaning up ALL mining data from KV..."
 	@echo "⚠️  This will delete all job records, proofs, and settlements!"
 	@go run cmd/cleanup-kv-mining-data/main.go --all --confirm DELETE
+
+# ==============================================================================
+# Documentation (MkDocs)
+# ==============================================================================
+
+docs-install:
+	@echo "📚 Installing MkDocs and dependencies..."
+	@pip install mkdocs-material
+	@pip install pymdown-extensions
+	@echo "✅ MkDocs installed successfully!"
+
+docs-serve:
+	@echo "📖 Starting MkDocs development server..."
+	@echo "🌐 Open http://localhost:8000 in your browser"
+	@mkdocs serve
+
+docs-build:
+	@echo "🔨 Building static documentation site..."
+	@mkdocs build
+	@echo "✅ Documentation built to ./site/"
+
+docs-clean:
+	@echo "🧹 Cleaning documentation build artifacts..."
+	@rm -rf site/
+	@echo "✅ Documentation cleaned!"
+
+docs-deploy:
+	@echo "🚀 Deploying documentation to GitHub Pages..."
+	@mkdocs gh-deploy --force
+	@echo "✅ Documentation deployed!"
