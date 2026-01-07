@@ -28,6 +28,7 @@ Your main workspace for AI conversations.
 - **Knowledge Base**: Add documents to give AI context about your projects
 
 **Features:**
+
 - ✅ Fast local inference (no internet delays)
 - ✅ OpenAI-compatible format
 - ✅ Conversation history
@@ -63,6 +64,7 @@ Manage your funds and rewards.
 - **Trading**: Access P2P marketplace
 
 **Features:**
+
 - ✅ Real-time balance updates
 - ✅ Transaction history
 - ✅ Multi-currency support (USDT, KAWAI)
@@ -184,6 +186,7 @@ Trade without intermediaries.
 4. Funds held in escrow until complete
 
 **Features:**
+
 - ✅ No middleman fees
 - ✅ Smart contract security
 - ✅ Partial order filling

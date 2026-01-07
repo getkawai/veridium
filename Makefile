@@ -616,6 +616,8 @@ docs-serve:
 		echo "❌ MkDocs not installed. Run 'make docs-install' first."; \
 		exit 1; \
 	fi
+	@echo "🔍 Checking for processes on port 8000..."
+	@lsof -ti:8000 | xargs kill -9 2>/dev/null || true
 	@echo "📖 Starting MkDocs development server..."
 	@echo "🌐 Open http://localhost:8000 in your browser"
 	@echo "⏹️  Press Ctrl+C to stop"

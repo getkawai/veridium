@@ -103,6 +103,7 @@ All your chats are saved automatically.
 3. Click any chat to continue
 
 **Features:**
+
 - ✅ Auto-saved (no manual save needed)
 - ✅ Searchable (find old conversations)
 - ✅ Organized by date

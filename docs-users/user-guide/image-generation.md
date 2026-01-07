@@ -302,6 +302,7 @@ All generated images are saved in your history:
 3. Re-download or regenerate
 
 **Features:**
+
 - ✅ Searchable by prompt
 - ✅ Filter by date
 - ✅ View original settings
