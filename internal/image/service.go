@@ -199,19 +199,10 @@ func (s *Service) generateImagesInBackground(batchID string, imageNum int, opts 
 
 	// Available models for variation
 	availableModels := []string{
-		"flux",
-		"stable-diffusion",
-		"kontext",
-		"turbo",
-		"nanobanana",
-		"seedream",
-		"nanobanana-pro",
-		"seedream-pro",
-		"gptimage",
-		"zimage",
-		"veo",
-		"seedance",
-		"seedance-pro",
+		"gemini-2.5-flash", // Fast, 1024px (Nano Banana)
+		"gemini-3-pro",     // High quality, up to 4K (Nano Banana Pro)
+		"gemini-2.5-flash", // Duplicate for load balancing
+		"gemini-2.5-flash", // More weight on fast model
 	}
 
 	// Get all generations for this batch to update them
