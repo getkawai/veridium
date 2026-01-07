@@ -118,6 +118,12 @@ help:
 	@echo "  make docs-deploy      Deploy documentation to GitHub Pages"
 	@echo "  make docs-venv-clean  Remove Python virtual environment"
 	@echo ""
+	@echo "Website (kawai-website):"
+	@echo "  make website-install  Install website dependencies (pnpm)"
+	@echo "  make website-serve    Start local website server (http://localhost:3000)"
+	@echo "  make website-dev      Start website with auto-reload"
+	@echo "  make website-clean    Clean website node_modules"
+	@echo ""
 	@echo "Maintenance:"
 	@echo "  make clean            Clean generated files"
 	@echo "  make test             Run tests"
@@ -650,3 +656,56 @@ docs-venv-clean:
 	@echo "🧹 Removing Python virtual environment..."
 	@rm -rf $(VENV_DIR)
 	@echo "✅ Virtual environment removed!"
+
+# ==============================================================================
+# Website (kawai-website)
+# ==============================================================================
+
+WEBSITE_DIR := kawai-website
+
+website-install:
+	@echo "📦 Installing website dependencies..."
+	@if [ ! -d "$(WEBSITE_DIR)" ]; then \
+		echo "❌ $(WEBSITE_DIR) directory not found!"; \
+		echo "💡 Make sure kawai-website is cloned in the same parent directory"; \
+		exit 1; \
+	fi
+	@cd $(WEBSITE_DIR) && pnpm install
+	@echo "✅ Website dependencies installed!"
+
+website-serve:
+	@if [ ! -d "$(WEBSITE_DIR)" ]; then \
+		echo "❌ $(WEBSITE_DIR) directory not found!"; \
+		exit 1; \
+	fi
+	@if [ ! -d "$(WEBSITE_DIR)/node_modules" ]; then \
+		echo "❌ Dependencies not installed. Run 'make website-install' first."; \
+		exit 1; \
+	fi
+	@echo "🌐 Starting website server..."
+	@echo "🔗 Open http://localhost:3000 in your browser"
+	@echo "⏹️  Press Ctrl+C to stop"
+	@cd $(WEBSITE_DIR) && pnpm run serve
+
+website-dev:
+	@if [ ! -d "$(WEBSITE_DIR)" ]; then \
+		echo "❌ $(WEBSITE_DIR) directory not found!"; \
+		exit 1; \
+	fi
+	@if [ ! -d "$(WEBSITE_DIR)/node_modules" ]; then \
+		echo "❌ Dependencies not installed. Run 'make website-install' first."; \
+		exit 1; \
+	fi
+	@echo "🔥 Starting website with auto-reload..."
+	@echo "🔗 Open http://localhost:3000 in your browser"
+	@echo "⏹️  Press Ctrl+C to stop"
+	@cd $(WEBSITE_DIR) && pnpm run dev
+
+website-clean:
+	@echo "🧹 Cleaning website dependencies..."
+	@if [ -d "$(WEBSITE_DIR)/node_modules" ]; then \
+		cd $(WEBSITE_DIR) && rm -rf node_modules; \
+		echo "✅ Website dependencies cleaned!"; \
+	else \
+		echo "⚠️  No node_modules to clean"; \
+	fi
