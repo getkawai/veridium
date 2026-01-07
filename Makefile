@@ -119,7 +119,7 @@ help:
 	@echo "  make docs-venv-clean  Remove Python virtual environment"
 	@echo ""
 	@echo "Website (kawai-website):"
-	@echo "  make website-install  Install website dependencies (pnpm)"
+	@echo "  make website-install  Install website dependencies (npm)"
 	@echo "  make website-serve    Start local website server (http://localhost:3000)"
 	@echo "  make website-dev      Start website with auto-reload"
 	@echo "  make website-clean    Clean website node_modules"
@@ -670,7 +670,7 @@ website-install:
 		echo "💡 Make sure kawai-website is cloned in the same parent directory"; \
 		exit 1; \
 	fi
-	@cd $(WEBSITE_DIR) && pnpm install
+	@cd $(WEBSITE_DIR) && npm install
 	@echo "✅ Website dependencies installed!"
 
 website-serve:
@@ -685,7 +685,7 @@ website-serve:
 	@echo "🌐 Starting website server..."
 	@echo "🔗 Open http://localhost:3000 in your browser"
 	@echo "⏹️  Press Ctrl+C to stop"
-	@cd $(WEBSITE_DIR) && pnpm run serve
+	@cd $(WEBSITE_DIR) && npm run serve
 
 website-dev:
 	@if [ ! -d "$(WEBSITE_DIR)" ]; then \
@@ -699,7 +699,7 @@ website-dev:
 	@echo "🔥 Starting website with auto-reload..."
 	@echo "🔗 Open http://localhost:3000 in your browser"
 	@echo "⏹️  Press Ctrl+C to stop"
-	@cd $(WEBSITE_DIR) && pnpm run dev
+	@cd $(WEBSITE_DIR) && npm run dev
 
 website-clean:
 	@echo "🧹 Cleaning website dependencies..."
