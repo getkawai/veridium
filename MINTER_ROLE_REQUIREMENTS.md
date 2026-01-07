@@ -196,8 +196,25 @@ cast send $KAWAI_TOKEN \
 
 ### Role Verification
 
-Check if a contract has `MINTER_ROLE`:
+Check if all distributor contracts have `MINTER_ROLE`:
 
+```bash
+# Check all distributors at once (recommended)
+make check-minter-role
+```
+
+**Expected Output:**
+```
+Checking MINTER_ROLE status for all reward distributors...
+
+✅ MiningRewardDistributor (0xa0dDC59DAcBA9201CC9Ef613707d287b77b2723F): HAS MINTER_ROLE
+✅ CashbackDistributor (0xcc992d001Bc1963A44212D62F711E502DE162B8E): HAS MINTER_ROLE
+✅ ReferralRewardDistributor (0x988Cbef1F6b9057Cfa7325a7E364543E615f9191): HAS MINTER_ROLE
+
+All distributors have MINTER_ROLE! ✅
+```
+
+**Alternative (Foundry cast):**
 ```bash
 # hasRole(bytes32 role, address account) returns (bool)
 cast call 0x3EC7A3b85f9658120490d5a76705d4d304f4068D \
