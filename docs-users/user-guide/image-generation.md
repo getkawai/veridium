@@ -262,16 +262,6 @@ Settings: 16:9, Ultra, Gemini Pro
 
 ## 💰 Cost & Cashback
 
-### Pricing
-
-| Model | Quality | Cost (USDT) | Cashback (5%) |
-|-------|---------|-------------|---------------|
-| Flash | Standard | ~0.05 | 2.5 KAWAI |
-| Flash | HD | ~0.08 | 4 KAWAI |
-| Pro | Standard | ~0.10 | 5 KAWAI |
-| Pro | HD | ~0.15 | 7.5 KAWAI |
-| Pro | Ultra | ~0.20 | 10 KAWAI |
-
 ### Value Calculation
 
 **With 100 USDT balance:**
