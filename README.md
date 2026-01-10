@@ -121,6 +121,16 @@ This roadmap outlines the path from "Zero" to a fully functional decentralized n
         - [x] Phase detection (Mining vs USDT mode).
         - [x] Halving logic (100→50→25→12 KAWAI per 1M tokens).
         - [x] Async execution (no user latency impact).
+    - [x] **Revenue Share UI (Hold-to-Earn):** ✨ **NEW**
+        - [x] **Real-Time Blockchain Data:** Fetches KAWAI balance and total supply from chain.
+        - [x] **Share Percentage Calculator:** Displays user's proportional ownership (balance/totalSupply × 100).
+        - [x] **Claimable USDT Table:** Shows weekly revenue distributions with Merkle proofs.
+        - [x] **Phase Indicators:** Clear warnings for Phase 1 (Mining) vs Phase 2 (Revenue Sharing).
+        - [x] **Error Handling:** Blockchain failure warnings, robust SetString validation.
+        - [x] **Gas Estimation:** Pre-claim gas cost calculation for user transparency.
+        - [x] **Comprehensive Docs:** 487-line guide with formulas, examples, and FAQs.
+        - [x] **Type-Safe Implementation:** Full TypeScript types, no 'any' types.
+        - [x] **Backend Support:** `GetRevenueShareStats()` service for balance/supply queries.
     - [x] **Deposit Sync Service:**
         - [x] User client syncs deposits via `SyncDeposit(txHash)` after wallet confirmation.
         - [x] Backend verifies transaction onchain before updating balance.
