@@ -77,37 +77,6 @@ All smart contracts are deployed on **Monad Blockchain** (Testnet).
 
 ---
 
-## 🔧 Environment Variables
-
-Create a `.env` file in the project root with the following:
-
-```bash
-# Blockchain Configuration
-MONAD_RPC_URL=https://testnet-rpc.monad.xyz
-TOKEN_ADDRESS=0x...  # KawaiToken address after deployment
-ESCROW_ADDRESS=0x... # OTCMarket address after deployment
-
-# Economic Configuration (Phase 1 & 2)
-KAWAI_RATE_PER_MILLION=100      # KAWAI minted per 1M tokens processed
-COST_RATE_PER_MILLION=1.0       # USDT cost per 1M tokens (Phase 2)
-FREE_TRIAL_AMOUNT_USDT=5.0      # USDT bonus for new users (Default: 5)
-
-# Admin Configuration
-ADMIN_ADDRESS=0x...             # Admin wallet for fee collection
-ADMIN_PRIVATE_KEY=0x...         # For signing Merkle Root updates
-
-# Cloudflare KV (Multi-Namespace Architecture)
-CF_ACCOUNT_ID=...
-CF_API_TOKEN=...
-CF_KV_CONTRIBUTORS_NAMESPACE_ID=...  # Contributor data
-CF_KV_PROOFS_NAMESPACE_ID=...        # Merkle proofs
-CF_KV_SETTLEMENTS_NAMESPACE_ID=...   # Settlement metadata
-CF_KV_AUTHZ_NAMESPACE_ID=...         # API Keys
-CF_KV_USERS_NAMESPACE_ID=...         # User Profiles & Balance (JSON)
-```
-
----
-
 ## 🛠️ Tech Stack
 
 -   **Smart Contracts:** Solidity, Foundry, OpenZeppelin.
