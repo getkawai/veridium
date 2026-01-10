@@ -277,7 +277,6 @@ CF_KV_USERS_NAMESPACE_ID=...         # User Profiles & Balance (JSON)
 - 📖 [Full Implementation Guide](GEMINI_IMAGE_GENERATION.md)
 - 📖 [Migration Documentation](MIGRATION_POLLINATIONS_TO_GEMINI.md)
 - 📖 [Quick Start Guide](docs/IMAGE_GENERATION_QUICK_START.md)
-- 📖 [Code Review & Fixes](CODE_REVIEW_FIXES.md)
 
 ### Usage Example
 ```go
@@ -339,4 +338,3 @@ See [`pkg/README.md`](pkg/README.md) for complete list including: `localfs`, `ob
 |----------|---------|--------------|
 | [`GEMINI_IMAGE_GENERATION.md`](GEMINI_IMAGE_GENERATION.md) | Complete Gemini API implementation guide | Understanding image generation |
 | [`MIGRATION_POLLINATIONS_TO_GEMINI.md`](MIGRATION_POLLINATIONS_TO_GEMINI.md) | Migration from Pollinations to Gemini | Understanding the migration |
-| [`CODE_REVIEW_FIXES.md`](CODE_REVIEW_FIXES.md) | Code review feedback & fixes | Understanding implementation decisions |
