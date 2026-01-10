@@ -18,7 +18,7 @@ Unlike traditional DePIN projects that require massive upfront investment, Kawai
 
 1. **Phase 1 (Current)**: Local AI inference with treasury reward distribution
 2. **Phase 2 (Future)**: Distributed network with contributor nodes
-3. **Phase 3 (Growth)**: Community-driven liquidity and expansion
+3. **Phase 3 (Growth)**: Enhanced features and user experience expansion
 
 ### Hybrid Architecture
 

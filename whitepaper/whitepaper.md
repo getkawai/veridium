@@ -144,7 +144,7 @@ A mechanism to cryptographically verify that the GPU work was done correctly wit
 ### **Phase 3: Decentralization**
 *   [ ] **Public Miner Access:** Release Contributor Client (CLI/GUI) to public.
 *   [ ] **Governance Launch:** Snapshot voting for parameter tweaks.
-*   [ ] **Liquidity Programs:** Community-driven LP incentives on Monad DEXs.
+*   [ ] **Enhanced Features:** Advanced AI models and improved user experience.
 
 ### **Phase 4: Maturity**
 *   [ ] **Verifiable Inference:** ZK-based or Optimistic fraud proofs implementation.

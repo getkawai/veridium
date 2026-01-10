@@ -150,7 +150,7 @@ You receive: 20,000 KAWAI
 
 ## ⛏️ Mining Rewards
 
-**Earn by contributing GPU power!** (Coming soon in Phase 3)
+**Earn by contributing GPU power!** (Coming soon)
 
 ### How It Works
 

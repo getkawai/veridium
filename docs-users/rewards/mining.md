@@ -7,7 +7,7 @@ Contribute GPU power to the Kawai network and earn the majority of generated tok
 Mining on Kawai Network means providing GPU compute power for AI inference. Your computer processes AI requests from users and you earn KAWAI tokens as reward.
 
 !!! info "Current Status"
-    Mining is in **bootstrap phase**. The contributor client is ready, but we're currently operating with treasury pool rewards while building the initial user base. GPU mining will open to public contributors in Phase 3.
+    Mining is in **bootstrap phase**. The contributor client is ready, but we're currently operating with treasury pool rewards while building the initial user base. GPU mining will open to public contributors when the network is ready for distributed operations.
 
 ## ⚡ How It Works
 
@@ -143,7 +143,7 @@ Your share (with referral):
 ### Step 2: Download Contributor Client
 
 !!! warning "Coming Soon"
-    Public contributor client will be available in Phase 3. Join our [Discord](https://discord.gg/kawai) to be notified!
+    Public contributor client will be available soon. Join our [Discord](https://discord.gg/kawai) to be notified!
 
 ```bash
 # Future download command

@@ -166,11 +166,8 @@ This roadmap outlines the path from "Zero" to a fully functional decentralized n
     - [x] Atomic settlement with rollback support.
     - [x] Soft delete for contributor lifecycle management.
 
-### Phase 3: Community Liquidity (Growth)
-**Focus:** Transition to decentralized liquidity.
-- [ ] **Liquidity Incentives:**
-    - [ ] Launch "LP Mining" program.
-    - [ ] Encourage stakeholders to provide LP on PancakeSwap using their Dividends.
+### Phase 3: Growth & Expansion ✅
+**Focus:** Enhanced features and user experience.
 - [x] **Frontend (Web Dashboard):**
     - [x] Initialize Vite + React project.
     - [x] Integrate @lobehub/ui for UI components.
