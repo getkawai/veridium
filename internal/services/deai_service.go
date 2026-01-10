@@ -107,6 +107,121 @@ func (s *DeAIService) GetVaultBalance() (string, error) {
 	return fBalance.Text('f', 2), nil
 }
 
+// GetKawaiBalance returns the KAWAI token balance of the current wallet
+func (s *DeAIService) GetKawaiBalance() (string, error) {
+	// Check if wallet is unlocked
+	if s.wallet.currentAccount == nil {
+		return "", fmt.Errorf("wallet is locked")
+	}
+
+	// 1. Get User Address
+	userAddr := s.wallet.currentAccount.Address()
+
+	// 2. Load KAWAI Token
+	kawaiAddr, err := contracts.ResolveAddress("KawaiToken")
+	if err != nil {
+		return "", fmt.Errorf("KAWAI address not found: %w", err)
+	}
+	kawai, err := contracts.KawaiToken(kawaiAddr.Hex(), s.reader)
+	if err != nil {
+		return "", fmt.Errorf("failed to load KAWAI: %w", err)
+	}
+
+	// 3. Get Balance
+	bal, err := kawai.BalanceOf(nil, userAddr)
+	if err != nil {
+		return "", fmt.Errorf("failed to get balance: %w", err)
+	}
+
+	// 4. Return raw balance (18 decimals)
+	return bal.String(), nil
+}
+
+// GetKawaiBalanceFormatted returns the KAWAI token balance formatted (with decimals)
+func (s *DeAIService) GetKawaiBalanceFormatted() (string, error) {
+	balStr, err := s.GetKawaiBalance()
+	if err != nil {
+		return "", err
+	}
+
+	bal := new(big.Int)
+	bal.SetString(balStr, 10)
+
+	// Format (18 decimals)
+	fBalance := new(big.Float).SetInt(bal)
+	fBalance.Quo(fBalance, big.NewFloat(1e18))
+
+	return fBalance.Text('f', 4), nil
+}
+
+// GetKawaiTotalSupply returns the total supply of KAWAI tokens
+func (s *DeAIService) GetKawaiTotalSupply() (string, error) {
+	// Load KAWAI Token
+	kawaiAddr, err := contracts.ResolveAddress("KawaiToken")
+	if err != nil {
+		return "", fmt.Errorf("KAWAI address not found: %w", err)
+	}
+	kawai, err := contracts.KawaiToken(kawaiAddr.Hex(), s.reader)
+	if err != nil {
+		return "", fmt.Errorf("failed to load KAWAI: %w", err)
+	}
+
+	// Get Total Supply
+	supply, err := kawai.TotalSupply(nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to get total supply: %w", err)
+	}
+
+	return supply.String(), nil
+}
+
+// GetRevenueShareStats returns revenue sharing statistics for the current wallet
+func (s *DeAIService) GetRevenueShareStats() (map[string]interface{}, error) {
+	// Check if wallet is unlocked
+	if s.wallet.currentAccount == nil {
+		return nil, fmt.Errorf("wallet is locked")
+	}
+
+	// Get KAWAI balance
+	balanceStr, err := s.GetKawaiBalance()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get balance: %w", err)
+	}
+
+	// Get total supply
+	supplyStr, err := s.GetKawaiTotalSupply()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get total supply: %w", err)
+	}
+
+	// Calculate share percentage
+	balance := new(big.Float)
+	if _, ok := balance.SetString(balanceStr); !ok {
+		return nil, fmt.Errorf("invalid balance format: %s", balanceStr)
+	}
+	
+	supply := new(big.Float)
+	if _, ok := supply.SetString(supplyStr); !ok {
+		return nil, fmt.Errorf("invalid supply format: %s", supplyStr)
+	}
+
+	sharePercentage := new(big.Float)
+	if supply.Cmp(big.NewFloat(0)) > 0 {
+		sharePercentage.Quo(balance, supply)
+		sharePercentage.Mul(sharePercentage, big.NewFloat(100))
+	}
+
+	// Format balance for display
+	balanceFormatted := new(big.Float).Quo(balance, big.NewFloat(1e18))
+
+	return map[string]interface{}{
+		"kawai_balance":           balanceStr,
+		"kawai_balance_formatted": balanceFormatted.Text('f', 4),
+		"total_supply":            supplyStr,
+		"share_percentage":        sharePercentage.Text('f', 6),
+	}, nil
+}
+
 // DepositToVault deposits USDT into the vault for service credits
 func (s *DeAIService) DepositToVault(amountStr string) (string, error) {
 	// Check if wallet is unlocked

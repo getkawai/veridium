@@ -24,7 +24,7 @@ Kawai DeAI Network combines the power of decentralized computing with AI service
 - **Deposit Cashback**: Earn 1-5% KAWAI tokens on USDT deposits (tiered system)
 - **Referral Rewards**: Earn 5% commission from friends' mining rewards
 - **Mining Rewards**: Contribute GPU power and earn up to 90% of generated tokens
-- **Hold-to-Earn**: KAWAI holders receive 100% of platform revenue in USDT
+- **Revenue Share**: KAWAI holders receive 100% of platform profit in USDT (weekly)
 
 ### 🔄 P2P Trading
 - **Decentralized Marketplace**: Trade KAWAI ↔ USDT directly with other users

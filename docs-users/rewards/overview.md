@@ -194,7 +194,7 @@ Rewards decrease over time to control supply:
 
 [Learn more about mining →](mining.md)
 
-## 💼 Hold-to-Earn
+## 💼 Hold-to-Earn (Revenue Share)
 
 **Earn USDT just by holding KAWAI tokens!**
 
@@ -221,6 +221,7 @@ Yearly: 52 USDT from just holding!
 - ✅ **USDT rewards** - Stable, spendable currency
 - ✅ **100% distribution** - All revenue goes to holders
 - ✅ **Sustainable** - Tied to real platform usage
+- ✅ **No lock required** - Just hold in your wallet
 
 ### Phase Transition
 
@@ -242,7 +243,15 @@ Yearly: 52 USDT from just holding!
 3. Dividends (earn platform revenue)
 4. Governance (vote on proposals - future)
 
-[Learn more about tokenomics →](../tokenomics/kawai-token.md)
+### How to Access
+
+Go to **Wallet → Rewards → Revenue Share** tab to:
+- View your KAWAI holdings and share percentage
+- Check claimable USDT amounts
+- Claim your weekly revenue share
+- Track earnings history
+
+[Learn more about revenue sharing →](revenue-share.md)
 
 ## 📊 Reward Comparison
 
@@ -393,8 +402,9 @@ Dive deeper into specific reward systems:
 1. **[Deposit Cashback](cashback.md)** - Maximize your deposit rewards
 2. **[Referral Program](referral.md)** - Build passive income
 3. **[Mining Rewards](mining.md)** - Contribute and earn
-4. **[Claiming Guide](claiming.md)** - How to claim your rewards
-5. **[Token Economics](../tokenomics/kawai-token.md)** - Understand KAWAI value
+4. **[Revenue Share](revenue-share.md)** - Earn USDT from platform profit
+5. **[Claiming Guide](claiming.md)** - How to claim your rewards
+6. **[Token Economics](../tokenomics/kawai-token.md)** - Understand KAWAI value
 
 ---
 

@@ -112,6 +112,36 @@ export function GetDistributorMerkleRoot(rewardType: string): $CancellablePromis
 }
 
 /**
+ * GetKawaiBalance returns the KAWAI token balance of the current wallet
+ */
+export function GetKawaiBalance(): $CancellablePromise<string> {
+    return $Call.ByID(549840362);
+}
+
+/**
+ * GetKawaiBalanceFormatted returns the KAWAI token balance formatted (with decimals)
+ */
+export function GetKawaiBalanceFormatted(): $CancellablePromise<string> {
+    return $Call.ByID(3245796838);
+}
+
+/**
+ * GetKawaiTotalSupply returns the total supply of KAWAI tokens
+ */
+export function GetKawaiTotalSupply(): $CancellablePromise<string> {
+    return $Call.ByID(320891947);
+}
+
+/**
+ * GetRevenueShareStats returns revenue sharing statistics for the current wallet
+ */
+export function GetRevenueShareStats(): $CancellablePromise<{ [_: string]: any }> {
+    return $Call.ByID(4264053571).then(($result: any) => {
+        return $$createType4($result);
+    });
+}
+
+/**
  * GetUSDTAllowance returns the current allowance of owner to spender
  */
 export function GetUSDTAllowance(ownerStr: string, spenderStr: string): $CancellablePromise<string> {
@@ -179,3 +209,4 @@ const $$createType0 = $models.ClaimResult.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
 const $$createType2 = $models.ClaimableRewardsResponse.createFrom;
 const $$createType3 = $Create.Nullable($$createType2);
+const $$createType4 = $Create.Map($Create.Any, $Create.Any);
