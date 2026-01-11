@@ -15,15 +15,15 @@ Error: AccessControl: account 0x... is missing role 0x9f2df0fed2c77648de5860a4cc
 
 | Contract | Address (Monad Testnet) | Purpose | Mint Calls per Claim |
 |----------|------------------------|---------|---------------------|
-| **MiningRewardDistributor** | `0xa0dDC59DAcBA9201CC9Ef613707d287b77b2723F` | Mining rewards with referral splits | 1-4 (contributor, developer, user, affiliator) |
-| **CashbackDistributor** | `0xcc992d001Bc1963A44212D62F711E502DE162B8E` | Deposit cashback rewards | 1 |
-| **KAWAI_Distributor** | `0x988Cbef1F6b9057Cfa7325a7E364543E615f9191` | Legacy referral rewards (MerkleDistributor in mint mode) | 1 |
+| **MiningRewardDistributor** | `0x8117D77A219EeF5F7869897C3F0973Afb87d8427` | Mining rewards with referral splits | 1-4 (contributor, developer, user, affiliator) |
+| **CashbackDistributor** | `0xdE64f6F5bEe28762c91C76ff762365D553204e35` | Deposit cashback rewards | 1 |
+| **KAWAI_Distributor** | `0xaB0DdFbb4bD94d23a32d0C40f9F96d9A61b45463` | Legacy referral rewards (MerkleDistributor in mint mode) | 1 |
 
 ### Contracts NOT Requiring MINTER_ROLE
 
 | Contract | Address | Purpose | Distribution Method |
 |----------|---------|---------|-------------------|
-| **USDT_Distributor** | `0xE964B52D496F37749bd0caF287A356afdC10836C` | USDT dividend distribution | Transfer from pre-funded balance |
+| **USDT_Distributor** | `0x98a7590406a08Cc64dc074D8698B71e4D997a268` | USDT dividend distribution | Transfer from pre-funded balance |
 
 ---
 
@@ -156,14 +156,14 @@ export PRIVATE_KEY=0x...
 # Set environment
 export PRIVATE_KEY=0x...
 export RPC_URL="https://testnet.monad.xyz/"
-export KAWAI_TOKEN="0x3EC7A3b85f9658120490d5a76705d4d304f4068D"
+export KAWAI_TOKEN="0xE32660b39D99988Df4bFdc7e4b68A4DC9D654722"
 export MINTER_ROLE="0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6"
 
 # Grant to MiningRewardDistributor
 cast send $KAWAI_TOKEN \
   "grantRole(bytes32,address)" \
   $MINTER_ROLE \
-  0xa0dDC59DAcBA9201CC9Ef613707d287b77b2723F \
+  0x8117D77A219EeF5F7869897C3F0973Afb87d8427 \
   --private-key $PRIVATE_KEY \
   --rpc-url $RPC_URL
 
@@ -171,7 +171,7 @@ cast send $KAWAI_TOKEN \
 cast send $KAWAI_TOKEN \
   "grantRole(bytes32,address)" \
   $MINTER_ROLE \
-  0xcc992d001Bc1963A44212D62F711E502DE162B8E \
+  0xdE64f6F5bEe28762c91C76ff762365D553204e35 \
   --private-key $PRIVATE_KEY \
   --rpc-url $RPC_URL
 
@@ -179,7 +179,7 @@ cast send $KAWAI_TOKEN \
 cast send $KAWAI_TOKEN \
   "grantRole(bytes32,address)" \
   $MINTER_ROLE \
-  0x988Cbef1F6b9057Cfa7325a7E364543E615f9191 \
+  0xaB0DdFbb4bD94d23a32d0C40f9F96d9A61b45463 \
   --private-key $PRIVATE_KEY \
   --rpc-url $RPC_URL
 ```
@@ -207,9 +207,9 @@ make check-minter-role
 ```
 Checking MINTER_ROLE status for all reward distributors...
 
-✅ MiningRewardDistributor (0xa0dDC59DAcBA9201CC9Ef613707d287b77b2723F): HAS MINTER_ROLE
-✅ CashbackDistributor (0xcc992d001Bc1963A44212D62F711E502DE162B8E): HAS MINTER_ROLE
-✅ ReferralRewardDistributor (0x988Cbef1F6b9057Cfa7325a7E364543E615f9191): HAS MINTER_ROLE
+✅ MiningRewardDistributor (0x8117D77A219EeF5F7869897C3F0973Afb87d8427): HAS MINTER_ROLE
+✅ CashbackDistributor (0xdE64f6F5bEe28762c91C76ff762365D553204e35): HAS MINTER_ROLE
+✅ ReferralRewardDistributor (0xaB0DdFbb4bD94d23a32d0C40f9F96d9A61b45463): HAS MINTER_ROLE
 
 All distributors have MINTER_ROLE! ✅
 ```
@@ -217,10 +217,10 @@ All distributors have MINTER_ROLE! ✅
 **Alternative (Foundry cast):**
 ```bash
 # hasRole(bytes32 role, address account) returns (bool)
-cast call 0x3EC7A3b85f9658120490d5a76705d4d304f4068D \
+cast call 0xE32660b39D99988Df4bFdc7e4b68A4DC9D654722 \
   "hasRole(bytes32,address)" \
   0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6 \
-  0xa0dDC59DAcBA9201CC9Ef613707d287b77b2723F \
+  0x8117D77A219EeF5F7869897C3F0973Afb87d8427 \
   --rpc-url https://testnet.monad.xyz/
 ```
 

@@ -41,10 +41,10 @@ make cleanup-test-data
 
 ### 2. Contract Addresses (Monad Testnet)
 
-- **MiningRewardDistributor:** `0xa0dDC59DAcBA9201CC9Ef613707d287b77b2723F`
-- **DepositCashbackDistributor:** `0xcc992d001Bc1963A44212D62F711E502DE162B8E`
-- **ReferralRewardDistributor:** `0x988Cbef1F6b9057Cfa7325a7E364543E615f9191`
-- **KAWAI Token:** `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238`
+- **MiningRewardDistributor:** `0x8117D77A219EeF5F7869897C3F0973Afb87d8427`
+- **DepositCashbackDistributor:** `0xdE64f6F5bEe28762c91C76ff762365D553204e35`
+- **ReferralRewardDistributor:** `0xaB0DdFbb4bD94d23a32d0C40f9F96d9A61b45463`
+- **KAWAI Token:** `0xE32660b39D99988Df4bFdc7e4b68A4DC9D654722`
 
 ### 3. Check MINTER_ROLE Status
 
@@ -58,13 +58,13 @@ make check-minter-role
 # ═══════════════════════════════════════════════════════════
 # 
 # MiningRewardDistributor:       ✅ GRANTED
-#    Address: 0xa0dDC59DAcBA9201CC9Ef613707d287b77b2723F
+#    Address: 0x8117D77A219EeF5F7869897C3F0973Afb87d8427
 # 
 # DepositCashbackDistributor:    ✅ GRANTED
-#    Address: 0xcc992d001Bc1963A44212D62F711E502DE162B8E
+#    Address: 0xdE64f6F5bEe28762c91C76ff762365D553204e35
 # 
 # ReferralRewardDistributor:     ✅ GRANTED
-#    Address: 0x988Cbef1F6b9057Cfa7325a7E364543E615f9191
+#    Address: 0xaB0DdFbb4bD94d23a32d0C40f9F96d9A61b45463
 # 
 # ═══════════════════════════════════════════════════════════
 # ✅ All distributors have MINTER_ROLE!
