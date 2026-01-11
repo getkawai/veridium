@@ -88,20 +88,22 @@ help:
 	@echo "  make admin-register       Register all treasury addresses as admin"
 	@echo "  make admin-register-dry   Preview admin registration (dry-run)"
 	@echo ""
-	@echo "Reward Settlement (Unified):"
-	@echo "  make reward-settlement-generate TYPE=<type>  Generate settlement (mining|cashback|referral)"
+	@echo "Reward Settlement (Unified - All Types):"
+	@echo "  make reward-settlement-generate TYPE=<type>  Generate settlement (mining|cashback|referral|revenue)"
 	@echo "  make reward-settlement-upload TYPE=<type>    Upload Merkle root to contract"
 	@echo "  make reward-settlement-status                Show status for all reward types"
 	@echo "  make reward-settlement-all                   Settle all reward types at once"
-	@echo "  make settle-mining                           Shortcut for mining settlement"
-	@echo "  make settle-cashback                         Shortcut for cashback settlement"
-	@echo "  make settle-referral                         Shortcut for referral settlement"
-	@echo "  make settle-all                              Shortcut for all settlements"
 	@echo ""
-	@echo "Mining Rewards Testing:"
+	@echo "Shortcuts:"
+	@echo "  make settle-mining                           Mining settlement"
+	@echo "  make settle-cashback                         Cashback settlement"
+	@echo "  make settle-referral                         Referral settlement"
+	@echo "  make settle-revenue                          Revenue settlement (USDT dividends)"
+	@echo "  make settle-all                              All settlements at once"
+	@echo ""
+	@echo "Testing Helpers:"
 	@echo "  make test-mining-rewards      Run all mining rewards tests"
 	@echo "  make test-inject-mining-data  Inject test data to KV store"
-	@echo "  make test-mining-settlement   Test full settlement flow"
 	@echo ""
 	@echo "KV Store Cleanup:"
 	@echo "  make cleanup-kv-preview       Preview what will be deleted"
@@ -522,11 +524,14 @@ settle-cashback:
 settle-referral:
 	@make reward-settlement-generate TYPE=referral
 
+settle-revenue:
+	@make reward-settlement-generate TYPE=revenue
+
 settle-all:
 	@make reward-settlement-all
 
 # ==============================================================================
-# Mining Rewards Testing (Legacy - use reward-settlement instead)
+# Testing Helpers (Legacy - use reward-settlement instead)
 # ==============================================================================
 test-mining-rewards:
 	@echo "🧪 Running mining rewards tests..."
@@ -535,13 +540,6 @@ test-mining-rewards:
 test-inject-mining-data:
 	@echo "💉 Injecting test mining reward data..."
 	@go run cmd/dev/test-inject-mining-data/main.go
-
-test-mining-settlement:
-	@echo "🌳 Testing full settlement flow..."
-	@make test-inject-mining-data
-	@echo ""
-	@echo "📊 Generating settlement..."
-	@go run cmd/mining-settlement/main.go generate --type kawai
 
 # ==============================================================================
 # Testing Helpers

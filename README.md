@@ -14,7 +14,7 @@ A "Lean Startup" approach to DePIN, leveraging consumer-grade GPUs for `llama.cp
     -   **User:** Earn 5% cashback on every AI request (use-to-earn) + 1-5% deposit cashback (tiered).
     -   **Affiliator:** Earn 5% commission from referrals' mining rewards (lifetime passive income).
     -   **Developer:** Earn 5% from mining rewards (distributed to treasury pool).
-    -   **Holder:** Earn 100% of Platform Revenue (USDT) proportional to KAWAI holdings.
+    -   **Holder:** ⚠️ Earn 100% of Platform Revenue (USDT) proportional to KAWAI holdings *(Planned - Not Yet Implemented)*.
 -   **Liquidity:** No Initial LP. Value follows the *Hold-to-Earn* utility.
 -   **Details:** See tokenomics section below for full analysis.
 
@@ -26,11 +26,12 @@ We use a **Hybrid Model** (Off-Chain Accumulation + On-Chain Settlement) to mini
 *   **Real-Time:** Rewards are calculated instantly (Usage-based) and split 70/30.
 *   **Weekly:** A compressed **Merkle Tree** is uploaded to **Monad** for cheap claiming.
 
-### Bootstrap Phase (Current)
-*   **User Client:** Runs local LLM inference (no external contributors yet).
-*   **Rewards:** Distributed to treasury pool addresses as "virtual contributors".
-*   **Purpose:** Start token economy and accumulate treasury for future liquidity.
-*   **Transition:** Ready to switch to distributed network when contributors join.
+### Current Phase (Phase 1 - Mining Era)
+*   **User Client:** Connects to contributor nodes for AI inference.
+*   **Payment:** Users deposit USDT to PaymentVault and pay per token usage.
+*   **Contributors:** Earn KAWAI tokens (85-90% mining rewards) for providing compute.
+*   **Platform Revenue:** 100% of USDT payments (contributors paid in KAWAI, not USDT).
+*   **Revenue Sharing:** Platform profit distributed to KAWAI holders as dividends.
 
 👉 **See Full Technical Details in the sections below**
 
@@ -44,7 +45,11 @@ Veridium consists of two primary components designed for different user roles:
 - **Location:** `main.go` (Root)
 - **Tech:** [Wails v3](https://wails.io/) + React.
 - **Description:** The main interface for AI consumers. It provides a premium desktop experience for chat, knowledge base management, and a Web3 dashboard for USDT deposits and token management.
-- **Current Mode:** Local LLM inference with automatic reward recording to treasury pool.
+- **How It Works:** 
+  - Users deposit USDT to PaymentVault contract
+  - Desktop app connects to contributor nodes for AI inference
+  - USDT balance deducted per token usage
+  - Contributors earn KAWAI tokens, platform earns USDT revenue
 - **How to Run:**
   Refer to the `Makefile` for various development and build commands.
 
@@ -158,6 +163,7 @@ See [`pkg/README.md`](pkg/README.md) for complete list including: `localfs`, `ob
 | [`MINING_SYSTEM.md`](MINING_SYSTEM.md) | Complete mining rewards implementation (85/5/5/5 split) | Working on mining/contributor rewards |
 | [`CASHBACK_SYSTEM.md`](CASHBACK_SYSTEM.md) | Complete cashback implementation status & guide | Working on deposit cashback features |
 | [`REFERRAL_SYSTEM.md`](REFERRAL_SYSTEM.md) | Referral system implementation & status | Working on referral features |
+| [`REVENUE_SHARING.md`](REVENUE_SHARING.md) | Complete revenue sharing guide (USDT dividends) | Working on revenue settlement |
 | [`MINTER_ROLE_REQUIREMENTS.md`](MINTER_ROLE_REQUIREMENTS.md) | Why MINTER_ROLE is needed for reward distributors | Deploying or debugging reward contracts |
 
 ### Technical Deep Dive (docs/)
@@ -173,3 +179,42 @@ See [`pkg/README.md`](pkg/README.md) for complete list including: `localfs`, `ob
 | Document | Purpose | When to Read |
 |----------|---------|--------------|
 | [`GEMINI_IMAGE_GENERATION.md`](GEMINI_IMAGE_GENERATION.md) | Complete Gemini API implementation guide | Understanding image generation |
+
+---
+
+## 🎯 Quick Commands
+
+### Development
+```bash
+make dev              # Start fresh (reset DB + full build)
+make dev-hot          # Hot reload (keep DB, skip build) - fastest
+```
+
+### Reward Settlement (Weekly)
+```bash
+# All reward types at once (mining, cashback, referral, revenue)
+make settle-all
+
+# Or per-type
+make settle-mining    # Mining rewards (KAWAI)
+make settle-cashback  # Cashback rewards (KAWAI)
+make settle-referral  # Referral rewards (KAWAI)
+make settle-revenue   # Revenue sharing (USDT dividends)
+```
+
+### Smart Contracts
+```bash
+make contracts-compile    # Compile contracts
+make contracts-bindings   # Generate Go bindings
+make contracts-update     # Compile + bindings
+```
+
+### Documentation
+```bash
+make docs-serve       # Start docs server (http://localhost:8000)
+make docs-build       # Build static docs
+```
+
+**See `make help` for complete list of commands.**
+
+---

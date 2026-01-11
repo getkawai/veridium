@@ -15,7 +15,7 @@
 | **MiningRewardDistributor** | `0xa0dDC59DAcBA9201CC9Ef613707d287b77b2723F` | Mining rewards (85/5/5/5) | ✅ Active |
 | **DepositCashbackDistributor** | `0xcc992d001Bc1963A44212D62F711E502DE162B8E` | Tiered cashback (1-5%) | ✅ Active |
 | **KAWAI_Distributor** | `0x988Cbef1F6b9057Cfa7325a7E364543E615f9191` | Legacy referral rewards | ✅ Active |
-| **USDT_Distributor** | `0x2A1ebd03Ce88CED9731c77C63EDE2451f9c08F94` | USDT dividends | ✅ Active |
+| **USDT_Distributor** | `0xE964B52D496F37749bd0caF287A356afdC10836C` | USDT dividends | ✅ Active |
 | **Escrow (OTCMarket)** | `0x5b1235038B2F05aC88b791A23814130710eFaaEa` | P2P OTC Market | ✅ Active |
 | **PaymentVault** | `0x714238f32a7ae70c0d208d58cc041d8dda28e813` | USDT deposits | ✅ Active |
 | **MockUSDT** | `0xb8cd3f468e9299fa58b2f4210fe06fe678d1a1b7` | Testnet USDT | ✅ Testnet Only |

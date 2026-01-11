@@ -23,7 +23,7 @@ Error: AccessControl: account 0x... is missing role 0x9f2df0fed2c77648de5860a4cc
 
 | Contract | Address | Purpose | Distribution Method |
 |----------|---------|---------|-------------------|
-| **USDT_Distributor** | `0x2A1ebd03Ce88CED9731c77C63EDE2451f9c08F94` | USDT dividend distribution | Transfer from pre-funded balance |
+| **USDT_Distributor** | `0xE964B52D496F37749bd0caF287A356afdC10836C` | USDT dividend distribution | Transfer from pre-funded balance |
 
 ---
 

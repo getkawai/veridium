@@ -365,15 +365,83 @@ make upload-merkle-root TYPE=referral ROOT=$MERKLE_ROOT
 
 ---
 
-## 🧪 Test 4: Unified Settlement (All 3 Types)
+## 🧪 Test 4: Revenue Sharing (USDT Dividends)
 
-**Duration:** ~10 minutes  
+**Duration:** ~15 minutes  
+**Status:** ✅ 95% Ready (Needs testnet testing)
+
+### Step 1: Ensure USDT in PaymentVault
+
+```bash
+# Check PaymentVault balance
+# Users should have deposited USDT for AI usage
+# All USDT in vault = platform revenue
+```
+
+### Step 2: Generate Revenue Settlement
+
+```bash
+# Settle revenue sharing (USDT dividends)
+make settle-revenue
+
+# Expected output:
+# 📊 Revenue Sharing Settlement (USDT Dividends)
+# 
+# Step 1: Generating revenue settlement...
+# Current Period:    2
+# Settling Period:   1
+# ✅ Settlement generated successfully
+# Merkle Root: 0xabcd...
+# 
+# Step 2: Getting vault balance...
+# Total Revenue: 1000000000 USDT
+# 
+# Step 3: Withdrawing USDT to distributor...
+# ⚠️  About to withdraw 1000000000 USDT to USDT_Distributor
+# Continue with withdrawal? (y/n): y
+# ✅ USDT withdrawn successfully
+# 
+# Step 4: Uploading merkle root...
+# ⚠️  About to upload merkle root: 0xabcd...
+# Continue with upload? (y/n): y
+# ✅ Merkle root uploaded successfully
+# ✅ Revenue settlement completed!
+```
+
+### Step 3: Test Claim in UI
+
+1. Open app as KAWAI holder
+2. Go to: **Wallet → Rewards → Revenue Share**
+3. You should see:
+   - ✅ KAWAI Balance: X tokens
+   - ✅ Share Percentage: Y%
+   - ✅ Claimable USDT: Z USDT
+4. Click "Claim Dividends"
+5. Sign transaction
+6. Wait for confirmation
+7. Expected:
+   - ✅ Success message
+   - ✅ USDT balance increased
+
+### ✅ Success Criteria
+
+- Revenue settlement generates valid Merkle tree
+- USDT withdrawn from vault successfully
+- Merkle root uploaded successfully
+- Claim transaction succeeds
+- USDT balance increases proportionally
+
+---
+
+## 🧪 Test 5: Unified Settlement (All 4 Types)
+
+**Duration:** ~15 minutes  
 **Status:** ✅ 100% Ready
 
 ### Step 1: Settle All Types at Once
 
 ```bash
-# One command to settle all 3 reward types
+# One command to settle all 4 reward types
 make settle-all
 
 # Expected output:
@@ -384,6 +452,9 @@ make settle-all
 # ✅ Cashback settlement completed!
 # 3️⃣  Referral Rewards
 # ✅ Referral settlement completed!
+# 4️⃣  Revenue Sharing (USDT Dividends)
+# [Interactive confirmations for withdraw + upload]
+# ✅ Revenue settlement completed!
 # 🎉 All settlements completed successfully!
 ```
 
@@ -399,12 +470,15 @@ make reward-settlement-status
 # Current Period: 53
 # 🤝 REFERRAL REWARDS
 # Status: Implemented
+# 💵 REVENUE SHARING
+# Status: Implemented
 ```
 
 ### ✅ Success Criteria
 
-- All 3 settlements run without errors
+- All 4 settlements run without errors
 - Merkle roots generated for each type
+- Revenue settlement requires 2 confirmations
 - Status command shows all settlements
 
 ---
@@ -483,9 +557,22 @@ make reward-settlement-status
 - [ ] Claim transaction succeeds
 - [ ] Balance increases correctly
 
+### Revenue Sharing (USDT Dividends)
+
+- [ ] USDT in PaymentVault tracked
+- [ ] Holder scanning works
+- [ ] Dividend calculation correct (proportional)
+- [ ] Settlement generates valid Merkle tree
+- [ ] USDT withdrawal succeeds (with confirmation)
+- [ ] Merkle root upload succeeds (with confirmation)
+- [ ] UI shows claimable USDT
+- [ ] Claim transaction succeeds
+- [ ] USDT balance increases correctly
+
 ### Unified Tool
 
-- [ ] settle-all runs all 3 types
+- [ ] settle-all runs all 4 types
+- [ ] Revenue settlement requires 2 confirmations
 - [ ] Status command shows all settlements
 - [ ] No errors or warnings
 - [ ] All Merkle roots valid

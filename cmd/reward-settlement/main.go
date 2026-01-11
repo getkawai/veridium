@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"flag"
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/pkg/blockchain"
@@ -16,6 +18,7 @@ const (
 	RewardTypeMining   = "mining"
 	RewardTypeCashback = "cashback"
 	RewardTypeReferral = "referral"
+	RewardTypeRevenue  = "revenue"
 )
 
 func main() {
@@ -90,10 +93,11 @@ func printUsage() {
 	fmt.Println("  mining     - Mining rewards (9-field Merkle tree)")
 	fmt.Println("  cashback   - Deposit cashback rewards (3-field Merkle tree)")
 	fmt.Println("  referral   - Referral commission rewards (3-field Merkle tree)")
+	fmt.Println("  revenue    - Revenue sharing (USDT dividends, 3-field Merkle tree)")
 	fmt.Println("")
 	fmt.Println("Examples:")
 	fmt.Println("  reward-settlement generate --type mining")
-	fmt.Println("  reward-settlement generate --type cashback")
+	fmt.Println("  reward-settlement generate --type revenue")
 	fmt.Println("  reward-settlement all")
 	fmt.Println("")
 	fmt.Println("Workflow:")
@@ -115,8 +119,10 @@ func generateSettlement(ctx context.Context, kv *store.KVStore, rewardType strin
 		return generateCashbackSettlement(ctx, kv)
 	case RewardTypeReferral:
 		return generateReferralSettlement(ctx, kv)
+	case RewardTypeRevenue:
+		return generateRevenueSettlement(ctx, kv)
 	default:
-		return fmt.Errorf("unknown reward type: %s (must be mining, cashback, or referral)", rewardType)
+		return fmt.Errorf("unknown reward type: %s (must be mining, cashback, referral, or revenue)", rewardType)
 	}
 }
 
@@ -242,6 +248,8 @@ func uploadMerkleRoot(ctx context.Context, kv *store.KVStore, rewardType string)
 		return uploadCashbackRoot(ctx, kv)
 	case RewardTypeReferral:
 		return uploadReferralRoot(ctx, kv)
+	case RewardTypeRevenue:
+		return uploadRevenueRoot(ctx, kv)
 	default:
 		return fmt.Errorf("unknown reward type: %s", rewardType)
 	}
@@ -304,6 +312,124 @@ func uploadReferralRoot(ctx context.Context, kv *store.KVStore) error {
 	log.Println("Contract: 0x... (ReferralRewardDistributor)")
 
 	return fmt.Errorf("referral upload not implemented yet")
+}
+
+func generateRevenueSettlement(ctx context.Context, kv *store.KVStore) error {
+	log.Println("📊 Revenue Sharing Settlement (USDT Dividends)")
+	log.Println("─────────────────────────────")
+	log.Println("")
+
+	// Initialize revenue settlement
+	settlement, err := blockchain.NewRevenueSettlement(kv)
+	if err != nil {
+		return fmt.Errorf("failed to initialize revenue settlement: %w", err)
+	}
+
+	// Step 1: Generate settlement
+	log.Println("Step 1: Generating revenue settlement...")
+	log.Println("")
+
+	// Get current period (shared across all reward types: mining, cashback, referral, revenue)
+	// Period system: Weekly periods starting Jan 1, 2025, incrementing every Monday 00:00 UTC
+	// Settlement always processes previous period (currentPeriod - 1)
+	currentPeriod := settlement.GetCurrentPeriod()
+	settlementPeriod := currentPeriod - 1
+
+	if settlementPeriod < 1 {
+		return fmt.Errorf("no period to settle yet (current period: %d)", currentPeriod)
+	}
+
+	log.Printf("Current Period:    %d", currentPeriod)
+	log.Printf("Settling Period:   %d", settlementPeriod)
+	log.Println("")
+
+	merkleRoot, err := settlement.SettleRevenue(ctx, settlementPeriod)
+	if err != nil {
+		return fmt.Errorf("settlement generation failed: %w", err)
+	}
+
+	log.Printf("✅ Settlement generated successfully")
+	log.Printf("Merkle Root: 0x%x", merkleRoot)
+	log.Println("")
+
+	// Step 2: Get amount
+	log.Println("Step 2: Getting vault balance...")
+	log.Println("")
+
+	amount, err := settlement.GetPaymentVaultBalance(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get vault balance: %w", err)
+	}
+
+	log.Printf("Total Revenue: %s USDT", amount.String())
+	log.Println("")
+
+	// Step 3: Withdraw USDT
+	log.Println("Step 3: Withdrawing USDT to distributor...")
+	log.Println("")
+
+	log.Printf("⚠️  About to withdraw %s USDT to USDT_Distributor", amount.String())
+	if !confirm("Continue with withdrawal?") {
+		return fmt.Errorf("withdrawal cancelled by user")
+	}
+	log.Println("")
+
+	if err := settlement.WithdrawToDistributor(ctx, amount); err != nil {
+		return fmt.Errorf("withdrawal failed: %w", err)
+	}
+
+	log.Printf("✅ USDT withdrawn successfully")
+	log.Println("")
+
+	// Step 4: Upload merkle root
+	log.Println("Step 4: Uploading merkle root...")
+	log.Println("")
+
+	log.Printf("⚠️  About to upload merkle root: 0x%x", merkleRoot)
+	if !confirm("Continue with upload?") {
+		return fmt.Errorf("upload cancelled by user")
+	}
+	log.Println("")
+
+	if err := settlement.UploadMerkleRoot(ctx, merkleRoot); err != nil {
+		return fmt.Errorf("merkle root upload failed: %w", err)
+	}
+
+	log.Printf("✅ Merkle root uploaded successfully")
+	log.Println("")
+	log.Printf("✅ Revenue settlement completed!")
+	log.Println("")
+	log.Printf("📝 Next: reward-settlement upload --type revenue")
+
+	return nil
+}
+
+func uploadRevenueRoot(ctx context.Context, kv *store.KVStore) error {
+	log.Println("⚠️  Revenue root upload already done during generate")
+	log.Println("")
+	log.Println("Revenue settlement uploads the Merkle root automatically")
+	log.Println("during the generate step (after withdrawal confirmation).")
+	log.Println("")
+	log.Println("If you need to re-upload, use the manual command:")
+	log.Println("")
+	log.Println("📋 Manual upload command:")
+	log.Printf("   cast send 0xE964B52D496F37749bd0caF287A356afdC10836C \\")
+	log.Printf("     'setMerkleRoot(bytes32)' <MERKLE_ROOT> \\")
+	log.Printf("     --rpc-url $RPC_URL --private-key <ADMIN_PRIVATE_KEY>")
+
+	return nil
+}
+
+// Helper function for user confirmation
+func confirm(prompt string) bool {
+	fmt.Printf("%s (y/n): ", prompt)
+	reader := bufio.NewReader(os.Stdin)
+	response, err := reader.ReadString('\n')
+	if err != nil {
+		return false
+	}
+	response = strings.ToLower(strings.TrimSpace(response))
+	return response == "y" || response == "yes"
 }
 
 func showStatus(ctx context.Context, kv *store.KVStore) error {
@@ -419,6 +545,17 @@ func settleAll(ctx context.Context, kv *store.KVStore) error {
 	if err := generateReferralSettlement(ctx, kv); err != nil {
 		log.Printf("⚠️  Referral settlement skipped: %v", err)
 		// Don't count as failed since it's not implemented yet
+	}
+	log.Println("")
+
+	// 4. Revenue Sharing
+	log.Println("4️⃣  Revenue Sharing (USDT Dividends)")
+	log.Println("───────────────────────────────────────────────────────────────")
+	if err := generateRevenueSettlement(ctx, kv); err != nil {
+		log.Printf("❌ Revenue settlement failed: %v", err)
+		failed++
+	} else {
+		success++
 	}
 	log.Println("")
 

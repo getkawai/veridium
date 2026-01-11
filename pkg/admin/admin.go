@@ -137,83 +137,89 @@ func (a *AdminManager) CalculateDividends(ctx context.Context) error {
 }
 
 // CalculateUSDTDividends generates the Merkle Tree for USDT profit distribution in Phase 2.
-// This distributes the remaining USDT Profit (after Contributor/Admin costs) to KAWAI Holders.
+// This distributes the platform USDT profit to KAWAI holders proportionally.
 func (a *AdminManager) CalculateUSDTDividends(ctx context.Context, totalProfit *big.Int) error {
-	log.Println("--- USDT Profit Distribution (Phase 2) ---")
+	log.Println("--- USDT Profit Distribution (Revenue Sharing) ---")
 
-	// 1. Get all KAWAI holders and their balances from blockchain
-	// For now, we'll use the accumulated USDT from contributors as a proxy
-	// In production, this should scan KAWAI token holders
-	contributors, err := a.Store.ListContributors(ctx)
+	// 1. Scan KAWAI holders from blockchain
+	scanner, err := blockchain.NewHolderScanner()
 	if err != nil {
-		return fmt.Errorf("failed to list contributors: %w", err)
+		return fmt.Errorf("failed to create holder scanner: %w", err)
 	}
-	if len(contributors) == 0 {
-		log.Println("No contributors/holders found.")
+
+	holders, err := scanner.ScanHoldersLatest(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to scan holders: %w", err)
+	}
+
+	if len(holders) == 0 {
+		log.Println("No KAWAI holders found.")
 		return nil
 	}
 
-	// 2. Calculate total KAWAI holdings (simplified: use AccumulatedRewards as proxy)
-	totalKawai := new(big.Int)
-	holderBalances := make(map[string]*big.Int)
-
-	for _, c := range contributors {
-		if c.AccumulatedRewards == "" || c.AccumulatedRewards == "0" {
-			continue
-		}
-		balance := new(big.Int)
-		balance.SetString(c.AccumulatedRewards, 10)
-		holderBalances[c.WalletAddress] = balance
-		totalKawai.Add(totalKawai, balance)
+	// 2. Get total supply
+	totalSupply, err := scanner.GetTotalSupply(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get total supply: %w", err)
 	}
 
-	if totalKawai.Cmp(big.NewInt(0)) == 0 {
-		log.Println("No KAWAI holdings found.")
-		return nil
-	}
-
-	log.Printf("Total KAWAI Holdings: %s", totalKawai.String())
+	log.Printf("Total KAWAI Supply: %s", totalSupply.String())
 	log.Printf("Total USDT Profit to Distribute: %s", totalProfit.String())
+	log.Printf("Number of Holders: %d", len(holders))
 
-	// 3. Generate Merkle Tree for USDT distribution
+	// 3. Validate holder balances
+	if err := blockchain.ValidateHolders(holders, totalSupply); err != nil {
+		log.Printf("⚠️  Warning: %v", err)
+		// Continue anyway - this is just a sanity check
+	}
+
+	// 4. Generate Merkle Tree for USDT distribution
 	var leaves [][]byte
 	var proofData []*store.MerkleProofData
 	var proofAddresses []string
 
 	currentIndex := uint64(0)
-	for addr, balance := range holderBalances {
-		// Calculate proportional share: (balance / totalKawai) * totalProfit
-		share := new(big.Int).Mul(balance, totalProfit)
-		share.Div(share, totalKawai)
+	for _, holder := range holders {
+		// Calculate proportional share: (balance / totalSupply) * totalProfit
+		share := blockchain.CalculateHolderShare(holder.Balance, totalSupply, totalProfit)
 
 		if share.Cmp(big.NewInt(0)) == 0 {
-			continue
+			continue // Skip holders with zero share
 		}
 
-		ethAddr := common.HexToAddress(addr)
-		leaf := merkle.HashLeaf(currentIndex, ethAddr, share)
+		leaf := merkle.HashLeaf(currentIndex, holder.Address, share)
 		leaves = append(leaves, leaf)
 
 		proofData = append(proofData, &store.MerkleProofData{
 			Index:  currentIndex,
 			Amount: share.String(),
 		})
-		proofAddresses = append(proofAddresses, addr)
+		proofAddresses = append(proofAddresses, holder.Address.Hex())
 		currentIndex++
 
-		log.Printf("Holder %s: %s KAWAI -> %s USDT share", addr, balance.String(), share.String())
+		// Calculate percentage using big.Float to avoid overflow
+		balanceFloat := new(big.Float).SetInt(holder.Balance)
+		supplyFloat := new(big.Float).SetInt(totalSupply)
+		percentage := new(big.Float).Quo(balanceFloat, supplyFloat)
+		percentFloat, _ := percentage.Float64()
+
+		log.Printf("Holder %s: %s KAWAI (%.4f%%) -> %s USDT dividend",
+			holder.Address.Hex(),
+			holder.Balance.String(),
+			percentFloat*100,
+			share.String())
 	}
 
 	if len(leaves) == 0 {
-		return nil
+		return fmt.Errorf("no valid dividend recipients")
 	}
 
-	// 4. Build Tree
+	// 5. Build Merkle Tree
 	tree := merkle.NewMerkleTree(leaves)
 	root := tree.Root
 	log.Printf("USDT Merkle Root: 0x%x", root)
 
-	// 5. Save Proofs (with different prefix to distinguish from KAWAI proofs)
+	// 6. Save Proofs (with "usdt:" prefix to distinguish from KAWAI proofs)
 	for i, pd := range proofData {
 		proof, ok := tree.GetProof(leaves[i])
 		if !ok {
@@ -236,5 +242,6 @@ func (a *AdminManager) CalculateUSDTDividends(ctx context.Context, totalProfit *
 	}
 
 	log.Println("Done. USDT Merkle Root generated and Proofs saved.")
+	log.Printf("📊 Summary: %d holders will receive dividends", len(proofData))
 	return nil
 }
