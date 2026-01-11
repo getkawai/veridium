@@ -1,26 +1,30 @@
-'use client';
+"use client";
 
-import { ActionIcon, Dropdown, Icon } from '@lobehub/ui';
-import { createStyles } from 'antd-style';
-import { Bot, MessageSquarePlus, SquarePlus, Users } from 'lucide-react';
-import { memo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Flexbox } from 'react-layout-kit';
+import { ActionIcon, Dropdown, Icon } from "@lobehub/ui";
+import { createStyles } from "antd-style";
+import { Bot, MessageSquarePlus, SquarePlus, Users } from "lucide-react";
+import { memo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Flexbox } from "react-layout-kit";
 
-import { ProductLogo } from '@/components/Branding';
-import { ChatGroupWizard } from '@/components/ChatGroupWizard';
-import { useGroupTemplates } from '@/components/ChatGroupWizard/templates';
-import { DESKTOP_HEADER_ICON_SIZE } from '@/const/layoutTokens';
-import { DEFAULT_CHAT_GROUP_CHAT_CONFIG } from '@/const/settings';
-import { useAsyncAction } from '@/hooks/useAsyncAction';
-import { useChatGroupStore } from '@/store/chatGroup';
-import { featureFlagsSelectors, useServerConfigStore } from '@/store/serverConfig';
-import { useSessionStore } from '@/store/session';
-import { sessionSelectors } from '@/store/session/slices/session/selectors';
-import { LobeAgentSession } from '@/types/session';
+import { ProductLogo } from "@/components/Branding";
+import { ChatGroupWizard } from "@/components/ChatGroupWizard";
+import { useGroupTemplates } from "@/components/ChatGroupWizard/templates";
+import { DESKTOP_HEADER_ICON_SIZE } from "@/const/layoutTokens";
+import { DEFAULT_CHAT_GROUP_CHAT_CONFIG } from "@/const/settings";
+import { useAsyncAction } from "@/hooks/useAsyncAction";
+import { useChatGroupStore } from "@/store/chatGroup";
+import TogglePanelButton from "@/app/chat/features/TogglePanelButton";
+import SessionSearchBar from "@/app/chat/SessionSearchBar";
+import {
+  featureFlagsSelectors,
+  useServerConfigStore,
+} from "@/store/serverConfig";
 
-import TogglePanelButton from '@/app/chat/features/TogglePanelButton';
-import SessionSearchBar from '@/app/chat/SessionSearchBar';
+import { getNullableString } from "@/types/database";
+import { sessionSelectors } from "@/store/session/slices/session/selectors";
+import { useSessionStore } from "@/store/session";
+import { useAgentStore } from "@/store/agent";
 
 export const useStyles = createStyles(({ css, token }) => ({
   logo: css`
@@ -36,14 +40,16 @@ export const useStyles = createStyles(({ css, token }) => ({
 
 const Header = memo(() => {
   const { styles } = useStyles();
-  const { t } = useTranslation('chat');
+  const { t } = useTranslation("chat");
   const groupTemplates = useGroupTemplates();
   const [createSession, refreshSessions] = useSessionStore((s) => [
     s.createSession,
     s.refreshSessions,
   ]);
   const [createGroup] = useChatGroupStore((s) => [s.createGroup]);
-  const { showCreateSession, enableGroupChat } = useServerConfigStore(featureFlagsSelectors);
+  const { showCreateSession, enableGroupChat } = useServerConfigStore(
+    featureFlagsSelectors,
+  );
   const [isGroupWizardOpen, setIsGroupWizardOpen] = useState(false);
 
   // const enableGroupChatInLabs = useUserStore(preferenceSelectors.enableGroupChat);
@@ -51,9 +57,8 @@ const Header = memo(() => {
   // We need pass inital member list so we cannot use mutate
   const [isCreatingGroup, setIsCreatingGroup] = useState(false);
 
-  const { mutate: mutateAgent, isValidating: isValidatingAgent } = useAsyncAction(
-    () => createSession(),
-  );
+  const { mutate: mutateAgent, isValidating: isValidatingAgent } =
+    useAsyncAction(() => createSession());
 
   const handleCreateGroupFromTemplate = async (
     templateId: string,
@@ -71,9 +76,11 @@ const Header = memo(() => {
 
       // Determine which members to create based on selection
       const membersToCreate =
-        typeof selectedMemberTitles === 'undefined'
+        typeof selectedMemberTitles === "undefined"
           ? template.members
-          : template.members.filter((m) => selectedMemberTitles.includes(m.title));
+          : template.members.filter((m) =>
+              selectedMemberTitles.includes(m.title),
+            );
 
       // Create assistants for each selected member and get their agent IDs
       const memberAgentIds: string[] = [];
@@ -99,11 +106,14 @@ const Header = memo(() => {
         await refreshSessions();
 
         // Get the agent ID from the created session
-        const session = sessionSelectors.getSessionById(sessionId)(useSessionStore.getState());
-        if (session && session.type === 'agent') {
-          const agentSession = session as LobeAgentSession;
-          if (agentSession.config?.id) {
-            memberAgentIds.push(agentSession.config.id);
+        const session = sessionSelectors.getSessionById(sessionId)(
+          useSessionStore.getState(),
+        );
+        if (session && getNullableString(session.type) === "agent") {
+          // Get agent config from AgentStore instead of accessing session.config directly
+          const agentConfig = useAgentStore.getState().agentMap[sessionId];
+          if (agentConfig?.id) {
+            memberAgentIds.push(agentConfig.id);
           }
         }
       }
@@ -114,9 +124,9 @@ const Header = memo(() => {
       });
 
       // Create the group with the agent IDs and host configuration
-      console.log('Creating group with hostConfig:', hostConfig);
+      console.log("Creating group with hostConfig:", hostConfig);
       console.log(
-        'Mapped config:',
+        "Mapped config:",
         hostConfig
           ? {
               orchestratorModel: hostConfig.model,
@@ -128,13 +138,18 @@ const Header = memo(() => {
       await createGroup(
         {
           config: {
-            ...(hostConfig
-              ? {
-                  orchestratorModel: hostConfig.model,
-                  orchestratorProvider: hostConfig.provider,
-                }
-              : {}),
+            allowDM: DEFAULT_CHAT_GROUP_CHAT_CONFIG.allowDM,
             enableSupervisor: enableSupervisor ?? true,
+            maxResponseInRow: DEFAULT_CHAT_GROUP_CHAT_CONFIG.maxResponseInRow,
+            orchestratorModel:
+              hostConfig?.model ??
+              DEFAULT_CHAT_GROUP_CHAT_CONFIG.orchestratorModel,
+            orchestratorProvider:
+              hostConfig?.provider ??
+              DEFAULT_CHAT_GROUP_CHAT_CONFIG.orchestratorProvider,
+            responseOrder: DEFAULT_CHAT_GROUP_CHAT_CONFIG.responseOrder,
+            responseSpeed: DEFAULT_CHAT_GROUP_CHAT_CONFIG.responseSpeed,
+            revealDM: DEFAULT_CHAT_GROUP_CHAT_CONFIG.revealDM,
             scene: DEFAULT_CHAT_GROUP_CHAT_CONFIG.scene,
           },
           title: template.title,
@@ -145,7 +160,7 @@ const Header = memo(() => {
       // Close the modal only after all requests are finished successfully
       setIsGroupWizardOpen(false);
     } catch (error) {
-      console.error('Failed to create group from template:', error);
+      console.error("Failed to create group from template:", error);
       // Keep modal open on error so user can try again
     } finally {
       setIsCreatingGroup(false);
@@ -160,9 +175,9 @@ const Header = memo(() => {
     // Don't close modal immediately for custom group creation either
     setIsCreatingGroup(true);
     try {
-      console.log('Creating custom group with hostConfig:', hostConfig);
+      console.log("Creating custom group with hostConfig:", hostConfig);
       console.log(
-        'Mapped config:',
+        "Mapped config:",
         hostConfig
           ? {
               orchestratorModel: hostConfig.model,
@@ -174,23 +189,28 @@ const Header = memo(() => {
       await createGroup(
         {
           config: {
-            ...(hostConfig
-              ? {
-                  orchestratorModel: hostConfig.model,
-                  orchestratorProvider: hostConfig.provider,
-                }
-              : {}),
+            allowDM: DEFAULT_CHAT_GROUP_CHAT_CONFIG.allowDM,
             enableSupervisor: enableSupervisor ?? true,
+            maxResponseInRow: DEFAULT_CHAT_GROUP_CHAT_CONFIG.maxResponseInRow,
+            orchestratorModel:
+              hostConfig?.model ??
+              DEFAULT_CHAT_GROUP_CHAT_CONFIG.orchestratorModel,
+            orchestratorProvider:
+              hostConfig?.provider ??
+              DEFAULT_CHAT_GROUP_CHAT_CONFIG.orchestratorProvider,
+            responseOrder: DEFAULT_CHAT_GROUP_CHAT_CONFIG.responseOrder,
+            responseSpeed: DEFAULT_CHAT_GROUP_CHAT_CONFIG.responseSpeed,
+            revealDM: DEFAULT_CHAT_GROUP_CHAT_CONFIG.revealDM,
             scene: DEFAULT_CHAT_GROUP_CHAT_CONFIG.scene,
           },
-          title: t('defaultGroupChat'),
+          title: t("defaultGroupChat"),
         },
         selectedAgents,
       );
       // Close modal only after successful creation
       setIsGroupWizardOpen(false);
     } catch (error) {
-      console.error('Failed to create group:', error);
+      console.error("Failed to create group:", error);
       // Keep modal open on error
     } finally {
       setIsCreatingGroup(false);
@@ -203,9 +223,9 @@ const Header = memo(() => {
 
   return (
     <Flexbox className={styles.top} gap={16} paddingInline={8}>
-      <Flexbox align={'flex-start'} horizontal justify={'space-between'}>
+      <Flexbox align={"flex-start"} horizontal justify={"space-between"}>
         <Flexbox
-          align={'center'}
+          align={"center"}
           gap={4}
           horizontal
           style={{
@@ -213,9 +233,9 @@ const Header = memo(() => {
             paddingTop: 2,
           }}
         >
-          <ProductLogo className={styles.logo} size={36} type={'text'} />
+          <ProductLogo className={styles.logo} size={36} type={"text"} />
         </Flexbox>
-        <Flexbox align={'center'} gap={4} horizontal>
+        <Flexbox align={"center"} gap={4} horizontal>
           <TogglePanelButton />
           {showCreateSession &&
             (enableGroupChat ? (
@@ -224,29 +244,29 @@ const Header = memo(() => {
                   items: [
                     {
                       icon: <Icon icon={Bot} />,
-                      key: 'newAgent',
-                      label: t('newAgent'),
+                      key: "newAgent",
+                      label: t("newAgent"),
                       onClick: () => {
                         mutateAgent();
                       },
                     },
                     {
                       icon: <Icon icon={Users} />,
-                      key: 'newGroup',
-                      label: t('newGroupChat'),
+                      key: "newGroup",
+                      label: t("newGroupChat"),
                       onClick: () => {
                         setIsGroupWizardOpen(true);
                       },
                     },
                   ],
                 }}
-                trigger={['hover']}
+                trigger={["hover"]}
               >
                 <ActionIcon
                   icon={SquarePlus}
                   loading={isValidatingAgent || isCreatingGroup}
                   size={DESKTOP_HEADER_ICON_SIZE}
-                  style={{ flex: 'none' }}
+                  style={{ flex: "none" }}
                 />
               </Dropdown>
             ) : (
@@ -255,10 +275,10 @@ const Header = memo(() => {
                 loading={isValidatingAgent}
                 onClick={() => mutateAgent()}
                 size={DESKTOP_HEADER_ICON_SIZE}
-                style={{ flex: 'none' }}
-                title={t('newAgent')}
+                style={{ flex: "none" }}
+                title={t("newAgent")}
                 tooltipProps={{
-                  placement: 'bottom',
+                  placement: "bottom",
                 }}
               />
             ))}

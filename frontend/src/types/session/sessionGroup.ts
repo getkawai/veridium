@@ -24,6 +24,20 @@ export interface CustomSessionGroup extends SessionGroupItem {
 
 export type LobeSessionGroups = SessionGroupItem[];
 
+/**
+ * Group member with agent information
+ * Used for displaying group members in UI with their agent metadata
+ */
+export interface GroupMemberWithAgent {
+  id: string;
+  avatar?: string;
+  backgroundColor?: string;
+  title?: string;
+  name?: string;
+  // Additional agent properties may be included
+  [key: string]: any;
+}
+
 export const mapSessionGroup = (group: SessionGroup): SessionGroupItem => {
   return {
     createdAt: new Date(group.createdAt),

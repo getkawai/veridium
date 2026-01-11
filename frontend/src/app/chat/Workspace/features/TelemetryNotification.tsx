@@ -1,17 +1,18 @@
-'use client';
+"use client";
 
-import { Avatar, Button, Icon } from '@lobehub/ui';
-import { createStyles } from 'antd-style';
-import { LucideArrowUpRightFromSquare, TelescopeIcon } from 'lucide-react';
-import { memo } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Flexbox } from 'react-layout-kit';
+import { Avatar, Button, Icon } from "@lobehub/ui";
+import { createStyles } from "antd-style";
+import { LucideArrowUpRightFromSquare, TelescopeIcon } from "lucide-react";
+import { memo } from "react";
+import { useTranslation } from "react-i18next";
+import { Flexbox } from "react-layout-kit";
 
-import Notification from '@/components/Notification';
-import { BRANDING_NAME } from '@/const/branding';
-import { PRIVACY_URL } from '@/const/url';
-import { useUserStore } from '@/store/user';
-import { preferenceSelectors } from '@/store/user/selectors';
+import Notification from "@/components/Notification";
+import { BRANDING_NAME } from "@/const/branding";
+import { PRIVACY_URL } from "@/const/url";
+import { useUserStore } from "@/store/user";
+import { preferenceSelectors } from "@/store/user/selectors";
+import { useCheckTrace } from "@/hooks/useCheckTrace";
 
 const useStyles = createStyles(({ css, token }) => ({
   desc: css`
@@ -26,13 +27,10 @@ const useStyles = createStyles(({ css, token }) => ({
 const TelemetryNotification = memo<{ mobile?: boolean }>(({ mobile }) => {
   const { styles, theme } = useStyles();
 
-  const { t } = useTranslation('common');
+  const { t } = useTranslation("common");
   const isPreferenceInit = useUserStore(preferenceSelectors.isPreferenceInit);
 
-  const [useCheckTrace, updatePreference] = useUserStore((s) => [
-    s.useCheckTrace,
-    s.updatePreference,
-  ]);
+  const [updatePreference] = useUserStore((s) => s.updatePreference);
 
   const { data: showModal, mutate } = useCheckTrace(isPreferenceInit);
 
@@ -53,14 +51,17 @@ const TelemetryNotification = memo<{ mobile?: boolean }>(({ mobile }) => {
       <Flexbox gap={16}>
         <Flexbox gap={12}>
           <Flexbox className={styles.title}>
-            {t('telemetry.title', { appName: BRANDING_NAME })}
+            {t("telemetry.title", { appName: BRANDING_NAME })}
           </Flexbox>
           <div className={styles.desc}>
-            {t('telemetry.desc', { appName: BRANDING_NAME })}
+            {t("telemetry.desc", { appName: BRANDING_NAME })}
             <span>
-              <a data-wml-openurl={PRIVACY_URL} target={'_blank'}>
-                {t('telemetry.learnMore')}
-                <Icon icon={LucideArrowUpRightFromSquare} style={{ marginInlineStart: 4 }} />
+              <a data-wml-openurl={PRIVACY_URL} target={"_blank"}>
+                {t("telemetry.learnMore")}
+                <Icon
+                  icon={LucideArrowUpRightFromSquare}
+                  style={{ marginInlineStart: 4 }}
+                />
               </a>
             </span>
           </div>
@@ -70,17 +71,17 @@ const TelemetryNotification = memo<{ mobile?: boolean }>(({ mobile }) => {
             onClick={() => {
               updateTelemetry(true);
             }}
-            type={'primary'}
+            type={"primary"}
           >
-            {t('telemetry.allow')}
+            {t("telemetry.allow")}
           </Button>
           <Button
             onClick={() => {
               updateTelemetry(false);
             }}
-            type={'text'}
+            type={"text"}
           >
-            {t('telemetry.deny')}
+            {t("telemetry.deny")}
           </Button>
         </Flexbox>
       </Flexbox>

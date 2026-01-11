@@ -1,17 +1,17 @@
-'use client';
+"use client";
 
-import { EditableMessage } from '@lobehub/ui/chat';
-import { MouseEvent, memo } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Flexbox } from 'react-layout-kit';
+import { EditableMessage } from "@lobehub/ui/chat";
+import { MouseEvent, memo } from "react";
+import { useTranslation } from "react-i18next";
+import { Flexbox } from "react-layout-kit";
 
-import GroupInfo from '@/features/GroupInfo';
-import { useChatGroupStore } from '@/store/chatGroup';
-import { chatGroupSelectors } from '@/store/chatGroup/selectors';
-import { useSessionStore } from '@/store/session';
-import { LobeSession } from '@/types/session';
+import GroupInfo from "@/features/GroupInfo";
+import { useChatGroupStore } from "@/store/chatGroup";
+import { chatGroupSelectors } from "@/store/chatGroup/selectors";
+import { useSessionStore } from "@/store/session";
+import { LobeSession, getSessionMeta } from "@/types/session";
 
-import { useStyles } from './style';
+import { useStyles } from "./style";
 
 interface GroupRoleProps {
   currentSession?: LobeSession;
@@ -22,13 +22,21 @@ interface GroupRoleProps {
 }
 
 const GroupRole = memo<GroupRoleProps>(
-  ({ currentSession, editorModalOpen, setEditorModalOpen, setEditing, editing }) => {
+  ({
+    currentSession,
+    editorModalOpen,
+    setEditorModalOpen,
+    setEditing,
+    editing,
+  }) => {
     const { styles } = useStyles();
-    const { t } = useTranslation('chat');
+    const { t } = useTranslation("chat");
 
     const activeGroupId = useSessionStore((s) => s.activeId);
     const updateGroupConfig = useChatGroupStore((s) => s.updateGroupConfig);
-    const groupConfig = useChatGroupStore(chatGroupSelectors.currentGroupConfig);
+    const groupConfig = useChatGroupStore(
+      chatGroupSelectors.currentGroupConfig,
+    );
 
     const handleSystemPromptChange = async (value: string) => {
       if (!activeGroupId) return;
@@ -55,32 +63,37 @@ const GroupRole = memo<GroupRoleProps>(
           editing={editing}
           markdownProps={{ enableLatex: false, enableMermaid: false }}
           model={{
-            extra: <GroupInfo meta={currentSession?.meta} style={{ marginBottom: 16 }} />,
+            extra: (
+              <GroupInfo
+                meta={getSessionMeta(currentSession)}
+                style={{ marginBottom: 16 }}
+              />
+            ),
           }}
           onChange={handleSystemPromptChange}
           onEditingChange={setEditing}
           onOpenChange={setEditorModalOpen}
           openModal={editorModalOpen}
-          placeholder={`${t('settingGroup.systemPrompt.placeholder', { ns: 'setting' })}...`}
+          placeholder={`${t("settingGroup.systemPrompt.placeholder", { ns: "setting" })}...`}
           styles={{
             markdown: {
               opacity: groupConfig?.systemPrompt ? undefined : 0.5,
-              overflow: 'visible',
+              overflow: "visible",
             },
           }}
           text={{
-            cancel: t('cancel', { ns: 'common' }),
-            confirm: t('ok', { ns: 'common' }),
-            edit: t('edit', { ns: 'common' }),
-            title: t('settingGroup.systemPrompt.title', { ns: 'setting' }),
+            cancel: t("cancel", { ns: "common" }),
+            confirm: t("ok", { ns: "common" }),
+            edit: t("edit", { ns: "common" }),
+            title: t("settingGroup.systemPrompt.title", { ns: "setting" }),
           }}
-          value={groupConfig?.systemPrompt || ''}
+          value={groupConfig?.systemPrompt || ""}
         />
       </Flexbox>
     );
   },
 );
 
-GroupRole.displayName = 'GroupRole';
+GroupRole.displayName = "GroupRole";
 
 export default GroupRole;

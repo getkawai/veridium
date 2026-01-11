@@ -25,6 +25,10 @@ import (
 	"github.com/kawai-network/veridium/pkg/tunnelkit"
 )
 
+const (
+	SentryDSN = "https://6d138acbdde2516e32e24f016b472031@o4510620614983680.ingest.us.sentry.io/4510620618850304"
+)
+
 func main() {
 	// CLI flags
 
@@ -37,7 +41,7 @@ func main() {
 	// Step 0: Initialize Sentry
 	// ============================================
 	err := sentry.Init(sentry.ClientOptions{
-		Dsn:              "https://6d138acbdde2516e32e24f016b472031@o4510620614983680.ingest.us.sentry.io/4510620618850304",
+		Dsn:              SentryDSN,
 		EnableTracing:    true,
 		TracesSampleRate: 1.0,
 		EnableLogs:       true, // Enable Logger API as requested
@@ -51,11 +55,12 @@ func main() {
 	})
 	if err != nil {
 		slog.Error("Sentry initialization failed", "error", err)
-	} else {
-		// Flush buffered events before the program terminates.
-		// Set the timeout to the maximum duration the program can afford to wait.
-		defer sentry.Flush(2 * time.Second)
+	}
 
+	// Always defer flush, even if init failed (it's a no-op then) or if we error out later
+	defer sentry.Flush(2 * time.Second)
+
+	if err == nil {
 		// properties of the logger
 		handler := slog.NewTextHandler(os.Stderr, nil)
 		// wrap the handler with SentryHandler
@@ -167,6 +172,10 @@ func main() {
 	tunnelURL := startTunnel(tunnelCtx)
 	if tunnelURL != "" {
 		slog.Info("✓ Tunnel", "url", tunnelURL)
+	} else {
+		// Fatal error: contributor needs public endpoint
+		slog.Error("No public tunnel available. Cannot start contributor.")
+		os.Exit(1)
 	}
 
 	endpointURL := tunnelURL
@@ -224,7 +233,11 @@ func main() {
 	}
 	slog.Info("✓ LLM ready")
 
-	whisperService, _ := whisper.NewService()
+	whisperService, err := whisper.NewService()
+	if err != nil {
+		slog.Error("Failed to initialize Whisper service", "error", err)
+		os.Exit(1)
+	}
 	whisperExecutor := gateway.NewWhisperExecutor(whisperService)
 
 	sdEngine := image.NewEngine()
@@ -258,12 +271,15 @@ func main() {
 	<-quit
 
 	// Cleanup: mark offline
-	if err := kv.UpdateHeartbeat(ctx, address); err == nil {
-		// Could set status to offline here if needed
-	}
-
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
+	if err := kv.MarkContributorOffline(shutdownCtx, address); err != nil {
+		slog.Warn("Failed to mark contributor offline", "error", err)
+	} else {
+		slog.Info("✓ Contributor marked offline")
+	}
+
 	server.Stop(shutdownCtx)
 }
 

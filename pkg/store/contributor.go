@@ -145,6 +145,19 @@ func (s *KVStore) UpdateHeartbeat(ctx context.Context, address string) error {
 	return s.SaveContributor(ctx, contributor)
 }
 
+// MarkContributorOffline marks the contributor as offline
+func (s *KVStore) MarkContributorOffline(ctx context.Context, address string) error {
+	contributor, err := s.GetContributor(ctx, address)
+	if err != nil {
+		return err
+	}
+
+	contributor.Status = ContributorStatusOffline
+	contributor.LastSeen = time.Now()
+
+	return s.SaveContributor(ctx, contributor)
+}
+
 // DeductSettledRewards deducts the settled amount from contributor's balance.
 // This prevents race conditions where new rewards arrived during settlement.
 func (s *KVStore) DeductSettledRewards(ctx context.Context, address string, rewardType string, amountToDeduct string) error {

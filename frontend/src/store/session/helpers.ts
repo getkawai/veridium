@@ -1,13 +1,12 @@
-
 /**
  * Session Store Helper Utilities
- * 
+ *
  * Utility functions for mapping database results to frontend types
  * and converting frontend types to database params.
  */
 
-import { LobeAgentConfig, LobeSessionType } from '@/types';
-import { DEFAULT_AGENT_CHAT_CONFIG } from '@/const/settings';
+import { LobeAgentConfig, LobeSessionType } from "@/types";
+import { DEFAULT_AGENT_CHAT_CONFIG } from "@/const/settings";
 import {
   getNullableString,
   getNullableInt,
@@ -16,14 +15,54 @@ import {
   toNullInt,
   boolToInt,
   parseNullableJSON,
-} from '@/types/database';
+} from "@/types/database";
+import { MetaData } from "@/types/meta";
 
-const DEFAULT_USER_ID = 'DEFAULT_LOBE_CHAT_USER';
+const DEFAULT_USER_ID = "DEFAULT_LOBE_CHAT_USER";
 
 /**
  * Get the default user ID
  */
 export const getUserId = () => DEFAULT_USER_ID;
+
+/**
+ * Get session meta from session object
+ * Session table has flat properties (title, description, avatar, backgroundColor)
+ * instead of nested meta object
+ */
+export const getSessionMeta = (session: any): MetaData => {
+  if (!session) return {};
+
+  return {
+    title: getNullableString(session?.title),
+    description: getNullableString(session?.description),
+    avatar: getNullableString(session?.avatar),
+    backgroundColor: getNullableString(session?.backgroundColor),
+    tags: session?.tags ? parseNullableJSON(session?.tags) : undefined,
+  };
+};
+
+/**
+ * Get session config from agent store
+ * Config is stored separately in Agent table and accessed via agentMap
+ */
+export const getSessionConfig = (
+  sessionId: string,
+  agentMap: Record<string, Partial<LobeAgentConfig>>,
+): Partial<LobeAgentConfig> | undefined => {
+  return agentMap[sessionId];
+};
+
+/**
+ * Get session members for group sessions
+ * Group members are stored in a separate table (ChatGroupAgents)
+ * This helper returns empty array as members need to be fetched separately
+ */
+export const getSessionMembers = (session: any): any[] => {
+  // Group sessions don't have members in Session table anymore
+  // Members are fetched from ChatGroup table via junction table
+  return [];
+};
 
 /**
  * Map Session from database to frontend type
@@ -37,10 +76,11 @@ export const getUserId = () => DEFAULT_USER_ID;
 export const mapAgentConfigFromDB = (agent: any): LobeAgentConfig => {
   return {
     id: agent.id,
-    model: getNullableString(agent.model) || '',
-    systemRole: getNullableString(agent.systemRole) || '',
+    model: getNullableString(agent.model) || "",
+    systemRole: getNullableString(agent.systemRole) || "",
     plugins: parseNullableJSON(agent.plugins) || [],
-    chatConfig: parseNullableJSON(agent.chatConfig) || DEFAULT_AGENT_CHAT_CONFIG,
+    chatConfig:
+      parseNullableJSON(agent.chatConfig) || DEFAULT_AGENT_CHAT_CONFIG,
     params: parseNullableJSON(agent.params) || {},
     openingMessage: getNullableString(agent.openingMessage),
     openingQuestions: parseNullableJSON(agent.openingQuestions) || [],
@@ -56,7 +96,7 @@ export const mapAgentConfigFromDB = (agent: any): LobeAgentConfig => {
 export const mapSessionGroupFromDB = (dbGroup: any) => {
   return {
     id: dbGroup.id,
-    name: getNullableString(dbGroup.name) || '',
+    name: getNullableString(dbGroup.name) || "",
     sort: getNullableInt(dbGroup.sort) || 0,
     createdAt: new Date(dbGroup.createdAt),
     updatedAt: new Date(dbGroup.updatedAt),
@@ -67,7 +107,11 @@ export const mapSessionGroupFromDB = (dbGroup: any) => {
 /**
  * Convert frontend session data to database params for create
  */
-export const sessionToCreateParams = (type: LobeSessionType, data: any, userId: string) => {
+export const sessionToCreateParams = (
+  type: LobeSessionType,
+  data: any,
+  userId: string,
+) => {
   const now = Date.now();
 
   return {
@@ -77,8 +121,10 @@ export const sessionToCreateParams = (type: LobeSessionType, data: any, userId: 
       title: toNullString(data.meta?.title || data.title),
       description: toNullString(data.meta?.description || data.description),
       avatar: toNullString(data.meta?.avatar || data.avatar),
-      backgroundColor: toNullString(data.meta?.backgroundColor || data.backgroundColor),
-      groupId: toNullString(data.group === 'default' ? null : data.group),
+      backgroundColor: toNullString(
+        data.meta?.backgroundColor || data.backgroundColor,
+      ),
+      groupId: toNullString(data.group === "default" ? null : data.group),
       pinned: toNullInt(data.pinned ? 1 : 0),
       userId,
       createdAt: data.createdAt ? data.createdAt.getTime() : now,
@@ -86,7 +132,7 @@ export const sessionToCreateParams = (type: LobeSessionType, data: any, userId: 
     },
     agent: {
       id: data.config?.id || crypto.randomUUID(),
-      sessionId: data.id || '',
+      sessionId: data.id || "",
       model: toNullString(data.config?.model),
       systemRole: toNullString(data.config?.systemRole),
       plugins: toNullJSON(data.config?.plugins),
@@ -107,7 +153,11 @@ export const sessionToCreateParams = (type: LobeSessionType, data: any, userId: 
 /**
  * Convert frontend session update data to database params
  */
-export const sessionToUpdateParams = (id: string, data: any, userId: string) => {
+export const sessionToUpdateParams = (
+  id: string,
+  data: any,
+  userId: string,
+) => {
   const now = Date.now();
 
   return {
@@ -116,9 +166,15 @@ export const sessionToUpdateParams = (id: string, data: any, userId: string) => 
     title: data.title ? toNullString(data.title) : undefined,
     description: data.description ? toNullString(data.description) : undefined,
     avatar: data.avatar ? toNullString(data.avatar) : undefined,
-    backgroundColor: data.backgroundColor ? toNullString(data.backgroundColor) : undefined,
-    groupId: data.group !== undefined ? toNullString(data.group === 'default' ? null : data.group) : undefined,
-    pinned: data.pinned !== undefined ? toNullInt(boolToInt(data.pinned)) : undefined,
+    backgroundColor: data.backgroundColor
+      ? toNullString(data.backgroundColor)
+      : undefined,
+    groupId:
+      data.group !== undefined
+        ? toNullString(data.group === "default" ? null : data.group)
+        : undefined,
+    pinned:
+      data.pinned !== undefined ? toNullInt(boolToInt(data.pinned)) : undefined,
     updatedAt: now,
   };
 };
