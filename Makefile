@@ -541,6 +541,10 @@ test-inject-mining-data:
 	@echo "💉 Injecting test mining reward data..."
 	@go run cmd/dev/test-inject-mining-data/main.go
 
+inject-test-usdt:
+	@echo "💵 Injecting test USDT to PaymentVault..."
+	@go run cmd/dev/inject-test-usdt/main.go
+
 # ==============================================================================
 # Testing Helpers
 # ==============================================================================

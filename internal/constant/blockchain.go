@@ -15,8 +15,9 @@ const (
 
 	// Holder Scanner Configuration
 	// HolderScanStartBlock: Starting block for holder scanning
-	// - Testnet: 0 (scan from genesis - acceptable for small blockchain)
+	// - Testnet: Set to recent block to avoid RPC limits (max 100 blocks per query)
 	// - Mainnet: Set to token deployment block to optimize performance
 	// Example: If token deployed at block 1000000, set HolderScanStartBlock = 1000000
-	HolderScanStartBlock = 0
+	// Current: 5437070 (for testing - within 90 blocks to stay under RPC 100 block limit)
+	HolderScanStartBlock = 5437070
 )
