@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
@@ -19,6 +20,7 @@ import (
 	"github.com/tyler-smith/go-bip39"
 
 	"github.com/kawai-network/veridium/internal/paths"
+	"github.com/kawai-network/veridium/pkg/blockchain"
 	"github.com/kawai-network/veridium/pkg/jarvis/accounts"
 	"github.com/kawai-network/veridium/pkg/jarvis/accounts/types"
 	"github.com/kawai-network/veridium/pkg/jarvis/util/account"
@@ -46,12 +48,18 @@ type WalletService struct {
 	currentAccount *account.Account
 	address        string
 	kvStore        *store.KVStore
+	holderRegistry *blockchain.HolderRegistry
 }
 
 // NewWalletService creates a new wallet service
 func NewWalletService(dataDir string, kvStore *store.KVStore) *WalletService {
+	var holderRegistry *blockchain.HolderRegistry
+	if kvStore != nil {
+		holderRegistry = blockchain.NewHolderRegistry(kvStore)
+	}
 	return &WalletService{
-		kvStore: kvStore,
+		kvStore:        kvStore,
+		holderRegistry: holderRegistry,
 	}
 }
 
@@ -176,6 +184,9 @@ func (s *WalletService) CreateWallet(password string, mnemonic string, descripti
 	s.address = address
 	s.mu.Unlock()
 
+	// Register holder in registry
+	s.registerHolderAsync(address)
+
 	return address, nil
 }
 
@@ -208,6 +219,9 @@ func (s *WalletService) SwitchWallet(address string, password string) (string, e
 	s.address = acc.AddressHex()
 	s.mu.Unlock()
 
+	// Register holder in registry
+	s.registerHolderAsync(s.address)
+
 	return s.address, nil
 }
 
@@ -234,6 +248,9 @@ func (s *WalletService) UnlockWallet(password string) (string, error) {
 	s.currentAccount = acc
 	s.address = acc.AddressHex()
 	s.mu.Unlock()
+
+	// Register holder in registry
+	s.registerHolderAsync(s.address)
 
 	return s.address, nil
 }
@@ -350,6 +367,9 @@ func (s *WalletService) ImportKeystore(keystoreJSON string, password string, des
 	s.address = address
 	s.mu.Unlock()
 
+	// Register holder in registry
+	s.registerHolderAsync(address)
+
 	return address, nil
 }
 
@@ -427,6 +447,9 @@ func (s *WalletService) ImportPrivateKey(privateKeyHex string, password string, 
 	s.address = address
 	s.mu.Unlock()
 
+	// Register holder in registry
+	s.registerHolderAsync(address)
+
 	return address, nil
 }
 
@@ -497,4 +520,20 @@ func (s *WalletService) getTransactOpts(chainId *big.Int) (*bind.TransactOpts, e
 			return signedTx, err
 		},
 	}, nil
+}
+
+// registerHolderAsync registers the current wallet address as a KAWAI holder (non-blocking)
+func (s *WalletService) registerHolderAsync(address string) {
+	if s.holderRegistry == nil {
+		return
+	}
+
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := s.holderRegistry.RegisterHolder(ctx, common.HexToAddress(address), "desktop"); err != nil {
+			// Log but don't fail - holder registration is best-effort
+			fmt.Printf("⚠️ Failed to register holder: %v\n", err)
+		}
+	}()
 }

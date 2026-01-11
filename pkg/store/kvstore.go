@@ -93,6 +93,7 @@ type KVStore struct {
 	p2pMarketplaceNamespaceID string
 	usersNamespaceID          string // Namespace for user data (balance, trial, etc)
 	cashbackNamespaceID       string // Namespace for cashback data (deposits, stats, proofs)
+	holderNamespaceID         string // Namespace for KAWAI holder registry
 
 	// ✅ Rate limiter for KV operations
 	rateLimiter *rate.Limiter
@@ -118,6 +119,7 @@ func NewMultiNamespaceKVStore() (*KVStore, error) {
 		p2pMarketplaceNamespaceID: constant.GetCfKvP2pMarketplaceNamespaceId(),
 		usersNamespaceID:          constant.GetCfKvUsersNamespaceId(),
 		cashbackNamespaceID:       constant.GetCfKvCashbackNamespaceId(),
+		holderNamespaceID:         constant.GetCfKvHolderNamespaceId(),
 		rateLimiter:               rate.NewLimiter(rate.Limit(100), 200), // ✅ 100 ops/sec, burst 200
 	}, nil
 }

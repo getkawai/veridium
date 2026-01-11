@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/getsentry/sentry-go"
 	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/internal/image"
@@ -131,6 +132,17 @@ func main() {
 		os.Exit(1)
 	}
 	slog.Info("✓ Wallet", "address", address)
+
+	// ============================================
+	// Step 2.5: Register Holder (KAWAI Token Holder Registry)
+	// ============================================
+	holderRegistry := blockchain.NewHolderRegistry(kv)
+	if err := holderRegistry.RegisterHolder(ctx, common.HexToAddress(address), "cli"); err != nil {
+		slog.Warn("⚠️ Failed to register holder", "error", err)
+		// Non-fatal - continue anyway
+	} else {
+		slog.Info("✓ Holder registered")
+	}
 
 	// ============================================
 	// Step 3: Detect Hardware

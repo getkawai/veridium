@@ -152,6 +152,64 @@ func (hs *HolderScanner) ScanHoldersLatest(ctx context.Context) ([]*KawaiHolder,
 	return hs.ScanHolders(ctx, startBlock, big.NewInt(int64(latestBlock)))
 }
 
+// ScanHoldersFromBlock scans holders from a specific start block to latest
+// This is used for hybrid holder scanning (registry + recent blockchain scan)
+// to work around Monad testnet's 100-block RPC limit
+func (hs *HolderScanner) ScanHoldersFromBlock(ctx context.Context, startBlock uint64) ([]common.Address, error) {
+	// Get latest block
+	latestBlock, err := hs.client.BlockNumber(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get latest block: %w", err)
+	}
+
+	log.Printf("📊 [HOLDER SCANNER] Scanning recent transfers from block %d to %d", startBlock, latestBlock)
+
+	// Get all Transfer events with block range filter
+	filterOpts := &bind.FilterOpts{
+		Start:   startBlock,
+		End:     &latestBlock,
+		Context: ctx,
+	}
+
+	transferIterator, err := hs.kawaiToken.FilterTransfer(filterOpts, nil, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to filter Transfer events: %w", err)
+	}
+	defer transferIterator.Close()
+
+	// Collect unique addresses
+	addressSet := make(map[common.Address]bool)
+	for transferIterator.Next() {
+		event := transferIterator.Event
+
+		// Add both sender and receiver
+		if event.From != (common.Address{}) { // Not mint
+			addressSet[event.From] = true
+		}
+		if event.To != (common.Address{}) { // Not burn
+			addressSet[event.To] = true
+		}
+	}
+
+	if err := transferIterator.Error(); err != nil {
+		return nil, fmt.Errorf("error iterating Transfer events: %w", err)
+	}
+
+	// Convert map to slice
+	addresses := make([]common.Address, 0, len(addressSet))
+	for addr := range addressSet {
+		addresses = append(addresses, addr)
+	}
+
+	log.Printf("📊 [HOLDER SCANNER] Found %d unique addresses in recent transfers", len(addresses))
+	return addresses, nil
+}
+
+// GetBalance returns the current KAWAI balance for an address
+func (hs *HolderScanner) GetBalance(ctx context.Context, address common.Address) (*big.Int, error) {
+	return hs.kawaiToken.BalanceOf(&bind.CallOpts{Context: ctx}, address)
+}
+
 // GetTotalSupply returns the total KAWAI supply
 func (hs *HolderScanner) GetTotalSupply(ctx context.Context) (*big.Int, error) {
 	return hs.kawaiToken.TotalSupply(nil)

@@ -38,6 +38,8 @@ var supportedVars = []ConfigVar{
 	{EnvKey: "CF_KV_P2PMARKETPLACE_NAMESPACE_ID", GoName: "CfKvP2pMarketplaceNamespaceId", Comment: "Namespace for P2P marketplace data", IsNamespace: true, Order: 25},
 	{EnvKey: "CF_KV_USERS_NAMESPACE_ID", GoName: "CfKvUsersNamespaceId", Comment: "Namespace for user data", IsNamespace: true, Order: 26},
 	{EnvKey: "CF_KV_CASHBACK_NAMESPACE_ID", GoName: "CfKvCashbackNamespaceId", Comment: "Namespace for cashback data", IsNamespace: true, Order: 27},
+	{EnvKey: "CF_KV_HOLDER_NAMESPACE_ID", GoName: "CfKvHolderNamespaceId", Comment: "Namespace for holder data", IsNamespace: true, Order: 28},
+	{EnvKey: "CF_KV_REVENUE_SHARING_NAMESPACE_ID", GoName: "CfKvRevenueSharingNamespaceId", Comment: "Namespace for revenue sharing data", IsNamespace: true, Order: 29},
 }
 
 // Define all supported Telegram variables

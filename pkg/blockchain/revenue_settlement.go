@@ -141,21 +141,105 @@ func (rs *RevenueSettlement) SettleRevenue(ctx context.Context, period uint64) (
 
 	log.Printf("💵 [REVENUE SETTLEMENT] Total revenue to distribute: %s USDT", totalRevenue.String())
 
-	// 2. Scan KAWAI holders from blockchain
+	// 2. Get KAWAI holders using HYBRID approach (Registry + Recent Blockchain Scan)
+	// This solves the Monad testnet RPC 100-block limit issue
+	log.Printf("📊 [REVENUE SETTLEMENT] Scanning holders (hybrid: registry + blockchain)")
+
+	// 2a. Get holders from registry (desktop + CLI auto-registration)
+	holderRegistry := NewHolderRegistry(rs.kvStore)
+	registryAddresses, err := holderRegistry.GetAllHolders(ctx)
+	if err != nil {
+		log.Printf("⚠️  [REVENUE SETTLEMENT] Failed to get registry holders: %v", err)
+		registryAddresses = []common.Address{} // Continue with empty registry
+	}
+	log.Printf("📋 [REVENUE SETTLEMENT] Registry holders: %d", len(registryAddresses))
+
+	// 2b. Scan recent blockchain transfers (last 90 blocks to stay under RPC limit)
 	scanner, err := NewHolderScanner()
 	if err != nil {
 		return emptyRoot, fmt.Errorf("failed to create holder scanner: %w", err)
 	}
 
-	holders, err := scanner.ScanHoldersLatest(ctx)
+	// Get current block
+	currentBlock, err := rs.client.BlockNumber(ctx)
 	if err != nil {
-		return emptyRoot, fmt.Errorf("failed to scan holders: %w", err)
+		return emptyRoot, fmt.Errorf("failed to get current block: %w", err)
+	}
+
+	// Scan last 90 blocks (safe margin under 100-block RPC limit)
+	startBlock := currentBlock
+	if currentBlock > 90 {
+		startBlock = currentBlock - 90
+	}
+
+	recentHolders, err := scanner.ScanHoldersFromBlock(ctx, startBlock)
+	if err != nil {
+		log.Printf("⚠️  [REVENUE SETTLEMENT] Failed to scan recent blockchain holders: %v", err)
+		recentHolders = []common.Address{} // Continue with empty recent scan
+	}
+	log.Printf("🔍 [REVENUE SETTLEMENT] Recent blockchain holders (blocks %d-%d): %d", startBlock, currentBlock, len(recentHolders))
+
+	// 2c. Merge and deduplicate holder addresses
+	holderMap := make(map[common.Address]bool)
+	for _, addr := range registryAddresses {
+		holderMap[addr] = true
+	}
+	for _, addr := range recentHolders {
+		holderMap[addr] = true
+	}
+
+	// Convert map to slice
+	var holderAddresses []common.Address
+	for addr := range holderMap {
+		holderAddresses = append(holderAddresses, addr)
+	}
+
+	log.Printf("📊 [REVENUE SETTLEMENT] Total unique holders: %d (registry: %d, recent: %d)",
+		len(holderAddresses), len(registryAddresses), len(recentHolders))
+
+	if len(holderAddresses) == 0 {
+		return emptyRoot, fmt.Errorf("no KAWAI holders found - cannot generate settlement")
+	}
+
+	// 2d. Query current balances for all holders
+	var holders []*KawaiHolder
+	failedQueries := 0
+
+	for _, addr := range holderAddresses {
+		balance, err := scanner.GetBalance(ctx, addr)
+		if err != nil {
+			log.Printf("⚠️  [REVENUE SETTLEMENT] Failed to get balance for %s: %v", addr.Hex(), err)
+			failedQueries++
+			continue
+		}
+
+		// Skip holders with zero balance
+		if balance.Cmp(big.NewInt(0)) == 0 {
+			continue
+		}
+
+		holders = append(holders, &KawaiHolder{
+			Address: addr,
+			Balance: balance,
+		})
+	}
+
+	// Check failure rate - abort if data quality is insufficient
+	if failedQueries > 0 {
+		failureRate := float64(failedQueries) / float64(len(holderAddresses)) * 100
+		log.Printf("⚠️  [REVENUE SETTLEMENT] Balance query failures: %d/%d (%.2f%%)", failedQueries, len(holderAddresses), failureRate)
+
+		if failureRate > 10.0 {
+			return emptyRoot, fmt.Errorf("too many failed balance queries: %d/%d (%.2f%%) - data quality insufficient for settlement",
+				failedQueries, len(holderAddresses), failureRate)
+		}
 	}
 
 	if len(holders) == 0 {
-		log.Println("⚠️  [REVENUE SETTLEMENT] No KAWAI holders found")
-		return emptyRoot, nil
+		return emptyRoot, fmt.Errorf("no holders with non-zero balance - cannot generate settlement")
 	}
+
+	log.Printf("📊 [REVENUE SETTLEMENT] Holders with balance: %d", len(holders))
 
 	// 3. Get total supply
 	totalSupply, err := scanner.GetTotalSupply(ctx)

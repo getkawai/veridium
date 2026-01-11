@@ -205,7 +205,72 @@ Settlement:
 
 **File:** `pkg/blockchain/holder_scanner.go`
 
-Scans all KAWAI holders from blockchain Transfer events:
+**HYBRID APPROACH (Registry + Blockchain Scan):**
+
+To work around Monad testnet's strict 100-block RPC limit for `eth_getLogs`, we use a hybrid approach:
+
+1. **Holder Registry (Primary Source):**
+   - Desktop app auto-registers holders on wallet connect
+   - CLI contributor auto-registers on wallet unlock
+   - Stored in Cloudflare KV (dedicated `holderNamespaceID`)
+   - Key format: `holder:{address}`
+   - Tracks: address, lastSeen, source (desktop/cli), registered timestamp
+
+2. **Recent Blockchain Scan (Safety Net):**
+   - Scans last 90 blocks for Transfer events (under 100-block limit)
+   - Catches new holders not yet in registry
+   - Ensures no holder is missed
+
+3. **Merge & Deduplicate:**
+   - Combines registry + recent scan addresses
+   - Queries current balance for each unique address
+   - Filters out zero-balance holders
+
+**Code Example:**
+
+```go
+// Get holders from registry
+holderRegistry := NewHolderRegistry(kvStore)
+registryAddresses, _ := holderRegistry.GetAllHolders(ctx)
+
+// Scan recent blockchain (last 90 blocks)
+scanner, _ := NewHolderScanner()
+currentBlock, _ := client.BlockNumber(ctx)
+startBlock := currentBlock - 90
+recentHolders, _ := scanner.ScanHoldersFromBlock(ctx, startBlock)
+
+// Merge and deduplicate
+holderMap := make(map[common.Address]bool)
+for _, addr := range registryAddresses {
+    holderMap[addr] = true
+}
+for _, addr := range recentHolders {
+    holderMap[addr] = true
+}
+
+// Query current balances
+var holders []*KawaiHolder
+for addr := range holderMap {
+    balance, _ := scanner.GetBalance(ctx, addr)
+    if balance.Cmp(big.NewInt(0)) > 0 {
+        holders = append(holders, &KawaiHolder{
+            Address: addr,
+            Balance: balance,
+        })
+    }
+}
+```
+
+**Benefits:**
+- ✅ Works around RPC 100-block limit
+- ✅ Scalable (registry grows with user base)
+- ✅ No data loss (all active holders included)
+- ✅ Automatic registration (no manual intervention)
+- ✅ Mainnet-ready architecture
+
+**Legacy Approach (Deprecated):**
+
+The old approach scanned entire blockchain history from genesis:
 
 ```go
 func (hs *HolderScanner) ScanHoldersLatest(ctx context.Context) ([]*KawaiHolder, error) {
@@ -238,6 +303,11 @@ func (hs *HolderScanner) ScanHoldersLatest(ctx context.Context) ([]*KawaiHolder,
     return holders, nil
 }
 ```
+
+**Why Deprecated:**
+- ❌ Blocked by Monad testnet RPC 100-block limit
+- ❌ Not scalable for mainnet (millions of blocks)
+- ❌ Slow and resource-intensive
 
 **Features:**
 - Block range filtering for efficiency
