@@ -14,7 +14,7 @@ A "Lean Startup" approach to DePIN, leveraging consumer-grade GPUs for `llama.cp
     -   **User:** Earn 5% cashback on every AI request (use-to-earn) + 1-5% deposit cashback (tiered).
     -   **Affiliator:** Earn 5% commission from referrals' mining rewards (lifetime passive income).
     -   **Developer:** Earn 5% from mining rewards (distributed to treasury pool).
-    -   **Holder:** ⚠️ Earn 100% of Platform Revenue (USDT) proportional to KAWAI holdings *(Planned - Not Yet Implemented)*.
+    -   **Holder:** ✅ Earn 100% of Platform Revenue (USDT) proportional to KAWAI holdings via **Hybrid Holder Registry** (Production Ready).
 -   **Liquidity:** No Initial LP. Value follows the *Hold-to-Earn* utility.
 -   **Details:** See tokenomics section below for full analysis.
 
