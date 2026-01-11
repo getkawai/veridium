@@ -8,45 +8,25 @@ import {
   Repeat2,
   Coins,
   CheckCircle,
-  Clock,
   Info
 } from 'lucide-react';
 import { Browser, Dialogs } from '@wailsio/runtime';
 import { Flexbox } from 'react-layout-kit';
 import { TokenUSDT } from '@web3icons/react';
-import type { NetworkInfo } from '@@/github.com/kawai-network/veridium/internal/services/models';
-import type { WalletTransaction } from '@@/github.com/kawai-network/veridium/internal/database/generated/models';
-
-interface ClaimableReward {
-  period_id: number;
-  index: number;
-  amount: string;
-  formatted: string;
-  proof: string[];
-  reward_type: string;
-  claim_status: string;
-  claim_tx_hash?: string;
-  created_at: string;
-}
-
-interface ClaimableRewardsResponse {
-  total_kawai_claimable_formatted: string;
-  total_usdt_claimable_formatted: string;
-  current_kawai_accumulating: string;
-  current_usdt_accumulating: string;
-  unclaimed_proofs: (ClaimableReward | null)[];
-  pending_proofs: (ClaimableReward | null)[];
-}
+import type { 
+  NetworkInfo, 
+  ClaimableReward, 
+  ClaimableRewardsResponse 
+} from '@@/github.com/kawai-network/veridium/internal/services/models';
 
 interface MiningRewardsSectionProps {
   currentNetwork: NetworkInfo | null;
-  transactions: WalletTransaction[];
   theme: any;
   styles: any;
   onRefresh?: (refreshFn: () => void) => void;
 }
 
-export const MiningRewardsSection = ({ currentNetwork, transactions, theme, styles, onRefresh }: MiningRewardsSectionProps) => {
+export const MiningRewardsSection = ({ currentNetwork, theme, styles, onRefresh }: MiningRewardsSectionProps) => {
   const { message } = App.useApp();
   const [loading, setLoading] = useState(true);
   const [claimLoading, setClaimLoading] = useState<Set<string>>(new Set());
@@ -60,6 +40,31 @@ export const MiningRewardsSection = ({ currentNetwork, transactions, theme, styl
   const [gasEstimate, setGasEstimate] = useState<string | null>(null);
   const [estimateLoading, setEstimateLoading] = useState(false);
   const [isClaimAll, setIsClaimAll] = useState(false);
+
+  // Helper functions
+  const isValidTxHash = (hash: string): boolean => {
+    return /^0x[a-fA-F0-9]{64}$/.test(hash);
+  };
+
+  const getExplorerUrl = (txHash: string): string => {
+    if (!isValidTxHash(txHash)) {
+      console.warn('Invalid transaction hash:', txHash);
+      return '#'; // Return placeholder for invalid hashes
+    }
+    
+    const baseUrl = currentNetwork?.explorerURL || 'https://testnet.monadexplorer.com';
+    const cleanUrl = baseUrl.replace(/\/$/, '');
+    return `${cleanUrl}/tx/${txHash}`;
+  };
+
+  const validateNetwork = (network: NetworkInfo | null): boolean => {
+    if (!network) return false;
+    if (!network.explorerURL) {
+      console.warn('Network missing explorer URL:', network);
+      return false;
+    }
+    return true;
+  };
 
   const loadRewards = useCallback(async (showMessage = false) => {
     setLoading(true);
@@ -93,6 +98,13 @@ export const MiningRewardsSection = ({ currentNetwork, transactions, theme, styl
   useEffect(() => {
     loadRewards();
   }, [loadRewards]);
+
+  // Validate network configuration
+  useEffect(() => {
+    if (currentNetwork && !validateNetwork(currentNetwork)) {
+      console.warn('Current network configuration issues detected');
+    }
+  }, [currentNetwork]);
 
   // Expose refresh function to parent
   useEffect(() => {
@@ -149,12 +161,18 @@ export const MiningRewardsSection = ({ currentNetwork, transactions, theme, styl
     setClaimLoading(prev => new Set(prev).add(proofKey));
 
     try {
-      let result;
+      let result: any; // Explicitly type as any for now
       if (proof.reward_type === 'kawai') {
-        result = await DeAIService.ClaimKawaiReward(
+        // Mining rewards use ClaimMiningReward with 9-field format
+        result = await DeAIService.ClaimMiningReward(
           proof.period_id,
-          proof.index,
-          proof.amount,
+          proof.contributor_amount || proof.amount, // Contributor amount
+          proof.developer_amount || "0",            // Developer amount
+          proof.user_amount || "0",                 // User amount
+          proof.affiliator_amount || "0",           // Affiliator amount
+          proof.developer_address || "0x0000000000000000000000000000000000000000", // Developer address
+          proof.user_address || "0x0000000000000000000000000000000000000000",      // User address
+          proof.affiliator_address || "0x0000000000000000000000000000000000000000", // Affiliator address
           proof.proof
         );
       } else {
@@ -167,13 +185,13 @@ export const MiningRewardsSection = ({ currentNetwork, transactions, theme, styl
       }
 
       if (result?.tx_hash) {
-        const explorerUrl = currentNetwork?.explorerURL || 'https://testnet.monadexplorer.com';
+        const explorerUrl = getExplorerUrl(result.tx_hash);
 
         message.success(
           <span>
             Claim submitted! Tx: {result.tx_hash.substring(0, 10)}...
             <a
-              onClick={() => Browser.OpenURL(`${explorerUrl}/tx/${result.tx_hash}`)}
+              onClick={() => Browser.OpenURL(explorerUrl)}
               style={{ marginLeft: 8, cursor: 'pointer' }}
             >
               View <ExternalLink size={12} style={{ verticalAlign: 'middle' }} />
@@ -508,8 +526,8 @@ export const MiningRewardsSection = ({ currentNetwork, transactions, theme, styl
                     {proof.claim_tx_hash && (
                       <a
                         onClick={() => {
-                          const explorerUrl = currentNetwork?.explorerURL || 'https://testnet.monadexplorer.com';
-                          Browser.OpenURL(`${explorerUrl}/tx/${proof.claim_tx_hash}`);
+                          const explorerUrl = getExplorerUrl(proof.claim_tx_hash);
+                          Browser.OpenURL(explorerUrl);
                         }}
                         style={{ cursor: 'pointer' }}
                       >
@@ -525,42 +543,134 @@ export const MiningRewardsSection = ({ currentNetwork, transactions, theme, styl
       )}
 
       {/* Recent Activity */}
-      <Card title="Recent Activity" size="small">
-        <Table
-          dataSource={transactions.slice(0, 5)}
-          rowKey="txHash"
-          pagination={false}
-          size="small"
-          columns={[
-            {
-              title: 'Type',
-              dataIndex: 'txType',
-              key: 'type',
-              render: (t: string) => <Tag>{t || 'TX'}</Tag>
-            },
-            {
-              title: 'Hash',
-              dataIndex: 'txHash',
-              render: (h: string) => <span style={{ fontFamily: 'monospace' }}>{h.substring(0, 10)}...</span>
-            },
-            {
-              title: 'Date',
-              dataIndex: 'createdAt',
-              render: (d: number | string) => <span style={{ fontSize: 12 }}>{formatDate(d.toString())}</span>
-            },
-            {
-              title: 'Status',
-              dataIndex: 'status',
-              key: 'status',
-              render: (s: string) => (
-                <Flexbox horizontal align="center" gap={4}>
-                  {s === 'confirmed' ? <CheckCircle size={14} color="#22c55e" /> : <Clock size={14} color="#f59e0b" />}
-                  <span style={{ fontSize: 12, textTransform: 'capitalize' }}>{s}</span>
-                </Flexbox>
-              )
-            }
-          ]}
-        />
+      <Card title="Recent Mining Activity" size="small">
+        {loading ? (
+          <Flexbox gap={12}>
+            <Skeleton active paragraph={{ rows: 1, width: ['100%', '80%', '60%', '90%', '70%'] }} title={false} />
+            <Skeleton active paragraph={{ rows: 1, width: ['90%', '70%', '80%', '60%', '85%'] }} title={false} />
+            <Skeleton active paragraph={{ rows: 1, width: ['80%', '90%', '70%', '85%', '75%'] }} title={false} />
+          </Flexbox>
+        ) : (
+          (() => {
+            // Create recent activity from confirmed claims
+            const getRecentActivity = () => {
+              // Use confirmed_proofs directly from backend
+              const confirmedClaims = (rewards?.confirmed_proofs || [])
+                .filter((p): p is ClaimableReward => p !== null)
+                .sort((a, b) => {
+                  const aTime = a.claimed_at ? new Date(a.claimed_at).getTime() : new Date(a.created_at).getTime();
+                  const bTime = b.claimed_at ? new Date(b.claimed_at).getTime() : new Date(b.created_at).getTime();
+                  return bTime - aTime;
+                })
+                .slice(0, 10) // Show last 10 claims
+                .map(proof => ({
+                  key: `${proof.period_id}-${proof.reward_type}-${proof.claim_tx_hash}`,
+                  txHash: proof.claim_tx_hash!,
+                  txType: 'Mining Claim',
+                  createdAt: proof.claimed_at || proof.created_at,
+                  status: 'confirmed',
+                  amount: proof.formatted,
+                  rewardType: proof.reward_type
+                }));
+
+              return confirmedClaims;
+            };
+
+            const recentActivity = getRecentActivity();
+
+          return (
+            <Table
+              dataSource={recentActivity}
+              rowKey="key"
+              pagination={false}
+              size="small"
+              locale={{
+                emptyText: recentActivity.length === 0 ? (
+                  <Empty
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    description={
+                      <span style={{ color: theme.colorTextSecondary }}>
+                        No mining claims yet.
+                        <br />
+                        {validUnclaimed.length > 0 
+                          ? "Claim your rewards above to see activity here."
+                          : "Keep contributing to earn mining rewards!"
+                        }
+                      </span>
+                    }
+                  />
+                ) : undefined
+              }}
+              columns={[
+                {
+                  title: 'Type',
+                  dataIndex: 'txType',
+                  key: 'type',
+                  render: (t: string) => <Tag color="blue">{t}</Tag>
+                },
+                {
+                  title: 'Amount',
+                  key: 'amount',
+                  render: (record: any) => (
+                    <Flexbox horizontal align="center" gap={4}>
+                      <Coins size={12} color="#667eea" />
+                      <span style={{ fontSize: 12, fontWeight: 500 }}>
+                        {record.amount} {record.rewardType === 'kawai' ? 'KAWAI' : 'USDT'}
+                      </span>
+                    </Flexbox>
+                  )
+                },
+                {
+                  title: 'Hash',
+                  dataIndex: 'txHash',
+                  render: (h: string) => (
+                    <a
+                      onClick={() => {
+                        const explorerUrl = getExplorerUrl(h);
+                        Browser.OpenURL(explorerUrl);
+                      }}
+                      style={{ cursor: 'pointer', fontFamily: 'monospace', fontSize: 12 }}
+                    >
+                      {h.substring(0, 10)}... <ExternalLink size={10} style={{ verticalAlign: 'middle' }} />
+                    </a>
+                  )
+                },
+                {
+                  title: 'Date',
+                  dataIndex: 'createdAt',
+                  render: (d: string) => <span style={{ fontSize: 12 }}>{formatDate(d)}</span>
+                },
+                {
+                  title: 'Status',
+                  dataIndex: 'status',
+                  key: 'status',
+                  render: (status: string) => (
+                    <Flexbox horizontal align="center" gap={4}>
+                      {status === 'confirmed' ? (
+                        <>
+                          <CheckCircle size={14} color="#22c55e" />
+                          <span style={{ fontSize: 12, textTransform: 'capitalize' }}>Confirmed</span>
+                        </>
+                      ) : (
+                        <>
+                          <span style={{ 
+                            width: 14, 
+                            height: 14, 
+                            borderRadius: '50%', 
+                            backgroundColor: getStatusColor(status),
+                            display: 'inline-block'
+                          }} />
+                          <span style={{ fontSize: 12, textTransform: 'capitalize' }}>{status}</span>
+                        </>
+                      )}
+                    </Flexbox>
+                  )
+                }
+              ]}
+            />
+          );
+        })()
+        )}
       </Card>
 
       {/* Info Card */}

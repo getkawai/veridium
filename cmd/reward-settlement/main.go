@@ -9,7 +9,12 @@ import (
 	"os"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/kawai-network/veridium/internal/constant"
+	"github.com/kawai-network/veridium/internal/generate/abi/miningdistributor"
 	"github.com/kawai-network/veridium/pkg/blockchain"
 	"github.com/kawai-network/veridium/pkg/store"
 )
@@ -21,6 +26,8 @@ const (
 	RewardTypeRevenue  = "revenue"
 )
 
+var autoConfirm bool // Global flag for auto-confirmation
+
 func main() {
 	// Subcommands
 	generateCmd := flag.NewFlagSet("generate", flag.ExitOnError)
@@ -31,10 +38,14 @@ func main() {
 	// Flags for generate command
 	var rewardType string
 	generateCmd.StringVar(&rewardType, "type", "mining", "Reward type: mining, cashback, or referral")
+	generateCmd.BoolVar(&autoConfirm, "auto-confirm", false, "Auto-confirm all prompts (for testing)")
 
 	// Flags for upload command
 	var uploadType string
 	uploadCmd.StringVar(&uploadType, "type", "mining", "Reward type: mining, cashback, or referral")
+
+	// Flags for all command
+	allCmd.BoolVar(&autoConfirm, "auto-confirm", false, "Auto-confirm all prompts (for testing)")
 
 	if len(os.Args) < 2 {
 		printUsage()
@@ -278,12 +289,88 @@ func uploadMiningRoot(ctx context.Context, kv store.Store) error {
 	log.Printf("Merkle Root:   %s", latest.MerkleRoot)
 	log.Printf("Total Amount:  %s KAWAI", latest.TotalAmount)
 	log.Println("")
-	log.Println("⚠️  Contract upload not yet implemented")
+
+	// Connect to Monad RPC
+	client, err := ethclient.Dial(constant.MonadRpcUrl)
+	if err != nil {
+		return fmt.Errorf("failed to connect to Monad: %w", err)
+	}
+	defer client.Close()
+
+	// Load MiningRewardDistributor contract
+	distributorAddr := common.HexToAddress(constant.MiningRewardDistributorAddr)
+	distributor, err := miningdistributor.NewMiningRewardDistributor(distributorAddr, client)
+	if err != nil {
+		return fmt.Errorf("failed to load MiningRewardDistributor: %w", err)
+	}
+
+	// Get private key
+	privateKeyHex := constant.GetObfuscatedTemp()
+	if strings.HasPrefix(privateKeyHex, "0x") {
+		privateKeyHex = privateKeyHex[2:]
+	}
+
+	privateKey, err := crypto.HexToECDSA(privateKeyHex)
+	if err != nil {
+		return fmt.Errorf("failed to parse private key: %w", err)
+	}
+
+	// Get chain ID
+	chainID, err := client.ChainID(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get chain ID: %w", err)
+	}
+
+	// Create transactor
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	if err != nil {
+		return fmt.Errorf("failed to create transactor: %w", err)
+	}
+	auth.Context = ctx
+
+	// Parse Merkle root
+	merkleRootHex := latest.MerkleRoot
+	if strings.HasPrefix(merkleRootHex, "0x") {
+		merkleRootHex = merkleRootHex[2:]
+	}
+	merkleRootBytes := common.Hex2Bytes(merkleRootHex)
+	if len(merkleRootBytes) != 32 {
+		return fmt.Errorf("invalid Merkle root length: expected 32 bytes, got %d", len(merkleRootBytes))
+	}
+	var merkleRoot [32]byte
+	copy(merkleRoot[:], merkleRootBytes)
+
+	log.Printf("⚠️  About to upload Merkle root to MiningRewardDistributor")
+	if !confirm("Continue with upload?") {
+		return fmt.Errorf("upload cancelled by user")
+	}
 	log.Println("")
-	log.Println("📋 Manual upload command:")
-	log.Printf("   cast send 0xa0dDC59DAcBA9201CC9Ef613707d287b77b2723F \\")
-	log.Printf("     'setMerkleRoot(bytes32)' %s \\", latest.MerkleRoot)
-	log.Printf("     --rpc-url $RPC_URL --private-key <ADMIN_PRIVATE_KEY>")
+
+	// Upload Merkle root
+	log.Printf("🌳 [MINING] Uploading Merkle root: %s", latest.MerkleRoot)
+	tx, err := distributor.SetMerkleRoot(auth, merkleRoot)
+	if err != nil {
+		return fmt.Errorf("failed to upload Merkle root: %w", err)
+	}
+
+	log.Printf("✅ [MINING] SetMerkleRoot transaction sent: %s", tx.Hash().Hex())
+	log.Println("⏳ [MINING] Waiting for confirmation...")
+
+	// Wait for confirmation
+	receipt, err := bind.WaitMined(ctx, client, tx)
+	if err != nil {
+		return fmt.Errorf("failed to wait for confirmation: %w", err)
+	}
+
+	if receipt.Status != 1 {
+		return fmt.Errorf("transaction failed with status: %d", receipt.Status)
+	}
+
+	log.Printf("✅ [MINING] Merkle root uploaded successfully in block %d", receipt.BlockNumber.Uint64())
+	log.Println("")
+	log.Printf("✅ Mining root upload completed!")
+	log.Println("")
+	log.Printf("📝 Next: Users can now claim mining rewards via UI")
 
 	return nil
 }
@@ -422,6 +509,11 @@ func uploadRevenueRoot(ctx context.Context, kv *store.KVStore) error {
 
 // Helper function for user confirmation
 func confirm(prompt string) bool {
+	if autoConfirm {
+		log.Printf("✓ Auto-confirmed: %s", prompt)
+		return true
+	}
+
 	fmt.Printf("%s (y/n): ", prompt)
 	reader := bufio.NewReader(os.Stdin)
 	response, err := reader.ReadString('\n')

@@ -464,15 +464,17 @@ func (s *KVStore) GetClaimableRewards(ctx context.Context, address string) (map[
 	totalUSDTClaimable := new(big.Int)
 	claimableProofs := make([]*MerkleProofData, 0)
 	pendingProofs := make([]*MerkleProofData, 0)
+	confirmedProofs := make([]*MerkleProofData, 0) // NEW: Store confirmed claims for Recent Activity
 
 	for _, proof := range proofs {
-		// Skip confirmed claims
-		if proof.ClaimStatus == ClaimStatusConfirmed {
-			continue
-		}
-
 		amount := new(big.Int)
 		amount.SetString(proof.Amount, 10)
+
+		if proof.ClaimStatus == ClaimStatusConfirmed {
+			// NEW: Include confirmed claims in response for Recent Activity
+			confirmedProofs = append(confirmedProofs, proof)
+			continue
+		}
 
 		if proof.ClaimStatus == ClaimStatusPending {
 			pendingProofs = append(pendingProofs, proof)
@@ -497,6 +499,7 @@ func (s *KVStore) GetClaimableRewards(ctx context.Context, address string) (map[
 		"address":                    address,
 		"unclaimed_proofs":           claimableProofs,
 		"pending_proofs":             pendingProofs,
+		"confirmed_proofs":           confirmedProofs, // NEW: Add confirmed claims
 		"total_kawai_claimable":      totalKawaiClaimable.String(),
 		"total_usdt_claimable":       totalUSDTClaimable.String(),
 		"current_kawai_accumulating": contributor.AccumulatedRewards,

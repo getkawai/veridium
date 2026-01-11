@@ -77,7 +77,6 @@ const RewardsContent = ({ styles, theme, currentNetwork, transactions, setModalT
               <MiningRewardsSection
                 key={`mining-${refreshKey}`}
                 currentNetwork={currentNetwork}
-                transactions={transactions}
                 theme={theme}
                 styles={styles}
                 onRefresh={(refreshFn) => { miningRefreshRef.current = refreshFn; }}

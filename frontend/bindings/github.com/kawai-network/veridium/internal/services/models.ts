@@ -649,6 +649,42 @@ export class ClaimableReward {
      */
     "decimals": number;
 
+    /**
+     * Mining-specific fields (for 9-field ClaimMiningReward)
+     * Contributor's share
+     */
+    "contributor_amount"?: string;
+
+    /**
+     * Developer's share
+     */
+    "developer_amount"?: string;
+
+    /**
+     * User's cashback
+     */
+    "user_amount"?: string;
+
+    /**
+     * Affiliator's commission
+     */
+    "affiliator_amount"?: string;
+
+    /**
+     * Developer address
+     */
+    "developer_address"?: string;
+
+    /**
+     * User address
+     */
+    "user_address"?: string;
+
+    /**
+     * Affiliator address
+     */
+    "affiliator_address"?: string;
+
     /** Creates a new ClaimableReward instance. */
     constructor($$source: Partial<ClaimableReward> = {}) {
         if (!("index" in $$source)) {
@@ -711,6 +747,11 @@ export class ClaimableRewardsResponse {
     "address": string;
     "unclaimed_proofs": (ClaimableReward | null)[];
     "pending_proofs": (ClaimableReward | null)[];
+
+    /**
+     * NEW: For Recent Activity
+     */
+    "confirmed_proofs": (ClaimableReward | null)[];
     "total_kawai_claimable": string;
     "total_kawai_claimable_formatted": string;
     "total_usdt_claimable": string;
@@ -728,6 +769,9 @@ export class ClaimableRewardsResponse {
         }
         if (!("pending_proofs" in $$source)) {
             this["pending_proofs"] = [];
+        }
+        if (!("confirmed_proofs" in $$source)) {
+            this["confirmed_proofs"] = [];
         }
         if (!("total_kawai_claimable" in $$source)) {
             this["total_kawai_claimable"] = "";
@@ -757,12 +801,16 @@ export class ClaimableRewardsResponse {
     static createFrom($$source: any = {}): ClaimableRewardsResponse {
         const $$createField1_0 = $$createType6;
         const $$createField2_0 = $$createType6;
+        const $$createField3_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("unclaimed_proofs" in $$parsedSource) {
             $$parsedSource["unclaimed_proofs"] = $$createField1_0($$parsedSource["unclaimed_proofs"]);
         }
         if ("pending_proofs" in $$parsedSource) {
             $$parsedSource["pending_proofs"] = $$createField2_0($$parsedSource["pending_proofs"]);
+        }
+        if ("confirmed_proofs" in $$parsedSource) {
+            $$parsedSource["confirmed_proofs"] = $$createField3_0($$parsedSource["confirmed_proofs"]);
         }
         return new ClaimableRewardsResponse($$parsedSource as Partial<ClaimableRewardsResponse>);
     }

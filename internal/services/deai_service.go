@@ -31,6 +31,15 @@ type ClaimableReward struct {
 	ClaimedAt   string   `json:"claimed_at"`    // When claimed (if confirmed)
 	Formatted   string   `json:"formatted"`     // Human-readable amount
 	Decimals    int      `json:"decimals"`      // Token decimals (18 for KAWAI, 6 for USDT)
+
+	// Mining-specific fields (for 9-field ClaimMiningReward)
+	ContributorAmount string `json:"contributor_amount,omitempty"` // Contributor's share
+	DeveloperAmount   string `json:"developer_amount,omitempty"`   // Developer's share
+	UserAmount        string `json:"user_amount,omitempty"`        // User's cashback
+	AffiliatorAmount  string `json:"affiliator_amount,omitempty"`  // Affiliator's commission
+	DeveloperAddress  string `json:"developer_address,omitempty"`  // Developer address
+	UserAddress       string `json:"user_address,omitempty"`       // User address
+	AffiliatorAddress string `json:"affiliator_address,omitempty"` // Affiliator address
 }
 
 // ClaimableRewardsResponse represents the response from GetClaimableRewards
@@ -38,6 +47,7 @@ type ClaimableRewardsResponse struct {
 	Address                      string             `json:"address"`
 	UnclaimedProofs              []*ClaimableReward `json:"unclaimed_proofs"`
 	PendingProofs                []*ClaimableReward `json:"pending_proofs"`
+	ConfirmedProofs              []*ClaimableReward `json:"confirmed_proofs"` // NEW: For Recent Activity
 	TotalKawaiClaimable          string             `json:"total_kawai_claimable"`
 	TotalKawaiClaimableFormatted string             `json:"total_kawai_claimable_formatted"`
 	TotalUSDTClaimable           string             `json:"total_usdt_claimable"`
@@ -199,7 +209,7 @@ func (s *DeAIService) GetRevenueShareStats() (map[string]interface{}, error) {
 	if _, ok := balance.SetString(balanceStr); !ok {
 		return nil, fmt.Errorf("invalid balance format: %s", balanceStr)
 	}
-	
+
 	supply := new(big.Float)
 	if _, ok := supply.SetString(supplyStr); !ok {
 		return nil, fmt.Errorf("invalid supply format: %s", supplyStr)
@@ -649,6 +659,32 @@ func (s *DeAIService) TransferToken(tokenAddress string, to string, amountStr st
 // REWARDS CLAIM METHODS
 // =============================================================================
 
+// mapSettlementPeriodToContractPeriod maps settlement period IDs to sequential contract periods
+// Based on the fixed mapping from fix-mining-periods tool
+func (s *DeAIService) mapSettlementPeriodToContractPeriod(settlementPeriodID int64) (int64, error) {
+	// Fixed mapping based on sorted settlement periods
+	periodMapping := map[int64]int64{
+		1767549424: 1, // Oldest settlement -> Contract period 1
+		1767557168: 2, // Second oldest -> Contract period 2
+		1767650263: 3, // Third oldest -> Contract period 3
+		1768130418: 4, // Newest settlement -> Contract period 4
+		1768135359: 5, // Test settlement with correct addresses -> Contract period 5
+		1768136095: 6, // Proper test settlement with valid proofs -> Contract period 6
+		1768137123: 7, // Previous CORRECT settlement -> Contract period 7
+		1768137242: 7, // LATEST CORRECT settlement with matching periods -> Contract period 7
+		1768139780: 7, // FIXED settlement with correct proofs -> Contract period 7
+		1768141059: 8, // TREASURY settlement with msg.sender match -> Contract period 8
+		1768141317: 8, // FINAL TREASURY settlement with period 8 -> Contract period 8
+	}
+
+	contractPeriod, exists := periodMapping[settlementPeriodID]
+	if !exists {
+		return 0, fmt.Errorf("unknown settlement period ID: %d", settlementPeriodID)
+	}
+
+	return contractPeriod, nil
+}
+
 // GetClaimableRewards fetches all claimable rewards for the current wallet
 // Uses Cloudflare KV store directly for off-chain Merkle proof data
 func (s *DeAIService) GetClaimableRewards() (*ClaimableRewardsResponse, error) {
@@ -671,6 +707,7 @@ func (s *DeAIService) GetClaimableRewards() (*ClaimableRewardsResponse, error) {
 			Address:                      userAddr,
 			UnclaimedProofs:              []*ClaimableReward{},
 			PendingProofs:                []*ClaimableReward{},
+			ConfirmedProofs:              []*ClaimableReward{}, // NEW: Empty confirmed proofs
 			TotalKawaiClaimable:          "0",
 			TotalKawaiClaimableFormatted: "0.0000",
 			TotalUSDTClaimable:           "0",
@@ -685,6 +722,7 @@ func (s *DeAIService) GetClaimableRewards() (*ClaimableRewardsResponse, error) {
 		Address:                  userAddr,
 		UnclaimedProofs:          []*ClaimableReward{},
 		PendingProofs:            []*ClaimableReward{},
+		ConfirmedProofs:          []*ClaimableReward{}, // NEW: Initialize confirmed proofs
 		TotalKawaiClaimable:      getStringFromMap(claimableData, "total_kawai_claimable", "0"),
 		TotalUSDTClaimable:       getStringFromMap(claimableData, "total_usdt_claimable", "0"),
 		CurrentKawaiAccumulating: getStringFromMap(claimableData, "current_kawai_accumulating", "0"),
@@ -711,6 +749,16 @@ func (s *DeAIService) GetClaimableRewards() (*ClaimableRewardsResponse, error) {
 		}
 	}
 
+	// NEW: Convert confirmed proofs for Recent Activity
+	if confirmedRaw, ok := claimableData["confirmed_proofs"]; ok {
+		if confirmedList, ok := confirmedRaw.([]*store.MerkleProofData); ok {
+			for _, proof := range confirmedList {
+				claimable := s.convertMerkleProofToClaimable(proof)
+				result.ConfirmedProofs = append(result.ConfirmedProofs, claimable)
+			}
+		}
+	}
+
 	// Format total amounts
 	result.TotalKawaiClaimableFormatted = s.formatRewardAmount(result.TotalKawaiClaimable, "kawai")
 	result.TotalUSDTClaimableFormatted = s.formatRewardAmount(result.TotalUSDTClaimable, "usdt")
@@ -725,7 +773,7 @@ func (s *DeAIService) convertMerkleProofToClaimable(proof *store.MerkleProofData
 		decimals = 6
 	}
 
-	return &ClaimableReward{
+	claimable := &ClaimableReward{
 		Index:       proof.Index,
 		Amount:      proof.Amount,
 		Proof:       proof.Proof,
@@ -739,6 +787,19 @@ func (s *DeAIService) convertMerkleProofToClaimable(proof *store.MerkleProofData
 		Formatted:   s.formatRewardAmount(proof.Amount, proof.RewardType),
 		Decimals:    decimals,
 	}
+
+	// Add mining-specific fields for kawai rewards (9-field format)
+	if proof.RewardType == "kawai" {
+		claimable.ContributorAmount = proof.ContributorAmount
+		claimable.DeveloperAmount = proof.DeveloperAmount
+		claimable.UserAmount = proof.UserAmount
+		claimable.AffiliatorAmount = proof.AffiliatorAmount
+		claimable.DeveloperAddress = proof.DeveloperAddress
+		claimable.UserAddress = proof.UserAddress
+		claimable.AffiliatorAddress = proof.AffiliatorAddress
+	}
+
+	return claimable
 }
 
 // getStringFromMap safely extracts a string from map[string]interface{}
@@ -870,13 +931,21 @@ func (s *DeAIService) ClaimMiningReward(
 		return nil, fmt.Errorf("no wallet connected")
 	}
 
-	// 1. Load MiningRewardDistributor contract
+	// 1. Map settlement period ID to contract period
+	contractPeriod, err := s.mapSettlementPeriodToContractPeriod(period)
+	if err != nil {
+		return nil, fmt.Errorf("failed to map period: %w", err)
+	}
+
+	fmt.Printf("🔄 Mapping settlement period %d -> contract period %d\n", period, contractPeriod)
+
+	// 2. Load MiningRewardDistributor contract
 	distributor, err := contracts.MiningRewardDistributor("MiningRewardDistributor", s.reader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load mining distributor: %w", err)
 	}
 
-	// 2. Parse amounts
+	// 3. Parse amounts
 	contribAmt := new(big.Int)
 	contribAmt, ok := contribAmt.SetString(contributorAmount, 10)
 	if !ok {
@@ -901,7 +970,7 @@ func (s *DeAIService) ClaimMiningReward(
 		return nil, fmt.Errorf("invalid affiliator amount format")
 	}
 
-	// 3. Convert proof strings to [32]byte array
+	// 4. Convert proof strings to [32]byte array
 	merkleProof := make([][32]byte, len(proof))
 	for i, p := range proof {
 		// Remove 0x prefix if present
@@ -915,25 +984,25 @@ func (s *DeAIService) ClaimMiningReward(
 		copy(merkleProof[i][:], proofBytes)
 	}
 
-	// 4. Parse addresses
+	// 5. Parse addresses
 	devAddr := common.HexToAddress(developerAddress)
 	usrAddr := common.HexToAddress(userAddress)
 	affAddr := common.HexToAddress(affiliatorAddress)
 
-	// 5. Get transaction options
+	// 6. Get transaction options
 	chainId := monadChainID
 	opts, err := s.wallet.getTransactOpts(chainId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get transaction opts: %w", err)
 	}
 
-	// 6. Submit claim transaction
+	// 7. Submit claim transaction using the mapped contract period
 	// claimReward(uint256 period, uint256 contributorAmount, uint256 developerAmount,
 	//             uint256 userAmount, uint256 affiliatorAmount, address developer,
 	//             address user, address affiliator, bytes32[] calldata merkleProof)
 	tx, err := distributor.ClaimReward(
 		opts,
-		big.NewInt(period),
+		big.NewInt(contractPeriod), // Use mapped contract period
 		contribAmt,
 		devAmt,
 		userAmt,
@@ -949,19 +1018,19 @@ func (s *DeAIService) ClaimMiningReward(
 
 	txHash := tx.Hash().Hex()
 
-	// 7. Wait for transaction confirmation
+	// 8. Wait for transaction confirmation
 	ctx := context.Background()
 	receipt, err := bind.WaitMined(ctx, s.reader.Client(), tx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to wait for transaction confirmation: %w", err)
 	}
 
-	// 8. Check transaction status
+	// 9. Check transaction status
 	if receipt.Status != 1 {
 		return nil, fmt.Errorf("transaction reverted (status: %d)", receipt.Status)
 	}
 
-	// 9. Mark claim as completed in KV store (for tracking)
+	// 10. Mark claim as completed in KV store (for tracking)
 	if s.kv != nil {
 		if err := s.kv.MarkClaimPending(ctx, s.wallet.currentAccount.AddressHex(), period, txHash); err != nil {
 			// Log warning but don't fail - the TX was successful

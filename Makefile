@@ -545,6 +545,20 @@ inject-test-usdt:
 	@echo "💵 Injecting test USDT to PaymentVault..."
 	@go run cmd/dev/inject-test-usdt/main.go
 
+mint-test-kawai:
+	@echo "🪙 Minting test KAWAI tokens..."
+	@go run cmd/dev/mint-test-kawai/main.go
+
+send-test-mon:
+	@echo "💰 Sending MON testnet tokens for gas fees..."
+	@test -n "$(ADDR)" || (echo "❌ ADDR not set! Usage: make send-test-mon ADDR=0x... [AMOUNT=0.1]" && exit 1)
+	@go run cmd/dev/send-test-mon/main.go $(ADDR) $(AMOUNT)
+
+test-claiming-data:
+	@echo "🎯 Testing claiming data for address..."
+	@test -n "$(ADDR)" || (echo "❌ ADDR not set! Usage: make test-claiming-data ADDR=0x..." && exit 1)
+	@go run cmd/dev/test-claiming-data/main.go $(ADDR)
+
 # ==============================================================================
 # Testing Helpers
 # ==============================================================================
