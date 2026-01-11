@@ -2,8 +2,8 @@
 
 **Status:** ✅ PRODUCTION READY  
 **Contract:** `MiningRewardDistributor.sol`  
-**Address:** `0xa0dDC59DAcBA9201CC9Ef613707d287b77b2723F` (Monad Testnet)  
-**Last Updated:** January 6, 2026
+**Address:** `0x8117D77A219EeF5F7869897C3F0973Afb87d8427` (Monad Testnet - Fresh Deployment 2026-01-12)  
+**Last Updated:** January 12, 2026
 
 ---
 
@@ -115,7 +115,7 @@ bytes32 leaf = keccak256(
 
 | Component | Status | Details |
 |-----------|--------|---------|
-| **Contract Deployment** | ✅ Complete | `0xa0dDC59DAcBA9201CC9Ef613707d287b77b2723F` |
+| **Contract Deployment** | ✅ Complete | `0x8117D77A219EeF5F7869897C3F0973Afb87d8427` |
 | **MINTER_ROLE Granted** | ✅ Complete | Granted during deployment |
 | **Single Period Claim** | ✅ Complete | `claimReward()` function |
 | **Batch Claim** | ✅ Complete | `claimMultiplePeriods()` with silent-skip |
@@ -484,8 +484,8 @@ const MiningRewardsSection: React.FC = () => {
 ### Contract Address
 
 - **Network:** Monad Testnet
-- **Address:** `0xa0dDC59DAcBA9201CC9Ef613707d287b77b2723F`
-- **Deployed:** December 2025
+- **Address:** `0x8117D77A219EeF5F7869897C3F0973Afb87d8427`
+- **Deployed:** January 12, 2026 (Fresh Deployment)
 - **Deployer:** Owner address
 - **MINTER_ROLE:** ✅ Granted to contract
 
@@ -507,8 +507,8 @@ const MiningRewardsSection: React.FC = () => {
 ### Environment Variables
 
 ```bash
-MINING_DISTRIBUTOR_ADDRESS=0xa0dDC59DAcBA9201CC9Ef613707d287b77b2723F
-KAWAI_TOKEN_ADDRESS=0x...
+MINING_DISTRIBUTOR_ADDRESS=0x8117D77A219EeF5F7869897C3F0973Afb87d8427
+KAWAI_TOKEN_ADDRESS=0xE32660b39D99988Df4bFdc7e4b68A4DC9D654722
 MONAD_RPC_URL=https://testnet-rpc.monad.xyz
 ```
 

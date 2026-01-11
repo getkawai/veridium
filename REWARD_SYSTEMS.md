@@ -44,7 +44,7 @@ All four reward systems (Mining, Cashback, Referral, Revenue Sharing) use **iden
 | Aspect | Mining Rewards | Cashback Rewards | Referral Rewards | Revenue Sharing |
 |--------|---------------|-----------------|-----------------|-----------------|
 | **Contract** | `MiningRewardDistributor` | `DepositCashbackDistributor` | `MerkleDistributor` (KAWAI) | `USDT_Distributor` |
-| **Address** | `0xa0dDC59DAcBA9201CC9Ef613707d287b77b2723F` | `0xcc992d001Bc1963A44212D62F711E502DE162B8E` | `0x988Cbef1F6b9057Cfa7325a7E364543E615f9191` | `0xE964B52D496F37749bd0caF287A356afdC10836C` |
+| **Address** | `0x8117D77A219EeF5F7869897C3F0973Afb87d8427` | `0xdE64f6F5bEe28762c91C76ff762365D553204e35` | `0xaB0DdFbb4bD94d23a32d0C40f9F96d9A61b45463` | `0x98a7590406a08Cc64dc074D8698B71e4D997a268` |
 | **Token** | KAWAI | KAWAI | KAWAI | **USDT** |
 | **Off-chain Storage** | Cloudflare KV ✅ | Cloudflare KV ✅ | Cloudflare KV ✅ | Cloudflare KV ✅ |
 | **Settlement** | Weekly Merkle ✅ | Weekly Merkle ✅ | Weekly Merkle ✅ | Weekly Merkle ✅ |

@@ -20,8 +20,8 @@
 
 | Component | Status | Details | Who Did It | When |
 |-----------|--------|---------|------------|------|
-| **Smart Contract** | ✅ **DEPLOYED** | `0xcc992d001Bc1963A44212D62F711E502DE162B8E` (Monad Testnet) | Team | Jan 4, 2026 |
-| **MINTER_ROLE** | ✅ **GRANTED** | Can mint KAWAI tokens | Team | Jan 4, 2026 (commit `51810089`) |
+| **Smart Contract** | ✅ **DEPLOYED** | `0xdE64f6F5bEe28762c91C76ff762365D553204e35` (Monad Testnet - Fresh 2026-01-12) | Team | Jan 12, 2026 |
+| **MINTER_ROLE** | ✅ **GRANTED** | Can mint KAWAI tokens | Team | Jan 12, 2026 |
 | **Backend Tracking** | ✅ **WORKING** | Tracks deposits, calculates cashback, stores in KV | Team | Jan 4, 2026 |
 | **Backend Claim** | ✅ **IMPLEMENTED** | `ClaimCashbackReward()` in `deai_service.go` | AI Assistant | Jan 6, 2026 (commit `ca1cd0fa`) |
 | **Settlement Logic** | ✅ **IMPLEMENTED** | `cashback_settlement.go` generates Merkle proofs | Team | Jan 4, 2026 |
@@ -180,7 +180,7 @@ type cacheEntry struct {
 
 ### **1. Smart Contract** (`DepositCashbackDistributor.sol`)
 
-**Address:** `0xcc992d001Bc1963A44212D62F711E502DE162B8E` (Monad Testnet)
+**Address:** `0xdE64f6F5bEe28762c91C76ff762365D553204e35` (Monad Testnet - Fresh Deployment 2026-01-12)
 
 **Key Functions:**
 - `claimCashback(period, amount, proof)` - Single claim
@@ -376,8 +376,8 @@ const currentTierLevel = getCurrentTierLevel(totalDeposits);
 ## 📋 **Implementation Checklist**
 
 ### **✅ Completed:**
-- [x] Smart contract deployed (`0xcc992d001Bc1963A44212D62F711E502DE162B8E`)
-- [x] MINTER_ROLE granted (commit `51810089`)
+- [x] Smart contract deployed (`0xdE64f6F5bEe28762c91C76ff762365D553204e35` - Fresh 2026-01-12)
+- [x] MINTER_ROLE granted
 - [x] Backend tracking (deposit integration)
 - [x] Backend claim method (`ClaimCashbackReward()`)
 - [x] Settlement logic (Merkle generation)
@@ -405,9 +405,8 @@ const currentTierLevel = getCurrentTierLevel(totalDeposits);
 ### **1. Contract Deployment** ✅ DONE
 
 ```bash
-# Already deployed on Jan 4, 2026
-# Address: 0xcc992d001Bc1963A44212D62F711E502DE162B8E
-# Commit: 51810089
+# Fresh deployment on Jan 12, 2026
+# Address: 0xdE64f6F5bEe28762c91C76ff762365D553204e35
 ```
 
 ### **2. Grant MINTER_ROLE** ✅ DONE
