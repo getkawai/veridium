@@ -119,16 +119,6 @@ All smart contracts are deployed on **Monad Blockchain** (Testnet).
 - 📖 [Full Implementation Guide](GEMINI_IMAGE_GENERATION.md)
 - 📖 [Quick Start Guide](docs/IMAGE_GENERATION_QUICK_START.md)
 
-### Usage Example
-```go
-opts := image.GenerationOptions{
-    Prompt:      "A futuristic city at sunset",
-    AspectRatio: "16:9",
-    Quality:     "hd",
-    Model:       "gemini-3-pro",
-}
-```
-
 ---
 
 ## 📦 Package Documentation
