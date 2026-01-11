@@ -1,0 +1,46 @@
+No files changed, compilation skipped
+Script ran successfully.
+
+== Logs ==
+  ==============================================
+  MiningRewardDistributor deployed at: 0x8117D77A219EeF5F7869897C3F0973Afb87d8427
+  ==============================================
+  KAWAI Token: 0xE32660b39D99988Df4bFdc7e4b68A4DC9D654722
+  Current Period: 1
+  ==============================================
+  
+  IMPORTANT: Developer addresses specified per claim
+  Backend uses GetRandomTreasuryAddress() for distribution
+  ==============================================
+  
+  Next steps:
+  1. Grant MINTER_ROLE to distributor:
+     make contracts-grant-minter-mining MINING_DISTRIBUTOR_ADDRESS=0x8117D77A219EeF5F7869897C3F0973Afb87d8427
+  
+  2. Set initial Merkle root (after first week):
+     cast send 0x8117D77A219EeF5F7869897C3F0973Afb87d8427 'setMerkleRoot(bytes32)' <merkleRoot> --rpc-url $RPC_URL --private-key $PRIVATE_KEY
+  ==============================================
+
+## Setting up 1 EVM.
+
+==========================
+
+Chain 10143
+
+Estimated gas price: 201.000000001 gwei
+
+Estimated total gas used for script: 1706039
+
+Estimated amount required: 0.342913839001706039 ETH
+
+==========================
+
+
+==========================
+
+ONCHAIN EXECUTION COMPLETE & SUCCESSFUL.
+
+Transactions saved to: /Users/yuda/github.com/kawai-network/veridium/contracts/broadcast/DeployMiningDistributor.s.sol/10143/run-latest.json
+
+Sensitive values saved to: /Users/yuda/github.com/kawai-network/veridium/contracts/cache/DeployMiningDistributor.s.sol/10143/run-latest.json
+

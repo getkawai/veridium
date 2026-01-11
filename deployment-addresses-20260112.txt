@@ -1,0 +1,44 @@
+=== FRESH DEPLOYMENT - 2026-01-12 ===
+
+BASE CONTRACTS:
+MockUSDT: 0x2cBe796033377352158df11Ab388010ab3097F58
+KawaiToken: 0xE32660b39D99988Df4bFdc7e4b68A4DC9D654722
+KAWAI_Distributor: 0xaB0DdFbb4bD94d23a32d0C40f9F96d9A61b45463
+USDT_Distributor: 0x98a7590406a08Cc64dc074D8698B71e4D997a268
+PaymentVault: 0x9a5A9e31977cB86cD502DC9E0B568d8F17977dAd
+OTCMarket: 0xd065F9DDb66aa90a1FF62c10868BeF921be2E103
+
+Deployer: 0x94D5C06229811c4816107005ff05259f229Eb07b
+Network: Monad Testnet (Chain ID: 10143)
+
+MiningRewardDistributor: 0x8117D77A219EeF5F7869897C3F0973Afb87d8427
+DepositCashbackDistributor: 0xdE64f6F5bEe28762c91C76ff762365D553204e35
+
+
+=== MINTER_ROLE GRANTS ===
+✅ MiningRewardDistributor: GRANTED (TX: 0xb83ee046c205883a1b8d24ac81faae878960d4230e71651e88c4ef1ee67c8658)
+✅ DepositCashbackDistributor: GRANTED (TX: 0x364e30dfd93992f634f3bd6caf34e261a6f02ee02422a7475b24f1a03c45844e)
+✅ KAWAI_Distributor: GRANTED (TX: 0x4ceb292960a12680a02ada9c229ec7a0d668fd70fa3fd0242b4d3ed64f9f3e9d)
+
+=== CODE UPDATES ===
+✅ internal/constant/blockchain.go - Updated
+✅ pkg/jarvis/db/project_tokens.go - Updated
+✅ .env - Updated
+✅ contracts/.env - Updated
+
+=== VERIFICATION ===
+✅ Go build successful
+✅ All MINTER_ROLE verified on-chain
+✅ Ready for testing
+
+=== NEXT STEPS ===
+1. Clean KV data: make cleanup-kv-all
+2. Test backend: make dev-hot
+3. Inject test data: make test-inject-mining-data
+4. Generate settlement: make settle-mining
+5. Test claiming in UI
+
+=== DEPLOYMENT COST ===
+Total Gas Used: ~7.2M gas
+Total Cost: ~1.45 MON
+Remaining Balance: ~22.8 MON
