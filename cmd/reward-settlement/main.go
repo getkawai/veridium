@@ -341,32 +341,64 @@ func uploadMiningRoot(ctx context.Context, kv store.Store) error {
 	copy(merkleRoot[:], merkleRootBytes)
 
 	log.Printf("⚠️  About to upload Merkle root to MiningRewardDistributor")
+	log.Printf("    Period ID: %d", latest.PeriodID)
+	log.Printf("    Merkle Root: %s", latest.MerkleRoot)
 	if !confirm("Continue with upload?") {
 		return fmt.Errorf("upload cancelled by user")
 	}
 	log.Println("")
 
-	// Upload Merkle root
-	log.Printf("🌳 [MINING] Uploading Merkle root: %s", latest.MerkleRoot)
-	tx, err := distributor.SetMerkleRoot(auth, merkleRoot)
+	// Get current on-chain period to determine upload strategy
+	currentPeriod, err := distributor.CurrentPeriod(nil)
 	if err != nil {
-		return fmt.Errorf("failed to upload Merkle root: %w", err)
+		return fmt.Errorf("failed to get current period: %w", err)
 	}
 
-	log.Printf("✅ [MINING] SetMerkleRoot transaction sent: %s", tx.Hash().Hex())
-	log.Println("⏳ [MINING] Waiting for confirmation...")
+	log.Printf("📊 Contract currentPeriod: %d, Settlement period: %d", currentPeriod.Int64(), latest.PeriodID)
 
-	// Wait for confirmation
-	receipt, err := bind.WaitMined(ctx, client, tx)
-	if err != nil {
-		return fmt.Errorf("failed to wait for confirmation: %w", err)
+	// Production-grade upload strategy based on period relationship
+	if latest.PeriodID == currentPeriod.Int64() {
+		// Update current period's root
+		log.Printf("🌳 [MINING] Updating Merkle root for current period %d", latest.PeriodID)
+		tx, err := distributor.SetMerkleRoot(auth, merkleRoot)
+		if err != nil {
+			return fmt.Errorf("failed to upload Merkle root: %w", err)
+		}
+		log.Printf("✅ [MINING] SetMerkleRoot transaction sent: %s", tx.Hash().Hex())
+		log.Println("⏳ [MINING] Waiting for confirmation...")
+
+		receipt, err := bind.WaitMined(ctx, client, tx)
+		if err != nil {
+			return fmt.Errorf("failed to wait for confirmation: %w", err)
+		}
+		if receipt.Status != 1 {
+			return fmt.Errorf("transaction failed with status: %d", receipt.Status)
+		}
+		log.Printf("✅ [MINING] Merkle root uploaded successfully in block %d", receipt.BlockNumber.Uint64())
+
+	} else if latest.PeriodID == currentPeriod.Int64()+1 {
+		// Advance to next period
+		log.Printf("🌳 [MINING] Advancing to period %d with new Merkle root", latest.PeriodID)
+		tx, err := distributor.AdvancePeriod(auth, merkleRoot)
+		if err != nil {
+			return fmt.Errorf("failed to advance period: %w", err)
+		}
+		log.Printf("✅ [MINING] AdvancePeriod transaction sent: %s", tx.Hash().Hex())
+		log.Println("⏳ [MINING] Waiting for confirmation...")
+
+		receipt, err := bind.WaitMined(ctx, client, tx)
+		if err != nil {
+			return fmt.Errorf("failed to wait for confirmation: %w", err)
+		}
+		if receipt.Status != 1 {
+			return fmt.Errorf("transaction failed with status: %d", receipt.Status)
+		}
+		log.Printf("✅ [MINING] Period advanced successfully in block %d", receipt.BlockNumber.Uint64())
+
+	} else {
+		return fmt.Errorf("period mismatch: settlement period %d, contract period %d (expected %d or %d)",
+			latest.PeriodID, currentPeriod.Int64(), currentPeriod.Int64(), currentPeriod.Int64()+1)
 	}
-
-	if receipt.Status != 1 {
-		return fmt.Errorf("transaction failed with status: %d", receipt.Status)
-	}
-
-	log.Printf("✅ [MINING] Merkle root uploaded successfully in block %d", receipt.BlockNumber.Uint64())
 	log.Println("")
 	log.Printf("✅ Mining root upload completed!")
 	log.Println("")

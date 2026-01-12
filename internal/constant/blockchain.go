@@ -4,15 +4,15 @@ const (
 	// Monad Testnet Configuration
 	MonadRpcUrl = "https://testnet-rpc.monad.xyz"
 
-	// Contract Addresses (Monad Testnet - Fresh Deployment 2026-01-12)
-	KawaiTokenAddress           = "0xE32660b39D99988Df4bFdc7e4b68A4DC9D654722"
-	KawaiEscrowAddress          = "0xd065F9DDb66aa90a1FF62c10868BeF921be2E103"
-	MockUsdtAddress             = "0x2cBe796033377352158df11Ab388010ab3097F58"
-	PaymentVaultAddress         = "0x9a5A9e31977cB86cD502DC9E0B568d8F17977dAd"
-	KawaiDistributorAddr        = "0xaB0DdFbb4bD94d23a32d0C40f9F96d9A61b45463"
-	USDTDistributorAddr         = "0x98a7590406a08Cc64dc074D8698B71e4D997a268"
-	CashbackDistributorAddress  = "0xdE64f6F5bEe28762c91C76ff762365D553204e35"
-	MiningRewardDistributorAddr = "0x8117D77A219EeF5F7869897C3F0973Afb87d8427"
+	// Contract Addresses (Monad Testnet - Fresh Deployment 2026-01-13)
+	KawaiTokenAddress           = "0x80c70F17C4dD23c5C214271293b638197232ab01"
+	KawaiEscrowAddress          = "0xd3952Dd84A1Acaf72e3ABD17922e2e850D5E0b58"
+	MockUsdtAddress             = "0xDC6f16b4f551638b21C3754F6F93Ea9BbD856298"
+	PaymentVaultAddress         = "0x4287dA438FE7FB677D9beB8a7d4A5A09E3C1aC1D"
+	KawaiDistributorAddr        = "0x41E2a735aA3D9c9D6cA4dD53b93023ec99FDD7Ef"
+	USDTDistributorAddr         = "0x15908521Bd992083F56dCaf7D703b26acFFad742"
+	CashbackDistributorAddress  = "0x576564788277b2d8F7475d4B593e08190a2236D6"
+	MiningRewardDistributorAddr = "0x86b11B1A7e4e40D181ac06070a0e98648dBc7859"
 
 	// Holder Scanner Configuration
 	// HolderScanStartBlock: Starting block for holder scanning

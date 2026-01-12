@@ -13,6 +13,9 @@ import (
 	"time"
 
 	"github.com/cloudflare/cloudflare-go"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/kawai-network/veridium/internal/constant"
 )
 
 // SettlementSnapshot represents a snapshot of contributor balances for settlement
@@ -470,6 +473,20 @@ func (s *KVStore) GetClaimableRewards(ctx context.Context, address string) (map[
 		amount := new(big.Int)
 		amount.SetString(proof.Amount, 10)
 
+		// Check if pending tx is now confirmed
+		if proof.ClaimStatus == ClaimStatusPending && proof.ClaimTxHash != "" {
+			if s.checkTxConfirmed(ctx, proof.ClaimTxHash) {
+				// Update to confirmed
+				proof.ClaimStatus = ClaimStatusConfirmed
+				proof.ClaimedAt = time.Now()
+				if err := s.SaveMerkleProofForPeriod(ctx, address, proof.PeriodID, proof); err != nil {
+					slog.Warn("Failed to update confirmed status", "error", err)
+				} else {
+					slog.Info("Auto-confirmed pending claim", "address", address, "period", proof.PeriodID, "tx", proof.ClaimTxHash)
+				}
+			}
+		}
+
 		if proof.ClaimStatus == ClaimStatusConfirmed {
 			// NEW: Include confirmed claims in response for Recent Activity
 			confirmedProofs = append(confirmedProofs, proof)
@@ -489,11 +506,17 @@ func (s *KVStore) GetClaimableRewards(ctx context.Context, address string) (map[
 		}
 	}
 
-	// Get current accumulating balance
+	// Get current accumulating balance (optional - may not exist for new users)
+	accumulatingKawai := "0"
+	accumulatingUSDT := "0"
+
 	contributor, err := s.GetContributor(ctx, address)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get contributor: %w", err)
+	if err == nil {
+		// Contributor profile exists
+		accumulatingKawai = contributor.AccumulatedRewards
+		accumulatingUSDT = contributor.AccumulatedUSDT
 	}
+	// If contributor doesn't exist, just use 0 values (not an error)
 
 	result := map[string]interface{}{
 		"address":                    address,
@@ -502,11 +525,34 @@ func (s *KVStore) GetClaimableRewards(ctx context.Context, address string) (map[
 		"confirmed_proofs":           confirmedProofs, // NEW: Add confirmed claims
 		"total_kawai_claimable":      totalKawaiClaimable.String(),
 		"total_usdt_claimable":       totalUSDTClaimable.String(),
-		"current_kawai_accumulating": contributor.AccumulatedRewards,
-		"current_usdt_accumulating":  contributor.AccumulatedUSDT,
+		"current_kawai_accumulating": accumulatingKawai,
+		"current_usdt_accumulating":  accumulatingUSDT,
 	}
 
 	return result, nil
+}
+
+// checkTxConfirmed checks if a transaction is confirmed on-chain
+func (s *KVStore) checkTxConfirmed(ctx context.Context, txHash string) bool {
+	if txHash == "" {
+		return false
+	}
+
+	client, err := ethclient.Dial(constant.MonadRpcUrl)
+	if err != nil {
+		slog.Warn("Failed to connect to RPC for tx check", "error", err)
+		return false
+	}
+	defer client.Close()
+
+	receipt, err := client.TransactionReceipt(ctx, common.HexToHash(txHash))
+	if err != nil {
+		// Transaction not found or not mined yet
+		return false
+	}
+
+	// Check if transaction was successful (status == 1)
+	return receipt.Status == 1
 }
 
 // MarkClaimPending marks a proof as pending claim (transaction submitted)

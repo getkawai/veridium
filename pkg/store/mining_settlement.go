@@ -33,7 +33,15 @@ func (s *KVStore) GenerateMiningSettlement(ctx context.Context, rewardType strin
 	// 2. Aggregate rewards per contributor and generate Merkle leaves
 	var leaves [][]byte
 	proofs := make(map[string]*MerkleProofData)
-	period := uint64(time.Now().Unix())
+
+	// Get next sequential period ID (production-grade approach)
+	periodID, err := s.GetNextPeriodID(ctx, rewardType)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get next period ID: %w", err)
+	}
+	period := uint64(periodID)
+
+	slog.Info("Starting settlement", "period", period, "reward_type", rewardType)
 
 	totalAmount := big.NewInt(0)
 	currentIndex := uint64(0)
@@ -89,6 +97,7 @@ func (s *KVStore) GenerateMiningSettlement(ctx context.Context, rewardType strin
 		proofs[contributorAddr] = &MerkleProofData{
 			Index:             currentIndex,
 			Amount:            totalContrib.String(), // For backward compatibility
+			Proof:             make([]string, 0),     // Initialize as empty array, will be filled later
 			PeriodID:          int64(period),
 			RewardType:        rewardType,
 			ContributorAmount: totalContrib.String(),
@@ -119,27 +128,40 @@ func (s *KVStore) GenerateMiningSettlement(ctx context.Context, rewardType strin
 
 	slog.Info("Merkle tree built", "root", fmt.Sprintf("0x%x", root))
 
-	// 4. Generate proofs for each leaf
+	// 4. Generate proofs for each leaf and update proof data
 	for i, leaf := range leaves {
 		proof, ok := tree.GetProof(leaf)
-		if !ok {
-			slog.Warn("Failed to generate proof", "index", i)
-			continue
-		}
 
 		var proofHex []string
-		for _, p := range proof {
-			proofHex = append(proofHex, fmt.Sprintf("0x%x", p))
+		if ok && len(proof) > 0 {
+			// Convert proof to hex strings
+			for _, p := range proof {
+				proofHex = append(proofHex, fmt.Sprintf("0x%x", p))
+			}
+			slog.Info("Generated proof with siblings", "index", i, "siblings", len(proof))
+		} else {
+			// For single-leaf trees, proof is empty (root = leaf)
+			proofHex = make([]string, 0)
+			slog.Info("Empty proof for single-leaf tree", "index", i)
 		}
 
-		// Find corresponding contributor address
+		// Find corresponding contributor address and update proof
+		found := false
 		for contributorAddr, proofData := range proofs {
 			if proofData.Index == uint64(i) {
 				proofData.Proof = proofHex
 				proofData.MerkleRoot = fmt.Sprintf("0x%x", root)
-				slog.Debug("Generated proof", "contributor", contributorAddr, "index", i)
+				slog.Info("Updated proof data",
+					"contributor", contributorAddr,
+					"index", i,
+					"proof_len", len(proofHex),
+					"proof_is_nil", proofData.Proof == nil)
+				found = true
 				break
 			}
+		}
+		if !found {
+			slog.Warn("No matching proof data found for leaf", "index", i)
 		}
 	}
 
@@ -194,4 +216,3 @@ func generateMiningMerkleLeaf(
 		affiliator.Bytes(),                              // address (20 bytes)
 	)
 }
-

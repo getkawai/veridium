@@ -57,6 +57,8 @@ export function ClaimKawaiReward(periodID: number, index: number, amount: string
 /**
  * ClaimMiningReward claims mining rewards with referral-based splits
  * Uses the new MiningRewardDistributor contract with 9-field Merkle leaves
+ * ClaimMiningReward claims mining rewards with referral splits
+ * Maps timestamp-based settlement periods to sequential contract periods
  */
 export function ClaimMiningReward(period: number, contributorAmount: string, developerAmount: string, userAmount: string, affiliatorAmount: string, developerAddress: string, userAddress: string, affiliatorAddress: string, proof: string[]): $CancellablePromise<$models.ClaimResult | null> {
     return $Call.ByID(3916078352, period, contributorAmount, developerAmount, userAmount, affiliatorAmount, developerAddress, userAddress, affiliatorAddress, proof).then(($result: any) => {

@@ -595,3 +595,81 @@ func (s *KVStore) MarkCashbackClaimed(ctx context.Context, userAddress string, p
 
 	return nil
 }
+
+// MarkCashbackPending marks a cashback claim as pending (transaction submitted)
+func (s *KVStore) MarkCashbackPending(ctx context.Context, userAddress string, period uint64, txHash string) error {
+	proofKey := fmt.Sprintf("cashback_proof:%d:%s", period, userAddress)
+	proofData, err := s.GetCashbackData(ctx, proofKey)
+	if err != nil {
+		return fmt.Errorf("proof not found: %w", err)
+	}
+
+	var proofRecord struct {
+		Proof   []string `json:"proof"`
+		Amount  string   `json:"amount"`
+		Claimed bool     `json:"claimed"`
+		TxHash  string   `json:"tx_hash,omitempty"`
+		Status  string   `json:"status,omitempty"` // "unclaimed", "pending", "confirmed", "failed"
+	}
+	if err := json.Unmarshal(proofData, &proofRecord); err != nil {
+		return fmt.Errorf("failed to unmarshal proof: %w", err)
+	}
+
+	// Don't allow marking as pending if already claimed
+	if proofRecord.Claimed {
+		return fmt.Errorf("cashback already claimed for period %d", period)
+	}
+
+	proofRecord.Status = "pending"
+	if txHash != "" {
+		proofRecord.TxHash = txHash
+	}
+
+	data, err := json.Marshal(proofRecord)
+	if err != nil {
+		return fmt.Errorf("failed to marshal proof: %w", err)
+	}
+
+	if err := s.StoreCashbackData(ctx, proofKey, data); err != nil {
+		return fmt.Errorf("failed to store pending proof: %w", err)
+	}
+
+	log.Printf("📝 [Cashback] Marked period %d as pending for user %s (tx: %s)", period, userAddress, txHash)
+	return nil
+}
+
+// MarkCashbackFailed marks a cashback claim as failed (transaction reverted)
+func (s *KVStore) MarkCashbackFailed(ctx context.Context, userAddress string, period uint64, reason string) error {
+	proofKey := fmt.Sprintf("cashback_proof:%d:%s", period, userAddress)
+	proofData, err := s.GetCashbackData(ctx, proofKey)
+	if err != nil {
+		return fmt.Errorf("proof not found: %w", err)
+	}
+
+	var proofRecord struct {
+		Proof   []string `json:"proof"`
+		Amount  string   `json:"amount"`
+		Claimed bool     `json:"claimed"`
+		TxHash  string   `json:"tx_hash,omitempty"`
+		Status  string   `json:"status,omitempty"`
+		Error   string   `json:"error,omitempty"`
+	}
+	if err := json.Unmarshal(proofData, &proofRecord); err != nil {
+		return fmt.Errorf("failed to unmarshal proof: %w", err)
+	}
+
+	proofRecord.Status = "failed"
+	proofRecord.Error = reason
+
+	data, err := json.Marshal(proofRecord)
+	if err != nil {
+		return fmt.Errorf("failed to marshal proof: %w", err)
+	}
+
+	if err := s.StoreCashbackData(ctx, proofKey, data); err != nil {
+		return fmt.Errorf("failed to store failed proof: %w", err)
+	}
+
+	log.Printf("❌ [Cashback] Marked period %d as failed for user %s (reason: %s)", period, userAddress, reason)
+	return nil
+}

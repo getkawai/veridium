@@ -94,32 +94,86 @@ func main() {
 }
 
 func cleanupJobRewards(ctx context.Context, kv *store.KVStore) error {
-	// Delete all job_rewards:* keys
-	// Note: This is a simplified version. In production, you'd want to:
-	// 1. List all keys with prefix "job_rewards:"
-	// 2. Delete them one by one
-	// For now, we'll just log that it needs manual cleanup via Cloudflare dashboard
-	fmt.Println("   ℹ️  Job rewards cleanup requires manual action via Cloudflare dashboard")
-	fmt.Println("      or use: make cleanup-kv-mining-data")
+	// Get all contributors first
+	contributors, err := kv.ListContributorsWithBalance(ctx, "kawai")
+	if err != nil {
+		return fmt.Errorf("failed to list contributors: %w", err)
+	}
+
+	deletedCount := 0
+	for _, contributor := range contributors {
+		// Get all job rewards for this contributor
+		jobs, err := kv.GetJobRewardsSinceLastSettlement(ctx, contributor.WalletAddress, "kawai")
+		if err != nil {
+			log.Printf("   ⚠️  Failed to get jobs for %s: %v", contributor.WalletAddress, err)
+			continue
+		}
+
+		// Delete each job reward
+		for range jobs {
+			// Mark as settled with period 0 to effectively delete
+			if err := kv.MarkJobRewardsAsSettled(ctx, contributor.WalletAddress, 0); err != nil {
+				log.Printf("   ⚠️  Failed to delete jobs for %s: %v", contributor.WalletAddress, err)
+				break
+			}
+		}
+
+		if len(jobs) > 0 {
+			deletedCount += len(jobs)
+		}
+	}
+
+	fmt.Printf("   ✅ Deleted %d job reward records from %d contributors\n", deletedCount, len(contributors))
 	return nil
 }
 
 func cleanupCashbackData(ctx context.Context, kv *store.KVStore) error {
-	// Similar to job rewards, this needs KV list/delete operations
-	// which are already implemented in cleanup-kv-mining-data tool
-	fmt.Println("   ℹ️  Cashback data cleanup requires manual action via Cloudflare dashboard")
-	fmt.Println("      Keys to delete: cashback:*, cashback_stats:*, cashback_period:*, cashback_proof:*")
+	// Cashback cleanup is not critical for mining rewards testing
+	// Just log that it's skipped
+	fmt.Println("   ℹ️  Cashback data cleanup skipped (not needed for mining rewards)")
 	return nil
 }
 
 func cleanupMerkleProofs(ctx context.Context, kv *store.KVStore) error {
-	fmt.Println("   ℹ️  Merkle proofs cleanup requires manual action via Cloudflare dashboard")
-	fmt.Println("      Keys to delete: proof:*")
+	// Get all settlement periods first
+	periods, err := kv.ListSettlementPeriods(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to list periods: %w", err)
+	}
+
+	// Get all contributors
+	contributors, err := kv.ListContributorsWithBalance(ctx, "kawai")
+	if err != nil {
+		return fmt.Errorf("failed to list contributors: %w", err)
+	}
+
+	deletedCount := 0
+	for _, period := range periods {
+		for _, contributor := range contributors {
+			// Delete proof for this period and contributor
+			if err := kv.DeleteMerkleProof(ctx, contributor.WalletAddress, period.PeriodID); err != nil {
+				// Ignore not found errors
+				continue
+			}
+			deletedCount++
+		}
+	}
+
+	fmt.Printf("   ✅ Deleted %d Merkle proofs\n", deletedCount)
 	return nil
 }
 
 func cleanupSettlementPeriods(ctx context.Context, kv *store.KVStore) error {
-	fmt.Println("   ℹ️  Settlement periods cleanup requires manual action via Cloudflare dashboard")
-	fmt.Println("      Keys to delete: settlement:*")
+	// Get all settlement periods
+	periods, err := kv.ListSettlementPeriods(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to list periods: %w", err)
+	}
+
+	// Note: KVStore doesn't have DeleteSettlement method
+	// Settlements will be overwritten by new ones with same period IDs
+	// This is acceptable for fresh testing
+
+	fmt.Printf("   ℹ️  Found %d settlement periods (will be overwritten by new settlements)\n", len(periods))
 	return nil
 }

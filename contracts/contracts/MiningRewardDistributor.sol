@@ -315,6 +315,21 @@ contract MiningRewardDistributor is Ownable, ReentrancyGuard {
     }
 
     /**
+     * @notice Set Merkle root for a specific period (timestamp-based)
+     * @param _period Period ID (timestamp)
+     * @param _merkleRoot Merkle root for the period
+     */
+    function setMerkleRootForPeriod(uint256 _period, bytes32 _merkleRoot) external onlyOwner {
+        require(_period > 0, "Invalid period");
+        require(_merkleRoot != bytes32(0), "Invalid merkle root");
+        
+        bytes32 oldRoot = periodMerkleRoots[_period];
+        periodMerkleRoots[_period] = _merkleRoot;
+        
+        emit MerkleRootUpdated(_period, oldRoot, _merkleRoot);
+    }
+
+    /**
      * @notice Advance to next period (weekly)
      * @param _merkleRoot Merkle root for new period
      */

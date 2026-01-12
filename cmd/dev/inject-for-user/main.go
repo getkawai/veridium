@@ -10,8 +10,8 @@ import (
 )
 
 func main() {
-	contributorAddress := "0x0439418dbAdA59FbdCd79a112F9Cf199AeB6c610"
-	
+	contributorAddress := "0xaB48220e6721754b906C30463142Dc0A8F5eBba2"
+
 	kv, err := store.NewMultiNamespaceKVStore()
 	if err != nil {
 		log.Fatal("Failed to initialize KV store:", err)
@@ -26,7 +26,7 @@ func main() {
 	record1 := &store.JobRewardRecord{
 		Timestamp:          time.Now(),
 		ContributorAddress: contributorAddress,
-		UserAddress:        "0xTestUser1111111111111111111111111111111111",
+		UserAddress:        "0x1111111111111111111111111111111111111111", // Valid address
 		ReferrerAddress:    "",
 		DeveloperAddress:   contributorAddress,
 		ContributorAmount:  "100000000000000000000",
@@ -47,7 +47,7 @@ func main() {
 	record2 := &store.JobRewardRecord{
 		Timestamp:          time.Now(),
 		ContributorAddress: contributorAddress,
-		UserAddress:        "0xTestUser2222222222222222222222222222222222",
+		UserAddress:        "0x2222222222222222222222222222222222222222", // Valid address
 		ReferrerAddress:    "",
 		DeveloperAddress:   contributorAddress,
 		ContributorAmount:  "150000000000000000000",
@@ -68,7 +68,7 @@ func main() {
 	record3 := &store.JobRewardRecord{
 		Timestamp:          time.Now(),
 		ContributorAddress: contributorAddress,
-		UserAddress:        "0xTestUser3333333333333333333333333333333333",
+		UserAddress:        "0x3333333333333333333333333333333333333333", // Valid address
 		ReferrerAddress:    "",
 		DeveloperAddress:   contributorAddress,
 		ContributorAmount:  "200000000000000000000",

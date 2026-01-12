@@ -303,6 +303,24 @@
   },
   {
     "type": "function",
+    "name": "setMerkleRootForPeriod",
+    "inputs": [
+      {
+        "name": "_period",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "_merkleRoot",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "totalAffiliatorRewards",
     "inputs": [],
     "outputs": [

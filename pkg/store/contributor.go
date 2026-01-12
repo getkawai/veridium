@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math/big"
+	"strings"
 	"sync"
 	"time"
 
@@ -102,6 +103,12 @@ func (s *KVStore) ListContributors(ctx context.Context) ([]*ContributorData, err
 
 	var contributors []*ContributorData
 	for _, key := range resp.Result {
+		// Skip non-contributor keys (job_rewards:*, balance:*, etc.)
+		// Contributor profile keys are just addresses (0x...), no colons
+		if strings.Contains(key.Name, ":") {
+			continue
+		}
+
 		data, err := s.GetContributor(ctx, key.Name)
 		if err != nil {
 			slog.Warn("Failed to get contributor data", "key", key.Name, "error", err)
@@ -593,7 +600,7 @@ func (s *KVStore) RecordJobReward(ctx context.Context, contributorAddress string
 
 	if err := s.SaveJobReward(ctx, jobRecord); err != nil {
 		// Log warning but don't fail - balance updates already succeeded
-		slog.Warn("Failed to save job reward record", "error", err, 
+		slog.Warn("Failed to save job reward record", "error", err,
 			"contributor", contributorAddress, "amount", contributorShare.String())
 	}
 

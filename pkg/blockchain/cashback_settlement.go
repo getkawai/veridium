@@ -103,7 +103,7 @@ func (cs *CashbackSettlement) collectPendingCashback(ctx context.Context, period
 
 	// For now, we'll use a marker key to track which records belong to which period
 	periodKey := fmt.Sprintf("cashback_period:%d:users", period)
-	data, err := cs.kvStore.GetMarketplaceData(ctx, periodKey)
+	data, err := cs.kvStore.GetCashbackData(ctx, periodKey)
 	if err != nil {
 		// Distinguish between "key not found" vs real errors
 		if err.Error() == "key not found" || err.Error() == "not found" {
@@ -283,8 +283,13 @@ func (cs *CashbackSettlement) storeProofs(ctx context.Context, period uint64, pr
 
 // setMerkleRoot sets the Merkle root on-chain
 func (cs *CashbackSettlement) setMerkleRoot(ctx context.Context, period uint64, merkleRoot [32]byte) error {
-	// Parse private key
-	privateKey, err := crypto.HexToECDSA(cs.privateKey)
+	// Parse private key (strip 0x prefix if present)
+	privateKeyHex := cs.privateKey
+	if len(privateKeyHex) > 2 && privateKeyHex[:2] == "0x" {
+		privateKeyHex = privateKeyHex[2:]
+	}
+
+	privateKey, err := crypto.HexToECDSA(privateKeyHex)
 	if err != nil {
 		return fmt.Errorf("failed to parse private key: %w", err)
 	}
@@ -348,7 +353,7 @@ func (cs *CashbackSettlement) setMerkleRoot(ctx context.Context, period uint64, 
 // TrackUserForPeriod adds a user to the period's user list for settlement
 func (cs *CashbackSettlement) TrackUserForPeriod(ctx context.Context, period uint64, userAddress string) error {
 	periodKey := fmt.Sprintf("cashback_period:%d:users", period)
-	
+
 	// Get existing users
 	data, err := cs.kvStore.GetMarketplaceData(ctx, periodKey)
 	var users []string
@@ -357,25 +362,24 @@ func (cs *CashbackSettlement) TrackUserForPeriod(ctx context.Context, period uin
 			return fmt.Errorf("failed to unmarshal users: %w", err)
 		}
 	}
-	
+
 	// Check if user already tracked
 	for _, u := range users {
 		if u == userAddress {
 			return nil // Already tracked
 		}
 	}
-	
+
 	// Add user
 	users = append(users, userAddress)
 	data, err = json.Marshal(users)
 	if err != nil {
 		return fmt.Errorf("failed to marshal users: %w", err)
 	}
-	
+
 	if err := cs.kvStore.StoreMarketplaceData(ctx, periodKey, data); err != nil {
 		return fmt.Errorf("failed to store users: %w", err)
 	}
-	
+
 	return nil
 }
-

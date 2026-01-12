@@ -76,6 +76,12 @@ func main() {
 
 	// 5. Generate Telegram constants
 	generateTelegram(configs)
+
+	// 6. Generate Blockchain constants
+	generateBlockchain(configs)
+
+	// 7. Generate Project Tokens
+	generateProjectTokens(configs)
 }
 
 func generateCloudflare(configs map[string]string) {
@@ -655,4 +661,97 @@ func generateTelegramGoFile(vars []ConfigVar, configs map[string]string) string 
 	}
 
 	return sb.String()
+}
+
+func generateBlockchain(configs map[string]string) {
+	outputFile := "internal/constant/blockchain.go"
+
+	// Extract blockchain addresses from .env
+	kawaiToken := configs["TOKEN_ADDRESS"]
+	escrow := configs["ESCROW_ADDRESS"]
+	mockUsdt := configs["MOCK_USDT_ADDRESS"]
+	paymentVault := configs["PAYMENT_VAULT_ADDRESS"]
+	kawaiDistributor := configs["KAWAI_DISTRIBUTOR_ADDRESS"]
+	usdtDistributor := configs["USDT_DISTRIBUTOR_ADDRESS"]
+	cashbackDistributor := configs["CASHBACK_DISTRIBUTOR_ADDRESS"]
+	miningDistributor := configs["MINING_DISTRIBUTOR_ADDRESS"]
+
+	if kawaiToken == "" || miningDistributor == "" {
+		fmt.Printf("⚠️ Required blockchain addresses not found in .env, skipping %s\n", outputFile)
+		return
+	}
+
+	content := fmt.Sprintf(`package constant
+
+const (
+	// Monad Testnet Configuration
+	MonadRpcUrl = "https://testnet-rpc.monad.xyz"
+
+	// Contract Addresses (Monad Testnet - Fresh Deployment 2026-01-13)
+	KawaiTokenAddress           = "%s"
+	KawaiEscrowAddress          = "%s"
+	MockUsdtAddress             = "%s"
+	PaymentVaultAddress         = "%s"
+	KawaiDistributorAddr        = "%s"
+	USDTDistributorAddr         = "%s"
+	CashbackDistributorAddress  = "%s"
+	MiningRewardDistributorAddr = "%s"
+
+	// Holder Scanner Configuration
+	// HolderScanStartBlock: Starting block for holder scanning
+	// - Fresh deployment: Reset to 0 for clean start
+	// - Mainnet: Set to token deployment block to optimize performance
+	HolderScanStartBlock = 0
+)
+`, kawaiToken, escrow, mockUsdt, paymentVault, kawaiDistributor, usdtDistributor, cashbackDistributor, miningDistributor)
+
+	err := os.WriteFile(outputFile, []byte(content), 0644)
+	if err != nil {
+		log.Fatalf("failed to write %s: %v", outputFile, err)
+	}
+
+	fmt.Printf("✅ Generated %s\n", outputFile)
+}
+
+func generateProjectTokens(configs map[string]string) {
+	outputFile := "pkg/jarvis/db/project_tokens.go"
+
+	// Extract addresses from .env
+	mockUsdt := configs["MOCK_USDT_ADDRESS"]
+	kawaiToken := configs["TOKEN_ADDRESS"]
+	escrow := configs["ESCROW_ADDRESS"]
+	paymentVault := configs["PAYMENT_VAULT_ADDRESS"]
+	kawaiDistributor := configs["KAWAI_DISTRIBUTOR_ADDRESS"]
+	usdtDistributor := configs["USDT_DISTRIBUTOR_ADDRESS"]
+	miningDistributor := configs["MINING_DISTRIBUTOR_ADDRESS"]
+	cashbackDistributor := configs["CASHBACK_DISTRIBUTOR_ADDRESS"]
+
+	if kawaiToken == "" || miningDistributor == "" {
+		fmt.Printf("⚠️ Required contract addresses not found in .env, skipping %s\n", outputFile)
+		return
+	}
+
+	content := fmt.Sprintf(`package db
+
+// PROJECT_TOKENS contains project-specific contract addresses (Monad Testnet)
+// Fresh Deployment: 2026-01-13
+var PROJECT_TOKENS map[string]string = map[string]string{
+	// Monad Testnet Contracts (Fresh Deployment 2026-01-13)
+	"%s": "MockUSDT",
+	"%s": "KawaiToken",
+	"%s": "Escrow",
+	"%s": "PaymentVault",
+	"%s": "KAWAI_Distributor",
+	"%s": "USDT_Distributor",
+	"%s": "MiningRewardDistributor",
+	"%s": "CashbackDistributor",
+}
+`, mockUsdt, kawaiToken, escrow, paymentVault, kawaiDistributor, usdtDistributor, miningDistributor, cashbackDistributor)
+
+	err := os.WriteFile(outputFile, []byte(content), 0644)
+	if err != nil {
+		log.Fatalf("failed to write %s: %v", outputFile, err)
+	}
+
+	fmt.Printf("✅ Generated %s\n", outputFile)
 }

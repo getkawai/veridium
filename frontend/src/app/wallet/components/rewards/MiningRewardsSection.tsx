@@ -121,6 +121,17 @@ export const MiningRewardsSection = ({ currentNetwork, theme, styles, onRefresh 
     return (rewards?.pending_proofs || []).filter((p): p is ClaimableReward => p !== null);
   }, [rewards]);
 
+  // Auto-refresh when there are pending claims
+  useEffect(() => {
+    if (validPending.length > 0) {
+      const interval = setInterval(() => {
+        loadRewards(false); // Silent refresh
+      }, 10000); // Every 10 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [validPending.length, loadRewards]);
+
   const paginatedUnclaimed = useMemo(() => {
     return validUnclaimed.slice((page - 1) * pageSize, page * pageSize);
   }, [validUnclaimed, page]);

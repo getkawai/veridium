@@ -659,30 +659,12 @@ func (s *DeAIService) TransferToken(tokenAddress string, to string, amountStr st
 // REWARDS CLAIM METHODS
 // =============================================================================
 
-// mapSettlementPeriodToContractPeriod maps settlement period IDs to sequential contract periods
-// Based on the fixed mapping from fix-mining-periods tool
-func (s *DeAIService) mapSettlementPeriodToContractPeriod(settlementPeriodID int64) (int64, error) {
-	// Fixed mapping based on sorted settlement periods
-	periodMapping := map[int64]int64{
-		1767549424: 1, // Oldest settlement -> Contract period 1
-		1767557168: 2, // Second oldest -> Contract period 2
-		1767650263: 3, // Third oldest -> Contract period 3
-		1768130418: 4, // Newest settlement -> Contract period 4
-		1768135359: 5, // Test settlement with correct addresses -> Contract period 5
-		1768136095: 6, // Proper test settlement with valid proofs -> Contract period 6
-		1768137123: 7, // Previous CORRECT settlement -> Contract period 7
-		1768137242: 7, // LATEST CORRECT settlement with matching periods -> Contract period 7
-		1768139780: 7, // FIXED settlement with correct proofs -> Contract period 7
-		1768141059: 8, // TREASURY settlement with msg.sender match -> Contract period 8
-		1768141317: 8, // FINAL TREASURY settlement with period 8 -> Contract period 8
-	}
-
-	contractPeriod, exists := periodMapping[settlementPeriodID]
-	if !exists {
-		return 0, fmt.Errorf("unknown settlement period ID: %d", settlementPeriodID)
-	}
-
-	return contractPeriod, nil
+// getContractPeriodForTimestamp is no longer needed - contract now supports timestamp-based periods
+// Contract's setMerkleRootForPeriod() accepts any period ID (timestamp)
+// This function is kept for backward compatibility but just returns the timestamp as-is
+func (s *DeAIService) getContractPeriodForTimestamp(timestamp int64) int64 {
+	// Contract now uses timestamp-based periods directly via setMerkleRootForPeriod()
+	return timestamp
 }
 
 // GetClaimableRewards fetches all claimable rewards for the current wallet
@@ -874,32 +856,57 @@ func (s *DeAIService) ClaimCashbackReward(period uint64, kawaiAmount string, pro
 		return nil, fmt.Errorf("failed to get transaction opts: %w", err)
 	}
 
-	// 5. Submit claim transaction
+	// 5. Mark claim as pending BEFORE submitting transaction (prevents double-claim UX issue)
+	ctx := context.Background()
+	if s.kv != nil {
+		kvStore, ok := s.kv.(*store.KVStore)
+		if ok {
+			if err := kvStore.MarkCashbackPending(ctx, s.wallet.currentAccount.AddressHex(), period, ""); err != nil {
+				return nil, fmt.Errorf("failed to mark cashback claim as pending: %w", err)
+			}
+		}
+	}
+
+	// 6. Submit claim transaction
 	tx, err := distributor.ClaimCashback(opts, big.NewInt(int64(period)), amount, merkleProof)
 	if err != nil {
+		// Rollback pending status on transaction failure
+		if s.kv != nil {
+			kvStore, ok := s.kv.(*store.KVStore)
+			if ok {
+				kvStore.MarkCashbackFailed(ctx, s.wallet.currentAccount.AddressHex(), period, err.Error())
+			}
+		}
 		return nil, fmt.Errorf("claim transaction failed: %w", err)
 	}
 
 	txHash := tx.Hash().Hex()
 
-	// 6. Wait for transaction confirmation
-	ctx := context.Background()
+	// 7. Wait for transaction confirmation
 	receipt, err := bind.WaitMined(ctx, s.reader.Client(), tx)
 	if err != nil {
+		// Keep pending status - will be checked later
 		return nil, fmt.Errorf("failed to wait for transaction confirmation: %w", err)
 	}
 
-	// 7. Check transaction status
+	// 8. Check transaction status
 	if receipt.Status != 1 {
+		// Mark as failed if transaction reverted
+		if s.kv != nil {
+			kvStore, ok := s.kv.(*store.KVStore)
+			if ok {
+				kvStore.MarkCashbackFailed(ctx, s.wallet.currentAccount.AddressHex(), period, "transaction reverted")
+			}
+		}
 		return nil, fmt.Errorf("transaction reverted (status: %d)", receipt.Status)
 	}
 
-	// 8. Mark claim as completed in KV store (for tracking)
+	// 9. Mark claim as completed in KV store
 	if s.kv != nil {
 		kvStore, ok := s.kv.(*store.KVStore)
 		if ok {
 			if err := kvStore.MarkCashbackClaimed(ctx, s.wallet.currentAccount.AddressHex(), period); err != nil {
-				// Log warning but don't fail - the TX was successful
+				// Log warning - tx was successful, but KV update failed
 				fmt.Printf("Warning: failed to mark cashback claim in KV: %v\n", err)
 			}
 		}
@@ -916,6 +923,8 @@ func (s *DeAIService) ClaimCashbackReward(period uint64, kawaiAmount string, pro
 
 // ClaimMiningReward claims mining rewards with referral-based splits
 // Uses the new MiningRewardDistributor contract with 9-field Merkle leaves
+// ClaimMiningReward claims mining rewards with referral splits
+// Maps timestamp-based settlement periods to sequential contract periods
 func (s *DeAIService) ClaimMiningReward(
 	period int64,
 	contributorAmount string,
@@ -931,21 +940,19 @@ func (s *DeAIService) ClaimMiningReward(
 		return nil, fmt.Errorf("no wallet connected")
 	}
 
-	// 1. Map settlement period ID to contract period
-	contractPeriod, err := s.mapSettlementPeriodToContractPeriod(period)
-	if err != nil {
-		return nil, fmt.Errorf("failed to map period: %w", err)
-	}
+	// Contract now supports timestamp-based periods directly via setMerkleRootForPeriod()
+	// No mapping needed - use timestamp period ID as-is
+	contractPeriod := period
 
-	fmt.Printf("🔄 Mapping settlement period %d -> contract period %d\n", period, contractPeriod)
+	fmt.Printf("🔄 Claiming mining reward: period %d (timestamp-based)\n", period)
 
-	// 2. Load MiningRewardDistributor contract
+	// Load MiningRewardDistributor contract
 	distributor, err := contracts.MiningRewardDistributor("MiningRewardDistributor", s.reader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load mining distributor: %w", err)
 	}
 
-	// 3. Parse amounts
+	// Parse amounts
 	contribAmt := new(big.Int)
 	contribAmt, ok := contribAmt.SetString(contributorAmount, 10)
 	if !ok {
@@ -996,13 +1003,21 @@ func (s *DeAIService) ClaimMiningReward(
 		return nil, fmt.Errorf("failed to get transaction opts: %w", err)
 	}
 
-	// 7. Submit claim transaction using the mapped contract period
+	// 7. Mark claim as pending BEFORE submitting transaction (prevents double-claim UX issue)
+	ctx := context.Background()
+	if s.kv != nil {
+		if err := s.kv.MarkClaimPending(ctx, s.wallet.currentAccount.AddressHex(), period, ""); err != nil {
+			return nil, fmt.Errorf("failed to mark claim as pending: %w", err)
+		}
+	}
+
+	// 8. Submit claim transaction using the mapped contract period
 	// claimReward(uint256 period, uint256 contributorAmount, uint256 developerAmount,
 	//             uint256 userAmount, uint256 affiliatorAmount, address developer,
 	//             address user, address affiliator, bytes32[] calldata merkleProof)
 	tx, err := distributor.ClaimReward(
 		opts,
-		big.NewInt(contractPeriod), // Use mapped contract period
+		big.NewInt(contractPeriod), // Use sequential contract period
 		contribAmt,
 		devAmt,
 		userAmt,
@@ -1013,28 +1028,36 @@ func (s *DeAIService) ClaimMiningReward(
 		merkleProof,
 	)
 	if err != nil {
+		// Rollback pending status on transaction failure
+		if s.kv != nil {
+			s.kv.MarkClaimFailed(ctx, s.wallet.currentAccount.AddressHex(), period, err.Error())
+		}
 		return nil, fmt.Errorf("mining claim transaction failed: %w", err)
 	}
 
 	txHash := tx.Hash().Hex()
 
-	// 8. Wait for transaction confirmation
-	ctx := context.Background()
+	// 9. Wait for transaction confirmation
 	receipt, err := bind.WaitMined(ctx, s.reader.Client(), tx)
 	if err != nil {
+		// Keep pending status - auto-confirm will check later
 		return nil, fmt.Errorf("failed to wait for transaction confirmation: %w", err)
 	}
 
-	// 9. Check transaction status
+	// 10. Check transaction status
 	if receipt.Status != 1 {
+		// Mark as failed if transaction reverted
+		if s.kv != nil {
+			s.kv.MarkClaimFailed(ctx, s.wallet.currentAccount.AddressHex(), period, "transaction reverted")
+		}
 		return nil, fmt.Errorf("transaction reverted (status: %d)", receipt.Status)
 	}
 
-	// 10. Mark claim as completed in KV store (for tracking)
+	// 11. Update with actual tx hash (status remains pending, auto-confirm will update to confirmed)
 	if s.kv != nil {
 		if err := s.kv.MarkClaimPending(ctx, s.wallet.currentAccount.AddressHex(), period, txHash); err != nil {
-			// Log warning but don't fail - the TX was successful
-			fmt.Printf("Warning: failed to mark mining claim in KV: %v\n", err)
+			// Log warning - tx was successful, auto-confirm will fix status later
+			fmt.Printf("Warning: failed to update mining claim tx hash in KV: %v\n", err)
 		}
 	}
 
