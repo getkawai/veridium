@@ -321,7 +321,7 @@ func (ctx *Context) InitBlockchainClient() {
 	rpcURL := constant.MonadRpcUrl
 	tokenAddress := constant.KawaiTokenAddress
 	escrowAddress := constant.KawaiEscrowAddress
-	usdtAddress := constant.MockUsdtAddress
+	usdtAddress := constant.UsdtTokenAddress
 
 	// Initialize blockchain client
 	config := blockchain.Config{

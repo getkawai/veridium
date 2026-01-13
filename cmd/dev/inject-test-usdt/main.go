@@ -26,7 +26,7 @@ func main() {
 	defer client.Close()
 
 	// Load USDT contract
-	usdtAddr := common.HexToAddress(constant.MockUsdtAddress)
+	usdtAddr := common.HexToAddress(constant.UsdtTokenAddress)
 	usdtContract, err := usdt.NewMockUSDT(usdtAddr, client)
 	if err != nil {
 		log.Fatalf("Failed to load USDT contract: %v", err)

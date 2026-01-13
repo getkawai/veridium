@@ -669,7 +669,7 @@ func generateBlockchain(configs map[string]string) {
 	// Extract blockchain addresses from .env
 	kawaiToken := configs["TOKEN_ADDRESS"]
 	escrow := configs["ESCROW_ADDRESS"]
-	mockUsdt := configs["MOCK_USDT_ADDRESS"]
+	usdtToken := configs["USDT_TOKEN_ADDRESS"]
 	paymentVault := configs["PAYMENT_VAULT_ADDRESS"]
 	kawaiDistributor := configs["KAWAI_DISTRIBUTOR_ADDRESS"]
 	usdtDistributor := configs["USDT_DISTRIBUTOR_ADDRESS"]
@@ -690,7 +690,7 @@ const (
 	// Contract Addresses (Monad Testnet - Fresh Deployment 2026-01-13)
 	KawaiTokenAddress           = "%s"
 	KawaiEscrowAddress          = "%s"
-	MockUsdtAddress             = "%s"
+	UsdtTokenAddress            = "%s"
 	PaymentVaultAddress         = "%s"
 	KawaiDistributorAddr        = "%s"
 	USDTDistributorAddr         = "%s"
@@ -703,7 +703,7 @@ const (
 	// - Mainnet: Set to token deployment block to optimize performance
 	HolderScanStartBlock = 0
 )
-`, kawaiToken, escrow, mockUsdt, paymentVault, kawaiDistributor, usdtDistributor, cashbackDistributor, miningDistributor)
+`, kawaiToken, escrow, usdtToken, paymentVault, kawaiDistributor, usdtDistributor, cashbackDistributor, miningDistributor)
 
 	err := os.WriteFile(outputFile, []byte(content), 0644)
 	if err != nil {
@@ -717,7 +717,7 @@ func generateProjectTokens(configs map[string]string) {
 	outputFile := "pkg/jarvis/db/project_tokens.go"
 
 	// Extract addresses from .env
-	mockUsdt := configs["MOCK_USDT_ADDRESS"]
+	usdtToken := configs["USDT_TOKEN_ADDRESS"]
 	kawaiToken := configs["TOKEN_ADDRESS"]
 	escrow := configs["ESCROW_ADDRESS"]
 	paymentVault := configs["PAYMENT_VAULT_ADDRESS"]
@@ -737,7 +737,7 @@ func generateProjectTokens(configs map[string]string) {
 // Fresh Deployment: 2026-01-13
 var PROJECT_TOKENS map[string]string = map[string]string{
 	// Monad Testnet Contracts (Fresh Deployment 2026-01-13)
-	"%s": "MockUSDT",
+	"%s": "USDT",
 	"%s": "KawaiToken",
 	"%s": "Escrow",
 	"%s": "PaymentVault",
@@ -746,7 +746,7 @@ var PROJECT_TOKENS map[string]string = map[string]string{
 	"%s": "MiningRewardDistributor",
 	"%s": "CashbackDistributor",
 }
-`, mockUsdt, kawaiToken, escrow, paymentVault, kawaiDistributor, usdtDistributor, miningDistributor, cashbackDistributor)
+`, usdtToken, kawaiToken, escrow, paymentVault, kawaiDistributor, usdtDistributor, miningDistributor, cashbackDistributor)
 
 	err := os.WriteFile(outputFile, []byte(content), 0644)
 	if err != nil {

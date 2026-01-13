@@ -4,7 +4,7 @@ package db
 // Fresh Deployment: 2026-01-13
 var PROJECT_TOKENS map[string]string = map[string]string{
 	// Monad Testnet Contracts (Fresh Deployment 2026-01-13)
-	"0x60B99499aA369b63BE1aC7123E383Ef450227a63": "MockUSDT",
+	"0x60B99499aA369b63BE1aC7123E383Ef450227a63": "USDT",
 	"0xeBB1bf5Db06e9E858FfA346520e22D25944fbB87": "KawaiToken",
 	"0xA71306429A0232C8b9EF5F2908e04Fcad7E96B8E": "Escrow",
 	"0x44581F99a39eEab898194e54c3B89bb261d3b2c3": "PaymentVault",

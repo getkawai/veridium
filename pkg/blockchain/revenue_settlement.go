@@ -41,7 +41,7 @@ func NewRevenueSettlement(kvStore *store.KVStore) (*RevenueSettlement, error) {
 	}
 
 	// Load USDT token contract
-	usdtAddr := common.HexToAddress(constant.MockUsdtAddress)
+	usdtAddr := common.HexToAddress(constant.UsdtTokenAddress)
 	usdtToken, err := usdt.NewMockUSDT(usdtAddr, client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load USDT token: %w", err)
