@@ -12,7 +12,7 @@
 - [ ] Private keys NEVER in git
 - [ ] Production RPC endpoints configured
 - [ ] Cloudflare KV production namespaces created
-- [ ] Monitoring & alerts configured
+- [ ] Monitoring & alerts configured (✅ Integrated - test with `make test-telegram-alert`)
 - [ ] Backup strategy implemented
 
 ### During Deployment

@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Name=Kawai
+Comment=Kawai Network - AI-Powered Blockchain Platform
+# The Exec line includes %u to pass the URL to the application
+Exec=/usr/local/bin/Kawai %u
+Terminal=false
+Type=Application
+Icon=Kawai
+Categories=Utility;
+StartupWMClass=Kawai
+
+ 

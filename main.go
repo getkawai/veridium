@@ -1,4 +1,4 @@
-// Package main is the entry point for the Veridium desktop application.
+// Package main is the entry point for the Kawai desktop application.
 package main
 
 import (
@@ -75,8 +75,8 @@ func main() {
 
 func createWailsApp(ctx *app.Context, fileProcessor *FileProcessorService, sdService *image.Service) *application.App {
 	return application.New(application.Options{
-		Name:        "veridium",
-		Description: "Veridium AI Assistant",
+		Name:        "Kawai",
+		Description: "Kawai Network - AI-Powered Blockchain Platform",
 		Logger:      slog.Default(),
 		Services:    buildServiceList(ctx, fileProcessor, sdService),
 		Assets: application.AssetOptions{
@@ -202,7 +202,7 @@ func registerAgentServices(wailsApp *application.App, ctx *app.Context, fileProc
 
 func createMainWindow(wailsApp *application.App, ctx *app.Context, fileProcessor *FileProcessorService) {
 	win := wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title:             "Veridium",
+		Title:             "Kawai",
 		StartState:        application.WindowStateMaximised,
 		EnableDragAndDrop: true,
 		Mac: application.MacWindow{

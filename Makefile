@@ -104,6 +104,7 @@ help:
 	@echo "Testing Helpers:"
 	@echo "  make test-mining-rewards      Run all mining rewards tests"
 	@echo "  make test-inject-mining-data  Inject test data to KV store"
+	@echo "  make test-telegram-alert      Test Telegram alert system"
 	@echo ""
 	@echo "KV Store Cleanup:"
 	@echo "  make cleanup-kv-preview       Preview what will be deleted"
@@ -540,6 +541,10 @@ test-mining-rewards:
 test-inject-mining-data:
 	@echo "💉 Injecting test mining reward data..."
 	@go run cmd/dev/test-inject-mining-data/main.go
+
+test-telegram-alert:
+	@echo "📱 Testing Telegram alert system..."
+	@go run cmd/dev/test-telegram-alert/main.go
 
 inject-test-usdt:
 	@echo "💵 Injecting test USDT to PaymentVault..."

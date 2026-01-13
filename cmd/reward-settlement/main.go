@@ -15,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/internal/generate/abi/miningdistributor"
+	"github.com/kawai-network/veridium/pkg/alert"
 	"github.com/kawai-network/veridium/pkg/blockchain"
 	"github.com/kawai-network/veridium/pkg/store"
 )
@@ -138,12 +139,19 @@ func generateSettlement(ctx context.Context, kv *store.KVStore, rewardType strin
 }
 
 func generateMiningSettlement(ctx context.Context, kv store.Store) error {
+	alerter := alert.NewTelegramAlert()
+
 	log.Println("📊 Mining Rewards Settlement")
 	log.Println("─────────────────────────────")
+
+	// Send start notification
+	alerter.SendAlert("INFO", "Settlement", "🔄 Starting mining settlement...")
 
 	// Generate mining settlement with 9-field Merkle leaves
 	period, err := kv.GenerateMiningSettlement(ctx, "kawai")
 	if err != nil {
+		alerter.SendAlert("ERROR", "Settlement",
+			fmt.Sprintf("❌ Mining settlement failed!\nError: %v", err))
 		return fmt.Errorf("failed to generate mining settlement: %w", err)
 	}
 
@@ -158,22 +166,35 @@ func generateMiningSettlement(ctx context.Context, kv store.Store) error {
 	log.Println("")
 	log.Printf("📝 Next: reward-settlement upload --type mining")
 
+	// Send success notification
+	alerter.SendAlert("SUCCESS", "Settlement",
+		fmt.Sprintf("✅ Mining settlement complete!\nPeriod: %d\nContributors: %d\nTotal: %s KAWAI\nMerkle Root: %s",
+			period.PeriodID, period.ContributorCount, period.TotalAmount, period.MerkleRoot[:16]+"..."))
+
 	return nil
 }
 
 func generateCashbackSettlement(ctx context.Context, kv *store.KVStore) error {
+	alerter := alert.NewTelegramAlert()
+
 	log.Println("📊 Cashback Rewards Settlement")
 	log.Println("─────────────────────────────")
+
+	alerter.SendAlert("INFO", "Settlement", "🔄 Starting cashback settlement...")
 
 	// Initialize cashback settlement
 	settlement, err := blockchain.NewCashbackSettlement(kv, constant.GetObfuscatedTemp())
 	if err != nil {
+		alerter.SendAlert("ERROR", "Settlement",
+			fmt.Sprintf("❌ Cashback settlement init failed!\nError: %v", err))
 		return fmt.Errorf("failed to initialize cashback settlement: %w", err)
 	}
 
 	// Get current period from contract (not from timestamp calculation)
 	currentPeriod, err := settlement.GetCurrentPeriod(ctx)
 	if err != nil {
+		alerter.SendAlert("ERROR", "Settlement",
+			fmt.Sprintf("❌ Failed to get current period!\nError: %v", err))
 		return fmt.Errorf("failed to get current period from contract: %w", err)
 	}
 
@@ -186,6 +207,8 @@ func generateCashbackSettlement(ctx context.Context, kv *store.KVStore) error {
 
 	// Run settlement
 	if err := settlement.SettleCashback(ctx, settlementPeriod); err != nil {
+		alerter.SendAlert("ERROR", "Settlement",
+			fmt.Sprintf("❌ Cashback settlement failed!\nPeriod: %d\nError: %v", settlementPeriod, err))
 		return fmt.Errorf("failed to settle cashback: %w", err)
 	}
 
@@ -193,6 +216,9 @@ func generateCashbackSettlement(ctx context.Context, kv *store.KVStore) error {
 	log.Printf("✅ Cashback settlement completed!")
 	log.Println("")
 	log.Printf("📝 Next: reward-settlement upload --type cashback")
+
+	alerter.SendAlert("SUCCESS", "Settlement",
+		fmt.Sprintf("✅ Cashback settlement complete!\nPeriod: %d", settlementPeriod))
 
 	return nil
 }
@@ -268,6 +294,8 @@ func uploadMerkleRoot(ctx context.Context, kv *store.KVStore, rewardType string)
 }
 
 func uploadMiningRoot(ctx context.Context, kv store.Store) error {
+	alerter := alert.NewTelegramAlert()
+
 	// Get latest mining period
 	periods, err := kv.ListSettlementPeriods(ctx)
 	if err != nil {
@@ -291,9 +319,14 @@ func uploadMiningRoot(ctx context.Context, kv store.Store) error {
 	log.Printf("Total Amount:  %s KAWAI", latest.TotalAmount)
 	log.Println("")
 
+	alerter.SendAlert("INFO", "Settlement",
+		fmt.Sprintf("📤 Uploading mining merkle root...\nPeriod: %d", latest.PeriodID))
+
 	// Connect to Monad RPC
 	client, err := ethclient.Dial(constant.MonadRpcUrl)
 	if err != nil {
+		alerter.SendAlert("ERROR", "Settlement",
+			fmt.Sprintf("❌ Failed to connect to RPC!\nError: %v", err))
 		return fmt.Errorf("failed to connect to Monad: %w", err)
 	}
 	defer client.Close()
@@ -363,6 +396,8 @@ func uploadMiningRoot(ctx context.Context, kv store.Store) error {
 		log.Printf("🌳 [MINING] Updating Merkle root for current period %d", latest.PeriodID)
 		tx, err := distributor.SetMerkleRoot(auth, merkleRoot)
 		if err != nil {
+			alerter.SendAlert("ERROR", "Settlement",
+				fmt.Sprintf("❌ Mining merkle root upload failed!\nPeriod: %d\nError: %v", latest.PeriodID, err))
 			return fmt.Errorf("failed to upload Merkle root: %w", err)
 		}
 		log.Printf("✅ [MINING] SetMerkleRoot transaction sent: %s", tx.Hash().Hex())
@@ -370,18 +405,28 @@ func uploadMiningRoot(ctx context.Context, kv store.Store) error {
 
 		receipt, err := bind.WaitMined(ctx, client, tx)
 		if err != nil {
+			alerter.SendAlert("ERROR", "Settlement",
+				fmt.Sprintf("❌ Mining tx confirmation failed!\nTx: %s\nError: %v", tx.Hash().Hex(), err))
 			return fmt.Errorf("failed to wait for confirmation: %w", err)
 		}
 		if receipt.Status != 1 {
+			alerter.SendAlert("ERROR", "Settlement",
+				fmt.Sprintf("❌ Mining tx reverted!\nTx: %s\nStatus: %d", tx.Hash().Hex(), receipt.Status))
 			return fmt.Errorf("transaction failed with status: %d", receipt.Status)
 		}
 		log.Printf("✅ [MINING] Merkle root uploaded successfully in block %d", receipt.BlockNumber.Uint64())
+
+		alerter.SendAlert("SUCCESS", "Settlement",
+			fmt.Sprintf("✅ Mining merkle root uploaded!\nPeriod: %d\nTx: %s\nBlock: %d\nGas: %d",
+				latest.PeriodID, tx.Hash().Hex(), receipt.BlockNumber.Uint64(), receipt.GasUsed))
 
 	} else if latest.PeriodID == currentPeriod.Int64()+1 {
 		// Advance to next period
 		log.Printf("🌳 [MINING] Advancing to period %d with new Merkle root", latest.PeriodID)
 		tx, err := distributor.AdvancePeriod(auth, merkleRoot)
 		if err != nil {
+			alerter.SendAlert("ERROR", "Settlement",
+				fmt.Sprintf("❌ Mining period advance failed!\nPeriod: %d\nError: %v", latest.PeriodID, err))
 			return fmt.Errorf("failed to advance period: %w", err)
 		}
 		log.Printf("✅ [MINING] AdvancePeriod transaction sent: %s", tx.Hash().Hex())
@@ -389,12 +434,20 @@ func uploadMiningRoot(ctx context.Context, kv store.Store) error {
 
 		receipt, err := bind.WaitMined(ctx, client, tx)
 		if err != nil {
+			alerter.SendAlert("ERROR", "Settlement",
+				fmt.Sprintf("❌ Mining tx confirmation failed!\nTx: %s\nError: %v", tx.Hash().Hex(), err))
 			return fmt.Errorf("failed to wait for confirmation: %w", err)
 		}
 		if receipt.Status != 1 {
+			alerter.SendAlert("ERROR", "Settlement",
+				fmt.Sprintf("❌ Mining tx reverted!\nTx: %s\nStatus: %d", tx.Hash().Hex(), receipt.Status))
 			return fmt.Errorf("transaction failed with status: %d", receipt.Status)
 		}
 		log.Printf("✅ [MINING] Period advanced successfully in block %d", receipt.BlockNumber.Uint64())
+
+		alerter.SendAlert("SUCCESS", "Settlement",
+			fmt.Sprintf("✅ Mining period advanced!\nPeriod: %d\nTx: %s\nBlock: %d\nGas: %d",
+				latest.PeriodID, tx.Hash().Hex(), receipt.BlockNumber.Uint64(), receipt.GasUsed))
 
 	} else {
 		return fmt.Errorf("period mismatch: settlement period %d, contract period %d (expected %d or %d)",
