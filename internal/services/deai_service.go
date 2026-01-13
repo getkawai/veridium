@@ -812,9 +812,7 @@ func (s *DeAIService) ClaimCashbackReward(period uint64, kawaiAmount string, pro
 	}
 
 	// 1. Input validation
-	if len(proof) == 0 {
-		return nil, fmt.Errorf("proof cannot be empty")
-	}
+	// Note: Empty proof is valid for single-leaf Merkle trees
 	if kawaiAmount == "" || kawaiAmount == "0" {
 		return nil, fmt.Errorf("amount must be greater than zero")
 	}

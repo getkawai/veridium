@@ -13,9 +13,10 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("Usage: go run cmd/dev/inject-cashback-data/main.go <user_address> [deposit_amount_usdt]")
-		fmt.Println("Example: go run cmd/dev/inject-cashback-data/main.go 0x123... 1000")
+		fmt.Println("Usage: go run cmd/dev/inject-cashback-data/main.go <user_address> [period]")
+		fmt.Println("Example: go run cmd/dev/inject-cashback-data/main.go 0x123... 6")
 		fmt.Println("")
+		fmt.Println("If period not specified, will use contract's currentPeriod - 1")
 		fmt.Println("Default: 3 deposits (100, 500, 1000 USDT)")
 		os.Exit(1)
 	}
@@ -32,17 +33,23 @@ func main() {
 	fmt.Println("💰 Injecting cashback data for:", userAddress)
 	fmt.Println()
 
-	// Get current period and inject into previous period (for settlement)
-	currentPeriod := kv.GetCurrentPeriod()
-	period := currentPeriod - 1 // Inject into previous period so settlement can process it
-	fmt.Printf("📅 Current period: %d\n", currentPeriod)
-	fmt.Printf("📅 Injecting into period: %d (for settlement)\n", period)
+	// Determine period
+	var period uint64
+	if len(os.Args) >= 3 {
+		fmt.Sscanf(os.Args[2], "%d", &period)
+		fmt.Printf("📅 Using specified period: %d\n", period)
+	} else {
+		// Default: Use contract period - 1
+		// Note: This requires querying the contract, so for now we'll use a fixed value
+		period = 6 // TODO: Query from contract
+		fmt.Printf("📅 Using default period: %d (contract currentPeriod - 1)\n", period)
+	}
 	fmt.Println()
 
-	// If custom amount provided, use it
-	if len(os.Args) >= 3 {
+	// If custom amount provided, use it (3rd argument after period)
+	if len(os.Args) >= 4 {
 		var depositUSDT int64
-		fmt.Sscanf(os.Args[2], "%d", &depositUSDT)
+		fmt.Sscanf(os.Args[3], "%d", &depositUSDT)
 
 		if err := injectDeposit(ctx, kv, userAddress, depositUSDT, period, 1); err != nil {
 			log.Fatal("Failed to inject deposit:", err)

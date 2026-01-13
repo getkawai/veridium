@@ -165,23 +165,24 @@ func generateCashbackSettlement(ctx context.Context, kv *store.KVStore) error {
 	log.Println("📊 Cashback Rewards Settlement")
 	log.Println("─────────────────────────────")
 
-	// Get current period
-	currentPeriod := kv.GetCurrentPeriod()
-	settlementPeriod := currentPeriod - 1 // Settle previous period
-
-	if settlementPeriod < 1 {
-		return fmt.Errorf("no period to settle yet (current period: %d)", currentPeriod)
-	}
-
-	log.Printf("Current Period:    %d", currentPeriod)
-	log.Printf("Settling Period:   %d", settlementPeriod)
-	log.Println("")
-
 	// Initialize cashback settlement
 	settlement, err := blockchain.NewCashbackSettlement(kv, constant.GetObfuscatedTemp())
 	if err != nil {
 		return fmt.Errorf("failed to initialize cashback settlement: %w", err)
 	}
+
+	// Get current period from contract (not from timestamp calculation)
+	currentPeriod, err := settlement.GetCurrentPeriod(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get current period from contract: %w", err)
+	}
+
+	// Settle CURRENT period (not previous), because setMerkleRoot sets root for currentPeriod
+	settlementPeriod := currentPeriod
+
+	log.Printf("Current Period:    %d", currentPeriod)
+	log.Printf("Settling Period:   %d", settlementPeriod)
+	log.Println("")
 
 	// Run settlement
 	if err := settlement.SettleCashback(ctx, settlementPeriod); err != nil {

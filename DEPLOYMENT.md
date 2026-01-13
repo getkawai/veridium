@@ -1,16 +1,23 @@
 # FRESH DEPLOY TESTNET - COMPLETE PLAN
 
-## CURRENT DEPLOYMENT ADDRESSES (2026-01-13)
+## CURRENT DEPLOYMENT ADDRESSES (2026-01-13 Round 4 - FINAL E2E TESTED ✅)
 ```
-MockUSDT:                    0xDC6f16b4f551638b21C3754F6F93Ea9BbD856298
-KawaiToken:                  0x80c70F17C4dD23c5C214271293b638197232ab01
-KAWAI_Distributor:           0x41E2a735aA3D9c9D6cA4dD53b93023ec99FDD7Ef
-USDT_Distributor:            0x15908521Bd992083F56dCaf7D703b26acFFad742
-PaymentVault:                0x4287dA438FE7FB677D9beB8a7d4A5A09E3C1aC1D
-OTCMarket:                   0xd3952Dd84A1Acaf72e3ABD17922e2e850D5E0b58
-MiningRewardDistributor:     0x86b11B1A7e4e40D181ac06070a0e98648dBc7859
-DepositCashbackDistributor:  0x576564788277b2d8F7475d4B593e08190a2236D6
+MockUSDT:                    0x60B99499aA369b63BE1aC7123E383Ef450227a63
+KawaiToken:                  0xeBB1bf5Db06e9E858FfA346520e22D25944fbB87
+KAWAI_Distributor:           0x578C6E95908399467f98bDf10378beA95b44EF23
+USDT_Distributor:            0xe024c9a670E0039A887c7f385892333CAb04a275
+PaymentVault:                0x44581F99a39eEab898194e54c3B89bb261d3b2c3
+OTCMarket:                   0xA71306429A0232C8b9EF5F2908e04Fcad7E96B8E
+MiningRewardDistributor:     0xFEC16f47BD9DD4B9E05DAaC7BBef8C047f010289
+DepositCashbackDistributor:  0x56Bc3045088C51f329F86AE5Dec3faED59d77664
 ```
+
+**E2E Test Results:**
+- ✅ Mining rewards: 2 users claimed 450 KAWAI each via UI
+- ✅ Cashback rewards: 2 users claimed ~30 KAWAI each via UI
+- ✅ Auto-sync: KV automatically syncs with on-chain claimed status
+- ✅ Multi-user: Both users can claim simultaneously without conflicts
+- ✅ Total test time: ~30 minutes (full fresh deployment)
 
 ## GOAL
 Deploy semua contracts fresh, inject test data, upload Merkle roots, dan TEST CLAIMING dari UI sampai berhasil.

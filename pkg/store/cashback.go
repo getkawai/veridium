@@ -10,6 +10,11 @@ import (
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/kawai-network/veridium/internal/constant"
+	"github.com/kawai-network/veridium/internal/generate/abi/cashbackdistributor"
 )
 
 // CashbackCache stores claimable records in memory for faster subsequent loads
@@ -43,12 +48,13 @@ type CashbackRecord struct {
 
 // CashbackStats represents user's cashback statistics
 type CashbackStats struct {
-	TotalCashback   string     `json:"total_cashback"`   // Total KAWAI earned
-	PendingCashback string     `json:"pending_cashback"` // Pending (unclaimed)
-	ClaimedCashback string     `json:"claimed_cashback"` // Already claimed
-	TotalDeposits   uint64     `json:"total_deposits"`   // Number of deposits
-	FirstDepositAt  *time.Time `json:"first_deposit_at"`
-	LastDepositAt   *time.Time `json:"last_deposit_at"`
+	TotalCashback      string     `json:"total_cashback"`       // Total KAWAI earned (wei)
+	PendingCashback    string     `json:"pending_cashback"`     // Pending (unclaimed) (wei)
+	ClaimedCashback    string     `json:"claimed_cashback"`     // Already claimed (wei)
+	TotalDeposits      uint64     `json:"total_deposits"`       // Number of deposits
+	TotalDepositAmount string     `json:"total_deposit_amount"` // Total USDT deposited (wei, 6 decimals)
+	FirstDepositAt     *time.Time `json:"first_deposit_at"`
+	LastDepositAt      *time.Time `json:"last_deposit_at"`
 }
 
 // CalculateCashback calculates KAWAI cashback for a USDT deposit
@@ -173,7 +179,7 @@ func (s *KVStore) TrackCashback(ctx context.Context, userAddress, txHash string,
 	}
 
 	// Update stats
-	if err := s.updateCashbackStats(ctx, userAddress, cashbackAmount); err != nil {
+	if err := s.updateCashbackStats(ctx, userAddress, cashbackAmount, depositAmount.String()); err != nil {
 		log.Printf("⚠️  [Cashback] Failed to update stats: %v", err)
 		// Don't fail - record is already stored
 	}
@@ -206,7 +212,7 @@ func (s *KVStore) GetCashbackStats(ctx context.Context, userAddress string) (*Ca
 }
 
 // updateCashbackStats atomically updates user's cashback statistics
-func (s *KVStore) updateCashbackStats(ctx context.Context, userAddress, cashbackAmount string) error {
+func (s *KVStore) updateCashbackStats(ctx context.Context, userAddress, cashbackAmount, depositAmount string) error {
 	key := fmt.Sprintf("cashback_stats:%s", userAddress)
 
 	maxRetries := 3
@@ -217,7 +223,7 @@ func (s *KVStore) updateCashbackStats(ctx context.Context, userAddress, cashback
 			return err
 		}
 
-		// Update stats
+		// Update cashback stats
 		totalCashback := new(big.Int)
 		if stats.TotalCashback != "" && stats.TotalCashback != "0" {
 			if _, ok := totalCashback.SetString(stats.TotalCashback, 10); !ok {
@@ -240,9 +246,25 @@ func (s *KVStore) updateCashbackStats(ctx context.Context, userAddress, cashback
 		totalCashback.Add(totalCashback, newCashback)
 		pendingCashback.Add(pendingCashback, newCashback)
 
+		// Update deposit amount stats
+		totalDepositAmt := new(big.Int)
+		if stats.TotalDepositAmount != "" && stats.TotalDepositAmount != "0" {
+			if _, ok := totalDepositAmt.SetString(stats.TotalDepositAmount, 10); !ok {
+				return fmt.Errorf("invalid TotalDepositAmount value: %s", stats.TotalDepositAmount)
+			}
+		}
+
+		newDepositAmt := new(big.Int)
+		if _, ok := newDepositAmt.SetString(depositAmount, 10); !ok {
+			return fmt.Errorf("invalid depositAmount value: %s", depositAmount)
+		}
+
+		totalDepositAmt.Add(totalDepositAmt, newDepositAmt)
+
 		now := time.Now()
 		stats.TotalCashback = totalCashback.String()
 		stats.PendingCashback = pendingCashback.String()
+		stats.TotalDepositAmount = totalDepositAmt.String()
 		stats.TotalDeposits++
 		stats.LastDepositAt = &now
 		if stats.FirstDepositAt == nil {
@@ -365,6 +387,29 @@ func (s *KVStore) GetClaimableCashbackRecords(ctx context.Context, userAddress s
 
 	log.Printf("🔍 [Cashback] Checking %d settled periods for user %s", len(settledPeriods), userAddress)
 
+	// Connect to blockchain to check on-chain claimed status
+	client, err := ethclient.Dial(constant.MonadRpcUrl)
+	if err != nil {
+		log.Printf("⚠️  [Cashback] Failed to connect to blockchain: %v", err)
+		// Continue without on-chain check (will use KV data only)
+		client = nil
+	}
+	defer func() {
+		if client != nil {
+			client.Close()
+		}
+	}()
+
+	var distributor *cashbackdistributor.DepositCashbackDistributor
+	if client != nil {
+		distributorAddr := common.HexToAddress(constant.CashbackDistributorAddress)
+		distributor, err = cashbackdistributor.NewDepositCashbackDistributor(distributorAddr, client)
+		if err != nil {
+			log.Printf("⚠️  [Cashback] Failed to load distributor contract: %v", err)
+			distributor = nil
+		}
+	}
+
 	// Use parallel queries to check only settled periods
 	type periodResult struct {
 		record CashbackRecord
@@ -411,13 +456,31 @@ func (s *KVStore) GetClaimableCashbackRecords(ctx context.Context, userAddress s
 				return
 			}
 
+			// Check on-chain claimed status (source of truth)
+			claimed := proofRecord.Claimed // Default to KV value
+			if distributor != nil {
+				onChainClaimed, err := distributor.HasClaimed(nil, big.NewInt(int64(p)), common.HexToAddress(userAddress))
+				if err == nil {
+					claimed = onChainClaimed
+					// Update KV if mismatch
+					if onChainClaimed != proofRecord.Claimed {
+						log.Printf("🔄 [Cashback] Syncing claimed status for period %d, user %s: KV=%v, OnChain=%v", p, userAddress, proofRecord.Claimed, onChainClaimed)
+						proofRecord.Claimed = onChainClaimed
+						updatedData, _ := json.Marshal(proofRecord)
+						s.StoreCashbackData(queryCtx, proofKey, updatedData)
+					}
+				} else {
+					log.Printf("⚠️  [Cashback] Failed to check on-chain claimed status for period %d: %v", p, err)
+				}
+			}
+
 			// Create a claimable record
 			record := CashbackRecord{
 				UserAddress:    userAddress,
 				DepositTxHash:  fmt.Sprintf("period-%d", p), // Placeholder
 				CashbackAmount: proofRecord.Amount,
 				Period:         p,
-				Claimed:        proofRecord.Claimed,
+				Claimed:        claimed, // Use on-chain status
 				Proof:          proofRecord.Proof,
 				MerkleRoot:     merkleRoot,
 				CreatedAt:      time.Now(), // Placeholder

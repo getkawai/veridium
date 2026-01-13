@@ -47,6 +47,15 @@ func NewCashbackSettlement(kvStore *store.KVStore, privateKey string) (*Cashback
 	}, nil
 }
 
+// GetCurrentPeriod returns the current period from the contract
+func (cs *CashbackSettlement) GetCurrentPeriod(ctx context.Context) (uint64, error) {
+	period, err := cs.distributor.CurrentPeriod(nil)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get current period: %w", err)
+	}
+	return period.Uint64(), nil
+}
+
 // CashbackLeaf represents a leaf in the Merkle tree
 type CashbackLeaf struct {
 	Period      uint64
@@ -79,12 +88,22 @@ func (cs *CashbackSettlement) SettleCashback(ctx context.Context, period uint64)
 
 	log.Printf("🌳 [CashbackSettlement] Merkle root: %s", common.Bytes2Hex(merkleRoot[:]))
 
-	// 3. Store proofs in KV
+	// 3. Store merkle root in KV for queries
+	rootKey := fmt.Sprintf("cashback_period:%d:merkle_root", period)
+	rootJSON, err := json.Marshal("0x" + common.Bytes2Hex(merkleRoot[:]))
+	if err != nil {
+		return fmt.Errorf("failed to marshal merkle root: %w", err)
+	}
+	if err := cs.kvStore.StoreCashbackData(ctx, rootKey, rootJSON); err != nil {
+		return fmt.Errorf("failed to store merkle root: %w", err)
+	}
+
+	// 4. Store proofs in KV
 	if err := cs.storeProofs(ctx, period, proofs); err != nil {
 		return fmt.Errorf("failed to store proofs: %w", err)
 	}
 
-	// 4. Set Merkle root on-chain
+	// 5. Set Merkle root on-chain
 	if err := cs.setMerkleRoot(ctx, period, merkleRoot); err != nil {
 		return fmt.Errorf("failed to set Merkle root: %w", err)
 	}
@@ -157,18 +176,22 @@ func (cs *CashbackSettlement) generateMerkleTree(leaves []CashbackLeaf) ([32]byt
 
 	// 1. Create leaf hashes
 	leafHashes := make([][]byte, len(leaves))
+	leafAddresses := make([]string, len(leaves))
 	for i, leaf := range leaves {
 		// Hash: keccak256(abi.encodePacked(period, user, amount))
-		hash := crypto.Keccak256(
-			common.LeftPadBytes(big.NewInt(int64(leaf.Period)).Bytes(), 32),
-			leaf.UserAddress.Bytes(),
-			common.LeftPadBytes(leaf.Amount.Bytes(), 32),
-		)
+		// IMPORTANT: Solidity's abi.encodePacked for uint256 uses FULL 32 bytes (left-padded with zeros)
+		// This is different from Go's big.Int.Bytes() which returns minimal representation
+		periodBytes := common.LeftPadBytes(big.NewInt(int64(leaf.Period)).Bytes(), 32) // 32 bytes
+		addressBytes := leaf.UserAddress.Bytes()                                       // 20 bytes
+		amountBytes := common.LeftPadBytes(leaf.Amount.Bytes(), 32)                    // 32 bytes
+
+		hash := crypto.Keccak256(periodBytes, addressBytes, amountBytes)
 		leafHashes[i] = hash
+		leafAddresses[i] = leaf.UserAddress.Hex()
 	}
 
-	// 2. Build Merkle tree
-	tree := buildMerkleTree(leafHashes)
+	// 2. Build Merkle tree (this will sort leaves internally)
+	tree, sortedIndices := buildMerkleTreeWithIndices(leafHashes)
 	if len(tree) == 0 {
 		return [32]byte{}, nil, fmt.Errorf("failed to build Merkle tree")
 	}
@@ -177,11 +200,11 @@ func (cs *CashbackSettlement) generateMerkleTree(leaves []CashbackLeaf) ([32]byt
 	var root [32]byte
 	copy(root[:], tree[len(tree)-1])
 
-	// 3. Generate proofs for each leaf
+	// 3. Generate proofs for each leaf using sorted indices
 	proofs := make(map[string][][]byte)
-	for i, leaf := range leaves {
-		proof := generateMerkleProof(tree, i, len(leafHashes))
-		proofs[leaf.UserAddress.Hex()] = proof
+	for originalIdx, sortedIdx := range sortedIndices {
+		proof := generateMerkleProof(tree, sortedIdx, len(leafHashes))
+		proofs[leafAddresses[originalIdx]] = proof
 	}
 
 	return root, proofs, nil
@@ -189,28 +212,52 @@ func (cs *CashbackSettlement) generateMerkleTree(leaves []CashbackLeaf) ([32]byt
 
 // buildMerkleTree builds a Merkle tree from leaf hashes
 func buildMerkleTree(leaves [][]byte) [][]byte {
+	tree, _ := buildMerkleTreeWithIndices(leaves)
+	return tree
+}
+
+// buildMerkleTreeWithIndices builds a Merkle tree and returns mapping of original index -> sorted index
+func buildMerkleTreeWithIndices(leaves [][]byte) ([][]byte, map[int]int) {
 	if len(leaves) == 0 {
-		return nil
+		return nil, nil
+	}
+
+	// Create index mapping before sorting
+	type indexedLeaf struct {
+		hash          []byte
+		originalIndex int
+	}
+
+	indexed := make([]indexedLeaf, len(leaves))
+	for i, leaf := range leaves {
+		indexed[i] = indexedLeaf{hash: leaf, originalIndex: i}
 	}
 
 	// Sort leaves for deterministic tree
-	sortedLeaves := make([][]byte, len(leaves))
-	copy(sortedLeaves, leaves)
-	sort.Slice(sortedLeaves, func(i, j int) bool {
-		return string(sortedLeaves[i]) < string(sortedLeaves[j])
+	sort.Slice(indexed, func(i, j int) bool {
+		return string(indexed[i].hash) < string(indexed[j].hash)
 	})
+
+	// Build index mapping: originalIndex -> sortedIndex
+	indexMap := make(map[int]int)
+	sortedLeaves := make([][]byte, len(indexed))
+	for sortedIdx, item := range indexed {
+		sortedLeaves[sortedIdx] = item.hash
+		indexMap[item.originalIndex] = sortedIdx
+	}
 
 	tree := make([][]byte, 0, len(sortedLeaves)*2)
 	tree = append(tree, sortedLeaves...)
 
 	// Build tree level by level
-	for len(sortedLeaves) > 1 {
-		nextLevel := make([][]byte, 0, (len(sortedLeaves)+1)/2)
+	currentLevel := sortedLeaves
+	for len(currentLevel) > 1 {
+		nextLevel := make([][]byte, 0, (len(currentLevel)+1)/2)
 
-		for i := 0; i < len(sortedLeaves); i += 2 {
-			if i+1 < len(sortedLeaves) {
+		for i := 0; i < len(currentLevel); i += 2 {
+			if i+1 < len(currentLevel) {
 				// Pair exists - sort before hashing (required by OpenZeppelin)
-				left, right := sortedLeaves[i], sortedLeaves[i+1]
+				left, right := currentLevel[i], currentLevel[i+1]
 				if string(left) > string(right) {
 					left, right = right, left
 				}
@@ -218,15 +265,15 @@ func buildMerkleTree(leaves [][]byte) [][]byte {
 				nextLevel = append(nextLevel, hash)
 			} else {
 				// Odd node - promote to next level
-				nextLevel = append(nextLevel, sortedLeaves[i])
+				nextLevel = append(nextLevel, currentLevel[i])
 			}
 		}
 
 		tree = append(tree, nextLevel...)
-		sortedLeaves = nextLevel
+		currentLevel = nextLevel
 	}
 
-	return tree
+	return tree, indexMap
 }
 
 // generateMerkleProof generates a Merkle proof for a leaf at given index
@@ -265,14 +312,43 @@ func generateMerkleProof(tree [][]byte, leafIndex int, leafCount int) [][]byte {
 
 // storeProofs stores Merkle proofs in KV for user claims
 func (cs *CashbackSettlement) storeProofs(ctx context.Context, period uint64, proofs map[string][][]byte) error {
+	// Get user amounts from pending cashback
+	leaves, err := cs.collectPendingCashback(ctx, period)
+	if err != nil {
+		return fmt.Errorf("failed to get user amounts: %w", err)
+	}
+
+	// Create map of user address -> amount
+	userAmounts := make(map[string]string)
+	for _, leaf := range leaves {
+		userAmounts[leaf.UserAddress.Hex()] = leaf.Amount.String()
+	}
+
 	for userAddr, proof := range proofs {
+		// Convert proof bytes to hex strings for JSON
+		proofHex := make([]string, len(proof))
+		for i, p := range proof {
+			proofHex[i] = "0x" + common.Bytes2Hex(p)
+		}
+
+		// Store proof with amount and claimed status
+		proofRecord := struct {
+			Proof   []string `json:"proof"`
+			Amount  string   `json:"amount"`
+			Claimed bool     `json:"claimed"`
+		}{
+			Proof:   proofHex,
+			Amount:  userAmounts[userAddr],
+			Claimed: false,
+		}
+
 		key := fmt.Sprintf("cashback_proof:%d:%s", period, userAddr)
-		data, err := json.Marshal(proof)
+		data, err := json.Marshal(proofRecord)
 		if err != nil {
 			return fmt.Errorf("failed to marshal proof for %s: %w", userAddr, err)
 		}
 
-		if err := cs.kvStore.StoreMarketplaceData(ctx, key, data); err != nil {
+		if err := cs.kvStore.StoreCashbackData(ctx, key, data); err != nil {
 			return fmt.Errorf("failed to store proof for %s: %w", userAddr, err)
 		}
 	}
@@ -321,12 +397,12 @@ func (cs *CashbackSettlement) setMerkleRoot(ctx context.Context, period uint64, 
 		}
 		log.Printf("📝 [CashbackSettlement] Advance period tx: %s", tx.Hash().Hex())
 	} else {
-		// Update existing period
-		tx, err = cs.distributor.SetMerkleRoot(auth, merkleRoot)
+		// Set root for specific period (allows retroactive settlements)
+		tx, err = cs.distributor.SetPeriodMerkleRoot(auth, big.NewInt(int64(period)), merkleRoot)
 		if err != nil {
-			return fmt.Errorf("failed to set Merkle root: %w", err)
+			return fmt.Errorf("failed to set period Merkle root: %w", err)
 		}
-		log.Printf("📝 [CashbackSettlement] Set Merkle root tx: %s", tx.Hash().Hex())
+		log.Printf("📝 [CashbackSettlement] Set period %d Merkle root tx: %s", period, tx.Hash().Hex())
 	}
 
 	// Wait for confirmation

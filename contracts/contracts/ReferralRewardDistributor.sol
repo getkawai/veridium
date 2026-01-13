@@ -162,6 +162,17 @@ contract ReferralRewardDistributor is Ownable, ReentrancyGuard {
         merkleRoot = _merkleRoot;
         periodMerkleRoots[currentPeriod] = _merkleRoot;
     }
+    
+    /**
+     * @notice Set Merkle root for a specific period (for retroactive settlements)
+     * @param period Period number
+     * @param _merkleRoot Merkle root for the period
+     */
+    function setPeriodMerkleRoot(uint256 period, bytes32 _merkleRoot) external onlyOwner {
+        require(period <= currentPeriod, "Cannot set future period");
+        emit MerkleRootUpdated(period, periodMerkleRoots[period], _merkleRoot);
+        periodMerkleRoots[period] = _merkleRoot;
+    }
 
     /**
      * @notice Advance to next period (weekly/monthly)

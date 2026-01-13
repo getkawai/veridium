@@ -103,7 +103,17 @@ export const CashbackRewardsSection = ({ currentNetwork, theme, styles: propStyl
         return;
       }
 
-      setStats(statsResult);
+      // Convert wei to KAWAI for display
+      const convertedStats = {
+        ...statsResult,
+        total_cashback: (BigInt(statsResult.total_cashback || '0') / BigInt(10 ** 18)).toString(),
+        pending_cashback: (BigInt(statsResult.pending_cashback || '0') / BigInt(10 ** 18)).toString(),
+        claimed_cashback: (BigInt(statsResult.claimed_cashback || '0') / BigInt(10 ** 18)).toString(),
+        // Convert USDT wei (6 decimals) to USDT
+        total_deposit_amount_usdt: Number(BigInt(statsResult.total_deposit_amount || '0') / BigInt(10 ** 6)),
+      };
+
+      setStats(convertedStats as any);
       setCurrentPeriod(periodResult);
       setClaimableRecords(recordsResult || []);
 
@@ -135,10 +145,10 @@ export const CashbackRewardsSection = ({ currentNetwork, theme, styles: propStyl
     }
   }, [onRefresh, userAddress, loadCashbackStats]);
 
-  const getCurrentTierLevel = (totalDeposits: number): number => {
-    // Determine tier based on total deposits
+  const getCurrentTierLevel = (totalDepositUSDT: number): number => {
+    // Determine tier based on total USDT deposited
     for (let i = CASHBACK_TIERS.length - 1; i >= 0; i--) {
-      if (totalDeposits >= CASHBACK_TIERS[i].min) {
+      if (totalDepositUSDT >= CASHBACK_TIERS[i].min) {
         return CASHBACK_TIERS[i].level;
       }
     }
@@ -148,19 +158,19 @@ export const CashbackRewardsSection = ({ currentNetwork, theme, styles: propStyl
   const calculateTierProgress = () => {
     if (!stats) return { percent: 0, current: 0, next: 0 };
     
-    const totalDeposits = stats.total_deposits || 0;
-    const currentTierLevel = getCurrentTierLevel(totalDeposits);
+    const totalDepositUSDT = (stats as any).total_deposit_amount_usdt || 0;
+    const currentTierLevel = getCurrentTierLevel(totalDepositUSDT);
     const currentTier = CASHBACK_TIERS[currentTierLevel];
     const nextTier = CASHBACK_TIERS[Math.min(currentTierLevel + 1, 4)];
     
     if (currentTier.level === 4) {
-      return { percent: 100, current: totalDeposits, next: totalDeposits };
+      return { percent: 100, current: totalDepositUSDT, next: totalDepositUSDT };
     }
     
-    const progress = ((totalDeposits - currentTier.min) / (nextTier.min - currentTier.min)) * 100;
+    const progress = ((totalDepositUSDT - currentTier.min) / (nextTier.min - currentTier.min)) * 100;
     return {
       percent: Math.min(Math.max(progress, 0), 100),
-      current: totalDeposits,
+      current: totalDepositUSDT,
       next: nextTier.min,
     };
   };
@@ -181,8 +191,8 @@ export const CashbackRewardsSection = ({ currentNetwork, theme, styles: propStyl
   }
 
   const tierProgress = calculateTierProgress();
-  const totalDeposits = stats?.total_deposits || 0;
-  const currentTierLevel = getCurrentTierLevel(totalDeposits);
+  const totalDepositUSDT = (stats as any)?.total_deposit_amount_usdt || 0;
+  const currentTierLevel = getCurrentTierLevel(totalDepositUSDT);
   const currentTier = CASHBACK_TIERS[currentTierLevel];
   const nextTier = CASHBACK_TIERS[Math.min(currentTierLevel + 1, 4)];
 
@@ -190,11 +200,8 @@ export const CashbackRewardsSection = ({ currentNetwork, theme, styles: propStyl
     if (claimLoading.has(record.period)) return;
     setClaimLoading(prev => new Set(prev).add(record.period));
     try {
-      if (!record.proof || record.proof.length === 0) {
-        message.error('Merkle proof not available yet. Please wait for weekly settlement.');
-        return;
-      }
-      const result = await DeAIService.ClaimCashbackReward(record.period, record.amount, record.proof);
+      // Empty proof is valid for single-leaf Merkle trees
+      const result = await DeAIService.ClaimCashbackReward(record.period, record.amount, record.proof || []);
       if (result?.tx_hash) {
         const explorerUrl = currentNetwork?.explorerURL || 'https://testnet.monadexplorer.com';
         message.success(<span>Claim confirmed! Tx: {result.tx_hash.substring(0, 10)}...<a onClick={() => Browser.OpenURL(`${explorerUrl}/tx/${result.tx_hash}`)} style={{ marginLeft: 8, cursor: 'pointer' }}>View <ExternalLink size={12} style={{ verticalAlign: 'middle' }} /></a></span>);

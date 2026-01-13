@@ -69,6 +69,11 @@ export class CashbackStatsResponse {
     "total_deposits": number;
 
     /**
+     * Total USDT deposited (wei, 6 decimals)
+     */
+    "total_deposit_amount": string;
+
+    /**
      * ISO timestamp
      */
     "first_deposit_at": string;
@@ -91,6 +96,9 @@ export class CashbackStatsResponse {
         }
         if (!("total_deposits" in $$source)) {
             this["total_deposits"] = 0;
+        }
+        if (!("total_deposit_amount" in $$source)) {
+            this["total_deposit_amount"] = "";
         }
         if (!("first_deposit_at" in $$source)) {
             this["first_deposit_at"] = "";
