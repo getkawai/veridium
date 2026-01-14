@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
 
 interface IMintableToken {
     function mint(address to, uint256 amount) external;
@@ -25,8 +26,9 @@ interface IMintableToken {
  * - Multi-period batch claims
  * - Gas-efficient (users only pay gas when claiming)
  * - Consistent with contributor/referral reward systems
+ * - Emergency pause mechanism for security
  */
-contract DepositCashbackDistributor is Ownable, ReentrancyGuard {
+contract DepositCashbackDistributor is Ownable, ReentrancyGuard, Pausable {
     
     // ============ State Variables ============
     
@@ -93,7 +95,7 @@ contract DepositCashbackDistributor is Ownable, ReentrancyGuard {
         uint256 period,
         uint256 kawaiAmount,
         bytes32[] calldata merkleProof
-    ) external nonReentrant {
+    ) external nonReentrant whenNotPaused {
         require(period <= currentPeriod, "Invalid period");
         require(!hasClaimed[period][msg.sender], "Already claimed for this period");
         require(kawaiAmount > 0, "No cashback to claim");
@@ -139,7 +141,7 @@ contract DepositCashbackDistributor is Ownable, ReentrancyGuard {
         uint256[] calldata periods,
         uint256[] calldata kawaiAmounts,
         bytes32[][] calldata merkleProofs
-    ) external nonReentrant {
+    ) external nonReentrant whenNotPaused {
         require(
             periods.length == kawaiAmounts.length &&
             periods.length == merkleProofs.length,
@@ -260,6 +262,24 @@ contract DepositCashbackDistributor is Ownable, ReentrancyGuard {
         require(period <= currentPeriod, "Invalid period");
         emit MerkleRootUpdated(period, periodMerkleRoots[period], _merkleRoot);
         periodMerkleRoots[period] = _merkleRoot;
+    }
+    
+    // ============ Emergency Functions ============
+    
+    /**
+     * @notice Pause all claim operations (emergency only)
+     * @dev Only owner can pause. Use when critical bug found or security incident.
+     */
+    function pause() external onlyOwner {
+        _pause();
+    }
+    
+    /**
+     * @notice Unpause claim operations
+     * @dev Only owner can unpause. Use after issue is resolved.
+     */
+    function unpause() external onlyOwner {
+        _unpause();
     }
 }
 

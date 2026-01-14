@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
 
 // Interface for mintable tokens (like KawaiToken)
 interface IMintableToken {
@@ -26,8 +27,9 @@ interface IMintableToken {
  * - Weekly Merkle settlement
  * - Batch claiming for multiple periods
  * - Full on-chain transparency via events
+ * - Emergency pause mechanism for security
  */
-contract MiningRewardDistributor is Ownable, ReentrancyGuard {
+contract MiningRewardDistributor is Ownable, ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
 
     IERC20 public immutable kawaiToken;
@@ -101,7 +103,7 @@ contract MiningRewardDistributor is Ownable, ReentrancyGuard {
         address user,
         address affiliator,
         bytes32[] calldata merkleProof
-    ) external nonReentrant {
+    ) external nonReentrant whenNotPaused {
         require(period <= currentPeriod, "Invalid period");
         require(!hasClaimed[period][msg.sender], "Already claimed for this period");
         require(user != address(0), "Invalid user address");
@@ -192,7 +194,7 @@ contract MiningRewardDistributor is Ownable, ReentrancyGuard {
         address[] calldata users,
         address[] calldata affiliators,
         bytes32[][] calldata merkleProofs
-    ) external nonReentrant {
+    ) external nonReentrant whenNotPaused {
         uint256 length = periods.length;
         require(
             length == contributorAmounts.length &&
@@ -378,6 +380,22 @@ contract MiningRewardDistributor is Ownable, ReentrancyGuard {
             totalUserRewards,
             totalAffiliatorRewards
         );
+    }
+
+    /**
+     * @notice Emergency pause - stops all claiming operations
+     * @dev Only owner can pause. Use in case of security issues or bugs
+     */
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    /**
+     * @notice Unpause contract - resumes normal operations
+     * @dev Only owner can unpause. Ensure issue is resolved before unpausing
+     */
+    function unpause() external onlyOwner {
+        _unpause();
     }
 }
 

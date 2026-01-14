@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
 
 // Interface for mintable tokens (like KawaiToken)
 interface IMintableToken {
@@ -18,7 +19,7 @@ interface IMintableToken {
  *      Uses Merkle proofs for gas-efficient batch distribution
  *      Note: USDT rewards are off-chain credits only (stored in KV, not on-chain)
  */
-contract ReferralRewardDistributor is Ownable, ReentrancyGuard {
+contract ReferralRewardDistributor is Ownable, ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
 
     IERC20 public immutable kawaiToken;
@@ -73,7 +74,7 @@ contract ReferralRewardDistributor is Ownable, ReentrancyGuard {
         uint256 period,
         uint256 kawaiAmount,
         bytes32[] calldata merkleProof
-    ) external nonReentrant {
+    ) external nonReentrant whenNotPaused {
         require(period <= currentPeriod, "Invalid period");
         require(!hasClaimed[period][msg.sender], "Already claimed for this period");
         require(kawaiAmount > 0, "No rewards to claim");
@@ -115,7 +116,7 @@ contract ReferralRewardDistributor is Ownable, ReentrancyGuard {
         uint256[] calldata periods,
         uint256[] calldata kawaiAmounts,
         bytes32[][] calldata merkleProofs
-    ) external nonReentrant {
+    ) external nonReentrant whenNotPaused {
         require(
             periods.length == kawaiAmounts.length &&
             periods.length == merkleProofs.length,
@@ -218,6 +219,24 @@ contract ReferralRewardDistributor is Ownable, ReentrancyGuard {
             totalKawaiDistributed,
             totalReferrers
         );
+    }
+    
+    // ============ Emergency Functions ============
+    
+    /**
+     * @notice Pause all claim operations (emergency only)
+     * @dev Only owner can pause. Use when critical bug found or security incident.
+     */
+    function pause() external onlyOwner {
+        _pause();
+    }
+    
+    /**
+     * @notice Unpause claim operations
+     * @dev Only owner can unpause. Use after issue is resolved.
+     */
+    function unpause() external onlyOwner {
+        _unpause();
     }
 }
 

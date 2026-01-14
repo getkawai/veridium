@@ -47,7 +47,7 @@
 ### Security
 - [ ] Multi-sig for admin (Gnosis Safe)
 - [ ] Timelock on admin functions
-- [ ] Emergency pause mechanism
+- [x] Emergency pause mechanism tested (see EMERGENCY_PAUSE_GUIDE.md)
 - [ ] Regular security updates
 - [ ] Incident response plan
 
