@@ -675,6 +675,7 @@ func generateBlockchain(configs map[string]string) {
 	usdtDistributor := configs["USDT_DISTRIBUTOR_ADDRESS"]
 	cashbackDistributor := configs["CASHBACK_DISTRIBUTOR_ADDRESS"]
 	miningDistributor := configs["MINING_DISTRIBUTOR_ADDRESS"]
+	referralDistributor := configs["REFERRAL_DISTRIBUTOR_ADDRESS"]
 
 	if kawaiToken == "" || miningDistributor == "" {
 		fmt.Printf("⚠️ Required blockchain addresses not found in .env, skipping %s\n", outputFile)
@@ -696,6 +697,7 @@ const (
 	USDTDistributorAddr         = "%s"
 	CashbackDistributorAddress  = "%s"
 	MiningRewardDistributorAddr = "%s"
+	ReferralDistributorAddress  = "%s"
 
 	// Holder Scanner Configuration
 	// HolderScanStartBlock: Starting block for holder scanning
@@ -703,7 +705,7 @@ const (
 	// - Mainnet: Set to token deployment block to optimize performance
 	HolderScanStartBlock = 0
 )
-`, kawaiToken, escrow, usdtToken, paymentVault, kawaiDistributor, usdtDistributor, cashbackDistributor, miningDistributor)
+`, kawaiToken, escrow, usdtToken, paymentVault, kawaiDistributor, usdtDistributor, cashbackDistributor, miningDistributor, referralDistributor)
 
 	err := os.WriteFile(outputFile, []byte(content), 0644)
 	if err != nil {
