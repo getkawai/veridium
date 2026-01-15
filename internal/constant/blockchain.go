@@ -13,7 +13,7 @@ const (
 	USDTDistributorAddr         = "0x896fB97f81ECBEfDBe29DCc3550aC984704932bF"
 	CashbackDistributorAddress  = "0x3d5Bfe788782A90ac124096296B45eaFFc43C79B"
 	MiningRewardDistributorAddr = "0x1f78c7c472205F1720aAb66a565981561b5EBac0"
-	ReferralDistributorAddress  = ""
+	ReferralDistributorAddress  = "0x1c218602218745B20CE201948CaE836f8E94E111"
 
 	// Holder Scanner Configuration
 	// HolderScanStartBlock: Starting block for holder scanning

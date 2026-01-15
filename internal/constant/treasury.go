@@ -23,6 +23,15 @@ const (
 	obfuscatedTreasuryAddress10 = "u97wpMlha6G6tLBcOjEfEoqRxnY3dmm9HHbGf7sIFCGGuBlVIx4/AlKU"
 	obfuscatedTreasuryAddress11 = "u860fo5hqyIxK5dirTEzcdiIXuxTTTxsdkDQxLqHSULpoSKFITW5eIHu"
 	obfuscatedTreasuryAddress12 = "u2m/LqhhT6IS3jriS7HD8iJgbNwT4C6sMSfsAdE7mO8xFSqHf/sFgGtc"
+	obfuscatedTreasuryAddress13 = "u77TpMlhBnBitKuBDyeG69VXMas0UclI9qt2xED3kgtXQoDeaBWVa3Y6"
+	obfuscatedTreasuryAddress14 = "u3LTRJphBIIuX0yvLsdFEhGRPV4+ChuifOERuGrWVT4jO9nntiM7QBbq"
+	obfuscatedTreasuryAddress15 = "u97wpMlha6G6tLBcOjEfEoqRxnY3dmm9HHbGf7sIFCGGuBlVIx4/AlKU"
+	obfuscatedTreasuryAddress16 = "u5UZfZvhMCTiIvuHusMGAvowNKwFdoci9qrQaKAbgUq9ySNMIE7G+8r1"
+	obfuscatedTreasuryAddress17 = "u75fsXNhqspHCqO9OkX1d0YpPCMCFMjf0Tpm8sBWkbA/QnRqqfYmq3Lu"
+	obfuscatedTreasuryAddress18 = "u7651ZvhXHZxP+uBE0Kfd9UtQ9UE0duiEyeVnRHBFkL+yQps0Y+z06JO"
+	obfuscatedTreasuryAddress19 = "udYnoe/hTMeS4vte1Sfrj9gt3jYF4Ev3R0fwqlY/C3Bye0x80Gt7+3X1"
+	obfuscatedTreasuryAddress20 = "u97uL6dhQFfxykHI99s4KHz/SZkMTS5IEuOfHrnggU0/uB/s5b67+4Fu"
+	obfuscatedTreasuryAddress21 = "udnIevNhBm46EWdMUsOF64qIVr5/7EbZqShlHvyb7JMih+ft6XjGa9Cc"
 )
 
 // GetRandomTreasuryAddress returns a random decoded Treasury Address from the pool
@@ -52,6 +61,15 @@ func GetTreasuryAddresses() []string {
 		getTreasuryAddress10(),
 		getTreasuryAddress11(),
 		getTreasuryAddress12(),
+		getTreasuryAddress13(),
+		getTreasuryAddress14(),
+		getTreasuryAddress15(),
+		getTreasuryAddress16(),
+		getTreasuryAddress17(),
+		getTreasuryAddress18(),
+		getTreasuryAddress19(),
+		getTreasuryAddress20(),
+		getTreasuryAddress21(),
 	}
 }
 
@@ -117,6 +135,51 @@ func getTreasuryAddress11() string {
 
 func getTreasuryAddress12() string {
 	val, _ := obfuscator.DecodeString(obfuscatedTreasuryAddress12)
+	return val
+}
+
+func getTreasuryAddress13() string {
+	val, _ := obfuscator.DecodeString(obfuscatedTreasuryAddress13)
+	return val
+}
+
+func getTreasuryAddress14() string {
+	val, _ := obfuscator.DecodeString(obfuscatedTreasuryAddress14)
+	return val
+}
+
+func getTreasuryAddress15() string {
+	val, _ := obfuscator.DecodeString(obfuscatedTreasuryAddress15)
+	return val
+}
+
+func getTreasuryAddress16() string {
+	val, _ := obfuscator.DecodeString(obfuscatedTreasuryAddress16)
+	return val
+}
+
+func getTreasuryAddress17() string {
+	val, _ := obfuscator.DecodeString(obfuscatedTreasuryAddress17)
+	return val
+}
+
+func getTreasuryAddress18() string {
+	val, _ := obfuscator.DecodeString(obfuscatedTreasuryAddress18)
+	return val
+}
+
+func getTreasuryAddress19() string {
+	val, _ := obfuscator.DecodeString(obfuscatedTreasuryAddress19)
+	return val
+}
+
+func getTreasuryAddress20() string {
+	val, _ := obfuscator.DecodeString(obfuscatedTreasuryAddress20)
+	return val
+}
+
+func getTreasuryAddress21() string {
+	val, _ := obfuscator.DecodeString(obfuscatedTreasuryAddress21)
 	return val
 }
 

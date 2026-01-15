@@ -33,11 +33,11 @@
 - [x] Integer overflow/underflow checks verified (Solidity 0.8.20 built-in protection + SafeERC20)
 
 ### 2. Wallet Preparation
-- [ ] **Admin wallet** generated with hardware wallet (Ledger/Trezor)
+- [x] **Admin wallet** generated with hardware wallet (Ledger/Trezor)
   - Private key NEVER touches computer
   - Backup seed phrase in secure location (fireproof safe)
   - Test signing transaction on testnet first
-- [ ] **Settlement wallet** generated securely
+- [x] **Settlement wallet** generated securely
   - Store private key in AWS KMS or HashiCorp Vault
   - Or use hardware wallet for settlement operations
 - [ ] Both wallets funded with MON:
