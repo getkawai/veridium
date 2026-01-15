@@ -44,10 +44,10 @@
   - Admin wallet: **1 MON** (deployment + emergencies)
   - Settlement wallet: **1 MON** (6 months operations)
 - [ ] Wallet addresses documented in secure spreadsheet
-- [ ] **VERIFY:** No private keys in git, .env, or any file
+- [x] **VERIFY:** No private keys in git, .env, or any file (using obfuscator-gen + temp.go)
 
 ### 3. Infrastructure Setup
-- [ ] Production server provisioned (AWS/GCP/DigitalOcean)
+- [x] Production server provisioned (AWS/GCP/DigitalOcean)
   - Minimum: 4 CPU, 8GB RAM, 100GB SSD
   - OS: Ubuntu 22.04 LTS
   - Firewall configured (allow 443, 8080 only)
@@ -55,7 +55,7 @@
   - `api.kawai.network` → Backend API
   - `app.kawai.network` → Frontend
 - [ ] SSL certificates installed (Let's Encrypt or Cloudflare)
-- [ ] Cloudflare KV **production namespaces** created (FRESH, not testnet!)
+- [x] Cloudflare KV **production namespaces** created (FRESH, not testnet!)
   - Contributors namespace
   - Proofs namespace
   - Settlements namespace
@@ -64,7 +64,7 @@
   - P2P Marketplace namespace
   - Users namespace
   - Revenue sharing namespace
-- [ ] Monitoring setup:
+- [x] Monitoring setup:
   - Telegram alerts tested (`make test-telegram-alert`)
   - Server monitoring (CPU, RAM, disk)
   - Log aggregation (CloudWatch/Papertrail)
