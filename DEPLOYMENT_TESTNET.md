@@ -1,18 +1,25 @@
 # FRESH DEPLOY TESTNET - COMPLETE PLAN
 
-## CURRENT DEPLOYMENT ADDRESSES (2026-01-13 Round 4 - FINAL E2E TESTED ✅)
+## CURRENT DEPLOYMENT ADDRESSES (2026-01-15 Round 6 - WITH PAUSE MECHANISM ✅)
 ```
-MockUSDT:                    0x60B99499aA369b63BE1aC7123E383Ef450227a63
-KawaiToken:                  0xeBB1bf5Db06e9E858FfA346520e22D25944fbB87
-KAWAI_Distributor:           0x578C6E95908399467f98bDf10378beA95b44EF23
-USDT_Distributor:            0xe024c9a670E0039A887c7f385892333CAb04a275
-PaymentVault:                0x44581F99a39eEab898194e54c3B89bb261d3b2c3
-OTCMarket:                   0xA71306429A0232C8b9EF5F2908e04Fcad7E96B8E
-MiningRewardDistributor:     0xFEC16f47BD9DD4B9E05DAaC7BBef8C047f010289
-DepositCashbackDistributor:  0x56Bc3045088C51f329F86AE5Dec3faED59d77664
+MockUSDT:                    0x3AE05118C5B75b1B0b860ec4b7Ec5095188D1CCc
+KawaiToken:                  0xf68910e8d19047A309f989FFB515E44FBca5D31A
+KAWAI_Distributor:           0x2B11e8385A859Ea75C77E05Bc0D9756A87017E92
+USDT_Distributor:            0x896fB97f81ECBEfDBe29DCc3550aC984704932bF
+PaymentVault:                0xDA94C8ac2a61eafBd47853EE22702BDCd45B6d93
+OTCMarket:                   0x3E597D76B40004c3fC517C404037fD6F16C8fc34
+MiningRewardDistributor:     0x1f78c7c472205F1720aAb66a565981561b5EBac0 ⭐ WITH PAUSE
+DepositCashbackDistributor:  0x3d5Bfe788782A90ac124096296B45eaFFc43C79B ⭐ WITH PAUSE
 ```
 
-**E2E Test Results:**
+**Pause Mechanism Test Results:**
+- ✅ Pause status check: Working
+- ✅ Pause all distributors: Working (Mining + Cashback)
+- ✅ Unpause all distributors: Working
+- ✅ Individual pause/unpause: Working
+- ✅ Emergency pause ready for production
+
+**Previous E2E Test Results (Round 4):**
 - ✅ Mining rewards: 2 users claimed 450 KAWAI each via UI
 - ✅ Cashback rewards: 2 users claimed ~30 KAWAI each via UI
 - ✅ Auto-sync: KV automatically syncs with on-chain claimed status

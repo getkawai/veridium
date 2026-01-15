@@ -67,19 +67,27 @@ func main() {
 		log.Fatalf("Failed to get chain ID: %v", err)
 	}
 
-	// Create transactor
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
-	if err != nil {
-		log.Fatalf("Failed to create transactor: %v", err)
-	}
-
-	// Get public address
+	// Get public address first (before creating transactor)
 	publicKey := privateKey.Public()
 	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
 	if !ok {
 		log.Fatal("Failed to cast public key to ECDSA")
 	}
 	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
+
+	// Get nonce
+	nonce, err := client.PendingNonceAt(ctx, fromAddress)
+	if err != nil {
+		log.Fatalf("Failed to get nonce: %v", err)
+	}
+
+	// Create transactor
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	if err != nil {
+		log.Fatalf("Failed to create transactor: %v", err)
+	}
+	auth.Nonce = big.NewInt(int64(nonce))
+	auth.GasLimit = 100000
 
 	fmt.Printf("🔐 Admin Address: %s\n", fromAddress.Hex())
 	fmt.Printf("🌐 RPC: %s\n", constant.MonadRpcUrl)
@@ -233,9 +241,6 @@ func pauseMining(ctx context.Context, client *ethclient.Client, auth *bind.Trans
 		return
 	}
 
-	// Estimate gas
-	auth.GasLimit = 100000
-
 	tx, err := mining.Pause(auth)
 	if err != nil {
 		log.Printf("❌ Mining Distributor: Failed to pause: %v", err)
@@ -271,9 +276,6 @@ func unpauseMining(ctx context.Context, client *ethclient.Client, auth *bind.Tra
 		return
 	}
 
-	// Estimate gas
-	auth.GasLimit = 100000
-
 	tx, err := mining.Unpause(auth)
 	if err != nil {
 		log.Printf("❌ Mining Distributor: Failed to unpause: %v", err)
@@ -308,8 +310,6 @@ func pauseCashback(ctx context.Context, client *ethclient.Client, auth *bind.Tra
 		return
 	}
 
-	auth.GasLimit = 100000
-
 	tx, err := cashback.Pause(auth)
 	if err != nil {
 		log.Printf("❌ Cashback Distributor: Failed to pause: %v", err)
@@ -343,8 +343,6 @@ func unpauseCashback(ctx context.Context, client *ethclient.Client, auth *bind.T
 		fmt.Printf("🔍 Cashback Distributor: Would unpause (dry-run)\n")
 		return
 	}
-
-	auth.GasLimit = 100000
 
 	tx, err := cashback.Unpause(auth)
 	if err != nil {
@@ -385,8 +383,6 @@ func pauseReferral(ctx context.Context, client *ethclient.Client, auth *bind.Tra
 		return
 	}
 
-	auth.GasLimit = 100000
-
 	tx, err := referral.Pause(auth)
 	if err != nil {
 		log.Printf("❌ Referral Distributor: Failed to pause: %v", err)
@@ -425,8 +421,6 @@ func unpauseReferral(ctx context.Context, client *ethclient.Client, auth *bind.T
 		fmt.Printf("🔍 Referral Distributor: Would unpause (dry-run)\n")
 		return
 	}
-
-	auth.GasLimit = 100000
 
 	tx, err := referral.Unpause(auth)
 	if err != nil {
