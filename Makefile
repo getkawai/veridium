@@ -88,6 +88,17 @@ help:
 	@echo "  make admin-register       Register all treasury addresses as admin"
 	@echo "  make admin-register-dry   Preview admin registration (dry-run)"
 	@echo ""
+	@echo "Emergency Pause Operations:"
+	@echo "  make pause-status         Check pause status of all distributors"
+	@echo "  make pause-all            Pause all distributors (EMERGENCY)"
+	@echo "  make unpause-all          Unpause all distributors"
+	@echo "  make pause-mining         Pause mining distributor only"
+	@echo "  make unpause-mining       Unpause mining distributor only"
+	@echo "  make pause-cashback       Pause cashback distributor only"
+	@echo "  make unpause-cashback     Unpause cashback distributor only"
+	@echo "  make pause-referral       Pause referral distributor only"
+	@echo "  make unpause-referral     Unpause referral distributor only"
+	@echo ""
 	@echo "Reward Settlement (Unified - All Types):"
 	@echo "  make reward-settlement-generate TYPE=<type>  Generate settlement (mining|cashback|referral|revenue)"
 	@echo "  make reward-settlement-upload TYPE=<type>    Upload Merkle root to contract"
@@ -493,6 +504,53 @@ admin-register:
 admin-register-dry:
 	@echo "🔍 Preview admin registration (dry-run)..."
 	@go run cmd/register-admin/main.go --dry-run
+
+# ==============================================================================
+# Emergency Pause Operations
+# ==============================================================================
+pause-status:
+	@echo "📊 Checking pause status..."
+	@go run cmd/adminops/pause/main.go -action status
+
+pause-all:
+	@echo "🚨 PAUSING ALL DISTRIBUTORS..."
+	@go run cmd/adminops/pause/main.go -action pause -contract all
+
+unpause-all:
+	@echo "🔓 UNPAUSING ALL DISTRIBUTORS..."
+	@go run cmd/adminops/pause/main.go -action unpause -contract all
+
+pause-mining:
+	@echo "🚨 Pausing Mining Distributor..."
+	@go run cmd/adminops/pause/main.go -action pause -contract mining
+
+unpause-mining:
+	@echo "🔓 Unpausing Mining Distributor..."
+	@go run cmd/adminops/pause/main.go -action unpause -contract mining
+
+pause-cashback:
+	@echo "🚨 Pausing Cashback Distributor..."
+	@go run cmd/adminops/pause/main.go -action pause -contract cashback
+
+unpause-cashback:
+	@echo "🔓 Unpausing Cashback Distributor..."
+	@go run cmd/adminops/pause/main.go -action unpause -contract cashback
+
+pause-referral:
+	@echo "🚨 Pausing Referral Distributor..."
+	@go run cmd/adminops/pause/main.go -action pause -contract referral
+
+unpause-referral:
+	@echo "🔓 Unpausing Referral Distributor..."
+	@go run cmd/adminops/pause/main.go -action unpause -contract referral
+
+pause-all-dry:
+	@echo "🔍 DRY RUN: Pausing all distributors..."
+	@go run cmd/adminops/pause/main.go -action pause -contract all -dry-run
+
+unpause-all-dry:
+	@echo "🔍 DRY RUN: Unpausing all distributors..."
+	@go run cmd/adminops/pause/main.go -action unpause -contract all -dry-run
 
 # ==============================================================================
 # Unified Reward Settlement
