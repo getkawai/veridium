@@ -1,6 +1,6 @@
 # Deposit Cashback System
 
-Earn 1-5% KAWAI tokens back on every USDT deposit with our tiered cashback system!
+Earn 1-2% KAWAI tokens back on every USDT deposit with our tiered cashback system!
 
 ## 🎯 Overview
 
@@ -8,8 +8,8 @@ Every time you deposit USDT into your Kawai account, you automatically earn KAWA
 
 **Key benefits:**
 - ✅ Instant cashback calculation
-- ✅ Tiered rates (1-5%)
-- ✅ First deposit bonus (5%)
+- ✅ Tiered rates (1-2%)
+- ✅ First deposit bonus (2.5%)
 - ✅ Weekly claims via Merkle proof
 - ✅ No action required to accumulate
 
@@ -18,10 +18,10 @@ Every time you deposit USDT into your Kawai account, you automatically earn KAWA
 | Tier | Total Deposits | Rate | Max per Deposit | Visual |
 |------|----------------|------|-----------------|--------|
 | **Bronze** | < 100 USDT | 1% | 5,000 KAWAI | 🥉 |
-| **Silver** | 100-500 USDT | 2% | 10,000 KAWAI | 🥈 |
-| **Gold** | 500-1,000 USDT | 3% | 15,000 KAWAI | 🥇 |
-| **Platinum** | 1,000-5,000 USDT | 4% | 20,000 KAWAI | 💠 |
-| **Diamond** | ≥ 5,000 USDT | 5% | 20,000 KAWAI | 💎 |
+| **Silver** | 100-500 USDT | 1.25% | 10,000 KAWAI | 🥈 |
+| **Gold** | 500-1,000 USDT | 1.5% | 15,000 KAWAI | 🥇 |
+| **Platinum** | 1,000-5,000 USDT | 1.75% | 20,000 KAWAI | 💠 |
+| **Diamond** | ≥ 5,000 USDT | 2% | 20,000 KAWAI | 💎 |
 
 ### How Tiers Work
 
@@ -30,7 +30,7 @@ Every time you deposit USDT into your Kawai account, you automatically earn KAWA
 Deposit 1: 50 USDT → Bronze tier
 Deposit 2: 60 USDT → Still Bronze (total: 110 USDT)
 Deposit 3: 40 USDT → Now Silver! (total: 150 USDT)
-All future deposits: Silver rate (2%)
+All future deposits: Silver rate (1.25%)
 ```
 
 **Tier applies forward, not backward:**
@@ -40,26 +40,26 @@ All future deposits: Silver rate (2%)
 
 ## 🎁 Special Bonuses
 
-### First Deposit Bonus (5%)
+### First Deposit Bonus (2.5%)
 
-**Your first deposit ALWAYS gets 5% cashback!**
+**Your first deposit ALWAYS gets 2.5% cashback!**
 
 **Examples:**
 ```
 First deposit: 20 USDT
 Normal rate: 1% (Bronze) = 200 KAWAI
-First-time bonus: 5%
-You receive: 1,000 KAWAI! 🎉
+First-time bonus: 2.5%
+You receive: 500 KAWAI! 🎉
 
 First deposit: 75 USDT
 Normal rate: 1% (Bronze) = 750 KAWAI
-First-time bonus: 5%
-You receive: 3,750 KAWAI! 🎉
+First-time bonus: 2.5%
+You receive: 1,875 KAWAI! 🎉
 
 First deposit: 200 USDT
-Normal rate: 2% (Silver) = 4,000 KAWAI
-First-time bonus: 5%
-You receive: 10,000 KAWAI! 🎉 (capped at Silver max)
+Normal rate: 1.25% (Silver) = 2,500 KAWAI
+First-time bonus: 2.5%
+You receive: 5,000 KAWAI! 🎉
 ```
 
 **This is a one-time bonus** - subsequent deposits use tier rates.
@@ -70,21 +70,21 @@ You receive: 10,000 KAWAI! 🎉 (capped at Silver max)
 
 **Strategy 1: Maximize first deposit**
 ```
-First: 100 USDT → 5,000 KAWAI (5%, capped at Silver max)
-Future: 2% rate (Silver tier)
+First: 100 USDT → 2,500 KAWAI (2.5%)
+Future: 1.25% rate (Silver tier)
 ```
 
 **Strategy 2: Tier jumping**
 ```
-First: 50 USDT → 2,500 KAWAI (5%)
-Second: 500 USDT → 10,000 KAWAI (2%, reach Gold)
-Future: 3% rate (Gold tier)
+First: 50 USDT → 1,250 KAWAI (2.5%)
+Second: 500 USDT → 7,500 KAWAI (1.5%, reach Gold)
+Future: 1.5% rate (Gold tier)
 ```
 
 **Strategy 3: Big first deposit**
 ```
-First: 5,000 USDT → 20,000 KAWAI (5%, capped at Diamond)
-Future: 5% rate (Diamond tier) - maximum cashback!
+First: 5,000 USDT → 20,000 KAWAI (2.5% = 125,000, capped at Diamond 20k)
+Future: 2% rate (Diamond tier) - maximum cashback!
 ```
 
 ## 📊 Cashback Calculation
@@ -97,9 +97,9 @@ KAWAI amount = (raw cashback × 1e18) / 1e6
 
 Example:
 Deposit: 100 USDT (6 decimals)
-Rate: 3% (Gold tier)
-Raw: 100 × 0.03 = 3 USDT
-KAWAI: (3 × 1e18) / 1e6 = 3,000 KAWAI (18 decimals)
+Rate: 1.5% (Gold tier)
+Raw: 100 × 0.015 = 1.5 USDT
+KAWAI: (1.5 × 1e18) / 1e6 = 1,500 KAWAI (18 decimals)
 ```
 
 ### Tier Caps
@@ -111,7 +111,7 @@ Bronze: 5,000 KAWAI max
   → Even if calculation is 10,000, you get 5,000
 
 Diamond: 20,000 KAWAI max
-  → Deposit 5,000 USDT × 5% = 250,000 raw
+  → Deposit 5,000 USDT × 2% = 100,000 raw
   → But capped at 20,000 KAWAI
 ```
 
@@ -128,8 +128,8 @@ Diamond: 20,000 KAWAI max
 ```
 Week 1: First deposit 30 USDT
   → Tier: Bronze
-  → Rate: 5% (first-time)
-  → Cashback: 1,500 KAWAI
+  → Rate: 2.5% (first-time)
+  → Cashback: 750 KAWAI
 
 Week 3: Deposit 25 USDT
   → Tier: Bronze (55 USDT total)
@@ -138,10 +138,10 @@ Week 3: Deposit 25 USDT
 
 Week 6: Deposit 50 USDT
   → Tier: Silver! (105 USDT total)
-  → Rate: 2%
-  → Cashback: 1,000 KAWAI
+  → Rate: 1.25%
+  → Cashback: 625 KAWAI
 
-Total earned: 2,750 KAWAI from 105 USDT deposits
+Total earned: 1,625 KAWAI from 105 USDT deposits
 ```
 
 ### Scenario 2: Strategic Depositor
@@ -150,23 +150,23 @@ Total earned: 2,750 KAWAI from 105 USDT deposits
 ```
 Day 1: First deposit 100 USDT
   → Jump straight to Silver
-  → Rate: 5% (first-time)
-  → Cashback: 5,000 KAWAI
-  → Future rate: 2% (Silver)
+  → Rate: 2.5% (first-time)
+  → Cashback: 2,500 KAWAI
+  → Future rate: 1.25% (Silver)
 
 Week 2: Deposit 450 USDT
   → Reach Gold (550 USDT total)
-  → Rate: 2%
-  → Cashback: 9,000 KAWAI
-  → Future rate: 3% (Gold)
+  → Rate: 1.5%
+  → Cashback: 6,750 KAWAI
+  → Future rate: 1.5% (Gold)
 
 Month 2: Deposit 500 USDT
   → Reach Platinum (1,050 USDT total)
-  → Rate: 3%
-  → Cashback: 15,000 KAWAI
-  → Future rate: 4% (Platinum)
+  → Rate: 1.75%
+  → Cashback: 8,750 KAWAI
+  → Future rate: 1.75% (Platinum)
 
-Total earned: 29,000 KAWAI from 1,050 USDT
+Total earned: 18,000 KAWAI from 1,050 USDT
 ```
 
 ### Scenario 3: Large Depositor
@@ -175,16 +175,16 @@ Total earned: 29,000 KAWAI from 1,050 USDT
 ```
 First deposit: 5,000 USDT
   → Diamond tier immediately
-  → Rate: 5% (first-time)
-  → Raw: 250,000 KAWAI
+  → Rate: 2.5% (first-time)
+  → Raw: 125,000 KAWAI
   → Capped: 20,000 KAWAI
-  → Future rate: 5% (Diamond - maximum!)
+  → Future rate: 2% (Diamond - maximum!)
 
 Monthly deposit: 1,000 USDT
-  → Rate: 5% (Diamond)
+  → Rate: 2% (Diamond)
   → Cashback: 20,000 KAWAI (capped)
   → Repeatable every month
-
+```
 Year 1 earnings:
   First: 20,000 KAWAI
   11 months: 11 × 20,000 = 220,000 KAWAI
@@ -296,7 +296,7 @@ Option B: 100 USDT first
   → Much better!
 ```
 
-**Recommendation:** Make first deposit at least 100 USDT to maximize 5% bonus.
+**Recommendation:** Make first deposit at least 100 USDT to maximize 2.5% bonus.
 
 ### Tip 2: Plan Tier Jumps
 
@@ -328,10 +328,10 @@ Good: Two deposits of 5,000 USDT
 
 **Cap thresholds:**
 - Bronze: Cap at 500 USDT deposit (1% of 500 = 5K)
-- Silver: Cap at 500 USDT (2% of 500 = 10K)
-- Gold: Cap at 500 USDT (3% of 500 = 15K)
-- Platinum: Cap at 500 USDT (4% of 500 = 20K)
-- Diamond: Cap at 400 USDT (5% of 400 = 20K)
+- Silver: Cap at 800 USDT (1.25% of 800 = 10K)
+- Gold: Cap at 1,000 USDT (1.5% of 1,000 = 15K)
+- Platinum: Cap at 1,142 USDT (1.75% of 1,142 = ~20K)
+- Diamond: Cap at 1,000 USDT (2% of 1,000 = 20K)
 
 **Smart strategy:** Deposit in chunks under cap threshold.
 
@@ -451,11 +451,11 @@ Deposit: Tuesday
 
 ### Cashback Rates
 - Bronze: 1%
-- Silver: 2%
-- Gold: 3%
-- Platinum: 4%
-- Diamond: 5%
-- First deposit: **5%** (override)
+- Silver: 1.25%
+- Gold: 1.5%
+- Platinum: 1.75%
+- Diamond: 2%
+- First deposit: **2.5%** (override)
 
 ### Tier Caps
 - Bronze: 5,000 KAWAI

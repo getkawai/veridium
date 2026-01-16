@@ -9,7 +9,7 @@ Kawai Network has **5 different reward systems** that work together to create su
 | Reward Type | Who Earns | Rate | Frequency |
 |-------------|-----------|------|-----------|
 | **[Use-to-Earn](#use-to-earn-5-cashback)** | AI service users | 5% | Instant |
-| **[Deposit Cashback](#deposit-cashback-1-5)** | USDT depositors | 1-5% | Per deposit |
+| **[Deposit Cashback](#deposit-cashback-1-2)** | USDT depositors | 1-2% | Per deposit |
 | **[Referral Rewards](#referral-rewards)** | Inviters | 5 USDT + 5% commission | Per referral |
 | **[Mining Rewards](#mining-rewards)** | GPU contributors | 85-90% | Per job |
 | **[Hold-to-Earn](#hold-to-earn)** | KAWAI holders | 100% revenue share | Weekly |
@@ -45,7 +45,7 @@ Cashback: 0.10 × 5% = 0.005 USDT worth of KAWAI
 
 [Learn more about claiming →](claiming.md)
 
-## 💎 Deposit Cashback (1-5%)
+## 💎 Deposit Cashback (1-2%)
 
 **Earn when you add USDT to your account!**
 
@@ -55,18 +55,18 @@ The more you deposit, the higher your rate:
 
 | Tier | Deposit Amount | Base Rate | Max per Deposit | First Deposit |
 |------|----------------|-----------|-----------------|---------------|
-| 🥉 Bronze | < 100 USDT | 1% | 5,000 KAWAI | **5%** |
-| 🥈 Silver | 100-500 USDT | 2% | 10,000 KAWAI | **5%** |
-| 🥇 Gold | 500-1K USDT | 3% | 15,000 KAWAI | **5%** |
-| 💠 Platinum | 1K-5K USDT | 4% | 20,000 KAWAI | **5%** |
-| 💎 Diamond | ≥ 5K USDT | 5% | 20,000 KAWAI | **5%** |
+| 🥉 Bronze | < 100 USDT | 1% | 5,000 KAWAI | **2.5%** |
+| 🥈 Silver | 100-500 USDT | 1.25% | 10,000 KAWAI | **2.5%** |
+| 🥇 Gold | 500-1K USDT | 1.5% | 15,000 KAWAI | **2.5%** |
+| 💠 Platinum | 1K-5K USDT | 1.75% | 20,000 KAWAI | **2.5%** |
+| 💎 Diamond | ≥ 5K USDT | 2% | 20,000 KAWAI | **2.5%** |
 
 ### Special Bonuses
 
-**First Deposit Bonus: 5%**
-- Your first deposit always gets 5% cashback
+**First Deposit Bonus: 2.5%**
+- Your first deposit always gets 2.5% cashback
 - Regardless of amount!
-- Example: Deposit 50 USDT → Get 2,500 KAWAI
+- Example: Deposit 50 USDT → Get 1,250 KAWAI
 
 **Tier Progression**
 - Your tier is based on total deposits
@@ -79,8 +79,8 @@ The more you deposit, the higher your rate:
 ```
 First deposit: 50 USDT
 Normal rate: 1% (Bronze) = 500 KAWAI
-First-time bonus: 5% override
-You receive: 2,500 KAWAI! 🎉
+First-time bonus: 2.5% override
+You receive: 1,250 KAWAI! 🎉
 ```
 
 **Scenario 2: Upgrading tiers**
@@ -88,15 +88,15 @@ You receive: 2,500 KAWAI! 🎉
 Previous deposits: 80 USDT (Bronze)
 New deposit: 150 USDT
 Total: 230 USDT → Silver tier unlocked!
-This deposit: 150 × 2% = 3,000 KAWAI
-Future deposits: 2% rate (Silver)
+This deposit: 150 × 1.25% = 1,875 KAWAI
+Future deposits: 1.25% rate (Silver)
 ```
 
 **Scenario 3: Large deposit**
 ```
 Deposit: 5,000 USDT
-Tier: Diamond (5%)
-Calculation: 5,000 × 5% = 250,000 KAWAI
+Tier: Diamond (2%)
+Calculation: 5,000 × 2% = 100,000 KAWAI
 Tier cap: 20,000 KAWAI (Diamond max)
 You receive: 20,000 KAWAI
 ```
@@ -267,7 +267,7 @@ Go to **Wallet → Rewards → Revenue Share** tab to:
 ### Earning Potential
 
 **Casual user (AI only):**
-- Deposit: 100 USDT → 5,000 KAWAI (first-time)
+- Deposit: 100 USDT → 2,500 KAWAI (first-time)
 - Monthly usage: 20 USDT → 50 KAWAI (use-to-earn)
 - Refer 3 friends → 15 USDT + commission
 - **Total first month: ~5,500 KAWAI + 15 USDT**
@@ -327,7 +327,7 @@ Earn from multiple sources simultaneously:
 
 **Example flow:**
 ```
-1. Deposit 500 USDT → Earn 25,000 KAWAI (5% first-time)
+1. Deposit 500 USDT → Earn 12,500 KAWAI (2.5% first-time)
 2. Refer 5 friends → Earn 25 USDT + commissions
 3. Use AI services → Earn 5% use-to-earn
 4. Run contributor node → Earn 85-90% mining rewards
@@ -360,7 +360,7 @@ Maximize mining rewards:
 Smart deposit strategy:
 
 **Approach:**
-1. First deposit: 50-100 USDT (5% bonus)
+1. First deposit: 50-100 USDT (2.5% bonus)
 2. Second deposit: Reach next tier threshold
 3. Subsequent deposits: Maintain tier
 4. Large deposits: Mind the caps (20K max)
