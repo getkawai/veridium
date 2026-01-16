@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -17,6 +18,7 @@ import (
 	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/internal/generate/abi/cashbackdistributor"
 	"github.com/kawai-network/veridium/internal/generate/abi/miningdistributor"
+	"github.com/kawai-network/veridium/internal/generate/abi/referraldistributor"
 	"github.com/kawai-network/veridium/pkg/alert"
 	"github.com/kawai-network/veridium/pkg/blockchain"
 	"github.com/kawai-network/veridium/pkg/store"
@@ -607,16 +609,157 @@ func uploadCashbackRoot(ctx context.Context, kv *store.KVStore) error {
 }
 
 func uploadReferralRoot(ctx context.Context, kv *store.KVStore) error {
-	log.Println("⚠️  Referral root upload not yet implemented")
-	log.Println("")
-	log.Println("TODO:")
-	log.Println("  1. Get latest referral period from KV")
-	log.Println("  2. Read Merkle root")
-	log.Println("  3. Call ReferralRewardDistributor.setMerkleRoot()")
-	log.Println("")
-	log.Println("Contract: 0x... (ReferralRewardDistributor)")
+	alerter := alert.NewTelegramAlert()
 
-	return fmt.Errorf("referral upload not implemented yet")
+	// 1. Get latest mining period (Referral settlement piggybacks on mining periods)
+	periods, err := kv.ListSettlementPeriods(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to list periods: %w", err)
+	}
+
+	var latestMining *store.SettlementPeriod
+	for i := len(periods) - 1; i >= 0; i-- {
+		// Referral tracks mining periods (usually "kawai" type for mining rewards)
+		if periods[i].RewardType == "kawai" {
+			latestMining = periods[i]
+			break
+		}
+	}
+
+	if latestMining == nil {
+		return fmt.Errorf("no mining settlement found - cannot determine referral period")
+	}
+
+	periodID := uint64(latestMining.PeriodID)
+
+	// 2. Read Referral Merkle Root from KV
+	// Key format from pkg/blockchain/referral_settlement.go: referral_period:%d:merkle_root
+	rootKey := fmt.Sprintf("referral_period:%d:merkle_root", periodID)
+	rootDataJSON, err := kv.GetMarketplaceData(ctx, rootKey)
+	if err != nil {
+		return fmt.Errorf("failed to get referral merkle root for period %d: %w", periodID, err)
+	}
+
+	var merkleRootHex string
+	if err := json.Unmarshal(rootDataJSON, &merkleRootHex); err != nil {
+		return fmt.Errorf("failed to unmarshal referral merkle root: %w", err)
+	}
+
+	log.Printf("Period ID:     %d", periodID)
+	log.Printf("Merkle Root:   %s", merkleRootHex)
+	log.Println("")
+
+	alerter.SendAlert("INFO", "Settlement",
+		fmt.Sprintf("📤 Uploading referral merkle root...\nPeriod: %d", periodID))
+
+	// 3. Connect to Monad RPC
+	client, err := ethclient.Dial(constant.MonadRpcUrl)
+	if err != nil {
+		alerter.SendAlert("ERROR", "Settlement",
+			fmt.Sprintf("❌ Failed to connect to RPC!\nError: %v", err))
+		return fmt.Errorf("failed to connect to Monad: %w", err)
+	}
+	defer client.Close()
+
+	// 4. Load ReferralRewardDistributor contract
+	distributorAddr := common.HexToAddress(constant.ReferralDistributorAddress)
+	distributor, err := referraldistributor.NewReferralRewardDistributor(distributorAddr, client)
+	if err != nil {
+		return fmt.Errorf("failed to load ReferralRewardDistributor: %w", err)
+	}
+
+	// 5. Setup Transactor
+	privateKeyHex := constant.GetObfuscatedTemp()
+	if strings.HasPrefix(privateKeyHex, "0x") {
+		privateKeyHex = privateKeyHex[2:]
+	}
+
+	privateKey, err := crypto.HexToECDSA(privateKeyHex)
+	if err != nil {
+		return fmt.Errorf("failed to parse private key: %w", err)
+	}
+
+	chainID, err := client.ChainID(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get chain ID: %w", err)
+	}
+
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	if err != nil {
+		return fmt.Errorf("failed to create transactor: %w", err)
+	}
+	auth.Context = ctx
+
+	// 6. Prepare Merkle Root
+	if strings.HasPrefix(merkleRootHex, "0x") {
+		merkleRootHex = merkleRootHex[2:]
+	}
+	merkleRootBytes := common.Hex2Bytes(merkleRootHex)
+	if len(merkleRootBytes) != 32 {
+		return fmt.Errorf("invalid Merkle root length: expected 32 bytes, got %d", len(merkleRootBytes))
+	}
+	var merkleRoot [32]byte
+	copy(merkleRoot[:], merkleRootBytes)
+
+	// User Confirmation
+	log.Printf("⚠️  About to upload Merkle root to ReferralRewardDistributor")
+	log.Printf("    Period ID: %d", periodID)
+	log.Printf("    Merkle Root: %s", merkleRootHex)
+	if !confirm("Continue with upload?") {
+		return fmt.Errorf("upload cancelled by user")
+	}
+	log.Println("")
+
+	// 7. Check Current Contract Period to decide logic
+	contractPeriodBig, err := distributor.CurrentPeriod(nil)
+	if err != nil {
+		return fmt.Errorf("failed to get current period from contract: %w", err)
+	}
+	contractPeriod := contractPeriodBig.Uint64()
+
+	log.Printf("📊 Contract currentPeriod: %d, Settlement period: %d", contractPeriod, periodID)
+
+	var tx *types.Transaction
+
+	if periodID == contractPeriod {
+		// Update current period (SetMerkleRoot)
+		log.Printf("🌳 [REFERRAL] Updating Merkle root for current period %d", periodID)
+		tx, err = distributor.SetMerkleRoot(auth, merkleRoot)
+	} else if periodID == contractPeriod+1 {
+		// Advance to next period (AdvancePeriod)
+		log.Printf("🌳 [REFERRAL] Advancing to period %d with new Merkle root", periodID)
+		tx, err = distributor.AdvancePeriod(auth, merkleRoot)
+	} else {
+		return fmt.Errorf("period mismatch: settlement period %d, contract period %d", periodID, contractPeriod)
+	}
+
+	if err != nil {
+		alerter.SendAlert("ERROR", "Settlement",
+			fmt.Sprintf("❌ Referral upload failed!\nPeriod: %d\nError: %v", periodID, err))
+		return fmt.Errorf("transaction failed: %w", err)
+	}
+
+	log.Printf("✅ [REFERRAL] Transaction sent: %s", tx.Hash().Hex())
+	log.Println("⏳ [REFERRAL] Waiting for confirmation...")
+
+	receipt, err := bind.WaitMined(ctx, client, tx)
+	if err != nil {
+		return fmt.Errorf("failed to wait for confirmation: %w", err)
+	}
+	if receipt.Status != 1 {
+		return fmt.Errorf("transaction reverted with status: %d", receipt.Status)
+	}
+
+	log.Printf("✅ [REFERRAL] Merkle root uploaded successfully in block %d", receipt.BlockNumber.Uint64())
+
+	alerter.SendAlert("SUCCESS", "Settlement",
+		fmt.Sprintf("✅ Referral merkle root uploaded!\nPeriod: %d\nTx: %s",
+			periodID, tx.Hash().Hex()))
+
+	log.Println("")
+	log.Printf("📝 Next: Users can now claim referral rewards via UI")
+
+	return nil
 }
 
 func generateRevenueSettlement(ctx context.Context, kv *store.KVStore) error {
@@ -766,7 +909,14 @@ func showStatus(ctx context.Context, kv *store.KVStore) error {
 	// Referral status
 	log.Println("🤝 REFERRAL REWARDS")
 	log.Println("───────────────────────────────────────────────────────────────")
-	log.Println("Status: Not yet implemented")
+	log.Println("Status: ✅ fully operational")
+	log.Println("Use 'generate --type referral' and 'upload --type referral'")
+	log.Println("")
+
+	// Revenue status
+	log.Println("💸 REVENUE SHARING")
+	log.Println("───────────────────────────────────────────────────────────────")
+	log.Println("Status: ✅ fully operational (upload integrated in generate)")
 	log.Println("")
 
 	log.Println("═══════════════════════════════════════════════════════════════")
