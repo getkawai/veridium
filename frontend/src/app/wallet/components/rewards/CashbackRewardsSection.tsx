@@ -57,7 +57,7 @@ const CASHBACK_TIERS = [
   { level: 0, min: 0, max: 99, rate: 1, cap: 5000, label: 'Bronze' },
   { level: 1, min: 100, max: 499, rate: 2, cap: 10000, label: 'Silver' },
   { level: 2, min: 500, max: 999, rate: 3, cap: 15000, label: 'Gold' },
-  { level: 3, min: 1000, max: 4999, rate: 4, cap: 18000, label: 'Platinum' },
+  { level: 3, min: 1000, max: 4999, rate: 4, cap: 20000, label: 'Platinum' },
   { level: 4, min: 5000, max: Infinity, rate: 5, cap: 20000, label: 'Diamond' },
 ];
 
