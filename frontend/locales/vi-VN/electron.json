@@ -44,7 +44,7 @@
   "remoteServer": {
     "authError": "Xác thực thất bại: {{error}}",
     "authPending": "Vui lòng hoàn tất xác thực trong trình duyệt",
-    "configDesc": "Kết nối đến máy chủ LobeChat từ xa, kích hoạt đồng bộ dữ liệu",
+    "configDesc": "Kết nối đến máy chủ Veridium từ xa, kích hoạt đồng bộ dữ liệu",
     "configError": "Lỗi cấu hình",
     "configTitle": "Cấu hình đồng bộ đám mây",
     "connect": "Kết nối và xác thực",
@@ -66,7 +66,7 @@
     "isIniting": "Đang khởi tạo...",
     "lobehubCloud": {
       "description": "Phiên bản đám mây do chính thức cung cấp",
-      "title": "LobeHub Cloud"
+      "title": "Kawai Cloud"
     },
     "local": {
       "description": "Sử dụng cơ sở dữ liệu cục bộ, hoàn toàn có thể sử dụng ngoại tuyến",

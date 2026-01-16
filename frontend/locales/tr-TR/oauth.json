@@ -21,7 +21,7 @@
     "scope": {
       "email": "E-posta adresinize erişim",
       "offline_access": "Müşterinin verilerinize erişmesine izin ver",
-      "openid": "LobeChat hesabınızla kimlik doğrulama",
+      "openid": "Veridium hesabınızla kimlik doğrulama",
       "profile": "Temel profil bilgilerinize (isim, avatar vb.) erişim",
       "sync-read": "Senkronize verilerinizi okumak",
       "sync-write": "Senkronize verilerinizi yazmak ve güncellemek"

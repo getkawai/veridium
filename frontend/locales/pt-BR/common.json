@@ -31,7 +31,7 @@
   "batchDelete": "Excluir em massa",
   "blog": "Blog de Produtos",
   "branching": "Criar subtópico",
-  "branchingDisable": "O recurso de \"subtópicos\" não está disponível no modo atual. Para utilizá-lo, altere para o modo Postgres/Pglite DB ou use o LobeHub Cloud.",
+  "branchingDisable": "O recurso de \"subtópicos\" não está disponível no modo atual. Para utilizá-lo, altere para o modo Postgres/Pglite DB ou use o Kawai Cloud.",
   "branchingRequiresSavedTopic": "O tópico atual não foi salvo. Salve-o para poder usar a funcionalidade de subtópicos.",
   "cancel": "Cancelar",
   "changelog": "Registro de alterações",
@@ -171,7 +171,7 @@
     "and": "e",
     "feedback": {
       "action": "Compartilhar feedback",
-      "desc": "Cada uma de suas ideias e sugestões é extremamente valiosa para nós. Mal podemos esperar para saber o que você pensa! Sinta-se à vontade para entrar em contato conosco para fornecer feedback sobre os recursos do produto e a experiência de uso, ajudando-nos a tornar o LobeChat ainda melhor.",
+      "desc": "Cada uma de suas ideias e sugestões é extremamente valiosa para nós. Mal podemos esperar para saber o que você pensa! Sinta-se à vontade para entrar em contato conosco para fornecer feedback sobre os recursos do produto e a experiência de uso, ajudando-nos a tornar o Veridium ainda melhor.",
       "title": "Compartilhe seu valioso feedback no GitHub"
     },
     "later": "Mais tarde",
@@ -345,9 +345,9 @@
   "telemetry": {
     "allow": "Permitir",
     "deny": "Negar",
-    "desc": "Queremos coletar anonimamente suas informações de uso para nos ajudar a melhorar o LobeChat e oferecer uma experiência de produto melhor para você. Você pode desativar a qualquer momento em Configurações - Sobre.",
+    "desc": "Queremos coletar anonimamente suas informações de uso para nos ajudar a melhorar o Veridium e oferecer uma experiência de produto melhor para você. Você pode desativar a qualquer momento em Configurações - Sobre.",
     "learnMore": "Saiba mais",
-    "title": "Ajude o LobeChat a melhorar"
+    "title": "Ajude o Veridium a melhorar"
   },
   "temp": "Temporário",
   "terms": "Termos de Serviço",

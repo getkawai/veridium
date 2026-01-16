@@ -31,7 +31,7 @@
   "batchDelete": "Suppression en masse",
   "blog": "Blog des produits",
   "branching": "Créer un sous-sujet",
-  "branchingDisable": "La fonction « Sous-sujets » n’est pas disponible dans le mode actuel. Pour l’utiliser, veuillez passer en mode base de données Postgres/Pglite ou utiliser LobeHub Cloud.",
+  "branchingDisable": "La fonction « Sous-sujets » n’est pas disponible dans le mode actuel. Pour l’utiliser, veuillez passer en mode base de données Postgres/Pglite ou utiliser Kawai Cloud.",
   "branchingRequiresSavedTopic": "Le sujet actuel n'est pas enregistré, veuillez enregistrer avant d'utiliser la fonction de sous-sujet",
   "cancel": "Annuler",
   "changelog": "Journal des modifications",
@@ -171,7 +171,7 @@
     "and": "et",
     "feedback": {
       "action": "Partager des commentaires",
-      "desc": "Chaque idée et suggestion que vous avez est précieuse pour nous. Nous sommes impatients de connaître votre avis ! N'hésitez pas à nous contacter pour nous faire part de vos retours sur les fonctionnalités et l'expérience d'utilisation du produit, afin de nous aider à améliorer LobeChat.",
+      "desc": "Chaque idée et suggestion que vous avez est précieuse pour nous. Nous sommes impatients de connaître votre avis ! N'hésitez pas à nous contacter pour nous faire part de vos retours sur les fonctionnalités et l'expérience d'utilisation du produit, afin de nous aider à améliorer Veridium.",
       "title": "Partagez vos précieux commentaires sur GitHub"
     },
     "later": "Plus tard",
@@ -345,9 +345,9 @@
   "telemetry": {
     "allow": "Autoriser",
     "deny": "Refuser",
-    "desc": "Nous aimerions recueillir anonymement des informations sur votre utilisation afin de nous aider à améliorer LobeChat et à vous offrir une meilleure expérience produit. Vous pouvez désactiver cette fonctionnalité à tout moment dans les paramètres - À propos.",
+    "desc": "Nous aimerions recueillir anonymement des informations sur votre utilisation afin de nous aider à améliorer Veridium et à vous offrir une meilleure expérience produit. Vous pouvez désactiver cette fonctionnalité à tout moment dans les paramètres - À propos.",
     "learnMore": "En savoir plus",
-    "title": "Aider LobeChat à s'améliorer"
+    "title": "Aider Veridium à s'améliorer"
   },
   "temp": "Temporaire",
   "terms": "Conditions de service",

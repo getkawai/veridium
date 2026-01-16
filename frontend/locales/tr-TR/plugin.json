@@ -357,8 +357,8 @@
       "version": "Sürüm"
     },
     "official": {
-      "badge": "LobeHub Resmi Eklentisi",
-      "description": "Bu eklenti LobeHub tarafından resmi olarak geliştirilmiş ve bakımı yapılmaktadır, sıkı güvenlik denetiminden geçmiştir, güvenle kullanabilirsiniz.",
+      "badge": "Kawai Network Resmi Eklentisi",
+      "description": "Bu eklenti Kawai Network tarafından resmi olarak geliştirilmiş ve bakımı yapılmaktadır, sıkı güvenlik denetiminden geçmiştir, güvenle kullanabilirsiniz.",
       "loadingMessage": "Eklenti detayları alınıyor...",
       "loadingTitle": "Yükleniyor",
       "title": "Resmi Eklenti Yükle"
@@ -461,7 +461,7 @@
     "tabs": {
       "installed": "Yüklü",
       "mcp": "MCP Eklentileri",
-      "old": "LobeHub Eklentileri"
+      "old": "Kawai Network Eklentileri"
     },
     "title": "Eklenti Mağazası"
   },

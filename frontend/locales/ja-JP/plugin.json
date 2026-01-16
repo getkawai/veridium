@@ -357,8 +357,8 @@
       "version": "バージョン"
     },
     "official": {
-      "badge": "LobeHub公式プラグイン",
-      "description": "このプラグインはLobeHub公式によって開発・管理されており、厳格なセキュリティ審査を経ていますので安心してご利用いただけます。",
+      "badge": "Kawai Network公式プラグイン",
+      "description": "このプラグインはKawai Network公式によって開発・管理されており、厳格なセキュリティ審査を経ていますので安心してご利用いただけます。",
       "loadingMessage": "プラグイン詳細を取得中...",
       "loadingTitle": "読み込み中",
       "title": "公式プラグインをインストール"
@@ -461,7 +461,7 @@
     "tabs": {
       "installed": "インストール済み",
       "mcp": "MCPプラグイン",
-      "old": "LobeHub プラグイン"
+      "old": "Kawai Network プラグイン"
     },
     "title": "プラグインストア"
   },

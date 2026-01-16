@@ -44,7 +44,7 @@
   "remoteServer": {
     "authError": "Autenticazione fallita: {{error}}",
     "authPending": "Completa l'autenticazione nel browser",
-    "configDesc": "Collegati al server LobeChat remoto per abilitare la sincronizzazione dei dati",
+    "configDesc": "Collegati al server Veridium remoto per abilitare la sincronizzazione dei dati",
     "configError": "Errore di configurazione",
     "configTitle": "Configura la sincronizzazione cloud",
     "connect": "Collegati e autorizza",
@@ -66,7 +66,7 @@
     "isIniting": "In fase di inizializzazione...",
     "lobehubCloud": {
       "description": "Versione cloud fornita ufficialmente",
-      "title": "LobeHub Cloud"
+      "title": "Kawai Cloud"
     },
     "local": {
       "description": "Utilizza un database locale, completamente disponibile offline",

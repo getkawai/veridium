@@ -101,7 +101,7 @@
       "desc1": "En la ventana de conversación, accede a la página de configuración del asistente que deseas enviar a través de la esquina superior derecha;",
       "desc2": "Haz clic en el botón de enviar al mercado de asistentes en la esquina superior derecha.",
       "tag": "Método uno",
-      "title": "Enviar a través de LobeChat"
+      "title": "Enviar a través de Veridium"
     },
     "func2": {
       "button": "Ir al repositorio de asistentes de Github",
@@ -254,7 +254,7 @@
             "claude": "- Abre la aplicación **Claude Desktop**\n- Ve a **Configuración** y luego selecciona **Desarrollador**\n- Haz clic en **Editar configuración**\n- Abre el archivo **claude_desktop_config.json**\n- Copia y pega la configuración del servidor en el archivo existente y guarda",
             "cline": "- Abre VS Code con la extensión Cline instalada\n- Haz clic en el icono de Cline en la barra lateral\n- Selecciona **MCP Servers** en el menú desplegable\n- En la pestaña **Remote Servers**, introduce el nombre del servidor y la URL de tu servidor MCP\n- Haz clic en **Add Server** para conectar",
             "cursor": "- Navega a **Configuración** y selecciona la configuración de Cursor\n- En el panel izquierdo, elige **MCP**\n- Haz clic en **Agregar nuevo servidor MCP global** en la esquina superior derecha\n- Copia y pega la configuración del servidor en el archivo existente y guarda",
-            "lobeChat": "- Abre la aplicación de escritorio **LobeChat**\n- Ve a **Configuración** - **Asistente predeterminado**\n- Luego selecciona **Configuración de complementos** - **Complementos personalizados**\n- Haz clic en **Importar configuración JSON rápidamente**\n- Copia y pega la configuración del servidor en el cuadro de texto y procede a instalar",
+            "lobeChat": "- Abre la aplicación de escritorio **Veridium**\n- Ve a **Configuración** - **Asistente predeterminado**\n- Luego selecciona **Configuración de complementos** - **Complementos personalizados**\n- Haz clic en **Importar configuración JSON rápidamente**\n- Copia y pega la configuración del servidor en el cuadro de texto y procede a instalar",
             "openai": "- Abre tu aplicación o entorno de desarrollo de **OpenAI**\n- Configura la herramienta MCP en la **API de respuestas**\n- Añade el bloque MCP en el array **tools** de la solicitud API\n- Establece **server_url** al endpoint de tu servidor MCP\n- Incluye los encabezados necesarios para autenticación (clave API, token, etc.)\n- Usa el parámetro `allowed_tools` para limitar las herramientas expuestas\n- Configura `require_approval` para controlar la aprobación de ejecución de herramientas",
             "vscode": "- Abre VS Code\n- Abre la paleta de comandos (`Ctrl+Shift+P` / `Cmd+Shift+P`)\n- Escribe **MCP: Add Server** y selecciónalo\n- Elige agregar a la configuración del espacio de trabajo o del usuario\n- Copia y pega la configuración del servidor"
           },
@@ -271,7 +271,7 @@
         "title": "Método de instalación"
       },
       "githubBadge": {
-        "desc": "LobeHub escanea periódicamente repositorios y documentación para:\n\n- Confirmar que el servidor MCP está funcionando correctamente.\n- Extraer características del servidor, como herramientas, recursos, prompts y parámetros requeridos.\n- Nuestra insignia ayuda a los usuarios a evaluar rápidamente la seguridad, características y guía de instalación del servidor MCP.\n\nPor favor, copia el siguiente código en tu archivo `README.md`:"
+        "desc": "Kawai Network escanea periódicamente repositorios y documentación para:\n\n- Confirmar que el servidor MCP está funcionando correctamente.\n- Extraer características del servidor, como herramientas, recursos, prompts y parámetros requeridos.\n- Nuestra insignia ayuda a los usuarios a evaluar rápidamente la seguridad, características y guía de instalación del servidor MCP.\n\nPor favor, copia el siguiente código en tu archivo `README.md`:"
       },
       "nav": {
         "needHelp": "¿Necesitas ayuda?",
@@ -545,14 +545,14 @@
       "type": "Tipo"
     },
     "providerInfo": {
-      "apiTooltip": "LobeChat admite el uso de claves API personalizadas para este proveedor.",
+      "apiTooltip": "Veridium admite el uso de claves API personalizadas para este proveedor.",
       "input": "Precio de entrada",
       "inputTooltip": "Costo por millón de Tokens",
       "latency": "Latencia",
       "latencyTooltip": "Tiempo promedio de respuesta del proveedor para enviar el primer Token",
       "maxOutput": "Longitud máxima de salida",
       "maxOutputTooltip": "Número máximo de Tokens que este punto final puede generar",
-      "officialTooltip": "Servicio oficial de LobeHub",
+      "officialTooltip": "Servicio oficial de Kawai Network",
       "output": "Precio de salida",
       "outputTooltip": "Costo por millón de Tokens",
       "streamCancellationTooltip": "Este proveedor admite la función de cancelación de flujo.",

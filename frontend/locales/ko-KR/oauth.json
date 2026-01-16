@@ -21,7 +21,7 @@
     "scope": {
       "email": "귀하의 이메일 주소에 접근",
       "offline_access": "클라이언트가 귀하의 데이터에 접근할 수 있도록 허용",
-      "openid": "귀하의 LobeChat 계정으로 인증",
+      "openid": "귀하의 Veridium 계정으로 인증",
       "profile": "기본 프로필 정보(이름, 아바타 등)에 접근",
       "sync-read": "동기화된 데이터를 읽기",
       "sync-write": "동기화된 데이터를 쓰고 업데이트"

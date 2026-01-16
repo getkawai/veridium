@@ -44,7 +44,7 @@
   "remoteServer": {
     "authError": "認証エラー: {{error}}",
     "authPending": "ブラウザで認証を完了してください",
-    "configDesc": "リモートLobeChatサーバーに接続し、データ同期を有効にします",
+    "configDesc": "リモートVeridiumサーバーに接続し、データ同期を有効にします",
     "configError": "設定エラー",
     "configTitle": "クラウド同期の設定",
     "connect": "接続して認証",
@@ -66,7 +66,7 @@
     "isIniting": "初期化中...",
     "lobehubCloud": {
       "description": "公式提供のクラウド版",
-      "title": "LobeHub Cloud"
+      "title": "Kawai Cloud"
     },
     "local": {
       "description": "ローカルデータベースを使用し、完全にオフラインで利用可能",

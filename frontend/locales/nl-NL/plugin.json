@@ -357,8 +357,8 @@
       "version": "Versie"
     },
     "official": {
-      "badge": "LobeHub officiële plugin",
-      "description": "Deze plugin is ontwikkeld en onderhouden door LobeHub, grondig beveiligd en veilig in gebruik.",
+      "badge": "Kawai Network officiële plugin",
+      "description": "Deze plugin is ontwikkeld en onderhouden door Kawai Network, grondig beveiligd en veilig in gebruik.",
       "loadingMessage": "Plugin details ophalen...",
       "loadingTitle": "Bezig met laden",
       "title": "Officiële plugin installeren"
@@ -461,7 +461,7 @@
     "tabs": {
       "installed": "Geïnstalleerd",
       "mcp": "MCP-plugins",
-      "old": "LobeHub Plug-ins"
+      "old": "Kawai Network Plug-ins"
     },
     "title": "Pluginwinkel"
   },

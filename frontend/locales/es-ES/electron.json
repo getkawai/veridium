@@ -44,7 +44,7 @@
   "remoteServer": {
     "authError": "Error de autorización: {{error}}",
     "authPending": "Complete la autorización en el navegador",
-    "configDesc": "Conéctese al servidor LobeChat remoto para habilitar la sincronización de datos",
+    "configDesc": "Conéctese al servidor Veridium remoto para habilitar la sincronización de datos",
     "configError": "Error de configuración",
     "configTitle": "Configurar sincronización en la nube",
     "connect": "Conectar y autorizar",
@@ -66,7 +66,7 @@
     "isIniting": "Inicializando...",
     "lobehubCloud": {
       "description": "Versión en la nube proporcionada oficialmente",
-      "title": "LobeHub Cloud"
+      "title": "Kawai Cloud"
     },
     "local": {
       "description": "Usando base de datos local, completamente disponible sin conexión",

@@ -21,7 +21,7 @@
     "scope": {
       "email": "Dostęp do Twojego adresu e-mail",
       "offline_access": "Zezwól klientowi na dostęp do Twoich danych",
-      "openid": "Uwierzytelnienie za pomocą Twojego konta LobeChat",
+      "openid": "Uwierzytelnienie za pomocą Twojego konta Veridium",
       "profile": "Dostęp do Twoich podstawowych informacji (imię, zdjęcie profilowe itp.)",
       "sync-read": "Odczytaj swoje dane synchronizacyjne",
       "sync-write": "Zapisz i zaktualizuj swoje dane synchronizacyjne"

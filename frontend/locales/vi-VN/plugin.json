@@ -357,8 +357,8 @@
       "version": "Phiên bản"
     },
     "official": {
-      "badge": "Plugin chính thức của LobeHub",
-      "description": "Plugin này được phát triển và duy trì bởi LobeHub chính thức, đã qua kiểm tra bảo mật nghiêm ngặt, bạn có thể yên tâm sử dụng.",
+      "badge": "Plugin chính thức của Kawai Network",
+      "description": "Plugin này được phát triển và duy trì bởi Kawai Network chính thức, đã qua kiểm tra bảo mật nghiêm ngặt, bạn có thể yên tâm sử dụng.",
       "loadingMessage": "Đang lấy chi tiết plugin...",
       "loadingTitle": "Đang tải",
       "title": "Cài đặt plugin chính thức"
@@ -461,7 +461,7 @@
     "tabs": {
       "installed": "Đã cài đặt",
       "mcp": "Plugin MCP",
-      "old": "Plugin LobeHub"
+      "old": "Plugin Kawai Network"
     },
     "title": "Cửa hàng plugin"
   },

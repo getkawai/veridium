@@ -21,7 +21,7 @@
     "scope": {
       "email": "Zugriff auf Ihre E-Mail-Adresse",
       "offline_access": "Erlauben Sie dem Client, auf Ihre Daten zuzugreifen",
-      "openid": "Authentifizierung mit Ihrem LobeChat-Konto",
+      "openid": "Authentifizierung mit Ihrem Veridium-Konto",
       "profile": "Zugriff auf Ihre Profilinformationen (Name, Avatar usw.)",
       "sync-read": "Lesen Sie Ihre synchronisierten Daten",
       "sync-write": "Schreiben und Aktualisieren Sie Ihre synchronisierten Daten"

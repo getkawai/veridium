@@ -357,8 +357,8 @@
       "version": "Wersja"
     },
     "official": {
-      "badge": "Oficjalna wtyczka LobeHub",
-      "description": "Ta wtyczka jest rozwijana i utrzymywana przez LobeHub, przeszła rygorystyczne kontrole bezpieczeństwa i jest bezpieczna w użyciu.",
+      "badge": "Oficjalna wtyczka Kawai Network",
+      "description": "Ta wtyczka jest rozwijana i utrzymywana przez Kawai Network, przeszła rygorystyczne kontrole bezpieczeństwa i jest bezpieczna w użyciu.",
       "loadingMessage": "Pobieranie szczegółów wtyczki...",
       "loadingTitle": "Ładowanie",
       "title": "Zainstaluj oficjalną wtyczkę"
@@ -461,7 +461,7 @@
     "tabs": {
       "installed": "Zainstalowane",
       "mcp": "Wtyczki MCP",
-      "old": "Wtyczki LobeHub"
+      "old": "Wtyczki Kawai Network"
     },
     "title": "Sklep z wtyczkami"
   },

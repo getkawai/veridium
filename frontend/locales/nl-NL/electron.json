@@ -44,7 +44,7 @@
   "remoteServer": {
     "authError": "Autorisatiefout: {{error}}",
     "authPending": "Voltooi de autorisatie in de browser",
-    "configDesc": "Verbind met de externe LobeChat-server om gegevenssynchronisatie in te schakelen",
+    "configDesc": "Verbind met de externe Veridium-server om gegevenssynchronisatie in te schakelen",
     "configError": "Configuratiefout",
     "configTitle": "Cloud-synchronisatie configureren",
     "connect": "Verbinden en autoriseren",
@@ -66,7 +66,7 @@
     "isIniting": "Bezig met initialiseren...",
     "lobehubCloud": {
       "description": "De door de officiële instantie aangeboden cloudversie",
-      "title": "LobeHub Cloud"
+      "title": "Kawai Cloud"
     },
     "local": {
       "description": "Gebruik makend van een lokale database, volledig offline beschikbaar",

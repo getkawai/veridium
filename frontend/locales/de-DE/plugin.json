@@ -357,8 +357,8 @@
       "version": "Version"
     },
     "official": {
-      "badge": "Offizielles LobeHub Plugin",
-      "description": "Dieses Plugin wird von LobeHub offiziell entwickelt und gepflegt, es wurde streng auf Sicherheit geprüft und kann bedenkenlos verwendet werden.",
+      "badge": "Offizielles Kawai Network Plugin",
+      "description": "Dieses Plugin wird von Kawai Network offiziell entwickelt und gepflegt, es wurde streng auf Sicherheit geprüft und kann bedenkenlos verwendet werden.",
       "loadingMessage": "Plugin-Details werden geladen...",
       "loadingTitle": "Lädt",
       "title": "Offizielles Plugin installieren"
@@ -461,7 +461,7 @@
     "tabs": {
       "installed": "Installiert",
       "mcp": "MCP Plugins",
-      "old": "LobeHub Erweiterung"
+      "old": "Kawai Network Erweiterung"
     },
     "title": "Plugin-Shop"
   },

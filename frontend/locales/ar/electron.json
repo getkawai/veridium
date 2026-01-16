@@ -44,7 +44,7 @@
   "remoteServer": {
     "authError": "فشل التفويض: {{error}}",
     "authPending": "يرجى إكمال التفويض في المتصفح",
-    "configDesc": "الاتصال بخادم LobeChat البعيد، تمكين مزامنة البيانات",
+    "configDesc": "الاتصال بخادم Veridium البعيد، تمكين مزامنة البيانات",
     "configError": "خطأ في التكوين",
     "configTitle": "تكوين المزامنة السحابية",
     "connect": "الاتصال والتفويض",
@@ -66,7 +66,7 @@
     "isIniting": "جارٍ التهيئة...",
     "lobehubCloud": {
       "description": "الإصدار السحابي المقدم رسميًا",
-      "title": "LobeHub Cloud"
+      "title": "Kawai Cloud"
     },
     "local": {
       "description": "استخدام قاعدة بيانات محلية، متاحة بالكامل دون اتصال",
