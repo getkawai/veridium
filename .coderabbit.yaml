@@ -33,7 +33,9 @@ reviews:
   poem: true
   enable_prompt_for_ai_agents: true
   path_filters: []
-  path_instructions: []
+  path_instructions:
+    - path: "cmd/reward-settlement/**"
+      instructions: "Ensure all blockchain transactions have proper user confirmation prompts and extensive error logging. Verify that private keys are never logged. Check for correct Merkle tree generation logic."
   abort_on_close: true
   disable_cache: false
   auto_review:
