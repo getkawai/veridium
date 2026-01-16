@@ -6,48 +6,129 @@
   --kawai-red-light: #FF6B88;
   --kawai-red-dark: #D81A44;
   --kawai-blue: #0066FF;
+  --kawai-blue-light: #339DFF;
 
-  /* MkDocs Material Overrides - Light Mode */
+  /* MkDocs Material Variables Initialization */
   --md-primary-fg-color: var(--kawai-red);
   --md-primary-fg-color--light: var(--kawai-red-light);
   --md-primary-fg-color--dark: var(--kawai-red-dark);
   --md-accent-fg-color: var(--kawai-blue);
-
-  /* Typography */
-  --md-text-font: "Inter", sans-serif;
-  --md-code-font: "Roboto Mono", monospace;
 }
 
-/* Dark Mode Overrides */
+/* ---------------------------------------------------------
+   LIGHT MODE (Default)
+   --------------------------------------------------------- */
+[data-md-color-scheme="default"] {
+  --md-default-fg-color: #374151;
+  /* Gray-700 for better contrast */
+  --md-default-fg-color--light: #6b7280;
+  /* Gray-500 */
+}
+
+/* ---------------------------------------------------------
+   DARK MODE (Slate)
+   --------------------------------------------------------- */
 [data-md-color-scheme="slate"] {
-  /* Matching bg-gray-900 from Tailwind (#111827) - roughly */
+  /* Site background matches main website */
   --md-default-bg-color: #111827;
   --md-default-fg-color: #f3f4f6;
-  /* gray-100 */
-  --md-default-fg-color--light: #d1d5db;
-  /* gray-300 */
+  /* Gray-100 */
+  --md-default-fg-color--light: #9ca3af;
+  /* Gray-400 */
 
-  /* Make the header translucent like website glassmorphism */
-  --md-primary-bg-color: rgba(17, 24, 39, 0.95);
+  /* Overriding accent for links in dark mode for accessibility */
+  --md-accent-fg-color: var(--kawai-blue-light);
+  --md-typeset-a-color: var(--kawai-blue-light);
 }
 
-/* Header customization to match website vibe */
+/* ---------------------------------------------------------
+   HEADER & NAVIGATION DESIGN
+   --------------------------------------------------------- */
+
+/* Header Background - Red for Light, Dark for Dark mode */
 .md-header {
-  background-color: #111827;
+  background-color: var(--kawai-red) !important;
 }
 
-[data-md-color-scheme="default"] .md-header {
-  background-color: var(--kawai-red);
+[data-md-color-scheme="slate"] .md-header {
+  background-color: #111827 !important;
+  border-bottom: 1px solid #1f2937;
 }
 
-/* Custom grid cards styling */
-.grid.cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1rem;
-  margin: 1rem 0;
+/* Header Text/Icons Visibility - FIX: ONLY TARGET HEADER ELEMENTS */
+.md-header .md-header__button,
+.md-header .md-header__title,
+.md-header .md-nav__link,
+.md-tabs .md-tabs__link {
+  color: white !important;
+  opacity: 1;
 }
 
+.md-tabs .md-tabs__link--active {
+  font-weight: 700;
+  border-bottom: 2px solid white;
+}
+
+/* ---------------------------------------------------------
+   SIDEBARS (FIX FOR INVISIBLE TEXT)
+   --------------------------------------------------------- */
+
+/* Ensure sidebar links are NOT white in light mode */
+[data-md-color-scheme="default"] .md-nav--primary .md-nav__link,
+[data-md-color-scheme="default"] .md-nav--secondary .md-nav__link {
+  color: #374151 !important;
+  /* Force darker color for visibility */
+}
+
+[data-md-color-scheme="default"] .md-nav--primary .md-nav__link:hover,
+[data-md-color-scheme="default"] .md-nav--secondary .md-nav__link:hover {
+  color: var(--kawai-red) !important;
+}
+
+/* Active links in sidebars */
+.md-nav__link--active {
+  color: var(--kawai-red) !important;
+  font-weight: 600;
+}
+
+[data-md-color-scheme="slate"] .md-nav__link--active {
+  color: var(--kawai-red-light) !important;
+}
+
+/* Secondary (TOC) link colors fix */
+.md-nav--secondary .md-nav__link {
+  font-size: 0.75rem;
+}
+
+/* ---------------------------------------------------------
+   CONTENT STYLES
+   --------------------------------------------------------- */
+
+/* Typography */
+body {
+  font-family: "Inter", sans-serif;
+}
+
+/* Links inside content */
+.md-typeset a {
+  transition: color 0.2s, border-color 0.2s;
+}
+
+[data-md-color-scheme="slate"] .md-typeset a {
+  color: var(--kawai-blue-light);
+}
+
+[data-md-color-scheme="default"] .md-typeset a {
+  color: var(--kawai-red);
+}
+
+/* Code block enhancements */
+.md-typeset pre>code {
+  font-size: 0.85em;
+  font-family: var(--md-code-font);
+}
+
+/* Grid Cards */
 .grid.cards>* {
   border: 1px solid var(--md-default-fg-color--lightest);
   border-radius: 0.5rem;
@@ -57,109 +138,25 @@
 
 .grid.cards>*:hover {
   border-color: var(--md-primary-fg-color);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   transform: translateY(-2px);
-  transform: translateY(-2px);
 }
 
-/* ---------------------------------------------------------
-   Dark Mode (Slate) Specific Overrides
-   --------------------------------------------------------- */
-[data-md-color-scheme="slate"] {
-  /* Site background matches main website */
-  --md-default-bg-color: #111827;
-
-  /* CONTRAST FIX: Lighter text for better readability */
-  --md-default-fg-color: #f3f4f6;
-  /* Gray-100 */
-  --md-default-fg-color--light: #9ca3af;
-  /* Gray-400 */
-
-  /* LINK FIX: Use lighter blue/cyan for better contrast on dark bg */
-  --md-typeset-a-color: var(--kawai-blue-light);
-  --md-accent-fg-color: var(--kawai-blue-light);
-}
-
-/* Force Header to be Dark in Dark Mode (matches main website glassmorphism) */
-[data-md-color-scheme="slate"] .md-header {
-  background-color: #111827 !important;
-  border-bottom: 1px solid #1f2937;
-  /* Subtle border like website */
-}
-
-/* Ensure Header Nav Text is WHITE (Fixes low contrast issues) */
-.md-header__button,
-.md-header__title,
-.md-tabs__link,
-.md-nav__link {
-  color: white !important;
-  opacity: 0.9;
-}
-
-.md-tabs__link--active,
-.md-nav__link--active {
-  font-weight: 700;
-  opacity: 1;
-}
-
-/* ---------------------------------------------------------
-   Content & Component Styles
-   --------------------------------------------------------- */
-
-/* Make links pop more in dark mode */
-[data-md-color-scheme="slate"] .md-typeset a {
-  color: var(--kawai-blue-light);
-  text-decoration: none;
-  border-bottom: 1px solid transparent;
-  transition: border-color 0.2s;
-}
-
-[data-md-color-scheme="slate"] .md-typeset a:hover {
-  color: var(--kawai-blue);
-  border-bottom-color: var(--kawai-blue);
-}
-
-/* Custom admonition styles */
-.md-typeset .admonition.info {
-  border-color: var(--md-primary-fg-color);
-}
-
-.md-typeset .admonition.tip {
-  border-color: var(--md-accent-fg-color);
-}
-
-/* Code block enhancements */
-.md-typeset pre>code {
-  font-size: 0.85em;
-  font-family: var(--md-code-font);
-}
-
-/* Navigation enhancements */
-.md-nav__item--active>.md-nav__link {
-  color: var(--md-primary-fg-color);
-}
-
-/* Custom button styling */
-.md-button {
-  border-radius: 0.5rem;
-  font-weight: 600;
-  transition: all 0.3s ease;
-  letter-spacing: 0.025em;
-}
-
+/* Primary Button Design */
 .md-button--primary {
   background-color: var(--kawai-red) !important;
   border-color: var(--kawai-red) !important;
   color: white !important;
+  border-radius: 0.5rem;
+  font-weight: 600;
 }
 
 .md-button--primary:hover {
   background-color: var(--kawai-red-dark) !important;
   border-color: var(--kawai-red-dark) !important;
-  box-shadow: 0 10px 15px -3px rgba(255, 56, 92, 0.3);
 }
 
-/* Logo animation from website */
+/* Logo Animation */
 .md-header__button.md-logo img {
   animation: pulse-slow 3s infinite;
 }
@@ -172,6 +169,6 @@
   }
 
   50% {
-    opacity: .8;
+    opacity: .7;
   }
 }
