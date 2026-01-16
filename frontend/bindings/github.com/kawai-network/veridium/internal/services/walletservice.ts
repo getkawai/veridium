@@ -15,6 +15,15 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
+ * AutoClaimTrialIfNeeded checks if user needs to claim trial and claims it automatically
+ * This should be called after successful wallet unlock
+ * Returns: (claimed bool, usdtAmount float64, kawaiAmount string, error)
+ */
+export function AutoClaimTrialIfNeeded(referralCode: string): $CancellablePromise<[boolean, number, string]> {
+    return $Call.ByID(2949526248, referralCode);
+}
+
+/**
  * CreateWallet creates a new wallet (supports multiple wallets)
  */
 export function CreateWallet(password: string, mnemonic: string, description: string): $CancellablePromise<string> {

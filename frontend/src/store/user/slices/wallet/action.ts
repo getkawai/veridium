@@ -46,6 +46,26 @@ export const createWalletSlice: StateCreator<
     try {
       await WalletService.UnlockWallet(password);
       await get().refreshWalletStatus();
+      
+      // Auto-claim trial if needed (with referral code if available)
+      try {
+        const pendingReferralCode = localStorage.getItem('pendingReferralCode') || '';
+        const [claimed, usdtAmount, kawaiAmount] = await WalletService.AutoClaimTrialIfNeeded(pendingReferralCode);
+        
+        if (claimed) {
+          // Clear pending referral code after successful claim
+          localStorage.removeItem('pendingReferralCode');
+          
+          // Show success message
+          const usdtFormatted = usdtAmount.toFixed(2);
+          const kawaiFormatted = (parseFloat(kawaiAmount) / 1e18).toFixed(0);
+          console.log(`🎉 Free trial claimed: ${usdtFormatted} USDT + ${kawaiFormatted} KAWAI`);
+        }
+      } catch (claimError) {
+        // Log but don't fail unlock if trial claim fails
+        console.warn('Failed to auto-claim trial:', claimError);
+      }
+      
       return true;
     } catch (error) {
       console.error('Failed to unlock wallet:', error);

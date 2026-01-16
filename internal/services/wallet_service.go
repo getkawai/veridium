@@ -19,6 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/tyler-smith/go-bip39"
 
+	"github.com/kawai-network/veridium/internal/machineid"
 	"github.com/kawai-network/veridium/internal/paths"
 	"github.com/kawai-network/veridium/pkg/blockchain"
 	"github.com/kawai-network/veridium/pkg/jarvis/accounts"
@@ -536,4 +537,55 @@ func (s *WalletService) registerHolderAsync(address string) {
 			fmt.Printf("⚠️ Failed to register holder: %v\n", err)
 		}
 	}()
+}
+
+// AutoClaimTrialIfNeeded checks if user needs to claim trial and claims it automatically
+// This should be called after successful wallet unlock
+// Returns: (claimed bool, usdtAmount float64, kawaiAmount string, error)
+func (s *WalletService) AutoClaimTrialIfNeeded(referralCode string) (bool, float64, string, error) {
+	if s.kvStore == nil {
+		return false, 0, "0", errors.New("kvstore not available")
+	}
+
+	s.mu.RLock()
+	address := s.address
+	s.mu.RUnlock()
+
+	if address == "" {
+		return false, 0, "0", errors.New("no active wallet")
+	}
+
+	ctx := context.Background()
+
+	// Get machine ID for anti-abuse (required)
+	machineID, err := s.getMachineID()
+	if err != nil {
+		return false, 0, "0", fmt.Errorf("machine id unavailable: %w", err)
+	}
+
+	// Check if trial already claimed (address or machine)
+	hasClaimed, err := s.kvStore.HasClaimedTrial(ctx, address, machineID)
+	if err != nil {
+		return false, 0, "0", fmt.Errorf("failed to check trial status: %w", err)
+	}
+
+	if hasClaimed {
+		return false, 0, "0", nil // Already claimed, no error
+	}
+
+	// Claim trial with optional referral code
+	usdtAmount, kawaiAmount, err := s.kvStore.ClaimFreeTrialWithReferral(ctx, address, machineID, referralCode)
+	if err != nil {
+		return false, 0, "0", fmt.Errorf("failed to claim trial: %w", err)
+	}
+
+	// Convert micro USDT to USDT
+	usdtFloat := float64(usdtAmount) / 1_000_000
+
+	return true, usdtFloat, kawaiAmount, nil
+}
+
+// getMachineID returns the machine ID for anti-abuse protection
+func (s *WalletService) getMachineID() (string, error) {
+	return machineid.ProtectedID("veridium-desktop")
 }

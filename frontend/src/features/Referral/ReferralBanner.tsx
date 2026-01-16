@@ -53,9 +53,14 @@ export const ReferralBanner = memo<ReferralBannerProps>(({ onReferralApplied }) 
       return;
     }
 
+    const code = referralCode.toUpperCase();
     setIsApplied(true);
+    
+    // Save to localStorage for later use during trial claim
+    localStorage.setItem('pendingReferralCode', code);
+    
     message.success('Referral code applied! You\'ll get 10 USDT + 200 KAWAI bonus 🎉');
-    onReferralApplied?.(referralCode.toUpperCase());
+    onReferralApplied?.(code);
   };
 
   return (
