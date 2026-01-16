@@ -21,3 +21,4 @@ internal/constant/temp.go
 .env.new
 .env.contracts
 .env.temp
+.env.testnet
