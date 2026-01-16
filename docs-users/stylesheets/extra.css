@@ -1,10 +1,41 @@
 /* Custom styles for Kawai DeAI Network documentation */
 
 :root {
-  --md-primary-fg-color: #4f46e5;
-  --md-primary-fg-color--light: #6366f1;
-  --md-primary-fg-color--dark: #3730a3;
-  --md-accent-fg-color: #06b6d4;
+  /* KAWAI Brand Colors matching index.html */
+  --kawai-red: #FF385C;
+  --kawai-red-light: #FF6B88;
+  --kawai-red-dark: #D81A44;
+  --kawai-blue: #0066FF;
+  
+  /* MkDocs Material Overrides - Light Mode */
+  --md-primary-fg-color: var(--kawai-red);
+  --md-primary-fg-color--light: var(--kawai-red-light);
+  --md-primary-fg-color--dark: var(--kawai-red-dark);
+  --md-accent-fg-color: var(--kawai-blue);
+  
+  /* Typography */
+  --md-text-font: "Inter", sans-serif;
+  --md-code-font: "Roboto Mono", monospace;
+}
+
+/* Dark Mode Overrides */
+[data-md-color-scheme="slate"] {
+  /* Matching bg-gray-900 from Tailwind (#111827) - roughly */
+  --md-default-bg-color: #111827; 
+  --md-default-fg-color: #f3f4f6; /* gray-100 */
+  --md-default-fg-color--light: #d1d5db; /* gray-300 */
+  
+  /* Make the header translucent like website glassmorphism */
+  --md-primary-bg-color: rgba(17, 24, 39, 0.95);
+}
+
+/* Header customization to match website vibe */
+.md-header {
+  background-color: #111827;
+}
+
+[data-md-color-scheme="default"] .md-header {
+  background-color: var(--kawai-red);
 }
 
 /* Custom grid cards styling */
@@ -52,14 +83,26 @@
 .md-button {
   border-radius: 0.5rem;
   font-weight: 500;
+  transition: all 0.3s ease;
 }
 
 .md-button--primary {
-  background-color: var(--md-primary-fg-color);
-  border-color: var(--md-primary-fg-color);
+  background-color: var(--kawai-red);
+  border-color: var(--kawai-red);
+  color: white;
 }
 
 .md-button--primary:hover {
-  background-color: var(--md-primary-fg-color--dark);
-  border-color: var(--md-primary-fg-color--dark);
+  background-color: var(--kawai-red-dark);
+  border-color: var(--kawai-red-dark);
+}
+
+/* Logo animation from website */
+.md-header__button.md-logo img {
+  animation: pulse-slow 3s infinite;
+}
+
+@keyframes pulse-slow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .8; }
 }
