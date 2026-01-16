@@ -6,13 +6,13 @@
   --kawai-red-light: #FF6B88;
   --kawai-red-dark: #D81A44;
   --kawai-blue: #0066FF;
-  
+
   /* MkDocs Material Overrides - Light Mode */
   --md-primary-fg-color: var(--kawai-red);
   --md-primary-fg-color--light: var(--kawai-red-light);
   --md-primary-fg-color--dark: var(--kawai-red-dark);
   --md-accent-fg-color: var(--kawai-blue);
-  
+
   /* Typography */
   --md-text-font: "Inter", sans-serif;
   --md-code-font: "Roboto Mono", monospace;
@@ -21,10 +21,12 @@
 /* Dark Mode Overrides */
 [data-md-color-scheme="slate"] {
   /* Matching bg-gray-900 from Tailwind (#111827) - roughly */
-  --md-default-bg-color: #111827; 
-  --md-default-fg-color: #f3f4f6; /* gray-100 */
-  --md-default-fg-color--light: #d1d5db; /* gray-300 */
-  
+  --md-default-bg-color: #111827;
+  --md-default-fg-color: #f3f4f6;
+  /* gray-100 */
+  --md-default-fg-color--light: #d1d5db;
+  /* gray-300 */
+
   /* Make the header translucent like website glassmorphism */
   --md-primary-bg-color: rgba(17, 24, 39, 0.95);
 }
@@ -46,17 +48,75 @@
   margin: 1rem 0;
 }
 
-.grid.cards > * {
+.grid.cards>* {
   border: 1px solid var(--md-default-fg-color--lightest);
   border-radius: 0.5rem;
   padding: 1rem;
   transition: all 0.2s ease;
 }
 
-.grid.cards > *:hover {
+.grid.cards>*:hover {
   border-color: var(--md-primary-fg-color);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   transform: translateY(-2px);
+  transform: translateY(-2px);
+}
+
+/* ---------------------------------------------------------
+   Dark Mode (Slate) Specific Overrides
+   --------------------------------------------------------- */
+[data-md-color-scheme="slate"] {
+  /* Site background matches main website */
+  --md-default-bg-color: #111827;
+
+  /* CONTRAST FIX: Lighter text for better readability */
+  --md-default-fg-color: #f3f4f6;
+  /* Gray-100 */
+  --md-default-fg-color--light: #9ca3af;
+  /* Gray-400 */
+
+  /* LINK FIX: Use lighter blue/cyan for better contrast on dark bg */
+  --md-typeset-a-color: var(--kawai-blue-light);
+  --md-accent-fg-color: var(--kawai-blue-light);
+}
+
+/* Force Header to be Dark in Dark Mode (matches main website glassmorphism) */
+[data-md-color-scheme="slate"] .md-header {
+  background-color: #111827 !important;
+  border-bottom: 1px solid #1f2937;
+  /* Subtle border like website */
+}
+
+/* Ensure Header Nav Text is WHITE (Fixes low contrast issues) */
+.md-header__button,
+.md-header__title,
+.md-tabs__link,
+.md-nav__link {
+  color: white !important;
+  opacity: 0.9;
+}
+
+.md-tabs__link--active,
+.md-nav__link--active {
+  font-weight: 700;
+  opacity: 1;
+}
+
+/* ---------------------------------------------------------
+   Content & Component Styles
+   --------------------------------------------------------- */
+
+/* Make links pop more in dark mode */
+[data-md-color-scheme="slate"] .md-typeset a {
+  color: var(--kawai-blue-light);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s;
+}
+
+[data-md-color-scheme="slate"] .md-typeset a:hover {
+  color: var(--kawai-blue);
+  border-bottom-color: var(--kawai-blue);
 }
 
 /* Custom admonition styles */
@@ -69,32 +129,34 @@
 }
 
 /* Code block enhancements */
-.md-typeset pre > code {
+.md-typeset pre>code {
   font-size: 0.85em;
+  font-family: var(--md-code-font);
 }
 
 /* Navigation enhancements */
-.md-nav__item--active > .md-nav__link {
+.md-nav__item--active>.md-nav__link {
   color: var(--md-primary-fg-color);
-  font-weight: 600;
 }
 
 /* Custom button styling */
 .md-button {
   border-radius: 0.5rem;
-  font-weight: 500;
+  font-weight: 600;
   transition: all 0.3s ease;
+  letter-spacing: 0.025em;
 }
 
 .md-button--primary {
-  background-color: var(--kawai-red);
-  border-color: var(--kawai-red);
-  color: white;
+  background-color: var(--kawai-red) !important;
+  border-color: var(--kawai-red) !important;
+  color: white !important;
 }
 
 .md-button--primary:hover {
-  background-color: var(--kawai-red-dark);
-  border-color: var(--kawai-red-dark);
+  background-color: var(--kawai-red-dark) !important;
+  border-color: var(--kawai-red-dark) !important;
+  box-shadow: 0 10px 15px -3px rgba(255, 56, 92, 0.3);
 }
 
 /* Logo animation from website */
@@ -103,6 +165,13 @@
 }
 
 @keyframes pulse-slow {
-  0%, 100% { opacity: 1; }
-  50% { opacity: .8; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: .8;
+  }
 }
