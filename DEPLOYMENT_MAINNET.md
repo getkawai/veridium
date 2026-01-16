@@ -1,102 +1,77 @@
-# MAINNET DEPLOYMENT - PRODUCTION PLAN
+# Mainnet Deployment
 
-**Target Network:** Monad Mainnet  
-**Estimated Time:** 2-3 hours  
-**Risk Level:** HIGH (Real money, real users)  
-**Prerequisites:** Security audit completed, wallets secured, infrastructure ready
+**Simple guide. No bullshit.**
 
 ---
 
-## ⚠️ CRITICAL DIFFERENCES FROM TESTNET
+## Before Deploy
 
-| Item | Testnet | Mainnet |
-|------|---------|---------|
-| **RPC URL** | `testnet-rpc.monad.xyz` | `mainnet-rpc.monad.xyz` |
-| **USDT** | MockUSDT (test contract) | Real USDT (TBD address) |
-| **Wallets** | Generated test wallets | **Hardware wallet/KMS** |
-| **KV Namespaces** | Test data | **Fresh production namespaces** |
-| **Data** | Injected test data | **Real user data only** |
-| **Gas** | Free testnet MON | **Real MON (costs money!)** |
-| **Monitoring** | Optional | **MANDATORY 24/7** |
-| **Rollback** | Easy (just redeploy) | **Complex (requires planning)** |
+1. **Wallet ready?** Fund dengan 1 MON
+2. **KV namespaces created?** 10 production namespaces di Cloudflare
+3. **Tested on testnet?** Yes (Round 6)
 
 ---
 
-## 📋 PRE-DEPLOYMENT CHECKLIST (MUST COMPLETE)
+## Deploy (2 hours)
 
-### 1. Security & Audit
-- [ ] Smart contract security audit completed (or risk accepted & documented)
-- [ ] All critical bugs fixed
-- [x] Emergency pause mechanism tested (see EMERGENCY_PAUSE_GUIDE.md)
-- [x] Admin functions access control verified (all admin functions use `onlyOwner` modifier)
-- [x] Reentrancy protection verified (OpenZeppelin ReentrancyGuard + Checks-Effects-Interactions pattern)
-- [x] Integer overflow/underflow checks verified (Solidity 0.8.20 built-in protection + SafeERC20)
+## Deploy (2 hours)
 
-### 2. Wallet Preparation
-- [x] **Admin wallet** generated with hardware wallet (Ledger/Trezor)
-  - Private key NEVER touches computer
-  - Backup seed phrase in secure location (fireproof safe)
-  - Test signing transaction on testnet first
-- [x] **Settlement wallet** generated securely
-  - Store private key in AWS KMS or HashiCorp Vault
-  - Or use hardware wallet for settlement operations
-- [ ] Both wallets funded with MON:
-  - Admin wallet: **1 MON** (deployment + emergencies)
-  - Settlement wallet: **1 MON** (6 months operations)
-- [ ] Wallet addresses documented in secure spreadsheet
-- [x] **VERIFY:** No private keys in git, .env, or any file (using obfuscator-gen + temp.go)
+### 1. Deploy Contracts (30 min)
 
-### 3. Infrastructure Setup
-- [x] Production server provisioned (AWS/GCP/DigitalOcean)
-  - Minimum: 4 CPU, 8GB RAM, 100GB SSD
-  - OS: Ubuntu 22.04 LTS
-  - Firewall configured (allow 443, 8080 only)
-- [ ] Domain configured:
-  - `api.kawai.network` → Backend API
-  - `app.kawai.network` → Frontend
-- [ ] SSL certificates installed (Let's Encrypt or Cloudflare)
-- [x] Cloudflare KV **production namespaces** created (FRESH, not testnet!)
-  - Contributors namespace
-  - Proofs namespace
-  - Settlements namespace
-  - Cashback namespace
-  - Holders namespace
-  - P2P Marketplace namespace
-  - Users namespace
-  - Revenue sharing namespace
-- [x] Monitoring setup:
-  - Telegram alerts tested (`make test-telegram-alert`)
-  - Server monitoring (CPU, RAM, disk)
-  - Log aggregation (CloudWatch/Papertrail)
-- [ ] Backup strategy:
-  - Daily KV snapshots
-  - Database backups
-  - Contract addresses documented
+```bash
+cd contracts
+# Update contracts/.env: MONAD_RPC_URL=https://mainnet-rpc.monad.xyz
+make contracts-deploy-mainnet
+make contracts-deploy-mining-mainnet
+make contracts-deploy-cashback-mainnet
+make contracts-deploy-referral-mainnet
+make contracts-grant-minter-mining
+make contracts-grant-minter-cashback
+make contracts-grant-minter-referral
+```
 
-### 4. Blockchain Preparation
-- [ ] Monad Mainnet RPC endpoints configured:
-  - Primary: `https://mainnet-rpc.monad.xyz`
-  - Backup: (TBD - get from Monad team)
-- [ ] RPC rate limits verified (10k req/day minimum)
-- [ ] Real USDT contract address obtained:
-  - **TODO:** Get official USDT address on Monad mainnet
-  - Verify contract is legitimate (check with Monad team)
-  - Test small transaction first
-- [ ] Gas price monitoring setup
-- [ ] Block explorer bookmarked (monadexplorer.com)
+### 2. Update Backend (5 min)
 
-### 5. Code Preparation
-- [ ] All tests passing
-- [ ] No hardcoded testnet addresses
-- [ ] No test data injection code in production build
-- [ ] Monitoring alerts integrated
-- [ ] Error handling reviewed
-- [ ] Rate limiting configured
-- [ ] CORS configured for production domains
+```bash
+# Copy addresses from contracts/.env to .env
+go run cmd/obfuscator-gen/main.go
+go build -o main main.go
+```
+
+### 3. Test Pause (5 min)
+
+```bash
+make pause-status
+make pause-all
+make unpause-all
+```
+
+### 4. Deploy (30 min)
+
+- Upload backend to server
+- Deploy frontend
+- Test with real wallet
+
+**Done!**
 
 ---
 
-## 🚀 DEPLOYMENT STEPS
+## Emergency
+
+```bash
+make pause-all  # Pause everything
+# Fix issue
+make unpause-all  # Resume
+```
+
+---
+
+## Back to Testnet
+
+```bash
+cp .env.testnet .env
+go run cmd/obfuscator-gen/main.go
+```
 
 ### STEP 1: CREATE PRODUCTION KV NAMESPACES (10 minutes)
 
