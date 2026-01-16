@@ -1,6 +1,12 @@
-# FRESH DEPLOY TESTNET - COMPLETE PLAN
+# Deployment Guide
 
-## CURRENT DEPLOYMENT ADDRESSES (2026-01-15 Round 6 - WITH PAUSE MECHANISM ✅)
+**Current Environment:** Production on Monad Testnet
+
+For testnet vs mainnet differences, see `.env.README`
+
+---
+
+## CURRENT DEPLOYMENT ADDRESSES
 ```
 MockUSDT:                    0x3AE05118C5B75b1B0b860ec4b7Ec5095188D1CCc
 KawaiToken:                  0xf68910e8d19047A309f989FFB515E44FBca5D31A
