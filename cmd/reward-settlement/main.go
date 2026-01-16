@@ -11,9 +11,11 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/kawai-network/veridium/internal/constant"
+	"github.com/kawai-network/veridium/internal/generate/abi/cashbackdistributor"
 	"github.com/kawai-network/veridium/internal/generate/abi/miningdistributor"
 	"github.com/kawai-network/veridium/pkg/alert"
 	"github.com/kawai-network/veridium/pkg/blockchain"
@@ -462,16 +464,146 @@ func uploadMiningRoot(ctx context.Context, kv store.Store) error {
 }
 
 func uploadCashbackRoot(ctx context.Context, kv *store.KVStore) error {
-	log.Println("⚠️  Cashback root upload not yet implemented")
-	log.Println("")
-	log.Println("TODO:")
-	log.Println("  1. Get latest cashback period from KV")
-	log.Println("  2. Read Merkle root from cashback_period:N:merkle_root")
-	log.Println("  3. Call DepositCashbackDistributor.setMerkleRoot()")
-	log.Println("")
-	log.Println("Contract: 0x... (DepositCashbackDistributor)")
+	alerter := alert.NewTelegramAlert()
 
-	return fmt.Errorf("cashback upload not implemented yet")
+	// 1. Get latest cashback period
+	periods, err := kv.ListSettlementPeriods(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to list periods: %w", err)
+	}
+
+	var latest *store.SettlementPeriod
+	for i := len(periods) - 1; i >= 0; i-- {
+		// Note: Cashback generates periods with RewardType="cashback"
+		if periods[i].RewardType == "cashback" {
+			latest = periods[i]
+			break
+		}
+	}
+
+	if latest == nil {
+		return fmt.Errorf("no cashback settlement found - run 'generate --type cashback' first")
+	}
+
+	log.Printf("Period ID:     %d", latest.PeriodID)
+	log.Printf("Merkle Root:   %s", latest.MerkleRoot)
+	log.Printf("Total Records: %d", latest.ProofsSaved)
+	log.Println("")
+
+	alerter.SendAlert("INFO", "Settlement",
+		fmt.Sprintf("📤 Uploading cashback merkle root...\nPeriod: %d", latest.PeriodID))
+
+	// 2. Connect to Monad RPC
+	client, err := ethclient.Dial(constant.MonadRpcUrl)
+	if err != nil {
+		alerter.SendAlert("ERROR", "Settlement",
+			fmt.Sprintf("❌ Failed to connect to RPC!\nError: %v", err))
+		return fmt.Errorf("failed to connect to Monad: %w", err)
+	}
+	defer client.Close()
+
+	// 3. Load DepositCashbackDistributor contract
+	// We use the generated binding
+	distributorAddr := common.HexToAddress(constant.CashbackDistributorAddress)
+	distributor, err := cashbackdistributor.NewDepositCashbackDistributor(distributorAddr, client)
+	if err != nil {
+		return fmt.Errorf("failed to load DepositCashbackDistributor: %w", err)
+	}
+
+	// 4. Setup Transactor
+	privateKeyHex := constant.GetObfuscatedTemp()
+	if strings.HasPrefix(privateKeyHex, "0x") {
+		privateKeyHex = privateKeyHex[2:]
+	}
+
+	privateKey, err := crypto.HexToECDSA(privateKeyHex)
+	if err != nil {
+		return fmt.Errorf("failed to parse private key: %w", err)
+	}
+
+	chainID, err := client.ChainID(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get chain ID: %w", err)
+	}
+
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	if err != nil {
+		return fmt.Errorf("failed to create transactor: %w", err)
+	}
+	auth.Context = ctx
+
+	// 5. Prepare Merkle Root
+	merkleRootHex := latest.MerkleRoot
+	if strings.HasPrefix(merkleRootHex, "0x") {
+		merkleRootHex = merkleRootHex[2:]
+	}
+	merkleRootBytes := common.Hex2Bytes(merkleRootHex)
+	if len(merkleRootBytes) != 32 {
+		return fmt.Errorf("invalid Merkle root length: expected 32 bytes, got %d", len(merkleRootBytes))
+	}
+	var merkleRoot [32]byte
+	copy(merkleRoot[:], merkleRootBytes)
+
+	// User Confirmation
+	log.Printf("⚠️  About to upload Merkle root to DepositCashbackDistributor")
+	log.Printf("    Period ID: %d", latest.PeriodID)
+	log.Printf("    Merkle Root: %s", latest.MerkleRoot)
+	if !confirm("Continue with upload?") {
+		return fmt.Errorf("upload cancelled by user")
+	}
+	log.Println("")
+
+	// 6. Check Current Contract Period to decide logic
+	// The contract has currentPeriod() method
+	contractPeriodBig, err := distributor.CurrentPeriod(nil)
+	if err != nil {
+		return fmt.Errorf("failed to get current period from contract: %w", err)
+	}
+	contractPeriod := contractPeriodBig.Uint64()
+
+	log.Printf("📊 Contract currentPeriod: %d, Settlement period: %d", contractPeriod, latest.PeriodID)
+
+	var tx *types.Transaction
+
+	if uint64(latest.PeriodID) == contractPeriod {
+		// Update current period (SetMerkleRoot)
+		log.Printf("🌳 [CASHBACK] Updating Merkle root for current period %d", latest.PeriodID)
+		tx, err = distributor.SetMerkleRoot(auth, merkleRoot)
+	} else if uint64(latest.PeriodID) == contractPeriod+1 {
+		// Advance to next period (AdvancePeriod)
+		log.Printf("🌳 [CASHBACK] Advancing to period %d with new Merkle root", latest.PeriodID)
+		tx, err = distributor.AdvancePeriod(auth, merkleRoot)
+	} else {
+		return fmt.Errorf("period mismatch: settlement period %d, contract period %d", latest.PeriodID, contractPeriod)
+	}
+
+	if err != nil {
+		alerter.SendAlert("ERROR", "Settlement",
+			fmt.Sprintf("❌ Cashback upload failed!\nPeriod: %d\nError: %v", latest.PeriodID, err))
+		return fmt.Errorf("transaction failed: %w", err)
+	}
+
+	log.Printf("✅ [CASHBACK] Transaction sent: %s", tx.Hash().Hex())
+	log.Println("⏳ [CASHBACK] Waiting for confirmation...")
+
+	receipt, err := bind.WaitMined(ctx, client, tx)
+	if err != nil {
+		return fmt.Errorf("failed to wait for confirmation: %w", err)
+	}
+	if receipt.Status != 1 {
+		return fmt.Errorf("transaction reverted with status: %d", receipt.Status)
+	}
+
+	log.Printf("✅ [CASHBACK] Merkle root uploaded successfully in block %d", receipt.BlockNumber.Uint64())
+
+	alerter.SendAlert("SUCCESS", "Settlement",
+		fmt.Sprintf("✅ Cashback merkle root uploaded!\nPeriod: %d\nTx: %s",
+			latest.PeriodID, tx.Hash().Hex()))
+
+	log.Println("")
+	log.Printf("📝 Next: Users can now claim cashback rewards via UI")
+
+	return nil
 }
 
 func uploadReferralRoot(ctx context.Context, kv *store.KVStore) error {

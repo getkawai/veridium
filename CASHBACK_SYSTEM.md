@@ -30,6 +30,7 @@
 | **Backend History API** | ✅ **IMPLEMENTED** | `GetClaimableCashback()` in `cashbackservice.go` | AI Assistant | Jan 6, 2026 |
 | **Performance** | ✅ **OPTIMIZED** | 20s → <1s (parallel + index + cache) | AI Assistant | Jan 7, 2026 (commit `eb801336`) |
 | **Frontend/Docs Sync** | ✅ **FIXED** | Rates (1-2%), Bonus (2.5%), Cap (20k) aligned | AI Assistant | Jan 17, 2026 (PR #66) |
+| **Settlement Tool** | ✅ **IMPLEMENTED** | Automated Merkle upload (`reward-settlement`) | AI Assistant | Jan 17, 2026 |
 
 ### **✅ All Features Complete!**
 All components are implemented and working. System is production-ready.
@@ -433,14 +434,23 @@ make check-minter-role
 // - pkg/store/cashback.go
 ```
 
-### **4. Settlement Status**
+### **4. Settlement Automation** ✅ DONE
 
-**Current Status:** Settlement code exists in `pkg/blockchain/cashback_settlement.go`. Can be run manually or integrated into existing tools.
+**Current Status:** Automated CLI tool implemented in `cmd/reward-settlement`.
+
+**How to Run:**
+```bash
+# 1. Generate Merkle Tree (Off-chain)
+go run cmd/reward-settlement/main.go generate --type cashback
+
+# 2. Upload Merkle Root (On-chain)
+# Requires env vars: RPC_URL, ADMIN_PRIVATE_KEY (or temp key)
+go run cmd/reward-settlement/main.go upload --type cashback
+```
 
 **See Also:**
-- Mining settlement: `cmd/mining-settlement/` (reference implementation)
-- Settlement code: `pkg/blockchain/cashback_settlement.go`
-- Related: [`REWARD_SYSTEMS.md`](REWARD_SYSTEMS.md) for unified settlement discussion
+- Source code: `cmd/reward-settlement/main.go`
+- Logic: `pkg/blockchain/cashback_settlement.go`
 
 ---
 
