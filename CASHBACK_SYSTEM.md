@@ -81,10 +81,10 @@ The Deposit Cashback System rewards users with KAWAI tokens for depositing USDT.
 | Tier | Deposit Range | Base Rate | Max KAWAI | First-Time Rate |
 |------|--------------|-----------|-----------|-----------------|
 | **Bronze** | < 100 USDT | 1% | 5K | 5% |
-| **Silver** | 100-500 USDT | 2% | 10K | 5% |
-| **Gold** | 500-1K USDT | 3% | 15K | 5% |
-| **Platinum** | 1K-5K USDT | 4% | 20K | 5% |
-| **Diamond** | ≥ 5K USDT | 5% | 20K | 5% |
+| **Silver** | 100-500 USDT | 1.25% | 10K | 5% |
+| **Gold** | 500-1K USDT | 1.5% | 15K | 5% |
+| **Platinum** | 1K-5K USDT | 1.75% | 20K | 5% |
+| **Diamond** | ≥ 5K USDT | 2% | 20K | 5% |
 
 **Formula:**
 ```go

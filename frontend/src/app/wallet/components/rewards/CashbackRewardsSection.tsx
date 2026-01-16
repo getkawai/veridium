@@ -55,10 +55,10 @@ const useStyles = createStyles(({ css, token }) => ({
 
 const CASHBACK_TIERS = [
   { level: 0, min: 0, max: 99, rate: 1, cap: 5000, label: 'Bronze' },
-  { level: 1, min: 100, max: 499, rate: 2, cap: 10000, label: 'Silver' },
-  { level: 2, min: 500, max: 999, rate: 3, cap: 15000, label: 'Gold' },
-  { level: 3, min: 1000, max: 4999, rate: 4, cap: 20000, label: 'Platinum' },
-  { level: 4, min: 5000, max: Infinity, rate: 5, cap: 20000, label: 'Diamond' },
+  { level: 1, min: 100, max: 499, rate: 1.25, cap: 10000, label: 'Silver' },
+  { level: 2, min: 500, max: 999, rate: 1.5, cap: 15000, label: 'Gold' },
+  { level: 3, min: 1000, max: 4999, rate: 1.75, cap: 20000, label: 'Platinum' },
+  { level: 4, min: 5000, max: Infinity, rate: 2, cap: 20000, label: 'Diamond' },
 ];
 
 interface CashbackRewardsSectionProps {
@@ -73,7 +73,7 @@ export const CashbackRewardsSection = ({ currentNetwork, theme, styles: propStyl
   const { styles } = useStyles();
   const { message } = App.useApp();
   const userAddress = useUserStore((s) => s.walletAddress);
-  
+
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<CashbackStatsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -90,7 +90,7 @@ export const CashbackRewardsSection = ({ currentNetwork, theme, styles: propStyl
 
     setLoading(true);
     setError(null);
-    
+
     try {
       const [statsResult, periodResult, recordsResult] = await Promise.all([
         CashbackService.GetCashbackStats(address),
@@ -123,7 +123,7 @@ export const CashbackRewardsSection = ({ currentNetwork, theme, styles: propStyl
     } catch (e: any) {
       console.error('Failed to load cashback stats:', e);
       setError(e.message || 'Failed to load cashback data');
-      
+
       if (showMessage) {
         message.error('Failed to refresh cashback data');
       }
@@ -157,16 +157,16 @@ export const CashbackRewardsSection = ({ currentNetwork, theme, styles: propStyl
 
   const calculateTierProgress = () => {
     if (!stats) return { percent: 0, current: 0, next: 0 };
-    
+
     const totalDepositUSDT = (stats as any).total_deposit_amount_usdt || 0;
     const currentTierLevel = getCurrentTierLevel(totalDepositUSDT);
     const currentTier = CASHBACK_TIERS[currentTierLevel];
     const nextTier = CASHBACK_TIERS[Math.min(currentTierLevel + 1, 4)];
-    
+
     if (currentTier.level === 4) {
       return { percent: 100, current: totalDepositUSDT, next: totalDepositUSDT };
     }
-    
+
     const progress = ((totalDepositUSDT - currentTier.min) / (nextTier.min - currentTier.min)) * 100;
     return {
       percent: Math.min(Math.max(progress, 0), 100),
@@ -179,7 +179,7 @@ export const CashbackRewardsSection = ({ currentNetwork, theme, styles: propStyl
     return (
       <Flexbox style={{ width: '100%' }} gap={20}>
         <div className={propStyles.placeholderCard}>
-          <Award size={48} color={theme.colorTextQuaternary} style={{ marginBottom: 16}} />
+          <Award size={48} color={theme.colorTextQuaternary} style={{ marginBottom: 16 }} />
           <h3 style={{ margin: '0 0 8px', color: theme.colorError }}>Error Loading Cashback Data</h3>
           <p style={{ color: theme.colorTextSecondary, margin: '0 0 16px' }}>{error}</p>
           <Button onClick={() => userAddress && loadCashbackStats(userAddress, true)} icon={<Info size={16} />}>
@@ -353,8 +353,8 @@ export const CashbackRewardsSection = ({ currentNetwork, theme, styles: propStyl
                 <span style={{ fontSize: 16, fontWeight: 600, color: theme.colorSuccess }}>
                   🎁 First deposit gets 5% bonus!
                 </span>
-                <Button 
-                  type="primary" 
+                <Button
+                  type="primary"
                   icon={<DollarSign size={16} />}
                   onClick={onOpenDepositModal}
                   style={{ marginTop: 12 }}
@@ -426,7 +426,7 @@ export const CashbackRewardsSection = ({ currentNetwork, theme, styles: propStyl
       <Card title="How Cashback Works" size="small" className={styles.infoCard}>
         <Flexbox gap={8}>
           <ul style={{ margin: 0, paddingLeft: 20, fontSize: 13, color: theme.colorTextSecondary }}>
-            <li>Earn <strong>1-5% KAWAI cashback</strong> on every USDT deposit</li>
+            <li>Earn <strong>1-2% KAWAI cashback</strong> on every USDT deposit</li>
             <li>First deposit always gets <strong>5% bonus</strong> regardless of amount</li>
             <li>Higher total deposits unlock better cashback rates</li>
             <li>Cashback caps per deposit: 5K-20K KAWAI (prevents abuse)</li>
