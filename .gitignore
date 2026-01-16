@@ -16,9 +16,5 @@ videoplayback.txt
 wails
 internal/constant/temp.go
 .env
-# Backup and temp env files
-.env.backup*
-.env.new
-.env.contracts
-.env.temp
 .env.testnet
+.env.mainnet

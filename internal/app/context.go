@@ -320,15 +320,15 @@ func (ctx *Context) InitBlockchainClient() {
 	// Monad configuration from constants for desktop app
 	rpcURL := constant.MonadRpcUrl
 	tokenAddress := constant.KawaiTokenAddress
-	escrowAddress := constant.KawaiEscrowAddress
+	otcMarketAddress := constant.OTCMarketAddress
 	usdtAddress := constant.UsdtTokenAddress
 
 	// Initialize blockchain client
 	config := blockchain.Config{
-		RPCUrl:        rpcURL,
-		TokenAddress:  tokenAddress,
-		EscrowAddress: escrowAddress,
-		USDTAddress:   usdtAddress,
+		RPCUrl:           rpcURL,
+		TokenAddress:     tokenAddress,
+		OTCMarketAddress: otcMarketAddress,
+		USDTAddress:      usdtAddress,
 	}
 
 	client, err := blockchain.NewClient(config)
@@ -351,7 +351,7 @@ func (ctx *Context) InitBlockchainClient() {
 	log.Printf("  RPC URL: %s", rpcURL)
 	log.Printf("  Chain ID: %s", client.ChainID.String())
 	log.Printf("  Token Address: %s", tokenAddress)
-	log.Printf("  Escrow Address: %s", escrowAddress)
+	log.Printf("  Escrow Address: %s", otcMarketAddress)
 	log.Printf("  USDT Address: %s", usdtAddress)
 
 	// Initialize DepositSyncService for manual deposit sync

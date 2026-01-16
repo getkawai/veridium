@@ -17,10 +17,10 @@ import (
 )
 
 type Config struct {
-	RPCUrl        string
-	TokenAddress  string
-	EscrowAddress string
-	USDTAddress   string
+	RPCUrl           string
+	TokenAddress     string
+	OTCMarketAddress string
+	USDTAddress      string
 }
 
 type Client struct {
@@ -52,7 +52,7 @@ func NewClient(cfg Config) (*Client, error) {
 		return nil, fmt.Errorf("failed to load KawaiToken: %w", err)
 	}
 
-	escrowAddress := common.HexToAddress(cfg.EscrowAddress)
+	escrowAddress := common.HexToAddress(cfg.OTCMarketAddress)
 	escrowInstance, err := escrow.NewOTCMarket(escrowAddress, client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load Escrow: %w", err)

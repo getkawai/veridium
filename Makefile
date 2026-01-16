@@ -3,7 +3,7 @@
 # ==============================================================================
 
 .PHONY: help dev dev-fast dev-hot dev-rebuild build clean test generate \
-        db-generate bindings-generate db-dump db-restore \
+        db-generate bindings-generate constants-generate db-dump db-restore \
         contracts-compile contracts-bindings contracts-update \
         contracts-test contracts-test-gas contracts-coverage \
         contracts-deploy-local contracts-deploy-testnet contracts-verify \
@@ -180,7 +180,7 @@ build:
 # ==============================================================================
 # Code Generation
 # ==============================================================================
-generate: db-generate bindings-generate
+generate: db-generate bindings-generate constants-generate
 	@echo "✅ All code generated!"
 
 db-generate:
@@ -192,6 +192,11 @@ bindings-generate:
 	@echo "🔄 Generating TypeScript bindings..."
 	wails3 generate bindings -clean=true -ts
 	@echo "✅ TypeScript bindings generated!"
+
+constants-generate:
+	@echo "🔄 Generating constants from .env..."
+	go run cmd/obfuscator-gen/main.go
+	@echo "✅ Constants generated!"
 
 # ==============================================================================
 # Database

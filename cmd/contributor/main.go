@@ -87,10 +87,10 @@ func main() {
 	// Step 1.5: Initialize Blockchain Client (For Halving Logic)
 	// ============================================
 	blockchainBC, err := blockchain.NewClient(blockchain.Config{
-		RPCUrl:        constant.MonadRpcUrl,
-		TokenAddress:  constant.KawaiTokenAddress,
-		EscrowAddress: constant.KawaiEscrowAddress,
-		USDTAddress:   constant.UsdtTokenAddress,
+		RPCUrl:           constant.MonadRpcUrl,
+		TokenAddress:     constant.KawaiTokenAddress,
+		OTCMarketAddress: constant.OTCMarketAddress,
+		USDTAddress:      constant.UsdtTokenAddress,
 	})
 	if err != nil {
 		slog.Warn("⚠️ Failed to initialize blockchain client, halving logic will use default rates", "error", err)

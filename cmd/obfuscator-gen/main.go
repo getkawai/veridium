@@ -668,7 +668,7 @@ func generateBlockchain(configs map[string]string) {
 
 	// Extract blockchain addresses from .env
 	kawaiToken := configs["TOKEN_ADDRESS"]
-	escrow := configs["ESCROW_ADDRESS"]
+	otcMarket := configs["OTC_MARKET_ADDRESS"]
 	usdtToken := configs["USDT_TOKEN_ADDRESS"]
 	paymentVault := configs["PAYMENT_VAULT_ADDRESS"]
 	kawaiDistributor := configs["KAWAI_DISTRIBUTOR_ADDRESS"]
@@ -690,7 +690,7 @@ const (
 
 	// Contract Addresses (Monad Testnet - Fresh Deployment 2026-01-13)
 	KawaiTokenAddress           = "%s"
-	KawaiEscrowAddress          = "%s"
+	OTCMarketAddress            = "%s"
 	UsdtTokenAddress            = "%s"
 	PaymentVaultAddress         = "%s"
 	KawaiDistributorAddr        = "%s"
@@ -705,7 +705,7 @@ const (
 	// - Mainnet: Set to token deployment block to optimize performance
 	HolderScanStartBlock = 0
 )
-`, kawaiToken, escrow, usdtToken, paymentVault, kawaiDistributor, usdtDistributor, cashbackDistributor, miningDistributor, referralDistributor)
+`, kawaiToken, otcMarket, usdtToken, paymentVault, kawaiDistributor, usdtDistributor, cashbackDistributor, miningDistributor, referralDistributor)
 
 	err := os.WriteFile(outputFile, []byte(content), 0644)
 	if err != nil {
@@ -721,7 +721,7 @@ func generateProjectTokens(configs map[string]string) {
 	// Extract addresses from .env
 	usdtToken := configs["USDT_TOKEN_ADDRESS"]
 	kawaiToken := configs["TOKEN_ADDRESS"]
-	escrow := configs["ESCROW_ADDRESS"]
+	otcMarket := configs["OTC_MARKET_ADDRESS"]
 	paymentVault := configs["PAYMENT_VAULT_ADDRESS"]
 	kawaiDistributor := configs["KAWAI_DISTRIBUTOR_ADDRESS"]
 	usdtDistributor := configs["USDT_DISTRIBUTOR_ADDRESS"]
@@ -741,14 +741,14 @@ var PROJECT_TOKENS map[string]string = map[string]string{
 	// Monad Testnet Contracts (Fresh Deployment 2026-01-13)
 	"%s": "USDT",
 	"%s": "KawaiToken",
-	"%s": "Escrow",
+	"%s": "OTCMarket",
 	"%s": "PaymentVault",
 	"%s": "KAWAI_Distributor",
 	"%s": "USDT_Distributor",
 	"%s": "MiningRewardDistributor",
 	"%s": "CashbackDistributor",
 }
-`, usdtToken, kawaiToken, escrow, paymentVault, kawaiDistributor, usdtDistributor, miningDistributor, cashbackDistributor)
+`, usdtToken, kawaiToken, otcMarket, paymentVault, kawaiDistributor, usdtDistributor, miningDistributor, cashbackDistributor)
 
 	err := os.WriteFile(outputFile, []byte(content), 0644)
 	if err != nil {
