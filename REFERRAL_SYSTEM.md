@@ -45,20 +45,30 @@ The Kawai DeAI Network referral system incentivizes viral growth by rewarding bo
    - Friend shares their 6-digit code: `ABC123`
    - Via social media, messaging, or word of mouth
 
-2. **Open App & Setup Wallet**
+2. **Open App & Enter Referral Code**
    - Click "Have a Referral Code?" banner
    - Manually enter the 6-digit code
    - Code is validated (format: 6 alphanumeric characters)
+   - Code is saved locally for later use
 
 3. **Code Applied**
    - Banner shows: "🎉 Bonus Upgraded!"
    - Bonus upgraded: 5 USDT + 100 KAWAI → 10 USDT + 200 KAWAI
    - Success message confirms application
+   - Referral code stored in browser localStorage
 
-4. **Claim Bonus**
-   - Automatically claimed on first wallet unlock
+4. **Create/Setup Wallet**
+   - Generate new mnemonic or import existing wallet
+   - Create wallet with password
+   - Wallet is created successfully
+
+5. **Auto-Claim Bonus on First Unlock**
+   - **Automatically triggered** when unlocking wallet for the first time
+   - Backend validates referral code and machine ID
+   - Trial bonus claimed with referral upgrade
    - Receives 10 USDT + 200 KAWAI (instead of 5 USDT + 100 KAWAI)
    - Referrer receives 5 USDT + 100 KAWAI
+   - Referral code cleared from localStorage after successful claim
 
 ### For Referrers
 
@@ -135,6 +145,34 @@ func (s *KVStore) ClaimFreeTrialWithReferral(
 5. Reward referrer (5 USDT)
 6. Update referral stats
 
+#### 2. Auto-Claim Trial on Wallet Unlock (NEW ✨)
+
+```go
+// internal/services/wallet_service.go
+
+func (s *WalletService) AutoClaimTrialIfNeeded(referralCode string) (bool, float64, string, error)
+```
+
+**Features:**
+- Called automatically after successful wallet unlock
+- Checks if trial already claimed (address + machine ID)
+- Validates referral code if provided
+- Claims trial with referral bonus
+- Returns: `(claimed bool, usdtAmount float64, kawaiAmount string, error)`
+
+**Anti-Abuse Protection:**
+- Requires machine ID (fail-closed if unavailable)
+- Prevents duplicate claims by address
+- Prevents duplicate claims by machine ID
+- Prevents self-referral
+
+**Flow:**
+1. Get machine ID (required for anti-abuse)
+2. Check if trial already claimed
+3. Validate referral code (if provided)
+4. Claim trial with `ClaimFreeTrialWithReferral`
+5. Return claimed amounts
+
 #### 3. Wails Service (Desktop App)
 
 ```go
@@ -147,8 +185,10 @@ type ReferralService struct {
 // Wails-exposed methods (auto-generated TypeScript bindings)
 func (s *ReferralService) CreateReferralCode(userAddress string) (*ReferralCodeResponse, error)
 func (s *ReferralService) GetReferralStats(userAddress string) (*ReferralStatsResponse, error)
-func (s *ReferralService) ClaimFreeTrialWithReferral(address, machineID, referralCode string) (*ClaimTrialWithReferralResponse, error)
 func (s *ReferralService) GetReferralBonusAmounts() map[string]interface{}
+
+// Auto-claim is handled by WalletService
+func (s *WalletService) AutoClaimTrialIfNeeded(referralCode string) (bool, float64, string, error)
 ```
 
 **Note:** For backend API endpoints (contributor/gateway), see `pkg/gateway/handler_referral.go`
@@ -172,9 +212,37 @@ func (s *ReferralService) GetReferralBonusAmounts() map[string]interface{}
 - Collapsible input field
 - Code validation (6 alphanumeric)
 - Success animation
-- Bonus comparison (5 vs 8 USDT)
+- Bonus comparison (5 vs 10 USDT)
+- **Saves code to localStorage** for auto-claim
 
-#### 2. Referral Rewards Section
+#### 2. Auto-Claim on Unlock (NEW ✨)
+
+```typescript
+// frontend/src/store/user/slices/wallet/action.ts
+
+unlockWallet: async (password: string) => {
+  await WalletService.UnlockWallet(password);
+  await get().refreshWalletStatus();
+  
+  // Auto-claim trial if needed
+  const pendingReferralCode = localStorage.getItem('pendingReferralCode') || '';
+  const [claimed, usdtAmount, kawaiAmount] = await WalletService.AutoClaimTrialIfNeeded(pendingReferralCode);
+  
+  if (claimed) {
+    localStorage.removeItem('pendingReferralCode');
+    console.log(`🎉 Free trial claimed: ${usdtAmount} USDT + ${kawaiAmount} KAWAI`);
+  }
+}
+```
+
+**Features:**
+- Retrieves referral code from localStorage
+- Calls `AutoClaimTrialIfNeeded` after unlock
+- Clears referral code after successful claim
+- Non-blocking: doesn't fail unlock if claim fails
+- Logs success message with claimed amounts
+
+#### 3. Referral Rewards Section
 
 ```typescript
 // frontend/src/app/wallet/components/rewards/ReferralRewardsSection.tsx
@@ -201,7 +269,19 @@ func (s *ReferralService) GetReferralBonusAmounts() map[string]interface{}
 - Accessible via: Wallet → Rewards → Referral Rewards tab
 - Part of unified rewards dashboard (Mining | Cashback | Referral)
 
-#### 3. Manual Code Entry Only
+#### 4. Storage & Persistence
+
+**localStorage Keys:**
+- `pendingReferralCode`: Stores referral code until trial is claimed
+- Automatically cleared after successful claim
+- Persists across app restarts until used
+
+**Flow:**
+```
+User applies code → localStorage.setItem('pendingReferralCode', code)
+User unlocks wallet → Read from localStorage
+Trial claimed → localStorage.removeItem('pendingReferralCode')
+```
 
 ```typescript
 // In AuthSignInBox.tsx
@@ -278,12 +358,33 @@ if strings.EqualFold(referralData.OwnerAddress, address) {
 
 ### 2. Dual-Layer Trial Claim Protection
 - **Wallet Address:** One claim per address
-- **Machine ID:** One claim per device
+- **Machine ID:** One claim per device (required, fail-closed)
 
-### 3. Atomic Operations
+### 3. Machine ID Requirement (NEW ✨)
+```go
+// Fail-closed: require machine ID for anti-abuse
+machineID, err := s.getMachineID()
+if err != nil {
+    return false, 0, "0", fmt.Errorf("machine id unavailable: %w", err)
+}
+```
+
+**Benefits:**
+- Prevents bypass of machine-level checks
+- More secure than soft-fail approach
+- Appropriate for valuable one-time bonuses
+- Machine ID should always be available in desktop app
+
+### 4. Atomic Operations
 - Race condition protection
 - Retry mechanism with exponential backoff
 - Prevents double-claiming
+
+### 5. Auto-Claim Validation
+- Checks trial status before claiming
+- Validates referral code format and existence
+- Verifies referrer is not the same as user
+- All validations happen server-side
 
 ---
 

@@ -13,26 +13,45 @@ Get up and running with Kawai DeAI Network in just 5 minutes! This guide will wa
 3. Install and launch the application
 
 ### Step 2: Set Up Your Wallet
-1. Click **"Connect Wallet"** in the app
-2. Choose your preferred wallet:
-   - MetaMask (recommended)
-   - WalletConnect
-   - Coinbase Wallet
-3. Add Monad Testnet to your wallet:
-   - **Network Name**: Monad Testnet
-   - **RPC URL**: `https://testnet-rpc.monad.xyz`
-   - **Chain ID**: `10143`
-   - **Currency**: ETH
-   - **Explorer**: `https://testnet.monad.xyz`
 
-### Step 3: Claim Your Free Trial
-1. Navigate to the **"Free Trial"** section
-2. Click **"Claim 5 USDT Bonus"**
-3. Complete the one-time setup
-4. Your trial balance will appear instantly
+#### Option A: Create New Wallet (Recommended for New Users)
+1. Click **"Create New Wallet"** in the app
+2. **Enter a referral code** (optional):
+   - Click "Have a Referral Code?" banner
+   - Enter your friend's 6-digit code (e.g., `ABC123`)
+   - See bonus upgrade: 5 USDT → **10 USDT** + 100 KAWAI → **200 KAWAI**
+3. Generate a new mnemonic phrase (12 or 24 words)
+4. **Write down your mnemonic** - keep it safe and private!
+5. Create a strong password for your wallet
+6. Enter a wallet name (e.g., "My Wallet")
+7. Click **"Create Wallet"**
+
+#### Option B: Import Existing Wallet
+1. Click **"Import Wallet"**
+2. Choose import method:
+   - **Mnemonic**: Enter your 12/24 word phrase
+   - **Private Key**: Enter your private key
+   - **Keystore**: Upload keystore JSON file
+3. Enter your password
+4. Click **"Import"**
+
+!!! warning "Security First"
+    - Never share your mnemonic or private key
+    - Store your backup in a secure location
+    - Use a strong, unique password
+    - Enable 2FA if available
+
+### Step 3: Unlock Wallet & Auto-Claim Trial ✨
+1. Enter your wallet password
+2. Click **"Unlock Wallet"**
+3. **Trial bonus automatically claimed!**
+   - Without referral: 5 USDT + 100 KAWAI
+   - With referral: **10 USDT + 200 KAWAI**
+4. Your balance appears instantly
+5. Referral code cleared automatically
 
 !!! tip "Referral Bonus"
-    Got a referral code? Enter it to get **10 USDT** instead of 5 USDT!
+    If you entered a referral code in Step 2, you'll automatically receive the upgraded bonus (10 USDT + 200 KAWAI) when you unlock your wallet for the first time. Your friend who referred you will also receive 5 USDT + 100 KAWAI!
 
 ### Step 4: Try AI Services
 1. Go to the **"AI Chat"** tab
