@@ -950,24 +950,10 @@ const AddTokenModal = memo<{ currentNetwork: NetworkInfo | null; onClose: () => 
 
   const loadProjectTokens = async () => {
     try {
-      // Check if method exists (bindings may need regeneration after Go update)
-      if (typeof (JarvisService as any).GetProjectTokens === 'function') {
-        const tokens = await (JarvisService as any).GetProjectTokens();
-        setProjectTokens(tokens);
-      } else {
-        // Fallback: hardcoded project tokens (Monad Testnet)
-        setProjectTokens([
-          { address: '0xa6Fc4FaF4CD7a4E3f300D164a37CB45d35bf28eD', name: 'MockUSDT', symbol: 'USDT' },
-          { address: '0x3EC7A3b85f9658120490d5a76705d4d304f4068D', name: 'KawaiToken', symbol: 'KAWAI' },
-        ]);
-      }
+      const tokens = await JarvisService.GetProjectTokens();
+      setProjectTokens(tokens);
     } catch (e) {
       console.error('Failed to load project tokens', e);
-      // Fallback on error
-      setProjectTokens([
-        { address: '0xa6Fc4FaF4CD7a4E3f300D164a37CB45d35bf28eD', name: 'MockUSDT', symbol: 'USDT' },
-        { address: '0x3EC7A3b85f9658120490d5a76705d4d304f4068D', name: 'KawaiToken', symbol: 'KAWAI' },
-      ]);
     } finally {
       setLoading(false);
     }
