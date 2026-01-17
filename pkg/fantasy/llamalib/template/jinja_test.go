@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kawai-network/veridium/pkg/fantasy"
+	"github.com/kawai-network/veridium/pkg/fantasy/llamalib/message"
 )
 
 func TestChatMLTemplate(t *testing.T) {
@@ -18,11 +18,14 @@ func TestChatMLTemplate(t *testing.T) {
 	tmpl := string(tmplBytes)
 
 	// Prepare chat messages
-	messages := fantasy.Prompt{
-		fantasy.NewUserMessage("Hello, how are you?"),
-		fantasy.Message{
-			Role:    fantasy.MessageRoleAssistant,
-			Content: []fantasy.MessagePart{fantasy.TextPart{Text: "I'm fine, thank you!"}},
+	messages := []message.Message{
+		message.Chat{
+			Role:    "user",
+			Content: "Hello, how are you?",
+		},
+		message.Chat{
+			Role:    "assistant",
+			Content: "I'm fine, thank you!",
 		},
 	}
 
@@ -51,16 +54,31 @@ func TestQwen25InstructTemplateWithToolCall(t *testing.T) {
 	tmpl := string(tmplBytes)
 
 	// Prepare messages with a tool call
-	messages := fantasy.Prompt{
-		fantasy.NewUserMessage("What is 2 + 3?"),
-		fantasy.NewToolCallMessage([]fantasy.ToolCall{
-			{
-				ID:    "call_1",
-				Name:  "add",
-				Input: `{"a": "2", "b": "3"}`,
+	messages := []message.Message{
+		message.Chat{
+			Role:    "user",
+			Content: "What is 2 + 3?",
+		},
+		message.Tool{
+			Role: "assistant",
+			ToolCalls: []message.ToolCall{
+				{
+					Type: "function",
+					Function: message.ToolFunction{
+						Name: "add",
+						Arguments: map[string]string{
+							"a": "2",
+							"b": "3",
+						},
+					},
+				},
 			},
-		}),
-		fantasy.NewToolResultMessage("call_1", "add", "5"),
+		},
+		message.ToolResponse{
+			Role:    "tool",
+			Name:    "add",
+			Content: "5",
+		},
 	}
 
 	result, err := Apply(tmpl, messages, true)
@@ -100,16 +118,28 @@ func TestApplyJinjaTemplateWithToolMessage(t *testing.T) {
 	}
 	tmpl := string(tmplBytes)
 
-	// Prepare messages with ToolCallMessage
-	messages := fantasy.Prompt{
-		fantasy.NewUserMessage("Call the calculator function"),
-		fantasy.NewToolCallMessage([]fantasy.ToolCall{
-			{
-				ID:    "call_1",
-				Name:  "calculator",
-				Input: `{"operation": "add", "x": "10", "y": "20"}`,
+	// Prepare messages with ToolMessage
+	messages := []message.Message{
+		message.Chat{
+			Role:    "user",
+			Content: "Call the calculator function",
+		},
+		message.Tool{
+			Role: "assistant",
+			ToolCalls: []message.ToolCall{
+				{
+					Type: "function",
+					Function: message.ToolFunction{
+						Name: "calculator",
+						Arguments: map[string]string{
+							"operation": "add",
+							"x":         "10",
+							"y":         "20",
+						},
+					},
+				},
 			},
-		}),
+		},
 	}
 
 	result, err := Apply(tmpl, messages, true)
@@ -146,17 +176,32 @@ func TestApplyJinjaTemplateWithToolResponseMessage(t *testing.T) {
 	}
 	tmpl := string(tmplBytes)
 
-	// Prepare messages with ToolResultMessage
-	messages := fantasy.Prompt{
-		fantasy.NewUserMessage("What is the result?"),
-		fantasy.NewToolCallMessage([]fantasy.ToolCall{
-			{
-				ID:    "call_1",
-				Name:  "calculator",
-				Input: `{"x": "10", "y": "20"}`,
+	// Prepare messages with ToolResponseMessage
+	messages := []message.Message{
+		message.Chat{
+			Role:    "user",
+			Content: "What is the result?",
+		},
+		message.Tool{
+			Role: "assistant",
+			ToolCalls: []message.ToolCall{
+				{
+					Type: "function",
+					Function: message.ToolFunction{
+						Name: "calculator",
+						Arguments: map[string]string{
+							"x": "10",
+							"y": "20",
+						},
+					},
+				},
 			},
-		}),
-		fantasy.NewToolResultMessage("call_1", "calculator", "30"),
+		},
+		message.ToolResponse{
+			Role:    "tool",
+			Name:    "calculator",
+			Content: "30",
+		},
 	}
 
 	result, err := Apply(tmpl, messages, true)
@@ -191,22 +236,46 @@ func TestApplyJinjaTemplateWithMultipleToolCalls(t *testing.T) {
 	tmpl := string(tmplBytes)
 
 	// Prepare messages with multiple tool calls
-	messages := fantasy.Prompt{
-		fantasy.NewUserMessage("Calculate 2+3 and 5*7"),
-		fantasy.NewToolCallMessage([]fantasy.ToolCall{
-			{
-				ID:    "call_1",
-				Name:  "add",
-				Input: `{"a": "2", "b": "3"}`,
+	messages := []message.Message{
+		message.Chat{
+			Role:    "user",
+			Content: "Calculate 2+3 and 5*7",
+		},
+		message.Tool{
+			Role: "assistant",
+			ToolCalls: []message.ToolCall{
+				{
+					Type: "function",
+					Function: message.ToolFunction{
+						Name: "add",
+						Arguments: map[string]string{
+							"a": "2",
+							"b": "3",
+						},
+					},
+				},
+				{
+					Type: "function",
+					Function: message.ToolFunction{
+						Name: "multiply",
+						Arguments: map[string]string{
+							"a": "5",
+							"b": "7",
+						},
+					},
+				},
 			},
-			{
-				ID:    "call_2",
-				Name:  "multiply",
-				Input: `{"a": "5", "b": "7"}`,
-			},
-		}),
-		fantasy.NewToolResultMessage("call_1", "add", "5"),
-		fantasy.NewToolResultMessage("call_2", "multiply", "35"),
+		},
+		message.ToolResponse{
+			Role:    "tool",
+			Name:    "add",
+			Content: "5",
+		},
+		message.ToolResponse{
+			Role:    "tool",
+			Name:    "multiply",
+			Content: "35",
+		},
 	}
 
 	result, err := Apply(tmpl, messages, true)

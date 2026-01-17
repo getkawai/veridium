@@ -12,6 +12,7 @@ import (
 
 	"github.com/kawai-network/veridium/pkg/fantasy"
 	"github.com/kawai-network/veridium/pkg/fantasy/llamalib/llama"
+	"github.com/kawai-network/veridium/pkg/fantasy/llamalib/message"
 	"github.com/kawai-network/veridium/pkg/fantasy/llamalib/mtmd"
 	"github.com/kawai-network/veridium/pkg/fantasy/llamalib/template"
 	"github.com/kawai-network/veridium/pkg/hardware"
@@ -160,19 +161,13 @@ func (s *Service) InitializeLibrary() error {
 	// Get library path from installer (programmatic, not env var)
 	libPath := s.installer.GetLibraryPath()
 
-	// Verify all required libraries exist (libggml, libggml-base, libllama)
-	if !s.installer.VerifyAllLibrariesExist() {
-		return fmt.Errorf("llama.cpp libraries not found in %s. Please run installer first", libPath)
+	// Verify main llama library exists
+	if !s.installer.IsLlamaCppInstalled() {
+		return fmt.Errorf("llama.cpp library not found in %s. Please run installer first", libPath)
 	}
 
 	s.libPath = libPath
 	log.Printf("📚 Loading llama.cpp library from directory: %s", libPath)
-
-	// Log which libraries were found
-	requiredPaths := s.installer.GetRequiredLibraryPaths()
-	for _, path := range requiredPaths {
-		log.Printf("  ✓ Found: %s", filepath.Base(path))
-	}
 
 	// Load the library (llama.Load expects a directory path)
 	if err := llama.Load(libPath); err != nil {
@@ -548,17 +543,11 @@ func (s *Service) GenerateWithTools(ctx context.Context, messages []Message, too
 	fantasyMessages := messagesToFantasy(messages)
 	fantasyTools := toolsToFantasy(tools)
 
-	// Apply template with tools
-	var formattedPrompt string
-	var err error
+	// Convert fantasy messages to template messages
+	templateMessages := fantasyToTemplateMessages(fantasyMessages, fantasyTools)
 
-	if len(tools) > 0 {
-		// Use tool template
-		formattedPrompt, err = template.ApplyWithTools(ChatMLToolTemplate, fantasyMessages, fantasyTools, true)
-	} else {
-		formattedPrompt, err = template.Apply(templateStr, fantasyMessages, true)
-	}
-
+	// Apply template
+	formattedPrompt, err := template.Apply(templateStr, templateMessages, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to apply template: %w", err)
 	}
@@ -646,16 +635,11 @@ func (s *Service) GenerateStreamWithTools(ctx context.Context, messages []Messag
 	fantasyMessages := messagesToFantasy(messages)
 	fantasyTools := toolsToFantasy(tools)
 
-	// Apply template with tools
-	var formattedPrompt string
-	var err error
+	// Convert fantasy messages to template messages
+	templateMessages := fantasyToTemplateMessages(fantasyMessages, fantasyTools)
 
-	if len(tools) > 0 {
-		formattedPrompt, err = template.ApplyWithTools(ChatMLToolTemplate, fantasyMessages, fantasyTools, true)
-	} else {
-		formattedPrompt, err = template.Apply(templateStr, fantasyMessages, true)
-	}
-
+	// Apply template
+	formattedPrompt, err := template.Apply(templateStr, templateMessages, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to apply template: %w", err)
 	}
@@ -803,6 +787,92 @@ func toolsToFantasy(tools []Tool) []fantasy.Tool {
 		}
 	}
 	return result
+}
+
+// fantasyToTemplateMessages converts fantasy.Message slice to message.Message slice.
+// This handles the conversion of fantasy message parts (text, tool calls, tool results)
+// into the message.Message interface format expected by the template engine.
+func fantasyToTemplateMessages(messages []fantasy.Message, tools []fantasy.Tool) []message.Message {
+	result := make([]message.Message, 0, len(messages))
+
+	// Build a map of tool call IDs to tool names for resolving tool responses
+	toolCallIDToName := make(map[string]string)
+
+	for _, msg := range messages {
+		// Check if message contains tool calls (assistant with tool calls)
+		var toolCalls []message.ToolCall
+		var textContent string
+		var toolResultName string
+		var toolResultContent string
+
+		for _, part := range msg.Content {
+			switch p := part.(type) {
+			case fantasy.TextPart:
+				textContent += p.Text
+			case fantasy.ToolCallPart:
+				// Convert fantasy.ToolCallPart to message.ToolCall
+				toolCalls = append(toolCalls, message.ToolCall{
+					Type: "function",
+					Function: message.ToolFunction{
+						Name:      p.ToolName,
+						Arguments: parseToolArguments(p.Input),
+					},
+				})
+				// Store mapping for later tool response resolution
+				toolCallIDToName[p.ToolCallID] = p.ToolName
+			case fantasy.ToolResultPart:
+				// Extract tool result information
+				if output, ok := p.Output.(fantasy.ToolResultOutputContentText); ok {
+					toolResultContent = output.Text
+				}
+				// Look up the tool name from the tool call ID
+				if name, ok := toolCallIDToName[p.ToolCallID]; ok {
+					toolResultName = name
+				}
+			}
+		}
+
+		// Create appropriate message type based on content
+		if len(toolCalls) > 0 {
+			// Assistant message with tool calls
+			// If there's also text content, emit it as a separate Chat message first
+			if textContent != "" {
+				result = append(result, message.Chat{
+					Role:    string(msg.Role),
+					Content: textContent,
+				})
+			}
+			result = append(result, message.Tool{
+				Role:      string(msg.Role),
+				ToolCalls: toolCalls,
+			})
+		} else if msg.Role == fantasy.MessageRoleTool {
+			// Tool response message
+			result = append(result, message.ToolResponse{
+				Role:    string(msg.Role),
+				Name:    toolResultName,
+				Content: toolResultContent,
+			})
+		} else {
+			// Regular text message (system, user, assistant)
+			result = append(result, message.Chat{
+				Role:    string(msg.Role),
+				Content: textContent,
+			})
+		}
+	}
+
+	return result
+}
+
+// parseToolArguments parses tool arguments from JSON string to map[string]string
+func parseToolArguments(input string) map[string]string {
+	// The input is already a JSON string from fantasy.ToolCallPart.Input
+	// Return it as-is in a map with "json" key for template compatibility
+	// Templates that need structured args can parse this JSON string
+	return map[string]string{
+		"json": input,
+	}
 }
 
 // LoadVLModel loads a Vision-Language (VL) model

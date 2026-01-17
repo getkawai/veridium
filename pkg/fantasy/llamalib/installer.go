@@ -131,30 +131,35 @@ type HardwareCapabilities struct {
 	HasAVX2   bool
 }
 
-// IsLlamaCppInstalled checks if all required llama.cpp libraries are installed
-// Verifies that libggml, libggml-base, and libllama all exist
+// IsLlamaCppInstalled checks if llama.cpp library is installed
+// Verifies that the main llama library exists (libllama.so/dylib/dll)
 func (lcm *LlamaCppInstaller) IsLlamaCppInstalled() bool {
-	return lcm.VerifyAllLibrariesExist()
+	libraryName := download.LibraryName(runtime.GOOS)
+	// Guard against unknown or empty library name
+	if libraryName == "unknown" || libraryName == "" {
+		return false
+	}
+
+	libPath := filepath.Join(lcm.BinaryPath, libraryName)
+	_, err := os.Stat(libPath)
+	return err == nil
 }
 
-// VerifyInstalledBinary verifies all required libraries are installed
-// Returns an error if any required library (libggml, libggml-base, libllama) is missing
+// VerifyInstalledBinary verifies the main llama library is installed
+// Returns an error if the library is missing
 func (lcm *LlamaCppInstaller) VerifyInstalledBinary() error {
-	requiredLibs := download.RequiredLibraries(runtime.GOOS)
-	if len(requiredLibs) == 0 {
+	libraryName := download.LibraryName(runtime.GOOS)
+	if libraryName == "unknown" || libraryName == "" {
 		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
 	}
 
-	missingLibs := []string{}
-	for _, lib := range requiredLibs {
-		libPath := filepath.Join(lcm.BinaryPath, lib)
-		if _, err := os.Stat(libPath); err != nil {
-			missingLibs = append(missingLibs, lib)
+	libPath := filepath.Join(lcm.BinaryPath, libraryName)
+	if _, err := os.Stat(libPath); err != nil {
+		// Distinguish between NotExist and other errors
+		if os.IsNotExist(err) {
+			return fmt.Errorf("llama library not found: %s", libraryName)
 		}
-	}
-
-	if len(missingLibs) > 0 {
-		return fmt.Errorf("missing required libraries: %s", strings.Join(missingLibs, ", "))
+		return fmt.Errorf("failed to stat llama library %s: %w", libraryName, err)
 	}
 
 	return nil
@@ -177,30 +182,6 @@ func (lcm *LlamaCppInstaller) GetLibraryPath() string {
 func (lcm *LlamaCppInstaller) GetLibraryFilePath() string {
 	libraryName := download.LibraryName(runtime.GOOS)
 	return filepath.Join(lcm.BinaryPath, libraryName)
-}
-
-// GetRequiredLibraryPaths returns full paths to all required library files
-// Returns paths to: libggml, libggml-base, and libllama (platform-specific extensions)
-// Use this to verify all required libraries are present before loading
-func (lcm *LlamaCppInstaller) GetRequiredLibraryPaths() []string {
-	requiredLibs := download.RequiredLibraries(runtime.GOOS)
-	paths := make([]string, len(requiredLibs))
-	for i, lib := range requiredLibs {
-		paths[i] = filepath.Join(lcm.BinaryPath, lib)
-	}
-	return paths
-}
-
-// VerifyAllLibrariesExist checks if all required llama.cpp libraries are present
-// Returns true only if libggml, libggml-base, and libllama all exist
-func (lcm *LlamaCppInstaller) VerifyAllLibrariesExist() bool {
-	requiredPaths := lcm.GetRequiredLibraryPaths()
-	for _, path := range requiredPaths {
-		if _, err := os.Stat(path); err != nil {
-			return false
-		}
-	}
-	return len(requiredPaths) > 0
 }
 
 // ============================================================================
@@ -255,9 +236,8 @@ func (lcm *LlamaCppInstaller) DownloadChatModel(modelSpec QwenModelSpec) error {
 	log.Printf("   Expected size: %.1f MB", float64(modelSpec.Size)/(1024*1024))
 	log.Printf("   This may take several minutes depending on network speed...")
 
-	// Download using grab with automatic retry, resume, and progress tracking
-	opts := download.DefaultDownloadOptions()
-	if err := download.GetWithProgress(modelSpec.URL, tempModelPath, opts); err != nil {
+	// Download using GetModelWithProgress with automatic retry, resume, and progress tracking
+	if err := download.GetModelWithProgress(modelSpec.URL, tempModelPath, download.ProgressTracker); err != nil {
 		lcm.cleanupTempFile(tempModelPath)
 		return fmt.Errorf("failed to download model: %w", err)
 	}
@@ -297,7 +277,7 @@ func (lcm *LlamaCppInstaller) DownloadChatModel(modelSpec QwenModelSpec) error {
 			log.Printf("   URL: %s", modelSpec.ProjectorURL)
 			log.Printf("   Expected size: %.1f MB", float64(modelSpec.ProjectorSize)/(1024*1024))
 
-			if err := download.GetWithProgress(modelSpec.ProjectorURL, tempProjectorPath, opts); err != nil {
+			if err := download.GetModelWithProgress(modelSpec.ProjectorURL, tempProjectorPath, download.ProgressTracker); err != nil {
 				lcm.cleanupTempFile(tempProjectorPath)
 				// Don't fail the whole process if projector fails, but warn
 				log.Printf("⚠️  Failed to download projector: %v", err)
@@ -343,12 +323,11 @@ func (lcm *LlamaCppInstaller) DownloadEmbeddingModel(model *EmbeddingModel) erro
 	log.Printf("   URL: %s", model.URL)
 	log.Printf("   Size: %.2f MB", float64(model.Size)/1024/1024)
 
-	// Download using grab with automatic retry, resume, and progress tracking
+	// Download using GetModelWithProgress with automatic retry, resume, and progress tracking
 	tempPath := finalPath + ".tmp"
 	lcm.cleanupTempFile(tempPath) // Clean any stale temp file
 
-	opts := download.DefaultDownloadOptions()
-	if err := download.GetWithProgress(model.URL, tempPath, opts); err != nil {
+	if err := download.GetModelWithProgress(model.URL, tempPath, download.ProgressTracker); err != nil {
 		lcm.cleanupTempFile(tempPath)
 		return fmt.Errorf("failed to download model: %w", err)
 	}
@@ -436,8 +415,7 @@ func (lcm *LlamaCppInstaller) AutoDownloadRecommendedVLModel() error {
 				tempProjectorPath := destProjectorPath + ".tmp"
 				lcm.cleanupTempFile(tempProjectorPath)
 
-				opts := download.DefaultDownloadOptions()
-				if err := download.GetWithProgress(modelSpec.ProjectorURL, tempProjectorPath, opts); err != nil {
+				if err := download.GetModelWithProgress(modelSpec.ProjectorURL, tempProjectorPath, download.ProgressTracker); err != nil {
 					lcm.cleanupTempFile(tempProjectorPath)
 					log.Printf("⚠️  Failed to download projector: %v", err)
 				} else {

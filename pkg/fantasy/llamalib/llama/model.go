@@ -10,11 +10,14 @@ import (
 )
 
 var (
+	// FFITypeModelParams represents the C struct llama_model_params
 	FFITypeModelParams = ffi.NewType(&ffi.TypePointer, &ffi.TypePointer, &ffi.TypeSint32,
 		&ffi.TypeSint32, &ffi.TypeSint32,
 		&ffi.TypePointer, &ffi.TypePointer, &ffi.TypePointer, &ffi.TypePointer,
-		&ffi.TypeUint8, &ffi.TypeUint8, &ffi.TypeUint8, &ffi.TypeUint8, &ffi.TypeUint8)
+		&ffi.TypeUint8, &ffi.TypeUint8, &ffi.TypeUint8, &ffi.TypeUint8, &ffi.TypeUint8,
+		&ffi.TypeUint8, &ffi.TypeUint8, &ffi.TypeUint8)
 
+	// FFITypeModelQuantizeParams represents the C struct llama_model_quantize_params
 	FFITypeModelQuantizeParams = ffi.NewType(&ffi.TypeSint32, &ffi.TypeSint32,
 		&ffi.TypeSint32, &ffi.TypeSint32, &ffi.TypeUint8, &ffi.TypeUint8, &ffi.TypeUint8, &ffi.TypeUint8, &ffi.TypeUint8,
 		&ffi.TypePointer, &ffi.TypePointer, &ffi.TypePointer, &ffi.TypePointer)
@@ -28,6 +31,14 @@ var (
 	//                          const char * path_model,
 	//           				struct llama_model_params   params);
 	modelLoadFromFileFunc ffi.Fun
+
+	// Load the model from multiple splits (support custom naming scheme)
+	// The paths must be in the correct order
+	// LLAMA_API struct llama_model * llama_model_load_from_splits(
+	//                          const char ** paths,
+	//                          size_t    n_paths,
+	//                          struct llama_model_params    params);
+	modelLoadFromSplitsFunc ffi.Fun
 
 	// LLAMA_API struct llama_model_params          llama_model_default_params(void);
 	modelFreeFunc ffi.Fun
@@ -57,6 +68,9 @@ var (
 
 	// LLAMA_API int32_t llama_model_n_embd_inp (const struct llama_model * model);
 	modelNEmbdInpFunc ffi.Fun
+
+	// LLAMA_API int32_t llama_model_n_embd_out(const struct llama_model * model);
+	modelNEmbdOutFunc ffi.Fun
 
 	// LLAMA_API int32_t llama_model_n_layer    (const struct llama_model * model);
 	modelNLayerFunc ffi.Fun
@@ -113,6 +127,10 @@ var (
 	// LLAMA_API int32_t llama_model_meta_val_str_by_index(const struct llama_model * model, int32_t i, char * buf, size_t buf_size);
 	modelMetaValStrByIndexFunc ffi.Fun
 
+	// Get sampling metadata key name. Returns nullptr if the key is invalid
+	// LLAMA_API const char * llama_model_meta_key_str(enum llama_model_meta_key key);
+	modelMetaKeyStrFunc ffi.Fun
+
 	// LLAMA_API struct llama_model_quantize_params llama_model_quantize_default_params(void);
 	modelQuantizeDefaultParamsFunc ffi.Fun
 
@@ -132,6 +150,10 @@ func loadModelFuncs(lib ffi.Lib) error {
 
 	if modelLoadFromFileFunc, err = lib.Prep("llama_model_load_from_file", &ffi.TypePointer, &ffi.TypePointer, &FFITypeModelParams); err != nil {
 		return loadError("llama_model_load_from_file", err)
+	}
+
+	if modelLoadFromSplitsFunc, err = lib.Prep("llama_model_load_from_splits", &ffi.TypePointer, &ffi.TypePointer, &ffi.TypeUint64, &FFITypeModelParams); err != nil {
+		return loadError("llama_model_load_from_splits", err)
 	}
 
 	if modelFreeFunc, err = lib.Prep("llama_model_free", &ffi.TypeVoid, &ffi.TypePointer); err != nil {
@@ -170,6 +192,10 @@ func loadModelFuncs(lib ffi.Lib) error {
 		return loadError("llama_model_n_embd_inp", err)
 	}
 
+	if modelNEmbdOutFunc, err = lib.Prep("llama_model_n_embd_out", &ffi.TypeSint32, &ffi.TypePointer); err != nil {
+		return loadError("llama_model_n_embd_out", err)
+	}
+
 	if modelNLayerFunc, err = lib.Prep("llama_model_n_layer", &ffi.TypeSint32, &ffi.TypePointer); err != nil {
 		return loadError("llama_model_n_layer", err)
 	}
@@ -194,7 +220,7 @@ func loadModelFuncs(lib ffi.Lib) error {
 		return loadError("llama_model_cls_label", err)
 	}
 
-	if modelDescFunc, err = lib.Prep("llama_model_desc", &ffi.TypeSint32, &ffi.TypePointer, &ffi.TypePointer, &ffi.TypeUint32); err != nil {
+	if modelDescFunc, err = lib.Prep("llama_model_desc", &ffi.TypeSint32, &ffi.TypePointer, &ffi.TypePointer, &ffi.TypeSint32); err != nil {
 		return loadError("llama_model_desc", err)
 	}
 
@@ -238,6 +264,10 @@ func loadModelFuncs(lib ffi.Lib) error {
 		return loadError("llama_model_meta_val_str_by_index", err)
 	}
 
+	if modelMetaKeyStrFunc, err = lib.Prep("llama_model_meta_key_str", &ffi.TypePointer, &ffi.TypeSint32); err != nil {
+		return loadError("llama_model_meta_key_str", err)
+	}
+
 	if modelQuantizeDefaultParamsFunc, err = lib.Prep("llama_model_quantize_default_params", &FFITypeModelQuantizeParams); err != nil {
 		return loadError("llama_model_quantize_default_params", err)
 	}
@@ -268,6 +298,30 @@ func ModelLoadFromFile(pathModel string, params ModelParams) (Model, error) {
 	modelLoadFromFileFunc.Call(unsafe.Pointer(&model), unsafe.Pointer(&file), unsafe.Pointer(&params))
 	if model == 0 {
 		return model, errors.New("failed to load model")
+	}
+
+	return model, nil
+}
+
+// ModelLoadFromSplits loads a Model from multiple split files.
+// The paths slice must be in the correct order.
+func ModelLoadFromSplits(paths []string, params ModelParams) (Model, error) {
+	var model Model
+	if len(paths) == 0 {
+		return model, errors.New("no paths provided")
+	}
+
+	// Allocate C array of pointers to null-terminated strings
+	cStrs := make([]*byte, len(paths))
+	for i := range paths {
+		cStrs[i] = &[]byte(paths[i] + "\x00")[0]
+	}
+	cPaths := unsafe.Pointer(&cStrs[0])
+	nPaths := uint64(len(paths))
+
+	modelLoadFromSplitsFunc.Call(unsafe.Pointer(&model), &cPaths, &nPaths, unsafe.Pointer(&params))
+	if model == 0 {
+		return model, errors.New("failed to load model from splits")
 	}
 
 	return model, nil
@@ -374,6 +428,16 @@ func ModelNEmbdInp(model Model) int32 {
 	var result ffi.Arg
 	modelNEmbdInpFunc.Call(unsafe.Pointer(&result), unsafe.Pointer(&model))
 
+	return int32(result)
+}
+
+// ModelNEmbdOut returns the output embedding size of the Model.
+func ModelNEmbdOut(model Model) int32 {
+	if model == 0 {
+		return 0
+	}
+	var result ffi.Arg
+	modelNEmbdOutFunc.Call(unsafe.Pointer(&result), unsafe.Pointer(&model))
 	return int32(result)
 }
 
@@ -527,6 +591,8 @@ func ModelRopeType(model Model) RopeScalingType {
 }
 
 // Warmup is to warm-up a model.
+// It processes a representative batch of tokens (32) to trigger GPU kernel JIT
+// compilation for common tensor shapes, reducing latency on first real request.
 func Warmup(lctx Context, model Model) error {
 	if lctx == 0 || model == 0 {
 		return errors.New("invalid context or model")
@@ -536,17 +602,35 @@ func Warmup(lctx Context, model Model) error {
 
 	SetWarmup(lctx, true)
 
-	tokens := make([]Token, 0)
 	bos := VocabBOS(vocab)
 	eos := VocabEOS(vocab)
 
+	// Build a representative batch of 32 tokens for proper kernel warmup.
+	// This triggers CUDA/Metal JIT compilation for common batch sizes.
+	const warmupBatchSize = 32
+	tokens := make([]Token, 0, warmupBatchSize)
+
+	// Start with BOS token if available.
 	if bos != TokenNull {
 		tokens = append(tokens, bos)
 	}
+
+	// Fill remaining slots with valid tokens (cycling through a small vocab range).
+	vocabSize := VocabNTokens(vocab)
+	if vocabSize <= 0 {
+		vocabSize = 32000 // Reasonable default
+	}
+
+	for len(tokens) < warmupBatchSize-1 {
+		// Use modulo to stay within vocab bounds, avoiding special tokens.
+		tokenID := Token((len(tokens) + 100) % int(vocabSize))
+		tokens = append(tokens, tokenID)
+	}
+
+	// End with EOS token if available.
 	if eos != TokenNull {
 		tokens = append(tokens, eos)
-	}
-	if len(tokens) == 0 {
+	} else if len(tokens) < warmupBatchSize {
 		tokens = append(tokens, 0)
 	}
 
@@ -558,7 +642,7 @@ func Warmup(lctx Context, model Model) error {
 		if start == TokenNull {
 			start = bos
 		}
-		tokens = append([]Token{}, start)
+		tokens = []Token{start}
 	}
 
 	if ModelHasDecoder(model) {
@@ -676,6 +760,17 @@ func ModelMetaValStrByIndex(model Model, i int32) (string, bool) {
 	return string(value), true
 }
 
+// ModelMetaKeyStr returns the metadata key name for a given enum key.
+// Returns an empty string if the key is invalid.
+func ModelMetaKeyStr(key ModelMetaKey) string {
+	var ptr *byte
+	modelMetaKeyStrFunc.Call(unsafe.Pointer(&ptr), &key)
+	if ptr == nil {
+		return ""
+	}
+	return utils.BytePtrToString(ptr)
+}
+
 // SetTensorBufOverrides sets tensor buffer overrides for Mixture of Experts (MoE) execution.
 func (p *ModelParams) SetTensorBufOverrides(overrides []TensorBuftOverride) {
 	if len(overrides) == 0 {
@@ -687,6 +782,7 @@ func (p *ModelParams) SetTensorBufOverrides(overrides []TensorBuftOverride) {
 }
 
 var progressCallback unsafe.Pointer
+var sizeOfClosure = unsafe.Sizeof(ffi.Closure{})
 
 // SetProgressCallback sets a progress callback for model loading.
 func (p *ModelParams) SetProgressCallback(cb ProgressCallback) {
@@ -695,7 +791,7 @@ func (p *ModelParams) SetProgressCallback(cb ProgressCallback) {
 		return
 	}
 
-	closure := ffi.ClosureAlloc(unsafe.Sizeof(ffi.Closure{}), &progressCallback)
+	closure := ffi.ClosureAlloc(sizeOfClosure, &progressCallback)
 
 	fn := ffi.NewCallback(func(cif *ffi.Cif, ret unsafe.Pointer, args *unsafe.Pointer, userData unsafe.Pointer) uintptr {
 		if args == nil || ret == nil {

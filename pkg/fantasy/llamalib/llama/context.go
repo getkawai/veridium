@@ -7,6 +7,7 @@ import (
 	"github.com/jupiterrider/ffi"
 )
 
+// FFITypeContextParams represents the C struct llama_context_params
 var FFITypeContextParams = ffi.NewType(
 	&ffi.TypeUint32, &ffi.TypeUint32,
 	&ffi.TypeUint32, &ffi.TypeUint32,
@@ -22,7 +23,8 @@ var FFITypeContextParams = ffi.NewType(
 	&ffi.TypePointer, &ffi.TypePointer,
 	&ffi.TypeUint8, &ffi.TypeUint8,
 	&ffi.TypeUint8, &ffi.TypeUint8,
-	&ffi.TypeUint8, &ffi.TypeUint8)
+	&ffi.TypeUint8, &ffi.TypeUint8,
+	&ffi.TypePointer, &ffi.TypeUint64)
 
 var (
 	// LLAMA_API struct llama_context_params        llama_context_default_params(void);

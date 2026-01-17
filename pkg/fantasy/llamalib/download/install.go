@@ -18,7 +18,8 @@ type tag struct {
 	TagName string `json:"tag_name"`
 }
 
-// InstallLibraries will download the llama.cpp libraries for the OS identified
+// InstallLibraries has been deprecated. Use the `GetXXX` functions directly.
+// It will download the llama.cpp libraries for the OS identified
 // by the Go runtime and the processor specified. The libPath parameter is where
 // the libraries will be installed on disk. The allowUpgrade parameter allows
 // for the replacement of newer versions of the libraries when they become
@@ -51,7 +52,12 @@ func InstallLibraries(libPath string, processor Processor, allowUpgrade bool) er
 func alreadyInstalled(libPath string) bool {
 	versionInfoPath := filepath.Join(libPath, versionFile)
 
-	if _, err := os.Stat(versionInfoPath); os.IsNotExist(err) {
+	if _, err := os.Stat(versionInfoPath); err != nil {
+		if os.IsNotExist(err) {
+			return false
+		}
+		// For other errors (permission, I/O), treat as not installed but log
+		// In production, you might want to return the error instead
 		return false
 	}
 
@@ -82,11 +88,7 @@ func alreadyLatestVersion(libPath string) (bool, string, error) {
 func initialInstall(libPath string, processor Processor) error {
 	version, err := downloadVersionFile(llamaCppVersionDocURL)
 	if err != nil {
-		// Fallback to using LlamaLatestVersion which has retry logic
-		version, err = LlamaLatestVersion()
-		if err != nil {
-			return fmt.Errorf("error downloading llama.cpp version document: %w", err)
-		}
+		return fmt.Errorf("error downloading llama.cpp version document: %w", err)
 	}
 
 	return upgradeInstall(libPath, processor, version)
@@ -100,7 +102,7 @@ func downloadVersionFile(llamaCppVersionDocURL string) (string, error) {
 	defer r.Body.Close()
 
 	if r.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("error getting llama.cpp version: HTTP %d", r.StatusCode)
+		return "", fmt.Errorf("unexpected status getting version document: %s", r.Status)
 	}
 
 	var tag tag
@@ -109,7 +111,7 @@ func downloadVersionFile(llamaCppVersionDocURL string) (string, error) {
 	}
 
 	if tag.TagName == "" {
-		return "", fmt.Errorf("error: empty version tag from GitHub API")
+		return "", fmt.Errorf("version document missing tag_name")
 	}
 
 	return tag.TagName, nil
@@ -132,7 +134,7 @@ func installLlamaCpp(libPath string, processor Processor, version string) error 
 		os.RemoveAll(libPath)
 	}
 
-	if err := Get(runtime.GOOS, processor.String(), version, libPath); err != nil {
+	if err := Get(runtime.GOARCH, runtime.GOOS, processor.String(), version, libPath); err != nil {
 		return fmt.Errorf("error downloading llama.cpp: %w", err)
 	}
 

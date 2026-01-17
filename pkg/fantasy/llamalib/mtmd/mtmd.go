@@ -5,9 +5,9 @@ import (
 	"os"
 	"unsafe"
 
-	"github.com/jupiterrider/ffi"
 	"github.com/kawai-network/veridium/pkg/fantasy/llamalib/llama"
 	"github.com/kawai-network/veridium/pkg/fantasy/llamalib/utils"
+	"github.com/jupiterrider/ffi"
 )
 
 //	struct mtmd_input_text {
@@ -35,13 +35,21 @@ type ContextParamsType struct {
 	ImageMarker        *byte
 	MediaMarker        *byte
 	FlashAttentionType llama.FlashAttentionType
-	ImageMinTokens     int32
-	ImageMaxTokens     int32
+	// whether to run a warmup encode pass after initialization
+	Warmup         bool
+	ImageMinTokens int32
+	ImageMaxTokens int32
+	// callback function passed over to mtmd proper
+	CBEval         uintptr
+	CBEvalUserData uintptr
 }
 
 var (
+	// FFITypeContextParams represents the C struct mtmd_context_params
 	FFITypeContextParams = ffi.NewType(&ffi.TypeUint8, &ffi.TypeUint8, &ffi.TypeSint32, &ffi.TypePointer, &ffi.TypePointer,
-		&ffi.TypeUint8, &ffi.TypeSint32, &ffi.TypeSint32)
+		&ffi.TypeUint8, &ffi.TypeUint8, &ffi.TypeSint32, &ffi.TypeSint32, &ffi.TypePointer, &ffi.TypePointer)
+
+	// FFITypeInputText represents the C struct mtmd_input_text
 	FFITypeInputText = ffi.NewType(&ffi.TypePointer, &ffi.TypeUint8, &ffi.TypeUint8)
 )
 

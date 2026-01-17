@@ -1,40 +1,39 @@
 package download
 
 import (
-	"archive/zip"
+	"archive/tar"
+	"compress/gzip"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/kawai-network/veridium/pkg/grab"
-	"golang.org/x/time/rate"
+	getter "github.com/hashicorp/go-getter"
 )
 
 var (
-	// ErrUnknownOS is returned when an unknown operating system is specified
-	ErrUnknownOS = errors.New("unknown OS")
-	// ErrUnknownProcessor is returned when an unknown processor is specified
+	ErrUnknownArch      = errors.New("unknown architecture")
+	ErrUnknownOS        = errors.New("unknown OS")
 	ErrUnknownProcessor = errors.New("unknown processor")
-	// ErrInvalidVersion is returned when an invalid version string is provided
-	ErrInvalidVersion = errors.New("invalid version")
+	ErrInvalidVersion   = errors.New("invalid version")
 )
 
-// RetryCount is how many times the package will retry to obtain the latest llama.cpp version.
-var RetryCount = 3
-
-// FallbackVersion is used when GitHub API is unavailable (rate limit, network issues, etc.)
-// This should be updated periodically to a known stable version
-const FallbackVersion = "b7248"
+var (
+	// RetryCount is how many times the package will retry to obtain the latest llama.cpp version.
+	RetryCount = 3
+	// RetryDelay is the delay between retries when obtaining the latest llama.cpp version.
+	RetryDelay = 3 * time.Second
+	// apiURL is the GitHub API URL for fetching the latest llama.cpp version.
+	apiURL = "https://api.github.com/repos/ggml-org/llama.cpp/releases/latest"
+)
 
 // LlamaLatestVersion fetches the latest release tag of llama.cpp from the GitHub API.
-// Falls back to a hardcoded version if GitHub API is unavailable.
 func LlamaLatestVersion() (string, error) {
 	var version string
 	var err error
@@ -43,26 +42,34 @@ func LlamaLatestVersion() (string, error) {
 		if err == nil {
 			return version, nil
 		}
-		time.Sleep(3 * time.Second)
+		time.Sleep(RetryDelay)
 	}
 
-	// If all retries failed, use fallback version
-	log.Printf("⚠️  Failed to fetch version from GitHub API: %v", err)
-	log.Printf("📦 Using fallback version: %s", FallbackVersion)
-	return FallbackVersion, nil
+	return "", errors.New("unable to fetch latest version")
 }
 
 func getLatestVersion() (string, error) {
-	const apiURL = "https://api.github.com/repos/ggml-org/llama.cpp/releases/latest"
-
-	resp, err := http.Get(apiURL)
+	req, err := http.NewRequest("GET", apiURL, nil)
 	if err != nil {
-		return "", fmt.Errorf("failed to fetch version from GitHub: %w", err)
+		return "", err
+	}
+
+	// Set required headers for GitHub API
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("received status code %d from GitHub API", resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("received status code %d from GitHub API: %s", resp.StatusCode, string(body))
 	}
 
 	var result struct {
@@ -70,284 +77,310 @@ func getLatestVersion() (string, error) {
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", fmt.Errorf("failed to decode GitHub API response: %w", err)
+		return "", err
 	}
 
-	if result.TagName == "" {
-		return "", fmt.Errorf("empty version tag from GitHub API")
-	}
-
-	log.Printf("📦 Latest llama.cpp version from GitHub: %s", result.TagName)
 	return result.TagName, nil
 }
 
-// LlamaAvailableVersions returns a list of available llama.cpp versions from GitHub releases.
-// Returns versions in descending order (newest first).
-// limit specifies how many releases to fetch (default: 10, max: 100).
-func LlamaAvailableVersions(limit int) ([]string, error) {
-	if limit <= 0 {
-		limit = 10 // Default to 10 releases
-	}
-	if limit > 100 {
-		limit = 100 // GitHub API max per page
-	}
+// getDownloadLocationAndFilename returns the download location and filename for the given parameters.
+func getDownloadLocationAndFilename(arch Arch, os OS, prcssr Processor, version string, dest string) (location, filename string, err error) {
+	location = fmt.Sprintf("https://github.com/ggml-org/llama.cpp/releases/download/%s", version)
 
-	url := fmt.Sprintf("https://api.github.com/repos/ggml-org/llama.cpp/releases?per_page=%d", limit)
-
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch releases: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
-	}
-
-	var releases []struct {
-		TagName string `json:"tag_name"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&releases); err != nil {
-		return nil, fmt.Errorf("failed to decode releases: %w", err)
-	}
-
-	versions := make([]string, 0, len(releases))
-	for _, release := range releases {
-		if release.TagName != "" {
-			versions = append(versions, release.TagName)
+	switch os {
+	case Linux:
+		switch prcssr {
+		case CPU:
+			if arch == ARM64 {
+				return "", "", errors.New("precompiled binaries for Linux ARM64 CPU are not available")
+			}
+			filename = fmt.Sprintf("llama-%s-bin-ubuntu-x64.tar.gz", version)
+		case CUDA:
+			location = fmt.Sprintf("https://github.com/hybridgroup/llama-cpp-builder/releases/download/%s", version)
+			if arch == ARM64 {
+				filename = fmt.Sprintf("llama-%s-bin-ubuntu-cuda-13-arm64.tar.gz", version)
+			} else {
+				filename = fmt.Sprintf("llama-%s-bin-ubuntu-cuda-13-x64.tar.gz", version)
+			}
+		case Vulkan:
+			if arch == ARM64 {
+				location = fmt.Sprintf("https://github.com/hybridgroup/llama-cpp-builder/releases/download/%s", version)
+				filename = fmt.Sprintf("llama-%s-bin-ubuntu-vulkan-arm64.tar.gz", version)
+				break
+			}
+			filename = fmt.Sprintf("llama-%s-bin-ubuntu-vulkan-x64.tar.gz", version)
+		default:
+			return "", "", ErrUnknownProcessor
 		}
+
+	case Darwin:
+		switch prcssr {
+		case Metal:
+			if arch != ARM64 {
+				return "", "", errors.New("precompiled binaries for macOS non-ARM64 CPU/Metal are not available")
+			}
+			filename = fmt.Sprintf("llama-%s-bin-macos-arm64.tar.gz", version)
+		case CPU:
+			if arch == ARM64 {
+				filename = fmt.Sprintf("llama-%s-bin-macos-arm64.tar.gz", version)
+			} else {
+				filename = fmt.Sprintf("llama-%s-bin-macos-x64.tar.gz", version)
+			}
+		default:
+			return "", "", ErrUnknownProcessor
+		}
+
+	case Windows:
+		switch prcssr {
+		case CPU:
+			if arch == ARM64 {
+				filename = fmt.Sprintf("llama-%s-bin-win-cpu-arm64.zip", version)
+			} else {
+				filename = fmt.Sprintf("llama-%s-bin-win-cpu-x64.zip", version)
+			}
+		case CUDA:
+			if arch == ARM64 {
+				return "", "", errors.New("precompiled binaries for Windows ARM64 CUDA are not available")
+			}
+			// also requires the CUDA RT files
+			cudart := "cudart-llama-bin-win-cuda-13.1-x64.zip"
+			url := fmt.Sprintf("%s/%s", location, cudart)
+			if err := get(context.Background(), url, dest, ProgressTracker); err != nil {
+				return "", "", err
+			}
+			filename = fmt.Sprintf("llama-%s-bin-win-cuda-13.1-x64.zip", version)
+		case Vulkan:
+			if arch == ARM64 {
+				return "", "", errors.New("precompiled binaries for Windows ARM64 Vulkan are not available")
+			}
+			filename = fmt.Sprintf("llama-%s-bin-win-vulkan-x64.zip", version)
+		default:
+			return "", "", ErrUnknownProcessor
+		}
+
+	default:
+		return "", "", ErrUnknownOS
 	}
 
-	return versions, nil
+	return location, filename, nil
 }
 
-// Get downloads the llama.cpp precompiled binaries for the desired OS/processor.
+// getFunc is the function used to download files. It can be overridden for testing.
+var getFunc = get
+
+// Get downloads the llama.cpp precompiled binaries for the desired arch/OS/processor.
+// arch can be one of the following values: "amd64", "arm64".
 // os can be one of the following values: "linux", "darwin", "windows".
 // processor can be one of the following values: "cpu", "cuda", "vulkan", "metal".
 // version should be the desired `b1234` formatted llama.cpp version. You can use the
 // [LlamaLatestVersion] function to obtain the latest release.
 // dest in the destination directory for the downloaded binaries.
-func Get(os string, processor string, version string, dest string) error {
-	if err := VersionIsValid(version); err != nil {
-		return err
+func Get(architecture string, operatingSystem string, processor string, version string, dest string) error {
+	return GetWithProgress(architecture, operatingSystem, processor, version, dest, ProgressTracker)
+}
+
+// GetWithProgress downloads the llama.cpp precompiled binaries for the desired arch/OS/processor
+// using the provided progress tracker.
+// arch can be one of the following values: "amd64", "arm64".
+// os can be one of the following values: "linux", "darwin", "windows".
+// processor can be one of the following values: "cpu", "cuda", "vulkan", "metal".
+// version should be the desired `b1234` formatted llama.cpp version. You can use the
+// [LlamaLatestVersion] function to obtain the latest release.
+// dest in the destination directory for the downloaded binaries.
+func GetWithProgress(architecture string, operatingSystem string, processor string, version string, dest string, progress getter.ProgressTracker) error {
+	return GetWithContext(context.Background(), architecture, operatingSystem, processor, version, dest, progress)
+}
+
+// GetWithContext downloads the llama.cpp precompiled binaries for the desired arch/OS/processor
+// using the provided context and progress tracker.
+// arch can be one of the following values: "amd64", "arm64".
+// os can be one of the following values: "linux", "darwin", "windows".
+// processor can be one of the following values: "cpu", "cuda", "vulkan", "metal".
+// version should be the desired `b1234` formatted llama.cpp version. You can use the
+// [LlamaLatestVersion] function to obtain the latest release.
+// dest in the destination directory for the downloaded binaries.
+func GetWithContext(ctx context.Context, architecture string, operatingSystem string, processor string, version string, dest string, progress getter.ProgressTracker) error {
+	arch, err := ParseArch(architecture)
+	if err != nil {
+		return ErrUnknownArch
 	}
 
-	var location, filename string
-	location = fmt.Sprintf("https://github.com/ggml-org/llama.cpp/releases/download/%s", version)
-
-	switch os {
-	case "linux":
-		switch processor {
-		case "cpu":
-			filename = fmt.Sprintf("llama-%s-bin-ubuntu-x64.zip//build/bin", version)
-		case "cuda":
-			location = fmt.Sprintf("https://github.com/hybridgroup/llama-cpp-builder/releases/download/%s", version)
-			filename = fmt.Sprintf("llama-%s-bin-ubuntu-cuda-x64.zip", version)
-		case "vulkan":
-			filename = fmt.Sprintf("llama-%s-bin-ubuntu-vulkan-x64.zip//build/bin", version)
-		default:
-			return ErrUnknownProcessor
-		}
-	case "darwin":
-		switch processor {
-		case "cpu", "metal":
-			filename = fmt.Sprintf("llama-%s-bin-macos-arm64.zip//build/bin", version)
-		default:
-			return ErrUnknownProcessor
-		}
-
-	case "windows":
-		switch processor {
-		case "cpu":
-			filename = fmt.Sprintf("llama-%s-bin-win-cpu-x64.zip//build/bin", version)
-		case "cuda":
-			filename = fmt.Sprintf("llama-%s-bin-win-cuda-12.4-x64.zip//build/bin", version)
-		case "vulkan":
-			filename = fmt.Sprintf("llama-%s-bin-win-vulkan-x64.zip//build/bin", version)
-		default:
-			return ErrUnknownProcessor
-		}
-
-	default:
+	os, err := ParseOS(operatingSystem)
+	if err != nil {
 		return ErrUnknownOS
 	}
 
-	// Extract the actual filename (before //) for URL construction
-	actualFilename := filename
-	if strings.Contains(filename, "//") {
-		actualFilename = strings.SplitN(filename, "//", 2)[0]
+	prcssr, err := ParseProcessor(processor)
+	if err != nil {
+		return ErrUnknownProcessor
 	}
 
-	url := fmt.Sprintf("%s/%s", location, actualFilename)
-	return get(url, filename, dest)
-}
+	if err := VersionIsValid(version); err != nil {
+		return ErrInvalidVersion
+	}
 
-// get downloads a file using grab and optionally extracts it if it's a ZIP
-// Implements retry logic with exponential backoff for GitHub CDN propagation delays
-func get(url, filename, dest string) error {
-	const maxRetries = 3
-	const initialBackoff = 2 * time.Second
-
-	var lastErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		if attempt > 0 {
-			backoff := initialBackoff * time.Duration(1<<uint(attempt-1)) // 2s, 4s, 8s
-			log.Printf("   ⏳ Retry %d/%d after %v (GitHub CDN may be propagating)...", attempt+1, maxRetries, backoff)
-			time.Sleep(backoff)
-		}
-
-		err := downloadAndExtract(url, filename, dest)
-		if err == nil {
-			return nil // Success!
-		}
-
-		lastErr = err
-
-		// Check if it's a 404 error (release assets not ready yet)
-		if strings.Contains(err.Error(), "404") {
-			// For 404, retry might help if it's CDN propagation delay
-			if attempt < maxRetries-1 {
-				log.Printf("   ⚠️  404 error, retrying (may be CDN delay)...")
-				continue
-			}
-			// After all retries, return specific 404 message
-			return fmt.Errorf("download failed: release assets not available yet (404). The release tag exists but binaries are still being built. Please try again in a few minutes or use a previous version")
-		}
-
-		// For other errors, don't retry
+	location, filename, err := getDownloadLocationAndFilename(arch, os, prcssr, version, dest)
+	if err != nil {
 		return err
 	}
 
-	return fmt.Errorf("download failed after %d attempts: %w", maxRetries, lastErr)
+	url := fmt.Sprintf("%s/%s", location, filename)
+	return getFunc(ctx, url, dest, progress)
 }
 
-// downloadAndExtract performs a single download attempt with optional ZIP extraction
-func downloadAndExtract(url, filename, dest string) error {
-	// Create temp directory for download
-	tempDir, err := os.MkdirTemp("", "llama-download-*")
-	if err != nil {
-		return fmt.Errorf("failed to create temp directory: %w", err)
-	}
-	defer os.RemoveAll(tempDir)
-
-	// Determine if we need to extract from ZIP
-	// go-getter syntax: "file.zip//path/inside" means extract path/inside from file.zip
-	var zipFile, extractPath string
-	if strings.Contains(filename, "//") {
-		parts := strings.SplitN(filename, "//", 2)
-		zipFile = parts[0]
-		extractPath = parts[1]
-	} else {
-		zipFile = filename
+func get(ctx context.Context, url, dest string, progress getter.ProgressTracker) error {
+	// Check if it's a .tar.gz file
+	if strings.HasSuffix(url, ".tar.gz") {
+		return downloadAndExtractTarGz(url, dest, progress)
 	}
 
-	// Download ZIP file
-	zipPath := filepath.Join(tempDir, filepath.Base(zipFile))
-	req, err := grab.NewRequest(zipPath, url)
-	if err != nil {
-		return fmt.Errorf("failed to create download request: %w", err)
+	// Use go-getter for other file types (e.g., .zip)
+	client := &getter.Client{
+		Ctx:  ctx,
+		Src:  url,
+		Dst:  dest,
+		Mode: getter.ClientModeAny,
 	}
 
-	client := grab.NewClient()
-	resp := client.Do(req)
-
-	// Wait for download to complete
-	<-resp.Done
-	if err := resp.Err(); err != nil {
-		// Check if it's a 404 error
-		if resp.HTTPResponse != nil && resp.HTTPResponse.StatusCode == 404 {
-			return fmt.Errorf("404 error")
-		}
-		return fmt.Errorf("download failed: %w", err)
+	if progress != nil {
+		client.ProgressListener = progress
 	}
 
-	// If no extraction needed, just move the file
-	if extractPath == "" {
-		return os.Rename(zipPath, filepath.Join(dest, filepath.Base(zipFile)))
-	}
-
-	// Extract specific path from ZIP
-	return extractFromZip(zipPath, extractPath, dest)
-}
-
-// extractFromZip extracts a specific path from a ZIP file to destination
-func extractFromZip(zipPath, extractPath, dest string) error {
-	// Open ZIP file
-	r, err := zip.OpenReader(zipPath)
-	if err != nil {
-		return fmt.Errorf("failed to open zip: %w", err)
-	}
-	defer r.Close()
-
-	// Ensure destination directory exists
-	if err := os.MkdirAll(dest, 0755); err != nil {
-		return fmt.Errorf("failed to create destination: %w", err)
-	}
-
-	// Extract files that match the extractPath
-	extractedCount := 0
-	for _, f := range r.File {
-		// Check if file is in the extract path
-		if !strings.HasPrefix(f.Name, extractPath) {
-			continue
-		}
-
-		// Calculate relative path
-		relPath := strings.TrimPrefix(f.Name, extractPath)
-		relPath = strings.TrimPrefix(relPath, "/")
-		if relPath == "" {
-			continue // Skip the directory itself
-		}
-
-		targetPath := filepath.Join(dest, relPath)
-
-		if f.FileInfo().IsDir() {
-			// Create directory
-			if err := os.MkdirAll(targetPath, f.Mode()); err != nil {
-				return fmt.Errorf("failed to create directory %s: %w", targetPath, err)
-			}
-			continue
-		}
-
-		// Create parent directory
-		if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
-			return fmt.Errorf("failed to create parent directory: %w", err)
-		}
-
-		// Extract file
-		if err := extractFile(f, targetPath); err != nil {
-			return fmt.Errorf("failed to extract %s: %w", f.Name, err)
-		}
-		extractedCount++
-	}
-
-	if extractedCount == 0 {
-		return fmt.Errorf("no files found in path %s", extractPath)
+	if err := client.Get(); err != nil {
+		return err
 	}
 
 	return nil
 }
 
-// extractFile extracts a single file from ZIP
-func extractFile(f *zip.File, targetPath string) error {
-	// Open file in ZIP
-	rc, err := f.Open()
-	if err != nil {
+// downloadAndExtractTarGz downloads a .tar.gz file and extracts it to the destination directory.
+func downloadAndExtractTarGz(url, dest string, progress getter.ProgressTracker) error {
+	downloadFile := filepath.Join(dest, filepath.Base(url))
+
+	// Ensure destination directory exists
+	if err := os.MkdirAll(dest, 0755); err != nil {
+		return fmt.Errorf("failed to create destination dir: %w", err)
+	}
+
+	client := &getter.Client{
+		Ctx:  context.Background(),
+		Src:  url + "?archive=false",
+		Dst:  downloadFile,
+		Mode: getter.ClientModeAny,
+	}
+
+	if progress != nil {
+		client.ProgressListener = progress
+	}
+
+	if err := client.Get(); err != nil {
 		return err
 	}
-	defer rc.Close()
+	defer os.Remove(downloadFile)
 
-	// Create target file
-	outFile, err := os.OpenFile(targetPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+	resp, err := os.Open(downloadFile)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to open downloaded file: %w", err)
 	}
-	defer outFile.Close()
+	defer resp.Close()
 
-	// Copy content
-	if _, err := io.Copy(outFile, rc); err != nil {
-		return err
+	// Create gzip reader
+	gzr, err := gzip.NewReader(resp)
+	if err != nil {
+		return fmt.Errorf("failed to create gzip reader: %w", err)
+	}
+	defer gzr.Close()
+
+	// Create tar reader
+	tr := tar.NewReader(gzr)
+
+	// Extract files
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("failed to read tar header: %w", err)
+		}
+
+		// Strip the top-level directory (e.g., "llama-b1234/")
+		name := header.Name
+		if idx := strings.Index(name, "/"); idx != -1 {
+			name = name[idx+1:]
+		}
+
+		// Skip empty names (the top-level directory itself)
+		if name == "" {
+			continue
+		}
+
+		// Security: Clean and validate path to prevent path traversal
+		name = filepath.Clean(name)
+		target := filepath.Join(dest, name)
+
+		// Ensure target is within dest directory
+		absDest, err := filepath.Abs(dest)
+		if err != nil {
+			return fmt.Errorf("failed to get absolute path of dest: %w", err)
+		}
+		absTarget, err := filepath.Abs(target)
+		if err != nil {
+			return fmt.Errorf("failed to get absolute path of target: %w", err)
+		}
+		if !strings.HasPrefix(absTarget, absDest+string(os.PathSeparator)) && absTarget != absDest {
+			return fmt.Errorf("illegal file path: %s", name)
+		}
+
+		switch header.Typeflag {
+		case tar.TypeDir:
+			if err := os.MkdirAll(target, os.FileMode(header.Mode)); err != nil {
+				return fmt.Errorf("failed to create directory: %w", err)
+			}
+		case tar.TypeReg:
+			// Ensure parent directory exists
+			if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+				return fmt.Errorf("failed to create parent directory: %w", err)
+			}
+
+			// Create the file
+			f, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR|os.O_TRUNC, os.FileMode(header.Mode))
+			if err != nil {
+				return fmt.Errorf("failed to create file: %w", err)
+			}
+
+			// Copy contents
+			if _, err := io.Copy(f, tr); err != nil {
+				f.Close()
+				return fmt.Errorf("failed to write file: %w", err)
+			}
+			f.Close()
+		case tar.TypeSymlink:
+			// Security: Validate symlink target
+			if filepath.IsAbs(header.Linkname) {
+				return fmt.Errorf("illegal absolute symlink: %s -> %s", name, header.Linkname)
+			}
+
+			// Resolve symlink destination
+			linkTarget := filepath.Join(filepath.Dir(target), header.Linkname)
+			absLinkTarget, err := filepath.Abs(linkTarget)
+			if err != nil {
+				return fmt.Errorf("failed to resolve symlink target: %w", err)
+			}
+
+			// Ensure symlink target is within dest directory
+			if !strings.HasPrefix(absLinkTarget, absDest+string(os.PathSeparator)) && absLinkTarget != absDest {
+				return fmt.Errorf("illegal symlink target: %s -> %s", name, header.Linkname)
+			}
+
+			// Handle symlinks
+			if err := os.Symlink(header.Linkname, target); err != nil {
+				// Ignore error if symlink already exists
+				if !os.IsExist(err) {
+					return fmt.Errorf("failed to create symlink: %w", err)
+				}
+			}
+		}
 	}
 
 	return nil
@@ -355,240 +388,28 @@ func extractFile(f *zip.File, targetPath string) error {
 
 // VersionIsValid checks if the provided version string is valid.
 func VersionIsValid(version string) error {
-	if version == "" {
-		return fmt.Errorf("%w: version string is empty", ErrInvalidVersion)
-	}
 	if !strings.HasPrefix(version, "b") {
-		return fmt.Errorf("%w: version must start with 'b', got: %s", ErrInvalidVersion, version)
+		return ErrInvalidVersion
 	}
 
 	return nil
 }
 
 // LibraryName returns the name for the llama.cpp library for any given OS.
-func LibraryName(os string) string {
+func LibraryName(operatingSystem string) string {
+	os, err := ParseOS(operatingSystem)
+	if err != nil {
+		return "unknown"
+	}
+
 	switch os {
-	case "linux", "freebsd":
+	case Linux:
 		return "libllama.so"
-	case "windows":
+	case Windows:
 		return "llama.dll"
-	case "darwin":
+	case Darwin:
 		return "libllama.dylib"
 	default:
 		return "unknown"
 	}
-}
-
-// RequiredLibraries returns all required library files for llama.cpp on a given OS
-// llama.cpp requires multiple libraries: libggml, libggml-base, and libllama
-// This is critical for library-based usage (via yzma)
-func RequiredLibraries(os string) []string {
-	switch os {
-	case "linux", "freebsd":
-		return []string{
-			"libggml.so",
-			"libggml-base.so",
-			"libllama.so",
-		}
-	case "windows":
-		return []string{
-			"ggml.dll",
-			"ggml-base.dll",
-			"llama.dll",
-		}
-	case "darwin":
-		return []string{
-			"libggml.dylib",
-			"libggml-base.dylib",
-			"libllama.dylib",
-		}
-	default:
-		return []string{}
-	}
-}
-
-// GetLibraryExtension returns the library file extension for a given OS
-func GetLibraryExtension(os string) string {
-	switch os {
-	case "linux", "freebsd":
-		return ".so"
-	case "windows":
-		return ".dll"
-	case "darwin":
-		return ".dylib"
-	default:
-		return ""
-	}
-}
-
-// ============================================================================
-// Advanced Download Functions with Progress Tracking and Rate Limiting
-// ============================================================================
-
-// DownloadOptions configures download behavior
-type DownloadOptions struct {
-	// MaxRetries specifies how many times to retry failed downloads
-	MaxRetries int
-
-	// ShowProgress enables real-time progress logging
-	ShowProgress bool
-
-	// ResumeIfPossible enables automatic resume of partial downloads
-	ResumeIfPossible bool
-
-	// ProgressInterval specifies how often to log progress updates
-	ProgressInterval time.Duration
-
-	// RateLimitMBps limits download speed in MB/s (0 = unlimited)
-	RateLimitMBps int
-}
-
-// DefaultDownloadOptions returns sensible default options
-func DefaultDownloadOptions() DownloadOptions {
-	return DownloadOptions{
-		MaxRetries:       3,
-		ShowProgress:     true,
-		ResumeIfPossible: true,
-		ProgressInterval: 2 * time.Second,
-		RateLimitMBps:    0, // Unlimited by default
-	}
-}
-
-// WithRateLimit returns download options with specified rate limit in MB/s
-func WithRateLimit(mbps int) DownloadOptions {
-	opts := DefaultDownloadOptions()
-	opts.RateLimitMBps = mbps
-	return opts
-}
-
-// GetWithProgress downloads a file using grab with retry logic, progress tracking,
-// and automatic resume support. This is the recommended way to download large files.
-//
-// Features:
-// - Automatic retry with exponential backoff (2s, 4s, 6s)
-// - Resume support for interrupted downloads
-// - Real-time progress tracking with speed and ETA
-// - Optional rate limiting
-// - Validates HTTP status codes
-// - Thread-safe and context-aware
-//
-// The file is downloaded to destPath. If the download is interrupted,
-// it can be resumed on the next attempt automatically.
-func GetWithProgress(url, destPath string, opts DownloadOptions) error {
-	client := grab.NewClient()
-
-	var lastErr error
-	for attempt := 1; attempt <= opts.MaxRetries; attempt++ {
-		if attempt > 1 {
-			backoff := time.Duration(attempt) * 2 * time.Second
-			log.Printf("🔄 Retry attempt %d/%d (waiting %v)...", attempt, opts.MaxRetries, backoff)
-			time.Sleep(backoff)
-		}
-
-		// Create request
-		req, err := grab.NewRequest(destPath, url)
-		if err != nil {
-			lastErr = fmt.Errorf("failed to create download request: %w", err)
-			log.Printf("⚠️  Attempt %d failed: %v", attempt, lastErr)
-			continue
-		}
-
-		// Configure resume behavior
-		req.NoResume = !opts.ResumeIfPossible
-
-		// Configure rate limiting if specified
-		if opts.RateLimitMBps > 0 {
-			bytesPerSecond := opts.RateLimitMBps * 1024 * 1024
-			req.RateLimiter = rate.NewLimiter(rate.Limit(bytesPerSecond), bytesPerSecond)
-			log.Printf("🔧 Rate limit: %d MB/s", opts.RateLimitMBps)
-		}
-
-		// Start download
-		resp := client.Do(req)
-
-		// Track progress
-		if opts.ShowProgress {
-			if err := trackProgress(resp, opts.ProgressInterval); err != nil {
-				lastErr = err
-				log.Printf("⚠️  Attempt %d failed: %v", attempt, lastErr)
-				continue
-			}
-		} else {
-			// Wait for completion without progress tracking
-			<-resp.Done
-			if err := resp.Err(); err != nil {
-				lastErr = err
-				log.Printf("⚠️  Attempt %d failed: %v", attempt, lastErr)
-				continue
-			}
-		}
-
-		// Success!
-		sizeMB := float64(resp.Size()) / (1024 * 1024)
-		log.Printf("✅ Download complete: %s (%.1f MB)", resp.Filename, sizeMB)
-
-		if resp.DidResume {
-			log.Printf("   📦 Download resumed successfully")
-		}
-
-		return nil
-	}
-
-	return fmt.Errorf("download failed after %d attempts: %w", opts.MaxRetries, lastErr)
-}
-
-// trackProgress monitors download progress and logs updates at regular intervals
-func trackProgress(resp *grab.Response, interval time.Duration) error {
-	t := time.NewTicker(interval)
-	defer t.Stop()
-
-	lastProgress := float64(0)
-	stuckCount := 0
-	maxStuckCount := 5 // Consider download stuck after 5 intervals with no progress
-
-	for {
-		select {
-		case <-t.C:
-			progress := resp.Progress() * 100
-			speed := resp.BytesPerSecond() / (1024 * 1024) // MB/s
-			eta := resp.ETA().Round(time.Second)
-
-			// Check if download is stuck
-			if progress == lastProgress && progress < 100 {
-				stuckCount++
-				if stuckCount >= maxStuckCount {
-					return fmt.Errorf("download appears stuck at %.1f%% for %v", progress, interval*time.Duration(maxStuckCount))
-				}
-			} else {
-				stuckCount = 0
-			}
-			lastProgress = progress
-
-			if speed > 0 {
-				log.Printf("📥 Progress: %.1f%% (%.2f MB/s, ETA: %v)", progress, speed, eta)
-			} else {
-				log.Printf("📥 Progress: %.1f%% (starting...)", progress)
-			}
-
-		case <-resp.Done:
-			// Download completed or failed
-			if err := resp.Err(); err != nil {
-				return fmt.Errorf("download error: %w", err)
-			}
-			return nil
-		}
-	}
-}
-
-// GetBatch downloads multiple files concurrently using grab's batch feature.
-// This is useful for downloading multiple files at once.
-//
-// Returns a channel that receives responses for each download as they complete.
-// The channel is closed when all downloads are complete.
-func GetBatch(workers int, destDir string, urls ...string) (<-chan *grab.Response, error) {
-	if workers <= 0 {
-		workers = 3 // Default to 3 concurrent downloads
-	}
-
-	return grab.GetBatch(workers, destDir, urls...)
 }

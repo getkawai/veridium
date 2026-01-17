@@ -10,6 +10,7 @@ import (
 	"github.com/kawai-network/veridium/pkg/fantasy"
 	"github.com/kawai-network/veridium/pkg/fantasy/llamalib"
 	"github.com/kawai-network/veridium/pkg/fantasy/llamalib/llama"
+	"github.com/kawai-network/veridium/pkg/fantasy/llamalib/message"
 	"github.com/kawai-network/veridium/pkg/fantasy/llamalib/template"
 	"github.com/kawai-network/veridium/pkg/fantasy/tools"
 )
@@ -173,8 +174,8 @@ func (l *languageModel) StreamObject(ctx context.Context, call fantasy.ObjectCal
 
 // preparePrompt converts fantasy.Call to a formatted prompt string
 func (l *languageModel) preparePrompt(call fantasy.Call) (string, error) {
-	// Convert fantasy.Prompt to template-compatible messages
-	messages := l.convertToTemplateMessages(call.Prompt)
+	// Start with original fantasy messages
+	messages := call.Prompt
 
 	// Enhance with tools if available and ToolChoice is not "none"
 	// ToolChoiceNone disables all tools (useful for title/summary generation)
@@ -186,15 +187,18 @@ func (l *languageModel) preparePrompt(call fantasy.Call) (string, error) {
 		messages = l.enhanceWithTools(messages, call.Tools)
 	}
 
+	// Convert fantasy.Prompt to template-compatible messages
+	templateMessages := l.convertToTemplateMessages(messages)
+
 	// Get chat template
 	chatTemplate := l.getChatTemplate()
 
 	// Apply chat template
-	prompt, err := template.Apply(chatTemplate, messages, true)
+	prompt, err := template.Apply(chatTemplate, templateMessages, true)
 	if err != nil {
 		log.Printf("⚠️  Failed to apply model template: %v. Falling back to universal ChatML template.", err)
 		// Fallback to universal ChatML template which is gonja-compatible
-		prompt, err = template.Apply(llamalib.ChatMLToolTemplate, messages, true)
+		prompt, err = template.Apply(llamalib.ChatMLToolTemplate, templateMessages, true)
 		if err != nil {
 			return "", fmt.Errorf("failed to apply both model and fallback templates: %w", err)
 		}
@@ -203,10 +207,82 @@ func (l *languageModel) preparePrompt(call fantasy.Call) (string, error) {
 	return prompt, nil
 }
 
-// convertToTemplateMessages converts fantasy.Prompt to the format expected by template.Apply
-func (l *languageModel) convertToTemplateMessages(prompt fantasy.Prompt) fantasy.Prompt {
-	// fantasy.Prompt is already []fantasy.Message, which is compatible with template.Apply
-	return prompt
+// convertToTemplateMessages converts fantasy.Prompt to []message.Message for template.Apply
+func (l *languageModel) convertToTemplateMessages(prompt fantasy.Prompt) []message.Message {
+	result := make([]message.Message, 0, len(prompt))
+
+	// Build a map of tool call IDs to tool names for resolving tool responses
+	toolCallIDToName := make(map[string]string)
+
+	for _, msg := range prompt {
+		// Check if message contains tool calls (assistant with tool calls)
+		var toolCalls []message.ToolCall
+		var textContent string
+		var toolResultName string
+		var toolResultContent string
+
+		for _, part := range msg.Content {
+			switch p := part.(type) {
+			case fantasy.TextPart:
+				textContent += p.Text
+			case fantasy.ToolCallPart:
+				// Convert fantasy.ToolCallPart to message.ToolCall
+				// Parse the Input JSON string to map[string]string
+				args := map[string]string{
+					"json": p.Input,
+				}
+				toolCalls = append(toolCalls, message.ToolCall{
+					Type: "function",
+					Function: message.ToolFunction{
+						Name:      p.ToolName,
+						Arguments: args,
+					},
+				})
+				// Store mapping for later tool response resolution
+				toolCallIDToName[p.ToolCallID] = p.ToolName
+			case fantasy.ToolResultPart:
+				// Extract tool result information
+				if output, ok := p.Output.(fantasy.ToolResultOutputContentText); ok {
+					toolResultContent = output.Text
+				}
+				// Look up the tool name from the tool call ID
+				if name, ok := toolCallIDToName[p.ToolCallID]; ok {
+					toolResultName = name
+				}
+			}
+		}
+
+		// Create appropriate message type based on content
+		if len(toolCalls) > 0 {
+			// Assistant message with tool calls
+			// If there's also text content, emit it as a separate Chat message first
+			if textContent != "" {
+				result = append(result, message.Chat{
+					Role:    string(msg.Role),
+					Content: textContent,
+				})
+			}
+			result = append(result, message.Tool{
+				Role:      string(msg.Role),
+				ToolCalls: toolCalls,
+			})
+		} else if msg.Role == fantasy.MessageRoleTool {
+			// Tool response message
+			result = append(result, message.ToolResponse{
+				Role:    string(msg.Role),
+				Name:    toolResultName,
+				Content: toolResultContent,
+			})
+		} else {
+			// Regular text message (system, user, assistant)
+			result = append(result, message.Chat{
+				Role:    string(msg.Role),
+				Content: textContent,
+			})
+		}
+	}
+
+	return result
 }
 
 // enhanceWithTools adds tool definitions to the prompt

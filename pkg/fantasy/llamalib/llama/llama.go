@@ -130,7 +130,8 @@ const (
 	RopeScalingTypeNone        RopeScalingType = 0
 	RopeScalingTypeLinear      RopeScalingType = 1
 	RopeScalingTypeYARN        RopeScalingType = 2
-	RopeScalingTypeLongROPE    RopeScalingType = 4
+	RopeScalingTypeLongROPE    RopeScalingType = 3
+	RopeScalingTypeMaxValue    RopeScalingType = RopeScalingTypeLongROPE
 )
 
 type PoolingType int32
@@ -147,8 +148,9 @@ const (
 type AttentionType int32
 
 const (
-	AttentionTypeCausal    AttentionType = 0
-	AttentionTypeNonCausal AttentionType = 1
+	AttentionTypeUnspecified AttentionType = -1
+	AttentionTypeCausal      AttentionType = 0
+	AttentionTypeNonCausal   AttentionType = 1
 )
 
 type FlashAttentionType int32
@@ -162,9 +164,9 @@ const (
 type SplitMode int32
 
 const (
-	SplitModeNone  SplitMode = 0
-	SplitModeLayer SplitMode = 1
-	SplitModeRow   SplitMode = 2
+	SplitModeNone  SplitMode = 0 // single GPU
+	SplitModeLayer SplitMode = 1 // split layers and KV across GPUs
+	SplitModeRow   SplitMode = 2 // split layers and KV across GPUs, use tensor parallelism if supported
 )
 
 type GpuBackend int32
@@ -226,6 +228,23 @@ const (
 	LogLevelContinue LogLevel = 5
 )
 
+type ModelMetaKey int32
+
+const (
+	ModelMetaKeySamplingSequence ModelMetaKey = iota
+	ModelMetaKeySamplingTopK
+	ModelMetaKeySamplingTopP
+	ModelMetaKeySamplingMinP
+	ModelMetaKeySamplingXTCProb
+	ModelMetaKeySamplingXTCThold
+	ModelMetaKeySamplingTemp
+	ModelMetaKeySamplingPenaltyLastN
+	ModelMetaKeySamplingPenaltyRepeat
+	ModelMetaKeySamplingMirostat
+	ModelMetaKeySamplingMirostatTau
+	ModelMetaKeySamplingMirostatEta
+)
+
 // Opaque types (represented as pointers)
 type (
 	Model       uintptr
@@ -272,7 +291,7 @@ type TensorBuftOverride struct {
 // return false from callback to abort model loading or true to continue
 type ProgressCallback func(progress float32, userData uintptr) uint8
 
-// Model parameters
+// ModelParams allows configuration of the model and how it's loaded
 type ModelParams struct {
 	Devices                  uintptr   // ggml_backend_dev_t * - NULL-terminated list of devices
 	TensorBuftOverrides      uintptr   // const struct llama_model_tensor_buft_override *
@@ -285,12 +304,15 @@ type ModelParams struct {
 	KvOverrides              uintptr   // const struct llama_model_kv_override *
 	VocabOnly                uint8     // only load the vocabulary, no weights (bool as uint8)
 	UseMmap                  uint8     // use mmap if possible (bool as uint8)
+	UseDirectIO              uint8     // use direct I/O, takes precedence over use_mmap (bool as uint8)
 	UseMlock                 uint8     // force system to keep model in RAM (bool as uint8)
 	CheckTensors             uint8     // validate model tensor data (bool as uint8)
 	UseExtraBufts            uint8     // use extra buffer types (bool as uint8)
+	NoHost                   uint8     // bypass host buffer allowing extra buffers to be used (bool as uint8)
+	NoAlloc                  uint8     // only load metadata and simulate memory allocations (bool as uint8)
 }
 
-// Context parameters
+// ContextParams controls the parameters available for the model context
 type ContextParams struct {
 	NCtx               uint32             // text context, 0 = from model
 	NBatch             uint32             // logical maximum batch size
@@ -312,8 +334,8 @@ type ContextParams struct {
 	DefragThold        float32            // defragment the KV cache if holes/size > thold
 	CbEval             uintptr            // evaluation callback
 	CbEvalUserData     uintptr            // user data for evaluation callback
-	TypeK              int32              // data type for K cache
-	TypeV              int32              // data type for V cache
+	TypeK              GGMLType           // data type for K cache
+	TypeV              GGMLType           // data type for V cache
 	AbortCallback      uintptr            // abort callback
 	AbortCallbackData  uintptr            // user data for abort callback
 	Embeddings         uint8              // whether to compute and return embeddings (bool as uint8)
@@ -322,14 +344,19 @@ type ContextParams struct {
 	OpOffload          uint8              // offload host tensor operations to device
 	SwaFull            uint8              // use full-size SWA cache (https://github.com/ggml-org/llama.cpp/pull/13194#issuecomment-2868343055)
 	KVUnified          uint8              // use a unified buffer across the input sequences when computing the attentions
+	// [EXPERIMENTAL]
+	// backend sampler chain configuration (make sure the caller keeps the sampler chains alive)
+	// note: the samplers must be sampler chains (i.e. use llama_sampler_chain_init)
+	Samplers  uintptr // llama_sampler_seq_config *
+	NSamplers uint64  // number of sampler chains (size_t)
 }
 
-// Model quantize parameters
+// ModelQuantizeParams defines the parameters for model quantize parameters
 type ModelQuantizeParams struct {
 	NThread              int32 // number of threads to use for quantizing
 	Ftype                Ftype // quantize to this llama_ftype
 	OutputTensorType     int32 // output tensor type
-	TokenEmbeddingType   int32 // itoken embeddings tensor type
+	TokenEmbeddingType   int32 // token embeddings tensor type
 	AllowRequantize      uint8 // allow quantizing non-f32/f16 tensors (bool as uint8)
 	QuantizeOutputTensor uint8 // quantize output.weight (bool as uint8)
 	OnlyCopy             uint8 // only copy tensors - ftype, allow_requantize and quantize_output_tensor are ignored

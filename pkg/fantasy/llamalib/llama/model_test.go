@@ -69,6 +69,25 @@ func TestModelNEmbdInp(t *testing.T) {
 	}
 }
 
+func TestModelNEmbdOut(t *testing.T) {
+	modelFile := testModelFileName(t)
+
+	testSetup(t)
+	defer testCleanup(t)
+
+	model, err := ModelLoadFromFile(modelFile, ModelDefaultParams())
+	if err != nil {
+		t.Fatalf("ModelLoadFromFile failed: %v", err)
+	}
+	defer ModelFree(model)
+
+	nEmbdOut := ModelNEmbdOut(model)
+	if nEmbdOut <= 0 {
+		t.Fatal("ModelNEmbdOut returned an invalid value")
+	}
+	t.Logf("ModelNEmbdOut returned: %d", nEmbdOut)
+}
+
 func TestModelNLayer(t *testing.T) {
 	modelFile := testModelFileName(t)
 
@@ -387,6 +406,23 @@ func TestModelMetaValStr(t *testing.T) {
 	t.Logf("ModelMetaValStr returned: %s", val)
 }
 
+func TestModelMetaKeyStr(t *testing.T) {
+	// Try a few likely valid and invalid keys
+	invalidKey := ModelMetaKey(-12345)
+
+	s := ModelMetaKeyStr(ModelMetaKeySamplingTopK)
+	if s == "" {
+		t.Log("ModelMetaKeyStr returned empty string for valid key (may be expected if no keys defined at 0)")
+	} else {
+		t.Logf("ModelMetaKeyStr(%d) returned: %q", ModelMetaKeySamplingTopK, s)
+	}
+
+	s = ModelMetaKeyStr(invalidKey)
+	if s != "" {
+		t.Fatalf("ModelMetaKeyStr should return empty string for invalid key, got: %q", s)
+	}
+}
+
 func TestModelLoadCallback(t *testing.T) {
 	modelFile := testModelFileName(t)
 	testSetup(t)
@@ -474,4 +510,37 @@ func TestModelChatTemplate(t *testing.T) {
 		t.Fatal("ModelChatTemplate returned an empty string")
 	}
 	t.Logf("ModelChatTemplate returned: %s", template)
+}
+
+func TestModelLoadFromSplitsInvalid(t *testing.T) {
+	testSetup(t)
+	defer testCleanup(t)
+
+	params := ModelDefaultParams()
+	paths := []string{"invalid_split1.gguf", "invalid_split2.gguf"}
+	model, err := ModelLoadFromSplits(paths, params)
+	if err == nil {
+		t.Fatal("ModelLoadFromSplits should have failed for invalid files")
+	}
+	if model != 0 {
+		t.Fatal("ModelLoadFromSplits should have failed for invalid files")
+	}
+}
+
+func TestModelLoadFromSplitsValid(t *testing.T) {
+	testSplitModelFileNames := testSplitModelFileNames(t)
+
+	testSetup(t)
+	defer testCleanup(t)
+
+	params := ModelDefaultParams()
+	model, err := ModelLoadFromSplits(testSplitModelFileNames, params)
+	if err != nil {
+		t.Fatalf("ModelLoadFromSplits failed: %v", err)
+	}
+	defer ModelFree(model)
+
+	if model == 0 {
+		t.Fatal("ModelLoadFromSplits failed to load model")
+	}
 }

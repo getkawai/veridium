@@ -1,7 +1,6 @@
 package llama
 
 import (
-	"math"
 	"unsafe"
 
 	"github.com/jupiterrider/ffi"
@@ -28,6 +27,7 @@ const (
 type Sampler uintptr
 
 var (
+	// FFITypeSamplerChainParams represents the C struct llama_sampler_chain_params
 	FFISamplerChainParams = ffi.NewType(&ffi.TypePointer)
 )
 
@@ -104,7 +104,7 @@ var (
 	// LLAMA_API void  llama_sampler_accept(struct llama_sampler * smpl, llama_token token);
 	samplerAcceptFunc ffi.Fun
 
-	// LLAMA_API void lama_sampler_free  (struct llama_sampler * smpl);
+	// LLAMA_API void llama_sampler_free  (struct llama_sampler * smpl);
 	samplerFreeFunc ffi.Fun
 
 	// LLAMA_API void llama_sampler_reset (struct llama_sampler * smpl);
@@ -142,8 +142,8 @@ func loadSamplingFuncs(lib ffi.Lib) error {
 		return loadError("llama_sampler_init_penalties", err)
 	}
 
-	if samplerInitDryFunc, err = lib.Prep("llama_sampler_init_dry", &ffi.TypePointer, &ffi.TypeSint32, &ffi.TypeFloat, &ffi.TypeFloat,
-		&ffi.TypeSint32, &ffi.TypeSint32, &ffi.TypePointer, &ffi.TypeUint32); err != nil {
+	if samplerInitDryFunc, err = lib.Prep("llama_sampler_init_dry", &ffi.TypePointer, &ffi.TypePointer, &ffi.TypeSint32, &ffi.TypeFloat, &ffi.TypeFloat,
+		&ffi.TypeSint32, &ffi.TypeSint32, &ffi.TypePointer, &ffi.TypeUint64); err != nil {
 
 		return loadError("llama_sampler_init_dry", err)
 	}
@@ -164,8 +164,8 @@ func loadSamplingFuncs(lib ffi.Lib) error {
 		return loadError("llama_sampler_init_top_p", err)
 	}
 
-	if samplerInitMinPFunc, err = lib.Prep("llama_sampler_init_top_p", &ffi.TypePointer, &ffi.TypeFloat, &ffi.TypeUint32); err != nil {
-		return loadError("llama_sampler_init_top_p", err)
+	if samplerInitMinPFunc, err = lib.Prep("llama_sampler_init_min_p", &ffi.TypePointer, &ffi.TypeFloat, &ffi.TypeUint32); err != nil {
+		return loadError("llama_sampler_init_min_p", err)
 	}
 
 	if samplerInitXTCFunc, err = lib.Prep("llama_sampler_init_xtc", &ffi.TypePointer, &ffi.TypeFloat, &ffi.TypeFloat, &ffi.TypeUint32, &ffi.TypeUint32); err != nil {
@@ -257,10 +257,10 @@ func SamplerInitPenalties(lastN int32, repeat float32, freq float32, present flo
 
 // SamplerInitDry initializes a new DRY sampler.
 func SamplerInitDry(vocab Vocab, nCtxTrain int32, multiplier float32, base float32, allowedLength int32, penaltyLast int32,
-	seqBreakers **byte, numBreakers uint32) Sampler {
+	seqBreakers **byte, numBreakers uint64) Sampler {
 	var p Sampler
-	samplerInitDryFunc.Call(unsafe.Pointer(&p), unsafe.Pointer(&nCtxTrain), unsafe.Pointer(&multiplier), unsafe.Pointer(&base), unsafe.Pointer(&allowedLength), unsafe.Pointer(&penaltyLast),
-		unsafe.Pointer(seqBreakers), unsafe.Pointer(&numBreakers))
+	samplerInitDryFunc.Call(unsafe.Pointer(&p), unsafe.Pointer(&vocab), unsafe.Pointer(&nCtxTrain), unsafe.Pointer(&multiplier), unsafe.Pointer(&base), unsafe.Pointer(&allowedLength), unsafe.Pointer(&penaltyLast),
+		unsafe.Pointer(&seqBreakers), unsafe.Pointer(&numBreakers))
 
 	return p
 }
@@ -402,19 +402,20 @@ func NewSampler(model Model, samplers []SamplerType, params *SamplerParams) Samp
 
 	sampler = SamplerChainInit(SamplerChainDefaultParams())
 
+	// add EOG logit bias to prevent generating EOG tokens
+	logitBiasEOG := make([]LogitBias, 0)
+	for i := int32(0); i < nTokens; i++ {
+		token := Token(i)
+		if VocabIsEOG(vocab, token) {
+			// Use large negative bias to suppress EOG tokens
+			logitBiasEOG = append(logitBiasEOG, LogitBias{Token: token, Bias: -1e9})
+		}
+	}
+
 	// add other samplers
-	for samplerType := range samplers {
+	for _, samplerType := range samplers {
 		switch samplerType {
 		case SamplerTypeLogitBias:
-			// add EOG logit bias to prevent generating EOG tokens
-			logitBiasEOG := make([]LogitBias, 0)
-			for i := int32(0); i < nTokens; i++ {
-				token := Token(i)
-				if VocabIsEOG(vocab, token) {
-					logitBiasEOG = append(logitBiasEOG, LogitBias{Token: token, Bias: math.SmallestNonzeroFloat32})
-				}
-			}
-
 			bias := SamplerInitLogitBias(nTokens, int32(len(logitBiasEOG)), unsafe.SliceData(logitBiasEOG))
 			SamplerChainAdd(sampler, bias)
 
@@ -429,7 +430,7 @@ func NewSampler(model Model, samplers []SamplerType, params *SamplerParams) Samp
 			}
 			seqBreakersPtr := unsafe.SliceData(combined)
 
-			dry := SamplerInitDry(vocab, ModelNCtxTrain(model), params.DryMultiplier, params.DryBase, params.DryAllowedLength, params.DryPenaltyLastN, seqBreakersPtr, uint32(len(params.DrySequenceBreakers)))
+			dry := SamplerInitDry(vocab, ModelNCtxTrain(model), params.DryMultiplier, params.DryBase, params.DryAllowedLength, params.DryPenaltyLastN, seqBreakersPtr, uint64(len(params.DrySequenceBreakers)))
 			SamplerChainAdd(sampler, dry)
 
 		case SamplerTypeTopK:

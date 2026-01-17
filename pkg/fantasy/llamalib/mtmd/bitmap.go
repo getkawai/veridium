@@ -4,8 +4,8 @@ import (
 	"os"
 	"unsafe"
 
-	"github.com/jupiterrider/ffi"
 	"github.com/kawai-network/veridium/pkg/fantasy/llamalib/utils"
+	"github.com/jupiterrider/ffi"
 )
 
 // Opaque types (represented as pointers)

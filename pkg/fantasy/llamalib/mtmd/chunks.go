@@ -3,12 +3,12 @@ package mtmd
 import (
 	"unsafe"
 
-	"github.com/jupiterrider/ffi"
 	"github.com/kawai-network/veridium/pkg/fantasy/llamalib/llama"
 	"github.com/kawai-network/veridium/pkg/fantasy/llamalib/utils"
+	"github.com/jupiterrider/ffi"
 )
 
-// enum mtmd_input_chunk_type
+// InputChunks represents the type of mtmd_input_chunks
 type InputChunkType int32
 
 const (
