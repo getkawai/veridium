@@ -751,7 +751,7 @@ const DesktopWalletLayout = memo(() => {
           </div>
           <div style={{ background: theme.colorFillTertiary, padding: 16, borderRadius: 12, width: '100%' }}>
             <p style={{ color: theme.colorTextSecondary, fontSize: 12, marginBottom: 8, textAlign: 'center' }}>
-              Your Wallet Address (Monad Testnet)
+              Your Wallet Address ({currentNetwork?.name || 'Not Connected'})
             </p>
             <Flexbox gap={10} align="center" justify="center">
               <span style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: 12 }}>
@@ -900,6 +900,22 @@ const SendForm = ({ onSend, loading, currentNetwork }: { onSend: (to: string, va
 
   return (
     <Form form={form} layout="vertical" onFinish={handleFinish} initialValues={{ asset: 'usdt' }}>
+      {currentNetwork && currentNetwork.id !== DEFAULT_CHAIN_ID && (
+        <div
+          style={{
+            padding: 10,
+            borderRadius: 8,
+            marginBottom: 12,
+            background: theme.colorInfoBg,
+            border: `1px solid ${theme.colorBorderSecondary}`,
+            color: theme.colorTextSecondary,
+            fontSize: 12,
+            textAlign: 'center'
+          }}
+        >
+          Note: Transactions execute on Monad Testnet. Network switch affects displayed data only.
+        </div>
+      )}
       <Form.Item label="Asset" name="asset">
         <Select
           options={assetOptions}
@@ -1038,7 +1054,7 @@ const AddTokenModal = memo<{ currentNetwork: NetworkInfo | null; onClose: () => 
         fontSize: 12,
         color: theme.colorTextSecondary
       }}>
-        <strong>Note:</strong> These are the official project tokens deployed on Monad Testnet.
+        <strong>Note:</strong> These are the official project tokens for {currentNetwork?.name || 'the current network'}.
         Custom token import is not supported yet.
       </div>
 

@@ -37,7 +37,7 @@ export
 PRIVATE_KEY ?= 
 RPC_URL ?= https://testnet-rpc.monad.xyz
 CONTRACT_ADDRESS ?=
-ETHERSCAN_API_KEY ?= MKB28KJN1TJKRPA4EYVXXBWYUYDX6P5ESF
+ETHERSCAN_API_KEY ?=
 CHAIN_ID ?= 10143
 
 # ==============================================================================
