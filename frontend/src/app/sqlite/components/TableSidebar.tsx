@@ -67,6 +67,11 @@ export const useStyles = createStyles(({ css, token }) => ({
   rowCount: css`
     font-size: 12px;
   `,
+  privacySubtitle: css`
+    font-size: 12px;
+    color: ${token.colorSuccessText};
+    margin-top: 4px;
+  `,
 }));
 
 interface TableSidebarProps {
@@ -187,9 +192,14 @@ const TableSidebar = memo<TableSidebarProps>(({ selectedTable, onTableSelect }) 
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <Typography.Title level={4} style={{ margin: 0 }}>
-          Database Tables
-        </Typography.Title>
+        <div>
+          <Typography.Title level={4} style={{ margin: 0 }}>
+            Database Tables
+          </Typography.Title>
+          <div className={styles.privacySubtitle}>
+            🔒 <Text>Local Database • Privacy First</Text>
+          </div>
+        </div>
         <Text type="secondary">{tables.length} tables found</Text>
       </div>
 

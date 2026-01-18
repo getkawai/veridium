@@ -2,6 +2,18 @@
 
 SQLite Viewer adalah aplikasi untuk melihat dan mengelola database SQLite `data/veridium.db` dengan antarmuka yang user-friendly.
 
+## 🔒 Privacy Commitment
+
+### Own Your Data, Command Your AI
+
+Fitur SQLite Viewer adalah komitmen Kawai untuk menyediakan **Local AI** yang menghargai privasi pengguna. Semua operasi database dilakukan secara **lokal** di komputer Anda:
+
+- ✅ **Data tetap di lokal** - Database SQLite disimpan lokal, tidak dikirim ke server eksternal
+- ✅ **No cloud dependency** - Query dan manipulasi data berjalan sepenuhnya offline
+- ✅ **Full control** - Anda memiliki akses penuh dan kontrol atas semua data Anda
+- ✅ **Privacy-first** - Tidak ada tracking atau sharing data tanpa persetujuan. Debug logging (console.log) hanya ada di browser console untuk development/debugging saja, tidak ada transmisi eksternal atau telemetry. Query history disimpan lokal (localStorage) saja.
+- ✅ **Sovereign computing** - AI Anda bekerja dengan data yang sepenuhnya Anda miliki
+
 ## Fitur
 
 ### 🗂️ Table Browser

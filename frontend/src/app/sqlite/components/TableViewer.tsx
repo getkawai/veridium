@@ -42,6 +42,11 @@ export const useStyles = createStyles(({ css, token }) => ({
     align-items: center;
     justify-content: center;
   `,
+  privacySubtitle: css`
+    font-size: 12px;
+    color: ${token.colorSuccessText};
+    margin-top: 4px;
+  `,
 }));
 
 interface TableViewerProps {
@@ -83,9 +88,14 @@ const TableViewer = memo<TableViewerProps>(({ selectedTable }) => {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <Title level={3} style={{ margin: 0 }}>
-          {selectedTable}
-        </Title>
+        <div>
+          <Title level={3} style={{ margin: 0 }}>
+            {selectedTable}
+          </Title>
+          <div className={styles.privacySubtitle}>
+            🔒 "Own Your Data, Command Your AI" • 100% Local
+          </div>
+        </div>
       </div>
 
       <div className={styles.content}>
