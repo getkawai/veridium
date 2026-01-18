@@ -70,8 +70,6 @@ export class GroupChatSupervisor {
       const response = await this.callLLMForDecision(context);
       const result = this.parseSupervisorResponse(response, availableAgents, context);
 
-      console.log('Supervisor TODO list:', result.todos);
-
       return result;
     } catch (error) {
       // Re-throw the error so it can be caught and displayed to the user via toast
@@ -109,8 +107,6 @@ export class GroupChatSupervisor {
         usage: { completionTokens: 0, promptTokens: 0, totalTokens: 0 },
         performance: { tps: 0, ttft: 0, duration: 0 },
       };
-
-      console.log('SUPERVISOR RESPONSE', JSON.stringify(response, null, 2));
 
       // Parse the response to SupervisorToolCall[]
       if (Array.isArray(response)) {

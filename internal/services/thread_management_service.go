@@ -171,10 +171,6 @@ func (s *ThreadManagementService) ListThreadsByTopic(ctx context.Context, req Li
 		return nil, fmt.Errorf("topic_id is required")
 	}
 
-	if req.TopicID == "" {
-		return nil, fmt.Errorf("topic_id is required")
-	}
-
 	threads, err := s.db.Queries().ListThreadsByTopic(ctx, req.TopicID)
 
 	if err != nil {
