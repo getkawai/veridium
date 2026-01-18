@@ -51,7 +51,7 @@ func main() {
 	ctx := context.Background()
 
 	// Get private key
-	privateKeyHex := constant.GetObfuscatedTemp()
+	privateKeyHex := constant.GetAdminPrivateKey()
 	if privateKeyHex == "" {
 		log.Fatal("Private key not found in constants")
 	}

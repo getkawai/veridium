@@ -353,7 +353,7 @@ func (rs *RevenueSettlement) WithdrawToDistributor(ctx context.Context, amount *
 	log.Printf("💸 [REVENUE SETTLEMENT] Withdrawing %s USDT to USDT_Distributor", amount.String())
 
 	// Get private key
-	privateKeyHex := constant.GetObfuscatedTemp()
+	privateKeyHex := constant.GetAdminPrivateKey()
 	// Remove 0x prefix if present
 	if len(privateKeyHex) >= 2 && privateKeyHex[:2] == "0x" {
 		privateKeyHex = privateKeyHex[2:]
@@ -408,7 +408,7 @@ func (rs *RevenueSettlement) UploadMerkleRoot(ctx context.Context, merkleRoot [3
 	log.Printf("🌳 [REVENUE SETTLEMENT] Uploading Merkle root: 0x%x", merkleRoot)
 
 	// Get private key
-	privateKeyHex := constant.GetObfuscatedTemp()
+	privateKeyHex := constant.GetAdminPrivateKey()
 	// Remove 0x prefix if present
 	if len(privateKeyHex) >= 2 && privateKeyHex[:2] == "0x" {
 		privateKeyHex = privateKeyHex[2:]

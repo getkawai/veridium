@@ -38,7 +38,7 @@ func main() {
 	}
 
 	// Get private key from obfuscated constant
-	privateKey := constant.GetObfuscatedTemp()
+	privateKey := constant.GetAdminPrivateKey()
 
 	// Remove 0x prefix if present
 	if len(privateKey) > 2 && privateKey[:2] == "0x" {

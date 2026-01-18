@@ -33,7 +33,7 @@ func main() {
 	}
 
 	// Get private key from temp.go
-	privateKeyHex := constant.GetObfuscatedTemp()
+	privateKeyHex := constant.GetAdminPrivateKey()
 	// Strip 0x prefix if present
 	if len(privateKeyHex) > 2 && privateKeyHex[:2] == "0x" {
 		privateKeyHex = privateKeyHex[2:]

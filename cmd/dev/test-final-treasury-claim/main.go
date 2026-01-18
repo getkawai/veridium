@@ -146,7 +146,7 @@ func testFinalTreasuryClaim() error {
 	}
 
 	// Get private key for signing (treasury private key)
-	privateKeyHex := constant.GetObfuscatedTemp()
+	privateKeyHex := constant.GetAdminPrivateKey()
 	if privateKeyHex[:2] == "0x" {
 		privateKeyHex = privateKeyHex[2:]
 	}

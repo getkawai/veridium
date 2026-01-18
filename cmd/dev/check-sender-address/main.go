@@ -22,7 +22,7 @@ func checkSenderAddress() error {
 	fmt.Println()
 
 	// Get private key
-	privateKeyHex := constant.GetObfuscatedTemp()
+	privateKeyHex := constant.GetAdminPrivateKey()
 	if strings.HasPrefix(privateKeyHex, "0x") {
 		privateKeyHex = privateKeyHex[2:]
 	}

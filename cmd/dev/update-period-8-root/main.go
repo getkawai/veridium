@@ -79,7 +79,7 @@ func updatePeriod8Root() error {
 	fmt.Println()
 
 	// Get private key and setup auth
-	privateKeyHex := constant.GetObfuscatedTemp()
+	privateKeyHex := constant.GetAdminPrivateKey()
 	if strings.HasPrefix(privateKeyHex, "0x") {
 		privateKeyHex = privateKeyHex[2:]
 	}

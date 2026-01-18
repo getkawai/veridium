@@ -173,7 +173,7 @@ func testFixedMiningClaim() error {
 	}
 
 	// Get private key for signing
-	privateKeyHex := constant.GetObfuscatedTemp()
+	privateKeyHex := constant.GetAdminPrivateKey()
 	if privateKeyHex[:2] == "0x" {
 		privateKeyHex = privateKeyHex[2:]
 	}

@@ -40,7 +40,7 @@ func main() {
 	fmt.Printf("  %s\n\n", tokenAddr.Hex())
 
 	// Get private key
-	privateKeyHex := constant.GetObfuscatedTemp()
+	privateKeyHex := constant.GetAdminPrivateKey()
 	// Remove 0x prefix if present
 	if len(privateKeyHex) >= 2 && privateKeyHex[:2] == "0x" {
 		privateKeyHex = privateKeyHex[2:]

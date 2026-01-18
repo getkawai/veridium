@@ -187,7 +187,7 @@ func generateCashbackSettlement(ctx context.Context, kv *store.KVStore) error {
 	alerter.SendAlert("INFO", "Settlement", "🔄 Starting cashback settlement...")
 
 	// Initialize cashback settlement
-	settlement, err := blockchain.NewCashbackSettlement(kv, constant.GetObfuscatedTemp())
+	settlement, err := blockchain.NewCashbackSettlement(kv, constant.GetAdminPrivateKey())
 	if err != nil {
 		alerter.SendAlert("ERROR", "Settlement",
 			fmt.Sprintf("❌ Cashback settlement init failed!\nError: %v", err))
@@ -264,7 +264,7 @@ func generateReferralSettlement(ctx context.Context, kv *store.KVStore) error {
 	log.Println("")
 
 	// Initialize referral settlement
-	settlement := blockchain.NewReferralSettlement(kv, constant.GetObfuscatedTemp())
+	settlement := blockchain.NewReferralSettlement(kv, constant.GetAdminPrivateKey())
 
 	// Run settlement
 	if err := settlement.SettleReferral(ctx, settlementPeriod); err != nil {
@@ -343,7 +343,7 @@ func uploadMiningRoot(ctx context.Context, kv store.Store) error {
 	}
 
 	// Get private key
-	privateKeyHex := constant.GetObfuscatedTemp()
+	privateKeyHex := constant.GetAdminPrivateKey()
 	if strings.HasPrefix(privateKeyHex, "0x") {
 		privateKeyHex = privateKeyHex[2:]
 	}
@@ -513,7 +513,7 @@ func uploadCashbackRoot(ctx context.Context, kv *store.KVStore) error {
 	}
 
 	// 4. Setup Transactor
-	privateKeyHex := constant.GetObfuscatedTemp()
+	privateKeyHex := constant.GetAdminPrivateKey()
 	if strings.HasPrefix(privateKeyHex, "0x") {
 		privateKeyHex = privateKeyHex[2:]
 	}
@@ -669,7 +669,7 @@ func uploadReferralRoot(ctx context.Context, kv *store.KVStore) error {
 	}
 
 	// 5. Setup Transactor
-	privateKeyHex := constant.GetObfuscatedTemp()
+	privateKeyHex := constant.GetAdminPrivateKey()
 	if strings.HasPrefix(privateKeyHex, "0x") {
 		privateKeyHex = privateKeyHex[2:]
 	}
