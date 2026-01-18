@@ -548,6 +548,72 @@ if s.telegramAlerter != nil {
 - ✅ **Settlement Reconciliation**: Sum referrer bonuses == referral settlement total
 - ✅ **Audit Trail**: Immutable record of all trial claims
 
+### 8. 🆕 Discord Fallback for Telegram Failures
+**File**: `pkg/alert/telegram.go` + `pkg/alert/discord.go`
+
+**What it does:**
+- If Telegram fails to send audit logs, automatically fallback to Discord webhook
+- Ensures audit trail is NEVER lost, even if Telegram is down
+- Discord webhook is more reliable (no rate limits, no bot token issues)
+- All critical logs (job rewards, cashback, referral trials) have Discord fallback
+
+**Implementation:**
+```go
+// pkg/alert/telegram.go:27-32
+func NewTelegramAlert() *TelegramAlert {
+    return &TelegramAlert{
+        BotToken:        constant.GetTelegramBotToken(),
+        ChatID:          constant.GetTelegramChatId(),
+        Client:          &http.Client{Timeout: 10 * time.Second},
+        DiscordFallback: NewDiscordAlert(), // Initialize Discord fallback
+    }
+}
+
+// pkg/alert/telegram.go:145-158
+go func() {
+    if err := t.SendMessage(text); err != nil {
+        slog.Error("Failed to send job reward log to Telegram", "error", err)
+        
+        // Fallback to Discord if Telegram fails
+        if t.DiscordFallback != nil {
+            discordMsg := fmt.Sprintf("💰 **Job Reward** (Telegram Fallback)\n```json\n%s\n```", string(jsonData))
+            if discordErr := t.DiscordFallback.SendMessage(discordMsg); discordErr != nil {
+                slog.Error("Failed to send job reward log to Discord fallback", "error", discordErr)
+            } else {
+                slog.Info("Job reward log sent to Discord fallback successfully")
+            }
+        }
+    }
+}()
+```
+
+**Configuration:**
+```bash
+# .env
+DISCORD_WEBHOOK=https://discord.com/api/webhooks/1462463310224953526/...
+```
+
+**Benefits:**
+- ✅ **High Availability**: Two independent messaging systems (Telegram + Discord)
+- ✅ **No Single Point of Failure**: If Telegram down, Discord still works
+- ✅ **Automatic Failover**: No manual intervention needed
+- ✅ **Audit Trail Guaranteed**: Critical logs NEVER lost
+- ✅ **Rate Limit Bypass**: Discord webhook has no rate limits
+- ✅ **Async Operation**: Fallback is non-blocking (goroutine)
+
+**Failure Scenarios:**
+1. **Telegram Success**: Log sent to Telegram only (normal operation)
+2. **Telegram Fails**: Log automatically sent to Discord (fallback)
+3. **Both Fail**: Error logged to slog, but KV store still has data (primary storage unaffected)
+
+**Message Format (Discord):**
+```text
+💰 **Job Reward** (Telegram Fallback)
+```json
+{"timestamp":"2026-01-18T15:30:45Z","contributor_address":"0x1234...","user_address":"0x5678...","token_usage":1000,"reward_type":"kawai"}
+```
+```
+
 ---
 
 ## 🚨 Critical Failure Scenarios

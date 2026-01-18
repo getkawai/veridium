@@ -14,17 +14,19 @@ import (
 )
 
 type TelegramAlert struct {
-	BotToken string
-	ChatID   string
-	Client   *http.Client
+	BotToken        string
+	ChatID          string
+	Client          *http.Client
+	DiscordFallback *DiscordAlert // Fallback to Discord if Telegram fails
 }
 
-// NewTelegramAlert creates a new alert service
+// NewTelegramAlert creates a new alert service with Discord fallback
 func NewTelegramAlert() *TelegramAlert {
 	return &TelegramAlert{
-		BotToken: constant.GetTelegramBotToken(),
-		ChatID:   constant.GetTelegramChatId(),
-		Client:   &http.Client{Timeout: 10 * time.Second},
+		BotToken:        constant.GetTelegramBotToken(),
+		ChatID:          constant.GetTelegramChatId(),
+		Client:          &http.Client{Timeout: 10 * time.Second},
+		DiscordFallback: NewDiscordAlert(), // Initialize Discord fallback
 	}
 }
 
@@ -95,6 +97,11 @@ func (t *TelegramAlert) SendAlert(level, source, message string) {
 	go func() {
 		if err := t.SendMessage(text); err != nil {
 			slog.Error("Failed to send telegram alert", "error", err)
+
+			// Fallback to Discord if Telegram fails
+			if t.DiscordFallback != nil {
+				t.DiscordFallback.SendAlert(level, source, message)
+			}
 		}
 	}()
 }
@@ -142,6 +149,16 @@ func (t *TelegramAlert) SendJobRewardLog(record *types.JobRewardRecord) {
 	go func() {
 		if err := t.SendMessage(text); err != nil {
 			slog.Error("Failed to send job reward log to Telegram", "error", err)
+
+			// Fallback to Discord if Telegram fails
+			if t.DiscordFallback != nil {
+				discordMsg := fmt.Sprintf("💰 **Job Reward** (Telegram Fallback)\n```json\n%s\n```", string(jsonData))
+				if discordErr := t.DiscordFallback.SendMessage(discordMsg); discordErr != nil {
+					slog.Error("Failed to send job reward log to Discord fallback", "error", discordErr)
+				} else {
+					slog.Info("Job reward log sent to Discord fallback successfully")
+				}
+			}
 		}
 	}()
 }
@@ -184,6 +201,16 @@ func (t *TelegramAlert) SendCashbackLog(record *types.CashbackRecord) {
 	go func() {
 		if err := t.SendMessage(text); err != nil {
 			slog.Error("Failed to send cashback log to Telegram", "error", err)
+
+			// Fallback to Discord if Telegram fails
+			if t.DiscordFallback != nil {
+				discordMsg := fmt.Sprintf("💎 **Cashback Tracked** (Telegram Fallback)\n```json\n%s\n```", string(jsonData))
+				if discordErr := t.DiscordFallback.SendMessage(discordMsg); discordErr != nil {
+					slog.Error("Failed to send cashback log to Discord fallback", "error", discordErr)
+				} else {
+					slog.Info("Cashback log sent to Discord fallback successfully")
+				}
+			}
 		}
 	}()
 }
@@ -231,6 +258,16 @@ func (t *TelegramAlert) SendReferralTrialLog(record *types.ReferralTrialRecord) 
 	go func() {
 		if err := t.SendMessage(text); err != nil {
 			slog.Error("Failed to send referral trial log to Telegram", "error", err)
+
+			// Fallback to Discord if Telegram fails
+			if t.DiscordFallback != nil {
+				discordMsg := fmt.Sprintf("🎁 **%s Claimed** (Telegram Fallback)\n```json\n%s\n```", claimType, string(jsonData))
+				if discordErr := t.DiscordFallback.SendMessage(discordMsg); discordErr != nil {
+					slog.Error("Failed to send referral trial log to Discord fallback", "error", discordErr)
+				} else {
+					slog.Info("Referral trial log sent to Discord fallback successfully")
+				}
+			}
 		}
 	}()
 }
