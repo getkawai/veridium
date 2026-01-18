@@ -3,6 +3,7 @@
 
 import * as AgentChatService from "./agentchatservice.js";
 import * as CashbackService from "./cashbackservice.js";
+import * as ConfigService from "./configservice.js";
 import * as DeAIService from "./deaiservice.js";
 import * as DepositSyncService from "./depositsyncservice.js";
 import * as FileService from "./fileservice.js";
@@ -16,6 +17,7 @@ import * as WalletService from "./walletservice.js";
 export {
     AgentChatService,
     CashbackService,
+    ConfigService,
     DeAIService,
     DepositSyncService,
     FileService,
@@ -29,6 +31,7 @@ export {
 };
 
 export {
+    BackendConfig,
     BalanceInfo,
     CashbackStatsResponse,
     ChatCompletionMessage,
@@ -44,6 +47,7 @@ export {
     ClaimableCashbackRecord,
     ClaimableReward,
     ClaimableRewardsResponse,
+    ContractAddresses,
     CreateThreadRequest,
     CreateThreadResponse,
     GasEstimate,
@@ -55,6 +59,7 @@ export {
     ModelPerformance,
     ModelReasoning,
     ModelUsage,
+    NetworkEnvironment,
     NetworkInfo,
     Order,
     OrderHistory,

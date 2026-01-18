@@ -1,7 +1,7 @@
 import { Modal, QRCode, App, Button, InputNumber, Form, Input, Empty, Popover, Spin, Tooltip, Select } from 'antd';
 import { memo, useEffect, useState, useCallback } from 'react';
 import { DeAIService, WalletService, JarvisService, DepositSyncService } from '@@/github.com/kawai-network/veridium/internal/services';
-import type { NetworkInfo } from '@@/github.com/kawai-network/veridium/internal/services/models';
+import type { NetworkInfo, BackendConfig } from '@@/github.com/kawai-network/veridium/internal/services/models';
 import { ListWalletTransactions } from '@@/github.com/kawai-network/veridium/internal/database/generated/queries';
 import type { WalletTransaction } from '@@/github.com/kawai-network/veridium/internal/database/generated/models';
 import { useUserStore } from '@/store/user';
@@ -21,7 +21,7 @@ import { Flexbox } from 'react-layout-kit';
 import { createStyles, useTheme } from 'antd-style';
 import { NetworkIcon } from './NetworkIcons';
 import { TokenUSDT } from '@web3icons/react';
-
+import { getBackendNetworkConfig, getTokenListFromBackend } from '@/config/network';
 import Menu from '@/components/Menu';
 import PanelTitle from '@/components/PanelTitle';
 import WalletSidePanel from './WalletSidePanel';
@@ -169,7 +169,8 @@ const MenuContent = memo<{
   styles: any;
   currentNetwork: NetworkInfo | null;
   onNetworkChange: (network: NetworkInfo) => void;
-}>(({ activeMenu, setActiveMenu, styles, currentNetwork, onNetworkChange }) => {
+  backendConfig: BackendConfig | null;
+}>(({ activeMenu, setActiveMenu, styles, currentNetwork, onNetworkChange, backendConfig }) => {
   const menuItems = [
     { key: 'home', icon: <Icon icon={Home} />, label: 'Home' },
     { key: 'otc', icon: <Icon icon={ShoppingCart} />, label: 'OTC Market' },
@@ -191,7 +192,7 @@ const MenuContent = memo<{
       </Flexbox>
       <div style={{ flex: 1 }} />
       <Flexbox padding={12}>
-        <NetworkSwitcher currentNetwork={currentNetwork} onNetworkChange={onNetworkChange} />
+        <NetworkSwitcher currentNetwork={currentNetwork} onNetworkChange={onNetworkChange} backendConfig={backendConfig} />
       </Flexbox>
     </Flexbox>
   );
@@ -200,28 +201,40 @@ const MenuContent = memo<{
 interface NetworkSwitcherProps {
   currentNetwork: NetworkInfo | null;
   onNetworkChange: (network: NetworkInfo) => void;
+  backendConfig: BackendConfig | null;
 }
 
-const NetworkSwitcher = memo<NetworkSwitcherProps>(({ currentNetwork, onNetworkChange }) => {
+const NetworkSwitcher = memo<NetworkSwitcherProps>(({ currentNetwork, onNetworkChange, backendConfig }) => {
   const theme = useTheme();
   const [networks, setNetworks] = useState<NetworkInfo[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadNetworks();
-  }, []);
+  }, [backendConfig]); // Reload when backend config changes
 
   const loadNetworks = async () => {
     try {
       const supportedNetworks = await JarvisService.GetSupportedNetworks();
-      // Sort: testnets first (for development), then mainnets
-      const sorted = supportedNetworks.sort((a, b) => {
-        if (a.isTestnet !== b.isTestnet) return a.isTestnet ? -1 : 1;
-        return a.name.localeCompare(b.name);
-      });
-      setNetworks(sorted);
+      // MVP: Filter based on backend environment
+      if (backendConfig) {
+        // Show only the network that matches backend environment
+        const targetChainId = backendConfig.network.chainId;
+        const monadNetworks = supportedNetworks.filter(n => n.id === targetChainId);
+
+        console.log(`Filtering networks for ${backendConfig.environment}:`, {
+          targetChainId,
+          filtered: monadNetworks.map(n => ({ id: n.id, name: n.name })),
+        });
+
+        setNetworks(monadNetworks);
+      } else {
+        // Show empty state if config not loaded
+        setNetworks([]);
+      }
     } catch (e) {
       console.error('Failed to load networks', e);
+      setNetworks([]);
     } finally {
       setLoading(false);
     }
@@ -242,63 +255,31 @@ const NetworkSwitcher = memo<NetworkSwitcherProps>(({ currentNetwork, onNetworkC
               <Spin size="small" />
             </Flexbox>
           ) : (
-            <>
-              {/* Testnets Section */}
-              <div style={{ padding: '4px 8px', fontSize: 10, color: theme.colorTextQuaternary, marginTop: 8 }}>TESTNETS</div>
-              {networks.filter(n => n.isTestnet).map((network) => (
-                <Flexbox
-                  key={network.id}
-                  horizontal
-                  align="center"
-                  gap={12}
-                  onClick={() => onNetworkChange(network)}
-                  style={{
-                    padding: '8px 12px',
-                    cursor: 'pointer',
-                    borderRadius: 8,
-                    background: currentNetwork?.id === network.id ? theme.colorFillSecondary : 'transparent',
-                    transition: 'background 0.2s'
-                  }}
-                >
-                  <span>
-                    <NetworkIcon name={network.icon || 'ethereum'} size={24} variant="branded" />
-                  </span>
-                  <Flexbox flex={1}>
-                    <span style={{ fontSize: 13, fontWeight: currentNetwork?.id === network.id ? 600 : 400 }}>{network.name}</span>
-                    <span style={{ fontSize: 10, color: theme.colorTextTertiary }}>{network.nativeTokenSymbol}</span>
-                  </Flexbox>
-                  {currentNetwork?.id === network.id && <Check size={14} color={theme.colorSuccess} />}
+            networks.map((network) => (
+              <Flexbox
+                key={network.id}
+                horizontal
+                align="center"
+                gap={12}
+                onClick={() => onNetworkChange(network)}
+                style={{
+                  padding: '8px 12px',
+                  cursor: 'pointer',
+                  borderRadius: 8,
+                  background: currentNetwork?.id === network.id ? theme.colorFillSecondary : 'transparent',
+                  transition: 'background 0.2s'
+                }}
+              >
+                <span>
+                  <NetworkIcon name={network.icon || 'ethereum'} size={24} variant="branded" />
+                </span>
+                <Flexbox flex={1}>
+                  <span style={{ fontSize: 13, fontWeight: currentNetwork?.id === network.id ? 600 : 400 }}>{network.name}</span>
+                  <span style={{ fontSize: 10, color: theme.colorTextTertiary }}>{network.nativeTokenSymbol}</span>
                 </Flexbox>
-              ))}
-
-              {/* Mainnets Section */}
-              <div style={{ padding: '4px 8px', fontSize: 10, color: theme.colorTextQuaternary, marginTop: 8 }}>MAINNETS</div>
-              {networks.filter(n => !n.isTestnet).map((network) => (
-                <Flexbox
-                  key={network.id}
-                  horizontal
-                  align="center"
-                  gap={12}
-                  onClick={() => onNetworkChange(network)}
-                  style={{
-                    padding: '8px 12px',
-                    cursor: 'pointer',
-                    borderRadius: 8,
-                    background: currentNetwork?.id === network.id ? theme.colorFillSecondary : 'transparent',
-                    transition: 'background 0.2s'
-                  }}
-                >
-                  <span>
-                    <NetworkIcon name={network.icon || 'ethereum'} size={24} variant="branded" />
-                  </span>
-                  <Flexbox flex={1}>
-                    <span style={{ fontSize: 13, fontWeight: currentNetwork?.id === network.id ? 600 : 400 }}>{network.name}</span>
-                    <span style={{ fontSize: 10, color: theme.colorTextTertiary }}>{network.nativeTokenSymbol}</span>
-                  </Flexbox>
-                  {currentNetwork?.id === network.id && <Check size={14} color={theme.colorSuccess} />}
-                </Flexbox>
-              ))}
-            </>
+                {currentNetwork?.id === network.id && <Check size={14} color={theme.colorSuccess} />}
+              </Flexbox>
+            ))
           )}
         </div>
       }
@@ -343,9 +324,7 @@ const NetworkSwitcher = memo<NetworkSwitcherProps>(({ currentNetwork, onNetworkC
 });
 
 // Default Monad Testnet chain ID
-
 const DEFAULT_CHAIN_ID = 10143;
-const KAWAI_TOKEN_ADDRESS = "0x3EC7A3b85f9658120490d5a76705d4d304f4068D";
 
 const DesktopWalletLayout = memo(() => {
   const { styles, theme } = useStyles();
@@ -375,14 +354,64 @@ const DesktopWalletLayout = memo(() => {
   const [nativePrice, setNativePrice] = useState(0);
   const [kawaiPrice, setKawaiPrice] = useState(0);
 
-  // Initialize default network
+  // Backend config state - MOVED INSIDE COMPONENT
+  const [backendConfig, setBackendConfig] = useState<BackendConfig | null>(null);
+
+  // Helper to get KAWAI token address from backend config
+  const getKawaiTokenAddress = useCallback((networkId?: number): string => {
+    if (!backendConfig) return '';
+
+    // Check testnet first to avoid collision when both use same chainId
+    if (networkId === 10143 || backendConfig.environment === 'testnet') {
+      return backendConfig.contracts.kawai || '';
+    }
+
+    // Mainnet
+    if (networkId === 143 && backendConfig.environment === 'mainnet') {
+      return backendConfig.contracts.kawai || '';
+    }
+
+    // Default fallback
+    return backendConfig.contracts.kawai || '';
+  }, [backendConfig]);
+
+  // Initialize default network and backend config
   useEffect(() => {
-    initializeNetwork();
+    loadBackendConfig();
   }, []);
+
+  // Re-initialize network when backend config is loaded
+  useEffect(() => {
+    if (backendConfig) {
+      initializeNetwork();
+    }
+  }, [backendConfig]);
+
+  const loadBackendConfig = async () => {
+    try {
+      const config = await getBackendNetworkConfig();
+      setBackendConfig(config);
+      console.log('Backend config loaded:', config);
+    } catch (e) {
+      console.error('Failed to load backend config', e);
+      // Fallback: Initialize network with default chain ID even if config fails
+      try {
+        const network = await JarvisService.GetNetworkByID(DEFAULT_CHAIN_ID);
+        if (network) {
+          setCurrentNetwork(network);
+          console.log('Initialized with fallback network:', network.name);
+        }
+      } catch (fallbackError) {
+        console.error('Failed to initialize fallback network', fallbackError);
+      }
+    }
+  };
 
   const initializeNetwork = async () => {
     try {
-      const network = await JarvisService.GetNetworkByID(DEFAULT_CHAIN_ID);
+      // Use backend config chain ID if available, otherwise default
+      const chainId = backendConfig?.network.chainId || DEFAULT_CHAIN_ID;
+      const network = await JarvisService.GetNetworkByID(chainId);
       if (network) {
         setCurrentNetwork(network);
       }
@@ -425,7 +454,13 @@ const DesktopWalletLayout = memo(() => {
       const nPrice = await JarvisService.GetTokenPrice("0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", networkId);
       setNativePrice(nPrice);
 
-      const kPrice = await JarvisService.GetTokenPrice(KAWAI_TOKEN_ADDRESS, networkId);
+      const kawaiAddress = getKawaiTokenAddress(networkId);
+      if (!kawaiAddress) {
+        console.warn('KAWAI address not available, skipping price load');
+        setKawaiPrice(0); // Clear stale price
+        return;
+      }
+      const kPrice = await JarvisService.GetTokenPrice(kawaiAddress, networkId);
       setKawaiPrice(kPrice);
     } catch (e) {
       console.error('Failed to load prices', e);
@@ -447,7 +482,13 @@ const DesktopWalletLayout = memo(() => {
   const loadKawaiBalance = async (networkId: number) => {
     if (!address) return;
     try {
-      const result = await JarvisService.GetTokenBalance(KAWAI_TOKEN_ADDRESS, address, networkId);
+      const kawaiAddress = getKawaiTokenAddress(networkId);
+      if (!kawaiAddress) {
+        console.warn('KAWAI address not available, skipping balance load');
+        setKawaiBalance('0.00');
+        return;
+      }
+      const result = await JarvisService.GetTokenBalance(kawaiAddress, address, networkId);
       if (result) {
         setKawaiBalance(result.formatted);
       }
@@ -561,7 +602,13 @@ const DesktopWalletLayout = memo(() => {
         const [intPart, decPart = '0'] = amountStr.split('.');
         const paddedDec = decPart.padEnd(18, '0').substring(0, 18);
         const rawAmount = (BigInt(intPart) * BigInt(10 ** 18) + BigInt(paddedDec)).toString();
-        tx = await DeAIService.TransferToken(KAWAI_TOKEN_ADDRESS, to, rawAmount);
+        // Use dynamic KAWAI token address based on current network and backend config
+        const kawaiAddress = currentNetwork ? getKawaiTokenAddress(currentNetwork.id) : (backendConfig?.contracts.kawai || '');
+        if (!kawaiAddress) {
+          message.error('KAWAI contract not available for this network');
+          return;
+        }
+        tx = await DeAIService.TransferToken(kawaiAddress, to, rawAmount);
       } else if (customTokenAddress) {
         // Custom token transfer (assume 18 decimals)
         const amountStr = amount.toFixed(18);
@@ -606,7 +653,7 @@ const DesktopWalletLayout = memo(() => {
         } else if (msg.includes('network') || msg.includes('connection')) {
           errorMessage = 'Network error. Please check your connection';
         } else {
-          // Use the original error message if it's descriptive
+          // Use original error message if it's descriptive
           errorMessage = `Transfer Failed: ${e.message}`;
         }
       } else {
@@ -679,6 +726,7 @@ const DesktopWalletLayout = memo(() => {
           styles={styles}
           currentNetwork={currentNetwork}
           onNetworkChange={handleNetworkChange}
+          backendConfig={backendConfig}
         />
       </WalletSidePanel>
 
@@ -751,7 +799,7 @@ const DesktopWalletLayout = memo(() => {
           </div>
           <div style={{ background: theme.colorFillTertiary, padding: 16, borderRadius: 12, width: '100%' }}>
             <p style={{ color: theme.colorTextSecondary, fontSize: 12, marginBottom: 8, textAlign: 'center' }}>
-              Your Wallet Address ({currentNetwork?.name || 'Not Connected'})
+              Your Wallet Address ({currentNetwork?.name || 'Monad Testnet'})
             </p>
             <Flexbox gap={10} align="center" justify="center">
               <span style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: 12 }}>
@@ -877,13 +925,13 @@ const SendForm = ({ onSend, loading, currentNetwork }: { onSend: (to: string, va
             </Flexbox>
             <Flexbox horizontal justify="space-between">
               <span style={{ color: theme.colorTextSecondary }}>Network</span>
-              <span>{currentNetwork?.name || 'Unknown'}</span>
+              <span>{currentNetwork?.name || 'Monad Testnet'}</span>
             </Flexbox>
           </Flexbox>
         </div>
 
         <div style={{ fontSize: 12, color: theme.colorTextTertiary, textAlign: 'center' }}>
-          Please review the transaction details before confirming.
+          Please review transaction details before confirming.
         </div>
 
         <Flexbox horizontal gap={8}>
@@ -900,22 +948,6 @@ const SendForm = ({ onSend, loading, currentNetwork }: { onSend: (to: string, va
 
   return (
     <Form form={form} layout="vertical" onFinish={handleFinish} initialValues={{ asset: 'usdt' }}>
-      {currentNetwork && currentNetwork.id !== DEFAULT_CHAIN_ID && (
-        <div
-          style={{
-            padding: 10,
-            borderRadius: 8,
-            marginBottom: 12,
-            background: theme.colorInfoBg,
-            border: `1px solid ${theme.colorBorderSecondary}`,
-            color: theme.colorTextSecondary,
-            fontSize: 12,
-            textAlign: 'center'
-          }}
-        >
-          Note: Transactions execute on Monad Testnet. Network switch affects displayed data only.
-        </div>
-      )}
       <Form.Item label="Asset" name="asset">
         <Select
           options={assetOptions}
@@ -946,14 +978,21 @@ const AddTokenModal = memo<{ currentNetwork: NetworkInfo | null; onClose: () => 
 
   useEffect(() => {
     loadProjectTokens();
-  }, []);
+  }, [currentNetwork]);
 
+  /*
+   * Load tokens dynamically from backend configuration
+   * This ensures we always show the correct token addresses for the current environment
+   */
   const loadProjectTokens = async () => {
     try {
-      const tokens = await JarvisService.GetProjectTokens();
+      setLoading(true);
+      const tokens = await getTokenListFromBackend();
       setProjectTokens(tokens);
     } catch (e) {
       console.error('Failed to load project tokens', e);
+      // Fallback to empty
+      setProjectTokens([]);
     } finally {
       setLoading(false);
     }

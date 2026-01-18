@@ -13,6 +13,49 @@ import * as types$0 from "../../types/models.js";
 import * as time$0 from "../../../../../time/models.js";
 
 /**
+ * BackendConfig represents the complete backend configuration
+ */
+export class BackendConfig {
+    /**
+     * "testnet" | "mainnet"
+     */
+    "environment": string;
+    "network": NetworkEnvironment;
+    "contracts": ContractAddresses;
+
+    /** Creates a new BackendConfig instance. */
+    constructor($$source: Partial<BackendConfig> = {}) {
+        if (!("environment" in $$source)) {
+            this["environment"] = "";
+        }
+        if (!("network" in $$source)) {
+            this["network"] = (new NetworkEnvironment());
+        }
+        if (!("contracts" in $$source)) {
+            this["contracts"] = (new ContractAddresses());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BackendConfig instance from a string or object.
+     */
+    static createFrom($$source: any = {}): BackendConfig {
+        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $$createType1;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("network" in $$parsedSource) {
+            $$parsedSource["network"] = $$createField1_0($$parsedSource["network"]);
+        }
+        if ("contracts" in $$parsedSource) {
+            $$parsedSource["contracts"] = $$createField2_0($$parsedSource["contracts"]);
+        }
+        return new BackendConfig($$parsedSource as Partial<BackendConfig>);
+    }
+}
+
+/**
  * BalanceInfo represents a balance result
  */
 export class BalanceInfo {
@@ -175,7 +218,7 @@ export class ChatCompletionRequest {
      * Creates a new ChatCompletionRequest instance from a string or object.
      */
     static createFrom($$source: any = {}): ChatCompletionRequest {
-        const $$createField2_0 = $$createType1;
+        const $$createField2_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("messages" in $$parsedSource) {
             $$parsedSource["messages"] = $$createField2_0($$parsedSource["messages"]);
@@ -400,9 +443,9 @@ export class ChatRequest {
      * Creates a new ChatRequest instance from a string or object.
      */
     static createFrom($$source: any = {}): ChatRequest {
-        const $$createField8_0 = $$createType2;
-        const $$createField10_0 = $$createType2;
-        const $$createField11_0 = $$createType3;
+        const $$createField8_0 = $$createType4;
+        const $$createField10_0 = $$createType4;
+        const $$createField11_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("file_ids" in $$parsedSource) {
             $$parsedSource["file_ids"] = $$createField8_0($$parsedSource["file_ids"]);
@@ -587,7 +630,7 @@ export class ClaimableCashbackRecord {
      * Creates a new ClaimableCashbackRecord instance from a string or object.
      */
     static createFrom($$source: any = {}): ClaimableCashbackRecord {
-        const $$createField2_0 = $$createType2;
+        const $$createField2_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("proof" in $$parsedSource) {
             $$parsedSource["proof"] = $$createField2_0($$parsedSource["proof"]);
@@ -739,7 +782,7 @@ export class ClaimableReward {
      * Creates a new ClaimableReward instance from a string or object.
      */
     static createFrom($$source: any = {}): ClaimableReward {
-        const $$createField2_0 = $$createType2;
+        const $$createField2_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("proof" in $$parsedSource) {
             $$parsedSource["proof"] = $$createField2_0($$parsedSource["proof"]);
@@ -807,9 +850,9 @@ export class ClaimableRewardsResponse {
      * Creates a new ClaimableRewardsResponse instance from a string or object.
      */
     static createFrom($$source: any = {}): ClaimableRewardsResponse {
-        const $$createField1_0 = $$createType6;
-        const $$createField2_0 = $$createType6;
-        const $$createField3_0 = $$createType6;
+        const $$createField1_0 = $$createType8;
+        const $$createField2_0 = $$createType8;
+        const $$createField3_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("unclaimed_proofs" in $$parsedSource) {
             $$parsedSource["unclaimed_proofs"] = $$createField1_0($$parsedSource["unclaimed_proofs"]);
@@ -821,6 +864,81 @@ export class ClaimableRewardsResponse {
             $$parsedSource["confirmed_proofs"] = $$createField3_0($$parsedSource["confirmed_proofs"]);
         }
         return new ClaimableRewardsResponse($$parsedSource as Partial<ClaimableRewardsResponse>);
+    }
+}
+
+/**
+ * ContractAddresses represents all smart contract addresses
+ */
+export class ContractAddresses {
+    /**
+     * Token Addresses
+     */
+    "usdt": string;
+    "kawai": string;
+
+    /**
+     * Payment & Vault
+     */
+    "paymentVault": string;
+
+    /**
+     * OTC Market
+     */
+    "otcMarket": string;
+
+    /**
+     * Reward Distributors
+     */
+    "miningDistributor": string;
+    "cashbackDistributor": string;
+    "referralDistributor": string;
+
+    /**
+     * Revenue Sharing
+     */
+    "kawaiDistributor": string;
+    "usdtDistributor": string;
+
+    /** Creates a new ContractAddresses instance. */
+    constructor($$source: Partial<ContractAddresses> = {}) {
+        if (!("usdt" in $$source)) {
+            this["usdt"] = "";
+        }
+        if (!("kawai" in $$source)) {
+            this["kawai"] = "";
+        }
+        if (!("paymentVault" in $$source)) {
+            this["paymentVault"] = "";
+        }
+        if (!("otcMarket" in $$source)) {
+            this["otcMarket"] = "";
+        }
+        if (!("miningDistributor" in $$source)) {
+            this["miningDistributor"] = "";
+        }
+        if (!("cashbackDistributor" in $$source)) {
+            this["cashbackDistributor"] = "";
+        }
+        if (!("referralDistributor" in $$source)) {
+            this["referralDistributor"] = "";
+        }
+        if (!("kawaiDistributor" in $$source)) {
+            this["kawaiDistributor"] = "";
+        }
+        if (!("usdtDistributor" in $$source)) {
+            this["usdtDistributor"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ContractAddresses instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ContractAddresses {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ContractAddresses($$parsedSource as Partial<ContractAddresses>);
     }
 }
 
@@ -959,8 +1077,8 @@ export class GroundingSearch {
      * Creates a new GroundingSearch instance from a string or object.
      */
     static createFrom($$source: any = {}): GroundingSearch {
-        const $$createField0_0 = $$createType8;
-        const $$createField1_0 = $$createType2;
+        const $$createField0_0 = $$createType10;
+        const $$createField1_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("citations" in $$parsedSource) {
             $$parsedSource["citations"] = $$createField0_0($$parsedSource["citations"]);
@@ -1023,8 +1141,8 @@ export class LogInfo {
      * Creates a new LogInfo instance from a string or object.
      */
     static createFrom($$source: any = {}): LogInfo {
-        const $$createField1_0 = $$createType2;
-        const $$createField2_0 = $$createType10;
+        const $$createField1_0 = $$createType4;
+        const $$createField2_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("topics" in $$parsedSource) {
             $$parsedSource["topics"] = $$createField1_0($$parsedSource["topics"]);
@@ -1098,7 +1216,7 @@ export class MarketStats {
      * Creates a new MarketStats instance from a string or object.
      */
     static createFrom($$source: any = {}): MarketStats {
-        const $$createField5_0 = $$createType12;
+        const $$createField5_0 = $$createType14;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("recentTrades" in $$parsedSource) {
             $$parsedSource["recentTrades"] = $$createField5_0($$parsedSource["recentTrades"]);
@@ -1208,6 +1326,38 @@ export class ModelUsage {
     static createFrom($$source: any = {}): ModelUsage {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new ModelUsage($$parsedSource as Partial<ModelUsage>);
+    }
+}
+
+/**
+ * NetworkEnvironment represents a blockchain network
+ */
+export class NetworkEnvironment {
+    "name": string;
+    "chainId": number;
+    "isTestnet": boolean;
+
+    /** Creates a new NetworkEnvironment instance. */
+    constructor($$source: Partial<NetworkEnvironment> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("chainId" in $$source)) {
+            this["chainId"] = 0;
+        }
+        if (!("isTestnet" in $$source)) {
+            this["isTestnet"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new NetworkEnvironment instance from a string or object.
+     */
+    static createFrom($$source: any = {}): NetworkEnvironment {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new NetworkEnvironment($$parsedSource as Partial<NetworkEnvironment>);
     }
 }
 
@@ -1371,8 +1521,8 @@ export class OrderHistory {
      * Creates a new OrderHistory instance from a string or object.
      */
     static createFrom($$source: any = {}): OrderHistory {
-        const $$createField0_0 = $$createType14;
-        const $$createField1_0 = $$createType16;
+        const $$createField0_0 = $$createType16;
+        const $$createField1_0 = $$createType18;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("orders" in $$parsedSource) {
             $$parsedSource["orders"] = $$createField0_0($$parsedSource["orders"]);
@@ -1484,7 +1634,7 @@ export class OrderHistoryEntry {
      * Creates a new OrderHistoryEntry instance from a string or object.
      */
     static createFrom($$source: any = {}): OrderHistoryEntry {
-        const $$createField10_0 = $$createType18;
+        const $$createField10_0 = $$createType20;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("statusHistory" in $$parsedSource) {
             $$parsedSource["statusHistory"] = $$createField10_0($$parsedSource["statusHistory"]);
@@ -1737,7 +1887,7 @@ export class SearchResult {
      * Creates a new SearchResult instance from a string or object.
      */
     static createFrom($$source: any = {}): SearchResult {
-        const $$createField7_0 = $$createType19;
+        const $$createField7_0 = $$createType21;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("metadata" in $$parsedSource) {
             $$parsedSource["metadata"] = $$createField7_0($$parsedSource["metadata"]);
@@ -1820,16 +1970,16 @@ export class StreamEventPayload {
      * Creates a new StreamEventPayload instance from a string or object.
      */
     static createFrom($$source: any = {}): StreamEventPayload {
-        const $$createField6_0 = $$createType21;
-        const $$createField7_0 = $$createType23;
-        const $$createField8_0 = $$createType24;
-        const $$createField11_0 = $$createType26;
-        const $$createField13_0 = $$createType28;
-        const $$createField14_0 = $$createType30;
-        const $$createField15_0 = $$createType32;
-        const $$createField16_0 = $$createType34;
-        const $$createField17_0 = $$createType36;
-        const $$createField18_0 = $$createType38;
+        const $$createField6_0 = $$createType23;
+        const $$createField7_0 = $$createType25;
+        const $$createField8_0 = $$createType26;
+        const $$createField11_0 = $$createType28;
+        const $$createField13_0 = $$createType30;
+        const $$createField14_0 = $$createType32;
+        const $$createField15_0 = $$createType34;
+        const $$createField16_0 = $$createType36;
+        const $$createField17_0 = $$createType38;
+        const $$createField18_0 = $$createType40;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reasoning" in $$parsedSource) {
             $$parsedSource["reasoning"] = $$createField6_0($$parsedSource["reasoning"]);
@@ -2180,7 +2330,7 @@ export class TradeHistoryEntry {
      * Creates a new TradeHistoryEntry instance from a string or object.
      */
     static createFrom($$source: any = {}): TradeHistoryEntry {
-        const $$createField9_0 = $$createType39;
+        const $$createField9_0 = $$createType41;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("orderDetails" in $$parsedSource) {
             $$parsedSource["orderDetails"] = $$createField9_0($$parsedSource["orderDetails"]);
@@ -2352,8 +2502,8 @@ export class TxAnalysis {
      * Creates a new TxAnalysis instance from a string or object.
      */
     static createFrom($$source: any = {}): TxAnalysis {
-        const $$createField9_0 = $$createType10;
-        const $$createField10_0 = $$createType41;
+        const $$createField9_0 = $$createType12;
+        const $$createField10_0 = $$createType43;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("params" in $$parsedSource) {
             $$parsedSource["params"] = $$createField9_0($$parsedSource["params"]);
@@ -2428,7 +2578,7 @@ export class WalletStatus {
      * Creates a new WalletStatus instance from a string or object.
      */
     static createFrom($$source: any = {}): WalletStatus {
-        const $$createField3_0 = $$createType43;
+        const $$createField3_0 = $$createType45;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("wallets" in $$parsedSource) {
             $$parsedSource["wallets"] = $$createField3_0($$parsedSource["wallets"]);
@@ -2438,47 +2588,49 @@ export class WalletStatus {
 }
 
 // Private type creation functions
-const $$createType0 = ChatCompletionMessage.createFrom;
-const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = $Create.Array($Create.Any);
-const $$createType3 = $Create.Map($Create.Any, $Create.Any);
-const $$createType4 = ClaimableReward.createFrom;
-const $$createType5 = $Create.Nullable($$createType4);
-const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = CitationItem.createFrom;
+const $$createType0 = NetworkEnvironment.createFrom;
+const $$createType1 = ContractAddresses.createFrom;
+const $$createType2 = ChatCompletionMessage.createFrom;
+const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = $Create.Array($Create.Any);
+const $$createType5 = $Create.Map($Create.Any, $Create.Any);
+const $$createType6 = ClaimableReward.createFrom;
+const $$createType7 = $Create.Nullable($$createType6);
 const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = ParamInfo.createFrom;
+const $$createType9 = CitationItem.createFrom;
 const $$createType10 = $Create.Array($$createType9);
-const $$createType11 = Trade.createFrom;
+const $$createType11 = ParamInfo.createFrom;
 const $$createType12 = $Create.Array($$createType11);
-const $$createType13 = OrderHistoryEntry.createFrom;
+const $$createType13 = Trade.createFrom;
 const $$createType14 = $Create.Array($$createType13);
-const $$createType15 = TradeHistoryEntry.createFrom;
+const $$createType15 = OrderHistoryEntry.createFrom;
 const $$createType16 = $Create.Array($$createType15);
-const $$createType17 = OrderStatusChange.createFrom;
+const $$createType17 = TradeHistoryEntry.createFrom;
 const $$createType18 = $Create.Array($$createType17);
-const $$createType19 = $Create.Map($Create.Any, $Create.Any);
-const $$createType20 = ModelReasoning.createFrom;
-const $$createType21 = $Create.Nullable($$createType20);
-const $$createType22 = ChatToolPayload.createFrom;
+const $$createType19 = OrderStatusChange.createFrom;
+const $$createType20 = $Create.Array($$createType19);
+const $$createType21 = $Create.Map($Create.Any, $Create.Any);
+const $$createType22 = ModelReasoning.createFrom;
 const $$createType23 = $Create.Nullable($$createType22);
-const $$createType24 = $Create.Array($$createType22);
-const $$createType25 = ChatPluginPayload.createFrom;
-const $$createType26 = $Create.Nullable($$createType25);
-const $$createType27 = GroundingSearch.createFrom;
+const $$createType24 = ChatToolPayload.createFrom;
+const $$createType25 = $Create.Nullable($$createType24);
+const $$createType26 = $Create.Array($$createType24);
+const $$createType27 = ChatPluginPayload.createFrom;
 const $$createType28 = $Create.Nullable($$createType27);
-const $$createType29 = ChatFileChunk.createFrom;
-const $$createType30 = $Create.Array($$createType29);
-const $$createType31 = ChatImageItem.createFrom;
+const $$createType29 = GroundingSearch.createFrom;
+const $$createType30 = $Create.Nullable($$createType29);
+const $$createType31 = ChatFileChunk.createFrom;
 const $$createType32 = $Create.Array($$createType31);
-const $$createType33 = ModelUsage.createFrom;
-const $$createType34 = $Create.Nullable($$createType33);
-const $$createType35 = ChatMessageError.createFrom;
+const $$createType33 = ChatImageItem.createFrom;
+const $$createType34 = $Create.Array($$createType33);
+const $$createType35 = ModelUsage.createFrom;
 const $$createType36 = $Create.Nullable($$createType35);
-const $$createType37 = ModelPerformance.createFrom;
+const $$createType37 = ChatMessageError.createFrom;
 const $$createType38 = $Create.Nullable($$createType37);
-const $$createType39 = OrderSummary.createFrom;
-const $$createType40 = LogInfo.createFrom;
-const $$createType41 = $Create.Array($$createType40);
-const $$createType42 = WalletInfo.createFrom;
+const $$createType39 = ModelPerformance.createFrom;
+const $$createType40 = $Create.Nullable($$createType39);
+const $$createType41 = OrderSummary.createFrom;
+const $$createType42 = LogInfo.createFrom;
 const $$createType43 = $Create.Array($$createType42);
+const $$createType44 = WalletInfo.createFrom;
+const $$createType45 = $Create.Array($$createType44);

@@ -114,8 +114,6 @@ func buildServiceList(ctx *app.Context, fileProcessor *FileProcessorService, sdS
 		// Utilities
 		application.NewService(&machineid.Service{}),
 		application.NewService(sdService), // Use the initialized sdService
-
-		// Wails Native Services
 		application.NewService(notifications.New()),
 		application.NewService(wailslog.New()),
 		application.NewService(sqlite.New()),
@@ -135,6 +133,9 @@ func buildServiceList(ctx *app.Context, fileProcessor *FileProcessorService, sdS
 
 		// Cashback System
 		application.NewService(services.NewCashbackService(ctx.KVStore)),
+
+		// Config Service - Exposes backend environment to frontend
+		application.NewService(&services.ConfigService{}),
 
 		// File Server
 		application.NewServiceWithOptions(
