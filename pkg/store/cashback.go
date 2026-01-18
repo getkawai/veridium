@@ -15,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/internal/generate/abi/cashbackdistributor"
+	"github.com/kawai-network/veridium/pkg/types"
 )
 
 // CashbackCache stores claimable records in memory for faster subsequent loads
@@ -186,6 +187,23 @@ func (s *KVStore) TrackCashback(ctx context.Context, userAddress, txHash string,
 
 	log.Printf("✅ [Cashback] Tracked: user=%s, deposit=%s USDT, cashback=%s KAWAI, rate=%d bps, tier=%d, first=%v",
 		userAddress, depositAmount.String(), cashbackAmount, rate, tier, isFirstTime)
+
+	// DOUBLE-VERIFICATION: Send cashback record to Telegram for audit trail
+	// This provides an immutable backup that can be cross-checked during settlement
+	// Telegram messages serve as independent verification source alongside KV storage
+	if s.telegramAlerter != nil {
+		s.telegramAlerter.SendCashbackLog(&types.CashbackRecord{
+			UserAddress:    userAddress,
+			TxHash:         txHash,
+			DepositAmount:  depositAmount.String(),
+			CashbackAmount: cashbackAmount,
+			RateBPS:        rate,
+			Tier:           tier,
+			IsFirstTime:    isFirstTime,
+			Period:         period,
+			Timestamp:      time.Now(),
+		})
+	}
 
 	return nil
 }

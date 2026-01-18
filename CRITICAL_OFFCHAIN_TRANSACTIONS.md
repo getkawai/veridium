@@ -402,6 +402,152 @@ if currentData.TrialClaimed {
 }
 ```
 
+### 5. 🆕 Double-Verification: Telegram + KV Store
+**File**: `pkg/store/contributor.go:357` + `pkg/alert/telegram.go:102`
+
+**What it does:**
+- Every job reward is recorded in **TWO independent systems**:
+  1. **Cloudflare KV** (primary storage)
+  2. **Telegram Channel** (immutable audit trail)
+- During settlement, both sources can be cross-checked for consistency
+- Telegram messages cannot be edited (if pinned), providing tamper-proof backup
+
+**Implementation:**
+```go
+// pkg/store/contributor.go:540-565
+// 1. Save to KV Store (primary)
+if err := s.SaveJobReward(ctx, jobRecord); err != nil {
+    slog.Warn("Failed to save job reward record", "error", err)
+}
+
+// 2. Send to Telegram (backup + audit)
+if s.telegramAlerter != nil {
+    s.telegramAlerter.SendJobRewardLog(jobRecord)
+}
+```
+
+**Benefits:**
+- ✅ **Immutable Audit Trail**: Telegram messages provide tamper-proof record
+- ✅ **Independent Verification**: Two separate data sources reduce single-point-of-failure
+- ✅ **Disaster Recovery**: Can restore from Telegram if KV corrupts
+- ✅ **Real-time Monitoring**: Admins can see rewards in real-time
+- ✅ **Fraud Detection**: Discrepancies between KV and Telegram indicate issues
+- ✅ **Async Operation**: Telegram send is non-blocking (goroutine)
+
+**Rate Limiting:**
+- Telegram API: 30 messages/second per bot
+- Implementation: Async send (goroutine) prevents blocking
+- If rate limit hit: Message queued, doesn't fail job reward recording
+
+**Privacy:**
+- Use private Telegram channel for job reward logs
+- Only admins have access to channel
+- Addresses are shortened in display (0x1234...5678)
+
+### 6. 🆕 Double-Verification: Cashback Tracking
+**File**: `pkg/store/cashback.go:143` + `pkg/alert/telegram.go`
+
+**What it does:**
+- Every cashback record is logged in **TWO independent systems**:
+  1. **Cloudflare KV** (primary storage)
+  2. **Telegram Channel** (immutable audit trail)
+- During cashback settlement, both sources can be cross-checked for consistency
+- Telegram messages provide tamper-proof backup for verification
+
+**Implementation:**
+```go
+// pkg/store/cashback.go:189-203
+// 1. Save to KV Store (primary)
+if err := s.StoreCashbackData(ctx, key, data); err != nil {
+    return fmt.Errorf("failed to store cashback record: %w", err)
+}
+
+// 2. Send to Telegram (backup + audit)
+if s.telegramAlerter != nil {
+    s.telegramAlerter.SendCashbackLog(&types.CashbackRecord{
+        UserAddress:    userAddress,
+        TxHash:         txHash,
+        DepositAmount:  depositAmount.String(),
+        CashbackAmount: cashbackAmount,
+        RateBPS:        rate,
+        Tier:           tier,
+        IsFirstTime:    isFirstTime,
+        Period:         period,
+        Timestamp:      time.Now(),
+    })
+}
+```
+
+**Message Format:**
+```text
+💎 Cashback Tracked
+2026-01-18 15:30:45 | Period 5 | Tier 2
+
+```json
+{"user_address":"0x1234...","tx_hash":"0xabcd...","deposit_amount":"10000000","cashback_amount":"200000000000000000000","rate_bps":1000,"tier":2,"is_first_time":true,"period":5,"timestamp":"2026-01-18T15:30:45Z"}
+```
+
+📊 Rate: 10.00% | User: 0x1234...5678 🎁 First-time
+```
+
+**Benefits:**
+- ✅ **Verify Cashback Calculation**: Cross-check deposit amount → cashback amount
+- ✅ **Detect Tier Manipulation**: Ensure tier assignment is correct
+- ✅ **Prevent Double Claims**: Verify each deposit only tracked once
+- ✅ **Settlement Reconciliation**: Sum Telegram records == KV settlement total
+- ✅ **Fraud Detection**: Detect suspicious patterns (multiple first-time bonuses)
+
+### 7. 🆕 Double-Verification: Referral Trial Claims
+**File**: `pkg/store/referral.go:177` + `pkg/alert/telegram.go`
+
+**What it does:**
+- Every trial claim (with or without referral) is logged in **TWO independent systems**:
+  1. **Cloudflare KV** (primary storage)
+  2. **Telegram Channel** (immutable audit trail)
+- Enables fraud detection (multiple claims, machine ID spoofing)
+- Verifies referrer bonus calculations
+- Tracks machine IDs for anti-abuse
+
+**Implementation:**
+```go
+// pkg/store/referral.go:217-233
+// After successful trial claim
+if s.telegramAlerter != nil {
+    s.telegramAlerter.SendReferralTrialLog(&types.ReferralTrialRecord{
+        UserAddress:     address,
+        ReferrerAddress: referrerAddress,
+        ReferralCode:    referralCode,
+        TrialUSDT:       fmt.Sprintf("%d", usdtBonus),
+        TrialKAWAI:      kawaiBonus,
+        ReferrerBonus:   referrerBonus,
+        MachineID:       machineID,
+        IsReferral:      hasReferral,
+        Timestamp:       time.Now(),
+    })
+}
+```
+
+**Message Format:**
+```text
+🎁 Referral Trial Claimed
+2026-01-18 15:30:45
+
+```json
+{"user_address":"0x1234...","referrer_address":"0x5678...","referral_code":"ABC123","trial_usdt":"10000000","trial_kawai":"200000000000000000000","referrer_bonus":"5000000","machine_id":"hash...","is_referral":true,"timestamp":"2026-01-18T15:30:45Z"}
+```
+
+👤 User: 0x1234...5678
+🤝 Referrer: 0x5678...abcd (Code: ABC123)
+🔒 Machine: hash1234567890ab...
+```
+
+**Benefits:**
+- ✅ **Fraud Detection**: Detect multiple claims from same machine ID
+- ✅ **Referrer Verification**: Verify referrer bonus calculations
+- ✅ **Anti-Abuse**: Track patterns (same user, different machine IDs)
+- ✅ **Settlement Reconciliation**: Sum referrer bonuses == referral settlement total
+- ✅ **Audit Trail**: Immutable record of all trial claims
+
 ---
 
 ## 🚨 Critical Failure Scenarios

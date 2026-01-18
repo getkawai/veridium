@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/kawai-network/veridium/internal/constant"
+	"github.com/kawai-network/veridium/pkg/types"
 )
 
 type TelegramAlert struct {
@@ -96,4 +97,148 @@ func (t *TelegramAlert) SendAlert(level, source, message string) {
 			slog.Error("Failed to send telegram alert", "error", err)
 		}
 	}()
+}
+
+// SendJobRewardLog sends a detailed job reward record to Telegram for audit trail
+// This provides an immutable backup of all job rewards for verification during settlement
+// Uses types.JobRewardRecord (same struct used by KV store) for easy verification
+// Format: Machine-readable JSON for easy export and verification
+func (t *TelegramAlert) SendJobRewardLog(record *types.JobRewardRecord) {
+	if t.BotToken == "" || t.ChatID == "" {
+		return // Silent return if not configured
+	}
+
+	// Format 1: Human-readable header
+	text := "💰 *Job Reward*\n"
+	text += fmt.Sprintf("`%s` | %d tokens | %s\n\n",
+		record.Timestamp.Format("2006-01-02 15:04:05"),
+		record.TokenUsage,
+		record.RewardType)
+
+	// Format 2: Machine-readable JSON (for easy export/verification)
+	jsonData, err := json.Marshal(record)
+	if err != nil {
+		slog.Error("Failed to marshal job reward for telegram", "error", err)
+		return
+	}
+	text += "```json\n" + string(jsonData) + "\n```\n\n"
+
+	// Format 3: Quick summary
+	splitType := "90/5/5"
+	if record.HasReferrer {
+		splitType = "85/5/5/5"
+	}
+	text += fmt.Sprintf("📊 Split: %s | C:%s U:%s D:%s",
+		splitType,
+		shortenAddress(record.ContributorAddress),
+		shortenAddress(record.UserAddress),
+		shortenAddress(record.DeveloperAddress))
+
+	if record.HasReferrer {
+		text += fmt.Sprintf(" A:%s", shortenAddress(record.ReferrerAddress))
+	}
+
+	// Send asynchronously to avoid blocking RecordJobReward
+	go func() {
+		if err := t.SendMessage(text); err != nil {
+			slog.Error("Failed to send job reward log to Telegram", "error", err)
+		}
+	}()
+}
+
+// SendCashbackLog sends a detailed cashback record to Telegram for audit trail
+// This provides an immutable backup of all cashback records for verification during settlement
+// Uses types.CashbackRecord (same struct used by KV store) for easy verification
+// Format: Machine-readable JSON for easy export and verification
+func (t *TelegramAlert) SendCashbackLog(record *types.CashbackRecord) {
+	if t.BotToken == "" || t.ChatID == "" {
+		return // Silent return if not configured
+	}
+
+	// Format 1: Human-readable header
+	text := "💎 *Cashback Tracked*\n"
+	text += fmt.Sprintf("`%s` | Period %d | Tier %d\n\n",
+		record.Timestamp.Format("2006-01-02 15:04:05"),
+		record.Period,
+		record.Tier)
+
+	// Format 2: Machine-readable JSON (for easy export/verification)
+	jsonData, err := json.Marshal(record)
+	if err != nil {
+		slog.Error("Failed to marshal cashback record for telegram", "error", err)
+		return
+	}
+	text += "```json\n" + string(jsonData) + "\n```\n\n"
+
+	// Format 3: Quick summary
+	firstTimeBonus := ""
+	if record.IsFirstTime {
+		firstTimeBonus = " 🎁 First-time"
+	}
+	text += fmt.Sprintf("📊 Rate: %.2f%% | User: %s%s",
+		float64(record.RateBPS)/100.0,
+		shortenAddress(record.UserAddress),
+		firstTimeBonus)
+
+	// Send asynchronously to avoid blocking TrackCashback
+	go func() {
+		if err := t.SendMessage(text); err != nil {
+			slog.Error("Failed to send cashback log to Telegram", "error", err)
+		}
+	}()
+}
+
+// SendReferralTrialLog sends a detailed referral trial claim record to Telegram for audit trail
+// This provides an immutable backup of all trial claims for verification and fraud detection
+// Uses types.ReferralTrialRecord (same struct used by KV store) for easy verification
+// Format: Machine-readable JSON for easy export and verification
+func (t *TelegramAlert) SendReferralTrialLog(record *types.ReferralTrialRecord) {
+	if t.BotToken == "" || t.ChatID == "" {
+		return // Silent return if not configured
+	}
+
+	// Format 1: Human-readable header
+	claimType := "Solo Trial"
+	if record.IsReferral {
+		claimType = "Referral Trial"
+	}
+	text := fmt.Sprintf("🎁 *%s Claimed*\n", claimType)
+	text += fmt.Sprintf("`%s`\n\n", record.Timestamp.Format("2006-01-02 15:04:05"))
+
+	// Format 2: Machine-readable JSON (for easy export/verification)
+	jsonData, err := json.Marshal(record)
+	if err != nil {
+		slog.Error("Failed to marshal referral trial record for telegram", "error", err)
+		return
+	}
+	text += "```json\n" + string(jsonData) + "\n```\n\n"
+
+	// Format 3: Quick summary
+	text += fmt.Sprintf("👤 User: %s\n", shortenAddress(record.UserAddress))
+	if record.IsReferral {
+		text += fmt.Sprintf("🤝 Referrer: %s (Code: %s)\n",
+			shortenAddress(record.ReferrerAddress),
+			record.ReferralCode)
+	}
+	// Safely truncate machine ID
+	machineIDShort := record.MachineID
+	if len(machineIDShort) > 16 {
+		machineIDShort = machineIDShort[:16] + "..."
+	}
+	text += fmt.Sprintf("🔒 Machine: %s", machineIDShort)
+
+	// Send asynchronously to avoid blocking ClaimFreeTrial
+	go func() {
+		if err := t.SendMessage(text); err != nil {
+			slog.Error("Failed to send referral trial log to Telegram", "error", err)
+		}
+	}()
+}
+
+// shortenAddress shortens Ethereum address for display (0x1234...5678)
+func shortenAddress(addr string) string {
+	if len(addr) < 10 {
+		return addr
+	}
+	return addr[:6] + "..." + addr[len(addr)-4:]
 }

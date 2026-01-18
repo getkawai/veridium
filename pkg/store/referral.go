@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/cloudflare/cloudflare-go"
+	"github.com/kawai-network/veridium/pkg/types"
 )
 
 // =============================================================================
@@ -211,6 +212,28 @@ func (s *KVStore) ClaimFreeTrialWithReferral(ctx context.Context, address string
 			// Log error but don't fail the claim
 			fmt.Printf("Warning: Failed to reward referrer: %v\n", err)
 		}
+	}
+
+	// DOUBLE-VERIFICATION: Send referral trial claim to Telegram for audit trail
+	// This provides an immutable backup for fraud detection and verification
+	// Telegram messages serve as independent verification source alongside KV storage
+	if s.telegramAlerter != nil {
+		referrerBonus := "0"
+		if hasReferral {
+			referrerBonus = fmt.Sprintf("%d", usdtBonus/2) // Referrer gets 50% of trial amount
+		}
+
+		s.telegramAlerter.SendReferralTrialLog(&types.ReferralTrialRecord{
+			UserAddress:     address,
+			ReferrerAddress: referrerAddress,
+			ReferralCode:    referralCode,
+			TrialUSDT:       fmt.Sprintf("%d", usdtBonus),
+			TrialKAWAI:      kawaiBonus,
+			ReferrerBonus:   referrerBonus,
+			MachineID:       machineID,
+			IsReferral:      hasReferral,
+			Timestamp:       time.Now(),
+		})
 	}
 
 	return usdtBonus, kawaiBonus, nil

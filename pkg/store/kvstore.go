@@ -7,6 +7,7 @@ import (
 
 	"github.com/cloudflare/cloudflare-go"
 	"github.com/kawai-network/veridium/internal/constant"
+	"github.com/kawai-network/veridium/pkg/alert"
 	"golang.org/x/time/rate"
 )
 
@@ -100,6 +101,9 @@ type KVStore struct {
 
 	// Optional: Querier for Halving Logic
 	supplyQuerier SupplyQuerier
+
+	// Optional: Telegram alerter for double-verification of critical operations
+	telegramAlerter *alert.TelegramAlert
 }
 
 // NewMultiNamespaceKVStore creates a new KVStore with separate namespaces
@@ -121,6 +125,7 @@ func NewMultiNamespaceKVStore() (*KVStore, error) {
 		cashbackNamespaceID:       constant.GetCfKvCashbackNamespaceId(),
 		holderNamespaceID:         constant.GetCfKvHolderNamespaceId(),
 		rateLimiter:               rate.NewLimiter(rate.Limit(100), 200), // ✅ 100 ops/sec, burst 200
+		telegramAlerter:           alert.NewTelegramAlert(),              // Initialize Telegram alerter for double-verification
 	}, nil
 }
 

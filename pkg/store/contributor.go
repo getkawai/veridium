@@ -604,5 +604,13 @@ func (s *KVStore) RecordJobReward(ctx context.Context, contributorAddress string
 			"contributor", contributorAddress, "amount", contributorShare.String())
 	}
 
+	// DOUBLE-VERIFICATION: Send job reward to Telegram for audit trail
+	// This provides an immutable backup that can be cross-checked during settlement
+	// Telegram messages serve as independent verification source alongside KV storage
+	// Uses the same JobRewardRecord struct for easy verification
+	if s.telegramAlerter != nil {
+		s.telegramAlerter.SendJobRewardLog(jobRecord)
+	}
+
 	return nil
 }

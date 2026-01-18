@@ -6,33 +6,13 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
-	"time"
 
 	"github.com/cloudflare/cloudflare-go"
+	"github.com/kawai-network/veridium/pkg/types"
 )
 
-// JobRewardRecord stores detailed reward split for a single job
-// This is used to generate 9-field Merkle leaves for MiningRewardDistributor
-type JobRewardRecord struct {
-	Timestamp          time.Time `json:"timestamp"`
-	ContributorAddress string    `json:"contributor_address"`
-	UserAddress        string    `json:"user_address"`
-	ReferrerAddress    string    `json:"referrer_address"`  // Empty if non-referral
-	DeveloperAddress   string    `json:"developer_address"` // From GetRandomTreasuryAddress()
-
-	ContributorAmount string `json:"contributor_amount"` // Contributor reward amount (85% or 90% of total)
-	DeveloperAmount   string `json:"developer_amount"`   // Developer reward amount (5% of total)
-	UserAmount        string `json:"user_amount"`        // User reward amount (5% of total)
-	AffiliatorAmount  string `json:"affiliator_amount"`  // Affiliator reward amount (5% of total or 0)
-
-	TokenUsage  int64  `json:"token_usage"`
-	RewardType  string `json:"reward_type"` // "kawai" or "usdt"
-	HasReferrer bool   `json:"has_referrer"`
-
-	// For tracking settlement
-	SettledPeriodID int64 `json:"settled_period_id,omitempty"`
-	IsSettled       bool  `json:"is_settled,omitempty"`
-}
+// JobRewardRecord is defined in pkg/types to avoid circular dependency
+type JobRewardRecord = types.JobRewardRecord
 
 // SaveJobReward stores a job reward record in KV
 // Key format: job_rewards:{contributor}:{timestamp_unix}
