@@ -1,34 +1,35 @@
-'use client';
+"use client";
 
-import { App } from 'antd';
-import dayjs from 'dayjs';
-import { memo } from 'react';
-import { useTranslation } from 'react-i18next';
+import { App } from "antd";
+import dayjs from "dayjs";
+import { memo } from "react";
+import { useTranslation } from "react-i18next";
 
-import { useCheckGenerationStatus } from '@/hooks/useCheckGenerationStatus';
-import { useDownloadImage } from '@/hooks/useDownloadImage';
-import { useImageStore } from '@/store/image';
-import { imageGenerationConfigSelectors } from '@/store/image/selectors';
-import { AsyncTaskStatus } from '@/types/asyncTask';
-import { inferFileExtensionFromImageUrl } from '@/utils/url';
+import { useCheckGenerationStatus } from "@/hooks/useCheckGenerationStatus";
+import { useDownloadImage } from "@/hooks/useDownloadImage";
+import { useImageStore } from "@/store/image";
+import { imageGenerationConfigSelectors } from "@/store/image/selectors";
+import { AsyncTaskStatus } from "@/types/asyncTask";
+import { inferFileExtensionFromImageUrl } from "@/utils/url";
 
-import { ErrorState } from './ErrorState';
-import { LoadingState } from './LoadingState';
-import { SuccessState } from './SuccessState';
-import { GenerationItemProps } from './types';
-import { getAspectRatio } from './utils';
+import { ErrorState } from "./ErrorState";
+import { LoadingState } from "./LoadingState";
+import { SuccessState } from "./SuccessState";
+import { GenerationItemProps } from "./types";
+import { getAspectRatio } from "./utils";
 
-const isSupportedParamSelector = imageGenerationConfigSelectors.isSupportedParam;
+const isSupportedParamSelector =
+  imageGenerationConfigSelectors.isSupportedParam;
 
 export const GenerationItem = memo<GenerationItemProps>(
   ({ generationBatch, generation, prompt }) => {
     const { message } = App.useApp();
-    const { t } = useTranslation('image');
+    const { t } = useTranslation("image");
     // const useCheckGenerationStatus = useImageStore((s) => s.useCheckGenerationStatus); // Removed
     const deleteGeneration = useImageStore((s) => s.removeGeneration);
     const reuseSeed = useImageStore((s) => s.reuseSeed);
     const activeTopicId = useImageStore((s) => s.activeGenerationTopicId);
-    const isSupportSeed = useImageStore(isSupportedParamSelector('seed'));
+    const isSupportSeed = useImageStore(isSupportedParamSelector("seed"));
     const { downloadImage } = useDownloadImage();
 
     const isFinalized =
@@ -36,7 +37,12 @@ export const GenerationItem = memo<GenerationItemProps>(
       generation.task.status === AsyncTaskStatus.Error;
 
     const shouldPoll = !isFinalized;
-    useCheckGenerationStatus(generation.id, generation.task.id, activeTopicId!, shouldPoll);
+    useCheckGenerationStatus(
+      generation.id,
+      generation.task.id,
+      activeTopicId!,
+      shouldPoll,
+    );
 
     const aspectRatio = getAspectRatio(generation, generationBatch);
 
@@ -44,8 +50,14 @@ export const GenerationItem = memo<GenerationItemProps>(
     const handleDeleteGeneration = async () => {
       try {
         await deleteGeneration(generation.id);
+        message.success(t("generation.actions.deleteSuccess"));
       } catch (error) {
-        console.error('Failed to delete generation:', error);
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : t("generation.actions.deleteFailed");
+        console.error("Failed to delete generation:", error);
+        message.error(errorMessage);
       }
     };
 
@@ -53,12 +65,18 @@ export const GenerationItem = memo<GenerationItemProps>(
       if (!generation.asset?.url) return;
 
       // Generate filename with prompt and timestamp
-      const timestamp = dayjs(generation.createdAt).format('YYYY-MM-DD_HH-mm-ss');
+      const timestamp = dayjs(generation.createdAt).format(
+        "YYYY-MM-DD_HH-mm-ss",
+      );
       const baseName = prompt.slice(0, 30).trim();
-      const sanitizedBaseName = baseName.replaceAll(/["%*/:<>?\\|]/g, '').replaceAll(/\s+/g, '_');
-      const safePrompt = sanitizedBaseName || 'Untitled';
+      const sanitizedBaseName = baseName
+        .replaceAll(/["%*/:<>?\\|]/g, "")
+        .replaceAll(/\s+/g, "_");
+      const safePrompt = sanitizedBaseName || "Untitled";
 
-      const fileExtension = inferFileExtensionFromImageUrl(generation.asset.url);
+      const fileExtension = inferFileExtensionFromImageUrl(
+        generation.asset.url,
+      );
       const fileName = `${safePrompt}_${timestamp}.${fileExtension}`;
 
       await downloadImage(generation.asset.url, fileName);
@@ -71,19 +89,19 @@ export const GenerationItem = memo<GenerationItemProps>(
       if (isSupportSeed) {
         try {
           reuseSeed(generation.seed);
-          message.success(t('generation.actions.seedApplied'));
+          message.success(t("generation.actions.seedApplied"));
         } catch (error) {
-          console.error('Failed to apply seed:', error);
-          message.error(t('generation.actions.seedApplyFailed'));
+          console.error("Failed to apply seed:", error);
+          message.error(t("generation.actions.seedApplyFailed"));
         }
       } else {
         // If current model doesn't support seed parameter, copy to clipboard
         try {
           await navigator.clipboard.writeText(generation.seed.toString());
-          message.success(t('generation.actions.seedCopied'));
+          message.success(t("generation.actions.seedCopied"));
         } catch (error) {
-          console.error('Failed to copy seed:', error);
-          message.error(t('generation.actions.seedCopyFailed'));
+          console.error("Failed to copy seed:", error);
+          message.error(t("generation.actions.seedCopyFailed"));
         }
       }
     };
@@ -92,24 +110,29 @@ export const GenerationItem = memo<GenerationItemProps>(
       if (!generation.task.error) return;
 
       const errorMessage =
-        typeof generation.task.error.body === 'string'
+        typeof generation.task.error.body === "string"
           ? generation.task.error.body
-          : generation.task.error.body?.detail || generation.task.error.name || 'Unknown error';
+          : generation.task.error.body?.detail ||
+            generation.task.error.name ||
+            t("generation.actions.unknownError");
 
       try {
         await navigator.clipboard.writeText(errorMessage);
-        message.success(t('generation.actions.errorCopied'));
+        message.success(t("generation.actions.errorCopied"));
       } catch (error) {
-        console.error('Failed to copy error message:', error);
-        message.error(t('generation.actions.errorCopyFailed'));
+        console.error("Failed to copy error message:", error);
+        message.error(t("generation.actions.errorCopyFailed"));
       }
     };
 
     // 根据状态渲染对应组件
-    if (generation.task.status === AsyncTaskStatus.Success && generation.asset?.url) {
+    if (
+      generation.task.status === AsyncTaskStatus.Success &&
+      generation.asset?.url
+    ) {
       const seedTooltip = isSupportSeed
-        ? t('generation.actions.applySeed')
-        : t('generation.actions.copySeed');
+        ? t("generation.actions.applySeed")
+        : t("generation.actions.copySeed");
 
       return (
         <SuccessState
@@ -149,4 +172,4 @@ export const GenerationItem = memo<GenerationItemProps>(
   },
 );
 
-GenerationItem.displayName = 'GenerationItem';
+GenerationItem.displayName = "GenerationItem";

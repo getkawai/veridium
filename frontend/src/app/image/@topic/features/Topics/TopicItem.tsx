@@ -1,23 +1,23 @@
-'use client';
+"use client";
 
-import { ActionIcon, Avatar, Text } from '@lobehub/ui';
-import { App, Popover } from 'antd';
-import { useTheme } from 'antd-style';
-import { Trash } from 'lucide-react';
-import React, { memo } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Flexbox } from 'react-layout-kit';
+import { ActionIcon, Avatar, Text } from "@lobehub/ui";
+import { App, Popover } from "antd";
+import { useTheme } from "antd-style";
+import { Trash } from "lucide-react";
+import React, { memo } from "react";
+import { useTranslation } from "react-i18next";
+import { Flexbox } from "react-layout-kit";
 
-import { useGlobalStore } from '@/store/global';
-import { globalGeneralSelectors } from '@/store/global/selectors';
-import { useImageStore } from '@/store/image';
-import { generationTopicSelectors } from '@/store/image/slices/generationTopic/selectors';
-import { ImageGenerationTopic } from '@/types/generation';
+import { useGlobalStore } from "@/store/global";
+import { globalGeneralSelectors } from "@/store/global/selectors";
+import { useImageStore } from "@/store/image";
+import { generationTopicSelectors } from "@/store/image/slices/generationTopic/selectors";
+import { ImageGenerationTopic } from "@/types/generation";
 
 const formatTime = (date: Date, locale: string) => {
   return new Intl.DateTimeFormat(locale, {
-    day: 'numeric',
-    month: 'long',
+    day: "numeric",
+    month: "long",
   }).format(new Date(date));
 };
 
@@ -29,15 +29,19 @@ interface TopicItemProps {
 
 const TopicItem = memo<TopicItemProps>(({ topic, showMoreInfo, style }) => {
   const theme = useTheme();
-  const { t } = useTranslation('image');
-  const { modal } = App.useApp();
+  const { t } = useTranslation("image");
+  const { modal, message } = App.useApp();
   const locale = useGlobalStore(globalGeneralSelectors.currentLanguage);
 
   // Keep avatar in loading state when this topic is being fetched/saved.
-  const isLoading = useImageStore(generationTopicSelectors.isLoadingGenerationTopic(topic.id));
+  const isLoading = useImageStore(
+    generationTopicSelectors.isLoadingGenerationTopic(topic.id),
+  );
   const removeGenerationTopic = useImageStore((s) => s.removeGenerationTopic);
   const switchGenerationTopic = useImageStore((s) => s.switchGenerationTopic);
-  const activeTopicId = useImageStore(generationTopicSelectors.activeGenerationTopicId);
+  const activeTopicId = useImageStore(
+    generationTopicSelectors.activeGenerationTopicId,
+  );
 
   const isActive = activeTopicId === topic.id;
 
@@ -49,43 +53,47 @@ const TopicItem = memo<TopicItemProps>(({ topic, showMoreInfo, style }) => {
     e.stopPropagation();
 
     modal.confirm({
-      cancelText: t('cancel', { ns: 'common' }),
-      content: t('topic.deleteConfirmDesc'),
+      cancelText: t("cancel", { ns: "common" }),
+      content: t("topic.deleteConfirmDesc"),
       okButtonProps: { danger: true },
-      okText: t('delete', { ns: 'common' }),
+      okText: t("delete", { ns: "common" }),
       onOk: async () => {
         try {
           await removeGenerationTopic(topic.id);
+          message.success(t("topic.deleteSuccess"));
         } catch (error) {
-          console.error('Delete topic failed:', error);
+          const errorMessage =
+            error instanceof Error ? error.message : t("topic.deleteFailed");
+          console.error("Delete topic failed:", error);
+          message.error(errorMessage);
         }
       },
-      title: t('topic.deleteConfirm'),
+      title: t("topic.deleteConfirm"),
     });
   };
 
   // Shared tooltip content, shown inline when there is enough width.
   const tooltipContent = (
     <Flexbox
-      align={'center'}
+      align={"center"}
       flex={1}
       gap={16}
       horizontal
-      justify={'space-between'}
+      justify={"space-between"}
       style={{
-        overflow: 'hidden',
+        overflow: "hidden",
       }}
     >
       <Flexbox
         flex={1}
         style={{
-          overflow: 'hidden',
+          overflow: "hidden",
         }}
       >
         <Text ellipsis fontSize={14} weight={500}>
-          {topic.title || t('topic.untitled')}
+          {topic.title || t("topic.untitled")}
         </Text>
-        <Text ellipsis fontSize={12} type={'secondary'}>
+        <Text ellipsis fontSize={12} type={"secondary"}>
           {formatTime(topic.updatedAt, locale)}
         </Text>
       </Flexbox>
@@ -97,36 +105,36 @@ const TopicItem = memo<TopicItemProps>(({ topic, showMoreInfo, style }) => {
     <Popover
       arrow={false}
       content={tooltipContent}
-      placement={'left'}
+      placement={"left"}
       styles={{
         body: {
           width: 200,
         },
       }}
-      trigger={showMoreInfo ? [] : ['hover']}
+      trigger={showMoreInfo ? [] : ["hover"]}
     >
       <Flexbox
-        align={'center'}
+        align={"center"}
         gap={12}
         horizontal
-        justify={'center'}
+        justify={"center"}
         onClick={handleClick}
         style={{
-          cursor: 'pointer',
+          cursor: "pointer",
           ...style,
         }}
-        width={'100%'}
+        width={"100%"}
       >
         <Avatar
-          avatar={topic.coverUrl ?? ''}
+          avatar={topic.coverUrl ?? ""}
           background={theme.colorFillSecondary}
           bordered={isActive}
           loading={isLoading}
           shape="square"
           size={48}
           style={{
-            flex: 'none',
-            pointerEvents: 'none',
+            flex: "none",
+            pointerEvents: "none",
           }}
         />
         {showMoreInfo && tooltipContent}
@@ -135,6 +143,6 @@ const TopicItem = memo<TopicItemProps>(({ topic, showMoreInfo, style }) => {
   );
 });
 
-TopicItem.displayName = 'TopicItem';
+TopicItem.displayName = "TopicItem";
 
 export default TopicItem;

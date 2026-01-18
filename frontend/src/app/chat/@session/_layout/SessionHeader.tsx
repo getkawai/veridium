@@ -1,6 +1,7 @@
 "use client";
 
 import { ActionIcon, Dropdown, Icon } from "@lobehub/ui";
+import { App } from "antd";
 import { createStyles } from "antd-style";
 import { Bot, MessageSquarePlus, SquarePlus, Users } from "lucide-react";
 import { memo, useState } from "react";
@@ -41,6 +42,7 @@ export const useStyles = createStyles(({ css, token }) => ({
 const Header = memo(() => {
   const { styles } = useStyles();
   const { t } = useTranslation("chat");
+  const { message } = App.useApp();
   const groupTemplates = useGroupTemplates();
   const [createSession, refreshSessions] = useSessionStore((s) => [
     s.createSession,
@@ -157,10 +159,13 @@ const Header = memo(() => {
         memberAgentIds,
       );
 
-      // Close the modal only after all requests are finished successfully
+      // Close modal only after all requests are finished successfully
       setIsGroupWizardOpen(false);
     } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : t("group.creationFailed");
       console.error("Failed to create group from template:", error);
+      message.error(errorMessage);
       // Keep modal open on error so user can try again
     } finally {
       setIsCreatingGroup(false);
@@ -210,7 +215,10 @@ const Header = memo(() => {
       // Close modal only after successful creation
       setIsGroupWizardOpen(false);
     } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : t("group.creationFailed");
       console.error("Failed to create group:", error);
+      message.error(errorMessage);
       // Keep modal open on error
     } finally {
       setIsCreatingGroup(false);

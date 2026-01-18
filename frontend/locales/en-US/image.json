@@ -60,6 +60,8 @@
       "copySeed": "Copy Seed",
       "delete": "Delete",
       "deleteBatch": "Delete Batch",
+      "deleteFailed": "Failed to Delete Generation",
+      "deleteSuccess": "Generation Deleted Successfully",
       "download": "Download",
       "downloadFailed": "Failed to download image. Please check your network connection or S3 storage CORS configuration.",
       "errorCopied": "Error Message Copied to Clipboard",
@@ -71,7 +73,8 @@
       "seedApplied": "Seed Applied to Configuration",
       "seedApplyFailed": "Failed to Apply Seed",
       "seedCopied": "Seed Copied to Clipboard",
-      "seedCopyFailed": "Failed to Copy Seed"
+      "seedCopyFailed": "Failed to Copy Seed",
+      "unknownError": "Unknown Error"
     },
     "metadata": {
       "count": "{{count}} Images"

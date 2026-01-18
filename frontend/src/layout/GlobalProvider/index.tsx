@@ -1,10 +1,11 @@
-import { ReactNode } from 'react';
-import AntdV5MonkeyPatch from './AntdV5MonkeyPatch';
-import AppTheme from './AppTheme';
-import StyleRegistry from './StyleRegistry';
-import StoreInitialization from './StoreInitialization';
-import { ServerConfigStoreProvider } from '@/store/serverConfig';
-import Locale from './Locale';
+import { ReactNode } from "react";
+import { App } from "antd";
+import AntdV5MonkeyPatch from "./AntdV5MonkeyPatch";
+import AppTheme from "./AppTheme";
+import StyleRegistry from "./StyleRegistry";
+import StoreInitialization from "./StoreInitialization";
+import { ServerConfigStoreProvider } from "@/store/serverConfig";
+import Locale from "./Locale";
 
 interface GlobalLayoutProps {
   appearance: string;
@@ -23,7 +24,6 @@ const GlobalLayout = ({
   appearance,
   variants,
 }: GlobalLayoutProps) => {
-
   return (
     <StyleRegistry>
       <Locale antdLocale={undefined} defaultLang={userLocale}>
@@ -33,11 +33,14 @@ const GlobalLayout = ({
           defaultAppearance={appearance}
           defaultNeutralColor={neutralColor as any}
           defaultPrimaryColor={primaryColor as any}
-          globalCDN={false}>
-          <ServerConfigStoreProvider segmentVariants={variants}>
-            <StoreInitialization />
-            {children}
-          </ServerConfigStoreProvider>
+          globalCDN={false}
+        >
+          <App>
+            <ServerConfigStoreProvider segmentVariants={variants}>
+              <StoreInitialization />
+              {children}
+            </ServerConfigStoreProvider>
+          </App>
         </AppTheme>
       </Locale>
       <AntdV5MonkeyPatch />
