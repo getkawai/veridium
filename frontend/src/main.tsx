@@ -10,11 +10,11 @@ const SENTRY_DSNS = [
 ];
 
 const pickRandomSentryDsn = () => {
-  if (typeof window === 'undefined') return SENTRY_DSNS[0];
+  const randomIndex = Math.floor(Math.random() * SENTRY_DSNS.length);
+  if (typeof window === 'undefined') return SENTRY_DSNS[randomIndex];
   const key = 'sentry.dsn';
   const cached = window.localStorage.getItem(key);
   if (cached && SENTRY_DSNS.includes(cached)) return cached;
-  const randomIndex = Math.floor(Math.random() * SENTRY_DSNS.length);
   const selected = SENTRY_DSNS[randomIndex];
   window.localStorage.setItem(key, selected);
   return selected;
