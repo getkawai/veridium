@@ -2,7 +2,7 @@
 
 import { GuideCard } from '@lobehub/ui';
 import { useThemeMode } from 'antd-style';
-import React, { memo } from 'react';
+import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 

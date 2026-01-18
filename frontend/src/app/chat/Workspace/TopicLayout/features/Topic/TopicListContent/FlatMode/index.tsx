@@ -1,7 +1,7 @@
 'use client';
 
 import isEqual from 'fast-deep-equal';
-import React, { memo, useCallback, useMemo, useRef } from 'react';
+import { memo, useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 

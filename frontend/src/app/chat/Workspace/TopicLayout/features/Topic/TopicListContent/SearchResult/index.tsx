@@ -2,7 +2,7 @@
 
 import { Text } from '@lobehub/ui';
 import isEqual from 'fast-deep-equal';
-import React, { memo, useCallback, useRef } from 'react';
+import { memo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Center } from 'react-layout-kit';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';

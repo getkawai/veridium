@@ -510,7 +510,6 @@ export const chatAiGroupChat: StateCreator<
     },
 
     internal_executeAgentResponses: async (groupId: string, decisions: SupervisorDecisionList) => {
-      console.log('DEBUG: Executing agent responses with decisions:', decisions);
       const { internal_processAgentMessage, internal_triggerSupervisorDecisionDebounced } = get();
 
       // Read the target group's config to respect per-group settings
@@ -586,12 +585,6 @@ export const chatAiGroupChat: StateCreator<
       targetId?: string,
       instruction?: string,
     ) => {
-      console.log('DEBUG: internal_processAgentMessage called with:', {
-        groupId,
-        agentId,
-        targetId,
-        instruction,
-      });
       const {
         messagesMap,
         internal_createMessage,
@@ -623,8 +616,6 @@ export const chatAiGroupChat: StateCreator<
 
         const agentProvider = agentData.provider || undefined;
         const agentModel = agentData.model || undefined;
-
-        console.log('DEBUG: Group chat agent data:', agentData);
 
         if (!agentProvider || !agentModel) {
           console.error(`No provider or model configured for agent ${agentId}`);
@@ -667,8 +658,6 @@ export const chatAiGroupChat: StateCreator<
           topicId: activeTopicId,
           targetId: targetId, // Use targetId when provided for DM messages
         };
-
-        console.log('DEBUG: Creating agent message with:', agentMessage);
 
         assistantId = await internal_createMessage(agentMessage);
 

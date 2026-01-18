@@ -263,17 +263,11 @@ export class GroupChatSupervisor {
         }
         case 'wait_for_user_input': {
           // Pause conversation - no action needed, just don't add any decisions
-          console.log('DEBUG: Supervisor paused conversation:', call.parameter);
           break;
         }
         case 'trigger_agent':
         case 'trigger_agent_dm': {
           const decision = this.buildDecisionFromTool(call.parameter, availableAgents, context);
-          console.log('DEBUG: Built decision from tool:', {
-            decision,
-            parameter: call.parameter,
-            toolName: call.tool_name,
-          });
           if (decision) {
             decisions.push(decision);
           }
@@ -281,8 +275,6 @@ export class GroupChatSupervisor {
         }
       }
     });
-
-    console.log('DEBUG: Final decisions:', decisions);
 
     return { decisions, todoUpdated, todos };
   }

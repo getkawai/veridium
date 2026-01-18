@@ -7,14 +7,11 @@ import type { KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 
-import { loginRequired } from '@/components/Error/loginRequiredNotification';
 import { useGeminiChineseWarning } from '@/hooks/useGeminiChineseWarning';
 import { useImageStore } from '@/store/image';
 import { createImageSelectors } from '@/store/image/selectors';
 import { useGenerationConfigParam } from '@/store/image/slices/generationConfig/hooks';
 import { imageGenerationConfigSelectors } from '@/store/image/slices/generationConfig/selectors';
-import { useUserStore } from '@/store/user';
-import { authSelectors } from '@/store/user/slices/auth/selectors';
 
 import PromptTitle from './Title';
 

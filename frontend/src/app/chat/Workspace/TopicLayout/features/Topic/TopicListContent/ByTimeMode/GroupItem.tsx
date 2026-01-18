@@ -1,6 +1,6 @@
 import { createStyles } from 'antd-style';
 import dayjs from 'dayjs';
-import React, { memo } from 'react';
+import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flexbox } from 'react-layout-kit';
 
