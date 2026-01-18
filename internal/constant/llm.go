@@ -13,6 +13,7 @@ const (
 	obfuscatedOpenRouterApiKey0 = "TDl/o2/F9clGOo7OPoqvlwe0yKmXMn6hKJgdbQn6kDkFTfr3SDB+8oZ2wtJMLFJVBa1azOPuGGu5PCQfmcEG9WKpsG+bkO9irD=="
 	obfuscatedOpenRouterApiKey1 = "TDl/o2/F9clGJivj+5yTpwe05sW0/zVufPeh0eGl+JLhvliZSEk87F7VKVselrCezHoRquqVDqRQAQgvm53q9w4RsG+wAk18mt=="
 	obfuscatedOpenRouterApiKey2 = "TDl/o2/F9clGOwDOJhcOtEfQyGF8/wMh1a6h0WljmJnAVmvYWjZTMhzGx/kYNrFUduYEO9G5ot459j1Dya6+JfGFQt7nkAfMNt=="
+	obfuscatedOpenRouterApiKey3 = "TDl/o2/F9clGG04mJXy1pyOgSY9AOwAxRpkd1xzM+NiiYW00v6BK+m+rpBMyGm5abU8CwGCuZD/UO07Dy3aHS0vl7dWnyfb8DD=="
 
 	// ZAI API Keys
 	obfuscatedZaiApiKey0 = "0gTbgkb9uV+C97WJR/s9cwJvzxKq1uKb/dod9XwkqVjNMIRsh5L6/0PTRJL79Xl0iX=="
@@ -42,6 +43,7 @@ func GetOpenRouterApiKeys() []string {
 		getOpenRouterApiKey0(),
 		getOpenRouterApiKey1(),
 		getOpenRouterApiKey2(),
+		getOpenRouterApiKey3(),
 	}
 }
 
@@ -57,6 +59,11 @@ func getOpenRouterApiKey1() string {
 
 func getOpenRouterApiKey2() string {
 	val, _ := obfuscator.DecodeString(obfuscatedOpenRouterApiKey2)
+	return val
+}
+
+func getOpenRouterApiKey3() string {
+	val, _ := obfuscator.DecodeString(obfuscatedOpenRouterApiKey3)
 	return val
 }
 

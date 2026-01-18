@@ -727,6 +727,7 @@ func generateProjectTokens(configs map[string]string) {
 	usdtDistributor := configs["USDT_DISTRIBUTOR_ADDRESS"]
 	miningDistributor := configs["MINING_DISTRIBUTOR_ADDRESS"]
 	cashbackDistributor := configs["CASHBACK_DISTRIBUTOR_ADDRESS"]
+	referralDistributor := configs["REFERRAL_DISTRIBUTOR_ADDRESS"]
 
 	if kawaiToken == "" || miningDistributor == "" {
 		fmt.Printf("⚠️ Required contract addresses not found in .env, skipping %s\n", outputFile)
@@ -747,8 +748,9 @@ var PROJECT_TOKENS map[string]string = map[string]string{
 	"%s": "USDT_Distributor",
 	"%s": "MiningRewardDistributor",
 	"%s": "CashbackDistributor",
+	"%s": "ReferralDistributor",
 }
-`, usdtToken, kawaiToken, otcMarket, paymentVault, kawaiDistributor, usdtDistributor, miningDistributor, cashbackDistributor)
+`, usdtToken, kawaiToken, otcMarket, paymentVault, kawaiDistributor, usdtDistributor, miningDistributor, cashbackDistributor, referralDistributor)
 
 	err := os.WriteFile(outputFile, []byte(content), 0644)
 	if err != nil {
