@@ -17,7 +17,7 @@ const MobileChatSendButton = memo<MobileChatSendButtonProps>(
     };
 
     return loading ? (
-      <ActionIcon active icon={Loader2} onClick={onStop} size={size} spin />
+      <ActionIcon active icon={Loader2} onClick={onStop} size={size} spin aria-label="Stop generation" />
     ) : (
       <Button
         disabled={disabled}
@@ -25,6 +25,7 @@ const MobileChatSendButton = memo<MobileChatSendButtonProps>(
         onClick={onSend}
         style={{ flex: 'none' }}
         type={'primary'}
+        aria-label="Send message"
       />
     );
   },

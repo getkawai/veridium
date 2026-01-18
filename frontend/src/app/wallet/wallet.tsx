@@ -21,7 +21,7 @@ import { Flexbox } from 'react-layout-kit';
 import { createStyles, useTheme } from 'antd-style';
 import { NetworkIcon } from './NetworkIcons';
 import { TokenUSDT } from '@web3icons/react';
-import { getBackendNetworkConfig, getTokenListFromBackend } from '@/config/network';
+import { getBackendNetworkConfig, getTokenListFromBackend, DEFAULT_CHAIN_ID } from '@/config/network';
 import Menu from '@/components/Menu';
 import PanelTitle from '@/components/PanelTitle';
 import WalletSidePanel from './WalletSidePanel';
@@ -36,37 +36,40 @@ import SettingsContent from './SettingsContent';
 
 type MenuKey = 'home' | 'otc' | 'rewards' | 'settings';
 
-const useStyles = createStyles(({ css, token }) => ({
-  container: css`
+const useStyles = createStyles(({ css, token, appearance }) => {
+  const isDark = appearance === 'dark';
+  return {
+    container: css`
     flex: 1;
     display: flex;
     flex-direction: row;
     overflow: hidden;
   `,
-  content: css`
+    content: css`
     flex: 1;
     padding: 24px;
     overflow-y: auto;
     background: ${token.colorBgLayout};
   `,
-  balanceCard: css`
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-    border: 1px solid rgba(102, 126, 234, 0.3);
+    balanceCard: css`
+    background: ${token.colorBgContainer};
+    border: 1px solid ${token.colorBorderSecondary};
     border-radius: 20px;
     position: relative;
     overflow: hidden;
     
-    /* Subtle grid pattern */
+    /* Dynamic gradient based on theme */
     background-image: 
-      linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%),
+      linear-gradient(135deg, ${token.colorFillContent} 0%, ${token.colorFillQuaternary} 50%, ${token.colorFillSecondary} 100%),
       repeating-linear-gradient(
         45deg,
         transparent,
         transparent 20px,
-        rgba(255,255,255,0.01) 20px,
-        rgba(255,255,255,0.01) 40px
+        rgba(255,255,255,0.05) 20px,
+        rgba(255,255,255,0.05) 40px
       );
     
+    /* Glow effects using theme colors */
     &::before {
       content: '';
       position: absolute;
@@ -74,7 +77,7 @@ const useStyles = createStyles(({ css, token }) => ({
       right: -20%;
       width: 300px;
       height: 300px;
-      background: radial-gradient(circle, rgba(102, 126, 234, 0.4) 0%, transparent 60%);
+      background: radial-gradient(circle, ${isDark ? 'rgba(102, 126, 234, 0.4)' : token.colorPrimaryBg} 0%, transparent 60%);
       border-radius: 50%;
     }
     
@@ -85,7 +88,7 @@ const useStyles = createStyles(({ css, token }) => ({
       left: -10%;
       width: 200px;
       height: 200px;
-      background: radial-gradient(circle, rgba(118, 75, 162, 0.25) 0%, transparent 60%);
+      background: radial-gradient(circle, ${isDark ? 'rgba(118, 75, 162, 0.25)' : token.colorInfoBg} 0%, transparent 60%);
       border-radius: 50%;
     }
 
@@ -95,7 +98,7 @@ const useStyles = createStyles(({ css, token }) => ({
       z-index: 1;
     }
   `,
-  actionButton: css`
+    actionButton: css`
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -111,7 +114,7 @@ const useStyles = createStyles(({ css, token }) => ({
       transform: translateY(-3px);
     }
   `,
-  actionCircle: css`
+    actionCircle: css`
     width: 56px;
     height: 56px;
     border-radius: 18px;
@@ -121,7 +124,7 @@ const useStyles = createStyles(({ css, token }) => ({
     transition: all 0.3s ease;
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
   `,
-  eyeButton: css`
+    eyeButton: css`
     position: absolute;
     top: 20px;
     right: 20px;
@@ -133,7 +136,7 @@ const useStyles = createStyles(({ css, token }) => ({
       opacity: 1;
     }
   `,
-  statValue: css`
+    statValue: css`
     font-size: 36px;
     font-weight: 700;
     line-height: 1.2;
@@ -141,7 +144,7 @@ const useStyles = createStyles(({ css, token }) => ({
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
   `,
-  tokenRow: css`
+    tokenRow: css`
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -154,14 +157,15 @@ const useStyles = createStyles(({ css, token }) => ({
       border-color: ${token.colorPrimary};
     }
   `,
-  placeholderCard: css`
+    placeholderCard: css`
     background: ${token.colorBgContainer};
     border: 1px solid ${token.colorBorderSecondary};
     border-radius: 16px;
     padding: 48px;
     text-align: center;
   `,
-}));
+  };
+});
 
 const MenuContent = memo<{
   activeMenu: MenuKey;
@@ -323,8 +327,7 @@ const NetworkSwitcher = memo<NetworkSwitcherProps>(({ currentNetwork, onNetworkC
   );
 });
 
-// Default Monad Testnet chain ID
-const DEFAULT_CHAIN_ID = 10143;
+
 
 const DesktopWalletLayout = memo(() => {
   const { styles, theme } = useStyles();
@@ -547,24 +550,35 @@ const DesktopWalletLayout = memo(() => {
       const txHash = await DeAIService.DepositToVault(rawAmount);
       message.success(`Deposit Successful! TX: ${txHash.substring(0, 10)}...`);
 
-      // Step 2: Wait for confirmation (2 seconds)
+      // Step 2 & 3: Poll for balance update (max 30 seconds)
       hide();
-      const syncHide = message.loading("Syncing balance...", 0);
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const syncHide = message.loading("Syncing balance (waiting for block confirmation)...", 0);
 
-      // Step 3: Sync to off-chain balance (Cloudflare KV)
-      const userAddress = await WalletService.GetCurrentAddress();
-      const syncResult = await DepositSyncService.SyncDeposit({
-        txHash: txHash,
-        userAddress: userAddress
-      });
+      let synced = false;
+      let attempts = 0;
+      const maxAttempts = 15; // 15 * 2s = 30s
 
-      syncHide();
+      while (!synced && attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        attempts++;
 
-      if (syncResult?.success) {
-        message.success(`Balance synced! New balance: ${(parseFloat(syncResult.newBalance || '0') / 1_000_000).toFixed(2)} USDT`);
-      } else {
-        message.warning(`Deposit successful but sync failed: ${syncResult?.message || 'Unknown error'}. Please try manual sync.`);
+        const userAddress = await WalletService.GetCurrentAddress();
+        const syncResult = await DepositSyncService.SyncDeposit({
+          txHash: txHash,
+          userAddress: userAddress
+        });
+
+        if (syncResult?.success) {
+          syncHide();
+          message.success(`Balance synced! New balance: ${(parseFloat(syncResult.newBalance || '0') / 1_000_000).toFixed(2)} USDT`);
+          synced = true;
+          break;
+        }
+      }
+
+      if (!synced) {
+        syncHide();
+        message.warning(`Deposit transaction sent, but sync timed out. Please click "Refresh" in a few moments.`);
       }
 
       loadBalance();
@@ -578,7 +592,7 @@ const DesktopWalletLayout = memo(() => {
       }
       message.error(`Deposit Failed: ${msg}`);
     } finally {
-      hide();
+      // hide() called in try block
       setLoading(false);
     }
   };
@@ -610,11 +624,18 @@ const DesktopWalletLayout = memo(() => {
         }
         tx = await DeAIService.TransferToken(kawaiAddress, to, rawAmount);
       } else if (customTokenAddress) {
-        // Custom token transfer (assume 18 decimals)
-        const amountStr = amount.toFixed(18);
+        // Fetch token info to get correct decimals
+        const networkId = currentNetwork?.id || DEFAULT_CHAIN_ID;
+        const tokenInfo = await JarvisService.GetTokenInfo(customTokenAddress, networkId);
+        const decimals = tokenInfo?.decimals || 18;
+
+        console.log(`Sending custom token: ${customTokenAddress}, Decimals: ${decimals}`);
+
+        const amountStr = amount.toFixed(decimals);
         const [intPart, decPart = '0'] = amountStr.split('.');
-        const paddedDec = decPart.padEnd(18, '0').substring(0, 18);
-        const rawAmount = (BigInt(intPart) * BigInt(10 ** 18) + BigInt(paddedDec)).toString();
+        const paddedDec = decPart.padEnd(decimals, '0').substring(0, decimals);
+        const rawAmount = (BigInt(intPart) * (BigInt(10) ** BigInt(decimals)) + BigInt(paddedDec)).toString();
+
         tx = await DeAIService.TransferToken(customTokenAddress, to, rawAmount);
       } else {
         throw new Error("Unknown asset type");
@@ -892,6 +913,12 @@ const SendForm = ({ onSend, loading, currentNetwork }: { onSend: (to: string, va
     let assetType = selectedAsset;
     let customAddr: string | undefined = undefined;
 
+    // If custom, allow logic to pass customAddr
+    if (values.asset === 'custom') {
+      customAddr = values.customAddr;
+      assetType = 'custom';
+    }
+
     setPendingTx({ to: values.to, amount: values.amount, assetType, customAddr });
     setShowConfirmation(true);
   };
@@ -950,12 +977,29 @@ const SendForm = ({ onSend, loading, currentNetwork }: { onSend: (to: string, va
     <Form form={form} layout="vertical" onFinish={handleFinish} initialValues={{ asset: 'usdt' }}>
       <Form.Item label="Asset" name="asset">
         <Select
-          options={assetOptions}
+          options={[
+            ...assetOptions,
+            { label: 'Custom Token', value: 'custom' }
+          ]}
           value={selectedAsset}
           onChange={setSelectedAsset}
           size="large"
         />
       </Form.Item>
+
+      {selectedAsset === 'custom' && (
+        <Form.Item
+          label="Token Contract Address"
+          name="customAddr"
+          rules={[
+            { required: true, message: 'Token address is required' },
+            { pattern: /^0x[a-fA-F0-9]{40}$/, message: 'Invalid EVM address' }
+          ]}
+        >
+          <Input placeholder="0x..." size="large" />
+        </Form.Item>
+      )}
+
       <Form.Item label="Recipient Address" name="to" rules={[{ required: true, message: 'Address is required' }, { pattern: /^0x[a-fA-F0-9]{40}$/, message: 'Invalid EVM address' }]}>
         <Input placeholder="0x..." size="large" />
       </Form.Item>

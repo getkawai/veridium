@@ -196,21 +196,22 @@ const PromptInput = ({ showTitle = false }: PromptInputProps) => {
           - loading: menampilkan spinner saat proses generasi
           - icon Sparkles: menunjukkan fitur AI generation
         */}
-        <Button
-          disabled={!value}
-          icon={Sparkles}
-          loading={isCreating}
-          onClick={handleGenerate}
-          size={'large'}
-          style={{
-            fontWeight: 500,
-            height: 64,
-            minWidth: 64,
-            width: 64,
-          }}
-          title={isCreating ? t('generation.status.generating') : t('generation.actions.generate')}
-          type={'primary'}
-        />
+         <Button
+           disabled={!value}
+           icon={Sparkles}
+           loading={isCreating}
+           onClick={handleGenerate}
+           size={'large'}
+           style={{
+             fontWeight: 500,
+             height: 64,
+             minWidth: 64,
+             width: 64,
+           }}
+           title={isCreating ? t('generation.status.generating') : t('generation.actions.generate')}
+           type={'primary'}
+           aria-label={isCreating ? t('generation.status.generating') : t('generation.actions.generate')}
+         />
       </Flexbox>
     </Flexbox>
   );

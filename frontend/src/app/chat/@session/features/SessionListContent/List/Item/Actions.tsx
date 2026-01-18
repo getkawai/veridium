@@ -204,7 +204,7 @@ const Actions = memo<ActionProps>(({ group, id, openCreateGroupModal, parentType
     [id, pin, openSessionInNewWindow],
   );
 
-  return (
+    return (
     <Dropdown
       arrow={false}
       menu={{
@@ -222,6 +222,7 @@ const Actions = memo<ActionProps>(({ group, id, openCreateGroupModal, parentType
           blockSize: 28,
           size: 16,
         }}
+        aria-label="Session actions"
       />
     </Dropdown>
   );

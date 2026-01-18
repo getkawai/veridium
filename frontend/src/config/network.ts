@@ -12,6 +12,12 @@ import { ConfigService } from '@@/github.com/kawai-network/veridium/internal/ser
 import type { BackendConfig } from '@@/github.com/kawai-network/veridium/internal/services/models';
 
 /**
+ * Default Chain ID (Monad Testnet)
+ * Used as fallback when backend config fails to load
+ */
+export const DEFAULT_CHAIN_ID = 10143;
+
+/**
  * Network Environment Types
  */
 export type NetworkEnv = 'testnet' | 'mainnet';
@@ -23,13 +29,13 @@ export async function detectNetworkEnv(): Promise<NetworkEnv> {
   try {
     const config = await ConfigService.GetConfig();
     const env = config.environment;
-    
+
     // Validate environment value
     if (env !== 'testnet' && env !== 'mainnet') {
       console.error(`Invalid network environment from backend: ${env}`);
       throw new Error(`Unsupported network environment: ${env}`);
     }
-    
+
     return env as NetworkEnv;
   } catch (e) {
     console.error('CRITICAL: Failed to detect network environment from backend:', e);
