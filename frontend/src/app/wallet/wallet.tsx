@@ -1132,7 +1132,6 @@ const AddTokenModal = memo<{ currentNetwork: NetworkInfo | null; onClose: () => 
   );
 });
 
-export default DesktopWalletLayout;
 const SetupForm = memo<{ type: 'create' | 'import'; onSuccess: () => void }>(({ type, onSuccess }) => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -1206,3 +1205,5 @@ const SetupForm = memo<{ type: 'create' | 'import'; onSuccess: () => void }>(({ 
     </Form>
   );
 });
+
+export default DesktopWalletLayout;

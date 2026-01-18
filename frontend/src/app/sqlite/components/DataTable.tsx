@@ -1,16 +1,39 @@
-'use client';
+"use client";
 
-import { Table, Pagination, Input, Select, Button, Space, Spin, Alert, Tag } from 'antd';
-import { SearchOutlined, ReloadOutlined, FilterOutlined } from '@ant-design/icons';
-import { createStyles } from 'antd-style';
-import { memo, useState, useEffect, useMemo } from 'react';
-import { GetTableData, GetTableDetails } from '@@/github.com/kawai-network/veridium/internal/tableviewer/service';
+import {
+  Table,
+  Pagination,
+  Input,
+  Select,
+  Button,
+  Space,
+  Spin,
+  Alert,
+  Tag,
+} from "antd";
+import {
+  InboxOutlined,
+  Title,
+  Text,
+} from "@ant-design/icons";
+import {
+  SearchOutlined,
+  ReloadOutlined,
+  FilterOutlined,
+} from "@ant-design/icons";
+import { createStyles } from "antd-style";
+import { Flexbox } from "react-layout-kit";
+import { memo, useState, useEffect, useMemo } from "react";
+import {
+  GetTableData,
+  GetTableDetails,
+} from "@@/github.com/kawai-network/veridium/internal/tableviewer/service";
 import type {
   TableDataResult,
   PaginationParams,
   FilterCondition,
-  TableColumnInfo
-} from '@@/github.com/kawai-network/veridium/internal/tableviewer/models';
+  TableColumnInfo,
+} from "@@/github.com/kawai-network/veridium/internal/tableviewer/models";
 
 const { Option } = Select;
 
@@ -53,7 +76,7 @@ const DataTable = memo<DataTableProps>(({ tableName }) => {
 
   const [data, setData] = useState<TableDataResult | null>(null);
   const [columns, setColumns] = useState<TableColumnInfo[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Pagination state
@@ -61,16 +84,19 @@ const DataTable = memo<DataTableProps>(({ tableName }) => {
   const [pageSize, setPageSize] = useState(50);
 
   // Filter state
-  const [searchColumn, setSearchColumn] = useState<string>('');
-  const [searchValue, setSearchValue] = useState<string>('');
-  const [searchOperator, setSearchOperator] = useState<string>('contains');
+  const [searchColumn, setSearchColumn] = useState<string>("");
+  const [searchValue, setSearchValue] = useState<string>("");
+  const [searchOperator, setSearchOperator] = useState<string>("contains");
+
+  useEffect(() => {
+    loadTableStructure();
+  }, [tableName]);
 
   useEffect(() => {
     if (tableName) {
-      loadTableStructure();
       loadTableData();
     }
-  }, [tableName]);
+  }, [tableName, currentPage, pageSize, searchColumn, searchValue, searchOperator]);
 
   useEffect(() => {
     if (tableName) {
@@ -83,9 +109,14 @@ const DataTable = memo<DataTableProps>(({ tableName }) => {
       const result = await GetTableDetails(tableName);
       setColumns(result || []);
     } catch (err) {
-      console.error('Failed to load table structure:', err);
+      console.error("Failed to load table structure:", err);
     }
   };
+
+  const loadTableData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
   const loadTableData = async () => {
     try {
@@ -111,7 +142,9 @@ const DataTable = memo<DataTableProps>(({ tableName }) => {
       const result = await GetTableData(tableName, pagination, filters);
       setData(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load table data');
+      setError(
+        err instanceof Error ? err.message : "Failed to load table data",
+      );
     } finally {
       setLoading(false);
     }
@@ -123,8 +156,8 @@ const DataTable = memo<DataTableProps>(({ tableName }) => {
   };
 
   const handleClearSearch = () => {
-    setSearchColumn('');
-    setSearchValue('');
+    setSearchColumn("");
+    setSearchValue("");
     setCurrentPage(1);
   };
 
@@ -132,16 +165,22 @@ const DataTable = memo<DataTableProps>(({ tableName }) => {
     if (!data?.data || data.data.length === 0) return [];
 
     const firstRow = data.data[0];
-    return Object.keys(firstRow).map(key => {
-      const columnInfo = columns.find(col => col.name === key);
+    return Object.keys(firstRow).map((key) => {
+      const columnInfo = columns.find((col) => col.name === key);
 
       return {
         title: (
           <div>
             <div>{key}</div>
             {columnInfo && (
-              <div style={{ fontSize: '12px', fontWeight: 'normal', color: '#666' }}>
-                <Tag color={columnInfo.isPrimaryKey ? 'gold' : 'blue'}>
+              <div
+                style={{
+                  fontSize: "12px",
+                  fontWeight: "normal",
+                  color: token.colorTextSecondary,
+                }}
+              >
+                <Tag color={columnInfo.isPrimaryKey ? "gold" : "blue"}>
                   {columnInfo.type}
                 </Tag>
                 {columnInfo.isPrimaryKey && <Tag color="red">PK</Tag>}
@@ -156,8 +195,8 @@ const DataTable = memo<DataTableProps>(({ tableName }) => {
         ellipsis: true,
         render: (value: any) => {
           if (value === null) return <Tag color="default">NULL</Tag>;
-          if (typeof value === 'boolean') return value ? 'true' : 'false';
-          if (typeof value === 'object') return JSON.stringify(value);
+          if (typeof value === "boolean") return value ? "true" : "false";
+          if (typeof value === "object") return JSON.stringify(value);
           return String(value);
         },
       };
@@ -194,7 +233,7 @@ const DataTable = memo<DataTableProps>(({ tableName }) => {
             onChange={setSearchColumn}
             allowClear
           >
-            {columns.map(col => (
+            {columns.map((col) => (
               <Option key={col.name} value={col.name}>
                 {col.name}
               </Option>
@@ -225,9 +264,7 @@ const DataTable = memo<DataTableProps>(({ tableName }) => {
             <Button onClick={handleSearch} type="primary">
               Search
             </Button>
-            <Button onClick={handleClearSearch}>
-              Clear
-            </Button>
+            <Button onClick={handleClearSearch}>Clear</Button>
             <Button onClick={loadTableData} icon={<ReloadOutlined />}>
               Refresh
             </Button>
@@ -237,14 +274,32 @@ const DataTable = memo<DataTableProps>(({ tableName }) => {
 
       <div className={styles.tableContainer}>
         <Spin spinning={loading}>
-          <Table
-            columns={tableColumns}
-            dataSource={data?.data || []}
-            pagination={false}
-            scroll={{ x: 'max-content', y: 'calc(100vh - 300px)' }}
-            size="small"
-            rowKey={(record, index) => index?.toString() || '0'}
-          />
+          {(!data || !data.data || data.data.length === 0) && !loading ? (
+            <Flexbox
+              align="center"
+              justify="center"
+              style={{ height: "300px", color: "rgba(0, 0, 0, 0.45)" }}
+            >
+              <div style={{ textAlign: "center" }}>
+                <InboxOutlined style={{ fontSize: 48, marginBottom: 16 }} />
+                <Title level={4} style={{ marginBottom: 8 }}>
+                  No Data Found
+                </Title>
+                <Text type="secondary">
+                  Try selecting a different table or adjusting your filters
+                </Text>
+              </div>
+            </Flexbox>
+          ) : (
+            <Table
+              columns={tableColumns}
+              dataSource={data?.data || []}
+              pagination={false}
+              scroll={{ x: "max-content", y: "calc(100vh - 300px)" }}
+              size="small"
+              rowKey={(record, index) => index?.toString() || "0"}
+            />
+          )}
         </Spin>
       </div>
 
@@ -265,7 +320,7 @@ const DataTable = memo<DataTableProps>(({ tableName }) => {
                 setPageSize(size);
               }
             }}
-            pageSizeOptions={['10', '25', '50', '100', '200']}
+            pageSizeOptions={["10", "25", "50", "100", "200"]}
           />
         </div>
       )}
@@ -273,6 +328,6 @@ const DataTable = memo<DataTableProps>(({ tableName }) => {
   );
 });
 
-DataTable.displayName = 'DataTable';
+DataTable.displayName = "DataTable";
 
 export default DataTable;
