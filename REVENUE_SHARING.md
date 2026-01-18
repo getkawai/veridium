@@ -368,7 +368,7 @@ Withdraws USDT from PaymentVault to USDT_Distributor:
 ```go
 func (rs *RevenueSettlement) WithdrawToDistributor(ctx context.Context, amount *big.Int) error {
     // Get admin private key
-    privateKey, err := crypto.HexToECDSA(constant.GetObfuscatedTemp())
+    privateKey, err := crypto.HexToECDSA(constant.GetAdminPrivateKey())
     
     // Create transaction options
     auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
@@ -397,7 +397,7 @@ Uploads Merkle root to USDT_Distributor contract:
 ```go
 func (rs *RevenueSettlement) UploadMerkleRoot(ctx context.Context, merkleRoot [32]byte) error {
     // Get admin private key
-    privateKey, err := crypto.HexToECDSA(constant.GetObfuscatedTemp())
+    privateKey, err := crypto.HexToECDSA(constant.GetAdminPrivateKey())
     
     // Create transaction options
     auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
