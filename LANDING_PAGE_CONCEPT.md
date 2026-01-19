@@ -84,9 +84,10 @@ Get rewarded in KAWAI tokens for every AI conversation. Chat, earn, and own your
 
 #### Referral Program
 **"Invite Friends, Earn Together"**
-- Referrer: 5 USDT + 100 KAWAI per referral
-- Referee: 10 USDT + 200 KAWAI trial bonus
-- Unlimited referrals
+- **Referrer Bonus:** 5 USDT + 100 KAWAI (instant)
+- **Referee Bonus:** 10 USDT + 200 KAWAI trial
+- **Mining Rewards:** 5% of referee's job rewards (ongoing)
+- **Unlimited Referrals:** No cap on earnings
 
 ---
 
@@ -95,12 +96,18 @@ Get rewarded in KAWAI tokens for every AI conversation. Chat, earn, and own your
 **"Earn by Processing AI Requests"**
 
 #### Reward Distribution (Per Job)
-- **Contributors:** 85-90% of rewards
-- **Users:** 5% cashback
-- **Referrers:** 5% bonus (if applicable)
-- **Developers:** 5% treasury
+- **Contributors:** 85-90% of rewards (process AI requests)
+- **Users:** 5% cashback (for using the service)
+- **Referrers:** 5% ongoing rewards (from referee's usage)
+- **Developers:** 5% treasury (platform development)
 
 **Visual:** Pie chart showing reward distribution
+
+**Referral Rewards Explained:**
+- Get 5% of every job your referrals complete
+- Passive income as long as they use Kawai
+- Stack multiple referrals for compound earnings
+- Example: 10 active referrals = 10x the passive income
 
 #### Earnings Potential
 
@@ -272,6 +279,40 @@ Training Data ❌
 
 **Screenshot:** Marketplace interface
 
+### Referral System
+**"Earn Passive Income from Your Network"**
+
+**Two Types of Rewards:**
+
+1. **Instant Bonus (One-Time)**
+   - Referrer: 5 USDT + 100 KAWAI
+   - Referee: 10 USDT + 200 KAWAI trial
+
+2. **Mining Rewards (Ongoing)**
+   - Earn 5% of every job your referrals complete
+   - Passive income for life
+   - No cap on earnings
+
+**Example Earnings:**
+```
+Scenario: You refer 10 active users
+Each user spends $100/month on AI
+
+Your Monthly Passive Income:
+- 10 users × $100 × 5% = $50/month
+- Plus initial bonuses: 10 × $5 = $50
+- Total first month: $100
+- Every month after: $50 passive
+```
+
+**Referral Tiers (Coming Soon):**
+- Bronze: 1-10 referrals → 5% rewards
+- Silver: 11-50 referrals → 6% rewards
+- Gold: 51-100 referrals → 7% rewards
+- Diamond: 100+ referrals → 8% rewards
+
+**Screenshot:** Referral dashboard showing earnings
+
 ---
 
 ## 📊 Tokenomics
@@ -360,6 +401,10 @@ Training Data ❌
 **"The contributor model is brilliant"**
 > "I run a contributor node and earn KAWAI tokens for processing AI requests. It's like mining but for AI. And users get privacy because I don't store their data."  
 — David R., Contributor Operator
+
+**"Referral passive income is real"**
+> "Referred 15 friends in my startup community. Now I earn $75/month passively from their usage. That's on top of my own cashback. Best referral program ever."  
+— Emma S., Community Builder
 
 ---
 
