@@ -546,159 +546,29 @@ Your Monthly Passive Income:
 
 Run a contributor node to process AI requests and earn rewards. Contributors are the backbone of Kawai's distributed AI network.
 
-**What You Need:**
-- **Recommended:** GPU with 8GB+ VRAM (NVIDIA preferred)
-- **Minimum:** 16GB RAM, 4-core CPU
-- **Storage:** 50GB+ free space (for AI models)
-- **Network:** Stable internet connection
-- **OS:** Linux (Ubuntu 20.04+), macOS, or Windows
+**Quick Start:**
+```bash
+curl -fsSL https://getkawai.com/node | sh
+```
+
+**Requirements:**
+- GPU: NVIDIA 8GB+ VRAM (RTX 3060 or better)
+- RAM: 16GB minimum
+- Storage: 50GB free space
+- OS: Linux, macOS, or Windows
 
 **Earnings Potential:**
-- 85-90% of job rewards go to contributors
-- Earn KAWAI tokens for every AI request processed
-- Higher specs = more requests = more earnings
-- Example: RTX 3090 can earn ~$50-100/day (varies by demand)
 
-**Installation Steps:**
+| Hardware | Est. Daily Earnings |
+|----------|-------------------|
+| RTX 4090 | $100-150 |
+| RTX 3090 | $70-100 |
+| RTX 3080 | $50-80 |
+| RTX 3060 | $30-50 |
 
-**Quick Install (Recommended):**
-```bash
-# One-line installer (Linux/macOS)
-curl -fsSL https://getkawai.com/node | sh
+*Earnings vary based on network demand and uptime*
 
-# The installer will:
-# - Download the latest contributor binary
-# - Install dependencies (CUDA drivers if needed)
-# - Set up systemd service (Linux)
-# - Create initial configuration
-```
-
-**Manual Install:**
-
-**1. Download Contributor Binary**
-```bash
-# Linux/macOS
-wget https://github.com/kawai-network/veridium/releases/latest/download/contributor-linux
-chmod +x contributor-linux
-
-# Or build from source
-git clone https://github.com/kawai-network/veridium.git
-cd veridium
-make build-contributor
-```
-
-**2. Create Wallet**
-```bash
-# First run - creates new wallet
-./contributor-linux --password YOUR_SECURE_PASSWORD
-
-# Save your mnemonic phrase! (shown on first run)
-```
-
-**3. Import Existing Wallet (Optional)**
-```bash
-./contributor-linux --password YOUR_PASSWORD --import-mnemonic "your twelve word mnemonic phrase here"
-```
-
-**4. Start Contributing**
-```bash
-# Start the contributor node
-./contributor-linux --password YOUR_PASSWORD --wallet YOUR_WALLET_ADDRESS
-
-# The node will:
-# - Register with the network
-# - Download AI models (first time only)
-# - Start accepting requests
-# - Earn KAWAI tokens automatically
-```
-
-**5. Monitor Your Earnings**
-```bash
-# Check your balance in the desktop app
-# Or view on blockchain explorer
-```
-
-**Advanced Configuration:**
-
-**Custom Port:**
-```bash
-./contributor-linux --password PASSWORD --port 8080
-```
-
-**Specific GPU:**
-```bash
-# Use specific GPU (for multi-GPU setups)
-CUDA_VISIBLE_DEVICES=0 ./contributor-linux --password PASSWORD
-```
-
-**Background Service (Linux):**
-```bash
-# Create systemd service
-sudo nano /etc/systemd/system/kawai-contributor.service
-
-[Unit]
-Description=Kawai Contributor Node
-After=network.target
-
-[Service]
-Type=simple
-User=kawai
-WorkingDirectory=/home/kawai/veridium
-ExecStart=/home/kawai/veridium/contributor-linux --password PASSWORD --wallet ADDRESS
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-
-# Enable and start
-sudo systemctl enable kawai-contributor
-sudo systemctl start kawai-contributor
-```
-
-**Monitoring:**
-- View logs: `journalctl -u kawai-contributor -f`
-- Check status: `systemctl status kawai-contributor`
-- View earnings: Check wallet in desktop app
-
-**Troubleshooting:**
-
-**GPU Not Detected:**
-```bash
-# Install CUDA drivers (NVIDIA)
-# Ubuntu:
-sudo apt install nvidia-driver-535 nvidia-cuda-toolkit
-
-# Verify GPU
-nvidia-smi
-```
-
-**Models Not Loading:**
-```bash
-# Check disk space
-df -h
-
-# Clear model cache
-rm -rf ~/.cache/kawai/models
-
-# Restart contributor
-```
-
-**Connection Issues:**
-```bash
-# Check firewall
-sudo ufw allow 7860/tcp
-
-# Test tunnel
-curl http://localhost:7860/health
-```
-
-**Resources:**
-- [Contributor Setup Guide](docs/CONTRIBUTOR_SETUP.md)
-- [Hardware Requirements](docs/HARDWARE_REQUIREMENTS.md)
-- [Earnings Calculator](https://kawai.network/calculator)
-- [Discord Support](https://discord.gg/kawai)
-
-**[Download Contributor Binary]** | **[View Documentation]** | **[Join Discord]**
+**[Install Contributor Node]** | **[Calculate Earnings]** | **[View Full Guide]**
 
 ---
 
