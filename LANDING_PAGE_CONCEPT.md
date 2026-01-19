@@ -23,10 +23,10 @@ Get rewarded in KAWAI tokens for every AI conversation. Chat, earn, and own your
 
 ### 1. Earn While You Chat
 **Icon:** 💰
-- Get rewarded in KAWAI tokens for every AI interaction
-- Mining rewards for contributors (85-90% of rewards)
-- Cashback on deposits (5-20% based on tier)
-- Referral bonuses (5 USDT + 100 KAWAI per referral)
+- **Cashback:** Get 5-20% back on every deposit (tier-based)
+- **Referral Rewards:** 5% ongoing from referee's usage + instant bonus
+- **Weekly Revenue Share:** 30% of platform revenue to KAWAI holders
+- **Mining Rewards:** Contributors earn 85-90% of job rewards
 
 ### 2. Own Your AI
 **Icon:** 🔐
@@ -88,6 +88,47 @@ Get rewarded in KAWAI tokens for every AI conversation. Chat, earn, and own your
 - **Referee Bonus:** 10 USDT + 200 KAWAI trial
 - **Mining Rewards:** 5% of referee's job rewards (ongoing)
 - **Unlimited Referrals:** No cap on earnings
+
+#### Weekly Revenue Sharing
+**"Hold KAWAI, Earn Weekly Rewards"**
+
+**How It Works:**
+- 30% of platform revenue distributed weekly to KAWAI holders
+- Proportional to your KAWAI holdings
+- Paid in USDT (stablecoin)
+- Automatic distribution via smart contract
+
+**Example Earnings:**
+```
+Your Holdings: 10,000 KAWAI (0.001% of supply)
+Weekly Platform Revenue: $100,000
+Your Share: 30% × $100,000 × 0.001% = $30/week
+Annual Passive Income: $30 × 52 = $1,560/year
+
+ROI: If KAWAI = $0.10, investment = $1,000
+Annual Return: $1,560 / $1,000 = 156% APY
+```
+
+**Revenue Sources:**
+- Platform fees (5% of transactions)
+- P2P marketplace fees
+- Premium features
+- Enterprise subscriptions
+
+**Distribution Schedule:**
+- Every Monday at 00:00 UTC
+- Snapshot taken Sunday 23:59 UTC
+- Minimum holding: 100 KAWAI
+- No lock-up period required
+
+**Benefits:**
+- ✅ Passive weekly income
+- ✅ Paid in stable USDT
+- ✅ No staking required
+- ✅ Proportional to holdings
+- ✅ Transparent on-chain
+
+**[View Revenue Dashboard]** | **[Calculate Your Earnings]**
 
 ---
 
