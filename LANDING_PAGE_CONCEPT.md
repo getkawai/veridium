@@ -35,12 +35,12 @@ Get rewarded in KAWAI tokens for every AI conversation. Chat, earn, and own your
 - **Zero Data Collection** - No central database, no tracking, no surveillance
 - **Your Keys, Your Crypto** - Full control of your wallet and assets
 
-### 3. Multiple AI Models
-**Icon:** 🤖
-- Access GPT-4, Claude, Gemini, and more
-- Switch models seamlessly
-- Best-in-class AI responses
-- One app, all models
+### 3. Decentralized AI Network
+**Icon:** 🌐
+- **Community-Powered AI** - Contributors run the network, not corporations
+- **Fair Compensation** - 85-90% of rewards go to those who do the work
+- **Transparent Economics** - All transactions on blockchain
+- **No Middleman** - Direct connection between users and contributors
 
 ---
 
