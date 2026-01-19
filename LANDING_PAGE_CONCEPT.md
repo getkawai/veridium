@@ -64,7 +64,12 @@ Get rewarded in KAWAI tokens for every AI conversation. Chat, earn, and own your
 - Passive income from your hardware
 - No data storage required
 
-**[Become a Contributor]**
+**Quick Start:**
+```bash
+curl -fsSL https://getkawai.com/node | sh
+```
+
+**[Become a Contributor]** | **[View Setup Guide]**
 
 ---
 
@@ -555,6 +560,20 @@ Run a contributor node to process AI requests and earn rewards. Contributors are
 - Example: RTX 3090 can earn ~$50-100/day (varies by demand)
 
 **Installation Steps:**
+
+**Quick Install (Recommended):**
+```bash
+# One-line installer (Linux/macOS)
+curl -fsSL https://getkawai.com/node | sh
+
+# The installer will:
+# - Download the latest contributor binary
+# - Install dependencies (CUDA drivers if needed)
+# - Set up systemd service (Linux)
+# - Create initial configuration
+```
+
+**Manual Install:**
 
 **1. Download Contributor Binary**
 ```bash
