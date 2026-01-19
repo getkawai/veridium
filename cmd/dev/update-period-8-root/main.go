@@ -39,7 +39,6 @@ func updatePeriod8Root() error {
 	fmt.Printf("   Settlement ID:     %d (KV storage key)\n", settlementID)
 	fmt.Printf("   Contract Period:   %d (current period)\n", contractPeriod)
 	fmt.Printf("   New Merkle Root:   %s\n", finalMerkleRoot)
-	fmt.Printf("   Treasury Address:  0x94D5C06229811c4816107005ff05259f229Eb07b\n")
 	fmt.Println()
 
 	// Connect to Monad RPC

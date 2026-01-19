@@ -38,7 +38,6 @@ func uploadTreasuryMiningRoot() error {
 	fmt.Printf("   Settlement ID:     %d (KV storage key)\n", settlementID)
 	fmt.Printf("   Contract Period:   %d (sequential period)\n", contractPeriod)
 	fmt.Printf("   Merkle Root:       %s\n", treasuryMerkleRoot)
-	fmt.Printf("   Treasury Address:  0x94D5C06229811c4816107005ff05259f229Eb07b\n")
 	fmt.Println()
 
 	fmt.Printf("🎯 Key Fix:\n")
