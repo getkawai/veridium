@@ -8,14 +8,39 @@
 ### Subheadline
 Get rewarded in KAWAI tokens for every AI conversation. Chat, earn, and own your AI experience.
 
+### Quick Install
+```bash
+# For Users (Desktop App)
+Download for Windows | macOS | Linux
+
+# For Contributors (Earn More)
+curl -fsSL https://getkawai.com/node | sh
+```
+
 ### CTA Buttons
-- **[Download Desktop App]** (Primary)
-- **[Try Free Trial]** (Secondary)
+- **[Download Desktop App]** (Primary - Large, prominent)
+- **[Become a Contributor]** (Secondary - Shows install command on click)
+- **[Try Free Trial]** (Tertiary - Link)
+
+### Trust Indicators
+- 🎁 **Free Trial:** 5 USDT + 100 KAWAI (No credit card)
+- 💰 **Weekly Rewards:** 30% revenue share to holders
+- 🔒 **Privacy First:** Your chats stay on your device
+- 🌐 **10,000+ Users** earning daily
 
 ### Hero Visual
-- Animated chat interface showing AI conversation
-- Floating KAWAI tokens being earned in real-time
-- Clean, modern gradient background (purple/blue)
+- Split screen showing:
+  - **Left:** Desktop app with chat interface + earnings counter
+  - **Right:** Contributor node dashboard with real-time earnings
+- Animated KAWAI tokens flowing between users and contributors
+- Clean gradient background (purple/blue/pink)
+
+### Install Command Showcase (Below CTA)
+**Quick Start for Contributors:**
+```bash
+curl -fsSL https://getkawai.com/node | sh
+```
+*Start earning in under 5 minutes. No complex setup required.*
 
 ---
 
