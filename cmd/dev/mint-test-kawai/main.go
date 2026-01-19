@@ -71,7 +71,7 @@ func main() {
 		Label   string
 	}{
 		{
-			Address: common.HexToAddress("0x94D5C06229811c4816107005ff05259f229Eb07b"),
+			Address: common.HexToAddress(constant.GetAdminAddress()),
 			Amount:  new(big.Int).Mul(big.NewInt(10000), big.NewInt(1e18)), // 10,000 KAWAI
 			Label:   "Admin/Test Address 1",
 		},

@@ -8,6 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/pkg/merkle"
 	"github.com/kawai-network/veridium/pkg/store"
 )
@@ -140,7 +141,7 @@ func debugCorrectLeaf() error {
 			developerAmount:   new(big.Int).Mul(big.NewInt(6), new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)),   // 6 KAWAI
 			userAmount:        new(big.Int).Mul(big.NewInt(6), new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)),   // 6 KAWAI
 			affiliatorAmount:  new(big.Int).Mul(big.NewInt(6), new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)),   // 6 KAWAI
-			developerAddr:     "0x94D5C06229811c4816107005ff05259f229Eb07b",
+			developerAddr:     constant.GetAdminAddress(),
 			userAddr:          testAddress,
 			affiliatorAddr:    "0x2864Cd9a59f32b74f3f851B92973fD40883aD503",
 		},
@@ -151,7 +152,7 @@ func debugCorrectLeaf() error {
 			developerAmount:   new(big.Int).Mul(big.NewInt(5), new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)),   // 5 KAWAI
 			userAmount:        new(big.Int).Mul(big.NewInt(5), new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)),   // 5 KAWAI
 			affiliatorAmount:  new(big.Int).Mul(big.NewInt(5), new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)),   // 5 KAWAI
-			developerAddr:     "0x94D5C06229811c4816107005ff05259f229Eb07b",
+			developerAddr:     constant.GetAdminAddress(),
 			userAddr:          "0x2222222222222222222222222222222222222222",
 			affiliatorAddr:    "0x2864Cd9a59f32b74f3f851B92973fD40883aD503",
 		},
@@ -162,7 +163,7 @@ func debugCorrectLeaf() error {
 			developerAmount:   new(big.Int).Mul(big.NewInt(4), new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)),  // 4 KAWAI
 			userAmount:        new(big.Int).Mul(big.NewInt(4), new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)),  // 4 KAWAI
 			affiliatorAmount:  new(big.Int).Mul(big.NewInt(4), new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)),  // 4 KAWAI
-			developerAddr:     "0x94D5C06229811c4816107005ff05259f229Eb07b",
+			developerAddr:     constant.GetAdminAddress(),
 			userAddr:          "0x4444444444444444444444444444444444444444",
 			affiliatorAddr:    "0x2864Cd9a59f32b74f3f851B92973fD40883aD503",
 		},

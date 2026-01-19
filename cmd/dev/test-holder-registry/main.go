@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/pkg/blockchain"
 	"github.com/kawai-network/veridium/pkg/store"
 )
@@ -25,7 +26,7 @@ func main() {
 	holderRegistry := blockchain.NewHolderRegistry(kv)
 
 	// Test 1: Register a test holder (admin address)
-	testAddress := common.HexToAddress("0x94D5C06229811c4816107005ff05259f229Eb07b")
+	testAddress := common.HexToAddress(constant.GetAdminAddress())
 	fmt.Printf("\n📝 Registering test holder: %s\n", testAddress.Hex())
 
 	err = holderRegistry.RegisterHolder(ctx, testAddress, "test")

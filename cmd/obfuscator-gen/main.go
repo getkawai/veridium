@@ -56,6 +56,7 @@ var discordVars = []ConfigVar{
 // Define all supported Admin variables
 var adminVars = []ConfigVar{
 	{EnvKey: "ADMIN_PRIVATE_KEY", GoName: "AdminPrivateKey", Comment: "Admin Private Key for contract operations", Order: 1},
+	{EnvKey: "ADMIN_ADDRESS", GoName: "AdminAddress", Comment: "Admin Address for contract operations", Order: 2},
 }
 
 func main() {

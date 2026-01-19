@@ -30,7 +30,7 @@ func testFinalTreasuryClaim() error {
 	fmt.Println()
 
 	// Treasury address (yang akan jadi msg.sender)
-	treasuryAddress := "0x94D5C06229811c4816107005ff05259f229Eb07b"
+	treasuryAddress := constant.GetAdminAddress()
 
 	// Initialize KV store
 	kv, err := store.NewMultiNamespaceKVStore()

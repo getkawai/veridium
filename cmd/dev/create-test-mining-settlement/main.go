@@ -9,6 +9,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/pkg/merkle"
 	"github.com/kawai-network/veridium/pkg/store"
 )
@@ -35,7 +36,7 @@ func createTestMiningSettlement() error {
 	// Test addresses
 	testUserAddr := "0x0f3e75B9Bb3efcD87B1Ed15a30C8a7FBaABD204E"        // The actual claiming address
 	testContributorAddr := "0x0f3e75B9Bb3efcD87B1Ed15a30C8a7FBaABD204E" // Same as user for simplicity
-	testDeveloperAddr := "0x94D5C06229811c4816107005ff05259f229Eb07b"   // Treasury address
+	testDeveloperAddr := constant.GetAdminAddress()                     // Treasury address
 	testReferrerAddr := "0x2864Cd9a59f32b74f3f851B92973fD40883aD503"    // Another test address
 
 	// Create test period (use current timestamp)
