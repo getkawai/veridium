@@ -19,7 +19,7 @@
 
 ### Option 1: Direct Withdrawal (If Available) ⚡ FASTEST
 
-**Check your exchange withdrawal page:**
+**Check your exchange withdrawal page:** 
 1. Go to Withdraw USDC
 2. Look for "Monad" or "Monad Network" in the network selection
 3. If available:
@@ -29,7 +29,7 @@
    - Confirm withdrawal
    - Done! ✅
 
-**Exchanges that may support Monad:**
+**Exchanges that may support Monad:** 
 - Check Binance, Coinbase, OKX, Bybit, Gate.io, etc.
 - Support is being added gradually as Monad adoption grows
 
