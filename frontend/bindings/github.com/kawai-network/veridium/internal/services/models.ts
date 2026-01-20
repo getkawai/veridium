@@ -873,6 +873,7 @@ export class ClaimableRewardsResponse {
 export class ContractAddresses {
     /**
      * Token Addresses
+     * Stablecoin address: MockUSDT (testnet) or USDC (mainnet)
      */
     "usdt": string;
     "kawai": string;

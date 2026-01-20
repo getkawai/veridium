@@ -22,7 +22,8 @@ export function ApproveToken(tokenName: string, spenderStr: string, amountStr: s
 }
 
 /**
- * ApproveUSDT approves a spender to spend MockUSDT
+ * ApproveUSDT approves a spender to spend stablecoin (MockUSDT on testnet, USDC on mainnet)
+ * Note: Function name kept for backward compatibility
  */
 export function ApproveUSDT(spenderStr: string, amountStr: string): $CancellablePromise<string> {
     return $Call.ByID(946882682, spenderStr, amountStr);
@@ -90,7 +91,8 @@ export function CreateSellOrder(tokenAmountStr: string, priceStr: string): $Canc
 }
 
 /**
- * DepositToVault deposits USDT into the vault for service credits
+ * DepositToVault deposits stablecoin into the vault for service credits
+ * Note: Uses MockUSDT on testnet, USDC on mainnet
  */
 export function DepositToVault(amountStr: string): $CancellablePromise<string> {
     return $Call.ByID(2547645408, amountStr);
@@ -145,13 +147,15 @@ export function GetRevenueShareStats(): $CancellablePromise<{ [_: string]: any }
 
 /**
  * GetUSDTAllowance returns the current allowance of owner to spender
+ * Note: Function name kept for backward compatibility, but works with any stablecoin
  */
 export function GetUSDTAllowance(ownerStr: string, spenderStr: string): $CancellablePromise<string> {
     return $Call.ByID(3908918835, ownerStr, spenderStr);
 }
 
 /**
- * GetVaultBalance returns the USDT balance of the current wallet
+ * GetVaultBalance returns the stablecoin balance of the current wallet
+ * Note: Uses MockUSDT on testnet, USDC on mainnet
  */
 export function GetVaultBalance(): $CancellablePromise<string> {
     return $Call.ByID(4000684215);
@@ -172,7 +176,9 @@ export function MarkClaimFailed(periodID: number, reason: string): $CancellableP
 }
 
 /**
- * MintTestTokens mints MockUSDT and KawaiTokens to the caller (for testing only)
+ * MintTestTokens mints test stablecoin (MockUSDT) to the caller (for testing only)
+ * WARNING: This function only works on testnet with MockUSDT. It will FAIL on mainnet with USDC.
+ * USDC on mainnet does not have a public mint() function.
  */
 export function MintTestTokens(): $CancellablePromise<string> {
     return $Call.ByID(1596408719);
@@ -193,7 +199,8 @@ export function TransferToken(tokenAddress: string, to: string, amountStr: strin
 }
 
 /**
- * TransferUSDT sends USDT from the current wallet to a recipient
+ * TransferUSDT sends stablecoin from the current wallet to a recipient
+ * Note: Function name kept for backward compatibility, works with MockUSDT (testnet) or USDC (mainnet)
  */
 export function TransferUSDT(to: string, amountStr: string): $CancellablePromise<string> {
     return $Call.ByID(1311324606, to, amountStr);

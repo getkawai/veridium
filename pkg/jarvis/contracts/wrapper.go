@@ -96,3 +96,14 @@ func ReferralRewardDistributor(addrStr string, r *reader.EthReader) (*referraldi
 	backend := NewJarvisBackend(r)
 	return referraldistributor.NewReferralRewardDistributor(addr, backend)
 }
+
+// Stablecoin wraps any ERC-20 stablecoin token (MockUSDT on testnet, USDC on mainnet)
+// Uses KawaiToken binding since it implements standard ERC-20 interface
+func Stablecoin(addrStr string, r *reader.EthReader) (*kawaitoken.KawaiToken, error) {
+	addr, err := ResolveAddress(addrStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve stablecoin address %s: %w", addrStr, err)
+	}
+	backend := NewJarvisBackend(r)
+	return kawaitoken.NewKawaiToken(addr, backend)
+}

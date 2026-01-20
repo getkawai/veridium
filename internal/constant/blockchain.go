@@ -5,9 +5,15 @@ const (
 	MonadRpcUrl = "https://testnet-rpc.monad.xyz"
 
 	// Contract Addresses (Monad Testnet - Fresh Deployment 2026-01-13)
-	KawaiTokenAddress           = "0xf68910e8d19047A309f989FFB515E44FBca5D31A"
-	OTCMarketAddress            = "0x3E597D76B40004c3fC517C404037fD6F16C8fc34"
-	UsdtTokenAddress            = "0x3AE05118C5B75b1B0b860ec4b7Ec5095188D1CCc"
+	KawaiTokenAddress = "0xf68910e8d19047A309f989FFB515E44FBca5D31A"
+	OTCMarketAddress  = "0x3E597D76B40004c3fC517C404037fD6F16C8fc34"
+
+	// UsdtTokenAddress: Stablecoin address for deposits and payments
+	// - Testnet: MockUSDT (0x3AE05118C5B75b1B0b860ec4b7Ec5095188D1CCc)
+	// - Mainnet: USDC (0x754704bc059f8c67012fed69bc8a327a5aafb603)
+	// Variable name kept for backward compatibility, but represents any stablecoin
+	UsdtTokenAddress = "0x3AE05118C5B75b1B0b860ec4b7Ec5095188D1CCc"
+
 	PaymentVaultAddress         = "0xDA94C8ac2a61eafBd47853EE22702BDCd45B6d93"
 	KawaiDistributorAddr        = "0x2B11e8385A859Ea75C77E05Bc0D9756A87017E92"
 	USDTDistributorAddr         = "0x896fB97f81ECBEfDBe29DCc3550aC984704932bF"

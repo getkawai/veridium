@@ -15,6 +15,7 @@ import (
 	"github.com/kawai-network/veridium/internal/services"
 	"github.com/kawai-network/veridium/internal/tableviewer"
 	"github.com/kawai-network/veridium/internal/topic"
+	"github.com/kawai-network/veridium/pkg/config"
 	"github.com/kawai-network/veridium/pkg/fantasy/tools/builtin"
 	"github.com/kawai-network/veridium/pkg/localfs"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -34,6 +35,20 @@ func main() {
 	if app.DevMode {
 		log.Printf("Development mode enabled")
 	}
+
+	// Initialize environment configuration
+	if err := config.Initialize(); err != nil {
+		log.Fatalf("Failed to initialize config: %v", err)
+	}
+
+	// Validate configuration for production
+	if err := config.ValidateForProduction(); err != nil {
+		log.Fatalf("Configuration validation failed: %v", err)
+	}
+
+	// Log environment info
+	log.Printf("Environment: %s", config.GetEnvironment())
+	log.Printf("Network: %s (Chain ID: %d)", config.GetNetworkName(), config.GetChainID())
 
 	// Initialize core services using internal/app (SINGLE SOURCE OF TRUTH)
 	ctx := app.NewContext()

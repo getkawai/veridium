@@ -2897,7 +2897,7 @@ var ProjectABIs = map[string]string{
     "type": "constructor",
     "inputs": [
       {
-        "name": "_usdt",
+        "name": "_stablecoin",
         "type": "address",
         "internalType": "address"
       },
@@ -2944,6 +2944,19 @@ var ProjectABIs = map[string]string{
   },
   {
     "type": "function",
+    "name": "stablecoin",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract IERC20"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "transferOwnership",
     "inputs": [
       {
@@ -2954,19 +2967,6 @@ var ProjectABIs = map[string]string{
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "usdt",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "contract IERC20"
-      }
-    ],
-    "stateMutability": "view"
   },
   {
     "type": "function",

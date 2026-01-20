@@ -12,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/internal/generate/abi/distributor"
-	"github.com/kawai-network/veridium/internal/generate/abi/usdt"
+	"github.com/kawai-network/veridium/internal/generate/abi/usdt" // Note: Package name is "usdt" but works with any ERC-20 stablecoin (MockUSDT on testnet, USDC on mainnet)
 	"github.com/kawai-network/veridium/internal/generate/abi/vault"
 	"github.com/kawai-network/veridium/pkg/merkle"
 	"github.com/kawai-network/veridium/pkg/store"
@@ -20,11 +20,11 @@ import (
 
 // RevenueSettlement handles weekly revenue sharing settlement
 type RevenueSettlement struct {
-	client       *ethclient.Client
-	paymentVault *vault.PaymentVault
-	vaultAddress common.Address
-	usdtToken    *usdt.MockUSDT
-	kvStore      *store.KVStore
+	client          *ethclient.Client
+	paymentVault    *vault.PaymentVault
+	vaultAddress    common.Address
+	stablecoinToken *usdt.MockUSDT // Note: Type is MockUSDT but works with any ERC-20 stablecoin (USDC on mainnet)
+	kvStore         *store.KVStore
 }
 
 // NewRevenueSettlement creates a new revenue settlement instance
@@ -40,23 +40,23 @@ func NewRevenueSettlement(kvStore *store.KVStore) (*RevenueSettlement, error) {
 		return nil, fmt.Errorf("failed to load PaymentVault: %w", err)
 	}
 
-	// Load USDT token contract
-	usdtAddr := common.HexToAddress(constant.UsdtTokenAddress)
-	usdtToken, err := usdt.NewMockUSDT(usdtAddr, client)
+	// Load stablecoin token contract (USDC on mainnet, MockUSDT on testnet)
+	stablecoinAddr := common.HexToAddress(constant.UsdtTokenAddress)
+	stablecoinToken, err := usdt.NewMockUSDT(stablecoinAddr, client)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load USDT token: %w", err)
+		return nil, fmt.Errorf("failed to load stablecoin token: %w", err)
 	}
 
 	return &RevenueSettlement{
-		client:       client,
-		paymentVault: paymentVault,
-		vaultAddress: vaultAddr,
-		usdtToken:    usdtToken,
-		kvStore:      kvStore,
+		client:          client,
+		paymentVault:    paymentVault,
+		vaultAddress:    vaultAddr,
+		stablecoinToken: stablecoinToken,
+		kvStore:         kvStore,
 	}, nil
 }
 
-// GetPaymentVaultBalance returns the total USDT balance in PaymentVault
+// GetPaymentVaultBalance returns the total stablecoin balance in PaymentVault
 //
 // ECONOMIC MODEL VERIFICATION:
 // This function returns the TOTAL balance in PaymentVault and distributes 100% as dividends.
@@ -70,23 +70,23 @@ func NewRevenueSettlement(kvStore *store.KVStore) (*RevenueSettlement, error) {
 //
 // 2. PHASE 1 ECONOMICS (Current):
 //   - Contributors are paid in KAWAI tokens (mining rewards)
-//   - All USDT collected = platform revenue
-//   - No USDT is paid out to contributors
+//   - All stablecoin collected = platform revenue
+//   - No stablecoin is paid out to contributors
 //
 // 3. USER BALANCE TRACKING:
 //   - User balances tracked off-chain in KV store
 //   - When users spend credits, KV balance decreases
-//   - USDT remains in vault (becomes platform revenue)
+//   - Stablecoin remains in vault (becomes platform revenue)
 //
 // Example Flow:
-// - User deposits 1000 USDT → Vault: 1000 USDT, KV: 1000 USDT
-// - User spends 100 USDT on AI → Vault: 1000 USDT, KV: 900 USDT
-// - Platform revenue = 100 USDT (spent amount)
-// - User remaining credit = 900 USDT (in KV, non-refundable)
+// - User deposits 1000 USDC → Vault: 1000 USDC, KV: 1000 USDC
+// - User spends 100 USDC on AI → Vault: 1000 USDC, KV: 900 USDC
+// - Platform revenue = 100 USDC (spent amount)
+// - User remaining credit = 900 USDC (in KV, non-refundable)
 //
 // At settlement:
-// - Vault balance = 1000 USDT (all deposits)
-// - Distributable = 1000 USDT (correct, deposits are non-refundable)
+// - Vault balance = 1000 USDC (all deposits)
+// - Distributable = 1000 USDC (correct, deposits are non-refundable)
 // - Users keep their KV credits for future AI usage
 // - Token holders receive dividends from all deposits
 //
@@ -95,14 +95,14 @@ func NewRevenueSettlement(kvStore *store.KVStore) (*RevenueSettlement, error) {
 //
 // Verified in: PaymentVault.sol (no user withdraw), REVENUE_SHARING.md (Economic Model section)
 func (rs *RevenueSettlement) GetPaymentVaultBalance(ctx context.Context) (*big.Int, error) {
-	// Query USDT.balanceOf(vaultAddress) to get total revenue
-	balance, err := rs.usdtToken.BalanceOf(&bind.CallOpts{Context: ctx}, rs.vaultAddress)
+	// Query stablecoin.balanceOf(vaultAddress) to get total revenue
+	balance, err := rs.stablecoinToken.BalanceOf(&bind.CallOpts{Context: ctx}, rs.vaultAddress)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query USDT balance: %w", err)
+		return nil, fmt.Errorf("failed to query stablecoin balance: %w", err)
 	}
 
 	log.Printf("📊 [REVENUE SETTLEMENT] PaymentVault: %s", rs.vaultAddress.Hex())
-	log.Printf("💵 [REVENUE SETTLEMENT] USDT Balance: %s", balance.String())
+	log.Printf("💵 [REVENUE SETTLEMENT] Stablecoin Balance: %s", balance.String())
 
 	return balance, nil
 }
@@ -112,12 +112,12 @@ func (rs *RevenueSettlement) GetPaymentVaultBalance(ctx context.Context) (*big.I
 //
 // PHASE COMPATIBILITY:
 // This function works in BOTH Phase 1 and Phase 2:
-// - Phase 1 (Mining Era): Distributes 100% of USDT revenue (contributors paid in KAWAI)
-// - Phase 2 (Post-Mining): Distributes 30% of USDT revenue (contributors paid 70% in USDT)
+// - Phase 1 (Mining Era): Distributes 100% of stablecoin revenue (contributors paid in KAWAI)
+// - Phase 2 (Post-Mining): Distributes 30% of stablecoin revenue (contributors paid 70% in stablecoin)
 //
 // The phase detection (pkg/config/phase.go) is informational only.
 // Revenue settlement runs in both phases, the difference is in the revenue amount:
-// - Phase 1: All USDT in vault = platform revenue (100%)
+// - Phase 1: All stablecoin in vault = platform revenue (100%)
 // - Phase 2: Vault balance - contributor payments = platform revenue (30%)
 //
 // No phase check is needed because:
@@ -129,7 +129,7 @@ func (rs *RevenueSettlement) SettleRevenue(ctx context.Context, period uint64) (
 
 	log.Printf("💰 [REVENUE SETTLEMENT] Starting settlement for period %d", period)
 
-	// 1. Get total USDT in PaymentVault (this is the revenue to distribute)
+	// 1. Get total stablecoin in PaymentVault (this is the revenue to distribute)
 	totalRevenue, err := rs.GetPaymentVaultBalance(ctx)
 	if err != nil {
 		return emptyRoot, fmt.Errorf("failed to get PaymentVault balance: %w", err)
@@ -139,7 +139,7 @@ func (rs *RevenueSettlement) SettleRevenue(ctx context.Context, period uint64) (
 		return emptyRoot, fmt.Errorf("no revenue to distribute (PaymentVault balance: 0)")
 	}
 
-	log.Printf("💵 [REVENUE SETTLEMENT] Total revenue to distribute: %s USDT", totalRevenue.String())
+	log.Printf("💵 [REVENUE SETTLEMENT] Total revenue to distribute: %s stablecoin", totalRevenue.String())
 
 	// 2. Get KAWAI holders using HYBRID approach (Registry + Recent Blockchain Scan)
 	// This solves the Monad testnet RPC 100-block limit issue
@@ -256,7 +256,7 @@ func (rs *RevenueSettlement) SettleRevenue(ctx context.Context, period uint64) (
 		// Continue anyway - this is just a sanity check
 	}
 
-	// 5. Generate Merkle Tree for USDT distribution
+	// 5. Generate Merkle Tree for stablecoin distribution
 	var leaves [][]byte
 	var proofData []*store.MerkleProofData
 	var proofAddresses []string
@@ -276,12 +276,12 @@ func (rs *RevenueSettlement) SettleRevenue(ctx context.Context, period uint64) (
 		proofData = append(proofData, &store.MerkleProofData{
 			Index:      currentIndex,
 			Amount:     share.String(),
-			RewardType: "usdt", // Set reward type for frontend filtering
+			RewardType: "stablecoin", // Set reward type for frontend filtering
 		})
 		proofAddresses = append(proofAddresses, holder.Address.Hex())
 		currentIndex++
 
-		log.Printf("💰 Holder %s: %s KAWAI -> %s USDT dividend",
+		log.Printf("💰 Holder %s: %s KAWAI -> %s stablecoin dividend",
 			holder.Address.Hex()[:10]+"...",
 			holder.Balance.String(),
 			share.String())
@@ -294,20 +294,20 @@ func (rs *RevenueSettlement) SettleRevenue(ctx context.Context, period uint64) (
 	// 6. Build Merkle Tree
 	tree := merkle.NewMerkleTree(leaves)
 	rootBytes := tree.Root
-	log.Printf("🌳 [REVENUE SETTLEMENT] USDT Merkle Root: 0x%x", rootBytes)
+	log.Printf("🌳 [REVENUE SETTLEMENT] Stablecoin Merkle Root: 0x%x", rootBytes)
 
 	// Convert []byte to [32]byte
 	var root [32]byte
 	copy(root[:], rootBytes)
 
-	// 7. Save Proofs (with "usdt:" prefix to distinguish from KAWAI proofs)
+	// 7. Save Proofs (with "stablecoin:" prefix to distinguish from KAWAI proofs)
 	savedCount := 0
 	failedCount := 0
 
 	for i, pd := range proofData {
 		proof, ok := tree.GetProof(leaves[i])
 		if !ok {
-			log.Printf("❌ [REVENUE SETTLEMENT] Error generating USDT proof for index %d", i)
+			log.Printf("❌ [REVENUE SETTLEMENT] Error generating stablecoin proof for index %d", i)
 			failedCount++
 			continue
 		}
@@ -318,11 +318,11 @@ func (rs *RevenueSettlement) SettleRevenue(ctx context.Context, period uint64) (
 		}
 		pd.Proof = proofHex
 
-		// Save with "usdt:" prefix to distinguish from KAWAI proofs
-		addrKey := "usdt:" + proofAddresses[i]
+		// Save with "stablecoin:" prefix to distinguish from KAWAI proofs
+		addrKey := "stablecoin:" + proofAddresses[i]
 		err := rs.kvStore.SaveMerkleProof(ctx, addrKey, pd)
 		if err != nil {
-			log.Printf("❌ [REVENUE SETTLEMENT] Failed to save USDT proof for %s: %v", proofAddresses[i], err)
+			log.Printf("❌ [REVENUE SETTLEMENT] Failed to save stablecoin proof for %s: %v", proofAddresses[i], err)
 			failedCount++
 			continue
 		}
@@ -335,7 +335,7 @@ func (rs *RevenueSettlement) SettleRevenue(ctx context.Context, period uint64) (
 
 	log.Printf("✅ [REVENUE SETTLEMENT] Settlement completed for period %d", period)
 	log.Printf("📊 [REVENUE SETTLEMENT] Summary: %d holders will receive dividends", savedCount)
-	log.Printf("📝 [REVENUE SETTLEMENT] Next step: Upload Merkle root to USDT_Distributor contract")
+	log.Printf("📝 [REVENUE SETTLEMENT] Next step: Upload Merkle root to Stablecoin Distributor contract")
 
 	return root, nil
 }
@@ -348,9 +348,9 @@ func (rs *RevenueSettlement) GetCurrentPeriod() uint64 {
 	return rs.kvStore.GetCurrentPeriod()
 }
 
-// WithdrawToDistributor transfers USDT from PaymentVault to USDT_Distributor
+// WithdrawToDistributor transfers stablecoin from PaymentVault to Stablecoin Distributor
 func (rs *RevenueSettlement) WithdrawToDistributor(ctx context.Context, amount *big.Int) error {
-	log.Printf("💸 [REVENUE SETTLEMENT] Withdrawing %s USDT to USDT_Distributor", amount.String())
+	log.Printf("💸 [REVENUE SETTLEMENT] Withdrawing %s stablecoin to Stablecoin Distributor", amount.String())
 
 	// Get private key
 	privateKeyHex := constant.GetAdminPrivateKey()
@@ -379,7 +379,7 @@ func (rs *RevenueSettlement) WithdrawToDistributor(ctx context.Context, amount *
 	// Set gas parameters
 	auth.Context = ctx
 
-	// Call PaymentVault.withdraw(USDT_Distributor, amount)
+	// Call PaymentVault.withdraw(StablecoinDistributor, amount)
 	distributorAddr := common.HexToAddress(constant.USDTDistributorAddr)
 	tx, err := rs.paymentVault.Withdraw(auth, distributorAddr, amount)
 	if err != nil {
@@ -403,7 +403,7 @@ func (rs *RevenueSettlement) WithdrawToDistributor(ctx context.Context, amount *
 	return nil
 }
 
-// UploadMerkleRoot uploads Merkle root to USDT_Distributor contract
+// UploadMerkleRoot uploads Merkle root to Stablecoin Distributor contract
 func (rs *RevenueSettlement) UploadMerkleRoot(ctx context.Context, merkleRoot [32]byte) error {
 	log.Printf("🌳 [REVENUE SETTLEMENT] Uploading Merkle root: 0x%x", merkleRoot)
 
@@ -434,11 +434,11 @@ func (rs *RevenueSettlement) UploadMerkleRoot(ctx context.Context, merkleRoot [3
 	// Set gas parameters
 	auth.Context = ctx
 
-	// Load USDT Distributor contract
+	// Load Stablecoin Distributor contract
 	distributorAddr := common.HexToAddress(constant.USDTDistributorAddr)
 	distributor, err := distributor.NewMerkleDistributor(distributorAddr, rs.client)
 	if err != nil {
-		return fmt.Errorf("failed to load USDT Distributor: %w", err)
+		return fmt.Errorf("failed to load Stablecoin Distributor: %w", err)
 	}
 
 	// Call setMerkleRoot

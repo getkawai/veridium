@@ -89,22 +89,22 @@ func (c *Client) GetMaxSupply(ctx context.Context) (*big.Int, error) {
 
 // MarketplaceCreateOrder creates a new sell order on the OTC marketplace
 // Requirements: 6.2 - Smart contract parameter validation and createOrder function call
-func (c *Client) MarketplaceCreateOrder(ctx context.Context, transactOpts *bind.TransactOpts, tokenAmount, usdtPrice *big.Int) (*types.Transaction, error) {
+func (c *Client) MarketplaceCreateOrder(ctx context.Context, transactOpts *bind.TransactOpts, tokenAmount, stablecoinPrice *big.Int) (*types.Transaction, error) {
 	// Validate parameters
 	if tokenAmount == nil || tokenAmount.Cmp(big.NewInt(0)) <= 0 {
 		return nil, fmt.Errorf("token amount must be greater than zero")
 	}
-	if usdtPrice == nil || usdtPrice.Cmp(big.NewInt(0)) <= 0 {
-		return nil, fmt.Errorf("USDT price must be greater than zero")
+	if stablecoinPrice == nil || stablecoinPrice.Cmp(big.NewInt(0)) <= 0 {
+		return nil, fmt.Errorf("stablecoin price must be greater than zero")
 	}
 	if transactOpts == nil {
 		return nil, fmt.Errorf("transaction options cannot be nil")
 	}
 
-	log.Printf("Creating marketplace order: %s KAWAI tokens for %s USDT", tokenAmount.String(), usdtPrice.String())
+	log.Printf("Creating marketplace order: %s KAWAI tokens for %s stablecoin", tokenAmount.String(), stablecoinPrice.String())
 
 	// Call the smart contract's createOrder function
-	tx, err := c.Escrow.CreateOrder(transactOpts, tokenAmount, usdtPrice)
+	tx, err := c.Escrow.CreateOrder(transactOpts, tokenAmount, stablecoinPrice)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create order on smart contract: %w", err)
 	}
@@ -205,24 +205,25 @@ func (c *Client) MarketplaceGetOrdersCount(ctx context.Context) (*big.Int, error
 	return count, nil
 }
 
-// GetUSDTBalance returns the USDT token balance for a given address
+// GetUSDTBalance returns the stablecoin token balance for a given address
+// Note: Function name kept for backward compatibility, works with MockUSDT (testnet) or USDC (mainnet)
 func (c *Client) GetUSDTBalance(ctx context.Context, address common.Address) (*big.Int, error) {
 	balance, err := c.USDT.BalanceOf(nil, address)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get USDT token balance: %w", err)
+		return nil, fmt.Errorf("failed to get stablecoin token balance: %w", err)
 	}
 	return balance, nil
 }
 
-// ValidateTradeBalance validates that the buyer has sufficient USDT balance for the trade
-func (c *Client) ValidateTradeBalance(ctx context.Context, buyer common.Address, usdtAmount *big.Int) error {
+// ValidateTradeBalance validates that the buyer has sufficient stablecoin balance for the trade
+func (c *Client) ValidateTradeBalance(ctx context.Context, buyer common.Address, stablecoinAmount *big.Int) error {
 	balance, err := c.GetUSDTBalance(ctx, buyer)
 	if err != nil {
-		return fmt.Errorf("failed to check buyer USDT balance: %w", err)
+		return fmt.Errorf("failed to check buyer stablecoin balance: %w", err)
 	}
 
-	if balance.Cmp(usdtAmount) < 0 {
-		return fmt.Errorf("insufficient USDT balance: has %s, needs %s", balance.String(), usdtAmount.String())
+	if balance.Cmp(stablecoinAmount) < 0 {
+		return fmt.Errorf("insufficient stablecoin balance: has %s, needs %s", balance.String(), stablecoinAmount.String())
 	}
 
 	return nil

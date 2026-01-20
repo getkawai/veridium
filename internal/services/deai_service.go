@@ -8,6 +8,8 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/kawai-network/veridium/internal/constant"
+	"github.com/kawai-network/veridium/pkg/config"
 	"github.com/kawai-network/veridium/pkg/jarvis/contracts"
 	"github.com/kawai-network/veridium/pkg/jarvis/networks"
 	"github.com/kawai-network/veridium/pkg/jarvis/util/reader"
@@ -84,7 +86,8 @@ func NewDeAIService(wallet *WalletService, kv store.Store) *DeAIService {
 	}
 }
 
-// GetVaultBalance returns the USDT balance of the current wallet
+// GetVaultBalance returns the stablecoin balance of the current wallet
+// Note: Uses MockUSDT on testnet, USDC on mainnet
 func (s *DeAIService) GetVaultBalance() (string, error) {
 	// Check if wallet is unlocked
 	if s.wallet.currentAccount == nil {
@@ -94,23 +97,20 @@ func (s *DeAIService) GetVaultBalance() (string, error) {
 	// 1. Get User Address
 	userAddr := s.wallet.currentAccount.Address()
 
-	// 2. Load USDT
-	usdtAddr, err := contracts.ResolveAddress("MockUSDT")
+	// 2. Load stablecoin contract (MockUSDT on testnet, USDC on mainnet)
+	// Use Jarvis wrapper for cleaner code
+	stablecoin, err := contracts.Stablecoin(constant.UsdtTokenAddress, s.reader)
 	if err != nil {
-		return "", fmt.Errorf("USDT address not found: %w", err)
-	}
-	usdt, err := contracts.KawaiToken(usdtAddr.Hex(), s.reader)
-	if err != nil {
-		return "", fmt.Errorf("failed to load USDT: %w", err)
+		return "", fmt.Errorf("failed to load stablecoin contract: %w", err)
 	}
 
 	// 3. Get Balance
-	bal, err := usdt.BalanceOf(nil, userAddr)
+	bal, err := stablecoin.BalanceOf(nil, userAddr)
 	if err != nil {
 		return "", fmt.Errorf("failed to get balance: %w", err)
 	}
 
-	// 4. Format (assuming 6 decimals)
+	// 4. Format (assuming 6 decimals for both USDT and USDC)
 	fBalance := new(big.Float).SetInt(bal)
 	fBalance.Quo(fBalance, big.NewFloat(1000000))
 
@@ -232,7 +232,8 @@ func (s *DeAIService) GetRevenueShareStats() (map[string]interface{}, error) {
 	}, nil
 }
 
-// DepositToVault deposits USDT into the vault for service credits
+// DepositToVault deposits stablecoin into the vault for service credits
+// Note: Uses MockUSDT on testnet, USDC on mainnet
 func (s *DeAIService) DepositToVault(amountStr string) (string, error) {
 	// Check if wallet is unlocked
 	if s.wallet.currentAccount == nil {
@@ -247,10 +248,8 @@ func (s *DeAIService) DepositToVault(amountStr string) (string, error) {
 	}
 
 	// 2. Resolve Addresses
-	usdtAddr, err := contracts.ResolveAddress("MockUSDT")
-	if err != nil {
-		return "", fmt.Errorf("MockUSDT address not found: %w", err)
-	}
+	// Use constant which automatically switches based on environment
+	stablecoinAddr := common.HexToAddress(constant.UsdtTokenAddress)
 	vaultAddr, err := contracts.ResolveAddress("PaymentVault")
 	if err != nil {
 		return "", fmt.Errorf("PaymentVault address not found: %w", err)
@@ -275,12 +274,12 @@ func (s *DeAIService) DepositToVault(amountStr string) (string, error) {
 			return "", fmt.Errorf("failed to get opts: %w", err)
 		}
 
-		usdt, err := contracts.KawaiToken(usdtAddr.Hex(), s.reader)
+		stablecoin, err := contracts.KawaiToken(stablecoinAddr.Hex(), s.reader)
 		if err != nil {
-			return "", fmt.Errorf("failed to load USDT: %w", err)
+			return "", fmt.Errorf("failed to load stablecoin contract: %w", err)
 		}
 
-		tx, err := usdt.Approve(opts, vaultAddr, amount)
+		tx, err := stablecoin.Approve(opts, vaultAddr, amount)
 		if err != nil {
 			return "", fmt.Errorf("approve failed: %w", err)
 		}
@@ -319,6 +318,7 @@ func (s *DeAIService) DepositToVault(amountStr string) (string, error) {
 }
 
 // GetUSDTAllowance returns the current allowance of owner to spender
+// Note: Function name kept for backward compatibility, but works with any stablecoin
 func (s *DeAIService) GetUSDTAllowance(ownerStr string, spenderStr string) (string, error) {
 	owner := common.HexToAddress(ownerStr)
 	spender, err := contracts.ResolveAddress(spenderStr)
@@ -326,17 +326,15 @@ func (s *DeAIService) GetUSDTAllowance(ownerStr string, spenderStr string) (stri
 		return "0", fmt.Errorf("invalid spender: %w", err)
 	}
 
-	usdtAddr, err := contracts.ResolveAddress("MockUSDT")
-	if err != nil {
-		return "0", fmt.Errorf("USDT not found")
-	}
+	// Use constant which automatically switches based on environment
+	stablecoinAddr := common.HexToAddress(constant.UsdtTokenAddress)
 
-	usdt, err := contracts.KawaiToken(usdtAddr.Hex(), s.reader)
+	stablecoin, err := contracts.KawaiToken(stablecoinAddr.Hex(), s.reader)
 	if err != nil {
 		return "0", err
 	}
 
-	allowance, err := usdt.Allowance(nil, owner, spender)
+	allowance, err := stablecoin.Allowance(nil, owner, spender)
 	if err != nil {
 		return "0", err
 	}
@@ -344,7 +342,8 @@ func (s *DeAIService) GetUSDTAllowance(ownerStr string, spenderStr string) (stri
 	return allowance.String(), nil
 }
 
-// ApproveUSDT approves a spender to spend MockUSDT
+// ApproveUSDT approves a spender to spend stablecoin (MockUSDT on testnet, USDC on mainnet)
+// Note: Function name kept for backward compatibility
 func (s *DeAIService) ApproveUSDT(spenderStr string, amountStr string) (string, error) {
 	// 1. Parse inputs
 	spender, err := contracts.ResolveAddress(spenderStr)
@@ -364,19 +363,17 @@ func (s *DeAIService) ApproveUSDT(spenderStr string, amountStr string) (string, 
 		return "", fmt.Errorf("failed to get opts: %w", err)
 	}
 
-	// 3. Load MockUSDT
-	usdtAddr, err := contracts.ResolveAddress("MockUSDT")
-	if err != nil {
-		return "", fmt.Errorf("MockUSDT address not found: %w", err)
-	}
+	// 3. Load stablecoin contract
+	// Use constant which automatically switches based on environment
+	stablecoinAddr := common.HexToAddress(constant.UsdtTokenAddress)
 
-	usdt, err := contracts.KawaiToken(usdtAddr.Hex(), s.reader)
+	stablecoin, err := contracts.KawaiToken(stablecoinAddr.Hex(), s.reader)
 	if err != nil {
-		return "", fmt.Errorf("failed to load USDT contract: %w", err)
+		return "", fmt.Errorf("failed to load stablecoin contract: %w", err)
 	}
 
 	// 4. Approve
-	tx, err := usdt.Approve(opts, spender, amount)
+	tx, err := stablecoin.Approve(opts, spender, amount)
 	if err != nil {
 		return "", fmt.Errorf("approval failed: %w", err)
 	}
@@ -494,38 +491,43 @@ func (s *DeAIService) BuyOrder(orderIdStr string) (string, error) {
 	return tx.Hash().Hex(), nil
 }
 
-// MintTestTokens mints MockUSDT and KawaiTokens to the caller (for testing only)
+// MintTestTokens mints test stablecoin (MockUSDT) to the caller (for testing only)
+// WARNING: This function only works on testnet with MockUSDT. It will FAIL on mainnet with USDC.
+// USDC on mainnet does not have a public mint() function.
 func (s *DeAIService) MintTestTokens() (string, error) {
+	// Safety check: Only allow on testnet
+	// Testnet uses MockUSDT which has mint(), mainnet uses USDC which doesn't
+	if !config.IsTestnet() {
+		return "", fmt.Errorf("MintTestTokens is only available on testnet. On mainnet, you must acquire USDC through exchanges or bridges")
+	}
+
 	chainId := monadChainID
 	opts, err := s.wallet.getTransactOpts(chainId)
 	if err != nil {
 		return "", fmt.Errorf("failed to get opts: %w", err)
 	}
 
-	// 1. Mint USDT
-	usdtAddr, err := contracts.ResolveAddress("MockUSDT")
-	if err != nil {
-		return "", fmt.Errorf("token address not found")
-	}
-	usdt, _ := contracts.KawaiToken(usdtAddr.Hex(), s.reader) // Using KawaiToken wrapper for mint
+	// 1. Mint stablecoin (MockUSDT on testnet only)
+	// Use constant which automatically switches based on environment
+	stablecoinAddr := common.HexToAddress(constant.UsdtTokenAddress)
+	stablecoin, _ := contracts.KawaiToken(stablecoinAddr.Hex(), s.reader) // Using KawaiToken wrapper for mint
 
-	// Mint 1000 USDT
+	// Mint 1000 stablecoin (6 decimals)
 	amount := new(big.Int).Mul(big.NewInt(1000), big.NewInt(1000000)) // 1000 * 10^6
-	tx1, err := usdt.Mint(opts, opts.From, amount)
+	tx1, err := stablecoin.Mint(opts, opts.From, amount)
 	if err != nil {
-		return "", fmt.Errorf("mint usdt failed: %w", err)
+		return "", fmt.Errorf("mint stablecoin failed: %w", err)
 	}
 
 	return tx1.Hash().Hex(), nil
 }
 
-// TransferUSDT sends USDT from the current wallet to a recipient
+// TransferUSDT sends stablecoin from the current wallet to a recipient
+// Note: Function name kept for backward compatibility, works with MockUSDT (testnet) or USDC (mainnet)
 func (s *DeAIService) TransferUSDT(to string, amountStr string) (string, error) {
 	// 1. Resolve Addresses
-	usdtAddr, err := contracts.ResolveAddress("MockUSDT")
-	if err != nil {
-		return "", fmt.Errorf("USDT address not found: %w", err)
-	}
+	// Use constant which automatically switches based on environment
+	stablecoinAddr := common.HexToAddress(constant.UsdtTokenAddress)
 	recipient := common.HexToAddress(to)
 
 	// 2. Parse Amount
@@ -543,13 +545,13 @@ func (s *DeAIService) TransferUSDT(to string, amountStr string) (string, error) 
 	}
 
 	// 4. Load Contract
-	usdt, err := contracts.KawaiToken(usdtAddr.Hex(), s.reader)
+	stablecoin, err := contracts.KawaiToken(stablecoinAddr.Hex(), s.reader)
 	if err != nil {
-		return "", fmt.Errorf("failed to load USDT: %w", err)
+		return "", fmt.Errorf("failed to load stablecoin contract: %w", err)
 	}
 
 	// 5. Transfer
-	tx, err := usdt.Transfer(opts, recipient, amount)
+	tx, err := stablecoin.Transfer(opts, recipient, amount)
 	if err != nil {
 		return "", fmt.Errorf("transfer failed: %w", err)
 	}
@@ -751,7 +753,7 @@ func (s *DeAIService) GetClaimableRewards() (*ClaimableRewardsResponse, error) {
 // convertMerkleProofToClaimable converts store.MerkleProofData to ClaimableReward
 func (s *DeAIService) convertMerkleProofToClaimable(proof *store.MerkleProofData) *ClaimableReward {
 	decimals := 18
-	if proof.RewardType == "usdt" {
+	if proof.RewardType == "usdt" || proof.RewardType == "stablecoin" {
 		decimals = 6
 	}
 
@@ -1262,7 +1264,7 @@ func (s *DeAIService) formatRewardAmount(rawAmount string, rewardType string) st
 	}
 
 	var decimals int64
-	if rewardType == "usdt" {
+	if rewardType == "usdt" || rewardType == "stablecoin" {
 		decimals = 6
 	} else {
 		decimals = 18
@@ -1272,7 +1274,7 @@ func (s *DeAIService) formatRewardAmount(rawAmount string, rewardType string) st
 	formatted := new(big.Float).Quo(new(big.Float).SetInt(amount), divisor)
 
 	// Format with appropriate precision
-	if rewardType == "usdt" {
+	if rewardType == "usdt" || rewardType == "stablecoin" {
 		return formatted.Text('f', 2)
 	}
 	return formatted.Text('f', 4)

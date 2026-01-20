@@ -16,7 +16,7 @@ type NetworkEnvironment struct {
 // ContractAddresses represents all smart contract addresses
 type ContractAddresses struct {
 	// Token Addresses
-	Usdt  string `json:"usdt"`
+	Usdt  string `json:"usdt"` // Stablecoin address: MockUSDT (testnet) or USDC (mainnet)
 	Kawai string `json:"kawai"`
 
 	// Payment & Vault

@@ -28,9 +28,9 @@ We use a **Hybrid Model** (Off-Chain Accumulation + On-Chain Settlement) to mini
 
 ### Current Phase (Phase 1 - Mining Era)
 *   **User Client:** Connects to contributor nodes for AI inference.
-*   **Payment:** Users deposit USDT to PaymentVault and pay per token usage.
+*   **Payment:** Users deposit stablecoin (USDC on mainnet, MockUSDT on testnet) to PaymentVault and pay per token usage.
 *   **Contributors:** Earn KAWAI tokens (85-90% mining rewards) for providing compute.
-*   **Platform Revenue:** 100% of USDT payments (contributors paid in KAWAI, not USDT).
+*   **Platform Revenue:** 100% of stablecoin payments (contributors paid in KAWAI, not stablecoin).
 *   **Revenue Sharing:** Platform profit distributed to KAWAI holders as dividends.
 
 👉 **See Full Technical Details in the sections below**
@@ -44,11 +44,11 @@ Veridium consists of two primary components designed for different user roles:
 ### 1. User Client (Desktop App)
 - **Location:** `main.go` (Root)
 - **Tech:** [Wails v3](https://wails.io/) + React.
-- **Description:** The main interface for AI consumers. It provides a premium desktop experience for chat, knowledge base management, and a Web3 dashboard for USDT deposits and token management.
+- **Description:** The main interface for AI consumers. It provides a premium desktop experience for chat, knowledge base management, and a Web3 dashboard for stablecoin deposits and token management.
 - **How It Works:** 
-  - Users deposit USDT to PaymentVault contract
+  - Users deposit stablecoin (USDC/MockUSDT) to PaymentVault contract
   - Desktop app connects to contributor nodes for AI inference
-  - USDT balance deducted per token usage
+  - Stablecoin balance deducted per token usage
   - Contributors earn KAWAI tokens, platform earns USDT revenue
 - **How to Run:**
   Refer to the `Makefile` for various development and build commands.

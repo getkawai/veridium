@@ -498,7 +498,7 @@ func (s *KVStore) GetClaimableRewards(ctx context.Context, address string) (map[
 		} else {
 			claimableProofs = append(claimableProofs, proof)
 
-			if proof.RewardType == "usdt" {
+			if proof.RewardType == "usdt" || proof.RewardType == "stablecoin" {
 				totalUSDTClaimable.Add(totalUSDTClaimable, amount)
 			} else {
 				totalKawaiClaimable.Add(totalKawaiClaimable, amount)

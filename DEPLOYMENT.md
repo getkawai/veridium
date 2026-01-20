@@ -8,8 +8,9 @@ For testnet vs mainnet differences, see `.env.README`
 
 ## CURRENT DEPLOYMENT ADDRESSES
 ```
-MockUSDT:                    0x3AE05118C5B75b1B0b860ec4b7Ec5095188D1CCc
-KawaiToken:                  0xf68910e8d19047A309f989FFB515E44FBca5D31A
+MockUSDT (Testnet):       0x3AE05118C5B75b1B0b860ec4b7Ec5095188D1CCc
+USDC (Mainnet):           0x754704bc059f8c67012fed69bc8a327a5aafb603
+KawaiToken:               0xf68910e8d19047A309f989FFB515E44FBca5D31A
 KAWAI_Distributor:           0x2B11e8385A859Ea75C77E05Bc0D9756A87017E92
 USDT_Distributor:            0x896fB97f81ECBEfDBe29DCc3550aC984704932bF
 PaymentVault:                0xDA94C8ac2a61eafBd47853EE22702BDCd45B6d93

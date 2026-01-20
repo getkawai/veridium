@@ -13,9 +13,15 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/internal/generate/abi/usdt"
+	"github.com/kawai-network/veridium/pkg/config"
 )
 
 func main() {
+	// Safety check: Only allow on testnet
+	if !config.IsTestnet() {
+		log.Fatal("❌ ERROR: This tool is only available on testnet. On mainnet, you must acquire USDC through exchanges or bridges.")
+	}
+
 	ctx := context.Background()
 
 	// Connect to Monad testnet
@@ -25,11 +31,11 @@ func main() {
 	}
 	defer client.Close()
 
-	// Load USDT contract
-	usdtAddr := common.HexToAddress(constant.UsdtTokenAddress)
-	usdtContract, err := usdt.NewMockUSDT(usdtAddr, client)
+	// Load stablecoin contract (MockUSDT on testnet)
+	stablecoinAddr := common.HexToAddress(constant.UsdtTokenAddress)
+	stablecoinContract, err := usdt.NewMockUSDT(stablecoinAddr, client)
 	if err != nil {
-		log.Fatalf("Failed to load USDT contract: %v", err)
+		log.Fatalf("Failed to load stablecoin contract: %v", err)
 	}
 
 	// Get private key from temp.go
@@ -55,19 +61,19 @@ func main() {
 		log.Fatalf("Failed to create transactor: %v", err)
 	}
 
-	// Amount to inject: 1000 USDT (for testing)
+	// Amount to inject: 1000 stablecoin (for testing)
 	amount := new(big.Int)
-	amount.SetString("1000000000", 10) // 1000 USDT (6 decimals)
+	amount.SetString("1000000000", 10) // 1000 stablecoin (6 decimals)
 
 	paymentVault := common.HexToAddress(constant.PaymentVaultAddress)
 
 	fmt.Println("═══════════════════════════════════════════════════════════")
-	fmt.Println("💵 Injecting Test USDT to PaymentVault")
+	fmt.Println("💵 Injecting Test Stablecoin to PaymentVault")
 	fmt.Println("═══════════════════════════════════════════════════════════")
 	fmt.Println()
 	fmt.Printf("From:   %s\n", crypto.PubkeyToAddress(privateKey.PublicKey).Hex())
 	fmt.Printf("To:     %s (PaymentVault)\n", paymentVault.Hex())
-	fmt.Printf("Amount: 1000 USDT\n")
+	fmt.Printf("Amount: 1000 stablecoin (MockUSDT on testnet)\n")
 	fmt.Println()
 	fmt.Print("Continue? (y/n): ")
 
@@ -78,10 +84,10 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Transfer USDT to PaymentVault
-	tx, err := usdtContract.Transfer(auth, paymentVault, amount)
+	// Transfer stablecoin to PaymentVault
+	tx, err := stablecoinContract.Transfer(auth, paymentVault, amount)
 	if err != nil {
-		log.Fatalf("Failed to transfer USDT: %v", err)
+		log.Fatalf("Failed to transfer stablecoin: %v", err)
 	}
 
 	fmt.Println()
@@ -98,7 +104,7 @@ func main() {
 	}
 
 	fmt.Println()
-	fmt.Println("✅ Test USDT injected successfully!")
+	fmt.Println("✅ Test stablecoin injected successfully!")
 	fmt.Println("═══════════════════════════════════════════════════════════")
 	fmt.Printf("Transaction Hash: %s\n", tx.Hash().Hex())
 	fmt.Printf("Block Number:     %d\n", receipt.BlockNumber.Uint64())
@@ -106,6 +112,6 @@ func main() {
 	fmt.Printf("Explorer:         https://explorer.monad.xyz/tx/%s\n", tx.Hash().Hex())
 	fmt.Println("═══════════════════════════════════════════════════════════")
 	fmt.Println()
-	fmt.Println("✅ PaymentVault now has 1000 USDT for testing")
+	fmt.Println("✅ PaymentVault now has 1000 stablecoin for testing")
 	fmt.Println("✅ Ready to run: make settle-revenue")
 }

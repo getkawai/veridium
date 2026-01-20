@@ -8,33 +8,33 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title PaymentVault
- * @dev Handles user deposits in USDT for AI service credits.
+ * @dev Handles user deposits in stablecoin (USDC/USDT) for AI service credits.
  */
 contract PaymentVault is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
-    IERC20 public immutable usdt;
+    IERC20 public immutable stablecoin;
 
     event Deposited(address indexed user, uint256 amount);
     event Withdrawn(address indexed to, uint256 amount);
 
-    constructor(address _usdt, address initialOwner) Ownable(initialOwner) {
-        require(_usdt != address(0), "Invalid USDT address");
-        usdt = IERC20(_usdt);
+    constructor(address _stablecoin, address initialOwner) Ownable(initialOwner) {
+        require(_stablecoin != address(0), "Invalid stablecoin address");
+        stablecoin = IERC20(_stablecoin);
     }
 
     /**
-     * @notice Deposit USDT to get service credits.
-     * @param _amount Amount of USDT to deposit.
+     * @notice Deposit stablecoin to get service credits.
+     * @param _amount Amount of stablecoin to deposit.
      */
     function deposit(uint256 _amount) external nonReentrant {
         require(_amount > 0, "Amount must be > 0");
-        usdt.safeTransferFrom(msg.sender, address(this), _amount);
+        stablecoin.safeTransferFrom(msg.sender, address(this), _amount);
         emit Deposited(msg.sender, _amount);
     }
 
     /**
-     * @notice Withdraw USDT from the vault (Owner only - for revenue distribution).
+     * @notice Withdraw stablecoin from the vault (Owner only - for revenue distribution).
      * @param _to Recipient address.
      * @param _amount Amount to withdraw.
      */
@@ -44,10 +44,10 @@ contract PaymentVault is Ownable, ReentrancyGuard {
     ) external onlyOwner nonReentrant {
         require(_to != address(0), "Invalid recipient");
         require(
-            _amount <= usdt.balanceOf(address(this)),
+            _amount <= stablecoin.balanceOf(address(this)),
             "Insufficient balance"
         );
-        usdt.safeTransfer(_to, _amount);
+        stablecoin.safeTransfer(_to, _amount);
         emit Withdrawn(_to, _amount);
     }
 }
