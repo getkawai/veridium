@@ -2,24 +2,50 @@
 
 ## ⚠️ Important: Network Requirement
 
-**Kawai Desktop only accepts USDC on Monad Network.** You cannot directly deposit USDC from exchanges like Binance or Coinbase because they don't support Monad Network withdrawals yet.
+**Kawai Desktop only accepts USDC on Monad Network.** When withdrawing from exchanges:
+
+1. **Check if Monad Network is available** in the withdrawal network options
+2. **If Monad is available:** Select it and withdraw directly to your Kawai wallet ✅
+3. **If Monad is NOT available:** You need to bridge from another network (see options below)
 
 ## Why Monad Network?
 
 - All Kawai smart contracts are deployed on Monad Mainnet
 - USDC address on Monad: `0x754704bc059f8c67012fed69bc8a327a5aafb603`
 - This is a different USDC contract than on Ethereum, BSC, or other networks
+- Each blockchain has its own USDC contract - they are NOT interchangeable
 
 ## How to Get USDC on Monad Network
 
-### Option 1: Bridge from Another Network (Recommended)
+### Option 1: Direct Withdrawal (If Available) ⚡ FASTEST
+
+**Check your exchange withdrawal page:**
+1. Go to Withdraw USDC
+2. Look for "Monad" or "Monad Network" in the network selection
+3. If available:
+   - Select **Monad Network**
+   - Enter your Kawai wallet address
+   - Enter amount
+   - Confirm withdrawal
+   - Done! ✅
+
+**Exchanges that may support Monad:**
+- Check Binance, Coinbase, OKX, Bybit, Gate.io, etc.
+- Support is being added gradually as Monad adoption grows
+
+**Cost:** Only exchange withdrawal fee (~$1-5)  
+**Time:** 5-15 minutes
+
+---
+
+### Option 2: Bridge from Another Network (If Monad Not Available)
 
 **Step 1: Withdraw USDC from Exchange**
 1. Go to your exchange (Binance, Coinbase, etc.)
 2. Withdraw USDC to your personal wallet (MetaMask, Trust Wallet, etc.)
 3. Choose a network that has a bridge to Monad:
    - Ethereum (most common)
-   - Arbitrum
+   - Arbitrum (cheaper gas)
    - Optimism
    - Base
 
@@ -42,9 +68,11 @@
 - Bridge fee: ~$5-20 (depends on source network gas)
 - Kawai deposit gas: ~$0.01 (very cheap on Monad!)
 
+**Time:** 30-60 minutes total
+
 ---
 
-### Option 2: Buy MON Token First
+### Option 3: Buy MON Token First
 
 If you can withdraw MON (Monad's native token) from your exchange:
 
@@ -65,7 +93,7 @@ If you can withdraw MON (Monad's native token) from your exchange:
 
 ---
 
-### Option 3: Direct Fiat On-Ramp (If Available)
+### Option 4: Direct Fiat On-Ramp (If Available)
 
 Some on-ramp services may support Monad Network directly:
 
@@ -87,16 +115,25 @@ Some on-ramp services may support Monad Network directly:
 
 ## Common Mistakes to Avoid
 
-### ❌ DON'T: Send USDC from Binance Directly
+### ❌ DON'T: Select Wrong Network
 ```
-Binance (USDC on Ethereum) 
-  → ❌ Kawai Wallet Address
+Binance → Withdraw USDC
+  → Select "Ethereum Network" (WRONG!)
+  → Send to Kawai Wallet Address
   = FUNDS LOST! (Wrong network)
 ```
 
-### ✅ DO: Bridge First
+### ✅ DO: Select Monad Network (If Available)
 ```
-Binance (USDC on Ethereum)
+Binance → Withdraw USDC
+  → Select "Monad Network" ✅
+  → Send to Kawai Wallet Address
+  = SUCCESS!
+```
+
+### ✅ DO: Bridge If Monad Not Available
+```
+Binance → Withdraw USDC (Ethereum)
   → Your Wallet (Ethereum)
   → Bridge to Monad
   → Kawai Wallet (Monad)
@@ -139,31 +176,57 @@ If you're stuck or need assistance:
 
 ## FAQ
 
+**Q: Does my exchange support Monad Network withdrawals?**
+A: Check your exchange's withdrawal page. Look for "Monad" in the network selection dropdown. If not available, you'll need to bridge from another network.
+
+**Q: Which exchanges support Monad withdrawals?**
+A: Support is being added gradually. Check: Binance, Coinbase, OKX, Bybit, Gate.io, KuCoin, Kraken. If your exchange doesn't support it yet, use the bridge method.
+
 **Q: Can I use USDT instead of USDC?**
 A: On mainnet, only USDC is supported. On testnet, we use MockUSDT for testing.
 
-**Q: Why doesn't Binance support Monad withdrawals?**
-A: Monad is a relatively new blockchain. Major exchanges will add support over time as adoption grows.
+**Q: Why doesn't my exchange have Monad as an option?**
+A: Monad is a relatively new blockchain (launched Nov 2024). Major exchanges add support over time as adoption grows. Use the bridge method in the meantime.
 
 **Q: How long does bridging take?**
 A: Usually 5-30 minutes depending on the source network and bridge congestion.
 
 **Q: What if I sent USDC to the wrong network?**
-A: Unfortunately, funds sent to the wrong network cannot be recovered by Kawai. Always verify the network before sending!
+A: Unfortunately, funds sent to the wrong network cannot be recovered by Kawai. Always verify you selected **Monad Network** before confirming the withdrawal!
+
+**Q: How do I know if I selected the right network?**
+A: Before confirming withdrawal:
+1. Check the network name shows "Monad" or "Monad Network"
+2. Verify the chain ID is 143 (Monad Mainnet)
+3. Double-check your Kawai wallet address
+4. Start with a small test amount first
 
 **Q: Is there a minimum deposit amount?**
-A: No minimum, but consider gas fees. Depositing less than $10 may not be economical due to bridge costs.
+A: No minimum, but consider fees. If bridging, depositing less than $10 may not be economical due to bridge costs. Direct Monad withdrawals have lower fees.
 
 ---
 
 ## Summary
 
 **The Golden Rule:** 
-> Always ensure your USDC is on **Monad Network** before depositing to Kawai Desktop!
+> Always ensure you select **Monad Network** when withdrawing USDC!
 
-**Recommended Path:**
+**Recommended Paths:**
+
+**Path 1 (Fastest):** If your exchange supports Monad
+```
+Exchange → Select Monad Network → Withdraw to Kawai Wallet
+```
+
+**Path 2 (If Monad not available):** Bridge from another network
 ```
 Exchange → Personal Wallet → Bridge to Monad → Kawai Desktop
 ```
 
-This extra step ensures your funds are safe and arrive correctly! 🎯
+**Before Every Withdrawal:**
+1. ✅ Verify network is **Monad** (Chain ID: 143)
+2. ✅ Double-check wallet address
+3. ✅ Test with small amount first
+4. ✅ Confirm you have MON for gas (~$0.50 worth)
+
+This ensures your funds arrive safely! 🎯
