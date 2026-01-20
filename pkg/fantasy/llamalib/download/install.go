@@ -53,11 +53,6 @@ func alreadyInstalled(libPath string) bool {
 	versionInfoPath := filepath.Join(libPath, versionFile)
 
 	if _, err := os.Stat(versionInfoPath); err != nil {
-		if os.IsNotExist(err) {
-			return false
-		}
-		// For other errors (permission, I/O), treat as not installed but log
-		// In production, you might want to return the error instead
 		return false
 	}
 
@@ -101,17 +96,9 @@ func downloadVersionFile(llamaCppVersionDocURL string) (string, error) {
 	}
 	defer r.Body.Close()
 
-	if r.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("unexpected status getting version document: %s", r.Status)
-	}
-
 	var tag tag
 	if err := json.NewDecoder(r.Body).Decode(&tag); err != nil {
 		return "", fmt.Errorf("error decoding llama.cpp version document: %w", err)
-	}
-
-	if tag.TagName == "" {
-		return "", fmt.Errorf("version document missing tag_name")
 	}
 
 	return tag.TagName, nil

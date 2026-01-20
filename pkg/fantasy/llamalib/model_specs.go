@@ -25,16 +25,14 @@ const (
 
 // QwenModelSpec represents a Qwen model specification for direct download
 type QwenModelSpec struct {
-	Name          string // Model name (e.g., "qwen2.5-0.5b-instruct-q4_k_m")
-	URL           string // Direct download URL
-	Quantization  string // Quantization type (Q4_K_M, Q5_K_M, etc.)
-	Parameters    string // Parameter size (0.5b, 1.5b, etc.)
-	MinRAM        int64  // Minimum RAM required in GB
-	Size          int64  // Expected file size in bytes
-	SHA256        string // Expected SHA256 checksum (optional)
-	Description   string // Model description
-	ProjectorURL  string // URL for the multimodal projector file (for VL models)
-	ProjectorSize int64  // Expected size of the projector file
+	Name         string // Model name (e.g., "qwen2.5-0.5b-instruct-q4_k_m")
+	URL          string // Direct download URL
+	Quantization string // Quantization type (Q4_K_M, Q5_K_M, etc.)
+	Parameters   string // Parameter size (0.5b, 1.5b, etc.)
+	MinRAM       int64  // Minimum RAM required in GB
+	SHA256       string // Expected SHA256 checksum (optional)
+	Description  string // Model description
+	ProjectorURL string // URL for the multimodal projector file (for VL models)
 }
 
 // Note: Service struct has been removed. All functions are now pure functions
@@ -45,37 +43,31 @@ type QwenModelSpec struct {
 func GetRecommendedVLModels() []QwenModelSpec {
 	return []QwenModelSpec{
 		{
-			Name:          "qwen3-vl-4b-instruct-q4_k_m",
-			URL:           "https://huggingface.co/bartowski/Qwen_Qwen3-VL-4B-Instruct-GGUF/resolve/main/Qwen_Qwen3-VL-4B-Instruct-Q4_K_M.gguf",
-			Quantization:  "Q4_K_M",
-			Parameters:    "4b",
-			MinRAM:        6,
-			Size:          2500000000, // ~2.5 GB
-			Description:   "Qwen3-VL 4B - Multimodal vision-language model, perfect for low-end hardware",
-			ProjectorURL:  "https://huggingface.co/bartowski/Qwen_Qwen3-VL-4B-Instruct-GGUF/resolve/main/mmproj-Qwen_Qwen3-VL-4B-Instruct-f16.gguf",
-			ProjectorSize: 600000000, // ~600 MB
+			Name:         "qwen3-vl-4b-instruct-q4_k_m",
+			URL:          "https://huggingface.co/bartowski/Qwen_Qwen3-VL-4B-Instruct-GGUF/resolve/main/Qwen_Qwen3-VL-4B-Instruct-Q4_K_M.gguf",
+			Quantization: "Q4_K_M",
+			Parameters:   "4b",
+			MinRAM:       6,
+			Description:  "Qwen3-VL 4B - Multimodal vision-language model, perfect for low-end hardware",
+			ProjectorURL: "https://huggingface.co/bartowski/Qwen_Qwen3-VL-4B-Instruct-GGUF/resolve/main/mmproj-Qwen_Qwen3-VL-4B-Instruct-f16.gguf",
 		},
 		{
-			Name:          "qwen3-vl-8b-instruct-q4_k_m",
-			URL:           "https://huggingface.co/bartowski/Qwen_Qwen3-VL-8B-Instruct-GGUF/resolve/main/Qwen_Qwen3-VL-8B-Instruct-Q4_K_M.gguf",
-			Quantization:  "Q4_K_M",
-			Parameters:    "8b",
-			MinRAM:        12,
-			Size:          5500000000, // ~5.5 GB
-			Description:   "Qwen3-VL 8B - Advanced multimodal model with excellent vision capabilities",
-			ProjectorURL:  "https://huggingface.co/bartowski/Qwen_Qwen3-VL-8B-Instruct-GGUF/resolve/main/mmproj-Qwen_Qwen3-VL-8B-Instruct-f16.gguf",
-			ProjectorSize: 1159029920, // ~1.16 GB
+			Name:         "qwen3-vl-8b-instruct-q4_k_m",
+			URL:          "https://huggingface.co/bartowski/Qwen_Qwen3-VL-8B-Instruct-GGUF/resolve/main/Qwen_Qwen3-VL-8B-Instruct-Q4_K_M.gguf",
+			Quantization: "Q4_K_M",
+			Parameters:   "8b",
+			MinRAM:       12,
+			Description:  "Qwen3-VL 8B - Advanced multimodal model with excellent vision capabilities",
+			ProjectorURL: "https://huggingface.co/bartowski/Qwen_Qwen3-VL-8B-Instruct-GGUF/resolve/main/mmproj-Qwen_Qwen3-VL-8B-Instruct-f16.gguf",
 		},
 		{
-			Name:          "qwen3-vl-32b-instruct-q4_k_m",
-			URL:           "https://huggingface.co/bartowski/Qwen_Qwen3-VL-32B-Instruct-GGUF/resolve/main/Qwen_Qwen3-VL-32B-Instruct-Q4_K_M.gguf",
-			Quantization:  "Q4_K_M",
-			Parameters:    "32b",
-			MinRAM:        24,
-			Size:          22000000000, // ~22 GB
-			Description:   "Qwen3-VL 32B - High-quality multimodal model for advanced vision-language tasks",
-			ProjectorURL:  "https://huggingface.co/bartowski/Qwen_Qwen3-VL-32B-Instruct-GGUF/resolve/main/mmproj-Qwen_Qwen3-VL-32B-Instruct-f16.gguf",
-			ProjectorSize: 1200000000, // ~1.2 GB
+			Name:         "qwen3-vl-32b-instruct-q4_k_m",
+			URL:          "https://huggingface.co/bartowski/Qwen_Qwen3-VL-32B-Instruct-GGUF/resolve/main/Qwen_Qwen3-VL-32B-Instruct-Q4_K_M.gguf",
+			Quantization: "Q4_K_M",
+			Parameters:   "32b",
+			MinRAM:       24,
+			Description:  "Qwen3-VL 32B - High-quality multimodal model for advanced vision-language tasks",
+			ProjectorURL: "https://huggingface.co/bartowski/Qwen_Qwen3-VL-32B-Instruct-GGUF/resolve/main/mmproj-Qwen_Qwen3-VL-32B-Instruct-f16.gguf",
 		},
 	}
 }
@@ -104,8 +96,7 @@ func GetRecommendedFunctionCallingModels() []QwenModelSpec {
 			URL:          "https://huggingface.co/unsloth/functiongemma-270m-it-GGUF/resolve/main/functiongemma-270m-it-BF16.gguf",
 			Quantization: "BF16",
 			Parameters:   "270m",
-			MinRAM:       1,         // ~550MB, runs on almost any system
-			Size:         543000000, // ~543 MB
+			MinRAM:       1, // ~550MB, runs on almost any system
 			Description:  "FunctionGemma 270M - Ultra-small model specialized for function/tool calling",
 		},
 		// FunctionGemma 270M Q8_0 - Slightly smaller quantized version
@@ -114,8 +105,7 @@ func GetRecommendedFunctionCallingModels() []QwenModelSpec {
 			URL:          "https://huggingface.co/unsloth/functiongemma-270m-it-GGUF/resolve/main/functiongemma-270m-it-Q8_0.gguf",
 			Quantization: "Q8_0",
 			Parameters:   "270m",
-			MinRAM:       1,         // ~300MB
-			Size:         300000000, // ~300 MB (estimated)
+			MinRAM:       1, // ~300MB
 			Description:  "FunctionGemma 270M Q8 - Quantized version for even lower RAM",
 		},
 		// Nemotron-3-Nano-30B-A3B - NVIDIA's flagship small model
@@ -128,8 +118,7 @@ func GetRecommendedFunctionCallingModels() []QwenModelSpec {
 			URL:          "https://huggingface.co/unsloth/Nemotron-3-Nano-30B-A3B-GGUF/resolve/main/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf",
 			Quantization: "Q4_K_M",
 			Parameters:   "30b-a3b",
-			MinRAM:       24,          // ~24.6 GB file
-			Size:         24600000000, // ~24.6 GB
+			MinRAM:       24, // ~24.6 GB file
 			Description:  "Nemotron-3-Nano 30B (3B active) - NVIDIA's best small model for reasoning & tools",
 		},
 		// Nemotron-3-Nano-30B-A3B UD-Q4_K_XL - Unsloth Dynamic quantization (recommended)
@@ -138,8 +127,7 @@ func GetRecommendedFunctionCallingModels() []QwenModelSpec {
 			URL:          "https://huggingface.co/unsloth/Nemotron-3-Nano-30B-A3B-GGUF/resolve/main/Nemotron-3-Nano-30B-A3B-UD-Q4_K_XL.gguf",
 			Quantization: "UD-Q4_K_XL",
 			Parameters:   "30b-a3b",
-			MinRAM:       24,          // ~22.8 GB file
-			Size:         22800000000, // ~22.8 GB
+			MinRAM:       24, // ~22.8 GB file
 			Description:  "Nemotron-3-Nano 30B UD-Q4 - Dynamic quantized, slightly smaller",
 		},
 		// Nemotron-3-Nano-30B-A3B Q6_K - Higher quality for systems with more RAM
@@ -148,8 +136,7 @@ func GetRecommendedFunctionCallingModels() []QwenModelSpec {
 			URL:          "https://huggingface.co/unsloth/Nemotron-3-Nano-30B-A3B-GGUF/resolve/main/Nemotron-3-Nano-30B-A3B-Q6_K.gguf",
 			Quantization: "Q6_K",
 			Parameters:   "30b-a3b",
-			MinRAM:       32,          // ~32 GB file
-			Size:         32000000000, // ~32 GB (estimated)
+			MinRAM:       32, // ~32 GB file
 			Description:  "Nemotron-3-Nano 30B Q6 - Higher quality for high-RAM systems",
 		},
 	}

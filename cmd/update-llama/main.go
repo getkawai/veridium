@@ -26,6 +26,7 @@ func main() {
 	flag.BoolVar(&listVer, "list", false, "List available versions")
 	flag.StringVar(&processor, "processor", "cpu", "Processor type (cpu, cuda, vulkan, metal)")
 	flag.StringVar(&installPath, "path", "", "Custom installation path")
+	flag.StringVar(&version, "target", "", "Target version (e.g. b4300)")
 	flag.Parse()
 
 	// Default path logic matching common usage or user's environment

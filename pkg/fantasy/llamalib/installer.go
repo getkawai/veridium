@@ -41,7 +41,6 @@ type LlamaCppInstaller struct {
 }
 
 // NewLlamaCppInstaller creates a new llama.cpp installer
-// Automatically cleans up any stale temporary files from previous failed downloads
 func NewLlamaCppInstaller() *LlamaCppInstaller {
 	homeDir, _ := os.UserHomeDir()
 	basePath := filepath.Join(homeDir, ".llama-cpp")
@@ -54,12 +53,6 @@ func NewLlamaCppInstaller() *LlamaCppInstaller {
 		MetadataPath:  metadataPath,
 		ModelsDir:     modelsDir,
 		HardwareSpecs: hardware.DetectHardwareSpecs(),
-	}
-
-	// Clean up any stale temp files from previous sessions
-	// This handles the case where app was closed during download
-	if err := installer.CleanupStaleTempFiles(); err != nil {
-		log.Printf("⚠️  Failed to cleanup stale temp files on startup: %v", err)
 	}
 
 	return installer
@@ -191,12 +184,12 @@ func (lcm *LlamaCppInstaller) GetLibraryFilePath() string {
 // DownloadChatModel downloads a chat model (Qwen) using model specs from model_specs.go
 // Features:
 // - Downloads to temporary file first (.tmp) to prevent corruption
+// - Supports resume on app restart (temp files preserved)
 // - Retries up to 3 times on network failure with exponential backoff (2s, 4s, 6s)
 // - Validates file size, checksum (if provided), and GGUF format
-// - Automatically cleans up partial downloads on failure
+// - Automatically cleans up partial downloads on validation failure
 // - Only moves to final destination after successful validation
 // - Skips download if model already exists and is valid
-// - Handles app closure during download (temp files cleaned on next startup)
 func (lcm *LlamaCppInstaller) DownloadChatModel(modelSpec QwenModelSpec) error {
 	// Ensure models directory exists
 	if err := os.MkdirAll(lcm.ModelsDir, 0755); err != nil {
@@ -207,11 +200,6 @@ func (lcm *LlamaCppInstaller) DownloadChatModel(modelSpec QwenModelSpec) error {
 	modelFileName := fmt.Sprintf("%s.gguf", modelSpec.Name)
 	destModelPath := filepath.Join(lcm.ModelsDir, modelFileName)
 	tempModelPath := destModelPath + ".tmp"
-
-	// Clean up any stale temporary files
-	if err := lcm.cleanupTempFile(tempModelPath); err != nil {
-		log.Printf("⚠️  Failed to cleanup stale temp file: %v", err)
-	}
 
 	// Check if model already exists
 	if _, err := os.Stat(destModelPath); err == nil {
@@ -233,8 +221,18 @@ func (lcm *LlamaCppInstaller) DownloadChatModel(modelSpec QwenModelSpec) error {
 
 	log.Printf("📥 Downloading chat model: %s", modelSpec.Name)
 	log.Printf("   URL: %s", modelSpec.URL)
-	log.Printf("   Expected size: %.1f MB", float64(modelSpec.Size)/(1024*1024))
 	log.Printf("   This may take several minutes depending on network speed...")
+
+	// Check if we're resuming
+	if info, err := os.Stat(tempModelPath); err == nil {
+		// Validate temp file before resume
+		if info.IsDir() {
+			log.Printf("⚠️  Temp path is a directory, removing: %s", tempModelPath)
+			os.RemoveAll(tempModelPath)
+		} else if info.Size() > 0 {
+			log.Printf("🔄 Resuming download from %.1f MB", float64(info.Size())/(1024*1024))
+		}
+	}
 
 	// Download using GetModelWithProgress with automatic retry, resume, and progress tracking
 	if err := download.GetModelWithProgress(modelSpec.URL, tempModelPath, download.ProgressTracker); err != nil {
@@ -264,18 +262,12 @@ func (lcm *LlamaCppInstaller) DownloadChatModel(modelSpec QwenModelSpec) error {
 		destProjectorPath := filepath.Join(lcm.ModelsDir, projectorFileName)
 		tempProjectorPath := destProjectorPath + ".tmp"
 
-		// Clean up any stale temporary files
-		if err := lcm.cleanupTempFile(tempProjectorPath); err != nil {
-			log.Printf("⚠️  Failed to cleanup stale projector temp file: %v", err)
-		}
-
 		// Check if projector already exists
 		if _, err := os.Stat(destProjectorPath); err == nil {
 			log.Printf("✅ Projector already exists: %s", projectorFileName)
 		} else {
 			log.Printf("📥 Downloading projector file: %s", projectorFileName)
 			log.Printf("   URL: %s", modelSpec.ProjectorURL)
-			log.Printf("   Expected size: %.1f MB", float64(modelSpec.ProjectorSize)/(1024*1024))
 
 			if err := download.GetModelWithProgress(modelSpec.ProjectorURL, tempProjectorPath, download.ProgressTracker); err != nil {
 				lcm.cleanupTempFile(tempProjectorPath)
@@ -299,12 +291,12 @@ func (lcm *LlamaCppInstaller) DownloadChatModel(modelSpec QwenModelSpec) error {
 // DownloadEmbeddingModel downloads an embedding model with automatic retry and cleanup
 // Features:
 // - Downloads to temporary file first (.tmp) to prevent corruption
+// - Supports resume on app restart (temp files preserved)
 // - Retries up to 3 times on network failure with exponential backoff (2s, 4s, 6s)
 // - Validates GGUF file structure after download
-// - Automatically cleans up partial downloads on failure
+// - Automatically cleans up partial downloads on validation failure
 // - Only moves to final destination after successful validation
 // - Skips download if model already exists
-// - Handles app closure during download (temp files cleaned on next startup)
 func (lcm *LlamaCppInstaller) DownloadEmbeddingModel(model *EmbeddingModel) error {
 	// Ensure models directory exists
 	if err := os.MkdirAll(lcm.ModelsDir, 0755); err != nil {
@@ -325,7 +317,6 @@ func (lcm *LlamaCppInstaller) DownloadEmbeddingModel(model *EmbeddingModel) erro
 
 	// Download using GetModelWithProgress with automatic retry, resume, and progress tracking
 	tempPath := finalPath + ".tmp"
-	lcm.cleanupTempFile(tempPath) // Clean any stale temp file
 
 	if err := download.GetModelWithProgress(model.URL, tempPath, download.ProgressTracker); err != nil {
 		lcm.cleanupTempFile(tempPath)
@@ -350,11 +341,6 @@ func (lcm *LlamaCppInstaller) DownloadEmbeddingModel(model *EmbeddingModel) erro
 
 // AutoDownloadRecommendedChatModel automatically downloads the best chat model for the system
 func (lcm *LlamaCppInstaller) AutoDownloadRecommendedChatModel() error {
-	// Clean up any stale temp files
-	if err := lcm.CleanupStaleTempFiles(); err != nil {
-		log.Printf("⚠️  Failed to cleanup stale temp files: %v", err)
-	}
-
 	// Check if any models already exist
 	models, err := lcm.GetAvailableChatModels()
 	if err != nil {
@@ -382,11 +368,6 @@ func (lcm *LlamaCppInstaller) AutoDownloadRecommendedChatModel() error {
 
 // AutoDownloadRecommendedVLModel automatically downloads the best VL model for the system
 func (lcm *LlamaCppInstaller) AutoDownloadRecommendedVLModel() error {
-	// Clean up any stale temp files
-	if err := lcm.CleanupStaleTempFiles(); err != nil {
-		log.Printf("⚠️  Failed to cleanup stale temp files: %v", err)
-	}
-
 	// Check if any VL models already exist
 	models, err := lcm.GetAvailableVLModels()
 	if err != nil {
@@ -413,7 +394,6 @@ func (lcm *LlamaCppInstaller) AutoDownloadRecommendedVLModel() error {
 				log.Printf("   URL: %s", modelSpec.ProjectorURL)
 
 				tempProjectorPath := destProjectorPath + ".tmp"
-				lcm.cleanupTempFile(tempProjectorPath)
 
 				if err := download.GetModelWithProgress(modelSpec.ProjectorURL, tempProjectorPath, download.ProgressTracker); err != nil {
 					lcm.cleanupTempFile(tempProjectorPath)
@@ -457,11 +437,6 @@ func (lcm *LlamaCppInstaller) AutoDownloadRecommendedVLModel() error {
 //   - Nemotron-3-Nano: https://docs.unsloth.ai/models/nemotron-3
 //   - FunctionGemma: https://docs.unsloth.ai/models/functiongemma
 func (lcm *LlamaCppInstaller) AutoDownloadRecommendedTextModel() error {
-	// Clean up any stale temp files
-	if err := lcm.CleanupStaleTempFiles(); err != nil {
-		log.Printf("⚠️  Failed to cleanup stale temp files: %v", err)
-	}
-
 	// Select optimal model based on available RAM
 	// Uses SelectOptimalFunctionCallingModel internally:
 	// - RAM >= 24GB → Nemotron-3-Nano-30B
@@ -739,47 +714,10 @@ func (lcm *LlamaCppInstaller) GetDownloadedEmbeddingModels() []*EmbeddingModel {
 	return downloaded
 }
 
-// CleanupStaleTempFiles removes all stale temporary download files (.tmp)
+// CleanupStaleTempFiles is a no-op function kept for backward compatibility
+// Temp files are now preserved to support resume functionality
+// They will be overwritten on next download attempt or can be manually deleted by user
 func (lcm *LlamaCppInstaller) CleanupStaleTempFiles() error {
-	entries, err := os.ReadDir(lcm.ModelsDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil // Directory doesn't exist yet, nothing to clean
-		}
-		return fmt.Errorf("failed to read models directory: %w", err)
-	}
-
-	cleaned := 0
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-
-		// Check if it's a temporary file (.tmp)
-		if strings.HasSuffix(entry.Name(), ".tmp") {
-			tmpPath := filepath.Join(lcm.ModelsDir, entry.Name())
-
-			info, err := entry.Info()
-			if err != nil {
-				log.Printf("⚠️  Failed to get info for %s: %v", entry.Name(), err)
-				continue
-			}
-
-			log.Printf("🧹 Removing stale temporary file: %s (size: %.1f MB)",
-				entry.Name(), float64(info.Size())/(1024*1024))
-
-			if err := os.Remove(tmpPath); err != nil {
-				log.Printf("⚠️  Failed to remove stale temp file %s: %v", entry.Name(), err)
-			} else {
-				cleaned++
-			}
-		}
-	}
-
-	if cleaned > 0 {
-		log.Printf("✅ Cleaned up %d stale temporary file(s)", cleaned)
-	}
-
 	return nil
 }
 

@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	getter "github.com/hashicorp/go-getter"
+	"github.com/kawai-network/veridium/pkg/grab"
 )
 
 var (
@@ -180,26 +180,26 @@ func Get(architecture string, operatingSystem string, processor string, version 
 }
 
 // GetWithProgress downloads the llama.cpp precompiled binaries for the desired arch/OS/processor
-// using the provided progress tracker.
+// using the provided progress callback.
 // arch can be one of the following values: "amd64", "arm64".
 // os can be one of the following values: "linux", "darwin", "windows".
 // processor can be one of the following values: "cpu", "cuda", "vulkan", "metal".
 // version should be the desired `b1234` formatted llama.cpp version. You can use the
 // [LlamaLatestVersion] function to obtain the latest release.
 // dest in the destination directory for the downloaded binaries.
-func GetWithProgress(architecture string, operatingSystem string, processor string, version string, dest string, progress getter.ProgressTracker) error {
+func GetWithProgress(architecture string, operatingSystem string, processor string, version string, dest string, progress ProgressCallback) error {
 	return GetWithContext(context.Background(), architecture, operatingSystem, processor, version, dest, progress)
 }
 
 // GetWithContext downloads the llama.cpp precompiled binaries for the desired arch/OS/processor
-// using the provided context and progress tracker.
+// using the provided context and progress callback.
 // arch can be one of the following values: "amd64", "arm64".
 // os can be one of the following values: "linux", "darwin", "windows".
 // processor can be one of the following values: "cpu", "cuda", "vulkan", "metal".
 // version should be the desired `b1234` formatted llama.cpp version. You can use the
 // [LlamaLatestVersion] function to obtain the latest release.
 // dest in the destination directory for the downloaded binaries.
-func GetWithContext(ctx context.Context, architecture string, operatingSystem string, processor string, version string, dest string, progress getter.ProgressTracker) error {
+func GetWithContext(ctx context.Context, architecture string, operatingSystem string, processor string, version string, dest string, progress ProgressCallback) error {
 	arch, err := ParseArch(architecture)
 	if err != nil {
 		return ErrUnknownArch
@@ -228,83 +228,120 @@ func GetWithContext(ctx context.Context, architecture string, operatingSystem st
 	return getFunc(ctx, url, dest, progress)
 }
 
-func get(ctx context.Context, url, dest string, progress getter.ProgressTracker) error {
+func get(ctx context.Context, url, dest string, progress ProgressCallback) error {
 	// Check if it's a .tar.gz file
 	if strings.HasSuffix(url, ".tar.gz") {
-		return downloadAndExtractTarGz(url, dest, progress)
+		return downloadAndExtractTarGz(ctx, url, dest, progress)
 	}
 
-	// Use go-getter for other file types (e.g., .zip)
-	client := &getter.Client{
-		Ctx:  ctx,
-		Src:  url,
-		Dst:  dest,
-		Mode: getter.ClientModeAny,
+	// Use grab for .zip and other file types
+	return downloadWithGrab(ctx, url, dest, progress)
+}
+
+// downloadWithGrab downloads a file using grab with resume support
+func downloadWithGrab(ctx context.Context, url, dest string, progress ProgressCallback) error {
+	req, err := grab.NewRequest(dest, url)
+	if err != nil {
+		return fmt.Errorf("failed to create download request: %w", err)
+	}
+
+	req = req.WithContext(ctx)
+
+	client := grab.NewClient()
+	resp := client.Do(req)
+
+	// Monitor progress
+	if progress != nil {
+		ticker := time.NewTicker(200 * time.Millisecond)
+		defer ticker.Stop()
+
+		go func() {
+			for {
+				select {
+				case <-ticker.C:
+					if resp.IsComplete() {
+						return
+					}
+					progress(url, resp.BytesComplete(), resp.Size(), resp.BytesPerSecond()/(1024*1024), false)
+				case <-resp.Done:
+					return
+				}
+			}
+		}()
+	}
+
+	// Wait for download to complete
+	if err := resp.Err(); err != nil {
+		return fmt.Errorf("download failed: %w", err)
 	}
 
 	if progress != nil {
-		client.ProgressListener = progress
-	}
-
-	if err := client.Get(); err != nil {
-		return err
+		progress(url, resp.BytesComplete(), resp.Size(), resp.BytesPerSecond()/(1024*1024), true)
 	}
 
 	return nil
 }
 
 // downloadAndExtractTarGz downloads a .tar.gz file and extracts it to the destination directory.
-func downloadAndExtractTarGz(url, dest string, progress getter.ProgressTracker) error {
-	downloadFile := filepath.Join(dest, filepath.Base(url))
-
+func downloadAndExtractTarGz(ctx context.Context, url, dest string, progress ProgressCallback) error {
 	// Ensure destination directory exists
 	if err := os.MkdirAll(dest, 0755); err != nil {
-		return fmt.Errorf("failed to create destination dir: %w", err)
+		return fmt.Errorf("failed to create destination directory: %w", err)
 	}
 
-	// Use http.Get directly to avoid go-getter issues
-	respGet, err := http.Get(url)
+	downloadFile := filepath.Join(dest, filepath.Base(url))
+
+	// Download using grab with resume support
+	req, err := grab.NewRequest(downloadFile, url)
 	if err != nil {
-		return fmt.Errorf("failed to download file: %w", err)
-	}
-	defer respGet.Body.Close()
-
-	if respGet.StatusCode != http.StatusOK {
-		return fmt.Errorf("bad status: %s", respGet.Status)
+		return fmt.Errorf("failed to create download request: %w", err)
 	}
 
-	// Create the file
-	out, err := os.Create(downloadFile)
-	if err != nil {
-		return fmt.Errorf("failed to create file: %w", err)
-	}
-	defer out.Close()
+	req = req.WithContext(ctx)
 
-	// Helper wrapper for progress tracking
-	var reader io.Reader = respGet.Body
+	client := grab.NewClient()
+	resp := client.Do(req)
+
+	// Monitor progress
 	if progress != nil {
-		progress.TrackProgress(filepath.Base(url), respGet.ContentLength, respGet.ContentLength, nil)
-		// We can't easily hook into the read stream for real-time progress without a wrapper,
-		// but go-getter's TrackProgress interface logic is complex to mimic fully here.
-		// For now, we skip detailed progress updates or implement a simple one if needed.
-		// The original code passed progress to Client.
-		// Let's just download it.
+		ticker := time.NewTicker(200 * time.Millisecond)
+		defer ticker.Stop()
+
+		go func() {
+			for {
+				select {
+				case <-ticker.C:
+					if resp.IsComplete() {
+						return
+					}
+					progress(url, resp.BytesComplete(), resp.Size(), resp.BytesPerSecond()/(1024*1024), false)
+				case <-resp.Done:
+					return
+				}
+			}
+		}()
 	}
 
-	_, err = io.Copy(out, reader)
-	if err != nil {
-		return fmt.Errorf("failed to save file: %w", err)
+	// Wait for download to complete
+	if err := resp.Err(); err != nil {
+		return fmt.Errorf("download failed: %w", err)
 	}
+
+	if progress != nil {
+		progress(url, resp.BytesComplete(), resp.Size(), resp.BytesPerSecond()/(1024*1024), true)
+	}
+
 	defer os.Remove(downloadFile)
 
-	resp, err := os.Open(downloadFile)
+	// Open the downloaded file for extraction
+	file, err := os.Open(downloadFile)
 	if err != nil {
 		return fmt.Errorf("failed to open downloaded file: %w", err)
 	}
-	defer resp.Close()
+	defer file.Close()
 
 	// Create gzip reader
-	gzr, err := gzip.NewReader(resp)
+	gzr, err := gzip.NewReader(file)
 	if err != nil {
 		return fmt.Errorf("failed to create gzip reader: %w", err)
 	}
@@ -334,22 +371,7 @@ func downloadAndExtractTarGz(url, dest string, progress getter.ProgressTracker) 
 			continue
 		}
 
-		// Security: Clean and validate path to prevent path traversal
-		name = filepath.Clean(name)
-		target := filepath.Join(dest, name)
-
-		// Ensure target is within dest directory
-		absDest, err := filepath.Abs(dest)
-		if err != nil {
-			return fmt.Errorf("failed to get absolute path of dest: %w", err)
-		}
-		absTarget, err := filepath.Abs(target)
-		if err != nil {
-			return fmt.Errorf("failed to get absolute path of target: %w", err)
-		}
-		if !strings.HasPrefix(absTarget, absDest+string(os.PathSeparator)) && absTarget != absDest {
-			return fmt.Errorf("illegal file path: %s", name)
-		}
+		target := filepath.Join(dest, filepath.Clean(name))
 
 		switch header.Typeflag {
 		case tar.TypeDir:
@@ -375,23 +397,6 @@ func downloadAndExtractTarGz(url, dest string, progress getter.ProgressTracker) 
 			}
 			f.Close()
 		case tar.TypeSymlink:
-			// Security: Validate symlink target
-			if filepath.IsAbs(header.Linkname) {
-				return fmt.Errorf("illegal absolute symlink: %s -> %s", name, header.Linkname)
-			}
-
-			// Resolve symlink destination
-			linkTarget := filepath.Join(filepath.Dir(target), header.Linkname)
-			absLinkTarget, err := filepath.Abs(linkTarget)
-			if err != nil {
-				return fmt.Errorf("failed to resolve symlink target: %w", err)
-			}
-
-			// Ensure symlink target is within dest directory
-			if !strings.HasPrefix(absLinkTarget, absDest+string(os.PathSeparator)) && absLinkTarget != absDest {
-				return fmt.Errorf("illegal symlink target: %s -> %s", name, header.Linkname)
-			}
-
 			// Handle symlinks
 			if err := os.Symlink(header.Linkname, target); err != nil {
 				// Ignore error if symlink already exists
