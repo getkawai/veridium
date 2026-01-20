@@ -761,7 +761,7 @@ func (s *DeAIService) GetClaimableRewards() (*ClaimableRewardsResponse, error) {
 // convertMerkleProofToClaimable converts store.MerkleProofData to ClaimableReward
 func (s *DeAIService) convertMerkleProofToClaimable(proof *store.MerkleProofData) *ClaimableReward {
 	decimals := 18
-	if proof.RewardType == "usdt" || proof.RewardType == "stablecoin" {
+	if proof.RewardType == "stablecoin" {
 		decimals = 6
 	}
 
@@ -1272,7 +1272,7 @@ func (s *DeAIService) formatRewardAmount(rawAmount string, rewardType string) st
 	}
 
 	var decimals int64
-	if rewardType == "usdt" || rewardType == "stablecoin" {
+	if rewardType == "stablecoin" {
 		decimals = 6
 	} else {
 		decimals = 18
@@ -1282,7 +1282,7 @@ func (s *DeAIService) formatRewardAmount(rawAmount string, rewardType string) st
 	formatted := new(big.Float).Quo(new(big.Float).SetInt(amount), divisor)
 
 	// Format with appropriate precision
-	if rewardType == "usdt" || rewardType == "stablecoin" {
+	if rewardType == "stablecoin" {
 		return formatted.Text('f', 2)
 	}
 	return formatted.Text('f', 4)

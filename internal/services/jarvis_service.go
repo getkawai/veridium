@@ -24,6 +24,9 @@ type NetworkInfo struct {
 	ExplorerURL        string `json:"explorerURL"`
 	IsTestnet          bool   `json:"isTestnet"`
 	Icon               string `json:"icon"`
+	StablecoinSymbol   string `json:"stablecoinSymbol"` // "MockUSDT" (testnet) or "USDC" (mainnet)
+	StablecoinName     string `json:"stablecoinName"`   // Full display name
+	StablecoinShort    string `json:"stablecoinShort"`  // "USDT" (testnet) or "USDC" (mainnet) for messages
 }
 
 // TokenInfo represents ERC20 token information
@@ -106,7 +109,7 @@ func (s *JarvisService) getReader(networkID uint64) (*reader.EthReader, networks
 	s.readersMu.RLock()
 	r, exists := s.readers[networkID]
 	s.readersMu.RUnlock()
-	
+
 	if exists {
 		return r, network, nil
 	}
@@ -114,12 +117,12 @@ func (s *JarvisService) getReader(networkID uint64) (*reader.EthReader, networks
 	// Create new reader (write lock)
 	s.readersMu.Lock()
 	defer s.readersMu.Unlock()
-	
+
 	// Double-check after acquiring write lock (another goroutine might have created it)
 	if r, exists := s.readers[networkID]; exists {
 		return r, network, nil
 	}
-	
+
 	r = reader.NewEthReaderGeneric(network.GetDefaultNodes(), nil)
 	s.readers[networkID] = r
 	return r, network, nil
@@ -238,6 +241,14 @@ func getWeb3IconSlugByName(name string) string {
 	return "ethereum"
 }
 
+// getStablecoinInfo returns stablecoin information based on network testnet status
+func getStablecoinInfo(isTestnet bool) (symbol, name, short string) {
+	if isTestnet {
+		return "MockUSDT", "Mock Tether USD (Testnet)", "USDT"
+	}
+	return "USDC", "USD Coin", "USDC"
+}
+
 // GetSupportedNetworks returns all supported blockchain networks
 func (s *JarvisService) GetSupportedNetworks() []NetworkInfo {
 	allNetworks := networks.GetSupportedNetworks()
@@ -265,6 +276,9 @@ func (s *JarvisService) GetSupportedNetworks() []NetworkInfo {
 		// Use chain ID to determine icon for more accurate matching
 		icon := getWeb3IconSlugByChainID(chainID, name)
 
+		// Get stablecoin info based on network type
+		stablecoinSymbol, stablecoinName, stablecoinShort := getStablecoinInfo(isTestnet)
+
 		result = append(result, NetworkInfo{
 			ID:                 chainID,
 			Name:               name,
@@ -273,6 +287,9 @@ func (s *JarvisService) GetSupportedNetworks() []NetworkInfo {
 			ExplorerURL:        n.GetBlockExplorerAPIURL(),
 			IsTestnet:          isTestnet,
 			Icon:               icon,
+			StablecoinSymbol:   stablecoinSymbol,
+			StablecoinName:     stablecoinName,
+			StablecoinShort:    stablecoinShort,
 		})
 	}
 
@@ -293,6 +310,9 @@ func (s *JarvisService) GetNetworkByID(chainID uint64) (*NetworkInfo, error) {
 		strings.Contains(strings.ToLower(name), "rinkeby") ||
 		strings.Contains(strings.ToLower(name), "mumbai")
 
+	// Get stablecoin info based on network type
+	stablecoinSymbol, stablecoinName, stablecoinShort := getStablecoinInfo(isTestnet)
+
 	return &NetworkInfo{
 		ID:                 chainID,
 		Name:               name,
@@ -301,6 +321,9 @@ func (s *JarvisService) GetNetworkByID(chainID uint64) (*NetworkInfo, error) {
 		ExplorerURL:        network.GetBlockExplorerAPIURL(),
 		IsTestnet:          isTestnet,
 		Icon:               getWeb3IconSlugByChainID(chainID, name),
+		StablecoinSymbol:   stablecoinSymbol,
+		StablecoinName:     stablecoinName,
+		StablecoinShort:    stablecoinShort,
 	}, nil
 }
 

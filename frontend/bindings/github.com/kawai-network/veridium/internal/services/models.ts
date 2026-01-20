@@ -1374,6 +1374,21 @@ export class NetworkInfo {
     "isTestnet": boolean;
     "icon": string;
 
+    /**
+     * "MockUSDT" (testnet) or "USDC" (mainnet)
+     */
+    "stablecoinSymbol": string;
+
+    /**
+     * Full display name
+     */
+    "stablecoinName": string;
+
+    /**
+     * "USDT" (testnet) or "USDC" (mainnet) for messages
+     */
+    "stablecoinShort": string;
+
     /** Creates a new NetworkInfo instance. */
     constructor($$source: Partial<NetworkInfo> = {}) {
         if (!("id" in $$source)) {
@@ -1396,6 +1411,15 @@ export class NetworkInfo {
         }
         if (!("icon" in $$source)) {
             this["icon"] = "";
+        }
+        if (!("stablecoinSymbol" in $$source)) {
+            this["stablecoinSymbol"] = "";
+        }
+        if (!("stablecoinName" in $$source)) {
+            this["stablecoinName"] = "";
+        }
+        if (!("stablecoinShort" in $$source)) {
+            this["stablecoinShort"] = "";
         }
 
         Object.assign(this, $$source);

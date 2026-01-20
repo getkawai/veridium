@@ -29,7 +29,7 @@ import { Icon } from "@lobehub/ui";
 import { Flexbox } from "react-layout-kit";
 import { useTheme } from "antd-style";
 import { NetworkIcon } from "./NetworkIcons";
-import { TokenUSDT } from "@web3icons/react";
+import { StablecoinIcon } from "./StablecoinIcon";
 import type { HomeContentProps, NetworkInfo } from "./types";
 
 // TypeScript interface for transaction analysis
@@ -807,7 +807,7 @@ const HomeContent = ({
             </div>
           )}
 
-          {/* USDT */}
+          {/* Stablecoin (USDT/USDC) */}
           <div
             className={styles.tokenRow}
             style={{
@@ -822,11 +822,13 @@ const HomeContent = ({
             }}
           >
             <Flexbox horizontal align="center" gap={12} style={{ flex: 1 }}>
-              <TokenUSDT size={36} variant="branded" />
+              <StablecoinIcon currentNetwork={currentNetwork} size={36} />
               <div>
-                <div style={{ fontWeight: 600 }}>USDT</div>
+                <div style={{ fontWeight: 600 }}>
+                  {currentNetwork?.stablecoinSymbol || 'USDT'}
+                </div>
                 <div style={{ fontSize: 12, color: theme.colorTextSecondary }}>
-                  Tether USD
+                  {currentNetwork?.stablecoinName || 'Tether USD'}
                 </div>
               </div>
             </Flexbox>

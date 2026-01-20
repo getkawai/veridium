@@ -5,7 +5,7 @@ import { Flexbox } from 'react-layout-kit';
 import { TrendingUp, DollarSign, Gift, Info, Percent, Users, ExternalLink, PieChart } from 'lucide-react';
 import { useUserStore } from '@/store/user';
 import { Browser } from '@wailsio/runtime';
-import { TokenUSDT } from '@web3icons/react';
+import { StablecoinIcon } from '../../../wallet/StablecoinIcon';
 import type { NetworkInfo, ClaimableReward, RevenueShareStatsResponse } from '@@/github.com/kawai-network/veridium/internal/services/models';
 
 interface RevenueShareRecord {
@@ -74,9 +74,11 @@ export const RevenueShareSection = ({ currentNetwork, theme, styles, onRefresh }
         return;
       }
 
-      // Filter for USDT rewards only (revenue distribution)
-      const usdtRewards = (rewards.unclaimed_proofs || [])
-        .filter((p): p is ClaimableReward => p !== null && p.reward_type === 'usdt');
+      // Filter for stablecoin rewards (revenue distribution)
+      const stablecoinRewards = (rewards.unclaimed_proofs || [])
+        .filter((p): p is ClaimableReward => 
+          p !== null && p.reward_type === 'stablecoin'
+        );
 
       // Get real blockchain data
       let revenueStats: RevenueShareStatsResponse | null = null;
@@ -96,11 +98,11 @@ export const RevenueShareSection = ({ currentNetwork, theme, styles, onRefresh }
       const revenueShareStats: RevenueShareStats = {
         total_earned: rewards.total_usdt_claimable_formatted || '0.00',
         total_claimable: rewards.total_usdt_claimable_formatted || '0.00',
-        pending_claims: usdtRewards.length,
+        pending_claims: stablecoinRewards.length,
         current_kawai_balance: revenueStats?.kawai_balance_formatted || '0',
         current_share_percentage: revenueStats?.share_percentage || '0',
         estimated_weekly_usdt: '0.00', // TODO: Calculate from historical platform revenue
-        unclaimed_records: usdtRewards.map((r) => ({
+        unclaimed_records: stablecoinRewards.map((r) => ({
           period_id: r.period_id,
           index: r.index,
           amount: r.amount,
@@ -312,7 +314,7 @@ export const RevenueShareSection = ({ currentNetwork, theme, styles, onRefresh }
             <Flexbox gap={4}>
               <h2 style={{ margin: 0, fontSize: 24, fontWeight: 700 }}>Hold-to-Earn Revenue Share</h2>
               <span style={{ fontSize: 14, color: theme.colorTextSecondary }}>
-                Earn 100% of platform profit (USDT) proportional to your KAWAI holdings
+                Earn 100% of platform profit ({currentNetwork?.stablecoinShort || 'stablecoin'}) proportional to your KAWAI holdings
               </span>
             </Flexbox>
           </Flexbox>
@@ -330,7 +332,7 @@ export const RevenueShareSection = ({ currentNetwork, theme, styles, onRefresh }
                 title="Total Earned"
                 value={stats?.total_earned || '0.00'}
                 prefix={<DollarSign size={20} color="#26a17b" />}
-                suffix="USDT"
+                suffix={currentNetwork?.stablecoinShort || 'USDT'}
                 precision={2}
                 valueStyle={{ color: '#26a17b', fontWeight: 700 }}
               />
@@ -346,7 +348,7 @@ export const RevenueShareSection = ({ currentNetwork, theme, styles, onRefresh }
                 title="Claimable Now"
                 value={stats?.total_claimable || '0.00'}
                 prefix={<Gift size={20} color="#22c55e" />}
-                suffix="USDT"
+                suffix={currentNetwork?.stablecoinShort || 'USDT'}
                 precision={2}
                 valueStyle={{ color: '#22c55e', fontWeight: 700 }}
               />
@@ -362,7 +364,7 @@ export const RevenueShareSection = ({ currentNetwork, theme, styles, onRefresh }
                 title="Est. Weekly"
                 value={stats?.estimated_weekly_usdt || '0.00'}
                 prefix={<TrendingUp size={20} color="#3b82f6" />}
-                suffix="USDT"
+                suffix={currentNetwork?.stablecoinShort || 'USDT'}
                 precision={2}
                 valueStyle={{ color: '#3b82f6', fontWeight: 700 }}
               />
@@ -421,7 +423,7 @@ export const RevenueShareSection = ({ currentNetwork, theme, styles, onRefresh }
               <Flexbox horizontal gap={8} align="center">
                 <Info size={16} color={theme.colorInfo} />
                 <span style={{ fontSize: 12, color: theme.colorTextSecondary }}>
-                  Your weekly USDT = (Your KAWAI / Total Supply) × Weekly Net Profit
+                  Your weekly {currentNetwork?.stablecoinShort || 'stablecoin'} = (Your KAWAI / Total Supply) × Weekly Net Profit
                 </span>
               </Flexbox>
             </div>
@@ -446,9 +448,9 @@ export const RevenueShareSection = ({ currentNetwork, theme, styles, onRefresh }
           <Skeleton active paragraph={{ rows: 5 }} />
         ) : !stats?.unclaimed_records || stats.unclaimed_records.length === 0 ? (
           <Flexbox align="center" gap={16} style={{ padding: '40px 20px' }}>
-            <TokenUSDT size={64} variant="branded" />
+            <StablecoinIcon currentNetwork={currentNetwork} size={64} />
             <span style={{ fontSize: 16, color: theme.colorTextSecondary }}>
-              No claimable revenue yet. Keep holding KAWAI to earn weekly USDT!
+              No claimable revenue yet. Keep holding KAWAI to earn weekly {currentNetwork?.stablecoinShort || 'stablecoin'}!
             </span>
             <div
               style={{
@@ -485,7 +487,7 @@ export const RevenueShareSection = ({ currentNetwork, theme, styles, onRefresh }
                 key: 'amount',
                 render: (formatted: string) => (
                   <span style={{ fontWeight: 600, color: theme.colorSuccess }}>
-                    ${formatted} USDT
+                    ${formatted} {currentNetwork?.stablecoinShort || 'USDT'}
                   </span>
                 ),
               },
@@ -555,13 +557,13 @@ export const RevenueShareSection = ({ currentNetwork, theme, styles, onRefresh }
         <Flexbox gap={16}>
           <ul style={{ margin: 0, paddingLeft: 20, fontSize: 13, color: theme.colorTextSecondary }}>
             <li style={{ marginBottom: 8 }}>
-              <strong>100% of platform profit</strong> (USDT) is distributed to KAWAI holders every week
+              <strong>100% of platform profit</strong> ({currentNetwork?.stablecoinShort || 'stablecoin'}) is distributed to KAWAI holders every week
             </li>
             <li style={{ marginBottom: 8 }}>
               Your share is <strong>proportional to your KAWAI holdings</strong> (no lock/stake required)
             </li>
             <li style={{ marginBottom: 8 }}>
-              Formula: <code>Your USDT = (Your KAWAI / Total Supply) × Weekly Net Profit</code>
+              Formula: <code>Your {currentNetwork?.stablecoinShort || 'stablecoin'} = (Your KAWAI / Total Supply) × Weekly Net Profit</code>
             </li>
             <li style={{ marginBottom: 8 }}>
               Weekly settlements generate <strong>Merkle proofs</strong> for gas-efficient claiming
@@ -621,7 +623,7 @@ export const RevenueShareSection = ({ currentNetwork, theme, styles, onRefresh }
               <Flexbox horizontal justify="space-between" align="center">
                 <span>Revenue Amount:</span>
                 <span style={{ fontWeight: 700, fontSize: 18 }}>
-                  ${confirmModal.formatted} USDT
+                  ${confirmModal.formatted} {currentNetwork?.stablecoinShort || 'USDT'}
                 </span>
               </Flexbox>
               <Flexbox horizontal justify="space-between" style={{ marginTop: 8 }}>

@@ -72,8 +72,8 @@ export async function getTokenListFromBackend(): Promise<Array<{
     return [
       {
         address: config.contracts.usdt,
-        name: 'Tether USD',
-        symbol: 'USDT',
+        name: getStablecoinDisplayName(config),
+        symbol: getStablecoinSymbol(config),
         decimals: 6,
       },
       {
@@ -101,4 +101,30 @@ export function isTestnet(config: BackendConfig): boolean {
  */
 export function isMainnet(config: BackendConfig): boolean {
   return !config.network.isTestnet;
+}
+
+/**
+ * Get stablecoin symbol based on network environment
+ * Returns "MockUSDT" for testnet, "USDC" for mainnet
+ */
+export function getStablecoinSymbol(config: BackendConfig): string {
+  return config.network.isTestnet ? 'MockUSDT' : 'USDC';
+}
+
+/**
+ * Get stablecoin display name based on network environment
+ * Returns full name for UI display
+ */
+export function getStablecoinDisplayName(config: BackendConfig): string {
+  return config.network.isTestnet 
+    ? 'Mock Tether USD (Testnet)' 
+    : 'USD Coin';
+}
+
+/**
+ * Get stablecoin short name for messages
+ * Returns "USDT" for testnet (familiar), "USDC" for mainnet
+ */
+export function getStablecoinShortName(config: BackendConfig): string {
+  return config.network.isTestnet ? 'USDT' : 'USDC';
 }
