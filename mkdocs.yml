@@ -106,6 +106,8 @@ markdown_extensions:
   - pymdownx.tasklist:
       custom_checkbox: true
   - pymdownx.tilde
+  - sane_lists
+  - nl2br
 
 # Navigation
 nav:
