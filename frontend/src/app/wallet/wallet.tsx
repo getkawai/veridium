@@ -1,10 +1,12 @@
-import { Modal, QRCode, App, Button, InputNumber, Form, Input, Empty, Popover, Spin, Tooltip, Select } from 'antd';
+import { Modal, QRCode, App, Button, InputNumber, Form, Input, Empty, Popover, Spin, Tooltip, Select, Alert } from 'antd';
 import { memo, useEffect, useState, useCallback } from 'react';
 import { DeAIService, WalletService, JarvisService, DepositSyncService } from '@@/github.com/kawai-network/veridium/internal/services';
 import type { NetworkInfo, BackendConfig, GasEstimate } from '@@/github.com/kawai-network/veridium/internal/services/models';
 import { ListWalletTransactions } from '@@/github.com/kawai-network/veridium/internal/database/generated/queries';
 import type { WalletTransaction } from '@@/github.com/kawai-network/veridium/internal/database/generated/models';
 import { useUserStore } from '@/store/user';
+import { useGlobalStore } from '@/store/global';
+import { Browser } from '@wailsio/runtime';
 import {
   Copy,
   Send,
@@ -15,6 +17,7 @@ import {
   ShoppingCart,
   Globe,
   Repeat2,
+  ExternalLink,
 } from 'lucide-react';
 import { ActionIcon, Icon } from '@lobehub/ui';
 import { Flexbox } from 'react-layout-kit';
@@ -877,15 +880,61 @@ const CopyButton = ({ text }: { text: string }) => {
 
 const SmartDepositForm = ({ onDeposit, loading }: { onDeposit: (val: number) => void, loading: boolean }) => {
   const [form] = Form.useForm();
+  const theme = useTheme();
+  const config = useGlobalStore((s) => s.backendConfig);
+  const currentNetwork = config?.network_info;
+  
   return (
-    <Form form={form} layout="vertical" onFinish={(v) => onDeposit(v.amount)} initialValues={{ amount: 10 }}>
-      <Form.Item label="Amount (USDT)" name="amount" rules={[{ required: true, min: 1, type: 'number', message: 'Please enter at least 1 USDT' }]}>
-        <InputNumber style={{ width: '100%' }} size="large" addonAfter="USDT" min={1} />
-      </Form.Item>
-      <Button type="primary" htmlType="submit" block size="large" loading={loading} style={{ marginTop: 16 }}>
-        {loading ? 'Processing Transaction...' : 'Confirm Deposit'}
-      </Button>
-    </Form>
+    <Flexbox gap={16}>
+      {/* Network Warning */}
+      <Alert
+        type="warning"
+        showIcon
+        message={
+          <span style={{ fontWeight: 600 }}>
+            Only deposit {currentNetwork?.stablecoinSymbol || 'USDC'} on Monad Network!
+          </span>
+        }
+        description={
+          <Flexbox gap={8} style={{ marginTop: 8 }}>
+            <span>
+              Don't have {currentNetwork?.stablecoinSymbol || 'USDC'} on Monad? You need to bridge from other networks first.
+            </span>
+            <span style={{ fontSize: 12, color: theme.colorTextSecondary }}>
+              Network: <strong>{currentNetwork?.name || 'Monad Mainnet'}</strong> (Chain ID: {currentNetwork?.id || 143})
+            </span>
+            <Button
+              type="link"
+              size="small"
+              icon={<ExternalLink size={14} />}
+              onClick={() => Browser.OpenURL('https://getkawai.com/docs/user-guide/deposit-from-exchange')}
+              style={{ padding: 0, height: 'auto' }}
+            >
+              Learn how to bridge from exchanges
+            </Button>
+          </Flexbox>
+        }
+        style={{ marginBottom: 8 }}
+      />
+
+      <Form form={form} layout="vertical" onFinish={(v) => onDeposit(v.amount)} initialValues={{ amount: 10 }}>
+        <Form.Item 
+          label={`Amount (${currentNetwork?.stablecoinShort || 'USDT'})`} 
+          name="amount" 
+          rules={[{ required: true, min: 1, type: 'number', message: `Please enter at least 1 ${currentNetwork?.stablecoinShort || 'USDT'}` }]}
+        >
+          <InputNumber 
+            style={{ width: '100%' }} 
+            size="large" 
+            addonAfter={currentNetwork?.stablecoinShort || 'USDT'} 
+            min={1} 
+          />
+        </Form.Item>
+        <Button type="primary" htmlType="submit" block size="large" loading={loading} style={{ marginTop: 16 }}>
+          {loading ? 'Processing Transaction...' : 'Confirm Deposit'}
+        </Button>
+      </Form>
+    </Flexbox>
   );
 };
 
