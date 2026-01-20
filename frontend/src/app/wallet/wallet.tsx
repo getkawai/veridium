@@ -1,7 +1,7 @@
 import { Modal, QRCode, App, Button, InputNumber, Form, Input, Empty, Popover, Spin, Tooltip, Select } from 'antd';
 import { memo, useEffect, useState, useCallback } from 'react';
 import { DeAIService, WalletService, JarvisService, DepositSyncService } from '@@/github.com/kawai-network/veridium/internal/services';
-import type { NetworkInfo, BackendConfig } from '@@/github.com/kawai-network/veridium/internal/services/models';
+import type { NetworkInfo, BackendConfig, GasEstimate } from '@@/github.com/kawai-network/veridium/internal/services/models';
 import { ListWalletTransactions } from '@@/github.com/kawai-network/veridium/internal/database/generated/queries';
 import type { WalletTransaction } from '@@/github.com/kawai-network/veridium/internal/database/generated/models';
 import { useUserStore } from '@/store/user';
@@ -347,7 +347,7 @@ const DesktopWalletLayout = memo(() => {
 
   // Network state
   const [currentNetwork, setCurrentNetwork] = useState<NetworkInfo | null>(null);
-  const [gasEstimate, setGasEstimate] = useState<{ maxGasPriceGwei: number; maxTipGwei: number } | null>(null);
+  const [gasEstimate, setGasEstimate] = useState<GasEstimate | null>(null);
   const [currentBlock, setCurrentBlock] = useState<number>(0);
 
   // Loading states

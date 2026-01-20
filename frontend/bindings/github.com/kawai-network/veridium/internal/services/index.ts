@@ -70,6 +70,7 @@ export {
     ParamInfo,
     ProjectToken,
     ReferralStats,
+    RevenueShareStatsResponse,
     SearchResult,
     StreamEventPayload,
     SyncDepositRequest,

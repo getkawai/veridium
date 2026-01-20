@@ -67,6 +67,14 @@ type ClaimResult struct {
 	Status     string `json:"status"` // "submitted", "pending", "confirmed", "failed"
 }
 
+// RevenueShareStatsResponse represents revenue sharing statistics
+type RevenueShareStatsResponse struct {
+	KawaiBalance          string `json:"kawai_balance"`           // Raw balance (18 decimals)
+	KawaiBalanceFormatted string `json:"kawai_balance_formatted"` // Human-readable balance
+	TotalSupply           string `json:"total_supply"`            // Total KAWAI supply
+	SharePercentage       string `json:"share_percentage"`        // User's share percentage
+}
+
 // DeAIService handles interactions with the Veridium smart contracts
 type DeAIService struct {
 	reader *reader.EthReader
@@ -186,7 +194,7 @@ func (s *DeAIService) GetKawaiTotalSupply() (string, error) {
 }
 
 // GetRevenueShareStats returns revenue sharing statistics for the current wallet
-func (s *DeAIService) GetRevenueShareStats() (map[string]interface{}, error) {
+func (s *DeAIService) GetRevenueShareStats() (*RevenueShareStatsResponse, error) {
 	// Check if wallet is unlocked
 	if s.wallet.currentAccount == nil {
 		return nil, fmt.Errorf("wallet is locked")
@@ -224,11 +232,11 @@ func (s *DeAIService) GetRevenueShareStats() (map[string]interface{}, error) {
 	// Format balance for display
 	balanceFormatted := new(big.Float).Quo(balance, big.NewFloat(1e18))
 
-	return map[string]interface{}{
-		"kawai_balance":           balanceStr,
-		"kawai_balance_formatted": balanceFormatted.Text('f', 4),
-		"total_supply":            supplyStr,
-		"share_percentage":        sharePercentage.Text('f', 6),
+	return &RevenueShareStatsResponse{
+		KawaiBalance:          balanceStr,
+		KawaiBalanceFormatted: balanceFormatted.Text('f', 4),
+		TotalSupply:           supplyStr,
+		SharePercentage:       sharePercentage.Text('f', 6),
 	}, nil
 }
 

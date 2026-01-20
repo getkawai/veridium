@@ -6,7 +6,7 @@ import { TrendingUp, DollarSign, Gift, Info, Percent, Users, ExternalLink, PieCh
 import { useUserStore } from '@/store/user';
 import { Browser } from '@wailsio/runtime';
 import { TokenUSDT } from '@web3icons/react';
-import type { NetworkInfo, ClaimableReward } from '@@/github.com/kawai-network/veridium/internal/services/models';
+import type { NetworkInfo, ClaimableReward, RevenueShareStatsResponse } from '@@/github.com/kawai-network/veridium/internal/services/models';
 
 interface RevenueShareRecord {
   period_id: number;
@@ -37,13 +37,6 @@ interface RevenueShareSectionProps {
   theme: any;
   styles: any;
   onRefresh?: (refreshFn: () => void) => void;
-}
-
-interface RevenueShareStatsResponse {
-  kawai_balance: string;
-  kawai_balance_formatted: string;
-  total_supply: string;
-  share_percentage: string;
 }
 
 export const RevenueShareSection = ({ currentNetwork, theme, styles, onRefresh }: RevenueShareSectionProps) => {

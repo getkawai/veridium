@@ -1842,6 +1842,57 @@ export class ReferralStats {
 }
 
 /**
+ * RevenueShareStatsResponse represents revenue sharing statistics
+ */
+export class RevenueShareStatsResponse {
+    /**
+     * Raw balance (18 decimals)
+     */
+    "kawai_balance": string;
+
+    /**
+     * Human-readable balance
+     */
+    "kawai_balance_formatted": string;
+
+    /**
+     * Total KAWAI supply
+     */
+    "total_supply": string;
+
+    /**
+     * User's share percentage
+     */
+    "share_percentage": string;
+
+    /** Creates a new RevenueShareStatsResponse instance. */
+    constructor($$source: Partial<RevenueShareStatsResponse> = {}) {
+        if (!("kawai_balance" in $$source)) {
+            this["kawai_balance"] = "";
+        }
+        if (!("kawai_balance_formatted" in $$source)) {
+            this["kawai_balance_formatted"] = "";
+        }
+        if (!("total_supply" in $$source)) {
+            this["total_supply"] = "";
+        }
+        if (!("share_percentage" in $$source)) {
+            this["share_percentage"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RevenueShareStatsResponse instance from a string or object.
+     */
+    static createFrom($$source: any = {}): RevenueShareStatsResponse {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new RevenueShareStatsResponse($$parsedSource as Partial<RevenueShareStatsResponse>);
+    }
+}
+
+/**
  * SearchResult represents a search result from vector database
  */
 export class SearchResult {

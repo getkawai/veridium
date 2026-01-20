@@ -139,9 +139,9 @@ export function GetKawaiTotalSupply(): $CancellablePromise<string> {
 /**
  * GetRevenueShareStats returns revenue sharing statistics for the current wallet
  */
-export function GetRevenueShareStats(): $CancellablePromise<{ [_: string]: any }> {
+export function GetRevenueShareStats(): $CancellablePromise<$models.RevenueShareStatsResponse | null> {
     return $Call.ByID(4264053571).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType5($result);
     });
 }
 
@@ -218,4 +218,5 @@ const $$createType0 = $models.ClaimResult.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
 const $$createType2 = $models.ClaimableRewardsResponse.createFrom;
 const $$createType3 = $Create.Nullable($$createType2);
-const $$createType4 = $Create.Map($Create.Any, $Create.Any);
+const $$createType4 = $models.RevenueShareStatsResponse.createFrom;
+const $$createType5 = $Create.Nullable($$createType4);
