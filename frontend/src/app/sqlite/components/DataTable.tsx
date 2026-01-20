@@ -10,17 +10,16 @@ import {
   Spin,
   Alert,
   Tag,
+  Typography,
 } from "antd";
 import {
   InboxOutlined,
-  Title,
-  Text,
-} from "@ant-design/icons";
-import {
   SearchOutlined,
   ReloadOutlined,
   FilterOutlined,
 } from "@ant-design/icons";
+
+const { Title, Text } = Typography;
 import { createStyles } from "antd-style";
 import { Flexbox } from "react-layout-kit";
 import { memo, useState, useEffect, useMemo } from "react";
@@ -112,11 +111,6 @@ const DataTable = memo<DataTableProps>(({ tableName }) => {
       console.error("Failed to load table structure:", err);
     }
   };
-
-  const loadTableData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
 
   const loadTableData = async () => {
     try {

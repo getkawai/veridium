@@ -10,10 +10,11 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/kawai-network/veridium/pkg/fantasy"
-	"github.com/kawai-network/veridium/pkg/fantasy/llamalib"
 	"github.com/kawai-network/veridium/internal/services"
 	"github.com/kawai-network/veridium/internal/whisper"
+	"github.com/kawai-network/veridium/pkg/fantasy"
+	"github.com/kawai-network/veridium/pkg/fantasy/llamalib"
+	llamaembed "github.com/kawai-network/veridium/pkg/fantasy/providers/llama-embed"
 	"github.com/kawai-network/veridium/pkg/xlog"
 )
 
@@ -34,8 +35,11 @@ func NewFileProcessorService(
 	whisperService *whisper.Service,
 	fileBaseDir string,
 ) *FileProcessorService {
-	// Get embedding function from vector search service
-	embedder := vectorSearchService.GetEmbedder()
+	// Get embedding function from vector search service (may be nil if embedder failed)
+	var embedder llamaembed.Embedder
+	if vectorSearchService != nil {
+		embedder = vectorSearchService.GetEmbedder()
+	}
 
 	// Create RAG processor with Eino embedder and file loader
 	ragProcessor := services.NewRAGProcessor(db, duckDB, fileLoader, embedder)

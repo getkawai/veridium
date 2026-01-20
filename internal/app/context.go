@@ -200,7 +200,10 @@ func (ctx *Context) InitSentry() {
 }
 
 func (ctx *Context) InitLlamaService() {
+	// NewService() automatically starts background initialization
+	// which handles: installation check, library loading, and model downloads
 	ctx.LibService = llamalib.NewService()
+	log.Printf("LlamaService created (initializing in background)")
 }
 
 func (ctx *Context) InitVectorStore() {
@@ -216,6 +219,22 @@ func (ctx *Context) InitVectorStore() {
 }
 
 func (ctx *Context) InitEmbedder() {
+	// Ensure llama library is initialized before creating embedder
+	if ctx.LibService == nil {
+		log.Printf("Warning: LibService not available, skipping embedder initialization")
+		return
+	}
+
+	// Wait for library to be ready (with timeout)
+	bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := ctx.LibService.WaitForInitialization(bgCtx); err != nil {
+		log.Printf("Warning: Failed to wait for llama library initialization: %v", err)
+		log.Printf("Embedder will not be available")
+		return
+	}
+
 	modelName := llamalib.GetRecommendedEmbeddingModel()
 	model, exists := llamalib.GetEmbeddingModel(modelName)
 	if !exists {
@@ -382,7 +401,10 @@ func (ctx *Context) InitLanguageModels() {
 		return
 	}
 
-	bgCtx := context.Background()
+	// Use a timeout context to prevent hanging on slow network calls
+	bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
 	llamaProvider, err := llamaprovider.New(
 		llamaprovider.WithService(ctx.LibService),
 		llamaprovider.WithToolRegistry(ctx.ToolRegistry),
@@ -671,7 +693,14 @@ func (ctx *Context) InitAll() error {
 	ctx.InitJarvisService()
 	// ctx.InitAPIKeyService() // Removed
 	// ctx.InitAuthService() // Removed
+
+	log.Printf("🚀 Starting InitLanguageModels()...")
 	ctx.InitLanguageModels()
+	log.Printf("✅ InitLanguageModels() completed")
+
+	log.Printf("🚀 Starting InitMemoryServices()...")
 	ctx.InitMemoryServices()
+	log.Printf("✅ InitMemoryServices() completed")
+
 	return nil
 }

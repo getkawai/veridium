@@ -1,7 +1,7 @@
 'use client';
 
 import { Alert, Space, Typography } from 'antd';
-import { SafetyOutlined, LockOutlined, CloudOffOutlined } from '@ant-design/icons';
+import { SafetyOutlined, LockOutlined, CloudOutlined } from '@ant-design/icons';
 import { createStyles } from 'antd-style';
 import { memo } from 'react';
 
@@ -69,7 +69,7 @@ const PrivacyBanner = memo(() => {
                   <Text>100% Local - No Cloud Dependency</Text>
                 </div>
                 <div className={styles.feature}>
-                  <CloudOffOutlined />
+                  <CloudOutlined />
                   <Text>Full Data Sovereignty</Text>
                 </div>
                 <div className={styles.feature}>

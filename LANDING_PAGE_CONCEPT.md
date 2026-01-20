@@ -100,7 +100,35 @@ curl -fsSL https://getkawai.com/node | sh
 
 ## 🎁 Reward Systems
 
-### For Users: Cashback & Referrals
+Kawai has **4 reward systems** that reward all stakeholders in the network:
+
+### 1. 💎 Mining Rewards (Contributors)
+**"Turn Your GPU Into a Revenue Stream"**
+
+Contributors who run Kawai nodes and process AI inference requests earn mining rewards distributed as:
+
+- **85-90% to Contributor** (GPU provider)
+- **5% to Developer** (for future deveopment/maintenance)
+- **5% to User** (requester - use-to-earn)
+- **0-5% to Referrer** (if user was referred)
+
+**How to Start Mining:**
+```bash
+curl -fsSL getkawai.com/node | sh
+```
+
+**Key Features:**
+- ✅ Real-time reward accumulation
+- ✅ Weekly settlement via Merkle proofs
+- ✅ Batch claiming (claim multiple periods)
+- ✅ Multi-party distribution (4 stakeholders)
+
+**Example Earnings:**
+- RTX 4090: ~450 KAWAI/week (~$22.50 USDT)
+- RTX 3080: ~280 KAWAI/week (~$14 USDT)
+- 99.9% uptime = maximum rewards
+
+### 2. 💰 Cashback Rewards (Users)
 
 #### Cashback Tiers
 **"The More You Use, The More You Earn"**
@@ -112,38 +140,28 @@ curl -fsSL https://getkawai.com/node | sh
 | 🥇 Gold | $500-$1000 | 15% | +5% |
 | 💎 Diamond | > $1000 | 20% | +5% |
 
-#### Referral Program
+### 3. 🤝 Referral Rewards (Affiliators)
 **"Invite Friends, Earn Together"**
+
 - **Referrer Bonus:** 5 USDT + 100 KAWAI (instant)
-- **Referee Bonus:** 10 USDT + 200 KAWAI trial
-- **Mining Rewards:** 5% of referee's job rewards (ongoing)
+- **Referee Bonus:** 10 USDT + 200 KAWAI
+- **Mining Rewards:** 5% of referee's job rewards (lifetime)
 - **Unlimited Referrals:** No cap on earnings
 
-#### Weekly Revenue Sharing
-**"Hold KAWAI, Earn Weekly Rewards"**
+### 4. 💸 Weekly Revenue Sharing (Holders)
+**"Hold KAWAI, Earn USDT Dividends"**
 
 **How It Works:**
-- 30% of platform revenue distributed weekly to KAWAI holders
+- 100% of platform revenue distributed weekly to KAWAI holders
 - Proportional to your KAWAI holdings
 - Paid in USDT (stablecoin)
 - Automatic distribution via smart contract
 
-**Example Earnings:**
-```
-Your Holdings: 10,000 KAWAI (0.001% of supply)
-Weekly Platform Revenue: $100,000
-Your Share: 30% × $100,000 × 0.001% = $30/week
-Annual Passive Income: $30 × 52 = $1,560/year
-
-ROI: If KAWAI = $0.10, investment = $1,000
-Annual Return: $1,560 / $1,000 = 156% APY
-```
-
-**Revenue Sources:**
-- Platform fees (5% of transactions)
-- P2P marketplace fees
-- Premium features
-- Enterprise subscriptions
+**Key Features:**
+- ✅ Passive income (hold-to-earn)
+- ✅ USDT dividends (stable value)
+- ✅ Proportional distribution
+- ✅ Weekly settlements
 
 **Distribution Schedule:**
 - Every Monday at 00:00 UTC

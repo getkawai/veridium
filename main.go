@@ -89,7 +89,7 @@ func createWailsApp(ctx *app.Context, fileProcessor *FileProcessorService, sdSer
 }
 
 func buildServiceList(ctx *app.Context, fileProcessor *FileProcessorService, sdService *image.Service) []application.Service {
-	return []application.Service{
+	serviceList := []application.Service{
 		// Database
 		application.NewService(ctx.Queries),
 		application.NewService(ctx.DB),
@@ -100,13 +100,19 @@ func buildServiceList(ctx *app.Context, fileProcessor *FileProcessorService, sdS
 		application.NewService(ctx.TTSService),
 		application.NewService(ctx.WhisperService),
 		application.NewService(ctx.AudioRecorder),
+	}
 
-		// AI/ML
-		application.NewService(ctx.VectorSearch),
-		application.NewService(fileProcessor),
-		application.NewService(ctx.KBService),
+	// AI/ML (may be nil if embedder failed)
+	if ctx.VectorSearch != nil {
+		serviceList = append(serviceList, application.NewService(ctx.VectorSearch))
+	}
+	serviceList = append(serviceList, application.NewService(fileProcessor))
+	if ctx.KBService != nil {
+		serviceList = append(serviceList, application.NewService(ctx.KBService))
+	}
 
-		// File & Storage
+	// File & Storage
+	serviceList = append(serviceList,
 		application.NewService(services.NewFileService(paths.FileBase())),
 		application.NewService(localfs.NewService()),
 		application.NewService(builtin.NewLocalSystemService()),
@@ -142,7 +148,9 @@ func buildServiceList(ctx *app.Context, fileProcessor *FileProcessorService, sdS
 			fileserver.NewWithConfig(&fileserver.Config{RootPath: paths.FileBase()}),
 			application.ServiceOptions{Route: "/files"},
 		),
-	}
+	)
+
+	return serviceList
 }
 
 func registerAgentServices(wailsApp *application.App, ctx *app.Context, fileProcessor *FileProcessorService, sdService *image.Service) {

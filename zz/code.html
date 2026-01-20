@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Kawai vs Competition</title>
+<!-- Google Fonts: Inter -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Config -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#ff0080",
+                        "background-light": "#eff1f6",
+                        "background-dark": "#0a1329", // Deep cosmic navy
+                        "surface-dark": "#1F2C5C", // Indigo for glassmorphism base
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.5rem", "lg": "1rem", "xl": "1.5rem", "full": "9999px"},
+                    backgroundImage: {
+                        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        /* Custom scrollbar for table if needed */
+        .custom-scrollbar::-webkit-scrollbar {
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-white antialiased overflow-x-hidden selection:bg-primary selection:text-white">
+<!-- State Management for Tabs -->
+<input checked="" class="peer/gpt hidden" id="tab-gpt" name="competitor" type="radio"/>
+<input class="peer/claude hidden" id="tab-claude" name="competitor" type="radio"/>
+<input class="peer/web hidden" id="tab-web" name="competitor" type="radio"/>
+<div class="relative flex min-h-screen w-full flex-col">
+<!-- Background Elements (Abstract) -->
+<div class="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+<div class="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary/10 rounded-full blur-[120px]" data-alt="Abstract pink glow in top left corner"></div>
+<div class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-600/10 rounded-full blur-[100px]" data-alt="Abstract indigo glow in bottom right corner"></div>
+</div>
+<div class="relative z-10 layout-container flex h-full grow flex-col items-center pt-10 pb-20">
+<!-- Header Section -->
+<div class="w-full max-w-6xl px-4 sm:px-6 lg:px-8 flex flex-col items-center text-center mb-12">
+<span class="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary mb-6">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+                    Privacy First AI
+                </span>
+<h1 class="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight mb-6 bg-gradient-to-r from-white via-white to-gray-400 bg-clip-text text-transparent">
+                    The Kawai Difference
+                </h1>
+<p class="text-lg md:text-xl text-slate-400 max-w-2xl leading-relaxed">
+                    Stop trading your data for intelligence. Compare Kawai against the industry giants and see why decentralized is the future.
+                </p>
+</div>
+<!-- Segmented Control (Competitor Switcher) -->
+<div class="w-full max-w-md px-4 mb-8">
+<div class="flex p-1 bg-surface-dark/40 backdrop-blur-md border border-white/10 rounded-xl relative">
+<!-- Highlighting Background (Moves based on peer checked - simpler implementation via labels styling) -->
+<label class="flex-1 cursor-pointer text-center py-2.5 text-sm font-medium rounded-lg transition-all duration-200 text-slate-400 hover:text-white peer-checked/gpt:bg-primary peer-checked/gpt:text-white peer-checked/gpt:shadow-lg peer-checked/gpt:shadow-primary/25" for="tab-gpt">
+                        vs ChatGPT
+                    </label>
+<label class="flex-1 cursor-pointer text-center py-2.5 text-sm font-medium rounded-lg transition-all duration-200 text-slate-400 hover:text-white peer-checked/claude:bg-primary peer-checked/claude:text-white peer-checked/claude:shadow-lg peer-checked/claude:shadow-primary/25" for="tab-claude">
+                        vs Claude
+                    </label>
+<label class="flex-1 cursor-pointer text-center py-2.5 text-sm font-medium rounded-lg transition-all duration-200 text-slate-400 hover:text-white peer-checked/web:bg-primary peer-checked/web:text-white peer-checked/web:shadow-lg peer-checked/web:shadow-primary/25" for="tab-web">
+                        vs Web Tools
+                    </label>
+</div>
+</div>
+<!-- Comparison Table Section -->
+<div class="w-full max-w-5xl px-4 sm:px-6 lg:px-8 mb-20">
+<div class="relative overflow-hidden rounded-2xl border border-white/10 bg-surface-dark/20 backdrop-blur-xl shadow-2xl">
+<!-- Table Header -->
+<div class="grid grid-cols-12 border-b border-white/10 bg-black/20 text-sm font-semibold text-white/90">
+<div class="col-span-4 p-5 flex items-center">Feature</div>
+<div class="col-span-4 p-5 flex items-center gap-2 text-primary">
+<span class="material-symbols-outlined text-[20px]">verified</span>
+                            Kawai
+                        </div>
+<div class="col-span-4 p-5 flex items-center text-slate-400 transition-colors">
+<span class="hidden peer-checked/gpt:block">ChatGPT Plus</span>
+<span class="hidden peer-checked/claude:block">Claude Pro</span>
+<span class="hidden peer-checked/web:block">Generic Web AI</span>
+</div>
+</div>
+<!-- Row 1: Pricing -->
+<div class="grid grid-cols-12 border-b border-white/5 hover:bg-white/5 transition-colors group">
+<div class="col-span-4 p-5 flex flex-col justify-center">
+<span class="text-sm font-medium text-white">Pricing Model</span>
+<span class="text-xs text-slate-500 mt-1">Cost efficiency structure</span>
+</div>
+<!-- Kawai Column -->
+<div class="col-span-4 p-5 flex items-center gap-3 bg-primary/5 border-x border-primary/10 relative">
+<div class="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<span class="material-symbols-outlined text-primary text-[20px]">check_circle</span>
+<div class="flex flex-col">
+<span class="text-sm font-bold text-white">Pay-as-you-go</span>
+<span class="text-xs text-primary/80">Only pay for usage</span>
+</div>
+</div>
+<!-- Competitor Column -->
+<div class="col-span-4 p-5 flex items-center gap-3">
+<span class="material-symbols-outlined text-red-400 text-[20px]">cancel</span>
+<div class="flex flex-col">
+<span class="text-sm font-medium text-slate-300 hidden peer-checked/gpt:block">$20/mo Subscription</span>
+<span class="text-sm font-medium text-slate-300 hidden peer-checked/claude:block">$20/mo Subscription</span>
+<span class="text-sm font-medium text-slate-300 hidden peer-checked/web:block">Freemium / Ads</span>
+<span class="text-xs text-slate-500">Fixed monthly cost</span>
+</div>
+</div>
+</div>
+<!-- Row 2: Privacy -->
+<div class="grid grid-cols-12 border-b border-white/5 hover:bg-white/5 transition-colors group">
+<div class="col-span-4 p-5 flex flex-col justify-center">
+<span class="text-sm font-medium text-white">Data Privacy</span>
+<span class="text-xs text-slate-500 mt-1">Where your data lives</span>
+</div>
+<div class="col-span-4 p-5 flex items-center gap-3 bg-primary/5 border-x border-primary/10">
+<span class="material-symbols-outlined text-primary text-[20px]">check_circle</span>
+<div class="flex flex-col">
+<span class="text-sm font-bold text-white">Local &amp; Encrypted</span>
+<span class="text-xs text-primary/80">Zero tracking</span>
+</div>
+</div>
+<div class="col-span-4 p-5 flex items-center gap-3">
+<span class="material-symbols-outlined text-orange-400 text-[20px]">warning</span>
+<div class="flex flex-col">
+<span class="text-sm font-medium text-slate-300 hidden peer-checked/gpt:block">Cloud Training</span>
+<span class="text-sm font-medium text-slate-300 hidden peer-checked/claude:block">Cloud Retention</span>
+<span class="text-sm font-medium text-slate-300 hidden peer-checked/web:block">Data Selling</span>
+<span class="text-xs text-slate-500">Potential data exposure</span>
+</div>
+</div>
+</div>
+<!-- Row 3: Incentives -->
+<div class="grid grid-cols-12 border-b border-white/5 hover:bg-white/5 transition-colors group">
+<div class="col-span-4 p-5 flex flex-col justify-center">
+<span class="text-sm font-medium text-white">Rewards</span>
+<span class="text-xs text-slate-500 mt-1">Value return</span>
+</div>
+<div class="col-span-4 p-5 flex items-center gap-3 bg-primary/5 border-x border-primary/10">
+<span class="material-symbols-outlined text-primary text-[20px]">check_circle</span>
+<div class="flex flex-col">
+<span class="text-sm font-bold text-white">Earn Crypto</span>
+<span class="text-xs text-primary/80">Get paid to compute</span>
+</div>
+</div>
+<div class="col-span-4 p-5 flex items-center gap-3">
+<span class="material-symbols-outlined text-red-400 text-[20px]">cancel</span>
+<div class="flex flex-col">
+<span class="text-sm font-medium text-slate-300">None</span>
+<span class="text-xs text-slate-500">You pay them</span>
+</div>
+</div>
+</div>
+<!-- Row 4: Infrastructure -->
+<div class="grid grid-cols-12 border-b border-white/5 hover:bg-white/5 transition-colors group">
+<div class="col-span-4 p-5 flex flex-col justify-center">
+<span class="text-sm font-medium text-white">Infrastructure</span>
+<span class="text-xs text-slate-500 mt-1">Network architecture</span>
+</div>
+<div class="col-span-4 p-5 flex items-center gap-3 bg-primary/5 border-x border-primary/10">
+<span class="material-symbols-outlined text-primary text-[20px]">check_circle</span>
+<div class="flex flex-col">
+<span class="text-sm font-bold text-white">Decentralized</span>
+<span class="text-xs text-primary/80">Distributed grid</span>
+</div>
+</div>
+<div class="col-span-4 p-5 flex items-center gap-3">
+<span class="material-symbols-outlined text-orange-400 text-[20px]">dns</span>
+<div class="flex flex-col">
+<span class="text-sm font-medium text-slate-300">Centralized Server</span>
+<span class="text-xs text-slate-500">Single point of failure</span>
+</div>
+</div>
+</div>
+<!-- Row 5: Model Choice -->
+<div class="grid grid-cols-12 hover:bg-white/5 transition-colors group">
+<div class="col-span-4 p-5 flex flex-col justify-center">
+<span class="text-sm font-medium text-white">AI Models</span>
+<span class="text-xs text-slate-500 mt-1">Flexibility</span>
+</div>
+<div class="col-span-4 p-5 flex items-center gap-3 bg-primary/5 border-x border-primary/10">
+<span class="material-symbols-outlined text-primary text-[20px]">check_circle</span>
+<div class="flex flex-col">
+<span class="text-sm font-bold text-white">Open Selection</span>
+<span class="text-xs text-primary/80">Llama, Mistral, Gemma</span>
+</div>
+</div>
+<div class="col-span-4 p-5 flex items-center gap-3">
+<span class="material-symbols-outlined text-red-400 text-[20px]">lock</span>
+<div class="flex flex-col">
+<span class="text-sm font-medium text-slate-300 hidden peer-checked/gpt:block">GPT-4 Only</span>
+<span class="text-sm font-medium text-slate-300 hidden peer-checked/claude:block">Claude Only</span>
+<span class="text-sm font-medium text-slate-300 hidden peer-checked/web:block">Unknown Backend</span>
+<span class="text-xs text-slate-500">Vendor Lock-in</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Feature Highlight Grid (Visual Reinforcement) -->
+<div class="w-full max-w-6xl px-4 sm:px-6 lg:px-8 mb-20">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- Card 1 -->
+<div class="group relative overflow-hidden rounded-2xl border border-white/10 bg-surface-dark/20 p-8 backdrop-blur-sm transition-all hover:bg-surface-dark/30 hover:-translate-y-1">
+<div class="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-primary/20 blur-3xl transition-all group-hover:bg-primary/30"></div>
+<div class="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+<span class="material-symbols-outlined text-[28px]">shield_lock</span>
+</div>
+<h3 class="mb-3 text-xl font-bold text-white">Unbreakable Privacy</h3>
+<p class="text-sm leading-relaxed text-slate-400">
+                            Your chats are encrypted locally. No central server ever sees your raw prompts or data. You own your intelligence.
+                        </p>
+</div>
+<!-- Card 2 -->
+<div class="group relative overflow-hidden rounded-2xl border border-white/10 bg-surface-dark/20 p-8 backdrop-blur-sm transition-all hover:bg-surface-dark/30 hover:-translate-y-1">
+<div class="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-indigo-500/20 blur-3xl transition-all group-hover:bg-indigo-500/30"></div>
+<div class="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400">
+<span class="material-symbols-outlined text-[28px]">currency_bitcoin</span>
+</div>
+<h3 class="mb-3 text-xl font-bold text-white">Crypto Rewards</h3>
+<p class="text-sm leading-relaxed text-slate-400">
+                            Contribute your idle GPU power to the network and earn tokens. The first AI that pays you back for participating.
+                        </p>
+</div>
+<!-- Card 3 -->
+<div class="group relative overflow-hidden rounded-2xl border border-white/10 bg-surface-dark/20 p-8 backdrop-blur-sm transition-all hover:bg-surface-dark/30 hover:-translate-y-1">
+<div class="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-cyan-500/20 blur-3xl transition-all group-hover:bg-cyan-500/30"></div>
+<div class="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-400">
+<span class="material-symbols-outlined text-[28px]">hub</span>
+</div>
+<h3 class="mb-3 text-xl font-bold text-white">Decentralized Power</h3>
+<p class="text-sm leading-relaxed text-slate-400">
+                            Resilient by design. No single point of failure, no downtime, and no censorship. AI for the people, by the people.
+                        </p>
+</div>
+</div>
+</div>
+<!-- CTA Section -->
+<div class="w-full max-w-4xl px-4 sm:px-6 lg:px-8 text-center">
+<div class="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-surface-dark to-background-dark p-12 md:p-16">
+<div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5" data-alt="Subtle geometric cubes pattern overlay"></div>
+<h2 class="relative text-3xl md:text-4xl font-black text-white mb-6">
+                        Ready to reclaim your digital sovereignty?
+                    </h2>
+<p class="relative text-slate-400 mb-10 max-w-lg mx-auto">
+                        Join thousands of users switching to the privacy-first AI standard. Download Kawai today and start earning.
+                    </p>
+<div class="relative flex flex-col sm:flex-row items-center justify-center gap-4">
+<button class="w-full sm:w-auto flex items-center justify-center gap-2 rounded-xl bg-primary px-8 py-4 text-base font-bold text-white shadow-lg shadow-primary/20 transition-transform hover:scale-105 hover:bg-primary/90">
+<span class="material-symbols-outlined">download</span>
+                            Download Kawai Now
+                        </button>
+<button class="w-full sm:w-auto flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-8 py-4 text-base font-bold text-white transition-colors hover:bg-white/10">
+                            View Documentation
+                        </button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<script>
+        // Simple logic to ensure radio buttons work as expected if needed, 
+        // though strictly HTML implementation handles the tab switching via peers.
+        // The visual feedback is handled by peer-checked classes.
+        
+        // Add active states to label parent for better styling if needed
+        const radios = document.querySelectorAll('input[name="competitor"]');
+        radios.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                // Logic could go here for additional effects
+                // but for this task, CSS is sufficient.
+            });
+        });
+    </script>
+</body></html>
