@@ -4,11 +4,15 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"net/http"
+	"strings"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/kawai-network/veridium/internal/constant"
+	"github.com/kawai-network/veridium/pkg/alert"
 	"github.com/kawai-network/veridium/pkg/config"
 	"github.com/kawai-network/veridium/pkg/jarvis/contracts"
 	"github.com/kawai-network/veridium/pkg/jarvis/networks"
@@ -18,6 +22,51 @@ import (
 
 // monadChainID is the chain ID for Monad Testnet
 var monadChainID = big.NewInt(int64(networks.MonadTestnet.GetChainID()))
+
+// sendClaimAlert sends alert to both Telegram and Discord
+func sendClaimAlert(level, source, message string) {
+	// Send to Telegram
+	telegramAlerter := alert.NewTelegramAlert()
+	telegramAlerter.SendAlert(level, source, message)
+
+	// Send to Discord (claim failure webhook)
+	discordAlerter := &alert.DiscordAlert{
+		WebhookURL: constant.GetDiscordClaimFailure(),
+		Client:     &http.Client{Timeout: 10 * time.Second},
+	}
+	discordAlerter.SendAlert(level, source, message)
+}
+
+// isUserError checks if an error is a user-caused error (not system error)
+// User errors should not trigger alerts as they are expected
+func isUserError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	userErrorPatterns := []string{
+		"Already claimed",
+		"already claimed",
+		"Invalid proof",
+		"invalid proof",
+		"Insufficient balance",
+		"insufficient balance",
+		"Not eligible",
+		"not eligible",
+		"no wallet connected",
+		"amount must be",
+		"invalid amount",
+	}
+
+	errStr := err.Error()
+	for _, pattern := range userErrorPatterns {
+		if strings.Contains(errStr, pattern) {
+			return true
+		}
+	}
+
+	return false
+}
 
 // ClaimableReward represents a single claimable reward proof
 type ClaimableReward struct {
@@ -817,9 +866,12 @@ func (s *DeAIService) ClaimUSDTReward(periodID int64, index uint64, amount strin
 // ClaimCashbackReward claims deposit cashback rewards using a Merkle proof
 // Uses the DepositCashbackDistributor contract with period-based claims
 func (s *DeAIService) ClaimCashbackReward(period uint64, kawaiAmount string, proof []string) (*ClaimResult, error) {
+
 	if s.wallet.currentAccount == nil {
 		return nil, fmt.Errorf("no wallet connected")
 	}
+
+	userAddr := s.wallet.currentAccount.AddressHex()
 
 	// 1. Input validation
 	// Note: Empty proof is valid for single-leaf Merkle trees
@@ -869,7 +921,7 @@ func (s *DeAIService) ClaimCashbackReward(period uint64, kawaiAmount string, pro
 	if s.kv != nil {
 		kvStore, ok := s.kv.(*store.KVStore)
 		if ok {
-			if err := kvStore.MarkCashbackPending(ctx, s.wallet.currentAccount.AddressHex(), period, ""); err != nil {
+			if err := kvStore.MarkCashbackPending(ctx, userAddr, period, ""); err != nil {
 				return nil, fmt.Errorf("failed to mark cashback claim as pending: %w", err)
 			}
 		}
@@ -882,9 +934,17 @@ func (s *DeAIService) ClaimCashbackReward(period uint64, kawaiAmount string, pro
 		if s.kv != nil {
 			kvStore, ok := s.kv.(*store.KVStore)
 			if ok {
-				kvStore.MarkCashbackFailed(ctx, s.wallet.currentAccount.AddressHex(), period, err.Error())
+				kvStore.MarkCashbackFailed(ctx, userAddr, period, err.Error())
 			}
 		}
+
+		// Alert on unexpected errors only
+		if !isUserError(err) {
+			sendClaimAlert("WARNING", "Claim",
+				fmt.Sprintf("⚠️ Cashback claim failed\n\nUser: %s\nPeriod: %d\nAmount: %s KAWAI\nError: %v",
+					userAddr, period, kawaiAmount, err))
+		}
+
 		return nil, fmt.Errorf("claim transaction failed: %w", err)
 	}
 
@@ -903,9 +963,15 @@ func (s *DeAIService) ClaimCashbackReward(period uint64, kawaiAmount string, pro
 		if s.kv != nil {
 			kvStore, ok := s.kv.(*store.KVStore)
 			if ok {
-				kvStore.MarkCashbackFailed(ctx, s.wallet.currentAccount.AddressHex(), period, "transaction reverted")
+				kvStore.MarkCashbackFailed(ctx, userAddr, period, "transaction reverted")
 			}
 		}
+
+		// Alert on transaction revert
+		sendClaimAlert("ERROR", "Claim",
+			fmt.Sprintf("❌ Cashback claim reverted!\n\nUser: %s\nPeriod: %d\nAmount: %s KAWAI\nTx: %s\nGas Used: %d",
+				userAddr, period, kawaiAmount, txHash, receipt.GasUsed))
+
 		return nil, fmt.Errorf("transaction reverted (status: %d)", receipt.Status)
 	}
 
@@ -913,7 +979,7 @@ func (s *DeAIService) ClaimCashbackReward(period uint64, kawaiAmount string, pro
 	if s.kv != nil {
 		kvStore, ok := s.kv.(*store.KVStore)
 		if ok {
-			if err := kvStore.MarkCashbackClaimed(ctx, s.wallet.currentAccount.AddressHex(), period); err != nil {
+			if err := kvStore.MarkCashbackClaimed(ctx, userAddr, period); err != nil {
 				// Log warning - tx was successful, but KV update failed
 				fmt.Printf("Warning: failed to mark cashback claim in KV: %v\n", err)
 			}
@@ -944,9 +1010,12 @@ func (s *DeAIService) ClaimMiningReward(
 	affiliatorAddress string,
 	proof []string,
 ) (*ClaimResult, error) {
+
 	if s.wallet.currentAccount == nil {
 		return nil, fmt.Errorf("no wallet connected")
 	}
+
+	claimerAddr := s.wallet.currentAccount.AddressHex()
 
 	// Contract now supports timestamp-based periods directly via setMerkleRootForPeriod()
 	// No mapping needed - use timestamp period ID as-is
@@ -1014,7 +1083,7 @@ func (s *DeAIService) ClaimMiningReward(
 	// 7. Mark claim as pending BEFORE submitting transaction (prevents double-claim UX issue)
 	ctx := context.Background()
 	if s.kv != nil {
-		if err := s.kv.MarkClaimPending(ctx, s.wallet.currentAccount.AddressHex(), period, ""); err != nil {
+		if err := s.kv.MarkClaimPending(ctx, claimerAddr, period, ""); err != nil {
 			return nil, fmt.Errorf("failed to mark claim as pending: %w", err)
 		}
 	}
@@ -1038,8 +1107,16 @@ func (s *DeAIService) ClaimMiningReward(
 	if err != nil {
 		// Rollback pending status on transaction failure
 		if s.kv != nil {
-			s.kv.MarkClaimFailed(ctx, s.wallet.currentAccount.AddressHex(), period, err.Error())
+			s.kv.MarkClaimFailed(ctx, claimerAddr, period, err.Error())
 		}
+
+		// Alert on unexpected errors only
+		if !isUserError(err) {
+			sendClaimAlert("WARNING", "Claim",
+				fmt.Sprintf("⚠️ Mining claim failed\n\nClaimer: %s\nPeriod: %d\nContributor: %s KAWAI\nError: %v",
+					claimerAddr, period, contributorAmount, err))
+		}
+
 		return nil, fmt.Errorf("mining claim transaction failed: %w", err)
 	}
 
@@ -1056,14 +1133,20 @@ func (s *DeAIService) ClaimMiningReward(
 	if receipt.Status != 1 {
 		// Mark as failed if transaction reverted
 		if s.kv != nil {
-			s.kv.MarkClaimFailed(ctx, s.wallet.currentAccount.AddressHex(), period, "transaction reverted")
+			s.kv.MarkClaimFailed(ctx, claimerAddr, period, "transaction reverted")
 		}
+
+		// Alert on transaction revert
+		sendClaimAlert("ERROR", "Claim",
+			fmt.Sprintf("❌ Mining claim reverted!\n\nClaimer: %s\nPeriod: %d\nContributor: %s KAWAI\nTx: %s\nGas Used: %d",
+				claimerAddr, period, contributorAmount, txHash, receipt.GasUsed))
+
 		return nil, fmt.Errorf("transaction reverted (status: %d)", receipt.Status)
 	}
 
 	// 11. Update with actual tx hash (status remains pending, auto-confirm will update to confirmed)
 	if s.kv != nil {
-		if err := s.kv.MarkClaimPending(ctx, s.wallet.currentAccount.AddressHex(), period, txHash); err != nil {
+		if err := s.kv.MarkClaimPending(ctx, claimerAddr, period, txHash); err != nil {
 			// Log warning - tx was successful, auto-confirm will fix status later
 			fmt.Printf("Warning: failed to update mining claim tx hash in KV: %v\n", err)
 		}
@@ -1080,9 +1163,12 @@ func (s *DeAIService) ClaimMiningReward(
 
 // claimReward is the internal implementation for claiming rewards
 func (s *DeAIService) claimReward(rewardType string, periodID int64, index uint64, amountStr string, proofStrings []string) (*ClaimResult, error) {
+
 	if s.wallet.currentAccount == nil {
 		return nil, fmt.Errorf("no wallet connected")
 	}
+
+	claimerAddr := s.wallet.currentAccount.AddressHex()
 
 	// 1. Resolve distributor address
 	var distributorName string
@@ -1129,6 +1215,13 @@ func (s *DeAIService) claimReward(rewardType string, periodID int64, index uint6
 	// 6. Submit claim transaction
 	tx, err := distributor.Claim(opts, big.NewInt(int64(index)), opts.From, amount, merkleProof)
 	if err != nil {
+		// Alert on unexpected errors only
+		if !isUserError(err) {
+			sendClaimAlert("WARNING", "Claim",
+				fmt.Sprintf("⚠️ %s claim failed\n\nClaimer: %s\nPeriod: %d\nIndex: %d\nAmount: %s\nError: %v",
+					strings.ToUpper(rewardType), claimerAddr, periodID, index, amountStr, err))
+		}
+
 		return nil, fmt.Errorf("claim transaction failed: %w", err)
 	}
 
@@ -1143,12 +1236,17 @@ func (s *DeAIService) claimReward(rewardType string, periodID int64, index uint6
 
 	// 8. Check transaction status
 	if receipt.Status != 1 {
+		// Alert on transaction revert
+		sendClaimAlert("ERROR", "Claim",
+			fmt.Sprintf("❌ %s claim reverted!\n\nClaimer: %s\nPeriod: %d\nIndex: %d\nAmount: %s\nTx: %s\nGas Used: %d",
+				strings.ToUpper(rewardType), claimerAddr, periodID, index, amountStr, txHash, receipt.GasUsed))
+
 		return nil, fmt.Errorf("transaction reverted (status: %d)", receipt.Status)
 	}
 
 	// 9. Mark claim as completed in KV store (for tracking)
 	if s.kv != nil {
-		if err := s.kv.MarkClaimPending(ctx, s.wallet.currentAccount.AddressHex(), periodID, txHash); err != nil {
+		if err := s.kv.MarkClaimPending(ctx, claimerAddr, periodID, txHash); err != nil {
 			// Log warning but don't fail - the TX was successful
 			fmt.Printf("Warning: failed to mark claim in KV: %v\n", err)
 		}
