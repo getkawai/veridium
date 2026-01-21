@@ -203,8 +203,20 @@ export const CashbackRewardsSection = ({ currentNetwork, theme, styles: propStyl
       // Empty proof is valid for single-leaf Merkle trees
       const result = await DeAIService.ClaimCashbackReward(record.period, record.amount, record.proof || []);
       if (result?.tx_hash) {
-        const explorerUrl = currentNetwork?.explorerURL || 'https://testnet.monadexplorer.com';
-        message.success(<span>Claim confirmed! Tx: {result.tx_hash.substring(0, 10)}...<a onClick={() => Browser.OpenURL(`${explorerUrl}/tx/${result.tx_hash}`)} style={{ marginLeft: 8, cursor: 'pointer' }}>View <ExternalLink size={12} style={{ verticalAlign: 'middle' }} /></a></span>);
+        const explorerUrl = currentNetwork?.explorerURL;
+        message.success(
+          <span>
+            Claim confirmed! Tx: {result.tx_hash.substring(0, 10)}...
+            {explorerUrl && (
+              <a 
+                onClick={() => Browser.OpenURL(`${explorerUrl}/tx/${result.tx_hash}`)} 
+                style={{ marginLeft: 8, cursor: 'pointer' }}
+              >
+                View <ExternalLink size={12} style={{ verticalAlign: 'middle' }} />
+              </a>
+            )}
+          </span>
+        );
         setTimeout(() => userAddress && loadCashbackStats(userAddress, true), 3000);
       }
     } catch (e: any) {

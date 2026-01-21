@@ -5,16 +5,15 @@ import { Flexbox } from 'react-layout-kit';
 import { Users, DollarSign, Gift, Share2, Copy, CheckCircle, Info, Zap, TrendingUp } from 'lucide-react';
 import { useUserStore } from '@/store/user';
 import { copyText } from '@/utils/clipboard';
-import type { NetworkInfo, ReferralStats } from '@@/github.com/kawai-network/veridium/internal/services/models';
+import type { ReferralStats } from '@@/github.com/kawai-network/veridium/internal/services/models';
 
 interface ReferralRewardsSectionProps {
-  currentNetwork: NetworkInfo | null;
   theme: any;
   styles: any;
   onRefresh?: (refreshFn: () => void) => void;
 }
 
-export const ReferralRewardsSection = ({ currentNetwork, theme, styles, onRefresh }: ReferralRewardsSectionProps) => {
+export const ReferralRewardsSection = ({ theme, styles, onRefresh }: ReferralRewardsSectionProps) => {
   const { message } = App.useApp();
   const userAddress = useUserStore((s) => s.walletAddress);
   

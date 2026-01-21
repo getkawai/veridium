@@ -113,7 +113,6 @@ const RewardsContent = ({ styles, theme, currentNetwork, transactions, setModalT
             children: (
               <ReferralRewardsSection
                 key={`referral-${refreshKey}`}
-                currentNetwork={currentNetwork}
                 theme={theme}
                 styles={styles}
                 onRefresh={(refreshFn) => { referralRefreshRef.current = refreshFn; }}

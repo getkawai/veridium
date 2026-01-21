@@ -52,7 +52,12 @@ export const MiningRewardsSection = ({ currentNetwork, theme, styles, onRefresh 
       return '#'; // Return placeholder for invalid hashes
     }
     
-    const baseUrl = currentNetwork?.explorerURL || 'https://testnet.monadexplorer.com';
+    const baseUrl = currentNetwork?.explorerURL;
+    if (!baseUrl) {
+      console.warn('Explorer URL not available');
+      return '#'; // Return placeholder when explorer URL is missing
+    }
+    
     const cleanUrl = baseUrl.replace(/\/$/, '');
     return `${cleanUrl}/tx/${txHash}`;
   };

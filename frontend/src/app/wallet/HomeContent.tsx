@@ -946,21 +946,23 @@ const HomeContent = ({
               }
               image={Empty.PRESENTED_IMAGE_SIMPLE}
             />
-            <Flexbox vertical align="center" gap={8}>
-              <span style={{ color: theme.colorTextSecondary, fontSize: 12 }}>
-                Get test tokens to start exploring
-              </span>
-              <Button
-                type="primary"
-                size="small"
-                icon={<ArrowDownToLine size={14} />}
-                onClick={() =>
-                  Browser.OpenURL(getFaucetUrl(currentNetwork?.id))
-                }
-              >
-                Get Test Tokens (Faucet)
-              </Button>
-            </Flexbox>
+            {currentNetwork?.isTestnet && (
+              <Flexbox vertical align="center" gap={8}>
+                <span style={{ color: theme.colorTextSecondary, fontSize: 12 }}>
+                  Get test tokens to start exploring
+                </span>
+                <Button
+                  type="primary"
+                  size="small"
+                  icon={<ArrowDownToLine size={14} />}
+                  onClick={() =>
+                    Browser.OpenURL(getFaucetUrl(currentNetwork?.id))
+                  }
+                >
+                  Get Test Tokens (Faucet)
+                </Button>
+              </Flexbox>
+            )}
           </Flexbox>
         )}
       </Card>

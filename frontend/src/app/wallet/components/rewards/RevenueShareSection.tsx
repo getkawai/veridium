@@ -189,16 +189,18 @@ export const RevenueShareSection = ({ currentNetwork, theme, styles, onRefresh }
       );
 
       if (result?.tx_hash) {
-        const explorerUrl = currentNetwork?.explorerURL || 'https://testnet.monadexplorer.com';
+        const explorerUrl = currentNetwork?.explorerURL;
         message.success(
           <span>
             Revenue claimed! Tx: {result.tx_hash.substring(0, 10)}...
-            <a
-              onClick={() => Browser.OpenURL(`${explorerUrl}/tx/${result.tx_hash}`)}
-              style={{ marginLeft: 8, cursor: 'pointer' }}
-            >
-              View <ExternalLink size={12} style={{ verticalAlign: 'middle' }} />
-            </a>
+            {explorerUrl && (
+              <a
+                onClick={() => Browser.OpenURL(`${explorerUrl}/tx/${result.tx_hash}`)}
+                style={{ marginLeft: 8, cursor: 'pointer' }}
+              >
+                View <ExternalLink size={12} style={{ verticalAlign: 'middle' }} />
+              </a>
+            )}
           </span>
         );
         setTimeout(() => userAddress && loadRevenueShareStats(userAddress, true), 3000);
