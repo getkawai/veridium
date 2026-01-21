@@ -65,21 +65,68 @@ cd frontend && npm run build
 
 ### PHASE 1: Smart Contract Deployment (30 minutes)
 
-#### 1.1 Deploy KawaiToken
+**Choose Your Deployment Strategy:**
+
+#### Option A: Full Suite Deployment (Recommended for Fresh Start)
+
+Use `DeployKawai.s.sol` to deploy everything at once:
+
 ```bash
-# Deploy KAWAI token
+# Set USDC_ADDRESS in contracts/.env.mainnet
+USDC_ADDRESS=0x754704bc059f8c67012fed69bc8a327a5aafb603
+
+# Deploy full suite
 cd contracts
 forge script script/DeployKawai.s.sol:DeployKawai \
   --rpc-url $MONAD_MAINNET_RPC \
   --private-key $DEPLOYER_PRIVATE_KEY \
   --broadcast \
   --verify
-
-# Save address
-export KAWAI_TOKEN_ADDRESS=<deployed_address>
 ```
 
-**⚠️ CRITICAL: Save this address immediately!**
+**What it deploys:**
+- ✅ KawaiToken
+- ✅ PaymentVault (with USDC)
+- ✅ MerkleDistributor (KAWAI)
+- ✅ MerkleDistributor (USDT)
+- ✅ OTCMarket (Escrow)
+
+**Advantages:**
+- One command deploys everything
+- Automatic MINTER_ROLE grant
+- Consistent deployment
+
+#### Option B: Modular Deployment (Recommended for Flexibility)
+
+Deploy contracts individually for more control:
+
+```bash
+# 1. Deploy KawaiToken first
+forge script script/DeployKawai.s.sol:DeployKawai \
+  --rpc-url $MONAD_MAINNET_RPC \
+  --private-key $DEPLOYER_PRIVATE_KEY \
+  --broadcast \
+  --verify
+
+# 2. Deploy PaymentVault separately
+make contracts-deploy-vault
+
+# 3. Deploy distributors
+make contracts-deploy-mining-mainnet
+make contracts-deploy-cashback-mainnet
+make contracts-deploy-referral-mainnet
+
+# 4. Grant permissions
+make contracts-grant-minter-mainnet
+```
+
+**Advantages:**
+- More control over each deployment
+- Easier to test individually
+- Can deploy to different networks separately
+- Better for upgrades/redeployments
+
+**⚠️ CRITICAL: Save all deployed addresses immediately!**
 
 #### 1.2 Update Configuration
 ```bash

@@ -755,17 +755,30 @@ The codebase is production-ready. All safety measures are in place, and the impl
 
 ### Deployment Commands
 
+**Option A: Full Suite (Fresh Deployment)**
 ```bash
-# Use these for mainnet:
+# Set USDC_ADDRESS in contracts/.env.mainnet first
+cd contracts
+forge script script/DeployKawai.s.sol:DeployKawai \
+  --rpc-url $MONAD_MAINNET_RPC \
+  --private-key $DEPLOYER_PRIVATE_KEY \
+  --broadcast \
+  --verify
+```
+
+**Option B: Modular Deployment (More Control)**
+```bash
+# Deploy individually:
 make contracts-deploy-vault              # PaymentVault with USDC
 make contracts-deploy-mining-mainnet     # Mining distributor
 make contracts-deploy-cashback-mainnet   # Cashback distributor
 make contracts-deploy-referral-mainnet   # Referral distributor
 make contracts-grant-minter-mainnet      # Grant MINTER_ROLE
-
-# Avoid on mainnet:
-# DeployKawai.s.sol (deploys unnecessary MockUSDT)
 ```
+
+**Note**: `DeployKawai.s.sol` now auto-detects environment:
+- If `USDC_ADDRESS` set → Uses existing USDC (mainnet)
+- If not set → Deploys MockUSDT (testnet)
 
 ### Pre-Deployment Checklist
 

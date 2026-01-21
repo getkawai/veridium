@@ -18,9 +18,21 @@ contract DeployKawai is Script {
 
         vm.startBroadcast(deployerPrivateKey);
 
-        // 1. Deploy MockUSDT (for testing purposes)
-        MockUSDT usdt = new MockUSDT();
-        console.log("MockUSDT deployed at:", address(usdt));
+        // 1. Get or Deploy Stablecoin
+        // Mainnet: Use existing USDC (0x754704bc059f8c67012fed69bc8a327a5aafb603)
+        // Testnet: Deploy MockUSDT
+        address usdtAddress;
+        
+        // Try to read USDC_ADDRESS from environment (for mainnet)
+        try vm.envAddress("USDC_ADDRESS") returns (address existingUsdc) {
+            usdtAddress = existingUsdc;
+            console.log("Using existing stablecoin at:", usdtAddress);
+        } catch {
+            // If not set, deploy MockUSDT (for testnet)
+            MockUSDT usdt = new MockUSDT();
+            usdtAddress = address(usdt);
+            console.log("MockUSDT deployed at:", usdtAddress);
+        }
 
         // 2. Deploy KawaiToken
         // deployer is admin, deployer is initial minter
@@ -41,7 +53,7 @@ contract DeployKawai is Script {
         // 4. Deploy USDT MerkleDistributor (Profit Sharing)
         // mintOnClaim=false: transfers USDT from pre-funded balance
         MerkleDistributor usdtDistributor = new MerkleDistributor(
-            address(usdt),
+            usdtAddress,
             false // mintOnClaim: transfer from balance
         );
         console.log(
@@ -49,15 +61,15 @@ contract DeployKawai is Script {
             address(usdtDistributor)
         );
 
-        // 5. Deploy PaymentVault (USDT Deposits for credits)
-        PaymentVault vault = new PaymentVault(address(usdt), deployer);
+        // 5. Deploy PaymentVault (Stablecoin Deposits for credits)
+        PaymentVault vault = new PaymentVault(usdtAddress, deployer);
         console.log("PaymentVault deployed at:", address(vault));
 
         // 6. Deploy OTCMarket (Escrow)
         // deployer as fee recipient for now
         OTCMarket escrow = new OTCMarket(
             address(token),
-            address(usdt),
+            usdtAddress,
             deployer
         );
         console.log("OTCMarket (Escrow) deployed at:", address(escrow));
@@ -74,8 +86,8 @@ contract DeployKawai is Script {
         vm.stopBroadcast();
 
         console.log("\n=== Deployment Summary (SAVE THESE!) ===");
-        console.log("Network: Monad Testnet");
-        console.log("MockUSDT:", address(usdt));
+        console.log("Network:", vm.envOr("NETWORK", string("Unknown")));
+        console.log("Stablecoin:", usdtAddress);
         console.log("KawaiToken:", address(token));
         console.log("KAWAI_Distributor:", address(kawaiDistributor));
         console.log("USDT_Distributor:", address(usdtDistributor));
