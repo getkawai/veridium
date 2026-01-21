@@ -198,11 +198,13 @@ func (s *Service) generateImagesInBackground(batchID string, imageNum int, opts 
 	log.Printf("[Background] Starting background generation for batch %s", batchID)
 
 	// Available models for variation
+	// Note: Only using gemini-2.5-flash-image (free tier quota available)
+	// gemini-3-pro removed - no free tier quota available
 	availableModels := []string{
-		"gemini-2.5-flash", // Fast, 1024px (Nano Banana)
-		"gemini-3-pro",     // High quality, up to 4K (Nano Banana Pro)
+		"gemini-2.5-flash", // Fast, 1024px (Nano Banana) - free tier
 		"gemini-2.5-flash", // Duplicate for load balancing
 		"gemini-2.5-flash", // More weight on fast model
+		"gemini-2.5-flash", // Additional weight for free tier model
 	}
 
 	// Get all generations for this batch to update them

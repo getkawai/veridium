@@ -134,21 +134,16 @@ func (sdrm *StableDiffusion) generateImageRemote(opts GenerationOptions) error {
 	// Note: genai.Client doesn't have Close() method, no cleanup needed
 
 	// Determine model to use
-	// gemini-2.5-flash-image (Nano Banana) - fast, 1024px
-	// gemini-3-pro-image-preview (Nano Banana Pro) - high quality, up to 4K
+	// gemini-2.5-flash-image (Nano Banana) - fast, 1024px, free tier quota available
 	model := "gemini-2.5-flash-image"
 	
-	// Priority: explicit model choice > quality setting
+	// Priority: explicit model choice
 	if opts.Model != "" {
 		// User explicitly specified a model - respect their choice
-		if opts.Model == "gemini-3-pro" || opts.Model == "gemini-3-pro-image-preview" {
-			model = "gemini-3-pro-image-preview"
-		} else if opts.Model == "gemini-2.5-flash" || opts.Model == "gemini-2.5-flash-image" {
+		if opts.Model == "gemini-2.5-flash" || opts.Model == "gemini-2.5-flash-image" {
 			model = "gemini-2.5-flash-image"
 		}
-	} else if opts.Quality == "hd" || opts.Quality == "4k" {
-		// No explicit model, but high quality requested - use pro model
-		model = "gemini-3-pro-image-preview"
+		// Note: gemini-3-pro-image-preview removed - no free tier quota available
 	}
 
 	log.Printf("[Gemini] Using model: %s for prompt: %s", model, opts.Prompt)
@@ -192,20 +187,6 @@ func (sdrm *StableDiffusion) generateImageRemote(opts GenerationOptions) error {
 		aspectRatio = "1:1"
 	}
 	config.ImageConfig.AspectRatio = aspectRatio
-
-	// Set image size for gemini-3-pro-image-preview
-	if model == "gemini-3-pro-image-preview" {
-		imageSize := "1K" // Default
-		if opts.Quality == "hd" {
-			imageSize = "2K"
-		}
-		// Check if user wants 4K (would need to be specified in Quality field)
-		if opts.Quality == "4k" {
-			imageSize = "4K"
-		}
-		config.ImageConfig.ImageSize = imageSize
-		log.Printf("[Gemini] Image size: %s", imageSize)
-	}
 
 	log.Printf("[Gemini] Aspect ratio: %s", aspectRatio)
 

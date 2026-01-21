@@ -20,7 +20,7 @@
     "@lobehub/ui": "^2.13.5",
     "@sentry/react": "^10.32.1",
     "@virtuoso.dev/masonry": "^1.3.5",
-    "@wailsio/runtime": "latest",
+    "@wailsio/runtime": "3.0.0-alpha.78",
     "@web3icons/core": "^4.0.42",
     "@web3icons/react": "^4.1.8",
     "antd-style": "^3.7.1",

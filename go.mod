@@ -313,7 +313,6 @@ require (
 	github.com/ugorji/go/codec v1.3.0 // indirect
 	github.com/vbatts/tar-split v0.12.2 // indirect
 	github.com/wailsapp/go-webview2 v1.0.22 // indirect
-	github.com/wailsapp/mimetype v1.4.1 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	github.com/yuin/gopher-lua v1.1.1 // indirect
@@ -346,7 +345,6 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
 	google.golang.org/grpc v1.77.0 // indirect
 	google.golang.org/protobuf v1.36.10 // indirect
-	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
@@ -357,7 +355,7 @@ require (
 	zombiezen.com/go/capnproto2 v2.18.0+incompatible // indirect
 )
 
-replace github.com/wailsapp/wails/v3 => ./wails/v3
+replace github.com/wailsapp/wails/v3 => /Users/yuda/github.com/wailsapp/wails/v3
 
 replace github.com/urfave/cli/v2 => github.com/ipostelnik/cli/v2 v2.3.1-0.20210324024421-b6ea8234fe3d
 

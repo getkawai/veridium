@@ -228,7 +228,7 @@ func createMainWindow(wailsApp *application.App, ctx *app.Context, fileProcessor
 	win := wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:             "Kawai",
 		StartState:        application.WindowStateMaximised,
-		EnableDragAndDrop: true,
+		EnableFileDrop: true,
 		Mac: application.MacWindow{
 			Backdrop: application.MacBackdropTranslucent,
 			TitleBar: application.MacTitleBarHiddenInset,
@@ -237,9 +237,9 @@ func createMainWindow(wailsApp *application.App, ctx *app.Context, fileProcessor
 		URL:              "/",
 	})
 
-	win.OnWindowEvent(events.Common.WindowDropZoneFilesDropped, func(event *application.WindowEvent) {
+	win.OnWindowEvent(events.Common.WindowFilesDropped, func(event *application.WindowEvent) {
 		droppedFiles := event.Context().DroppedFiles()
-		details := event.Context().DropZoneDetails()
+		details := event.Context().DropTargetDetails()
 
 		log.Printf("[Drag&Drop] %d files dropped", len(droppedFiles))
 

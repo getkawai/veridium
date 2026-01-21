@@ -35,12 +35,10 @@ const GlobalLayout = ({
           defaultPrimaryColor={primaryColor as any}
           globalCDN={false}
         >
-          <App>
-            <ServerConfigStoreProvider segmentVariants={variants}>
-              <StoreInitialization />
-              {children}
-            </ServerConfigStoreProvider>
-          </App>
+          <ServerConfigStoreProvider segmentVariants={variants}>
+            <StoreInitialization />
+            {children}
+          </ServerConfigStoreProvider>
         </AppTheme>
       </Locale>
       <AntdV5MonkeyPatch />
