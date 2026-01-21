@@ -6,7 +6,7 @@
         db-generate bindings-generate constants-generate db-dump db-restore \
         contracts-compile contracts-bindings contracts-update \
         contracts-test contracts-test-gas contracts-coverage \
-        contracts-deploy-local contracts-deploy-testnet contracts-verify \
+        contracts-deploy-local contracts-deploy-testnet contracts-deploy-vault contracts-verify \
         contracts-upgrade contracts-clean contracts-validate \
         contracts-gas-snapshot contracts-gas-compare \
         admin-register admin-register-dry \
@@ -34,7 +34,7 @@ USDT_ARTIFACT        := $(CONTRACTS_DIR)/out/MockUSDT.sol/MockUSDT.json
 export
 
 # Deployment configuration (can be overridden via env vars or contracts/.env)
-PRIVATE_KEY ?= 
+PRIVATE_KEY ?=
 RPC_URL ?= https://testnet-rpc.monad.xyz
 CONTRACT_ADDRESS ?=
 ETHERSCAN_API_KEY ?=
@@ -75,6 +75,7 @@ help:
 	@echo "  make contracts-gas-compare  Compare gas usage vs baseline"
 	@echo "  make contracts-deploy-local Deploy to local Anvil"
 	@echo "  make contracts-deploy-testnet Deploy to Monad Testnet"
+	@echo "  make contracts-deploy-vault Deploy PaymentVault (mainnet/testnet)"
 	@echo "  make contracts-deploy-referral-testnet Deploy ReferralRewardDistributor"
 	@echo "  make contracts-grant-minter-referral Grant MINTER_ROLE to referral contract"
 	@echo "  make contracts-deploy-cashback-testnet Deploy DepositCashbackDistributor"
@@ -308,6 +309,25 @@ contracts-deploy-testnet:
 		--private-key $(PRIVATE_KEY) \
 		--broadcast \
 		--verify
+
+contracts-deploy-vault:
+	@echo "🚀 Deploying PaymentVault..."
+	@test -n "$(PRIVATE_KEY)" || (echo "❌ PRIVATE_KEY not set!" && exit 1)
+	@test -n "$(RPC_URL)" || (echo "❌ RPC_URL not set!" && exit 1)
+	@test -n "$(USDC_ADDRESS)" || (echo "❌ USDC_ADDRESS not set! Set it in contracts/.env" && exit 1)
+	@if [ "$(CHAIN_ID)" = "143" ] || echo "$(RPC_URL)" | grep -q "mainnet"; then \
+		echo "⚠️  WARNING: Deploying to MAINNET with USDC $(USDC_ADDRESS)"; \
+		echo "⚠️  This will cost real MON for gas fees"; \
+		read -p "Continue with mainnet deployment? [y/N] " confirm && [ "$$confirm" = "y" ] || exit 1; \
+	fi
+	@echo "ℹ️  Stablecoin: $(USDC_ADDRESS)"
+	cd $(CONTRACTS_DIR) && ~/.foundry/bin/forge script script/DeployPaymentVault.s.sol:DeployPaymentVault \
+		--rpc-url $(RPC_URL) \
+		--private-key $(PRIVATE_KEY) \
+		--broadcast \
+		--verify
+	@echo "✅ PaymentVault deployed!"
+	@echo "⚠️  Update PAYMENT_VAULT_ADDRESS in .env"
 
 contracts-deploy-referral-testnet:
 	@echo "🚀 Deploying ReferralRewardDistributor to Monad Testnet..."

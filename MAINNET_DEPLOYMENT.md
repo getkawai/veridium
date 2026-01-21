@@ -91,6 +91,19 @@ echo "KAWAI_TOKEN_ADDRESS=$KAWAI_TOKEN_ADDRESS" >> .env.mainnet
 ```
 
 #### 1.3 Deploy PaymentVault
+
+**Option A: Using Modular Deployment Script (Recommended)**
+```bash
+# Configure USDC address in contracts/.env.mainnet
+echo "USDC_ADDRESS=0x754704bc059f8c67012fed69bc8a327a5aafb603" >> contracts/.env.mainnet
+
+# Deploy using Makefile command
+make contracts-deploy-vault
+
+export PAYMENT_VAULT_ADDRESS=<deployed_address>
+```
+
+**Option B: Using forge directly**
 ```bash
 # Deploy with USDC address
 forge script script/DeployPaymentVault.s.sol:DeployPaymentVault \
