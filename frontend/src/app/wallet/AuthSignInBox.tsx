@@ -238,13 +238,10 @@ export default memo(() => {
       message.error('Please provide private key and password');
       return;
     }
-    
+
     // Validate private key format
-    let cleanKey = privateKey.trim();
-    if (cleanKey.startsWith('0x')) {
-      cleanKey = cleanKey.slice(2);
-    }
-    
+    const cleanKey = privateKey.trim().replace(/^0x/i, '');
+
     if (!/^[0-9a-fA-F]{64}$/.test(cleanKey)) {
       message.error('Invalid private key format. Must be 64 hex characters.');
       return;
@@ -331,9 +328,9 @@ export default memo(() => {
             <LobeHub size={80} />
             <Text className={styles.title} style={{ marginTop: 24 }}>Welcome To Kawai DeAI Network</Text>
             <Text className={styles.description}>
-              {hasReferral 
-                ? '🎉 Get 10 USDT + 200 KAWAI FREE!' 
-                : 'Get 5 USDT + 100 KAWAI FREE'}
+              {hasReferral
+                ? '🎉 Get 10 USDT/USDC + 200 KAWAI FREE!'
+                : 'Get 5 USDT/USDC + 100 KAWAI FREE'}
             </Text>
             <Text type="secondary" style={{ fontSize: 12, marginBottom: 16, textAlign: 'center' }}>
               No credit card • No email • Instant access
@@ -349,18 +346,18 @@ export default memo(() => {
           <Flex vertical gap="large">
             {/* Referral Banner */}
             {!hasReferral && (
-              <ReferralBanner 
+              <ReferralBanner
                 onReferralApplied={(code) => {
                   setReferralCode(code);
                   setHasReferral(true);
                 }}
               />
             )}
-            
+
             {/* Bonus Display */}
             {hasReferral && (
-              <div style={{ 
-                padding: '12px 16px', 
+              <div style={{
+                padding: '12px 16px',
                 background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                 borderRadius: 8,
                 textAlign: 'center'
@@ -369,7 +366,7 @@ export default memo(() => {
                   🎉 Referral Applied: {referralCode}
                 </Text>
                 <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 12 }}>
-                  You'll receive 10 USDT + 200 KAWAI (instead of 5 USDT + 100 KAWAI)
+                  You'll receive 10 USDT/USDC + 200 KAWAI (instead of 5 USDT/USDC + 100 KAWAI)
                 </Text>
               </div>
             )}

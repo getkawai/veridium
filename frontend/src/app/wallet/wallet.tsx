@@ -5,7 +5,6 @@ import type { NetworkInfo, BackendConfig, GasEstimate } from '@@/github.com/kawa
 import { ListWalletTransactions } from '@@/github.com/kawai-network/veridium/internal/database/generated/queries';
 import type { WalletTransaction } from '@@/github.com/kawai-network/veridium/internal/database/generated/models';
 import { useUserStore } from '@/store/user';
-import { useGlobalStore } from '@/store/global';
 import { Browser } from '@wailsio/runtime';
 import {
   Copy,
@@ -23,7 +22,7 @@ import { ActionIcon, Icon } from '@lobehub/ui';
 import { Flexbox } from 'react-layout-kit';
 import { createStyles, useTheme } from 'antd-style';
 import { NetworkIcon } from './NetworkIcons';
-import { TokenUSDT } from '@web3icons/react';
+import { StablecoinIcon } from './StablecoinIcon';
 import { getBackendNetworkConfig, getTokenListFromBackend, DEFAULT_CHAIN_ID } from '@/config/network';
 import Menu from '@/components/Menu';
 import PanelTitle from '@/components/PanelTitle';
@@ -573,7 +572,7 @@ const DesktopWalletLayout = memo(() => {
 
         if (syncResult?.success) {
           syncHide();
-          message.success(`Balance synced! New balance: ${(parseFloat(syncResult.newBalance || '0') / 1_000_000).toFixed(2)} USDT`);
+          message.success(`Balance synced! New balance: ${(parseFloat(syncResult.newBalance || '0') / 1_000_000).toFixed(2)} ${currentNetwork?.stablecoinSymbol || 'USDT'}`);
           synced = true;
           break;
         }
@@ -730,7 +729,7 @@ const DesktopWalletLayout = memo(() => {
           balancesLoading={balancesLoading}
         />;
       case 'otc':
-        return <OTCContent styles={styles} theme={theme} />;
+        return <OTCContent styles={styles} theme={theme} currentNetwork={currentNetwork} />;
       case 'rewards':
         return <RewardsContent styles={styles} theme={theme} currentNetwork={currentNetwork} transactions={transactions} setModalType={setModalType} />;
       case 'settings':
@@ -809,7 +808,7 @@ const DesktopWalletLayout = memo(() => {
         <SetupForm type="import" onSuccess={() => { setModalType(null); refreshWalletStatus(); }} />
       </Modal>
       <Modal title="Smart Deposit" open={modalType === 'deposit'} onCancel={() => setModalType(null)} footer={null} destroyOnHidden>
-        <SmartDepositForm onDeposit={handleDeposit} loading={loading} />
+        <SmartDepositForm onDeposit={handleDeposit} loading={loading} currentNetwork={currentNetwork} />
       </Modal>
 
       <Modal title="Send Assets" open={modalType === 'send'} onCancel={() => setModalType(null)} footer={null} destroyOnHidden>
@@ -878,11 +877,9 @@ const CopyButton = ({ text }: { text: string }) => {
   );
 };
 
-const SmartDepositForm = ({ onDeposit, loading }: { onDeposit: (val: number) => void, loading: boolean }) => {
+const SmartDepositForm = ({ onDeposit, loading, currentNetwork }: { onDeposit: (val: number) => void, loading: boolean, currentNetwork: NetworkInfo | null }) => {
   const [form] = Form.useForm();
   const theme = useTheme();
-  const config = useGlobalStore((s) => s.backendConfig);
-  const currentNetwork = config?.network_info;
 
   return (
     <Flexbox gap={16}>
@@ -892,13 +889,13 @@ const SmartDepositForm = ({ onDeposit, loading }: { onDeposit: (val: number) => 
         showIcon
         message={
           <span style={{ fontWeight: 600 }}>
-            Only deposit {currentNetwork?.stablecoinSymbol || 'USDC'} on Monad Network!
+            Only deposit {currentNetwork?.stablecoinSymbol || 'USDT'} on Monad Network!
           </span>
         }
         description={
           <Flexbox gap={8} style={{ marginTop: 8 }}>
             <span>
-              Don't have {currentNetwork?.stablecoinSymbol || 'USDC'} on Monad? You need to bridge from other networks first.
+              Don't have {currentNetwork?.stablecoinSymbol || 'USDT'} on Monad? You need to bridge from other networks first.
             </span>
             <span style={{ fontSize: 12, color: theme.colorTextSecondary }}>
               Network: <strong>{currentNetwork?.name || 'Monad Mainnet'}</strong> (Chain ID: {currentNetwork?.id || 143})
@@ -947,13 +944,13 @@ const SendForm = ({ onSend, loading, currentNetwork }: { onSend: (to: string, va
 
   const assetOptions = [
     { label: `Native Token (${currentNetwork?.nativeTokenSymbol || 'ETH'})`, value: 'native' },
-    { label: 'USDT (Tether)', value: 'usdt' },
+    { label: currentNetwork?.stablecoinSymbol === 'USDC' ? 'USDC (USD Coin)' : 'USDT (Tether)', value: 'usdt' },
     { label: 'KAWAI (Kawai Token)', value: 'kawai' },
   ];
 
   const getAssetLabel = (assetType: string) => {
     if (assetType === 'native') return currentNetwork?.nativeTokenSymbol || 'ETH';
-    if (assetType === 'usdt') return 'USDT';
+    if (assetType === 'usdt') return currentNetwork?.stablecoinSymbol || 'USDT';
     if (assetType === 'kawai') return 'KAWAI';
     return assetType.toUpperCase();
   };
@@ -1140,7 +1137,7 @@ const AddTokenModal = memo<{ currentNetwork: NetworkInfo | null; onClose: () => 
                   fontWeight: 700,
                   fontSize: 12,
                 }}>
-                  {token.symbol === 'USDT' ? <TokenUSDT size={24} variant="branded" /> : token.symbol.substring(0, 2)}
+                  {token.symbol === 'USDT' || token.symbol === 'MockUSDT' || token.symbol === 'USDC' ? <StablecoinIcon currentNetwork={currentNetwork} size={24} variant="branded" /> : token.symbol.substring(0, 2)}
                 </div>
                 <div>
                   <div style={{ fontWeight: 600 }}>{token.symbol}</div>

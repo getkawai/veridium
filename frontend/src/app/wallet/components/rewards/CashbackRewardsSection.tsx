@@ -208,8 +208,8 @@ export const CashbackRewardsSection = ({ currentNetwork, theme, styles: propStyl
           <span>
             Claim confirmed! Tx: {result.tx_hash.substring(0, 10)}...
             {explorerUrl && (
-              <a 
-                onClick={() => Browser.OpenURL(`${explorerUrl}/tx/${result.tx_hash}`)} 
+              <a
+                onClick={() => Browser.OpenURL(`${explorerUrl}/tx/${result.tx_hash}`)}
                 style={{ marginLeft: 8, cursor: 'pointer' }}
               >
                 View <ExternalLink size={12} style={{ verticalAlign: 'middle' }} />
@@ -438,7 +438,7 @@ export const CashbackRewardsSection = ({ currentNetwork, theme, styles: propStyl
       <Card title="How Cashback Works" size="small" className={styles.infoCard}>
         <Flexbox gap={8}>
           <ul style={{ margin: 0, paddingLeft: 20, fontSize: 13, color: theme.colorTextSecondary }}>
-            <li>Earn <strong>1-2% KAWAI cashback</strong> on every USDT deposit</li>
+            <li>Earn <strong>1-2% KAWAI cashback</strong> on every {currentNetwork?.stablecoinSymbol || 'USDT'} deposit</li>
             <li>First deposit always gets <strong>5% bonus</strong> regardless of amount</li>
             <li>Higher total deposits unlock better cashback rates</li>
             <li>Cashback caps per deposit: 5K-20K KAWAI (prevents abuse)</li>

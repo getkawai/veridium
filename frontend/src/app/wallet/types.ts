@@ -1,7 +1,8 @@
 import type { NetworkInfo, ClaimableRewardsResponse, ClaimableReward } from '@@/github.com/kawai-network/veridium/internal/services/models';
 import type { WalletTransaction } from '@@/github.com/kawai-network/veridium/internal/database/generated/models';
 
-export type { ClaimableRewardsResponse, ClaimableReward };
+// Export NetworkInfo from the generated models to ensure consistency with Go backend
+export type { ClaimableRewardsResponse, ClaimableReward, NetworkInfo } from '@@/github.com/kawai-network/veridium/internal/services/models';
 
 export type MenuKey = 'home' | 'otc' | 'rewards' | 'settings';
 
@@ -39,6 +40,7 @@ export interface HomeContentProps {
 export interface OTCContentProps {
   styles: ContentStyles;
   theme: any;
+  currentNetwork: NetworkInfo | null;
 }
 
 export interface RewardsContentProps {

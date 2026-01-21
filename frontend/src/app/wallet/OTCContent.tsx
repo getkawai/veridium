@@ -8,7 +8,7 @@ import { useMarketplaceStore } from '../../store/marketplace';
 import type { Order, TradeHistoryEntry } from '@@/github.com/kawai-network/veridium/internal/services/models';
 import type { OTCContentProps } from './types';
 
-const OTCContent = ({ styles, theme }: OTCContentProps) => {
+const OTCContent = ({ styles, theme, currentNetwork }: OTCContentProps) => {
   const { walletAddress } = useUserStore();
   const {
     activeOrders,
@@ -138,7 +138,7 @@ const OTCContent = ({ styles, theme }: OTCContentProps) => {
   // Buy order (full)
   const handleBuyOrderClick = async (orderID: string) => {
     const success = await buyOrder(orderID);
-      
+
     if (success) {
       message.success('Trade executed successfully!');
       if (walletAddress) {
@@ -159,9 +159,9 @@ const OTCContent = ({ styles, theme }: OTCContentProps) => {
   // Execute partial buy
   const handlePartialBuySubmit = async (values: { amount: number }) => {
     if (!selectedOrder) return;
-    
+
     const success = await buyPartialOrder(selectedOrder.id, values.amount.toString());
-    
+
     if (success) {
       message.success(`Partial buy executed! Bought ${values.amount} KAWAI`);
       setPartialBuyModal(false);
@@ -186,7 +186,7 @@ const OTCContent = ({ styles, theme }: OTCContentProps) => {
 
   const orderBookColumns = [
     {
-      title: 'Price (USDT)',
+      title: `Price (${currentNetwork?.stablecoinSymbol || 'USDT'})`,
       dataIndex: 'pricePerToken',
       key: 'pricePerToken',
       render: (price: string) => (
@@ -202,7 +202,7 @@ const OTCContent = ({ styles, theme }: OTCContentProps) => {
         const remaining = parseFloat(record.remainingAmount);
         const total = parseFloat(record.tokenAmount);
         const filledPercent = ((total - remaining) / total) * 100;
-        
+
         return (
           <Flexbox gap={4}>
             <div style={{ fontSize: 13 }}>
@@ -210,9 +210,9 @@ const OTCContent = ({ styles, theme }: OTCContentProps) => {
               <span style={{ color: theme.colorTextSecondary }}> / {total.toFixed(2)} KAWAI</span>
             </div>
             {filledPercent > 0 && (
-              <Progress 
-                percent={filledPercent} 
-                size="small" 
+              <Progress
+                percent={filledPercent}
+                size="small"
                 showInfo={false}
                 strokeColor={theme.colorWarning}
               />
@@ -222,7 +222,7 @@ const OTCContent = ({ styles, theme }: OTCContentProps) => {
       },
     },
     {
-      title: 'Total (USDT)',
+      title: `Total (${currentNetwork?.stablecoinSymbol || 'USDT'})`,
       key: 'total',
       render: (record: Order) => {
         const total = parseFloat(record.remainingAmount) * parseFloat(record.pricePerToken);
@@ -258,7 +258,7 @@ const OTCContent = ({ styles, theme }: OTCContentProps) => {
 
   const userOrderColumns = [
     {
-      title: 'Price (USDT)',
+      title: `Price (${currentNetwork?.stablecoinSymbol || 'USDT'})`,
       dataIndex: 'pricePerToken',
       key: 'pricePerToken',
       render: (price: string) => `$${parseFloat(price).toFixed(4)}`,
@@ -271,7 +271,7 @@ const OTCContent = ({ styles, theme }: OTCContentProps) => {
         const total = parseFloat(record.tokenAmount);
         const filled = total - remaining;
         const filledPercent = (filled / total) * 100;
-        
+
         return (
           <Flexbox gap={4}>
             <div style={{ fontSize: 12 }}>
@@ -279,8 +279,8 @@ const OTCContent = ({ styles, theme }: OTCContentProps) => {
               <span style={{ fontWeight: 600 }}>{filled.toFixed(2)}</span>
               <span style={{ color: theme.colorTextSecondary }}> / {total.toFixed(2)} KAWAI</span>
             </div>
-            <Progress 
-              percent={filledPercent} 
+            <Progress
+              percent={filledPercent}
               size="small"
               status={record.status === 'filled' ? 'success' : 'active'}
               strokeColor={record.status === 'filled' ? theme.colorSuccess : theme.colorPrimary}
@@ -404,10 +404,10 @@ const OTCContent = ({ styles, theme }: OTCContentProps) => {
                 value={parseFloat(marketStats.priceChange24h || '0')}
                 precision={2}
                 suffix="%"
-                valueStyle={{ 
-                  color: parseFloat(marketStats.priceChange24h || '0') >= 0 
-                    ? theme.colorSuccess 
-                    : theme.colorError 
+                valueStyle={{
+                  color: parseFloat(marketStats.priceChange24h || '0') >= 0
+                    ? theme.colorSuccess
+                    : theme.colorError
                 }}
                 prefix={parseFloat(marketStats.priceChange24h || '0') >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
               />
@@ -519,7 +519,7 @@ const OTCContent = ({ styles, theme }: OTCContentProps) => {
                   dataSource={orderHistory}
                   columns={[
                     {
-                      title: 'Price (USDT)',
+                      title: `Price (${currentNetwork?.stablecoinSymbol || 'USDT'})`,
                       dataIndex: 'pricePerToken',
                       key: 'pricePerToken',
                       render: (price: string) => `$${parseFloat(price).toFixed(4)}`,
@@ -585,7 +585,7 @@ const OTCContent = ({ styles, theme }: OTCContentProps) => {
                       ),
                     },
                     {
-                      title: 'Price (USDT)',
+                      title: `Price (${currentNetwork?.stablecoinSymbol || 'USDT'})`,
                       dataIndex: 'price',
                       key: 'price',
                       render: (price: string) => `$${parseFloat(price).toFixed(4)}`,
@@ -597,7 +597,7 @@ const OTCContent = ({ styles, theme }: OTCContentProps) => {
                       render: (amount: string) => parseFloat(amount).toFixed(2),
                     },
                     {
-                      title: 'Total (USDT)',
+                      title: `Total (${currentNetwork?.stablecoinSymbol || 'USDT'})`,
                       dataIndex: 'usdtAmount',
                       key: 'usdtAmount',
                       render: (amount: string) => `$${parseFloat(amount).toFixed(2)}`,
@@ -643,16 +643,16 @@ const OTCContent = ({ styles, theme }: OTCContentProps) => {
           >
             <Input placeholder="Enter amount of KAWAI tokens to sell" />
           </Form.Item>
-          
+
           <Form.Item
-            label="USDT Price per Token"
+            label={`${currentNetwork?.stablecoinSymbol || 'USDT'} Price per Token`}
             name="usdtPrice"
             rules={[
-              { required: true, message: 'Please enter USDT price' },
+              { required: true, message: `Please enter ${currentNetwork?.stablecoinSymbol || 'USDT'} price` },
               { pattern: /^\d+(\.\d+)?$/, message: 'Please enter a valid price' },
             ]}
           >
-            <Input placeholder="Enter price per KAWAI token in USDT" />
+            <Input placeholder={`Enter price per KAWAI token in ${currentNetwork?.stablecoinSymbol || 'USDT'}`} />
           </Form.Item>
 
           <Flexbox horizontal justify="flex-end" gap={12}>
@@ -740,7 +740,7 @@ const OTCContent = ({ styles, theme }: OTCContentProps) => {
                     if (value) {
                       const total = value * parseFloat(selectedOrder.pricePerToken);
                       const percent = (value / parseFloat(selectedOrder.remainingAmount)) * 100;
-                      partialBuyForm.setFieldsValue({ 
+                      partialBuyForm.setFieldsValue({
                         calculatedTotal: total.toFixed(2),
                         calculatedPercent: percent.toFixed(1)
                       });
@@ -806,7 +806,7 @@ const OTCContent = ({ styles, theme }: OTCContentProps) => {
                           <Flexbox horizontal justify="space-between">
                             <span style={{ color: theme.colorTextSecondary }}>You will pay:</span>
                             <span style={{ fontWeight: 600, fontSize: 16, color: theme.colorPrimary }}>
-                              ${total.toFixed(2)} USDT
+                              ${total.toFixed(2)} {currentNetwork?.stablecoinSymbol || 'USDT'}
                             </span>
                           </Flexbox>
                           <Flexbox horizontal justify="space-between">
@@ -815,8 +815,8 @@ const OTCContent = ({ styles, theme }: OTCContentProps) => {
                               {amount.toFixed(2)} KAWAI
                             </span>
                           </Flexbox>
-                          <Progress 
-                            percent={percent} 
+                          <Progress
+                            percent={percent}
                             size="small"
                             format={(percent) => `${percent?.toFixed(1)}% of order`}
                           />

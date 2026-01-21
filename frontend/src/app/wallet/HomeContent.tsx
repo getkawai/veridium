@@ -24,6 +24,7 @@ import {
   ArrowDownToLine,
   Coins,
   RefreshCw,
+  AlertTriangle,
 } from "lucide-react";
 import { Icon } from "@lobehub/ui";
 import { Flexbox } from "react-layout-kit";
@@ -34,7 +35,7 @@ import type { HomeContentProps, NetworkInfo } from "./types";
 
 // TypeScript interface for transaction analysis
 interface TransactionAnalysis {
-  status: "done" | "reverted" | "pending";
+  status: "done" | "reverted" | "pending" | string;
   txType?: string;
   method?: string;
   value?: string;
@@ -147,7 +148,7 @@ const getTransactionColumns = (
               }}
             >
               {sign}
-              {displayAmount} USDT
+              {displayAmount} {currentNetwork?.stablecoinSymbol || 'USDT'}
             </span>
           </Tooltip>
         );
@@ -226,10 +227,9 @@ const TransactionLink = memo<{ txHash: string; networkId?: number }>(
                 <span style={{ marginLeft: 8 }}>Analyzing...</span>
               </Flexbox>
             ) : error ? (
-              <Flexbox vertical gap={12} style={{ padding: 16 }}>
-                <Flexbox align="center" gap={8}>
-                  <Icon
-                    icon={{ type: "fi", icon: "fi-rr-error" }}
+              <Flexbox gap={12} style={{ padding: 16 }} align="center">
+                <Flexbox align="center" gap={8} style={{ flexDirection: "column" }}>
+                  <AlertTriangle
                     size={24}
                     style={{ color: theme.colorError }}
                   />
@@ -264,9 +264,7 @@ const TransactionLink = memo<{ txHash: string; networkId?: number }>(
 
                 <Flexbox gap={8}>
                   <Flexbox horizontal justify="space-between">
-                    <span
-                      style={{ color: theme.colorTextSecondary, fontSize: 12 }}
-                    >
+                    <span style={{ color: theme.colorTextSecondary, fontSize: 12 }}>
                       Status
                     </span>
                     <Tag
@@ -283,9 +281,7 @@ const TransactionLink = memo<{ txHash: string; networkId?: number }>(
                   </Flexbox>
 
                   <Flexbox horizontal justify="space-between">
-                    <span
-                      style={{ color: theme.colorTextSecondary, fontSize: 12 }}
-                    >
+                    <span style={{ color: theme.colorTextSecondary, fontSize: 12 }}>
                       Type
                     </span>
                     <span style={{ fontSize: 12, fontWeight: 600 }}>
@@ -295,12 +291,7 @@ const TransactionLink = memo<{ txHash: string; networkId?: number }>(
 
                   {analysis.method && (
                     <Flexbox horizontal justify="space-between">
-                      <span
-                        style={{
-                          color: theme.colorTextSecondary,
-                          fontSize: 12,
-                        }}
-                      >
+                      <span style={{ color: theme.colorTextSecondary, fontSize: 12 }}>
                         Method
                       </span>
                       <Tag color="blue" style={{ fontFamily: "monospace" }}>
@@ -311,12 +302,7 @@ const TransactionLink = memo<{ txHash: string; networkId?: number }>(
 
                   {analysis.value && analysis.value !== "0" && (
                     <Flexbox horizontal justify="space-between">
-                      <span
-                        style={{
-                          color: theme.colorTextSecondary,
-                          fontSize: 12,
-                        }}
-                      >
+                      <span style={{ color: theme.colorTextSecondary, fontSize: 12 }}>
                         Value
                       </span>
                       <span style={{ fontSize: 12 }}>{analysis.value}</span>
@@ -325,12 +311,7 @@ const TransactionLink = memo<{ txHash: string; networkId?: number }>(
 
                   {analysis.gasUsed && (
                     <Flexbox horizontal justify="space-between">
-                      <span
-                        style={{
-                          color: theme.colorTextSecondary,
-                          fontSize: 12,
-                        }}
-                      >
+                      <span style={{ color: theme.colorTextSecondary, fontSize: 12 }}>
                         Gas Used
                       </span>
                       <span style={{ fontSize: 12 }}>
@@ -341,46 +322,28 @@ const TransactionLink = memo<{ txHash: string; networkId?: number }>(
 
                   {analysis.gasCost && (
                     <Flexbox horizontal justify="space-between">
-                      <span
-                        style={{
-                          color: theme.colorTextSecondary,
-                          fontSize: 12,
-                        }}
-                      >
+                      <span style={{ color: theme.colorTextSecondary, fontSize: 12 }}>
                         Gas Cost
                       </span>
                       <span style={{ fontSize: 12 }}>{analysis.gasCost}</span>
                     </Flexbox>
                   )}
 
-                  {analysis.blockNumber != null &&
-                    analysis.blockNumber >= 0 && (
-                      <Flexbox horizontal justify="space-between">
-                        <span
-                          style={{
-                            color: theme.colorTextSecondary,
-                            fontSize: 12,
-                          }}
-                        >
-                          Block
-                        </span>
-                        <span style={{ fontSize: 12, fontFamily: "monospace" }}>
-                          #{analysis.blockNumber.toLocaleString()}
-                        </span>
-                      </Flexbox>
-                    )}
+                  {analysis.blockNumber != null && analysis.blockNumber >= 0 && (
+                    <Flexbox horizontal justify="space-between">
+                      <span style={{ color: theme.colorTextSecondary, fontSize: 12 }}>
+                        Block
+                      </span>
+                      <span style={{ fontSize: 12, fontFamily: "monospace" }}>
+                        #{analysis.blockNumber.toLocaleString()}
+                      </span>
+                    </Flexbox>
+                  )}
                 </Flexbox>
 
-                {/* Decoded Parameters */}
                 {analysis.params && analysis.params.length > 0 && (
                   <>
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: theme.colorTextTertiary,
-                        marginTop: 8,
-                      }}
-                    >
+                    <div style={{ fontSize: 11, color: theme.colorTextTertiary, marginTop: 8 }}>
                       PARAMETERS
                     </div>
                     <Flexbox gap={4}>
@@ -394,13 +357,8 @@ const TransactionLink = memo<{ txHash: string; networkId?: number }>(
                             fontSize: 11,
                           }}
                         >
-                          <span style={{ color: theme.colorTextSecondary }}>
-                            {param.name}
-                          </span>
-                          <span style={{ color: theme.colorTextTertiary }}>
-                            {" "}
-                            ({param.type})
-                          </span>
+                          <span style={{ color: theme.colorTextSecondary }}>{param.name}</span>
+                          <span style={{ color: theme.colorTextTertiary }}> ({param.type})</span>
                           <div
                             style={{
                               fontFamily: "monospace",
@@ -408,18 +366,13 @@ const TransactionLink = memo<{ txHash: string; networkId?: number }>(
                               marginTop: 2,
                             }}
                           >
-                            {expandedParam === i ||
-                              (param.value?.length ?? 0) <= 50
+                            {expandedParam === i || (param.value?.length ?? 0) <= 50
                               ? param.value
                               : `${param.value?.substring(0, 50)}...`}
                             {(param.value?.length ?? 0) > 50 && (
                               <button
                                 type="button"
-                                onClick={() =>
-                                  setExpandedParam(
-                                    expandedParam === i ? null : i,
-                                  )
-                                }
+                                onClick={() => setExpandedParam(expandedParam === i ? null : i)}
                                 style={{
                                   background: "none",
                                   border: "none",
@@ -430,9 +383,7 @@ const TransactionLink = memo<{ txHash: string; networkId?: number }>(
                                   marginLeft: 4,
                                 }}
                               >
-                                {expandedParam === i
-                                  ? "Show less"
-                                  : "Show more"}
+                                {expandedParam === i ? "Show less" : "Show more"}
                               </button>
                             )}
                           </div>
@@ -442,16 +393,9 @@ const TransactionLink = memo<{ txHash: string; networkId?: number }>(
                   </>
                 )}
 
-                {/* Event Logs */}
                 {analysis.logs && analysis.logs.length > 0 && (
                   <>
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: theme.colorTextTertiary,
-                        marginTop: 8,
-                      }}
-                    >
+                    <div style={{ fontSize: 11, color: theme.colorTextTertiary, marginTop: 8 }}>
                       EVENTS ({analysis.logs.length})
                     </div>
                     <Flexbox gap={4}>
@@ -461,12 +405,7 @@ const TransactionLink = memo<{ txHash: string; networkId?: number }>(
                         </Tag>
                       ))}
                       {analysis.logs.length > 3 && (
-                        <span
-                          style={{
-                            fontSize: 11,
-                            color: theme.colorTextTertiary,
-                          }}
-                        >
+                        <span style={{ fontSize: 11, color: theme.colorTextTertiary }}>
                           +{analysis.logs.length - 3} more
                         </span>
                       )}
@@ -475,13 +414,7 @@ const TransactionLink = memo<{ txHash: string; networkId?: number }>(
                 )}
 
                 {analysis.error && (
-                  <div
-                    style={{
-                      color: theme.colorError,
-                      fontSize: 12,
-                      marginTop: 8,
-                    }}
-                  >
+                  <div style={{ color: theme.colorError, fontSize: 12, marginTop: 8 }}>
                     Error: {analysis.error}
                   </div>
                 )}
@@ -933,10 +866,9 @@ const HomeContent = ({
           />
         ) : (
           <Flexbox
-            vertical
             align="center"
             gap={16}
-            style={{ padding: "24px 0" }}
+            style={{ padding: "24px 0", flexDirection: "column" }}
           >
             <Empty
               description={
@@ -947,7 +879,7 @@ const HomeContent = ({
               image={Empty.PRESENTED_IMAGE_SIMPLE}
             />
             {currentNetwork?.isTestnet && (
-              <Flexbox vertical align="center" gap={8}>
+              <Flexbox align="center" gap={8} style={{ flexDirection: "column" }}>
                 <span style={{ color: theme.colorTextSecondary, fontSize: 12 }}>
                   Get test tokens to start exploring
                 </span>

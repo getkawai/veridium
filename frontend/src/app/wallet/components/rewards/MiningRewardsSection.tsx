@@ -12,11 +12,11 @@ import {
 } from 'lucide-react';
 import { Browser, Dialogs } from '@wailsio/runtime';
 import { Flexbox } from 'react-layout-kit';
-import { TokenUSDT } from '@web3icons/react';
-import type { 
-  NetworkInfo, 
-  ClaimableReward, 
-  ClaimableRewardsResponse 
+import { StablecoinIcon } from '../../StablecoinIcon';
+import type {
+  NetworkInfo,
+  ClaimableReward,
+  ClaimableRewardsResponse
 } from '@@/github.com/kawai-network/veridium/internal/services/models';
 
 interface MiningRewardsSectionProps {
@@ -51,13 +51,13 @@ export const MiningRewardsSection = ({ currentNetwork, theme, styles, onRefresh 
       console.warn('Invalid transaction hash:', txHash);
       return '#'; // Return placeholder for invalid hashes
     }
-    
+
     const baseUrl = currentNetwork?.explorerURL;
     if (!baseUrl) {
       console.warn('Explorer URL not available');
       return '#'; // Return placeholder when explorer URL is missing
     }
-    
+
     const cleanUrl = baseUrl.replace(/\/$/, '');
     return `${cleanUrl}/tx/${txHash}`;
   };
@@ -84,14 +84,14 @@ export const MiningRewardsSection = ({ currentNetwork, theme, styles, onRefresh 
       }
 
       setRewards(result);
-      
+
       if (showMessage) {
         message.success('Rewards refreshed successfully');
       }
     } catch (e: any) {
       console.error('Failed to load rewards:', e);
       setError(e.message || 'Failed to load rewards');
-      
+
       if (showMessage) {
         message.error('Failed to refresh rewards');
       }
@@ -218,16 +218,16 @@ export const MiningRewardsSection = ({ currentNetwork, theme, styles, onRefresh 
       }
     } catch (e: any) {
       console.error('Claim failed:', e);
-      
+
       // Always show error dialog (better visibility than toast)
       const errorMsg = e.message || 'Claim failed';
       const isInsufficientFunds = errorMsg.toLowerCase().includes('insufficient funds');
-      
+
       if (isInsufficientFunds) {
         await Dialogs.Error({
           Title: 'Insufficient Funds for Gas',
           Message: 'You need MON tokens to pay for gas fees.\n\n' +
-                   'After receiving MON, try claiming again.'
+            'After receiving MON, try claiming again.'
         });
       } else {
         await Dialogs.Error({
@@ -235,7 +235,7 @@ export const MiningRewardsSection = ({ currentNetwork, theme, styles, onRefresh 
           Message: errorMsg
         });
       }
-      
+
       setTimeout(() => loadRewards(), 1000);
     } finally {
       setClaimLoading(prev => {
@@ -282,11 +282,11 @@ export const MiningRewardsSection = ({ currentNetwork, theme, styles, onRefresh 
       const divisor = BigInt(10 ** decimals);
       const wholePart = amount / divisor;
       const fractionalPart = amount % divisor;
-      
+
       const fractionalStr = fractionalPart.toString().padStart(decimals, '0');
       const precision = decimals === 18 ? 4 : 2;
       const trimmedFractional = fractionalStr.slice(0, precision);
-      
+
       return `${wholePart}.${trimmedFractional}`;
     } catch (e) {
       console.error('Failed to format accumulating amount:', e);
@@ -371,14 +371,14 @@ export const MiningRewardsSection = ({ currentNetwork, theme, styles, onRefresh 
             ) : (
               <>
                 <Flexbox horizontal align="center" gap={8}>
-                  <TokenUSDT size={20} variant="branded" />
-                  <span style={{ fontSize: 12, color: theme.colorTextSecondary }}>USDT Claimable</span>
+                  <StablecoinIcon currentNetwork={currentNetwork} size={20} variant="branded" />
+                  <span style={{ fontSize: 12, color: theme.colorTextSecondary }}>{currentNetwork?.stablecoinSymbol || 'USDT'} Claimable</span>
                 </Flexbox>
                 <span style={{ fontSize: 24, fontWeight: 700 }}>
                   ${rewards?.total_usdt_claimable_formatted || '0.00'}
                 </span>
                 <span style={{ fontSize: 11, color: theme.colorTextTertiary }}>
-                  Accumulating: ${formatAccumulating(rewards?.current_usdt_accumulating || '0', 6)} USDT
+                  Accumulating: ${formatAccumulating(rewards?.current_usdt_accumulating || '0', 6)} {currentNetwork?.stablecoinSymbol || 'USDT'}
                 </span>
               </>
             )}
@@ -450,10 +450,10 @@ export const MiningRewardsSection = ({ currentNetwork, theme, styles, onRefresh 
                         {isKawai ? (
                           <Coins size={18} color="#667eea" />
                         ) : (
-                          <TokenUSDT size={18} variant="branded" />
+                          <StablecoinIcon currentNetwork={currentNetwork} size={18} variant="branded" />
                         )}
                         <span style={{ fontWeight: 600, fontSize: 16 }}>
-                          {proof.formatted || proof.amount} {isKawai ? 'KAWAI' : 'USDT'}
+                          {proof.formatted || proof.amount} {isKawai ? 'KAWAI' : (currentNetwork?.stablecoinSymbol || 'USDT')}
                         </span>
                         <Tag color={getStatusColor(proof.claim_status)}>
                           {proof.claim_status}
@@ -528,10 +528,10 @@ export const MiningRewardsSection = ({ currentNetwork, theme, styles, onRefresh 
                     {isKawai ? (
                       <Coins size={16} color="#667eea" />
                     ) : (
-                      <TokenUSDT size={16} variant="branded" />
+                      <StablecoinIcon currentNetwork={currentNetwork} size={16} variant="branded" />
                     )}
                     <span style={{ fontWeight: 500 }}>
-                      {proof.formatted} {isKawai ? 'KAWAI' : 'USDT'}
+                      {proof.formatted} {isKawai ? 'KAWAI' : (currentNetwork?.stablecoinSymbol || 'USDT')}
                     </span>
                   </Flexbox>
                   <Flexbox horizontal align="center" gap={8}>
@@ -594,98 +594,98 @@ export const MiningRewardsSection = ({ currentNetwork, theme, styles, onRefresh 
 
             const recentActivity = getRecentActivity();
 
-          return (
-            <Table
-              dataSource={recentActivity}
-              rowKey="key"
-              pagination={false}
-              size="small"
-              locale={{
-                emptyText: recentActivity.length === 0 ? (
-                  <Empty
-                    image={Empty.PRESENTED_IMAGE_SIMPLE}
-                    description={
-                      <span style={{ color: theme.colorTextSecondary }}>
-                        No mining claims yet.
-                        <br />
-                        {validUnclaimed.length > 0 
-                          ? "Claim your rewards above to see activity here."
-                          : "Keep contributing to earn mining rewards!"
-                        }
-                      </span>
-                    }
-                  />
-                ) : undefined
-              }}
-              columns={[
-                {
-                  title: 'Type',
-                  dataIndex: 'txType',
-                  key: 'type',
-                  render: (t: string) => <Tag color="blue">{t}</Tag>
-                },
-                {
-                  title: 'Amount',
-                  key: 'amount',
-                  render: (record: any) => (
-                    <Flexbox horizontal align="center" gap={4}>
-                      <Coins size={12} color="#667eea" />
-                      <span style={{ fontSize: 12, fontWeight: 500 }}>
-                        {record.amount} {record.rewardType === 'kawai' ? 'KAWAI' : 'USDT'}
-                      </span>
-                    </Flexbox>
-                  )
-                },
-                {
-                  title: 'Hash',
-                  dataIndex: 'txHash',
-                  render: (h: string) => (
-                    <a
-                      onClick={() => {
-                        const explorerUrl = getExplorerUrl(h);
-                        Browser.OpenURL(explorerUrl);
-                      }}
-                      style={{ cursor: 'pointer', fontFamily: 'monospace', fontSize: 12 }}
-                    >
-                      {h.substring(0, 10)}... <ExternalLink size={10} style={{ verticalAlign: 'middle' }} />
-                    </a>
-                  )
-                },
-                {
-                  title: 'Date',
-                  dataIndex: 'createdAt',
-                  render: (d: string) => <span style={{ fontSize: 12 }}>{formatDate(d)}</span>
-                },
-                {
-                  title: 'Status',
-                  dataIndex: 'status',
-                  key: 'status',
-                  render: (status: string) => (
-                    <Flexbox horizontal align="center" gap={4}>
-                      {status === 'confirmed' ? (
-                        <>
-                          <CheckCircle size={14} color="#22c55e" />
-                          <span style={{ fontSize: 12, textTransform: 'capitalize' }}>Confirmed</span>
-                        </>
-                      ) : (
-                        <>
-                          <span style={{ 
-                            width: 14, 
-                            height: 14, 
-                            borderRadius: '50%', 
-                            backgroundColor: getStatusColor(status),
-                            display: 'inline-block'
-                          }} />
-                          <span style={{ fontSize: 12, textTransform: 'capitalize' }}>{status}</span>
-                        </>
-                      )}
-                    </Flexbox>
-                  )
-                }
-              ]}
-            />
-          );
-        })()
+            return (
+              <Table
+                dataSource={recentActivity}
+                rowKey="key"
+                pagination={false}
+                size="small"
+                locale={{
+                  emptyText: recentActivity.length === 0 ? (
+                    <Empty
+                      image={Empty.PRESENTED_IMAGE_SIMPLE}
+                      description={
+                        <span style={{ color: theme.colorTextSecondary }}>
+                          No mining claims yet.
+                          <br />
+                          {validUnclaimed.length > 0
+                            ? "Claim your rewards above to see activity here."
+                            : "Keep contributing to earn mining rewards!"
+                          }
+                        </span>
+                      }
+                    />
+                  ) : undefined
+                }}
+                columns={[
+                  {
+                    title: 'Type',
+                    dataIndex: 'txType',
+                    key: 'type',
+                    render: (t: string) => <Tag color="blue">{t}</Tag>
+                  },
+                  {
+                    title: 'Amount',
+                    key: 'amount',
+                    render: (record: any) => (
+                      <Flexbox horizontal align="center" gap={4}>
+                        <Coins size={12} color="#667eea" />
+                        <span style={{ fontSize: 12, fontWeight: 500 }}>
+                          {record.amount} {record.rewardType === 'kawai' ? 'KAWAI' : (currentNetwork?.stablecoinSymbol || 'USDT')}
+                        </span>
+                      </Flexbox>
+                    )
+                  },
+                  {
+                    title: 'Hash',
+                    dataIndex: 'txHash',
+                    render: (h: string) => (
+                      <a
+                        onClick={() => {
+                          const explorerUrl = getExplorerUrl(h);
+                          Browser.OpenURL(explorerUrl);
+                        }}
+                        style={{ cursor: 'pointer', fontFamily: 'monospace', fontSize: 12 }}
+                      >
+                        {h.substring(0, 10)}... <ExternalLink size={10} style={{ verticalAlign: 'middle' }} />
+                      </a>
+                    )
+                  },
+                  {
+                    title: 'Date',
+                    dataIndex: 'createdAt',
+                    render: (d: string) => <span style={{ fontSize: 12 }}>{formatDate(d)}</span>
+                  },
+                  {
+                    title: 'Status',
+                    dataIndex: 'status',
+                    key: 'status',
+                    render: (status: string) => (
+                      <Flexbox horizontal align="center" gap={4}>
+                        {status === 'confirmed' ? (
+                          <>
+                            <CheckCircle size={14} color="#22c55e" />
+                            <span style={{ fontSize: 12, textTransform: 'capitalize' }}>Confirmed</span>
+                          </>
+                        ) : (
+                          <>
+                            <span style={{
+                              width: 14,
+                              height: 14,
+                              borderRadius: '50%',
+                              backgroundColor: getStatusColor(status),
+                              display: 'inline-block'
+                            }} />
+                            <span style={{ fontSize: 12, textTransform: 'capitalize' }}>{status}</span>
+                          </>
+                        )}
+                      </Flexbox>
+                    )
+                  }
+                ]}
+              />
+            );
+          })()
         )}
       </Card>
 
