@@ -69,13 +69,18 @@ cd frontend && npm run build
 
 #### Option A: Full Suite Deployment (Recommended for Fresh Start)
 
-Use `DeployKawai.s.sol` to deploy everything at once:
+Use `DeployKawai.s.sol` to deploy everything at once. This script now **auto-detects** the environment:
 
+**How it works:**
+- ✅ If `USDC_ADDRESS` is set in `.env` → Uses existing USDC (mainnet mode)
+- ✅ If `USDC_ADDRESS` is NOT set → Deploys MockUSDT (testnet mode)
+
+**For Mainnet:**
 ```bash
-# Set USDC_ADDRESS in contracts/.env.mainnet
-USDC_ADDRESS=0x754704bc059f8c67012fed69bc8a327a5aafb603
+# 1. Set USDC_ADDRESS in contracts/.env.mainnet
+echo "USDC_ADDRESS=0x754704bc059f8c67012fed69bc8a327a5aafb603" >> contracts/.env.mainnet
 
-# Deploy full suite
+# 2. Deploy full suite
 cd contracts
 forge script script/DeployKawai.s.sol:DeployKawai \
   --rpc-url $MONAD_MAINNET_RPC \
@@ -85,23 +90,26 @@ forge script script/DeployKawai.s.sol:DeployKawai \
 ```
 
 **What it deploys:**
+- ✅ Uses existing USDC (no MockUSDT deployment)
 - ✅ KawaiToken
 - ✅ PaymentVault (with USDC)
-- ✅ MerkleDistributor (KAWAI)
-- ✅ MerkleDistributor (USDT)
+- ✅ MerkleDistributor (KAWAI Mining)
+- ✅ MerkleDistributor (USDT Dividends)
 - ✅ OTCMarket (Escrow)
+- ✅ Automatic MINTER_ROLE grant to KAWAI distributor
 
 **Advantages:**
 - One command deploys everything
 - Automatic MINTER_ROLE grant
 - Consistent deployment
+- Auto-detects mainnet vs testnet
 
 #### Option B: Modular Deployment (Recommended for Flexibility)
 
 Deploy contracts individually for more control:
 
 ```bash
-# 1. Deploy KawaiToken first
+# 1. Deploy KawaiToken first (if needed)
 forge script script/DeployKawai.s.sol:DeployKawai \
   --rpc-url $MONAD_MAINNET_RPC \
   --private-key $DEPLOYER_PRIVATE_KEY \
@@ -128,99 +136,29 @@ make contracts-grant-minter-mainnet
 
 **⚠️ CRITICAL: Save all deployed addresses immediately!**
 
-#### 1.2 Update Configuration
+#### Post-Deployment Configuration
+
+After deploying contracts, update your configuration files:
+
 ```bash
-# Update contracts/.env
-echo "KAWAI_TOKEN_ADDRESS=$KAWAI_TOKEN_ADDRESS" >> contracts/.env.mainnet
-
-# Update root .env.mainnet
-echo "KAWAI_TOKEN_ADDRESS=$KAWAI_TOKEN_ADDRESS" >> .env.mainnet
-```
-
-#### 1.3 Deploy PaymentVault
-
-**Option A: Using Modular Deployment Script (Recommended)**
-```bash
-# Configure USDC address in contracts/.env.mainnet
-echo "USDC_ADDRESS=0x754704bc059f8c67012fed69bc8a327a5aafb603" >> contracts/.env.mainnet
-
-# Deploy using Makefile command
-make contracts-deploy-vault
-
-export PAYMENT_VAULT_ADDRESS=<deployed_address>
-```
-
-**Option B: Using forge directly**
-```bash
-# Deploy with USDC address
-forge script script/DeployPaymentVault.s.sol:DeployPaymentVault \
-  --rpc-url $MONAD_MAINNET_RPC \
-  --private-key $DEPLOYER_PRIVATE_KEY \
-  --broadcast \
-  --verify
-
-export PAYMENT_VAULT_ADDRESS=<deployed_address>
-```
-
-#### 1.4 Deploy Distributors
-```bash
-# Mining Distributor
-forge script script/DeployMiningDistributor.s.sol:DeployMiningDistributor \
-  --rpc-url $MONAD_MAINNET_RPC \
-  --private-key $DEPLOYER_PRIVATE_KEY \
-  --broadcast \
-  --verify
-
-export MINING_DISTRIBUTOR_ADDRESS=<deployed_address>
-
-# Cashback Distributor
-forge script script/DeployCashbackDistributor.s.sol:DeployCashbackDistributor \
-  --rpc-url $MONAD_MAINNET_RPC \
-  --private-key $DEPLOYER_PRIVATE_KEY \
-  --broadcast \
-  --verify
-
-export CASHBACK_DISTRIBUTOR_ADDRESS=<deployed_address>
-
-# Referral Distributor
-forge script script/DeployReferralDistributor.s.sol:DeployReferralDistributor \
-  --rpc-url $MONAD_MAINNET_RPC \
-  --private-key $DEPLOYER_PRIVATE_KEY \
-  --broadcast \
-  --verify
-
-export REFERRAL_DISTRIBUTOR_ADDRESS=<deployed_address>
-```
-
-#### 1.5 Verify All Contracts on MonadScan
-```bash
-# Check each contract on https://monadexplorer.com
-# Verify:
-# - Contract code is verified
-# - Constructor parameters are correct
-# - No errors in deployment
-```
-
-#### 1.6 Update .env.mainnet with All Addresses
-```bash
-# Edit .env.mainnet manually or use script
+# 1. Update .env.mainnet with deployed addresses
 cat >> .env.mainnet << EOF
-KAWAI_TOKEN_ADDRESS=$KAWAI_TOKEN_ADDRESS
-PAYMENT_VAULT_ADDRESS=$PAYMENT_VAULT_ADDRESS
-MINING_DISTRIBUTOR_ADDRESS=$MINING_DISTRIBUTOR_ADDRESS
-CASHBACK_DISTRIBUTOR_ADDRESS=$CASHBACK_DISTRIBUTOR_ADDRESS
-REFERRAL_DISTRIBUTOR_ADDRESS=$REFERRAL_DISTRIBUTOR_ADDRESS
+KAWAI_TOKEN_ADDRESS=<deployed_kawai_address>
+PAYMENT_VAULT_ADDRESS=<deployed_vault_address>
+MINING_DISTRIBUTOR_ADDRESS=<deployed_mining_address>
+CASHBACK_DISTRIBUTOR_ADDRESS=<deployed_cashback_address>
+REFERRAL_DISTRIBUTOR_ADDRESS=<deployed_referral_address>
 EOF
-```
 
-#### 1.7 Regenerate Constants
-```bash
-# Auto-generate blockchain constants
+# 2. Regenerate backend constants
 go run cmd/obfuscator-gen/main.go
 
-# Verify generated files
+# 3. Verify generated files
 git diff internal/constant/blockchain.go
 git diff pkg/jarvis/db/project_tokens.go
+
+# 4. Verify all contracts on MonadScan
+# Visit https://monadexplorer.com and check each contract
 ```
 
 ---
