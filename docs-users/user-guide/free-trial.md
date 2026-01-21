@@ -65,7 +65,7 @@ If you have a referral code:
    - "You'll get 10 USDT + 200 KAWAI"
 
 !!! tip "Get a Referral Code"
-    Don't have a code? Ask in our [Discord community](https://discord.gg/kawai) - members love to share!
+    Don't have a code? Ask in our [Discord community](https://discord.gg/SNf3ZEa8Eq) - members love to share!
 
 ### Step 4: Claim Trial
 
@@ -397,5 +397,5 @@ Your free trial is waiting!
 
 ---
 
-**Questions?** Check [FAQ](../faq/general.md) or [join Discord](https://discord.gg/kawai).
+**Questions?** Check [FAQ](../faq/general.md) or [join Discord](https://discord.gg/SNf3ZEa8Eq).
 

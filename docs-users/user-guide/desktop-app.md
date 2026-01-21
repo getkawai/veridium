@@ -271,7 +271,7 @@ See [System Requirements](../getting-started/requirements.md) for details.
 ### Getting Help
 
 - **FAQ**: [View common questions](../faq/general.md)
-- **Community**: Join our [Discord](https://discord.gg/kawai)
+- **Community**: Join our [Discord](https://discord.gg/SNf3ZEa8Eq)
 - **Support**: [Contact us](../support/contact.md)
 
 ## 🚀 Next Steps

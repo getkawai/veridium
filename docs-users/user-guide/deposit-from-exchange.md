@@ -168,7 +168,7 @@ If you're stuck or need assistance:
    - Confirm USDC balance shows up
 
 3. **Contact Support:**
-   - Discord: [Join our server](https://discord.gg/kawai)
+   - Discord: [Join our server](https://discord.gg/SNf3ZEa8Eq)
    - Telegram: [@kawai_support](https://t.me/kawai_support)
    - Email: support@kawai.network
 

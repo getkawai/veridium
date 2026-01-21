@@ -111,7 +111,7 @@ Get help when you need it:
 ## 🔗 External Links
 
 - **Website**: [kawai.network](https://kawai.network)
-- **Discord**: [Join Community](https://discord.gg/kawai)
+- **Discord**: [Join Community](https://discord.gg/SNf3ZEa8Eq)
 - **Twitter**: [@KawaiNetwork](https://twitter.com/kawainetwork)
 - **GitHub**: [View Code](https://github.com/kawai-network/veridium)
 - **Medium**: [Read Blog](https://medium.com/@kawainetwork)
@@ -155,4 +155,4 @@ Found an error or want to improve docs?
 
 **Ready to get started?** [Install the app](getting-started/installation.md) and [claim your free trial](user-guide/free-trial.md)!
 
-**Need help?** [Contact support](support/contact.md) or [join Discord](https://discord.gg/kawai).
+**Need help?** [Contact support](support/contact.md) or [join Discord](https://discord.gg/SNf3ZEa8Eq).

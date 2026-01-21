@@ -23,7 +23,7 @@ Join our active community:
 - **Feature Requests**: #suggestions
 - **Community Chat**: #general
 
-[Join Discord →](https://discord.gg/kawai)
+[Join Discord →](https://discord.gg/SNf3ZEa8Eq)
 
 ### Telegram Group
 Quick questions and updates:
@@ -146,7 +146,7 @@ We love hearing from you!
 Stay connected:
 
 - **Twitter**: [@KawaiNetwork](https://twitter.com/kawainetwork)
-- **Discord**: [Join Server](https://discord.gg/kawai)
+- **Discord**: [Join Server](https://discord.gg/SNf3ZEa8Eq)
 - **Telegram**: [Join Group](https://t.me/kawai_network)
 - **GitHub**: [View Code](https://github.com/kawai-network/veridium)
 - **Medium**: [Read Blog](https://medium.com/@kawainetwork)
@@ -175,4 +175,4 @@ Always verify you're contacting official Kawai support:
 
 ---
 
-**Need immediate help?** [Join Discord](https://discord.gg/kawai) for fastest community response!
+**Need immediate help?** [Join Discord](https://discord.gg/SNf3ZEa8Eq) for fastest community response!

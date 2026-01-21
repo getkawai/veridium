@@ -819,7 +819,7 @@ go run cmd/reward-settlement/main.go all  # Settle all 3 types at once
 ## Contact
 
 For questions or issues:
-- Discord: https://discord.gg/kawai
+- Discord: https://discord.gg/SNf3ZEa8Eq
 - Twitter: @kawai_network
 - Email: support@kawai.network
 

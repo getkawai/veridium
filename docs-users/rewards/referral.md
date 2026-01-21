@@ -559,5 +559,5 @@ Ready to start earning?
 
 ---
 
-**Questions?** Join our [Discord](https://discord.gg/kawai) or check [FAQ](../faq/rewards.md).
+**Questions?** Join our [Discord](https://discord.gg/SNf3ZEa8Eq) or check [FAQ](../faq/rewards.md).
 

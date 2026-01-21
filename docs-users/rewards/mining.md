@@ -143,7 +143,7 @@ Your share (with referral):
 ### Step 2: Download Contributor Client
 
 !!! warning "Coming Soon"
-    Public contributor client will be available soon. Join our [Discord](https://discord.gg/kawai) to be notified!
+    Public contributor client will be available soon. Join our [Discord](https://discord.gg/SNf3ZEa8Eq) to be notified!
 
 ```bash
 # Future download command
@@ -465,12 +465,12 @@ Before starting to mine:
 
 ## 🚀 Next Steps
 
-1. **[Join Discord](https://discord.gg/kawai)** - Get notified when public mining launches
+1. **[Join Discord](https://discord.gg/SNf3ZEa8Eq)** - Get notified when public mining launches
 2. **[Prepare Hardware](#system-requirements)** - Check your GPU compatibility
 3. **[Understand Rewards](#reward-distribution)** - Know what you'll earn
 4. **[Learn Claiming](claiming.md)** - How to get your rewards
 
 ---
 
-**Ready to mine?** Join our [Discord community](https://discord.gg/kawai) for latest updates!
+**Ready to mine?** Join our [Discord community](https://discord.gg/SNf3ZEa8Eq) for latest updates!
 

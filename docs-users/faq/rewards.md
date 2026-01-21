@@ -79,4 +79,4 @@ No. Rewards must be claimed first (minted as tokens) before you can transfer or 
 
 ---
 
-**More questions?** Check [General FAQ](general.md) or [join Discord](https://discord.gg/kawai).
+**More questions?** Check [General FAQ](general.md) or [join Discord](https://discord.gg/SNf3ZEa8Eq).

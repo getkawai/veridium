@@ -478,5 +478,5 @@ Explore more:
 
 ---
 
-**Questions?** Check [FAQ](../faq/general.md) or [join Discord](https://discord.gg/kawai).
+**Questions?** Check [FAQ](../faq/general.md) or [join Discord](https://discord.gg/SNf3ZEa8Eq).
 

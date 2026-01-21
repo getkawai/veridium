@@ -422,5 +422,5 @@ Your wallet is ready and bonus claimed! Now you can:
 
 ---
 
-**Questions?** Join our [Discord community](https://discord.gg/kawai) or check the [FAQ](../faq/wallet.md).
+**Questions?** Join our [Discord community](https://discord.gg/SNf3ZEa8Eq) or check the [FAQ](../faq/wallet.md).
 

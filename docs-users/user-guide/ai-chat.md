@@ -481,5 +481,5 @@ Explore more features:
 
 ---
 
-**Need help?** Check [FAQ](../faq/general.md) or [join Discord](https://discord.gg/kawai).
+**Need help?** Check [FAQ](../faq/general.md) or [join Discord](https://discord.gg/SNf3ZEa8Eq).
 

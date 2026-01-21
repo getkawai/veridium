@@ -293,4 +293,4 @@ All tokenomics are:
 
 ---
 
-**Questions about tokenomics?** Check [FAQ](../faq/general.md) or [join Discord](https://discord.gg/kawai).
+**Questions about tokenomics?** Check [FAQ](../faq/general.md) or [join Discord](https://discord.gg/SNf3ZEa8Eq).

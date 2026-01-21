@@ -480,7 +480,7 @@ KAWAI holders may vote on:
 
 - **[FAQ](../faq/rewards.md)** - Common questions
 - **[Support](../support/contact.md)** - Get assistance
-- **[Discord](https://discord.gg/kawai)** - Community help
+- **[Discord](https://discord.gg/SNf3ZEa8Eq)** - Community help
 
 ---
 

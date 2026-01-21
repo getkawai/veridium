@@ -346,4 +346,4 @@ Coming soon to P2P marketplace:
 
 **Ready to trade?** [Open the app](../getting-started/installation.md) and start trading now!
 
-**Questions?** Check [Trading FAQ](../faq/trading.md) or [join Discord](https://discord.gg/kawai).
+**Questions?** Check [Trading FAQ](../faq/trading.md) or [join Discord](https://discord.gg/SNf3ZEa8Eq).

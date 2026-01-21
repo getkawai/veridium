@@ -408,5 +408,5 @@ Dive deeper into specific reward systems:
 
 ---
 
-**Questions?** Check [FAQ](../faq/rewards.md) or [join Discord](https://discord.gg/kawai).
+**Questions?** Check [FAQ](../faq/rewards.md) or [join Discord](https://discord.gg/SNf3ZEa8Eq).
 
