@@ -13,10 +13,14 @@ interface IMintableToken {
 
 /**
  * @title DepositCashbackDistributor
- * @dev Distributes KAWAI cashback rewards for USDT deposits using Merkle proofs
+ * @notice Distributes KAWAI cashback rewards for USDC deposits using Merkle proofs
+ * @dev Secure distributor with period-based claims and 200M KAWAI allocation cap
+ * 
+ * Website: https://getkawai.com
+ * Docs: https://getkawai.com/docs
  * 
  * Flow:
- * 1. User deposits USDT → Backend calculates cashback (off-chain)
+ * 1. User deposits USDC → Backend calculates cashback (off-chain)
  * 2. Weekly: Backend generates Merkle tree for all pending cashback
  * 3. Owner sets Merkle root for the period
  * 4. Users claim their cashback using Merkle proof

@@ -15,9 +15,19 @@ interface IMintableToken {
 
 /**
  * @title ReferralRewardDistributor
- * @dev Specialized contract for distributing referral rewards (KAWAI tokens only)
- *      Uses Merkle proofs for gas-efficient batch distribution
- *      Note: USDT rewards are off-chain credits only (stored in KV, not on-chain)
+ * @notice Specialized contract for distributing referral rewards (KAWAI tokens only)
+ * @dev Uses Merkle proofs for gas-efficient batch distribution
+ * 
+ * Website: https://getkawai.com
+ * Docs: https://getkawai.com/docs
+ * 
+ * Note: USDT rewards are off-chain credits only (stored in KV, not on-chain)
+ * 
+ * Features:
+ * - Period-based Merkle settlements
+ * - Batch claiming for multiple periods
+ * - Tracks unique referrers
+ * - Emergency pause mechanism
  */
 contract ReferralRewardDistributor is Ownable, ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;

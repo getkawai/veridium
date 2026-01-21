@@ -8,7 +8,16 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title PaymentVault
- * @dev Handles user deposits in stablecoin (USDC/USDT) for AI service credits.
+ * @notice Handles user deposits in stablecoin (USDC/USDT) for AI service credits
+ * @dev Secure vault with ReentrancyGuard and access control
+ * 
+ * Website: https://getkawai.com
+ * Docs: https://getkawai.com/docs
+ * 
+ * Features:
+ * - Accepts USDC (mainnet) or MockUSDT (testnet)
+ * - Converts deposits to AI service credits
+ * - Owner-only withdrawal for revenue distribution
  */
 contract PaymentVault is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;

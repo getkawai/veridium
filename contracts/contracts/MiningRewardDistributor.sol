@@ -18,6 +18,9 @@ interface IMintableToken {
  * @notice Distributes mining rewards with referral-based splits
  * @dev Uses Merkle proofs for gas-efficient batch distributions
  * 
+ * Website: https://getkawai.com
+ * Docs: https://getkawai.com/docs
+ * 
  * Reward Distribution:
  * - Referral users: 85% contributor, 5% developer, 5% user, 5% affiliator
  * - Non-referral users: 90% contributor, 5% developer, 5% user

@@ -16,6 +16,36 @@
 - [ ] Backup of current production data (if applicable)
 - [ ] Team notified of deployment window
 
+### Environment Variables
+
+**Required for Deployment:**
+```bash
+# Deployer/Admin Private Key (same key for both roles)
+export DEPLOYER_PRIVATE_KEY="0x..."  # Used for contract deployment
+export ADMIN_PRIVATE_KEY="$DEPLOYER_PRIVATE_KEY"  # Used for granting roles (same as deployer)
+
+# RPC Configuration
+export MONAD_MAINNET_RPC="https://mainnet-rpc.monad.xyz"
+
+# Contract Addresses (will be set after deployment)
+export KAWAI_TOKEN_ADDRESS="<deployed_address>"
+export PAYMENT_VAULT_ADDRESS="<deployed_address>"
+export MINING_DISTRIBUTOR_ADDRESS="<deployed_address>"
+export CASHBACK_DISTRIBUTOR_ADDRESS="<deployed_address>"
+export REFERRAL_DISTRIBUTOR_ADDRESS="<deployed_address>"
+
+# For Manual Verification (optional)
+export MONAD_API_KEY="<your_monad_api_key>"  # Get from MonadScan
+
+# Constructor Arguments (derived from deployment)
+export ADMIN_ADDRESS=$(cast wallet address --private-key $DEPLOYER_PRIVATE_KEY)
+export MINTER_ADDRESS="$ADMIN_ADDRESS"  # Usually same as admin
+export OWNER_ADDRESS="$ADMIN_ADDRESS"   # Usually same as admin
+export USDC_ADDRESS="0x754704bc059f8c67012fed69bc8a327a5aafb603"  # Monad Mainnet USDC
+```
+
+**Note**: In most cases, `ADMIN_PRIVATE_KEY` should be the same as `DEPLOYER_PRIVATE_KEY`. The deployer becomes the admin/owner of all contracts.
+
 ### Verification
 ```bash
 # Verify environment detection
@@ -158,8 +188,47 @@ git diff internal/constant/blockchain.go
 git diff pkg/jarvis/db/project_tokens.go
 
 # 4. Verify all contracts on MonadScan
-# Visit https://monadexplorer.com and check each contract
+# Visit https://monadvision.com/ and check each contract
 ```
+
+**What to Verify:**
+- ✅ Contract source code is visible and verified (green checkmark)
+- ✅ Constructor parameters match deployment
+- ✅ Compiler version: v0.8.20
+- ✅ No errors or warnings
+- ✅ Contract name matches (e.g., "KawaiToken")
+
+**If Auto-Verification Fails:**
+
+The `--verify` flag should automatically verify contracts, but if it fails:
+
+```bash
+# Manual verification using forge
+forge verify-contract \
+  --chain-id 143 \
+  --compiler-version v0.8.20+commit.a1b79de6 \
+  --num-of-optimizations 200 \
+  --constructor-args $(cast abi-encode "constructor(address,address)" $ADMIN_ADDRESS $MINTER_ADDRESS) \
+  $KAWAI_TOKEN_ADDRESS \
+  contracts/contracts/KawaiToken.sol:KawaiToken \
+  --etherscan-api-key $MONAD_API_KEY
+
+# For PaymentVault
+forge verify-contract \
+  --chain-id 143 \
+  --compiler-version v0.8.20+commit.a1b79de6 \
+  --num-of-optimizations 200 \
+  --constructor-args $(cast abi-encode "constructor(address,address)" $USDC_ADDRESS $OWNER_ADDRESS) \
+  $PAYMENT_VAULT_ADDRESS \
+  contracts/contracts/PaymentVault.sol:PaymentVault \
+  --etherscan-api-key $MONAD_API_KEY
+```
+
+**Why Verification Matters:**
+- 🔍 Users can read contract source code
+- ✅ Proves contract matches claimed functionality
+- 🛡️ Increases trust and transparency
+- 📊 MonadScan shows better contract info (functions, events, etc.)
 
 ---
 
