@@ -23,16 +23,6 @@ import (
 // monadChainID is the chain ID for Monad Testnet
 var monadChainID = big.NewInt(int64(networks.MonadTestnet.GetChainID()))
 
-// sendClaimAlert sends alert to both Telegram and Discord
-func sendClaimAlert(level, source, message string) {
-	// Send to Discord (claim failure webhook)
-	discordAlerter := &alert.DiscordAlert{
-		WebhookURL: constant.GetDiscordClaimFailure(),
-		Client:     &http.Client{Timeout: 10 * time.Second},
-	}
-	discordAlerter.SendAlert(level, source, message)
-}
-
 // isUserError checks if an error is a user-caused error (not system error)
 // User errors should not trigger alerts as they are expected
 func isUserError(err error) bool {
@@ -125,17 +115,23 @@ type DeAIService struct {
 	reader *reader.EthReader
 	wallet *WalletService
 	kv     store.Store // Cloudflare KV store for off-chain data
+	alert  *alert.DiscordAlert
 }
 
 // NewDeAIService creates a new instance of DeAIService
 func NewDeAIService(wallet *WalletService, kv store.Store) *DeAIService {
 	// Initialize EthReader with Monad Testnet nodes from jarvis network config
 	ethReader := reader.NewEthReaderGeneric(networks.MonadTestnet.GetDefaultNodes(), nil)
+	discordAlerter := &alert.DiscordAlert{
+		WebhookURL: constant.GetDiscordClaimFailure(),
+		Client:     &http.Client{Timeout: 10 * time.Second},
+	}
 
 	return &DeAIService{
 		reader: ethReader,
 		wallet: wallet,
 		kv:     kv,
+		alert:  discordAlerter,
 	}
 }
 
@@ -936,7 +932,7 @@ func (s *DeAIService) ClaimCashbackReward(period uint64, kawaiAmount string, pro
 
 		// Alert on unexpected errors only
 		if !isUserError(err) {
-			sendClaimAlert("WARNING", "Claim",
+			s.alert.SendAlert("WARNING", "Claim",
 				fmt.Sprintf("⚠️ Cashback claim failed\n\nUser: %s\nPeriod: %d\nAmount: %s KAWAI\nError: %v",
 					userAddr, period, kawaiAmount, err))
 		}
@@ -964,7 +960,7 @@ func (s *DeAIService) ClaimCashbackReward(period uint64, kawaiAmount string, pro
 		}
 
 		// Alert on transaction revert
-		sendClaimAlert("ERROR", "Claim",
+		s.alert.SendAlert("ERROR", "Claim",
 			fmt.Sprintf("❌ Cashback claim reverted!\n\nUser: %s\nPeriod: %d\nAmount: %s KAWAI\nTx: %s\nGas Used: %d",
 				userAddr, period, kawaiAmount, txHash, receipt.GasUsed))
 
@@ -1108,7 +1104,7 @@ func (s *DeAIService) ClaimMiningReward(
 
 		// Alert on unexpected errors only
 		if !isUserError(err) {
-			sendClaimAlert("WARNING", "Claim",
+			s.alert.SendAlert("WARNING", "Claim",
 				fmt.Sprintf("⚠️ Mining claim failed\n\nClaimer: %s\nPeriod: %d\nContributor: %s KAWAI\nError: %v",
 					claimerAddr, period, contributorAmount, err))
 		}
@@ -1133,7 +1129,7 @@ func (s *DeAIService) ClaimMiningReward(
 		}
 
 		// Alert on transaction revert
-		sendClaimAlert("ERROR", "Claim",
+		s.alert.SendAlert("ERROR", "Claim",
 			fmt.Sprintf("❌ Mining claim reverted!\n\nClaimer: %s\nPeriod: %d\nContributor: %s KAWAI\nTx: %s\nGas Used: %d",
 				claimerAddr, period, contributorAmount, txHash, receipt.GasUsed))
 
@@ -1213,7 +1209,7 @@ func (s *DeAIService) claimReward(rewardType string, periodID int64, index uint6
 	if err != nil {
 		// Alert on unexpected errors only
 		if !isUserError(err) {
-			sendClaimAlert("WARNING", "Claim",
+			s.alert.SendAlert("WARNING", "Claim",
 				fmt.Sprintf("⚠️ %s claim failed\n\nClaimer: %s\nPeriod: %d\nIndex: %d\nAmount: %s\nError: %v",
 					strings.ToUpper(rewardType), claimerAddr, periodID, index, amountStr, err))
 		}
@@ -1233,7 +1229,7 @@ func (s *DeAIService) claimReward(rewardType string, periodID int64, index uint6
 	// 8. Check transaction status
 	if receipt.Status != 1 {
 		// Alert on transaction revert
-		sendClaimAlert("ERROR", "Claim",
+		s.alert.SendAlert("ERROR", "Claim",
 			fmt.Sprintf("❌ %s claim reverted!\n\nClaimer: %s\nPeriod: %d\nIndex: %d\nAmount: %s\nTx: %s\nGas Used: %d",
 				strings.ToUpper(rewardType), claimerAddr, periodID, index, amountStr, txHash, receipt.GasUsed))
 
