@@ -25,10 +25,6 @@ var monadChainID = big.NewInt(int64(networks.MonadTestnet.GetChainID()))
 
 // sendClaimAlert sends alert to both Telegram and Discord
 func sendClaimAlert(level, source, message string) {
-	// Send to Telegram
-	telegramAlerter := alert.NewTelegramAlert()
-	telegramAlerter.SendAlert(level, source, message)
-
 	// Send to Discord (claim failure webhook)
 	discordAlerter := &alert.DiscordAlert{
 		WebhookURL: constant.GetDiscordClaimFailure(),
