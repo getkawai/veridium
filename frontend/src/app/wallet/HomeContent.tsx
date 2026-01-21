@@ -120,62 +120,62 @@ const getTransactionColumns = (
   theme: any,
   currentNetwork: NetworkInfo | null,
 ) => [
-  {
-    title: "Type",
-    dataIndex: "txType",
-    key: "txType",
-    width: 100,
-    render: (type: string) => <Tag color={getTxTypeColor(type)}>{type}</Tag>,
-  },
-  {
-    title: "Amount",
-    dataIndex: "amount",
-    key: "amount",
-    render: (amount: string, record: any) => {
-      // Coerce amount to string before operations
-      const amtStr = amount == null ? "" : String(amount);
-      const displayAmount =
-        amtStr.length > 15 ? `${amtStr.substring(0, 15)}...` : amtStr;
-      const sign = getTxSign(record.txType);
+    {
+      title: "Type",
+      dataIndex: "txType",
+      key: "txType",
+      width: 100,
+      render: (type: string) => <Tag color={getTxTypeColor(type)}>{type}</Tag>,
+    },
+    {
+      title: "Amount",
+      dataIndex: "amount",
+      key: "amount",
+      render: (amount: string, record: any) => {
+        // Coerce amount to string before operations
+        const amtStr = amount == null ? "" : String(amount);
+        const displayAmount =
+          amtStr.length > 15 ? `${amtStr.substring(0, 15)}...` : amtStr;
+        const sign = getTxSign(record.txType);
 
-      return (
-        <Tooltip title={amtStr}>
-          <span
-            style={{
-              color: sign === "+" ? theme.colorSuccess : theme.colorText,
-              fontWeight: 600,
-            }}
-          >
-            {sign}
-            {displayAmount} USDT
-          </span>
-        </Tooltip>
-      );
+        return (
+          <Tooltip title={amtStr}>
+            <span
+              style={{
+                color: sign === "+" ? theme.colorSuccess : theme.colorText,
+                fontWeight: 600,
+              }}
+            >
+              {sign}
+              {displayAmount} USDT
+            </span>
+          </Tooltip>
+        );
+      },
     },
-  },
-  {
-    title: "Date",
-    dataIndex: "createdAt",
-    key: "createdAt",
-    render: (date: string) => {
-      const parsed = new Date(date);
-      const tooltip = isNaN(parsed.getTime()) ? "-" : parsed.toLocaleString();
-      return <Tooltip title={tooltip}>{formatRelativeTime(date)}</Tooltip>;
+    {
+      title: "Date",
+      dataIndex: "createdAt",
+      key: "createdAt",
+      render: (date: string) => {
+        const parsed = new Date(date);
+        const tooltip = isNaN(parsed.getTime()) ? "-" : parsed.toLocaleString();
+        return <Tooltip title={tooltip}>{formatRelativeTime(date)}</Tooltip>;
+      },
     },
-  },
-  {
-    title: "TX Hash",
-    dataIndex: "txHash",
-    key: "txHash",
-    width: 120,
-    render: (txHash: string) =>
-      txHash ? (
-        <TransactionLink txHash={txHash} networkId={currentNetwork?.id} />
-      ) : (
-        "-"
-      ),
-  },
-];
+    {
+      title: "TX Hash",
+      dataIndex: "txHash",
+      key: "txHash",
+      width: 120,
+      render: (txHash: string) =>
+        txHash ? (
+          <TransactionLink txHash={txHash} networkId={currentNetwork?.id} />
+        ) : (
+          "-"
+        ),
+    },
+  ];
 
 // Transaction Link with analysis popup
 const TransactionLink = memo<{ txHash: string; networkId?: number }>(
@@ -409,7 +409,7 @@ const TransactionLink = memo<{ txHash: string; networkId?: number }>(
                             }}
                           >
                             {expandedParam === i ||
-                            (param.value?.length ?? 0) <= 50
+                              (param.value?.length ?? 0) <= 50
                               ? param.value
                               : `${param.value?.substring(0, 50)}...`}
                             {(param.value?.length ?? 0) > 50 && (
@@ -669,25 +669,25 @@ const HomeContent = ({
           {
             label: "Deposit",
             icon: Plus,
-            color: "#10b981",
+            color: theme.colorSuccess,
             action: () => setModalType("deposit"),
           },
           {
             label: "Send",
             icon: Send,
-            color: "#06b6d4",
+            color: theme.colorInfo,
             action: () => setModalType("send"),
           },
           {
             label: "Receive",
             icon: ArrowDownToLine,
-            color: "#22c55e",
+            color: theme.colorSuccess,
             action: () => setModalType("receive"),
           },
           {
             label: "Swap",
             icon: Repeat2,
-            color: "#eab308",
+            color: theme.colorWarning,
             action: () => setModalType("swap"),
           },
         ].map((item) => (
@@ -794,7 +794,7 @@ const HomeContent = ({
                   {nativePrice > 0 ? `$${nativePrice.toFixed(2)}` : "-"}
                 </span>
                 <div style={{ textAlign: "right", minWidth: 70 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: "#fff" }}>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: theme.colorText }}>
                     {balanceVisible ? nativeBalance : "••••"}
                   </div>
                   <div style={{ fontSize: 11, color: theme.colorTextTertiary }}>
@@ -837,7 +837,7 @@ const HomeContent = ({
                 $1.00
               </span>
               <div style={{ textAlign: "right", minWidth: 70 }}>
-                <div style={{ fontWeight: 700, fontSize: 14, color: "#fff" }}>
+                <div style={{ fontWeight: 700, fontSize: 14, color: theme.colorText }}>
                   {balanceVisible ? balance : "••••"}
                 </div>
                 <div style={{ fontSize: 11, color: theme.colorTextTertiary }}>
@@ -893,7 +893,7 @@ const HomeContent = ({
                 {kawaiPrice > 0 ? `$${kawaiPrice.toFixed(4)}` : "-"}
               </span>
               <div style={{ textAlign: "right", minWidth: 70 }}>
-                <div style={{ fontWeight: 700, fontSize: 14, color: "#fff" }}>
+                <div style={{ fontWeight: 700, fontSize: 14, color: theme.colorText }}>
                   {balanceVisible ? kawaiBalance : "••••"}
                 </div>
                 <div style={{ fontSize: 11, color: theme.colorTextTertiary }}>

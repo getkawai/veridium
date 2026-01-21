@@ -311,8 +311,8 @@ const NetworkSwitcher = memo<NetworkSwitcherProps>(({ currentNetwork, onNetworkC
           width: 8,
           height: 8,
           borderRadius: '50%',
-          background: '#22c55e',
-          boxShadow: '0 0 8px rgba(34, 197, 94, 0.5)'
+          background: theme.colorSuccess,
+          boxShadow: `0 0 8px ${theme.colorSuccess}80`
         }} />
         <Flexbox flex={1}>
           <div style={{ fontSize: 10, color: theme.colorTextTertiary, lineHeight: 1 }}>Network</div>
@@ -883,7 +883,7 @@ const SmartDepositForm = ({ onDeposit, loading }: { onDeposit: (val: number) => 
   const theme = useTheme();
   const config = useGlobalStore((s) => s.backendConfig);
   const currentNetwork = config?.network_info;
-  
+
   return (
     <Flexbox gap={16}>
       {/* Network Warning */}
@@ -918,16 +918,16 @@ const SmartDepositForm = ({ onDeposit, loading }: { onDeposit: (val: number) => 
       />
 
       <Form form={form} layout="vertical" onFinish={(v) => onDeposit(v.amount)} initialValues={{ amount: 10 }}>
-        <Form.Item 
-          label={`Amount (${currentNetwork?.stablecoinShort || 'USDT'})`} 
-          name="amount" 
+        <Form.Item
+          label={`Amount (${currentNetwork?.stablecoinShort || 'USDT'})`}
+          name="amount"
           rules={[{ required: true, min: 1, type: 'number', message: `Please enter at least 1 ${currentNetwork?.stablecoinShort || 'USDT'}` }]}
         >
-          <InputNumber 
-            style={{ width: '100%' }} 
-            size="large" 
-            addonAfter={currentNetwork?.stablecoinShort || 'USDT'} 
-            min={1} 
+          <InputNumber
+            style={{ width: '100%' }}
+            size="large"
+            addonAfter={currentNetwork?.stablecoinShort || 'USDT'}
+            min={1}
           />
         </Form.Item>
         <Button type="primary" htmlType="submit" block size="large" loading={loading} style={{ marginTop: 16 }}>
