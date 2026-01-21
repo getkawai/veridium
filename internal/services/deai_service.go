@@ -20,9 +20,6 @@ import (
 	"github.com/kawai-network/veridium/pkg/store"
 )
 
-// monadChainID is the chain ID for Monad Testnet
-var monadChainID = big.NewInt(int64(networks.MonadTestnet.GetChainID()))
-
 // isUserError checks if an error is a user-caused error (not system error)
 // User errors should not trigger alerts as they are expected
 func isUserError(err error) bool {
@@ -112,26 +109,33 @@ type RevenueShareStatsResponse struct {
 
 // DeAIService handles interactions with the Veridium smart contracts
 type DeAIService struct {
-	reader *reader.EthReader
-	wallet *WalletService
-	kv     store.Store // Cloudflare KV store for off-chain data
-	alert  *alert.DiscordAlert
+	reader  *reader.EthReader
+	wallet  *WalletService
+	kv      store.Store // Cloudflare KV store for off-chain data
+	alert   *alert.DiscordAlert
+	chainID *big.Int // Chain ID for the current Monad environment (testnet or mainnet)
 }
 
 // NewDeAIService creates a new instance of DeAIService
 func NewDeAIService(wallet *WalletService, kv store.Store) *DeAIService {
-	// Initialize EthReader with Monad Testnet nodes from jarvis network config
-	ethReader := reader.NewEthReaderGeneric(networks.MonadTestnet.GetDefaultNodes(), nil)
+	// Initialize EthReader with Monad nodes based on current environment
+	var ethReader *reader.EthReader
+	if config.IsTestnet() {
+		ethReader = reader.NewEthReaderGeneric(networks.MonadTestnet.GetDefaultNodes(), nil)
+	} else {
+		ethReader = reader.NewEthReaderGeneric(networks.MonadMainnet.GetDefaultNodes(), nil)
+	}
 	discordAlerter := &alert.DiscordAlert{
 		WebhookURL: constant.GetDiscordClaimFailure(),
 		Client:     &http.Client{Timeout: 10 * time.Second},
 	}
 
 	return &DeAIService{
-		reader: ethReader,
-		wallet: wallet,
-		kv:     kv,
-		alert:  discordAlerter,
+		reader:  ethReader,
+		wallet:  wallet,
+		kv:      kv,
+		alert:   discordAlerter,
+		chainID: big.NewInt(int64(config.GetChainID())),
 	}
 }
 
@@ -317,7 +321,7 @@ func (s *DeAIService) DepositToVault(amountStr string) (string, error) {
 	// 4. Approve if allowance < amount
 	if allowanceBig.Cmp(amount) < 0 {
 		fmt.Println("Allowance insufficient, approving...")
-		chainId := monadChainID
+		chainId := s.chainID
 		opts, err := s.wallet.getTransactOpts(chainId)
 		if err != nil {
 			return "", fmt.Errorf("failed to get opts: %w", err)
@@ -347,7 +351,7 @@ func (s *DeAIService) DepositToVault(amountStr string) (string, error) {
 	}
 
 	// 5. Deposit
-	chainId := monadChainID
+	chainId := s.chainID
 	opts, err := s.wallet.getTransactOpts(chainId)
 	if err != nil {
 		return "", fmt.Errorf("failed to get transaction opts: %w", err)
@@ -406,7 +410,7 @@ func (s *DeAIService) ApproveUSDT(spenderStr string, amountStr string) (string, 
 	}
 
 	// 2. Get Opts
-	chainId := monadChainID
+	chainId := s.chainID
 	opts, err := s.wallet.getTransactOpts(chainId)
 	if err != nil {
 		return "", fmt.Errorf("failed to get opts: %w", err)
@@ -450,7 +454,7 @@ func (s *DeAIService) ApproveToken(tokenName string, spenderStr string, amountSt
 	}
 
 	// 3. Get Opts
-	chainId := monadChainID
+	chainId := s.chainID
 	opts, err := s.wallet.getTransactOpts(chainId)
 	if err != nil {
 		return "", fmt.Errorf("failed to get opts: %w", err)
@@ -484,7 +488,7 @@ func (s *DeAIService) CreateSellOrder(tokenAmountStr string, priceStr string) (s
 		return "", fmt.Errorf("invalid price format")
 	}
 
-	chainId := monadChainID
+	chainId := s.chainID
 	opts, err := s.wallet.getTransactOpts(chainId)
 	if err != nil {
 		return "", fmt.Errorf("failed to get opts: %w", err)
@@ -516,7 +520,7 @@ func (s *DeAIService) BuyOrder(orderIdStr string) (string, error) {
 		return "", fmt.Errorf("invalid order id")
 	}
 
-	chainId := monadChainID
+	chainId := s.chainID
 	opts, err := s.wallet.getTransactOpts(chainId)
 	if err != nil {
 		return "", fmt.Errorf("failed to get opts: %w", err)
@@ -550,7 +554,7 @@ func (s *DeAIService) MintTestTokens() (string, error) {
 		return "", fmt.Errorf("MintTestTokens is only available on testnet. On mainnet, you must acquire USDC through exchanges or bridges")
 	}
 
-	chainId := monadChainID
+	chainId := s.chainID
 	opts, err := s.wallet.getTransactOpts(chainId)
 	if err != nil {
 		return "", fmt.Errorf("failed to get opts: %w", err)
@@ -587,7 +591,7 @@ func (s *DeAIService) TransferUSDT(to string, amountStr string) (string, error) 
 	}
 
 	// 3. Get Opts
-	chainId := monadChainID
+	chainId := s.chainID
 	opts, err := s.wallet.getTransactOpts(chainId)
 	if err != nil {
 		return "", fmt.Errorf("failed to get opts: %w", err)
@@ -624,7 +628,7 @@ func (s *DeAIService) TransferNative(to string, amountStr string) (string, error
 	wei.Int(amount) // Convert float to int
 
 	// 3. Get Opts (Wait for signing)
-	chainId := monadChainID
+	chainId := s.chainID
 	opts, err := s.wallet.getTransactOpts(chainId)
 	if err != nil {
 		return "", fmt.Errorf("failed to get opts: %w", err)
@@ -684,7 +688,7 @@ func (s *DeAIService) TransferToken(tokenAddress string, to string, amountStr st
 	recipient := common.HexToAddress(to)
 
 	// 3. Get Opts
-	chainId := monadChainID
+	chainId := s.chainID
 	opts, err := s.wallet.getTransactOpts(chainId)
 	if err != nil {
 		return "", fmt.Errorf("failed to get opts: %w", err)
@@ -902,7 +906,7 @@ func (s *DeAIService) ClaimCashbackReward(period uint64, kawaiAmount string, pro
 	}
 
 	// 4. Get transaction options
-	chainId := monadChainID
+	chainId := s.chainID
 	opts, err := s.wallet.getTransactOpts(chainId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get transaction opts: %w", err)
@@ -1066,7 +1070,7 @@ func (s *DeAIService) ClaimMiningReward(
 	affAddr := common.HexToAddress(affiliatorAddress)
 
 	// 6. Get transaction options
-	chainId := monadChainID
+	chainId := s.chainID
 	opts, err := s.wallet.getTransactOpts(chainId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get transaction opts: %w", err)
@@ -1198,7 +1202,7 @@ func (s *DeAIService) claimReward(rewardType string, periodID int64, index uint6
 	}
 
 	// 5. Get transaction options
-	chainId := monadChainID
+	chainId := s.chainID
 	opts, err := s.wallet.getTransactOpts(chainId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get transaction opts: %w", err)
