@@ -51,6 +51,7 @@ var telegramVars = []ConfigVar{
 // Define all supported Discord variables
 var discordVars = []ConfigVar{
 	{EnvKey: "DISCORD_WEBHOOK", GoName: "DiscordWebhook", Comment: "Discord Webhook URL", Order: 1},
+	{EnvKey: "DISCORD_CLAIM_FAILURE", GoName: "DiscordClaimFailure", Comment: "Discord Webhook URL for Claim Failures", Order: 2},
 }
 
 // Define all supported Admin variables

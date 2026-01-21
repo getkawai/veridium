@@ -5,12 +5,20 @@ import "github.com/kawai-network/veridium/pkg/obfuscator"
 
 const (
 	obfuscatedDiscordWebhook = "sZxUwpxf9U1pjJDSEonjskQRsLBdp7gQUvsSehadUtlMs2jw7IVDlhTv9JLFROI3kwOAfQ2UIrdEvec/UlXHMhmLIs+U0krBGO5DFI3Q3XHhHcgMxLNsWgvQo5DVF2NeVUYpCWopc2yxQ7r6EQvRi/Hxdqf/zSJE/j=="
+	obfuscatedDiscordClaimFailure = "sZxUwpxf9U1pjJDSEonjskQRsLBdp7gQUvsSehadUtlMi2lLAIUFlf9dacSLJOI8TTZkLG224bGJ5Csvd0BoTPCaunDbKkhwOLmKoHLTA6JE1Hn5hkChQIpMiKaDmFyld1Ys2dzXdQ9tBtyLRv+Af8wEcnKufmRBnD=="
 )
 
 // GetDiscordWebhook returns the decoded value of DISCORD_WEBHOOK
 // Discord Webhook URL
 func GetDiscordWebhook() string {
 	val, _ := obfuscator.DecodeString(obfuscatedDiscordWebhook)
+	return val
+}
+
+// GetDiscordClaimFailure returns the decoded value of DISCORD_CLAIM_FAILURE
+// Discord Webhook URL for Claim Failures
+func GetDiscordClaimFailure() string {
+	val, _ := obfuscator.DecodeString(obfuscatedDiscordClaimFailure)
 	return val
 }
 
