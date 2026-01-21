@@ -810,3 +810,93 @@ website-clean:
 	else \
 		echo "⚠️  No node_modules to clean"; \
 	fi
+
+
+# ✅ MAINNET DEPLOYMENT TARGETS (with safety confirmations)
+contracts-deploy-mainnet:
+	@echo "🚀 Deploying to Monad Mainnet..."
+	@echo "⚠️  WARNING: This will deploy to PRODUCTION mainnet!"
+	@echo "⚠️  Make sure you are using the correct private key and RPC URL"
+	@read -p "Continue? [y/N] " confirm && [ "$$confirm" = "y" ] || exit 1
+	@test -n "$(PRIVATE_KEY)" || (echo "❌ PRIVATE_KEY not set!" && exit 1)
+	@test -n "$(MAINNET_RPC_URL)" || (echo "❌ MAINNET_RPC_URL not set!" && exit 1)
+	@echo "Deploying to mainnet..."
+	cd $(CONTRACTS_DIR) && ~/.foundry/bin/forge script script/DeployKawai.s.sol:DeployKawai \
+		--rpc-url $(MAINNET_RPC_URL) \
+		--private-key $(PRIVATE_KEY) \
+		--broadcast \
+		--verify
+	@echo "✅ Deployment complete! Update .env.mainnet with deployed addresses"
+
+contracts-deploy-mining-mainnet:
+	@echo "🚀 Deploying MiningRewardDistributor to Monad Mainnet..."
+	@echo "⚠️  WARNING: This will deploy to PRODUCTION mainnet!"
+	@read -p "Continue? [y/N] " confirm && [ "$$confirm" = "y" ] || exit 1
+	@test -n "$(PRIVATE_KEY)" || (echo "❌ PRIVATE_KEY not set!" && exit 1)
+	@test -n "$(MAINNET_RPC_URL)" || (echo "❌ MAINNET_RPC_URL not set!" && exit 1)
+	@test -n "$(KAWAI_TOKEN_ADDRESS)" || (echo "❌ KAWAI_TOKEN_ADDRESS not set! Set it in contracts/.env.mainnet" && exit 1)
+	cd $(CONTRACTS_DIR) && ~/.foundry/bin/forge script script/DeployMiningDistributor.s.sol:DeployMiningDistributor \
+		--rpc-url $(MAINNET_RPC_URL) \
+		--private-key $(PRIVATE_KEY) \
+		--broadcast \
+		--verify
+
+contracts-deploy-cashback-mainnet:
+	@echo "🚀 Deploying DepositCashbackDistributor to Monad Mainnet..."
+	@echo "⚠️  WARNING: This will deploy to PRODUCTION mainnet!"
+	@read -p "Continue? [y/N] " confirm && [ "$$confirm" = "y" ] || exit 1
+	@test -n "$(PRIVATE_KEY)" || (echo "❌ PRIVATE_KEY not set!" && exit 1)
+	@test -n "$(MAINNET_RPC_URL)" || (echo "❌ MAINNET_RPC_URL not set!" && exit 1)
+	@test -n "$(KAWAI_TOKEN_ADDRESS)" || (echo "❌ KAWAI_TOKEN_ADDRESS not set! Set it in contracts/.env.mainnet" && exit 1)
+	cd $(CONTRACTS_DIR) && ~/.foundry/bin/forge script script/DeployCashbackDistributor.s.sol:DeployCashbackDistributor \
+		--rpc-url $(MAINNET_RPC_URL) \
+		--private-key $(PRIVATE_KEY) \
+		--broadcast \
+		--verify
+
+contracts-deploy-referral-mainnet:
+	@echo "🚀 Deploying ReferralRewardDistributor to Monad Mainnet..."
+	@echo "⚠️  WARNING: This will deploy to PRODUCTION mainnet!"
+	@read -p "Continue? [y/N] " confirm && [ "$$confirm" = "y" ] || exit 1
+	@test -n "$(PRIVATE_KEY)" || (echo "❌ PRIVATE_KEY not set!" && exit 1)
+	@test -n "$(MAINNET_RPC_URL)" || (echo "❌ MAINNET_RPC_URL not set!" && exit 1)
+	@test -n "$(KAWAI_TOKEN_ADDRESS)" || (echo "❌ KAWAI_TOKEN_ADDRESS not set! Set it in contracts/.env.mainnet" && exit 1)
+	cd $(CONTRACTS_DIR) && ~/.foundry/bin/forge script script/DeployReferralDistributor.s.sol:DeployReferralDistributor \
+		--rpc-url $(MAINNET_RPC_URL) \
+		--private-key $(PRIVATE_KEY) \
+		--broadcast \
+		--verify
+
+# Grant MINTER_ROLE on mainnet (with safety confirmation)
+contracts-grant-minter-mainnet:
+	@echo "🔐 Granting MINTER_ROLE on Monad Mainnet..."
+	@echo "⚠️  WARNING: This will grant MINTER_ROLE on PRODUCTION mainnet!"
+	@read -p "Continue? [y/N] " confirm && [ "$$confirm" = "y" ] || exit 1
+	@test -n "$(PRIVATE_KEY)" || (echo "❌ PRIVATE_KEY not set!" && exit 1)
+	@test -n "$(MAINNET_RPC_URL)" || (echo "❌ MAINNET_RPC_URL not set!" && exit 1)
+	@test -n "$(KAWAI_TOKEN_ADDRESS)" || (echo "❌ KAWAI_TOKEN_ADDRESS not set!" && exit 1)
+	@test -n "$(MINING_DISTRIBUTOR_ADDRESS)" || (echo "❌ MINING_DISTRIBUTOR_ADDRESS not set!" && exit 1)
+	@test -n "$(CASHBACK_DISTRIBUTOR_ADDRESS)" || (echo "❌ CASHBACK_DISTRIBUTOR_ADDRESS not set!" && exit 1)
+	@test -n "$(REFERRAL_DISTRIBUTOR_ADDRESS)" || (echo "❌ REFERRAL_DISTRIBUTOR_ADDRESS not set!" && exit 1)
+	@echo "Granting MINTER_ROLE to Mining Distributor..."
+	cd $(CONTRACTS_DIR) && cast send $(KAWAI_TOKEN_ADDRESS) \
+		"grantRole(bytes32,address)" \
+		$$(cast keccak "MINTER_ROLE") \
+		$(MINING_DISTRIBUTOR_ADDRESS) \
+		--rpc-url $(MAINNET_RPC_URL) \
+		--private-key $(PRIVATE_KEY)
+	@echo "Granting MINTER_ROLE to Cashback Distributor..."
+	cd $(CONTRACTS_DIR) && cast send $(KAWAI_TOKEN_ADDRESS) \
+		"grantRole(bytes32,address)" \
+		$$(cast keccak "MINTER_ROLE") \
+		$(CASHBACK_DISTRIBUTOR_ADDRESS) \
+		--rpc-url $(MAINNET_RPC_URL) \
+		--private-key $(PRIVATE_KEY)
+	@echo "Granting MINTER_ROLE to Referral Distributor..."
+	cd $(CONTRACTS_DIR) && cast send $(KAWAI_TOKEN_ADDRESS) \
+		"grantRole(bytes32,address)" \
+		$$(cast keccak "MINTER_ROLE") \
+		$(REFERRAL_DISTRIBUTOR_ADDRESS) \
+		--rpc-url $(MAINNET_RPC_URL) \
+		--private-key $(PRIVATE_KEY)
+	@echo "✅ All MINTER_ROLEs granted on mainnet!"

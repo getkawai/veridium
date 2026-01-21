@@ -89,16 +89,20 @@ This document outlines all necessary steps to ensure the application is producti
 
 **Note**: Test token minting is backend-controlled and already blocked on mainnet via environment check.
 
-### 3. Deployment Scripts
+### 3. Deployment Scripts ✅ PARTIALLY COMPLETE
 
-**Problem**: Need separate deployment for testnet vs mainnet
-**Solution**: Create environment-specific deployment scripts
+**Status**: 🟡 **Makefile targets exist, but need mainnet-specific variants**
 
-**Action Items**:
-- [ ] Create `scripts/deploy-testnet.sh`
-- [ ] Create `scripts/deploy-mainnet.sh`
+**Current State**:
+- [x] `contracts-deploy-testnet` exists (generic, works for any network)
+- [x] `contracts-deploy-mining-testnet` exists
+- [x] `contracts-deploy-cashback-testnet` exists
+- [x] `contracts-deploy-referral-testnet` exists
+- [ ] Create mainnet-specific targets for clarity
 - [ ] Add pre-deployment validation checks
-- [ ] Document deployment process for each environment
+- [ ] Document deployment process
+
+**Note**: Existing testnet targets can be used for mainnet by changing `.env` file, but dedicated mainnet targets would be clearer and safer.
 
 ### 4. Contract Deployment
 
