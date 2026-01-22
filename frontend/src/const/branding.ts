@@ -19,7 +19,7 @@ export const SOCIAL_URL = {
   discord: 'https://discord.gg/SNf3ZEa8Eq',
   github: 'https://github.com/kawai-network',
   medium: 'https://medium.com/@kawai-network',
-  x: 'https://x.com/kawai_network',
+  x: 'https://x.com/getkawai',
   youtube: 'https://www.youtube.com/@kawai-network',
 };
 
