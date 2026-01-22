@@ -14,7 +14,7 @@ interface IMintableToken {
 /**
  * @title DepositCashbackDistributor
  * @notice Distributes KAWAI cashback rewards for USDC deposits using Merkle proofs
- * @dev Secure distributor with period-based claims and 200M KAWAI allocation cap
+ * @dev Secure distributor with period-based claims
  * 
  * Website: https://getkawai.com
  * Docs: https://getkawai.com/docs
@@ -56,9 +56,6 @@ contract DepositCashbackDistributor is Ownable, ReentrancyGuard, Pausable {
     // Statistics
     uint256 public totalKawaiDistributed;
     uint256 public totalUsers;
-    
-    // Allocation tracking
-    uint256 public constant TOTAL_ALLOCATION = 200_000_000 * 1e18; // 200M KAWAI
     
     // ============ Events ============
     
@@ -103,10 +100,6 @@ contract DepositCashbackDistributor is Ownable, ReentrancyGuard, Pausable {
         require(period <= currentPeriod, "Invalid period");
         require(!hasClaimed[period][msg.sender], "Already claimed for this period");
         require(kawaiAmount > 0, "No cashback to claim");
-        require(
-            totalKawaiDistributed + kawaiAmount <= TOTAL_ALLOCATION,
-            "Exceeds total allocation"
-        );
         
         // Verify Merkle proof using period-specific root
         bytes32 leaf = keccak256(
@@ -185,10 +178,6 @@ contract DepositCashbackDistributor is Ownable, ReentrancyGuard, Pausable {
         }
         
         require(totalAmount > 0, "No cashback to claim");
-        require(
-            totalKawaiDistributed + totalAmount <= TOTAL_ALLOCATION,
-            "Exceeds total allocation"
-        );
         
         // Mint total KAWAI tokens
         IMintableToken(address(kawaiToken)).mint(msg.sender, totalAmount);
@@ -216,13 +205,11 @@ contract DepositCashbackDistributor is Ownable, ReentrancyGuard, Pausable {
     function getStats() external view returns (
         uint256 _currentPeriod,
         uint256 _totalKawaiDistributed,
-        uint256 _remainingAllocation,
         uint256 _totalUsers
     ) {
         return (
             currentPeriod,
             totalKawaiDistributed,
-            TOTAL_ALLOCATION - totalKawaiDistributed,
             totalUsers
         );
     }

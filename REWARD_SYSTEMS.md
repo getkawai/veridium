@@ -629,7 +629,7 @@ All contracts:
 - ✅ Have ReentrancyGuard (prevents reentrancy attacks)
 - ✅ Validate Merkle proofs (prevents fake claims)
 - ✅ Track claimed periods (prevents double-claiming)
-- ✅ Have allocation caps (prevents over-minting)
+- ✅ Have total supply cap in KawaiToken (1B KAWAI via ERC20Capped)
 
 ---
 

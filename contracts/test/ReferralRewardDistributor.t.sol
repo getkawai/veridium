@@ -93,13 +93,11 @@ contract ReferralRewardDistributorTest is Test {
         (
             uint256 period,
             uint256 kawaiDistributed,
-            uint256 remainingAllocation,
             uint256 referrers
         ) = distributor.getStats();
         
         assertEq(period, 1);
         assertEq(kawaiDistributed, 0);
-        assertEq(remainingAllocation, 300_000_000 * 1e18, "Should have full allocation");
         assertEq(referrers, 0);
         
         // Claim rewards
@@ -119,7 +117,6 @@ contract ReferralRewardDistributorTest is Test {
         (
             ,
             kawaiDistributed,
-            ,
             referrers
         ) = distributor.getStats();
         
@@ -162,7 +159,7 @@ contract ReferralRewardDistributorTest is Test {
         assertEq(kawai.balanceOf(user1), KAWAI_REWARD * 3);
         
         // Verify referrers count (should be 1, not 2)
-        (, , , uint256 referrers) = distributor.getStats();
+        (, , uint256 referrers) = distributor.getStats();
         assertEq(referrers, 1);
     }
 }

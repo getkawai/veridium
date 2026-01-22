@@ -6,7 +6,7 @@ import "github.com/kawai-network/veridium/pkg/obfuscator"
 const (
 	// Core Cloudflare credentials
 	obfuscatedCfAccountId = "QeTJPqsVakk9jCIrS+7txvwIf7YQaD6hWRbEIyOExX6="
-	obfuscatedCfApiToken = "mjfZu/zSIWvlA/5HqsFBOH9pCc1T2kHr+uq5RUlGs+YelOxD828NlP=="
+	obfuscatedCfApiToken = "sQzN3IMopBIKsm37u/aWnmBXm5D9v+LZefsJAS5AYWFcWSFoXM4YJZ=="
 
 	// KV Namespaces - Multiple namespaces for data isolation
 	// - Contributors: User data, balances, heartbeat

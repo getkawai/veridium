@@ -56,7 +56,6 @@ Official smart contracts for the Kawai AI platform on Monad blockchain.
 
 ### DepositCashbackDistributor.sol
 - Distributes deposit cashback in KAWAI tokens
-- 200M KAWAI allocation cap
 - Batch claiming support
 
 ### ReferralRewardDistributor.sol

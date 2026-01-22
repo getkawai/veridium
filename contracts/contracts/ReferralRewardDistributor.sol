@@ -50,9 +50,6 @@ contract ReferralRewardDistributor is Ownable, ReentrancyGuard, Pausable {
     // Track total rewards distributed
     uint256 public totalKawaiDistributed;
     uint256 public totalReferrers;
-    
-    // Allocation cap (300M KAWAI for referral rewards)
-    uint256 public constant TOTAL_ALLOCATION = 300_000_000 * 1e18;
 
     event RewardsClaimed(
         uint256 indexed period,
@@ -91,10 +88,6 @@ contract ReferralRewardDistributor is Ownable, ReentrancyGuard, Pausable {
         require(period <= currentPeriod, "Invalid period");
         require(!hasClaimed[period][msg.sender], "Already claimed for this period");
         require(kawaiAmount > 0, "No rewards to claim");
-        require(
-            totalKawaiDistributed + kawaiAmount <= TOTAL_ALLOCATION,
-            "Exceeds total allocation"
-        );
 
         // Verify Merkle proof using period-specific root
         bytes32 leaf = keccak256(
@@ -140,8 +133,6 @@ contract ReferralRewardDistributor is Ownable, ReentrancyGuard, Pausable {
             "Array length mismatch"
         );
 
-        uint256 totalAmount = 0;
-
         for (uint256 i = 0; i < periods.length; i++) {
             uint256 period = periods[i];
             
@@ -164,25 +155,12 @@ contract ReferralRewardDistributor is Ownable, ReentrancyGuard, Pausable {
 
             // Mark as claimed
             hasClaimed[period][msg.sender] = true;
-            totalAmount += kawaiAmounts[i];
+
+            // Mint KAWAI tokens
+            IMintableToken(address(kawaiToken)).mint(msg.sender, kawaiAmounts[i]);
+            totalKawaiDistributed += kawaiAmounts[i];
 
             emit RewardsClaimed(period, msg.sender, kawaiAmounts[i]);
-        }
-        
-        require(totalAmount > 0, "No rewards to claim");
-        require(
-            totalKawaiDistributed + totalAmount <= TOTAL_ALLOCATION,
-            "Exceeds total allocation"
-        );
-
-        // Mint KAWAI tokens
-        IMintableToken(address(kawaiToken)).mint(msg.sender, totalAmount);
-        totalKawaiDistributed += totalAmount;
-        
-        // Track unique users (only increment once per user)
-        if (!hasClaimedAnyPeriod[msg.sender]) {
-            hasClaimedAnyPeriod[msg.sender] = true;
-            totalReferrers++;
         }
     }
 
@@ -239,19 +217,16 @@ contract ReferralRewardDistributor is Ownable, ReentrancyGuard, Pausable {
      * @notice Get contract statistics
      * @return period Current period
      * @return kawaiDistributed Total KAWAI distributed
-     * @return remainingAllocation Remaining allocation
      * @return referrers Total unique referrers
      */
     function getStats() external view returns (
         uint256 period,
         uint256 kawaiDistributed,
-        uint256 remainingAllocation,
         uint256 referrers
     ) {
         return (
             currentPeriod,
             totalKawaiDistributed,
-            TOTAL_ALLOCATION - totalKawaiDistributed,
             totalReferrers
         );
     }

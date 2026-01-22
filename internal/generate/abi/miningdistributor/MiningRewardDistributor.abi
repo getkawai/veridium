@@ -12,19 +12,6 @@
   },
   {
     "type": "function",
-    "name": "TOTAL_ALLOCATION",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "advancePeriod",
     "inputs": [
       {
@@ -182,11 +169,6 @@
       },
       {
         "name": "affiliatorRewards",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "remainingAllocation",
         "type": "uint256",
         "internalType": "uint256"
       }

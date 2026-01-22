@@ -238,25 +238,12 @@ contract DepositCashbackDistributorTest is Test {
         (
             uint256 currentPeriod,
             uint256 totalDistributed,
-            uint256 remaining,
             uint256 totalUsers
         ) = distributor.getStats();
         
         assertEq(currentPeriod, 1);
         assertEq(totalDistributed, 1000 * 1e18);
-        assertEq(remaining, 200_000_000 * 1e18 - 1000 * 1e18);
         assertEq(totalUsers, 1);
-    }
-    
-    function testAllocationCap() public {
-        // Set Merkle root
-        vm.prank(owner);
-        distributor.setMerkleRoot(merkleRoot);
-        
-        // Mock: Try to claim more than allocation
-        // This would require setting up a Merkle tree with huge amounts
-        // For now, we just verify the constant
-        assertEq(distributor.TOTAL_ALLOCATION(), 200_000_000 * 1e18);
     }
     
     function testMultipleUsers() public {

@@ -253,10 +253,12 @@ From `README.md`:
 
 **Max Supply:** 1,000,000,000 KAWAI (1 billion)
 
-**Allocation:**
-- Mining Rewards: 700M KAWAI (70%)
-- Cashback Rewards: 200M KAWAI (20%)
-- Referral Rewards: 100M KAWAI (10%)
+**Distribution:**
+- Mining Rewards: Phase-based diminishing rewards (100→50→25→12 KAWAI per 1M tokens)
+- Cashback Rewards: Tier-based rates with per-deposit caps
+- Referral Rewards: 10% of referee's mining rewards
+
+Note: No fixed allocation caps per distributor. Only total supply cap of 1B KAWAI (ERC20Capped).
 
 **Emission:**
 - Gradual emission via claims (mint-on-demand)

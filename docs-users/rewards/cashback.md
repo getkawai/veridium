@@ -117,8 +117,8 @@ Diamond: 20,000 KAWAI max
 
 **Why caps exist:**
 - Prevent abuse (very large deposits)
-- Sustainable tokenomics (200M allocation)
-- Fair distribution (~3 year runway)
+- Sustainable tokenomics (1B total supply cap)
+- Fair distribution across all users
 
 ## 💰 Example Scenarios
 
@@ -360,7 +360,7 @@ Compound effect over year: 10-15% bonus
 - Verify Merkle proofs
 - Mint KAWAI on valid claims
 - Track claimed periods
-- Enforce allocation cap (200M)
+- Enforce per-deposit tier caps
 
 **What it CANNOT do:**
 - Change your cashback amounts

@@ -193,8 +193,8 @@ type cacheEntry struct {
 **Features:**
 - ✅ Period-based Merkle claims (weekly)
 - ✅ Batch claim support (gas-efficient)
-- ✅ 200M KAWAI allocation cap (20% of max supply)
-- ✅ 13/13 tests passing
+- ✅ Per-deposit tier-based caps (prevents abuse)
+- ✅ 12/12 tests passing
 
 **Deployment:**
 - **Date:** January 4, 2026
@@ -487,20 +487,17 @@ npm run lint
 
 ## 📊 **Tokenomics**
 
-**Allocation:** 200M KAWAI (20% of max supply)
+**Distribution Model:** Tier-based cashback rates with per-deposit caps
 
-**Depletion Timeline:**
-- **Conservative:** 8.3 years (100 users, 2 deposits/month)
-- **Growth:** 1.5 years (500 users, 3 deposits/month, with caps)
-- **Aggressive:** 2.5 months (2000 users, 4 deposits/month, with caps)
+**Tier Caps (per deposit):**
+- Tier 1 (0-100 USDC): 2% cashback, max 200 KAWAI
+- Tier 2 (100-1000 USDC): 1.5% cashback, max 1500 KAWAI  
+- Tier 3 (1000-10000 USDC): 1% cashback, max 10000 KAWAI
+- Tier 4 (10000+ USDC): 0.5% cashback, max 50000 KAWAI
 
-**Realistic Projection (with tier caps):**
-- Year 1: 106.75M KAWAI (53% of allocation)
-- Year 2: ~80M KAWAI (with dynamic rate reduction)
-- Year 3: ~13.25M KAWAI (low rate phase)
-- **Total: ~200M KAWAI over 3 years** ✅
+**Total Supply Cap:** 1B KAWAI (ERC20Capped in KawaiToken contract)
 
-**See:** `docs/DEPOSIT_CASHBACK_TOKENOMICS.md` for detailed analysis
+**See:** `docs/DEPOSIT_CASHBACK_TOKENOMICS.md` for tier rate analysis
 
 ---
 
@@ -511,7 +508,7 @@ npm run lint
 3. **Double Claim Prevention:** On-chain tracking per period
 4. **Merkle Proof Verification:** OpenZeppelin's secure implementation
 5. **Access Control:** Only owner can set Merkle roots
-6. **Allocation Cap:** Hard cap at 200M KAWAI
+6. **Per-Deposit Caps:** Tier-based limits prevent abuse
 7. **MINTER_ROLE:** Only granted to verified distributor contracts
 
 ---
@@ -636,7 +633,7 @@ All critical features are complete and tested:
 - Users see "Pending" button if proof not available yet
 - Claims are **gas-efficient** (users only pay gas when claiming)
 - Supports **batch claiming** (multiple periods at once)
-- **200M KAWAI allocation** (~3 year runway at current projections)
+- **Tier-based caps** prevent abuse while maintaining sustainability
 - **Architecture identical** to mining & referral rewards (proven & tested)
 
 ### **Common Pitfalls:**

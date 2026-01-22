@@ -17,19 +17,6 @@ var ProjectABIs = map[string]string{
   },
   {
     "type": "function",
-    "name": "TOTAL_ALLOCATION",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "advancePeriod",
     "inputs": [
       {
@@ -131,11 +118,6 @@ var ProjectABIs = map[string]string{
       },
       {
         "name": "_totalKawaiDistributed",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "_remainingAllocation",
         "type": "uint256",
         "internalType": "uint256"
       },
@@ -1997,19 +1979,6 @@ var ProjectABIs = map[string]string{
   },
   {
     "type": "function",
-    "name": "TOTAL_ALLOCATION",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "advancePeriod",
     "inputs": [
       {
@@ -2167,11 +2136,6 @@ var ProjectABIs = map[string]string{
       },
       {
         "name": "affiliatorRewards",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "remainingAllocation",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -3142,19 +3106,6 @@ var ProjectABIs = map[string]string{
   },
   {
     "type": "function",
-    "name": "TOTAL_ALLOCATION",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "advancePeriod",
     "inputs": [
       {
@@ -3237,11 +3188,6 @@ var ProjectABIs = map[string]string{
       },
       {
         "name": "kawaiDistributed",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "remainingAllocation",
         "type": "uint256",
         "internalType": "uint256"
       },
