@@ -6,10 +6,12 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/getsentry/sentry-go"
 	"github.com/kawai-network/veridium/internal/app"
 	"github.com/kawai-network/veridium/internal/image"
+	"github.com/kawai-network/veridium/internal/lifecycle"
 	"github.com/kawai-network/veridium/internal/machineid"
 	"github.com/kawai-network/veridium/internal/paths"
 	"github.com/kawai-network/veridium/internal/services"
@@ -52,7 +54,6 @@ func main() {
 
 	// Initialize core services using internal/app (SINGLE SOURCE OF TRUTH)
 	ctx := app.NewContext()
-	defer ctx.Cleanup()
 
 	if err := ctx.InitAll(); err != nil {
 		sentry.CaptureException(err)
@@ -211,23 +212,57 @@ func registerAgentServices(wailsApp *application.App, ctx *app.Context, fileProc
 		log.Printf("FileProcessor: LLM cleanup model injected")
 	}
 
+	// Initialize centralized lifecycle manager for graceful shutdown
+	lifecycleManager := lifecycle.NewManager()
+
+	// Register cleanup functions in initialization order
+	// They will be executed in LIFO order (reverse) during shutdown
+
+	// Database cleanup (should be last to cleanup, first registered)
+	if ctx.DB != nil {
+		lifecycleManager.RegisterCleanup("Database Connection", func() {
+			if err := ctx.DB.Close(); err != nil {
+				log.Printf("Error closing database: %v", err)
+			}
+		})
+	}
+
+	// Stable Diffusion cleanup
+	lifecycleManager.RegisterCleanup("Stable Diffusion Engine", func() {
+		sdService.Cleanup()
+	})
+
+	// Llama Library cleanup
 	if ctx.LibService != nil {
-		wailsApp.OnShutdown(func() {
-			log.Printf("Cleaning up Llama Library...")
+		lifecycleManager.RegisterCleanup("Llama Library", func() {
 			ctx.LibService.Cleanup()
 		})
 	}
 
-	// Cleanup Stable Diffusion processes on shutdown
-	wailsApp.OnShutdown(func() {
-		sdService.Cleanup() // Cleanup is available via embedded Engine
-	})
+	// DuckDB cleanup
+	if ctx.DuckDBStore != nil {
+		lifecycleManager.RegisterCleanup("DuckDB Store", func() {
+			if err := ctx.DuckDBStore.Close(); err != nil {
+				log.Printf("Error closing DuckDB: %v", err)
+			}
+		})
+	}
+
+	// Sentry flush (should be one of the last things to cleanup)
+	lifecycleManager.RegisterCleanupWithTimeout("Sentry Flush", func() {
+		sentry.Flush(2 * time.Second)
+	}, 3*time.Second)
+
+	// Register the centralized shutdown handler
+	wailsApp.OnShutdown(lifecycleManager.Shutdown)
+
+	log.Printf("✅ Registered %d cleanup handlers", lifecycleManager.Count())
 }
 
 func createMainWindow(wailsApp *application.App, ctx *app.Context, fileProcessor *FileProcessorService) {
 	win := wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title:             "Kawai",
-		StartState:        application.WindowStateMaximised,
+		Title:          "Kawai",
+		StartState:     application.WindowStateMaximised,
 		EnableFileDrop: true,
 		Mac: application.MacWindow{
 			Backdrop: application.MacBackdropTranslucent,

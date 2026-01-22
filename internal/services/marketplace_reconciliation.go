@@ -20,10 +20,6 @@ type ReconciliationService struct {
 	walletService    *WalletService
 	kvStore          *store.KVStore
 
-	// Control
-	stopCh chan struct{}
-	doneCh chan struct{}
-
 	// Configuration
 	interval time.Duration
 }
@@ -40,35 +36,21 @@ func NewReconciliationService(
 		orderService:     orderService,
 		walletService:    walletService,
 		kvStore:          kvStore,
-		stopCh:           make(chan struct{}),
-		doneCh:           make(chan struct{}),
 		interval:         5 * time.Minute, // Reconcile every 5 minutes
 	}
 }
 
 // Start begins the periodic reconciliation process
-func (s *ReconciliationService) Start() {
+func (s *ReconciliationService) Start(ctx context.Context) {
 	log.Println("🔄 Starting reconciliation service...")
-
-	go s.run()
-
+	go s.run(ctx)
 	log.Println("✅ Reconciliation service started")
 }
 
-// Stop stops the reconciliation service
-func (s *ReconciliationService) Stop() {
-	log.Println("🛑 Stopping reconciliation service...")
-	close(s.stopCh)
-	<-s.doneCh
-	log.Println("✅ Reconciliation service stopped")
-}
-
 // run is the main reconciliation loop
-func (s *ReconciliationService) run() {
-	defer close(s.doneCh)
-
+func (s *ReconciliationService) run(ctx context.Context) {
 	// Run immediately on start
-	if err := s.Reconcile(); err != nil {
+	if err := s.Reconcile(ctx); err != nil {
 		log.Printf("❌ Initial reconciliation failed: %v", err)
 	}
 
@@ -78,10 +60,11 @@ func (s *ReconciliationService) run() {
 
 	for {
 		select {
-		case <-s.stopCh:
+		case <-ctx.Done():
+			log.Println("🛑 Reconciliation service stopping (context cancelled)...")
 			return
 		case <-ticker.C:
-			if err := s.Reconcile(); err != nil {
+			if err := s.Reconcile(ctx); err != nil {
 				log.Printf("❌ Reconciliation failed: %v", err)
 			}
 		}
@@ -89,8 +72,7 @@ func (s *ReconciliationService) run() {
 }
 
 // Reconcile performs a full reconciliation between blockchain and KV store
-func (s *ReconciliationService) Reconcile() error {
-	ctx := context.Background()
+func (s *ReconciliationService) Reconcile(ctx context.Context) error {
 	myAddr := s.walletService.GetCurrentAddress()
 
 	if myAddr == "" {
@@ -290,7 +272,7 @@ func (s *ReconciliationService) hasOrderMismatch(bcOrder, kvOrder *Order) bool {
 }
 
 // ReconcileNow triggers an immediate reconciliation (for manual trigger)
-func (s *ReconciliationService) ReconcileNow() error {
+func (s *ReconciliationService) ReconcileNow(ctx context.Context) error {
 	log.Println("🔄 Manual reconciliation triggered...")
-	return s.Reconcile()
+	return s.Reconcile(ctx)
 }
