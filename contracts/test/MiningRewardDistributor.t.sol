@@ -100,7 +100,8 @@ contract MiningRewardDistributorTest is Test {
             uint256 contributorRewards,
             uint256 developerRewards,
             uint256 userRewards,
-            uint256 affiliatorRewards
+            uint256 affiliatorRewards,
+            uint256 remainingAllocation
         ) = distributor.getStats();
         
         assertEq(period, 1);
@@ -108,6 +109,7 @@ contract MiningRewardDistributorTest is Test {
         assertEq(developerRewards, DEVELOPER_SHARE);
         assertEq(userRewards, USER_CASHBACK);
         assertEq(affiliatorRewards, AFFILIATOR_COMMISSION);
+        assertGt(remainingAllocation, 0, "Should have remaining allocation");
     }
     
     function testClaimNonReferralUserReward() public {
@@ -155,7 +157,8 @@ contract MiningRewardDistributorTest is Test {
             uint256 contributorRewards,
             uint256 developerRewards,
             uint256 userRewards,
-            uint256 affiliatorRewards
+            uint256 affiliatorRewards,
+            
         ) = distributor.getStats();
         
         assertEq(contributorRewards, CONTRIBUTOR_NON_REFERRAL);
@@ -466,7 +469,8 @@ contract MiningRewardDistributorTest is Test {
             uint256 contributorRewards,
             uint256 developerRewards,
             uint256 userRewards,
-            uint256 affiliatorRewards
+            uint256 affiliatorRewards,
+            uint256 remainingAllocation
         ) = distributor.getStats();
         
         assertEq(period, 1);
@@ -474,6 +478,7 @@ contract MiningRewardDistributorTest is Test {
         assertEq(developerRewards, 0);
         assertEq(userRewards, 0);
         assertEq(affiliatorRewards, 0);
+        assertEq(remainingAllocation, 500_000_000 * 1e18, "Should have full allocation");
         
         // Claim a reward
         bytes32 leaf = keccak256(abi.encodePacked(
@@ -510,7 +515,8 @@ contract MiningRewardDistributorTest is Test {
             contributorRewards,
             developerRewards,
             userRewards,
-            affiliatorRewards
+            affiliatorRewards,
+            
         ) = distributor.getStats();
         
         assertEq(period, 1);

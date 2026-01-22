@@ -79,9 +79,9 @@ func (c *Client) GetTotalSupply(ctx context.Context) (*big.Int, error) {
 	return c.Token.TotalSupply(nil)
 }
 
-// GetMaxSupply retrieves the MAX_SUPPLY constant from the smart contract.
+// GetMaxSupply retrieves the cap (max supply) from the smart contract.
 func (c *Client) GetMaxSupply(ctx context.Context) (*big.Int, error) {
-	return c.Token.MAXSUPPLY(nil)
+	return c.Token.Cap(nil)
 }
 
 // Marketplace Operations

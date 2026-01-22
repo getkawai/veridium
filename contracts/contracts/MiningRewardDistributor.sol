@@ -52,6 +52,9 @@ contract MiningRewardDistributor is Ownable, ReentrancyGuard, Pausable {
     uint256 public totalDeveloperRewards;
     uint256 public totalUserRewards;
     uint256 public totalAffiliatorRewards;
+    
+    // Allocation cap (500M KAWAI for mining rewards - largest allocation)
+    uint256 public constant TOTAL_ALLOCATION = 500_000_000 * 1e18;
 
     event RewardClaimed(
         uint256 indexed period,
@@ -110,6 +113,14 @@ contract MiningRewardDistributor is Ownable, ReentrancyGuard, Pausable {
         require(period <= currentPeriod, "Invalid period");
         require(!hasClaimed[period][msg.sender], "Already claimed for this period");
         require(user != address(0), "Invalid user address");
+        
+        // Check allocation cap
+        uint256 totalAmount = contributorAmount + developerAmount + userAmount + affiliatorAmount;
+        uint256 totalDistributed = totalContributorRewards + totalDeveloperRewards + totalUserRewards + totalAffiliatorRewards;
+        require(
+            totalDistributed + totalAmount <= TOTAL_ALLOCATION,
+            "Exceeds total allocation"
+        );
         
         // Verify Merkle proof using period-specific root (9-field leaf)
         bytes32 leaf = keccak256(
@@ -368,20 +379,24 @@ contract MiningRewardDistributor is Ownable, ReentrancyGuard, Pausable {
      * @return developerRewards Total developer rewards distributed
      * @return userRewards Total user cashback distributed
      * @return affiliatorRewards Total affiliator commissions distributed
+     * @return remainingAllocation Remaining allocation
      */
     function getStats() external view returns (
         uint256 period,
         uint256 contributorRewards,
         uint256 developerRewards,
         uint256 userRewards,
-        uint256 affiliatorRewards
+        uint256 affiliatorRewards,
+        uint256 remainingAllocation
     ) {
+        uint256 totalDistributed = totalContributorRewards + totalDeveloperRewards + totalUserRewards + totalAffiliatorRewards;
         return (
             currentPeriod,
             totalContributorRewards,
             totalDeveloperRewards,
             totalUserRewards,
-            totalAffiliatorRewards
+            totalAffiliatorRewards,
+            TOTAL_ALLOCATION - totalDistributed
         );
     }
 

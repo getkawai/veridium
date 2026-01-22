@@ -1,532 +1,410 @@
-# Deployment Guide
+# Contract Deployment Guide
 
-**Current Environment:** Production on Monad Testnet
-
-For testnet vs mainnet differences, see `.env.README`
+**Universal deployment guide for Monad Testnet and Mainnet**
 
 ---
 
-## CURRENT DEPLOYMENT ADDRESSES
-```
-MockUSDT (Testnet):       0x3AE05118C5B75b1B0b860ec4b7Ec5095188D1CCc
-USDC (Mainnet):           0x754704bc059f8c67012fed69bc8a327a5aafb603
-KawaiToken:               0xf68910e8d19047A309f989FFB515E44FBca5D31A
-KAWAI_Distributor:           0x2B11e8385A859Ea75C77E05Bc0D9756A87017E92
-USDT_Distributor:            0x896fB97f81ECBEfDBe29DCc3550aC984704932bF
-PaymentVault:                0xDA94C8ac2a61eafBd47853EE22702BDCd45B6d93
-OTCMarket:                   0x3E597D76B40004c3fC517C404037fD6F16C8fc34
-MiningRewardDistributor:     0x1f78c7c472205F1720aAb66a565981561b5EBac0 ⭐ WITH PAUSE
-DepositCashbackDistributor:  0x3d5Bfe788782A90ac124096296B45eaFFc43C79B ⭐ WITH PAUSE
-ReferralRewardDistributor:   0x1c218602218745B20CE201948CaE836f8E94E111 ⭐ WITH PAUSE
-```
+## 🎯 QUICK START
 
-**Pause Mechanism Test Results:**
-- ✅ Pause status check: Working (all 3 distributors)
-- ✅ Pause all distributors: Working (Mining + Cashback + Referral)
-- ✅ Unpause all distributors: Working
-- ✅ Individual pause/unpause: Working
-- ✅ Emergency pause ready for production
-
-**Previous E2E Test Results (Round 4):**
-- ✅ Mining rewards: 2 users claimed 450 KAWAI each via UI
-- ✅ Cashback rewards: 2 users claimed ~30 KAWAI each via UI
-- ✅ Auto-sync: KV automatically syncs with on-chain claimed status
-- ✅ Multi-user: Both users can claim simultaneously without conflicts
-- ✅ Total test time: ~30 minutes (full fresh deployment)
-
-## GOAL
-Deploy semua contracts fresh, inject test data, upload Merkle roots, dan TEST CLAIMING dari UI sampai berhasil.
-
----
-
-## STEP 1: CLEANUP KV - DELETE ALL DATA (1 menit)
+### Testnet Deployment
 ```bash
-go run cmd/dev/cleanup-kv-all/main.go --confirm-delete-all
+# 1. Prepare environment
+export NETWORK=testnet
+export RPC_URL=https://testnet-rpc.monad.xyz
+export ENV_FILE=.env.testnet
+
+# 2. Deploy contracts (see PHASE 1)
+# 3. Grant permissions (see PHASE 2)
+# 4. Regenerate constants (see PHASE 3)
 ```
 
-**⚠️ DANGER: Ini akan DELETE SEMUA DATA dari SEMUA KV namespaces!**
-
-**Data yang akan di-DELETE:**
-- Contributors (job rewards, balances, heartbeat)
-- Proofs (Merkle proofs untuk semua periods)
-- Settlements (settlement period metadata)
-- Cashback (semua cashback records)
-- Holders (holder data)
-- P2P Marketplace (marketplace data)
-
-**Output yang diharapkan:**
-```
-🗑️  Cleaning Contributors namespace...
-   ✅ Deleted X keys from Contributors
-🗑️  Cleaning Proofs namespace...
-   ✅ Deleted X keys from Proofs
-🗑️  Cleaning Settlements namespace...
-   ✅ Deleted X keys from Settlements
-🗑️  Cleaning Cashback namespace...
-   ✅ Deleted X keys from Cashback
-🗑️  Cleaning Holders namespace...
-   ✅ Deleted X keys from Holders
-🗑️  Cleaning P2P Marketplace namespace...
-   ✅ Deleted X keys from P2P Marketplace
-
-✅ COMPLETE CLEANUP FINISHED!
-```
-
-**Confirm:** SEMUA data ter-DELETE (bukan mark as settled, tapi REAL deletion via Cloudflare API)
-
----
-
-## STEP 2: DEPLOY ALL CONTRACTS (5 menit)
-
-### 2.1 Deploy main contracts
+### Mainnet Deployment
 ```bash
-make contracts-deploy-testnet
-```
+# 1. Prepare environment
+export NETWORK=mainnet
+export RPC_URL=https://rpc.monad.xyz
+export ENV_FILE=.env.mainnet
 
-**Output yang diharapkan:**
-- 6 contracts deployed (MockUSDT, KawaiToken, KAWAI_Distributor, USDT_Distributor, PaymentVault, OTCMarket)
-- Verification otomatis di explorer
-
-**⚠️ IMPORTANT: Catat KawaiToken address dari output!**
-
-### 2.2 Update contracts/.env dengan KawaiToken address
-```bash
-# Edit contracts/.env, set:
-KAWAI_TOKEN_ADDRESS=<KAWAI_TOKEN_ADDRESS_FROM_STEP_2.1>
-```
-
-### 2.3 Deploy MiningRewardDistributor (setelah update .env)
-```bash
-make contracts-deploy-mining-testnet
-```
-
-### 2.4 Deploy DepositCashbackDistributor
-```bash
-make contracts-deploy-cashback-testnet
-```
-
-**✅ ACTUAL DEPLOYMENT (2026-01-13):**
-```
-MockUSDT: 0xa70e7C98331c90C15d3bd6974816BEDb8Da3388a
-KawaiToken: 0xD27123B9e723372Fd1bC481bB2Ab9c72C0B160E3
-KAWAI_Distributor: 0x2Acc6b2D50979A3891A84887890a7B7Cda3a98c4
-USDT_Distributor: 0x44e31f2C0155955E0a5213E2924105FcAC620c2a
-PaymentVault: 0x8440e43473F579068bd53768B361327715b94f84
-OTCMarket: 0xc9A30Ae0226684B3257FCBbCDc47b073fbacc18B
-MiningRewardDistributor: 0xcEDb9c0e7648623e5D8992402970b54Da0DF52ce
-DepositCashbackDistributor: 0xEc24361BE5B20d1fe0B5000Af53631C995F7Ac43
+# 2. Deploy contracts (see PHASE 1)
+# 3. Grant permissions (see PHASE 2)
+# 4. Regenerate constants (see PHASE 3)
 ```
 
 ---
 
-## STEP 3: UPDATE CODE DENGAN ADDRESSES BARU (30 detik)
+## 📋 PREREQUISITES
 
-**Auto-generate dari .env:**
-```bash
-go run cmd/obfuscator-gen/main.go
-```
+### Required
+- [ ] Contracts compiled: `make contracts-compile`
+- [ ] Contract tests pass: `make contracts-test`
+- [ ] Private key ready (in `contracts/.env`)
+- [ ] Sufficient MON for gas (~1 MON for testnet, ~1 MON for mainnet)
+- [ ] Admin private key exported: `export ADMIN_PRIVATE_KEY=<your_private_key>`
 
-**Files yang akan di-generate:**
-1. `internal/constant/blockchain.go` - backend constants
-2. `pkg/jarvis/db/project_tokens.go` - Jarvis token mapping
+### Environment Files
+- **Testnet**: `.env.testnet` and `contracts/.env.testnet`
+- **Mainnet**: `.env.mainnet` and `contracts/.env.mainnet`
 
-**Note:** Pastikan `.env` dan `contracts/.env` sudah diupdate dengan addresses dari STEP 2
+### Admin Private Key
+The `ADMIN_PRIVATE_KEY` is the private key of the deployer account that will:
+- Deploy all contracts
+- Grant MINTER_ROLE to distributors
+- Have DEFAULT_ADMIN_ROLE on KawaiToken
+
+**How to obtain:**
+- Export from your wallet (MetaMask, etc.)
+- Or generate via: `cast wallet new`
+
+**Security:**
+- Store in environment variable: `export ADMIN_PRIVATE_KEY=0x...`
+- Never commit to source control
+- Use secrets manager for production
+
+**Note:** This is the same key used in `contracts/.env` as `PRIVATE_KEY`
 
 ---
 
-## STEP 4: GRANT MINTER_ROLE (2 menit)
+## 🚀 PHASE 1: Deploy Contracts
 
-**Grant roles:**
+### Step 1.1: Prepare Contracts Environment
+
+**For Testnet:**
 ```bash
-make contracts-grant-minter-mining
-make contracts-grant-minter-cashback
+cd contracts
+cp .env.testnet .env
 ```
 
-**✅ SUDAH GRANTED:**
-- Mining: 0xcEDb9c0e7648623e5D8992402970b54Da0DF52ce
-- Cashback: 0xEc24361BE5B20d1fe0B5000Af53631C995F7Ac43
-
-**Verify (optional):**
+**For Mainnet:**
 ```bash
+cd contracts
+cp .env.mainnet .env
+# Ensure USDC_ADDRESS is set to: 0x754704bc059f8c67012fed69bc8a327a5aafb603
+```
+
+### Step 1.2: Deploy Base Contracts
+
+```bash
+# Deploy KawaiToken, PaymentVault, OTCMarket, KAWAI_Distributor, USDT_Distributor
+forge script script/DeployKawai.s.sol:DeployKawai \
+  --rpc-url $RPC_URL \
+  --broadcast \
+  --verify
+
+# Save the KawaiToken address from output
+export KAWAI_TOKEN_ADDRESS=<deployed_address>
+```
+
+### Step 1.3: Update contracts/.env
+
+Add the KawaiToken address to `contracts/.env`:
+```bash
+echo "KAWAI_TOKEN_ADDRESS=$KAWAI_TOKEN_ADDRESS" >> contracts/.env
+```
+
+### Step 1.4: Deploy Distributors
+
+```bash
+# Deploy Mining Distributor
+forge script script/DeployMiningDistributor.s.sol:DeployMiningDistributor \
+  --rpc-url $RPC_URL \
+  --broadcast \
+  --verify
+
+# Deploy Cashback Distributor
+forge script script/DeployCashbackDistributor.s.sol:DeployCashbackDistributor \
+  --rpc-url $RPC_URL \
+  --broadcast \
+  --verify
+
+# Deploy Referral Distributor
+forge script script/DeployReferralDistributor.s.sol:DeployReferralDistributor \
+  --rpc-url $RPC_URL \
+  --broadcast \
+  --verify
+```
+
+**⚠️ CRITICAL: Save all deployed addresses!**
+
+---
+
+## 🔐 PHASE 2: Grant Permissions
+
+### Step 2.1: Grant MINTER_ROLE
+
+```bash
+# Set addresses from deployment output
+export MINING_DISTRIBUTOR_ADDRESS=<deployed_address>
+export CASHBACK_DISTRIBUTOR_ADDRESS=<deployed_address>
+export REFERRAL_DISTRIBUTOR_ADDRESS=<deployed_address>
+
+# Grant MINTER_ROLE to Mining Distributor
+cast send $KAWAI_TOKEN_ADDRESS \
+  "grantRole(bytes32,address)" \
+  $(cast keccak "MINTER_ROLE") \
+  $MINING_DISTRIBUTOR_ADDRESS \
+  --rpc-url $RPC_URL \
+  --private-key $ADMIN_PRIVATE_KEY
+
+# Grant MINTER_ROLE to Cashback Distributor
+cast send $KAWAI_TOKEN_ADDRESS \
+  "grantRole(bytes32,address)" \
+  $(cast keccak "MINTER_ROLE") \
+  $CASHBACK_DISTRIBUTOR_ADDRESS \
+  --rpc-url $RPC_URL \
+  --private-key $ADMIN_PRIVATE_KEY
+
+# Grant MINTER_ROLE to Referral Distributor
+cast send $KAWAI_TOKEN_ADDRESS \
+  "grantRole(bytes32,address)" \
+  $(cast keccak "MINTER_ROLE") \
+  $REFERRAL_DISTRIBUTOR_ADDRESS \
+  --rpc-url $RPC_URL \
+  --private-key $ADMIN_PRIVATE_KEY
+```
+
+### Step 2.2: Verify Permissions
+
+```bash
+go run cmd/dev/check-minter-role/main.go
+```
+
+**Expected output:**
+```text
+✅ Mining Distributor has MINTER_ROLE
+✅ Cashback Distributor has MINTER_ROLE
+✅ Referral Distributor has MINTER_ROLE
+```
+
+---
+
+## 🔄 PHASE 3: Update Configuration
+
+### Step 3.1: Update Environment File
+
+Update the appropriate `.env` file with all deployed addresses:
+
+**For Testnet:**
+```bash
+# Edit .env.testnet
+TOKEN_ADDRESS=<kawai_token_address>
+OTC_MARKET_ADDRESS=<otc_market_address>
+PAYMENT_VAULT_ADDRESS=<payment_vault_address>
+KAWAI_DISTRIBUTOR_ADDRESS=<kawai_distributor_address>
+USDT_DISTRIBUTOR_ADDRESS=<usdt_distributor_address>
+MINING_DISTRIBUTOR_ADDRESS=<mining_distributor_address>
+CASHBACK_DISTRIBUTOR_ADDRESS=<cashback_distributor_address>
+REFERRAL_DISTRIBUTOR_ADDRESS=<referral_distributor_address>
+```
+
+**For Mainnet:**
+```bash
+# Edit .env.mainnet (same format as above)
+```
+
+### Step 3.2: Regenerate Backend Constants
+
+This step generates obfuscated constants for backend services from the environment file. The obfuscator converts sensitive values (private keys, API keys) and contract addresses into Go constants.
+
+```bash
+# For Testnet
+go run cmd/obfuscator-gen/main.go .env.testnet
+
+# For Mainnet
+go run cmd/obfuscator-gen/main.go .env.mainnet
+```
+
+### Step 3.3: Verify Generated Files
+
+```bash
+git diff internal/constant/blockchain.go
+git diff pkg/jarvis/db/project_tokens.go
+```
+
+**What to check:**
+- ✅ RPC URL matches network (testnet or mainnet)
+- ✅ All contract addresses updated
+- ✅ Comment shows correct deployment date
+
+### Step 3.4: Verify Build
+
+```bash
+go build -o /dev/null .
+```
+
+---
+
+## ✅ PHASE 4: Commit Changes
+
+```bash
+# Add generated files
+git add internal/constant/blockchain.go
+git add pkg/jarvis/db/project_tokens.go
+git add internal/constant/cloudflare.go  # If changed
+
+# Commit with descriptive message
+git commit -m "chore: deploy contracts to $NETWORK ($(date +%Y-%m-%d))" \
+  -m "- Updated blockchain.go with new $NETWORK contract addresses" \
+  -m "- Updated project_tokens.go with new $NETWORK addresses" \
+  -m "- All contracts deployed with ERC20Capped" \
+  -m "- Generated from $ENV_FILE"
+
+# Push to remote
+git push origin <branch_name>
+```
+
+---
+
+## 📊 DEPLOYMENT HISTORY
+
+### Mainnet (2026-01-22)
+```text
+USDC:                    0x754704bc059f8c67012fed69bc8a327a5aafb603
+KawaiToken:              0x5B7408a485E3167c91e925e8701d35e71B80331C ✅ Verified
+PaymentVault:            0xBDC7Ad4F9e911e2EdC1128809cBC0C870EddfD9a ✅ Verified
+OTCMarket:               0x9CaE910e3faC30B9E85abB3053301B3fB5a8D9fb ✅ Verified
+KAWAI_Distributor:       0xDDb60C1fdbeb670c522F3f859ba1EE57A5740a14 ✅ Verified
+USDT_Distributor:        0x52f71a92D4e12f87F171D91c5134042A20893650 ✅ Verified
+Mining_Distributor:      0xF447C701B43e4FC4A2a172D828268Eb1F0C092FB ✅ Verified
+Cashback_Distributor:    0x3Fa14A2b33f95E590bDd57a812bE4012ea5d61FF ✅ Verified
+Referral_Distributor:    0xBF4c7ae729223c5E6aDb85708D685855a6d9d077 ✅ Verified
+Gas Used: ~0.93 MON
+```
+
+### Testnet (2026-01-22)
+```text
+MockUSDT:                0x3AE05118C5B75b1B0b860ec4b7Ec5095188D1CCc
+KawaiToken:              0xb2C745FF051e681f7B7FE8645b160eDaAC350B85 ✅ Verified
+PaymentVault:            0x587c1bcAD2eD250CE05AeAF056Ade892782f9E51 ✅ Verified
+OTCMarket:               0xa5A154a3719099Ad80c9c8E98f7fF50068825B0b ✅ Verified
+KAWAI_Distributor:       0x78760B1e3f3F80cd4bf6EC1442d2a81797a32289 ✅ Verified
+USDT_Distributor:        0xC2cA5C30De4F9a9a1e1fdB491432FEe596702E6c ✅ Verified
+Mining_Distributor:      0x3373C18A0be2774004DB11625eCc099A72218Af1 ✅ Verified
+Cashback_Distributor:    0xfEEC7790Dc2079Bf1922761BeA1B09FD057F7CB1 ✅ Verified
+Referral_Distributor:    0xe4d6D1E6926d2616d80060d70c10d0f6Def994ea ✅ Verified
+Gas Used: ~0.93 MON
+```
+
+---
+
+## 🔍 VERIFICATION
+
+### Verify Contract on Explorer
+
+**Testnet:**
+- Visit: <https://testnet.monadvision.com/>
+- Search for contract address
+- Check: Source code verified, correct compiler version (v0.8.20)
+
+**Mainnet:**
+- Visit: <https://monadvision.com/>
+- Search for contract address
+- Check: Source code verified, correct compiler version (v0.8.20)
+
+### Verify Contract Functionality
+
+```bash
+# Check KawaiToken cap (should be 1B)
+cast call $KAWAI_TOKEN_ADDRESS "cap()(uint256)" --rpc-url $RPC_URL
+
+# Expected: 1000000000000000000000000000 (1B with 18 decimals)
+
+# Check MINTER_ROLE
 go run cmd/dev/check-minter-role/main.go
 ```
 
 ---
 
-## STEP 5-7: SETUP TEST USER (1 menit)
+## 🆘 TROUBLESHOOTING
 
-**Single command untuk generate wallet + send MON + inject mining data:**
+### Deployment Fails
+
+#### Error: Insufficient funds
 ```bash
-go run cmd/dev/setup-test-user/main.go
+# Check MON balance
+cast balance $DEPLOYER_ADDRESS --rpc-url $RPC_URL
+
+# Need at least 1 MON for testnet, 10 MON for mainnet
 ```
 
-**Output:**
-```
-✅ TEST USER SETUP COMPLETE!
-
-📝 Test User Details:
-   Address:     0xA051aB7126E518cD519F7838d1F8D18c2f65886a
-   Private Key: 0xd3693013800e0b73360fddeed04aea14590d35e7e367ec9b48b884fbd4f4c0e0
-```
-
-**⚠️ PENTING: Simpan private key ini untuk import ke UI nanti!**
-
----
-
-## STEP 5B: INJECT CASHBACK DATA (Optional - 1 menit)
-
-**Inject test cashback data untuk test user:**
-```bash
-go run cmd/dev/inject-cashback-data/main.go <TEST_ADDRESS>
-```
-
-**Output:**
-```
-💰 Injecting cashback data for: 0xA051aB7126E518cD519F7838d1F8D18c2f65886a
-📅 Current period: 54
-📅 Injecting into period: 53 (for settlement)
-
-✅ Deposit 1: 100 USDT
-✅ Deposit 2: 500 USDT
-✅ Deposit 3: 1000 USDT
-
-✅ Cashback data injected!
-
-📊 Summary:
-   Total Deposits: 3
-   Total Cashback: ~26 KAWAI
-   Pending: 26250000000000000000 wei
-
-Next steps:
-  1. Run settlement: make settle-cashback
-  2. Upload Merkle root: go run cmd/reward-settlement/main.go upload --type cashback
-  3. Test claiming via UI
-```
-
-**Note:** Ini akan inject 3 deposits dengan tier berbeda (Tier 2, 3, 4) untuk testing cashback system.
-
----
-
-## STEP 8: GENERATE SETTLEMENT (2 menit)
-
-### 8.1 Mining Settlement
-```bash
-go run cmd/reward-settlement/main.go generate --type mining
-```
-
-**✅ ACTUAL SETTLEMENT:**
-```
-Period ID:     1768239231
-Merkle Root:   0xabd4226e7f3d22f27d36ce6a3c21d6ee86c5683d0215064c7b25423a5b3f6f06
-Contributors:  1
-Proofs Saved:  1
-```
-
-### 8.2 Cashback Settlement (Optional)
-```bash
-make settle-cashback
-```
-
-**Output:**
-```
-🌳 Generating cashback settlement...
-📊 Cashback Rewards Settlement
-─────────────────────────────
-Current Period:    54
-Settling Period:   53
-
-🔄 [CashbackSettlement] Starting settlement for period 53
-📊 [CashbackSettlement] Collected 1 cashback records
-🌳 [CashbackSettlement] Merkle root: db8ac17f84d626a24689fec81b27b9f70fc01e71e8a9be7fba1477e905d6b98b
-✅ [CashbackSettlement] Stored 1 proofs
-📝 [CashbackSettlement] Advance period tx: 0xe2c9be9ba691cf5bdf4bcf948f3cea614a1fcc5d765dbf45c1e26f5587f8e948
-✅ [CashbackSettlement] Merkle root set on-chain (block 5776741)
-✅ [CashbackSettlement] Settlement complete for period 53
-```
-
-**Note:** Cashback settlement sudah otomatis upload Merkle root on-chain (tidak perlu STEP 9 untuk cashback).
-
----
-
-## STEP 9: UPLOAD MERKLE ROOT (1 menit)
-```bash
-echo "y" | go run cmd/reward-settlement/main.go upload --type mining
-```
-
-**✅ SUDAH UPLOAD:** 
-- Transaction: 0x8b5d343444bc5f49a1aa5cd3e5bddfd278bd6dc9fc3b22d48eb17135e9f9f476
-- Block: 5746170
-
-**Verify on-chain (optional):**
-```bash
-cast call 0xcEDb9c0e7648623e5D8992402970b54Da0DF52ce "periodMerkleRoots(uint256)(bytes32)" 1 --rpc-url https://testnet-rpc.monad.xyz
-```
-
-Should return: `0xabd4226e7f3d22f27d36ce6a3c21d6ee86c5683d0215064c7b25423a5b3f6f06`
-
----
-
-## STEP 10: VERIFY CLAIMABLE DATA (1 menit)
-```bash
-go run cmd/dev/test-claiming-data/main.go 0xbFD83eB024C067889f2FF60Bc2181F9aEc6eAB92
-```
-
-**✅ VERIFIED:**
-```
-✅ Found 1 Merkle proofs:
-   1. Type: kawai, Period: 1768239231, Amount: 450000000000000000000, Index: 0
-
-✅ Address has 1 claimable proofs ready!
-✅ Ready for on-chain claiming (requires MON for gas)
-```
-
----
-
-## STEP 11: TEST CLAIMING VIA UI (5 menit)
-
-### 11.1 Import Wallet
-1. Buka UI Wallet
-2. Import private key dari STEP 5-7
-3. Verify address matches
-
-### 11.2 Test Mining Rewards
-
-#### Check Claimable Rewards
-- Navigate ke "Rewards" → "Mining Rewards"
-- Harus show: **450 KAWAI claimable**
-- Harus show: **1 unclaimed reward** (Period 1)
-
-#### Claim Rewards
-1. Click **"Claim"** button
-2. Confirm transaction (gas fee ~0.003 MON)
-3. Transaction submitted
-
-#### Verify Success
-**Expected behavior:**
-- Status: **Unclaimed** → **Confirmed** (langsung, ~1-2 detik)
-- Reward muncul di **"Recent Mining Activity"**
-- KAWAI balance naik jadi **450 KAWAI**
-
-**Note:** Monad testnet sangat cepat, jadi tidak ada "Pending" state. Tx langsung confirmed.
-
-#### Check Explorer
-- Click tx hash link di "Recent Mining Activity"
-- Verify status: **Success** ✅
-- Verify events: `RewardClaimed` event dengan correct amounts
-
-### 11.3 Test Cashback Rewards (Optional)
-
-#### Check Claimable Cashback
-- Navigate ke "Rewards" → "Deposit Cashback"
-- Harus show:
-  - **Total Cashback Earned:** ~26 KAWAI
-  - **Claimable Now:** ~26 KAWAI
-  - **Current Tier:** Tier 2-4 (based on deposits)
-  - **1 claimable record** in table (Period 53)
-
-#### Claim Cashback
-1. Click **"Claim"** button di table
-2. Confirm transaction (gas fee ~0.003 MON)
-3. Transaction submitted
-
-#### Verify Success
-**Expected behavior:**
-- Status: **Ready to Claim** → **Claimed** (langsung, ~1-2 detik)
-- KAWAI balance naik jadi **476 KAWAI** (450 mining + 26 cashback)
-- Claimed cashback muncul di stats
-
-#### Check Explorer
-- Click tx hash link
-- Verify status: **Success** ✅
-- Verify events: `RewardClaimed` event dari DepositCashbackDistributor
-
----
-
-## STEP 12: VERIFY ON-CHAIN (Optional)
+#### Error: Contract already deployed
 
 ```bash
-# Check if claimed
-cast call 0x86b11B1A7e4e40D181ac06070a0e98648dBc7859 \
-  "hasClaimed(uint256,address)(bool)" \
-  1 \
-  0x755FE4b121B1945f812513FfBDf54f68fcd54b72 \
-  --rpc-url https://testnet-rpc.monad.xyz
+# Check if address already exists in .env
+# If redeploying, remove old address first
 ```
 
-Expected: `true`
+### Verification Fails
 
----
-
+#### Error: Contract not verified
 ```bash
-# Check KAWAI balance
-export KAWAI_TOKEN=<ADDRESS_FROM_STEP_2>
-cast call $KAWAI_TOKEN "balanceOf(address)(uint256)" $TEST_ADDRESS --rpc-url https://testnet-rpc.monad.xyz
+# Manual verification
+# For Mainnet (chain ID 143)
+forge verify-contract \
+  --chain-id 143 \
+  --compiler-version v0.8.20 \
+  $CONTRACT_ADDRESS \
+  contracts/contracts/KawaiToken.sol:KawaiToken \
+  --constructor-args $(cast abi-encode "constructor(address,address)" $ADMIN $MINTER) \
+  --rpc-url $RPC_URL
+
+# For Testnet (chain ID 10143)
+forge verify-contract \
+  --chain-id 10143 \
+  --compiler-version v0.8.20 \
+  $CONTRACT_ADDRESS \
+  contracts/contracts/KawaiToken.sol:KawaiToken \
+  --constructor-args $(cast abi-encode "constructor(address,address)" $ADMIN $MINTER) \
+  --rpc-url $RPC_URL
 ```
 
-Harus return: ~450000000000000000000 (450 KAWAI dalam wei)
+**Note:** Chain IDs:
+- Mainnet: `143`
+- Testnet: `10143`
 
----
+### Permission Grant Fails
 
-## SUCCESS CRITERIA
-
-### Core Setup
-✅ All contracts deployed
-✅ MINTER_ROLE granted
-✅ Test wallet created dengan MON
-✅ Backend running
-
-### Mining Rewards
-✅ Mining data injected
-✅ Mining settlement generated
-✅ Mining Merkle root uploaded
-✅ Mining claimable data verified
-✅ UI shows mining claimable rewards
-✅ Mining claim transaction successful
-✅ KAWAI balance increased (mining)
-
-### Cashback Rewards (Optional)
-✅ Cashback data injected
-✅ Cashback settlement generated (auto-upload Merkle root)
-✅ UI shows cashback claimable rewards
-✅ Cashback claim transaction successful
-✅ KAWAI balance increased (cashback)
-
-### Verification
-✅ On-chain verification passed
-✅ Explorer shows successful transactions
-
----
-
-## JIKA GAGAL
-
-### Mining Rewards
-
-#### Claiming gagal dengan "Invalid period"
-- Check: Apakah Merkle root ter-upload untuk period tersebut?
-- Fix: Run step 9 lagi
-
-#### Claiming gagal dengan "Invalid proof"
-- Check: Apakah Merkle proof di KV match dengan on-chain root?
-- Fix: Re-generate settlement (step 8-9)
-
-#### UI tidak show claimable rewards
-- Check: Apakah backend running?
-- Check: Apakah wallet address benar?
-- Fix: Restart backend, verify address
-
-### Cashback Rewards
-
-#### Cashback settlement gagal dengan "key not found"
-- Check: Apakah cashback data ter-inject ke period yang benar?
-- Fix: Re-run inject tool, pastikan inject ke period - 1
-
-#### Cashback settlement gagal dengan "invalid hex character 'x' in private key"
-- Check: Private key format di .env
-- Fix: Sudah di-fix di `pkg/blockchain/cashback_settlement.go` (auto-strip 0x prefix)
-
-#### UI tidak show cashback rewards
-- Check: Apakah backend running?
-- Check: Apakah CashbackService API endpoints working?
-- Fix: Restart backend, check logs
-
-### General
-
-#### Transaction reverted
-- Check: Apakah ada MON untuk gas?
-- Check: Apakah MINTER_ROLE granted?
-- Fix: Send more MON, re-grant MINTER_ROLE
-
-#### Backend error "failed to get marketplace data from KV"
-- Check: Apakah menggunakan `GetCashbackData()` bukan `GetMarketplaceData()`?
-- Fix: Sudah di-fix di `pkg/blockchain/cashback_settlement.go`
-
----
-
-## TOTAL TIME: ~30 menit
-
-**Breakdown:**
-- STEP 1: Cleanup KV (1 min)
-- STEP 2: Deploy contracts (5 min)
-- STEP 3: Update code (30 sec)
-- STEP 4: Grant MINTER_ROLE (2 min)
-- STEP 5-7: Setup test user (1 min)
-- STEP 5B: Inject cashback (1 min) - Optional
-- STEP 8: Generate settlement (2 min mining + 2 min cashback)
-- STEP 9: Upload Merkle root (1 min)
-- STEP 10: Verify claimable (1 min)
-- STEP 11: Test claiming UI (5 min)
-- STEP 12: Verify on-chain (1 min)
-
-**Total:** ~22 min (without cashback) or ~30 min (with cashback)
-
-## FILES MODIFIED IN THIS DEPLOYMENT
-
-### Auto-Generated (via cmd/obfuscator-gen/main.go)
-1. `internal/constant/blockchain.go` - contract addresses
-2. `pkg/jarvis/db/project_tokens.go` - token addresses
-
-### Manual Updates Required
-3. `.env` - backend config (contract addresses)
-4. `contracts/.env` - deployment config (KAWAI_TOKEN_ADDRESS after step 2.1)
-
-### New Tools Created
-5. `cmd/dev/setup-test-user/main.go` - All-in-one test user setup
-6. `cmd/dev/inject-cashback-data/main.go` - Inject cashback test data
-7. `cmd/obfuscator-gen/main.go` - Auto-generate blockchain constants
-
-### Bug Fixes
-8. `pkg/blockchain/cashback_settlement.go` - Fixed GetMarketplaceData → GetCashbackData
-9. `pkg/blockchain/cashback_settlement.go` - Fixed private key parsing (strip 0x prefix)
-10. `cmd/dev/inject-cashback-data/main.go` - Inject into period - 1 for settlement
-11. `pkg/store/settlement.go` - Auto-check tx confirmation for mining claims
-12. `frontend/src/app/wallet/components/rewards/MiningRewardsSection.tsx` - Auto-refresh when pending claims exist
-
-## COMMANDS SUMMARY
+#### Error: Transaction reverted
 ```bash
-# 1. Cleanup KV - DELETE ALL DATA
-go run cmd/dev/cleanup-kv-all/main.go --confirm-delete-all
+# Most common causes:
+# 1. Insufficient MON for gas
+# 2. Wrong private key (not the deployer)
+# 3. RPC connection issue
 
-# 2. Deploy contracts
-make contracts-deploy-testnet
-make contracts-deploy-mining-testnet
-make contracts-deploy-cashback-testnet
+# Solution: Check MON balance
+cast balance $DEPLOYER_ADDRESS --rpc-url $RPC_URL
 
-# 3. Update addresses (AUTO-GENERATE)
-go run cmd/obfuscator-gen/main.go
-
-# 4. Grant MINTER_ROLE
-make contracts-grant-minter-mining
-make contracts-grant-minter-cashback
-
-# 5-7. Setup test user (single command)
-go run cmd/dev/setup-test-user/main.go
-
-# 5B. Inject cashback data (optional)
-go run cmd/dev/inject-cashback-data/main.go <TEST_ADDRESS>
-
-# 8. Generate settlement
-go run cmd/reward-settlement/main.go generate --type mining
-make settle-cashback  # Optional: cashback settlement (auto-upload)
-
-# 9. Upload Merkle root (mining only)
-echo "y" | go run cmd/reward-settlement/main.go upload --type mining
-
-# 10. Verify claimable data
-go run cmd/dev/test-claiming-data/main.go <TEST_ADDRESS>
-
-# 11. Start backend
-make dev-hot
-
-# 12. Test claiming via UI (import private key)
-# - Mining Rewards tab: Claim 450 KAWAI
-# - Deposit Cashback tab: Claim ~26 KAWAI (if injected)
-
-# 13. Verify on-chain
-make check-balance ADDR=<TEST_ADDRESS>
-make check-claim-status TYPE=mining PERIOD=<PERIOD_ID> ADDR=<TEST_ADDRESS>
+# Solution: Verify you're using deployer's private key
+cast wallet address --private-key $ADMIN_PRIVATE_KEY
+# Should match the address that deployed KawaiToken
 ```
 
 ---
 
-## NEXT: EXECUTE STEP BY STEP
-Mulai dari step 1, jangan skip, jangan bikin dokumen lagi.
+## 📝 CHECKLIST
+
+### Pre-Deployment
+- [ ] Contracts compiled
+- [ ] Tests passing
+- [ ] Environment file ready
+- [ ] Private key secured
+- [ ] Sufficient MON balance
+
+### Deployment
+- [ ] Base contracts deployed
+- [ ] Distributors deployed
+- [ ] All addresses saved
+- [ ] Contracts verified on explorer
+
+### Post-Deployment
+- [ ] MINTER_ROLE granted
+- [ ] Permissions verified
+- [ ] Environment file updated
+- [ ] Constants regenerated
+- [ ] Build verified
+- [ ] Changes committed
+
+---
+
+**Last Updated:** January 22, 2026  
+**Status:** Production Ready  
+**Estimated Time:** 30-45 minutes per network

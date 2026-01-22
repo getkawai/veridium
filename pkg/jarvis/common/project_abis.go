@@ -1114,19 +1114,6 @@ var ProjectABIs = map[string]string{
   },
   {
     "type": "function",
-    "name": "MAX_SUPPLY",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "MINTER_ROLE",
     "inputs": [],
     "outputs": [
@@ -1235,6 +1222,19 @@ var ProjectABIs = map[string]string{
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "cap",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -1623,6 +1623,22 @@ var ProjectABIs = map[string]string{
   },
   {
     "type": "error",
+    "name": "ERC20ExceededCap",
+    "inputs": [
+      {
+        "name": "increasedSupply",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "cap",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "ERC20InsufficientAllowance",
     "inputs": [
       {
@@ -1671,6 +1687,17 @@ var ProjectABIs = map[string]string{
         "name": "approver",
         "type": "address",
         "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "ERC20InvalidCap",
+    "inputs": [
+      {
+        "name": "cap",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ]
   },
@@ -1970,6 +1997,19 @@ var ProjectABIs = map[string]string{
   },
   {
     "type": "function",
+    "name": "TOTAL_ALLOCATION",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "advancePeriod",
     "inputs": [
       {
@@ -2127,6 +2167,11 @@ var ProjectABIs = map[string]string{
       },
       {
         "name": "affiliatorRewards",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "remainingAllocation",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -3097,6 +3142,19 @@ var ProjectABIs = map[string]string{
   },
   {
     "type": "function",
+    "name": "TOTAL_ALLOCATION",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "advancePeriod",
     "inputs": [
       {
@@ -3179,6 +3237,11 @@ var ProjectABIs = map[string]string{
       },
       {
         "name": "kawaiDistributed",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "remainingAllocation",
         "type": "uint256",
         "internalType": "uint256"
       },

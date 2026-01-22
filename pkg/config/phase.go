@@ -88,8 +88,8 @@ func (pd *PhaseDetector) detectPhase(ctx context.Context) (Phase, error) {
 		return Phase1, fmt.Errorf("failed to get total supply: %w", err)
 	}
 
-	// Get max supply
-	maxSupply, err := kawaiToken.MAXSUPPLY(nil)
+	// Get max supply (cap)
+	maxSupply, err := kawaiToken.Cap(nil)
 	if err != nil {
 		return Phase1, fmt.Errorf("failed to get max supply: %w", err)
 	}
@@ -145,7 +145,7 @@ func (pd *PhaseDetector) GetPhaseInfo(ctx context.Context) (map[string]interface
 		return nil, fmt.Errorf("failed to get total supply: %w", err)
 	}
 
-	maxSupply, err := kawaiToken.MAXSUPPLY(nil)
+	maxSupply, err := kawaiToken.Cap(nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get max supply: %w", err)
 	}

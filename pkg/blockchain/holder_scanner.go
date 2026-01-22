@@ -217,7 +217,7 @@ func (hs *HolderScanner) GetTotalSupply(ctx context.Context) (*big.Int, error) {
 
 // GetMaxSupply returns the max KAWAI supply
 func (hs *HolderScanner) GetMaxSupply(ctx context.Context) (*big.Int, error) {
-	return hs.kawaiToken.MAXSUPPLY(nil)
+	return hs.kawaiToken.Cap(nil)
 }
 
 // CalculateHolderShare calculates a holder's proportional share of total profit
