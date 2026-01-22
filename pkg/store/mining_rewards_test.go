@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kawai-network/veridium/pkg/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -117,7 +118,7 @@ func TestJobRewardRecordCreation(t *testing.T) {
 		UserAmount:         "5000000000000000000",  // 5 KAWAI
 		AffiliatorAmount:   "5000000000000000000",  // 5 KAWAI
 		TokenUsage:         1_000_000,
-		RewardType:         "kawai",
+		RewardType:         types.RewardTypeMining,
 		HasReferrer:        true,
 		IsSettled:          false,
 	}

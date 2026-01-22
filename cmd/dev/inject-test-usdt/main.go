@@ -12,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/kawai-network/veridium/internal/constant"
-	"github.com/kawai-network/veridium/internal/generate/abi/usdt"
+	"github.com/kawai-network/veridium/internal/generate/abi/mockstablecoin"
 	"github.com/kawai-network/veridium/pkg/config"
 )
 
@@ -31,9 +31,9 @@ func main() {
 	}
 	defer client.Close()
 
-	// Load stablecoin contract (MockUSDT on testnet)
-	stablecoinAddr := common.HexToAddress(constant.UsdtTokenAddress)
-	stablecoinContract, err := usdt.NewMockUSDT(stablecoinAddr, client)
+	// Load stablecoin contract (MockStablecoin on testnet)
+	stablecoinAddr := common.HexToAddress(constant.StablecoinAddress)
+	stablecoinContract, err := mockstablecoin.NewMockStablecoin(stablecoinAddr, client)
 	if err != nil {
 		log.Fatalf("Failed to load stablecoin contract: %v", err)
 	}
@@ -73,7 +73,7 @@ func main() {
 	fmt.Println()
 	fmt.Printf("From:   %s\n", crypto.PubkeyToAddress(privateKey.PublicKey).Hex())
 	fmt.Printf("To:     %s (PaymentVault)\n", paymentVault.Hex())
-	fmt.Printf("Amount: 1000 stablecoin (MockUSDT on testnet)\n")
+	fmt.Printf("Amount: 1000 stablecoin (MockStablecoin on testnet)\n")
 	fmt.Println()
 	fmt.Print("Continue? (y/n): ")
 

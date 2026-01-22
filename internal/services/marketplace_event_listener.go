@@ -12,7 +12,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/kawai-network/veridium/internal/generate/abi/escrow"
+	"github.com/kawai-network/veridium/internal/generate/abi/otcmarket"
 	"github.com/kawai-network/veridium/pkg/blockchain"
 	"github.com/kawai-network/veridium/pkg/store"
 )
@@ -32,10 +32,10 @@ type MarketplaceEventListener struct {
 	orderCancelledSub       event.Subscription
 
 	// Channels for event processing
-	orderCreatedCh         chan *escrow.OTCMarketOrderCreated
-	orderFilledCh          chan *escrow.OTCMarketOrderFulfilled
-	orderPartiallyFilledCh chan *escrow.OTCMarketOrderPartiallyFilled
-	orderCancelledCh       chan *escrow.OTCMarketOrderCancelled
+	orderCreatedCh         chan *otcmarket.OTCMarketOrderCreated
+	orderFilledCh          chan *otcmarket.OTCMarketOrderFulfilled
+	orderPartiallyFilledCh chan *otcmarket.OTCMarketOrderPartiallyFilled
+	orderCancelledCh       chan *otcmarket.OTCMarketOrderCancelled
 
 	// Control channels
 	stopCh chan struct{}
@@ -70,10 +70,10 @@ func NewMarketplaceEventListener(blockchainClient *blockchain.Client, orderServi
 		kvStore:          kvStore,
 
 		// Initialize channels
-		orderCreatedCh:         make(chan *escrow.OTCMarketOrderCreated, 100),
-		orderFilledCh:          make(chan *escrow.OTCMarketOrderFulfilled, 100),
-		orderPartiallyFilledCh: make(chan *escrow.OTCMarketOrderPartiallyFilled, 100),
-		orderCancelledCh:       make(chan *escrow.OTCMarketOrderCancelled, 100),
+		orderCreatedCh:         make(chan *otcmarket.OTCMarketOrderCreated, 100),
+		orderFilledCh:          make(chan *otcmarket.OTCMarketOrderFulfilled, 100),
+		orderPartiallyFilledCh: make(chan *otcmarket.OTCMarketOrderPartiallyFilled, 100),
+		orderCancelledCh:       make(chan *otcmarket.OTCMarketOrderCancelled, 100),
 
 		stopCh: make(chan struct{}),
 		doneCh: make(chan struct{}),
@@ -176,7 +176,7 @@ func (l *MarketplaceEventListener) subscribeToOrderCreated(ctx context.Context) 
 	}
 
 	// Subscribe to OrderCreated events
-	sub, err := l.blockchainClient.Escrow.WatchOrderCreated(filterOpts, l.orderCreatedCh, nil, nil)
+	sub, err := l.blockchainClient.OTCMarket.WatchOrderCreated(filterOpts, l.orderCreatedCh, nil, nil)
 	if err != nil {
 		return fmt.Errorf("failed to watch OrderCreated events: %w", err)
 	}
@@ -195,7 +195,7 @@ func (l *MarketplaceEventListener) subscribeToOrderFulfilled(ctx context.Context
 	}
 
 	// Subscribe to OrderFulfilled events
-	sub, err := l.blockchainClient.Escrow.WatchOrderFulfilled(filterOpts, l.orderFilledCh, nil, nil, nil)
+	sub, err := l.blockchainClient.OTCMarket.WatchOrderFulfilled(filterOpts, l.orderFilledCh, nil, nil, nil)
 	if err != nil {
 		return fmt.Errorf("failed to watch OrderFulfilled events: %w", err)
 	}
@@ -214,7 +214,7 @@ func (l *MarketplaceEventListener) subscribeToOrderPartiallyFilled(ctx context.C
 	}
 
 	// Subscribe to OrderPartiallyFilled events
-	sub, err := l.blockchainClient.Escrow.WatchOrderPartiallyFilled(filterOpts, l.orderPartiallyFilledCh, nil, nil, nil)
+	sub, err := l.blockchainClient.OTCMarket.WatchOrderPartiallyFilled(filterOpts, l.orderPartiallyFilledCh, nil, nil, nil)
 	if err != nil {
 		return fmt.Errorf("failed to watch OrderPartiallyFilled events: %w", err)
 	}
@@ -233,7 +233,7 @@ func (l *MarketplaceEventListener) subscribeToOrderCancelled(ctx context.Context
 	}
 
 	// Subscribe to OrderCancelled events
-	sub, err := l.blockchainClient.Escrow.WatchOrderCancelled(filterOpts, l.orderCancelledCh, nil, nil)
+	sub, err := l.blockchainClient.OTCMarket.WatchOrderCancelled(filterOpts, l.orderCancelledCh, nil, nil)
 	if err != nil {
 		return fmt.Errorf("failed to watch OrderCancelled events: %w", err)
 	}
@@ -284,7 +284,7 @@ func (l *MarketplaceEventListener) processEvents(ctx context.Context) {
 
 // handleOrderCreated processes OrderCreated events
 // Requirements: 6.5 - Event processing and state synchronization
-func (l *MarketplaceEventListener) handleOrderCreated(event *escrow.OTCMarketOrderCreated) error {
+func (l *MarketplaceEventListener) handleOrderCreated(event *otcmarket.OTCMarketOrderCreated) error {
 	// Only the seller is responsible for indexing their own new order in the marketplace KV
 	myAddr := l.walletService.GetCurrentAddress()
 	if myAddr == "" || !strings.EqualFold(myAddr, event.Seller.Hex()) {
@@ -319,7 +319,7 @@ func (l *MarketplaceEventListener) handleOrderCreated(event *escrow.OTCMarketOrd
 
 // handleOrderFulfilled processes OrderFulfilled events
 // Requirements: 6.5 - Event-driven order status updates
-func (l *MarketplaceEventListener) handleOrderFulfilled(event *escrow.OTCMarketOrderFulfilled) error {
+func (l *MarketplaceEventListener) handleOrderFulfilled(event *otcmarket.OTCMarketOrderFulfilled) error {
 	// Only the buyer and seller are responsible for updating their part of the marketplace state
 	myAddr := l.walletService.GetCurrentAddress()
 	isBuyer := strings.EqualFold(myAddr, event.Buyer.Hex())
@@ -369,7 +369,7 @@ func (l *MarketplaceEventListener) updateTradeRecordsWithBuyer(orderID, buyer, t
 
 // handleOrderPartiallyFilled processes OrderPartiallyFilled events
 // Requirements: 6.5 - Event-driven order status updates for partial fills
-func (l *MarketplaceEventListener) handleOrderPartiallyFilled(event *escrow.OTCMarketOrderPartiallyFilled) error {
+func (l *MarketplaceEventListener) handleOrderPartiallyFilled(event *otcmarket.OTCMarketOrderPartiallyFilled) error {
 	// Only the buyer and seller are responsible for updating their part of the marketplace state
 	myAddr := l.walletService.GetCurrentAddress()
 	isBuyer := strings.EqualFold(myAddr, event.Buyer.Hex())
@@ -407,14 +407,14 @@ func (l *MarketplaceEventListener) handleOrderPartiallyFilled(event *escrow.OTCM
 		l.orderService.marketplaceService.emitOrderPartiallyFilled(order, event.AmountFilled.String(), event.Buyer.Hex())
 	}
 
-	log.Printf("✅ Order %s partially filled: %s KAWAI filled, %s KAWAI remaining", 
+	log.Printf("✅ Order %s partially filled: %s KAWAI filled, %s KAWAI remaining",
 		orderID, event.AmountFilled.String(), event.RemainingAmount.String())
 	return nil
 }
 
 // handleOrderCancelled processes OrderCancelled events
 // Requirements: 6.5 - Event-driven order status updates
-func (l *MarketplaceEventListener) handleOrderCancelled(event *escrow.OTCMarketOrderCancelled) error {
+func (l *MarketplaceEventListener) handleOrderCancelled(event *otcmarket.OTCMarketOrderCancelled) error {
 	// Only the seller is responsible for updating their cancelled order in the marketplace KV
 	myAddr := l.walletService.GetCurrentAddress()
 	if myAddr == "" || !strings.EqualFold(myAddr, event.Seller.Hex()) {
@@ -453,7 +453,7 @@ func (l *MarketplaceEventListener) GetRecentEvents(ctx context.Context, fromBloc
 	}
 
 	// Get OrderCreated events
-	orderCreatedIter, err := l.blockchainClient.Escrow.FilterOrderCreated(filterOpts, nil, nil)
+	orderCreatedIter, err := l.blockchainClient.OTCMarket.FilterOrderCreated(filterOpts, nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to filter OrderCreated events: %w", err)
 	}
@@ -474,7 +474,7 @@ func (l *MarketplaceEventListener) GetRecentEvents(ctx context.Context, fromBloc
 	}
 
 	// Get OrderFulfilled events
-	orderFilledIter, err := l.blockchainClient.Escrow.FilterOrderFulfilled(filterOpts, nil, nil, nil)
+	orderFilledIter, err := l.blockchainClient.OTCMarket.FilterOrderFulfilled(filterOpts, nil, nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to filter OrderFulfilled events: %w", err)
 	}
@@ -496,7 +496,7 @@ func (l *MarketplaceEventListener) GetRecentEvents(ctx context.Context, fromBloc
 	}
 
 	// Get OrderCancelled events
-	orderCancelledIter, err := l.blockchainClient.Escrow.FilterOrderCancelled(filterOpts, nil, nil)
+	orderCancelledIter, err := l.blockchainClient.OTCMarket.FilterOrderCancelled(filterOpts, nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to filter OrderCancelled events: %w", err)
 	}

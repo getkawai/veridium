@@ -22,7 +22,7 @@ export function ApproveToken(tokenName: string, spenderStr: string, amountStr: s
 }
 
 /**
- * ApproveUSDT approves a spender to spend stablecoin (MockUSDT on testnet, USDC on mainnet)
+ * ApproveUSDT approves a spender to spend stablecoin (MockStablecoin on testnet, USDC on mainnet)
  * Note: Function name kept for backward compatibility
  */
 export function ApproveUSDT(spenderStr: string, amountStr: string): $CancellablePromise<string> {
@@ -47,15 +47,6 @@ export function ClaimCashbackReward(period: number, kawaiAmount: string, proof: 
 }
 
 /**
- * ClaimKawaiReward claims KAWAI rewards using a Merkle proof
- */
-export function ClaimKawaiReward(periodID: number, index: number, amount: string, proof: string[]): $CancellablePromise<$models.ClaimResult | null> {
-    return $Call.ByID(1586412849, periodID, index, amount, proof).then(($result: any) => {
-        return $$createType1($result);
-    });
-}
-
-/**
  * ClaimMiningReward claims mining rewards with referral-based splits
  * Uses the new MiningRewardDistributor contract with 9-field Merkle leaves
  * ClaimMiningReward claims mining rewards with referral splits
@@ -68,10 +59,10 @@ export function ClaimMiningReward(period: number, contributorAmount: string, dev
 }
 
 /**
- * ClaimUSDTReward claims USDT rewards using a Merkle proof
+ * ClaimUSDTReward claims USDT rewards using a Merkle proof (revenue sharing)
  */
-export function ClaimUSDTReward(periodID: number, index: number, amount: string, proof: string[]): $CancellablePromise<$models.ClaimResult | null> {
-    return $Call.ByID(1243120848, periodID, index, amount, proof).then(($result: any) => {
+export function ClaimUSDTReward(periodID: number, index: number, amountStr: string, proof: string[]): $CancellablePromise<$models.ClaimResult | null> {
+    return $Call.ByID(1243120848, periodID, index, amountStr, proof).then(($result: any) => {
         return $$createType1($result);
     });
 }
@@ -92,7 +83,7 @@ export function CreateSellOrder(tokenAmountStr: string, priceStr: string): $Canc
 
 /**
  * DepositToVault deposits stablecoin into the vault for service credits
- * Note: Uses MockUSDT on testnet, USDC on mainnet
+ * Note: Uses MockStablecoin on testnet, USDC on mainnet
  */
 export function DepositToVault(amountStr: string): $CancellablePromise<string> {
     return $Call.ByID(2547645408, amountStr);
@@ -106,13 +97,6 @@ export function GetClaimableRewards(): $CancellablePromise<$models.ClaimableRewa
     return $Call.ByID(1243461775).then(($result: any) => {
         return $$createType3($result);
     });
-}
-
-/**
- * GetDistributorMerkleRoot returns the current Merkle root from a distributor contract
- */
-export function GetDistributorMerkleRoot(rewardType: string): $CancellablePromise<string> {
-    return $Call.ByID(3557111590, rewardType);
 }
 
 /**
@@ -155,17 +139,10 @@ export function GetUSDTAllowance(ownerStr: string, spenderStr: string): $Cancell
 
 /**
  * GetVaultBalance returns the stablecoin balance of the current wallet
- * Note: Uses MockUSDT on testnet, USDC on mainnet
+ * Note: Uses MockStablecoin on testnet, USDC on mainnet
  */
 export function GetVaultBalance(): $CancellablePromise<string> {
     return $Call.ByID(4000684215);
-}
-
-/**
- * IsRewardClaimed checks if a specific reward has already been claimed on-chain
- */
-export function IsRewardClaimed(rewardType: string, index: number): $CancellablePromise<boolean> {
-    return $Call.ByID(2715141111, rewardType, index);
 }
 
 /**
@@ -176,8 +153,8 @@ export function MarkClaimFailed(periodID: number, reason: string): $CancellableP
 }
 
 /**
- * MintTestTokens mints test stablecoin (MockUSDT) to the caller (for testing only)
- * WARNING: This function only works on testnet with MockUSDT. It will FAIL on mainnet with USDC.
+ * MintTestTokens mints test stablecoin (MockStablecoin) to the caller (for testing only)
+ * WARNING: This function only works on testnet with MockStablecoin. It will FAIL on mainnet with USDC.
  * USDC on mainnet does not have a public mint() function.
  */
 export function MintTestTokens(): $CancellablePromise<string> {
@@ -200,7 +177,7 @@ export function TransferToken(tokenAddress: string, to: string, amountStr: strin
 
 /**
  * TransferUSDT sends stablecoin from the current wallet to a recipient
- * Note: Function name kept for backward compatibility, works with MockUSDT (testnet) or USDC (mainnet)
+ * Note: Function name kept for backward compatibility, works with MockStablecoin (testnet) or USDC (mainnet)
  */
 export function TransferUSDT(to: string, amountStr: string): $CancellablePromise<string> {
     return $Call.ByID(1311324606, to, amountStr);

@@ -20,7 +20,7 @@ type JobRewardRecord struct {
 	AffiliatorAmount  string `json:"affiliator_amount"`  // Affiliator reward amount (5% of total or 0)
 
 	TokenUsage  int64  `json:"token_usage"`
-	RewardType  string `json:"reward_type"` // "kawai" or "usdt"
+	RewardType  RewardType `json:"reward_type"` // "mining", "cashback", "referral", "stablecoin"
 	HasReferrer bool   `json:"has_referrer"`
 
 	// For tracking settlement

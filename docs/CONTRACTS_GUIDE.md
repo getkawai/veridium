@@ -14,7 +14,6 @@
 | **KawaiToken** | `0xE32660b39D99988Df4bFdc7e4b68A4DC9D654722` | ERC20 utility token | ✅ Active |
 | **MiningRewardDistributor** | `0x8117D77A219EeF5F7869897C3F0973Afb87d8427` | Mining rewards (85/5/5/5) | ✅ Active |
 | **DepositCashbackDistributor** | `0xdE64f6F5bEe28762c91C76ff762365D553204e35` | Tiered cashback (1-5%) | ✅ Active |
-| **KAWAI_Distributor** | `0xaB0DdFbb4bD94d23a32d0C40f9F96d9A61b45463` | Legacy referral rewards | ✅ Active |
 | **USDT_Distributor** | `0x98a7590406a08Cc64dc074D8698B71e4D997a268` | USDT dividends | ✅ Active |
 | **Escrow (OTCMarket)** | `0xd065F9DDb66aa90a1FF62c10868BeF921be2E103` | P2P OTC Market | ✅ Active |
 | **PaymentVault** | `0x9a5A9e31977cB86cD502DC9E0B568d8F17977dAd` | USDT deposits | ✅ Active |
@@ -102,8 +101,7 @@ make contracts-deploy-testnet
 
 **Contracts Requiring MINTER_ROLE:**
 - ✅ MiningRewardDistributor (1-4 mint calls per claim)
-- ✅ DepositCashbackDistributor (1 mint call per claim)  
-- ✅ KAWAI_Distributor (1 mint call per claim)
+- ✅ DepositCashbackDistributor (1 mint call per claim)
 
 ### Grant MINTER_ROLE (Automated)
 ```bash
@@ -118,8 +116,7 @@ make check-minter-role
 
 # Expected output:
 # ✅ MiningRewardDistributor: HAS MINTER_ROLE
-# ✅ DepositCashbackDistributor: HAS MINTER_ROLE  
-# ✅ KAWAI_Distributor: HAS MINTER_ROLE
+# ✅ DepositCashbackDistributor: HAS MINTER_ROLE
 ```
 
 ---

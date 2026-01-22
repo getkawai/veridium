@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/kawai-network/veridium/pkg/store"
+	"github.com/kawai-network/veridium/pkg/types"
 )
 
 func main() {
@@ -88,19 +89,19 @@ func testClaimingData(address string) error {
 	log.Println("📊 Test 3: Checking specific reward types...")
 
 	// Check mining rewards
-	miningProofs := filterProofsByType(proofs, "kawai")
+	miningProofs := filterProofsByType(proofs, types.RewardTypeMining)
 	log.Printf("   🔨 Mining rewards (KAWAI): %d proofs", len(miningProofs))
 
 	// Check revenue sharing
-	usdtProofs := filterProofsByType(proofs, "usdt")
+	usdtProofs := filterProofsByType(proofs, types.RewardTypeRevenue)
 	log.Printf("   💰 Revenue sharing (USDT): %d proofs", len(usdtProofs))
 
 	// Check cashback
-	cashbackProofs := filterProofsByType(proofs, "cashback")
+	cashbackProofs := filterProofsByType(proofs, types.RewardTypeCashback)
 	log.Printf("   🎁 Cashback rewards: %d proofs", len(cashbackProofs))
 
 	// Check referral
-	referralProofs := filterProofsByType(proofs, "referral")
+	referralProofs := filterProofsByType(proofs, types.RewardTypeReferral)
 	log.Printf("   🤝 Referral rewards: %d proofs", len(referralProofs))
 
 	log.Println("")
@@ -132,7 +133,7 @@ func testClaimingData(address string) error {
 	return nil
 }
 
-func filterProofsByType(proofs []*store.MerkleProofData, rewardType string) []*store.MerkleProofData {
+func filterProofsByType(proofs []*store.MerkleProofData, rewardType types.RewardType) []*store.MerkleProofData {
 	var filtered []*store.MerkleProofData
 	for _, proof := range proofs {
 		if proof.RewardType == rewardType {

@@ -12,7 +12,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/kawai-network/veridium/internal/constant"
@@ -22,13 +22,7 @@ import (
 	"github.com/kawai-network/veridium/pkg/alert"
 	"github.com/kawai-network/veridium/pkg/blockchain"
 	"github.com/kawai-network/veridium/pkg/store"
-)
-
-const (
-	RewardTypeMining   = "mining"
-	RewardTypeCashback = "cashback"
-	RewardTypeReferral = "referral"
-	RewardTypeRevenue  = "revenue"
+	"github.com/kawai-network/veridium/pkg/types"
 )
 
 var autoConfirm bool // Global flag for auto-confirmation
@@ -128,14 +122,14 @@ func generateSettlement(ctx context.Context, kv *store.KVStore, rewardType strin
 	log.Printf("🌳 Generating %s settlement...", rewardType)
 	log.Println("")
 
-	switch rewardType {
-	case RewardTypeMining:
+	switch types.RewardType(rewardType) {
+	case types.RewardTypeMining:
 		return generateMiningSettlement(ctx, kv)
-	case RewardTypeCashback:
+	case types.RewardTypeCashback:
 		return generateCashbackSettlement(ctx, kv)
-	case RewardTypeReferral:
+	case types.RewardTypeReferral:
 		return generateReferralSettlement(ctx, kv)
-	case RewardTypeRevenue:
+	case types.RewardTypeRevenue:
 		return generateRevenueSettlement(ctx, kv)
 	default:
 		return fmt.Errorf("unknown reward type: %s (must be mining, cashback, referral, or revenue)", rewardType)
@@ -152,7 +146,7 @@ func generateMiningSettlement(ctx context.Context, kv store.Store) error {
 	alerter.SendAlert("INFO", "Settlement", "🔄 Starting mining settlement...")
 
 	// Generate mining settlement with 9-field Merkle leaves
-	period, err := kv.GenerateMiningSettlement(ctx, "kawai")
+	period, err := kv.GenerateMiningSettlement(ctx, types.RewardTypeMining)
 	if err != nil {
 		alerter.SendAlert("ERROR", "Settlement",
 			fmt.Sprintf("❌ Mining settlement failed!\nError: %v", err))
@@ -247,7 +241,7 @@ func generateReferralSettlement(ctx context.Context, kv *store.KVStore) error {
 	// Get latest KAWAI period
 	var latest *store.SettlementPeriod
 	for i := len(periods) - 1; i >= 0; i-- {
-		if periods[i].RewardType == "kawai" {
+		if periods[i].RewardType == types.RewardTypeMining {
 			latest = periods[i]
 			break
 		}
@@ -283,14 +277,14 @@ func uploadMerkleRoot(ctx context.Context, kv *store.KVStore, rewardType string)
 	log.Printf("🚀 Uploading %s Merkle root to contract...", rewardType)
 	log.Println("")
 
-	switch rewardType {
-	case RewardTypeMining:
+	switch types.RewardType(rewardType) {
+	case types.RewardTypeMining:
 		return uploadMiningRoot(ctx, kv)
-	case RewardTypeCashback:
+	case types.RewardTypeCashback:
 		return uploadCashbackRoot(ctx, kv)
-	case RewardTypeReferral:
+	case types.RewardTypeReferral:
 		return uploadReferralRoot(ctx, kv)
-	case RewardTypeRevenue:
+	case types.RewardTypeRevenue:
 		return uploadRevenueRoot(ctx, kv)
 	default:
 		return fmt.Errorf("unknown reward type: %s", rewardType)
@@ -308,7 +302,7 @@ func uploadMiningRoot(ctx context.Context, kv store.Store) error {
 
 	var latest *store.SettlementPeriod
 	for i := len(periods) - 1; i >= 0; i-- {
-		if periods[i].RewardType == "kawai" {
+		if periods[i].RewardType == types.RewardTypeMining {
 			latest = periods[i]
 			break
 		}
@@ -477,7 +471,7 @@ func uploadCashbackRoot(ctx context.Context, kv *store.KVStore) error {
 	var latest *store.SettlementPeriod
 	for i := len(periods) - 1; i >= 0; i-- {
 		// Note: Cashback generates periods with RewardType="cashback"
-		if periods[i].RewardType == "cashback" {
+		if periods[i].RewardType == types.RewardTypeCashback {
 			latest = periods[i]
 			break
 		}
@@ -565,7 +559,7 @@ func uploadCashbackRoot(ctx context.Context, kv *store.KVStore) error {
 
 	log.Printf("📊 Contract currentPeriod: %d, Settlement period: %d", contractPeriod, latest.PeriodID)
 
-	var tx *types.Transaction
+	var tx *ethtypes.Transaction
 
 	if uint64(latest.PeriodID) == contractPeriod {
 		// Update current period (SetMerkleRoot)
@@ -620,7 +614,7 @@ func uploadReferralRoot(ctx context.Context, kv *store.KVStore) error {
 	var latestMining *store.SettlementPeriod
 	for i := len(periods) - 1; i >= 0; i-- {
 		// Referral tracks mining periods (usually "kawai" type for mining rewards)
-		if periods[i].RewardType == "kawai" {
+		if periods[i].RewardType == types.RewardTypeMining {
 			latestMining = periods[i]
 			break
 		}
@@ -719,7 +713,7 @@ func uploadReferralRoot(ctx context.Context, kv *store.KVStore) error {
 
 	log.Printf("📊 Contract currentPeriod: %d, Settlement period: %d", contractPeriod, periodID)
 
-	var tx *types.Transaction
+	var tx *ethtypes.Transaction
 
 	if periodID == contractPeriod {
 		// Update current period (SetMerkleRoot)
@@ -933,7 +927,7 @@ func showMiningStatus(ctx context.Context, kv store.Store) error {
 
 	var kawaiPeriods []*store.SettlementPeriod
 	for _, p := range periods {
-		if p.RewardType == "kawai" {
+		if p.RewardType == types.RewardTypeMining {
 			kawaiPeriods = append(kawaiPeriods, p)
 		}
 	}

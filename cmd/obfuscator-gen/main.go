@@ -809,7 +809,6 @@ func generateBlockchain(configs map[string]string) {
 	otcMarket := configs["OTC_MARKET_ADDRESS"]
 	usdtToken := configs["USDT_TOKEN_ADDRESS"]
 	paymentVault := configs["PAYMENT_VAULT_ADDRESS"]
-	kawaiDistributor := configs["KAWAI_DISTRIBUTOR_ADDRESS"]
 	usdtDistributor := configs["USDT_DISTRIBUTOR_ADDRESS"]
 	cashbackDistributor := configs["CASHBACK_DISTRIBUTOR_ADDRESS"]
 	miningDistributor := configs["MINING_DISTRIBUTOR_ADDRESS"]
@@ -829,10 +828,9 @@ const (
 	// Contract Addresses (Monad Testnet - Fresh Deployment 2026-01-13)
 	KawaiTokenAddress           = "%s"
 	OTCMarketAddress            = "%s"
-	UsdtTokenAddress            = "%s"
+	StablecoinAddress           = "%s"
 	PaymentVaultAddress         = "%s"
-	KawaiDistributorAddr        = "%s"
-	USDTDistributorAddr         = "%s"
+	RevenueDistributorAddr      = "%s"
 	CashbackDistributorAddress  = "%s"
 	MiningRewardDistributorAddr = "%s"
 	ReferralDistributorAddress  = "%s"
@@ -843,7 +841,7 @@ const (
 	// - Mainnet: Set to token deployment block to optimize performance
 	HolderScanStartBlock = 0
 )
-`, kawaiToken, otcMarket, usdtToken, paymentVault, kawaiDistributor, usdtDistributor, cashbackDistributor, miningDistributor, referralDistributor)
+`, kawaiToken, otcMarket, usdtToken, paymentVault, usdtDistributor, cashbackDistributor, miningDistributor, referralDistributor)
 
 	err := os.WriteFile(outputFile, []byte(content), 0644)
 	if err != nil {
@@ -857,12 +855,11 @@ func generateProjectTokens(configs map[string]string) {
 	outputFile := "pkg/jarvis/db/project_tokens.go"
 
 	// Extract addresses from .env
-	usdtToken := configs["USDT_TOKEN_ADDRESS"]
+	stablecoin := configs["STABLECOIN_ADDRESS"]
 	kawaiToken := configs["TOKEN_ADDRESS"]
 	otcMarket := configs["OTC_MARKET_ADDRESS"]
 	paymentVault := configs["PAYMENT_VAULT_ADDRESS"]
-	kawaiDistributor := configs["KAWAI_DISTRIBUTOR_ADDRESS"]
-	usdtDistributor := configs["USDT_DISTRIBUTOR_ADDRESS"]
+	revenueDistributor := configs["REVENUE_DISTRIBUTOR_ADDRESS"]
 	miningDistributor := configs["MINING_DISTRIBUTOR_ADDRESS"]
 	cashbackDistributor := configs["CASHBACK_DISTRIBUTOR_ADDRESS"]
 	referralDistributor := configs["REFERRAL_DISTRIBUTOR_ADDRESS"]
@@ -878,17 +875,16 @@ func generateProjectTokens(configs map[string]string) {
 // Fresh Deployment: 2026-01-13
 var PROJECT_TOKENS map[string]string = map[string]string{
 	// Monad Testnet Contracts (Fresh Deployment 2026-01-13)
-	"%s": "USDT",
+	"%s": "Stablecoin",
 	"%s": "KawaiToken",
 	"%s": "OTCMarket",
 	"%s": "PaymentVault",
-	"%s": "KAWAI_Distributor",
-	"%s": "USDT_Distributor",
+	"%s": "RevenueDistributor",
 	"%s": "MiningRewardDistributor",
 	"%s": "CashbackDistributor",
 	"%s": "ReferralDistributor",
 }
-`, usdtToken, kawaiToken, otcMarket, paymentVault, kawaiDistributor, usdtDistributor, miningDistributor, cashbackDistributor, referralDistributor)
+`, stablecoin, kawaiToken, otcMarket, paymentVault, revenueDistributor, miningDistributor, cashbackDistributor, referralDistributor)
 
 	err := os.WriteFile(outputFile, []byte(content), 0644)
 	if err != nil {

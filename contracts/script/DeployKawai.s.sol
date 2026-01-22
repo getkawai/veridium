@@ -3,10 +3,10 @@ pragma solidity ^0.8.20;
 
 import {Script, console} from "forge-std/Script.sol";
 import {KawaiToken} from "../contracts/KawaiToken.sol";
-import {MerkleDistributor} from "../contracts/MerkleDistributor.sol";
-import {MockUSDT} from "../contracts/MockUSDT.sol";
+import {RevenueDistributor} from "../contracts/RevenueDistributor.sol";
+import {MockStablecoin} from "../contracts/MockStablecoin.sol";
 import {PaymentVault} from "../contracts/PaymentVault.sol";
-import {OTCMarket} from "../contracts/Escrow.sol";
+import {OTCMarket} from "../contracts/OTCMarket.sol";
 
 contract DeployKawai is Script {
     function run() external {
@@ -20,18 +20,18 @@ contract DeployKawai is Script {
 
         // 1. Get or Deploy Stablecoin
         // Mainnet: Use existing USDC (0x754704bc059f8c67012fed69bc8a327a5aafb603)
-        // Testnet: Deploy MockUSDT
-        address usdtAddress;
+        // Testnet: Deploy MockStablecoin
+        address stablecoinAddress;
         
         // Try to read USDC_ADDRESS from environment (for mainnet)
         try vm.envAddress("USDC_ADDRESS") returns (address existingUsdc) {
-            usdtAddress = existingUsdc;
-            console.log("Using existing stablecoin at:", usdtAddress);
+            stablecoinAddress = existingUsdc;
+            console.log("Using existing stablecoin at:", stablecoinAddress);
         } catch {
-            // If not set, deploy MockUSDT (for testnet)
-            MockUSDT usdt = new MockUSDT();
-            usdtAddress = address(usdt);
-            console.log("MockUSDT deployed at:", usdtAddress);
+            // If not set, deploy MockStablecoin (for testnet)
+            MockStablecoin stablecoin = new MockStablecoin();
+            stablecoinAddress = address(stablecoin);
+            console.log("MockStablecoin deployed at:", stablecoinAddress);
         }
 
         // 2. Deploy KawaiToken
@@ -39,58 +39,39 @@ contract DeployKawai is Script {
         KawaiToken token = new KawaiToken(deployer, deployer);
         console.log("KawaiToken deployed at:", address(token));
 
-        // 3. Deploy KAWAI MerkleDistributor (Mining Rewards)
-        // mintOnClaim=true: mints new KAWAI tokens when contributor claims (contributor pays gas)
-        MerkleDistributor kawaiDistributor = new MerkleDistributor(
-            address(token),
-            true // mintOnClaim: mint tokens on claim
+        // 3. Deploy RevenueDistributor (Revenue Sharing)
+        // Transfers stablecoin from pre-funded balance
+        RevenueDistributor revenueDistributor = new RevenueDistributor(
+            stablecoinAddress
         );
         console.log(
-            "KAWAI MerkleDistributor (Mining) deployed at:",
-            address(kawaiDistributor)
-        );
-
-        // 4. Deploy USDT MerkleDistributor (Profit Sharing)
-        // mintOnClaim=false: transfers USDT from pre-funded balance
-        MerkleDistributor usdtDistributor = new MerkleDistributor(
-            usdtAddress,
-            false // mintOnClaim: transfer from balance
-        );
-        console.log(
-            "USDT MerkleDistributor (Dividends) deployed at:",
-            address(usdtDistributor)
+            "RevenueDistributor (Revenue Sharing) deployed at:",
+            address(revenueDistributor)
         );
 
         // 5. Deploy PaymentVault (Stablecoin Deposits for credits)
-        PaymentVault vault = new PaymentVault(usdtAddress, deployer);
+        PaymentVault vault = new PaymentVault(stablecoinAddress, deployer);
         console.log("PaymentVault deployed at:", address(vault));
 
         // 6. Deploy OTCMarket (Escrow)
         // deployer as fee recipient for now
         OTCMarket escrow = new OTCMarket(
             address(token),
-            usdtAddress,
+            stablecoinAddress,
             deployer
         );
         console.log("OTCMarket (Escrow) deployed at:", address(escrow));
 
         // --- Setup & Permissions ---
-
-        // Grant MINTER_ROLE to KAWAI MerkleDistributor so it can mint mining rewards
-        bytes32 MINTER_ROLE = keccak256("MINTER_ROLE");
-        token.grantRole(MINTER_ROLE, address(kawaiDistributor));
-        console.log(
-            "Permission: Granted MINTER_ROLE to KAWAI MerkleDistributor"
-        );
+        // No MINTER_ROLE needed for RevenueDistributor (transfer mode only)
 
         vm.stopBroadcast();
 
         console.log("\n=== Deployment Summary (SAVE THESE!) ===");
         console.log("Network:", vm.envOr("NETWORK", string("Unknown")));
-        console.log("Stablecoin:", usdtAddress);
+        console.log("Stablecoin:", stablecoinAddress);
         console.log("KawaiToken:", address(token));
-        console.log("KAWAI_Distributor:", address(kawaiDistributor));
-        console.log("USDT_Distributor:", address(usdtDistributor));
+        console.log("RevenueDistributor:", address(revenueDistributor));
         console.log("PaymentVault:", address(vault));
         console.log("OTCMarket:", address(escrow));
         console.log("=========================================");

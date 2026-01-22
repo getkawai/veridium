@@ -24,7 +24,7 @@ type NetworkInfo struct {
 	ExplorerURL        string `json:"explorerURL"`
 	IsTestnet          bool   `json:"isTestnet"`
 	Icon               string `json:"icon"`
-	StablecoinSymbol   string `json:"stablecoinSymbol"` // "MockUSDT" (testnet) or "USDC" (mainnet)
+	StablecoinSymbol   string `json:"stablecoinSymbol"` // "MOCK" (testnet) or "USDC" (mainnet)
 	StablecoinName     string `json:"stablecoinName"`   // Full display name
 	StablecoinShort    string `json:"stablecoinShort"`  // "USDT" (testnet) or "USDC" (mainnet) for messages
 }
@@ -244,7 +244,7 @@ func getWeb3IconSlugByName(name string) string {
 // getStablecoinInfo returns stablecoin information based on network testnet status
 func getStablecoinInfo(isTestnet bool) (symbol, name, short string) {
 	if isTestnet {
-		return "MockUSDT", "Mock Tether USD (Testnet)", "USDT"
+		return "MOCK", "Mock Stablecoin (Testnet)", "MOCK"
 	}
 	return "USDC", "USD Coin", "USDC"
 }
@@ -611,7 +611,7 @@ func (s *JarvisService) GetProjectTokens() []ProjectToken {
 	tokens := make([]ProjectToken, 0, len(db.PROJECT_TOKENS))
 	for addr, name := range db.PROJECT_TOKENS {
 		// Only include actual tokens (not contracts like Escrow, PaymentVault, Distributors)
-		if name == "MockUSDT" || name == "KawaiToken" {
+		if name == "Stablecoin" || name == "KawaiToken" {
 			tokens = append(tokens, ProjectToken{
 				Address: addr,
 				Name:    name,
@@ -625,8 +625,8 @@ func (s *JarvisService) GetProjectTokens() []ProjectToken {
 // getSymbolFromName extracts symbol from token name
 func getSymbolFromName(name string) string {
 	switch name {
-	case "MockUSDT":
-		return "USDT"
+	case "Stablecoin":
+		return "MOCK"
 	case "KawaiToken":
 		return "KAWAI"
 	default:

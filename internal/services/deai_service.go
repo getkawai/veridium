@@ -18,6 +18,7 @@ import (
 	"github.com/kawai-network/veridium/pkg/jarvis/networks"
 	"github.com/kawai-network/veridium/pkg/jarvis/util/reader"
 	"github.com/kawai-network/veridium/pkg/store"
+	"github.com/kawai-network/veridium/pkg/types"
 )
 
 // isUserError checks if an error is a user-caused error (not system error)
@@ -53,18 +54,18 @@ func isUserError(err error) bool {
 
 // ClaimableReward represents a single claimable reward proof
 type ClaimableReward struct {
-	Index       uint64   `json:"index"`
-	Amount      string   `json:"amount"`        // BigInt as string (raw, no decimals)
-	Proof       []string `json:"proof"`         // Merkle proof (hex strings)
-	MerkleRoot  string   `json:"merkle_root"`   // Root hash for verification
-	PeriodID    int64    `json:"period_id"`     // Settlement period identifier
-	RewardType  string   `json:"reward_type"`   // "kawai" or "usdt"
-	ClaimStatus string   `json:"claim_status"`  // "unclaimed", "pending", "confirmed", "failed"
-	ClaimTxHash string   `json:"claim_tx_hash"` // Transaction hash if claimed
-	CreatedAt   string   `json:"created_at"`    // When proof was generated
-	ClaimedAt   string   `json:"claimed_at"`    // When claimed (if confirmed)
-	Formatted   string   `json:"formatted"`     // Human-readable amount
-	Decimals    int      `json:"decimals"`      // Token decimals (18 for KAWAI, 6 for USDT)
+	Index       uint64           `json:"index"`
+	Amount      string           `json:"amount"`        // BigInt as string (raw, no decimals)
+	Proof       []string         `json:"proof"`         // Merkle proof (hex strings)
+	MerkleRoot  string           `json:"merkle_root"`   // Root hash for verification
+	PeriodID    int64            `json:"period_id"`     // Settlement period identifier
+	RewardType  types.RewardType `json:"reward_type"`   // "mining", "cashback", "referral", "stablecoin"
+	ClaimStatus string           `json:"claim_status"`  // "unclaimed", "pending", "confirmed", "failed"
+	ClaimTxHash string           `json:"claim_tx_hash"` // Transaction hash if claimed
+	CreatedAt   string           `json:"created_at"`    // When proof was generated
+	ClaimedAt   string           `json:"claimed_at"`    // When claimed (if confirmed)
+	Formatted   string           `json:"formatted"`     // Human-readable amount
+	Decimals    int              `json:"decimals"`      // Token decimals (18 for KAWAI, 6 for USDT)
 
 	// Mining-specific fields (for 9-field ClaimMiningReward)
 	ContributorAmount string `json:"contributor_amount,omitempty"` // Contributor's share
@@ -92,11 +93,11 @@ type ClaimableRewardsResponse struct {
 
 // ClaimResult represents the result of a claim transaction
 type ClaimResult struct {
-	TxHash     string `json:"tx_hash"`
-	PeriodID   int64  `json:"period_id"`
-	RewardType string `json:"reward_type"`
-	Amount     string `json:"amount"`
-	Status     string `json:"status"` // "submitted", "pending", "confirmed", "failed"
+	TxHash     string           `json:"tx_hash"`
+	PeriodID   int64            `json:"period_id"`
+	RewardType types.RewardType `json:"reward_type"`
+	Amount     string           `json:"amount"`
+	Status     string           `json:"status"` // "submitted", "pending", "confirmed", "failed"
 }
 
 // RevenueShareStatsResponse represents revenue sharing statistics
@@ -140,7 +141,7 @@ func NewDeAIService(wallet *WalletService, kv store.Store) *DeAIService {
 }
 
 // GetVaultBalance returns the stablecoin balance of the current wallet
-// Note: Uses MockUSDT on testnet, USDC on mainnet
+// Note: Uses MockStablecoin on testnet, USDC on mainnet
 func (s *DeAIService) GetVaultBalance() (string, error) {
 	// Check if wallet is unlocked
 	if s.wallet.currentAccount == nil {
@@ -150,9 +151,9 @@ func (s *DeAIService) GetVaultBalance() (string, error) {
 	// 1. Get User Address
 	userAddr := s.wallet.currentAccount.Address()
 
-	// 2. Load stablecoin contract (MockUSDT on testnet, USDC on mainnet)
+	// 2. Load stablecoin contract (MockStablecoin on testnet, USDC on mainnet)
 	// Use Jarvis wrapper for cleaner code
-	stablecoin, err := contracts.Stablecoin(constant.UsdtTokenAddress, s.reader)
+	stablecoin, err := contracts.Stablecoin(constant.StablecoinAddress, s.reader)
 	if err != nil {
 		return "", fmt.Errorf("failed to load stablecoin contract: %w", err)
 	}
@@ -286,7 +287,7 @@ func (s *DeAIService) GetRevenueShareStats() (*RevenueShareStatsResponse, error)
 }
 
 // DepositToVault deposits stablecoin into the vault for service credits
-// Note: Uses MockUSDT on testnet, USDC on mainnet
+// Note: Uses MockStablecoin on testnet, USDC on mainnet
 func (s *DeAIService) DepositToVault(amountStr string) (string, error) {
 	// Check if wallet is unlocked
 	if s.wallet.currentAccount == nil {
@@ -302,7 +303,7 @@ func (s *DeAIService) DepositToVault(amountStr string) (string, error) {
 
 	// 2. Resolve Addresses
 	// Use constant which automatically switches based on environment
-	stablecoinAddr := common.HexToAddress(constant.UsdtTokenAddress)
+	stablecoinAddr := common.HexToAddress(constant.StablecoinAddress)
 	vaultAddr, err := contracts.ResolveAddress("PaymentVault")
 	if err != nil {
 		return "", fmt.Errorf("PaymentVault address not found: %w", err)
@@ -380,7 +381,7 @@ func (s *DeAIService) GetUSDTAllowance(ownerStr string, spenderStr string) (stri
 	}
 
 	// Use constant which automatically switches based on environment
-	stablecoinAddr := common.HexToAddress(constant.UsdtTokenAddress)
+	stablecoinAddr := common.HexToAddress(constant.StablecoinAddress)
 
 	stablecoin, err := contracts.KawaiToken(stablecoinAddr.Hex(), s.reader)
 	if err != nil {
@@ -395,7 +396,7 @@ func (s *DeAIService) GetUSDTAllowance(ownerStr string, spenderStr string) (stri
 	return allowance.String(), nil
 }
 
-// ApproveUSDT approves a spender to spend stablecoin (MockUSDT on testnet, USDC on mainnet)
+// ApproveUSDT approves a spender to spend stablecoin (MockStablecoin on testnet, USDC on mainnet)
 // Note: Function name kept for backward compatibility
 func (s *DeAIService) ApproveUSDT(spenderStr string, amountStr string) (string, error) {
 	// 1. Parse inputs
@@ -418,7 +419,7 @@ func (s *DeAIService) ApproveUSDT(spenderStr string, amountStr string) (string, 
 
 	// 3. Load stablecoin contract
 	// Use constant which automatically switches based on environment
-	stablecoinAddr := common.HexToAddress(constant.UsdtTokenAddress)
+	stablecoinAddr := common.HexToAddress(constant.StablecoinAddress)
 
 	stablecoin, err := contracts.KawaiToken(stablecoinAddr.Hex(), s.reader)
 	if err != nil {
@@ -494,14 +495,14 @@ func (s *DeAIService) CreateSellOrder(tokenAmountStr string, priceStr string) (s
 		return "", fmt.Errorf("failed to get opts: %w", err)
 	}
 
-	escrowAddr, err := contracts.ResolveAddress("Escrow")
+	escrowAddr, err := contracts.ResolveAddress("OTCMarket")
 	if err != nil {
-		return "", fmt.Errorf("Escrow address not found: %w", err)
+		return "", fmt.Errorf("OTCMarket address not found: %w", err)
 	}
 
-	escrow, err := contracts.Escrow(escrowAddr.Hex(), s.reader)
+	escrow, err := contracts.OTCMarket(escrowAddr.Hex(), s.reader)
 	if err != nil {
-		return "", fmt.Errorf("failed to load Escrow: %w", err)
+		return "", fmt.Errorf("failed to load OTCMarket: %w", err)
 	}
 
 	tx, err := escrow.CreateOrder(opts, tokenAmount, price)
@@ -526,14 +527,14 @@ func (s *DeAIService) BuyOrder(orderIdStr string) (string, error) {
 		return "", fmt.Errorf("failed to get opts: %w", err)
 	}
 
-	escrowAddr, err := contracts.ResolveAddress("Escrow")
+	escrowAddr, err := contracts.ResolveAddress("OTCMarket")
 	if err != nil {
-		return "", fmt.Errorf("Escrow address not found: %w", err)
+		return "", fmt.Errorf("OTCMarket address not found: %w", err)
 	}
 
-	escrow, err := contracts.Escrow(escrowAddr.Hex(), s.reader)
+	escrow, err := contracts.OTCMarket(escrowAddr.Hex(), s.reader)
 	if err != nil {
-		return "", fmt.Errorf("failed to load Escrow: %w", err)
+		return "", fmt.Errorf("failed to load OTCMarket: %w", err)
 	}
 
 	tx, err := escrow.BuyOrder(opts, orderId)
@@ -544,12 +545,12 @@ func (s *DeAIService) BuyOrder(orderIdStr string) (string, error) {
 	return tx.Hash().Hex(), nil
 }
 
-// MintTestTokens mints test stablecoin (MockUSDT) to the caller (for testing only)
-// WARNING: This function only works on testnet with MockUSDT. It will FAIL on mainnet with USDC.
+// MintTestTokens mints test stablecoin (MockStablecoin) to the caller (for testing only)
+// WARNING: This function only works on testnet with MockStablecoin. It will FAIL on mainnet with USDC.
 // USDC on mainnet does not have a public mint() function.
 func (s *DeAIService) MintTestTokens() (string, error) {
 	// Safety check: Only allow on testnet
-	// Testnet uses MockUSDT which has mint(), mainnet uses USDC which doesn't
+	// Testnet uses MockStablecoin which has mint(), mainnet uses USDC which doesn't
 	if !config.IsTestnet() {
 		return "", fmt.Errorf("MintTestTokens is only available on testnet. On mainnet, you must acquire USDC through exchanges or bridges")
 	}
@@ -560,9 +561,9 @@ func (s *DeAIService) MintTestTokens() (string, error) {
 		return "", fmt.Errorf("failed to get opts: %w", err)
 	}
 
-	// 1. Mint stablecoin (MockUSDT on testnet only)
+	// 1. Mint stablecoin (MockStablecoin on testnet only)
 	// Use constant which automatically switches based on environment
-	stablecoinAddr := common.HexToAddress(constant.UsdtTokenAddress)
+	stablecoinAddr := common.HexToAddress(constant.StablecoinAddress)
 	stablecoin, _ := contracts.KawaiToken(stablecoinAddr.Hex(), s.reader) // Using KawaiToken wrapper for mint
 
 	// Mint 1000 stablecoin (6 decimals)
@@ -576,11 +577,11 @@ func (s *DeAIService) MintTestTokens() (string, error) {
 }
 
 // TransferUSDT sends stablecoin from the current wallet to a recipient
-// Note: Function name kept for backward compatibility, works with MockUSDT (testnet) or USDC (mainnet)
+// Note: Function name kept for backward compatibility, works with MockStablecoin (testnet) or USDC (mainnet)
 func (s *DeAIService) TransferUSDT(to string, amountStr string) (string, error) {
 	// 1. Resolve Addresses
 	// Use constant which automatically switches based on environment
-	stablecoinAddr := common.HexToAddress(constant.UsdtTokenAddress)
+	stablecoinAddr := common.HexToAddress(constant.StablecoinAddress)
 	recipient := common.HexToAddress(to)
 
 	// 2. Parse Amount
@@ -797,18 +798,16 @@ func (s *DeAIService) GetClaimableRewards() (*ClaimableRewardsResponse, error) {
 	}
 
 	// Format total amounts
-	result.TotalKawaiClaimableFormatted = s.formatRewardAmount(result.TotalKawaiClaimable, "kawai")
-	result.TotalUSDTClaimableFormatted = s.formatRewardAmount(result.TotalUSDTClaimable, "usdt")
+	result.TotalKawaiClaimableFormatted = s.formatRewardAmount(result.TotalKawaiClaimable, types.RewardTypeMining)
+	result.TotalUSDTClaimableFormatted = s.formatRewardAmount(result.TotalUSDTClaimable, types.RewardTypeRevenue)
 
 	return result, nil
 }
 
 // convertMerkleProofToClaimable converts store.MerkleProofData to ClaimableReward
 func (s *DeAIService) convertMerkleProofToClaimable(proof *store.MerkleProofData) *ClaimableReward {
-	decimals := 18
-	if proof.RewardType == "stablecoin" {
-		decimals = 6
-	}
+	rewardType := types.RewardType(proof.RewardType)
+	decimals := rewardType.Decimals()
 
 	claimable := &ClaimableReward{
 		Index:       proof.Index,
@@ -816,17 +815,17 @@ func (s *DeAIService) convertMerkleProofToClaimable(proof *store.MerkleProofData
 		Proof:       proof.Proof,
 		MerkleRoot:  proof.MerkleRoot,
 		PeriodID:    proof.PeriodID,
-		RewardType:  proof.RewardType,
+		RewardType:  rewardType,
 		ClaimStatus: string(proof.ClaimStatus),
 		ClaimTxHash: proof.ClaimTxHash,
 		CreatedAt:   proof.CreatedAt.Format("2006-01-02T15:04:05Z"),
 		ClaimedAt:   proof.ClaimedAt.Format("2006-01-02T15:04:05Z"),
-		Formatted:   s.formatRewardAmount(proof.Amount, proof.RewardType),
+		Formatted:   s.formatRewardAmount(proof.Amount, rewardType),
 		Decimals:    decimals,
 	}
 
 	// Add mining-specific fields for kawai rewards (9-field format)
-	if proof.RewardType == "kawai" {
+	if rewardType.IsKawaiReward() {
 		claimable.ContributorAmount = proof.ContributorAmount
 		claimable.DeveloperAmount = proof.DeveloperAmount
 		claimable.UserAmount = proof.UserAmount
@@ -849,14 +848,95 @@ func getStringFromMap(m map[string]interface{}, key string, defaultVal string) s
 	return defaultVal
 }
 
-// ClaimKawaiReward claims KAWAI rewards using a Merkle proof
-func (s *DeAIService) ClaimKawaiReward(periodID int64, index uint64, amount string, proof []string) (*ClaimResult, error) {
-	return s.claimReward("kawai", periodID, index, amount, proof)
-}
+// ClaimUSDTReward claims USDT rewards using a Merkle proof (revenue sharing)
+func (s *DeAIService) ClaimUSDTReward(periodID int64, index uint64, amountStr string, proof []string) (*ClaimResult, error) {
+	if s.wallet.currentAccount == nil {
+		return nil, fmt.Errorf("no wallet connected")
+	}
 
-// ClaimUSDTReward claims USDT rewards using a Merkle proof
-func (s *DeAIService) ClaimUSDTReward(periodID int64, index uint64, amount string, proof []string) (*ClaimResult, error) {
-	return s.claimReward("usdt", periodID, index, amount, proof)
+	claimerAddr := s.wallet.currentAccount.AddressHex()
+	ctx := context.Background()
+
+	// Mark claim as pending BEFORE submitting transaction
+	if s.kv != nil {
+		if err := s.kv.MarkClaimPending(ctx, claimerAddr, periodID, ""); err != nil {
+			return nil, fmt.Errorf("failed to mark claim as pending: %w", err)
+		}
+	}
+
+	// Load RevenueDistributor contract for revenue sharing
+	distributor, err := contracts.RevenueDistributor("RevenueDistributor", s.reader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load revenue distributor: %w", err)
+	}
+
+	// Parse amount
+	amount := new(big.Int)
+	amount, ok := amount.SetString(amountStr, 10)
+	if !ok {
+		return nil, fmt.Errorf("invalid amount format")
+	}
+
+	// Convert proof strings to [32]byte array
+	merkleProof := make([][32]byte, len(proof))
+	for i, p := range proof {
+		if len(p) >= 2 && p[:2] == "0x" {
+			p = p[2:]
+		}
+		proofBytes := common.Hex2Bytes(p)
+		if len(proofBytes) != 32 {
+			return nil, fmt.Errorf("invalid proof element at index %d: expected 32 bytes, got %d", i, len(proofBytes))
+		}
+		copy(merkleProof[i][:], proofBytes)
+	}
+
+	// Get transaction options
+	chainId := s.chainID
+	opts, err := s.wallet.getTransactOpts(chainId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get transaction opts: %w", err)
+	}
+
+	// Submit claim transaction (fix integer truncation risk)
+	idx := new(big.Int).SetUint64(index)
+	tx, err := distributor.Claim(opts, idx, opts.From, amount, merkleProof)
+	if err != nil {
+		if s.kv != nil {
+			s.kv.MarkClaimFailed(ctx, claimerAddr, periodID, err.Error())
+		}
+		if !isUserError(err) {
+			s.alert.SendAlert("WARNING", "Claim",
+				fmt.Sprintf("⚠️ USDT claim failed\n\nClaimer: %s\nPeriod: %d\nIndex: %d\nAmount: %s\nError: %v",
+					claimerAddr, periodID, index, amountStr, err))
+		}
+		return nil, fmt.Errorf("claim transaction failed: %w", err)
+	}
+
+	txHash := tx.Hash().Hex()
+
+	// Wait for confirmation
+	receipt, err := bind.WaitMined(ctx, s.reader.Client(), tx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to wait for transaction confirmation: %w", err)
+	}
+
+	if receipt.Status != 1 {
+		if s.kv != nil {
+			s.kv.MarkClaimFailed(ctx, claimerAddr, periodID, "transaction reverted")
+		}
+		s.alert.SendAlert("ERROR", "Claim",
+			fmt.Sprintf("❌ USDT claim reverted!\n\nClaimer: %s\nPeriod: %d\nTx: %s",
+				claimerAddr, periodID, txHash))
+		return nil, fmt.Errorf("transaction reverted (status: %d)", receipt.Status)
+	}
+
+	return &ClaimResult{
+		TxHash:     txHash,
+		PeriodID:   periodID,
+		RewardType: types.RewardTypeRevenue,
+		Amount:     amountStr,
+		Status:     "confirmed",
+	}, nil
 }
 
 // ClaimCashbackReward claims deposit cashback rewards using a Merkle proof
@@ -985,7 +1065,7 @@ func (s *DeAIService) ClaimCashbackReward(period uint64, kawaiAmount string, pro
 	return &ClaimResult{
 		TxHash:     txHash,
 		PeriodID:   int64(period),
-		RewardType: "cashback",
+		RewardType: types.RewardTypeCashback,
 		Amount:     kawaiAmount,
 		Status:     "confirmed",
 	}, nil
@@ -1151,157 +1231,10 @@ func (s *DeAIService) ClaimMiningReward(
 	return &ClaimResult{
 		TxHash:     txHash,
 		PeriodID:   period,
-		RewardType: "mining",
+		RewardType: types.RewardTypeMining,
 		Amount:     contributorAmount,
 		Status:     "confirmed",
 	}, nil
-}
-
-// claimReward is the internal implementation for claiming rewards
-func (s *DeAIService) claimReward(rewardType string, periodID int64, index uint64, amountStr string, proofStrings []string) (*ClaimResult, error) {
-
-	if s.wallet.currentAccount == nil {
-		return nil, fmt.Errorf("no wallet connected")
-	}
-
-	claimerAddr := s.wallet.currentAccount.AddressHex()
-
-	// 1. Resolve distributor address
-	var distributorName string
-	if rewardType == "kawai" {
-		distributorName = "KAWAI_Distributor"
-	} else {
-		distributorName = "USDT_Distributor"
-	}
-
-	// 2. Load MerkleDistributor contract
-	distributor, err := contracts.MerkleDistributor(distributorName, s.reader)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load distributor: %w", err)
-	}
-
-	// 3. Parse amount
-	amount := new(big.Int)
-	amount, ok := amount.SetString(amountStr, 10)
-	if !ok {
-		return nil, fmt.Errorf("invalid amount format")
-	}
-
-	// 4. Convert proof strings to [32]byte array
-	merkleProof := make([][32]byte, len(proofStrings))
-	for i, p := range proofStrings {
-		// Remove 0x prefix if present
-		if len(p) >= 2 && p[:2] == "0x" {
-			p = p[2:]
-		}
-		proofBytes := common.Hex2Bytes(p)
-		if len(proofBytes) != 32 {
-			return nil, fmt.Errorf("invalid proof element at index %d: expected 32 bytes, got %d", i, len(proofBytes))
-		}
-		copy(merkleProof[i][:], proofBytes)
-	}
-
-	// 5. Get transaction options
-	chainId := s.chainID
-	opts, err := s.wallet.getTransactOpts(chainId)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get transaction opts: %w", err)
-	}
-
-	// 6. Submit claim transaction
-	tx, err := distributor.Claim(opts, big.NewInt(int64(index)), opts.From, amount, merkleProof)
-	if err != nil {
-		// Alert on unexpected errors only
-		if !isUserError(err) {
-			s.alert.SendAlert("WARNING", "Claim",
-				fmt.Sprintf("⚠️ %s claim failed\n\nClaimer: %s\nPeriod: %d\nIndex: %d\nAmount: %s\nError: %v",
-					strings.ToUpper(rewardType), claimerAddr, periodID, index, amountStr, err))
-		}
-
-		return nil, fmt.Errorf("claim transaction failed: %w", err)
-	}
-
-	txHash := tx.Hash().Hex()
-
-	// 7. Wait for transaction confirmation
-	ctx := context.Background()
-	receipt, err := bind.WaitMined(ctx, s.reader.Client(), tx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to wait for transaction confirmation: %w", err)
-	}
-
-	// 8. Check transaction status
-	if receipt.Status != 1 {
-		// Alert on transaction revert
-		s.alert.SendAlert("ERROR", "Claim",
-			fmt.Sprintf("❌ %s claim reverted!\n\nClaimer: %s\nPeriod: %d\nIndex: %d\nAmount: %s\nTx: %s\nGas Used: %d",
-				strings.ToUpper(rewardType), claimerAddr, periodID, index, amountStr, txHash, receipt.GasUsed))
-
-		return nil, fmt.Errorf("transaction reverted (status: %d)", receipt.Status)
-	}
-
-	// 9. Mark claim as completed in KV store (for tracking)
-	if s.kv != nil {
-		if err := s.kv.MarkClaimPending(ctx, claimerAddr, periodID, txHash); err != nil {
-			// Log warning but don't fail - the TX was successful
-			fmt.Printf("Warning: failed to mark claim in KV: %v\n", err)
-		}
-	}
-
-	return &ClaimResult{
-		TxHash:     txHash,
-		PeriodID:   periodID,
-		RewardType: rewardType,
-		Amount:     amountStr,
-		Status:     "confirmed",
-	}, nil
-}
-
-// IsRewardClaimed checks if a specific reward has already been claimed on-chain
-func (s *DeAIService) IsRewardClaimed(rewardType string, index uint64) (bool, error) {
-	// 1. Resolve distributor address
-	var distributorName string
-	if rewardType == "kawai" {
-		distributorName = "KAWAI_Distributor"
-	} else {
-		distributorName = "USDT_Distributor"
-	}
-
-	// 2. Load MerkleDistributor contract
-	distributor, err := contracts.MerkleDistributor(distributorName, s.reader)
-	if err != nil {
-		return false, fmt.Errorf("failed to load distributor: %w", err)
-	}
-
-	// 3. Check if claimed
-	claimed, err := distributor.IsClaimed(nil, big.NewInt(int64(index)))
-	if err != nil {
-		return false, fmt.Errorf("failed to check claim status: %w", err)
-	}
-
-	return claimed, nil
-}
-
-// GetDistributorMerkleRoot returns the current Merkle root from a distributor contract
-func (s *DeAIService) GetDistributorMerkleRoot(rewardType string) (string, error) {
-	var distributorName string
-	if rewardType == "kawai" {
-		distributorName = "KAWAI_Distributor"
-	} else {
-		distributorName = "USDT_Distributor"
-	}
-
-	distributor, err := contracts.MerkleDistributor(distributorName, s.reader)
-	if err != nil {
-		return "", fmt.Errorf("failed to load distributor: %w", err)
-	}
-
-	root, err := distributor.MerkleRoot(nil)
-	if err != nil {
-		return "", fmt.Errorf("failed to get merkle root: %w", err)
-	}
-
-	return fmt.Sprintf("0x%x", root), nil
 }
 
 // WaitForClaimConfirmation waits for a claim transaction to be mined
@@ -1358,25 +1291,20 @@ func (s *DeAIService) MarkClaimFailed(periodID int64, reason string) error {
 }
 
 // formatRewardAmount formats raw token amount to human-readable format
-func (s *DeAIService) formatRewardAmount(rawAmount string, rewardType string) string {
+func (s *DeAIService) formatRewardAmount(rawAmount string, rewardType types.RewardType) string {
 	amount := new(big.Int)
 	amount, ok := amount.SetString(rawAmount, 10)
 	if !ok {
 		return "0.00"
 	}
 
-	var decimals int64
-	if rewardType == "stablecoin" {
-		decimals = 6
-	} else {
-		decimals = 18
-	}
+	decimals := int64(rewardType.Decimals())
 
 	divisor := new(big.Float).SetInt(new(big.Int).Exp(big.NewInt(10), big.NewInt(decimals), nil))
 	formatted := new(big.Float).Quo(new(big.Float).SetInt(amount), divisor)
 
 	// Format with appropriate precision
-	if rewardType == "stablecoin" {
+	if rewardType.IsStablecoinReward() {
 		return formatted.Text('f', 2)
 	}
 	return formatted.Text('f', 4)

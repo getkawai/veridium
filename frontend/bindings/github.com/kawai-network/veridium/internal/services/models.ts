@@ -7,7 +7,10 @@ import { Create as $Create } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as types$0 from "../../types/models.js";
+import * as types$0 from "../../pkg/types/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as types$1 from "../../types/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as time$0 from "../../../../../time/models.js";
@@ -533,7 +536,7 @@ export class CitationItem {
 export class ClaimResult {
     "tx_hash": string;
     "period_id": number;
-    "reward_type": string;
+    "reward_type": types$0.RewardType;
     "amount": string;
 
     /**
@@ -550,7 +553,7 @@ export class ClaimResult {
             this["period_id"] = 0;
         }
         if (!("reward_type" in $$source)) {
-            this["reward_type"] = "";
+            this["reward_type"] = types$0.RewardType.$zero;
         }
         if (!("amount" in $$source)) {
             this["amount"] = "";
@@ -666,9 +669,9 @@ export class ClaimableReward {
     "period_id": number;
 
     /**
-     * "kawai" or "usdt"
+     * "mining", "cashback", "referral", "stablecoin"
      */
-    "reward_type": string;
+    "reward_type": types$0.RewardType;
 
     /**
      * "unclaimed", "pending", "confirmed", "failed"
@@ -754,7 +757,7 @@ export class ClaimableReward {
             this["period_id"] = 0;
         }
         if (!("reward_type" in $$source)) {
-            this["reward_type"] = "";
+            this["reward_type"] = types$0.RewardType.$zero;
         }
         if (!("claim_status" in $$source)) {
             this["claim_status"] = "";
@@ -873,7 +876,7 @@ export class ClaimableRewardsResponse {
 export class ContractAddresses {
     /**
      * Token Addresses
-     * Stablecoin address: MockUSDT (testnet) or USDC (mainnet)
+     * Stablecoin address: MockStablecoin (testnet) or USDC (mainnet)
      */
     "usdt": string;
     "kawai": string;
@@ -898,7 +901,6 @@ export class ContractAddresses {
     /**
      * Revenue Sharing
      */
-    "kawaiDistributor": string;
     "usdtDistributor": string;
 
     /** Creates a new ContractAddresses instance. */
@@ -923,9 +925,6 @@ export class ContractAddresses {
         }
         if (!("referralDistributor" in $$source)) {
             this["referralDistributor"] = "";
-        }
-        if (!("kawaiDistributor" in $$source)) {
-            this["kawaiDistributor"] = "";
         }
         if (!("usdtDistributor" in $$source)) {
             this["usdtDistributor"] = "";
@@ -1375,7 +1374,7 @@ export class NetworkInfo {
     "icon": string;
 
     /**
-     * "MockUSDT" (testnet) or "USDC" (mainnet)
+     * "MOCK" (testnet) or "USDC" (mainnet)
      */
     "stablecoinSymbol": string;
 
@@ -1978,7 +1977,7 @@ export class SearchResult {
  * Frontend can import this type from generated bindings.
  */
 export class StreamEventPayload {
-    "type": types$0.ChatStreamEvent;
+    "type": types$1.ChatStreamEvent;
     "session_id": string;
     "message_id": string;
     "topic_id"?: string;
@@ -2030,7 +2029,7 @@ export class StreamEventPayload {
     /** Creates a new StreamEventPayload instance. */
     constructor($$source: Partial<StreamEventPayload> = {}) {
         if (!("type" in $$source)) {
-            this["type"] = types$0.ChatStreamEvent.$zero;
+            this["type"] = types$1.ChatStreamEvent.$zero;
         }
         if (!("session_id" in $$source)) {
             this["session_id"] = "";

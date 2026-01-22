@@ -10,6 +10,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/pkg/store"
+	"github.com/kawai-network/veridium/pkg/types"
 )
 
 // This tool injects test mining reward data into KV store
@@ -114,7 +115,7 @@ func injectReferralUserReward(ctx context.Context, kv *store.KVStore) error {
 		UserAmount:         userAmt.String(),
 		AffiliatorAmount:   affiliatorAmt.String(),
 		TokenUsage:         1_000_000,
-		RewardType:         "kawai",
+		RewardType:         types.RewardTypeMining,
 		HasReferrer:        true,
 		IsSettled:          false,
 	}
@@ -172,7 +173,7 @@ func injectNonReferralUserReward(ctx context.Context, kv *store.KVStore) error {
 		UserAmount:         userAmt.String(),
 		AffiliatorAmount:   "0", // No affiliator
 		TokenUsage:         1_000_000,
-		RewardType:         "kawai",
+		RewardType:         types.RewardTypeMining,
 		HasReferrer:        false,
 		IsSettled:          false,
 	}
@@ -236,7 +237,7 @@ func injectMultipleJobs(ctx context.Context, kv *store.KVStore) error {
 			UserAmount:         userAmt.String(),
 			AffiliatorAmount:   affiliatorAmt.String(),
 			TokenUsage:         500_000, // 500K tokens per job
-			RewardType:         "kawai",
+			RewardType:         types.RewardTypeMining,
 			HasReferrer:        true,
 			IsSettled:          false,
 		}

@@ -27,7 +27,7 @@ func main() {
 		UserAmount:         "50000000000000000000",  // 50 KAWAI
 		AffiliatorAmount:   "50000000000000000000",  // 50 KAWAI
 		TokenUsage:         1000,
-		RewardType:         "kawai",
+		RewardType:         types.RewardTypeMining,
 		HasReferrer:        true,
 	}
 	telegramAlert.SendJobRewardLog(jobRecord)

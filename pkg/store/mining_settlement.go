@@ -10,12 +10,13 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/kawai-network/veridium/pkg/merkle"
+	"github.com/kawai-network/veridium/pkg/types"
 )
 
 // GenerateMiningSettlement creates a Merkle tree for mining rewards
 // with referral-based splits (85/5/5/5 or 90/5/5)
 // This generates 9-field Merkle leaves for MiningRewardDistributor contract
-func (s *KVStore) GenerateMiningSettlement(ctx context.Context, rewardType string) (*SettlementPeriod, error) {
+func (s *KVStore) GenerateMiningSettlement(ctx context.Context, rewardType types.RewardType) (*SettlementPeriod, error) {
 	slog.Info("Generating mining settlement", "reward_type", rewardType)
 
 	// 1. Get all unsettled job rewards grouped by contributor

@@ -10,12 +10,13 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/joho/godotenv"
 	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/pkg/store"
+	"github.com/kawai-network/veridium/pkg/types"
 )
 
 func main() {
@@ -124,7 +125,7 @@ func sendMON(toAddress common.Address) error {
 	}
 
 	// Create transaction
-	tx := types.NewTransaction(nonce, toAddress, amount, gasLimit, gasPrice, nil)
+	tx := ethtypes.NewTransaction(nonce, toAddress, amount, gasLimit, gasPrice, nil)
 
 	// Get chain ID
 	chainID, err := client.NetworkID(context.Background())
@@ -133,7 +134,7 @@ func sendMON(toAddress common.Address) error {
 	}
 
 	// Sign transaction
-	signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), privateKey)
+	signedTx, err := ethtypes.SignTx(tx, ethtypes.NewEIP155Signer(chainID), privateKey)
 	if err != nil {
 		return fmt.Errorf("failed to sign transaction: %w", err)
 	}
@@ -160,7 +161,7 @@ func sendMON(toAddress common.Address) error {
 	return nil
 }
 
-func waitForReceipt(ctx context.Context, client *ethclient.Client, txHash common.Hash) (*types.Receipt, error) {
+func waitForReceipt(ctx context.Context, client *ethclient.Client, txHash common.Hash) (*ethtypes.Receipt, error) {
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
@@ -197,7 +198,7 @@ func injectMiningData(contributorAddress string) error {
 		UserAmount:         "5000000000000000000",
 		AffiliatorAmount:   "0",
 		TokenUsage:         1000,
-		RewardType:         "kawai",
+		RewardType:         types.RewardTypeMining,
 		HasReferrer:        false,
 		IsSettled:          false,
 	}
@@ -219,7 +220,7 @@ func injectMiningData(contributorAddress string) error {
 		UserAmount:         "5000000000000000000",
 		AffiliatorAmount:   "0",
 		TokenUsage:         1500,
-		RewardType:         "kawai",
+		RewardType:         types.RewardTypeMining,
 		HasReferrer:        false,
 		IsSettled:          false,
 	}
@@ -241,7 +242,7 @@ func injectMiningData(contributorAddress string) error {
 		UserAmount:         "5000000000000000000",
 		AffiliatorAmount:   "0",
 		TokenUsage:         2000,
-		RewardType:         "kawai",
+		RewardType:         types.RewardTypeMining,
 		HasReferrer:        false,
 		IsSettled:          false,
 	}

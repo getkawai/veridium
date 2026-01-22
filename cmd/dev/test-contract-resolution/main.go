@@ -13,14 +13,14 @@ func main() {
 
 	// Test contract names that should resolve
 	testNames := []string{
-		"KAWAI_Distributor",
 		"USDT_Distributor",
 		"KawaiToken",
-		"MockUSDT",
+		"MockStablecoin",
 		"PaymentVault",
-		"Escrow",
+		"OTCMarket",
 		"MiningRewardDistributor",
 		"CashbackDistributor",
+		"ReferralDistributor",
 	}
 
 	for _, name := range testNames {

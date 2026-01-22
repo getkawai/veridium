@@ -38,7 +38,7 @@ func (s *KVStore) SaveJobReward(ctx context.Context, record *JobRewardRecord) er
 }
 
 // GetJobRewardsSinceLastSettlement retrieves all unsettled job rewards for a contributor
-func (s *KVStore) GetJobRewardsSinceLastSettlement(ctx context.Context, contributorAddress string, rewardType string) ([]*JobRewardRecord, error) {
+func (s *KVStore) GetJobRewardsSinceLastSettlement(ctx context.Context, contributorAddress string, rewardType types.RewardType) ([]*JobRewardRecord, error) {
 	// List all keys for this contributor
 	prefix := fmt.Sprintf("job_rewards:%s:", contributorAddress)
 
@@ -131,7 +131,7 @@ func (s *KVStore) MarkJobRewardsAsSettled(ctx context.Context, contributorAddres
 
 // GetAllUnsettledJobRewards retrieves all unsettled job rewards across all contributors
 // Used for settlement generation
-func (s *KVStore) GetAllUnsettledJobRewards(ctx context.Context, rewardType string) (map[string][]*JobRewardRecord, error) {
+func (s *KVStore) GetAllUnsettledJobRewards(ctx context.Context, rewardType types.RewardType) (map[string][]*JobRewardRecord, error) {
 	// List all keys in contributors namespace
 	resp, err := s.client.ListWorkersKVKeys(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.ListWorkersKVsParams{
 		NamespaceID: s.contributorsNamespaceID,

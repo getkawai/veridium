@@ -5,11 +5,12 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/kawai-network/veridium/internal/generate/abi/cashbackdistributor"
-	"github.com/kawai-network/veridium/internal/generate/abi/distributor"
-	"github.com/kawai-network/veridium/internal/generate/abi/escrow"
 	"github.com/kawai-network/veridium/internal/generate/abi/kawaitoken"
 	"github.com/kawai-network/veridium/internal/generate/abi/miningdistributor"
+	"github.com/kawai-network/veridium/internal/generate/abi/mockstablecoin"
+	"github.com/kawai-network/veridium/internal/generate/abi/otcmarket"
 	"github.com/kawai-network/veridium/internal/generate/abi/referraldistributor"
+	"github.com/kawai-network/veridium/internal/generate/abi/revenuedistributor"
 	"github.com/kawai-network/veridium/internal/generate/abi/vault"
 	"github.com/kawai-network/veridium/pkg/jarvis/util"
 	"github.com/kawai-network/veridium/pkg/jarvis/util/reader"
@@ -34,14 +35,14 @@ func KawaiToken(addrStr string, r *reader.EthReader) (*kawaitoken.KawaiToken, er
 	return kawaitoken.NewKawaiToken(addr, backend)
 }
 
-// Escrow wraps the generated OTCMarket binding
-func Escrow(addrStr string, r *reader.EthReader) (*escrow.OTCMarket, error) {
+// OTCMarket wraps the generated OTCMarket binding
+func OTCMarket(addrStr string, r *reader.EthReader) (*otcmarket.OTCMarket, error) {
 	addr, err := ResolveAddress(addrStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve address %s: %w", addrStr, err)
 	}
 	backend := NewJarvisBackend(r)
-	return escrow.NewOTCMarket(addr, backend)
+	return otcmarket.NewOTCMarket(addr, backend)
 }
 
 // Vault wraps the generated PaymentVault binding
@@ -54,14 +55,14 @@ func Vault(addrStr string, r *reader.EthReader) (*vault.PaymentVault, error) {
 	return vault.NewPaymentVault(addr, backend)
 }
 
-// MerkleDistributor wraps the generated MerkleDistributor binding
-func MerkleDistributor(addrStr string, r *reader.EthReader) (*distributor.MerkleDistributor, error) {
+// RevenueDistributor wraps the generated RevenueDistributor binding for revenue sharing to KAWAI holders
+func RevenueDistributor(addrStr string, r *reader.EthReader) (*revenuedistributor.RevenueDistributor, error) {
 	addr, err := ResolveAddress(addrStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve address %s: %w", addrStr, err)
 	}
 	backend := NewJarvisBackend(r)
-	return distributor.NewMerkleDistributor(addr, backend)
+	return revenuedistributor.NewRevenueDistributor(addr, backend)
 }
 
 // MiningRewardDistributor wraps the generated MiningRewardDistributor binding
@@ -97,7 +98,7 @@ func ReferralRewardDistributor(addrStr string, r *reader.EthReader) (*referraldi
 	return referraldistributor.NewReferralRewardDistributor(addr, backend)
 }
 
-// Stablecoin wraps any ERC-20 stablecoin token (MockUSDT on testnet, USDC on mainnet)
+// Stablecoin wraps any ERC-20 stablecoin token (MockStablecoin on testnet, USDC on mainnet)
 // Uses KawaiToken binding since it implements standard ERC-20 interface
 func Stablecoin(addrStr string, r *reader.EthReader) (*kawaitoken.KawaiToken, error) {
 	addr, err := ResolveAddress(addrStr)
@@ -106,4 +107,14 @@ func Stablecoin(addrStr string, r *reader.EthReader) (*kawaitoken.KawaiToken, er
 	}
 	backend := NewJarvisBackend(r)
 	return kawaitoken.NewKawaiToken(addr, backend)
+}
+
+// MockStablecoin wraps the MockStablecoin contract (testnet only)
+func MockStablecoin(addrStr string, r *reader.EthReader) (*mockstablecoin.MockStablecoin, error) {
+	addr, err := ResolveAddress(addrStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve MockStablecoin address %s: %w", addrStr, err)
+	}
+	backend := NewJarvisBackend(r)
+	return mockstablecoin.NewMockStablecoin(addr, backend)
 }

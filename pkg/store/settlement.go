@@ -16,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/kawai-network/veridium/internal/constant"
+	"github.com/kawai-network/veridium/pkg/types"
 )
 
 // SettlementSnapshot represents a snapshot of contributor balances for settlement
@@ -55,7 +56,7 @@ func GenerateUniquePeriodID() int64 {
 
 // GetSettlementSnapshots returns current balances for all contributors (before settlement)
 // Results are sorted by address (lowercase) for consistent Merkle tree generation
-func (s *KVStore) GetSettlementSnapshots(ctx context.Context, rewardType string) ([]*SettlementSnapshot, error) {
+func (s *KVStore) GetSettlementSnapshots(ctx context.Context, rewardType types.RewardType) ([]*SettlementSnapshot, error) {
 	contributors, err := s.ListContributors(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list contributors: %w", err)
@@ -65,7 +66,7 @@ func (s *KVStore) GetSettlementSnapshots(ctx context.Context, rewardType string)
 
 	for _, c := range contributors {
 		var balance string
-		if rewardType == "kawai" {
+		if rewardType.IsKawaiReward() {
 			balance = c.AccumulatedRewards
 		} else {
 			balance = c.AccumulatedUSDT
@@ -92,12 +93,12 @@ func (s *KVStore) GetSettlementSnapshots(ctx context.Context, rewardType string)
 }
 
 // PerformSettlement executes a complete settlement cycle with rollback support
-func (s *KVStore) PerformSettlement(ctx context.Context, periodID int64, merkleRoot string, rewardType string, proofs map[string]*MerkleProofData) (*SettlementPeriod, error) {
+func (s *KVStore) PerformSettlement(ctx context.Context, periodID int64, merkleRoot string, rewardType types.RewardType, proofs map[string]*MerkleProofData) (*SettlementPeriod, error) {
 	return s.PerformSettlementWithConfig(ctx, periodID, merkleRoot, rewardType, proofs, DefaultSettlementConfig())
 }
 
 // PerformSettlementWithConfig executes settlement with custom configuration
-func (s *KVStore) PerformSettlementWithConfig(ctx context.Context, periodID int64, merkleRoot string, rewardType string, proofs map[string]*MerkleProofData, config *SettlementConfig) (*SettlementPeriod, error) {
+func (s *KVStore) PerformSettlementWithConfig(ctx context.Context, periodID int64, merkleRoot string, rewardType types.RewardType, proofs map[string]*MerkleProofData, config *SettlementConfig) (*SettlementPeriod, error) {
 	slog.Info("Starting settlement", "period", periodID, "type", rewardType, "contributors", len(proofs))
 
 	// Check if period already exists (prevent collision)
@@ -323,7 +324,7 @@ func (s *KVStore) ResumeSettlement(ctx context.Context, periodID int64, proofs m
 }
 
 // PerformSettlementParallel executes settlement with parallel processing
-func (s *KVStore) PerformSettlementParallel(ctx context.Context, periodID int64, merkleRoot string, rewardType string, proofs map[string]*MerkleProofData, workers int) (*SettlementPeriod, error) {
+func (s *KVStore) PerformSettlementParallel(ctx context.Context, periodID int64, merkleRoot string, rewardType types.RewardType, proofs map[string]*MerkleProofData, workers int) (*SettlementPeriod, error) {
 	slog.Info("Starting parallel settlement", "workers", workers)
 
 	if workers <= 0 {
@@ -498,7 +499,7 @@ func (s *KVStore) GetClaimableRewards(ctx context.Context, address string) (map[
 		} else {
 			claimableProofs = append(claimableProofs, proof)
 
-			if proof.RewardType == "stablecoin" {
+			if proof.RewardType.IsStablecoinReward() {
 				totalUSDTClaimable.Add(totalUSDTClaimable, amount)
 			} else {
 				totalKawaiClaimable.Add(totalKawaiClaimable, amount)

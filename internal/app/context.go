@@ -340,7 +340,7 @@ func (ctx *Context) InitBlockchainClient() {
 	rpcURL := constant.MonadRpcUrl
 	tokenAddress := constant.KawaiTokenAddress
 	otcMarketAddress := constant.OTCMarketAddress
-	usdtAddress := constant.UsdtTokenAddress
+	usdtAddress := constant.StablecoinAddress
 
 	// Initialize blockchain client
 	config := blockchain.Config{

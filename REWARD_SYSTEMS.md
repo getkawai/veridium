@@ -689,7 +689,6 @@ reward-settlement all
 3. **MINTER_ROLE STATUS** ✅
    - ✅ Granted to MiningRewardDistributor
    - ✅ Granted to DepositCashbackDistributor
-   - ✅ Granted to KAWAI_Distributor
    - ❌ Not needed for USDT_Distributor
 
 4. **Revenue Sharing is 30% COMPLETE** ⚠️

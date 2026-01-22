@@ -11,6 +11,7 @@ import (
 	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/internal/generate/abi/miningdistributor"
 	"github.com/kawai-network/veridium/pkg/store"
+	"github.com/kawai-network/veridium/pkg/types"
 )
 
 func main() {
@@ -113,7 +114,7 @@ func checkMiningContractState() error {
 
 	var kawaiPeriods []*store.SettlementPeriod
 	for _, p := range periods {
-		if p.RewardType == "kawai" {
+		if p.RewardType == types.RewardTypeMining {
 			kawaiPeriods = append(kawaiPeriods, p)
 		}
 	}

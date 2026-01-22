@@ -90,7 +90,7 @@ func main() {
 		RPCUrl:           constant.MonadRpcUrl,
 		TokenAddress:     constant.KawaiTokenAddress,
 		OTCMarketAddress: constant.OTCMarketAddress,
-		USDTAddress:      constant.UsdtTokenAddress,
+		USDTAddress:      constant.StablecoinAddress,
 	})
 	if err != nil {
 		slog.Warn("⚠️ Failed to initialize blockchain client, halving logic will use default rates", "error", err)

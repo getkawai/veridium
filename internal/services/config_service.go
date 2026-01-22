@@ -16,7 +16,7 @@ type NetworkEnvironment struct {
 // ContractAddresses represents all smart contract addresses
 type ContractAddresses struct {
 	// Token Addresses
-	Usdt  string `json:"usdt"` // Stablecoin address: MockUSDT (testnet) or USDC (mainnet)
+	Usdt  string `json:"usdt"` // Stablecoin address: MockStablecoin (testnet) or USDC (mainnet)
 	Kawai string `json:"kawai"`
 
 	// Payment & Vault
@@ -31,8 +31,7 @@ type ContractAddresses struct {
 	ReferralDistributor string `json:"referralDistributor"`
 
 	// Revenue Sharing
-	KawaiDistributor string `json:"kawaiDistributor"`
-	UsdtDistributor  string `json:"usdtDistributor"`
+	UsdtDistributor string `json:"usdtDistributor"`
 }
 
 // BackendConfig represents the complete backend configuration
@@ -79,7 +78,7 @@ func (s *ConfigService) GetConfig() BackendConfig {
 		},
 		Contracts: ContractAddresses{
 			// Token Addresses
-			Usdt:  constant.UsdtTokenAddress,
+			Usdt:  constant.StablecoinAddress,
 			Kawai: constant.KawaiTokenAddress,
 
 			// Payment & Vault
@@ -94,8 +93,7 @@ func (s *ConfigService) GetConfig() BackendConfig {
 			ReferralDistributor: constant.ReferralDistributorAddress,
 
 			// Revenue Sharing
-			KawaiDistributor: constant.KawaiDistributorAddr,
-			UsdtDistributor:  constant.USDTDistributorAddr,
+			UsdtDistributor: constant.RevenueDistributorAddr,
 		},
 	}
 }
@@ -148,8 +146,6 @@ func (s *ConfigService) GetContractAddress(name string) string {
 		return config.Contracts.CashbackDistributor
 	case "referraldistributor", "referral_distributor":
 		return config.Contracts.ReferralDistributor
-	case "kawaidistributor", "kawai_distributor":
-		return config.Contracts.KawaiDistributor
 	case "usdtdistributor", "usdt_distributor":
 		return config.Contracts.UsdtDistributor
 	default:

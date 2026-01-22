@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/kawai-network/veridium/pkg/store"
+	"github.com/kawai-network/veridium/pkg/types"
 )
 
 func main() {
@@ -52,7 +53,7 @@ func testMiningClaimData(address string) error {
 	fmt.Println()
 
 	for i, proof := range proofs {
-		if proof.RewardType != "kawai" {
+		if proof.RewardType != types.RewardTypeMining {
 			continue // Skip non-mining rewards
 		}
 

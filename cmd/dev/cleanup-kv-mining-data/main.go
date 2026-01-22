@@ -10,6 +10,7 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/kawai-network/veridium/pkg/store"
+	"github.com/kawai-network/veridium/pkg/types"
 )
 
 // Keep os import for os.Exit
@@ -173,7 +174,7 @@ func cleanupMerkleProofs(ctx context.Context, kv *store.KVStore, dryRun bool) er
 	// Filter for mining rewards (kawai type)
 	miningPeriods := []*store.SettlementPeriod{}
 	for _, period := range periods {
-		if period.RewardType == "kawai" {
+		if period.RewardType == types.RewardTypeMining {
 			miningPeriods = append(miningPeriods, period)
 		}
 	}
@@ -212,7 +213,7 @@ func cleanupSettlements(ctx context.Context, kv *store.KVStore, dryRun bool) err
 	// Filter for mining rewards (kawai type)
 	miningPeriods := []*store.SettlementPeriod{}
 	for _, period := range periods {
-		if period.RewardType == "kawai" {
+		if period.RewardType == types.RewardTypeMining {
 			miningPeriods = append(miningPeriods, period)
 		}
 	}

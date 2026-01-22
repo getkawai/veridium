@@ -12,6 +12,7 @@ import (
 	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/internal/generate/abi/miningdistributor"
 	"github.com/kawai-network/veridium/pkg/store"
+	"github.com/kawai-network/veridium/pkg/types"
 )
 
 func main() {
@@ -47,7 +48,7 @@ func testMerkleVerification() error {
 	if unclaimedRaw, ok := claimableData["unclaimed_proofs"]; ok {
 		if unclaimedList, ok := unclaimedRaw.([]*store.MerkleProofData); ok {
 			for _, proof := range unclaimedList {
-				if proof.RewardType == "kawai" && proof.PeriodID == 1768137242 {
+				if proof.RewardType == types.RewardTypeMining && proof.PeriodID == 1768137242 {
 					testProof = proof
 					break
 				}

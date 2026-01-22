@@ -10,9 +10,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/kawai-network/veridium/internal/generate/abi/escrow"
 	"github.com/kawai-network/veridium/internal/generate/abi/kawaitoken"
-	"github.com/kawai-network/veridium/internal/generate/abi/usdt"
+	"github.com/kawai-network/veridium/internal/generate/abi/mockstablecoin"
+	"github.com/kawai-network/veridium/internal/generate/abi/otcmarket"
 	"golang.org/x/time/rate"
 )
 
@@ -26,8 +26,8 @@ type Config struct {
 type Client struct {
 	EthClient   *ethclient.Client
 	Token       *kawaitoken.KawaiToken
-	Escrow      *escrow.OTCMarket
-	USDT        *usdt.MockUSDT
+	OTCMarket   *otcmarket.OTCMarket
+	USDT        *mockstablecoin.MockStablecoin
 	ChainID     *big.Int
 	rateLimiter *rate.Limiter // ✅ Rate limiter for RPC calls
 }
@@ -52,22 +52,22 @@ func NewClient(cfg Config) (*Client, error) {
 		return nil, fmt.Errorf("failed to load KawaiToken: %w", err)
 	}
 
-	escrowAddress := common.HexToAddress(cfg.OTCMarketAddress)
-	escrowInstance, err := escrow.NewOTCMarket(escrowAddress, client)
+	otcMarketAddress := common.HexToAddress(cfg.OTCMarketAddress)
+	otcMarketInstance, err := otcmarket.NewOTCMarket(otcMarketAddress, client)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load Escrow: %w", err)
+		return nil, fmt.Errorf("failed to load OTCMarket: %w", err)
 	}
 
 	usdtAddress := common.HexToAddress(cfg.USDTAddress)
-	usdtInstance, err := usdt.NewMockUSDT(usdtAddress, client)
+	usdtInstance, err := mockstablecoin.NewMockStablecoin(usdtAddress, client)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load USDT: %w", err)
+		return nil, fmt.Errorf("failed to load MockStablecoin: %w", err)
 	}
 
 	return &Client{
 		EthClient:   client,
 		Token:       tokenInstance,
-		Escrow:      escrowInstance,
+		OTCMarket:   otcMarketInstance,
 		USDT:        usdtInstance,
 		ChainID:     chainID,
 		rateLimiter: rate.NewLimiter(rate.Limit(10), 20), // ✅ 10 RPC calls/sec, burst 20
@@ -104,7 +104,7 @@ func (c *Client) MarketplaceCreateOrder(ctx context.Context, transactOpts *bind.
 	log.Printf("Creating marketplace order: %s KAWAI tokens for %s stablecoin", tokenAmount.String(), stablecoinPrice.String())
 
 	// Call the smart contract's createOrder function
-	tx, err := c.Escrow.CreateOrder(transactOpts, tokenAmount, stablecoinPrice)
+	tx, err := c.OTCMarket.CreateOrder(transactOpts, tokenAmount, stablecoinPrice)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create order on smart contract: %w", err)
 	}
@@ -127,7 +127,7 @@ func (c *Client) MarketplaceBuyOrder(ctx context.Context, transactOpts *bind.Tra
 	log.Printf("Buying marketplace order ID: %s", orderID.String())
 
 	// Call the smart contract's buyOrder function
-	tx, err := c.Escrow.BuyOrder(transactOpts, orderID)
+	tx, err := c.OTCMarket.BuyOrder(transactOpts, orderID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to buy order on smart contract: %w", err)
 	}
@@ -150,7 +150,7 @@ func (c *Client) MarketplaceCancelOrder(ctx context.Context, transactOpts *bind.
 	log.Printf("Cancelling marketplace order ID: %s", orderID.String())
 
 	// Call the smart contract's cancelOrder function
-	tx, err := c.Escrow.CancelOrder(transactOpts, orderID)
+	tx, err := c.OTCMarket.CancelOrder(transactOpts, orderID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to cancel order on smart contract: %w", err)
 	}
@@ -181,7 +181,7 @@ func (c *Client) MarketplaceGetOrder(ctx context.Context, orderID *big.Int) (str
 	}
 
 	// Call the smart contract's getOrder function (new view function)
-	order, err := c.Escrow.GetOrder(nil, orderID)
+	order, err := c.OTCMarket.GetOrder(nil, orderID)
 	if err != nil {
 		return struct {
 			Id              *big.Int
@@ -198,7 +198,7 @@ func (c *Client) MarketplaceGetOrder(ctx context.Context, orderID *big.Int) (str
 
 // MarketplaceGetOrdersCount returns the total number of orders in the contract
 func (c *Client) MarketplaceGetOrdersCount(ctx context.Context) (*big.Int, error) {
-	count, err := c.Escrow.GetOrdersCount(nil)
+	count, err := c.OTCMarket.GetOrdersCount(nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get orders count from smart contract: %w", err)
 	}
@@ -206,7 +206,7 @@ func (c *Client) MarketplaceGetOrdersCount(ctx context.Context) (*big.Int, error
 }
 
 // GetUSDTBalance returns the stablecoin token balance for a given address
-// Note: Function name kept for backward compatibility, works with MockUSDT (testnet) or USDC (mainnet)
+// Note: Function name kept for backward compatibility, works with MockStablecoin (testnet) or USDC (mainnet)
 func (c *Client) GetUSDTBalance(ctx context.Context, address common.Address) (*big.Int, error) {
 	balance, err := c.USDT.BalanceOf(nil, address)
 	if err != nil {
@@ -266,7 +266,7 @@ func (c *Client) MarketplaceBuyOrderPartial(ctx context.Context, transactOpts *b
 	}
 
 	// Call smart contract
-	tx, err := c.Escrow.BuyOrderPartial(transactOpts, orderID, amount)
+	tx, err := c.OTCMarket.BuyOrderPartial(transactOpts, orderID, amount)
 	if err != nil {
 		return nil, fmt.Errorf("failed to buy partial order on smart contract: %w", err)
 	}
@@ -276,7 +276,7 @@ func (c *Client) MarketplaceBuyOrderPartial(ctx context.Context, transactOpts *b
 }
 
 // ✅ NEW: Get orders by seller
-func (c *Client) MarketplaceGetOrdersBySeller(ctx context.Context, seller common.Address, offset, limit *big.Int) ([]escrow.OTCMarketOrder, error) {
+func (c *Client) MarketplaceGetOrdersBySeller(ctx context.Context, seller common.Address, offset, limit *big.Int) ([]otcmarket.OTCMarketOrder, error) {
 	// Validate parameters
 	if offset == nil {
 		offset = big.NewInt(0)
@@ -291,7 +291,7 @@ func (c *Client) MarketplaceGetOrdersBySeller(ctx context.Context, seller common
 	}
 
 	// Call smart contract
-	orders, err := c.Escrow.GetOrdersBySeller(nil, seller, offset, limit)
+	orders, err := c.OTCMarket.GetOrdersBySeller(nil, seller, offset, limit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get orders by seller from smart contract: %w", err)
 	}
@@ -300,7 +300,7 @@ func (c *Client) MarketplaceGetOrdersBySeller(ctx context.Context, seller common
 }
 
 // ✅ NEW: Get active orders
-func (c *Client) MarketplaceGetActiveOrders(ctx context.Context, offset, limit *big.Int) ([]escrow.OTCMarketOrder, error) {
+func (c *Client) MarketplaceGetActiveOrders(ctx context.Context, offset, limit *big.Int) ([]otcmarket.OTCMarketOrder, error) {
 	// Validate parameters
 	if offset == nil {
 		offset = big.NewInt(0)
@@ -309,8 +309,13 @@ func (c *Client) MarketplaceGetActiveOrders(ctx context.Context, offset, limit *
 		limit = big.NewInt(100)
 	}
 
+	// Wait for rate limit
+	if err := c.rateLimiter.Wait(ctx); err != nil {
+		return nil, fmt.Errorf("rate limit wait failed: %w", err)
+	}
+
 	// Call smart contract
-	orders, err := c.Escrow.GetActiveOrders(nil, offset, limit)
+	orders, err := c.OTCMarket.GetActiveOrders(nil, offset, limit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get active orders from smart contract: %w", err)
 	}
@@ -319,14 +324,19 @@ func (c *Client) MarketplaceGetActiveOrders(ctx context.Context, offset, limit *
 }
 
 // ✅ NEW: Get multiple orders at once
-func (c *Client) MarketplaceGetOrders(ctx context.Context, orderIDs []*big.Int) ([]escrow.OTCMarketOrder, error) {
+func (c *Client) MarketplaceGetOrders(ctx context.Context, orderIDs []*big.Int) ([]otcmarket.OTCMarketOrder, error) {
 	// Validate parameters
 	if len(orderIDs) == 0 {
-		return []escrow.OTCMarketOrder{}, nil
+		return []otcmarket.OTCMarketOrder{}, nil
+	}
+
+	// Wait for rate limit
+	if err := c.rateLimiter.Wait(ctx); err != nil {
+		return nil, fmt.Errorf("rate limit wait failed: %w", err)
 	}
 
 	// Call smart contract
-	orders, err := c.Escrow.GetOrders(nil, orderIDs)
+	orders, err := c.OTCMarket.GetOrders(nil, orderIDs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get orders from smart contract: %w", err)
 	}

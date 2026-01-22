@@ -96,13 +96,13 @@ func ValidateForProduction() error {
 
 	if cfg.IsMainnet {
 		// Mainnet-specific validations
-		if constant.UsdtTokenAddress == "0x3AE05118C5B75b1B0b860ec4b7Ec5095188D1CCc" {
-			return fmt.Errorf("CRITICAL: Still using MockUSDT address on mainnet! Update USDT_TOKEN_ADDRESS in .env.mainnet")
+		if constant.StablecoinAddress == "0x3AE05118C5B75b1B0b860ec4b7Ec5095188D1CCc" {
+			return fmt.Errorf("CRITICAL: Still using MockStablecoin address on mainnet! Update STABLECOIN_ADDRESS in .env.mainnet")
 		}
 
 		// Verify USDC address format
-		if !strings.HasPrefix(constant.UsdtTokenAddress, "0x") {
-			return fmt.Errorf("invalid stablecoin address format: %s", constant.UsdtTokenAddress)
+		if !strings.HasPrefix(constant.StablecoinAddress, "0x") {
+			return fmt.Errorf("invalid stablecoin address format: %s", constant.StablecoinAddress)
 		}
 
 		// Check that we're not using testnet RPC

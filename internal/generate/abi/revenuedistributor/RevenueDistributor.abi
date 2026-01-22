@@ -6,11 +6,6 @@
         "name": "token_",
         "type": "address",
         "internalType": "address"
-      },
-      {
-        "name": "mintOnClaim_",
-        "type": "bool",
-        "internalType": "bool"
       }
     ],
     "stateMutability": "nonpayable"
@@ -71,19 +66,6 @@
         "name": "",
         "type": "bytes32",
         "internalType": "bytes32"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "mintOnClaim",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
       }
     ],
     "stateMutability": "view"

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/cloudflare/cloudflare-go"
+	"github.com/kawai-network/veridium/pkg/types"
 )
 
 // ClaimStatus represents the status of a claim
@@ -23,18 +24,18 @@ const (
 
 // MerkleProofData represents a Merkle proof for a specific settlement period
 type MerkleProofData struct {
-	Index         uint64      `json:"index"`
-	Amount        string      `json:"amount"`                   // BigInt as string
-	Proof         []string    `json:"proof"`                    // Hex strings
-	MerkleRoot    string      `json:"merkle_root"`              // Root hash for this settlement period
-	PeriodID      int64       `json:"period_id"`                // Settlement period timestamp
-	CreatedAt     time.Time   `json:"created_at"`               // When proof was generated
-	RewardType    string      `json:"reward_type,omitempty"`    // "kawai" or "usdt"
-	ClaimStatus   ClaimStatus `json:"claim_status,omitempty"`   // Claim status tracking
-	ClaimTxHash   string      `json:"claim_tx_hash,omitempty"`  // Transaction hash when claiming
-	ClaimAttempts int         `json:"claim_attempts,omitempty"` // Number of claim attempts
-	ClaimedAt     time.Time   `json:"claimed_at,omitempty"`     // When claimed successfully
-	Address       string      `json:"address,omitempty"`        // Contributor address (for listing all proofs)
+	Index         uint64           `json:"index"`
+	Amount        string           `json:"amount"`                   // BigInt as string
+	Proof         []string         `json:"proof"`                    // Hex strings
+	MerkleRoot    string           `json:"merkle_root"`              // Root hash for this settlement period
+	PeriodID      int64            `json:"period_id"`                // Settlement period timestamp
+	CreatedAt     time.Time        `json:"created_at"`               // When proof was generated
+	RewardType    types.RewardType `json:"reward_type,omitempty"`    // "mining", "cashback", "referral", "stablecoin"
+	ClaimStatus   ClaimStatus      `json:"claim_status,omitempty"`   // Claim status tracking
+	ClaimTxHash   string           `json:"claim_tx_hash,omitempty"`  // Transaction hash when claiming
+	ClaimAttempts int              `json:"claim_attempts,omitempty"` // Number of claim attempts
+	ClaimedAt     time.Time        `json:"claimed_at,omitempty"`     // When claimed successfully
+	Address       string           `json:"address,omitempty"`        // Contributor address (for listing all proofs)
 
 	// Mining-specific fields (for MiningRewardDistributor with referral support)
 	ContributorAmount string `json:"contributor_amount,omitempty"` // 85% or 90%
@@ -64,7 +65,7 @@ type SettlementPeriod struct {
 	StartDate        time.Time        `json:"start_date"`
 	EndDate          time.Time        `json:"end_date"`
 	TotalAmount      string           `json:"total_amount"`                // Total rewards distributed
-	RewardType       string           `json:"reward_type,omitempty"`       // "kawai" or "usdt"
+	RewardType       types.RewardType `json:"reward_type,omitempty"`       // "mining", "cashback", "referral", "stablecoin"
 	Status           SettlementStatus `json:"status,omitempty"`            // Settlement status
 	ContributorCount int              `json:"contributor_count,omitempty"` // Number of contributors
 	ProofsSaved      int              `json:"proofs_saved,omitempty"`      // Number of proofs saved

@@ -84,7 +84,7 @@ cp .env.mainnet .env
 ### Step 1.2: Deploy Base Contracts
 
 ```bash
-# Deploy KawaiToken, PaymentVault, OTCMarket, KAWAI_Distributor, USDT_Distributor
+# Deploy KawaiToken, PaymentVault, OTCMarket, RevenueDistributor
 forge script script/DeployKawai.s.sol:DeployKawai \
   --rpc-url $RPC_URL \
   --broadcast \
@@ -189,8 +189,7 @@ Update the appropriate `.env` file with all deployed addresses:
 TOKEN_ADDRESS=<kawai_token_address>
 OTC_MARKET_ADDRESS=<otc_market_address>
 PAYMENT_VAULT_ADDRESS=<payment_vault_address>
-KAWAI_DISTRIBUTOR_ADDRESS=<kawai_distributor_address>
-USDT_DISTRIBUTOR_ADDRESS=<usdt_distributor_address>
+REVENUE_DISTRIBUTOR_ADDRESS=<revenue_distributor_address>
 MINING_DISTRIBUTOR_ADDRESS=<mining_distributor_address>
 CASHBACK_DISTRIBUTOR_ADDRESS=<cashback_distributor_address>
 REFERRAL_DISTRIBUTOR_ADDRESS=<referral_distributor_address>
@@ -262,26 +261,25 @@ USDC:                    0x754704bc059f8c67012fed69bc8a327a5aafb603
 KawaiToken:              0x5B7408a485E3167c91e925e8701d35e71B80331C ✅ Verified
 PaymentVault:            0xBDC7Ad4F9e911e2EdC1128809cBC0C870EddfD9a ✅ Verified
 OTCMarket:               0x9CaE910e3faC30B9E85abB3053301B3fB5a8D9fb ✅ Verified
-KAWAI_Distributor:       0xDDb60C1fdbeb670c522F3f859ba1EE57A5740a14 ✅ Verified
-USDT_Distributor:        0x52f71a92D4e12f87F171D91c5134042A20893650 ✅ Verified
-Mining_Distributor:      0xF447C701B43e4FC4A2a172D828268Eb1F0C092FB ✅ Verified
-Cashback_Distributor:    0x3Fa14A2b33f95E590bDd57a812bE4012ea5d61FF ✅ Verified
-Referral_Distributor:    0xBF4c7ae729223c5E6aDb85708D685855a6d9d077 ✅ Verified
+RevenueDistributor:      0x52f71a92D4e12f87F171D91c5134042A20893650 ✅ Verified
+MiningDistributor:       0xF447C701B43e4FC4A2a172D828268Eb1F0C092FB ✅ Verified
+CashbackDistributor:     0x3Fa14A2b33f95E590bDd57a812bE4012ea5d61FF ✅ Verified
+ReferralDistributor:     0xBF4c7ae729223c5E6aDb85708D685855a6d9d077 ✅ Verified
 Gas Used: ~0.93 MON
 ```
 
-### Testnet (2026-01-22)
+### Testnet (2026-01-22 Round 7 - Renamed Contracts)
 ```text
-MockUSDT:                0x3AE05118C5B75b1B0b860ec4b7Ec5095188D1CCc
-KawaiToken:              0xb2C745FF051e681f7B7FE8645b160eDaAC350B85 ✅ Verified
-PaymentVault:            0x587c1bcAD2eD250CE05AeAF056Ade892782f9E51 ✅ Verified
-OTCMarket:               0xa5A154a3719099Ad80c9c8E98f7fF50068825B0b ✅ Verified
-KAWAI_Distributor:       0x78760B1e3f3F80cd4bf6EC1442d2a81797a32289 ✅ Verified
-USDT_Distributor:        0xC2cA5C30De4F9a9a1e1fdB491432FEe596702E6c ✅ Verified
-Mining_Distributor:      0x3373C18A0be2774004DB11625eCc099A72218Af1 ✅ Verified
-Cashback_Distributor:    0xfEEC7790Dc2079Bf1922761BeA1B09FD057F7CB1 ✅ Verified
-Referral_Distributor:    0xe4d6D1E6926d2616d80060d70c10d0f6Def994ea ✅ Verified
-Gas Used: ~0.93 MON
+MockStablecoin:          0x3AE05118C5B75b1B0b860ec4b7Ec5095188D1CCc (existing)
+KawaiToken:              0xcb0FbFEe8253fD4B797dcF7f90e6fDCbE3a34b02 ✅ Verified
+PaymentVault:            0xAaFc7c1f31a53d42B38028B810393926BfD30479 ✅ Verified
+OTCMarket:               0x69d9c1959Ca499369C420A5Aaa7fa7E3b23b1f31 ✅ Verified
+RevenueDistributor:      0xA4a5540301f9df70d465CF5E99682CEe6BC24733 ✅ Verified
+MiningDistributor:       0x531C8Aca995AA92279f36b2F3121ba0004bab3BC ✅ Verified
+CashbackDistributor:     0xCd3882103BB72608A173cb5BA6C4D32e93501Ad0 ✅ Verified
+ReferralDistributor:     0x1A4bEc99eC4ADd78F537D0c9f1f9D5b6f110a7dC ✅ Verified
+Gas Used: ~0.78 MON
+MINTER_ROLE: ✅ All granted
 ```
 
 ---

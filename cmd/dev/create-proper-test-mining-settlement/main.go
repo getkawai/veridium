@@ -12,6 +12,7 @@ import (
 	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/pkg/merkle"
 	"github.com/kawai-network/veridium/pkg/store"
+	"github.com/kawai-network/veridium/pkg/types"
 )
 
 func main() {
@@ -119,7 +120,7 @@ func createProperTestMiningSettlement() error {
 			Index:             uint64(i),
 			Amount:            reward.contributorAmount.String(),
 			PeriodID:          int64(period),
-			RewardType:        "kawai",
+			RewardType:        types.RewardTypeMining,
 			ContributorAmount: reward.contributorAmount.String(),
 			DeveloperAmount:   reward.developerAmount.String(),
 			UserAmount:        reward.userAmount.String(),

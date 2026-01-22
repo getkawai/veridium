@@ -6,26 +6,18 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-// Interface for mintable tokens (like KawaiToken)
-interface IMintableToken {
-    function mint(address to, uint256 amount) external;
-}
-
 /**
- * @title MerkleDistributor
- * @dev Gas-efficient reward distribution using Merkle proofs.
- *      Supports two modes:
- *      - Mint Mode: For KAWAI rewards (mints new tokens on claim)
- *      - Transfer Mode: For USDT dividends (transfers from pre-funded balance)
+ * @title RevenueDistributor
+ * @dev Gas-efficient stablecoin revenue sharing distribution using Merkle proofs.
+ *      Transfers tokens from pre-funded contract balance.
+ *      Used for distributing revenue share to KAWAI token holders.
+ *      Supports any ERC20 stablecoin (USDC, USDT, DAI, etc).
  */
-contract MerkleDistributor is Ownable {
+contract RevenueDistributor is Ownable {
     using SafeERC20 for IERC20;
 
     IERC20 public immutable token;
     bytes32 public merkleRoot;
-
-    // If true, tokens are minted on claim. If false, tokens are transferred.
-    bool public immutable mintOnClaim;
 
     // This is a packed array of booleans for gas-efficient claim tracking.
     mapping(uint256 => uint256) private claimedBitMap;
@@ -34,13 +26,10 @@ contract MerkleDistributor is Ownable {
     event MerkleRootUpdated(bytes32 oldRoot, bytes32 newRoot);
 
     /**
-     * @param token_ Address of the token to distribute
-     * @param mintOnClaim_ If true, mints tokens on claim (requires MINTER_ROLE).
-     *                     If false, transfers tokens from contract balance.
+     * @param token_ Address of the stablecoin token to distribute (USDC/USDT/etc)
      */
-    constructor(address token_, bool mintOnClaim_) Ownable(msg.sender) {
+    constructor(address token_) Ownable(msg.sender) {
         token = IERC20(token_);
-        mintOnClaim = mintOnClaim_;
     }
 
     function isClaimed(uint256 index) public view returns (bool) {
@@ -60,8 +49,8 @@ contract MerkleDistributor is Ownable {
     }
 
     /**
-     * @notice Claim tokens using a Merkle proof.
-     * @dev Caller pays gas. Tokens are either minted or transferred based on mode.
+     * @notice Claim stablecoin revenue using a Merkle proof.
+     * @dev Caller pays gas. Tokens are transferred from contract's pre-funded balance.
      */
     function claim(
         uint256 index,
@@ -69,26 +58,20 @@ contract MerkleDistributor is Ownable {
         uint256 amount,
         bytes32[] calldata merkleProof
     ) external {
-        require(!isClaimed(index), "MerkleDistributor: Drop already claimed.");
+        require(!isClaimed(index), "RevenueDistributor: Drop already claimed.");
 
         // Verify the merkle proof.
         bytes32 node = keccak256(abi.encodePacked(index, account, amount));
         require(
             MerkleProof.verify(merkleProof, merkleRoot, node),
-            "MerkleDistributor: Invalid proof."
+            "RevenueDistributor: Invalid proof."
         );
 
         // Mark it as claimed
         _setClaimed(index);
 
-        // Distribute tokens based on mode
-        if (mintOnClaim) {
-            // Mint new tokens directly to claimant (gas paid by claimant)
-            IMintableToken(address(token)).mint(account, amount);
-        } else {
-            // Transfer from contract's pre-funded balance
-            token.safeTransfer(account, amount);
-        }
+        // Transfer stablecoin from contract's pre-funded balance
+        token.safeTransfer(account, amount);
 
         emit Claimed(index, account, amount);
     }

@@ -25,11 +25,11 @@ func main() {
 		log.Fatalf("Failed to load KAWAI token contract: %v", err)
 	}
 
-	// Define distributors to check (updated 2026-01-12)
+	// Define distributors to check (updated 2026-01-22)
 	distributors := map[string]string{
 		"MiningRewardDistributor":    constant.MiningRewardDistributorAddr,
 		"DepositCashbackDistributor": constant.CashbackDistributorAddress,
-		"ReferralRewardDistributor":  constant.KawaiDistributorAddr,
+		"ReferralRewardDistributor":  constant.ReferralDistributorAddress,
 	}
 
 	fmt.Println("═══════════════════════════════════════════════════════════")

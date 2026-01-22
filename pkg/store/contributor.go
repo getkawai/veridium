@@ -13,6 +13,7 @@ import (
 	"github.com/cloudflare/cloudflare-go"
 	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/pkg/config"
+	"github.com/kawai-network/veridium/pkg/types"
 )
 
 // contributorLocks provides per-address mutex for serializing balance updates
@@ -166,8 +167,9 @@ func (s *KVStore) MarkContributorOffline(ctx context.Context, address string) er
 }
 
 // DeductSettledRewards deducts the settled amount from contributor's balance.
+// DeductSettledRewards deducts the settled amount from contributor's balance.
 // This prevents race conditions where new rewards arrived during settlement.
-func (s *KVStore) DeductSettledRewards(ctx context.Context, address string, rewardType string, amountToDeduct string) error {
+func (s *KVStore) DeductSettledRewards(ctx context.Context, address string, rewardType types.RewardType, amountToDeduct string) error {
 	// 1. Acquire lock for this address to ensure atomic update with RecordJobReward
 	lockInterface, _ := contributorLocks.LoadOrStore(address, &sync.Mutex{})
 	lock := lockInterface.(*sync.Mutex)
@@ -184,8 +186,7 @@ func (s *KVStore) DeductSettledRewards(ctx context.Context, address string, rewa
 	deductVal.SetString(amountToDeduct, 10)
 
 	// 3. Update specific balance field
-	switch rewardType {
-	case "kawai":
+	if rewardType.IsKawaiReward() {
 		currentVal := new(big.Int)
 		currentVal.SetString(contributor.AccumulatedRewards, 10)
 
@@ -201,7 +202,7 @@ func (s *KVStore) DeductSettledRewards(ctx context.Context, address string, rewa
 		contributor.AccumulatedRewards = newVal.String()
 		slog.Info("Deducted settled KAWAI rewards", "address", address, "deducted", amountToDeduct, "remaining", newVal.String())
 
-	case "usdt":
+	} else if rewardType.IsStablecoinReward() {
 		currentVal := new(big.Int)
 		currentVal.SetString(contributor.AccumulatedUSDT, 10)
 
@@ -215,8 +216,8 @@ func (s *KVStore) DeductSettledRewards(ctx context.Context, address string, rewa
 		contributor.AccumulatedUSDT = newVal.String()
 		slog.Info("Deducted settled USDT rewards", "address", address, "deducted", amountToDeduct, "remaining", newVal.String())
 
-	default:
-		return fmt.Errorf("invalid reward type: %s (must be 'kawai' or 'usdt')", rewardType)
+	} else {
+		return fmt.Errorf("invalid reward type: %s (must be 'mining', 'cashback', 'referral', or 'revenue')", rewardType)
 	}
 
 	return s.SaveContributor(ctx, contributor)
@@ -278,7 +279,7 @@ func (s *KVStore) ListActiveContributors(ctx context.Context) ([]*ContributorDat
 }
 
 // ListContributorsWithBalance returns contributors with non-zero balance (for settlement)
-func (s *KVStore) ListContributorsWithBalance(ctx context.Context, rewardType string) ([]*ContributorData, error) {
+func (s *KVStore) ListContributorsWithBalance(ctx context.Context, rewardType types.RewardType) ([]*ContributorData, error) {
 	contributors, err := s.ListContributors(ctx)
 	if err != nil {
 		return nil, err
@@ -287,7 +288,7 @@ func (s *KVStore) ListContributorsWithBalance(ctx context.Context, rewardType st
 	withBalance := make([]*ContributorData, 0)
 	for _, c := range contributors {
 		var balance string
-		if rewardType == "kawai" {
+		if rewardType.IsKawaiReward() {
 			balance = c.AccumulatedRewards
 		} else {
 			balance = c.AccumulatedUSDT
@@ -370,7 +371,7 @@ func (s *KVStore) RecordJobReward(ctx context.Context, contributorAddress string
 
 	// Helper to update balance field with per-address locking
 	// This ensures only ONE goroutine can update a specific address at a time
-	updateBalance := func(addr string, amount *big.Int, field string) error {
+	updateBalance := func(addr string, amount *big.Int, field types.RewardType) error {
 		if amount.Cmp(big.NewInt(0)) == 0 {
 			return nil
 		}
@@ -394,7 +395,7 @@ func (s *KVStore) RecordJobReward(ctx context.Context, contributorAddress string
 
 		// 2. MODIFY - Calculate new balance
 		var currentBalStr string
-		if field == "kawai" {
+		if field.IsKawaiReward() {
 			currentBalStr = c.AccumulatedRewards
 		} else {
 			currentBalStr = c.AccumulatedUSDT
@@ -407,7 +408,7 @@ func (s *KVStore) RecordJobReward(ctx context.Context, contributorAddress string
 
 		newBal := new(big.Int).Add(currentBal, amount)
 
-		if field == "kawai" {
+		if field.IsKawaiReward() {
 			c.AccumulatedRewards = newBal.String()
 		} else {
 			c.AccumulatedUSDT = newBal.String()
@@ -433,7 +434,7 @@ func (s *KVStore) RecordJobReward(ctx context.Context, contributorAddress string
 	hasReferrer := referrerAddress != "" && referrerAddress != "0x0000000000000000000000000000000000000000"
 
 	var contributorShare, developerShare, userShare, affiliatorShare *big.Int
-	var balanceField string
+	var balanceField types.RewardType
 
 	if mode == config.ModeMining {
 		// Phase 1: KAWAI Mining with Dynamic Difficulty (Halving)
@@ -504,7 +505,7 @@ func (s *KVStore) RecordJobReward(ctx context.Context, contributorAddress string
 			affiliatorShare = big.NewInt(0)
 		}
 
-		balanceField = "kawai"
+		balanceField = types.RewardTypeMining
 		slog.Info("Mining reward distributed",
 			"tokens", tokenUsage,
 			"rate", rateVal,
@@ -544,7 +545,7 @@ func (s *KVStore) RecordJobReward(ctx context.Context, contributorAddress string
 			affiliatorShare = big.NewInt(0)
 		}
 
-		balanceField = "usdt"
+		balanceField = types.RewardTypeRevenue
 		slog.Info("USDT reward distributed",
 			"tokens", tokenUsage,
 			"usdt_total", totalReward.String(),

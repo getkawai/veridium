@@ -21,13 +21,13 @@ DATA_DIR      := data
 
 # Foundry artifacts
 TOKEN_ARTIFACT       := $(CONTRACTS_DIR)/out/KawaiToken.sol/KawaiToken.json
-ESCROW_ARTIFACT      := $(CONTRACTS_DIR)/out/Escrow.sol/OTCMarket.json
+OTCMARKET_ARTIFACT   := $(CONTRACTS_DIR)/out/OTCMarket.sol/OTCMarket.json
 VAULT_ARTIFACT       := $(CONTRACTS_DIR)/out/PaymentVault.sol/PaymentVault.json
-DISTRIBUTOR_ARTIFACT := $(CONTRACTS_DIR)/out/MerkleDistributor.sol/MerkleDistributor.json
+REVENUE_ARTIFACT     := $(CONTRACTS_DIR)/out/RevenueDistributor.sol/RevenueDistributor.json
 REFERRAL_ARTIFACT    := $(CONTRACTS_DIR)/out/ReferralRewardDistributor.sol/ReferralRewardDistributor.json
 CASHBACK_ARTIFACT    := $(CONTRACTS_DIR)/out/DepositCashbackDistributor.sol/DepositCashbackDistributor.json
 MINING_ARTIFACT      := $(CONTRACTS_DIR)/out/MiningRewardDistributor.sol/MiningRewardDistributor.json
-USDT_ARTIFACT        := $(CONTRACTS_DIR)/out/MockUSDT.sol/MockUSDT.json
+STABLECOIN_ARTIFACT  := $(CONTRACTS_DIR)/out/MockStablecoin.sol/MockStablecoin.json
 
 # Load environment variables from contracts/.env if exists
 -include $(CONTRACTS_DIR)/.env
@@ -223,7 +223,7 @@ contracts-compile:
 	@echo "🔨 Compiling smart contracts..."
 	cd $(CONTRACTS_DIR) && ~/.foundry/bin/forge build
 
-contracts-bindings: abi-token abi-escrow abi-vault abi-distributor abi-referral abi-cashback abi-mining abi-usdt generate-project-abis
+contracts-bindings: abi-token abi-otcmarket abi-vault abi-revenue abi-referral abi-cashback abi-mining abi-stablecoin generate-project-abis
 	@echo "✅ Contract bindings generated!"
 
 contracts-update: contracts-compile contracts-bindings
@@ -267,12 +267,12 @@ contracts-coverage:
 contracts-validate:
 	@echo "🔍 Validating contract changes..."
 	@echo "Checking if contracts compiled..."
-	@test -f $(ESCROW_ARTIFACT) || (echo "❌ Escrow artifact not found! Run: make contracts-compile" && exit 1)
+	@test -f $(OTCMARKET_ARTIFACT) || (echo "❌ OTCMarket artifact not found! Run: make contracts-compile" && exit 1)
 	@test -f $(TOKEN_ARTIFACT) || (echo "❌ Token artifact not found! Run: make contracts-compile" && exit 1)
 	@echo "✅ Contract artifacts found"
 	@echo ""
 	@echo "Checking if bindings generated..."
-	@test -f $(ABIS_DIR)/escrow/escrow.go || (echo "❌ Escrow bindings not found! Run: make contracts-bindings" && exit 1)
+	@test -f $(ABIS_DIR)/otcmarket/otcmarket.go || (echo "❌ OTCMarket bindings not found! Run: make contracts-bindings" && exit 1)
 	@test -f $(ABIS_DIR)/kawaitoken/kawaitoken.go || (echo "❌ Token bindings not found! Run: make contracts-bindings" && exit 1)
 	@echo "✅ Contract bindings found"
 	@echo ""
@@ -436,12 +436,12 @@ abi-token:
 	@abigen --abi $(ABIS_DIR)/kawaitoken/KawaiToken.abi --bin $(ABIS_DIR)/kawaitoken/KawaiToken.bin \
 		--pkg kawaitoken --type KawaiToken --out $(ABIS_DIR)/kawaitoken/kawaitoken.go
 
-abi-escrow:
-	@mkdir -p $(ABIS_DIR)/escrow
-	@jq -r .abi $(ESCROW_ARTIFACT) > $(ABIS_DIR)/escrow/Escrow.abi
-	@jq -r .bytecode.object $(ESCROW_ARTIFACT) > $(ABIS_DIR)/escrow/Escrow.bin
-	@abigen --abi $(ABIS_DIR)/escrow/Escrow.abi --bin $(ABIS_DIR)/escrow/Escrow.bin \
-		--pkg escrow --type OTCMarket --out $(ABIS_DIR)/escrow/escrow.go
+abi-otcmarket:
+	@mkdir -p $(ABIS_DIR)/otcmarket
+	@jq -r .abi $(OTCMARKET_ARTIFACT) > $(ABIS_DIR)/otcmarket/OTCMarket.abi
+	@jq -r .bytecode.object $(OTCMARKET_ARTIFACT) > $(ABIS_DIR)/otcmarket/OTCMarket.bin
+	@abigen --abi $(ABIS_DIR)/otcmarket/OTCMarket.abi --bin $(ABIS_DIR)/otcmarket/OTCMarket.bin \
+		--pkg otcmarket --type OTCMarket --out $(ABIS_DIR)/otcmarket/otcmarket.go
 
 abi-vault:
 	@mkdir -p $(ABIS_DIR)/vault
@@ -450,12 +450,12 @@ abi-vault:
 	@abigen --abi $(ABIS_DIR)/vault/PaymentVault.abi --bin $(ABIS_DIR)/vault/PaymentVault.bin \
 		--pkg vault --type PaymentVault --out $(ABIS_DIR)/vault/vault.go
 
-abi-distributor:
-	@mkdir -p $(ABIS_DIR)/distributor
-	@jq -r .abi $(DISTRIBUTOR_ARTIFACT) > $(ABIS_DIR)/distributor/MerkleDistributor.abi
-	@jq -r .bytecode.object $(DISTRIBUTOR_ARTIFACT) > $(ABIS_DIR)/distributor/MerkleDistributor.bin
-	@abigen --abi $(ABIS_DIR)/distributor/MerkleDistributor.abi --bin $(ABIS_DIR)/distributor/MerkleDistributor.bin \
-		--pkg distributor --type MerkleDistributor --out $(ABIS_DIR)/distributor/distributor.go
+abi-revenue:
+	@mkdir -p $(ABIS_DIR)/revenuedistributor
+	@jq -r .abi $(REVENUE_ARTIFACT) > $(ABIS_DIR)/revenuedistributor/RevenueDistributor.abi
+	@jq -r .bytecode.object $(REVENUE_ARTIFACT) > $(ABIS_DIR)/revenuedistributor/RevenueDistributor.bin
+	@abigen --abi $(ABIS_DIR)/revenuedistributor/RevenueDistributor.abi --bin $(ABIS_DIR)/revenuedistributor/RevenueDistributor.bin \
+		--pkg revenuedistributor --type RevenueDistributor --out $(ABIS_DIR)/revenuedistributor/revenuedistributor.go
 
 abi-referral:
 	@mkdir -p $(ABIS_DIR)/referraldistributor
@@ -478,12 +478,12 @@ abi-mining:
 	@abigen --abi $(ABIS_DIR)/miningdistributor/MiningRewardDistributor.abi --bin $(ABIS_DIR)/miningdistributor/MiningRewardDistributor.bin \
 		--pkg miningdistributor --type MiningRewardDistributor --out $(ABIS_DIR)/miningdistributor/miningdistributor.go
 
-abi-usdt:
-	@mkdir -p $(ABIS_DIR)/usdt
-	@jq -r .abi $(USDT_ARTIFACT) > $(ABIS_DIR)/usdt/MockUSDT.abi
-	@jq -r .bytecode.object $(USDT_ARTIFACT) > $(ABIS_DIR)/usdt/MockUSDT.bin
-	@abigen --abi $(ABIS_DIR)/usdt/MockUSDT.abi --bin $(ABIS_DIR)/usdt/MockUSDT.bin \
-		--pkg usdt --type MockUSDT --out $(ABIS_DIR)/usdt/usdt.go
+abi-stablecoin:
+	@mkdir -p $(ABIS_DIR)/mockstablecoin
+	@jq -r .abi $(STABLECOIN_ARTIFACT) > $(ABIS_DIR)/mockstablecoin/MockStablecoin.abi
+	@jq -r .bytecode.object $(STABLECOIN_ARTIFACT) > $(ABIS_DIR)/mockstablecoin/MockStablecoin.bin
+	@abigen --abi $(ABIS_DIR)/mockstablecoin/MockStablecoin.abi --bin $(ABIS_DIR)/mockstablecoin/MockStablecoin.bin \
+		--pkg mockstablecoin --type MockStablecoin --out $(ABIS_DIR)/mockstablecoin/mockstablecoin.go
 
 # ==============================================================================
 # Maintenance

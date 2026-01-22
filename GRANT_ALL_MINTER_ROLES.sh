@@ -10,7 +10,6 @@ set -e
 # Required contracts:
 # 1. MiningRewardDistributor (mining rewards)
 # 2. CashbackDistributor (deposit cashback)
-# 3. KAWAI_Distributor (legacy referral rewards)
 #
 # Note: ReferralRewardDistributor not deployed yet (future)
 # ============================================================
@@ -39,7 +38,6 @@ CHAIN_ID=10143
 KAWAI_TOKEN="0x3EC7A3b85f9658120490d5a76705d4d304f4068D"
 MINING_DISTRIBUTOR="0xa0dDC59DAcBA9201CC9Ef613707d287b77b2723F"
 CASHBACK_DISTRIBUTOR="0xcc992d001Bc1963A44212D62F711E502DE162B8E"
-KAWAI_DISTRIBUTOR="0x988Cbef1F6b9057Cfa7325a7E364543E615f9191"
 
 # MINTER_ROLE = keccak256("MINTER_ROLE")
 MINTER_ROLE="0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6"
@@ -65,7 +63,6 @@ echo ""
 echo "  KawaiToken: $KAWAI_TOKEN"
 echo "  MiningRewardDistributor: $MINING_DISTRIBUTOR"
 echo "  CashbackDistributor: $CASHBACK_DISTRIBUTOR"
-echo "  KAWAI_Distributor: $KAWAI_DISTRIBUTOR"
 echo ""
 
 # ============================================================
@@ -177,13 +174,6 @@ fi
 
 # 2. Grant to CashbackDistributor
 if grant_role "$KAWAI_TOKEN" "$MINTER_ROLE" "$CASHBACK_DISTRIBUTOR" "CashbackDistributor"; then
-    ((SUCCESS_COUNT++))
-else
-    ((FAIL_COUNT++))
-fi
-
-# 3. Grant to KAWAI_Distributor (legacy)
-if grant_role "$KAWAI_TOKEN" "$MINTER_ROLE" "$KAWAI_DISTRIBUTOR" "KAWAI_Distributor (Legacy)"; then
     ((SUCCESS_COUNT++))
 else
     ((FAIL_COUNT++))

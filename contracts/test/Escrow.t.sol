@@ -2,14 +2,14 @@
 pragma solidity ^0.8.20;
 
 import {Test, console} from "forge-std/Test.sol";
-import {OTCMarket} from "../contracts/Escrow.sol";
+import {OTCMarket} from "../contracts/OTCMarket.sol";
 import {KawaiToken} from "../contracts/KawaiToken.sol";
-import {MockUSDT} from "../contracts/MockUSDT.sol";
+import {MockStablecoin} from "../contracts/MockStablecoin.sol";
 
 contract OTCMarketTest is Test {
     OTCMarket public market;
     KawaiToken public kawai;
-    MockUSDT public usdt;
+    MockStablecoin public usdt;
 
     address public admin = address(1);
     address public seller = address(2);
@@ -53,7 +53,7 @@ contract OTCMarketTest is Test {
         // Deploy contracts
         vm.startPrank(admin);
         kawai = new KawaiToken(admin, admin);
-        usdt = new MockUSDT();
+        usdt = new MockStablecoin();
         market = new OTCMarket(address(kawai), address(usdt), feeRecipient);
         vm.stopPrank();
 

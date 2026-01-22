@@ -17,7 +17,6 @@ Error: AccessControl: account 0x... is missing role 0x9f2df0fed2c77648de5860a4cc
 |----------|------------------------|---------|---------------------|
 | **MiningRewardDistributor** | `0x8117D77A219EeF5F7869897C3F0973Afb87d8427` | Mining rewards with referral splits | 1-4 (contributor, developer, user, affiliator) |
 | **CashbackDistributor** | `0xdE64f6F5bEe28762c91C76ff762365D553204e35` | Deposit cashback rewards | 1 |
-| **KAWAI_Distributor** | `0xaB0DdFbb4bD94d23a32d0C40f9F96d9A61b45463` | Legacy referral rewards (MerkleDistributor in mint mode) | 1 |
 
 ### Contracts NOT Requiring MINTER_ROLE
 
@@ -116,8 +115,6 @@ function claim(...) external {
 }
 ```
 
-**KAWAI_Distributor** is deployed with `mintOnClaim = true`, so it needs `MINTER_ROLE`.
-
 ---
 
 ## 🚀 How to Grant MINTER_ROLE
@@ -146,8 +143,7 @@ export PRIVATE_KEY=0x...
 # Cashback rewards only
 ./GRANT_CASHBACK_MINTER_ROLE.sh
 
-# Legacy referral rewards only
-./GRANT_KAWAI_DISTRIBUTOR_MINTER_ROLE.sh
+./GRANT_ALL_MINTER_ROLES.sh
 ```
 
 ### Option 3: Manual (Foundry)
@@ -172,14 +168,6 @@ cast send $KAWAI_TOKEN \
   "grantRole(bytes32,address)" \
   $MINTER_ROLE \
   0xdE64f6F5bEe28762c91C76ff762365D553204e35 \
-  --private-key $PRIVATE_KEY \
-  --rpc-url $RPC_URL
-
-# Grant to KAWAI_Distributor
-cast send $KAWAI_TOKEN \
-  "grantRole(bytes32,address)" \
-  $MINTER_ROLE \
-  0xaB0DdFbb4bD94d23a32d0C40f9F96d9A61b45463 \
   --private-key $PRIVATE_KEY \
   --rpc-url $RPC_URL
 ```
@@ -326,10 +314,8 @@ Error: execution reverted: AccessControl: account 0x... is missing role 0x9f2df0
 - [ ] Deploy `KawaiToken`
 - [ ] Deploy `MiningRewardDistributor`
 - [ ] Deploy `CashbackDistributor`
-- [ ] Deploy `KAWAI_Distributor` (MerkleDistributor with `mintOnClaim=true`)
 - [ ] **Grant MINTER_ROLE to MiningRewardDistributor** ← **CRITICAL**
 - [ ] **Grant MINTER_ROLE to CashbackDistributor** ← **CRITICAL**
-- [ ] **Grant MINTER_ROLE to KAWAI_Distributor** ← **CRITICAL**
 - [ ] Test mining claim
 - [ ] Test cashback claim
 - [ ] Test referral claim

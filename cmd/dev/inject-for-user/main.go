@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/kawai-network/veridium/pkg/store"
+	"github.com/kawai-network/veridium/pkg/types"
 )
 
 func main() {
@@ -34,7 +35,7 @@ func main() {
 		UserAmount:         "5000000000000000000",
 		AffiliatorAmount:   "0",
 		TokenUsage:         1000,
-		RewardType:         "kawai",
+		RewardType:         types.RewardTypeMining,
 		HasReferrer:        false,
 		IsSettled:          false,
 	}
@@ -55,7 +56,7 @@ func main() {
 		UserAmount:         "5000000000000000000",
 		AffiliatorAmount:   "0",
 		TokenUsage:         1500,
-		RewardType:         "kawai",
+		RewardType:         types.RewardTypeMining,
 		HasReferrer:        false,
 		IsSettled:          false,
 	}
@@ -76,7 +77,7 @@ func main() {
 		UserAmount:         "5000000000000000000",
 		AffiliatorAmount:   "0",
 		TokenUsage:         2000,
-		RewardType:         "kawai",
+		RewardType:         types.RewardTypeMining,
 		HasReferrer:        false,
 		IsSettled:          false,
 	}

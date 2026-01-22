@@ -11,8 +11,8 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/kawai-network/veridium/internal/constant"
-	"github.com/kawai-network/veridium/internal/generate/abi/distributor"
-	"github.com/kawai-network/veridium/internal/generate/abi/usdt" // Note: Package name is "usdt" but works with any ERC-20 stablecoin (MockUSDT on testnet, USDC on mainnet)
+	"github.com/kawai-network/veridium/internal/generate/abi/mockstablecoin"
+	"github.com/kawai-network/veridium/internal/generate/abi/revenuedistributor"
 	"github.com/kawai-network/veridium/internal/generate/abi/vault"
 	"github.com/kawai-network/veridium/pkg/merkle"
 	"github.com/kawai-network/veridium/pkg/store"
@@ -23,7 +23,7 @@ type RevenueSettlement struct {
 	client          *ethclient.Client
 	paymentVault    *vault.PaymentVault
 	vaultAddress    common.Address
-	stablecoinToken *usdt.MockUSDT // Note: Type is MockUSDT but works with any ERC-20 stablecoin (USDC on mainnet)
+	stablecoinToken *mockstablecoin.MockStablecoin // Works with any ERC-20 stablecoin (MockStablecoin on testnet, USDC on mainnet)
 	kvStore         *store.KVStore
 }
 
@@ -40,9 +40,18 @@ func NewRevenueSettlement(kvStore *store.KVStore) (*RevenueSettlement, error) {
 		return nil, fmt.Errorf("failed to load PaymentVault: %w", err)
 	}
 
-	// Load stablecoin token contract (USDC on mainnet, MockUSDT on testnet)
-	stablecoinAddr := common.HexToAddress(constant.UsdtTokenAddress)
-	stablecoinToken, err := usdt.NewMockUSDT(stablecoinAddr, client)
+	// Validate stablecoin address is configured
+	if constant.StablecoinAddress == "" {
+		return nil, fmt.Errorf("stablecoin address not configured")
+	}
+
+	// Load stablecoin token contract (USDC on mainnet, MockStablecoin on testnet)
+	stablecoinAddr := common.HexToAddress(constant.StablecoinAddress)
+	if stablecoinAddr == (common.Address{}) {
+		return nil, fmt.Errorf("invalid stablecoin address: zero address")
+	}
+
+	stablecoinToken, err := mockstablecoin.NewMockStablecoin(stablecoinAddr, client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load stablecoin token: %w", err)
 	}
@@ -379,8 +388,8 @@ func (rs *RevenueSettlement) WithdrawToDistributor(ctx context.Context, amount *
 	// Set gas parameters
 	auth.Context = ctx
 
-	// Call PaymentVault.withdraw(StablecoinDistributor, amount)
-	distributorAddr := common.HexToAddress(constant.USDTDistributorAddr)
+	// Call PaymentVault.withdraw(RevenueDistributor, amount)
+	distributorAddr := common.HexToAddress(constant.RevenueDistributorAddr)
 	tx, err := rs.paymentVault.Withdraw(auth, distributorAddr, amount)
 	if err != nil {
 		return fmt.Errorf("failed to withdraw to distributor: %w", err)
@@ -434,11 +443,11 @@ func (rs *RevenueSettlement) UploadMerkleRoot(ctx context.Context, merkleRoot [3
 	// Set gas parameters
 	auth.Context = ctx
 
-	// Load Stablecoin Distributor contract
-	distributorAddr := common.HexToAddress(constant.USDTDistributorAddr)
-	distributor, err := distributor.NewMerkleDistributor(distributorAddr, rs.client)
+	// Load Revenue Distributor contract
+	distributorAddr := common.HexToAddress(constant.RevenueDistributorAddr)
+	distributor, err := revenuedistributor.NewRevenueDistributor(distributorAddr, rs.client)
 	if err != nil {
-		return fmt.Errorf("failed to load Stablecoin Distributor: %w", err)
+		return fmt.Errorf("failed to load Revenue Distributor: %w", err)
 	}
 
 	// Call setMerkleRoot

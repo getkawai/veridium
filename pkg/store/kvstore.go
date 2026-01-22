@@ -8,6 +8,7 @@ import (
 	"github.com/cloudflare/cloudflare-go"
 	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/pkg/alert"
+	"github.com/kawai-network/veridium/pkg/types"
 	"golang.org/x/time/rate"
 )
 
@@ -17,10 +18,10 @@ type Store interface {
 	GetContributor(ctx context.Context, address string) (*ContributorData, error)
 	ListContributors(ctx context.Context) ([]*ContributorData, error)
 	ListActiveContributors(ctx context.Context) ([]*ContributorData, error)
-	ListContributorsWithBalance(ctx context.Context, rewardType string) ([]*ContributorData, error)
+	ListContributorsWithBalance(ctx context.Context, rewardType types.RewardType) ([]*ContributorData, error)
 	GetOnlineContributors(ctx context.Context) ([]*ContributorData, error)
 	UpdateHeartbeat(ctx context.Context, address string) error
-	DeductSettledRewards(ctx context.Context, address string, rewardType string, amountToDeduct string) error
+	DeductSettledRewards(ctx context.Context, address string, rewardType types.RewardType, amountToDeduct string) error
 	RegisterContributor(ctx context.Context, address, endpointURL, hardwareSpecs string) (*ContributorData, error)
 	SoftDeleteContributor(ctx context.Context, address string) error
 	RestoreContributor(ctx context.Context, address string) error
@@ -28,12 +29,12 @@ type Store interface {
 
 	// Job reward tracking (for mining settlement)
 	SaveJobReward(ctx context.Context, record *JobRewardRecord) error
-	GetJobRewardsSinceLastSettlement(ctx context.Context, contributorAddress string, rewardType string) ([]*JobRewardRecord, error)
-	GetAllUnsettledJobRewards(ctx context.Context, rewardType string) (map[string][]*JobRewardRecord, error)
+	GetJobRewardsSinceLastSettlement(ctx context.Context, contributorAddress string, rewardType types.RewardType) ([]*JobRewardRecord, error)
+	GetAllUnsettledJobRewards(ctx context.Context, rewardType types.RewardType) (map[string][]*JobRewardRecord, error)
 	MarkJobRewardsAsSettled(ctx context.Context, contributorAddress string, periodID int64) error
 
 	// Mining settlement (9-field Merkle tree)
-	GenerateMiningSettlement(ctx context.Context, rewardType string) (*SettlementPeriod, error)
+	GenerateMiningSettlement(ctx context.Context, rewardType types.RewardType) (*SettlementPeriod, error)
 
 	// Merkle proof operations (deprecated - use period-specific methods)
 	SaveMerkleProof(ctx context.Context, address string, data *MerkleProofData) error
@@ -53,10 +54,10 @@ type Store interface {
 	GetPendingClaims(ctx context.Context) ([]*MerkleProofData, error)
 
 	// Settlement operations
-	GetSettlementSnapshots(ctx context.Context, rewardType string) ([]*SettlementSnapshot, error)
-	PerformSettlement(ctx context.Context, periodID int64, merkleRoot string, rewardType string, proofs map[string]*MerkleProofData) (*SettlementPeriod, error)
-	PerformSettlementWithConfig(ctx context.Context, periodID int64, merkleRoot string, rewardType string, proofs map[string]*MerkleProofData, config *SettlementConfig) (*SettlementPeriod, error)
-	PerformSettlementParallel(ctx context.Context, periodID int64, merkleRoot string, rewardType string, proofs map[string]*MerkleProofData, workers int) (*SettlementPeriod, error)
+	GetSettlementSnapshots(ctx context.Context, rewardType types.RewardType) ([]*SettlementSnapshot, error)
+	PerformSettlement(ctx context.Context, periodID int64, merkleRoot string, rewardType types.RewardType, proofs map[string]*MerkleProofData) (*SettlementPeriod, error)
+	PerformSettlementWithConfig(ctx context.Context, periodID int64, merkleRoot string, rewardType types.RewardType, proofs map[string]*MerkleProofData, config *SettlementConfig) (*SettlementPeriod, error)
+	PerformSettlementParallel(ctx context.Context, periodID int64, merkleRoot string, rewardType types.RewardType, proofs map[string]*MerkleProofData, workers int) (*SettlementPeriod, error)
 	ResumeSettlement(ctx context.Context, periodID int64, proofs map[string]*MerkleProofData, config *SettlementConfig) (*SettlementPeriod, error)
 	GetClaimableRewards(ctx context.Context, address string) (map[string]interface{}, error)
 

@@ -13,6 +13,7 @@ import (
 	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/internal/generate/abi/miningdistributor"
 	"github.com/kawai-network/veridium/pkg/store"
+	"github.com/kawai-network/veridium/pkg/types"
 )
 
 func main() {
@@ -37,7 +38,7 @@ func main() {
 	// Filter for mining periods (kawai type)
 	var miningPeriods []*store.SettlementPeriod
 	for _, period := range periods {
-		if period.RewardType == "kawai" {
+		if period.RewardType == types.RewardTypeMining {
 			miningPeriods = append(miningPeriods, period)
 		}
 	}

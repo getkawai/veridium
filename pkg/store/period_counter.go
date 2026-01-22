@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/cloudflare/cloudflare-go"
+	"github.com/kawai-network/veridium/pkg/types"
 )
 
 const (
@@ -14,12 +15,12 @@ const (
 
 // PeriodCounter tracks the last settlement period ID
 type PeriodCounter struct {
-	LastPeriodID int64  `json:"last_period_id"`
-	RewardType   string `json:"reward_type"`
+	LastPeriodID int64            `json:"last_period_id"`
+	RewardType   types.RewardType `json:"reward_type"`
 }
 
 // GetNextPeriodID returns the next sequential period ID and increments counter
-func (s *KVStore) GetNextPeriodID(ctx context.Context, rewardType string) (int64, error) {
+func (s *KVStore) GetNextPeriodID(ctx context.Context, rewardType types.RewardType) (int64, error) {
 	key := fmt.Sprintf("%s:%s", PeriodCounterKey, rewardType)
 
 	// Try to get current counter
@@ -63,7 +64,7 @@ func (s *KVStore) GetNextPeriodID(ctx context.Context, rewardType string) (int64
 }
 
 // GetCurrentPeriodID returns the last used period ID without incrementing
-func (s *KVStore) GetCurrentPeriodID(ctx context.Context, rewardType string) (int64, error) {
+func (s *KVStore) GetCurrentPeriodID(ctx context.Context, rewardType types.RewardType) (int64, error) {
 	key := fmt.Sprintf("%s:%s", PeriodCounterKey, rewardType)
 
 	value, err := s.client.GetWorkersKV(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{
@@ -85,7 +86,7 @@ func (s *KVStore) GetCurrentPeriodID(ctx context.Context, rewardType string) (in
 }
 
 // ResetPeriodCounter resets counter to 0 (for testing/migration)
-func (s *KVStore) ResetPeriodCounter(ctx context.Context, rewardType string) error {
+func (s *KVStore) ResetPeriodCounter(ctx context.Context, rewardType types.RewardType) error {
 	key := fmt.Sprintf("%s:%s", PeriodCounterKey, rewardType)
 
 	counter := PeriodCounter{
