@@ -17,3 +17,9 @@ internal/constant/temp.go
 .env
 .env.testnet
 .env.mainnet
+contract-dev.log
+contract-deploy-testnet.log
+contract-deploy-mainnet.log
+verify.json
+contracts/.env.bak
+.env.backup

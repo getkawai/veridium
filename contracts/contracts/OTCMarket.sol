@@ -8,13 +8,13 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 /**
  * @title OTCMarket
  * @notice P2P OTC Market for trading KAWAI tokens vs USDC with partial fill support
- * @dev Secure escrow system with ReentrancyGuard protection
+ * @dev Secure P2P trading system with ReentrancyGuard protection
  * 
  * Website: https://getkawai.com
  * Docs: https://getkawai.com/docs
  * 
  * Features:
- * - Create sell orders (tokens locked in escrow)
+ * - Create sell orders (tokens locked in contract)
  * - Buy full or partial amounts
  * - Cancel orders (refund remaining tokens)
  * - Zero fees (configurable for future)
@@ -91,7 +91,7 @@ contract OTCMarket is ReentrancyGuard {
         require(_amount > 0, "Amount must be > 0");
         require(_priceInUSDT > 0, "Price must be > 0");
 
-        // Lock tokens in escrow
+        // Lock tokens in contract
         tokenDeAI.safeTransferFrom(msg.sender, address(this), _amount);
 
         uint256 orderId = orders.length;
@@ -172,7 +172,7 @@ contract OTCMarket is ReentrancyGuard {
         }
         usdt.safeTransferFrom(msg.sender, order.seller, sellerAmount);
 
-        // Transfer DeAI Token from Escrow -> Buyer
+        // Transfer DeAI Token from contract -> Buyer
         tokenDeAI.safeTransfer(msg.sender, _amount);
 
         // Emit appropriate event

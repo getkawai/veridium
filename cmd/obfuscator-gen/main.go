@@ -805,11 +805,11 @@ func generateBlockchain(configs map[string]string) {
 	outputFile := "internal/constant/blockchain.go"
 
 	// Extract blockchain addresses from .env
-	kawaiToken := configs["TOKEN_ADDRESS"]
+	kawaiToken := configs["KAWAI_TOKEN_ADDRESS"]
 	otcMarket := configs["OTC_MARKET_ADDRESS"]
-	usdtToken := configs["USDT_TOKEN_ADDRESS"]
+	stablecoin := configs["STABLECOIN_ADDRESS"]
 	paymentVault := configs["PAYMENT_VAULT_ADDRESS"]
-	usdtDistributor := configs["USDT_DISTRIBUTOR_ADDRESS"]
+	revenueDistributor := configs["REVENUE_DISTRIBUTOR_ADDRESS"]
 	cashbackDistributor := configs["CASHBACK_DISTRIBUTOR_ADDRESS"]
 	miningDistributor := configs["MINING_DISTRIBUTOR_ADDRESS"]
 	referralDistributor := configs["REFERRAL_DISTRIBUTOR_ADDRESS"]
@@ -819,13 +819,43 @@ func generateBlockchain(configs map[string]string) {
 		return
 	}
 
+	// Determine network from ENVIRONMENT or RPC URL
+	environment := configs["ENVIRONMENT"]
+	rpcUrl := configs["MONAD_RPC_URL"]
+
+	// Default to testnet if not specified
+	if environment == "" {
+		if strings.Contains(rpcUrl, "testnet") {
+			environment = "testnet"
+		} else if strings.Contains(rpcUrl, "rpc.monad.xyz") {
+			environment = "mainnet"
+		} else {
+			environment = "testnet"
+		}
+	}
+
+	// Set network-specific values
+	var networkComment, deploymentDate string
+	if environment == "mainnet" {
+		networkComment = "Monad Mainnet Configuration"
+		deploymentDate = "2026-01-23"
+	} else {
+		networkComment = "Monad Testnet Configuration"
+		deploymentDate = "2026-01-13"
+	}
+
+	// Use RPC URL from config, fallback to testnet
+	if rpcUrl == "" {
+		rpcUrl = "https://testnet-rpc.monad.xyz"
+	}
+
 	content := fmt.Sprintf(`package constant
 
 const (
-	// Monad Testnet Configuration
-	MonadRpcUrl = "https://testnet-rpc.monad.xyz"
+	// %s
+	MonadRpcUrl = "%s"
 
-	// Contract Addresses (Monad Testnet - Fresh Deployment 2026-01-13)
+	// Contract Addresses (Monad %s - Deployment %s)
 	KawaiTokenAddress           = "%s"
 	OTCMarketAddress            = "%s"
 	StablecoinAddress           = "%s"
@@ -841,7 +871,7 @@ const (
 	// - Mainnet: Set to token deployment block to optimize performance
 	HolderScanStartBlock = 0
 )
-`, kawaiToken, otcMarket, usdtToken, paymentVault, usdtDistributor, cashbackDistributor, miningDistributor, referralDistributor)
+`, networkComment, rpcUrl, strings.Title(environment), deploymentDate, kawaiToken, otcMarket, stablecoin, paymentVault, revenueDistributor, cashbackDistributor, miningDistributor, referralDistributor)
 
 	err := os.WriteFile(outputFile, []byte(content), 0644)
 	if err != nil {
@@ -856,7 +886,7 @@ func generateProjectTokens(configs map[string]string) {
 
 	// Extract addresses from .env
 	stablecoin := configs["STABLECOIN_ADDRESS"]
-	kawaiToken := configs["TOKEN_ADDRESS"]
+	kawaiToken := configs["KAWAI_TOKEN_ADDRESS"]
 	otcMarket := configs["OTC_MARKET_ADDRESS"]
 	paymentVault := configs["PAYMENT_VAULT_ADDRESS"]
 	revenueDistributor := configs["REVENUE_DISTRIBUTOR_ADDRESS"]
@@ -869,12 +899,35 @@ func generateProjectTokens(configs map[string]string) {
 		return
 	}
 
+	// Determine network from ENVIRONMENT
+	environment := configs["ENVIRONMENT"]
+	if environment == "" {
+		rpcUrl := configs["MONAD_RPC_URL"]
+		if strings.Contains(rpcUrl, "testnet") {
+			environment = "testnet"
+		} else if strings.Contains(rpcUrl, "rpc.monad.xyz") {
+			environment = "mainnet"
+		} else {
+			environment = "testnet"
+		}
+	}
+
+	// Set network-specific values
+	var networkName, deploymentDate string
+	if environment == "mainnet" {
+		networkName = "Monad Mainnet"
+		deploymentDate = "2026-01-23"
+	} else {
+		networkName = "Monad Testnet"
+		deploymentDate = "2026-01-13"
+	}
+
 	content := fmt.Sprintf(`package db
 
-// PROJECT_TOKENS contains project-specific contract addresses (Monad Testnet)
-// Fresh Deployment: 2026-01-13
+// PROJECT_TOKENS contains project-specific contract addresses (%s)
+// Deployment: %s
 var PROJECT_TOKENS map[string]string = map[string]string{
-	// Monad Testnet Contracts (Fresh Deployment 2026-01-13)
+	// %s Contracts (Deployment %s)
 	"%s": "Stablecoin",
 	"%s": "KawaiToken",
 	"%s": "OTCMarket",
@@ -884,7 +937,7 @@ var PROJECT_TOKENS map[string]string = map[string]string{
 	"%s": "CashbackDistributor",
 	"%s": "ReferralDistributor",
 }
-`, stablecoin, kawaiToken, otcMarket, paymentVault, revenueDistributor, miningDistributor, cashbackDistributor, referralDistributor)
+`, networkName, deploymentDate, networkName, deploymentDate, stablecoin, kawaiToken, otcMarket, paymentVault, revenueDistributor, miningDistributor, cashbackDistributor, referralDistributor)
 
 	err := os.WriteFile(outputFile, []byte(content), 0644)
 	if err != nil {

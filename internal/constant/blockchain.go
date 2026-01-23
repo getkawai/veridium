@@ -1,18 +1,18 @@
 package constant
 
 const (
-	// Monad Testnet Configuration
-	MonadRpcUrl = "https://testnet-rpc.monad.xyz"
+	// Monad Mainnet Configuration
+	MonadRpcUrl = "https://rpc.monad.xyz"
 
-	// Contract Addresses (Monad Testnet - Fresh Deployment 2026-01-13)
-	KawaiTokenAddress           = "0xcb0FbFEe8253fD4B797dcF7f90e6fDCbE3a34b02"
-	OTCMarketAddress            = "0x69d9c1959Ca499369C420A5Aaa7fa7E3b23b1f31"
-	StablecoinAddress           = ""
-	PaymentVaultAddress         = "0xAaFc7c1f31a53d42B38028B810393926BfD30479"
-	RevenueDistributorAddr      = ""
-	CashbackDistributorAddress  = "0xCd3882103BB72608A173cb5BA6C4D32e93501Ad0"
-	MiningRewardDistributorAddr = "0x531C8Aca995AA92279f36b2F3121ba0004bab3BC"
-	ReferralDistributorAddress  = "0x1A4bEc99eC4ADd78F537D0c9f1f9D5b6f110a7dC"
+	// Contract Addresses (Monad Mainnet - Deployment 2026-01-23)
+	KawaiTokenAddress           = "0x9cbdb316b31fd2efa469c57dcf57be0af630f64c"
+	OTCMarketAddress            = "0xe7d73b901b7202b4f686166420ee76cfe860d28d"
+	StablecoinAddress           = "0x754704bc059f8c67012fed69bc8a327a5aafb603"
+	PaymentVaultAddress         = "0xffdf0fb715bec64db41307c26abf545295d31e44"
+	RevenueDistributorAddr      = "0x7454495f1a7e2854e4215a4d797e0abd7e14bbe4"
+	CashbackDistributorAddress  = "0x1feff071f37a5cb8833e227d8dddea43aa374449"
+	MiningRewardDistributorAddr = "0xc58d3f5d04e5748fc1806980e26c1eb487045442"
+	ReferralDistributorAddress  = "0xfbbe8b96d1b5eff919ce09da28737c667faa7957"
 
 	// Holder Scanner Configuration
 	// HolderScanStartBlock: Starting block for holder scanning

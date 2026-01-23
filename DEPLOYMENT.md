@@ -6,35 +6,37 @@
 
 ## 🎯 QUICK START
 
-### Testnet Deployment
-```bash
-# 1. Prepare environment
-export NETWORK=testnet
-export RPC_URL=https://testnet-rpc.monad.xyz
-export ENV_FILE=.env.testnet
+### Automated Deployment (Recommended)
 
-# 2. Deploy contracts (see PHASE 1)
-# 3. Grant permissions (see PHASE 2)
-# 4. Regenerate constants (see PHASE 3)
+**Testnet:**
+```bash
+make deploy-testnet
 ```
 
-### Mainnet Deployment
+**Mainnet:**
 ```bash
-# 1. Prepare environment
-export NETWORK=mainnet
-export RPC_URL=https://rpc.monad.xyz
-export ENV_FILE=.env.mainnet
-
-# 2. Deploy contracts (see PHASE 1)
-# 3. Grant permissions (see PHASE 2)
-# 4. Regenerate constants (see PHASE 3)
+make deploy-mainnet
 ```
+
+The automated script (`contracts/deploy-all.sh`) handles:
+- ✅ Environment setup
+- ✅ Contract compilation and testing
+- ✅ Deployment of 7 contracts (KawaiToken, OTCMarket, PaymentVault, RevenueDistributor, MiningDistributor, CashbackDistributor, ReferralDistributor)
+- ✅ MINTER_ROLE grants and verification
+- ✅ Environment file updates
+- ✅ Go bindings generation
+- ✅ Backend constants generation
+
+### Manual Deployment (Advanced)
+
+For manual deployment or custom configurations, see the detailed steps below.
 
 ---
 
 ## 📋 PREREQUISITES
 
 ### Required
+- [ ] Clean old artifacts: `make contracts-clean`
 - [ ] Contracts compiled: `make contracts-compile`
 - [ ] Contract tests pass: `make contracts-test`
 - [ ] Private key ready (in `contracts/.env`)
@@ -66,6 +68,21 @@ The `ADMIN_PRIVATE_KEY` is the private key of the deployer account that will:
 
 ## 🚀 PHASE 1: Deploy Contracts
 
+### Step 1.0: Clean and Prepare
+
+**IMPORTANT: Always clean before deployment to avoid old artifacts**
+
+```bash
+# Clean old artifacts (CRITICAL for renamed contracts)
+make contracts-clean
+
+# Compile fresh
+make contracts-compile
+
+# Run tests
+make contracts-test
+```
+
 ### Step 1.1: Prepare Contracts Environment
 
 **For Testnet:**
@@ -78,7 +95,7 @@ cp .env.testnet .env
 ```bash
 cd contracts
 cp .env.mainnet .env
-# Ensure USDC_ADDRESS is set to: 0x754704bc059f8c67012fed69bc8a327a5aafb603
+# Ensure STABLECOIN_ADDRESS is set to: 0x754704bc059f8c67012fed69bc8a327a5aafb603
 ```
 
 ### Step 1.2: Deploy Base Contracts
@@ -181,24 +198,16 @@ go run cmd/dev/check-minter-role/main.go
 
 ### Step 3.1: Update Environment File
 
-Update the appropriate `.env` file with all deployed addresses:
+**✅ AUTOMATED:** The `deploy-all.sh` script automatically updates both `contracts/.env` and `.env.$NETWORK` with deployed addresses.
 
-**For Testnet:**
-```bash
-# Edit .env.testnet
-TOKEN_ADDRESS=<kawai_token_address>
-OTC_MARKET_ADDRESS=<otc_market_address>
-PAYMENT_VAULT_ADDRESS=<payment_vault_address>
-REVENUE_DISTRIBUTOR_ADDRESS=<revenue_distributor_address>
-MINING_DISTRIBUTOR_ADDRESS=<mining_distributor_address>
-CASHBACK_DISTRIBUTOR_ADDRESS=<cashback_distributor_address>
-REFERRAL_DISTRIBUTOR_ADDRESS=<referral_distributor_address>
-```
-
-**For Mainnet:**
-```bash
-# Edit .env.mainnet (same format as above)
-```
+The script deploys and updates these 7 contracts:
+- KAWAI_TOKEN_ADDRESS (KawaiToken)
+- OTC_MARKET_ADDRESS (OTCMarket)
+- PAYMENT_VAULT_ADDRESS (PaymentVault)
+- REVENUE_DISTRIBUTOR_ADDRESS (RevenueDistributor)
+- MINING_DISTRIBUTOR_ADDRESS (MiningRewardDistributor)
+- CASHBACK_DISTRIBUTOR_ADDRESS (DepositCashbackDistributor)
+- REFERRAL_DISTRIBUTOR_ADDRESS (ReferralRewardDistributor)
 
 ### Step 3.2: Regenerate Backend Constants
 
@@ -255,7 +264,7 @@ git push origin <branch_name>
 
 ## 📊 DEPLOYMENT HISTORY
 
-### Mainnet (2026-01-22)
+### Mainnet (2026-01-22) - Automated Deployment
 ```text
 USDC:                    0x754704bc059f8c67012fed69bc8a327a5aafb603
 KawaiToken:              0x5B7408a485E3167c91e925e8701d35e71B80331C ✅ Verified
@@ -266,9 +275,10 @@ MiningDistributor:       0xF447C701B43e4FC4A2a172D828268Eb1F0C092FB ✅ Verified
 CashbackDistributor:     0x3Fa14A2b33f95E590bDd57a812bE4012ea5d61FF ✅ Verified
 ReferralDistributor:     0xBF4c7ae729223c5E6aDb85708D685855a6d9d077 ✅ Verified
 Gas Used: ~0.93 MON
+MINTER_ROLE: ✅ All granted
 ```
 
-### Testnet (2026-01-22 Round 7 - Renamed Contracts)
+### Testnet (2026-01-22 Round 7) - Automated Deployment
 ```text
 MockStablecoin:          0x3AE05118C5B75b1B0b860ec4b7Ec5095188D1CCc (existing)
 KawaiToken:              0xcb0FbFEe8253fD4B797dcF7f90e6fDCbE3a34b02 ✅ Verified
@@ -381,8 +391,9 @@ cast wallet address --private-key $ADMIN_PRIVATE_KEY
 ## 📝 CHECKLIST
 
 ### Pre-Deployment
-- [ ] Contracts compiled
-- [ ] Tests passing
+- [ ] Old artifacts cleaned (`make contracts-clean`)
+- [ ] Contracts compiled (`make contracts-compile`)
+- [ ] Tests passing (`make contracts-test`)
 - [ ] Environment file ready
 - [ ] Private key secured
 - [ ] Sufficient MON balance

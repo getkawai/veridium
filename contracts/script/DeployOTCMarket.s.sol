@@ -2,32 +2,38 @@
 pragma solidity ^0.8.20;
 
 import {Script, console} from "forge-std/Script.sol";
-import {PaymentVault} from "../contracts/PaymentVault.sol";
+import {OTCMarket} from "../contracts/OTCMarket.sol";
 
-contract DeployPaymentVault is Script {
+contract DeployOTCMarket is Script {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address deployer = vm.addr(deployerPrivateKey);
         
-        // Read stablecoin address from environment
+        // Read required addresses from environment
+        address kawaiToken = vm.envAddress("KAWAI_TOKEN_ADDRESS");
         address stablecoin = vm.envAddress("STABLECOIN_ADDRESS");
 
-        console.log("=== Deploying PaymentVault ===");
+        console.log("=== Deploying OTCMarket ===");
         console.log("Deployer:", deployer);
+        console.log("KawaiToken:", kawaiToken);
         console.log("Stablecoin:", stablecoin);
 
         vm.startBroadcast(deployerPrivateKey);
 
-        // Deploy PaymentVault (Stablecoin Deposits for credits)
-        PaymentVault vault = new PaymentVault(stablecoin, deployer);
-        console.log("PaymentVault deployed at:", address(vault));
+        // Deploy OTCMarket
+        // deployer as fee recipient
+        OTCMarket otcMarket = new OTCMarket(
+            kawaiToken,
+            stablecoin,
+            deployer
+        );
+        console.log("OTCMarket deployed at:", address(otcMarket));
 
         vm.stopBroadcast();
 
         console.log("\n=== Deployment Summary ===");
         console.log("Network:", vm.envOr("NETWORK", string("Unknown")));
-        console.log("PaymentVault:", address(vault));
+        console.log("OTCMarket:", address(otcMarket));
         console.log("==========================");
     }
 }
-

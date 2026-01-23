@@ -2,9 +2,9 @@
 pragma solidity ^0.8.20;
 
 import {Script, console} from "forge-std/Script.sol";
-import {PaymentVault} from "../contracts/PaymentVault.sol";
+import {RevenueDistributor} from "../contracts/RevenueDistributor.sol";
 
-contract DeployPaymentVault is Script {
+contract DeployRevenueDistributor is Script {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address deployer = vm.addr(deployerPrivateKey);
@@ -12,22 +12,24 @@ contract DeployPaymentVault is Script {
         // Read stablecoin address from environment
         address stablecoin = vm.envAddress("STABLECOIN_ADDRESS");
 
-        console.log("=== Deploying PaymentVault ===");
+        console.log("=== Deploying RevenueDistributor ===");
         console.log("Deployer:", deployer);
         console.log("Stablecoin:", stablecoin);
 
         vm.startBroadcast(deployerPrivateKey);
 
-        // Deploy PaymentVault (Stablecoin Deposits for credits)
-        PaymentVault vault = new PaymentVault(stablecoin, deployer);
-        console.log("PaymentVault deployed at:", address(vault));
+        // Deploy RevenueDistributor (Revenue Sharing)
+        // Transfers stablecoin from pre-funded balance
+        RevenueDistributor revenueDistributor = new RevenueDistributor(
+            stablecoin
+        );
+        console.log("RevenueDistributor deployed at:", address(revenueDistributor));
 
         vm.stopBroadcast();
 
         console.log("\n=== Deployment Summary ===");
         console.log("Network:", vm.envOr("NETWORK", string("Unknown")));
-        console.log("PaymentVault:", address(vault));
+        console.log("RevenueDistributor:", address(revenueDistributor));
         console.log("==========================");
     }
 }
-

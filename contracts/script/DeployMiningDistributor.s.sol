@@ -23,16 +23,13 @@ contract DeployMiningDistributor is Script {
         console.log("IMPORTANT: Developer addresses specified per claim");
         console.log("Backend uses GetRandomTreasuryAddress() for distribution");
         console.log("==============================================");
-        console.log("");
-        console.log("Next steps:");
-        console.log("1. Grant MINTER_ROLE to distributor:");
-        console.log("   make contracts-grant-minter-mining MINING_DISTRIBUTOR_ADDRESS=%s", address(distributor));
-        console.log("");
-        console.log("2. Set initial Merkle root (after first week):");
-        console.log("   cast send %s 'setMerkleRoot(bytes32)' <merkleRoot> --rpc-url $RPC_URL --private-key $PRIVATE_KEY", address(distributor));
-        console.log("==============================================");
         
         vm.stopBroadcast();
+
+        console.log("\n=== Deployment Summary ===");
+        console.log("Network:", vm.envOr("NETWORK", string("Unknown")));
+        console.log("MiningRewardDistributor:", address(distributor));
+        console.log("==========================");
     }
 }
 

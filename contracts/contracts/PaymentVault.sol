@@ -15,7 +15,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
  * Docs: https://getkawai.com/docs
  * 
  * Features:
- * - Accepts USDC (mainnet) or MockUSDT (testnet)
+ * - Accepts USDC (mainnet) or MockStablecoin (testnet)
  * - Converts deposits to AI service credits
  * - Owner-only withdrawal for revenue distribution
  */

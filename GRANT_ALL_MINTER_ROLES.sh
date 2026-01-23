@@ -10,8 +10,7 @@ set -e
 # Required contracts:
 # 1. MiningRewardDistributor (mining rewards)
 # 2. CashbackDistributor (deposit cashback)
-#
-# Note: ReferralRewardDistributor not deployed yet (future)
+# 3. ReferralRewardDistributor (referral rewards)
 # ============================================================
 
 # Colors for output
@@ -34,12 +33,23 @@ echo ""
 RPC_URL="https://testnet.monad.xyz/"
 CHAIN_ID=10143
 
-# Contract Addresses (Monad Testnet)
-KAWAI_TOKEN="0x3EC7A3b85f9658120490d5a76705d4d304f4068D"
-MINING_DISTRIBUTOR="0xa0dDC59DAcBA9201CC9Ef613707d287b77b2723F"
-CASHBACK_DISTRIBUTOR="0xcc992d001Bc1963A44212D62F711E502DE162B8E"
+# Source contract addresses from contracts/.env
+if [ -f "contracts/.env" ]; then
+    source contracts/.env
+    KAWAI_TOKEN="$KAWAI_TOKEN_ADDRESS"
+    MINING_DISTRIBUTOR="$MINING_DISTRIBUTOR_ADDRESS"
+    CASHBACK_DISTRIBUTOR="$CASHBACK_DISTRIBUTOR_ADDRESS"
+    REFERRAL_DISTRIBUTOR="$REFERRAL_DISTRIBUTOR_ADDRESS"
+else
+    echo -e "${RED}❌ Error: contracts/.env not found${NC}"
+    echo ""
+    echo "Please run deployment first:"
+    echo "  make deploy-testnet"
+    echo ""
+    exit 1
+fi
 
-# MINTER_ROLE = keccak256("MINTER_ROLE")
+# MINTER_ROLE = keccak256("MINTER_ROLE") - OpenZeppelin standard
 MINTER_ROLE="0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6"
 
 # ============================================================
@@ -63,6 +73,7 @@ echo ""
 echo "  KawaiToken: $KAWAI_TOKEN"
 echo "  MiningRewardDistributor: $MINING_DISTRIBUTOR"
 echo "  CashbackDistributor: $CASHBACK_DISTRIBUTOR"
+echo "  ReferralDistributor: $REFERRAL_DISTRIBUTOR"
 echo ""
 
 # ============================================================
@@ -174,6 +185,13 @@ fi
 
 # 2. Grant to CashbackDistributor
 if grant_role "$KAWAI_TOKEN" "$MINTER_ROLE" "$CASHBACK_DISTRIBUTOR" "CashbackDistributor"; then
+    ((SUCCESS_COUNT++))
+else
+    ((FAIL_COUNT++))
+fi
+
+# 3. Grant to ReferralDistributor
+if grant_role "$KAWAI_TOKEN" "$MINTER_ROLE" "$REFERRAL_DISTRIBUTOR" "ReferralDistributor"; then
     ((SUCCESS_COUNT++))
 else
     ((FAIL_COUNT++))

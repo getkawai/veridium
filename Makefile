@@ -314,13 +314,13 @@ contracts-deploy-vault:
 	@echo "🚀 Deploying PaymentVault..."
 	@test -n "$(PRIVATE_KEY)" || (echo "❌ PRIVATE_KEY not set!" && exit 1)
 	@test -n "$(RPC_URL)" || (echo "❌ RPC_URL not set!" && exit 1)
-	@test -n "$(USDC_ADDRESS)" || (echo "❌ USDC_ADDRESS not set! Set it in contracts/.env" && exit 1)
+	@test -n "$(STABLECOIN_ADDRESS)" || (echo "❌ STABLECOIN_ADDRESS not set! Set it in contracts/.env" && exit 1)
 	@if [ "$(CHAIN_ID)" = "143" ] || echo "$(RPC_URL)" | grep -q "mainnet"; then \
-		echo "⚠️  WARNING: Deploying to MAINNET with USDC $(USDC_ADDRESS)"; \
+		echo "⚠️  WARNING: Deploying to MAINNET with USDC $(STABLECOIN_ADDRESS)"; \
 		echo "⚠️  This will cost real MON for gas fees"; \
 		read -p "Continue with mainnet deployment? [y/N] " confirm && [ "$$confirm" = "y" ] || exit 1; \
 	fi
-	@echo "ℹ️  Stablecoin: $(USDC_ADDRESS)"
+	@echo "ℹ️  Stablecoin: $(STABLECOIN_ADDRESS)"
 	cd $(CONTRACTS_DIR) && ~/.foundry/bin/forge script script/DeployPaymentVault.s.sol:DeployPaymentVault \
 		--rpc-url $(RPC_URL) \
 		--private-key $(PRIVATE_KEY) \
@@ -920,3 +920,21 @@ contracts-grant-minter-mainnet:
 		--rpc-url $(MAINNET_RPC_URL) \
 		--private-key $(PRIVATE_KEY)
 	@echo "✅ All MINTER_ROLEs granted on mainnet!"
+
+# ==============================================================================
+# Full Deployment with Logging
+# ==============================================================================
+
+.PHONY: deploy-testnet deploy-mainnet
+
+deploy-testnet:
+	@echo "🚀 Starting full testnet deployment..."
+	@rm -f contract-deploy-testnet.log
+	@./contracts/deploy-all.sh testnet 2>&1 | tee contract-deploy-testnet.log
+	@echo "✅ Deployment complete! Log saved to contract-deploy-testnet.log"
+
+deploy-mainnet:
+	@echo "🚀 Starting full mainnet deployment..."
+	@rm -f contract-deploy-mainnet.log
+	@./contracts/deploy-all.sh mainnet 2>&1 | tee contract-deploy-mainnet.log
+	@echo "✅ Deployment complete! Log saved to contract-deploy-mainnet.log"
