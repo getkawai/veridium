@@ -389,7 +389,7 @@ func (rs *RevenueSettlement) WithdrawToDistributor(ctx context.Context, amount *
 	auth.Context = ctx
 
 	// Call PaymentVault.withdraw(RevenueDistributor, amount)
-	distributorAddr := common.HexToAddress(constant.RevenueDistributorAddr)
+	distributorAddr := common.HexToAddress(constant.RevenueDistributorAddress)
 	tx, err := rs.paymentVault.Withdraw(auth, distributorAddr, amount)
 	if err != nil {
 		return fmt.Errorf("failed to withdraw to distributor: %w", err)
@@ -444,7 +444,7 @@ func (rs *RevenueSettlement) UploadMerkleRoot(ctx context.Context, merkleRoot [3
 	auth.Context = ctx
 
 	// Load Revenue Distributor contract
-	distributorAddr := common.HexToAddress(constant.RevenueDistributorAddr)
+	distributorAddr := common.HexToAddress(constant.RevenueDistributorAddress)
 	distributor, err := revenuedistributor.NewRevenueDistributor(distributorAddr, rs.client)
 	if err != nil {
 		return fmt.Errorf("failed to load Revenue Distributor: %w", err)

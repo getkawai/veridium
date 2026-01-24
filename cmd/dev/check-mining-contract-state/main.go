@@ -35,13 +35,13 @@ func checkMiningContractState() error {
 	defer client.Close()
 
 	// Load MiningRewardDistributor contract
-	distributorAddr := common.HexToAddress(constant.MiningRewardDistributorAddr)
+	distributorAddr := common.HexToAddress(constant.MiningRewardDistributorAddress)
 	distributor, err := miningdistributor.NewMiningRewardDistributor(distributorAddr, client)
 	if err != nil {
 		return fmt.Errorf("failed to load MiningRewardDistributor: %w", err)
 	}
 
-	fmt.Printf("Contract Address: %s\n", constant.MiningRewardDistributorAddr)
+	fmt.Printf("Contract Address: %s\n", constant.MiningRewardDistributorAddress)
 	fmt.Println()
 
 	// 1. Check current period

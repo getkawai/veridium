@@ -82,11 +82,15 @@ fi
 if [ "$NETWORK" == "mainnet" ]; then
     # Monad Mainnet uses Sourcify via MonadVision
     VERIFY_FLAGS="--verify --verifier sourcify --verifier-url https://sourcify-api-monad.blockvision.org/"
-    echo "Verifier: Sourcify (MonadVision)"
+    echo "Verifier: Sourcify (MonadVision Mainnet)"
 elif [ "$NETWORK" == "testnet" ]; then
-    # Monad Testnet uses Sourcify via MonadVision
-    VERIFY_FLAGS="--verify --verifier sourcify --verifier-url https://sourcify-api-monad-testnet.blockvision.org/"
-    echo "Verifier: Sourcify (MonadVision Testnet)"
+    # Monad Testnet uses Etherscan verifier via MonadVision
+    if [ -z "$ETHERSCAN_API_KEY" ]; then
+        echo -e "${RED}❌ Error: ETHERSCAN_API_KEY environment variable not set${NC}"
+        exit 1
+    fi
+    VERIFY_FLAGS="--verify --verifier etherscan --etherscan-api-key $ETHERSCAN_API_KEY"
+    echo "Verifier: Etherscan (MonadVision Testnet)"
 else
     VERIFY_FLAGS=""
     echo -e "${YELLOW}⚠️  No verifier configured for this network${NC}"
@@ -127,6 +131,8 @@ if [ -f "$BROADCAST_FILE" ]; then
         echo -e "${RED}Failed to extract KawaiToken address${NC}"
         exit 1
     fi
+    # Convert to checksum address
+    KAWAI_ADDRESS=$(cast to-check-sum-address "$KAWAI_ADDRESS")
     echo -e "${GREEN}KawaiToken deployed at: $KAWAI_ADDRESS${NC}"
     sed -i.bak "s/^KAWAI_TOKEN_ADDRESS=.*/KAWAI_TOKEN_ADDRESS=$KAWAI_ADDRESS/" .env
     echo -e "${GREEN}Updated KAWAI_TOKEN_ADDRESS in contracts/.env${NC}"
@@ -152,6 +158,8 @@ if [ -f "$BROADCAST_FILE" ]; then
         echo -e "${RED}Failed to extract OTCMarket address${NC}"
         exit 1
     fi
+    # Convert to checksum address
+    OTC_ADDRESS=$(cast to-check-sum-address "$OTC_ADDRESS")
     echo -e "${GREEN}OTCMarket deployed at: $OTC_ADDRESS${NC}"
     sed -i.bak "s/^OTC_MARKET_ADDRESS=.*/OTC_MARKET_ADDRESS=$OTC_ADDRESS/" .env
     echo -e "${GREEN}Updated OTC_MARKET_ADDRESS in contracts/.env${NC}"
@@ -177,6 +185,8 @@ if [ -f "$BROADCAST_FILE" ]; then
         echo -e "${RED}Failed to extract PaymentVault address${NC}"
         exit 1
     fi
+    # Convert to checksum address
+    VAULT_ADDRESS=$(cast to-check-sum-address "$VAULT_ADDRESS")
     echo -e "${GREEN}PaymentVault deployed at: $VAULT_ADDRESS${NC}"
     sed -i.bak "s/^PAYMENT_VAULT_ADDRESS=.*/PAYMENT_VAULT_ADDRESS=$VAULT_ADDRESS/" .env
     echo -e "${GREEN}Updated PAYMENT_VAULT_ADDRESS in contracts/.env${NC}"
@@ -202,6 +212,8 @@ if [ -f "$BROADCAST_FILE" ]; then
         echo -e "${RED}Failed to extract RevenueDistributor address${NC}"
         exit 1
     fi
+    # Convert to checksum address
+    REVENUE_ADDRESS=$(cast to-check-sum-address "$REVENUE_ADDRESS")
     echo -e "${GREEN}RevenueDistributor deployed at: $REVENUE_ADDRESS${NC}"
     sed -i.bak "s/^REVENUE_DISTRIBUTOR_ADDRESS=.*/REVENUE_DISTRIBUTOR_ADDRESS=$REVENUE_ADDRESS/" .env
     echo -e "${GREEN}Updated REVENUE_DISTRIBUTOR_ADDRESS in contracts/.env${NC}"
@@ -228,6 +240,8 @@ if [ -f "$BROADCAST_FILE" ]; then
         echo -e "${RED}Failed to extract MiningDistributor address${NC}"
         exit 1
     fi
+    # Convert to checksum address
+    MINING_ADDRESS=$(cast to-check-sum-address "$MINING_ADDRESS")
     echo -e "${GREEN}MiningDistributor deployed at: $MINING_ADDRESS${NC}"
     sed -i.bak "s/^MINING_DISTRIBUTOR_ADDRESS=.*/MINING_DISTRIBUTOR_ADDRESS=$MINING_ADDRESS/" .env
     echo -e "${GREEN}Updated MINING_DISTRIBUTOR_ADDRESS in .env${NC}"
@@ -253,6 +267,8 @@ if [ -f "$BROADCAST_FILE" ]; then
         echo -e "${RED}Failed to extract CashbackDistributor address${NC}"
         exit 1
     fi
+    # Convert to checksum address
+    CASHBACK_ADDRESS=$(cast to-check-sum-address "$CASHBACK_ADDRESS")
     echo -e "${GREEN}CashbackDistributor deployed at: $CASHBACK_ADDRESS${NC}"
     sed -i.bak "s/^CASHBACK_DISTRIBUTOR_ADDRESS=.*/CASHBACK_DISTRIBUTOR_ADDRESS=$CASHBACK_ADDRESS/" .env
     echo -e "${GREEN}Updated CASHBACK_DISTRIBUTOR_ADDRESS in .env${NC}"
@@ -278,6 +294,8 @@ if [ -f "$BROADCAST_FILE" ]; then
         echo -e "${RED}Failed to extract ReferralDistributor address${NC}"
         exit 1
     fi
+    # Convert to checksum address
+    REFERRAL_ADDRESS=$(cast to-check-sum-address "$REFERRAL_ADDRESS")
     echo -e "${GREEN}ReferralDistributor deployed at: $REFERRAL_ADDRESS${NC}"
     sed -i.bak "s/^REFERRAL_DISTRIBUTOR_ADDRESS=.*/REFERRAL_DISTRIBUTOR_ADDRESS=$REFERRAL_ADDRESS/" .env
     echo -e "${GREEN}Updated REFERRAL_DISTRIBUTOR_ADDRESS in .env${NC}"
@@ -464,7 +482,6 @@ else
     echo -e "${RED}❌ ReferralDistributor verification failed${NC}"
     VERIFY_FAILED=1
     FAILED_VERIFICATIONS="$FAILED_VERIFICATIONS\n  - ReferralDistributor"
-fi
 fi
 
 echo ""

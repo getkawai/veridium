@@ -5,11 +5,11 @@ package db
 var PROJECT_TOKENS map[string]string = map[string]string{
 	// Monad Mainnet Contracts (Deployment 2026-01-23)
 	"0x754704bc059f8c67012fed69bc8a327a5aafb603": "Stablecoin",
-	"0x9cbdb316b31fd2efa469c57dcf57be0af630f64c": "KawaiToken",
-	"0xe7d73b901b7202b4f686166420ee76cfe860d28d": "OTCMarket",
-	"0xffdf0fb715bec64db41307c26abf545295d31e44": "PaymentVault",
-	"0x7454495f1a7e2854e4215a4d797e0abd7e14bbe4": "RevenueDistributor",
-	"0xc58d3f5d04e5748fc1806980e26c1eb487045442": "MiningRewardDistributor",
-	"0x1feff071f37a5cb8833e227d8dddea43aa374449": "CashbackDistributor",
-	"0xfbbe8b96d1b5eff919ce09da28737c667faa7957": "ReferralDistributor",
+	"0xBd95bDB3a6FE48CbC2dE3890B8e67Ef96Af65322": "KawaiToken",
+	"0x75d1A6CC51035D7E5Cbe88aEc6DCfd6ABEB22bfE": "OTCMarket",
+	"0x8381DBC83DdfEc1Ee958BcBdCf5340b406cA9E64": "PaymentVault",
+	"0x409A95D5c39d485697918a534C21E9ADDFb6edEc": "RevenueDistributor",
+	"0x6326F97DAf97e51fc7480Df5A5D0DB08bCDed4c8": "MiningRewardDistributor",
+	"0x646A1724E7375eFDBd6Ed5073cBb50569c4C15A1": "CashbackDistributor",
+	"0x018942E0e4a645a92660547DF307a4869510EF56": "ReferralDistributor",
 }

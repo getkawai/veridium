@@ -88,12 +88,12 @@ func (s *ConfigService) GetConfig() BackendConfig {
 			OtcMarket: constant.OTCMarketAddress,
 
 			// Reward Distributors
-			MiningDistributor:   constant.MiningRewardDistributorAddr,
+			MiningDistributor:   constant.MiningRewardDistributorAddress,
 			CashbackDistributor: constant.CashbackDistributorAddress,
 			ReferralDistributor: constant.ReferralDistributorAddress,
 
 			// Revenue Sharing
-			UsdtDistributor: constant.RevenueDistributorAddr,
+			UsdtDistributor: constant.RevenueDistributorAddress,
 		},
 	}
 }

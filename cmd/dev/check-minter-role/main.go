@@ -27,7 +27,7 @@ func main() {
 
 	// Define distributors to check (updated 2026-01-22)
 	distributors := map[string]string{
-		"MiningRewardDistributor":    constant.MiningRewardDistributorAddr,
+		"MiningRewardDistributor":    constant.MiningRewardDistributorAddress,
 		"DepositCashbackDistributor": constant.CashbackDistributorAddress,
 		"ReferralRewardDistributor":  constant.ReferralDistributorAddress,
 	}

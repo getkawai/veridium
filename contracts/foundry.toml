@@ -5,7 +5,8 @@ libs = ["lib"]
 remappings = [
     "@openzeppelin/=lib/openzeppelin-contracts/",
 ]
-solc_version = "0.8.20"
+use_literal_content = true # use source code
+solc_version = "0.8.33"
 optimizer = true
 optimizer_runs = 200
 via_ir = true
@@ -13,3 +14,5 @@ via_ir = true
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
 eth-rpc-url="https://rpc.monad.xyz"
 chain_id = 143
+# Note: Set ETHERSCAN_API_KEY environment variable for verification
+# etherscan-api-key="${ETHERSCAN_API_KEY}"

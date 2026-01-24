@@ -116,7 +116,7 @@ func checkStatus(ctx context.Context, client *ethclient.Client) {
 	fmt.Println("📊 Checking pause status...\n")
 
 	// Mining Distributor
-	miningAddr := common.HexToAddress(constant.MiningRewardDistributorAddr)
+	miningAddr := common.HexToAddress(constant.MiningRewardDistributorAddress)
 	mining, err := miningdistributor.NewMiningRewardDistributor(miningAddr, client)
 	if err != nil {
 		log.Printf("❌ Failed to connect to Mining Distributor: %v", err)
@@ -129,7 +129,7 @@ func checkStatus(ctx context.Context, client *ethclient.Client) {
 			if paused {
 				status = "🚨 PAUSED"
 			}
-			fmt.Printf("Mining Distributor (%s): %s\n", constant.MiningRewardDistributorAddr, status)
+			fmt.Printf("Mining Distributor (%s): %s\n", constant.MiningRewardDistributorAddress, status)
 		}
 	}
 
@@ -217,7 +217,7 @@ func unpauseContracts(ctx context.Context, client *ethclient.Client, auth *bind.
 }
 
 func pauseMining(ctx context.Context, client *ethclient.Client, auth *bind.TransactOpts, dryRun bool) {
-	addr := common.HexToAddress(constant.MiningRewardDistributorAddr)
+	addr := common.HexToAddress(constant.MiningRewardDistributorAddress)
 	mining, err := miningdistributor.NewMiningRewardDistributor(addr, client)
 	if err != nil {
 		log.Printf("❌ Mining Distributor: Failed to connect: %v", err)
@@ -252,7 +252,7 @@ func pauseMining(ctx context.Context, client *ethclient.Client, auth *bind.Trans
 }
 
 func unpauseMining(ctx context.Context, client *ethclient.Client, auth *bind.TransactOpts, dryRun bool) {
-	addr := common.HexToAddress(constant.MiningRewardDistributorAddr)
+	addr := common.HexToAddress(constant.MiningRewardDistributorAddress)
 	mining, err := miningdistributor.NewMiningRewardDistributor(addr, client)
 	if err != nil {
 		log.Printf("❌ Mining Distributor: Failed to connect: %v", err)

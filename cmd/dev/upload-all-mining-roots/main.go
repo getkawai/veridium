@@ -62,7 +62,7 @@ func main() {
 	defer client.Close()
 
 	// Load MiningRewardDistributor contract
-	distributorAddr := common.HexToAddress(constant.MiningRewardDistributorAddr)
+	distributorAddr := common.HexToAddress(constant.MiningRewardDistributorAddress)
 	distributor, err := miningdistributor.NewMiningRewardDistributor(distributorAddr, client)
 	if err != nil {
 		log.Fatalf("Failed to load MiningRewardDistributor: %v", err)
