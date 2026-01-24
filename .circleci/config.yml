@@ -165,6 +165,7 @@ jobs:
           at: .
       - run:
           name: Install dependencies
+          shell: powershell.exe
           command: |
             $goInstalled = Get-Command go -ErrorAction SilentlyContinue
             if (-not $goInstalled) {
@@ -177,6 +178,7 @@ jobs:
             go install github.com/wailsapp/wails/v3/cmd/wails3@latest
       - run:
           name: Get version
+          shell: powershell.exe
           command: |
             if ($env:CIRCLE_TAG) {
               $VERSION = $env:CIRCLE_TAG -replace '^v', ''
@@ -186,19 +188,23 @@ jobs:
             echo "VERSION=$VERSION" | Out-File -Append -Encoding utf8 $env:BASH_ENV
       - run:
           name: Update version in config
+          shell: powershell.exe
           command: |
             (Get-Content build/config.yml) -replace 'version: ".*"', 'version: "$env:VERSION"' | Set-Content build/config.yml
       - run:
           name: Build Windows Binary
+          shell: powershell.exe
           command: make release-windows
       - run:
           name: Create distribution archive
+          shell: powershell.exe
           command: |
             cd bin
             Compress-Archive -Path Kawai.exe -DestinationPath Kawai-$env:VERSION-windows-amd64.zip
             Get-FileHash -Algorithm SHA256 Kawai-*.zip | ForEach-Object { "$($_.Hash.ToLower())  $((Split-Path -Leaf $_.Path))" } | Out-File -Encoding ASCII checksums-windows.txt
       - run:
           name: Upload to Cloudflare R2
+          shell: powershell.exe
           command: |
             pip install awscli
             cd bin
