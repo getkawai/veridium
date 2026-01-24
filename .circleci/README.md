@@ -2,70 +2,85 @@
 
 Automated multi-platform release pipeline for Kawai using CircleCI.
 
-## Setup
+## Overview
 
-### Quick Setup (Automated)
+The CI/CD pipeline builds Kawai for multiple platforms:
+- **Linux (amd64)** - Built on CircleCI
+- **Windows (amd64)** - Built on CircleCI  
+- **macOS (Universal)** - Built locally, uploaded to R2
 
-1. **Follow project on CircleCI**
-   - Go to https://app.circleci.com/
-   - Click "Projects" → Find "veridium" → Click "Set Up Project"
-   - Select "Use Existing Config" (we already have `.circleci/config.yml`)
-
-2. **Run setup script**
-   ```bash
-   ./.circleci/setup.sh
-   ```
-
-3. **Add GITHUB_TOKEN manually**
-   - Go to https://app.circleci.com/settings/project/github/kawai-network/veridium/environment-variables
-   - Click "Add Environment Variable"
-   - Name: `GITHUB_TOKEN`
-   - Value: Your GitHub Personal Access Token
-
-### Manual Setup
-
-If the script doesn't work, add environment variables manually:
+## Workflow
 
 ```
-R2_ACCOUNT_ID=ceab218751d33cd804878196ad7bef74
-R2_ACCESS_KEY_ID=a71e802dd7c1ab8cf407ffb937cdf6a8
-R2_SECRET_ACCESS_KEY=0e3ce0d92faa9b337c83131efc7a4a64bb6f313171c309d5cb9a0fb76926d0ca
-R2_ENDPOINT_URL=https://ceab218751d33cd804878196ad7bef74.r2.cloudflarestorage.com
-GITHUB_TOKEN=<your-github-token>
+1. Build macOS locally (see below)
+2. Push tag (e.g., v0.1.0)
+3. CircleCI builds Linux + Windows
+4. Finalize downloads macOS checksum from R2
+5. Combine all checksums
+6. Release published
 ```
 
-### 2. Enable Build Processing
+## Building macOS Locally
 
-CircleCI Project Settings → Advanced → Enable build processing for tags
-
-### 3. Trigger Release
-
-**Option 1: Push tag (auto-trigger)**
+### Prerequisites
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+# Install dependencies
+brew install go bun awscli
+
+# Install Wails
+go install github.com/wailsapp/wails/v3/cmd/wails3@latest
+
+# Set R2 credentials (add to ~/.zshrc or ~/.bashrc)
+export R2_ACCESS_KEY_ID="a71e802dd7c1ab8cf407ffb937cdf6a8"
+export R2_SECRET_ACCESS_KEY="0e3ce0d92faa9b337c83131efc7a4a64bb6f313171c309d5cb9a0fb76926d0ca"
+export R2_ENDPOINT_URL="https://ceab218751d33cd804878196ad7bef74.r2.cloudflarestorage.com"
 ```
 
-**Option 2: Manual trigger via API**
+### Build and Upload
 ```bash
-curl -X POST \
-  -H "Circle-Token: $CIRCLECI_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "parameters": {
-      "version": "1.0.0"
-    }
-  }' \
-  https://circleci.com/api/v2/project/github/kawai-network/veridium/pipeline
+# Build for specific version
+./scripts/build-macos-release.sh 0.1.0
+
+# Or use current git tag
+./scripts/build-macos-release.sh
 ```
 
-## Pipeline Jobs
+The script will:
+1. Update version in `build/config.yml`
+2. Build macOS Universal Binary
+3. Create tar.gz archive
+4. Generate SHA256 checksum
+5. Upload to Cloudflare R2
 
-1. **prepare-release** - Create GitHub draft release
-2. **build-macos** - Build macOS Universal Binary (M1 runner)
-3. **build-linux** - Build Linux amd64 binary
-4. **build-windows** - Build Windows amd64 executable
-5. **finalize-release** - Combine checksums, generate manifest, publish release
+### Manual Upload (if script fails)
+```bash
+cd bin
+aws s3 cp Kawai-0.1.0-macos-universal.tar.gz s3://kawai/v0.1.0/ --endpoint-url $R2_ENDPOINT_URL
+aws s3 cp checksums-macos.txt s3://kawai/v0.1.0/checksums-macos.txt --endpoint-url $R2_ENDPOINT_URL
+```
+
+## Release Process
+
+### 1. Build macOS First
+```bash
+# Build and upload macOS binary
+./scripts/build-macos-release.sh 0.1.0
+```
+
+### 2. Create and Push Tag
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+### 3. CircleCI Builds Automatically
+CircleCI will:
+- Build Linux binary
+- Build Windows binary
+- Download macOS checksum from R2
+- Combine all checksums
+- Upload to R2
+- Publish GitHub release
 
 ## Artifacts
 

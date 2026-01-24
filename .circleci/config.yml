@@ -291,13 +291,7 @@ jobs:
             fi
             echo "export VERSION=$VERSION" >> $BASH_ENV
       - run:
-          name: Combine checksums
-          command: |
-            cat artifacts/checksums-*.txt > checksums.txt
-            echo "📦 All checksums:"
-            cat checksums.txt
-      - run:
-          name: Upload checksums to R2
+          name: Setup AWS CLI
           command: |
             sudo apt-get update && sudo apt-get install -y python3-pip python3-venv
             python3 -m venv /tmp/venv
@@ -306,9 +300,35 @@ jobs:
             aws configure set aws_access_key_id $R2_ACCESS_KEY_ID
             aws configure set aws_secret_access_key $R2_SECRET_ACCESS_KEY
             aws configure set default.region auto
-            aws s3 cp checksums.txt \
-              s3://kawai/v$VERSION/checksums.txt \
-              --endpoint-url $R2_ENDPOINT_URL
+      - run:
+          name: Download macOS checksum from R2
+          command: |
+            source /tmp/venv/bin/activate
+            # Try to download macOS checksum if it exists
+            aws s3 cp s3://kawai/v$VERSION/checksums-macos.txt artifacts/ \
+              --endpoint-url $R2_ENDPOINT_URL || echo "⚠️  No macOS checksum found, skipping"
+      - run:
+          name: Combine checksums
+          command: |
+            cat artifacts/checksums-*.txt > checksums.txt 2>/dev/null || true
+            if [ -s checksums.txt ]; then
+              echo "📦 All checksums:"
+              cat checksums.txt
+            else
+              echo "⚠️  No checksums found"
+            fi
+      - run:
+          name: Upload checksums to R2
+          command: |
+            source /tmp/venv/bin/activate
+            if [ -s checksums.txt ]; then
+              aws s3 cp checksums.txt \
+                s3://kawai/v$VERSION/checksums.txt \
+                --endpoint-url $R2_ENDPOINT_URL
+              echo "✅ Checksums uploaded"
+            else
+              echo "⚠️  No checksums to upload"
+            fi
       - run:
           name: Generate update manifest
           command: |
@@ -317,13 +337,13 @@ jobs:
             echo "  \"release_date\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"," >> update.json
             echo "  \"platforms\": {" >> update.json
             echo "    \"macos-universal\": {" >> update.json
-            echo "      \"url\": \"https://releases.kawai.network/v$VERSION/Kawai-$VERSION-macos-universal.tar.gz\"" >> update.json
+            echo "      \"url\": \"https://storage.getkawai.com/v$VERSION/Kawai-$VERSION-macos-universal.tar.gz\"" >> update.json
             echo "    }," >> update.json
             echo "    \"linux-amd64\": {" >> update.json
-            echo "      \"url\": \"https://releases.kawai.network/v$VERSION/Kawai-$VERSION-linux-amd64.tar.gz\"" >> update.json
+            echo "      \"url\": \"https://storage.getkawai.com/v$VERSION/Kawai-$VERSION-linux-amd64.tar.gz\"" >> update.json
             echo "    }," >> update.json
             echo "    \"windows-amd64\": {" >> update.json
-            echo "      \"url\": \"https://releases.kawai.network/v$VERSION/Kawai-$VERSION-windows-amd64.zip\"" >> update.json
+            echo "      \"url\": \"https://storage.getkawai.com/v$VERSION/Kawai-$VERSION-windows-amd64.zip\"" >> update.json
             echo "    }" >> update.json
             echo "  }" >> update.json
             echo "}" >> update.json
@@ -347,7 +367,7 @@ jobs:
               -d '{"draft":false}'
             
             echo "✅ Release published!"
-            echo "📦 Downloads available at: https://releases.kawai.network/v$VERSION/"
+            echo "📦 Downloads available at: https://storage.getkawai.com/v$VERSION/"
 
 workflows:
   release:
