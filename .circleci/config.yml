@@ -194,7 +194,7 @@ jobs:
       - run:
           name: Build Windows Binary
           shell: powershell.exe
-          command: make release-windows
+          command: wails3 task windows:build
       - run:
           name: Create distribution archive
           shell: powershell.exe
