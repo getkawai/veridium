@@ -144,7 +144,6 @@ jobs:
       - run:
           name: Upload to Cloudflare R2
           command: |
-            sudo apt-get install -y python3-pip python3-venv
             python3 -m venv /tmp/venv
             source /tmp/venv/bin/activate
             pip install awscli
