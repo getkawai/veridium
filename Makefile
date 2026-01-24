@@ -10,7 +10,12 @@
         contracts-upgrade contracts-clean contracts-validate \
         contracts-gas-snapshot contracts-gas-compare \
         admin-register admin-register-dry \
-        docs-install docs-serve docs-build docs-clean docs-deploy
+        docs-install docs-serve docs-build docs-clean docs-deploy \
+        release-prepare release-version \
+        release-darwin release-darwin-package release-darwin-archive \
+        release-linux release-linux-deb release-linux-rpm release-linux-appimage release-linux-archive \
+        release-windows release-windows-nsis release-windows-msix release-windows-archive \
+        release-all release-archives release-packages release-clean
 
 # ------------------------------------------------------------------------------
 # Configuration
@@ -53,10 +58,30 @@ help:
 	@echo "  make dev-rebuild      Rebuild frontend, keep DB"
 	@echo "  make build            Build production binary"
 	@echo ""
+	@echo "Release Builds:"
+	@echo "  make release-version         Show current version"
+	@echo "  make release-darwin          Build for macOS (Universal Binary)"
+	@echo "  make release-darwin-package  Build + package for macOS"
+	@echo "  make release-darwin-archive  Build + create distribution archive"
+	@echo "  make release-linux           Build for Linux (amd64)"
+	@echo "  make release-linux-deb       Build + create .deb package"
+	@echo "  make release-linux-rpm       Build + create .rpm package"
+	@echo "  make release-linux-appimage  Build + create AppImage"
+	@echo "  make release-linux-archive   Build + create distribution archive"
+	@echo "  make release-windows         Build for Windows (amd64)"
+	@echo "  make release-windows-nsis    Build + create NSIS installer"
+	@echo "  make release-windows-msix    Build + create MSIX package"
+	@echo "  make release-windows-archive Build + create distribution archive"
+	@echo "  make release-all             Build for all platforms"
+	@echo "  make release-archives        Create distribution archives (with checksums)"
+	@echo "  make release-packages        Create packages for all platforms"
+	@echo "  make release-clean           Clean release artifacts"
+	@echo ""
 	@echo "Code Generation:"
-	@echo "  make generate         Run db-generate + bindings-generate"
+	@echo "  make generate         Run db-generate + bindings-generate + constants-generate"
 	@echo "  make db-generate      Generate Go code from SQL (sqlc)"
 	@echo "  make bindings-generate Generate TypeScript bindings (wails)"
+	@echo "  make constants-generate Generate constants from .env"
 	@echo ""
 	@echo "Database:"
 	@echo "  make db-dump          Dump database to seed file"
@@ -169,14 +194,166 @@ dev-hot:
 	VERIDIUM_DEV=1 wails3 dev -config ./build/config-skip-frontend-build.yml 2>&1 | tee backend-dev.log
 
 dev-rebuild:
-	@echo "� Rebuilding frontend (keep DB)..."
+	@echo "🔧 Rebuilding frontend (keep DB)..."
 	killport 9245 || true
 	rm -f backend-dev.log
 	VERIDIUM_DEV=1 wails3 dev 2>&1 | tee backend-dev.log
 
 build:
-	@echo "� Building production binary..."
+	@echo "🔨 Building production binary..."
 	wails3 build
+
+# ==============================================================================
+# Release Builds (Platform-Specific)
+# ==============================================================================
+release-prepare:
+	@echo "📋 Preparing for release build..."
+	@echo "Step 1: Generating bindings..."
+	@wails3 task common:generate:bindings
+	@echo "✅ Release preparation complete!"
+	@echo "Note: Constants should be pre-generated locally before release"
+
+release-version:
+	@echo "📌 Current version: $(shell grep 'version:' build/config.yml | tail -1 | awk '{print $$2}' | tr -d '"')"
+	@echo ""
+	@echo "To update version, edit build/config.yml and update the 'version' field"
+	@echo "Then run: wails3 task common:update:build-assets"
+
+release-darwin:
+	@echo "🍎 Building for macOS (Universal Binary)..."
+	@$(MAKE) release-prepare
+	@echo "Building macOS application..."
+	@wails3 task darwin:build:universal
+	@echo "Creating macOS app bundle..."
+	@wails3 task darwin:create:app:bundle
+	@echo "✅ macOS build complete!"
+	@echo "📦 Location: build/bin/Kawai.app"
+
+release-darwin-package:
+	@echo "📦 Packaging macOS application..."
+	@$(MAKE) release-darwin
+	@wails3 task darwin:package:universal
+	@echo "✅ macOS package complete!"
+	@echo "📦 Location: build/bin/"
+
+release-darwin-archive:
+	@echo "📦 Creating macOS distribution archive..."
+	@$(MAKE) release-darwin
+	@cd build/bin && tar -czf Kawai-$(shell grep 'version:' ../config.yml | tail -1 | awk '{print $$2}' | tr -d '"')-macos-universal.tar.gz Kawai.app
+	@cd build/bin && shasum -a 256 Kawai-*.tar.gz > checksums.txt
+	@echo "✅ macOS archive created with checksum!"
+	@echo "📦 Location: build/bin/Kawai-*-macos-universal.tar.gz"
+
+release-linux:
+	@echo "🐧 Building for Linux (amd64)..."
+	@$(MAKE) release-prepare
+	@echo "Building Linux application..."
+	@wails3 task linux:build
+	@echo "✅ Linux build complete!"
+	@echo "📦 Location: build/bin/Kawai"
+
+release-linux-deb:
+	@echo "📦 Creating Linux .deb package..."
+	@$(MAKE) release-linux
+	@wails3 task linux:create:deb
+	@echo "✅ Debian package complete!"
+	@echo "📦 Location: build/bin/"
+
+release-linux-rpm:
+	@echo "📦 Creating Linux .rpm package..."
+	@$(MAKE) release-linux
+	@wails3 task linux:create:rpm
+	@echo "✅ RPM package complete!"
+	@echo "📦 Location: build/bin/"
+
+release-linux-appimage:
+	@echo "📦 Creating Linux AppImage..."
+	@$(MAKE) release-linux
+	@wails3 task linux:create:appimage
+	@echo "✅ AppImage complete!"
+	@echo "📦 Location: build/bin/"
+
+release-linux-archive:
+	@echo "📦 Creating Linux distribution archive..."
+	@$(MAKE) release-linux
+	@cd build/bin && tar -czf Kawai-$(shell grep 'version:' ../config.yml | tail -1 | awk '{print $$2}' | tr -d '"')-linux-amd64.tar.gz Kawai
+	@cd build/bin && shasum -a 256 Kawai-*-linux-*.tar.gz >> checksums.txt
+	@echo "✅ Linux archive created with checksum!"
+	@echo "📦 Location: build/bin/Kawai-*-linux-amd64.tar.gz"
+
+release-windows:
+	@echo "🪟 Building for Windows (amd64)..."
+	@$(MAKE) release-prepare
+	@echo "Building Windows application..."
+	@wails3 task windows:build
+	@echo "✅ Windows build complete!"
+	@echo "📦 Location: build/bin/Kawai.exe"
+
+release-windows-nsis:
+	@echo "📦 Creating Windows NSIS installer..."
+	@$(MAKE) release-windows
+	@wails3 task windows:create:nsis:installer
+	@echo "✅ NSIS installer complete!"
+	@echo "📦 Location: build/bin/"
+
+release-windows-msix:
+	@echo "📦 Creating Windows MSIX package..."
+	@$(MAKE) release-windows
+	@wails3 task windows:create:msix:package
+	@echo "✅ MSIX package complete!"
+	@echo "📦 Location: build/bin/"
+
+release-windows-archive:
+	@echo "📦 Creating Windows distribution archive..."
+	@$(MAKE) release-windows
+	@cd build/bin && zip -r Kawai-$(shell grep 'version:' ../config.yml | tail -1 | awk '{print $$2}' | tr -d '"')-windows-amd64.zip Kawai.exe
+	@cd build/bin && shasum -a 256 Kawai-*-windows-*.zip >> checksums.txt
+	@echo "✅ Windows archive created with checksum!"
+	@echo "📦 Location: build/bin/Kawai-*-windows-amd64.zip"
+
+release-all:
+	@echo "🚀 Building for all platforms..."
+	@$(MAKE) release-darwin
+	@$(MAKE) release-linux
+	@$(MAKE) release-windows
+	@echo ""
+	@echo "✅ All platform builds complete!"
+	@echo ""
+	@echo "📦 Build artifacts:"
+	@ls -lh build/bin/
+
+release-archives:
+	@echo "📦 Creating distribution archives for all platforms..."
+	@rm -f build/bin/checksums.txt
+	@$(MAKE) release-darwin-archive
+	@$(MAKE) release-linux-archive
+	@$(MAKE) release-windows-archive
+	@echo ""
+	@echo "✅ All archives created!"
+	@echo ""
+	@echo "📦 Distribution files:"
+	@ls -lh build/bin/*.tar.gz build/bin/*.zip 2>/dev/null || true
+	@echo ""
+	@echo "🔐 Checksums:"
+	@cat build/bin/checksums.txt
+
+release-packages:
+	@echo "📦 Creating packages for all platforms..."
+	@$(MAKE) release-darwin-package
+	@$(MAKE) release-linux-deb
+	@$(MAKE) release-linux-appimage
+	@$(MAKE) release-windows-nsis
+	@echo ""
+	@echo "✅ All packages complete!"
+	@echo ""
+	@echo "📦 Package artifacts:"
+	@ls -lh build/bin/
+
+release-clean:
+	@echo "🧹 Cleaning release artifacts..."
+	@rm -rf build/bin/*
+	@rm -rf build/darwin/*.app
+	@echo "✅ Release artifacts cleaned!"
 
 # ==============================================================================
 # Code Generation

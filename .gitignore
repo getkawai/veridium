@@ -13,7 +13,7 @@ backend-dev.log
 files/uploads
 videoplayback.mp4
 videoplayback.txt
-internal/constant/temp.go
+# internal/constant/temp.go
 .env
 .env.testnet
 .env.mainnet

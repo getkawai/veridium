@@ -1,11 +1,11 @@
 //go:build !darwin && !linux && !windows
 
-package stablediffusion
+package image
 
 import "log"
 
 // selectBestAsset stub for unsupported platforms
-func (sdrm *StableDiffusionReleaseManager) selectBestAsset(assets []Asset) *Asset {
+func (sdrm *StableDiffusion) selectBestAsset(assets []Asset) *Asset {
 	log.Printf("ERROR: Stable Diffusion is not supported on this platform")
 	return nil
 }

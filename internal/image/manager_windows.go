@@ -1,11 +1,11 @@
 //go:build windows
 
-package stablediffusion
+package image
 
 import "log"
 
 // selectBestAsset selects the best asset for Windows
-func (sdrm *StableDiffusionReleaseManager) selectBestAsset(assets []Asset) *Asset {
+func (sdrm *StableDiffusion) selectBestAsset(assets []Asset) *Asset {
 	var patterns []string
 
 	// Windows releases - prioritize CUDA > Vulkan > AVX2 > AVX > no-AVX

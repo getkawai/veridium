@@ -1,11 +1,11 @@
 //go:build linux
 
-package stablediffusion
+package image
 
 import "log"
 
 // selectBestAsset selects the best asset for Linux
-func (sdrm *StableDiffusionReleaseManager) selectBestAsset(assets []Asset) *Asset {
+func (sdrm *StableDiffusion) selectBestAsset(assets []Asset) *Asset {
 	var patterns []string
 
 	// Linux releases - actual format: sd-master--bin-Linux-Ubuntu-24.04-x86_64.zip

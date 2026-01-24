@@ -1,0 +1,169 @@
+name: Generate Update Manifest
+
+on:
+  release:
+    types: [published]
+
+env:
+  R2_PUBLIC_URL: 'https://releases.kawai.network'  # Change to your R2 public URL
+
+jobs:
+  generate-manifest:
+    name: Generate update.json
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get release info
+        id: release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const release = context.payload.release;
+            const version = release.tag_name.replace('v', '');
+            const assets = release.assets;
+            
+            // Find platform-specific assets
+            const platforms = {};
+            
+            for (const asset of assets) {
+              let platform = null;
+              let arch = null;
+              
+              if (asset.name.includes('macos-universal')) {
+                platform = 'macos';
+                arch = 'universal';
+              } else if (asset.name.includes('macos-arm64')) {
+                platform = 'macos';
+                arch = 'arm64';
+              } else if (asset.name.includes('macos-amd64')) {
+                platform = 'macos';
+                arch = 'amd64';
+              } else if (asset.name.includes('linux-amd64')) {
+                platform = 'linux';
+                arch = 'amd64';
+              } else if (asset.name.includes('windows-amd64')) {
+                platform = 'windows';
+                arch = 'amd64';
+              }
+              
+              if (platform && arch) {
+                const key = `${platform}-${arch}`;
+                platforms[key] = {
+                  url: asset.browser_download_url,
+                  size: asset.size,
+                  checksum: '' // Will be filled from checksums.txt
+                };
+              }
+            }
+            
+            core.setOutput('version', version);
+            core.setOutput('release_date', release.published_at);
+            core.setOutput('release_notes', release.body);
+            core.setOutput('platforms', JSON.stringify(platforms));
+
+      - name: Download checksums
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const assets = context.payload.release.assets;
+            const checksumAsset = assets.find(a => a.name === 'checksums.txt');
+            
+            if (checksumAsset) {
+              const response = await github.request(checksumAsset.url, {
+                headers: {
+                  accept: 'application/octet-stream'
+                }
+              });
+              fs.writeFileSync('checksums.txt', Buffer.from(response.data));
+              console.log('Downloaded checksums.txt');
+            } else {
+              console.log('No checksums.txt found');
+              fs.writeFileSync('checksums.txt', '');
+            }
+
+      - name: Generate update.json
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const version = '${{ steps.release.outputs.version }}';
+            const releaseDate = '${{ steps.release.outputs.release_date }}';
+            const releaseNotes = ${{ toJSON(steps.release.outputs.release_notes) }};
+            const r2PublicUrl = '${{ env.R2_PUBLIC_URL }}';
+            
+            // Read checksums if available
+            let checksums = {};
+            try {
+              const checksumContent = fs.readFileSync('checksums.txt', 'utf8');
+              const lines = checksumContent.split('\n');
+              for (const line of lines) {
+                const match = line.match(/^([a-f0-9]+)\s+(.+)$/);
+                if (match) {
+                  checksums[match[2]] = `sha256:${match[1]}`;
+                }
+              }
+            } catch (e) {
+              console.log('No checksums file found');
+            }
+            
+            // Build platforms with R2 URLs
+            const platforms = {
+              'macos-universal': {
+                url: `${r2PublicUrl}/v${version}/Kawai-${version}-macos-universal.tar.gz`,
+                checksum: checksums[`Kawai-${version}-macos-universal.tar.gz`] || ''
+              },
+              'linux-amd64': {
+                url: `${r2PublicUrl}/v${version}/Kawai-${version}-linux-amd64.tar.gz`,
+                checksum: checksums[`Kawai-${version}-linux-amd64.tar.gz`] || ''
+              },
+              'windows-amd64': {
+                url: `${r2PublicUrl}/v${version}/Kawai-${version}-windows-amd64.zip`,
+                checksum: checksums[`Kawai-${version}-windows-amd64.zip`] || ''
+              }
+            };
+            
+            const manifest = {
+              version: version,
+              release_date: releaseDate,
+              release_notes: releaseNotes,
+              platforms: platforms
+            };
+            
+            fs.writeFileSync('update.json', JSON.stringify(manifest, null, 2));
+            console.log('Generated update.json:');
+            console.log(JSON.stringify(manifest, null, 2));
+
+      - name: Upload update.json to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./update.json
+          asset_name: update.json
+          asset_content_type: application/json
+
+      - name: Upload update.json to R2
+        uses: ryand56/r2-upload-action@latest
+        with:
+          r2-account-id: ${{ secrets.R2_ACCOUNT_ID }}
+          r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
+          r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          r2-bucket: kawai
+          source-dir: .
+          destination-dir: v${{ github.event.release.tag_name }}
+          include-pattern: update.json
+
+      - name: Upload update.json to latest
+        uses: ryand56/r2-upload-action@latest
+        with:
+          r2-account-id: ${{ secrets.R2_ACCOUNT_ID }}
+          r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
+          r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          r2-bucket: kawai
+          source-dir: .
+          destination-dir: latest
+          include-pattern: update.json

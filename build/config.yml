@@ -5,11 +5,11 @@ version: '3'
 
 # This information is used to generate the build assets.
 info:
-  companyName: "Kawai Network" # The name of the company
+  companyName: "Kawai" # The name of the company
   productName: "Kawai" # The name of the application
   productIdentifier: "com.getkawai.desktop" # The unique product identifier
-  description: "Kawai Network - AI-Powered Blockchain Platform" # The application description
-  copyright: "(c) 2026, Kawai Network" # Copyright text
+  description: "Kawai - AI-Powered Blockchain Platform" # The application description
+  copyright: "(c) 2026, Kawai" # Copyright text
   comments: "Decentralized AI platform with mining rewards, cashback, and revenue sharing" # Comments
   version: "0.1.0" # The application version
 
@@ -24,6 +24,7 @@ dev_mode:
       - node_modules
       - frontend
       - bin
+      - cmd
     file:
       - .DS_Store
       - .gitignore

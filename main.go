@@ -29,6 +29,9 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/services/sqlite"
 )
 
+// Version is set at build time
+var Version = "0.1.0"
+
 //go:embed all:frontend/dist
 var assets embed.FS
 
