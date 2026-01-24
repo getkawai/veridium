@@ -299,8 +299,13 @@ jobs:
       - run:
           name: Upload checksums to R2
           command: |
-            sudo apt-get update && sudo apt-get install -y python3-pip
-            pip3 install awscli
+            sudo apt-get update && sudo apt-get install -y python3-pip python3-venv
+            python3 -m venv /tmp/venv
+            source /tmp/venv/bin/activate
+            pip install awscli
+            aws configure set aws_access_key_id $R2_ACCESS_KEY_ID
+            aws configure set aws_secret_access_key $R2_SECRET_ACCESS_KEY
+            aws configure set default.region auto
             aws s3 cp checksums.txt \
               s3://kawai/v$VERSION/checksums.txt \
               --endpoint-url $R2_ENDPOINT_URL
@@ -325,6 +330,7 @@ jobs:
       - run:
           name: Upload manifest to R2
           command: |
+            source /tmp/venv/bin/activate
             aws s3 cp update.json s3://kawai/v$VERSION/update.json --endpoint-url $R2_ENDPOINT_URL --content-type application/json
             aws s3 cp update.json s3://kawai/latest/update.json --endpoint-url $R2_ENDPOINT_URL --content-type application/json
       - run:
