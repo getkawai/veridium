@@ -8,6 +8,11 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Load .env file if exists
+if [ -f .env ]; then
+  export $(grep -v '^#' .env | grep -E '^R2_' | xargs)
+fi
+
 # Get version from argument
 VERSION=$1
 if [ -z "$VERSION" ]; then
@@ -28,10 +33,10 @@ echo ""
 # Check if R2 credentials are set
 if [ -z "$R2_ACCESS_KEY_ID" ] || [ -z "$R2_SECRET_ACCESS_KEY" ] || [ -z "$R2_ENDPOINT_URL" ]; then
   echo -e "${RED}❌ Error: R2 credentials not set${NC}"
-  echo "Set these environment variables:"
-  echo "  - R2_ACCESS_KEY_ID"
-  echo "  - R2_SECRET_ACCESS_KEY"
-  echo "  - R2_ENDPOINT_URL"
+  echo "Add these to your .env file:"
+  echo "  R2_ACCESS_KEY_ID=your-key"
+  echo "  R2_SECRET_ACCESS_KEY=your-secret"
+  echo "  R2_ENDPOINT_URL=your-endpoint"
   exit 1
 fi
 

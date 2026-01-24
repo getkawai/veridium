@@ -7,6 +7,11 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+# Load .env file if exists
+if [ -f .env ]; then
+  export $(grep -v '^#' .env | grep -E '^R2_' | xargs)
+fi
+
 # Get version from argument or git tag
 VERSION=${1:-$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')}
 if [ -z "$VERSION" ]; then
@@ -21,10 +26,10 @@ echo -e "${GREEN}🚀 Building Kawai macOS v${VERSION}${NC}"
 # Check if R2 credentials are set
 if [ -z "$R2_ACCESS_KEY_ID" ] || [ -z "$R2_SECRET_ACCESS_KEY" ] || [ -z "$R2_ENDPOINT_URL" ]; then
   echo -e "${YELLOW}⚠️  Warning: R2 credentials not set. Upload will be skipped.${NC}"
-  echo "Set these environment variables to enable upload:"
-  echo "  - R2_ACCESS_KEY_ID"
-  echo "  - R2_SECRET_ACCESS_KEY"
-  echo "  - R2_ENDPOINT_URL"
+  echo "Add these to your .env file:"
+  echo "  R2_ACCESS_KEY_ID=your-key"
+  echo "  R2_SECRET_ACCESS_KEY=your-secret"
+  echo "  R2_ENDPOINT_URL=your-endpoint"
   SKIP_UPLOAD=1
 fi
 
