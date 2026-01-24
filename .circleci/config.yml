@@ -175,6 +175,9 @@ jobs:
             }
             choco install nodejs --version=20 -y
             npm install -g bun
+            # Verify bun installation
+            $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+            bun --version
             go install github.com/wailsapp/wails/v3/cmd/wails3@latest
       - run:
           name: Get version
