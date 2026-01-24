@@ -222,6 +222,8 @@ jobs:
           command: |
             $env:BUN_INSTALL = "$env:USERPROFILE\.bun"
             $env:Path = "$env:BUN_INSTALL\bin;$env:USERPROFILE\go\bin;$env:Path"
+            # Wait for any file locks to release
+            Start-Sleep -Seconds 5
             wails3 task windows:build
       - run:
           name: Create distribution archive
