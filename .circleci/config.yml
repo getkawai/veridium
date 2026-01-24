@@ -206,17 +206,38 @@ jobs:
           name: Build Windows Binary
           shell: powershell.exe
           command: |
+            # Set PATH for bun and go
             $env:BUN_INSTALL = "$env:USERPROFILE\.bun"
             $env:Path = "$env:BUN_INSTALL\bin;$env:USERPROFILE\go\bin;$env:Path"
-            [Environment]::SetEnvironmentVariable("Path", $env:Path, [EnvironmentVariableTarget]::Process)
-            # Verify bun is accessible
-            & "$env:BUN_INSTALL\bin\bun.exe" --version
-            # Install frontend deps manually to bypass precondition
+            
+            # Install frontend dependencies
             cd frontend
             & "$env:BUN_INSTALL\bin\bun.exe" install
+            
+            # Generate bindings
             cd ..
-            # Run build without frontend deps check
-            wails3 task windows:build:skip
+            wails3 generate bindings -f "-buildvcs=false -gcflags=all=-l" -clean=true -ts
+            
+            # Build frontend
+            cd frontend
+            & "$env:BUN_INSTALL\bin\bun.exe" run build
+            
+            # Generate icons
+            cd ../build
+            wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename windows/icon.ico
+            
+            # Generate syso
+            wails3 generate syso -arch amd64 -icon windows/icon.ico -manifest windows/wails.exe.manifest -info windows/info.json -out ../wails_windows_amd64.syso
+            
+            # Build Go binary
+            cd ..
+            $env:GOOS = "windows"
+            $env:CGO_ENABLED = "1"
+            $env:GOARCH = "amd64"
+            go build -buildvcs=false -gcflags=all="-l" -o bin/Kawai.exe
+            
+            # Cleanup
+            Remove-Item *.syso -ErrorAction SilentlyContinue
       - run:
           name: Create distribution archive
           shell: powershell.exe
