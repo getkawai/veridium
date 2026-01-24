@@ -186,7 +186,11 @@ jobs:
       - run:
           name: Install MinGW for CGO
           shell: powershell.exe
-          command: choco install mingw -y
+          command: |
+            choco install mingw -y
+            refreshenv
+            # Verify gcc is available
+            gcc --version
       - run:
           name: Install Bun
           shell: powershell.exe
