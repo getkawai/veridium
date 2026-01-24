@@ -216,12 +216,16 @@ jobs:
             } else {
               $VERSION = "<< pipeline.parameters.version >>"
             }
-            echo "VERSION=$VERSION" | Out-File -Append -Encoding utf8 $env:BASH_ENV
+            # Save to file for next steps (no BOM, no newline)
+            [System.IO.File]::WriteAllText("$PWD\version.txt", $VERSION)
+            Write-Host "Version: $VERSION"
       - run:
           name: Update version in config
           shell: powershell.exe
           command: |
-            (Get-Content build/config.yml) -replace 'version: ".*"', 'version: "$env:VERSION"' | Set-Content build/config.yml
+            $VERSION = [System.IO.File]::ReadAllText("$PWD\version.txt").Trim()
+            (Get-Content build/config.yml) -replace 'version: ".*"', "version: `"$VERSION`"" | Set-Content build/config.yml
+            Write-Host "Updated version to: $VERSION"
       - run:
           name: Build Windows Binary
           shell: powershell.exe
@@ -245,20 +249,25 @@ jobs:
           name: Create distribution archive
           shell: powershell.exe
           command: |
+            $VERSION = [System.IO.File]::ReadAllText("$PWD\version.txt").Trim()
             cd bin
-            Compress-Archive -Path Kawai.exe -DestinationPath Kawai-$env:VERSION-windows-amd64.zip
+            Compress-Archive -Path Kawai.exe -DestinationPath "Kawai-$VERSION-windows-amd64.zip"
             Get-FileHash -Algorithm SHA256 Kawai-*.zip | ForEach-Object { "$($_.Hash.ToLower())  $((Split-Path -Leaf $_.Path))" } | Out-File -Encoding ASCII checksums-windows.txt
+            Write-Host "Created: Kawai-$VERSION-windows-amd64.zip"
       - run:
           name: Upload to Cloudflare R2
           shell: powershell.exe
           command: |
+            $VERSION = [System.IO.File]::ReadAllText("$PWD\version.txt").Trim()
+            Write-Host "Using version: $VERSION"
             pip install awscli
             # Configure AWS CLI for R2
             $env:AWS_ACCESS_KEY_ID = $env:R2_ACCESS_KEY_ID
             $env:AWS_SECRET_ACCESS_KEY = $env:R2_SECRET_ACCESS_KEY
             $env:AWS_DEFAULT_REGION = "auto"
             cd bin
-            aws s3 cp Kawai-$env:VERSION-windows-amd64.zip s3://kawai/v$env:VERSION/ --endpoint-url $env:R2_ENDPOINT_URL
+            aws s3 cp "Kawai-$VERSION-windows-amd64.zip" "s3://kawai/v$VERSION/" --endpoint-url $env:R2_ENDPOINT_URL
+            Write-Host "Uploaded to: s3://kawai/v$VERSION/Kawai-$VERSION-windows-amd64.zip"
       - persist_to_workspace:
           root: bin
           paths:
@@ -290,6 +299,7 @@ jobs:
       - run:
           name: Upload checksums to R2
           command: |
+            sudo apt-get update && sudo apt-get install -y python3-pip
             pip3 install awscli
             aws s3 cp checksums.txt \
               s3://kawai/v$VERSION/checksums.txt \
