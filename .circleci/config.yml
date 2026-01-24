@@ -315,9 +315,6 @@ workflows:
   release:
     jobs:
       - prepare-release
-      - build-linux:
-          requires:
-            - prepare-release
       - build-windows:
           requires:
             - prepare-release
