@@ -113,7 +113,7 @@ jobs:
           name: Install dependencies
           command: |
             sudo apt-get update
-            sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+            sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev python3-venv
             curl -fsSL https://bun.sh/install | bash
             echo 'export BUN_INSTALL="$HOME/.bun"' >> $BASH_ENV
             echo 'export PATH="$BUN_INSTALL/bin:$PATH"' >> $BASH_ENV
