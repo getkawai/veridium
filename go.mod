@@ -22,7 +22,7 @@ require (
 	github.com/docker/mcp-gateway-oauth-helpers v0.0.3
 	github.com/dop251/goja v0.0.0-20251008123653-cf18d89f3cf6
 	github.com/dslipak/pdf v0.0.2
-	github.com/duckdb/duckdb-go/v2 v2.5.3
+	github.com/duckdb/duckdb-go/v2 v2.5.4
 	github.com/ebitengine/purego v0.9.1
 	github.com/ethereum/go-ethereum v1.16.7
 	github.com/fatih/color v1.18.0
@@ -139,14 +139,14 @@ require (
 	github.com/docker/go-connections v0.6.0 // indirect
 	github.com/docker/go-metrics v0.0.1 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
-	github.com/duckdb/duckdb-go-bindings v0.1.23 // indirect
-	github.com/duckdb/duckdb-go-bindings/darwin-amd64 v0.1.23 // indirect
-	github.com/duckdb/duckdb-go-bindings/darwin-arm64 v0.1.23 // indirect
-	github.com/duckdb/duckdb-go-bindings/linux-amd64 v0.1.23 // indirect
-	github.com/duckdb/duckdb-go-bindings/linux-arm64 v0.1.23 // indirect
-	github.com/duckdb/duckdb-go-bindings/windows-amd64 v0.1.23 // indirect
-	github.com/duckdb/duckdb-go/arrowmapping v0.0.26 // indirect
-	github.com/duckdb/duckdb-go/mapping v0.0.25 // indirect
+	github.com/duckdb/duckdb-go-bindings v0.1.24 // indirect
+	github.com/duckdb/duckdb-go-bindings/darwin-amd64 v0.1.24 // indirect
+	github.com/duckdb/duckdb-go-bindings/darwin-arm64 v0.1.24 // indirect
+	github.com/duckdb/duckdb-go-bindings/linux-amd64 v0.1.24 // indirect
+	github.com/duckdb/duckdb-go-bindings/linux-arm64 v0.1.24 // indirect
+	github.com/duckdb/duckdb-go-bindings/windows-amd64 v0.1.24 // indirect
+	github.com/duckdb/duckdb-go/arrowmapping v0.0.27 // indirect
+	github.com/duckdb/duckdb-go/mapping v0.0.27 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/elliotchance/orderedmap v1.8.0 // indirect
 	github.com/emicklei/dot v1.6.2 // indirect
@@ -208,7 +208,7 @@ require (
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/google/certificate-transparency-go v1.3.2 // indirect
-	github.com/google/flatbuffers v25.2.10+incompatible // indirect
+	github.com/google/flatbuffers v25.9.23+incompatible // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/gopacket v1.1.19 // indirect
@@ -336,10 +336,10 @@ require (
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/arch v0.20.0 // indirect
-	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
-	golang.org/x/mod v0.30.0 // indirect
-	golang.org/x/telemetry v0.0.0-20251111182119-bc8e575c7b54 // indirect
-	golang.org/x/tools v0.39.0 // indirect
+	golang.org/x/exp v0.0.0-20251209150349-8475f28825e9 // indirect
+	golang.org/x/mod v0.31.0 // indirect
+	golang.org/x/telemetry v0.0.0-20251208220230-2638a1023523 // indirect
+	golang.org/x/tools v0.40.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20251202230838-ff82c1b0f217 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
