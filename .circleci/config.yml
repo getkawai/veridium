@@ -184,6 +184,10 @@ jobs:
           shell: powershell.exe
           command: choco install nodejs --version=20 -y
       - run:
+          name: Install MinGW for CGO
+          shell: powershell.exe
+          command: choco install mingw -y
+      - run:
           name: Install Bun
           shell: powershell.exe
           command: |
