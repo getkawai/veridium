@@ -3,6 +3,7 @@ version: 2.1
 orbs:
   go: circleci/go@1.11.0
   node: circleci/node@5.2.0
+  bun: cmgriffing/bun-orb@1.1.1
 
 parameters:
   version:
@@ -114,11 +115,9 @@ jobs:
           command: |
             sudo apt-get update
             sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev python3-venv
-            curl -fsSL https://bun.sh/install | bash
-            echo 'export BUN_INSTALL="$HOME/.bun"' >> $BASH_ENV
-            echo 'export PATH="$BUN_INSTALL/bin:$PATH"' >> $BASH_ENV
-            source $BASH_ENV
             go install github.com/wailsapp/wails/v3/cmd/wails3@latest
+      - bun/install:
+          version: latest
       - run:
           name: Get version
           command: |
@@ -168,7 +167,7 @@ jobs:
       - attach_workspace:
           at: .
       - run:
-          name: Install dependencies
+          name: Install Go
           shell: powershell.exe
           command: |
             $goInstalled = Get-Command go -ErrorAction SilentlyContinue
@@ -177,16 +176,16 @@ jobs:
             } else {
               Write-Host "Go already installed: $(go version)"
             }
-            choco install nodejs --version=20 -y
-            # Install bun using official Windows installer
-            powershell -c "irm bun.sh/install.ps1|iex"
-            # Add bun to PATH permanently for this job
-            $env:BUN_INSTALL = "$env:USERPROFILE\.bun"
-            $env:Path = "$env:BUN_INSTALL\bin;$env:Path"
-            [Environment]::SetEnvironmentVariable("Path", $env:Path, [EnvironmentVariableTarget]::Process)
-            # Verify bun installation
-            & "$env:BUN_INSTALL\bin\bun.exe" --version
-            go install github.com/wailsapp/wails/v3/cmd/wails3@latest
+      - run:
+          name: Install Node.js
+          shell: powershell.exe
+          command: choco install nodejs --version=20 -y
+      - bun/install:
+          version: latest
+      - run:
+          name: Install Wails
+          shell: powershell.exe
+          command: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
       - run:
           name: Get version
           shell: powershell.exe
@@ -205,16 +204,7 @@ jobs:
       - run:
           name: Build Windows Binary
           shell: powershell.exe
-          command: |
-            # Add bun and go to PATH
-            $env:BUN_INSTALL = "$env:USERPROFILE\.bun"
-            $env:Path = "$env:BUN_INSTALL\bin;$env:USERPROFILE\go\bin;$env:Path"
-            
-            # Verify bun is in PATH
-            bun --version
-            
-            # Now run the task - bun precondition will pass
-            wails3 task windows:build
+          command: wails3 task windows:build
       - run:
           name: Create distribution archive
           shell: powershell.exe
