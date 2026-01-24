@@ -61,13 +61,30 @@ aws s3 cp checksums-macos.txt s3://kawai/v0.1.0/checksums-macos.txt --endpoint-u
 
 ## Release Process
 
-### 1. Build macOS First
+### Quick Release (Recommended)
+```bash
+# One command to do everything
+./scripts/release.sh 0.1.0
+```
+
+This script will:
+1. Update version in `build/config.yml`
+2. Commit version change
+3. Create and push tag `v0.1.0`
+4. Trigger CircleCI builds (Linux + Windows)
+5. Build macOS locally in parallel
+6. Upload macOS binary + checksum to R2
+7. CircleCI finalize will combine all checksums
+
+### Manual Release
+
+#### 1. Build macOS First
 ```bash
 # Build and upload macOS binary
 ./scripts/build-macos-release.sh 0.1.0
 ```
 
-### 2. Create and Push Tag
+#### 2. Create and Push Tag
 ```bash
 git tag v0.1.0
 git push origin v0.1.0

@@ -372,14 +372,34 @@ jobs:
 workflows:
   release:
     jobs:
-      - prepare-release
+      - prepare-release:
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
       - build-linux:
           requires:
             - prepare-release
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
       - build-windows:
           requires:
             - prepare-release
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
       - finalize-release:
           requires:
             - build-linux
             - build-windows
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
