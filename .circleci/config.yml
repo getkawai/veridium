@@ -144,8 +144,10 @@ jobs:
       - run:
           name: Upload to Cloudflare R2
           command: |
-            sudo apt-get install -y python3-pip
-            pip3 install awscli
+            sudo apt-get install -y python3-pip python3-venv
+            python3 -m venv /tmp/venv
+            source /tmp/venv/bin/activate
+            pip install awscli
             cd bin
             aws s3 cp Kawai-$VERSION-linux-amd64.tar.gz \
               s3://kawai/v$VERSION/ \
@@ -174,10 +176,14 @@ jobs:
               Write-Host "Go already installed: $(go version)"
             }
             choco install nodejs --version=20 -y
-            npm install -g bun
+            # Install bun using official Windows installer
+            powershell -c "irm bun.sh/install.ps1|iex"
+            # Add bun to PATH permanently for this job
+            $env:BUN_INSTALL = "$env:USERPROFILE\.bun"
+            $env:Path = "$env:BUN_INSTALL\bin;$env:Path"
+            [Environment]::SetEnvironmentVariable("Path", $env:Path, [EnvironmentVariableTarget]::Process)
             # Verify bun installation
-            $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-            bun --version
+            & "$env:BUN_INSTALL\bin\bun.exe" --version
             go install github.com/wailsapp/wails/v3/cmd/wails3@latest
       - run:
           name: Get version
@@ -197,7 +203,14 @@ jobs:
       - run:
           name: Build Windows Binary
           shell: powershell.exe
-          command: wails3 task windows:build
+          command: |
+            $env:BUN_INSTALL = "$env:USERPROFILE\.bun"
+            $env:Path = "$env:BUN_INSTALL\bin;$env:USERPROFILE\go\bin;$env:Path"
+            [Environment]::SetEnvironmentVariable("Path", $env:Path, [EnvironmentVariableTarget]::Process)
+            # Verify bun is accessible
+            & "$env:BUN_INSTALL\bin\bun.exe" --version
+            # Run build
+            wails3 task windows:build
       - run:
           name: Create distribution archive
           shell: powershell.exe
