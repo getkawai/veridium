@@ -232,6 +232,8 @@ jobs:
             # Set CGO environment variables
             $env:CGO_ENABLED = "1"
             $env:CC = "gcc"
+            # Set production build
+            $env:PRODUCTION = "true"
             # Wait for any file locks to release
             Start-Sleep -Seconds 5
             # Verify gcc is in PATH
@@ -251,6 +253,10 @@ jobs:
           shell: powershell.exe
           command: |
             pip install awscli
+            # Configure AWS CLI for R2
+            $env:AWS_ACCESS_KEY_ID = $env:R2_ACCESS_KEY_ID
+            $env:AWS_SECRET_ACCESS_KEY = $env:R2_SECRET_ACCESS_KEY
+            $env:AWS_DEFAULT_REGION = "auto"
             cd bin
             aws s3 cp Kawai-$env:VERSION-windows-amd64.zip s3://kawai/v$env:VERSION/ --endpoint-url $env:R2_ENDPOINT_URL
       - persist_to_workspace:
