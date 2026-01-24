@@ -135,7 +135,7 @@ jobs:
             sed -i "s/version: \".*\"/version: \"$VERSION\"/" build/config.yml
       - run:
           name: Build Linux Binary
-          command: make release-linux
+          command: PRODUCTION=false make release-linux
       - run:
           name: Create distribution archive
           command: |
@@ -337,6 +337,13 @@ workflows:
   release:
     jobs:
       - prepare-release
+      - build-linux:
+          requires:
+            - prepare-release
       - build-windows:
           requires:
             - prepare-release
+      - finalize-release:
+          requires:
+            - build-linux
+            - build-windows
