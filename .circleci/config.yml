@@ -188,7 +188,9 @@ jobs:
           shell: powershell.exe
           command: |
             choco install mingw -y
-            refreshenv
+            # Add MinGW to PATH explicitly
+            $env:Path = "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin;$env:Path"
+            [System.Environment]::SetEnvironmentVariable('Path', $env:Path, [System.EnvironmentVariableTarget]::Machine)
             # Verify gcc is available
             gcc --version
       - run:
@@ -225,9 +227,17 @@ jobs:
           shell: powershell.exe
           command: |
             $env:BUN_INSTALL = "$env:USERPROFILE\.bun"
-            $env:Path = "$env:BUN_INSTALL\bin;$env:USERPROFILE\go\bin;$env:Path"
+            # Add MinGW to PATH for CGO
+            $env:Path = "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin;$env:BUN_INSTALL\bin;$env:USERPROFILE\go\bin;$env:Path"
+            # Set CGO environment variables
+            $env:CGO_ENABLED = "1"
+            $env:CC = "gcc"
             # Wait for any file locks to release
             Start-Sleep -Seconds 5
+            # Verify gcc is in PATH
+            Write-Host "Checking gcc..."
+            gcc --version
+            # Build
             wails3 task windows:build
       - run:
           name: Create distribution archive
