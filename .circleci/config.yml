@@ -148,6 +148,9 @@ jobs:
             source /tmp/venv/bin/activate
             pip install awscli
             cd bin
+            aws configure set aws_access_key_id $R2_ACCESS_KEY_ID
+            aws configure set aws_secret_access_key $R2_SECRET_ACCESS_KEY
+            aws configure set default.region auto
             aws s3 cp Kawai-$VERSION-linux-amd64.tar.gz \
               s3://kawai/v$VERSION/ \
               --endpoint-url $R2_ENDPOINT_URL
@@ -208,8 +211,12 @@ jobs:
             [Environment]::SetEnvironmentVariable("Path", $env:Path, [EnvironmentVariableTarget]::Process)
             # Verify bun is accessible
             & "$env:BUN_INSTALL\bin\bun.exe" --version
-            # Run build
-            wails3 task windows:build
+            # Install frontend deps manually to bypass precondition
+            cd frontend
+            & "$env:BUN_INSTALL\bin\bun.exe" install
+            cd ..
+            # Run build without frontend deps check
+            wails3 task windows:build:skip
       - run:
           name: Create distribution archive
           shell: powershell.exe
