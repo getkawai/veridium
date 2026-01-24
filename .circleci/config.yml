@@ -188,8 +188,8 @@ jobs:
           shell: powershell.exe
           command: |
             choco install mingw -y
-            # Add MinGW to PATH explicitly
-            $env:Path = "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin;$env:Path"
+            # MinGW is installed to C:\ProgramData\mingw64\mingw64\bin by chocolatey
+            $env:Path = "C:\ProgramData\mingw64\mingw64\bin;$env:Path"
             [System.Environment]::SetEnvironmentVariable('Path', $env:Path, [System.EnvironmentVariableTarget]::Machine)
             # Verify gcc is available
             gcc --version
@@ -227,8 +227,8 @@ jobs:
           shell: powershell.exe
           command: |
             $env:BUN_INSTALL = "$env:USERPROFILE\.bun"
-            # Add MinGW to PATH for CGO
-            $env:Path = "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin;$env:BUN_INSTALL\bin;$env:USERPROFILE\go\bin;$env:Path"
+            # Add MinGW to PATH for CGO (correct path from chocolatey)
+            $env:Path = "C:\ProgramData\mingw64\mingw64\bin;$env:BUN_INSTALL\bin;$env:USERPROFILE\go\bin;$env:Path"
             # Set CGO environment variables
             $env:CGO_ENABLED = "1"
             $env:CC = "gcc"
