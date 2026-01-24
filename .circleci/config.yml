@@ -166,7 +166,7 @@ jobs:
       - run:
           name: Install dependencies
           command: |
-            choco install golang --version=1.25 -y
+            choco install golang --version=1.25 -y --force
             choco install nodejs --version=20 -y
             npm install -g bun
             go install github.com/wailsapp/wails/v3/cmd/wails3@latest
