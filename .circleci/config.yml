@@ -232,17 +232,15 @@ jobs:
             # Set CGO environment variables
             $env:CGO_ENABLED = "1"
             $env:CC = "gcc"
-            # Set production build
-            $env:PRODUCTION = "true"
-            # Skip TypeScript type checking in CI (too many errors to fix now)
-            $env:SKIP_TYPE_CHECK = "true"
+            # Set production build (but use dev build for frontend to skip tsc)
+            $env:PRODUCTION = "false"
             # Wait for any file locks to release
             Start-Sleep -Seconds 5
             # Verify gcc is in PATH
             Write-Host "Checking gcc..."
             gcc --version
-            # Build (skip frontend type check by using build:dev instead of build)
-            wails3 task windows:build:skip
+            # Build with dev frontend (skips tsc type checking)
+            wails3 task windows:build
       - run:
           name: Create distribution archive
           shell: powershell.exe
