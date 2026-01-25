@@ -12,11 +12,11 @@ on:
         type: string
 
 env:
-  GO_VERSION: '1.23'
-  NODE_VERSION: '20'
-  BUN_VERSION: '1.1.38'
+  GO_VERSION: '1.25'
+  NODE_VERSION: '22'
+  BUN_VERSION: '1.3.1'
   R2_BUCKET: 'kawai'  # Change to your R2 bucket name
-  R2_PUBLIC_URL: 'https://releases.kawai.network'  # Change to your R2 public URL
+  R2_PUBLIC_URL: 'https://storage.getkawai.com'  # Change to your R2 public URL
 
 jobs:
   prepare:
