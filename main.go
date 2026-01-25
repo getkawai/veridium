@@ -37,9 +37,7 @@ var assets embed.FS
 
 // main is the application entry point
 func main() {
-	if app.DevMode {
-		log.Printf("Development mode enabled")
-	}
+	// Production-only build
 
 	// Initialize environment configuration
 	if err := config.Initialize(); err != nil {

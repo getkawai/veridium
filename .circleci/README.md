@@ -31,9 +31,9 @@ brew install go bun awscli
 go install github.com/wailsapp/wails/v3/cmd/wails3@latest
 
 # Set R2 credentials (add to ~/.zshrc or ~/.bashrc)
-export R2_ACCESS_KEY_ID="a71e802dd7c1ab8cf407ffb937cdf6a8"
-export R2_SECRET_ACCESS_KEY="0e3ce0d92faa9b337c83131efc7a4a64bb6f313171c309d5cb9a0fb76926d0ca"
-export R2_ENDPOINT_URL="https://ceab218751d33cd804878196ad7bef74.r2.cloudflarestorage.com"
+export R2_ACCESS_KEY_ID="<your-r2-access-key-id>"
+export R2_SECRET_ACCESS_KEY="<your-r2-secret-access-key>"
+export R2_ENDPOINT_URL="<your-r2-endpoint-url>"
 ```
 
 ### Build and Upload
