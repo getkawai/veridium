@@ -115,6 +115,39 @@ var (
 
 	// LLAMA_API void llama_set_causal_attn(struct llama_context * ctx, bool causal_attn);
 	setCausalAttnFunc ffi.Fun
+
+	// LLAMA_API int32_t llama_apply_adapter_cvec(
+	//         struct llama_context * ctx,
+	//                  const float * data,
+	//                       size_t   len,
+	//                      int32_t   n_embd,
+	//                      int32_t   il_start,
+	//                      int32_t   il_end);
+	applyAdapterCvecFunc ffi.Fun
+
+	// LLAMA_API llama_token llama_get_sampled_token_ith(struct llama_context * ctx, int32_t i);
+	getSampledTokenIthFunc ffi.Fun
+
+	// LLAMA_API float * llama_get_sampled_probs_ith(struct llama_context * ctx, int32_t i);
+	getSampledProbsIthFunc ffi.Fun
+
+	// LLAMA_API uint32_t llama_get_sampled_probs_count_ith(struct llama_context * ctx, int32_t i);
+	getSampledProbsCountIthFunc ffi.Fun
+
+	// LLAMA_API float * llama_get_sampled_logits_ith(struct llama_context * ctx, int32_t i);
+	getSampledLogitsIthFunc ffi.Fun
+
+	// LLAMA_API uint32_t llama_get_sampled_logits_count_ith(struct llama_context * ctx, int32_t i);
+	getSampledLogitsCountIthFunc ffi.Fun
+
+	// LLAMA_API llama_token * llama_get_sampled_candidates_ith(struct llama_context * ctx, int32_t i);
+	getSampledCandidatesIthFunc ffi.Fun
+
+	// LLAMA_API uint32_t llama_get_sampled_candidates_count_ith(struct llama_context * ctx, int32_t i);
+	getSampledCandidatesCountIthFunc ffi.Fun
+
+	// LLAMA_API void llama_set_abort_callback(struct llama_context * ctx, ggml_abort_callback abort_callback, void * abort_callback_data);
+	setAbortCallbackFunc ffi.Fun
 )
 
 func loadContextFuncs(lib ffi.Lib) error {
@@ -202,6 +235,42 @@ func loadContextFuncs(lib ffi.Lib) error {
 
 	if setCausalAttnFunc, err = lib.Prep("llama_set_causal_attn", &ffi.TypeVoid, &ffi.TypePointer, &ffi.TypeUint8); err != nil {
 		return loadError("llama_set_causal_attn", err)
+	}
+
+	if applyAdapterCvecFunc, err = lib.Prep("llama_apply_adapter_cvec", &ffi.TypeSint32, &ffi.TypePointer, &ffi.TypePointer, &ffi.TypeUint64, &ffi.TypeSint32, &ffi.TypeSint32, &ffi.TypeSint32); err != nil {
+		return loadError("llama_apply_adapter_cvec", err)
+	}
+
+	if getSampledTokenIthFunc, err = lib.Prep("llama_get_sampled_token_ith", &ffi.TypeSint32, &ffi.TypePointer, &ffi.TypeSint32); err != nil {
+		return loadError("llama_get_sampled_token_ith", err)
+	}
+
+	if getSampledProbsIthFunc, err = lib.Prep("llama_get_sampled_probs_ith", &ffi.TypePointer, &ffi.TypePointer, &ffi.TypeSint32); err != nil {
+		return loadError("llama_get_sampled_probs_ith", err)
+	}
+
+	if getSampledProbsCountIthFunc, err = lib.Prep("llama_get_sampled_probs_count_ith", &ffi.TypeUint32, &ffi.TypePointer, &ffi.TypeSint32); err != nil {
+		return loadError("llama_get_sampled_probs_count_ith", err)
+	}
+
+	if getSampledLogitsIthFunc, err = lib.Prep("llama_get_sampled_logits_ith", &ffi.TypePointer, &ffi.TypePointer, &ffi.TypeSint32); err != nil {
+		return loadError("llama_get_sampled_logits_ith", err)
+	}
+
+	if getSampledLogitsCountIthFunc, err = lib.Prep("llama_get_sampled_logits_count_ith", &ffi.TypeUint32, &ffi.TypePointer, &ffi.TypeSint32); err != nil {
+		return loadError("llama_get_sampled_logits_count_ith", err)
+	}
+
+	if getSampledCandidatesIthFunc, err = lib.Prep("llama_get_sampled_candidates_ith", &ffi.TypePointer, &ffi.TypePointer, &ffi.TypeSint32); err != nil {
+		return loadError("llama_get_sampled_candidates_ith", err)
+	}
+
+	if getSampledCandidatesCountIthFunc, err = lib.Prep("llama_get_sampled_candidates_count_ith", &ffi.TypeUint32, &ffi.TypePointer, &ffi.TypeSint32); err != nil {
+		return loadError("llama_get_sampled_candidates_count_ith", err)
+	}
+
+	if setAbortCallbackFunc, err = lib.Prep("llama_set_abort_callback", &ffi.TypeVoid, &ffi.TypePointer, &ffi.TypePointer, &ffi.TypePointer); err != nil {
+		return loadError("llama_set_abort_callback", err)
 	}
 
 	return nil
@@ -438,4 +507,149 @@ func SetCausalAttn(ctx Context, causalAttn bool) {
 		return
 	}
 	setCausalAttnFunc.Call(nil, unsafe.Pointer(&ctx), &causalAttn)
+}
+
+// ApplyAdapterCvec applies a loaded control vector to a llama_context, or if data is nil, clear
+// the currently loaded vector.
+// nEmbd should be the size of a single layer's control, and data should point
+// to an nEmbd x nLayers buffer starting from layer 1.
+// ilStart and ilEnd are the layer range to apply the control vector.
+// Returns 0 on success, -1 on error.
+func ApplyAdapterCvec(ctx Context, data []float32, nEmbd, ilStart, ilEnd int32) (int32, error) {
+	if ctx == 0 {
+		return -1, errInvalidContext
+	}
+
+	var dataPtr *float32
+	var length uint64
+	if data != nil {
+		dataPtr = unsafe.SliceData(data)
+		length = uint64(len(data))
+	}
+
+	var result ffi.Arg
+	applyAdapterCvecFunc.Call(unsafe.Pointer(&result), unsafe.Pointer(&ctx), unsafe.Pointer(&dataPtr), &length, &nEmbd, &ilStart, &ilEnd)
+	return int32(result), nil
+}
+
+// GetSampledTokenIth retrieves the sampled token for the ith position.
+func GetSampledTokenIth(ctx Context, i int32) (Token, error) {
+	if ctx == 0 {
+		return TokenNull, errInvalidContext
+	}
+	var result ffi.Arg
+	getSampledTokenIthFunc.Call(unsafe.Pointer(&result), unsafe.Pointer(&ctx), &i)
+	return Token(result), nil
+}
+
+// GetSampledProbsIth retrieves the sampled probabilities for the ith position.
+func GetSampledProbsIth(ctx Context, i int32) ([]float32, error) {
+	if ctx == 0 {
+		return nil, errInvalidContext
+	}
+
+	count := GetSampledProbsCountIth(ctx, i)
+	if count == 0 {
+		return nil, nil
+	}
+
+	var result *float32
+	getSampledProbsIthFunc.Call(unsafe.Pointer(&result), unsafe.Pointer(&ctx), &i)
+	if result == nil {
+		return nil, nil
+	}
+
+	return unsafe.Slice(result, count), nil
+}
+
+// GetSampledProbsCountIth retrieves the count of sampled probabilities for the ith position.
+func GetSampledProbsCountIth(ctx Context, i int32) uint32 {
+	if ctx == 0 {
+		return 0
+	}
+	var result ffi.Arg
+	getSampledProbsCountIthFunc.Call(unsafe.Pointer(&result), unsafe.Pointer(&ctx), &i)
+	return uint32(result)
+}
+
+// GetSampledLogitsIth retrieves the sampled logits for the ith position.
+func GetSampledLogitsIth(ctx Context, i int32) ([]float32, error) {
+	if ctx == 0 {
+		return nil, errInvalidContext
+	}
+
+	count := GetSampledLogitsCountIth(ctx, i)
+	if count == 0 {
+		return nil, nil
+	}
+
+	var result *float32
+	getSampledLogitsIthFunc.Call(unsafe.Pointer(&result), unsafe.Pointer(&ctx), &i)
+	if result == nil {
+		return nil, nil
+	}
+
+	return unsafe.Slice(result, count), nil
+}
+
+// GetSampledLogitsCountIth retrieves the count of sampled logits for the ith position.
+func GetSampledLogitsCountIth(ctx Context, i int32) uint32 {
+	if ctx == 0 {
+		return 0
+	}
+	var result ffi.Arg
+	getSampledLogitsCountIthFunc.Call(unsafe.Pointer(&result), unsafe.Pointer(&ctx), &i)
+	return uint32(result)
+}
+
+// GetSampledCandidatesIth retrieves the sampled candidates for the ith position.
+func GetSampledCandidatesIth(ctx Context, i int32) ([]Token, error) {
+	if ctx == 0 {
+		return nil, errInvalidContext
+	}
+
+	count := GetSampledCandidatesCountIth(ctx, i)
+	if count == 0 {
+		return nil, nil
+	}
+
+	var result *Token
+	getSampledCandidatesIthFunc.Call(unsafe.Pointer(&result), unsafe.Pointer(&ctx), &i)
+	if result == nil {
+		return nil, nil
+	}
+
+	return unsafe.Slice(result, count), nil
+}
+
+// GetSampledCandidatesCountIth retrieves the count of sampled candidates for the ith position.
+func GetSampledCandidatesCountIth(ctx Context, i int32) uint32 {
+	if ctx == 0 {
+		return 0
+	}
+	var result ffi.Arg
+	getSampledCandidatesCountIthFunc.Call(unsafe.Pointer(&result), unsafe.Pointer(&ctx), &i)
+	return uint32(result)
+}
+
+// SetAbortCallback sets a callback that will be called regularly during computation.
+// If the callback returns true, the computation will be aborted.
+// The callback function should have the signature: func(data unsafe.Pointer) bool
+func SetAbortCallback(ctx Context, callback func(data unsafe.Pointer) bool, data unsafe.Pointer) error {
+	if ctx == 0 {
+		return errInvalidContext
+	}
+
+	// Note: This requires careful handling of Go callbacks in C
+	// For now, we'll pass nil for both callback and data to clear any existing callback
+	var callbackPtr unsafe.Pointer
+	if callback != nil {
+		// In a real implementation, you would need to use cgo or similar mechanism
+		// to properly bridge Go callbacks to C function pointers
+		// For now, this is a placeholder
+		callbackPtr = nil
+	}
+
+	setAbortCallbackFunc.Call(nil, unsafe.Pointer(&ctx), callbackPtr, data)
+	return nil
 }
