@@ -16,8 +16,8 @@ import (
 	"github.com/sigstore/sigstore/pkg/signature"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/kawai-network/veridium/cmd/docker-mcp/version"
 	internalcosign "github.com/kawai-network/veridium/internal/cosign"
+	"github.com/kawai-network/veridium/pkg/mcp-gateway/version"
 )
 
 // https://raw.githubusercontent.com/docker/keyring/refs/heads/main/public/mcp/latest.pub

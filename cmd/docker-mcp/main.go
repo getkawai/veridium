@@ -13,8 +13,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/kawai-network/veridium/cmd/docker-mcp/commands"
-	"github.com/kawai-network/veridium/cmd/docker-mcp/version"
 	"github.com/kawai-network/veridium/pkg/mcp-gateway/features"
+	"github.com/kawai-network/veridium/pkg/mcp-gateway/version"
 )
 
 func main() {

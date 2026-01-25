@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/kawai-network/veridium/cmd/docker-mcp/secret-management/formatting"
 	"github.com/kawai-network/veridium/pkg/mcp-gateway/desktop"
+	"github.com/kawai-network/veridium/pkg/mcp-gateway/formatting"
 )
 
 type ListOptions struct {

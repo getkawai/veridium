@@ -91,7 +91,7 @@ jobs:
           bun-version: ${{ env.BUN_VERSION }}
 
       - name: Install Wails
-        run: go install github.com/yudaprama/wails/v3/cmd/wails3@v3.0.0-alpha.62-kawai
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
 
       - name: Update version in config
         run: |
@@ -178,10 +178,10 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
 
       - name: Install Wails
-        run: go install github.com/yudaprama/wails/v3/cmd/wails3@v3.0.0-alpha.62-kawai
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
 
       - name: Update version in config
         run: |
@@ -250,7 +250,7 @@ jobs:
           bun-version: ${{ env.BUN_VERSION }}
 
       - name: Install Wails
-        run: go install github.com/yudaprama/wails/v3/cmd/wails3@v3.0.0-alpha.62-kawai
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
 
       - name: Update version in config
         run: |

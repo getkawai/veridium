@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/kawai-network/veridium/cmd/docker-mcp/version"
+	"github.com/kawai-network/veridium/pkg/mcp-gateway/version"
 )
 
 func versionCommand() *cobra.Command {

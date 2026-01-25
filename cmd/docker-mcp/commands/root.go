@@ -9,12 +9,12 @@ import (
 	"github.com/docker/cli/cli/command"
 	"github.com/spf13/cobra"
 
-	"github.com/kawai-network/veridium/cmd/docker-mcp/version"
 	"github.com/kawai-network/veridium/pkg/mcp-gateway/db"
 	"github.com/kawai-network/veridium/pkg/mcp-gateway/desktop"
 	"github.com/kawai-network/veridium/pkg/mcp-gateway/docker"
 	"github.com/kawai-network/veridium/pkg/mcp-gateway/features"
 	"github.com/kawai-network/veridium/pkg/mcp-gateway/migrate"
+	"github.com/kawai-network/veridium/pkg/mcp-gateway/version"
 )
 
 // Note: We use a custom help template to make it more brief.
