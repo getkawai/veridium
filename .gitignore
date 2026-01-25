@@ -23,3 +23,10 @@ contract-deploy-mainnet.log
 verify.json
 contracts/.env.bak
 .env.backup
+
+# Kiro/BRV IDE metadata
+.brv/
+.kiro/
+
+# Release artifacts
+releases/
