@@ -97,33 +97,22 @@ func ensureInit() {
 
 ### Build Command
 
-**GitHub Actions (Automated)**:
+**Build Commands** (same for local and CI):
 ```bash
 # ARM64 build
 wails3 task darwin:build PRODUCTION=true ARCH=arm64
 wails3 task darwin:package PRODUCTION=true ARCH=arm64
-mv build/bin/Kawai.app build/bin/Kawai-arm64.app  # Rename to avoid overwrite
+mv bin/Kawai.app bin/Kawai-arm64.app  # Rename to avoid overwrite
 
 # AMD64 build  
 wails3 task darwin:build PRODUCTION=true ARCH=amd64
 wails3 task darwin:package PRODUCTION=true ARCH=amd64
-mv build/bin/Kawai.app build/bin/Kawai-amd64.app  # Rename to avoid overwrite
+mv bin/Kawai.app bin/Kawai-amd64.app  # Rename to avoid overwrite
 ```
 
-**Note**: Both builds output to `build/bin/Kawai.app`, so we rename after each build to prevent overwriting.
+**Output Directory**: `bin/` (defined in root `Taskfile.yml`)
 
-**Local Build (Manual)**:
-```bash
-# ARM64 only
-wails3 task darwin:build PRODUCTION=true ARCH=arm64
-wails3 task darwin:package PRODUCTION=true ARCH=arm64
-# Output: build/bin/Kawai.app (ARM64)
-
-# AMD64 only (run separately or rename first build)
-wails3 task darwin:build PRODUCTION=true ARCH=amd64
-wails3 task darwin:package PRODUCTION=true ARCH=amd64
-# Output: build/bin/Kawai.app (AMD64)
-```
+**Note**: Both builds output to `bin/Kawai.app`, so we rename after each build to prevent overwriting.
 
 This uses `-tags production` flag from `build/darwin/Taskfile.yml`.
 

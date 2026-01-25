@@ -55,7 +55,8 @@ jobs:
             
             Choose the appropriate package for your platform:
             
-            - **macOS**: `Kawai-${{ steps.get_version.outputs.version }}-macos-universal.tar.gz` (Intel + Apple Silicon)
+            - **macOS ARM64**: `Kawai-${{ steps.get_version.outputs.version }}-macos-arm64.tar.gz` (Apple Silicon)
+            - **macOS AMD64**: `Kawai-${{ steps.get_version.outputs.version }}-macos-amd64.tar.gz` (Intel)
             - **Linux**: `Kawai-${{ steps.get_version.outputs.version }}-linux-amd64.tar.gz`
             - **Windows**: `Kawai-${{ steps.get_version.outputs.version }}-windows-amd64.zip`
             
@@ -187,7 +188,9 @@ jobs:
           sed -i 's/version: ".*"/version: "${{ needs.prepare.outputs.version }}"/' build/config.yml
 
       - name: Build Linux Binary
-        run: PRODUCTION=true make release-linux
+        run: |
+          export PRODUCTION=true
+          wails3 task linux:build
 
       - name: Create distribution archive
         run: |
@@ -254,6 +257,7 @@ jobs:
           (Get-Content build/config.yml) -replace 'version: ".*"', 'version: "${{ needs.prepare.outputs.version }}"' | Set-Content build/config.yml
 
       - name: Build Windows Binary
+        shell: powershell
         run: |
           $env:CGO_ENABLED = "1"
           $env:CC = "gcc"
@@ -300,6 +304,9 @@ jobs:
     needs: [prepare, build-macos, build-linux, build-windows]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -310,6 +317,15 @@ jobs:
           cat artifacts/*/checksums-*.txt > checksums.txt
           echo "📦 All checksums:"
           cat checksums.txt
+
+      - name: Run finalize script
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT_URL: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+        run: |
+          chmod +x scripts/finalize-release.sh
+          ./scripts/finalize-release.sh ${{ needs.prepare.outputs.version }}
 
       - name: Upload combined checksums
         uses: actions/upload-release-asset@v1

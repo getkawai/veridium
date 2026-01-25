@@ -106,8 +106,11 @@ cat > update.json <<EOF
   "version": "${VERSION}",
   "release_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "platforms": {
-    "macos-universal": {
-      "url": "https://storage.getkawai.com/v${VERSION}/Kawai-${VERSION}-macos-universal.tar.gz"
+    "macos-arm64": {
+      "url": "https://storage.getkawai.com/v${VERSION}/Kawai-${VERSION}-macos-arm64.tar.gz"
+    },
+    "macos-amd64": {
+      "url": "https://storage.getkawai.com/v${VERSION}/Kawai-${VERSION}-macos-amd64.tar.gz"
     },
     "linux-amd64": {
       "url": "https://storage.getkawai.com/v${VERSION}/Kawai-${VERSION}-linux-amd64.tar.gz"
@@ -158,7 +161,8 @@ echo -e "   ├── latest/"
 echo -e "   │   └── update.json"
 echo -e "   └── v${VERSION}/"
 echo -e "       ├── update.json"
-echo -e "       ├── Kawai-${VERSION}-macos-universal.tar.gz"
+echo -e "       ├── Kawai-${VERSION}-macos-arm64.tar.gz"
+echo -e "       ├── Kawai-${VERSION}-macos-amd64.tar.gz"
 echo -e "       ├── Kawai-${VERSION}-linux-amd64.tar.gz"
 echo -e "       ├── Kawai-${VERSION}-windows-amd64.zip"
 echo -e "       └── checksums.txt"
