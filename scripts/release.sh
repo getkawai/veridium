@@ -108,6 +108,7 @@ fi
 export AWS_ACCESS_KEY_ID=$R2_ACCESS_KEY_ID
 export AWS_SECRET_ACCESS_KEY=$R2_SECRET_ACCESS_KEY
 export AWS_DEFAULT_REGION=auto
+unset AWS_SESSION_TOKEN  # R2 doesn't use session tokens
 
 # Upload binary
 echo -e "${YELLOW}   Uploading binary...${NC}"
