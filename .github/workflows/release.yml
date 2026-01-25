@@ -99,6 +99,7 @@ jobs:
       - name: Build macOS Universal Binary
         run: |
           echo "Building Universal Binary (ARM64 + AMD64)..."
+          export NODE_OPTIONS="--max-old-space-size=8192"
           PRODUCTION=true wails3 task darwin:build:universal
 
       - name: Package macOS App
@@ -174,6 +175,7 @@ jobs:
       - name: Build Linux Binary
         run: |
           export PRODUCTION=true
+          export NODE_OPTIONS="--max-old-space-size=8192"
           wails3 task linux:build
 
       - name: Create distribution archive
@@ -246,6 +248,7 @@ jobs:
           $env:CGO_ENABLED = "1"
           $env:CC = "gcc"
           $env:PRODUCTION = "true"
+          $env:NODE_OPTIONS = "--max-old-space-size=8192"
           wails3 task windows:build
 
       - name: Create distribution archive
