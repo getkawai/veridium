@@ -191,7 +191,7 @@ jobs:
 
       - name: Create distribution archive
         run: |
-          cd build/bin
+          cd bin
           tar -czf Kawai-${{ needs.prepare.outputs.version }}-linux-amd64.tar.gz Kawai
           sha256sum Kawai-*.tar.gz > checksums-linux.txt
 
@@ -203,9 +203,9 @@ jobs:
         with:
           name: linux-build
           path: |
-            build/bin/Kawai-*.tar.gz
-            build/bin/*.deb
-            build/bin/checksums-linux.txt
+            bin/Kawai-*.tar.gz
+            bin/*.deb
+            bin/checksums-linux.txt
 
       - name: Upload to Cloudflare R2
         uses: ryand56/r2-upload-action@latest
@@ -214,7 +214,7 @@ jobs:
           r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
           r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           r2-bucket: ${{ env.R2_BUCKET }}
-          source-dir: build/bin
+          source-dir: bin
           destination-dir: v${{ needs.prepare.outputs.version }}
           output-file-url: true
 
@@ -224,7 +224,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.prepare.outputs.upload_url }}
-          asset_path: build/bin/Kawai-${{ needs.prepare.outputs.version }}-linux-amd64.tar.gz
+          asset_path: bin/Kawai-${{ needs.prepare.outputs.version }}-linux-amd64.tar.gz
           asset_name: Kawai-${{ needs.prepare.outputs.version }}-linux-amd64.tar.gz
           asset_content_type: application/gzip
 
@@ -258,7 +258,7 @@ jobs:
 
       - name: Create distribution archive
         run: |
-          cd build/bin
+          cd bin
           Compress-Archive -Path Kawai.exe -DestinationPath Kawai-${{ needs.prepare.outputs.version }}-windows-amd64.zip
           Get-FileHash -Algorithm SHA256 Kawai-*.zip | ForEach-Object { "$($_.Hash.ToLower())  $((Split-Path -Leaf $_.Path))" } | Out-File -Encoding ASCII checksums-windows.txt
 
@@ -267,8 +267,8 @@ jobs:
         with:
           name: windows-build
           path: |
-            build/bin/Kawai-*.zip
-            build/bin/checksums-windows.txt
+            bin/Kawai-*.zip
+            bin/checksums-windows.txt
 
       - name: Upload to Cloudflare R2
         uses: ryand56/r2-upload-action@latest
@@ -277,7 +277,7 @@ jobs:
           r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
           r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           r2-bucket: ${{ env.R2_BUCKET }}
-          source-dir: build/bin
+          source-dir: bin
           destination-dir: v${{ needs.prepare.outputs.version }}
           output-file-url: true
 
@@ -287,7 +287,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.prepare.outputs.upload_url }}
-          asset_path: build/bin/Kawai-${{ needs.prepare.outputs.version }}-windows-amd64.zip
+          asset_path: bin/Kawai-${{ needs.prepare.outputs.version }}-windows-amd64.zip
           asset_name: Kawai-${{ needs.prepare.outputs.version }}-windows-amd64.zip
           asset_content_type: application/zip
 
