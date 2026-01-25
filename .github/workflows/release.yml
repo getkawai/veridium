@@ -138,6 +138,7 @@ jobs:
           source-dir: bin
           destination-dir: v${{ needs.prepare.outputs.version }}
           output-file-url: true
+          include-pattern: "*.tar.gz,checksums-*.txt"
 
       - name: Upload ARM64 to Release
         uses: actions/upload-release-asset@v1
@@ -210,7 +211,6 @@ jobs:
           name: linux-build
           path: |
             bin/Kawai-*.tar.gz
-            bin/*.deb
             bin/checksums-linux.txt
 
       - name: Upload to Cloudflare R2
@@ -223,6 +223,7 @@ jobs:
           source-dir: bin
           destination-dir: v${{ needs.prepare.outputs.version }}
           output-file-url: true
+          include-pattern: "*.tar.gz,checksums-*.txt"
 
       - name: Upload archive to Release
         uses: actions/upload-release-asset@v1
@@ -311,6 +312,7 @@ jobs:
           source-dir: bin
           destination-dir: v${{ needs.prepare.outputs.version }}
           output-file-url: true
+          include-pattern: "*.zip,checksums-*.txt"
 
       - name: Upload to Release
         uses: actions/upload-release-asset@v1
