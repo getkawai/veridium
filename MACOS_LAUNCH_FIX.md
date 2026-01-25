@@ -96,9 +96,27 @@ func ensureInit() {
 - ✅ Creates directory automatically with proper permissions (0755)
 
 ### Build Command
+
+**GitHub Actions (Automated)**:
 ```bash
+# ARM64 build
+ARCH=arm64 PRODUCTION=true wails3 task darwin:build
+wails3 task darwin:create:app:bundle
+
+# AMD64 build  
+ARCH=amd64 PRODUCTION=true wails3 task darwin:build
+wails3 task darwin:create:app:bundle
+```
+
+**Local Build (Manual)**:
+```bash
+# ARM64 only
 wails3 task darwin:build PRODUCTION=true ARCH=arm64
 wails3 task darwin:package PRODUCTION=true ARCH=arm64
+
+# AMD64 only
+wails3 task darwin:build PRODUCTION=true ARCH=amd64
+wails3 task darwin:package PRODUCTION=true ARCH=amd64
 ```
 
 This uses `-tags production` flag from `build/darwin/Taskfile.yml`.
@@ -139,8 +157,12 @@ ls -la ~/Library/Application\ Support/Kawai/
 
 ## Testing
 ```bash
-# Build production binary
+# Build production binaries (both architectures)
+# ARM64
 wails3 task darwin:package PRODUCTION=true ARCH=arm64
+
+# AMD64
+wails3 task darwin:package PRODUCTION=true ARCH=amd64
 
 # Test terminal launch (should use ./data/)
 ./bin/Kawai.app/Contents/MacOS/Kawai
@@ -154,6 +176,13 @@ ls -la ~/Library/Application\ Support/Kawai/
 # Check for WaitForDebugger (should be empty)
 log show --predicate 'process == "launchd" AND eventMessage CONTAINS "Kawai"' --last 1m | grep -i "wait\|debug"
 ```
+
+## GitHub Actions Workflow
+The `.github/workflows/release.yml` builds both ARM64 and AMD64 binaries separately:
+- `Kawai-VERSION-macos-arm64.tar.gz` (~180 MB)
+- `Kawai-VERSION-macos-amd64.tar.gz` (~180 MB)
+
+This provides 50% smaller downloads compared to universal binary (355 MB).
 
 ## References
 - Wails v3 Build Guide: `/Users/yuda/github.com/wailsapp/wails/docs/src/content/docs/guides/build/macos.mdx`
