@@ -102,21 +102,27 @@ func ensureInit() {
 # ARM64 build
 ARCH=arm64 PRODUCTION=true wails3 task darwin:build
 wails3 task darwin:create:app:bundle
+mv build/bin/Kawai.app build/bin/Kawai-arm64.app  # Rename to avoid overwrite
 
 # AMD64 build  
 ARCH=amd64 PRODUCTION=true wails3 task darwin:build
 wails3 task darwin:create:app:bundle
+mv build/bin/Kawai.app build/bin/Kawai-amd64.app  # Rename to avoid overwrite
 ```
+
+**Note**: Both builds output to `build/bin/Kawai.app`, so we rename after each build to prevent overwriting.
 
 **Local Build (Manual)**:
 ```bash
 # ARM64 only
-wails3 task darwin:build PRODUCTION=true ARCH=arm64
-wails3 task darwin:package PRODUCTION=true ARCH=arm64
+ARCH=arm64 PRODUCTION=true wails3 task darwin:build
+wails3 task darwin:create:app:bundle
+# Output: build/bin/Kawai.app (ARM64)
 
-# AMD64 only
-wails3 task darwin:build PRODUCTION=true ARCH=amd64
-wails3 task darwin:package PRODUCTION=true ARCH=amd64
+# AMD64 only (run separately or rename first build)
+ARCH=amd64 PRODUCTION=true wails3 task darwin:build
+wails3 task darwin:create:app:bundle
+# Output: build/bin/Kawai.app (AMD64)
 ```
 
 This uses `-tags production` flag from `build/darwin/Taskfile.yml`.
@@ -157,18 +163,15 @@ ls -la ~/Library/Application\ Support/Kawai/
 
 ## Testing
 ```bash
-# Build production binaries (both architectures)
-# ARM64
-wails3 task darwin:package PRODUCTION=true ARCH=arm64
-
-# AMD64
-wails3 task darwin:package PRODUCTION=true ARCH=amd64
+# Build ARM64 binary
+ARCH=arm64 PRODUCTION=true wails3 task darwin:build
+wails3 task darwin:create:app:bundle
 
 # Test terminal launch (should use ./data/)
-./bin/Kawai.app/Contents/MacOS/Kawai
+./build/bin/Kawai.app/Contents/MacOS/Kawai
 
 # Test Finder launch (should use ~/Library/Application Support/Kawai/)
-open bin/Kawai.app
+open build/bin/Kawai.app
 
 # Verify data directory
 ls -la ~/Library/Application\ Support/Kawai/
@@ -179,8 +182,11 @@ log show --predicate 'process == "launchd" AND eventMessage CONTAINS "Kawai"' --
 
 ## GitHub Actions Workflow
 The `.github/workflows/release.yml` builds both ARM64 and AMD64 binaries separately:
-- `Kawai-VERSION-macos-arm64.tar.gz` (~180 MB)
-- `Kawai-VERSION-macos-amd64.tar.gz` (~180 MB)
+1. Build ARM64 → rename to `Kawai-arm64.app`
+2. Build AMD64 → rename to `Kawai-amd64.app`
+3. Create archives:
+   - `Kawai-VERSION-macos-arm64.tar.gz` (~180 MB)
+   - `Kawai-VERSION-macos-amd64.tar.gz` (~180 MB)
 
 This provides 50% smaller downloads compared to universal binary (355 MB).
 
