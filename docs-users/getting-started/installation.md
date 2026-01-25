@@ -2,32 +2,6 @@
 
 Get Kawai DeAI Network installed on your system in just a few minutes.
 
-## 📥 Download Options
-
-### Official Releases
-Download the latest version from our official sources:
-
-=== "GitHub Releases"
-    1. Visit [GitHub Releases](https://github.com/kawai-network/veridium/releases)
-    2. Find the latest version
-    3. Download for your platform:
-       - `Kawai-{VERSION}-macos-universal.tar.gz` (macOS Universal - Apple Silicon & Intel)
-       - `Kawai-{VERSION}-windows-amd64.zip` (Windows 64-bit)
-       - `Kawai-{VERSION}-linux-amd64.tar.gz` (Linux 64-bit)
-
-=== "Direct Download"
-    Download from our CDN (replace `{VERSION}` with the latest version number):
-    
-    - **macOS**: `https://storage.getkawai.com/v{VERSION}/Kawai-{VERSION}-macos-universal.tar.gz`
-    - **Windows**: `https://storage.getkawai.com/v{VERSION}/Kawai-{VERSION}-windows-amd64.zip`
-    - **Linux**: `https://storage.getkawai.com/v{VERSION}/Kawai-{VERSION}-linux-amd64.tar.gz`
-    
-    Or use the latest version:
-    
-    - [Latest macOS Build](https://storage.getkawai.com/latest/Kawai-macos-universal.tar.gz)
-    - [Latest Windows Build](https://storage.getkawai.com/latest/Kawai-windows-amd64.zip)
-    - [Latest Linux Build](https://storage.getkawai.com/latest/Kawai-linux-amd64.tar.gz)
-
 ## 🖥️ Platform-Specific Installation
 
 ### macOS Installation
