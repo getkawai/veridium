@@ -11,59 +11,129 @@ Download the latest version from our official sources:
     1. Visit [GitHub Releases](https://github.com/kawai-network/veridium/releases)
     2. Find the latest version
     3. Download for your platform:
-       - `Kawai-DeAI-macos.dmg` (macOS)
-       - `Kawai-DeAI-windows.exe` (Windows)
-       - `Kawai-DeAI-linux.AppImage` (Linux)
+       - `Kawai-{VERSION}-macos-universal.tar.gz` (macOS Universal - Apple Silicon & Intel)
+       - `Kawai-{VERSION}-windows-amd64.zip` (Windows 64-bit)
+       - `Kawai-{VERSION}-linux-amd64.tar.gz` (Linux 64-bit)
 
 === "Direct Download"
-    - [Download for macOS](https://github.com/kawai-network/veridium/releases/latest/download/Kawai-DeAI-macos.dmg)
-    - [Download for Windows](https://github.com/kawai-network/veridium/releases/latest/download/Kawai-DeAI-windows.exe)
-    - [Download for Linux](https://github.com/kawai-network/veridium/releases/latest/download/Kawai-DeAI-linux.AppImage)
+    Download from our CDN (replace `{VERSION}` with the latest version number):
+    
+    - **macOS**: `https://storage.getkawai.com/v{VERSION}/Kawai-{VERSION}-macos-universal.tar.gz`
+    - **Windows**: `https://storage.getkawai.com/v{VERSION}/Kawai-{VERSION}-windows-amd64.zip`
+    - **Linux**: `https://storage.getkawai.com/v{VERSION}/Kawai-{VERSION}-linux-amd64.tar.gz`
+    
+    Or use the latest version:
+    
+    - [Latest macOS Build](https://storage.getkawai.com/latest/Kawai-macos-universal.tar.gz)
+    - [Latest Windows Build](https://storage.getkawai.com/latest/Kawai-windows-amd64.zip)
+    - [Latest Linux Build](https://storage.getkawai.com/latest/Kawai-linux-amd64.tar.gz)
 
 ## 🖥️ Platform-Specific Installation
 
 ### macOS Installation
 
-1. **Download** the `.dmg` file
-2. **Open** the downloaded file
-3. **Drag** Kawai DeAI to Applications folder
+1. **Download** the `.tar.gz` file for macOS
+2. **Extract** the archive (double-click or use `tar -xzf`)
+3. **Drag** Kawai.app to Applications folder
 4. **Launch** from Applications or Spotlight
 5. **Allow** the app if macOS shows security warning:
-   - Go to System Preferences → Security & Privacy
-   - Click "Open Anyway" for Kawai DeAI
+   - Go to System Settings → Privacy & Security
+   - Click "Open Anyway" for Kawai
 
 !!! warning "macOS Security"
     First launch may show "unidentified developer" warning. This is normal for new applications. Click "Open" to proceed.
 
 ### Windows Installation
 
-1. **Download** the `.exe` file
-2. **Run** the installer as Administrator
-3. **Follow** the installation wizard
-4. **Choose** installation directory (default recommended)
-5. **Create** desktop shortcut (optional)
-6. **Launch** from Start Menu or desktop
+1. **Download** the `.zip` file for Windows
+2. **Extract** the archive to a folder (e.g., `C:\Program Files\Kawai`)
+3. **Run** `Kawai.exe` from the extracted folder
+4. **Create** desktop shortcut (optional - right-click Kawai.exe → Send to → Desktop)
+5. **Launch** from shortcut or Start Menu
 
-!!! tip "Windows Defender"
-    Windows may show SmartScreen warning. Click "More info" → "Run anyway" to proceed.
+!!! warning "Windows SmartScreen Warning"
+    **You will see a security warning** when running Kawai. This is normal for new applications.
+    
+    **Why does this happen?**
+    
+    - Windows SmartScreen protects users from unknown software
+    - New applications need to build "reputation" with Microsoft
+    - This doesn't mean the software is unsafe - it's just new
+    - We're working on getting our application signed to remove this warning
+    
+    **How to run safely:**
+    
+    === "Step-by-Step"
+        1. **Download** from official source only (GitHub Releases or storage.getkawai.com)
+        2. **Extract** the ZIP file
+        3. **Verify** the file hash (optional but recommended)
+        4. When you see "Windows protected your PC":
+           - Click **"More info"**
+           - Click **"Run anyway"**
+        5. **Allow** User Account Control (UAC) prompt if shown
+        6. **Run** Kawai.exe normally
+    
+    === "Visual Guide"
+        **Step 1**: You'll see this warning
+        ```
+        Windows protected your PC
+        Microsoft Defender SmartScreen prevented an unrecognized app from starting.
+        Running this app might put your PC at risk.
+        ```
+        
+        **Step 2**: Click "More info"
+        
+        **Step 3**: Click "Run anyway" button
+        
+        **Step 4**: Click "Yes" on UAC prompt if shown
+    
+    === "Verify Download"
+        For extra security, verify the file hash:
+        
+        ```powershell
+        # In PowerShell
+        Get-FileHash Kawai-{VERSION}-windows-amd64.zip -Algorithm SHA256
+        ```
+        
+        Compare with hash from checksums.txt in the release.
+    
+    !!! info "Why isn't Kawai signed yet?"
+        Code signing certificates cost $200-600/year. As an early-stage open source project, we're prioritizing development over certificates. Once we have more users and funding, we'll get proper code signing to remove this warning.
+    
+    !!! tip "Alternative: Microsoft Store"
+        We're working on a Microsoft Store version that won't show this warning. Join our Discord for updates!
 
 ### Linux Installation
 
-1. **Download** the `.AppImage` file
-2. **Make executable**:
+1. **Download** the `.tar.gz` file for Linux
+2. **Extract** the archive:
    ```bash
-   chmod +x Kawai-DeAI-linux.AppImage
+   tar -xzf Kawai-{VERSION}-linux-amd64.tar.gz
    ```
-3. **Run** the application:
+3. **Make executable** (if needed):
    ```bash
-   ./Kawai-DeAI-linux.AppImage
+   chmod +x Kawai
    ```
-4. **Optional**: Install AppImageLauncher for better integration
+4. **Run** the application:
+   ```bash
+   ./Kawai
+   ```
+5. **Optional**: Move to `/usr/local/bin` for system-wide access:
+   ```bash
+   sudo mv Kawai /usr/local/bin/
+   ```
 
 !!! note "Linux Dependencies"
     Most modern Linux distributions include required dependencies. If you encounter issues, install:
     ```bash
-    sudo apt install libgtk-3-0 libwebkit2gtk-4.0-37
+    # Ubuntu/Debian
+    sudo apt install libgtk-3-0 libwebkit2gtk-4.1-0
+    
+    # Fedora
+    sudo dnf install gtk3 webkit2gtk4.1
+    
+    # Arch
+    sudo pacman -S gtk3 webkit2gtk-4.1
     ```
 
 ## 🔧 First Launch Setup
@@ -161,16 +231,38 @@ For security-conscious users:
 
 ### Common Installation Issues
 
+??? question "Windows SmartScreen blocks installation"
+    **This is expected behavior for new applications.**
+    
+    **Solution:**
+    1. Click "More info" on the warning
+    2. Click "Run anyway"
+    3. Allow UAC prompt
+    
+    **Still blocked?**
+    - Check Windows Defender settings
+    - Temporarily disable real-time protection
+    - Add exception for Kawai installer
+    - Download from official GitHub only
+    
+    **Security concerns?**
+    - Verify file hash from GitHub Releases
+    - Check our open source code
+    - Scan with your antivirus
+    - Join Discord to ask the community
+
 ??? question "App won't start"
     **Possible causes:**
     - Insufficient permissions
     - Missing dependencies
     - Corrupted download
+    - Antivirus blocking
     
     **Solutions:**
     - Run as administrator (Windows)
     - Install missing libraries (Linux)
     - Re-download and reinstall
+    - Add antivirus exception
 
 ??? question "Wallet connection fails"
     **Possible causes:**
@@ -198,7 +290,7 @@ For security-conscious users:
 
 If you encounter installation issues:
 
-1. **Check** our [troubleshooting FAQ](../faq/troubleshooting.md)
+1. **Check** our [Installation & Security FAQ](../faq/installation.md) for detailed solutions
 2. **Search** existing GitHub issues
 3. **Join** our Discord for community help
 4. **Contact** support with system details

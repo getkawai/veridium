@@ -115,7 +115,14 @@ Join our growing community of AI enthusiasts and contributors:
 - **GitHub**: Contribute to the open-source project
 - **Twitter**: Stay updated with latest news
 
-Need help? Check our [FAQ](faq/general.md) or [contact support](support/contact.md).
+Need help? Check our FAQ sections:
+
+- [Installation & Security FAQ](faq/installation.md) - Installation issues and security warnings
+- [General FAQ](faq/general.md) - About Kawai and features
+- [Rewards FAQ](faq/rewards.md) - About earning and claiming
+- [Technical FAQ](faq/technical.md) - About blockchain and tech
+
+Or [contact support](support/contact.md).
 
 ---
 
