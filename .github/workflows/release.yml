@@ -187,7 +187,7 @@ jobs:
           sed -i 's/version: ".*"/version: "${{ needs.prepare.outputs.version }}"/' build/config.yml
 
       - name: Build Linux Binary
-        run: make release-linux
+        run: PRODUCTION=true make release-linux
 
       - name: Create distribution archive
         run: |
@@ -254,7 +254,11 @@ jobs:
           (Get-Content build/config.yml) -replace 'version: ".*"', 'version: "${{ needs.prepare.outputs.version }}"' | Set-Content build/config.yml
 
       - name: Build Windows Binary
-        run: make release-windows
+        run: |
+          $env:CGO_ENABLED = "1"
+          $env:CC = "gcc"
+          $env:PRODUCTION = "true"
+          wails3 task windows:build
 
       - name: Create distribution archive
         run: |
