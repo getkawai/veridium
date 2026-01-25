@@ -74,20 +74,25 @@ This allows us to:
 ### Prerequisites
 
 ```bash
-# Install GitHub CLI
+# 1. Install GitHub CLI
 brew install gh
 
-# Login to GitHub
-gh auth login
-
-# Install AWS CLI (for R2)
+# 2. Install AWS CLI (for R2)
 brew install awscli
 
-# Set R2 credentials
-export R2_ACCESS_KEY_ID="your_key"
-export R2_SECRET_ACCESS_KEY="your_secret"
-export R2_ENDPOINT_URL="https://your-account.r2.cloudflarestorage.com"
+# 3. Add credentials to .env file
+cat >> .env <<EOF
+# GitHub Personal Access Token (for gh CLI)
+GH_TOKEN=your_github_personal_access_token
+
+# Cloudflare R2 credentials
+R2_ACCESS_KEY_ID=your_key
+R2_SECRET_ACCESS_KEY=your_secret
+R2_ENDPOINT_URL=https://your-account.r2.cloudflarestorage.com
+EOF
 ```
+
+**Get GitHub Token**: https://github.com/settings/tokens (need `repo` and `delete_repo` scopes)
 
 ### Release Command
 

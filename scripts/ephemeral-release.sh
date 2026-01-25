@@ -8,9 +8,24 @@ VERSION=${1:-"0.1.0"}
 TEMP_DIR="kawai-${VERSION}"
 PUBLIC_REPO="kawai-network/kawai-build-${VERSION}"
 
-# Load R2 credentials from .env
+# ============================================================================
+# Step 0: Load credentials from .env
+# ============================================================================
+echo "🔑 Loading credentials from .env..."
+
 if [ -f .env ]; then
+  # Load GH_TOKEN
+  export $(grep -v '^#' .env | grep -E '^GH_TOKEN=' | xargs)
+  # Load R2 credentials
   export $(grep -v '^#' .env | grep -E '^R2_' | xargs)
+fi
+
+# Verify GH_TOKEN
+if [ -z "$GH_TOKEN" ]; then
+  echo "❌ Error: GH_TOKEN not found in .env"
+  echo "   Add to .env: GH_TOKEN=your_github_token"
+  echo "   Get token from: https://github.com/settings/tokens"
+  exit 1
 fi
 
 # Verify R2 credentials
@@ -20,6 +35,7 @@ if [ -z "$R2_ACCESS_KEY_ID" ] || [ -z "$R2_SECRET_ACCESS_KEY" ] || [ -z "$R2_END
   exit 1
 fi
 
+echo "✅ Credentials loaded"
 echo "🚀 Starting ephemeral release for v${VERSION}"
 
 # ============================================================================
@@ -87,6 +103,7 @@ echo "🔐 Setting up GitHub Secrets..."
 R2_ACCOUNT_ID=$(echo "$R2_ENDPOINT_URL" | sed 's|https://||' | cut -d. -f1)
 
 # Set secrets using gh CLI
+gh secret set GH_TOKEN --body "$GH_TOKEN" --repo "${PUBLIC_REPO}"
 gh secret set R2_ACCESS_KEY_ID --body "$R2_ACCESS_KEY_ID" --repo "${PUBLIC_REPO}"
 gh secret set R2_SECRET_ACCESS_KEY --body "$R2_SECRET_ACCESS_KEY" --repo "${PUBLIC_REPO}"
 gh secret set R2_ACCOUNT_ID --body "$R2_ACCOUNT_ID" --repo "${PUBLIC_REPO}"
