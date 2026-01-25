@@ -31,9 +31,9 @@ brew install go bun awscli
 go install github.com/wailsapp/wails/v3/cmd/wails3@latest
 
 # Set R2 credentials (add to ~/.zshrc or ~/.bashrc)
-export R2_ACCESS_KEY_ID="a71e802dd7c1ab8cf407ffb937cdf6a8"
-export R2_SECRET_ACCESS_KEY="0e3ce0d92faa9b337c83131efc7a4a64bb6f313171c309d5cb9a0fb76926d0ca"
-export R2_ENDPOINT_URL="https://ceab218751d33cd804878196ad7bef74.r2.cloudflarestorage.com"
+export R2_ACCESS_KEY_ID="<your-r2-access-key-id>"
+export R2_SECRET_ACCESS_KEY="<your-r2-secret-access-key>"
+export R2_ENDPOINT_URL="<your-r2-endpoint-url>"
 ```
 
 ### Build and Upload
@@ -61,56 +61,72 @@ aws s3 cp checksums-macos.txt s3://kawai/v0.1.0/checksums-macos.txt --endpoint-u
 
 ## Release Process
 
-### Quick Release (Recommended)
+### Option A: Full Automated (Requires CircleCI Credits)
 ```bash
 # One command to do everything
 ./scripts/release.sh 0.1.0
 ```
 
-This script will:
-1. Update version in `build/config.yml`
-2. Commit version change
-3. Create and push tag `v0.1.0`
-4. Trigger CircleCI builds (Linux + Windows)
-5. Build macOS locally in parallel
-6. Upload macOS binary + checksum to R2
-7. CircleCI finalize will combine all checksums
+This will build all platforms and finalize automatically.
 
-### Manual Release
+### Option B: Manual Workflow (No CircleCI Credits Needed)
 
-#### 1. Build macOS First
+#### 1. Build All Platforms Locally
 ```bash
-# Build and upload macOS binary
+# Build macOS (local)
 ./scripts/build-macos-release.sh 0.1.0
+
+# Build Linux (requires Docker or Linux machine)
+# Build Windows (requires Windows machine or Wine)
+# Or wait for CircleCI credits to refresh
 ```
 
-#### 2. Create and Push Tag
+#### 2. Finalize Release
 ```bash
+# Combine checksums and create manifests
+./scripts/finalize-release.sh 0.1.0
+```
+
+This script will:
+- Download all checksums from R2
+- Combine into single checksums.txt
+- Generate update.json manifest
+- Upload to both `v0.1.0/` and `latest/`
+
+### Option C: Hybrid (Current Setup)
+```bash
+# 1. Build macOS locally
+./scripts/build-macos-release.sh 0.1.0
+
+# 2. Push tag to trigger CircleCI (Linux + Windows)
 git tag v0.1.0
 git push origin v0.1.0
-```
 
-### 3. CircleCI Builds Automatically
-CircleCI will:
-- Build Linux binary
-- Build Windows binary
-- Download macOS checksum from R2
-- Combine all checksums
-- Upload to R2
-- Publish GitHub release
+# 3. Wait for CircleCI to finish, then finalize
+./scripts/finalize-release.sh 0.1.0
+```
 
 ## Artifacts
 
-Each release includes:
-- `Kawai-{version}-macos-universal.tar.gz` - macOS Universal Binary
-- `Kawai-{version}-linux-amd64.tar.gz` - Linux binary
-- `Kawai-{version}-windows-amd64.zip` - Windows executable
-- `checksums.txt` - SHA256 checksums
-- `update.json` - Auto-update manifest
+All releases are uploaded to R2 with this structure:
 
-All uploaded to:
-- **Cloudflare R2**: `https://releases.kawai.network/v{version}/`
-- **GitHub Releases**: Draft release (auto-published after finalize)
+```
+https://storage.getkawai.com/
+├── latest/
+│   └── update.json                          # Always points to latest version
+├── v0.1.0/
+│   ├── update.json                          # Manifest for v0.1.0
+│   ├── Kawai-0.1.0-macos-universal.tar.gz
+│   ├── Kawai-0.1.0-linux-amd64.tar.gz
+│   ├── Kawai-0.1.0-windows-amd64.zip
+│   └── checksums.txt                        # Combined SHA256 checksums
+└── v0.2.0/
+    ├── update.json
+    ├── Kawai-0.2.0-macos-universal.tar.gz
+    ├── Kawai-0.2.0-linux-amd64.tar.gz
+    ├── Kawai-0.2.0-windows-amd64.zip
+    └── checksums.txt
+```
 
 ## Resource Classes
 

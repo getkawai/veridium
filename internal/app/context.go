@@ -43,9 +43,6 @@ const (
 	DefaultUserID = "DEFAULT_LOBE_CHAT_USER"
 )
 
-// DevMode check
-var DevMode = os.Getenv("VERIDIUM_DEV") == "1" || os.Getenv("DEV") == "1"
-
 // Context holds all application services and state.
 type Context struct {
 	// Core Services
@@ -159,9 +156,7 @@ func getRandomDsn() string {
 }
 
 func (ctx *Context) InitSentry() {
-	if DevMode {
-		log.Printf("Development mode: Sentry initialized (errors will be reported)")
-	}
+	// Production-only build: Sentry always enabled
 
 	err := sentry.Init(sentry.ClientOptions{
 		Dsn:              getRandomDsn(),
@@ -256,13 +251,10 @@ func (ctx *Context) InitEmbedder() {
 	ctx.AddCleanup(func() { baseEmbedder.Close() })
 	log.Printf("Embedder initialized (model: %s, dims: %d)", model.Name, baseEmbedder.Dimensions())
 
-	if DevMode {
-		ctx.Embedder = baseEmbedder
-	} else {
-		ctx.CacheManager = cache.NewCacheManager(baseEmbedder, nil)
-		ctx.Embedder = ctx.CacheManager.GetCachedEmbedder(baseEmbedder)
-		log.Printf("Cache layer initialized")
-	}
+	// Production-only: always use cache layer
+	ctx.CacheManager = cache.NewCacheManager(baseEmbedder, nil)
+	ctx.Embedder = ctx.CacheManager.GetCachedEmbedder(baseEmbedder)
+	log.Printf("Cache layer initialized")
 }
 
 func (ctx *Context) InitVectorSearch() {

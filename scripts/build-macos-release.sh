@@ -37,8 +37,7 @@ fi
 echo -e "${GREEN}📝 Updating version in build/config.yml${NC}"
 sed -i '' "s/version: \".*\"/version: \"$VERSION\"/" build/config.yml
 
-# Build
-echo -e "${GREEN}🔨 Building macOS Universal Binary${NC}"
+# Build (Makefile will print its own messages)
 PRODUCTION=true make release-darwin
 
 # Create distribution archive
@@ -65,6 +64,7 @@ if [ -z "$SKIP_UPLOAD" ]; then
   export AWS_ACCESS_KEY_ID=$R2_ACCESS_KEY_ID
   export AWS_SECRET_ACCESS_KEY=$R2_SECRET_ACCESS_KEY
   export AWS_DEFAULT_REGION=auto
+  unset AWS_SESSION_TOKEN  # R2 doesn't use session tokens
   
   # Upload binary
   aws s3 cp "Kawai-${VERSION}-macos-universal.tar.gz" \
