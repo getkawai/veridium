@@ -101,18 +101,18 @@ jobs:
           echo "Building ARM64..."
           wails3 task darwin:build PRODUCTION=true ARCH=arm64
           wails3 task darwin:package PRODUCTION=true ARCH=arm64
-          mv build/bin/Kawai.app build/bin/Kawai-arm64.app
+          mv bin/Kawai.app bin/Kawai-arm64.app
 
       - name: Build macOS AMD64
         run: |
           echo "Building AMD64..."
           wails3 task darwin:build PRODUCTION=true ARCH=amd64
           wails3 task darwin:package PRODUCTION=true ARCH=amd64
-          mv build/bin/Kawai.app build/bin/Kawai-amd64.app
+          mv bin/Kawai.app bin/Kawai-amd64.app
 
       - name: Create distribution archives
         run: |
-          cd build/bin
+          cd bin
           tar -czf Kawai-${{ needs.prepare.outputs.version }}-macos-arm64.tar.gz Kawai-arm64.app
           tar -czf Kawai-${{ needs.prepare.outputs.version }}-macos-amd64.tar.gz Kawai-amd64.app
           shasum -a 256 Kawai-*.tar.gz > checksums-macos.txt
@@ -122,8 +122,8 @@ jobs:
         with:
           name: macos-build
           path: |
-            build/bin/Kawai-*.tar.gz
-            build/bin/checksums-macos.txt
+            bin/Kawai-*.tar.gz
+            bin/checksums-macos.txt
 
       - name: Upload to Cloudflare R2
         uses: ryand56/r2-upload-action@latest
@@ -132,7 +132,7 @@ jobs:
           r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
           r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           r2-bucket: ${{ env.R2_BUCKET }}
-          source-dir: build/bin
+          source-dir: bin
           destination-dir: v${{ needs.prepare.outputs.version }}
           output-file-url: true
 
@@ -142,8 +142,18 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.prepare.outputs.upload_url }}
-          asset_path: build/bin/Kawai-${{ needs.prepare.outputs.version }}-macos-universal.tar.gz
-          asset_name: Kawai-${{ needs.prepare.outputs.version }}-macos-universal.tar.gz
+          asset_path: bin/Kawai-${{ needs.prepare.outputs.version }}-macos-arm64.tar.gz
+          asset_name: Kawai-${{ needs.prepare.outputs.version }}-macos-arm64.tar.gz
+          asset_content_type: application/gzip
+
+      - name: Upload AMD64 to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.prepare.outputs.upload_url }}
+          asset_path: bin/Kawai-${{ needs.prepare.outputs.version }}-macos-amd64.tar.gz
+          asset_name: Kawai-${{ needs.prepare.outputs.version }}-macos-amd64.tar.gz
           asset_content_type: application/gzip
 
   build-linux:
