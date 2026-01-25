@@ -266,7 +266,26 @@ jobs:
           $env:CC = "gcc"
           $env:PRODUCTION = "true"
           $env:NODE_OPTIONS = "--max-old-space-size=8192"
-          wails3 task windows:build
+          # Wait for any file locks to release
+          Start-Sleep -Seconds 10
+          # Retry build up to 3 times if file lock error occurs
+          $maxRetries = 3
+          $retryCount = 0
+          $success = $false
+          while (-not $success -and $retryCount -lt $maxRetries) {
+            try {
+              wails3 task windows:build
+              $success = $true
+            } catch {
+              $retryCount++
+              if ($retryCount -lt $maxRetries) {
+                Write-Host "Build failed, retrying in 10 seconds... (Attempt $retryCount of $maxRetries)"
+                Start-Sleep -Seconds 10
+              } else {
+                throw
+              }
+            }
+          }
 
       - name: Create distribution archive
         run: |
