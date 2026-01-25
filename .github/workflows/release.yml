@@ -55,8 +55,7 @@ jobs:
             
             Choose the appropriate package for your platform:
             
-            - **macOS ARM64**: `Kawai-${{ steps.get_version.outputs.version }}-macos-arm64.tar.gz` (Apple Silicon)
-            - **macOS AMD64**: `Kawai-${{ steps.get_version.outputs.version }}-macos-amd64.tar.gz` (Intel)
+            - **macOS Universal**: `Kawai-${{ steps.get_version.outputs.version }}-macos-universal.tar.gz` (Apple Silicon + Intel)
             - **Linux**: `Kawai-${{ steps.get_version.outputs.version }}-linux-amd64.tar.gz`
             - **Windows**: `Kawai-${{ steps.get_version.outputs.version }}-windows-amd64.zip`
             
@@ -97,25 +96,20 @@ jobs:
         run: |
           sed -i '' 's/version: ".*"/version: "${{ needs.prepare.outputs.version }}"/' build/config.yml
 
-      - name: Build macOS ARM64
+      - name: Build macOS Universal Binary
         run: |
-          echo "Building ARM64..."
-          wails3 task darwin:build PRODUCTION=true ARCH=arm64
-          wails3 task darwin:package PRODUCTION=true ARCH=arm64
-          mv bin/Kawai.app bin/Kawai-arm64.app
+          echo "Building Universal Binary (ARM64 + AMD64)..."
+          PRODUCTION=true wails3 task darwin:build:universal
 
-      - name: Build macOS AMD64
+      - name: Package macOS App
         run: |
-          echo "Building AMD64..."
-          wails3 task darwin:build PRODUCTION=true ARCH=amd64
-          wails3 task darwin:package PRODUCTION=true ARCH=amd64
-          mv bin/Kawai.app bin/Kawai-amd64.app
+          echo "Packaging .app bundle..."
+          wails3 task darwin:create:app:bundle
 
-      - name: Create distribution archives
+      - name: Create distribution archive
         run: |
           cd bin
-          tar -czf Kawai-${{ needs.prepare.outputs.version }}-macos-arm64.tar.gz Kawai-arm64.app
-          tar -czf Kawai-${{ needs.prepare.outputs.version }}-macos-amd64.tar.gz Kawai-amd64.app
+          tar -czf Kawai-${{ needs.prepare.outputs.version }}-macos-universal.tar.gz Kawai.app
           shasum -a 256 Kawai-*.tar.gz > checksums-macos.txt
 
       - name: Upload macOS artifact
@@ -143,18 +137,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         with:
           upload_url: ${{ needs.prepare.outputs.upload_url }}
-          asset_path: bin/Kawai-${{ needs.prepare.outputs.version }}-macos-arm64.tar.gz
-          asset_name: Kawai-${{ needs.prepare.outputs.version }}-macos-arm64.tar.gz
-          asset_content_type: application/gzip
-
-      - name: Upload AMD64 to Release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-        with:
-          upload_url: ${{ needs.prepare.outputs.upload_url }}
-          asset_path: bin/Kawai-${{ needs.prepare.outputs.version }}-macos-amd64.tar.gz
-          asset_name: Kawai-${{ needs.prepare.outputs.version }}-macos-amd64.tar.gz
+          asset_path: bin/Kawai-${{ needs.prepare.outputs.version }}-macos-universal.tar.gz
+          asset_name: Kawai-${{ needs.prepare.outputs.version }}-macos-universal.tar.gz
           asset_content_type: application/gzip
 
   build-linux:
