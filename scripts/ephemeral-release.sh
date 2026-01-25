@@ -79,6 +79,21 @@ gh repo create "${PUBLIC_REPO}" \
   --description="Kawai v${VERSION} - Temporary build repo"
 
 # ============================================================================
+# Step 5.5: Setup GitHub Secrets
+# ============================================================================
+echo "🔐 Setting up GitHub Secrets..."
+
+# Extract R2_ACCOUNT_ID from endpoint URL
+R2_ACCOUNT_ID=$(echo "$R2_ENDPOINT_URL" | sed 's|https://||' | cut -d. -f1)
+
+# Set secrets using gh CLI
+gh secret set R2_ACCESS_KEY_ID --body "$R2_ACCESS_KEY_ID" --repo "${PUBLIC_REPO}"
+gh secret set R2_SECRET_ACCESS_KEY --body "$R2_SECRET_ACCESS_KEY" --repo "${PUBLIC_REPO}"
+gh secret set R2_ACCOUNT_ID --body "$R2_ACCOUNT_ID" --repo "${PUBLIC_REPO}"
+
+echo "✅ Secrets configured"
+
+# ============================================================================
 # Step 6: Push and trigger build
 # ============================================================================
 echo "⬆️  Pushing code..."
