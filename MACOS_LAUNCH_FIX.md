@@ -100,13 +100,13 @@ func ensureInit() {
 **GitHub Actions (Automated)**:
 ```bash
 # ARM64 build
-ARCH=arm64 PRODUCTION=true wails3 task darwin:build
-wails3 task darwin:create:app:bundle
+wails3 task darwin:build PRODUCTION=true ARCH=arm64
+wails3 task darwin:package PRODUCTION=true ARCH=arm64
 mv build/bin/Kawai.app build/bin/Kawai-arm64.app  # Rename to avoid overwrite
 
 # AMD64 build  
-ARCH=amd64 PRODUCTION=true wails3 task darwin:build
-wails3 task darwin:create:app:bundle
+wails3 task darwin:build PRODUCTION=true ARCH=amd64
+wails3 task darwin:package PRODUCTION=true ARCH=amd64
 mv build/bin/Kawai.app build/bin/Kawai-amd64.app  # Rename to avoid overwrite
 ```
 
@@ -115,13 +115,13 @@ mv build/bin/Kawai.app build/bin/Kawai-amd64.app  # Rename to avoid overwrite
 **Local Build (Manual)**:
 ```bash
 # ARM64 only
-ARCH=arm64 PRODUCTION=true wails3 task darwin:build
-wails3 task darwin:create:app:bundle
+wails3 task darwin:build PRODUCTION=true ARCH=arm64
+wails3 task darwin:package PRODUCTION=true ARCH=arm64
 # Output: build/bin/Kawai.app (ARM64)
 
 # AMD64 only (run separately or rename first build)
-ARCH=amd64 PRODUCTION=true wails3 task darwin:build
-wails3 task darwin:create:app:bundle
+wails3 task darwin:build PRODUCTION=true ARCH=amd64
+wails3 task darwin:package PRODUCTION=true ARCH=amd64
 # Output: build/bin/Kawai.app (AMD64)
 ```
 
@@ -164,8 +164,8 @@ ls -la ~/Library/Application\ Support/Kawai/
 ## Testing
 ```bash
 # Build ARM64 binary
-ARCH=arm64 PRODUCTION=true wails3 task darwin:build
-wails3 task darwin:create:app:bundle
+wails3 task darwin:build PRODUCTION=true ARCH=arm64
+wails3 task darwin:package PRODUCTION=true ARCH=arm64
 
 # Test terminal launch (should use ./data/)
 ./build/bin/Kawai.app/Contents/MacOS/Kawai

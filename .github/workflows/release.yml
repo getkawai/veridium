@@ -99,15 +99,15 @@ jobs:
       - name: Build macOS ARM64
         run: |
           echo "Building ARM64..."
-          ARCH=arm64 PRODUCTION=true wails3 task darwin:build
-          wails3 task darwin:create:app:bundle
+          wails3 task darwin:build PRODUCTION=true ARCH=arm64
+          wails3 task darwin:package PRODUCTION=true ARCH=arm64
           mv build/bin/Kawai.app build/bin/Kawai-arm64.app
 
       - name: Build macOS AMD64
         run: |
           echo "Building AMD64..."
-          ARCH=amd64 PRODUCTION=true wails3 task darwin:build
-          wails3 task darwin:create:app:bundle
+          wails3 task darwin:build PRODUCTION=true ARCH=amd64
+          wails3 task darwin:package PRODUCTION=true ARCH=amd64
           mv build/bin/Kawai.app build/bin/Kawai-amd64.app
 
       - name: Create distribution archives
