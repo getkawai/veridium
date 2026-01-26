@@ -10,12 +10,93 @@ Get Kawai DeAI Network installed on your system in just a few minutes.
 2. **Extract** the archive (double-click or use `tar -xzf`)
 3. **Drag** Kawai.app to Applications folder
 4. **Launch** from Applications or Spotlight
-5. **Allow** the app if macOS shows security warning:
-   - Go to System Settings → Privacy & Security
-   - Click "Open Anyway" for Kawai
+5. **Allow** the app if macOS shows security warning
 
-!!! warning "macOS Security"
-    First launch may show "unidentified developer" warning. This is normal for new applications. Click "Open" to proceed.
+!!! warning "macOS Gatekeeper Warning"
+    **You will see a security warning** when first launching Kawai. This is normal for new applications.
+    
+    **Why does this happen?**
+    
+    - macOS Gatekeeper protects users from unidentified developers
+    - New applications need Apple Developer ID certificate ($99/year)
+    - This doesn't mean the software is unsafe - it's just new
+    - We're implementing code signing in the next release
+    
+    **How to open the app safely:**
+    
+    === "Method 1: Right-Click (Recommended)"
+        1. **Locate** Kawai.app in Applications folder
+        2. **Right-click** (or Control+click) on the app
+        3. **Select "Open"** from the context menu
+        4. **Click "Open"** in the dialog that appears
+        5. App will launch and remember this choice
+        
+        ![macOS Right-Click Open](../assets/screenshots/macos-right-click-open.png)
+        
+        !!! tip "One-Time Process"
+            You only need to do this once. After the first launch, you can open the app normally.
+    
+    === "Method 2: System Settings"
+        If you already tried to open and got blocked:
+        
+        1. **Open** System Settings (or System Preferences on older macOS)
+        2. **Go to** Privacy & Security (or Security & Privacy)
+        3. **Look for** message about Kawai being blocked
+        4. **Click** "Open Anyway" button
+        5. **Confirm** by clicking "Open" in the dialog
+        
+        ![macOS Security Settings](../assets/screenshots/macos-security-settings.png)
+        
+        **Location varies by macOS version:**
+        
+        - **macOS 13+ (Ventura/Sonoma)**: System Settings → Privacy & Security → Security section
+        - **macOS 12 (Monterey)**: System Preferences → Security & Privacy → General tab
+        - **macOS 11 (Big Sur)**: System Preferences → Security & Privacy → General tab
+    
+    === "Method 3: Terminal (Advanced)"
+        For advanced users who prefer command line:
+        
+        ```bash
+        # Remove quarantine attribute
+        xattr -d com.apple.quarantine /Applications/Kawai.app
+        
+        # Then launch normally
+        open /Applications/Kawai.app
+        ```
+        
+        !!! warning "Use with Caution"
+            Only use this method if you trust the source and verified the download.
+    
+    **Visual Guide:**
+    
+    **Step 1**: You'll see this warning when double-clicking
+    
+    ![macOS Gatekeeper Warning](../assets/screenshots/macos-gatekeeper-warning.png)
+    
+    ```
+    "Kawai.app" cannot be opened because it is from an unidentified developer.
+    ```
+    
+    **Step 2**: Right-click → Open
+    
+    ![macOS Right-Click Open Method](../assets/screenshots/macos-right-click-open.png)
+    
+    **Step 3**: Confirm dialog appears
+    ```
+    "Kawai.app" is from an unidentified developer. Are you sure you want to open it?
+    [Cancel] [Open]
+    ```
+    
+    **Step 4**: Click "Open" - Done! ✅
+    
+    !!! info "Why isn't Kawai signed yet?"
+        Apple Developer ID costs $99/year. We're implementing this in the next release (Phase 1 priority). Once signed, this warning will disappear completely.
+    
+    !!! success "Coming Soon"
+        **Next Release**: Full code signing + notarization
+        - No Gatekeeper warning
+        - Instant trust
+        - Better user experience
 
 ### Windows Installation
 
