@@ -174,3 +174,42 @@ func new(w io.Writer, minLevel Level, serviceName string, traceIDFn TraceIDFn, e
 		traceIDFn: traceIDFn,
 	}
 }
+
+// NewWithSentry constructs a new log with Sentry integration.
+func NewWithSentry(w io.Writer, minLevel Level, serviceName string, traceIDFn TraceIDFn, sentryHandler slog.Handler) *Logger {
+	// Convert the file name to just the name.ext when this key/value will be logged.
+	f := func(groups []string, a slog.Attr) slog.Attr {
+		if a.Key == slog.SourceKey {
+			if source, ok := a.Value.Any().(*slog.Source); ok {
+				v := fmt.Sprintf("%s:%d", filepath.Base(source.File), source.Line)
+				return slog.Attr{Key: "file", Value: slog.StringValue(v)}
+			}
+		}
+		return a
+	}
+
+	// Construct the slog JSON handler
+	handler := slog.Handler(slog.NewJSONHandler(w, &slog.HandlerOptions{
+		AddSource:   true,
+		Level:       slog.Level(minLevel),
+		ReplaceAttr: f,
+	}))
+
+	// Wrap with Sentry handler if provided
+	if sentryHandler != nil {
+		handler = sentryHandler
+	}
+
+	// Attributes to add to every log
+	attrs := []slog.Attr{
+		{Key: "service", Value: slog.StringValue(serviceName)},
+	}
+
+	handler = handler.WithAttrs(attrs)
+
+	return &Logger{
+		discard:   w == io.Discard,
+		handler:   handler,
+		traceIDFn: traceIDFn,
+	}
+}

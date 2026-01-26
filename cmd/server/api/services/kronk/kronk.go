@@ -7,6 +7,7 @@ import (
 	"errors"
 	"expvar"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -16,6 +17,7 @@ import (
 	"time"
 
 	"github.com/ardanlabs/conf/v3"
+	"github.com/getsentry/sentry-go"
 	"github.com/kawai-network/veridium/cmd/server/api/services/kronk/build"
 	"github.com/kawai-network/veridium/cmd/server/app/domain/authapp"
 	"github.com/kawai-network/veridium/cmd/server/app/sdk/authclient"
@@ -25,6 +27,7 @@ import (
 	"github.com/kawai-network/veridium/cmd/server/foundation/logger"
 	"github.com/kawai-network/veridium/cmd/server/foundation/web"
 	"github.com/kawai-network/veridium/pkg/kronk"
+	pkglogger "github.com/kawai-network/veridium/pkg/logger"
 	"github.com/kawai-network/veridium/pkg/tools/catalog"
 	"github.com/kawai-network/veridium/pkg/tools/defaults"
 	"github.com/kawai-network/veridium/pkg/tools/libs"
@@ -38,8 +41,36 @@ var static embed.FS
 
 var tag = "develop"
 
+const SentryDSN = "https://6d138acbdde2516e32e24f016b472031@o4510620614983680.ingest.us.sentry.io/4510620618850304"
+
 func Run(showHelp bool) error {
 	var log *logger.Logger
+
+	// Initialize Sentry
+	err := sentry.Init(sentry.ClientOptions{
+		Dsn:              SentryDSN,
+		EnableTracing:    true,
+		TracesSampleRate: 1.0,
+		EnableLogs:       true,
+		BeforeSendLog: func(log *sentry.Log) *sentry.Log {
+			if log.Severity < sentry.LogSeverityWarning {
+				return nil
+			}
+			return log
+		},
+	})
+	if err != nil {
+		fmt.Printf("Sentry initialization failed: %v\n", err)
+	}
+
+	defer sentry.Flush(2 * time.Second)
+
+	// Setup logger with Sentry
+	var sentryHandler slog.Handler
+	if err == nil {
+		baseHandler := slog.NewJSONHandler(os.Stdout, nil)
+		sentryHandler = pkglogger.NewSentryHandler(baseHandler)
+	}
 
 	events := logger.Events{
 		Error: func(ctx context.Context, r logger.Record) {
@@ -47,7 +78,13 @@ func Run(showHelp bool) error {
 		},
 	}
 
-	log = logger.NewWithEvents(os.Stdout, logger.LevelInfo, "KRONK", web.GetTraceID, events)
+	if sentryHandler != nil {
+		log = logger.NewWithSentry(os.Stdout, logger.LevelInfo, "KRONK", web.GetTraceID, sentryHandler)
+	} else {
+		log = logger.NewWithEvents(os.Stdout, logger.LevelInfo, "KRONK", web.GetTraceID, events)
+	}
+
+	log.Info(context.Background(), "sentry", "enabled", err == nil)
 
 	// -------------------------------------------------------------------------
 
