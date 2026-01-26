@@ -33,6 +33,7 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.4.0
 	github.com/goccy/go-yaml v1.19.0
 	github.com/golang-migrate/migrate/v4 v4.19.0
+	github.com/google/go-cmp v0.7.0
 	github.com/google/go-containerregistry v0.20.7
 	github.com/google/jsonschema-go v0.3.0
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
@@ -71,6 +72,7 @@ require (
 	github.com/urfave/cli/v2 v2.27.5
 	github.com/wailsapp/wails/v3 v3.0.0-dev
 	github.com/yuin/goldmark v1.7.8
+	go.yaml.in/yaml/v2 v2.4.3
 	golang.org/x/crypto v0.46.0
 	golang.org/x/net v0.48.0
 	golang.org/x/oauth2 v0.33.0
@@ -209,7 +211,6 @@ require (
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/google/certificate-transparency-go v1.3.2 // indirect
 	github.com/google/flatbuffers v25.9.23+incompatible // indirect
-	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/gopacket v1.1.19 // indirect
 	github.com/google/pprof v0.0.0-20250602020802-c6617b811d0e // indirect
@@ -333,7 +334,6 @@ require (
 	go.opentelemetry.io/proto/otlp v1.9.0 // indirect
 	go.uber.org/automaxprocs v1.6.0 // indirect
 	go.uber.org/mock v0.5.1 // indirect
-	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/arch v0.20.0 // indirect
 	golang.org/x/exp v0.0.0-20251209150349-8475f28825e9 // indirect

@@ -28,6 +28,10 @@ const (
 	obfuscatedGeminiApiKey5 = "jurKfW7hlwk7L7Gc5MTAL1HaohAxzK1e44fn6trJo8zUsK2zEpfC"
 	obfuscatedGeminiApiKey6 = "jurKL47hAGktHiwpOSmrwVv4yqAxinVEp85nHJF2a6624USCgjvm"
 	obfuscatedGeminiApiKey7 = "jurKGm7hxwl5b3P6/zE6OP5p/H8OOmWTXd2b9IvQYK/RKOeCdV+0"
+
+	// HuggingFace API Keys
+	obfuscatedHfApiKey0 = "n8WdhNgeIksx6PtFWC6jUBvfC9wsd9MomzF7sNvzeaEXlZPQbX=="
+	obfuscatedHfApiKey1 = "n+EdObueQVE7Vku7khATJ5Mt0SGLG6ZPmQO6yoQU+JVbSdMtVN=="
 )
 
 // GetRandomOpenRouterApiKey returns a random decoded OpenRouter API key from the pool
@@ -159,6 +163,34 @@ func getGeminiApiKey6() string {
 
 func getGeminiApiKey7() string {
 	val, _ := obfuscator.DecodeString(obfuscatedGeminiApiKey7)
+	return val
+}
+
+// GetRandomHfApiKey returns a random decoded HuggingFace API key from the pool
+func GetRandomHfApiKey() string {
+	keys := GetHfApiKeys()
+	if len(keys) == 0 {
+		return ""
+	}
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	return keys[r.Intn(len(keys))]
+}
+
+// GetHfApiKeys returns a slice of all decoded HuggingFace API keys
+func GetHfApiKeys() []string {
+	return []string{
+		getHfApiKey0(),
+		getHfApiKey1(),
+	}
+}
+
+func getHfApiKey0() string {
+	val, _ := obfuscator.DecodeString(obfuscatedHfApiKey0)
+	return val
+}
+
+func getHfApiKey1() string {
+	val, _ := obfuscator.DecodeString(obfuscatedHfApiKey1)
 	return val
 }
 

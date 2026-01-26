@@ -235,12 +235,15 @@ func generateLLM(configs map[string]string) {
 	// Parse Gemini API keys
 	geminiKeys := parseCommaSeparatedKeys(configs["GEMINI_API_KEYS"])
 
-	if len(openrouterKeys) == 0 && len(zaiKeys) == 0 && len(geminiKeys) == 0 {
+	// Parse HuggingFace API keys
+	hfKeys := parseCommaSeparatedKeys(configs["HF_TOKENS"])
+
+	if len(openrouterKeys) == 0 && len(zaiKeys) == 0 && len(geminiKeys) == 0 && len(hfKeys) == 0 {
 		fmt.Printf("⚠️ No LLM API keys found in .env, skipping %s\n", outputFile)
 		return
 	}
 
-	content := generateLLMGoFile(openrouterKeys, zaiKeys, geminiKeys)
+	content := generateLLMGoFile(openrouterKeys, zaiKeys, geminiKeys, hfKeys)
 
 	// Write output
 	err := os.WriteFile(outputFile, []byte(content), 0644)
@@ -248,8 +251,8 @@ func generateLLM(configs map[string]string) {
 		log.Fatalf("failed to write %s: %v", outputFile, err)
 	}
 
-	fmt.Printf("✅ Generated %s with %d OpenRouter keys, %d ZAI keys, and %d Gemini keys\n",
-		outputFile, len(openrouterKeys), len(zaiKeys), len(geminiKeys))
+	fmt.Printf("✅ Generated %s with %d OpenRouter keys, %d ZAI keys, %d Gemini keys, and %d HuggingFace keys\n",
+		outputFile, len(openrouterKeys), len(zaiKeys), len(geminiKeys), len(hfKeys))
 }
 
 // parseCommaSeparatedKeys parses a comma-separated string of API keys
@@ -501,7 +504,7 @@ func generateTreasuryGoFile(addresses []string) string {
 	return sb.String()
 }
 
-func generateLLMGoFile(openrouterKeys, zaiKeys, geminiKeys []string) string {
+func generateLLMGoFile(openrouterKeys, zaiKeys, geminiKeys, hfKeys []string) string {
 	var sb strings.Builder
 
 	// Header
@@ -542,6 +545,16 @@ func generateLLMGoFile(openrouterKeys, zaiKeys, geminiKeys []string) string {
 		for i, key := range geminiKeys {
 			encoded := obfuscator.EncodeString(key)
 			sb.WriteString(fmt.Sprintf("\tobfuscatedGeminiApiKey%d = \"%s\"\n", i, encoded))
+		}
+		sb.WriteString("\n")
+	}
+
+	// HuggingFace keys
+	if len(hfKeys) > 0 {
+		sb.WriteString("\t// HuggingFace API Keys\n")
+		for i, key := range hfKeys {
+			encoded := obfuscator.EncodeString(key)
+			sb.WriteString(fmt.Sprintf("\tobfuscatedHfApiKey%d = \"%s\"\n", i, encoded))
 		}
 	}
 
@@ -638,6 +651,38 @@ func generateLLMGoFile(openrouterKeys, zaiKeys, geminiKeys []string) string {
 		for i := range geminiKeys {
 			sb.WriteString(fmt.Sprintf("func getGeminiApiKey%d() string {\n", i))
 			sb.WriteString(fmt.Sprintf("\tval, _ := obfuscator.DecodeString(obfuscatedGeminiApiKey%d)\n", i))
+			sb.WriteString("\treturn val\n")
+			sb.WriteString("}\n\n")
+		}
+	}
+
+	// HuggingFace functions
+	if len(hfKeys) > 0 {
+		// Random picker
+		sb.WriteString("// GetRandomHfApiKey returns a random decoded HuggingFace API key from the pool\n")
+		sb.WriteString("func GetRandomHfApiKey() string {\n")
+		sb.WriteString("\tkeys := GetHfApiKeys()\n")
+		sb.WriteString("\tif len(keys) == 0 {\n")
+		sb.WriteString("\t\treturn \"\"\n")
+		sb.WriteString("\t}\n")
+		sb.WriteString("\tr := rand.New(rand.NewSource(time.Now().UnixNano()))\n")
+		sb.WriteString("\treturn keys[r.Intn(len(keys))]\n")
+		sb.WriteString("}\n\n")
+
+		// Array of all keys (exported)
+		sb.WriteString("// GetHfApiKeys returns a slice of all decoded HuggingFace API keys\n")
+		sb.WriteString("func GetHfApiKeys() []string {\n")
+		sb.WriteString("\treturn []string{\n")
+		for i := range hfKeys {
+			sb.WriteString(fmt.Sprintf("\t\tgetHfApiKey%d(),\n", i))
+		}
+		sb.WriteString("\t}\n")
+		sb.WriteString("}\n\n")
+
+		// Individual getters (private)
+		for i := range hfKeys {
+			sb.WriteString(fmt.Sprintf("func getHfApiKey%d() string {\n", i))
+			sb.WriteString(fmt.Sprintf("\tval, _ := obfuscator.DecodeString(obfuscatedHfApiKey%d)\n", i))
 			sb.WriteString("\treturn val\n")
 			sb.WriteString("}\n\n")
 		}
