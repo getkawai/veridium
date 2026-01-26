@@ -15,6 +15,8 @@ const (
 	obfuscatedOpenRouterApiKey2 = "TDl/o2/F9clGOwDOJhcOtEfQyGF8/wMh1a6h0WljmJnAVmvYWjZTMhzGx/kYNrFUduYEO9G5ot459j1Dya6+JfGFQt7nkAfMNt=="
 	obfuscatedOpenRouterApiKey3 = "TDl/o2/F9clGG04mJXy1pyOgSY9AOwAxRpkd1xzM+NiiYW00v6BK+m+rpBMyGm5abU8CwGCuZD/UO07Dy3aHS0vl7dWnyfb8DD=="
 	obfuscatedOpenRouterApiKey4 = "TDl/o2/F9clGli8mwj3frjW3L84dHXuxIcPw0gpjOb6K+z0o0Uks8l7+7DGDYX/VJDCRCRJbMFOGM7kfhi2Z3MWpvWPg8AyQvD=="
+	obfuscatedOpenRouterApiKey5 = "TDl/o2/F9clGJuuNMz3ocdwMfKmkJpogslgq+selZTCncdbPvuPKMuzVxmg0GjVUdoGEy9D5kN4GskMfhUGkrYtRo5uUA4IkYD=="
+	obfuscatedOpenRouterApiKey6 = "TDl/o2/F9clGlojtYxfhdmcjfY80kzU31cOzHqNhLyJotj/cvwQiGlxAwLuDJa/VFb9ZqwD5Gp9zM+6Nnp9JFcCwtoANyzt8Rj=="
 
 	// ZAI API Keys
 	obfuscatedZaiApiKey0 = "0gTbgkb9uV+C97WJR/s9cwJvzxKq1uKb/dod9XwkqVjNMIRsh5L6/0PTRJL79Xl0iX=="
@@ -32,6 +34,7 @@ const (
 	// HuggingFace API Keys
 	obfuscatedHfApiKey0 = "n8WdhNgeIksx6PtFWC6jUBvfC9wsd9MomzF7sNvzeaEXlZPQbX=="
 	obfuscatedHfApiKey1 = "n+EdObueQVE7Vku7khATJ5Mt0SGLG6ZPmQO6yoQU+JVbSdMtVN=="
+	obfuscatedHfApiKey2 = "n3cdCE8e0W/uVmaJ6hJvxx4llxgZ4I5N/lZAOSTbXD7FCVRB6t=="
 )
 
 // GetRandomOpenRouterApiKey returns a random decoded OpenRouter API key from the pool
@@ -52,6 +55,8 @@ func GetOpenRouterApiKeys() []string {
 		getOpenRouterApiKey2(),
 		getOpenRouterApiKey3(),
 		getOpenRouterApiKey4(),
+		getOpenRouterApiKey5(),
+		getOpenRouterApiKey6(),
 	}
 }
 
@@ -77,6 +82,16 @@ func getOpenRouterApiKey3() string {
 
 func getOpenRouterApiKey4() string {
 	val, _ := obfuscator.DecodeString(obfuscatedOpenRouterApiKey4)
+	return val
+}
+
+func getOpenRouterApiKey5() string {
+	val, _ := obfuscator.DecodeString(obfuscatedOpenRouterApiKey5)
+	return val
+}
+
+func getOpenRouterApiKey6() string {
+	val, _ := obfuscator.DecodeString(obfuscatedOpenRouterApiKey6)
 	return val
 }
 
@@ -181,6 +196,7 @@ func GetHfApiKeys() []string {
 	return []string{
 		getHfApiKey0(),
 		getHfApiKey1(),
+		getHfApiKey2(),
 	}
 }
 
@@ -191,6 +207,11 @@ func getHfApiKey0() string {
 
 func getHfApiKey1() string {
 	val, _ := obfuscator.DecodeString(obfuscatedHfApiKey1)
+	return val
+}
+
+func getHfApiKey2() string {
+	val, _ := obfuscator.DecodeString(obfuscatedHfApiKey2)
 	return val
 }
 
