@@ -152,11 +152,6 @@ Get Kawai DeAI Network installed on your system in just a few minutes.
         
         Compare with hash from checksums.txt in the release.
     
-    !!! info "Why isn't Kawai signed yet?"
-        Code signing certificates cost $200-600/year. As an early-stage open source project, we're prioritizing development over certificates. Once we have more users and funding, we'll get proper code signing to remove this warning.
-    
-    !!! tip "Alternative: Microsoft Store"
-        We're working on a Microsoft Store version that won't show this warning. Join our Discord for updates!
 
 ### Linux Installation
 
