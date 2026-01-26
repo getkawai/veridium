@@ -89,15 +89,6 @@ Get Kawai DeAI Network installed on your system in just a few minutes.
     
     **Step 4**: Click "Open" - Done! ✅
     
-    !!! info "Why isn't Kawai signed yet?"
-        Apple Developer ID costs $99/year. We're implementing this in the next release (Phase 1 priority). Once signed, this warning will disappear completely.
-    
-    !!! success "Coming Soon"
-        **Next Release**: Full code signing + notarization
-        - No Gatekeeper warning
-        - Instant trust
-        - Better user experience
-
 ### Windows Installation
 
 1. **Download** the `.zip` file for Windows
