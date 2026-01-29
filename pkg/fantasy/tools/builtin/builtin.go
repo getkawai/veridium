@@ -59,6 +59,20 @@ func RegisterAllWithDB(registry *tools.ToolRegistry, sqlDB *sql.DB) error {
 	}
 	log.Println("✅ Registered: office-word, office-excel, office-powerpoint (create, update, read)")
 
+	// Register PostgreSQL tools (postgres_attach, postgres_query, postgres_execute, etc.)
+	if err := RegisterPostgres(registry); err != nil {
+		log.Printf("⚠️  Failed to register PostgreSQL tools: %v", err)
+	} else {
+		log.Println("✅ Registered: postgres_attach, postgres_query, postgres_execute, postgres_list_tables, postgres_describe, postgres_detach")
+	}
+
+	// Register MySQL tools (mysql_attach, mysql_query, mysql_execute, etc.)
+	if err := RegisterMySQL(registry); err != nil {
+		log.Printf("⚠️  Failed to register MySQL tools: %v", err)
+	} else {
+		log.Println("✅ Registered: mysql_attach, mysql_query, mysql_execute, mysql_list_tables, mysql_describe, mysql_detach")
+	}
+
 	// Register lobe-image-describe (requires DB for querying VL descriptions)
 	if sqlDB != nil {
 		if err := RegisterImageDescribe(registry, sqlDB); err != nil {
