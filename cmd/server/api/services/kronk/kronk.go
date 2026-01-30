@@ -12,24 +12,33 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/ardanlabs/conf/v3"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/getsentry/sentry-go"
 	"github.com/kawai-network/veridium/cmd/server/api/services/kronk/build"
 	"github.com/kawai-network/veridium/cmd/server/app/sdk/cache"
 	"github.com/kawai-network/veridium/cmd/server/app/sdk/mux"
-
 	"github.com/kawai-network/veridium/cmd/server/foundation/logger"
 	"github.com/kawai-network/veridium/cmd/server/foundation/web"
+	"github.com/kawai-network/veridium/internal/constant"
+	"github.com/kawai-network/veridium/internal/image"
+	"github.com/kawai-network/veridium/internal/services"
+	"github.com/kawai-network/veridium/internal/whisper"
+	"github.com/kawai-network/veridium/pkg/blockchain"
+	"github.com/kawai-network/veridium/pkg/hardware"
 	"github.com/kawai-network/veridium/pkg/kronk"
 	pkglogger "github.com/kawai-network/veridium/pkg/logger"
+	"github.com/kawai-network/veridium/pkg/store"
 	"github.com/kawai-network/veridium/pkg/tools/catalog"
 	"github.com/kawai-network/veridium/pkg/tools/defaults"
 	"github.com/kawai-network/veridium/pkg/tools/libs"
 	"github.com/kawai-network/veridium/pkg/tools/models"
 	"github.com/kawai-network/veridium/pkg/tools/templates"
+	"github.com/kawai-network/veridium/pkg/tunnelkit"
 )
 
 //go:embed static
@@ -108,12 +117,10 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 	cfg := struct {
 		conf.Version
 		Web struct {
-			ReadTimeout        time.Duration `conf:"default:30s"`
-			WriteTimeout       time.Duration `conf:"default:15m"`
-			IdleTimeout        time.Duration `conf:"default:1m"`
-			ShutdownTimeout    time.Duration `conf:"default:1m"`
-			APIHost            string        `conf:"default:localhost:8080"`
-			CORSAllowedOrigins []string      `conf:"default:*"`
+			ReadTimeout     time.Duration `conf:"default:30s"`
+			WriteTimeout    time.Duration `conf:"default:15m"`
+			IdleTimeout     time.Duration `conf:"default:1m"`
+			ShutdownTimeout time.Duration `conf:"default:1m"`
 		}
 
 		Catalog struct {
@@ -128,6 +135,7 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 			IgnoreIntegrityCheck bool          `conf:"default:true"`
 			ModelConfigFile      string
 		}
+
 		BasePath     string
 		LibPath      string
 		LibVersion   string
@@ -302,6 +310,247 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 	}()
 
 	// -------------------------------------------------------------------------
+	// Contributor Features (Always Enabled)
+
+	var walletAddress string
+
+	// Print welcome banner
+	printBanner()
+
+	log.Info(ctx, "startup", "status", "initializing contributor features")
+
+	// Initialize KV Store
+	kv, err := store.NewMultiNamespaceKVStore()
+	if err != nil {
+		log.Error(ctx, "kv store", "ERROR", err)
+		return fmt.Errorf("failed to connect to KV: %w", err)
+	}
+	log.Info(ctx, "startup", "status", "connected to Cloudflare KV")
+
+	// Initialize Blockchain Client for halving logic
+	blockchainClient, err := blockchain.NewClient(blockchain.Config{
+		RPCUrl:           constant.MonadRpcUrl,
+		TokenAddress:     constant.KawaiTokenAddress,
+		OTCMarketAddress: constant.OTCMarketAddress,
+		USDTAddress:      constant.StablecoinAddress,
+	})
+	if err != nil {
+		log.Info(ctx, "blockchain", "status", "failed to initialize, using default rates", "error", err)
+	} else {
+		kv.SetSupplyQuerier(blockchainClient)
+		log.Info(ctx, "startup", "status", "blockchain client initialized", "rpc", constant.MonadRpcUrl)
+	}
+
+	// Setup Wallet (Interactive only)
+	wallet := services.NewWalletService("", kv)
+
+	// Interactive wallet setup
+	if !wallet.HasWallet() {
+		// No wallet exists - create new one
+		printInfo("No wallet found. Let's create one!")
+
+		choice, err := promptChoice("Choose setup method:", []string{
+			"Generate new mnemonic (recommended)",
+			"Import existing mnemonic",
+		})
+		if err != nil {
+			return fmt.Errorf("failed to get user choice: %w", err)
+		}
+
+		// Get password
+		password, err := promptPassword("Enter password (min 8 characters): ")
+		if err != nil {
+			return fmt.Errorf("failed to read password: %w", err)
+		}
+		if err := validatePassword(password); err != nil {
+			return fmt.Errorf("invalid password: %w", err)
+		}
+
+		confirmPassword, err := promptPassword("Confirm password: ")
+		if err != nil {
+			return fmt.Errorf("failed to read password confirmation: %w", err)
+		}
+		if password != confirmPassword {
+			return fmt.Errorf("passwords do not match")
+		}
+
+		var mnemonic string
+		if choice == 0 {
+			// Generate new mnemonic
+			mnemonic, err = wallet.GenerateMnemonic()
+			if err != nil {
+				return fmt.Errorf("failed to generate mnemonic: %w", err)
+			}
+			printMnemonic(mnemonic)
+
+			if !promptYesNo("Have you written down your mnemonic?") {
+				return fmt.Errorf("please write down your mnemonic before continuing")
+			}
+		} else {
+			// Import existing mnemonic
+			printInfo("Enter your 12 or 24 word mnemonic phrase")
+			mnemonic, err = promptPassword("Mnemonic (hidden): ")
+			if err != nil {
+				return fmt.Errorf("failed to read mnemonic: %w", err)
+			}
+			// CRITICAL: Trim whitespace to ensure consistent wallet generation
+			// Copy-paste can introduce trailing spaces/newlines that would generate
+			// a different wallet address than the standard mnemonic
+			mnemonic = strings.Join(strings.Fields(mnemonic), " ")
+			if err := validateMnemonic(mnemonic); err != nil {
+				return fmt.Errorf("invalid mnemonic: %w", err)
+			}
+		}
+
+		description, err := promptInput("Wallet name (e.g. My Contributor Wallet): ")
+		if err != nil {
+			return fmt.Errorf("failed to read wallet name: %w", err)
+		}
+		if description == "" {
+			description = "Kronk Contributor"
+		}
+
+		walletAddress, err = wallet.CreateWallet(password, mnemonic, description)
+		if err != nil {
+			return fmt.Errorf("failed to create wallet: %w", err)
+		}
+		printSuccess(fmt.Sprintf("Wallet created: %s", walletAddress))
+	} else {
+		// Wallet exists - unlock it
+		wallets := wallet.GetWallets()
+		printInfo("Wallet found!")
+
+		if len(wallets) > 1 {
+			fmt.Println("\nAvailable wallets:")
+			for i, w := range wallets {
+				active := ""
+				if w.IsActive {
+					active = " (active)"
+				}
+				fmt.Printf("  %d. %s - %s%s\n", i+1, w.Description, w.Address[:10]+"...", active)
+			}
+
+			choice, err := promptChoice("\nSelect wallet:", func() []string {
+				options := make([]string, len(wallets))
+				for i, w := range wallets {
+					options[i] = fmt.Sprintf("%s (%s...)", w.Description, w.Address[:10])
+				}
+				return options
+			}())
+			if err != nil {
+				return fmt.Errorf("failed to select wallet: %w", err)
+			}
+
+			selectedWallet := wallets[choice].Address
+			password, err := promptPassword("Enter password: ")
+			if err != nil {
+				return fmt.Errorf("failed to read password: %w", err)
+			}
+
+			walletAddress, err = wallet.SwitchWallet(selectedWallet, password)
+			if err != nil {
+				return fmt.Errorf("failed to switch wallet: %w", err)
+			}
+		} else {
+			password, err := promptPassword("Enter password to unlock: ")
+			if err != nil {
+				return fmt.Errorf("failed to read password: %w", err)
+			}
+
+			walletAddress, err = wallet.UnlockWallet(password)
+			if err != nil {
+				return fmt.Errorf("invalid password: %w", err)
+			}
+		}
+		printSuccess(fmt.Sprintf("Wallet unlocked: %s", walletAddress))
+	}
+
+	log.Info(ctx, "startup", "status", "wallet ready", "address", walletAddress)
+
+	// Register Holder
+	holderRegistry := blockchain.NewHolderRegistry(kv)
+	if err := holderRegistry.RegisterHolder(ctx, common.HexToAddress(walletAddress), "kronk"); err != nil {
+		log.Info(ctx, "holder", "status", "registration failed", "error", err)
+	} else {
+		log.Info(ctx, "startup", "status", "holder registered")
+	}
+
+	// Detect Hardware
+	hwSpecs := hardware.DetectHardwareSpecs()
+	hardwareInfo := fmt.Sprintf("%s, %d cores, %dGB RAM, GPU: %s (%dGB VRAM)",
+		hwSpecs.CPU, hwSpecs.CPUCores, hwSpecs.TotalRAM, hwSpecs.GPUModel, hwSpecs.GPUMemory)
+	log.Info(ctx, "startup", "status", "hardware detected", "info", hardwareInfo)
+
+	// Start Tunnel (always enabled for contributors)
+	var tunnelURL string
+	tunnelCtx, tunnelCancel := context.WithCancel(context.Background())
+	defer tunnelCancel()
+
+	tunnelURL = startTunnel(tunnelCtx, log)
+	if tunnelURL != "" {
+		log.Info(ctx, "startup", "status", "tunnel started", "url", tunnelURL)
+	} else {
+		log.Info(ctx, "tunnel", "status", "no tunnel available")
+	}
+
+	// Register Contributor
+	endpointURL := tunnelURL
+	if endpointURL == "" {
+		endpointURL = constant.LocalContributorURL
+	}
+
+	contributor, err := kv.RegisterContributor(ctx, walletAddress, endpointURL, hardwareInfo)
+	if err != nil {
+		return fmt.Errorf("failed to register contributor: %w", err)
+	}
+	log.Info(ctx, "startup", "status", "contributor registered", "wallet", contributor.WalletAddress, "since", contributor.RegisteredAt.Format("2006-01-02"))
+
+	// Start Heartbeat (fixed 30s interval)
+	heartbeatCtx, heartbeatCancel := context.WithCancel(context.Background())
+	defer heartbeatCancel()
+
+	go func() {
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-heartbeatCtx.Done():
+				return
+			case <-ticker.C:
+				if err := kv.UpdateHeartbeat(ctx, walletAddress); err != nil {
+					log.Info(ctx, "heartbeat", "status", "failed", "error", err)
+				}
+			}
+		}
+	}()
+	log.Info(ctx, "startup", "status", "heartbeat started", "interval", "30s")
+
+	// Initialize Whisper Service
+	_, err = whisper.NewService()
+	if err != nil {
+		log.Info(ctx, "whisper", "status", "initialization failed", "error", err)
+	} else {
+		log.Info(ctx, "startup", "status", "whisper service ready")
+	}
+
+	// Initialize Stable Diffusion
+	_ = image.NewEngine()
+	log.Info(ctx, "startup", "status", "stable diffusion ready")
+
+	// Cleanup on shutdown
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.Web.ShutdownTimeout)
+		defer cancel()
+
+		if err := kv.MarkContributorOffline(shutdownCtx, walletAddress); err != nil {
+			log.Info(ctx, "shutdown", "status", "failed to mark contributor offline", "error", err)
+		} else {
+			log.Info(ctx, "shutdown", "status", "contributor marked offline")
+		}
+	}()
+
+	// -------------------------------------------------------------------------
 	// Start API Service
 
 	log.Info(ctx, "startup", "status", "initializing V1 API support")
@@ -323,12 +572,12 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 
 	webAPI := mux.WebAPI(cfgMux,
 		build.Routes(),
-		mux.WithCORS(cfg.Web.CORSAllowedOrigins),
+		mux.WithCORS([]string{"*"}),
 		mux.WithFileServer(true, static, "static", "/", []string{"v1"}),
 	)
 
 	api := http.Server{
-		Addr:         cfg.Web.APIHost,
+		Addr:         fmt.Sprintf("0.0.0.0:%d", constant.LocalContributorPort),
 		Handler:      webAPI,
 		ReadTimeout:  cfg.Web.ReadTimeout,
 		WriteTimeout: cfg.Web.WriteTimeout,
@@ -376,3 +625,15 @@ var logo = `
 ██║  ██╗██║  ██║╚██████╔╝██║ ╚████║██║  ██╗    ██║ ╚═╝ ██║███████║
 ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝  ╚═╝    ╚═╝     ╚═╝╚══════╝                                                                                         
 `
+
+// startTunnel attempts to start a tunnel and returns the public URL
+func startTunnel(ctx context.Context, log *logger.Logger) string {
+	tunnels := tunnelkit.GetTunnels()
+	for _, tunnel := range tunnels {
+		if ok, _ := tunnelkit.HasActiveConnections(tunnel.TunnelID); !ok {
+			go tunnelkit.RunTunnel(ctx, tunnel.TunnelToken)
+			return tunnel.PublicURL
+		}
+	}
+	return ""
+}
