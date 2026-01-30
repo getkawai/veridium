@@ -238,12 +238,15 @@ func generateLLM(configs map[string]string) {
 	// Parse HuggingFace API keys
 	hfKeys := parseCommaSeparatedKeys(configs["HF_TOKENS"])
 
-	if len(openrouterKeys) == 0 && len(zaiKeys) == 0 && len(geminiKeys) == 0 && len(hfKeys) == 0 {
+	// Parse Cloudflare API keys
+	cloudflareKeys := parseCommaSeparatedKeys(configs["CLOUDFLARE_API_KEYS"])
+
+	if len(openrouterKeys) == 0 && len(zaiKeys) == 0 && len(geminiKeys) == 0 && len(hfKeys) == 0 && len(cloudflareKeys) == 0 {
 		fmt.Printf("⚠️ No LLM API keys found in .env, skipping %s\n", outputFile)
 		return
 	}
 
-	content := generateLLMGoFile(openrouterKeys, zaiKeys, geminiKeys, hfKeys)
+	content := generateLLMGoFile(openrouterKeys, zaiKeys, geminiKeys, hfKeys, cloudflareKeys)
 
 	// Write output
 	err := os.WriteFile(outputFile, []byte(content), 0644)
@@ -251,8 +254,8 @@ func generateLLM(configs map[string]string) {
 		log.Fatalf("failed to write %s: %v", outputFile, err)
 	}
 
-	fmt.Printf("✅ Generated %s with %d OpenRouter keys, %d ZAI keys, %d Gemini keys, and %d HuggingFace keys\n",
-		outputFile, len(openrouterKeys), len(zaiKeys), len(geminiKeys), len(hfKeys))
+	fmt.Printf("✅ Generated %s with %d OpenRouter keys, %d ZAI keys, %d Gemini keys, %d HuggingFace keys, and %d Cloudflare keys\n",
+		outputFile, len(openrouterKeys), len(zaiKeys), len(geminiKeys), len(hfKeys), len(cloudflareKeys))
 }
 
 // parseCommaSeparatedKeys parses a comma-separated string of API keys
@@ -504,7 +507,7 @@ func generateTreasuryGoFile(addresses []string) string {
 	return sb.String()
 }
 
-func generateLLMGoFile(openrouterKeys, zaiKeys, geminiKeys, hfKeys []string) string {
+func generateLLMGoFile(openrouterKeys, zaiKeys, geminiKeys, hfKeys, cloudflareKeys []string) string {
 	var sb strings.Builder
 
 	// Header
@@ -555,6 +558,16 @@ func generateLLMGoFile(openrouterKeys, zaiKeys, geminiKeys, hfKeys []string) str
 		for i, key := range hfKeys {
 			encoded := obfuscator.EncodeString(key)
 			sb.WriteString(fmt.Sprintf("\tobfuscatedHfApiKey%d = \"%s\"\n", i, encoded))
+		}
+		sb.WriteString("\n")
+	}
+
+	// Cloudflare keys
+	if len(cloudflareKeys) > 0 {
+		sb.WriteString("\t// Cloudflare API Keys\n")
+		for i, key := range cloudflareKeys {
+			encoded := obfuscator.EncodeString(key)
+			sb.WriteString(fmt.Sprintf("\tobfuscatedCloudflareApiKey%d = \"%s\"\n", i, encoded))
 		}
 	}
 
@@ -683,6 +696,38 @@ func generateLLMGoFile(openrouterKeys, zaiKeys, geminiKeys, hfKeys []string) str
 		for i := range hfKeys {
 			sb.WriteString(fmt.Sprintf("func getHfApiKey%d() string {\n", i))
 			sb.WriteString(fmt.Sprintf("\tval, _ := obfuscator.DecodeString(obfuscatedHfApiKey%d)\n", i))
+			sb.WriteString("\treturn val\n")
+			sb.WriteString("}\n\n")
+		}
+	}
+
+	// Cloudflare functions
+	if len(cloudflareKeys) > 0 {
+		// Random picker
+		sb.WriteString("// GetRandomCloudflareApiKey returns a random decoded Cloudflare API key from the pool\n")
+		sb.WriteString("func GetRandomCloudflareApiKey() string {\n")
+		sb.WriteString("\tkeys := GetCloudflareApiKeys()\n")
+		sb.WriteString("\tif len(keys) == 0 {\n")
+		sb.WriteString("\t\treturn \"\"\n")
+		sb.WriteString("\t}\n")
+		sb.WriteString("\tr := rand.New(rand.NewSource(time.Now().UnixNano()))\n")
+		sb.WriteString("\treturn keys[r.Intn(len(keys))]\n")
+		sb.WriteString("}\n\n")
+
+		// Array of all keys (exported)
+		sb.WriteString("// GetCloudflareApiKeys returns a slice of all decoded Cloudflare API keys\n")
+		sb.WriteString("func GetCloudflareApiKeys() []string {\n")
+		sb.WriteString("\treturn []string{\n")
+		for i := range cloudflareKeys {
+			sb.WriteString(fmt.Sprintf("\t\tgetCloudflareApiKey%d(),\n", i))
+		}
+		sb.WriteString("\t}\n")
+		sb.WriteString("}\n\n")
+
+		// Individual getters (private)
+		for i := range cloudflareKeys {
+			sb.WriteString(fmt.Sprintf("func getCloudflareApiKey%d() string {\n", i))
+			sb.WriteString(fmt.Sprintf("\tval, _ := obfuscator.DecodeString(obfuscatedCloudflareApiKey%d)\n", i))
 			sb.WriteString("\treturn val\n")
 			sb.WriteString("}\n\n")
 		}
