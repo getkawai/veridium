@@ -106,3 +106,24 @@ func (a *app) showCatalogModel(ctx context.Context, r *http.Request) web.Encoder
 
 	return toCatalogModelResponse(model)
 }
+
+func (a *app) calculateVRAM(ctx context.Context, r *http.Request) web.Encoder {
+	var req VRAMRequest
+	if err := web.Decode(r, &req); err != nil {
+		return errs.New(errs.InvalidArgument, err)
+	}
+
+	cfg := models.VRAMConfig{
+		ContextWindow:   req.ContextWindow,
+		BytesPerElement: req.BytesPerElement,
+		Slots:           req.Slots,
+		CacheSequences:  req.CacheSequences,
+	}
+
+	vram, err := a.models.CalculateVRAM(req.ModelID, cfg)
+	if err != nil {
+		return errs.New(errs.Internal, err)
+	}
+
+	return toVRAMResponse(req.ModelID, vram)
+}

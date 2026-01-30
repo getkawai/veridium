@@ -165,7 +165,8 @@ func (e *batchEngine) start(ctx context.Context) {
 // stop signals shutdown and waits for completion.
 func (e *batchEngine) stop(ctx context.Context) {
 	if !e.stopped.CompareAndSwap(false, true) {
-		return // Already stopped
+		e.wg.Wait() // Still wait for processLoop to exit
+		return
 	}
 
 	close(e.shutdownCh)
@@ -305,6 +306,37 @@ func (e *batchEngine) processBatch(ctx context.Context, buf []byte) {
 		return
 	}
 
+	// Defensive check: batch tokens must not exceed NBatch.
+	nBatch := e.model.cfg.NBatch
+	if int(e.batch.NTokens) > nBatch {
+		e.model.log(ctx, "process-batch", "ERROR", "batch-overflow",
+			"batch_tokens", e.batch.NTokens,
+			"nbatch_limit", nBatch,
+			"slots", e.nSlots)
+
+		// Log per-slot state for debugging.
+		for _, s := range e.slots {
+			if s.active {
+				e.model.log(ctx, "process-batch", "slot-state",
+					"slot", s.id,
+					"prefill_remaining", len(s.prefillTokens)-s.nPrefilled,
+					"prefill_done", s.prefillDone,
+					"n_past", s.nPast,
+					"i_batch", s.iBatch)
+			}
+		}
+
+		// Fail all active slots with descriptive error.
+		overflowErr := fmt.Errorf("process-batch: %d tokens exceeds NBatch limit of %d", e.batch.NTokens, nBatch)
+		for _, s := range e.slots {
+			if s.active {
+				e.finishSlot(s, overflowErr)
+			}
+		}
+
+		return
+	}
+
 	// Lock to prevent concurrent decode with cache population.
 	e.model.decodeMu.Lock()
 	ret, err := llama.Decode(e.model.lctx, e.batch)
@@ -403,6 +435,15 @@ func (e *batchEngine) startSlot(s *slot, job *chatJob) {
 		e.finishSlot(s, job.ctx.Err())
 		return
 	}
+
+	// Log token counts for debugging batch overflow.
+	e.model.log(job.ctx, "start-slot", "status", "tokenized",
+		"slot", s.id,
+		"suffix_tokens", len(tokens),
+		"cached_tokens", job.sysPromptNPast,
+		"total_prompt", s.nPrompt,
+		"nbatch", e.model.cfg.NBatch,
+		"batch_current", e.batch.NTokens)
 
 	// Calculate current KV usage for diagnostics.
 	var kvUsed llama.Pos

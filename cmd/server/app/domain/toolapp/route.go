@@ -43,4 +43,6 @@ func Routes(app *web.App, cfg Config) {
 	app.HandlerFunc(http.MethodGet, version, "/catalog", api.listCatalog, walletAuth)
 	app.HandlerFunc(http.MethodGet, version, "/catalog/filter/{filter}", api.listCatalog, walletAuth)
 	app.HandlerFunc(http.MethodGet, version, "/catalog/{model}", api.showCatalogModel, walletAuth)
+
+	app.HandlerFunc(http.MethodPost, version, "/vram/calculate", api.calculateVRAM, walletAuth)
 }

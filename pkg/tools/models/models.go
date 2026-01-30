@@ -230,3 +230,22 @@ func isDirEffectivelyEmpty(entries []os.DirEntry) bool {
 
 	return true
 }
+
+// NormalizeHuggingFaceDownloadURL converts short format to full HuggingFace download URLs.
+// Input:  mradermacher/Qwen2-Audio-7B-GGUF/Qwen2-Audio-7B.Q8_0.gguf
+// Output: https://huggingface.co/mradermacher/Qwen2-Audio-7B-GGUF/resolve/main/Qwen2-Audio-7B.Q8_0.gguf
+func NormalizeHuggingFaceDownloadURL(url string) string {
+	if strings.HasPrefix(url, "https://") || strings.HasPrefix(url, "http://") {
+		return url
+	}
+
+	parts := strings.Split(url, "/")
+	if len(parts) >= 3 {
+		org := parts[0]
+		repo := parts[1]
+		filename := strings.Join(parts[2:], "/")
+		return fmt.Sprintf("https://huggingface.co/%s/%s/resolve/main/%s", org, repo, filename)
+	}
+
+	return url
+}

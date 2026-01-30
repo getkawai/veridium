@@ -337,4 +337,63 @@ func toCatalogModelsResponse(list []catalog.Model) CatalogModelsResponse {
 
 // =============================================================================
 
+// VRAMRequest represents the input for VRAM calculation.
+type VRAMRequest struct {
+	ModelID         string `json:"model_id"`
+	ContextWindow   int64  `json:"context_window"`
+	BytesPerElement int64  `json:"bytes_per_element"`
+	Slots           int64  `json:"slots"`
+	CacheSequences  int64  `json:"cache_sequences"`
+}
+
+// Decode implements the decoder interface.
+func (app *VRAMRequest) Decode(data []byte) error {
+	return json.Unmarshal(data, app)
+}
+
+// VRAMResponse returns VRAM calculation results.
+type VRAMResponse struct {
+	ModelID            string `json:"model_id"`
+	ModelSizeBytes     int64  `json:"model_size_bytes"`
+	ContextWindow      int64  `json:"context_window"`
+	BlockCount         int64  `json:"block_count"`
+	HeadCountKV        int64  `json:"head_count_kv"`
+	KeyLength          int64  `json:"key_length"`
+	ValueLength        int64  `json:"value_length"`
+	BytesPerElement    int64  `json:"bytes_per_element"`
+	Slots              int64  `json:"slots"`
+	CacheSequences     int64  `json:"cache_sequences"`
+	KVPerTokenPerLayer int64  `json:"kv_per_token_per_layer"`
+	KVPerSlot          int64  `json:"kv_per_slot"`
+	TotalSlots         int64  `json:"total_slots"`
+	SlotMemory         int64  `json:"slot_memory"`
+	TotalVRAM          int64  `json:"total_vram"`
+}
+
+// Encode implements the encoder interface.
+func (app VRAMResponse) Encode() ([]byte, string, error) {
+	data, err := json.Marshal(app)
+	return data, "application/json", err
+}
+
+func toVRAMResponse(modelID string, vram models.VRAM) VRAMResponse {
+	return VRAMResponse{
+		ModelID:            modelID,
+		ModelSizeBytes:     vram.Input.ModelSizeBytes,
+		ContextWindow:      vram.Input.ContextWindow,
+		BlockCount:         vram.Input.BlockCount,
+		HeadCountKV:        vram.Input.HeadCountKV,
+		KeyLength:          vram.Input.KeyLength,
+		ValueLength:        vram.Input.ValueLength,
+		BytesPerElement:    vram.Input.BytesPerElement,
+		Slots:              vram.Input.Slots,
+		CacheSequences:     vram.Input.CacheSequences,
+		KVPerTokenPerLayer: vram.KVPerTokenPerLayer,
+		KVPerSlot:          vram.KVPerSlot,
+		TotalSlots:         vram.TotalSlots,
+		SlotMemory:         vram.SlotMemory,
+		TotalVRAM:          vram.TotalVRAM,
+	}
+}
+
 // =============================================================================
