@@ -47,7 +47,6 @@ func Run() error {
 		libsCommand(),
 		modelCommand(),
 		runCommand(),
-		securityCommand(),
 		serverCommand(),
 	}
 
@@ -516,91 +515,6 @@ func runCommand() command {
 					"# Start an interactive chat with a model\nkronk run Qwen3-8B-Q8_0",
 					"# Run with custom sampling parameters\nkronk run Qwen3-8B-Q8_0 --temperature 0.5 --top-p 0.95",
 					"# Run with higher token limit\nkronk run Qwen3-8B-Q8_0 --max-tokens 4096",
-				},
-			},
-		},
-	}
-}
-
-func securityCommand() command {
-	return command{
-		Name:  "security",
-		Short: "Manage security - tokens and access control.",
-		Long:  "Manage security - tokens and access control",
-		Usage: "kronk security <command> [flags]",
-		Subcommands: []subcommand{
-			{
-				Name:  "key",
-				Short: "Manage private keys - create and delete private keys.",
-				Usage: "kronk security key <command> [flags]",
-				Subcommands: []subcommand{
-					{
-						Name:  "create",
-						Short: "Create a new private key and add it to the keystore.",
-						Usage: "kronk security key create [flags]",
-						Flags: []flag{
-							{Name: "--local", Description: "Run without the model server"},
-						},
-						EnvVars: []envVar{
-							{Name: "KRONK_TOKEN", Default: "", Description: "Admin token (required when auth enabled)"},
-						},
-						Examples: []string{
-							"# Create a new private key\nexport KRONK_TOKEN=<admin-token>\nkronk security key create",
-						},
-					},
-					{
-						Name:  "delete",
-						Short: "Delete a private key by its key ID.",
-						Usage: "kronk security key delete --keyid <KEY_ID> [flags]",
-						Flags: []flag{
-							{Name: "--keyid <string>", Description: "The key ID to delete (required)"},
-							{Name: "--local", Description: "Run without the model server"},
-						},
-						EnvVars: []envVar{
-							{Name: "KRONK_TOKEN", Default: "", Description: "Admin token (required when auth enabled)"},
-						},
-						Examples: []string{
-							"# Delete a private key\nexport KRONK_TOKEN=<admin-token>\nkronk security key delete --keyid abc123",
-						},
-					},
-					{
-						Name:  "list",
-						Short: "List all private keys in the system.",
-						Usage: "kronk security key list [flags]",
-						Flags: []flag{
-							{Name: "--local", Description: "Run without the model server"},
-						},
-						EnvVars: []envVar{
-							{Name: "KRONK_TOKEN", Default: "", Description: "Admin token (required when auth enabled)"},
-						},
-						Examples: []string{
-							"# List all private keys\nexport KRONK_TOKEN=<admin-token>\nkronk security key list",
-						},
-					},
-				},
-			},
-			{
-				Name:  "token",
-				Short: "Manage tokens - create and manage security tokens.",
-				Usage: "kronk security token <command> [flags]",
-				Subcommands: []subcommand{
-					{
-						Name:  "create",
-						Short: "Create a security token.",
-						Usage: "kronk security token create [flags]",
-						Flags: []flag{
-							{Name: "--local", Description: "Run without the model server"},
-							{Name: "--duration <duration>", Description: "Token duration (e.g., 1h, 24h, 720h)"},
-							{Name: "--endpoints <list>", Description: "Endpoints with optional rate limits"},
-						},
-						EnvVars: []envVar{
-							{Name: "KRONK_TOKEN", Default: "", Description: "Admin token (required when auth enabled)"},
-						},
-						Examples: []string{
-							"# Create a token with 24 hour duration\nexport KRONK_TOKEN=<admin-token>\nkronk security token create --duration 24h --endpoints chat-completions,embeddings",
-							"# Create a token with rate limits\nkronk security token create --duration 720h --endpoints \"chat-completions:1000/day,embeddings:unlimited\"",
-						},
-					},
 				},
 			},
 		},

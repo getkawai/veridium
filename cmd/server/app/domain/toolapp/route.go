@@ -3,7 +3,6 @@ package toolapp
 import (
 	"net/http"
 
-	"github.com/kawai-network/veridium/cmd/server/app/sdk/authclient"
 	"github.com/kawai-network/veridium/cmd/server/app/sdk/cache"
 	"github.com/kawai-network/veridium/cmd/server/app/sdk/mid"
 	"github.com/kawai-network/veridium/cmd/server/foundation/logger"
@@ -15,14 +14,14 @@ import (
 )
 
 // Config contains all the mandatory systems required by handlers.
+// Config contains all the mandatory systems required by handlers.
 type Config struct {
-	Log        *logger.Logger
-	AuthClient *authclient.Client
-	Cache      *cache.Cache
-	Libs       *libs.Libs
-	Models     *models.Models
-	Catalog    *catalog.Catalog
-	Templates  *templates.Templates
+	Log       *logger.Logger
+	Cache     *cache.Cache
+	Libs      *libs.Libs
+	Models    *models.Models
+	Catalog   *catalog.Catalog
+	Templates *templates.Templates
 }
 
 // Routes adds specific routes for this group.
@@ -31,28 +30,17 @@ func Routes(app *web.App, cfg Config) {
 
 	api := newApp(cfg)
 
-	auth := mid.Authenticate(cfg.AuthClient, false, "")
-	authAdmin := mid.Authenticate(cfg.AuthClient, true, "")
+	// Use wallet-based authentication for read-only operations
+	walletAuth := mid.WalletAuthenticate()
 
-	app.HandlerFunc(http.MethodGet, version, "/libs", api.listLibs, auth)
-	app.HandlerFunc(http.MethodPost, version, "/libs/pull", api.pullLibs, authAdmin)
+	app.HandlerFunc(http.MethodGet, version, "/libs", api.listLibs, walletAuth)
 
-	app.HandlerFunc(http.MethodGet, version, "/models", api.listModels, auth)
-	app.HandlerFunc(http.MethodGet, version, "/models/", api.missingModel, auth)
-	app.HandlerFunc(http.MethodGet, version, "/models/{model}", api.showModel, auth)
-	app.HandlerFunc(http.MethodGet, version, "/models/ps", api.modelPS, auth)
-	app.HandlerFunc(http.MethodPost, version, "/models/index", api.indexModels, authAdmin)
-	app.HandlerFunc(http.MethodPost, version, "/models/pull", api.pullModels, authAdmin)
-	app.HandlerFunc(http.MethodDelete, version, "/models/{model}", api.removeModel, authAdmin)
+	app.HandlerFunc(http.MethodGet, version, "/models", api.listModels, walletAuth)
+	app.HandlerFunc(http.MethodGet, version, "/models/", api.missingModel, walletAuth)
+	app.HandlerFunc(http.MethodGet, version, "/models/{model}", api.showModel, walletAuth)
+	app.HandlerFunc(http.MethodGet, version, "/models/ps", api.modelPS, walletAuth)
 
-	app.HandlerFunc(http.MethodGet, version, "/catalog", api.listCatalog, auth)
-	app.HandlerFunc(http.MethodGet, version, "/catalog/filter/{filter}", api.listCatalog, auth)
-	app.HandlerFunc(http.MethodGet, version, "/catalog/{model}", api.showCatalogModel, auth)
-	app.HandlerFunc(http.MethodPost, version, "/catalog/pull/{model}", api.pullCatalog, auth)
-
-	// Auth is handled by the auth service for these calls.
-	app.HandlerFunc(http.MethodPost, version, "/security/token/create", api.createToken)
-	app.HandlerFunc(http.MethodGet, version, "/security/keys", api.listKeys)
-	app.HandlerFunc(http.MethodPost, version, "/security/keys/add", api.addKey)
-	app.HandlerFunc(http.MethodPost, version, "/security/keys/remove/{keyid}", api.removeKey)
+	app.HandlerFunc(http.MethodGet, version, "/catalog", api.listCatalog, walletAuth)
+	app.HandlerFunc(http.MethodGet, version, "/catalog/filter/{filter}", api.listCatalog, walletAuth)
+	app.HandlerFunc(http.MethodGet, version, "/catalog/{model}", api.showCatalogModel, walletAuth)
 }

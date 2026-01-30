@@ -1273,7 +1273,7 @@ func embeddingsDoc() apiDoc {
 						Method:      "POST",
 						Path:        "/embeddings",
 						Description: "Create embeddings for the given input text. The model must support embedding generation.",
-						Auth:        "Required when auth is enabled. Token must have 'embeddings' endpoint access.",
+						Auth:        "Required when auth is enabled. Uses wallet-based API keys.",
 						Headers: []header{
 							{Name: "Authorization", Description: "Bearer token for authentication", Required: true},
 							{Name: "Content-Type", Description: "Must be application/json", Required: true},
@@ -1371,14 +1371,13 @@ func rerankDoc() apiDoc {
 func toolsDoc() apiDoc {
 	return apiDoc{
 		Name:        "Tools API",
-		Description: "Manage libraries, models, catalog, and security. These endpoints handle server administration tasks.",
+		Description: "Manage libraries, models, and catalog. These endpoints handle server administration tasks.",
 		Filename:    "DocsAPITools.tsx",
 		Component:   "DocsAPITools",
 		Groups: []endpointGroup{
 			libsEndpoints(),
 			modelsEndpoints(),
 			catalogEndpoints(),
-			securityEndpoints(),
 		},
 	}
 }
@@ -1643,113 +1642,6 @@ func catalogEndpoints() endpointGroup {
 					{
 						Description: "Pull a catalog model:",
 						Code:        `curl -X POST http://localhost:8080/v1/catalog/pull/qwen3-8b-q8_0`,
-					},
-				},
-			},
-		},
-	}
-}
-
-func securityEndpoints() endpointGroup {
-	return endpointGroup{
-		Name:        "Security",
-		Description: "Manage security tokens and private keys for authentication.",
-		Endpoints: []endpoint{
-			{
-				Method:      "POST",
-				Path:        "/security/token/create",
-				Description: "Create a new security token with specified permissions and duration.",
-				Auth:        "Required when auth is enabled. Admin token required.",
-				Headers: []header{
-					{Name: "Authorization", Description: "Bearer token for admin authentication", Required: true},
-					{Name: "Content-Type", Description: "Must be application/json", Required: true},
-				},
-				RequestBody: &requestBody{
-					ContentType: "application/json",
-					Fields: []field{
-						{Name: "admin", Type: "boolean", Required: false, Description: "Whether the token has admin privileges"},
-						{Name: "duration", Type: "duration", Required: true, Description: "Token validity duration (e.g., '24h', '720h')"},
-						{Name: "endpoints", Type: "object", Required: true, Description: "Map of endpoint names to rate limit configurations"},
-					},
-				},
-				Response: &response{
-					ContentType: "application/json",
-					Description: "Returns the created token string.",
-				},
-				Examples: []example{
-					{
-						Description: "Create a token with chat-completions access:",
-						Code: `curl -X POST http://localhost:8080/v1/security/token/create \
-  -H "Authorization: Bearer $KRONK_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "admin": false,
-    "duration": "24h",
-    "endpoints": {
-      "chat-completions": {"limit": 1000, "window": "day"},
-      "embeddings": {"limit": 0, "window": ""}
-    }
-  }'`,
-					},
-				},
-			},
-			{
-				Method:      "GET",
-				Path:        "/security/keys",
-				Description: "List all private keys in the system.",
-				Auth:        "Required when auth is enabled. Admin token required.",
-				Headers: []header{
-					{Name: "Authorization", Description: "Bearer token for admin authentication", Required: true},
-				},
-				Response: &response{
-					ContentType: "application/json",
-					Description: "Returns a list of keys with id and created timestamp.",
-				},
-				Examples: []example{
-					{
-						Description: "List all keys:",
-						Code: `curl -X GET http://localhost:8080/v1/security/keys \
-  -H "Authorization: Bearer $KRONK_TOKEN"`,
-					},
-				},
-			},
-			{
-				Method:      "POST",
-				Path:        "/security/keys/add",
-				Description: "Create a new private key and add it to the keystore.",
-				Auth:        "Required when auth is enabled. Admin token required.",
-				Headers: []header{
-					{Name: "Authorization", Description: "Bearer token for admin authentication", Required: true},
-				},
-				Response: &response{
-					ContentType: "application/json",
-					Description: "Returns empty response on success.",
-				},
-				Examples: []example{
-					{
-						Description: "Add a new key:",
-						Code: `curl -X POST http://localhost:8080/v1/security/keys/add \
-  -H "Authorization: Bearer $KRONK_TOKEN"`,
-					},
-				},
-			},
-			{
-				Method:      "POST",
-				Path:        "/security/keys/remove/{keyid}",
-				Description: "Remove a private key from the keystore by its ID.",
-				Auth:        "Required when auth is enabled. Admin token required.",
-				Headers: []header{
-					{Name: "Authorization", Description: "Bearer token for admin authentication", Required: true},
-				},
-				Response: &response{
-					ContentType: "application/json",
-					Description: "Returns empty response on success.",
-				},
-				Examples: []example{
-					{
-						Description: "Remove a key:",
-						Code: `curl -X POST http://localhost:8080/v1/security/keys/remove/abc123 \
-  -H "Authorization: Bearer $KRONK_TOKEN"`,
 					},
 				},
 			},

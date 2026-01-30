@@ -8,7 +8,6 @@ import (
 	"expvar"
 	"fmt"
 	"log/slog"
-	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -19,11 +18,9 @@ import (
 	"github.com/ardanlabs/conf/v3"
 	"github.com/getsentry/sentry-go"
 	"github.com/kawai-network/veridium/cmd/server/api/services/kronk/build"
-	"github.com/kawai-network/veridium/cmd/server/app/domain/authapp"
-	"github.com/kawai-network/veridium/cmd/server/app/sdk/authclient"
 	"github.com/kawai-network/veridium/cmd/server/app/sdk/cache"
 	"github.com/kawai-network/veridium/cmd/server/app/sdk/mux"
-	"github.com/kawai-network/veridium/cmd/server/app/sdk/security"
+
 	"github.com/kawai-network/veridium/cmd/server/foundation/logger"
 	"github.com/kawai-network/veridium/cmd/server/foundation/web"
 	"github.com/kawai-network/veridium/pkg/kronk"
@@ -33,7 +30,6 @@ import (
 	"github.com/kawai-network/veridium/pkg/tools/libs"
 	"github.com/kawai-network/veridium/pkg/tools/models"
 	"github.com/kawai-network/veridium/pkg/tools/templates"
-	"google.golang.org/grpc/test/bufconn"
 )
 
 //go:embed static
@@ -119,13 +115,7 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 			APIHost            string        `conf:"default:localhost:8080"`
 			CORSAllowedOrigins []string      `conf:"default:*"`
 		}
-		Auth struct {
-			Host  string // Leave empty to run the local auth service.
-			Local struct {
-				Issuer  string `conf:"default:kronk project"`
-				Enabled bool   `conf:"default:false"`
-			}
-		}
+
 		Catalog struct {
 			GithubRepo string `conf:"default:https://api.github.com/repos/ardanlabs/kronk_catalogs/contents/catalogs"`
 		}
@@ -190,58 +180,6 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 	fmt.Println(logo)
 
 	// -------------------------------------------------------------------------
-	// Start the auth server
-
-	var authClientOpts []func(*authclient.Client)
-
-	// If no host is provided for the auth service, we will start it ourselves
-	// with a bufconn listener.
-	if cfg.Auth.Host == "" {
-		sec, err := security.New(security.Config{
-			Issuer: cfg.Auth.Local.Issuer,
-		})
-
-		if err != nil {
-			return fmt.Errorf("unable to initialize security system: %w", err)
-		}
-
-		defer sec.Close()
-
-		log.Info(ctx, "startup", "status", "starting auth server")
-
-		lis := bufconn.Listen(1024 * 1024)
-
-		authApp := authapp.Start(ctx, authapp.Config{
-			Log:      log,
-			Security: sec,
-			Listener: lis,
-			Tracer:   nil,
-			Enabled:  cfg.Auth.Local.Enabled,
-		})
-
-		defer authApp.Shutdown(ctx)
-
-		authClientOpts = append(authClientOpts, authclient.WithDialer(func(ctx context.Context, _ string) (net.Conn, error) {
-			return lis.Dial()
-		}))
-	}
-
-	// -------------------------------------------------------------------------
-	// Initialize Auth Client
-
-	log.Info(ctx, "startup", "status", "initializing authentication client")
-
-	authHost := cfg.Auth.Host
-	if len(authClientOpts) > 0 {
-		authHost = "passthrough:///bufnet"
-	}
-
-	authClient, err := authclient.New(log, authHost, authClientOpts...)
-	if err != nil {
-		return fmt.Errorf("failed to initialize authentication client: %w", err)
-	}
-
-	defer authClient.Close()
 
 	// -------------------------------------------------------------------------
 	// Library System
@@ -372,15 +310,15 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
 
 	cfgMux := mux.Config{
-		Build:      tag,
-		Log:        log,
-		AuthClient: authClient,
-		Tracer:     nil,
-		Cache:      cache,
-		Libs:       libs,
-		Models:     models,
-		Catalog:    ctlg,
-		Templates:  tmplts,
+		Build: tag,
+		Log:   log,
+
+		Tracer:    nil,
+		Cache:     cache,
+		Libs:      libs,
+		Models:    models,
+		Catalog:   ctlg,
+		Templates: tmplts,
 	}
 
 	webAPI := mux.WebAPI(cfgMux,

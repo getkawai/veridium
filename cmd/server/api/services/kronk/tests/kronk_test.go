@@ -6,12 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/kawai-network/veridium/cmd/server/app/sdk/apitest"
-	"github.com/kawai-network/veridium/cmd/server/app/sdk/security"
-	"github.com/kawai-network/veridium/cmd/server/app/sdk/security/auth"
 	"github.com/kawai-network/veridium/pkg/kronk"
 	"github.com/kawai-network/veridium/pkg/kronk/model"
 )
@@ -25,7 +22,7 @@ var (
 func Test_API(t *testing.T) {
 	test := apitest.New(t, "Test_API")
 
-	tokens := createTokens(t, test.Sec)
+	tokens := createTokens(t)
 
 	// =========================================================================
 	// Tests are organized by model to minimize model loading/unloading.
@@ -67,13 +64,6 @@ func Test_API(t *testing.T) {
 	test.Run(t, rerank200(tokens), "rerank-200")
 
 	// -------------------------------------------------------------------------
-	// Auth tests (don't require model loading, use invalid tokens)
-
-	test.Run(t, chatEndpoint401(tokens), "chatEndpoint-401")
-	test.Run(t, respEndpoint401(tokens), "respEndpoint-401")
-	test.Run(t, msgsEndpoint401(tokens), "msgsEndpoint-401")
-	test.Run(t, embed401(tokens), "embedding-401")
-	test.Run(t, rerank401(tokens), "rerank-401")
 }
 
 // =============================================================================
@@ -82,104 +72,22 @@ func stringPointer(v string) *string {
 	return &v
 }
 
-func createTokens(t *testing.T, sec *security.Security) map[string]string {
+func createTokens(t *testing.T) map[string]string {
 	tokens := make(map[string]string)
 
-	token, err := sec.GenerateToken(true, nil, 60*time.Hour)
-	if err != nil {
-		t.Fatal(err)
+	tokens["admin"] = apitest.Token("0xAdmin")
+	tokens["non-admin-no-endpoints"] = apitest.Token("0xUser1")
+	tokens["chat-completions"] = apitest.Token("0xUser2")
+	tokens["embeddings"] = apitest.Token("0xUser3")
+	tokens["responses"] = apitest.Token("0xUser4")
+	tokens["rerank"] = apitest.Token("0xUser5")
+	tokens["messages"] = apitest.Token("0xUser6")
+
+	for name, token := range tokens {
+		if token == "" {
+			t.Fatalf("Failed to generate token for %s", name)
+		}
 	}
-
-	tokens["admin"] = token
-
-	// -------------------------------------------------------------------------
-
-	token, err = sec.GenerateToken(false, nil, 60*time.Hour)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	tokens["non-admin-no-endpoints"] = token
-
-	// -------------------------------------------------------------------------
-
-	endpoints := map[string]auth.RateLimit{
-		"chat-completions": {
-			Limit:  0,
-			Window: auth.RateUnlimited,
-		},
-	}
-
-	token, err = sec.GenerateToken(false, endpoints, 60*time.Hour)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	tokens["chat-completions"] = token
-
-	// -------------------------------------------------------------------------
-
-	endpoints = map[string]auth.RateLimit{
-		"embeddings": {
-			Limit:  0,
-			Window: auth.RateUnlimited,
-		},
-	}
-
-	token, err = sec.GenerateToken(false, endpoints, 60*time.Hour)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	tokens["embeddings"] = token
-
-	// -------------------------------------------------------------------------
-
-	endpoints = map[string]auth.RateLimit{
-		"responses": {
-			Limit:  0,
-			Window: auth.RateUnlimited,
-		},
-	}
-
-	token, err = sec.GenerateToken(false, endpoints, 60*time.Hour)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	tokens["responses"] = token
-
-	// -------------------------------------------------------------------------
-
-	endpoints = map[string]auth.RateLimit{
-		"rerank": {
-			Limit:  0,
-			Window: auth.RateUnlimited,
-		},
-	}
-
-	token, err = sec.GenerateToken(false, endpoints, 60*time.Hour)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	tokens["rerank"] = token
-
-	// -------------------------------------------------------------------------
-
-	endpoints = map[string]auth.RateLimit{
-		"messages": {
-			Limit:  0,
-			Window: auth.RateUnlimited,
-		},
-	}
-
-	token, err = sec.GenerateToken(false, endpoints, 60*time.Hour)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	tokens["messages"] = token
 
 	return tokens
 }

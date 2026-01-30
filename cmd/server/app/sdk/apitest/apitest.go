@@ -12,10 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v4"
-	"github.com/google/uuid"
-	"github.com/kawai-network/veridium/cmd/server/app/sdk/security"
-	"github.com/kawai-network/veridium/cmd/server/app/sdk/security/auth"
+	"github.com/kawai-network/veridium/pkg/apikey"
 )
 
 type testOption struct {
@@ -44,7 +41,6 @@ func WithRetries(n int) OptionFunc {
 
 // Test contains functions for executing an api test.
 type Test struct {
-	Sec *security.Security
 	mux http.Handler
 }
 
@@ -215,23 +211,12 @@ func (at *Test) RunStreaming(t *testing.T, table []Table, testName string, optio
 
 // =============================================================================
 
-// Token generates an authenticated token for a user.
-func Token(ath *auth.Auth, admin bool, endpoints map[string]auth.RateLimit) string {
-	claims := auth.Claims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   uuid.NewString(),
-			Issuer:    ath.Issuer(),
-			ExpiresAt: jwt.NewNumericDate(time.Now().UTC().Add(time.Hour)),
-			IssuedAt:  jwt.NewNumericDate(time.Now().UTC()),
-		},
-		Admin:     admin,
-		Endpoints: endpoints,
-	}
-
-	token, err := ath.GenerateToken(claims)
+// Token generates an authenticated API key for a wallet address.
+func Token(walletAddress string) string {
+	key, err := apikey.Generate(walletAddress, 24*time.Hour)
 	if err != nil {
 		return ""
 	}
 
-	return token
+	return key
 }

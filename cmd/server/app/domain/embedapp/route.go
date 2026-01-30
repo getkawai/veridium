@@ -3,7 +3,6 @@ package embedapp
 import (
 	"net/http"
 
-	"github.com/kawai-network/veridium/cmd/server/app/sdk/authclient"
 	"github.com/kawai-network/veridium/cmd/server/app/sdk/cache"
 	"github.com/kawai-network/veridium/cmd/server/app/sdk/mid"
 	"github.com/kawai-network/veridium/cmd/server/foundation/logger"
@@ -12,9 +11,9 @@ import (
 
 // Config contains all the mandatory systems required by handlers.
 type Config struct {
-	Log        *logger.Logger
-	AuthClient *authclient.Client
-	Cache      *cache.Cache
+	Log *logger.Logger
+
+	Cache *cache.Cache
 }
 
 // Routes adds specific routes for this group.
@@ -23,7 +22,8 @@ func Routes(app *web.App, cfg Config) {
 
 	api := newApp(cfg)
 
-	auth := mid.Authenticate(cfg.AuthClient, false, "embeddings")
+	// Use wallet-based authentication (API keys contain their own expiration)
+	walletAuth := mid.WalletAuthenticate()
 
-	app.HandlerFunc(http.MethodPost, version, "/embeddings", api.embeddings, auth)
+	app.HandlerFunc(http.MethodPost, version, "/embeddings", api.embeddings, walletAuth)
 }

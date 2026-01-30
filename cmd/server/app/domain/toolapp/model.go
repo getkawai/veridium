@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kawai-network/veridium/cmd/server/app/sdk/authclient"
 	"github.com/kawai-network/veridium/cmd/server/app/sdk/cache"
 	"github.com/kawai-network/veridium/pkg/kronk/model"
 	"github.com/kawai-network/veridium/pkg/tools/catalog"
@@ -338,61 +337,4 @@ func toCatalogModelsResponse(list []catalog.Model) CatalogModelsResponse {
 
 // =============================================================================
 
-// KeyResponse represents a key in the system.
-type KeyResponse struct {
-	ID      string `json:"id"`
-	Created string `json:"created"`
-}
-
-// KeysResponse is a collection of keys.
-type KeysResponse []KeyResponse
-
-// Encode implements the encoder interface.
-func (app KeysResponse) Encode() ([]byte, string, error) {
-	data, err := json.Marshal(app)
-	return data, "application/json", err
-}
-
-func toKeys(keys []authclient.Key) KeysResponse {
-	keyResponse := make([]KeyResponse, len(keys))
-
-	for i, key := range keys {
-		keyResponse[i] = KeyResponse{
-			ID:      key.ID,
-			Created: key.Created,
-		}
-	}
-
-	return keyResponse
-}
-
 // =============================================================================
-
-// RateLimit defines the rate limit configuration for an endpoint.
-type RateLimit struct {
-	Limit  int    `json:"limit"`
-	Window string `json:"window"`
-}
-
-// TokenRequest represents the input for the create token command.
-type TokenRequest struct {
-	Admin     bool                 `json:"admin"`
-	Endpoints map[string]RateLimit `json:"endpoints"`
-	Duration  string               `json:"duration"` // Go duration format: "24h", "1h30m"
-}
-
-// Decode implements the decoder interface.
-func (app *TokenRequest) Decode(data []byte) error {
-	return json.Unmarshal(data, app)
-}
-
-// TokenResponse represents the response for a successful token creation.
-type TokenResponse struct {
-	Token string `json:"token"`
-}
-
-// Encode implements the encoder interface.
-func (app TokenResponse) Encode() ([]byte, string, error) {
-	data, err := json.Marshal(app)
-	return data, "application/json", err
-}

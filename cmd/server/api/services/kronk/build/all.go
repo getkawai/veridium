@@ -29,42 +29,42 @@ func (all) Add(app *web.App, cfg mux.Config) {
 	})
 
 	toolapp.Routes(app, toolapp.Config{
-		Log:        cfg.Log,
-		AuthClient: cfg.AuthClient,
-		Cache:      cfg.Cache,
-		Libs:       cfg.Libs,
-		Models:     cfg.Models,
-		Catalog:    cfg.Catalog,
-		Templates:  cfg.Templates,
+		Log: cfg.Log,
+
+		Cache:     cfg.Cache,
+		Libs:      cfg.Libs,
+		Models:    cfg.Models,
+		Catalog:   cfg.Catalog,
+		Templates: cfg.Templates,
 	})
 
 	chatapp.Routes(app, chatapp.Config{
-		Log:        cfg.Log,
-		AuthClient: cfg.AuthClient,
-		Cache:      cfg.Cache,
+		Log: cfg.Log,
+
+		Cache: cfg.Cache,
 	})
 
 	embedapp.Routes(app, embedapp.Config{
-		Log:        cfg.Log,
-		AuthClient: cfg.AuthClient,
-		Cache:      cfg.Cache,
+		Log: cfg.Log,
+
+		Cache: cfg.Cache,
 	})
 
 	rerankapp.Routes(app, rerankapp.Config{
-		Log:        cfg.Log,
-		AuthClient: cfg.AuthClient,
-		Cache:      cfg.Cache,
+		Log: cfg.Log,
+
+		Cache: cfg.Cache,
 	})
 
 	respapp.Routes(app, respapp.Config{
-		Log:        cfg.Log,
-		AuthClient: cfg.AuthClient,
-		Cache:      cfg.Cache,
+		Log: cfg.Log,
+
+		Cache: cfg.Cache,
 	})
 
 	msgsapp.Routes(app, msgsapp.Config{
-		Log:        cfg.Log,
-		AuthClient: cfg.AuthClient,
-		Cache:      cfg.Cache,
+		Log: cfg.Log,
+
+		Cache: cfg.Cache,
 	})
 }

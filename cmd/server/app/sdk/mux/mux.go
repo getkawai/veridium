@@ -6,7 +6,6 @@ import (
 	"embed"
 	"net/http"
 
-	"github.com/kawai-network/veridium/cmd/server/app/sdk/authclient"
 	"github.com/kawai-network/veridium/cmd/server/app/sdk/cache"
 	"github.com/kawai-network/veridium/cmd/server/app/sdk/mid"
 	"github.com/kawai-network/veridium/cmd/server/foundation/logger"
@@ -55,15 +54,15 @@ func WithFileServer(react bool, static embed.FS, dir string, path string, apiPre
 
 // Config contains all the mandatory systems required by handlers.
 type Config struct {
-	Build      string
-	Log        *logger.Logger
-	AuthClient *authclient.Client
-	Tracer     trace.Tracer
-	Cache      *cache.Cache
-	Libs       *libs.Libs
-	Models     *models.Models
-	Catalog    *catalog.Catalog
-	Templates  *templates.Templates
+	Build string
+	Log   *logger.Logger
+
+	Tracer    trace.Tracer
+	Cache     *cache.Cache
+	Libs      *libs.Libs
+	Models    *models.Models
+	Catalog   *catalog.Catalog
+	Templates *templates.Templates
 }
 
 // RouteAdder defines behavior that sets the routes to bind for an instance
