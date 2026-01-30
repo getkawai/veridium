@@ -16,14 +16,14 @@ import (
 	"os"
 	"time"
 
-	"github.com/kawai-network/veridium/pkg/kronk"
-	"github.com/kawai-network/veridium/pkg/kronk/model"
-	"github.com/kawai-network/veridium/pkg/tools/defaults"
-	"github.com/kawai-network/veridium/pkg/tools/libs"
-	"github.com/kawai-network/veridium/pkg/tools/models"
+	"github.com/ardanlabs/kronk/sdk/kronk"
+	"github.com/ardanlabs/kronk/sdk/kronk/model"
+	"github.com/ardanlabs/kronk/sdk/tools/defaults"
+	"github.com/ardanlabs/kronk/sdk/tools/libs"
+	"github.com/ardanlabs/kronk/sdk/tools/models"
 )
 
-const modelURL = "https://huggingface.co/Qwen/Qwen3-8B-GGUF/resolve/main/Qwen3-8B-Q8_0.gguf"
+const modelURL = "Qwen/Qwen3-8B-GGUF/Qwen3-8B-Q8_0.gguf"
 
 func main() {
 	if err := run(); err != nil {
@@ -199,18 +199,18 @@ import (
 	"os"
 	"time"
 
-	"github.com/kawai-network/veridium/pkg/kronk"
-	"github.com/kawai-network/veridium/pkg/kronk/model"
-	"github.com/kawai-network/veridium/pkg/tools/defaults"
-	"github.com/kawai-network/veridium/pkg/tools/libs"
-	"github.com/kawai-network/veridium/pkg/tools/models"
-	"github.com/kawai-network/veridium/pkg/tools/templates"
+	"github.com/ardanlabs/kronk/sdk/kronk"
+	"github.com/ardanlabs/kronk/sdk/kronk/model"
+	"github.com/ardanlabs/kronk/sdk/tools/defaults"
+	"github.com/ardanlabs/kronk/sdk/tools/libs"
+	"github.com/ardanlabs/kronk/sdk/tools/models"
+	"github.com/ardanlabs/kronk/sdk/tools/templates"
 )
 
-// const modelURL = "https://huggingface.co/unsloth/gpt-oss-120b-GGUF/resolve/main/gpt-oss-120b-F16.gguf"
-// const modelURL = "https://huggingface.co/unsloth/GLM-4.7-Flash-GGUF/resolve/main/GLM-4.7-Flash-UD-Q8_K_XL.gguf"
-// const modelURL = "https://huggingface.co/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF/resolve/main/Qwen3-Coder-30B-A3B-Instruct-UD-Q8_K_XL.gguf"
-const modelURL = "https://huggingface.co/Qwen/Qwen3-8B-GGUF/resolve/main/Qwen3-8B-Q8_0.gguf"
+// const modelURL = "unsloth/gpt-oss-120b-GGUF/gpt-oss-120b-F16.gguf"
+// const modelURL = "unsloth/GLM-4.7-Flash-GGUF/GLM-4.7-Flash-UD-Q8_K_XL.gguf"
+// const modelURL = "unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF/Qwen3-Coder-30B-A3B-Instruct-UD-Q8_K_XL.gguf"
+const modelURL = "Qwen/Qwen3-8B-GGUF/Qwen3-8B-Q8_0.gguf"
 
 func main() {
 	if err := run(); err != nil {
@@ -302,10 +302,17 @@ func newKronk(mp models.Path) (*kronk.Kronk, error) {
 		return nil, fmt.Errorf("unable to init kronk: %w", err)
 	}
 
+	// The catalog package has an API that can retrieve defaults for
+	// models in the catalog system and/or a model_config file.
+	// cfg, err := c.templates.Catalog().RetrieveModelConfig(modelID)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("unable to retrieve model config: %w", err)
+	// }
+
 	cfg := model.Config{
 		ModelFiles:        mp.ModelFiles,
-		CacheTypeK:        model.GGMLTypeF16,
-		CacheTypeV:        model.GGMLTypeF16,
+		CacheTypeK:        model.GGMLTypeQ8_0,
+		CacheTypeV:        model.GGMLTypeQ8_0,
 		NSeqMax:           2,
 		SystemPromptCache: true,
 	}
@@ -366,13 +373,12 @@ func chat(krn *kronk.Kronk) error {
 			defer cancel()
 
 			d := model.D{
-				"messages":       messages,
-				"tools":          toolDocuments(),
-				"max_tokens":     2048,
-				"temperature":    0.7,
-				"top_p":          0.8,
-				"top_k":          20,
-				"repeat_penalty": 1.05,
+				"messages":    messages,
+				"tools":       toolDocuments(),
+				"max_tokens":  2048,
+				"temperature": 0.7,
+				"top_p":       0.8,
+				"top_k":       20,
 			}
 
 			ch, err := performChat(ctx, krn, d)
@@ -547,15 +553,15 @@ import (
 	"os"
 	"time"
 
-	"github.com/kawai-network/veridium/pkg/kronk"
-	"github.com/kawai-network/veridium/pkg/kronk/model"
-	"github.com/kawai-network/veridium/pkg/tools/defaults"
-	"github.com/kawai-network/veridium/pkg/tools/libs"
-	"github.com/kawai-network/veridium/pkg/tools/models"
-	"github.com/kawai-network/veridium/pkg/tools/templates"
+	"github.com/ardanlabs/kronk/sdk/kronk"
+	"github.com/ardanlabs/kronk/sdk/kronk/model"
+	"github.com/ardanlabs/kronk/sdk/tools/defaults"
+	"github.com/ardanlabs/kronk/sdk/tools/libs"
+	"github.com/ardanlabs/kronk/sdk/tools/models"
+	"github.com/ardanlabs/kronk/sdk/tools/templates"
 )
 
-const modelURL = "https://huggingface.co/Qwen/Qwen3-8B-GGUF/resolve/main/Qwen3-8B-Q8_0.gguf"
+const modelURL = "Qwen/Qwen3-8B-GGUF/Qwen3-8B-Q8_0.gguf"
 
 func main() {
 	if err := run(); err != nil {
@@ -866,15 +872,15 @@ import (
 	"os"
 	"time"
 
-	"github.com/kawai-network/veridium/pkg/kronk"
-	"github.com/kawai-network/veridium/pkg/kronk/model"
-	"github.com/kawai-network/veridium/pkg/tools/defaults"
-	"github.com/kawai-network/veridium/pkg/tools/libs"
-	"github.com/kawai-network/veridium/pkg/tools/models"
-	"github.com/kawai-network/veridium/pkg/tools/templates"
+	"github.com/ardanlabs/kronk/sdk/kronk"
+	"github.com/ardanlabs/kronk/sdk/kronk/model"
+	"github.com/ardanlabs/kronk/sdk/tools/defaults"
+	"github.com/ardanlabs/kronk/sdk/tools/libs"
+	"github.com/ardanlabs/kronk/sdk/tools/models"
+	"github.com/ardanlabs/kronk/sdk/tools/templates"
 )
 
-const modelURL = "https://huggingface.co/ggml-org/embeddinggemma-300m-qat-q8_0-GGUF/resolve/main/embeddinggemma-300m-qat-Q8_0.gguf"
+const modelURL = "ggml-org/embeddinggemma-300m-qat-q8_0-GGUF/embeddinggemma-300m-qat-Q8_0.gguf"
 
 func main() {
 	if err := run(); err != nil {
@@ -1032,15 +1038,15 @@ import (
 	"os"
 	"time"
 
-	"github.com/kawai-network/veridium/pkg/kronk"
-	"github.com/kawai-network/veridium/pkg/kronk/model"
-	"github.com/kawai-network/veridium/pkg/tools/defaults"
-	"github.com/kawai-network/veridium/pkg/tools/libs"
-	"github.com/kawai-network/veridium/pkg/tools/models"
-	"github.com/kawai-network/veridium/pkg/tools/templates"
+	"github.com/ardanlabs/kronk/sdk/kronk"
+	"github.com/ardanlabs/kronk/sdk/kronk/model"
+	"github.com/ardanlabs/kronk/sdk/tools/defaults"
+	"github.com/ardanlabs/kronk/sdk/tools/libs"
+	"github.com/ardanlabs/kronk/sdk/tools/models"
+	"github.com/ardanlabs/kronk/sdk/tools/templates"
 )
 
-const modelURL = "https://huggingface.co/gpustack/bge-reranker-v2-m3-GGUF/resolve/main/bge-reranker-v2-m3-Q8_0.gguf"
+const modelURL = "gpustack/bge-reranker-v2-m3-GGUF/bge-reranker-v2-m3-Q8_0.gguf"
 
 func main() {
 	if err := run(); err != nil {
@@ -1208,17 +1214,17 @@ import (
 	"os"
 	"time"
 
-	"github.com/kawai-network/veridium/pkg/kronk"
-	"github.com/kawai-network/veridium/pkg/kronk/model"
-	"github.com/kawai-network/veridium/pkg/tools/defaults"
-	"github.com/kawai-network/veridium/pkg/tools/libs"
-	"github.com/kawai-network/veridium/pkg/tools/models"
-	"github.com/kawai-network/veridium/pkg/tools/templates"
+	"github.com/ardanlabs/kronk/sdk/kronk"
+	"github.com/ardanlabs/kronk/sdk/kronk/model"
+	"github.com/ardanlabs/kronk/sdk/tools/defaults"
+	"github.com/ardanlabs/kronk/sdk/tools/libs"
+	"github.com/ardanlabs/kronk/sdk/tools/models"
+	"github.com/ardanlabs/kronk/sdk/tools/templates"
 )
 
 const (
-	modelURL  = "https://huggingface.co/ggml-org/Qwen2.5-VL-3B-Instruct-GGUF/resolve/main/Qwen2.5-VL-3B-Instruct-Q8_0.gguf"
-	projURL   = "https://huggingface.co/ggml-org/Qwen2.5-VL-3B-Instruct-GGUF/resolve/main/mmproj-Qwen2.5-VL-3B-Instruct-Q8_0.gguf"
+	modelURL  = "ggml-org/Qwen2.5-VL-3B-Instruct-GGUF/Qwen2.5-VL-3B-Instruct-Q8_0.gguf"
+	projURL   = "ggml-org/Qwen2.5-VL-3B-Instruct-GGUF/mmproj-Qwen2.5-VL-3B-Instruct-Q8_0.gguf"
 	imageFile = "examples/samples/giraffe.jpg"
 )
 
@@ -1453,17 +1459,17 @@ import (
 	"os"
 	"time"
 
-	"github.com/kawai-network/veridium/pkg/kronk"
-	"github.com/kawai-network/veridium/pkg/kronk/model"
-	"github.com/kawai-network/veridium/pkg/tools/defaults"
-	"github.com/kawai-network/veridium/pkg/tools/libs"
-	"github.com/kawai-network/veridium/pkg/tools/models"
-	"github.com/kawai-network/veridium/pkg/tools/templates"
+	"github.com/ardanlabs/kronk/sdk/kronk"
+	"github.com/ardanlabs/kronk/sdk/kronk/model"
+	"github.com/ardanlabs/kronk/sdk/tools/defaults"
+	"github.com/ardanlabs/kronk/sdk/tools/libs"
+	"github.com/ardanlabs/kronk/sdk/tools/models"
+	"github.com/ardanlabs/kronk/sdk/tools/templates"
 )
 
 const (
-	modelURL  = "https://huggingface.co/mradermacher/Qwen2-Audio-7B-GGUF/resolve/main/Qwen2-Audio-7B.Q8_0.gguf"
-	projURL   = "https://huggingface.co/mradermacher/Qwen2-Audio-7B-GGUF/resolve/main/Qwen2-Audio-7B.mmproj-Q8_0.gguf"
+	modelURL  = "mradermacher/Qwen2-Audio-7B-GGUF/Qwen2-Audio-7B.Q8_0.gguf"
+	projURL   = "mradermacher/Qwen2-Audio-7B-GGUF/Qwen2-Audio-7B.mmproj-Q8_0.gguf"
 	audioFile = "examples/samples/jfk.wav"
 )
 
@@ -1598,8 +1604,8 @@ func audio(krn *kronk.Kronk) error {
 	return nil
 }
 
-func performChat(ctx context.Context, krn *kronk.Kronk, question string, imageFile string) (<-chan model.ChatResponse, error) {
-	image, err := readImage(imageFile)
+func performChat(ctx context.Context, krn *kronk.Kronk, question string, audioFile string) (<-chan model.ChatResponse, error) {
+	audio, err := readImage(audioFile)
 	if err != nil {
 		return nil, fmt.Errorf("read image: %w", err)
 	}
@@ -1607,7 +1613,7 @@ func performChat(ctx context.Context, krn *kronk.Kronk, question string, imageFi
 	fmt.Printf("\\nQuestion: %s\\n", question)
 
 	d := model.D{
-		"messages":    model.RawMediaMessage(question, image),
+		"messages":    model.RawMediaMessage(question, audio),
 		"max_tokens":  2048,
 		"temperature": 0.7,
 		"top_p":       0.9,

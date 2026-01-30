@@ -5,6 +5,21 @@ import type { CatalogModelResponse, CatalogModelsResponse, PullResponse } from '
 
 type DetailTab = 'details' | 'pull';
 
+function formatBytes(bytes: number): string {
+  const KB = 1024;
+  const MB = KB * 1024;
+  const GB = MB * 1024;
+
+  if (bytes >= GB) {
+    return `${(bytes / GB).toFixed(2)} GB`;
+  } else if (bytes >= MB) {
+    return `${(bytes / MB).toFixed(2)} MB`;
+  } else if (bytes >= KB) {
+    return `${(bytes / KB).toFixed(2)} KB`;
+  }
+  return `${bytes} bytes`;
+}
+
 export default function CatalogList() {
   const { invalidate } = useModelList();
   const [data, setData] = useState<CatalogModelsResponse | null>(null);
@@ -405,16 +420,10 @@ export default function CatalogList() {
                 <div className="model-meta-item" style={{ marginBottom: '12px' }}>
                   <label>Projection URL</label>
                   <span>
-                    {modelInfo.files.proj.length > 0 ? (
-                      modelInfo.files.proj.map((file, idx) => (
-                        <div key={idx}>{file.url} {file.size && `(${file.size})`}</div>
-                      ))
+                    {modelInfo.files.proj.url ? (
+                      <div>{modelInfo.files.proj.url} {modelInfo.files.proj.size && `(${modelInfo.files.proj.size})`}</div>
                     ) : '-'}
                   </span>
-                </div>
-                <div className="model-meta-item">
-                  <label>Template File</label>
-                  <span>{modelInfo.template || '-'}</span>
                 </div>
               </div>
 
@@ -428,7 +437,7 @@ export default function CatalogList() {
               )}
 
               <div style={{ marginTop: '24px' }}>
-                <h4 style={{ marginBottom: '12px' }}>Metadata</h4>
+                <h4 style={{ marginBottom: '12px' }}>Catalog Metadata</h4>
                 <div className="model-meta">
                   <div className="model-meta-item">
                     <label>Created</label>
@@ -440,6 +449,202 @@ export default function CatalogList() {
                   </div>
                 </div>
               </div>
+
+              {modelInfo.vram && (
+                <div style={{ marginTop: '24px' }}>
+                  <h4 style={{ marginBottom: '12px' }}>VRAM Requirements</h4>
+                  <div className="model-meta">
+                    <div className="model-meta-item">
+                      <label>Total VRAM</label>
+                      <span>{formatBytes(modelInfo.vram.total_vram)}</span>
+                    </div>
+                    <div className="model-meta-item">
+                      <label>Slot Memory (KV Cache)</label>
+                      <span>{formatBytes(modelInfo.vram.slot_memory)}</span>
+                    </div>
+                    <div className="model-meta-item">
+                      <label>KV Per Slot</label>
+                      <span>{formatBytes(modelInfo.vram.kv_per_slot)}</span>
+                    </div>
+                    <div className="model-meta-item">
+                      <label>Total Slots</label>
+                      <span>{modelInfo.vram.total_slots}</span>
+                    </div>
+                    <div className="model-meta-item">
+                      <label>KV Per Token/Layer</label>
+                      <span>{formatBytes(modelInfo.vram.kv_per_token_per_layer)}</span>
+                    </div>
+                  </div>
+                  <div style={{ marginTop: '2rem' }} />
+                  <div className="model-meta">
+                    <div className="model-meta-item">
+                      <label>Model Size</label>
+                      <span>{formatBytes(modelInfo.vram.input.model_size_bytes)}</span>
+                    </div>
+                    <div className="model-meta-item">
+                      <label>Block Count (Layers)</label>
+                      <span>{modelInfo.vram.input.block_count}</span>
+                    </div>
+                    <div className="model-meta-item">
+                      <label>Head Count KV</label>
+                      <span>{modelInfo.vram.input.head_count_kv}</span>
+                    </div>
+                    <div className="model-meta-item">
+                      <label>Key Length</label>
+                      <span>{modelInfo.vram.input.key_length}</span>
+                    </div>
+                    <div className="model-meta-item">
+                      <label>Value Length</label>
+                      <span>{modelInfo.vram.input.value_length}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {modelInfo.model_config && (
+                <div style={{ marginTop: '24px' }}>
+                  <h4 style={{ marginBottom: '12px' }}>Model Configuration</h4>
+                  <div className="model-meta">
+                    <div className="model-meta-item">
+                      <label>Device</label>
+                      <span>{modelInfo.model_config.device || 'default'}</span>
+                    </div>
+                    <div className="model-meta-item">
+                      <label>Context Window</label>
+                      <span>{modelInfo.model_config['context-window']}</span>
+                    </div>
+                    <div className="model-meta-item">
+                      <label>Batch Size</label>
+                      <span>{modelInfo.model_config.nbatch}</span>
+                    </div>
+                    <div className="model-meta-item">
+                      <label>Micro Batch Size</label>
+                      <span>{modelInfo.model_config.nubatch}</span>
+                    </div>
+                    <div className="model-meta-item">
+                      <label>Threads</label>
+                      <span>{modelInfo.model_config.nthreads}</span>
+                    </div>
+                    <div className="model-meta-item">
+                      <label>Batch Threads</label>
+                      <span>{modelInfo.model_config['nthreads-batch']}</span>
+                    </div>
+                    <div className="model-meta-item">
+                      <label>Cache Type K</label>
+                      <span>{modelInfo.model_config['cache-type-k'] || 'default'}</span>
+                    </div>
+                    <div className="model-meta-item">
+                      <label>Cache Type V</label>
+                      <span>{modelInfo.model_config['cache-type-v'] || 'default'}</span>
+                    </div>
+                    <div className="model-meta-item">
+                      <label>Flash Attention</label>
+                      <span>{modelInfo.model_config['flash-attention'] || 'default'}</span>
+                    </div>
+                    <div className="model-meta-item">
+                      <label>Max Sequences</label>
+                      <span>{modelInfo.model_config['nseq-max']}</span>
+                    </div>
+                    <div className="model-meta-item">
+                      <label>GPU Layers</label>
+                      <span>{modelInfo.model_config['ngpu-layers'] ?? 'auto'}</span>
+                    </div>
+                    <div className="model-meta-item">
+                      <label>Split Mode</label>
+                      <span>{modelInfo.model_config['split-mode'] || 'default'}</span>
+                    </div>
+                    <div className="model-meta-item">
+                      <label>System Prompt Cache</label>
+                      <span className={`badge ${modelInfo.model_config['system-prompt-cache'] ? 'badge-yes' : 'badge-no'}`}>
+                        {modelInfo.model_config['system-prompt-cache'] ? 'Yes' : 'No'}
+                      </span>
+                    </div>
+                    <div className="model-meta-item">
+                      <label>First Message Cache</label>
+                      <span className={`badge ${modelInfo.model_config['first-message-cache'] ? 'badge-yes' : 'badge-no'}`}>
+                        {modelInfo.model_config['first-message-cache'] ? 'Yes' : 'No'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {modelInfo.model_config?.['sampling-parameters'] && (
+                <div style={{ marginTop: '24px' }}>
+                  <h4 style={{ marginBottom: '12px' }}>Sampling Parameters</h4>
+                  <div className="model-meta">
+                    <div className="model-meta-item">
+                      <label>Temperature</label>
+                      <span>{modelInfo.model_config['sampling-parameters'].temperature.toFixed(2)}</span>
+                    </div>
+                    <div className="model-meta-item">
+                      <label>Top K</label>
+                      <span>{modelInfo.model_config['sampling-parameters'].top_k}</span>
+                    </div>
+                    <div className="model-meta-item">
+                      <label>Top P</label>
+                      <span>{modelInfo.model_config['sampling-parameters'].top_p.toFixed(2)}</span>
+                    </div>
+                    <div className="model-meta-item">
+                      <label>Min P</label>
+                      <span>{modelInfo.model_config['sampling-parameters'].min_p.toFixed(2)}</span>
+                    </div>
+                    <div className="model-meta-item">
+                      <label>Max Tokens</label>
+                      <span>{modelInfo.model_config['sampling-parameters'].max_tokens}</span>
+                    </div>
+                    <div className="model-meta-item">
+                      <label>Repeat Penalty</label>
+                      <span>{modelInfo.model_config['sampling-parameters'].repeat_penalty.toFixed(2)}</span>
+                    </div>
+                    <div className="model-meta-item">
+                      <label>Repeat Last N</label>
+                      <span>{modelInfo.model_config['sampling-parameters'].repeat_last_n}</span>
+                    </div>
+                    <div className="model-meta-item">
+                      <label>Enable Thinking</label>
+                      <span>{modelInfo.model_config['sampling-parameters'].enable_thinking || 'default'}</span>
+                    </div>
+                    <div className="model-meta-item">
+                      <label>Reasoning Effort</label>
+                      <span>{modelInfo.model_config['sampling-parameters'].reasoning_effort || 'default'}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {modelInfo.model_metadata && Object.keys(modelInfo.model_metadata).filter(k => k !== 'tokenizer.chat_template').length > 0 && (
+                <div style={{ marginTop: '24px' }}>
+                  <h4 style={{ marginBottom: '12px' }}>Model Metadata</h4>
+                  <div className="model-meta">
+                    {Object.entries(modelInfo.model_metadata)
+                      .filter(([key]) => key !== 'tokenizer.chat_template')
+                      .map(([key, value]) => (
+                      <div key={key} className="model-meta-item">
+                        <label>{key}</label>
+                        <span>{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {modelInfo.model_metadata?.['tokenizer.chat_template'] && (
+                <div style={{ marginTop: '24px' }}>
+                  <h4 style={{ marginBottom: '12px' }}>Template</h4>
+                  <pre style={{
+                    background: 'var(--color-gray-100)',
+                    padding: '12px',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    overflow: 'auto',
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word'
+                  }}>
+                    {modelInfo.model_metadata['tokenizer.chat_template']}
+                  </pre>
+                </div>
+              )}
             </>
           )}
 

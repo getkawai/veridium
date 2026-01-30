@@ -28,13 +28,17 @@ import DocsAPIEmbeddings from './components/DocsAPIEmbeddings';
 import DocsAPIRerank from './components/DocsAPIRerank';
 import DocsAPITools from './components/DocsAPITools';
 import DocsConfigModels from './components/DocsConfigModels';
+import VRAMCalculator from './components/VRAMCalculator';
 import { ModelListProvider } from './contexts/ModelListContext';
 import { TokenProvider } from './contexts/TokenContext';
 import { DownloadProvider } from './contexts/DownloadContext';
+import { ChatProvider } from './contexts/ChatContext';
+import { SamplingProvider } from './contexts/SamplingContext';
 
 export type Page =
   | 'home'
   | 'chat'
+  | 'vram-calculator'
   | 'model-list'
   | 'model-ps'
   | 'model-pull'
@@ -66,6 +70,7 @@ export type Page =
 export const routeMap: Record<Page, string> = {
   'home': '/',
   'chat': '/chat',
+  'vram-calculator': '/vram-calculator',
   'model-list': '/models',
   'model-ps': '/models/running',
   'model-pull': '/models/pull',
@@ -149,10 +154,13 @@ function App() {
       <TokenProvider>
         <ModelListProvider>
           <DownloadProvider>
-            <Layout>
+            <ChatProvider>
+              <SamplingProvider>
+                <Layout>
               <Routes>
                 <Route path="/" element={<HomePage />} />
                 <Route path="/chat" element={<Chat />} />
+                <Route path="/vram-calculator" element={<VRAMCalculator />} />
                 <Route path="/models" element={<ModelList />} />
                 <Route path="/models/running" element={<ModelPs />} />
                 <Route path="/models/pull" element={<ModelPull />} />
@@ -181,7 +189,9 @@ function App() {
                 <Route path="/docs/api/tools" element={<DocsAPITools />} />
                 <Route path="/docs/config/models" element={<DocsConfigModels />} />
               </Routes>
-            </Layout>
+                </Layout>
+              </SamplingProvider>
+            </ChatProvider>
           </DownloadProvider>
         </ModelListProvider>
       </TokenProvider>

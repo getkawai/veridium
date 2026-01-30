@@ -11,7 +11,7 @@ export default function DocsSDKKronk() {
           <div className="card">
             <h3>Import</h3>
             <pre className="code-block">
-              <code>import "github.com/kawai-network/veridium/pkg/kronk"</code>
+              <code>import "github.com/ardanlabs/kronk/sdk/kronk"</code>
             </pre>
           </div>
 
@@ -396,7 +396,7 @@ export default function DocsSDKKronk() {
             <div className="doc-section" id="const-version">
               <h4>Version</h4>
               <pre className="code-block">
-                <code>{`const Version = "1.15.5"`}</code>
+                <code>{`const Version = "1.16.5"`}</code>
               </pre>
               <p className="doc-description">Version contains the current version of the kronk package.</p>
             </div>

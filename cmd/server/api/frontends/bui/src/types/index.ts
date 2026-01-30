@@ -1,3 +1,22 @@
+export interface SamplingConfig {
+  temperature: number;
+  top_k: number;
+  top_p: number;
+  min_p: number;
+  max_tokens: number;
+  repeat_penalty: number;
+  repeat_last_n: number;
+  dry_multiplier: number;
+  dry_base: number;
+  dry_allowed_length: number;
+  dry_penalty_last_n: number;
+  xtc_probability: number;
+  xtc_threshold: number;
+  xtc_min_keep: number;
+  enable_thinking: string;
+  reasoning_effort: string;
+}
+
 export interface ListModelDetail {
   id: string;
   object: string;
@@ -7,6 +26,7 @@ export interface ListModelDetail {
   size: number;
   modified: string;
   validated: boolean;
+  sampling?: SamplingConfig;
 }
 
 export interface ListModelInfoResponse {
@@ -25,6 +45,29 @@ export interface ModelDetail {
 
 export type ModelDetailsResponse = ModelDetail[];
 
+export interface ModelConfig {
+  device: string;
+  'context-window': number;
+  nbatch: number;
+  nubatch: number;
+  nthreads: number;
+  'nthreads-batch': number;
+  'cache-type-k': string;
+  'cache-type-v': string;
+  'use-direct-io': boolean;
+  'flash-attention': string;
+  'ignore-integrity-check': boolean;
+  'nseq-max': number;
+  'offload-kqv': boolean | null;
+  'op-offload': boolean | null;
+  'ngpu-layers': number | null;
+  'split-mode': string;
+  'system-prompt-cache': boolean;
+  'first-message-cache': boolean;
+  'cache-min-tokens': number;
+  'sampling-parameters': SamplingConfig;
+}
+
 export interface ModelInfoResponse {
   id: string;
   object: string;
@@ -33,12 +76,10 @@ export interface ModelInfoResponse {
   desc: string;
   size: number;
   has_projection: boolean;
-  has_encoder: boolean;
-  has_decoder: boolean;
-  is_recurrent: boolean;
-  is_hybrid: boolean;
   is_gpt: boolean;
   metadata: Record<string, string>;
+  vram?: VRAM;
+  model_config?: ModelConfig;
 }
 
 export interface CatalogMetadata {
@@ -66,7 +107,28 @@ export interface CatalogFile {
 
 export interface CatalogFiles {
   model: CatalogFile[];
-  proj: CatalogFile[];
+  proj: CatalogFile;
+}
+
+export interface VRAMInput {
+  model_size_bytes: number;
+  context_window: number;
+  block_count: number;
+  head_count_kv: number;
+  key_length: number;
+  value_length: number;
+  bytes_per_element: number;
+  slots: number;
+  cache_sequences: number;
+}
+
+export interface VRAM {
+  input: VRAMInput;
+  kv_per_token_per_layer: number;
+  kv_per_slot: number;
+  total_slots: number;
+  slot_memory: number;
+  total_vram: number;
 }
 
 export interface CatalogModelResponse {
@@ -79,6 +141,9 @@ export interface CatalogModelResponse {
   files: CatalogFiles;
   capabilities: CatalogCapabilities;
   metadata: CatalogMetadata;
+  vram?: VRAM;
+  model_config?: ModelConfig;
+  model_metadata?: Record<string, string>;
   downloaded: boolean;
   gated_model: boolean;
   validated: boolean;
@@ -123,7 +188,7 @@ export interface RateLimit {
 export interface TokenRequest {
   admin: boolean;
   endpoints: Record<string, RateLimit>;
-  duration: string; // Go duration format: "24h", "1h30m", "168h"
+  duration: number;
 }
 
 export interface TokenResponse {
@@ -231,4 +296,21 @@ export interface ChatStreamResponse {
   model: string;
   choices: ChatChoice[];
   usage?: ChatUsage;
+}
+
+export interface VRAMRequest {
+  model_url: string;
+  context_window: number;
+  bytes_per_element: number;
+  slots: number;
+  cache_sequences: number;
+}
+
+export interface VRAMCalculatorResponse {
+  input: VRAMInput;
+  kv_per_token_per_layer: number;
+  kv_per_slot: number;
+  total_slots: number;
+  slot_memory: number;
+  total_vram: number;
 }

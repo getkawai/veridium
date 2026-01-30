@@ -12,6 +12,8 @@ import type {
   VersionResponse,
   ChatRequest,
   ChatStreamResponse,
+  VRAMRequest,
+  VRAMCalculatorResponse,
 } from '../types';
 
 class ApiService {
@@ -43,6 +45,10 @@ class ApiService {
 
   async listModels(): Promise<ListModelInfoResponse> {
     return this.request<ListModelInfoResponse>('/models');
+  }
+
+  async listModelsExtended(): Promise<ListModelInfoResponse> {
+    return this.request<ListModelInfoResponse>('/models?extended-config=true');
   }
 
   async rebuildModelIndex(): Promise<void> {
@@ -449,6 +455,18 @@ class ApiService {
       });
 
     return () => controller.abort();
+  }
+
+  async calculateVRAM(request: VRAMRequest, token?: string): Promise<VRAMCalculatorResponse> {
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    return this.request<VRAMCalculatorResponse>('/models/vram', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(request),
+    });
   }
 }
 

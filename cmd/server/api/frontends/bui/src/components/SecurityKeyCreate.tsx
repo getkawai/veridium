@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../services/api';
 import { useToken } from '../contexts/TokenContext';
@@ -9,7 +9,7 @@ export default function SecurityKeyCreate() {
   const [error, setError] = useState<string | null>(null);
   const [newKeyId, setNewKeyId] = useState<string | null>(null);
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!storedToken) return;
 

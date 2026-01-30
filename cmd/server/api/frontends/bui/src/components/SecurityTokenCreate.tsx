@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../services/api';
 import { useToken } from '../contexts/TokenContext';
@@ -56,7 +56,7 @@ export default function SecurityTokenCreate() {
     }));
   };
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!storedToken) return;
 
@@ -64,27 +64,20 @@ export default function SecurityTokenCreate() {
     setError(null);
     setNewToken(null);
 
-    // Build Go duration string (e.g., "24h", "7d" -> "168h")
-    const durationValue = Number.parseInt(duration, 10);
-    if (!Number.isFinite(durationValue) || durationValue <= 0) {
-      setError('Duration must be a positive number.');
-      setLoading(false);
-      return;
-    }
-
-    let durationStr: string;
+    const durationValue = parseInt(duration);
+    let durationNs: number;
     switch (durationUnit) {
       case 'h':
-        durationStr = `${durationValue}h`;
+        durationNs = durationValue * 60 * 60 * 1e9;
         break;
       case 'd':
-        durationStr = `${durationValue * 24}h`;
+        durationNs = durationValue * 24 * 60 * 60 * 1e9;
         break;
       case 'M':
-        durationStr = `${durationValue * 30 * 24}h`;
+        durationNs = durationValue * 30 * 24 * 60 * 60 * 1e9;
         break;
       case 'y':
-        durationStr = `${durationValue * 365 * 24}h`;
+        durationNs = durationValue * 365 * 24 * 60 * 60 * 1e9;
         break;
     }
 
@@ -102,7 +95,7 @@ export default function SecurityTokenCreate() {
       const response = await api.createToken(storedToken, {
         admin: isAdmin,
         endpoints,
-        duration: durationStr,
+        duration: durationNs,
       });
       setNewToken(response.token);
     } catch (err) {
@@ -231,12 +224,11 @@ export default function SecurityTokenCreate() {
                               <input
                                 type="number"
                                 value={config.limit}
-                                onChange={(e) => {
-                                  const nextLimit = Number.parseInt(e.target.value, 10);
+                                onChange={(e) =>
                                   updateEndpointConfig(endpoint.value, {
-                                    limit: Number.isFinite(nextLimit) && nextLimit > 0 ? nextLimit : 1,
-                                  });
-                                }}
+                                    limit: parseInt(e.target.value) || 0,
+                                  })
+                                }
                                 min="1"
                                 style={{ width: '100%' }}
                               />
