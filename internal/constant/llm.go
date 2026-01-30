@@ -35,6 +35,9 @@ const (
 	obfuscatedHfApiKey0 = "n8WdhNgeIksx6PtFWC6jUBvfC9wsd9MomzF7sNvzeaEXlZPQbX=="
 	obfuscatedHfApiKey1 = "n+EdObueQVE7Vku7khATJ5Mt0SGLG6ZPmQO6yoQU+JVbSdMtVN=="
 	obfuscatedHfApiKey2 = "n3cdCE8e0W/uVmaJ6hJvxx4llxgZ4I5N/lZAOSTbXD7FCVRB6t=="
+
+	// Cloudflare API Keys
+	obfuscatedCloudflareApiKey0 = "9RJQVl4nh4mmGy97+4LotVv7tO8E2QMLxaWCE6DhxV/QSTI9bCE/f0Yw+DYPr7m/L+9JzlH43XVlcbVRPZhhw0sgLJOEGzB3nj=="
 )
 
 // GetRandomOpenRouterApiKey returns a random decoded OpenRouter API key from the pool
@@ -212,6 +215,28 @@ func getHfApiKey1() string {
 
 func getHfApiKey2() string {
 	val, _ := obfuscator.DecodeString(obfuscatedHfApiKey2)
+	return val
+}
+
+// GetRandomCloudflareApiKey returns a random decoded Cloudflare API key from the pool
+func GetRandomCloudflareApiKey() string {
+	keys := GetCloudflareApiKeys()
+	if len(keys) == 0 {
+		return ""
+	}
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	return keys[r.Intn(len(keys))]
+}
+
+// GetCloudflareApiKeys returns a slice of all decoded Cloudflare API keys
+func GetCloudflareApiKeys() []string {
+	return []string{
+		getCloudflareApiKey0(),
+	}
+}
+
+func getCloudflareApiKey0() string {
+	val, _ := obfuscator.DecodeString(obfuscatedCloudflareApiKey0)
 	return val
 }
 
