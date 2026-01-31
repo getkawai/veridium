@@ -5,6 +5,7 @@ import (
 	"github.com/kawai-network/veridium/cmd/server/app/domain/chatapp"
 	"github.com/kawai-network/veridium/cmd/server/app/domain/checkapp"
 	"github.com/kawai-network/veridium/cmd/server/app/domain/embedapp"
+	"github.com/kawai-network/veridium/cmd/server/app/domain/imageapp"
 	"github.com/kawai-network/veridium/cmd/server/app/domain/msgsapp"
 	"github.com/kawai-network/veridium/cmd/server/app/domain/rerankapp"
 	"github.com/kawai-network/veridium/cmd/server/app/domain/respapp"
@@ -66,5 +67,11 @@ func (all) Add(app *web.App, cfg mux.Config) {
 		Log: cfg.Log,
 
 		Cache: cfg.Cache,
+	})
+
+	imageapp.Routes(app, imageapp.Config{
+		Log: cfg.Log,
+
+		Engine: cfg.ImageEngine,
 	})
 }

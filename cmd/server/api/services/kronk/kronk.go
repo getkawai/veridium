@@ -535,7 +535,7 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 	}
 
 	// Initialize Stable Diffusion
-	_ = image.NewEngine()
+	imageEngine := image.NewEngine()
 	log.Info(ctx, "startup", "status", "stable diffusion ready")
 
 	// Cleanup on shutdown
@@ -562,12 +562,13 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 		Build: tag,
 		Log:   log,
 
-		Tracer:    nil,
-		Cache:     cache,
-		Libs:      libs,
-		Models:    models,
-		Catalog:   ctlg,
-		Templates: tmplts,
+		Tracer:      nil,
+		Cache:       cache,
+		Libs:        libs,
+		Models:      models,
+		Catalog:     ctlg,
+		Templates:   tmplts,
+		ImageEngine: imageEngine,
 	}
 
 	webAPI := mux.WebAPI(cfgMux,

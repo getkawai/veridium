@@ -10,6 +10,7 @@ import (
 	"github.com/kawai-network/veridium/cmd/server/app/sdk/mid"
 	"github.com/kawai-network/veridium/cmd/server/foundation/logger"
 	"github.com/kawai-network/veridium/cmd/server/foundation/web"
+	"github.com/kawai-network/veridium/internal/image"
 	"github.com/kawai-network/veridium/pkg/tools/catalog"
 	"github.com/kawai-network/veridium/pkg/tools/libs"
 	"github.com/kawai-network/veridium/pkg/tools/models"
@@ -57,12 +58,13 @@ type Config struct {
 	Build string
 	Log   *logger.Logger
 
-	Tracer    trace.Tracer
-	Cache     *cache.Cache
-	Libs      *libs.Libs
-	Models    *models.Models
-	Catalog   *catalog.Catalog
-	Templates *templates.Templates
+	Tracer      trace.Tracer
+	Cache       *cache.Cache
+	Libs        *libs.Libs
+	Models      *models.Models
+	Catalog     *catalog.Catalog
+	Templates   *templates.Templates
+	ImageEngine *image.StableDiffusion
 }
 
 // RouteAdder defines behavior that sets the routes to bind for an instance

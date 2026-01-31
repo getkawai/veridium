@@ -130,10 +130,11 @@ main() → kronk.Run() →
 - `POST /v1/embeddings` - Text embeddings
 - `POST /v1/rerank` - Document reranking
 - `GET /v1/models` - List models
+- `POST /v1/images/generations` - Image generation (Stable Diffusion)
+- `GET /files/*` - Serve generated images
 
 ### Contributor (TODO: Add Routes)
 - `POST /v1/audio/transcriptions` - Whisper STT
-- `POST /v1/images/generations` - Stable Diffusion
 - `GET /v1/contributor/status` - Contributor info
 - `GET /v1/contributor/hardware` - Hardware specs
 
@@ -154,12 +155,12 @@ main() → kronk.Run() →
 - [x] Integrate Whisper service
 - [x] Integrate Stable Diffusion
 
-### Phase 2: API Routes (TODO)
+### Phase 2: ✅ API Routes (DONE)
+- [x] Add image generation endpoint to mux
+- [x] Add file server for generated images
 - [ ] Add Whisper endpoint to mux
-- [ ] Add Stable Diffusion endpoint to mux
 - [ ] Add contributor status endpoint
 - [ ] Add hardware info endpoint
-- [ ] Add static file serving for SD outputs
 
 ### Phase 3: Testing (TODO)
 - [ ] Test wallet creation/unlock
