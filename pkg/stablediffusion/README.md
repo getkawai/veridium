@@ -23,8 +23,8 @@ stable-diffusion-go/
 ├── configs/            # Configuration file examples
 │   └── example.yaml    # Example configuration file
 ├── examples/           # Example programs directory
-│   ├── txt2img.go      # Text-to-image generation example
-│   └── txt2vid.go      # Text-to-video generation example
+│   ├── txt2img/        # Text-to-image generation example
+│   └── txt2vid/        # Text-to-video generation example
 ├── lib/                # Dynamic library reference directory
 │   ├── ggml.txt        # GGML library version reference
 │   ├── stable-diffusion.cpp.txt  # Stable Diffusion C++ library reference
@@ -147,10 +147,10 @@ The project **does not include** precompiled dynamic libraries. You need to down
 
 ```bash
 # Enter the examples directory
-cd examples
+cd examples/txt2img
 
 # Run text-to-image example
-go run txt2img.go
+go run .
 ```
 
 Example code:
@@ -211,7 +211,7 @@ func main() {
 
 ```bash
 # Run text-to-video example
-go run txt2vid.go
+go run ./examples/txt2vid
 ```
 
 ## 📚 Core Features
