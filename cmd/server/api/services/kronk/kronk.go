@@ -27,8 +27,8 @@ import (
 	"github.com/kawai-network/veridium/cmd/server/foundation/web"
 	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/internal/services"
-	"github.com/kawai-network/veridium/internal/whisper"
 	"github.com/kawai-network/veridium/pkg/blockchain"
+	gowhisper "github.com/mutablelogic/go-whisper/pkg/whisper"
 	"github.com/kawai-network/veridium/pkg/hardware"
 	"github.com/kawai-network/veridium/pkg/kronk"
 	pkglogger "github.com/kawai-network/veridium/pkg/logger"
@@ -528,12 +528,19 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 	}()
 	log.Info(ctx, "startup", "status", "heartbeat started", "interval", "30s")
 
-	// Initialize Whisper Service
-	_, err = whisper.NewService()
-	if err != nil {
-		log.Info(ctx, "whisper", "status", "initialization failed", "error", err)
-	} else {
-		log.Info(ctx, "startup", "status", "whisper service ready")
+	// Initialize Whisper Service (go-whisper)
+	var whisperManager *gowhisper.Manager
+	{
+		log.Info(ctx, "startup", "status", "initializing whisper")
+
+		whisperModelsPath := filepath.Join(cfg.BasePath, "whisper-models")
+		manager, err := gowhisper.New(whisperModelsPath)
+		if err != nil {
+			log.Info(ctx, "whisper", "status", "initialization failed", "error", err)
+		} else {
+			whisperManager = manager
+			log.Info(ctx, "startup", "status", "whisper service ready")
+		}
 	}
 
 	// Initialize Stable Diffusion
@@ -614,13 +621,14 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 		Build: tag,
 		Log:   log,
 
-		Tracer:      nil,
-		Cache:       cache,
-		Libs:        libs,
-		Models:      models,
-		Catalog:     ctlg,
-		Templates:   tmplts,
-		ImageEngine: imageEngine,
+		Tracer:         nil,
+		Cache:          cache,
+		Libs:           libs,
+		Models:         models,
+		Catalog:        ctlg,
+		Templates:      tmplts,
+		ImageEngine:    imageEngine,
+		WhisperManager: whisperManager,
 	}
 
 	webAPI := mux.WebAPI(cfgMux,

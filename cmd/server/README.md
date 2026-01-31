@@ -32,7 +32,7 @@ Kronk server telah berhasil dimigrate dengan **contributor features** dari `cmd/
 ✅ **Contributor Registry** - Register to network
 ✅ **Heartbeat System** - 30s keep-alive mechanism
 ✅ **Tunnel Integration** - Public endpoint via tunnelkit
-✅ **Whisper Service** - Speech-to-text capability
+✅ **Whisper Service** - Speech-to-text capability (go-whisper)
 ✅ **Stable Diffusion** - Image generation capability
 
 ---
@@ -133,10 +133,10 @@ main() → kronk.Run() →
 - `POST /v1/images/generations` - Image generation (Stable Diffusion)
 - `GET /files/*` - Serve generated images
 
-### Contributor (TODO: Add Routes)
-- `POST /v1/audio/transcriptions` - Whisper STT
-- `GET /v1/contributor/status` - Contributor info
-- `GET /v1/contributor/hardware` - Hardware specs
+### Contributor (Implemented)
+- `POST /v1/audio/transcriptions` - Whisper STT (go-whisper)
+- `GET /v1/contributor/status` - Contributor info (TODO)
+- `GET /v1/contributor/hardware` - Hardware specs (TODO)
 
 ---
 
@@ -158,7 +158,7 @@ main() → kronk.Run() →
 ### Phase 2: ✅ API Routes (DONE)
 - [x] Add image generation endpoint to mux
 - [x] Add file server for generated images
-- [ ] Add Whisper endpoint to mux
+- [x] Add Whisper endpoint to mux (go-whisper)
 - [ ] Add contributor status endpoint
 - [ ] Add hardware info endpoint
 
