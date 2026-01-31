@@ -10,7 +10,7 @@ import (
 	"github.com/kawai-network/veridium/cmd/server/app/sdk/mid"
 	"github.com/kawai-network/veridium/cmd/server/foundation/logger"
 	"github.com/kawai-network/veridium/cmd/server/foundation/web"
-	"github.com/kawai-network/veridium/internal/image"
+	sd "github.com/kawai-network/veridium/pkg/stablediffusion"
 	"github.com/kawai-network/veridium/pkg/tools/catalog"
 	"github.com/kawai-network/veridium/pkg/tools/libs"
 	"github.com/kawai-network/veridium/pkg/tools/models"
@@ -64,7 +64,7 @@ type Config struct {
 	Models      *models.Models
 	Catalog     *catalog.Catalog
 	Templates   *templates.Templates
-	ImageEngine *image.StableDiffusion
+	ImageEngine *sd.StableDiffusion
 }
 
 // RouteAdder defines behavior that sets the routes to bind for an instance

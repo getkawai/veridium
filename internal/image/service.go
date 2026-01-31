@@ -41,6 +41,12 @@ func (s *Service) SetTopicService(ts *topic.TopicService) {
 	s.TopicService = ts
 }
 
+// GetFirstAvailableModel returns the first available SD model
+func (s *Service) GetFirstAvailableModel() string {
+	localGen := NewLocalGenerator(s.StableDiffusion)
+	return localGen.GetFirstAvailableModel()
+}
+
 // CreateImage handles frontend CreateImageRequest and generates images asynchronously
 func (s *Service) CreateImage(req CreateImageRequest) error {
 	ctx := context.Background()

@@ -26,7 +26,12 @@ func (a *app) serveFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build full path
-	outputDir := a.engine.GetOutputsPath()
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		http.Error(w, "unable to determine home directory", http.StatusInternalServerError)
+		return
+	}
+	outputDir := filepath.Join(homeDir, ".stable-diffusion", "outputs")
 	fullPath := filepath.Join(outputDir, filename)
 
 	// Security: ensure path is within output directory

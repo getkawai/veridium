@@ -6,14 +6,14 @@ import (
 	"github.com/kawai-network/veridium/cmd/server/app/sdk/mid"
 	"github.com/kawai-network/veridium/cmd/server/foundation/logger"
 	"github.com/kawai-network/veridium/cmd/server/foundation/web"
-	"github.com/kawai-network/veridium/internal/image"
+	sd "github.com/kawai-network/veridium/pkg/stablediffusion"
 )
 
 // Config contains all the mandatory systems required by handlers.
 type Config struct {
 	Log *logger.Logger
 
-	Engine *image.StableDiffusion
+	Engine *sd.StableDiffusion
 }
 
 // Routes adds specific routes for this group.

@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"syscall"
@@ -25,13 +26,14 @@ import (
 	"github.com/kawai-network/veridium/cmd/server/foundation/logger"
 	"github.com/kawai-network/veridium/cmd/server/foundation/web"
 	"github.com/kawai-network/veridium/internal/constant"
-	"github.com/kawai-network/veridium/internal/image"
 	"github.com/kawai-network/veridium/internal/services"
 	"github.com/kawai-network/veridium/internal/whisper"
 	"github.com/kawai-network/veridium/pkg/blockchain"
 	"github.com/kawai-network/veridium/pkg/hardware"
 	"github.com/kawai-network/veridium/pkg/kronk"
 	pkglogger "github.com/kawai-network/veridium/pkg/logger"
+	sd "github.com/kawai-network/veridium/pkg/stablediffusion"
+	"github.com/kawai-network/veridium/pkg/stablediffusion/modeldownloader"
 	"github.com/kawai-network/veridium/pkg/store"
 	"github.com/kawai-network/veridium/pkg/tools/catalog"
 	"github.com/kawai-network/veridium/pkg/tools/defaults"
@@ -535,8 +537,58 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 	}
 
 	// Initialize Stable Diffusion
-	imageEngine := image.NewEngine()
-	log.Info(ctx, "startup", "status", "stable diffusion ready")
+	var imageEngine *sd.StableDiffusion
+	{
+		log.Info(ctx, "startup", "status", "initializing stable diffusion")
+
+		// 1. Ensure Library
+		if err := sd.EnsureLibrary(); err != nil {
+			log.Info(ctx, "startup", "status", "failed to download SD library", "error", err)
+		} else {
+			// 2. Find Model
+			// Assume models are in the models catalog path or specific SD path
+			modelsPath := filepath.Join(cfg.BasePath, "models")
+			downloader := modeldownloader.New(modelsPath)
+
+			modelFile, err := downloader.DiscoverModel()
+			if err != nil {
+				log.Info(ctx, "startup", "status", "error discovering models", "error", err)
+			}
+
+			if modelFile != "" {
+				log.Info(ctx, "startup", "status", "found SD model", "path", modelFile)
+			} else {
+				// No model found - Download default model (SD 1.4 ~4GB)
+				log.Info(ctx, "startup", "status", "no SD model found, downloading default model (this may take a while)...")
+
+				modelFile, err = downloader.DownloadModelSimple(ctx, modeldownloader.DefaultModelURL)
+				if err != nil {
+					log.Info(ctx, "startup", "status", "failed to download model", "error", err)
+				} else {
+					log.Info(ctx, "startup", "status", "default model downloaded successfully", "path", modelFile)
+				}
+			}
+
+			if modelFile != "" {
+				// 3. Initialize Engine
+				ctxParams := &sd.ContextParams{
+					DiffusionModelPath: modelFile,
+					DiffusionFlashAttn: true,
+					OffloadParamsToCPU: true,
+				}
+
+				eng, err := sd.NewStableDiffusion(ctxParams)
+				if err != nil {
+					log.Info(ctx, "startup", "status", "failed to init SD engine", "error", err)
+				} else {
+					imageEngine = eng
+					log.Info(ctx, "startup", "status", "stable diffusion ready")
+				}
+			} else {
+				log.Info(ctx, "startup", "status", "image generation disabled (no model)")
+			}
+		}
+	}
 
 	// Cleanup on shutdown
 	defer func() {

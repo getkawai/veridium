@@ -15,12 +15,12 @@ import (
 	"github.com/kawai-network/veridium/cmd/server/app/sdk/errs"
 	"github.com/kawai-network/veridium/cmd/server/foundation/logger"
 	"github.com/kawai-network/veridium/cmd/server/foundation/web"
-	"github.com/kawai-network/veridium/internal/image"
+	sd "github.com/kawai-network/veridium/pkg/stablediffusion"
 )
 
 type app struct {
 	log    *logger.Logger
-	engine *image.StableDiffusion
+	engine *sd.StableDiffusion
 }
 
 func newApp(cfg Config) *app {
@@ -106,17 +106,14 @@ func (a *app) generations(ctx context.Context, r *http.Request) web.Encoder {
 // generateImages implements the image generation logic
 // Reused and adapted from pkg/gateway/image_executor.go
 func (a *app) generateImages(ctx context.Context, req ImageGenerationRequest) ([]ImageData, error) {
-	outputDir := a.engine.GetOutputsPath()
+	// Use default output directory
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get home directory: %w", err)
+	}
+	outputDir := filepath.Join(homeDir, ".stable-diffusion", "outputs")
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create output directory: %w", err)
-	}
-
-	modelPath := a.engine.GetFirstAvailableModel()
-	if req.Model != "" {
-		// TODO: Implement specific model selection if needed
-	}
-	if modelPath == "" {
-		return nil, fmt.Errorf("no stable diffusion model available")
 	}
 
 	// Parse dimensions
@@ -137,24 +134,24 @@ func (a *app) generateImages(ctx context.Context, req ImageGenerationRequest) ([
 		fileName := fmt.Sprintf("gen_%s.png", imageID)
 		outputPath := filepath.Join(outputDir, fileName)
 
-		seed := time.Now().UnixNano()
-
-		opts := image.GenerationOptions{
-			Prompt:     req.Prompt,
-			ModelPath:  modelPath,
-			OutputPath: outputPath,
-			Width:      width,
-			Height:     height,
-			Steps:      20,
-			Cfg:        7.0,
-			Seed:       &seed,
+		// Map to pkg/stablediffusion Params
+		params := &sd.ImgGenParams{
+			Prompt:      req.Prompt,
+			Width:       int32(width),
+			Height:      int32(height),
+			SampleSteps: 20,
+			CfgScale:    7.0,
+			Seed:        0, // Random
 		}
 
 		if req.Quality == "hd" {
-			opts.Steps = 30
+			params.SampleSteps = 30
 		}
 
-		if err := a.engine.CreateImageWithOptions(opts); err != nil {
+		a.log.Info(ctx, "generating image", "id", imageID, "params", params)
+
+		// Generate using the library backend
+		if err := a.engine.GenerateImage(params, outputPath); err != nil {
 			return nil, fmt.Errorf("generation failed for image %d: %w", i, err)
 		}
 
