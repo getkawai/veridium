@@ -143,6 +143,11 @@ make contracts-clean     # Clean contract artifacts
 - `cmd/` for CLI tools
 - `contracts/` for Solidity contracts
 
+### Path Conventions
+- All application data storage paths must be resolved through `internal/paths`.
+- Do not use hardcoded paths or `os.UserHomeDir()` directly for app data.
+- Use `paths.Base()`, `paths.Database()`, etc., to ensure cross-platform compatibility and proper development/packaged behavior.
+
 ### Smart Contracts
 - Bindings in `internal/generate/abi/`
 - Handle transaction errors gracefully
