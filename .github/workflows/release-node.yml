@@ -2,8 +2,8 @@ name: Release Node (cmd/server)
 
 on:
   push:
-    branches:
-      - feature/xxx
+    tags:
+      - 'node-v*'
 
 permissions:
   contents: write
@@ -28,17 +28,9 @@ jobs:
       - name: Get version
         id: get_version
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
-          else
-            # Extract version from branch name or use commit SHA
-            VERSION="${GITHUB_REF#refs/tags/node-v}"
-            # If VERSION is empty or equals the full ref (not a tag), use commit SHA
-            if [ -z "$VERSION" ] || [ "$VERSION" = "${GITHUB_REF}" ]; then
-              VERSION="${GITHUB_SHA:0:7}"
-            fi
-            echo "version=$VERSION" >> $GITHUB_OUTPUT
-          fi
+          # Extract version from tag (refs/tags/node-v1.2.3 -> 1.2.3)
+          VERSION="${GITHUB_REF#refs/tags/node-v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Create Release
         id: create_release

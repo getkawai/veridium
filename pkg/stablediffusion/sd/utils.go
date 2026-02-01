@@ -12,6 +12,7 @@ import (
 	"strings"
 	"unsafe"
 
+	"github.com/kawai-network/veridium/internal/paths"
 	"golang.org/x/sys/cpu"
 )
 
@@ -90,35 +91,12 @@ func GetCpuAVX() string {
 
 // GetSDLibPath gets SD library path
 func GetSDLibPath(libName string) string {
-	// Use GetLibDir from parent package to get consistent path
-	// This will be set by the parent package using internal/paths
-	libDir := getLibraryDirectory()
-	if libDir == "" {
-		// Fallback to working directory if not set
-		workDir, err := os.Getwd()
-		if err != nil {
-			fmt.Printf("Failed to get working directory: %v\n", err)
-			return ""
-		}
-		libDir = filepath.Join(workDir, "lib")
-	}
+	// Use internal/paths.NodeLibraries() for consistent path resolution
+	libDir := paths.NodeLibraries()
 
 	libPath := filepath.Join(libDir, libName)
 	fmt.Println("Loading stable-diffusion library: " + libPath)
 	return libPath
-}
-
-// libraryDirectory stores the library directory path
-var libraryDirectory string
-
-// SetLibraryDirectory sets the library directory path
-func SetLibraryDirectory(dir string) {
-	libraryDirectory = dir
-}
-
-// getLibraryDirectory gets the library directory path
-func getLibraryDirectory() string {
-	return libraryDirectory
 }
 
 // SaveImage saves SDImage as PNG file

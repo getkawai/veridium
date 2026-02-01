@@ -166,3 +166,22 @@ func JarvisAddressBook() string { return filepath.Join(Jarvis(), "addresses.json
 
 // JarvisSecrets returns path to secrets.json
 func JarvisSecrets() string { return filepath.Join(Jarvis(), "secrets.json") }
+
+// =============================================================================
+// Node-specific paths (AI/ML models and libraries)
+// =============================================================================
+
+// Node returns the base directory for node data
+func Node() string { return filepath.Join(Base(), "node") }
+
+// NodeModels returns path to AI/ML models directory
+func NodeModels() string { return filepath.Join(Node(), "models") }
+
+// NodeLibraries returns path to shared libraries directory
+func NodeLibraries() string { return filepath.Join(Node(), "libraries") }
+
+// NodeCatalogs returns path to model catalogs directory
+func NodeCatalogs() string { return filepath.Join(Node(), "catalogs") }
+
+// NodeTemplates returns path to chat templates directory
+func NodeTemplates() string { return filepath.Join(Node(), "templates") }

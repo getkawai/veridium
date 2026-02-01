@@ -2,16 +2,14 @@
 package defaults
 
 import (
-	"fmt"
 	"os"
-	"path/filepath"
 	"runtime"
 
+	"github.com/kawai-network/veridium/internal/paths"
 	"github.com/kawai-network/veridium/pkg/fantasy/llamalib/download"
 )
 
 var (
-	basePath   = ".kronk"
 	libVersion = ""
 )
 
@@ -29,18 +27,13 @@ func LibVersion(override string) string {
 	return libVersion
 }
 
-// BaseDir is the default base folder location for kronk files.
+// BaseDir is the default base folder location for node files.
 func BaseDir(override string) string {
 	if override != "" {
 		return override
 	}
 
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Sprintf("./%s", basePath)
-	}
-
-	return filepath.Join(homeDir, basePath)
+	return paths.Node()
 }
 
 // Arch will check the KRONK_ARCH var first and check it's value against the

@@ -9,18 +9,12 @@ import (
 
 	"github.com/kawai-network/veridium/internal/paths"
 	"github.com/kawai-network/veridium/pkg/stablediffusion/download"
-	"github.com/kawai-network/veridium/pkg/stablediffusion/sd"
 )
 
 // GetLibDir returns the directory where stable-diffusion library should be stored.
-// Uses paths.Base() to ensure consistent location for both development and packaged apps.
+// Uses paths.NodeLibraries() to ensure consistent location for both development and packaged apps.
 func GetLibDir() string {
-	return filepath.Join(paths.Base(), "lib")
-}
-
-func init() {
-	// Set library directory for sd package to use
-	sd.SetLibraryDirectory(GetLibDir())
+	return paths.NodeLibraries()
 }
 
 // EnsureLibrary checks if the stable-diffusion library exists, and downloads it if not.
