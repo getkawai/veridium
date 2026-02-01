@@ -52,6 +52,7 @@ export function CreateImage(req: $models.CreateImageRequest): $CancellablePromis
 /**
  * CreateImageWithOptions generates an image using GenerationOptions directly
  * Used by internal services like image_designer
+ * This method now delegates to the appropriate generator (local or remote)
  */
 export function CreateImageWithOptions(opts: $models.GenerationOptions): $CancellablePromise<void> {
     return $Call.ByID(1496933164, opts);
@@ -76,14 +77,6 @@ export function GetModelPath(filename: string): $CancellablePromise<string> {
  */
 export function GetModelsPath(): $CancellablePromise<string> {
     return $Call.ByID(2349867010);
-}
-
-/**
- * GetOutputsPath returns the path for generated images
- * Note: This matches the default but we override it in CreateImage to use files/uploads
- */
-export function GetOutputsPath(): $CancellablePromise<string> {
-    return $Call.ByID(2823684656);
 }
 
 /**

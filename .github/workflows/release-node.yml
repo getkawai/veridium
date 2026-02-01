@@ -1,0 +1,289 @@
+name: Release Node (cmd/server)
+
+on:
+  push:
+    branches:
+      - feature/xxx
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  GO_VERSION: '1.25'
+  R2_BUCKET: 'kawai'
+  R2_PUBLIC_URL: 'https://storage.getkawai.com'
+
+jobs:
+  prepare:
+    name: Prepare Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get version
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            # Extract version from branch name or use commit SHA
+            VERSION="${GITHUB_REF#refs/tags/node-v}"
+            # If VERSION is empty or equals the full ref (not a tag), use commit SHA
+            if [ -z "$VERSION" ] || [ "$VERSION" = "${GITHUB_REF}" ]; then
+              VERSION="${GITHUB_SHA:0:7}"
+            fi
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: node-v${{ steps.get_version.outputs.version }}
+          name: Kawai Node v${{ steps.get_version.outputs.version }}
+          draft: true
+          prerelease: false
+          body: |
+            ## 🎉 Kawai Node v${{ steps.get_version.outputs.version }}
+
+            Kawai Node is the OpenAI-compatible model server for GPU contributors.
+
+            ### 📦 Downloads
+
+            Choose the appropriate binary for your platform:
+
+            - **Linux AMD64**: `kawai-node-${{ steps.get_version.outputs.version }}-linux-amd64.tar.gz`
+            - **Linux ARM64**: `kawai-node-${{ steps.get_version.outputs.version }}-linux-arm64.tar.gz`
+            - **macOS AMD64**: `kawai-node-${{ steps.get_version.outputs.version }}-darwin-amd64.tar.gz`
+            - **macOS ARM64**: `kawai-node-${{ steps.get_version.outputs.version }}-darwin-arm64.tar.gz`
+            - **Windows AMD64**: `kawai-node-${{ steps.get_version.outputs.version }}-windows-amd64.zip`
+
+            ### 🚀 Quick Install
+
+            ```bash
+            curl -fsSL https://getkawai.com/node | sh
+            ```
+
+            ### 🔐 Verification
+
+            Verify your download with SHA256 checksums in `checksums.txt`
+
+            ### 📝 What's New
+
+            <!-- Add release notes here -->
+
+            ### 🐛 Bug Fixes
+
+            <!-- Add bug fixes here -->
+
+  build-linux:
+    name: Build Linux
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [amd64]
+        # Note: ARM64 cross-compilation requires proper cross-compiler setup
+        # For now, only build AMD64 on Linux runners
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+
+      # Note: whisper library is downloaded at runtime by pkg/whisper
+      # No need to build it in CI - purego will download the appropriate
+      # shared library for the target platform on first run
+
+      - name: Build Linux ${{ matrix.arch }}
+        env:
+          GOOS: linux
+          GOARCH: ${{ matrix.arch }}
+          CGO_ENABLED: 1
+        run: |
+          mkdir -p bin
+          go build -ldflags "-s -w -X main.version=${{ needs.prepare.outputs.version }}" \
+            -o bin/kawai-node ./cmd/server
+
+      - name: Create distribution archive
+        run: |
+          cd bin
+          VERSION="${{ needs.prepare.outputs.version }}"
+          tar -czf "kawai-node-${VERSION}-linux-${{ matrix.arch }}.tar.gz" kawai-node
+          sha256sum "kawai-node-${VERSION}-linux-${{ matrix.arch }}.tar.gz" > "checksums-linux-${{ matrix.arch }}.txt"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-build-${{ matrix.arch }}
+          path: |
+            bin/kawai-node-*.tar.gz
+            bin/checksums-linux-*.txt
+
+      - name: Upload to Cloudflare R2
+        uses: ryand56/r2-upload-action@v1.3.2
+        with:
+          r2-account-id: ${{ secrets.R2_ACCOUNT_ID }}
+          r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
+          r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          r2-bucket: ${{ env.R2_BUCKET }}
+          source-dir: bin
+          destination-dir: node/v${{ needs.prepare.outputs.version }}
+          output-file-url: true
+          include-pattern: "*.tar.gz,checksums-*.txt"
+
+      - name: Upload to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        with:
+          upload_url: ${{ needs.prepare.outputs.upload_url }}
+          asset_path: bin/kawai-node-${{ needs.prepare.outputs.version }}-linux-${{ matrix.arch }}.tar.gz
+          asset_name: kawai-node-${{ needs.prepare.outputs.version }}-linux-${{ matrix.arch }}.tar.gz
+          asset_content_type: application/gzip
+
+  build-macos:
+    name: Build macOS
+    needs: prepare
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        arch: [arm64]
+        # Note: macOS runners are Apple Silicon (ARM64) only
+        # AMD64 would need cross-compilation or separate Intel runner
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      # Note: whisper library is downloaded at runtime by pkg/whisper
+      # No need to build it in CI - purego will download the appropriate
+      # shared library for the target platform on first run
+
+      - name: Build macOS ${{ matrix.arch }}
+        env:
+          GOOS: darwin
+          GOARCH: ${{ matrix.arch }}
+          CGO_ENABLED: 1
+        run: |
+          mkdir -p bin
+          go build -ldflags "-s -w -X main.version=${{ needs.prepare.outputs.version }}" \
+            -o bin/kawai-node ./cmd/server
+
+      - name: Create distribution archive
+        run: |
+          cd bin
+          VERSION="${{ needs.prepare.outputs.version }}"
+          tar -czf "kawai-node-${VERSION}-darwin-${{ matrix.arch }}.tar.gz" kawai-node
+          shasum -a 256 "kawai-node-${VERSION}-darwin-${{ matrix.arch }}.tar.gz" > "checksums-darwin-${{ matrix.arch }}.txt"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: darwin-build-${{ matrix.arch }}
+          path: |
+            bin/kawai-node-*.tar.gz
+            bin/checksums-darwin-*.txt
+
+      - name: Upload to Cloudflare R2
+        uses: ryand56/r2-upload-action@v1.3.2
+        with:
+          r2-account-id: ${{ secrets.R2_ACCOUNT_ID }}
+          r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
+          r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          r2-bucket: ${{ env.R2_BUCKET }}
+          source-dir: bin
+          destination-dir: node/v${{ needs.prepare.outputs.version }}
+          output-file-url: true
+          include-pattern: "*.tar.gz,checksums-*.txt"
+
+      - name: Upload to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        with:
+          upload_url: ${{ needs.prepare.outputs.upload_url }}
+          asset_path: bin/kawai-node-${{ needs.prepare.outputs.version }}-darwin-${{ matrix.arch }}.tar.gz
+          asset_name: kawai-node-${{ steps.get_version.outputs.version }}-darwin-${{ matrix.arch }}.tar.gz
+          asset_content_type: application/gzip
+
+  build-windows:
+    name: Build Windows
+    needs: prepare
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Install mingw
+        run: |
+          choco install mingw
+
+      - name: Build Windows AMD64
+        shell: powershell
+        env:
+          CGO_ENABLED: 1
+          CC: gcc
+        run: |
+          mkdir -p bin
+          go build -ldflags "-s -w -X main.version=${{ needs.prepare.outputs.version }}" -o bin/kawai-node.exe ./cmd/server
+
+      - name: Create distribution archive
+        run: |
+          cd bin
+          $VERSION = "${{ needs.prepare.outputs.version }}"
+          $ARCHIVE = "kawai-node-${VERSION}-windows-amd64.zip"
+          Compress-Archive -Path kawai-node.exe -DestinationPath $ARCHIVE
+          Get-FileHash -Algorithm SHA256 $ARCHIVE | ForEach-Object { "$($_.Hash.ToLower())  $((Split-Path -Leaf $_.Path))" } | Out-File -Encoding ASCII checksums-windows.txt
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: |
+            bin/kawai-node-*.zip
+            bin/checksums-windows.txt
+
+      - name: Upload to Cloudflare R2
+        uses: ryand56/r2-upload-action@v1.3.2
+        with:
+          r2-account-id: ${{ secrets.R2_ACCOUNT_ID }}
+          r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
+          r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          r2-bucket: ${{ env.R2_BUCKET }}
+          source-dir: bin
+          destination-dir: node/v${{ needs.prepare.outputs.version }}
+          output-file-url: true
+          include-pattern: "*.zip,checksums-*.txt"
+
+      - name: Upload to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        with:
+          upload_url: ${{ needs.prepare.outputs.upload_url }}
+          asset_path: bin/kawai-node-${{ needs.prepare.outputs.version }}-windows-amd64.zip
+          asset_name: kawai-node-${{ needs.prepare.outputs.version }}-windows-amd64.zip
+          asset_content_type: application/zip

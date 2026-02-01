@@ -30,3 +30,6 @@ contracts/.env.bak
 
 # Release artifacts
 releases/
+
+# Deprecated: Old CGO-based whisper implementation (replaced by pkg/whisper)
+internal/go-whisper/

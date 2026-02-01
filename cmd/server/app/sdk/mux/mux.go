@@ -15,7 +15,6 @@ import (
 	"github.com/kawai-network/veridium/pkg/tools/libs"
 	"github.com/kawai-network/veridium/pkg/tools/models"
 	"github.com/kawai-network/veridium/pkg/tools/templates"
-	"github.com/mutablelogic/go-whisper/pkg/whisper"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -59,14 +58,13 @@ type Config struct {
 	Build string
 	Log   *logger.Logger
 
-	Tracer         trace.Tracer
-	Cache          *cache.Cache
-	Libs           *libs.Libs
-	Models         *models.Models
-	Catalog        *catalog.Catalog
-	Templates      *templates.Templates
-	ImageEngine    *sd.StableDiffusion
-	WhisperManager *whisper.Manager
+	Tracer      trace.Tracer
+	Cache       *cache.Cache
+	Libs        *libs.Libs
+	Models      *models.Models
+	Catalog     *catalog.Catalog
+	Templates   *templates.Templates
+	ImageEngine *sd.StableDiffusion
 }
 
 // RouteAdder defines behavior that sets the routes to bind for an instance

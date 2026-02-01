@@ -1,4 +1,4 @@
-// Package whisperapp provides the audio transcription API endpoints using go-whisper.
+// Package whisperapp provides the audio transcription API endpoints using pkg/whisper.
 package whisperapp
 
 import (
@@ -7,40 +7,38 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/kawai-network/veridium/cmd/server/app/sdk/errs"
 	"github.com/kawai-network/veridium/cmd/server/foundation/logger"
 	"github.com/kawai-network/veridium/cmd/server/foundation/web"
-	"github.com/mutablelogic/go-whisper/pkg/schema"
-	"github.com/mutablelogic/go-whisper/pkg/whisper"
+	"github.com/kawai-network/veridium/pkg/whisper"
+	"github.com/kawai-network/veridium/pkg/whisper/model"
 )
 
 // app represents the whisper application
 type app struct {
-	log     *logger.Logger
-	manager *whisper.Manager
+	log *logger.Logger
 }
 
 // Config contains all the mandatory systems required by handlers.
 type Config struct {
-	Log     *logger.Logger
-	Manager *whisper.Manager
+	Log *logger.Logger
 }
 
 func newApp(cfg Config) *app {
 	return &app{
-		log:     cfg.Log,
-		manager: cfg.Manager,
+		log: cfg.Log,
 	}
 }
 
 // TranscriptionRequest represents an OpenAI-compatible audio transcription request
 type TranscriptionRequest struct {
-	Model       string `json:"model" form:"model" binding:"required"`
-	Language    string `json:"language,omitempty" form:"language"`
-	Prompt      string `json:"prompt,omitempty" form:"prompt"`
-	ResponseFmt string `json:"response_format,omitempty" form:"response_format"` // json, text, srt, vtt
+	Model       string  `json:"model" form:"model" binding:"required"`
+	Language    string  `json:"language,omitempty" form:"language"`
+	Prompt      string  `json:"prompt,omitempty" form:"prompt"`
+	ResponseFmt string  `json:"response_format,omitempty" form:"response_format"` // json, text, srt, vtt
 	Temperature float32 `json:"temperature,omitempty" form:"temperature"`
 }
 
@@ -57,10 +55,6 @@ func (r TranscriptionResponse) Encode() ([]byte, string, error) {
 
 // transcriptions handles POST /v1/audio/transcriptions
 func (a *app) transcriptions(ctx context.Context, r *http.Request) web.Encoder {
-	if a.manager == nil {
-		return errs.Errorf(errs.Unimplemented, "whisper service not available")
-	}
-
 	// Parse multipart form (for file upload)
 	if err := r.ParseMultipartForm(32 << 20); err != nil { // 32MB max
 		return errs.New(errs.InvalidArgument, fmt.Errorf("failed to parse form: %w", err))
@@ -76,9 +70,9 @@ func (a *app) transcriptions(ctx context.Context, r *http.Request) web.Encoder {
 	a.log.Info(ctx, "transcription request", "filename", header.Filename, "size", header.Size)
 
 	// Parse other form fields
-	model := r.FormValue("model")
-	if model == "" {
-		model = "base" // Default model
+	modelName := r.FormValue("model")
+	if modelName == "" {
+		modelName = "base" // Default model
 	}
 
 	responseFormat := r.FormValue("response_format")
@@ -86,14 +80,26 @@ func (a *app) transcriptions(ctx context.Context, r *http.Request) web.Encoder {
 		responseFormat = "json"
 	}
 
-	// Get the model
-	whisperModel := a.manager.GetModelById(model)
-	if whisperModel == nil {
-		return errs.Errorf(errs.NotFound, "model %s not found", model)
+	language := r.FormValue("language")
+
+	// Get models directory from environment or use default
+	modelsDir := os.Getenv("WHISPER_MODELS_DIR")
+	if modelsDir == "" {
+		modelsDir = "./data/models/whisper"
+	}
+
+	// Check if model exists, download if not
+	modelPath := model.GetModelPath(modelsDir, modelName)
+	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
+		a.log.Info(ctx, "downloading whisper model", "model", modelName)
+		if err := model.DownloadModel(modelName, modelsDir, nil); err != nil {
+			a.log.Error(ctx, "failed to download model", "error", err)
+			return errs.Errorf(errs.NotFound, "model %s not available and download failed", modelName)
+		}
 	}
 
 	// Perform transcription
-	text, err := a.transcribe(ctx, whisperModel, file)
+	text, err := a.transcribe(ctx, modelPath, file, language)
 	if err != nil {
 		a.log.Error(ctx, "transcription failed", "error", err)
 		return errs.New(errs.Internal, err)
@@ -117,42 +123,58 @@ func (a *app) transcriptions(ctx context.Context, r *http.Request) web.Encoder {
 }
 
 // transcribe performs the actual transcription
-func (a *app) transcribe(ctx context.Context, model *schema.Model, file io.Reader) (string, error) {
-	// Read audio data
-	audioData, err := io.ReadAll(file)
+func (a *app) transcribe(ctx context.Context, modelPath string, file io.Reader, language string) (string, error) {
+	// Save uploaded file to temp location
+	tempFile, err := os.CreateTemp("", "whisper-*.audio")
 	if err != nil {
-		return "", fmt.Errorf("failed to read audio data: %w", err)
+		return "", fmt.Errorf("failed to create temp file: %w", err)
+	}
+	defer os.Remove(tempFile.Name())
+	defer tempFile.Close()
+
+	// Copy uploaded data to temp file
+	if _, err := io.Copy(tempFile, file); err != nil {
+		return "", fmt.Errorf("failed to save audio file: %w", err)
+	}
+	tempFile.Close()
+
+	// Create whisper instance
+	cfg := whisper.Config{
+		ModelPath: modelPath,
+		UseGPU:    true,
 	}
 
-	var result string
-	err = a.manager.WithModel(model, func(task *whisper.Task) error {
-		// Create a segment callback to collect text
-		var segments []string
-		segmentCallback := func(seg *schema.Segment) {
-			if seg != nil && seg.Text != "" {
-				segments = append(segments, seg.Text)
-			}
-		}
-
-		// Transcribe - convert []byte to []float32 if needed
-		// go-whisper expects float32 audio samples
-		samples := bytesToFloat32(audioData)
-		
-		err := task.Transcribe(ctx, 0, samples, segmentCallback)
-		if err != nil {
-			return err
-		}
-
-		// Join all segments
-		result = joinSegments(segments)
-		return nil
-	})
-
+	w, err := whisper.New(cfg)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to create whisper: %w", err)
+	}
+	defer w.Free()
+
+	// Set transcription options
+	opts := []whisper.TranscribeOption{
+		whisper.WithThreads(4),
+	}
+	if language != "" && language != "auto" {
+		opts = append(opts, whisper.WithLanguage(language))
 	}
 
-	return result, nil
+	// Transcribe
+	result, err := w.Transcribe(tempFile.Name(), opts...)
+	if err != nil {
+		return "", fmt.Errorf("transcription failed: %w", err)
+	}
+
+	return result.Text, nil
+}
+
+// TextResponse represents a plain text response
+type TextResponse struct {
+	Text string
+}
+
+// Encode implements web.Encoder for plain text
+func (r TextResponse) Encode() ([]byte, string, error) {
+	return []byte(r.Text), "text/plain", nil
 }
 
 // bytesToFloat32 converts byte audio data to float32 samples
@@ -170,14 +192,4 @@ func bytesToFloat32(data []byte) []float32 {
 // joinSegments joins transcription segments into a single text
 func joinSegments(segments []string) string {
 	return strings.Join(segments, " ")
-}
-
-// TextResponse represents a plain text response
-type TextResponse struct {
-	Text string
-}
-
-// Encode implements web.Encoder for plain text
-func (r TextResponse) Encode() ([]byte, string, error) {
-	return []byte(r.Text), "text/plain", nil
 }

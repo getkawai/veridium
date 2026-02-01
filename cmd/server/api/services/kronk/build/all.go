@@ -77,7 +77,6 @@ func (all) Add(app *web.App, cfg mux.Config) {
 	})
 
 	whisperapp.Routes(app, whisperapp.RouteConfig{
-		Log:     cfg.Log,
-		Manager: cfg.WhisperManager,
+		Log: cfg.Log,
 	})
 }

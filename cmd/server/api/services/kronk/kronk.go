@@ -28,8 +28,8 @@ import (
 	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/internal/services"
 	"github.com/kawai-network/veridium/pkg/blockchain"
-	gowhisper "github.com/mutablelogic/go-whisper/pkg/whisper"
 	"github.com/kawai-network/veridium/pkg/hardware"
+	"github.com/kawai-network/veridium/pkg/whisper/model"
 	"github.com/kawai-network/veridium/pkg/kronk"
 	pkglogger "github.com/kawai-network/veridium/pkg/logger"
 	sd "github.com/kawai-network/veridium/pkg/stablediffusion"
@@ -528,17 +528,27 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 	}()
 	log.Info(ctx, "startup", "status", "heartbeat started", "interval", "30s")
 
-	// Initialize Whisper Service (go-whisper)
-	var whisperManager *gowhisper.Manager
+	// Initialize Whisper Service (pkg/whisper)
+	var whisperModelsDir string
 	{
 		log.Info(ctx, "startup", "status", "initializing whisper")
 
-		whisperModelsPath := filepath.Join(cfg.BasePath, "whisper-models")
-		manager, err := gowhisper.New(whisperModelsPath)
-		if err != nil {
-			log.Info(ctx, "whisper", "status", "initialization failed", "error", err)
+		whisperModelsDir = filepath.Join(cfg.BasePath, "whisper-models")
+		
+		// Ensure models directory exists
+		if err := os.MkdirAll(whisperModelsDir, 0755); err != nil {
+			log.Info(ctx, "whisper", "status", "failed to create models directory", "error", err)
 		} else {
-			whisperManager = manager
+			// Auto-download base model if no models exist
+			models, _ := model.ListDownloadedModels(whisperModelsDir)
+			if len(models) == 0 {
+				log.Info(ctx, "whisper", "status", "downloading base model")
+				if err := model.DownloadModel("base", whisperModelsDir, nil); err != nil {
+					log.Info(ctx, "whisper", "status", "failed to download base model", "error", err)
+				} else {
+					log.Info(ctx, "whisper", "status", "base model downloaded")
+				}
+			}
 			log.Info(ctx, "startup", "status", "whisper service ready")
 		}
 	}
@@ -621,14 +631,13 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 		Build: tag,
 		Log:   log,
 
-		Tracer:         nil,
-		Cache:          cache,
-		Libs:           libs,
-		Models:         models,
-		Catalog:        ctlg,
-		Templates:      tmplts,
-		ImageEngine:    imageEngine,
-		WhisperManager: whisperManager,
+		Tracer:      nil,
+		Cache:       cache,
+		Libs:        libs,
+		Models:      models,
+		Catalog:     ctlg,
+		Templates:   tmplts,
+		ImageEngine: imageEngine,
 	}
 
 	webAPI := mux.WebAPI(cfgMux,

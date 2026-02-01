@@ -2,14 +2,14 @@
 
 ## Overview
 
-Kronk server telah berhasil dimigrate dengan **contributor features** dari `cmd/contributor`. Server sekarang adalah **production-grade OpenAI-compatible model server** dengan kemampuan contributor network.
+Kronk server telah berhasil dimigrate dengan **contributor features** dari `cmd/contributor`. Server sekarang adalah **production-grade OpenAI-compatible model server** dengan kemampuan contributor network. 
 
 ---
 
 ## Architecture Evolution
 
 ### Before: cmd/contributor (Deprecated)
-- Standalone CLI tool
+- Standalone CLI tool 
 - Custom gateway HTTP server
 - Direct llamalib integration
 - Simple architecture
@@ -204,6 +204,67 @@ KRONK_CONTRIBUTOR_WALLETPASSWORD=test ./server
 ### Test
 ```bash
 go test ./cmd/server/...
+```
+
+---
+
+## Release
+
+### Automated Release (GitHub Actions)
+
+Trigger release dengan tag:
+```bash
+git tag node-v1.0.0
+git push origin node-v1.0.0
+```
+
+Workflow akan otomatis:
+1. Build untuk Linux (amd64, arm64), macOS (amd64, arm64), Windows (amd64)
+2. Upload ke GitHub Release
+3. Upload ke Cloudflare R2 (`/node/v{version}/`)
+4. Update symlink `latest`
+
+### Ephemeral Release (Private → Public → Delete)
+
+Untuk release dari private repo tanpa expose source code:
+
+```bash
+# Using ephemeral script
+./scripts/ephemeral-release-node.sh 1.0.0
+```
+
+Script ini akan:
+1. Create clean copy dengan hanya `cmd/server`
+2. Create temporary public repo
+3. Trigger GitHub Actions build
+4. Download artifacts
+5. Upload ke R2
+6. Delete public repo
+
+### Install Script
+
+Users dapat install dengan:
+```bash
+curl -fsSL https://getkawai.com/node | sh
+```
+
+Atau dengan version specific:
+```bash
+curl -fsSL https://getkawai.com/node | sh -s -- --version 1.0.0
+```
+
+### Manual Build & Release
+
+```bash
+# Build locally
+go build -ldflags "-s -w -X main.version=1.0.0" -o kawai-node ./cmd/server
+
+# Create archive
+tar -czf kawai-node-1.0.0-linux-amd64.tar.gz kawai-node
+
+# Upload to R2
+aws s3 cp kawai-node-1.0.0-linux-amd64.tar.gz s3://kawai/node/v1.0.0/ \
+  --endpoint-url https://your-account.r2.cloudflarestorage.com
 ```
 
 ---
