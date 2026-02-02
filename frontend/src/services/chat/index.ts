@@ -1,5 +1,5 @@
 import { TracePayload, TraceTagMap, UIChatMessage } from '@/types';
-import { PluginRequestPayload, createHeadersWithPluginSettings } from '@/chat-plugin-sdk';
+
 import { merge } from 'lodash-es';
 import { ModelProvider } from '@/model-bank';
 import { getNullableString } from '@/types/database';
@@ -12,16 +12,14 @@ import { agentChatConfigSelectors, agentSelectors } from '@/store/agent/selector
 import { aiModelSelectors, aiProviderSelectors, getAiInfraStoreState } from '@/store/aiInfra';
 import { getSessionStoreState } from '@/store/session';
 import { sessionMetaSelectors } from '@/store/session/selectors';
-import { getToolStoreState } from '@/store/tool';
-import { pluginSelectors } from '@/store/tool/selectors';
+
 import { getUserStoreState, useUserStore } from '@/store/user';
 import { preferenceSelectors, userProfileSelectors } from '@/store/user/selectors';
 import type { ChatStreamPayload, OpenAIChatMessage } from '@/types/openai/chat';
-import { FetchSSEOptions, getMessageError } from '@/utils/fetch';
-import { createTraceHeader, getTraceId } from '@/utils/trace';
+import { FetchSSEOptions } from '@/utils/fetch';
 
-import { createHeaderWithAuth } from '../_auth';
-import { API_ENDPOINTS } from '../_url';
+
+
 // import { initializeWithClientStore } from './clientModelRuntime';
 import { contextEngineeringBackend } from './contextEngineeringBackend';
 import { findDeploymentName } from './helper';
@@ -282,34 +280,7 @@ class ChatService {
    * @param params
    * @param options
    */
-  runPluginApi = async (params: PluginRequestPayload, options?: FetchOptions) => {
-    const s = getToolStoreState();
 
-    const settings = pluginSelectors.getPluginSettingsById(params.identifier)(s);
-    const manifest = pluginSelectors.getToolManifestById(params.identifier)(s);
-
-    const traceHeader = createTraceHeader(this.mapTrace(options?.trace, TraceTagMap.ToolCalling));
-
-    const headers = await createHeaderWithAuth({
-      headers: { ...createHeadersWithPluginSettings(settings), ...traceHeader },
-    });
-
-    const gatewayURL = manifest?.gateway ?? API_ENDPOINTS.gateway;
-
-    const res = await fetch(gatewayURL, {
-      body: JSON.stringify({ ...params, manifest }),
-      headers,
-      method: 'POST',
-      signal: options?.signal,
-    });
-
-    if (!res.ok) {
-      throw await getMessageError(res);
-    }
-
-    const text = await res.text();
-    return { text, traceId: getTraceId(res) };
-  };
 
   fetchPresetTaskResult = async ({
     params,
