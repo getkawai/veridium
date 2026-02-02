@@ -48,6 +48,7 @@ export {
     ClaimableReward,
     ClaimableRewardsResponse,
     ContractAddresses,
+    ContributorInfo,
     CreateThreadRequest,
     CreateThreadResponse,
     GasEstimate,
@@ -84,6 +85,7 @@ export {
     TradeResult,
     TrialClaim,
     TxAnalysis,
+    UserBalanceInfo,
     WalletInfo,
     WalletStatus
 } from "./models.js";

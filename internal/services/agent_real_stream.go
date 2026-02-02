@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/pkg/fantasy"
+	"github.com/kawai-network/veridium/pkg/store"
 	"github.com/kawai-network/veridium/types"
 )
 
@@ -265,6 +266,30 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 
 	// Use fantasy.Agent if we have a LanguageModel
 	if model != nil {
+		// Pre-flight balance check before AI call
+		if s.kvStore != nil {
+			// Estimate minimum tokens (input + expected output)
+			// Rough estimate: 4 characters = 1 token
+			estimatedTokens := len(req.Message) / 4
+			if estimatedTokens < 100 {
+				estimatedTokens = 100 // minimum 100 tokens
+			}
+			// Add buffer for system prompt and file context
+			estimatedTokens += len(systemPrompt) / 4
+			estimatedTokens += len(fileContext) / 4
+
+			// Check sufficient balance
+			if err := s.kvStore.CheckSufficientBalance(ctx, req.UserID, int64(estimatedTokens)); err != nil {
+				log.Printf("[BALANCE] Insufficient balance for user %s: %v", req.UserID, err)
+				emit(StreamEventPayload{
+					Type:    types.ChatEventComplete,
+					Content: "❌ Insufficient balance. Please deposit USDT to continue using AI services.",
+				})
+				return fmt.Errorf("insufficient balance: %w", err)
+			}
+			log.Printf("[BALANCE] Balance check passed for user %s (estimated %d tokens)", req.UserID, estimatedTokens)
+		}
+
 		// Convert tools from ToolRegistry to fantasy.AgentTool
 		agentTools := s.toolRegistry.ToAgentTools(session.ToolNames)
 
@@ -714,7 +739,7 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 	log.Printf("✅ [REAL STREAM] Complete - session: %s, duration: %dms, tokens: %d",
 		req.SessionID, duration, totalTokens)
 
-	// 17. Record job reward to treasury (contributor reward for local inference)
+	// 17. Deduct user balance and record job reward to treasury
 	// This runs in background after user receives response to avoid blocking
 	if usage != nil && usage.TotalTokens > 0 && s.kvStore != nil {
 		// Get random treasury address to act as "virtual contributor"
@@ -723,33 +748,54 @@ func (s *AgentChatService) ChatRealStream(ctx context.Context, req ChatRequest) 
 			go func() {
 				defer func() {
 					if r := recover(); r != nil {
-						log.Printf("❌ [PANIC] Job reward recording panic recovered: %v", r)
+						log.Printf("❌ [PANIC] Balance deduction/recording panic recovered: %v", r)
 					}
 				}()
 
 				// Use Background context with timeout - must outlive HTTP request
-				bgCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				bgCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 				defer cancel()
 
-				// Get user's referrer address (if any)
-				// Note: ReferrerAddress is set during free trial claim with referral code.
-				// Users who skip trial or were in system before referral feature will have empty referrer.
-				// This is intentional: referral commission only applies to users who signed up via referral.
+				// STEP 1: Deduct user balance for AI usage
+				cost := store.CalculateUsageCost(int64(usage.TotalTokens))
+				if err := s.kvStore.DeductBalanceAtomic(bgCtx, req.UserID, cost); err != nil {
+					log.Printf("[BALANCE] Failed to deduct balance for user %s: %v", req.UserID, err)
+
+					// Record debt for manual recovery
+					if debtErr := s.kvStore.RecordDebt(bgCtx, req.UserID, cost, err.Error()); debtErr != nil {
+						log.Printf("[BALANCE] Failed to record debt for user %s: %v", req.UserID, debtErr)
+					}
+
+					// Send alert to admin
+					if s.kvStore.GetTelegramAlerter() != nil {
+						s.kvStore.GetTelegramAlerter().SendBalanceDeductionFailure(req.UserID, cost.String(), err)
+					}
+
+					// Still record job reward even if deduction failed (contributor deserves reward)
+					// This creates a "debt" situation that needs manual reconciliation
+				} else {
+					// Get updated balance for logging
+					updatedBalance, _ := s.kvStore.GetUserBalance(bgCtx, req.UserID)
+					log.Printf("[BALANCE] Deducted %s micro USDT from user %s for %d tokens. New balance: %s micro USDT",
+						cost.String(), req.UserID, usage.TotalTokens, updatedBalance.USDTBalance)
+				}
+
+				// STEP 2: Get user's referrer address (if any)
 				userBalance, err := s.kvStore.GetUserBalance(bgCtx, req.UserID)
 				referrerAddress := ""
 				if err == nil && userBalance != nil {
 					referrerAddress = userBalance.ReferrerAddress
 				}
 
-				// Record job reward with referral-based splits
+				// STEP 3: Record job reward with referral-based splits
 				if err := s.kvStore.RecordJobReward(bgCtx, contributorAddress, req.UserID, int64(usage.TotalTokens), referrerAddress); err != nil {
-					log.Printf("⚠️  [REAL STREAM] Failed to record job reward for %s: %v", contributorAddress, err)
+					log.Printf("[BALANCE] Failed to record job reward for %s: %v", contributorAddress, err)
 				} else {
 					if referrerAddress != "" && referrerAddress != "0x0000000000000000000000000000000000000000" {
-						log.Printf("💰 [REAL STREAM] Recorded reward: %d tokens → contributor: %s, user: %s, affiliator: %s (85/5/5/5 split)",
+						log.Printf("[BALANCE] Recorded reward: %d tokens → contributor: %s, user: %s, affiliator: %s (85/5/5/5 split)",
 							usage.TotalTokens, contributorAddress, req.UserID, referrerAddress)
 					} else {
-						log.Printf("💰 [REAL STREAM] Recorded reward: %d tokens → contributor: %s, user: %s (90/5/5 split)",
+						log.Printf("[BALANCE] Recorded reward: %d tokens → contributor: %s, user: %s (90/5/5 split)",
 							usage.TotalTokens, contributorAddress, req.UserID)
 					}
 				}

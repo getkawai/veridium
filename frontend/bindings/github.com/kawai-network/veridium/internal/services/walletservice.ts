@@ -59,6 +59,13 @@ export function GetAPIKey(): $CancellablePromise<string> {
 }
 
 /**
+ * GetCurrentAccountAddress returns the current account address if unlocked
+ */
+export function GetCurrentAccountAddress(): $CancellablePromise<string> {
+    return $Call.ByID(932140933);
+}
+
+/**
  * GetCurrentAddress returns the current active wallet address
  */
 export function GetCurrentAddress(): $CancellablePromise<string> {
@@ -75,11 +82,21 @@ export function GetStatus(): $CancellablePromise<$models.WalletStatus> {
 }
 
 /**
+ * GetUserBalanceInfo retrieves and formats user balance for UI display
+ * Returns nil if no wallet is active or kvstore is not available
+ */
+export function GetUserBalanceInfo(): $CancellablePromise<$models.UserBalanceInfo | null> {
+    return $Call.ByID(3359744676).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
+/**
  * GetWallets returns a list of all stored wallets
  */
 export function GetWallets(): $CancellablePromise<$models.WalletInfo[]> {
     return $Call.ByID(3479245187).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType4($result);
     });
 }
 
@@ -102,6 +119,13 @@ export function ImportKeystore(keystoreJSON: string, password: string, descripti
  */
 export function ImportPrivateKey(privateKeyHex: string, password: string, description: string): $CancellablePromise<string> {
     return $Call.ByID(1034386550, privateKeyHex, password, description);
+}
+
+/**
+ * IsUnlocked returns true if the wallet is currently unlocked
+ */
+export function IsUnlocked(): $CancellablePromise<boolean> {
+    return $Call.ByID(338263084);
 }
 
 /**
@@ -148,5 +172,7 @@ export function UpdateWalletDescription(address: string, description: string): $
 
 // Private type creation functions
 const $$createType0 = $models.WalletStatus.createFrom;
-const $$createType1 = $models.WalletInfo.createFrom;
-const $$createType2 = $Create.Array($$createType1);
+const $$createType1 = $models.UserBalanceInfo.createFrom;
+const $$createType2 = $Create.Nullable($$createType1);
+const $$createType3 = $models.WalletInfo.createFrom;
+const $$createType4 = $Create.Array($$createType3);

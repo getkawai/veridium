@@ -134,3 +134,8 @@ func NewMultiNamespaceKVStore() (*KVStore, error) {
 func (s *KVStore) SetSupplyQuerier(sq SupplyQuerier) {
 	s.supplyQuerier = sq
 }
+
+// GetTelegramAlerter returns the Telegram alerter for external use
+func (s *KVStore) GetTelegramAlerter() *alert.TelegramAlert {
+	return s.telegramAlerter
+}

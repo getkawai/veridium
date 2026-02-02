@@ -520,6 +520,8 @@ func (s *WalletService) SignMessage(message string) (string, error) {
 
 // GetTransactOpts creates a bind.TransactOpts for the current account
 // This is used for blockchain transactions
+//
+//wails:ignore - Not used in frontend, only used by backend services
 func (s *WalletService) GetTransactOpts(chainId *big.Int) (*bind.TransactOpts, error) {
 	s.mu.RLock()
 	acc := s.currentAccount
@@ -598,6 +600,160 @@ func (s *WalletService) AutoClaimTrialIfNeeded(referralCode string) (bool, float
 	usdtFloat := float64(usdtAmount) / 1_000_000
 
 	return true, usdtFloat, kawaiAmount, nil
+}
+
+// UserBalanceInfo represents user balance data formatted for UI display
+type UserBalanceInfo struct {
+	Address         string `json:"address"`
+	USDTBalance     string `json:"usdt_balance"`  // Formatted (e.g., "5.00")
+	USDTMicro       string `json:"usdt_micro"`    // Raw micro USDT value
+	KawaiBalance    string `json:"kawai_balance"` // In wei
+	TrialClaimed    bool   `json:"trial_claimed"`
+	ReferrerAddress string `json:"referrer_address"` // Empty if no referrer
+	HasReferrer     bool   `json:"has_referrer"`
+}
+
+// GetUserBalanceInfo retrieves and formats user balance for UI display
+// Returns nil if no wallet is active or kvstore is not available
+func (s *WalletService) GetUserBalanceInfo() (*UserBalanceInfo, error) {
+	if s.kvStore == nil {
+		return nil, errors.New("kvstore not available")
+	}
+
+	s.mu.RLock()
+	address := s.address
+	s.mu.RUnlock()
+
+	if address == "" {
+		return nil, nil // No active wallet - not an error, just no data
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	balance, err := s.kvStore.GetUserBalance(ctx, address)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user balance: %w", err)
+	}
+
+	// Convert micro USDT to display format (2 decimal places)
+	usdtMicro := new(big.Int)
+	if balance.USDTBalance != "" {
+		usdtMicro.SetString(balance.USDTBalance, 10)
+	}
+
+	// Convert to USDT with 2 decimals: divide by 10^4 to get cents, then format
+	usdtCents := new(big.Int).Div(usdtMicro, big.NewInt(10000))
+	usdtFloat := float64(usdtCents.Int64()) / 100.0
+
+	return &UserBalanceInfo{
+		Address:         address,
+		USDTBalance:     fmt.Sprintf("%.2f", usdtFloat),
+		USDTMicro:       balance.USDTBalance,
+		KawaiBalance:    balance.KawaiBalance,
+		TrialClaimed:    balance.TrialClaimed,
+		ReferrerAddress: balance.ReferrerAddress,
+		HasReferrer:     balance.ReferrerAddress != "" && balance.ReferrerAddress != "0x0000000000000000000000000000000000000000",
+	}, nil
+}
+
+// GetBalanceInUSDT returns the USDT balance as a float value
+// Useful for quick balance checks in the UI
+//
+//wails:ignore - Not currently used in frontend, available for future use
+func (s *WalletService) GetBalanceInUSDT() (float64, error) {
+	info, err := s.GetUserBalanceInfo()
+	if err != nil {
+		return 0, err
+	}
+	if info == nil {
+		return 0, nil
+	}
+
+	var balance float64
+	_, err = fmt.Sscanf(info.USDTBalance, "%f", &balance)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse balance: %s", info.USDTBalance)
+	}
+	return balance, nil
+}
+
+// BalanceCheckResult represents the result of a balance sufficiency check
+//
+//wails:ignore - Not currently used in frontend, available for future use
+type BalanceCheckResult struct {
+	HasSufficientBalance bool   `json:"has_sufficient_balance"`
+	CurrentBalanceUSDT   string `json:"current_balance_usdt"`  // Formatted (e.g., "5.00")
+	CurrentBalanceMicro  string `json:"current_balance_micro"` // Raw micro USDT
+	EstimatedCostUSDT    string `json:"estimated_cost_usdt"`   // Formatted
+	EstimatedCostMicro   string `json:"estimated_cost_micro"`  // Raw micro USDT
+	EstimatedTokens      int64  `json:"estimated_tokens"`
+	Message              string `json:"message"`
+}
+
+// CheckBalanceForAI checks if user has sufficient balance for estimated AI usage
+// This is useful for pre-flight checks in the UI before making AI calls
+// estimatedTokens: rough estimate of tokens needed (4 chars = 1 token)
+//
+//wails:ignore - Not currently used in frontend, available for future use
+func (s *WalletService) CheckBalanceForAI(estimatedTokens int64) (*BalanceCheckResult, error) {
+	if s.kvStore == nil {
+		return nil, errors.New("kvstore not available")
+	}
+
+	s.mu.RLock()
+	address := s.address
+	s.mu.RUnlock()
+
+	if address == "" {
+		return &BalanceCheckResult{
+			HasSufficientBalance: false,
+			Message:              "No wallet connected",
+		}, nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Get current balance
+	balance, err := s.kvStore.GetUserBalance(ctx, address)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get balance: %w", err)
+	}
+
+	currentMicro := new(big.Int)
+	if balance.USDTBalance != "" {
+		currentMicro.SetString(balance.USDTBalance, 10)
+	}
+
+	// Calculate estimated cost
+	cost := store.CalculateUsageCost(estimatedTokens)
+
+	// Format balances for display
+	currentCents := new(big.Int).Div(currentMicro, big.NewInt(10000))
+	currentFloat := float64(currentCents.Int64()) / 100.0
+
+	costCents := new(big.Int).Div(cost, big.NewInt(10000))
+	costFloat := float64(costCents.Int64()) / 100.0
+
+	result := &BalanceCheckResult{
+		HasSufficientBalance: currentMicro.Cmp(cost) >= 0,
+		CurrentBalanceUSDT:   fmt.Sprintf("%.2f", currentFloat),
+		CurrentBalanceMicro:  currentMicro.String(),
+		EstimatedCostUSDT:    fmt.Sprintf("%.2f", costFloat),
+		EstimatedCostMicro:   cost.String(),
+		EstimatedTokens:      estimatedTokens,
+	}
+
+	if result.HasSufficientBalance {
+		result.Message = fmt.Sprintf("Sufficient balance: %s USDT available, %s USDT needed",
+			result.CurrentBalanceUSDT, result.EstimatedCostUSDT)
+	} else {
+		result.Message = fmt.Sprintf("Insufficient balance: %s USDT available, %s USDT needed. Please deposit to continue.",
+			result.CurrentBalanceUSDT, result.EstimatedCostUSDT)
+	}
+
+	return result, nil
 }
 
 // getMachineID returns the machine ID for anti-abuse protection

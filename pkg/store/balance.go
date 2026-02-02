@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"math/big"
 	"time"
 
@@ -326,6 +327,48 @@ func (s *KVStore) CheckSufficientBalance(ctx context.Context, address string, to
 		return fmt.Errorf("insufficient balance: have %s micro USDT, need %s micro USDT",
 			currentBalance.String(), cost.String())
 	}
+
+	return nil
+}
+
+// RecordDebt records a failed balance deduction for manual reconciliation
+// This is used when deduction fails after AI service has been rendered
+func (s *KVStore) RecordDebt(ctx context.Context, address string, amount *big.Int, reason string) error {
+	timestamp := time.Now().UnixNano()
+	key := fmt.Sprintf("debt:%s:%d", address, timestamp)
+
+	debtData := struct {
+		Address   string `json:"address"`
+		Amount    string `json:"amount"`
+		Reason    string `json:"reason"`
+		Timestamp int64  `json:"timestamp"`
+		CreatedAt string `json:"created_at"`
+	}{
+		Address:   address,
+		Amount:    amount.String(),
+		Reason:    reason,
+		Timestamp: timestamp,
+		CreatedAt: time.Now().Format(time.RFC3339),
+	}
+
+	data, err := json.Marshal(debtData)
+	if err != nil {
+		return fmt.Errorf("failed to marshal debt data: %w", err)
+	}
+
+	// Store in users namespace for debts
+	_, err = s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
+		NamespaceID: s.usersNamespaceID,
+		Key:         key,
+		Value:       data,
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to store debt record: %w", err)
+	}
+
+	log.Printf("[DEBT] Recorded debt for user %s: %s micro USDT - Reason: %s",
+		address, amount.String(), reason)
 
 	return nil
 }

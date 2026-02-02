@@ -90,12 +90,30 @@ export function DepositToVault(amountStr: string): $CancellablePromise<string> {
 }
 
 /**
+ * GetAvailableContributors returns all online contributors with their scores
+ */
+export function GetAvailableContributors(): $CancellablePromise<($models.ContributorInfo | null)[]> {
+    return $Call.ByID(2784510884).then(($result: any) => {
+        return $$createType4($result);
+    });
+}
+
+/**
  * GetClaimableRewards fetches all claimable rewards for the current wallet
  * Uses Cloudflare KV store directly for off-chain Merkle proof data
  */
 export function GetClaimableRewards(): $CancellablePromise<$models.ClaimableRewardsResponse | null> {
     return $Call.ByID(1243461775).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType6($result);
+    });
+}
+
+/**
+ * GetContributorStats returns statistics about the contributor network
+ */
+export function GetContributorStats(): $CancellablePromise<{ [_: string]: any }> {
+    return $Call.ByID(1999137231).then(($result: any) => {
+        return $$createType7($result);
     });
 }
 
@@ -125,7 +143,7 @@ export function GetKawaiTotalSupply(): $CancellablePromise<string> {
  */
 export function GetRevenueShareStats(): $CancellablePromise<$models.RevenueShareStatsResponse | null> {
     return $Call.ByID(4264053571).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType9($result);
     });
 }
 
@@ -162,6 +180,15 @@ export function MintTestTokens(): $CancellablePromise<string> {
 }
 
 /**
+ * SelectBestContributor selects the best contributor based on criteria
+ */
+export function SelectBestContributor(preferredRegion: string, requiredModel: string, minRAM: number, minGPUMemory: number): $CancellablePromise<$models.ContributorInfo | null> {
+    return $Call.ByID(2203387724, preferredRegion, requiredModel, minRAM, minGPUMemory).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
+/**
  * TransferNative sends native coin (MON, ETH) from the current wallet to a recipient
  */
 export function TransferNative(to: string, amountStr: string): $CancellablePromise<string> {
@@ -193,7 +220,11 @@ export function WaitForClaimConfirmation(txHash: string): $CancellablePromise<bo
 // Private type creation functions
 const $$createType0 = $models.ClaimResult.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
-const $$createType2 = $models.ClaimableRewardsResponse.createFrom;
+const $$createType2 = $models.ContributorInfo.createFrom;
 const $$createType3 = $Create.Nullable($$createType2);
-const $$createType4 = $models.RevenueShareStatsResponse.createFrom;
-const $$createType5 = $Create.Nullable($$createType4);
+const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = $models.ClaimableRewardsResponse.createFrom;
+const $$createType6 = $Create.Nullable($$createType5);
+const $$createType7 = $Create.Map($Create.Any, $Create.Any);
+const $$createType8 = $models.RevenueShareStatsResponse.createFrom;
+const $$createType9 = $Create.Nullable($$createType8);

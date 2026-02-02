@@ -20,7 +20,8 @@ export interface ContentStyles {
 
 export interface HomeContentProps {
   address: string;
-  balance: string;
+  onChainBalance: string;
+  trackedBalance: UserBalanceInfo | null;
   nativeBalance: string;
   kawaiBalance: string;
   nativePrice: number;

@@ -943,6 +943,91 @@ export class ContractAddresses {
 }
 
 /**
+ * ContributorInfo represents contributor information for frontend display
+ */
+export class ContributorInfo {
+    "wallet_address": string;
+    "endpoint_url": string;
+    "region": string;
+    "status": string;
+    "last_seen": string;
+    "available_models": string[];
+    "active_requests": number;
+    "total_requests": number;
+    "avg_response_time": number;
+    "success_rate": number;
+    "cpu_cores": number;
+    "total_ram": number;
+    "available_ram": number;
+    "gpu_model": string;
+    "gpu_memory": number;
+    "score"?: number;
+
+    /** Creates a new ContributorInfo instance. */
+    constructor($$source: Partial<ContributorInfo> = {}) {
+        if (!("wallet_address" in $$source)) {
+            this["wallet_address"] = "";
+        }
+        if (!("endpoint_url" in $$source)) {
+            this["endpoint_url"] = "";
+        }
+        if (!("region" in $$source)) {
+            this["region"] = "";
+        }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+        if (!("last_seen" in $$source)) {
+            this["last_seen"] = "";
+        }
+        if (!("available_models" in $$source)) {
+            this["available_models"] = [];
+        }
+        if (!("active_requests" in $$source)) {
+            this["active_requests"] = 0;
+        }
+        if (!("total_requests" in $$source)) {
+            this["total_requests"] = 0;
+        }
+        if (!("avg_response_time" in $$source)) {
+            this["avg_response_time"] = 0;
+        }
+        if (!("success_rate" in $$source)) {
+            this["success_rate"] = 0;
+        }
+        if (!("cpu_cores" in $$source)) {
+            this["cpu_cores"] = 0;
+        }
+        if (!("total_ram" in $$source)) {
+            this["total_ram"] = 0;
+        }
+        if (!("available_ram" in $$source)) {
+            this["available_ram"] = 0;
+        }
+        if (!("gpu_model" in $$source)) {
+            this["gpu_model"] = "";
+        }
+        if (!("gpu_memory" in $$source)) {
+            this["gpu_memory"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ContributorInfo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ContributorInfo {
+        const $$createField5_0 = $$createType4;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("available_models" in $$parsedSource) {
+            $$parsedSource["available_models"] = $$createField5_0($$parsedSource["available_models"]);
+        }
+        return new ContributorInfo($$parsedSource as Partial<ContributorInfo>);
+    }
+}
+
+/**
  * CreateThreadRequest represents a request to create a new thread
  */
 export class CreateThreadRequest {
@@ -2587,6 +2672,70 @@ export class TxAnalysis {
             $$parsedSource["logs"] = $$createField10_0($$parsedSource["logs"]);
         }
         return new TxAnalysis($$parsedSource as Partial<TxAnalysis>);
+    }
+}
+
+/**
+ * UserBalanceInfo represents user balance data formatted for UI display
+ */
+export class UserBalanceInfo {
+    "address": string;
+
+    /**
+     * Formatted (e.g., "5.00")
+     */
+    "usdt_balance": string;
+
+    /**
+     * Raw micro USDT value
+     */
+    "usdt_micro": string;
+
+    /**
+     * In wei
+     */
+    "kawai_balance": string;
+    "trial_claimed": boolean;
+
+    /**
+     * Empty if no referrer
+     */
+    "referrer_address": string;
+    "has_referrer": boolean;
+
+    /** Creates a new UserBalanceInfo instance. */
+    constructor($$source: Partial<UserBalanceInfo> = {}) {
+        if (!("address" in $$source)) {
+            this["address"] = "";
+        }
+        if (!("usdt_balance" in $$source)) {
+            this["usdt_balance"] = "";
+        }
+        if (!("usdt_micro" in $$source)) {
+            this["usdt_micro"] = "";
+        }
+        if (!("kawai_balance" in $$source)) {
+            this["kawai_balance"] = "";
+        }
+        if (!("trial_claimed" in $$source)) {
+            this["trial_claimed"] = false;
+        }
+        if (!("referrer_address" in $$source)) {
+            this["referrer_address"] = "";
+        }
+        if (!("has_referrer" in $$source)) {
+            this["has_referrer"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UserBalanceInfo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UserBalanceInfo {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new UserBalanceInfo($$parsedSource as Partial<UserBalanceInfo>);
     }
 }
 

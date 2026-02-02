@@ -279,3 +279,34 @@ func shortenAddress(addr string) string {
 	}
 	return addr[:6] + "..." + addr[len(addr)-4:]
 }
+
+// SendBalanceDeductionFailure sends an alert when balance deduction fails after AI service
+// This is a critical error that requires manual intervention to reconcile the debt
+func (t *TelegramAlert) SendBalanceDeductionFailure(userAddress string, amount string, err error) {
+	if t.BotToken == "" || t.ChatID == "" {
+		return // Silent return if not configured
+	}
+
+	text := "🚨 *BALANCE DEDUCTION FAILED*\n"
+	text += fmt.Sprintf("`%s`\n\n", time.Now().Format("2006-01-02 15:04:05"))
+	text += fmt.Sprintf("👤 User: %s\n", shortenAddress(userAddress))
+	text += fmt.Sprintf("💰 Amount: %s micro USDT\n", amount)
+	text += fmt.Sprintf("❌ Error: %v\n\n", err)
+	text += "⚠️ *ACTION REQUIRED*: Manual debt reconciliation needed"
+
+	// Send asynchronously to avoid blocking
+	go func() {
+		if sendErr := t.SendMessage(text); sendErr != nil {
+			slog.Error("Failed to send balance deduction failure alert to Telegram", "error", sendErr)
+
+			// Fallback to Discord if Telegram fails
+			if t.DiscordFallback != nil {
+				discordMsg := fmt.Sprintf("🚨 **BALANCE DEDUCTION FAILED** (Telegram Fallback)\nUser: %s\nAmount: %s micro USDT\nError: %v",
+					userAddress, amount, err)
+				if discordErr := t.DiscordFallback.SendMessage(discordMsg); discordErr != nil {
+					slog.Error("Failed to send balance deduction failure alert to Discord fallback", "error", discordErr)
+				}
+			}
+		}
+	}()
+}

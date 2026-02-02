@@ -1,7 +1,7 @@
-import { Modal, QRCode, App, Button, Form, Input } from 'antd';
+import { Modal, QRCode, App, Button, Form, Input, Tooltip } from 'antd';
 import { memo, useEffect, useState, useCallback } from 'react';
 import { DeAIService, WalletService, DepositSyncService, JarvisService } from '@@/github.com/kawai-network/veridium/internal/services';
-import type { NetworkInfo, BackendConfig, GasEstimate } from '@@/github.com/kawai-network/veridium/internal/services/models';
+import type { NetworkInfo, BackendConfig, GasEstimate, UserBalanceInfo } from '@@/github.com/kawai-network/veridium/internal/services/models';
 import { ListWalletTransactions } from '@@/github.com/kawai-network/veridium/internal/database/generated/queries';
 import type { WalletTransaction } from '@@/github.com/kawai-network/veridium/internal/database/generated/models';
 import { useUserStore } from '@/store/user';
@@ -167,6 +167,8 @@ const DesktopWalletLayout = memo(() => {
   const [activeMenu, setActiveMenu] = useState<MenuKey>('home');
   const address = useUserStore((s) => s.walletAddress);
   const [balance, setBalance] = useState('0.00');
+  const [onChainBalance, setOnChainBalance] = useState('0.00');
+  const [trackedBalance, setTrackedBalance] = useState<UserBalanceInfo | null>(null);
   const [nativeBalance, setNativeBalance] = useState('0.00');
   const [kawaiBalance, setKawaiBalance] = useState('0.00');
   const [balanceVisible, setBalanceVisible] = useState(true);
@@ -348,8 +350,21 @@ const DesktopWalletLayout = memo(() => {
 
   const loadBalance = async () => {
     try {
-      const bal = await DeAIService.GetVaultBalance();
-      setBalance(bal);
+      // Load on-chain balance (actual wallet balance in blockchain)
+      const onChain = await DeAIService.GetVaultBalance();
+      setOnChainBalance(onChain);
+      
+      // Load tracked balance (for AI usage from KV store)
+      const tracked = await WalletService.GetUserBalanceInfo();
+      setTrackedBalance(tracked);
+      
+      // Update states for compatibility
+      setBalance(onChain);
+      if (tracked) {
+        setKawaiBalance(tracked.kawai_balance);
+      } else {
+        setKawaiBalance('0.00');
+      }
     } catch (e) {
       console.error("Failed to load balance", e);
     }
@@ -522,7 +537,8 @@ const DesktopWalletLayout = memo(() => {
       case 'home':
         return <HomeContent
           address={address}
-          balance={balance}
+          onChainBalance={onChainBalance}
+          trackedBalance={trackedBalance}
           nativeBalance={nativeBalance}
           kawaiBalance={kawaiBalance}
           nativePrice={nativePrice}

@@ -17,6 +17,7 @@ go test ./...          # Alternative to make test
 go test -v ./internal/services -run TestCreateWallet  # Specific test
 go test -v ./internal/services/wallet_service_test.go    # Single file
 go test -cover ./...    # With coverage
+go test -v ./pkg/store/balance_test.go  # Test balance operations
 ```
 
 ### Code Generation
@@ -25,6 +26,14 @@ make generate         # Generate all (db + bindings + constants)
 make db-generate     # SQL to Go via sqlc
 make bindings-generate # TypeScript bindings via wails
 make constants-generate # Constants from .env
+```
+
+### Frontend Integration
+```bash
+make bindings-generate # Generate TypeScript bindings for Wails frontend
+# New balance endpoints available in frontend:
+# - GetUserBalanceInfo() - Get formatted balance data
+# - CheckBalanceForAI(estimatedTokens) - Pre-flight balance validation
 ```
 
 ### Smart Contracts

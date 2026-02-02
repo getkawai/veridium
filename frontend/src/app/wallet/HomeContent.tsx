@@ -25,6 +25,7 @@ import {
   Coins,
   RefreshCw,
   AlertTriangle,
+  Info,
 } from "lucide-react";
 import { Icon } from "@lobehub/ui";
 import { Flexbox } from "react-layout-kit";
@@ -463,7 +464,8 @@ const TransactionLink = memo<{ txHash: string; networkId?: number }>(
 
 const HomeContent = ({
   address,
-  balance,
+  onChainBalance,
+  trackedBalance,
   nativeBalance,
   kawaiBalance,
   nativePrice,
@@ -480,9 +482,9 @@ const HomeContent = ({
   balancesLoading,
 }: HomeContentProps) => {
   const [showAllTx, setShowAllTx] = useState(false);
-
+  
   // Calculate total portfolio value with safe parsing
-  const usdtValue = safeParseFloat(balance, 0);
+  const usdtValue = safeParseFloat(onChainBalance, 0);
   const nativeValue = safeParseFloat(nativeBalance, 0) * nativePrice;
   const kawaiValue = safeParseFloat(kawaiBalance, 0) * kawaiPrice;
   const totalPortfolioValue = usdtValue + nativeValue + kawaiValue;
@@ -547,23 +549,93 @@ const HomeContent = ({
                   >
                     USD
                   </span>
-                </>
-              )}
-            </div>
-            {/* Native token balance */}
-            {currentNetwork && (
-              <div
-                style={{
-                  fontSize: 13,
-                  color: theme.colorTextSecondary,
-                  marginTop: 4,
-                }}
-              >
-                {balanceVisible ? nativeBalance : "••••"}{" "}
-                {currentNetwork.nativeTokenSymbol} (
-                {nativePrice > 0 ? `$${nativePrice.toFixed(2)}` : "-"})
-              </div>
-            )}
+                 </>
+               )}
+             </div>
+             {/* Hybrid Balance Display: On-Chain vs Tracked */}
+             {currentNetwork && (
+               <div
+                 style={{
+                   fontSize: 13,
+                   color: theme.colorTextSecondary,
+                   marginTop: 4,
+                 }}
+               >
+                 {/* On-Chain Balance */}
+                 <Flexbox horizontal align="center" gap={6} style={{ marginBottom: 8 }}>
+                   <Tooltip title="Balance in your wallet blockchain">
+                     <Flexbox horizontal align="center" gap={4}>
+                       <Coins size={14} />
+                       <span style={{ fontWeight: 500 }}>
+                         Wallet Balance:
+                       </span>
+                     </Flexbox>
+                   </Tooltip>
+                   <span style={{ color: theme.colorText }}>
+                     {balanceVisible ? onChainBalance : "••••"}{" "}
+                     {currentNetwork.stablecoinSymbol || "USDT"}
+                   </span>
+                   <Tooltip title="Actual balance in blockchain contract">
+                     <Info size={12} style={{ opacity: 0.5 }} />
+                   </Tooltip>
+                 </Flexbox>
+                 
+                 {/* Tracked Balance for AI */}
+                 {trackedBalance && (
+                   <Flexbox 
+                     horizontal 
+                     align="center" 
+                     gap={6} 
+                      style={{ 
+                        padding: "8px 12px",
+                        background: theme.appearance === "dark" ? "rgba(82, 196, 26, 0.1)" : "rgba(82, 196, 26, 0.05)",
+                        borderRadius: 8,
+                        border: "1px solid rgba(82, 196, 26, 0.3)",
+                      }}
+                   >
+                     <Tooltip title="Balance tracked for AI usage (synced from deposits)">
+                       <Flexbox horizontal align="center" gap={4}>
+                         <span style={{ 
+                           fontSize: 10, 
+                           background: "#52c41a", 
+                           color: "#fff", 
+                           padding: "2px 6px", 
+                           borderRadius: 4,
+                           fontWeight: 600,
+                         }}>
+                           AI Balance
+                         </span>
+                       </Flexbox>
+                     </Tooltip>
+                     <span style={{ color: theme.colorText }}>
+                       {balanceVisible ? trackedBalance.usdt_balance : "•••"}{" "}
+                       {currentNetwork.stablecoinSymbol || "USDT"}
+                     </span>
+                     {trackedBalance.trial_claimed && (
+                       <Tag color="success" style={{ marginLeft: 4, fontSize: 10, padding: "2px 6px", margin: 0 }}>
+                         Trial ✅
+                       </Tag>
+                     )}
+                   </Flexbox>
+                 )}
+                 
+                 {/* KAWAI Balance */}
+                 <Flexbox horizontal align="center" gap={6}>
+                   <Gift size={14} />
+                   <span style={{ fontWeight: 500 }}>
+                     KAWAI Rewards:
+                   </span>
+                   <span style={{ color: theme.colorText }}>
+                     {balanceVisible ? kawaiBalance : "•••"} KAWAI
+                   </span>
+                   {trackedBalance?.has_referrer && (
+                     <Tag color="purple" style={{ fontSize: 10, padding: "2px 6px", margin: 0 }}>
+                       +5% Referral
+                     </Tag>
+                   )}
+                 </Flexbox>
+               </div>
+             )}
           </Flexbox>
           {/* Network & Gas Info */}
           <Flexbox gap={8} align="flex-end">
