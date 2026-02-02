@@ -87,11 +87,11 @@ type LogInfo struct {
 type JarvisService struct {
 	readers   map[uint64]*reader.EthReader
 	readersMu sync.RWMutex // Protect concurrent map access
-	wallet    *WalletService
+	wallet    WalletOperations
 }
 
 // NewJarvisService creates a new JarvisService instance
-func NewJarvisService(wallet *WalletService) *JarvisService {
+func NewJarvisService(wallet WalletOperations) *JarvisService {
 	return &JarvisService{
 		readers: make(map[uint64]*reader.EthReader),
 		wallet:  wallet,

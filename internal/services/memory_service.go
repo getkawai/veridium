@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/kawai-network/veridium/internal/database"
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	llamaembed "github.com/kawai-network/veridium/pkg/fantasy/providers/llama-embed"
 )
@@ -74,9 +73,14 @@ type MemorySearchResult struct {
 	Similarity float64 `json:"similarity"`
 }
 
+// MemoryQuerier is the minimal database interface needed by MemoryService
+type MemoryQuerier interface {
+	Queries() *db.Queries
+}
+
 // MemoryService manages infinite memory for conversations
 type MemoryService struct {
-	dbService    *database.Service
+	dbService    MemoryQuerier
 	duckDB       *DuckDBStore
 	embedder     llamaembed.Embedder
 	embeddingDim int
@@ -90,7 +94,7 @@ type MemoryServiceConfig struct {
 }
 
 // NewMemoryService creates a new memory service
-func NewMemoryService(dbService *database.Service, config *MemoryServiceConfig) (*MemoryService, error) {
+func NewMemoryService(dbService MemoryQuerier, config *MemoryServiceConfig) (*MemoryService, error) {
 	if config.Embedder == nil {
 		return nil, fmt.Errorf("embedder is required for memory service")
 	}

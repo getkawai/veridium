@@ -841,7 +841,7 @@ func (s *TradeService) ExecutePartialTrade(orderID string, buyer string, request
 		ctx := context.Background()
 
 		// Get transaction options from wallet service
-		transactOpts, err := s.walletService.getTransactOpts(s.blockchainClient.ChainID)
+		transactOpts, err := s.walletService.GetTransactOpts(s.blockchainClient.ChainID)
 		if err != nil {
 			return &TradeResult{
 				Success: false,
@@ -1203,13 +1203,13 @@ func (s *TradeService) getTradeKey(tradeID string) string {
 // OrderService handles order lifecycle management and validation
 type OrderService struct {
 	kvStore            *store.KVStore
-	blockchainClient   *blockchain.Client
-	walletService      *WalletService
+	blockchainClient   BlockchainProvider
+	walletService      WalletProvider
 	marketplaceService *MarketplaceService // For real-time event emission
 }
 
 // NewOrderService creates a new OrderService instance
-func NewOrderService(kvStore *store.KVStore, blockchainClient *blockchain.Client, walletService *WalletService) *OrderService {
+func NewOrderService(kvStore *store.KVStore, blockchainClient BlockchainProvider, walletService WalletProvider) *OrderService {
 	return &OrderService{
 		kvStore:          kvStore,
 		blockchainClient: blockchainClient,
@@ -1346,7 +1346,7 @@ func (s *OrderService) CreateOrder(seller string, tokenAmount, usdtPrice *big.In
 		ctx := context.Background()
 
 		// Get transaction options from wallet service
-		transactOpts, err := s.walletService.getTransactOpts(s.blockchainClient.ChainID)
+		transactOpts, err := s.walletService.GetTransactOpts(s.blockchainClient.GetChainID())
 		if err != nil {
 			// Clean up local storage if blockchain transaction fails
 			s.removeFromUserOrdersIndex(seller, orderID)
@@ -1358,7 +1358,7 @@ func (s *OrderService) CreateOrder(seller string, tokenAmount, usdtPrice *big.In
 				map[string]interface{}{
 					"seller":         seller,
 					"order_id":       orderID,
-					"chain_id":       s.blockchainClient.ChainID.String(),
+					"chain_id":       s.blockchainClient.GetChainID().String(),
 					"original_error": err.Error(),
 				},
 			)
@@ -1697,7 +1697,7 @@ func (s *OrderService) CancelOrder(orderID string, requester string) error {
 		ctx := context.Background()
 
 		// Get transaction options from wallet service
-		transactOpts, err := s.walletService.getTransactOpts(s.blockchainClient.ChainID)
+		transactOpts, err := s.walletService.GetTransactOpts(s.blockchainClient.GetChainID())
 		if err != nil {
 			return fmt.Errorf("failed to get transaction options: %w", err)
 		}

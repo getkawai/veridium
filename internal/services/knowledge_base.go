@@ -26,14 +26,18 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/kawai-network/veridium/internal/database"
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/types"
 )
 
+// Querier is the minimal database interface needed by KnowledgeBaseService
+type Querier interface {
+	Queries() *db.Queries
+}
+
 // KnowledgeBaseService manages knowledge bases with RAG capabilities
 type KnowledgeBaseService struct {
-	dbService       *database.Service
+	dbService       Querier
 	ragProcessor    *RAGProcessor
 	vectorSearch    *VectorSearchService
 	fileLoader      *FileLoader
@@ -49,7 +53,7 @@ type KnowledgeBaseConfig struct {
 }
 
 // NewKnowledgeBaseService creates a new knowledge base service
-func NewKnowledgeBaseService(dbService *database.Service, config *KnowledgeBaseConfig) (*KnowledgeBaseService, error) {
+func NewKnowledgeBaseService(dbService Querier, config *KnowledgeBaseConfig) (*KnowledgeBaseService, error) {
 	// Ensure asset directory exists
 	if err := os.MkdirAll(config.AssetDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create asset directory: %w", err)

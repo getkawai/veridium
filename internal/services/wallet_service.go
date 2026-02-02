@@ -488,6 +488,23 @@ func (s *WalletService) GetCurrentAddress() string {
 	return s.address
 }
 
+// IsUnlocked returns true if the wallet is currently unlocked
+func (s *WalletService) IsUnlocked() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.currentAccount != nil
+}
+
+// GetCurrentAccountAddress returns the current account address if unlocked
+func (s *WalletService) GetCurrentAccountAddress() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.currentAccount != nil {
+		return s.currentAccount.AddressHex()
+	}
+	return ""
+}
+
 // SignMessage signs a message with the private key
 func (s *WalletService) SignMessage(message string) (string, error) {
 	s.mu.RLock()
@@ -501,11 +518,9 @@ func (s *WalletService) SignMessage(message string) (string, error) {
 	return acc.SignMessage(message)
 }
 
-// getTransactOpts creates a bind.TransactOpts for the current account
-// This is for internal Go use only, not exposed to frontend
-//
-//wails:ignore
-func (s *WalletService) getTransactOpts(chainId *big.Int) (*bind.TransactOpts, error) {
+// GetTransactOpts creates a bind.TransactOpts for the current account
+// This is used for blockchain transactions
+func (s *WalletService) GetTransactOpts(chainId *big.Int) (*bind.TransactOpts, error) {
 	s.mu.RLock()
 	acc := s.currentAccount
 	s.mu.RUnlock()

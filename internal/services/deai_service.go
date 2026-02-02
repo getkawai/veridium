@@ -108,17 +108,25 @@ type RevenueShareStatsResponse struct {
 	SharePercentage       string `json:"share_percentage"`        // User's share percentage
 }
 
+// WalletOperations defines the minimal wallet interface needed by DeAIService
+type WalletOperations interface {
+	IsUnlocked() bool
+	GetCurrentAccountAddress() string
+	GetCurrentAddress() string
+	GetTransactOpts(chainId *big.Int) (*bind.TransactOpts, error)
+}
+
 // DeAIService handles interactions with the Veridium smart contracts
 type DeAIService struct {
 	reader  *reader.EthReader
-	wallet  *WalletService
+	wallet  WalletOperations
 	kv      store.Store // Cloudflare KV store for off-chain data
 	alert   *alert.DiscordAlert
 	chainID *big.Int // Chain ID for the current Monad environment (testnet or mainnet)
 }
 
 // NewDeAIService creates a new instance of DeAIService
-func NewDeAIService(wallet *WalletService, kv store.Store) *DeAIService {
+func NewDeAIService(wallet WalletOperations, kv store.Store) *DeAIService {
 	// Initialize EthReader with Monad nodes based on current environment
 	var ethReader *reader.EthReader
 	if config.IsTestnet() {
@@ -144,12 +152,12 @@ func NewDeAIService(wallet *WalletService, kv store.Store) *DeAIService {
 // Note: Uses MockStablecoin on testnet, USDC on mainnet
 func (s *DeAIService) GetVaultBalance() (string, error) {
 	// Check if wallet is unlocked
-	if s.wallet.currentAccount == nil {
+	if !s.wallet.IsUnlocked() {
 		return "", fmt.Errorf("wallet is locked")
 	}
 
 	// 1. Get User Address
-	userAddr := s.wallet.currentAccount.Address()
+	userAddr := s.wallet.GetCurrentAccountAddress()
 
 	// 2. Load stablecoin contract (MockStablecoin on testnet, USDC on mainnet)
 	// Use Jarvis wrapper for cleaner code
@@ -159,7 +167,7 @@ func (s *DeAIService) GetVaultBalance() (string, error) {
 	}
 
 	// 3. Get Balance
-	bal, err := stablecoin.BalanceOf(nil, userAddr)
+	bal, err := stablecoin.BalanceOf(nil, common.HexToAddress(userAddr))
 	if err != nil {
 		return "", fmt.Errorf("failed to get balance: %w", err)
 	}
@@ -174,12 +182,12 @@ func (s *DeAIService) GetVaultBalance() (string, error) {
 // GetKawaiBalance returns the KAWAI token balance of the current wallet
 func (s *DeAIService) GetKawaiBalance() (string, error) {
 	// Check if wallet is unlocked
-	if s.wallet.currentAccount == nil {
+	if !s.wallet.IsUnlocked() {
 		return "", fmt.Errorf("wallet is locked")
 	}
 
 	// 1. Get User Address
-	userAddr := s.wallet.currentAccount.Address()
+	userAddr := s.wallet.GetCurrentAccountAddress()
 
 	// 2. Load KAWAI Token
 	kawaiAddr, err := contracts.ResolveAddress("KawaiToken")
@@ -192,7 +200,7 @@ func (s *DeAIService) GetKawaiBalance() (string, error) {
 	}
 
 	// 3. Get Balance
-	bal, err := kawai.BalanceOf(nil, userAddr)
+	bal, err := kawai.BalanceOf(nil, common.HexToAddress(userAddr))
 	if err != nil {
 		return "", fmt.Errorf("failed to get balance: %w", err)
 	}
@@ -242,7 +250,7 @@ func (s *DeAIService) GetKawaiTotalSupply() (string, error) {
 // GetRevenueShareStats returns revenue sharing statistics for the current wallet
 func (s *DeAIService) GetRevenueShareStats() (*RevenueShareStatsResponse, error) {
 	// Check if wallet is unlocked
-	if s.wallet.currentAccount == nil {
+	if !s.wallet.IsUnlocked() {
 		return nil, fmt.Errorf("wallet is locked")
 	}
 
@@ -290,7 +298,7 @@ func (s *DeAIService) GetRevenueShareStats() (*RevenueShareStatsResponse, error)
 // Note: Uses MockStablecoin on testnet, USDC on mainnet
 func (s *DeAIService) DepositToVault(amountStr string) (string, error) {
 	// Check if wallet is unlocked
-	if s.wallet.currentAccount == nil {
+	if !s.wallet.IsUnlocked() {
 		return "", fmt.Errorf("wallet is locked")
 	}
 
@@ -311,7 +319,7 @@ func (s *DeAIService) DepositToVault(amountStr string) (string, error) {
 
 	// 3. Check Allowance
 	ctx := context.Background()
-	allowance, err := s.GetUSDTAllowance(s.wallet.currentAccount.AddressHex(), "PaymentVault")
+	allowance, err := s.GetUSDTAllowance(s.wallet.GetCurrentAccountAddress(), "PaymentVault")
 	if err != nil {
 		return "", fmt.Errorf("failed to check allowance: %w", err)
 	}
@@ -323,7 +331,7 @@ func (s *DeAIService) DepositToVault(amountStr string) (string, error) {
 	if allowanceBig.Cmp(amount) < 0 {
 		fmt.Println("Allowance insufficient, approving...")
 		chainId := s.chainID
-		opts, err := s.wallet.getTransactOpts(chainId)
+		opts, err := s.wallet.GetTransactOpts(chainId)
 		if err != nil {
 			return "", fmt.Errorf("failed to get opts: %w", err)
 		}
@@ -353,7 +361,7 @@ func (s *DeAIService) DepositToVault(amountStr string) (string, error) {
 
 	// 5. Deposit
 	chainId := s.chainID
-	opts, err := s.wallet.getTransactOpts(chainId)
+	opts, err := s.wallet.GetTransactOpts(chainId)
 	if err != nil {
 		return "", fmt.Errorf("failed to get transaction opts: %w", err)
 	}
@@ -412,7 +420,7 @@ func (s *DeAIService) ApproveUSDT(spenderStr string, amountStr string) (string, 
 
 	// 2. Get Opts
 	chainId := s.chainID
-	opts, err := s.wallet.getTransactOpts(chainId)
+	opts, err := s.wallet.GetTransactOpts(chainId)
 	if err != nil {
 		return "", fmt.Errorf("failed to get opts: %w", err)
 	}
@@ -456,7 +464,7 @@ func (s *DeAIService) ApproveToken(tokenName string, spenderStr string, amountSt
 
 	// 3. Get Opts
 	chainId := s.chainID
-	opts, err := s.wallet.getTransactOpts(chainId)
+	opts, err := s.wallet.GetTransactOpts(chainId)
 	if err != nil {
 		return "", fmt.Errorf("failed to get opts: %w", err)
 	}
@@ -490,7 +498,7 @@ func (s *DeAIService) CreateSellOrder(tokenAmountStr string, priceStr string) (s
 	}
 
 	chainId := s.chainID
-	opts, err := s.wallet.getTransactOpts(chainId)
+	opts, err := s.wallet.GetTransactOpts(chainId)
 	if err != nil {
 		return "", fmt.Errorf("failed to get opts: %w", err)
 	}
@@ -522,7 +530,7 @@ func (s *DeAIService) BuyOrder(orderIdStr string) (string, error) {
 	}
 
 	chainId := s.chainID
-	opts, err := s.wallet.getTransactOpts(chainId)
+	opts, err := s.wallet.GetTransactOpts(chainId)
 	if err != nil {
 		return "", fmt.Errorf("failed to get opts: %w", err)
 	}
@@ -556,7 +564,7 @@ func (s *DeAIService) MintTestTokens() (string, error) {
 	}
 
 	chainId := s.chainID
-	opts, err := s.wallet.getTransactOpts(chainId)
+	opts, err := s.wallet.GetTransactOpts(chainId)
 	if err != nil {
 		return "", fmt.Errorf("failed to get opts: %w", err)
 	}
@@ -593,7 +601,7 @@ func (s *DeAIService) TransferUSDT(to string, amountStr string) (string, error) 
 
 	// 3. Get Opts
 	chainId := s.chainID
-	opts, err := s.wallet.getTransactOpts(chainId)
+	opts, err := s.wallet.GetTransactOpts(chainId)
 	if err != nil {
 		return "", fmt.Errorf("failed to get opts: %w", err)
 	}
@@ -630,7 +638,7 @@ func (s *DeAIService) TransferNative(to string, amountStr string) (string, error
 
 	// 3. Get Opts (Wait for signing)
 	chainId := s.chainID
-	opts, err := s.wallet.getTransactOpts(chainId)
+	opts, err := s.wallet.GetTransactOpts(chainId)
 	if err != nil {
 		return "", fmt.Errorf("failed to get opts: %w", err)
 	}
@@ -690,7 +698,7 @@ func (s *DeAIService) TransferToken(tokenAddress string, to string, amountStr st
 
 	// 3. Get Opts
 	chainId := s.chainID
-	opts, err := s.wallet.getTransactOpts(chainId)
+	opts, err := s.wallet.GetTransactOpts(chainId)
 	if err != nil {
 		return "", fmt.Errorf("failed to get opts: %w", err)
 	}
@@ -726,7 +734,7 @@ func (s *DeAIService) getContractPeriodForTimestamp(timestamp int64) int64 {
 // GetClaimableRewards fetches all claimable rewards for the current wallet
 // Uses Cloudflare KV store directly for off-chain Merkle proof data
 func (s *DeAIService) GetClaimableRewards() (*ClaimableRewardsResponse, error) {
-	if s.wallet.currentAccount == nil {
+	if !s.wallet.IsUnlocked() {
 		return nil, fmt.Errorf("no wallet connected")
 	}
 
@@ -734,7 +742,7 @@ func (s *DeAIService) GetClaimableRewards() (*ClaimableRewardsResponse, error) {
 		return nil, fmt.Errorf("KV store not initialized")
 	}
 
-	userAddr := s.wallet.currentAccount.AddressHex()
+	userAddr := s.wallet.GetCurrentAccountAddress()
 	ctx := context.Background()
 
 	// Get claimable rewards from KV store
@@ -850,11 +858,11 @@ func getStringFromMap(m map[string]interface{}, key string, defaultVal string) s
 
 // ClaimUSDTReward claims USDT rewards using a Merkle proof (revenue sharing)
 func (s *DeAIService) ClaimUSDTReward(periodID int64, index uint64, amountStr string, proof []string) (*ClaimResult, error) {
-	if s.wallet.currentAccount == nil {
+	if !s.wallet.IsUnlocked() {
 		return nil, fmt.Errorf("no wallet connected")
 	}
 
-	claimerAddr := s.wallet.currentAccount.AddressHex()
+	claimerAddr := s.wallet.GetCurrentAccountAddress()
 	ctx := context.Background()
 
 	// Mark claim as pending BEFORE submitting transaction
@@ -892,7 +900,7 @@ func (s *DeAIService) ClaimUSDTReward(periodID int64, index uint64, amountStr st
 
 	// Get transaction options
 	chainId := s.chainID
-	opts, err := s.wallet.getTransactOpts(chainId)
+	opts, err := s.wallet.GetTransactOpts(chainId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get transaction opts: %w", err)
 	}
@@ -943,11 +951,11 @@ func (s *DeAIService) ClaimUSDTReward(periodID int64, index uint64, amountStr st
 // Uses the DepositCashbackDistributor contract with period-based claims
 func (s *DeAIService) ClaimCashbackReward(period uint64, kawaiAmount string, proof []string) (*ClaimResult, error) {
 
-	if s.wallet.currentAccount == nil {
+	if !s.wallet.IsUnlocked() {
 		return nil, fmt.Errorf("no wallet connected")
 	}
 
-	userAddr := s.wallet.currentAccount.AddressHex()
+	userAddr := s.wallet.GetCurrentAccountAddress()
 
 	// 1. Input validation
 	// Note: Empty proof is valid for single-leaf Merkle trees
@@ -987,7 +995,7 @@ func (s *DeAIService) ClaimCashbackReward(period uint64, kawaiAmount string, pro
 
 	// 4. Get transaction options
 	chainId := s.chainID
-	opts, err := s.wallet.getTransactOpts(chainId)
+	opts, err := s.wallet.GetTransactOpts(chainId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get transaction opts: %w", err)
 	}
@@ -1087,11 +1095,11 @@ func (s *DeAIService) ClaimMiningReward(
 	proof []string,
 ) (*ClaimResult, error) {
 
-	if s.wallet.currentAccount == nil {
+	if !s.wallet.IsUnlocked() {
 		return nil, fmt.Errorf("no wallet connected")
 	}
 
-	claimerAddr := s.wallet.currentAccount.AddressHex()
+	claimerAddr := s.wallet.GetCurrentAccountAddress()
 
 	// Contract now supports timestamp-based periods directly via setMerkleRootForPeriod()
 	// No mapping needed - use timestamp period ID as-is
@@ -1151,7 +1159,7 @@ func (s *DeAIService) ClaimMiningReward(
 
 	// 6. Get transaction options
 	chainId := s.chainID
-	opts, err := s.wallet.getTransactOpts(chainId)
+	opts, err := s.wallet.GetTransactOpts(chainId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get transaction opts: %w", err)
 	}
@@ -1260,7 +1268,7 @@ func (s *DeAIService) WaitForClaimConfirmation(txHash string) (bool, error) {
 
 // ConfirmRewardClaim confirms a reward claim after the transaction is confirmed on-chain
 func (s *DeAIService) ConfirmRewardClaim(periodID int64) error {
-	if s.wallet.currentAccount == nil {
+	if !s.wallet.IsUnlocked() {
 		return fmt.Errorf("no wallet connected")
 	}
 
@@ -1269,14 +1277,14 @@ func (s *DeAIService) ConfirmRewardClaim(periodID int64) error {
 	}
 
 	ctx := context.Background()
-	userAddr := s.wallet.currentAccount.AddressHex()
+	userAddr := s.wallet.GetCurrentAccountAddress()
 
 	return s.kv.ConfirmClaim(ctx, userAddr, periodID)
 }
 
 // MarkClaimFailed marks a claim as failed after the transaction reverts
 func (s *DeAIService) MarkClaimFailed(periodID int64, reason string) error {
-	if s.wallet.currentAccount == nil {
+	if !s.wallet.IsUnlocked() {
 		return fmt.Errorf("no wallet connected")
 	}
 
@@ -1285,7 +1293,7 @@ func (s *DeAIService) MarkClaimFailed(periodID int64, reason string) error {
 	}
 
 	ctx := context.Background()
-	userAddr := s.wallet.currentAccount.AddressHex()
+	userAddr := s.wallet.GetCurrentAccountAddress()
 
 	return s.kv.MarkClaimFailed(ctx, userAddr, periodID, reason)
 }

@@ -75,6 +75,21 @@ func NewClient(cfg Config) (*Client, error) {
 }
 
 // GetTotalSupply retrieves the current total supply of KAWAI tokens from the smart contract.
+// IsConnected returns true if the client is connected to the blockchain
+func (c *Client) IsConnected() bool {
+	return c.EthClient != nil && c.ChainID != nil
+}
+
+// GetChainID returns the chain ID of the connected network
+func (c *Client) GetChainID() *big.Int {
+	return c.ChainID
+}
+
+// GetEthClient returns the underlying Ethereum client
+func (c *Client) GetEthClient() *ethclient.Client {
+	return c.EthClient
+}
+
 func (c *Client) GetTotalSupply(ctx context.Context) (*big.Int, error) {
 	return c.Token.TotalSupply(nil)
 }
@@ -160,37 +175,16 @@ func (c *Client) MarketplaceCancelOrder(ctx context.Context, transactOpts *bind.
 }
 
 // MarketplaceGetOrder retrieves order information from the smart contract
-func (c *Client) MarketplaceGetOrder(ctx context.Context, orderID *big.Int) (struct {
-	Id              *big.Int
-	Seller          common.Address
-	TokenAmount     *big.Int
-	PriceInUSDT     *big.Int
-	RemainingAmount *big.Int
-	IsActive        bool
-}, error) {
+func (c *Client) MarketplaceGetOrder(ctx context.Context, orderID *big.Int) (otcmarket.OTCMarketOrder, error) {
 	// Validate parameters
 	if orderID == nil || orderID.Cmp(big.NewInt(0)) < 0 {
-		return struct {
-			Id              *big.Int
-			Seller          common.Address
-			TokenAmount     *big.Int
-			PriceInUSDT     *big.Int
-			RemainingAmount *big.Int
-			IsActive        bool
-		}{}, fmt.Errorf("order ID must be a valid non-negative number")
+		return otcmarket.OTCMarketOrder{}, fmt.Errorf("order ID must be a valid non-negative number")
 	}
 
 	// Call the smart contract's getOrder function (new view function)
 	order, err := c.OTCMarket.GetOrder(nil, orderID)
 	if err != nil {
-		return struct {
-			Id              *big.Int
-			Seller          common.Address
-			TokenAmount     *big.Int
-			PriceInUSDT     *big.Int
-			RemainingAmount *big.Int
-			IsActive        bool
-		}{}, fmt.Errorf("failed to get order from smart contract: %w", err)
+		return otcmarket.OTCMarketOrder{}, fmt.Errorf("failed to get order from smart contract: %w", err)
 	}
 
 	return order, nil
