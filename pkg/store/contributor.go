@@ -44,6 +44,22 @@ type ContributorData struct {
 	DeletedAt          time.Time         `json:"deleted_at,omitempty"`       // When soft deleted
 	IsAdmin            bool              `json:"is_admin,omitempty"`         // Admin flag
 	Version            int64             `json:"version"`                    // Optimistic locking version
+
+	// Discovery & Load Balancing Metadata
+	Region          string    `json:"region,omitempty"`           // Geographic region (e.g., "us-west", "eu-central")
+	AvailableModels []string  `json:"available_models,omitempty"` // List of model IDs available on this node
+	ActiveRequests  int64     `json:"active_requests"`            // Current number of active requests
+	TotalRequests   int64     `json:"total_requests"`             // Total requests served (lifetime)
+	AvgResponseTime float64   `json:"avg_response_time"`          // Average response time in seconds
+	SuccessRate     float64   `json:"success_rate"`               // Success rate (0.0 to 1.0)
+	LastHealthCheck time.Time `json:"last_health_check"`          // Last health check timestamp
+
+	// Parsed Hardware Fields (for efficient filtering)
+	CPUCores     int    `json:"cpu_cores"`     // Number of CPU cores
+	TotalRAM     int64  `json:"total_ram"`     // Total RAM in GB
+	AvailableRAM int64  `json:"available_ram"` // Available RAM in GB
+	GPUModel     string `json:"gpu_model"`     // GPU model name
+	GPUMemory    int64  `json:"gpu_memory"`    // GPU VRAM in GB
 }
 
 // =============================================================================
@@ -149,8 +165,55 @@ func (s *KVStore) UpdateHeartbeat(ctx context.Context, address string) error {
 
 	contributor.LastSeen = time.Now()
 	contributor.Status = ContributorStatusOnline
+	contributor.LastHealthCheck = time.Now()
 
 	return s.SaveContributor(ctx, contributor)
+}
+
+// UpdateContributorMetrics updates discovery and performance metrics for a contributor
+// This should be called periodically (e.g., every 30s) to keep metrics fresh
+func (s *KVStore) UpdateContributorMetrics(ctx context.Context, address string, metrics *ContributorMetrics) error {
+	contributor, err := s.GetContributor(ctx, address)
+	if err != nil {
+		return err
+	}
+
+	// Update discovery metadata
+	contributor.Region = metrics.Region
+	contributor.AvailableModels = metrics.AvailableModels
+	contributor.ActiveRequests = metrics.ActiveRequests
+	contributor.TotalRequests = metrics.TotalRequests
+	contributor.AvgResponseTime = metrics.AvgResponseTime
+	contributor.SuccessRate = metrics.SuccessRate
+	contributor.LastHealthCheck = time.Now()
+
+	// Update parsed hardware fields
+	contributor.CPUCores = metrics.CPUCores
+	contributor.TotalRAM = metrics.TotalRAM
+	contributor.AvailableRAM = metrics.AvailableRAM
+	contributor.GPUModel = metrics.GPUModel
+	contributor.GPUMemory = metrics.GPUMemory
+
+	// Update status and last seen
+	contributor.LastSeen = time.Now()
+	contributor.Status = ContributorStatusOnline
+
+	return s.SaveContributor(ctx, contributor)
+}
+
+// ContributorMetrics represents metrics to update for a contributor
+type ContributorMetrics struct {
+	Region          string
+	AvailableModels []string
+	ActiveRequests  int64
+	TotalRequests   int64
+	AvgResponseTime float64
+	SuccessRate     float64
+	CPUCores        int
+	TotalRAM        int64
+	AvailableRAM    int64
+	GPUModel        string
+	GPUMemory       int64
 }
 
 // MarkContributorOffline marks the contributor as offline

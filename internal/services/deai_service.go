@@ -118,11 +118,12 @@ type WalletOperations interface {
 
 // DeAIService handles interactions with the Veridium smart contracts
 type DeAIService struct {
-	reader  *reader.EthReader
-	wallet  WalletOperations
-	kv      store.Store // Cloudflare KV store for off-chain data
-	alert   *alert.DiscordAlert
-	chainID *big.Int // Chain ID for the current Monad environment (testnet or mainnet)
+	reader              *reader.EthReader
+	wallet              WalletOperations
+	kv                  store.Store // Cloudflare KV store for off-chain data
+	alert               *alert.DiscordAlert
+	chainID             *big.Int             // Chain ID for the current Monad environment (testnet or mainnet)
+	contributorSelector *ContributorSelector // Contributor discovery and selection
 }
 
 // NewDeAIService creates a new instance of DeAIService
@@ -140,11 +141,12 @@ func NewDeAIService(wallet WalletOperations, kv store.Store) *DeAIService {
 	}
 
 	return &DeAIService{
-		reader:  ethReader,
-		wallet:  wallet,
-		kv:      kv,
-		alert:   discordAlerter,
-		chainID: big.NewInt(int64(config.GetChainID())),
+		reader:              ethReader,
+		wallet:              wallet,
+		kv:                  kv,
+		alert:               discordAlerter,
+		chainID:             big.NewInt(int64(config.GetChainID())),
+		contributorSelector: NewContributorSelector(kv),
 	}
 }
 
@@ -1316,4 +1318,111 @@ func (s *DeAIService) formatRewardAmount(rawAmount string, rewardType types.Rewa
 		return formatted.Text('f', 2)
 	}
 	return formatted.Text('f', 4)
+}
+
+// =============================================================================
+// CONTRIBUTOR DISCOVERY METHODS
+// =============================================================================
+
+// ContributorInfo represents contributor information for frontend display
+type ContributorInfo struct {
+	WalletAddress   string   `json:"wallet_address"`
+	EndpointURL     string   `json:"endpoint_url"`
+	Region          string   `json:"region"`
+	Status          string   `json:"status"`
+	LastSeen        string   `json:"last_seen"`
+	AvailableModels []string `json:"available_models"`
+	ActiveRequests  int64    `json:"active_requests"`
+	TotalRequests   int64    `json:"total_requests"`
+	AvgResponseTime float64  `json:"avg_response_time"`
+	SuccessRate     float64  `json:"success_rate"`
+	CPUCores        int      `json:"cpu_cores"`
+	TotalRAM        int64    `json:"total_ram"`
+	AvailableRAM    int64    `json:"available_ram"`
+	GPUModel        string   `json:"gpu_model"`
+	GPUMemory       int64    `json:"gpu_memory"`
+	Score           float64  `json:"score,omitempty"`
+}
+
+// GetAvailableContributors returns all online contributors with their scores
+func (s *DeAIService) GetAvailableContributors() ([]*ContributorInfo, error) {
+	ctx := context.Background()
+
+	scores, err := s.contributorSelector.GetAvailableContributors(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get contributors: %w", err)
+	}
+
+	contributors := make([]*ContributorInfo, 0, len(scores))
+	for _, score := range scores {
+		c := score.Contributor
+		contributors = append(contributors, &ContributorInfo{
+			WalletAddress:   c.WalletAddress,
+			EndpointURL:     c.EndpointURL,
+			Region:          c.Region,
+			Status:          string(c.Status),
+			LastSeen:        c.LastSeen.Format(time.RFC3339),
+			AvailableModels: c.AvailableModels,
+			ActiveRequests:  c.ActiveRequests,
+			TotalRequests:   c.TotalRequests,
+			AvgResponseTime: c.AvgResponseTime,
+			SuccessRate:     c.SuccessRate,
+			CPUCores:        c.CPUCores,
+			TotalRAM:        c.TotalRAM,
+			AvailableRAM:    c.AvailableRAM,
+			GPUModel:        c.GPUModel,
+			GPUMemory:       c.GPUMemory,
+			Score:           score.Score,
+		})
+	}
+
+	return contributors, nil
+}
+
+// SelectBestContributor selects the best contributor based on criteria
+func (s *DeAIService) SelectBestContributor(preferredRegion string, requiredModel string, minRAM int64, minGPUMemory int64) (*ContributorInfo, error) {
+	ctx := context.Background()
+
+	criteria := &SelectionCriteria{
+		PreferredRegion: preferredRegion,
+		RequiredModel:   requiredModel,
+		MinRAM:          minRAM,
+		MinGPUMemory:    minGPUMemory,
+		MaxLoad:         10, // Max 10 concurrent requests per contributor
+	}
+
+	contributor, err := s.contributorSelector.SelectBestContributor(ctx, criteria)
+	if err != nil {
+		return nil, fmt.Errorf("failed to select contributor: %w", err)
+	}
+
+	return &ContributorInfo{
+		WalletAddress:   contributor.WalletAddress,
+		EndpointURL:     contributor.EndpointURL,
+		Region:          contributor.Region,
+		Status:          string(contributor.Status),
+		LastSeen:        contributor.LastSeen.Format(time.RFC3339),
+		AvailableModels: contributor.AvailableModels,
+		ActiveRequests:  contributor.ActiveRequests,
+		TotalRequests:   contributor.TotalRequests,
+		AvgResponseTime: contributor.AvgResponseTime,
+		SuccessRate:     contributor.SuccessRate,
+		CPUCores:        contributor.CPUCores,
+		TotalRAM:        contributor.TotalRAM,
+		AvailableRAM:    contributor.AvailableRAM,
+		GPUModel:        contributor.GPUModel,
+		GPUMemory:       contributor.GPUMemory,
+	}, nil
+}
+
+// GetContributorStats returns statistics about the contributor network
+func (s *DeAIService) GetContributorStats() (map[string]interface{}, error) {
+	ctx := context.Background()
+
+	stats, err := s.contributorSelector.GetContributorStats(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get stats: %w", err)
+	}
+
+	return stats, nil
 }

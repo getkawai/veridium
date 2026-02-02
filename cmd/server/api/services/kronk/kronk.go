@@ -29,7 +29,6 @@ import (
 	"github.com/kawai-network/veridium/internal/services"
 	"github.com/kawai-network/veridium/pkg/blockchain"
 	"github.com/kawai-network/veridium/pkg/hardware"
-	"github.com/kawai-network/veridium/pkg/whisper/model"
 	"github.com/kawai-network/veridium/pkg/kronk"
 	pkglogger "github.com/kawai-network/veridium/pkg/logger"
 	sd "github.com/kawai-network/veridium/pkg/stablediffusion"
@@ -41,6 +40,7 @@ import (
 	"github.com/kawai-network/veridium/pkg/tools/models"
 	"github.com/kawai-network/veridium/pkg/tools/templates"
 	"github.com/kawai-network/veridium/pkg/tunnelkit"
+	"github.com/kawai-network/veridium/pkg/whisper/model"
 )
 
 //go:embed static
@@ -507,9 +507,14 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 	}
 	log.Info(ctx, "startup", "status", "contributor registered", "wallet", contributor.WalletAddress, "since", contributor.RegisteredAt.Format("2006-01-02"))
 
-	// Start Heartbeat (fixed 30s interval)
+	// Start Heartbeat with Metrics (fixed 30s interval)
 	heartbeatCtx, heartbeatCancel := context.WithCancel(context.Background())
 	defer heartbeatCancel()
+
+	// Track metrics for contributor discovery
+	// TODO: These metrics need to be updated by the request handler
+	// For now, we report basic availability metrics only
+	// Future: Integrate with cache.AquireModel() to track actual request metrics
 
 	go func() {
 		ticker := time.NewTicker(30 * time.Second)
@@ -520,13 +525,45 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 			case <-heartbeatCtx.Done():
 				return
 			case <-ticker.C:
-				if err := kv.UpdateHeartbeat(ctx, walletAddress); err != nil {
+				// Detect region (simple heuristic based on timezone)
+				region := detectRegion()
+
+				// Get available models from cache
+				availableModels := getAvailableModels(cache)
+
+				// Get current active streams from cache as proxy for active requests
+				modelStatus, err := cache.ModelStatus()
+				var activeRequests int64
+				if err == nil {
+					for _, model := range modelStatus {
+						activeRequests += int64(model.ActiveStreams)
+					}
+				}
+
+				// Update metrics
+				// Note: TotalRequests, AvgResponseTime, and SuccessRate will be 0 until
+				// request tracking is implemented in the API handlers
+				metrics := &store.ContributorMetrics{
+					Region:          region,
+					AvailableModels: availableModels,
+					ActiveRequests:  activeRequests,
+					TotalRequests:   0,   // TODO: Track in request handler
+					AvgResponseTime: 0,   // TODO: Track in request handler
+					SuccessRate:     1.0, // Default to 1.0 until we have failure data
+					CPUCores:        hwSpecs.CPUCores,
+					TotalRAM:        hwSpecs.TotalRAM,
+					AvailableRAM:    hwSpecs.AvailableRAM,
+					GPUModel:        hwSpecs.GPUModel,
+					GPUMemory:       hwSpecs.GPUMemory,
+				}
+
+				if err := kv.UpdateContributorMetrics(ctx, walletAddress, metrics); err != nil {
 					log.Info(ctx, "heartbeat", "status", "failed", "error", err)
 				}
 			}
 		}
 	}()
-	log.Info(ctx, "startup", "status", "heartbeat started", "interval", "30s")
+	log.Info(ctx, "startup", "status", "heartbeat with metrics started", "interval", "30s")
 
 	// Initialize Whisper Service (pkg/whisper)
 	var whisperModelsDir string
@@ -534,7 +571,7 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 		log.Info(ctx, "startup", "status", "initializing whisper")
 
 		whisperModelsDir = filepath.Join(cfg.BasePath, "whisper-models")
-		
+
 		// Ensure models directory exists
 		if err := os.MkdirAll(whisperModelsDir, 0755); err != nil {
 			log.Info(ctx, "whisper", "status", "failed to create models directory", "error", err)
@@ -706,4 +743,50 @@ func startTunnel(ctx context.Context, log *logger.Logger) string {
 		}
 	}
 	return ""
+}
+
+// detectRegion detects the contributor's geographic region
+// Simple heuristic based on timezone offset
+func detectRegion() string {
+	_, offset := time.Now().Zone()
+	offsetHours := offset / 3600
+
+	// Simple region mapping based on UTC offset
+	// Note: Boundaries are exclusive on upper end to avoid overlaps
+	switch {
+	case offsetHours >= -8 && offsetHours < -5:
+		return "us-west"
+	case offsetHours >= -5 && offsetHours < -3:
+		return "us-east"
+	case offsetHours >= 0 && offsetHours < 3:
+		return "eu-west"
+	case offsetHours >= 3 && offsetHours < 6:
+		return "eu-east"
+	case offsetHours >= 6 && offsetHours < 9:
+		return "asia-west"
+	case offsetHours >= 9 && offsetHours <= 12:
+		return "asia-east"
+	default:
+		return "unknown"
+	}
+}
+
+// getAvailableModels returns list of available model IDs from cache
+func getAvailableModels(cache *cache.Cache) []string {
+	if cache == nil {
+		return []string{}
+	}
+
+	// Get model status from cache
+	modelDetails, err := cache.ModelStatus()
+	if err != nil {
+		return []string{}
+	}
+
+	modelIDs := make([]string, 0, len(modelDetails))
+	for _, model := range modelDetails {
+		modelIDs = append(modelIDs, model.ID)
+	}
+
+	return modelIDs
 }
