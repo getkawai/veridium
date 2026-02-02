@@ -404,7 +404,7 @@ Gas Used:         64978
 - `pkg/blockchain/holder_scanner.go` - Hybrid scanning implementation
 - `pkg/blockchain/revenue_settlement.go` - Updated to use hybrid approach
 - `internal/services/wallet_service.go` - Desktop app integration
-- `cmd/contributor/main.go` - CLI contributor integration
+- `cmd/server/api/services/kronk/kronk.go` - CLI contributor integration (migrated from cmd/contributor)
 
 **Test Results:**
 

@@ -142,37 +142,41 @@ Your share (with referral):
 
 ### Step 2: Download Contributor Client
 
-!!! warning "Coming Soon"
-    Public contributor client will be available soon. Join our [Discord](https://discord.gg/SNf3ZEa8Eq) to be notified!
+!!! info "Kronk Model Server"
+    The contributor client has been migrated to `cmd/server` (Kronk Model Server). Build from source:
 
 ```bash
-# Future download command
-curl -o kawai-miner https://kawai.network/download/contributor
-chmod +x kawai-miner
+# Clone repository
+git clone https://github.com/kawai-network/veridium.git
+cd veridium
+
+# Build Kronk server
+go build -o kawai-miner ./cmd/server
 ```
 
 ### Step 3: Setup & Configuration
 
 ```bash
-# Initialize contributor node
-./kawai-miner init
+# Set environment variables
+export KRONK_CONTRIBUTOR_ENABLED=true
+export KRONK_CONTRIBUTOR_WALLETPASSWORD=your_password
 
-# Enter your wallet address
-# Choose models to serve
-# Set resource limits
+# Run the server
+./kawai-miner
 ```
 
 ### Step 4: Start Mining
 
 ```bash
 # Start the contributor node
-./kawai-miner start
+./kawai-miner
 
-# Check status
-./kawai-miner status
-
-# View logs
-./kawai-miner logs
+# The server will:
+# - Initialize wallet
+# - Register as contributor
+# - Start heartbeat
+# - Serve AI models
+```
 ```
 
 ## 📈 Maximizing Earnings

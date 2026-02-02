@@ -54,10 +54,10 @@ Veridium consists of two primary components designed for different user roles:
   Refer to the `Makefile` for various development and build commands.
 
 ### 2. Contributor Client (CLI)
-- **Location:** `cmd/contributor/main.go`
-- **Tech:** Go CLI.
+- **Location:** `cmd/server/` (migrated from `cmd/contributor`)
+- **Tech:** Go CLI using Kronk framework.
 - **Description:** The "Miner" application. It wraps `llama.cpp` to provide compute power to the network and earn KAWAI tokens.
-- **Status:** Ready for distributed network phase (future).
+- **Status:** Migrated to `cmd/server`. See `cmd/server/README.md` for details.
 
 ---
 
