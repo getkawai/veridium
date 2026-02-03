@@ -36,7 +36,7 @@ type MemoryEnrichmentService struct {
 // MemoryEnrichmentConfig holds configuration for enrichment service
 type MemoryEnrichmentConfig struct {
 	MemoryService *MemoryService
-	LLM           fantasy.LanguageModel
+	LLM           fantasy.LanguageModel `json:"-"`
 }
 
 // NewMemoryEnrichmentService creates a new memory enrichment service

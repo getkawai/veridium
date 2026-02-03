@@ -2,9 +2,9 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v*.*.*'  # Trigger on version tags like v1.0.0
-  workflow_dispatch:  # Allow manual trigger
+    branches:
+      - '**'
+  workflow_dispatch:
     inputs:
       version:
         description: 'Version to release (e.g., 1.0.0)'
@@ -15,8 +15,12 @@ env:
   GO_VERSION: '1.25'
   NODE_VERSION: '22'
   BUN_VERSION: '1.3.1'
-  R2_BUCKET: 'kawai'  # Change to your R2 bucket name
-  R2_PUBLIC_URL: 'https://storage.getkawai.com'  # Change to your R2 public URL
+  R2_BUCKET: 'kawai'
+  R2_PUBLIC_URL: 'https://storage.getkawai.com'
+
+permissions:
+  contents: write
+  packages: write
 
 jobs:
   prepare:
@@ -35,17 +39,15 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
           else
-            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+            echo "version=0.1.5" >> $GITHUB_OUTPUT
           fi
 
       - name: Create Release
         id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.get_version.outputs.version }}
-          release_name: Kawai v${{ steps.get_version.outputs.version }}
+          name: Kawai v${{ steps.get_version.outputs.version }}
           draft: true
           prerelease: false
           body: |
@@ -118,7 +120,8 @@ jobs:
           cd bin
           tar -czf Kawai-${{ needs.prepare.outputs.version }}-macos-arm64.tar.gz Kawai-arm64.app
           tar -czf Kawai-${{ needs.prepare.outputs.version }}-macos-amd64.tar.gz Kawai-amd64.app
-          shasum -a 256 Kawai-*.tar.gz > checksums-macos.txt
+          shasum -a 256 Kawai-${{ needs.prepare.outputs.version }}-macos-arm64.tar.gz > checksums-macos-arm64.txt
+          shasum -a 256 Kawai-${{ needs.prepare.outputs.version }}-macos-amd64.tar.gz > checksums-macos-amd64.txt
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
@@ -126,39 +129,24 @@ jobs:
           name: macos-build
           path: |
             bin/Kawai-*.tar.gz
-            bin/checksums-macos.txt
+            bin/checksums-macos-*.txt
+
+      - name: Prepare R2 upload
+        run: |
+          mkdir -p r2-upload
+          cp bin/Kawai-*.tar.gz r2-upload/
+          cp bin/checksums-macos-*.txt r2-upload/
 
       - name: Upload to Cloudflare R2
-        uses: ryand56/r2-upload-action@latest
+        uses: yudaprama/r2-upload-action@master
         with:
           r2-account-id: ${{ secrets.R2_ACCOUNT_ID }}
           r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
           r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           r2-bucket: ${{ env.R2_BUCKET }}
-          source-dir: bin
-          destination-dir: v${{ needs.prepare.outputs.version }}
+          source-dir: r2-upload
+          destination-dir: ${{ needs.prepare.outputs.version }}/desktop
           output-file-url: true
-          include-pattern: "*.tar.gz,checksums-*.txt"
-
-      - name: Upload ARM64 to Release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-        with:
-          upload_url: ${{ needs.prepare.outputs.upload_url }}
-          asset_path: bin/Kawai-${{ needs.prepare.outputs.version }}-macos-arm64.tar.gz
-          asset_name: Kawai-${{ needs.prepare.outputs.version }}-macos-arm64.tar.gz
-          asset_content_type: application/gzip
-
-      - name: Upload AMD64 to Release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-        with:
-          upload_url: ${{ needs.prepare.outputs.upload_url }}
-          asset_path: bin/Kawai-${{ needs.prepare.outputs.version }}-macos-amd64.tar.gz
-          asset_name: Kawai-${{ needs.prepare.outputs.version }}-macos-amd64.tar.gz
-          asset_content_type: application/gzip
 
   build-linux:
     name: Build Linux
@@ -191,18 +179,21 @@ jobs:
           sed -i 's/version: ".*"/version: "${{ needs.prepare.outputs.version }}"/' build/config.yml
 
       - name: Build Linux Binary
-        run: |
-          export PRODUCTION=true
-          export NODE_OPTIONS="--max-old-space-size=8192"
-          wails3 task linux:build
+        env:
+          NODE_OPTIONS: '--max-old-space-size=8192'
+          PRODUCTION: 'true'
+        run: wails3 task linux:build
 
       - name: Create distribution archive
         run: |
           cd bin
           tar -czf Kawai-${{ needs.prepare.outputs.version }}-linux-amd64.tar.gz Kawai
-          sha256sum Kawai-*.tar.gz > checksums-linux.txt
+          sha256sum Kawai-${{ needs.prepare.outputs.version }}-linux-amd64.tar.gz > checksums-linux-amd64.txt
 
       - name: Create Debian package
+        env:
+          NODE_OPTIONS: '--max-old-space-size=8192'
+          PRODUCTION: 'true'
         run: make release-linux-deb
 
       - name: Upload Linux artifacts
@@ -211,29 +202,24 @@ jobs:
           name: linux-build
           path: |
             bin/Kawai-*.tar.gz
-            bin/checksums-linux.txt
+            bin/checksums-linux-amd64.txt
+
+      - name: Prepare R2 upload
+        run: |
+          mkdir -p r2-upload
+          cp bin/Kawai-*.tar.gz r2-upload/
+          cp bin/checksums-linux-amd64.txt r2-upload/
 
       - name: Upload to Cloudflare R2
-        uses: ryand56/r2-upload-action@latest
+        uses: yudaprama/r2-upload-action@master
         with:
           r2-account-id: ${{ secrets.R2_ACCOUNT_ID }}
           r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
           r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           r2-bucket: ${{ env.R2_BUCKET }}
-          source-dir: bin
-          destination-dir: v${{ needs.prepare.outputs.version }}
+          source-dir: r2-upload
+          destination-dir: ${{ needs.prepare.outputs.version }}/desktop
           output-file-url: true
-          include-pattern: "*.tar.gz,checksums-*.txt"
-
-      - name: Upload archive to Release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-        with:
-          upload_url: ${{ needs.prepare.outputs.upload_url }}
-          asset_path: bin/Kawai-${{ needs.prepare.outputs.version }}-linux-amd64.tar.gz
-          asset_name: Kawai-${{ needs.prepare.outputs.version }}-linux-amd64.tar.gz
-          asset_content_type: application/gzip
 
   build-windows:
     name: Build Windows
@@ -292,7 +278,7 @@ jobs:
         run: |
           cd bin
           Compress-Archive -Path Kawai.exe -DestinationPath Kawai-${{ needs.prepare.outputs.version }}-windows-amd64.zip
-          Get-FileHash -Algorithm SHA256 Kawai-*.zip | ForEach-Object { "$($_.Hash.ToLower())  $((Split-Path -Leaf $_.Path))" } | Out-File -Encoding ASCII checksums-windows.txt
+          Get-FileHash -Algorithm SHA256 Kawai-${{ needs.prepare.outputs.version }}-windows-amd64.zip | ForEach-Object { "$($_.Hash.ToLower())  $((Split-Path -Leaf $_.Path))" } | Out-File -Encoding ASCII checksums-windows-amd64.txt
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
@@ -300,29 +286,24 @@ jobs:
           name: windows-build
           path: |
             bin/Kawai-*.zip
-            bin/checksums-windows.txt
+            bin/checksums-windows-amd64.txt
+
+      - name: Prepare R2 upload
+        run: |
+          New-Item -ItemType Directory -Force -Path r2-upload
+          Copy-Item bin/Kawai-*.zip r2-upload/
+          Copy-Item bin/checksums-windows-amd64.txt r2-upload/
 
       - name: Upload to Cloudflare R2
-        uses: ryand56/r2-upload-action@latest
+        uses: yudaprama/r2-upload-action@master
         with:
           r2-account-id: ${{ secrets.R2_ACCOUNT_ID }}
           r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
           r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           r2-bucket: ${{ env.R2_BUCKET }}
-          source-dir: bin
-          destination-dir: v${{ needs.prepare.outputs.version }}
+          source-dir: r2-upload
+          destination-dir: ${{ needs.prepare.outputs.version }}/desktop
           output-file-url: true
-          include-pattern: "*.zip,checksums-*.txt"
-
-      - name: Upload to Release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-        with:
-          upload_url: ${{ needs.prepare.outputs.upload_url }}
-          asset_path: bin/Kawai-${{ needs.prepare.outputs.version }}-windows-amd64.zip
-          asset_name: Kawai-${{ needs.prepare.outputs.version }}-windows-amd64.zip
-          asset_content_type: application/zip
 
   finalize:
     name: Finalize Release
@@ -362,35 +343,18 @@ jobs:
           asset_name: checksums.txt
           asset_content_type: text/plain
 
+      - name: Prepare checksums for R2
+        run: |
+          mkdir -p r2-upload
+          cp checksums.txt r2-upload/
+
       - name: Upload checksums to R2
-        uses: ryand56/r2-upload-action@latest
+        uses: yudaprama/r2-upload-action@master
         with:
           r2-account-id: ${{ secrets.R2_ACCOUNT_ID }}
           r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
           r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           r2-bucket: ${{ env.R2_BUCKET }}
-          source-dir: .
-          destination-dir: v${{ needs.prepare.outputs.version }}
-          include-pattern: checksums.txt
-
-      - name: Publish Release
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GH_TOKEN }}
-          script: |
-            const release = await github.rest.repos.getReleaseByTag({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              tag: 'v${{ needs.prepare.outputs.version }}'
-            });
-            
-            await github.rest.repos.updateRelease({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              release_id: release.data.id,
-              draft: false
-            });
-            
-            console.log('✅ Release published!');
-            console.log('📦 Downloads available at: ${{ env.R2_PUBLIC_URL }}/v${{ needs.prepare.outputs.version }}/');
+          source-dir: r2-upload
+          destination-dir: ${{ needs.prepare.outputs.version }}/desktop
 

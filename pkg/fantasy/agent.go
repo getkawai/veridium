@@ -92,13 +92,13 @@ func MaxTokensUsed(maxTokens int64) StopCondition {
 type PrepareStepFunctionOptions struct {
 	Steps      []StepResult
 	StepNumber int
-	Model      LanguageModel
+	Model      LanguageModel `json:"-"`
 	Messages   []Message
 }
 
 // PrepareStepResult contains the result of preparing a step in an agent execution.
 type PrepareStepResult struct {
-	Model           LanguageModel
+	Model           LanguageModel `json:"-"`
 	Messages        []Message
 	System          *string
 	ToolChoice      *ToolChoice

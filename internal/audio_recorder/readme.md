@@ -4,6 +4,7 @@ Saya akan menjelaskan cara kerja audio recorder di Veridium. Mari kita lihat imp
 
 Audio recorder di Veridium adalah service yang memungkinkan recording audio dari microphone dengan dukungan multi-platform. Berikut penjelasan lengkapnya:
 
+
 ### Arsitektur Utama
 
 **1. Service Structure (`AudioRecorderService`)**

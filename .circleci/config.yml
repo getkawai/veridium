@@ -1,405 +1,405 @@
-version: 2.1
+# version: 2.1
 
-orbs:
-  go: circleci/go@1.11.0
-  node: circleci/node@5.2.0
+# orbs:
+#   go: circleci/go@1.11.0
+#   node: circleci/node@5.2.0
 
-parameters:
-  version:
-    type: string
-    default: "0.1.0"
-  go_version:
-    type: string
-    default: "1.25.0"
+# parameters:
+#   version:
+#     type: string
+#     default: "0.1.0"
+#   go_version:
+#     type: string
+#     default: "1.25.0"
 
-executors:
-  macos-executor:
-    macos:
-      xcode: 15.1.0
-    resource_class: macos.m1.medium.gen1
+# executors:
+#   macos-executor:
+#     macos:
+#       xcode: 15.1.0
+#     resource_class: macos.m1.medium.gen1
   
-  linux-executor:
-    docker:
-      - image: cimg/go:1.25
-    resource_class: large
+#   linux-executor:
+#     docker:
+#       - image: cimg/go:1.25
+#     resource_class: large
   
-  windows-executor:
-    machine:
-      image: windows-server-2022-gui:current
-    resource_class: windows.large
+#   windows-executor:
+#     machine:
+#       image: windows-server-2022-gui:current
+#     resource_class: windows.large
 
-jobs:
-  prepare-release:
-    executor: linux-executor
-    steps:
-      - checkout
-      - run:
-          name: Get version
-          command: |
-            if [ -n "$CIRCLE_TAG" ]; then
-              VERSION=${CIRCLE_TAG#v}
-            else
-              VERSION="<< pipeline.parameters.version >>"
-            fi
-            echo "export VERSION=$VERSION" >> $BASH_ENV
-            echo "Version: $VERSION"
-      - run:
-          name: Create GitHub Release
-          command: |
-            curl -X POST \
-              -H "Authorization: token $GITHUB_TOKEN" \
-              -H "Accept: application/vnd.github.v3+json" \
-              https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/releases \
-              -d "{\"tag_name\":\"v$VERSION\",\"name\":\"Kawai v$VERSION\",\"draft\":true,\"body\":\"## 🎉 Kawai v$VERSION\n\n### 📦 Downloads\n\nChoose the appropriate package for your platform\"}"
-      - persist_to_workspace:
-          root: .
-          paths:
-            - .
+# jobs:
+#   prepare-release:
+#     executor: linux-executor
+#     steps:
+#       - checkout
+#       - run:
+#           name: Get version
+#           command: |
+#             if [ -n "$CIRCLE_TAG" ]; then
+#               VERSION=${CIRCLE_TAG#v}
+#             else
+#               VERSION="<< pipeline.parameters.version >>"
+#             fi
+#             echo "export VERSION=$VERSION" >> $BASH_ENV
+#             echo "Version: $VERSION"
+#       - run:
+#           name: Create GitHub Release
+#           command: |
+#             curl -X POST \
+#               -H "Authorization: token $GITHUB_TOKEN" \
+#               -H "Accept: application/vnd.github.v3+json" \
+#               https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/releases \
+#               -d "{\"tag_name\":\"v$VERSION\",\"name\":\"Kawai v$VERSION\",\"draft\":true,\"body\":\"## 🎉 Kawai v$VERSION\n\n### 📦 Downloads\n\nChoose the appropriate package for your platform\"}"
+#       - persist_to_workspace:
+#           root: .
+#           paths:
+#             - .
 
-  build-macos:
-    executor: macos-executor
-    steps:
-      - attach_workspace:
-          at: .
-      - run:
-          name: Install dependencies
-          command: |
-            brew install go@1.25 bun
-            go install github.com/wailsapp/wails/v3/cmd/wails3@latest
-      - run:
-          name: Get version
-          command: |
-            if [ -n "$CIRCLE_TAG" ]; then
-              VERSION=${CIRCLE_TAG#v}
-            else
-              VERSION="<< pipeline.parameters.version >>"
-            fi
-            echo "export VERSION=$VERSION" >> $BASH_ENV
-      - run:
-          name: Update version in config
-          command: |
-            sed -i '' "s/version: \".*\"/version: \"$VERSION\"/" build/config.yml
-      - run:
-          name: Build macOS Universal Binary
-          command: make release-darwin
-      - run:
-          name: Create distribution archive
-          command: |
-            cd build/bin
-            tar -czf Kawai-$VERSION-macos-universal.tar.gz Kawai.app
-            shasum -a 256 Kawai-*.tar.gz > checksums-macos.txt
-      - run:
-          name: Upload to Cloudflare R2
-          command: |
-            brew install awscli
-            cd build/bin
-            aws s3 cp Kawai-$VERSION-macos-universal.tar.gz \
-              s3://kawai/v$VERSION/ \
-              --endpoint-url $R2_ENDPOINT_URL
-      - persist_to_workspace:
-          root: build/bin
-          paths:
-            - Kawai-*.tar.gz
-            - checksums-macos.txt
-      - store_artifacts:
-          path: build/bin/Kawai-*.tar.gz
+#   build-macos:
+#     executor: macos-executor
+#     steps:
+#       - attach_workspace:
+#           at: .
+#       - run:
+#           name: Install dependencies
+#           command: |
+#             brew install go@1.25 bun
+#             go install github.com/wailsapp/wails/v3/cmd/wails3@latest
+#       - run:
+#           name: Get version
+#           command: |
+#             if [ -n "$CIRCLE_TAG" ]; then
+#               VERSION=${CIRCLE_TAG#v}
+#             else
+#               VERSION="<< pipeline.parameters.version >>"
+#             fi
+#             echo "export VERSION=$VERSION" >> $BASH_ENV
+#       - run:
+#           name: Update version in config
+#           command: |
+#             sed -i '' "s/version: \".*\"/version: \"$VERSION\"/" build/config.yml
+#       - run:
+#           name: Build macOS Universal Binary
+#           command: make release-darwin
+#       - run:
+#           name: Create distribution archive
+#           command: |
+#             cd build/bin
+#             tar -czf Kawai-$VERSION-macos-universal.tar.gz Kawai.app
+#             shasum -a 256 Kawai-*.tar.gz > checksums-macos.txt
+#       - run:
+#           name: Upload to Cloudflare R2
+#           command: |
+#             brew install awscli
+#             cd build/bin
+#             aws s3 cp Kawai-$VERSION-macos-universal.tar.gz \
+#               s3://kawai/v$VERSION/ \
+#               --endpoint-url $R2_ENDPOINT_URL
+#       - persist_to_workspace:
+#           root: build/bin
+#           paths:
+#             - Kawai-*.tar.gz
+#             - checksums-macos.txt
+#       - store_artifacts:
+#           path: build/bin/Kawai-*.tar.gz
 
-  build-linux:
-    executor: linux-executor
-    steps:
-      - attach_workspace:
-          at: .
-      - run:
-          name: Install dependencies
-          command: |
-            sudo apt-get update
-            sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev python3-venv
-            curl -fsSL https://bun.sh/install | bash
-            export BUN_INSTALL="$HOME/.bun"
-            export PATH="$BUN_INSTALL/bin:$PATH"
-            echo 'export BUN_INSTALL="$HOME/.bun"' >> $BASH_ENV
-            echo 'export PATH="$BUN_INSTALL/bin:$PATH"' >> $BASH_ENV
-            go install github.com/wailsapp/wails/v3/cmd/wails3@latest
-      - run:
-          name: Get version
-          command: |
-            if [ -n "$CIRCLE_TAG" ]; then
-              VERSION=${CIRCLE_TAG#v}
-            else
-              VERSION="<< pipeline.parameters.version >>"
-            fi
-            echo "export VERSION=$VERSION" >> $BASH_ENV
-      - run:
-          name: Update version in config
-          command: |
-            sed -i "s/version: \".*\"/version: \"$VERSION\"/" build/config.yml
-      - run:
-          name: Build Linux Binary
-          command: PRODUCTION=true make release-linux
-      - run:
-          name: Create distribution archive
-          command: |
-            cd bin
-            tar -czf Kawai-$VERSION-linux-amd64.tar.gz Kawai
-            sha256sum Kawai-*.tar.gz > checksums-linux.txt
-      - run:
-          name: Upload to Cloudflare R2
-          command: |
-            python3 -m venv /tmp/venv
-            source /tmp/venv/bin/activate
-            pip install awscli
-            cd bin
-            aws configure set aws_access_key_id $R2_ACCESS_KEY_ID
-            aws configure set aws_secret_access_key $R2_SECRET_ACCESS_KEY
-            aws configure set default.region auto
-            aws s3 cp Kawai-$VERSION-linux-amd64.tar.gz \
-              s3://kawai/v$VERSION/ \
-              --endpoint-url $R2_ENDPOINT_URL
-      - persist_to_workspace:
-          root: bin
-          paths:
-            - Kawai-*.tar.gz
-            - checksums-linux.txt
-      - store_artifacts:
-          path: build/bin/Kawai-*.tar.gz
+#   build-linux:
+#     executor: linux-executor
+#     steps:
+#       - attach_workspace:
+#           at: .
+#       - run:
+#           name: Install dependencies
+#           command: |
+#             sudo apt-get update
+#             sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev python3-venv
+#             curl -fsSL https://bun.sh/install | bash
+#             export BUN_INSTALL="$HOME/.bun"
+#             export PATH="$BUN_INSTALL/bin:$PATH"
+#             echo 'export BUN_INSTALL="$HOME/.bun"' >> $BASH_ENV
+#             echo 'export PATH="$BUN_INSTALL/bin:$PATH"' >> $BASH_ENV
+#             go install github.com/wailsapp/wails/v3/cmd/wails3@latest
+#       - run:
+#           name: Get version
+#           command: |
+#             if [ -n "$CIRCLE_TAG" ]; then
+#               VERSION=${CIRCLE_TAG#v}
+#             else
+#               VERSION="<< pipeline.parameters.version >>"
+#             fi
+#             echo "export VERSION=$VERSION" >> $BASH_ENV
+#       - run:
+#           name: Update version in config
+#           command: |
+#             sed -i "s/version: \".*\"/version: \"$VERSION\"/" build/config.yml
+#       - run:
+#           name: Build Linux Binary
+#           command: PRODUCTION=true make release-linux
+#       - run:
+#           name: Create distribution archive
+#           command: |
+#             cd bin
+#             tar -czf Kawai-$VERSION-linux-amd64.tar.gz Kawai
+#             sha256sum Kawai-*.tar.gz > checksums-linux.txt
+#       - run:
+#           name: Upload to Cloudflare R2
+#           command: |
+#             python3 -m venv /tmp/venv
+#             source /tmp/venv/bin/activate
+#             pip install awscli
+#             cd bin
+#             aws configure set aws_access_key_id $R2_ACCESS_KEY_ID
+#             aws configure set aws_secret_access_key $R2_SECRET_ACCESS_KEY
+#             aws configure set default.region auto
+#             aws s3 cp Kawai-$VERSION-linux-amd64.tar.gz \
+#               s3://kawai/v$VERSION/ \
+#               --endpoint-url $R2_ENDPOINT_URL
+#       - persist_to_workspace:
+#           root: bin
+#           paths:
+#             - Kawai-*.tar.gz
+#             - checksums-linux.txt
+#       - store_artifacts:
+#           path: build/bin/Kawai-*.tar.gz
 
-  build-windows:
-    executor: windows-executor
-    steps:
-      - attach_workspace:
-          at: .
-      - run:
-          name: Install Go
-          shell: powershell.exe
-          command: |
-            $goInstalled = Get-Command go -ErrorAction SilentlyContinue
-            if (-not $goInstalled) {
-              choco install golang --version=1.25 -y
-              refreshenv
-            } else {
-              Write-Host "Go already installed: $(go version)"
-            }
-      - run:
-          name: Install Node.js
-          shell: powershell.exe
-          command: choco install nodejs --version=20 -y
-      - run:
-          name: Install MinGW for CGO
-          shell: powershell.exe
-          command: |
-            choco install mingw -y
-            # MinGW is installed to C:\ProgramData\mingw64\mingw64\bin by chocolatey
-            $env:Path = "C:\ProgramData\mingw64\mingw64\bin;$env:Path"
-            [System.Environment]::SetEnvironmentVariable('Path', $env:Path, [System.EnvironmentVariableTarget]::Machine)
-            # Verify gcc is available
-            gcc --version
-      - run:
-          name: Install Bun
-          shell: powershell.exe
-          command: |
-            powershell -c "irm bun.sh/install.ps1|iex"
-            $env:BUN_INSTALL = "$env:USERPROFILE\.bun"
-            $env:Path = "$env:BUN_INSTALL\bin;$env:Path"
-            [System.Environment]::SetEnvironmentVariable('Path', $env:Path, [System.EnvironmentVariableTarget]::Machine)
-      - run:
-          name: Install Wails
-          shell: powershell.exe
-          command: |
-            $env:Path = "$env:USERPROFILE\go\bin;$env:Path"
-            go install github.com/wailsapp/wails/v3/cmd/wails3@latest
-      - run:
-          name: Get version
-          shell: powershell.exe
-          command: |
-            if ($env:CIRCLE_TAG) {
-              $VERSION = $env:CIRCLE_TAG -replace '^v', ''
-            } else {
-              $VERSION = "<< pipeline.parameters.version >>"
-            }
-            # Save to file for next steps (no BOM, no newline)
-            [System.IO.File]::WriteAllText("$PWD\version.txt", $VERSION)
-            Write-Host "Version: $VERSION"
-      - run:
-          name: Update version in config
-          shell: powershell.exe
-          command: |
-            $VERSION = [System.IO.File]::ReadAllText("$PWD\version.txt").Trim()
-            (Get-Content build/config.yml) -replace 'version: ".*"', "version: `"$VERSION`"" | Set-Content build/config.yml
-            Write-Host "Updated version to: $VERSION"
-      - run:
-          name: Build Windows Binary
-          shell: powershell.exe
-          command: |
-            $env:BUN_INSTALL = "$env:USERPROFILE\.bun"
-            # Add MinGW to PATH for CGO (correct path from chocolatey)
-            $env:Path = "C:\ProgramData\mingw64\mingw64\bin;$env:BUN_INSTALL\bin;$env:USERPROFILE\go\bin;$env:Path"
-            # Set CGO environment variables
-            $env:CGO_ENABLED = "1"
-            $env:CC = "gcc"
-            # Set production build
-            $env:PRODUCTION = "true"
-            # Wait for any file locks to release
-            Start-Sleep -Seconds 5
-            # Verify gcc is in PATH
-            Write-Host "Checking gcc..."
-            gcc --version
-            # Build with production flags
-            wails3 task windows:build
-      - run:
-          name: Create distribution archive
-          shell: powershell.exe
-          command: |
-            $VERSION = [System.IO.File]::ReadAllText("$PWD\version.txt").Trim()
-            cd bin
-            Compress-Archive -Path Kawai.exe -DestinationPath "Kawai-$VERSION-windows-amd64.zip"
-            Get-FileHash -Algorithm SHA256 Kawai-*.zip | ForEach-Object { "$($_.Hash.ToLower())  $((Split-Path -Leaf $_.Path))" } | Out-File -Encoding ASCII checksums-windows.txt
-            Write-Host "Created: Kawai-$VERSION-windows-amd64.zip"
-      - run:
-          name: Upload to Cloudflare R2
-          shell: powershell.exe
-          command: |
-            $VERSION = [System.IO.File]::ReadAllText("$PWD\version.txt").Trim()
-            Write-Host "Using version: $VERSION"
-            pip install awscli
-            # Configure AWS CLI for R2
-            $env:AWS_ACCESS_KEY_ID = $env:R2_ACCESS_KEY_ID
-            $env:AWS_SECRET_ACCESS_KEY = $env:R2_SECRET_ACCESS_KEY
-            $env:AWS_DEFAULT_REGION = "auto"
-            cd bin
-            aws s3 cp "Kawai-$VERSION-windows-amd64.zip" "s3://kawai/v$VERSION/" --endpoint-url $env:R2_ENDPOINT_URL
-            Write-Host "Uploaded to: s3://kawai/v$VERSION/Kawai-$VERSION-windows-amd64.zip"
-      - persist_to_workspace:
-          root: bin
-          paths:
-            - Kawai-*.zip
-            - checksums-windows.txt
-      - store_artifacts:
-          path: bin/Kawai-*.zip
+#   build-windows:
+#     executor: windows-executor
+#     steps:
+#       - attach_workspace:
+#           at: .
+#       - run:
+#           name: Install Go
+#           shell: powershell.exe
+#           command: |
+#             $goInstalled = Get-Command go -ErrorAction SilentlyContinue
+#             if (-not $goInstalled) {
+#               choco install golang --version=1.25 -y
+#               refreshenv
+#             } else {
+#               Write-Host "Go already installed: $(go version)"
+#             }
+#       - run:
+#           name: Install Node.js
+#           shell: powershell.exe
+#           command: choco install nodejs --version=20 -y
+#       - run:
+#           name: Install MinGW for CGO
+#           shell: powershell.exe
+#           command: |
+#             choco install mingw -y
+#             # MinGW is installed to C:\ProgramData\mingw64\mingw64\bin by chocolatey
+#             $env:Path = "C:\ProgramData\mingw64\mingw64\bin;$env:Path"
+#             [System.Environment]::SetEnvironmentVariable('Path', $env:Path, [System.EnvironmentVariableTarget]::Machine)
+#             # Verify gcc is available
+#             gcc --version
+#       - run:
+#           name: Install Bun
+#           shell: powershell.exe
+#           command: |
+#             powershell -c "irm bun.sh/install.ps1|iex"
+#             $env:BUN_INSTALL = "$env:USERPROFILE\.bun"
+#             $env:Path = "$env:BUN_INSTALL\bin;$env:Path"
+#             [System.Environment]::SetEnvironmentVariable('Path', $env:Path, [System.EnvironmentVariableTarget]::Machine)
+#       - run:
+#           name: Install Wails
+#           shell: powershell.exe
+#           command: |
+#             $env:Path = "$env:USERPROFILE\go\bin;$env:Path"
+#             go install github.com/wailsapp/wails/v3/cmd/wails3@latest
+#       - run:
+#           name: Get version
+#           shell: powershell.exe
+#           command: |
+#             if ($env:CIRCLE_TAG) {
+#               $VERSION = $env:CIRCLE_TAG -replace '^v', ''
+#             } else {
+#               $VERSION = "<< pipeline.parameters.version >>"
+#             }
+#             # Save to file for next steps (no BOM, no newline)
+#             [System.IO.File]::WriteAllText("$PWD\version.txt", $VERSION)
+#             Write-Host "Version: $VERSION"
+#       - run:
+#           name: Update version in config
+#           shell: powershell.exe
+#           command: |
+#             $VERSION = [System.IO.File]::ReadAllText("$PWD\version.txt").Trim()
+#             (Get-Content build/config.yml) -replace 'version: ".*"', "version: `"$VERSION`"" | Set-Content build/config.yml
+#             Write-Host "Updated version to: $VERSION"
+#       - run:
+#           name: Build Windows Binary
+#           shell: powershell.exe
+#           command: |
+#             $env:BUN_INSTALL = "$env:USERPROFILE\.bun"
+#             # Add MinGW to PATH for CGO (correct path from chocolatey)
+#             $env:Path = "C:\ProgramData\mingw64\mingw64\bin;$env:BUN_INSTALL\bin;$env:USERPROFILE\go\bin;$env:Path"
+#             # Set CGO environment variables
+#             $env:CGO_ENABLED = "1"
+#             $env:CC = "gcc"
+#             # Set production build
+#             $env:PRODUCTION = "true"
+#             # Wait for any file locks to release
+#             Start-Sleep -Seconds 5
+#             # Verify gcc is in PATH
+#             Write-Host "Checking gcc..."
+#             gcc --version
+#             # Build with production flags
+#             wails3 task windows:build
+#       - run:
+#           name: Create distribution archive
+#           shell: powershell.exe
+#           command: |
+#             $VERSION = [System.IO.File]::ReadAllText("$PWD\version.txt").Trim()
+#             cd bin
+#             Compress-Archive -Path Kawai.exe -DestinationPath "Kawai-$VERSION-windows-amd64.zip"
+#             Get-FileHash -Algorithm SHA256 Kawai-*.zip | ForEach-Object { "$($_.Hash.ToLower())  $((Split-Path -Leaf $_.Path))" } | Out-File -Encoding ASCII checksums-windows.txt
+#             Write-Host "Created: Kawai-$VERSION-windows-amd64.zip"
+#       - run:
+#           name: Upload to Cloudflare R2
+#           shell: powershell.exe
+#           command: |
+#             $VERSION = [System.IO.File]::ReadAllText("$PWD\version.txt").Trim()
+#             Write-Host "Using version: $VERSION"
+#             pip install awscli
+#             # Configure AWS CLI for R2
+#             $env:AWS_ACCESS_KEY_ID = $env:R2_ACCESS_KEY_ID
+#             $env:AWS_SECRET_ACCESS_KEY = $env:R2_SECRET_ACCESS_KEY
+#             $env:AWS_DEFAULT_REGION = "auto"
+#             cd bin
+#             aws s3 cp "Kawai-$VERSION-windows-amd64.zip" "s3://kawai/v$VERSION/" --endpoint-url $env:R2_ENDPOINT_URL
+#             Write-Host "Uploaded to: s3://kawai/v$VERSION/Kawai-$VERSION-windows-amd64.zip"
+#       - persist_to_workspace:
+#           root: bin
+#           paths:
+#             - Kawai-*.zip
+#             - checksums-windows.txt
+#       - store_artifacts:
+#           path: bin/Kawai-*.zip
 
-  finalize-release:
-    executor: linux-executor
-    steps:
-      - attach_workspace:
-          at: artifacts
-      - run:
-          name: Get version
-          command: |
-            if [ -n "$CIRCLE_TAG" ]; then
-              VERSION=${CIRCLE_TAG#v}
-            else
-              VERSION="<< pipeline.parameters.version >>"
-            fi
-            echo "export VERSION=$VERSION" >> $BASH_ENV
-      - run:
-          name: Setup AWS CLI
-          command: |
-            sudo apt-get update && sudo apt-get install -y python3-pip python3-venv
-            python3 -m venv /tmp/venv
-            source /tmp/venv/bin/activate
-            pip install awscli
-            aws configure set aws_access_key_id $R2_ACCESS_KEY_ID
-            aws configure set aws_secret_access_key $R2_SECRET_ACCESS_KEY
-            aws configure set default.region auto
-      - run:
-          name: Download macOS checksum from R2
-          command: |
-            source /tmp/venv/bin/activate
-            # Try to download macOS checksum if it exists
-            aws s3 cp s3://kawai/v$VERSION/checksums-macos.txt artifacts/ \
-              --endpoint-url $R2_ENDPOINT_URL || echo "⚠️  No macOS checksum found, skipping"
-      - run:
-          name: Combine checksums
-          command: |
-            cat artifacts/checksums-*.txt > checksums.txt 2>/dev/null || true
-            if [ -s checksums.txt ]; then
-              echo "📦 All checksums:"
-              cat checksums.txt
-            else
-              echo "⚠️  No checksums found"
-            fi
-      - run:
-          name: Upload checksums to R2
-          command: |
-            source /tmp/venv/bin/activate
-            if [ -s checksums.txt ]; then
-              aws s3 cp checksums.txt \
-                s3://kawai/v$VERSION/checksums.txt \
-                --endpoint-url $R2_ENDPOINT_URL
-              echo "✅ Checksums uploaded"
-            else
-              echo "⚠️  No checksums to upload"
-            fi
-      - run:
-          name: Generate update manifest
-          command: |
-            echo "{" > update.json
-            echo "  \"version\": \"$VERSION\"," >> update.json
-            echo "  \"release_date\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"," >> update.json
-            echo "  \"platforms\": {" >> update.json
-            echo "    \"macos-universal\": {" >> update.json
-            echo "      \"url\": \"https://storage.getkawai.com/v$VERSION/Kawai-$VERSION-macos-universal.tar.gz\"" >> update.json
-            echo "    }," >> update.json
-            echo "    \"linux-amd64\": {" >> update.json
-            echo "      \"url\": \"https://storage.getkawai.com/v$VERSION/Kawai-$VERSION-linux-amd64.tar.gz\"" >> update.json
-            echo "    }," >> update.json
-            echo "    \"windows-amd64\": {" >> update.json
-            echo "      \"url\": \"https://storage.getkawai.com/v$VERSION/Kawai-$VERSION-windows-amd64.zip\"" >> update.json
-            echo "    }" >> update.json
-            echo "  }" >> update.json
-            echo "}" >> update.json
-      - run:
-          name: Upload manifest to R2
-          command: |
-            source /tmp/venv/bin/activate
-            aws s3 cp update.json s3://kawai/v$VERSION/update.json --endpoint-url $R2_ENDPOINT_URL --content-type application/json
-            aws s3 cp update.json s3://kawai/latest/update.json --endpoint-url $R2_ENDPOINT_URL --content-type application/json
-      - run:
-          name: Publish GitHub Release
-          command: |
-            RELEASE_ID=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
-              https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/releases/tags/v$VERSION \
-              | jq -r '.id')
+#   finalize-release:
+#     executor: linux-executor
+#     steps:
+#       - attach_workspace:
+#           at: artifacts
+#       - run:
+#           name: Get version
+#           command: |
+#             if [ -n "$CIRCLE_TAG" ]; then
+#               VERSION=${CIRCLE_TAG#v}
+#             else
+#               VERSION="<< pipeline.parameters.version >>"
+#             fi
+#             echo "export VERSION=$VERSION" >> $BASH_ENV
+#       - run:
+#           name: Setup AWS CLI
+#           command: |
+#             sudo apt-get update && sudo apt-get install -y python3-pip python3-venv
+#             python3 -m venv /tmp/venv
+#             source /tmp/venv/bin/activate
+#             pip install awscli
+#             aws configure set aws_access_key_id $R2_ACCESS_KEY_ID
+#             aws configure set aws_secret_access_key $R2_SECRET_ACCESS_KEY
+#             aws configure set default.region auto
+#       - run:
+#           name: Download macOS checksum from R2
+#           command: |
+#             source /tmp/venv/bin/activate
+#             # Try to download macOS checksum if it exists
+#             aws s3 cp s3://kawai/v$VERSION/checksums-macos.txt artifacts/ \
+#               --endpoint-url $R2_ENDPOINT_URL || echo "⚠️  No macOS checksum found, skipping"
+#       - run:
+#           name: Combine checksums
+#           command: |
+#             cat artifacts/checksums-*.txt > checksums.txt 2>/dev/null || true
+#             if [ -s checksums.txt ]; then
+#               echo "📦 All checksums:"
+#               cat checksums.txt
+#             else
+#               echo "⚠️  No checksums found"
+#             fi
+#       - run:
+#           name: Upload checksums to R2
+#           command: |
+#             source /tmp/venv/bin/activate
+#             if [ -s checksums.txt ]; then
+#               aws s3 cp checksums.txt \
+#                 s3://kawai/v$VERSION/checksums.txt \
+#                 --endpoint-url $R2_ENDPOINT_URL
+#               echo "✅ Checksums uploaded"
+#             else
+#               echo "⚠️  No checksums to upload"
+#             fi
+#       - run:
+#           name: Generate update manifest
+#           command: |
+#             echo "{" > update.json
+#             echo "  \"version\": \"$VERSION\"," >> update.json
+#             echo "  \"release_date\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"," >> update.json
+#             echo "  \"platforms\": {" >> update.json
+#             echo "    \"macos-universal\": {" >> update.json
+#             echo "      \"url\": \"https://storage.getkawai.com/v$VERSION/Kawai-$VERSION-macos-universal.tar.gz\"" >> update.json
+#             echo "    }," >> update.json
+#             echo "    \"linux-amd64\": {" >> update.json
+#             echo "      \"url\": \"https://storage.getkawai.com/v$VERSION/Kawai-$VERSION-linux-amd64.tar.gz\"" >> update.json
+#             echo "    }," >> update.json
+#             echo "    \"windows-amd64\": {" >> update.json
+#             echo "      \"url\": \"https://storage.getkawai.com/v$VERSION/Kawai-$VERSION-windows-amd64.zip\"" >> update.json
+#             echo "    }" >> update.json
+#             echo "  }" >> update.json
+#             echo "}" >> update.json
+#       - run:
+#           name: Upload manifest to R2
+#           command: |
+#             source /tmp/venv/bin/activate
+#             aws s3 cp update.json s3://kawai/v$VERSION/update.json --endpoint-url $R2_ENDPOINT_URL --content-type application/json
+#             aws s3 cp update.json s3://kawai/latest/update.json --endpoint-url $R2_ENDPOINT_URL --content-type application/json
+#       - run:
+#           name: Publish GitHub Release
+#           command: |
+#             RELEASE_ID=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+#               https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/releases/tags/v$VERSION \
+#               | jq -r '.id')
             
-            curl -X PATCH \
-              -H "Authorization: token $GITHUB_TOKEN" \
-              -H "Accept: application/vnd.github.v3+json" \
-              https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/releases/$RELEASE_ID \
-              -d '{"draft":false}'
+#             curl -X PATCH \
+#               -H "Authorization: token $GITHUB_TOKEN" \
+#               -H "Accept: application/vnd.github.v3+json" \
+#               https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/releases/$RELEASE_ID \
+#               -d '{"draft":false}'
             
-            echo "✅ Release published!"
-            echo "📦 Downloads available at: https://storage.getkawai.com/v$VERSION/"
+#             echo "✅ Release published!"
+#             echo "📦 Downloads available at: https://storage.getkawai.com/v$VERSION/"
 
-workflows:
-  release:
-    jobs:
-      - prepare-release:
-          filters:
-            tags:
-              only: /^v.*/
-            branches:
-              ignore: /.*/
-      - build-linux:
-          requires:
-            - prepare-release
-          filters:
-            tags:
-              only: /^v.*/
-            branches:
-              ignore: /.*/
-      - build-windows:
-          requires:
-            - prepare-release
-          filters:
-            tags:
-              only: /^v.*/
-            branches:
-              ignore: /.*/
-      - finalize-release:
-          requires:
-            - build-linux
-            - build-windows
-          filters:
-            tags:
-              only: /^v.*/
-            branches:
-              ignore: /.*/
+# workflows:
+#   release:
+#     jobs:
+#       - prepare-release:
+#           filters:
+#             tags:
+#               only: /^v.*/
+#             branches:
+#               ignore: /.*/
+#       - build-linux:
+#           requires:
+#             - prepare-release
+#           filters:
+#             tags:
+#               only: /^v.*/
+#             branches:
+#               ignore: /.*/
+#       - build-windows:
+#           requires:
+#             - prepare-release
+#           filters:
+#             tags:
+#               only: /^v.*/
+#             branches:
+#               ignore: /.*/
+#       - finalize-release:
+#           requires:
+#             - build-linux
+#             - build-windows
+#           filters:
+#             tags:
+#               only: /^v.*/
+#             branches:
+#               ignore: /.*/

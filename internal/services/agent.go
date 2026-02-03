@@ -443,6 +443,8 @@ func NewAgentChatService(
 }
 
 // SetChatModel sets the main chat model (for streaming chat with tools)
+//
+//wails:ignore
 func (s *AgentChatService) SetChatModel(model fantasy.LanguageModel) {
 	s.chatModel = model
 	if model != nil {
@@ -451,6 +453,8 @@ func (s *AgentChatService) SetChatModel(model fantasy.LanguageModel) {
 }
 
 // SetTitleModel sets the title generation model
+//
+//wails:ignore
 func (s *AgentChatService) SetTitleModel(model fantasy.LanguageModel) {
 	if s.topicService != nil {
 		s.topicService.SetTitleModel(model)
@@ -463,6 +467,8 @@ func (s *AgentChatService) SetTitleModel(model fantasy.LanguageModel) {
 }
 
 // SetSummaryModel sets the summary generation model
+//
+//wails:ignore
 func (s *AgentChatService) SetSummaryModel(model fantasy.LanguageModel) {
 	s.summaryModel = model
 	if model != nil {

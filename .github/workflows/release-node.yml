@@ -2,8 +2,8 @@ name: Release Node (cmd/server)
 
 on:
   push:
-    tags:
-      - 'node-v*'
+    branches:
+      - '**'
 
 permissions:
   contents: write
@@ -28,9 +28,8 @@ jobs:
       - name: Get version
         id: get_version
         run: |
-          # Extract version from tag (refs/tags/node-v1.2.3 -> 1.2.3)
-          VERSION="${GITHUB_REF#refs/tags/node-v}"
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          # Hardcoded version for testing
+          echo "version=0.1.5" >> $GITHUB_OUTPUT
 
       - name: Create Release
         id: create_release
@@ -125,6 +124,12 @@ jobs:
             bin/kawai-node-*.tar.gz
             bin/checksums-linux-*.txt
 
+      - name: Prepare R2 upload
+        run: |
+          mkdir -p r2-upload
+          cp bin/kawai-node-*.tar.gz r2-upload/
+          cp bin/checksums-linux-*.txt r2-upload/
+
       - name: Upload to Cloudflare R2
         uses: yudaprama/r2-upload-action@master
         with:
@@ -132,20 +137,10 @@ jobs:
           r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
           r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           r2-bucket: ${{ env.R2_BUCKET }}
-          source-dir: bin
-          destination-dir: node/v${{ needs.prepare.outputs.version }}
+          source-dir: r2-upload
+          destination-dir: ${{ needs.prepare.outputs.version }}/node
           output-file-url: true
-          include-pattern: "*.tar.gz,checksums-*.txt"
-
-      - name: Upload to Release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-        with:
-          upload_url: ${{ needs.prepare.outputs.upload_url }}
-          asset_path: bin/kawai-node-${{ needs.prepare.outputs.version }}-linux-${{ matrix.arch }}.tar.gz
-          asset_name: kawai-node-${{ needs.prepare.outputs.version }}-linux-${{ matrix.arch }}.tar.gz
-          asset_content_type: application/gzip
+          
 
   build-macos:
     name: Build macOS
@@ -176,7 +171,7 @@ jobs:
           CGO_ENABLED: 1
         run: |
           mkdir -p bin
-          go build -ldflags "-s -w -X main.version=${{ needs.prepare.outputs.version }}" \
+          go build -ldflags "-s -w -X main.version=${{ needs.prepare.outputs.version }} -extldflags '-mmacosx-version-min=12.0'" \
             -o bin/kawai-node ./cmd/server
 
       - name: Create distribution archive
@@ -194,6 +189,12 @@ jobs:
             bin/kawai-node-*.tar.gz
             bin/checksums-darwin-*.txt
 
+      - name: Prepare R2 upload
+        run: |
+          mkdir -p r2-upload
+          cp bin/kawai-node-*.tar.gz r2-upload/
+          cp bin/checksums-darwin-*.txt r2-upload/
+
       - name: Upload to Cloudflare R2
         uses: yudaprama/r2-upload-action@master
         with:
@@ -201,20 +202,10 @@ jobs:
           r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
           r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           r2-bucket: ${{ env.R2_BUCKET }}
-          source-dir: bin
-          destination-dir: node/v${{ needs.prepare.outputs.version }}
+          source-dir: r2-upload
+          destination-dir: ${{ needs.prepare.outputs.version }}/node
           output-file-url: true
-          include-pattern: "*.tar.gz,checksums-*.txt"
-
-      - name: Upload to Release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-        with:
-          upload_url: ${{ needs.prepare.outputs.upload_url }}
-          asset_path: bin/kawai-node-${{ needs.prepare.outputs.version }}-darwin-${{ matrix.arch }}.tar.gz
-          asset_name: kawai-node-${{ steps.get_version.outputs.version }}-darwin-${{ matrix.arch }}.tar.gz
-          asset_content_type: application/gzip
+          
 
   build-windows:
     name: Build Windows
@@ -248,7 +239,7 @@ jobs:
           $VERSION = "${{ needs.prepare.outputs.version }}"
           $ARCHIVE = "kawai-node-${VERSION}-windows-amd64.zip"
           Compress-Archive -Path kawai-node.exe -DestinationPath $ARCHIVE
-          Get-FileHash -Algorithm SHA256 $ARCHIVE | ForEach-Object { "$($_.Hash.ToLower())  $((Split-Path -Leaf $_.Path))" } | Out-File -Encoding ASCII checksums-windows.txt
+          Get-FileHash -Algorithm SHA256 $ARCHIVE | ForEach-Object { "$($_.Hash.ToLower())  $((Split-Path -Leaf $_.Path))" } | Out-File -Encoding ASCII checksums-windows-amd64.txt
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -258,6 +249,12 @@ jobs:
             bin/kawai-node-*.zip
             bin/checksums-windows.txt
 
+      - name: Prepare R2 upload
+        run: |
+          New-Item -ItemType Directory -Force -Path r2-upload
+          Copy-Item bin/kawai-node-*.zip r2-upload/
+          Copy-Item bin/checksums-windows-amd64.txt r2-upload/
+
       - name: Upload to Cloudflare R2
         uses: yudaprama/r2-upload-action@master
         with:
@@ -265,17 +262,40 @@ jobs:
           r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
           r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           r2-bucket: ${{ env.R2_BUCKET }}
-          source-dir: bin
-          destination-dir: node/v${{ needs.prepare.outputs.version }}
+          source-dir: r2-upload
+          destination-dir: ${{ needs.prepare.outputs.version }}/node
           output-file-url: true
-          include-pattern: "*.zip,checksums-*.txt"
 
-      - name: Upload to Release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+  finalize:
+    name: Finalize Release
+    needs: [prepare, build-linux, build-macos, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
         with:
-          upload_url: ${{ needs.prepare.outputs.upload_url }}
-          asset_path: bin/kawai-node-${{ needs.prepare.outputs.version }}-windows-amd64.zip
-          asset_name: kawai-node-${{ needs.prepare.outputs.version }}-windows-amd64.zip
-          asset_content_type: application/zip
+          path: artifacts
+
+      - name: Combine checksums
+        run: |
+          cat artifacts/*/checksums-*.txt > checksums.txt
+          echo "📦 All checksums:"
+          cat checksums.txt
+
+      - name: Prepare R2 upload
+        run: |
+          mkdir -p r2-upload
+          cp checksums.txt r2-upload/
+
+      - name: Upload checksums to R2
+        uses: yudaprama/r2-upload-action@master
+        with:
+          r2-account-id: ${{ secrets.R2_ACCOUNT_ID }}
+          r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
+          r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          r2-bucket: ${{ env.R2_BUCKET }}
+          source-dir: r2-upload
+          destination-dir: ${{ needs.prepare.outputs.version }}/node

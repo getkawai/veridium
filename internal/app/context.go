@@ -77,10 +77,10 @@ type Context struct {
 	DepositSyncService *services.DepositSyncService
 
 	// Language Models
-	ChatModel    fantasy.LanguageModel
-	TitleModel   fantasy.LanguageModel
-	SummaryModel fantasy.LanguageModel
-	CleanupModel fantasy.LanguageModel
+	ChatModel    fantasy.LanguageModel `json:"-"`
+	TitleModel   fantasy.LanguageModel `json:"-"`
+	SummaryModel fantasy.LanguageModel `json:"-"`
+	CleanupModel fantasy.LanguageModel `json:"-"`
 
 	// Memory Services (MemGPT-style)
 	MemoryService     *services.MemoryService

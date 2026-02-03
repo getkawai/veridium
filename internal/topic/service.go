@@ -32,6 +32,8 @@ func NewService(db *database.Service, app *application.App) *TopicService {
 }
 
 // SetTitleModel sets the model used for title generation
+//
+//wails:ignore
 func (s *TopicService) SetTitleModel(model fantasy.LanguageModel) {
 	s.titleModel = model
 	if model != nil {

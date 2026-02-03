@@ -62,13 +62,14 @@ func NewFileProcessorService(
 }
 
 // SetLanguageModel sets the language model for OCR/transcript cleanup
+//
+//wails:ignore
 func (f *FileProcessorService) SetLanguageModel(model fantasy.LanguageModel) {
 	f.processor.SetLanguageModel(model)
 }
 
 // ProcessFileFromPath processes a file from absolute path (e.g., from file dialog)
 // It copies the file to local storage and processes it for RAG
-// Returns the processed file response with the relative URL for frontend display
 func (f *FileProcessorService) ProcessFileFromPath(
 	absolutePath string,
 ) (*ProcessFileFromPathResponse, error) {
