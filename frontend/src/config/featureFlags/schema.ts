@@ -57,7 +57,7 @@ export type IFeatureFlags = z.infer<typeof FeatureFlagsSchema>;
  * @param userId - The current user ID
  * @returns boolean indicating if the feature is enabled for the user
  */
-export const evaluateFeatureFlag = (
+const evaluateFeatureFlag = (
   flagValue: boolean | string[] | undefined,
   userId?: string,
 ): boolean | undefined => {

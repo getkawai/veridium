@@ -1,7 +1,6 @@
 /* eslint-disable sort-keys-fix/sort-keys-fix, typescript-sort-keys/interface */
 // import { ToolNameResolver } from '@/context-engine';
 import {
-  ChatErrorType,
   ChatMessageError,
   ChatToolPayload,
   CreateMessageParams,
@@ -10,11 +9,9 @@ import {
 } from '@/types';
 import { LobeChatPluginManifest } from '@/chat-plugin-sdk';
 import isEqual from 'fast-deep-equal';
-import { t } from 'i18next';
 import { StateCreator } from 'zustand/vanilla';
 
 // import { mcpService } from '@/services/mcp';
-import { backendAgentChat } from '@/services/backendAgentChat';
 import { ChatStore } from '@/store/chat/store';
 import { useToolStore } from '@/store/tool';
 import { pluginSelectors } from '@/store/tool/selectors';

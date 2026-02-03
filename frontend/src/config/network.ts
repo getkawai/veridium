@@ -22,27 +22,6 @@ export const DEFAULT_CHAIN_ID = 10143;
  */
 export type NetworkEnv = 'testnet' | 'mainnet';
 
-/**
- * Get current network environment from backend
- */
-export async function detectNetworkEnv(): Promise<NetworkEnv> {
-  try {
-    const config = await ConfigService.GetConfig();
-    const env = config.environment;
-
-    // Validate environment value
-    if (env !== 'testnet' && env !== 'mainnet') {
-      console.error(`Invalid network environment from backend: ${env}`);
-      throw new Error(`Unsupported network environment: ${env}`);
-    }
-
-    return env as NetworkEnv;
-  } catch (e) {
-    console.error('CRITICAL: Failed to detect network environment from backend:', e);
-    // Re-throw to allow UI to handle critical configuration failure
-    throw e;
-  }
-}
 
 /**
  * Get full network configuration from backend.
@@ -96,12 +75,6 @@ export function isTestnet(config: BackendConfig): boolean {
   return config.network.isTestnet;
 }
 
-/**
- * Check if current environment is mainnet
- */
-export function isMainnet(config: BackendConfig): boolean {
-  return !config.network.isTestnet;
-}
 
 /**
  * Get stablecoin symbol based on network environment
@@ -116,15 +89,8 @@ export function getStablecoinSymbol(config: BackendConfig): string {
  * Returns full name for UI display
  */
 export function getStablecoinDisplayName(config: BackendConfig): string {
-  return config.network.isTestnet 
-    ? 'Mock Tether USD (Testnet)' 
+  return config.network.isTestnet
+    ? 'Mock Tether USD (Testnet)'
     : 'USD Coin';
 }
 
-/**
- * Get stablecoin short name for messages
- * Returns "USDT" for testnet (familiar), "USDC" for mainnet
- */
-export function getStablecoinShortName(config: BackendConfig): string {
-  return config.network.isTestnet ? 'USDT' : 'USDC';
-}
