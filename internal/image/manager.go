@@ -22,6 +22,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kawai-network/veridium/internal/paths"
 	"github.com/kawai-network/veridium/pkg/grab"
 )
 
@@ -132,10 +133,9 @@ type StableDiffusion struct {
 
 // NewEngine creates a new Stable Diffusion release manager (Engine)
 func NewEngine() *StableDiffusion {
-	homeDir, _ := os.UserHomeDir()
-	binaryPath := filepath.Join(homeDir, ".stable-diffusion", "bin")
-	checksumsPath := filepath.Join(homeDir, ".stable-diffusion", "checksums")
-	metadataPath := filepath.Join(homeDir, ".stable-diffusion", "metadata")
+	binaryPath := paths.StableDiffusionBin()
+	checksumsPath := paths.StableDiffusionChecksums()
+	metadataPath := paths.StableDiffusionMetadata()
 
 	_, cancel := context.WithCancel(context.Background())
 
@@ -1066,9 +1066,9 @@ func (sdrm *StableDiffusion) clearVersionMetadata() {
 }
 
 // GetModelsPath returns the path where Stable Diffusion models are stored
+// Models are organized by {author}/{repo}/ structure from HuggingFace URLs
 func (sdrm *StableDiffusion) GetModelsPath() string {
-	homeDir, _ := os.UserHomeDir()
-	return filepath.Join(homeDir, ".stable-diffusion", "models")
+	return paths.Models()
 }
 
 // CheckInstalledModels checks what Stable Diffusion models are currently installed

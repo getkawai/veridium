@@ -249,7 +249,7 @@ func setupLibraries(ctx context.Context, result *SetupResult) error {
 	}
 
 	libMgr, err := libs.New(
-		libs.WithBasePath(paths.NodeLibraries()),
+		libs.WithBasePath(paths.Libraries()),
 		libs.WithArch(arch),
 		libs.WithOS(opSys),
 		libs.WithProcessor(processor),
@@ -289,10 +289,10 @@ func setupModels(ctx context.Context, result *SetupResult) error {
 
 	// Setup Whisper model
 	fmt.Println("  🎙️  Setting up Whisper model...")
-	whisperModelsDir := filepath.Join(paths.Node(), "whisper-models")
+	whisperModelsDir := paths.Models()
 
 	if err := os.MkdirAll(whisperModelsDir, 0755); err != nil {
-		return fmt.Errorf("failed to create whisper models directory: %w", err)
+		return fmt.Errorf("failed to create models directory: %w", err)
 	}
 
 	existingModels, _ := model.ListDownloadedModels(whisperModelsDir)
@@ -316,7 +316,7 @@ func setupModels(ctx context.Context, result *SetupResult) error {
 
 	// Setup Stable Diffusion model
 	fmt.Println("  🎨 Setting up Stable Diffusion model...")
-	modelsPath := filepath.Join(paths.Node(), "models")
+	modelsPath := paths.Models()
 	downloader := modeldownloader.New(modelsPath)
 
 	modelFile, err := downloader.DiscoverModel()

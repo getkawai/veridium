@@ -91,8 +91,8 @@ func GetCpuAVX() string {
 
 // GetSDLibPath gets SD library path
 func GetSDLibPath(libName string) string {
-	// Use internal/paths.NodeLibraries() for consistent path resolution
-	libDir := paths.NodeLibraries()
+	// Use internal/paths.Libraries() for consistent path resolution
+	libDir := paths.Libraries()
 
 	libPath := filepath.Join(libDir, libName)
 	fmt.Println("Loading stable-diffusion library: " + libPath)

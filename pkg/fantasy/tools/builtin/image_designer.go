@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/kawai-network/veridium/internal/image"
+	"github.com/kawai-network/veridium/internal/paths"
 	"github.com/kawai-network/veridium/pkg/fantasy"
 	"github.com/kawai-network/veridium/pkg/fantasy/tools"
 )
@@ -49,8 +50,7 @@ type ImageDesignerService struct {
 
 // NewImageDesignerService creates a new image designer service
 func NewImageDesignerService() *ImageDesignerService {
-	homeDir, _ := os.UserHomeDir()
-	outputDir := filepath.Join(homeDir, ".stable-diffusion", "outputs")
+	outputDir := paths.StableDiffusionOutputs()
 	os.MkdirAll(outputDir, 0755)
 
 	return &ImageDesignerService{

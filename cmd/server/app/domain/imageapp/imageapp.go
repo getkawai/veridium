@@ -15,6 +15,7 @@ import (
 	"github.com/kawai-network/veridium/cmd/server/app/sdk/errs"
 	"github.com/kawai-network/veridium/cmd/server/foundation/logger"
 	"github.com/kawai-network/veridium/cmd/server/foundation/web"
+	"github.com/kawai-network/veridium/internal/paths"
 	sd "github.com/kawai-network/veridium/pkg/stablediffusion"
 )
 
@@ -107,11 +108,7 @@ func (a *app) generations(ctx context.Context, r *http.Request) web.Encoder {
 // Reused and adapted from pkg/gateway/image_executor.go
 func (a *app) generateImages(ctx context.Context, req ImageGenerationRequest) ([]ImageData, error) {
 	// Use default output directory
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get home directory: %w", err)
-	}
-	outputDir := filepath.Join(homeDir, ".stable-diffusion", "outputs")
+	outputDir := paths.StableDiffusionOutputs()
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create output directory: %w", err)
 	}

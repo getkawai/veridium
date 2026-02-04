@@ -33,7 +33,7 @@ func BaseDir(override string) string {
 		return override
 	}
 
-	return paths.Node()
+	return paths.Base()
 }
 
 // Arch will check the KRONK_ARCH var first and check it's value against the

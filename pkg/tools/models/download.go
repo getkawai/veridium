@@ -296,8 +296,8 @@ func (m *Models) modelFilePathAndName(modelFileURL string) (string, string, erro
 	// modelFileURL:  https://huggingface.co/Qwen/Qwen3-8B-GGUF/resolve/main/Qwen3-8B-Q8_0.gguf
 	// parts:         huggingface.co, Qwen, Qwen3-8B-GGUF, resolve, main, Qwen3-8B-Q8_0.gguf
 	// fileName:      Qwen3-8B-Q8_0.gguf
-	// modelFilePath: /Users/bill/.kronk/models/Qwen/Qwen3-8B-GGUF
-	// modelFileName: /Users/bill/.kronk/models/Qwen/Qwen3-8B-GGUF/Qwen3-8B-Q8_0.gguf
+	// modelFilePath: models/Qwen/Qwen3-8B-GGUF
+	// modelFileName: models/Qwen/Qwen3-8B-GGUF/Qwen3-8B-Q8_0.gguf
 
 	return modelFilePath, modelFileName, nil
 }

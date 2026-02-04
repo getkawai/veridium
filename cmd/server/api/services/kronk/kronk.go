@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"runtime"
 	"syscall"
 	"time"
@@ -227,9 +226,9 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 		return err
 	}
 
-	// Use paths.NodeLibraries() for consistent library path resolution
+	// Use paths.Libraries() for consistent library path resolution
 	libs, err := libs.New(
-		libs.WithBasePath(paths.NodeLibraries()),
+		libs.WithBasePath(paths.Libraries()),
 		libs.WithArch(arch),
 		libs.WithOS(opSys),
 		libs.WithProcessor(processor),
@@ -252,8 +251,8 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 	// -------------------------------------------------------------------------
 	// Model System
 
-	// Use paths.Node() for consistent base path resolution
-	models, err := models.NewWithPaths(paths.Node())
+	// Use paths.Base() for consistent base path resolution
+	models, err := models.NewWithPaths(paths.Base())
 	if err != nil {
 		return fmt.Errorf("unable to create catalog system: %w", err)
 	}
@@ -268,7 +267,7 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 	log.Info(ctx, "startup", "status", "downloading catalog")
 
 	ctlg, err := catalog.New(
-		catalog.WithBasePath(paths.Node()),
+		catalog.WithBasePath(paths.Base()),
 		catalog.WithGithubRepo(cfg.Catalog.GithubRepo))
 	if err != nil {
 		return fmt.Errorf("unable to create catalog system: %w", err)
@@ -284,7 +283,7 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 	log.Info(ctx, "startup", "status", "downloading templates")
 
 	tmplts, err := templates.New(
-		templates.WithBasePath(paths.Node()),
+		templates.WithBasePath(paths.Base()),
 		templates.WithGithubRepo(cfg.Templates.GithubRepo),
 		templates.WithCatalog(ctlg))
 	if err != nil {
@@ -306,7 +305,7 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 
 	cache, err := cache.New(cache.Config{
 		Log:                  log.Info,
-		BasePath:             paths.Node(),
+		BasePath:             paths.Base(),
 		Templates:            tmplts,
 		ModelsInCache:        cfg.Cache.ModelsInCache,
 		CacheTTL:             cfg.Cache.TTL,
@@ -520,7 +519,7 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 	{
 		log.Info(ctx, "startup", "status", "initializing whisper")
 
-		whisperModelsDir = filepath.Join(paths.Node(), "whisper-models")
+		whisperModelsDir = paths.Models()
 
 		// Ensure models directory exists
 		if err := os.MkdirAll(whisperModelsDir, 0755); err != nil {
@@ -550,8 +549,8 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 			log.Info(ctx, "startup", "status", "failed to download SD library", "error", err)
 		} else {
 			// 2. Find Model
-			// Assume models are in the models catalog path or specific SD path
-			modelsPath := filepath.Join(paths.Node(), "models")
+			// Models are organized by {author}/{repo}/ from HuggingFace URLs
+			modelsPath := paths.Models()
 			downloader := modeldownloader.New(modelsPath)
 
 			modelFile, err := downloader.DiscoverModel()

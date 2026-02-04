@@ -12,9 +12,9 @@ import (
 )
 
 // GetLibDir returns the directory where stable-diffusion library should be stored.
-// Uses paths.NodeLibraries() to ensure consistent location for both development and packaged apps.
+// Uses paths.Libraries() to ensure consistent location for both development and packaged apps.
 func GetLibDir() string {
-	return paths.NodeLibraries()
+	return paths.Libraries()
 }
 
 // EnsureLibrary checks if the stable-diffusion library exists, and downloads it if not.

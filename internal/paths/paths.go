@@ -10,6 +10,7 @@
 package paths
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -168,20 +169,107 @@ func JarvisAddressBook() string { return filepath.Join(Jarvis(), "addresses.json
 func JarvisSecrets() string { return filepath.Join(Jarvis(), "secrets.json") }
 
 // =============================================================================
-// Node-specific paths (AI/ML models and libraries)
+// AI/ML paths (models and libraries) - centralized at user path level
 // =============================================================================
 
-// Node returns the base directory for node data
-func Node() string { return filepath.Join(Base(), "node") }
+// Models returns path to AI/ML models directory (unified for all model types)
+// All models are organized by {author}/{repo}/ structure from HuggingFace URLs
+func Models() string { return filepath.Join(Base(), "models") }
 
-// NodeModels returns path to AI/ML models directory
-func NodeModels() string { return filepath.Join(Node(), "models") }
+// ModelPath returns the full path for a model based on its HuggingFace URL
+// Extracts author/repo from URL and creates: {Base}/models/{author}/{repo}/
+// Example: https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin
+//
+//	-> {Base}/models/ggerganov/whisper.cpp/
+func ModelPath(huggingfaceURL string) (string, error) {
+	// Parse URL to extract author/repo
+	// Format: https://huggingface.co/{author}/{repo}/resolve/...
+	parts := strings.Split(huggingfaceURL, "/")
+	if len(parts) < 5 {
+		return "", fmt.Errorf("invalid huggingface URL format: %s", huggingfaceURL)
+	}
 
-// NodeLibraries returns path to shared libraries directory
-func NodeLibraries() string { return filepath.Join(Node(), "libraries") }
+	// Find huggingface.co index
+	hfIndex := -1
+	for i, part := range parts {
+		if strings.Contains(part, "huggingface.co") {
+			hfIndex = i
+			break
+		}
+	}
 
-// NodeCatalogs returns path to model catalogs directory
-func NodeCatalogs() string { return filepath.Join(Node(), "catalogs") }
+	if hfIndex == -1 || hfIndex+2 >= len(parts) {
+		return "", fmt.Errorf("invalid huggingface URL: %s", huggingfaceURL)
+	}
 
-// NodeTemplates returns path to chat templates directory
-func NodeTemplates() string { return filepath.Join(Node(), "templates") }
+	author := parts[hfIndex+1]
+	repo := parts[hfIndex+2]
+
+	// Validate author and repo are not empty
+	if author == "" || repo == "" {
+		return "", fmt.Errorf("empty author or repo in URL: %s", huggingfaceURL)
+	}
+
+	// Prevent path traversal attacks - reject paths with ".." or absolute paths
+	if strings.Contains(author, "..") || strings.Contains(repo, "..") ||
+		filepath.IsAbs(author) || filepath.IsAbs(repo) ||
+		strings.ContainsAny(author, "/\\") || strings.ContainsAny(repo, "/\\") {
+		return "", fmt.Errorf("invalid path components in URL: %s", huggingfaceURL)
+	}
+
+	return filepath.Join(Models(), author, repo), nil
+}
+
+// Libraries returns path to shared libraries directory
+func Libraries() string { return filepath.Join(Base(), "libraries") }
+
+// Catalogs returns path to model catalogs directory
+func Catalogs() string { return filepath.Join(Base(), "catalogs") }
+
+// Templates returns path to chat templates directory
+func Templates() string { return filepath.Join(Base(), "templates") }
+
+// =============================================================================
+// Stable Diffusion specific paths
+// =============================================================================
+
+// StableDiffusionOutputs returns path to SD generated images output directory
+func StableDiffusionOutputs() string { return filepath.Join(Base(), "outputs", "stable-diffusion") }
+
+// StableDiffusionBin returns path to SD binary directory
+func StableDiffusionBin() string { return filepath.Join(Libraries(), "stable-diffusion", "bin") }
+
+// StableDiffusionChecksums returns path to SD checksums directory
+func StableDiffusionChecksums() string {
+	return filepath.Join(Libraries(), "stable-diffusion", "checksums")
+}
+
+// StableDiffusionMetadata returns path to SD metadata directory
+func StableDiffusionMetadata() string {
+	return filepath.Join(Libraries(), "stable-diffusion", "metadata")
+}
+
+// =============================================================================
+// Deprecated: Legacy node-specific paths (for backward compatibility)
+// These will be removed in future versions. Use the non-Node versions instead.
+// =============================================================================
+
+// Node returns the base directory - deprecated, use Base() instead
+// Deprecated: Use Base() directly
+func Node() string { return Base() }
+
+// NodeModels returns path to AI/ML models directory - deprecated, use Models() instead
+// Deprecated: Use Models() instead
+func NodeModels() string { return Models() }
+
+// NodeLibraries returns path to shared libraries directory - deprecated, use Libraries() instead
+// Deprecated: Use Libraries() instead
+func NodeLibraries() string { return Libraries() }
+
+// NodeCatalogs returns path to model catalogs directory - deprecated, use Catalogs() instead
+// Deprecated: Use Catalogs() instead
+func NodeCatalogs() string { return Catalogs() }
+
+// NodeTemplates returns path to chat templates directory - deprecated, use Templates() instead
+// Deprecated: Use Templates() instead
+func NodeTemplates() string { return Templates() }

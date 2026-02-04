@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/kawai-network/veridium/cmd/server/foundation/web"
+	"github.com/kawai-network/veridium/internal/paths"
 )
 
 // serveFile serves generated image files
@@ -26,12 +27,7 @@ func (a *app) serveFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build full path
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		http.Error(w, "unable to determine home directory", http.StatusInternalServerError)
-		return
-	}
-	outputDir := filepath.Join(homeDir, ".stable-diffusion", "outputs")
+	outputDir := paths.StableDiffusionOutputs()
 	fullPath := filepath.Join(outputDir, filename)
 
 	// Security: ensure path is within output directory

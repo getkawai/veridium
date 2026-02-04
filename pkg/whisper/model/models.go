@@ -18,23 +18,24 @@
 package model
 
 import (
+	"context"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/kawai-network/veridium/pkg/tools/downloader"
 )
 
 // WhisperModelSpec represents a Whisper model specification
 type WhisperModelSpec struct {
-	Name         string // Model name (e.g., "base.en")
-	URL          string // Direct download URL
-	Size         int64  // Model size in bytes
-	Parameters   string // Parameter count (e.g., "74M")
-	MinRAM       int64  // Minimum RAM required in GB
-	EnglishOnly  bool   // Whether model is English-only
-	Description  string // Model description
+	Name        string // Model name (e.g., "base.en")
+	URL         string // Direct download URL
+	Size        int64  // Model size in bytes
+	Parameters  string // Parameter count (e.g., "74M")
+	MinRAM      int64  // Minimum RAM required in GB
+	EnglishOnly bool   // Whether model is English-only
+	Description string // Model description
 }
 
 // HuggingFace base URL for whisper models
@@ -218,98 +219,105 @@ type ProgressCallback func(bytesComplete, totalBytes int64)
 
 // DownloadModel downloads a whisper model to the specified directory.
 // If progress is nil, no progress updates will be sent.
+// Uses context for cancellation support.
 func DownloadModel(modelName, modelsDir string, progress ProgressCallback) error {
+	return DownloadModelWithContext(context.Background(), modelName, modelsDir, progress)
+}
+
+// DownloadModelWithContext downloads a whisper model with context support for cancellation.
+func DownloadModelWithContext(ctx context.Context, modelName, modelsDir string, progress ProgressCallback) error {
 	spec, exists := GetModelSpec(modelName)
 	if !exists {
 		return fmt.Errorf("unknown model: %s", modelName)
 	}
 
-	// Ensure models directory exists
-	if err := os.MkdirAll(modelsDir, 0755); err != nil {
-		return fmt.Errorf("failed to create models directory: %w", err)
+	// Extract author/repo from HuggingFace URL and create organized path
+	// URL format: https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin
+	// Will create: {modelsDir}/ggerganov/whisper.cpp/
+	modelDir := modelsDir
+	if strings.Contains(spec.URL, "huggingface.co") {
+		parts := strings.Split(spec.URL, "/")
+		for i, part := range parts {
+			if strings.Contains(part, "huggingface.co") && i+2 < len(parts) {
+				author := parts[i+1]
+				repo := parts[i+2]
+				modelDir = filepath.Join(modelsDir, author, repo)
+				break
+			}
+		}
+	}
+
+	// Ensure model directory exists
+	if err := os.MkdirAll(modelDir, 0755); err != nil {
+		return fmt.Errorf("failed to create model directory: %w", err)
 	}
 
 	// Build file paths
 	modelFileName := fmt.Sprintf("ggml-%s.bin", spec.Name)
-	destPath := filepath.Join(modelsDir, modelFileName)
-	tempPath := destPath + ".tmp"
+	destPath := filepath.Join(modelDir, modelFileName)
 
 	// Check if model already exists
 	if _, err := os.Stat(destPath); err == nil {
 		return nil // Model already exists
 	}
 
-	// Download to temp file
-	if err := downloadFile(spec.URL, tempPath, spec.Size, progress); err != nil {
-		os.Remove(tempPath)
+	// Download using centralized downloader with resume support
+	progressFunc := func(src string, currentSize, totalSize int64, mibPerSec float64, complete bool) {
+		if progress != nil {
+			progress(currentSize, totalSize)
+		}
+	}
+
+	// Use 10MB interval for progress reporting
+	downloaded, err := downloader.Download(ctx, spec.URL, destPath, progressFunc, downloader.SizeIntervalMIB10)
+	if err != nil {
+		os.Remove(destPath) // Cleanup on failure
 		return fmt.Errorf("failed to download model: %w", err)
 	}
 
-	// Move temp file to final destination
-	if err := os.Rename(tempPath, destPath); err != nil {
-		os.Remove(tempPath)
-		return fmt.Errorf("failed to move downloaded file: %w", err)
-	}
-
-	return nil
-}
-
-// downloadFile downloads a file with progress tracking
-func downloadFile(url, destPath string, expectedSize int64, progress ProgressCallback) error {
-	// Create temp file
-	out, err := os.Create(destPath)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	// Make HTTP request
-	resp, err := http.Get(url)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("bad status: %s", resp.Status)
-	}
-
-	// Get content length
-	totalSize := resp.ContentLength
-	if totalSize < 0 {
-		totalSize = expectedSize
-	}
-
-	// Copy with progress tracking
-	var downloaded int64
-	buf := make([]byte, 32*1024) // 32KB buffer
-
-	for {
-		n, err := resp.Body.Read(buf)
-		if n > 0 {
-			_, writeErr := out.Write(buf[:n])
-			if writeErr != nil {
-				return writeErr
-			}
-			downloaded += int64(n)
-			if progress != nil {
-				progress(downloaded, totalSize)
-			}
-		}
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return err
-		}
+	// Check if download actually transferred data
+	if !downloaded {
+		os.Remove(destPath) // Cleanup empty file
+		return fmt.Errorf("download completed but no data was transferred")
 	}
 
 	return nil
 }
 
 // GetModelPath returns the expected path for a model file
+// Searches both new {author}/{repo}/ structure and legacy flat structure
 func GetModelPath(modelsDir, modelName string) string {
-	return filepath.Join(modelsDir, fmt.Sprintf("ggml-%s.bin", modelName))
+	fileName := fmt.Sprintf("ggml-%s.bin", modelName)
+
+	// First check new structure (ggerganov/whisper.cpp/)
+	newPath := filepath.Join(modelsDir, "ggerganov", "whisper.cpp", fileName)
+	if _, err := os.Stat(newPath); err == nil {
+		return newPath
+	}
+
+	// Fallback to legacy flat structure
+	return filepath.Join(modelsDir, fileName)
+}
+
+// getModelPathForDownload returns the path where a model should be downloaded
+// Always uses the new {author}/{repo}/ structure for new downloads
+func getModelPathForDownload(modelsDir, modelName, url string) string {
+	fileName := fmt.Sprintf("ggml-%s.bin", modelName)
+
+	// Extract author/repo from URL if it's a HuggingFace URL
+	if strings.Contains(url, "huggingface.co") {
+		parts := strings.Split(url, "/")
+		for i, part := range parts {
+			if strings.Contains(part, "huggingface.co") && i+2 < len(parts) {
+				author := parts[i+1]
+				repo := parts[i+2]
+				return filepath.Join(modelsDir, author, repo, fileName)
+			}
+		}
+	}
+
+	// Fallback to flat structure if URL parsing fails
+	return filepath.Join(modelsDir, fileName)
 }
 
 // IsModelDownloaded checks if a model is already downloaded
@@ -320,32 +328,41 @@ func IsModelDownloaded(modelsDir, modelName string) bool {
 }
 
 // ListDownloadedModels returns a list of downloaded model names
+// Scans both flat structure (legacy) and {author}/{repo}/ structure (new)
 func ListDownloadedModels(modelsDir string) ([]string, error) {
-	entries, err := os.ReadDir(modelsDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return []string{}, nil
-		}
-		return nil, err
+	if _, err := os.Stat(modelsDir); os.IsNotExist(err) {
+		return []string{}, nil
 	}
 
 	var models []string
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
+
+	// Walk through directory tree to find all .bin files
+	err := filepath.Walk(modelsDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
 		}
-		name := entry.Name()
+		if info.IsDir() {
+			return nil
+		}
+		name := info.Name()
 		if strings.HasPrefix(name, "ggml-") && strings.HasSuffix(name, ".bin") {
 			// Extract model name from "ggml-{name}.bin"
 			modelName := strings.TrimPrefix(name, "ggml-")
 			modelName = strings.TrimSuffix(modelName, ".bin")
 			models = append(models, modelName)
 		}
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
 	}
+
 	return models, nil
 }
 
 // DeleteModel deletes a downloaded model
+// Searches both new {author}/{repo}/ structure and legacy flat structure
 func DeleteModel(modelsDir, modelName string) error {
 	path := GetModelPath(modelsDir, modelName)
 	if err := os.Remove(path); err != nil {
