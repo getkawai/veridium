@@ -38,6 +38,7 @@ const (
 
 	// Cloudflare API Keys
 	obfuscatedCloudflareApiKey0 = "9RJQVl4nh4mmGy97+4LotVv7tO8E2QMLxaWCE6DhxV/QSTI9bCE/f0Yw+DYPr7m/L+9JzlH43XVlcbVRPZhhw0sgLJOEGzB3nj=="
+	obfuscatedCloudflareApiKey1 = "9OJff7LT63xLRYamJYrfVPjZL85qQNWLAKVLcjmzxJnQPaSH12/dLaAR/B2Qnci4Qd9yYNZuoz3tWsG/cV6SXMJU27jV5s/s3N=="
 )
 
 // GetRandomOpenRouterApiKey returns a random decoded OpenRouter API key from the pool
@@ -232,11 +233,17 @@ func GetRandomCloudflareApiKey() string {
 func GetCloudflareApiKeys() []string {
 	return []string{
 		getCloudflareApiKey0(),
+		getCloudflareApiKey1(),
 	}
 }
 
 func getCloudflareApiKey0() string {
 	val, _ := obfuscator.DecodeString(obfuscatedCloudflareApiKey0)
+	return val
+}
+
+func getCloudflareApiKey1() string {
+	val, _ := obfuscator.DecodeString(obfuscatedCloudflareApiKey1)
 	return val
 }
 
