@@ -1,28 +1,52 @@
-# Kronk Model Server - Migration Complete
+# Kronk Model Server
 
 ## Overview
 
-Kronk server telah berhasil dimigrate dengan **contributor features** dari `cmd/contributor`. Server sekarang adalah **production-grade OpenAI-compatible model server** dengan kemampuan contributor network. 
+Kronk server adalah **production-grade OpenAI-compatible model server** dengan kemampuan contributor network. Server ini menyediakan API endpoints untuk chat completions, embeddings, image generation, dan speech-to-text.
 
 ---
 
-## Architecture Evolution
+## Quick Start
 
-### Before: cmd/contributor (Deprecated)
-- Standalone CLI tool 
-- Custom gateway HTTP server
-- Direct llamalib integration
-- Simple architecture
+### 1. Setup (Pertama Kali)
 
-### After: cmd/server (Current)
-- Production-grade Kronk framework
-- OpenAI-compatible API
-- Model caching + concurrent inference
-- **Contributor features integrated**
+```bash
+# Jalankan setup untuk mengkonfigurasi wallet, library, dan model
+./server setup
+```
+
+Setup akan:
+- Membuat atau mengimport wallet
+- Mendownload library (llama.cpp, Stable Diffusion)
+- Mendownload model (Whisper, Stable Diffusion)
+
+### 2. Start Server
+
+```bash
+# Setelah setup selesai, jalankan server
+./server start
+```
+
+### 3. Cek Versi
+
+```bash
+./server version
+```
 
 ---
 
-## Features Migrated
+## Commands
+
+| Command | Deskripsi |
+|---------|-----------|
+| `setup` | Setup wallet, library, dan model (interactive) |
+| `start` | Start model server |
+| `version` | Show version information |
+| `help` | Show help message |
+
+---
+
+## Features
 
 ✅ **Wallet Management** - Create/unlock/switch wallets
 ✅ **KV Store Integration** - Cloudflare KV for persistence
@@ -42,13 +66,6 @@ Kronk server telah berhasil dimigrate dengan **contributor features** dari `cmd/
 ### Environment Variables
 
 ```bash
-# Contributor Features (enabled by default)
-KRONK_CONTRIBUTOR_ENABLED=true
-KRONK_CONTRIBUTOR_WALLETPASSWORD=your_password
-KRONK_CONTRIBUTOR_WALLETADDRESS=0x...  # Optional: switch wallet
-KRONK_CONTRIBUTOR_IMPORTMNEMONIC="word1 word2..."  # Optional: import
-KRONK_CONTRIBUTOR_HEARTBEATINTERVAL=30s
-
 # Blockchain Configuration (defaults from constants)
 KRONK_BLOCKCHAIN_RPCURL=https://rpc.monad.xyz
 KRONK_BLOCKCHAIN_TOKENADDRESS=0xBd95bDB3a6FE48CbC2dE3890B8e67Ef96Af65322
@@ -58,7 +75,7 @@ KRONK_BLOCKCHAIN_USDTADDRESS=0x754704bc059f8c67012fed69bc8a327a5aafb603
 # Tunnel Configuration
 KRONK_TUNNEL_ENABLED=true
 
-# Existing Kronk Config
+# Server Config
 KRONK_WEB_APIHOST=localhost:8080
 KRONK_CACHE_MODELSINCACHE=3
 KRONK_CACHE_TTL=20m
@@ -66,42 +83,53 @@ KRONK_CACHE_TTL=20m
 
 ---
 
-## Usage
+## Usage Examples
 
-### Mode 1: Pure Model Server (Contributor Disabled)
+### Setup Wallet
+
 ```bash
-KRONK_CONTRIBUTOR_ENABLED=false ./server
+./server setup
+# Pilih: Create new wallet atau Import existing wallet
+# Masukkan password (min 8 karakter)
+# Konfirmasi password
+# Simpan mnemonic dengan aman
 ```
 
-### Mode 2: Contributor Mode (Default)
+### Start Server
+
 ```bash
-# First time - creates wallet
-KRONK_CONTRIBUTOR_WALLETPASSWORD=mypass ./server
+# Default mode
+./server start
 
-# Subsequent runs - unlocks wallet
-KRONK_CONTRIBUTOR_WALLETPASSWORD=mypass ./server
-
-# Import existing wallet
-KRONK_CONTRIBUTOR_WALLETPASSWORD=mypass \
-KRONK_CONTRIBUTOR_IMPORTMNEMONIC="word1 word2..." \
-./server
+# Dengan custom config
+KRONK_CACHE_MODELSINCACHE=5 ./server start
 ```
 
-### Mode 3: No Tunnel (Local Only)
-```bash
-KRONK_TUNNEL_ENABLED=false \
-KRONK_CONTRIBUTOR_WALLETPASSWORD=mypass \
-./server
-```
+### Multiple Wallets
+
+Jika Anda memiliki multiple wallets, setup akan menampilkan daftar wallet dan Anda bisa memilih wallet mana yang akan digunakan.
 
 ---
 
 ## Startup Flow
 
+### Setup Flow
 ```
-main() → kronk.Run() →
+./server setup
+  ├─ Check existing wallets
+  ├─ Create/Import wallet (interactive)
+  ├─ Download llama.cpp library
+  ├─ Download Stable Diffusion library
+  ├─ Download Whisper model
+  ├─ Download Stable Diffusion model
+  └─ Show setup summary
+```
+
+### Start Flow
+```
+./server start
   ├─ Init Sentry Logging
-  ├─ Download Libraries (llama.cpp)
+  ├─ Download Libraries (if not exists)
   ├─ Build Model Index
   ├─ Download Catalog & Templates
   ├─ Init Kronk Cache
@@ -109,7 +137,7 @@ main() → kronk.Run() →
   ├─ [CONTRIBUTOR FEATURES]
   │   ├─ Init KV Store
   │   ├─ Init Blockchain Client
-  │   ├─ Setup Wallet (create/unlock)
+  │   ├─ Unlock Wallet (if exists)
   │   ├─ Register Holder
   │   ├─ Detect Hardware
   │   ├─ Start Tunnel (optional)

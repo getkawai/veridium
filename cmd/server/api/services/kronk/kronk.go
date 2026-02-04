@@ -13,7 +13,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"syscall"
 	"time"
 
@@ -26,6 +25,7 @@ import (
 	"github.com/kawai-network/veridium/cmd/server/foundation/logger"
 	"github.com/kawai-network/veridium/cmd/server/foundation/web"
 	"github.com/kawai-network/veridium/internal/constant"
+	"github.com/kawai-network/veridium/internal/paths"
 	"github.com/kawai-network/veridium/internal/services"
 	"github.com/kawai-network/veridium/pkg/blockchain"
 	"github.com/kawai-network/veridium/pkg/hardware"
@@ -50,6 +50,22 @@ var tag = "develop"
 
 const SentryDSN = "https://6d138acbdde2516e32e24f016b472031@o4510620614983680.ingest.us.sentry.io/4510620618850304"
 
+// StartCommand runs the server (equivalent to the old Run function)
+func StartCommand(args []string) error {
+	var showHelp bool
+
+	// Parse flags
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--help", "-h":
+			showHelp = true
+		}
+	}
+
+	return Run(showHelp)
+}
+
+// Run runs the kronk server (used by both main and start command)
 func Run(showHelp bool) error {
 	var log *logger.Logger
 
@@ -211,8 +227,9 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 		return err
 	}
 
+	// Use paths.NodeLibraries() for consistent library path resolution
 	libs, err := libs.New(
-		libs.WithBasePath(cfg.LibPath),
+		libs.WithBasePath(paths.NodeLibraries()),
 		libs.WithArch(arch),
 		libs.WithOS(opSys),
 		libs.WithProcessor(processor),
@@ -235,7 +252,8 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 	// -------------------------------------------------------------------------
 	// Model System
 
-	models, err := models.NewWithPaths(cfg.BasePath)
+	// Use paths.Node() for consistent base path resolution
+	models, err := models.NewWithPaths(paths.Node())
 	if err != nil {
 		return fmt.Errorf("unable to create catalog system: %w", err)
 	}
@@ -250,7 +268,7 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 	log.Info(ctx, "startup", "status", "downloading catalog")
 
 	ctlg, err := catalog.New(
-		catalog.WithBasePath(cfg.BasePath),
+		catalog.WithBasePath(paths.Node()),
 		catalog.WithGithubRepo(cfg.Catalog.GithubRepo))
 	if err != nil {
 		return fmt.Errorf("unable to create catalog system: %w", err)
@@ -266,7 +284,7 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 	log.Info(ctx, "startup", "status", "downloading templates")
 
 	tmplts, err := templates.New(
-		templates.WithBasePath(cfg.BasePath),
+		templates.WithBasePath(paths.Node()),
 		templates.WithGithubRepo(cfg.Templates.GithubRepo),
 		templates.WithCatalog(ctlg))
 	if err != nil {
@@ -288,7 +306,7 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 
 	cache, err := cache.New(cache.Config{
 		Log:                  log.Info,
-		BasePath:             cfg.BasePath,
+		BasePath:             paths.Node(),
 		Templates:            tmplts,
 		ModelsInCache:        cfg.Cache.ModelsInCache,
 		CacheTTL:             cfg.Cache.TTL,
@@ -343,129 +361,61 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 		log.Info(ctx, "startup", "status", "blockchain client initialized", "rpc", constant.MonadRpcUrl)
 	}
 
-	// Setup Wallet (Interactive only)
+	// Setup Wallet
 	wallet := services.NewWalletService("", kv)
 
-	// Interactive wallet setup
+	// Check if wallet exists
 	if !wallet.HasWallet() {
-		// No wallet exists - create new one
-		printInfo("No wallet found. Let's create one!")
+		return fmt.Errorf("no wallet found. Please run 'kawai-node setup' first to configure your wallet")
+	}
 
-		choice, err := promptChoice("Choose setup method:", []string{
-			"Generate new mnemonic (recommended)",
-			"Import existing mnemonic",
-		})
-		if err != nil {
-			return fmt.Errorf("failed to get user choice: %w", err)
+	// Wallet exists - unlock it
+	wallets := wallet.GetWallets()
+	printInfo("Wallet found!")
+
+	if len(wallets) > 1 {
+		fmt.Println("\nAvailable wallets:")
+		for i, w := range wallets {
+			active := ""
+			if w.IsActive {
+				active = " (active)"
+			}
+			fmt.Printf("  %d. %s - %s%s\n", i+1, w.Description, w.Address[:10]+"...", active)
 		}
 
-		// Get password
-		password, err := promptPassword("Enter password (min 8 characters): ")
+		choice, err := promptChoice("\nSelect wallet:", func() []string {
+			options := make([]string, len(wallets))
+			for i, w := range wallets {
+				options[i] = fmt.Sprintf("%s (%s...)", w.Description, w.Address[:10])
+			}
+			return options
+		}())
+		if err != nil {
+			return fmt.Errorf("failed to select wallet: %w", err)
+		}
+
+		selectedWallet := wallets[choice].Address
+		password, err := promptPassword("Enter password: ")
 		if err != nil {
 			return fmt.Errorf("failed to read password: %w", err)
 		}
-		if err := validatePassword(password); err != nil {
+
+		walletAddress, err = wallet.SwitchWallet(selectedWallet, password)
+		if err != nil {
+			return fmt.Errorf("failed to switch wallet: %w", err)
+		}
+	} else {
+		password, err := promptPassword("Enter password to unlock: ")
+		if err != nil {
+			return fmt.Errorf("failed to read password: %w", err)
+		}
+
+		walletAddress, err = wallet.UnlockWallet(password)
+		if err != nil {
 			return fmt.Errorf("invalid password: %w", err)
 		}
-
-		confirmPassword, err := promptPassword("Confirm password: ")
-		if err != nil {
-			return fmt.Errorf("failed to read password confirmation: %w", err)
-		}
-		if password != confirmPassword {
-			return fmt.Errorf("passwords do not match")
-		}
-
-		var mnemonic string
-		if choice == 0 {
-			// Generate new mnemonic
-			mnemonic, err = wallet.GenerateMnemonic()
-			if err != nil {
-				return fmt.Errorf("failed to generate mnemonic: %w", err)
-			}
-			printMnemonic(mnemonic)
-
-			if !promptYesNo("Have you written down your mnemonic?") {
-				return fmt.Errorf("please write down your mnemonic before continuing")
-			}
-		} else {
-			// Import existing mnemonic
-			printInfo("Enter your 12 or 24 word mnemonic phrase")
-			mnemonic, err = promptPassword("Mnemonic (hidden): ")
-			if err != nil {
-				return fmt.Errorf("failed to read mnemonic: %w", err)
-			}
-			// CRITICAL: Trim whitespace to ensure consistent wallet generation
-			// Copy-paste can introduce trailing spaces/newlines that would generate
-			// a different wallet address than the standard mnemonic
-			mnemonic = strings.Join(strings.Fields(mnemonic), " ")
-			if err := validateMnemonic(mnemonic); err != nil {
-				return fmt.Errorf("invalid mnemonic: %w", err)
-			}
-		}
-
-		description, err := promptInput("Wallet name (e.g. My Contributor Wallet): ")
-		if err != nil {
-			return fmt.Errorf("failed to read wallet name: %w", err)
-		}
-		if description == "" {
-			description = "Kronk Contributor"
-		}
-
-		walletAddress, err = wallet.CreateWallet(password, mnemonic, description)
-		if err != nil {
-			return fmt.Errorf("failed to create wallet: %w", err)
-		}
-		printSuccess(fmt.Sprintf("Wallet created: %s", walletAddress))
-	} else {
-		// Wallet exists - unlock it
-		wallets := wallet.GetWallets()
-		printInfo("Wallet found!")
-
-		if len(wallets) > 1 {
-			fmt.Println("\nAvailable wallets:")
-			for i, w := range wallets {
-				active := ""
-				if w.IsActive {
-					active = " (active)"
-				}
-				fmt.Printf("  %d. %s - %s%s\n", i+1, w.Description, w.Address[:10]+"...", active)
-			}
-
-			choice, err := promptChoice("\nSelect wallet:", func() []string {
-				options := make([]string, len(wallets))
-				for i, w := range wallets {
-					options[i] = fmt.Sprintf("%s (%s...)", w.Description, w.Address[:10])
-				}
-				return options
-			}())
-			if err != nil {
-				return fmt.Errorf("failed to select wallet: %w", err)
-			}
-
-			selectedWallet := wallets[choice].Address
-			password, err := promptPassword("Enter password: ")
-			if err != nil {
-				return fmt.Errorf("failed to read password: %w", err)
-			}
-
-			walletAddress, err = wallet.SwitchWallet(selectedWallet, password)
-			if err != nil {
-				return fmt.Errorf("failed to switch wallet: %w", err)
-			}
-		} else {
-			password, err := promptPassword("Enter password to unlock: ")
-			if err != nil {
-				return fmt.Errorf("failed to read password: %w", err)
-			}
-
-			walletAddress, err = wallet.UnlockWallet(password)
-			if err != nil {
-				return fmt.Errorf("invalid password: %w", err)
-			}
-		}
-		printSuccess(fmt.Sprintf("Wallet unlocked: %s", walletAddress))
 	}
+	printSuccess(fmt.Sprintf("Wallet unlocked: %s", walletAddress))
 
 	log.Info(ctx, "startup", "status", "wallet ready", "address", walletAddress)
 
@@ -570,7 +520,7 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 	{
 		log.Info(ctx, "startup", "status", "initializing whisper")
 
-		whisperModelsDir = filepath.Join(cfg.BasePath, "whisper-models")
+		whisperModelsDir = filepath.Join(paths.Node(), "whisper-models")
 
 		// Ensure models directory exists
 		if err := os.MkdirAll(whisperModelsDir, 0755); err != nil {
@@ -601,7 +551,7 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 		} else {
 			// 2. Find Model
 			// Assume models are in the models catalog path or specific SD path
-			modelsPath := filepath.Join(cfg.BasePath, "models")
+			modelsPath := filepath.Join(paths.Node(), "models")
 			downloader := modeldownloader.New(modelsPath)
 
 			modelFile, err := downloader.DiscoverModel()

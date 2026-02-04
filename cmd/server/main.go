@@ -2,7 +2,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 
@@ -10,13 +9,49 @@ import (
 )
 
 func main() {
-	// Parse command line flags
-	showHelp := flag.Bool("help", false, "Show configuration help")
-	flag.Parse()
-
-	// Run the kronk model server
-	if err := kronk.Run(*showHelp); err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
-		os.Exit(1)
+	// Check for subcommands first
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "setup":
+			// Run setup command
+			if err := kronk.SetupCommand(os.Args[2:]); err != nil {
+				fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
+				os.Exit(1)
+			}
+			os.Exit(0)
+		case "start":
+			// Run start command (start the server)
+			if err := kronk.StartCommand(os.Args[2:]); err != nil {
+				fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
+				os.Exit(1)
+			}
+			os.Exit(0)
+		case "version":
+			fmt.Println("Kronk Model Server")
+			os.Exit(0)
+		case "help", "--help", "-h":
+			printHelp()
+			os.Exit(0)
+		}
 	}
+
+	// Default: show help
+	printHelp()
+	os.Exit(1)
+}
+
+func printHelp() {
+	fmt.Println("Kawai Node - Kronk Model Server")
+	fmt.Println()
+	fmt.Println("Usage: kawai-node [COMMAND] [OPTIONS]")
+	fmt.Println()
+	fmt.Println("Commands:")
+	fmt.Println("  setup    Setup wallet, libraries, and models")
+	fmt.Println("  start    Start the model server")
+	fmt.Println("  version  Show version information")
+	fmt.Println("  help     Show this help message")
+	fmt.Println()
+	fmt.Println("Examples:")
+	fmt.Println("  kawai-node setup         # Run interactive setup")
+	fmt.Println("  kawai-node start         # Start the server")
 }
