@@ -7,7 +7,6 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/cloudflare/cloudflare-go"
 	"github.com/kawai-network/veridium/pkg/config"
 )
 
@@ -30,10 +29,7 @@ func (s *KVStore) HasClaimedTrial(ctx context.Context, address string, machineID
 	// 2. Check Machine ID (Global check)
 	if machineID != "" {
 		keyMachine := fmt.Sprintf("trial_machine:%s", machineID)
-		valMachine, err := s.client.GetWorkersKV(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{
-			NamespaceID: s.usersNamespaceID, // Using users namespace
-			Key:         keyMachine,
-		})
+		valMachine, err := s.client.GetValue(ctx, s.usersNamespaceID, keyMachine)
 		if err == nil && string(valMachine) == "true" {
 			return true, nil
 		}
@@ -48,10 +44,7 @@ func (s *KVStore) ClaimFreeTrial(ctx context.Context, address string, machineID 
 	// We do this first to fail fast. Race condition here is possible but acceptable for machine ID (not balance).
 	if machineID != "" {
 		keyMachine := fmt.Sprintf("trial_machine:%s", machineID)
-		valMachine, err := s.client.GetWorkersKV(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{
-			NamespaceID: s.usersNamespaceID,
-			Key:         keyMachine,
-		})
+		valMachine, err := s.client.GetValue(ctx, s.usersNamespaceID, keyMachine)
 		if err == nil && string(valMachine) == "true" {
 			return fmt.Errorf("free trial already claimed by this device")
 		}
@@ -95,21 +88,13 @@ func (s *KVStore) ClaimFreeTrial(ctx context.Context, address string, machineID 
 
 		// E. Write
 		key := fmt.Sprintf("balance:%s", address)
-		_, err = s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
-			NamespaceID: s.usersNamespaceID,
-			Key:         key,
-			Value:       data,
-		})
+		err = s.client.SetValue(ctx, s.usersNamespaceID, key, data)
 
 		if err == nil {
 			// Success! Now mark Machine ID (Best effort)
 			if machineID != "" {
 				keyMachine := fmt.Sprintf("trial_machine:%s", machineID)
-				_, _ = s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
-					NamespaceID: s.usersNamespaceID,
-					Key:         keyMachine,
-					Value:       []byte("true"),
-				})
+				_ = s.client.SetValue(ctx, s.usersNamespaceID, keyMachine, []byte("true"))
 			}
 			return nil
 		}

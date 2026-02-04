@@ -6,8 +6,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/cloudflare/cloudflare-go"
 	"github.com/kawai-network/veridium/internal/constant"
+	"github.com/kawai-network/veridium/pkg/store"
 )
 
 func main() {
@@ -42,10 +42,10 @@ func main() {
 	accountID := constant.GetCfAccountId()
 	apiToken := constant.GetCfApiToken()
 
-	// Initialize Cloudflare client
-	api, err := cloudflare.NewWithAPIToken(apiToken)
+	// Initialize KV client
+	client, err := store.NewKVClient(apiToken, accountID)
 	if err != nil {
-		log.Fatalf("Failed to create Cloudflare client: %v", err)
+		log.Fatalf("Failed to create KV client: %v", err)
 	}
 
 	ctx := context.Background()
@@ -60,13 +60,13 @@ func main() {
 	marketplaceNS := constant.GetCfKvP2pMarketplaceNamespaceId()
 
 	// Cleanup each namespace
-	cleanupNamespace(ctx, api, accountID, contributorsNS, "Contributors")
-	cleanupNamespace(ctx, api, accountID, proofsNS, "Proofs")
-	cleanupNamespace(ctx, api, accountID, settlementsNS, "Settlements")
-	cleanupNamespace(ctx, api, accountID, cashbackNS, "Cashback")
-	cleanupNamespace(ctx, api, accountID, holdersNS, "Holders")
-	cleanupNamespace(ctx, api, accountID, usersNS, "Users")
-	cleanupNamespace(ctx, api, accountID, marketplaceNS, "P2P Marketplace")
+	cleanupNamespace(ctx, client, contributorsNS, "Contributors")
+	cleanupNamespace(ctx, client, proofsNS, "Proofs")
+	cleanupNamespace(ctx, client, settlementsNS, "Settlements")
+	cleanupNamespace(ctx, client, cashbackNS, "Cashback")
+	cleanupNamespace(ctx, client, holdersNS, "Holders")
+	cleanupNamespace(ctx, client, usersNS, "Users")
+	cleanupNamespace(ctx, client, marketplaceNS, "P2P Marketplace")
 
 	fmt.Println("")
 	fmt.Println("═══════════════════════════════════════════════════════════")
@@ -76,7 +76,7 @@ func main() {
 	fmt.Println("All KV data has been deleted. You can now start fresh.")
 }
 
-func cleanupNamespace(ctx context.Context, api *cloudflare.API, accountID, namespaceID, name string) {
+func cleanupNamespace(ctx context.Context, client *store.KVClient, namespaceID, name string) {
 	fmt.Printf("🗑️  Cleaning %s namespace...\n", name)
 
 	deletedCount := 0
@@ -84,30 +84,19 @@ func cleanupNamespace(ctx context.Context, api *cloudflare.API, accountID, names
 
 	for {
 		// List keys in this namespace
-		params := cloudflare.ListWorkersKVsParams{
-			NamespaceID: namespaceID,
-			Limit:       1000, // Max per request
-		}
-		if cursor != "" {
-			params.Cursor = cursor
-		}
-
-		resp, err := api.ListWorkersKVKeys(ctx, cloudflare.AccountIdentifier(accountID), params)
+		result, err := client.ListKeys(ctx, namespaceID, "", cursor)
 		if err != nil {
 			log.Printf("   ⚠️  Failed to list keys: %v", err)
 			break
 		}
 
-		if len(resp.Result) == 0 {
+		if len(result.Result) == 0 {
 			break
 		}
 
 		// Delete each key
-		for _, key := range resp.Result {
-			_, err := api.DeleteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(accountID), cloudflare.DeleteWorkersKVEntryParams{
-				NamespaceID: namespaceID,
-				Key:         key.Name,
-			})
+		for _, key := range result.Result {
+			err := client.DeleteValue(ctx, namespaceID, key.Name)
 			if err != nil {
 				log.Printf("   ⚠️  Failed to delete key %s: %v", key.Name, err)
 				continue
@@ -116,10 +105,10 @@ func cleanupNamespace(ctx context.Context, api *cloudflare.API, accountID, names
 		}
 
 		// Check if there are more keys
-		if resp.ResultInfo.Cursor == "" {
+		if result.ResultInfo.Cursor == "" {
 			break
 		}
-		cursor = resp.ResultInfo.Cursor
+		cursor = result.ResultInfo.Cursor
 	}
 
 	fmt.Printf("   ✅ Deleted %d keys from %s\n", deletedCount, name)

@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/cloudflare/cloudflare-go"
 	"github.com/kawai-network/veridium/internal/constant"
+	"github.com/kawai-network/veridium/pkg/store"
 )
 
 func main() {
@@ -17,9 +17,9 @@ func main() {
 	accountID := constant.GetCfAccountId()
 	apiToken := constant.GetCfApiToken()
 
-	api, err := cloudflare.NewWithAPIToken(apiToken)
+	client, err := store.NewKVClient(apiToken, accountID)
 	if err != nil {
-		log.Fatalf("Failed to create Cloudflare client: %v", err)
+		log.Fatalf("Failed to create KV client: %v", err)
 	}
 
 	ctx := context.Background()
@@ -27,10 +27,7 @@ func main() {
 
 	key := "0xab48220e6721754b906c30463142dc0a8f5ebba2:1"
 
-	value, err := api.GetWorkersKV(ctx, cloudflare.AccountIdentifier(accountID), cloudflare.GetWorkersKVParams{
-		NamespaceID: proofsNS,
-		Key:         key,
-	})
+	value, err := client.GetValue(ctx, proofsNS, key)
 	if err != nil {
 		log.Fatalf("Failed to get key: %v", err)
 	}

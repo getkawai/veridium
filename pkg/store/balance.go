@@ -8,7 +8,6 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/cloudflare/cloudflare-go"
 	"github.com/kawai-network/veridium/pkg/config"
 )
 
@@ -26,10 +25,7 @@ func (s *KVStore) GetUserBalance(ctx context.Context, address string) (*UserBala
 	// Key format: "balance:{address}"
 	key := fmt.Sprintf("balance:%s", address)
 
-	value, err := s.client.GetWorkersKV(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{
-		NamespaceID: s.usersNamespaceID,
-		Key:         key,
-	})
+	value, err := s.client.GetValue(ctx, s.usersNamespaceID, key)
 	if err != nil {
 		// If balance doesn't exist, default to 0 and not claimed
 		return &UserBalance{
@@ -113,11 +109,7 @@ func (s *KVStore) DeductBalanceAtomic(ctx context.Context, address string, amoun
 
 		// 5. Attempt atomic update
 		key := fmt.Sprintf("balance:%s", address)
-		_, err = s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
-			NamespaceID: s.usersNamespaceID,
-			Key:         key,
-			Value:       data,
-		})
+		err = s.client.SetValue(ctx, s.usersNamespaceID, key, data)
 
 		if err == nil {
 			return nil
@@ -164,11 +156,7 @@ func (s *KVStore) AddBalanceAtomic(ctx context.Context, address string, amount *
 
 		// 4. Attempt atomic update
 		key := fmt.Sprintf("balance:%s", address)
-		_, err = s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
-			NamespaceID: s.usersNamespaceID,
-			Key:         key,
-			Value:       data,
-		})
+		err = s.client.SetValue(ctx, s.usersNamespaceID, key, data)
 
 		if err == nil {
 			return nil
@@ -231,11 +219,7 @@ func (s *KVStore) TransferBalanceAtomic(ctx context.Context, from, to string, am
 		fromJson, _ := json.Marshal(fromData)
 		fromKey := fmt.Sprintf("balance:%s", from)
 
-		_, err = s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
-			NamespaceID: s.usersNamespaceID,
-			Key:         fromKey,
-			Value:       fromJson,
-		})
+		err = s.client.SetValue(ctx, s.usersNamespaceID, fromKey, fromJson)
 		if err != nil {
 			if attempt < maxRetries-1 {
 				time.Sleep(backoff)
@@ -249,22 +233,14 @@ func (s *KVStore) TransferBalanceAtomic(ctx context.Context, from, to string, am
 		toJson, _ := json.Marshal(toData)
 		toKey := fmt.Sprintf("balance:%s", to)
 
-		_, err = s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
-			NamespaceID: s.usersNamespaceID,
-			Key:         toKey,
-			Value:       toJson,
-		})
+		err = s.client.SetValue(ctx, s.usersNamespaceID, toKey, toJson)
 		if err != nil {
 			// Rollback sender
 			// Note: This is a best-effort rollback manual logic
 			fromData.USDTBalance = fromBalanceBig.String() // revert
 			rollbackJson, _ := json.Marshal(fromData)
 
-			_, rollbackErr := s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
-				NamespaceID: s.usersNamespaceID,
-				Key:         fromKey,
-				Value:       rollbackJson,
-			})
+			rollbackErr := s.client.SetValue(ctx, s.usersNamespaceID, fromKey, rollbackJson)
 
 			if rollbackErr != nil {
 				return fmt.Errorf("CRITICAL: failed to update recipient and rollback sender: %w (rollback error: %v)", err, rollbackErr)
@@ -357,11 +333,7 @@ func (s *KVStore) RecordDebt(ctx context.Context, address string, amount *big.In
 	}
 
 	// Store in users namespace for debts
-	_, err = s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
-		NamespaceID: s.usersNamespaceID,
-		Key:         key,
-		Value:       data,
-	})
+	err = s.client.SetValue(ctx, s.usersNamespaceID, key, data)
 
 	if err != nil {
 		return fmt.Errorf("failed to store debt record: %w", err)

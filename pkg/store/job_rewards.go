@@ -5,9 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"strings"
 
-	"github.com/cloudflare/cloudflare-go"
 	"github.com/kawai-network/veridium/pkg/types"
 )
 
@@ -24,13 +22,7 @@ func (s *KVStore) SaveJobReward(ctx context.Context, record *JobRewardRecord) er
 		return fmt.Errorf("failed to marshal job reward: %w", err)
 	}
 
-	_, err = s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
-		NamespaceID: s.contributorsNamespaceID,
-		Key:         key,
-		Value:       data,
-	})
-
-	if err != nil {
+	if err := s.client.SetValue(ctx, s.contributorsNamespaceID, key, data); err != nil {
 		return fmt.Errorf("failed to save job reward: %w", err)
 	}
 
@@ -42,30 +34,24 @@ func (s *KVStore) GetJobRewardsSinceLastSettlement(ctx context.Context, contribu
 	// List all keys for this contributor
 	prefix := fmt.Sprintf("job_rewards:%s:", contributorAddress)
 
-	resp, err := s.client.ListWorkersKVKeys(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.ListWorkersKVsParams{
-		NamespaceID: s.contributorsNamespaceID,
-		Prefix:      prefix,
-	})
+	keys, err := s.client.ListKeysSimple(ctx, s.contributorsNamespaceID, prefix)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list job rewards: %w", err)
 	}
 
 	var records []*JobRewardRecord
 
-	for _, key := range resp.Result {
+	for _, key := range keys {
 		// Get the record
-		value, err := s.client.GetWorkersKV(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{
-			NamespaceID: s.contributorsNamespaceID,
-			Key:         key.Name,
-		})
+		value, err := s.client.GetValue(ctx, s.contributorsNamespaceID, key)
 		if err != nil {
-			slog.Warn("Failed to get job reward", "key", key.Name, "error", err)
+			slog.Warn("Failed to get job reward", "key", key, "error", err)
 			continue
 		}
 
 		var record JobRewardRecord
 		if err := json.Unmarshal(value, &record); err != nil {
-			slog.Warn("Failed to unmarshal job reward", "key", key.Name, "error", err)
+			slog.Warn("Failed to unmarshal job reward", "key", key, "error", err)
 			continue
 		}
 
@@ -82,20 +68,14 @@ func (s *KVStore) GetJobRewardsSinceLastSettlement(ctx context.Context, contribu
 func (s *KVStore) MarkJobRewardsAsSettled(ctx context.Context, contributorAddress string, periodID int64) error {
 	prefix := fmt.Sprintf("job_rewards:%s:", contributorAddress)
 
-	resp, err := s.client.ListWorkersKVKeys(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.ListWorkersKVsParams{
-		NamespaceID: s.contributorsNamespaceID,
-		Prefix:      prefix,
-	})
+	keys, err := s.client.ListKeysSimple(ctx, s.contributorsNamespaceID, prefix)
 	if err != nil {
 		return fmt.Errorf("failed to list job rewards: %w", err)
 	}
 
-	for _, key := range resp.Result {
+	for _, key := range keys {
 		// Get the record
-		value, err := s.client.GetWorkersKV(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{
-			NamespaceID: s.contributorsNamespaceID,
-			Key:         key.Name,
-		})
+		value, err := s.client.GetValue(ctx, s.contributorsNamespaceID, key)
 		if err != nil {
 			continue
 		}
@@ -115,13 +95,8 @@ func (s *KVStore) MarkJobRewardsAsSettled(ctx context.Context, contributorAddres
 				continue
 			}
 
-			_, err = s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
-				NamespaceID: s.contributorsNamespaceID,
-				Key:         key.Name,
-				Value:       data,
-			})
-			if err != nil {
-				slog.Warn("Failed to mark job reward as settled", "key", key.Name, "error", err)
+			if err := s.client.SetValue(ctx, s.contributorsNamespaceID, key, data); err != nil {
+				slog.Warn("Failed to mark job reward as settled", "key", key, "error", err)
 			}
 		}
 	}
@@ -132,11 +107,8 @@ func (s *KVStore) MarkJobRewardsAsSettled(ctx context.Context, contributorAddres
 // GetAllUnsettledJobRewards retrieves all unsettled job rewards across all contributors
 // Used for settlement generation
 func (s *KVStore) GetAllUnsettledJobRewards(ctx context.Context, rewardType types.RewardType) (map[string][]*JobRewardRecord, error) {
-	// List all keys in contributors namespace
-	resp, err := s.client.ListWorkersKVKeys(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.ListWorkersKVsParams{
-		NamespaceID: s.contributorsNamespaceID,
-		Limit:       1000,
-	})
+	// List all keys in contributors namespace with job_rewards prefix (with pagination)
+	keys, err := s.client.ListAllKeys(ctx, s.contributorsNamespaceID, "job_rewards:")
 	if err != nil {
 		return nil, fmt.Errorf("failed to list keys: %w", err)
 	}
@@ -144,25 +116,17 @@ func (s *KVStore) GetAllUnsettledJobRewards(ctx context.Context, rewardType type
 	result := make(map[string][]*JobRewardRecord)
 
 	// Scan all job_rewards keys
-	for _, key := range resp.Result {
-		// Only process job_rewards keys
-		if !strings.HasPrefix(key.Name, "job_rewards:") {
-			continue
-		}
-
+	for _, key := range keys {
 		// Get the record
-		value, err := s.client.GetWorkersKV(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{
-			NamespaceID: s.contributorsNamespaceID,
-			Key:         key.Name,
-		})
+		value, err := s.client.GetValue(ctx, s.contributorsNamespaceID, key)
 		if err != nil {
-			slog.Warn("Failed to get job reward", "key", key.Name, "error", err)
+			slog.Warn("Failed to get job reward", "key", key, "error", err)
 			continue
 		}
 
 		var record JobRewardRecord
 		if err := json.Unmarshal(value, &record); err != nil {
-			slog.Warn("Failed to unmarshal job reward", "key", key.Name, "error", err)
+			slog.Warn("Failed to unmarshal job reward", "key", key, "error", err)
 			continue
 		}
 

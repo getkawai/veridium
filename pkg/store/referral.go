@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cloudflare/cloudflare-go"
 	"github.com/kawai-network/veridium/pkg/types"
 )
 
@@ -113,22 +112,14 @@ func (s *KVStore) CreateReferralCode(ctx context.Context, address string) (*Refe
 
 	// Store by code
 	keyByCode := fmt.Sprintf("referral:code:%s", code)
-	_, err = s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
-		NamespaceID: s.usersNamespaceID,
-		Key:         keyByCode,
-		Value:       data,
-	})
+	err = s.client.SetValue(ctx, s.usersNamespaceID, keyByCode, data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to save referral data: %w", err)
 	}
 
 	// Store by address (for lookup)
 	keyByAddress := fmt.Sprintf("referral:address:%s", strings.ToLower(address))
-	_, err = s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
-		NamespaceID: s.usersNamespaceID,
-		Key:         keyByAddress,
-		Value:       []byte(code),
-	})
+	err = s.client.SetValue(ctx, s.usersNamespaceID, keyByAddress, []byte(code))
 	if err != nil {
 		return nil, fmt.Errorf("failed to save address mapping: %w", err)
 	}
@@ -140,10 +131,7 @@ func (s *KVStore) CreateReferralCode(ctx context.Context, address string) (*Refe
 func (s *KVStore) GetReferralData(ctx context.Context, code string) (*ReferralData, error) {
 	key := fmt.Sprintf("referral:code:%s", strings.ToUpper(code))
 
-	data, err := s.client.GetWorkersKV(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{
-		NamespaceID: s.usersNamespaceID,
-		Key:         key,
-	})
+	data, err := s.client.GetValue(ctx, s.usersNamespaceID, key)
 	if err != nil {
 		return nil, fmt.Errorf("referral code not found: %w", err)
 	}
@@ -161,10 +149,7 @@ func (s *KVStore) GetReferralCodeByAddress(ctx context.Context, address string) 
 	// Get code from address mapping
 	keyByAddress := fmt.Sprintf("referral:address:%s", strings.ToLower(address))
 
-	codeBytes, err := s.client.GetWorkersKV(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{
-		NamespaceID: s.usersNamespaceID,
-		Key:         keyByAddress,
-	})
+	codeBytes, err := s.client.GetValue(ctx, s.usersNamespaceID, keyByAddress)
 	if err != nil {
 		return nil, fmt.Errorf("no referral code for this address: %w", err)
 	}
@@ -244,10 +229,7 @@ func (s *KVStore) claimTrialWithDualReward(ctx context.Context, address string, 
 	// Pre-check Machine ID
 	if machineID != "" {
 		keyMachine := fmt.Sprintf("trial_machine:%s", machineID)
-		valMachine, err := s.client.GetWorkersKV(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{
-			NamespaceID: s.usersNamespaceID,
-			Key:         keyMachine,
-		})
+		valMachine, err := s.client.GetValue(ctx, s.usersNamespaceID, keyMachine)
 		if err == nil && string(valMachine) == "true" {
 			return fmt.Errorf("free trial already claimed by this device")
 		}
@@ -292,21 +274,13 @@ func (s *KVStore) claimTrialWithDualReward(ctx context.Context, address string, 
 		}
 
 		key := fmt.Sprintf("balance:%s", address)
-		_, err = s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
-			NamespaceID: s.usersNamespaceID,
-			Key:         key,
-			Value:       data,
-		})
+		err = s.client.SetValue(ctx, s.usersNamespaceID, key, data)
 
 		if err == nil {
 			// Mark machine ID
 			if machineID != "" {
 				keyMachine := fmt.Sprintf("trial_machine:%s", machineID)
-				_, _ = s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
-					NamespaceID: s.usersNamespaceID,
-					Key:         keyMachine,
-					Value:       []byte("true"),
-				})
+				_ = s.client.SetValue(ctx, s.usersNamespaceID, keyMachine, []byte("true"))
 			}
 			return nil
 		}
@@ -363,11 +337,7 @@ func (s *KVStore) rewardReferrer(ctx context.Context, referralCode string, refer
 		}
 
 		key := fmt.Sprintf("balance:%s", referrerAddress)
-		_, err = s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
-			NamespaceID: s.usersNamespaceID,
-			Key:         key,
-			Value:       data,
-		})
+		err = s.client.SetValue(ctx, s.usersNamespaceID, key, data)
 
 		if err != nil {
 			if attempt < maxRetries-1 {
@@ -399,11 +369,7 @@ func (s *KVStore) rewardReferrer(ctx context.Context, referralCode string, refer
 		}
 
 		keyByCode := fmt.Sprintf("referral:code:%s", referralCode)
-		_, err = s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
-			NamespaceID: s.usersNamespaceID,
-			Key:         keyByCode,
-			Value:       statsData,
-		})
+		err = s.client.SetValue(ctx, s.usersNamespaceID, keyByCode, statsData)
 		if err != nil {
 			return fmt.Errorf("failed to update referral stats: %w", err)
 		}
@@ -428,11 +394,7 @@ func (s *KVStore) rewardReferrer(ctx context.Context, referralCode string, refer
 		}
 
 		claimKey := fmt.Sprintf("referral:claim:%s:%s", referralCode, referredUser)
-		_, err = s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
-			NamespaceID: s.usersNamespaceID,
-			Key:         claimKey,
-			Value:       claimData,
-		})
+		err = s.client.SetValue(ctx, s.usersNamespaceID, claimKey, claimData)
 		if err != nil {
 			return fmt.Errorf("failed to record claim: %w", err)
 		}

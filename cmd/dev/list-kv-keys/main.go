@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/cloudflare/cloudflare-go"
 	"github.com/kawai-network/veridium/internal/constant"
+	"github.com/kawai-network/veridium/pkg/store"
 )
 
 func main() {
@@ -16,9 +16,9 @@ func main() {
 	accountID := constant.GetCfAccountId()
 	apiToken := constant.GetCfApiToken()
 
-	api, err := cloudflare.NewWithAPIToken(apiToken)
+	client, err := store.NewKVClient(apiToken, accountID)
 	if err != nil {
-		log.Fatalf("Failed to create Cloudflare client: %v", err)
+		log.Fatalf("Failed to create KV client: %v", err)
 	}
 
 	ctx := context.Background()
@@ -27,25 +27,20 @@ func main() {
 	fmt.Println("🔍 Proofs namespace keys:")
 	fmt.Println("")
 
-	params := cloudflare.ListWorkersKVsParams{
-		NamespaceID: proofsNS,
-		Limit:       100,
-	}
-
-	resp, err := api.ListWorkersKVKeys(ctx, cloudflare.AccountIdentifier(accountID), params)
+	keys, err := client.ListAllKeys(ctx, proofsNS, "")
 	if err != nil {
 		log.Fatalf("Failed to list keys: %v", err)
 	}
 
-	if len(resp.Result) == 0 {
+	if len(keys) == 0 {
 		fmt.Println("❌ No keys found!")
 		return
 	}
 
-	for i, key := range resp.Result {
-		fmt.Printf("%d. %s\n", i+1, key.Name)
+	for i, key := range keys {
+		fmt.Printf("%d. %s\n", i+1, key)
 	}
 
 	fmt.Println("")
-	fmt.Printf("Total: %d keys\n", len(resp.Result))
+	fmt.Printf("Total: %d keys\n", len(keys))
 }

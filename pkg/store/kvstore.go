@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/cloudflare/cloudflare-go"
 	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/pkg/alert"
 	"github.com/kawai-network/veridium/pkg/types"
@@ -84,7 +83,7 @@ type SupplyQuerier interface {
 
 // KVStore implements Store interface with multiple namespaces
 type KVStore struct {
-	client    *cloudflare.API
+	client    *KVClient
 	accountID string
 
 	// Separate namespace IDs for different data types
@@ -109,13 +108,13 @@ type KVStore struct {
 
 // NewMultiNamespaceKVStore creates a new KVStore with separate namespaces
 func NewMultiNamespaceKVStore() (*KVStore, error) {
-	api, err := cloudflare.NewWithAPIToken(constant.GetCfApiToken())
+	client, err := NewKVClient(constant.GetCfApiToken(), constant.GetCfAccountId())
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cloudflare client: %w", err)
 	}
 
 	return &KVStore{
-		client:                    api,
+		client:                    client,
 		accountID:                 constant.GetCfAccountId(),
 		contributorsNamespaceID:   constant.GetCfKvContributorsNamespaceId(),
 		proofsNamespaceID:         constant.GetCfKvProofsNamespaceId(),

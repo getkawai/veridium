@@ -6,8 +6,8 @@ import (
 	"log"
 	"strings"
 
-	"github.com/cloudflare/cloudflare-go"
 	"github.com/kawai-network/veridium/internal/constant"
+	"github.com/kawai-network/veridium/pkg/store"
 )
 
 func main() {
@@ -17,20 +17,15 @@ func main() {
 	accountID := constant.GetCfAccountId()
 	apiToken := constant.GetCfApiToken()
 
-	api, err := cloudflare.NewWithAPIToken(apiToken)
+	client, err := store.NewKVClient(apiToken, accountID)
 	if err != nil {
-		log.Fatalf("Failed to create Cloudflare client: %v", err)
+		log.Fatalf("Failed to create KV client: %v", err)
 	}
 
 	ctx := context.Background()
 	contributorsNS := constant.GetCfKvContributorsNamespaceId()
 
-	params := cloudflare.ListWorkersKVsParams{
-		NamespaceID: contributorsNS,
-		Limit:       100,
-	}
-
-	resp, err := api.ListWorkersKVKeys(ctx, cloudflare.AccountIdentifier(accountID), params)
+	keys, err := client.ListAllKeys(ctx, contributorsNS, "job_rewards:")
 	if err != nil {
 		log.Fatalf("Failed to list keys: %v", err)
 	}
@@ -38,15 +33,13 @@ func main() {
 	jobRewardsCount := 0
 	contributorAddresses := make(map[string]bool)
 
-	for _, key := range resp.Result {
-		if strings.HasPrefix(key.Name, "job_rewards:") {
-			jobRewardsCount++
-			parts := strings.Split(key.Name, ":")
-			if len(parts) >= 2 {
-				contributorAddresses[parts[1]] = true
-			}
-			fmt.Printf("  %s\n", key.Name)
+	for _, key := range keys {
+		jobRewardsCount++
+		parts := strings.Split(key, ":")
+		if len(parts) >= 2 {
+			contributorAddresses[parts[1]] = true
 		}
+		fmt.Printf("  %s\n", key)
 	}
 
 	fmt.Println("")

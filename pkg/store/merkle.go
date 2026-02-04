@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cloudflare/cloudflare-go"
 	"github.com/kawai-network/veridium/pkg/types"
 )
 
@@ -123,12 +122,7 @@ func (s *KVStore) SaveMerkleProofForPeriod(ctx context.Context, address string, 
 		return fmt.Errorf("failed to marshal proof data: %w", err)
 	}
 
-	_, err = s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
-		NamespaceID: s.proofsNamespaceID,
-		Key:         key,
-		Value:       value,
-	})
-	if err != nil {
+	if err := s.client.SetValue(ctx, s.proofsNamespaceID, key, value); err != nil {
 		return fmt.Errorf("failed to write proof to KV: %w", err)
 	}
 
@@ -141,10 +135,7 @@ func (s *KVStore) SaveMerkleProofForPeriod(ctx context.Context, address string, 
 func (s *KVStore) GetMerkleProofForPeriod(ctx context.Context, address string, periodID int64) (*MerkleProofData, error) {
 	key := ProofKey(address, periodID)
 
-	value, err := s.client.GetWorkersKV(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{
-		NamespaceID: s.proofsNamespaceID,
-		Key:         key,
-	})
+	value, err := s.client.GetValue(ctx, s.proofsNamespaceID, key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get proof from KV: %w", err)
 	}
@@ -162,28 +153,22 @@ func (s *KVStore) GetMerkleProofForPeriod(ctx context.Context, address string, p
 func (s *KVStore) ListMerkleProofs(ctx context.Context, address string) ([]*MerkleProofData, error) {
 	prefix := ProofPrefixForAddress(address)
 
-	resp, err := s.client.ListWorkersKVKeys(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.ListWorkersKVsParams{
-		NamespaceID: s.proofsNamespaceID,
-		Prefix:      prefix,
-	})
+	keys, err := s.client.ListKeysSimple(ctx, s.proofsNamespaceID, prefix)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list proof keys: %w", err)
 	}
 
 	var proofs []*MerkleProofData
-	for _, key := range resp.Result {
-		value, err := s.client.GetWorkersKV(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{
-			NamespaceID: s.proofsNamespaceID,
-			Key:         key.Name,
-		})
+	for _, key := range keys {
+		value, err := s.client.GetValue(ctx, s.proofsNamespaceID, key)
 		if err != nil {
-			slog.Warn("Failed to get proof for key", "key", key.Name, "error", err)
+			slog.Warn("Failed to get proof for key", "key", key, "error", err)
 			continue
 		}
 
 		var data MerkleProofData
 		if err := json.Unmarshal(value, &data); err != nil {
-			slog.Warn("Failed to unmarshal proof for key", "key", key.Name, "error", err)
+			slog.Warn("Failed to unmarshal proof for key", "key", key, "error", err)
 			continue
 		}
 
@@ -207,11 +192,7 @@ func (s *KVStore) ListMerkleProofs(ctx context.Context, address string) ([]*Merk
 func (s *KVStore) DeleteMerkleProof(ctx context.Context, address string, periodID int64) error {
 	key := ProofKey(address, periodID)
 
-	_, err := s.client.DeleteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.DeleteWorkersKVEntryParams{
-		NamespaceID: s.proofsNamespaceID,
-		Key:         key,
-	})
-	if err != nil {
+	if err := s.client.DeleteValue(ctx, s.proofsNamespaceID, key); err != nil {
 		return fmt.Errorf("failed to delete proof from KV: %w", err)
 	}
 
@@ -224,29 +205,23 @@ func (s *KVStore) CleanupOldProofs(ctx context.Context, olderThan time.Duration)
 	cutoffTime := time.Now().Add(-olderThan)
 	cutoffPeriodID := cutoffTime.Unix()
 
-	// List all proof keys (no prefix in proofs namespace)
-	resp, err := s.client.ListWorkersKVKeys(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.ListWorkersKVsParams{
-		NamespaceID: s.proofsNamespaceID,
-	})
+	// List all proof keys (no prefix in proofs namespace) with pagination
+	keys, err := s.client.ListAllKeys(ctx, s.proofsNamespaceID, "")
 	if err != nil {
 		return 0, fmt.Errorf("failed to list proof keys: %w", err)
 	}
 
 	deletedCount := 0
-	for _, key := range resp.Result {
+	for _, key := range keys {
 		// Extract period ID from key format "address:periodID"
-		_, periodID, err := ParseProofKey(key.Name)
+		_, periodID, err := ParseProofKey(key)
 		if err != nil {
 			continue
 		}
 
 		if periodID < cutoffPeriodID {
-			_, err := s.client.DeleteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.DeleteWorkersKVEntryParams{
-				NamespaceID: s.proofsNamespaceID,
-				Key:         key.Name,
-			})
-			if err != nil {
-				slog.Warn("Failed to delete old proof", "key", key.Name, "error", err)
+			if err := s.client.DeleteValue(ctx, s.proofsNamespaceID, key); err != nil {
+				slog.Warn("Failed to delete old proof", "key", key, "error", err)
 				continue
 			}
 			deletedCount++
@@ -273,12 +248,7 @@ func (s *KVStore) SaveSettlementPeriod(ctx context.Context, period *SettlementPe
 		return fmt.Errorf("failed to marshal settlement period: %w", err)
 	}
 
-	_, err = s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
-		NamespaceID: s.settlementsNamespaceID,
-		Key:         key,
-		Value:       value,
-	})
-	if err != nil {
+	if err := s.client.SetValue(ctx, s.settlementsNamespaceID, key, value); err != nil {
 		return fmt.Errorf("failed to write settlement period to KV: %w", err)
 	}
 
@@ -291,10 +261,7 @@ func (s *KVStore) SaveSettlementPeriod(ctx context.Context, period *SettlementPe
 func (s *KVStore) GetSettlementPeriod(ctx context.Context, periodID int64) (*SettlementPeriod, error) {
 	key := SettlementKey(periodID)
 
-	value, err := s.client.GetWorkersKV(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{
-		NamespaceID: s.settlementsNamespaceID,
-		Key:         key,
-	})
+	value, err := s.client.GetValue(ctx, s.settlementsNamespaceID, key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get settlement period from KV: %w", err)
 	}
@@ -309,33 +276,28 @@ func (s *KVStore) GetSettlementPeriod(ctx context.Context, periodID int64) (*Set
 
 // ListSettlementPeriods retrieves all settlement periods (sorted by period ID, newest first)
 func (s *KVStore) ListSettlementPeriods(ctx context.Context) ([]*SettlementPeriod, error) {
-	// List all keys (no prefix needed - entire namespace is settlements)
-	resp, err := s.client.ListWorkersKVKeys(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.ListWorkersKVsParams{
-		NamespaceID: s.settlementsNamespaceID,
-	})
+	// List all keys (no prefix needed - entire namespace is settlements) with pagination
+	keys, err := s.client.ListAllKeys(ctx, s.settlementsNamespaceID, "")
 	if err != nil {
 		return nil, fmt.Errorf("failed to list settlement keys: %w", err)
 	}
 
 	var periods []*SettlementPeriod
-	for _, key := range resp.Result {
+	for _, key := range keys {
 		// Skip non-settlement keys (period counters, etc.)
-		if strings.Contains(key.Name, ":") {
+		if strings.Contains(key, ":") {
 			continue
 		}
 
-		value, err := s.client.GetWorkersKV(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{
-			NamespaceID: s.settlementsNamespaceID,
-			Key:         key.Name,
-		})
+		value, err := s.client.GetValue(ctx, s.settlementsNamespaceID, key)
 		if err != nil {
-			slog.Warn("Failed to get settlement for key", "key", key.Name, "error", err)
+			slog.Warn("Failed to get settlement for key", "key", key, "error", err)
 			continue
 		}
 
 		var period SettlementPeriod
 		if err := json.Unmarshal(value, &period); err != nil {
-			slog.Warn("Failed to unmarshal settlement for key", "key", key.Name, "error", err)
+			slog.Warn("Failed to unmarshal settlement for key", "key", key, "error", err)
 			continue
 		}
 

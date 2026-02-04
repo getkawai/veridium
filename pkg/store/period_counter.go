@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/cloudflare/cloudflare-go"
 	"github.com/kawai-network/veridium/pkg/types"
 )
 
@@ -24,10 +23,7 @@ func (s *KVStore) GetNextPeriodID(ctx context.Context, rewardType types.RewardTy
 	key := fmt.Sprintf("%s:%s", PeriodCounterKey, rewardType)
 
 	// Try to get current counter
-	value, err := s.client.GetWorkersKV(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{
-		NamespaceID: s.settlementsNamespaceID,
-		Key:         key,
-	})
+	value, err := s.client.GetValue(ctx, s.settlementsNamespaceID, key)
 
 	var counter PeriodCounter
 	if err != nil {
@@ -51,11 +47,7 @@ func (s *KVStore) GetNextPeriodID(ctx context.Context, rewardType types.RewardTy
 		return 0, fmt.Errorf("failed to marshal counter: %w", err)
 	}
 
-	_, err = s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
-		NamespaceID: s.settlementsNamespaceID,
-		Key:         key,
-		Value:       data,
-	})
+	err = s.client.SetValue(ctx, s.settlementsNamespaceID, key, data)
 	if err != nil {
 		return 0, fmt.Errorf("failed to save counter: %w", err)
 	}
@@ -67,10 +59,7 @@ func (s *KVStore) GetNextPeriodID(ctx context.Context, rewardType types.RewardTy
 func (s *KVStore) GetCurrentPeriodID(ctx context.Context, rewardType types.RewardType) (int64, error) {
 	key := fmt.Sprintf("%s:%s", PeriodCounterKey, rewardType)
 
-	value, err := s.client.GetWorkersKV(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{
-		NamespaceID: s.settlementsNamespaceID,
-		Key:         key,
-	})
+	value, err := s.client.GetValue(ctx, s.settlementsNamespaceID, key)
 
 	if err != nil {
 		// No counter yet - return 0
@@ -99,11 +88,7 @@ func (s *KVStore) ResetPeriodCounter(ctx context.Context, rewardType types.Rewar
 		return fmt.Errorf("failed to marshal counter: %w", err)
 	}
 
-	_, err = s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
-		NamespaceID: s.settlementsNamespaceID,
-		Key:         key,
-		Value:       data,
-	})
+	err = s.client.SetValue(ctx, s.settlementsNamespaceID, key, data)
 
 	return err
 }

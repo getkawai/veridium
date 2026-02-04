@@ -12,7 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cloudflare/cloudflare-go"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/kawai-network/veridium/internal/constant"
@@ -640,21 +639,16 @@ func (s *KVStore) MarkProofAsClaimed(ctx context.Context, address string, period
 
 // GetPendingClaims returns all proofs with pending claim status
 func (s *KVStore) GetPendingClaims(ctx context.Context) ([]*MerkleProofData, error) {
-	// List all proof keys in proofs namespace
-	resp, err := s.client.ListWorkersKVKeys(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.ListWorkersKVsParams{
-		NamespaceID: s.proofsNamespaceID,
-	})
+	// List all proof keys in proofs namespace (with pagination)
+	keys, err := s.client.ListAllKeys(ctx, s.proofsNamespaceID, "")
 	if err != nil {
 		return nil, fmt.Errorf("failed to list proof keys: %w", err)
 	}
 
 	pendingProofs := make([]*MerkleProofData, 0)
 
-	for _, key := range resp.Result {
-		value, err := s.client.GetWorkersKV(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{
-			NamespaceID: s.proofsNamespaceID,
-			Key:         key.Name,
-		})
+	for _, key := range keys {
+		value, err := s.client.GetValue(ctx, s.proofsNamespaceID, key)
 		if err != nil {
 			continue
 		}

@@ -10,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cloudflare/cloudflare-go"
 	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/pkg/config"
 	"github.com/kawai-network/veridium/pkg/types"
@@ -75,11 +74,7 @@ func (s *KVStore) SaveContributor(ctx context.Context, data *ContributorData) er
 		return fmt.Errorf("failed to marshal contributor data: %w", err)
 	}
 
-	_, err = s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
-		NamespaceID: s.contributorsNamespaceID,
-		Key:         key,
-		Value:       value,
-	})
+	err = s.client.SetValue(ctx, s.contributorsNamespaceID, key, value)
 	if err != nil {
 		return fmt.Errorf("failed to write to KV: %w", err)
 	}
@@ -93,10 +88,7 @@ func (s *KVStore) SaveContributor(ctx context.Context, data *ContributorData) er
 func (s *KVStore) GetContributor(ctx context.Context, address string) (*ContributorData, error) {
 	key := ContributorKey(address)
 
-	value, err := s.client.GetWorkersKV(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{
-		NamespaceID: s.contributorsNamespaceID,
-		Key:         key,
-	})
+	value, err := s.client.GetValue(ctx, s.contributorsNamespaceID, key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get from KV: %w", err)
 	}
@@ -111,24 +103,22 @@ func (s *KVStore) GetContributor(ctx context.Context, address string) (*Contribu
 
 // ListContributors returns all contributors (no prefix needed - entire namespace is contributors)
 func (s *KVStore) ListContributors(ctx context.Context) ([]*ContributorData, error) {
-	resp, err := s.client.ListWorkersKVKeys(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.ListWorkersKVsParams{
-		NamespaceID: s.contributorsNamespaceID,
-	})
+	result, err := s.client.ListKeys(ctx, s.contributorsNamespaceID, "", "")
 	if err != nil {
 		return nil, fmt.Errorf("failed to list keys: %w", err)
 	}
 
 	var contributors []*ContributorData
-	for _, key := range resp.Result {
+	for _, keyInfo := range result.Result {
 		// Skip non-contributor keys (job_rewards:*, balance:*, etc.)
 		// Contributor profile keys are just addresses (0x...), no colons
-		if strings.Contains(key.Name, ":") {
+		if strings.Contains(keyInfo.Name, ":") {
 			continue
 		}
 
-		data, err := s.GetContributor(ctx, key.Name)
+		data, err := s.GetContributor(ctx, keyInfo.Name)
 		if err != nil {
-			slog.Warn("Failed to get contributor data", "key", key.Name, "error", err)
+			slog.Warn("Failed to get contributor data", "key", keyInfo.Name, "error", err)
 			continue
 		}
 		contributors = append(contributors, data)

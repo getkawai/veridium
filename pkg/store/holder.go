@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-
-	"github.com/cloudflare/cloudflare-go"
 )
 
 // HolderInfo represents information about a KAWAI holder
@@ -27,11 +25,7 @@ func (s *KVStore) SaveHolder(ctx context.Context, address string, info *HolderIn
 		return fmt.Errorf("failed to marshal holder info: %w", err)
 	}
 
-	_, err = s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
-		NamespaceID: s.holderNamespaceID,
-		Key:         key,
-		Value:       data,
-	})
+	err = s.client.SetValue(ctx, s.holderNamespaceID, key, data)
 	if err != nil {
 		return fmt.Errorf("failed to write holder data to KV: %w", err)
 	}
@@ -42,10 +36,7 @@ func (s *KVStore) SaveHolder(ctx context.Context, address string, info *HolderIn
 func (s *KVStore) GetHolder(ctx context.Context, address string) (*HolderInfo, error) {
 	key := fmt.Sprintf("holder:%s", address)
 
-	value, err := s.client.GetWorkersKV(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{
-		NamespaceID: s.holderNamespaceID,
-		Key:         key,
-	})
+	value, err := s.client.GetValue(ctx, s.holderNamespaceID, key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get holder data from KV: %w", err)
 	}
@@ -66,25 +57,14 @@ func (s *KVStore) ListHolders(ctx context.Context) ([]*HolderInfo, error) {
 	cursor := ""
 
 	for {
-		params := cloudflare.ListWorkersKVsParams{
-			NamespaceID: s.holderNamespaceID,
-			Prefix:      prefix,
-		}
-		if cursor != "" {
-			params.Cursor = cursor
-		}
-
-		resp, err := s.client.ListWorkersKVKeys(ctx, cloudflare.AccountIdentifier(s.accountID), params)
+		result, err := s.client.ListKeys(ctx, s.holderNamespaceID, prefix, cursor)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list holder keys: %w", err)
 		}
 
 		// Process this page
-		for _, keyInfo := range resp.Result {
-			value, err := s.client.GetWorkersKV(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{
-				NamespaceID: s.holderNamespaceID,
-				Key:         keyInfo.Name,
-			})
+		for _, keyInfo := range result.Result {
+			value, err := s.client.GetValue(ctx, s.holderNamespaceID, keyInfo.Name)
 			if err != nil {
 				slog.Warn("Failed to get holder data", "key", keyInfo.Name, "error", err)
 				continue
@@ -99,10 +79,10 @@ func (s *KVStore) ListHolders(ctx context.Context) ([]*HolderInfo, error) {
 		}
 
 		// Check if there are more pages
-		if resp.ResultInfo.Cursor == "" {
+		if result.ResultInfo.Cursor == "" {
 			break
 		}
-		cursor = resp.ResultInfo.Cursor
+		cursor = result.ResultInfo.Cursor
 	}
 
 	return holders, nil
@@ -112,10 +92,7 @@ func (s *KVStore) ListHolders(ctx context.Context) ([]*HolderInfo, error) {
 func (s *KVStore) DeleteHolder(ctx context.Context, address string) error {
 	key := fmt.Sprintf("holder:%s", address)
 
-	_, err := s.client.DeleteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.DeleteWorkersKVEntryParams{
-		NamespaceID: s.holderNamespaceID,
-		Key:         key,
-	})
+	err := s.client.DeleteValue(ctx, s.holderNamespaceID, key)
 	if err != nil {
 		return fmt.Errorf("failed to delete holder data from KV: %w", err)
 	}
@@ -129,26 +106,18 @@ func (s *KVStore) GetHolderCount(ctx context.Context) (int, error) {
 	cursor := ""
 
 	for {
-		params := cloudflare.ListWorkersKVsParams{
-			NamespaceID: s.holderNamespaceID,
-			Prefix:      prefix,
-		}
-		if cursor != "" {
-			params.Cursor = cursor
-		}
-
-		resp, err := s.client.ListWorkersKVKeys(ctx, cloudflare.AccountIdentifier(s.accountID), params)
+		result, err := s.client.ListKeys(ctx, s.holderNamespaceID, prefix, cursor)
 		if err != nil {
 			return 0, fmt.Errorf("failed to count holders: %w", err)
 		}
 
-		totalCount += len(resp.Result)
+		totalCount += result.ResultInfo.Count
 
 		// Check if there are more pages
-		if resp.ResultInfo.Cursor == "" {
+		if result.ResultInfo.Cursor == "" {
 			break
 		}
-		cursor = resp.ResultInfo.Cursor
+		cursor = result.ResultInfo.Cursor
 	}
 
 	return totalCount, nil

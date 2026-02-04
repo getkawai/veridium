@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/cloudflare/cloudflare-go"
 	"github.com/kawai-network/veridium/internal/constant"
 )
 
@@ -29,27 +28,16 @@ func (s *KVStore) CreateAPIKey(ctx context.Context, address string) (*APIKey, er
 
 	// Store in both namespaces:
 	// 1. Apikey namespace: apikey -> address
-	_, err := s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
-		NamespaceID: constant.GetCfKvApikeyNamespaceId(),
-		Key:         apiKey,
-		Value:       []byte(address),
-	})
+	err := s.client.SetValue(ctx, constant.GetCfKvApikeyNamespaceId(), apiKey, []byte(address))
 	if err != nil {
 		return nil, fmt.Errorf("failed to store API key: %w", err)
 	}
 
 	// 2. Authz namespace: address -> apikey (reverse index)
-	_, err = s.client.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
-		NamespaceID: s.authzNamespaceID,
-		Key:         address,
-		Value:       []byte(apiKey),
-	})
+	err = s.client.SetValue(ctx, s.authzNamespaceID, address, []byte(apiKey))
 	if err != nil {
 		// Rollback: delete from apikey namespace if authz write fails
-		s.client.DeleteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.DeleteWorkersKVEntryParams{
-			NamespaceID: constant.GetCfKvApikeyNamespaceId(),
-			Key:         apiKey,
-		})
+		_ = s.client.DeleteValue(ctx, constant.GetCfKvApikeyNamespaceId(), apiKey)
 		return nil, fmt.Errorf("failed to store reverse index: %w", err)
 	}
 
@@ -61,10 +49,7 @@ func (s *KVStore) CreateAPIKey(ctx context.Context, address string) (*APIKey, er
 
 // GetAPIKey retrieves the wallet address associated with an API key
 func (s *KVStore) GetAPIKey(ctx context.Context, apiKey string) (string, error) {
-	value, err := s.client.GetWorkersKV(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{
-		NamespaceID: constant.GetCfKvApikeyNamespaceId(),
-		Key:         apiKey,
-	})
+	value, err := s.client.GetValue(ctx, constant.GetCfKvApikeyNamespaceId(), apiKey)
 	if err != nil {
 		return "", fmt.Errorf("API key not found: %w", err)
 	}
@@ -101,19 +86,13 @@ func (s *KVStore) RevokeAPIKey(ctx context.Context, apiKey string) error {
 
 	// Delete from both namespaces:
 	// 1. Delete from apikey namespace
-	_, err = s.client.DeleteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.DeleteWorkersKVEntryParams{
-		NamespaceID: constant.GetCfKvApikeyNamespaceId(),
-		Key:         apiKey,
-	})
+	err = s.client.DeleteValue(ctx, constant.GetCfKvApikeyNamespaceId(), apiKey)
 	if err != nil {
 		return fmt.Errorf("failed to revoke API key: %w", err)
 	}
 
 	// 2. Delete from authz namespace (reverse index)
-	_, err = s.client.DeleteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.DeleteWorkersKVEntryParams{
-		NamespaceID: s.authzNamespaceID,
-		Key:         address,
-	})
+	err = s.client.DeleteValue(ctx, s.authzNamespaceID, address)
 	if err != nil {
 		// Note: We don't rollback here since the main apikey is already deleted
 		// This is acceptable for the reverse index
@@ -125,10 +104,7 @@ func (s *KVStore) RevokeAPIKey(ctx context.Context, apiKey string) error {
 
 // GetAPIKeyByAddress retrieves the API key associated with a wallet address (using reverse index)
 func (s *KVStore) GetAPIKeyByAddress(ctx context.Context, address string) (string, error) {
-	value, err := s.client.GetWorkersKV(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{
-		NamespaceID: s.authzNamespaceID,
-		Key:         address,
-	})
+	value, err := s.client.GetValue(ctx, s.authzNamespaceID, address)
 	if err != nil {
 		return "", fmt.Errorf("API key not found for address: %w", err)
 	}
