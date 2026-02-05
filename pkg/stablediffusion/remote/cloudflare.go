@@ -52,7 +52,6 @@ func (g *CloudflareGenerator) IsAvailable() bool {
 func (g *CloudflareGenerator) GetAvailableModels() []string {
 	return []string{
 		"@cf/black-forest-labs/flux-1-schnell",
-		"@cf/black-forest-labs/flux-2-klein-9b",
 	}
 }
 
