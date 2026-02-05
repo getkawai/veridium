@@ -7,8 +7,6 @@ This package provides image generation capabilities with support for both local 
 ```
 internal/image/
 ├── service.go              # High-level orchestration service
-├── local.go                # Local SD binary execution
-├── remote.go               # Remote API generation (Gemini, Pollinations)
 ├── generation.go           # Common types and interfaces
 ├── manager.go              # Binary lifecycle management
 ├── models.go               # Model specifications
@@ -28,9 +26,9 @@ The package is organized into three main layers:
    - Topic/WebSocket notifications
    - Batch management
 
-2. **Generation Layer** (`local.go`, `remote.go`)
-   - **LocalGenerator**: Executes local Stable Diffusion binary
-   - **RemoteGenerator**: Calls remote APIs (Gemini, Pollinations)
+2. **Generation Layer** (Delegated to `pkg/stablediffusion`)
+   - **Local Generation**: Uses `pkg/stablediffusion/local`
+   - **Remote Generation**: Uses `pkg/stablediffusion/remote`
    - Clean separation allows easy testing and provider switching
 
 3. **Management Layer** (`manager.go`, `manager_*.go`)
@@ -43,51 +41,19 @@ The package is organized into three main layers:
 ### Using Local Generation
 
 ```go
-// Create local generator
-engine := image.NewEngine()
-localGen := image.NewLocalGenerator(engine)
+// Use pkg/stablediffusion/local directly
+import "github.com/kawai-network/veridium/pkg/stablediffusion/local"
 
-// Check if binary is available
-if !localGen.IsAvailable() {
-    log.Fatal("SD binary not found")
-}
-
-// Generate image
-opts := image.GenerationOptions{
-    Prompt:     "a beautiful landscape",
-    ModelPath:  localGen.GetFirstAvailableModel(),
-    OutputPath: "output.png",
-    Width:      1024,
-    Height:     1024,
-    Steps:      20,
-    Cfg:        7.0,
-}
-
-err := localGen.Generate(context.Background(), opts)
+// ... usage details refer to pkg/stablediffusion/local/README.md
 ```
 
 ### Using Remote Generation
 
 ```go
-// Create remote generator
-remoteGen := image.NewRemoteGenerator()
+// Use pkg/stablediffusion/remote directly
+import "github.com/kawai-network/veridium/pkg/stablediffusion/remote"
 
-// Check if API keys are available
-if !remoteGen.IsAvailable() {
-    log.Fatal("No API keys configured")
-}
-
-// Generate image
-opts := image.GenerationOptions{
-    Prompt:      "a beautiful landscape",
-    Model:       "gemini-2.5-flash",
-    OutputPath:  "output.png",
-    Width:       1024,
-    Height:      1024,
-    AspectRatio: "16:9",
-}
-
-err := remoteGen.Generate(context.Background(), opts)
+// ... usage details refer to pkg/stablediffusion/remote/README.md
 ```
 
 ### Using Service (Recommended for Web Apps)

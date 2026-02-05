@@ -19,6 +19,7 @@ import (
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/internal/paths"
 	"github.com/kawai-network/veridium/internal/topic"
+	"github.com/kawai-network/veridium/pkg/stablediffusion/local"
 )
 
 // Service handles high-level image generation operations with database persistence
@@ -43,7 +44,11 @@ func (s *Service) SetTopicService(ts *topic.TopicService) {
 
 // GetFirstAvailableModel returns the first available SD model
 func (s *Service) GetFirstAvailableModel() string {
-	localGen := NewLocalGenerator(s.StableDiffusion)
+	binaryPath := s.StableDiffusion.getBinaryPath()
+	modelsPath := s.StableDiffusion.GetModelsPath()
+
+	// Use local.NewGeneratorWithExecutor to preserve process tracking for cleanup
+	localGen := local.NewGeneratorWithExecutor(binaryPath, modelsPath, s.StableDiffusion.Executor)
 	return localGen.GetFirstAvailableModel()
 }
 

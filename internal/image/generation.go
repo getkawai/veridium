@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+
+	"github.com/kawai-network/veridium/pkg/stablediffusion/remote"
 )
 
 // RuntimeImageGenParams matches frontend model-bank/standard-parameters RuntimeImageGenParams
@@ -67,8 +69,31 @@ func (sdrm *StableDiffusion) CreateImageWithOptions(opts GenerationOptions) erro
 	ctx := context.Background()
 
 	// Use remote generation by default (Gemini API)
-	remoteGen := NewRemoteGenerator()
-	return remoteGen.Generate(ctx, opts)
+	remoteGen := remote.NewGenerator()
+
+	// Convert to remote.GenerationOptions
+	remoteOpts := remote.GenerationOptions{
+		Prompt:         opts.Prompt,
+		NegativePrompt: opts.NegativePrompt,
+		Model:          opts.Model,
+		OutputPath:     opts.OutputPath,
+		ImageUrl:       opts.ImageUrl,
+		ImageUrls:      opts.ImageUrls,
+		Width:          opts.Width,
+		Height:         opts.Height,
+		Size:           opts.Size,
+		AspectRatio:    opts.AspectRatio,
+		Steps:          opts.Steps,
+		Cfg:            opts.Cfg,
+		Strength:       opts.Strength,
+		Seed:           opts.Seed,
+		Quality:        opts.Quality,
+		SamplerName:    opts.SamplerName,
+		Scheduler:      opts.Scheduler,
+		OutputFormat:   opts.OutputFormat,
+	}
+
+	return remoteGen.Generate(ctx, remoteOpts)
 }
 
 // generateImageRemote generates an image using remote APIs (wrapper for backward compatibility)
