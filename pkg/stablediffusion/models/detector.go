@@ -279,7 +279,7 @@ func generateModelIDFromPath(path string) string {
 }
 
 // AutoRegister scans a directory and registers all detected models
-func AutoRegister(registry *Registry, dir string, recursive bool) error {
+func AutoRegister(registry Registry, dir string, recursive bool) error {
 	detector := NewDetector()
 	models, err := detector.DetectDirectory(dir, recursive)
 	if err != nil {
