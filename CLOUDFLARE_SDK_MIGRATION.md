@@ -1,7 +1,7 @@
 # Cloudflare Go SDK Migration Guide
 ## v0.114.0 → v6.6.0
 
-### Migration Status: 60% Complete
+### Migration Status: 75% Complete
 
 ## ✅ Completed Files
 1. `go.mod` - Updated dependency
@@ -12,6 +12,7 @@
 6. `pkg/store/apikey.go` - All operations migrated
 7. `pkg/store/holder.go` - All operations migrated
 8. `pkg/store/marketplace.go` - All operations migrated
+9. `pkg/stablediffusion/remote/cloudflare.go` - New image generator using v6
 
 ## ⚠️ Remaining Files (Need Migration)
 

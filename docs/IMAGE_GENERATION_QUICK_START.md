@@ -35,7 +35,13 @@ err := service.CreateImage(req)
 Model: "gemini-2.5-flash"  // 1024px, fast
 ```
 
-### High Quality
+### High Quality (Flux)
+```go
+Model: "@cf/black-forest-labs/flux-1-schnell"  // High quality, fast
+Model: "@cf/black-forest-labs/flux-2-klein-9b" // Balanced quality/speed
+```
+
+### High Quality (Gemini)
 ```go
 Model: "gemini-3-pro"      // Up to 4K, slower
 Quality: "hd"              // 2K resolution
@@ -218,23 +224,22 @@ if err != nil {
 ## 🔐 API Keys
 
 API keys are automatically managed:
-- Pool of 5 keys for load balancing
-- Random selection per request
-- Configured in `internal/constant/llm.go`
+- **Gemini**: Pool of 5 keys for load balancing.
+- **Cloudflare**: Account IDs and Tokens managed with rotation.
+- Configured in `internal/constant/llm.go`.
 
 No manual key management needed! 🎉
 
 ## 🐛 Troubleshooting
 
-### Issue: "No Gemini API key available"
-**Solution**: Check `internal/constant/llm.go` has valid keys
+### Issue: "No API key available" (Gemini/Cloudflare)
+**Solution**: Check `internal/constant/llm.go` has valid keys configured.
 
 ### Issue: "No image data returned"
 **Solution**: 
-- Check prompt is valid
-- Verify API key is working
-- Check logs for API errors
-
+- Check prompt is valid.
+- Verify API keys are working.
+- Check logs for provider errors (e.g., `grep "[RemoteGen]" logs/app.log`).
 ### Issue: Generation takes too long
 **Solution**:
 - Use `gemini-2.5-flash` instead of `gemini-3-pro`

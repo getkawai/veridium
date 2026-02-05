@@ -5,8 +5,9 @@ This package provides remote image generation capabilities using various AI APIs
 ## Features
 
 - **Gemini API**: Google's Gemini 2.5 Flash for high-quality image generation
+- **Cloudflare Workers AI**: Fast and high-quality generation using Flux models
 - **Pollinations AI**: Free fallback service with multiple models
-- **Automatic Fallback**: Seamlessly switches between providers
+- **Automatic Fallback**: Seamlessly switches between providers (Gemini -> Cloudflare -> Pollinations)
 - **Aspect Ratio Support**: Intelligent aspect ratio calculation
 - **Context Support**: Proper timeout and cancellation handling
 
@@ -44,6 +45,10 @@ if err != nil {
 gemini := remote.NewGeminiGenerator()
 err := gemini.Generate(ctx, opts)
 
+// Use Cloudflare specifically
+cloudflare := remote.NewCloudflareGenerator()
+err := cloudflare.Generate(ctx, opts)
+
 // Use Pollinations specifically
 pollinations := remote.NewPollinationsGenerator()
 err := pollinations.Generate(ctx, opts)
@@ -54,7 +59,7 @@ err := pollinations.Generate(ctx, opts)
 ```go
 gen := remote.NewGenerator()
 
-// Automatically tries Gemini first, falls back to Pollinations
+// Automatically tries Gemini first, falls back to Cloudflare, then Pollinations
 err := gen.GenerateWithFallback(ctx, opts)
 ```
 
@@ -63,6 +68,10 @@ err := gen.GenerateWithFallback(ctx, opts)
 ### Gemini Models
 - `gemini-2.5-flash` - Fast generation, 1024px
 - `gemini-2.5-flash-image` - Explicit image model
+
+### Cloudflare Models
+- `@cf/black-forest-labs/flux-1-schnell` - High quality, fast
+- `@cf/black-forest-labs/flux-2-klein-9b` - Balanced quality and speed
 
 ### Pollinations Models
 - `flux` - Default model
@@ -104,8 +113,13 @@ Gemini API keys are managed through `internal/constant/llm.go`. The package auto
 - Handles rate limiting
 - Falls back to Pollinations if no keys available
 
-### Pollinations
+### Cloudflare API
+Cloudflare credentials are managed through `internal/constant/llm.go` via `GetRandomCloudflareApiKey()`.
+- Uses a pool of account IDs and API tokens
+- Format: `ACCOUNT_ID:API_TOKEN`
+- Automatically rotates between available keys
 
+### Pollinations
 No API key required - it's a free service.
 
 ## Error Handling

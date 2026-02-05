@@ -103,17 +103,21 @@ All smart contracts are deployed on **Monad Blockchain** (Testnet).
   - `gemini-2.5-flash-image` (Nano Banana) - Fast generation, 1024px resolution
   - `gemini-3-pro-image-preview` (Nano Banana Pro) - High quality, up to 4K resolution
   
-- **Flexible Configuration:**
-  - 10 aspect ratios supported (1:1, 16:9, 9:16, 4:3, 3:4, etc.)
-  - Quality tiers: Standard (1K), HD (2K), Ultra (4K)
-  - Priority-based model selection (explicit model > quality > default)
+- **Multi-Provider Support:**
+  - **Gemini API** - High-quality image generation with Google's latest models.
+  - **Cloudflare Workers AI** - Fast, production-ready Flux models.
+  - **Pollinations AI** - Reliable fallback service for diverse model support.
+  
+- **Priority-Based Selection:**
+  - Seamlessly switches between providers (Gemini -> Cloudflare -> Pollinations).
+  - 10+ aspect ratios supported (1:1, 16:9, 9:16, 4:3, 3:4, etc.).
+  - Quality tiers: Standard (1K), HD (2K), Ultra (4K).
   
 - **Production Features:**
-  - Thread-safe concurrent generation
-  - API key pool with automatic rotation (5 keys)
-  - Context timeout protection (120 seconds)
-  - Comprehensive error handling
-  - Enhanced logging with `[Gemini]` prefix
+  - Thread-safe concurrent generation.
+  - API key pool with automatic rotation and obfuscation.
+  - Context timeout protection and comprehensive error handling.
+  - Enhanced logging with provider-specific prefixes (`[Gemini]`, `[CloudflareGen]`).
 
 ### Documentation
 - 📖 [Full Implementation Guide](GEMINI_IMAGE_GENERATION.md)
