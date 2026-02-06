@@ -1146,6 +1146,31 @@ contributor-build:
 	@go build -o $(CONTRIBUTOR_BIN) ./$(CONTRIBUTOR_SRC)
 	@echo "✅ Built: $(CONTRIBUTOR_BIN)"
 
+# Build optimized contributor binary (smaller size)
+contributor-build-optimized:
+	@echo "🔨 Building optimized contributor binary..."
+	@mkdir -p bin
+	@go build -ldflags="-s -w" -trimpath -o $(CONTRIBUTOR_BIN) ./$(CONTRIBUTOR_SRC)
+	@echo "✅ Built (optimized): $(CONTRIBUTOR_BIN)"
+	@ls -lh $(CONTRIBUTOR_BIN)
+
+# Build and compress with UPX (smallest size, requires UPX installed)
+contributor-build-compressed:
+	@echo "🔨 Building and compressing contributor binary..."
+	@mkdir -p bin
+	@go build -ldflags="-s -w" -trimpath -o $(CONTRIBUTOR_BIN) ./$(CONTRIBUTOR_SRC)
+	@echo "📦 Original size:"
+	@ls -lh $(CONTRIBUTOR_BIN)
+	@if command -v upx >/dev/null 2>&1; then \
+		echo "🗜️  Compressing with UPX..."; \
+		upx --best --lzma $(CONTRIBUTOR_BIN); \
+		echo "✅ Compressed size:"; \
+		ls -lh $(CONTRIBUTOR_BIN); \
+	else \
+		echo "⚠️  UPX not installed. Skipping compression."; \
+		echo "   Install with: brew install upx (macOS) or apt install upx (Linux)"; \
+	fi
+
 # Dev mode with hot reload
 contributor-dev:
 	@echo "🔥 Starting contributor node (dev mode)..."

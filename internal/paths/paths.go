@@ -174,6 +174,9 @@ func KBAssets() string { return filepath.Join(Base(), "kb-assets") }
 // FileBase returns path to file uploads directory
 func FileBase() string { return filepath.Join(Base(), "files") }
 
+// ContributorLog returns path to contributor server log file
+func ContributorLog() string { return filepath.Join(Base(), "logs", "contributor.log") }
+
 // =============================================================================
 // Jarvis-specific paths (blockchain/wallet)
 // =============================================================================

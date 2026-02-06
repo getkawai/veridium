@@ -144,6 +144,10 @@ make contracts-clean     # Clean contract artifacts
 ### Logging
 - Use `log` or `slog` for structured logging
 - Include context in messages
+- Contributor server logs to file automatically: `{Base}/logs/contributor.log`
+- Structured JSON logs only (slog) - dependency logs stay in terminal
+- Automatic rotation: 100 MB, 3 backups, 28 days, gzip compression
+- See `cmd/server/CONTRIBUTOR_LOGGING_GUIDE.md` for complete implementation details
 
 ### File Organization
 - `main.go` at root

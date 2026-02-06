@@ -68,6 +68,9 @@ func StartCommand(args []string) error {
 func Run(showHelp bool) error {
 	var log *logger.Logger
 
+	// Configure log writer (before Sentry init so we can log to file immediately)
+	logWriter := logger.NewWriter(paths.ContributorLog())
+
 	// Initialize Sentry
 	err := sentry.Init(sentry.ClientOptions{
 		Dsn:              SentryDSN,
@@ -90,7 +93,7 @@ func Run(showHelp bool) error {
 	// Setup logger with Sentry
 	var sentryHandler slog.Handler
 	if err == nil {
-		baseHandler := slog.NewJSONHandler(os.Stdout, nil)
+		baseHandler := slog.NewJSONHandler(logWriter, nil)
 		sentryHandler = pkglogger.NewSentryHandler(baseHandler)
 	}
 
@@ -101,12 +104,12 @@ func Run(showHelp bool) error {
 	}
 
 	if sentryHandler != nil {
-		log = logger.NewWithSentry(os.Stdout, logger.LevelInfo, "KRONK", web.GetTraceID, sentryHandler)
+		log = logger.NewWithSentry(logWriter, logger.LevelInfo, "KRONK", web.GetTraceID, sentryHandler)
 	} else {
-		log = logger.NewWithEvents(os.Stdout, logger.LevelInfo, "KRONK", web.GetTraceID, events)
+		log = logger.NewWithEvents(logWriter, logger.LevelInfo, "KRONK", web.GetTraceID, events)
 	}
 
-	log.Info(context.Background(), "sentry", "enabled", err == nil)
+	log.Info(context.Background(), "logging", "file", paths.ContributorLog())
 
 	// -------------------------------------------------------------------------
 

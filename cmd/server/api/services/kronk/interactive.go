@@ -6,7 +6,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/tyler-smith/go-bip39"
 	"golang.org/x/term"
 )
 
@@ -30,24 +29,6 @@ func promptInput(prompt string) (string, error) {
 		return "", err
 	}
 	return strings.TrimSpace(input), nil
-}
-
-// promptYesNo prompts for yes/no confirmation
-func promptYesNo(prompt string) bool {
-	for {
-		input, err := promptInput(prompt + " (y/n): ")
-		if err != nil {
-			return false
-		}
-		input = strings.ToLower(input)
-		if input == "y" || input == "yes" {
-			return true
-		}
-		if input == "n" || input == "no" {
-			return false
-		}
-		fmt.Println("Please enter 'y' or 'n'")
-	}
 }
 
 // promptChoice prompts for a choice from options
@@ -90,50 +71,7 @@ func printSuccess(msg string) {
 	fmt.Printf("\n✅ %s\n\n", msg)
 }
 
-// printError prints error message
-func printError(msg string) {
-	fmt.Printf("\n❌ %s\n\n", msg)
-}
-
-// printWarning prints warning message
-func printWarning(msg string) {
-	fmt.Printf("\n⚠️  %s\n\n", msg)
-}
-
 // printInfo prints info message
 func printInfo(msg string) {
 	fmt.Printf("\nℹ️  %s\n\n", msg)
-}
-
-// printMnemonic prints mnemonic with warning
-func printMnemonic(mnemonic string) {
-	fmt.Println("\n╔═══════════════════════════════════════════════════════════╗")
-	fmt.Println("║                  ⚠️  SAVE YOUR MNEMONIC ⚠️                 ║")
-	fmt.Println("╚═══════════════════════════════════════════════════════════╝")
-	fmt.Println()
-	fmt.Printf("  %s\n", mnemonic)
-	fmt.Println()
-	fmt.Println("⚠️  IMPORTANT:")
-	fmt.Println("  • Write these words down on paper")
-	fmt.Println("  • Store in a secure location")
-	fmt.Println("  • NEVER share with anyone")
-	fmt.Println("  • Anyone with these words can access your funds")
-	fmt.Println()
-}
-
-// validatePassword validates password strength
-func validatePassword(password string) error {
-	if len(password) < 8 {
-		return fmt.Errorf("password must be at least 8 characters")
-	}
-	return nil
-}
-
-// validateMnemonic validates mnemonic phrase using BIP39
-func validateMnemonic(mnemonic string) error {
-	mnemonic = strings.TrimSpace(mnemonic)
-	if !bip39.IsMnemonicValid(mnemonic) {
-		return fmt.Errorf("invalid mnemonic phrase (BIP39 validation failed)")
-	}
-	return nil
 }

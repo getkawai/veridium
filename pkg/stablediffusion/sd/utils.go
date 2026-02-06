@@ -95,8 +95,18 @@ func GetSDLibPath(libName string) string {
 	libDir := paths.Libraries()
 
 	libPath := filepath.Join(libDir, libName)
-	fmt.Println("Loading stable-diffusion library: " + libPath)
-	return libPath
+
+	// Convert to absolute path to ensure dynamic linker can resolve it
+	// This is critical for dlopen/purego which may not resolve relative paths correctly
+	absPath, err := filepath.Abs(libPath)
+	if err != nil {
+		fmt.Printf("Warning: Failed to get absolute path for %s: %v\n", libPath, err)
+		fmt.Println("Loading stable-diffusion library: " + libPath)
+		return libPath
+	}
+
+	fmt.Println("Loading stable-diffusion library: " + absPath)
+	return absPath
 }
 
 // SaveImage saves SDImage as PNG file
