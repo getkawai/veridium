@@ -1,4 +1,4 @@
-name: Release Node (cmd/server)
+name: Release Contributor (cmd/server)
 
 on:
   # push:
@@ -35,35 +35,35 @@ jobs:
         id: get_version
         run: |
           # Hardcoded version for testing
-          echo "version=0.1.5" >> $GITHUB_OUTPUT
+          echo "version=0.1.7" >> $GITHUB_OUTPUT
 
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: node-v${{ steps.get_version.outputs.version }}
-          name: Kawai Node v${{ steps.get_version.outputs.version }}
+          tag_name: contributor-v${{ steps.get_version.outputs.version }}
+          name: Kawai Contributor v${{ steps.get_version.outputs.version }}
           draft: true
           prerelease: false
           body: |
-            ## 🎉 Kawai Node v${{ steps.get_version.outputs.version }}
+            ## 🎉 Kawai Contributor v${{ steps.get_version.outputs.version }}
 
-            Kawai Node is the OpenAI-compatible model server for GPU contributors.
+            Kawai Contributor is the OpenAI-compatible model server for GPU contributors.
 
             ### 📦 Downloads
 
             Choose the appropriate binary for your platform:
 
-            - **Linux AMD64**: `kawai-node-${{ steps.get_version.outputs.version }}-linux-amd64.tar.gz`
-            - **Linux ARM64**: `kawai-node-${{ steps.get_version.outputs.version }}-linux-arm64.tar.gz`
-            - **macOS AMD64**: `kawai-node-${{ steps.get_version.outputs.version }}-darwin-amd64.tar.gz`
-            - **macOS ARM64**: `kawai-node-${{ steps.get_version.outputs.version }}-darwin-arm64.tar.gz`
-            - **Windows AMD64**: `kawai-node-${{ steps.get_version.outputs.version }}-windows-amd64.zip`
+            - **Linux AMD64**: `kawai-contributor-${{ steps.get_version.outputs.version }}-linux-amd64.tar.gz`
+            - **Linux ARM64**: `kawai-contributor-${{ steps.get_version.outputs.version }}-linux-arm64.tar.gz`
+            - **macOS AMD64**: `kawai-contributor-${{ steps.get_version.outputs.version }}-darwin-amd64.tar.gz`
+            - **macOS ARM64**: `kawai-contributor-${{ steps.get_version.outputs.version }}-darwin-arm64.tar.gz`
+            - **Windows AMD64**: `kawai-contributor-${{ steps.get_version.outputs.version }}-windows-amd64.zip`
 
             ### 🚀 Quick Install
 
             ```bash
-            curl -fsSL https://getkawai.com/node | sh
+            curl -fsSL https://getkawai.com/contributor | sh
             ```
 
             ### 🔐 Verification
@@ -112,28 +112,28 @@ jobs:
           CGO_ENABLED: 1
         run: |
           mkdir -p bin
-          go build -ldflags "-s -w -X main.version=${{ needs.prepare.outputs.version }}" \
-            -o bin/kawai-node ./cmd/server
+          go build -ldflags "-s -w -X github.com/kawai-network/veridium/cmd/server/api/services/kronk.tag=production" \
+            -o bin/kawai-contributor ./cmd/server
 
       - name: Create distribution archive
         run: |
           cd bin
           VERSION="${{ needs.prepare.outputs.version }}"
-          tar -czf "kawai-node-${VERSION}-linux-${{ matrix.arch }}.tar.gz" kawai-node
-          sha256sum "kawai-node-${VERSION}-linux-${{ matrix.arch }}.tar.gz" > "checksums-linux-${{ matrix.arch }}.txt"
+          tar -czf "kawai-contributor-${VERSION}-linux-${{ matrix.arch }}.tar.gz" kawai-contributor
+          sha256sum "kawai-contributor-${VERSION}-linux-${{ matrix.arch }}.tar.gz" > "checksums-linux-${{ matrix.arch }}.txt"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: linux-build-${{ matrix.arch }}
           path: |
-            bin/kawai-node-*.tar.gz
+            bin/kawai-contributor-*.tar.gz
             bin/checksums-linux-*.txt
 
       - name: Prepare R2 upload
         run: |
           mkdir -p r2-upload
-          cp bin/kawai-node-*.tar.gz r2-upload/
+          cp bin/kawai-contributor-*.tar.gz r2-upload/
           cp bin/checksums-linux-*.txt r2-upload/
 
       - name: Upload to Cloudflare R2
@@ -144,7 +144,7 @@ jobs:
           r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           r2-bucket: ${{ env.R2_BUCKET }}
           source-dir: r2-upload
-          destination-dir: ${{ needs.prepare.outputs.version }}/node
+          destination-dir: ${{ needs.prepare.outputs.version }}/contributor
           output-file-url: true
           
 
@@ -177,28 +177,28 @@ jobs:
           CGO_ENABLED: 1
         run: |
           mkdir -p bin
-          go build -ldflags "-s -w -X main.version=${{ needs.prepare.outputs.version }} -extldflags '-mmacosx-version-min=12.0'" \
-            -o bin/kawai-node ./cmd/server
+          go build -ldflags "-s -w -X github.com/kawai-network/veridium/cmd/server/api/services/kronk.tag=production -extldflags '-mmacosx-version-min=12.0'" \
+            -o bin/kawai-contributor ./cmd/server
 
       - name: Create distribution archive
         run: |
           cd bin
           VERSION="${{ needs.prepare.outputs.version }}"
-          tar -czf "kawai-node-${VERSION}-darwin-${{ matrix.arch }}.tar.gz" kawai-node
-          shasum -a 256 "kawai-node-${VERSION}-darwin-${{ matrix.arch }}.tar.gz" > "checksums-darwin-${{ matrix.arch }}.txt"
+          tar -czf "kawai-contributor-${VERSION}-darwin-${{ matrix.arch }}.tar.gz" kawai-contributor
+          shasum -a 256 "kawai-contributor-${VERSION}-darwin-${{ matrix.arch }}.tar.gz" > "checksums-darwin-${{ matrix.arch }}.txt"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: darwin-build-${{ matrix.arch }}
           path: |
-            bin/kawai-node-*.tar.gz
+            bin/kawai-contributor-*.tar.gz
             bin/checksums-darwin-*.txt
 
       - name: Prepare R2 upload
         run: |
           mkdir -p r2-upload
-          cp bin/kawai-node-*.tar.gz r2-upload/
+          cp bin/kawai-contributor-*.tar.gz r2-upload/
           cp bin/checksums-darwin-*.txt r2-upload/
 
       - name: Upload to Cloudflare R2
@@ -209,7 +209,7 @@ jobs:
           r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           r2-bucket: ${{ env.R2_BUCKET }}
           source-dir: r2-upload
-          destination-dir: ${{ needs.prepare.outputs.version }}/node
+          destination-dir: ${{ needs.prepare.outputs.version }}/contributor
           output-file-url: true
           
 
@@ -237,14 +237,14 @@ jobs:
           CC: gcc
         run: |
           mkdir -p bin
-          go build -ldflags "-s -w -X main.version=${{ needs.prepare.outputs.version }}" -o bin/kawai-node.exe ./cmd/server
+          go build -ldflags "-s -w -X github.com/kawai-network/veridium/cmd/server/api/services/kronk.tag=production" -o bin/kawai-contributor.exe ./cmd/server
 
       - name: Create distribution archive
         run: |
           cd bin
           $VERSION = "${{ needs.prepare.outputs.version }}"
-          $ARCHIVE = "kawai-node-${VERSION}-windows-amd64.zip"
-          Compress-Archive -Path kawai-node.exe -DestinationPath $ARCHIVE
+          $ARCHIVE = "kawai-contributor-${VERSION}-windows-amd64.zip"
+          Compress-Archive -Path kawai-contributor.exe -DestinationPath $ARCHIVE
           Get-FileHash -Algorithm SHA256 $ARCHIVE | ForEach-Object { "$($_.Hash.ToLower())  $((Split-Path -Leaf $_.Path))" } | Out-File -Encoding ASCII checksums-windows-amd64.txt
 
       - name: Upload artifact
@@ -252,13 +252,13 @@ jobs:
         with:
           name: windows-build
           path: |
-            bin/kawai-node-*.zip
+            bin/kawai-contributor-*.zip
             bin/checksums-windows.txt
 
       - name: Prepare R2 upload
         run: |
           New-Item -ItemType Directory -Force -Path r2-upload
-          Copy-Item bin/kawai-node-*.zip r2-upload/
+          Copy-Item bin/kawai-contributor-*.zip r2-upload/
           Copy-Item bin/checksums-windows-amd64.txt r2-upload/
 
       - name: Upload to Cloudflare R2
@@ -269,7 +269,7 @@ jobs:
           r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           r2-bucket: ${{ env.R2_BUCKET }}
           source-dir: r2-upload
-          destination-dir: ${{ needs.prepare.outputs.version }}/node
+          destination-dir: ${{ needs.prepare.outputs.version }}/contributor
           output-file-url: true
 
   finalize:
@@ -304,4 +304,4 @@ jobs:
           r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           r2-bucket: ${{ env.R2_BUCKET }}
           source-dir: r2-upload
-          destination-dir: ${{ needs.prepare.outputs.version }}/node
+          destination-dir: ${{ needs.prepare.outputs.version }}/contributor

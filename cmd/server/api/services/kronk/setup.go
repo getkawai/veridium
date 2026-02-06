@@ -10,11 +10,13 @@ import (
 
 	"github.com/kawai-network/veridium/internal/paths"
 	"github.com/kawai-network/veridium/internal/services"
+	"github.com/kawai-network/veridium/pkg/hardware"
 	"github.com/kawai-network/veridium/pkg/stablediffusion"
 	"github.com/kawai-network/veridium/pkg/stablediffusion/modeldownloader"
 	"github.com/kawai-network/veridium/pkg/store"
 	"github.com/kawai-network/veridium/pkg/tools/defaults"
 	"github.com/kawai-network/veridium/pkg/tools/libs"
+	"github.com/kawai-network/veridium/pkg/tools/models"
 	"github.com/kawai-network/veridium/pkg/whisper/model"
 )
 
@@ -25,11 +27,13 @@ type SetupResult struct {
 	LibraryReady    bool
 	WhisperReady    bool
 	StableDiffReady bool
+	LLMReady        bool
+	LLMModel        string
 	Errors          []error
 }
 
 // RunSetup performs full setup (wallet, library, models)
-func RunSetup() (*SetupResult, error) {
+func RunSetup(skipHardwareCheck bool) (*SetupResult, error) {
 	result := &SetupResult{
 		Errors: make([]error, 0),
 	}
@@ -62,6 +66,14 @@ func RunSetup() (*SetupResult, error) {
 		printError("Model setup failed: " + err.Error())
 		printSetupSummary(result)
 		return result, fmt.Errorf("model setup is required")
+	}
+
+	// 4. Setup LLM Model (REQUIRED - with hardware check)
+	if err := setupLLMModel(ctx, result, skipHardwareCheck); err != nil {
+		result.Errors = append(result.Errors, fmt.Errorf("LLM model setup failed: %w", err))
+		printError("LLM model setup failed: " + err.Error())
+		printSetupSummary(result)
+		return result, fmt.Errorf("LLM model setup is required")
 	}
 
 	// Print summary
@@ -342,6 +354,112 @@ func setupModels(ctx context.Context, result *SetupResult) error {
 	return nil
 }
 
+// setupLLMModel downloads LLM model with hardware check (REQUIRED)
+func setupLLMModel(ctx context.Context, result *SetupResult, skipHardwareCheck bool) error {
+	printInfo("Setting up LLM model...")
+
+	// Nemotron 3 Nano requirements
+	const (
+		minRAM       = 24 // GB
+		minDiskSpace = 20 // GB (18GB model + buffer)
+		modelSize    = 18 // GB
+	)
+
+	// Hardware check (can be skipped for testing)
+	if !skipHardwareCheck {
+		fmt.Println("  🔍 Checking hardware requirements...")
+		hwSpecs := hardware.DetectHardwareSpecs()
+
+		// Calculate total available memory (RAM + VRAM)
+		totalMemory := hwSpecs.AvailableRAM + hwSpecs.GPUMemory
+
+		fmt.Printf("  📊 Detected: %dGB RAM", hwSpecs.TotalRAM)
+		if hwSpecs.GPUMemory > 0 {
+			fmt.Printf(" + %dGB VRAM (%s)", hwSpecs.GPUMemory, hwSpecs.GPUModel)
+		}
+		fmt.Printf(" = %dGB total available\n", totalMemory)
+
+		// Check if hardware meets requirements
+		if totalMemory < minRAM {
+			return fmt.Errorf("insufficient memory: %dGB available, %dGB required for Nemotron 3 Nano (high-end server requirement)", totalMemory, minRAM)
+		}
+
+		printSuccess(fmt.Sprintf("Hardware check passed: %dGB >= %dGB required", totalMemory, minRAM))
+	} else {
+		printWarning("⚠️  Hardware check skipped (testing mode)")
+		fmt.Printf("  ℹ️  Normal requirement: %dGB RAM/VRAM minimum\n", minRAM)
+	}
+
+	// Check disk space
+	modelsPath := paths.Models()
+	if err := os.MkdirAll(modelsPath, 0755); err != nil {
+		return fmt.Errorf("failed to create models directory: %w", err)
+	}
+
+	// Info about download
+	fmt.Printf("  📦 Nemotron 3 Nano will be downloaded (~%dGB)\n", modelSize)
+	fmt.Println("     This is required for high-end LLM inference")
+
+	// Check if model already exists
+	modelOrg := "unsloth"
+	modelRepo := "Nemotron-3-Nano-30B-A3B-GGUF"
+	modelFile := "Nemotron-3-Nano-30B-A3B-Q4_K_XL.gguf"
+	modelPath := filepath.Join(modelsPath, modelOrg, modelRepo, modelFile)
+
+	if _, err := os.Stat(modelPath); err == nil {
+		fmt.Printf("  ℹ️  LLM model already exists: %s\n", modelFile)
+		result.LLMReady = true
+		result.LLMModel = "nemotron-3-nano"
+		return nil
+	}
+
+	// Download model
+	fmt.Println("  📥 Downloading Nemotron 3 Nano (~18GB)...")
+	fmt.Println("     This may take 10-60 minutes depending on your connection...")
+	fmt.Println()
+
+	modelURL := fmt.Sprintf("https://huggingface.co/%s/%s/resolve/main/%s", modelOrg, modelRepo, modelFile)
+
+	// Create models manager
+	modelsManager, err := models.NewWithPaths(paths.Base())
+	if err != nil {
+		return fmt.Errorf("failed to create models manager: %w", err)
+	}
+
+	// Download with progress
+	var lastPercent int
+	progressLogger := func(ctx context.Context, msg string, args ...any) {
+		// Parse progress from message if available
+		formatted := fmt.Sprintf(msg, args...)
+		if strings.Contains(formatted, "%") {
+			// Extract percentage
+			var percent int
+			if _, err := fmt.Sscanf(formatted, "%d%%", &percent); err == nil {
+				if percent != lastPercent && percent%5 == 0 {
+					fmt.Printf("\r    Progress: %d%%", percent)
+					lastPercent = percent
+				}
+			}
+		}
+	}
+
+	downloadCtx, cancel := context.WithTimeout(ctx, 2*time.Hour) // 2 hour timeout
+	defer cancel()
+
+	_, err = modelsManager.Download(downloadCtx, progressLogger, modelURL, "")
+	if err != nil {
+		return fmt.Errorf("failed to download LLM model: %w", err)
+	}
+
+	fmt.Println()
+	fmt.Printf("  ✅ Nemotron 3 Nano downloaded: %s\n", modelFile)
+
+	result.LLMReady = true
+	result.LLMModel = "nemotron-3-nano"
+
+	return nil
+}
+
 // printSetupSummary prints the setup summary
 func printSetupSummary(result *SetupResult) {
 	fmt.Println()
@@ -376,6 +494,12 @@ func printSetupSummary(result *SetupResult) {
 		fmt.Println("  ❌ Stable Diffusion model not ready")
 	}
 
+	if result.LLMReady {
+		fmt.Printf("  ✅ LLM model ready (%s)\n", result.LLMModel)
+	} else {
+		fmt.Println("  ❌ LLM model not ready")
+	}
+
 	if len(result.Errors) > 0 {
 		fmt.Println()
 		fmt.Println("  ⚠️  Errors encountered:")
@@ -391,16 +515,27 @@ func printSetupSummary(result *SetupResult) {
 
 // SetupCommand returns the setup command for CLI integration
 func SetupCommand(args []string) error {
-	// Parse flags (only --help for now)
+	// Parse flags
+	skipHardwareCheck := false
+
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "--help", "-h":
 			printSetupHelp()
 			return nil
+		case "--skip-hardware-check":
+			// Only allow skip in development builds
+			if tag == "develop" {
+				skipHardwareCheck = true
+				printWarning("⚠️  Hardware check will be skipped (dev mode only)")
+			} else {
+				printError("--skip-hardware-check is only available in development builds")
+				return fmt.Errorf("flag not allowed in production builds")
+			}
 		}
 	}
 
-	_, err := RunSetup()
+	_, err := RunSetup(skipHardwareCheck)
 	return err
 }
 
@@ -412,8 +547,15 @@ func printSetupHelp() {
 	fmt.Println("Setup runs in interactive mode.")
 	fmt.Println()
 	fmt.Println("Options:")
-	fmt.Println("  --help, -h             Show this help")
+	fmt.Println("  --help, -h                Show this help")
+	fmt.Println("  --skip-hardware-check     Skip hardware requirements check (testing only)")
+	fmt.Println()
+	fmt.Println("Hardware Requirements:")
+	fmt.Println("  - RAM + VRAM: 24GB minimum")
+	fmt.Println("  - Disk Space: 25GB free")
+	fmt.Println("  - GPU: NVIDIA recommended")
 	fmt.Println()
 	fmt.Println("Examples:")
-	fmt.Println("  ./server setup         # Interactive setup")
+	fmt.Println("  ./server setup                        # Normal setup with hardware check")
+	fmt.Println("  ./server setup --skip-hardware-check  # Skip hardware check (testing)")
 }

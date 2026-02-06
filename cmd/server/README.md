@@ -130,7 +130,7 @@ Jika Anda memiliki multiple wallets, setup akan menampilkan daftar wallet dan An
 ./server start
   ├─ Init Sentry Logging
   ├─ Download Libraries (if not exists)
-  ├─ Build Model Index
+  ├─ Build Unified Model Index (all types)  ← Flat structure
   ├─ Download Catalog & Templates
   ├─ Init Kronk Cache
   │

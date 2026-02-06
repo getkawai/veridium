@@ -22,7 +22,10 @@ Veridium uses a centralized path management system through `internal/paths` to e
 │       ├── bin/
 │       ├── checksums/
 │       └── metadata/
-├── models/                              # All AI models (unified {author}/{repo}/ structure)
+├── models/                              # All AI models (unified flat structure)
+│   ├── Qwen/
+│   │   └── Qwen3-8B-GGUF/
+│   │       └── Qwen3-8B-Q8_0.gguf
 │   ├── ggerganov/
 │   │   └── whisper.cpp/
 │   │       ├── ggml-base.bin
@@ -36,9 +39,7 @@ Veridium uses a centralized path management system through `internal/paths` to e
 │   ├── stabilityai/
 │   │   └── stable-diffusion-xl-base-1.0/
 │   │       └── sd_xl_base_1.0.safetensors
-│   └── Qwen/
-│       └── Qwen3-8B-GGUF/
-│           └── Qwen3-8B-Q8_0.gguf
+│   └── .index.yaml                      # Unified model index (all types)
 ├── outputs/                             # Generated content
 │   └── stable-diffusion/                # SD generated images
 │       ├── image_001.png
@@ -251,10 +252,12 @@ paths.Templates()                // {Base}/templates/
 ```
 {Base}/
 ├── models/
-│   ├── whisper/                     # Old: type-specific subdirectory
-│   │   └── ggml-base.bin
-│   └── stable-diffusion/            # Old: type-specific subdirectory
-│       └── sd_v1.5.safetensors
+│   ├── llm/                         # Old: type-specific subdirectory
+│   │   └── Qwen3-8B-Q8_0.gguf
+│   ├── diffusion/                   # Old: type-specific subdirectory
+│   │   └── sd_v1.5.safetensors
+│   └── audio/                       # Old: type-specific subdirectory
+│       └── ggml-base.bin
 ```
 
 **Also deprecated (hardcoded paths):**
@@ -277,7 +280,7 @@ paths.Templates()                // {Base}/templates/
 │       ├── bin/
 │       ├── checksums/
 │       └── metadata/
-├── models/                          # Unified structure for ALL models
+├── models/                          # Unified flat structure for ALL models
 │   ├── ggerganov/                   # Whisper models
 │   │   └── whisper.cpp/
 │   │       └── ggml-base.bin
@@ -290,9 +293,10 @@ paths.Templates()                // {Base}/templates/
 │   ├── stabilityai/                 # SD models
 │   │   └── stable-diffusion-xl-base-1.0/
 │   │       └── sd_xl_base_1.0.safetensors
-│   └── Qwen/                        # LLM models
-│       └── Qwen3-8B-GGUF/
-│           └── Qwen3-8B-Q8_0.gguf
+│   ├── Qwen/                        # LLM models
+│   │   └── Qwen3-8B-GGUF/
+│   │       └── Qwen3-8B-Q8_0.gguf
+│   └── .index.yaml                  # Single unified index with type metadata
 ├── outputs/                         # Generated content
 │   └── stable-diffusion/
 ├── catalogs/                        # Moved up one level
@@ -327,11 +331,13 @@ paths.NodeTemplates()
 ## Benefits of New Structure
 
 1. **Simpler hierarchy**: No unnecessary `node/` nesting
-2. **Unified models**: All AI models use consistent {author}/{repo}/ structure
+2. **Unified flat models**: All AI models use consistent {author}/{repo}/ structure without type prefixes
 3. **Automatic organization**: Models organized by HuggingFace URL structure
-4. **No naming conflicts**: Different model types can have same filenames
-5. **Easier navigation**: Clear author/repo hierarchy
-6. **Better scalability**: Supports unlimited models without manual categorization
+4. **Type detection**: Model type automatically detected from filename patterns and stored in index
+5. **No naming conflicts**: Different model types can have same filenames
+6. **Easier navigation**: Clear author/repo hierarchy
+7. **Better scalability**: Supports unlimited models without manual categorization
+8. **Single index**: One `.index.yaml` with type metadata for all models
 
 ## Usage Examples
 

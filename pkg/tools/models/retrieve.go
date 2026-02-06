@@ -176,10 +176,11 @@ func (m *Models) RetrieveInfo(modelID string) (Info, error) {
 
 // Path returns file path information about a model.
 type Path struct {
-	ModelFiles []string `yaml:"model_files"`
-	ProjFile   string   `yaml:"proj_file"`
-	Downloaded bool     `yaml:"downloaded"`
-	Validated  bool     `yaml:"validated"`
+	ModelFiles []string  `yaml:"model_files"`
+	ProjFile   string    `yaml:"proj_file"`
+	Downloaded bool      `yaml:"downloaded"`
+	Validated  bool      `yaml:"validated"`
+	Type       ModelType `yaml:"type,omitempty"` // Model type (llm, diffusion, audio)
 }
 
 // RetrievePath locates the physical location on disk and returns the full path.

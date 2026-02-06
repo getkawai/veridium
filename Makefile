@@ -16,7 +16,7 @@
         release-linux release-linux-deb release-linux-rpm release-linux-appimage release-linux-archive \
         release-windows release-windows-nsis release-windows-msix release-windows-archive \
         release-all release-archives release-packages release-clean \
-        kronk-server kronk-server-build kronk-server-run kronk-server-help kronk-server-clean
+        contributor contributor-dev contributor-dev-fresh contributor-build
 
 # ------------------------------------------------------------------------------
 # Configuration
@@ -166,12 +166,11 @@ help:
 	@echo "  make website-dev      Start website with auto-reload"
 	@echo "  make website-clean    Clean website node_modules"
 	@echo ""
-	@echo "Kronk Model Server:"
-	@echo "  make kronk-server         Build and run Kronk model server"
-	@echo "  make kronk-server-build   Build Kronk server binary"
-	@echo "  make kronk-server-run     Run Kronk server (build if needed)"
-	@echo "  make kronk-server-help    Show Kronk server configuration options"
-	@echo "  make kronk-server-clean   Clean Kronk server binary"
+	@echo "Contributor Node (cmd/server):"
+	@echo "  make contributor            Run contributor node (builds if needed)"
+	@echo "  make contributor-build      Build contributor binary"
+	@echo "  make contributor-dev        Dev mode with hot reload"
+	@echo "  make contributor-dev-fresh  Fresh dev mode (reset data)"
 	@echo ""
 	@echo "Maintenance:"
 	@echo "  make clean            Clean generated files"
@@ -1128,57 +1127,37 @@ deploy-mainnet:
 # Kronk Model Server
 # ==============================================================================
 
-KRONK_SERVER_BIN := bin/kronk-server
-KRONK_SERVER_SRC := cmd/server
+# ==============================================================================
+# Contributor Node (cmd/server)
+# ==============================================================================
 
-kronk-server: kronk-server-build
-	@echo "🚀 Starting Kronk Model Server..."
-	@./$(KRONK_SERVER_BIN)
+CONTRIBUTOR_BIN := bin/kawai-contributor
+CONTRIBUTOR_SRC := cmd/server
 
-kronk-server-build:
-	@echo "🔨 Building Kronk Model Server..."
+# Run contributor node (builds if needed)
+contributor: contributor-build
+	@echo "🚀 Starting contributor node..."
+	@./$(CONTRIBUTOR_BIN)
+
+# Build contributor binary
+contributor-build:
+	@echo "🔨 Building contributor binary..."
 	@mkdir -p bin
-	@go build -o $(KRONK_SERVER_BIN) ./$(KRONK_SERVER_SRC)
-	@echo "✅ Built: $(KRONK_SERVER_BIN)"
+	@go build -o $(CONTRIBUTOR_BIN) ./$(CONTRIBUTOR_SRC)
+	@echo "✅ Built: $(CONTRIBUTOR_BIN)"
 
-kronk-server-run: kronk-server-build
-	@echo "🚀 Running Kronk Model Server..."
-	@./$(KRONK_SERVER_BIN)
-
-kronk-server-help:
-	@echo "📖 Kronk Model Server Configuration Options:"
-	@echo ""
-	@if [ -f $(KRONK_SERVER_BIN) ]; then \
-		./$(KRONK_SERVER_BIN) --help; \
-	else \
-		echo "Building server first..."; \
-		$(MAKE) kronk-server-build; \
-		./$(KRONK_SERVER_BIN) --help; \
+# Dev mode with hot reload
+contributor-dev:
+	@echo "🔥 Starting contributor node (dev mode)..."
+	@if ! command -v air >/dev/null 2>&1; then \
+		echo "Installing air..."; \
+		go install github.com/cosmtrek/air@latest; \
 	fi
+	@air -c .air.toml 2>&1 | tee contributor-dev.log || go run ./$(CONTRIBUTOR_SRC)
 
-kronk-server-clean:
-	@echo "🧹 Cleaning Kronk Model Server binary..."
-	@rm -f $(KRONK_SERVER_BIN)
-	@echo "✅ Cleaned"
-
-# Kronk server with custom configuration
-kronk-server-dev:
-	@echo "🔧 Starting Kronk Model Server (Development Mode)..."
-	@mkdir -p bin
-	@go build -o $(KRONK_SERVER_BIN) ./$(KRONK_SERVER_SRC)
-	@KRONK_WEB_APIHOST="localhost:8080" \
-	 KRONK_CACHE_MODELSINCACHE="2" \
-	 KRONK_CACHE_TTL="10m" \
-	 KRONK_LLAMALOG="2" \
-	 ./$(KRONK_SERVER_BIN)
-
-# Kronk server with production settings
-kronk-server-prod:
-	@echo "🚀 Starting Kronk Model Server (Production Mode)..."
-	@mkdir -p bin
-	@go build -ldflags="-s -w" -o $(KRONK_SERVER_BIN) ./$(KRONK_SERVER_SRC)
-	@KRONK_WEB_APIHOST="0.0.0.0:8080" \
-	 KRONK_CACHE_MODELSINCACHE="5" \
-	 KRONK_CACHE_TTL="30m" \
-	 KRONK_LLAMALOG="1" \
-	 ./$(KRONK_SERVER_BIN)
+# Fresh dev mode (reset data)
+contributor-dev-fresh:
+	@echo "🚀 Fresh dev mode (resetting data)..."
+	@rm -rf data/
+	@mkdir -p data
+	@$(MAKE) contributor-dev

@@ -21,6 +21,15 @@ var (
 	indexFile   = ".index.yaml"
 )
 
+// ModelType represents the type of AI model
+type ModelType string
+
+const (
+	ModelTypeLLM       ModelType = "llm"
+	ModelTypeDiffusion ModelType = "diffusion"
+	ModelTypeAudio     ModelType = "audio"
+)
+
 // Models manages the model system.
 type Models struct {
 	modelsPath string
@@ -40,7 +49,7 @@ func NewWithPaths(basePath string) (*Models, error) {
 	modelPath := filepath.Join(basePath, localFolder)
 
 	if err := os.MkdirAll(modelPath, 0755); err != nil {
-		return nil, fmt.Errorf("creating catalogs directory: %w", err)
+		return nil, fmt.Errorf("creating models directory: %w", err)
 	}
 
 	m := Models{
@@ -50,9 +59,33 @@ func NewWithPaths(basePath string) (*Models, error) {
 	return &m, nil
 }
 
+// NewLLMModels constructs a model manager for LLM models.
+// Deprecated: Use New() instead. All models now use unified flat structure.
+func NewLLMModels(basePath string) (*Models, error) {
+	return NewWithPaths(basePath)
+}
+
+// NewDiffusionModels constructs a model manager for Stable Diffusion models.
+// Deprecated: Use New() instead. All models now use unified flat structure.
+func NewDiffusionModels(basePath string) (*Models, error) {
+	return NewWithPaths(basePath)
+}
+
+// NewAudioModels constructs a model manager for audio models (Whisper, etc).
+// Deprecated: Use New() instead. All models now use unified flat structure.
+func NewAudioModels(basePath string) (*Models, error) {
+	return NewWithPaths(basePath)
+}
+
 // Path returns the location of the models path.
 func (m *Models) Path() string {
 	return m.modelsPath
+}
+
+// LoadIndex loads the model index from disk.
+// This is now exported for use by other packages.
+func (m *Models) LoadIndex() map[string]Path {
+	return m.loadIndex()
 }
 
 // BuildIndex builds the model index for fast model access.
@@ -125,7 +158,9 @@ func (m *Models) BuildIndex(log Logger) error {
 			ctx := context.Background()
 
 			for modelID, files := range modelfiles {
-				isValidated := currentIndex[strings.ToLower(modelID)].Validated
+				modelIDLower := strings.ToLower(modelID)
+				isValidated := currentIndex[modelIDLower].Validated
+				existingType := currentIndex[modelIDLower].Type
 				modelValid := true
 
 				log(ctx, "checking model", "modelID", modelID, "isValidated", isValidated)
@@ -135,6 +170,12 @@ func (m *Models) BuildIndex(log Logger) error {
 				mp := Path{
 					ModelFiles: files,
 					Downloaded: true,
+					Type:       existingType, // Preserve existing type if available
+				}
+
+				// Only detect type if not already set
+				if mp.Type == "" {
+					mp.Type = detectModelType(modelID, files)
 				}
 
 				if projFile, exists := projFiles[modelID]; exists {
@@ -163,8 +204,7 @@ func (m *Models) BuildIndex(log Logger) error {
 
 				mp.Validated = modelValid
 
-				modelID = strings.ToLower(modelID)
-				index[modelID] = mp
+				index[modelIDLower] = mp
 			}
 		}
 	}
@@ -229,6 +269,84 @@ func isDirEffectivelyEmpty(entries []os.DirEntry) bool {
 	}
 
 	return true
+}
+
+// detectModelType attempts to determine the model type based on model ID and file patterns
+func detectModelType(modelID string, files []string) ModelType {
+	modelIDLower := strings.ToLower(modelID)
+
+	// Check for Whisper-specific patterns (must be exact match, not just "audio")
+	if strings.Contains(modelIDLower, "whisper") {
+		return ModelTypeAudio
+	}
+
+	// Check for Stable Diffusion patterns in model ID
+	if strings.Contains(modelIDLower, "stable-diffusion") ||
+		strings.Contains(modelIDLower, "sd-v1") ||
+		strings.Contains(modelIDLower, "sd-v2") ||
+		strings.Contains(modelIDLower, "sdxl") ||
+		strings.Contains(modelIDLower, "sd-turbo") ||
+		strings.Contains(modelIDLower, "flux") {
+		return ModelTypeDiffusion
+	}
+
+	// Check file extensions and patterns
+	hasGGUF := false
+	hasSafetensors := false
+	hasCkpt := false
+
+	for _, file := range files {
+		fileLower := strings.ToLower(file)
+
+		// Whisper uses .bin files with specific naming
+		if strings.HasSuffix(fileLower, ".bin") && strings.Contains(fileLower, "ggml") {
+			return ModelTypeAudio
+		}
+
+		// Track file types
+		if strings.HasSuffix(fileLower, ".gguf") {
+			hasGGUF = true
+		}
+		if strings.HasSuffix(fileLower, ".safetensors") {
+			hasSafetensors = true
+		}
+		if strings.HasSuffix(fileLower, ".ckpt") {
+			hasCkpt = true
+		}
+	}
+
+	// .ckpt files are primarily used for Stable Diffusion
+	if hasCkpt {
+		return ModelTypeDiffusion
+	}
+
+	// .gguf files are primarily used for LLMs (quantized models)
+	if hasGGUF && !hasSafetensors && !hasCkpt {
+		return ModelTypeLLM
+	}
+
+	// .safetensors files are primarily used for Stable Diffusion models
+	// Only classify as LLM if there are clear LLM indicators
+	if hasSafetensors {
+		// Check for LLM-specific patterns
+		for _, file := range files {
+			fileLower := strings.ToLower(file)
+			// Common LLM model name patterns
+			if strings.Contains(fileLower, "llama") ||
+				strings.Contains(fileLower, "mistral") ||
+				strings.Contains(fileLower, "qwen") ||
+				strings.Contains(fileLower, "gemma") ||
+				strings.Contains(fileLower, "phi") ||
+				strings.Contains(fileLower, "gpt") {
+				return ModelTypeLLM
+			}
+		}
+		// Default safetensors to diffusion (most common use case)
+		return ModelTypeDiffusion
+	}
+
+	// Default to LLM for other cases
+	return ModelTypeLLM
 }
 
 // NormalizeHuggingFaceDownloadURL converts short format to full HuggingFace download URLs.

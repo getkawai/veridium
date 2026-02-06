@@ -92,6 +92,7 @@ func IsPackaged() bool {
 		return false
 	}
 	execDir := filepath.Dir(execPath)
+	execPathLower := strings.ToLower(execPath)
 
 	switch runtime.GOOS {
 	case "darwin":
@@ -100,24 +101,57 @@ func IsPackaged() bool {
 		if filepath.Base(filepath.Dir(filepath.Dir(execPath))) == "Contents" {
 			return true
 		}
+		// CLI installs via curl|sh to ~/.local/bin or /usr/local/bin
+		homeDir, _ := os.UserHomeDir()
+		if homeDir != "" {
+			localBin := filepath.Join(homeDir, ".local", "bin") + string(filepath.Separator)
+			if strings.HasPrefix(execPath, localBin) {
+				return true
+			}
+		}
+		if strings.HasPrefix(execPath, "/usr/local/bin/") ||
+			strings.HasPrefix(execPath, "/opt/homebrew/bin/") {
+			return true
+		}
 	case "windows":
 		// Windows: Check for resources directory or Program Files
 		if filepath.Base(execDir) == "resources" || filepath.Base(filepath.Dir(execDir)) == "resources" {
 			return true
 		}
 		// Also check if installed in Program Files (case-insensitive)
-		execPathLower := strings.ToLower(execPath)
 		if strings.Contains(execPathLower, "program files") {
 			return true
+		}
+		// CLI installs to %LOCALAPPDATA%\bin or %USERPROFILE%\.local\bin
+		homeDir, _ := os.UserHomeDir()
+		if homeDir != "" {
+			localBin := filepath.Join(homeDir, ".local", "bin") + string(filepath.Separator)
+			if strings.HasPrefix(execPath, localBin) {
+				return true
+			}
+		}
+		if localAppData := os.Getenv("LOCALAPPDATA"); localAppData != "" {
+			localBin := filepath.Join(localAppData, "bin") + string(filepath.Separator)
+			if strings.HasPrefix(execPath, localBin) {
+				return true
+			}
 		}
 	case "linux":
 		// Linux: Check for resources directory or standard install paths
 		if filepath.Base(execDir) == "resources" || filepath.Base(filepath.Dir(execDir)) == "resources" {
 			return true
 		}
-		// Check common Linux install paths (use strings.HasPrefix instead of deprecated filepath.HasPrefix)
+		// Check common Linux install paths
 		if strings.HasPrefix(execPath, "/usr/") || strings.HasPrefix(execPath, "/opt/") {
 			return true
+		}
+		// CLI installs via curl|sh to ~/.local/bin
+		homeDir, _ := os.UserHomeDir()
+		if homeDir != "" {
+			localBin := filepath.Join(homeDir, ".local", "bin") + string(filepath.Separator)
+			if strings.HasPrefix(execPath, localBin) {
+				return true
+			}
 		}
 	}
 

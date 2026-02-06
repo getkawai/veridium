@@ -39,7 +39,7 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
           else
-            echo "version=0.1.5" >> $GITHUB_OUTPUT
+            echo "version=0.1.7" >> $GITHUB_OUTPUT
           fi
 
       - name: Create Release
@@ -245,6 +245,12 @@ jobs:
       - name: Update version in config
         run: |
           (Get-Content build/config.yml) -replace 'version: ".*"', 'version: "${{ needs.prepare.outputs.version }}"' | Set-Content build/config.yml
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          bun install
+          cd ..
 
       - name: Build Windows Binary
         shell: powershell
