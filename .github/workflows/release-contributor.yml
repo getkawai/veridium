@@ -16,7 +16,7 @@ permissions:
   packages: write
 
 env:
-  GO_VERSION: '1.25'
+  GO_VERSION: '1.25.5'
   R2_BUCKET: 'kawai'
   R2_PUBLIC_URL: 'https://storage.getkawai.com'
 
@@ -271,37 +271,3 @@ jobs:
           source-dir: r2-upload
           destination-dir: ${{ needs.prepare.outputs.version }}/contributor
           output-file-url: true
-
-  finalize:
-    name: Finalize Release
-    needs: [prepare, build-linux, build-macos, build-windows]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Combine checksums
-        run: |
-          cat artifacts/*/checksums-*.txt > checksums.txt
-          echo "📦 All checksums:"
-          cat checksums.txt
-
-      - name: Prepare R2 upload
-        run: |
-          mkdir -p r2-upload
-          cp checksums.txt r2-upload/
-
-      - name: Upload checksums to R2
-        uses: yudaprama/r2-upload-action@master
-        with:
-          r2-account-id: ${{ secrets.R2_ACCOUNT_ID }}
-          r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
-          r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          r2-bucket: ${{ env.R2_BUCKET }}
-          source-dir: r2-upload
-          destination-dir: ${{ needs.prepare.outputs.version }}/contributor

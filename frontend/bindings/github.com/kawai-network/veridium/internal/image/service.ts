@@ -36,6 +36,17 @@ export function CheckInstalledModels(): $CancellablePromise<string[]> {
 }
 
 /**
+ * CheckInstalledModelsUnified uses the unified model management system
+ * to check for installed Stable Diffusion models.
+ * This is a wrapper that provides backward compatibility.
+ */
+export function CheckInstalledModelsUnified(): $CancellablePromise<string[]> {
+    return $Call.ByID(2532409233).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
+/**
  * Cleanup terminates all running Stable Diffusion processes
  */
 export function Cleanup(): $CancellablePromise<void> {
@@ -74,6 +85,7 @@ export function GetModelPath(filename: string): $CancellablePromise<string> {
 
 /**
  * GetModelsPath returns the path where Stable Diffusion models are stored
+ * Models are organized by {author}/{repo}/ structure from HuggingFace URLs
  */
 export function GetModelsPath(): $CancellablePromise<string> {
     return $Call.ByID(2349867010);

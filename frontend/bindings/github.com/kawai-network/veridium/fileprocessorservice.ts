@@ -12,16 +12,11 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as fantasy$0 from "./pkg/fantasy/models.js";
-
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
 /**
  * ProcessFileFromPath processes a file from absolute path (e.g., from file dialog)
  * It copies the file to local storage and processes it for RAG
- * Returns the processed file response with the relative URL for frontend display
  */
 export function ProcessFileFromPath(absolutePath: string): $CancellablePromise<$models.ProcessFileFromPathResponse | null> {
     return $Call.ByID(1128345069, absolutePath).then(($result: any) => {
@@ -35,13 +30,6 @@ export function ProcessFileFromPath(absolutePath: string): $CancellablePromise<$
  */
 export function RemoveFiles(ids: string[]): $CancellablePromise<void> {
     return $Call.ByID(395327522, ids);
-}
-
-/**
- * SetLanguageModel sets the language model for OCR/transcript cleanup
- */
-export function SetLanguageModel(model: fantasy$0.LanguageModel): $CancellablePromise<void> {
-    return $Call.ByID(3608364688, model);
 }
 
 // Private type creation functions

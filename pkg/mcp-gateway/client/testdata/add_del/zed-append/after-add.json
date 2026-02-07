@@ -1,1 +1,0 @@
-{"foo":true,"context_servers":{"something":{},"my-server":{"source":"custom","enabled":true,"command":"docker","args":["mcp","gateway","run"]}}}

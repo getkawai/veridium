@@ -29,13 +29,6 @@ export function GenerateTitleFromPrompt(prompt: string, locale: string): $Cancel
 }
 
 /**
- * SetTitleModel sets the model used for title generation
- */
-export function SetTitleModel(model: fantasy$0.LanguageModel): $CancellablePromise<void> {
-    return $Call.ByID(2302945907, model);
-}
-
-/**
  * UpdateGenerationTopicTitle updates an existing generation topic with LLM-generated title
  * It runs in the background. It targets the 'generation_topics' table.
  */

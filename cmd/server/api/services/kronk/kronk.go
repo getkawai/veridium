@@ -1,4 +1,3 @@
-// Package kronk is the model server.
 package kronk
 
 import (

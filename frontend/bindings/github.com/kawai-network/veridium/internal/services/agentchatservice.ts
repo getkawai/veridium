@@ -13,9 +13,6 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as fantasy$0 from "../../pkg/fantasy/models.js";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore: Unused imports
 import * as tools$0 from "../../pkg/fantasy/tools/models.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -83,27 +80,6 @@ export function GetToolRegistry(): $CancellablePromise<tools$0.ToolRegistry | nu
  */
 export function RegisterMemoryTool(memoryIntegration: $models.MemoryIntegration | null): $CancellablePromise<void> {
     return $Call.ByID(1423546677, memoryIntegration);
-}
-
-/**
- * SetChatModel sets the main chat model (for streaming chat with tools)
- */
-export function SetChatModel(model: fantasy$0.LanguageModel): $CancellablePromise<void> {
-    return $Call.ByID(8199130, model);
-}
-
-/**
- * SetSummaryModel sets the summary generation model
- */
-export function SetSummaryModel(model: fantasy$0.LanguageModel): $CancellablePromise<void> {
-    return $Call.ByID(3154586890, model);
-}
-
-/**
- * SetTitleModel sets the title generation model
- */
-export function SetTitleModel(model: fantasy$0.LanguageModel): $CancellablePromise<void> {
-    return $Call.ByID(468930904, model);
 }
 
 // Private type creation functions
