@@ -538,6 +538,34 @@ func (m setupTUIModel) walletReplaceChoiceView() string {
 	return b.String()
 }
 
+func validateKeystoreJSON(jsonStr string) (bool, string) {
+	// Check if JSON is empty
+	if strings.TrimSpace(jsonStr) == "" {
+		return false, "Keystore JSON cannot be empty"
+	}
+
+	// Check if it's valid JSON format
+	if !strings.HasPrefix(strings.TrimSpace(jsonStr), "{") ||
+		!strings.HasSuffix(strings.TrimSpace(jsonStr), "}") {
+		return false, "Invalid JSON format (must start with { and end with })"
+	}
+
+	// Check for required keystore fields
+	requiredFields := []string{"address", "crypto", "version"}
+	for _, field := range requiredFields {
+		if !strings.Contains(jsonStr, `"`+field+`"`) {
+			return false, fmt.Sprintf("Missing required field: %s", field)
+		}
+	}
+
+	// Check for crypto.kdf or crypto.ciphertext (at least one should exist)
+	if !strings.Contains(jsonStr, `"kdf"`) && !strings.Contains(jsonStr, `"ciphertext"`) {
+		return false, "Invalid keystore: missing crypto information"
+	}
+
+	return true, ""
+}
+
 func calculatePasswordStrength(password string) (int, string, string) {
 	score := 0
 	if len(password) >= 8 {
@@ -717,12 +745,25 @@ func (m setupTUIModel) importKeystoreChoiceView() string {
 }
 
 func (m setupTUIModel) importKeystoreJSONView() string {
+	keystoreJSON := m.keystoreInput.Value()
+	var validationMsg string
+
+	if keystoreJSON != "" {
+		valid, msg := validateKeystoreJSON(keystoreJSON)
+		if valid {
+			validationMsg = m.styles.Success.Render("✓ Valid keystore format")
+		} else {
+			validationMsg = m.styles.Error.Render("✗ " + msg)
+		}
+	}
+
 	return fmt.Sprintf(
-		"%s\n\n%s\n\n%s\n\n%s\n\n%s",
+		"%s\n\n%s\n\n%s\n\n%s\n%s\n\n%s",
 		m.styles.Title.Render("📁 Paste Keystore JSON"),
 		"Paste your keystore JSON content below:",
 		"(Usually found in MetaMask: Account → Account Details → Export Private Key)",
 		m.keystoreInput.View(),
+		validationMsg,
 		m.styles.Help.Render("Press Enter to continue"),
 	)
 }
@@ -999,6 +1040,18 @@ func (m setupTUIModel) handleEnter() (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case stepImportKeystoreJSON:
+		// Validate keystore JSON before proceeding
+		keystoreJSON := m.keystoreInput.Value()
+		if keystoreJSON == "" {
+			// Empty input, don't proceed
+			return m, nil
+		}
+		valid, _ := validateKeystoreJSON(keystoreJSON)
+		if !valid {
+			// Invalid JSON, don't proceed
+			return m, nil
+		}
+		// Valid JSON, proceed to wallet name
 		m.step = stepWalletName
 		m.nameInput.Focus()
 		return m, nil
@@ -1132,7 +1185,6 @@ func (m setupTUIModel) handleBack() (tea.Model, tea.Cmd) {
 		case 3:
 			m.step = stepImportPrivateKey
 			m.privateKeyInput.Focus()
-			m.step = stepImportPrivateKey
 		}
 		return m, nil
 
@@ -1172,15 +1224,13 @@ func (m setupTUIModel) createWalletCmd() tea.Cmd {
 			} else {
 				keystoreData = m.keystoreInput.Value() // Already read from file
 			}
-			_ = keystoreData // Will be used when keystore import is implemented
-			address, err = "", fmt.Errorf("keystore import not yet implemented")
+			address, err = m.walletService.ImportKeystore(keystoreData, password, name)
 
 		case 3: // Import private key
 			privateKey := m.privateKeyInput.Value()
 			privateKey = strings.TrimPrefix(privateKey, "0x")
 			privateKey = strings.TrimPrefix(privateKey, "0X")
-			// Try to import private key - need to check if walletService has this method
-			address, err = "", fmt.Errorf("private key import not yet implemented")
+			address, err = m.walletService.ImportPrivateKey(privateKey, password, name)
 		}
 
 		return walletCreatedMsg{address: address, err: err}
@@ -1297,6 +1347,8 @@ func (m setupTUIModel) downloadLibrariesCmd() tea.Cmd {
 func (m setupTUIModel) downloadModelsCmd() tea.Cmd {
 	return func() tea.Msg {
 		ctx := context.Background()
+		downloadCtx, cancel := context.WithTimeout(ctx, 30*time.Minute)
+		defer cancel()
 
 		// Setup Whisper model
 		whisperModelsDir := paths.Models()
@@ -1323,7 +1375,7 @@ func (m setupTUIModel) downloadModelsCmd() tea.Cmd {
 
 		if modelFile == "" {
 			// Download default SD model
-			modelFile, err = downloader.DownloadModelSimple(ctx, modeldownloader.DefaultModelURL)
+			modelFile, err = downloader.DownloadModelSimple(downloadCtx, modeldownloader.DefaultModelURL)
 			if err != nil {
 				return modelDownloadMsg{modelType: "sd", progress: 0, done: false, err: fmt.Errorf("failed to download SD model: %w", err)}
 			}
@@ -1416,6 +1468,11 @@ func NewSetupTUI(skipHardwareCheck bool) (*SetupResult, error) {
 	// Check if wallet already exists
 	walletExists := walletService.HasWallet()
 
+	progressChan := make(chan float64, 100)
+	// Note: Channel is not closed here to avoid panics from download goroutines
+	// The channel will be garbage collected when the program exits
+	// Non-blocking sends with select/default are safe even if channel is unclosed
+
 	model := setupTUIModel{
 		styles:            s,
 		step:              stepWelcome,
@@ -1431,7 +1488,7 @@ func NewSetupTUI(skipHardwareCheck bool) (*SetupResult, error) {
 		spinner:           sp,
 		progressBar:       prog,
 		skipHardwareCheck: skipHardwareCheck,
-		progressChan:      make(chan float64, 100),
+		progressChan:      progressChan,
 		result: &SetupResult{
 			Errors: make([]error, 0),
 		},
