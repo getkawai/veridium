@@ -212,7 +212,7 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 	// -------------------------------------------------------------------------
 	// Library System
 
-	log.Info(ctx, "startup", "status", "downloading libraries")
+	log.Info(ctx, "startup", "status", "checking libraries")
 
 	arch, err := defaults.Arch(cfg.Arch)
 	if err != nil {
@@ -242,14 +242,14 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 		return fmt.Errorf("unable to create libs api: %w", err)
 	}
 
-	log.Info(ctx, "startup", "status", "installing/updating libraries", "libPath", libs.LibsPath(), "arch", libs.Arch(), "os", libs.OS(), "processor", libs.Processor(), "update", true)
+	log.Info(ctx, "startup", "status", "checking libraries", "libPath", libs.LibsPath(), "arch", libs.Arch(), "os", libs.OS(), "processor", libs.Processor())
 
-	downloadCtx, cancel := context.WithTimeout(ctx, 3*time.Minute)
-	defer cancel()
-
-	if _, err := libs.Download(downloadCtx, log.Info); err != nil {
-		return fmt.Errorf("unable to install llama.cpp: %w", err)
+	// Check if libraries exist, don't download
+	if _, err := libs.InstalledVersion(); err != nil {
+		return fmt.Errorf("libraries not found. Please run 'kawai-contributor setup' first to install required libraries")
 	}
+
+	log.Info(ctx, "startup", "status", "libraries verified")
 
 	// -------------------------------------------------------------------------
 	// Model System
@@ -267,7 +267,7 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 	// -------------------------------------------------------------------------
 	// Catalog System
 
-	log.Info(ctx, "startup", "status", "downloading catalog")
+	log.Info(ctx, "startup", "status", "checking catalog")
 
 	ctlg, err := catalog.New(
 		catalog.WithBasePath(paths.Base()),
@@ -276,14 +276,22 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 		return fmt.Errorf("unable to create catalog system: %w", err)
 	}
 
-	if err := ctlg.Download(ctx, catalog.WithLogger(log.Info)); err != nil {
-		return fmt.Errorf("unable to download catalog: %w", err)
+	// Check if catalog exists, don't download
+	catalogs, err := ctlg.RetrieveCatalogs()
+	if err != nil {
+		return fmt.Errorf("catalog not found. Please run 'kawai-contributor setup' first to download catalog: %w", err)
 	}
+
+	if len(catalogs) == 0 {
+		return fmt.Errorf("catalog is empty. Please run 'kawai-contributor setup' first to download catalog")
+	}
+
+	log.Info(ctx, "startup", "status", "catalog verified", "catalogs", len(catalogs))
 
 	// -------------------------------------------------------------------------
 	// Template System
 
-	log.Info(ctx, "startup", "status", "downloading templates")
+	log.Info(ctx, "startup", "status", "checking templates")
 
 	tmplts, err := templates.New(
 		templates.WithBasePath(paths.Base()),
@@ -293,9 +301,25 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 		return fmt.Errorf("unable to create template system: %w", err)
 	}
 
-	if err := tmplts.Download(ctx, templates.WithLogger(log.Info)); err != nil {
-		return fmt.Errorf("unable to download templates: %w", err)
+	// Check if templates exist, don't download
+	templatesPath := tmplts.TemplatesPath()
+	entries, err := os.ReadDir(templatesPath)
+	if err != nil {
+		return fmt.Errorf("unable to read templates directory: %w", err)
 	}
+
+	templateCount := 0
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			templateCount++
+		}
+	}
+
+	if templateCount == 0 {
+		return fmt.Errorf("no templates found. Please run 'kawai-contributor setup' first to download templates")
+	}
+
+	log.Info(ctx, "startup", "status", "templates verified", "count", templateCount)
 
 	// -------------------------------------------------------------------------
 	// Init Kronk
@@ -368,7 +392,7 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 
 	// Check if wallet exists
 	if !wallet.HasWallet() {
-		return fmt.Errorf("no wallet found. Please run 'kawai-node setup' first to configure your wallet")
+		return fmt.Errorf("no wallet found. Please run 'kawai-contributor setup' first to configure your wallet")
 	}
 
 	// Wallet exists - unlock it
@@ -528,17 +552,12 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 		if err := os.MkdirAll(whisperModelsDir, 0755); err != nil {
 			log.Info(ctx, "whisper", "status", "failed to create models directory", "error", err)
 		} else {
-			// Auto-download base model if no models exist
+			// Check if whisper models exist, don't download
 			models, _ := model.ListDownloadedModels(whisperModelsDir)
 			if len(models) == 0 {
-				log.Info(ctx, "whisper", "status", "downloading base model")
-				if err := model.DownloadModel("base", whisperModelsDir, nil); err != nil {
-					log.Info(ctx, "whisper", "status", "failed to download base model", "error", err)
-				} else {
-					log.Info(ctx, "whisper", "status", "base model downloaded")
-				}
+				return fmt.Errorf("whisper models not found. Please run 'kawai-contributor setup' first to download whisper models")
 			}
-			log.Info(ctx, "startup", "status", "whisper service ready")
+			log.Info(ctx, "startup", "status", "whisper service ready", "models", len(models))
 		}
 	}
 
@@ -547,52 +566,41 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 	{
 		log.Info(ctx, "startup", "status", "initializing stable diffusion")
 
-		// 1. Ensure Library
-		if err := sd.EnsureLibrary(); err != nil {
-			log.Info(ctx, "startup", "status", "failed to download SD library", "error", err)
+		// 1. Check Library
+		if !sd.IsLibraryInstalled() {
+			return fmt.Errorf("stable diffusion library not found. Please run 'kawai-contributor setup' first to install SD library")
+		}
+
+		// 2. Find Model
+		// Models are organized by {author}/{repo}/ from HuggingFace URLs
+		modelsPath := paths.Models()
+		downloader := modeldownloader.New(modelsPath)
+
+		modelFile, err := downloader.DiscoverModel()
+		if err != nil {
+			log.Info(ctx, "startup", "status", "error discovering models", "error", err)
+		}
+
+		if modelFile == "" {
+			// No model found - don't download, return error
+			return fmt.Errorf("stable diffusion model not found. Please run 'kawai-contributor setup' first to download SD model")
+		}
+
+		log.Info(ctx, "startup", "status", "found SD model", "path", modelFile)
+
+		// 3. Initialize Engine
+		ctxParams := &sd.ContextParams{
+			DiffusionModelPath: modelFile,
+			DiffusionFlashAttn: true,
+			OffloadParamsToCPU: true,
+		}
+
+		eng, err := sd.NewStableDiffusion(ctxParams)
+		if err != nil {
+			log.Info(ctx, "startup", "status", "failed to init SD engine", "error", err)
 		} else {
-			// 2. Find Model
-			// Models are organized by {author}/{repo}/ from HuggingFace URLs
-			modelsPath := paths.Models()
-			downloader := modeldownloader.New(modelsPath)
-
-			modelFile, err := downloader.DiscoverModel()
-			if err != nil {
-				log.Info(ctx, "startup", "status", "error discovering models", "error", err)
-			}
-
-			if modelFile != "" {
-				log.Info(ctx, "startup", "status", "found SD model", "path", modelFile)
-			} else {
-				// No model found - Download default model (SD 1.4 ~4GB)
-				log.Info(ctx, "startup", "status", "no SD model found, downloading default model (this may take a while)...")
-
-				modelFile, err = downloader.DownloadModelSimple(ctx, modeldownloader.DefaultModelURL)
-				if err != nil {
-					log.Info(ctx, "startup", "status", "failed to download model", "error", err)
-				} else {
-					log.Info(ctx, "startup", "status", "default model downloaded successfully", "path", modelFile)
-				}
-			}
-
-			if modelFile != "" {
-				// 3. Initialize Engine
-				ctxParams := &sd.ContextParams{
-					DiffusionModelPath: modelFile,
-					DiffusionFlashAttn: true,
-					OffloadParamsToCPU: true,
-				}
-
-				eng, err := sd.NewStableDiffusion(ctxParams)
-				if err != nil {
-					log.Info(ctx, "startup", "status", "failed to init SD engine", "error", err)
-				} else {
-					imageEngine = eng
-					log.Info(ctx, "startup", "status", "stable diffusion ready")
-				}
-			} else {
-				log.Info(ctx, "startup", "status", "image generation disabled (no model)")
-			}
+			imageEngine = eng
+			log.Info(ctx, "startup", "status", "stable diffusion ready")
 		}
 	}
 

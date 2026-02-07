@@ -43,7 +43,7 @@ func main() {
 func printHelp() {
 	fmt.Println("Kawai Node - Kronk Model Server")
 	fmt.Println()
-	fmt.Println("Usage: kawai-node [COMMAND] [OPTIONS]")
+	fmt.Println("Usage: kawai-contributor [COMMAND] [OPTIONS]")
 	fmt.Println()
 	fmt.Println("Commands:")
 	fmt.Println("  setup    Setup wallet, libraries, and models")
@@ -52,6 +52,6 @@ func printHelp() {
 	fmt.Println("  help     Show this help message")
 	fmt.Println()
 	fmt.Println("Examples:")
-	fmt.Println("  kawai-node setup         # Run interactive setup")
-	fmt.Println("  kawai-node start         # Start the server")
+	fmt.Println("  kawai-contributor setup         # Run interactive setup")
+	fmt.Println("  kawai-contributor start         # Start the server")
 }

@@ -8,8 +8,8 @@ set -e
 # Example: ./scripts/ephemeral-release-node.sh 1.0.0
 
 VERSION=${1:-"0.1.0"}
-TEMP_DIR="kawai-node-${VERSION}"
-PUBLIC_REPO="kawai-network/kawai-node-build-${VERSION}"
+TEMP_DIR="kawai-contributor-${VERSION}"
+PUBLIC_REPO="kawai-network/kawai-contributor-build-${VERSION}"
 
 # Save original directory name for later use
 ORIGINAL_DIR=$(basename "$(pwd)")

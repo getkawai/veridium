@@ -98,10 +98,10 @@ download_and_install() {
     ARCH=$2
     VERSION=$3
     
-    FILENAME="kawai-node-${VERSION}-${OS}-${ARCH}.tar.gz"
+    FILENAME="kawai-contributor-${VERSION}-${OS}-${ARCH}.tar.gz"
     URL="${R2_BASE_URL}/node/v${VERSION}/${FILENAME}"
     
-    print_info "Downloading kawai-node ${VERSION} for ${OS}/${ARCH}..."
+    print_info "Downloading kawai-contributor ${VERSION} for ${OS}/${ARCH}..."
     print_info "URL: ${URL}"
     
     # Create temp directory
@@ -128,10 +128,10 @@ download_and_install() {
     tar -xzf "${TMP_DIR}/${FILENAME}" -C "$TMP_DIR"
     
     # Find the binary
-    if [ -f "${TMP_DIR}/kawai-node" ]; then
-        BINARY="${TMP_DIR}/kawai-node"
+    if [ -f "${TMP_DIR}/kawai-contributor" ]; then
+        BINARY="${TMP_DIR}/kawai-contributor"
     else
-        print_error "Could not find kawai-node binary in archive"
+        print_error "Could not find kawai-contributor binary in archive"
         exit 1
     fi
     
@@ -144,21 +144,21 @@ download_and_install() {
     fi
     
     # Install
-    print_info "Installing to ${INSTALL_DIR}/kawai-node..."
-    $SUDO mv "$BINARY" "${INSTALL_DIR}/kawai-node"
-    $SUDO chmod +x "${INSTALL_DIR}/kawai-node"
+    print_info "Installing to ${INSTALL_DIR}/kawai-contributor..."
+    $SUDO mv "$BINARY" "${INSTALL_DIR}/kawai-contributor"
+    $SUDO chmod +x "${INSTALL_DIR}/kawai-contributor"
     
     print_success "Installation complete!"
 }
 
 # Verify installation
 verify_installation() {
-    if command -v kawai-node >/dev/null 2>&1; then
-        print_success "kawai-node is now available in PATH"
-        print_info "Version: $(kawai-node --version 2>/dev/null || echo 'unknown')"
-        print_info "Run 'kawai-node --help' to get started"
+    if command -v kawai-contributor >/dev/null 2>&1; then
+        print_success "kawai-contributor is now available in PATH"
+        print_info "Version: $(kawai-contributor --version 2>/dev/null || echo 'unknown')"
+        print_info "Run 'kawai-contributor --help' to get started"
     else
-        print_warning "kawai-node installed but not in PATH"
+        print_warning "kawai-contributor installed but not in PATH"
         print_info "Add ${INSTALL_DIR} to your PATH or run:"
         print_info "  export PATH=\"${INSTALL_DIR}:\$PATH\""
     fi
@@ -197,10 +197,10 @@ main() {
     echo "${GREEN}✨ Installation complete! Welcome to Kawai Network.${NC}"
     echo ""
     echo "To start contributing:"
-    echo "  ${BLUE}kawai-node start${NC}"
+    echo "  ${BLUE}kawai-contributor start${NC}"
     echo ""
     echo "For help:"
-    echo "  ${BLUE}kawai-node --help${NC}"
+    echo "  ${BLUE}kawai-contributor --help${NC}"
     echo ""
 }
 

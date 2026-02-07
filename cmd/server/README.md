@@ -285,13 +285,13 @@ curl -fsSL https://getkawai.com/node | sh -s -- --version 1.0.0
 
 ```bash
 # Build locally
-go build -ldflags "-s -w -X main.version=1.0.0" -o kawai-node ./cmd/server
+go build -ldflags "-s -w -X main.version=1.0.0" -o kawai-contributor ./cmd/server
 
 # Create archive
-tar -czf kawai-node-1.0.0-linux-amd64.tar.gz kawai-node
+tar -czf kawai-contributor-1.0.0-linux-amd64.tar.gz kawai-contributor
 
 # Upload to R2
-aws s3 cp kawai-node-1.0.0-linux-amd64.tar.gz s3://kawai/node/v1.0.0/ \
+aws s3 cp kawai-contributor-1.0.0-linux-amd64.tar.gz s3://kawai/node/v1.0.0/ \
   --endpoint-url https://your-account.r2.cloudflarestorage.com
 ```
 
