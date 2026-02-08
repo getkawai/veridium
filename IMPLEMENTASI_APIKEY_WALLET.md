@@ -63,7 +63,7 @@ Validate:   ~1.5 µs/key  (~667,000 validations/second)
 **Using Go Code:**
 
 ```go
-import "github.com/kawai-network/veridium/pkg/apikey"
+import "github.com/kawai-network/x/apikey"
 
 walletAddress := "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
 key, err := apikey.Generate(walletAddress)
@@ -216,7 +216,7 @@ if err := rateLimiter.Check(payload.GetWalletAddress(), endpoint); err != nil {
 
 - **Package Docs**: `pkg/apikey/README.md`
 - **Test Suite**: `pkg/apikey/apikey_test.go`
-- **Obfuscator**: `pkg/obfuscator/obfuscator.go`
+- **Obfuscator**: `pkg/obfuscator/env.go`
 
 ## 🤝 Support
 

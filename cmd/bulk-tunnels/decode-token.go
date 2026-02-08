@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/kawai-network/veridium/pkg/obfuscator"
 	"github.com/kawai-network/veridium/pkg/tunnelkit"
+	"github.com/kawai-network/x/env"
 )
 
 // DecodeTunnelTokens reads a tunnels.json file and decodes all obfuscated TunnelTokens
@@ -24,7 +24,7 @@ func DecodeTunnelTokens(inputFile string) error {
 	}
 
 	// Initialize obfuscator
-	obf := obfuscator.New()
+	obf := env.New()
 
 	// Decode all tokens
 	fmt.Println("Decoding tunnel tokens...")
@@ -66,7 +66,7 @@ func GetDecodedToken(inputFile, identifier string) (string, error) {
 	}
 
 	// Initialize obfuscator
-	obf := obfuscator.New()
+	obf := env.New()
 
 	// Find tunnel by ID or hostname
 	for _, tunnel := range tunnels {

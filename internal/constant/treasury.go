@@ -6,20 +6,20 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/kawai-network/veridium/pkg/obfuscator"
+	"github.com/kawai-network/x/env"
 )
 
 const (
-	obfuscatedTreasuryAddress0 = "u97wL//hA0aGIvvirTEfE4VlIPkT4nwVR8sSMfzV58Tyi4mHiL5rZatq"
-	obfuscatedTreasuryAddress1 = "u9insKBhqrjtCF7MDnrYE9ULbzgCFYccRgrvuLH/C3A/h3bVF8uVQ7lq"
-	obfuscatedTreasuryAddress2 = "u8601BNhw5XkP75ejk5mE/pRMasT4BucEqkSZBl1C76izrDnSiNiRGqm"
-	obfuscatedTreasuryAddress3 = "u9jTTpvhqxZrFWcvLkX16s75/nO37JxfdkOvdrH/mQsdQyNQ6H4/33Km"
-	obfuscatedTreasuryAddress4 = "ueLTepphqK+xmG8sSg6zEr+sWXwCVpMcRxcrHGt3kbYdzwLeIPY/37xm"
-	obfuscatedTreasuryAddress5 = "u+B5orNhPxXoaYxrUln1AR2uIyP/gsiVEbIRMTdvmQTkO9pq0B76ZWqW"
-	obfuscatedTreasuryAddress6 = "u755odNhn87iVLDdSg7YEipX3qw34GMUdSWmaGtBVLYGuG/VSL9kQOJR"
-	obfuscatedTreasuryAddress7 = "u85BL8Xha046+LEBDlk69oqsQr6CdEz3qQd2icEOlZ+jQoE4F+9reJj1"
-	obfuscatedTreasuryAddress8 = "udm0LhNhPtPkP8ivTbvYcZhRUIRrUeI1EyKv9mq7WpRxd0TLSCOV+8ru"
-	obfuscatedTreasuryAddress9 = "udZTee5hqIGhukjiUsd8Ec8R3nQFFGM1ERbsMWt3C4IjU+hsF8tkZaru"
+	obfuscatedTreasuryAddress0  = "u97wL//hA0aGIvvirTEfE4VlIPkT4nwVR8sSMfzV58Tyi4mHiL5rZatq"
+	obfuscatedTreasuryAddress1  = "u9insKBhqrjtCF7MDnrYE9ULbzgCFYccRgrvuLH/C3A/h3bVF8uVQ7lq"
+	obfuscatedTreasuryAddress2  = "u8601BNhw5XkP75ejk5mE/pRMasT4BucEqkSZBl1C76izrDnSiNiRGqm"
+	obfuscatedTreasuryAddress3  = "u9jTTpvhqxZrFWcvLkX16s75/nO37JxfdkOvdrH/mQsdQyNQ6H4/33Km"
+	obfuscatedTreasuryAddress4  = "ueLTepphqK+xmG8sSg6zEr+sWXwCVpMcRxcrHGt3kbYdzwLeIPY/37xm"
+	obfuscatedTreasuryAddress5  = "u+B5orNhPxXoaYxrUln1AR2uIyP/gsiVEbIRMTdvmQTkO9pq0B76ZWqW"
+	obfuscatedTreasuryAddress6  = "u755odNhn87iVLDdSg7YEipX3qw34GMUdSWmaGtBVLYGuG/VSL9kQOJR"
+	obfuscatedTreasuryAddress7  = "u85BL8Xha046+LEBDlk69oqsQr6CdEz3qQd2icEOlZ+jQoE4F+9reJj1"
+	obfuscatedTreasuryAddress8  = "udm0LhNhPtPkP8ivTbvYcZhRUIRrUeI1EyKv9mq7WpRxd0TLSCOV+8ru"
+	obfuscatedTreasuryAddress9  = "udZTee5hqIGhukjiUsd8Ec8R3nQFFGM1ERbsMWt3C4IjU+hsF8tkZaru"
 	obfuscatedTreasuryAddress10 = "u97wpMlha6G6tLBcOjEfEoqRxnY3dmm9HHbGf7sIFCGGuBlVIx4/AlKU"
 	obfuscatedTreasuryAddress11 = "u860fo5hqyIxK5dirTEzcdiIXuxTTTxsdkDQxLqHSULpoSKFITW5eIHu"
 	obfuscatedTreasuryAddress12 = "u2m/LqhhT6IS3jriS7HD8iJgbNwT4C6sMSfsAdE7mO8xFSqHf/sFgGtc"
@@ -76,117 +76,116 @@ func GetTreasuryAddresses() []string {
 }
 
 func getTreasuryAddress0() string {
-	val, _ := obfuscator.DecodeString(obfuscatedTreasuryAddress0)
+	val, _ := env.DecodeString(obfuscatedTreasuryAddress0)
 	return val
 }
 
 func getTreasuryAddress1() string {
-	val, _ := obfuscator.DecodeString(obfuscatedTreasuryAddress1)
+	val, _ := env.DecodeString(obfuscatedTreasuryAddress1)
 	return val
 }
 
 func getTreasuryAddress2() string {
-	val, _ := obfuscator.DecodeString(obfuscatedTreasuryAddress2)
+	val, _ := env.DecodeString(obfuscatedTreasuryAddress2)
 	return val
 }
 
 func getTreasuryAddress3() string {
-	val, _ := obfuscator.DecodeString(obfuscatedTreasuryAddress3)
+	val, _ := env.DecodeString(obfuscatedTreasuryAddress3)
 	return val
 }
 
 func getTreasuryAddress4() string {
-	val, _ := obfuscator.DecodeString(obfuscatedTreasuryAddress4)
+	val, _ := env.DecodeString(obfuscatedTreasuryAddress4)
 	return val
 }
 
 func getTreasuryAddress5() string {
-	val, _ := obfuscator.DecodeString(obfuscatedTreasuryAddress5)
+	val, _ := env.DecodeString(obfuscatedTreasuryAddress5)
 	return val
 }
 
 func getTreasuryAddress6() string {
-	val, _ := obfuscator.DecodeString(obfuscatedTreasuryAddress6)
+	val, _ := env.DecodeString(obfuscatedTreasuryAddress6)
 	return val
 }
 
 func getTreasuryAddress7() string {
-	val, _ := obfuscator.DecodeString(obfuscatedTreasuryAddress7)
+	val, _ := env.DecodeString(obfuscatedTreasuryAddress7)
 	return val
 }
 
 func getTreasuryAddress8() string {
-	val, _ := obfuscator.DecodeString(obfuscatedTreasuryAddress8)
+	val, _ := env.DecodeString(obfuscatedTreasuryAddress8)
 	return val
 }
 
 func getTreasuryAddress9() string {
-	val, _ := obfuscator.DecodeString(obfuscatedTreasuryAddress9)
+	val, _ := env.DecodeString(obfuscatedTreasuryAddress9)
 	return val
 }
 
 func getTreasuryAddress10() string {
-	val, _ := obfuscator.DecodeString(obfuscatedTreasuryAddress10)
+	val, _ := env.DecodeString(obfuscatedTreasuryAddress10)
 	return val
 }
 
 func getTreasuryAddress11() string {
-	val, _ := obfuscator.DecodeString(obfuscatedTreasuryAddress11)
+	val, _ := env.DecodeString(obfuscatedTreasuryAddress11)
 	return val
 }
 
 func getTreasuryAddress12() string {
-	val, _ := obfuscator.DecodeString(obfuscatedTreasuryAddress12)
+	val, _ := env.DecodeString(obfuscatedTreasuryAddress12)
 	return val
 }
 
 func getTreasuryAddress13() string {
-	val, _ := obfuscator.DecodeString(obfuscatedTreasuryAddress13)
+	val, _ := env.DecodeString(obfuscatedTreasuryAddress13)
 	return val
 }
 
 func getTreasuryAddress14() string {
-	val, _ := obfuscator.DecodeString(obfuscatedTreasuryAddress14)
+	val, _ := env.DecodeString(obfuscatedTreasuryAddress14)
 	return val
 }
 
 func getTreasuryAddress15() string {
-	val, _ := obfuscator.DecodeString(obfuscatedTreasuryAddress15)
+	val, _ := env.DecodeString(obfuscatedTreasuryAddress15)
 	return val
 }
 
 func getTreasuryAddress16() string {
-	val, _ := obfuscator.DecodeString(obfuscatedTreasuryAddress16)
+	val, _ := env.DecodeString(obfuscatedTreasuryAddress16)
 	return val
 }
 
 func getTreasuryAddress17() string {
-	val, _ := obfuscator.DecodeString(obfuscatedTreasuryAddress17)
+	val, _ := env.DecodeString(obfuscatedTreasuryAddress17)
 	return val
 }
 
 func getTreasuryAddress18() string {
-	val, _ := obfuscator.DecodeString(obfuscatedTreasuryAddress18)
+	val, _ := env.DecodeString(obfuscatedTreasuryAddress18)
 	return val
 }
 
 func getTreasuryAddress19() string {
-	val, _ := obfuscator.DecodeString(obfuscatedTreasuryAddress19)
+	val, _ := env.DecodeString(obfuscatedTreasuryAddress19)
 	return val
 }
 
 func getTreasuryAddress20() string {
-	val, _ := obfuscator.DecodeString(obfuscatedTreasuryAddress20)
+	val, _ := env.DecodeString(obfuscatedTreasuryAddress20)
 	return val
 }
 
 func getTreasuryAddress21() string {
-	val, _ := obfuscator.DecodeString(obfuscatedTreasuryAddress21)
+	val, _ := env.DecodeString(obfuscatedTreasuryAddress21)
 	return val
 }
 
 func getTreasuryAddress22() string {
-	val, _ := obfuscator.DecodeString(obfuscatedTreasuryAddress22)
+	val, _ := env.DecodeString(obfuscatedTreasuryAddress22)
 	return val
 }
-

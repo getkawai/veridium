@@ -20,7 +20,7 @@ require (
 	github.com/dslipak/pdf v0.0.2
 	github.com/duckdb/duckdb-go/v2 v2.5.4
 	github.com/ebitengine/purego v0.9.1
-	github.com/ethereum/go-ethereum v1.16.7
+	github.com/ethereum/go-ethereum v1.16.8
 	github.com/getsentry/sentry-go v0.40.0
 	github.com/gin-gonic/gin v1.11.0
 	github.com/go-viper/mapstructure/v2 v2.4.0
@@ -29,6 +29,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/jupiterrider/ffi v0.5.1
 	github.com/kaptinlin/jsonschema v0.6.2
+	github.com/kawai-network/x v1.0.1
 	github.com/maypok86/otter/v2 v2.3.0
 	github.com/nikolalohinski/gonja/v2 v2.5.0
 	github.com/openai/openai-go/v2 v2.7.1

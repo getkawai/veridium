@@ -10,15 +10,11 @@ import (
 	"time"
 
 	"github.com/kawai-network/veridium/internal/constant"
-	"github.com/kawai-network/veridium/pkg/obfuscator"
 	"github.com/kawai-network/veridium/pkg/tunnelkit"
+	"github.com/kawai-network/x/env"
 )
 
 const (
-	// Hardcoded credentials as requested
-	defaultAccountID = "ceab218751d33cd804878196ad7bef74"
-	defaultAPIToken  = "OP8BZQhyeJxrovCPKt15eUOSC6i5LXTVECGRSMc1"
-
 	defaultDomain      = "getkawai.com" // Default domain, can be changed
 	defaultTunnelCount = 1
 	defaultOutputFile  = "pkg/tunnelkit/tunnels.go"
@@ -28,8 +24,8 @@ const (
 func main() {
 	// Although user said "other flags not needed", keeping them as optional overrides
 	// is good practice, but defaulting to the requested constants.
-	accountID := flag.String("acc-id", defaultAccountID, "Cloudflare Account ID")
-	apiToken := flag.String("token", defaultAPIToken, "Cloudflare API Token")
+	accountID := constant.GetCfAccountId()
+	apiToken := constant.GetCfApiToken()
 	domain := flag.String("domain", defaultDomain, "Base domain for hostnames")
 	count := flag.Int("count", defaultTunnelCount, "Number of tunnels to create")
 	output := flag.String("out", defaultOutputFile, "Output Go file path")
@@ -37,16 +33,12 @@ func main() {
 
 	flag.Parse()
 
-	if *accountID == "" || *apiToken == "" {
-		log.Fatal("Account ID and API Token are required")
-	}
-
 	fmt.Printf("Starting creation of %d tunnels for domain %s...\n", *count, *domain)
 
 	var tunnels []*tunnelkit.TunnelInfo
 
 	// Initialize obfuscator for TunnelToken
-	obf := obfuscator.New()
+	obf := env.New()
 
 	// Create output directory if it doesn't exist
 	outDir := filepath.Dir(*output)
@@ -63,8 +55,8 @@ func main() {
 		fmt.Printf("[%d/%d] Creating tunnel '%s' (Host: %s)... ", i+1, *count, tunnelName, hostname)
 
 		cfg := tunnelkit.Config{
-			AccountID:  *accountID,
-			APIToken:   *apiToken,
+			AccountID:  accountID,
+			APIToken:   apiToken,
 			TunnelName: tunnelName,
 			Hostname:   hostname,
 			LocalURL:   constant.LocalContributorURL,
@@ -113,7 +105,7 @@ func generateGoFile(outputPath, packageName string, tunnels []*tunnelkit.TunnelI
 
 	// Import obfuscator
 	sb.WriteString("import (\n")
-	sb.WriteString("\t\"github.com/kawai-network/veridium/pkg/obfuscator\"\n")
+	sb.WriteString("\t\"github.com/kawai-network/x/env\"\n")
 	sb.WriteString(")\n\n")
 
 	// Tunnel data as constants
@@ -140,7 +132,7 @@ func generateGoFile(outputPath, packageName string, tunnels []*tunnelkit.TunnelI
 	// GetTunnels function
 	sb.WriteString("// GetTunnels returns all tunnel configurations with decoded tokens\n")
 	sb.WriteString("func GetTunnels() []*TunnelInfo {\n")
-	sb.WriteString("\tobf := obfuscator.New()\n")
+	sb.WriteString("\tobf := env.New()\n")
 	sb.WriteString("\ttunnels := make([]*TunnelInfo, len(tunnelConfigs))\n")
 	sb.WriteString("\tfor i, cfg := range tunnelConfigs {\n")
 	sb.WriteString("\t\tdecodedToken, _ := obf.Decode(cfg.TunnelToken)\n")
@@ -157,7 +149,7 @@ func generateGoFile(outputPath, packageName string, tunnels []*tunnelkit.TunnelI
 	// GetTunnelByID function
 	sb.WriteString("// GetTunnelByID returns a tunnel by its ID with decoded token\n")
 	sb.WriteString("func GetTunnelByID(tunnelID string) *TunnelInfo {\n")
-	sb.WriteString("\tobf := obfuscator.New()\n")
+	sb.WriteString("\tobf := env.New()\n")
 	sb.WriteString("\tfor _, cfg := range tunnelConfigs {\n")
 	sb.WriteString("\t\tif cfg.TunnelID == tunnelID {\n")
 	sb.WriteString("\t\t\tdecodedToken, _ := obf.Decode(cfg.TunnelToken)\n")
@@ -175,7 +167,7 @@ func generateGoFile(outputPath, packageName string, tunnels []*tunnelkit.TunnelI
 	// GetTunnelByHostname function
 	sb.WriteString("// GetTunnelByHostname returns a tunnel by its hostname with decoded token\n")
 	sb.WriteString("func GetTunnelByHostname(hostname string) *TunnelInfo {\n")
-	sb.WriteString("\tobf := obfuscator.New()\n")
+	sb.WriteString("\tobf := env.New()\n")
 	sb.WriteString("\tfor _, cfg := range tunnelConfigs {\n")
 	sb.WriteString("\t\tif cfg.Hostname == hostname {\n")
 	sb.WriteString("\t\t\tdecodedToken, _ := obf.Decode(cfg.TunnelToken)\n")

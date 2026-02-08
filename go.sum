@@ -192,8 +192,8 @@ github.com/ethereum/c-kzg-4844/v2 v2.1.5 h1:aVtoLK5xwJ6c5RiqO8g8ptJ5KU+2Hdquf6G3
 github.com/ethereum/c-kzg-4844/v2 v2.1.5/go.mod h1:u59hRTTah4Co6i9fDWtiCjTrblJv0UwsqZKCc0GfgUs=
 github.com/ethereum/go-bigmodexpfix v0.0.0-20250911101455-f9e208c548ab h1:rvv6MJhy07IMfEKuARQ9TKojGqLVNxQajaXEp/BoqSk=
 github.com/ethereum/go-bigmodexpfix v0.0.0-20250911101455-f9e208c548ab/go.mod h1:IuLm4IsPipXKF7CW5Lzf68PIbZ5yl7FFd74l/E0o9A8=
-github.com/ethereum/go-ethereum v1.16.7 h1:qeM4TvbrWK0UC0tgkZ7NiRsmBGwsjqc64BHo20U59UQ=
-github.com/ethereum/go-ethereum v1.16.7/go.mod h1:Fs6QebQbavneQTYcA39PEKv2+zIjX7rPUZ14DER46wk=
+github.com/ethereum/go-ethereum v1.16.8 h1:LLLfkZWijhR5m6yrAXbdlTeXoqontH+Ga2f9igY7law=
+github.com/ethereum/go-ethereum v1.16.8/go.mod h1:Fs6QebQbavneQTYcA39PEKv2+zIjX7rPUZ14DER46wk=
 github.com/ethereum/go-verkle v0.2.2 h1:I2W0WjnrFUIzzVPwm8ykY+7pL2d4VhlsePn4j7cnFk8=
 github.com/ethereum/go-verkle v0.2.2/go.mod h1:M3b90YRnzqKyyzBEWJGqj8Qff4IDeXnzFw0P9bFw3uk=
 github.com/facebookgo/ensure v0.0.0-20200202191622-63f1cf65ac4c h1:8ISkoahWXwZR41ois5lSJBSVw4D0OV19Ht/JSTzvSv0=
@@ -395,6 +395,8 @@ github.com/kaptinlin/jsonschema v0.6.2 h1:+c9W6I2k/8+yMrwYb9fZCQGAROJTMGM9ZSqLdu
 github.com/kaptinlin/jsonschema v0.6.2/go.mod h1:N7rMNv64BLaLPa7IA6ul5FqVlwzeIn6dSm5cqVpNCmM=
 github.com/kaptinlin/messageformat-go v0.4.6 h1:57DUC9en40mGZR7MvqOS+5EYogAl465fjo+loAA1KPg=
 github.com/kaptinlin/messageformat-go v0.4.6/go.mod h1:r0PH7FsxJX8jS/n6LAYZon5w3X+yfCLUrquqYd2H7ks=
+github.com/kawai-network/x v1.0.1 h1:m5MlhFNp7B3O3tXQLZ/qpmEJcpKIr+2CVLE28V0/w+I=
+github.com/kawai-network/x v1.0.1/go.mod h1:oAArmJeOOCz+ni3OZhaXC82pEkx65JBoetfC1eSa3nk=
 github.com/kevinburke/ssh_config v1.4.0 h1:6xxtP5bZ2E4NF5tuQulISpTO2z8XbtH8cg1PWkxoFkQ=
 github.com/kevinburke/ssh_config v1.4.0/go.mod h1:q2RIzfka+BXARoNexmF9gkxEX7DmvbW9P4hIVx2Kg4M=
 github.com/klauspost/asmfmt v1.3.2 h1:4Ri7ox3EwapiOjCki+hw14RyKk201CN4rzyCJRFLpK4=

@@ -5,7 +5,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/kawai-network/veridium/pkg/obfuscator"
+	"github.com/kawai-network/x/env"
 )
 
 const (
@@ -65,37 +65,37 @@ func GetOpenRouterApiKeys() []string {
 }
 
 func getOpenRouterApiKey0() string {
-	val, _ := obfuscator.DecodeString(obfuscatedOpenRouterApiKey0)
+	val, _ := env.DecodeString(obfuscatedOpenRouterApiKey0)
 	return val
 }
 
 func getOpenRouterApiKey1() string {
-	val, _ := obfuscator.DecodeString(obfuscatedOpenRouterApiKey1)
+	val, _ := env.DecodeString(obfuscatedOpenRouterApiKey1)
 	return val
 }
 
 func getOpenRouterApiKey2() string {
-	val, _ := obfuscator.DecodeString(obfuscatedOpenRouterApiKey2)
+	val, _ := env.DecodeString(obfuscatedOpenRouterApiKey2)
 	return val
 }
 
 func getOpenRouterApiKey3() string {
-	val, _ := obfuscator.DecodeString(obfuscatedOpenRouterApiKey3)
+	val, _ := env.DecodeString(obfuscatedOpenRouterApiKey3)
 	return val
 }
 
 func getOpenRouterApiKey4() string {
-	val, _ := obfuscator.DecodeString(obfuscatedOpenRouterApiKey4)
+	val, _ := env.DecodeString(obfuscatedOpenRouterApiKey4)
 	return val
 }
 
 func getOpenRouterApiKey5() string {
-	val, _ := obfuscator.DecodeString(obfuscatedOpenRouterApiKey5)
+	val, _ := env.DecodeString(obfuscatedOpenRouterApiKey5)
 	return val
 }
 
 func getOpenRouterApiKey6() string {
-	val, _ := obfuscator.DecodeString(obfuscatedOpenRouterApiKey6)
+	val, _ := env.DecodeString(obfuscatedOpenRouterApiKey6)
 	return val
 }
 
@@ -117,7 +117,7 @@ func GetZaiApiKeys() []string {
 }
 
 func getZaiApiKey0() string {
-	val, _ := obfuscator.DecodeString(obfuscatedZaiApiKey0)
+	val, _ := env.DecodeString(obfuscatedZaiApiKey0)
 	return val
 }
 
@@ -146,42 +146,42 @@ func GetGeminiApiKeys() []string {
 }
 
 func getGeminiApiKey0() string {
-	val, _ := obfuscator.DecodeString(obfuscatedGeminiApiKey0)
+	val, _ := env.DecodeString(obfuscatedGeminiApiKey0)
 	return val
 }
 
 func getGeminiApiKey1() string {
-	val, _ := obfuscator.DecodeString(obfuscatedGeminiApiKey1)
+	val, _ := env.DecodeString(obfuscatedGeminiApiKey1)
 	return val
 }
 
 func getGeminiApiKey2() string {
-	val, _ := obfuscator.DecodeString(obfuscatedGeminiApiKey2)
+	val, _ := env.DecodeString(obfuscatedGeminiApiKey2)
 	return val
 }
 
 func getGeminiApiKey3() string {
-	val, _ := obfuscator.DecodeString(obfuscatedGeminiApiKey3)
+	val, _ := env.DecodeString(obfuscatedGeminiApiKey3)
 	return val
 }
 
 func getGeminiApiKey4() string {
-	val, _ := obfuscator.DecodeString(obfuscatedGeminiApiKey4)
+	val, _ := env.DecodeString(obfuscatedGeminiApiKey4)
 	return val
 }
 
 func getGeminiApiKey5() string {
-	val, _ := obfuscator.DecodeString(obfuscatedGeminiApiKey5)
+	val, _ := env.DecodeString(obfuscatedGeminiApiKey5)
 	return val
 }
 
 func getGeminiApiKey6() string {
-	val, _ := obfuscator.DecodeString(obfuscatedGeminiApiKey6)
+	val, _ := env.DecodeString(obfuscatedGeminiApiKey6)
 	return val
 }
 
 func getGeminiApiKey7() string {
-	val, _ := obfuscator.DecodeString(obfuscatedGeminiApiKey7)
+	val, _ := env.DecodeString(obfuscatedGeminiApiKey7)
 	return val
 }
 
@@ -205,17 +205,17 @@ func GetHfApiKeys() []string {
 }
 
 func getHfApiKey0() string {
-	val, _ := obfuscator.DecodeString(obfuscatedHfApiKey0)
+	val, _ := env.DecodeString(obfuscatedHfApiKey0)
 	return val
 }
 
 func getHfApiKey1() string {
-	val, _ := obfuscator.DecodeString(obfuscatedHfApiKey1)
+	val, _ := env.DecodeString(obfuscatedHfApiKey1)
 	return val
 }
 
 func getHfApiKey2() string {
-	val, _ := obfuscator.DecodeString(obfuscatedHfApiKey2)
+	val, _ := env.DecodeString(obfuscatedHfApiKey2)
 	return val
 }
 
@@ -238,12 +238,11 @@ func GetCloudflareApiKeys() []string {
 }
 
 func getCloudflareApiKey0() string {
-	val, _ := obfuscator.DecodeString(obfuscatedCloudflareApiKey0)
+	val, _ := env.DecodeString(obfuscatedCloudflareApiKey0)
 	return val
 }
 
 func getCloudflareApiKey1() string {
-	val, _ := obfuscator.DecodeString(obfuscatedCloudflareApiKey1)
+	val, _ := env.DecodeString(obfuscatedCloudflareApiKey1)
 	return val
 }
-

@@ -7,8 +7,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/kawai-network/veridium/pkg/obfuscator"
 	"github.com/kawai-network/veridium/pkg/tunnelkit"
+	"github.com/kawai-network/x/env"
 )
 
 func main() {
@@ -71,7 +71,7 @@ func decodeAllTunnels(inputFile string) error {
 		return fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
-	obf := obfuscator.New()
+	obf := env.New()
 
 	fmt.Printf("Decoding %d tunnel token(s)...\n\n", len(tunnels))
 
@@ -106,7 +106,7 @@ func decodeSpecificTunnel(inputFile, identifier string) error {
 		return fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
-	obf := obfuscator.New()
+	obf := env.New()
 
 	// Find tunnel by ID or hostname
 	for _, tunnel := range tunnels {

@@ -119,14 +119,14 @@ These packages provide general-purpose utilities:
 A custom string encoder/decoder that provides obfuscation without using secret keys. Ideal for hiding data from casual inspection.
 
 ```go
-import "github.com/kawai-network/veridium/pkg/obfuscator"
+import "github.com/kawai-network/x/env"
 
 // Quick usage
-encoded := obfuscator.EncodeString("Hello, World!")
-decoded, err := obfuscator.DecodeString(encoded)
+encoded := env.EncodeString("Hello, World!")
+decoded, err := env.DecodeString(encoded)
 
 // Reusable instance
-o := obfuscator.New()
+o := env.New()
 encoded := o.Encode("sensitive data")
 decoded, err := o.Decode(encoded)
 ```

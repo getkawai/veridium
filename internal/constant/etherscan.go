@@ -5,7 +5,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/kawai-network/veridium/pkg/obfuscator"
+	"github.com/kawai-network/x/env"
 )
 
 const (
@@ -36,22 +36,21 @@ func getEtherscanApiKeys() []string {
 }
 
 func getEtherscanApiKey0() string {
-	val, _ := obfuscator.DecodeString(obfuscatedEtherscanApiKey0)
+	val, _ := env.DecodeString(obfuscatedEtherscanApiKey0)
 	return val
 }
 
 func getEtherscanApiKey1() string {
-	val, _ := obfuscator.DecodeString(obfuscatedEtherscanApiKey1)
+	val, _ := env.DecodeString(obfuscatedEtherscanApiKey1)
 	return val
 }
 
 func getEtherscanApiKey2() string {
-	val, _ := obfuscator.DecodeString(obfuscatedEtherscanApiKey2)
+	val, _ := env.DecodeString(obfuscatedEtherscanApiKey2)
 	return val
 }
 
 func getEtherscanApiKey3() string {
-	val, _ := obfuscator.DecodeString(obfuscatedEtherscanApiKey3)
+	val, _ := env.DecodeString(obfuscatedEtherscanApiKey3)
 	return val
 }
-

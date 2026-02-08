@@ -3,9 +3,7 @@
 
 package tunnelkit
 
-import (
-	"github.com/kawai-network/veridium/pkg/obfuscator"
-)
+import "github.com/kawai-network/x/env"
 
 // Tunnel configurations (tokens are obfuscated)
 var tunnelConfigs = []struct {
@@ -24,7 +22,7 @@ var tunnelConfigs = []struct {
 
 // GetTunnels returns all tunnel configurations with decoded tokens
 func GetTunnels() []*TunnelInfo {
-	obf := obfuscator.New()
+	obf := env.New()
 	tunnels := make([]*TunnelInfo, len(tunnelConfigs))
 	for i, cfg := range tunnelConfigs {
 		decodedToken, _ := obf.Decode(cfg.TunnelToken)
@@ -40,7 +38,7 @@ func GetTunnels() []*TunnelInfo {
 
 // GetTunnelByID returns a tunnel by its ID with decoded token
 func GetTunnelByID(tunnelID string) *TunnelInfo {
-	obf := obfuscator.New()
+	obf := env.New()
 	for _, cfg := range tunnelConfigs {
 		if cfg.TunnelID == tunnelID {
 			decodedToken, _ := obf.Decode(cfg.TunnelToken)
@@ -57,7 +55,7 @@ func GetTunnelByID(tunnelID string) *TunnelInfo {
 
 // GetTunnelByHostname returns a tunnel by its hostname with decoded token
 func GetTunnelByHostname(hostname string) *TunnelInfo {
-	obf := obfuscator.New()
+	obf := env.New()
 	for _, cfg := range tunnelConfigs {
 		if cfg.Hostname == hostname {
 			decodedToken, _ := obf.Decode(cfg.TunnelToken)

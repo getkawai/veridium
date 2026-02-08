@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kawai-network/veridium/pkg/apikey"
+	"github.com/kawai-network/x/apikey"
 )
 
 type testOption struct {

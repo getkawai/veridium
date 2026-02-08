@@ -8,7 +8,7 @@ import (
 
 	"github.com/kawai-network/veridium/cmd/server/app/sdk/errs"
 	"github.com/kawai-network/veridium/cmd/server/foundation/web"
-	"github.com/kawai-network/veridium/pkg/apikey"
+	"github.com/kawai-network/x/apikey"
 )
 
 // WalletAuthenticate validates wallet-based API keys and sets wallet address in context.
