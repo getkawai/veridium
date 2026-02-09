@@ -415,10 +415,11 @@ func init() {
 				return
 			}
 
-			if gpuName == "NVIDIA" {
+			switch gpuName {
+			case "NVIDIA":
 				libPath = GetSDLibPath("cuda12/stable-diffusion.dll")
 				libSD, err = openLibrary(libPath)
-			} else if gpuName == "AMD" {
+			case "AMD":
 				libPath = GetSDLibPath("rocm/stable-diffusion.dll")
 				libSD, err = openLibrary(libPath)
 			}

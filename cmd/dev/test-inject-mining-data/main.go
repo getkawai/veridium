@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
-	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/pkg/store"
 	"github.com/kawai-network/veridium/pkg/types"
+	"github.com/kawai-network/x/constant"
 )
 
 // This tool injects test mining reward data into KV store
@@ -68,7 +68,7 @@ func main() {
 
 func injectReferralUserReward(ctx context.Context, kv *store.KVStore) error {
 	contributorAddr := "0x9f152652004F133f64522ECE18D3Dc0eD531d2d7" // Valid test wallet #1
-	
+
 	// First, create contributor record so they show up in ListContributorsWithBalance
 	contributorData := &store.ContributorData{
 		WalletAddress:      contributorAddr,
@@ -84,7 +84,7 @@ func injectReferralUserReward(ctx context.Context, kv *store.KVStore) error {
 	if err := kv.SaveContributor(ctx, contributorData); err != nil {
 		return fmt.Errorf("failed to save contributor: %w", err)
 	}
-	
+
 	// Calculate 85/5/5/5 split for 1M tokens (100 KAWAI base)
 	baseReward := big.NewInt(100) // 100 KAWAI
 
@@ -130,7 +130,7 @@ func injectReferralUserReward(ctx context.Context, kv *store.KVStore) error {
 
 func injectNonReferralUserReward(ctx context.Context, kv *store.KVStore) error {
 	contributorAddr := "0xefd96492CE8A2c8B3874c9cdB1D7A02df1326764" // Valid test wallet #2
-	
+
 	// First, create contributor record
 	contributorData := &store.ContributorData{
 		WalletAddress:      contributorAddr,
@@ -146,7 +146,7 @@ func injectNonReferralUserReward(ctx context.Context, kv *store.KVStore) error {
 	if err := kv.SaveContributor(ctx, contributorData); err != nil {
 		return fmt.Errorf("failed to save contributor: %w", err)
 	}
-	
+
 	// Calculate 90/5/5 split for 1M tokens (100 KAWAI base)
 	baseReward := big.NewInt(100)
 
@@ -253,4 +253,3 @@ func injectMultipleJobs(ctx context.Context, kv *store.KVStore) error {
 
 	return nil
 }
-

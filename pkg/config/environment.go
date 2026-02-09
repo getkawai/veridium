@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kawai-network/veridium/internal/constant"
+	"github.com/kawai-network/x/constant"
 )
 
 // Environment represents the deployment environment

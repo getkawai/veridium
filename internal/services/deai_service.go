@@ -11,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/pkg/alert"
 	"github.com/kawai-network/veridium/pkg/config"
 	"github.com/kawai-network/veridium/pkg/jarvis/contracts"
@@ -19,6 +18,7 @@ import (
 	"github.com/kawai-network/veridium/pkg/jarvis/util/reader"
 	"github.com/kawai-network/veridium/pkg/store"
 	"github.com/kawai-network/veridium/pkg/types"
+	"github.com/kawai-network/x/constant"
 )
 
 // isUserError checks if an error is a user-caused error (not system error)

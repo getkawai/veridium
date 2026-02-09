@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/pkg/store"
+	"github.com/kawai-network/x/constant"
 )
 
 func main() {

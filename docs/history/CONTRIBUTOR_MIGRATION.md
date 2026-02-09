@@ -70,7 +70,7 @@ export KRONK_CONTRIBUTOR_IMPORTMNEMONIC="word1 word2..."
 ### New Imports
 ```go
 "github.com/ethereum/go-ethereum/common"
-"github.com/kawai-network/veridium/internal/constant"
+"github.com/kawai-network/x/constant"
 "github.com/kawai-network/veridium/internal/image"
 "github.com/kawai-network/veridium/internal/services"
 "github.com/kawai-network/veridium/internal/whisper"

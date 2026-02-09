@@ -7,9 +7,9 @@ import (
 	"os"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/pkg/jarvis/contracts"
 	"github.com/kawai-network/veridium/pkg/jarvis/util/reader"
+	"github.com/kawai-network/x/constant"
 )
 
 func main() {

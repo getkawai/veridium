@@ -1,10 +1,9 @@
 // Model Management Example
-// This example demonstrates how to use the model management feature
+// This example demonstrates how to use the model catalog and selection features
 package main
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/kawai-network/veridium/pkg/stablediffusion/models"
 )
@@ -13,175 +12,138 @@ func main() {
 	fmt.Println("Stable Diffusion Go - Model Management Example")
 	fmt.Println("===============================================")
 
-	// Example 1: Create and load model registry
-	fmt.Println("\n1. Creating and loading model registry...")
-	registry := models.NewRegistry("./model_registry.json")
-	if err := registry.Load(); err != nil {
-		fmt.Printf("Note: Starting with empty registry: %v\n", err)
+	// Example 1: Get available models from catalog
+	fmt.Println("\n1. Getting available models from catalog...")
+	availableModels := models.GetAvailableModels()
+	fmt.Printf("Total models in catalog: %d\n", len(availableModels))
+
+	// Example 2: List all models with details
+	fmt.Println("\n2. Listing all models with details...")
+	for i, model := range availableModels {
+		fmt.Printf("\n[%d] %s\n", i+1, model.Name)
+		fmt.Printf("    Type: %s\n", model.ModelType)
+		fmt.Printf("    Size: %d MB\n", model.Size)
+		fmt.Printf("    Quantization: %s\n", model.Quantization)
+		fmt.Printf("    Min RAM: %d GB (Recommended: %d GB)\n", model.MinRAM, model.RecommendedRAM)
+		fmt.Printf("    Min VRAM: %d GB (Recommended: %d GB)\n", model.MinVRAM, model.RecommendedVRAM)
+		fmt.Printf("    Description: %s\n", model.Description)
+		fmt.Printf("    URL: %s\n", model.URL)
 	}
 
-	// Example 2: Manually register models
-	fmt.Println("\n2. Registering models manually...")
-
-	diffusionModel := &models.ModelInfo{
-		ID:          "z-image-turbo",
-		Name:        "Z-Image Turbo",
-		Type:        models.ModelTypeDiffusion,
-		Path:        "D:\\hf-mirror\\Z-Image-Turbo-GGUF\\z_image_turbo-Q4_K_M.gguf",
-		Format:      models.FormatGGUF,
-		Size:        4 * 1024 * 1024 * 1024, // 4GB
-		Tags:        []string{"turbo", "fast", "q4"},
-		Description: "Fast diffusion model for quick image generation",
-		Source:      "https://huggingface.co/model",
+	// Example 3: Select optimal model for high-end system
+	fmt.Println("\n3. Selecting optimal model for high-end system...")
+	highEndSpecs := &models.HardwareSpecs{
+		TotalRAM:     32,
+		AvailableRAM: 24,
+		CPU:          "AMD Ryzen 9 5950X",
+		CPUCores:     16,
+		GPUMemory:    12,
+		GPUModel:     "NVIDIA RTX 3080",
 	}
+	selectedModel := models.SelectOptimalModel(highEndSpecs)
+	fmt.Printf("Selected: %s\n", selectedModel.Name)
+	fmt.Printf("  Type: %s\n", selectedModel.ModelType)
+	fmt.Printf("  Size: %d MB\n", selectedModel.Size)
+	fmt.Printf("  Quantization: %s\n", selectedModel.Quantization)
 
-	if err := registry.Register(diffusionModel); err != nil {
-		log.Printf("Failed to register diffusion model: %v", err)
-	} else {
-		fmt.Printf("✓ Registered: %s (%s)\n", diffusionModel.Name, diffusionModel.HumanSize())
+	// Example 4: Select optimal model for mid-range system
+	fmt.Println("\n4. Selecting optimal model for mid-range system...")
+	midRangeSpecs := &models.HardwareSpecs{
+		TotalRAM:     16,
+		AvailableRAM: 12,
+		CPU:          "Intel Core i5-12400",
+		CPUCores:     6,
+		GPUMemory:    6,
+		GPUModel:     "NVIDIA RTX 3060",
 	}
+	selectedModel = models.SelectOptimalModel(midRangeSpecs)
+	fmt.Printf("Selected: %s\n", selectedModel.Name)
+	fmt.Printf("  Type: %s\n", selectedModel.ModelType)
+	fmt.Printf("  Size: %d MB\n", selectedModel.Size)
 
-	llmModel := &models.ModelInfo{
-		ID:          "qwen3-4b",
-		Name:        "Qwen3 4B",
-		Type:        models.ModelTypeLLM,
-		Path:        "D:\\hf-mirror\\Z-Image-Turbo-GGUF\\Qwen3-4B-Instruct-2507-Q4_K_M.gguf",
-		Format:      models.FormatGGUF,
-		Size:        2 * 1024 * 1024 * 1024, // 2GB
-		Tags:        []string{"llm", "qwen", "4b", "q4"},
-		Description: "Qwen3 4B language model",
-		Source:      "https://huggingface.co/qwen",
+	// Example 5: Select optimal model for low-end system
+	fmt.Println("\n5. Selecting optimal model for low-end system...")
+	lowEndSpecs := &models.HardwareSpecs{
+		TotalRAM:     8,
+		AvailableRAM: 6,
+		CPU:          "Intel Core i3-10100",
+		CPUCores:     4,
+		GPUMemory:    2,
+		GPUModel:     "NVIDIA GTX 1650",
 	}
+	selectedModel = models.SelectOptimalModel(lowEndSpecs)
+	fmt.Printf("Selected: %s\n", selectedModel.Name)
+	fmt.Printf("  Type: %s\n", selectedModel.ModelType)
+	fmt.Printf("  Size: %d MB\n", selectedModel.Size)
 
-	if err := registry.Register(llmModel); err != nil {
-		log.Printf("Failed to register LLM model: %v", err)
-	} else {
-		fmt.Printf("✓ Registered: %s (%s)\n", llmModel.Name, llmModel.HumanSize())
+	// Example 6: Select optimal model for CPU-only system
+	fmt.Println("\n6. Selecting optimal model for CPU-only system...")
+	cpuOnlySpecs := &models.HardwareSpecs{
+		TotalRAM:     16,
+		AvailableRAM: 12,
+		CPU:          "AMD Ryzen 7 5800X",
+		CPUCores:     8,
+		GPUMemory:    0, // No GPU
+		GPUModel:     "",
 	}
+	selectedModel = models.SelectOptimalModel(cpuOnlySpecs)
+	fmt.Printf("Selected: %s\n", selectedModel.Name)
+	fmt.Printf("  Type: %s\n", selectedModel.ModelType)
+	fmt.Printf("  Size: %d MB\n", selectedModel.Size)
 
-	vaeModel := &models.ModelInfo{
-		ID:          "sd-vae",
-		Name:        "SD VAE",
-		Type:        models.ModelTypeVAE,
-		Path:        "D:\\hf-mirror\\Z-Image-Turbo-GGUF\\diffusion_pytorch_model.safetensors",
-		Format:      models.FormatSafetensors,
-		Size:        300 * 1024 * 1024, // 300MB
-		Tags:        []string{"vae", "sd"},
-		Description: "VAE for Stable Diffusion",
-	}
-
-	if err := registry.Register(vaeModel); err != nil {
-		log.Printf("Failed to register VAE model: %v", err)
-	} else {
-		fmt.Printf("✓ Registered: %s (%s)\n", vaeModel.Name, vaeModel.HumanSize())
-	}
-
-	// Example 3: List all models
-	fmt.Println("\n3. Listing all registered models...")
-	allModels := registry.List(models.ModelTypeUnknown)
-	fmt.Printf("Total models: %d\n", len(allModels))
-	for _, m := range allModels {
-		fmt.Printf("  - [%s] %s (%s) - %s\n", m.Type, m.Name, m.HumanSize(), m.Path)
-	}
-
-	// Example 4: List models by type
-	fmt.Println("\n4. Listing diffusion models only...")
-	diffusionModels := registry.List(models.ModelTypeDiffusion)
-	for _, m := range diffusionModels {
-		fmt.Printf("  - %s (%s)\n", m.Name, m.HumanSize())
-	}
-
-	// Example 5: Search models
-	fmt.Println("\n5. Searching for models with 'qwen'...")
-	searchResults := registry.Search("qwen")
-	for _, m := range searchResults {
-		fmt.Printf("  - Found: %s (%s)\n", m.Name, m.Path)
-	}
-
-	// Example 6: Filter by tag
-	fmt.Println("\n6. Filtering models by tag 'q4'...")
-	q4Models := registry.FilterByTag("q4")
-	for _, m := range q4Models {
-		fmt.Printf("  - %s (%s)\n", m.Name, m.HumanSize())
-	}
-
-	// Example 7: Get model by ID
-	fmt.Println("\n7. Getting model by ID...")
-	model, err := registry.Get("z-image-turbo")
-	if err != nil {
-		log.Printf("Failed to get model: %v", err)
-	} else {
-		fmt.Printf("Found: %s\n", model.Name)
-		fmt.Printf("  Path: %s\n", model.Path)
-		fmt.Printf("  Size: %s\n", model.HumanSize())
-		fmt.Printf("  Tags: %v\n", model.Tags)
-	}
-
-	// Example 8: Get registry statistics
-	fmt.Println("\n8. Registry statistics...")
-	stats := registry.GetStats()
-	fmt.Printf("Total models: %d\n", stats.TotalModels)
-	fmt.Printf("Total size: %s\n", formatBytes(stats.TotalSize))
-	fmt.Printf("Average size: %s\n", formatBytes(stats.AverageSize))
-	fmt.Println("By type:")
-	for t, count := range stats.ByType {
-		fmt.Printf("  - %s: %d\n", t, count)
-	}
-
-	// Example 9: Validate registry
-	fmt.Println("\n9. Validating registry...")
-	validationErrors := registry.Validate()
-	if len(validationErrors) > 0 {
-		fmt.Println("Validation errors:")
-		for _, err := range validationErrors {
-			fmt.Printf("  - %v\n", err)
+	// Example 7: Filter models by type
+	fmt.Println("\n7. Filtering models by type...")
+	fmt.Println("\nSD1.5 models:")
+	for _, model := range availableModels {
+		if model.ModelType == "SD1.5" {
+			fmt.Printf("  - %s (%s, %d MB)\n", model.Name, model.Quantization, model.Size)
 		}
-	} else {
-		fmt.Println("✓ All models validated successfully!")
 	}
 
-	// Example 10: Auto-detect models in directory
-	fmt.Println("\n10. Auto-detecting models in directory...")
-	// Note: This would scan a directory for model files
-	// For this example, we'll skip the actual scanning
-	fmt.Println("Note: Auto-detection would scan a directory for model files")
-	fmt.Println("Usage: models.AutoRegister(registry, \"./models\", true)")
-
-	// Example 11: Update model usage
-	fmt.Println("\n11. Updating model usage...")
-	if model != nil {
-		model.UpdateLastUsed()
-		fmt.Printf("Model '%s' use count: %d\n", model.Name, model.UseCount)
-		fmt.Printf("Last used: %v\n", model.LastUsed)
+	fmt.Println("\nSDXL models:")
+	for _, model := range availableModels {
+		if model.ModelType == "SDXL" {
+			fmt.Printf("  - %s (%s, %d MB)\n", model.Name, model.Quantization, model.Size)
+		}
 	}
 
-	// Example 12: Model download (example URLs)
-	fmt.Println("\n12. Model download examples...")
-	fmt.Println("HuggingFace:")
-	fmt.Println("  hf := models.NewHuggingFaceDownloader(\"user/repo\", \"./models\")")
-	fmt.Println("  model, err := hf.Download(\"model.gguf\")")
-	fmt.Println("\nCivitai:")
-	fmt.Println("  civ := models.NewCivitaiDownloader(\"./models\")")
-	fmt.Println("  model, err := civ.DownloadByID(12345, \"model.safetensors\")")
+	// Example 8: Filter models by quantization
+	fmt.Println("\n8. Filtering models by quantization...")
+	fmt.Println("\nQ4_0 quantized models (smallest):")
+	for _, model := range availableModels {
+		if model.Quantization == "q4_0" {
+			fmt.Printf("  - %s (%d MB)\n", model.Name, model.Size)
+		}
+	}
+
+	fmt.Println("\nF16 models (highest quality):")
+	for _, model := range availableModels {
+		if model.Quantization == "f16" {
+			fmt.Printf("  - %s (%d MB)\n", model.Name, model.Size)
+		}
+	}
+
+	// Example 9: Find models that fit specific constraints
+	fmt.Println("\n9. Finding models that fit specific constraints...")
+	maxRAM := int64(8)
+	maxVRAM := int64(4)
+	fmt.Printf("Finding models that fit in %d GB RAM and %d GB VRAM:\n", maxRAM, maxVRAM)
+	for _, model := range availableModels {
+		if model.MinRAM <= maxRAM && model.MinVRAM <= maxVRAM {
+			fmt.Printf("  ✓ %s (RAM: %d GB, VRAM: %d GB)\n", model.Name, model.MinRAM, model.MinVRAM)
+		}
+	}
+
+	// Example 10: Model download information
+	fmt.Println("\n10. Model download information...")
+	fmt.Println("To download a model, use the URL from the catalog:")
+	exampleModel := availableModels[0]
+	fmt.Printf("\nExample: %s\n", exampleModel.Name)
+	fmt.Printf("  URL: %s\n", exampleModel.URL)
+	fmt.Printf("  Save as: %s\n", exampleModel.Filename)
+	fmt.Printf("  Expected size: %d MB\n", exampleModel.Size)
 
 	fmt.Println("\n✅ Model management example completed!")
-}
-
-func formatBytes(bytes int64) string {
-	const (
-		KB = 1024
-		MB = 1024 * KB
-		GB = 1024 * MB
-	)
-
-	switch {
-	case bytes >= GB:
-		return fmt.Sprintf("%.2f GB", float64(bytes)/GB)
-	case bytes >= MB:
-		return fmt.Sprintf("%.2f MB", float64(bytes)/MB)
-	case bytes >= KB:
-		return fmt.Sprintf("%.2f KB", float64(bytes)/KB)
-	default:
-		return fmt.Sprintf("%d B", bytes)
-	}
+	fmt.Println("\nNote: This example demonstrates the model catalog and selection features.")
+	fmt.Println("For actual model downloading, use the download package or manual download.")
 }

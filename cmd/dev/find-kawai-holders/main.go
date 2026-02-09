@@ -7,8 +7,8 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/pkg/blockchain"
+	"github.com/kawai-network/x/constant"
 )
 
 func main() {

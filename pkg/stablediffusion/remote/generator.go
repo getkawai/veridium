@@ -9,17 +9,15 @@ import (
 
 // UnifiedGenerator provides a unified interface for all remote generators
 type UnifiedGenerator struct {
-	gemini       *GeminiGenerator
-	pollinations *PollinationsGenerator
-	cloudflare   *CloudflareGenerator
+	gemini     *GeminiGenerator
+	cloudflare *CloudflareGenerator
 }
 
 // NewGenerator creates a new unified remote generator
 func NewGenerator() *UnifiedGenerator {
 	return &UnifiedGenerator{
-		gemini:       NewGeminiGenerator(),
-		pollinations: NewPollinationsGenerator(),
-		cloudflare:   NewCloudflareGenerator(),
+		gemini:     NewGeminiGenerator(),
+		cloudflare: NewCloudflareGenerator(),
 	}
 }
 
@@ -45,14 +43,16 @@ func (u *UnifiedGenerator) Generate(ctx context.Context, opts GenerationOptions)
 			return u.cloudflare.Generate(ctx, opts)
 		}
 
-		// Fallback to Pollinations
-		log.Printf("[RemoteGen] Gemini/Cloudflare unavailable, falling back to Pollinations")
-		return u.pollinations.Generate(ctx, opts)
+		return fmt.Errorf("no remote generators available")
 	}
 
-	// For other models, use Pollinations
-	log.Printf("[RemoteGen] Using Pollinations API for model: %s", opts.Model)
-	return u.pollinations.Generate(ctx, opts)
+	// For Cloudflare models
+	if u.cloudflare.IsAvailable() {
+		log.Printf("[RemoteGen] Using Cloudflare API for model: %s", opts.Model)
+		return u.cloudflare.Generate(ctx, opts)
+	}
+
+	return fmt.Errorf("no suitable generator available for model: %s", opts.Model)
 }
 
 // GenerateWithFallback generates an image with automatic fallback
@@ -72,11 +72,11 @@ func (u *UnifiedGenerator) GenerateWithFallback(ctx context.Context, opts Genera
 		if err == nil {
 			return nil
 		}
-		log.Printf("[RemoteGen] Cloudflare failed: %v, trying Pollinations", err)
+		log.Printf("[RemoteGen] Cloudflare failed: %v", err)
+		return err
 	}
 
-	// Fallback to Pollinations
-	return u.pollinations.Generate(ctx, opts)
+	return fmt.Errorf("all remote generators failed or unavailable")
 }
 
 // GetAvailableModels returns all available models from all generators
@@ -91,14 +91,12 @@ func (u *UnifiedGenerator) GetAvailableModels() []string {
 		models = append(models, u.gemini.GetAvailableModels()...)
 	}
 
-	models = append(models, u.pollinations.GetAvailableModels()...)
-
 	return models
 }
 
 // IsAvailable checks if any remote generator is available
 func (u *UnifiedGenerator) IsAvailable() bool {
-	return u.gemini.IsAvailable() || u.pollinations.IsAvailable() || u.cloudflare.IsAvailable()
+	return u.gemini.IsAvailable() || u.cloudflare.IsAvailable()
 }
 
 // GetGenerator returns a specific generator by name
@@ -106,16 +104,14 @@ func (u *UnifiedGenerator) GetGenerator(name string) (Generator, error) {
 	switch name {
 	case "gemini":
 		if !u.gemini.IsAvailable() {
-			return nil, fmt.Errorf("Gemini generator not available")
+			return nil, fmt.Errorf("gemini generator not available")
 		}
 		return u.gemini, nil
 	case "cloudflare":
 		if !u.cloudflare.IsAvailable() {
-			return nil, fmt.Errorf("Cloudflare generator not available")
+			return nil, fmt.Errorf("cloudflare generator not available")
 		}
 		return u.cloudflare, nil
-	case "pollinations":
-		return u.pollinations, nil
 	default:
 		return nil, fmt.Errorf("unknown generator: %s", name)
 	}

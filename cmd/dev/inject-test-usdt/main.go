@@ -11,9 +11,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/internal/generate/abi/mockstablecoin"
 	"github.com/kawai-network/veridium/pkg/config"
+	"github.com/kawai-network/x/constant"
 )
 
 func main() {

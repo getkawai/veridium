@@ -8,10 +8,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/pkg/merkle"
 	"github.com/kawai-network/veridium/pkg/store"
 	"github.com/kawai-network/veridium/pkg/types"
+	"github.com/kawai-network/x/constant"
 )
 
 func main() {

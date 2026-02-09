@@ -375,7 +375,7 @@ func NewStableDiffusion(ctxParams *ContextParams) (*StableDiffusion, error) {
 		if WType, ok := SDTypeMap[ctxParams.WType]; ok {
 			sdCtxParams.WType = WType
 		} else {
-			return nil, fmt.Errorf("Invalid WType: %s", ctxParams.WType)
+			return nil, fmt.Errorf("invalid WType: %s", ctxParams.WType)
 		}
 	}
 
@@ -383,7 +383,7 @@ func NewStableDiffusion(ctxParams *ContextParams) (*StableDiffusion, error) {
 		if RNGType, ok := RNGTypeMap[ctxParams.RNGType]; ok {
 			sdCtxParams.RNGType = RNGType
 		} else {
-			return nil, fmt.Errorf("Invalid RNG type: %s", ctxParams.RNGType)
+			return nil, fmt.Errorf("invalid RNG type: %s", ctxParams.RNGType)
 		}
 	}
 
@@ -391,7 +391,7 @@ func NewStableDiffusion(ctxParams *ContextParams) (*StableDiffusion, error) {
 		if RNGType, ok := RNGTypeMap[ctxParams.SamplerRNGType]; ok {
 			sdCtxParams.SamplerRNGType = RNGType
 		} else {
-			return nil, fmt.Errorf("Invalid Sampler RNG type: %s", ctxParams.SamplerRNGType)
+			return nil, fmt.Errorf("invalid Sampler RNG type: %s", ctxParams.SamplerRNGType)
 		}
 	}
 
@@ -399,7 +399,7 @@ func NewStableDiffusion(ctxParams *ContextParams) (*StableDiffusion, error) {
 		if Prediction, ok := PredictionMap[ctxParams.Prediction]; ok {
 			sdCtxParams.Prediction = Prediction
 		} else {
-			return nil, fmt.Errorf("Invalid Prediction: %s", ctxParams.Prediction)
+			return nil, fmt.Errorf("invalid Prediction: %s", ctxParams.Prediction)
 		}
 	}
 
@@ -407,7 +407,7 @@ func NewStableDiffusion(ctxParams *ContextParams) (*StableDiffusion, error) {
 		if LoraApplyMode, ok := LoraApplyModeMap[ctxParams.LoraApplyMode]; ok {
 			sdCtxParams.LoraApplyMode = LoraApplyMode
 		} else {
-			return nil, fmt.Errorf("Invalid LoraApplyMode: %s", ctxParams.LoraApplyMode)
+			return nil, fmt.Errorf("invalid LoraApplyMode: %s", ctxParams.LoraApplyMode)
 		}
 	}
 
@@ -552,7 +552,7 @@ func (sDiffusion *StableDiffusion) GenerateImage(imgGenParams *ImgGenParams, new
 		if sampleMethod, ok := SampleMethodMap[imgGenParams.SampleMethod]; ok {
 			defaultSampleMethod = sampleMethod
 		} else {
-			return fmt.Errorf("Invalid SampleMethod: %s", imgGenParams.SampleMethod)
+			return fmt.Errorf("invalid SampleMethod: %s", imgGenParams.SampleMethod)
 		}
 	}
 
@@ -563,7 +563,7 @@ func (sDiffusion *StableDiffusion) GenerateImage(imgGenParams *ImgGenParams, new
 		if scheduler, ok := SchedulerMap[imgGenParams.Scheduler]; ok {
 			defaultScheduler = scheduler
 		} else {
-			return fmt.Errorf("Invalid Scheduler: %s", imgGenParams.Scheduler)
+			return fmt.Errorf("invalid Scheduler: %s", imgGenParams.Scheduler)
 		}
 	}
 
@@ -789,7 +789,7 @@ func (sDiffusion *StableDiffusion) GenerateVideo(vidGenParams *VidGenParams, new
 		if sampleMethod, ok := SampleMethodMap[vidGenParams.SampleMethod]; ok {
 			defaultSampleMethod = sampleMethod
 		} else {
-			return fmt.Errorf("Invalid SampleMethod: %s", vidGenParams.SampleMethod)
+			return fmt.Errorf("invalid SampleMethod: %s", vidGenParams.SampleMethod)
 		}
 	}
 
@@ -800,7 +800,7 @@ func (sDiffusion *StableDiffusion) GenerateVideo(vidGenParams *VidGenParams, new
 		if scheduler, ok := SchedulerMap[vidGenParams.Scheduler]; ok {
 			defaultScheduler = scheduler
 		} else {
-			return fmt.Errorf("Invalid Scheduler: %s", vidGenParams.Scheduler)
+			return fmt.Errorf("invalid Scheduler: %s", vidGenParams.Scheduler)
 		}
 	}
 
@@ -873,7 +873,7 @@ func (sDiffusion *StableDiffusion) GenerateVideo(vidGenParams *VidGenParams, new
 		if sampleMethod, ok := SampleMethodMap[vidGenParams.HighNoiseSampleMethod]; ok {
 			defaultHighNoiseSampleMethod = sampleMethod
 		} else {
-			return fmt.Errorf("Invalid SampleMethod: %s", vidGenParams.HighNoiseSampleMethod)
+			return fmt.Errorf("invalid SampleMethod: %s", vidGenParams.HighNoiseSampleMethod)
 		}
 	}
 
@@ -884,7 +884,7 @@ func (sDiffusion *StableDiffusion) GenerateVideo(vidGenParams *VidGenParams, new
 		if scheduler, ok := SchedulerMap[vidGenParams.Scheduler]; ok {
 			defaultHighNoiseScheduler = scheduler
 		} else {
-			return fmt.Errorf("Invalid Scheduler: %s", vidGenParams.HighNoiseScheduler)
+			return fmt.Errorf("invalid Scheduler: %s", vidGenParams.HighNoiseScheduler)
 		}
 	}
 
@@ -1061,7 +1061,7 @@ func Convert(inputPath, vaePath, outputPath, outputType, tensorTypeRules string,
 	if value, ok := SDTypeMap[outputType]; ok {
 		outputSDType = value
 	} else {
-		return fmt.Errorf("Invalid SDType: %s", outputType)
+		return fmt.Errorf("invalid SDType: %s", outputType)
 	}
 
 	res := sd.Convert(inputPath, vaePath, outputPath, outputSDType, tensorTypeRules, convertName)

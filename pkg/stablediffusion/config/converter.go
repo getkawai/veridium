@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -177,7 +178,10 @@ func (c *Config) GenerateOutputPath(seed int64, extension string) string {
 	}
 
 	// Ensure directory exists
-	os.MkdirAll(outputDir, 0755)
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		// Log error but don't fail - return path anyway
+		log.Printf("warning: failed to create output directory: %v", err)
+	}
 
 	// Generate filename
 	filename := c.Output.GenerateOutputPath(seed, extension)

@@ -9,8 +9,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/pkg/types"
+	"github.com/kawai-network/x/constant"
 )
 
 type TelegramAlert struct {

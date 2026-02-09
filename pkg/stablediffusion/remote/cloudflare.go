@@ -11,7 +11,7 @@ import (
 	cfv6 "github.com/cloudflare/cloudflare-go/v6"
 	"github.com/cloudflare/cloudflare-go/v6/ai"
 	"github.com/cloudflare/cloudflare-go/v6/option"
-	"github.com/kawai-network/veridium/internal/constant"
+	"github.com/kawai-network/x/constant"
 )
 
 // CloudflareGenerator implements Generator using Cloudflare Workers AI
@@ -58,7 +58,7 @@ func (g *CloudflareGenerator) GetAvailableModels() []string {
 // Generate generates an image using Cloudflare Workers AI
 func (g *CloudflareGenerator) Generate(ctx context.Context, opts GenerationOptions) error {
 	if !g.IsAvailable() {
-		return fmt.Errorf("Cloudflare generator is not available")
+		return fmt.Errorf("cloudflare generator is not available")
 	}
 
 	model := opts.Model
@@ -120,12 +120,20 @@ func (g *CloudflareGenerator) Generate(ctx context.Context, opts GenerationOptio
 			return err
 		}
 	case io.ReadCloser:
-		defer v.Close()
+		defer func() {
+			if err := v.Close(); err != nil {
+				log.Printf("failed to close reader: %v", err)
+			}
+		}()
 		f, err := os.Create(opts.OutputPath)
 		if err != nil {
 			return err
 		}
-		defer f.Close()
+		defer func() {
+			if err := f.Close(); err != nil {
+				log.Printf("failed to close file: %v", err)
+			}
+		}()
 		if _, err := io.Copy(f, v); err != nil {
 			return err
 		}
@@ -135,7 +143,11 @@ func (g *CloudflareGenerator) Generate(ctx context.Context, opts GenerationOptio
 		if err != nil {
 			return err
 		}
-		defer f.Close()
+		defer func() {
+			if err := f.Close(); err != nil {
+				log.Printf("failed to close file: %v", err)
+			}
+		}()
 		if _, err := io.Copy(f, v); err != nil {
 			return err
 		}

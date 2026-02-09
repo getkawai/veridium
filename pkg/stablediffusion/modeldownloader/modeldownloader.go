@@ -133,13 +133,13 @@ func (m *ModelDownloader) DownloadModel(ctx context.Context, url string, progres
 	// Use 100MB interval for large SD models (typically 2-7GB)
 	downloaded, err := downloader.Download(ctx, url, modelDest, progressFunc, downloader.SizeIntervalMIB100)
 	if err != nil {
-		os.Remove(modelDest) // Cleanup on failure
+		_ = os.Remove(modelDest) // Cleanup on failure
 		return "", fmt.Errorf("download failed: %w", err)
 	}
 
 	// Check if download actually transferred data
 	if !downloaded {
-		os.Remove(modelDest) // Cleanup empty file
+		_ = os.Remove(modelDest) // Cleanup empty file
 		return "", fmt.Errorf("download completed but no data was transferred")
 	}
 

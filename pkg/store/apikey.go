@@ -6,7 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/kawai-network/veridium/internal/constant"
+	"github.com/kawai-network/x/constant"
 )
 
 // APIKey represents an API key record

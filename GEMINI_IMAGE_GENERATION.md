@@ -18,7 +18,7 @@ Implementasi sekarang menggunakan [Gemini API](https://ai.google.dev/gemini-api/
 **`internal/image/generation.go`**
 - Fungsi `generateImageRemote()` sekarang menggunakan Gemini API
 - Fungsi lama Pollinations dipindah ke `generateImageRemotePollinations()` sebagai fallback
-- Import baru: `google.golang.org/genai` dan `github.com/kawai-network/veridium/internal/constant`
+- Import baru: `google.golang.org/genai` dan `github.com/kawai-network/x/constant`
 
 ### 3. Fitur Baru
 

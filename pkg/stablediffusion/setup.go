@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"runtime"
 
 	"github.com/kawai-network/veridium/internal/paths"
 	"github.com/kawai-network/veridium/pkg/stablediffusion/download"
@@ -26,7 +25,7 @@ func EnsureLibrary() error {
 // EnsureLibraryWithProgress checks if the stable-diffusion library exists with custom progress callback.
 func EnsureLibraryWithProgress(progress download.ProgressCallback) error {
 	libPath := GetLibDir()
-	libName := download.LibraryName(runtime.GOOS)
+	libName := download.LibraryName()
 	libFile := filepath.Join(libPath, libName)
 
 	// Check if library already exists
@@ -50,7 +49,7 @@ func EnsureLibraryWithProgress(progress download.ProgressCallback) error {
 // IsLibraryInstalled checks if the stable-diffusion library is installed.
 func IsLibraryInstalled() bool {
 	libPath := GetLibDir()
-	libName := download.LibraryName(runtime.GOOS)
+	libName := download.LibraryName()
 	libFile := filepath.Join(libPath, libName)
 
 	_, err := os.Stat(libFile)
@@ -60,7 +59,7 @@ func IsLibraryInstalled() bool {
 // GetLibraryPath returns the path to the stable-diffusion library.
 func GetLibraryPath() string {
 	libPath := GetLibDir()
-	libName := download.LibraryName(runtime.GOOS)
+	libName := download.LibraryName()
 	return filepath.Join(libPath, libName)
 }
 

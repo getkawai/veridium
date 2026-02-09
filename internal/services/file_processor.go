@@ -17,7 +17,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kawai-network/veridium/internal/constant"
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/internal/whisper"
 	"github.com/kawai-network/veridium/pkg/fantasy"
@@ -25,6 +24,7 @@ import (
 	llamavl "github.com/kawai-network/veridium/pkg/fantasy/providers/llama-vl"
 	"github.com/kawai-network/veridium/pkg/hardware"
 	"github.com/kawai-network/veridium/types"
+	"github.com/kawai-network/x/constant"
 )
 
 // FileProcessorService orchestrates file processing pipeline

@@ -3,6 +3,7 @@ package models
 import (
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -91,7 +92,11 @@ func (d *Downloader) Download(sourceURL, filename string) (*ModelInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("download failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("failed to close response body: %v", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("download failed with status: %s", resp.Status)
@@ -105,7 +110,11 @@ func (d *Downloader) Download(sourceURL, filename string) (*ModelInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create file: %w", err)
 	}
-	defer out.Close()
+	defer func() {
+		if err := out.Close(); err != nil {
+			log.Printf("failed to close output file: %v", err)
+		}
+	}()
 
 	// Copy with progress
 	var downloaded int64
@@ -217,8 +226,8 @@ func (c *CivitaiDownloader) DownloadByVersionID(versionID int, filename string) 
 type DownloadSource struct {
 	Type        string            `json:"type" yaml:"type"` // huggingface, civitai, direct
 	URL         string            `json:"url" yaml:"url"`
-	Repo        string            `json:"repo" yaml:"repo"`           // For HuggingFace
-	ModelID     int               `json:"model_id" yaml:"model_id"`   // For Civitai
+	Repo        string            `json:"repo" yaml:"repo"`         // For HuggingFace
+	ModelID     int               `json:"model_id" yaml:"model_id"` // For Civitai
 	Filename    string            `json:"filename" yaml:"filename"`
 	Headers     map[string]string `json:"headers" yaml:"headers"`
 	Description string            `json:"description" yaml:"description"`
@@ -253,10 +262,10 @@ const (
 
 // DownloadResult represents the result of a download
 type DownloadResult struct {
-	Task   DownloadTask
-	Model  *ModelInfo
-	Error  error
-	Time   time.Duration
+	Task  DownloadTask
+	Model *ModelInfo
+	Error error
+	Time  time.Duration
 }
 
 // NewDownloadManager creates a new download manager

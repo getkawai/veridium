@@ -12,7 +12,8 @@ func openLibrary(name string) (uintptr, error) {
 	return purego.Dlopen(name, purego.RTLD_NOW|purego.RTLD_GLOBAL)
 }
 
-// Close dynamic library function - Unix platforms (macOS/Linux)
+// closeLibrary closes dynamic library - Unix platforms (macOS/Linux)
+// nolint:unused // Kept for future cleanup functionality
 func closeLibrary(handle uintptr) error {
 	// Unix systems use purego.Dlclose to release dynamic libraries
 	return purego.Dlclose(handle)

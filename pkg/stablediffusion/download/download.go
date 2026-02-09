@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -129,7 +130,11 @@ func getLatestVersion() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("failed to close response body: %v", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -282,14 +287,20 @@ func downloadAndExtractZip(ctx context.Context, url, dest string, progress Progr
 		progress(url, resp.BytesComplete(), resp.Size(), resp.BytesPerSecond()/(1024*1024), true)
 	}
 
-	defer os.Remove(downloadFile)
+	defer func() {
+		_ = os.Remove(downloadFile)
+	}()
 
 	// Open the downloaded zip file
 	zipReader, err := zip.OpenReader(downloadFile)
 	if err != nil {
 		return fmt.Errorf("failed to open zip file: %w", err)
 	}
-	defer zipReader.Close()
+	defer func() {
+		if err := zipReader.Close(); err != nil {
+			log.Printf("failed to close zip reader: %v", err)
+		}
+	}()
 
 	// Extract files
 	for _, file := range zipReader.File {
@@ -323,39 +334,26 @@ func downloadAndExtractZip(ctx context.Context, url, dest string, progress Progr
 		// Create the destination file
 		dstFile, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR|os.O_TRUNC, file.Mode())
 		if err != nil {
-			srcFile.Close()
+			_ = srcFile.Close()
 			return fmt.Errorf("failed to create file: %w", err)
 		}
 
 		// Copy contents
 		if _, err := io.Copy(dstFile, srcFile); err != nil {
-			srcFile.Close()
-			dstFile.Close()
+			_ = srcFile.Close()
+			_ = dstFile.Close()
 			return fmt.Errorf("failed to write file: %w", err)
 		}
 
-		srcFile.Close()
-		dstFile.Close()
+		// Close files
+		if err := srcFile.Close(); err != nil {
+			_ = dstFile.Close()
+			return fmt.Errorf("failed to close source file: %w", err)
+		}
+		if err := dstFile.Close(); err != nil {
+			return fmt.Errorf("failed to close destination file: %w", err)
+		}
 	}
 
 	return nil
-}
-
-// LibraryName returns the name for the stable-diffusion.cpp library for any given OS.
-func LibraryName(operatingSystem string) string {
-	os, err := ParseOS(operatingSystem)
-	if err != nil {
-		return "unknown"
-	}
-
-	switch os {
-	case Linux:
-		return "libstable-diffusion.so"
-	case Windows:
-		return "stable-diffusion.dll"
-	case Darwin:
-		return "libstable-diffusion.dylib"
-	default:
-		return "unknown"
-	}
 }

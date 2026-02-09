@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/pkg/alert"
+	"github.com/kawai-network/x/constant"
 )
 
 func main() {

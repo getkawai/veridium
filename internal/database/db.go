@@ -12,9 +12,9 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"github.com/kawai-network/veridium/internal/constant"
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/internal/paths"
+	"github.com/kawai-network/x/constant"
 )
 
 //go:embed schema/schema.sql

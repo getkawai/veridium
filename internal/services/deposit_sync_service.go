@@ -10,9 +10,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/internal/generate/abi/vault"
 	"github.com/kawai-network/veridium/pkg/store"
+	"github.com/kawai-network/x/constant"
 )
 
 // DepositSyncService handles manual deposit synchronization from user client

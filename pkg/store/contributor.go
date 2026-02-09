@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/pkg/config"
 	"github.com/kawai-network/veridium/pkg/types"
+	"github.com/kawai-network/x/constant"
 )
 
 // contributorLocks provides per-address mutex for serializing balance updates

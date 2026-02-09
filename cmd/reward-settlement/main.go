@@ -15,7 +15,6 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/internal/generate/abi/cashbackdistributor"
 	"github.com/kawai-network/veridium/internal/generate/abi/miningdistributor"
 	"github.com/kawai-network/veridium/internal/generate/abi/referraldistributor"
@@ -23,6 +22,7 @@ import (
 	"github.com/kawai-network/veridium/pkg/blockchain"
 	"github.com/kawai-network/veridium/pkg/store"
 	"github.com/kawai-network/veridium/pkg/types"
+	"github.com/kawai-network/x/constant"
 )
 
 var autoConfirm bool // Global flag for auto-confirmation

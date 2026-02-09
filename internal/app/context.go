@@ -13,7 +13,6 @@ import (
 
 	"github.com/getsentry/sentry-go"
 	"github.com/kawai-network/veridium/internal/audio_recorder"
-	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/internal/database"
 	db "github.com/kawai-network/veridium/internal/database/generated"
 	"github.com/kawai-network/veridium/internal/paths"
@@ -35,6 +34,7 @@ import (
 	yzmabuiltin "github.com/kawai-network/veridium/pkg/fantasy/tools/builtin"
 	"github.com/kawai-network/veridium/pkg/logger"
 	"github.com/kawai-network/veridium/pkg/store"
+	"github.com/kawai-network/x/constant"
 )
 
 // Configuration constants

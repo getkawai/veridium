@@ -22,7 +22,6 @@ import (
 	"github.com/kawai-network/veridium/cmd/server/app/sdk/mux"
 	"github.com/kawai-network/veridium/cmd/server/foundation/logger"
 	"github.com/kawai-network/veridium/cmd/server/foundation/web"
-	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/internal/paths"
 	"github.com/kawai-network/veridium/internal/services"
 	"github.com/kawai-network/veridium/pkg/blockchain"
@@ -39,6 +38,7 @@ import (
 	"github.com/kawai-network/veridium/pkg/tools/templates"
 	"github.com/kawai-network/veridium/pkg/tunnelkit"
 	"github.com/kawai-network/veridium/pkg/whisper/model"
+	"github.com/kawai-network/x/constant"
 )
 
 //go:embed static

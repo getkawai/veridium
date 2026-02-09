@@ -165,7 +165,7 @@ func (p *Pipeline) Execute(ctx *Context) error {
 				// Cleanup intermediate files
 				if !p.config.KeepIntermediate {
 					for _, f := range intermediateFiles {
-						os.Remove(f)
+						_ = os.Remove(f)
 					}
 				}
 				return fmt.Errorf("step %d (%s) failed: %w", i, step.Name(), handledErr)
@@ -182,10 +182,10 @@ func (p *Pipeline) Execute(ctx *Context) error {
 	if !p.config.KeepIntermediate {
 		for _, f := range intermediateFiles {
 			if f != ctx.OutputPath { // Don't delete final output
-				os.Remove(f)
+				_ = os.Remove(f)
 			}
 		}
-		os.Remove(intermediateDir)
+		_ = os.Remove(intermediateDir)
 	}
 
 	return nil

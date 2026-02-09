@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -142,7 +143,11 @@ func SaveImage(img *SDImage, path string) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Printf("failed to close file: %v", err)
+		}
+	}()
 
 	// Save as PNG
 	return png.Encode(file, rgba)
@@ -155,7 +160,11 @@ func LoadImage(path string) (SDImage, error) {
 	if err != nil {
 		return SDImage{}, fmt.Errorf("failed to open image file: %v", err)
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Printf("failed to close file: %v", err)
+		}
+	}()
 
 	// Decode image
 	img, _, err := image.Decode(file)
@@ -218,7 +227,7 @@ func GenerateImageFromPath(imagePath string) SDImage {
 }
 
 func GenerateImagesFromPaths(path []string) *SDImage {
-	if path == nil || len(path) == 0 {
+	if len(path) == 0 {
 		return nil
 	}
 

@@ -10,8 +10,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/internal/generate/abi/kawaitoken"
+	"github.com/kawai-network/x/constant"
 )
 
 // Phase represents the current operational phase of the platform

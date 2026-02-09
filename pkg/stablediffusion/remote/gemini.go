@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/kawai-network/veridium/internal/constant"
+	"github.com/kawai-network/x/constant"
 	"google.golang.org/genai"
 )
 
@@ -81,7 +81,7 @@ func (g *GeminiGenerator) Generate(ctx context.Context, opts GenerationOptions) 
 		config,
 	)
 	if err != nil {
-		return fmt.Errorf("Gemini API generation failed: %w", err)
+		return fmt.Errorf("gemini API generation failed: %w", err)
 	}
 
 	// Extract image data from response

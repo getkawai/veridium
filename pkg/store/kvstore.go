@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/kawai-network/veridium/internal/constant"
 	"github.com/kawai-network/veridium/pkg/alert"
 	"github.com/kawai-network/veridium/pkg/types"
+	"github.com/kawai-network/x/constant"
 	"golang.org/x/time/rate"
 )
 

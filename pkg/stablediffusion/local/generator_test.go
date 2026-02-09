@@ -224,7 +224,7 @@ func TestGetFirstAvailableModel(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		f.Close()
+		_ = f.Close()
 	}
 
 	gen := NewGenerator("/test/sd", tmpDir)
@@ -253,7 +253,7 @@ func TestIsAvailable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.Close()
+	_ = f.Close()
 
 	gen2 := NewGenerator(tmpFile, "/test/models")
 	if !gen2.IsAvailable() {
@@ -284,7 +284,7 @@ func TestGenerate_WithMockExecutor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.Close()
+	_ = f.Close()
 
 	// Create temp output file (simulating successful generation)
 	outputPath := filepath.Join(tmpDir, "output.png")
@@ -306,7 +306,7 @@ func TestGenerate_WithMockExecutor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	outFile.Close()
+	_ = outFile.Close()
 
 	err = gen.Generate(context.Background(), opts)
 	if err != nil {
