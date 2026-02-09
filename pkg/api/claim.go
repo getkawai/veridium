@@ -40,5 +40,8 @@ func (h *ClaimHandler) GetProof(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(proof)
+	if err := json.NewEncoder(w).Encode(proof); err != nil {
+		http.Error(w, "Failed to encode proof", http.StatusInternalServerError)
+		return
+	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 
 	cfv6 "github.com/cloudflare/cloudflare-go/v6"
 	"github.com/cloudflare/cloudflare-go/v6/kv"
@@ -64,7 +65,12 @@ func (c *KVClient) GetValue(ctx context.Context, namespaceID, key string) ([]byt
 	}
 
 	// Read the response body
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			// Log the error, but don't fail as we've already got the data we need
+			slog.Warn("Failed to close response body", "error", err)
+		}
+	}()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)

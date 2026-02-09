@@ -47,7 +47,11 @@ func GenerateUniquePeriodID() int64 {
 	baseID := time.Now().UnixNano()
 
 	randomBytes := make([]byte, 4)
-	rand.Read(randomBytes)
+	if _, err := rand.Read(randomBytes); err != nil {
+		// Fallback to current time nanos if random read fails
+		randomBytes[0] = byte(time.Now().UnixNano())
+		randomBytes[1] = byte(time.Now().UnixNano() >> 8)
+	}
 	randomSuffix := int64(randomBytes[0]) + int64(randomBytes[1])<<8
 
 	return baseID + randomSuffix
@@ -128,7 +132,9 @@ func (s *KVStore) PerformSettlementWithConfig(ctx context.Context, periodID int6
 	if err != nil {
 		period.Status = SettlementStatusFailed
 		period.Error = fmt.Sprintf("failed to get snapshots: %v", err)
-		s.SaveSettlementPeriod(ctx, period)
+		if saveErr := s.SaveSettlementPeriod(ctx, period); saveErr != nil {
+			slog.Error("Failed to save settlement period", "error", saveErr)
+		}
 		return nil, err
 	}
 
@@ -191,12 +197,16 @@ func (s *KVStore) PerformSettlementWithConfig(ctx context.Context, periodID int6
 				if config.EnableRollback {
 					slog.Warn("Rolling back saved proofs", "count", len(savedProofs))
 					for _, savedAddr := range savedProofs {
-						s.DeleteMerkleProof(ctx, savedAddr, periodID)
+						if err := s.DeleteMerkleProof(ctx, savedAddr, periodID); err != nil {
+							slog.Warn("Failed to delete proof during rollback", "address", savedAddr, "error", err)
+						}
 					}
 
 					period.Status = SettlementStatusFailed
 					period.Error = fmt.Sprintf("failed to save proof for %s: %v", addr, lastErr)
-					s.SaveSettlementPeriod(ctx, period)
+					if saveErr := s.SaveSettlementPeriod(ctx, period); saveErr != nil {
+						slog.Error("Failed to save settlement period during rollback", "error", saveErr)
+					}
 					return nil, fmt.Errorf("settlement failed, rolled back: %w", lastErr)
 				}
 			}
@@ -210,7 +220,10 @@ func (s *KVStore) PerformSettlementWithConfig(ctx context.Context, periodID int6
 
 	period.ProofsSaved = len(savedProofs)
 	period.Status = SettlementStatusProofsSaved
-	s.SaveSettlementPeriod(ctx, period)
+	if err := s.SaveSettlementPeriod(ctx, period); err != nil {
+		slog.Error("Failed to save settlement period", "error", err)
+		return nil, err
+	}
 
 	slog.Info("Saved proofs successfully", "count", len(savedProofs))
 
@@ -253,7 +266,9 @@ func (s *KVStore) PerformSettlementWithConfig(ctx context.Context, periodID int6
 
 	period.BalancesReset = resetCount
 	period.Status = SettlementStatusBalancesReset
-	s.SaveSettlementPeriod(ctx, period)
+	if err := s.SaveSettlementPeriod(ctx, period); err != nil {
+		slog.Error("Failed to save settlement period status", "error", err)
+	}
 
 	slog.Info("Reset balances", "count", resetCount)
 
@@ -308,7 +323,9 @@ func (s *KVStore) ResumeSettlement(ctx context.Context, periodID int64, proofs m
 		period.BalancesReset = resetCount
 		period.Status = SettlementStatusCompleted
 		period.CompletedAt = time.Now()
-		s.SaveSettlementPeriod(ctx, period)
+		if err := s.SaveSettlementPeriod(ctx, period); err != nil {
+			slog.Error("Failed to save settlement period status during resume", "error", err)
+		}
 
 		return period, nil
 
@@ -345,14 +362,18 @@ func (s *KVStore) PerformSettlementParallel(ctx context.Context, periodID int64,
 		ContributorCount: len(proofs),
 		StartedAt:        time.Now(),
 	}
-	s.SaveSettlementPeriod(ctx, period)
+	if err := s.SaveSettlementPeriod(ctx, period); err != nil {
+		slog.Error("Failed to save initial settlement period status", "error", err)
+	}
 
 	// Get snapshots
 	snapshots, err := s.GetSettlementSnapshots(ctx, rewardType)
 	if err != nil {
 		period.Status = SettlementStatusFailed
 		period.Error = err.Error()
-		s.SaveSettlementPeriod(ctx, period)
+		if saveErr := s.SaveSettlementPeriod(ctx, period); saveErr != nil {
+			slog.Error("Failed to save settlement period status", "error", saveErr)
+		}
 		return nil, err
 	}
 
@@ -426,17 +447,23 @@ func (s *KVStore) PerformSettlementParallel(ctx context.Context, periodID int64,
 		slog.Error("Errors during parallel proof saving", "count", len(errors))
 		// Rollback
 		for _, addr := range savedProofs {
-			s.DeleteMerkleProof(ctx, addr, periodID)
+			if err := s.DeleteMerkleProof(ctx, addr, periodID); err != nil {
+				slog.Warn("Failed to delete proof during rollback", "address", addr, "error", err)
+			}
 		}
 		period.Status = SettlementStatusFailed
 		period.Error = fmt.Sprintf("%d proofs failed", len(errors))
-		s.SaveSettlementPeriod(ctx, period)
+		if saveErr := s.SaveSettlementPeriod(ctx, period); saveErr != nil {
+			slog.Error("Failed to save settlement period during rollback", "error", saveErr)
+		}
 		return nil, errors[0]
 	}
 
 	period.ProofsSaved = len(savedProofs)
 	period.Status = SettlementStatusProofsSaved
-	s.SaveSettlementPeriod(ctx, period)
+	if err := s.SaveSettlementPeriod(ctx, period); err != nil {
+		slog.Error("Failed to save settlement period status", "error", err)
+	}
 
 	// Reset balances (sequential to avoid race conditions)
 	resetCount := 0
@@ -451,7 +478,9 @@ func (s *KVStore) PerformSettlementParallel(ctx context.Context, periodID int64,
 	period.BalancesReset = resetCount
 	period.Status = SettlementStatusCompleted
 	period.CompletedAt = time.Now()
-	s.SaveSettlementPeriod(ctx, period)
+	if err := s.SaveSettlementPeriod(ctx, period); err != nil {
+		slog.Error("Failed to save final settlement period status", "error", err)
+	}
 
 	return period, nil
 }

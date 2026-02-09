@@ -1,26 +1,13 @@
 package store
 
 import (
-	"context"
 	"math/big"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
-// Mock SupplyQuerier
-type mockSupplyQuerier struct {
-	mock.Mock
-}
 
-func (m *mockSupplyQuerier) GetTotalSupply(ctx context.Context) (*big.Int, error) {
-	args := m.Called(ctx)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*big.Int), args.Error(1)
-}
 
 func TestRecordJobReward_HalvingLogic(t *testing.T) {
 	// Setup constants

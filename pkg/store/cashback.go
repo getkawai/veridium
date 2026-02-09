@@ -485,7 +485,9 @@ func (s *KVStore) GetClaimableCashbackRecords(ctx context.Context, userAddress s
 						log.Printf("🔄 [Cashback] Syncing claimed status for period %d, user %s: KV=%v, OnChain=%v", p, userAddress, proofRecord.Claimed, onChainClaimed)
 						proofRecord.Claimed = onChainClaimed
 						updatedData, _ := json.Marshal(proofRecord)
-						s.StoreCashbackData(queryCtx, proofKey, updatedData)
+						if err := s.StoreCashbackData(queryCtx, proofKey, updatedData); err != nil {
+							log.Printf("⚠️  [Cashback] Failed to update KV for period %d, user %s: %v", p, userAddress, err)
+						}
 					}
 				} else {
 					log.Printf("⚠️  [Cashback] Failed to check on-chain claimed status for period %d: %v", p, err)
