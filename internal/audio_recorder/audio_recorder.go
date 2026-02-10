@@ -170,8 +170,8 @@ func (s *AudioRecorderService) StopRecording() (string, error) {
 		case <-time.After(3 * time.Second):
 			// Timeout - force kill
 			fmt.Printf("Recording process timeout, force killing\n")
-			s.recordingProc.Process.Kill()
-			s.recordingProc.Wait()
+			_ = s.recordingProc.Process.Kill()
+			_ = s.recordingProc.Wait()
 		}
 
 		s.recordingProc = nil
@@ -258,14 +258,14 @@ func (s *AudioRecorderService) CancelRecording() error {
 
 	// Kill the recording process
 	if s.recordingProc != nil && s.recordingProc.Process != nil {
-		s.recordingProc.Process.Kill()
-		s.recordingProc.Wait()
+		_ = s.recordingProc.Process.Kill()
+		_ = s.recordingProc.Wait()
 		s.recordingProc = nil
 	}
 
 	// Remove the output file
 	if s.outputPath != "" {
-		os.Remove(s.outputPath)
+		_ = os.Remove(s.outputPath)
 		s.outputPath = ""
 	}
 

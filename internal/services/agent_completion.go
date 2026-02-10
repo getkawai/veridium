@@ -45,9 +45,10 @@ func (s *AgentChatService) ChatCompletion(ctx context.Context, req ChatCompletio
 	msgs := make([]fantasy.Message, len(req.Messages))
 	for i, m := range req.Messages {
 		role := fantasy.MessageRoleUser
-		if m.Role == "system" {
+		switch m.Role {
+		case "system":
 			role = fantasy.MessageRoleSystem
-		} else if m.Role == "assistant" {
+		case "assistant":
 			role = fantasy.MessageRoleAssistant
 		}
 

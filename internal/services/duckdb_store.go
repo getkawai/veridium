@@ -80,7 +80,7 @@ func NewDuckDBStoreWithConfig(path string, embeddingDim int, config *HNSWConfig)
 
 	// Initialize VSS extension and schema
 	if err := store.init(embeddingDim); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("failed to initialize duckdb store: %w", err)
 	}
 
@@ -249,7 +249,7 @@ func (s *DuckDBStore) SearchVectorsWithMetric(ctx context.Context, embedding []f
 	if err != nil {
 		return nil, fmt.Errorf("failed to search vectors: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var results []VectorSearchResult
 	for rows.Next() {
@@ -361,7 +361,7 @@ func (s *DuckDBStore) BatchSearchVectors(ctx context.Context, queries []BatchSea
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute batch search: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	// Group results by query_id
 	resultsMap := make(map[string][]VectorSearchResult)

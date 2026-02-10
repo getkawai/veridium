@@ -50,10 +50,10 @@ func (s *TTSService) SpeakToAudioWithVoice(text, voice string) ([]byte, error) {
 		return nil, fmt.Errorf("failed to create temp file: %w", err)
 	}
 	tempPath := tempFile.Name()
-	tempFile.Close() // Close immediately, we just need the path
+	_ = tempFile.Close() // Close immediately, we just need the path
 
 	// Ensure cleanup
-	defer os.Remove(tempPath)
+	defer func() { _ = os.Remove(tempPath) }()
 
 	// Generate speech to temp file
 	if voice != "" {

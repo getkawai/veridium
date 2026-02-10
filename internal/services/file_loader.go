@@ -288,7 +288,7 @@ func (l *FileLoader) loadPDFFile(filePath string) ([]types.DocumentPage, string,
 	if err != nil {
 		return nil, "", fmt.Sprintf("Failed to open PDF file: %v", err), err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	stat, err := file.Stat()
 	if err != nil {
@@ -421,7 +421,7 @@ func (l *FileLoader) extractXLSXContent(filePath string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to open XLSX workbook: %w", err)
 	}
-	defer wb.Close()
+	defer func() { _ = wb.Close() }()
 
 	// Convert to markdown with images served via URLs
 	markdown, err := wb.ToMarkdownWithImageURLs("/files")

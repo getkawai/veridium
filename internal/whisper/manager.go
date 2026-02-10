@@ -22,7 +22,7 @@ func NewManager() *Manager {
 	modelsDir := filepath.Join(homeDir, ".kawai-agent", "whisper-models")
 
 	// Ensure models directory exists
-	os.MkdirAll(modelsDir, 0755)
+	_ = os.MkdirAll(modelsDir, 0755)
 
 	return &Manager{
 		ModelsDir: modelsDir,
@@ -141,7 +141,7 @@ func (m *Manager) DownloadModel(ctx context.Context, modelName string) error {
 
 	// Models should be at least 10 MB (even tiny is ~39 MB)
 	if info.Size() < 10*1024*1024 {
-		os.Remove(modelPath) // Remove incomplete file
+		_ = os.Remove(modelPath) // Remove incomplete file
 		return fmt.Errorf("model download incomplete or corrupted (size: %d bytes, expected > 10 MB)", info.Size())
 	}
 
@@ -185,7 +185,7 @@ func (m *Manager) GetInstalledModels() ([]string, error) {
 			if info.Size() < 10*1024*1024 { // Less than 10 MB
 				log.Printf("⚠️  Removing corrupted model %s (size: %.2f MB, expected > 10 MB)",
 					file.Name(), float64(info.Size())/(1024*1024))
-				os.Remove(modelPath)
+				_ = os.Remove(modelPath)
 				continue
 			}
 
@@ -261,7 +261,7 @@ func (m *Manager) TranscribeFile(ctx context.Context, audioPath, modelName strin
 			content, err = os.ReadFile(txtFile)
 			if err == nil && len(content) > 0 {
 				// Clean up the generated txt file
-				os.Remove(txtFile)
+				_ = os.Remove(txtFile)
 				transcription := strings.TrimSpace(string(content))
 				log.Printf("Transcription result: %s", transcription)
 				return transcription, nil

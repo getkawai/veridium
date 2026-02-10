@@ -358,8 +358,8 @@ func (s *WalletService) ImportKeystore(keystoreJSON string, password string, des
 	acc, err := accounts.UnlockKeystoreAccountWithPassword(accDesc, password)
 	if err != nil {
 		// Rollback: delete the keystore file and metadata
-		os.Remove(keystorePath)
-		os.Remove(filepath.Join(paths.Jarvis(), fmt.Sprintf("%s.json", address)))
+		_ = os.Remove(keystorePath)
+		_ = os.Remove(filepath.Join(paths.Jarvis(), fmt.Sprintf("%s.json", address)))
 		return "", errors.New("invalid password for keystore")
 	}
 
@@ -430,7 +430,7 @@ func (s *WalletService) ImportPrivateKey(privateKeyHex string, password string, 
 	}
 	if err := accounts.StoreAccountRecord(accDesc); err != nil {
 		// Rollback: delete the keystore file
-		os.Remove(keystorePath)
+		_ = os.Remove(keystorePath)
 		return "", fmt.Errorf("failed to store account record: %v", err)
 	}
 
@@ -438,8 +438,8 @@ func (s *WalletService) ImportPrivateKey(privateKeyHex string, password string, 
 	acc, err := accounts.UnlockKeystoreAccountWithPassword(accDesc, password)
 	if err != nil {
 		// Rollback
-		os.Remove(keystorePath)
-		os.Remove(filepath.Join(paths.Jarvis(), fmt.Sprintf("%s.json", address)))
+		_ = os.Remove(keystorePath)
+		_ = os.Remove(filepath.Join(paths.Jarvis(), fmt.Sprintf("%s.json", address)))
 		return "", fmt.Errorf("failed to unlock imported wallet: %v", err)
 	}
 

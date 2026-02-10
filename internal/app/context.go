@@ -113,7 +113,7 @@ func (ctx *Context) InitDatabase() error {
 	}
 	ctx.DB = dbService
 	ctx.Queries = dbService.Queries()
-	ctx.AddCleanup(func() { dbService.Close() })
+	ctx.AddCleanup(func() { _ = dbService.Close() })
 	return nil
 }
 
@@ -131,7 +131,7 @@ func (ctx *Context) InitBasicServices() {
 		log.Printf("Warning: Whisper init failed: %v", err)
 	} else {
 		ctx.WhisperService = whisperService
-		ctx.AddCleanup(func() { whisperService.Close() })
+		ctx.AddCleanup(func() { _ = whisperService.Close() })
 		log.Printf("Whisper initialized")
 	}
 
@@ -202,14 +202,14 @@ func (ctx *Context) InitLlamaService() {
 }
 
 func (ctx *Context) InitVectorStore() {
-	os.MkdirAll(paths.FileBase(), 0755)
+	_ = os.MkdirAll(paths.FileBase(), 0755)
 	duckDBStore, err := services.NewDuckDBStore(paths.DuckDB(), EmbeddingDims)
 	if err != nil {
 		log.Printf("Warning: DuckDB init failed: %v", err)
 		return
 	}
 	ctx.DuckDBStore = duckDBStore
-	ctx.AddCleanup(func() { duckDBStore.Close() })
+	ctx.AddCleanup(func() { _ = duckDBStore.Close() })
 	log.Printf("DuckDB initialized (path: %s)", paths.DuckDB())
 }
 
@@ -248,7 +248,7 @@ func (ctx *Context) InitEmbedder() {
 		log.Printf("Warning: Embedder init failed: %v", err)
 		return
 	}
-	ctx.AddCleanup(func() { baseEmbedder.Close() })
+	ctx.AddCleanup(func() { _ = baseEmbedder.Close() })
 	log.Printf("Embedder initialized (model: %s, dims: %d)", model.Name, baseEmbedder.Dimensions())
 
 	// Production-only: always use cache layer

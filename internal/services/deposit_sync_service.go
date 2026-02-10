@@ -185,7 +185,7 @@ func (s *DepositSyncService) SyncDeposit(ctx context.Context, req SyncDepositReq
 		}, nil
 	}
 	// Always release lock when function exits
-	defer s.kvStore.DeleteMarketplaceData(ctx, pendingKey)
+	defer func() { _ = s.kvStore.DeleteMarketplaceData(ctx, pendingKey) }()
 
 	// 7. Update KV Store balance (atomic operation)
 	// Note: AddBalanceAtomic has retry logic to handle concurrent updates

@@ -90,7 +90,7 @@ func (p *BraveProvider) Query(ctx context.Context, query string, params *SearchP
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	costTime := time.Since(startTime).Milliseconds()
 
@@ -107,7 +107,7 @@ func (p *BraveProvider) Query(ctx context.Context, query string, params *SearchP
 		if err != nil {
 			return nil, fmt.Errorf("failed to create gzip reader: %w", err)
 		}
-		defer gzReader.Close()
+		defer func() { _ = gzReader.Close() }()
 		reader = gzReader
 	}
 

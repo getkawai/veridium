@@ -44,11 +44,11 @@ func (s *Service) SetTopicService(ts *topic.TopicService) {
 
 // GetFirstAvailableModel returns the first available SD model
 func (s *Service) GetFirstAvailableModel() string {
-	binaryPath := s.StableDiffusion.getBinaryPath()
-	modelsPath := s.StableDiffusion.GetModelsPath()
+	binaryPath := s.getBinaryPath()
+	modelsPath := s.GetModelsPath()
 
 	// Use local.NewGeneratorWithExecutor to preserve process tracking for cleanup
-	localGen := local.NewGeneratorWithExecutor(binaryPath, modelsPath, s.StableDiffusion.Executor)
+	localGen := local.NewGeneratorWithExecutor(binaryPath, modelsPath, s.Executor)
 	return localGen.GetFirstAvailableModel()
 }
 
@@ -387,7 +387,7 @@ func (s *Service) generateImagesInBackground(batchID string, imageNum int, opts 
 			}
 
 			// Update generation with copied file
-			s.updateGenerationWithFile(ctx, generation.ID, failedOutputPath, failedFileName, opts, generation.AsyncTaskID.String, time.Now())
+			_ = s.updateGenerationWithFile(ctx, generation.ID, failedOutputPath, failedFileName, opts, generation.AsyncTaskID.String, time.Now())
 		}
 	}
 }
@@ -409,11 +409,11 @@ func (s *Service) updateGenerationWithFile(ctx context.Context, generationID, ou
 	}
 	hash := sha256.New()
 	if _, err := io.Copy(hash, f); err != nil {
-		f.Close()
+		_ = f.Close()
 		log.Printf("[Background] ERROR: Failed to hash file: %v", err)
 		return fmt.Errorf("failed to hash file: %w", err)
 	}
-	f.Close()
+	_ = f.Close()
 	fileHash := hex.EncodeToString(hash.Sum(nil))
 	fileUrl := "/files/uploads/" + fileName
 

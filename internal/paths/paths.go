@@ -75,7 +75,7 @@ func ensureInit() {
 			dataDir = "data"
 		}
 	}
-	os.MkdirAll(dataDir, 0755)
+	_ = os.MkdirAll(dataDir, 0755)
 	initialized = true
 }
 

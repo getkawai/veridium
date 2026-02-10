@@ -912,7 +912,7 @@ func (s *DeAIService) ClaimUSDTReward(periodID int64, index uint64, amountStr st
 	tx, err := distributor.Claim(opts, idx, opts.From, amount, merkleProof)
 	if err != nil {
 		if s.kv != nil {
-			s.kv.MarkClaimFailed(ctx, claimerAddr, periodID, err.Error())
+			_ = s.kv.MarkClaimFailed(ctx, claimerAddr, periodID, err.Error())
 		}
 		if !isUserError(err) {
 			s.alert.SendAlert("WARNING", "Claim",
@@ -932,7 +932,7 @@ func (s *DeAIService) ClaimUSDTReward(periodID int64, index uint64, amountStr st
 
 	if receipt.Status != 1 {
 		if s.kv != nil {
-			s.kv.MarkClaimFailed(ctx, claimerAddr, periodID, "transaction reverted")
+			_ = s.kv.MarkClaimFailed(ctx, claimerAddr, periodID, "transaction reverted")
 		}
 		s.alert.SendAlert("ERROR", "Claim",
 			fmt.Sprintf("❌ USDT claim reverted!\n\nClaimer: %s\nPeriod: %d\nTx: %s",
@@ -1020,7 +1020,7 @@ func (s *DeAIService) ClaimCashbackReward(period uint64, kawaiAmount string, pro
 		if s.kv != nil {
 			kvStore, ok := s.kv.(*store.KVStore)
 			if ok {
-				kvStore.MarkCashbackFailed(ctx, userAddr, period, err.Error())
+				_ = kvStore.MarkCashbackFailed(ctx, userAddr, period, err.Error())
 			}
 		}
 
@@ -1049,7 +1049,7 @@ func (s *DeAIService) ClaimCashbackReward(period uint64, kawaiAmount string, pro
 		if s.kv != nil {
 			kvStore, ok := s.kv.(*store.KVStore)
 			if ok {
-				kvStore.MarkCashbackFailed(ctx, userAddr, period, "transaction reverted")
+				_ = kvStore.MarkCashbackFailed(ctx, userAddr, period, "transaction reverted")
 			}
 		}
 
@@ -1193,7 +1193,7 @@ func (s *DeAIService) ClaimMiningReward(
 	if err != nil {
 		// Rollback pending status on transaction failure
 		if s.kv != nil {
-			s.kv.MarkClaimFailed(ctx, claimerAddr, period, err.Error())
+			_ = s.kv.MarkClaimFailed(ctx, claimerAddr, period, err.Error())
 		}
 
 		// Alert on unexpected errors only

@@ -224,7 +224,7 @@ func (s *FileProcessorService) DeleteFile(ctx context.Context, fileID string) er
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	qTx := s.queries.WithTx(tx)
 
@@ -715,7 +715,7 @@ func (s *FileProcessorService) processVideoDescriptionAsync(filePath, filename, 
 			log.Printf("[WARN] Async: Failed to extract audio: error=%v", err)
 			return
 		}
-		defer os.Remove(audioPath)
+		defer func() { _ = os.Remove(audioPath) }()
 
 		fullTranscription, err = s.whisperService.Transcribe(ctx, modelName, audioPath)
 		if err != nil {
@@ -772,7 +772,7 @@ func (s *FileProcessorService) transcribeVideoParallel(ctx context.Context, vide
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp dir: %w", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	// Extract audio chunks in parallel
 	type chunkResult struct {
@@ -1268,7 +1268,7 @@ func calculateFileHash(filePath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	hash := sha256.New()
 	if _, err := io.Copy(hash, file); err != nil {

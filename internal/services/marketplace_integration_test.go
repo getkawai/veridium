@@ -44,7 +44,7 @@ func TestMarketplaceIntegration_ServiceCompilation(t *testing.T) {
 					t.Logf("✅ GetActiveOrders properly panics with nil KV store (expected): %v", r)
 				}
 			}()
-			service.GetActiveOrders("", nil)
+			_, _ = service.GetActiveOrders("", nil)
 			t.Log("⚠️  GetActiveOrders succeeded with nil KV store - unexpected but acceptable for mock environment")
 		}()
 
@@ -55,7 +55,7 @@ func TestMarketplaceIntegration_ServiceCompilation(t *testing.T) {
 					t.Logf("✅ GetMarketStats properly panics with nil KV store (expected): %v", r)
 				}
 			}()
-			service.GetMarketStats()
+			_, _ = service.GetMarketStats()
 			t.Log("⚠️  GetMarketStats succeeded with nil KV store - unexpected but acceptable for mock environment")
 		}()
 
@@ -66,7 +66,7 @@ func TestMarketplaceIntegration_ServiceCompilation(t *testing.T) {
 					t.Logf("✅ CreateSellOrder properly panics with nil dependencies (expected): %v", r)
 				}
 			}()
-			service.CreateSellOrder("1000000000000000000", "5000000")
+			_, _ = service.CreateSellOrder("1000000000000000000", "5000000")
 			t.Log("⚠️  CreateSellOrder succeeded with nil dependencies - unexpected but acceptable for mock environment")
 		}()
 

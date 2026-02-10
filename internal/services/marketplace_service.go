@@ -1329,15 +1329,15 @@ func (s *OrderService) CreateOrder(seller string, tokenAmount, usdtPrice *big.In
 	// Add to active orders index
 	if err := s.addToActiveOrdersIndex(orderID); err != nil {
 		// If adding to index fails, try to clean up the stored order
-		s.DeleteOrder(orderID)
+		_ = s.DeleteOrder(orderID)
 		return nil, WrapError(err, ErrorTypeStorage, "ACTIVE_INDEX_UPDATE_FAILED", "Failed to add order to active orders index")
 	}
 
 	// Add to user orders index
 	if err := s.addToUserOrdersIndex(seller, orderID); err != nil {
 		// If adding to user index fails, clean up
-		s.removeFromActiveOrdersIndex(orderID)
-		s.DeleteOrder(orderID)
+		_ = s.removeFromActiveOrdersIndex(orderID)
+		_ = s.DeleteOrder(orderID)
 		return nil, WrapError(err, ErrorTypeStorage, "USER_INDEX_UPDATE_FAILED", "Failed to add order to user orders index")
 	}
 
@@ -1349,9 +1349,9 @@ func (s *OrderService) CreateOrder(seller string, tokenAmount, usdtPrice *big.In
 		transactOpts, err := s.walletService.GetTransactOpts(s.blockchainClient.GetChainID())
 		if err != nil {
 			// Clean up local storage if blockchain transaction fails
-			s.removeFromUserOrdersIndex(seller, orderID)
-			s.removeFromActiveOrdersIndex(orderID)
-			s.DeleteOrder(orderID)
+			_ = s.removeFromUserOrdersIndex(seller, orderID)
+			_ = s.removeFromActiveOrdersIndex(orderID)
+			_ = s.DeleteOrder(orderID)
 			return nil, NewBlockchainError(
 				"TRANSACTION_OPTIONS_FAILED",
 				"Failed to get transaction options from wallet service",
@@ -1368,9 +1368,9 @@ func (s *OrderService) CreateOrder(seller string, tokenAmount, usdtPrice *big.In
 		tx, err := s.blockchainClient.MarketplaceCreateOrder(ctx, transactOpts, tokenAmount, usdtPrice)
 		if err != nil {
 			// Clean up local storage if blockchain transaction fails
-			s.removeFromUserOrdersIndex(seller, orderID)
-			s.removeFromActiveOrdersIndex(orderID)
-			s.DeleteOrder(orderID)
+			_ = s.removeFromUserOrdersIndex(seller, orderID)
+			_ = s.removeFromActiveOrdersIndex(orderID)
+			_ = s.DeleteOrder(orderID)
 			return nil, NewBlockchainError(
 				"CONTRACT_ORDER_CREATION_FAILED",
 				"Failed to create order on smart contract",

@@ -457,7 +457,7 @@ func (l *MarketplaceEventListener) GetRecentEvents(ctx context.Context, fromBloc
 	if err != nil {
 		return nil, fmt.Errorf("failed to filter OrderCreated events: %w", err)
 	}
-	defer orderCreatedIter.Close()
+	defer func() { _ = orderCreatedIter.Close() }()
 
 	for orderCreatedIter.Next() {
 		event := orderCreatedIter.Event
@@ -478,7 +478,7 @@ func (l *MarketplaceEventListener) GetRecentEvents(ctx context.Context, fromBloc
 	if err != nil {
 		return nil, fmt.Errorf("failed to filter OrderFulfilled events: %w", err)
 	}
-	defer orderFilledIter.Close()
+	defer func() { _ = orderFilledIter.Close() }()
 
 	for orderFilledIter.Next() {
 		event := orderFilledIter.Event
@@ -500,7 +500,7 @@ func (l *MarketplaceEventListener) GetRecentEvents(ctx context.Context, fromBloc
 	if err != nil {
 		return nil, fmt.Errorf("failed to filter OrderCancelled events: %w", err)
 	}
-	defer orderCancelledIter.Close()
+	defer func() { _ = orderCancelledIter.Close() }()
 
 	for orderCancelledIter.Next() {
 		event := orderCancelledIter.Event

@@ -31,7 +31,7 @@ func (s *Service) GetAllTables() ([]TableBasicInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to query tables: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var tables []TableBasicInfo
 	for rows.Next() {
@@ -66,7 +66,7 @@ func (s *Service) GetTableDetails(tableName string) ([]TableColumnInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to query table details: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var columns []TableColumnInfo
 	for rows.Next() {
@@ -159,7 +159,7 @@ func (s *Service) GetTableData(tableName string, pagination PaginationParams, fi
 	if err != nil {
 		return nil, fmt.Errorf("failed to query table data: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	// Get column names
 	columnNames, err := rows.Columns()
@@ -349,7 +349,7 @@ func (s *Service) queryRowAsMap(query string, args ...interface{}) (map[string]i
 	if err != nil {
 		return nil, fmt.Errorf("failed to query row: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	if !rows.Next() {
 		return nil, fmt.Errorf("no row found")
@@ -390,7 +390,7 @@ func (s *Service) ExecuteRawQuery(query string, args []interface{}) (string, err
 	if err != nil {
 		return "", fmt.Errorf("failed to execute query: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	columnNames, err := rows.Columns()
 	if err != nil {

@@ -86,7 +86,7 @@ func (p *DuckDuckGoProvider) Query(ctx context.Context, query string, params *Se
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	costTime := time.Since(startTime).Milliseconds()
 

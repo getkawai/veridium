@@ -251,7 +251,7 @@ func (sdrm *StableDiffusion) fetchFromGitHubAPI() (*Release, error) {
 		if resp.StatusCode == 403 {
 			// Rate limit exceeded - don't retry, use fallback instead
 			body, _ := io.ReadAll(resp.Body)
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			lastErr = fmt.Errorf("GitHub API rate limit exceeded: %s", string(body))
 			break // Exit retry loop immediately
 		}
@@ -259,7 +259,7 @@ func (sdrm *StableDiffusion) fetchFromGitHubAPI() (*Release, error) {
 		if resp.StatusCode != http.StatusOK {
 			// Read response body for error details
 			body, _ := io.ReadAll(resp.Body)
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			lastErr = fmt.Errorf("failed to fetch latest release: status %d, body: %s", resp.StatusCode, string(body))
 
 			// Don't retry on 404 or other client errors
@@ -271,7 +271,7 @@ func (sdrm *StableDiffusion) fetchFromGitHubAPI() (*Release, error) {
 
 		// Success - parse the response
 		body, err := sdrm.parseGitHubResponse(resp)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if err != nil {
 			lastErr = err
 			continue
@@ -457,7 +457,7 @@ func (sdrm *StableDiffusion) downloadAsset(asset *Asset, progressCallback func(f
 	log.Printf("Extracting binary to: %s", localPath)
 	if err := sdrm.extractBinary(archivePath, localPath); err != nil {
 		// Clean up failed download
-		os.Remove(archivePath)
+		_ = os.Remove(archivePath)
 		return fmt.Errorf("failed to extract binary: %w", err)
 	}
 
@@ -594,13 +594,13 @@ func (sdrm *StableDiffusion) extractTarGz(archivePath, outputPath string) error 
 	if err != nil {
 		return fmt.Errorf("failed to open archive: %w", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	gzReader, err := gzip.NewReader(file)
 	if err != nil {
 		return fmt.Errorf("failed to create gzip reader: %w", err)
 	}
-	defer gzReader.Close()
+	defer func() { _ = gzReader.Close() }()
 
 	tarReader := tar.NewReader(gzReader)
 
@@ -623,7 +623,7 @@ func (sdrm *StableDiffusion) extractTarGz(archivePath, outputPath string) error 
 				if err != nil {
 					return fmt.Errorf("failed to create output file: %w", err)
 				}
-				defer outputFile.Close()
+				defer func() { _ = outputFile.Close() }()
 
 				_, err = io.Copy(outputFile, tarReader)
 				if err != nil {
@@ -645,7 +645,7 @@ func (sdrm *StableDiffusion) extractZip(archivePath, outputPath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to open zip archive: %w", err)
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 
 	binaryFound := false
 	binDir := filepath.Dir(outputPath)
@@ -671,7 +671,7 @@ func (sdrm *StableDiffusion) extractZip(archivePath, outputPath string) error {
 			if err != nil {
 				return fmt.Errorf("failed to open file in archive: %w", err)
 			}
-			defer rc.Close()
+			defer func() { _ = rc.Close() }()
 
 			// Determine output path
 			var targetPath string
@@ -687,7 +687,7 @@ func (sdrm *StableDiffusion) extractZip(archivePath, outputPath string) error {
 			if err != nil {
 				return fmt.Errorf("failed to create output file: %w", err)
 			}
-			defer outputFile.Close()
+			defer func() { _ = outputFile.Close() }()
 
 			_, err = io.Copy(outputFile, rc)
 			if err != nil {
@@ -826,7 +826,7 @@ func (sdrm *StableDiffusion) VerifyChecksum(filePath, checksumPath, binaryName s
 	if err != nil {
 		return fmt.Errorf("failed to open file for checksum: %w", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	hasher := sha256.New()
 	if _, err := io.Copy(hasher, file); err != nil {
@@ -840,7 +840,7 @@ func (sdrm *StableDiffusion) VerifyChecksum(filePath, checksumPath, binaryName s
 	if err != nil {
 		return fmt.Errorf("failed to open checksums file: %w", err)
 	}
-	defer checksumFile.Close()
+	defer func() { _ = checksumFile.Close() }()
 
 	scanner := bufio.NewScanner(checksumFile)
 	for scanner.Scan() {
@@ -1162,7 +1162,7 @@ func (sdrm *StableDiffusion) downloadModel(modelSpec interface{}, progressCallba
 			}
 			log.Printf("Model %s exists but size mismatch (%d bytes vs %d bytes). Deleting and redownloading...",
 				name, currentSize, expectedSize)
-			os.Remove(modelPath)
+			_ = os.Remove(modelPath)
 		} else if currentSize > 100*1024*1024 { // At least 100MB for a valid model
 			log.Printf("Model %s already exists (%d MB), skipping download", name, currentSize/(1024*1024))
 			return nil
@@ -1189,7 +1189,7 @@ func (sdrm *StableDiffusion) downloadModel(modelSpec interface{}, progressCallba
 			if downloadedSize < int64(float64(expectedSize)*0.99) {
 				log.Printf("Error: Downloaded model size (%d bytes) is smaller than expected (%d bytes)",
 					downloadedSize, expectedSize)
-				os.Remove(modelPath)
+				_ = os.Remove(modelPath)
 				return fmt.Errorf("download incomplete: size mismatch")
 			}
 		}
@@ -1218,7 +1218,7 @@ func (sdrm *StableDiffusion) getRemoteFileSize(url string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return 0, fmt.Errorf("HEAD request failed with status: %d", resp.StatusCode)
@@ -1281,7 +1281,7 @@ func (sdrm *StableDiffusion) getCachedRelease() *Release {
 // cacheRelease saves a release to cache
 func (sdrm *StableDiffusion) cacheRelease(release *Release) {
 	// Ensure metadata directory exists
-	os.MkdirAll(sdrm.MetadataPath, 0755)
+	_ = os.MkdirAll(sdrm.MetadataPath, 0755)
 
 	cachePath := filepath.Join(sdrm.MetadataPath, "release-cache.json")
 
