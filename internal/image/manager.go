@@ -22,8 +22,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kawai-network/grab"
 	"github.com/kawai-network/veridium/internal/paths"
-	"github.com/kawai-network/veridium/pkg/grab"
 )
 
 // Release represents a GitHub release

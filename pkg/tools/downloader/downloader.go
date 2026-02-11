@@ -8,7 +8,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/kawai-network/veridium/pkg/grab"
+	"github.com/kawai-network/grab"
 	"github.com/kawai-network/x/constant"
 )
 
