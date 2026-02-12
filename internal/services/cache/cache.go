@@ -35,7 +35,8 @@
 package cache
 
 import (
-	"github.com/kawai-network/veridium/pkg/xlog"
+	"log/slog"
+
 	llamaembed "github.com/kawai-network/veridium/pkg/fantasy/providers/llama-embed"
 )
 
@@ -68,7 +69,7 @@ func NewCacheManager(embedder llamaembed.Embedder, config *CacheConfig) *CacheMa
 	}
 
 	if !config.Enabled {
-		xlog.Info("Cache disabled")
+		slog.Info("Cache disabled")
 		return &CacheManager{}
 	}
 
@@ -104,7 +105,7 @@ func (m *CacheManager) GetCachedEmbedder(original llamaembed.Embedder) llamaembe
 func (m *CacheManager) PrintStats() {
 	if m.embeddingCache != nil {
 		stats := m.embeddingCache.GetStats()
-		xlog.Info("EmbeddingCache stats",
+		slog.Info("EmbeddingCache stats",
 			"hits", stats.Hits,
 			"misses", stats.Misses,
 			"size", stats.Size,
@@ -114,7 +115,7 @@ func (m *CacheManager) PrintStats() {
 
 	if m.llmCache != nil {
 		stats := m.llmCache.GetStats()
-		xlog.Info("LLMCache stats",
+		slog.Info("LLMCache stats",
 			"hits", stats.Hits,
 			"misses", stats.Misses,
 			"size", stats.Size,

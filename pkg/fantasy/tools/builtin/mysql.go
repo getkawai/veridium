@@ -9,10 +9,11 @@ import (
 	"sync"
 	"time"
 
+	"log/slog"
+
 	_ "github.com/duckdb/duckdb-go/v2"
 	"github.com/kawai-network/veridium/pkg/fantasy"
 	"github.com/kawai-network/veridium/pkg/fantasy/tools"
-	"github.com/kawai-network/veridium/pkg/xlog"
 )
 
 // MySQLService manages MySQL connections via DuckDB
@@ -32,7 +33,7 @@ func NewMySQLService() (*MySQLService, error) {
 
 	// Install and load mysql extension
 	if _, err := db.Exec("INSTALL mysql"); err != nil {
-		xlog.Warn("Failed to install mysql extension (might be already installed)", "error", err)
+		slog.Warn("Failed to install mysql extension (might be already installed)", "error", err)
 	}
 	if _, err := db.Exec("LOAD mysql"); err != nil {
 		return nil, fmt.Errorf("failed to load mysql extension: %w", err)
@@ -248,7 +249,7 @@ func (s *MySQLService) attach(ctx context.Context, input MySQLAttachInput) (fant
 	}
 	attachCmd += ")"
 
-	xlog.Info("Attaching to MySQL", "name", input.Name, "host", input.Host, "database", input.Database)
+	slog.InfoContext(ctx, "Attaching to MySQL", "name", input.Name, "host", input.Host, "database", input.Database)
 
 	// Execute ATTACH with timeout
 	execCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
@@ -322,7 +323,7 @@ func (s *MySQLService) query(ctx context.Context, input MySQLQueryInput) (fantas
 		query = fmt.Sprintf("%s LIMIT %d", query, limit)
 	}
 
-	xlog.Info("Executing MySQL query", "connection", input.Connection, "query", query)
+	slog.InfoContext(ctx, "Executing MySQL query", "connection", input.Connection, "query", query)
 
 	// Execute query with timeout
 	execCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
@@ -411,7 +412,7 @@ func (s *MySQLService) execute(ctx context.Context, input MySQLExecuteInput) (fa
 		return fantasy.NewTextErrorResponse("dangerous operation detected. Set confirm=true to proceed."), nil
 	}
 
-	xlog.Info("Executing MySQL command", "connection", input.Connection, "command", input.Command)
+	slog.InfoContext(ctx, "Executing MySQL command", "connection", input.Connection, "command", input.Command)
 
 	// Use mysql_execute function for proper execution
 	execQuery := fmt.Sprintf("CALL mysql_execute('%s', '%s')",

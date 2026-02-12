@@ -7,10 +7,11 @@ import (
 	"fmt"
 	"time"
 
+	"log/slog"
+
 	"github.com/google/uuid"
-	llamaembed "github.com/kawai-network/veridium/pkg/fantasy/providers/llama-embed"
 	db "github.com/kawai-network/veridium/internal/database/generated"
-	"github.com/kawai-network/veridium/pkg/xlog"
+	llamaembed "github.com/kawai-network/veridium/pkg/fantasy/providers/llama-embed"
 	"github.com/kawai-network/veridium/types"
 )
 
@@ -47,7 +48,7 @@ type RAGProcessRequest struct {
 // ProcessFile processes a file for RAG (chunking + embedding)
 // Uses already-parsed content from database to avoid double parsing
 func (r *RAGProcessor) ProcessFile(ctx context.Context, req RAGProcessRequest) ([]string, error) {
-	xlog.Info("Starting RAG processing", "file_id", req.FileID, "document_id", req.DocumentID)
+	slog.InfoContext(ctx, "Starting RAG processing", "file_id", req.FileID, "document_id", req.DocumentID)
 
 	// 1. Get already-parsed document content from database
 	doc, err := r.queries.GetDocument(ctx, req.DocumentID)
@@ -57,7 +58,7 @@ func (r *RAGProcessor) ProcessFile(ctx context.Context, req RAGProcessRequest) (
 
 	// Check if document has content
 	if !doc.Content.Valid || doc.Content.String == "" {
-		xlog.Warn("Document has no content", "document_id", req.DocumentID)
+		slog.WarnContext(ctx, "Document has no content", "document_id", req.DocumentID)
 		return []string{}, nil
 	}
 
@@ -66,11 +67,11 @@ func (r *RAGProcessor) ProcessFile(ctx context.Context, req RAGProcessRequest) (
 	var pages []types.DocumentPage
 	if doc.Pages.Valid && doc.Pages.String != "" {
 		if err := json.Unmarshal([]byte(doc.Pages.String), &pages); err != nil {
-			xlog.Warn("Failed to unmarshal pages from database", "error", err, "document_id", req.DocumentID)
+			slog.WarnContext(ctx, "Failed to unmarshal pages from database", "error", err, "document_id", req.DocumentID)
 			// Continue without pages - will fallback to content-based chunking
 			pages = nil
 		} else {
-			xlog.Info("Unmarshaled pages from database", "count", len(pages), "document_id", req.DocumentID)
+			slog.InfoContext(ctx, "Unmarshaled pages from database", "count", len(pages), "document_id", req.DocumentID)
 		}
 	}
 
@@ -88,11 +89,11 @@ func (r *RAGProcessor) ProcessFile(ctx context.Context, req RAGProcessRequest) (
 		OverlapSize: r.overlapSize,
 	})
 	if len(chunks) == 0 {
-		xlog.Warn("No chunks created from document", "document_id", req.DocumentID)
+		slog.WarnContext(ctx, "No chunks created from document", "document_id", req.DocumentID)
 		return []string{}, nil
 	}
 
-	xlog.Info("Created chunks", "count", len(chunks), "document_id", req.DocumentID)
+	slog.InfoContext(ctx, "Created chunks", "count", len(chunks), "document_id", req.DocumentID)
 
 	// 4. Generate embeddings and store in both SQLite and DuckDB (and Chromem for backward compat/fallback)
 	chunkIDs := make([]string, 0, len(chunks))
@@ -110,19 +111,19 @@ func (r *RAGProcessor) ProcessFile(ctx context.Context, req RAGProcessRequest) (
 			Type:       sql.NullString{String: "text", Valid: true},
 		})
 		if err != nil {
-			xlog.Error("Failed to save chunk to SQLite", "error", err, "chunk_index", i)
+			slog.ErrorContext(ctx, "Failed to save chunk to SQLite", "error", err, "chunk_index", i)
 			continue
 		}
 
 		// Generate embedding
 		embeddings, err := r.embedder.Embed(ctx, []string{chunkContent})
 		if err != nil {
-			xlog.Error("Failed to generate embedding", "error", err, "chunk_index", i)
+			slog.ErrorContext(ctx, "Failed to generate embedding", "error", err, "chunk_index", i)
 			continue
 		}
 
 		if len(embeddings) == 0 || len(embeddings[0]) == 0 {
-			xlog.Error("Empty embedding response", "chunk_index", i)
+			slog.ErrorContext(ctx, "Empty embedding response", "chunk_index", i)
 			continue
 		}
 
@@ -131,7 +132,7 @@ func (r *RAGProcessor) ProcessFile(ctx context.Context, req RAGProcessRequest) (
 		// B. Save embedding to DuckDB (Vector Engine)
 		if r.duckDB != nil {
 			if err := r.duckDB.UpsertVector(ctx, chunkID, req.FileID, embedding); err != nil {
-				xlog.Error("Failed to save vector to DuckDB", "error", err, "chunk_id", chunkID)
+				slog.ErrorContext(ctx, "Failed to save vector to DuckDB", "error", err, "chunk_id", chunkID)
 				// We continue even if DuckDB fails, as SQLite is the source of truth
 			}
 		}
@@ -139,7 +140,7 @@ func (r *RAGProcessor) ProcessFile(ctx context.Context, req RAGProcessRequest) (
 		chunkIDs = append(chunkIDs, chunkID)
 	}
 
-	xlog.Info("RAG processing completed successfully",
+	slog.InfoContext(ctx, "RAG processing completed successfully",
 		"file_id", req.FileID,
 		"document_id", req.DocumentID,
 		"chunks_stored", len(chunkIDs))
@@ -161,10 +162,10 @@ func (r *RAGProcessor) ProcessFile(ctx context.Context, req RAGProcessRequest) (
 		ID:              req.FileID,
 	})
 	if err != nil {
-		xlog.Error("Failed to update file chunk stats", "error", err, "file_id", req.FileID)
+		slog.ErrorContext(ctx, "Failed to update file chunk stats", "error", err, "file_id", req.FileID)
 		// Don't fail the whole process if stats update fails
 	} else {
-		xlog.Info("Updated file chunk stats", "file_id", req.FileID, "chunk_count", chunkCount)
+		slog.InfoContext(ctx, "Updated file chunk stats", "file_id", req.FileID, "chunk_count", chunkCount)
 	}
 
 	return chunkIDs, nil

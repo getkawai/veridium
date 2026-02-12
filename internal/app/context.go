@@ -183,13 +183,15 @@ func (ctx *Context) InitSentry() {
 	})
 
 	// properties of the logger
-	handler := slog.NewTextHandler(os.Stderr, nil)
+	handler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		AddSource: true,
+	})
 	// wrap the handler with SentryHandler
 	sentryHandler := logger.NewSentryHandler(handler)
 	// create a new logger with the SentryHandler
-	logger := slog.New(sentryHandler)
+	defaultLogger := slog.New(sentryHandler)
 	// set the default logger to the new logger
-	slog.SetDefault(logger)
+	slog.SetDefault(defaultLogger)
 
 	log.Printf("Sentry initialized with EnableLogs: true (using slog handler)")
 }

@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"strings"
 
+	"log/slog"
+
 	_ "github.com/duckdb/duckdb-go/v2"
-	"github.com/kawai-network/veridium/pkg/xlog"
 )
 
 // DuckDBStore handles vector storage using DuckDB
@@ -97,7 +98,7 @@ func (s *DuckDBStore) init(dim int) error {
 	// 1. Install and Load VSS extension
 	// We try to load first, if it fails, we try to install
 	if _, err := s.db.Exec("LOAD vss"); err != nil {
-		xlog.Info("VSS extension not loaded, attempting to install...")
+		slog.Info("VSS extension not loaded, attempting to install...")
 		if _, err := s.db.Exec("INSTALL vss"); err != nil {
 			return fmt.Errorf("failed to install vss extension: %w", err)
 		}
@@ -108,12 +109,12 @@ func (s *DuckDBStore) init(dim int) error {
 
 	// 2. Checkpoint WAL to avoid replay issues with old schema
 	if _, err := s.db.Exec("CHECKPOINT"); err != nil {
-		xlog.Warn("Failed to checkpoint WAL", "error", err)
+		slog.Warn("Failed to checkpoint WAL", "error", err)
 	}
 
 	// 3. Enable experimental persistence (required for disk-backed DB)
 	if _, err := s.db.Exec("SET hnsw_enable_experimental_persistence = true"); err != nil {
-		xlog.Warn("Failed to enable experimental persistence (might be in-memory DB)", "error", err)
+		slog.Warn("Failed to enable experimental persistence (might be in-memory DB)", "error", err)
 	}
 
 	// 4. Create vectors table
@@ -122,7 +123,7 @@ func (s *DuckDBStore) init(dim int) error {
 
 	// Drop existing table if it exists (for schema migration from DOUBLE to FLOAT)
 	if _, err := s.db.Exec("DROP TABLE IF EXISTS vectors"); err != nil {
-		xlog.Warn("Failed to drop existing vectors table", "error", err)
+		slog.Warn("Failed to drop existing vectors table", "error", err)
 	}
 
 	query := fmt.Sprintf(`
@@ -132,7 +133,7 @@ func (s *DuckDBStore) init(dim int) error {
 			embedding FLOAT[%d]
 		)
 	`, dim)
-	xlog.Info("Creating vectors table", "query", query)
+	slog.Info("Creating vectors table", "query", query)
 	if _, err := s.db.Exec(query); err != nil {
 		return fmt.Errorf("failed to create vectors table: %w", err)
 	}
@@ -150,7 +151,7 @@ func (s *DuckDBStore) init(dim int) error {
 		)
 	`, s.config.Metric, s.config.EfConstruction, s.config.EfSearch, s.config.M)
 
-	xlog.Info("Creating HNSW index", "query", indexQuery, "config", s.config)
+	slog.Info("Creating HNSW index", "query", indexQuery, "config", s.config)
 	if _, err := s.db.Exec(indexQuery); err != nil {
 		return fmt.Errorf("failed to create HNSW index: %w", err)
 	}
@@ -404,7 +405,7 @@ func (s *DuckDBStore) SetEfSearch(efSearch int) error {
 	if err != nil {
 		return fmt.Errorf("failed to set ef_search: %w", err)
 	}
-	xlog.Info("Updated ef_search parameter", "ef_search", efSearch)
+	slog.Info("Updated ef_search parameter", "ef_search", efSearch)
 	return nil
 }
 
@@ -414,7 +415,7 @@ func (s *DuckDBStore) ResetEfSearch() error {
 	if err != nil {
 		return fmt.Errorf("failed to reset ef_search: %w", err)
 	}
-	xlog.Info("Reset ef_search to default")
+	slog.Info("Reset ef_search to default")
 	return nil
 }
 
@@ -427,7 +428,7 @@ func (s *DuckDBStore) CompactIndex(indexName string) error {
 	if err != nil {
 		return fmt.Errorf("failed to compact index: %w", err)
 	}
-	xlog.Info("Compacted HNSW index", "index_name", indexName)
+	slog.Info("Compacted HNSW index", "index_name", indexName)
 	return nil
 }
 

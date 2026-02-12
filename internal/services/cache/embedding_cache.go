@@ -23,7 +23,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kawai-network/veridium/pkg/xlog"
+	"log/slog"
+
 	llamaembed "github.com/kawai-network/veridium/pkg/fantasy/providers/llama-embed"
 )
 
@@ -84,7 +85,7 @@ func NewEmbeddingCache(embedder llamaembed.Embedder, config *EmbeddingCacheConfi
 		avgEmbedMs: config.AvgEmbedMs,
 	}
 
-	xlog.Info("EmbeddingCache initialized", "maxSize", config.MaxSize, "ttl", config.TTL)
+	slog.Info("EmbeddingCache initialized", "maxSize", config.MaxSize, "ttl", config.TTL)
 	return cache
 }
 
@@ -156,7 +157,7 @@ func (c *EmbeddingCache) Embed(ctx context.Context, texts []string) ([][]float32
 		}
 		c.mu.Unlock()
 
-		xlog.Debug("EmbeddingCache: generated new embeddings", "count", len(toEmbed))
+		slog.DebugContext(ctx, "EmbeddingCache: generated new embeddings", "count", len(toEmbed))
 	}
 
 	return results, nil
@@ -192,7 +193,7 @@ func (c *EmbeddingCache) evictOldest(count int) {
 		delete(c.cache, entries[i].hash)
 	}
 
-	xlog.Debug("EmbeddingCache: evicted entries", "count", count)
+	slog.Debug("EmbeddingCache: evicted entries", "count", count)
 }
 
 // recordHit increments hit counter
@@ -257,7 +258,7 @@ func (c *EmbeddingCache) Clear() {
 	c.stats = EmbeddingCacheStats{}
 	c.statsMu.Unlock()
 
-	xlog.Info("EmbeddingCache cleared")
+	slog.Info("EmbeddingCache cleared")
 }
 
 // Warmup preloads embeddings into cache
@@ -266,12 +267,12 @@ func (c *EmbeddingCache) Warmup(ctx context.Context, texts []string) error {
 		return nil
 	}
 
-	xlog.Info("EmbeddingCache warmup started", "count", len(texts))
+	slog.InfoContext(ctx, "EmbeddingCache warmup started", "count", len(texts))
 	_, err := c.Embed(ctx, texts)
 	if err != nil {
 		return err
 	}
-	xlog.Info("EmbeddingCache warmup completed")
+	slog.InfoContext(ctx, "EmbeddingCache warmup completed")
 	return nil
 }
 

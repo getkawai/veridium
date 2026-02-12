@@ -5,17 +5,17 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"time"
+
+	"log/slog"
 
 	"github.com/kawai-network/veridium/internal/services"
 	"github.com/kawai-network/veridium/internal/whisper"
 	"github.com/kawai-network/veridium/pkg/fantasy"
 	"github.com/kawai-network/veridium/pkg/fantasy/llamalib"
 	llamaembed "github.com/kawai-network/veridium/pkg/fantasy/providers/llama-embed"
-	"github.com/kawai-network/veridium/pkg/xlog"
 )
 
 // FileProcessorService is the Wails-exposed service
@@ -122,7 +122,7 @@ func (f *FileProcessorService) ProcessFileFromPath(
 		return nil, fmt.Errorf("failed to copy file: %w", err)
 	}
 
-	xlog.Info("File copied successfully", "filename", filename, "destPath", relativeKey, "bytes", written)
+	slog.InfoContext(ctx, "File copied successfully", "filename", filename, "destPath", relativeKey, "bytes", written)
 
 	// Process file for storage and RAG
 	req := services.ProcessFileRequest{
@@ -164,11 +164,11 @@ type ProcessFileFromPathResponse struct {
 // This replaces the complex frontend logic with a robust backend implementation
 func (f *FileProcessorService) RemoveFiles(ids []string) error {
 	ctx := context.Background()
-	log.Printf("[INFO] RemoveFiles called for %d files", len(ids))
+	slog.InfoContext(ctx, "RemoveFiles called", "count", len(ids))
 
 	for _, id := range ids {
 		if err := f.processor.DeleteFile(ctx, id); err != nil {
-			log.Printf("[ERROR] Failed to delete file %s: %v", id, err)
+			slog.ErrorContext(ctx, "Failed to delete file", "id", id, "error", err)
 			// We continue deleting other files instead of returning immediately
 			// but we could collect errors if strictly needed.
 			// For UI, best effort is usually preferred.

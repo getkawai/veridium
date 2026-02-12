@@ -9,10 +9,11 @@ import (
 	"sync"
 	"time"
 
+	"log/slog"
+
 	_ "github.com/duckdb/duckdb-go/v2"
 	"github.com/kawai-network/veridium/pkg/fantasy"
 	"github.com/kawai-network/veridium/pkg/fantasy/tools"
-	"github.com/kawai-network/veridium/pkg/xlog"
 )
 
 // PostgresService manages PostgreSQL connections via DuckDB
@@ -32,7 +33,7 @@ func NewPostgresService() (*PostgresService, error) {
 
 	// Install and load postgres extension
 	if _, err := db.Exec("INSTALL postgres"); err != nil {
-		xlog.Warn("Failed to install postgres extension (might be already installed)", "error", err)
+		slog.Warn("Failed to install postgres extension (might be already installed)", "error", err)
 	}
 	if _, err := db.Exec("LOAD postgres"); err != nil {
 		return nil, fmt.Errorf("failed to load postgres extension: %w", err)
@@ -239,7 +240,7 @@ func (s *PostgresService) attach(ctx context.Context, input PostgresAttachInput)
 	}
 	attachCmd += ")"
 
-	xlog.Info("Attaching to PostgreSQL", "name", input.Name, "host", input.Host, "database", input.Database)
+	slog.InfoContext(ctx, "Attaching to PostgreSQL", "name", input.Name, "host", input.Host, "database", input.Database)
 
 	// Execute ATTACH with timeout
 	execCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
@@ -317,7 +318,7 @@ func (s *PostgresService) query(ctx context.Context, input PostgresQueryInput) (
 		query = fmt.Sprintf("%s LIMIT %d", query, limit)
 	}
 
-	xlog.Info("Executing PostgreSQL query", "connection", input.Connection, "query", query)
+	slog.InfoContext(ctx, "Executing PostgreSQL query", "connection", input.Connection, "query", query)
 
 	// Execute query with timeout
 	execCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
@@ -406,7 +407,7 @@ func (s *PostgresService) execute(ctx context.Context, input PostgresExecuteInpu
 		return fantasy.NewTextErrorResponse("dangerous operation detected. Set confirm=true to proceed."), nil
 	}
 
-	xlog.Info("Executing PostgreSQL command", "connection", input.Connection, "command", input.Command)
+	slog.InfoContext(ctx, "Executing PostgreSQL command", "connection", input.Connection, "command", input.Command)
 
 	// Use postgres_execute function for proper execution
 	execQuery := fmt.Sprintf("CALL postgres_execute('%s', '%s')",

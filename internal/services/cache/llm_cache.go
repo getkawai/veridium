@@ -23,7 +23,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kawai-network/veridium/pkg/xlog"
+	"log/slog"
+
 	llamaembed "github.com/kawai-network/veridium/pkg/fantasy/providers/llama-embed"
 )
 
@@ -51,13 +52,13 @@ type LLMCacheStats struct {
 
 // LLMCache provides semantic caching for LLM responses
 type LLMCache struct {
-	embedder  llamaembed.Embedder
-	entries   map[string]*LLMCacheEntry // ID → Entry
-	embedIdx  map[string]string         // embedding hash → ID (for exact match)
-	mu        sync.RWMutex
-	config    *LLMCacheConfig
-	stats     LLMCacheStats
-	statsMu   sync.Mutex
+	embedder llamaembed.Embedder
+	entries  map[string]*LLMCacheEntry // ID → Entry
+	embedIdx map[string]string         // embedding hash → ID (for exact match)
+	mu       sync.RWMutex
+	config   *LLMCacheConfig
+	stats    LLMCacheStats
+	statsMu  sync.Mutex
 
 	// For semantic search, we maintain a simple in-memory index
 	// In production, this could use DuckDB or a dedicated vector store
@@ -72,21 +73,21 @@ type cachedEmbedding struct {
 
 // LLMCacheConfig holds configuration for the LLM cache
 type LLMCacheConfig struct {
-	MaxSize            int           // Maximum number of entries (default: 1000)
-	TTL                time.Duration // Time to live (default: 1h, 0 = no expiry)
-	SimilarityThreshold float32      // Threshold for semantic match (default: 0.95)
-	AvgQueryCost       float64       // Estimated cost per query in USD (for stats)
-	AvgQueryTimeMs     int64         // Estimated time per query in ms (for stats)
+	MaxSize             int           // Maximum number of entries (default: 1000)
+	TTL                 time.Duration // Time to live (default: 1h, 0 = no expiry)
+	SimilarityThreshold float32       // Threshold for semantic match (default: 0.95)
+	AvgQueryCost        float64       // Estimated cost per query in USD (for stats)
+	AvgQueryTimeMs      int64         // Estimated time per query in ms (for stats)
 }
 
 // DefaultLLMCacheConfig returns default configuration
 func DefaultLLMCacheConfig() *LLMCacheConfig {
 	return &LLMCacheConfig{
-		MaxSize:            1000,
-		TTL:                1 * time.Hour,
+		MaxSize:             1000,
+		TTL:                 1 * time.Hour,
 		SimilarityThreshold: 0.95,
-		AvgQueryCost:       0.001, // $0.001 per query estimate
-		AvgQueryTimeMs:     2000,  // 2 seconds estimate
+		AvgQueryCost:        0.001, // $0.001 per query estimate
+		AvgQueryTimeMs:      2000,  // 2 seconds estimate
 	}
 }
 
@@ -104,7 +105,7 @@ func NewLLMCache(embedder llamaembed.Embedder, config *LLMCacheConfig) *LLMCache
 		allEmbeddings: make([]cachedEmbedding, 0),
 	}
 
-	xlog.Info("LLMCache initialized",
+	slog.Info("LLMCache initialized",
 		"maxSize", config.MaxSize,
 		"ttl", config.TTL,
 		"similarityThreshold", config.SimilarityThreshold)
@@ -135,7 +136,7 @@ func (c *LLMCache) Get(ctx context.Context, query string, contextHash string, mo
 	// Generate embedding for query
 	embeddings, err := c.embedder.Embed(ctx, []string{query})
 	if err != nil || len(embeddings) == 0 {
-		xlog.Warn("LLMCache: failed to embed query", "error", err)
+		slog.WarnContext(ctx, "LLMCache: failed to embed query", "error", err)
 		c.recordMiss()
 		return "", false
 	}
@@ -195,7 +196,7 @@ func (c *LLMCache) Get(ctx context.Context, query string, contextHash string, mo
 	c.mu.Unlock()
 
 	c.recordHit()
-	xlog.Debug("LLMCache hit",
+	slog.DebugContext(ctx, "LLMCache hit",
 		"query", truncate(query, 50),
 		"similarity", bestSimilarity,
 		"hitCount", entry.HitCount)
@@ -212,7 +213,7 @@ func (c *LLMCache) Set(ctx context.Context, query string, response string, conte
 	// Generate embedding for query
 	embeddings, err := c.embedder.Embed(ctx, []string{query})
 	if err != nil || len(embeddings) == 0 {
-		xlog.Warn("LLMCache: failed to embed query for caching", "error", err)
+		slog.WarnContext(ctx, "LLMCache: failed to embed query for caching", "error", err)
 		return err
 	}
 	queryEmb := embeddings[0]
@@ -247,7 +248,7 @@ func (c *LLMCache) Set(ctx context.Context, query string, response string, conte
 	})
 	c.embMu.Unlock()
 
-	xlog.Debug("LLMCache: stored entry",
+	slog.DebugContext(ctx, "LLMCache: stored entry",
 		"id", id,
 		"query", truncate(query, 50))
 
@@ -284,7 +285,7 @@ func (c *LLMCache) evictLRU() {
 		c.allEmbeddings = newEmbeddings
 		c.embMu.Unlock()
 
-		xlog.Debug("LLMCache: evicted entry", "id", oldestID)
+		slog.Debug("LLMCache: evicted entry", "id", oldestID)
 	}
 }
 
@@ -383,7 +384,7 @@ func (c *LLMCache) Clear() {
 	c.stats = LLMCacheStats{}
 	c.statsMu.Unlock()
 
-	xlog.Info("LLMCache cleared")
+	slog.Info("LLMCache cleared")
 }
 
 // InvalidateByContext removes all entries with a specific context hash
@@ -421,7 +422,7 @@ func (c *LLMCache) InvalidateByContext(contextHash string) int {
 	}
 
 	if len(toDelete) > 0 {
-		xlog.Info("LLMCache: invalidated entries by context", "count", len(toDelete))
+		slog.Info("LLMCache: invalidated entries by context", "count", len(toDelete))
 	}
 
 	return len(toDelete)
@@ -462,7 +463,7 @@ func (c *LLMCache) InvalidateByModel(model string) int {
 	}
 
 	if len(toDelete) > 0 {
-		xlog.Info("LLMCache: invalidated entries by model", "model", model, "count", len(toDelete))
+		slog.Info("LLMCache: invalidated entries by model", "model", model, "count", len(toDelete))
 	}
 
 	return len(toDelete)
