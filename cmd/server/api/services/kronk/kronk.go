@@ -18,6 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/getsentry/sentry-go"
 	"github.com/kawai-network/veridium/cmd/server/api/services/kronk/build"
+	"github.com/kawai-network/veridium/cmd/server/app/domain/whisperapp"
 	"github.com/kawai-network/veridium/cmd/server/app/sdk/cache"
 	"github.com/kawai-network/veridium/cmd/server/app/sdk/mux"
 	"github.com/kawai-network/veridium/cmd/server/foundation/logger"
@@ -37,7 +38,6 @@ import (
 	"github.com/kawai-network/veridium/pkg/tools/models"
 	"github.com/kawai-network/veridium/pkg/tools/templates"
 	"github.com/kawai-network/veridium/pkg/tunnelkit"
-	"github.com/kawai-network/veridium/pkg/whisper/model"
 	"github.com/kawai-network/x/constant"
 )
 
@@ -545,16 +545,16 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 	{
 		log.Info(ctx, "startup", "status", "initializing whisper")
 
-		whisperModelsDir = paths.Models()
+		whisperModelsDir = paths.WhisperModels()
 
 		// Ensure models directory exists
 		if err := os.MkdirAll(whisperModelsDir, 0755); err != nil {
 			log.Info(ctx, "whisper", "status", "failed to create models directory", "error", err)
 		} else {
 			// Check if whisper models exist, don't download
-			models, _ := model.ListDownloadedModels(whisperModelsDir)
+			models, _ := whisperapp.ListDownloadedModels(whisperModelsDir)
 			if len(models) == 0 {
-				return fmt.Errorf("whisper models not found. Please run 'kawai-contributor setup' first to download whisper models")
+				return fmt.Errorf("whisper models not found at %s. Please run 'kawai-contributor setup' first to download whisper models", whisperModelsDir)
 			}
 			log.Info(ctx, "startup", "status", "whisper service ready", "models", len(models))
 		}

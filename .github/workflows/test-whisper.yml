@@ -1,0 +1,299 @@
+name: Test Whisper Package
+
+on:
+  push:
+    paths:
+      - 'cmd/server/app/domain/whisperapp/**'
+      - 'go.mod'
+      - 'go.sum'
+  pull_request:
+    paths:
+      - 'cmd/server/app/domain/whisperapp/**'
+      - 'go.mod'
+      - 'go.sum'
+
+env:
+  GOPRIVATE: 'github.com/kawai-network/*'
+  GH_TOKEN: ${{ secrets.GH_TOKEN }}
+
+jobs:
+  test:
+    name: Unit Tests on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.5'
+          cache: true
+
+      - name: Configure Git for private modules
+        run: |
+          git config --global url."https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/".insteadOf "https://github.com/"
+
+      - name: Get dependencies
+        run: go mod download
+
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Run unit tests
+        shell: bash
+        run: go test -v -race -short -coverprofile=coverage.txt -covermode=atomic ./cmd/server/app/domain/whisperapp/...
+        env:
+          CGO_ENABLED: 1
+
+      - name: Generate coverage report
+        run: go test -v -short -cover ./cmd/server/app/domain/whisperapp/...
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        if: matrix.os == 'ubuntu-latest'
+        with:
+          file: ./coverage.txt
+          flags: whisper
+          name: whisper-coverage
+          fail_ci_if_error: false
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.5'
+          cache: true
+
+      - name: Configure Git for private modules
+        run: |
+          git config --global url."https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/".insteadOf "https://github.com/"
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          args: --timeout=5m ./cmd/server/app/domain/whisperapp/...
+          skip-cache: false
+
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.5'
+          cache: true
+
+      - name: Configure Git for private modules
+        run: |
+          git config --global url."https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/".insteadOf "https://github.com/"
+
+      - name: Build whisperapp package
+        run: go build -v ./cmd/server/app/domain/whisperapp/...
+
+      - name: Build kronk service (uses whisperapp)
+        run: go build -v ./cmd/server/api/services/kronk/...
+
+  test-model-helpers:
+    name: Test Model Helper Functions
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.5'
+          cache: true
+
+      - name: Configure Git for private modules
+        run: |
+          git config --global url."https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/".insteadOf "https://github.com/"
+
+      - name: Get dependencies
+        run: go mod download
+
+      - name: Test GetModelSpec
+        run: go test -v -run TestGetModelSpec ./cmd/server/app/domain/whisperapp/...
+
+      - name: Test GetAllModels
+        run: go test -v -run TestGetAllModels ./cmd/server/app/domain/whisperapp/...
+
+      - name: Test GetAvailableModels
+        run: go test -v -run TestGetAvailableModels ./cmd/server/app/domain/whisperapp/...
+
+      - name: Test SelectOptimalModel
+        run: go test -v -run TestSelectOptimalModel ./cmd/server/app/domain/whisperapp/...
+
+      - name: Test HumanSize
+        run: go test -v -run TestHumanSize ./cmd/server/app/domain/whisperapp/...
+
+  test-file-operations:
+    name: Test File Operations
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.5'
+          cache: true
+
+      - name: Configure Git for private modules
+        run: |
+          git config --global url."https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/".insteadOf "https://github.com/"
+
+      - name: Get dependencies
+        run: go mod download
+
+      - name: Test GetModelPath
+        run: go test -v -run TestGetModelPath ./cmd/server/app/domain/whisperapp/...
+
+      - name: Test IsModelDownloaded
+        run: go test -v -run TestIsModelDownloaded ./cmd/server/app/domain/whisperapp/...
+
+      - name: Test ListDownloadedModels
+        run: go test -v -run TestListDownloadedModels ./cmd/server/app/domain/whisperapp/...
+
+      - name: Test DeleteModel
+        run: go test -v -run TestDeleteModel ./cmd/server/app/domain/whisperapp/...
+
+  test-setup:
+    name: Test Setup Functions
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.5'
+          cache: true
+
+      - name: Configure Git for private modules
+        run: |
+          git config --global url."https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/".insteadOf "https://github.com/"
+
+      - name: Get dependencies
+        run: go mod download
+
+      - name: Test DefaultSetupOptions
+        run: go test -v -run TestDefaultSetupOptions ./cmd/server/app/domain/whisperapp/...
+
+      - name: Test SetupOptions
+        run: go test -v -run TestSetupOptions ./cmd/server/app/domain/whisperapp/...
+
+      - name: Test SetupDirectories
+        run: go test -v -run TestSetupDirectories ./cmd/server/app/domain/whisperapp/...
+
+      - name: Test VerifySetup
+        run: go test -v -run TestVerifySetup ./cmd/server/app/domain/whisperapp/...
+
+      - name: Test DiagnoseSetup
+        run: go test -v -run TestDiagnoseSetup ./cmd/server/app/domain/whisperapp/...
+
+  test-paths-integration:
+    name: Test Paths Integration
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.5'
+          cache: true
+
+      - name: Configure Git for private modules
+        run: |
+          git config --global url."https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/".insteadOf "https://github.com/"
+
+      - name: Get dependencies
+        run: go mod download
+
+      - name: Verify paths.WhisperModels() works
+        run: |
+          cat > /tmp/test_paths.go << 'EOF'
+          package main
+          import (
+            "fmt"
+            "github.com/kawai-network/veridium/internal/paths"
+          )
+          func main() {
+            fmt.Println("WhisperModels:", paths.WhisperModels())
+            fmt.Println("WhisperLib:", paths.WhisperLib())
+          }
+          EOF
+          go run /tmp/test_paths.go
+
+  summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    needs: [test, lint, build, test-model-helpers, test-file-operations, test-setup, test-paths-integration]
+    if: always()
+    
+    steps:
+      - name: Check test results
+        run: |
+          echo "Whisper Test Results Summary:"
+          echo "================================"
+          echo "- Unit Tests: ${{ needs.test.result }}"
+          echo "- Lint: ${{ needs.lint.result }}"
+          echo "- Build: ${{ needs.build.result }}"
+          echo "- Model Helper Tests: ${{ needs.test-model-helpers.result }}"
+          echo "- File Operation Tests: ${{ needs.test-file-operations.result }}"
+          echo "- Setup Tests: ${{ needs.test-setup.result }}"
+          echo "- Paths Integration: ${{ needs.test-paths-integration.result }}"
+          echo "================================"
+          
+          if [ "${{ needs.test.result }}" != "success" ] || \
+             [ "${{ needs.lint.result }}" != "success" ] || \
+             [ "${{ needs.build.result }}" != "success" ] || \
+             [ "${{ needs.test-model-helpers.result }}" != "success" ] || \
+             [ "${{ needs.test-file-operations.result }}" != "success" ] || \
+             [ "${{ needs.test-setup.result }}" != "success" ] || \
+             [ "${{ needs.test-paths-integration.result }}" != "success" ]; then
+            echo "❌ Some tests failed!"
+            exit 1
+          fi
+          
+          echo "✅ All whisper tests passed!"

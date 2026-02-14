@@ -1,4 +1,4 @@
-// Package whisperapp provides the audio transcription API endpoints using pkg/whisper.
+// Package whisperapp provides the audio transcription API endpoints using github.com/kawai-network/whisper.
 package whisperapp
 
 import (
@@ -8,13 +8,12 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"strings"
 
 	"github.com/kawai-network/veridium/cmd/server/app/sdk/errs"
 	"github.com/kawai-network/veridium/cmd/server/foundation/logger"
 	"github.com/kawai-network/veridium/cmd/server/foundation/web"
-	"github.com/kawai-network/veridium/pkg/whisper"
-	"github.com/kawai-network/veridium/pkg/whisper/model"
+	"github.com/kawai-network/veridium/internal/paths"
+	whisper "github.com/kawai-network/whisper"
 )
 
 // app represents the whisper application
@@ -82,20 +81,16 @@ func (a *app) transcriptions(ctx context.Context, r *http.Request) web.Encoder {
 
 	language := r.FormValue("language")
 
-	// Get models directory from environment or use default
-	modelsDir := os.Getenv("WHISPER_MODELS_DIR")
-	if modelsDir == "" {
-		modelsDir = "./data/models/whisper"
-	}
+	// Get models directory using centralized paths
+	modelsDir := paths.WhisperModels()
 
-	// Check if model exists, download if not
-	modelPath := model.GetModelPath(modelsDir, modelName)
+	// Model path for standalone whisper (format: {name}.bin, not ggml-{name}.bin)
+	modelPath := fmt.Sprintf("%s/%s.bin", modelsDir, modelName)
+
+	// Check if model exists
 	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
-		a.log.Info(ctx, "downloading whisper model", "model", modelName)
-		if err := model.DownloadModel(modelName, modelsDir, nil); err != nil {
-			a.log.Error(ctx, "failed to download model", "error", err)
-			return errs.Errorf(errs.NotFound, "model %s not available and download failed", modelName)
-		}
+		a.log.Error(ctx, "model not found", "model", modelName, "path", modelPath)
+		return errs.Errorf(errs.NotFound, "model %s not found at %s. Please run 'kawai-contributor setup' to download whisper models.", modelName, modelPath)
 	}
 
 	// Perform transcription
@@ -122,7 +117,7 @@ func (a *app) transcriptions(ctx context.Context, r *http.Request) web.Encoder {
 	}
 }
 
-// transcribe performs the actual transcription
+// transcribe performs the actual transcription using github.com/kawai-network/whisper
 func (a *app) transcribe(ctx context.Context, modelPath string, file io.Reader, language string) (string, error) {
 	// Save uploaded file to temp location
 	tempFile, err := os.CreateTemp("", "whisper-*.audio")
@@ -138,31 +133,45 @@ func (a *app) transcribe(ctx context.Context, modelPath string, file io.Reader, 
 	}
 	tempFile.Close()
 
-	// Create whisper instance
-	cfg := whisper.Config{
-		ModelPath: modelPath,
-		UseGPU:    true,
-	}
+	// Get whisper library directory using centralized paths
+	libDir := paths.WhisperLib()
 
-	w, err := whisper.New(cfg)
+	// Create whisper instance (will auto-download library if not found)
+	w, err := whisper.New(libDir)
 	if err != nil {
-		return "", fmt.Errorf("failed to create whisper: %w", err)
+		return "", fmt.Errorf("failed to create whisper instance: %w", err)
 	}
-	defer w.Free()
+	defer w.Close()
 
-	// Set transcription options
-	opts := []whisper.TranscribeOption{
-		whisper.WithThreads(4),
+	// Load model
+	if err := w.Load(modelPath); err != nil {
+		return "", fmt.Errorf("failed to load model from %s: %w", modelPath, err)
 	}
-	if language != "" && language != "auto" {
-		opts = append(opts, whisper.WithLanguage(language))
+
+	// Prepare transcription options
+	// Note: github.com/kawai-network/whisper uses a different options structure
+	opts := whisper.TranscriptionOptions{
+		Threads:   4, // Default to 4 threads
+		Language:  language,
+		Translate: false,
+		Diarize:   false,
+		Prompt:    "",
 	}
+
+	// If language is empty or "auto", let whisper auto-detect
+	if language == "" || language == "auto" {
+		opts.Language = ""
+	}
+
+	a.log.Info(ctx, "starting transcription", "threads", opts.Threads, "language", opts.Language)
 
 	// Transcribe
-	result, err := w.Transcribe(tempFile.Name(), opts...)
+	result, err := w.Transcribe(tempFile.Name(), opts)
 	if err != nil {
 		return "", fmt.Errorf("transcription failed: %w", err)
 	}
+
+	a.log.Info(ctx, "transcription completed", "text_length", len(result.Text))
 
 	return result.Text, nil
 }
@@ -175,21 +184,4 @@ type TextResponse struct {
 // Encode implements web.Encoder for plain text
 func (r TextResponse) Encode() ([]byte, string, error) {
 	return []byte(r.Text), "text/plain", nil
-}
-
-// bytesToFloat32 converts byte audio data to float32 samples
-// This is a simplified conversion - proper implementation would decode audio format
-func bytesToFloat32(data []byte) []float32 {
-	// For 16-bit PCM: convert bytes to int16 then normalize to float32
-	samples := make([]float32, 0, len(data)/2)
-	for i := 0; i < len(data)-1; i += 2 {
-		val := int16(data[i]) | int16(data[i+1])<<8
-		samples = append(samples, float32(val)/32768.0)
-	}
-	return samples
-}
-
-// joinSegments joins transcription segments into a single text
-func joinSegments(segments []string) string {
-	return strings.Join(segments, " ")
 }

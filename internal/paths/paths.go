@@ -287,6 +287,18 @@ func StableDiffusionMetadata() string {
 }
 
 // =============================================================================
+// Whisper specific paths
+// =============================================================================
+
+// WhisperModels returns path to Whisper models directory
+// Used by github.com/kawai-network/whisper for model storage
+func WhisperModels() string { return filepath.Join(Models(), "whisper") }
+
+// WhisperLib returns path to Whisper library directory
+// Used by github.com/kawai-network/whisper for gowhisper library storage
+func WhisperLib() string { return filepath.Join(Libraries(), "whisper") }
+
+// =============================================================================
 // Deprecated: Legacy node-specific paths (for backward compatibility)
 // These will be removed in future versions. Use the non-Node versions instead.
 // =============================================================================

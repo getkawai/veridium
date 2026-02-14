@@ -16,6 +16,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/kawai-network/veridium/cmd/server/app/domain/whisperapp"
 	"github.com/kawai-network/veridium/internal/paths"
 	"github.com/kawai-network/veridium/internal/services"
 	"github.com/kawai-network/veridium/pkg/hardware"
@@ -26,7 +27,6 @@ import (
 	"github.com/kawai-network/veridium/pkg/tools/defaults"
 	"github.com/kawai-network/veridium/pkg/tools/libs"
 	"github.com/kawai-network/veridium/pkg/tools/models"
-	"github.com/kawai-network/veridium/pkg/whisper/model"
 )
 
 // Styles for the TUI
@@ -1351,15 +1351,15 @@ func (m setupTUIModel) downloadModelsCmd() tea.Cmd {
 		defer cancel()
 
 		// Setup Whisper model
-		whisperModelsDir := paths.Models()
+		whisperModelsDir := paths.WhisperModels()
 		if err := os.MkdirAll(whisperModelsDir, 0755); err != nil {
 			return modelDownloadMsg{modelType: "whisper", progress: 0, done: false, err: fmt.Errorf("failed to create whisper models dir: %w", err)}
 		}
 
-		existingModels, _ := model.ListDownloadedModels(whisperModelsDir)
+		existingModels, _ := whisperapp.ListDownloadedModels(whisperModelsDir)
 		if len(existingModels) == 0 {
 			// Download whisper base model
-			if err := model.DownloadModel("base", whisperModelsDir, nil); err != nil {
+			if err := whisperapp.DownloadModel(ctx, "base", whisperModelsDir, nil); err != nil {
 				return modelDownloadMsg{modelType: "whisper", progress: 0, done: false, err: fmt.Errorf("failed to download whisper model: %w", err)}
 			}
 		}
