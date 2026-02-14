@@ -365,18 +365,6 @@ func DiagnoseSetup(opts *SetupOptions) error {
 		}
 	}
 
-	// Check for old format models
-	oldModels, err := GetOldModels(opts.ModelsDir)
-	if err != nil {
-		fmt.Printf("  ✗ Failed to check old models: %v\n", err)
-	} else if len(oldModels) > 0 {
-		fmt.Printf("  ⚠ Found %d old format models that need conversion\n", len(oldModels))
-		for _, model := range oldModels {
-			fmt.Printf("    - ggml-%s.bin\n", model)
-		}
-		issues++
-	}
-
 	// Check FFmpeg
 	fmt.Println("\nChecking dependencies:")
 	ffmpegPath, err := exec.LookPath("ffmpeg")
