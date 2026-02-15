@@ -25,7 +25,23 @@ Dokumentasi ini menjelaskan schema data untuk setiap namespace yang digunakan da
   "is_active": true,
   "deleted_at": "0001-01-01T00:00:00Z",
   "is_admin": false,
-  "version": 1
+  "version": 1,
+
+  // Discovery & Load Balancing Metadata
+  "region": "us-west",
+  "available_models": ["llama-2-70b", "mistral-7b"],
+  "active_requests": 5,
+  "total_requests": 1500,
+  "avg_response_time": 1.5,
+  "success_rate": 0.98,
+  "last_health_check": "2024-01-02T12:00:00Z",
+
+  // Parsed Hardware Fields
+  "cpu_cores": 16,
+  "total_ram": 64,
+  "available_ram": 48,
+  "gpu_model": "RTX 3090",
+  "gpu_memory": 24
 }
 ```
 
@@ -45,7 +61,7 @@ Dokumentasi ini menjelaskan schema data untuk setiap namespace yang digunakan da
   "user_amount": "50",
   "affiliator_amount": "50",
   "token_usage": 1500,
-  "reward_type": "mining",       // "mining" or "revenue"
+  "reward_type": "mining",       // "mining", "cashback", "referral", "revenue"
   "has_referrer": true,
   "is_settled": false,           // true jika sudah masuk settlement period
   "settled_period_id": 0
@@ -58,7 +74,7 @@ Dokumentasi ini menjelaskan schema data untuk setiap namespace yang digunakan da
 **Deskripsi**: Menyimpan Merkle Proofs untuk reward yang sudah disettle (mingguan).
 **Implementasi**: `pkg/store/merkle.go`
 
-*   **Key Format**: `{address}:{period_id}` (e.g., `0x123...:1704067200`)
+*   **Key Format**: `{address}:{period_id}` (e.g., `0x123...:1704067200000000000` - period_id dalam nanoseconds)
 *   **Value Format**: JSON (`MerkleProofData`)
 
 ```json
@@ -67,9 +83,9 @@ Dokumentasi ini menjelaskan schema data untuk setiap namespace yang digunakan da
   "amount": "1000000000000000000", // Total claimable amount (wei)
   "proof": ["0xabc...", "0xdef..."],
   "merkle_root": "0xroot...",
-  "period_id": 1704067200,
+  "period_id": 1704067200000000000, // Unix timestamp nanoseconds
   "created_at": "2024-01-08T00:00:00Z",
-  "reward_type": "mining",         // "mining", "cashback", etc.
+  "reward_type": "mining",         // "mining", "cashback", "referral", "revenue"
   "claim_status": "unclaimed",     // "unclaimed", "pending", "confirmed", "failed"
   "claim_tx_hash": "0xtx...",
   "claim_attempts": 0,
