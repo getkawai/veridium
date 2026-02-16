@@ -4,13 +4,31 @@ package whisperapp
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
+	"time"
 
 	"github.com/kawai-network/veridium/internal/paths"
+	"github.com/kawai-network/veridium/pkg/tools/downloader"
+	whisper "github.com/kawai-network/whisper"
 )
+
+const whisperLibVersion = "v0.3.2"
+const whisperLibReleaseURL = "https://api.github.com/repos/kawai-network/whisper/releases/latest"
+
+type whisperRelease struct {
+	TagName string `json:"tag_name"`
+	Assets  []struct {
+		Name               string `json:"name"`
+		BrowserDownloadURL string `json:"browser_download_url"`
+		Size               int64  `json:"size"`
+	} `json:"assets"`
+}
 
 // SetupOptions contains options for whisper setup
 type SetupOptions struct {
@@ -40,6 +58,11 @@ func SetupWhisper(ctx context.Context, opts *SetupOptions) error {
 	// Step 1: Create directories
 	if err := setupDirectories(opts); err != nil {
 		return fmt.Errorf("failed to setup directories: %w", err)
+	}
+
+	// Step 2: Download whisper library
+	if err := downloadWhisperLibrary(ctx, opts.LibDir); err != nil {
+		return fmt.Errorf("failed to download whisper library: %w", err)
 	}
 
 	// Step 3: Download required models
@@ -76,6 +99,76 @@ func setupDirectories(opts *SetupOptions) error {
 	}
 
 	return nil
+}
+
+// downloadWhisperLibrary downloads the gowhisper native library
+func downloadWhisperLibrary(ctx context.Context, libDir string) error {
+	fmt.Println("\nStep 2: Downloading whisper library...")
+
+	libName := whisper.LibraryName(runtime.GOOS)
+	libPath := fmt.Sprintf("%s/%s", libDir, libName)
+
+	if _, err := os.Stat(libPath); err == nil {
+		fmt.Printf("  ✓ Library already exists: %s\n", libName)
+		return nil
+	}
+
+	release, err := getLatestWhisperRelease()
+	if err != nil {
+		return fmt.Errorf("failed to get latest release: %w", err)
+	}
+
+	fmt.Printf("  Latest release: %s\n", release.TagName)
+
+	assetURL := ""
+	var assetSize int64
+	for _, asset := range release.Assets {
+		if asset.Name == libName {
+			assetURL = asset.BrowserDownloadURL
+			assetSize = asset.Size
+			break
+		}
+	}
+
+	if assetURL == "" {
+		return fmt.Errorf("no library found for platform %s (looking for %s)", runtime.GOOS, libName)
+	}
+
+	fmt.Printf("  Downloading %s (%s)...\n", libName, HumanSize(assetSize))
+
+	logger := &DownloadProgressLogger{}
+	progressFunc := func(src string, currentSize, totalSize int64, mibPerSec float64, complete bool) {
+		logger.Log(currentSize, totalSize)
+	}
+
+	_, err = downloader.Download(ctx, assetURL, libPath, progressFunc, downloader.SizeIntervalMIB)
+	if err != nil {
+		return fmt.Errorf("failed to download library: %w", err)
+	}
+
+	fmt.Printf("  ✓ Downloaded %s\n", libName)
+	return nil
+}
+
+// getLatestWhisperRelease fetches the latest release info from GitHub
+func getLatestWhisperRelease() (*whisperRelease, error) {
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Get(whisperLibReleaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch release info: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("github API returned status %d", resp.StatusCode)
+	}
+
+	var release whisperRelease
+	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+		return nil, fmt.Errorf("failed to decode release info: %w", err)
+	}
+
+	return &release, nil
 }
 
 // downloadRequiredModels downloads the required whisper models
@@ -184,6 +277,15 @@ func verifySetup(opts *SetupOptions) error {
 	}
 	fmt.Println("  ✓ Library directory exists")
 
+	// Check for library file
+	libName := whisper.LibraryName(runtime.GOOS)
+	libPath := fmt.Sprintf("%s/%s", opts.LibDir, libName)
+	if _, err := os.Stat(libPath); os.IsNotExist(err) {
+		fmt.Printf("  ⚠ Library not found: %s\n", libName)
+	} else {
+		fmt.Printf("  ✓ Library found: %s\n", libName)
+	}
+
 	// Check for downloaded models
 	downloadedModels, err := ListDownloadedModels()
 	if err != nil {
@@ -286,7 +388,10 @@ func PrintSetupInstructions() {
 	fmt.Printf("   curl -L https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin \\\n")
 	fmt.Printf("     -o %s/small.bin\n", modelsDir)
 	fmt.Println()
-	fmt.Println("3. The whisper library will be auto-downloaded on first use")
+	fmt.Println("3. Download the whisper library:")
+	libName := whisper.LibraryName(runtime.GOOS)
+	fmt.Printf("   curl -L https://github.com/kawai-network/whisper/releases/latest/download/%s \\\n", libName)
+	fmt.Printf("     -o %s/%s\n", libDir, libName)
 	fmt.Println()
 	fmt.Println("4. For production, consider:")
 	fmt.Println("   - Using larger models (medium, large-v3)")
@@ -379,6 +484,17 @@ func DiagnoseSetup(opts *SetupOptions) error {
 		issues++
 	} else {
 		fmt.Printf("  ✓ FFmpeg found at %s\n", ffmpegPath)
+	}
+
+	// Check whisper library
+	fmt.Println("\nChecking whisper library:")
+	libName := whisper.LibraryName(runtime.GOOS)
+	libPath := fmt.Sprintf("%s/%s", opts.LibDir, libName)
+	if _, err := os.Stat(libPath); os.IsNotExist(err) {
+		fmt.Printf("  ✗ Library not found: %s\n", libPath)
+		issues++
+	} else {
+		fmt.Printf("  ✓ Library found: %s\n", libPath)
 	}
 
 	// Summary

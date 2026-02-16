@@ -3,7 +3,7 @@ package stablediffusion
 import (
 	"testing"
 
-	"github.com/kawai-network/veridium/pkg/stablediffusion/sd"
+	sd "github.com/kawai-network/stablediffusion"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

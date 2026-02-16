@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 
 	stablediffusion "github.com/kawai-network/veridium/pkg/stablediffusion"
-	"github.com/kawai-network/veridium/pkg/stablediffusion/sd"
 )
 
 // TextToImageStep generates an image from text
@@ -184,7 +183,7 @@ func (s *PreprocessStep) Execute(ctx *Context) error {
 	}
 
 	// Load input image
-	inputImage, err := sd.LoadImage(ctx.InputPath)
+	inputImage, err := stablediffusion.LoadImage(ctx.InputPath)
 	if err != nil {
 		return fmt.Errorf("failed to load image: %w", err)
 	}
@@ -211,7 +210,7 @@ func (s *PreprocessStep) Execute(ctx *Context) error {
 		}
 		inverse := s.Params["inverse"] != 0
 
-		result = sd.PreprocessCanny(inputImage, highThreshold, lowThreshold, weak, strong, inverse)
+		result = stablediffusion.PreprocessCanny(inputImage, highThreshold, lowThreshold, weak, strong, inverse)
 	default:
 		return fmt.Errorf("unsupported preprocess type: %v", s.Type)
 	}
@@ -222,7 +221,7 @@ func (s *PreprocessStep) Execute(ctx *Context) error {
 
 	// Save preprocessed image
 	outputPath := filepath.Join(ctx.WorkingDir, s.OutputName)
-	if err := sd.SaveImage(&inputImage, outputPath); err != nil {
+	if err := stablediffusion.SaveImage(&inputImage, outputPath); err != nil {
 		return fmt.Errorf("failed to save preprocessed image: %w", err)
 	}
 

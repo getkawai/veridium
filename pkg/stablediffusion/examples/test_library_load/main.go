@@ -4,29 +4,41 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/kawai-network/veridium/pkg/stablediffusion/sd"
+	"github.com/kawai-network/stablediffusion"
 )
 
 func main() {
 	fmt.Println("Stable Diffusion Library Load Test")
 	fmt.Println("===================================")
 
+	// Initialize library
+	fmt.Println("\n1. Loading library...")
+	sd, err := stablediffusion.New(stablediffusion.LibraryConfig{LibPath: "./lib"})
+	if err != nil {
+		fmt.Printf("❌ Failed to load library: %v\n", err)
+		fmt.Println("   Make sure the stable-diffusion library is available in ./lib")
+		os.Exit(1)
+	}
+	defer sd.Close()
+	fmt.Println("✅ Library loaded successfully!")
+
 	// Test basic context params initialization
-	// This will trigger library loading automatically
-	fmt.Println("\n1. Testing library load and context params initialization...")
-	var ctxParams sd.SDContextParams
+	fmt.Println("\n2. Testing context params initialization...")
+	var ctxParams stablediffusion.SDContextParams
 	sd.ContextParamsInit(&ctxParams)
-	fmt.Println("✅ Library loaded and context params initialized!")
+	fmt.Println("✅ Context params initialized!")
 
 	// Get system info
-	fmt.Println("\n2. Getting system info...")
+	fmt.Println("\n3. Getting system info...")
 	sysInfo := sd.GetSystemInfo()
 	fmt.Printf("System Info: %s\n", sysInfo)
 
-	// Get number of physical cores
-	fmt.Println("\n3. Getting CPU cores...")
-	cores := sd.GetNumPhysicalCores()
-	fmt.Printf("Physical CPU Cores: %d\n", cores)
+	// Get version
+	fmt.Println("\n4. Getting version info...")
+	version := sd.Version()
+	commit := sd.Commit()
+	fmt.Printf("Version: %s\n", version)
+	fmt.Printf("Commit: %s\n", commit)
 
 	fmt.Println("\n✅ All tests passed! Library is working correctly.")
 	fmt.Println("\nNote: To generate images, you need to:")

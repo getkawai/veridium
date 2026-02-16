@@ -4,8 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	stablediffusion "github.com/kawai-network/veridium/pkg/stablediffusion"
-	"github.com/kawai-network/veridium/pkg/stablediffusion/sd"
+	"github.com/kawai-network/veridium/pkg/stablediffusion"
 )
 
 // StableDiffusionWrapper wraps StableDiffusion with progress tracking
@@ -66,7 +65,7 @@ func (w *StableDiffusionWrapper) GenerateImage(
 	}
 
 	// Set the progress callback in the underlying sd
-	sd.SetProgressCallback(func(step int, steps int, t float32, data interface{}) {
+	stablediffusion.SetProgressCallback(func(step int, steps int, t float32, data interface{}) {
 		progressCallback(step, steps, t, data)
 	}, nil)
 
@@ -125,7 +124,7 @@ func (w *StableDiffusionWrapper) GenerateVideo(
 	tracker.SetMessage("Generating video frames...")
 
 	// Set progress callback
-	sd.SetProgressCallback(func(step int, steps int, t float32, data interface{}) {
+	stablediffusion.SetProgressCallback(func(step int, steps int, t float32, data interface{}) {
 		tracker.SetStep(step)
 		tracker.SetMessage(fmt.Sprintf("Generating frame %d/%d", step, steps))
 	}, nil)
