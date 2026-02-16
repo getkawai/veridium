@@ -250,6 +250,11 @@ func downloadWithGrab(ctx context.Context, url, dest string, progress ProgressCa
 	client := grab.NewClient()
 	resp := client.Do(req)
 
+	// Check if resume occurred and report initial progress
+	if resp.DidResume && progress != nil {
+		progress(url, resp.BytesComplete(), resp.Size(), resp.BytesPerSecond()/(1024*1024), false)
+	}
+
 	// Monitor progress
 	if progress != nil {
 		ticker := time.NewTicker(200 * time.Millisecond)
@@ -301,6 +306,11 @@ func downloadAndExtractTarGz(ctx context.Context, url, dest string, progress Pro
 
 	client := grab.NewClient()
 	resp := client.Do(req)
+
+	// Check if resume occurred and report initial progress
+	if resp.DidResume && progress != nil {
+		progress(url, resp.BytesComplete(), resp.Size(), resp.BytesPerSecond()/(1024*1024), false)
+	}
 
 	// Monitor progress
 	if progress != nil {

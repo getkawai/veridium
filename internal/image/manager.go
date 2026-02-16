@@ -726,6 +726,11 @@ func (sdrm *StableDiffusion) downloadFile(url, filepath string, progressCallback
 	// Start download
 	resp := client.Do(req)
 
+	// Log if resume occurred
+	if resp.DidResume {
+		log.Printf("Resuming download from %d bytes (%.2f%% complete)", resp.BytesComplete(), resp.Progress()*100)
+	}
+
 	// Monitor progress
 	if progressCallback != nil {
 		t := time.NewTicker(500 * time.Millisecond)

@@ -334,12 +334,13 @@ func eviction(t *testing.T) {
 func initKronk(t *testing.T) model.Logger {
 	libs, err := libs.New(
 		libs.WithVersion(defaults.LibVersion("")),
+		libs.WithLibraryType(libs.LibraryLlama),
 	)
 	if err != nil {
 		t.Fatalf("unable to create libs api: %s", err)
 	}
 
-	t.Logf("installing/updating libraries, current version: libPath[%s], arch[%s] os[%s] processor[%s]", libs.LibsPath(), libs.Arch(), libs.OS(), libs.Processor())
+	t.Logf("installing/updating libraries, current version: libPath[%s] arch[%s] os[%s] processor[%s]", libs.LibsPath(), libs.Arch(), libs.OS(), libs.Processor())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()

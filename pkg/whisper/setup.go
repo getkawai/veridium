@@ -7,13 +7,13 @@ import (
 	"runtime"
 
 	"github.com/kawai-network/veridium/internal/paths"
-	"github.com/kawai-network/veridium/pkg/whisper/download"
 	"github.com/kawai-network/veridium/pkg/whisper/whisper"
+	whisperpkg "github.com/kawai-network/whisper"
 )
 
 // GetLibDir returns the directory where whisper library should be stored
 func GetLibDir() string {
-	return filepath.Join(paths.Base(), "lib", "whisper")
+	return paths.WhisperLib()
 }
 
 func init() {
@@ -27,9 +27,9 @@ func EnsureLibrary() error {
 }
 
 // EnsureLibraryWithProgress checks if the whisper library exists with custom progress callback
-func EnsureLibraryWithProgress(progress download.ProgressCallback) error {
+func EnsureLibraryWithProgress(progress func(string, int64, int64, float64, bool)) error {
 	libPath := GetLibDir()
-	libName := download.LibraryName(runtime.GOOS)
+	libName := whisperpkg.LibraryName(runtime.GOOS)
 	libFile := filepath.Join(libPath, libName)
 
 	// Check if library already exists
@@ -41,8 +41,11 @@ func EnsureLibraryWithProgress(progress download.ProgressCallback) error {
 		// If load fails, re-download
 	}
 
-	// Download library
-	if err := download.GetWithProgress(download.DefaultVersion, libPath, progress); err != nil {
+	// Download library using external package
+	downloader := whisperpkg.NewLibraryDownloader(libPath)
+
+	_, err := downloader.DownloadLatest()
+	if err != nil {
 		return fmt.Errorf("failed to download library: %w", err)
 	}
 
@@ -57,7 +60,7 @@ func EnsureLibraryWithProgress(progress download.ProgressCallback) error {
 // IsLibraryInstalled checks if the whisper library is installed
 func IsLibraryInstalled() bool {
 	libPath := GetLibDir()
-	libName := download.LibraryName(runtime.GOOS)
+	libName := whisperpkg.LibraryName(runtime.GOOS)
 	libFile := filepath.Join(libPath, libName)
 
 	_, err := os.Stat(libFile)
@@ -67,11 +70,16 @@ func IsLibraryInstalled() bool {
 // GetLibraryPath returns the path to the whisper library
 func GetLibraryPath() string {
 	libPath := GetLibDir()
-	libName := download.LibraryName(runtime.GOOS)
+	libName := whisperpkg.LibraryName(runtime.GOOS)
 	return filepath.Join(libPath, libName)
 }
 
-// GetLibraryVersion returns the default library version
+// GetLibraryVersion returns the latest library version from GitHub
 func GetLibraryVersion() string {
-	return download.DefaultVersion
+	downloader := whisperpkg.NewLibraryDownloader("")
+	release, err := downloader.GetLatestRelease()
+	if err != nil {
+		return "unknown"
+	}
+	return release.TagName
 }

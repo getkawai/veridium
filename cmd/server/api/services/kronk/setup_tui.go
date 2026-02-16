@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -20,8 +19,6 @@ import (
 	"github.com/kawai-network/veridium/internal/paths"
 	"github.com/kawai-network/veridium/internal/services"
 	"github.com/kawai-network/veridium/pkg/hardware"
-	"github.com/kawai-network/veridium/pkg/stablediffusion"
-	"github.com/kawai-network/veridium/pkg/stablediffusion/download"
 	"github.com/kawai-network/veridium/pkg/stablediffusion/modeldownloader"
 	"github.com/kawai-network/veridium/pkg/store"
 	"github.com/kawai-network/veridium/pkg/tools/defaults"
@@ -300,13 +297,16 @@ func (m setupTUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case modelDownloadMsg:
-		if msg.err != nil {
-			m.errors = append(m.errors, fmt.Errorf("%s model download failed: %w", msg.modelType, msg.err))
-			m.step = stepError
-		} else if msg.done {
+		if msg.done {
 			switch msg.modelType {
 			case "whisper":
-				m.result.WhisperReady = true
+				if msg.err != nil {
+					m.errors = append(m.errors, fmt.Errorf("whisper model download failed (optional): %w", msg.err))
+					m.result.WhisperReady = false
+				} else {
+					m.result.WhisperReady = true
+				}
+				return m, m.downloadSDCmd()
 			case "sd":
 				m.result.StableDiffReady = true
 				m.step = stepLLMDownload
@@ -854,7 +854,7 @@ func (m setupTUIModel) libraryDownloadView() string {
 	return fmt.Sprintf(
 		"%s\n\n%s\n\n%s %.1f%%\n\n%s",
 		m.styles.Title.Render("📦 Downloading Libraries"),
-		"Downloading llama.cpp and Stable Diffusion libraries...",
+		"Downloading llama.cpp, whisper.cpp, and Stable Diffusion libraries...",
 		m.progressBar.ViewAs(m.libraryProgress),
 		m.libraryProgress*100,
 		m.spinner.View()+" Please wait...",
@@ -1284,60 +1284,52 @@ func (m setupTUIModel) downloadLibrariesCmd() tea.Cmd {
 			return libraryDownloadMsg{progress: 0, done: false, err: fmt.Errorf("failed to detect processor: %w", err)}
 		}
 
-		// Create libs manager
-		libMgr, err := libs.New(
-			libs.WithBasePath(paths.Libraries()),
-			libs.WithArch(arch),
-			libs.WithOS(opSys),
-			libs.WithProcessor(processor),
-			libs.WithAllowUpgrade(true),
-			libs.WithVersion(defaults.LibVersion("")),
-		)
-		if err != nil {
-			return libraryDownloadMsg{progress: 0, done: false, err: fmt.Errorf("failed to create libs manager: %w", err)}
-		}
+		libraries := []libs.LibraryType{libs.LibraryLlama, libs.LibraryWhisper, libs.LibraryStableDiffusion}
+		totalLibs := float64(len(libraries))
 
-		// Download llama.cpp
-		downloadCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
-		defer cancel()
+		for i, libType := range libraries {
+			// Create libs manager for each library type
+			libMgr, err := libs.New(
+				libs.WithBasePath(paths.Base()),
+				libs.WithArch(arch),
+				libs.WithOS(opSys),
+				libs.WithProcessor(processor),
+				libs.WithAllowUpgrade(true),
+				libs.WithLibraryType(libType),
+			)
+			if err != nil {
+				return libraryDownloadMsg{progress: 0, done: false, err: fmt.Errorf("failed to create libs manager for %s: %w", libType.DisplayName(), err)}
+			}
 
-		_, err = libMgr.Download(downloadCtx, func(ctx context.Context, msg string, args ...any) {
-			// Progress callback - update progress bar via channel
-			// Try to parse percentage from log message e.g. "Downloading: 14.6% ..."
-			if strings.Contains(msg, "%") {
-				parts := strings.Split(msg, " ")
-				for _, p := range parts {
-					if strings.Contains(p, "%") {
-						val := strings.TrimRight(p, "%,") // Remove % and potential trailing comma
-						val = strings.Trim(val, "()")     // Remove parens just in case
-						if f, err := strconv.ParseFloat(val, 64); err == nil {
-							// Non-blocking send
-							select {
-							case m.progressChan <- f / 100.0:
-							default:
-							}
-						}
+			downloadCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+
+			baseProgress := float64(i) / totalLibs
+			libWeight := 1.0 / totalLibs
+
+			_, err = libMgr.DownloadWithProgress(downloadCtx, func(ctx context.Context, msg string, args ...any) {
+				// Log message callback
+			}, func(bytesComplete, totalBytes int64, mbps float64, done bool) {
+				if totalBytes > 0 {
+					percent := float64(bytesComplete) / float64(totalBytes)
+					overallProgress := baseProgress + percent*libWeight
+					select {
+					case m.progressChan <- overallProgress:
+					default:
 					}
 				}
-			}
-		})
-		if err != nil {
-			return libraryDownloadMsg{progress: 0, done: false, err: fmt.Errorf("failed to download llama.cpp: %w", err)}
-		}
+			})
+			cancel()
 
-		// Setup Stable Diffusion library
-		// Use EnsureLibraryWithProgress to get updates and suppress stdout logs
-		err = stablediffusion.EnsureLibraryWithProgress(download.ProgressCallback(func(url string, bytesComplete, totalBytes int64, mbps float64, done bool) {
-			if totalBytes > 0 {
-				percent := float64(bytesComplete) / float64(totalBytes)
-				select {
-				case m.progressChan <- percent:
-				default:
-				}
+			if err != nil {
+				return libraryDownloadMsg{progress: 0, done: false, err: fmt.Errorf("failed to download %s: %w", libType.DisplayName(), err)}
 			}
-		}))
-		if err != nil {
-			return libraryDownloadMsg{progress: 0, done: false, err: fmt.Errorf("failed to setup SD library: %w", err)}
+
+			// Update progress when library download completes
+			completedProgress := float64(i+1) / totalLibs
+			select {
+			case m.progressChan <- completedProgress:
+			default:
+			}
 		}
 
 		return libraryDownloadMsg{progress: 1.0, done: true}
@@ -1351,18 +1343,25 @@ func (m setupTUIModel) downloadModelsCmd() tea.Cmd {
 		defer cancel()
 
 		// Setup Whisper model
-		whisperModelsDir := paths.WhisperModels()
-		if err := os.MkdirAll(whisperModelsDir, 0755); err != nil {
-			return modelDownloadMsg{modelType: "whisper", progress: 0, done: false, err: fmt.Errorf("failed to create whisper models dir: %w", err)}
-		}
-
-		existingModels, _ := whisperapp.ListDownloadedModels(whisperModelsDir)
+		existingModels, _ := whisperapp.ListDownloadedModels()
 		if len(existingModels) == 0 {
 			// Download whisper base model
-			if err := whisperapp.DownloadModel(ctx, "base", whisperModelsDir, nil); err != nil {
-				return modelDownloadMsg{modelType: "whisper", progress: 0, done: false, err: fmt.Errorf("failed to download whisper model: %w", err)}
+			if err := whisperapp.DownloadModelWithProgress(downloadCtx, "base", nil); err != nil {
+				// Log error but return success so setup continues
+				fmt.Printf("Warning: failed to download whisper model: %v\n", err)
+				return modelDownloadMsg{modelType: "whisper", progress: 1.0, done: true, err: err}
 			}
 		}
+
+		return modelDownloadMsg{modelType: "whisper", progress: 1.0, done: true}
+	}
+}
+
+func (m setupTUIModel) downloadSDCmd() tea.Cmd {
+	return func() tea.Msg {
+		ctx := context.Background()
+		downloadCtx, cancel := context.WithTimeout(ctx, 30*time.Minute)
+		defer cancel()
 
 		// Setup Stable Diffusion model
 		modelsPath := paths.Models()
@@ -1392,7 +1391,7 @@ func (m setupTUIModel) downloadLLMCmd() tea.Cmd {
 		// Nemotron 3 Nano model info
 		modelOrg := "unsloth"
 		modelRepo := "Nemotron-3-Nano-30B-A3B-GGUF"
-		modelFile := "Nemotron-3-Nano-30B-A3B-Q4_K_XL.gguf"
+		modelFile := "Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf"
 		modelsPath := paths.Models()
 		modelPath := filepath.Join(modelsPath, modelOrg, modelRepo, modelFile)
 

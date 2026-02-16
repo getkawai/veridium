@@ -1,7 +1,6 @@
 package libs
 
 import (
-	"os"
 	"path/filepath"
 
 	"github.com/kawai-network/veridium/pkg/tools/defaults"
@@ -13,10 +12,6 @@ import (
 func Path(override string) string {
 	if override != "" {
 		return override
-	}
-
-	if v := os.Getenv("KRONK_LIB_PATH"); v != "" {
-		return v
 	}
 
 	return filepath.Join(defaults.BaseDir(""), localFolder)

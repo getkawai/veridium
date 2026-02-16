@@ -228,27 +228,44 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 		return err
 	}
 
-	// Use paths.Libraries() for consistent library path resolution
+	// Check all required libraries (llama, whisper, stablediffusion)
+	requiredLibs := []libs.LibraryType{libs.LibraryLlama, libs.LibraryWhisper, libs.LibraryStableDiffusion}
+	for _, libType := range requiredLibs {
+		lib, err := libs.New(
+			libs.WithBasePath(paths.Base()),
+			libs.WithArch(arch),
+			libs.WithOS(opSys),
+			libs.WithProcessor(processor),
+			libs.WithLibraryType(libType),
+		)
+		if err != nil {
+			return fmt.Errorf("unable to create libs api for %s: %w", libType.DisplayName(), err)
+		}
+
+		log.Info(ctx, "startup", "status", "checking library", "library", libType.DisplayName(), "libPath", lib.LibsPath(), "arch", lib.Arch(), "os", lib.OS(), "processor", lib.Processor())
+
+		if _, err := lib.InstalledVersion(); err != nil {
+			return fmt.Errorf("%s library not found. Please run 'kawai-contributor setup' first to install required libraries", libType.DisplayName())
+		}
+
+		log.Info(ctx, "startup", "status", "library verified", "library", libType.DisplayName())
+	}
+
+	// Keep llama libs for backward compatibility in mux.Config
 	libs, err := libs.New(
-		libs.WithBasePath(paths.Libraries()),
+		libs.WithBasePath(paths.Base()),
 		libs.WithArch(arch),
 		libs.WithOS(opSys),
 		libs.WithProcessor(processor),
 		libs.WithAllowUpgrade(cfg.AllowUpgrade),
 		libs.WithVersion(defaults.LibVersion(cfg.LibVersion)),
+		libs.WithLibraryType(libs.LibraryLlama),
 	)
 	if err != nil {
 		return fmt.Errorf("unable to create libs api: %w", err)
 	}
 
-	log.Info(ctx, "startup", "status", "checking libraries", "libPath", libs.LibsPath(), "arch", libs.Arch(), "os", libs.OS(), "processor", libs.Processor())
-
-	// Check if libraries exist, don't download
-	if _, err := libs.InstalledVersion(); err != nil {
-		return fmt.Errorf("libraries not found. Please run 'kawai-contributor setup' first to install required libraries")
-	}
-
-	log.Info(ctx, "startup", "status", "libraries verified")
+	log.Info(ctx, "startup", "status", "all libraries verified")
 
 	// -------------------------------------------------------------------------
 	// Model System
@@ -552,9 +569,9 @@ func run(ctx context.Context, log *logger.Logger, showHelp bool) error {
 			log.Info(ctx, "whisper", "status", "failed to create models directory", "error", err)
 		} else {
 			// Check if whisper models exist, don't download
-			models, _ := whisperapp.ListDownloadedModels(whisperModelsDir)
+			models, _ := whisperapp.ListDownloadedModels()
 			if len(models) == 0 {
-				return fmt.Errorf("whisper models not found at %s. Please run 'kawai-contributor setup' first to download whisper models", whisperModelsDir)
+				return fmt.Errorf("whisper models not found. Please run 'kawai-contributor setup' first to download whisper models")
 			}
 			log.Info(ctx, "startup", "status", "whisper service ready", "models", len(models))
 		}

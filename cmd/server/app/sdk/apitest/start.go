@@ -35,6 +35,7 @@ func New(t *testing.T, testName string) *Test {
 
 	libs, err := libs.New(
 		libs.WithVersion(defaults.LibVersion("")),
+		libs.WithLibraryType(libs.LibraryLlama),
 	)
 	if err != nil {
 		t.Fatal(err)

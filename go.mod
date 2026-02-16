@@ -30,7 +30,7 @@ require (
 	github.com/jupiterrider/ffi v0.5.1
 	github.com/kaptinlin/jsonschema v0.6.2
 	github.com/kawai-network/grab v0.1.0
-	github.com/kawai-network/whisper v0.3.0
+	github.com/kawai-network/whisper v0.3.2
 	github.com/kawai-network/x v1.0.2
 	github.com/maypok86/otter/v2 v2.3.0
 	github.com/nikolalohinski/gonja/v2 v2.5.0

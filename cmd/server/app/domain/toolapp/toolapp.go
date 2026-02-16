@@ -37,12 +37,46 @@ func newApp(cfg Config) *app {
 }
 
 func (a *app) listLibs(ctx context.Context, r *http.Request) web.Encoder {
-	versionTag, err := a.libs.VersionInformation()
-	if err != nil {
-		return errs.New(errs.Internal, err)
+	libTypeParam := r.URL.Query().Get("type")
+
+	if libTypeParam != "" {
+		libType := libs.ParseLibraryType(libTypeParam)
+		lib, err := libs.New(
+			libs.WithLibraryType(libType),
+		)
+		if err != nil {
+			return errs.New(errs.Internal, err)
+		}
+
+		versionTag, err := lib.VersionInformation()
+		if err != nil {
+			return errs.New(errs.Internal, err)
+		}
+
+		return toAppVersionTag("retrieve", versionTag)
 	}
 
-	return toAppVersionTag("retrieve", versionTag)
+	var allTags []libs.VersionTag
+	for _, libType := range libs.AllLibraryTypes() {
+		lib, err := libs.New(
+			libs.WithLibraryType(libType),
+		)
+		if err != nil {
+			continue
+		}
+
+		versionTag, err := lib.VersionInformation()
+		if err != nil {
+			versionTag = libs.VersionTag{
+				Library: libType,
+				Version: "",
+				Latest:  "",
+			}
+		}
+		allTags = append(allTags, versionTag)
+	}
+
+	return toLibsListResponse(allTags)
 }
 
 func (a *app) listModels(ctx context.Context, r *http.Request) web.Encoder {
@@ -126,4 +160,108 @@ func (a *app) calculateVRAM(ctx context.Context, r *http.Request) web.Encoder {
 	}
 
 	return toVRAMResponse(req.ModelID, vram)
+}
+
+func (a *app) pullLibs(ctx context.Context, r *http.Request) web.Encoder {
+	libTypeParam := r.URL.Query().Get("type")
+
+	if libTypeParam == "" {
+		return a.pullAllLibs(ctx, r)
+	}
+
+	libType := libs.ParseLibraryType(libTypeParam)
+	return a.pullSingleLib(ctx, r, libType)
+}
+
+func (a *app) pullSingleLib(ctx context.Context, r *http.Request, libType libs.LibraryType) web.Encoder {
+	w := web.GetWriter(ctx)
+	f, ok := w.(http.Flusher)
+	if !ok {
+		return errs.New(errs.Internal, fmt.Errorf("streaming not supported"))
+	}
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+
+	lib, err := libs.New(
+		libs.WithLibraryType(libType),
+		libs.WithAllowUpgrade(true),
+	)
+	if err != nil {
+		return errs.New(errs.Internal, err)
+	}
+
+	log := func(ctx context.Context, msg string, args ...any) {
+		vt := libs.VersionTag{Library: libType}
+		status := fmt.Sprintf(msg, args...)
+		resp := toAppVersion(status, vt)
+		w.Write([]byte(resp))
+		f.Flush()
+	}
+
+	vt, err := lib.Download(ctx, log)
+	if err != nil {
+		errResp := fmt.Sprintf("data: {\"status\":\"error\",\"error\":%q}\n\n", err.Error())
+		w.Write([]byte(errResp))
+		f.Flush()
+		return web.NewNoResponse()
+	}
+
+	finalResp := fmt.Sprintf("data: {\"status\":\"complete\",\"library\":%q,\"version\":%q}\n\n", vt.Library.String(), vt.Version)
+	w.Write([]byte(finalResp))
+	w.Write([]byte("data: [DONE]\n\n"))
+	f.Flush()
+
+	return web.NewNoResponse()
+}
+
+func (a *app) pullAllLibs(ctx context.Context, r *http.Request) web.Encoder {
+	w := web.GetWriter(ctx)
+	f, ok := w.(http.Flusher)
+	if !ok {
+		return errs.New(errs.Internal, fmt.Errorf("streaming not supported"))
+	}
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+
+	for _, libType := range libs.AllLibraryTypes() {
+		lib, err := libs.New(
+			libs.WithLibraryType(libType),
+			libs.WithAllowUpgrade(true),
+		)
+		if err != nil {
+			errResp := fmt.Sprintf("data: {\"status\":\"error\",\"library\":%q,\"error\":%q}\n\n", libType.String(), err.Error())
+			w.Write([]byte(errResp))
+			f.Flush()
+			continue
+		}
+
+		log := func(ctx context.Context, msg string, args ...any) {
+			vt := libs.VersionTag{Library: libType}
+			status := fmt.Sprintf(msg, args...)
+			resp := toAppVersion(status, vt)
+			w.Write([]byte(resp))
+			f.Flush()
+		}
+
+		vt, err := lib.Download(ctx, log)
+		if err != nil {
+			errResp := fmt.Sprintf("data: {\"status\":\"error\",\"library\":%q,\"error\":%q}\n\n", libType.String(), err.Error())
+			w.Write([]byte(errResp))
+			f.Flush()
+			continue
+		}
+
+		finalResp := fmt.Sprintf("data: {\"status\":\"complete\",\"library\":%q,\"version\":%q}\n\n", vt.Library.String(), vt.Version)
+		w.Write([]byte(finalResp))
+		f.Flush()
+	}
+
+	w.Write([]byte("data: [DONE]\n\n"))
+	f.Flush()
+
+	return web.NewNoResponse()
 }

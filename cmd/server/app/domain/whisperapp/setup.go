@@ -149,7 +149,7 @@ func downloadRequiredModels(ctx context.Context, opts *SetupOptions) error {
 			continue
 		}
 
-		if IsModelDownloaded(opts.ModelsDir, modelName) {
+		if IsModelDownloaded(modelName) {
 			fmt.Printf("  ✓ %s already downloaded\n", modelName)
 			continue
 		}
@@ -157,7 +157,7 @@ func downloadRequiredModels(ctx context.Context, opts *SetupOptions) error {
 		fmt.Printf("  Downloading %s (%s)...\n", modelName, spec.Description)
 		logger := &DownloadProgressLogger{}
 
-		if err := DownloadModel(ctx, modelName, opts.ModelsDir, logger.Log); err != nil {
+		if err := DownloadModelWithProgress(ctx, modelName, logger.Log); err != nil {
 			fmt.Printf("  ✗ Failed to download %s: %v\n", modelName, err)
 			continue
 		}
@@ -185,7 +185,7 @@ func verifySetup(opts *SetupOptions) error {
 	fmt.Println("  ✓ Library directory exists")
 
 	// Check for downloaded models
-	downloadedModels, err := ListDownloadedModels(opts.ModelsDir)
+	downloadedModels, err := ListDownloadedModels()
 	if err != nil {
 		return fmt.Errorf("failed to list downloaded models: %w", err)
 	}
@@ -333,7 +333,7 @@ func DiagnoseSetup(opts *SetupOptions) error {
 
 	// Check for models
 	fmt.Println("\nChecking models:")
-	downloadedModels, err := ListDownloadedModels(opts.ModelsDir)
+	downloadedModels, err := ListDownloadedModels()
 	if err != nil {
 		fmt.Printf("  ✗ Failed to list models: %v\n", err)
 		issues++
@@ -346,18 +346,23 @@ func DiagnoseSetup(opts *SetupOptions) error {
 			for _, model := range downloadedModels {
 				spec, exists := GetModelSpec(model)
 				if exists {
-					path := GetModelPath(opts.ModelsDir, model)
-					info, err := os.Stat(path)
-					if err != nil {
-						fmt.Printf("    ✗ %s: %v\n", model, err)
+					path, pathErr := GetModelFilePath(model)
+					if pathErr != nil {
+						fmt.Printf("    ✗ %s: %v\n", model, pathErr)
 						issues++
 					} else {
-						if info.Size() != spec.Size {
-							fmt.Printf("    ⚠ %s: size mismatch (expected %s, got %s)\n",
-								model, HumanSize(spec.Size), HumanSize(info.Size()))
+						info, statErr := os.Stat(path)
+						if statErr != nil {
+							fmt.Printf("    ✗ %s: %v\n", model, statErr)
 							issues++
 						} else {
-							fmt.Printf("    ✓ %s (%s)\n", model, HumanSize(spec.Size))
+							if info.Size() != spec.Size {
+								fmt.Printf("    ⚠ %s: size mismatch (expected %s, got %s)\n",
+									model, HumanSize(spec.Size), HumanSize(info.Size()))
+								issues++
+							} else {
+								fmt.Printf("    ✓ %s (%s)\n", model, HumanSize(spec.Size))
+							}
 						}
 					}
 				}

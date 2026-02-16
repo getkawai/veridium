@@ -34,6 +34,7 @@ func Routes(app *web.App, cfg Config) {
 	walletAuth := mid.WalletAuthenticate()
 
 	app.HandlerFunc(http.MethodGet, version, "/libs", api.listLibs, walletAuth)
+	app.HandlerFunc(http.MethodPost, version, "/libs/pull", api.pullLibs, walletAuth)
 
 	app.HandlerFunc(http.MethodGet, version, "/models", api.listModels, walletAuth)
 	app.HandlerFunc(http.MethodGet, version, "/models/", api.missingModel, walletAuth)

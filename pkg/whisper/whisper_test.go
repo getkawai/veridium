@@ -3,8 +3,8 @@ package whisper
 import (
 	"testing"
 
-	"github.com/kawai-network/veridium/pkg/whisper/download"
 	"github.com/kawai-network/veridium/pkg/whisper/whisper"
+	whisperpkg "github.com/kawai-network/whisper"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -70,15 +70,14 @@ func TestLibraryName(t *testing.T) {
 		goos     string
 		expected string
 	}{
-		{"darwin", "libwhisper.dylib"},
-		{"linux", "libwhisper.so"},
-		{"windows", "whisper.dll"},
-		{"freebsd", "unknown"},
+		{"darwin", "libgowhisper.dylib"},
+		{"linux", "libgowhisper.so"},
+		{"windows", "gowhisper.dll"},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.goos, func(t *testing.T) {
-			result := download.LibraryName(tc.goos)
+			result := whisperpkg.LibraryName(tc.goos)
 			assert.Equal(t, tc.expected, result)
 		})
 	}
@@ -94,32 +93,4 @@ func TestIsLibraryInstalled(t *testing.T) {
 func TestGetLibraryVersion(t *testing.T) {
 	version := GetLibraryVersion()
 	assert.NotEmpty(t, version)
-}
-
-func TestGetDownloadURL(t *testing.T) {
-	tests := []struct {
-		version string
-		goos    string
-		arch    string
-		wantErr bool
-	}{
-		{"v1.7.4", "darwin", "arm64", false},
-		{"v1.7.4", "darwin", "amd64", false},
-		{"v1.7.4", "linux", "amd64", false},
-		{"v1.7.4", "windows", "amd64", false},
-		{"v1.7.4", "freebsd", "amd64", true},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.goos+"_"+tc.arch, func(t *testing.T) {
-			url, err := download.GetDownloadURL(tc.version, tc.goos, tc.arch)
-			if tc.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-				assert.Contains(t, url, "github.com")
-				assert.Contains(t, url, tc.version)
-			}
-		})
-	}
 }

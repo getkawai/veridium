@@ -5,6 +5,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 	"unsafe"
 
 	"github.com/ebitengine/purego"
@@ -385,10 +386,27 @@ var (
 
 // Dynamic library handle
 var libSD uintptr
+var libLoadOnce sync.Once
+var libLoadErr error
 
-// Load dynamic library
-func init() {
-	// Define dynamic library filename and path
+// EnsureLibrary loads the native library if not already loaded.
+// This is optional - the library will be loaded automatically on first use.
+// Call this explicitly if you want to trigger library loading early.
+func EnsureLibrary() error {
+	return ensureLibraryLoaded()
+}
+
+// ensureLibraryLoaded ensures the library is loaded exactly once.
+// This should be called at the beginning of any function that needs the library.
+func ensureLibraryLoaded() error {
+	libLoadOnce.Do(func() {
+		libLoadErr = loadLibrary()
+	})
+	return libLoadErr
+}
+
+// loadLibrary performs the actual library loading and function registration.
+func loadLibrary() error {
 	var libDir string
 	var libPath string
 	var err error
@@ -401,8 +419,7 @@ func init() {
 			var vulkanGPU string
 			vulkanGPU, err = GetVulkanGPU()
 			if err != nil || vulkanGPU == "" {
-				fmt.Println("Warning: Failed to get Vulkan GPU")
-				return
+				return fmt.Errorf("failed to get Vulkan GPU: %w", err)
 			}
 
 			libPath = GetSDLibPath("vulkan/stable-diffusion.dll")
@@ -411,8 +428,7 @@ func init() {
 		} else {
 			gpuName, err = GetGPUName()
 			if err != nil {
-				fmt.Println("Warning: Failed to get GPU name: " + err.Error())
-				return
+				return fmt.Errorf("failed to get GPU name: %w", err)
 			}
 
 			switch gpuName {
@@ -426,8 +442,6 @@ func init() {
 		}
 
 		if err != nil {
-			fmt.Println("Warning: Failed to load stable-diffusion library from path: " + libPath)
-			fmt.Println("Trying to load from GPU accelerated library failed, trying to load from CPU library")
 			libDir = GetCpuAVX()
 			libPath = GetSDLibPath(libDir + "/stable-diffusion.dll")
 			libSD, err = openLibrary(libPath)
@@ -442,12 +456,8 @@ func init() {
 	}
 
 	if err != nil || libSD == 0 {
-		fmt.Println("Warning: Failed to load stable-diffusion library from path: " + libPath)
-		fmt.Println(err)
-		return
+		return fmt.Errorf("failed to load stable-diffusion library from path %s: %w", libPath, err)
 	}
-
-	fmt.Println("Loaded stable-diffusion library: " + libPath)
 
 	// Bind functions
 	purego.RegisterLibFunc(&sdSetLogCallback, libSD, "sd_set_log_callback")
@@ -492,7 +502,7 @@ func init() {
 	purego.RegisterLibFunc(&sdCommit, libSD, "sd_commit")
 	purego.RegisterLibFunc(&sdVersion, libSD, "sd_version")
 
-	fmt.Println("Register lib func finish !")
+	return nil
 }
 
 // Wrapper functions
@@ -502,6 +512,9 @@ type SDLogCallbackType func(level SDLogLevelType, text string, data interface{})
 
 // SetLogCallback sets log callback
 func SetLogCallback(cb SDLogCallbackType, data interface{}) {
+	if err := ensureLibraryLoaded(); err != nil {
+		return
+	}
 	if cb == nil {
 		sdSetLogCallback(nil, nil)
 		return
@@ -517,6 +530,9 @@ func SetLogCallback(cb SDLogCallbackType, data interface{}) {
 
 // SetProgressCallback sets progress callback
 func SetProgressCallback(cb func(step int, steps int, time float32, data interface{}), data interface{}) {
+	if err := ensureLibraryLoaded(); err != nil {
+		return
+	}
 	if cb == nil {
 		sdSetProgressCallback(nil, nil)
 		return
@@ -531,6 +547,9 @@ func SetProgressCallback(cb func(step int, steps int, time float32, data interfa
 
 // SetPreviewCallback sets preview callback
 func SetPreviewCallback(cb func(step int, frameCount int, frames []SDImage, isNoisy bool, data interface{}), mode Preview, interval int, denoised bool, noisy bool, data interface{}) {
+	if err := ensureLibraryLoaded(); err != nil {
+		return
+	}
 	if cb == nil {
 		sdSetPreviewCallback(nil, mode, int32(interval), denoised, noisy, nil)
 		return
@@ -550,21 +569,33 @@ func SetPreviewCallback(cb func(step int, frameCount int, frames []SDImage, isNo
 
 // GetNumPhysicalCores gets the number of physical cores
 func GetNumPhysicalCores() int {
+	if err := ensureLibraryLoaded(); err != nil {
+		return 0
+	}
 	return int(sdGetNumPhysicalCores())
 }
 
 // GetSystemInfo gets system information
 func GetSystemInfo() string {
+	if err := ensureLibraryLoaded(); err != nil {
+		return ""
+	}
 	return CGoString(sdGetSystemInfo())
 }
 
 // SDTypeName gets SD type name
 func SDTypeName(typ SDType) string {
+	if err := ensureLibraryLoaded(); err != nil {
+		return ""
+	}
 	return CGoString(sdTypeName(typ))
 }
 
 // StrToSDType converts string to SD type
 func StrToSDType(str string) SDType {
+	if err := ensureLibraryLoaded(); err != nil {
+		return 0
+	}
 	cStr := CString(str)
 	defer FreeCString(cStr)
 	return strToSDType(cStr)
@@ -572,11 +603,17 @@ func StrToSDType(str string) SDType {
 
 // RNGTypeName gets RNG type name
 func RNGTypeName(rngType RngType) string {
+	if err := ensureLibraryLoaded(); err != nil {
+		return ""
+	}
 	return CGoString(sdRngTypeName(rngType))
 }
 
 // StrToRNGType converts string to RNG type
 func StrToRNGType(str string) RngType {
+	if err := ensureLibraryLoaded(); err != nil {
+		return 0
+	}
 	cStr := CString(str)
 	defer FreeCString(cStr)
 	return strToRngType(cStr)
@@ -584,11 +621,17 @@ func StrToRNGType(str string) RngType {
 
 // SampleMethodName gets sample method name
 func SampleMethodName(method SampleMethod) string {
+	if err := ensureLibraryLoaded(); err != nil {
+		return ""
+	}
 	return CGoString(sdSampleMethodName(method))
 }
 
 // StrToSampleMethod converts string to sample method
 func StrToSampleMethod(str string) SampleMethod {
+	if err := ensureLibraryLoaded(); err != nil {
+		return 0
+	}
 	cStr := CString(str)
 	defer FreeCString(cStr)
 	return strToSampleMethod(cStr)
@@ -596,11 +639,17 @@ func StrToSampleMethod(str string) SampleMethod {
 
 // SchedulerName gets scheduler name
 func SchedulerName(scheduler Scheduler) string {
+	if err := ensureLibraryLoaded(); err != nil {
+		return ""
+	}
 	return CGoString(sdSchedulerName(scheduler))
 }
 
 // StrToScheduler converts string to scheduler
 func StrToScheduler(str string) Scheduler {
+	if err := ensureLibraryLoaded(); err != nil {
+		return 0
+	}
 	cStr := CString(str)
 	defer FreeCString(cStr)
 	return strToScheduler(cStr)
@@ -608,11 +657,17 @@ func StrToScheduler(str string) Scheduler {
 
 // PredictionName gets prediction type name
 func PredictionName(prediction Prediction) string {
+	if err := ensureLibraryLoaded(); err != nil {
+		return ""
+	}
 	return CGoString(sdPredictionName(prediction))
 }
 
 // StrToPrediction converts string to prediction type
 func StrToPrediction(str string) Prediction {
+	if err := ensureLibraryLoaded(); err != nil {
+		return 0
+	}
 	cStr := CString(str)
 	defer FreeCString(cStr)
 	return strToPrediction(cStr)
@@ -620,11 +675,17 @@ func StrToPrediction(str string) Prediction {
 
 // PreviewName gets preview type name
 func PreviewName(preview Preview) string {
+	if err := ensureLibraryLoaded(); err != nil {
+		return ""
+	}
 	return CGoString(sdPreviewName(preview))
 }
 
 // StrToPreview converts string to preview type
 func StrToPreview(str string) Preview {
+	if err := ensureLibraryLoaded(); err != nil {
+		return 0
+	}
 	cStr := CString(str)
 	defer FreeCString(cStr)
 	return strToPreview(cStr)
@@ -632,11 +693,17 @@ func StrToPreview(str string) Preview {
 
 // LoraApplyModeName gets LoRA apply mode name
 func LoraApplyModeName(mode LoraApplyMode) string {
+	if err := ensureLibraryLoaded(); err != nil {
+		return ""
+	}
 	return CGoString(sdLoraApplyModeName(mode))
 }
 
 // StrToLoraApplyMode converts string to LoRA apply mode
 func StrToLoraApplyMode(str string) LoraApplyMode {
+	if err := ensureLibraryLoaded(); err != nil {
+		return 0
+	}
 	cStr := CString(str)
 	defer FreeCString(cStr)
 	return strToLoraApplyMode(cStr)
@@ -644,23 +711,35 @@ func StrToLoraApplyMode(str string) LoraApplyMode {
 
 // CacheParamsInit initializes cache parameters
 func CacheParamsInit(params *SDCacheParams) {
+	if err := ensureLibraryLoaded(); err != nil {
+		return
+	}
 	sdCacheParamsInit(params)
 }
 
 // ContextParamsInit initializes context parameters
 func ContextParamsInit(params *SDContextParams) {
+	if err := ensureLibraryLoaded(); err != nil {
+		return
+	}
 	sdContextParamsInit(params)
 }
 
 // ContextParamsToStr converts context parameters to string
 func ContextParamsToStr(params *SDContextParams) string {
+	if err := ensureLibraryLoaded(); err != nil {
+		return ""
+	}
 	return CGoString(sdContextParamsToStr(params))
 }
 
 // NewContext creates a new context
-func NewContext(params *SDContextParams) *SDContext {
+func NewContext(params *SDContextParams) (*SDContext, error) {
+	if err := ensureLibraryLoaded(); err != nil {
+		return nil, err
+	}
 	ptr := newSDContext(params)
-	return &SDContext{ptr: ptr}
+	return &SDContext{ptr: ptr}, nil
 }
 
 // FreeContext frees context
@@ -673,46 +752,73 @@ func (ctx *SDContext) Free() {
 
 // SampleParamsInit initializes sample parameters
 func SampleParamsInit(params *SDSampleParams) {
+	if err := ensureLibraryLoaded(); err != nil {
+		return
+	}
 	sdSampleParamsInit(params)
 }
 
 // SampleParamsToStr converts sample parameters to string
 func SampleParamsToStr(params *SDSampleParams) string {
+	if err := ensureLibraryLoaded(); err != nil {
+		return ""
+	}
 	return CGoString(sdSampleParamsToStr(params))
 }
 
 // GetDefaultSampleMethod gets default sample method
 func (ctx *SDContext) GetDefaultSampleMethod() SampleMethod {
+	if err := ensureLibraryLoaded(); err != nil {
+		return 0
+	}
 	return sdGetDefaultSampleMethod(ctx.ptr)
 }
 
 // GetDefaultScheduler gets default scheduler
 func (ctx *SDContext) GetDefaultScheduler(sampleMethod SampleMethod) Scheduler {
+	if err := ensureLibraryLoaded(); err != nil {
+		return 0
+	}
 	return sdGetDefaultScheduler(ctx.ptr, sampleMethod)
 }
 
 // ImgGenParamsInit initializes image generation parameters
 func ImgGenParamsInit(params *SDImgGenParams) {
+	if err := ensureLibraryLoaded(); err != nil {
+		return
+	}
 	sdImgGenParamsInit(params)
 }
 
 // ImgGenParamsToStr converts image generation parameters to string
 func ImgGenParamsToStr(params *SDImgGenParams) string {
+	if err := ensureLibraryLoaded(); err != nil {
+		return ""
+	}
 	return CGoString(sdImgGenParamsToStr(params))
 }
 
 // GenerateImage generates image
 func (ctx *SDContext) GenerateImage(params *SDImgGenParams) *SDImage {
+	if err := ensureLibraryLoaded(); err != nil {
+		return nil
+	}
 	return generateImage(ctx.ptr, params)
 }
 
 // VidGenParamsInit initializes video generation parameters
 func VidGenParamsInit(params *SDVidGenParams) {
+	if err := ensureLibraryLoaded(); err != nil {
+		return
+	}
 	sdVidGenParamsInit(params)
 }
 
 // GenerateVideo generates video
 func (ctx *SDContext) GenerateVideo(params *SDVidGenParams) ([]SDImage, int) {
+	if err := ensureLibraryLoaded(); err != nil {
+		return nil, 0
+	}
 	var numFrames int32
 	framesPtr := generateVideo(ctx.ptr, params, &numFrames)
 	if framesPtr == nil {
@@ -728,12 +834,15 @@ func (ctx *SDContext) GenerateVideo(params *SDVidGenParams) ([]SDImage, int) {
 }
 
 // NewUpscalerContext creates a new upscaler context
-func NewUpscalerContext(esrganPath string, offloadParamsToCPU bool, direct bool, nThreads int, tileSize int) *UpscalerContext {
+func NewUpscalerContext(esrganPath string, offloadParamsToCPU bool, direct bool, nThreads int, tileSize int) (*UpscalerContext, error) {
+	if err := ensureLibraryLoaded(); err != nil {
+		return nil, err
+	}
 	cPath := CString(esrganPath)
 	defer FreeCString(cPath)
 
 	ptr := newUpscalerContext(cPath, offloadParamsToCPU, direct, int32(nThreads), int32(tileSize))
-	return &UpscalerContext{ptr: ptr}
+	return &UpscalerContext{ptr: ptr}, nil
 }
 
 // FreeUpscalerContext frees upscaler context
@@ -746,16 +855,25 @@ func (ctx *UpscalerContext) Free() {
 
 // Upscale upscales image
 func (ctx *UpscalerContext) Upscale(inputImage SDImage, upscaleFactor uint32) SDImage {
+	if err := ensureLibraryLoaded(); err != nil {
+		return SDImage{}
+	}
 	return *upscale(ctx.ptr, &inputImage, upscaleFactor)
 }
 
 // GetUpscaleFactor gets upscale factor
 func (ctx *UpscalerContext) GetUpscaleFactor() int {
+	if err := ensureLibraryLoaded(); err != nil {
+		return 0
+	}
 	return int(getUpscaleFactor(ctx.ptr))
 }
 
 // Convert converts model
-func Convert(inputPath, vaePath, outputPath string, outputType SDType, tensorTypeRules string, convertName bool) bool {
+func Convert(inputPath, vaePath, outputPath string, outputType SDType, tensorTypeRules string, convertName bool) (bool, error) {
+	if err := ensureLibraryLoaded(); err != nil {
+		return false, err
+	}
 	cInputPath := CString(inputPath)
 	cVaePath := CString(vaePath)
 	cOutputPath := CString(outputPath)
@@ -768,21 +886,30 @@ func Convert(inputPath, vaePath, outputPath string, outputType SDType, tensorTyp
 		FreeCString(cTensorTypeRules)
 	}()
 
-	return convert(cInputPath, cVaePath, cOutputPath, outputType, cTensorTypeRules, convertName)
+	return convert(cInputPath, cVaePath, cOutputPath, outputType, cTensorTypeRules, convertName), nil
 }
 
 // PreprocessCanny preprocesses Canny edge detection
 func PreprocessCanny(image SDImage, highThreshold, lowThreshold, weak, strong float32, inverse bool) bool {
+	if err := ensureLibraryLoaded(); err != nil {
+		return false
+	}
 	return preprocessCanny(&image, highThreshold, lowThreshold, weak, strong, inverse)
 }
 
 // Commit gets commit information
 func Commit() string {
+	if err := ensureLibraryLoaded(); err != nil {
+		return ""
+	}
 	return CGoString(sdCommit())
 }
 
 // Version gets version information
 func Version() string {
+	if err := ensureLibraryLoaded(); err != nil {
+		return ""
+	}
 	return CGoString(sdVersion())
 }
 

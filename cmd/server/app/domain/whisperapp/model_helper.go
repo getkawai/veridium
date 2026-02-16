@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kawai-network/veridium/internal/paths"
 	"github.com/kawai-network/veridium/pkg/tools/downloader"
 )
 
@@ -139,33 +140,34 @@ var modelSpecs = []WhisperModelSpec{
 // ProgressCallback is called during download to report progress
 type ProgressCallback func(currentBytes, totalBytes int64)
 
-// DownloadModel downloads a whisper model to the specified directory
-// Note: Standalone whisper expects models as {name}.bin (not ggml-{name}.bin)
 func DownloadModel(ctx context.Context, modelName, modelsDir string, progress ProgressCallback) error {
+	return DownloadModelWithProgress(ctx, modelName, progress)
+}
+
+func DownloadModelWithProgress(ctx context.Context, modelName string, progress ProgressCallback) error {
 	spec, exists := GetModelSpec(modelName)
 	if !exists {
 		return fmt.Errorf("unknown model: %s", modelName)
 	}
 
-	// Ensure models directory exists
-	if err := os.MkdirAll(modelsDir, 0755); err != nil {
+	modelPath, err := paths.ModelPath(spec.URL)
+	if err != nil {
+		return fmt.Errorf("failed to get model path: %w", err)
+	}
+
+	if err := os.MkdirAll(modelPath, 0755); err != nil {
 		return fmt.Errorf("failed to create models directory: %w", err)
 	}
 
-	// Destination file path (standalone whisper uses {name}.bin format)
-	destPath := filepath.Join(modelsDir, fmt.Sprintf("%s.bin", modelName))
+	destPath := filepath.Join(modelPath, fmt.Sprintf("ggml-%s.bin", modelName))
 
-	// Check if model already exists
 	if info, err := os.Stat(destPath); err == nil {
-		// Verify file size matches expected size
 		if info.Size() == spec.Size {
-			return nil // Model already downloaded and correct size
+			return nil
 		}
-		// File exists but wrong size, re-download
 		os.Remove(destPath)
 	}
 
-	// Download using centralized downloader with progress tracking
 	progressFunc := func(src string, currentSize, totalSize int64, mibPerSec float64, complete bool) {
 		if progress != nil {
 			progress(currentSize, totalSize)
@@ -174,12 +176,12 @@ func DownloadModel(ctx context.Context, modelName, modelsDir string, progress Pr
 
 	downloaded, err := downloader.Download(ctx, spec.URL, destPath, progressFunc, downloader.SizeIntervalMIB10)
 	if err != nil {
-		os.Remove(destPath) // Cleanup on failure
+		os.Remove(destPath)
 		return fmt.Errorf("failed to download model: %w", err)
 	}
 
 	if !downloaded {
-		os.Remove(destPath) // Cleanup empty file
+		os.Remove(destPath)
 		return fmt.Errorf("download completed but no data was transferred")
 	}
 
@@ -228,15 +230,28 @@ func SelectOptimalModel(availableRAM int64) *WhisperModelSpec {
 	return selected
 }
 
-// GetModelPath returns the path to a model file
-// For standalone whisper, this is {modelsDir}/{name}.bin
-func GetModelPath(modelsDir, modelName string) string {
-	return filepath.Join(modelsDir, fmt.Sprintf("%s.bin", modelName))
+func GetModelPath(modelName string) (string, error) {
+	spec, exists := GetModelSpec(modelName)
+	if !exists {
+		return "", fmt.Errorf("unknown model: %s", modelName)
+	}
+	return paths.ModelPath(spec.URL)
 }
 
-// IsModelDownloaded checks if a model is already downloaded
-func IsModelDownloaded(modelsDir, modelName string) bool {
-	path := GetModelPath(modelsDir, modelName)
+func GetModelFilePath(modelName string) (string, error) {
+	modelPath, err := GetModelPath(modelName)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(modelPath, fmt.Sprintf("ggml-%s.bin", modelName)), nil
+}
+
+func IsModelDownloaded(modelName string) bool {
+	path, err := GetModelFilePath(modelName)
+	if err != nil {
+		return false
+	}
+
 	spec, exists := GetModelSpec(modelName)
 	if !exists {
 		return false
@@ -247,19 +262,23 @@ func IsModelDownloaded(modelsDir, modelName string) bool {
 		return false
 	}
 
-	// Verify file size matches expected size
 	return info.Size() == spec.Size
 }
 
-// ListDownloadedModels returns a list of downloaded model names
-func ListDownloadedModels(modelsDir string) ([]string, error) {
+func ListDownloadedModels() ([]string, error) {
+	modelsDir := paths.Models()
 	if _, err := os.Stat(modelsDir); os.IsNotExist(err) {
 		return []string{}, nil
 	}
 
 	var models []string
 
-	files, err := os.ReadDir(modelsDir)
+	ggmlDir := filepath.Join(modelsDir, "ggerganov", "whisper.cpp")
+	if _, err := os.Stat(ggmlDir); err != nil {
+		return []string{}, nil
+	}
+
+	files, err := os.ReadDir(ggmlDir)
 	if err != nil {
 		return nil, err
 	}
@@ -269,10 +288,9 @@ func ListDownloadedModels(modelsDir string) ([]string, error) {
 			continue
 		}
 		name := file.Name()
-		if strings.HasSuffix(name, ".bin") {
-			// Extract model name from "{name}.bin"
-			modelName := strings.TrimSuffix(name, ".bin")
-			// Verify it's a valid model
+		if strings.HasPrefix(name, "ggml-") && strings.HasSuffix(name, ".bin") {
+			modelName := strings.TrimPrefix(name, "ggml-")
+			modelName = strings.TrimSuffix(modelName, ".bin")
 			if _, exists := GetModelSpec(modelName); exists {
 				models = append(models, modelName)
 			}
@@ -282,9 +300,11 @@ func ListDownloadedModels(modelsDir string) ([]string, error) {
 	return models, nil
 }
 
-// DeleteModel deletes a downloaded model
-func DeleteModel(modelsDir, modelName string) error {
-	path := GetModelPath(modelsDir, modelName)
+func DeleteModel(modelName string) error {
+	path, err := GetModelFilePath(modelName)
+	if err != nil {
+		return err
+	}
 	if err := os.Remove(path); err != nil {
 		if os.IsNotExist(err) {
 			return fmt.Errorf("model not found: %s", modelName)

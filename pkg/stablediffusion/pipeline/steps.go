@@ -130,9 +130,9 @@ func (s *UpscaleStep) Execute(ctx *Context) error {
 	}
 
 	// Create upscaler
-	upscaler := stablediffusion.NewUpscaler(&s.Params)
-	if upscaler == nil {
-		return fmt.Errorf("failed to create upscaler")
+	upscaler, err := stablediffusion.NewUpscaler(&s.Params)
+	if err != nil {
+		return fmt.Errorf("failed to create upscaler: %w", err)
 	}
 
 	outputPath := filepath.Join(ctx.WorkingDir, s.OutputName)

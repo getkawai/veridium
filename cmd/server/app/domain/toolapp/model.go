@@ -15,6 +15,7 @@ import (
 // VersionResponse returns information about the installed libraries.
 type VersionResponse struct {
 	Status    string `json:"status"`
+	Library   string `json:"library,omitempty"`
 	Arch      string `json:"arch,omitempty"`
 	OS        string `json:"os,omitempty"`
 	Processor string `json:"processor,omitempty"`
@@ -31,6 +32,7 @@ func (app VersionResponse) Encode() ([]byte, string, error) {
 func toAppVersionTag(status string, vt libs.VersionTag) VersionResponse {
 	return VersionResponse{
 		Status:    status,
+		Library:   vt.Library.String(),
 		Arch:      vt.Arch,
 		OS:        vt.OS,
 		Processor: vt.Processor,
@@ -48,6 +50,25 @@ func toAppVersion(status string, vt libs.VersionTag) string {
 	}
 
 	return fmt.Sprintf("data: %s\n", string(d))
+}
+
+// LibsListResponse returns information about all installed libraries.
+type LibsListResponse struct {
+	Libraries []VersionResponse `json:"libraries"`
+}
+
+// Encode implements the encoder interface.
+func (app LibsListResponse) Encode() ([]byte, string, error) {
+	data, err := json.Marshal(app)
+	return data, "application/json", err
+}
+
+func toLibsListResponse(vts []libs.VersionTag) LibsListResponse {
+	libraries := make([]VersionResponse, len(vts))
+	for i, vt := range vts {
+		libraries[i] = toAppVersionTag("retrieve", vt)
+	}
+	return LibsListResponse{Libraries: libraries}
 }
 
 // =============================================================================

@@ -81,14 +81,15 @@ func (a *app) transcriptions(ctx context.Context, r *http.Request) web.Encoder {
 
 	language := r.FormValue("language")
 
-	// Get models directory using centralized paths
-	modelsDir := paths.WhisperModels()
-
-	// Model path for standalone whisper (format: {name}.bin, not ggml-{name}.bin)
-	modelPath := fmt.Sprintf("%s/%s.bin", modelsDir, modelName)
+	// Get model path using unified ModelPath structure
+	modelPath, err := GetModelFilePath(modelName)
+	if err != nil {
+		a.log.Error(ctx, "model lookup failed", "model", modelName, "error", err)
+		return errs.Errorf(errs.NotFound, "model %s not found. Please run 'kawai-contributor setup' to download whisper models.", modelName)
+	}
 
 	// Check if model exists
-	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
+	if _, statErr := os.Stat(modelPath); os.IsNotExist(statErr) {
 		a.log.Error(ctx, "model not found", "model", modelName, "path", modelPath)
 		return errs.Errorf(errs.NotFound, "model %s not found at %s. Please run 'kawai-contributor setup' to download whisper models.", modelName, modelPath)
 	}

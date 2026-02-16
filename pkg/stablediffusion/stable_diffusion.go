@@ -437,9 +437,12 @@ func NewStableDiffusion(ctxParams *ContextParams) (*StableDiffusion, error) {
 	}
 
 	// 2. Create new context
-	ctx := sd.NewContext(&sdCtxParams)
+	ctx, err := sd.NewContext(&sdCtxParams)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create context: %w", err)
+	}
 	if ctx == nil {
-		return nil, errors.New("failed to create context")
+		return nil, errors.New("failed to create context: returned nil")
 	}
 
 	return &StableDiffusion{
@@ -1004,7 +1007,7 @@ type Upscaler struct {
 }
 
 // NewUpscaler creates a new upscaler context
-func NewUpscaler(params *UpscalerParams) *Upscaler {
+func NewUpscaler(params *UpscalerParams) (*Upscaler, error) {
 	if params.NThreads == 0 {
 		params.NThreads = -1
 	}
@@ -1013,14 +1016,17 @@ func NewUpscaler(params *UpscalerParams) *Upscaler {
 		params.TileSize = 128
 	}
 
-	ctx := sd.NewUpscalerContext(
+	ctx, err := sd.NewUpscalerContext(
 		params.EsrganPath,
 		params.OffloadParamsToCPU,
 		params.Direct,
 		params.NThreads,
 		params.TileSize,
 	)
-	return &Upscaler{ctx: ctx}
+	if err != nil {
+		return nil, fmt.Errorf("failed to create upscaler context: %w", err)
+	}
+	return &Upscaler{ctx: ctx}, nil
 }
 
 // Upscale upscaling function
@@ -1064,9 +1070,12 @@ func Convert(inputPath, vaePath, outputPath, outputType, tensorTypeRules string,
 		return fmt.Errorf("invalid SDType: %s", outputType)
 	}
 
-	res := sd.Convert(inputPath, vaePath, outputPath, outputSDType, tensorTypeRules, convertName)
+	res, err := sd.Convert(inputPath, vaePath, outputPath, outputSDType, tensorTypeRules, convertName)
+	if err != nil {
+		return fmt.Errorf("failed to convert model: %w", err)
+	}
 	if !res {
-		return errors.New("failed to convert model")
+		return errors.New("failed to convert model: conversion returned false")
 	}
 	return nil
 }

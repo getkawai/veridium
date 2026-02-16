@@ -28,7 +28,7 @@ func Download(ctx context.Context, src string, dest string, progress ProgressFun
 		return false, errors.New("download: no network available")
 	}
 
-	// Create grab request
+	// Create grab request with resume support
 	req, err := grab.NewRequest(dest, src)
 	if err != nil {
 		return false, fmt.Errorf("download: failed to create request: %w", err)
@@ -47,6 +47,11 @@ func Download(ctx context.Context, src string, dest string, progress ProgressFun
 
 	// Start download
 	resp := client.Do(req)
+
+	// Check if resume occurred
+	if resp.DidResume {
+		progress(src, resp.BytesComplete(), resp.Size(), 0, false)
+	}
 
 	// Monitor progress if callback provided
 	if progress != nil {
