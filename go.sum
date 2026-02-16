@@ -403,8 +403,8 @@ github.com/kaptinlin/messageformat-go v0.4.6 h1:57DUC9en40mGZR7MvqOS+5EYogAl465f
 github.com/kaptinlin/messageformat-go v0.4.6/go.mod h1:r0PH7FsxJX8jS/n6LAYZon5w3X+yfCLUrquqYd2H7ks=
 github.com/kawai-network/grab v0.1.0 h1:fqL+IK+AjvyB0F3Rab0xFOw0+jTZawiqQnumgmIWmNs=
 github.com/kawai-network/grab v0.1.0/go.mod h1:yZ+7Bf10u8Dgr3GtAHgLv37wOSXewtU3GlxD/kNhqks=
-github.com/kawai-network/stablediffusion v0.1.0 h1:7Nz7XC4ND2MAT/z6aencgn8JLlSxRfV5Dgp+xwOXr8s=
-github.com/kawai-network/stablediffusion v0.1.0/go.mod h1:+4JGw9AnxfuI6g6PMI1b5Z3j0P/WYmsxnt4kL8SZ37w=
+github.com/kawai-network/stablediffusion v0.1.1 h1:hXc74w8VBB34TVJLRjwgYFAGXJ+3wk3s788rm4cd44Q=
+github.com/kawai-network/stablediffusion v0.1.1/go.mod h1:+4JGw9AnxfuI6g6PMI1b5Z3j0P/WYmsxnt4kL8SZ37w=
 github.com/kawai-network/whisper v0.4.0 h1:HcypCIoG9QPON0XmXnLkI2d+VlEENBxUa8TwkybMUek=
 github.com/kawai-network/whisper v0.4.0/go.mod h1:cq5yqj3mTh2SPp7MnlkLN7MwNiI+ljGEoQ0lk20tFzY=
 github.com/kawai-network/x v1.0.2 h1:24AzHohbkL/qp3xtvZ98/ywNFnjhY+T54oLZ8HS36aI=
